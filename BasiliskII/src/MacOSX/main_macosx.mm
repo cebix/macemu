@@ -223,6 +223,8 @@ bool InitEmulator (void)
 		ErrorAlert(str);
 		QuitEmulator();
 	}
+#else
+	*str = 0;		// Eliminate unused variable warning
 #endif
 
 	// Create areas for Mac RAM and ROM
