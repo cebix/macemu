@@ -169,7 +169,7 @@ static int16 VideoOpen(uint32 pb, VidLocals *csSave)
 	// Install and activate interrupt service
 	uint32 theServiceID = 0;
 	VSLNewInterruptService(csSave->regEntryID, FOURCC('v','b','l',' '), &theServiceID);
-	csSave->vslServiceID = theServiceID;
+	csSave->vslServiceID = ntohl(theServiceID);
 	D(bug(" Interrupt ServiceID %08lx\n", csSave->vslServiceID));
 	csSave->interruptsEnabled = true;
 
