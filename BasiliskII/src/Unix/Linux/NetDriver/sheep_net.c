@@ -509,7 +509,7 @@ static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int cod
 				err = -ENOMEM;
 				goto error;
 			}
-			skt_set_dead(v->skt->dead);
+			skt_set_dead(v->skt);
 
 			/* Attach packet handler */
 			v->pt.type = htons(ETH_P_ALL);
