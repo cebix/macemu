@@ -56,10 +56,6 @@ protected:
 	uint32 & pc()				{ return regs.pc; }
 	uint32 pc() const			{ return regs.pc; }
 	void increment_pc(int o)	{ pc() += o; }
-	uint32 & tbl()				{ return regs.tbl; }
-	uint32 tbl() const			{ return regs.tbl; }
-	uint32 & tbu()				{ return regs.tbu; }
-	uint32 tbu() const			{ return regs.tbu; }
 
 	friend class pc_operand;
 	friend class lr_operand;

@@ -50,13 +50,11 @@ void powerpc_cpu::set_register(int id, any_register const & value)
 	case powerpc_registers::XER:		xer().set(value.i);		break;
 	case powerpc_registers::LR:			lr() = value.i;			break;
 	case powerpc_registers::CTR:		ctr() = value.i;		break;
-	case powerpc_registers::TBL:		tbl() = value.i;		break;
-	case powerpc_registers::TBU:		tbu() = value.i;		break;
 	case basic_registers::PC:
 	case powerpc_registers::PC:			pc() = value.i;			break;
 	case basic_registers::SP:
 	case powerpc_registers::SP:			gpr(1)= value.i;		break;
-	default:					abort();				break;
+	default:							abort();				break;
 	}
 }
 
@@ -77,13 +75,11 @@ any_register powerpc_cpu::get_register(int id)
 	case powerpc_registers::XER:		value.i = xer().get();	break;
 	case powerpc_registers::LR:			value.i = lr();			break;
 	case powerpc_registers::CTR:		value.i = ctr();		break;
-	case powerpc_registers::TBL:		value.i = tbl();		break;
-	case powerpc_registers::TBU:		value.i = tbu();		break;
 	case basic_registers::PC:
 	case powerpc_registers::PC:			value.i = pc();			break;
 	case basic_registers::SP:
 	case powerpc_registers::SP:			value.i = gpr(1);		break;
-	default:					abort();				break;
+	default:							abort();				break;
 	}
 	return value;
 }
@@ -104,8 +100,6 @@ void powerpc_cpu::init_registers()
 	lr() = 0;
 	ctr() = 0;
 	pc() = 0;
-	tbl() = 0;
-	tbu() = 0;
 }
 
 void powerpc_cpu::init_flight_recorder()

@@ -1075,7 +1075,7 @@ void powerpc_cpu::execute_mftbr(uint32 opcode)
 	uint32 d;
 	switch (tbr) {
 	case 268: d = clock(); break;
-	case 269: d = tbu(); break;
+	case 269: d = 0; break;
 	default: execute_illegal(opcode);
 	}
 	operand_RD::set(this, opcode, d);
