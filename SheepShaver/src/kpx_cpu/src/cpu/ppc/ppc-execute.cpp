@@ -24,7 +24,6 @@
 #include <math.h>
 #include <time.h>
 
-#include "mathlib/ieeefp.hpp"
 #include "cpu/vm.hpp"
 #include "cpu/ppc/ppc-cpu.hpp"
 #include "cpu/ppc/ppc-bitfields.hpp"

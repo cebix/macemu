@@ -48,7 +48,8 @@ AC_PROG_CXX
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
 AC_PROG_EGREP
-AC_CHECK_PROGS(FILE, [file false])
+AC_PATH_PROGS(FILE, [file false])
+AC_PATH_PROG(PERL, [perl])
 
 dnl Check for PowerPC target CPU.
 HAVE_PPC=no
@@ -305,7 +306,7 @@ AC_CHECK_FUNCS(sigaction signal)
 AC_CHECK_FUNCS(mmap mprotect munmap)
 AC_CHECK_FUNCS(vm_allocate vm_deallocate vm_protect)
 AC_CHECK_FUNCS(posix_memalign memalign valloc)
-AC_CHECK_FUNCS(exp2f log2f exp2 log2)
+AC_CHECK_FUNCS(exp2f log2f exp2 log2 trunc)
 
 dnl Darwin seems to define mach_task_self() instead of task_self().
 AC_CHECK_FUNCS(mach_task_self task_self)
@@ -1070,7 +1071,7 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
         AC_CHECK_HEADERS(mmintrin.h xmmintrin.h emmintrin.h)
         ;;
       esac
-      DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -finline-limit=10000"
+      DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -finline-limit=10000 -g0"
       if [[ "x$HAVE_GCC30" = "xyes" ]]; then
         DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -fno-reorder-blocks -fno-optimize-sibling-calls"
       fi
@@ -1123,6 +1124,7 @@ if [[ "x$WANT_JIT" = "xyes" ]]; then
 fi
 
 dnl Generate Makefile.
+AC_SUBST(PERL)
 AC_SUBST(USE_DYNGEN, [$ac_cv_use_dyngen])
 AC_SUBST(DYNGENSRCS)
 AC_SUBST(DYNGEN_CC)

@@ -1,5 +1,5 @@
 /*
- *  ieeefp.hpp - Access to FPU environment
+ *  ieeefp.hpp - IEEE754 Floating-Point Math library
  *
  *  Kheperix (C) 2003-2005 Gwenole Beauchesne
  *
@@ -18,21 +18,35 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef IEEEFP_FENV_H
-#define IEEEFP_FENV_H
-
-#ifdef HAVE_FENV_H
-#include <fenv.h>
-#else
+#ifndef IEEEFP_H
+#define IEEEFP_H
 
 // Arch-dependent definitions
 #if defined(__i386__)
 #include "mathlib/ieeefp-i386.hpp"
 #endif
 
+#ifdef HAVE_FENV_H
+#include <fenv.h>
+#else
+
 // Rounding control
 extern "C" int fegetround(void);
 extern "C" int fesetround(int);
 
 #endif /* FENV_H */
-#endif /* IEEEFP_FENV_H */
+
+// Rounding
+#ifndef HAVE_TRUNC
+extern "C" double trunc(double);
+#endif
+
+// Comparison macros
+#ifndef isless
+#define isless(x, y) ((x) < (y))
+#endif
+#ifndef isgreater
+#define isgreater(x, y) ((x) > (y))
+#endif
+
+#endif /* IEEEFP_H */

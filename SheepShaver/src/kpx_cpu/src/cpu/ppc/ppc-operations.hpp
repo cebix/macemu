@@ -22,6 +22,7 @@
 #define PPC_OPERATIONS_H
 
 #include <math.h>
+#include "mathlib/ieeefp.hpp"
 
 /**
  *	Define an unary/binary/trinary operation

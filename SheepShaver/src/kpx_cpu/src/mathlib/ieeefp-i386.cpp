@@ -108,3 +108,21 @@ int fesetround(int round)
 
 	return 0;
 }
+
+// Truncate double value
+#ifndef HAVE_TRUNC
+#define HAVE_TRUNC
+double trunc(double x)
+{
+	volatile unsigned short int cw;
+	volatile unsigned short int cwtmp;
+	double value;
+
+	__asm__ __volatile__("fnstcw %0" : "=m" (cw));
+	cwtmp = (cw & 0xf3ff) | 0x0c00; /* toward zero */
+	__asm__ __volatile__("fldcw %0" : : "m" (cwtmp));
+	__asm__ __volatile__("frndint" : "=t" (value) : "0" (x));
+	__asm__ __volatile__("fldcw %0" : : "m" (cw));
+	return value;
+}
+#endif

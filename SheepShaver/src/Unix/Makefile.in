@@ -24,6 +24,7 @@ LIBS = @LIBS@
 SYSSRCS = @SYSSRCS@
 CPUSRCS = @CPUSRCS@
 MONSRCS = @MONSRCS@
+PERL = @PERL@
 USE_DYNGEN = @USE_DYNGEN@
 DYNGENSRCS = @DYNGENSRCS@
 DYNGEN_CC = @DYNGEN_CC@
@@ -142,7 +143,7 @@ $(OBJ_DIR)/%.o : %.S
 
 # Kheperix CPU emulator
 kpxsrcdir = ../kpx_cpu/src
-GENEXEC   = $(kpxsrcdir)/cpu/ppc/genexec.pl
+GENEXECPL = $(kpxsrcdir)/cpu/ppc/genexec.pl
 DYNGEN    = dyngen$(EXEEXT)
 
 ifeq ($(USE_DYNGEN),yes)
@@ -167,8 +168,8 @@ $(OBJ_DIR)/sheepshaver_glue.o $(OBJ_DIR)/ppc-cpu.o $(OBJ_DIR)/ppc-decode.o $(OBJ
 endif
 
 $(OBJ_DIR)/ppc-execute.o: ppc-execute-impl.cpp
-ppc-execute-impl.cpp: $(kpxsrcdir)/cpu/ppc/ppc-decode.cpp $(GENEXEC) $(DYNGENDEPS)
-	$(CPP) $(CPPFLAGS) -DGENEXEC $< | $(GENEXEC) > $@
+ppc-execute-impl.cpp: $(kpxsrcdir)/cpu/ppc/ppc-decode.cpp $(GENEXECPL) $(DYNGENDEPS)
+	$(CPP) $(CPPFLAGS) -DGENEXEC $< | $(PERL) $(GENEXECPL) > $@
 
 # PowerPC CPU tester
 TESTSRCS_ = mathlib/ieeefp.cpp cpu/ppc/ppc-cpu.cpp cpu/ppc/ppc-decode.cpp cpu/ppc/ppc-execute.cpp cpu/ppc/ppc-translate.cpp test/test-powerpc.cpp $(MONSRCS) vm_alloc.cpp

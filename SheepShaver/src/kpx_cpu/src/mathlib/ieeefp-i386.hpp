@@ -1,7 +1,8 @@
 /*
- *  ieeefp-i386.hpp - Access to FPU environment, x86 specific code
+ *  ieeefp-i386.hpp - IEEE754 Floating-Point Math library, x86 specific code
  *
  *  Kheperix (C) 2003-2005 Gwenole Beauchesne
+ *  Code derived from the GNU C Library
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,8 +19,11 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef IEEEFP_FENV_I386_H
-#define IEEEFP_FENV_I386_H
+#ifndef IEEEFP_I386_H
+#define IEEEFP_I386_H
+
+// 7.6  Floating-point environment <fenv.h>
+#ifndef HAVE_FENV_H
 
 // Exceptions
 enum {
@@ -49,4 +53,25 @@ enum {
 #define FE_TOWARDZERO	FE_TOWARDZERO
 };
 
-#endif /* IEEEFP_FENV_I386_H */
+#endif
+
+// 7.12.14  Comparison macros
+#if defined(__GNUC__)
+#ifndef isless
+#define isless(x, y)														\
+({ register char __result;													\
+   __asm__ ("fucompp; fnstsw; testb $0x45, %%ah; setz %%al"					\
+			: "=a" (__result) : "u" (x), "t" (y) : "cc", "st", "st(1)");	\
+   __result; })
+#endif
+
+#ifndef isgreater
+#define isgreater(x, y)														\
+({ register char __result;													\
+   __asm__ ("fucompp; fnstsw; testb $0x45, %%ah; setz %%al"					\
+			: "=a" (__result) : "u" (y), "t" (x) : "cc", "st", "st(1)");	\
+   __result; })
+#endif
+#endif
+
+#endif /* IEEEFP_I386_H */
