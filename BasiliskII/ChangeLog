@@ -1,4 +1,12 @@
 V0.8 (snapshot) - <date>
+	- UAE cpu: fixed a bug in the memory handlers preventing from
+	  correctly updating 15 and 16 bpp displays on big endian systems
+	- Unix: added (experimental) real addressing mode [Gwenole Beauchesne]
+	  (activated through the "--enable-addressing=real" configure option)
+	- Unix: added direct addressing mode [Gwenole Beauchesne]
+	  (default addressing mode, if possible)
+	- Unix: added screen updates on SEGV signals [Gwenole Beauchesne]
+	  (activated through the "--enable-vosf" configure option)
 	- AmigaOS: enabled floppy support, fixed floppy bugs [Jürgen Lachmann]
 	- AmigaOS: Amiga mouse pointer is hidden inside windowed Mac displays
 	- AmigaOS/sys_amiga.cpp: workaround for 2060scsi.device bug when
