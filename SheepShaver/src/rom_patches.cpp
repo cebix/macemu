@@ -906,6 +906,18 @@ static bool patch_nanokernel_boot(void)
 			lp[7] = htonl(0x00080008);	// Inst cache assoc/Data cache assoc
 			lp[8] = htonl(0x00800004);	// TLB total size/TLB assoc
 			break;
+		case 0x8000:	// 7400
+		case 0x800c:	// 7410
+			lp[0] = htonl(0x1000);		// Page size
+			lp[1] = htonl(0x8000);		// Data cache size
+			lp[2] = htonl(0x8000);		// Inst cache size
+			lp[3] = htonl(0x00200020);	// Coherency block size/Reservation granule size
+			lp[4] = htonl(0x00000020);	// Unified caches/Inst cache line size
+			lp[5] = htonl(0x00200020);	// Data cache line size/Data cache block size touch
+			lp[6] = htonl(0x00200020);	// Inst cache block size/Data cache block size
+			lp[7] = htonl(0x00080008);	// Inst cache assoc/Data cache assoc
+			lp[8] = htonl(0x00800002);	// TLB total size/TLB assoc
+			break;
 		default:
 			printf("WARNING: Unknown CPU type\n");
 			break;

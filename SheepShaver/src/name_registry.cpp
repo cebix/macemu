@@ -250,6 +250,25 @@ void DoPatchNameRegistry(void)
 					u32.set_value(128);
 					RegistryPropertyCreate(power_pc.ptr(), "tlb-size", u32.ptr(), 4);
 					break;
+				case 0x8000:	// 7400
+				case 0x800c:	// 7410
+					u32.set_value(32);
+					RegistryPropertyCreate(power_pc.ptr(), "d-cache-block-size", u32.ptr(), 4);
+					u32.set_value(128);
+					RegistryPropertyCreate(power_pc.ptr(), "d-cache-sets", u32.ptr(), 4);
+					u32.set_value(0x8000);
+					RegistryPropertyCreate(power_pc.ptr(), "d-cache-size", u32.ptr(), 4);
+					u32.set_value(32);
+					RegistryPropertyCreate(power_pc.ptr(), "i-cache-block-size", u32.ptr(), 4);
+					u32.set_value(128);
+					RegistryPropertyCreate(power_pc.ptr(), "i-cache-sets", u32.ptr(), 4);
+					u32.set_value(0x8000);
+					RegistryPropertyCreate(power_pc.ptr(), "i-cache-size", u32.ptr(), 4);
+					u32.set_value(64);
+					RegistryPropertyCreate(power_pc.ptr(), "tlb-sets", u32.ptr(), 4);
+					u32.set_value(128);
+					RegistryPropertyCreate(power_pc.ptr(), "tlb-size", u32.ptr(), 4);
+					break;
 				default:
 					break;
 			}

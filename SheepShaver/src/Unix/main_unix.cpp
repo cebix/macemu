@@ -460,7 +460,7 @@ int main(int argc, char **argv)
 			// Parse line
 			int i;
 			char value[256];
-			if (sscanf(line, "cpu : %s", value) == 1) {
+			if (sscanf(line, "cpu : %[0-9A-Za-a]", value) == 1) {
 				if (strcmp(value, "601") == 0)
 					PVR = 0x00010000;
 				else if (strcmp(value, "603") == 0)
@@ -481,6 +481,10 @@ int main(int argc, char **argv)
 					PVR = 0x00320000;
 				else if (strcmp(value, "860") == 0)
 					PVR = 0x00500000;
+				else if (strcmp(value, "7400") == 0)
+					PVR = 0x80000000;
+				else if (strcmp(value, "7410") == 0)
+					PVR = 0x800c0000;
 				else
 					printf("WARNING: Unknown CPU type '%s', assuming 604\n", value);
 			}
