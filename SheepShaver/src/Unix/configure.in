@@ -544,9 +544,6 @@ AC_CACHE_CHECK([whether the compiler can generate ELF objects],
 ])
 ELF_OBJECTS=$ac_cv_elf_objects
 
-dnl FIXME: forcibly disable JIT for now
-WANT_JIT=no
-
 dnl CPU emulator sources
 if [[ "x$EMULATED_PPC" = "xyes" ]]; then
   CPUSRCS="\
@@ -577,7 +574,7 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
     ])
     if [[ "x$ac_cv_use_dyngen" = "xyes" ]]; then
       case $host_cpu in
-      i?86:yes)
+      i?86)
         DYNGEN_OP_FLAGS="-fomit-frame-pointer -mpreferred-stack-boundary=2"
         if [[ "x$HAVE_GCC30" = "xyes" ]]; then
           DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -falign-functions=0"
@@ -617,11 +614,6 @@ if [[ "x$ac_cv_use_dyngen" = "xyes" ]]; then
       asm volatile("icbi 0,%0" : : "r" (p) : "memory");
       asm volatile("sync" : : : "memory");
       asm volatile("isync" : : : "memory");
-      ((void (*)(void))p)();
-      return 0;
-#endif
-#if defined(__i386__)
-      static unsigned char p[] = {0xc3};
       ((void (*)(void))p)();
       return 0;
 #endif
