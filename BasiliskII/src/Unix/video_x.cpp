@@ -293,6 +293,7 @@ static bool find_visual_for_depth(video_depth depth)
 		case DirectColor: D(bug("DirectColor\n")); break;
 	}
 #endif
+	return true;
 }
 
 // Add mode to list of supported modes
