@@ -44,6 +44,10 @@
 #include <string.h>
 #include <signal.h>
 
+#ifdef HAVE_PTHREADS
+# include <pthread.h>
+#endif
+
 #ifdef HAVE_FCNTL_H
 # include <fcntl.h>
 #endif
@@ -356,8 +360,10 @@ typedef struct timeval tm_time_t;
 extern uint64 GetTicks_usec(void);
 extern void Delay_usec(uint32 usec);
 
+#ifdef HAVE_PTHREADS
 // Setup pthread attributes
 extern void Set_pthread_attr(pthread_attr_t *attr, int priority);
+#endif
 
 // Various definitions
 typedef struct rgb_color {

@@ -815,7 +815,17 @@ static GList *add_serial_names(void)
 	if (d) {
 		struct dirent *de;
 		while ((de = readdir(d)) != NULL) {
+#if defined(__linux__)
 			if (strncmp(de->d_name, "ttyS", 4) == 0 || strncmp(de->d_name, "lp", 2) == 0) {
+#elif defined(__FreeBSD__)
+			if (strncmp(de->d_name, "cuaa", 4) == 0 || strncmp(de->d_name, "lpt", 3) == 0) {
+#elif defined(__NetBSD__)
+			if (strncmp(de->d_name, "tty0", 4) == 0 || strncmp(de->d_name, "lpt", 3) == 0) {
+#elif defined(sgi)
+			if (strncmp(de->d_name, "ttyf", 4) == 0 || strncmp(de->d_name, "plp", 3) == 0) {
+#else
+			if (false) {
+#endif
 				char *str = new char[64];
 				sprintf(str, "/dev/%s", de->d_name);
 				glist = g_list_append(glist, str);
@@ -846,7 +856,13 @@ static GList *add_ether_names(void)
 			struct ifreq req, *ifr = ifc.ifc_req;
 			for (int i=0; i<ifc.ifc_len; i+=sizeof(ifreq), ifr++) {
 				req = *ifr;
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(sgi)
+				if (ioctl(s, SIOCGIFADDR, &req) == 0 && (req.ifr_addr.sa_family == ARPHRD_ETHER || req.ifr_addr.sa_family == ARPHRD_ETHER+1)) {
+#elif defined(__linux__)
 				if (ioctl(s, SIOCGIFHWADDR, &req) == 0 && req.ifr_hwaddr.sa_family == ARPHRD_ETHER) {
+#else
+				if (false) {
+#endif
 					char *str = new char[64];
 					strncpy(str, ifr->ifr_name, 63);
 					glist = g_list_append(glist, str);
