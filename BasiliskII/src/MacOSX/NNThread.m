@@ -2,13 +2,14 @@
 //  NNThread.m -Not Nextstep Thread?
 //				Nigel's Nice Thread?
 //
-//	Revision 1.2, Wednesday Nov 7 2001
+//	Revision 1.3, Tuesday Oct 8 2002
 //
 //  Created by Nigel Pearson on Tue Nov 28 2000.
 //  Public Domain. No rights reserved.
 //
 
 #import "NNThread.h"
+#import <objc/objc-runtime.h>	// For objc_msgSend() prototype
 
 @implementation NNThread
 
