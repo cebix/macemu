@@ -306,7 +306,7 @@ static inline uae_u32 do_byteswap_16(uae_u32 v)
 #define ENUMNAME(name) name
 #define write_log printf
 
-#ifdef X86_ASSEMBLY
+#if defined(X86_ASSEMBLY) || defined(X86_64_ASSEMBLY)
 #define ASM_SYM_FOR_FUNC(a) __asm__(a)
 #else
 #define ASM_SYM_FOR_FUNC(a)
