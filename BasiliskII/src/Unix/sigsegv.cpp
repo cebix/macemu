@@ -212,7 +212,6 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 
 #if HAVE_SIGINFO_T
 // Generic extended signal handler
-#define SIGSEGV_FAULT_HANDLER			sigsegv_fault_handler
 #if defined(__NetBSD__) || defined(__FreeBSD__)
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGBUS)
 #else
@@ -257,7 +256,6 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #endif
 
 #if HAVE_SIGCONTEXT_SUBTERFUGE
-#define SIGSEGV_FAULT_HANDLER			sigsegv_fault_handler
 // Linux kernels prior to 2.4 ?
 #if defined(__linux__)
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
@@ -470,7 +468,7 @@ if (ret != KERN_SUCCESS) { \
 
 #define SIGSEGV_FAULT_ADDRESS			code[1]
 #define	SIGSEGV_FAULT_INSTRUCTION		get_fault_instruction(thread, state)
-#define SIGSEGV_FAULT_HANDLER			(code[0] == KERN_PROTECTION_FAILURE) && sigsegv_fault_handler
+#define SIGSEGV_FAULT_HANDLER_INVOKE(ADDR, IP)	((code[0] == KERN_PROTECTION_FAILURE) ? sigsegv_fault_handler(ADDR, IP) : SIGSEGV_RETURN_FAILURE)
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	mach_port_t thread, exception_data_t code, ppc_thread_state_t *state
 #define SIGSEGV_FAULT_HANDLER_ARGS		thread, code, &state
 #define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
@@ -784,6 +782,9 @@ static bool powerpc_skip_instruction(unsigned int * nip_p, unsigned int * regs)
 #ifndef SIGSEGV_FAULT_HANDLER_ARGLIST_1
 #define SIGSEGV_FAULT_HANDLER_ARGLIST_1	SIGSEGV_FAULT_HANDLER_ARGLIST
 #endif
+#ifndef SIGSEGV_FAULT_HANDLER_INVOKE
+#define SIGSEGV_FAULT_HANDLER_INVOKE(ADDR, IP)	sigsegv_fault_handler(ADDR, IP)
+#endif
 
 // SIGSEGV recovery supported ?
 #if defined(SIGSEGV_ALL_SIGNALS) && defined(SIGSEGV_FAULT_HANDLER_ARGLIST) && defined(SIGSEGV_FAULT_ADDRESS)
@@ -804,7 +805,7 @@ static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 	sigsegv_address_t fault_instruction = (sigsegv_address_t)SIGSEGV_FAULT_INSTRUCTION;
 	
 	// Call user's handler and reinstall the global handler, if required
-	switch (sigsegv_fault_handler(fault_address, fault_instruction)) {
+	switch (SIGSEGV_FAULT_HANDLER_INVOKE(fault_address, fault_instruction)) {
 	case SIGSEGV_RETURN_SUCCESS:
 		return true;
 
