@@ -62,7 +62,7 @@
 const uint32 CHECK_LOAD_PATCH_SPACE = 0x2fcf00;
 const uint32 PUT_SCRAP_PATCH_SPACE = 0x2fcf80;
 const uint32 GET_SCRAP_PATCH_SPACE = 0x2fcfc0;
-const uint32 ADDR_MAP_PATCH_SPACE = 0x2fd000;
+const uint32 ADDR_MAP_PATCH_SPACE = 0x2fd100;
 
 // Global variables
 int ROMType;				// ROM type
@@ -307,6 +307,23 @@ static uint32 find_rom_powerpc_branch(uint32 start, uint32 end, uint32 target)
 			return addr;
 	}
 	return 0;
+}
+
+
+/*
+ *  Check that requested ROM patch space is really available
+ */
+
+static bool check_rom_patch_space(uint32 base, uint32 size)
+{
+	size = (size + 3) & -4;
+	for (int i = 0; i < size; i += 4) {
+		uint32 x = ntohl(*(uint32 *)(ROM_BASE + base + i));
+		printf("%08x\n", x);
+		if (x != 0x6b636b63 && x != 0)
+			return false;
+	}
+	return true;
 }
 
 
@@ -697,13 +714,13 @@ bool PatchROM(void)
 		return false;
 
 	// Check that other ROM addresses point to really free regions
-	if (ntohl(*(uint32 *)(ROM_BASE + CHECK_LOAD_PATCH_SPACE)) != 0x6b636b63)
+	if (!check_rom_patch_space(CHECK_LOAD_PATCH_SPACE, 0x40))
 		return false;
-	if (ntohl(*(uint32 *)(ROM_BASE + PUT_SCRAP_PATCH_SPACE)) != 0x6b636b63)
+	if (!check_rom_patch_space(PUT_SCRAP_PATCH_SPACE, 0x40))
 		return false;
-	if (ntohl(*(uint32 *)(ROM_BASE + GET_SCRAP_PATCH_SPACE)) != 0x6b636b63)
+	if (!check_rom_patch_space(GET_SCRAP_PATCH_SPACE, 0x40))
 		return false;
-	if (ntohl(*(uint32 *)(ROM_BASE + ADDR_MAP_PATCH_SPACE)) != 0x6b636b63)
+	if (!check_rom_patch_space(ADDR_MAP_PATCH_SPACE - 10 * 4, 0x100))
 		return false;
 
 	// Apply patches
@@ -1646,7 +1663,7 @@ static bool patch_68k(void)
 	D(bug("scc_init_caller %08lx\n", base + 12));
 	wp = (uint16 *)(ROM_BASE + base + 12);
 	loc = ntohs(wp[1]) + ((uintptr)wp - ROM_BASE) + 2;
-	static const uint8 scc_init_dat[] = {0x08, 0x38, 0x00, 0x03, 0x0d, 0xd3, 0x67, 0x12, 0x20, 0x78, 0x01, 0xdc, 0x22, 0x78, 0x01, 0xd8};
+	static const uint8 scc_init_dat[] = {0x20, 0x78, 0x01, 0xdc, 0x22, 0x78, 0x01, 0xd8};
 	if ((base = find_rom_data(loc, loc + 0x80, scc_init_dat, sizeof(scc_init_dat))) != loc) return false;
 	D(bug("scc_init %08lx\n", base));
 	wp = (uint16 *)(ROM_BASE + base);
