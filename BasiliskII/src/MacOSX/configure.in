@@ -1018,7 +1018,7 @@ if [[ "x$ac_cv_header_AvailabilityMacros_h" = "xyes" ]]; then
 fi
 
 dnl Which IDE do we use?
-if test -d "Developer/Applications/Xcode.app"; then
+if test -d "/Developer/Applications/Xcode.app"; then
   IDE=xcodebuild
   PROJECT=BasiliskII.xcode
   IDEARGS="-project BasiliskII.xcode"
@@ -1055,5 +1055,6 @@ echo Floating-Point emulation core .......... : $FPE_CORE
 echo Assembly optimizations ................. : $ASM_OPTIMIZATIONS
 echo Addressing mode ........................ : $ADDRESSING_MODE
 echo Bad memory access recovery type ........ : $sigsegv_recovery
+echo Mac OS X development environment ....... : $IDE
 echo
 echo "Configuration done. Now type \"make\" (or \"make ide\")."
