@@ -165,6 +165,9 @@ struct sigregs {
 };
 
 #if defined(__linux__)
+#include <sys/ucontext.h>
+#define MACHINE_REGISTERS(scp)	((machine_regs *)(((ucontext_t *)scp)->uc_mcontext.regs))
+
 struct machine_regs : public pt_regs
 {
 	u_long & cr()				{ return pt_regs::ccr; }
@@ -179,12 +182,15 @@ struct machine_regs : public pt_regs
 	u_long & gpr(int i)			{ return pt_regs::gpr[i]; }
 	uint32 gpr(int i) const		{ return pt_regs::gpr[i]; }
 };
-
-#include <sys/ucontext.h>
-#define MACHINE_REGISTERS(scp)	((machine_regs *)(((ucontext_t *)scp)->uc_mcontext.regs))
 #endif
 
 #if defined(__APPLE__) && defined(__MACH__)
+#include <sys/signal.h>
+extern "C" int sigaltstack(const struct sigaltstack *ss, struct sigaltstack *oss);
+
+#include <sys/ucontext.h>
+#define MACHINE_REGISTERS(scp)	((machine_regs *)(((ucontext_t *)scp)->uc_mcontext))
+
 struct machine_regs : public mcontext
 {
 	uint32 & cr()				{ return ss.cr; }
@@ -199,12 +205,6 @@ struct machine_regs : public mcontext
 	uint32 & gpr(int i)			{ return (&ss.r0)[i]; }
 	uint32 gpr(int i) const		{ return (&ss.r0)[i]; }
 };
-
-#include <sys/ucontext.h>
-#define MACHINE_REGISTERS(scp)	((machine_regs *)(((ucontext_t *)scp)->uc_mcontext))
-
-#include <sys/signal.h>
-extern "C" int sigaltstack(const struct sigaltstack *ss, struct sigaltstack *oss);
 #endif
 
 static void build_sigregs(sigregs *srp, machine_regs *mrp)

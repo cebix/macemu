@@ -1,11 +1,20 @@
 #if (defined(__APPLE__) && defined(__MACH__))
-#define C_SYMBOL_NAME(X) _ ## X
+#define C_SYMBOL_NAME(NAME)	_ ## NAME
+#define ASM_MACRO_END		.endmacro
+#endif
+
+/* Defaults for GNU assembler */
+#ifndef ASM_MACRO_START
+#define ASM_MACRO_START		.macro
+#endif
+#ifndef ASM_MACRO_END
+#define ASM_MACRO_END		.endm
 #endif
 #ifndef C_SYMBOL_NAME
-#define C_SYMBOL_NAME(X) X
+#define C_SYMBOL_NAME(NAME)	NAME
 #endif
 #ifndef ASM_GLOBAL_DIRECTIVE
-#define ASM_GLOBAL_DIRECTIVE .globl
+#define ASM_GLOBAL_DIRECTIVE	.globl
 #endif
 
 /* Register names */

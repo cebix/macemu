@@ -566,19 +566,19 @@ C_SYMBOL_NAME(execute_68k):
  *  uint32 call_macos1(uint32 tvect{r3}, uint32 arg1{r4}) ... - Call MacOS routines
  */
 
-.macro	prolog
+ASM_MACRO_START	prolog
 	mflr	r0
 	stw	r0,4(r1)
 	stwu	r1,-64(r1)
-.endm
+ASM_MACRO_END
 
-.macro	epilog
+ASM_MACRO_START	epilog
 	lwz	r13,XLM_TOC(0)
 	lwz	r0,64+4(r1)
 	mtlr	r0
 	addi	r1,r1,64
 	blr
-.endm
+ASM_MACRO_END
 
 	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(call_macos)
 C_SYMBOL_NAME(call_macos):
