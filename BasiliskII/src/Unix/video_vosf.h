@@ -91,13 +91,19 @@ static void do_fbcopy_raw(uint8 * dest, const uint8 * source, uint32 length)
 #error "incomplete"
 #define FB_BLIT_1(dst, src)	(dst = (src))
 #define FB_BLIT_2(dst, src)	(dst = (src))
-#define FB_DEPTH			8
+#define FB_DEPTH			0
 #define FB_FUNC_NAME		do_fbcopy_raw
 #include "video_blit.h"
 #endif
 
 
 // RGB 555
+
+#ifdef WORDS_BIGENDIAN
+# define FB_FUNC_NAME do_fbcopy_15_obo
+#else
+# define FB_FUNC_NAME do_fbcopy_15_nbo
+#endif
 
 #define FB_BLIT_1(dst, src) \
 	(dst = (((src) >> 8) & 0xff) | (((src) & 0xff) << 8))
@@ -106,11 +112,40 @@ static void do_fbcopy_raw(uint8 * dest, const uint8 * source, uint32 length)
 	(dst = (((src) >> 8) & 0x00ff00ff) | (((src) & 0x00ff00ff) << 8))
 
 #define	FB_DEPTH 15
-#define FB_FUNC_NAME do_fbcopy_15
 #include "video_blit.h"
 
 
 // RGB 565
+
+#ifdef WORDS_BIGENDIAN
+
+// native byte order
+
+#define FB_BLIT_1(dst, src) \
+	(dst = (((src) & 0x1f) | (((src) << 1) & 0xffc0)))
+
+#define FB_BLIT_2(dst, src) \
+	(dst = (((src) & 0x001f001f) | (((src) << 1) & 0xffc0ffc0)))
+
+#define FB_DEPTH 16
+#define FB_FUNC_NAME do_fbcopy_16_nbo
+#include "video_blit.h"
+
+// opposite byte order (untested)
+
+#define FB_BLIT_1(dst, src) \
+	(dst = ((((src) >> 6) & 0xff) | (((src) & 0x60) << 9)))
+
+#define FB_BLIT_2(dst, src) \
+	(dst = ((((src) >> 6) & 0x00ff00ff) | (((src) & 0x00600060) << 9)))
+
+#define FB_DEPTH 16
+#define FB_FUNC_NAME do_fbcopy_16_obo
+#include "video_blit.h"
+
+#else
+
+// native byte order
 
 #define FB_BLIT_1(dst, src) \
 	(dst = (((src) >> 8) & 0x001f) | (((src) << 9) & 0xfe00) | (((src) >> 7) & 0x01c0))
@@ -119,11 +154,30 @@ static void do_fbcopy_raw(uint8 * dest, const uint8 * source, uint32 length)
 	(dst = (((src) >> 8) & 0x001f001f) | (((src) << 9) & 0xfe00fe00) | (((src) >> 7) & 0x01c001c0))
 
 #define FB_DEPTH 16
-#define FB_FUNC_NAME do_fbcopy_16
+#define FB_FUNC_NAME do_fbcopy_16_nbo
 #include "video_blit.h"
 
+// opposite byte order (untested)
+
+#define FB_BLIT_1(dst, src) \
+	(dst = (((src) & 0x1f00) | (((src) << 1) & 0xe0fe) | (((src) >> 15) & 1)))
+
+#define FB_BLIT_2(dst, src) \
+	(dst = (((src) & 0x1f001f00) | (((src) << 1) & 0xe0fee0fe) | (((src) >> 15) & 0x10001)))
+
+#define FB_DEPTH 16
+#define FB_FUNC_NAME do_fbcopy_16_obo
+#include "video_blit.h"
+
+#endif
 
 // RGB 888
+
+#ifdef WORDS_BIGENDIAN
+# define FB_FUNC_NAME do_fbcopy_24_obo
+#else
+# define FB_FUNC_NAME do_fbcopy_24_nbo
+#endif
 
 #define FB_BLIT_1(dst, src) \
 	(dst = (src))
@@ -132,7 +186,6 @@ static void do_fbcopy_raw(uint8 * dest, const uint8 * source, uint32 length)
 	(dst = (((src) >> 24) & 0xff) | (((src) >> 16) & 0xff00) | (((src) & 0xff00) << 16) | (((src) & 0xff) << 24))
 
 #define FB_DEPTH 24
-#define FB_FUNC_NAME do_fbcopy_24
 #include "video_blit.h"
 
 
@@ -155,20 +208,22 @@ static fbcopy_func do_update_framebuffer;
 // NT  : not tested
 // OK  : has been successfully tested
 // NBO : native byte order
+// OBO : opposite byte order
 static fbcopy_func fbcopy_funcs[ID_DEPTH_COUNT][2][2] = {
 #ifdef WORDS_BIGENDIAN
-				/*	alt byte order	  native byte order	*/
-/*  1 bpp */	{	WD(fbcopy_raw)	, WD(fbcopy_raw)	},	// NT
-/*  8 bpp */	{	WD(fbcopy_raw)	, WD(fbcopy_raw)	},	// OK (NBO)
-/* 15 bpp */	{	WD(fbcopy_15)	, WD(fbcopy_raw)	},	// NT
-/* 16 bpp */	{	WD(fbcopy_16)	, WD(fbcopy_raw)	},	// NT
-/* 24 bpp */	{	WD(fbcopy_24)	, WD(fbcopy_raw)	}	// NT
+				/*	opposite byte order		native byte order	*/
+/*  1 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_raw)		},	// NT
+/*  8 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_raw)		},	// OK (NBO)
+/* 15 bpp */	{	WD(fbcopy_15_obo)	,	WD(fbcopy_raw)		},	// NT
+/* 16 bpp */	{	WD(fbcopy_16_obo)	,	WD(fbcopy_16_nbo)	},	// NT
+/* 24 bpp */	{	WD(fbcopy_24_obo)	,	WD(fbcopy_raw)		}	// NT
 #else
-/*  1 bpp */	{	WD(fbcopy_raw)	, WD(fbcopy_raw)	},	// NT
-/*  8 bpp */	{	WD(fbcopy_raw)	, WD(fbcopy_raw)	},	// OK (NBO)
-/* 15 bpp */	{	WD(fbcopy_15)	, WD(fbcopy_15)		},	// OK (NBO)
-/* 16 bpp */	{	WD(fbcopy_16)	, WD(fbcopy_16)		},	// OK (NBO)
-/* 24 bpp */	{	WD(fbcopy_24)	, WD(fbcopy_24)		}	// NT
+				/*	opposite byte order		native byte order	*/
+/*  1 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_raw)		},	// NT
+/*  8 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_raw)		},	// OK (NBO)
+/* 15 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_15_nbo)	},	// OK (NBO)
+/* 16 bpp */	{	WD(fbcopy_16_obo)	,	WD(fbcopy_16_nbo)	},	// OK (NBO)
+/* 24 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_24_nbo)	}	// NT
 #endif
 };
 
