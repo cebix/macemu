@@ -223,9 +223,15 @@ static int backup_pointer = 0;
 static long int m68kpc_offset;
 int lastint_no;
 
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#define get_ibyte_1(o) get_byte(get_virtual_address(regs.pc_p) + (o) + 1)
+#define get_iword_1(o) get_word(get_virtual_address(regs.pc_p) + (o))
+#define get_ilong_1(o) get_long(get_virtual_address(regs.pc_p) + (o))
+#else
 #define get_ibyte_1(o) get_byte(regs.pc + (regs.pc_p - regs.pc_oldp) + (o) + 1)
 #define get_iword_1(o) get_word(regs.pc + (regs.pc_p - regs.pc_oldp) + (o))
 #define get_ilong_1(o) get_long(regs.pc + (regs.pc_p - regs.pc_oldp) + (o))
+#endif
 
 uae_s32 ShowEA (int reg, amodes mode, wordsizes size, char *buf)
 {
