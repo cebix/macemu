@@ -55,6 +55,7 @@ links:
 	       BeOS/serial_beos.cpp BeOS/sys_beos.cpp BeOS/timer_beos.cpp \
 	       BeOS/xpram_beos.cpp BeOS/SheepDriver BeOS/SheepNet \
 	       Unix/audio_oss_esd.cpp Unix/extfs_unix.cpp Unix/serial_unix.cpp \
+	       Unix/sshpty.h Unix/sshpty.c Unix/strlcpy.h Unix/strlcpy.c \
 	       Unix/sys_unix.cpp Unix/timer_unix.cpp Unix/xpram_unix.cpp \
 	       Unix/Linux/scsi_linux.cpp Unix/Linux/NetDriver'; \
 	PREFIX="`pwd`/"; case $(B2_TOPDIR) in /*) PREFIX="";; esac; \

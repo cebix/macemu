@@ -92,11 +92,24 @@ typedef long int32;
 #if SIZEOF_LONG == 8
 typedef unsigned long uint64;
 typedef long int64;
+#define VAL64(a) (a ## l)
+#define UVAL64(a) (a ## ul)
 #elif SIZEOF_LONG_LONG == 8
 typedef unsigned long long uint64;
 typedef long long int64;
+#define VAL64(a) (a ## LL)
+#define UVAL64(a) (a ## uLL)
 #else
 #error "No 8 byte type, you lose."
+#endif
+#if SIZEOF_VOID_P == 4
+typedef uint32 uintptr;
+typedef int32 intptr;
+#elif SIZEOF_VOID_P == 8
+typedef uint64 uintptr;
+typedef int64 intptr;
+#else
+#error "Unsupported size of pointer"
 #endif
 
 // Time data type for Time Manager emulation
@@ -127,13 +140,19 @@ typedef struct rgb_color {
 #define CallMacOS6(type, tvect, arg1, arg2, arg3, arg4, arg5, arg6) call_macos6((uint32)tvect, (uint32)arg1, (uint32)arg2, (uint32)arg3, (uint32)arg4, (uint32)arg5, (uint32)arg6)
 #define CallMacOS7(type, tvect, arg1, arg2, arg3, arg4, arg5, arg6, arg7) call_macos7((uint32)tvect, (uint32)arg1, (uint32)arg2, (uint32)arg3, (uint32)arg4, (uint32)arg5, (uint32)arg6, (uint32)arg7)
 
-extern "C" uint32 call_macos(uint32 tvect);
-extern "C" uint32 call_macos1(uint32 tvect, uint32 arg1);
-extern "C" uint32 call_macos2(uint32 tvect, uint32 arg1, uint32 arg2);
-extern "C" uint32 call_macos3(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3);
-extern "C" uint32 call_macos4(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, uint32 arg4);
-extern "C" uint32 call_macos5(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, uint32 arg4, uint32 arg5);
-extern "C" uint32 call_macos6(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, uint32 arg4, uint32 arg5, uint32 arg6);
-extern "C" uint32 call_macos7(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, uint32 arg4, uint32 arg5, uint32 arg6, uint32 arg7);
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern uint32 call_macos(uint32 tvect);
+extern uint32 call_macos1(uint32 tvect, uint32 arg1);
+extern uint32 call_macos2(uint32 tvect, uint32 arg1, uint32 arg2);
+extern uint32 call_macos3(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3);
+extern uint32 call_macos4(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, uint32 arg4);
+extern uint32 call_macos5(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, uint32 arg4, uint32 arg5);
+extern uint32 call_macos6(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, uint32 arg4, uint32 arg5, uint32 arg6);
+extern uint32 call_macos7(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, uint32 arg4, uint32 arg5, uint32 arg6, uint32 arg7);
+#ifdef __cplusplus
+}
+#endif
 
 #endif

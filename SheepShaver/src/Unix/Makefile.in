@@ -31,7 +31,8 @@ SRCS = main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp sys_unix.cpp
     ../adb.cpp clip_unix.cpp ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp \
     Linux/scsi_linux.cpp ../video.cpp video_x.cpp ../audio.cpp audio_oss_esd.cpp ../ether.cpp \
     Linux/ether_linux.cpp ../serial.cpp serial_unix.cpp ../extfs.cpp extfs_unix.cpp \
-    about_window_unix.cpp ../user_strings.cpp user_strings_unix.cpp $(SYSSRCS)
+    about_window_unix.cpp ../user_strings.cpp user_strings_unix.cpp \
+    sshpty.c strlcpy.c $(SYSSRCS)
 APP = SheepShaver
 
 ## Rules
