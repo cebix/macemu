@@ -27,6 +27,7 @@
 #include <libraries/asl.h>
 #include <libraries/gtlayout.h>
 #include <libraries/Picasso96.h>
+#include <cybergraphx/cybergraphics.h>
 #include <graphics/displayinfo.h>
 #include <devices/ahi.h>
 #include <proto/exec.h>
@@ -37,6 +38,7 @@
 #include <proto/graphics.h>
 #include <proto/asl.h>
 #include <proto/Picasso96.h>
+#include <proto/cybergraphics.h>
 #include <proto/ahi.h>
 
 #include "sysdeps.h"
@@ -1239,15 +1241,27 @@ static void ghost_graphics_gadgets(struct LayoutHandle *h)
 // Show screen mode requester
 static void screen_mode_req(struct Window *win, struct LayoutHandle *h)
 {
-	if (P96Base == NULL)
+	if (P96Base == NULL && CyberGfxBase == NULL)
 		return;
 
 	LT_LockWindow(win);
-	ULONG id = p96RequestModeIDTags(
-		P96MA_MinDepth, 8,
-		P96MA_FormatsAllowed, RGBFF_CLUT | RGBFF_R5G5B5 | RGBFF_A8R8G8B8,
-		TAG_END
-	);
+
+	ULONG id;
+
+	if (CyberGfxBase) {
+		UWORD model_array[] = {PIXFMT_LUT8, PIXFMT_RGB16, PIXFMT_ARGB32, 0, ~0};
+		id = (ULONG) CModeRequestTags(NULL,
+			CYBRMREQ_MinDepth, 8,
+			CYBRMREQ_CModelArray, (ULONG)model_array,
+			TAG_END
+		);
+	} else {
+		id = p96RequestModeIDTags(
+			P96MA_MinDepth, 8,
+			P96MA_FormatsAllowed, RGBFF_CLUT | RGBFF_R5G5B5 | RGBFF_A8R8G8B8,
+			TAG_END
+		);
+	}
 	LT_UnlockWindow(win);
 
 	if (id != INVALID_ID) {

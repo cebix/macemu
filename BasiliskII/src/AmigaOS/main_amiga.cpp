@@ -91,6 +91,7 @@ struct Library *GadToolsBase = NULL;
 struct Library *IFFParseBase = NULL;
 struct Library *AslBase = NULL;
 struct Library *P96Base = NULL;
+struct Library *CyberGfxBase = NULL;
 struct Library *TimerBase = NULL;
 struct Library *AHIBase = NULL;
 struct Library *DiskBase = NULL;
@@ -180,7 +181,10 @@ int main(void)
 		ErrorAlert(GetString(STR_NO_ASL_LIB_ERR));
 		QuitEmulator();
 	}
+
+	// These two can fail (the respective gfx support won't be available, then)
 	P96Base = OpenLibrary((UBYTE *)"Picasso96API.library", 2);
+	CyberGfxBase = OpenLibrary((UBYTE *)"cybergraphics.library", 2);
 
 	// Read preferences
 	PrefsInit();
@@ -398,6 +402,8 @@ void QuitEmulator(void)
 	PrefsExit();
 
 	// Close libraries
+	if (CyberGfxBase)
+		CloseLibrary(CyberGfxBase);
 	if (P96Base)
 		CloseLibrary(P96Base);
 	if (AslBase)

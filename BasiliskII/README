@@ -234,11 +234,11 @@ screen <video mode>
         15-bit truecolor display in a Picasso96 PIP. This requires
         Picasso96 as well as a PIP-capable graphics card (e.g. Picasso IV).
       scr/<hexadecimal mode ID>
-        8/15/24-bit fullscreen display on a Picasso96 screen with the given
-        mode ID. This requires Picasso96. For 15 and 24 bit, the frame buffer
-        format must be QuickDraw-compatible (big-endian, xRGB 1:5:5:5 or
-        xRGB 8:8:8:8). The screen size will be the default size for that
-        mode ID.
+        8/15/24-bit fullscreen display on a Picasso96/CyberGraphX screen with
+        the given mode ID. This requires Picasso96 or CyberGraphX. For 15 and
+        24 bit, the frame buffer format must be QuickDraw-compatible
+        (big-endian, xRGB 1:5:5:5 or xRGB 8:8:8:8). The screen size will be
+        the default size for that mode ID.
 
   Windows:
     The "video mode" is one of the following:
