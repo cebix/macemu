@@ -77,6 +77,8 @@ const uint32 siHeadphoneVolume		= FOURCC('p','v','o','l');	// volume level of he
 const uint32 siHeadphoneVolumeSteps	= FOURCC('h','d','s','t');	// number of volume steps for headphone
 const uint32 siSpeakerMute			= FOURCC('s','m','u','t');	// mute state of all built-in speakers
 const uint32 siSpeakerVolume		= FOURCC('s','v','o','l');	// volume level of built-in speaker
+const uint32 siDeviceName			= FOURCC('n','a','m','e');
+const uint32 siDeviceIcon			= FOURCC('i','c','o','n');
 
 enum {	// ComponentResource struct
 	componentType = 0,
