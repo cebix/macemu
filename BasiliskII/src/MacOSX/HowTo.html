@@ -1,0 +1,144 @@
+<!DOCTYPE html PUBLIC "-//IETF//DTD HTML 2.0//EN"><HTML>
+<HEAD><TITLE>Basilisk II, Mac OS X port, HowTos</TITLE></HEAD>
+<BODY>
+
+<H1> Index </H1>
+
+<UL>
+<LI> <A HREF="#minreq">	Minimum Requirements</A> </LI>
+<LI> <A HREF="#rom">	Macintosh ROM image	</A> </LI>
+<LI> <A HREF="#b-disk">	Creating a boot disk</A> </LI>
+<LI> <A HREF="#mount">	Mounting Unix Files</A> </LI>
+</UL>
+
+<HR>
+
+<H2> <A NAME="minreq"> Minimum Requirements </A> </H2>
+
+To run Basilisk II, you need both:
+<UL>
+<LI>A Mac ROM image. Even though there is a ROM in your OS X Mac,
+	it is too new for a 68k Mac to make use of. Any Mac II ROM,
+	and most of the Quadra ROMS, will work. In the near future,
+	Mac Plus, SE or Classic ROMS may also be usable (though only
+	for emulating a monochrome Mac). Quadra 660av and 840av
+	ROMS are currently also unusable </LI>
+<LI>A copy of the MacOS, which at the moment has to either be on
+	a CD-ROM, or on a disk image </LI>
+</UL>
+
+<HR>
+
+<H2> <A NAME="rom"> Macintosh ROM image </A> </H2>
+
+<P> To run Basilisk II, you need a ROM image, which is a data file
+containing a copy of the ROM chips from a real 68k Macintosh. </P>
+
+<P> The best way (<I>i.e.</I> most legally acceptable) to get a ROM
+image is to produce it from your old Mac. Take a program like CopyROM,
+download it onto your old Mac, and use it to produce the image file,
+which you then upload to your OS X Mac. </P>
+
+<P> The easiest way to get a ROM image is to get one from someone else
+(<I>e.g.</I> another Basilisk II user, or an emulation web site).
+Note that this probably contravenes several copyright laws. </P>
+
+<P>Once you have your ROM image, you need to tell Basilisk II to use it:
+<OL>
+<LI> Open the Basilisk II application </LI>
+<LI> Go to the 'BasiliskII' menu, then the Preferences...' menu item </LI>
+<LI> On the Emulation tab, there is a field 'ROM file:'. Either type in the
+	path to the ROM file, or click the Browse button and Open the ROM file </LI>
+<LI> Click the Save button, so that Basilisk II will be able to find the ROM
+	each time you boot it </LI>
+</OL>
+</P>
+
+<P> If you want to press the Run button on the 'BasilsikII Emulator' window,
+after a few moments you should see a Mac screen, with a picture of a floppy
+disk with a flashing question mark. That is the Mac telling you that it needs
+a disk to boot from. </P>
+
+<HR>
+
+<H2> <A NAME="b-disk"> Creating a boot disk </A> </H2>
+
+<P> Basilisk II needs a copy of the MacOS to boot from. Anything from System 6
+through to MacOS 8.1 should be usable, although I have only tested System 7.1
+and 7.6. </P>
+
+<P> It is possible to use Basilisk II with a CD-ROM, but because most bootable
+CDs have a minimal System Folder, it is better if you use a disk image with the
+MacOS installed on it. </P>
+
+<P> There are two options: either grab an image that someone else has made,
+or create one yourself. If you have some time, and access to a MacOS install CD,
+then these instructions will help you do the latter. </P>
+
+
+<H3> Create a new BasiliskII disk </H3>
+
+<P> Before you can install the MacOS onto a disk volume,
+you need to create a disk to install onto: </P>
+
+<OL>
+<LI> Start up the Basilisk spplication.<BR>
+	(If it is already running, skip this step)</LI>
+<LI> Open the preferences. </LI>
+<LI> Go to the Disk Volumes tab. </LI>
+<LI> Press the 'Create...' button
+     (go with the defaults, unless you think you will need a huge disk). </LI>
+</OL>
+
+<P> If you want to have more than one hard disk available to Basilisk II,
+you could create additional volumes here. </P>
+
+
+<H3> Installing the MacOS </H3>
+
+<P> Insert your MacOS install CD-ROM, and wait a few moments for
+the Finder to mount the disk. While still in your preferences: </P>
+
+<OL>
+<LI> Go to the Emulation tab and check that your emulation is appropriate
+     for your install image
+     <BR>(<I>e.g.</I> I had to change from Quadra900 to IIci,
+          because my generic 7.1 install CD didn't support the Quadra). </LI>
+<LI> Click the save button. </LI>
+<LI> In the BasiliskII Emulator window, click Run. <BR>
+	(If it is already running, but showing the floppy with the question mark,
+	 press the restart button - the triangle in the bottom right hand corner) <BR>
+     You should get a HappyMac, and the emulator will start to boot from the CD.
+     You should then a dialog asking you to format a disk. </LI>
+<LI> Click Initialize, then Erase, give the disk an appropriate name
+     (<I>e.g.</I> Hard Disk), then click OK. </LI>
+<LI> Find the OS installer (in my case the CD booted into At Ease, and one of
+     the first buttons was 'Install System'), and go with the defaults. </LI>
+</OL>
+
+<P> After the installer finishes it may try to reboot (or you may need to
+force a reboot). When it reboots, BasiliskII may exit. Start it again,
+and you should boot into your installed OS. </P>
+
+<HR>
+
+<H2> <A NAME="mount">Mounting Unix Files</A> </H2>
+
+<P> If Basilisk II is running MacOS 7.6 or newer, you can easily access some
+of the files from your OS X disks. Just set the 'Unix directory to mount' in the
+Volumes tab of the Preferences. Next time the Emulator starts up, a new disk will
+appear on its Desktop (called Unix). </P>
+
+<P> To prevent clashes with the OS X desktop files, I suggest that the directory
+you select is not a whole disk (<I>e.g.</I> '/' or '/Volumes/disk'). Mount a
+sub-folder instead (like '/Applications (Mac OS 9)'). </P>
+
+<HR>
+
+$Id$
+<BR>
+Written by Nigel Pearson on 26th March, 2003.
+
+</BODY>
+
+</HTML>
