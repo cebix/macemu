@@ -265,7 +265,12 @@ dnl Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS(unistd.h fcntl.h sys/types.h sys/time.h sys/mman.h mach/mach.h)
 AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
-AC_CHECK_HEADERS(linux/if.h linux/if_tun.h net/if.h net/if_tun.h)
+AC_CHECK_HEADERS(sys/socket.h)
+AC_CHECK_HEADERS(linux/if.h linux/if_tun.h net/if.h net/if_tun.h, [], [], [
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+])
 AC_CHECK_HEADERS(AvailabilityMacros.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
