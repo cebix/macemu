@@ -240,19 +240,31 @@ static fbcopy_func fbcopy_funcs[ID_DEPTH_COUNT][2][2] = {
  *	Screen fault handler
  */
 
-static inline void do_handle_screen_fault(uintptr addr)
+const uintptr INVALID_PC = (uintptr)-1;
+
+static inline void do_handle_screen_fault(uintptr addr, uintptr pc = INVALID_PC)
 {
-	if ((addr < mainBuffer.memStart) || (addr >= mainBuffer.memEnd)) {
-		fprintf(stderr, "Segmentation fault at 0x%08X\n", addr);
-		abort();
+	/* Someone attempted to write to the frame buffer. Make it writeable
+	 * now so that the data could actually be written. It will be made
+	 * read-only back in one of the screen update_*() functions.
+	 */
+	if ((addr >= mainBuffer.memStart) && (addr < mainBuffer.memEnd)) {
+		const int page  = (addr - mainBuffer.memStart) >> mainBuffer.pageBits;
+		caddr_t page_ad = (caddr_t)(addr & ~(mainBuffer.pageSize - 1));
+		LOCK_VOSF;
+		PFLAG_SET(page);
+		mprotect(page_ad, mainBuffer.pageSize, PROT_READ | PROT_WRITE);
+		UNLOCK_VOSF;
+		return;
 	}
 	
-	const int page  = (addr - mainBuffer.memStart) >> mainBuffer.pageBits;
-	caddr_t page_ad = (caddr_t)(addr & ~(mainBuffer.pageSize - 1));
-	LOCK_VOSF;
-	PFLAG_SET(page);
-	mprotect(page_ad, mainBuffer.pageSize, PROT_READ | PROT_WRITE);
-	UNLOCK_VOSF;
+	/* Otherwise, we don't know how to handle the fault, let it crash */
+	fprintf(stderr, "do_handle_screen_fault: unhandled address 0x%08X", addr);
+	if (pc != INVALID_PC)
+		fprintf(stderr, " [IP=0x%08X]", pc);
+	fprintf(stderr, "\n");
+	
+	signal(SIGSEGV, SIG_DFL);
 }
 
 #if defined(HAVE_SIGINFO_T)
@@ -269,7 +281,7 @@ static void Screen_fault_handler(int, siginfo_t * sip, void *)
 static void Screen_fault_handler(int, struct sigcontext scs)
 {
 	D(bug("Screen_fault_handler: ADDR=0x%08X from IP=0x%08X\n", scs.cr2, scs.eip));
-	do_handle_screen_fault((uintptr)scs.cr2);
+	do_handle_screen_fault((uintptr)scs.cr2, (uintptr)scs.eip);
 }
 
 # elif defined(__m68k__) && defined(__NetBSD__)
@@ -342,20 +354,12 @@ static inline void update_display_window_vosf(void)
 {
 	int page = 0;
 	for (;;) {
-		while (PFLAG_ISCLEAR_4(page))
-			page += 4;
-		
-		while (PFLAG_ISCLEAR(page))
-			page++;
-		
-		if (page >= mainBuffer.pageCount)
+		const int first_page = find_next_page_set(page);
+		if (first_page >= mainBuffer.pageCount)
 			break;
-		
-		const int first_page = page;
-		while ((page < mainBuffer.pageCount) && PFLAG_ISSET(page)) {
-			PFLAG_CLEAR(page);
-			++page;
-		}
+
+		page = find_next_page_clear(first_page);
+		PFLAG_CLEAR_RANGE(first_page, page);
 
 		// Make the dirty pages read-only again
 		const int32 offset  = first_page << mainBuffer.pageBits;
@@ -465,21 +469,13 @@ static inline void update_display_dga_vosf(void)
 {
 	int page = 0;
 	for (;;) {
-		while (PFLAG_ISCLEAR_4(page))
-			page += 4;
-		
-		while (PFLAG_ISCLEAR(page))
-			page++;
-		
-		if (page >= mainBuffer.pageCount)
+		const int first_page = find_next_page_set(page);
+		if (first_page >= mainBuffer.pageCount)
 			break;
-		
-		const int first_page = page;
-		while ((page < mainBuffer.pageCount) && PFLAG_ISSET(page)) {
-			PFLAG_CLEAR(page);
-			++page;
-		}
-		
+
+		page = find_next_page_clear(first_page);
+		PFLAG_CLEAR_RANGE(first_page, page);
+
 		// Make the dirty pages read-only again
 		const int32 offset  = first_page << mainBuffer.pageBits;
 		const uint32 length = (page - first_page) << mainBuffer.pageBits;
