@@ -109,6 +109,10 @@
 
 #import <AppKit/NSImage.h>		// For [NSBundle pathForImageResource:] proto
 
+#include <string>
+using std::string;
+extern string UserPrefsPath;	// from prefs_unix.cpp
+
 #import "sysdeps.h"				// Types used in Basilisk C++ code
 #import "video_macosx.h"		// some items that we edit here
 #import "misc_macosx.h"			// WarningSheet() prototype
@@ -215,6 +219,22 @@
 		[extFS setStringValue: [oP directory] ];
 		PrefsReplaceString("extfs", [[oP directory] cString]);
 		edited = YES;
+	}
+}
+
+- (IBAction) BrowsePrefs:		(id)sender
+{
+	NSOpenPanel *oP = [NSOpenPanel openPanel];
+
+	[oP setCanChooseFiles: YES];
+	[oP setTitle:  @"Select a Preferences file"];
+	D(NSLog(@"%s - home = %@", __PRETTY_FUNCTION__, home));
+	if ( [oP runModalForDirectory: ([prefsFile stringValue] ? [prefsFile stringValue] : home)
+							 file:nil
+							types:nil] == NSOKButton )
+	{
+		[prefsFile setStringValue: [oP filename] ];
+		UserPrefsPath = [[oP filename] cString];
 	}
 }
 
@@ -601,11 +621,9 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 	[self RemoveVolumeEntry];
 }
 
-- (IBAction) ResetPrefs: (id)sender
+- (void) loadPrefs: (int) argc
+			  args: (char **) argv
 {
-	int		argc = 0;
-	char	**argv = NULL;
-
 	[panel close];				// Temporarily hide preferences panel
 
 	PrefsExit();				// Purge all the old pref values
@@ -619,6 +637,24 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 
 	[self ShowPrefs: self];		// Reset items in panel, and redisplay
 	edited = NO;
+}
+
+- (IBAction) LoadPrefs: (id)sender
+{
+	int		argc = 2;
+	char	*argv[2];
+
+	argv[0] = "--prefs",
+	argv[1] = (char *) [[prefsFile stringValue] cString];
+
+	[self loadPrefs: argc
+			   args: argv];
+}
+
+- (IBAction) ResetPrefs: (id)sender
+{
+	[self loadPrefs: 0
+			   args: NULL];
 }
 
 - (void) setStringOf: (NSTextField *) field
@@ -665,6 +701,8 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 	[self setStringOf: modem	 fromPref: "seriala"];
 	[self setStringOf: printer	 fromPref: "serialb"];
     [self setStringOf: ROMfile	 fromPref: "rom"	];
+
+	[prefsFile setStringValue: [NSString stringWithCString: UserPrefsPath.c_str()] ];
 
 
 	parse_screen_prefs(PrefsFindString("screen"));
