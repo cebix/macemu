@@ -1,3 +1,4 @@
+# $Id$
 # MacOS X makefile for Basilisk II. Slightly based on the Unix one
 
 ## System specific configuration
