@@ -1170,8 +1170,6 @@ bool VideoInit(void)
 			}
 		}
 	}
-	if (cur_mode == -1)
-		cur_mode = find_mode(default_mode, APPLE_W_640x480, DIS_WINDOW);
 	assert(cur_mode != -1);
 
 #if DEBUG
