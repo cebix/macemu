@@ -1425,9 +1425,13 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			goto again;
 		}
 	}
-	// TODO: optimize this to a direct jump to pregenerated code?
-	dg.gen_mov_ad_A0_im((uintptr)bi);
-	dg.gen_jump_next_A0();
+	// In direct block chaining mode, this code is reached only if
+	// there are pending spcflags, i.e. get out of this block
+	if (!use_direct_block_chaining) {
+		// TODO: optimize this to a direct jump to pregenerated code?
+		dg.gen_mov_ad_A0_im((uintptr)bi);
+		dg.gen_jump_next_A0();
+	}
 	dg.gen_exec_return();
 	dg.gen_end();
 	bi->end_pc = dpc;
