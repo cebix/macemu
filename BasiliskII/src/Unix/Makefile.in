@@ -72,7 +72,7 @@ install: $(APP) installdirs
 	$(INSTALL_DATA) fbdevices $(DESTDIR)$(datadir)/$(APP)/fbdevices
 
 installdirs:
-	$(SHELL) mkinstalldirs $(bindir) $(man1dir) $(datadir)/$(APP)
+	$(SHELL) mkinstalldirs $(DESTDIR)$(bindir) $(DESTDIR)$(man1dir) $(DESTDIR)$(datadir)/$(APP)
 
 uninstall:
 	rm -f $(DESTDIR)$(bindir)/$(APP)
