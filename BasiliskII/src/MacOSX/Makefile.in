@@ -9,7 +9,7 @@ CC = @CC@
 CXX = @CXX@
 CFLAGS = @CFLAGS@
 CXXFLAGS = @CXXFLAGS@
-CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../uae_cpu
+CPPFLAGS = @CPPFLAGS@ -I../include -I. @CPUINCLUDES@
 DEFS = @DEFS@ @DEFINES@ -D_REENTRANT
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
@@ -84,20 +84,9 @@ $(OBJ_DIR)/build68k: ../uae_cpu/build68k.c
 $(OBJ_DIR)/cpuopti: ../uae_cpu/cpuopti.c
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(LDFLAGS) $< -o $@
 
-#$(OBJ_DIR)/gencpu: cpudefs.cpp ../uae_cpu/gencpu.c ../uae_cpu/readcpu.cpp
-#	$(CXX) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(CXXFLAGS) $(LDFLAGS) $< -o $@
+$(OBJ_DIR)/gencpu: cpudefs.cpp ../uae_cpu/gencpu.c ../uae_cpu/readcpu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
 
-$(OBJ_DIR)/gencpu: $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
-	$(CC) $(LDFLAGS) $^ -o $@
-
-$(OBJ_DIR)/gencpu.o : ../uae_cpu/gencpu.c
-	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
-
-$(OBJ_DIR)/readcpu.o: ../uae_cpu/readcpu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
-
-$(OBJ_DIR)/cpudefs.o: cpudefs.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
 
 
 cpudefs.cpp: $(OBJ_DIR)/build68k ../uae_cpu/table68k
@@ -131,23 +120,6 @@ cpuemu7.cpp: cpuemu.cpp
 cpuemu8.cpp: cpuemu.cpp
 	echo '#define PART_8' > $@
 	echo '#include "$<"' >> $@
-
-#cpuemu1.cpp: cpuemu.cpp
-#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 -E $< > $@
-#cpuemu2.cpp: cpuemu.cpp
-#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 -E $< > $@
-#cpuemu3.cpp: cpuemu.cpp
-#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 -E $< > $@
-#cpuemu4.cpp: cpuemu.cpp
-#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 -E $< > $@
-#cpuemu5.cpp: cpuemu.cpp
-#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 -E $< > $@
-#cpuemu6.cpp: cpuemu.cpp
-#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 -E $< > $@
-#cpuemu7.cpp: cpuemu.cpp
-#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 -E $< > $@
-#cpuemu8.cpp: cpuemu.cpp
-#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 -E $< > $@
 
 
 cpufast.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
