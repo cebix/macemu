@@ -563,6 +563,12 @@ OSX_monitor::init_window(const video_mode &mode)
 
   #ifdef CG_USE_ALPHA
 	mask_buffer(the_buffer, x, the_buffer_size);
+
+/* Create an image mask with this call? */
+//CG_EXTERN CGImageRef
+//CGImageMaskCreate(size_t width, size_t height, size_t bitsPerComponent,
+//					size_t bitsPerPixel, size_t bytesPerRow,
+//					CGDataProviderRef provider, const float decode[], bool shouldInterpolate);
   #endif
 
 	return true;
@@ -1019,6 +1025,24 @@ OSX_monitor::switch_to_current_mode(void)
 			 ! ( the_buffer = CGDisplayBaseAddress(theDisplay) ) )
 			failure = "Could not get base address of screen";
 
+	}
+	// Clean up the old CGImageRef stuff
+	else if ( display_type == DISPLAY_WINDOW && imageRef )
+	{
+		CGImageRef			oldImageRef		= imageRef;
+		CGColorSpaceRef		oldColourSpace	= colourSpace;
+		CGDataProviderRef	oldProvider		= provider;
+		void				*oldBuffer		= the_buffer;
+ 
+		if ( video_open(mode) )
+		{
+			CGImageRelease(oldImageRef);
+			CGColorSpaceRelease(oldColourSpace);
+			CGDataProviderRelease(oldProvider);
+			free(oldBuffer);
+		}
+		else
+			failure = "Could not video_open() requested mode";
 	}
 	else if ( ! video_open(mode) )
 		failure = "Could not video_open() requested mode";
