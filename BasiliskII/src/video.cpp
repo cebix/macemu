@@ -409,6 +409,7 @@ static void switch_mode(const video_mode &mode, uint32 param, uint32 dce)
 	// Patch frame buffer base address for MacOS versions <7.6
 	if (!VidLocal.dm_present) { // Only do this when no Display Manager seems to be present; otherwise, the screen will not get redrawn
 		WriteMacInt32(0x824, frame_base);			// ScrnBase
+		WriteMacInt32(0x898, frame_base);			// CrsrBase
 		uint32 gdev = ReadMacInt32(0x8a4);			// MainDevice
 		gdev = ReadMacInt32(gdev);
 		uint32 pmap = ReadMacInt32(gdev + 0x16);	// gdPMap
@@ -619,8 +620,8 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 			return noErr;
 
 		case cscSetDefaultMode: { // Set default color depth
-			uint16 mode = ReadMacInt16(param + csMode);
-			D(bug(" SetDefaultMode %04x\n", mode));
+			uint16 mode = ReadMacInt8(param + csMode);
+			D(bug(" SetDefaultMode %02x\n", mode));
 			VidLocal.preferred_mode = mode;
 			return noErr;
 		}
@@ -733,12 +734,12 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 
 		case cscGetGray:			// Get luminance mapping flag
 			D(bug(" GetGray -> %d\n", VidLocal.luminance_mapping));
-			WriteMacInt16(param, VidLocal.luminance_mapping ? 0x0100 : 0);
+			WriteMacInt8(param, VidLocal.luminance_mapping ? 1 : 0);
 			return noErr;
 
 		case cscGetInterrupt:		// Get interrupt disable flag
 			D(bug(" GetInterrupt -> %d\n", VidLocal.interrupts_enabled));
-			WriteMacInt16(param, VidLocal.interrupts_enabled ? 0 : 0x0100);
+			WriteMacInt8(param, VidLocal.interrupts_enabled ? 0 : 1);
 			return noErr;
 
 		case cscGetGamma:
@@ -747,8 +748,8 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 			return noErr;
 
 		case cscGetDefaultMode:		// Get default color depth
-			D(bug(" GetDefaultMode -> %04x\n", VidLocal.preferred_mode));
-			WriteMacInt16(param + csMode, VidLocal.preferred_mode);
+			D(bug(" GetDefaultMode -> %02x\n", VidLocal.preferred_mode));
+			WriteMacInt8(param + csMode, VidLocal.preferred_mode);
 			return noErr;
 
 		case cscGetCurrentMode:		// Get current video mode (depth and resolution)
@@ -832,6 +833,7 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 			WriteMacInt32(param + csVerticalLines, y);
 			WriteMacInt32(param + csRefreshRate, 75 << 16);
 			WriteMacInt16(param + csMaxDepthMode, DepthToAppleMode(max_depth_of_resolution(id)));
+			WriteMacInt32(param + csResolutionFlags, 0);
 			return noErr;
 		}
 
@@ -899,6 +901,23 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 				}
 			}
 			return paramErr; // specified resolution/depth not supported
+		}
+
+		case cscGetMultiConnect: {
+			uint32 conn = ReadMacInt32(param + csDisplayCountOrNumber);
+			D(bug(" GetMultiConnect %08x\n", conn));
+			if (conn == 0xffffffff) {	// Get number of connections
+				WriteMacInt32(param + csDisplayCountOrNumber, 1); // Single-headed
+				return noErr;
+			} else if (conn == 1) {		// Get information about first connection
+				WriteMacInt16(param + csConnectInfo + csDisplayType, 8);		// Modeless connection
+				WriteMacInt8(param + csConnectInfo + csConnectTaggedType, 0);
+				WriteMacInt8(param + csConnectInfo + csConnectTaggedData, 0);
+				WriteMacInt32(param + csConnectInfo + csConnectFlags, 0x43);	// All modes valid and safe, non-standard tagging
+				WriteMacInt32(param + csConnectInfo + csDisplayComponent, 0);
+				return noErr;
+			} else
+				return paramErr;
 		}
 
 		default:

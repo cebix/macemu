@@ -181,4 +181,9 @@ enum {	// struct GammaTbl
 	SIZEOF_GammaTbl = 12
 };
 
+enum {	// struct VDMultiConnectInfo
+	csDisplayCountOrNumber = 0,
+	csConnectInfo = 4
+};
+
 #endif
