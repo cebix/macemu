@@ -85,7 +85,7 @@ mostlyclean:
 	rm -f $(APP) $(OBJ_DIR)/* core* *.core *~ *.bak
 
 clean: mostlyclean
-	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h
+	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h compemu.cpp compstbl.cpp comptbl.h
 
 distclean: clean
 	rm -rf $(OBJ_DIR)
@@ -108,13 +108,28 @@ $(OBJ_DIR)/build68k: $(OBJ_DIR)/build68k.o
 	$(CC) $(LDFLAGS) -o $(OBJ_DIR)/build68k $(OBJ_DIR)/build68k.o
 $(OBJ_DIR)/gencpu: $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
 	$(CXX) $(LDFLAGS) -o $(OBJ_DIR)/gencpu $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+$(OBJ_DIR)/gencomp: $(OBJ_DIR)/gencomp.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+	$(CXX) $(LDFLAGS) -o $(OBJ_DIR)/gencomp $(OBJ_DIR)/gencomp.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+
 cpudefs.cpp: $(OBJ_DIR)/build68k ../uae_cpu/table68k
 	$(OBJ_DIR)/build68k <../uae_cpu/table68k >cpudefs.cpp
 cpustbl.cpp: cpuemu.cpp
+cpustbl_nf.cpp: cpustbl.cpp
+compstbl.cpp: compemu.cpp
 cputbl.h: cpuemu.cpp
+comptbl.h: compemu.cpp
 
 cpuemu.cpp: $(OBJ_DIR)/gencpu
 	$(OBJ_DIR)/gencpu
+
+compemu.cpp: $(OBJ_DIR)/gencomp
+	$(OBJ_DIR)/gencomp
+
+$(OBJ_DIR)/cpustbl_nf.o: cpustbl.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -DNOFLAGS -c $< -o $@
+
+$(OBJ_DIR)/compemu_support.o: compemu_support.cpp comptbl.h
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/cpuemu1.o: cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 $(CXXFLAGS) -c $< -o $@
@@ -131,6 +146,40 @@ $(OBJ_DIR)/cpuemu6.o: cpuemu.cpp
 $(OBJ_DIR)/cpuemu7.o: cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 $(CXXFLAGS) -c $< -o $@
 $(OBJ_DIR)/cpuemu8.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 $(CXXFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/cpuemu1_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu2_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu3_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu4_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu5_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu6_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu7_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu8_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/compemu1.o: compemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/compemu2.o: compemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/compemu3.o: compemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/compemu4.o: compemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/compemu5.o: compemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/compemu6.o: compemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/compemu7.o: compemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/compemu8.o: compemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 $(CXXFLAGS) -c $< -o $@
 
 cpufast.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
@@ -169,6 +218,43 @@ cpufast8.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 -S $(CXXFLAGS) $< -o cputmp8.s
 	$(OBJ_DIR)/cpuopti <cputmp8.s >$@ || mv cputmp8.s $@
 	rm -f cputmp8.s
+
+cpufast_nf.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DNOFLAGS -S $(CXXFLAGS) $< -o cputmp_nf.s
+	$(OBJ_DIR)/cpuopti <cputmp_nf.s >$@ || mv cputmp_nf.s $@
+	rm -f cputmp_nf.s
+cpufast1_nf.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 -DNOFLAGS -S $(CXXFLAGS) $< -o cputmp1_nf.s
+	$(OBJ_DIR)/cpuopti <cputmp1_nf.s >$@ || mv cputmp1_nf.s $@
+	rm -f cputmp1_nf.s
+cpufast2_nf.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 -DNOFLAGS -S $(CXXFLAGS) $< -o cputmp2_nf.s
+	$(OBJ_DIR)/cpuopti <cputmp2_nf.s >$@ || mv cputmp2_nf.s $@
+	rm -f cputmp2_nf.s
+cpufast3_nf.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 -DNOFLAGS -S $(CXXFLAGS) $< -o cputmp3_nf.s
+	$(OBJ_DIR)/cpuopti <cputmp3_nf.s >$@ || mv cputmp3_nf.s $@
+	rm -f cputmp3_nf.s
+cpufast4_nf.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 -DNOFLAGS -S $(CXXFLAGS) $< -o cputmp4_nf.s
+	$(OBJ_DIR)/cpuopti <cputmp4_nf.s >$@ || mv cputmp4_nf.s $@
+	rm -f cputmp4_nf.s
+cpufast5_nf.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 -DNOFLAGS -S $(CXXFLAGS) $< -o cputmp5_nf.s
+	$(OBJ_DIR)/cpuopti <cputmp5_nf.s >$@ || mv cputmp5_nf.s $@
+	rm -f cputmp5_nf.s
+cpufast6_nf.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 -DNOFLAGS -S $(CXXFLAGS) $< -o cputmp6_nf.s
+	$(OBJ_DIR)/cpuopti <cputmp6_nf.s >$@ || mv cputmp6_nf.s $@
+	rm -f cputmp6_nf.s
+cpufast7_nf.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 -DNOFLAGS -S $(CXXFLAGS) $< -o cputmp7_nf.s
+	$(OBJ_DIR)/cpuopti <cputmp7_nf.s >$@ || mv cputmp7_nf.s $@
+	rm -f cputmp7_nf.s
+cpufast8_nf.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 -DNOFLAGS -S $(CXXFLAGS) $< -o cputmp8_nf.s
+	$(OBJ_DIR)/cpuopti <cputmp8_nf.s >$@ || mv cputmp8_nf.s $@
+	rm -f cputmp8_nf.s
 
 #-------------------------------------------------------------------------
 # DO NOT DELETE THIS LINE -- make depend depends on it.
