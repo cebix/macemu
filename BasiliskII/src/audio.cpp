@@ -404,7 +404,7 @@ adat_error:	printf("FATAL: audio component data block initialization error\n");
 
 			// Init sound component data
 			WriteMacInt32(audio_data + adatData + scd_flags, 0);
-			WriteMacInt32(audio_data + adatData + scd_format, AudioStatus.sample_size == 16 ? 'twos' : 'raw ');
+			WriteMacInt32(audio_data + adatData + scd_format, AudioStatus.sample_size == 16 ? FOURCC('t','w','o','s') : FOURCC('r','a','w',' '));
 			WriteMacInt16(audio_data + adatData + scd_numChannels, AudioStatus.channels);
 			WriteMacInt16(audio_data + adatData + scd_sampleSize, AudioStatus.sample_size);
 			WriteMacInt32(audio_data + adatData + scd_sampleRate, AudioStatus.sample_rate);

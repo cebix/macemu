@@ -270,7 +270,7 @@ static void list_universal_infos(void)
 				printf("Universal Table at %08x:\n", q);
 				printf("Offset\t ID\tHWCfg\tROM85\tModel\n");
 				printf("------------------------------------------------\n");
-				while (ofs = ReadMacInt32(ROMBaseMac + q)) {
+				while ((ofs = ReadMacInt32(ROMBaseMac + q))) {
 					print_universal_info(ROMBaseMac + ofs + q);
 					q += 4;
 				}
@@ -1461,7 +1461,7 @@ static bool patch_rom_32(void)
 	}
 
 	// Patch .EDisk driver (don't scan for EDisks in the area ROMBase..0xe00000)
-	uint32 edisk_offset = find_rom_resource('DRVR', 51);
+	uint32 edisk_offset = find_rom_resource(FOURCC('D','R','V','R'), 51);
 	if (edisk_offset) {
 		static const uint8 edisk_dat[] = {0xd5, 0xfc, 0x00, 0x01, 0x00, 0x00, 0xb5, 0xfc, 0x00, 0xe0, 0x00, 0x00};
 		base = find_rom_data(edisk_offset, edisk_offset + 0x10000, edisk_dat, sizeof(edisk_dat));
@@ -1474,7 +1474,7 @@ static bool patch_rom_32(void)
 	}
 
 	// Replace .Sony driver
-	sony_offset = find_rom_resource('DRVR', 4);
+	sony_offset = find_rom_resource(FOURCC('D','R','V','R'), 4);
 	D(bug("sony %08lx\n", sony_offset));
 	memcpy(ROMBaseHost + sony_offset, sony_driver, sizeof(sony_driver));
 
@@ -1493,7 +1493,7 @@ static bool patch_rom_32(void)
 	memcpy(ROMBaseHost + sony_offset + 0xa00, CDROMIcon, sizeof(CDROMIcon));
 
 	// Install SERD patch and serial drivers
-	serd_offset = find_rom_resource('SERD', 0);
+	serd_offset = find_rom_resource(FOURCC('S','E','R','D'), 0);
 	D(bug("serd %08lx\n", serd_offset));
 	wp = (uint16 *)(ROMBaseHost + serd_offset + 12);
 	*wp++ = htons(M68K_EMUL_OP_SERD);
@@ -1570,8 +1570,8 @@ static bool patch_rom_32(void)
 #endif
 
 	// Look for double PACK 4 resources
-	if ((base = find_rom_resource('PACK', 4)) == 0) return false;
-	if ((base = find_rom_resource('PACK', 4, true)) == 0 && FPUType == 0)
+	if ((base = find_rom_resource(FOURCC('P','A','C','K'), 4)) == 0) return false;
+	if ((base = find_rom_resource(FOURCC('P','A','C','K'), 4, true)) == 0 && FPUType == 0)
 		printf("WARNING: This ROM seems to require an FPU\n");
 
 	// Patch VIA interrupt handler

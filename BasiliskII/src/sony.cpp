@@ -449,7 +449,7 @@ int16 SonyControl(uint32 pb, uint32 dce)
 				WriteMacInt32(pb + csParam, 0x0104);	// External drive
 			return noErr;
 
-		case 'SC': {	// Format and write to disk
+		case 0x5343: {	// Format and write to disk ('SC'), used by DiskCopy
 			if (!ReadMacInt8(info->status + dsDiskInPlace))
 				return offLinErr;
 			if (info->read_only)
@@ -503,11 +503,11 @@ int16 SonyStatus(uint32 pb, uint32 dce)
 			WriteMacInt32(pb + csParam, ReadMacInt32(info->status + dsMFMDrive) & 0xffffff00 | 0xfe);
 			return noErr;
 
-		case 'DV':	// Duplicator version supported
+		case 0x4456: // Duplicator version supported ('DV')
 			WriteMacInt16(pb + csParam, 0x0410);
 			return noErr;
 
-		case 'SC':	// Get address header format byte
+		case 0x5343: // Get address header format byte ('SC')
 			WriteMacInt8(pb + csParam, 0x22);	// 512 bytes/sector
 			return noErr;
 

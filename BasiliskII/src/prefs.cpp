@@ -394,7 +394,7 @@ static void write_prefs(FILE *f, const prefs_desc *list)
 				fprintf(f, "%s %d\n", list->name, PrefsFindInt16(list->name));
 				break;
 			case TYPE_INT32:
-				fprintf(f, "%s %ld\n", list->name, PrefsFindInt32(list->name));
+				fprintf(f, "%s %d\n", list->name, PrefsFindInt32(list->name));
 				break;
 			default:
 				break;

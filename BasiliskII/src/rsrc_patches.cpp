@@ -22,6 +22,7 @@
 
 #include "sysdeps.h"
 #include "cpu_emulation.h"
+#include "macos_util.h"
 #include "main.h"
 #include "emul_op.h"
 #include "audio.h"
@@ -67,9 +68,9 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 {
 	uint16 *p16;
 	uint32 base;
-	D(bug("vCheckLoad %c%c%c%c (%08lx) ID %d, data %08lx, size %ld\n", (char)(type >> 24), (char)((type >> 16) & 0xff), (char )((type >> 8) & 0xff), (char )(type & 0xff), type, id, p, size));
+	D(bug("vCheckLoad %c%c%c%c (%08x) ID %d, data %08x, size %d\n", (char)(type >> 24), (char)((type >> 16) & 0xff), (char )((type >> 8) & 0xff), (char )(type & 0xff), type, id, p, size));
 
-	if (type == 'boot' && id == 3) {
+	if (type == FOURCC('b','o','o','t') && id == 3) {
 		D(bug(" boot 3 found\n"));
 
 		// Set boot stack pointer (7.5, 7.6, 7.6.1, 8.0)
@@ -104,7 +105,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 			D(bug("  patch 2 applied\n"));
 		}
 
-	} else if (type == 'boot' && id == 2) {
+	} else if (type == FOURCC('b','o','o','t') && id == 2) {
 		D(bug(" boot 2 found\n"));
 
 		// Set fake handle at 0x0000 to some safe place (so broken Mac programs won't write into Mac ROM) (7.5, 8.0)
@@ -129,7 +130,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 		}
 #endif
 
-	} else if (type == 'PTCH' && id == 630) {
+	} else if (type == FOURCC('P','T','C','H') && id == 630) {
 		D(bug("PTCH 630 found\n"));
 
 		// Don't replace Time Manager (Classic ROM, 6.0.3)
@@ -156,7 +157,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 			D(bug("  patch 1 applied\n"));
 		}
 
-	} else if (type == 'ptch' && id == 26) {
+	} else if (type == FOURCC('p','t','c','h') && id == 26) {
 		D(bug(" ptch 26 found\n"));
 
 		// Trap ABC4 is initialized with absolute ROM address (7.5, 7.6, 7.6.1, 8.0)
@@ -170,7 +171,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 			D(bug("  patch 1 applied\n"));
 		}
 
-	} else if (type == 'ptch' && id == 34) {
+	} else if (type == FOURCC('p','t','c','h') && id == 34) {
 		D(bug(" ptch 34 found\n"));
 
 		// Don't wait for VIA (Classic ROM, 6.0.8)
@@ -195,7 +196,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 		}
 
 #if !EMULATED_68K
-	} else if (CPUIs68060 && (type == 'gpch' && id == 669 || type == 'lpch' && id == 63)) {
+	} else if (CPUIs68060 && (type == FOURCC('g','p','c','h') && id == 669 || type == FOURCC('l','p','c','h') && id == 63)) {
 		D(bug(" gpch 669/lpch 63 found\n"));
 
 		static uint16 ThPatchSpace[1024];	// Replacement routines are constructed here
@@ -454,7 +455,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 		}
 #endif
 
-	} else if (type == 'gpch' && id == 750) {
+	} else if (type == FOURCC('g','p','c','h') && id == 750) {
 		D(bug(" gpch 750 found\n"));
 
 		// Don't use PTEST instruction in BlockMove() (7.5, 7.6, 7.6.1, 8.0)
@@ -467,7 +468,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 			D(bug("  patch 1 applied\n"));
 		}
 
-	} else if (type == 'lpch' && id == 24) {
+	} else if (type == FOURCC('l','p','c','h') && id == 24) {
 		D(bug(" lpch 24 found\n"));
 
 		// Don't replace Time Manager (7.0.1, 7.1, 7.5, 7.6, 7.6.1, 8.0)
@@ -484,7 +485,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 			D(bug("  patch 1 applied\n"));
 		}
 
-	} else if (type == 'lpch' && id == 31) {
+	} else if (type == FOURCC('l','p','c','h') && id == 31) {
 		D(bug(" lpch 31 found\n"));
 
 		// Don't write to VIA in vSoundDead() (7.0.1, 7.1, 7.5, 7.6, 7.6.1, 8.0)
@@ -510,7 +511,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 		}
 
 #if !EMULATED_68K
-	} else if (CPUIs68060 && type == 'scod' && (id == -16463 || id == -16464)) {
+	} else if (CPUIs68060 && type == FOURCC('s','c','o','d') && (id == -16463 || id == -16464)) {
 		D(bug(" scod -16463/-16464 found\n"));
 
 		// Correct 68060 FP frame handling in Process Manager task switches (7.1, 7.5, 8.0)
@@ -538,14 +539,14 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 		}
 #endif
 
-	} else if (type == 'thng' && id == -16563) {
+	} else if (type == FOURCC('t','h','n','g') && id == -16563) {
 		D(bug(" thng -16563 found\n"));
 
 		// Set audio component flags (7.5, 7.6, 7.6.1, 8.0)
 		*(uint32 *)(p + componentFlags) = htonl(audio_component_flags);
 		D(bug("  patch 1 applied\n"));
 
-	} else if (type == 'sift' && id == -16563) {
+	} else if (type == FOURCC('s','i','f','t') && id == -16563) {
 		D(bug(" sift -16563 found\n"));
 
 		// Replace audio component (7.5, 7.6, 7.6.1, 8.0)
@@ -562,7 +563,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 		FlushCodeCache(p, 32);
 		D(bug("  patch 1 applied\n"));
 
-	} else if (type == 'inst' && id == -19069) {
+	} else if (type == FOURCC('i','n','s','t') && id == -19069) {
 		D(bug(" inst -19069 found\n"));
 
 		// Don't replace Microseconds (QuickTime 2.0)
@@ -575,7 +576,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 			D(bug("  patch 1 applied\n"));
 		}
 
-	} else if (type == 'DRVR' && id == -20066) {
+	} else if (type == FOURCC('D','R','V','R') && id == -20066) {
 		D(bug("DRVR -20066 found\n"));
 
 		// Don't access SCC in .Infra driver
@@ -588,7 +589,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 			D(bug("  patch 1 applied\n"));
 		}
 
-	} else if (type == 'ltlk' && id == 0) {
+	} else if (type == FOURCC('l','t','l','k') && id == 0) {
 		D(bug(" ltlk 0 found\n"));
 
 		// Disable LocalTalk (7.0.1, 7.5, 7.6, 7.6.1, 8.0)

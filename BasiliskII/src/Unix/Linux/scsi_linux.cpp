@@ -120,7 +120,7 @@ void SCSIExit(void)
  *  Check if requested data size fits into buffer, allocate new buffer if needed
  */
 
-static bool try_buffer(int size)
+static bool try_buffer(uint32 size)
 {
 	size += sizeof(struct sg_header) + 12;
 	if (size <= buffer_size)

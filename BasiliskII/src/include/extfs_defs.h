@@ -25,7 +25,7 @@
 
 // Gestalt selectors
 enum {
-	gestaltFSAttr				= 'fs  ',
+	gestaltFSAttr				= FOURCC('f','s',' ',' '),
 	gestaltFullExtFSDispatching	= 0,
 	gestaltHasFSSpecCalls		= 1,
 	gestaltHasFileSystemManager	= 2,
@@ -37,7 +37,7 @@ enum {
 };
 
 enum {
-	gestaltFSMVersion			= 'fsm '
+	gestaltFSMVersion			= FOURCC('f','s','m',' ')
 };
 
 // File attributes

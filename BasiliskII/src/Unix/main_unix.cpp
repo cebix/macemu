@@ -108,7 +108,6 @@ char *x_display_name = NULL;						// X11 display name
 Display *x_display = NULL;							// X11 display handle
 
 static int zero_fd = -1;							// FD of /dev/zero
-static bool lm_area_mapped = false;					// Flag: Low Memory area mmap()ped
 static uint8 last_xpram[256];						// Buffer for monitoring XPRAM changes
 
 #ifdef HAVE_PTHREADS
@@ -147,6 +146,10 @@ static timer_t timer;				// 60Hz timer
 #ifdef ENABLE_MON
 static struct sigaction sigint_sa;	// sigaction for SIGINT handler
 static void sigint_handler(...);
+#endif
+
+#if REAL_ADDRESSING
+static bool lm_area_mapped = false;	// Flag: Low Memory area mmap()ped
 #endif
 
 #ifdef USE_MAPPED_MEMORY

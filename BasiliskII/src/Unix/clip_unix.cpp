@@ -23,6 +23,7 @@
 #include <X11/Xlib.h>
 
 #include "clip.h"
+#include "macos_util.h"
 #include "prefs.h"
 
 #define DEBUG 0
@@ -87,7 +88,7 @@ void PutScrap(uint32 type, void *scrap, int32 length)
 		return;
 
 	switch (type) {
-		case 'TEXT':
+		case FOURCC('T','E','X','T'):
 			D(bug(" clipping TEXT\n"));
 
 			// Convert text from Mac charset to ISO-Latin1

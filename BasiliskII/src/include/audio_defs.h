@@ -21,6 +21,9 @@
 #ifndef AUDIO_DEFS_H
 #define AUDIO_DEFS_H
 
+#include "macos_util.h"
+
+
 // Error codes
 enum {
 	badComponentSelector = (int32)0x80008002,
@@ -59,23 +62,21 @@ enum {
 };
 
 // Sound information selectors
-enum {
-	siNumberChannels			= 'chan',		// current number of channels
-	siChannelAvailable			= 'chav',		// number of channels available
-	siSampleRate				= 'srat',		// current sample rate
-	siSampleRateAvailable		= 'srav',		// sample rates available
-	siSampleSize				= 'ssiz',		// current sample size
-	siSampleSizeAvailable		= 'ssav',		// sample sizes available
-	siHardwareMute				= 'hmut',		// mute state of all hardware
-	siHardwareVolume			= 'hvol',		// volume level of all hardware
-	siHardwareVolumeSteps		= 'hstp',		// number of volume steps for hardware
-	siHardwareBusy				= 'hwbs',		// sound hardware is in use
-	siHeadphoneMute				= 'pmut',		// mute state of headphone
-	siHeadphoneVolume			= 'pvol',		// volume level of headphone
-	siHeadphoneVolumeSteps		= 'hdst',		// number of volume steps for headphone
-	siSpeakerMute				= 'smut',		// mute state of all built-in speakers
-	siSpeakerVolume				= 'svol'		// volume level of built-in speaker
-};
+const uint32 siNumberChannels		= FOURCC('c','h','a','n');	// current number of channels
+const uint32 siChannelAvailable		= FOURCC('c','h','a','v');	// number of channels available
+const uint32 siSampleRate			= FOURCC('s','r','a','t');	// current sample rate
+const uint32 siSampleRateAvailable	= FOURCC('s','r','a','v');	// sample rates available
+const uint32 siSampleSize			= FOURCC('s','s','i','z');	// current sample size
+const uint32 siSampleSizeAvailable	= FOURCC('s','s','a','v');	// sample sizes available
+const uint32 siHardwareMute			= FOURCC('h','m','u','t');	// mute state of all hardware
+const uint32 siHardwareVolume		= FOURCC('h','v','o','l');	// volume level of all hardware
+const uint32 siHardwareVolumeSteps	= FOURCC('h','s','t','p');	// number of volume steps for hardware
+const uint32 siHardwareBusy			= FOURCC('h','w','b','s');	// sound hardware is in use
+const uint32 siHeadphoneMute		= FOURCC('p','m','u','t');	// mute state of headphone
+const uint32 siHeadphoneVolume		= FOURCC('p','v','o','l');	// volume level of headphone
+const uint32 siHeadphoneVolumeSteps	= FOURCC('h','d','s','t');	// number of volume steps for headphone
+const uint32 siSpeakerMute			= FOURCC('s','m','u','t');	// mute state of all built-in speakers
+const uint32 siSpeakerVolume		= FOURCC('s','v','o','l');	// volume level of built-in speaker
 
 enum {	// ComponentResource struct
 	componentType = 0,

@@ -6,6 +6,9 @@ V0.8 (snapshot) -
 	  [Jürgen Lachmann]
 	- AmigaOS/Unix/extfs_*.cpp: .finf helper file now stores complete
 	  FInfo/FXInfo, replaced get/set_finder_*() functions by get/set_finfo()
+	- include/macos_util.h: defines FOURCC() macro to make MacOS-like
+	  four-character-codes, replaced most instances of multi-character
+	  constants in the sources by this macro to avoid compiler warnings
 	- Imported some changes from the Windows port, most notably FPU fixes
 	  and the 1Hz interrupt [Lauri Pesonen]
 

@@ -132,8 +132,8 @@ enum {
 	kSERDNegateRTS			= 31,
 	kSERD115KBaud			= 115,
 	kSERD230KBaud			= 230,
-	kSERDSetHighSpeed		= 'JF',
-	kSERDSetPollWrite		= 'jf'
+	kSERDSetHighSpeed		= 0x4a46,	// 'JF'
+	kSERDSetPollWrite		= 0x6a66	// 'jf'
 };
 
 // Status codes

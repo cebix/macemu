@@ -108,8 +108,8 @@ static bool ready = false;
 static struct stat root_stat;
 
 // File system ID/media type
-const int16 MY_FSID = 'ba';
-const uint32 MY_MEDIA_TYPE = 'basi';
+const int16 MY_FSID = 0x6261;	// 'ba'
+const uint32 MY_MEDIA_TYPE = FOURCC('b','a','s','i');
 
 // CNID of root and root's parent
 const uint32 ROOT_ID = 2;
@@ -277,21 +277,6 @@ static void cstr2pstr(char *dst, const char *src)
 	}
 }
 
-// Convert pascal string to C string
-static void pstr2cstr(char *dst, const char *src)
-{
-	int size = *src++;
-	while (size--) {
-		char c = *src++;
-		// Note: we are converting Mac '/' characters to host ':' characters here
-		// '/' is not a path separator as this function is only used on object names
-		if (c == '/')
-			c = ':';
-		*dst++ = c;
-	}
-	*dst = 0;
-}
-
 // Convert string (no length byte) to C string, length given separately
 static void strn2cstr(char *dst, const char *src, int size)
 {
@@ -423,7 +408,7 @@ void InstallExtFS(void)
 	// FSM present?
 	r.d[0] = gestaltFSAttr;
 	Execute68kTrap(0xa1ad, &r);	// Gestalt()
-	D(bug("FSAttr %ld, %08lx\n", r.d[0], r.a[0]));
+	D(bug("FSAttr %d, %08x\n", r.d[0], r.a[0]));
 	if ((r.d[0] & 0xffff) || !(r.a[0] & (1 << gestaltHasFileSystemManager))) {
 		printf("WARNING: No FSM present, disabling ExtFS\n");
 		return;
@@ -432,7 +417,7 @@ void InstallExtFS(void)
 	// Yes, version >=1.2?
 	r.d[0] = gestaltFSMVersion;
 	Execute68kTrap(0xa1ad, &r);	// Gestalt()
-	D(bug("FSMVersion %ld, %08lx\n", r.d[0], r.a[0]));
+	D(bug("FSMVersion %d, %08x\n", r.d[0], r.a[0]));
 	if ((r.d[0] & 0xffff) || (r.a[0] < 0x0120)) {
 		printf("WARNING: FSM <1.2 found, disabling ExtFS\n");
 		return;
@@ -702,7 +687,7 @@ int16 ExtFSComm(uint16 message, uint32 paramBlock, uint32 globalsPtr)
 		}
 
 		case ffsIDDiskMessage: {		// Check if volume is handled by our FS
-			if (ReadMacInt16(paramBlock + ioVRefNum) == drive_number)
+			if ((int16)ReadMacInt16(paramBlock + ioVRefNum) == drive_number)
 				return noErr;
 			else
 				return extFSErr;
@@ -966,7 +951,7 @@ static uint32 find_fcb(int16 refNum)
 static int16 fs_mount_vol(uint32 pb)
 {
 	D(bug(" fs_mount_vol(%08lx), vRefNum %d\n", pb, ReadMacInt16(pb + ioVRefNum)));
-	if (ReadMacInt16(pb + ioVRefNum) == drive_number)
+	if ((int16)ReadMacInt16(pb + ioVRefNum) == drive_number)
 		return noErr;
 	else
 		return extFSErr;
@@ -1584,7 +1569,7 @@ static int16 fs_get_fcb_info(uint32 pb, uint32 vcb)
 
 		// Find FCB by index
 		WriteMacInt16(pb + ioRefNum, 0);
-		for (int i=0; i<ReadMacInt16(pb + ioFCBIndx); i++) {
+		for (int i=0; i<(int)ReadMacInt16(pb + ioFCBIndx); i++) {
 			D(bug("  indexing FCBs\n"));
 			r.a[0] = vcb;
 			r.a[1] = pb + ioRefNum;
@@ -1803,7 +1788,7 @@ static int16 fs_read(uint32 pb)
 	uint32 pos = lseek(fd, 0, SEEK_CUR);
 	WriteMacInt32(fcb + fcbCrPs, pos);
 	WriteMacInt32(pb + ioPosOffset, pos);
-	if (actual != ReadMacInt32(pb + ioReqCount))
+	if (actual != (ssize_t)ReadMacInt32(pb + ioReqCount))
 		return actual < 0 ? read_err : eofErr;
 	else
 		return noErr;
@@ -1856,7 +1841,7 @@ static int16 fs_write(uint32 pb)
 	uint32 pos = lseek(fd, 0, SEEK_CUR);
 	WriteMacInt32(fcb + fcbCrPs, pos);
 	WriteMacInt32(pb + ioPosOffset, pos);
-	if (actual != ReadMacInt32(pb + ioReqCount))
+	if (actual != (ssize_t)ReadMacInt32(pb + ioReqCount))
 		return write_err;
 	else
 		return noErr;

@@ -427,44 +427,44 @@ int16 DiskStatus(uint32 pb, uint32 dce)
 			uint32 sel = ReadMacInt32(pb + csParam);
 			D(bug(" driver gestalt %c%c%c%c\n", sel >> 24, sel >> 16,  sel >> 8, sel));
 			switch (sel) {
-				case 'vers':	// Version
+				case FOURCC('v','e','r','s'):	// Version
 					WriteMacInt32(pb + csParam + 4, 0x01008000);
 					break;
-				case 'devt':	// Device type
+				case FOURCC('d','e','v','t'):	// Device type
 					if (info != NULL) {
 						if (ReadMacInt8(info->status + dsDiskInPlace) == 8)
-							WriteMacInt32(pb + csParam + 4, 'disk');
+							WriteMacInt32(pb + csParam + 4, FOURCC('d','i','s','k'));
 						else
-							WriteMacInt32(pb + csParam + 4, 'rdsk');
+							WriteMacInt32(pb + csParam + 4, FOURCC('r','d','s','k'));
 					} else
-						WriteMacInt32(pb + csParam + 4, 'disk');
+						WriteMacInt32(pb + csParam + 4, FOURCC('d','i','s','k'));
 					break;
-				case 'intf':	// Interface type
-					WriteMacInt32(pb + csParam + 4, 'basi');
+				case FOURCC('i','n','t','f'):	// Interface type
+					WriteMacInt32(pb + csParam + 4, FOURCC('b','a','s','i'));
 					break;
-				case 'sync':	// Only synchronous operation?
+				case FOURCC('s','y','n','c'):	// Only synchronous operation?
 					WriteMacInt32(pb + csParam + 4, 0x01000000);
 					break;
-				case 'boot':	// Boot ID
+				case FOURCC('b','o','o','t'):	// Boot ID
 					if (info != NULL)
 						WriteMacInt16(pb + csParam + 4, info->num);
 					else
 						WriteMacInt16(pb + csParam + 4, 0);
 					WriteMacInt16(pb + csParam + 6, (uint16)DiskRefNum);
 					break;
-				case 'wide':	// 64-bit access supported?
+				case FOURCC('w','i','d','e'):	// 64-bit access supported?
 					WriteMacInt16(pb + csParam + 4, 0x0100);
 					break;
-				case 'purg':	// Purge flags
+				case FOURCC('p','u','r','g'):	// Purge flags
 					WriteMacInt32(pb + csParam + 4, 0);
 					break;
-				case 'ejec':	// Eject flags
+				case FOURCC('e','j','e','c'):	// Eject flags
 					WriteMacInt32(pb + csParam + 4, 0x00030003);	// Don't eject on shutdown/restart
 					break;
-				case 'flus':	// Flush flags
+				case FOURCC('f','l','u','s'):	// Flush flags
 					WriteMacInt16(pb + csParam + 4, 0);
 					break;
-				case 'vmop':	// Virtual memory attributes
+				case FOURCC('v','m','o','p'):	// Virtual memory attributes
 					WriteMacInt32(pb + csParam + 4, 0);	// Drive not available for VM
 					break;
 				default:

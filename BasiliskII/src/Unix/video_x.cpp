@@ -128,12 +128,8 @@ static pthread_mutex_t palette_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to pro
 static GC the_gc;
 static XImage *img = NULL;
 static XShmSegmentInfo shminfo;
-static XImage *cursor_image, *cursor_mask_image;
-static Pixmap cursor_map, cursor_mask_map;
 static Cursor mac_cursor;
-static GC cursor_gc, cursor_mask_gc;
 static uint8 *the_buffer_copy = NULL;				// Copy of Mac frame buffer
-static uint8 the_cursor[64];						// Cursor image data
 static bool have_shm = false;						// Flag: SHM extensions available
 static bool updt_box[17][17];						// Flag for Update
 static int nr_boxes;
@@ -1337,7 +1333,7 @@ static void handle_events(void)
 // Dynamic display update (variable frame rate for each box)
 static void update_display_dynamic(int ticker)
 {
-	int y1, y2, y2s, y2a, i, x1, xm, xmo, ymo, yo, yi, yil, xic, xicl, xi;
+	int y1, y2, y2s, y2a, i, x1, xm, xmo, ymo, yo, yi, yil, xi;
 	int xil = 0;
 	int rxm = 0, rxmo = 0;
 	int bytes_per_row = VideoMonitor.bytes_per_row;

@@ -251,10 +251,13 @@ extern int FindFreeDriveNumber(int num);			// Find first free drive number, star
 extern void MountVolume(void *fh);					// Mount volume with given file handle (see sys.h)
 extern void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_size);	// Calculate disk image file layout given file size and first 256 data bytes
 
+// Construct four-character-code from string
+#define FOURCC(a,b,c,d) (((uint32)(a) << 24) | ((uint32)(b) << 16) | ((uint32)(c) << 8) | (uint32)(d))
+
 // Test if basic MacOS initializations (of the ROM) are done
 static inline bool HasMacStarted(void)
 {
-	return ReadMacInt32(0xcfc) == 'WLSC';	// Mac warm start flag
+	return ReadMacInt32(0xcfc) == FOURCC('W','L','S','C');	// Mac warm start flag
 }
 
 #endif

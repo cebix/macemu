@@ -196,7 +196,7 @@ int16 RmvTime(uint32 tm)
 	// Find descriptor
 	int i = find_desc(tm);
 	if (i < 0) {
-		printf("WARNING: RmvTime(%08lx): Descriptor not found\n", tm);
+		printf("WARNING: RmvTime(%08x): Descriptor not found\n", tm);
 		return 0;
 	}
 
@@ -214,7 +214,7 @@ int16 RmvTime(uint32 tm)
 		WriteMacInt32(tm + tmCount, timer_host2mac_time(remaining));
 	} else
 		WriteMacInt32(tm + tmCount, 0);
-	D(bug(" tmCount %ld\n", ReadMacInt32(tm + tmCount)));
+	D(bug(" tmCount %d\n", ReadMacInt32(tm + tmCount)));
 
 	// Free descriptor
 	free_desc(i);
@@ -228,7 +228,7 @@ int16 RmvTime(uint32 tm)
 
 int16 PrimeTime(uint32 tm, int32 time)
 {
-	D(bug("PrimeTime %08lx, time %ld\n", tm, time));
+	D(bug("PrimeTime %08x, time %d\n", tm, time));
 
 	// Find descriptor
 	int i = find_desc(tm);

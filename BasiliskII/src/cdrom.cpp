@@ -187,17 +187,17 @@ static void find_hfs_partition(DriveInfo *info)
 
 		// Skip driver descriptor
 		uint16 sig = ntohs(((uint16 *)map)[0]);
-		if (sig == 'ER')
+		if (sig == 0x4552)
 			continue;
 
 		// No partition map? Then look at next block
-		if (sig != 'PM')
+		if (sig != 0x504d)
 			continue;
 
 		// Partition map found, Apple HFS partition?
 		if (strcmp((char *)(map + 48), "Apple_HFS") == 0) {
 			info->start_byte = ntohl(((uint32 *)map)[2]) << 9;
-			D(bug(" HFS partition found at %ld, %ld blocks\n", info->start_byte, ntohl(((uint32 *)map)[3])));
+			D(bug(" HFS partition found at %d, %d blocks\n", info->start_byte, ntohl(((uint32 *)map)[3])));
 			break;
 		}
 	}
@@ -674,7 +674,7 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			return controlErr;
 
 		case 103: {		// AudioTrackSearch
-			D(bug(" AudioTrackSearch postype %d, pos %08lx, hold %d\n", ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), ReadMacInt16(pb + csParam + 6)));
+			D(bug(" AudioTrackSearch postype %d, pos %08x, hold %d\n", ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), ReadMacInt16(pb + csParam + 6)));
 			if (ReadMacInt8(info->status + dsDiskInPlace) == 0)
 				return offLinErr;
 
@@ -871,38 +871,38 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 			uint32 sel = ReadMacInt32(pb + csParam);
 			D(bug(" driver gestalt %c%c%c%c\n", sel >> 24, sel >> 16,  sel >> 8, sel));
 			switch (sel) {
-				case 'vers':	// Version
+				case FOURCC('v','e','r','s'):	// Version
 					WriteMacInt32(pb + csParam + 4, 0x05208000);
 					break;
-				case 'devt':	// Device type
-					WriteMacInt32(pb + csParam + 4, 'cdrm');
+				case FOURCC('d','e','v','t'):	// Device type
+					WriteMacInt32(pb + csParam + 4, FOURCC('c','d','r','m'));
 					break;
-				case 'intf':	// Interface type
-					WriteMacInt32(pb + csParam + 4, 'basi');
+				case FOURCC('i','n','t','f'):	// Interface type
+					WriteMacInt32(pb + csParam + 4, FOURCC('b','a','s','i'));
 					break;
-				case 'sync':	// Only synchronous operation?
+				case FOURCC('s','y','n','c'):	// Only synchronous operation?
 					WriteMacInt32(pb + csParam + 4, 0x01000000);
 					break;
-				case 'boot':	// Boot ID
+				case FOURCC('b','o','o','t'):	// Boot ID
 					if (info != NULL)
 						WriteMacInt16(pb + csParam + 4, info->num);
 					else
 						WriteMacInt16(pb + csParam + 4, 0);
 					WriteMacInt16(pb + csParam + 6, (uint16)CDROMRefNum);
 					break;
-				case 'wide':	// 64-bit access supported?
+				case FOURCC('w','i','d','e'):	// 64-bit access supported?
 					WriteMacInt16(pb + csParam + 4, 0);
 					break;
-				case 'purg':	// Purge flags
+				case FOURCC('p','u','r','g'):	// Purge flags
 					WriteMacInt32(pb + csParam + 4, 0);
 					break;
-				case 'ejec':	// Eject flags
+				case FOURCC('e','j','e','c'):	// Eject flags
 					WriteMacInt32(pb + csParam + 4, 0x00030003);	// Don't eject on shutdown/restart
 					break;
-				case 'flus':	// Flush flags
+				case FOURCC('f','l','u','s'):	// Flush flags
 					WriteMacInt16(pb + csParam + 4, 0);
 					break;
-				case 'vmop':	// Virtual memory attributes
+				case FOURCC('v','m','o','p'):	// Virtual memory attributes
 					WriteMacInt32(pb + csParam + 4, 0);	// Drive not available for VM
 					break;
 				default:
