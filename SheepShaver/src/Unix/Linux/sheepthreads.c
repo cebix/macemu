@@ -170,6 +170,11 @@ void pthread_testcancel(void)
  *  Spinlocks
  */
 
+static int try_acquire_spinlock(int *lock)
+{
+	return test_and_set(lock, 1) == 0;
+}
+
 static void acquire_spinlock(volatile int *lock)
 {
 	do {
@@ -180,6 +185,108 @@ static void acquire_spinlock(volatile int *lock)
 static void release_spinlock(int *lock)
 {
 	*lock = 0;
+}
+
+
+/*
+ *  Initialize mutex
+ */
+
+int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *mutex_attr)
+{
+	// pthread_init_lock
+	mutex->__m_lock.__status = 0;
+	mutex->__m_lock.__spinlock = 0;
+
+	mutex->__m_kind = mutex_attr ? mutex_attr->__mutexkind : PTHREAD_MUTEX_TIMED_NP;
+	mutex->__m_count = 0;
+	mutex->__m_owner = NULL;
+	return 0;
+}
+
+
+/*
+ *  Destroy mutex
+ */
+
+int pthread_mutex_destroy(pthread_mutex_t *mutex)
+{
+	switch (mutex->__m_kind) {
+	case PTHREAD_MUTEX_TIMED_NP:
+		return (mutex->__m_lock.__status != 0) ? EBUSY : 0;
+	default:
+		return EINVAL;
+	}
+}
+
+
+/*
+ *  Lock mutex
+ */
+
+int pthread_mutex_lock(pthread_mutex_t *mutex)
+{
+	switch (mutex->__m_kind) {
+	case PTHREAD_MUTEX_TIMED_NP:
+		acquire_spinlock(&mutex->__m_lock.__spinlock);
+		return 0;
+	default:
+		return EINVAL;
+	}
+}
+
+
+/*
+ *  Try to lock mutex
+ */
+
+int pthread_mutex_trylock(pthread_mutex_t *mutex)
+{
+	switch (mutex->__m_kind) {
+	case PTHREAD_MUTEX_TIMED_NP:
+		if (!try_acquire_spinlock(&mutex->__m_lock.__spinlock))
+			return EBUSY;
+		return 0;
+	default:
+		return EINVAL;
+	}
+}
+
+
+/*
+ *  Unlock mutex
+ */
+
+int pthread_mutex_unlock(pthread_mutex_t *mutex)
+{
+	switch (mutex->__m_kind) {
+	case PTHREAD_MUTEX_TIMED_NP:
+		release_spinlock(&mutex->__m_lock.__spinlock);
+		return 0;
+	default:
+		return EINVAL;
+	}
+}
+
+
+/*
+ *  Create mutex attribute
+ */
+
+int pthread_mutexattr_init(pthread_mutexattr_t *attr)
+{
+	attr->__mutexkind = PTHREAD_MUTEX_TIMED_NP;
+	return 0;
+}
+
+
+/*
+ *  Destroy mutex attribute
+ */
+
+int pthread_mutexattr_destroy(pthread_mutexattr_t *attr)
+{
+	return 0;
 }
 
 
