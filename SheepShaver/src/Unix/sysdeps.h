@@ -411,7 +411,7 @@ typedef struct timeval tm_time_t;
 #endif
 
 // High-precision timing
-#if defined(HAVE_PTHREADS) && defined(HAVE_CLOCK_NANOSLEEP)
+#if defined(HAVE_PTHREADS) && defined(HAVE_CLOCK_NANOSLEEP) && 0
 #define PRECISE_TIMING 1
 #define PRECISE_TIMING_POSIX 1
 #endif
