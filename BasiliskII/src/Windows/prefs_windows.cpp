@@ -45,6 +45,12 @@ prefs_desc platform_prefs_items[] = {
 	{"debugextfs", TYPE_BOOLEAN, false,    "debug extfs system"},
 	{"extdrives", TYPE_STRING, false,      "define allowed extfs drives"},
 	{"pollmedia", TYPE_BOOLEAN, false,     "poll for new media (e.g. cd, floppy)"},
+	{"etherpermanentaddress", TYPE_BOOLEAN, false,  "use permanent NIC address to identify itself"},
+	{"ethermulticastmode", TYPE_INT32, false,       "how to multicast packets"},
+	{"etherfakeaddress", TYPE_STRING, false,        "optional fake hardware address"},
+	{"routerenabled", TYPE_BOOLEAN, false,          "enable NAT/Router module"},
+	{"ftp_port_list", TYPE_STRING, false,           "FTP ports list"},
+	{"tcp_port", TYPE_STRING, false,                "TCP ports list"},
 
 	{NULL, TYPE_END, false, NULL} // End of list
 };
@@ -120,4 +126,8 @@ void AddPlatformPrefsDefaults(void)
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 	PrefsAddBool("ignoresegv", false);
 #endif
+	PrefsReplaceBool("etherpermanentaddress", true);
+	PrefsReplaceInt32("ethermulticastmode", 0);
+	PrefsReplaceBool("routerenabled", false);
+	PrefsReplaceString("ftp_port_list", "21");
 }
