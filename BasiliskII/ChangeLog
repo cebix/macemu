@@ -1,4 +1,4 @@
-V0.9 - <insert date here>
+V0.9 (snapshot) - 29.May.2001
 	- added help for command line arguments, PrefsInit() now removes
 	  all processed options
 	- serial_unix.cpp: input/output_thread_cancel weren't initialized
@@ -18,7 +18,7 @@ V0.9 - <insert date here>
 	- AmigaOS: SCSI buffer type can be selected
 
 V0.9 (snapshot) - 17.Feb.2001
-	- adapted for mon V3.0 which is now the required minimum
+	- adapted for cxmon V3.0 which is now the required minimum
 	- UAE cpu: fixed a bug in the memory handlers preventing from
 	  correctly updating 15 and 16 bpp displays on big endian systems
 	- Unix: added (experimental) real addressing mode [Gwenole Beauchesne]
