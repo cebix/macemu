@@ -104,7 +104,6 @@ if [[ "x$WANT_MON" = "xyes" ]]; then
             AC_CHECK_LIB(Hcurses, tgetent, ,
               AC_CHECK_LIB(curses, tgetent))))))
     AC_CHECK_LIB(readline, readline)
-    AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
   else
     AC_MSG_RESULT(no)
     AC_MSG_WARN([Could not find mon, ignoring --with-mon.])
@@ -139,6 +138,7 @@ AC_SYS_LARGEFILE
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS(unistd.h fcntl.h sys/time.h sys/mman.h)
+AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
@@ -371,6 +371,19 @@ AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, $have_mmap_vm,
 
 fi dnl HAVE_MMAP_VM
 
+dnl Check if we can modify the __PAGEZERO segment for use as Low Memory
+AC_CACHE_CHECK([whether __PAGEZERO can be Low Memory area 0x0000-0x2000],
+  ac_cv_pagezero_hack, [
+  ac_cv_pagezero_hack=no 
+  if AC_TRY_COMMAND([Darwin/testlmem.sh 0x2000]); then
+    ac_cv_pagezero_hack=yes
+    dnl might as well skip the test for mmap-able low memory
+    ac_cv_can_map_lm=no
+  fi
+])
+AC_TRANSLATE_DEFINE(PAGEZERO_HACK, "$ac_cv_pagezero_hack",
+  [Define if the __PAGEZERO Mach-O Low Memory Globals hack works on this system.])
+
 dnl Check if we can mmap 0x2000 bytes from 0x0000
 AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x2000],
   ac_cv_can_map_lm, [
@@ -381,7 +394,7 @@ AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x2000],
     int main(void) { /* returns 0 if we could map the lowmem globals */
       volatile char * lm = 0;
       if (vm_init() < 0) exit(1);
-      if (vm_acquire_fixed(0, 0x2000) == VM_MAP_FAILED) exit(1);
+      if (vm_acquire_fixed(0, 0x2000) < 0) exit(1);
       lm[0] = 'z';
       if (vm_release((char *)lm, 0x2000) < 0) exit(1);
       vm_exit(); exit(0);
@@ -455,25 +468,55 @@ AC_CACHE_CHECK([whether sigaction handlers need to be reinstalled],
 AC_TRANSLATE_DEFINE(SIGACTION_NEED_REINSTALL, "$ac_cv_sigaction_need_reinstall",
   [Define if your system requires sigactions to be reinstalled.])
 
-dnl Check if extended signals are supported.
-AC_CACHE_CHECK([whether your system supports extended signal handlers],
-  ac_cv_have_extended_signals, [
+dnl Check if Mach exceptions supported.
+AC_CACHE_CHECK([whether your system supports Mach exceptions],
+  ac_cv_have_mach_exceptions, [
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
   AC_TRY_RUN([
-    #define HAVE_SIGINFO_T 1
+    #define HAVE_MACH_EXCEPTIONS 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "../Unix/vm_alloc.cpp"
-    #include "../Unix/sigsegv.cpp"
-  ], ac_cv_have_extended_signals=yes, ac_cv_have_extended_signals=no,
+    #include "vm_alloc.cpp"
+    #include "sigsegv.cpp"
+  ], [
+  sigsegv_recovery=mach
+  ac_cv_have_mach_exceptions=yes
+  ],
+  ac_cv_have_mach_exceptions=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_have_extended_signals=no
+  ac_cv_have_mach_exceptions=no
   )
   AC_LANG_RESTORE
   ]
 )
-AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_extended_signals",
-  [Define if your system support extended signals.])
+AC_TRANSLATE_DEFINE(HAVE_MACH_EXCEPTIONS, "$ac_cv_have_mach_exceptions",
+  [Define if your system supports Mach exceptions.])
+
+dnl Otherwise, check if extended signals are supported.
+if [[ -z "$sigsegv_recovery" ]]; then
+  AC_CACHE_CHECK([whether your system supports extended signal handlers],
+    ac_cv_have_extended_signals, [
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
+    AC_TRY_RUN([
+      #define HAVE_SIGINFO_T 1
+      #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+      #include "../Unix/vm_alloc.cpp"
+      #include "../Unix/sigsegv.cpp"
+    ], [
+    sigsegv_recovery=siginfo
+    ac_cv_have_extended_signals=yes
+    ],
+    ac_cv_have_extended_signals=no,
+    dnl When cross-compiling, do not assume anything.
+    ac_cv_have_extended_signals=no
+    )
+    AC_LANG_RESTORE
+    ]
+  )
+  AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_extended_signals",
+    [Define if your system support extended signals.])
+fi
 
 dnl This program never returns (exits) on OS X
 dnl Otherwise, check for subterfuges.
@@ -487,7 +530,11 @@ dnl       #define HAVE_SIGCONTEXT_SUBTERFUGE 1
 dnl       #define CONFIGURE_TEST_SIGSEGV_RECOVERY
 dnl       #include "../Unix/vm_alloc.cpp"
 dnl       #include "../Unix/sigsegv.cpp"
-dnl     ], ac_cv_have_sigcontext_hack=yes, ac_cv_have_sigcontext_hack=no,
+dnl     ], [
+dnl     sigsegv_recovery=sigcontext
+dnl     ac_cv_have_sigcontext_hack=yes
+dnl     ],
+dnl     ac_cv_have_sigcontext_hack=no,
 dnl     dnl When cross-compiling, do not assume anything.
 dnl     ac_cv_have_sigcontext_hack=no
 dnl     )
@@ -519,9 +566,12 @@ AC_TRANSLATE_DEFINE(HAVE_SIGSEGV_SKIP_INSTRUCTION, "$ac_cv_have_skip_instruction
 
 dnl Can we do Video on SEGV Signals ?
 CAN_VOSF=no
-if [[ "$ac_cv_have_extended_signals" = "yes" -o "$ac_cv_have_sigcontext_hack" = "yes" ]]; then
+if [[ -n "$sigsegv_recovery" ]]; then
   CAN_VOSF=yes
 fi
+
+dnl A dummy program that returns always true
+BLESS=/bin/true
 
 dnl Determine the addressing mode to use
 if [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
@@ -533,10 +583,10 @@ else
     case $am in
     real)
       dnl Requires ability to mmap() Low Memory globals
-      if [[ "x$ac_cv_can_map_lm" = "xno" ]]; then
+      if [[ "x$ac_cv_can_map_lm$ac_cv_pagezero_hack" = "xnono" ]]; then
         continue
       fi
-	  dnl Requires VOSF screen updates
+      dnl Requires VOSF screen updates
       if [[ "x$CAN_VOSF" = "xno" ]]; then
         continue
       fi
@@ -544,6 +594,10 @@ else
       ADDRESSING_MODE="real"
       WANT_VOSF=yes dnl we can use VOSF and we need it actually
       DEFINES="$DEFINES -DREAL_ADDRESSING"
+      if [[ "x$ac_cv_pagezero_hack" = "xyes" ]]; then
+        BLESS=Darwin/lowmem
+        LDFLAGS="$LDFLAGS -pagezero_size 0x2000"
+      fi
       break
       ;;
     direct)
@@ -866,7 +920,6 @@ for fpe in $FPE_CORE_TEST_ORDER; do
     IEEE*)
       FPE_CORE="IEEE fpu core"
       DEFINES="$DEFINES -DFPU_IEEE"
-      AC_DEFINE(FPU_IEEE, 1, [Floating Point Core emulation method is IEEE.])
       FPUSRCS="../uae_cpu/fpu/fpu_ieee.cpp"
       dnl Math functions not mandated by C99 standard
       AC_CHECK_FUNCS(isnanl isinfl)
@@ -892,7 +945,6 @@ for fpe in $FPE_CORE_TEST_ORDER; do
   uae)
     FPE_CORE="uae fpu core"
     DEFINES="$DEFINES -DFPU_UAE"
-    AC_DEFINE(FPU_UAE, 1, [Floating Point Core emulation is standard UAE.])
     FPUSRCS="../uae_cpu/fpu/fpu_uae.cpp"
     break
     ;;
@@ -934,6 +986,7 @@ AC_SUBST(DEFINES)
 AC_SUBST(SYSSRCS)
 AC_SUBST(CPUINCLUDES)
 AC_SUBST(CPUSRCS)
+AC_SUBST(BLESS)
 dnl autoconf on 10.1 doesn't understand these
 dnl AC_CONFIG_FILES([Makefile])
 dnl AC_OUTPUT
@@ -951,7 +1004,6 @@ echo JIT debug mode ......................... : $WANT_JIT_DEBUG
 echo Floating-Point emulation core .......... : $FPE_CORE
 echo Assembly optimizations ................. : $ASM_OPTIMIZATIONS
 echo Addressing mode ........................ : $ADDRESSING_MODE
+echo Bad memory access recovery type ........ : $sigsegv_recovery
 echo
 echo "Configuration done. Now type \"make\" (or \"make ide\")."
-
-
