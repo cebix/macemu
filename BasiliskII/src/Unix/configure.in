@@ -9,46 +9,59 @@ dnl Options.
 AC_ARG_ENABLE(xf86-dga,      [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(xf86-vidmode,  [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
 AC_ARG_ENABLE(fbdev-dga,     [  --enable-fbdev-dga      use direct frame buffer access via /dev/fb [default=yes]], [WANT_FBDEV_DGA=$enableval], [WANT_FBDEV_DGA=yes])
+AC_ARG_ENABLE(vosf,          [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=no])
+AC_ARG_ENABLE(16bit-vidmode, [  --enable-16bit-vidmode  enable 16-bit video if possible [default=yes]], [WANT_16BIT_VIDMODE=$enableval], [WANT_16BIT_VIDMODE=yes])
+AC_ARG_ENABLE(addressing,
+[  --enable-addressing=mode specify the addressing mode to use [default=fastest]], 
+[ case "$enableval" in
+    real) 		ADDRESSING_TEST_ORDER="real";;
+	direct)		ADDRESSING_TEST_ORDER="direct";;
+	banks)		ADDRESSING_TEST_ORDER="banks";;
+dnl	fastest)	ADDRESSING_TEST_ORDER="real direct banks";; gb-- will enable later...
+	fastest)	ADDRESSING_TEST_ORDER="direct banks";;
+	*)			AC_MSG_ERROR([--enable-mem-addressing takes only one of the following values: fastest, real, direct, banks]);;
+  esac
+],
+dnl [ ADDRESSING_TEST_ORDER="real direct banks" gb-- will probably reactivate later
+[ ADDRESSING_TEST_ORDER="direct banks"
+])
 AC_ARG_WITH(esd,             [  --with-esd              support ESD for sound under Linux/FreeBSD [default=yes]], [WANT_ESD=$withval], [WANT_ESD=yes])
 AC_ARG_WITH(gtk,             [  --with-gtk              use GTK user interface [default=yes]], [WANT_GTK=$withval], [WANT_GTK=yes])
 AC_ARG_WITH(mon,             [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=yes])
 
+dnl Canonical system information.
+AC_CANONICAL_HOST
+AC_CANONICAL_TARGET
+
+dnl Target OS type (target is host if not cross-compiling).
+case "$target_os" in
+  linux*)	OS_TYPE=linux;;
+  netbsd*)	OS_TYPE=netbsd;;
+  freebsd*)	OS_TYPE=freebsd;;
+  solaris*)	OS_TYPE=solaris;;
+  *)		OS_TYPE=`echo $target_os | sed -e 's/-/_/'`;;
+esac
+DEFINES="$DEFINES -DOS_$OS_TYPE"
+
+dnl Target CPU type.
+HAVE_I386=no
+HAVE_M68K=no
+HAVE_SPARC=no
+case "$target_cpu" in
+  i386* | i486* | i586* | i686* | i786* ) CPU_TYPE=i386 HAVE_I386=yes;;
+  m68k* ) CPU_TYPE=m68k HAVE_M68K=yes;;
+  sparc* ) CPU_TYPE=sparc HAVE_SPARC=yes;;
+  *) CPU_TYPE=`echo $target_cpu | sed -e 's/-/_/'`;;
+esac
+DEFINES="$DEFINES -DCPU_$CPU_TYPE"
+
 dnl Checks for programs.
 AC_PROG_CC
+AC_PROG_CC_C_O
 AC_PROG_CPP
 AC_PROG_CXX
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
-
-dnl Check for i386 target CPU.
-HAVE_I386=no
-AC_MSG_CHECKING(for x86 target CPU)
-AC_EGREP_CPP(yes,
-[
-#ifdef __i386__
-  yes
-#endif
-], [AC_MSG_RESULT(yes); HAVE_I386=yes], AC_MSG_RESULT(no))
-
-dnl Check for SPARC target CPU.
-HAVE_SPARC=no
-AC_MSG_CHECKING(for SPARC target CPU)
-AC_EGREP_CPP(yes,
-[
-#ifdef __sparc__
-  yes
-#endif
-], [AC_MSG_RESULT(yes); HAVE_SPARC=yes], AC_MSG_RESULT(no))
-
-dnl Check for m68k target CPU.
-HAVE_M68K=no
-AC_MSG_CHECKING(for m68k target CPU)
-AC_EGREP_CPP(yes,
-[
-#ifdef __m68k__
-  yes
-#endif
-], [AC_MSG_RESULT(yes); HAVE_M68K=yes], AC_MSG_RESULT(no))
 
 dnl We use mon if possible.
 MONSRCS=
@@ -172,9 +185,11 @@ AC_CHECK_SIZEOF(short, 2)
 AC_CHECK_SIZEOF(int, 4)
 AC_CHECK_SIZEOF(long, 4)
 AC_CHECK_SIZEOF(long long, 8)
+AC_CHECK_SIZEOF(void *, 4)
 AC_TYPE_OFF_T
 AC_CHECK_TYPE(loff_t, off_t)
 AC_TYPE_SIZE_T
+AC_TYPE_SIGNAL
 AC_HEADER_TIME
 AC_STRUCT_TM
 
@@ -189,67 +204,66 @@ SCSISRC=../dummy/scsi_dummy.cpp
 AUDIOSRC=../dummy/audio_dummy.cpp
 EXTRASYSSRCS=
 SUPPORTS_NATIVE_M68K=no
-if MACHINE=`uname -s 2>/dev/null`; then
-  case "$MACHINE" in
-  Linux*)
-    ETHERSRC=Linux/ether_linux.cpp
-    SCSISRC=Linux/scsi_linux.cpp
-    AUDIOSRC=audio_oss_esd.cpp
-    ;;
-  FreeBSD*3.*)
-    AUDIOSRC=audio_oss_esd.cpp
-    DEFINES="$DEFINES -DBSD_COMP"
-    dnl Check for the CAM library
-    AC_CHECK_LIB(cam, cam_open_btl, HAVE_LIBCAM=yes, HAVE_LIBCAM=no) 
-    if [[ "x$HAVE_LIBCAM" = "xno" ]]; then
-      AC_MSG_WARN([Cannot find libcam for SCSI management, disabling SCSI support.])
+case "$target_os" in
+linux*)
+  ETHERSRC=Linux/ether_linux.cpp
+  SCSISRC=Linux/scsi_linux.cpp
+  AUDIOSRC=audio_oss_esd.cpp
+  ;;
+freebsd*3.*)
+  AUDIOSRC=audio_oss_esd.cpp
+  DEFINES="$DEFINES -DBSD_COMP"
+  dnl Check for the CAM library
+  AC_CHECK_LIB(cam, cam_open_btl, HAVE_LIBCAM=yes, HAVE_LIBCAM=no) 
+  if [[ "x$HAVE_LIBCAM" = "xno" ]]; then
+    AC_MSG_WARN([Cannot find libcam for SCSI management, disabling SCSI support.])
+  else
+    dnl Check for the sys kernel includes
+    AC_CHECK_HEADER(/sys/cam/cam.h)
+    if [[ "x$ac_cv_header__sys_cam_cam_h" = "xno" ]]; then
+      dnl In this case I should fix this thing including a "patch"
+      dnl to access directly to the functions in the kernel :) --Orlando
+      AC_MSG_WARN([Cannot find kernel includes for CAM library, disabling SCSI support.])
     else
-      dnl Check for the sys kernel includes
-      AC_CHECK_HEADER(/sys/cam/cam.h)
-      if [[ "x$ac_cv_header__sys_cam_cam_h" = "xno" ]]; then
-        dnl In this case I should fix this thing including a "patch"
-        dnl to access directly to the functions in the kernel :) --Orlando
-        AC_MSG_WARN([Cannot find kernel includes for CAM library, disabling SCSI support.])
-      else
-        SCSISRC=FreeBSD/scsi_freebsd.cpp
-        CXXFLAGS="$CXXFLAGS -I/sys"
-        CFLAGS="$CFLAGS -I/sys"
-        LIBS="$LIBS -lcam"
-        DEFINES="$DEFINES -DCAM"
-      fi
+      SCSISRC=FreeBSD/scsi_freebsd.cpp
+      CXXFLAGS="$CXXFLAGS -I/sys"
+      CFLAGS="$CFLAGS -I/sys"
+      LIBS="$LIBS -lcam"
+      DEFINES="$DEFINES -DCAM"
     fi
-    ;;
-  FreeBSD*)
-    DEFINES="$DEFINES -DBSD_COMP"
-    dnl Check for the SCSI library
-    AC_CHECK_LIB(scsi, scsi_open, HAVE_LIBSCSI=yes, HAVE_LIBSCSI=no)
-    if [[ "x$HAVE_LIBSCSI" = "xno" ]]; then
-      AC_MSG_WARN([Cannot find libscsi for SCSI management, disabling SCSI support.])
+  fi
+  ;;
+freebsd*)
+  DEFINES="$DEFINES -DBSD_COMP"
+  dnl Check for the SCSI library
+  AC_CHECK_LIB(scsi, scsi_open, HAVE_LIBSCSI=yes, HAVE_LIBSCSI=no)
+  if [[ "x$HAVE_LIBSCSI" = "xno" ]]; then
+    AC_MSG_WARN([Cannot find libscsi for SCSI management, disabling SCSI support.])
+  else
+    dnl Check for the sys kernel includes
+    AC_CHECK_HEADER(scsi.h sys/scsiio.h)
+    if [[ "x$ac_cv_header_scsi_h" = "xno" ]]; then
+      AC_MSG_WARN([Cannot find includes for the SCSI library, disabling SCSI support.])
     else
-      dnl Check for the sys kernel includes
-      AC_CHECK_HEADER(scsi.h sys/scsiio.h)
-      if [[ "x$ac_cv_header_scsi_h" = "xno" ]]; then
-        AC_MSG_WARN([Cannot find includes for the SCSI library, disabling SCSI support.])
-      else
-        SCSISRC=FreeBSD/scsi_freebsd.cpp
-        LIBS="$LIBS -lscsi"
-      fi
+      SCSISRC=FreeBSD/scsi_freebsd.cpp
+      LIBS="$LIBS -lscsi"
     fi
-    ;;
-  NetBSD*)
-    SUPPORTS_NATIVE_M68K=yes
-    ;;
-  SunOS*)
-    AUDIOSRC=Solaris/audio_solaris.cpp
-    DEFINES="$DEFINES -DBSD_COMP -D_POSIX_PTHREAD_SEMANTICS"
-    ;;
-  IRIX*)
-    EXTRASYSSRCS=Irix/unaligned.c
-    DEFINES="$DEFINES -DCRTSCTS=CNEW_RTSCTS -DB230400=B115200"
-    LIBS="$LIBS -lm"
-    ;;
-  esac
-fi
+  fi
+  ;;
+netbsd*)
+  SUPPORTS_NATIVE_M68K=yes
+  ;;
+solaris*)
+  AUDIOSRC=Solaris/audio_solaris.cpp
+  DEFINES="$DEFINES -DBSD_COMP -D_POSIX_PTHREAD_SEMANTICS"
+  ;;
+irix*)
+  EXTRASYSSRCS=Irix/unaligned.c
+  DEFINES="$DEFINES -DCRTSCTS=CNEW_RTSCTS -DB230400=B115200"
+  LIBS="$LIBS -lm"
+  ;;
+esac
+
 if [[ "x$HAVE_PTHREADS" = "xno" ]]; then
   dnl Serial, ethernet and audio support needs pthreads
   AC_MSG_WARN([You don't have pthreads, disabling serial, ethernet and audio support.])
@@ -258,6 +272,193 @@ if [[ "x$HAVE_PTHREADS" = "xno" ]]; then
   AUDIOSRC=../dummy/audio_dummy.cpp
 fi
 SYSSRCS="$SERIALSRC $ETHERSRC $SCSISRC $AUDIOSRC $SEMSRC $UISRCS $MONSRCS $EXTRASYSSRCS"
+
+dnl Define a macro that translates a yesno-variable into a C macro definition
+dnl to be put into the config.h file
+dnl $1 -- the macro to define
+dnl $2 -- the value to translate
+AC_DEFUN(AC_TRANSLATE_DEFINE, [
+    if [[ "x$2" = "xyes" ]]; then
+        AC_DEFINE($1)
+    fi
+])
+
+dnl Check if we can mmap 0x2000 bytes from 0x0000
+AC_CACHE_CHECK("whether we can map Low Memory area 0x0000-0x2000",
+  ac_cv_can_map_lm, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #include <unistd.h>
+    #include <fcntl.h>
+    #include <sys/mman.h>
+    
+    int main()
+    { int zero_fd; char * lm;
+      if ((zero_fd = open("/dev/zero", O_RDWR)) < 0) exit(1);
+      if ((lm = (char *)mmap((caddr_t)0x0000, 0x2000, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE, zero_fd, 0)) == MAP_FAILED) exit(1);
+      lm[0] = 0x12;
+	  munmap(lm, 0x2000);
+      close(zero_fd);
+      exit(0);
+    }
+  ],
+  [ac_cv_can_map_lm=yes],
+  [ac_cv_can_map_lm=no]
+  )
+  AC_LANG_RESTORE
+  ]
+)
+
+dnl Check if extended signals are supported.
+AC_CACHE_CHECK("whether your system supports extended signal handlers",
+  ac_cv_have_extended_signals, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #include <unistd.h>
+    #include <signal.h>
+    #include <fcntl.h>
+    #include <sys/mman.h>
+
+    static volatile caddr_t mem = 0;
+    static int zero_fd = -1;
+
+    static RETSIGTYPE segfault_handler(int, siginfo_t * sip, void *)
+    { if ((caddr_t)(sip->si_addr) != mem) exit(1);
+      munmap(mem, getpagesize()); close(zero_fd); exit(0); }
+
+    int main()
+    { if ((zero_fd = open("/dev/zero", O_RDWR)) < 0) exit(1);
+      if ((mem = (caddr_t)mmap(0, getpagesize(), PROT_READ, MAP_PRIVATE, zero_fd, 0)) == (caddr_t)MAP_FAILED) exit(1);
+      struct sigaction sa; sa.sa_sigaction = segfault_handler; sa.sa_flags = 0;
+      sigaction(SIGSEGV, &sa, 0);
+      mem[0] = 0;
+      exit(1); // should not be reached
+    }
+  ],
+  [ac_cv_have_extended_signals=yes],
+  [ac_cv_have_extended_signals=no]
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_extended_signals")
+ 
+dnl Otherwise, check for subterfuges.
+if [[ "x$ac_cv_have_extended_signals" = "xno" ]]; then
+  case "$target_os" in
+    linux*)
+      if [[ "x$HAVE_I386" = "xyes" ]]; then
+        AC_CACHE_CHECK("whether we then have a subterfuge for your system",
+		  ac_cv_have_sigcontext_hack, [
+          AC_LANG_SAVE
+          AC_LANG_CPLUSPLUS
+          AC_TRY_RUN([
+            #include <unistd.h>
+            #include <signal.h>
+            #include <fcntl.h>
+            #include <sys/mman.h>
+
+            static volatile caddr_t mem = 0;
+            static int zero_fd = -1;
+
+            static RETSIGTYPE segfault_handler(int, struct sigcontext scs)
+            { if ((caddr_t)(scs.cr2) != mem) exit(1);
+              munmap(mem, getpagesize()); close(zero_fd); exit(0); }
+
+            int main()
+            { if ((zero_fd = open("/dev/zero", O_RDWR)) < 0) exit(1);
+              if ((mem = (caddr_t)mmap(0, getpagesize(), PROT_READ, MAP_PRIVATE, zero_fd, 0)) == (caddr_t)MAP_FAILED) exit(1);
+              struct sigaction sa; sa.sa_flags = 0;
+			  sa.sa_handler = (RETSIGTYPE (*)(int))segfault_handler;
+              sigaction(SIGSEGV, &sa, 0);
+              mem[0] = 0;
+              exit(1); // should not be reached
+            }
+          ],
+          [ac_cv_have_sigcontext_hack=yes],
+          [ac_cv_have_sigcontext_hack=no]
+          )
+          AC_LANG_RESTORE
+        ])
+		AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, $ac_cv_have_sigcontext_hack)
+      fi
+    ;;
+  esac
+fi
+
+dnl Can we do Video on SEGV Signals ?
+CAN_VOSF=no
+if [[ "$ac_cv_have_extended_signals" = "yes" -o "$ac_cv_have_sigcontext_hack" = "yes" ]]; then
+  CAN_VOSF=yes
+fi
+
+dnl Determine the addressing mode to use
+ADDRESSING_MODE=""
+AC_MSG_CHECKING([for the addressing mode to use])
+for am in $ADDRESSING_TEST_ORDER; do
+  case $am in
+  real)
+    dnl Requires ability to mmap Low Memory globals.
+    if [[ "x$ac_cv_can_map_lm" = "xno" ]]; then
+      continue
+    fi
+    if [[ "x$ac_cv_c_bigendian" = "xyes" ]]; then
+      dnl Requires only VOSF if 16-bit vidmode enable
+      if [[ "x$WANT_16BIT_VIDMODE" = "xyes" ]]; then
+        if [[ "x$CAN_VOSF" = "xno" ]]; then
+          continue
+        fi
+      else
+        DEFINES="$DEFINES -DDISABLE_16BIT_VIDMODE"
+      fi
+    else
+      dnl Requires VOSF
+      if [[ "x$CAN_VOSF" = "xno" ]]; then
+        continue
+      fi
+    fi
+    dnl Real addressing will probably work
+    ADDRESSING_MODE="real"
+    WANT_VOSF=yes dnl we can use VOSF and we need it actually
+    DEFINES="$DEFINES -DREAL_ADDRESSING"
+    break
+    ;;
+  direct)
+    dnl Requires VOSF
+    if [[ "x$CAN_VOSF" = "xyes" ]]; then
+      ADDRESSING_MODE="direct"
+      WANT_VOSF=yes dnl we can use VOSF and we need it actually
+      DEFINES="$DEFINES -DDIRECT_ADDRESSING"
+      break
+    fi
+    ;;
+  banks)
+    dnl Default addressing mode
+    ADDRESSING_MODE="memory banks"
+    break
+    ;;
+  *)
+    AC_MSG_ERROR([Internal configure.in script error for $am addressing mode])
+  esac
+done
+AC_MSG_RESULT($ADDRESSING_MODE)
+if [[ "x$ADDRESSING_MODE" = "x" ]]; then
+  AC_MSG_WARN([Sorry, no suitable addressing mode in $ADDRESSING_TEST_ORDER])
+  ADDRESSING_MODE="memory banks"
+fi
+
+dnl Since real and direct addressing modes automatically activate VOSF,
+dnl I put this test here.
+if [[ "x$WANT_VOSF" = "xyes" ]]; then
+  if [[ "x$CAN_VOSF" = "xno" ]]; then
+    AC_MSG_WARN([Sorry, your system does not support Video on SEGV signals])
+    WANT_VOSF=no
+  else
+    AC_DEFINE(ENABLE_VOSF)
+  fi
+fi
 
 dnl Check for GAS.
 HAVE_GAS=no
@@ -285,9 +486,7 @@ if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
 fi
 
 dnl Select appropriate CPU source and REGPARAM define.
-WANT_X86_ASSEMBLY=no
-WANT_SPARC_V8_ASSEMBLY=no
-WANT_SPARC_V9_ASSEMBLY=no
+ASM_OPTIMIZATIONS=none
 WANT_NATIVE_M68K=no
 CPUSRCS="cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
 FPUSRCS="../uae_cpu/fpp.cpp"
@@ -295,28 +494,28 @@ if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
   dnl i386 CPU
   DEFINES="$DEFINES -DREGPARAM=\"__attribute__((regparm(3)))\""
   if [[ "x$HAVE_GAS" = "xyes" ]]; then
-    WANT_X86_ASSEMBLY=yes
-    DEFINES="$DEFINES -DX86_ASSEMBLY"
+    ASM_OPTIMIZATIONS=i386
+    DEFINES="$DEFINES -DX86_ASSEMBLY -DOPTFLAGS"
     CPUSRCS="../uae_cpu/compiler.cpp cpufast1.s cpufast2.s cpufast3.s cpufast4.s cpufast5.s cpufast6.s cpufast7.s cpufast8.s"
     FPUSRCS="../uae_cpu/fpu_x86.cpp"
   fi
 elif [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xyes" ]]; then
   dnl SPARC CPU
-  case "$MACHINE" in
-  SunOS*)
+  case "$target_os" in
+  solaris*)
     AC_MSG_CHECKING(SPARC CPU architecture)
     SPARC_TYPE=`Solaris/which_sparc`
     AC_MSG_RESULT($SPARC_TYPE)
     case "$SPARC_TYPE" in
     SPARC_V8)
-      WANT_SPARC_V8_ASSEMBLY=yes
-      DEFINES="$DEFINES -DSPARC_V8_ASSEMBLY"
+	  ASM_OPTIMIZATIONS="SPARC V8 architecture"
+      DEFINES="$DEFINES -DSPARC_V8_ASSEMBLY" dnl -DOPTFLAGS"
       CFLAGS="$CFLAGS -Wa,-Av8"
       CXXFLAGS="$CXXFLAGS -Wa,-Av8"
       ;;
     SPARC_V9)
-      WANT_SPARC_V9_ASSEMBLY=yes
-      DEFINES="$DEFINES -DSPARC_V9_ASSEMBLY"
+	  ASM_OPTIMIZATIONS="SPARC V9 architecture"
+      DEFINES="$DEFINES -DSPARC_V9_ASSEMBLY" dnl -DOPTFLAGS"
       CFLAGS="$CFLAGS -Wa,-Av9"
       CXXFLAGS="$CXXFLAGS -Wa,-Av9"
       ;;
@@ -339,6 +538,13 @@ else
   CPUSRCS="asm_support.s"
 fi
 
+dnl Remove the "-g" option if set for GCC.
+if [[ "x$HAVE_GCC27" = "xyes" ]]; then
+	dnl gb-- Probably not the cleanest way to take
+	CFLAGS=`echo $CFLAGS | sed -e 's/ -g / /;s/^-g / /;s/ -g$/ /;s/^-g$//'`
+	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/ -g / /;s/^-g / /;s/ -g$/ /;s/^-g$//'`
+fi
+
 dnl Generate Makefile.
 AC_SUBST(DEFINES)
 AC_SUBST(SYSSRCS)
@@ -353,12 +559,12 @@ echo
 echo XFree86 DGA support .............. : $WANT_XF86_DGA
 echo XFree86 VidMode support .......... : $WANT_XF86_VIDMODE
 echo fbdev DGA support ................ : $WANT_FBDEV_DGA
+echo Enable video on SEGV signals ..... : $WANT_VOSF
 echo ESD sound support ................ : $WANT_ESD
 echo GTK user interface ............... : $WANT_GTK
 echo mon debugger support ............. : $WANT_MON
-echo i386 assembly optimizations ...... : $WANT_X86_ASSEMBLY
-echo SPARC V8 assembly optimizations .. : $WANT_SPARC_V8_ASSEMBLY
-echo SPARC V9 assembly optimizations .. : $WANT_SPARC_V9_ASSEMBLY
 echo Running m68k code natively ....... : $WANT_NATIVE_M68K
+echo Assembly optimizations ........... : $ASM_OPTIMIZATIONS
+echo Addressing mode .................. : $ADDRESSING_MODE
 echo
 echo "Configuration done. Now type \"make\" (or \"gmake\")."
