@@ -3,6 +3,8 @@ Bugs:
 - Something still seems to be wrong with the UAE FPU (Calculator and scroll
   bars in MacOS 8 don't work properly), Lauri has fixed this and it has to
   be integrated into the main sources
+- Unix: real addressing mode: something is still deadly wrong there though it
+  works for example under Linux/i386.
 
 General:
 - Sony: rdVerify, Tag Buffer, DskErr
@@ -36,6 +38,7 @@ BeOS:
 - Last sound buffer is not played
 
 Unix:
+- video_vosf.h: check correctness of {15,16,24 bpp} blitters on big endian systems
 - clip_unix.cpp: clip Unix->Basilisk
 - sys_unix.cpp: SysFormat(), SysIsFixedDisk(), SysIsDiskInserted(), prevent/allow for
   non-floppy/CDROM devices
