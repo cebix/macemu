@@ -154,19 +154,70 @@ const uint32 SIG_STACK_SIZE = 0x10000;		// Size of signal stack
 
 
 #if !EMULATED_PPC
-// Structure in which registers are saved in a signal handler;
-// sigcontext->regs points to it
-// (see arch/ppc/kernel/signal.c)
-typedef struct {
-	uint32 u[4];
-} __attribute((aligned(16))) vector128;
-#include <linux/elf.h>
-
 struct sigregs {
-	elf_gregset_t	gp_regs;				// Identical to pt_regs
-	double			fp_regs[ELF_NFPREG];	// f0..f31 and fpsrc
-	//more (uninteresting) stuff following here
+	uint32 nip;
+	uint32 link;
+	uint32 ctr;
+	uint32 msr;
+	uint32 xer;
+	uint32 ccr;
+	uint32 gpr[32];
 };
+
+#if defined(__linux__)
+struct machine_regs : public pt_regs
+{
+	u_long & cr()				{ return pt_regs::ccr; }
+	uint32 cr() const			{ return pt_regs::ccr; }
+	uint32 lr() const			{ return pt_regs::link; }
+	uint32 ctr() const			{ return pt_regs::ctr; }
+	uint32 xer() const			{ return pt_regs::xer; }
+	uint32 msr() const			{ return pt_regs::msr; }
+	uint32 dar() const			{ return pt_regs::dar; }
+	u_long & pc()				{ return pt_regs::nip; }
+	uint32 pc() const			{ return pt_regs::nip; }
+	u_long & gpr(int i)			{ return pt_regs::gpr[i]; }
+	uint32 gpr(int i) const		{ return pt_regs::gpr[i]; }
+};
+
+#include <sys/ucontext.h>
+#define MACHINE_REGISTERS(scp)	((machine_regs *)(((ucontext_t *)scp)->uc_mcontext.regs))
+#endif
+
+#if defined(__APPLE__) && defined(__MACH__)
+struct machine_regs : public mcontext
+{
+	uint32 & cr()				{ return ss.cr; }
+	uint32 cr() const			{ return ss.cr; }
+	uint32 lr() const			{ return ss.lr; }
+	uint32 ctr() const			{ return ss.ctr; }
+	uint32 xer() const			{ return ss.xer; }
+	uint32 msr() const			{ return ss.srr1; }
+	uint32 dar() const			{ return es.dar; }
+	uint32 & pc()				{ return ss.srr0; }
+	uint32 pc() const			{ return ss.srr0; }
+	uint32 & gpr(int i)			{ return (&ss.r0)[i]; }
+	uint32 gpr(int i) const		{ return (&ss.r0)[i]; }
+};
+
+#include <sys/ucontext.h>
+#define MACHINE_REGISTERS(scp)	((machine_regs *)(((ucontext_t *)scp)->uc_mcontext))
+
+#include <sys/signal.h>
+extern "C" int sigaltstack(const struct sigaltstack *ss, struct sigaltstack *oss);
+#endif
+
+static void build_sigregs(sigregs *srp, machine_regs *mrp)
+{
+	srp->nip = mrp->pc();
+	srp->link = mrp->lr();
+	srp->ctr = mrp->ctr();
+	srp->msr = mrp->msr();
+	srp->xer = mrp->xer();
+	srp->ccr = mrp->cr();
+	for (int i = 0; i < 32; i++)
+		srp->gpr[i] = mrp->gpr(i);
+}
 #endif
 
 
@@ -238,9 +289,9 @@ extern void emul_ppc(uint32 start);
 extern void init_emul_ppc(void);
 extern void exit_emul_ppc(void);
 #else
-static void sigusr2_handler(int sig, sigcontext_struct *sc);
-static void sigsegv_handler(int sig, sigcontext_struct *sc);
-static void sigill_handler(int sig, sigcontext_struct *sc);
+static void sigusr2_handler(int sig, siginfo_t *sip, void *scp);
+static void sigsegv_handler(int sig, siginfo_t *sip, void *scp);
+static void sigill_handler(int sig, siginfo_t *sip, void *scp);
 #endif
 
 
@@ -465,6 +516,7 @@ int main(int argc, char **argv)
 		goto quit;
 	}
 
+#ifndef PAGEZERO_HACK
 	// Create Low Memory area (0x0000..0x3000)
 	if (vm_acquire_fixed((char *)0, 0x3000) < 0) {
 		sprintf(str, GetString(STR_LOW_MEM_MMAP_ERR), strerror(errno));
@@ -472,6 +524,7 @@ int main(int argc, char **argv)
 		goto quit;
 	}
 	lm_area_mapped = true;
+#endif
 
 	// Create areas for Kernel Data
 	kernel_area = shmget(IPC_PRIVATE, KERNEL_AREA_SIZE, 0600);
@@ -746,9 +799,11 @@ int main(int argc, char **argv)
 	// Install SIGSEGV and SIGBUS handlers
 	sigemptyset(&sigsegv_action.sa_mask);	// Block interrupts during SEGV handling
 	sigaddset(&sigsegv_action.sa_mask, SIGUSR2);
-	sigsegv_action.sa_handler = (__sighandler_t)sigsegv_handler;
-	sigsegv_action.sa_flags = SA_ONSTACK;
+	sigsegv_action.sa_sigaction = sigsegv_handler;
+	sigsegv_action.sa_flags = SA_ONSTACK | SA_SIGINFO;
+#ifdef HAVE_SIGNAL_SA_RESTORER
 	sigsegv_action.sa_restorer = NULL;
+#endif
 	if (sigaction(SIGSEGV, &sigsegv_action, NULL) < 0) {
 		sprintf(str, GetString(STR_SIGSEGV_INSTALL_ERR), strerror(errno));
 		ErrorAlert(str);
@@ -763,9 +818,11 @@ int main(int argc, char **argv)
 	// Install SIGILL handler
 	sigemptyset(&sigill_action.sa_mask);	// Block interrupts during ILL handling
 	sigaddset(&sigill_action.sa_mask, SIGUSR2);
-	sigill_action.sa_handler = (__sighandler_t)sigill_handler;
-	sigill_action.sa_flags = SA_ONSTACK;
+	sigill_action.sa_sigaction = sigill_handler;
+	sigill_action.sa_flags = SA_ONSTACK | SA_SIGINFO;
+#ifdef HAVE_SIGNAL_SA_RESTORER
 	sigill_action.sa_restorer = NULL;
+#endif
 	if (sigaction(SIGILL, &sigill_action, NULL) < 0) {
 		sprintf(str, GetString(STR_SIGILL_INSTALL_ERR), strerror(errno));
 		ErrorAlert(str);
@@ -773,19 +830,20 @@ int main(int argc, char **argv)
 	}
 #endif
 
+#if !EMULATED_PPC
 	// Install interrupt signal handler
 	sigemptyset(&sigusr2_action.sa_mask);
-	sigusr2_action.sa_handler = (__sighandler_t)sigusr2_handler;
-	sigusr2_action.sa_flags = 0;
-#if !EMULATED_PPC
-	sigusr2_action.sa_flags = SA_ONSTACK | SA_RESTART;
-#endif
+	sigusr2_action.sa_sigaction = sigusr2_handler;
+	sigusr2_action.sa_flags = SA_ONSTACK | SA_RESTART | SA_SIGINFO;
+#ifdef HAVE_SIGNAL_SA_RESTORER
 	sigusr2_action.sa_restorer = NULL;
+#endif
 	if (sigaction(SIGUSR2, &sigusr2_action, NULL) < 0) {
 		sprintf(str, GetString(STR_SIGUSR2_INSTALL_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
+#endif
 
 	// Get my thread ID and execute MacOS thread function
 	emul_thread = pthread_self();
@@ -1109,7 +1167,7 @@ static void *tick_func(void *arg)
 		if (emul_thread_fatal) {
 
 			// Yes, dump registers
-			pt_regs *r = (pt_regs *)&sigsegv_regs;
+			sigregs *r = &sigsegv_regs;
 			char str[256];
 			if (crash_reason == NULL)
 				crash_reason = "SIGSEGV";
@@ -1339,9 +1397,9 @@ static void sigusr2_handler(int sig)
 #endif
 }
 #else
-static void sigusr2_handler(int sig, sigcontext_struct *sc)
+static void sigusr2_handler(int sig, siginfo_t *sip, void *scp)
 {
-	pt_regs *r = sc->regs;
+	machine_regs *r = MACHINE_REGISTERS(scp);
 
 	// Do nothing if interrupts are disabled
 	if (*(int32 *)XLM_IRQ_NEST > 0)
@@ -1355,13 +1413,13 @@ static void sigusr2_handler(int sig, sigcontext_struct *sc)
 		case MODE_68K:
 			// 68k emulator active, trigger 68k interrupt level 1
 			WriteMacInt16(ntohl(kernel_data->v[0x67c >> 2]), 1);
-			r->ccr |= ntohl(kernel_data->v[0x674 >> 2]);
+			r->cr() |= ntohl(kernel_data->v[0x674 >> 2]);
 			break;
 
 #if INTERRUPTS_IN_NATIVE_MODE
 		case MODE_NATIVE:
 			// 68k emulator inactive, in nanokernel?
-			if (r->gpr[1] != KernelDataAddr) {
+			if (r->gpr(1) != KernelDataAddr) {
 				// Prepare for 68k interrupt level 1
 				WriteMacInt16(ntohl(kernel_data->v[0x67c >> 2]), 1);
 				WriteMacInt32(ntohl(kernel_data->v[0x658 >> 2]) + 0xdc, ReadMacInt32(ntohl(kernel_data->v[0x658 >> 2]) + 0xdc) | ntohl(kernel_data->v[0x674 >> 2]));
@@ -1430,55 +1488,55 @@ static void sigusr2_handler(int sig, sigcontext_struct *sc)
  */
 
 #if !EMULATED_PPC
-static void sigsegv_handler(int sig, sigcontext_struct *sc)
+static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 {
-	pt_regs *r = sc->regs;
+	machine_regs *r = MACHINE_REGISTERS(scp);
 
 	// Get effective address
-	uint32 addr = r->dar;
+	uint32 addr = r->dar();
 	
 #if ENABLE_VOSF
 	// Handle screen fault.
 	extern bool Screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction);
-	if (Screen_fault_handler((sigsegv_address_t)addr, (sigsegv_address_t)r->nip))
+	if (Screen_fault_handler((sigsegv_address_t)addr, (sigsegv_address_t)r->pc()))
 		return;
 #endif
 
 	num_segv++;
 
 	// Fault in Mac ROM or RAM?
-	bool mac_fault = (r->nip >= ROM_BASE) && (r->nip < (ROM_BASE + ROM_AREA_SIZE)) || (r->nip >= RAMBase) && (r->nip < (RAMBase + RAMSize));
+	bool mac_fault = (r->pc() >= ROM_BASE) && (r->pc() < (ROM_BASE + ROM_AREA_SIZE)) || (r->pc() >= RAMBase) && (r->pc() < (RAMBase + RAMSize));
 	if (mac_fault) {
 
 		// "VM settings" during MacOS 8 installation
-		if (r->nip == ROM_BASE + 0x488160 && r->gpr[20] == 0xf8000000) {
-			r->nip += 4;
-			r->gpr[8] = 0;
+		if (r->pc() == ROM_BASE + 0x488160 && r->gpr(20) == 0xf8000000) {
+			r->pc() += 4;
+			r->gpr(8) = 0;
 			return;
 	
 		// MacOS 8.5 installation
-		} else if (r->nip == ROM_BASE + 0x488140 && r->gpr[16] == 0xf8000000) {
-			r->nip += 4;
-			r->gpr[8] = 0;
+		} else if (r->pc() == ROM_BASE + 0x488140 && r->gpr(16) == 0xf8000000) {
+			r->pc() += 4;
+			r->gpr(8) = 0;
 			return;
 	
 		// MacOS 8 serial drivers on startup
-		} else if (r->nip == ROM_BASE + 0x48e080 && (r->gpr[8] == 0xf3012002 || r->gpr[8] == 0xf3012000)) {
-			r->nip += 4;
-			r->gpr[8] = 0;
+		} else if (r->pc() == ROM_BASE + 0x48e080 && (r->gpr(8) == 0xf3012002 || r->gpr(8) == 0xf3012000)) {
+			r->pc() += 4;
+			r->gpr(8) = 0;
 			return;
 	
 		// MacOS 8.1 serial drivers on startup
-		} else if (r->nip == ROM_BASE + 0x48c5e0 && (r->gpr[20] == 0xf3012002 || r->gpr[20] == 0xf3012000)) {
-			r->nip += 4;
+		} else if (r->pc() == ROM_BASE + 0x48c5e0 && (r->gpr(20) == 0xf3012002 || r->gpr(20) == 0xf3012000)) {
+			r->pc() += 4;
 			return;
-		} else if (r->nip == ROM_BASE + 0x4a10a0 && (r->gpr[20] == 0xf3012002 || r->gpr[20] == 0xf3012000)) {
-			r->nip += 4;
+		} else if (r->pc() == ROM_BASE + 0x4a10a0 && (r->gpr(20) == 0xf3012002 || r->gpr(20) == 0xf3012000)) {
+			r->pc() += 4;
 			return;
 		}
 
 		// Get opcode and divide into fields
-		uint32 opcode = *((uint32 *)r->nip);
+		uint32 opcode = *((uint32 *)r->pc());
 		uint32 primop = opcode >> 26;
 		uint32 exop = (opcode >> 1) & 0x3ff;
 		uint32 ra = (opcode >> 16) & 0x1f;
@@ -1570,25 +1628,25 @@ static void sigsegv_handler(int sig, sigcontext_struct *sc)
 #if EMULATE_UNALIGNED_LOADSTORE_MULTIPLE
 			case 46:	// lmw
 				if (sig == SIGBUS) {
-					uint32 ea = (ra == 0 ? 0 : r->gpr[ra]) + imm;
-					D(bug("WARNING: unaligned lmw to EA=%08x from IP=%08x\n", ea, r->nip));
+					uint32 ea = (ra == 0 ? 0 : r->gpr(ra)) + imm;
+					D(bug("WARNING: unaligned lmw to EA=%08x from IP=%08x\n", ea, r->pc()));
 					for (int i = rd; i <= 31; i++) {
-						r->gpr[i] = ReadMacInt32(ea);
+						r->gpr(i) = ReadMacInt32(ea);
 						ea += 4;
 					}
-					r->nip += 4;
+					r->pc() += 4;
 					goto rti;
 				}
 				break;
 			case 47:	// stmw
 				if (sig == SIGBUS) {
-					uint32 ea = (ra == 0 ? 0 : r->gpr[ra]) + imm;
-					D(bug("WARNING: unaligned stmw to EA=%08x from IP=%08x\n", ea, r->nip));
+					uint32 ea = (ra == 0 ? 0 : r->gpr(ra)) + imm;
+					D(bug("WARNING: unaligned stmw to EA=%08x from IP=%08x\n", ea, r->pc()));
 					for (int i = rd; i <= 31; i++) {
-						WriteMacInt32(ea, r->gpr[i]);
+						WriteMacInt32(ea, r->gpr(i));
 						ea += 4;
 					}
-					r->nip += 4;
+					r->pc() += 4;
 					goto rti;
 				}
 				break;
@@ -1597,20 +1655,20 @@ static void sigsegv_handler(int sig, sigcontext_struct *sc)
 	
 		// Ignore ROM writes
 		if (transfer_type == TYPE_STORE && addr >= ROM_BASE && addr < ROM_BASE + ROM_SIZE) {
-//			D(bug("WARNING: %s write access to ROM at %08lx, pc %08lx\n", transfer_size == SIZE_BYTE ? "Byte" : transfer_size == SIZE_HALFWORD ? "Halfword" : "Word", addr, r->nip));
+//			D(bug("WARNING: %s write access to ROM at %08lx, pc %08lx\n", transfer_size == SIZE_BYTE ? "Byte" : transfer_size == SIZE_HALFWORD ? "Halfword" : "Word", addr, r->pc()));
 			if (addr_mode == MODE_U || addr_mode == MODE_UX)
-				r->gpr[ra] = addr;
-			r->nip += 4;
+				r->gpr(ra) = addr;
+			r->pc() += 4;
 			goto rti;
 		}
 
 		// Ignore illegal memory accesses?
 		if (PrefsFindBool("ignoresegv")) {
 			if (addr_mode == MODE_U || addr_mode == MODE_UX)
-				r->gpr[ra] = addr;
+				r->gpr(ra) = addr;
 			if (transfer_type == TYPE_LOAD)
-				r->gpr[rd] = 0;
-			r->nip += 4;
+				r->gpr(rd) = 0;
+			r->pc() += 4;
 			goto rti;
 		}
 
@@ -1618,9 +1676,9 @@ static void sigsegv_handler(int sig, sigcontext_struct *sc)
 		if (!PrefsFindBool("nogui")) {
 			char str[256];
 			if (transfer_type == TYPE_LOAD || transfer_type == TYPE_STORE)
-				sprintf(str, GetString(STR_MEM_ACCESS_ERR), transfer_size == SIZE_BYTE ? "byte" : transfer_size == SIZE_HALFWORD ? "halfword" : "word", transfer_type == TYPE_LOAD ? GetString(STR_MEM_ACCESS_READ) : GetString(STR_MEM_ACCESS_WRITE), addr, r->nip, r->gpr[24], r->gpr[1]);
+				sprintf(str, GetString(STR_MEM_ACCESS_ERR), transfer_size == SIZE_BYTE ? "byte" : transfer_size == SIZE_HALFWORD ? "halfword" : "word", transfer_type == TYPE_LOAD ? GetString(STR_MEM_ACCESS_READ) : GetString(STR_MEM_ACCESS_WRITE), addr, r->pc(), r->gpr(24), r->gpr(1));
 			else
-				sprintf(str, GetString(STR_UNKNOWN_SEGV_ERR), r->nip, r->gpr[24], r->gpr[1], opcode);
+				sprintf(str, GetString(STR_UNKNOWN_SEGV_ERR), r->pc(), r->gpr(24), r->gpr(1), opcode);
 			ErrorAlert(str);
 			QuitEmulator();
 			return;
@@ -1631,7 +1689,7 @@ static void sigsegv_handler(int sig, sigcontext_struct *sc)
 	crash_reason = (sig == SIGBUS) ? "SIGBUS" : "SIGSEGV";
 	if (!ready_for_signals) {
 		printf("%s\n");
-		printf(" sigcontext %p, pt_regs %p\n", sc, r);
+		printf(" sigcontext %p, machine_regs %p\n", scp, r);
 		printf(
 			"   pc %08lx     lr %08lx    ctr %08lx    msr %08lx\n"
 			"  xer %08lx     cr %08lx  \n"
@@ -1644,22 +1702,22 @@ static void sigsegv_handler(int sig, sigcontext_struct *sc)
 			"  r24 %08lx    r25 %08lx    r26 %08lx    r27 %08lx\n"
 			"  r28 %08lx    r29 %08lx    r30 %08lx    r31 %08lx\n",
 			crash_reason,
-			r->nip, r->link, r->ctr, r->msr,
-			r->xer, r->ccr,
-			r->gpr[0], r->gpr[1], r->gpr[2], r->gpr[3],
-			r->gpr[4], r->gpr[5], r->gpr[6], r->gpr[7],
-			r->gpr[8], r->gpr[9], r->gpr[10], r->gpr[11],
-			r->gpr[12], r->gpr[13], r->gpr[14], r->gpr[15],
-			r->gpr[16], r->gpr[17], r->gpr[18], r->gpr[19],
-			r->gpr[20], r->gpr[21], r->gpr[22], r->gpr[23],
-			r->gpr[24], r->gpr[25], r->gpr[26], r->gpr[27],
-			r->gpr[28], r->gpr[29], r->gpr[30], r->gpr[31]);
+			r->pc(), r->lr(), r->ctr(), r->msr(),
+			r->xer(), r->cr(),
+			r->gpr(0), r->gpr(1), r->gpr(2), r->gpr(3),
+			r->gpr(4), r->gpr(5), r->gpr(6), r->gpr(7),
+			r->gpr(8), r->gpr(9), r->gpr(10), r->gpr(11),
+			r->gpr(12), r->gpr(13), r->gpr(14), r->gpr(15),
+			r->gpr(16), r->gpr(17), r->gpr(18), r->gpr(19),
+			r->gpr(20), r->gpr(21), r->gpr(22), r->gpr(23),
+			r->gpr(24), r->gpr(25), r->gpr(26), r->gpr(27),
+			r->gpr(28), r->gpr(29), r->gpr(30), r->gpr(31));
 		exit(1);
 		QuitEmulator();
 		return;
 	} else {
 		// We crashed. Save registers, tell tick thread and loop forever
-		sigsegv_regs = *(sigregs *)r;
+		build_sigregs(&sigsegv_regs, r);
 		emul_thread_fatal = true;
 		for (;;) ;
 	}
@@ -1671,17 +1729,17 @@ rti:;
  *  SIGILL handler
  */
 
-static void sigill_handler(int sig, sigcontext_struct *sc)
+static void sigill_handler(int sig, siginfo_t *sip, void *scp)
 {
-	pt_regs *r = sc->regs;
+	machine_regs *r = MACHINE_REGISTERS(scp);
 	char str[256];
 
 	// Fault in Mac ROM or RAM?
-	bool mac_fault = (r->nip >= ROM_BASE) && (r->nip < (ROM_BASE + ROM_AREA_SIZE)) || (r->nip >= RAMBase) && (r->nip < (RAMBase + RAMSize));
+	bool mac_fault = (r->pc() >= ROM_BASE) && (r->pc() < (ROM_BASE + ROM_AREA_SIZE)) || (r->pc() >= RAMBase) && (r->pc() < (RAMBase + RAMSize));
 	if (mac_fault) {
 
 		// Get opcode and divide into fields
-		uint32 opcode = *((uint32 *)r->nip);
+		uint32 opcode = *((uint32 *)r->pc());
 		uint32 primop = opcode >> 26;
 		uint32 exop = (opcode >> 1) & 0x3ff;
 		uint32 ra = (opcode >> 16) & 0x1f;
@@ -1692,7 +1750,7 @@ static void sigill_handler(int sig, sigcontext_struct *sc)
 		switch (primop) {
 			case 9:		// POWER instructions
 			case 22:
-power_inst:		sprintf(str, GetString(STR_POWER_INSTRUCTION_ERR), r->nip, r->gpr[1], opcode);
+power_inst:		sprintf(str, GetString(STR_POWER_INSTRUCTION_ERR), r->pc(), r->gpr(1), opcode);
 				ErrorAlert(str);
 				QuitEmulator();
 				return;
@@ -1700,14 +1758,14 @@ power_inst:		sprintf(str, GetString(STR_POWER_INSTRUCTION_ERR), r->nip, r->gpr[1
 			case 31:
 				switch (exop) {
 					case 83:	// mfmsr
-						r->gpr[rd] = 0xf072;
-						r->nip += 4;
+						r->gpr(rd) = 0xf072;
+						r->pc() += 4;
 						goto rti;
 
 					case 210:	// mtsr
 					case 242:	// mtsrin
 					case 306:	// tlbie
-						r->nip += 4;
+						r->pc() += 4;
 						goto rti;
 
 					case 339: {	// mfspr
@@ -1723,15 +1781,15 @@ power_inst:		sprintf(str, GetString(STR_POWER_INSTRUCTION_ERR), r->nip, r->gpr[1
 							case 957:	// PMC3
 							case 958:	// PMC4
 							case 959:	// SDA
-								r->nip += 4;
+								r->pc() += 4;
 								goto rti;
 							case 25:	// SDR1
-								r->gpr[rd] = 0xdead001f;
-								r->nip += 4;
+								r->gpr(rd) = 0xdead001f;
+								r->pc() += 4;
 								goto rti;
 							case 287:	// PVR
-								r->gpr[rd] = PVR;
-								r->nip += 4;
+								r->gpr(rd) = PVR;
+								r->pc() += 4;
 								goto rti;
 						}
 						break;
@@ -1767,7 +1825,7 @@ power_inst:		sprintf(str, GetString(STR_POWER_INSTRUCTION_ERR), r->nip, r->gpr[1
 							case 957:	// PMC3
 							case 958:	// PMC4
 							case 959:	// SDA
-								r->nip += 4;
+								r->pc() += 4;
 								goto rti;
 						}
 						break;
@@ -1786,7 +1844,7 @@ power_inst:		sprintf(str, GetString(STR_POWER_INSTRUCTION_ERR), r->nip, r->gpr[1
 
 		// In GUI mode, show error alert
 		if (!PrefsFindBool("nogui")) {
-			sprintf(str, GetString(STR_UNKNOWN_SEGV_ERR), r->nip, r->gpr[24], r->gpr[1], opcode);
+			sprintf(str, GetString(STR_UNKNOWN_SEGV_ERR), r->pc(), r->gpr(24), r->gpr(1), opcode);
 			ErrorAlert(str);
 			QuitEmulator();
 			return;
@@ -1797,7 +1855,7 @@ power_inst:		sprintf(str, GetString(STR_POWER_INSTRUCTION_ERR), r->nip, r->gpr[1
 	crash_reason = "SIGILL";
 	if (!ready_for_signals) {
 		printf("%s\n");
-		printf(" sigcontext %p, pt_regs %p\n", sc, r);
+		printf(" sigcontext %p, machine_regs %p\n", scp, r);
 		printf(
 			"   pc %08lx     lr %08lx    ctr %08lx    msr %08lx\n"
 			"  xer %08lx     cr %08lx  \n"
@@ -1810,22 +1868,22 @@ power_inst:		sprintf(str, GetString(STR_POWER_INSTRUCTION_ERR), r->nip, r->gpr[1
 			"  r24 %08lx    r25 %08lx    r26 %08lx    r27 %08lx\n"
 			"  r28 %08lx    r29 %08lx    r30 %08lx    r31 %08lx\n",
 			crash_reason,
-			r->nip, r->link, r->ctr, r->msr,
-			r->xer, r->ccr,
-			r->gpr[0], r->gpr[1], r->gpr[2], r->gpr[3],
-			r->gpr[4], r->gpr[5], r->gpr[6], r->gpr[7],
-			r->gpr[8], r->gpr[9], r->gpr[10], r->gpr[11],
-			r->gpr[12], r->gpr[13], r->gpr[14], r->gpr[15],
-			r->gpr[16], r->gpr[17], r->gpr[18], r->gpr[19],
-			r->gpr[20], r->gpr[21], r->gpr[22], r->gpr[23],
-			r->gpr[24], r->gpr[25], r->gpr[26], r->gpr[27],
-			r->gpr[28], r->gpr[29], r->gpr[30], r->gpr[31]);
+			r->pc(), r->lr(), r->ctr(), r->msr(),
+			r->xer(), r->cr(),
+			r->gpr(0), r->gpr(1), r->gpr(2), r->gpr(3),
+			r->gpr(4), r->gpr(5), r->gpr(6), r->gpr(7),
+			r->gpr(8), r->gpr(9), r->gpr(10), r->gpr(11),
+			r->gpr(12), r->gpr(13), r->gpr(14), r->gpr(15),
+			r->gpr(16), r->gpr(17), r->gpr(18), r->gpr(19),
+			r->gpr(20), r->gpr(21), r->gpr(22), r->gpr(23),
+			r->gpr(24), r->gpr(25), r->gpr(26), r->gpr(27),
+			r->gpr(28), r->gpr(29), r->gpr(30), r->gpr(31));
 		exit(1);
 		QuitEmulator();
 		return;
 	} else {
 		// We crashed. Save registers, tell tick thread and loop forever
-		sigsegv_regs = *(sigregs *)r;
+		build_sigregs(&sigsegv_regs, r);
 		emul_thread_fatal = true;
 		for (;;) ;
 	}
