@@ -18,6 +18,10 @@ sheep_net.o: sheep_net.c
 dev:
 	mknod /dev/sheep_net c 10 198
 
+install: sheep_net.o
+	install -d /lib/modules/`uname -r`/misc
+	install -m 644 sheep_net.o /lib/modules/`uname -r`/misc
+
 clean:
 	-rm $(OBJS)
 
