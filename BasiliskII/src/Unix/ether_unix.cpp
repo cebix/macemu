@@ -81,7 +81,7 @@ static bool thread_active = false;			// Flag: Packet reception thread installed
 static sem_t int_ack;						// Interrupt acknowledge semaphore
 static bool udp_tunnel;						// Flag: UDP tunnelling active, fd is the socket descriptor
 static int net_if_type = -1;				// Ethernet device type
-static const char *net_if_name = NULL;		// TUN/TAP device name
+static char *net_if_name = NULL;			// TUN/TAP device name
 static const char *net_if_script = NULL;	// Network config script
 
 // Attached network protocols, maps protocol type to MacOS handler address
@@ -142,7 +142,7 @@ static bool execute_network_script(const char *action)
 		if (pid == 0) {
 			char *args[4];
 			args[0] = (char *)net_if_script;
-			args[1] = (char *)net_if_name;
+			args[1] = net_if_name;
 			args[2] = (char *)action;
 			args[3] = NULL;
 			execv(net_if_script, args);
@@ -226,7 +226,7 @@ bool ether_init(void)
 			WarningAlert(str);
 			goto open_error;
 		}
-		net_if_name = ifr.ifr_name;
+		net_if_name = strdup(ifr.ifr_name);
 		if (!execute_network_script("up")) {
 			sprintf(str, GetString(STR_TUN_TAP_CONFIG_WARN), "script execute error");
 			WarningAlert(str);
@@ -271,9 +271,6 @@ bool ether_init(void)
 open_error:
 	stop_thread();
 
-	if (net_if_type == NET_IF_TUNTAP)
-		execute_network_script("down");
-
 	if (fd > 0) {
 		close(fd);
 		fd = -1;
@@ -295,6 +292,14 @@ void ether_exit(void)
 		sem_destroy(&int_ack);
 		thread_active = false;
 	}
+
+	// Shut down TUN/TAP interface
+	if (net_if_type == NET_IF_TUNTAP)
+		execute_network_script("down");
+
+	// Free TUN/TAP device name
+	if (net_if_name)
+		free(net_if_name);
 
 	// Close sheep_net device
 	if (fd > 0)
