@@ -28,6 +28,8 @@ for dir in .
 do 
   echo processing $dir
   (cd $dir; \
+  aclocalinclude="$ACLOCAL_FLAGS"; \
+  aclocal $aclocalinclude; \
   autoheader; autoconf)
 done
 

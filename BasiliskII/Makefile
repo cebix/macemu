@@ -43,7 +43,7 @@ $(SRCARCHIVE): $(SRCS) $(DOCS)
 	-rm -rf $(TMPDIR)
 	mkdir $(TMPDIR)
 	cd $(TMPDIR); cvs export -D "$(ISODATE)" BasiliskII
-	cp src/Unix/config.h.in src/Unix/configure $(TMPDIR)/BasiliskII/src/Unix
+	cd $(TMPDIR)/BasiliskII/src/Unix; aclocal; autoheader; autoconf
 	rm $(TMPDIR)/BasiliskII/Makefile
 	mv $(TMPDIR)/BasiliskII $(TMPDIR)/$(VERNAME)
 	cd $(TMPDIR); tar cfz $@ $(VERNAME)
