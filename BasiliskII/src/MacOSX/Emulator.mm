@@ -190,8 +190,17 @@
 
 - (IBAction) Restart: (id)sender
 {
+	if ( ! running )
+	{
+		running = YES;						// Start emulator
+		[self runUpdate];
+		[self Resume: nil];
+	}
+
 	if ( running )
-//		reset680x0();
+#ifdef UAE_CPU_HAS_RESET
+		reset680x0();
+#else
 	{
 		uaeCreated = NO;
 		[redraw suspend];
@@ -219,6 +228,7 @@
 		if ( display_type != DISPLAY_SCREEN )
 			[redraw resume];
 	}
+#endif
 }
 
 - (IBAction) Resume: (id)sender
