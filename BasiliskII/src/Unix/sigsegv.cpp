@@ -54,6 +54,155 @@ static bool sigsegv_do_install_handler(int sig);
 
 
 /*
+ *  Instruction decoding aids
+ */
+
+// Transfer type
+enum transfer_type_t {
+	TYPE_UNKNOWN,
+	TYPE_LOAD,
+	TYPE_STORE
+};
+
+// Transfer size
+enum transfer_size_t {
+	SIZE_UNKNOWN,
+	SIZE_BYTE,
+	SIZE_WORD,
+	SIZE_LONG
+};
+
+#if (defined(powerpc) || defined(__powerpc__) || defined(__ppc__))
+// Addressing mode
+enum addressing_mode_t {
+	MODE_UNKNOWN,
+	MODE_NORM,
+	MODE_U,
+	MODE_X,
+	MODE_UX
+};
+
+// Decoded instruction
+struct instruction_t {
+	transfer_type_t		transfer_type;
+	transfer_size_t		transfer_size;
+	addressing_mode_t	addr_mode;
+	unsigned int		addr;
+	char				ra, rd;
+};
+
+static void powerpc_decode_instruction(instruction_t *instruction, unsigned int nip, unsigned int * gpr)
+{
+	// Get opcode and divide into fields
+	unsigned int opcode = *((unsigned int *)nip);
+	unsigned int primop = opcode >> 26;
+	unsigned int exop = (opcode >> 1) & 0x3ff;
+	unsigned int ra = (opcode >> 16) & 0x1f;
+	unsigned int rb = (opcode >> 11) & 0x1f;
+	unsigned int rd = (opcode >> 21) & 0x1f;
+	signed int imm = (signed short)(opcode & 0xffff);
+	
+	// Analyze opcode
+	transfer_type_t transfer_type = TYPE_UNKNOWN;
+	transfer_size_t transfer_size = SIZE_UNKNOWN;
+	addressing_mode_t addr_mode = MODE_UNKNOWN;
+	switch (primop) {
+	case 31:
+		switch (exop) {
+		case 23:	// lwzx
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_LONG; addr_mode = MODE_X; break;
+		case 55:	// lwzux
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_LONG; addr_mode = MODE_UX; break;
+		case 87:	// lbzx
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_X; break;
+		case 119:	// lbzux
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_UX; break;
+		case 151:	// stwx
+			transfer_type = TYPE_STORE; transfer_size = SIZE_LONG; addr_mode = MODE_X; break;
+		case 183:	// stwux
+			transfer_type = TYPE_STORE; transfer_size = SIZE_LONG; addr_mode = MODE_UX; break;
+		case 215:	// stbx
+			transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_X; break;
+		case 247:	// stbux
+			transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_UX; break;
+		case 279:	// lhzx
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_X; break;
+		case 311:	// lhzux
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_UX; break;
+		case 343:	// lhax
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_X; break;
+		case 375:	// lhaux
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_UX; break;
+		case 407:	// sthx
+			transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_X; break;
+		case 439:	// sthux
+			transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_UX; break;
+		}
+		break;
+	
+	case 32:	// lwz
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_LONG; addr_mode = MODE_NORM; break;
+	case 33:	// lwzu
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_LONG; addr_mode = MODE_U; break;
+	case 34:	// lbz
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_NORM; break;
+	case 35:	// lbzu
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_U; break;
+	case 36:	// stw
+		transfer_type = TYPE_STORE; transfer_size = SIZE_LONG; addr_mode = MODE_NORM; break;
+	case 37:	// stwu
+		transfer_type = TYPE_STORE; transfer_size = SIZE_LONG; addr_mode = MODE_U; break;
+	case 38:	// stb
+		transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_NORM; break;
+	case 39:	// stbu
+		transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_U; break;
+	case 40:	// lhz
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_NORM; break;
+	case 41:	// lhzu
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_U; break;
+	case 42:	// lha
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_NORM; break;
+	case 43:	// lhau
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_U; break;
+	case 44:	// sth
+		transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_NORM; break;
+	case 45:	// sthu
+		transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_U; break;
+	}
+	
+	// Calculate effective address
+	unsigned int addr = 0;
+	switch (addr_mode) {
+	case MODE_X:
+	case MODE_UX:
+		if (ra == 0)
+			addr = gpr[rb];
+		else
+			addr = gpr[ra] + gpr[rb];
+		break;
+	case MODE_NORM:
+	case MODE_U:
+		if (ra == 0)
+			addr = (signed int)(signed short)imm;
+		else
+			addr = gpr[ra] + (signed int)(signed short)imm;
+		break;
+	default:
+		break;
+	}
+        
+	// Commit decoded instruction
+	instruction->addr = addr;
+	instruction->addr_mode = addr_mode;
+	instruction->transfer_type = transfer_type;
+	instruction->transfer_size = transfer_size;
+	instruction->ra = ra;
+	instruction->rd = rd;
+}
+#endif
+
+
+/*
  *  OS-dependant SIGSEGV signals support section
  */
 
@@ -69,8 +218,9 @@ static bool sigsegv_do_install_handler(int sig);
 #if defined(__linux__)
 #if (defined(i386) || defined(__i386__))
 #include <sys/ucontext.h>
-#define SIGSEGV_FAULT_INSTRUCTION		(((ucontext_t *)scp)->uc_mcontext.gregs[14]) /* should use REG_EIP instead */
-#define SIGSEGV_REGISTER_FILE			(unsigned long *)(((ucontext_t *)scp)->uc_mcontext.gregs)
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[14] /* should use REG_EIP instead */
+#define SIGSEGV_REGISTER_FILE			(unsigned int *)SIGSEGV_CONTEXT_REGS
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(ia64) || defined(__ia64__))
@@ -78,8 +228,9 @@ static bool sigsegv_do_install_handler(int sig);
 #endif
 #if (defined(powerpc) || defined(__powerpc__))
 #include <sys/ucontext.h>
-#define SIGSEGV_FAULT_INSTRUCTION		(((ucontext_t *)scp)->uc_mcontext.regs->nip)
-#define SIGSEGV_REGISTER_FILE			(unsigned long *)(((ucontext_t *)scp)->uc_mcontext.regs)
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.regs)
+#define SIGSEGV_FAULT_INSTRUCTION		(SIGSEGV_CONTEXT_REGS->nip)
+#define SIGSEGV_REGISTER_FILE			(unsigned int *)&SIGSEGV_CONTEXT_REGS->nip, (unsigned int *)(SIGSEGV_CONTEXT_REGS->gpr)
 #define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
 #endif
 #endif
@@ -107,7 +258,7 @@ static bool sigsegv_do_install_handler(int sig);
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, struct sigcontext *scp
 #define SIGSEGV_FAULT_ADDRESS			scp->regs->dar
 #define SIGSEGV_FAULT_INSTRUCTION		scp->regs->nip
-#define SIGSEGV_REGISTER_FILE			(unsigned long *)(scp->regs)
+#define SIGSEGV_REGISTER_FILE			(unsigned int *)&scp->regs->nip, (unsigned int *)(scp->regs->gpr)
 #define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
 #endif
 #if (defined(alpha) || defined(__alpha__))
@@ -162,25 +313,29 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 #if (defined(m68k) || defined(__m68k__))
 #include <m68k/frame.h>
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
-#define SIGSEGV_FAULT_ADDRESS			({																\
-	struct sigstate {																					\
-		int ss_flags;																					\
-		struct frame ss_frame;																			\
-	};																									\
-	struct sigstate *state = (struct sigstate *)scp->sc_ap;												\
-	char *fault_addr;																					\
-	switch (state->ss_frame.f_format) {																	\
-	case 7:		/* 68040 access error */																\
-		/* "code" is sometimes unreliable (i.e. contains NULL or a bogus address), reason unknown */	\
-		fault_addr = state->ss_frame.f_fmt7.f_fa;														\
-		break;																							\
-	default:																							\
-		fault_addr = (char *)code;																		\
-		break;																							\
-	}																									\
-	fault_addr;																							\
-})
+#define SIGSEGV_FAULT_ADDRESS			get_fault_address(scp)
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
+
+// Use decoding scheme from BasiliskII/m68k native
+static sigsegv_address_t get_fault_address(struct sigcontext *scp)
+{
+	struct sigstate {
+		int ss_flags;
+		struct frame ss_frame;
+	};
+	struct sigstate *state = (struct sigstate *)scp->sc_ap;
+	char *fault_addr;
+	switch (state->ss_frame.f_format) {
+	case 7:		/* 68040 access error */
+		/* "code" is sometimes unreliable (i.e. contains NULL or a bogus address), reason unknown */
+		fault_addr = state->ss_frame.f_fmt7.f_fa;
+		break;
+	default:
+		fault_addr = (char *)code;
+		break;
+	}
+	return (sigsegv_address_t)fault_addr;
+}
 #else
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, void *scp, char *addr
 #define SIGSEGV_FAULT_ADDRESS			addr
@@ -195,107 +350,27 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 #define SIGSEGV_FAULT_ADDRESS			get_fault_address(scp)
 #define SIGSEGV_FAULT_INSTRUCTION		scp->sc_ir
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGBUS)
+#define SIGSEGV_REGISTER_FILE			(unsigned int *)&scp->sc_ir, &((unsigned int *) scp->sc_regs)[2]
+#define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
 
-// From Boehm's GC 6.0alpha8
-#define EXTRACT_OP1(iw)     (((iw) & 0xFC000000) >> 26)
-#define EXTRACT_OP2(iw)     (((iw) & 0x000007FE) >> 1)
-#define EXTRACT_REGA(iw)    (((iw) & 0x001F0000) >> 16)
-#define EXTRACT_REGB(iw)    (((iw) & 0x03E00000) >> 21)
-#define EXTRACT_REGC(iw)    (((iw) & 0x0000F800) >> 11)
-#define EXTRACT_DISP(iw)    ((short *) &(iw))[1]
-
+// Use decoding scheme from SheepShaver
 static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 {
-	unsigned int   instr = *((unsigned int *) scp->sc_ir);
-	unsigned int * regs = &((unsigned int *) scp->sc_regs)[2];
-	int            disp = 0, tmp;
-	unsigned int   baseA = 0, baseB = 0;
-	unsigned int   addr, alignmask = 0xFFFFFFFF;
+	unsigned int   nip = (unsigned int) scp->sc_ir;
+	unsigned int * gpr = &((unsigned int *) scp->sc_regs)[2];
+	instruction_t  instr;
 
-	switch(EXTRACT_OP1(instr)) {
-	case 38:   /* stb */
-	case 39:   /* stbu */
-	case 54:   /* stfd */
-	case 55:   /* stfdu */
-	case 52:   /* stfs */
-	case 53:   /* stfsu */
-	case 44:   /* sth */
-	case 45:   /* sthu */
-	case 47:   /* stmw */
-	case 36:   /* stw */
-	case 37:   /* stwu */
-		tmp = EXTRACT_REGA(instr);
-		if(tmp > 0)
-			baseA = regs[tmp];
-		disp = EXTRACT_DISP(instr);
-		break;
-	case 31:
-		switch(EXTRACT_OP2(instr)) {
-		case 86:    /* dcbf */
-		case 54:    /* dcbst */
-		case 1014:  /* dcbz */
-		case 247:   /* stbux */
-		case 215:   /* stbx */
-		case 759:   /* stfdux */
-		case 727:   /* stfdx */
-		case 983:   /* stfiwx */
-		case 695:   /* stfsux */
-		case 663:   /* stfsx */
-		case 918:   /* sthbrx */
-		case 439:   /* sthux */
-		case 407:   /* sthx */
-		case 661:   /* stswx */
-		case 662:   /* stwbrx */
-		case 150:   /* stwcx. */
-		case 183:   /* stwux */
-		case 151:   /* stwx */
-		case 135:   /* stvebx */
-		case 167:   /* stvehx */
-		case 199:   /* stvewx */
-		case 231:   /* stvx */
-		case 487:   /* stvxl */
-			tmp = EXTRACT_REGA(instr);
-			if(tmp > 0)
-				baseA = regs[tmp];
-			baseB = regs[EXTRACT_REGC(instr)];
-			/* determine Altivec alignment mask */
-			switch(EXTRACT_OP2(instr)) {
-			case 167:   /* stvehx */
-				alignmask = 0xFFFFFFFE;
-				break;
-			case 199:   /* stvewx */
-				alignmask = 0xFFFFFFFC;
-				break;
-			case 231:   /* stvx */
-				alignmask = 0xFFFFFFF0;
-				break;
-			case 487:  /* stvxl */
-				alignmask = 0xFFFFFFF0;
-				break;
-			}
-			break;
-		case 725:   /* stswi */
-			tmp = EXTRACT_REGA(instr);
-			if(tmp > 0)
-				baseA = regs[tmp];
-			break;
-		default:   /* ignore instruction */
-			return 0;
-			break;
-		}
-		break;
-	default:   /* ignore instruction */
-		return 0;
-		break;
-	}
-	
-	addr = (baseA + baseB) + disp;
-	addr &= alignmask;
-	return (sigsegv_address_t)addr;
+	powerpc_decode_instruction(&instr, nip, gpr);
+	return (sigsegv_address_t)instr.addr;
 }
 #endif
 #endif
 #endif
+
+
+/*
+ *  Instruction skipping
+ */
 
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 // Decode and skip X86 instruction
@@ -347,26 +422,15 @@ static inline int ix86_step_over_modrm(unsigned char * p)
 	return offset;
 }
 
-static bool ix86_skip_instruction(sigsegv_address_t fault_instruction, unsigned long * regs)
+static bool ix86_skip_instruction(unsigned int * regs)
 {
-	unsigned char * eip = (unsigned char *)fault_instruction;
+	unsigned char * eip = (unsigned char *)regs[X86_REG_EIP];
 
 	if (eip == 0)
 		return false;
 	
-	// Transfer type
-	enum {
-		TYPE_UNKNOWN,
-		TYPE_LOAD,
-		TYPE_STORE
-	} transfer_type = TYPE_UNKNOWN;
-	
-	// Transfer size
-	enum {
-		SIZE_BYTE,
-		SIZE_WORD,
-		SIZE_LONG
-	} transfer_size = SIZE_LONG;
+	transfer_type_t transfer_type = TYPE_UNKNOWN;
+	transfer_size_t transfer_size = SIZE_LONG;
 	
 	int reg = -1;
 	int len = 0;
@@ -467,151 +531,36 @@ static bool ix86_skip_instruction(sigsegv_address_t fault_instruction, unsigned 
 	return true;
 }
 #endif
+
 // Decode and skip PPC instruction
-#if (defined(powerpc) || defined(__powerpc__))
-#if defined(__linux__)
-enum {
-	POWERPC_REG_GPR = 0,
-	POWERPC_REG_NIP = 32
-};
-#endif
-static bool powerpc_skip_instruction(sigsegv_address_t fault_instruction, unsigned long * regs)
+#if (defined(powerpc) || defined(__powerpc__) || defined(__ppc__))
+static bool powerpc_skip_instruction(unsigned int * nip_p, unsigned int * regs)
 {
-	// Get opcode and divide into fields
-	unsigned int opcode = *((unsigned int *)fault_instruction);
-	unsigned int primop = opcode >> 26;
-	unsigned int exop = (opcode >> 1) & 0x3ff;
-	unsigned int ra = (opcode >> 16) & 0x1f;
-	unsigned int rb = (opcode >> 11) & 0x1f;
-	unsigned int rd = (opcode >> 21) & 0x1f;
-	signed int imm = (signed short)(opcode & 0xffff);
+	instruction_t instr;
+	powerpc_decode_instruction(&instr, *nip_p, regs);
 	
-	// Analyze opcode
-	enum {
-		TYPE_UNKNOWN,
-		TYPE_LOAD,
-		TYPE_STORE
-	} transfer_type = TYPE_UNKNOWN;
-	enum {
-		SIZE_UNKNOWN,
-		SIZE_BYTE,
-		SIZE_HALFWORD,
-		SIZE_WORD
-	} transfer_size = SIZE_UNKNOWN;
-	enum {
-		MODE_UNKNOWN,
-		MODE_NORM,
-		MODE_U,
-		MODE_X,
-		MODE_UX
-	} addr_mode = MODE_UNKNOWN;
-	switch (primop) {
-	case 31:
-		switch (exop) {
-		case 23:	// lwzx
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_X; break;
-		case 55:	// lwzux
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_UX; break;
-		case 87:	// lbzx
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_X; break;
-		case 119:	// lbzux
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_UX; break;
-		case 151:	// stwx
-			transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_X; break;
-		case 183:	// stwux
-			transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_UX; break;
-		case 215:	// stbx
-			transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_X; break;
-		case 247:	// stbux
-			transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_UX; break;
-		case 279:	// lhzx
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_X; break;
-		case 311:	// lhzux
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_UX; break;
-		case 343:	// lhax
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_X; break;
-		case 375:	// lhaux
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_UX; break;
-		case 407:	// sthx
-			transfer_type = TYPE_STORE; transfer_size = SIZE_HALFWORD; addr_mode = MODE_X; break;
-		case 439:	// sthux
-			transfer_type = TYPE_STORE; transfer_size = SIZE_HALFWORD; addr_mode = MODE_UX; break;
-		}
-		break;
-	
-	case 32:	// lwz
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_NORM; break;
-	case 33:	// lwzu
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_U; break;
-	case 34:	// lbz
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_NORM; break;
-	case 35:	// lbzu
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_U; break;
-	case 36:	// stw
-		transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_NORM; break;
-	case 37:	// stwu
-		transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_U; break;
-	case 38:	// stb
-		transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_NORM; break;
-	case 39:	// stbu
-		transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_U; break;
-	case 40:	// lhz
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_NORM; break;
-	case 41:	// lhzu
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_U; break;
-	case 42:	// lha
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_NORM; break;
-	case 43:	// lhau
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_U; break;
-	case 44:	// sth
-		transfer_type = TYPE_STORE; transfer_size = SIZE_HALFWORD; addr_mode = MODE_NORM; break;
-	case 45:	// sthu
-		transfer_type = TYPE_STORE; transfer_size = SIZE_HALFWORD; addr_mode = MODE_U; break;
-	}
-	
-	// Calculate effective address
-	unsigned int addr = 0;
-	switch (addr_mode) {
-	case MODE_X:
-	case MODE_UX:
-		if (ra == 0)
-			addr = regs[POWERPC_REG_GPR + rb];
-		else
-			addr = regs[POWERPC_REG_GPR + ra] + regs[POWERPC_REG_GPR + rb];
-		break;
-	case MODE_NORM:
-	case MODE_U:
-		if (ra == 0)
-			addr = (signed int)(signed short)imm;
-		else
-			addr = regs[POWERPC_REG_GPR + ra] + (signed int)(signed short)imm;
-		break;
-	default:
-		break;
-	}
-	
-	if (transfer_type == TYPE_UNKNOWN) {
+	if (instr.transfer_type == TYPE_UNKNOWN) {
 		// Unknown machine code, let it crash. Then patch the decoder
 		return false;
 	}
 
 #if DEBUG
-	printf("%08x: %s %s access", fault_instruction,
-		   transfer_size == SIZE_BYTE ? "byte" : transfer_size == SIZE_HALFWORD ? "word" : "long",
-		   transfer_type == TYPE_LOAD ? "read" : "write");
+	printf("%08x: %s %s access", *nip_p,
+		   instr.transfer_size == SIZE_BYTE ? "byte" : instr.transfer_size == SIZE_WORD ? "word" : "long",
+		   instr.transfer_type == TYPE_LOAD ? "read" : "write");
 	
-	if (addr_mode == MODE_U || addr_mode == MODE_UX)
-		printf(" r%d (ra = %08x)\n", ra, addr);
-	if (transfer_type == TYPE_LOAD)
-		printf(" r%d (rd = 0)\n", rd);
+	if (instr.addr_mode == MODE_U || instr.addr_mode == MODE_UX)
+		printf(" r%d (ra = %08x)\n", instr.ra, instr.addr);
+	if (instr.transfer_type == TYPE_LOAD)
+		printf(" r%d (rd = 0)\n", instr.rd);
 #endif
 	
-	if (addr_mode == MODE_U || addr_mode == MODE_UX)
-		regs[POWERPC_REG_GPR + ra] = addr;
-	if (transfer_type == TYPE_LOAD)
-		regs[POWERPC_REG_GPR + rd] = 0;
+	if (instr.addr_mode == MODE_U || instr.addr_mode == MODE_UX)
+		regs[instr.ra] = instr.addr;
+	if (instr.transfer_type == TYPE_LOAD)
+		regs[instr.rd] = 0;
 	
-	regs[POWERPC_REG_NIP] += 4;
+	*nip_p += 4;
 	return true;
 }
 #endif
@@ -649,7 +598,7 @@ static void sigsegv_handler(SIGSEGV_FAULT_HANDLER_ARGLIST)
 #if HAVE_SIGSEGV_SKIP_INSTRUCTION
 	else if (sigsegv_ignore_fault) {
 		// Call the instruction skipper with the register file available
-		if (SIGSEGV_SKIP_INSTRUCTION(fault_instruction, SIGSEGV_REGISTER_FILE))
+		if (SIGSEGV_SKIP_INSTRUCTION(SIGSEGV_REGISTER_FILE))
 			fault_recovered = true;
 	}
 #endif
