@@ -287,18 +287,17 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 			TimerReset();
 			MacOSUtilReset();
 			AudioReset();
-
+#if 0
 			// Enable DR emulator
-			if (1) {
-				D(bug("DR activated\n"));
-				WriteMacInt32(KernelDataAddr + 0x17a0, 3);		// Prepare for DR emulator activation
-				WriteMacInt32(KernelDataAddr + 0x17c0, DR_CACHE_BASE);
-				WriteMacInt32(KernelDataAddr + 0x17c4, DR_CACHE_SIZE);
-				WriteMacInt32(KernelDataAddr + 0x1b04, DR_CACHE_BASE);
-				WriteMacInt32(KernelDataAddr + 0x1b00, DR_EMULATOR_BASE);
-				memcpy((void *)DR_EMULATOR_BASE, (void *)(ROM_BASE + 0x370000), DR_EMULATOR_SIZE);
-				MakeExecutable(0, (void *)DR_EMULATOR_BASE, DR_EMULATOR_SIZE);
-			}
+			D(bug("DR activated\n"));
+			WriteMacInt32(KernelDataAddr + 0x17a0, 3);		// Prepare for DR emulator activation
+			WriteMacInt32(KernelDataAddr + 0x17c0, DR_CACHE_BASE);
+			WriteMacInt32(KernelDataAddr + 0x17c4, DR_CACHE_SIZE);
+			WriteMacInt32(KernelDataAddr + 0x1b04, DR_CACHE_BASE);
+			WriteMacInt32(KernelDataAddr + 0x1b00, DR_EMULATOR_BASE);
+			memcpy((void *)DR_EMULATOR_BASE, (void *)(ROM_BASE + 0x370000), DR_EMULATOR_SIZE);
+			MakeExecutable(0, (void *)DR_EMULATOR_BASE, DR_EMULATOR_SIZE);
+#endif
 			break;
 
 		case OP_IRQ:			// Level 1 interrupt
