@@ -8,7 +8,7 @@ AC_CONFIG_HEADER(config.h)
 
 dnl Video options.
 AC_ARG_ENABLE(multiwin,
-[  --enable-multiwin	allow multiple emulator windows [default=no]], [WANT_MWIN=$enableval], [WANT_MWIN=no])
+[  --enable-multiwin	allow multiple emulator windows [default=no]], [ENABLE_MULTIPLE=$enableval], [ENABLE_MULTIPLE=no])
 
 dnl JIT compiler options.
 AC_ARG_ENABLE(jit-compiler,  [  --enable-jit-compiler   enable JIT compiler [default=no]], [WANT_JIT=$enableval], [WANT_JIT=no])
@@ -23,7 +23,7 @@ AC_ARG_ENABLE(fpe,
     ieee)	FPE_CORE_TEST_ORDER="ieee";;
     uae)	FPE_CORE_TEST_ORDER="uae";;
     x86)	FPE_CORE_TEST_ORDER="x86";;
-	*)		AC_MSG_ERROR([--enable-fpe takes only one of the following values: auto, x86, ieee, uae]);;
+    *)		AC_MSG_ERROR([--enable-fpe takes only one of the following values: auto, x86, ieee, uae]);;
   esac
 ],
 [ FPE_CORE_TEST_ORDER="ieee uae"
@@ -76,10 +76,10 @@ AC_PROG_CXX
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
 
-dnl MacOSX (and later?) have a particular header for defining the OS version
+dnl MacOS 10.2 (and later?) have a particular header for defining the OS version
 AC_CHECK_HEADER(AvailabilityMacros.h)
 if [[ "x$ac_cv_header_AvailabilityMacros_h" = "xyes" ]]; then
-  DEFINES="$DEFINES -DAVAILABILITYMACROS"
+  AC_DEFINE(AVAILABILITYMACROS, 1, [Header specific to 10.2 and later.])
 fi
 
 dnl We use mon if possible.
@@ -142,9 +142,14 @@ AC_CHECK_SIZEOF(float, 4)
 AC_CHECK_SIZEOF(double, 8)
 AC_CHECK_SIZEOF(long double, 12)
 AC_CHECK_SIZEOF(void *, 4)
+dnl These two symbols are not defined in 10.1's autoconf files:
+dnl AC_CHECK_TYPE(loff_t, off_t)
+dnl AC_CHECK_TYPE(caddr_t, [char *])
+dnl which causes problems for autoheader.
+dnl We define loff_t as a typedef of off_t in sysdeps.h if we don't have LOFF_T
+AC_CHECK_TYPE(off_t)
+dnl We still need off_t, though:
 AC_TYPE_OFF_T
-AC_CHECK_TYPE(loff_t, off_t)
-AC_CHECK_TYPE(caddr_t, [char *])
 AC_TYPE_SIZE_T
 AC_TYPE_SIGNAL
 AC_HEADER_TIME
@@ -922,7 +927,7 @@ dnl Print summary.
 echo
 echo Basilisk II configuration summary:
 echo
-echo Multiple emulator windows .............. : $WANT_MWIN
+echo Multiple emulator windows .............. : $ENABLE_MULTIPLE
 echo Enable video on SEGV signals ........... : $WANT_VOSF
 echo mon debugger support ................... : $WANT_MON
 echo Use JIT compiler ....................... : $WANT_JIT
