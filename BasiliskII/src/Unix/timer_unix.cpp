@@ -228,7 +228,7 @@ uint64 GetTicks_usec(void)
 // Linux select() changes its timeout parameter upon return to contain
 // the remaining time. Most other unixen leave it unchanged or undefined.
 #define SELECT_SETS_REMAINING
-#elif defined(__FreeBSD__) || defined(__sun__)
+#elif defined(__FreeBSD__) || defined(__sun__) || (defined(__MACH__) && defined(__APPLE__))
 #define USE_NANOSLEEP
 #elif defined(HAVE_PTHREADS) && defined(sgi)
 // SGI pthreads has a bug when using pthreads+signals+nanosleep,
