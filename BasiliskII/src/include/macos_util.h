@@ -21,6 +21,8 @@
 #ifndef MACOS_UTIL_H
 #define MACOS_UTIL_H
 
+#include "cpu_emulation.h"
+
 
 /*
  *  Queues
@@ -249,7 +251,7 @@ extern int FindFreeDriveNumber(int num);			// Find first free drive number, star
 extern void MountVolume(void *fh);					// Mount volume with given file handle (see sys.h)
 extern void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_size);	// Calculate disk image file layout given file size and first 256 data bytes
 
-// Test if basic MacOS initializations are done
+// Test if basic MacOS initializations (of the ROM) are done
 static inline bool HasMacStarted(void)
 {
 	return ReadMacInt32(0xcfc) == 'WLSC';	// Mac warm start flag

@@ -86,16 +86,6 @@ void MountVolume(void *fh)
 
 
 /*
- *  Test if basic MacOS initializations (of the ROM) are done
- */
-
-bool HasMacStarted(void)
-{
-	return ReadMacInt32(0xcfc) == 'WLSC';	// Mac warm start flag
-}
-
-
-/*
  *  Calculate disk image file layout given file size and first 256 data bytes
  */
 

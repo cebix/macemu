@@ -120,7 +120,7 @@ const int STACK_SIZE = 0x10000;
 
 // Allocation block and clump size as reported to MacOS (these are of course
 // not the real values and have no meaning on the host OS)
-const int ALBLK_SIZE = 0x4000;
+const int AL_BLK_SIZE = 0x4000;
 const int CLUMP_SIZE = 0x4000;
 
 // Drive number of our pseudo-drive
@@ -1002,7 +1002,7 @@ static int16 fs_volume_mount(uint32 pb)
 	WriteMacInt16(vcb + vcbNmRtDirs, 1);		//!!
 	WriteMacInt16(vcb + vcbNmAlBlks, 0xffff);	//!!
 	WriteMacInt32(vcb + vcbAlBlkSiz, AL_BLK_SIZE);
-	WriteMacInt32(vcb + vcbClpSiz, CLUMPSIZE);
+	WriteMacInt32(vcb + vcbClpSiz, CLUMP_SIZE);
 	WriteMacInt32(vcb + vcbNxtCNID, next_cnid);
 	WriteMacInt16(vcb + vcbFreeBks, 0xffff);	//!!
 	Host2Mac_memcpy(vcb + vcbVN, VOLUME_NAME, 28);
