@@ -2,7 +2,7 @@
   Basilisk II
   A 68k Macintosh emulator
 
-  Copyright (C) 1997-2002 Christian Bauer et al.
+  Copyright (C) 1997-2003 Christian Bauer et al.
 
 
 License
@@ -26,7 +26,7 @@ Basilisk II has currently been ported to the following systems:
     IRIX 6.5)
   - AmigaOS 3.x
   - Windows NT 4.0 (mostly works under Windows 95/98, too)
-  - Mac OS X 10.1
+  - Mac OS X 10.1, 10.2
 
 Some features of Basilisk II:
   - Emulates either a Mac Classic (which runs MacOS 0.x thru 7.5)
@@ -289,17 +289,13 @@ screen <video mode>
     The "video mode" is one of the following:
       win/<width>/<height>
       win/<width>/<height>/<bits per pixel>
-        A refreshed (and buffered) [and very slow] Quartz window.
-        The default <bits> is 32, which is the only depth currently supported.
+        A refreshed (and buffered) Quartz window.
       full/<width>/<height>
       full/<width>/<height>/<bits per pixel>
         A CGDirectDisplay full screen mode. <bits> can currently be 8, 16 or 32.
         If not specified, the default is 32. There is currently no way to switch
         between the Mac OS X and Basilisk II display, but Apple-Option-Escape
         instantly and safely terminates the Basilisk II program.
-      opengl/<width>/<height>
-      opengl/<width>/<height>/<bits per pixel>
-        Currently unimplemented, will be a fast windowed mode.
 
 seriala <serial port description>
 
