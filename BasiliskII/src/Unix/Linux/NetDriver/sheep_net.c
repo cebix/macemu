@@ -45,6 +45,7 @@
 #include <linux/init.h>
 #include <net/sock.h>
 #include <asm/uaccess.h>
+#include <asm/ioctls.h>
 #include <net/arp.h>
 #include <net/ip.h>
 #include <linux/in.h>
@@ -54,12 +55,24 @@ MODULE_AUTHOR("Christian Bauer");
 MODULE_DESCRIPTION("Pseudo ethernet device for emulators");
 
 /* Compatibility glue */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+#define LINUX_26
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 #define LINUX_24
 #else
 #define net_device device
 typedef struct wait_queue *wait_queue_head_t;
 #define init_waitqueue_head(x) *(x)=NULL
+#endif
+
+#ifdef LINUX_26
+#define compat_sk_alloc(a,b,c)	sk_alloc( (a), (b), (c), NULL )
+#define skt_set_dead(skt)		do {} while(0)
+#define wmem_alloc				sk_wmem_alloc
+#else
+#define compat_sk_alloc			sk_alloc
+#define skt_set_dead(skt)		(skt)->dead = 1
 #endif
 
 #define DEBUG 0
@@ -98,10 +111,13 @@ static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struc
  */
 
 struct SheepVars {
+	/* IMPORTANT: the packet_type struct must go first. It no longer
+	   (2.6) contains * a data field so we typecast to get the SheepVars
+	   struct */
+	struct packet_type pt;		/* Receiver packet type */
 	struct net_device *ether;	/* The Ethernet device we're attached to */
 	struct sock *skt;			/* Socket for communication with Ethernet card */
 	struct sk_buff_head queue;	/* Receiver packet queue */
-	struct packet_type pt;		/* Receiver packet type */
 	wait_queue_head_t wait;		/* Wait queue for blocking read operations */
 	u32 ipfilter;				/* Only receive IP packets destined for this address (host byte order) */
 	char eth_addr[6];			/* Hardware address of the Ethernet card */
@@ -115,12 +131,13 @@ struct SheepVars {
  */
 
 static struct file_operations sheep_net_fops = {
-	read:		sheep_net_read,
-	write:		sheep_net_write,
-	poll:		sheep_net_poll,
-	ioctl:		sheep_net_ioctl,
-	open:		sheep_net_open,
-	release:	sheep_net_release,
+	.owner		= THIS_MODULE,
+	.read		= sheep_net_read,
+	.write		= sheep_net_write,
+	.poll		= sheep_net_poll,
+	.ioctl		= sheep_net_ioctl,
+	.open		= sheep_net_open,
+	.release	= sheep_net_release,
 };
 
 
@@ -129,11 +146,9 @@ static struct file_operations sheep_net_fops = {
  */
 
 static struct miscdevice sheep_net_device = {
-	SHEEP_NET_MINOR,	/* minor number */
-	"sheep_net",		/* name */
-	&sheep_net_fops,
-	NULL,
-	NULL
+	.minor		= SHEEP_NET_MINOR,	/* minor number */
+	.name		= "sheep_net",		/* name */
+	.fops		= &sheep_net_fops
 };
 
 
@@ -156,14 +171,11 @@ int init_module(void)
  *  Deinitialize module
  */
 
-int cleanup_module(void)
+void cleanup_module(void)
 {
-	int ret;
-
 	/* Unregister driver */
-	ret = misc_deregister(&sheep_net_device);
+	misc_deregister(&sheep_net_device);
 	D(bug("Sheep net driver removed\n"));
-	return ret;
 }
 
 
@@ -181,7 +193,7 @@ static int sheep_net_open(struct inode *inode, struct file *f)
 		return -EPERM;
 
 	/* Allocate private variables */
-	v = (struct SheepVars *)f->private_data = kmalloc(sizeof(struct SheepVars), GFP_USER);
+	v = (struct SheepVars *)(f->private_data = kmalloc(sizeof(struct SheepVars), GFP_USER));
 	if (v == NULL)
 		return -ENOMEM;
 	memset(v, 0, sizeof(struct SheepVars));
@@ -195,7 +207,9 @@ static int sheep_net_open(struct inode *inode, struct file *f)
 	v->fake_addr[5] = 0xef;
 
 	/* Yes, we're open */
+#ifndef LINUX_26
 	MOD_INC_USE_COUNT;
+#endif
 	return 0;
 }
 
@@ -229,7 +243,9 @@ static int sheep_net_release(struct inode *inode, struct file *f)
 	kfree(v);
 
 	/* Sorry, we're closed */
+#ifndef LINUX_26
 	MOD_DEC_USE_COUNT;
+#endif
 	return 0;
 }
 
@@ -485,18 +501,17 @@ static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int cod
 			memcpy(v->eth_addr, v->ether->dev_addr, 6);
 
 			/* Allocate socket */
-			v->skt = sk_alloc(0, GFP_USER, 1);
+			v->skt = compat_sk_alloc(0, GFP_USER, 1);
 			if (v->skt == NULL) {
 				err = -ENOMEM;
 				goto error;
 			}
-			v->skt->dead = 1;
+			skt_set_dead(v->skt->dead);
 
 			/* Attach packet handler */
 			v->pt.type = htons(ETH_P_ALL);
 			v->pt.dev = v->ether;
 			v->pt.func = sheep_net_receiver;
-			v->pt.data = v;
 			dev_add_pack(&v->pt);
 #ifndef LINUX_24
 			dev_unlock_list();
@@ -555,7 +570,7 @@ error:
 			int count = 0;
 			struct sk_buff *skb;
 #ifdef LINUX_24
-			long flags;
+			unsigned long flags;
 			spin_lock_irqsave(&v->queue.lock, flags);
 #else
 			cli();
@@ -590,7 +605,7 @@ error:
 
 static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
 {
-	struct SheepVars *v = (struct SheepVars *)pt->data;
+	struct SheepVars *v = (struct SheepVars *)pt;
 	struct sk_buff *skb2;
 	int fake;
 	int multicast;
