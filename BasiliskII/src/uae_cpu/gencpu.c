@@ -2639,7 +2639,13 @@ static void generate_func (void)
 
     using_prefetch = 0;
     using_exception_3 = 0;
+#if !USE_PREFETCH_BUFFER
+	/* gb-- No need for a prefetch buffer, nor exception 3 handling */
+	/* Anyway, Basilisk2 does not use the op_smalltbl_5 table... */
+    for (i = 0; i <= 4; i++) {
+#else
     for (i = 0; i < 6; i++) {
+#endif
 	cpu_level = 4 - i;
 	if (i == 5) {
 	    cpu_level = 0;
