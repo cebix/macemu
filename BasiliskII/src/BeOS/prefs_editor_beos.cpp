@@ -273,7 +273,7 @@ bool PrefsEditor(void)
  *  Preferences window constructor
  */
 
-PrefsWindow::PrefsWindow(uint32 msg) : BWindow(BRect(0, 0, 400, 269), GetString(STR_PREFS_TITLE), B_TITLED_WINDOW, B_NOT_RESIZABLE | B_NOT_ZOOMABLE | B_ASYNCHRONOUS_CONTROLS), this_messenger(this)
+PrefsWindow::PrefsWindow(uint32 msg) : BWindow(BRect(0, 0, 400, 289), GetString(STR_PREFS_TITLE), B_TITLED_WINDOW, B_NOT_RESIZABLE | B_NOT_ZOOMABLE | B_ASYNCHRONOUS_CONTROLS), this_messenger(this)
 {
 	int i;
 	ok_message = msg;
