@@ -82,6 +82,7 @@ install: $(APP) installdirs
 	-$(INSTALL_DATA) $(APP).1 $(DESTDIR)$(man1dir)/$(APP).1
 	$(INSTALL_DATA) keycodes $(DESTDIR)$(datadir)/$(APP)/keycodes
 	$(INSTALL_DATA) tunconfig $(DESTDIR)$(datadir)/$(APP)/tunconfig
+	chmod 755 $(DESTDIR)$(datadir)/$(APP)/tunconfig
 
 installdirs:
 	$(SHELL) mkinstalldirs $(DESTDIR)$(bindir) $(DESTDIR)$(man1dir) $(DESTDIR)$(datadir)/$(APP)
