@@ -25,9 +25,9 @@
 #include <errno.h>
 
 #ifdef __linux__
+#include <sys/mount.h>
 #include <linux/cdrom.h>
 #include <linux/fd.h>
-#include <linux/fs.h>
 #include <linux/major.h>
 #include <linux/kdev_t.h>
 #include <linux/unistd.h>
