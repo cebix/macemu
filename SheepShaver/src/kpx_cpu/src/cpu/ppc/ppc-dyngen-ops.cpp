@@ -600,90 +600,6 @@ void OPPROTO op_spcflags_clear(void)
  *		Branch instructions
  **/
 
-void OPPROTO op_decrement_ctr_T0(void)
-{
-	T0 = powerpc_dyngen_helper::get_ctr() - 1;
-	powerpc_dyngen_helper::set_ctr(T0);
-}
-
-void OPPROTO op_branch_A0_if_T0(void)
-{
-	if (T0)
-		powerpc_dyngen_helper::set_pc(A0);
-	else
-		powerpc_dyngen_helper::set_pc(PARAM1);
-	dyngen_barrier();
-}
-
-void OPPROTO op_branch_A0_if_not_T0(void)
-{
-	if (!T0)
-		powerpc_dyngen_helper::set_pc(A0);
-	else
-		powerpc_dyngen_helper::set_pc(PARAM1);
-	dyngen_barrier();
-}
-
-template< class branch_cond, class ctr_cond >
-static inline void do_execute_branch(uint32 tpc, uint32 npc)
-{
-	if (branch_cond::test() && ctr_cond::test())
-		powerpc_dyngen_helper::set_pc(tpc);
-	else
-		powerpc_dyngen_helper::set_pc(npc);
-	dyngen_barrier();
-}
-
-struct branch_if_T0_condition {
-	static inline bool test() {
-		return T0 != 0;
-	}
-};
-
-struct branch_if_not_T0_condition {
-	static inline bool test() {
-		return T0 == 0;
-	}
-};
-
-struct ctr_0x_condition {
-	static inline bool test() {
-		return true;
-	}
-};
-
-struct ctr_10_condition {
-	static inline bool test() {
-		uint32 ctr = powerpc_dyngen_helper::get_ctr() - 1;
-		powerpc_dyngen_helper::set_ctr(ctr);
-		return ctr != 0;
-	}
-};
-
-struct ctr_11_condition {
-	static inline bool test() {
-		uint32 ctr = powerpc_dyngen_helper::get_ctr() - 1;
-		powerpc_dyngen_helper::set_ctr(ctr);
-		return ctr == 0;
-	}
-};
-
-#define DEFINE_OP_CTR(COND,CTR)												\
-void OPPROTO op_##COND##_ctr_##CTR(void)									\
-{																			\
-	do_execute_branch<COND##_condition, ctr_##CTR##_condition>(A0, PARAM1);	\
-}
-#define DEFINE_OP(COND)							\
-DEFINE_OP_CTR(COND,0x);							\
-DEFINE_OP_CTR(COND,10);							\
-DEFINE_OP_CTR(COND,11);
-
-DEFINE_OP(branch_if_T0);
-DEFINE_OP(branch_if_not_T0);
-
-#undef DEFINE_OP
-#undef DEFINE_OP_CTR
-
 #ifdef DYNGEN_FAST_DISPATCH
 #if defined(__x86_64__)
 #define FAST_COMPARE_SPECFLAGS_DISPATCH(SPCFLAGS, TARGET) \
@@ -695,8 +611,8 @@ DEFINE_OP(branch_if_not_T0);
 #endif
 #endif
 
-template< int bo, bool chain >
-static inline void do_execute_branch_bo(uint32 tpc, uint32 npc)
+template< int bo >
+static inline void do_prep_branch_bo(void)
 {
 	bool ctr_ok = true;
 	bool cond_ok = true;
@@ -712,40 +628,21 @@ static inline void do_execute_branch_bo(uint32 tpc, uint32 npc)
 		T1 = powerpc_dyngen_helper::get_ctr() - 1;
 		powerpc_dyngen_helper::set_ctr(T1);
 		if (BO_BRANCH_IF_CTR_ZERO(bo))
-			ctr_ok = T1 == 0;
+			ctr_ok = !T1;
 		else
-			ctr_ok = T1 != 0;
+			ctr_ok = T1;
 	}
 
-#ifdef DYNGEN_FAST_DISPATCH
-	if (chain) {
-		T1 = powerpc_dyngen_helper::spcflags().get();
-		if (ctr_ok && cond_ok) {
-			FAST_COMPARE_SPECFLAGS_DISPATCH(T1, __op_jmp0);
-			T0 = tpc;
-		}
-		else {
-			FAST_COMPARE_SPECFLAGS_DISPATCH(T1, __op_jmp1);
-			T0 = npc;
-		}
-	}
-	else
-#endif
-
-	T0 = (ctr_ok && cond_ok) ? tpc : npc;
-	powerpc_dyngen_helper::set_pc(T0);
+	T0 = ctr_ok && cond_ok;
 	dyngen_barrier();
 }
 
 #define BO(A,B,C,D) (((A) << 4)| ((B) << 3) | ((C) << 2) | ((D) << 1))
-#define DEFINE_OP1(BO_SUFFIX, BO_VALUE, CHAIN)				\
-void OPPROTO op_branch_A0_bo_##BO_SUFFIX##_##CHAIN(void)	\
-{															\
-	do_execute_branch_bo<BO BO_VALUE, CHAIN>(A0, PARAM1);	\
+#define DEFINE_OP(BO_SUFFIX, BO_VALUE)				\
+void OPPROTO op_prep_branch_bo_##BO_SUFFIX(void)	\
+{													\
+	do_prep_branch_bo<BO BO_VALUE>();				\
 }
-#define DEFINE_OP(BO_SUFFIX, BO_VALUE)			\
-DEFINE_OP1(BO_SUFFIX, BO_VALUE, 0)				\
-DEFINE_OP1(BO_SUFFIX, BO_VALUE, 1)
 
 DEFINE_OP(0000,(0,0,0,0));
 DEFINE_OP(0001,(0,0,0,1));
@@ -760,6 +657,80 @@ DEFINE_OP(1x1x,(1,0,1,0));
 
 #undef DEFINE_OP
 #undef BO
+
+template< bool chain >
+static inline void do_execute_branch_1(uint32 tpc)
+{
+#ifdef DYNGEN_FAST_DISPATCH
+	if (chain)
+		FAST_COMPARE_SPECFLAGS_DISPATCH(powerpc_dyngen_helper::spcflags().get(), __op_jmp0);
+#endif
+	powerpc_dyngen_helper::set_pc(tpc);
+	dyngen_barrier();
+}
+
+void op_branch_1_A0(void)
+{
+	do_execute_branch_1<0>(A0);
+}
+
+void op_branch_chain_1_A0(void)
+{
+	do_execute_branch_1<1>(A0);
+}
+
+void op_branch_1_im(void)
+{
+	do_execute_branch_1<0>(PARAM1);
+}
+
+void op_branch_chain_1_im(void)
+{
+	do_execute_branch_1<1>(PARAM1);
+}
+
+template< bool chain >
+static inline void do_execute_branch_2(uint32 tpc, uint32 npc)
+{
+#ifdef DYNGEN_FAST_DISPATCH
+	if (chain) {
+		T1 = powerpc_dyngen_helper::spcflags().get();
+		if (T0) {
+			FAST_COMPARE_SPECFLAGS_DISPATCH(T1, __op_jmp0);
+			A0 = tpc;
+		}
+		else {
+			FAST_COMPARE_SPECFLAGS_DISPATCH(T1, __op_jmp1);
+			A0 = npc;
+		}
+	}
+	else
+#endif
+
+	A0 = T0 ? tpc : npc;
+	powerpc_dyngen_helper::set_pc(A0);
+	dyngen_barrier();
+}
+
+void op_branch_2_A0_im(void)
+{
+	do_execute_branch_2<0>(A0, PARAM1);
+}
+
+void op_branch_chain_2_A0_im(void)
+{
+	do_execute_branch_2<1>(A0, PARAM1);
+}
+
+void op_branch_2_im_im(void)
+{
+	do_execute_branch_2<0>(PARAM1, PARAM2);
+}
+
+void op_branch_chain_2_im_im(void)
+{
+	do_execute_branch_2<1>(PARAM1, PARAM2);
+}
 
 
 /**

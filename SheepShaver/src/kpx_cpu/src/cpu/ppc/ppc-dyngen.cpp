@@ -260,91 +260,65 @@ DEFINE_INSN(store, T0);
 
 #undef DEFINE_INSN
 
-void powerpc_dyngen::gen_bc_A0(int bo, int bi, uint32 npc, bool direct_chaining)
+void powerpc_dyngen::gen_bc(int bo, int bi, uint32 tpc, uint32 npc, bool direct_chaining)
 {
-#if 1
 	if (BO_CONDITIONAL_BRANCH(bo)) {
 		gen_load_T0_CR();
 		gen_and_32_T0_im(1 << (31 - bi));
 	}
-	if (direct_chaining) {
+
 	switch (bo >> 1) {
 #define _(A,B,C,D) (((A) << 3)| ((B) << 2) | ((C) << 1) | (D))
-	case _(0,0,0,0): gen_op_branch_A0_bo_0000_1(npc); break;
-	case _(0,0,0,1): gen_op_branch_A0_bo_0001_1(npc); break;
+	case _(0,0,0,0): gen_op_prep_branch_bo_0000(); break;
+	case _(0,0,0,1): gen_op_prep_branch_bo_0001(); break;
 	case _(0,0,1,0):
-	case _(0,0,1,1): gen_op_branch_A0_bo_001x_1(npc); break;
-	case _(0,1,0,0): gen_op_branch_A0_bo_0100_1(npc); break;
-	case _(0,1,0,1): gen_op_branch_A0_bo_0101_1(npc); break;
+	case _(0,0,1,1): gen_op_prep_branch_bo_001x(); break;
+	case _(0,1,0,0): gen_op_prep_branch_bo_0100(); break;
+	case _(0,1,0,1): gen_op_prep_branch_bo_0101(); break;
 	case _(0,1,1,0):
-	case _(0,1,1,1): gen_op_branch_A0_bo_011x_1(npc); break;
+	case _(0,1,1,1): gen_op_prep_branch_bo_011x(); break;
 	case _(1,0,0,0):
-	case _(1,1,0,0): gen_op_branch_A0_bo_1x00_1(npc); break;
+	case _(1,1,0,0): gen_op_prep_branch_bo_1x00(); break;
 	case _(1,0,0,1):
-	case _(1,1,0,1): gen_op_branch_A0_bo_1x01_1(npc); break;
+	case _(1,1,0,1): gen_op_prep_branch_bo_1x01(); break;
 	case _(1,0,1,0):
 	case _(1,0,1,1):
 	case _(1,1,1,0):
-	case _(1,1,1,1): gen_op_branch_A0_bo_1x1x_1(); break;
+	case _(1,1,1,1): gen_op_prep_branch_bo_1x1x(); break;
 #undef _
 	default: abort();
 	}
-	} else {
-	switch (bo >> 1) {
-#define _(A,B,C,D) (((A) << 3)| ((B) << 2) | ((C) << 1) | (D))
-	case _(0,0,0,0): gen_op_branch_A0_bo_0000_0(npc); break;
-	case _(0,0,0,1): gen_op_branch_A0_bo_0001_0(npc); break;
-	case _(0,0,1,0):
-	case _(0,0,1,1): gen_op_branch_A0_bo_001x_0(npc); break;
-	case _(0,1,0,0): gen_op_branch_A0_bo_0100_0(npc); break;
-	case _(0,1,0,1): gen_op_branch_A0_bo_0101_0(npc); break;
-	case _(0,1,1,0):
-	case _(0,1,1,1): gen_op_branch_A0_bo_011x_0(npc); break;
-	case _(1,0,0,0):
-	case _(1,1,0,0): gen_op_branch_A0_bo_1x00_0(npc); break;
-	case _(1,0,0,1):
-	case _(1,1,0,1): gen_op_branch_A0_bo_1x01_0(npc); break;
-	case _(1,0,1,0):
-	case _(1,0,1,1):
-	case _(1,1,1,0):
-	case _(1,1,1,1): gen_op_branch_A0_bo_1x1x_0(); break;
-#undef _
-	default: abort();
-	}
-	}
-#else
-	if (BO_CONDITIONAL_BRANCH(bo)) {
-		gen_load_T0_CR();
-		gen_and_32_T0_im(1 << (31 - bi));
-		const int n = (bo >> 1) & 7;
-		switch (n) {
-#define _(TRUE,DCTR,CTR0) (((TRUE) ? 4 : 0) | ((DCTR) ? 0 : 2) | ((CTR0) ? 1 : 0))
-		case _(0,0,0): gen_op_branch_if_not_T0_ctr_0x(npc); break;
-		case _(0,0,1): gen_op_branch_if_not_T0_ctr_0x(npc); break;
-		case _(0,1,0): gen_op_branch_if_not_T0_ctr_10(npc); break;
-		case _(0,1,1): gen_op_branch_if_not_T0_ctr_11(npc); break;
-		case _(1,0,0): gen_op_branch_if_T0_ctr_0x(npc); break;
-		case _(1,0,1): gen_op_branch_if_T0_ctr_0x(npc); break;
-		case _(1,1,0): gen_op_branch_if_T0_ctr_10(npc); break;
-		case _(1,1,1): gen_op_branch_if_T0_ctr_11(npc); break;
-#undef _
-		default: abort();
+	
+	if (BO_CONDITIONAL_BRANCH(bo) || BO_DECREMENT_CTR(bo)) {
+		// two-way branches
+		if (tpc != 0xffffffff) {
+			if (direct_chaining)
+				gen_op_branch_chain_2_im_im(tpc, npc);
+			else
+				gen_op_branch_2_im_im(tpc, npc);
+		}
+		else {
+			if (direct_chaining)
+				gen_op_branch_chain_2_A0_im(npc);
+			else
+				gen_op_branch_2_A0_im(npc);
 		}
 	}
 	else {
-		if (BO_DECREMENT_CTR(bo)) {
-			gen_decrement_ctr_T0();
-			if (BO_BRANCH_IF_CTR_ZERO(bo))
-				gen_branch_A0_if_not_T0(npc);
+		// one-way branches
+		if (tpc != 0xffffffff) {
+			if (direct_chaining)
+				gen_op_branch_chain_1_im(tpc);
 			else
-				gen_branch_A0_if_T0(npc);
+				gen_op_branch_1_im(tpc);
 		}
 		else {
-			// Branch always
-			gen_set_PC_A0();
+			if (direct_chaining)
+				gen_op_branch_chain_1_A0();
+			else
+				gen_op_branch_1_A0();
 		}
 	}
-#endif
 }
 
 /**

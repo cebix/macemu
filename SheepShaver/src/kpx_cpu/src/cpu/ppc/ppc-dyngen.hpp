@@ -125,9 +125,6 @@ public:
 	DEFINE_ALIAS(spcflags_clear,1);
 
 	// Control Flow
-	DEFINE_ALIAS(decrement_ctr_T0,0);
-	DEFINE_ALIAS(branch_A0_if_T0,1);
-	DEFINE_ALIAS(branch_A0_if_not_T0,1);
 	DEFINE_ALIAS(jump_next_A0,0);
 
 	// Compare & Record instructions
@@ -224,7 +221,7 @@ public:
 	void gen_store_single_F0_A0_im(int32 offset);
 
 	// Branch instructions
-	void gen_bc_A0(int bo, int bi, uint32 npc, bool direct_chaining);
+	void gen_bc(int bo, int bi, uint32 tpc, uint32 npc, bool direct_chaining);
 
 	// Vector instructions
 	void gen_load_ad_VD_VR(int i);

@@ -479,9 +479,9 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			}
 #endif
 			const uint32 tpc = ((AA_field::test(opcode) ? 0 : dpc) + operand_BD::get(this, opcode)) & -4;
+			const uint32 npc = dpc + 4;
 #if DYNGEN_DIRECT_BLOCK_CHAINING
 			// Use direct block chaining for in-page jumps or jumps to ROM area
-			const uint32 npc = dpc + 4;
 			if (direct_chaining_possible(bi->pc, tpc)) {
 				use_direct_block_chaining = true;
 				bi->jmp_pc[0] = tpc;
@@ -490,8 +490,12 @@ powerpc_cpu::compile_block(uint32 entry_point)
 					bi->jmp_pc[1] = npc;
 			}
 #endif
-			dg.gen_mov_32_A0_im(tpc);
-			goto do_branch;
+
+			if (LK_field::test(opcode))
+				dg.gen_store_im_LR(npc);
+
+			dg.gen_bc(bo, BI_field::extract(opcode), tpc, npc, use_direct_block_chaining);
+			break;
 		}
 		case PPC_I(BCCTR):		// Branch Conditional to Count Register
 			dg.gen_load_A0_CTR();
@@ -508,7 +512,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			if (LK_field::test(opcode))
 				dg.gen_store_im_LR(npc);
 
-			dg.gen_bc_A0(bo, bi, npc, use_direct_block_chaining);
+			dg.gen_bc(bo, bi, (uint32)-1, npc, use_direct_block_chaining);
 			break;
 		}
 		case PPC_I(B):			// Branch
@@ -546,10 +550,9 @@ powerpc_cpu::compile_block(uint32 entry_point)
 				bi->jmp_pc[0] = tpc;
 			}
 #endif
-			dg.gen_mov_32_A0_im(tpc);
 
-			// BO field is built so that we always branch to A0
-			dg.gen_bc_A0(BO_MAKE(0,0,0,0), 0, 0, use_direct_block_chaining);
+			// BO field is built so that we always branch to pc
+			dg.gen_bc(BO_MAKE(0,0,0,0), 0, tpc, 0, use_direct_block_chaining);
 			break;
 		}
 		case PPC_I(CMP):		// Compare
