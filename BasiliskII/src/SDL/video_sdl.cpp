@@ -638,8 +638,7 @@ driver_window::driver_window(SDL_monitor_desc &m)
 	}
 	else if (!video_vosf_profitable()) {
 		video_vosf_exit();
-		// WarningAlert(STR_VOSF_NOT_PROFITABLE_WARN);
-		printf("VOSF acceleration is not profitable on this platform\n");
+		printf("VOSF acceleration is not profitable on this platform, disabling it\n");
 		use_vosf = false;
 	}
 	if (!use_vosf) {

@@ -47,6 +47,7 @@ enum {
 };
 #define VIDEO_MODE				VideoInfo
 #define VIDEO_MODE_INIT			VideoInfo const & mode = VModes[cur_mode]
+#define VIDEO_MODE_INIT_MONITOR	VIDEO_MODE_INIT
 #define VIDEO_MODE_ROW_BYTES	mode.viRowBytes
 #define VIDEO_MODE_X			mode.viXsize
 #define VIDEO_MODE_Y			mode.viYsize
@@ -63,6 +64,7 @@ enum {
 };
 #define VIDEO_MODE				video_mode
 #define VIDEO_MODE_INIT			video_mode const & mode = drv->mode
+#define VIDEO_MODE_INIT_MONITOR	video_mode const & mode = monitor.get_current_mode()
 #define VIDEO_MODE_ROW_BYTES	mode.bytes_per_row
 #define VIDEO_MODE_X			mode.x
 #define VIDEO_MODE_Y			mode.y

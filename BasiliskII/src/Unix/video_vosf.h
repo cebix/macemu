@@ -225,7 +225,7 @@ static bool video_vosf_profitable(void)
 
 static bool video_vosf_init(MONITOR_INIT)
 {
-	VIDEO_MODE_INIT;
+	VIDEO_MODE_INIT_MONITOR;
 
 	const uintptr page_size = getpagesize();
 	const uintptr page_mask = page_size - 1;
