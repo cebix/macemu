@@ -40,8 +40,10 @@
  *		registers.
  **/
 
+#if ENABLE_DYNGEN
 #ifndef DYNGEN_ASM_OPTS
 #define DYNGEN_ASM_OPTS 0
+#endif
 #endif
 
 /**
@@ -51,8 +53,10 @@
  *		that feature. e.g. PowerPC.
  **/
 
+#if ENABLE_DYNGEN
 #ifndef DYNGEN_DIRECT_BLOCK_CHAINING
 #define DYNGEN_DIRECT_BLOCK_CHAINING 1
+#endif
 #endif
 
 /**
