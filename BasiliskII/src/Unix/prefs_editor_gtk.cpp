@@ -45,6 +45,7 @@ static bool start_clicked = true;	// Return value of PrefsEditor() function
 static void create_volumes_pane(GtkWidget *top);
 static void create_scsi_pane(GtkWidget *top);
 static void create_graphics_pane(GtkWidget *top);
+static void create_input_pane(GtkWidget *top);
 static void create_serial_pane(GtkWidget *top);
 static void create_memory_pane(GtkWidget *top);
 static void read_settings(void);
@@ -297,6 +298,7 @@ bool PrefsEditor(void)
 	create_volumes_pane(notebook);
 	create_scsi_pane(notebook);
 	create_graphics_pane(notebook);
+	create_input_pane(notebook);
 	create_serial_pane(notebook);
 	create_memory_pane(notebook);
 
@@ -753,9 +755,89 @@ static void create_graphics_pane(GtkWidget *top)
 	w_fbdevice_file = make_entry(box, STR_FBDEVICE_FILE_CTRL, "fbdevicefile");
 #endif
 
+	make_separator(box);
 	make_checkbox(box, STR_NOSOUND_CTRL, "nosound", GTK_SIGNAL_FUNC(tb_nosound));
 
 	hide_show_graphics_widgets();
+}
+
+
+/*
+ *  "Input" pane
+ */
+
+static GtkWidget *w_keycode_file;
+static GtkWidget *w_mouse_wheel_lines;
+
+// Set sensitivity of widgets
+static void set_input_sensitive(void)
+{
+	gtk_widget_set_sensitive(w_keycode_file, PrefsFindBool("keycodes"));
+	gtk_widget_set_sensitive(w_mouse_wheel_lines, PrefsFindInt16("mousewheelmode") == 1);
+}
+
+// "Use Raw Keycodes" button toggled
+static void tb_keycodes(GtkWidget *widget)
+{
+	PrefsReplaceBool("keycodes", GTK_TOGGLE_BUTTON(widget)->active);
+	set_input_sensitive();
+}
+
+// "Mouse Wheel Mode" selected
+static void mn_wheel_page(...) {PrefsReplaceInt16("mousewheelmode", 0); set_input_sensitive();}
+static void mn_wheel_cursor(...) {PrefsReplaceInt16("mousewheelmode", 1); set_input_sensitive();}
+
+// Read settings from widgets and set preferences
+static void read_input_settings(void)
+{
+	const char *str = gtk_entry_get_text(GTK_ENTRY(w_keycode_file));
+	if (str && strlen(str))
+		PrefsReplaceString("keycodefile", str);
+	else
+		PrefsRemoveItem("keycodefile");
+
+	PrefsReplaceInt16("mousewheellines", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w_mouse_wheel_lines)));
+}
+
+// Create "Input" pane
+static void create_input_pane(GtkWidget *top)
+{
+	GtkWidget *box, *hbox, *menu, *label;
+	GtkObject *adj;
+
+	box = make_pane(top, STR_INPUT_PANE_TITLE);
+
+	make_checkbox(box, STR_KEYCODES_CTRL, "keycodes", GTK_SIGNAL_FUNC(tb_keycodes));
+	w_keycode_file = make_entry(box, STR_KEYCODE_FILE_CTRL, "keycodefile");
+
+	make_separator(box);
+
+	static const opt_desc options[] = {
+		{STR_MOUSEWHEELMODE_PAGE_LAB, GTK_SIGNAL_FUNC(mn_wheel_page)},
+		{STR_MOUSEWHEELMODE_CURSOR_LAB, GTK_SIGNAL_FUNC(mn_wheel_cursor)},
+		{0, NULL}
+	};
+	int wheelmode = PrefsFindInt16("mousewheelmode"), active = 0;
+	switch (wheelmode) {
+		case 0: active = 0; break;
+		case 1: active = 1; break;
+	}
+	menu = make_option_menu(box, STR_MOUSEWHEELMODE_CTRL, options, active);
+
+	hbox = gtk_hbox_new(FALSE, 4);
+	gtk_widget_show(hbox);
+	gtk_box_pack_start(GTK_BOX(box), hbox, FALSE, FALSE, 0);
+
+	label = gtk_label_new(GetString(STR_MOUSEWHEELLINES_CTRL));
+	gtk_widget_show(label);
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+	adj = gtk_adjustment_new(PrefsFindInt16("mousewheellines"), 1, 1000, 1, 5, 0);
+	w_mouse_wheel_lines = gtk_spin_button_new(GTK_ADJUSTMENT(adj), 0.0, 0);
+	gtk_widget_show(w_mouse_wheel_lines);
+	gtk_box_pack_start(GTK_BOX(hbox), w_mouse_wheel_lines, FALSE, FALSE, 0);
+
+	set_input_sensitive();
 }
 
 
@@ -864,11 +946,11 @@ static GList *add_ether_names(void)
 // Create "Serial/Network" pane
 static void create_serial_pane(GtkWidget *top)
 {
-	GtkWidget *box, *table, *label, *combo;
+	GtkWidget *box, *table, *label, *combo, *sep;
 	GList *glist = add_serial_names();
 
 	box = make_pane(top, STR_SERIAL_NETWORK_PANE_TITLE);
-	table = make_table(box, 2, 3);
+	table = make_table(box, 2, 4);
 
 	label = gtk_label_new(GetString(STR_SERIALA_CTRL));
 	gtk_widget_show(label);
@@ -898,9 +980,13 @@ static void create_serial_pane(GtkWidget *top)
 	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 1, 2, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
 	w_serialb = GTK_COMBO(combo)->entry;
 
+	sep = gtk_hseparator_new();
+	gtk_widget_show(sep);
+	gtk_table_attach(GTK_TABLE(table), sep, 0, 2, 2, 3, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+
 	label = gtk_label_new(GetString(STR_ETHERNET_IF_CTRL));
 	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 2, 3, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 3, 4, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
 	glist = add_ether_names();
 	combo = gtk_combo_new();
@@ -910,7 +996,7 @@ static void create_serial_pane(GtkWidget *top)
 	if (str == NULL)
 		str = "";
 	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
-	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 2, 3, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
+	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 3, 4, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
 	w_ether = GTK_COMBO(combo)->entry;
 }
 
@@ -921,7 +1007,6 @@ static void create_serial_pane(GtkWidget *top)
 
 static GtkObject *w_ramsize_adj;
 static GtkWidget *w_rom_file;
-static GtkWidget *w_keycode_file;
 
 // Model ID selected
 static void mn_modelid_5(...) {PrefsReplaceInt32("modelid", 5);}
@@ -934,12 +1019,6 @@ static void mn_cpu_68030(...) {PrefsReplaceInt32("cpu", 3); PrefsReplaceBool("fp
 static void mn_cpu_68030_fpu(...) {PrefsReplaceInt32("cpu", 3); PrefsReplaceBool("fpu", true);}
 static void mn_cpu_68040(...) {PrefsReplaceInt32("cpu", 4); PrefsReplaceBool("fpu", true);}
 
-// "Use Raw Keycodes" button toggled
-static void tb_keycodes(GtkWidget *widget)
-{
-	PrefsReplaceBool("keycodes", GTK_TOGGLE_BUTTON(widget)->active);
-}
-
 // Read settings from widgets and set preferences
 static void read_memory_settings(void)
 {
@@ -951,17 +1030,12 @@ static void read_memory_settings(void)
 	else
 		PrefsRemoveItem("rom");
 
-	str = gtk_entry_get_text(GTK_ENTRY(w_keycode_file));
-	if (str && strlen(str))
-		PrefsReplaceString("keycodefile", str);
-	else
-		PrefsRemoveItem("keycodefile");
 }
 
 // Create "Memory/Misc" pane
 static void create_memory_pane(GtkWidget *top)
 {
-	GtkWidget *box, *vbox, *hbox, *hbox2, *label, *scale, *menu;
+	GtkWidget *box, *hbox, *vbox, *hbox2, *label, *scale, *menu;
 
 	box = make_pane(top, STR_MEMORY_MISC_PANE_TITLE);
 
@@ -1036,9 +1110,6 @@ static void create_memory_pane(GtkWidget *top)
 #endif
 
 	w_rom_file = make_entry(box, STR_ROM_FILE_CTRL, "rom");
-
-	make_checkbox(box, STR_KEYCODES_CTRL, "keycodes", GTK_SIGNAL_FUNC(tb_keycodes));
-	w_keycode_file = make_entry(box, STR_KEYCODE_FILE_CTRL, "keycodefile");
 }
 
 
@@ -1051,6 +1122,7 @@ static void read_settings(void)
 	read_volumes_settings();
 	read_scsi_settings();
 	read_graphics_settings();
+	read_input_settings();
 	read_serial_settings();
 	read_memory_settings();
 }
