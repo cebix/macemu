@@ -919,7 +919,7 @@ static bool ix86_skip_instruction(unsigned long * regs)
 			"r12", "r13", "r14", "r15",
 		};
 		const char * reg_str = NULL;
-		switch (transfer_size) {
+		switch (target_size) {
 		case SIZE_BYTE:
 			reg_str = x86_byte_reg_str_map[(!has_rex && reg >= 4 ? 12 : 0) + reg];
 			break;
