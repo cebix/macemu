@@ -362,7 +362,7 @@ ether <ethernet card description>
 
   Linux:
     The "ethernet card description" is the name of an Ethernet interface.
-    There are two approaches to networking with Basilisk II:
+    There are three approaches to networking with Basilisk II:
 
       1. Direct access to an Ethernet card via the "sheep_net" kernel module.
          The "ethernet card description" must be the name of a real Ethernet
@@ -431,6 +431,29 @@ ether <ethernet card description>
          If you are in an existing AppleTalk network, you should contact
          your network administrator about the nets and zones you can use
          (instead of the ones given in the example above).
+
+      3. Access the network through a "tuntap" interface.
+         The "ethernet card description" must be set to "tun".
+
+         TUN/TAP provides packet reception and transmission for user
+         space programs.  It can be viewed as a simple Point-to-Point
+         or Ethernet device, which instead of receiving packets from a
+         physical media, receives them from user space program and
+         instead of sending packets via physical media writes them to
+         the user space program.
+
+         A virtual network configuration script is required and the
+         default is /usr/local/BasiliskII/tunconfig unless you specify
+         a different file with the "etherconfig" item.
+
+         This script requires you that "sudo" is properly configured
+         so that "/sbin/ifconfig" and "/sbin/iptables" can be executed
+         as root. Otherwise, you can still write a helper script which
+         invokes your favorite program to enhance a user priviledges.
+         e.g. in a KDE environment, kdesu can be used as follows:
+
+           #!/bin/sh
+           exec /usr/bin/kdesu -c /path/to/tunconfig $1 $2
 
   FreeBSD:
     The "ethertap" method described above also works under FreeBSD, but since
