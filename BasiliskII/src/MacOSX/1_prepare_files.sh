@@ -47,5 +47,11 @@ if test -z "$*"; then
    echo "*************************************************"
 fi
 
+# This mode isn't working yet - segfaults
 #./configure "$@" --enable-addressing=real
-./configure "$@"
+
+# The default mode, which doesn't allow Classic ROMS and has black screen prob.
+#./configure "$@"
+
+# Classic ROM version, seems to fix black screen problem
+./configure "$@" --enable-addressing=banks
