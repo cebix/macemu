@@ -26,18 +26,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <string>
+using std::string;
+
 #include "prefs.h"
 
 
 // Platform-specific preferences items
 prefs_desc platform_prefs_items[] = {
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+	{"ignoresegv", TYPE_BOOLEAN, false,    "ignore illegal memory accesses"},
+#endif
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
 
 // Prefs file name and path
 const char PREFS_FILE_NAME[] = ".basilisk_ii_prefs";
-static char prefs_path[1024];
+string UserPrefsPath;
+static string prefs_path;
 
 
 /*
@@ -47,16 +54,17 @@ static char prefs_path[1024];
 void LoadPrefs(void)
 {
 	// Construct prefs path
-	prefs_path[0] = 0;
-	char *home = getenv("HOME");
-	if (home != NULL && strlen(home) < 1000) {
-		strncpy(prefs_path, home, 1000);
-		strcat(prefs_path, "/");
-	}
-	strcat(prefs_path, PREFS_FILE_NAME);
+	if (UserPrefsPath.empty()) {
+		char *home = getenv("HOME");
+		if (home)
+			prefs_path = string(home) + '/';
+		prefs_path += PREFS_FILE_NAME;
+		UserPrefsPath = prefs_path;
+	} else
+		prefs_path = UserPrefsPath;
 
 	// Read preferences from settings file
-	FILE *f = fopen(prefs_path, "r");
+	FILE *f = fopen(prefs_path.c_str(), "r");
 	if (f != NULL) {
 
 		// Prefs file found, load settings
@@ -78,7 +86,7 @@ void LoadPrefs(void)
 void SavePrefs(void)
 {
 	FILE *f;
-	if ((f = fopen(prefs_path, "w")) != NULL) {
+	if ((f = fopen(prefs_path.c_str(), "w")) != NULL) {
 		SavePrefsToStream(f);
 		fclose(f);
 	}
@@ -94,4 +102,7 @@ void AddPlatformPrefsDefaults(void)
 {
 	PrefsReplaceString("extfs", "/");
 	PrefsReplaceString("screen", "win/512/384/16");
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+	PrefsAddBool("ignoresegv", false);
+#endif
 }
