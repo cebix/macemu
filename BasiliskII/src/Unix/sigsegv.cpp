@@ -264,7 +264,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #endif
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__)
 #if (defined(i386) || defined(__i386__))
 #define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_eip)
 #define SIGSEGV_REGISTER_FILE			((unsigned long *)&(((struct sigcontext *)scp)->sc_edi)) /* EDI is the first GPR (even below EIP) in sigcontext */
@@ -734,6 +734,26 @@ enum {
 	X86_REG_EBP = 2,
 	X86_REG_ESI = 1,
 	X86_REG_EDI = 0
+#endif
+};
+#endif
+#if defined(__OpenBSD__)
+enum {
+#if defined(__i386__)
+	// EDI is the first register we consider
+#define OREG(REG) offsetof(struct sigcontext, sc_##REG)
+#define DREG(REG) ((OREG(REG) - OREG(edi)) / 4)
+	X86_REG_EIP = DREG(eip), // 7
+	X86_REG_EAX = DREG(eax), // 6
+	X86_REG_ECX = DREG(ecx), // 5
+	X86_REG_EDX = DREG(edx), // 4
+	X86_REG_EBX = DREG(ebx), // 3
+	X86_REG_ESP = DREG(esp), // 10
+	X86_REG_EBP = DREG(ebp), // 2
+	X86_REG_ESI = DREG(esi), // 1
+	X86_REG_EDI = DREG(edi)  // 0
+#undef DREG
+#undef OREG
 #endif
 };
 #endif
