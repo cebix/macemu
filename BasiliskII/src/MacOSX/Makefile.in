@@ -61,7 +61,9 @@ $(OBJ_DIR)::
 
 
 $(APP): $(OBJ_DIR) $(GEN) $(SRCS)
-	pbxbuild -buildstyle Deployment	|| rm -fr $(APP)
+	xcodebuild -buildstyle Deployment \
+		-project BasiliskII.xcode || rm -fr $(APP)
+#	pbxbuild -buildstyle Deployment	|| rm -fr $(APP)
 #	pbxbuild			|| rm -fr $(APP)
 
 BasiliskII.icns :
