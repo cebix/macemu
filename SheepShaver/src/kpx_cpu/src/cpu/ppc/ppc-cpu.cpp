@@ -502,7 +502,8 @@ void powerpc_cpu::execute(uint32 entry)
 		  pdi_compile:
 #if PPC_PROFILE_COMPILE_TIME
 			compile_count++;
-			clock_t start_time = clock();
+			clock_t start_time;
+			start_time = clock();
 #endif
 			bi = block_cache.new_blockinfo();
 			bi->init(pc());
