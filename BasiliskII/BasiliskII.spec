@@ -33,7 +33,7 @@ Some features of Basilisk II:
 
 %build
 cd src/Unix
-./configure --prefix=/usr --exec_prefix=/usr/X11R6
+./configure --prefix=/usr
 make RPM_OPT_FLAGS="$RPM_OPT_FLAGS"
 
 %install
@@ -42,6 +42,6 @@ make install
 
 %files
 %doc ChangeLog COPYING INSTALL README TECH TODO
-/usr/X11R6/bin/BasiliskII
+/usr/bin/BasiliskII
 /usr/man/man1/BasiliskII.1
 /usr/share/BasiliskII/keycodes
