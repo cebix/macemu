@@ -558,10 +558,12 @@ void powerpc_cpu::execute(uint32 entry)
 					break;
 			}
 		}
-#endif
 		goto return_site;
+#endif
+		goto do_interpret;
 	}
 #endif
+  do_interpret:
 	for (;;) {
 		uint32 opcode = vm_read_memory_4(pc());
 		const instr_info_t *ii = decode(opcode);
