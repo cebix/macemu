@@ -339,10 +339,10 @@ struct SheepRoutineDescriptor
 		Mac_memset(desc, 0, sizeof(RoutineDescriptor));
 		WriteMacInt16(desc + offsetof(RoutineDescriptor, goMixedModeTrap), 0xAAFE);
 		WriteMacInt8 (desc + offsetof(RoutineDescriptor, version), 7);
-		WriteMacInt32(desc + offsetof(RoutineDescriptor, routineRecords[0].procInfo), procInfo);
-		WriteMacInt8 (desc + offsetof(RoutineDescriptor, routineRecords[0].ISA), 1);
-		WriteMacInt16(desc + offsetof(RoutineDescriptor, routineRecords[0].routineFlags), 0 | 0 | 4);
-		WriteMacInt32(desc + offsetof(RoutineDescriptor, routineRecords[0].procDescriptor), procedure);
+		WriteMacInt32(desc + offsetof(RoutineDescriptor, routineRecords) + offsetof(RoutineRecord, procInfo), procInfo);
+		WriteMacInt8 (desc + offsetof(RoutineDescriptor, routineRecords) + offsetof(RoutineRecord, ISA), 1);
+		WriteMacInt16(desc + offsetof(RoutineDescriptor, routineRecords) + offsetof(RoutineRecord, routineFlags), 0 | 0 | 4);
+		WriteMacInt32(desc + offsetof(RoutineDescriptor, routineRecords) + offsetof(RoutineRecord, procDescriptor), procedure);
 	}
 };
 
