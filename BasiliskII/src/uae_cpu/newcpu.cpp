@@ -23,6 +23,11 @@ extern int intlev(void);	// From baisilisk_glue.cpp
 #include "readcpu.h"
 #include "newcpu.h"
 
+#if ENABLE_MON
+#include "mon.h"
+#include "mon_disass.h"
+#endif
+
 int quit_program = 0;
 int debugging = 0;
 struct flag_struct regflags;
@@ -46,6 +51,54 @@ int fpp_movem_index2[256];
 int fpp_movem_next[256];
 
 cpuop_func *cpufunctbl[65536];
+
+#define FLIGHT_RECORDER 0
+
+#if FLIGHT_RECORDER
+struct rec_step {
+	uae_u32 d[8];
+	uae_u32 a[8];
+	uae_u32 pc;
+};
+
+const int LOG_SIZE = 8192;
+static rec_step log[LOG_SIZE];
+static int log_ptr = -1; // First time initialization
+
+static const char *log_filename(void)
+{
+	const char *name = getenv("M68K_LOG_FILE");
+	return name ? name : "log.68k";
+}
+
+static void record_step(uaecptr pc)
+{
+	for (int i = 0; i < 8; i++) {
+		log[log_ptr].d[i] = m68k_dreg(regs, i);
+		log[log_ptr].a[i] = m68k_areg(regs, i);
+	}
+	log[log_ptr].pc = pc;
+	log_ptr = (log_ptr + 1) % LOG_SIZE;
+}
+
+static void dump_log(void)
+{
+	FILE *f = fopen(log_filename(), "w");
+	if (f == NULL)
+		return;
+	for (int i = 0; i < LOG_SIZE; i++) {
+		int j = (i + log_ptr) % LOG_SIZE;
+		fprintf(f, "pc %08x\n", log[j].pc);
+		fprintf(f, "d0 %08x d1 %08x d2 %08x d3 %08x\n", log[j].d[0], log[j].d[1], log[j].d[2], log[j].d[3]);
+		fprintf(f, "d4 %08x d5 %08x d6 %08x d7 %08x\n", log[j].d[4], log[j].d[5], log[j].d[6], log[j].d[7]);
+		fprintf(f, "a0 %08x a1 %08x a2 %08x a3 %08x\n", log[j].a[0], log[j].a[1], log[j].a[2], log[j].a[3]);
+		fprintf(f, "a4 %08x a5 %08x a6 %08x a7 %08x\n", log[j].a[4], log[j].a[5], log[j].a[6], log[j].a[7]);
+#if ENABLE_MON
+		disass_68k(f, log[j].pc);
+#endif
+	}
+}
+#endif
 
 #define COUNT_INSTRS 0
 
@@ -1075,6 +1128,17 @@ void m68k_reset (void)
     /* gb-- moved into {fpp,fpu_x86}.cpp::fpu_init()
     regs.fpcr = regs.fpsr = regs.fpiar = 0; */
     fpu_reset();
+	
+#if FLIGHT_RECORDER
+#if ENABLE_MON
+	if (log_ptr == -1) {
+		// Install "log" command in mon
+		mon_add_command("log", dump_log, "log                      Dump m68k emulation log\n");
+	}
+#endif
+	log_ptr = 0;
+	memset(log, 0, sizeof(log));
+#endif
 }
 
 void REGPARAM2 op_illg (uae_u32 opcode)
@@ -1221,6 +1285,9 @@ static void m68k_run_1 (void)
 {
 	for (;;) {
 		uae_u32 opcode = GET_OPCODE;
+#if FLIGHT_RECORDER
+		record_step(m68k_getpc());
+#endif
 		(*cpufunctbl[opcode])(opcode);
 		if (regs.spcflags) {
 			if (do_specialties())
