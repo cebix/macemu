@@ -2480,10 +2480,12 @@ static void video_refresh_window_vosf(void)
 	if (++tick_counter >= frame_skip) {
 		tick_counter = 0;
 		if (mainBuffer.dirty) {
+			XDisplayLock();
 			LOCK_VOSF;
 			update_display_window_vosf(static_cast<driver_window *>(drv));
 			UNLOCK_VOSF;
 			XSync(x_display, false); // Let the server catch up
+			XDisplayUnlock();
 		}
 	}
 }

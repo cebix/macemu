@@ -368,7 +368,6 @@ There are two cases to check:
 static inline void update_display_window_vosf(VIDEO_DRV_INIT)
 {
 	VIDEO_MODE_INIT;
-	XDisplayLock();
 
 	int page = 0;
 	for (;;) {
@@ -429,8 +428,6 @@ static inline void update_display_window_vosf(VIDEO_DRV_INIT)
 			XPutImage(x_display, VIDEO_DRV_WINDOW, VIDEO_DRV_GC, VIDEO_DRV_IMAGE, 0, y1, 0, y1, VIDEO_MODE_X, height);
 #endif
 	}
-
-	XDisplayUnlock();
 	mainBuffer.dirty = false;
 }
 
