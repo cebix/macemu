@@ -34,6 +34,9 @@ AC_EGREP_CPP(yes,
 #ifdef __powerpc__
   yes
 #endif
+#ifdef __ppc__
+  yes
+#endif
 ], [AC_MSG_RESULT(yes); HAVE_PPC=yes], AC_MSG_RESULT(no))
 
 dnl We use native CPU if possible.
@@ -93,7 +96,12 @@ LIBS="$LIBS $X_PRE_LIBS $X_LIBS -lX11 -lXext $X_EXTRA_LIBS"
 
 dnl We need pthreads on non-PowerPC systems. Try libpthread first, then libc_r (FreeBSD), then PTL.
 HAVE_PTHREADS=yes
-if [[ "x$EMULATED_PPC" = "xyes" ]]; then
+case $EMULATED_PPC:$target_os in
+no:linux*)
+  dnl We do have our own pthread_cancel() implementation
+  AC_DEFINE(HAVE_PTHREAD_CANCEL, 1, [Define if you have the pthread_cancel function.])
+  ;;
+*:*)
   AC_CHECK_LIB(pthread, pthread_create, , [
     AC_CHECK_LIB(c_r, pthread_create, , [
       AC_CHECK_LIB(PTL, pthread_create, , [
@@ -108,18 +116,15 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
   if [[ "x$HAVE_PTHREADS" = "xyes" ]]; then
     AC_DEFINE(HAVE_PTHREADS, 1, [Define if pthreads are available.])
   fi
-else
-  dnl We do have our own pthread_cancel() implementation
-  AC_DEFINE(HAVE_PTHREAD_CANCEL, 1, [Define if you have the pthread_cancel function.])
-fi
-
-dnl If POSIX.4 semaphores are not available, we emulate them with pthread mutexes.
-SEMSRC=
-AC_CHECK_FUNCS(sem_init, , [
+  dnl If POSIX.4 semaphores are not available, we emulate them with pthread mutexes.
+  SEMSRC=
+  AC_CHECK_FUNCS(sem_init, , [
   if test "x$HAVE_PTHREADS" = "xyes"; then
     SEMSRC=posix_sem.cpp
   fi
-])
+  ])
+  ;;
+esac
 
 dnl We use XFree86 DGA if possible.
 if [[ "x$WANT_XF86_DGA" = "xyes" ]]; then
@@ -144,7 +149,7 @@ if [[ "x$WANT_XF86_VIDMODE" = "xyes" ]]; then
 fi
 
 dnl We use GTK+ if possible.
-UISRCS=
+UISRCS=../dummy/prefs_editor_dummy.cpp
 if [[ "x$WANT_GTK" = "xyes" ]]; then
   AM_PATH_GTK(1.2.0, [
     AC_DEFINE(ENABLE_GTK)
@@ -196,24 +201,64 @@ AC_TYPE_SIGNAL
 AC_HEADER_TIME
 AC_STRUCT_TM
 
+dnl Check whether struct sigaction has sa_restorer member.
+AC_CACHE_CHECK([whether struct sigaction has sa_restorer],
+  ac_cv_signal_sa_restorer, [
+  AC_TRY_COMPILE([
+    #include <signal.h>
+  ], [struct sigaction sa; sa.sa_restorer = 0;],
+  ac_cv_signal_sa_restorer=yes, ac_cv_signal_sa_restorer=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_signal_sa_restorer=no
+  )
+])
+if [[ "x$ac_cv_signal_sa_restorer" = "xyes" ]]; then
+  AC_DEFINE(HAVE_SIGNAL_SA_RESTORER)
+fi
+
 dnl Checks for library functions.
 AC_CHECK_FUNCS(strdup cfmakeraw)
 AC_CHECK_FUNCS(nanosleep)
 AC_CHECK_FUNCS(sigaction signal)
 AC_CHECK_FUNCS(mmap mprotect munmap)
 AC_CHECK_FUNCS(vm_allocate vm_deallocate vm_protect)
+
+dnl Darwin seems to define mach_task_self() instead of task_self().
+AC_CHECK_FUNCS(mach_task_self task_self)
+
 dnl We need clock_gettime() for better performance but it may drag
 dnl libpthread in, which we don't want for native ppc mode
-if [[ "x$EMULATED_PPC" = "xyes" ]]; then
+case $EMULATED_PPC:$target_os in
+no:linux*)
+  ;;
+*:*)
   AC_SEARCH_LIBS(clock_gettime, [rt posix4])
   AC_CHECK_FUNCS(clock_gettime)
-fi
+  ;;
+esac
 
 dnl Select system-dependant sources.
-if [[ "x$EMULATED_PPC" = "xno" ]]; then
-  SYSSRCS="Linux/paranoia.cpp Linux/sheepthreads.c Linux/asm_linux.S"
-fi
-SYSSRCS="$SYSSRCS $SEMSRCS $UISRCS $MONSRCS"
+SERIALSRC=serial_unix.cpp
+ETHERSRC=../dummy/ether_dummy.cpp
+SCSISRC=../dummy/scsi_dummy.cpp
+AUDIOSRC=../dummy/audio_dummy.cpp
+EXTRASYSSRCS=
+case "$target_os" in
+linux*)
+  ETHERSRC=Linux/ether_linux.cpp
+  AUDIOSRC=audio_oss_esd.cpp
+  SCSISRC=Linux/scsi_linux.cpp
+  if [[ "x$EMULATED_PPC" = "xno" ]]; then
+    EXTRASYSSRCS="Linux/paranoia.cpp Linux/sheepthreads.c Linux/asm_linux.S"
+  fi
+  ;;
+darwin*)
+  if [[ "x$EMULATED_PPC" = "xno" ]]; then
+    EXTRASYSSRCS="Darwin/paranoia.cpp Linux/asm_linux.S"
+  fi
+  ;;
+esac
+SYSSRCS="$SERIALSRC $ETHERSRC $SCSISRC $AUDIOSRC $SEMSRC $UISRCS $MONSRCS $EXTRASYSSRCS"
 
 dnl Define a macro that translates a yesno-variable into a C macro definition
 dnl to be put into the config.h file
@@ -372,8 +417,21 @@ AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, $have_mmap_vm,
 
 fi dnl HAVE_MMAP_VM
 
-dnl Check if we can mmap 0x2000 bytes from 0x0000
-AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x2000],
+dnl Check if we can modify the __PAGEZERO segment for use as Low Memory
+AC_CACHE_CHECK([whether __PAGEZERO can be Low Memory area 0x0000-0x3000],
+  ac_cv_pagezero_hack, [
+  ac_cv_pagezero_hack=no 
+  if AC_TRY_COMMAND([Darwin/testlmem.sh 0x3000]); then
+    ac_cv_pagezero_hack=yes
+    dnl might as well skip the test for mmap-able low memory
+    ac_cv_can_map_lm=no
+  fi
+])
+AC_TRANSLATE_DEFINE(PAGEZERO_HACK, "$ac_cv_pagezero_hack",
+  [Define if the __PAGEZERO Mach-O Low Memory Globals hack works on this system.])
+
+dnl Check if we can mmap 0x3000 bytes from 0x0000
+AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x3000],
   ac_cv_can_map_lm, [
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
@@ -456,28 +514,58 @@ AC_CACHE_CHECK([whether sigaction handlers need to be reinstalled],
 AC_TRANSLATE_DEFINE(SIGACTION_NEED_REINSTALL, "$ac_cv_sigaction_need_reinstall",
   [Define if your system requires sigactions to be reinstalled.])
 
-dnl Check if extended signals are supported.
-AC_CACHE_CHECK([whether your system supports extended signal handlers],
-  ac_cv_have_extended_signals, [
+dnl Check if Mach exceptions supported.
+AC_CACHE_CHECK([whether your system supports Mach exceptions],
+  ac_cv_have_mach_exceptions, [
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
   AC_TRY_RUN([
-    #define HAVE_SIGINFO_T 1
+    #define HAVE_MACH_EXCEPTIONS 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
     #include "vm_alloc.cpp"
     #include "sigsegv.cpp"
-  ], ac_cv_have_extended_signals=yes, ac_cv_have_extended_signals=no,
+  ], [
+  sigsegv_recovery=mach
+  ac_cv_have_mach_exceptions=yes
+  ],
+  ac_cv_have_mach_exceptions=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_have_extended_signals=no
+  ac_cv_have_mach_exceptions=no
   )
   AC_LANG_RESTORE
   ]
 )
-AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_extended_signals",
-  [Define if your system support extended signals.])
+AC_TRANSLATE_DEFINE(HAVE_MACH_EXCEPTIONS, "$ac_cv_have_mach_exceptions",
+  [Define if your system supports Mach exceptions.])
+
+dnl Otherwise, check if extended signals are supported.
+if [[ -z "$sigsegv_recovery" ]]; then
+  AC_CACHE_CHECK([whether your system supports extended signal handlers],
+    ac_cv_have_extended_signals, [
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
+    AC_TRY_RUN([
+      #define HAVE_SIGINFO_T 1
+      #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+      #include "vm_alloc.cpp"
+      #include "sigsegv.cpp"
+    ], [
+    sigsegv_recovery=siginfo
+    ac_cv_have_extended_signals=yes
+    ],
+    ac_cv_have_extended_signals=no,
+    dnl When cross-compiling, do not assume anything.
+    ac_cv_have_extended_signals=no
+    )
+    AC_LANG_RESTORE
+    ]
+  )
+  AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_extended_signals",
+    [Define if your system support extended signals.])
+fi
 
 dnl Otherwise, check for subterfuges.
-if [[ "x$ac_cv_have_extended_signals" = "xno" ]]; then
+if [[ -z "$sigsegv_recovery" ]]; then
   AC_CACHE_CHECK([whether we then have a subterfuge for your system],
   ac_cv_have_sigcontext_hack, [
     AC_LANG_SAVE
@@ -487,7 +575,11 @@ if [[ "x$ac_cv_have_extended_signals" = "xno" ]]; then
       #define CONFIGURE_TEST_SIGSEGV_RECOVERY
       #include "vm_alloc.cpp"
       #include "sigsegv.cpp"
-    ], ac_cv_have_sigcontext_hack=yes, ac_cv_have_sigcontext_hack=no,
+    ], [
+    sigsegv_recovery=sigcontext
+    ac_cv_have_sigcontext_hack=yes
+    ],
+    ac_cv_have_sigcontext_hack=no,
     dnl When cross-compiling, do not assume anything.
     ac_cv_have_sigcontext_hack=no
     )
@@ -519,7 +611,7 @@ AC_TRANSLATE_DEFINE(HAVE_SIGSEGV_SKIP_INSTRUCTION, "$ac_cv_have_skip_instruction
 
 dnl Can we do Video on SEGV Signals ?
 CAN_VOSF=no
-if [[ "$ac_cv_have_extended_signals" = "yes" -o "$ac_cv_have_sigcontext_hack" = "yes" ]]; then
+if [[ -n "$sigsegv_recovery" ]]; then
   CAN_VOSF=yes
 fi
 
@@ -528,6 +620,13 @@ if [[ "x$WANT_VOSF" = "xyes" -a "x$CAN_VOSF" = "xyes" ]]; then
     AC_DEFINE(ENABLE_VOSF, 1, [Define if using video enabled on SEGV signals.])
 else
     WANT_VOSF=no
+fi
+
+dnl Platform specific binary postprocessor
+BLESS=/bin/true
+if [[ "x$ac_cv_pagezero_hack" = "xyes" ]]; then
+  BLESS=Darwin/lowmem
+  LDFLAGS="$LDFLAGS -pagezero_size 0x3000"
 fi
 
 dnl Check for GCC 2.7 or higher.
@@ -658,6 +757,7 @@ AC_SUBST(DYNGENSRCS)
 AC_SUBST(DYNGEN_OP_FLAGS)
 AC_SUBST(SYSSRCS)
 AC_SUBST(CPUSRCS)
+AC_SUBST(BLESS)
 AC_OUTPUT(Makefile)
 
 dnl Print summary.
@@ -672,5 +772,6 @@ echo Enable video on SEGV signals ..... : $WANT_VOSF
 echo ESD sound support ................ : $WANT_ESD
 echo GTK user interface ............... : $WANT_GTK
 echo mon debugger support ............. : $WANT_MON
+echo Bad memory access recovery type .. : $sigsegv_recovery
 echo
 echo "Configuration done. Now type \"make\"."

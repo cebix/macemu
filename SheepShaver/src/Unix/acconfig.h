@@ -35,6 +35,9 @@
 /* Define is using PowerPC emulator. */
 #undef EMULATED_PPC
 
+/* Define if struct sigaction defines sa_restorer. */
+#undef HAVE_SIGNAL_SA_RESTORER
+
 
 /* Leave that blank line there!!  Autoheader needs it.
    If you're adding to this file, keep in mind:
