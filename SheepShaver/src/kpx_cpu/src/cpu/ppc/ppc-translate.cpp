@@ -449,15 +449,17 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		}
 		case PPC_I(BC):			// Branch Conditional
 		{
+			const int bo = BO_field::extract(opcode);
 #if FOLLOW_CONST_JUMPS
-			if (!LK_field::test(opcode)) {
-				const int bo = BO_field::extract(opcode);
-				if (!BO_CONDITIONAL_BRANCH(bo) && !BO_DECREMENT_CTR(bo)) {
-					if (AA_field::test(opcode))
-						dpc = 0;
-					op.jmp.target = ((dpc + operand_BD::get(this, opcode)) & -4);
-					goto do_const_jump;
+			if (!BO_CONDITIONAL_BRANCH(bo) && !BO_DECREMENT_CTR(bo)) {
+				if (LK_field::test(opcode)) {
+					const uint32 npc = dpc + 4;
+					dg.gen_store_im_LR(npc);
 				}
+				if (AA_field::test(opcode))
+					dpc = 0;
+				op.jmp.target = ((dpc + operand_BD::get(this, opcode)) & -4);
+				goto do_const_jump;
 			}
 #endif
 			const uint32 tpc = ((AA_field::test(opcode) ? 0 : dpc) + operand_BD::get(this, opcode)) & -4;
@@ -467,7 +469,9 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			if (direct_chaining_possible(bi->pc, tpc)) {
 				use_direct_block_chaining = true;
 				bi->jmp_pc[0] = tpc;
-				bi->jmp_pc[1] = npc;
+				// Make sure it's a conditional branch
+				if (BO_CONDITIONAL_BRANCH(bo) || BO_DECREMENT_CTR(bo))
+					bi->jmp_pc[1] = npc;
 			}
 #endif
 			dg.gen_mov_32_A0_im(tpc);
