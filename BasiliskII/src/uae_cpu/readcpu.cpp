@@ -786,20 +786,6 @@ void read_table68k (void)
 		||	(table68k[opc].mnemo == i_BSR) \
 		)
 
-#if 0
-		// gb-- Don't follow false and true branches as we may not be
-		// able to determine the whole block length in bytes in order
-		// to compute the block checksum
-		
-		// We can follow unconditional jumps if neither Lazy Flusher
-		// nor Dynamic Code Patches feature is enabled
-		
-		// UPDATE: this is no longer permitted since we can decide
-		// at runtime whether the JIT compiler is used or not
-		if (IS_CONST_JUMP(i))
-			table68k[i].cflow = fl_normal;
-#endif
-		
 		// Fix flags used information for Scc, Bcc, TRAPcc, DBcc instructions
 		int flags_used = table68k[i].flaglive;
 		if	(	(mnemo == i_Scc)

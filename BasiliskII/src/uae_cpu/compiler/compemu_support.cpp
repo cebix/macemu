@@ -115,6 +115,11 @@ static inline int end_block(uae_u32 opcode)
 	return (prop[opcode].cflow & fl_end_block);
 }
 
+static inline bool is_const_jump(uae_u32 opcode)
+{
+	return (prop[opcode].cflow == fl_const_jump);
+}
+
 uae_u8* start_pc_p;
 uae_u32 start_pc;
 uae_u32 current_block_pc_p;
@@ -576,6 +581,27 @@ static HardBlockAllocator<blockinfo> BlockInfoAllocator;
 static HardBlockAllocator<checksum_info> ChecksumInfoAllocator;
 #endif
 
+static __inline__ checksum_info *alloc_checksum_info(void)
+{
+	checksum_info *csi = ChecksumInfoAllocator.acquire();
+	csi->next = NULL;
+	return csi;
+}
+
+static __inline__ void free_checksum_info(checksum_info *csi)
+{
+	csi->next = NULL;
+	ChecksumInfoAllocator.release(csi);
+}
+
+static __inline__ void free_checksum_info_chain(checksum_info *csi)
+{
+	while (csi != NULL) {
+		checksum_info *csi2 = csi->next;
+		free_checksum_info(csi);
+		csi = csi2;
+	}
+}
 
 static __inline__ blockinfo *alloc_blockinfo(void)
 {
@@ -589,12 +615,8 @@ static __inline__ blockinfo *alloc_blockinfo(void)
 static __inline__ void free_blockinfo(blockinfo *bi)
 {
 #if USE_CHECKSUM_INFO
-	checksum_info *csi = bi->csi;
-	while (csi != NULL) {
-		checksum_info *csi2 = csi->next;
-		ChecksumInfoAllocator.release(csi);
-		csi = csi2;
-	}
+	free_checksum_info_chain(bi->csi);
+	bi->csi = NULL;
 #endif
 	BlockInfoAllocator.release(bi);
 }
@@ -4611,6 +4633,7 @@ void compiler_init(void)
 	write_log("<JIT compiler> : register aliasing : %s\n", str_on_off(1));
 	write_log("<JIT compiler> : FP register aliasing : %s\n", str_on_off(USE_F_ALIAS));
 	write_log("<JIT compiler> : lazy constant offsetting : %s\n", str_on_off(USE_OFFSET));
+	write_log("<JIT compiler> : block inlining : %s\n", str_on_off(USE_INLINING));
 	write_log("<JIT compiler> : separate blockinfo allocation : %s\n", str_on_off(USE_SEPARATE_BIA));
 	
 	// Build compiler tables
@@ -5208,34 +5231,46 @@ void alloc_cache(void)
 
 extern cpuop_rettype op_illg_1 (uae_u32 opcode) REGPARAM;
 
-static void calc_checksum(CSI_TYPE* csi, uae_u32* c1, uae_u32* c2)
+static void calc_checksum(blockinfo* bi, uae_u32* c1, uae_u32* c2)
 {
-    uae_u32 k1=0;
-    uae_u32 k2=0;
-    uae_s32 len=CSI_LENGTH(csi);
-    uae_u32 tmp=(uae_u32)CSI_START_P(csi);
-    uae_u32* pos;
+    uae_u32 k1 = 0;
+    uae_u32 k2 = 0;
 
-    len+=(tmp&3);
-    tmp&=(~3);
-    pos=(uae_u32*)tmp;
+#if USE_CHECKSUM_INFO
+    checksum_info *csi = bi->csi;
+	Dif(!csi) abort();
+	while (csi) {
+		uae_s32 len = csi->length;
+		uae_u32 tmp = (uae_u32)csi->start_p;
+#else
+		uae_s32 len = bi->len;
+		uae_u32 tmp = (uae_u32)bi->min_pcp;
+#endif
+		uae_u32*pos;
 
-    if (len<0 || len>MAX_CHECKSUM_LEN) { 
-	*c1=0;
-	*c2=0;
-    }
-    else {
-	while (len>0) {
-	    k1+=*pos;
-	    k2^=*pos;
-	    pos++;
-	    len-=4;
+		len += (tmp & 3);
+		tmp &= ~3;
+		pos = (uae_u32 *)tmp;
+
+		if (len >= 0 && len <= MAX_CHECKSUM_LEN) {
+			while (len > 0) {
+				k1 += *pos;
+				k2 ^= *pos;
+				pos++;
+				len -= 4;
+			}
+		}
+
+#if USE_CHECKSUM_INFO
+		csi = csi->next;
 	}
-	*c1=k1;
-	*c2=k2;
-    }
+#endif
+
+	*c1 = k1;
+	*c2 = k2;
 }
 
+#if 0
 static void show_checksum(CSI_TYPE* csi)
 {
     uae_u32 k1=0;
@@ -5260,6 +5295,7 @@ static void show_checksum(CSI_TYPE* csi)
 	write_log(" bla\n");
     }
 }
+#endif
 
 
 int check_for_cache_miss(void)
@@ -5320,19 +5356,6 @@ static inline int block_check_checksum(blockinfo* bi)
     
     checksum_count++;
 
-#if USE_CHECKSUM_INFO
-    checksum_info *csi = bi->csi;
-	Dif(!csi) abort();
-	isgood = true;
-	while (csi && isgood) {
-		if (csi->c1 || csi->c2)
-			calc_checksum(csi,&c1,&c2);
-		else
-			c1 = c2 = 1; /* Make sure it doesn't match */
-		isgood = isgood && (c1 == csi->c1 && c2 == csi->c2);
-		csi = csi->next;
-	}
-#else
     if (bi->c1 || bi->c2)
 	calc_checksum(bi,&c1,&c2);
     else {
@@ -5340,7 +5363,6 @@ static inline int block_check_checksum(blockinfo* bi)
 	}
     
     isgood=(c1==bi->c1 && c2==bi->c2);
-#endif
 
     if (isgood) { 
 	/* This block is still OK. So we reactivate. Of course, that
@@ -5639,9 +5661,17 @@ void build_comp(void)
 		prop[opcode].cflow = fl_trap; // ILLEGAL instructions do trap
 	}
 	
+#define IS_CONST_JUMP(opc) \
+		(	((table68k[opc].mnemo == i_Bcc) && (table68k[opc].cc < 2)) \
+		||	(table68k[opc].mnemo == i_BSR) \
+		)
+	
 	for (i = 0; tbl[i].opcode < 65536; i++) {
 		int cflow = table68k[tbl[i].opcode].cflow;
-		prop[cft_map(tbl[i].opcode)].cflow = cflow;
+		if (USE_INLINING && IS_CONST_JUMP(tbl[i].opcode))
+			prop[cft_map(tbl[i].opcode)].cflow = fl_const_jump;
+		else
+			prop[cft_map(tbl[i].opcode)].cflow = cflow;
 
 		int uses_fpu = tbl[i].specific & 32;
 		if (uses_fpu && avoid_fpu)
@@ -5649,6 +5679,8 @@ void build_comp(void)
 		else
 			compfunctbl[cft_map(tbl[i].opcode)] = tbl[i].handler;
 	}
+
+#undef IS_CONST_JUMP
 
     for (i = 0; nftbl[i].opcode < 65536; i++) {
 		int uses_fpu = tbl[i].specific & 32;
@@ -5934,8 +5966,14 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 	int r;
 	int was_comp=0;
 	uae_u8 liveflags[MAXRUN+1];
+#if USE_CHECKSUM_INFO
+	bool trace_in_rom = isinrom((uintptr)pc_hist[0].location);
+	uae_u32 max_pcp=(uae_u32)pc_hist[blocklen - 1].location;
+	uae_u32 min_pcp=max_pcp;
+#else
 	uae_u32 max_pcp=(uae_u32)pc_hist[0].location;
 	uae_u32 min_pcp=max_pcp;
+#endif
 	uae_u32 cl=cacheline(pc_hist[0].location);
 	void* specflags=(void*)&regs.spcflags;
 	blockinfo* bi=NULL;
@@ -5979,6 +6017,10 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 	remove_deps(bi); /* We are about to create new code */
 	bi->optlevel=optlev;
 	bi->pc_p=(uae_u8*)pc_hist[0].location;
+#if USE_CHECKSUM_INFO
+	free_checksum_info_chain(bi->csi);
+	bi->csi = NULL;
+#endif
 	
 	liveflags[blocklen]=0x1f; /* All flags needed afterwards */
 	i=blocklen;
@@ -5986,10 +6028,25 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 	    uae_u16* currpcp=pc_hist[i].location;
 	    uae_u32 op=DO_GET_OPCODE(currpcp);
 
+#if USE_CHECKSUM_INFO
+		trace_in_rom = trace_in_rom && isinrom((uintptr)currpcp);
+#if USE_INLINING
+		if (is_const_jump(op)) {
+			checksum_info *csi = alloc_checksum_info();
+			csi->start_p = (uae_u8 *)min_pcp;
+			csi->length = max_pcp - min_pcp + LONGEST_68K_INST;
+			csi->next = bi->csi;
+			bi->csi = csi;
+			max_pcp = (uae_u32)currpcp;
+		}
+#endif
+		min_pcp = (uae_u32)currpcp;
+#else
 	    if ((uae_u32)currpcp<min_pcp)
 		min_pcp=(uae_u32)currpcp;
 	    if ((uae_u32)currpcp>max_pcp)
 		max_pcp=(uae_u32)currpcp;
+#endif
 
 		liveflags[i]=((liveflags[i+1]&
 			       (~prop[op].set_flags))|
@@ -5997,6 +6054,14 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 		if (prop[op].is_addx && (liveflags[i+1]&FLAG_Z)==0)
 		    liveflags[i]&= ~FLAG_Z;
 	}
+
+#if USE_CHECKSUM_INFO
+	checksum_info *csi = alloc_checksum_info();
+	csi->start_p = (uae_u8 *)min_pcp;
+	csi->length = max_pcp - min_pcp + LONGEST_68K_INST;
+	csi->next = bi->csi;
+	bi->csi = csi;
+#endif
 
 	bi->needed_flags=liveflags[0];
 
@@ -6244,21 +6309,27 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 	big_to_small_state(&live,&(bi->env));
 #endif
 
+#if USE_CHECKSUM_INFO
+	remove_from_list(bi);
+	if (trace_in_rom) {
+		// No need to checksum that block trace on cache invalidation
+		free_checksum_info_chain(bi->csi);
+		bi->csi = NULL;
+		add_to_dormant(bi);
+	}
+	else {
+	    calc_checksum(bi,&(bi->c1),&(bi->c2));
+		add_to_active(bi);
+	}
+#else
 	if (next_pc_p+extra_len>=max_pcp && 
 	    next_pc_p+extra_len<max_pcp+LONGEST_68K_INST) 
 	    max_pcp=next_pc_p+extra_len;  /* extra_len covers flags magic */
 	else
 	    max_pcp+=LONGEST_68K_INST;
 
-#if USE_CHECKSUM_INFO
-	checksum_info *csi = (bi->csi = ChecksumInfoAllocator.acquire());
-	csi->next = NULL;
-	csi->length = max_pcp - min_pcp;
-	csi->start_p = (uae_u8 *)min_pcp;
-#else
 	bi->len=max_pcp-min_pcp;
 	bi->min_pcp=min_pcp;
-#endif
 	
 	remove_from_list(bi);
 	if (isinrom(min_pcp) && isinrom(max_pcp)) {
@@ -6267,13 +6338,10 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 				   flight! */
 	}
 	else {
-#if USE_CHECKSUM_INFO
-		calc_checksum(csi,&csi->c1,&csi->c2);
-#else
 	    calc_checksum(bi,&(bi->c1),&(bi->c2));
-#endif
 	    add_to_active(bi);
 	}
+#endif
 	
 	current_cache_size += get_target() - (uae_u8 *)current_compile_p;
 	

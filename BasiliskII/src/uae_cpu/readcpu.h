@@ -62,7 +62,7 @@ ENUMDECL {
 	fl_jump			= 2,
 	fl_return		= 3,
 	fl_trap			= 4,
-	fl_compiled		= 8,
+	fl_const_jump	= 8,
 	
 	/* Instructions that can trap don't mark the end of a block */
 	fl_end_block	= 3
