@@ -1,2 +1,0 @@
-#! /bin/sh -
-mknod /dev/sheep_net c 10 198
