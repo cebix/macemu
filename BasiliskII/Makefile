@@ -55,7 +55,7 @@ $(SRCARCHIVE): $(SRCS) $(DOCS)
 # RPMs (source and binary)
 #
 rpm: $(SRCARCHIVE)
-	rpm --tarball a $(SRCARCHIVE)
+	rpm -ta --clean $(SRCARCHIVE)
 
 #
 # Binary archive for AmigaOS
