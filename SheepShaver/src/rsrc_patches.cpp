@@ -554,6 +554,22 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 			p[(base + 0x06) >> 1] = htons(0x0020);
 			D(bug(" patch 2 applied\n"));
 		}
+
+	} else if (type == FOURCC('C','O','D','E') && id == 27 && size == 25024) {
+		D(bug("CODE 27 found [Apple Personal Diagnostics]\n"));
+
+		// Don't access FCBs directly in Apple Personal Diagnostics (MacOS 9)
+		// FIXME: this should not be called in the first place, use UTResolveFCB?
+		static const uint8 dat[] = {0x2d, 0x78, 0x03, 0x4e, 0xff, 0xf8, 0x20, 0x6e, 0xff, 0xf8};
+		base = find_rsrc_data((uint8 *)p, size, dat, sizeof(dat));
+		if (base
+			&& ReadMacInt16(0x3f6) == 4 /* FSFCBLen */
+			&& p[(base + 0x1a) >> 1] == htons(0x605e)
+			&& p[(base + 0x80) >> 1] == htons(0x7000))
+		{
+			p[(base + 0x1a) >> 1] = htons(0x6064);
+			D(bug(" patch1 applied\n"));
+		}
 	}
 }
 
