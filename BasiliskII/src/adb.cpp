@@ -29,6 +29,7 @@
 #include "sysdeps.h"
 #include "cpu_emulation.h"
 #include "main.h"
+#include "emul_op.h"
 #include "video.h"
 #include "adb.h"
 
@@ -192,7 +193,7 @@ void ADBOp(uint8 op, uint8 *data)
 
 
 /*
- *  Mouse was moved (x/y are absolute or relative, depending on ADBSetMouseMode())
+ *  Mouse was moved (x/y are absolute or relative, depending on ADBSetRelMouseMode())
  */
 
 void ADBMouseMoved(int x, int y)
@@ -283,11 +284,13 @@ void ADBInterrupt(void)
 	int mx = mouse_x;
 	int my = mouse_y;
 
+	uint32 key_base = adb_base + 4;
+	uint32 mouse_base = adb_base + 16;
+
 	if (relative_mouse) {
 
 		// Mouse movement (relative) and buttons
 		if (mx != 0 || my != 0 || mouse_button[0] != old_mouse_button[0] || mouse_button[1] != old_mouse_button[1] || mouse_button[2] != old_mouse_button[2]) {
-			uint32 mouse_base = adb_base + 16;
 
 			// Call mouse ADB handler
 			if (mouse_reg_3[1] == 4) {
@@ -319,11 +322,26 @@ void ADBInterrupt(void)
 
 		// Update mouse position (absolute)
 		if (mx != old_mouse_x || my != old_mouse_y) {
+#ifdef POWERPC_ROM
+			static const uint16 proc[] = {
+				0x2f08,		// move.l a0,-(sp)
+				0x2f00,		// move.l d0,-(sp)
+				0x2f01,		// move.l d1,-(sp)
+				0x7001,		// moveq #1,d0 (MoveTo)
+				0xaadb,		// CursorDeviceDispatch
+				M68K_RTS
+			};
+			r.a[0] = ReadMacInt32(mouse_base + 4);
+			r.d[0] = mx;
+			r.d[1] = my;
+			Execute68k((uint32)proc, &r);
+#else
 			WriteMacInt16(0x82a, mx);
 			WriteMacInt16(0x828, my);
 			WriteMacInt16(0x82e, mx);
 			WriteMacInt16(0x82c, my);
 			WriteMacInt8(0x8ce, ReadMacInt8(0x8cf));	// CrsrCouple -> CrsrNew
+#endif
 			old_mouse_x = mx;
 			old_mouse_y = my;
 		}
@@ -359,7 +377,6 @@ void ADBInterrupt(void)
 	}
 
 	// Process accumulated keyboard events
-	uint32 key_base = adb_base + 4;
 	while (key_read_ptr != key_write_ptr) {
 
 		// Read keyboard event

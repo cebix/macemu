@@ -49,7 +49,6 @@
 #endif
 
 #include "cpu_emulation.h"
-#include "macos_util.h"
 #include "emul_op.h"
 #include "main.h"
 #include "disk.h"
