@@ -29,25 +29,7 @@
 
 #include "macos_util_macosx.h"
 
-#import <CarbonCore/Files.h>   
-
-
-// Gestalt selectors
-enum {
-	gestaltFSAttr				= FOURCC('f','s',' ',' '),
-	gestaltFullExtFSDispatching	= 0,
-	gestaltHasFSSpecCalls		= 1,
-	gestaltHasFileSystemManager	= 2,
-	gestaltFSMDoesDynamicLoad	= 3,
-	gestaltFSSupports4GBVols	= 4,
-	gestaltFSSupports2TBVols	= 5,
-	gestaltHasExtendedDiskInit	= 6,
-	gestaltDTMgrSupportsFSM		= 7
-};
-
-enum {
-	gestaltFSMVersion			= FOURCC('f','s','m',' ')
-};
+#import <Carbon/Carbon.h>   
 
 // File attributes
 enum {

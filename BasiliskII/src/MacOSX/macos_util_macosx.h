@@ -28,7 +28,7 @@
 
 #include "cpu_emulation.h"
 
-#import <CarbonCore/OSUtils.h>
+#import <Carbon/Carbon.h>
 
 /*
  *  Queues
