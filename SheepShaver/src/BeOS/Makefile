@@ -37,7 +37,7 @@ SRCS= main_beos.cpp ../prefs.cpp ../prefs_items.cpp prefs_beos.cpp \
     ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp scsi_beos.cpp \
     ../video.cpp video_beos.cpp ../audio.cpp audio_beos.cpp ../ether.cpp \
     ether_beos.cpp ../serial.cpp serial_beos.cpp ../extfs.cpp extfs_beos.cpp \
-    about_window_beos.cpp ../user_strings.cpp user_strings_beos.cpp
+    about_window_beos.cpp ../user_strings.cpp user_strings_beos.cpp ../thunks.cpp
 
 #	specify the resource files to use
 #	full path or a relative path to the resource file can be used.
