@@ -1,6 +1,6 @@
 # /usr/share/BasiliskII/keycodes
 #
-# Basilisk II (C) 1997-2002 Christian Bauer
+# Basilisk II (C) 1997-2004 Christian Bauer
 #
 # This file is used to translate the (server-specific) X11 keycodes to Mac
 # keycodes depending on the X11 server being used.

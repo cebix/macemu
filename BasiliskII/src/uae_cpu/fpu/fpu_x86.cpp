@@ -1,7 +1,7 @@
 /*
  *  fpu_x86.cpp - 68881/68040 fpu code for x86/Windows an Linux/x86.
  *
- *  Basilisk II (C) 1997-1999 Christian Bauer
+ *  Basilisk II (C) 1997-2004 Christian Bauer
  *
  *  MC68881/68040 fpu emulation
  *

@@ -1,7 +1,7 @@
 /*
  *  fpu/mathlib.h - Floating-point math support library
  *
- *  Basilisk II (C) 1997-2001 Christian Bauer
+ *  Basilisk II (C) 1997-2004 Christian Bauer
  *
  *  MC68881/68040 fpu emulation
  *  

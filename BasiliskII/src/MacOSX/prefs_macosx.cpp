@@ -4,7 +4,7 @@
  *  prefs_macosx.cpp - Preferences handling, Unix specific.
  *					   Based on prefs_unix.cpp
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2004 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

@@ -1,7 +1,7 @@
 /*
  *  fpu/rounding.h - system-dependant FPU rounding mode and precision
  *
- *  Basilisk II (C) 1997-1999 Christian Bauer
+ *  Basilisk II (C) 1997-2004 Christian Bauer
  *
  *  MC68881/68040 fpu emulation
  *  

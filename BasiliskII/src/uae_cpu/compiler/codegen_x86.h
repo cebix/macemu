@@ -14,7 +14,7 @@
  *  Adaptations and enhancements for AMD64 support, Copyright 2003
  *    Gwenole Beauchesne
  *
- *  Basilisk II (C) 1997-2003 Christian Bauer
+ *  Basilisk II (C) 1997-2004 Christian Bauer
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

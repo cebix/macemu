@@ -4,10 +4,10 @@
  *  Based on work Copyright 1995, 1996 Bernd Schmidt
  *  Changes for UAE-JIT Copyright 2000 Bernd Meyer
  *
- *  Adaptation for Basilisk II and improvements, copyright 2000-2002
+ *  Adaptation for Basilisk II and improvements, copyright 2000-2004
  *    Gwenole Beauchesne
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2004 Christian Bauer
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

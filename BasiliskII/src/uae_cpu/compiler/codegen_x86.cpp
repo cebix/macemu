@@ -3,10 +3,10 @@
  *
  *  Original 68040 JIT compiler for UAE, copyright 2000-2002 Bernd Meyer
  *
- *  Adaptation for Basilisk II and improvements, copyright 2000-2002
+ *  Adaptation for Basilisk II and improvements, copyright 2000-2004
  *    Gwenole Beauchesne
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2004 Christian Bauer
  *
  *  Portions related to CPU detection come from linux/arch/i386/kernel/setup.c
  *  
