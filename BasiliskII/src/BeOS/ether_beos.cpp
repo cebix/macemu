@@ -461,17 +461,18 @@ void ether_stop_udp_thread(void)
 void EtherInterrupt(void)
 {
 	D(bug("EtherIRQ\n"));
+	EthernetPacket ether_packet;
+	uint32 packet = ether_packet.addr();
 
 	if (udp_tunnel) {
 
-		uint8 packet[1514];
 		ssize_t length;
 
 		// Read packets from socket and hand to ether_udp_read() for processing
 		while (true) {
 			struct sockaddr_in from;
 			socklen_t from_len = sizeof(from);
-			length = recvfrom(fd, packet, 1514, 0, (struct sockaddr *)&from, &from_len);
+			length = recvfrom(fd, Mac2HostAddr(packet), 1514, 0, (struct sockaddr *)&from, &from_len);
 			if (length < 14)
 				break;
 			ether_udp_read(packet, length, &from);
@@ -483,15 +484,16 @@ void EtherInterrupt(void)
 		net_packet *p = &net_buffer_ptr->read[rd_pos];
 		while (p->cmd & IN_USE) {
 			if ((p->cmd >> 8) == SHEEP_PACKET) {
+				Host2Mac_memcpy(packet, p->data, p->length);
 #if MONITOR
 				bug("Receiving Ethernet packet:\n");
 				for (int i=0; i<p->length; i++) {
-					bug("%02x ", p->data[i]);
+					bug("%02x ", ReadMacInt8(packet + i));
 				}
 				bug("\n");
 #endif
 				// Get packet type
-				uint16 type = ntohs(*(uint16 *)(p->data + 12));
+				uint16 type = ReadMacInt16(packet + 12);
 
 				// Look for protocol
 				NetProtocol *prot = find_protocol(type);
@@ -503,14 +505,14 @@ void EtherInterrupt(void)
 					goto next;
 
 				// Copy header to RHA
-				Host2Mac_memcpy(ether_data + ed_RHA, p->data, 14);
+				Mac2Mac_memcpy(ether_data + ed_RHA, packet, 14);
 				D(bug(" header %08lx%04lx %08lx%04lx %04lx\n", ReadMacInt32(ether_data + ed_RHA), ReadMacInt16(ether_data + ed_RHA + 4), ReadMacInt32(ether_data + ed_RHA + 6), ReadMacInt16(ether_data + ed_RHA + 10), ReadMacInt16(ether_data + ed_RHA + 12)));
 
 				// Call protocol handler
 				M68kRegisters r;
 				r.d[0] = type;									// Packet type
 				r.d[1] = p->length - 14;						// Remaining packet length (without header, for ReadPacket)
-				r.a[0] = (uint32)p->data + 14;					// Pointer to packet (host address, for ReadPacket)
+				r.a[0] = packet + 14;							// Pointer to packet (Mac address, for ReadPacket)
 				r.a[3] = ether_data + ed_RHA + 14;				// Pointer behind header in RHA
 				r.a[4] = ether_data + ed_ReadPacket;			// Pointer to ReadPacket/ReadRest routines
 				D(bug(" calling protocol handler %08lx, type %08lx, length %08lx, data %08lx, rha %08lx, read_packet %08lx\n", prot->handler, r.d[0], r.d[1], r.a[0], r.a[3], r.a[4]));

@@ -390,12 +390,12 @@ int16 EtherControl(uint32 pb, uint32 dce)
  *  Ethernet ReadPacket routine
  */
 
-void EtherReadPacket(uint8 **src, uint32 &dest, uint32 &len, uint32 &remaining)
+void EtherReadPacket(uint32 &src, uint32 &dest, uint32 &len, uint32 &remaining)
 {
-	D(bug("EtherReadPacket src %p, dest %08x, len %08x, remaining %08x\n", *src, dest, len, remaining));
+	D(bug("EtherReadPacket src %08x, dest %08x, len %08x, remaining %08x\n", src, dest, len, remaining));
 	uint32 todo = len > remaining ? remaining : len;
-	Host2Mac_memcpy(dest, *src, todo);
-	*src += todo;
+	Mac2Mac_memcpy(dest, src, todo);
+	src += todo;
 	dest += todo;
 	len -= todo;
 	remaining -= todo;
@@ -407,22 +407,22 @@ void EtherReadPacket(uint8 **src, uint32 &dest, uint32 &len, uint32 &remaining)
  *  Read packet from UDP socket
  */
 
-void ether_udp_read(uint8 *packet, int length, struct sockaddr_in *from)
+void ether_udp_read(uint32 packet, int length, struct sockaddr_in *from)
 {
 	// Drop packets sent by us
-	if (memcmp(packet + 6, ether_addr, 6) == 0)
+	if (memcmp(Mac2HostAddr(packet) + 6, ether_addr, 6) == 0)
 		return;
 
 #if MONITOR
 	bug("Receiving Ethernet packet:\n");
 	for (int i=0; i<length; i++) {
-		bug("%02x ", packet[i]);
+		bug("%02x ", ReadMacInt8(packet + i));
 	}
 	bug("\n");
 #endif
 
 	// Get packet type
-	uint16 type = (packet[12] << 8) | packet[13];
+	uint16 type = ReadMacInt16(packet + 12);
 
 	// Look for protocol
 	uint16 search_type = (type <= 1500 ? 0 : type);
@@ -433,17 +433,56 @@ void ether_udp_read(uint8 *packet, int length, struct sockaddr_in *from)
 		return;
 
 	// Copy header to RHA
-	Host2Mac_memcpy(ether_data + ed_RHA, packet, 14);
+	Mac2Mac_memcpy(ether_data + ed_RHA, packet, 14);
 	D(bug(" header %08x%04x %08x%04x %04x\n", ReadMacInt32(ether_data + ed_RHA), ReadMacInt16(ether_data + ed_RHA + 4), ReadMacInt32(ether_data + ed_RHA + 6), ReadMacInt16(ether_data + ed_RHA + 10), ReadMacInt16(ether_data + ed_RHA + 12)));
 
 	// Call protocol handler
 	M68kRegisters r;
 	r.d[0] = type;									// Packet type
 	r.d[1] = length - 14;							// Remaining packet length (without header, for ReadPacket)
-	r.a[0] = (uint32)packet + 14;					// Pointer to packet (host address, for ReadPacket)
+	r.a[0] = packet + 14;							// Pointer to packet (Mac address, for ReadPacket)
 	r.a[3] = ether_data + ed_RHA + 14;				// Pointer behind header in RHA
 	r.a[4] = ether_data + ed_ReadPacket;			// Pointer to ReadPacket/ReadRest routines
 	D(bug(" calling protocol handler %08x, type %08x, length %08x, data %08x, rha %08x, read_packet %08x\n", handler, r.d[0], r.d[1], r.a[0], r.a[3], r.a[4]));
 	Execute68k(handler, &r);
+}
+#endif
+
+
+/*
+ *  Ethernet packet allocator
+ */
+
+#if SIZEOF_VOID_P == 4 || REAL_ADDRESSING == 0
+static uint32 ether_packet = 0;			// Ethernet packet (cached allocation)
+static uint32 n_ether_packets = 0;		// Number of ethernet packets allocated so far (should be at most 1)
+
+EthernetPacket::EthernetPacket()
+{
+	++n_ether_packets;
+	if (ether_packet && n_ether_packets == 1)
+		packet = ether_packet;
+	else {
+        M68kRegisters r;
+        r.d[0] = 1516;
+        Execute68kTrap(0xa71e, &r);		// NewPtrSysClear()
+		assert(r.a[0] != 0);
+		packet = r.a[0];
+		if (ether_packet == 0)
+			ether_packet = packet;
+	}
+}
+
+EthernetPacket::~EthernetPacket()
+{
+	--n_ether_packets;
+	if (packet != ether_packet) {
+		M68kRegisters r;
+		r.a[0] = packet;
+		Execute68kTrap(0xa01f, &r);		// DisposePtr
+	}
+	if (n_ether_packets > 0) {
+		bug("WARNING: Nested allocation of ethernet packets!\n");
+	}
 }
 #endif

@@ -353,7 +353,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			break;
 
 		case M68K_EMUL_OP_ETHER_READ_PACKET:
-			EtherReadPacket((uint8 **)&r->a[0], r->a[3], r->d[3], r->d[1]);
+			EtherReadPacket(r->a[0], r->a[3], r->d[3], r->d[1]);
 			break;
 
 		case M68K_EMUL_OP_SOUNDIN_OPEN:		// Sound input driver functions
