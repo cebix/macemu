@@ -137,7 +137,7 @@ private:
 
 class MacScreen : public BWindowScreen {
 public:
-	MacScreen(char *name, int mode_bit, status_t *error);
+	MacScreen(const char *name, int mode_bit, status_t *error);
 	virtual ~MacScreen();
 	virtual void Quit(void);
 	virtual	void ScreenConnected(bool active);
@@ -795,7 +795,7 @@ void BitmapView::MouseMoved(BPoint point, uint32 transit, const BMessage *messag
  *  Screen constructor
  */
 
-MacScreen::MacScreen(char *name, int mode_bit, status_t *error) : BWindowScreen(name, 1 << mode_bit, error), tick_thread(-1)
+MacScreen::MacScreen(const char *name, int mode_bit, status_t *error) : BWindowScreen(name, 1 << mode_bit, error), tick_thread(-1)
 {
 	// Set all variables
 	frame_backup = NULL;
