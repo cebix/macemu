@@ -1153,6 +1153,16 @@ static void *tick_func(void *arg)
 
 
 /*
+ *  Pthread configuration
+ */
+
+void Set_pthread_attr(pthread_attr_t *attr, int priority)
+{
+	// nothing to do
+}
+
+
+/*
  *  Mutexes
  */
 

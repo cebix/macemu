@@ -106,6 +106,9 @@ typedef struct timespec tm_time_t;
 typedef struct timeval tm_time_t;
 #endif
 
+// Setup pthread attributes
+extern void Set_pthread_attr(pthread_attr_t *attr, int priority);
+
 // Various definitions
 typedef struct rgb_color {
 	uint8		red;
