@@ -291,8 +291,10 @@ static EmulatorData *emulator_data;
 static uint8 last_xpram[XPRAM_SIZE];		// Buffer for monitoring XPRAM changes
 
 static bool nvram_thread_active = false;	// Flag: NVRAM watchdog installed
+static volatile bool nvram_thread_cancel;	// Flag: Cancel NVRAM thread
 static pthread_t nvram_thread;				// NVRAM watchdog
 static bool tick_thread_active = false;		// Flag: MacOS thread installed
+static volatile bool tick_thread_cancel;	// Flag: Cancel 60Hz thread
 static pthread_t tick_thread;				// 60Hz thread
 static pthread_t emul_thread;				// MacOS thread
 
@@ -900,11 +902,13 @@ int main(int argc, char **argv)
 	D(bug("Low Memory initialized\n"));
 
 	// Start 60Hz thread
+	tick_thread_cancel = false;
 	tick_thread_active = (pthread_create(&tick_thread, NULL, tick_func, NULL) == 0);
 	D(bug("Tick thread installed (%ld)\n", tick_thread));
 
 	// Start NVRAM watchdog thread
 	memcpy(last_xpram, XPRAM, XPRAM_SIZE);
+	nvram_thread_cancel = false;
 	nvram_thread_active = (pthread_create(&nvram_thread, NULL, nvram_func, NULL) == 0);
 	D(bug("NVRAM thread installed (%ld)\n", nvram_thread));
 
@@ -1003,12 +1007,14 @@ static void Quit(void)
 
 	// Stop 60Hz thread
 	if (tick_thread_active) {
+		tick_thread_cancel = true;
 		pthread_cancel(tick_thread);
 		pthread_join(tick_thread, NULL);
 	}
 
 	// Stop NVRAM watchdog thread
 	if (nvram_thread_active) {
+		nvram_thread_cancel = true;
 		pthread_cancel(nvram_thread);
 		pthread_join(nvram_thread, NULL);
 	}
@@ -1278,18 +1284,20 @@ void PatchAfterStartup(void)
  *  NVRAM watchdog thread (saves NVRAM every minute)
  */
 
+static void nvram_watchdog(void)
+{
+	if (memcmp(last_xpram, XPRAM, XPRAM_SIZE)) {
+		memcpy(last_xpram, XPRAM, XPRAM_SIZE);
+		SaveXPRAM();
+	}
+}
+
 static void *nvram_func(void *arg)
 {
-	struct timespec req = {60, 0};	// 1 minute
-
-	for (;;) {
-		pthread_testcancel();
-		nanosleep(&req, NULL);
-		pthread_testcancel();
-		if (memcmp(last_xpram, XPRAM, XPRAM_SIZE)) {
-			memcpy(last_xpram, XPRAM, XPRAM_SIZE);
-			SaveXPRAM();
-		}
+	while (!nvram_thread_cancel) {
+		for (int i=0; i<60 && !nvram_thread_cancel; i++)
+			Delay_usec(999999);		// Only wait 1 second so we quit promptly when nvram_thread_cancel becomes true
+		nvram_watchdog();
 	}
 	return NULL;
 }
@@ -1302,12 +1310,20 @@ static void *nvram_func(void *arg)
 static void *tick_func(void *arg)
 {
 	int tick_counter = 0;
-	struct timespec req = {0, 16625000};
+	uint64 start = GetTicks_usec();
+	int64 ticks = 0;
+	uint64 next = GetTicks_usec();
 
-	for (;;) {
+	while (!tick_thread_cancel) {
 
 		// Wait
-		nanosleep(&req, NULL);
+		next += 16625;
+		int64 delay = next - GetTicks_usec();
+		if (delay > 0)
+			Delay_usec(delay);
+		else if (delay < -16625)
+			next = GetTicks_usec();
+		ticks++;
 
 #if !EMULATED_PPC
 		// Did we crash?
@@ -1365,6 +1381,9 @@ static void *tick_func(void *arg)
 			TriggerInterrupt();
 		}
 	}
+
+	uint64 end = GetTicks_usec();
+	D(bug("%Ld ticks in %Ld usec = %f ticks/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
 	return NULL;
 }
 
