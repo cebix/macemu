@@ -608,7 +608,7 @@ bool SDL_monitor_desc::video_open(void)
 
 	// Start redraw/input thread
 	redraw_thread_cancel = false;
-	redraw_thread_active = (SDL_CreateThread(redraw_func, NULL) != NULL);
+	redraw_thread_active = ((redraw_thread = SDL_CreateThread(redraw_func, NULL)) != NULL);
 	if (!redraw_thread_active) {
 		printf("FATAL: cannot create redraw thread\n");
 		return false;
@@ -750,8 +750,7 @@ void SDL_monitor_desc::video_close(void)
 	// Stop redraw thread
 	if (redraw_thread_active) {
 		redraw_thread_cancel = true;
-//		SDL_WaitThread(redraw_thread, NULL); doesn't work
-		while (redraw_thread_cancel);
+		SDL_WaitThread(redraw_thread, NULL);
 	}
 	redraw_thread_active = false;
 
@@ -1437,6 +1436,5 @@ static int redraw_func(void *arg)
 
 	uint64 end = GetTicks_usec();
 	D(bug("%lld refreshes in %lld usec = %f refreshes/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
-	redraw_thread_cancel = false;
 	return 0;
 }
