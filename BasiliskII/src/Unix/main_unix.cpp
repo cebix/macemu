@@ -687,14 +687,8 @@ static void xpram_watchdog(void)
 static void *xpram_func(void *arg)
 {
 	while (!xpram_thread_cancel) {
-		for (int i=0; i<60 && !xpram_thread_cancel; i++) {
-#ifdef HAVE_NANOSLEEP
-			struct timespec req = {1, 0};
-			nanosleep(&req, NULL);
-#else
-			usleep(1000000);
-#endif
-		}
+		for (int i=0; i<60 && !xpram_thread_cancel; i++)
+			Delay_usec(1000000);
 		xpram_watchdog();
 	}
 	return NULL;
@@ -746,22 +740,75 @@ static void one_tick(...)
 #ifdef HAVE_PTHREADS
 static void *tick_func(void *arg)
 {
+	uint64 next = GetTicks_usec();
 	while (!tick_thread_cancel) {
-
-		// Wait
-#ifdef HAVE_NANOSLEEP
-		struct timespec req = {0, 16625000};
-		nanosleep(&req, NULL);
-#else
-		usleep(16625);
-#endif
-
-		// Action
 		one_tick();
+		next += 16625;
+		int64 delay = next - GetTicks_usec();
+		if (delay > 0)
+			Delay_usec(delay);
+		else if (delay < -16625)
+			next = GetTicks_usec();
 	}
 	return NULL;
 }
 #endif
+
+
+/*
+ *  Get current value of microsecond timer
+ */
+
+uint64 GetTicks_usec(void)
+{
+#ifdef HAVE_CLOCK_GETTIME
+	struct timespec t;
+	clock_gettime(CLOCK_REALTIME, &t);
+	return (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
+#else
+	struct timeval t;
+	gettimeofday(&t, NULL);
+	return (uint64)t.tv_sec * 1000000 + t.tv_usec;
+#endif
+}
+
+
+/*
+ *  Delay by specified number of microseconds (<1 second)
+ *  (adapted from SDL_Delay() source)
+ */
+
+void Delay_usec(uint32 usec)
+{
+	int was_error;
+#ifndef __linux__	// Non-Linux implementations need to calculate time left
+	uint64 then, now, elapsed;
+#endif
+	struct timeval tv;
+
+	// Set the timeout interval - Linux only needs to do this once
+#ifdef __linux__
+	tv.tv_sec = 0;
+	tv.tv_usec = usec;
+#else
+	then = GetTicks_usec();
+#endif
+	do {
+		errno = 0;
+#ifndef __linux__
+		/* Calculate the time interval left (in case of interrupt) */
+		now = GetTicks_usec();
+		elapsed = now - then;
+		then = now;
+		if (elapsed >= usec)
+			break;
+		usec -= elapsed;
+		tv.tv_sec = 0;
+		tv.tv_usec = usec;
+#endif
+		was_error = select(0, NULL, NULL, NULL, &tv);
+	} while (was_error && (errno == EINTR));
+}
 
 
 #if !EMULATED_68K

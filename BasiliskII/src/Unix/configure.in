@@ -180,7 +180,7 @@ AC_STRUCT_TM
 
 dnl Checks for library functions.
 AC_CHECK_FUNCS(strdup cfmakeraw)
-AC_CHECK_FUNCS(nanosleep clock_gettime timer_create)
+AC_CHECK_FUNCS(clock_gettime timer_create)
 
 dnl Select system-dependant source files.
 SERIALSRC=serial_unix.cpp

@@ -73,9 +73,6 @@
 /* Define if you have the clock_gettime function.  */
 #undef HAVE_CLOCK_GETTIME
 
-/* Define if you have the nanosleep function.  */
-#undef HAVE_NANOSLEEP
-
 /* Define if you have the pthread_cancel function.  */
 #undef HAVE_PTHREAD_CANCEL
 

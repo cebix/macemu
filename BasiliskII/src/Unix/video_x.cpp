@@ -1458,8 +1458,7 @@ static void update_display_static(void)
 						x1 = i << 3;
 						break;
 					}
-					p++;
-					p2++;
+					p++; p2++;
 				}
 			}
 			x2 = x1;
@@ -1469,8 +1468,7 @@ static void update_display_static(void)
 				p += bytes_per_row;
 				p2 += bytes_per_row;
 				for (i=(VideoMonitor.x>>3); i>(x2>>3); i--) {
-					p--;
-					p2--;
+					p--; p2--;
 					if (*p != *p2) {
 						x2 = i << 3;
 						break;
@@ -1492,13 +1490,12 @@ static void update_display_static(void)
 			for (j=y1; j<=y2; j++) {
 				p = &the_buffer[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
-				for (i=0; i<x1; i++) {
-					if (memcmp(p, p2, bytes_per_pixel)) {
-						x1 = i;
+				for (i=0; i<x1*bytes_per_pixel; i++) {
+					if (*p != *p2) {
+						x1 = i / bytes_per_pixel;
 						break;
 					}
-					p += bytes_per_pixel;
-					p2 += bytes_per_pixel;
+					p++; p2++;
 				}
 			}
 			x2 = x1;
@@ -1507,11 +1504,11 @@ static void update_display_static(void)
 				p2 = &the_buffer_copy[j * bytes_per_row];
 				p += bytes_per_row;
 				p2 += bytes_per_row;
-				for (i=VideoMonitor.x; i>x2; i--) {
-					p -= bytes_per_pixel;
-					p2 -= bytes_per_pixel;
-					if (memcmp(p, p2, bytes_per_pixel)) {
-						x2 = i;
+				for (i=VideoMonitor.x*bytes_per_pixel; i>x2*bytes_per_pixel; i--) {
+					p--;
+					p2--;
+					if (*p != *p2) {
+						x2 = i / bytes_per_pixel;
 						break;
 					}
 				}
@@ -1601,15 +1598,21 @@ void VideoRefresh(void)
 #ifdef HAVE_PTHREADS
 static void *redraw_func(void *arg)
 {
+uint64 start = GetTicks_usec();
+int64 ticks = 0;
+	uint64 next = GetTicks_usec();
 	while (!redraw_thread_cancel) {
-#ifdef HAVE_NANOSLEEP
-		struct timespec req = {0, 16666667};
-		nanosleep(&req, NULL);
-#else
-		usleep(16667);
-#endif
 		VideoRefresh();
+		next += 16667;
+		int64 delay = next - GetTicks_usec();
+		if (delay > 0)
+			Delay_usec(delay);
+		else if (delay < -16667)
+			next = GetTicks_usec();
+ticks++;
 	}
+uint64 end = GetTicks_usec();
+printf("%Ld ticks in %Ld usec = %Ld ticks/sec\n", ticks, end - start, (end - start) / ticks);
 	return NULL;
 }
 #endif

@@ -148,6 +148,10 @@ typedef uae_u32 uaecptr;
 # define CPU_CAN_ACCESS_UNALIGNED
 #endif
 
+/* Timing functions */
+extern uint64 GetTicks_usec(void);
+extern void Delay_usec(uint32 usec);
+
 /* UAE CPU defines */
 #ifdef WORDS_BIGENDIAN
 
