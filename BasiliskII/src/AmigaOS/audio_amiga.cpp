@@ -192,7 +192,7 @@ static __saveds __attribute__((regparm(3))) ULONG audio_callback(struct Hook *ho
 
 			// Put data into AHI buffer (convert 8-bit data unsigned->signed)
 			if (AudioStatus.sample_size == 16)
-				memcpy(sample[play_buf].ahisi_Address, Mac2HostAddr(ReadMacInt32(apple_stream_info + scd_buffer)), work_size);
+				Mac2Host_memcpy(sample[play_buf].ahisi_Address, ReadMacInt32(apple_stream_info + scd_buffer), work_size);
 			else {
 				uint32 *p = (uint32 *)Mac2HostAddr(ReadMacInt32(apple_stream_info + scd_buffer));
 				uint32 *q = (uint32 *)sample[play_buf].ahisi_Address;

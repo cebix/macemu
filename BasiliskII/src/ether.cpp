@@ -152,7 +152,7 @@ int16 EtherControl(uint32 pb, uint32 dce)
 			if (size > 18)
 				size = 18;
 			WriteMacInt16(pb + eDataSize, size);	// Number of bytes actually written
-			memcpy(Mac2HostAddr(ReadMacInt32(pb + ePointer)), buf, size);
+			Host2Mac_memcpy(ReadMacInt32(pb + ePointer), buf, size);
 			return noErr;
 		}
 
@@ -175,7 +175,7 @@ void EtherReadPacket(uint8 **src, uint32 &dest, uint32 &len, uint32 &remaining)
 {
 	D(bug("EtherReadPacket src %08lx, dest %08lx, len %08lx, remaining %08lx\n", *src, dest, len, remaining));
 	uint32 todo = len > remaining ? remaining : len;
-	memcpy(Mac2HostAddr(dest), *src, todo);
+	Host2Mac_memcpy(dest, *src, todo);
 	*src += todo;
 	dest += todo;
 	len -= todo;

@@ -451,7 +451,7 @@ static __saveds void net_func(void)
 
 					case MSG_ADD_MULTI:
 						control_io->ios2_Req.io_Command = S2_ADDMULTICASTADDRESS;
-						memcpy(control_io->ios2_SrcAddr, Mac2HostAddr(msg->pointer + eMultiAddr), 6);
+						Mac2Host_memcpy(control_io->ios2_SrcAddr, msg->pointer + eMultiAddr, 6);
 						DoIO((struct IORequest *)control_io);
 						if (control_io->ios2_Req.io_Error == S2ERR_NOT_SUPPORTED) {
 							WarningAlert(GetString(STR_NO_MULTICAST_WARN));
@@ -464,7 +464,7 @@ static __saveds void net_func(void)
 
 					case MSG_DEL_MULTI:
 						control_io->ios2_Req.io_Command = S2_DELMULTICASTADDRESS;
-						memcpy(control_io->ios2_SrcAddr, Mac2HostAddr(msg->pointer + eMultiAddr), 6);
+						Mac2Host_memcpy(control_io->ios2_SrcAddr, msg->pointer + eMultiAddr, 6);
 						DoIO((struct IORequest *)control_io);
 						if (control_io->ios2_Req.io_Error)
 							msg->result = eMultiErr;
@@ -550,8 +550,8 @@ static __saveds void net_func(void)
 
 						// Get destination address, set source address
 						uint32 hdr = ReadMacInt32(wds + 2);
-						memcpy(write_io->ios2_DstAddr, Mac2HostAddr(hdr), 6);
-						memcpy(Mac2HostAddr(hdr + 6), ether_addr, 6);
+						Mac2Host_memcpy(write_io->ios2_DstAddr, hdr, 6);
+						Host2Mac_memcpy(hdr + 6, ether_addr, 6);
 
 						// Get packet type
 						uint32 type = ReadMacInt16(hdr + 12);
@@ -651,7 +651,7 @@ void EtherInterrupt(void)
 			continue;
 
 		// Copy header to RHA
-		memcpy(Mac2HostAddr(ether_data + ed_RHA), io->ios2_Data, 14);
+		Host2Mac_memcpy(ether_data + ed_RHA, io->ios2_Data, 14);
 		D(bug(" header %08lx%04lx %08lx%04lx %04lx\n", ReadMacInt32(ether_data + ed_RHA), ReadMacInt16(ether_data + ed_RHA + 4), ReadMacInt32(ether_data + ed_RHA + 6), ReadMacInt16(ether_data + ed_RHA + 10), ReadMacInt16(ether_data + ed_RHA + 12)));
 
 		// Call protocol handler

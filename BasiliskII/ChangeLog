@@ -1,3 +1,11 @@
+V0.8 -
+	- imported UAE CPU 0.8.10 changes
+	- new utility functions Mac_memset, Mac2Host_memcpy, Host2Mac_memcpu
+	  and Mac2Mac_memcpy
+	- extfs.cpp: fixed bug in fs_rename() and fs_cat_move() (auxiliary
+	  IOParam block was not in Mac address space)
+	- some provisions for using UAE CPU compiler (doesn't work yet)
+
 V0.8 (snapshot) - 2.Nov.1999
 	- fixed many UAE FPU bugs [Lauri Pesonen]
 	- added replacement for BlockMove() trap

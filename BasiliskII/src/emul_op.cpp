@@ -86,7 +86,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			EtherReset();
 
 			// Create BootGlobs at top of memory
-			memset((void *)(RAMBaseHost + RAMSize - 4096), 0, 4096);
+			Mac_memset(RAMBaseMac + RAMSize - 4096, 0, 4096);
 			uint32 boot_globs = RAMBaseMac + RAMSize - 0x1c;
 			WriteMacInt32(boot_globs + 0x00, RAMBaseMac);	// First RAM bank
 			WriteMacInt32(boot_globs + 0x04, RAMSize);

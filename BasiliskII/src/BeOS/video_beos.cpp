@@ -719,8 +719,8 @@ status_t MacWindow::tick_func(void *arg)
 
 				// Yes, set new cursor image if it was changed
 				if (memcmp(MacCursor+4, Mac2HostAddr(0x844), 64)) {
-					memcpy(MacCursor+4, Mac2HostAddr(0x844), 64);	// Cursor image
-					MacCursor[2] = ReadMacInt8(0x885);	// Hotspot
+					Mac2Host_memcpy(MacCursor+4, 0x844, 64);	// Cursor image
+					MacCursor[2] = ReadMacInt8(0x885);			// Hotspot
 					MacCursor[3] = ReadMacInt8(0x887);
 					be_app->SetCursor(MacCursor);
 				}

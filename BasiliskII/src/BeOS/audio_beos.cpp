@@ -227,7 +227,7 @@ static void playbuffer_func(void *arg, void *buf, size_t size, const media_raw_a
 			}
 
 			// Place data into Media Kit buffer
-			memcpy(buf, Mac2HostAddr(ReadMacInt32(apple_stream_info + scd_buffer)), work_size);
+			Mac2Host_memcpy(buf, ReadMacInt32(apple_stream_info + scd_buffer), work_size);
 			if (work_size != size)
 				memset((uint8 *)buf + work_size, 0, size - work_size);
 		}

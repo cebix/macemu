@@ -314,7 +314,7 @@ int16 ether_write(uint32 wds)
 {
 	// Set source address
 	uint32 hdr = ReadMacInt32(wds + 2);
-	memcpy(Mac2HostAddr(hdr + 6), ether_addr, 6);
+	Host2Mac_memcpy(hdr + 6, ether_addr, 6);
 
 	// Copy packet to buffer
 	uint8 packet[1516], *p = packet;
@@ -328,7 +328,7 @@ int16 ether_write(uint32 wds)
 		int w = ReadMacInt16(wds);
 		if (w == 0)
 			break;
-		memcpy(p, Mac2HostAddr(ReadMacInt32(wds + 2)), w);
+		Mac2Host_memcpy(p, ReadMacInt32(wds + 2), w);
 		len += w;
 		p += w;
 		wds += 6;
@@ -422,7 +422,7 @@ void EtherInterrupt(void)
 			continue;
 
 		// Copy header to RHA
-		memcpy(Mac2HostAddr(ether_data + ed_RHA), p, 14);
+		Host2Mac_memcpy(ether_data + ed_RHA, p, 14);
 		D(bug(" header %08lx%04lx %08lx%04lx %04lx\n", ReadMacInt32(ether_data + ed_RHA), ReadMacInt16(ether_data + ed_RHA + 4), ReadMacInt32(ether_data + ed_RHA + 6), ReadMacInt16(ether_data + ed_RHA + 10), ReadMacInt16(ether_data + ed_RHA + 12)));
 
 		// Call protocol handler

@@ -288,20 +288,19 @@ void ADBInterrupt(void)
 		// Mouse movement (relative) and buttons
 		if (mx != 0 || my != 0 || mouse_button[0] != old_mouse_button[0] || mouse_button[1] != old_mouse_button[1] || mouse_button[2] != old_mouse_button[2]) {
 			uint32 mouse_base = adb_base + 16;
-			uint8 *mouse_data = Mac2HostAddr(tmp_data);
 
 			// Call mouse ADB handler
 			if (mouse_reg_3[1] == 4) {
 				// Extended mouse protocol
-				mouse_data[0] = 3;
-				mouse_data[1] = (my & 0x7f) | (mouse_button[0] ? 0 : 0x80);
-				mouse_data[2] = (mx & 0x7f) | (mouse_button[1] ? 0 : 0x80);
-				mouse_data[3] = ((my >> 3) & 0x70) | ((mx >> 7) & 0x07) | (mouse_button[2] ? 0x08 : 0x88);
+				WriteMacInt8(tmp_data, 3);
+				WriteMacInt8(tmp_data + 1, (my & 0x7f) | (mouse_button[0] ? 0 : 0x80));
+				WriteMacInt8(tmp_data + 2, (mx & 0x7f) | (mouse_button[1] ? 0 : 0x80));
+				WriteMacInt8(tmp_data + 3, ((my >> 3) & 0x70) | ((mx >> 7) & 0x07) | (mouse_button[2] ? 0x08 : 0x88));
 			} else {
 				// 100/200 dpi mode
-				mouse_data[0] = 2;
-				mouse_data[1] = (my & 0x7f) | (mouse_button[0] ? 0 : 0x80);
-				mouse_data[2] = (mx & 0x7f) | (mouse_button[1] ? 0 : 0x80);
+				WriteMacInt8(tmp_data, 2);
+				WriteMacInt8(tmp_data + 1, (my & 0x7f) | (mouse_button[0] ? 0 : 0x80));
+				WriteMacInt8(tmp_data + 2, (mx & 0x7f) | (mouse_button[1] ? 0 : 0x80));
 			}	
 			r.a[0] = tmp_data;
 			r.a[1] = ReadMacInt32(mouse_base);
@@ -332,20 +331,19 @@ void ADBInterrupt(void)
 		// Send mouse button events
 		if (mouse_button[0] != old_mouse_button[0]) {
 			uint32 mouse_base = adb_base + 16;
-			uint8 *mouse_data = Mac2HostAddr(tmp_data);
 
 			// Call mouse ADB handler
 			if (mouse_reg_3[1] == 4) {
 				// Extended mouse protocol
-				mouse_data[0] = 3;
-				mouse_data[1] = mouse_button[0] ? 0 : 0x80;
-				mouse_data[2] = mouse_button[1] ? 0 : 0x80;
-				mouse_data[3] = mouse_button[2] ? 0x08 : 0x88;
+				WriteMacInt8(tmp_data, 3);
+				WriteMacInt8(tmp_data + 1, mouse_button[0] ? 0 : 0x80);
+				WriteMacInt8(tmp_data + 2, mouse_button[1] ? 0 : 0x80);
+				WriteMacInt8(tmp_data + 3, mouse_button[2] ? 0x08 : 0x88);
 			} else {
 				// 100/200 dpi mode
-				mouse_data[0] = 2;
-				mouse_data[1] = mouse_button[0] ? 0 : 0x80;
-				mouse_data[2] = mouse_button[1] ? 0 : 0x80;
+				WriteMacInt8(tmp_data, 2);
+				WriteMacInt8(tmp_data + 1, mouse_button[0] ? 0 : 0x80);
+				WriteMacInt8(tmp_data + 2, mouse_button[1] ? 0 : 0x80);
 			}
 			r.a[0] = tmp_data;
 			r.a[1] = ReadMacInt32(mouse_base);
@@ -362,7 +360,6 @@ void ADBInterrupt(void)
 
 	// Process accumulated keyboard events
 	uint32 key_base = adb_base + 4;
-	uint8 *key_data = Mac2HostAddr(tmp_data);
 	while (key_read_ptr != key_write_ptr) {
 
 		// Read keyboard event
@@ -370,9 +367,9 @@ void ADBInterrupt(void)
 		key_read_ptr = (key_read_ptr + 1) % KEY_BUFFER_SIZE;
 
 		// Call keyboard ADB handler
-		key_data[0] = 2;
-		key_data[1] = mac_code;
-		key_data[2] = mac_code == 0x7f ? 0x7f : 0xff;	// Power key is special
+		WriteMacInt8(tmp_data, 2);
+		WriteMacInt8(tmp_data + 1, mac_code);
+		WriteMacInt8(tmp_data + 2, mac_code == 0x7f ? 0x7f : 0xff);	// Power key is special
 		r.a[0] = tmp_data;
 		r.a[1] = ReadMacInt32(key_base);
 		r.a[2] = ReadMacInt32(key_base + 4);

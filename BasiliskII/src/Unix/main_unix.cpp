@@ -58,6 +58,11 @@
 #include "mon.h"
 #endif
 
+#ifdef USE_MAPPED_MEMORY
+#include <sys/mman.h>
+extern char *address_space, *good_address_map;
+#endif
+
 
 // Constants
 const char ROM_FILE_NAME[] = "ROM";
@@ -178,16 +183,39 @@ int main(int argc, char **argv)
 		if (!PrefsEditor())
 			QuitEmulator();
 
-	// Create area for Mac RAM
+	// Read RAM size
 	RAMSize = PrefsFindInt32("ramsize") & 0xfff00000;	// Round down to 1MB boundary
 	if (RAMSize < 1024*1024) {
 		WarningAlert(GetString(STR_SMALL_RAM_WARN));
 		RAMSize = 1024*1024;
 	}
-	RAMBaseHost = new uint8[RAMSize];
 
-	// Create area for Mac ROM
+	// Create areas for Mac RAM and ROM
+#ifdef USE_MAPPED_MEMORY
+    int fd = open("/dev/zero", O_RDWR);
+    good_address_map = (char *)mmap(NULL, 1<<24, PROT_READ, MAP_PRIVATE, fd, 0);
+    address_space = (char *)mmap(NULL, 1<<24, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+    if ((int)address_space < 0 || (int)good_address_map < 0) {
+		ErrorAlert(GetString(STR_NOT_ENOUGH_MEMORY_ERR));
+		QuitEmulator();
+    }
+    RAMBaseHost = (uint8 *)mmap(address_space, RAMSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FIXED, fd, 0);
+    ROMBaseHost = (uint8 *)mmap(address_space + 0x00400000, 0x80000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FIXED, fd, 0);
+    close(fd);
+	char *nam = tmpnam(NULL);
+    int good_address_fd = open(nam, O_CREAT | O_RDWR, 0600);
+	char buffer[4096];
+    memset(buffer, 1, sizeof(buffer));
+    write(good_address_fd, buffer, sizeof(buffer));
+    unlink(nam);
+    for (int i=0; i<RAMSize; i+=4096)
+        mmap(good_address_map + i, 4096, PROT_READ, MAP_FIXED | MAP_PRIVATE, good_address_fd, 0);
+    for (int i=0; i<0x80000; i+=4096)
+        mmap(good_address_map + i + 0x00400000, 4096, PROT_READ, MAP_FIXED | MAP_PRIVATE, good_address_fd, 0);
+#else
+	RAMBaseHost = new uint8[RAMSize];
 	ROMBaseHost = new uint8[0x100000];
+#endif
 
 	// Get rom file path from preferences
 	const char *rom_path = PrefsFindString("rom");

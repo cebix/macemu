@@ -4037,7 +4037,7 @@ if [ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]; then
   if [ "x$HAVE_GAS" = "xyes" ]; then
     WANT_X86_ASSEMBLY=yes
     DEFINES="$DEFINES -DX86_ASSEMBLY"
-    CPUSRCS="cpufast1.s cpufast2.s cpufast3.s cpufast4.s cpufast5.s cpufast6.s cpufast7.s cpufast8.s"
+    CPUSRCS="../uae_cpu/compiler.cpp cpufast1.s cpufast2.s cpufast3.s cpufast4.s cpufast5.s cpufast6.s cpufast7.s cpufast8.s"
   fi
 elif [ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xyes" ]; then
     case "$MACHINE" in

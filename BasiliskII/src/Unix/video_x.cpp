@@ -1238,7 +1238,7 @@ static void update_display(void)
 {
 	// In classic mode, copy the frame buffer from Mac RAM
 	if (classic_mode)
-		memcpy(the_buffer, Mac2HostAddr(0x3fa700), VideoMonitor.bytes_per_row * VideoMonitor.y);
+		Mac2Host_memcpy(the_buffer, 0x3fa700, VideoMonitor.bytes_per_row * VideoMonitor.y);
 	
 	// Incremental update code
 	int wide = 0, high = 0, x1, x2, y1, y2, i, j;
@@ -1358,7 +1358,7 @@ static void update_display(void)
 
 		// Set new cursor image if it was changed
 		if (memcmp(the_cursor, Mac2HostAddr(0x844), 64)) {
-			memcpy(the_cursor, Mac2HostAddr(0x844), 64);
+			Mac2Host_memcpy(the_cursor, 0x844, 64);
 			memcpy(cursor_image->data, the_cursor, 32);
 			memcpy(cursor_mask_image->data, the_cursor+32, 32);
 			XFreeCursor(x_display, mac_cursor);

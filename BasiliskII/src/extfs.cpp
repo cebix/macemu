@@ -65,7 +65,7 @@ enum {
 	fsHFSProcStub = 6,
 	fsDrvStatus = 12,				// Drive Status record
 	fsFSD = 42,						// File system descriptor
-	fsPB = 238,						// IOParam (for mounting)
+	fsPB = 238,						// IOParam (for mounting and renaming)
 	fsVMI = 288,					// VoumeMountInfoHeader (for mounting)
 	fsParseRec = 296,				// ParsePathRec struct
 	fsReturn = 306,					// Area for return data of 68k routines
@@ -604,7 +604,7 @@ void InstallExtFS(void)
 	WriteMacInt16(fs_data + fsFSD + fsdLength, SIZEOF_FSDRec);
 	WriteMacInt16(fs_data + fsFSD + fsdVersion, fsdVersion1);
 	WriteMacInt16(fs_data + fsFSD + fileSystemFSID, MY_FSID);
-	memcpy(Mac2HostAddr(fs_data + fsFSD + fileSystemName), FS_NAME, 32);
+	Host2Mac_memcpy(fs_data + fsFSD + fileSystemName, FS_NAME, 32);
 	WriteMacInt32(fs_data + fsFSD + fileSystemCommProc, fs_data + fsCommProcStub);
 	WriteMacInt32(fs_data + fsFSD + fsdHFSCI + compInterfProc, fs_data + fsHFSProcStub);
 	WriteMacInt32(fs_data + fsFSD + fsdHFSCI + stackTop, fs_stack + STACK_SIZE);
@@ -658,7 +658,7 @@ int16 ExtFSComm(uint16 message, uint32 paramBlock, uint32 globalsPtr)
 
 		case ffsGetIconMessage: {		// Get disk/drive icon
 			if (ReadMacInt8(paramBlock + iconType) == kLargeIcon && ReadMacInt32(paramBlock + requestSize) >= sizeof(ExtFSIcon)) {
-				memcpy(Mac2HostAddr(ReadMacInt32(paramBlock + iconBufferPtr)), ExtFSIcon, sizeof(ExtFSIcon));
+				Host2Mac_memcpy(ReadMacInt32(paramBlock + iconBufferPtr), ExtFSIcon, sizeof(ExtFSIcon));
 				WriteMacInt32(paramBlock + actualSize, sizeof(ExtFSIcon));
 				return noErr;
 			} else
@@ -969,7 +969,7 @@ static int16 fs_volume_mount(uint32 pb)
 	WriteMacInt32(vcb + vcbClpSiz, 1024);
 	WriteMacInt32(vcb + vcbNxtCNID, next_cnid);
 	WriteMacInt16(vcb + vcbFreeBks, 0xffff);	//!!
-	memcpy(Mac2HostAddr(vcb + vcbVN), VOLUME_NAME, 28);
+	Host2Mac_memcpy(vcb + vcbVN, VOLUME_NAME, 28);
 	WriteMacInt16(vcb + vcbFSID, MY_FSID);
 	WriteMacInt32(vcb + vcbFilCnt, 1);			//!!
 	WriteMacInt32(vcb + vcbDirCnt, 1);			//!!
@@ -1043,7 +1043,7 @@ static int16 fs_get_vol_info(uint32 pb, bool hfs)
 		WriteMacInt32(pb + ioVWrCnt, 0);
 		WriteMacInt32(pb + ioVFilCnt, 1);			//!!
 		WriteMacInt32(pb + ioVDirCnt, 1);			//!!
-		memset(Mac2HostAddr(pb + ioVFndrInfo), 0, 32);
+		Mac_memset(pb + ioVFndrInfo, 0, 32);
 	}
 	return noErr;
 }
@@ -1073,7 +1073,7 @@ static int16 fs_get_vol_parms(uint32 pb)
 	uint32 actual = ReadMacInt32(pb + ioReqCount);
 	if (actual > sizeof(vol))
 		actual = sizeof(vol);
-	memcpy(Mac2HostAddr(ReadMacInt32(pb + ioBuffer)), vol, actual);
+	Host2Mac_memcpy(ReadMacInt32(pb + ioBuffer), vol, actual);
 	WriteMacInt32(pb + ioActCount, actual);
 	return noErr;
 }
@@ -1218,7 +1218,7 @@ read_next_de:
 #endif
 	WriteMacInt32(pb + ioFlMdDat, st.st_mtime + TIME_OFFSET);
 
-	memset(Mac2HostAddr(pb + ioFlFndrInfo), 0, SIZEOF_FInfo);
+	Mac_memset(pb + ioFlFndrInfo, 0, SIZEOF_FInfo);
 	uint32 type, creator;	// pb may point to kernel space, but stack is switched
 	get_finder_type(full_path, type, creator);
 	WriteMacInt32(pb + ioFlFndrInfo + fdType, type);
@@ -1237,7 +1237,7 @@ read_next_de:
 
 	if (hfs) {
 		WriteMacInt32(pb + ioFlBkDat, 0);
-		memset(Mac2HostAddr(pb + ioFlXFndrInfo), 0, SIZEOF_FXInfo);
+		Mac_memset(pb + ioFlXFndrInfo, 0, SIZEOF_FXInfo);
 		WriteMacInt32(pb + ioFlParID, fs_item->parent_id);
 		WriteMacInt32(pb + ioFlClpSiz, 0);
 	}
@@ -1355,8 +1355,8 @@ read_next_de:
 	WriteMacInt32(pb + ioFlMdDat, mtime);
 	WriteMacInt32(pb + ioFlBkDat, 0);
 	if (S_ISDIR(st.st_mode)) {
-		memset(Mac2HostAddr(pb + ioDrUsrWds), 0, SIZEOF_DInfo);
-		memset(Mac2HostAddr(pb + ioDrFndrInfo), 0, SIZEOF_DXInfo);
+		Mac_memset(pb + ioDrUsrWds, 0, SIZEOF_DInfo);
+		Mac_memset(pb + ioDrFndrInfo, 0, SIZEOF_DXInfo);
 		uint16 fflags;	// pb may point to kernel space, but stack is switched
 		get_finder_flags(full_path, fflags);
 		WriteMacInt16(pb + ioDrUsrWds + frFlags, fflags);
@@ -1382,8 +1382,8 @@ read_next_de:
 		}
 		WriteMacInt16(pb + ioDrNmFls, count);
 	} else {
-		memset(Mac2HostAddr(pb + ioFlFndrInfo), 0, SIZEOF_FInfo);
-		memset(Mac2HostAddr(pb + ioFlXFndrInfo), 0, SIZEOF_FXInfo);
+		Mac_memset(pb + ioFlFndrInfo, 0, SIZEOF_FInfo);
+		Mac_memset(pb + ioFlXFndrInfo, 0, SIZEOF_FXInfo);
 		uint32 type, creator;	// pb may point to kernel space, but stack is switched
 		get_finder_type(full_path, type, creator);
 		WriteMacInt32(pb + ioFlFndrInfo + fdType, type);
@@ -1926,11 +1926,10 @@ static int16 fs_rename(uint32 pb, uint32 dirID)
 	strcpy(old_path, full_path);
 
 	// Find path for new name
-	uint8 new_pb[SIZEOF_IOParam];
-	memcpy(new_pb, Mac2HostAddr(pb), SIZEOF_IOParam);
-	WriteMacInt32((uint32)new_pb + ioNamePtr, ReadMacInt32(pb + ioMisc));
+	Mac2Mac_memcpy(fs_data + fsPB, pb, SIZEOF_IOParam);
+	WriteMacInt32(fs_data + fsPB + ioNamePtr, ReadMacInt32(pb + ioMisc));
 	FSItem *new_item;
-	result = get_item_and_path((uint32)new_pb, dirID, new_item);
+	result = get_item_and_path(fs_data + fsPB, dirID, new_item);
 	if (result != noErr)
 		return result;
 
@@ -1967,11 +1966,10 @@ static int16 fs_cat_move(uint32 pb)
 	strcpy(old_path, full_path);
 
 	// Find path for new directory
-	uint8 new_pb[SIZEOF_IOParam];
-	memcpy(new_pb, Mac2HostAddr(pb), SIZEOF_IOParam);
-	WriteMacInt32((uint32)new_pb + ioNamePtr, ReadMacInt32(pb + ioNewName));
+	Mac2Host_memcpy(fs_data + fsPB, pb, SIZEOF_IOParam);
+	WriteMacInt32(fs_data + fsPB + ioNamePtr, ReadMacInt32(pb + ioNewName));
 	FSItem *new_dir_item;
-	result = get_item_and_path((uint32)new_pb, ReadMacInt32(pb + ioNewDirID), new_dir_item);
+	result = get_item_and_path(fs_data + fsPB, ReadMacInt32(pb + ioNewDirID), new_dir_item);
 	if (result != noErr)
 		return result;
 
@@ -2037,7 +2035,7 @@ static int16 fs_get_wd_info(uint32 pb, uint32 vcb)
 		WriteMacInt32(pb + ioWDProcID, 0);
 		WriteMacInt16(pb + ioWDVRefNum, ReadMacInt16(vcb + vcbVRefNum));
 		if (ReadMacInt32(pb + ioNamePtr))
-			memcpy(Mac2HostAddr(ReadMacInt32(pb + ioNamePtr)), Mac2HostAddr(vcb + vcbVN), 28);
+			Mac2Mac_memcpy(ReadMacInt32(pb + ioNamePtr), vcb + vcbVN, 28);
 		WriteMacInt32(pb + ioWDDirID, ROOT_ID);
 		return noErr;
 	}
@@ -2058,7 +2056,7 @@ static int16 fs_get_wd_info(uint32 pb, uint32 vcb)
 	WriteMacInt16(pb + ioWDProcID, ReadMacInt32(wdcb + wdProcID));
 	WriteMacInt16(pb + ioWDVRefNum, ReadMacInt16(ReadMacInt32(wdcb + wdVCBPtr) + vcbVRefNum));
 	if (ReadMacInt32(pb + ioNamePtr))
-		memcpy(Mac2HostAddr(ReadMacInt32(pb + ioNamePtr)), Mac2HostAddr(ReadMacInt32(wdcb + wdVCBPtr) + vcbVN), 28);
+		Mac2Mac_memcpy(ReadMacInt32(pb + ioNamePtr), ReadMacInt32(wdcb + wdVCBPtr) + vcbVN, 28);
 	WriteMacInt32(pb + ioWDDirID, ReadMacInt32(wdcb + wdDirID));
 	return noErr;
 }

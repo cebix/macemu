@@ -81,6 +81,7 @@ bool Init680x0(void)
 #endif
 
 	init_m68k();
+	compiler_init();
 	return true;
 }
 

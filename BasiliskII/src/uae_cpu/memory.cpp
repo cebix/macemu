@@ -550,13 +550,12 @@ addrbank frame_host_888_bank = {
 
 void memory_init(void)
 {
-	int i;
+	char buffer[4096];
+	char *nam;
+	int i, fd;
+
 	for(i=0; i<65536; i++)
 		put_mem_bank(i<<16, &dummy_bank);
-
-	RAMBaseDiff = (uae_u32)RAMBaseHost - (uae_u32)RAMBaseMac;
-	ROMBaseDiff = (uae_u32)ROMBaseHost - (uae_u32)ROMBaseMac;
-	FrameBaseDiff = (uae_u32)MacFrameBaseHost - (uae_u32)MacFrameBaseMac;
 
 	// Limit RAM size to not overlap ROM
 #if REAL_ADDRESSING
@@ -565,7 +564,11 @@ void memory_init(void)
 	uint32 ram_size = RAMSize > ROMBaseMac ? ROMBaseMac : RAMSize;
 #endif
 
-	// RAM and ROM
+	RAMBaseDiff = (uae_u32)RAMBaseHost - (uae_u32)RAMBaseMac;
+	ROMBaseDiff = (uae_u32)ROMBaseHost - (uae_u32)ROMBaseMac;
+	FrameBaseDiff = (uae_u32)MacFrameBaseHost - (uae_u32)MacFrameBaseMac;
+
+	// Map RAM and ROM
 	if (TwentyFourBitAddressing) {
 		map_banks(&ram24_bank, RAMBaseMac >> 16, ram_size >> 16);
 		map_banks(&rom24_bank, ROMBaseMac >> 16, ROMSize >> 16);
@@ -574,7 +577,7 @@ void memory_init(void)
 		map_banks(&rom_bank, ROMBaseMac >> 16, ROMSize >> 16);
 	}
 
-	// Frame buffer
+	// Map frame buffer
 	switch (MacFrameLayout) {
 		case FLAYOUT_DIRECT:
 			map_banks(&frame_direct_bank, MacFrameBaseMac >> 16, (MacFrameSize >> 16) + 1);

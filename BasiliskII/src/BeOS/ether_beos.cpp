@@ -281,12 +281,11 @@ void EtherReset(void)
 
 int16 ether_add_multicast(uint32 pb)
 {
-	uint8 *addr = Mac2HostAddr(pb + eMultiAddr);
 	net_packet *p = &net_buffer_ptr->write[wr_pos];
 	if (p->cmd & IN_USE) {
 		D(bug("WARNING: Couldn't enable multicast address\n"));
 	} else {
-		memcpy(p->data, addr, 6);
+		Mac2Host_memcpy(p->data, pb + eMultiAddr, 6);
 		p->length = 6;
 		p->cmd = IN_USE | (ADD_MULTICAST << 8);
 		wr_pos = (wr_pos + 1) % WRITE_PACKET_COUNT;
@@ -302,12 +301,11 @@ int16 ether_add_multicast(uint32 pb)
 
 int16 ether_del_multicast(uint32 pb)
 {
-	uint8 *addr = Mac2HostAddr(pb + eMultiAddr);
 	net_packet *p = &net_buffer_ptr->write[wr_pos];
 	if (p->cmd & IN_USE) {
 		D(bug("WARNING: Couldn't enable multicast address\n"));
 	} else {
-		memcpy(p->data, addr, 6);
+		Mac2Host_memcpy(p->data, pb + eMultiAddr, 6);
 		p->length = 6;
 		p->cmd = IN_USE | (REMOVE_MULTICAST << 8);
 		wr_pos = (wr_pos + 1) % WRITE_PACKET_COUNT;
@@ -372,7 +370,7 @@ int16 ether_write(uint32 wds)
 			int len = ReadMacInt16(wds);
 			if (len == 0)
 				break;
-			memcpy(bp, Mac2HostAddr(ReadMacInt32(wds + 2)), len);
+			Mac2Host_memcpy(bp, ReadMacInt32(wds + 2), len);
 			bp += len;
 			wds += 6;
 		}
@@ -448,7 +446,7 @@ void EtherInterrupt(void)
 				goto next;
 
 			// Copy header to RHA
-			memcpy(Mac2HostAddr(ether_data + ed_RHA), p->data, 14);
+			Host2Mac_memcpy(ether_data + ed_RHA, p->data, 14);
 			D(bug(" header %08lx%04lx %08lx%04lx %04lx\n", ReadMacInt32(ether_data + ed_RHA), ReadMacInt16(ether_data + ed_RHA + 4), ReadMacInt32(ether_data + ed_RHA + 6), ReadMacInt16(ether_data + ed_RHA + 10), ReadMacInt16(ether_data + ed_RHA + 12)));
 
 			// Call protocol handler

@@ -237,6 +237,5 @@ int main(int argc, char **argv)
 	}
     }
     printf("};\nint n_defs68k = %d;\n", no_insns);
-    fclose(tablef);
     return 0;
 }

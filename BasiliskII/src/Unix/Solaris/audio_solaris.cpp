@@ -210,7 +210,7 @@ static void *stream_func(void *arg)
 					write(fd, Mac2HostAddr(ReadMacInt32(apple_stream_info + scd_buffer)), sound_buffer_size);
 				else {
 					// Last buffer
-					memcpy(last_buffer, Mac2HostAddr(ReadMacInt32(apple_stream_info + scd_buffer)), work_size);
+					Mac2Host_memcpy(last_buffer, ReadMacInt32(apple_stream_info + scd_buffer), work_size);
 					memset((uint8 *)last_buffer + work_size, 0, sound_buffer_size - work_size);
 					write(fd, last_buffer, sound_buffer_size);
 				}

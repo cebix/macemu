@@ -67,7 +67,6 @@ static __inline__ void run_compiled_code(void)
 		nr_bbs_to_run = nr_bbs_start;
 	    } else
 		m68k_setpc_fast(newpc);
-	    do_cycles();
 	}
 /*} else */
 	regs.spcflags &= ~SPCFLAG_EXEC;

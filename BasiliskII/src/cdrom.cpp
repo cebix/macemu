@@ -602,7 +602,7 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 					break;
 
 				case 3: {		// Get track starting address
-					uint8 *buf = Mac2HostAddr(ReadMacInt32(pb + csParam + 2));
+					uint32 buf = ReadMacInt32(pb + csParam + 2);
 					uint16 buf_size = ReadMacInt16(pb + csParam + 6);
 					int track = bcd2bin[ReadMacInt8(pb + csParam + 8)];
 
@@ -616,10 +616,10 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 					// Fill buffer
 					if (i != 804)
 						while (buf_size > 0) {
-							*buf++ = info->toc[i+1] & 0x0f;		// Control
-							*buf++ = bin2bcd[info->toc[i+5]];	// M
-							*buf++ = bin2bcd[info->toc[i+6]];	// S
-							*buf++ = bin2bcd[info->toc[i+7]];	// F
+							WriteMacInt8(buf, info->toc[i+1] & 0x0f); buf++;	// Control
+							WriteMacInt8(buf, bin2bcd[info->toc[i+5]]); buf++;	// M
+							WriteMacInt8(buf, bin2bcd[info->toc[i+6]]); buf++;	// S
+							WriteMacInt8(buf, bin2bcd[info->toc[i+7]]); buf++;	// F
 
 							// Lead-Out? Then stop
 							if (info->toc[i+2] == 0xaa)
@@ -650,23 +650,23 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 
 		case 101: {		// ReadTheQSubcode
 			if (ReadMacInt8(info->status + dsDiskInPlace) == 0) {
-				memset(Mac2HostAddr(pb + csParam), 0, 10);
+				Mac_memset(pb + csParam, 0, 10);
 				return offLinErr;
 			}
 
 			uint8 pos[16];
 			if (SysCDGetPosition(info->fh, pos)) {
-				uint8 *p = Mac2HostAddr(pb + csParam);
-				*p++ = pos[5] & 0x0f;		// Control
-				*p++ = bin2bcd[pos[6]];		// Track number
-				*p++ = bin2bcd[pos[7]];		// Index number
-				*p++ = bin2bcd[pos[13]];	// M (rel)
-				*p++ = bin2bcd[pos[14]];	// S (rel)
-				*p++ = bin2bcd[pos[15]];	// F (rel)
-				*p++ = bin2bcd[pos[9]];		// M (abs)
-				*p++ = bin2bcd[pos[10]];	// S (abs)
-				*p++ = bin2bcd[pos[11]];	// F (abs)
-				*p++ = 0;
+				uint32 p = pb + csParam;
+				WriteMacInt8(p, pos[5] & 0x0f); p++;	// Control
+				WriteMacInt8(p, bin2bcd[pos[6]]); p++;	// Track number
+				WriteMacInt8(p, bin2bcd[pos[7]]); p++;	// Index number
+				WriteMacInt8(p, bin2bcd[pos[13]]); p++;	// M (rel)
+				WriteMacInt8(p, bin2bcd[pos[14]]); p++;	// S (rel)
+				WriteMacInt8(p, bin2bcd[pos[15]]); p++;	// F (rel)
+				WriteMacInt8(p, bin2bcd[pos[9]]); p++;	// M (abs)
+				WriteMacInt8(p, bin2bcd[pos[10]]); p++;	// S (abs)
+				WriteMacInt8(p, bin2bcd[pos[11]]); p++;	// F (abs)
+				WriteMacInt8(p, 0);
 				return noErr;
 			} else
 				return ioErr;
@@ -754,29 +754,30 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			if (!SysCDGetPosition(info->fh, pos))
 				return paramErr;
 
-			uint8 *p = Mac2HostAddr(pb + csParam);
+			uint32 p = pb + csParam;
 			switch (pos[1]) {
 				case 0x11:
-					*p++ = 0;	// Audio play in progress
+					WriteMacInt8(p, 0);	// Audio play in progress
 					break;
 				case 0x12:
-					*p++ = 1;	// Audio play paused
+					WriteMacInt8(p, 1);	// Audio play paused
 					break;
 				case 0x13:
-					*p++ = 3;	// Audio play completed
+					WriteMacInt8(p, 3);	// Audio play completed
 					break;
 				case 0x14:
-					*p++ = 4;	// Error occurred
+					WriteMacInt8(p, 4);	// Error occurred
 					break;
 				default:
-					*p++ = 5;	// No audio play operation requested
+					WriteMacInt8(p, 5);	// No audio play operation requested
 					break;
 			}
-			*p++ = info->play_mode;
-			*p++ = pos[5] & 0x0f;		// Control
-			*p++ = bin2bcd[pos[9]];		// M (abs)
-			*p++ = bin2bcd[pos[10]];	// S (abs)
-			*p++ = bin2bcd[pos[11]];	// F (abs)
+			p++;
+			WriteMacInt8(p, info->play_mode); p++;
+			WriteMacInt8(p, pos[5] & 0x0f); p++;	// Control
+			WriteMacInt8(p, bin2bcd[pos[9]]); p++;	// M (abs)
+			WriteMacInt8(p, bin2bcd[pos[10]]); p++;	// S (abs)
+			WriteMacInt8(p, bin2bcd[pos[11]]); p++;	// F (abs)
 			return noErr;
 		}
 
@@ -924,7 +925,7 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 	// Drive-specific codes
 	switch (code) {
 		case 8:			// DriveStatus
-			memcpy(Mac2HostAddr(pb + csParam), Mac2HostAddr(info->status), 22);
+			Mac2Mac_memcpy(pb + csParam, info->status, 22);
 			return noErr;
 
 		case 70:		// GetPowerMode

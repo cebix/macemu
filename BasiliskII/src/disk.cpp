@@ -484,7 +484,7 @@ int16 DiskStatus(uint32 pb, uint32 dce)
 	// Drive-specific codes
 	switch (code) {
 		case 8:		// Get drive status
-			memcpy(Mac2HostAddr(pb + csParam), Mac2HostAddr(info->status), 22);
+			Mac2Mac_memcpy(pb + csParam, info->status, 22);
 			return noErr;
 
 		default:

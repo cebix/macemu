@@ -497,7 +497,7 @@ int16 SonyStatus(uint32 pb, uint32 dce)
 				return paramErr;
 
 		case 8:		// Get drive status
-			memcpy(Mac2HostAddr(pb + csParam), Mac2HostAddr(info->status), 22);
+			Mac2Mac_memcpy(pb + csParam, info->status, 22);
 			return noErr;
 
 		case 10:	// Get disk type

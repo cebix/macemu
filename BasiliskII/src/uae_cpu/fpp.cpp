@@ -872,10 +872,8 @@ static __inline__ int put_fp_value (double value, uae_u32 opcode, uae_u16 extra)
   int mode;
   int reg;
   uae_u32 ad;
-  static int sz1[8] =
-  {4, 4, 12, 12, 2, 8, 1, 0};
-  static int sz2[8] =
-  {4, 4, 12, 12, 2, 8, 2, 0};
+  static int sz1[8] = {4, 4, 12, 12, 2, 8, 1, 0};
+  static int sz2[8] = {4, 4, 12, 12, 2, 8, 2, 0};
 
 	// D(bug("put_fp_value(%.04f,%X,%X)\r\n",(float)value,(int)opcode,(int)extra));
 

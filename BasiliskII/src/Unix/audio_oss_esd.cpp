@@ -326,7 +326,7 @@ static void *stream_func(void *arg)
 						for (int i=0; i<work_size/2; i++)
 							last_buffer[i] = ntohs(p[i]);
 					} else
-						memcpy(last_buffer, Mac2HostAddr(ReadMacInt32(apple_stream_info + scd_buffer)), work_size);
+						Mac2Host_memcpy(last_buffer, ReadMacInt32(apple_stream_info + scd_buffer), work_size);
 					memset((uint8 *)last_buffer + work_size, silence_byte, sound_buffer_size - work_size);
 					write(audio_fd, last_buffer, sound_buffer_size);
 				}
