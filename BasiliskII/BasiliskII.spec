@@ -1,24 +1,22 @@
-# Note that this is NOT a relocatable package
-%define ver 0.8
-%define rel 1
-%define prefix /usr
+%define name BasiliskII
+%define version 0.8
+%define release 1
 
-Summary: A free, portable Mac II emulator
-Name: BasiliskII
-Version: %ver
-Release: %rel
+Summary: Free, portable 68k Macintosh emulator
+Name: %{name}
+Version: %{version}
+Release: %{release}
 Copyright: GPL
 Group: Applications/Emulators
-Source: BasiliskII_src_30012000.tar.gz
-BuildRoot: /tmp/BasiliskII-%{ver}-root
-Packager:  Christian Bauer <Christian.Bauer@uni-mainz.de>
+Source: %{name}_src_05102000.tar.gz
 URL: http://www.uni-mainz.de/~bauec002/B2Main.html
-Docdir: %{prefix}/doc
+BuildRoot: %{_tmppath}/%{name}-root
+Prefix: %{_prefix}
 
 %description
-Basilisk II is a free, portable, Open Source 68k Mac emulator. It requires
-a copy of a Mac ROM and a copy of MacOS to run. Basilisk II is freeware and
-distributed under the GNU General Public License.
+Basilisk II is a free, portable, Open Source 68k Macintosh emulator. It
+requires a copy of a Mac ROM and a copy of MacOS to run. Basilisk II is
+freeware and distributed under the GNU General Public License.
 
 Some features of Basilisk II:
   - Emulates either a Mac Classic (which runs MacOS 0.x thru 7.5)
@@ -38,30 +36,36 @@ Some features of Basilisk II:
   - Uses UAE 68k emulation or (under AmigaOS) real 68k processor
 
 %prep
-%setup
+%setup -q
 
 %build
 cd src/Unix
-CFLAGS="$RPM_OPT_FLAGS" CXXFLAGS="$RPM_OPT_FLAGS" ./configure --prefix=%prefix
-if [ "$SMP" != "" ]; then
-  (make "MAKE=make -k -j $SMP"; exit 0)
-  make
-else
-  make
+./configure --prefix=%{_prefix}
+if [ -x /usr/bin/getconf ] ; then
+  NCPU=$(/usr/bin/getconf _NPROCESSORS_ONLN)
+  if [ $NCPU -eq 0 ] ; then
+    NCPU=1
+  fi
+else  
+  NCPU=1
 fi
+PARL=$[ $NCPU + 1 ]
+make -j $PARL
 
 %install
-rm -rf $RPM_BUILD_ROOT
+rm -rf ${RPM_BUILD_ROOT}
 cd src/Unix
-make prefix=$RPM_BUILD_ROOT%{prefix} install
+make prefix=%{_prefix} DESTDIR=${RPM_BUILD_ROOT} install
 
 %clean
-rm -rf $RPM_BUILD_ROOT
+rm -rf ${RPM_BUILD_ROOT}
 
 %files
-%defattr(-, root, root)
+%defattr(-,root,root)
 %doc ChangeLog COPYING INSTALL README TECH TODO
-/usr/bin/BasiliskII
-/usr/man/man1/BasiliskII.1
-/usr/share/BasiliskII/keycodes
-/usr/share/BasiliskII/fbdevices
+%{_bindir}/BasiliskII
+%{_mandir}/man1/BasiliskII.1
+%{_datadir}/BasiliskII/keycodes
+%{_datadir}/BasiliskII/fbdevices
+
+%changelog
