@@ -270,6 +270,47 @@ static uint32 find_rom_trap(uint16 trap)
 
 
 /*
+ *  Return target of branch instruction specified at ADDR, or 0 if
+ *  there is no such instruction
+ */
+
+static uint32 powerpc_branch_target(uintptr addr)
+{
+	uint32 opcode = ntohl(*(uint32 *)addr);
+	uint32 primop = opcode >> 26;
+	uint32 target = 0;
+
+	if (primop == 18) {			// Branch
+		target = opcode & 0x3fffffc;
+		if (target & 0x2000000)
+			target |= 0xfc000000;
+		if ((opcode & 2) == 0)
+			target += addr;
+	}
+	else if (primop == 16) {	// Branch Conditional
+		target = (int32)(int16)(opcode & 0xfffc);
+		if ((opcode & 2) == 0)
+			target += addr;
+	}
+	return target;
+}
+
+
+/*
+ *  Search ROM for instruction branching to target address, return 0 if none found
+ */
+
+static uint32 find_rom_powerpc_branch(uint32 start, uint32 end, uint32 target)
+{
+	for (uint32 addr = start; addr < end; addr += 4) {
+		if (powerpc_branch_target(ROM_BASE + addr) == ROM_BASE + target)
+			return addr;
+	}
+	return 0;
+}
+
+
+/*
  *  List of audio sifters installed in ROM and System file
  */
 
@@ -697,6 +738,7 @@ bool PatchROM(void)
 static bool patch_nanokernel_boot(void)
 {
 	uint32 *lp;
+	uint32 base, loc;
 
 	// ROM boot structure patches
 	lp = (uint32 *)(ROM_BASE + 0x30d000);
@@ -709,33 +751,37 @@ static bool patch_nanokernel_boot(void)
 	lp[0xfd8 >> 2] = htonl(ROM_BASE + 0x2a);		// 68k reset vector
 
 	// Skip SR/BAT/SDR init
+	loc = 0x310000;
 	if (ROMType == ROMTYPE_GAZELLE || ROMType == ROMTYPE_GOSSAMER || ROMType == ROMTYPE_NEWWORLD) {
-		lp = (uint32 *)(ROM_BASE + 0x310000);
+		lp = (uint32 *)(ROM_BASE + loc);
 		*lp++ = htonl(POWERPC_NOP);
 		*lp = htonl(0x38000000);
 	}
-	static const uint32 sr_init_loc[] = {0x3101b0, 0x3101b0, 0x3101b0, 0x3101ec, 0x3101fc, 0x310200};
-	lp = (uint32 *)(ROM_BASE + 0x310008);
-	*lp = htonl(0x48000000 | (sr_init_loc[ROMType] - 8) & 0xffff);	// b		ROM_BASE+0x3101b0
-	lp = (uint32 *)(ROM_BASE + sr_init_loc[ROMType]);
+	static const uint8 sr_init_dat[] = {0x35, 0x4a, 0xff, 0xfc, 0x7d, 0x86, 0x50, 0x2e};
+	if ((base = find_rom_data(0x3101b0, 0x3105b0, sr_init_dat, sizeof(sr_init_dat))) == 0) return false;
+	D(bug("sr_init %08lx\n", base));
+	lp = (uint32 *)(ROM_BASE + loc + 8);
+	*lp = htonl(0x48000000 | ((base - loc - 8) & 0x3fffffc));	// b		ROM_BASE+0x3101b0
+	lp = (uint32 *)(ROM_BASE + base);
 	*lp++ = htonl(0x80200000 + XLM_KERNEL_DATA);		// lwz	r1,(pointer to Kernel Data)
 	*lp++ = htonl(0x3da0dead);		// lis	r13,0xdead	(start of kernel memory)
 	*lp++ = htonl(0x3dc00010);		// lis	r14,0x0010	(size of page table)
 	*lp = htonl(0x3de00010);		// lis	r15,0x0010	(size of kernel memory)
 
 	// Don't read PVR
-	static const uint32 pvr_loc[] = {0x3103b0, 0x3103b4, 0x3103b4, 0x310400, 0x310430, 0x310438};
-	lp = (uint32 *)(ROM_BASE + pvr_loc[ROMType]);
+	static const uint8 pvr_read_dat[] = {0x7d, 0x9f, 0x42, 0xa6};
+	if ((base = find_rom_data(0x3103b0, 0x3108b0, pvr_read_dat, sizeof(pvr_read_dat))) == 0) return false;
+	D(bug("pvr_read %08lx\n", base));
+	lp = (uint32 *)(ROM_BASE + base);
 	*lp = htonl(0x81800000 + XLM_PVR);	// lwz	r12,(theoretical PVR)
 
 	// Set CPU specific data (even if ROM doesn't have support for that CPU)
-	lp = (uint32 *)(ROM_BASE + pvr_loc[ROMType]);
 	if (ntohl(lp[6]) != 0x2c0c0001)
 		return false;
 	uint32 ofs = ntohl(lp[7]) & 0xffff;
 	D(bug("ofs %08lx\n", ofs));
 	lp[8] = htonl((ntohl(lp[8]) & 0xffff) | 0x48000000);	// beq -> b
-	uint32 loc = (ntohl(lp[8]) & 0xffff) + (uint32)(lp+8) - ROM_BASE;
+	loc = (ntohl(lp[8]) & 0xffff) + (uint32)(lp+8) - ROM_BASE;
 	D(bug("loc %08lx\n", loc));
 	lp = (uint32 *)(ROM_BASE + ofs + 0x310000);
 	switch (PVR >> 16) {
@@ -850,15 +896,19 @@ static bool patch_nanokernel_boot(void)
 	}
 
 	// Don't set SPRG3, don't test MQ
-	lp = (uint32 *)(ROM_BASE + loc + 0x20);
-	*lp++ = htonl(POWERPC_NOP);
-	lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	lp++;
-	*lp = htonl(POWERPC_NOP);
+	static const uint8 sprg3_mq_dat[] = {0x7d, 0x13, 0x43, 0xa6, 0x3d, 0x00, 0x00, 0x04, 0x7d, 0x00, 0x03, 0xa6, 0x39, 0x00, 0x00, 0x00, 0x7d, 0x00, 0x02, 0xa6};
+	if ((base = find_rom_data(loc + 0x20, loc + 0x60, sprg3_mq_dat, sizeof(sprg3_mq_dat))) == 0) return false;
+	D(bug("sprg3/mq %08lx\n", base));
+	lp = (uint32 *)(ROM_BASE + base);
+	lp[0] = htonl(POWERPC_NOP);
+	lp[2] = htonl(POWERPC_NOP);
+	lp[4] = htonl(POWERPC_NOP);
 
 	// Don't read MSR
-	lp = (uint32 *)(ROM_BASE + loc + 0x40);
+	static const uint8 msr_dat[] = {0x7d, 0xc0, 0x00, 0xa6};
+	if ((base = find_rom_data(loc + 0x40, loc + 0x80, msr_dat, sizeof(msr_dat))) == 0) return false;
+	D(bug("msr %08lx\n", base));
+	lp = (uint32 *)(ROM_BASE + base);
 	*lp = htonl(0x39c00000);		// li	r14,0
 
 	// Don't write to DEC
@@ -868,97 +918,113 @@ static bool patch_nanokernel_boot(void)
 	D(bug("loc %08lx\n", loc));
 
 	// Don't set SPRG3
-	lp = (uint32 *)(ROM_BASE + loc + 0x2c);
+	static const uint8 sprg3_dat[] = {0x39, 0x21, 0x03, 0x60, 0x7d, 0x33, 0x43, 0xa6, 0x39, 0x01, 0x04, 0x20};
+	if ((base = find_rom_data(0x310000, 0x314000, sprg3_dat, sizeof(sprg3_dat))) == 0) return false;
+	D(bug("sprg3 %08lx\n", base + 4));
+	lp = (uint32 *)(ROM_BASE + base + 4);
 	*lp = htonl(POWERPC_NOP);
 
 	// Don't read PVR
-	static const uint32 pvr_ofs[] = {0x138, 0x138, 0x138, 0x140, 0x148, 0x148};
-	lp = (uint32 *)(ROM_BASE + loc + pvr_ofs[ROMType]);
+	static const uint8 pvr_read2_dat[] = {0x7e, 0xff, 0x42, 0xa6, 0x56, 0xf7, 0x84, 0x3e};
+	if ((base = find_rom_data(0x310000, 0x320000, pvr_read2_dat, sizeof(pvr_read2_dat))) == 0) return false;
+	D(bug("pvr_read2 %08lx\n", base));
+	lp = (uint32 *)(ROM_BASE + base);
 	*lp = htonl(0x82e00000 + XLM_PVR);		// lwz	r23,(theoretical PVR)
-	lp = (uint32 *)(ROM_BASE + loc + 0x170);
-	if (ntohl(*lp) == 0x7eff42a6)	// NewWorld or Gossamer ROM
+	if ((base = find_rom_data(base + 4, 0x320000, pvr_read2_dat, sizeof(pvr_read2_dat))) != 0) {
+		D(bug("pvr_read2 %08lx\n", base));
+		lp = (uint32 *)(ROM_BASE + base);
 		*lp = htonl(0x82e00000 + XLM_PVR);	// lwz	r23,(theoretical PVR)
-	lp = (uint32 *)(ROM_BASE + 0x313134);
-	if (ntohl(*lp) == 0x7e5f42a6)
+	}
+	static const uint8 pvr_read3_dat[] = {0x7e, 0x5f, 0x42, 0xa6, 0x56, 0x52, 0x84, 0x3e};
+	if ((base = find_rom_data(0x310000, 0x320000, pvr_read3_dat, sizeof(pvr_read3_dat))) != 0) {
+		D(bug("pvr_read3 %08lx\n", base));
+		lp = (uint32 *)(ROM_BASE + base);
 		*lp = htonl(0x82400000 + XLM_PVR);	// lwz	r18,(theoretical PVR)
-	lp = (uint32 *)(ROM_BASE + 0x3131f4);
-	if (ntohl(*lp) == 0x7e5f42a6)	// NewWorld ROM
-		*lp = htonl(0x82400000 + XLM_PVR);	// lwz	r18,(theoretical PVR)
-	lp = (uint32 *)(ROM_BASE + 0x314600);
-	if (ntohl(*lp) == 0x7d3f42a6)
+	}
+	static const uint8 pvr_read4_dat[] = {0x7d, 0x3f, 0x42, 0xa6, 0x55, 0x29, 0x84, 0x3e};
+	if ((base = find_rom_data(0x310000, 0x320000, pvr_read4_dat, sizeof(pvr_read4_dat))) != 0) {
+		D(bug("pvr_read4 %08lx\n", base));
+		lp = (uint32 *)(ROM_BASE + base);
 		*lp = htonl(0x81200000 + XLM_PVR);	// lzw  r9,(theoritical PVR)
+	}
 
 	// Don't read SDR1
-	static const uint32 sdr1_ofs[] = {0x174, 0x174, 0x174, 0x17c, 0x19c, 0x19c};
-	lp = (uint32 *)(ROM_BASE + loc + sdr1_ofs[ROMType]);
+	static const uint8 sdr1_read_dat[] = {0x7d, 0x19, 0x02, 0xa6, 0x55, 0x16, 0x81, 0xde};
+	if ((base = find_rom_data(0x310000, 0x320000, sdr1_read_dat, sizeof(sdr1_read_dat))) == 0) return false;
+	D(bug("sdr1_read %08lx\n", base));
+	lp = (uint32 *)(ROM_BASE + base);
 	*lp++ = htonl(0x3d00dead);		// lis	r8,0xdead		(pointer to page table)
 	*lp++ = htonl(0x3ec0001f);		// lis	r22,0x001f	(size of page table)
 	*lp = htonl(POWERPC_NOP);
 
-	// Don't clear page table
-	static const uint32 pgtb_ofs[] = {0x198, 0x198, 0x198, 0x1a0, 0x1c0, 0x1c4};
-	lp = (uint32 *)(ROM_BASE + loc + pgtb_ofs[ROMType]);
+	// Don't clear page table, don't invalidate TLB
+	static const uint8 pgtb_clear_dat[] = {0x36, 0xd6, 0xff, 0xfc, 0x7e, 0xe8, 0xb1, 0x2e, 0x41, 0x81, 0xff, 0xf8};
+	if ((base = find_rom_data(0x310000, 0x320000, pgtb_clear_dat, sizeof(pgtb_clear_dat))) == 0) return false;
+	D(bug("pgtb_clear %08lx\n", base + 4));
+	lp = (uint32 *)(ROM_BASE + base + 4);
 	*lp = htonl(POWERPC_NOP);
-
-	// Don't invalidate TLB
-	static const uint32 tlb_ofs[] = {0x1a0, 0x1a0, 0x1a0, 0x1a8, 0x1c8, 0x1cc};
-	lp = (uint32 *)(ROM_BASE + loc + tlb_ofs[ROMType]);
+	D(bug("tblie %08lx\n", base + 12));
+	lp = (uint32 *)(ROM_BASE + base + 12);
 	*lp = htonl(POWERPC_NOP);
 
 	// Don't create RAM descriptor table
-	static const uint32 desc_ofs[] = {0x350, 0x350, 0x350, 0x358, 0x378, 0x37c};
-	lp = (uint32 *)(ROM_BASE + loc + desc_ofs[ROMType]);
+	static const uint8 desc_create_dat[] = {0x97, 0xfd, 0x00, 0x04, 0x3b, 0xff, 0x10, 0x00, 0x4b, 0xff, 0xff, 0xdc};
+	if ((base = find_rom_data(0x310000, 0x320000, desc_create_dat, sizeof(desc_create_dat))) == 0) return false;
+	D(bug("desc_create %08lx\n", base))
+	lp = (uint32 *)(ROM_BASE + base);
 	*lp = htonl(POWERPC_NOP);
 
 	// Don't load SRs and BATs
-	static const uint32 sr_ofs[] = {0x3d8, 0x3d8, 0x3d8, 0x3e0, 0x400, 0x404};
-	lp = (uint32 *)(ROM_BASE + loc + sr_ofs[ROMType]);
+	static const uint8 sr_load[] = {0x7c, 0x00, 0x04, 0xac, 0x83, 0x9d, 0x00, 0x00, 0x93, 0x81, 0x05, 0xe8};
+	if ((loc = find_rom_data(0x310000, 0x320000, sr_load, sizeof(sr_load))) == 0) return false;
+	static const uint8 sr_load_caller[] = {0x3e, 0xd6, 0xff, 0xff, 0x41, 0x81, 0xff, 0xdc, 0xb2, 0xc8, 0x00, 0x02};
+	if ((base = find_rom_data(0x310000, 0x320000, sr_load_caller, sizeof(sr_load_caller))) == 0) return false;
+	if ((base = find_rom_powerpc_branch(base + 12, 0x320000, loc)) == 0) return false;
+	D(bug("sr_load %08lx, called from %08lx\n", loc, base));
+	lp = (uint32 *)(ROM_BASE + base);
 	*lp = htonl(POWERPC_NOP);
 
 	// Don't mess with SRs
-	static const uint32 sr2_ofs[] = {0x312118, 0x312118, 0x312118, 0x312118, 0x312118, 0x3121b4};
-	lp = (uint32 *)(ROM_BASE + sr2_ofs[ROMType]);
+	static const uint8 sr_load2_dat[] = {0x83, 0xa1, 0x05, 0xe8, 0x57, 0x7c, 0x3e, 0x78, 0x7f, 0xbd, 0xe0, 0x2e};
+	if ((base = find_rom_data(0x310000, 0x320000, sr_load2_dat, sizeof(sr_load2_dat))) == 0) return false;
+	D(bug("sr_load2 %08lx\n", base));
+	lp = (uint32 *)(ROM_BASE + base);
 	*lp = htonl(POWERPC_BLR);
 
 	// Don't check performance monitor
-	static const uint32 pm_ofs[] = {0x313148, 0x313148, 0x313148, 0x313148, 0x313158, 0x313218};
-	lp = (uint32 *)(ROM_BASE + pm_ofs[ROMType]);
-	while (ntohl(*lp) != 0x7e58eba6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	while (ntohl(*lp) != 0x7e78eaa6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	while (ntohl(*lp) != 0x7e59eba6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	while (ntohl(*lp) != 0x7e79eaa6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	while (ntohl(*lp) != 0x7e5aeba6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	while (ntohl(*lp) != 0x7e7aeaa6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	while (ntohl(*lp) != 0x7e5beba6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	while (ntohl(*lp) != 0x7e7beaa6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	while (ntohl(*lp) != 0x7e5feba6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	while (ntohl(*lp) != 0x7e7feaa6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	while (ntohl(*lp) != 0x7e5ceba6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	while (ntohl(*lp) != 0x7e7ceaa6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	while (ntohl(*lp) != 0x7e5deba6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	while (ntohl(*lp) != 0x7e7deaa6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	while (ntohl(*lp) != 0x7e5eeba6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	while (ntohl(*lp) != 0x7e7eeaa6) lp++;
-	*lp++ = htonl(POWERPC_NOP);
+	static const uint8 pm_check_dat[] = {0x7e, 0x58, 0xeb, 0xa6, 0x7e, 0x53, 0x90, 0xf8, 0x7e, 0x78, 0xea, 0xa6};
+	if ((base = find_rom_data(0x310000, 0x320000, pm_check_dat, sizeof(pm_check_dat))) == 0) return false;
+	D(bug("pm_check %08lx\n", base));
+	lp = (uint32 *)(ROM_BASE + base);
+	
+	static const int spr_check_list[] = {
+		952 /* mmcr0 */, 953 /* pmc1 */, 954 /* pmc2 */, 955 /* sia */,
+		956 /* mmcr1 */, 957 /* pmc3 */, 958 /* pmc4 */, 959 /* sda */
+	};
+
+	for (int i = 0; i < sizeof(spr_check_list)/sizeof(spr_check_list[0]); i++) {
+		int spr = spr_check_list[i];
+		uint32 mtspr = 0x7e4003a6 | ((spr & 0x1f) << 16) | ((spr & 0x3e0) << 6);
+		uint32 mfspr = 0x7e6002a6 | ((spr & 0x1f) << 16) | ((spr & 0x3e0) << 6);
+		for (int ofs = 0; ofs < 64; ofs++) {
+			if (ntohl(lp[ofs]) == mtspr) {
+				if (ntohl(lp[ofs + 2]) != mfspr)
+					return false;
+				D(bug("  SPR%d %08lx\n", spr, base + 4*ofs));
+				lp[ofs] = htonl(POWERPC_NOP);
+				lp[ofs + 2] = htonl(POWERPC_NOP);
+			}
+		}
+	}
 
 	// Jump to 68k emulator
-	static const uint32 jump68k_ofs[] = {0x40c, 0x40c, 0x40c, 0x414, 0x434, 0x438};
-	lp = (uint32 *)(ROM_BASE + loc + jump68k_ofs[ROMType]);
+	static const uint8 jump68k_dat[] = {0x7d, 0x92, 0x43, 0xa6, 0x7d, 0x5a, 0x03, 0xa6, 0x7d, 0x7b, 0x03, 0xa6};
+	if ((loc = find_rom_data(0x310000, 0x320000, jump68k_dat, sizeof(jump68k_dat))) == 0) return false;
+	static const uint8 jump68k_caller_dat[] = {0x85, 0x13, 0x00, 0x08, 0x56, 0xbf, 0x50, 0x3e, 0x63, 0xff, 0x0c, 0x00};
+	if ((base = find_rom_data(0x310000, 0x320000, jump68k_caller_dat, sizeof(jump68k_caller_dat))) == 0) return false;
+	if ((base = find_rom_powerpc_branch(base + 12, 0x320000, loc)) == 0) return false;
+	D(bug("jump68k %08lx, called from %08lx\n", loc, base));
+	lp = (uint32 *)(ROM_BASE + base);
 	*lp++ = htonl(0x80610634);		// lwz	r3,0x0634(r1)	(pointer to Emulator Data)
 	*lp++ = htonl(0x8081119c);		// lwz	r4,0x119c(r1)	(pointer to opcode table)
 	*lp++ = htonl(0x80011184);		// lwz	r0,0x1184(r1)	(pointer to emulator init routine)
@@ -978,8 +1044,9 @@ static bool patch_68k_emul(void)
 	uint32 base;
 
 	// Overwrite twi instructions
-	static const uint32 twi_loc[] = {0x36e680, 0x36e6c0, 0x36e6c0, 0x36e6c0, 0x36e740, 0x36e740};
-	base = twi_loc[ROMType];
+	static const uint8 twi_dat[] = {0x0f, 0xff, 0x00, 0x00, 0x0f, 0xff, 0x00, 0x01, 0x0f, 0xff, 0x00, 0x02};
+	if ((base = find_rom_data(0x36e600, 0x36ea00, twi_dat, sizeof(twi_dat))) == 0) return false;
+	D(bug("twi %08lx\n", base));
 	lp = (uint32 *)(ROM_BASE + base);
 	*lp++ = htonl(0x48000000 + 0x36f900 - base);		// b 0x36f900 (Emulator start)
 	*lp++ = htonl(0x48000000 + 0x36fa00 - base - 4);	// b 0x36fa00 (Mixed mode)
@@ -1199,67 +1266,89 @@ dr_found:
 static bool patch_nanokernel(void)
 {
 	uint32 *lp;
+	uint32 base, loc;
 
 	// Patch Mixed Mode trap
-	lp = (uint32 *)(ROM_BASE + 0x313c90);	// Don't translate virtual->physical
-	while (ntohl(*lp) != 0x3ba10320) lp++;
-	lp++;
-	*lp++ = htonl(0x7f7fdb78);					// mr		r31,r27
-	lp++;
-	*lp = htonl(POWERPC_NOP);
+	static const uint8 virt2phys_dat[] = {0x7d, 0x1b, 0x43, 0x78, 0x3b, 0xa1, 0x03, 0x20};
+	if ((base = find_rom_data(0x313000, 0x314000, virt2phys_dat, sizeof(virt2phys_dat))) == 0) return false;
+	D(bug("virt2phys %08lx\n", base + 8));
+	lp = (uint32 *)(ROM_BASE + base + 8);	// Don't translate virtual->physical
+	lp[0] = htonl(0x7f7fdb78);					// mr		r31,r27
+	lp[2] = htonl(POWERPC_NOP);
 
-	lp = (uint32 *)(ROM_BASE + 0x313c3c);	// Don't activate PPC exception table
-	while (ntohl(*lp) != 0x39010420) lp++;
+	static const uint8 ppc_excp_tbl_dat[] = {0x39, 0x01, 0x04, 0x20, 0x7d, 0x13, 0x43, 0xa6};
+	if ((base = find_rom_data(0x313000, 0x314000, ppc_excp_tbl_dat, sizeof(ppc_excp_tbl_dat))) == 0) return false;
+	D(bug("ppc_excp_tbl %08lx\n", base));
+	lp = (uint32 *)(ROM_BASE + base);		// Don't activate PPC exception table
 	*lp++ = htonl(0x39000000 + MODE_NATIVE);	// li	r8,MODE_NATIVE
-	*lp = htonl(0x91000000 + XLM_RUN_MODE);	// stw	r8,XLM_RUN_MODE
+	*lp = htonl(0x91000000 + XLM_RUN_MODE);		// stw	r8,XLM_RUN_MODE
 
-	lp = (uint32 *)(ROM_BASE + 0x312e88);	// Don't modify MSR to turn on FPU
-	while (ntohl(*lp) != 0x556b04e2) lp++;
-	lp -= 4;
-	*lp++ = htonl(POWERPC_NOP);
-	lp++;
-	*lp++ = htonl(POWERPC_NOP);
-	lp++;
-	*lp = htonl(POWERPC_NOP);
-
-	lp = (uint32 *)(ROM_BASE + 0x312b3c);	// Always save FPU state
-	while (ntohl(*lp) != 0x81010668) lp++;
-	lp--;
-	*lp = htonl(0x48000000 | (ntohl(*lp) & 0xffff));	// bl	0x00312e88
-
-	lp = (uint32 *)(ROM_BASE + 0x312b44);	// Don't read DEC
-	while (ntohl(*lp) != 0x7ff602a6) lp++;
-	*lp = htonl(0x3be00000);					// li	r31,0
-
-	lp = (uint32 *)(ROM_BASE + 0x312b50);	// Don't write DEC
-	while (ntohl(*lp) != 0x7d1603a6) lp++;
+	static const uint8 save_fpu_dat[] = {0x7d, 0x00, 0x00, 0xa6, 0x61, 0x08, 0x20, 0x00, 0x7d, 0x00, 0x01, 0x24};
+	if ((base = find_rom_data(0x310000, 0x314000, save_fpu_dat, sizeof(save_fpu_dat))) == 0) return false;
+	D(bug("save_fpu %08lx\n", base));
+	lp = (uint32 *)(ROM_BASE + base);		// Don't modify MSR to turn on FPU
+	if (ntohl(lp[4]) != 0x556b04e2) return false;
+	loc = ROM_BASE + base;
 #if 1
+	// FIXME: is that really intended?
 	*lp++ = htonl(POWERPC_NOP);
+	lp++;
+	*lp++ = htonl(POWERPC_NOP);
+	lp++;
 	*lp = htonl(POWERPC_NOP);
 #else
-	*lp++ = htonl(0x39000040);					// li	r8,0x40
-	*lp = htonl(0x990600e4);					// stb	r8,0xe4(r6)
+	lp[0] = htonl(POWERPC_NOP);
+	lp[1] = htonl(POWERPC_NOP);
+	lp[2] = htonl(POWERPC_NOP);
+	lp[3] = htonl(POWERPC_NOP);
 #endif
 
-	lp = (uint32 *)(ROM_BASE + 0x312b9c);	// Always restore FPU state
-	while (ntohl(*lp) != 0x7c00092d) lp++;
-	lp--;
+	static const uint8 save_fpu_caller_dat[] = {0x93, 0xa6, 0x01, 0xec, 0x93, 0xc6, 0x01, 0xf4, 0x93, 0xe6, 0x01, 0xfc, 0x40};
+	if ((base = find_rom_data(0x310000, 0x314000, save_fpu_caller_dat, sizeof(save_fpu_caller_dat))) == 0) return false;
+	D(bug("save_fpu_caller %08lx\n", base + 12));
+	if (powerpc_branch_target(ROM_BASE + base + 12) != loc) return false;
+	lp = (uint32 *)(ROM_BASE + base + 12);	// Always save FPU state
+	*lp = htonl(0x48000000 | (ntohl(*lp) & 0xffff));	// bl	0x00312e88
+
+	static const uint8 mdec_dat[] = {0x7f, 0xf6, 0x02, 0xa6, 0x2c, 0x08, 0x00, 0x00, 0x93, 0xe1, 0x06, 0x68, 0x7d, 0x16, 0x03, 0xa6};
+	if ((base = find_rom_data(0x310000, 0x314000, mdec_dat, sizeof(mdec_dat))) == 0) return false;
+	D(bug("mdec %08lx\n", base));
+	lp = (uint32 *)(ROM_BASE + base);		// Don't modify DEC
+	lp[0] = htonl(0x3be00000);					// li	r31,0
+#if 1
+	lp[3] = htonl(POWERPC_NOP);
+	lp[4] = htonl(POWERPC_NOP);
+#else
+	lp[3] = htonl(0x39000040);					// li	r8,0x40
+	lp[4] = htonl(0x990600e4);					// stb	r8,0xe4(r6)
+#endif
+
+	static const uint8 restore_fpu_caller_dat[] = {0x81, 0x06, 0x00, 0xf4, 0x81, 0x46, 0x00, 0xfc, 0x7d, 0x09, 0x03, 0xa6, 0x40};
+	if ((base = find_rom_data(0x310000, 0x314000, restore_fpu_caller_dat, sizeof(restore_fpu_caller_dat))) == 0) return false;
+	D(bug("restore_fpu_caller %08lx\n", base + 12));
+	lp = (uint32 *)(ROM_BASE + base + 12);	// Always restore FPU state
 	*lp = htonl(0x48000000 | (ntohl(*lp) & 0xffff));	// bl	0x00312ddc
 
-	lp = (uint32 *)(ROM_BASE + 0x312a68);	// Don't activate 68k exception table
-	while (ntohl(*lp) != 0x39010360) lp++;
+	static const uint8 m68k_excp_tbl_dat[] = {0x81, 0x21, 0x06, 0x58, 0x39, 0x01, 0x03, 0x60, 0x7d, 0x13, 0x43, 0xa6};
+	if ((base = find_rom_data(0x310000, 0x314000, m68k_excp_tbl_dat, sizeof(m68k_excp_tbl_dat))) == 0) return false;
+	D(bug("m68k_excp %08lx\n", base + 4));
+	lp = (uint32 *)(ROM_BASE + base + 4);	// Don't activate 68k exception table
 	*lp++ = htonl(0x39000000 + MODE_68K);		// li	r8,MODE_68K
 	*lp = htonl(0x91000000 + XLM_RUN_MODE);		// stw	r8,XLM_RUN_MODE
 
 	// Patch 68k emulator trap routine
-	lp = (uint32 *)(ROM_BASE + 0x312994);	// Always restore FPU state
-	while (ntohl(*lp) != 0x39260040) lp++;
-	lp--;
+	static const uint8 restore_fpu_caller2_dat[] = {0x81, 0x86, 0x00, 0x8c, 0x80, 0x66, 0x00, 0x94, 0x80, 0x86, 0x00, 0x9c, 0x40};
+	if ((base = find_rom_data(0x310000, 0x314000, restore_fpu_caller2_dat, sizeof(restore_fpu_caller2_dat))) == 0) return false;
+	D(bug("restore_fpu_caller2 %08lx\n", base + 12));
+	loc = powerpc_branch_target(ROM_BASE + base + 12) - ROM_BASE;
+	lp = (uint32 *)(ROM_BASE + base + 12);	// Always restore FPU state
 	*lp = htonl(0x48000000 | (ntohl(*lp) & 0xffff));	// bl	0x00312dd4
 
-	lp = (uint32 *)(ROM_BASE + 0x312dd8);	// Don't modify MSR to turn on FPU
-	while (ntohl(*lp) != 0x810600e4) lp++;
-	lp--;
+	static const uint8 restore_fpu_dat[] = {0x55, 0x68, 0x04, 0xa5, 0x4c, 0x82, 0x00, 0x20, 0x81, 0x06, 0x00, 0xe4};
+	if ((base = find_rom_data(0x310000, 0x314000, restore_fpu_dat, sizeof(restore_fpu_dat))) == 0) return false;
+	D(bug("restore_fpu %08lx\n", base));
+	if (base != loc) return false;
+	lp = (uint32 *)(ROM_BASE + base + 4);	// Don't modify MSR to turn on FPU
 	*lp++ = htonl(POWERPC_NOP);
 	lp += 2;
 	*lp++ = htonl(POWERPC_NOP);
@@ -1269,26 +1358,27 @@ static bool patch_nanokernel(void)
 	*lp = htonl(POWERPC_NOP);
 
 	// Patch trap return routine
-	lp = (uint32 *)(ROM_BASE + 0x312c20);
-	while (ntohl(*lp) != 0x7d5a03a6) lp++;
+	static const uint8 trap_return_dat[] = {0x80, 0xc1, 0x00, 0x18, 0x80, 0x21, 0x00, 0x04, 0x4c, 0x00, 0x00, 0x64};
+	if ((base = find_rom_data(0x312000, 0x320000, trap_return_dat, sizeof(trap_return_dat))) == 0) return false;
+	D(bug("trap_return %08lx\n", base + 8));
+	lp = (uint32 *)(ROM_BASE + base + 8);	// Replace rfi
+	*lp = htonl(POWERPC_BCTR);
+
+	while (ntohl(*lp) != 0x7d5a03a6) lp--;
 	*lp++ = htonl(0x7d4903a6);					// mtctr	r10
 	*lp++ = htonl(0x7daff120);					// mtcr	r13
-	*lp = htonl(0x48000000 + 0x8000 - (((uint32)lp - ROM_BASE) & 0xffff));	// b		ROM_BASE+0x318000
-	uint32 xlp = ((uint32)(lp+1) - ROM_BASE) & 0xffff;
-
-	lp = (uint32 *)(ROM_BASE + 0x312c50);	// Replace rfi
-	while (ntohl(*lp) != 0x4c000064) lp++;
-	*lp = htonl(POWERPC_BCTR);
+	*lp = htonl(0x48000000 + ((0x318000 - ((uint32)lp - ROM_BASE)) & 0x03fffffc));	// b		ROM_BASE+0x318000
+	uint32 npc = (uint32)(lp + 1) - ROM_BASE;
 
 	lp = (uint32 *)(ROM_BASE + 0x318000);
 #if EMULATED_PPC
 	*lp++ = htonl(NativeOpcode(NATIVE_ENABLE_INTERRUPT));
-	*lp = htonl(0x48000000 + ((xlp - 0x8004) & 0x03fffffc));	// b		ROM_BASE+0x312c2c
+	*lp = htonl(0x48000000 + ((npc - 0x318004) & 0x03fffffc));	// b		ROM_BASE+0x312c2c
 #else
 	*lp++ = htonl(0x81400000 + XLM_IRQ_NEST);	// lwz	r10,XLM_IRQ_NEST
 	*lp++ = htonl(0x394affff);					// subi	r10,r10,1
 	*lp++ = htonl(0x91400000 + XLM_IRQ_NEST);	// stw	r10,XLM_IRQ_NEST
-	*lp = htonl(0x48000000 + ((xlp - 0x800c) & 0x03fffffc));	// b		ROM_BASE+0x312c2c
+	*lp = htonl(0x48000000 + ((npc - 0x31800c) & 0x03fffffc));	// b		ROM_BASE+0x312c2c
 #endif
 
 /*
@@ -1310,7 +1400,7 @@ static bool patch_68k(void)
 	uint32 *lp;
 	uint16 *wp;
 	uint8 *bp;
-	uint32 base;
+	uint32 base, loc;
 
 	// Remove 68k RESET instruction
 	static const uint8 reset_dat[] = {0x4e, 0x70};
@@ -1551,11 +1641,15 @@ static bool patch_68k(void)
 	*wp = htons(M68K_NOP);
 
 	// Don't initialize SCC (via 0x1ac)
-	static const uint8 scc_init_dat[] = {0x48, 0xe7, 0x38, 0xfe};
-	if ((base = find_rom_data(0x190, 0x1f0, scc_init_dat, sizeof(scc_init_dat))) == 0) return false;
+	static const uint8 scc_init_caller_dat[] = {0x21, 0xce, 0x01, 0x08, 0x22, 0x78, 0x0d, 0xd8};
+	if ((base = find_rom_data(0x180, 0x1f0, scc_init_caller_dat, sizeof(scc_init_caller_dat))) == 0) return false;
+	D(bug("scc_init_caller %08lx\n", base + 12));
+	wp = (uint16 *)(ROM_BASE + base + 12);
+	loc = ntohs(wp[1]) + ((uintptr)wp - ROM_BASE) + 2;
+	static const uint8 scc_init_dat[] = {0x08, 0x38, 0x00, 0x03, 0x0d, 0xd3, 0x67, 0x12, 0x20, 0x78, 0x01, 0xdc, 0x22, 0x78, 0x01, 0xd8};
+	if ((base = find_rom_data(loc, loc + 0x80, scc_init_dat, sizeof(scc_init_dat))) != loc) return false;
 	D(bug("scc_init %08lx\n", base));
-	wp = (uint16 *)(ROM_BASE + base - 2);
-	wp = (uint16 *)(ROM_BASE + ntohs(*wp) + base - 2);
+	wp = (uint16 *)(ROM_BASE + base);
 	*wp++ = htons(M68K_EMUL_OP_RESET);
 	*wp = htons(M68K_RTS);
 
