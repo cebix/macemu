@@ -22,6 +22,7 @@
 #include "sysdeps.h"
 #include "cpu/ppc/ppc-cpu.hpp"
 
+#define TEST_RA_IS_0	0
 #define TEST_ADD		0
 #define TEST_SUB		0
 #define TEST_MUL		0
@@ -31,7 +32,7 @@
 #define TEST_MISC		0
 #define TEST_LOGICAL	0
 #define TEST_COMPARE	0
-#define TEST_CR_LOGICAL	1
+#define TEST_CR_LOGICAL	0
 
 // Partial PowerPC runtime assembler from GNU lightning
 #define _I(X)			((uint32)(X))
@@ -108,7 +109,11 @@ private:
 	enum {
 		R_ = -1,
 		RD = 10,
+#if TEST_RA_IS_0
+		RA = 0,
+#else
 		RA = 11,
+#endif
 		RB = 12
 	};
 
@@ -121,6 +126,7 @@ private:
 	void test_logical(void);
 	void test_compare(void);
 	void test_cr_logical(void);
+	void test_load_multiple(void);
 };
 
 void powerpc_test_cpu::execute_return(uint32 opcode)
@@ -179,18 +185,25 @@ void powerpc_test_cpu::print_flags(uint32 cr, uint32 xer, int crf) const
 		   (xer & XER_CA_field::mask()  ? "CA" : "__"));
 }
 
+#if TEST_RA_IS_0
+#define ASM_RA_REG asm("r0")
+#else
+#define ASM_RA_REG /**/
+#endif
+
 #define TEST_ASM______(OP,D0,A0,A1,A2,A3) asm volatile (OP : : : "cc")
 #define TEST_ASM_R____(OP,RD,A0,A1,A2,A3) asm volatile (OP " %0" : "=r" (RD) : : "cc")
-#define TEST_ASM_RR___(OP,RD,RA,A1,A2,A3) asm volatile (OP " %0,%1" : "=r" (RD) : "r" (RA) : "cc")
+#define TEST_ASM_RA_OR_0(RA, ASM_EXPR)    do { register uint32 _RA ASM_RA_REG = RA; asm volatile ASM_EXPR; } while (0)
+#define TEST_ASM_RR___(OP,RD,RA,A1,A2,A3) TEST_ASM_RA_OR_0(RA, (OP " %0,%1" : "=r" (RD) : "r" (_RA) : "cc"))
+#define TEST_ASM_RRS__(OP,RD,RA,IM,A2,A3) TEST_ASM_RA_OR_0(RA, (OP " %0,%1,%2" : "=r" (RD) : "r" (_RA), "i" (IM) : "cc"))
+#define TEST_ASM_RRI__(OP,RD,RA,IM,A2,A3) TEST_ASM_RA_OR_0(RA, (OP " %0,%1,%2" : "=r" (RD) : "r" (_RA), "I" (int16(IM)) : "cc"))
+#define TEST_ASM_RRK__(OP,RD,RA,IM,A2,A3) TEST_ASM_RA_OR_0(RA, (OP " %0,%1,%2" : "=r" (RD) : "r" (_RA), "K" (IM) : "cc"))
+#define TEST_ASM_RRR__(OP,RD,RA,RB,A2,A3) TEST_ASM_RA_OR_0(RA, (OP " %0,%1,%2" : "=r" (RD) : "r" (_RA), "r" (RB) : "cc"))
+#define TEST_ASM_RRIII(OP,RD,RA,SH,MB,ME) TEST_ASM_RA_OR_0(RA, (OP " %0,%1,%2,%3,%4" : "+r" (RD) : "r" (_RA), "i" (SH), "i" (MB), "i" (ME)))
+#define TEST_ASM_RRRII(OP,RD,RA,RB,MB,ME) TEST_ASM_RA_OR_0(RA, (OP " %0,%1,%2,%3,%4" : "+r" (RD) : "r" (_RA), "r" (RB), "i" (MB), "i" (ME)))
 #define TEST_ASM_CRR__(OP,RD,CR,RA,RB,A3) asm volatile (OP " %0,%1,%2" : : "i" (CR), "r" (RA), "r" (RB) : "cc")
 #define TEST_ASM_CRI__(OP,RD,CR,RA,IM,A3) asm volatile (OP " %0,%1,%2" : : "i" (CR), "r" (RA), "I" (int16(IM)) : "cc")
 #define TEST_ASM_CRK__(OP,RD,CR,RA,IM,A3) asm volatile (OP " %0,%1,%2" : : "i" (CR), "r" (RA), "K" (IM) : "cc")
-#define TEST_ASM_RRS__(OP,RD,RA,IM,A2,A3) asm volatile (OP " %0,%1,%2" : "=r" (RD) : "r" (RA), "i" (IM) : "cc")
-#define TEST_ASM_RRI__(OP,RD,RA,IM,A2,A3) asm volatile (OP " %0,%1,%2" : "=r" (RD) : "r" (RA), "I" (int16(IM)) : "cc")
-#define TEST_ASM_RRK__(OP,RD,RA,IM,A2,A3) asm volatile (OP " %0,%1,%2" : "=r" (RD) : "r" (RA), "K" (IM) : "cc")
-#define TEST_ASM_RRR__(OP,RD,RA,RB,A2,A3) asm volatile (OP " %0,%1,%2" : "=r" (RD) : "r" (RA), "r" (RB) : "cc")
-#define TEST_ASM_RRIII(OP,RD,RA,SH,MB,ME) asm volatile (OP " %0,%1,%2,%3,%4" : "+r" (RD) : "r" (RA), "i" (SH), "i" (MB), "i" (ME))
-#define TEST_ASM_RRRII(OP,RD,RA,RB,MB,ME) asm volatile (OP " %0,%1,%2,%3,%4" : "+r" (RD) : "r" (RA), "r" (RB), "i" (MB), "i" (ME))
 #define TEST_ASM_CCC__(OP,RD,RA,RB,RC,A3) asm volatile (OP " %0,%1,%2" : : "i" (RA), "i" (RB), "i" (RC) : "cc")
 
 #define TEST_ASM(FORMAT, OP, RD, CR, XER, A0, A1, A2, A3) do {	\
@@ -624,7 +637,7 @@ void powerpc_test_cpu::test_div(void)
 
 void powerpc_test_cpu::test_logical(void)
 {
-#if TEST_GENERIC_ARITH
+#if TEST_LOGICAL
 	TEST_INSTRUCTION(RRR__,"and.",		_X (31,RA,RD,RB,28,1));
 	TEST_INSTRUCTION(RRR__,"andc.",		_X (31,RA,RD,RB,60,1));
 	TEST_INSTRUCTION(RRK__,"andi.",		_D (28,RA,RD,00));
@@ -694,6 +707,18 @@ void powerpc_test_cpu::test_cr_logical(void)
 #endif
 }
 
+void powerpc_test_cpu::test_load_multiple(void)
+{
+#if TEST_LOAD_MULTIPLE && 0
+	uint16 tab[] = { 0x1234, 0x5678, 0x9abc, 0xdef0 };
+	uint32 opcode = _X(31,RD,RA,RB,790,0);
+	gpr(RA) = (uintptr)&tab[0];
+	gpr(RB) = 0;
+	execute(opcode);
+	printf("%08x\n", gpr(RD));
+#endif
+}
+
 bool powerpc_test_cpu::test(void)
 {
 	// Tests initialization
@@ -711,6 +736,7 @@ bool powerpc_test_cpu::test(void)
 	test_logical();
 	test_compare();
 	test_cr_logical();
+	test_load_multiple();
 
 	printf("%u errors out of %u tests\n", errors, tests);
 	return errors != 0;

@@ -122,12 +122,12 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  D_form, 15, 0, CFLOW_NORMAL
 	},
 	{ "addme",
-	  EXECUTE_ADDITION(RA_or_0, MINUS_ONE, XER_CA, CA_BIT_1, OE_BIT_G, RC_BIT_G),
+	  EXECUTE_ADDITION(RA, MINUS_ONE, XER_CA, CA_BIT_1, OE_BIT_G, RC_BIT_G),
 	  NULL,
 	  XO_form, 31, 234, CFLOW_NORMAL
 	},
 	{ "addze",
-	  EXECUTE_ADDITION(RA_or_0, ZERO, XER_CA, CA_BIT_1, OE_BIT_G, RC_BIT_G),
+	  EXECUTE_ADDITION(RA, ZERO, XER_CA, CA_BIT_1, OE_BIT_G, RC_BIT_G),
 	  NULL,
 	  XO_form, 31, 202, CFLOW_NORMAL
 	},

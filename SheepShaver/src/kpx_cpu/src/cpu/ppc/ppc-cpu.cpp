@@ -113,7 +113,6 @@ void powerpc_cpu::init_flight_recorder()
 #endif
 }
 
-#if PPC_FLIGHT_RECORDER
 void powerpc_cpu::record_step(uint32 opcode)
 {
 #if PPC_FLIGHT_RECORDER
@@ -141,6 +140,7 @@ void powerpc_cpu::record_step(uint32 opcode)
 #endif
 }
 
+#if PPC_FLIGHT_RECORDER
 void powerpc_cpu::start_log()
 {
 	logging = true;
@@ -264,6 +264,16 @@ void powerpc_cpu::dump_registers()
 	fflush(stderr);
 }
 
+void powerpc_cpu::dump_instruction(uint32 opcode)
+{
+	fprintf(stderr, "[%08x]-> %08x\n", pc(), opcode);
+}
+
+void powerpc_cpu::fake_dump_registers(uint32)
+{
+	dump_registers();
+}
+
 struct execute_nothing {
 	static inline void execute(powerpc_cpu *) { }
 };
@@ -287,6 +297,10 @@ void powerpc_cpu::init_decode_cache()
 	decode_cache_end_p = decode_cache + DECODE_CACHE_MAX_ENTRIES;
 #if FLIGHT_RECORDER
 	// Leave enough room to last call to record_step()
+	decode_cache_end_p -= 2;
+#endif
+#ifdef PPC_EXECUTE_DUMP_STATE
+	// Leave enough room to last calls to dump state functions
 	decode_cache_end_p -= 2;
 #endif
 

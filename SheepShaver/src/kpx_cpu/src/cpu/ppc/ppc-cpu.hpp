@@ -203,12 +203,12 @@ public:
 
 	// Handle flight recorder
 #if PPC_FLIGHT_RECORDER
-	bool is_logging() { return logging; }
+	bool is_logging() const { return logging; }
 	void start_log();
 	void stop_log();
 	void dump_log(const char *filename = NULL);
 #else
-	bool is_logging() { return false; }
+	bool is_logging() const { return false; }
 	void start_log() { }
 	void stop_log() { }
 	void dump_log(const char *filename = NULL) { }
@@ -216,6 +216,8 @@ public:
 
 	// Dump registers
 	void dump_registers();
+	void dump_instruction(uint32 opcode);
+	void fake_dump_registers(uint32);
 
 	// Start emulation loop
 	template< class prologue, class epilogue >
@@ -260,7 +262,7 @@ private:
 	typedef powerpc_block_info block_info;
 	block_cache< block_info, lazy_allocator > block_cache;
 
-	static const uint32 DECODE_CACHE_MAX_ENTRIES = 20000;
+	static const uint32 DECODE_CACHE_MAX_ENTRIES = 32768;
 	static const uint32 DECODE_CACHE_SIZE = DECODE_CACHE_MAX_ENTRIES * sizeof(block_info::decode_info);
 	block_info::decode_info * decode_cache;
 	block_info::decode_info * decode_cache_p;
@@ -338,13 +340,17 @@ private:
 template< class prologue, class epilogue >
 inline void powerpc_cpu::do_execute()
 {
+#ifdef PPC_EXECUTE_DUMP_STATE
+	const bool dump_state = true;
+#endif
 #ifdef PPC_NO_DECODE_CACHE
 	for (;;) {
 		prologue::execute(this);
 		uint32 opcode = vm_read_memory_4(pc());
 		const instr_info_t *ii = decode(opcode);
 #ifdef PPC_EXECUTE_DUMP_STATE
-		fprintf(stderr, "[%08x]-> %08x\n", pc(), opcode);
+		if (dump_state)
+			dump_instruction(opcode);
 #endif
 #if PPC_FLIGHT_RECORDER
 		if (is_logging())
@@ -353,7 +359,8 @@ inline void powerpc_cpu::do_execute()
 		assert(ii->execute != 0);
 		(this->*(ii->execute))(opcode);
 #ifdef PPC_EXECUTE_DUMP_STATE
-		dump_registers();
+		if (dump_state)
+			dump_registers();
 #endif
 		epilogue::execute(this);
 	}
@@ -369,6 +376,12 @@ inline void powerpc_cpu::do_execute()
 		do {
 			uint32 opcode = vm_read_memory_4(dpc += 4);
 			ii = decode(opcode);
+#ifdef PPC_EXECUTE_DUMP_STATE
+			if (dump_state) {
+				di->opcode = opcode;
+				di->execute = &powerpc_cpu::dump_instruction;
+			}
+#endif
 #if PPC_FLIGHT_RECORDER
 			if (is_logging()) {
 				di->opcode = opcode;
@@ -378,7 +391,15 @@ inline void powerpc_cpu::do_execute()
 #endif
 			di->opcode = opcode;
 			di->execute = ii->execute;
-			if (++di >= decode_cache_end_p) {
+			di++;
+#ifdef PPC_EXECUTE_DUMP_STATE
+			if (dump_state) {
+				di->opcode = 0;
+				di->execute = &powerpc_cpu::fake_dump_registers;
+				di++;
+			}
+#endif
+			if (di >= decode_cache_end_p) {
 				// Invalidate cache and move current code to start
 				invalidate_cache();
 				const int blocklen = di - bi->di;
