@@ -183,9 +183,6 @@ AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(mach/vm_map.h mach/mach_init.h sys/mman.h)
 AC_CHECK_HEADERS(sys/time.h sys/times.h)
 AC_CHECK_HEADERS(unistd.h fcntl.h byteswap.h)
-AC_CHECK_HEADERS(mmintrin.h, [have_mmintrin_h=yes])
-AC_CHECK_HEADERS(xmmintrin.h, [have_xmmintrin_h=yes])
-AC_CHECK_HEADERS(emmintrin.h, [have_emmintrin_h=yes])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
@@ -728,15 +725,17 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
         else
           DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -malign-functions=0"
         fi
-        if [[ "x$have_mmintrin_h" = "xyes" ]]; then
-          DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -mmmx"
-        fi
-        if [[ "x$have_xmmintrin_h" = "xyes" ]]; then
-          DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -msse"
-        fi
-        if [[ "x$have_emmintrin_h" = "xyes" ]]; then
-          DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -msse2"
-        fi
+        saved_CPPFLAGS=$CPPFLAGS
+        CPPFLAGS="$CPPFLAGS -mmmx"
+        AC_CHECK_HEADERS(mmintrin.h,  [DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -mmmx"])
+        CPPFLAGS="$CPPFLAGS -msse"
+        AC_CHECK_HEADERS(xmmintrin.h, [DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -msse"])
+        CPPFLAGS="$CPPFLAGS -msse2"
+        AC_CHECK_HEADERS(emmintrin.h, [DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -msse2"])
+        CPPFLAGS=$saved_CPPFLAGS
+        ;;
+      x86_64)
+        AC_CHECK_HEADERS(mmintrin.h xmmintrin.h emmintrin.h)
         ;;
       esac
       DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -finline-limit=10000"

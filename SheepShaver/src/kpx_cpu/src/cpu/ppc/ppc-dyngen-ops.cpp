@@ -1334,37 +1334,43 @@ void op_store_vect_VD_T0(void)
  *		Vector operations helpers
  **/
 
-struct VNONE {
+#define VNONE op_VNONE
+struct op_VNONE {
 	typedef null_operand type;
 	static inline uint32 get(powerpc_vr const & v, int i) { return 0; }
 	static inline void set(powerpc_vr const & v, int i, uint32) { }
 };
 
-struct V16QI {
+#define V16QI op_V16QI
+struct op_V16QI {
 	typedef uint8 type;
 	static inline type get(powerpc_vr const & v, int i) { return v.b[i]; }
 	static inline void set(powerpc_vr & v, int i, type x) { v.b[i] = x; }
 };
 
-struct V8HI {
+#define V8HI op_V8HI
+struct op_V8HI {
 	typedef uint16 type;
 	static inline type get(powerpc_vr const & v, int i) { return v.h[i]; }
 	static inline void set(powerpc_vr & v, int i, type x) { v.h[i] = x; }
 };
 
-struct V4SI {
+#define V4SI op_V4SI
+struct op_V4SI {
 	typedef uint32 type;
 	static inline type get(powerpc_vr const & v, int i) { return v.w[i]; }
 	static inline void set(powerpc_vr & v, int i, type x) { v.w[i] = x; }
 };
 
-struct V2DI {
+#define V2DI op_V2DI
+struct op_V2DI {
 	typedef uint64 type;
 	static inline type get(powerpc_vr const & v, int i) { return v.j[i]; }
 	static inline void set(powerpc_vr & v, int i, type x) { v.j[i] = x; }
 };
 
-struct V4SF {
+#define V4SF op_V4SF
+struct op_V4SF {
 	typedef float type;
 	static inline type get(powerpc_vr const & v, int i) { return v.f[i]; }
 	static inline void set(powerpc_vr & v, int i, type x) { v.f[i] = x; }
@@ -1484,6 +1490,13 @@ void op_record_cr6_VD(void)
 		powerpc_dyngen_helper::cr().set(6, 0);
 	dyngen_barrier();
 }
+
+#undef VNONE
+#undef V16QI
+#undef V8HI
+#undef V4SI
+#undef V2DI
+#undef V4SF
 
 /**
  *		SSE optimizations
