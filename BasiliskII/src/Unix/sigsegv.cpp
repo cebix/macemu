@@ -221,6 +221,13 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_FAULT_HANDLER_ARGLIST_1	siginfo_t *sip, void *scp
 #define SIGSEGV_FAULT_HANDLER_ARGS		sip, scp
 #define SIGSEGV_FAULT_ADDRESS			sip->si_addr
+#if defined(__sun__)
+#if (defined(sparc) || defined(__sparc__))
+#include <sys/ucontext.h>
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[REG_PC]
+#endif
+#endif
 #if defined(__NetBSD__) || defined(__FreeBSD__)
 #if (defined(i386) || defined(__i386__))
 #define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_eip)
@@ -1192,26 +1199,37 @@ void sigsegv_set_dump_state(sigsegv_state_dumper_t handler)
 #include <sys/mman.h>
 #include "vm_alloc.h"
 
+const int REF_INDEX = 123;
+const int REF_VALUE = 45;
+
 static int page_size;
 static volatile char * page = 0;
 static volatile int handler_called = 0;
 
-static sigsegv_return_t sigsegv_test_handler(sigsegv_address_t fault_address, sigsegv_address_t instruction_address)
-{
-	handler_called++;
-	if ((fault_address - 123) != page)
-		exit(10);
-	if (vm_protect((char *)((unsigned long)fault_address & -page_size), page_size, VM_PAGE_READ | VM_PAGE_WRITE) != 0)
-		exit(11);
-	return SIGSEGV_RETURN_SUCCESS;
-}
-
-#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 #ifdef __GNUC__
 // Code range where we expect the fault to come from
 static void *b_region, *e_region;
 #endif
 
+static sigsegv_return_t sigsegv_test_handler(sigsegv_address_t fault_address, sigsegv_address_t instruction_address)
+{
+	handler_called++;
+	if ((fault_address - REF_INDEX) != page)
+		exit(10);
+#ifdef __GNUC__
+	// Make sure reported fault instruction address falls into
+	// expected code range
+	if (instruction_address != SIGSEGV_INVALID_PC
+		&& ((instruction_address <  (sigsegv_address_t)b_region) ||
+			(instruction_address >= (sigsegv_address_t)e_region)))
+		exit(11);
+#endif
+	if (vm_protect((char *)((unsigned long)fault_address & -page_size), page_size, VM_PAGE_READ | VM_PAGE_WRITE) != 0)
+		exit(12);
+	return SIGSEGV_RETURN_SUCCESS;
+}
+
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 static sigsegv_return_t sigsegv_insn_handler(sigsegv_address_t fault_address, sigsegv_address_t instruction_address)
 {
 	if (((unsigned long)fault_address - (unsigned long)page) < page_size) {
@@ -1239,15 +1257,24 @@ int main(void)
 	if ((page = (char *)vm_acquire(page_size)) == VM_MAP_FAILED)
 		return 2;
 	
+	memset((void *)page, 0, page_size);
 	if (vm_protect((char *)page, page_size, VM_PAGE_READ) < 0)
 		return 3;
 	
 	if (!sigsegv_install_handler(sigsegv_test_handler))
 		return 4;
 	
-	page[123] = 45;
-	page[123] = 45;
-	
+#ifdef __GNUC__
+	b_region = &&L_b_region1;
+	e_region = &&L_e_region1;
+#endif
+ L_b_region1:
+	page[REF_INDEX] = REF_VALUE;
+	if (page[REF_INDEX] != REF_VALUE)
+	  exit(20);
+	page[REF_INDEX] = REF_VALUE;
+ L_e_region1:
+
 	if (handler_called != 1)
 		return 5;
 
@@ -1273,17 +1300,32 @@ int main(void)
 	} while (0)
 	
 #ifdef __GNUC__
-	b_region = &&L_b_region;
-	e_region = &&L_e_region;
+	b_region = &&L_b_region2;
+	e_region = &&L_e_region2;
 #endif
- L_b_region:
+ L_b_region2:
 	TEST_SKIP_INSTRUCTION(unsigned char);
 	TEST_SKIP_INSTRUCTION(unsigned short);
 	TEST_SKIP_INSTRUCTION(unsigned int);
- L_e_region:
+ L_e_region2:
 #endif
 
 	vm_exit();
 	return 0;
 }
 #endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
