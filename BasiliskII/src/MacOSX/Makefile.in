@@ -14,6 +14,10 @@ CPPFLAGS = @CPPFLAGS@ -I../include -I. @CPUINCLUDES@
 DEFS = @DEFS@ @DEFINES@ -D_REENTRANT
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
+BLESS = @BLESS@
+IDE = @IDE@
+PROJECT = @PROJECT@
+IDEARGS = @IDEARGS@
 
 ## Files
 OBJ_DIR = build
@@ -48,10 +52,7 @@ APP = $(OBJ_DIR)/BasiliskII.app
 all: $(APP)
 
 ide: $(OBJ_DIR) $(GEN) $(SRCS)
-	open BasiliskII.xcode
-
-oldide: $(OBJ_DIR) $(GEN) $(SRCS)
-	open BasiliskII.pbproj
+	open $(PROJECT)
 
 test: $(APP)
 	open $(APP)
@@ -61,10 +62,9 @@ $(OBJ_DIR)::
 
 
 $(APP): $(OBJ_DIR) $(GEN) $(SRCS)
-	xcodebuild -buildstyle Deployment \
-		-project BasiliskII.xcode || rm -fr $(APP)
-#	pbxbuild -buildstyle Deployment	|| rm -fr $(APP)
-#	pbxbuild			|| rm -fr $(APP)
+	$(IDE) -buildstyle Deployment $(IDEARGS) \
+		&& $(BLESS) $(APP)/Contents/MacOS/BasiliskII \
+		|| rm -fr $(APP)
 
 BasiliskII.icns :
 	touch $@
