@@ -41,6 +41,7 @@ prefs_desc platform_prefs_items[] = {
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 	{"ignoresegv", TYPE_BOOLEAN, false,    "ignore illegal memory accesses"},
 #endif
+	{"enableextfs", TYPE_BOOLEAN, false,   "enable extfs system"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
@@ -112,4 +113,5 @@ void AddPlatformPrefsDefaults(void)
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 	PrefsAddBool("ignoresegv", false);
 #endif
+	PrefsReplaceBool("enableextfs", false);
 }
