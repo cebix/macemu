@@ -242,97 +242,13 @@ void powerpc_cpu::dump_registers()
 	fflush(stderr);
 }
 
+struct execute_nothing {
+	static inline void execute(powerpc_cpu *) { }
+};
+
 void powerpc_cpu::execute()
 {
-#ifdef PPC_NO_DECODE_CACHE
-	for (;;) {
-		uint32 opcode = vm_read_memory_4(pc());
-		const instr_info_t *ii = decode(opcode);
-//		D(bug("[%08x]-> %08x: %s\n", pc(), opcode, ii->name));
-#ifdef PPC_EXECUTE_DUMP_STATE
-		fprintf(stderr, "[%08x]-> %08x\n", pc(), opcode);
-#endif
-		if (logging)
-			record_step(opcode);
-		assert(ii->execute != NULL);
-		(this->*(ii->execute))(opcode);
-#ifdef PPC_EXECUTE_DUMP_STATE
-		dump_registers();
-#endif
-	}
-#else
-	for (;;) {
-		block_info *bi = block_cache.new_blockinfo();
-		bi->init(pc());
-
-		// Predecode a new block
-		block_info::decode_info *di = bi->di = decode_cache_p;
-		const instr_info_t *ii;
-		uint32 dpc = pc() - 4;
-		do {
-			uint32 opcode = vm_read_memory_4(dpc += 4);
-			ii = decode(opcode);
-			di->opcode = opcode;
-			di->execute = ii->execute;
-			if (++di >= decode_cache_end_p) {
-				// Invalidate cache and move current code to start
-				invalidate_cache();
-				const int blocklen = di - bi->di;
-				memmove(decode_cache_p, bi->di, blocklen * sizeof(*di));
-				bi->di = decode_cache_p;
-				di = bi->di + blocklen;
-			}
-		} while ((ii->cflow & CFLOW_END_BLOCK) == 0);
-#ifdef PPC_LAZY_PC_UPDATE
-		bi->end_pc = dpc;
-#endif
-		bi->size = di - bi->di;
-//		bi->count = 10;
-		block_cache.add_to_cl_list(bi);
-		block_cache.add_to_active_list(bi);
-		decode_cache_p += bi->size;
-
-		// Execute all cached blocks
-		for (;;) {
-#ifdef PPC_LAZY_PC_UPDATE
-			pc() = bi->end_pc;
-#endif
-			di = bi->di;
-#ifdef PPC_NO_DECODE_CACHE_UNROLL_EXECUTE
-			for (int i = 0; i < bi->size; i++)
-				(this->*(di[i].execute))(di[i].opcode);
-#else
-			const int r = bi->size % 4;
-			switch (r) {
-			case 3: (this->*(di->execute))(di->opcode); di++;
-			case 2: (this->*(di->execute))(di->opcode); di++;
-			case 1: (this->*(di->execute))(di->opcode); di++;
-			case 0: break;
-			}
-			const int n = bi->size / 4;
-			for (int i = 0; i < n; i++) {
-				(this->*(di[0].execute))(di[0].opcode);
-				(this->*(di[1].execute))(di[1].opcode);
-				(this->*(di[2].execute))(di[2].opcode);
-				(this->*(di[3].execute))(di[3].opcode);
-				di += 4;
-			}
-#endif
-
-			if (0 && --bi->count <= 0) {
-#if ENABLE_MON
-				printf("Recompile block: %08x (%d insns)\n", bi->pc, bi->size);
-				uint32 dpc = bi->pc;
-				for (int i = 0; i < bi->size; i++, dpc += 4)
-					disass_ppc(stdout, dpc, bi->di[i].opcode);
-#endif
-				bi->count = 0x7fffffff;
-			}
-			if ((bi->pc != pc()) && ((bi = block_cache.find(pc())) == NULL))
-				break;
-		}
-	}
-#endif
+	do_execute<execute_nothing, execute_nothing>();
 }
 
 void powerpc_cpu::init_decode_cache()
