@@ -60,7 +60,6 @@ static int audio_channel_count_index = 0;
 // Global variables
 static int audio_fd = -1;							// fd of /dev/dsp or ESD
 static int mixer_fd = -1;							// fd of /dev/mixer
-static bool formats_known = false;					// Flag: available audio formats have been probed
 static sem_t audio_irq_done_sem;					// Signal from interrupt to streaming thread: data block read
 static bool sem_inited = false;						// Flag: audio_irq_done_sem initialized
 static int sound_buffer_size;						// Size of sound buffer in bytes
@@ -100,7 +99,7 @@ static bool open_dsp(void)
 	printf("Using " DSP_NAME " audio output\n");
 
 	// Get supported sample formats
-	if (!formats_known) {
+	if (audio_sample_sizes.empty()) {
 		unsigned long format;
 		ioctl(audio_fd, SNDCTL_DSP_GETFMTS, &format);
 		if (format & AFMT_U8)
@@ -133,7 +132,6 @@ static bool open_dsp(void)
 		audio_sample_rate_index = audio_sample_rates.size() - 1;
 		audio_sample_size_index = audio_sample_sizes.size() - 1;
 		audio_channel_count_index = audio_channel_counts.size() - 1;
-		formats_known = true;
 	}
 
 	// Set DSP parameters
@@ -172,33 +170,27 @@ static bool open_dsp(void)
 static bool open_esd(void)
 {
 #ifdef ENABLE_ESD
-	// ESD supports a variety of audio formats
-	if (!formats_known) {
-		audio_sample_rates.push_back(11025 << 16);
-		audio_sample_rates.push_back(22050 << 16);
-		audio_sample_rates.push_back(44100 << 16);
-		audio_sample_sizes.push_back(8);
-		audio_sample_sizes.push_back(16);
-		audio_channel_counts.push_back(1);
-		audio_channel_counts.push_back(2);
-
-		// Default to 44.1kHz, 16-bit, stereo
-		audio_sample_rate_index = 2;
-		audio_sample_size_index = 1;
-		audio_channel_count_index = 1;
-		formats_known = true;
-	}
-
-	// ESD audio format
+	int rate;
 	esd_format_t format = ESD_STREAM | ESD_PLAY;
-	if (audio_sample_sizes[audio_sample_size_index] == 8)
-		format |= ESD_BITS8;
-	else
-		format |= ESD_BITS16;
-	if (audio_channel_counts[audio_channel_count_index] == 1)
-		format |= ESD_MONO;
-	else
-		format |= ESD_STEREO;
+
+	if (audio_sample_sizes.empty()) {
+
+		// Default values
+		rate = 44100;
+		format |= (ESD_BITS16 | ESD_STEREO);
+
+	} else {
+
+		rate = audio_sample_rates[audio_sample_rate_index] >> 16;
+		if (audio_sample_sizes[audio_sample_size_index] == 8)
+			format |= ESD_BITS8;
+		else
+			format |= ESD_BITS16;
+		if (audio_channel_counts[audio_channel_count_index] == 1)
+			format |= ESD_MONO;
+		else
+			format |= ESD_STEREO;
+	}
 
 #if WORDS_BIGENDIAN
 	little_endian = false;
@@ -208,14 +200,33 @@ static bool open_esd(void)
 	silence_byte = 0;	// Is this correct for 8-bit mode?
 
 	// Open connection to ESD server
-	audio_fd = esd_play_stream(format, audio_sample_rates[audio_sample_rate_index] >> 16, NULL, NULL);
+	audio_fd = esd_play_stream(format, rate, NULL, NULL);
 	if (audio_fd < 0) {
 		fprintf(stderr, "WARNING: Cannot open ESD connection\n");
-		formats_known = false;
 		return false;
 	}
 
 	printf("Using ESD audio output\n");
+
+	// ESD supports a variety of twisted little audio formats, all different
+	if (audio_sample_sizes.empty()) {
+
+		// The reason we do this here is that we don't want to add sample
+		// rates etc. unless the ESD server connection could be opened
+		// (if ESD fails, /dev/dsp might be tried next)
+		audio_sample_rates.push_back(11025 << 16);
+		audio_sample_rates.push_back(22050 << 16);
+		audio_sample_rates.push_back(44100 << 16);
+		audio_sample_sizes.push_back(8);
+		audio_sample_sizes.push_back(16);
+		audio_channel_counts.push_back(1);
+		audio_channel_counts.push_back(2);
+
+		// Default to highest supported values
+		audio_sample_rate_index = audio_sample_rates.size() - 1;
+		audio_sample_size_index = audio_sample_sizes.size() - 1;
+		audio_channel_count_index = audio_channel_counts.size() - 1;
+	}
 
 	// Sound buffer size = 4096 frames
 	audio_frames_per_block = 4096;
