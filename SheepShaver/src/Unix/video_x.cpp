@@ -1696,7 +1696,7 @@ void NQD_invrect(uint32 p)
 	// And perform the inversion
 	const int bpp = bytes_per_pixel(ReadMacInt32(p + acclDestPixelSize));
 	const int dest_row_bytes = (int32)ReadMacInt32(p + acclDestRowBytes);
-	uint8 *dest = (uint8 *)(ReadMacInt32(p + acclDestBaseAddr) + (dest_Y * dest_row_bytes) + (dest_X * bpp));
+	uint8 *dest = Mac2HostAddr(ReadMacInt32(p + acclDestBaseAddr) + (dest_Y * dest_row_bytes) + (dest_X * bpp));
 	width *= bpp;
 	switch (bpp) {
 	case 1:
@@ -1806,7 +1806,7 @@ void NQD_fillrect(uint32 p)
 	// And perform the fill
 	const int bpp = bytes_per_pixel(ReadMacInt32(p + acclDestPixelSize));
 	const int dest_row_bytes = (int32)ReadMacInt32(p + acclDestRowBytes);
-	uint8 *dest = (uint8 *)(ReadMacInt32(p + acclDestBaseAddr) + (dest_Y * dest_row_bytes) + (dest_X * bpp));
+	uint8 *dest = Mac2HostAddr(ReadMacInt32(p + acclDestBaseAddr) + (dest_Y * dest_row_bytes) + (dest_X * bpp));
 	width *= bpp;
 	switch (bpp) {
 	case 1:
@@ -1874,8 +1874,8 @@ void NQD_bitblt(uint32 p)
 	if ((int32)ReadMacInt32(p + acclSrcRowBytes) > 0) {
 		const int src_row_bytes = (int32)ReadMacInt32(p + acclSrcRowBytes);
 		const int dst_row_bytes = (int32)ReadMacInt32(p + acclDestRowBytes);
-		uint8 *src = (uint8 *)ReadMacInt32(p + acclSrcBaseAddr) + (src_Y * src_row_bytes) + (src_X * bpp);
-		uint8 *dst = (uint8 *)ReadMacInt32(p + acclDestBaseAddr) + (dest_Y * dst_row_bytes) + (dest_X * bpp);
+		uint8 *src = Mac2HostAddr(ReadMacInt32(p + acclSrcBaseAddr) + (src_Y * src_row_bytes) + (src_X * bpp));
+		uint8 *dst = Mac2HostAddr(ReadMacInt32(p + acclDestBaseAddr) + (dest_Y * dst_row_bytes) + (dest_X * bpp));
 		for (int i = 0; i < height; i++) {
 			memcpy(dst, src, width);
 			src += src_row_bytes;
@@ -1885,8 +1885,8 @@ void NQD_bitblt(uint32 p)
 	else {
 		const int src_row_bytes = -(int32)ReadMacInt32(p + acclSrcRowBytes);
 		const int dst_row_bytes = -(int32)ReadMacInt32(p + acclDestRowBytes);
-		uint8 *src = (uint8 *)ReadMacInt32(p + acclSrcBaseAddr) + ((src_Y + height - 1) * src_row_bytes) + (src_X * bpp);
-		uint8 *dst = (uint8 *)ReadMacInt32(p + acclDestBaseAddr) + ((dest_Y + height - 1) * dst_row_bytes) + (dest_X * bpp);
+		uint8 *src = Mac2HostAddr(ReadMacInt32(p + acclSrcBaseAddr) + ((src_Y + height - 1) * src_row_bytes) + (src_X * bpp));
+		uint8 *dst = Mac2HostAddr(ReadMacInt32(p + acclDestBaseAddr) + ((dest_Y + height - 1) * dst_row_bytes) + (dest_X * bpp));
 		for (int i = height - 1; i >= 0; i--) {
 			memcpy(dst, src, width);
 			src -= src_row_bytes;

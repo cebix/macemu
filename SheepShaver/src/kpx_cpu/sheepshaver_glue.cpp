@@ -225,14 +225,14 @@ void sheepshaver_cpu::init_decoder()
 static void NativeOp(int selector);
 
 /*		NativeOp instruction format:
-		+------------+--------------------------+--+----------+------------+
-		|      6     |                          |FN|    OP    |      2     |
-		+------------+--------------------------+--+----------+------------+
-		 0         5 |6                       19 20 21      25 26        31
+		+------------+-------------------------+--+-----------+------------+
+		|      6     |                         |FN|    OP     |      2     |
+		+------------+-------------------------+--+-----------+------------+
+		 0         5 |6                      18 19 20      25 26        31
 */
 
-typedef bit_field< 20, 20 > FN_field;
-typedef bit_field< 21, 25 > NATIVE_OP_field;
+typedef bit_field< 19, 19 > FN_field;
+typedef bit_field< 20, 25 > NATIVE_OP_field;
 typedef bit_field< 26, 31 > EMUL_OP_field;
 
 // Execute EMUL_OP routine
@@ -360,6 +360,21 @@ bool sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 			dg.gen_se_16_32_T1();
 			dg.gen_load_T2_GPR(5);
 			dg.gen_invoke_T0_T1_T2((void (*)(uint32, uint32, uint32))check_load_invoc);
+			compiled = true;
+			break;
+		case NATIVE_BITBLT:
+			dg.gen_load_T0_GPR(3);
+			dg.gen_invoke_T0((void (*)(uint32))NQD_bitblt);
+			compiled = true;
+			break;
+		case NATIVE_INVRECT:
+			dg.gen_load_T0_GPR(3);
+			dg.gen_invoke_T0((void (*)(uint32))NQD_invrect);
+			compiled = true;
+			break;
+		case NATIVE_FILLRECT:
+			dg.gen_load_T0_GPR(3);
+			dg.gen_invoke_T0((void (*)(uint32))NQD_fillrect);
 			compiled = true;
 			break;
 		}
