@@ -8,7 +8,6 @@ exec_prefix=@exec_prefix@
 bindir=$(exec_prefix)/bin
 sharedir=$(prefix)/share/BasiliskII
 mandir=$(prefix)/man
-docdir=$(prefix)/doc/BasiliskII
 
 CC = @CC@
 CXX = @CXX@
@@ -61,7 +60,13 @@ modules:
 install: $(APP)
 	$(INSTALL_PROGRAM) BasiliskII $(bindir)/
 	$(INSTALL_DATA) BasiliskII.1 $(mandir)/man1/
-	$(INSTALL_DATA) keycodes $(sharedir)/
+	$(INSTALL) -d $(sharedir)
+	$(INSTALL_DATA) keycodes $(sharedir)
+
+uninstall:
+	-rm -f $(bindir)/BasiliskII
+	-rm -f $(mandir)/man1/BasiliskII.1
+	-rm -rf $(sharedir)
 
 clean:
 	-rm -f $(OBJ_DIR)/* core* *.core *~ *.bak

@@ -581,7 +581,7 @@ void SysAllowRemoval(void *arg)
 	if (!fh)
 		return;
 
-#ifdef defined(__linux__) && defined(CDROM_LOCKDOOR)
+#if defined(__linux__) && defined(CDROM_LOCKDOOR)
 	if (fh->is_cdrom)
 		ioctl(fh->fd, CDROM_LOCKDOOR, 0);	
 #endif
