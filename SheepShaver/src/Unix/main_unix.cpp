@@ -612,6 +612,55 @@ int main(int argc, char **argv)
 #else
 	proc_file = fopen("/proc/cpuinfo", "r");
 	if (proc_file) {
+		// CPU specs from Linux kernel
+		// TODO: make it more generic with features (e.g. AltiVec) and
+		// cache information and friends for NameRegistry
+		static const struct {
+			uint32 pvr_mask;
+			uint32 pvr_value;
+			const char *cpu_name;
+		}
+		cpu_specs[] = {
+			{ 0xffff0000, 0x00010000, "601" },
+			{ 0xffff0000, 0x00030000, "603" },
+			{ 0xffff0000, 0x00060000, "603e" },
+			{ 0xffff0000, 0x00070000, "603ev" },
+			{ 0xffff0000, 0x00040000, "604" },
+			{ 0xfffff000, 0x00090000, "604e" },
+			{ 0xffff0000, 0x00090000, "604r" },
+			{ 0xffff0000, 0x000a0000, "604ev" },
+			{ 0xffffffff, 0x00084202, "740/750" },
+			{ 0xfffff000, 0x00083000, "745/755" },
+			{ 0xfffffff0, 0x00080100, "750CX" },
+			{ 0xfffffff0, 0x00082200, "750CX" },
+			{ 0xfffffff0, 0x00082210, "750CXe" },
+			{ 0xffffff00, 0x70000100, "750FX" },
+			{ 0xffffffff, 0x70000200, "750FX" },
+			{ 0xffff0000, 0x70000000, "750FX" },
+			{ 0xffff0000, 0x70020000, "750GX" },
+			{ 0xffff0000, 0x00080000, "740/750" },
+			{ 0xffffffff, 0x000c1101, "7400 (1.1)" },
+			{ 0xffff0000, 0x000c0000, "7400" },
+			{ 0xffff0000, 0x800c0000, "7410" },
+			{ 0xffffffff, 0x80000200, "7450" },
+			{ 0xffffffff, 0x80000201, "7450" },
+			{ 0xffff0000, 0x80000000, "7450" },
+			{ 0xffffff00, 0x80010100, "7455" },
+			{ 0xffffffff, 0x80010200, "7455" },
+			{ 0xffff0000, 0x80010000, "7455" },
+			{ 0xffff0000, 0x80020000, "7457" },
+			{ 0xffff0000, 0x80030000, "7447A" },
+			{ 0x7fff0000, 0x00810000, "82xx" },
+			{ 0x7fff0000, 0x00820000, "8280" },
+			{ 0xffff0000, 0x00400000, "Power3 (630)" },
+			{ 0xffff0000, 0x00410000, "Power3 (630+)" },
+			{ 0xffff0000, 0x00360000, "I-star" },
+			{ 0xffff0000, 0x00370000, "S-star" },
+			{ 0xffff0000, 0x00350000, "Power4" },
+			{ 0xffff0000, 0x00390000, "PPC970" },
+			{ 0, 0, 0 }
+		};
+
 		char line[256];
 		while(fgets(line, 255, proc_file)) {
 			// Read line
@@ -624,42 +673,19 @@ int main(int argc, char **argv)
 			int i;
 			char value[256];
 			if (sscanf(line, "cpu : %[0-9A-Za-a]", value) == 1) {
-				if (strcmp(value, "601") == 0)
-					PVR = 0x00010000;
-				else if (strcmp(value, "603") == 0)
-					PVR = 0x00030000;
-				else if (strcmp(value, "604") == 0)
-					PVR = 0x00040000;
-				else if (strcmp(value, "603e") == 0)
-					PVR = 0x00060000;
-				else if (strcmp(value, "603ev") == 0)
-					PVR = 0x00070000;
-				else if (strcmp(value, "604e") == 0)
-					PVR = 0x00090000;
-				else if (strcmp(value, "604ev5") == 0)
-					PVR = 0x000a0000;
-				else if (strcmp(value, "750") == 0)
-					PVR = 0x00080000;
-				else if (strcmp(value, "750FX") == 0)
-					PVR = 0x70000000;
-				else if (strcmp(value, "821") == 0)
-					PVR = 0x00320000;
-				else if (strcmp(value, "860") == 0)
-					PVR = 0x00500000;
-				else if (strcmp(value, "7400") == 0)
-					PVR = 0x000c0000;
-				else if (strcmp(value, "7410") == 0)
-					PVR = 0x800c0000;
-				else if (strcmp(value, "7450") == 0)
-					PVR = 0x80000000;
-				else if (strcmp(value, "7455") == 0)
-					PVR = 0x80010000;
-				else if (strcmp(value, "7457") == 0)
-					PVR = 0x80020000;
-				else if (strcmp(value, "PPC970") == 0)
-					PVR = 0x00390000;
-				else
+				// Search by name
+				const char *cpu_name = NULL;
+				for (int i = 0; cpu_specs[i].pvr_mask != 0; i++) {
+					if (strcmp(cpu_specs[i].cpu_name, value) == 0) {
+						cpu_name = cpu_specs[i].cpu_name;
+						PVR = cpu_specs[i].pvr_value;
+						break;
+					}
+				}
+				if (cpu_name == NULL)
 					printf("WARNING: Unknown CPU type '%s', assuming 604\n", value);
+				else
+					printf("Found a PowerPC %s processor\n", cpu_name);
 			}
 			if (sscanf(line, "clock : %dMHz", &i) == 1)
 				CPUClockSpeed = BusClockSpeed = i * 1000000;
