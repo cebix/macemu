@@ -379,14 +379,45 @@ bool extfs_remove(const char *path)
 	make_helper_path(path, helper_path, ".rsrc/", false);
 	remove(helper_path);
 
-	// Now remove file or directory
+	// Now remove file or directory (and helper directories in the directory)
 	if (remove(path) < 0) {
-		if (errno == EISDIR)
+		if (errno == EISDIR || errno == ENOTEMPTY) {
+			helper_path[0] = 0;
+			strncpy(helper_path, path, MAX_PATH_LENGTH-1);
+			add_path_component(helper_path, ".finf");
+			rmdir(helper_path);
+			helper_path[0] = 0;
+			strncpy(helper_path, path, MAX_PATH_LENGTH-1);
+			add_path_component(helper_path, ".rsrc");
+			rmdir(helper_path);
 			return rmdir(path) == 0;
-		else
+		} else
 			return false;
 	}
 	return true;
+}
+
+
+/*
+ *  Rename/move file/directory (and associated helper files),
+ *  returns false on error (and sets errno)
+ */
+
+bool extfs_rename(const char *old_path, const char *new_path)
+{
+	// Rename helpers first, don't complain if this fails
+	char old_helper_path[MAX_PATH_LENGTH], new_helper_path[MAX_PATH_LENGTH];
+	make_helper_path(old_path, old_helper_path, ".finf/", false);
+	make_helper_path(new_path, new_helper_path, ".finf/", false);
+	create_helper_dir(new_path, ".finf/");
+	rename(old_helper_path, new_helper_path);
+	make_helper_path(old_path, old_helper_path, ".rsrc/", false);
+	make_helper_path(new_path, new_helper_path, ".rsrc/", false);
+	create_helper_dir(new_path, ".rsrc/");
+	rename(old_helper_path, new_helper_path);
+
+	// Now rename file
+	return rename(old_path, new_path) == 0;
 }
 
 

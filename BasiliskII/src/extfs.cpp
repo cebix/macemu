@@ -1933,7 +1933,7 @@ static int16 fs_rename(uint32 pb, uint32 dirID)
 
 	// Rename item
 	D(bug("  renaming %s -> %s\n", old_path, full_path));
-	if (rename(old_path, full_path) < 0)
+	if (!extfs_rename(old_path, full_path))
 		return errno2oserr();
 	else {
 		// The ID of the old file/dir has to stay the same, so we swap the IDs of the FSItems
@@ -1976,7 +1976,7 @@ static int16 fs_cat_move(uint32 pb)
 
 	// Move item
 	D(bug("  moving %s -> %s\n", old_path, full_path));
-	if (rename(old_path, full_path) < 0)
+	if (!extfs_rename(old_path, full_path))
 		return errno2oserr();
 	else {
 		// The ID of the old file/dir has to stay the same, so we swap the IDs of the FSItems

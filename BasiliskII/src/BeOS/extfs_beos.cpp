@@ -471,3 +471,13 @@ bool extfs_remove(const char *path)
 	}
 	return true;
 }
+
+
+/*
+ *  Rename/move file/directory, returns false on error (and sets errno)
+ */
+
+bool extfs_rename(const char *old_path, const char *new_path)
+{
+	return rename(old_path, new_path) == 0;
+}
