@@ -1,7 +1,7 @@
 /*
  *  video_vosf.h - Video/graphics emulation, video on SEGV signals support
  *
- *  Basilisk II (C) 1997-2000 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -45,198 +45,6 @@ static void * allocate_framebuffer(uint32 size, uint8 * hint = 0)
 
 
 /*
- *	Screen depth identification
- */
-
-enum {
-	ID_DEPTH_UNKNOWN = -1,
-	ID_DEPTH_1,
-	ID_DEPTH_8,
-	ID_DEPTH_15,
-	ID_DEPTH_16,
-	ID_DEPTH_24,
-	ID_DEPTH_32 = ID_DEPTH_24,
-	ID_DEPTH_COUNT
-};
-
-static int depth_id(int depth)
-{
-	int id;
-	switch (depth) {
-		case 1	: id = ID_DEPTH_1;	break;
-		case 8	: id = ID_DEPTH_8;	break;
-		case 15	: id = ID_DEPTH_15;	break;
-		case 16	: id = ID_DEPTH_16;	break;
-		case 24	: id = ID_DEPTH_24;	break;
-		case 32	: id = ID_DEPTH_32;	break;
-		default	: id = ID_DEPTH_UNKNOWN;
-	}
-	return id;
-}
-
-
-/*
- *	Frame buffer copy function templates
- */
-
-// No conversion required
-
-#define MEMCPY_PROFITABLE
-#ifdef MEMCPY_PROFITABLE
-static void do_fbcopy_raw(uint8 * dest, const uint8 * source, uint32 length)
-{
-	memcpy(dest, source, length);
-}
-#else
-#define FB_BLIT_1(dst, src)	(dst = (src))
-#define FB_BLIT_2(dst, src)	(dst = (src))
-#define FB_DEPTH			0
-#define FB_FUNC_NAME		do_fbcopy_raw
-#include "video_blit.h"
-#endif
-
-
-// RGB 555
-
-#ifdef WORDS_BIGENDIAN
-# define FB_FUNC_NAME do_fbcopy_15_obo
-#else
-# define FB_FUNC_NAME do_fbcopy_15_nbo
-#endif
-
-#define FB_BLIT_1(dst, src) \
-	(dst = (((src) >> 8) & 0xff) | (((src) & 0xff) << 8))
-	
-#define FB_BLIT_2(dst, src) \
-	(dst = (((src) >> 8) & 0x00ff00ff) | (((src) & 0x00ff00ff) << 8))
-
-#define	FB_DEPTH 15
-#include "video_blit.h"
-
-
-// RGB 565
-
-#ifdef WORDS_BIGENDIAN
-
-// native byte order
-
-#define FB_BLIT_1(dst, src) \
-	(dst = (((src) & 0x1f) | (((src) << 1) & 0xffc0)))
-
-#define FB_BLIT_2(dst, src) \
-	(dst = (((src) & 0x001f001f) | (((src) << 1) & 0xffc0ffc0)))
-
-#define FB_DEPTH 16
-#define FB_FUNC_NAME do_fbcopy_16_nbo
-#include "video_blit.h"
-
-// opposite byte order
-
-#define FB_BLIT_1(dst, src) \
-	(dst = ((((src) >> 7) & 0xff) | (((src) << 9) & 0xc000) | (((src) << 8) & 0x1f00)))
-
-#define FB_BLIT_2(dst, src) \
-	(dst = ((((src) >> 7) & 0x00ff00ff) | (((src) << 9) & 0xc000c000) | (((src) << 8) & 0x1f001f00)))
-
-#define FB_DEPTH 16
-#define FB_FUNC_NAME do_fbcopy_16_obo
-#include "video_blit.h"
-
-#else
-
-// native byte order
-
-#define FB_BLIT_1(dst, src) \
-	(dst = (((src) >> 8) & 0x001f) | (((src) << 9) & 0xfe00) | (((src) >> 7) & 0x01c0))
-	
-#define FB_BLIT_2(dst, src) \
-	(dst = (((src) >> 8) & 0x001f001f) | (((src) << 9) & 0xfe00fe00) | (((src) >> 7) & 0x01c001c0))
-
-#define FB_DEPTH 16
-#define FB_FUNC_NAME do_fbcopy_16_nbo
-#include "video_blit.h"
-
-// opposite byte order (untested)
-
-#define FB_BLIT_1(dst, src) \
-	(dst = (((src) & 0x1f00) | (((src) << 1) & 0xe0fe) | (((src) >> 15) & 1)))
-
-#define FB_BLIT_2(dst, src) \
-	(dst = (((src) & 0x1f001f00) | (((src) << 1) & 0xe0fee0fe) | (((src) >> 15) & 0x10001)))
-
-#define FB_DEPTH 16
-#define FB_FUNC_NAME do_fbcopy_16_obo
-#include "video_blit.h"
-
-#endif
-
-// RGB 888
-
-#ifdef WORDS_BIGENDIAN
-# define FB_FUNC_NAME do_fbcopy_24_obo
-#else
-# define FB_FUNC_NAME do_fbcopy_24_nbo
-#endif
-
-#define FB_BLIT_1(dst, src) \
-	(dst = (src))
-
-#define FB_BLIT_2(dst, src) \
-	(dst = (((src) >> 24) & 0xff) | (((src) >> 8) & 0xff00) | (((src) & 0xff00) << 8) | (((src) & 0xff) << 24))
-
-#define FB_DEPTH 24
-#include "video_blit.h"
-
-
-/*
- *	Frame buffer copy functions map table
- */
-
-typedef void (*fbcopy_func)(uint8 *, const uint8 *, uint32);
-static fbcopy_func do_update_framebuffer;
-
-#define FBCOPY_FUNC(aHandler) do_ ## aHandler
-
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
-#define WD(X) { FBCOPY_FUNC(X), FBCOPY_FUNC(X) }
-#else
-#define WD(X) { FBCOPY_FUNC(fbcopy_raw), FBCOPY_FUNC(fbcopy_raw) }
-#endif
-
-// fb_copy_funcs[depth_id][native_byte_order][dga_mode]
-// NT  : not tested
-// OK  : has been successfully tested
-// NBO : native byte order (X server vs. client)
-// OBO : opposite byte order (X server vs. client)
-static fbcopy_func fbcopy_funcs[ID_DEPTH_COUNT][2][2] = {
-#ifdef WORDS_BIGENDIAN
-				/*	opposite byte order		native byte order	*/
-/*  1 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_raw)		},	// NT
-/*  8 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_raw)		},	// OK (NBO)
-/* 15 bpp */	{	WD(fbcopy_15_obo)	,	WD(fbcopy_raw)		},	// OK (OBO)
-/* 16 bpp */	{	WD(fbcopy_16_obo)	,	WD(fbcopy_16_nbo)	},	// OK (OBO)
-/* 24 bpp */	{	WD(fbcopy_24_obo)	,	WD(fbcopy_raw)		}	// OK (OBO)
-#else
-				/*	opposite byte order		native byte order	*/
-/*  1 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_raw)		},	// NT
-/*  8 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_raw)		},	// OK (NBO)
-/* 15 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_15_nbo)	},	// OK (NBO)
-/* 16 bpp */	{	WD(fbcopy_16_obo)	,	WD(fbcopy_16_nbo)	},	// OK (NBO)
-/* 24 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_24_nbo)	}	// OK (NBO)
-#endif
-};
-
-#undef WD
-
-#define FBCOPY_FUNC_ERROR \
-	ErrorAlert("Invalid screen depth")
-
-#define GET_FBCOPY_FUNC(aDepth, aNativeByteOrder, aDisplay) \
-	((depth_id(aDepth) == ID_DEPTH_UNKNOWN) ? ( FBCOPY_FUNC_ERROR, (fbcopy_func)0 ) : \
-	fbcopy_funcs[depth_id(aDepth)][(aNativeByteOrder)][(aDisplay) == DISPLAY_DGA ? 1 : 0])
-
-
-/*
  *	Screen fault handler
  */
 
@@ -254,6 +62,7 @@ static inline void do_handle_screen_fault(uintptr addr, uintptr pc = INVALID_PC)
 		LOCK_VOSF;
 		PFLAG_SET(page);
 		mprotect(page_ad, mainBuffer.pageSize, PROT_READ | PROT_WRITE);
+		mainBuffer.dirty = true;
 		UNLOCK_VOSF;
 		return;
 	}
@@ -350,6 +159,10 @@ static bool Screen_fault_handler_init()
  *	Update display for Windowed mode and VOSF
  */
 
+// From video_blit.cpp
+extern void (*Screen_blit)(uint8 * dest, const uint8 * source, uint32 length);
+extern bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order);
+
 /*	How can we deal with array overrun conditions ?
 	
 	The state of the framebuffer pages that have been touched are maintained
@@ -364,12 +177,12 @@ Terminology
 
 Rough process
 	
-	The update routines must determine which pages have to blitted to the
+	The update routines must determine which pages have to be blitted to the
 	screen. This job consists in finding the first_page that was touched.
 	i.e. find the next page that is SET. Then, finding how many pages were
 	touched starting from first_page. i.e. find the next page that is CLEAR.
 
-Two cases
+There are two cases to check:
 
 	- Last Page is CLEAR: find_next_page_set() will reach the SET Page Guard
 	but it is beyond the valid pageCount value. Therefore, we exit from the
@@ -441,7 +254,7 @@ static inline void update_display_window_vosf(void)
 			// Update the_host_buffer and copy of the_buffer
 			i = y1 * bytes_per_row + (x1 >> 3);
 			for (j = y1; j <= y2; j++) {
-				do_update_framebuffer(the_host_buffer + i, the_buffer + i, width >> 3);
+				Screen_blit(the_host_buffer + i, the_buffer + i, width >> 3);
 				memcpy(the_buffer_copy + i, the_buffer + i, width >> 3);
 				i += bytes_per_row;
 			}
@@ -478,7 +291,7 @@ static inline void update_display_window_vosf(void)
 			// Update the_host_buffer and copy of the_buffer
 			i = y1 * bytes_per_row + x1 * bytes_per_pixel;
 			for (j = y1; j <= y2; j++) {
-				do_update_framebuffer(the_host_buffer + i, the_buffer + i, bytes_per_pixel * width);
+				Screen_blit(the_host_buffer + i, the_buffer + i, bytes_per_pixel * width);
 				memcpy(the_buffer_copy + i, the_buffer + i, bytes_per_pixel * width);
 				i += bytes_per_row;
 			}
@@ -489,6 +302,7 @@ static inline void update_display_window_vosf(void)
 		else
 			XPutImage(x_display, the_win, the_gc, img, x1, y1, x1, y1, width, height);
 	}
+	mainBuffer.dirty = false;
 }
 
 
@@ -555,11 +369,12 @@ static inline void update_display_dga_vosf(void)
 		const int width = x2 - x1 + 1;
 		i = y1 * bytes_per_row + x1 * bytes_per_pixel;
 		for (j = y1; j <= y2; j++) {
-			do_update_framebuffer(the_host_buffer + i, the_buffer + i, bytes_per_pixel * width);
+			Screen_blit(the_host_buffer + i, the_buffer + i, bytes_per_pixel * width);
 			memcpy(the_buffer_copy + i, the_buffer + i, bytes_per_pixel * width);
 			i += bytes_per_row;
 		}
 	}
+	mainBuffer.dirty = false;
 }
 #endif
 

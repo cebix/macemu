@@ -1,7 +1,7 @@
 /*
  *  video_x.cpp - Video/graphics emulation, X11 specific stuff
  *
- *  Basilisk II (C) 1997-2000 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -197,6 +197,7 @@ struct ScreenInfo {
     int pageBits;				// Shift count to get the page number
     uint32 pageCount;			// Number of pages allocated to the screen
     
+	bool dirty;					// Flag: set if the frame buffer was touched
     char * dirtyPages;			// Table of flags set if page was altered
     ScreenPageInfo * pageInfo;	// Table of mappings page -> Mac scanlines
 };
@@ -234,11 +235,15 @@ static ScreenInfo mainBuffer;
 	memset(mainBuffer.dirtyPages + (first_page), PFLAG_CLEAR_VALUE, \
 		(last_page) - (first_page))
 
-#define PFLAG_SET_ALL \
-	PFLAG_SET_RANGE(0, mainBuffer.pageCount)
+#define PFLAG_SET_ALL do { \
+	PFLAG_SET_RANGE(0, mainBuffer.pageCount); \
+	mainBuffer.dirty = true; \
+} while (0)
 
-#define PFLAG_CLEAR_ALL \
-	PFLAG_CLEAR_RANGE(0, mainBuffer.pageCount)
+#define PFLAG_CLEAR_ALL do { \
+	PFLAG_CLEAR_RANGE(0, mainBuffer.pageCount); \
+	mainBuffer.dirty = false; \
+} while (0)
 
 // Set the following macro definition to 1 if your system
 // provides a really fast strchr() implementation
@@ -575,7 +580,7 @@ static bool init_window(int width, int height)
 	native_byte_order = (XImageByteOrder(x_display) == LSBFirst);
 #endif
 #ifdef ENABLE_VOSF
-	do_update_framebuffer = GET_FBCOPY_FUNC(depth, native_byte_order, DISPLAY_WINDOW);
+	Screen_blitter_init(&visualInfo, native_byte_order);
 #endif
 	set_video_monitor(width, height, img->bytes_per_line, native_byte_order);
 	
@@ -714,12 +719,9 @@ static bool init_fbdev_dga(char *in_fb_name)
 	
 #if ENABLE_VOSF
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
-	// If the blit function is null, i.e. just a copy of the buffer,
-	// we first try to avoid the allocation of a temporary frame buffer
-	use_vosf = true;
-	do_update_framebuffer = GET_FBCOPY_FUNC(depth, true, DISPLAY_DGA);
-	if (do_update_framebuffer == FBCOPY_FUNC(fbcopy_raw))
-		use_vosf = false;
+	// Screen_blitter_init() returns TRUE if VOSF is mandatory
+	// i.e. the framebuffer update function is not Blit_Copy_Raw
+	use_vosf = Screen_blitter_init(&visualInfo, true);
 	
 	if (use_vosf) {
 		the_host_buffer = the_buffer;
@@ -824,12 +826,9 @@ static bool init_xf86_dga(int width, int height)
 	}
 	
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
-	// If the blit function is null, i.e. just a copy of the buffer,
-	// we first try to avoid the allocation of a temporary frame buffer
-	use_vosf = true;
-	do_update_framebuffer = GET_FBCOPY_FUNC(depth, true, DISPLAY_DGA);
-	if (do_update_framebuffer == FBCOPY_FUNC(fbcopy_raw))
-		use_vosf = false;
+	// Screen_blitter_init() returns TRUE if VOSF is mandatory
+	// i.e. the framebuffer update function is not Blit_Copy_Raw
+	use_vosf = Screen_blitter_init(&visualInfo, true);
 	
 	if (use_vosf) {
 		the_host_buffer = the_buffer;
@@ -952,6 +951,8 @@ bool VideoInitBuffer()
 
 		if ((mainBuffer.dirtyPages == 0) || (mainBuffer.pageInfo == 0))
 			return false;
+		
+		mainBuffer.dirty = false;
 
 		PFLAG_CLEAR_ALL;
 		// Safety net to insure the loops in the update routines will terminate
@@ -2024,9 +2025,11 @@ static void video_refresh_dga_vosf(void)
 	static int tick_counter = 0;
 	if (++tick_counter >= frame_skip) {
 		tick_counter = 0;
-		LOCK_VOSF;
-		update_display_dga_vosf();
-		UNLOCK_VOSF;
+		if (mainBuffer.dirty) {
+			LOCK_VOSF;
+			update_display_dga_vosf();
+			UNLOCK_VOSF;
+		}
 	}
 }
 #endif
@@ -2046,9 +2049,11 @@ static void video_refresh_window_vosf(void)
 	static int tick_counter = 0;
 	if (++tick_counter >= frame_skip) {
 		tick_counter = 0;
-		LOCK_VOSF;
-		update_display_window_vosf();
-		UNLOCK_VOSF;
+		if (mainBuffer.dirty) {
+			LOCK_VOSF;
+			update_display_window_vosf();
+			UNLOCK_VOSF;
+		}
 	}
 }
 #endif // def ENABLE_VOSF

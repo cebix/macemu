@@ -1,7 +1,7 @@
 /*
  *  video_blit.h - Video/graphics emulation, blitters
  *
- *  Basilisk II (C) 1997-2000 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,90 +18,83 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef FB_BLIT_1
-# error "Undefined 16-bit word blit function"
-#endif
-
-#ifndef FB_BLIT_2
-# error "Undefined 32-bit word blit function"
-#endif
-
 #ifndef FB_DEPTH
 # error "Undefined screen depth"
 #endif
 
+#if !defined(FB_BLIT_1) && (FB_DEPTH <= 16)
+# error "Undefined 16-bit word blit function"
+#endif
+
+#if !defined(FB_BLIT_2)
+# error "Undefined 32-bit word blit function"
+#endif
+
 static void FB_FUNC_NAME(uint8 * dest, const uint8 * source, uint32 length)
 {
-	union {
-	uint8 *  bp;
-	uint16 * wp;
-	uint32 * lp;
-	} s, d;
+#define DEREF_LONG_PTR(ptr, ofs) (((uint32 *)(ptr))[(ofs)])
+#define DEREF_WORD_PTR(ptr, ofs) (((uint16 *)(ptr))[(ofs)])
 	
-	s.bp = (uint8 *)source;
-	d.bp = dest;
-	
+#ifndef UNALIGNED_PROFITABLE
 #if FB_DEPTH <= 8
 	// Align source and dest to 16-bit word boundaries
-	if (FB_DEPTH <= 8 && ((unsigned long) source) & 1) {
-		*d.bp++ = *s.bp++;
+	if (((unsigned long) source) & 1) {
+		*dest++ = *source++;
 		length -= 1;
 	}
-#endif
-	
-#if FB_DEPTH <= 8
-	if (length >= 2) {
 #endif
 	
 #if FB_DEPTH <= 16
 	// Align source and dest to 32-bit word boundaries
 	if (((unsigned long) source) & 2) {
-		const uint16 val = *s.wp++;
-		FB_BLIT_1(*d.wp++, val);
+		FB_BLIT_1(DEREF_WORD_PTR(dest, 0), DEREF_WORD_PTR(source, 0));
+		dest += 2; source += 2;
 		length -= 2;
 	}
+#endif
 #endif
 	
 	// Blit 4-byte words
 	if (length >= 4) {
 		const int remainder = (length / 4) % 8;
-		s.lp += remainder;
-		d.lp += remainder;
+		source += remainder * 4;
+		dest += remainder * 4;
 		
 		int n = ((length / 4) + 7) / 8;
 		switch (remainder) {
 		case 0:	do {
-				s.lp += 8; d.lp += 8;
-				FB_BLIT_2(d.lp[-8], s.lp[-8]);
-		case 7: FB_BLIT_2(d.lp[-7], s.lp[-7]);
-		case 6: FB_BLIT_2(d.lp[-6], s.lp[-6]);
-		case 5: FB_BLIT_2(d.lp[-5], s.lp[-5]);
-		case 4: FB_BLIT_2(d.lp[-4], s.lp[-4]);
-		case 3: FB_BLIT_2(d.lp[-3], s.lp[-3]);
-		case 2: FB_BLIT_2(d.lp[-2], s.lp[-2]);
-		case 1: FB_BLIT_2(d.lp[-1], s.lp[-1]);
+				dest += 32; source += 32;
+				FB_BLIT_2(DEREF_LONG_PTR(dest, -8), DEREF_LONG_PTR(source, -8));
+		case 7: FB_BLIT_2(DEREF_LONG_PTR(dest, -7), DEREF_LONG_PTR(source, -7));
+		case 6: FB_BLIT_2(DEREF_LONG_PTR(dest, -6), DEREF_LONG_PTR(source, -6));
+		case 5: FB_BLIT_2(DEREF_LONG_PTR(dest, -5), DEREF_LONG_PTR(source, -5));
+		case 4: FB_BLIT_2(DEREF_LONG_PTR(dest, -4), DEREF_LONG_PTR(source, -4));
+		case 3: FB_BLIT_2(DEREF_LONG_PTR(dest, -3), DEREF_LONG_PTR(source, -3));
+		case 2: FB_BLIT_2(DEREF_LONG_PTR(dest, -2), DEREF_LONG_PTR(source, -2));
+		case 1: FB_BLIT_2(DEREF_LONG_PTR(dest, -1), DEREF_LONG_PTR(source, -1));
 				} while (--n > 0);
 		}
 	}
 	
 #if FB_DEPTH <= 16
-	// There might remain at least one word to blit
+	// There could be one word left to blit
 	if (length & 2) {
-		FB_BLIT_1(*d.wp, *s.wp);
+		FB_BLIT_1(DEREF_WORD_PTR(dest, 0), DEREF_WORD_PTR(source, 0));
 #if FB_DEPTH <= 8
-		d.wp++;
-		s.wp++;
+		dest += 2;
+		source += 2;
 #endif
 	}
 #endif
 	
 #if FB_DEPTH <= 8
-	}
-	
-	// There might remain one byte to blit
+	// There could be one byte left to blit
 	if (length & 1)
-		*d.bp = *s.bp;
+		*dest = *source;
 #endif
+	
+#undef DEREF_LONG_PTR
+#undef DEREF_WORD_PTR
 }
 
 #undef FB_FUNC_NAME
