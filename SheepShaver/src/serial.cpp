@@ -32,8 +32,12 @@
 SERDPort *the_serd_port[2];
 
 // Function pointers from imported functions
-typedef int16 (*iocommandiscomplete_ptr)(uint32, int16);
-static iocommandiscomplete_ptr IOCommandIsComplete;
+typedef int16 (*iocic_ptr)(uint32, int16);
+static uint32 iocic_tvect = 0;
+static inline int16 IOCommandIsComplete(uint32 arg1, int16 arg2)
+{
+	return (int16)CallMacOS2(iocic_ptr, iocic_tvect, arg1, arg2);
+}
 
 
 /*
@@ -55,9 +59,9 @@ int16 SerialOpen(uint32 pb, uint32 dce)
 	D(bug("SerialOpen pb %08lx, dce %08lx\n", pb, dce));
 
 	// Get IOCommandIsComplete function
-	IOCommandIsComplete = (iocommandiscomplete_ptr)FindLibSymbol("\021DriverServicesLib", "\023IOCommandIsComplete");
-	D(bug("IOCommandIsComplete TVECT at %08lx\n", (uint32)IOCommandIsComplete));
-	if (IOCommandIsComplete == NULL) {
+	iocic_tvect = (uint32)FindLibSymbol("\021DriverServicesLib", "\023IOCommandIsComplete");
+	D(bug("IOCommandIsComplete TVECT at %08lx\n", iocic_tvect));
+	if (iocic_tvect == 0) {
 		printf("FATAL: SerialOpen(): Can't find IOCommandIsComplete()\n");
 		return openErr;
 	}
