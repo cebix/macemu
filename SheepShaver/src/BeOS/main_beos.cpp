@@ -353,6 +353,7 @@ void SheepShaver::MessageReceived(BMessage *msg)
 void SheepShaver::StartEmulator(void)
 {
 	char str[256];
+	int16 i16;
 
 	// Open sheep driver and remap low memory
 	sheep_fd = open("/dev/sheep", 0);
@@ -446,10 +447,10 @@ void SheepShaver::StartEmulator(void)
 	XPRAMInit();
 
 	// Set boot volume
-	drive = PrefsFindInt32("bootdrive");
+	i16 = PrefsFindInt32("bootdrive");
 	XPRAM[0x1378] = i16 >> 8;
 	XPRAM[0x1379] = i16 & 0xff;
-	driver = PrefsFindInt32("bootdriver");
+	i16 = PrefsFindInt32("bootdriver");
 	XPRAM[0x137a] = i16 >> 8;
 	XPRAM[0x137b] = i16 & 0xff;
 
@@ -1317,7 +1318,7 @@ void PatchAfterStartup(void)
  *  NVRAM watchdog thread (saves NVRAM every minute)
  */
 
-static status_t SheepShaver::nvram_func(void *arg)
+status_t SheepShaver::nvram_func(void *arg)
 {
 	SheepShaver *obj = (SheepShaver *)arg;
 

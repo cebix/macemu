@@ -269,7 +269,6 @@ int main(int argc, char **argv)
 	char str[256];
 	uint32 *boot_globs;
 	int16 i16;
-	int drive, driver;
 	int rom_fd;
 	FILE *proc_file;
 	const char *rom_path;
@@ -524,10 +523,10 @@ int main(int argc, char **argv)
 	XPRAMInit();
 
 	// Set boot volume
-	drive = PrefsFindInt32("bootdrive");
+	i16 = PrefsFindInt32("bootdrive");
 	XPRAM[0x1378] = i16 >> 8;
 	XPRAM[0x1379] = i16 & 0xff;
-	driver = PrefsFindInt32("bootdriver");
+	i16 = PrefsFindInt32("bootdriver");
 	XPRAM[0x137a] = i16 >> 8;
 	XPRAM[0x137b] = i16 & 0xff;
 

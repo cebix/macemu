@@ -21,6 +21,11 @@
 #ifndef SYSDEPS_H
 #define SYSDEPS_H
 
+// Do we have std namespace?
+#ifdef __POWERPC__
+#define NO_STD_NAMESPACE
+#endif
+
 #include <assert.h>
 #include <sys/types.h>
 #include <KernelKit.h>
@@ -41,6 +46,10 @@ typedef bigtime_t tm_time_t;
 
 // 64 bit file offsets
 typedef off_t loff_t;
+
+// Data types
+typedef uint32 uintptr;
+typedef int32 intptr;
 
 // Macro for calling MacOS routines
 #define CallMacOS(type, proc) (*(type)proc)()
