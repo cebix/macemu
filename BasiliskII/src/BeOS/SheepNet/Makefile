@@ -7,14 +7,14 @@
 ## Application Specific Settings ---------------------------------------------
 
 # specify the name of the binary
-NAME= BasiliskII
+NAME= sheep_net
 
 # specify the type of binary
 #	APP:	Application
 #	SHARED:	Shared library or add-on
 #	STATIC:	Static library archive
 #	DRIVER: Kernel Driver
-TYPE= APP
+TYPE= SHARED
 
 #	add support for new Pe and Eddie features
 #	to fill in generic makefile
@@ -30,25 +30,8 @@ TYPE= APP
 #	if two source files with the same name (source.c or source.cpp)
 #	are included from different directories.  Also note that spaces
 #	in folder names do not work well with this makefile.
-MACHINE=$(shell uname -m)
-ifeq ($(MACHINE), BePC)
-	CPUSRCS = ../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp \
-	    ../uae_cpu/readcpu.cpp ../uae_cpu/fpp.cpp cpustbl.cpp cpudefs.cpp cpufast.s
-else
-#	CPUSRCS = ../powerrom_cpu/powerrom_cpu.cpp
-	CPUSRCS = ../uae_cpu/basilisk_glue.cpp ../uae_cpu/newcpu.cpp \
-	    ../uae_cpu/readcpu.cpp ../uae_cpu/fpp.cpp cpustbl.cpp cpudefs.cpp cpuemu.cpp
-endif
-SRCS = ../main.cpp main_beos.cpp ../prefs.cpp ../prefs_items.cpp prefs_beos.cpp \
-    prefs_editor_beos.cpp sys_beos.cpp ../rom_patches.cpp ../slot_rom.cpp \
-    ../rsrc_patches.cpp ../emul_op.cpp ../macos_util.cpp ../xpram.cpp \
-    xpram_beos.cpp ../timer.cpp timer_beos.cpp clip_beos.cpp ../adb.cpp \
-    ../serial.cpp serial_beos.cpp ../ether.cpp ether_beos.cpp ../sony.cpp \
-    ../disk.cpp ../cdrom.cpp ../scsi.cpp scsi_beos.cpp ../video.cpp \
-    video_beos.cpp ../audio.cpp audio_beos.cpp ../extfs.cpp extfs_beos.cpp \
-    ../user_strings.cpp user_strings_beos.cpp \
-    $(CPUSRCS)
-		
+SRCS= sheep_net.cpp
+
 #	specify the resource files to use
 #	full path or a relative path to the resource file can be used.
 RSRCS= 
@@ -68,8 +51,8 @@ RSRCS=
 #		naming scheme you need to specify the path to the library
 #		and it's name
 #		library: my_lib.a entry: my_lib.a or path/my_lib.a
-LIBS=be game media device textencoding tracker
-		
+LIBS= netdev
+
 #	specify additional paths to directories following the standard
 #	libXXX.so or libXXX.a naming scheme.  You can specify full paths
 #	or paths relative to the makefile.  The paths included may not
@@ -81,12 +64,12 @@ LIBPATHS=
 #	additional paths to look for system headers
 #	thes use the form: #include <header>
 #	source file directories are NOT auto-included here
-SYSTEM_INCLUDE_PATHS =
+SYSTEM_INCLUDE_PATHS = 
 
 #	additional paths to look for local headers
 #	thes use the form: #include "header"
 #	source file directories are automatically included
-LOCAL_INCLUDE_PATHS = ../include SheepDriver SheepNet
+LOCAL_INCLUDE_PATHS = 
 
 #	specify the level of optimization that you desire
 #	NONE, SOME, FULL
@@ -111,8 +94,8 @@ WARNINGS =
 SYMBOLS = 
 
 #	specify debug settings
-#	if TRUE will allow application to be run from
-#	a source-level debugger
+#	if TRUE will allow application to be run from a source-level
+#	debugger.  Note that this will disable all optimzation.
 DEBUGGER = 
 
 #	specify additional compiler flags for all files
@@ -125,27 +108,8 @@ LINKER_FLAGS =
 ## include the makefile-engine
 include /boot/develop/etc/makefile-engine
 
+install: $(TARGET)
+	cp $(TARGET) /boot/beos/system/add-ons/net_server/$(NAME)
 
-#	special handling of UAE CPU engine
-$(OBJ_DIR)/%.o : %.s
-	$(CC) $(INCLUDES) $(CFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuopti: $(OBJ_DIR)/cpuopti.o
-	$(CC) $(LDFLAGS) -o $(OBJ_DIR)/cpuopti $(OBJ_DIR)/cpuopti.o
-$(OBJ_DIR)/build68k: $(OBJ_DIR)/build68k.o
-	$(CC) $(LDFLAGS) -o $(OBJ_DIR)/build68k $(OBJ_DIR)/build68k.o
-$(OBJ_DIR)/gencpu: $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
-	$(CC) $(LDFLAGS) -o $(OBJ_DIR)/gencpu $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
-cpudefs.cpp: $(OBJ_DIR)/build68k ../uae_cpu/table68k
-	$(OBJ_DIR)/build68k <../uae_cpu/table68k >cpudefs.cpp
-cpuemu.cpp: $(OBJ_DIR)/gencpu
-	$(OBJ_DIR)/gencpu
-cpustbl.cpp: cpuemu.cpp
-cputbl.h: cpuemu.cpp
-cpufast.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
-	$(CXX) $(INCLUDES) -S $(CFLAGS) $< -o cputmp.s
-	$(OBJ_DIR)/cpuopti <cputmp.s >$@ || mv cputmp.s $@
-	rm -f cputmp.s
-
-streifenfrei:
-	-rm -f $(OBJ_DIR)/gencpu $(OBJ_DIR)/build68k $(OBJ_DIR)/cpuopti
-	-rm -f cpuemu.cpp cpudefs.cpp cputmp.s cpufast*.s cpustbl.cpp cputbl.h
+uninstall:
+	rm /boot/beos/system/add-ons/net_server/$(NAME)
