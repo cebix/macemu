@@ -97,10 +97,10 @@ struct instruction_t {
 	char				ra, rd;
 };
 
-static void powerpc_decode_instruction(instruction_t *instruction, unsigned int nip, unsigned int * gpr)
+static void powerpc_decode_instruction(instruction_t *instruction, unsigned int nip, unsigned long * gpr)
 {
 	// Get opcode and divide into fields
-	unsigned int opcode = *((unsigned int *)nip);
+	unsigned int opcode = *((unsigned int *)(unsigned long)nip);
 	unsigned int primop = opcode >> 26;
 	unsigned int exop = (opcode >> 1) & 0x3ff;
 	unsigned int ra = (opcode >> 16) & 0x1f;
@@ -174,6 +174,18 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 		transfer_type = SIGSEGV_TRANSFER_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_NORM; break;
 	case 45:	// sthu
 		transfer_type = SIGSEGV_TRANSFER_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_U; break;
+	case 58:	// ld, ldu, lwa
+		transfer_type = SIGSEGV_TRANSFER_LOAD;
+		transfer_size = SIZE_QUAD;
+		addr_mode = ((opcode & 3) == 1) ? MODE_U : MODE_NORM;
+		imm &= ~3;
+		break;
+	case 62:	// std, stdu, stq
+		transfer_type = SIGSEGV_TRANSFER_STORE;
+		transfer_size = SIZE_QUAD;
+		addr_mode = ((opcode & 3) == 1) ? MODE_U : MODE_NORM;
+		imm &= ~3;
+		break;
 	}
 	
 	// Calculate effective address
@@ -274,7 +286,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #include <sys/ucontext.h>
 #define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.regs)
 #define SIGSEGV_FAULT_INSTRUCTION		(SIGSEGV_CONTEXT_REGS->nip)
-#define SIGSEGV_REGISTER_FILE			(unsigned int *)&SIGSEGV_CONTEXT_REGS->nip, (unsigned int *)(SIGSEGV_CONTEXT_REGS->gpr)
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)&SIGSEGV_CONTEXT_REGS->nip, (unsigned long *)(SIGSEGV_CONTEXT_REGS->gpr)
 #define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
 #endif
 #if (defined(hppa) || defined(__hppa__))
@@ -317,7 +329,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_FAULT_HANDLER_ARGS		sig, scp
 #define SIGSEGV_FAULT_ADDRESS			scp->regs->dar
 #define SIGSEGV_FAULT_INSTRUCTION		scp->regs->nip
-#define SIGSEGV_REGISTER_FILE			(unsigned int *)&scp->regs->nip, (unsigned int *)(scp->regs->gpr)
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)&scp->regs->nip, (unsigned long *)(scp->regs->gpr)
 #define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
 #endif
 #if (defined(alpha) || defined(__alpha__))
@@ -972,7 +984,7 @@ static bool ix86_skip_instruction(unsigned long * regs)
 
 // Decode and skip PPC instruction
 #if (defined(powerpc) || defined(__powerpc__) || defined(__ppc__))
-static bool powerpc_skip_instruction(unsigned int * nip_p, unsigned int * regs)
+static bool powerpc_skip_instruction(unsigned long * nip_p, unsigned long * regs)
 {
 	instruction_t instr;
 	powerpc_decode_instruction(&instr, *nip_p, regs);
@@ -984,7 +996,9 @@ static bool powerpc_skip_instruction(unsigned int * nip_p, unsigned int * regs)
 
 #if DEBUG
 	printf("%08x: %s %s access", *nip_p,
-		   instr.transfer_size == SIZE_BYTE ? "byte" : instr.transfer_size == SIZE_WORD ? "word" : "long",
+		   instr.transfer_size == SIZE_BYTE ? "byte" :
+		   instr.transfer_size == SIZE_WORD ? "word" :
+		   instr.transfer_size == SIZE_LONG ? "long" : "quad",
 		   instr.transfer_type == SIGSEGV_TRANSFER_LOAD ? "read" : "write");
 	
 	if (instr.addr_mode == MODE_U || instr.addr_mode == MODE_UX)
