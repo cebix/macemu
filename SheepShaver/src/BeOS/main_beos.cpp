@@ -220,6 +220,7 @@ system_info SysInfo;	// System information
 
 static void *sig_stack = NULL;		// Stack for signal handlers
 static void *extra_stack = NULL;	// Stack for SIGSEGV inside interrupt handler
+uint32  SheepMem::page_size;		// Size of a native page
 uintptr SheepMem::zero_page = 0;	// Address of ro page filled in with zeros
 uintptr SheepMem::base;				// Address of SheepShaver data
 uintptr SheepMem::top;				// Top of SheepShaver data (stack like storage)
@@ -726,6 +727,9 @@ void SheepShaver::Quit(void)
 
 void SheepShaver::init_rom(void)
 {
+	// Size of a native page
+	page_size = B_PAGE_SIZE;
+
 	// Create area for ROM
 	void *rom_addr = (void *)ROM_BASE;
 	rom_area = create_area(ROM_AREA_NAME, &rom_addr, B_EXACT_ADDRESS, ROM_AREA_SIZE, B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);

@@ -2305,7 +2305,7 @@ void InstallDrivers(void)
 		WriteMacInt16(dce + dCtlFlags, SonyDriverFlags);
 	}
 
-#if DISABLE_SCSI && 0
+#if DISABLE_SCSI && HAVE_SIGSEGV_SKIP_INSTRUCTION
 	// Fake SCSIGlobals
 	WriteMacInt32(0xc0c, SheepMem::ZeroPage());
 #endif

@@ -86,6 +86,7 @@ extern uint32 NativeRoutineDescriptor(int selector);
 class SheepMem {
 	static uint32 align(uint32 size);
 protected:
+	static uint32  page_size;
 	static uintptr zero_page;
 	static uintptr base;
 	static uintptr top;
@@ -93,6 +94,7 @@ protected:
 public:
 	static bool Init(void);
 	static void Exit(void);
+	static uint32 PageSize();
 	static uintptr ZeroPage();
 	static uintptr Reserve(uint32 size);
 	static void Release(uint32 size);
@@ -103,6 +105,11 @@ inline uint32 SheepMem::align(uint32 size)
 {
 	// Align on 4 bytes boundaries
 	return (size + 3) & -4;
+}
+
+inline uint32 SheepMem::PageSize()
+{
+  return page_size;
 }
 
 inline uintptr SheepMem::ZeroPage()

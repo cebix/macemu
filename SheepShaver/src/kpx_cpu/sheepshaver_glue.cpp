@@ -715,6 +715,10 @@ static sigsegv_return_t sigsegv_handler(sigsegv_address_t fault_address, sigsegv
 		else if (pc == ROM_BASE + 0x4a10a0 && (cpu->gpr(20) == 0xf3012002 || cpu->gpr(20) == 0xf3012000))
 			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
 
+		// Ignore writes to the zero page
+		else if ((uint32)(addr - SheepMem::ZeroPage()) < (uint32)SheepMem::PageSize())
+			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
+
 		// Ignore all other faults, if requested
 		if (PrefsFindBool("ignoresegv"))
 			return SIGSEGV_RETURN_SKIP_INSTRUCTION;

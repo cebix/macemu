@@ -273,6 +273,7 @@ static sigregs sigsegv_regs;				// Register dump when crashed
 static const char *crash_reason = NULL;		// Reason of the crash (SIGSEGV, SIGBUS, SIGILL)
 #endif
 
+uint32  SheepMem::page_size;				// Size of a native page
 uintptr SheepMem::zero_page = 0;			// Address of ro page filled in with zeros
 uintptr SheepMem::base = 0x60000000;		// Address of SheepShaver data
 uintptr SheepMem::top = 0;					// Top of SheepShaver data (stack like storage)
@@ -1659,8 +1660,10 @@ static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 #endif
 		}
 	
-		// Ignore ROM writes
-		if (transfer_type == TYPE_STORE && addr >= ROM_BASE && addr < ROM_BASE + ROM_SIZE) {
+		// Ignore ROM writes (including to the zero page, which is read-only)
+		if (transfer_type == TYPE_STORE &&
+			((addr >= ROM_BASE && addr < ROM_BASE + ROM_SIZE) ||
+			 (addr >= SheepMem::ZeroPage() && addr < SheepMem::ZeroPage() + SheepMem::PageSize()))) {
 //			D(bug("WARNING: %s write access to ROM at %08lx, pc %08lx\n", transfer_size == SIZE_BYTE ? "Byte" : transfer_size == SIZE_HALFWORD ? "Halfword" : "Word", addr, r->pc()));
 			if (addr_mode == MODE_U || addr_mode == MODE_UX)
 				r->gpr(ra) = addr;
@@ -1904,7 +1907,8 @@ rti:;
 
 bool SheepMem::Init(void)
 {
-	const int page_size = getpagesize();
+	// Size of a native page
+	page_size = getpagesize();
 
 	// Allocate SheepShaver globals
 	if (vm_acquire_fixed((char *)base, size) < 0)
@@ -1932,8 +1936,6 @@ bool SheepMem::Init(void)
 void SheepMem::Exit(void)
 {
 	if (top) {
-		const int page_size = getpagesize();
-
 		// Delete SheepShaver globals
 		vm_release((void *)base, size);
 
