@@ -139,6 +139,12 @@ bool InitAll(void)
 	if (!VideoInit(ROMVersion == ROM_VERSION_64K || ROMVersion == ROM_VERSION_PLUS || ROMVersion == ROM_VERSION_CLASSIC))
 		return false;
 
+	// Set default video mode
+	XPRAM[0x56] = 0x42;	// 'B'
+	XPRAM[0x57] = 0x32;	// '2'
+	XPRAM[0x58] = DepthToAppleMode(VideoMonitor.mode.depth);
+	XPRAM[0x59] = 0;
+
 #if EMULATED_68K
 	// Init 680x0 emulation (this also activates the memory system which is needed for PatchROM())
 	if (!Init680x0())

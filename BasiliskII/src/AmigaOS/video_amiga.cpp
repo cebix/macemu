@@ -559,6 +559,15 @@ void video_set_palette(uint8 *pal)
 
 
 /*
+ *  Switch video mode
+ */
+
+void video_switch_to_mode(const video_mode &mode)
+{
+}
+
+
+/*
  *  Video message handling (not neccessary under AmigaOS, handled by periodic_func())
  */
 

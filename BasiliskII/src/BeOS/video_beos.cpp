@@ -309,6 +309,15 @@ void video_set_palette(uint8 *pal)
 
 
 /*
+ *  Switch video mode
+ */
+
+void video_switch_to_mode(const video_mode &mode)
+{
+}
+
+
+/*
  *  Close down full-screen mode (if bringing up error alerts is unsafe while in full-screen mode)
  */
 

@@ -34,7 +34,7 @@
 #include "video.h"
 #include "video_defs.h"
 
-#define DEBUG 0
+#define DEBUG 1
 #include "debug.h"
 
 
@@ -63,13 +63,29 @@ struct {
 
 static bool has_resolution(uint32 id)
 {
-	vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
+	std::vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
 	while (i != end) {
 		if (i->resolution_id == id)
 			return true;
 		++i;
 	}
 	return false;
+}
+
+
+/*
+ *  Find specified mode (depth/resolution) (or VideoModes.end() if not found)
+ */
+
+static std::vector<video_mode>::const_iterator find_mode(uint16 mode, uint32 id)
+{
+	std::vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
+	while (i != end) {
+		if (i->resolution_id == id && DepthToAppleMode(i->depth) == mode)
+			return i;
+		++i;
+	}
+	return i;
 }
 
 
@@ -156,13 +172,18 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 		case cscSetMode: {		// Set color depth
 			uint16 mode = ReadMacInt16(param + csMode);
 			D(bug(" SetMode %04x\n", mode));
-			//!! switch mode
+
+			if (mode != VidLocal.current_mode) {
+				std::vector<video_mode>::const_iterator i = find_mode(mode, VidLocal.current_id);
+				if (i == VideoModes.end()) {
+					WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);
+					return paramErr;
+				}
+				video_switch_to_mode(*i);
+				VidLocal.current_mode = mode;
+			}
 			WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);
-			//!! VidLocal.current_mode = mode;
-			if (mode != VidLocal.current_mode)
-				return paramErr;
-			else
-				return noErr;
+			return noErr;
 		}
 
 		case cscSetEntries: {	// Set palette
@@ -262,14 +283,19 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 			uint16 mode = ReadMacInt16(param + csMode);
 			uint32 id = ReadMacInt32(param + csData);
 			D(bug(" SwitchMode %04x, %08x\n", mode, id));
-			//!! switch mode
+
+			if (mode != VidLocal.current_mode || id != VidLocal.current_id) {
+				std::vector<video_mode>::const_iterator i = find_mode(mode, id);
+				if (i == VideoModes.end()) {
+					WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);
+					return paramErr;
+				}
+				video_switch_to_mode(*i);
+				VidLocal.current_mode = mode;
+				VidLocal.current_id = id;
+			}
 			WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);
-			//!! VidLocal.current_mode = mode;
-			//!! VidLocal.current_id = id;
-			if (mode != VidLocal.current_mode || id != VidLocal.current_id)
-				return paramErr;
-			else
-				return noErr;
+			return noErr;
 		}
 
 		case cscSavePreferredConfiguration: {

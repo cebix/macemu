@@ -86,6 +86,7 @@ extern void VideoQuitFullScreen(void);
 extern void VideoInterrupt(void);
 extern void VideoRefresh(void);
 
+extern void video_switch_to_mode(const video_mode &mode);
 extern void video_set_palette(uint8 *pal);
 
 #endif

@@ -1357,6 +1357,15 @@ void video_set_palette(uint8 *pal)
 
 
 /*
+ *  Switch video mode
+ */
+
+void video_switch_to_mode(const video_mode &mode)
+{
+}
+
+
+/*
  *  Suspend/resume emulator
  */
 
