@@ -1,5 +1,5 @@
 V1.0 (snapshot) - <date>
-	- added support for on-the-fly video resolution and depth seitching
+	- added support for on-the-fly video resolution and depth switching
 	- fsave/frestore emulation under AmigaOS and NetBSD/m68k always behave
 	  like a 68882/68040 FPU, eliminating the need for 68060 FPU patches
 
