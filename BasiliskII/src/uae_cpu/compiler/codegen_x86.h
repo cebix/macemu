@@ -45,7 +45,6 @@
  *	o Conditional moves
  *	o i387 FPU instructions
  *	o SSE instructions
- *	o Add notes about RIP addressing mode for x86-64
  *	o Optimize for cases where register numbers are not integral constants
  */
 
@@ -96,6 +95,7 @@
 /* --- Register set -------------------------------------------------------- */
 
 enum {
+  X86_RIP         = -2,
 #if X86_FLAT_REGISTERS
   X86_NOREG       = 0,
   X86_Reg8L_Base  = 0x10,
@@ -168,6 +168,7 @@ enum {
 /* Register control and access
  *
  *	_r0P(R)	Null register?
+ *	_rIP(R)	RIP register?
  *	_rXP(R)	Extended register?
  *
  *	_rC(R)	Class of register (only valid if X86_FLAT_REGISTERS)
@@ -184,6 +185,7 @@ enum {
  */
 
 #define _r0P(R)		((R) == X86_NOREG)
+#define _rIP(R)		((R) == X86_RIP)
 
 #define _rC(R)		((R) & 0xf0)
 #define _rR(R)		((R) & 0x0f)
@@ -380,7 +382,9 @@ typedef unsigned int	_ul;
 
 /* --- Memory subformats - urgh! ------------------------------------------- */
 
+/* _r_D() is RIP addressing mode if X86_TARGET_64BIT, use _r_DSIB() instead */
 #define _r_D(	R, D	  )	(_Mrm(_b00,_rN(R),_b101 )		             ,_L((long)(D)))
+#define _r_DSIB(R, D      )	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(1),_b100 ,_b101 ),_L((long)(D)))
 #define _r_0B(	R,   B    )	(_Mrm(_b00,_rN(R),_rA(B))			                   )
 #define _r_0BIS(R,   B,I,S)	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B))              )
 #define _r_1B(	R, D,B    )	(_Mrm(_b01,_rN(R),_rA(B))		             ,_B((long)(D)))
@@ -393,8 +397,9 @@ typedef unsigned int	_ul;
 #define _r_DBIS(R, D,B,I,S)	((_s0P(D)		 ? _r_0BIS(R,  B,I,S) : (_s8P(D) ? _r_1BIS(R,D,B,I,S) : _r_4BIS(R,D,B,I,S))))
 
 #define _r_X(   R, D,B,I,S)	(_r0P(I) ? (_r0P(B)    ? _r_D   (R,D                )   : \
+				           (_rIP(B)    ? _r_DSIB(R,D                )   : \
 				           (_rsp12P(B) ? _r_DBIS(R,D,_rSP(),_rSP(),1)   : \
-						         _r_DB  (R,D,     B       ))) : \
+						         _r_DB  (R,D,     B       ))))  : \
 				 (_r0P(B)	       ? _r_4IS (R,D,	         I,S)   : \
 				 (!_rspP(I)            ? _r_DBIS(R,D,     B,     I,S)   : \
 						         x86_emit_failure("illegal index register: %esp"))))
@@ -456,7 +461,7 @@ typedef unsigned int	_ul;
 #define _d64(W,R,X,B)		(_B(0x40|(W)<<3|(R)<<2|(X)<<1|(B)))
 
 #define __REXwrxb(L,W,R,X,B)	((W|R|X|B) || (L) ? _d64(W,R,X,B) : _VOID())
-#define __REXwrx_(L,W,R,X,MR)	(__REXwrxb(L,W,R,X,_BIT(_rXP(MR))))
+#define __REXwrx_(L,W,R,X,MR)	(__REXwrxb(L,W,R,X,_BIT(_rIP(MR)?0:_rXP(MR))))
 #define __REXw_x_(L,W,R,X,MR)	(__REXwrx_(L,W,_BIT(_rXP(R)),X,MR))
 
 // FIXME: can't mix new (SPL,BPL,SIL,DIL) with (AH,BH,CH,DH)
@@ -482,6 +487,11 @@ typedef unsigned int	_ul;
  *		+ m	= memory operand (disp,base,index,scale)
  *		+ sr/sm	= a star preceding a register or memory
  *		+ 0	= top of stack register (for FPU instructions)
+ *
+ *	NOTE in x86-64 mode: a memory operand with only a valid
+ *	displacement value will lead to the expect absolute mode. If
+ *	RIP addressing is necessary, X86_RIP shall be used as the base
+ *	register argument.
  */
 
 /* --- ALU instructions ---------------------------------------------------- */
