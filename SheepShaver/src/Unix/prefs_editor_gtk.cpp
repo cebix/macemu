@@ -569,6 +569,7 @@ static GtkWidget *w_frameskip, *w_display_x, *w_display_y;
 static GtkWidget *l_frameskip, *l_display_x, *l_display_y;
 static int display_type;
 static int dis_width, dis_height;
+static bool is_fbdev_dga_mode = false;
 
 static GtkWidget *w_dspdevice_file, *w_mixerdevice_file;
 
@@ -641,6 +642,12 @@ static void parse_graphics_prefs(void)
 			display_type = DISPLAY_WINDOW;
 		else if (sscanf(str, "dga/%d/%d", &dis_width, &dis_height) == 2)
 			display_type = DISPLAY_SCREEN;
+#ifdef ENABLE_FBDEV_DGA
+		else if (sscanf(str, "fbdev/%d/%d", &dis_width, &dis_height) == 2) {
+			is_fbdev_dga_mode = true;
+			display_type = DISPLAY_SCREEN;
+		}
+#endif
 	}
 	else {
 		uint32 window_modes = PrefsFindInt32("windowmodes");
@@ -697,6 +704,7 @@ static void read_graphics_settings(void)
 	dis_height = atoi(str);
 
 	char pref[256];
+	bool use_screen_mode = true;
 	switch (display_type) {
 		case DISPLAY_WINDOW:
 			sprintf(pref, "win/%d/%d", dis_width, dis_height);
@@ -705,10 +713,16 @@ static void read_graphics_settings(void)
 			sprintf(pref, "dga/%d/%d", dis_width, dis_height);
 			break;
 		default:
+			use_screen_mode = false;
 			PrefsRemoveItem("screen");
 			return;
 	}
-	PrefsReplaceString("screen", pref);
+	if (use_screen_mode) {
+		PrefsReplaceString("screen", pref);
+		// Old prefs are now migrated
+		PrefsRemoveItem("windowmodes");
+		PrefsRemoveItem("screenmodes");
+	}
 
 	PrefsReplaceString("dsp", get_file_entry_path(w_dspdevice_file));
 	PrefsReplaceString("mixer", get_file_entry_path(w_mixerdevice_file));
@@ -1113,8 +1127,8 @@ static void create_memory_pane(GtkWidget *top)
 	gtk_widget_show(vbox);
 
 	gfloat min, max;
-	min = 1;
-	max = 256;
+	min = 4;
+	max = 512;
 	w_ramsize_adj = gtk_adjustment_new(min, min, max, 1, 16, 0);
 	gtk_adjustment_set_value(GTK_ADJUSTMENT(w_ramsize_adj), PrefsFindInt32("ramsize") >> 20);
 

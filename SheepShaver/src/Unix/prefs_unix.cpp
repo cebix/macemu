@@ -106,8 +106,6 @@ void AddPlatformPrefsDefaults(void)
 	PrefsReplaceString("extfs", "/");
 	PrefsReplaceInt32("mousewheelmode", 1);
 	PrefsReplaceInt32("mousewheellines", 3);
-	PrefsAddInt32("windowmodes", 3);
-	PrefsAddInt32("screenmodes", 0x3f);
 #ifdef __linux__
 	if (access("/dev/.devfsd", F_OK) < 0) {
 		PrefsReplaceString("dsp", "/dev/dsp");

@@ -1359,13 +1359,18 @@ bool VideoInit(void)
 
 #ifdef ENABLE_FBDEV_DGA
 	// FBDev available?
-	if (!has_dga && local_X11) {
+	bool has_fbdev_dga = false;
+	if (local_X11) {
 		if ((fb_dev_fd = open("/dev/fb0", O_RDWR)) > 0) {
 			if (ioctl(fb_dev_fd, FBIOGET_VSCREENINFO, &fb_vinfo) != 0)
 				close(fb_dev_fd);
 			else {
-				has_dga = true;
-				is_fbdev_dga_mode = true;
+				has_fbdev_dga = true;
+				if (!has_dga) {
+					// Fallback to FBDev DGA mode if XF86 DGA is not possible
+					has_dga = true;
+					is_fbdev_dga_mode = true;
+				}
 				fb_orig_vinfo = fb_vinfo;
 				D(bug("Frame buffer device initial resolution: %dx%dx%d\n", fb_vinfo.xres, fb_vinfo.yres, fb_vinfo.bits_per_pixel));
 			}
@@ -1408,6 +1413,12 @@ bool VideoInit(void)
 #ifdef ENABLE_XF86_DGA
 		else if (has_dga && sscanf(mode_str, "dga/%d/%d", &default_width, &default_height) == 2)
 			display_type = DIS_SCREEN;
+#endif
+#ifdef ENABLE_FBDEV_DGA
+		else if (has_fbdev_dga && sscanf(mode_str, "fbdev/%d/%d", &default_width, &default_height) == 2) {
+			is_fbdev_dga_mode = true;
+			display_type = DIS_SCREEN;
+		}
 #endif
 		if (display_type == DIS_INVALID) {
 			D(bug("Invalid screen mode specified, defaulting to old modes selection\n"));
@@ -1676,8 +1687,6 @@ static void resume_emul(void)
 		free(fb_save);
 		fb_save = NULL;
 	}
-	if (depth == 8)
-		palette_changed = true;
 
 	// Unlock frame buffer (and continue MacOS thread)
 	UNLOCK_FRAME_BUFFER;
