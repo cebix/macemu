@@ -1073,6 +1073,7 @@ LENDFUNC(NONE,READ,3,raw_cmov_l_rm,(W4 d, IMM mem, IMM cond))
 
 LOWFUNC(NONE,READ,3,raw_mov_l_rR,(W4 d, R4 s, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
     emit_byte(0x8b);
     emit_byte(0x40+8*d+s);
     emit_byte(offset);
@@ -1081,6 +1082,7 @@ LENDFUNC(NONE,READ,3,raw_mov_l_rR,(W4 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,READ,3,raw_mov_w_rR,(W2 d, R4 s, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
     emit_byte(0x66);
     emit_byte(0x8b);
     emit_byte(0x40+8*d+s);
@@ -1090,6 +1092,7 @@ LENDFUNC(NONE,READ,3,raw_mov_w_rR,(W2 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,READ,3,raw_mov_b_rR,(W1 d, R4 s, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
     emit_byte(0x8a);
     emit_byte(0x40+8*d+s);
     emit_byte(offset);
@@ -1123,6 +1126,7 @@ LENDFUNC(NONE,READ,3,raw_mov_b_brR,(W1 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_l_Ri,(R4 d, IMM i, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
     emit_byte(0xc7);
     emit_byte(0x40+d);
     emit_byte(offset);
@@ -1132,6 +1136,7 @@ LENDFUNC(NONE,WRITE,3,raw_mov_l_Ri,(R4 d, IMM i, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_w_Ri,(R4 d, IMM i, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
     emit_byte(0x66);
     emit_byte(0xc7);
     emit_byte(0x40+d);
@@ -1142,6 +1147,7 @@ LENDFUNC(NONE,WRITE,3,raw_mov_w_Ri,(R4 d, IMM i, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_b_Ri,(R4 d, IMM i, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
     emit_byte(0xc6);
     emit_byte(0x40+d);
     emit_byte(offset);
@@ -1151,6 +1157,7 @@ LENDFUNC(NONE,WRITE,3,raw_mov_b_Ri,(R4 d, IMM i, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_l_Rr,(R4 d, R4 s, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
     emit_byte(0x89);
     emit_byte(0x40+8*s+d);
     emit_byte(offset);
@@ -1159,6 +1166,7 @@ LENDFUNC(NONE,WRITE,3,raw_mov_l_Rr,(R4 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_w_Rr,(R4 d, R2 s, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
     emit_byte(0x66);
     emit_byte(0x89);
     emit_byte(0x40+8*s+d);
@@ -1168,6 +1176,7 @@ LENDFUNC(NONE,WRITE,3,raw_mov_w_Rr,(R4 d, R2 s, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_b_Rr,(R4 d, R1 s, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
     emit_byte(0x88);
     emit_byte(0x40+8*s+d);
     emit_byte(offset);
