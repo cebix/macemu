@@ -171,7 +171,10 @@ public:
 	friend sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
 };
 
-lazy_allocator< sheepshaver_cpu > allocator_helper< sheepshaver_cpu, lazy_allocator >::allocator;
+// FIXME: this specialization doesn't work with GCC
+// template<> lazy_allocator< sheepshaver_cpu > allocator_helper< sheepshaver_cpu, lazy_allocator >::allocator;
+template< class data_type, template< class > class allocator_type >
+allocator_type< data_type > allocator_helper< data_type, allocator_type >::allocator;
 
 sheepshaver_cpu::sheepshaver_cpu()
 	: powerpc_cpu(enable_jit_p())
