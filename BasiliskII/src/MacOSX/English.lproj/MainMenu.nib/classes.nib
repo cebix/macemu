@@ -94,7 +94,6 @@
                 disableCD = id; 
                 disableSound = id; 
                 diskImages = id; 
-                displayType = id; 
                 emuFreq = id; 
                 emuWin = id; 
                 etherNet = id; 
@@ -104,7 +103,6 @@
                 modem = id; 
                 newVolumeSize = id; 
                 newVolumeView = id; 
-                openGL = id; 
                 panel = id; 
                 printer = id; 
                 quadra900 = id; 
