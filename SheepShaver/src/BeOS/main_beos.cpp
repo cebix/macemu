@@ -1272,7 +1272,7 @@ void ExecutePPC(void (*func)())
 {
 	SheepRoutineDescriptor desc(0, (uint32)func);
 	M68kRegisters r;
-	Execute68k((uint32)&desc, &r);
+	Execute68k(desc.addr(), &r);
 }
 
 
