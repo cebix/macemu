@@ -22,6 +22,7 @@ dev:
 install: sheep_net.o
 	install -d $(KERNDIR)/misc
 	install -m 644 sheep_net.o $(KERNDIR)/misc
+	depmod -a
 
 clean:
 	-rm $(OBJS)
