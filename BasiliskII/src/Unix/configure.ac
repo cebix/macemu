@@ -553,9 +553,9 @@ AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x2000],
   AC_TRY_RUN([
     #include "vm_alloc.cpp"
     int main(void) { /* returns 0 if we could map the lowmem globals */
-      volatile char * lm;
+      volatile char * lm = 0;
       if (vm_init() < 0) exit(1);
-      if ((lm = (volatile char *)vm_acquire_fixed(0, 0x2000)) == VM_MAP_FAILED) exit(1);
+      if (vm_acquire_fixed(0, 0x2000) < 0) exit(1);
       lm[0] = 'z';
       if (vm_release((char *)lm, 0x2000) < 0) exit(1);
       vm_exit(); exit(0);
