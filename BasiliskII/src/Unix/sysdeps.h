@@ -236,6 +236,15 @@ static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("bswapl %0" 
 #else
 static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v) : "0" (v) : "cc"); *a = v;}
 #endif
+#define HAVE_OPTIMIZED_BYTESWAP_32
+/* bswap doesn't affect condition codes */
+static inline uae_u32 do_byteswap_32(uae_u32 v) {__asm__ ("bswap %0" : "=r" (v) : "0" (v)); return v;}
+#define HAVE_OPTIMIZED_BYTESWAP_16
+#ifdef X86_PPRO_OPT
+static inline uae_u32 do_byteswap_16(uae_u32 v) {__asm__ ("bswapl %0" : "=&r" (v) : "0" (v << 16) : "cc"); return v;}
+#else
+static inline uae_u32 do_byteswap_16(uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v) : "0" (v) : "cc"); return v;}
+#endif
 
 #elif defined(CPU_CAN_ACCESS_UNALIGNED)
 
@@ -256,6 +265,16 @@ static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {uint8 *b = (uint8 *)a
 #endif /* CPU_CAN_ACCESS_UNALIGNED */
 
 #endif /* WORDS_BIGENDIAN */
+
+#ifndef HAVE_OPTIMIZED_BYTESWAP_32
+static inline uae_u32 do_byteswap_32(uae_u32 v)
+	{ return (((v >> 24) & 0xff) | ((v >> 8) & 0xff00) | ((v & 0xff) << 24) | ((v & 0xff00) << 8)); }
+#endif
+
+#ifndef HAVE_OPTIMIZED_BYTESWAP_16
+static inline uae_u32 do_byteswap_16(uae_u32 v)
+	{ return (((v >> 8) & 0xff) | ((v & 0xff) << 8)); }
+#endif
 
 #define do_get_mem_byte(a) ((uae_u32)*((uae_u8 *)(a)))
 #define do_put_mem_byte(a, v) (*(uae_u8 *)(a) = (v))
