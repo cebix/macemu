@@ -1,6 +1,7 @@
 V1.0 (snapshot) - <date>
  - fixed the problem with Ticks getting incremented on every interrupt, not
    just 60Hz (e.g. moving the mouse made the caret blink faster)
+ - Unix: cleaned up pthread attributes [Brian Johnson]
 
 V1.0 (snapshot) - 15.Jan.2002
  - added support for on-the-fly video resolution and depth switching, and

@@ -182,16 +182,7 @@ void AudioInit(void)
 	sem_inited = true;
 
 	// Start streaming thread
-	pthread_attr_init(&stream_thread_attr);
-#if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)
-	if (geteuid() == 0) {
-		pthread_attr_setinheritsched(&stream_thread_attr, PTHREAD_EXPLICIT_SCHED);
-		pthread_attr_setschedpolicy(&stream_thread_attr, SCHED_FIFO);
-		struct sched_param fifo_param;
-		fifo_param.sched_priority = (sched_get_priority_min(SCHED_FIFO) + sched_get_priority_max(SCHED_FIFO)) / 2;
-		pthread_attr_setschedparam(&stream_thread_attr, &fifo_param);
-	}
-#endif
+	Set_pthread_attr(&stream_thread_attr, 0);
 	stream_thread_active = (pthread_create(&stream_thread, &stream_thread_attr, stream_func, NULL) == 0);
 
 	// Everything OK

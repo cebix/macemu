@@ -79,17 +79,7 @@ static bool start_thread(void)
 		return false;
 	}
 
-	pthread_attr_init(&ether_thread_attr);
-#if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)
-	if (geteuid() == 0) {
-		pthread_attr_setinheritsched(&ether_thread_attr, PTHREAD_EXPLICIT_SCHED);
-		pthread_attr_setschedpolicy(&ether_thread_attr, SCHED_FIFO);
-		struct sched_param fifo_param;
-		fifo_param.sched_priority = (sched_get_priority_min(SCHED_FIFO) + sched_get_priority_max(SCHED_FIFO)) / 2 + 1;
-		pthread_attr_setschedparam(&ether_thread_attr, &fifo_param);
-	}
-#endif
-
+	Set_pthread_attr(&ether_thread_attr, 1);
 	thread_active = (pthread_create(&ether_thread, &ether_thread_attr, receive_func, NULL) == 0);
 	if (!thread_active) {
 		printf("WARNING: Cannot start Ethernet thread");

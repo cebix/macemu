@@ -178,6 +178,11 @@ typedef uae_u32 uaecptr;
 extern uint64 GetTicks_usec(void);
 extern void Delay_usec(uint32 usec);
 
+#ifdef HAVE_PTHREADS
+/* Centralized pthread attribute setup */
+void Set_pthread_attr(pthread_attr_t *attr, int priority);
+#endif
+
 /* UAE CPU defines */
 #ifdef WORDS_BIGENDIAN
 

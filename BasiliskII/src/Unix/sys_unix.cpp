@@ -33,9 +33,9 @@
 #include <linux/unistd.h>
 
 #ifdef __NR__llseek
-_syscall5(int, _llseek, uint, fd, ulong, hi, ulong, lo, loff_t *, res, uint, wh);
+_syscall5(int, _llseek, unsigned int, fd, unsigned long, hi, unsigned long, lo, loff_t *, res, unsigned int, wh);
 #else
-static int _llseek(uint fd, ulong hi, ulong lo, loff_t *res, uint wh)
+static int _llseek(unsigned int fd, unsigned long hi, unsigned long lo, loff_t *res, unsigned int wh)
 {
 	if (hi)
 		return -1;

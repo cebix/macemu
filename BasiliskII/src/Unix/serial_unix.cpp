@@ -67,16 +67,7 @@ public:
 		fd = -1;
 		input_thread_active = output_thread_active = false;
 
-		pthread_attr_init(&thread_attr);
-#if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)
-		if (geteuid() == 0) {
-			pthread_attr_setinheritsched(&thread_attr, PTHREAD_EXPLICIT_SCHED);
-			pthread_attr_setschedpolicy(&thread_attr, SCHED_FIFO);
-			struct sched_param fifo_param;
-			fifo_param.sched_priority = (sched_get_priority_min(SCHED_FIFO) + sched_get_priority_max(SCHED_FIFO)) / 2 + 2;
-			pthread_attr_setschedparam(&thread_attr, &fifo_param);
-		}
-#endif
+		Set_pthread_attr(&thread_attr, 2);
 	}
 
 	virtual ~XSERDPort()

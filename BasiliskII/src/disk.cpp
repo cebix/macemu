@@ -135,8 +135,8 @@ static void find_hfs_partition(disk_drive_info &info)
 
 		// Partition map block found, Apple HFS partition?
 		if (strcmp((char *)(map + 48), "Apple_HFS") == 0) {
-			info.start_byte = ntohl(((uint32 *)map)[2]) << 9;
-			info.num_blocks = ntohl(((uint32 *)map)[3]);
+			info.start_byte = (loff_t)((map[8] << 24) | (map[9] << 16) | (map[10] << 8) | map[11]) << 9;
+			info.num_blocks = (map[12] << 24) | (map[13] << 16) | (map[14] << 8) | map[15];
 			D(bug(" HFS partition found at %d, %d blocks\n", info.start_byte, info.num_blocks));
 			break;
 		}

@@ -488,16 +488,7 @@ int main(int argc, char **argv)
 #if defined(HAVE_PTHREADS)
 
 	// POSIX threads available, start 60Hz thread
-	pthread_attr_init(&tick_thread_attr);
-#if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)
-	if (geteuid() == 0) {
-		pthread_attr_setinheritsched(&tick_thread_attr, PTHREAD_EXPLICIT_SCHED);
-		pthread_attr_setschedpolicy(&tick_thread_attr, SCHED_FIFO);
-		struct sched_param fifo_param;
-		fifo_param.sched_priority = (sched_get_priority_min(SCHED_FIFO) + sched_get_priority_max(SCHED_FIFO)) / 2;
-		pthread_attr_setschedparam(&tick_thread_attr, &fifo_param);
-	}
-#endif
+	Set_pthread_attr(&tick_thread_attr, 0);
 	tick_thread_active = (pthread_create(&tick_thread, &tick_thread_attr, tick_func, NULL) == 0);
 	if (!tick_thread_active) {
 		sprintf(str, GetString(STR_TICK_THREAD_ERR), strerror(errno));
@@ -692,6 +683,39 @@ static void sigint_handler(...)
 #endif
 
 
+#ifdef HAVE_PTHREADS
+/*
+ * Pthread configuration
+ */
+void
+Set_pthread_attr(pthread_attr_t *attr, int priority)
+{
+	pthread_attr_init(attr);
+#if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)
+	// Some of these only work for superuser
+	if (geteuid() == 0) {
+		pthread_attr_setinheritsched(attr, PTHREAD_EXPLICIT_SCHED);
+		pthread_attr_setschedpolicy(attr, SCHED_FIFO);
+		struct sched_param fifo_param;
+		fifo_param.sched_priority = ((sched_get_priority_min(SCHED_FIFO) + 
+					      sched_get_priority_max(SCHED_FIFO)) / 2 +
+					     priority);
+		pthread_attr_setschedparam(attr, &fifo_param);
+	}
+	if (pthread_attr_setscope(attr, PTHREAD_SCOPE_SYSTEM) != 0) {
+#ifdef PTHREAD_SCOPE_BOUND_NP
+	    // If system scope is not available (eg. we're not running
+	    // with CAP_SCHED_MGT capability on an SGI box), try bound
+	    // scope.  It exposes pthread scheduling to the kernel,
+	    // without setting realtime priority.
+	    pthread_attr_setscope(attr, PTHREAD_SCOPE_BOUND_NP);
+#endif
+	}
+#endif
+}
+#endif // HAVE_PTHREADS
+
+
 /*
  *  Mutexes
  */
@@ -699,7 +723,21 @@ static void sigint_handler(...)
 #ifdef HAVE_PTHREADS
 
 struct B2_mutex {
-	B2_mutex() { pthread_mutex_init(&m, NULL); }
+	B2_mutex() { 
+	    pthread_mutexattr_t attr;
+	    pthread_mutexattr_init(&attr);
+	    // Initialize the mutex for priority inheritance --
+	    // required for accurate timing.
+#ifdef HAVE_PTHREAD_MUTEXATTR_SETPROTOCOL
+	    pthread_mutexattr_setprotocol(&attr, PTHREAD_PRIO_INHERIT);
+#endif
+#if defined(HAVE_PTHREAD_MUTEXATTR_SETTYPE) && defined(PTHREAD_MUTEX_NORMAL)
+	    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);
+#endif
+	    pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_PRIVATE);
+	    pthread_mutex_init(&m, &attr);
+	    pthread_mutexattr_destroy(&attr);
+	}
 	~B2_mutex() { pthread_mutex_unlock(&m); pthread_mutex_destroy(&m); }
 	pthread_mutex_t m;
 };

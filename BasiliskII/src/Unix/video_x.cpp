@@ -97,6 +97,7 @@ static uint32 the_buffer_size;						// Size of allocated the_buffer
 
 static bool redraw_thread_active = false;			// Flag: Redraw thread installed
 #ifdef HAVE_PTHREADS
+static pthread_attr_t redraw_thread_attr;			// Redraw thread attributes
 static volatile bool redraw_thread_cancel;			// Flag: Cancel Redraw thread
 static pthread_t redraw_thread;						// Redraw thread
 #endif
@@ -1448,7 +1449,8 @@ static bool video_open(const video_mode &mode)
 	// Start redraw/input thread
 #ifdef HAVE_PTHREADS
 	redraw_thread_cancel = false;
-	redraw_thread_active = (pthread_create(&redraw_thread, NULL, redraw_func, NULL) == 0);
+	Set_pthread_attr(&redraw_thread_attr, 0);
+	redraw_thread_active = (pthread_create(&redraw_thread, &redraw_thread_attr, redraw_func, NULL) == 0);
 	if (!redraw_thread_active) {
 		printf("FATAL: cannot create redraw thread\n");
 		return false;
