@@ -245,7 +245,7 @@ if [[ "x$ac_cv_signal_sa_restorer" = "xyes" ]]; then
 fi
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(strdup cfmakeraw)
+AC_CHECK_FUNCS(strdup strlcpy cfmakeraw)
 AC_CHECK_FUNCS(nanosleep)
 AC_CHECK_FUNCS(sigaction signal)
 AC_CHECK_FUNCS(mmap mprotect munmap)
@@ -698,7 +698,7 @@ else
 fi
 
 dnl Platform specific binary postprocessor
-BLESS=/bin/true
+AC_PATH_PROG(BLESS, "true")
 if [[ "x$ac_cv_pagezero_hack" = "xyes" ]]; then
   BLESS=Darwin/lowmem
   LDFLAGS="$LDFLAGS -pagezero_size 0x3000"
