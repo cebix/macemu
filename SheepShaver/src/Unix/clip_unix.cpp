@@ -75,9 +75,6 @@ using std::vector;
 // Do we replace GetScrap()?
 #define REPLACE_GETSCRAP 1
 
-// Do we want PutScrap() to ignore requests from klipper?
-#define PUTSCRAP_IGNORES_KLIPPER 0
-
 // Do we want GetScrap() to check for TIMESTAMP and optimize out clipboard syncs?
 #define GETSCRAP_REQUESTS_TIMESTAMP 0
 
@@ -266,40 +263,6 @@ static bool wait_for_selection_notify_event(Display *dpy, Window win, XEvent *ev
 	} while ((GetTicks_usec() - start) < timeout);
 
 	return false;
-}
-
-
-/*
- *  Check for a "klipper" window which, in older versions (3.1), was
- *  polling and retrieving clipboard data several times per second.
- */
-
-static bool is_klipper_window_probe(Window w);
-static bool is_klipper_window_check(Window w);
-static bool (*is_klipper_window)(Window w) = is_klipper_window_probe;
-static Window klipper_win = None;
-
-static bool is_klipper_window_probe(Window w)
-{
-	// We expect "klipper" to be within the first clients to request
-	// data from our clipboard
-	static int clients_countdown = 2;
-
-	bool found = false;
-	char *window_name;
-	if (XFetchName(x_display, w, &window_name) && !strcmp(window_name, "klipper")) {
-		D(bug(" found and ignore clipboard requests from klipper window id: 0x%08x\n", w));
-		klipper_win = w;
-		found = true;
-	}
-
-	if (found || --clients_countdown <= 0)
-		is_klipper_window = is_klipper_window_check;
-}
-
-static bool is_klipper_window_check(Window w)
-{
-	return w == klipper_win;
 }
 
 
@@ -676,11 +639,6 @@ void ClipboardSelectionRequest(XSelectionRequestEvent *req)
 {
 	if (req->requestor == clip_win || req->selection != xa_clipboard)
 		return;
-
-#if PUTSCRAP_IGNORES_KLIPPER
-	if (is_klipper_window(req->requestor))
-		return;
-#endif
 
 	D(bug("Selection requested from 0x%lx to 0x%lx (%s) 0x%lx (%s)\n",
 		  req->requestor,
