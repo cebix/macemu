@@ -60,7 +60,7 @@ links:
 	       Unix/sigsegv.h Unix/sigsegv.cpp Unix/vm_alloc.h Unix/vm_alloc.cpp \
 	       Unix/posix_sem.cpp Unix/video_vosf.h Unix/video_blit.h \
 	       Unix/video_blit.cpp Unix/config.sub Unix/config.guess \
-	       Unix/keycodes Unix/tunconfig \
+	       Unix/keycodes Unix/tunconfig Unix/clip_unix.cpp \
 	       Unix/Linux/scsi_linux.cpp Unix/Linux/NetDriver \
 	       Unix/Darwin/lowmem.c Unix/Darwin/pagezero.c Unix/Darwin/testlmem.sh \
 	       dummy/audio_dummy.cpp dummy/clip_dummy.cpp \
