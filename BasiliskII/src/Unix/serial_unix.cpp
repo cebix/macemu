@@ -177,7 +177,7 @@ int16 XSERDPort::open(uint16 config)
 	quitting = false;
 
 	// Open port
-	fd = open(device_name, O_RDWR);
+	fd = ::open(device_name, O_RDWR);
 	if (fd < 0)
 		goto open_error;
 
@@ -238,7 +238,7 @@ open_error:
 		output_thread_active = false;
 	}
 	if (fd > 0) {
-		close(fd);
+		::close(fd);
 		fd = -1;
 	}
 	return openErr;
@@ -513,7 +513,7 @@ int16 XSERDPort::close()
 
 	// Close port
 	if (fd > 0)
-		close(fd);
+		::close(fd);
 	fd = -1;
 	return noErr;
 }
