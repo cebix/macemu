@@ -3474,6 +3474,7 @@ enum {
   X86_PROCESSOR_K6,
   X86_PROCESSOR_ATHLON,
   X86_PROCESSOR_PENTIUM4,
+  X86_PROCESSOR_K8,
   X86_PROCESSOR_max
 };
 
@@ -3484,7 +3485,8 @@ static const char * x86_processor_string_table[X86_PROCESSOR_max] = {
   "PentiumPro",
   "K6",
   "Athlon",
-  "Pentium4"
+  "Pentium4",
+  "K8"
 };
 
 static struct ptt {
@@ -3501,7 +3503,8 @@ x86_alignments[X86_PROCESSOR_max] = {
   { 16, 15, 16,  7, 16 },
   { 32,  7, 32,  7, 32 },
   { 16,  7, 16,  7, 16 },
-  {  0,  0,  0,  0,  0 }
+  {  0,  0,  0,  0,  0 },
+  { 16,  7, 16,  7, 16 }
 };
 
 static void
@@ -3565,6 +3568,7 @@ raw_init_cpu(void)
   struct cpuinfo_x86 *c = &cpuinfo;
 
   /* Defaults */
+  c->x86_processor = X86_PROCESSOR_max;
   c->x86_vendor = X86_VENDOR_UNKNOWN;
   c->cpuid_level = -1;				/* CPUID not detected */
   c->x86_model = c->x86_mask = 0;	/* So far unknown... */
@@ -3600,8 +3604,21 @@ raw_init_cpu(void)
 	c->x86 = 4;
   }
 
+  /* AMD-defined flags: level 0x80000001 */
+  uae_u32 xlvl;
+  cpuid(0x80000000, &xlvl, NULL, NULL, NULL);
+  if ( (xlvl & 0xffff0000) == 0x80000000 ) {
+	if ( xlvl >= 0x80000001 ) {
+	  uae_u32 features;
+	  cpuid(0x80000001, NULL, NULL, NULL, &features);
+	  if (features & (1 << 29)) {
+		/* Assume x86-64 if long mode is supported */
+		c->x86_processor = X86_PROCESSOR_K8;
+	  }
+	}
+  }
+	  
   /* Canonicalize processor ID */
-  c->x86_processor = X86_PROCESSOR_max;
   switch (c->x86) {
   case 3:
 	c->x86_processor = X86_PROCESSOR_I386;
@@ -3623,9 +3640,15 @@ raw_init_cpu(void)
 	break;
   case 15:
 	if (c->x86_vendor == X86_VENDOR_INTEL) {
-	  /*  Assume any BranID >= 8 and family == 15 yields a Pentium 4 */
+	  /* Assume any BrandID >= 8 and family == 15 yields a Pentium 4 */
 	  if (c->x86_brand_id >= 8)
 		c->x86_processor = X86_PROCESSOR_PENTIUM4;
+	}
+	if (c->x86_vendor == X86_VENDOR_AMD) {
+	  /* Assume an Athlon processor if family == 15 and it was not
+	     detected as an x86-64 so far */
+	  if (c->x86_processor == X86_PROCESSOR_max)
+		c->x86_processor = X86_PROCESSOR_ATHLON;
 	}
 	break;
   }
@@ -3634,13 +3657,14 @@ raw_init_cpu(void)
 	fprintf(stderr, "  Family  : %d\n", c->x86);
 	fprintf(stderr, "  Model   : %d\n", c->x86_model);
 	fprintf(stderr, "  Mask    : %d\n", c->x86_mask);
+	fprintf(stderr, "  Vendor  : %s [%d]\n", c->x86_vendor_id, c->x86_vendor);
 	if (c->x86_brand_id)
 	  fprintf(stderr, "  BrandID : %02x\n", c->x86_brand_id);
 	abort();
   }
 
   /* Have CMOV support? */
-  have_cmov = (c->x86_hwcap & (1 << 15)) && true;
+  have_cmov = c->x86_hwcap & (1 << 15);
 
   /* Can the host CPU suffer from partial register stalls? */
   have_rat_stall = (c->x86_vendor == X86_VENDOR_INTEL);
