@@ -806,6 +806,7 @@ static void keycode_init(void)
 		SDL_VideoDriverName(video_driver, sizeof(video_driver));
 		bool video_driver_found = false;
 		char line[256];
+		int n_keys = 0;
 		while (fgets(line, sizeof(line) - 1, f)) {
 			// Read line
 			int len = strlen(line);
@@ -818,15 +819,16 @@ static void keycode_init(void)
 				continue;
 
 			if (video_driver_found) {
-				// Skip aliases
+				// Skip aliases as long as we have read keycodes yet
+				// Otherwise, it's another mapping and we have to stop
 				static const char sdl_str[] = "sdl";
-				if (strncmp(line, sdl_str, sizeof(sdl_str) - 1) == 0)
+				if (strncmp(line, sdl_str, sizeof(sdl_str) - 1) == 0 && n_keys == 0)
 					continue;
 
 				// Read keycode
 				int x_code, mac_code;
 				if (sscanf(line, "%d %d", &x_code, &mac_code) == 2)
-					keycode_table[x_code & 0xff] = mac_code;
+					keycode_table[x_code & 0xff] = mac_code, n_keys++;
 				else
 					break;
 			} else {
@@ -851,6 +853,8 @@ static void keycode_init(void)
 			WarningAlert(str);
 			return;
 		}
+
+		D(bug("Using SDL/%s keycodes table, %d key mappings\n", video_driver, n_keys));
 	}
 }
 
