@@ -46,6 +46,7 @@
 #define XLM_GET_1_IND_RESOURCE 0x2844	// Pointer to native Get1IndResource() routine
 #define XLM_R_GET_RESOURCE 0x2848		// Pointer to native RGetResource() routine
 #define XLM_EXEC_RETURN_OPCODE 0x284c	// EXEC_RETURN opcode for Execute68k()
+#define XLM_ZERO_PAGE 0x2850			// Pointer to read-only page with all bits set to 0
 
 #define XLM_ETHER_INIT 0x28c0			// Pointer to ethernet InitStreamModule() function
 #define XLM_ETHER_TERM 0x28c4			// Pointer to ethernet TerminateStreamModule() function

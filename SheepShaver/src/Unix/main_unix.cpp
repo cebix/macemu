@@ -213,6 +213,7 @@ static bool emul_thread_fatal = false;		// Flag: MacOS thread crashed, tick thre
 static sigregs sigsegv_regs;				// Register dump when crashed
 #endif
 
+uintptr SheepMem::zero_page = 0;			// Address of ro page filled in with zeros
 uintptr SheepMem::base = 0x60000000;		// Address of SheepShaver data
 uintptr SheepMem::top = 0;					// Top of SheepShaver data (stack like storage)
 
@@ -672,6 +673,7 @@ int main(int argc, char **argv)
 	WriteMacInt32(XLM_PVR, PVR);									// Theoretical PVR
 	WriteMacInt32(XLM_BUS_CLOCK, BusClockSpeed);					// For DriverServicesLib patch
 	WriteMacInt16(XLM_EXEC_RETURN_OPCODE, M68K_EXEC_RETURN);		// For Execute68k() (RTS from the executed 68k code will jump here and end 68k mode)
+	WriteMacInt32(XLM_ZERO_PAGE, SheepMem::ZeroPage());				// Pointer to read-only page with all bits set to 0
 #if !EMULATED_PPC
 	WriteMacInt32(XLM_TOC, (uint32)TOC);								// TOC pointer of emulator
 #endif
@@ -1773,14 +1775,25 @@ bool SheepMem::Init(void)
 {
 	if (vm_acquire_fixed((char *)base, size) < 0)
 		return false;
+
+	zero_page = base + size;
+
+	int page_size = getpagesize();
+	if (vm_acquire_fixed((char *)zero_page, page_size) < 0)
+		return false;
+	if (vm_protect((char *)zero_page, page_size, VM_PAGE_READ) < 0)
+		return false;
+
 	top = base + size;
 	return true;
 }
 
 void SheepMem::Exit(void)
 {
-	if (top)
-		vm_release((void *)base, size);
+	if (top) {
+		// The zero page is next to SheepShaver globals
+		vm_release((void *)base, size + getpagesize());
+	}
 }
 
 

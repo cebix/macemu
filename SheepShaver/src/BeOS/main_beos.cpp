@@ -220,8 +220,9 @@ system_info SysInfo;	// System information
 
 static void *sig_stack = NULL;		// Stack for signal handlers
 static void *extra_stack = NULL;	// Stack for SIGSEGV inside interrupt handler
-static uintptr SheepMem::base;		// Address of SheepShaver data
-static uintptr SheepMem::top;		// Top of SheepShaver data (stack like storage)
+uintptr SheepMem::zero_page = 0;	// Address of ro page filled in with zeros
+uintptr SheepMem::base;				// Address of SheepShaver data
+uintptr SheepMem::top;				// Top of SheepShaver data (stack like storage)
 static area_id SheepMemArea;		// SheepShaver data area ID
 
 
@@ -578,6 +579,7 @@ void SheepShaver::StartEmulator(void)
 	WriteMacInt32(XLM_PVR, PVR);									// Theoretical PVR
 	WriteMacInt32(XLM_BUS_CLOCK, BusClockSpeed);					// For DriverServicesLib patch
 	WriteMacInt16(XLM_EXEC_RETURN_OPCODE, M68K_EXEC_RETURN);		// For Execute68k() (RTS from the executed 68k code will jump here and end 68k mode)
+	WriteMacInt32(XLM_ZERO_PAGE, SheepMem::ZeroPage());				// Pointer to read-only page with all bits set to 0
 #if !EMULATED_PPC
 	WriteMacInt32(XLM_TOC, (uint32)TOC);							// TOC pointer of emulator
 	WriteMacInt32(XLM_ETHER_INIT, *(uint32 *)InitStreamModule);		// DLPI ethernet driver functions
@@ -2078,6 +2080,10 @@ bool SheepMem::Init(void)
 	SheepMemArea = create_area(SHEEP_AREA_NAME, (void **)&base, B_BASE_ADDRESS, size, B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
 	if (SheepMemArea < 0)
 		return false;
+
+	// Create read-only area with all bits set to 0
+	static const uint8 const_zero_page[4096] = {0,};
+	zero_page = const_zero_page;
 
 	D(bug("SheepShaver area %ld at %p\n", SheepMemArea, base));
 	top = base + size;

@@ -79,12 +79,14 @@ extern uint32 NativeFunction(int selector);
 class SheepMem {
 	static uint32 align(uint32 size);
 protected:
+	static uintptr zero_page;
 	static uintptr base;
 	static uintptr top;
 	static const uint32 size = 0x40000;
 public:
 	static bool Init(void);
 	static void Exit(void);
+	static uintptr ZeroPage();
 	static uintptr Reserve(uint32 size);
 	static void Release(uint32 size);
 	friend class SheepVar;
@@ -94,6 +96,11 @@ inline uint32 SheepMem::align(uint32 size)
 {
 	// Align on 4 bytes boundaries
 	return (size + 3) & -4;
+}
+
+inline uintptr SheepMem::ZeroPage()
+{
+  return zero_page;
 }
 
 inline uintptr SheepMem::Reserve(uint32 size)
