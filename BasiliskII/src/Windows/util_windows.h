@@ -27,4 +27,8 @@ BOOL exists( const char *path );
 int32 get_file_size( const char *path );
 BOOL create_file( const char *path, DWORD size );
 
+extern HANDLE create_thread(LPTHREAD_START_ROUTINE start_routine, void *arg = NULL);
+extern void wait_thread(HANDLE thread);
+extern void kill_thread(HANDLE thread);
+
 #endif // _UTIL_WINDOWS_H

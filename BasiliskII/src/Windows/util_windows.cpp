@@ -83,3 +83,25 @@ int32 get_file_size( const char *path )
 	}
 	return(size);
 }
+
+
+/*
+ *  Thread wrappers
+ */
+
+HANDLE create_thread(LPTHREAD_START_ROUTINE start_routine, void *arg)
+{
+	DWORD dwThreadId;
+	return CreateThread(NULL, 0, start_routine, arg, 0, &dwThreadId);
+}
+
+void wait_thread(HANDLE thread)
+{
+	WaitForSingleObject(thread, INFINITE);
+	CloseHandle(thread);
+}
+
+void kill_thread(HANDLE thread)
+{
+	TerminateThread(thread, 0);
+}
