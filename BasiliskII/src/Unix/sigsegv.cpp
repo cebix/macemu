@@ -1194,9 +1194,9 @@ static sigsegv_return_t sigsegv_test_handler(sigsegv_address_t fault_address, si
 {
 	handler_called++;
 	if ((fault_address - 123) != page)
-		exit(1);
+		exit(10);
 	if (vm_protect((char *)((unsigned long)fault_address & -page_size), page_size, VM_PAGE_READ | VM_PAGE_WRITE) != 0)
-		exit(1);
+		exit(11);
 	return SIGSEGV_RETURN_SUCCESS;
 }
 
@@ -1231,39 +1231,39 @@ int main(void)
 
 	page_size = getpagesize();
 	if ((page = (char *)vm_acquire(page_size)) == VM_MAP_FAILED)
-		return 1;
+		return 2;
 	
 	if (vm_protect((char *)page, page_size, VM_PAGE_READ) < 0)
-		return 1;
+		return 3;
 	
 	if (!sigsegv_install_handler(sigsegv_test_handler))
-		return 1;
+		return 4;
 	
 	page[123] = 45;
 	page[123] = 45;
 	
 	if (handler_called != 1)
-		return 1;
+		return 5;
 
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 	if (!sigsegv_install_handler(sigsegv_insn_handler))
-		return 1;
+		return 6;
 	
 	if (vm_protect((char *)page, page_size, VM_PAGE_READ | VM_PAGE_WRITE) < 0)
-		return 1;
+		return 7;
 	
 	for (int i = 0; i < page_size; i++)
 		page[i] = (i + 1) % page_size;
 	
 	if (vm_protect((char *)page, page_size, VM_PAGE_NOACCESS) < 0)
-		return 1;
+		return 8;
 	
 #define TEST_SKIP_INSTRUCTION(TYPE) do {				\
 		const unsigned int TAG = 0x12345678;			\
 		TYPE data = *((TYPE *)(page + sizeof(TYPE)));	\
 		volatile unsigned int effect = data + TAG;		\
 		if (effect != TAG)								\
-			return 1;									\
+			return 9;									\
 	} while (0)
 	
 #ifdef __GNUC__
