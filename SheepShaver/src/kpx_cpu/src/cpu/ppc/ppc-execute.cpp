@@ -953,6 +953,15 @@ void powerpc_cpu::execute_mcrfs(uint32 opcode)
 	increment_pc(4);
 }
 
+void powerpc_cpu::execute_mcrxr(uint32 opcode)
+{
+	const int crfD = crfD_field::extract(opcode);
+	const uint32 x = xer().get();
+	cr().set(crfD, x >> 28);
+	xer().set(x & 0x0fffffff);
+	increment_pc(4);
+}
+
 void powerpc_cpu::execute_mtcrf(uint32 opcode)
 {
 	uint32 mask = field2mask[CRM_field::extract(opcode)];

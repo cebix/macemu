@@ -390,6 +390,7 @@ private:
 	void execute_stwcx(uint32 opcode);
 	void execute_mcrf(uint32 opcode);
 	void execute_mcrfs(uint32 opcode);
+	void execute_mcrxr(uint32 opcode);
 	void execute_mtcrf(uint32 opcode);
 	template< class FM, class RB, class Rc >
 	void execute_mtfsf(uint32 opcode);
