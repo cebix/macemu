@@ -55,6 +55,28 @@ static inline void vm_do_write_memory_8(uint64 *a, uint64 v) { *a = v; }
 
 #else
 
+#ifdef VM_CAN_ACCESS_UNALIGNED
+
+#ifndef VM_OPTIMIZED_MEMORY_ACCESS_2
+#define VM_OPTIMIZED_MEMORY_ACCESS_2
+static inline uint32 vm_do_read_memory_2(uint16 *a) { return bswap_16(*a); }
+static inline void vm_do_write_memory_2(uint16 *a, uint32 v) { *a = bswap_16(v); }
+#endif
+
+#ifndef VM_OPTIMIZED_MEMORY_ACCESS_4
+#define VM_OPTIMIZED_MEMORY_ACCESS_4
+static inline uint32 vm_do_read_memory_4(uint32 *a) { return bswap_32(*a); }
+static inline void vm_do_write_memory_4(uint32 *a, uint32 v) { *a = bswap_32(v); }
+#endif
+
+#ifndef VM_OPTIMIZED_MEMORY_ACCESS_8
+#define VM_OPTIMIZED_MEMORY_ACCESS_8
+static inline uint64 vm_do_read_memory_8(uint64 *a) { return bswap_64(*a); }
+static inline void vm_do_write_memory_8(uint64 *a, uint64 v) { *a = bswap_64(v); }
+#endif
+
+#endif /* VM_CAN_ACCESS_UNALIGNED */
+
 #endif /* WORDS_BIGENDIAN */
 
 ///
@@ -245,6 +267,7 @@ static inline void *vm_memset(vm_addr_t addr, int c, size_t n)
 	uint8 * const m = (uint8 *)vm_do_get_real_address(addr);
 	return memset(m, c, n);
 }
+#ifdef __cplusplus
 static inline void *vm_memcpy(void *dest, vm_addr_t src, size_t n)
 {
 	return memcpy(dest, vm_do_get_real_address(src), n);
@@ -253,6 +276,7 @@ static inline void *vm_memcpy(vm_addr_t dest, const void *src, size_t n)
 {
 	return memcpy(vm_do_get_real_address(dest), src, n);
 }
+#endif
 static inline void *vm_memcpy(vm_addr_t dest, vm_addr_t src, size_t n)
 {
 	return memcpy(vm_do_get_real_address(dest), vm_do_get_real_address(src), n);
