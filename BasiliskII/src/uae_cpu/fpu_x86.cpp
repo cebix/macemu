@@ -129,6 +129,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "sysdeps.h"
 #include "memory.h"

@@ -159,11 +159,11 @@ void get_finfo(const char *path, uint32 finfo, uint32 fxinfo)
 	if (actual > 0) {
 
 		// Translate MIME type to MacOS type/creator
-		char mactype[4];
+		uint8 mactype[4];
 		if (sscanf(mime, "application/x-MacOS-%c%c%c%c", mactype, mactype+1, mactype+2, mactype+3) == 4) {
 
 			// MacOS style type
-			WriteMacInt32(finfo + fdType, mactype);
+			WriteMacInt32(finfo + fdType, (mactype[0] << 24) | (mactype[1] << 16) | (mactype[2] << 8) | mactype[3]);
 
 		} else {
 

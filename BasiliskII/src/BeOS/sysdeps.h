@@ -91,6 +91,8 @@ static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("rolw $8,%0"
 #endif
 
 #define X86_ASSEMBLY
+#define UNALIGNED_PROFITABLE
+#define OPTIMIZED_FLAGS
 #define ASM_SYM_FOR_FUNC(a) __asm__(a)
 #define REGPARAM __attribute__((regparm(3)))
 
@@ -103,6 +105,8 @@ static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {*a = v;}
 static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {*a = v;}
 
 #undef X86_ASSEMBLY
+#define UNALIGNED_PROFITABLE
+#undef OPTIMIZED_FLAGS
 #define ASM_SYM_FOR_FUNC(a)
 #define REGPARAM
 #endif

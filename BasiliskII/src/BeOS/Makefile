@@ -33,7 +33,7 @@ TYPE= APP
 MACHINE=$(shell uname -m)
 ifeq ($(MACHINE), BePC)
 	CPUSRCS = ../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp \
-	    ../uae_cpu/readcpu.cpp ../uae_cpu/fpp.cpp cpustbl.cpp cpudefs.cpp cpufast.s
+	    ../uae_cpu/readcpu.cpp ../uae_cpu/fpu_x86.cpp cpustbl.cpp cpudefs.cpp cpufast.s
 else
 #	CPUSRCS = ../powerrom_cpu/powerrom_cpu.cpp
 	CPUSRCS = ../uae_cpu/basilisk_glue.cpp ../uae_cpu/newcpu.cpp \

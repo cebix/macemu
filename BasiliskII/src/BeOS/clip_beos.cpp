@@ -73,7 +73,7 @@ void PutScrap(uint32 type, void *scrap, int32 length)
 				if (no_clip_conversion) {
 
 					// Only convert CR->LF
-					char *buf = new char[dest_length];
+					char *buf = new char[length];
 					for (int i=0; i<length; i++) {
 						if (i[(char *)scrap] == 13)
 							buf[i] = 10;
