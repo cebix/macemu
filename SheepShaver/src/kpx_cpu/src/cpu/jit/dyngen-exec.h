@@ -107,7 +107,7 @@ extern int __op_cpuparam;
 extern int __op_jmp0, __op_jmp1;
 
 // Sections handling
-#if defined(__CYGWIN__)
+#if defined(__CYGWIN__) || defined(_WIN32)
 #define ASM_DATA_SECTION ".section .data\n"
 #define ASM_PREVIOUS_SECTION ".section .text\n"
 #define ASM_NAME(NAME) "_" #NAME

@@ -126,7 +126,7 @@ static int pretty_print(char *buf, uintptr_t addr, uintptr_t base)
 #endif
 
 /* object file format defs */
-#if defined(__CYGWIN__)
+#if defined(__CYGWIN__) || defined(_WIN32)
 #define CONFIG_WIN32 1
 #endif
 
