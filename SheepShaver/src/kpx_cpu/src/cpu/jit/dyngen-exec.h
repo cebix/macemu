@@ -31,10 +31,8 @@
 #define REG_T0_ID		AREG1_ID
 #define REG_T1			AREG2
 #define REG_T1_ID		AREG2_ID
-#ifdef  AREG3
 #define REG_T2			AREG3
 #define REG_T2_ID		AREG3_ID
-#endif
 #ifdef  AREG4
 #define REG_T3			AREG4
 #define REG_T3_ID		AREG4_ID

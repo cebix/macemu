@@ -179,6 +179,7 @@ DEFINE_OP(ror_32_T0_im, T0 = do_ror_32(T0, PARAM1));
 
 // Sign-/Zero-extension
 DEFINE_OP(se_16_32_T0, T0 = (int32)(int16)T0);
+DEFINE_OP(se_16_32_T1, T1 = (int32)(int16)T1);
 DEFINE_OP(ze_16_32_T0, T0 = (uint32)(uint16)T0);
 DEFINE_OP(se_8_32_T0, T0 = (int32)(int8)T0);
 DEFINE_OP(ze_8_32_T0, T0 = (uint32)(uint8)T0);
@@ -483,6 +484,18 @@ DEFINE_OP(op_invoke_T0, {
 	CALL(func(T0));
 });
 
+DEFINE_OP(op_invoke_T0_T1, {
+	typedef void (*func_t)(uint32, uint32);
+	func_t func = (func_t)reg_A0;
+	CALL(func(T0, T1));
+});
+
+DEFINE_OP(op_invoke_T0_T1_T2, {
+	typedef void (*func_t)(uint32, uint32, uint32);
+	func_t func = (func_t)reg_A0;
+	CALL(func(T0, T1, T2));
+});
+
 DEFINE_OP(op_invoke_im, {
 	typedef void (*func_t)(uint32);
 	func_t func = (func_t)reg_A0;
@@ -523,6 +536,18 @@ DEFINE_OP(op_invoke_direct_T0, {
 	typedef void (*func_t)(uint32);
 	func_t func = (func_t)PARAM1;
 	CALL(func(T0));
+});
+
+DEFINE_OP(op_invoke_direct_T0_T1, {
+	typedef void (*func_t)(uint32, uint32);
+	func_t func = (func_t)PARAM1;
+	CALL(func(T0, T1));
+});
+
+DEFINE_OP(op_invoke_direct_T0_T1_T2, {
+	typedef void (*func_t)(uint32, uint32, uint32);
+	func_t func = (func_t)PARAM1;
+	CALL(func(T0, T1, T2));
 });
 
 DEFINE_OP(op_invoke_direct_im, {

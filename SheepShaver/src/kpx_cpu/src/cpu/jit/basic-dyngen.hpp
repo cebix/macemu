@@ -77,6 +77,8 @@ public:
 	void gen_jmp(const uint8 *target);
 	void gen_invoke(void (*func)(void));
 	void gen_invoke_T0(void (*func)(uint32));
+	void gen_invoke_T0_T1(void (*func)(uint32, uint32));
+	void gen_invoke_T0_T1_T2(void (*func)(uint32, uint32, uint32));
 	void gen_invoke_im(void (*func)(uint32), uint32 value);
 	void gen_invoke_CPU(void (*func)(dyngen_cpu_base));
 	void gen_invoke_CPU_T0(void (*func)(dyngen_cpu_base, uint32));
@@ -156,6 +158,7 @@ public:
 
 	// Sign-/Zero-extension
 	DEFINE_ALIAS(se_16_32_T0,0);
+	DEFINE_ALIAS(se_16_32_T1,0);
 	DEFINE_ALIAS(ze_16_32_T0,0);
 	DEFINE_ALIAS(se_8_32_T0,0);
 	DEFINE_ALIAS(ze_8_32_T0,0);
