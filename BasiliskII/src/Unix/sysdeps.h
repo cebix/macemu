@@ -197,6 +197,161 @@ typedef uae_u32 uaecptr;
 extern uint64 GetTicks_usec(void);
 extern void Delay_usec(uint32 usec);
 
+/* Spinlocks */
+#ifdef __GNUC__
+
+#if defined(__powerpc__) || defined(__ppc__)
+#define HAVE_TEST_AND_SET 1
+static inline int testandset(volatile int *p)
+{
+	int ret;
+	__asm__ __volatile__("0:    lwarx	%0,0,%1\n"
+						 "      xor.	%0,%3,%0\n"
+						 "      bne		1f\n"
+						 "      stwcx.	%2,0,%1\n"
+						 "      bne-	0b\n"
+						 "1:    "
+						 : "=&r" (ret)
+						 : "r" (p), "r" (1), "r" (0)
+						 : "cr0", "memory");
+	return ret;
+}
+#endif
+
+/* FIXME: SheepShaver occasionnally hangs with those locks */
+#if 0 && (defined(__i386__) || defined(__x86_64__))
+#define HAVE_TEST_AND_SET 1
+static inline int testandset(volatile int *p)
+{
+	long int ret;
+	/* Note: the "xchg" instruction does not need a "lock" prefix */
+	__asm__ __volatile__("xchgl %k0, %1"
+						 : "=r" (ret), "=m" (*p)
+						 : "0" (1), "m" (*p)
+						 : "memory");
+	return ret;
+}
+#endif
+
+#ifdef __s390__
+#define HAVE_TEST_AND_SET 1
+static inline int testandset(volatile int *p)
+{
+	int ret;
+
+	__asm__ __volatile__("0: cs    %0,%1,0(%2)\n"
+						 "   jl    0b"
+						 : "=&d" (ret)
+						 : "r" (1), "a" (p), "0" (*p) 
+						 : "cc", "memory" );
+	return ret;
+}
+#endif
+
+#ifdef __alpha__
+#define HAVE_TEST_AND_SET 1
+static inline int testandset(volatile int *p)
+{
+	int ret;
+	unsigned long one;
+
+	__asm__ __volatile__("0:	mov 1,%2\n"
+						 "	ldl_l %0,%1\n"
+						 "	stl_c %2,%1\n"
+						 "	beq %2,1f\n"
+						 ".subsection 2\n"
+						 "1:	br 0b\n"
+						 ".previous"
+						 : "=r" (ret), "=m" (*p), "=r" (one)
+						 : "m" (*p));
+	return ret;
+}
+#endif
+
+#ifdef __sparc__
+#define HAVE_TEST_AND_SET 1
+static inline int testandset(volatile int *p)
+{
+	int ret;
+
+	__asm__ __volatile__("ldstub	[%1], %0"
+						 : "=r" (ret)
+						 : "r" (p)
+						 : "memory");
+
+	return (ret ? 1 : 0);
+}
+#endif
+
+#ifdef __arm__
+#define HAVE_TEST_AND_SET 1
+static inline int testandset(volatile int *p)
+{
+	register unsigned int ret;
+	__asm__ __volatile__("swp %0, %1, [%2]"
+						 : "=r"(ret)
+						 : "0"(1), "r"(p));
+	
+	return ret;
+}
+#endif
+
+#endif /* __GNUC__ */
+
+typedef volatile int spinlock_t;
+
+static const spinlock_t SPIN_LOCK_UNLOCKED = 0;
+
+#if HAVE_TEST_AND_SET
+#define HAVE_SPINLOCKS 1
+static inline void spin_lock(spinlock_t *lock)
+{
+	while (testandset(lock));
+}
+
+static inline void spin_unlock(spinlock_t *lock)
+{
+	*lock = 0;
+}
+
+static inline int spin_trylock(spinlock_t *lock)
+{
+	return !testandset(lock);
+}
+#else
+static inline void spin_lock(spinlock_t *lock)
+{
+}
+
+static inline void spin_unlock(spinlock_t *lock)
+{
+}
+
+static inline int spin_trylock(spinlock_t *lock)
+{
+	return 1;
+}
+#endif
+
+/* X11 display fast locks */
+#ifdef HAVE_SPINLOCKS
+#define X11_LOCK_TYPE spinlock_t
+#define X11_LOCK_INIT SPIN_LOCK_UNLOCKED
+#define XDisplayLock() spin_lock(&x_display_lock)
+#define XDisplayUnlock() spin_unlock(&x_display_lock)
+#elif defined(HAVE_PTHREADS)
+#define X11_LOCK_TYPE pthread_mutex_t
+#define X11_LOCK_INIT PTHREAD_MUTEX_INITIALIZER
+#define XDisplayLock() pthread_mutex_lock(&x_display_lock);
+#define XDisplayUnlock() pthread_mutex_unlock(&x_display_lock);
+#else
+#define XDisplayLock()
+#define XDisplayUnlock()
+#endif
+#ifdef X11_LOCK_TYPE
+extern X11_LOCK_TYPE x_display_lock;
+#endif
+
 #ifdef HAVE_PTHREADS
 /* Centralized pthread attribute setup */
 void Set_pthread_attr(pthread_attr_t *attr, int priority);
