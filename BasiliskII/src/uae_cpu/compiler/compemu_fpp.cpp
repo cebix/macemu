@@ -1509,10 +1509,6 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		case 0x23:		/* FMUL */
 		case 0x63:
 		case 0x67:
-			/* (gb) FIXME: probably not a real fmul bug but it fails
-			   with FPU tests in Speedometer 3.23 */
-			FAIL(1);
-			return;
 			dont_care_fflags();
 			src=get_fp_value (opcode, extra);
 			if (src < 0) {
