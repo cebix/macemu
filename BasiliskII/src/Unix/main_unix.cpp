@@ -615,7 +615,9 @@ int main(int argc, char **argv)
 
 	// Start 60Hz timer
 	sigemptyset(&timer_sa.sa_mask);		// Block virtual 68k interrupts during SIGARLM handling
+#if !EMULATED_68K
 	sigaddset(&timer_sa.sa_mask, SIG_IRQ);
+#endif
 	timer_sa.sa_handler = one_tick;
 	timer_sa.sa_flags = SA_ONSTACK | SA_RESTART;
 	if (sigaction(SIGALRM, &timer_sa, NULL) < 0) {
