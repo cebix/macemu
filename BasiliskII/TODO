@@ -3,8 +3,11 @@ Bugs:
 - Something still seems to be wrong with the UAE FPU (Calculator and scroll
   bars in MacOS 8 don't work properly), Lauri has fixed this and it has to
   be integrated into the main sources
-- Unix: real addressing mode: something is still deadly wrong there though it
-  works for example under Linux/i386.
+- Real memory addressing: something is still wrong in the Unix part, though
+  it works under Linux/i386
+- Direct or real memory addressing: need to disable initialization of VIA,
+  SCCRd and SCCWr to invalid memory regions instead of patching them in
+  EMUL_OP_INSTALL_DRIVERS
 
 General:
 - Sony: rdVerify, Tag Buffer, DskErr
