@@ -1152,7 +1152,30 @@ static void *tick_func(void *arg)
 
 void Set_pthread_attr(pthread_attr_t *attr, int priority)
 {
-	// nothing to do
+#ifdef HAVE_PTHREADS
+	pthread_attr_init(attr);
+#if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)
+	// Some of these only work for superuser
+	if (geteuid() == 0) {
+		pthread_attr_setinheritsched(attr, PTHREAD_EXPLICIT_SCHED);
+		pthread_attr_setschedpolicy(attr, SCHED_FIFO);
+		struct sched_param fifo_param;
+		fifo_param.sched_priority = ((sched_get_priority_min(SCHED_FIFO) + 
+					      sched_get_priority_max(SCHED_FIFO)) / 2 +
+					     priority);
+		pthread_attr_setschedparam(attr, &fifo_param);
+	}
+	if (pthread_attr_setscope(attr, PTHREAD_SCOPE_SYSTEM) != 0) {
+#ifdef PTHREAD_SCOPE_BOUND_NP
+	    // If system scope is not available (eg. we're not running
+	    // with CAP_SCHED_MGT capability on an SGI box), try bound
+	    // scope.  It exposes pthread scheduling to the kernel,
+	    // without setting realtime priority.
+	    pthread_attr_setscope(attr, PTHREAD_SCOPE_BOUND_NP);
+#endif
+	}
+#endif
+#endif
 }
 
 
