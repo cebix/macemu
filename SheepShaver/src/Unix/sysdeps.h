@@ -284,7 +284,7 @@ static inline int testandset(int *p)
 #define HAVE_SPINLOCKS 1
 typedef int spinlock_t;
 
-const spinlock_t SPIN_LOCK_UNLOCKED = 0;
+static const spinlock_t SPIN_LOCK_UNLOCKED = 0;
 
 static inline void spin_lock(spinlock_t *lock)
 {
