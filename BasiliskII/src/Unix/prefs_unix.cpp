@@ -1,5 +1,5 @@
 /*
- *  prefs_unix.cpp - Preferences handling, Unix specifix stuff
+ *  prefs_unix.cpp - Preferences handling, Unix specific stuff
  *
  *  Basilisk II (C) 1997-2004 Christian Bauer
  *

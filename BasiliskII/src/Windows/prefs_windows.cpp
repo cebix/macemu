@@ -1,5 +1,5 @@
 /*
- *  prefs_windows.cpp - Preferences handling, Windows specifix stuff
+ *  prefs_windows.cpp - Preferences handling, Windows specific stuff
  *
  *  Basilisk II (C) 1997-2004 Christian Bauer
  *
