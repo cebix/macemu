@@ -94,7 +94,9 @@ extern void (*flush_icache)(int); // from compemu_support.cpp
 
 // Constants
 const char ROM_FILE_NAME[] = "ROM";
+#if !EMULATED_68K
 const int SIG_STACK_SIZE = SIGSTKSZ;	// Size of signal stack
+#endif
 const int SCRATCH_MEM_SIZE = 0x10000;	// Size of scratch memory area
 
 
@@ -123,7 +125,9 @@ Display *x_display = NULL;							// X11 display handle
 static uint8 last_xpram[XPRAM_SIZE];				// Buffer for monitoring XPRAM changes
 
 #ifdef HAVE_PTHREADS
+#if !EMULATED_68K
 static pthread_t emul_thread;						// Handle of MacOS emulation thread (main thread)
+#endif
 
 static bool xpram_thread_active = false;			// Flag: XPRAM watchdog installed
 static volatile bool xpram_thread_cancel = false;	// Flag: Cancel XPRAM thread
@@ -157,12 +161,14 @@ uint16 EmulatedSR;					// Emulated bits of SR (supervisor bit and interrupt mask
 uint8 *ScratchMem = NULL;			// Scratch memory for Mac ROM writes
 #endif
 
+#if !defined(HAVE_PTHREADS)
 static struct sigaction timer_sa;	// sigaction used for timer
 
 #if defined(HAVE_TIMER_CREATE) && defined(_POSIX_REALTIME_SIGNALS)
 #define SIG_TIMER SIGRTMIN
 static timer_t timer;				// 60Hz timer
 #endif
+#endif // !HAVE_PTHREADS
 
 #ifdef ENABLE_MON
 static struct sigaction sigint_sa;	// sigaction for SIGINT handler
@@ -503,14 +509,14 @@ int main(int argc, char **argv)
 		QuitEmulator();
 	D(bug("Initialization complete\n"));
 
+#if !EMULATED_68K
+	// (Virtual) supervisor mode, disable interrupts
+	EmulatedSR = 0x2700;
+
 #ifdef HAVE_PTHREADS
 	// Get handle of main thread
 	emul_thread = pthread_self();
 #endif
-
-#if !EMULATED_68K
-	// (Virtual) supervisor mode, disable interrupts
-	EmulatedSR = 0x2700;
 
 	// Create and install stack for signal handlers
 	sig_stack = malloc(SIG_STACK_SIZE);
@@ -821,7 +827,11 @@ struct B2_mutex {
 	    pthread_mutex_init(&m, &attr);
 	    pthread_mutexattr_destroy(&attr);
 	}
-	~B2_mutex() { pthread_mutex_unlock(&m); pthread_mutex_destroy(&m); }
+	~B2_mutex() { 
+	    pthread_mutex_trylock(&m); // Make sure it's locked before
+	    pthread_mutex_unlock(&m);  // unlocking it.
+	    pthread_mutex_destroy(&m);
+	}
 	pthread_mutex_t m;
 };
 

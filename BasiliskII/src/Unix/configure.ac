@@ -360,13 +360,13 @@ irix*)
   LIBS="$LIBS -laudio"
   WANT_ESD=no
 
-  dnl Check if our compiler supports -Ofast (MIPSPro)
-  HAVE_OFAST=no
+  dnl Check if our compiler supports -IPA (MIPSPro)
+  HAVE_IPA=no
   ocflags="$CFLAGS"
-  CFLAGS=`echo $CFLAGS | sed -e 's/ -g / -Ofast /;s/^-g /-Ofast /;s/-g$/ -Ofast/;s/^-g$/-Ofast/'`
-  AC_MSG_CHECKING(if "-Ofast" works)
+  CFLAGS=`echo "$CFLAGS -IPA" | sed -e "s/-g//g"`
+  AC_MSG_CHECKING(if "-IPA" works)
   dnl Do a test compile of an empty function
-  AC_TRY_COMPILE(,, [AC_MSG_RESULT(yes); HAVE_OFAST=yes], AC_MSG_RESULT(no))
+  AC_TRY_COMPILE(,, [AC_MSG_RESULT(yes); HAVE_IPA=yes], AC_MSG_RESULT(no))
   CFLAGS="$ocflags"
 
   ;;
@@ -1092,12 +1092,12 @@ if [[ "x$HAVE_GCC27" = "xyes" ]]; then
   CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-g//g'`
 fi
 
-dnl Or if we have -Ofast
-if [[ "x$HAVE_OFAST" = "xyes" ]]; then
-  CFLAGS="`echo $CFLAGS | sed -e 's/-g//g'` -Ofast"
-  CXXFLAGS="`echo $CXXFLAGS | sed -e 's/-g//g'` -Ofast"
+dnl Or if we have -IPA (MIPSPro compilers)
+if [[ "x$HAVE_IPA" = "xyes" ]]; then
+  CFLAGS="`echo $CFLAGS | sed -e 's/-g//g'` -O3 -OPT:Olimit=0 -IPA"
+  CXXFLAGS="`echo $CXXFLAGS | sed -e 's/-g//g'` -O3 -OPT:Olimit=0 -IPA"
   CXXFLAGS="-LANG:std $CXXFLAGS"
-  LDFLAGS="$LDFLAGS -ipa"
+  LDFLAGS="$LDFLAGS -O3 -OPT:Olimit=0 -IPA"
 fi
 
 dnl Generate Makefile.
