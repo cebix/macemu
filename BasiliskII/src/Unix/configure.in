@@ -601,15 +601,14 @@ fi
 
 dnl Remove the "-g" option if set for GCC.
 if [[ "x$HAVE_GCC27" = "xyes" ]]; then
-  dnl gb-- Probably not the cleanest way to take
-  CFLAGS=`echo $CFLAGS | sed -e 's/ -g / /;s/^-g / /;s/ -g$/ /;s/^-g$//'`
-  CXXFLAGS=`echo $CXXFLAGS | sed -e 's/ -g / /;s/^-g / /;s/ -g$/ /;s/^-g$//'`
+  CFLAGS=`echo $CFLAGS | sed -e 's/-g//g'`
+  CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-g//g'`
 fi
 
 dnl Or if we have -Ofast
 if [[ "x$HAVE_OFAST" = "xyes" ]]; then
-  CFLAGS=`echo $CFLAGS | sed -e 's/ -g / -Ofast /;s/^-g /-Ofast /;s/-g$/ -Ofast/;s/^-g$/-Ofast/'`
-  CXXFLAGS=`echo $CXXFLAGS | sed -e 's/ -g / -Ofast /;s/^-g /-Ofast /;s/ -g$/ -Ofast/;s/^-g$/-Ofast/'`
+  CFLAGS="`echo $CFLAGS | sed -e 's/-g//g'` -Ofast"
+  CXXFLAGS="`echo $CXXFLAGS | sed -e 's/-g//g'` -Ofast"
   CXXFLAGS="-LANG:std $CXXFLAGS"
   LDFLAGS="$LDFLAGS -Ofast"
 fi
