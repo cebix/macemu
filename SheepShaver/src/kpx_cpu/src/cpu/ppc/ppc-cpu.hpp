@@ -101,7 +101,10 @@ protected:
 #endif
 		uint32 pc;
 		uint32 opcode;
-		uint32 extra;
+#ifdef SHEEPSHAVER
+		uint32 sp;
+		uint32 r24;
+#endif
 	};
 
 	// Instruction formats

@@ -119,7 +119,8 @@ void powerpc_cpu::record_step(uint32 opcode)
 	log[log_ptr].pc = pc();
 	log[log_ptr].opcode = opcode;
 #ifdef SHEEPSHAVER
-	log[log_ptr].extra = gpr(24);
+	log[log_ptr].sp = gpr(1);
+	log[log_ptr].r24 = gpr(24);
 #endif
 #if PPC_FLIGHT_RECORDER >= 2
 	for (int i = 0; i < 32; i++) {
@@ -185,7 +186,7 @@ void powerpc_cpu::dump_log(const char *filename)
 #else
 		fprintf(f, " pc %08x opc %08x", log[j].pc, log[j].opcode);
 #ifdef SHEEPSHAVER
-		fprintf(f, " r24 %08x", log[j].extra);
+		fprintf(f, " sp %08x r24 %08x", log[j].sp, log[j].r24);
 #endif
 		fprintf(f, "| ");
 #if !ENABLE_MON
