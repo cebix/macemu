@@ -38,7 +38,11 @@ struct M68kRegisters {
 	uint16 sr;
 };
 
-// Functions
+// General functions
+extern bool InitAll(void);
+extern void ExitAll(void);
+
+// Platform-specific functions
 extern void FlushCodeCache(void *start, uint32 size);	// Code was patched, flush caches if neccessary
 extern void QuitEmulator(void);							// Quit emulator
 extern void ErrorAlert(const char *text);				// Display error alert

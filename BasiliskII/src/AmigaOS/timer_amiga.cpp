@@ -52,8 +52,6 @@ void Microseconds(uint32 &hi, uint32 &lo)
  *  Return local date/time in Mac format (seconds since 1.1.1904)
  */
 
-const uint32 TIME_OFFSET = 0x8b31ef80;	// Offset Mac->Amiga time in seconds
-
 uint32 TimerDateTime(void)
 {
 	ULONG secs;

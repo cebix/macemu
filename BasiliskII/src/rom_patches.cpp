@@ -30,6 +30,7 @@
 #include "disk.h"
 #include "cdrom.h"
 #include "video.h"
+#include "extfs.h"
 #include "prefs.h"
 #include "rom_patches.h"
 
@@ -45,9 +46,9 @@
 uint32 UniversalInfo;	// ROM offset of UniversalInfo
 uint32 PutScrapPatch;	// Mac address of PutScrap() patch
 
-static uint32 sony_offset;		// ROM offset of .Sony driver
-static uint32 serd_offset;		// ROM offset of SERD resource (serial drivers)
-static uint32 microseconds_offset;	// ROM offset of Microseconds() replacement routine
+static uint32 sony_offset;				// ROM offset of .Sony driver
+static uint32 serd_offset;				// ROM offset of SERD resource (serial drivers)
+static uint32 microseconds_offset;		// ROM offset of Microseconds() replacement routine
 static uint32 memory_dispatch_offset;	// ROM offset of MemoryDispatch() replacement routine
 
 // Prototypes
@@ -646,6 +647,9 @@ void PatchAfterStartup(void)
 	r.a[0] = ROMBaseMac + memory_dispatch_offset;
 	r.d[0] = 0xa05c;
 	Execute68kTrap(0xa247, &r);		// SetOSTrapAddress()
+
+	// Install external file system
+	InstallExtFS();
 }
 
 

@@ -34,15 +34,7 @@
 #include "cpu_emulation.h"
 #include "xpram.h"
 #include "timer.h"
-#include "sony.h"
-#include "disk.h"
-#include "cdrom.h"
-#include "scsi.h"
-#include "audio.h"
 #include "video.h"
-#include "serial.h"
-#include "ether.h"
-#include "clip.h"
 #include "rom_patches.h"
 #include "prefs.h"
 #include "prefs_editor.h"
@@ -276,86 +268,8 @@ void BasiliskII::StartEmulator(void)
 		return;
 	}
 
-	// Check ROM version
-	if (!CheckROM()) {
-		ErrorAlert(GetString(STR_UNSUPPORTED_ROM_TYPE_ERR));
-		PostMessage(B_QUIT_REQUESTED);
-		return;
-	}
-
-	// Set CPU and FPU type (UAE emulation)
-	switch (ROMVersion) {
-		case ROM_VERSION_64K:
-		case ROM_VERSION_PLUS:
-		case ROM_VERSION_CLASSIC:
-			CPUType = 0;
-			FPUType = 0;
-			TwentyFourBitAddressing = true;
-			break;
-		case ROM_VERSION_II:
-			CPUType = 2;
-			FPUType = PrefsFindBool("fpu") ? 1 : 0;
-			TwentyFourBitAddressing = true;
-			break;
-		case ROM_VERSION_32:
-			CPUType = 3;
-			FPUType = PrefsFindBool("fpu") ? 1 : 0;
-			TwentyFourBitAddressing = false;
-			break;
-	}
-	CPUIs68060 = false;
-
-	// Load XPRAM
-	XPRAMInit();
-
-	// Set boot volume
-	int16 i16 = PrefsFindInt16("bootdrive");
-	XPRAM[0x78] = i16 >> 8;
-	XPRAM[0x79] = i16 & 0xff;
-	i16 = PrefsFindInt16("bootdriver");
-	XPRAM[0x7a] = i16 >> 8;
-	XPRAM[0x7b] = i16 & 0xff;
-
-	// Start XPRAM watchdog thread
-	xpram_thread = spawn_thread(xpram_func, "XPRAM Watchdog", B_LOW_PRIORITY, this);
-	resume_thread(xpram_thread);
-
-	// Init drivers
-	SonyInit();
-	DiskInit();
-	CDROMInit();
-	SCSIInit();
-
-	// Init network
-	EtherInit();
-
-	// Init serial ports
-	SerialInit();
-
-	// Init Time Manager
-	TimerInit();
-
-	// Init clipboard
-	ClipInit();
-
-	// Init audio
-	AudioInit();
-
-	// Init video
-	if (!VideoInit(ROMVersion == ROM_VERSION_64K || ROMVersion == ROM_VERSION_PLUS || ROMVersion == ROM_VERSION_CLASSIC)) {
-		PostMessage(B_QUIT_REQUESTED);
-		return;
-	}
-
-	// Init 680x0 emulation (this also activates the memory system which is needed for PatchROM())
-	if (!Init680x0()) {
-		PostMessage(B_QUIT_REQUESTED);
-		return;
-	}
-
-	// Install ROM patches
-	if (!PatchROM()) {
-		ErrorAlert(GetString(STR_UNSUPPORTED_ROM_TYPE_ERR));
+	// Initialize everything
+	if (!InitAll()) {
 		PostMessage(B_QUIT_REQUESTED);
 		return;
 	}
@@ -365,6 +279,10 @@ void BasiliskII::StartEmulator(void)
 
 	// Disallow quitting with Alt-Q from now on
 	AllowQuitting = false;
+
+	// Start XPRAM watchdog thread
+	xpram_thread = spawn_thread(xpram_func, "XPRAM Watchdog", B_LOW_PRIORITY, this);
+	resume_thread(xpram_thread);
 
 	// Start 60Hz interrupt
 	tick_thread = spawn_thread(tick_func, "60Hz", B_REAL_TIME_PRIORITY, this);
@@ -421,32 +339,8 @@ void BasiliskII::Quit(void)
 		wait_for_thread(xpram_thread, &l);
 	}
 
-	// Save XPRAM
-	XPRAMExit();
-
-	// Exit video
-	VideoExit();
-
-	// Exit audio
-	AudioExit();
-
-	// Exit clipboard
-	ClipExit();
-
-	// Exit Time Manager
-	TimerExit();
-
-	// Exit serial ports
-	SerialExit();
-
-	// Exit network
-	EtherExit();
-
-	// Exit drivers
-	SCSIExit();
-	CDROMExit();
-	DiskExit();
-	SonyExit();
+	// Deinitialize everything
+	ExitAll();
 
 	// Delete ROM area
 	if (rom_area >= 0)

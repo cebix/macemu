@@ -26,6 +26,9 @@
 user_string_def platform_strings[] = {
 	// Common strings that have a platform-specific variant
 	{STR_VOLUME_IS_MOUNTED_WARN, "The volume '%s' is mounted under AmigaOS. Basilisk II will try to unmount it."},
+	{STR_EXTFS_CTRL, "Amiga Root"},
+	{STR_EXTFS_NAME, "Amiga Directory Tree"},
+	{STR_EXTFS_VOLUME_NAME, "Amiga"},
 
 	// Purely platform-specific strings
 	{STR_NO_PREPARE_EMUL_ERR, "PrepareEmul is not installed. Run PrepareEmul and then try again to start Basilisk II."},

@@ -39,6 +39,7 @@
 #include "video.h"
 #include "audio.h"
 #include "ether.h"
+#include "extfs.h"
 #include "emul_op.h"
 
 #define DEBUG 0
@@ -490,6 +491,14 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 
 		case M68K_EMUL_OP_AUDIO:			// Audio component dispatch function
 			r->d[0] = AudioDispatch(r->a[3], r->a[4]);
+			break;
+
+		case M68K_EMUL_OP_EXTFS_COMM:		// External file system routines
+			WriteMacInt16(r->a[7] + 14, ExtFSComm(ReadMacInt16(r->a[7] + 12), ReadMacInt32(r->a[7] + 8), ReadMacInt32(r->a[7] + 4)));
+			break;
+
+		case M68K_EMUL_OP_EXTFS_HFS:
+			WriteMacInt16(r->a[7] + 20, ExtFSHFS(ReadMacInt32(r->a[7] + 16), ReadMacInt16(r->a[7] + 14), ReadMacInt32(r->a[7] + 10), ReadMacInt32(r->a[7] + 6), ReadMacInt16(r->a[7] + 4)));
 			break;
 
 		default:

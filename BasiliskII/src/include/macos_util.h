@@ -68,10 +68,24 @@ enum {
 	closErr			= -24,
 	abortErr		= -27,
 	notOpenErr		= -28,
+	dskFulErr		= -34,
+	nsvErr			= -35,
 	ioErr			= -36,
+	bdNamErr		= -37,
+	fnOpnErr		= -38,
+	eofErr			= -39,
+	posErr			= -40,
+	tmfoErr			= -42,
+	fnfErr			= -43,
 	wPrErr			= -44,
+	fLckdErr		= -45,
+	fBsyErr			= -47,
+	dupFNErr		= -48,
 	paramErr		= -50,
+	rfNumErr		= -51,
+	permErr			= -54,
 	nsDrvErr		= -56,
+	extFSErr		= -58,
 	noDriveErr		= -64,
 	offLinErr		= -65,
 	noNybErr		= -66,
@@ -93,7 +107,8 @@ enum {
 	fmt1Err			= -82,
 	fmt2Err			= -83,
 	verErr			= -84,
-	memFullErr		= -108
+	memFullErr		= -108,
+	dirNFErr		= -120
 };
 
 // Misc constants
@@ -156,7 +171,8 @@ enum {	// IOParam struct
 	ioActCount = 40,
 	ioPosMode = 44,
 	ioPosOffset = 46,
-	ioWPosOffset = 46	// Wide positioning offset when ioPosMode has kWidePosOffsetBit set
+	ioWPosOffset = 46,	// Wide positioning offset when ioPosMode has kWidePosOffsetBit set
+	SIZEOF_IOParam = 50
 };
 
 enum {	// CntrlParam struct

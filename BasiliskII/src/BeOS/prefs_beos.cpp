@@ -87,4 +87,5 @@ void SavePrefs(void)
 
 void AddPlatformPrefsDefaults(void)
 {
+	PrefsReplaceString("extfs", "/boot");
 }

@@ -54,6 +54,9 @@ typedef LONG loff_t;
 // Time data type for Time Manager emulation
 typedef struct timeval tm_time_t;
 
+// Offset Mac->AmigaOS time in seconds
+#define TIME_OFFSET 0x8b31ef80
+
 // Endianess conversion (not needed)
 #define ntohs(x) (x)
 #define ntohl(x) (x)

@@ -318,7 +318,7 @@ bool PrefsEditor(void)
  *  "Volumes" pane
  */
 
-static GtkWidget *volume_list;
+static GtkWidget *volume_list, *w_extfs;
 static int selected_volume;
 
 // Volume in list selected
@@ -420,6 +420,8 @@ static void read_volumes_settings(void)
 		gtk_clist_get_text(GTK_CLIST(volume_list), i, 0, &str);
 		PrefsAddString("disk", str);
 	}
+
+	PrefsReplaceString("extfs", gtk_entry_get_text(GTK_ENTRY(w_extfs)));
 }
 
 // Create "Volumes" pane
@@ -454,6 +456,8 @@ static void create_volumes_pane(GtkWidget *top)
 	};
 	make_button_box(box, 0, buttons);
 	make_separator(box);
+
+	w_extfs = make_entry(box, STR_EXTFS_CTRL, "extfs");
 
 	static const opt_desc options[] = {
 		{STR_BOOT_ANY_LAB, GTK_SIGNAL_FUNC(mn_boot_any)},

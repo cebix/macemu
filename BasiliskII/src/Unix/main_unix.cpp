@@ -27,18 +27,10 @@
 
 #include "cpu_emulation.h"
 #include "sys.h"
+#include "rom_patches.h"
 #include "xpram.h"
 #include "timer.h"
-#include "sony.h"
-#include "disk.h"
-#include "cdrom.h"
-#include "scsi.h"
-#include "audio.h"
 #include "video.h"
-#include "serial.h"
-#include "ether.h"
-#include "clip.h"
-#include "rom_patches.h"
 #include "prefs.h"
 #include "prefs_editor.h"
 #include "macos_util.h"
@@ -46,7 +38,7 @@
 #include "version.h"
 #include "main.h"
 
-#define DEBUG 1
+#define DEBUG 0
 #include "debug.h"
 
 
@@ -207,82 +199,12 @@ int main(int argc, char **argv)
 		QuitEmulator();
 	}
 
-	// Check ROM version
-	if (!CheckROM()) {
-		ErrorAlert(GetString(STR_UNSUPPORTED_ROM_TYPE_ERR));
+	// Initialize everything
+	if (!InitAll())
 		QuitEmulator();
-	}
-
-	// Set CPU and FPU type (UAE emulation)
-	switch (ROMVersion) {
-		case ROM_VERSION_64K:
-		case ROM_VERSION_PLUS:
-		case ROM_VERSION_CLASSIC:
-			CPUType = 0;
-			FPUType = 0;
-			TwentyFourBitAddressing = true;
-			break;
-		case ROM_VERSION_II:
-			CPUType = 2;
-			FPUType = PrefsFindBool("fpu") ? 1 : 0;
-			TwentyFourBitAddressing = true;
-			break;
-		case ROM_VERSION_32:
-			CPUType = 3;
-			FPUType = PrefsFindBool("fpu") ? 1 : 0;
-			TwentyFourBitAddressing = false;
-			break;
-	}
-	CPUIs68060 = false;
-
-	// Load XPRAM
-	XPRAMInit();
-
-	// Set boot volume
-	int16 i16 = PrefsFindInt16("bootdrive");
-	XPRAM[0x78] = i16 >> 8;
-	XPRAM[0x79] = i16 & 0xff;
-	i16 = PrefsFindInt16("bootdriver");
-	XPRAM[0x7a] = i16 >> 8;
-	XPRAM[0x7b] = i16 & 0xff;
 
 	// Start XPRAM watchdog thread
 	xpram_thread_active = (pthread_create(&xpram_thread, NULL, xpram_func, NULL) == 0);
-
-	// Init drivers
-	SonyInit();
-	DiskInit();
-	CDROMInit();
-	SCSIInit();
-
-	// Init serial ports
-	SerialInit();
-
-	// Init network
-	EtherInit();
-
-	// Init Time Manager
-	TimerInit();
-
-	// Init clipboard
-	ClipInit();
-
-	// Init audio
-	AudioInit();
-
-	// Init video
-	if (!VideoInit(ROMVersion == ROM_VERSION_64K || ROMVersion == ROM_VERSION_PLUS || ROMVersion == ROM_VERSION_CLASSIC))
-		QuitEmulator();
-
-	// Init 680x0 emulation (this also activates the memory system which is needed for PatchROM())
-	if (!Init680x0())
-		QuitEmulator();
-
-	// Install ROM patches
-	if (!PatchROM()) {
-		ErrorAlert(GetString(STR_UNSUPPORTED_ROM_TYPE_ERR));
-		QuitEmulator();
-	}
 
 #if defined(HAVE_TIMER_CREATE) && defined(_POSIX_REALTIME_SIGNALS)
 	// Start 60Hz timer
@@ -370,32 +292,8 @@ void QuitEmulator(void)
 		pthread_join(xpram_thread, NULL);
 	}
 
-	// Save XPRAM
-	XPRAMExit();
-
-	// Exit video
-	VideoExit();
-
-	// Exit audio
-	AudioExit();
-
-	// Exit clipboard
-	ClipExit();
-
-	// Exit Time Manager
-	TimerExit();
-
-	// Exit serial ports
-	SerialExit();
-
-	// Exit network
-	EtherExit();
-
-	// Exit drivers
-	SCSIExit();
-	CDROMExit();
-	DiskExit();
-	SonyExit();
+	// Deinitialize everything
+	ExitAll();
 
 	// Delete ROM area
 	delete[] ROMBaseHost;

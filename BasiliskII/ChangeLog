@@ -3,11 +3,17 @@ V0.7 -
 	  by an interrupt routine
 	- localizable strings are now split into a common and a platform-
 	  specific set
-	- AmigaOS/clip_amiga.cpp: fixed small bug in CR->LF translation
-	  [Giacomo Magnini]
+	- added external file system to access host OS files from the MacOS;
+	  root directory is specified by the "extfs" prefs item
+	- moved most initialization/deinitialization code to InitAll() and
+	  ExitAll() in main.cpp
 	- added patches for NetBSD [Bernd Sieker]
 	- corrected TimerDateTime() in timer_unix.cpp and timer_beos.cpp
 	  [Toshimitsu Tanaka]
+	- AmigaOS/clip_amiga.cpp: fixed small bug in CR->LF translation
+	  [Giacomo Magnini]
+	- Unix: compilation of cpuemu.cpp is now split in 8 parts
+	- Unix: volume list in GTK prefs editor is reorderable
 
 V0.7 (release 0.7-2) - 6.Oct.1999
 	- Added BasiliskII.spec for making RPMs [with assistance from

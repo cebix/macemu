@@ -26,12 +26,12 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@ -s
 INSTALL_DATA = @INSTALL_DATA@
 
 ## Files
-SRCS = main_unix.cpp ../prefs.cpp prefs_unix.cpp sys_unix.cpp ../rom_patches.cpp \
-    ../slot_rom.cpp ../rsrc_patches.cpp ../emul_op.cpp ../macos_util.cpp \
-    ../xpram.cpp xpram_unix.cpp ../timer.cpp timer_unix.cpp clip_unix.cpp \
-    ../adb.cpp ../serial.cpp serial_unix.cpp ../ether.cpp ../sony.cpp \
+SRCS = ../main.cpp main_unix.cpp ../prefs.cpp prefs_unix.cpp sys_unix.cpp \
+    ../rom_patches.cpp ../slot_rom.cpp ../rsrc_patches.cpp ../emul_op.cpp \
+    ../macos_util.cpp ../xpram.cpp xpram_unix.cpp ../timer.cpp timer_unix.cpp \
+    clip_unix.cpp ../adb.cpp ../serial.cpp serial_unix.cpp ../ether.cpp ../sony.cpp \
     ../disk.cpp ../cdrom.cpp ../scsi.cpp ../video.cpp video_x.cpp ../audio.cpp \
-    ../user_strings.cpp user_strings_unix.cpp \
+    ../extfs.cpp extfs_unix.cpp ../user_strings.cpp user_strings_unix.cpp \
     $(SYSSRCS) $(CPUSRCS)
 APP = BasiliskII
 

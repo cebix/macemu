@@ -50,8 +50,6 @@ void Microseconds(uint32 &hi, uint32 &lo)
  *  Return local date/time in Mac format (seconds since 1.1.1904)
  */
 
-const uint32 TIME_OFFSET = 0x7c25b080;	// Offset Mac->Unix time in seconds
-
 uint32 TimerDateTime(void)
 {
 	time_t utc_now = time(NULL);

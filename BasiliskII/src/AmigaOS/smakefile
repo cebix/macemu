@@ -9,9 +9,9 @@ LIBS = LIB lib:debug.lib
 AFLAGS = CPU=68020
 
 ## Files
-OBJS = prefs.o rom_patches.o slot_rom.o rsrc_patches.o emul_op.o macos_util.o \
+OBJS = main.o prefs.o rom_patches.o slot_rom.o rsrc_patches.o emul_op.o macos_util.o \
        xpram.o timer.o adb.o serial.o ether.o sony.o disk.o cdrom.o scsi.o \
-       video.o audio.o user_strings.o \
+       video.o audio.o extfs.o user_strings.o \
        main_amiga.o asm_support.o prefs_amiga.o prefs_editor_amiga.o \
        sys_amiga.o xpram_amiga.o timer_amiga.o clip_amiga.o serial_amiga.o \
        ether_amiga.o scsi_amiga.o audio_amiga.o video_amiga.o user_strings_amiga.o
@@ -24,6 +24,8 @@ $(APP): $(OBJS)
 clean:
 	-delete $(APP) $(OBJS)
 
+main.o: /main.cpp
+	$(CC) $(INCLUDES) $(CFLAGS) /main.cpp
 prefs.o: /prefs.cpp
 	$(CC) $(INCLUDES) $(CFLAGS) /prefs.cpp
 rom_patches.o: /rom_patches.cpp
@@ -58,6 +60,8 @@ video.o: /video.cpp
 	$(CC) $(INCLUDES) $(CFLAGS) /video.cpp
 audio.o: /audio.cpp
 	$(CC) $(INCLUDES) $(CFLAGS) /audio.cpp
+extfs.o: /extfs.cpp
+	$(CC) $(INCLUDES) $(CFLAGS) /extfs.cpp
 user_strings.o: /user_strings.cpp
 	$(CC) $(INCLUDES) $(CFLAGS) /user_strings.cpp
 

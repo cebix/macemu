@@ -98,6 +98,7 @@ user_string_def common_strings[] = {
 	{STR_BOOT_ANY_LAB, "Any"},
 	{STR_BOOT_CDROM_LAB, "CD-ROM"},
 	{STR_NOCDROM_CTRL, "Disable CD-ROM Driver"},
+	{STR_EXTFS_CTRL, "Host Root"},
 	{STR_DEVICE_CTRL, "Device"},
 	{STR_UNIT_CTRL, "Unit"},
 	{STR_ADD_VOLUME_TITLE, "Add Volume"},
@@ -201,6 +202,9 @@ user_string_def common_strings[] = {
 	{STR_WINDOW_ITEM_REFRESH, "Refresh Rate"},
 	{STR_WINDOW_ITEM_MOUNT, "Mount"},
 	{STR_SUSPEND_WINDOW_TITLE, "Basilisk II suspended. Press space to reactivate."},
+
+	{STR_EXTFS_NAME, "Host Directory Tree"},
+	{STR_EXTFS_VOLUME_NAME, "Host"},
 
 	{-1, NULL}	// End marker
 };

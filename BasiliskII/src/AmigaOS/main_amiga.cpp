@@ -248,59 +248,15 @@ int main(void)
 		QuitEmulator();
 	}
 
-	// Check ROM version
-	if (!CheckROM()) {
-		ErrorAlert(GetString(STR_UNSUPPORTED_ROM_TYPE_ERR));
-		QuitEmulator();
-	}
-
 	// Set CPU and FPU type
 	UWORD attn = SysBase->AttnFlags;
 	CPUType = attn & AFF_68040 ? 4 : (attn & AFF_68030 ? 3 : 2);
 	CPUIs68060 = attn & AFF_68060;
 	FPUType = attn & AFF_68881 ? 1 : 0;
 
-	// Load XPRAM
-	XPRAMInit();
-
-	// Set boot volume
-	int16 i16 = PrefsFindInt16("bootdrive");
-	XPRAM[0x78] = i16 >> 8;
-	XPRAM[0x79] = i16 & 0xff;
-	i16 = PrefsFindInt16("bootdriver");
-	XPRAM[0x7a] = i16 >> 8;
-	XPRAM[0x7b] = i16 & 0xff;
-
-	// Init drivers
-	SonyInit();
-	DiskInit();
-	CDROMInit();
-	SCSIInit();
-
-	// Init network
-	EtherInit();
-
-	// Init serial ports
-	SerialInit();
-
-	// Init Time Manager
-	TimerInit();
-
-	// Init clipboard
-	ClipInit();
-
-	// Init audio
-	AudioInit();
-
-	// Init video
-	if (!VideoInit(ROMVersion == ROM_VERSION_64K || ROMVersion == ROM_VERSION_PLUS || ROMVersion == ROM_VERSION_CLASSIC))
+	// Initialize everything
+	if (!InitAll())
 		QuitEmulator();
-
-	// Install ROM patches
-	if (!PatchROM()) {
-		ErrorAlert(GetString(STR_UNSUPPORTED_ROM_TYPE_ERR));
-		QuitEmulator();
-	}
 
 	// Move VBR away from 0 if neccessary
 	MoveVBR();
@@ -379,32 +335,8 @@ void __saveds QuitEmulator(void)
 	// Remove trap handler
 	MainTask->tc_TrapCode = OldTrapHandler;
 
-	// Save XPRAM
-	XPRAMExit();
-
-	// Exit video
-	VideoExit();
-
-	// Exit audio
-	AudioExit();
-
-	// Exit clipboard
-	ClipExit();
-
-	// Exit Time Manager
-	TimerExit();
-
-	// Exit serial ports
-	SerialExit();
-
-	// Exit network
-	EtherExit();
-
-	// Exit drivers
-	SCSIExit();
-	CDROMExit();
-	DiskExit();
-	SonyExit();
+	// Deinitialize everything
+	ExitAll();
 
 	// Delete RAM/ROM area
 	if (RAMBaseHost)

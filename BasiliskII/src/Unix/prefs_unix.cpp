@@ -92,4 +92,5 @@ void SavePrefs(void)
 void AddPlatformPrefsDefaults(void)
 {
 	PrefsAddBool("keycodes", false);
+	PrefsReplaceString("extfs", "/");
 }

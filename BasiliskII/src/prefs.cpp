@@ -36,6 +36,7 @@ prefs_desc common_prefs_items[] = {
 	{"disk", TYPE_STRING, true},		// Device/file names of Mac volumes (disk.cpp)
 	{"floppy", TYPE_STRING, true},		// Device/file names of Mac floppy drives (sony.cpp)
 	{"cdrom", TYPE_STRING, true},		// Device/file names of Mac CD-ROM drives (cdrom.cpp)
+	{"extfs", TYPE_STRING, false},		// Root path of ExtFS (extfs.cpp)
 	{"scsi0", TYPE_STRING, false},		// SCSI targets for Mac SCSI ID 0..6 (scsi_*.cpp)
 	{"scsi1", TYPE_STRING, false},
 	{"scsi2", TYPE_STRING, false},

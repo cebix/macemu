@@ -26,6 +26,9 @@
 user_string_def platform_strings[] = {
 	// Common strings that have a platform-specific variant
 	{STR_VOLUME_IS_MOUNTED_WARN, "The volume '%s' is mounted under BeOS. Basilisk II will try to unmount it."},
+	{STR_EXTFS_CTRL, "BeOS Root"},
+	{STR_EXTFS_NAME, "BeOS Directory Tree"},
+	{STR_EXTFS_VOLUME_NAME, "BeOS"},
 
 	// Purely platform-specific strings
 	{STR_NO_SHEEP_DRIVER_ERR, "Cannot open /dev/sheep: %s (%08x). Basilisk II is not properly installed."},
