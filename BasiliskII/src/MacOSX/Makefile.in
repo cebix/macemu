@@ -39,7 +39,7 @@ SRCS =  BasiliskII.icns Controller.h Controller.mm Credits.html \
 	NNThread.h NNThread.m PrefsEditor.h PrefsEditor.mm \
 	ToDo.html Versions.html \
 	audio_macosx.mm extfs_macosx.mm macos_util_macosx.h main_macosx.h \
-	main_macosx.mm misc_macosx.h misc_macosx.mm prefs_macosx.cpp \
+	main_macosx.mm misc_macosx.h misc_macosx.mm nowrite.icns prefs_macosx.cpp \
 	sysdeps.h video_macosx.mm video_macosx.h
 APP = $(OBJ_DIR)/BasiliskII.app
 
@@ -68,6 +68,9 @@ $(APP): $(OBJ_DIR) $(GEN) $(SRCS)
 
 BasiliskII.icns :
 	touch $@
+
+nowrite.icns :
+	ln -sf /System/Library/CoreServices/Finder.app/Contents/Resources/nowrite.icns .
 
 mostlyclean:
 	rm -fr English.lproj/*~* $(OBJ_DIR)/* core* *.core *~ *.bak
