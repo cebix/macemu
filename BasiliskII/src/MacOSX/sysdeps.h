@@ -66,13 +66,33 @@
 #endif
 
 
+/* Symbol to distinguish Nigel's Aqua port from a normal Darwin X11 build */
+/* (this sysdeps.h file is currently specific to the Mac OS X Aqua port)  */
+#define AQUA 1
+
+/* Header which defines OS X version for selecting APIs */
 #ifdef AVAILABILITYMACROS
 # include <AvailabilityMacros.h>
 #endif
 
-/* Emulator and host address space are distinct */
+
+#ifdef ENABLE_NATIVE_M68K
+
+/* Mac and host address space are the same */
+#define REAL_ADDRESSING 1
+
+/* Using 68k natively */
+#define EMULATED_68K 0
+
+/* Mac ROM is not write protected */
+#define ROM_IS_WRITE_PROTECTED 0
+#define USE_SCRATCHMEM_SUBTERFUGE 1
+
+#else
+
+/* Mac and host address space are distinct */
 #ifndef REAL_ADDRESSING
-# define REAL_ADDRESSING 0
+#define REAL_ADDRESSING 0
 #endif
 
 /* Using 68k emulator */
@@ -89,6 +109,8 @@
 # define ROM_IS_WRITE_PROTECTED 1
 #endif
 
+#endif
+
 /* Direct Addressing requires Video on SEGV signals */
 #if DIRECT_ADDRESSING && !ENABLE_VOSF
 # undef  ENABLE_VOSF
@@ -100,6 +122,7 @@
 
 /* BSD socket API supported */
 #define SUPPORTS_UDP_TUNNEL 1
+
 
 /* Data types */
 typedef unsigned char uint8;
