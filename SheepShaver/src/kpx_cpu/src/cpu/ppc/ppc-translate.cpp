@@ -447,6 +447,22 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			}
 			break;
 		}
+		case PPC_I(LMW):		// Load Multiple Word
+		case PPC_I(STMW):		// Store Multiple Word
+		{
+			const int rA = rA_field::extract(opcode);
+			if (rA == 0)
+				dg.gen_mov_32_T0_im(operand_D::get(this, opcode));
+			else {
+				dg.gen_load_T0_GPR(rA);
+				dg.gen_add_32_T0_im(operand_D::get(this, opcode));
+			}
+			switch (ii->mnemo) {
+			case PPC_I(LMW):  dg.gen_lmw_T0(rD_field::extract(opcode));  break;
+			case PPC_I(STMW): dg.gen_stmw_T0(rS_field::extract(opcode)); break;
+			}
+			break;
+		}
 		case PPC_I(BC):			// Branch Conditional
 		{
 			const int bo = BO_field::extract(opcode);
@@ -1042,6 +1058,20 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			dg.gen_load_T0_GPR(rA_field::extract(opcode));
 			dg.gen_mulli_T0_im(operand_SIMM::get(this, opcode));
 			dg.gen_store_T0_GPR(rD_field::extract(opcode));
+			break;
+		}
+		case PPC_I(DCBZ):		// Data Cache Block Clear to Zero
+		{
+			const int rA = rA_field::extract(opcode);
+			const int rB = rB_field::extract(opcode);
+			if (rA == 0)
+				dg.gen_load_T0_GPR(rB);
+			else {
+				dg.gen_load_T0_GPR(rA);
+				dg.gen_load_T1_GPR(rB);
+				dg.gen_add_32_T0_T1();
+			}
+			dg.gen_dcbz_T0();
 			break;
 		}
 		case PPC_I(DCBA):		// Data Cache Block Allocate

@@ -66,6 +66,10 @@ public:
 	void gen_store_F1_FPR(int i);
 	void gen_store_F2_FPR(int i);
 
+	// Load/store multiple words
+	void gen_lmw_T0(int r);
+	void gen_stmw_T0(int r);
+
 	// Raw aliases
 #define DEFINE_ALIAS_RAW(NAME, PRE, POST, ARGLIST, ARGS) \
 	void gen_##NAME ARGLIST { PRE; gen_op_##NAME ARGS; POST; }
@@ -83,6 +87,7 @@ public:
 	// Misc instructions
 	DEFINE_ALIAS(inc_32_mem,1);
 	DEFINE_ALIAS(nego_T0,0);
+	DEFINE_ALIAS(dcbz_T0,0);
 
 	// Condition registers
 	DEFINE_ALIAS(load_T0_CR,0);

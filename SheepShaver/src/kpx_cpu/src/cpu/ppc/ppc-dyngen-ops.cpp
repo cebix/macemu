@@ -1261,6 +1261,13 @@ void OPPROTO op_nego_T0(void)
 	T0 = -T0;
 }
 
+void OPPROTO op_dcbz_T0(void)
+{
+	T0 &= -32; // align T0 on cache line boundaries
+	uint64 * block = (uint64 *) vm_do_get_real_address(T0);
+	block[0] = 0; block[1] = 0; block[2] = 0; block[3] = 0;
+}
+
 /**
  *		Generate possible call to next basic block without going
  *		through register state restore & full cache lookup
@@ -1277,6 +1284,70 @@ void OPPROTO op_jump_next_A0(void)
 	}
 	dyngen_barrier();
 }
+
+/**
+ *		Load/store multiple
+ **/
+
+template< int N >
+static inline void do_lmw(void)
+{
+	CPU->gpr(N) = vm_read_memory_4(T0);
+	T0 += 4;
+	do_lmw<N + 1>();
+}
+
+template<>
+static inline void do_lmw<31>(void)
+{
+	CPU->gpr(31) = vm_read_memory_4(T0);
+}
+
+template<>
+static inline void do_lmw<32>(void)
+{
+	for (uint32 r = PARAM1, ad = T0; r <= 31; r++, ad += 4)
+		CPU->gpr(r) = vm_read_memory_4(ad);
+	dyngen_barrier();
+}
+
+template< int N >
+static inline void do_stmw(void)
+{
+	vm_write_memory_4(T0, CPU->gpr(N));
+	T0 += 4;
+	do_stmw<N + 1>();
+}
+
+template<>
+static inline void do_stmw<31>(void)
+{
+	vm_write_memory_4(T0, CPU->gpr(31));
+}
+
+template<>
+static inline void do_stmw<32>(void)
+{
+	for (uint32 r = PARAM1, ad = T0; r <= 31; r++, ad += 4)
+		vm_write_memory_4(ad, CPU->gpr(r));
+	dyngen_barrier();
+}
+
+#define im 32
+#define DEFINE_OP(N)							\
+void op_lmw_T0_## N(void) { do_lmw <N>(); }		\
+void op_stmw_T0_##N(void) { do_stmw<N>(); }
+
+DEFINE_OP(im);
+DEFINE_OP(26);
+DEFINE_OP(27);
+DEFINE_OP(28);
+DEFINE_OP(29);
+DEFINE_OP(30);
+DEFINE_OP(31);
+
+#undef im
+#undef DEFINE_OP
 
 /**
  *		Load/store addresses to vector registers

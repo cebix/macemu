@@ -126,6 +126,30 @@ void powerpc_dyngen::gen_mtcrf_T0_im(uint32 mask)
 
 
 /**
+ *		Load/store multiple words
+ **/
+
+#define DEFINE_INSN(OP)							\
+void powerpc_dyngen::gen_##OP##_T0(int r)		\
+{												\
+	switch (r) {								\
+	case 26: gen_op_##OP##_T0_26(); break;		\
+	case 27: gen_op_##OP##_T0_27(); break;		\
+	case 28: gen_op_##OP##_T0_28(); break;		\
+	case 29: gen_op_##OP##_T0_29(); break;		\
+	case 30: gen_op_##OP##_T0_30(); break;		\
+	case 31: gen_op_##OP##_T0_31(); break;		\
+	default: gen_op_##OP##_T0_im(r); break;		\
+	}											\
+}
+
+DEFINE_INSN(lmw);
+DEFINE_INSN(stmw);
+
+#undef DEFINE_INSN
+
+
+/**
  *		Load/store registers
  **/
 
