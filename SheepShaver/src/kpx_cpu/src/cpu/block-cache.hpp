@@ -128,6 +128,7 @@ inline void block_cache< block_info, block_allocator >::clear_range(uintptr star
 		q = p;
 		p = p->next;
 		if (q->intersect(start, end)) {
+			q->invalidate();
 			remove_from_cl_list(q);
 			remove_from_list(q);
 			delete_blockinfo(q);

@@ -25,6 +25,30 @@
 #include "cpu/jit/jit-cache.hpp"
 #include JIT_TARGET_INCLUDE(jit-target-cache.hpp)
 
+// Set jump target address
+static inline void dg_set_jmp_target(uint8 *jmp_addr, uint8 *addr)
+{
+#if defined(__powerpc__)
+	// patch the branch destination
+	uint32 *ptr = (uint32 *)jmp_addr;
+	uint32 val  = *ptr;
+    val = (val & ~0x03fffffc) | ((addr - jmp_addr) & 0x03fffffc);
+    *ptr = val;
+
+    // flush icache
+    asm volatile ("dcbst 0,%0" : : "r"(ptr) : "memory");
+    asm volatile ("sync" : : : "memory");
+    asm volatile ("icbi 0,%0" : : "r"(ptr) : "memory");
+    asm volatile ("sync" : : : "memory");
+    asm volatile ("isync" : : : "memory");
+#endif
+#if defined(__i386__) || defined(__x86_64__)
+	// patch the branch destination
+	*(uint32 *)jmp_addr = addr - (jmp_addr + 4);
+	// no need to flush icache explicitly
+#endif
+}
+
 #ifdef SHEEPSHAVER
 class powerpc_cpu;
 typedef powerpc_cpu *dyngen_cpu_base;
@@ -206,40 +230,9 @@ public:
 #undef DEFINE_ALIAS_3
 #undef DEFINE_ALIAS_RAW
 
-#if DYNGEN_DIRECT_BLOCK_CHAINING
-	// Jump addresses for direct chaining
+	// Address of jump offset to patch for direct chaining
 	uint8 *jmp_addr[2];
-
-	// Set jump target address
-	void set_jmp_target(uint8 *jmp_addr, uint8 *addr);
-#endif
 };
-
-#if DYNGEN_DIRECT_BLOCK_CHAINING
-inline void
-basic_dyngen::set_jmp_target(uint8 *jmp_addr, uint8 *addr)
-{
-#if defined(__powerpc__)
-	// patch the branch destination
-	uint32 *ptr = (uint32 *)jmp_addr;
-	uint32 val  = *ptr;
-    val = (val & ~0x03fffffc) | ((addr - jmp_addr) & 0x03fffffc);
-    *ptr = val;
-
-    // flush icache
-    asm volatile ("dcbst 0,%0" : : "r"(ptr) : "memory");
-    asm volatile ("sync" : : : "memory");
-    asm volatile ("icbi 0,%0" : : "r"(ptr) : "memory");
-    asm volatile ("sync" : : : "memory");
-    asm volatile ("isync" : : : "memory");
-#endif
-#if defined(__i386__) || defined(__x86_64__)
-	// patch the branch destination
-	*(uint32 *)jmp_addr = addr - (jmp_addr + 4);
-	// no need to flush icache explicitly
-#endif
-}
-#endif
 
 inline bool
 basic_dyngen::direct_jump_possible(uintptr target) const

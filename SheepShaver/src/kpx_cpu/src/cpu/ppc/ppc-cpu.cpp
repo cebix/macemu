@@ -446,7 +446,7 @@ void *powerpc_cpu::compile_chain_block(block_info *sbi)
 		tbi = compile_block(tpc);
 	assert(tbi && tbi->pc == tpc);
 
-	codegen.set_jmp_target(sbi->jmp_addr[n], tbi->entry_point);
+	dg_set_jmp_target(sbi->jmp_addr[n], tbi->entry_point);
 	return tbi->entry_point;
 }
 #endif
@@ -657,6 +657,19 @@ void powerpc_cpu::invalidate_cache()
 #endif
 #if PPC_DECODE_CACHE
 	decode_cache_p = decode_cache;
+#endif
+}
+
+inline void powerpc_block_info::invalidate()
+{
+#if DYNGEN_DIRECT_BLOCK_CHAINING
+	for (int i = 0; i < 2; i++) {
+		uint32 tpc = jmp_pc[i];
+		// For any jump within page boundaries, reset the jump address
+		// to the target block resolver (trampoline)
+		if (tpc != INVALID_PC && ((tpc ^ pc) >> 12) == 0)
+			dg_set_jmp_target(jmp_addr[i], jmp_resolve_addr[i]);
+	}
 #endif
 }
 

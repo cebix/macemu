@@ -50,6 +50,12 @@ static inline bool is_read_only_memory(uintptr addr)
 	return false;
 }
 
+// Returns TRUE if we can directly generate a jump to the target block
+static inline bool direct_chaining_possible(uint32 bpc, uint32 tpc)
+{
+	return ((bpc ^ tpc) >> 12) == 0 || is_read_only_memory(tpc);
+}
+
 
 /**
  *		Basic block disassemblers
@@ -132,6 +138,12 @@ powerpc_cpu::compile_block(uint32 entry_point)
 	block_info *bi = block_cache.new_blockinfo();
 	bi->init(entry_point);
 	bi->entry_point = dg.gen_start();
+#if DYNGEN_DIRECT_BLOCK_CHAINING
+	for (int i = 0; i < 2; i++) {
+		dg.jmp_addr[i] = NULL;
+		bi->jmp_pc[i] = block_info::INVALID_PC;
+	}
+#endif
 
 	// Direct block chaining support variables
 	bool use_direct_block_chaining = false;
@@ -452,7 +464,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 #if DYNGEN_DIRECT_BLOCK_CHAINING
 			// Use direct block chaining for in-page jumps or jumps to ROM area
 			const uint32 npc = dpc + 4;
-			if (((tpc & -4096) == (npc & -4096)) || is_read_only_memory(tpc)) {
+			if (direct_chaining_possible(bi->pc, tpc)) {
 				use_direct_block_chaining = true;
 				bi->jmp_pc[0] = tpc;
 				bi->jmp_pc[1] = npc;
@@ -507,10 +519,17 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			}
 #endif
 
+#if DYNGEN_DIRECT_BLOCK_CHAINING
+			// Use direct block chaining, addresses will be resolved at execution
+			if (direct_chaining_possible(bi->pc, tpc)) {
+				use_direct_block_chaining = true;
+				bi->jmp_pc[0] = tpc;
+			}
+#endif
 			dg.gen_mov_32_A0_im(tpc);
 
 			// BO field is built so that we always branch to A0
-			dg.gen_bc_A0(BO_MAKE(0,0,0,0), 0, 0, false);
+			dg.gen_bc_A0(BO_MAKE(0,0,0,0), 0, 0, use_direct_block_chaining);
 			break;
 		}
 		case PPC_I(CMP):		// Compare
@@ -1468,24 +1487,19 @@ powerpc_cpu::compile_block(uint32 entry_point)
 	if (use_direct_block_chaining) {
 		typedef void *(*func_t)(dyngen_cpu_base);
 		func_t func = (func_t)nv_mem_fun(&powerpc_cpu::compile_chain_block).ptr();
-
-		// Taken PC
-		uint8 *p = dg.gen_start();
-		dg.gen_mov_ad_T0_im(((uintptr)bi) | 0);
-		dg.gen_invoke_CPU_T0_ret_A0(func);
-		dg.gen_jmp_A0();
-		dg.gen_end();
-		bi->jmp_addr[0] = dg.jmp_addr[0];
-		dg.set_jmp_target(dg.jmp_addr[0], p);
-
-		// Not taken PC
-		p = dg.gen_start();
-		dg.gen_mov_ad_T0_im(((uintptr)bi) | 1);
-		dg.gen_invoke_CPU_T0_ret_A0(func);
-		dg.gen_jmp_A0();
-		dg.gen_end();
-		bi->jmp_addr[1] = dg.jmp_addr[1];
-		dg.set_jmp_target(dg.jmp_addr[1], p);
+		for (int i = 0; i < 2; i++) {
+			if (bi->jmp_pc[i] != block_info::INVALID_PC) {
+				uint8 *p = dg.gen_start();
+				dg.gen_mov_ad_T0_im(((uintptr)bi) | i);
+				dg.gen_invoke_CPU_T0_ret_A0(func);
+				dg.gen_jmp_A0();
+				dg.gen_end();
+				assert(dg.jmp_addr[i] != NULL);
+				bi->jmp_addr[i] = dg.jmp_addr[i];
+				bi->jmp_resolve_addr[i] = p;
+				dg_set_jmp_target(bi->jmp_addr[i], bi->jmp_resolve_addr[i]);
+			}
+		}
 	}
 #endif
 
