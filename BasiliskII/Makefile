@@ -9,6 +9,7 @@ SRCARCHIVE := $(shell date +BasiliskII_src_%d%m%Y.tar.gz)
 AMIGAARCHIVE := $(VERNAME)-$(RELEASE).amiga.lzh
 BEOSPPCARCHIVE := $(VERNAME)-$(RELEASE).beosppc.zip
 BEOSX86ARCHIVE := $(VERNAME)-$(RELEASE).beosx86.zip
+MACOSXARCHIVE := $(VERNAME)-$(RELEASE).tar.gz
 
 TMPDIR := $(shell date +/tmp/build%M%S)
 ISODATE := $(shell date "+%Y-%m-%d %H:%M")
@@ -29,6 +30,7 @@ help:
 	@echo "  amiga    AmigaOS binary archive ($(AMIGAARCHIVE))"
 	@echo "  beosppc  BeOS/ppc binary archive ($(BEOSPPCARCHIVE))"
 	@echo "  beosx86  BeOS/x86 binary archive ($(BEOSX86ARCHIVE))"
+	@echo "  macosx   MacOS X binary archive ($(MACOSXARCHIVE))"
 
 clean:
 	-rm -f $(SRCARCHIVE)
@@ -102,5 +104,20 @@ $(BEOSX86ARCHIVE): $(SRCS) $(DOCS) src/BeOS/obj.x86/BasiliskII
 	cp src/BeOS/obj.x86/BasiliskII $(TMPDIR)/$(VERNAME)
 	mimeset -f $(TMPDIR)
 	cd $(TMPDIR); zip -ry $@ $(VERNAME)/
+	mv $(TMPDIR)/$@ .
+	rm -rf $(TMPDIR)
+
+#
+# Binary archive for MacOS X
+#
+macosx: $(MACOSXARCHIVE)
+
+$(MACOSXARCHIVE): $(SRCS) $(DOCS) src/MacOSX/build/BasiliskII.app
+	-rm -rf $(TMPDIR)
+	mkdir $(TMPDIR)
+	mkdir $(TMPDIR)/$(VERNAME)
+	cp $(DOCS) $(TMPDIR)/$(VERNAME)
+	cp -pr src/MacOSX/build/BasiliskII.app $(TMPDIR)/$(VERNAME)
+	cd $(TMPDIR); tar -czvf $@ $(VERNAME)/
 	mv $(TMPDIR)/$@ .
 	rm -rf $(TMPDIR)
