@@ -63,7 +63,7 @@ links:
 	       Unix/sys_unix.cpp Unix/timer_unix.cpp Unix/xpram_unix.cpp \
 	       Unix/sigsegv.h Unix/sigsegv.cpp Unix/vm_alloc.h Unix/vm_alloc.cpp \
 	       Unix/posix_sem.cpp Unix/video_vosf.h Unix/video_blit.h \
-	       Unix/video_blit.cpp \
+	       Unix/video_blit.cpp Unix/config.sub Unix/config.guess \
 	       Unix/Linux/scsi_linux.cpp Unix/Linux/NetDriver'; \
 	PREFIX="`pwd`/"; case $(B2_TOPDIR) in /*) PREFIX="";; esac; \
 	for i in $$list; do \
