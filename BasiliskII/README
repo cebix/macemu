@@ -682,6 +682,43 @@ Windows:
     false.
 
 
+JIT-specific configuration
+--------------------------
+
+A Just-In-Time (JIT) translation engine is available for x86. This is
+aimed at translating 68040 instructions to native equivalent code
+sequences, thus providing faster emulation speeds.
+
+  jit <"true" or "false">
+
+    Set this to "true" to enable the JIT compiler. Default value is
+    "true" if the JIT compiler was compiled in. Besides, this is
+    effective only if Basilisk II is configured to emulate a 68040.
+
+  jitfpu <"true" or "false">
+
+    Set this to "true" to enable translation of floating-point (FPU)
+    instructions. Default is "true".
+
+  jitcachesize <size>
+
+    Allocate "size" kilobytes of RAM for the translation cache. The
+    value given will be rounded down to the nearest multiple of a page
+    size. Minimal value is "2048" (2MB). Default value is "8192" (8MB).
+
+  jitlazyflush <"true" or "false">
+
+    Set this to "true" to enable lazy invalidation of the translation
+    cache. This is always recommended as it usually makes the system
+    more responsive and faster, especially while running MacOS
+    8.X. Default value is "true".
+
+  jitdebug <"true" or "false">
+
+    Set this to "true" to enable the JIT debugger. This requires a
+    build of Basilisk II with the cxmon debugger. Default is "false".
+
+
 Usage
 -----
 
@@ -782,7 +819,8 @@ Acknowledgements
 Contributions by (in alphabetical order):
  - Orlando Bassotto <future@powercube.mediabit.net>: FreeBSD support
  - Gwenolé Beauchesne <gb@dial.oleane.com>: SPARC assembly optimizations,
-   lots of work on the Unix video code
+   lots of work on the Unix video code, fixes and improvements to the
+   JIT compiler
  - Marc Chabanas <Marc.Chabanas@france.sun.com>: Solaris sound support
  - Marc Hellwig <Marc.Hellwig@uni-mainz.de>: audio output, BeOS video code
    and networking
@@ -792,6 +830,7 @@ Contributions by (in alphabetical order):
  - Jürgen Lachmann <juergen_lachmann@t-online.de>: AmigaOS CyberGraphX support
  - Samuel Lander <blair_sp@hotmail.com>: tile-based window refresh code
  - David Lawrence <davidl@jlab.org>: incremental window refresh code
+ - Bernier Meyer <bmeyer@csse.monash.edu.au>: original UAE-JIT code
  - Nigel Pearson <nigel@ind.tansu.com.au>: Mac OS X port
  - Lauri Pesonen <lpesonen@nic.fi>: Windows NT port
  - Bernd Schmidt <crux@pool.informatik.rwth-aachen.de>: UAE 68k emulation
