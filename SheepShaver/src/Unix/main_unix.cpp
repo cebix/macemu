@@ -700,6 +700,15 @@ int main(int argc, char **argv)
 		closedir(cpus_dir);
 	}
 #endif
+	// Remap any newer G4/G5 processor to plain G4 for compatibility
+	switch (PVR >> 16) {
+	case 0x8000:				// 7450
+	case 0x8001:				// 7455
+	case 0x8002:				// 7457
+	case 0x0039:				//  970
+		PVR = 0x000c0000;		// 7400
+		break;
+	}
 	D(bug("PVR: %08x (assumed)\n", PVR));
 
 	// Init system routines
