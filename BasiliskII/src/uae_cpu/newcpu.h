@@ -287,7 +287,7 @@ extern void m68k_record_step(uaecptr);
 extern void m68k_do_execute(void);
 extern void m68k_execute(void);
 #if USE_JIT
-#ifdef X86_ASSEMBLY
+#if defined(X86_ASSEMBLY) || defined(X86_64_ASSEMBLY)
 /* This is generated code */
 extern void (*m68k_compile_execute)(void);
 #else

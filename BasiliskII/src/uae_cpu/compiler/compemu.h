@@ -41,7 +41,7 @@ extern void compiler_dumpstate(void);
 #define TAGMASK 0x0000ffff
 #define TAGSIZE (TAGMASK+1)
 #define MAXRUN 1024
-#define cacheline(x) (((uae_u32)x)&TAGMASK)
+#define cacheline(x) (((uintptr)x)&TAGMASK)
 
 extern uae_u8* start_pc_p;
 extern uae_u32 start_pc;
@@ -125,13 +125,17 @@ union cacheline {
 #define KILLTHERAT 1  /* Set to 1 to avoid some partial_rat_stalls */
 
 /* Whether to preserve registers across calls to JIT compiled routines */
-#ifdef X86_ASSEMBLY
+#if defined(X86_ASSEMBLY) || defined(X86_64_ASSEMBLY)
 #define USE_PUSH_POP 0
 #else
 #define USE_PUSH_POP 1
 #endif
 
+#if defined(__x86_64__)
+#define N_REGS 16 /* really only 15, but they are numbered 0-3,5-15 */
+#else
 #define N_REGS 8  /* really only 7, but they are numbered 0,1,2,3,5,6,7 */
+#endif
 #define N_FREGS 6 /* That leaves us two positions on the stack to play with */
 
 /* Functions exposed to newcpu, or to what was moved from newcpu.c to
@@ -525,7 +529,7 @@ extern void register_branch(uae_u32 not_taken, uae_u32 taken, uae_u8 cond);
 struct blockinfo_t;
 
 typedef struct dep_t {
-  uintptr*            jmp_off;
+  uae_u32*            jmp_off;
   struct blockinfo_t* target;
   struct blockinfo_t* source;
   struct dep_t**      prev_p;

@@ -42,48 +42,62 @@
 #define EBP_INDEX 5
 #define ESI_INDEX 6
 #define EDI_INDEX 7
+#if defined(__x86_64__)
+#define R8_INDEX  8
+#define R9_INDEX  9
+#define R10_INDEX 10
+#define R11_INDEX 11
+#define R12_INDEX 12
+#define R13_INDEX 13
+#define R14_INDEX 14
+#define R15_INDEX 15
+#endif
 
 /* The register in which subroutines return an integer return value */
-#define REG_RESULT 0
+#define REG_RESULT EAX_INDEX
 
 /* The registers subroutines take their first and second argument in */
 #if defined( _MSC_VER ) && !defined( USE_NORMAL_CALLING_CONVENTION )
 /* Handle the _fastcall parameters of ECX and EDX */
-#define REG_PAR1 1
-#define REG_PAR2 2
+#define REG_PAR1 ECX_INDEX
+#define REG_PAR2 EDX_INDEX
+#elif defined(__x86_64__)
+#define REG_PAR1 EDI_INDEX
+#define REG_PAR2 ESI_INDEX
 #else
-#define REG_PAR1 0
-#define REG_PAR2 2
+#define REG_PAR1 EAX_INDEX
+#define REG_PAR2 EDX_INDEX
 #endif
 
-/* Three registers that are not used for any of the above */
-#define REG_NOPAR1 6
-#define REG_NOPAR2 5
-#define REG_NOPAR3 3
-
-#define REG_PC_PRE 0 /* The register we use for preloading regs.pc_p */
+#define REG_PC_PRE EAX_INDEX /* The register we use for preloading regs.pc_p */
 #if defined( _MSC_VER ) && !defined( USE_NORMAL_CALLING_CONVENTION )
-#define REG_PC_TMP 0
+#define REG_PC_TMP EAX_INDEX
 #else
-#define REG_PC_TMP 1 /* Another register that is not the above */
+#define REG_PC_TMP ECX_INDEX /* Another register that is not the above */
 #endif
 
-#define SHIFTCOUNT_NREG 1  /* Register that can be used for shiftcount.
+#define SHIFTCOUNT_NREG ECX_INDEX  /* Register that can be used for shiftcount.
 			      -1 if any reg will do */
-#define MUL_NREG1 0 /* %eax will hold the low 32 bits after a 32x32 mul */
-#define MUL_NREG2 2 /* %edx will hold the high 32 bits */
+#define MUL_NREG1 EAX_INDEX /* %eax will hold the low 32 bits after a 32x32 mul */
+#define MUL_NREG2 EDX_INDEX /* %edx will hold the high 32 bits */
 
 uae_s8 always_used[]={4,-1};
+#if defined(__x86_64__)
+uae_s8 can_byte[]={0,1,2,3,5,6,7,8,9,10,11,12,13,14,15,-1};
+uae_s8 can_word[]={0,1,2,3,5,6,7,8,9,10,11,12,13,14,15,-1};
+#else
 uae_s8 can_byte[]={0,1,2,3,-1};
 uae_s8 can_word[]={0,1,2,3,5,6,7,-1};
+#endif
 
 #if USE_OPTIMIZED_CALLS
 /* Make sure interpretive core does not use cpuopti */
 uae_u8 call_saved[]={0,0,0,1,1,1,1,1};
+#error FIXME: code not ready
 #else
 /* cpuopti mutate instruction handlers to assume registers are saved
    by the caller */
-uae_u8 call_saved[]={0,0,0,0,1,0,0,0};
+uae_u8 call_saved[]={0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0};
 #endif
 
 /* This *should* be the same as call_saved. But:
@@ -93,7 +107,7 @@ uae_u8 call_saved[]={0,0,0,0,1,0,0,0};
    - Special registers (such like the stack pointer) should not be "preserved"
      by pushing, even though they are "saved" across function calls
 */
-uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
+uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1};
 
 /* Whether classes of instructions do or don't clobber the native flags */
 #define CLOBBER_MOV
@@ -118,8 +132,10 @@ uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
 #define CLOBBER_TEST clobber_flags()
 #define CLOBBER_CL16 
 #define CLOBBER_CL8  
+#define CLOBBER_SE32
 #define CLOBBER_SE16
 #define CLOBBER_SE8
+#define CLOBBER_ZE32
 #define CLOBBER_ZE16
 #define CLOBBER_ZE8
 #define CLOBBER_SW16 clobber_flags()
@@ -130,7 +146,11 @@ uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
 #define CLOBBER_BSF  clobber_flags()
 
 /* FIXME: disabled until that's proofread.  */
-#if 0
+#if defined(__x86_64__)
+#define USE_NEW_RTASM 1
+#endif
+
+#if USE_NEW_RTASM
 
 #if defined(__x86_64__)
 #define X86_TARGET_64BIT		1
@@ -143,6 +163,7 @@ uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
 #define x86_emit_byte(B)		emit_byte(B)
 #define x86_emit_word(W)		emit_word(W)
 #define x86_emit_long(L)		emit_long(L)
+#define x86_emit_quad(Q)		emit_quad(Q)
 #define x86_get_target()		get_target()
 #define x86_emit_failure(MSG)	jit_fail(MSG, __FILE__, __LINE__, __FUNCTION__)
 
@@ -155,13 +176,21 @@ static void jit_fail(const char *msg, const char *file, int line, const char *fu
 
 LOWFUNC(NONE,WRITE,1,raw_push_l_r,(R4 r))
 {
+#if defined(__x86_64__)
+	PUSHQr(r);
+#else
 	PUSHLr(r);
+#endif
 }
 LENDFUNC(NONE,WRITE,1,raw_push_l_r,(R4 r))
 
 LOWFUNC(NONE,READ,1,raw_pop_l_r,(R4 r))
 {
+#if defined(__x86_64__)
+	POPQr(r);
+#else
 	POPLr(r);
+#endif
 }
 LENDFUNC(NONE,READ,1,raw_pop_l_r,(R4 r))
 
@@ -485,6 +514,12 @@ LOWFUNC(WRITE,NONE,2,raw_bsf_l_rr,(W4 d, R4 s))
 	BSFLrr(s, d);
 }
 LENDFUNC(WRITE,NONE,2,raw_bsf_l_rr,(W4 d, R4 s))
+
+LOWFUNC(NONE,NONE,2,raw_sign_extend_32_rr,(W4 d, R4 s))
+{
+	MOVSLQrr(s, d);
+}
+LENDFUNC(NONE,NONE,2,raw_sign_extend_32_rr,(W4 d, R4 s))
 
 LOWFUNC(NONE,NONE,2,raw_sign_extend_16_rr,(W4 d, R2 s))
 {
@@ -2898,12 +2933,19 @@ LENDFUNC(WRITE,READ,0,raw_popfl,(void))
 
 static __inline__ void raw_call_r(R4 r)
 {
+#if USE_NEW_RTASM
+    CALLsr(r);
+#else
     emit_byte(0xff);
     emit_byte(0xd0+r);
+#endif
 }
 
 static __inline__ void raw_call_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
 {
+#if USE_NEW_RTASM
+    CALLsm(base, X86_NOREG, r, m);
+#else
     int mu;
     switch(m) {
      case 1: mu=0; break;
@@ -2916,16 +2958,24 @@ static __inline__ void raw_call_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
     emit_byte(0x14);
     emit_byte(0x05+8*r+0x40*mu);
     emit_long(base);
+#endif
 }
 
 static __inline__ void raw_jmp_r(R4 r)
 {
+#if USE_NEW_RTASM
+    JMPsr(r);
+#else
     emit_byte(0xff);
     emit_byte(0xe0+r);
+#endif
 }
 
 static __inline__ void raw_jmp_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
 {
+#if USE_NEW_RTASM
+    JMPsm(base, X86_NOREG, r, m);
+#else
     int mu;
     switch(m) {
      case 1: mu=0; break;
@@ -2938,6 +2988,7 @@ static __inline__ void raw_jmp_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
     emit_byte(0x24);
     emit_byte(0x05+8*r+0x40*mu);
     emit_long(base);
+#endif
 }
 
 static __inline__ void raw_jmp_m(uae_u32 base)
@@ -2950,35 +3001,43 @@ static __inline__ void raw_jmp_m(uae_u32 base)
 
 static __inline__ void raw_call(uae_u32 t)
 {
+#if USE_NEW_RTASM
+    CALLm(t);
+#else
     emit_byte(0xe8);
     emit_long(t-(uae_u32)target-4);
+#endif
 }
 
 static __inline__ void raw_jmp(uae_u32 t)
 {
+#if USE_NEW_RTASM
+    JMPm(t);
+#else
     emit_byte(0xe9);
     emit_long(t-(uae_u32)target-4);
+#endif
 }
 
 static __inline__ void raw_jl(uae_u32 t)
 {
     emit_byte(0x0f);
     emit_byte(0x8c);
-    emit_long(t-(uae_u32)target-4);
+    emit_long(t-(uintptr)target-4);
 }
 
 static __inline__ void raw_jz(uae_u32 t)
 {
     emit_byte(0x0f);
     emit_byte(0x84);
-    emit_long(t-(uae_u32)target-4);
+    emit_long(t-(uintptr)target-4);
 }
 
 static __inline__ void raw_jnz(uae_u32 t)
 {
     emit_byte(0x0f);
     emit_byte(0x85);
-    emit_long(t-(uae_u32)target-4);
+    emit_long(t-(uintptr)target-4);
 }
 
 static __inline__ void raw_jnz_l_oponly(void)
@@ -3103,11 +3162,11 @@ static __inline__ void raw_flags_to_reg(int r)
 {
   raw_lahf(0);  /* Most flags in AH */
   //raw_setcc(r,0); /* V flag in AL */
-  raw_setcc_m((uae_u32)live.state[FLAGTMP].mem,0); 
+  raw_setcc_m((uintptr)live.state[FLAGTMP].mem,0); 
   
 #if 1   /* Let's avoid those nasty partial register stalls */
-  //raw_mov_b_mr((uae_u32)live.state[FLAGTMP].mem,r);
-  raw_mov_b_mr(((uae_u32)live.state[FLAGTMP].mem)+1,r+4);
+  //raw_mov_b_mr((uintptr)live.state[FLAGTMP].mem,r);
+  raw_mov_b_mr(((uintptr)live.state[FLAGTMP].mem)+1,r+4);
   //live.state[FLAGTMP].status=CLEAN;
   live.state[FLAGTMP].status=INMEM;
   live.state[FLAGTMP].realreg=-1;
@@ -3134,7 +3193,7 @@ static __inline__ void raw_flags_to_reg(int r)
 {
 	raw_pushfl();
 	raw_pop_l_r(r);
-	raw_mov_l_mr((uae_u32)live.state[FLAGTMP].mem,r);
+	raw_mov_l_mr((uintptr)live.state[FLAGTMP].mem,r);
 //	live.state[FLAGTMP].status=CLEAN;
 	live.state[FLAGTMP].status=INMEM;
 	live.state[FLAGTMP].realreg=-1;
@@ -3160,10 +3219,10 @@ static __inline__ void raw_reg_to_flags(int r)
 static __inline__ void raw_load_flagreg(uae_u32 target, uae_u32 r)
 {
 #if 1
-    raw_mov_l_rm(target,(uae_u32)live.state[r].mem);
+    raw_mov_l_rm(target,(uintptr)live.state[r].mem);
 #else
-    raw_mov_b_rm(target,(uae_u32)live.state[r].mem);
-    raw_mov_b_rm(target+4,((uae_u32)live.state[r].mem)+1);
+    raw_mov_b_rm(target,(uintptr)live.state[r].mem);
+    raw_mov_b_rm(target+4,((uintptr)live.state[r].mem)+1);
 #endif
 }
 
@@ -3171,11 +3230,11 @@ static __inline__ void raw_load_flagreg(uae_u32 target, uae_u32 r)
 static __inline__ void raw_load_flagx(uae_u32 target, uae_u32 r)
 {
     if (live.nat[target].canbyte)
-	raw_mov_b_rm(target,(uae_u32)live.state[r].mem);
+	raw_mov_b_rm(target,(uintptr)live.state[r].mem);
     else if (live.nat[target].canword)
-	raw_mov_w_rm(target,(uae_u32)live.state[r].mem);
+	raw_mov_w_rm(target,(uintptr)live.state[r].mem);
     else
-	raw_mov_l_rm(target,(uae_u32)live.state[r].mem);
+	raw_mov_l_rm(target,(uintptr)live.state[r].mem);
 }
 
 #define NATIVE_FLAG_Z 0x40
@@ -3355,7 +3414,7 @@ static void vec(int x, struct sigcontext sc)
 		for (i=0;i<5;i++)
 		    vecbuf[i]=target[i];
 		emit_byte(0xe9);
-		emit_long((uae_u32)veccode-(uae_u32)target-4);
+		emit_long((uintptr)veccode-(uintptr)target-4);
 		write_log("Create jump to %p\n",veccode);
 	    
 		write_log("Handled one access!\n");
@@ -3382,9 +3441,9 @@ static void vec(int x, struct sigcontext sc)
 		}
 		for (i=0;i<5;i++)
 		    raw_mov_b_mi(sc.eip+i,vecbuf[i]);
-		raw_mov_l_mi((uae_u32)&in_handler,0);
+		raw_mov_l_mi((uintptr)&in_handler,0);
 		emit_byte(0xe9);
-		emit_long(sc.eip+len-(uae_u32)target-4);
+		emit_long(sc.eip+len-(uintptr)target-4);
 		in_handler=1;
 		target=tmp;
 	    }
@@ -3544,19 +3603,21 @@ static void
 cpuid(uae_u32 op, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 *edx)
 {
   static uae_u8 cpuid_space[256];   
+  static uae_u32 s_op, s_eax, s_ebx, s_ecx, s_edx;
   uae_u8* tmp=get_target();
 
+  s_op = op;
   set_target(cpuid_space);
   raw_push_l_r(0); /* eax */
   raw_push_l_r(1); /* ecx */
   raw_push_l_r(2); /* edx */
   raw_push_l_r(3); /* ebx */
-  raw_mov_l_rm(0,(uae_u32)&op);
+  raw_mov_l_rm(0,(uintptr)&s_op);
   raw_cpuid(0);
-  if (eax != NULL) raw_mov_l_mr((uae_u32)eax,0);
-  if (ebx != NULL) raw_mov_l_mr((uae_u32)ebx,3);
-  if (ecx != NULL) raw_mov_l_mr((uae_u32)ecx,1);
-  if (edx != NULL) raw_mov_l_mr((uae_u32)edx,2);
+  raw_mov_l_mr((uintptr)&s_eax,0);
+  raw_mov_l_mr((uintptr)&s_ebx,3);
+  raw_mov_l_mr((uintptr)&s_ecx,1);
+  raw_mov_l_mr((uintptr)&s_edx,2);
   raw_pop_l_r(3);
   raw_pop_l_r(2);
   raw_pop_l_r(1);
@@ -3565,6 +3626,10 @@ cpuid(uae_u32 op, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 *edx)
   set_target(tmp);
 
   ((cpuop_func*)cpuid_space)(0);
+  if (eax != NULL) *eax = s_eax;
+  if (ebx != NULL) *ebx = s_ebx;
+  if (ecx != NULL) *ecx = s_ecx;
+  if (edx != NULL) *edx = s_edx;
 }
 
 static void
@@ -4152,7 +4217,7 @@ LOWFUNC(NONE,NONE,2,raw_ftwotox_rr,(FW d, FR s))
     emit_byte(0xf0);  /* f2xm1 */
     emit_byte(0xdc);
     emit_byte(0x05);
-    emit_long((uae_u32)&one);  /* Add '1' without using extra stack space */
+    emit_long((uintptr)&one);  /* Add '1' without using extra stack space */
     emit_byte(0xd9);
     emit_byte(0xfd);  /* and scale it */
     emit_byte(0xdd);
@@ -4186,7 +4251,7 @@ LOWFUNC(NONE,NONE,2,raw_fetox_rr,(FW d, FR s))
     emit_byte(0xf0);  /* f2xm1 */
     emit_byte(0xdc);
     emit_byte(0x05);
-    emit_long((uae_u32)&one);  /* Add '1' without using extra stack space */
+    emit_long((uintptr)&one);  /* Add '1' without using extra stack space */
     emit_byte(0xd9);
     emit_byte(0xfd);  /* and scale it */
     emit_byte(0xdd);

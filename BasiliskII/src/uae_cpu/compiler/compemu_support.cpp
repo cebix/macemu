@@ -31,6 +31,15 @@
 #error "Only [LS]AHF scheme to [gs]et flags is supported with the JIT Compiler"
 #endif
 
+/* NOTE: support for AMD64 assumes translation cache and other code
+ * buffers are allocated into a 32-bit address space because (i) B2/JIT
+ * code is not 64-bit clean and (ii) it's faster to resolve branches
+ * that way.
+ */
+#if !defined(__i386__) && !defined(__x86_64__)
+#error "Only IA-32 and X86-64 targets are supported with the JIT Compiler"
+#endif
+
 #define USE_MATCH 0
 
 /* kludge for Brian, so he can compile under MSVC++ */
@@ -107,9 +116,9 @@ static int untranslated_compfn(const void *e1, const void *e2)
 }
 #endif
 
-compop_func *compfunctbl[65536];
-compop_func *nfcompfunctbl[65536];
-cpuop_func *nfcpufunctbl[65536];
+static compop_func *compfunctbl[65536];
+static compop_func *nfcompfunctbl[65536];
+static cpuop_func *nfcpufunctbl[65536];
 uae_u8* comp_pc_p;
 
 // From newcpu.cpp
@@ -134,7 +143,6 @@ const bool		tune_nop_fillers	= true;		// Tune no-op fillers for architecture
 static bool		setzflg_uses_bsf	= false;	// setzflg virtual instruction can use native BSF instruction correctly?
 static int		align_loops			= 32;		// Align the start of loops
 static int		align_jumps			= 32;		// Align the start of jumps
-static int		zero_fd				= -1;
 static int		optcount[10]		= {
 	10,		// How often a block has to be executed before it is translated
 	0,		// How often to use naive translation
@@ -177,10 +185,10 @@ static inline unsigned int cft_map (unsigned int f)
 uae_u8* start_pc_p;
 uae_u32 start_pc;
 uae_u32 current_block_pc_p;
-uae_u32 current_block_start_target;
+static uintptr current_block_start_target;
 uae_u32 needed_flags;
-static uae_u32 next_pc_p;
-static uae_u32 taken_pc_p;
+static uintptr next_pc_p;
+static uintptr taken_pc_p;
 static int branch_cc;
 static int redo_current_block;
 
@@ -192,6 +200,8 @@ static uae_u8* current_compile_p=NULL;
 static uae_u8* max_compile_start;
 static uae_u8* compiled_code=NULL;
 static uae_s32 reg_alloc_run;
+const int POPALLSPACE_SIZE = 1024; /* That should be enough space */
+static uae_u8* popallspace=NULL;
 
 void* pushall_call_handler=NULL;
 static void* popall_do_nothing=NULL;
@@ -447,7 +457,7 @@ static __inline__ void invalidate_block(blockinfo* bi)
 
 static __inline__ void create_jmpdep(blockinfo* bi, int i, uae_u32* jmpaddr, uae_u32 target)
 {
-    blockinfo*  tbi=get_blockinfo_addr((void*)target);
+    blockinfo*  tbi=get_blockinfo_addr((void*)(uintptr)target);
     
     Dif(!tbi) {
 	write_log("Could not create jmpdep!\n");
@@ -709,6 +719,12 @@ static __inline__ void emit_long(uae_u32 x)
 {
     *((uae_u32*)target)=x;
     target+=4;
+}
+
+static __inline__ void emit_quad(uae_u64 x)
+{
+    *((uae_u64*)target)=x;
+    target+=8;
 }
 
 static __inline__ void emit_block(const uae_u8 *block, uae_u32 blocklen)
@@ -1125,12 +1141,12 @@ static __inline__ void do_load_reg(int n, int r)
   else if (r == FLAGX)
 	raw_load_flagx(n, r);
   else
-	raw_mov_l_rm(n, (uae_u32) live.state[r].mem);
+	raw_mov_l_rm(n, (uintptr) live.state[r].mem);
 }
 
 static __inline__ void check_load_reg(int n, int r)
 {
-  raw_mov_l_rm(n, (uae_u32) live.state[r].mem);
+  raw_mov_l_rm(n, (uintptr) live.state[r].mem);
 }
 
 static __inline__ void log_vwrite(int r)
@@ -1241,9 +1257,9 @@ static  void tomem(int r)
 
     if (live.state[r].status==DIRTY) {
 	switch (live.state[r].dirtysize) {
-	 case 1: raw_mov_b_mr((uae_u32)live.state[r].mem,rr); break;
-	 case 2: raw_mov_w_mr((uae_u32)live.state[r].mem,rr); break;
-	 case 4: raw_mov_l_mr((uae_u32)live.state[r].mem,rr); break;
+	 case 1: raw_mov_b_mr((uintptr)live.state[r].mem,rr); break;
+	 case 2: raw_mov_w_mr((uintptr)live.state[r].mem,rr); break;
+	 case 4: raw_mov_l_mr((uintptr)live.state[r].mem,rr); break;
 	 default: abort();
 	}
 	log_vwrite(r);
@@ -1271,7 +1287,7 @@ static __inline__ void writeback_const(int r)
 	abort();
     }
 
-    raw_mov_l_mi((uae_u32)live.state[r].mem,live.state[r].val);
+    raw_mov_l_mi((uintptr)live.state[r].mem,live.state[r].val);
 	log_vwrite(r);
     live.state[r].val=0;
     set_status(r,INMEM);
@@ -1404,7 +1420,7 @@ static  int alloc_reg_hinted(int r, int size, int willclobber, int hint)
 	if (size==4 && live.state[r].validsize==2) {
 		log_isused(bestreg);
 		log_visused(r);
-	    raw_mov_l_rm(bestreg,(uae_u32)live.state[r].mem);
+	    raw_mov_l_rm(bestreg,(uintptr)live.state[r].mem);
 	    raw_bswap_32(bestreg);
 	    raw_zero_extend_16_rr(rr,rr);
 	    raw_zero_extend_16_rr(bestreg,bestreg);
@@ -1901,9 +1917,9 @@ static  void f_tomem(int r)
 {
     if (live.fate[r].status==DIRTY) {
 #if USE_LONG_DOUBLE
-	raw_fmov_ext_mr((uae_u32)live.fate[r].mem,live.fate[r].realreg); 
+	raw_fmov_ext_mr((uintptr)live.fate[r].mem,live.fate[r].realreg); 
 #else
-	raw_fmov_mr((uae_u32)live.fate[r].mem,live.fate[r].realreg); 
+	raw_fmov_mr((uintptr)live.fate[r].mem,live.fate[r].realreg); 
 #endif
 	live.fate[r].status=CLEAN;
     }
@@ -1913,9 +1929,9 @@ static  void f_tomem_drop(int r)
 {
     if (live.fate[r].status==DIRTY) {
 #if USE_LONG_DOUBLE
-	raw_fmov_ext_mr_drop((uae_u32)live.fate[r].mem,live.fate[r].realreg); 
+	raw_fmov_ext_mr_drop((uintptr)live.fate[r].mem,live.fate[r].realreg); 
 #else
-	raw_fmov_mr_drop((uae_u32)live.fate[r].mem,live.fate[r].realreg); 
+	raw_fmov_mr_drop((uintptr)live.fate[r].mem,live.fate[r].realreg); 
 #endif
 	live.fate[r].status=INMEM;
     }
@@ -2023,9 +2039,9 @@ static  int f_alloc_reg(int r, int willclobber)
     if (!willclobber) {
 	if (live.fate[r].status!=UNDEF) {
 #if USE_LONG_DOUBLE
-	    raw_fmov_ext_rm(bestreg,(uae_u32)live.fate[r].mem);
+	    raw_fmov_ext_rm(bestreg,(uintptr)live.fate[r].mem);
 #else
-	    raw_fmov_rm(bestreg,(uae_u32)live.fate[r].mem);
+	    raw_fmov_rm(bestreg,(uintptr)live.fate[r].mem);
 #endif
 	}
 	live.fate[r].status=CLEAN;
@@ -2231,7 +2247,7 @@ MIDFUNC(0,duplicate_carry,(void))
 {
     evict(FLAGX);
     make_flags_live_internal();
-    COMPCALL(setcc_m)((uae_u32)live.state[FLAGX].mem,2);
+    COMPCALL(setcc_m)((uintptr)live.state[FLAGX].mem,2);
 	log_vwrite(FLAGX);
 }
 MENDFUNC(0,duplicate_carry,(void))
@@ -2986,6 +3002,38 @@ MIDFUNC(2,mul_32_32,(RW4 d, R4 s))
     unlock2(d);
 }
 MENDFUNC(2,mul_32_32,(RW4 d, R4 s))
+
+#if SIZEOF_VOID_P == 8
+MIDFUNC(2,sign_extend_32_rr,(W4 d, R2 s))
+{
+    int isrmw;
+
+    if (isconst(s)) {
+	set_const(d,(uae_s32)live.state[s].val);
+	return;
+    }
+
+    CLOBBER_SE32;
+    isrmw=(s==d);
+    if (!isrmw) {
+	s=readreg(s,4);
+	d=writereg(d,4);
+    }
+    else {  /* If we try to lock this twice, with different sizes, we
+	       are int trouble! */
+	s=d=rmw(s,4,4);
+    }
+    raw_sign_extend_32_rr(d,s);
+    if (!isrmw) {
+	unlock2(d);
+	unlock2(s);
+    }
+    else {
+	unlock2(s);
+    }
+}
+MENDFUNC(2,sign_extend_32_rr,(W4 d, R2 s))
+#endif
 
 MIDFUNC(2,sign_extend_16_rr,(W4 d, R2 s))
 {
@@ -4884,18 +4932,7 @@ void compiler_init(void)
 	static bool initialized = false;
 	if (initialized)
 		return;
-	
-#ifndef WIN32
-	// Open /dev/zero
-	zero_fd = open("/dev/zero", O_RDWR);
-	if (zero_fd < 0) {
-		char str[200];
-		sprintf(str, GetString(STR_NO_DEV_ZERO_ERR), strerror(errno));
-		ErrorAlert(str);
-		QuitEmulator();
-	}
-#endif
-	
+
 #if JIT_DEBUG
 	// JIT debug mode ?
 	JITDebug = PrefsFindBool("jitdebug");
@@ -4960,12 +4997,12 @@ void compiler_exit(void)
 		vm_release(compiled_code, cache_size * 1024);
 		compiled_code = 0;
 	}
-	
-#ifndef WIN32
-	// Close /dev/zero
-	if (zero_fd > 0)
-		close(zero_fd);
-#endif
+
+	// Deallocate popallspace
+	if (popallspace) {
+		vm_release(popallspace, POPALLSPACE_SIZE);
+		popallspace = 0;
+	}
 	
 #if PROFILE_COMPILE_TIME
 	write_log("### Compile Block statistics\n");
@@ -5052,13 +5089,13 @@ void init_comp(void)
     }
     live.state[PC_P].mem=(uae_u32*)&(regs.pc_p);
     live.state[PC_P].needflush=NF_TOMEM;
-    set_const(PC_P,(uae_u32)comp_pc_p);
+    set_const(PC_P,(uintptr)comp_pc_p);
 
-    live.state[FLAGX].mem=&(regflags.x);
+    live.state[FLAGX].mem=(uae_u32*)&(regflags.x);
     live.state[FLAGX].needflush=NF_TOMEM;
     set_status(FLAGX,INMEM);
 	
-    live.state[FLAGTMP].mem=&(regflags.cznv);
+    live.state[FLAGTMP].mem=(uae_u32*)&(regflags.cznv);
     live.state[FLAGTMP].needflush=NF_TOMEM;
     set_status(FLAGTMP,INMEM);
 
@@ -5132,7 +5169,7 @@ void flush(int save_regs)
 		switch(live.state[i].status) {
 		 case INMEM:   
 		    if (live.state[i].val) {
-			raw_add_l_mi((uae_u32)live.state[i].mem,live.state[i].val);
+			raw_add_l_mi((uintptr)live.state[i].mem,live.state[i].val);
 			log_vwrite(i);
 			live.state[i].val=0;
 		    }
@@ -5230,10 +5267,10 @@ static void align_target(uae_u32 a)
 		return;
 
 	if (tune_nop_fillers)
-		raw_emit_nop_filler(a - (((uae_u32)target) & (a - 1)));
+		raw_emit_nop_filler(a - (((uintptr)target) & (a - 1)));
 	else {
 		/* Fill with NOPs --- makes debugging with gdb easier */
-		while ((uae_u32)target&(a-1)) 
+		while ((uintptr)target&(a-1)) 
 			*target++=0x90;
 	}
 }
@@ -5301,15 +5338,15 @@ void register_branch(uae_u32 not_taken, uae_u32 taken, uae_u8 cond)
 static uae_u32 get_handler_address(uae_u32 addr)
 {
     uae_u32 cl=cacheline(addr);
-    blockinfo* bi=get_blockinfo_addr_new((void*)addr,0);
-    return (uae_u32)&(bi->direct_handler_to_use);
+    blockinfo* bi=get_blockinfo_addr_new((void*)(uintptr)addr,0);
+    return (uintptr)&(bi->direct_handler_to_use);
 }
 
 static uae_u32 get_handler(uae_u32 addr)
 {
     uae_u32 cl=cacheline(addr);
-    blockinfo* bi=get_blockinfo_addr_new((void*)addr,0);
-    return (uae_u32)bi->direct_handler_to_use;
+    blockinfo* bi=get_blockinfo_addr_new((void*)(uintptr)addr,0);
+    return (uintptr)bi->direct_handler_to_use;
 }
 
 static void load_handler(int reg, uae_u32 addr)
@@ -5321,12 +5358,18 @@ static void load_handler(int reg, uae_u32 addr)
  *  if that assumption is wrong! No branches, no second chances, just
  *  straight go-for-it attitude */
 
-static void writemem_real(int address, int source, int offset, int size, int tmp, int clobber)
+static void writemem_real(int address, int source, int size, int tmp, int clobber)
 {
     int f=tmp;
 
 	if (clobber)
 	    f=source;
+
+#if SIZEOF_VOID_P == 8
+	/* HACK: address calculation is suboptimal and possibly broken */
+	sign_extend_32_rr(address, address);
+#endif
+
 	switch(size) {
 	 case 1: mov_b_bRr(address,source,MEMBaseDiff); break; 
 	 case 2: mov_w_rr(f,source); bswap_16(f); mov_w_bRr(address,f,MEMBaseDiff); break;
@@ -5338,13 +5381,13 @@ static void writemem_real(int address, int source, int offset, int size, int tmp
 
 void writebyte(int address, int source, int tmp)
 {
-	writemem_real(address,source,20,1,tmp,0);
+	writemem_real(address,source,1,tmp,0);
 }
 
 static __inline__ void writeword_general(int address, int source, int tmp,
 					 int clobber)
 {
-	writemem_real(address,source,16,2,tmp,clobber);
+	writemem_real(address,source,2,tmp,clobber);
 }
 
 void writeword_clobber(int address, int source, int tmp)
@@ -5360,7 +5403,7 @@ void writeword(int address, int source, int tmp)
 static __inline__ void writelong_general(int address, int source, int tmp, 
 					 int clobber)
 {
-	writemem_real(address,source,12,4,tmp,clobber);
+	writemem_real(address,source,4,tmp,clobber);
 }
 
 void writelong_clobber(int address, int source, int tmp)
@@ -5379,12 +5422,17 @@ void writelong(int address, int source, int tmp)
  *  if that assumption is wrong! No branches, no second chances, just
  *  straight go-for-it attitude */
 
-static void readmem_real(int address, int dest, int offset, int size, int tmp)
+static void readmem_real(int address, int dest, int size, int tmp)
 {
     int f=tmp; 
 
     if (size==4 && address!=dest)
 	f=dest;
+
+#if SIZEOF_VOID_P == 8
+    /* HACK: address calculation is suboptimal and possibly broken */
+    sign_extend_32_rr(address, address);
+#endif
 
 	switch(size) {
 	 case 1: mov_b_brR(dest,address,MEMBaseDiff); break; 
@@ -5396,17 +5444,17 @@ static void readmem_real(int address, int dest, int offset, int size, int tmp)
 
 void readbyte(int address, int dest, int tmp)
 {
-	readmem_real(address,dest,8,1,tmp);
+	readmem_real(address,dest,1,tmp);
 }
 
 void readword(int address, int dest, int tmp)
 {
-	readmem_real(address,dest,4,2,tmp);
+	readmem_real(address,dest,2,tmp);
 }
 
 void readlong(int address, int dest, int tmp)
 {
-	readmem_real(address,dest,0,4,tmp);
+	readmem_real(address,dest,4,tmp);
 }
 
 void get_n_addr(int address, int dest, int tmp)
@@ -5628,15 +5676,15 @@ static void calc_checksum(blockinfo* bi, uae_u32* c1, uae_u32* c2)
 	Dif(!csi) abort();
 	while (csi) {
 		uae_s32 len = csi->length;
-		uae_u32 tmp = (uae_u32)csi->start_p;
+		uintptr tmp = (uintptr)csi->start_p;
 #else
 		uae_s32 len = bi->len;
-		uae_u32 tmp = (uae_u32)bi->min_pcp;
+		uintptr tmp = (uintptr)bi->min_pcp;
 #endif
 		uae_u32*pos;
 
 		len += (tmp & 3);
-		tmp &= ~3;
+		tmp &= ~((uintptr)3);
 		pos = (uae_u32 *)tmp;
 
 		if (len >= 0 && len <= MAX_CHECKSUM_LEN) {
@@ -5663,7 +5711,7 @@ static void show_checksum(CSI_TYPE* csi)
     uae_u32 k1=0;
     uae_u32 k2=0;
     uae_s32 len=CSI_LENGTH(csi);
-    uae_u32 tmp=(uae_u32)CSI_START_P(csi);
+    uae_u32 tmp=(uintptr)CSI_START_P(csi);
     uae_u32* pos;
 
     len+=(tmp&3);
@@ -5855,11 +5903,15 @@ static __inline__ void match_states(blockinfo* bi)
     }
 }
 
-static uae_u8 popallspace[1024]; /* That should be enough space */
-
 static __inline__ void create_popalls(void)
 {
   int i,r;
+
+  if ((popallspace = alloc_code(POPALLSPACE_SIZE)) == NULL) {
+	  write_log("FATAL: Could not allocate popallspace!\n");
+	  abort();
+  }
+  vm_protect(popallspace, POPALLSPACE_SIZE, VM_PAGE_READ | VM_PAGE_WRITE);
 
   current_compile_p=popallspace;
   set_target(current_compile_p);
@@ -5874,7 +5926,7 @@ static __inline__ void create_popalls(void)
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
   }
-  raw_jmp((uae_u32)do_nothing);
+  raw_jmp((uintptr)do_nothing);
   
   align_target(align_jumps);
   popall_execute_normal=get_target();
@@ -5882,7 +5934,7 @@ static __inline__ void create_popalls(void)
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
   }
-  raw_jmp((uae_u32)execute_normal);
+  raw_jmp((uintptr)execute_normal);
 
   align_target(align_jumps);
   popall_cache_miss=get_target();
@@ -5890,7 +5942,7 @@ static __inline__ void create_popalls(void)
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
   }
-  raw_jmp((uae_u32)cache_miss);
+  raw_jmp((uintptr)cache_miss);
 
   align_target(align_jumps);
   popall_recompile_block=get_target();
@@ -5898,7 +5950,7 @@ static __inline__ void create_popalls(void)
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
   }
-  raw_jmp((uae_u32)recompile_block);
+  raw_jmp((uintptr)recompile_block);
 
   align_target(align_jumps);
   popall_exec_nostats=get_target();
@@ -5906,7 +5958,7 @@ static __inline__ void create_popalls(void)
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
   }
-  raw_jmp((uae_u32)exec_nostats);
+  raw_jmp((uintptr)exec_nostats);
 
   align_target(align_jumps);
   popall_check_checksum=get_target();
@@ -5914,7 +5966,7 @@ static __inline__ void create_popalls(void)
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
   }
-  raw_jmp((uae_u32)check_checksum);
+  raw_jmp((uintptr)check_checksum);
 
   align_target(align_jumps);
   current_compile_p=get_target();
@@ -5937,11 +5989,11 @@ static __inline__ void create_popalls(void)
   }
 #endif
   r=REG_PC_TMP;
-  raw_mov_l_rm(r,(uae_u32)&regs.pc_p);
+  raw_mov_l_rm(r,(uintptr)&regs.pc_p);
   raw_and_l_ri(r,TAGMASK);
-  raw_jmp_m_indexed((uae_u32)cache_tags,r,4);
+  raw_jmp_m_indexed((uintptr)cache_tags,r,SIZEOF_VOID_P);
 
-#ifdef X86_ASSEMBLY
+#if defined(X86_ASSEMBLY) || defined(X86_64_ASSEMBLY)
   align_target(align_jumps);
   m68k_compile_execute = (void (*)(void))get_target();
   for (i=N_REGS;i--;) {
@@ -5949,27 +6001,30 @@ static __inline__ void create_popalls(void)
 		  raw_push_l_r(i);
   }
   align_target(align_loops);
-  uae_u32 dispatch_loop = (uae_u32)get_target();
+  uae_u32 dispatch_loop = (uintptr)get_target();
   r=REG_PC_TMP;
-  raw_mov_l_rm(r,(uae_u32)&regs.pc_p);
+  raw_mov_l_rm(r,(uintptr)&regs.pc_p);
   raw_and_l_ri(r,TAGMASK);
-  raw_call_m_indexed((uae_u32)cache_tags,r,4);
-  raw_cmp_l_mi((uae_u32)&regs.spcflags,0);
+  raw_call_m_indexed((uintptr)cache_tags,r,SIZEOF_VOID_P);
+  raw_cmp_l_mi((uintptr)&regs.spcflags,0);
   raw_jcc_b_oponly(NATIVE_CC_EQ);
-  emit_byte(dispatch_loop-((uae_u32)get_target()+1));
-  raw_call((uae_u32)m68k_do_specialties);
+  emit_byte(dispatch_loop-((uintptr)get_target()+1));
+  raw_call((uintptr)m68k_do_specialties);
   raw_test_l_rr(REG_RESULT,REG_RESULT);
   raw_jcc_b_oponly(NATIVE_CC_EQ);
-  emit_byte(dispatch_loop-((uae_u32)get_target()+1));
-  raw_cmp_b_mi((uae_u32)&quit_program,0);
+  emit_byte(dispatch_loop-((uintptr)get_target()+1));
+  raw_cmp_b_mi((uintptr)&quit_program,0);
   raw_jcc_b_oponly(NATIVE_CC_EQ);
-  emit_byte(dispatch_loop-((uae_u32)get_target()+1));
+  emit_byte(dispatch_loop-((uintptr)get_target()+1));
   for (i=0;i<N_REGS;i++) {
 	  if (need_to_preserve[i])
 		  raw_pop_l_r(i);
   }
   raw_ret();
 #endif
+
+  // no need to further write into popallspace
+  vm_protect(popallspace, POPALLSPACE_SIZE, VM_PAGE_READ | VM_PAGE_EXECUTE);
 }
 
 static __inline__ void reset_lists(void)
@@ -5989,15 +6044,15 @@ static void prepare_block(blockinfo* bi)
     set_target(current_compile_p);
     align_target(align_jumps);
     bi->direct_pen=(cpuop_func *)get_target();
-    raw_mov_l_rm(0,(uae_u32)&(bi->pc_p));
-    raw_mov_l_mr((uae_u32)&regs.pc_p,0);
-    raw_jmp((uae_u32)popall_execute_normal);
+    raw_mov_l_rm(0,(uintptr)&(bi->pc_p));
+    raw_mov_l_mr((uintptr)&regs.pc_p,0);
+    raw_jmp((uintptr)popall_execute_normal);
 
     align_target(align_jumps);
     bi->direct_pcc=(cpuop_func *)get_target();
-    raw_mov_l_rm(0,(uae_u32)&(bi->pc_p));
-    raw_mov_l_mr((uae_u32)&regs.pc_p,0);
-    raw_jmp((uae_u32)popall_check_checksum);
+    raw_mov_l_rm(0,(uintptr)&(bi->pc_p));
+    raw_mov_l_mr((uintptr)&regs.pc_p,0);
+    raw_jmp((uintptr)popall_check_checksum);
     current_compile_p=get_target();
 
     bi->deplist=NULL;
@@ -6342,21 +6397,25 @@ int failure;
 #define TARGET_M68K		0
 #define TARGET_POWERPC	1
 #define TARGET_X86		2
+#define TARGET_X86_64	3
 #if defined(i386) || defined(__i386__)
 #define TARGET_NATIVE	TARGET_X86
 #endif
 #if defined(powerpc) || defined(__powerpc__)
 #define TARGET_NATIVE	TARGET_POWERPC
 #endif
+#if defined(x86_64) || defined(__x86_64__)
+#define TARGET_NATIVE	TARGET_X86_64
+#endif
 
 #ifdef ENABLE_MON
-static uae_u32 mon_read_byte_jit(uae_u32 addr)
+static uae_u32 mon_read_byte_jit(uintptr addr)
 {
 	uae_u8 *m = (uae_u8 *)addr;
-	return (uae_u32)(*m);
+	return (uintptr)(*m);
 }
  
-static void mon_write_byte_jit(uae_u32 addr, uae_u32 b)
+static void mon_write_byte_jit(uintptr addr, uae_u32 b)
 {
 	uae_u8 *m = (uae_u8 *)addr;
 	*m = b;
@@ -6373,11 +6432,12 @@ void disasm_block(int target, uint8 * start, size_t length)
 	sprintf(disasm_str, "%s $%x $%x",
 			target == TARGET_M68K ? "d68" :
 			target == TARGET_X86 ? "d86" :
+			target == TARGET_X86_64 ? "d8664" :
 			target == TARGET_POWERPC ? "d" : "x",
 			start, start + length - 1);
 	
-	uae_u32 (*old_mon_read_byte)(uae_u32) = mon_read_byte;
-	void (*old_mon_write_byte)(uae_u32, uae_u32) = mon_write_byte;
+	uae_u32 (*old_mon_read_byte)(uintptr) = mon_read_byte;
+	void (*old_mon_write_byte)(uintptr, uae_u32) = mon_write_byte;
 	
 	mon_read_byte = mon_read_byte_jit;
 	mon_write_byte = mon_write_byte_jit;
@@ -6390,12 +6450,12 @@ void disasm_block(int target, uint8 * start, size_t length)
 #endif
 }
 
-static inline void disasm_native_block(uint8 *start, size_t length)
+static void disasm_native_block(uint8 *start, size_t length)
 {
 	disasm_block(TARGET_NATIVE, start, length);
 }
 
-static inline void disasm_m68k_block(uint8 *start, size_t length)
+static void disasm_m68k_block(uint8 *start, size_t length)
 {
 	disasm_block(TARGET_M68K, start, length);
 }
@@ -6429,9 +6489,9 @@ void compiler_dumpstate(void)
 	
 	write_log("### Block in Mac address space\n");
 	write_log("M68K block   : %p\n",
-			  (void *)get_virtual_address(last_regs_pc_p));
+			  (void *)(uintptr)get_virtual_address(last_regs_pc_p));
 	write_log("Native block : %p (%d bytes)\n",
-			  (void *)get_virtual_address(last_compiled_block_addr),
+			  (void *)(uintptr)get_virtual_address(last_compiled_block_addr),
 			  get_blockinfo_addr(last_regs_pc_p)->direct_handler_size);
 	write_log("\n");
 }
@@ -6455,11 +6515,11 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 	uae_u8 liveflags[MAXRUN+1];
 #if USE_CHECKSUM_INFO
 	bool trace_in_rom = isinrom((uintptr)pc_hist[0].location);
-	uae_u32 max_pcp=(uae_u32)pc_hist[blocklen - 1].location;
-	uae_u32 min_pcp=max_pcp;
+	uintptr max_pcp=(uintptr)pc_hist[blocklen - 1].location;
+	uintptr min_pcp=max_pcp;
 #else
-	uae_u32 max_pcp=(uae_u32)pc_hist[0].location;
-	uae_u32 min_pcp=max_pcp;
+	uintptr max_pcp=(uintptr)pc_hist[0].location;
+	uintptr min_pcp=max_pcp;
 #endif
 	uae_u32 cl=cacheline(pc_hist[0].location);
 	void* specflags=(void*)&regs.spcflags;
@@ -6499,7 +6559,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 		optlev++;
 	    bi->count=optcount[optlev]-1;
 	}
-	current_block_pc_p=(uae_u32)pc_hist[0].location;
+	current_block_pc_p=(uintptr)pc_hist[0].location;
 	
 	remove_deps(bi); /* We are about to create new code */
 	bi->optlevel=optlev;
@@ -6524,15 +6584,15 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 			csi->length = max_pcp - min_pcp + LONGEST_68K_INST;
 			csi->next = bi->csi;
 			bi->csi = csi;
-			max_pcp = (uae_u32)currpcp;
+			max_pcp = (uintptr)currpcp;
 		}
 #endif
-		min_pcp = (uae_u32)currpcp;
+		min_pcp = (uintptr)currpcp;
 #else
-	    if ((uae_u32)currpcp<min_pcp)
-		min_pcp=(uae_u32)currpcp;
-	    if ((uae_u32)currpcp>max_pcp)
-		max_pcp=(uae_u32)currpcp;
+	    if ((uintptr)currpcp<min_pcp)
+		min_pcp=(uintptr)currpcp;
+	    if ((uintptr)currpcp>max_pcp)
+		max_pcp=(uintptr)currpcp;
 #endif
 
 		liveflags[i]=((liveflags[i+1]&
@@ -6558,19 +6618,19 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 	bi->direct_handler=(cpuop_func *)get_target();
 	set_dhtu(bi,bi->direct_handler);
 	bi->status=BI_COMPILING;
-	current_block_start_target=(uae_u32)get_target();
+	current_block_start_target=(uintptr)get_target();
 	
 	log_startblock();
 	
 	if (bi->count>=0) { /* Need to generate countdown code */
-	    raw_mov_l_mi((uae_u32)&regs.pc_p,(uae_u32)pc_hist[0].location);
-	    raw_sub_l_mi((uae_u32)&(bi->count),1);
-	    raw_jl((uae_u32)popall_recompile_block);
+	    raw_mov_l_mi((uintptr)&regs.pc_p,(uintptr)pc_hist[0].location);
+	    raw_sub_l_mi((uintptr)&(bi->count),1);
+	    raw_jl((uintptr)popall_recompile_block);
 	}
 	if (optlev==0) { /* No need to actually translate */
 	    /* Execute normally without keeping stats */
-	    raw_mov_l_mi((uae_u32)&regs.pc_p,(uae_u32)pc_hist[0].location);
-	    raw_jmp((uae_u32)popall_exec_nostats); 
+	    raw_mov_l_mi((uintptr)&regs.pc_p,(uintptr)pc_hist[0].location);
+	    raw_jmp((uintptr)popall_exec_nostats); 
 	}
 	else {
 	    reg_alloc_run=0;
@@ -6584,8 +6644,8 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 
 #if JIT_DEBUG
 		if (JITDebug) {
-			raw_mov_l_mi((uae_u32)&last_regs_pc_p,(uae_u32)pc_hist[0].location);
-			raw_mov_l_mi((uae_u32)&last_compiled_block_addr,(uae_u32)current_block_start_target);
+			raw_mov_l_mi((uintptr)&last_regs_pc_p,(uintptr)pc_hist[0].location);
+			raw_mov_l_mi((uintptr)&last_compiled_block_addr,current_block_start_target);
 		}
 #endif
 		
@@ -6636,12 +6696,12 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 #if USE_NORMAL_CALLING_CONVENTION
 		    raw_push_l_r(REG_PAR1);
 #endif
-		    raw_mov_l_mi((uae_u32)&regs.pc_p,
-				 (uae_u32)pc_hist[i].location);
-		    raw_call((uae_u32)cputbl[opcode]);
+		    raw_mov_l_mi((uintptr)&regs.pc_p,
+				 (uintptr)pc_hist[i].location);
+		    raw_call((uintptr)cputbl[opcode]);
 #if PROFILE_UNTRANSLATED_INSNS
 			// raw_cputbl_count[] is indexed with plain opcode (in m68k order)
-			raw_add_l_mi((uae_u32)&raw_cputbl_count[cft_map(opcode)],1);
+			raw_add_l_mi((uintptr)&raw_cputbl_count[cft_map(opcode)],1);
 #endif
 #if USE_NORMAL_CALLING_CONVENTION
 		    raw_inc_sp(4);
@@ -6650,13 +6710,13 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 		    if (i < blocklen - 1) {
 			uae_s8* branchadd;
 			
-			raw_mov_l_rm(0,(uae_u32)specflags);
+			raw_mov_l_rm(0,(uintptr)specflags);
 			raw_test_l_rr(0,0);
 			raw_jz_b_oponly();
 			branchadd=(uae_s8 *)get_target();
 			emit_byte(0);
-			raw_jmp((uae_u32)popall_do_nothing);
-			*branchadd=(uae_u32)get_target()-(uae_u32)branchadd-1;
+			raw_jmp((uintptr)popall_do_nothing);
+			*branchadd=(uintptr)get_target()-(uintptr)branchadd-1;
 		    }
 		}
 	    }
@@ -6690,8 +6750,8 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 		log_flush();
 
 	    if (next_pc_p) { /* A branch was registered */
-		uae_u32 t1=next_pc_p;
-		uae_u32 t2=taken_pc_p;
+		uintptr t1=next_pc_p;
+		uintptr t2=taken_pc_p;
 		int     cc=branch_cc;
 		
 		uae_u32* branchadd;
@@ -6716,28 +6776,28 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 		/* predicted outcome */
 		tbi=get_blockinfo_addr_new((void*)t1,1);
 		match_states(tbi);
-		raw_cmp_l_mi((uae_u32)specflags,0);
+		raw_cmp_l_mi((uintptr)specflags,0);
 		raw_jcc_l_oponly(4);
 		tba=(uae_u32*)get_target();
-		emit_long(get_handler(t1)-((uae_u32)tba+4));
-		raw_mov_l_mi((uae_u32)&regs.pc_p,t1);
-		raw_jmp((uae_u32)popall_do_nothing);
+		emit_long(get_handler(t1)-((uintptr)tba+4));
+		raw_mov_l_mi((uintptr)&regs.pc_p,t1);
+		raw_jmp((uintptr)popall_do_nothing);
 		create_jmpdep(bi,0,tba,t1);
 
 		align_target(align_jumps);
 		/* not-predicted outcome */
-		*branchadd=(uae_u32)get_target()-((uae_u32)branchadd+4);
+		*branchadd=(uintptr)get_target()-((uintptr)branchadd+4);
 		live=tmp; /* Ouch again */
 		tbi=get_blockinfo_addr_new((void*)t2,1);
 		match_states(tbi);
 
 		//flush(1); /* Can only get here if was_comp==1 */
-		raw_cmp_l_mi((uae_u32)specflags,0);
+		raw_cmp_l_mi((uintptr)specflags,0);
 		raw_jcc_l_oponly(4);
 		tba=(uae_u32*)get_target();
-		emit_long(get_handler(t2)-((uae_u32)tba+4));
-		raw_mov_l_mi((uae_u32)&regs.pc_p,t2);
-		raw_jmp((uae_u32)popall_do_nothing);
+		emit_long(get_handler(t2)-((uintptr)tba+4));
+		raw_mov_l_mi((uintptr)&regs.pc_p,t2);
+		raw_jmp((uintptr)popall_do_nothing);
 		create_jmpdep(bi,1,tba,t2);
 	    }		
 	    else 
@@ -6751,9 +6811,9 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 		    r=live.state[PC_P].realreg;
 			raw_and_l_ri(r,TAGMASK);
 			int r2 = (r==0) ? 1 : 0;
-			raw_mov_l_ri(r2,(uae_u32)popall_do_nothing);
-			raw_cmp_l_mi((uae_u32)specflags,0);
-			raw_cmov_l_rm_indexed(r2,(uae_u32)cache_tags,r,4,4);
+			raw_mov_l_ri(r2,(uintptr)popall_do_nothing);
+			raw_cmp_l_mi((uintptr)specflags,0);
+			raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,SIZEOF_VOID_P);
 			raw_jmp_r(r2);
 		}
 		else if (was_comp && isconst(PC_P)) {
@@ -6761,25 +6821,25 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 		    uae_u32* tba;
 		    blockinfo* tbi;
 
-		    tbi=get_blockinfo_addr_new((void*)v,1);
+		    tbi=get_blockinfo_addr_new((void*)(uintptr)v,1);
 		    match_states(tbi);
 
-			raw_cmp_l_mi((uae_u32)specflags,0);
+			raw_cmp_l_mi((uintptr)specflags,0);
 			raw_jcc_l_oponly(4);
 		    tba=(uae_u32*)get_target();
-		    emit_long(get_handler(v)-((uae_u32)tba+4));
-		    raw_mov_l_mi((uae_u32)&regs.pc_p,v);
-		    raw_jmp((uae_u32)popall_do_nothing);
+		    emit_long(get_handler(v)-((uintptr)tba+4));
+		    raw_mov_l_mi((uintptr)&regs.pc_p,v);
+		    raw_jmp((uintptr)popall_do_nothing);
 		    create_jmpdep(bi,0,tba,v);
 		}
 		else {
 		    r=REG_PC_TMP;
-		    raw_mov_l_rm(r,(uae_u32)&regs.pc_p);
+		    raw_mov_l_rm(r,(uintptr)&regs.pc_p);
 			raw_and_l_ri(r,TAGMASK);
 			int r2 = (r==0) ? 1 : 0;
-			raw_mov_l_ri(r2,(uae_u32)popall_do_nothing);
-			raw_cmp_l_mi((uae_u32)specflags,0);
-			raw_cmov_l_rm_indexed(r2,(uae_u32)cache_tags,r,4,4);
+			raw_mov_l_ri(r2,(uintptr)popall_do_nothing);
+			raw_cmp_l_mi((uintptr)specflags,0);
+			raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,SIZEOF_VOID_P);
 			raw_jmp_r(r2);
 		}
 	    }
@@ -6850,8 +6910,8 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 	/* This is the non-direct handler */
 	bi->handler=
 	    bi->handler_to_use=(cpuop_func *)get_target();
-	raw_cmp_l_mi((uae_u32)&regs.pc_p,(uae_u32)pc_hist[0].location);
-	raw_jnz((uae_u32)popall_cache_miss);
+	raw_cmp_l_mi((uintptr)&regs.pc_p,(uintptr)pc_hist[0].location);
+	raw_jnz((uintptr)popall_cache_miss);
 	comp_pc_p=(uae_u8*)pc_hist[0].location;
 
 	bi->status=BI_FINALIZING;
@@ -6859,7 +6919,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 	match_states(bi);
 	flush(1);
 
-	raw_jmp((uae_u32)bi->direct_handler);
+	raw_jmp((uintptr)bi->direct_handler);
 
 	current_compile_p=get_target();
 	raise_in_cl_list(bi);
@@ -6925,7 +6985,7 @@ void execute_normal(void)
 
 typedef void (*compiled_handler)(void);
 
-#ifdef X86_ASSEMBLY
+#if defined(X86_ASSEMBLY) || defined(X86_64_ASSEMBLY)
 void (*m68k_compile_execute)(void) = NULL;
 #else
 void m68k_do_compile_execute(void)
