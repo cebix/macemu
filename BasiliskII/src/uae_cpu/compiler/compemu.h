@@ -348,8 +348,7 @@ DECLARE_MIDFUNC(setcc(W1 d, IMM cc));
 DECLARE_MIDFUNC(setcc_m(IMM d, IMM cc));
 DECLARE_MIDFUNC(cmov_l_rr(RW4 d, R4 s, IMM cc));
 DECLARE_MIDFUNC(cmov_l_rm(RW4 d, IMM s, IMM cc));
-/* Set native Z flag only if register is zero */
-DECLARE_MIDFUNC(setzflg_l(RW4 r));
+DECLARE_MIDFUNC(bsf_l_rr(W4 d, R4 s));
 DECLARE_MIDFUNC(pop_m(IMM d));
 DECLARE_MIDFUNC(push_m(IMM d));
 DECLARE_MIDFUNC(pop_l(W4 d));
@@ -516,6 +515,8 @@ extern void writelong_clobber(int address, int source, int tmp);
 extern void get_n_addr(int address, int dest, int tmp);
 extern void get_n_addr_jmp(int address, int dest, int tmp);
 extern void calc_disp_ea_020(int base, uae_u32 dp, int target, int tmp);
+/* Set native Z flag only if register is zero */
+extern void set_zero(int r, int tmp);
 extern int kill_rodent(int r);
 extern void sync_m68k_pc(void);
 extern uae_u32 get_const(int r);

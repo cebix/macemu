@@ -1100,7 +1100,7 @@ genflags (flagtypes type, wordsizes size, char *value, char *src, char *dst)
 		      "\tint one=scratchie++;\n"
 		      "\tif (needed_flags&FLAG_Z) {\n"
 		      "\tmov_l_ri(zero,0);\n"
-		      "\tmov_l_ri(one,1);\n"
+		      "\tmov_l_ri(one,-1);\n"
 		      "\tmake_flags_live();\n"
 		      "\tcmov_l_rr(zero,one,5);\n"
 		      "\t}\n");
@@ -1123,7 +1123,7 @@ genflags (flagtypes type, wordsizes size, char *value, char *src, char *dst)
 	    comprintf("\tlive_flags();\n");
 	    comprintf("\tif (needed_flags&FLAG_Z) {\n"
 		      "\tcmov_l_rr(zero,one,5);\n"
-		      "\tsetzflg_l(zero);\n"
+		      "\tset_zero(zero, one);\n" /* No longer need one */
 		      "\tlive_flags();\n"
 		      "\t}\n");
 	    comprintf("\tend_needflags();\n");
@@ -1365,6 +1365,7 @@ gen_opcode (unsigned long int opcode)
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	start_brace();
 	comprintf("\tint s=scratchie++;\n"
+		  "\tint tmp=scratchie++;\n"
 		  "\tmov_l_rr(s,src);\n");
 	if (curi->size == sz_byte)
 	    comprintf("\tand_l_ri(s,7);\n");
@@ -1380,6 +1381,7 @@ gen_opcode (unsigned long int opcode)
 	     case i_BCLR: op="btr"; break;
 	     case i_BSET: op="bts"; break;
 	     case i_BTST: op="bt"; need_write=0; break;
+	    default: abort();
 	    }
 	    comprintf("\t%s_l_rr(dst,s);\n"  /* Answer now in C */
 				  "\tsbb_l(s,s);\n" /* s is 0 if bit was 0, -1 otherwise */
@@ -1387,7 +1389,7 @@ gen_opcode (unsigned long int opcode)
 				  "\tdont_care_flags();\n",op);
 		if (!noflags) {
 		  comprintf("\tstart_needflags();\n"
-					"\tsetzflg_l(s);\n"
+					"\tset_zero(s,tmp);\n"
 					"\tlive_flags();\n"
 					"\tend_needflags();\n");
 		}

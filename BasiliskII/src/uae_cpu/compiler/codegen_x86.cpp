@@ -200,6 +200,16 @@ LOWFUNC(NONE,READ,1,raw_pop_l_r,(R4 r))
 }
 LENDFUNC(NONE,READ,1,raw_pop_l_r,(R4 r))
 
+LOWFUNC(NONE,READ,1,raw_pop_l_m,(MEMW d))
+{
+#if defined(__x86_64__)
+	POPQm(d, X86_NOREG, X86_NOREG, 1);
+#else
+	POPLm(d, X86_NOREG, X86_NOREG, 1);
+#endif
+}
+LENDFUNC(NONE,READ,1,raw_pop_l_m,(MEMW d))
+
 LOWFUNC(WRITE,NONE,2,raw_bt_l_ri,(R4 r, IMM i))
 {
 	BTLir(i, r);
@@ -925,6 +935,12 @@ LOWFUNC(WRITE,NONE,2,raw_test_b_rr,(R1 d, R1 s))
 }
 LENDFUNC(WRITE,NONE,2,raw_test_b_rr,(R1 d, R1 s))
 
+LOWFUNC(WRITE,NONE,2,raw_xor_l_ri,(RW4 d, IMM i))
+{
+	XORLir(i, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_xor_l_ri,(RW4 d, IMM i))
+
 LOWFUNC(WRITE,NONE,2,raw_and_l_ri,(RW4 d, IMM i))
 {
 	ANDLir(i, d);
@@ -1207,6 +1223,14 @@ LOWFUNC(NONE,READ,1,raw_pop_l_r,(R4 r))
 	emit_byte(0x58+r);
 }
 LENDFUNC(NONE,READ,1,raw_pop_l_r,(R4 r))
+
+LOWFUNC(NONE,READ,1,raw_pop_l_m,(MEMW d))
+{
+	emit_byte(0x8f);
+	emit_byte(0x05);
+	emit_long(d);
+}
+LENDFUNC(NONE,READ,1,raw_pop_l_m,(MEMW d))
 
 LOWFUNC(WRITE,NONE,2,raw_bt_l_ri,(R4 r, IMM i))
 {
@@ -2500,6 +2524,14 @@ LOWFUNC(WRITE,NONE,2,raw_test_b_rr,(R1 d, R1 s))
 }
 LENDFUNC(WRITE,NONE,2,raw_test_b_rr,(R1 d, R1 s))
 
+LOWFUNC(WRITE,NONE,2,raw_xor_l_ri,(RW4 d, IMM i))
+{
+    emit_byte(0x81);
+    emit_byte(0xf0+d);
+    emit_long(i);
+}
+LENDFUNC(WRITE,NONE,2,raw_xor_l_ri,(RW4 d, IMM i))
+
 LOWFUNC(WRITE,NONE,2,raw_and_l_ri,(RW4 d, IMM i))
 {
 	if (optimize_imm8 && isbyte(i)) {
@@ -3214,6 +3246,18 @@ static __inline__ void raw_reg_to_flags(int r)
   raw_sahf(0);
 }
 
+#define FLAG_NREG3 0  /* Set to -1 if any register will do */
+static __inline__ void raw_flags_set_zero(int s, int tmp)
+{
+    raw_mov_l_rr(tmp,s);
+    raw_lahf(s); /* flags into ah */
+    raw_and_l_ri(s,0xffffbfff);
+    raw_and_l_ri(tmp,0x00004000);
+    raw_xor_l_ri(tmp,0x00004000);
+    raw_or_l(s,tmp);
+    raw_sahf(s);
+}
+
 #else
 
 #define FLAG_NREG1 -1  /* Set to -1 if any register will do */
@@ -3240,6 +3284,19 @@ static __inline__ void raw_reg_to_flags(int r)
 	raw_popfl();
 }
 
+#define FLAG_NREG3 -1  /* Set to -1 if any register will do */
+static __inline__ void raw_flags_set_zero(int s, int tmp)
+{
+    raw_mov_l_rr(tmp,s);
+    raw_pushfl();
+    raw_pop_l_r(s);
+    raw_and_l_ri(s,0xffffffbf);
+    raw_and_l_ri(tmp,0x00000040);
+    raw_xor_l_ri(tmp,0x00000040);
+    raw_or_l(s,tmp);
+    raw_push_l_r(s);
+    raw_popfl();
+}
 #endif
 
 /* Apparently, there are enough instructions between flag store and
@@ -3263,22 +3320,6 @@ static __inline__ void raw_load_flagx(uae_u32 target, uae_u32 r)
 	raw_mov_w_rm(target,(uintptr)live.state[r].mem);
     else
 	raw_mov_l_rm(target,(uintptr)live.state[r].mem);
-}
-
-#define NATIVE_FLAG_Z 0x40
-static __inline__ void raw_flags_set_zero(int f, int r, int t)
-{
-	// FIXME: this is really suboptimal
-	raw_pushfl();
-	raw_pop_l_r(f);
-	raw_and_l_ri(f,~NATIVE_FLAG_Z);
-	raw_test_l_rr(r,r);
-	raw_mov_l_ri(r,0);
-	raw_mov_l_ri(t,NATIVE_FLAG_Z);
-	raw_cmov_l_rr(r,t,NATIVE_CC_EQ);
-	raw_or_l(f,r);
-	raw_push_l_r(f);
-	raw_popfl();
 }
 
 static __inline__ void raw_inc_sp(int off)

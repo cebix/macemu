@@ -121,6 +121,9 @@ static compop_func *nfcompfunctbl[65536];
 static cpuop_func *nfcpufunctbl[65536];
 uae_u8* comp_pc_p;
 
+// From main_unix.cpp
+extern bool ThirtyThreeBitAddressing;
+
 // From newcpu.cpp
 extern bool quit_program;
 
@@ -2934,30 +2937,30 @@ MIDFUNC(3,cmov_l_rm,(RW4 d, IMM s, IMM cc))
 }
 MENDFUNC(3,cmov_l_rm,(RW4 d, IMM s, IMM cc))
 
-MIDFUNC(1,setzflg_l,(RW4 r))
+MIDFUNC(2,bsf_l_rr,(W4 d, W4 s))
 {
-	if (setzflg_uses_bsf) {
-		CLOBBER_BSF;
-		r=rmw(r,4,4);
-		raw_bsf_l_rr(r,r);
-		unlock2(r);
-	}
-	else {
-		Dif (live.flags_in_flags!=VALID) {
-			write_log("setzflg() wanted flags in native flags, they are %d\n",
-					  live.flags_in_flags);
-			abort();
-		}
-		r=readreg(r,4);
-		int f=writereg(S11,4);
-		int t=writereg(S12,4);
-		raw_flags_set_zero(f,r,t);
-		unlock2(f);
-		unlock2(r);
-		unlock2(t);
-	}
+    CLOBBER_BSF;
+    s = readreg(s, 4);
+    d = writereg(d, 4);
+    raw_bsf_l_rr(d, s);
+    unlock2(s);
+    unlock2(d);
 }
-MENDFUNC(1,setzflg_l,(RW4 r))
+MENDFUNC(2,bsf_l_rr,(W4 d, W4 s))
+
+/* Set the Z flag depending on the value in s. Note that the
+   value has to be 0 or -1 (or, more precisely, for non-zero
+   values, bit 14 must be set)! */
+MIDFUNC(2,simulate_bsf,(W4 tmp, RW4 s))
+{
+    CLOBBER_BSF;
+    s=rmw_specific(s,4,4,FLAG_NREG3);
+    tmp=writereg(tmp,4);
+    raw_flags_set_zero(s, tmp);
+    unlock2(tmp);
+    unlock2(s);
+}
+MENDFUNC(2,simulate_bsf,(W4 tmp, RW4 s))
 
 MIDFUNC(2,imul_32_32,(RW4 d, R4 s))
 {
@@ -4879,6 +4882,14 @@ MENDFUNC(2,fmul_rr,(FRW d, FR s))
  * Support functions exposed to gencomp. CREATE time                *
  ********************************************************************/
 
+void set_zero(int r, int tmp)
+{
+    if (setzflg_uses_bsf)
+	bsf_l_rr(r,r);
+    else
+	simulate_bsf(tmp,r);
+}
+
 int kill_rodent(int r)
 {
     return KILLTHERAT && 
@@ -5366,8 +5377,8 @@ static void writemem_real(int address, int source, int size, int tmp, int clobbe
 	    f=source;
 
 #if SIZEOF_VOID_P == 8
-	/* HACK: address calculation is suboptimal and possibly broken */
-	sign_extend_32_rr(address, address);
+	if (!ThirtyThreeBitAddressing)
+		sign_extend_32_rr(address, address);
 #endif
 
 	switch(size) {
@@ -5430,8 +5441,8 @@ static void readmem_real(int address, int dest, int size, int tmp)
 	f=dest;
 
 #if SIZEOF_VOID_P == 8
-    /* HACK: address calculation is suboptimal and possibly broken */
-    sign_extend_32_rr(address, address);
+	if (!ThirtyThreeBitAddressing)
+		sign_extend_32_rr(address, address);
 #endif
 
 	switch(size) {
