@@ -144,10 +144,16 @@
 0100 1110 11ss sSSS:00://///://///:80: JMP.L   s[!Dreg,Areg,Aipi,Apdi,Immd]
 0100 rrr1 11ss sSSS:00:-----:-----:02: LEA.L   s[!Dreg,Areg,Aipi,Apdi,Immd],Ar
 
-0101 jjj0 zzdd dDDD:00:-----:-----:13: ADDA.z  #j,d[Areg]      
+% This variant of ADDQ is word and long sized only
+0101 jjj0 01dd dDDD:00:-----:-----:13: ADDA.W  #j,d[Areg]      
+0101 jjj0 10dd dDDD:00:-----:-----:13: ADDA.L  #j,d[Areg]      
 0101 jjj0 zzdd dDDD:00:XNZVC:-----:13: ADD.z   #j,d[!Areg]
-0101 jjj1 zzdd dDDD:00:-----:-----:13: SUBA.z  #j,d[Areg]      
+
+% This variant of SUBQ is word and long sized only
+0101 jjj1 01dd dDDD:00:-----:-----:13: SUBA.W  #j,d[Areg]      
+0101 jjj1 10dd dDDD:00:-----:-----:13: SUBA.L  #j,d[Areg]      
 0101 jjj1 zzdd dDDD:00:XNZVC:-----:13: SUB.z   #j,d[!Areg]
+
 0101 cccc 1100 1rrr:00:-----:+++++:31: DBcc.W  Dr,#1
 0101 cccc 11dd dDDD:00:-----:+++++:20: Scc.B   d[!Areg]
 0101 cccc 1111 1010:20:?????:?????:10: TRAPcc  #1
