@@ -24,24 +24,24 @@
 #import "Emulator.h"
 #import "EmulatorView.h"
 
-@implementation Emulator
-
 #import "sysdeps.h"			// Types used in Basilisk C++ code
 
 #import "main_macosx.h"		// Prototypes for QuitEmuNoExit() and InitEmulator()
 #import "misc_macosx.h"		// Some other prototypes
 #import "video_macosx.h"	// Some window/view globals
 
-#import <adb.h>
-#import <main.h>
-#import <prefs.h>
-#import <timer.h>
+#import "adb.h"
+#import "main.h"
+#import "prefs.h"
+#import "timer.h"
 
-#undef check()				// memory.h defines a check macro, clashes with an OS X one?
+#undef check				// memory.h defines a check macro, clashes with an OS X one?
 #import <cpu_emulation.h>
 
 #define DEBUG 0
 #import <debug.h>
+
+@implementation Emulator
 
 // NSWindow method, which is invoked via delegation
 
@@ -353,7 +353,7 @@ uint8 lastXPRAM[XPRAM_SIZE];		// Copy of PRAM
 #endif
 	emul   = [NNThread	new];
 	RTC    = [NNTimer	new];
-	redraw = [NNTimer	new];
+	redraw = [[NNTimer	alloc] initWithAutoReleasePool]
 	tick   = [NNTimer	new];
 	xPRAM  = [NNTimer	new];
 
