@@ -219,10 +219,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #if (defined(i386) || defined(__i386__))
 #define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_eip)
 #define SIGSEGV_REGISTER_FILE			((unsigned int *)&(((struct sigcontext *)scp)->sc_edi)) /* EDI is the first GPR (even below EIP) in sigcontext */
-/* (gb) Disable because this would hang configure script for some reason
- * though standalone testing gets it right. Any idea why?
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
-*/
 #endif
 #endif
 #if defined(__linux__)
