@@ -265,6 +265,7 @@ uint32 RAMBase;			// Base address of Mac RAM
 uint32 RAMSize;			// Size of Mac RAM
 uint32 KernelDataAddr;	// Address of Kernel Data
 uint32 BootGlobsAddr;	// Address of BootGlobs structure at top of Mac RAM
+uint32 DRCacheAddr;		// Address of DR Cache
 uint32 PVR;				// Theoretical PVR
 int64 CPUClockSpeed;	// Processor clock speed (Hz)
 int64 BusClockSpeed;	// Bus clock speed (Hz)
@@ -282,6 +283,8 @@ static bool lm_area_mapped = false;			// Flag: Low Memory area mmap()ped
 static int kernel_area = -1;				// SHM ID of Kernel Data area
 static bool rom_area_mapped = false;		// Flag: Mac ROM mmap()ped
 static bool ram_area_mapped = false;		// Flag: Mac RAM mmap()ped
+static bool dr_cache_area_mapped = false;	// Flag: Mac DR Cache mmap()ped
+static bool dr_emulator_area_mapped = false;// Flag: Mac DR Emulator mmap()ped
 static KernelData *kernel_data;				// Pointer to Kernel Data
 static EmulatorData *emulator_data;
 
@@ -596,6 +599,22 @@ int main(int argc, char **argv)
 	emulator_data = &kernel_data->ed;
 	KernelDataAddr = KERNEL_DATA_BASE;
 	D(bug("Kernel Data at %p, Emulator Data at %p\n", kernel_data, emulator_data));
+
+	// Create area for DR Cache
+	if (vm_acquire_fixed((void *)DR_EMULATOR_BASE, DR_EMULATOR_SIZE) < 0) {
+		sprintf(str, GetString(STR_DR_EMULATOR_MMAP_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+	dr_emulator_area_mapped = true;
+	if (vm_acquire_fixed((void *)DR_CACHE_BASE, DR_CACHE_SIZE) < 0) {
+		sprintf(str, GetString(STR_DR_CACHE_MMAP_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+	dr_cache_area_mapped = true;
+	DRCacheAddr = DR_CACHE_BASE;
+	D(bug("DR Cache at %p\n", DRCacheAddr));
 
 	// Create area for SheepShaver data
 	if (!SheepMem::Init()) {
@@ -1022,6 +1041,12 @@ static void Quit(void)
 	// Delete ROM area
 	if (rom_area_mapped)
 		vm_release((char *)ROM_BASE, ROM_AREA_SIZE);
+
+	// Delete DR cache areas
+	if (dr_emulator_area_mapped)
+		vm_release((void *)DR_EMULATOR_BASE, DR_EMULATOR_SIZE);
+	if (dr_cache_area_mapped)
+		vm_release((void *)DR_CACHE_BASE, DR_CACHE_SIZE);
 
 	// Delete Kernel Data area
 	if (kernel_area >= 0) {

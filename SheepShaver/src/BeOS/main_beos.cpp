@@ -117,6 +117,7 @@ const char KERNEL_AREA2_NAME[] = "Macintosh Kernel Data 2";
 const char RAM_AREA_NAME[] = "Macintosh RAM";
 const char ROM_AREA_NAME[] = "Macintosh ROM";
 const char DR_CACHE_AREA_NAME[] = "Macintosh DR Cache";
+const char DR_EMULATOR_AREA_NAME[] = "Macintosh DR Emulator";
 const char SHEEP_AREA_NAME[] = "SheepShaver Virtual Stack";
 
 const uint32 SIG_STACK_SIZE = 8192;			// Size of signal stack
@@ -142,7 +143,7 @@ public:
 		// Initialize other variables
 		sheep_fd = -1;
 		emulator_data = NULL;
-		kernel_area = kernel_area2 = rom_area = ram_area = dr_cache_area = -1;
+		kernel_area = kernel_area2 = rom_area = ram_area = dr_cache_area = dr_emulator_area = -1;
 		emul_thread = nvram_thread = tick_thread = -1;
 		ReadyForSignals = false;
 		AllowQuitting = true;
@@ -190,6 +191,7 @@ private:
 	area_id rom_area;		// ROM area ID
 	area_id ram_area;		// RAM area ID
 	area_id dr_cache_area;	// DR Cache area ID
+	area_id dr_emulator_area;	// DR Emulator area ID
 
 	struct sigaction sigusr1_action;	// Interrupt signal (of emulator thread)
 	struct sigaction sigsegv_action;	// Data access exception signal (of emulator thread)
@@ -213,6 +215,7 @@ uint32 RAMSize;			// Size of Mac RAM
 uint32 KernelDataAddr;	// Address of Kernel Data
 uint32 BootGlobsAddr;	// Address of BootGlobs structure at top of Mac RAM
 uint32 DRCacheAddr;		// Address of DR Cache
+uint32 DREmulatorAddr;	// Address of DR Emulator
 uint32 PVR;				// Theoretical PVR
 int64 CPUClockSpeed;	// Processor clock speed (Hz)
 int64 BusClockSpeed;	// Bus clock speed (Hz)
@@ -313,6 +316,9 @@ void SheepShaver::ReadyToRun(void)
 	area_id old_dr_cache_area = find_area(DR_CACHE_AREA_NAME);
 	if (old_dr_cache_area > 0)
 		delete_area(old_dr_cache_area);
+	area_id old_dr_emulator_area = find_area(DR_EMULATOR_AREA_NAME);
+	if (old_dr_emulator_area > 0)
+		delete_area(old_dr_emulator_area);
 
 	// Read preferences
 	int argc = 0;
@@ -403,7 +409,7 @@ void SheepShaver::StartEmulator(void)
 
 	// Create area for SheepShaver data
 	if (!SheepMem::Init()) {
-		sprintf(str, GetString(STR_NO_SHEEP_MEM_AREA_ERR));
+		sprintf(str, GetString(STR_NO_SHEEP_MEM_AREA_ERR), strerror(SheepMemArea), SheepMemArea);
 		ErrorAlert(str);
 		PostMessage(B_QUIT_REQUESTED);
 		return;
@@ -457,6 +463,17 @@ void SheepShaver::StartEmulator(void)
 		return;
 	}
 	D(bug("DR Cache area %ld at %p\n", dr_cache_area, DRCacheAddr));
+
+	// Create area for DR Emulator
+	DREmulatorAddr = DR_EMULATOR_BASE;
+	dr_emulator_area = create_area(DR_EMULATOR_AREA_NAME, (void **)&DREmulatorAddr, B_EXACT_ADDRESS, DR_EMULATOR_SIZE, B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
+	if (dr_emulator_area < 0) {
+		sprintf(str, GetString(STR_NO_KERNEL_DATA_ERR), strerror(dr_emulator_area), dr_emulator_area);
+		ErrorAlert(str);
+		PostMessage(B_QUIT_REQUESTED);
+		return;
+	}
+	D(bug("DR Emulator area %ld at %p\n", dr_emulator_area, DREmulatorAddr));
 
 	// Load NVRAM
 	XPRAMInit();
@@ -682,6 +699,10 @@ void SheepShaver::Quit(void)
 
 	// Delete SheepShaver globals
 	SheepMem::Exit();
+
+	// Delete DR Emulator area
+	if (dr_emulator_area >= 0)
+		delete_area(dr_emulator_area);
 
 	// Delete DR Cache area
 	if (dr_cache_area >= 0)

@@ -1058,7 +1058,7 @@ static bool patch_nanokernel_boot(void)
 static bool patch_68k_emul(void)
 {
 	uint32 *lp;
-	uint32 base;
+	uint32 base, loc;
 
 	// Overwrite twi instructions
 	static const uint8 twi_dat[] = {0x0f, 0xff, 0x00, 0x00, 0x0f, 0xff, 0x00, 0x01, 0x0f, 0xff, 0x00, 0x02};
@@ -1266,12 +1266,21 @@ static bool patch_68k_emul(void)
 	return false;
 dr_found:
 	lp++;
-	*lp = htonl(0x48000000 + 0xf000 - (((uint32)lp - ROM_BASE) & 0xffff));		// b	DR_CACHE_BASE+0x1f000
-	lp = (uint32 *)(ROM_BASE + 0x37f000);
-	*lp++ = htonl(0x3c000000 + ((ROM_BASE + 0x46d0a4) >> 16));		// lis	r0,xxx
-	*lp++ = htonl(0x60000000 + ((ROM_BASE + 0x46d0a4) & 0xffff));	// ori	r0,r0,xxx
-	*lp++ = htonl(0x7c0903a6);										// mtctr	r0
-	*lp = htonl(POWERPC_BCTR);										// bctr
+	loc = (uint32)lp - ROM_BASE;
+	if ((base = powerpc_branch_target(ROM_BASE + loc)) == 0) base = ROM_BASE + loc;
+	static const uint8 dr_ret_dat[] = {0x80, 0xbf, 0x08, 0x14, 0x53, 0x19, 0x4d, 0xac, 0x7c, 0xa8, 0x03, 0xa6};
+	if ((base = find_rom_data(base - ROM_BASE, 0x380000, dr_ret_dat, sizeof(dr_ret_dat))) == 0) return false;
+	D(bug("dr_ret %08lx\n", base));
+	if (base != loc) {
+		// OldWorld ROMs contain an absolute branch
+		D(bug(" patching absolute branch at %08x\n", (uint32)lp - ROM_BASE));
+		*lp = htonl(0x48000000 + 0xf000 - (((uint32)lp - ROM_BASE) & 0xffff));		// b	DR_CACHE_BASE+0x1f000
+		lp = (uint32 *)(ROM_BASE + 0x37f000);
+		*lp++ = htonl(0x3c000000 + ((ROM_BASE + base) >> 16));			// lis	r0,xxx
+		*lp++ = htonl(0x60000000 + ((ROM_BASE + base) & 0xffff));		// ori	r0,r0,xxx
+		*lp++ = htonl(0x7c0803a6);										// mtlr	r0
+		*lp = htonl(POWERPC_BLR);										// blr
+	}
 	return true;
 }
 

@@ -31,6 +31,8 @@ const uintptr ROM_BASE = 0x40800000;			// Base address of ROM
 const uint32  ROM_SIZE = 0x400000;				// Size of ROM file
 const uint32  ROM_AREA_SIZE = 0x500000;			// Size of ROM area
 const uintptr ROM_END = ROM_BASE + ROM_SIZE;	// End of ROM
+const uintptr DR_EMULATOR_BASE = 0x68070000;	// Address of DR emulator code
+const uint32  DR_EMULATOR_SIZE = 0x10000;		// Size of DR emulator code
 const uintptr DR_CACHE_BASE = 0x69000000;		// Address of DR cache
 const uint32  DR_CACHE_SIZE = 0x80000;			// Size of DR Cache
 

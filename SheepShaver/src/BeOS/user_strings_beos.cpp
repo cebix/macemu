@@ -40,6 +40,9 @@ user_string_def platform_strings[] = {
 	{STR_NET_CONFIG_MODIFY_WARN, "To enable Ethernet networking for SheepShaver, your network configuration has to be modified and the network restarted. Do you want this to be done now (selecting \"Cancel\" will disable Ethernet under SheepShaver)?."},
 	{STR_NET_ADDON_INIT_FAILED, "SheepShaver net server add-on found\nbut there seems to be no network hardware.\nPlease check your network preferences."},
 	{STR_NET_ADDON_CLONE_FAILED, "Cloning of the network transfer area failed."},
+	{STR_NO_SHEEP_MEM_AREA_ERR, "Cannot create SheepShaver Globals area: %s (%08x)."},
+	{STR_NO_DR_CACHE_AREA_ERR, "Cannot create DR Cache area: %s (%08x)."},
+	{STR_NO_DR_EMULATOR_AREA_ERR, "Cannot create DR Emulator area: %s (%08x)."},
 
 	{-1, NULL}	// End marker
 };
