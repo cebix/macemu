@@ -451,6 +451,11 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 			p[(0x378 + 0x6c0) >> 1] = htons(0x4e80);		// blr
 			p[(0x37a + 0x6c0) >> 1] = htons(0x0020);
 			D(bug(" patch 2 applied\n"));
+		} else if (p[(0x374 + 0x510) >> 1] == htons(0x7c08) && p[(0x376 + 0x510) >> 1] == htons(0x02a6)) {
+			// Don't overwrite our serial drivers (9.0)
+			p[(0x374 + 0x510) >> 1] = htons(0x4e80);		// blr
+			p[(0x376 + 0x510) >> 1] = htons(0x0020);
+			D(bug(" patch 3 applied\n"));
 		}
 
 	} else if (type == FOURCC('c','i','t','t') && id == 45) {
