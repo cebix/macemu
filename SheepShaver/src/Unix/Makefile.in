@@ -34,6 +34,11 @@ INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@ -s
 INSTALL_DATA = @INSTALL_DATA@
 
+# Append disassembler to dyngen, if available
+ifneq (:,$(MONSRCS):$(DYNGENSRCS))
+DYNGENSRCS += $(filter %i386-dis.c,$(MONSRCS))
+endif
+
 ## Files
 SRCS = main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp sys_unix.cpp \
     ../rom_patches.cpp ../rsrc_patches.cpp ../emul_op.cpp ../name_registry.cpp \
