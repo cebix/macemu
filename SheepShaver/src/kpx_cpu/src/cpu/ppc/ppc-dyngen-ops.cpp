@@ -33,14 +33,9 @@ register struct powerpc_cpu *CPU asm(REG_CPU);
 #else
 #define CPU ((powerpc_cpu *)CPUPARAM)
 #endif
-#if SIZEOF_VOID_P == 8
 #define DYNGEN_DEFINE_GLOBAL_REGISTER(REG) \
 register uintptr reg_##REG asm(REG_##REG); \
 register uint32 REG asm(REG_##REG)
-#else
-#define DYNGEN_DEFINE_GLOBAL_REGISTER(REG) \
-register uint32 REG asm(REG_##REG)
-#endif
 DYNGEN_DEFINE_GLOBAL_REGISTER(A0);
 DYNGEN_DEFINE_GLOBAL_REGISTER(T0);
 DYNGEN_DEFINE_GLOBAL_REGISTER(T1);
