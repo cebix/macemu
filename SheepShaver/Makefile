@@ -63,13 +63,13 @@ links:
 	       Unix/keycodes Unix/tunconfig Unix/clip_unix.cpp \
 	       Unix/Linux/scsi_linux.cpp Unix/Linux/NetDriver \
 	       Unix/Darwin/lowmem.c Unix/Darwin/pagezero.c Unix/Darwin/testlmem.sh \
-	       dummy/audio_dummy.cpp dummy/clip_dummy.cpp \
+	       dummy/audio_dummy.cpp dummy/clip_dummy.cpp dummy/serial_dummy.cpp \
 	       dummy/prefs_editor_dummy.cpp dummy/scsi_dummy.cpp SDL \
 	       MacOSX/sys_darwin.cpp MacOSX/clip_macosx.cpp \
 	       MacOSX/macos_util_macosx.h MacOSX/extfs_macosx.h \
-	       MacOSX/extfs_macosx.mm'; \
+	       MacOSX/extfs_macosx.mm Windows/clip_windows.cpp'; \
 	PREFIX="`pwd`/"; case $(B2_TOPDIR) in /*) PREFIX="";; esac; \
 	for i in $$list; do \
 	  echo $$i; \
-	  ln -sf $${PREFIX}$(B2_TOPDIR)/src/$$i src/$$i; \
+	  ln -sf "$${PREFIX}$(B2_TOPDIR)/src/$$i" src/$$i; \
 	done;
