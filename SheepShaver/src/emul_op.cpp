@@ -288,8 +288,8 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 			MacOSUtilReset();
 			AudioReset();
 
-			// Enable DR emulator from NewWorld ROMs
-			if (ROMType == ROMTYPE_NEWWORLD) {
+			// Enable DR emulator
+			if (1) {
 				D(bug("DR activated\n"));
 				WriteMacInt32(KernelDataAddr + 0x17a0, 3);		// Prepare for DR emulator activation
 				WriteMacInt32(KernelDataAddr + 0x17c0, DR_CACHE_BASE);

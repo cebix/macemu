@@ -1603,8 +1603,8 @@ static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 
 	num_segv++;
 
-	// Fault in Mac ROM or RAM?
-	bool mac_fault = (r->pc() >= ROM_BASE) && (r->pc() < (ROM_BASE + ROM_AREA_SIZE)) || (r->pc() >= RAMBase) && (r->pc() < (RAMBase + RAMSize));
+	// Fault in Mac ROM or RAM or DR Cache?
+	bool mac_fault = (r->pc() >= ROM_BASE) && (r->pc() < (ROM_BASE + ROM_AREA_SIZE)) || (r->pc() >= RAMBase) && (r->pc() < (RAMBase + RAMSize)) || (r->pc() >= DR_CACHE_BASE && r->pc() < (DR_CACHE_BASE + DR_CACHE_SIZE));
 	if (mac_fault) {
 
 		// "VM settings" during MacOS 8 installation
@@ -1630,6 +1630,14 @@ static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 			r->pc() += 4;
 			return;
 		} else if (r->pc() == ROM_BASE + 0x4a10a0 && (r->gpr(20) == 0xf3012002 || r->gpr(20) == 0xf3012000)) {
+			r->pc() += 4;
+			return;
+	
+		// MacOS 8.6 serial drivers on startup (with DR Cache and OldWorld ROM)
+		} else if ((r->pc() - DR_CACHE_BASE) < DR_CACHE_SIZE && (r->gpr(16) == 0xf3012002 || r->gpr(16) == 0xf3012000)) {
+			r->pc() += 4;
+			return;
+		} else if ((r->pc() - DR_CACHE_BASE) < DR_CACHE_SIZE && (r->gpr(20) == 0xf3012002 || r->gpr(20) == 0xf3012000)) {
 			r->pc() += 4;
 			return;
 		}
