@@ -101,6 +101,9 @@ colours_from_depth(const uint16 depth)
 bool
 parse_screen_prefs(const char *mode_str)
 {
+	if ( ! mode_str )
+		return false;
+
 	if (sscanf(mode_str, "win/%hd/%hd/%hd",
 				&init_width, &init_height, &init_depth) == 3)
 		display_type = DISPLAY_WINDOW;
