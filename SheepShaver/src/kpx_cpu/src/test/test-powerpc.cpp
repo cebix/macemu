@@ -113,6 +113,7 @@ typedef uintptr_t uintptr;
 #define _s16(I)         _ck_s(16,I)
 
 #define _D(   OP,RD,RA,         DD )  	_I((_u6(OP)<<26)|(_u5(RD)<<21)|(_u5(RA)<<16)|                _s16(DD)                          )
+#undef  _X
 #define _X(   OP,RD,RA,RB,   XO,RC )  	_I((_u6(OP)<<26)|(_u5(RD)<<21)|(_u5(RA)<<16)|( _u5(RB)<<11)|              (_u10(XO)<<1)|_u1(RC))
 #define _XO(  OP,RD,RA,RB,OE,XO,RC )  	_I((_u6(OP)<<26)|(_u5(RD)<<21)|(_u5(RA)<<16)|( _u5(RB)<<11)|(_u1(OE)<<10)|( _u9(XO)<<1)|_u1(RC))
 #define _M(   OP,RS,RA,SH,MB,ME,RC )  	_I((_u6(OP)<<26)|(_u5(RS)<<21)|(_u5(RA)<<16)|( _u5(SH)<<11)|(_u5(MB)<< 6)|( _u5(ME)<<1)|_u1(RC))
@@ -696,7 +697,7 @@ private:
 
 	struct vector_value_t {
 		char type;
-		vector_t v;
+		vector_t v __attribute__((aligned(16)));
 	};
 
 	static const uint32 reg_values[];
@@ -1005,7 +1006,7 @@ void powerpc_test_cpu::test_instruction_CNTLZ(const char *insn, uint32 opcode)
 	rA_field::insert(code[3], 0);		// <op> RD,R0,RB
 	flush_icache_range(code, sizeof(code));
 
-	for (uint32 mask = 0x800000000; mask != 0; mask >>= 1) {
+	for (uint32 mask = 0x80000000; mask != 0; mask >>= 1) {
 		uint32 ra = mask;
 		test_one(&code[0], insn, ra, 0, 0);
 		test_one(&code[2], insn, ra, 0, 0);
@@ -1688,6 +1689,7 @@ void powerpc_test_cpu::test_vector_load(void)
 		}
 	}
 	assert(i_opcode != -1);
+	assert(((uintptr)&vector_values[0].v) % 16 == 0);
 
 	const int n_elements = sizeof(tests) / sizeof(tests[0]);
 	for (int i = 0; i < n_elements; i++) {
