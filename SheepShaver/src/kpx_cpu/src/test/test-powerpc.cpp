@@ -323,14 +323,14 @@ uint32 powerpc_cpu_base::emul_get_xer() const
 {
 	uint32 xer = 0;
 	for (int i = 0; i < 32; i++)
-		xer |= ppc->xer[i] << (31 - i);
+		xer |= ppc->xer[i] << i;
 	return xer;
 }
 
 void powerpc_cpu_base::emul_set_xer(uint32 value)
 {
 	for (int i = 0; i < 32; i++)
-		ppc->xer[i] = (value >> (31 - i)) & 1;
+		ppc->xer[i] = (value >> i) & 1;
 }
 
 uint32 powerpc_cpu_base::emul_get_cr() const
