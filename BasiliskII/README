@@ -327,9 +327,10 @@ ether <ethernet card description>
   BeOS:
     It doesn't matter what you give as "ethernet card description", Basilisk II
     will always use the first Ethernet card it finds as long an an "ether"
-    line exists (e.g. say "ether yes"). As Basilisk II requires the sheep_net
-    net server add-on from SheepShaver, you can only use Ethernet on PowerPC
-    machines.
+    line exists (e.g. say "ether yes"). Using Ethernet requires the "sheep_net"
+    Net Server add-on to be installed. The first time you start Basilisk II
+    with Ethernet enabled you will be asked whether it's OK to make the
+    necessary changes to your BeOS network configuration to enable sheep_net.
 
   Linux:
     The "ethernet card description" is the name of an Ethernet interface.
