@@ -329,7 +329,7 @@ struct RoutineDescriptor {
 
 #define BUILD_PPC_ROUTINE_DESCRIPTOR(procInfo, procedure) 							\
 	{																				\
-		0xAAFE,										/* Mixed Mode A-Trap */ 		\
+		htons(0xAAFE),								/* Mixed Mode A-Trap */ 		\
 		7,											/* version */					\
 		0,											/* RD Flags - not dispatched */	\
 		0,											/* reserved 1 */				\
@@ -338,13 +338,13 @@ struct RoutineDescriptor {
 		0,											/* number of routines */		\
 		{											/* It's an array */				\
 			{										/* It's a struct */				\
-				(procInfo),							/* the ProcInfo */				\
+				htonl(procInfo),					/* the ProcInfo */				\
 				0,									/* reserved */					\
 				1, 									/* ISA and RTA */				\
-				0 |									/* Flags - it's absolute addr */\
+				htons(0 |							/* Flags - it's absolute addr */\
 				0 |									/* It's prepared */				\
-				4,									/* Always use native ISA */		\
-				(ProcPtr)(procedure),				/* the procedure */				\
+				4 ),								/* Always use native ISA */		\
+				(ProcPtr)htonl((uint32)procedure),	/* the procedure */				\
 				0,									/* reserved */					\
 				0									/* Not dispatched */			\
 			}																		\

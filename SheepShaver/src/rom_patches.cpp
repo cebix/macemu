@@ -679,6 +679,23 @@ static const uint8 adbop_patch[] = {	// Call ADBOp() completion procedure
 
 
 /*
+ *  Copy PowerPC code to ROM image and reverse bytes if necessary
+ */
+
+static inline void memcpy_powerpc_code(void *dst, const void *src, size_t len)
+{
+#ifdef WORDS_BIGENDIAN
+	(void)memcpy(dst, src, len);
+#else
+	uint32 *d = (uint32 *)dst;
+	uint32 *s = (uint32 *)src;
+	for (int i = 0; i < len/4; i++)
+		d[i] = htonl(s[i]);
+#endif
+}
+
+
+/*
  *  Install ROM patches (RAMBase and KernelDataAddr must be set)
  */
 
@@ -1966,10 +1983,10 @@ static bool patch_68k(void)
 	memcpy((void *)(ROM_BASE + sony_offset + 0x200), cdrom_driver, sizeof(cdrom_driver));
 
 	// Install serial drivers
-	memcpy((void *)(ROM_BASE + sony_offset + 0x300), ain_driver, sizeof(ain_driver));
-	memcpy((void *)(ROM_BASE + sony_offset + 0x400), aout_driver, sizeof(aout_driver));
-	memcpy((void *)(ROM_BASE + sony_offset + 0x500), bin_driver, sizeof(bin_driver));
-	memcpy((void *)(ROM_BASE + sony_offset + 0x600), bout_driver, sizeof(bout_driver));
+	memcpy_powerpc_code((void *)(ROM_BASE + sony_offset + 0x300), ain_driver, sizeof(ain_driver));
+	memcpy_powerpc_code((void *)(ROM_BASE + sony_offset + 0x400), aout_driver, sizeof(aout_driver));
+	memcpy_powerpc_code((void *)(ROM_BASE + sony_offset + 0x500), bin_driver, sizeof(bin_driver));
+	memcpy_powerpc_code((void *)(ROM_BASE + sony_offset + 0x600), bout_driver, sizeof(bout_driver));
 
 	// Copy icons to ROM
 	SonyDiskIconAddr = ROM_BASE + sony_offset + 0x800;

@@ -160,22 +160,22 @@ void *FindLibSymbol(char *lib, char *sym)
 
 	D(bug("FindLibSymbol %s in %s...\n", sym+1, lib+1));
 
-	if (*(uint32 *)XLM_RUN_MODE == MODE_EMUL_OP) {
+	if (ReadMacInt32(XLM_RUN_MODE) == MODE_EMUL_OP) {
 		M68kRegisters r;
 	
 		// Find shared library
-		static const uint16 proc1[] = {
-			0x558f,					// subq.l	#2,a7
-			0x2f08,					// move.l	a0,-(a7)
-			0x2f3c, 0x7077, 0x7063,	// move.l	#'pwpc',-(a7)
-			0x2f3c, 0, 1,			// move.l	#kReferenceCFrag,-(a7)
-			0x2f09,					// move.l	a1,-(a7)
-			0x2f0a,					// move.l	a2,-(a7)
-			0x2f0b,					// move.l	a3,-(a7)
-			0x3f3c, 1,				// (GetSharedLibrary)
-			0xaa5a,					// CFMDispatch
-			0x301f,					// move.w	(a7)+,d0
-			M68K_RTS
+		static const uint8 proc1[] = {
+			0x55, 0x8f,							// subq.l	#2,a7
+			0x2f, 0x08,							// move.l	a0,-(a7)
+			0x2f, 0x3c, 0x70, 0x77, 0x70, 0x63,	// move.l	#'pwpc',-(a7)
+			0x2f, 0x3c, 0x00, 0x00, 0x00, 0x01,	// move.l	#kReferenceCFrag,-(a7)
+			0x2f, 0x09,							// move.l	a1,-(a7)
+			0x2f, 0x0a,							// move.l	a2,-(a7)
+			0x2f, 0x0b,							// move.l	a3,-(a7)
+			0x3f, 0x3c, 0x00, 0x01,				// (GetSharedLibrary)
+			0xaa, 0x5a,							// CFMDispatch
+			0x30, 0x1f,							// move.w	(a7)+,d0
+			M68K_RTS >> 8, M68K_RTS & 0xff
 		};
 		r.a[0] = (uint32)lib;
 		r.a[1] = (uint32)&conn_id;
@@ -187,16 +187,16 @@ void *FindLibSymbol(char *lib, char *sym)
 			return NULL;
 	
 		// Find symbol
-		static const uint16 proc2[] = {
-			0x558f,			// subq.l	#2,a7
-			0x2f00,			// move.l	d0,-(a7)
-			0x2f08,			// move.l	a0,-(a7)
-			0x2f09,			// move.l	a1,-(a7)
-			0x2f0a,			// move.l	a2,-(a7)
-			0x3f3c, 5,		// (FindSymbol)
-			0xaa5a,			// CFMDispatch
-			0x301f,			// move.w	(a7)+,d0
-			M68K_RTS
+		static const uint8 proc2[] = {
+			0x55, 0x8f,					// subq.l	#2,a7
+			0x2f, 0x00,					// move.l	d0,-(a7)
+			0x2f, 0x08,					// move.l	a0,-(a7)
+			0x2f, 0x09,					// move.l	a1,-(a7)
+			0x2f, 0x0a,					// move.l	a2,-(a7)
+			0x3f, 0x3c, 0x00, 0x05,		// (FindSymbol)
+			0xaa, 0x5a,					// CFMDispatch
+			0x30, 0x1f,					// move.w	(a7)+,d0
+			M68K_RTS >> 8, M68K_RTS & 0xff
 		};
 		r.d[0] = conn_id;
 		r.a[0] = (uint32)sym;

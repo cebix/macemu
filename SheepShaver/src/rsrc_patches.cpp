@@ -105,6 +105,9 @@ static uint32 find_rsrc_data(const uint8 *rsrc, uint32 max, const uint8 *search,
  *  Resource patches via vCheckLoad
  */
 
+// 680x0 code pattern matching helper
+#define PM(N, V) (p[N] == htons(V))
+
 void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 {
 	uint16 *p16;
@@ -112,50 +115,50 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 	D(bug("vCheckLoad %c%c%c%c (%08x) ID %d, data %p, size %d\n", type >> 24, (type >> 16) & 0xff, (type >> 8) & 0xff, type & 0xff, type, id, p, size));
 
 	// Don't modify resources in ROM
-	if ((uint32)p >= ROM_BASE && (uint32)p <= (ROM_BASE + ROM_SIZE))
+	if ((uintptr)p >= ROM_BASE && (uintptr)p <= (ROM_BASE + ROM_SIZE))
 		return;
 
 	if (type == FOURCC('b','o','o','t') && id == 3) {
 		D(bug("boot 3 found\n"));
 		size >>= 1;
 		while (size--) {
-			if (p[0] == 0x2e49) {
+			if (PM(0,0x2e49)) {
 				// Set boot stack pointer (7.5.2, 7.5.3, 7.5.5, 7.6, 7.6.1, 8.0, 8.1, 8.5, 8.6)
-				p[0] = M68K_EMUL_OP_FIX_BOOTSTACK;
+				p[0] = htons(M68K_EMUL_OP_FIX_BOOTSTACK);
 				D(bug(" patch 1 applied\n"));
-			} else if (p[0] == 0x4267 && p[1] == 0x3f01 && p[2] == 0x3f2a && p[3] == 0x0006 && p[4] == 0x6100) {
+			} else if (PM(0,0x4267) && PM(1,0x3f01) && PM(2,0x3f2a) && PM(3,0x0006) && PM(4,0x6100)) {
 				// Check when ntrb 17 is installed (for native Resource Manager patch) (7.5.3, 7.5.5)
-				p[7] = M68K_EMUL_OP_NTRB_17_PATCH3;
+				p[7] = htons(M68K_EMUL_OP_NTRB_17_PATCH3);
 				D(bug(" patch 2 applied\n"));
-			} else if (p[0] == 0x3f2a && p[1] == 0x0006 && p[2] == 0x3f2a && p[3] == 0x0002 && p[4] == 0x6100) {
+			} else if (PM(0,0x3f2a) && PM(1,0x0006) && PM(2,0x3f2a) && PM(3,0x0002) && PM(4,0x6100)) {
 				// Check when ntrb 17 is installed (for native Resource Manager patch) (7.6, 7.6.1, 8.0, 8.1)
-				p[7] = M68K_EMUL_OP_NTRB_17_PATCH;
+				p[7] = htons(M68K_EMUL_OP_NTRB_17_PATCH);
 				D(bug(" patch 3 applied\n"));
-			} else if (p[0] == 0x3f2a && p[1] == 0x0006 && p[2] == 0x3f2a && p[3] == 0x0002 && p[4] == 0x61ff) {
+			} else if (PM(0,0x3f2a) && PM(1,0x0006) && PM(2,0x3f2a) && PM(3,0x0002) && PM(4,0x61ff)) {
 				// Check when ntrb 17 is installed (for native Resource Manager patch) (8.5, 8.6)
-				p[8] = M68K_EMUL_OP_NTRB_17_PATCH;
+				p[8] = htons(M68K_EMUL_OP_NTRB_17_PATCH);
 				D(bug(" patch 4 applied\n"));
-			} else if (p[0] == 0x0c39 && p[1] == 0x0001 && p[2] == 0xf800 && p[3] == 0x0008 && p[4] == 0x6f00) {
+			} else if (PM(0,0x0c39) && PM(1,0x0001) && PM(2,0xf800) && PM(3,0x0008) && PM(4,0x6f00)) {
 				// Don't read from 0xf8000008 (8.5 with Zanzibar ROM, 8.6)
-				p[0] = M68K_NOP;
-				p[1] = M68K_NOP;
-				p[2] = M68K_NOP;
-				p[3] = M68K_NOP;
-				p[4] = 0x6000;	// bra
+				p[0] = htons(M68K_NOP);
+				p[1] = htons(M68K_NOP);
+				p[2] = htons(M68K_NOP);
+				p[3] = htons(M68K_NOP);
+				p[4] = htons(0x6000);	// bra
 				D(bug(" patch 5 applied\n"));
-			} else if (p[0] == 0x2f3c && p[1] == 0x6b72 && p[2] == 0x6e6c && p[3] == 0x4267 && p[4] == 0xa9a0 && p[5] == 0x265f && p[6] == 0x200b && p[7] == 0x6700) {
+			} else if (PM(0,0x2f3c) && PM(1,0x6b72) && PM(2,0x6e6c) && PM(3,0x4267) && PM(4,0xa9a0) && PM(5,0x265f) && PM(6,0x200b) && PM(7,0x6700)) {
 				// Don't replace nanokernel ("krnl" resource) (8.6)
-				p[0] = M68K_NOP;
-				p[1] = M68K_NOP;
-				p[2] = M68K_NOP;
-				p[3] = M68K_NOP;
-				p[4] = M68K_NOP;
-				p[7] = 0x6000;	// bra
+				p[0] = htons(M68K_NOP);
+				p[1] = htons(M68K_NOP);
+				p[2] = htons(M68K_NOP);
+				p[3] = htons(M68K_NOP);
+				p[4] = htons(M68K_NOP);
+				p[7] = htons(0x6000);	// bra
 				D(bug(" patch 6 applied\n"));
-			} else if (p[0] == 0xa8fe && p[1] == 0x3038 && p[2] == 0x017a && p[3] == 0x0c40 && p[4] == 0x8805 && p[5] == 0x6710) {
+			} else if (PM(0,0xa8fe) && PM(1,0x3038) && PM(2,0x017a) && PM(3,0x0c40) && PM(4,0x8805) && PM(5,0x6710)) {
 				// No SCSI (calls via 0x205c jump vector which is not initialized in NewWorld ROM 1.6) (8.6)
 				if (ROMType == ROMTYPE_NEWWORLD) {
-					p[5] = 0x6010;	// bra
+					p[5] = htons(0x6010);	// bra
 					D(bug(" patch 7 applied\n"));
 				}
 			}
@@ -169,7 +172,7 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 		static const uint8 dat[] = {0x4e, 0xba, 0x00, 0x9e, 0x3e, 0x00, 0x50, 0x4f, 0x67, 0x04};
 		base = find_rsrc_data((uint8 *)p, size, dat, sizeof(dat));
 		if (base) {
-			p16 = (uint16 *)((uint32)p + base + 6);
+			p16 = (uint16 *)((uintptr)p + base + 6);
 			*p16 = htons(M68K_EMUL_OP_NTRB_17_PATCH2);
 			D(bug(" patch 1 applied\n"));
 		}
@@ -178,31 +181,31 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 		D(bug("ptch 420 found\n"));
 		size >>= 1;
 		while (size--) {
-			if (p[0] == 0xa030 && p[1] == 0x5240 && p[2] == 0x303c && p[3] == 0x0100 && p[4] == 0xc06e && p[5] == 0xfef6) {
+			if (PM(0,0xa030) && PM(1,0x5240) && PM(2,0x303c) && PM(3,0x0100) && PM(4,0xc06e) && PM(5,0xfef6)) {
 				// Disable VM (7.5.2, 7.5.3, 7.5.5, 7.6, 7.6.1)
-				p[1] = M68K_NOP;
-				p[2] = M68K_NOP;
-				p[3] = M68K_NOP;
-				p[4] = M68K_NOP;
-				p[5] = M68K_NOP;
-				p[6] = M68K_NOP;
-				p[7] = M68K_NOP;
-				p[8] = M68K_NOP;
-				p[9] = M68K_NOP;
-				p[10] = M68K_NOP;
-				p[11] = M68K_NOP;
+				p[1] = htons(M68K_NOP);
+				p[2] = htons(M68K_NOP);
+				p[3] = htons(M68K_NOP);
+				p[4] = htons(M68K_NOP);
+				p[5] = htons(M68K_NOP);
+				p[6] = htons(M68K_NOP);
+				p[7] = htons(M68K_NOP);
+				p[8] = htons(M68K_NOP);
+				p[9] = htons(M68K_NOP);
+				p[10] = htons(M68K_NOP);
+				p[11] = htons(M68K_NOP);
 				D(bug(" patch 1 applied\n"));
 				break;
-			} else if (p[0] == 0xa030 && p[1] == 0x5240 && p[2] == 0x7000 && p[3] == 0x302e && p[4] == 0xfef6 && p[5] == 0x323c && p[6] == 0x0100) {
+			} else if (PM(0,0xa030) && PM(1,0x5240) && PM(2,0x7000) && PM(3,0x302e) && PM(4,0xfef6) && PM(5,0x323c) && PM(6,0x0100)) {
 				// Disable VM (8.0, 8.1)
-				p[8] = M68K_NOP;
-				p[15] = M68K_NOP;
+				p[8] = htons(M68K_NOP);
+				p[15] = htons(M68K_NOP);
 				D(bug(" patch 2 applied\n"));
 				break;
-			} else if (p[0] == 0xa030 && p[1] == 0x5240 && p[2] == 0x7000 && p[3] == 0x302e && p[4] == 0xfecc && p[5] == 0x323c && p[6] == 0x0100) {
+			} else if (PM(0,0xa030) && PM(1,0x5240) && PM(2,0x7000) && PM(3,0x302e) && PM(4,0xfecc) && PM(5,0x323c) && PM(6,0x0100)) {
 				// Disable VM (8.5, 8.6)
-				p[8] = M68K_NOP;
-				p[15] = M68K_NOP;
+				p[8] = htons(M68K_NOP);
+				p[15] = htons(M68K_NOP);
 				D(bug(" patch 3 applied\n"));
 				break;
 			}
@@ -213,9 +216,9 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 		D(bug("gpch 16 found\n"));
 		size >>= 1;
 		while (size--) {
-			if (p[0] == 0x6700 && p[13] == 0x7013 && p[14] == 0xfe0a) {
+			if (PM(0,0x6700) && PM(13,0x7013) && PM(14,0xfe0a)) {
 				// Don't call FE0A in Shutdown Manager (7.6.1, 8.0, 8.1, 8.5)
-				p[0] = 0x6000;
+				p[0] = htons(0x6000);
 				D(bug(" patch 1 applied\n"));
 				break;
 			}
@@ -226,29 +229,29 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 		D(bug("gpch 650 found\n"));
 		size >>= 1;
 		while (size--) {
-			if (p[0] == 0x6600 && p[1] == 0x001a && p[2] == 0x2278 && p[3] == 0x0134) {
+			if (PM(0,0x6600) && PM(1,0x001a) && PM(2,0x2278) && PM(3,0x0134)) {
 				// We don't have SonyVars (7.5.2)
-				p[0] = 0x6000;
+				p[0] = htons(0x6000);
 				D(bug(" patch 1 applied\n"));
-			} else if (p[0] == 0x6618 && p[1] == 0x2278 && p[2] == 0x0134) {
+			} else if (PM(0,0x6618) && PM(1,0x2278) && PM(2,0x0134)) {
 				// We don't have SonyVars (7.5.3)
-				p[-6] = M68K_NOP;
-				p[-3] = M68K_NOP;
-				p[0] = 0x6018;
+				p[-6] = htons(M68K_NOP);
+				p[-3] = htons(M68K_NOP);
+				p[0] = htons(0x6018);
 				D(bug(" patch 2 applied\n"));
-			} else if (p[0] == 0x666e && p[1] == 0x2278 && p[2] == 0x0134) {
+			} else if (PM(0,0x666e) && PM(1,0x2278) && PM(2,0x0134)) {
 				// We don't have SonyVars (7.5.5)
-				p[-6] = M68K_NOP;
-				p[-3] = M68K_NOP;
-				p[0] = 0x606e;
+				p[-6] = htons(M68K_NOP);
+				p[-3] = htons(M68K_NOP);
+				p[0] = htons(0x606e);
 				D(bug(" patch 3 applied\n"));
-			} else if (p[0] == 0x6400 && p[1] == 0x011c && p[2] == 0x2278 && p[3] == 0x0134) {
+			} else if (PM(0,0x6400) && PM(1,0x011c) && PM(2,0x2278) && PM(3,0x0134)) {
 				// We don't have SonyVars (7.6.1, 8.0, 8.1, 8.5, 8.6)
-				p[0] = 0x6000;
+				p[0] = htons(0x6000);
 				D(bug(" patch 4 applied\n"));
-			} else if (p[0] == 0x6400 && p[1] == 0x00e6 && p[2] == 0x2278 && p[3] == 0x0134) {
+			} else if (PM(0,0x6400) && PM(1,0x00e6) && PM(2,0x2278) && PM(3,0x0134)) {
 				// We don't have SonyVars (7.6)
-				p[0] = 0x6000;
+				p[0] = htons(0x6000);
 				D(bug(" patch 5 applied\n"));
 			}
 			p++;
@@ -258,44 +261,44 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 		D(bug("gpch 655 found\n"));
 		size >>= 1;
 		while (size--) {
-			if (p[0] == 0x83a8 && p[1] == 0x0024 && p[2] == 0x4e71) {
+			if (PM(0,0x83a8) && PM(1,0x0024) && PM(2,0x4e71)) {
 				// Don't write to GC interrupt mask (7.6, 7.6.1, 8.0, 8.1 with Zanzibar ROM)
-				p[0] = M68K_NOP;
-				p[1] = M68K_NOP;
+				p[0] = htons(M68K_NOP);
+				p[1] = htons(M68K_NOP);
 				D(bug(" patch 1 applied\n"));
-			} else if (p[0] == 0x207c && p[1] == 0xf300 && p[2] == 0x0034) {
+			} else if (PM(0,0x207c) && PM(1,0xf300) && PM(2,0x0034)) {
 				// Don't read PowerMac ID (7.6, 7.6.1, 8.0, 8.1 with Zanzibar ROM)
-				p[0] = 0x303c;		// move.w #id,d0
-				p[1] = 0x3020;
-				p[2] = M68K_RTS;
+				p[0] = htons(0x303c);		// move.w #id,d0
+				p[1] = htons(0x3020);
+				p[2] = htons(M68K_RTS);
 				D(bug(" patch 2 applied\n"));
-			} else if (p[0] == 0x13fc && p[1] == 0x0081 && p[2] == 0xf130 && p[3] == 0xa030) {
+			} else if (PM(0,0x13fc) && PM(1,0x0081) && PM(2,0xf130) && PM(3,0xa030)) {
 				// Don't write to hardware (7.6, 7.6.1, 8.0, 8.1 with Zanzibar ROM)
-				p[0] = M68K_NOP;
-				p[1] = M68K_NOP;
-				p[2] = M68K_NOP;
-				p[3] = M68K_NOP;
+				p[0] = htons(M68K_NOP);
+				p[1] = htons(M68K_NOP);
+				p[2] = htons(M68K_NOP);
+				p[3] = htons(M68K_NOP);
 				D(bug(" patch 3 applied\n"));
-			} else if (p[0] == 0x4e56 && p[1] == 0x0000 && p[2] == 0x227c && p[3] == 0xf800 && p[4] == 0x0000) {
+			} else if (PM(0,0x4e56) && PM(1,0x0000) && PM(2,0x227c) && PM(3,0xf800) && PM(4,0x0000)) {
 				// OpenFirmare? (7.6.1, 8.0, 8.1 with Zanzibar ROM)
-				p[0] = M68K_RTS;
+				p[0] = htons(M68K_RTS);
 				D(bug(" patch 4 applied\n"));
-			} else if (p[0] == 0x4e56 && p[1] == 0xfffc && p[2] == 0x48e7 && p[3] == 0x0300 && p[4] == 0x598f && p[5] == 0x2eb8 && p[6] == 0x01dc) {
+			} else if (PM(0,0x4e56) && PM(1,0xfffc) && PM(2,0x48e7) && PM(3,0x0300) && PM(4,0x598f) && PM(5,0x2eb8) && PM(6,0x01dc)) {
 				// Don't write to SCC (7.6.1, 8.0, 8.1 with Zanzibar ROM)
-				p[0] = M68K_RTS;
+				p[0] = htons(M68K_RTS);
 				D(bug(" patch 5 applied\n"));
-			} else if (p[0] == 0x4e56 && p[1] == 0x0000 && p[2] == 0x227c && p[3] == 0xf300 && p[4] == 0x0034) {
+			} else if (PM(0,0x4e56) && PM(1,0x0000) && PM(2,0x227c) && PM(3,0xf300) && PM(4,0x0034)) {
 				// Don't write to GC (7.6.1, 8.0, 8.1 with Zanzibar ROM)
-				p[0] = M68K_RTS;
+				p[0] = htons(M68K_RTS);
 				D(bug(" patch 6 applied\n"));
-			} else if (p[0] == 0x40e7 && p[1] == 0x007c && p[2] == 0x0700 && p[3] == 0x48e7 && p[4] == 0x00c0 && p[5] == 0x2078 && p[6] == 0x0dd8 && p[7] == 0xd1e8 && p[8] == 0x0044 && p[9] == 0x8005 && p[11] == 0x93c8 && p[12] == 0x2149 && p[13] == 0x0024) {
+			} else if (PM(0,0x40e7) && PM(1,0x007c) && PM(2,0x0700) && PM(3,0x48e7) && PM(4,0x00c0) && PM(5,0x2078) && PM(6,0x0dd8) && PM(7,0xd1e8) && PM(8,0x0044) && PM(9,0x8005) && PM(11,0x93c8) && PM(12,0x2149) && PM(13,0x0024)) {
 				// Don't replace NVRAM routines (7.6, 7.6.1, 8.0, 8.1 with Zanzibar ROM)
-				p[0] = M68K_RTS;
+				p[0] = htons(M68K_RTS);
 				D(bug(" patch 7 applied\n"));
-			} else if (p[0] == 0x207c && p[1] == 0x50f1 && p[2] == 0xa101 && (p[3] == 0x08d0 || p[3] == 0x0890)) {
+			} else if (PM(0,0x207c) && PM(1,0x50f1) && PM(2,0xa101) && (PM(3,0x08d0) || PM(3,0x0890))) {
 				// Don't write to 0x50f1a101 (8.1 with Zanzibar ROM)
-				p[3] = M68K_NOP;
-				p[4] = M68K_NOP;
+				p[3] = htons(M68K_NOP);
+				p[4] = htons(M68K_NOP);
 				D(bug(" patch 8 applied\n"));
 			}
 			p++;
@@ -305,27 +308,27 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 		D(bug("gpch 750 found\n"));
 		size >>= 1;
 		while (size--) {
-			if (p[0] == 0xf301 && p[1] == 0x9100 && p[2] == 0x0c11 && p[3] == 0x0044) {
+			if (PM(0,0xf301) && PM(1,0x9100) && PM(2,0x0c11) && PM(3,0x0044)) {
 				// Don't read from 0xf3019100 (MACE ENET) (7.6, 7.6.1, 8.0, 8.1)
-				p[2] = M68K_NOP;
-				p[3] = M68K_NOP;
-				p[4] = 0x6026;
+				p[2] = htons(M68K_NOP);
+				p[3] = htons(M68K_NOP);
+				p[4] = htons(0x6026);
 				D(bug(" patch 1 applied\n"));
-			} else if (p[0] == 0x41e8 && p[1] == 0x0374 && p[2] == 0xfc1e) {
+			} else if (PM(0,0x41e8) && PM(1,0x0374) && PM(2,0xfc1e)) {
 				// Don't call FC1E opcode (7.6, 7.6.1, 8.0, 8.1, 8.5, 8.6)
-				p[2] = M68K_NOP;
+				p[2] = htons(M68K_NOP);
 				D(bug(" patch 2 applied\n"));
-			} else if (p[0] == 0x700a && p[1] == 0xfe0a) {
+			} else if (PM(0,0x700a) && PM(1,0xfe0a)) {
 				// Don't call FE0A opcode (7.6, 7.6.1, 8.0, 8.1, 8.5, 8.6)
-				p[1] = 0x7000;
+				p[1] = htons(0x7000);
 				D(bug(" patch 3 applied\n"));
-			} else if (p[0] == 0x6c00 && p[1] == 0x016a && p[2] == 0x2278 && p[3] == 0x0134) {
+			} else if (PM(0,0x6c00) && PM(1,0x016a) && PM(2,0x2278) && PM(3,0x0134)) {
 				// We don't have SonyVars (8.6)
-				p[-4] = 0x21fc;	// move.l $40810000,($0000)
-				p[-3] = 0x4081;
-				p[-2] = 0x0000;
-				p[-1] = 0x0000;
-				p[0] = 0x6000;
+				p[-4] = htons(0x21fc);	// move.l $40810000,($0000)
+				p[-3] = htons(0x4081);
+				p[-2] = htons(0x0000);
+				p[-1] = htons(0x0000);
+				p[0] = htons(0x6000);
 				D(bug(" patch 4 applied\n"));
 			}
 			p++;
@@ -335,11 +338,11 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 		D(bug("gpch 999 found\n"));
 		size >>= 1;
 		while (size--) {
-			if (p[0] == 0xf301 && p[1] == 0x9100 && p[2] == 0x0c11 && p[3] == 0x0044) {
+			if (PM(0,0xf301) && PM(1,0x9100) && PM(2,0x0c11) && PM(3,0x0044)) {
 				// Don't read from 0xf3019100 (MACE ENET) (8.5, 8.6)
-				p[2] = M68K_NOP;
-				p[3] = M68K_NOP;
-				p[4] = 0x6026;
+				p[2] = htons(M68K_NOP);
+				p[3] = htons(M68K_NOP);
+				p[4] = htons(0x6026);
 				D(bug(" patch 1 applied\n"));
 			}
 			p++;
@@ -349,11 +352,11 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 		D(bug("gpch 3000 found\n"));
 		size >>= 1;
 		while (size--) {
-			if (p[0] == 0xf301 && p[1] == 0x9100 && p[2] == 0x0c11 && p[3] == 0x0044) {
+			if (PM(0,0xf301) && PM(1,0x9100) && PM(2,0x0c11) && PM(3,0x0044)) {
 				// Don't read from 0xf3019100 (MACE ENET) (8.1 with NewWorld ROM)
-				p[2] = M68K_NOP;
-				p[3] = M68K_NOP;
-				p[4] = 0x6026;
+				p[2] = htons(M68K_NOP);
+				p[3] = htons(M68K_NOP);
+				p[4] = htons(0x6026);
 				D(bug(" patch 1 applied\n"));
 			}
 			p++;
@@ -364,54 +367,54 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 #if 1
 		size >>= 1;
 		while (size--) {
-			if (p[0] == 0xc2fc && p[1] == 0x0fa0 && p[2] == 0x82c5) {
+			if (PM(0,0xc2fc) && PM(1,0x0fa0) && PM(2,0x82c5)) {
 				// Prevent division by 0 in speed test (7.5.2, 7.5.3, 7.5.5, 7.6, 7.6.1, 8.0, 8.1)
-				p[2] = 0x7200;
+				p[2] = htons(0x7200);
 				WriteMacInt32(0x1d8, 0x2c00);
 				WriteMacInt32(0x1dc, 0x2c00);
 				D(bug(" patch 1 applied\n"));
-			} else if (p[0] == 0x1418 && p[1] == 0x84c1) {
+			} else if (PM(0,0x1418) && PM(1,0x84c1)) {
 				// Prevent division by 0 (7.5.2, 7.5.3, 7.5.5, 7.6, 7.6.1, 8.0, 8.1)
-				p[1] = 0x7400;
+				p[1] = htons(0x7400);
 				D(bug(" patch 2 applied\n"));
-			} else if (p[0] == 0x2678 && p[1] == 0x01dc && p[2] == 0x3018 && p[3] == 0x6708 && p[4] == 0x1680 && p[5] == 0xe058 && p[6] == 0x1680) {
+			} else if (PM(0,0x2678) && PM(1,0x01dc) && PM(2,0x3018) && PM(3,0x6708) && PM(4,0x1680) && PM(5,0xe058) && PM(6,0x1680)) {
 				// Don't write to SCC (7.5.2, 7.5.3, 7.5.5, 7.6, 7.6.1, 8.0, 8.1)
-				p[4] = M68K_NOP;
-				p[6] = M68K_NOP;
+				p[4] = htons(M68K_NOP);
+				p[6] = htons(M68K_NOP);
 				D(bug(" patch 3 applied\n"));
-			} else if (p[0] == 0x2278 && p[1] == 0x01dc && p[2] == 0x12bc && p[3] == 0x0006 && p[4] == 0x4e71 && p[5] == 0x1292) {
+			} else if (PM(0,0x2278) && PM(1,0x01dc) && PM(2,0x12bc) && PM(3,0x0006) && PM(4,0x4e71) && PM(5,0x1292)) {
 				// Don't write to SCC (7.5.2, 7.5.3, 7.5.5, 7.6, 7.6.1, 8.0, 8.1)
-				p[2] = M68K_NOP;
-				p[3] = M68K_NOP;
-				p[5] = M68K_NOP;
+				p[2] = htons(M68K_NOP);
+				p[3] = htons(M68K_NOP);
+				p[5] = htons(M68K_NOP);
 				D(bug(" patch 4 applied\n"));
-			} else if (p[0] == 0x2278 && p[1] == 0x01dc && p[2] == 0x12bc && p[3] == 0x0003 && p[4] == 0x4e71 && p[5] == 0x1281) {
+			} else if (PM(0,0x2278) && PM(1,0x01dc) && PM(2,0x12bc) && PM(3,0x0003) && PM(4,0x4e71) && PM(5,0x1281)) {
 				// Don't write to SCC (7.5.2, 7.5.3, 7.5.5, 7.6, 7.6.1, 8.0, 8.1)
-				p[2] = M68K_NOP;
-				p[3] = M68K_NOP;
-				p[5] = M68K_NOP;
+				p[2] = htons(M68K_NOP);
+				p[3] = htons(M68K_NOP);
+				p[5] = htons(M68K_NOP);
 				D(bug(" patch 5 applied\n"));
-			} else if (p[0] == 0x0811 && p[1] == 0x0000 && p[2] == 0x51c8 && p[3] == 0xfffa) {
+			} else if (PM(0,0x0811) && PM(1,0x0000) && PM(2,0x51c8) && PM(3,0xfffa)) {
 				// Don't test SCC (7.5.2, 7.5.3, 7.5.5, 7.6, 7.6.1, 8.0, 8.1)
-				p[0] = M68K_NOP;
-				p[1] = M68K_NOP;
+				p[0] = htons(M68K_NOP);
+				p[1] = htons(M68K_NOP);
 				D(bug(" patch 6 applied\n"));
-			} else if (p[0] == 0x4a2a && p[1] == 0x063e && p[2] == 0x66fa) {
+			} else if (PM(0,0x4a2a) && PM(1,0x063e) && PM(2,0x66fa)) {
 				// Don't wait for SCC (7.5.2, 7.5.3, 7.5.5)
-				p[2] = M68K_NOP;
+				p[2] = htons(M68K_NOP);
 				D(bug(" patch 7 applied\n"));
-			} else if (p[0] == 0x4a2a && p[1] == 0x03a6 && p[2] == 0x66fa) {
+			} else if (PM(0,0x4a2a) && PM(1,0x03a6) && PM(2,0x66fa)) {
 				// Don't wait for SCC (7.6, 7.6.1, 8.0, 8.1)
-				p[2] = M68K_NOP;
+				p[2] = htons(M68K_NOP);
 				D(bug(" patch 8 applied\n"));
 			}
 			p++;
 		}
 #else
 		// Disable LocalTalk
-		p[0] = M68K_JMP_A0;
-		p[1] = 0x7000;		// moveq #0,d0
-		p[2] = M68K_RTS;
+		p[0] = htons(M68K_JMP_A0);
+		p[1] = htons(0x7000);		// moveq #0,d0
+		p[2] = htons(M68K_RTS);
 		D(bug(" patch 1 applied\n"));
 #endif
 
@@ -433,9 +436,9 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 		D(bug("citt 45 found\n"));
 		size >>= 1;
 		while (size--) {
-			if (p[0] == 0x203c && p[1] == 0x0100 && p[2] == 0x0000 && p[3] == 0xc0ae && p[4] == 0xfffc) {
+			if (PM(0,0x203c) && PM(1,0x0100) && PM(2,0x0000) && PM(3,0xc0ae) && PM(4,0xfffc)) {
 				// Don't replace SCSI Manager (8.1, 8.5, 8.6)
-				p[5] = (p[5] & 0xff) | 0x6000;		// beq
+				p[5] = htons((p[5] & 0xff) | 0x6000);		// beq
 				D(bug(" patch 1 applied\n"));
 				break;
 			}
@@ -449,24 +452,24 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 		if (c_type == FOURCC('s','d','e','v') && sub_type == FOURCC('s','i','n','g')) {
 			1[(uint32 *)p] = FOURCC('a','w','g','c');
 			D(bug("thng %d, type %c%c%c%c (%08x), sub type %c%c%c%c (%08x), data %p\n", id, c_type >> 24, (c_type >> 16) & 0xff, (c_type >> 8) & 0xff, c_type & 0xff, c_type, sub_type >> 24, (sub_type >> 16) & 0xff, (sub_type >> 8) & 0xff, sub_type & 0xff, sub_type, p));
-			AddSifter(*(uint32 *)(((uint32)p)+20), p[12]);
+			AddSifter(*(uint32 *)(((uintptr)p)+20), p[12]);
 			if (p[28])								// componentPFCount
-				AddSifter(*(uint32 *)(((uint32)p)+62), p[33]);
+				AddSifter(*(uint32 *)(((uintptr)p)+62), p[33]);
 		}
 
 	} else if (type == FOURCC('s','i','f','t') || type == FOURCC('n','i','f','t')) {
 		// Patch audio sifters
 		if (FindSifter(type, id)) {
 			D(bug("sifter found\n"));
-			p[0] = 0x4e56; p[1] = 0x0000;	// link a6,#0
-			p[2] = 0x48e7; p[3] = 0x8018;	// movem.l d0/a3-a4,-(a7)
-			p[4] = 0x266e; p[5] = 0x000c;	// movea.l $c(a6),a3
-			p[6] = 0x286e; p[7] = 0x0008;	// movea.l $8(a6),a4
-			p[8] = M68K_EMUL_OP_AUDIO_DISPATCH;
-			p[9] = 0x2d40; p[10] = 0x0010;	// move.l d0,$10(a6)
-			p[11] = 0x4cdf; p[12] = 0x1801;	// movem.l (a7)+,d0/a3-a4
-			p[13] = 0x4e5e;					// unlk a6
-			p[14] = 0x4e74; p[15] = 0x0008;	// rtd #8
+			p[0] = htons(0x4e56); p[1] = htons(0x0000);		// link a6,#0
+			p[2] = htons(0x48e7); p[3] = htons(0x8018);		// movem.l d0/a3-a4,-(a7)
+			p[4] = htons(0x266e); p[5] = htons(0x000c);		// movea.l $c(a6),a3
+			p[6] = htons(0x286e); p[7] = htons(0x0008);		// movea.l $8(a6),a4
+			p[8] = htons(M68K_EMUL_OP_AUDIO_DISPATCH);
+			p[9] = htons(0x2d40); p[10] = htons(0x0010);	// move.l d0,$10(a6)
+			p[11] = htons(0x4cdf); p[12] = htons(0x1801);	// movem.l (a7)+,d0/a3-a4
+			p[13] = htons(0x4e5e);							// unlk a6
+			p[14] = htons(0x4e74); p[15] = htons(0x0008);	// rtd #8
 			D(bug(" patch applied\n"));
 		}
 
@@ -480,9 +483,9 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 		D(bug("INIT 1 (size 2416) found\n"));
 		size >>= 1;
 		while (size--) {
-			if (p[0] == 0x247c && p[1] == 0xf301 && p[2] == 0x9000) {
+			if (PM(0,0x247c) && PM(1,0xf301) && PM(2,0x9000)) {
 				// Prevent "MacOS Licensing Extension" from accessing hardware (7.6)
-				p[22] = 0x6028;
+				p[22] = htons(0x6028);
 				D(bug(" patch 1 applied\n"));
 				break;
 			}
@@ -496,9 +499,9 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 		static const uint8 dat[] = {0x4e, 0x56, 0x00, 0x00, 0x48, 0xe7, 0x03, 0x18, 0x2c, 0x2e, 0x00, 0x10};
 		base = find_rsrc_data((uint8 *)p, size, dat, sizeof(dat));
 		if (base) {
-			p16 = (uint16 *)((uint32)p + base);
-			p16[0] = 0x7000;	// moveq #0,d0
-			p16[1] = M68K_RTS;
+			p16 = (uint16 *)((uintptr)p + base);
+			p16[0] = htons(0x7000);	// moveq #0,d0
+			p16[1] = htons(M68K_RTS);
 			D(bug(" patch 1 applied\n"));
 		}
 	}
