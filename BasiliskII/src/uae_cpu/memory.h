@@ -9,6 +9,8 @@
 #ifndef UAE_MEMORY_H
 #define UAE_MEMORY_H
 
+#if !DIRECT_ADDRESSING && !REAL_ADDRESSING
+
 /* Enabling this adds one additional native memory reference per 68k memory
  * access, but saves one shift (on the x86). Enabling this is probably
  * better for the cache. My favourite benchmark (PP2) doesn't show a
@@ -108,34 +110,59 @@ extern void byteput(uaecptr addr, uae_u32 b);
 
 #endif
 
+#endif /* !DIRECT_ADDRESSING && !REAL_ADDRESSING */
+
 #if REAL_ADDRESSING
+#define do_get_real_address(a)		((uae_u8 *)(a))
+#define do_get_virtual_address(a)	((uae_u32)(a))
+#define InitMEMBaseDiff(va, ra)		do { } while (0)
+#endif /* REAL_ADDRESSING */
+
+#if DIRECT_ADDRESSING
+extern uintptr MEMBaseDiff;
+#define do_get_real_address(a)		((uae_u8 *)(a) + MEMBaseDiff)
+#define do_get_virtual_address(a)	((uae_u32)(a) - MEMBaseDiff)
+#define InitMEMBaseDiff(va, ra)		(MEMBaseDiff = (uintptr)(va) - (uintptr)(ra))
+#endif /* DIRECT_ADDRESSING */
+
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
 static __inline__ uae_u32 get_long(uaecptr addr)
 {
-    return ntohl(*(uae_u32 *)addr);
+    uae_u32 * const m = (uae_u32 *)do_get_real_address(addr);
+    return do_get_mem_long(m);
 }
 static __inline__ uae_u32 get_word(uaecptr addr)
 {
-    return ntohs(*(uae_u16 *)addr);
+    uae_u16 * const m = (uae_u16 *)do_get_real_address(addr);
+    return do_get_mem_word(m);
 }
 static __inline__ uae_u32 get_byte(uaecptr addr)
 {
-    return *(uae_u8 *)addr;
+    uae_u8 * const m = (uae_u8 *)do_get_real_address(addr);
+    return do_get_mem_byte(m);
 }
 static __inline__ void put_long(uaecptr addr, uae_u32 l)
 {
-    *(uae_u32 *)addr = htonl(l);
+    uae_u32 * const m = (uae_u32 *)do_get_real_address(addr);
+    do_put_mem_long(m, l);
 }
 static __inline__ void put_word(uaecptr addr, uae_u32 w)
 {
-    *(uae_u16 *)addr = htons(w);
+    uae_u16 * const m = (uae_u16 *)do_get_real_address(addr);
+    do_put_mem_word(m, w);
 }
 static __inline__ void put_byte(uaecptr addr, uae_u32 b)
 {
-    *(uae_u8 *)addr = b;
+    uae_u8 * const m = (uae_u8 *)do_get_real_address(addr);
+    do_put_mem_byte(m, b);
 }
 static __inline__ uae_u8 *get_real_address(uaecptr addr)
 {
-    return (uae_u8 *)addr;
+	return do_get_real_address(addr);
+}
+static __inline__ uae_u32 get_virtual_address(uae_u8 *addr)
+{
+	return do_get_virtual_address(addr);
 }
 static __inline__ int valid_address(uaecptr addr, uae_u32 size)
 {
@@ -166,16 +193,17 @@ static __inline__ void put_byte(uaecptr addr, uae_u32 b)
 {
     byteput_1(addr, b);
 }
-
 static __inline__ uae_u8 *get_real_address(uaecptr addr)
 {
     return get_mem_bank(addr).xlateaddr(addr);
 }
-
+/* gb-- deliberately not implemented since it shall not be used... */
+extern uae_u32 get_virtual_address(uae_u8 *addr);
 static __inline__ int valid_address(uaecptr addr, uae_u32 size)
 {
     return get_mem_bank(addr).check(addr, size);
 }
-#endif
+#endif /* DIRECT_ADDRESSING || REAL_ADDRESSING */
 
-#endif
+#endif /* MEMORY_H */
+
