@@ -18,14 +18,16 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "sysdeps.h"
+
 #include <exec/types.h>
 #include <libraries/iffparse.h>
 #include <devices/clipboard.h>
 #include <proto/exec.h>
 #include <proto/iffparse.h>
 
-#include "sysdeps.h"
 #include "clip.h"
+#include "prefs.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -35,6 +37,7 @@
 static struct IFFHandle *iffw = NULL;
 static struct ClipboardHandle *ch = NULL;
 static bool clipboard_open = false;
+static bool no_clip_conversion;
 
 
 // Conversion tables
@@ -64,6 +67,8 @@ static const uint8 mac2iso[0x80] = {
 
 void ClipInit(void)
 {
+	no_clip_conversion = PrefsFindBool("noclipconversion");
+
 	// Create clipboard IFF handle
 	iffw = AllocIFF();
 	if (iffw) {
@@ -117,7 +122,7 @@ void PutScrap(uint32 type, void *scrap, int32 length)
 				if (c < 0x80) {
 					if (c == 13)	// CR -> LF
 						c = 10;
-				} else
+				} else if (!no_clip_conversion)
 					c = mac2iso[c & 0x7f];
 				*q++ = c;
 			}

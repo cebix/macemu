@@ -23,6 +23,7 @@
 #include <X11/Xlib.h>
 
 #include "clip.h"
+#include "prefs.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -52,6 +53,9 @@ static const uint8 mac2iso[0x80] = {
 	0xaf, 0x20, 0xb7, 0xb0, 0xb8, 0x22, 0xb8, 0x20
 };
 
+// Flag: Don't convert clipboard text
+static bool no_clip_conversion;
+
 
 /*
  *  Initialization
@@ -59,6 +63,7 @@ static const uint8 mac2iso[0x80] = {
 
 void ClipInit(void)
 {
+	no_clip_conversion = PrefsFindBool("noclipconversion");
 }
 
 
@@ -94,7 +99,7 @@ void PutScrap(uint32 type, void *scrap, int32 length)
 				if (c < 0x80) {
 					if (c == 13)	// CR -> LF
 						c = 10;
-				} else
+				} else if (!no_clip_conversion)
 					c = mac2iso[c & 0x7f];
 				*q++ = c;
 			}

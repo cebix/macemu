@@ -1,3 +1,11 @@
+V0.8 (snapshot) -
+	- prefs.cpp: empty string prefs items could be written to prefs file
+	  but not read back correctly
+	- clip_*.cpp: added prefs item "noclipconversion" for turning off
+	  charset conversion of text clips (only CR->LF gets translated),
+	  [Toshimitsu Tanaka]
+	- Unix: "--without-mon" configure option now works
+
 V0.8 (snapshot) - 14.Mar.2000
 	- Unix/video_x.cpp: new window refresh code [Samuel Lander]
 	- Unix/timer_unix.cpp: fixed time zone handling under Linux and SVR4

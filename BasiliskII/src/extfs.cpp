@@ -1,5 +1,5 @@
 /*
- *  extfs.cpp - MacOS file system for access native file system access
+ *  extfs.cpp - MacOS file system for native file system access
  *
  *  Basilisk II (C) 1997-2000 Christian Bauer
  *

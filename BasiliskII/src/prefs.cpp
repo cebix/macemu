@@ -58,6 +58,7 @@ prefs_desc common_prefs_items[] = {
 	{"fpu", TYPE_BOOLEAN, false},		// Enable FPU emulation (main.cpp)
 	{"nocdrom", TYPE_BOOLEAN, false},	// Don't install CD-ROM driver (cdrom.cpp/rom_patches.cpp)
 	{"nosound", TYPE_BOOLEAN, false},	// Don't enable sound output (audio_*.cpp)
+	{"noclipconversion", TYPE_BOOLEAN, false}, // Don't convert clipboard contents (clip_*.cpp)
 	{"nogui", TYPE_BOOLEAN, false},		// Disable GUI (main_*.cpp)
 	{NULL, TYPE_END, false}	// End of list
 };
@@ -95,6 +96,7 @@ void PrefsInit(void)
 	PrefsAddBool("fpu", false);
 	PrefsAddBool("nocdrom", false);
 	PrefsAddBool("nosound", false);
+	PrefsAddBool("noclipconversion", false);
 	PrefsAddBool("nogui", false);
 	AddPlatformPrefsDefaults();
 

@@ -18,14 +18,20 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "sysdeps.h"
+
 #include <AppKit.h>
 #include <support/UTF8.h>
 
-#include "sysdeps.h"
 #include "clip.h"
+#include "prefs.h"
 
 #define DEBUG 1
 #include "debug.h"
+
+
+// Flag: Don't convert clipboard text
+static bool no_clip_conversion;
 
 
 /*
@@ -34,6 +40,7 @@
 
 void ClipInit(void)
 {
+	no_clip_conversion = PrefsFindBool("noclipconversion");
 }
 
 
@@ -63,20 +70,39 @@ void PutScrap(uint32 type, void *scrap, int32 length)
 				be_clipboard->Clear();
 				BMessage *clipper = be_clipboard->Data(); 
 	
-				// Convert text from Mac charset to UTF-8
-				int32 dest_length = length*3;
-				int32 state = 0;
-				char *buf = new char[dest_length];
-				if (convert_to_utf8(B_MAC_ROMAN_CONVERSION, (char *)scrap, &length, buf, &dest_length, &state) == B_OK) {
-					for (int i=0; i<dest_length; i++)
-						if (buf[i] == 13)
+				if (no_clip_conversion) {
+
+					// Only convert CR->LF
+					char *buf = new char[dest_length];
+					for (int i=0; i<length; i++) {
+						if (i[(char *)scrap] == 13)
 							buf[i] = 10;
-	
+						else
+							buf[i] = i[(char *)scrap];
+					}
+
 					// Add text to Be clipboard
-					clipper->AddData("text/plain", B_MIME_TYPE, buf, dest_length); 
+					clipper->AddData("text/plain", B_MIME_TYPE, buf, length); 
 					be_clipboard->Commit();
+					delete[] buf;
+
+				} else {
+
+					// Convert text from Mac charset to UTF-8
+					int32 dest_length = length*3;
+					int32 state = 0;
+					char *buf = new char[dest_length];
+					if (convert_to_utf8(B_MAC_ROMAN_CONVERSION, (char *)scrap, &length, buf, &dest_length, &state) == B_OK) {
+						for (int i=0; i<dest_length; i++)
+							if (buf[i] == 13)
+								buf[i] = 10;
+	
+						// Add text to Be clipboard
+						clipper->AddData("text/plain", B_MIME_TYPE, buf, dest_length); 
+						be_clipboard->Commit();
+					}
+					delete[] buf;
 				}
-				delete[] buf;
 				be_clipboard->Unlock();
 			}
 			break;
