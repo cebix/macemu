@@ -1635,9 +1635,8 @@ void op_sse2_vsldoi_##SH(void)								\
 				  "pshufd %3,%%xmm1,%%xmm1\n"				\
 				  "pslldq %4,%%xmm0\n"						\
 				  "psrldq %5,%%xmm1\n"						\
-				  "pshufd %3,%%xmm0,%%xmm0\n"				\
-				  "pshufd %3,%%xmm1,%%xmm1\n"				\
 				  "por    %%xmm1,%%xmm0\n"					\
+				  "pshufd %3,%%xmm0,%%xmm0\n"				\
 				  "movaps %%xmm0,(%0)\n"					\
 				  : :										\
 				  "r" (reg_VD), "r" (reg_V0), "r" (reg_V1),	\
