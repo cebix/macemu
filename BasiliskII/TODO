@@ -6,6 +6,8 @@ Bugs:
   select()/signals/sigsegv handling/vm_protect()
 
 General:
+- Add support for 2MB ROMs (Quadra 840AV)
+- Add support for System 6.0.x
 - Sony: rdVerify, Tag Buffer
 - Disk: rdVerify
 - CD-ROM: track lists, positioning type 3, TOC type 4/5, ReadHeader/ReadMCN/
