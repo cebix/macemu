@@ -125,13 +125,22 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 
 // Irix 5 or 6 on MIPS
 #if (defined(sgi) || defined(__sgi)) && (defined(SYSTYPE_SVR4) || defined(__SYSTYPE_SVR4))
+#include <ucontext.h>
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
 #define SIGSEGV_FAULT_ADDRESS			scp->sc_badvaddr
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
 #endif
 
+// HP-UX
+#if (defined(hpux) || defined(__hpux__))
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
+#define SIGSEGV_FAULT_ADDRESS			scp->sc_sl.sl_ss.ss_narrow.ss_cr21
+#define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV) FAULT_HANDLER(SIGBUS)
+#endif
+
 // OSF/1 on Alpha
 #if defined(__osf__)
+#include <ucontext.h>
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
 #define SIGSEGV_FAULT_ADDRESS			scp->sc_traparg_a0
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
