@@ -79,7 +79,7 @@ distclean: clean
 	-rm -f config.cache config.log config.status config.h
 
 depend dep:
-	makedepend $(CPPFLAGS) -Y ../*.cpp ../*.c *.cpp
+	makedepend $(CPPFLAGS) -Y. $(SRCS) 2>/dev/null
 
 $(OBJ_DIR)/%.o : %.c
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
