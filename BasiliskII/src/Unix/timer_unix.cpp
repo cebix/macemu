@@ -233,6 +233,7 @@ uint64 GetTicks_usec(void)
 #elif defined(HAVE_PTHREADS) && defined(sgi)
 // SGI pthreads has a bug when using pthreads+signals+nanosleep,
 // so instead of using nanosleep, wait on a CV which is never signalled.
+#include <pthread.h>
 #define USE_COND_TIMEDWAIT
 #endif
 
