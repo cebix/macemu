@@ -21,6 +21,7 @@
 #ifndef PPC_BLOCKINFO_H
 #define PPC_BLOCKINFO_H
 
+#include "nvmemfun.hpp"
 #include "basic-blockinfo.hpp"
 
 class powerpc_cpu;
@@ -28,7 +29,7 @@ class powerpc_cpu;
 struct powerpc_block_info
 	: public basic_block_info
 {
-	typedef void (powerpc_cpu::*execute_fn)(uint32 opcode);
+	typedef nv_mem_fun1_t< void, powerpc_cpu, uint32 > execute_fn;
 
 	struct decode_info
 	{

@@ -331,23 +331,23 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 #ifdef PPC_EXECUTE_DUMP_STATE
 				if (dump_state) {
 					di->opcode = opcode;
-					di->execute = &powerpc_cpu::dump_instruction;
+					di->execute = nv_mem_fun(&powerpc_cpu::dump_instruction);
 				}
 #endif
 #if PPC_FLIGHT_RECORDER
 				if (is_logging()) {
 					di->opcode = opcode;
-					di->execute = &powerpc_cpu::record_step;
+					di->execute = nv_mem_fun(&powerpc_cpu::record_step);
 					di++;
 				}
 #endif
 				di->opcode = opcode;
-				di->execute = ii->decode ? (this->*(ii->decode))(opcode) : ii->execute;
+				di->execute = ii->decode ? ii->decode(this, opcode) : ii->execute;
 				di++;
 #ifdef PPC_EXECUTE_DUMP_STATE
 				if (dump_state) {
 					di->opcode = 0;
-					di->execute = &powerpc_cpu::fake_dump_registers;
+					di->execute = nv_mem_fun(&powerpc_cpu::fake_dump_registers);
 					di++;
 				}
 #endif
@@ -376,21 +376,21 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 				di = bi->di;
 #ifdef PPC_NO_DECODE_CACHE_UNROLL_EXECUTE
 				for (int i = 0; i < bi->size; i++)
-					(this->*(di[i].execute))(di[i].opcode);
+					di[i].execute(this, di[i].opcode);
 #else
 				const int r = bi->size % 4;
 				switch (r) {
-				case 3: (this->*(di->execute))(di->opcode); di++;
-				case 2: (this->*(di->execute))(di->opcode); di++;
-				case 1: (this->*(di->execute))(di->opcode); di++;
+				case 3: di->execute(this, di->opcode); di++;
+				case 2: di->execute(this, di->opcode); di++;
+				case 1: di->execute(this, di->opcode); di++;
 				case 0: break;
 				}
 				const int n = bi->size / 4;
 				for (int i = 0; i < n; i++) {
-					(this->*(di[0].execute))(di[0].opcode);
-					(this->*(di[1].execute))(di[1].opcode);
-					(this->*(di[2].execute))(di[2].opcode);
-					(this->*(di[3].execute))(di[3].opcode);
+					di[0].execute(this, di[0].opcode);
+					di[1].execute(this, di[1].opcode);
+					di[2].execute(this, di[2].opcode);
+					di[3].execute(this, di[3].opcode);
 					di += 4;
 				}
 #endif
@@ -424,7 +424,7 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 			record_step(opcode);
 #endif
 		assert(ii->execute != 0);
-		(this->*(ii->execute))(opcode);
+		ii->execute(this, opcode);
 #ifdef PPC_EXECUTE_DUMP_STATE
 		if (dump_state)
 			dump_registers();

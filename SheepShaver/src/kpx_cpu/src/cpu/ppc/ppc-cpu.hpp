@@ -22,6 +22,7 @@
 #define PPC_CPU_H
 
 #include "basic-cpu.hpp"
+#include "nvmemfun.hpp"
 #include "cpu/vm.hpp"
 #include "cpu/block-cache.hpp"
 #include "cpu/ppc/ppc-config.hpp"
@@ -139,10 +140,12 @@ protected:
 	};
 
 	// Callbacks associated with each instruction
-	typedef void (powerpc_cpu::*execute_fn)(uint32 opcode);
+	typedef void (powerpc_cpu::*execute_pmf)(uint32 opcode);
+	typedef nv_mem_fun1_t< void, powerpc_cpu, uint32 > execute_fn;
 
 	// Specialzed instruction decoders type
-	typedef execute_fn (powerpc_cpu::*decode_fn)(uint32 opcode);
+	typedef execute_fn (powerpc_cpu::*decode_pmf)(uint32 opcode);
+	typedef nv_mem_fun1_t< execute_fn, powerpc_cpu, uint32 > decode_fn;
 
 	// Instruction information structure
 	struct instr_info_t {
