@@ -216,6 +216,10 @@ enum {	// VDSetEntry struct
 	csCount = 6
 };
 
+enum {	// VDGammaRecord
+	csGTable = 0
+};
+
 enum {	// ColorSpec table entry
 	csValue = 0,
 	csRed = 2,
@@ -281,14 +285,15 @@ enum {	// VDDrawHardwareCursor/VDHardwareCursorDrawState struct
 	csCursorSet = 12
 };
 
-struct GammaTbl {
-	uint16	gVersion;
-	uint16	gType;
-	uint16	gFormulaSize;
-	uint16	gChanCnt;
-	uint16	gDataCnt;
-	uint16	gDataWidth;
-	uint16	gFormulaData[1];
+enum {	// struct GammaTbl
+	gVersion = 0,
+	gType = 2,
+	gFormulaSize = 4,
+	gChanCnt = 6,
+	gDataCnt = 8,
+	gDataWidth = 10,
+	gFormulaData = 12, // variable size
+	SIZEOF_GammaTbl = 12
 };
 
 enum {

@@ -156,15 +156,15 @@ static int16 VideoOpen(uint32 pb, VidLocals *csSave)
 	csSave->saveMode = VModes[cur_mode].viAppleMode;
 	csSave->savePage = 0;
 	csSave->saveVidParms = 0;			// Add the right table
-	csSave->gammaTable = NULL;			// No gamma table yet
-	csSave->maxGammaTableSize = 0;
 	csSave->luminanceMapping = false;
 	csSave->cursorX = 0;
 	csSave->cursorY = 0;
 	csSave->cursorVisible = 0;
 	csSave->cursorSet = 0;
 
-	// Activate default gamma table
+	// Find and set default gamma table
+	csSave->gammaTable = 0;
+	csSave->maxGammaTableSize = 0;
 	set_gamma(csSave, 0);
 
 	// Install and activate interrupt service
@@ -182,83 +182,68 @@ static int16 VideoOpen(uint32 pb, VidLocals *csSave)
  *  Video driver control routine
  */
 
+static bool allocate_gamma_table(VidLocals *csSave, uint32 size)
+{
+	if (size > csSave->maxGammaTableSize) {
+		if (csSave->gammaTable) {
+			Mac_sysfree(csSave->gammaTable);
+			csSave->gammaTable = 0;
+			csSave->maxGammaTableSize = 0;
+		}
+		if ((csSave->gammaTable = Mac_sysalloc(size)) == 0)
+			return false;
+		csSave->maxGammaTableSize = size;
+	}
+	return true;
+}
+
 static int16 set_gamma(VidLocals *csSave, uint32 gamma)
 {
-#warning "FIXME: this code is not little endian aware"
-	GammaTbl *clientGamma = (GammaTbl *)gamma;
-	GammaTbl *gammaTable = csSave->gammaTable;
+	return paramErr;
 
-	if (clientGamma == NULL) {
+	if (gamma == 0) { // Build linear ramp, 256 entries
 
-		// No gamma table supplied, build linear ramp
-		uint32 linearRampSize = sizeof(GammaTbl) + 256 - 2;	
-		uint8 *correctionData;
+		// Allocate new table, if necessary
+		if (!allocate_gamma_table(csSave, SIZEOF_GammaTbl + 256))
+			return memFullErr;
 
-		// Allocate new gamma table if existing gamma table is smaller than required.
-		if (linearRampSize > csSave->maxGammaTableSize) {
-			delete[] csSave->gammaTable;
-			csSave->gammaTable = (GammaTbl *)new uint8[linearRampSize];
-			csSave->maxGammaTableSize = linearRampSize;
-			gammaTable = csSave->gammaTable;
-		}
-		
-		gammaTable->gVersion = 0;			// A version 0 style of the GammaTbl structure
-		gammaTable->gType = 0;				// Frame buffer hardware invariant
-		gammaTable->gFormulaSize = 0;		// No formula data, just correction data
-		gammaTable->gChanCnt = 1;			// Apply same correction to Red, Green, & Blue
-		gammaTable->gDataCnt = 256;			// gDataCnt == 2^^gDataWidth
-		gammaTable->gDataWidth = 8;			// 8 bits of significant data per entry
-
-		// Find the starting address of the correction data.  This can be computed by starting at
-		// the address of gFormula[0] and adding the gFormulaSize.
-		correctionData = (uint8 *)((uint32)&gammaTable->gFormulaData[0] + gammaTable->gFormulaSize);
+		// Initialize header
+		WriteMacInt16(csSave->gammaTable + gVersion, 0);		// A  version 0 style of the GammaTbl structure
+		WriteMacInt16(csSave->gammaTable + gType, 0);			// Frame buffer hardware invariant
+		WriteMacInt16(csSave->gammaTable + gFormulaSize, 0);	// No formula data, just correction data
+		WriteMacInt16(csSave->gammaTable + gChanCnt, 1);		// Apply same correction to Red, Green, & Blue
+		WriteMacInt16(csSave->gammaTable + gDataCnt, 256);		// gDataCnt == 2^^gDataWidth
+		WriteMacInt16(csSave->gammaTable + gDataWidth, 8);		// 8 bits of significant data per entry
 
 		// Build the linear ramp
-		for (int i=0; i<gammaTable->gDataCnt; i++)
-			*correctionData++ = i;		
+		uint32 p = csSave->gammaTable + gFormulaData;
+		for (int i=0; i<256; i++)
+			WriteMacInt8(p + i, i);
 
-	} else {
+	} else { // User-supplied gamma table
 
-		// User supplied a gamma table, so make sure it is a valid one
-		if (clientGamma->gVersion != 0)
+		// Validate header
+		if (ReadMacInt16(gamma + gVersion) != 0)
 			return paramErr;
-		if (clientGamma->gType != 0)
+		if (ReadMacInt16(gamma + gType) != 0)
 			return paramErr;
-		if ((clientGamma->gChanCnt != 1) && (clientGamma->gChanCnt != 3))
+		int chan_cnt = ReadMacInt16(gamma + gChanCnt);
+		if (chan_cnt != 1 && chan_cnt != 3)
 			return paramErr;
-		if (clientGamma->gDataWidth > 8)
+		int data_width = ReadMacInt16(gamma + gDataWidth);
+		if (data_width > 8)
 			return paramErr;
-		if (clientGamma->gDataCnt != (1 << clientGamma->gDataWidth))
+		int data_cnt = ReadMacInt16(gamma + gDataWidth);
+		if (data_cnt != (1 << data_width))
 			return paramErr;
 
-		uint32 tableSize = sizeof(GammaTbl)						// fixed size header
-				+ clientGamma->gFormulaSize						// add formula size
-				+ clientGamma->gChanCnt * clientGamma->gDataCnt	// assume 1 byte/entry
-				- 2; 											// correct gFormulaData[0] counted twice
+		// Allocate new table, if necessary
+		int size = SIZEOF_GammaTbl + ReadMacInt16(gamma + gFormulaSize) + chan_cnt * data_cnt;
+		if (!allocate_gamma_table(csSave, size))
+			return memFullErr;
 
-		// Allocate new gamma table if existing gamma table is smaller than required.
-		if (tableSize > csSave->maxGammaTableSize) {
-			delete[] csSave->gammaTable;
-			csSave->gammaTable = (GammaTbl *)new uint8[tableSize];
-			csSave->maxGammaTableSize = tableSize;
-			gammaTable = csSave->gammaTable;
-		}
-
-		// Copy gamma table header		
-		*gammaTable = *clientGamma;
-		
-		// Copy the formula data (if any)
-		uint8 *newData = (uint8 *)&gammaTable->gFormulaData[0];		// Point to newGamma's formula data
-		uint8 *clientData = (uint8 *)&clientGamma->gFormulaData[0];	// Point to clientGamma's formula data
-		for (int i=0; i<gammaTable->gFormulaSize; i++)
-			*newData++ = *clientData++;
-
-		// Copy the correction data. Convientiently, after copying the formula data, the 'newData'
-		// pointer and the 'clientData' pointer are pointing to the their respective starting points
-		// of their correction data.
-		for (int i=0; i<gammaTable->gChanCnt; i++)
-			for (int j=0; j<gammaTable->gDataCnt; j++)		
-				*newData++ = *clientData++;
+		// Copy table
+		Mac2Mac_memcpy(csSave->gammaTable, gamma, size);
 	}
 	return noErr;
 }
@@ -299,16 +284,26 @@ static int16 VideoControl(uint32 pb, VidLocals *csSave)
 			uint8 *green_gamma = NULL;
 			uint8 *blue_gamma = NULL;
 			int gamma_data_width = 0;
-			if (display_type == DIS_SCREEN && csSave->gammaTable != NULL) {	// Windows are gamma-corrected by BeOS
-				do_gamma = true;
-				GammaTbl *gamma = csSave->gammaTable;
-				gamma_data_width = gamma->gDataWidth;
-				red_gamma = (uint8 *)&gamma->gFormulaData + gamma->gFormulaSize;
-				if (gamma->gChanCnt == 1) {
-					green_gamma = blue_gamma = red_gamma;
-				} else {
-					green_gamma = red_gamma + gamma->gDataCnt;
-					blue_gamma = red_gamma + 2 * gamma->gDataCnt;
+			if (csSave->gammaTable) {
+#ifdef __BEOS__
+				// Windows are gamma-corrected by BeOS
+				const bool can_do_gamma = (display_type == DIS_SCREEN);
+#else
+				const bool can_do_gamma = true;
+#endif
+				if (can_do_gamma) {
+					uint32 gamma_table = csSave->gammaTable;
+					red_gamma = Mac2HostAddr(gamma_table + gFormulaData + ReadMacInt16(gamma_table + gFormulaSize));
+					int chan_cnt = ReadMacInt16(gamma_table + gChanCnt);
+					if (chan_cnt == 1)
+						green_gamma = blue_gamma = red_gamma;
+					else {
+						int ofs = ReadMacInt16(gamma_table + gDataCnt);
+						green_gamma = red_gamma + ofs;
+						blue_gamma = green_gamma + ofs;
+					}
+					gamma_data_width = ReadMacInt16(gamma_table + gDataWidth);
+					do_gamma = true;
 				}
 			}
 
@@ -356,9 +351,11 @@ static int16 VideoControl(uint32 pb, VidLocals *csSave)
 			return noErr;
 		}
 
-		case cscSetGamma:							// SetGamma
-			D(bug("SetGamma\n"));
-			return set_gamma(csSave, ReadMacInt32(param));
+		case cscSetGamma: {							// SetGamma
+			uint32 user_table = ReadMacInt32(param + csGTable);
+			D(bug("SetGamma %08x\n", user_table));
+			return set_gamma(csSave, ReadMacInt32(user_table));
+		}
 
 		case cscGrayPage: {							// GrayPage
 			D(bug("GrayPage %d\n", ReadMacInt16(param + csPage)));
@@ -885,8 +882,10 @@ int16 VideoDoDriverIO(uint32 spaceID, uint32 commandID, uint32 commandContents, 
 	switch (commandCode) {
 		case kInitializeCommand:
 		case kReplaceCommand:
-			if (private_data != NULL)	// Might be left over from a reboot
-				delete private_data->gammaTable;
+			if (private_data != NULL) {	// Might be left over from a reboot
+				if (private_data->gammaTable)
+					Mac_sysfree(private_data->gammaTable);
+			}
 			delete private_data;
 
 			iocic_tvect = FindLibSymbol("\021DriverServicesLib", "\023IOCommandIsComplete");
@@ -926,15 +925,15 @@ int16 VideoDoDriverIO(uint32 spaceID, uint32 commandID, uint32 commandContents, 
 			}
 
 			private_data = new VidLocals;
-			private_data->gammaTable = NULL;
+			private_data->gammaTable = 0;
 			Mac2Host_memcpy(&private_data->regEntryID, commandContents + 2, 16);	// DriverInitInfo.deviceEntry
 			private_data->interruptsEnabled = false;	// Disable interrupts
 			break;
 
 		case kFinalizeCommand:
 		case kSupersededCommand:
-			if (private_data != NULL)
-				delete private_data->gammaTable;
+			if (private_data != NULL && private_data->gammaTable)
+				Mac_sysfree(private_data->gammaTable);
 			delete private_data;
 			private_data = NULL;
 			break;

@@ -108,14 +108,12 @@ extern rgb_color mac_pal[256];
 extern uint8 remap_mac_be[256];
 extern uint8 MacCursor[68];
 
-struct GammaTbl;
-
 struct VidLocals{
 	uint16	saveMode;
 	uint32	saveData;
 	uint16	savePage;
 	uint32	saveBaseAddr;
-	GammaTbl *gammaTable;		// Current gamma table
+	uint32	gammaTable;			// Mac address of gamma tble
 	uint32	maxGammaTableSize;	// Biggest gamma table allocated
 	uint32	saveVidParms;
 	bool	luminanceMapping;	// Luminance mapping on/off
