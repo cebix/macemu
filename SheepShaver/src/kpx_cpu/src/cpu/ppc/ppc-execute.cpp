@@ -28,6 +28,11 @@
 #include "cpu/ppc/ppc-bitfields.hpp"
 #include "cpu/ppc/ppc-operands.hpp"
 #include "cpu/ppc/ppc-operations.hpp"
+#include "cpu/ppc/ppc-execute.hpp"
+
+#ifndef SHEEPSHAVER
+#include "basic-kernel.hpp"
+#endif
 
 #if ENABLE_MON
 #include "mon.h"
@@ -378,22 +383,11 @@ void powerpc_cpu::execute_divide(uint32 opcode)
 	const uint32 b = operand_RB::get(this, opcode);
 	uint32 d;
 
-	if (b == 0 || (SB && a == 0x80000000 && b == 0xffffffff)) {
-		// Reference manual says rD is undefined
-		d = 0;
-		if (SB) {
-			// However, checking against a real PowerPC (7410) yields
-			// that rD gets all bits set to rA MSB
-			d = -(a >> 31);
-		}
-		if (OE::test(opcode))
-			xer().set_ov(1);
-	}
-	else {
-		d = SB ? (int32)a/(int32)b : a/b;
-		if (OE::test(opcode))
-			xer().set_ov(0);
-	}
+	// Specialize divide semantic action
+	if (OE::test(opcode))
+		d = do_execute_divide<SB, true>(a, b);
+	else
+		d = do_execute_divide<SB, false>(a, b);
 
 	// Set CR0 (LT, GT, EQ, SO) if instruction has Rc set
 	if (Rc::test(opcode))
@@ -926,8 +920,21 @@ void powerpc_cpu::execute_fp_round(uint32 opcode)
 
 void powerpc_cpu::execute_syscall(uint32 opcode)
 {
-	cr().set_so(0, execute_do_syscall && !execute_do_syscall(this));
+#ifdef SHEEPSHAVER
+	D(bug("syscall\n"));
 	increment_pc(4);
+#else
+	try {
+		cr().set_so(0, execute_do_syscall && !execute_do_syscall(this));
+		increment_pc(4);
+	}
+	catch (kernel_syscall_exit & sc_exit) {
+		// FIXME: add unwind info to the translation cache? Otherwise
+		// we have to manually forward the exception to execution loop
+		syscall_exit_code = sc_exit.status;
+		spcflags().set(SPCFLAG_CPU_EXEC_RETURN);
+	}
+#endif
 }
 
 /**
@@ -1026,17 +1033,15 @@ void powerpc_cpu::execute_mfmsr(uint32 opcode)
 template< class SPR >
 void powerpc_cpu::execute_mfspr(uint32 opcode)
 {
-	uint32 spr = SPR::get(this, opcode);
+	const uint32 spr = SPR::get(this, opcode);
 	uint32 d;
 	switch (spr) {
-	case 1: d = xer().get(); break;
-	case 8: d = lr(); break;
-	case 9: d = ctr(); break;
+	case powerpc_registers::SPR_XER:	d = xer().get();break;
+	case powerpc_registers::SPR_LR:		d = lr();		break;
+	case powerpc_registers::SPR_CTR:	d = ctr();		break;
 #ifdef SHEEPSHAVER
-	case 25: // SDR1
-		d = 0xdead001f;
-		break;
-	case 287: { // PVR
+	case powerpc_registers::SPR_SDR1:	d = 0xdead001f;	break;
+	case powerpc_registers::SPR_PVR: {
 		extern uint32 PVR;
 		d = PVR;
 		break;
@@ -1053,13 +1058,13 @@ void powerpc_cpu::execute_mfspr(uint32 opcode)
 template< class SPR >
 void powerpc_cpu::execute_mtspr(uint32 opcode)
 {
-	uint32 spr = SPR::get(this, opcode);
+	const uint32 spr = SPR::get(this, opcode);
 	const uint32 s = operand_RS::get(this, opcode);
 
 	switch (spr) {
-	case 1: xer().set(s); break;
-	case 8: lr() = s; break;
-	case 9: ctr() = s; break;
+	case powerpc_registers::SPR_XER:	xer().set(s);	break;
+	case powerpc_registers::SPR_LR:		lr() = s;		break;
+	case powerpc_registers::SPR_CTR:	ctr() = s;		break;
 #ifndef SHEEPSHAVER
 	default: execute_illegal(opcode);
 #endif

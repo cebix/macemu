@@ -30,6 +30,7 @@
 #include "sigsegv.h"
 #include "cpu/ppc/ppc-cpu.hpp"
 #include "cpu/ppc/ppc-operations.hpp"
+#include "cpu/ppc/ppc-instructions.hpp"
 
 // Used for NativeOp trampolines
 #include "video.h"
@@ -96,6 +97,11 @@ static sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
 /**
  *		PowerPC emulator glue with special 'sheep' opcodes
  **/
+
+enum {
+	PPC_I(SHEEP) = PPC_I(MAX),
+	PPC_I(SHEEP_MAX)
+};
 
 class sheepshaver_cpu
 	: public powerpc_cpu
@@ -165,6 +171,7 @@ void sheepshaver_cpu::init_decoder()
 		{ "sheep",
 		  (execute_pmf)&sheepshaver_cpu::execute_sheep,
 		  NULL,
+		  PPC_I(SHEEP),
 		  D_form, 6, 0, CFLOW_JUMP | CFLOW_TRAP
 		}
 	};

@@ -1,5 +1,5 @@
 /*
- *  ppc-blockinfo.hpp - PowerPC basic block information
+ *  cxxdemangle.cpp - C++ demangler
  *
  *  Kheperix (C) 2003 Gwenole Beauchesne
  *
@@ -18,31 +18,15 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef PPC_BLOCKINFO_H
-#define PPC_BLOCKINFO_H
+#include "sysdeps.h"
+#include "cxxdemangle.h"
 
-#include "nvmemfun.hpp"
-#include "basic-blockinfo.hpp"
+#if defined(__GNUC__) && (__GXX_ABI_VERSION > 0)
+#include <cxxabi.h>
 
-class powerpc_cpu;
-
-struct powerpc_block_info
-	: public basic_block_info
+char *
+cxx_demangle(const char *mangled_name, char *buf, size_t *n, int *status)
 {
-	typedef nv_mem_fun1_t< void, powerpc_cpu, uint32 > execute_fn;
-
-	struct decode_info
-	{
-		execute_fn		execute;
-		uint32			opcode;
-	};
-
-#if PPC_DECODE_CACHE
-	decode_info *		di;
+	return abi::__cxa_demangle(mangled_name, buf, n, status);
+}
 #endif
-#if PPC_ENABLE_JIT
-	uint8 *				entry_point;
-#endif
-};
-
-#endif /* PPC_BLOCKINFO_H */

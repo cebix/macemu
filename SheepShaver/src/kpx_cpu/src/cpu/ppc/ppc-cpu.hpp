@@ -29,6 +29,7 @@
 #include "cpu/ppc/ppc-bitfields.hpp"
 #include "cpu/ppc/ppc-blockinfo.hpp"
 #include "cpu/ppc/ppc-registers.hpp"
+#include "cpu/ppc/ppc-dyngen.hpp"
 #include <vector>
 
 class powerpc_cpu
@@ -139,12 +140,13 @@ protected:
 
 	// Instruction information structure
 	struct instr_info_t {
-		char			name[8];		// Mnemonic
+		char			name[8];		// Instruction name
 		execute_fn		execute;		// Semantic routine for this instruction
 		decode_fn		decode;			// Specialized instruction decoder
+		uint16			mnemo;			// Mnemonic
 		uint16			format;			// Instruction format (XO-form, D-form, etc.)
-		uint16			opcode;			// Primary opcode
-		uint16			xo;				// Extended opcode
+		uint32			opcode:6;		// Primary opcode
+		uint32			xo:10;			// Extended opcode
 		uint16			cflow;			// Mask of control flow information
 	};
 
@@ -170,6 +172,7 @@ private:
 	// Syscall callback must return TRUE if no error occurred
 	typedef bool (*syscall_fn)(powerpc_cpu *cpu);
 	syscall_fn execute_do_syscall;
+	int syscall_exit_code;
 
 #ifdef PPC_NO_STATIC_II_INDEX_TABLE
 #define PPC_STATIC_II_TABLE
@@ -202,9 +205,15 @@ public:
 	// Initialization & finalization
 #ifdef PPC_NO_BASIC_CPU_BASE
 	powerpc_cpu()
+#if PPC_ENABLE_JIT
+		: codegen(this)
+#endif
 #else
 	powerpc_cpu(task_struct *parent_task)
 		: basic_cpu(parent_task)
+#if PPC_ENABLE_JIT
+		  , codegen(this)
+#endif
 #endif
 		{ initialize(); }
 	void initialize();
@@ -256,6 +265,22 @@ protected:
 	// Init decoder with one instruction info
 	void init_decoder_entry(const instr_info_t * ii);
 
+#if PPC_ENABLE_JIT
+	// Dynamic translation engine
+	struct codegen_context_t {
+		powerpc_dyngen &	codegen;
+		uint32				entry_point;
+		uint32				pc;
+		uint32				opcode;
+		const instr_info_t *instr_info;
+
+		codegen_context_t(powerpc_dyngen & codegen_init)
+			: codegen(codegen_init)
+			{ }
+	};
+	virtual bool compile1(codegen_context_t & cg_context) { return false; }
+#endif
+
 private:
 
 	// Initializers & destructors
@@ -279,6 +304,25 @@ private:
 	block_info::decode_info * decode_cache;
 	block_info::decode_info * decode_cache_p;
 	block_info::decode_info * decode_cache_end_p;
+
+#if PPC_ENABLE_JIT
+	// Dynamic translation engine
+	friend class powerpc_dyngen_helper;
+	friend class powerpc_dyngen;
+	powerpc_dyngen codegen;
+	block_info *compile_block(uint32 entry);
+	powerpc_dyngen *codegen_ptr() { return &codegen; }
+#endif
+
+	// Semantic action templates
+	template< bool SB, bool OE >
+	uint32 do_execute_divide(uint32, uint32);
+	template< bool EX, bool CA, bool OE >
+	uint32 do_execute_addition(uint32, uint32);
+	template< bool CA, bool OE >
+	uint32 do_execute_subtract(uint32, uint32);
+	template< bool OE >
+	uint32 do_execute_subtract_extended(uint32, uint32);
 
 	// Instruction handlers
 	void execute_nop(uint32 opcode);

@@ -21,10 +21,13 @@
 #include <stdlib.h>
 #include "sysdeps.h"
 #include "cpu/ppc/ppc-cpu.hpp"
+#include "cpu/ppc/ppc-instructions.hpp"
 
 // Disassemblers needed for debugging purposes
+#if ENABLE_MON
 #include "mon.h"
 #include "mon_disass.h"
+#endif
 
 #define TEST_ADD		1
 #define TEST_SUB		1
@@ -86,6 +89,10 @@ static void inline flush_icache_range(uint32 *start_p, uint32 length)
     asm volatile ("sync" : : : "memory");
     asm volatile ("isync" : : : "memory");
 }
+#else
+static void inline flush_icache_range(uint32 *start_p, uint32 length)
+{
+}
 #endif
 
 struct exec_return { };
@@ -105,6 +112,7 @@ class powerpc_test_cpu
 	void emul_set_cr(uint32 value)
 		{ cr().set(value); }
 
+#if defined(__powerpc__)
 	uint32 native_get_xer() const
 		{ uint32 xer; asm volatile ("mfxer %0" : "=r" (xer)); return xer; }
 
@@ -116,6 +124,10 @@ class powerpc_test_cpu
 
 	void native_set_cr(uint32 cr) const
 		{ asm volatile ("mtcr %0" :  : "r" (cr)); }
+#endif
+
+	void flush_icache_range(uint32 *start, uint32 size)
+		{ invalidate_cache(); ::flush_icache_range(start, size); }
 
 	void init_decoder();
 	void print_flags(uint32 cr, uint32 xer, int crf = 0) const;
@@ -124,12 +136,8 @@ class powerpc_test_cpu
 
 public:
 
-	powerpc_test_cpu()
-		: powerpc_cpu(NULL)
-		{ mon_init(); init_decoder(); }
-
-	~powerpc_test_cpu()
-		{ mon_exit(); }
+	powerpc_test_cpu();
+	~powerpc_test_cpu();
 
 	bool test(void);
 
@@ -154,11 +162,13 @@ private:
 	static const uint32 msk_values[];
 
 	void test_one(uint32 *code, const char *insn, uint32 a1, uint32 a2, uint32 a3, uint32 a0 = 0);
+	void test_instruction_CNTLZ(const char *insn, uint32 opcode);
 	void test_instruction_RR___(const char *insn, uint32 opcode);
 	void test_instruction_RRI__(const char *insn, uint32 opcode);
 #define  test_instruction_RRK__ test_instruction_RRI__
 	void test_instruction_RRS__(const char *insn, uint32 opcode);
 	void test_instruction_RRR__(const char *insn, uint32 opcode);
+	void test_instruction_RRRSH(const char *insn, uint32 opcode);
 	void test_instruction_RRIII(const char *insn, uint32 opcode);
 	void test_instruction_RRRII(const char *insn, uint32 opcode);
 	void test_instruction_CRR__(const char *insn, uint32 opcode);
@@ -178,9 +188,25 @@ private:
 	void test_load_multiple(void);
 };
 
+powerpc_test_cpu::powerpc_test_cpu()
+	: powerpc_cpu(NULL)
+{
+#if ENABLE_MON
+	mon_init();
+#endif
+	init_decoder();
+}
+
+powerpc_test_cpu::~powerpc_test_cpu()
+{
+#if ENABLE_MON
+	mon_exit();
+#endif
+}
+
 void powerpc_test_cpu::execute_return(uint32 opcode)
 {
-	throw exec_return();
+	spcflags().set(SPCFLAG_CPU_EXEC_RETURN);
 }
 
 void powerpc_test_cpu::init_decoder()
@@ -196,7 +222,8 @@ void powerpc_test_cpu::init_decoder()
 		{ "return",
 		  (execute_pmf)&powerpc_test_cpu::execute_return,
 		  NULL,
-		  D_form, 6, 0, CFLOW_TRAP
+		  PPC_I(MAX),
+		  D_form, 6, 0, CFLOW_JUMP
 		}
 	};
 
@@ -211,16 +238,11 @@ void powerpc_test_cpu::init_decoder()
 void powerpc_test_cpu::execute(uint32 *code_p)
 {
 	static uint32 code[] = { POWERPC_BLR | 1, POWERPC_EMUL_OP };
-	lr() = (uint32)code_p;
+	assert((uintptr)code <= INT_MAX);
+	lr() = (uintptr)code_p;
 
-	try {
-		invalidate_cache();
-		pc() = (uintptr)code;
-		powerpc_cpu::execute();
-	}
-	catch (exec_return const &) {
-		// Nothing, simply return
-	}
+	pc() = (uintptr)code;
+	powerpc_cpu::execute();
 }
 
 void powerpc_test_cpu::print_flags(uint32 cr, uint32 xer, int crf) const
@@ -242,6 +264,7 @@ void powerpc_test_cpu::print_flags(uint32 cr, uint32 xer, int crf) const
 
 void powerpc_test_cpu::test_one(uint32 *code, const char *insn, uint32 a1, uint32 a2, uint32 a3, uint32 a0)
 {
+#if defined(__powerpc__)
 	// Invoke native code
 	const uint32 save_xer = native_get_xer();
 	const uint32 save_cr = native_get_cr();
@@ -254,6 +277,12 @@ void powerpc_test_cpu::test_one(uint32 *code, const char *insn, uint32 a1, uint3
 	const uint32 native_cr = native_get_cr();
 	native_set_xer(save_xer);
 	native_set_cr(save_cr);
+#else
+	// FIXME: Restore context from results file
+	const uint32 native_rd = 0;
+	const uint32 native_xer = 0;
+	const uint32 native_cr = 0;
+#endif
 
 	// Invoke emulated code
 	emul_set_xer(init_xer);
@@ -284,7 +313,9 @@ void powerpc_test_cpu::test_one(uint32 *code, const char *insn, uint32 a1, uint3
 	}
 
 	if (!ok || verbose) {
+#if ENABLE_MON
 		disass_ppc(stdout, (uintptr)code, code[0]);
+#endif
 #define PRINT_OPERANDS(PREFIX) do {						\
 			printf(" %08x, %08x, %08x, %08x => %08x [",	\
 				   a0, a1, a2, a3, PREFIX##_rd);		\
@@ -332,6 +363,34 @@ const uint32 powerpc_test_cpu::msk_values[] = {
 //	15, 16, 17,
 	30, 31
 };
+
+void powerpc_test_cpu::test_instruction_CNTLZ(const char *insn, uint32 opcode)
+{
+	// Test code
+	static uint32 code[] = {
+		POWERPC_ILLEGAL, POWERPC_BLR,
+		POWERPC_MR(0, RA), POWERPC_ILLEGAL, POWERPC_BLR
+	};
+
+	// Input values
+	const int n_values = sizeof(reg_values)/sizeof(reg_values[0]);
+
+	code[0] = code[3] = opcode;			// <op> RD,RA,RB
+	rA_field::insert(code[3], 0);		// <op> RD,R0,RB
+	flush_icache_range(code, sizeof(code));
+
+	for (uint32 mask = 0x800000000; mask != 0; mask >>= 1) {
+		uint32 ra = mask;
+		test_one(&code[0], insn, ra, 0, 0);
+		test_one(&code[2], insn, ra, 0, 0);
+	}
+	// random values (including zero)
+	for (int i = 0; i < n_values; i++) {
+		uint32 ra = reg_values[i];
+		test_one(&code[0], insn, ra, 0, 0);
+		test_one(&code[2], insn, ra, 0, 0);
+	}
+}
 
 void powerpc_test_cpu::test_instruction_RR___(const char *insn, uint32 opcode)
 {
@@ -425,6 +484,31 @@ void powerpc_test_cpu::test_instruction_RRR__(const char *insn, uint32 opcode)
 		const uint32 ra = reg_values[i];
 		for (int j = 0; j < n_values; j++) {
 			const uint32 rb = reg_values[j];
+			test_one(&code[0], insn, ra, rb, 0);
+			test_one(&code[2], insn, ra, rb, 0);
+		}
+	}
+}
+
+void powerpc_test_cpu::test_instruction_RRRSH(const char *insn, uint32 opcode)
+{
+	// Test code
+	static uint32 code[] = {
+		POWERPC_ILLEGAL, POWERPC_BLR,
+		POWERPC_MR(0, RA), POWERPC_ILLEGAL, POWERPC_BLR
+	};
+
+	// Input values
+	const int n_values = sizeof(reg_values)/sizeof(reg_values[0]);
+
+	code[0] = code[3] = opcode;			// <op> RD,RA,RB
+	rA_field::insert(code[3], 0);		// <op> RD,R0,RB
+	flush_icache_range(code, sizeof(code));
+
+	for (int i = 0; i < n_values; i++) {
+		const uint32 ra = reg_values[i];
+		for (int j = 0; j <= 64; j++) {
+			const uint32 rb = j;
 			test_one(&code[0], insn, ra, rb, 0);
 			test_one(&code[2], insn, ra, rb, 0);
 		}
@@ -590,55 +674,81 @@ void powerpc_test_cpu::test_instruction_CCC__(const char *insn, uint32 opcode)
 void powerpc_test_cpu::test_add(void)
 {
 #if TEST_ADD
-	TEST_INSTRUCTION(RRR__,"add",		_XO(31,RD,RA,RB,0,266,0));
-	TEST_INSTRUCTION(RRR__,"add.",		_XO(31,RD,RA,RB,0,266,1));
-	TEST_INSTRUCTION(RRR__,"addo",		_XO(31,RD,RA,RB,1,266,0));
-	TEST_INSTRUCTION(RRR__,"addo." ,	_XO(31,RD,RA,RB,1,266,1));
-	TEST_INSTRUCTION(RRR__,"addc.",		_XO(31,RD,RA,RB,0, 10,1));
-	TEST_INSTRUCTION(RRR__,"addco.",	_XO(31,RD,RA,RB,1, 10,1));
-	TEST_INSTRUCTION(RRR__,"adde.",		_XO(31,RD,RA,RB,0,138,1));
-	TEST_INSTRUCTION(RRR__,"addeo.",	_XO(31,RD,RA,RB,1,138,1));
-	TEST_INSTRUCTION(RRI__,"addi",		_D (14,RD,RA,00));
-	TEST_INSTRUCTION(RRI__,"addic",		_D (12,RD,RA,00));
-	TEST_INSTRUCTION(RRI__,"addic.",	_D (13,RD,RA,00));
-	TEST_INSTRUCTION(RRI__,"addis",		_D (15,RD,RA,00));
-	TEST_INSTRUCTION(RR___,"addme.",	_XO(31,RD,RA,00,0,234,1));
-	TEST_INSTRUCTION(RR___,"addmeo.",	_XO(31,RD,RA,00,1,234,1));
-	TEST_INSTRUCTION(RR___,"addze.",	_XO(31,RD,RA,00,0,202,1));
-	TEST_INSTRUCTION(RR___,"addzeo.",	_XO(31,RD,RA,00,1,202,1));
-	init_xer |= XER_CA_field::mask();
-	TEST_INSTRUCTION(RRR__,"adde.",		_XO(31,RD,RA,RB,0,138,1));
-	TEST_INSTRUCTION(RRR__,"addeo.",	_XO(31,RD,RA,RB,1,138,1));
-	TEST_INSTRUCTION(RR___,"addme.",	_XO(31,RD,RA,00,0,234,1));
-	TEST_INSTRUCTION(RR___,"addmeo.",	_XO(31,RD,RA,00,1,234,1));
-	TEST_INSTRUCTION(RR___,"addze.",	_XO(31,RD,RA,00,0,202,1));
-	TEST_INSTRUCTION(RR___,"addzeo.",	_XO(31,RD,RA,00,1,202,1));
-	init_xer &= ~XER_CA_field::mask();
+	const int n_xer_values = 3;
+	uint32 xer_values[n_xer_values];
+	xer_values[0] = init_xer;
+	xer_values[1] = init_xer | XER_OV_field::mask();
+	xer_values[2] = init_xer | XER_CA_field::mask();
+
+	// Iterate over some specific XER values so that we make sure we
+	// only update them when actually needed
+	for (int i = 0; i < n_xer_values; i++) {
+		const uint32 saved_xer = init_xer;
+		init_xer = xer_values[i];
+		TEST_INSTRUCTION(RRR__,"add",		_XO(31,RD,RA,RB,0,266,0));
+		TEST_INSTRUCTION(RRR__,"add.",		_XO(31,RD,RA,RB,0,266,1));
+		TEST_INSTRUCTION(RRR__,"addo",		_XO(31,RD,RA,RB,1,266,0));
+		TEST_INSTRUCTION(RRR__,"addo." ,	_XO(31,RD,RA,RB,1,266,1));
+		TEST_INSTRUCTION(RRR__,"addc.",		_XO(31,RD,RA,RB,0, 10,1));
+		TEST_INSTRUCTION(RRR__,"addco.",	_XO(31,RD,RA,RB,1, 10,1));
+		TEST_INSTRUCTION(RRR__,"adde",		_XO(31,RD,RA,RB,0,138,0));
+		TEST_INSTRUCTION(RRR__,"adde.",		_XO(31,RD,RA,RB,0,138,1));
+		TEST_INSTRUCTION(RRR__,"addeo",		_XO(31,RD,RA,RB,1,138,0));
+		TEST_INSTRUCTION(RRR__,"addeo.",	_XO(31,RD,RA,RB,1,138,1));
+		TEST_INSTRUCTION(RRI__,"addi",		_D (14,RD,RA,00));
+		TEST_INSTRUCTION(RRI__,"addic",		_D (12,RD,RA,00));
+		TEST_INSTRUCTION(RRI__,"addic.",	_D (13,RD,RA,00));
+		TEST_INSTRUCTION(RRI__,"addis",		_D (15,RD,RA,00));
+		TEST_INSTRUCTION(RR___,"addme",		_XO(31,RD,RA,00,0,234,0));
+		TEST_INSTRUCTION(RR___,"addme.",	_XO(31,RD,RA,00,0,234,1));
+		TEST_INSTRUCTION(RR___,"addmeo",	_XO(31,RD,RA,00,1,234,0));
+		TEST_INSTRUCTION(RR___,"addmeo.",	_XO(31,RD,RA,00,1,234,1));
+		TEST_INSTRUCTION(RR___,"addze",		_XO(31,RD,RA,00,0,202,0));
+		TEST_INSTRUCTION(RR___,"addze.",	_XO(31,RD,RA,00,0,202,1));
+		TEST_INSTRUCTION(RR___,"addzeo",	_XO(31,RD,RA,00,1,202,0));
+		TEST_INSTRUCTION(RR___,"addzeo.",	_XO(31,RD,RA,00,1,202,1));
+		init_xer = saved_xer;
+	}
 #endif
 }
 
 void powerpc_test_cpu::test_sub(void)
 {
 #if TEST_SUB
-	TEST_INSTRUCTION(RRR__,"subf.",		_XO(31,RD,RA,RB,0, 40,1));
-	TEST_INSTRUCTION(RRR__,"subfo.",	_XO(31,RD,RA,RB,1, 40,1));
-	TEST_INSTRUCTION(RRR__,"subfc.",	_XO(31,RD,RA,RB,0,  8,1));
-	TEST_INSTRUCTION(RRR__,"subfco.",	_XO(31,RD,RA,RB,1,  8,1));
-	TEST_INSTRUCTION(RRR__,"subfe.",	_XO(31,RD,RA,RB,0,136,1));
-	TEST_INSTRUCTION(RRR__,"subfeo.",	_XO(31,RD,RA,RB,1,136,1));
-	TEST_INSTRUCTION(RRI__,"subfic",	_D ( 8,RD,RA,00));
-	TEST_INSTRUCTION(RR___,"subfme.",	_XO(31,RD,RA,00,0,232,1));
-	TEST_INSTRUCTION(RR___,"subfmeo.",	_XO(31,RD,RA,00,1,232,1));
-	TEST_INSTRUCTION(RR___,"subfze.",	_XO(31,RD,RA,00,0,200,1));
-	TEST_INSTRUCTION(RR___,"subfzeo.",	_XO(31,RD,RA,00,1,200,1));
-	init_xer |= XER_CA_field::mask();
-	TEST_INSTRUCTION(RRR__,"subfe.",	_XO(31,RD,RA,RB,0,136,1));
-	TEST_INSTRUCTION(RRR__,"subfeo.",	_XO(31,RD,RA,RB,1,136,1));
-	TEST_INSTRUCTION(RR___,"subfme.",	_XO(31,RD,RA,00,0,232,1));
-	TEST_INSTRUCTION(RR___,"subfmeo.",	_XO(31,RD,RA,00,1,232,1));
-	TEST_INSTRUCTION(RR___,"subfze.",	_XO(31,RD,RA,00,0,200,1));
-	TEST_INSTRUCTION(RR___,"subfzeo.",	_XO(31,RD,RA,00,1,200,1));
-	init_xer &= ~XER_CA_field::mask();
+	const int n_xer_values = 3;
+	uint32 xer_values[n_xer_values];
+	xer_values[0] = init_xer;
+	xer_values[1] = init_xer | XER_OV_field::mask();
+	xer_values[2] = init_xer | XER_CA_field::mask();
+
+	// Iterate over some specific XER values so that we make sure we
+	// only update them when actually needed
+	for (int i = 0; i < n_xer_values; i++) {
+		const uint32 saved_xer = init_xer;
+		init_xer = xer_values[i];
+		TEST_INSTRUCTION(RRR__,"subf",		_XO(31,RD,RA,RB,0, 40,0));
+		TEST_INSTRUCTION(RRR__,"subf.",		_XO(31,RD,RA,RB,0, 40,1));
+		TEST_INSTRUCTION(RRR__,"subfo",		_XO(31,RD,RA,RB,1, 40,0));
+		TEST_INSTRUCTION(RRR__,"subfo.",	_XO(31,RD,RA,RB,1, 40,1));
+		TEST_INSTRUCTION(RRR__,"subfc",		_XO(31,RD,RA,RB,0,  8,0));
+		TEST_INSTRUCTION(RRR__,"subfc.",	_XO(31,RD,RA,RB,0,  8,1));
+		TEST_INSTRUCTION(RRR__,"subfco",	_XO(31,RD,RA,RB,1,  8,0));
+		TEST_INSTRUCTION(RRR__,"subfco.",	_XO(31,RD,RA,RB,1,  8,1));
+		TEST_INSTRUCTION(RRR__,"subfe",		_XO(31,RD,RA,RB,0,136,0));
+		TEST_INSTRUCTION(RRR__,"subfe.",	_XO(31,RD,RA,RB,0,136,1));
+		TEST_INSTRUCTION(RRR__,"subfeo",	_XO(31,RD,RA,RB,1,136,0));
+		TEST_INSTRUCTION(RRR__,"subfeo.",	_XO(31,RD,RA,RB,1,136,1));
+		TEST_INSTRUCTION(RRI__,"subfic",	_D ( 8,RD,RA,00));
+		TEST_INSTRUCTION(RR___,"subfme",	_XO(31,RD,RA,00,0,232,0));
+		TEST_INSTRUCTION(RR___,"subfme.",	_XO(31,RD,RA,00,0,232,1));
+		TEST_INSTRUCTION(RR___,"subfmeo",	_XO(31,RD,RA,00,1,232,0));
+		TEST_INSTRUCTION(RR___,"subfmeo.",	_XO(31,RD,RA,00,1,232,1));
+		TEST_INSTRUCTION(RR___,"subfze",	_XO(31,RD,RA,00,0,200,0));
+		TEST_INSTRUCTION(RR___,"subfze.",	_XO(31,RD,RA,00,0,200,1));
+		TEST_INSTRUCTION(RR___,"subfzeo",	_XO(31,RD,RA,00,1,200,0));
+		TEST_INSTRUCTION(RR___,"subfzeo.",	_XO(31,RD,RA,00,1,200,1));
+		init_xer = saved_xer;
+	}
 #endif
 }
 
@@ -674,22 +784,35 @@ void powerpc_test_cpu::test_div(void)
 void powerpc_test_cpu::test_logical(void)
 {
 #if TEST_LOGICAL
+	TEST_INSTRUCTION(RRR__,"and",		_X (31,RA,RD,RB,28,0));
 	TEST_INSTRUCTION(RRR__,"and.",		_X (31,RA,RD,RB,28,1));
+	TEST_INSTRUCTION(RRR__,"andc",		_X (31,RA,RD,RB,60,0));
 	TEST_INSTRUCTION(RRR__,"andc.",		_X (31,RA,RD,RB,60,1));
 	TEST_INSTRUCTION(RRK__,"andi.",		_D (28,RA,RD,00));
 	TEST_INSTRUCTION(RRK__,"andis.",	_D (29,RA,RD,00));
-	TEST_INSTRUCTION(RR___,"cntlzw.",	_X (31,RA,RD,00,26,1));
+	TEST_INSTRUCTION(CNTLZ,"cntlzw",	_X (31,RA,RD,00,26,0));
+	TEST_INSTRUCTION(CNTLZ,"cntlzw.",	_X (31,RA,RD,00,26,1));
+	TEST_INSTRUCTION(RRR__,"eqv",		_X (31,RA,RD,RB,284,0));
 	TEST_INSTRUCTION(RRR__,"eqv.",		_X (31,RA,RD,RB,284,1));
+	TEST_INSTRUCTION(RR___,"extsb",		_X (31,RA,RD,00,954,0));
 	TEST_INSTRUCTION(RR___,"extsb.",	_X (31,RA,RD,00,954,1));
+	TEST_INSTRUCTION(RR___,"extsh",		_X (31,RA,RD,00,922,0));
 	TEST_INSTRUCTION(RR___,"extsh.",	_X (31,RA,RD,00,922,1));
+	TEST_INSTRUCTION(RRR__,"nand",		_X (31,RA,RD,RB,476,0));
 	TEST_INSTRUCTION(RRR__,"nand.",		_X (31,RA,RD,RB,476,1));
+	TEST_INSTRUCTION(RR___,"neg",		_XO(31,RD,RA,RB,0,104,0));
 	TEST_INSTRUCTION(RR___,"neg.",		_XO(31,RD,RA,RB,0,104,1));
+	TEST_INSTRUCTION(RR___,"nego",		_XO(31,RD,RA,RB,1,104,0));
 	TEST_INSTRUCTION(RR___,"nego.",		_XO(31,RD,RA,RB,1,104,1));
+	TEST_INSTRUCTION(RRR__,"nor",		_X (31,RA,RD,RB,124,0));
 	TEST_INSTRUCTION(RRR__,"nor.",		_X (31,RA,RD,RB,124,1));
+	TEST_INSTRUCTION(RRR__,"or",		_X (31,RA,RD,RB,444,0));
 	TEST_INSTRUCTION(RRR__,"or.",		_X (31,RA,RD,RB,444,1));
+	TEST_INSTRUCTION(RRR__,"orc",		_X (31,RA,RD,RB,412,0));
 	TEST_INSTRUCTION(RRR__,"orc.",		_X (31,RA,RD,RB,412,1));
 	TEST_INSTRUCTION(RRK__,"ori",		_D (24,RA,RD,00));
 	TEST_INSTRUCTION(RRK__,"oris",		_D (25,RA,RD,00));
+	TEST_INSTRUCTION(RRR__,"xor",		_X (31,RA,RD,RB,316,0));
 	TEST_INSTRUCTION(RRR__,"xor.",		_X (31,RA,RD,RB,316,1));
 	TEST_INSTRUCTION(RRK__,"xori",		_D (26,RA,RD,00));
 	TEST_INSTRUCTION(RRK__,"xoris",		_D (27,RA,RD,00));
@@ -699,22 +822,25 @@ void powerpc_test_cpu::test_logical(void)
 void powerpc_test_cpu::test_shift(void)
 {
 #if TEST_SHIFT
-	TEST_INSTRUCTION(RRR__,"slw",		_X (31,RA,RD,RB, 24,0));
-	TEST_INSTRUCTION(RRR__,"slw.",		_X (31,RA,RD,RB, 24,1));
-	TEST_INSTRUCTION(RRR__,"sraw",		_X (31,RA,RD,RB,792,0));
-	TEST_INSTRUCTION(RRR__,"sraw.",		_X (31,RA,RD,RB,792,1));
+	TEST_INSTRUCTION(RRRSH,"slw",		_X (31,RA,RD,RB, 24,0));
+	TEST_INSTRUCTION(RRRSH,"slw.",		_X (31,RA,RD,RB, 24,1));
+	TEST_INSTRUCTION(RRRSH,"sraw",		_X (31,RA,RD,RB,792,0));
+	TEST_INSTRUCTION(RRRSH,"sraw.",		_X (31,RA,RD,RB,792,1));
 	TEST_INSTRUCTION(RRS__,"srawi",		_X (31,RA,RD,00,824,0));
 	TEST_INSTRUCTION(RRS__,"srawi.",	_X (31,RA,RD,00,824,1));
-	TEST_INSTRUCTION(RRR__,"srw",		_X (31,RA,RD,RB,536,0));
-	TEST_INSTRUCTION(RRR__,"srw.",		_X (31,RA,RD,RB,536,1));
+	TEST_INSTRUCTION(RRRSH,"srw",		_X (31,RA,RD,RB,536,0));
+	TEST_INSTRUCTION(RRRSH,"srw.",		_X (31,RA,RD,RB,536,1));
 #endif
 }
 
 void powerpc_test_cpu::test_rotate(void)
 {
 #if TEST_ROTATE
+	TEST_INSTRUCTION(RRIII,"rlwimi",	_M (20,RA,RD,00,00,00,0));
 	TEST_INSTRUCTION(RRIII,"rlwimi.",	_M (20,RA,RD,00,00,00,1));
+	TEST_INSTRUCTION(RRIII,"rlwinm",	_M (21,RA,RD,00,00,00,0));
 	TEST_INSTRUCTION(RRIII,"rlwinm.",	_M (21,RA,RD,00,00,00,1));
+	TEST_INSTRUCTION(RRRII,"rlwnm",		_M (23,RA,RD,RB,00,00,0));
 	TEST_INSTRUCTION(RRRII,"rlwnm.",	_M (23,RA,RD,RB,00,00,1));
 #endif
 }
@@ -759,8 +885,12 @@ bool powerpc_test_cpu::test(void)
 {
 	// Tests initialization
 	tests = errors = 0;
+#if defined(__powerpc__)
 	init_cr = native_get_cr() & ~CR_field<0>::mask();
 	init_xer = native_get_xer() & ~(XER_OV_field::mask() | XER_CA_field::mask());
+#else
+	init_cr = init_xer = 0;
+#endif
 
 	// Tests execution
 	test_add();

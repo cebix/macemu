@@ -1,5 +1,5 @@
 /*
- *  ppc-blockinfo.hpp - PowerPC basic block information
+ *  jit-target-cache.hpp - Target specific code to invalidate cache
  *
  *  Kheperix (C) 2003 Gwenole Beauchesne
  *
@@ -18,31 +18,11 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef PPC_BLOCKINFO_H
-#define PPC_BLOCKINFO_H
+#ifndef JIT_TARGET_CACHE_H
+#define JIT_TARGET_CACHE_H
 
-#include "nvmemfun.hpp"
-#include "basic-blockinfo.hpp"
-
-class powerpc_cpu;
-
-struct powerpc_block_info
-	: public basic_block_info
+static inline void flush_icache_range(unsigned long, unsigned long)
 {
-	typedef nv_mem_fun1_t< void, powerpc_cpu, uint32 > execute_fn;
+}
 
-	struct decode_info
-	{
-		execute_fn		execute;
-		uint32			opcode;
-	};
-
-#if PPC_DECODE_CACHE
-	decode_info *		di;
-#endif
-#if PPC_ENABLE_JIT
-	uint8 *				entry_point;
-#endif
-};
-
-#endif /* PPC_BLOCKINFO_H */
+#endif /* JIT_TARGET_CACHE_H */

@@ -105,27 +105,27 @@ powerpc_cr_register::test(int condition) const
 
 class powerpc_xer_register
 {
-	bool so;
-	bool ov;
-	bool ca;
-	uint32 byte_count;
+	uint8 so;
+	uint8 ov;
+	uint8 ca;
+	uint8 byte_count;
 public:
 	powerpc_xer_register();
 	void set(uint32 xer);
 	uint32 get() const;
-	void set_so(bool v)			{ so = v; }
-	bool get_so() const			{ return so; }
-	void set_ov(bool v)			{ ov = v; if (v) so = true; }
-	bool get_ov() const			{ return ov; }
-	void set_ca(bool v)			{ ca = v; }
-	bool get_ca() const			{ return ca; }
-	void set_count(uint32 v)	{ byte_count = v; }
-	uint32 get_count() const	{ return byte_count; }
+	void set_so(int v)			{ so = v; }
+	int get_so() const			{ return so; }
+	void set_ov(int v)			{ ov = v; so |= v; }
+	int get_ov() const			{ return ov; }
+	void set_ca(int v)			{ ca = v; }
+	int get_ca() const			{ return ca; }
+	void set_count(int v)		{ byte_count = v; }
+	int get_count() const		{ return byte_count; }
 };
 
 inline
 powerpc_xer_register::powerpc_xer_register()
-	: so(false), ov(false), ca(false), byte_count(0)
+	: so(0), ov(0), ca(0), byte_count(0)
 { }
 
 inline uint32
@@ -178,7 +178,15 @@ struct powerpc_registers
 		PC,
 		SP			= GPR_BASE + 1
 	};
-	
+
+	enum {
+		SPR_XER		= 1,
+		SPR_LR		= 8,
+		SPR_CTR		= 9,
+		SPR_SDR1	= 25,
+		SPR_PVR		= 287,
+	};
+
 	static inline int GPR(int r) { return GPR_BASE + r; }
 	static inline int FPR(int r) { return FPR_BASE + r; }
 	

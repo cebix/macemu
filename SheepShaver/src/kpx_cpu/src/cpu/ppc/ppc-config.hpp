@@ -91,6 +91,18 @@
 
 
 /**
+ *	PPC_ENABLE_JIT
+ *
+ *		Define to 1 if dynamic translation is used. This requires
+ *		dyngen to be enabled first.
+ **/
+
+#ifndef PPC_ENABLE_JIT
+#define PPC_ENABLE_JIT ENABLE_DYNGEN
+#endif
+
+
+/**
  *	PPC_EXECUTE_DUMP_STATE
  *
  *		Define to dump state after each instruction. This also
@@ -116,12 +128,29 @@
 
 
 /**
+ *	PPC_PROFILE_COMPILE_TIME
+ *
+ *		Define to enable some compile time statistics. This concerns
+ *		time spent into the decoder (PPC_DECODE_CACHE case) or total
+ *		time spent into the dynamic translator (PPC_ENABLE_JIT case).
+ **/
+
+#ifndef PPC_PROFILE_COMPILE_TIME
+#define PPC_PROFILE_COMPILE_TIME 0
+#endif
+
+
+/**
  *		Sanity checks and features enforcements
  **/
 
 #ifdef SHEEPSHAVER
 #define PPC_NO_BASIC_CPU_BASE
 #undef PPC_NO_STATIC_II_INDEX_TABLE
+#endif
+
+#if PPC_ENABLE_JIT
+#undef PPC_DECODE_CACHE
 #endif
 
 #endif /* PPC_CONFIG_H */

@@ -22,6 +22,13 @@
 #include "vm_alloc.h"
 #include "cpu/vm.hpp"
 #include "cpu/ppc/ppc-cpu.hpp"
+#ifndef SHEEPSHAVER
+#include "basic-kernel.hpp"
+#endif
+
+#if PPC_ENABLE_JIT
+#include "cpu/jit/dyngen-exec.h"
+#endif
 
 #if ENABLE_MON
 #include "mon.h"
@@ -30,9 +37,6 @@
 
 #define DEBUG 0
 #include "debug.h"
-
-// Define to gather some compile time statistics
-#define PROFILE_COMPILE_TIME 1
 
 void powerpc_cpu::set_register(int id, any_register const & value)
 {
@@ -198,6 +202,19 @@ void powerpc_cpu::dump_log(const char *filename)
 }
 #endif
 
+#if ENABLE_MON
+static uint32 mon_read_byte_ppc(uintptr addr)
+{
+	return *((uint8 *)addr);
+}
+
+static void mon_write_byte_ppc(uintptr addr, uint32 b)
+{
+	uint8 *m = (uint8 *)addr;
+	*m = b;
+}
+#endif
+
 void powerpc_cpu::initialize()
 {
 	init_flight_recorder();
@@ -210,6 +227,7 @@ void powerpc_cpu::initialize()
 
 	// Init syscalls handler
 	execute_do_syscall = NULL;
+	syscall_exit_code = -1;
 
 	// Init field2mask
 	for (int i = 0; i < 256; i++) {
@@ -227,9 +245,11 @@ void powerpc_cpu::initialize()
 
 #if ENABLE_MON
 	mon_init();
+	mon_read_byte = mon_read_byte_ppc;
+	mon_write_byte = mon_write_byte_ppc;
 #endif
 
-#if PROFILE_COMPILE_TIME
+#if PPC_PROFILE_COMPILE_TIME
 	compile_count = 0;
 	compile_time = 0;
 	emul_start_time = clock();
@@ -238,10 +258,13 @@ void powerpc_cpu::initialize()
 
 powerpc_cpu::~powerpc_cpu()
 {
-#if PROFILE_COMPILE_TIME
+#if PPC_PROFILE_COMPILE_TIME
 	clock_t emul_end_time = clock();
 
 	const char *type = NULL;
+#if PPC_ENABLE_JIT
+	type = "compile";
+#endif
 #if PPC_DECODE_CACHE
 	type = "predecode";
 #endif
@@ -312,6 +335,12 @@ bool powerpc_cpu::check_spcflags()
 #endif
 	if (spcflags().test(SPCFLAG_CPU_EXEC_RETURN)) {
 		spcflags().clear(SPCFLAG_CPU_EXEC_RETURN);
+#ifndef SHEEPSHAVER
+		// FIXME: add unwind info to the translation cache? Otherwise
+		// we have to manually handle the exit syscall here
+		if (syscall_exit_code >= 0)
+			throw kernel_syscall_exit(syscall_exit_code);
+#endif
 		return false;
 	}
 	if (spcflags().test(SPCFLAG_CPU_ENTER_MON)) {
@@ -338,10 +367,37 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 #if PPC_EXECUTE_DUMP_STATE
 	const bool dump_state = true;
 #endif
+#if PPC_ENABLE_JIT
+	if (enable_cache) {
+		for (;;) {
+			block_info *bi = compile_block(pc());
+
+			// Execute all cached blocks
+			for (;;) {
+				codegen.execute(bi->entry_point);
+
+				if (!spcflags().empty()) {
+					if (!check_spcflags())
+						return;
+
+					// Force redecoding if cache was invalidated
+					if (spcflags().test(SPCFLAG_JIT_EXEC_RETURN)) {
+						spcflags().clear(SPCFLAG_JIT_EXEC_RETURN);
+						break;
+					}
+				}
+
+				if ((bi->pc != pc()) && ((bi = block_cache.find(pc())) == NULL))
+					break;
+			}
+		}
+		return;
+	}
+#endif
 #if PPC_DECODE_CACHE
 	if (enable_cache) {
 		for (;;) {
-#if PROFILE_COMPILE_TIME
+#if PPC_PROFILE_COMPILE_TIME
 			compile_count++;
 			clock_t start_time = clock();
 #endif
@@ -359,6 +415,7 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 				if (dump_state) {
 					di->opcode = opcode;
 					di->execute = nv_mem_fun(&powerpc_cpu::dump_instruction);
+					di++;
 				}
 #endif
 #if PPC_FLIGHT_RECORDER
@@ -369,7 +426,7 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 				}
 #endif
 				di->opcode = opcode;
-				di->execute = ii->decode ? ii->decode(this, opcode) : ii->execute;
+				di->execute = ii->decode.ptr() ? ii->decode(this, opcode) : ii->execute;
 				di++;
 #if PPC_EXECUTE_DUMP_STATE
 				if (dump_state) {
@@ -392,7 +449,7 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 			block_cache.add_to_cl_list(bi);
 			block_cache.add_to_active_list(bi);
 			decode_cache_p += bi->size;
-#if PROFILE_COMPILE_TIME
+#if PPC_PROFILE_COMPILE_TIME
 			compile_time += (clock() - start_time);
 #endif
 
@@ -440,7 +497,7 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 		if (is_logging())
 			record_step(opcode);
 #endif
-		assert(ii->execute != 0);
+		assert(ii->execute.ptr() != 0);
 		ii->execute(this, opcode);
 #if PPC_EXECUTE_DUMP_STATE
 		if (dump_state)
@@ -476,7 +533,9 @@ void powerpc_cpu::init_decode_cache()
 	// Leave enough room to last calls to dump state functions
 	decode_cache_end_p -= 2;
 #endif
+#endif
 
+#if PPC_DECODE_CACHE || PPC_ENABLE_JIT
 	block_cache.initialize();
 #endif
 }
@@ -490,18 +549,23 @@ void powerpc_cpu::kill_decode_cache()
 
 void powerpc_cpu::invalidate_cache()
 {
-#if PPC_DECODE_CACHE
+#if PPC_DECODE_CACHE || PPC_ENABLE_JIT
 	block_cache.clear();
 	block_cache.initialize();
-	decode_cache_p = decode_cache;
 	spcflags().set(SPCFLAG_JIT_EXEC_RETURN);
+#endif
+#if PPC_ENABLE_JIT
+	codegen.invalidate_cache();
+#endif
+#if PPC_DECODE_CACHE
+	decode_cache_p = decode_cache;
 #endif
 }
 
 void powerpc_cpu::invalidate_cache_range(uintptr start, uintptr end)
 {
 	D(bug("Invalidate cache block [%08x - %08x]\n", start, end));
-#if PPC_DECODE_CACHE
+#if PPC_DECODE_CACHE || PPC_ENABLE_JIT
 	block_cache.clear_range(start, end);
 #endif
 }

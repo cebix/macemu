@@ -45,7 +45,7 @@ class nv_mem_fun_t : public std::unary_function<T, R> {
 public:
 	nv_mem_fun_t(pmf_t pmf) : pf(nv_mem_fun_of<pmf_t, pf_t>(pmf)) {}
 	R operator()(T *p) const { return (*pf)(p); }
-	operator bool () const { return pf; }
+	pf_t ptr() const { return pf; }
 };
 
 template< class R, class T >
@@ -56,7 +56,7 @@ class const_nv_mem_fun_t : public std::unary_function<T, R> {
 public:
 	const_nv_mem_fun_t(pmf_t const pmf) : pf(nv_mem_fun_of<pmf_t, pf_t>(pmf)) {}
 	R operator()(const T *p) const { return (*pf)(p); }
-	operator bool () const { return pf; }
+	pf_t ptr() const { return pf; }
 };
 
 template< class R, class T, class A >
@@ -67,7 +67,7 @@ class nv_mem_fun1_t : public std::binary_function<T, A, R> {
 public:
 	nv_mem_fun1_t(pmf_t pmf) : pf(nv_mem_fun_of<pmf_t, pf_t>(pmf)) {}
 	R operator()(T *p, A x) const { return (*pf)(p, x); }
-	operator bool () const { return pf; }
+	pf_t ptr() const { return pf; }
 };
 
 template< class R, class T, class A >
@@ -78,45 +78,49 @@ class const_nv_mem_fun1_t : public std::binary_function<T, A, R> {
 public:
 	const_nv_mem_fun1_t(pmf_t const pmf) : pf(nv_mem_fun_of<pmf_t, pf_t>(pmf)) {}
 	R operator()(const T *p, A x) const { return (*pf)(p, x); }
-	operator bool () const { return pf; }
+	pf_t ptr() const { return pf; }
 };
 
 #else
 
 template< class R, class T >
 class nv_mem_fun_t : public std::unary_function<T, R> {
-	R (T::*pf)();
+	typedef R (T::*pmf_t)();
+	pmf_t pf;
 public:
 	nv_mem_fun_t(R (T::*pmf)()) : pf(pmf) {}
 	R operator()(T *p) const { return (p->*pf)(); }
-	operator bool () const { return pf; }
+	pmf_t ptr() const { return pf; }
 };
 
 template< class R, class T >
 class const_nv_mem_fun_t : public std::unary_function<T, R> {
-	R (T::*pf)() const;
+	typedef R (T::*pmf_t)() const;
+	pmf_t pf;
 public:
 	const_nv_mem_fun_t(R (T::*pmf)() const) : pf(pmf) {}
 	R operator()(const T *p) const { return (p->*pf)(); }
-	operator bool () const { return pf; }
+	pmf_t ptr() const { return pf; }
 };
 
 template< class R, class T, class A >
 class nv_mem_fun1_t : public std::binary_function<T, A, R> {
-	R (T::*pf)(A);
+	typedef R (T::*pmf_t)(A);
+	pmf_t pf;
 public:
 	nv_mem_fun1_t(R (T::*pmf)(A)) : pf(pmf) {}
 	R operator()(T *p, A x) const { return (p->*pf)(x); }
-	operator bool () const { return pf; }
+	pmf_t ptr() const { return pf; }
 };
 
 template< class R, class T, class A >
 class const_nv_mem_fun1_t : public std::binary_function<T, A, R> {
-	R (T::*pf)(A) const;
+	typedef R (T::*pmf_t)(A) const;
+	pmf_t pf;
 public:
 	const_nv_mem_fun1_t(R (T::*pmf)(A) const) : pf(pmf) {}
 	R operator()(const T *p, A x) const { return (p->*pf)(x); }
-	operator bool () const { return pf; }
+	pmf_t ptr() const { return pf; }
 };
 
 #endif

@@ -120,12 +120,15 @@ struct immediate_value {
 };
 
 struct mask_operand {
-	static inline uint32 get(powerpc_cpu *, uint32 opcode) {
-		const uint32 mb = MB_field::extract(opcode);
-		const uint32 me = ME_field::extract(opcode);
+	static inline uint32 compute(uint32 mb, uint32 me) {
 		return ((mb > me) ?
 				~(((uint32)-1 >> mb) ^ ((me >= 31) ? 0 : (uint32)-1 >> (me + 1))) :
 				(((uint32)-1 >> mb) ^ ((me >= 31) ? 0 : (uint32)-1 >> (me + 1))));
+	}
+	static inline uint32 get(powerpc_cpu *, uint32 opcode) {
+		const uint32 mb = MB_field::extract(opcode);
+		const uint32 me = ME_field::extract(opcode);
+		return compute(mb, me);
 	}
 };
 
