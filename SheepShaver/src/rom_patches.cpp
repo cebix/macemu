@@ -1664,7 +1664,7 @@ static bool patch_68k(void)
 	wp = (uint16 *)(ROM_BASE + base + 12);
 	loc = ntohs(wp[1]) + ((uintptr)wp - ROM_BASE) + 2;
 	static const uint8 scc_init_dat[] = {0x20, 0x78, 0x01, 0xdc, 0x22, 0x78, 0x01, 0xd8};
-	if ((base = find_rom_data(loc, loc + 0x80, scc_init_dat, sizeof(scc_init_dat))) != loc) return false;
+	if ((base = find_rom_data(loc, loc + 0x80, scc_init_dat, sizeof(scc_init_dat))) == 0) return false;
 	D(bug("scc_init %08lx\n", base));
 	wp = (uint16 *)(ROM_BASE + base);
 	*wp++ = htons(M68K_EMUL_OP_RESET);
