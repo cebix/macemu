@@ -131,6 +131,13 @@ void DoPatchNameRegistry(void)
 			case 80:	// 860
 				str = "PowerPC,860";
 				break;
+			case 12:	// 7400, 7410, 7450, 7455, 7457
+			case 0x800c:
+			case 0x8000:
+			case 0x8001:
+			case 0x8002:
+				str = "PowerPC,G4";
+				break;
 			default:
 				str = "PowerPC,???";
 				break;
