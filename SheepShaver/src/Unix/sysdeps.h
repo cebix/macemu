@@ -88,6 +88,9 @@
 #define PPC_PROFILE_COMPILE_TIME 0
 #define PPC_PROFILE_GENERIC_CALLS 0
 #define KPX_MAX_CPUS 1
+#if defined(__i386__)
+#define DYNGEN_ASM_OPTS 1
+#endif
 #else
 // Mac ROM is write protected
 #define ROM_IS_WRITE_PROTECTED 1
