@@ -461,12 +461,14 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 		D(bug(" gpch 750 found\n"));
 
 		// Don't use PTEST instruction in BlockMove() (7.5, 7.6, 7.6.1, 8.0)
-		static const uint8 dat[] = {0xa0, 0x8d, 0x0c, 0x81, 0x00, 0x00, 0x0c, 0x00, 0x65, 0x06, 0x4e, 0x71, 0xf4, 0xf8};
+		static const uint8 dat[] = {0x20, 0x5f, 0x22, 0x5f, 0x0c, 0x38, 0x00, 0x04, 0x01, 0x2f};
 		base = find_rsrc_data(p, size, dat, sizeof(dat));
 		if (base) {
-			p16 = (uint16 *)(p + base + 8);
-			*p16 = htons(M68K_NOP);
-			FlushCodeCache(p + base + 8, 2);
+			p16 = (uint16 *)(p + base + 4);
+			*p16++ = htons(M68K_EMUL_OP_BLOCK_MOVE);
+			*p16++ = htons(0x7000);
+			*p16 = htons(M68K_RTS);
+			FlushCodeCache(p + base + 4, 6);
 			D(bug("  patch 1 applied\n"));
 		}
 

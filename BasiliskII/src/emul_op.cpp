@@ -523,8 +523,8 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			break;
 #endif
 
-		case M68K_EMUL_OP_BLOCK_MOVE:		// BlockMove() replacement
-			memmove(Mac2HostAddr(r->a[1]), Mac2HostAddr(r->a[0]), r->d[0]);
+		case M68K_EMUL_OP_BLOCK_MOVE:		// BlockMove() cache flushing
+			FlushCodeCache(Mac2HostAddr(r->a[0]), r->a[1]);
 			break;
 
 		case M68K_EMUL_OP_DEBUGUTIL:

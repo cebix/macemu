@@ -1240,7 +1240,7 @@ static bool patch_rom_32(void)
 #endif
 
 #if !ROM_IS_WRITE_PROTECTED
-#if defined(AMIGA) || defined(USE_SCRATCHMEM_SUBTERFUGE)
+#if defined(USE_SCRATCHMEM_SUBTERFUGE)
 	// Set fake handle at 0x0000 to scratch memory area (so broken Mac programs won't write into Mac ROM)
 	extern uint8 *ScratchMem;
 	const uint32 ScratchMemBase = Host2MacAddr(ScratchMem);
@@ -1462,12 +1462,14 @@ static bool patch_rom_32(void)
 	if (ROMSize > 0x80000) {
 
 		// BlockMove()
-		static const uint8 ptest_dat[] = {0xa0, 0x8d, 0x0c, 0x81, 0x00, 0x00, 0x0c, 0x00, 0x6d, 0x06, 0x4e, 0x71, 0xf4, 0xf8};
-		base = find_rom_data(0x87000, 0x87800, ptest_dat, sizeof(ptest_dat));
-		D(bug("ptest %08lx\n", base));
+		static const uint8 bmove_dat[] = {0x20, 0x5f, 0x22, 0x5f, 0x0c, 0x38, 0x00, 0x04, 0x01, 0x2f};
+		base = find_rom_data(0x87000, 0x87800, bmove_dat, sizeof(bmove_dat));
+		D(bug("block_move %08lx\n", base));
 		if (base) {		// ROM15/22/23/26/27/32
-			wp = (uint16 *)(ROMBaseHost + base + 8);
-			*wp = htons(M68K_NOP);
+			wp = (uint16 *)(ROMBaseHost + base + 4);
+			*wp++ = htons(M68K_EMUL_OP_BLOCK_MOVE);
+			*wp++ = htons(0x7000);
+			*wp = htons(M68K_RTS);
 		}
 
 		// SANE
@@ -1598,14 +1600,6 @@ static bool patch_rom_32(void)
 	*wp++ = htons(M68K_JMP);
 	*wp++ = htons(base >> 16);
 	*wp = htons(base & 0xffff);
-
-#if EMULATED_68K
-	// Replace BlockMove()
-	wp = (uint16 *)(ROMBaseHost + find_rom_trap(0xa02e));	// BlockMove()
-	*wp++ = htons(M68K_EMUL_OP_BLOCK_MOVE);
-	*wp++ = htons(0x7000);
-	*wp = htons(M68K_RTS);
-#endif
 
 	// Look for double PACK 4 resources
 	if ((base = find_rom_resource(FOURCC('P','A','C','K'), 4)) == 0) return false;
