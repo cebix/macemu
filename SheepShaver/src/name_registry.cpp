@@ -250,8 +250,8 @@ void DoPatchNameRegistry(void)
 					u32.set_value(128);
 					RegistryPropertyCreate(power_pc.ptr(), "tlb-size", u32.ptr(), 4);
 					break;
-				case 0x8000:	// 7400
-				case 0x800c:	// 7410
+				case 12:	// 7400, 7410
+				case 0x800c:
 					u32.set_value(32);
 					RegistryPropertyCreate(power_pc.ptr(), "d-cache-block-size", u32.ptr(), 4);
 					u32.set_value(128);

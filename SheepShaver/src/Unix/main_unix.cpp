@@ -446,7 +446,9 @@ int main(int argc, char **argv)
 	PVR = 0x00040000;			// Default: 604
 	CPUClockSpeed = 100000000;	// Default: 100MHz
 	BusClockSpeed = 100000000;	// Default: 100MHz
-#if !EMULATED_PPC
+#if EMULATED_PPC
+	PVR = 0x000c0000;			// Default: 7400 (with AltiVec)
+#else
 	proc_file = fopen("/proc/cpuinfo", "r");
 	if (proc_file) {
 		char line[256];
@@ -482,7 +484,7 @@ int main(int argc, char **argv)
 				else if (strcmp(value, "860") == 0)
 					PVR = 0x00500000;
 				else if (strcmp(value, "7400") == 0)
-					PVR = 0x80000000;
+					PVR = 0x000c0000;
 				else if (strcmp(value, "7410") == 0)
 					PVR = 0x800c0000;
 				else
