@@ -79,7 +79,7 @@ const bool		JITDebug			= false;	// Don't use JIT debug mode at all
 
 const uae_u32	MIN_CACHE_SIZE		= 2048;		// Minimal translation cache size (2048 KB)
 static uae_u32	cache_size			= 0;		// Size of total cache allocated for compiled blocks
-static uae_u32	current_cache_size	= 0;		// Cache grows upwards: how much has been consumed yet
+static uae_u32	current_cache_size	= 0;		// Cache grows upwards: how much has been consumed already
 static bool		lazy_flush			= true;		// Flag: lazy translation cache invalidation
 static bool		avoid_fpu			= true;		// Flag: compile FPU instructions ?
 static bool		have_cmov			= false;	// target has CMOV instructions ?
@@ -4589,11 +4589,7 @@ void compiler_exit(void)
 	
 	// Deallocate translation cache
 	if (compiled_code) {
-#ifndef WIN32
-		munmap((caddr_t)compiled_code, cache_size);
-#else
-		free(compiled_code);
-#endif
+		vm_release(compiled_code, cache_size * 1024);
 		compiled_code = 0;
 	}
 	
@@ -5145,11 +5141,7 @@ void alloc_cache(void)
 {
 	if (compiled_code) {
 		flush_icache_hard(6);
-#ifndef WIN32
-		munmap((caddr_t)compiled_code, cache_size*1024);
-#else
-		free(compiled_code);
-#endif
+		vm_release(compiled_code, cache_size * 1024);
 		compiled_code = 0;
 	}
 	
