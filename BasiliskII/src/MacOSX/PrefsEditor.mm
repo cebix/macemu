@@ -295,6 +295,19 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 	edited = YES;
 }
 
+- (IBAction) ChangeKeyboard: (NSPopUpButton *)sender
+{
+	// Deselest current item
+	int		val = PrefsFindInt32("keyboardtype");
+	int		current = [keyboard indexOfItemWithTag: val];
+
+	if ( current )
+		[[keyboard itemAtIndex: current] setState: FALSE];
+
+	PrefsReplaceInt32("keyboardtype", [[sender selectedItem] tag]);
+	edited = YES;
+}
+
 - (IBAction) ChangeModel: (NSMatrix *)sender
 {
 	PrefsReplaceInt32("modelid", [[sender selectedCell] tag]);
@@ -676,21 +689,21 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 {
 	NSTableColumn	*locks;
 	const char		*str;
-	int				cpu, tmp;
+	int				cpu, tmp, val;
 
 
 	// Set simple single field items
 
-	tmp = PrefsFindInt32("frameskip");
-	[delay setIntValue: tmp];
-	if ( tmp )
-		[frequency	setFloatValue:	60.0 / tmp];
+	val = PrefsFindInt32("frameskip");
+	[delay setIntValue: val];
+	if ( val )
+		[frequency	setFloatValue:	60.0 / val];
 	else
 		[frequency	setFloatValue:	60.0];
 
-	tmp = PrefsFindInt32("ramsize");
-	[bytes	setIntValue:   tmp];
-	[MB		setFloatValue: tmp / (1024.0 * 1024.0)];
+	val = PrefsFindInt32("ramsize");
+	[bytes	setIntValue:   val];
+	[MB		setFloatValue: val / (1024.0 * 1024.0)];
 
 	[disableCD		setState:	PrefsFindBool("nocdrom")];
 	[disableSound	setState:	PrefsFindBool("nosound")];
@@ -722,16 +735,16 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 
 	// Radio button groups:
 
-	tmp = PrefsFindInt32("bootdriver");
-	[bootFromAny setState: tmp != CDROMRefNum];
-	[bootFromCD  setState: tmp == CDROMRefNum];
+	val = PrefsFindInt32("bootdriver");
+	[bootFromAny setState: val != CDROMRefNum];
+	[bootFromCD  setState: val == CDROMRefNum];
 
 	cpu = PrefsFindInt32("cpu");
-	tmp = PrefsFindInt32("modelid");
+	val = PrefsFindInt32("modelid");
 
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 	puts("Current memory model does not support 24bit addressing");
-	if ( tmp == [classic tag] )
+	if ( val == [classic tag] )
 	{
 		// Window already created by NIB file, just display
 		[panel makeKeyAndOrderFront:self];
@@ -739,8 +752,8 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 						@"Disabling Mac Classic emulation", nil, panel);
 		cpu = [CPU68030 tag];
 		PrefsReplaceInt32("cpu", cpu);
-		tmp = [IIci tag];
-		PrefsReplaceInt32("modelid", tmp);
+		val = [IIci tag];
+		PrefsReplaceInt32("modelid", val);
 	}
 
 	puts("Disabling 68000 & Mac Classic buttons");
@@ -753,12 +766,21 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 	[CPU68030   setState: [CPU68030  tag] == cpu];
 	[CPU68040   setState: [CPU68040  tag] == cpu];
 
-	[classic	setState: [classic	 tag] == tmp];
-	[IIci		setState: [IIci		 tag] == tmp];
-	[quadra900	setState: [quadra900 tag] == tmp];
+	[classic	setState: [classic	 tag] == val];
+	[IIci		setState: [IIci		 tag] == val];
+	[quadra900	setState: [quadra900 tag] == val];
 
 
 	// Lists of thingies:
+
+	val = PrefsFindInt32("keyboardtype");
+	[keyboard selectItemAtIndex: [keyboard indexOfItemWithTag: val]];
+	for ( tmp = 0; tmp < [keyboard numberOfItems]; ++tmp )
+	{
+		NSMenuItem	*type = [keyboard itemAtIndex: tmp];
+		[type setState: [type tag] == val];
+	}
+
 
 	for ( tmp = 0; tmp < 7; ++tmp)
 	{

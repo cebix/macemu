@@ -81,6 +81,7 @@
 	IBOutlet NSTextField	*frequency,
 							*height;
     IBOutlet NSButton		*IIci;
+	IBOutlet NSPopUpButton	*keyboard;
 	IBOutlet NSTextField	*MB,
 							*modem;
 	IBOutlet NSButton		*openGL;
@@ -119,6 +120,7 @@
 - (IBAction) ChangeDisableCD:	(NSButton *)sender;
 - (IBAction) ChangeDisableSound:(NSButton *)sender;
 - (IBAction) ChangeFPU:			(NSButton *)sender;
+- (IBAction) ChangeKeyboard:	(NSPopUpButton *)sender;
 - (IBAction) ChangeModel:		(NSMatrix *)sender;
 - (IBAction) ChangeScreen:	(id)sender;
 - (IBAction) CreateVolume:	(id)sender;
