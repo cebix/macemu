@@ -85,6 +85,22 @@ static NetProtocol *find_protocol(uint16 type)
 
 
 /*
+ *  Remove all protocols
+ */
+
+static void remove_all_protocols(void)
+{
+	NetProtocol *p = prot_list;
+	while (p) {
+		NetProtocol *next = p->next;
+		delete p;
+		p = next;
+	}
+	prot_list = NULL;
+}
+
+
+/*
  *  Initialization
  */
 
@@ -195,12 +211,7 @@ void EtherExit(void)
 		close(fd);
 
 	// Remove all protocols
-	NetProtocol *p = prot_list;
-	while (p) {
-		NetProtocol *next = p->next;
-		delete p;
-		p = next;
-	}
+	remove_all_protocols();
 }
 
 
@@ -210,13 +221,7 @@ void EtherExit(void)
 
 void EtherReset(void)
 {
-	// Remove all protocols
-	NetProtocol *p = prot_list;
-	while (p) {
-		NetProtocol *next = p->next;
-		delete p;
-		p = next;
-	}
+	remove_all_protocols();
 }
 
 
@@ -283,7 +288,7 @@ int16 ether_detach_ph(uint16 type)
 	if (p != NULL) {
 		NetProtocol *q = prot_list;
 		if (p == q) {
-			prot_list = NULL;
+			prot_list = p->next;
 			delete p;
 			return noErr;
 		}
