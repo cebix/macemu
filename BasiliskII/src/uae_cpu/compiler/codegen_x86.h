@@ -42,7 +42,6 @@
  * TODO
  *
  *	o Fix FIXMEs
- *	o Conditional moves
  *	o i387 FPU instructions
  *	o SSE instructions
  *	o Optimize for cases where register numbers are not integral constants
@@ -1178,6 +1177,39 @@ enum {
 
 /* --- Control Flow related instructions ----------------------------------- */
 
+enum {
+  X86_CC_O   = 0x0,
+  X86_CC_NO  = 0x1,
+  X86_CC_NAE = 0x2,
+  X86_CC_B   = 0x2,
+  X86_CC_C   = 0x2,
+  X86_CC_AE  = 0x3,
+  X86_CC_NB  = 0x3,
+  X86_CC_NC  = 0x3,
+  X86_CC_E   = 0x4,
+  X86_CC_Z   = 0x4,
+  X86_CC_NE  = 0x5,
+  X86_CC_NZ  = 0x5,
+  X86_CC_BE  = 0x6,
+  X86_CC_NA  = 0x6,
+  X86_CC_A   = 0x7,
+  X86_CC_NBE = 0x7,
+  X86_CC_S   = 0x8,
+  X86_CC_NS  = 0x9,
+  X86_CC_P   = 0xa,
+  X86_CC_PE  = 0xa,
+  X86_CC_NP  = 0xb,
+  X86_CC_PO  = 0xb,
+  X86_CC_L   = 0xc,
+  X86_CC_NGE = 0xc,
+  X86_CC_GE  = 0xd,
+  X86_CC_NL  = 0xd,
+  X86_CC_LE  = 0xe,
+  X86_CC_NG  = 0xe,
+  X86_CC_G   = 0xf,
+  X86_CC_NLE = 0xf,
+};
+
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
 // FIXME: no prefix is availble to encode a 32-bit operand size in 64-bit mode
@@ -1317,6 +1349,14 @@ enum {
 #define SETNLEm(D, B, I, S)		SETCCim(0xf, D, B, I, S)
 #define SETGm(D, B, I, S)		SETCCim(0xf, D, B, I, S)
 
+/*									_format		Opcd		,Mod ,r	     ,m		,mem=dsp+sib	,imm... */
+#define CMOVWrr(CC,RS,RD)		(_d16(), _REXLrr(RD, RS),	_OO_Mrm		(0x0f40|(CC)	,_b11,_r2(RD),_r2(RS)				))
+#define CMOVWmr(CC,MD,MB,MI,MS,RD)	(_d16(), _REXLmr(MB, MI, RD),	_OO_r_X		(0x0f40|(CC)	     ,_r2(RD)		,MD,MB,MI,MS		))
+#define CMOVLrr(CC,RS,RD)		(_REXLrr(RD, RS),		_OO_Mrm		(0x0f40|(CC)	,_b11,_r4(RD),_r4(RS)				))
+#define CMOVLmr(CC,MD,MB,MI,MS,RD)	(_REXLmr(MB, MI, RD),		_OO_r_X		(0x0f40|(CC)	     ,_r4(RD)		,MD,MB,MI,MS		))
+#define CMOVQrr(CC,RS,RD)		(_REXQrr(RD, RS),		_OO_Mrm		(0x0f40|(CC)	,_b11,_r8(RD),_r8(RS)				))
+#define CMOVQmr(CC,MD,MB,MI,MS,RD)	(_REXQmr(MB, MI, RD),		_OO_r_X		(0x0f40|(CC)	     ,_r8(RD)		,MD,MB,MI,MS		))
+
 
 /* --- Push/Pop instructions ----------------------------------------------- */
 
@@ -1455,7 +1495,24 @@ enum {
 #define INCQr(RD)			(_REXQrr(0, RD),		_O_Mrm		(0xff		,_b11,_b000  ,_r8(RD)				))
 
 
-/* --- Misc/Garbage instructions ------------------------------------------- */
+/* --- Misc instructions --------------------------------------------------- */
+
+/*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
+
+#define BSFWrr(RS, RD)			(_d16(), _REXLrr(RD, RS),	_OO_Mrm		(0x0fbc		,_b11,_r2(RD),_r2(RS)				))
+#define BSFWmr(MD, MB, MI, MS, RD)	(_d16(), _REXLmr(MB, MI, RD),	_OO_r_X		(0x0fbc		     ,_r2(RD)		,MD,MB,MI,MS		))
+#define BSRWrr(RS, RD)			(_d16(), _REXLrr(RD, RS),	_OO_Mrm		(0x0fbd		,_b11,_r2(RD),_r2(RS)				))
+#define BSRWmr(MD, MB, MI, MS, RD)	(_d16(), _REXLmr(MB, MI, RD),	_OO_r_X		(0x0fbd		     ,_r2(RD)		,MD,MB,MI,MS		))
+
+#define BSFLrr(RS, RD)			(_REXLrr(RD, RS),		_OO_Mrm		(0x0fbc		,_b11,_r4(RD),_r4(RS)				))
+#define BSFLmr(MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_OO_r_X		(0x0fbc		     ,_r4(RD)		,MD,MB,MI,MS		))
+#define BSRLrr(RS, RD)			(_REXLrr(RD, RS),		_OO_Mrm		(0x0fbd		,_b11,_r4(RD),_r4(RS)				))
+#define BSRLmr(MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_OO_r_X		(0x0fbd		     ,_r4(RD)		,MD,MB,MI,MS		))
+
+#define BSFQrr(RS, RD)			(_REXQrr(RD, RS),		_OO_Mrm		(0x0fbc		,_b11,_r8(RD),_r8(RS)				))
+#define BSFQmr(MD, MB, MI, MS, RD)	(_REXQmr(MB, MI, RD),		_OO_r_X		(0x0fbc		     ,_r8(RD)		,MD,MB,MI,MS		))
+#define BSRQrr(RS, RD)			(_REXQrr(RD, RS),		_OO_Mrm		(0x0fbd		,_b11,_r8(RD),_r8(RS)				))
+#define BSRQmr(MD, MB, MI, MS, RD)	(_REXQmr(MB, MI, RD),		_OO_r_X		(0x0fbd		     ,_r8(RD)		,MD,MB,MI,MS		))
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
