@@ -35,6 +35,7 @@
 #include "video.h"
 #include "name_registry.h"
 #include "serial.h"
+#include "ether.h"
 
 #include <stdio.h>
 
@@ -673,7 +674,7 @@ void TriggerInterrupt(void)
 void sheepshaver_cpu::handle_interrupt(void)
 {
 	// Do nothing if interrupts are disabled
-	if (int32(ReadMacInt32(XLM_IRQ_NEST)) > 0)
+	if (*(int32 *)XLM_IRQ_NEST > 0)
 		return;
 
 	// Do nothing if there is no interrupt pending
@@ -816,21 +817,34 @@ static void NativeOp(int selector)
 		GPR(3) = (int32)(int16)VideoDoDriverIO((void *)GPR(3), (void *)GPR(4),
 											   (void *)GPR(5), GPR(6), GPR(7));
 		break;
-	case NATIVE_GET_RESOURCE:
-		get_resource();
+#ifdef WORDS_BIGENDIAN
+	case NATIVE_ETHER_IRQ:
+		EtherIRQ();
 		break;
-	case NATIVE_GET_1_RESOURCE:
-		get_1_resource();
+	case NATIVE_ETHER_INIT:
+		GPR(3) = InitStreamModule((void *)GPR(3));
 		break;
-	case NATIVE_GET_IND_RESOURCE:
-		get_ind_resource();
+	case NATIVE_ETHER_TERM:
+		TerminateStreamModule();
 		break;
-	case NATIVE_GET_1_IND_RESOURCE:
-		get_1_ind_resource();
+	case NATIVE_ETHER_OPEN:
+		GPR(3) = ether_open((queue_t *)GPR(3), (void *)GPR(4), GPR(5), GPR(6), (void*)GPR(7));
 		break;
-	case NATIVE_R_GET_RESOURCE:
-		r_get_resource();
+	case NATIVE_ETHER_CLOSE:
+		GPR(3) = ether_close((queue_t *)GPR(3), GPR(4), (void *)GPR(5));
 		break;
+	case NATIVE_ETHER_WPUT:
+		GPR(3) = ether_wput((queue_t *)GPR(3), (mblk_t *)GPR(4));
+		break;
+	case NATIVE_ETHER_RSRV:
+		GPR(3) = ether_rsrv((queue_t *)GPR(3));
+		break;
+#else
+	case NATIVE_ETHER_INIT:
+		// FIXME: needs more complicated thunks
+		GPR(3) = false;
+		break;
+#endif
 	case NATIVE_SERIAL_NOTHING:
 	case NATIVE_SERIAL_OPEN:
 	case NATIVE_SERIAL_PRIME_IN:
@@ -849,6 +863,22 @@ static void NativeOp(int selector)
 			SerialClose
 		};
 		GPR(3) = serial_callbacks[selector - NATIVE_SERIAL_NOTHING](GPR(3), GPR(4));
+		break;
+	}
+	case NATIVE_GET_RESOURCE:
+	case NATIVE_GET_1_RESOURCE:
+	case NATIVE_GET_IND_RESOURCE:
+	case NATIVE_GET_1_IND_RESOURCE:
+	case NATIVE_R_GET_RESOURCE: {
+		typedef void (*GetResourceCallback)(void);
+		static const GetResourceCallback get_resource_callbacks[] = {
+			get_resource,
+			get_1_resource,
+			get_ind_resource,
+			get_1_ind_resource,
+			r_get_resource
+		};
+		get_resource_callbacks[selector - NATIVE_GET_RESOURCE]();
 		break;
 	}
 	case NATIVE_DISABLE_INTERRUPT:
