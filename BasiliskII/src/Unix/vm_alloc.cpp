@@ -138,7 +138,7 @@ void * vm_acquire(size_t size, int options)
 #ifdef HAVE_MMAP_VM
 	const int extra_map_flags = translate_map_flags(options);
 
-	if ((addr = mmap((caddr_t)next_address, size, VM_PAGE_DEFAULT, extra_map_flags | map_flags, zero_fd, 0)) == MAP_FAILED)
+	if ((addr = mmap((caddr_t)next_address, size, VM_PAGE_DEFAULT, extra_map_flags | map_flags, zero_fd, 0)) == (void *)MAP_FAILED)
 		return VM_MAP_FAILED;
 	
 	// Sanity checks for 64-bit platforms
@@ -184,7 +184,7 @@ int vm_acquire_fixed(void * addr, size_t size, int options)
 #ifdef HAVE_MMAP_VM
 	const int extra_map_flags = translate_map_flags(options);
 
-	if (mmap((caddr_t)addr, size, VM_PAGE_DEFAULT, extra_map_flags | map_flags | MAP_FIXED, zero_fd, 0) == MAP_FAILED)
+	if (mmap((caddr_t)addr, size, VM_PAGE_DEFAULT, extra_map_flags | map_flags | MAP_FIXED, zero_fd, 0) == (void *)MAP_FAILED)
 		return -1;
 	
 	// Since I don't know the standard behavior of mmap(), zero-fill here
