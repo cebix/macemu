@@ -34,11 +34,11 @@ user_string_def platform_strings[] = {
 	// Purely platform-specific strings
 	{STR_NO_XVISUAL_ERR, "Cannot obtain appropriate X visual."},
 	{STR_VOSF_INIT_ERR, "Cannot initialize Video on SEGV signals."},
+	{STR_SIG_INSTALL_ERR, "Cannot install %s handler (%s)."},
 	{STR_TICK_THREAD_ERR, "Cannot create 60Hz thread (%s)."},
 	{STR_NO_AUDIO_WARN, "No audio device found, audio output will be disabled."},
 	{STR_KEYCODE_FILE_WARN, "Cannot open keycode translation file %s (%s)."},
 	{STR_KEYCODE_VENDOR_WARN, "Cannot find vendor '%s' in keycode translation file %s."},
-	{STR_IGNORESEGV_CTRL, "Ignore Illegal Memory Accesses"},
 	{STR_WINDOW_TITLE_GRABBED, "Basilisk II (mouse grabbed, press Ctrl-F5 to release)"},
 
 	{-1, NULL}	// End marker
