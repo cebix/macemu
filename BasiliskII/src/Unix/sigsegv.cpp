@@ -44,10 +44,10 @@ typedef RETSIGTYPE (*signal_handler)(int);
 static bool sigsegv_ignore_fault = false;
 
 // User's SIGSEGV handler
-static sigsegv_handler_t sigsegv_user_handler = 0;
+static sigsegv_fault_handler_t sigsegv_fault_handler = 0;
 
 // Function called to dump state if we can't handle the fault
-static sigsegv_handler_t sigsegv_dump_state = 0;
+static sigsegv_state_dumper_t sigsegv_state_dumper = 0;
 
 // Actual SIGSEGV handler installer
 static bool sigsegv_do_install_handler(int sig);
@@ -488,7 +488,7 @@ static void sigsegv_handler(SIGSEGV_FAULT_HANDLER_ARGLIST)
 	bool fault_recovered = false;
 	
 	// Call user's handler and reinstall the global handler, if required
-	if (sigsegv_user_handler(fault_address, fault_instruction)) {
+	if (sigsegv_fault_handler(fault_address, fault_instruction)) {
 #if (defined(HAVE_SIGACTION) ? defined(SIGACTION_NEED_REINSTALL) : defined(SIGNAL_NEED_REINSTALL))
 		sigsegv_do_install_handler(sig);
 #endif
@@ -509,8 +509,8 @@ static void sigsegv_handler(SIGSEGV_FAULT_HANDLER_ARGLIST)
 #undef FAULT_HANDLER
 		
 		// We can't do anything with the fault_address, dump state?
-		if (sigsegv_dump_state != 0)
-			sigsegv_dump_state(fault_address, fault_instruction);
+		if (sigsegv_state_dumper != 0)
+			sigsegv_state_dumper(fault_address, fault_instruction);
 	}
 }
 #endif
@@ -557,10 +557,10 @@ static bool sigsegv_do_install_handler(int sig)
 }
 #endif
 
-bool sigsegv_install_handler(sigsegv_handler_t handler)
+bool sigsegv_install_handler(sigsegv_fault_handler_t handler)
 {
 #ifdef HAVE_SIGSEGV_RECOVERY
-	sigsegv_user_handler = handler;
+	sigsegv_fault_handler = handler;
 	bool success = true;
 #define FAULT_HANDLER(sig) success = success && sigsegv_do_install_handler(sig);
 	SIGSEGV_ALL_SIGNALS
@@ -580,7 +580,7 @@ bool sigsegv_install_handler(sigsegv_handler_t handler)
 void sigsegv_deinstall_handler(void)
 {
 #ifdef HAVE_SIGSEGV_RECOVERY
-	sigsegv_user_handler = 0;
+	sigsegv_fault_handler = 0;
 #define FAULT_HANDLER(sig) signal(sig, SIG_DFL);
 	SIGSEGV_ALL_SIGNALS
 #undef FAULT_HANDLER
@@ -602,9 +602,9 @@ void sigsegv_set_ignore_state(bool ignore_fault)
  *  Set callback function when we cannot handle the fault
  */
 
-void sigsegv_set_dump_state(sigsegv_handler_t handler)
+void sigsegv_set_dump_state(sigsegv_state_dumper_t handler)
 {
-	sigsegv_dump_state = handler;
+	sigsegv_state_dumper = handler;
 }
 
 

@@ -29,10 +29,6 @@
 #include "sigsegv.h"
 #include "vm_alloc.h"
 
-#ifdef ENABLE_MON
-# include "mon.h"
-#endif
-
 // Variables for Video on SEGV support
 static uint8 *the_host_buffer;	// Host frame buffer in VOSF mode
 
@@ -269,21 +265,6 @@ static bool screen_fault_handler(sigsegv_address_t fault_address, sigsegv_addres
 	}
 	
 	/* Otherwise, we don't know how to handle the fault, let it crash */
-	fprintf(stderr, "do_handle_screen_fault: unhandled address %p", fault_address);
-	if (fault_instruction != SIGSEGV_INVALID_PC)
-		fprintf(stderr, " [IP=%p]", fault_instruction);
-	fprintf(stderr, "\n");
-#if EMULATED_68K
-	uaecptr nextpc;
-	extern void m68k_dumpstate(uaecptr *nextpc);
-	m68k_dumpstate(&nextpc);
-#endif
-	VideoQuitFullScreen();
-#ifdef ENABLE_MON
-	char *arg[4] = {"mon", "-m", "-r", NULL};
-	mon(3, arg);
-	QuitEmulator();
-#endif
 	return false;
 }
 

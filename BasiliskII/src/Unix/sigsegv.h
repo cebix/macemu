@@ -28,10 +28,13 @@
 typedef char * sigsegv_address_t;
 
 // Type of a SIGSEGV handler. Returns boolean expressing successful operation
-typedef bool (*sigsegv_handler_t)(sigsegv_address_t fault_address, sigsegv_address_t instruction_address);
+typedef bool (*sigsegv_fault_handler_t)(sigsegv_address_t fault_address, sigsegv_address_t instruction_address);
+
+// Type of a SIGSEGV state dump function
+typedef void (*sigsegv_state_dumper_t)(sigsegv_address_t fault_address, sigsegv_address_t instruction_address);
 
 // Install a SIGSEGV handler. Returns boolean expressing success
-extern bool sigsegv_install_handler(sigsegv_handler_t handler);
+extern bool sigsegv_install_handler(sigsegv_fault_handler_t handler);
 
 // Remove the user SIGSEGV handler, revert to default behavior
 extern void sigsegv_uninstall_handler(void);
@@ -40,7 +43,7 @@ extern void sigsegv_uninstall_handler(void);
 extern void sigsegv_set_ignore_state(bool ignore_fault);
 
 // Set callback function when we cannot handle the fault
-extern void sigsegv_set_dump_state(sigsegv_handler_t handler);
+extern void sigsegv_set_dump_state(sigsegv_state_dumper_t handler);
 
 // Define an address that is bound to be invalid for a program counter
 const sigsegv_address_t SIGSEGV_INVALID_PC = (sigsegv_address_t)(-1);

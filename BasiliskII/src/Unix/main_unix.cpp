@@ -197,6 +197,30 @@ char *strdup(const char *s)
 
 
 /*
+ *  Dump state when everything went wrong after a SEGV
+ */
+
+static void sigsegv_dump_state(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction)
+{
+	fprintf(stderr, "do_handle_screen_fault: unhandled address %p", fault_address);
+	if (fault_instruction != SIGSEGV_INVALID_PC)
+		fprintf(stderr, " [IP=%p]", fault_instruction);
+	fprintf(stderr, "\n");
+#if EMULATED_68K
+	uaecptr nextpc;
+	extern void m68k_dumpstate(uaecptr *nextpc);
+	m68k_dumpstate(&nextpc);
+#endif
+	VideoQuitFullScreen();
+#ifdef ENABLE_MON
+	char *arg[4] = {"mon", "-m", "-r", NULL};
+	mon(3, arg);
+	QuitEmulator();
+#endif
+}
+
+
+/*
  *  Main program
  */
 
@@ -289,6 +313,9 @@ int main(int argc, char **argv)
 	if (PrefsFindBool("ignoresegv"))
 	  sigsegv_set_ignore_state(true);
 #endif
+
+	// Register dump state function when we got mad after a segfault
+	sigsegv_set_dump_state(sigsegv_dump_state);
 
 	// Read RAM size
 	RAMSize = PrefsFindInt32("ramsize") & 0xfff00000;	// Round down to 1MB boundary
