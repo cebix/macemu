@@ -1679,25 +1679,24 @@ static inline void do_invrect(uint8 *dest, uint32 length)
 #undef INVERT_8
 }
 
-void NQD_invrect(uint32 arg)
+void NQD_invrect(uint32 p)
 {
-	D(bug("accl_invrect %08x\n", arg));
-	accl_params *p = (accl_params *)arg;
+	D(bug("accl_invrect %08x\n", p));
 
 	// Get inversion parameters
-	int16 dest_X = p->dest_rect[1] - p->dest_bounds[1];
-	int16 dest_Y = p->dest_rect[0] - p->dest_bounds[0];
-	int16 width  = p->dest_rect[3] - p->dest_rect[1];
-	int16 height = p->dest_rect[2] - p->dest_rect[0];
+	int16 dest_X = (int16)ReadMacInt16(p + acclDestRect + 2) - (int16)ReadMacInt16(p + acclDestBoundsRect + 2);
+	int16 dest_Y = (int16)ReadMacInt16(p + acclDestRect + 0) - (int16)ReadMacInt16(p + acclDestBoundsRect + 0);
+	int16 width  = (int16)ReadMacInt16(p + acclDestRect + 6) - (int16)ReadMacInt16(p + acclDestRect + 2);
+	int16 height = (int16)ReadMacInt16(p + acclDestRect + 4) - (int16)ReadMacInt16(p + acclDestRect + 0);
 	D(bug(" dest X %d, dest Y %d\n", dest_X, dest_Y));
-	D(bug(" width %d, height %d, bytes_per_row %d\n", width, height, p->dest_row_bytes));
+	D(bug(" width %d, height %d, bytes_per_row %d\n", width, height, (int32)ReadMacInt32(p + acclDestRowBytes)));
 
 	//!!?? pen_mode == 14
 
 	// And perform the inversion
-	const int bpp = bytes_per_pixel(p->dest_pixel_size);
-	const int dest_row_bytes = p->dest_row_bytes;
-	uint8 *dest = (uint8 *)(p->dest_base_addr + (dest_Y * dest_row_bytes) + (dest_X * bpp));
+	const int bpp = bytes_per_pixel(ReadMacInt32(p + acclDestPixelSize));
+	const int dest_row_bytes = (int32)ReadMacInt32(p + acclDestRowBytes);
+	uint8 *dest = (uint8 *)(ReadMacInt32(p + acclDestBaseAddr) + (dest_Y * dest_row_bytes) + (dest_X * bpp));
 	width *= bpp;
 	switch (bpp) {
 	case 1:
@@ -1790,25 +1789,24 @@ static inline void do_fillrect(uint8 *dest, uint32 color, uint32 length)
 #undef FILL_8
 }
 
-void NQD_fillrect(uint32 arg)
+void NQD_fillrect(uint32 p)
 {
-	D(bug("accl_fillrect %08x\n", arg));
-	accl_params *p = (accl_params *)arg;
+	D(bug("accl_fillrect %08x\n", p));
 
 	// Get filling parameters
-	int16 dest_X = p->dest_rect[1] - p->dest_bounds[1];
-	int16 dest_Y = p->dest_rect[0] - p->dest_bounds[0];
-	int16 width  = p->dest_rect[3] - p->dest_rect[1];
-	int16 height = p->dest_rect[2] - p->dest_rect[0];
-	uint32 color = p->pen_mode == 8 ? p->fore_pen : p->back_pen;
+	int16 dest_X = (int16)ReadMacInt16(p + acclDestRect + 2) - (int16)ReadMacInt16(p + acclDestBoundsRect + 2);
+	int16 dest_Y = (int16)ReadMacInt16(p + acclDestRect + 0) - (int16)ReadMacInt16(p + acclDestBoundsRect + 0);
+	int16 width  = (int16)ReadMacInt16(p + acclDestRect + 6) - (int16)ReadMacInt16(p + acclDestRect + 2);
+	int16 height = (int16)ReadMacInt16(p + acclDestRect + 4) - (int16)ReadMacInt16(p + acclDestRect + 0);
+	uint32 color = ReadMacInt32(p + acclPenMode) == 8 ? ReadMacInt32(p + acclForePen) : ReadMacInt32(p + acclBackPen);
 	D(bug(" dest X %d, dest Y %d\n", dest_X, dest_Y));
 	D(bug(" width %d, height %d\n", width, height));
-	D(bug(" bytes_per_row %d color %08x\n", p->dest_row_bytes, color));
+	D(bug(" bytes_per_row %d color %08x\n", (int32)ReadMacInt32(p + acclDestRowBytes), color));
 
 	// And perform the fill
-	const int bpp = bytes_per_pixel(p->dest_pixel_size);
-	const int dest_row_bytes = p->dest_row_bytes;
-	uint8 *dest = (uint8 *)(p->dest_base_addr + (dest_Y * dest_row_bytes) + (dest_X * bpp));
+	const int bpp = bytes_per_pixel(ReadMacInt32(p + acclDestPixelSize));
+	const int dest_row_bytes = (int32)ReadMacInt32(p + acclDestRowBytes);
+	uint8 *dest = (uint8 *)(ReadMacInt32(p + acclDestBaseAddr) + (dest_Y * dest_row_bytes) + (dest_X * bpp));
 	width *= bpp;
 	switch (bpp) {
 	case 1:
@@ -1832,21 +1830,21 @@ void NQD_fillrect(uint32 arg)
 	}
 }
 
-bool NQD_fillrect_hook(uint32 arg)
+bool NQD_fillrect_hook(uint32 p)
 {
-	D(bug("accl_fillrect_hook %08x\n", arg));
-	accl_params *p = (accl_params *)arg;
+	D(bug("accl_fillrect_hook %08x\n", p));
 
 	// Check if we can accelerate this fillrect
-	if (((uint32 *)p)[0x284 >> 2] != 0 && p->dest_pixel_size >= 8) {
-		if (p->transfer_mode == 8) {
+	if (ReadMacInt32(p + 0x284) != 0 && ReadMacInt32(p + acclDestPixelSize) >= 8) {
+		const int transfer_mode = ReadMacInt32(p + acclTransferMode);
+		if (transfer_mode == 8) {
 			// Fill
-			p->draw_proc = NativeTVECT(NATIVE_FILLRECT);
+			WriteMacInt32(p + acclDrawProc, NativeTVECT(NATIVE_FILLRECT));
 			return true;
 		}
-		else if (p->transfer_mode == 10) {
+		else if (transfer_mode == 10) {
 			// Invert
-			p->draw_proc = NativeTVECT(NATIVE_INVRECT);
+			WriteMacInt32(p + acclDrawProc, NativeTVECT(NATIVE_INVRECT));
 			return true;
 		}
 	}
@@ -1855,30 +1853,29 @@ bool NQD_fillrect_hook(uint32 arg)
 
 // Rectangle blitting
 // TODO: optimize for VOSF and target pixmap == screen
-void NQD_bitblt(uint32 arg)
+void NQD_bitblt(uint32 p)
 {
-	D(bug("accl_bitblt %08x\n", arg));
-	accl_params *p = (accl_params *)arg;
+	D(bug("accl_bitblt %08x\n", p));
 
 	// Get blitting parameters
-	int16 src_X = p->src_rect[1] - p->src_bounds[1];
-	int16 src_Y = p->src_rect[0] - p->src_bounds[0];
-	int16 dest_X = p->dest_rect[1] - p->dest_bounds[1];
-	int16 dest_Y = p->dest_rect[0] - p->dest_bounds[0];
-	int16 width = p->dest_rect[3] - p->dest_rect[1];
-	int16 height = p->dest_rect[2] - p->dest_rect[0];
-	D(bug(" src addr %08x, dest addr %08x\n", p->src_base_addr, p->dest_base_addr));
+	int16 src_X  = (int16)ReadMacInt16(p + acclSrcRect + 2) - (int16)ReadMacInt16(p + acclSrcBoundsRect + 2);
+	int16 src_Y  = (int16)ReadMacInt16(p + acclSrcRect + 0) - (int16)ReadMacInt16(p + acclSrcBoundsRect + 0);
+	int16 dest_X = (int16)ReadMacInt16(p + acclDestRect + 2) - (int16)ReadMacInt16(p + acclDestBoundsRect + 2);
+	int16 dest_Y = (int16)ReadMacInt16(p + acclDestRect + 0) - (int16)ReadMacInt16(p + acclDestBoundsRect + 0);
+	int16 width  = (int16)ReadMacInt16(p + acclDestRect + 6) - (int16)ReadMacInt16(p + acclDestRect + 2);
+	int16 height = (int16)ReadMacInt16(p + acclDestRect + 4) - (int16)ReadMacInt16(p + acclDestRect + 0);
+	D(bug(" src addr %08x, dest addr %08x\n", ReadMacInt32(p + acclSrcBaseAddr), ReadMacInt32(p + acclDestBaseAddr)));
 	D(bug(" src X %d, src Y %d, dest X %d, dest Y %d\n", src_X, src_Y, dest_X, dest_Y));
 	D(bug(" width %d, height %d\n", width, height));
 
 	// And perform the blit
-	const int bpp = bytes_per_pixel(p->src_pixel_size);
+	const int bpp = bytes_per_pixel(ReadMacInt32(p + acclSrcPixelSize));
 	width *= bpp;
-	if (p->src_row_bytes > 0) {
-		const int src_row_bytes = p->src_row_bytes;
-		const int dst_row_bytes = p->dest_row_bytes;
-		uint8 *src = (uint8 *)p->src_base_addr + (src_Y * src_row_bytes) + (src_X * bpp);
-		uint8 *dst = (uint8 *)p->dest_base_addr + (dest_Y * dst_row_bytes) + (dest_X * bpp);
+	if ((int32)ReadMacInt32(p + acclSrcRowBytes) > 0) {
+		const int src_row_bytes = (int32)ReadMacInt32(p + acclSrcRowBytes);
+		const int dst_row_bytes = (int32)ReadMacInt32(p + acclDestRowBytes);
+		uint8 *src = (uint8 *)ReadMacInt32(p + acclSrcBaseAddr) + (src_Y * src_row_bytes) + (src_X * bpp);
+		uint8 *dst = (uint8 *)ReadMacInt32(p + acclDestBaseAddr) + (dest_Y * dst_row_bytes) + (dest_X * bpp);
 		for (int i = 0; i < height; i++) {
 			memcpy(dst, src, width);
 			src += src_row_bytes;
@@ -1886,10 +1883,10 @@ void NQD_bitblt(uint32 arg)
 		}
 	}
 	else {
-		const int src_row_bytes = -p->src_row_bytes;
-		const int dst_row_bytes = -p->dest_row_bytes;
-		uint8 *src = (uint8 *)p->src_base_addr + ((src_Y + height - 1) * src_row_bytes) + (src_X * bpp);
-		uint8 *dst = (uint8 *)p->dest_base_addr + ((dest_Y + height - 1) * dst_row_bytes) + (dest_X * bpp);
+		const int src_row_bytes = -(int32)ReadMacInt32(p + acclSrcRowBytes);
+		const int dst_row_bytes = -(int32)ReadMacInt32(p + acclDestRowBytes);
+		uint8 *src = (uint8 *)ReadMacInt32(p + acclSrcBaseAddr) + ((src_Y + height - 1) * src_row_bytes) + (src_X * bpp);
+		uint8 *dst = (uint8 *)ReadMacInt32(p + acclDestBaseAddr) + ((dest_Y + height - 1) * dst_row_bytes) + (dest_X * bpp);
 		for (int i = height - 1; i >= 0; i--) {
 			memcpy(dst, src, width);
 			src -= src_row_bytes;
@@ -1919,21 +1916,21 @@ void NQD_bitblt(uint32 arg)
   50 : hilite
 */
 
-bool NQD_bitblt_hook(uint32 arg)
+bool NQD_bitblt_hook(uint32 p)
 {
-	D(bug("accl_draw_hook %08x\n", arg));
-	accl_params *p = (accl_params *)arg;
+	D(bug("accl_draw_hook %08x\n", p));
 
 	// Check if we can accelerate this bitblt
-	if (((uint32 *)p)[0x18 >> 2] + ((uint32 *)p)[0x128 >> 2] == 0 &&
-		((uint32 *)p)[0x130 >> 2] == 0 &&
-		p->src_pixel_size >= 8 && p->src_pixel_size == p->dest_pixel_size &&
-		(p->src_row_bytes ^ p->dest_row_bytes) >= 0 &&	// same sign?
-		p->transfer_mode == 0 &&						// srcCopy?
-		((uint32 *)p)[0x15c >> 2] > 0) {
+	if (ReadMacInt32(p + 0x018) + ReadMacInt32(p + 0x128) == 0 &&
+		ReadMacInt32(p + 0x130) == 0 &&
+		ReadMacInt32(p + acclSrcPixelSize) >= 8 &&
+		ReadMacInt32(p + acclSrcPixelSize) == ReadMacInt32(p + acclDestPixelSize) &&
+		(ReadMacInt32(p + acclSrcRowBytes) ^ ReadMacInt32(p + acclDestRowBytes)) >= 0 && // same sign?
+		ReadMacInt32(p + acclTransferMode) == 0 &&										 // srcCopy?
+		ReadMacInt32(p + 0x15c) > 0) {
 
 		// Yes, set function pointer
-		p->draw_proc = NativeTVECT(NATIVE_BITBLT);
+		WriteMacInt32(p + acclDrawProc, NativeTVECT(NATIVE_BITBLT));
 		return true;
 	}
 	return false;

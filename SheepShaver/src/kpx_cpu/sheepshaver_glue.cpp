@@ -985,6 +985,12 @@ static void NativeOp(int selector)
 	case NATIVE_ETHER_RSRV:
 		GPR(3) = ether_rsrv((queue_t *)GPR(3));
 		break;
+#else
+	case NATIVE_ETHER_INIT:
+		// FIXME: needs more complicated thunks
+		GPR(3) = false;
+		break;
+#endif
 	case NATIVE_SYNC_HOOK:
 		GPR(3) = NQD_sync_hook(GPR(3));
 		break;
@@ -1003,12 +1009,6 @@ static void NativeOp(int selector)
 	case NATIVE_FILLRECT:
 		NQD_fillrect(GPR(3));
 		break;
-#else
-	case NATIVE_ETHER_INIT:
-		// FIXME: needs more complicated thunks
-		GPR(3) = false;
-		break;
-#endif
 	case NATIVE_SERIAL_NOTHING:
 	case NATIVE_SERIAL_OPEN:
 	case NATIVE_SERIAL_PRIME_IN:

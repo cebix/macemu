@@ -22,6 +22,7 @@
 #define VIDEO_DEFS_H
 
 #include "macos_util.h"
+#include <stddef.h>
 
 
 /* 
@@ -358,6 +359,32 @@ struct accl_params {
 
 	uint32 draw_proc;
 	// Argument for accl_sync_hook at offset 0x4f8
+};
+
+enum {
+	acclTransferMode	= offsetof(accl_params, transfer_mode),
+	acclPenMode			= offsetof(accl_params, pen_mode),
+	acclForePen			= offsetof(accl_params, fore_pen),
+	acclBackPen			= offsetof(accl_params, back_pen),
+	acclSrcBaseAddr		= offsetof(accl_params, src_base_addr),
+	acclSrcRowBytes		= offsetof(accl_params, src_row_bytes),
+	acclSrcBoundsRect	= offsetof(accl_params, src_bounds),
+	acclSrcPixelType	= offsetof(accl_params, src_pixel_type),
+	acclSrcPixelSize	= offsetof(accl_params, src_pixel_size),
+	acclSrcCmpCount		= offsetof(accl_params, src_cmp_count),
+	acclSrcCmpSize		= offsetof(accl_params, src_cmp_size),
+	acclSrcPMTable		= offsetof(accl_params, src_pm_table),
+	acclDestBaseAddr	= offsetof(accl_params, dest_base_addr),
+	acclDestRowBytes	= offsetof(accl_params, dest_row_bytes),
+	acclDestBoundsRect	= offsetof(accl_params, dest_bounds),
+	acclDestPixelType	= offsetof(accl_params, dest_pixel_type),
+	acclDestPixelSize	= offsetof(accl_params, dest_pixel_size),
+	acclDestCmpCount	= offsetof(accl_params, dest_cmp_count),
+	acclDestCmpSize		= offsetof(accl_params, dest_cmp_size),
+	acclDestPMTable		= offsetof(accl_params, dest_pm_table),
+	acclSrcRect			= offsetof(accl_params, src_rect),
+	acclDestRect		= offsetof(accl_params, dest_rect),
+	acclDrawProc		= offsetof(accl_params, draw_proc)
 };
 
 // Hook info for NQDMisc
