@@ -1071,10 +1071,6 @@ void sheepshaver_cpu::handle_interrupt(void)
 	if (*(int32 *)XLM_IRQ_NEST > 0)
 		return;
 
-	// Do nothing if there is no interrupt pending
-	if (InterruptFlags == 0)
-		return;
-
 	// Current interrupt nest level
 	static int interrupt_depth = 0;
 	++interrupt_depth;
