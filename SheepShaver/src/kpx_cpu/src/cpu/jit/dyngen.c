@@ -457,10 +457,10 @@ int arm_emit_ldr_info(const char *name, unsigned long start_offset,
 }
 #endif
 
-static void print_code(FILE *outfile, const char *name, const uint8_t *code_p, int code_size)
+static void do_print_code(FILE *outfile, const char *name, const uint8_t *code_p, int code_size)
 {
   int i;
-  fprintf(outfile, "    static const uint8 %s_code[] = {", name);
+  fprintf(outfile, "    static const uint8 %s[] = {", name);
   for (i = 0; i < code_size; i++) {
     if ((i % 12) == 0) {
       if (i != 0)
@@ -472,6 +472,23 @@ static void print_code(FILE *outfile, const char *name, const uint8_t *code_p, i
     fprintf(outfile, "0x%02x", code_p[i]);
   }
   fprintf(outfile, "\n    };\n");
+}
+
+static void print_code(FILE *outfile, const char *name, const uint8_t *code_p, int code_size)
+{
+  char *code_name;
+  code_name = alloca(strlen(name) + 5);
+  strcpy(code_name, name);
+  strcat(code_name, "_code");
+  do_print_code(outfile, code_name, code_p, code_size);
+}
+
+static char *gen_dot_prefix(const char *sym_name)
+{
+  static char name[256];
+  assert(sym_name[0] == '.');
+  snprintf(name, sizeof(name), "dg_dot_%s", sym_name + 1);
+  return name;
 }
 
 
@@ -702,7 +719,8 @@ void gen_code(const char *name, const char *demangled_name,
               if (*sym_name && 
                   !strstart(sym_name, "__op_param", NULL) &&
                   !strstart(sym_name, "__op_cpuparam", NULL) &&
-                  !strstart(sym_name, "__op_jmp", NULL))
+                  !strstart(sym_name, "__op_jmp", NULL) &&
+                  !strstart(sym_name, ".LC", NULL))
                 error("unexpected external symbol %s", sym_name);
             }
         }
@@ -801,11 +819,12 @@ void gen_code(const char *name, const char *demangled_name,
                 if (rel->r_offset >= start_offset &&
 		    rel->r_offset < start_offset + copy_size) {
                     sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
-                    if (strstart(sym_name, "__op_param", &p)) {
+                    if (strstart(sym_name, "__op_param", &p))
                         snprintf(name, sizeof(name), "param%s", p);
-                    } else {
-                        snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
-                    }
+                    else if (strstart(sym_name, ".LC", NULL))
+                        snprintf(name, sizeof(name), "(long)(%s)", gen_dot_prefix(sym_name));
+                    else
+                        snprintf(name, sizeof(name), "(long)(&%s)", sym_name[0]);
                     type = ELF32_R_TYPE(rel->r_info);
                     addend = rel->r_addend;
                     switch(type) {
@@ -1189,6 +1208,9 @@ int load_elf(const char *filename, FILE *outfile, int out_type)
     elf_shdr *data_sec;
     uint8_t *data;
     int data_shndx;
+    elf_shdr *rodata_cst16_sec;
+    uint8_t *rodata_cst16 = NULL;
+    int rodata_cst16_shndx;
     
     fd = open(filename, O_RDONLY);
     if (fd < 0) 
@@ -1258,6 +1280,13 @@ int load_elf(const char *filename, FILE *outfile, int out_type)
       error("could not find .data section");
     data_shndx = data_sec - shdr;
     data = sdata[data_shndx];
+
+    /* data section */
+    rodata_cst16_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".rodata.cst16");
+    if (rodata_cst16_sec) {
+      rodata_cst16_shndx = rodata_cst16_sec - shdr;
+      rodata_cst16 = sdata[rodata_cst16_shndx];
+    }
 
     /* text section */
     text_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".text");
@@ -1352,6 +1381,14 @@ int load_elf(const char *filename, FILE *outfile, int out_type)
                     error("invalid section for opcode (0x%x)", sym->st_shndx);
                 gen_code(func_name, NULL, sym->st_value, sym->st_size, outfile, 
                          text, relocs, nb_relocs, 3, prefix);
+            }
+            /* emit local symbols */
+            else if (strstart(name, ".LC", NULL)) {
+              if (sym->st_shndx != (rodata_cst16_sec - shdr))
+                error("invalid section for local data %s (%x)\n", name, sym->st_shndx);
+              fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
+              do_print_code(outfile, gen_dot_prefix(name), rodata_cst16 + sym->st_value, 16);
+              fprintf(outfile, "#endif\n");
             }
         }
         fprintf(outfile, "#undef DEFINE_CST\n");
