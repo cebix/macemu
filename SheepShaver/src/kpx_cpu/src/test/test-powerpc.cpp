@@ -52,6 +52,15 @@ typedef char CHAR;
 typedef int BOOL;
 #endif
 
+#if EMU_QEMU
+extern "C" {
+#include "target-ppc/cpu.h"
+extern void tb_flush();
+}
+typedef uint32_t uint32;
+typedef uintptr_t uintptr;
+#endif
+
 // Disassemblers needed for debugging purposes
 #if ENABLE_MON
 #include "mon.h"
@@ -287,6 +296,74 @@ void powerpc_cpu_base::execute(uintptr entry_point)
 	ppc_running = true;
 	while (ppc_running)
 		ppc_run(1);
+}
+#endif
+
+#if EMU_QEMU
+class powerpc_cpu_base
+{
+	CPUPPCState *ppc;
+public:
+	powerpc_cpu_base();
+	~powerpc_cpu_base();
+	void execute(uintptr);
+
+	void invalidate_cache()				{ tb_flush(); }
+	uint32 emul_get_xer() const;
+	void emul_set_xer(uint32 value);
+	uint32 emul_get_cr() const;
+	void emul_set_cr(uint32 value);
+	uint32 get_lr() const				{ return ppc->LR; }
+	void set_lr(uint32 value)			{ ppc->LR = value; }
+	uint32 get_gpr(int i) const			{ return ppc->gpr[i]; }
+	void set_gpr(int i, uint32 value)	{ ppc->gpr[i] = value; }
+};
+
+uint32 powerpc_cpu_base::emul_get_xer() const
+{
+	uint32 xer = 0;
+	for (int i = 0; i < 32; i++)
+		xer |= ppc->xer[i] << (31 - i);
+	return xer;
+}
+
+void powerpc_cpu_base::emul_set_xer(uint32 value)
+{
+	for (int i = 0; i < 32; i++)
+		ppc->xer[i] = (value >> (31 - i)) & 1;
+}
+
+uint32 powerpc_cpu_base::emul_get_cr() const
+{
+	uint32 cr = 0;
+	uint32 dd = 0;
+	for (int i = 0; i < 8; i++) {
+		cr |= (ppc->crf[i] & 15) << (28 - 4 * i);
+		dd |= ppc->crf[i];
+	}
+	return cr;
+}
+
+void powerpc_cpu_base::emul_set_cr(uint32 value)
+{
+	for (int i = 0; i < 8; i++)
+		ppc->crf[i] = (value >> (28 - 4 * i)) & 15;
+}
+
+powerpc_cpu_base::powerpc_cpu_base()
+{
+	ppc = cpu_ppc_init();
+}
+
+powerpc_cpu_base::~powerpc_cpu_base()
+{
+	cpu_ppc_close(ppc);
+}
+
+void powerpc_cpu_base::execute(uintptr entry_point)
+{
+	ppc->nip = entry_point;
+	cpu_exec(ppc);
 }
 #endif
 
