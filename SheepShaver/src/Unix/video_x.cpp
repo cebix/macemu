@@ -968,8 +968,10 @@ static void resume_emul(void)
 	// Reopen full screen display
 	XGrabKeyboard(x_display, rootwin, 1, GrabModeAsync, GrabModeAsync, CurrentTime);
 	XGrabPointer(x_display, rootwin, 1, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+#ifdef ENABLE_XF86_DGA
 	XF86DGADirectVideo(x_display, screen, XF86DGADirectGraphics | XF86DGADirectKeyb | XF86DGADirectMouse);
 	XF86DGASetViewPort(x_display, screen, 0, 0);
+#endif
 	XSync(x_display, false);
 
 	// the_buffer already contains the data to restore. i.e. since a temporary
