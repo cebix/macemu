@@ -85,6 +85,9 @@
 - (void) disableDrawing;
 - (void) startedFullScreen: (CGDirectDisplayID) theDisplay;
 
+- (void) blacken;
+- (void) clear;
+
 - (short) width;
 - (short) height;
 
