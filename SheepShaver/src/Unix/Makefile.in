@@ -27,6 +27,7 @@ DYNGENSRCS = @DYNGENSRCS@
 DYNGEN_CC = @DYNGEN_CC@
 DYNGEN_OP_FLAGS = @DYNGEN_OP_FLAGS@
 BLESS = @BLESS@
+KEYCODEs = @KEYCODES@
 INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@ -s
 INSTALL_DATA = @INSTALL_DATA@
@@ -80,7 +81,7 @@ modules:
 install: $(APP) installdirs
 	$(INSTALL_PROGRAM) $(APP) $(DESTDIR)$(bindir)/$(APP)
 	-$(INSTALL_DATA) $(APP).1 $(DESTDIR)$(man1dir)/$(APP).1
-	$(INSTALL_DATA) keycodes $(DESTDIR)$(datadir)/$(APP)/keycodes
+	$(INSTALL_DATA) $(KEYCODES) $(DESTDIR)$(datadir)/$(APP)/keycodes
 	$(INSTALL_DATA) tunconfig $(DESTDIR)$(datadir)/$(APP)/tunconfig
 	chmod 755 $(DESTDIR)$(datadir)/$(APP)/tunconfig
 
