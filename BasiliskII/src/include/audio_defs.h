@@ -60,18 +60,21 @@ enum {
 
 // Sound information selectors
 enum {
+	siNumberChannels			= 'chan',		// current number of channels
+	siChannelAvailable			= 'chav',		// number of channels available
 	siSampleRate				= 'srat',		// current sample rate
 	siSampleRateAvailable		= 'srav',		// sample rates available
 	siSampleSize				= 'ssiz',		// current sample size
 	siSampleSizeAvailable		= 'ssav',		// sample sizes available
-	siNumberChannels			= 'chan',		// current number of channels
-	siChannelAvailable			= 'chav',		// number of channels available
-	siSpeakerMute				= 'smut',		// mute state of all built-in speaker
-	siSpeakerVolume				= 'svol',		// volume level of built-in speaker
 	siHardwareMute				= 'hmut',		// mute state of all hardware
 	siHardwareVolume			= 'hvol',		// volume level of all hardware
 	siHardwareVolumeSteps		= 'hstp',		// number of volume steps for hardware
-	siHardwareBusy				= 'hwbs'		// sound hardware is in use
+	siHardwareBusy				= 'hwbs',		// sound hardware is in use
+	siHeadphoneMute				= 'pmut',		// mute state of headphone
+	siHeadphoneVolume			= 'pvol',		// volume level of headphone
+	siHeadphoneVolumeSteps		= 'hdst',		// number of volume steps for headphone
+	siSpeakerMute				= 'smut',		// mute state of all built-in speakers
+	siSpeakerVolume				= 'svol'		// volume level of built-in speaker
 };
 
 enum {	// ComponentResource struct

@@ -279,12 +279,12 @@ uint32 audio_get_main_volume(void)
 	return 0x01000100;
 }
 
-bool audio_get_dac_mute(void)
+bool audio_get_speaker_mute(void)
 {
 	return false;
 }
 
-uint32 audio_get_dac_volume(void)
+uint32 audio_get_speaker_volume(void)
 {
 	return 0x01000100;
 }
@@ -297,10 +297,10 @@ void audio_set_main_volume(uint32 vol)
 {
 }
 
-void audio_set_dac_mute(bool mute)
+void audio_set_speaker_mute(bool mute)
 {
 }
 
-void audio_set_dac_volume(uint32 vol)
+void audio_set_speaker_volume(uint32 vol)
 {
 }

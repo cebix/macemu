@@ -19,16 +19,19 @@
  */
 
 /*
-TODO:
-LockRng
-UnlockRng
-(CatSearch)
-(MakeFSSpec)
-(GetVolMountInfoSize)
-(GetVolMountInfo)
-(GetForeignPrivs)
-(SetForeignPrivs)
-*/
+ *  SEE ALSO
+ *    Guide to the File System Manager (from FSM 1.2 SDK)
+ *
+ *  TODO
+ *    LockRng
+ *    UnlockRng
+ *    (CatSearch)
+ *    (MakeFSSpec)
+ *    (GetVolMountInfoSize)
+ *    (GetVolMountInfo)
+ *    (GetForeignPrivs)
+ *    (SetForeignPrivs)
+ */
 
 #include "sysdeps.h"
 
@@ -379,15 +382,19 @@ void InstallExtFS(void)
 	r.d[0] = gestaltFSAttr;
 	Execute68kTrap(0xa1ad, &r);	// Gestalt()
 	D(bug("FSAttr %ld, %08lx\n", r.d[0], r.a[0]));
-	if ((r.d[0] & 0xffff) || !(r.a[0] & (1 << gestaltHasFileSystemManager)))
+	if ((r.d[0] & 0xffff) || !(r.a[0] & (1 << gestaltHasFileSystemManager))) {
+		printf("WARNING: No FSM present, disabling ExtFS\n");
 		return;
+	}
 
 	// Yes, version >=1.2?
 	r.d[0] = gestaltFSMVersion;
 	Execute68kTrap(0xa1ad, &r);	// Gestalt()
 	D(bug("FSMVersion %ld, %08lx\n", r.d[0], r.a[0]));
-	if ((r.d[0] & 0xffff) || (r.a[0] < 0x0120))
+	if ((r.d[0] & 0xffff) || (r.a[0] < 0x0120)) {
+		printf("WARNING: FSM <1.2 found, disabling ExtFS\n");
 		return;
+	}
 
 	D(bug("FSM present\n"));
 

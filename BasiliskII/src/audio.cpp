@@ -113,27 +113,39 @@ static int32 AudioGetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 		}
 
 		case siSpeakerMute:
-			WriteMacInt16(infoPtr, audio_get_main_mute());
+			WriteMacInt16(infoPtr, audio_get_speaker_mute());
 			break;
 
 		case siSpeakerVolume:
-			WriteMacInt32(infoPtr, audio_get_main_volume());
+			WriteMacInt32(infoPtr, audio_get_speaker_volume());
+			break;
+
+		case siHeadphoneMute:
+			WriteMacInt16(infoPtr, 0);
+			break;
+
+		case siHeadphoneVolume:
+			WriteMacInt32(infoPtr, 0x01000100);
+			break;
+
+		case siHeadphoneVolumeSteps:
+			WriteMacInt16(infoPtr, 13);
 			break;
 
 		case siHardwareMute:
-			WriteMacInt16(infoPtr, audio_get_dac_mute());
+			WriteMacInt16(infoPtr, audio_get_main_mute());
 			break;
 
 		case siHardwareVolume:
-			WriteMacInt32(infoPtr, audio_get_dac_volume());
+			WriteMacInt32(infoPtr, audio_get_main_volume());
+			break;
+
+		case siHardwareVolumeSteps:
+			WriteMacInt16(infoPtr, 13);
 			break;
 
 		case siHardwareBusy:
 			WriteMacInt16(infoPtr, AudioStatus.num_sources != 0);
-			break;
-
-		case siHardwareVolumeSteps:
-			WriteMacInt16(infoPtr, 64);
 			break;
 
 		default:	// Delegate to Apple Mixer
@@ -197,21 +209,25 @@ static int32 AudioSetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			return badChannel;
 
 		case siSpeakerMute:
-			audio_set_main_mute((uint16)infoPtr);
+			audio_set_speaker_mute((uint16)infoPtr);
 			break;
 
 		case siSpeakerVolume:
 			D(bug("  set speaker volume %08lx\n", infoPtr));
-			audio_set_main_volume(infoPtr);
+			audio_set_speaker_volume(infoPtr);
+			break;
+
+		case siHeadphoneMute:
+		case siHeadphoneVolume:
 			break;
 
 		case siHardwareMute:
-			audio_set_dac_mute((uint16)infoPtr);
+			audio_set_main_mute((uint16)infoPtr);
 			break;
 
 		case siHardwareVolume:
 			D(bug("  set hardware volume %08lx\n", infoPtr));
-			audio_set_dac_volume(infoPtr);
+			audio_set_main_volume(infoPtr);
 			break;
 
 		default:	// Delegate to Apple Mixer
@@ -351,7 +367,7 @@ adat_error:	printf("FATAL: audio component data block initialization error\n");
 			return noErr;
 
 		case kComponentVersionSelect:
-			return 0x00010002;
+			return 0x00010003;
 
 		case kComponentCloseSelect:
 			open_count--;

@@ -40,12 +40,12 @@ extern void audio_set_channels(int index);
 
 extern bool audio_get_main_mute(void);
 extern uint32 audio_get_main_volume(void);
-extern bool audio_get_dac_mute(void);
-extern uint32 audio_get_dac_volume(void);
+extern bool audio_get_speaker_mute(void);
+extern uint32 audio_get_speaker_volume(void);
 extern void audio_set_main_mute(bool mute);
 extern void audio_set_main_volume(uint32 vol);
-extern void audio_set_dac_mute(bool mute);
-extern void audio_set_dac_volume(uint32 vol);
+extern void audio_set_speaker_mute(bool mute);
+extern void audio_set_speaker_volume(uint32 vol);
 
 // Current audio status
 struct audio_status {
