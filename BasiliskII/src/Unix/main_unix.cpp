@@ -30,7 +30,7 @@
 # include <pthread.h>
 #endif
 
-#if defined(USE_MAPPED_MEMORY) || REAL_ADDRESSING || DIRECT_ADDRESSING
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
 # include <sys/mman.h>
 #endif
 
@@ -158,10 +158,6 @@ static bool memory_mapped_from_zero = false; // Flag: Could allocate RAM area fr
 
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 static uint32 mapped_ram_rom_size;		// Total size of mmap()ed RAM/ROM area
-#endif
-
-#ifdef USE_MAPPED_MEMORY
-extern char *address_space, *good_address_map;
 #endif
 
 
@@ -313,26 +309,7 @@ int main(int argc, char **argv)
 #endif
 
 	// Create areas for Mac RAM and ROM
-#if defined(USE_MAPPED_MEMORY)
-    good_address_map = (char *)mmap(NULL, 1<<24, PROT_READ, MAP_PRIVATE, zero_fd, 0);
-    address_space = (char *)mmap(NULL, 1<<24, PROT_READ | PROT_WRITE, MAP_PRIVATE, zero_fd, 0);
-    if ((int)address_space < 0 || (int)good_address_map < 0) {
-		ErrorAlert(GetString(STR_NOT_ENOUGH_MEMORY_ERR));
-		QuitEmulator();
-    }
-    RAMBaseHost = (uint8 *)mmap(address_space, RAMSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FIXED, zero_fd, 0);
-    ROMBaseHost = (uint8 *)mmap(address_space + 0x00400000, 0x80000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FIXED, zero_fd, 0);
-	char *nam = tmpnam(NULL);
-    int good_address_fd = open(nam, O_CREAT | O_RDWR, 0600);
-	char buffer[4096];
-    memset(buffer, 1, sizeof(buffer));
-    write(good_address_fd, buffer, sizeof(buffer));
-    unlink(nam);
-    for (int i=0; i<RAMSize; i+=4096)
-        mmap(good_address_map + i, 4096, PROT_READ, MAP_FIXED | MAP_PRIVATE, good_address_fd, 0);
-    for (int i=0; i<0x80000; i+=4096)
-        mmap(good_address_map + i + 0x00400000, 4096, PROT_READ, MAP_FIXED | MAP_PRIVATE, good_address_fd, 0);
-#elif REAL_ADDRESSING || DIRECT_ADDRESSING
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
 	// gb-- Overkill, needs to be cleaned up. Probably explode it for either
 	// real or direct addressing mode.
 #if REAL_ADDRESSING
@@ -864,32 +841,47 @@ uint64 GetTicks_usec(void)
  *  the highest accuracy possible)
  */
 
+#if defined(linux)
+// Linux select() changes its timeout parameter upon return to contain
+// the remaining time. Most other unixen leave it unchanged or undefined.
+#define SELECT_SETS_REMAINING
+#elif defined(__FreeBSD__) || defined(__sun__) || defined(sgi)
+#define USE_NANOSLEEP
+#endif
+
 void Delay_usec(uint32 usec)
 {
 	int was_error;
 
-#if defined(linux)
-	struct timeval tv;
-#elif defined(__FreeBSD__) || defined(sgi)
+#ifdef USE_NANOSLEEP
 	struct timespec elapsed, tv;
-#else	// Non-Linux implementations need to calculate time left
+#else
+	struct timeval tv;
+#ifndef SELECT_SETS_REMAINING
 	uint64 then, now, elapsed;
+#endif
 #endif
 
 	// Set the timeout interval - Linux only needs to do this once
-#if defined(linux)
-	tv.tv_sec = 0;
-	tv.tv_usec = usec;
-#elif defined(__FreeBSD__) || defined(sgi)
-	elapsed.tv_sec = 0;
-	elapsed.tv_nsec = usec * 1000;
+#ifdef SELECT_SETS_REMAINING
+    tv.tv_sec = 0;
+    tv.tv_usec = usec;
+#elif defined(USE_NANOSLEEP)
+    elapsed.tv_sec = 0;
+    elapsed.tv_nsec = usec * 1000;
 #else
-	then = GetTicks_usec();
+    then = GetTicks_usec();
 #endif
+
 	do {
 		errno = 0;
-#if !defined(linux) && !defined(__FreeBSD__) && !defined(sgi)
-		/* Calculate the time interval left (in case of interrupt) */
+#ifdef USE_NANOSLEEP
+		tv.tv_sec = elapsed.tv_sec;
+		tv.tv_nsec = elapsed.tv_nsec;
+		was_error = nanosleep(&tv, &elapsed);
+#else
+#ifndef SELECT_SETS_REMAINING
+		// Calculate the time interval left (in case of interrupt)
 		now = GetTicks_usec();
 		elapsed = now - then;
 		then = now;
@@ -899,11 +891,6 @@ void Delay_usec(uint32 usec)
 		tv.tv_sec = 0;
 		tv.tv_usec = usec;
 #endif
-#if defined(__FreeBSD__) || defined(sgi)
-		tv.tv_sec = elapsed.tv_sec;
-		tv.tv_nsec = elapsed.tv_nsec;
-		was_error = nanosleep(&tv, &elapsed);
-#else
 		was_error = select(0, NULL, NULL, NULL, &tv);
 #endif
 	} while (was_error && (errno == EINTR));

@@ -206,23 +206,23 @@ static fbcopy_func do_update_framebuffer;
 // fb_copy_funcs[depth_id][native_byte_order][dga_mode]
 // NT  : not tested
 // OK  : has been successfully tested
-// NBO : native byte order
-// OBO : opposite byte order
+// NBO : native byte order (X server vs. client)
+// OBO : opposite byte order (X server vs. client)
 static fbcopy_func fbcopy_funcs[ID_DEPTH_COUNT][2][2] = {
 #ifdef WORDS_BIGENDIAN
 				/*	opposite byte order		native byte order	*/
 /*  1 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_raw)		},	// NT
 /*  8 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_raw)		},	// OK (NBO)
-/* 15 bpp */	{	WD(fbcopy_15_obo)	,	WD(fbcopy_raw)		},	// NT
+/* 15 bpp */	{	WD(fbcopy_15_obo)	,	WD(fbcopy_raw)		},	// OK (OBO)
 /* 16 bpp */	{	WD(fbcopy_16_obo)	,	WD(fbcopy_16_nbo)	},	// OK (OBO)
-/* 24 bpp */	{	WD(fbcopy_24_obo)	,	WD(fbcopy_raw)		}	// NT
+/* 24 bpp */	{	WD(fbcopy_24_obo)	,	WD(fbcopy_raw)		}	// OK (OBO)
 #else
 				/*	opposite byte order		native byte order	*/
 /*  1 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_raw)		},	// NT
 /*  8 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_raw)		},	// OK (NBO)
 /* 15 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_15_nbo)	},	// OK (NBO)
 /* 16 bpp */	{	WD(fbcopy_16_obo)	,	WD(fbcopy_16_nbo)	},	// OK (NBO)
-/* 24 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_24_nbo)	}	// NT
+/* 24 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_24_nbo)	}	// OK (NBO)
 #endif
 };
 

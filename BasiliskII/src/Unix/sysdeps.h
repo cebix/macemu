@@ -269,16 +269,8 @@ static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {uint8 *b = (uint8 *)a
 #define ENUMDECL typedef enum
 #define ENUMNAME(name) name
 #define write_log printf
-
-#ifdef USE_COMPILER
-#define USE_MAPPED_MEMORY
-#define CAN_MAP_MEMORY
-#define NO_EXCEPTION_3
-#define NO_PREFETCH_BUFFER
-#else
 #undef USE_MAPPED_MEMORY
 #undef CAN_MAP_MEMORY
-#endif
 
 #ifdef X86_ASSEMBLY
 #define ASM_SYM_FOR_FUNC(a) __asm__(a)
