@@ -2013,7 +2013,9 @@ static bool patch_68k(void)
 	wp = (uint16 *)(ROM_BASE + base);
 	if (ROMType == ROMTYPE_ZANZIBAR)
 		*wp = htons(M68K_RTS);
-	else
+	else if (ntohs(wp[-4]) == 0x61ff)
+		*wp = htons(M68K_RTS);
+	else if (ntohs(wp[-2]) == 0x6700)
 		wp[-2] = htons(0x6000);	// bra
 
 	// Patch PowerOff()
