@@ -204,6 +204,26 @@ struct machine_regs : public pt_regs
 };
 #endif
 
+#if defined(__NetBSD__)
+#include <sys/ucontext.h>
+#define MACHINE_REGISTERS(scp)	((machine_regs *)&(((ucontext_t *)scp)->uc_mcontext))
+
+struct machine_regs : public mcontext_t
+{
+	long & cr()					{ return __gregs[_REG_CR]; }
+	uint32 cr() const			{ return __gregs[_REG_CR]; }
+	uint32 lr() const			{ return __gregs[_REG_LR]; }
+	uint32 ctr() const			{ return __gregs[_REG_CTR]; }
+	uint32 xer() const			{ return __gregs[_REG_XER]; }
+	uint32 msr() const			{ return __gregs[_REG_MSR]; }
+	uint32 dar() const			{ return (uint32)(((siginfo_t *)(((unsigned long)this) - offsetof(ucontext_t, uc_mcontext))) - 1)->si_addr; } /* HACK */
+	long & pc()					{ return __gregs[_REG_PC]; }
+	uint32 pc() const			{ return __gregs[_REG_PC]; }
+	long & gpr(int i)			{ return __gregs[_REG_R0 + i]; }
+	uint32 gpr(int i) const		{ return __gregs[_REG_R0 + i]; }
+};
+#endif
+
 #if defined(__APPLE__) && defined(__MACH__)
 #include <sys/signal.h>
 extern "C" int sigaltstack(const struct sigaltstack *ss, struct sigaltstack *oss);

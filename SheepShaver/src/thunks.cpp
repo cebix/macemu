@@ -215,7 +215,7 @@ bool ThunksInit(void)
 	native_op[NATIVE_R_GET_RESOURCE].func = r_get_resource_func;
 #endif
 #else
-#if defined(__linux__) || (defined(__APPLE__) && defined(__MACH__))
+#if defined(__linux__) || defined(__NetBSD__) || (defined(__APPLE__) && defined(__MACH__))
 #define DEFINE_NATIVE_OP(ID, FUNC) do {				\
 		uintptr base = SheepMem::Reserve(8);		\
 		WriteMacInt32(base + 0, (uint32)FUNC);		\
