@@ -900,7 +900,7 @@ struct B2_mutex {
 	    pthread_mutexattr_init(&attr);
 	    // Initialize the mutex for priority inheritance --
 	    // required for accurate timing.
-#ifdef HAVE_PTHREAD_MUTEXATTR_SETPROTOCOL
+#if defined(HAVE_PTHREAD_MUTEXATTR_SETPROTOCOL) && !defined(__CYGWIN__)
 	    pthread_mutexattr_setprotocol(&attr, PTHREAD_PRIO_INHERIT);
 #endif
 #if defined(HAVE_PTHREAD_MUTEXATTR_SETTYPE) && defined(PTHREAD_MUTEX_NORMAL)
