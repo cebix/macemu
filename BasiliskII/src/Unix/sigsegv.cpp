@@ -87,6 +87,9 @@ enum transfer_size_t {
 	SIZE_LONG
 };
 
+// Transfer type
+typedef sigsegv_transfer_type_t transfer_type_t;
+
 #if (defined(powerpc) || defined(__powerpc__) || defined(__ppc__))
 // Addressing mode
 enum addressing_mode_t {
@@ -98,7 +101,6 @@ enum addressing_mode_t {
 };
 
 // Decoded instruction
-typedef sigsegv_transfer_type_t transfer_type_t;
 struct instruction_t {
 	transfer_type_t		transfer_type;
 	transfer_size_t		transfer_size;
