@@ -1112,7 +1112,6 @@ void sheepshaver_cpu::execute_native_op(uint32 selector)
 	case NATIVE_VIDEO_DO_DRIVER_IO:
 		gpr(3) = (int32)(int16)VideoDoDriverIO(gpr(3), gpr(4), gpr(5), gpr(6), gpr(7));
 		break;
-#ifdef WORDS_BIGENDIAN
 	case NATIVE_ETHER_IRQ:
 		EtherIRQ();
 		break;
@@ -1134,12 +1133,6 @@ void sheepshaver_cpu::execute_native_op(uint32 selector)
 	case NATIVE_ETHER_RSRV:
 		gpr(3) = ether_rsrv((queue_t *)gpr(3));
 		break;
-#else
-	case NATIVE_ETHER_INIT:
-		// FIXME: needs more complicated thunks
-		gpr(3) = false;
-		break;
-#endif
 	case NATIVE_SYNC_HOOK:
 		gpr(3) = NQD_sync_hook(gpr(3));
 		break;
