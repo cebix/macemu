@@ -35,7 +35,7 @@
 /* When the BasiliskII video driver respects the alpha bits, set this to let us use */
 /* kCGImageAlphaPremultipliedFirst, and to have nice rounded corners on the screen. */
 //#define CG_USE_ALPHA
-/* At the moment, it writes in the fill 32bits :-( */
+/* At the moment, it writes in the full 32bits :-( */
 
 
 #define MIN_WIDTH	512
