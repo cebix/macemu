@@ -76,6 +76,12 @@ AC_PROG_CXX
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
 
+dnl MacOSX (and later?) have a particular header for defining the OS version
+AC_CHECK_HEADER(AvailabilityMacros.h)
+if [[ "x$ac_cv_header_AvailabilityMacros_h" = "xyes" ]]; then
+  DEFINES="$DEFINES -DAVAILABILITYMACROS"
+fi
+
 dnl We use mon if possible.
 MONSRCS=
 if [[ "x$WANT_MON" = "xyes" ]]; then
