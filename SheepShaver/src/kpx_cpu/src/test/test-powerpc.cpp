@@ -1294,12 +1294,12 @@ int main(int argc, char *argv[])
 	if (argc > 1) {
 		const char *file = argv[1];
 #if defined(__powerpc__)
-		if ((fp = fopen(file, "w")) == NULL) {
+		if ((fp = fopen(file, "wb")) == NULL) {
 			fprintf(stderr, "ERROR: can't open %s for writing\n", file);
 			return EXIT_FAILURE;
 		}
 #else
-		if ((fp = fopen(file, "r")) == NULL) {
+		if ((fp = fopen(file, "rb")) == NULL) {
 			fprintf(stderr, "ERROR: can't open %s for reading\n", file);
 			return EXIT_FAILURE;
 		}
