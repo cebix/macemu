@@ -83,6 +83,10 @@
 #define PROFILE_UNTRANSLATED_INSNS	1
 #endif
 
+#if defined(__x86_64__) && 0
+#define RECORD_REGISTER_USAGE		1
+#endif
+
 #ifdef WIN32
 #undef write_log
 #define write_log dummy_write_log
@@ -95,6 +99,18 @@ static void dummy_write_log(const char *, ...) { }
 	fprintf(stderr, "Abort in file %s at line %d\n", __FILE__, __LINE__); \
 	exit(EXIT_FAILURE); \
 } while (0)
+#endif
+
+#if RECORD_REGISTER_USAGE
+static uint64 reg_count[16];
+static int reg_count_local[16];
+
+static int reg_count_compare(const void *ap, const void *bp)
+{
+    const int a = *((int *)ap);
+    const int b = *((int *)bp);
+    return reg_count[b] - reg_count[a];
+}
 #endif
 
 #if PROFILE_COMPILE_TIME
@@ -1667,11 +1683,29 @@ static __inline__ void remove_all_offsets(void)
 	remove_offset(i,-1);
 }
 
+static inline void flush_reg_count(void)
+{
+#if RECORD_REGISTER_USAGE
+    for (int r = 0; r < 16; r++)
+	if (reg_count_local[r])
+	    ADDQim(reg_count_local[r], ((uintptr)reg_count) + (8 * r), X86_NOREG, X86_NOREG, 1);
+#endif
+}
+
+static inline void record_register(int r)
+{
+#if RECORD_REGISTER_USAGE
+    if (r < 16)
+	reg_count_local[r]++;
+#endif
+}
+
 static __inline__ int readreg_general(int r, int size, int spec, int can_offset)
 {
     int n;
     int answer=-1;
     
+    record_register(r);
 	if (live.state[r].status==UNDEF) {
 		write_log("WARNING: Unexpected read of undefined register %d\n",r);
 	}
@@ -1748,6 +1782,7 @@ static __inline__ int writereg_general(int r, int size, int spec)
     int n;
     int answer=-1;
 
+    record_register(r);
     if (size<4) {
 	remove_offset(r,spec);
     }
@@ -1829,6 +1864,7 @@ static __inline__ int rmw_general(int r, int wsize, int rsize, int spec)
     int n;
     int answer=-1;
     
+    record_register(r);
 	if (live.state[r].status==UNDEF) {
 		write_log("WARNING: Unexpected read of undefined register %d\n",r);
 	}
@@ -5046,6 +5082,25 @@ void compiler_exit(void)
 		write_log("%03d: %04x %10lu %s\n", i, opcode_nums[i], count, lookup->name);
 	}
 #endif
+
+#if RECORD_REGISTER_USAGE
+	int reg_count_ids[16];
+	uint64 tot_reg_count = 0;
+	for (int i = 0; i < 16; i++) {
+	    reg_count_ids[i] = i;
+	    tot_reg_count += reg_count[i];
+	}
+	qsort(reg_count_ids, 16, sizeof(int), reg_count_compare);
+	uint64 cum_reg_count = 0;
+	for (int i = 0; i < 16; i++) {
+	    int r = reg_count_ids[i];
+	    cum_reg_count += reg_count[r];
+	    printf("%c%d : %16ld %2.1f%% [%2.1f]\n", r < 8 ? 'D' : 'A', r % 8,
+		   reg_count[r],
+		   100.0*double(reg_count[r])/double(tot_reg_count),
+		   100.0*double(cum_reg_count)/double(tot_reg_count));
+	}
+#endif
 }
 
 bool compiler_use_jit(void)
@@ -5075,6 +5130,11 @@ void init_comp(void)
     uae_s8* cb=can_byte;
     uae_s8* cw=can_word;
     uae_s8* au=always_used;
+
+#if RECORD_REGISTER_USAGE
+    for (i=0;i<16;i++)
+	reg_count_local[i] = 0;
+#endif
 
     for (i=0;i<VREGS;i++) {
 	live.state[i].realreg=-1;
@@ -6792,6 +6852,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 		tba=(uae_u32*)get_target();
 		emit_long(get_handler(t1)-((uintptr)tba+4));
 		raw_mov_l_mi((uintptr)&regs.pc_p,t1);
+		flush_reg_count();
 		raw_jmp((uintptr)popall_do_nothing);
 		create_jmpdep(bi,0,tba,t1);
 
@@ -6808,6 +6869,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 		tba=(uae_u32*)get_target();
 		emit_long(get_handler(t2)-((uintptr)tba+4));
 		raw_mov_l_mi((uintptr)&regs.pc_p,t2);
+		flush_reg_count();
 		raw_jmp((uintptr)popall_do_nothing);
 		create_jmpdep(bi,1,tba,t2);
 	    }		
@@ -6816,6 +6878,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 		if (was_comp) {
 		    flush(1);
 		}
+		flush_reg_count();
 		
 		/* Let's find out where next_handler is... */
 		if (was_comp && isinreg(PC_P)) { 
