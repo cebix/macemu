@@ -2,25 +2,27 @@
 
 ## System specific configuration
 @SET_MAKE@
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+bindir=$(exec_prefix)/bin
+sharedir=$(prefix)/share/BasiliskII
+mandir=$(prefix)/man
+docdir=$(prefix)/doc/BasiliskII
+
 CC = @CC@
 CXX = @CXX@
 CFLAGS = @CFLAGS@
 CXXFLAGS = @CXXFLAGS@
 CPPFLAGS = @CPPFLAGS@ -I../include -I. @CPUINCLUDES@
-DEFS = @DEFS@ @DEFINES@ -D_REENTRANT
+DEFS = @DEFS@ @DEFINES@ -D_REENTRANT -DSHAREDIR=\"$(sharedir)\"
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
 SYSSRCS = @SYSSRCS@
 CPUSRCS = @CPUSRCS@
-
-prefix=@prefix@
-exec_prefix=@exec_prefix@
-bindir=$(exec_prefix)/bin
-libdir=$(exec_prefix)/lib
-mandir=$(prefix)/man
-INSTALL=@INSTALL@
-INSTALL_PROGRAM=@INSTALL_PROGRAM@
-INSTALL_DATA=@INSTALL_DATA@
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@ -s
+INSTALL_DATA = @INSTALL_DATA@
 
 ## Files
 SRCS=../prefs.cpp ../rom_patches.cpp ../slot_rom.cpp ../rsrc_patches.cpp ../emul_op.cpp \
@@ -57,9 +59,9 @@ modules:
 	cd Linux/NetDriver; make
 
 install: $(APP)
-	$(INSTALL_PROGRAM) -s BasiliskII $(bindir)
-	$(INSTALL_DATA) BasiliskII.1 $(mandir)/man1/
-	$(INSTALL_DATA) basilisk_ii_keycodes $(libdir)
+	$(INSTALL_PROGRAM) BasiliskII $(bindir)
+	$(INSTALL_DATA) BasiliskII.1 $(mandir)/man1
+	$(INSTALL_DATA) keycodes $(sharedir)
 
 clean:
 	-rm -f $(OBJ_DIR)/* core* *.core *~ *.bak
