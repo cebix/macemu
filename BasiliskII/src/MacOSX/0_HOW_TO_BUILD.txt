@@ -8,27 +8,23 @@
 
 2) If grabbing this source from a tarball, put this MacOSX directory in
    BasiliskII-1.0/src. Source is currently only compatible with 1.0 snapshot.
+   Open a Terminal, and cd to BasiliskII-1.0/src/MacOSX
 
-3) Open a Terminal, and cd to BasiliskII-1.0/src/MacOSX
+3) sh 0prepare_links
 
-   If the source was grabbed from CVS, run the following commands:
+   This creates some symlinks to files in the Unix and /usr/libexec directories
 
-   ln -s /usr/libexec/config.guess .
-   ln -s /usr/libexec/config.sub   .
-   ln -s ../Unix/acconfig.h .
-   ln -s ../Unix/install-sh .
-
-4) type autoconf
+4) autoconf
 
    Ignore the warning. autoconf should generate ./configure
 
-5) type ./configure
+5) ./configure
 
    This should generate a Makefile and some header files
 
-6) type make
+6) make
 
-   This should generate some symlinks, the uae_cpu emulator core's source,
+   This should generate the uae_cpu emulator core's source,
    and then the application.
 
 * It is also possible to use the OS X integrated development environment
@@ -37,8 +33,8 @@
 
 6) make ide
 
-   This should generate some symlinks and the uae_cpu emulator core's source,
-   and then open the IDE with the file BasiliskII.pbproj
+   This should generate the uae_cpu emulator core's source,
+   and then open the IDE with the file in BasiliskII.pbproj
 
 7) From the Build menu, choose 'Build' or 'Build & Run'
 

@@ -16,8 +16,18 @@ LIBS = @LIBS@
 
 ## Files
 OBJ_DIR = build
-GENSRCS = user_strings_unix.h cpudefs.cpp cpuemu.cpp cpustbl.cpp cputbl.h \
-	  README.txt
+GENSRCS = cpudefs.cpp cpuemu.cpp cpustbl.cpp cputbl.h
+
+# Wrappers which split the very large cpuemu.cpp into smaller compile units
+GENEMUS = cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp \
+	  cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp
+
+# Symlinks to files in other directories
+GENLINK = README.txt acconfig.h install-sh \
+	  config.guess config.sub user_strings_unix.h
+
+GEN  = $(GENEMUS) $(GENSRCS) $(GENLINK)
+
 SRCS =  BasiliskII.icns Controller.h Controller.mm Credits.html \
 	Emulator.h Emulator.mm EmulatorView.h EmulatorView.mm English.lproj \
 	NNThread.h NNThread.m PrefsEditor.h PrefsEditor.mm \
@@ -35,7 +45,7 @@ APP = $(OBJ_DIR)/BasiliskII.app
 
 all: $(APP)
 
-ide: $(OBJ_DIR) $(GENSRCS) $(SRCS)
+ide: $(OBJ_DIR) $(GEN) $(SRCS)
 	open BasiliskII.pbproj
 
 test: $(APP)
@@ -49,12 +59,6 @@ $(APP): $(OBJ_DIR) $(GENSRCS) $(SRCS)
 	pbxbuild -buildstyle Deployment
 #	pbxbuild
 
-README.txt : ../../README
-	ln -s $< $@
-
-user_strings_unix.h : ../Unix/user_strings_unix.h
-	ln -s $< $@
-
 BasiliskII.icns :
 	touch $@
 
@@ -62,7 +66,7 @@ mostlyclean:
 	rm -fr English.lproj/*~* $(OBJ_DIR)/* core* *.core *~ *.bak
 
 clean: mostlyclean
-	rm -f $(GENSRCS)
+	rm -f $(GEN)
 	rm -f cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp
 
 distclean: clean
@@ -103,39 +107,47 @@ cpuemu.cpp cpustbl.cpp cputbl.h: $(OBJ_DIR)/gencpu
 	$<
 
 
-$(OBJ_DIR)/cpuemu1.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu2.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu3.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu4.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu5.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu6.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu7.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu8.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 $(CXXFLAGS) -c $< -o $@
-
 cpuemu1.cpp: cpuemu.cpp
-	$(CXX) -E -DPART_1 $< >$@
+	echo '#define PART_1' > $@
+	echo '#include "$<"' >> $@
 cpuemu2.cpp: cpuemu.cpp
-	$(CXX) -E -DPART_2 $< >$@
+	echo '#define PART_2' > $@
+	echo '#include "$<"' >> $@
 cpuemu3.cpp: cpuemu.cpp
-	$(CXX) -E -DPART_3 $< >$@
+	echo '#define PART_3' > $@
+	echo '#include "$<"' >> $@
 cpuemu4.cpp: cpuemu.cpp
-	$(CXX) -E -DPART_4 $< >$@
+	echo '#define PART_4' > $@
+	echo '#include "$<"' >> $@
 cpuemu5.cpp: cpuemu.cpp
-	$(CXX) -E -DPART_5 $< >$@
+	echo '#define PART_5' > $@
+	echo '#include "$<"' >> $@
 cpuemu6.cpp: cpuemu.cpp
-	$(CXX) -E -DPART_6 $< >$@
+	echo '#define PART_6' > $@
+	echo '#include "$<"' >> $@
 cpuemu7.cpp: cpuemu.cpp
-	$(CXX) -E -DPART_7 $< >$@
+	echo '#define PART_7' > $@
+	echo '#include "$<"' >> $@
 cpuemu8.cpp: cpuemu.cpp
-	$(CXX) -E -DPART_8 $< >$@
+	echo '#define PART_8' > $@
+	echo '#include "$<"' >> $@
+
+#cpuemu1.cpp: cpuemu.cpp
+#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 -E $< > $@
+#cpuemu2.cpp: cpuemu.cpp
+#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 -E $< > $@
+#cpuemu3.cpp: cpuemu.cpp
+#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 -E $< > $@
+#cpuemu4.cpp: cpuemu.cpp
+#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 -E $< > $@
+#cpuemu5.cpp: cpuemu.cpp
+#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 -E $< > $@
+#cpuemu6.cpp: cpuemu.cpp
+#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 -E $< > $@
+#cpuemu7.cpp: cpuemu.cpp
+#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 -E $< > $@
+#cpuemu8.cpp: cpuemu.cpp
+#	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 -E $< > $@
 
 
 cpufast.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
