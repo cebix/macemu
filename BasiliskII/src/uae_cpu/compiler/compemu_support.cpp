@@ -4972,6 +4972,9 @@ void freescratch(void)
 
 static void align_target(uae_u32 a)
 {
+	if (!a)
+		return;
+
 	if (tune_nop_fillers)
 		raw_emit_nop_filler(a - (((uae_u32)target) & (a - 1)));
 	else {
