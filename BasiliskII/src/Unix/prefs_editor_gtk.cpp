@@ -525,15 +525,31 @@ static GtkWidget *l_frameskip, *l_display_x, *l_display_y;
 static int display_type;
 static int dis_width, dis_height;
 
+#if ENABLE_FBDEV_DGA
+static GtkWidget *w_fbdev_name, *w_fbdevice_file;
+static GtkWidget *l_fbdev_name, *l_fbdevice_file;
+static char fbdev_name[256];
+#endif
+
 // Hide/show graphics widgets
 static void hide_show_graphics_widgets(void)
 {
 	switch (display_type) {
 		case DISPLAY_WINDOW:
 			gtk_widget_show(w_frameskip); gtk_widget_show(l_frameskip);
+#if ENABLE_FBDEV_DGA
+			gtk_widget_show(w_display_x); gtk_widget_show(l_display_x);
+			gtk_widget_show(w_display_y); gtk_widget_show(l_display_y);
+			gtk_widget_hide(w_fbdev_name); gtk_widget_hide(l_fbdev_name);
+#endif
 			break;
 		case DISPLAY_SCREEN:
 			gtk_widget_hide(w_frameskip); gtk_widget_hide(l_frameskip);
+#if ENABLE_FBDEV_DGA
+			gtk_widget_hide(w_display_x); gtk_widget_hide(l_display_x);
+			gtk_widget_hide(w_display_y); gtk_widget_hide(l_display_y);
+			gtk_widget_show(w_fbdev_name); gtk_widget_show(l_fbdev_name);
+#endif
 			break;
 	}
 }
@@ -572,12 +588,19 @@ static void parse_graphics_prefs(void)
 	display_type = DISPLAY_WINDOW;
 	dis_width = 512;
 	dis_height = 384;
+#if ENABLE_FBDEV_DGA
+	fbdev_name[0] = 0;
+#endif
 
 	const char *str = PrefsFindString("screen");
 	if (str) {
 		if (sscanf(str, "win/%d/%d", &dis_width, &dis_height) == 2)
 			display_type = DISPLAY_WINDOW;
+#if ENABLE_FBDEV_DGA
+		else if (sscanf(str, "dga/%255s", fbdev_name) == 1)
+#else
 		else if (sscanf(str, "dga/%d/%d", &dis_width, &dis_height) == 2)
+#endif
 			display_type = DISPLAY_SCREEN;
 	}
 }
@@ -599,7 +622,12 @@ static void read_graphics_settings(void)
 			sprintf(pref, "win/%d/%d", dis_width, dis_height);
 			break;
 		case DISPLAY_SCREEN:
+#if ENABLE_FBDEV_DGA
+			str = gtk_entry_get_text(GTK_ENTRY(w_fbdev_name));
+			sprintf(pref, "dga/%s", str);
+#else
 			sprintf(pref, "dga/%d/%d", dis_width, dis_height);
+#endif
 			break;
 		default:
 			PrefsRemoveItem("screen");
@@ -617,7 +645,7 @@ static void create_graphics_pane(GtkWidget *top)
 	parse_graphics_prefs();
 
 	box = make_pane(top, STR_GRAPHICS_SOUND_PANE_TITLE);
-	table = make_table(box, 2, 4);
+	table = make_table(box, 2, 5);
 
 	label = gtk_label_new(GetString(STR_VIDEO_TYPE_CTRL));
 	gtk_widget_show(label);
@@ -717,6 +745,19 @@ static void create_graphics_pane(GtkWidget *top)
 	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
 	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 3, 4, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 	w_display_y = GTK_COMBO(combo)->entry;
+
+#if ENABLE_FBDEV_DGA
+	l_fbdev_name = gtk_label_new(GetString(STR_FBDEV_NAME_CTRL));
+	gtk_widget_show(l_fbdev_name);
+	gtk_table_attach(GTK_TABLE(table), l_fbdev_name, 0, 1, 4, 5, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+
+	w_fbdev_name = gtk_entry_new();
+	gtk_widget_show(w_fbdev_name);
+	gtk_entry_set_text(GTK_ENTRY(w_fbdev_name), fbdev_name); 
+	gtk_table_attach(GTK_TABLE(table), w_fbdev_name, 1, 2, 4, 5, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+
+	w_fbdevice_file = make_entry(box, STR_FBDEVICE_FILE_CTRL, "fbdevicefile");
+#endif
 
 	make_checkbox(box, STR_NOSOUND_CTRL, "nosound", GTK_SIGNAL_FUNC(tb_nosound));
 

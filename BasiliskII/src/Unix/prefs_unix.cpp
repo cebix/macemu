@@ -30,6 +30,7 @@
 prefs_desc platform_prefs_items[] = {
 	{"keycodes", TYPE_BOOLEAN, false},		// Use keycodes rather than keysyms to decode keyboard (video_x.cpp)
 	{"keycodefile", TYPE_STRING, false},	// File name of keycode translation table (video_x.cpp)
+	{"fbdevicefile", TYPE_STRING, false},	// File name of frame buffer device specifications
 	{NULL, TYPE_END, false}	// End of list
 };
 

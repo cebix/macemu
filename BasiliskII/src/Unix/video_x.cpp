@@ -350,7 +350,7 @@ static bool init_fbdev_dga(char *in_fb_name)
 	}
 	
 	// Get fbdevices file path from preferences
-	const char *fbd_path = PrefsFindString("fbdevices");
+	const char *fbd_path = PrefsFindString("fbdevicefile");
 	
 	// Open fbdevices file
 	FILE *fp = fopen(fbd_path ? fbd_path : FBDEVICES_FILE_NAME, "r");
@@ -377,7 +377,7 @@ static bool init_fbdev_dga(char *in_fb_name)
 		if ((line[0] == '#') || (line[0] == ';') || (line[0] == '\0'))
 			continue;
 		
-		if ((sscanf(line, "%s %d %x", &fb_name, &fb_depth, &fb_offset) == 3)
+		if ((sscanf(line, "%19s %d %x", &fb_name, &fb_depth, &fb_offset) == 3)
 		&& (strcmp(fb_name, in_fb_name) == 0) && (fb_depth == max_depth)) {
 			device_found = true;
 			break;
@@ -708,7 +708,7 @@ bool VideoInit(bool classic)
 		if (sscanf(mode_str, "win/%d/%d", &width, &height) == 2)
 			display_type = DISPLAY_WINDOW;
 #if ENABLE_FBDEV_DGA
-		else if (has_dga && sscanf(mode_str, "dga/%s", fb_name) == 1) {
+		else if (has_dga && sscanf(mode_str, "dga/%19s", fb_name) == 1) {
 #else
 		else if (has_dga && sscanf(mode_str, "dga/%d/%d", &width, &height) == 2) {
 #endif

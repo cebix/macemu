@@ -37,6 +37,7 @@ user_string_def platform_strings[] = {
 	{STR_NO_FBDEVICE_FILE_ERR, "Cannot open frame buffer device specification file %s (%s)."},
 	{STR_FBDEV_NAME_ERR, "The %s frame buffer is not supported in %d bit mode."},
 	{STR_FBDEV_MMAP_ERR, "Cannot mmap() the frame buffer memory (%s)."},
+
 	{STR_NO_SHEEP_NET_DRIVER_WARN, "Cannot open %s (%s). Ethernet will not be available."},
 	{STR_SHEEP_NET_ATTACH_WARN, "Cannot attach to Ethernet card (%s). Ethernet will not be available."},
 	{STR_SCSI_DEVICE_OPEN_WARN, "Cannot open %s (%s). SCSI Manager access to this device will be disabled."},
@@ -45,6 +46,7 @@ user_string_def platform_strings[] = {
 	{STR_AUDIO_FORMAT_WARN, "Audio hardware doesn't support signed 16 bit format. Audio output will be disabled."},
 	{STR_KEYCODE_FILE_WARN, "Cannot open keycode translation file %s (%s)."},
 	{STR_KEYCODE_VENDOR_WARN, "Cannot find vendor '%s' in keycode translation file %s."},
+
 	{STR_PREFS_MENU_FILE_GTK, "/_File"},
 	{STR_PREFS_ITEM_START_GTK, "/File/_Start Basilisk II"},
 	{STR_PREFS_ITEM_ZAP_PRAM_GTK, "/File/_Zap PRAM File"},
@@ -52,6 +54,9 @@ user_string_def platform_strings[] = {
 	{STR_PREFS_ITEM_QUIT_GTK, "/File/_Quit Basilisk II"},
 	{STR_HELP_MENU_GTK, "/_Help"},
 	{STR_HELP_ITEM_ABOUT_GTK, "/Help/_About Basilisk II"},
+
+	{STR_FBDEV_NAME_CTRL, "Frame Buffer Name"},
+	{STR_FBDEVICE_FILE_CTRL, "Frame Buffer Spec File"},
 
 	{-1, NULL}	// End marker
 };
