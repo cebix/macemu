@@ -71,7 +71,10 @@ const char FBDEVICES_FILE_NAME[] = DATADIR "/fbdevices";
 
 
 // Global variables
-static int32 frame_skip;
+static int32 frame_skip;							// Prefs items
+static int16 mouse_wheel_mode = 1;
+static int16 mouse_wheel_lines = 3;
+
 static int display_type = DISPLAY_WINDOW;			// See enum above
 static uint8 *the_buffer;							// Mac frame buffer
 static bool redraw_thread_active = false;			// Flag: Redraw thread installed
@@ -611,6 +614,10 @@ bool VideoInit(bool classic)
 	// Init keycode translation
 	keycode_init();
 
+	// Read prefs
+	mouse_wheel_mode = PrefsFindInt16("mousewheelmode");
+	mouse_wheel_lines = PrefsFindInt16("mousewheellines");
+
 	// Find screen and root window
 	screen = XDefaultScreen(x_display);
 	rootwin = XRootWindow(x_display, screen);
@@ -1137,6 +1144,19 @@ static void handle_events(void)
 				unsigned int button = ((XButtonEvent *)&event)->button;
 				if (button < 4)
 					ADBMouseDown(button - 1);
+				else if (button < 6) {	// Wheel mouse
+					if (mouse_wheel_mode == 0) {
+						int key = (button == 5) ? 0x79 : 0x74;	// Page up/down
+						ADBKeyDown(key);
+						ADBKeyUp(key);
+					} else {
+						int key = (button == 5) ? 0x3d : 0x3e;	// Cursor up/down
+						for(int i=0; i<mouse_wheel_lines; i++) {
+							ADBKeyDown(key);
+							ADBKeyUp(key);
+						}
+					}
+				}
 				break;
 			}
 			case ButtonRelease: {

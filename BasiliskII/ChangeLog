@@ -14,6 +14,7 @@ V0.8 -
 	  [Alexander R. Pruss]
 	- Unix/audio_oss_esd.cpp: "silence" in 8-bit mode used wrong fill
 	  value (0 instead of 0x80) [Alexander R. Pruss]
+	- Unix/video_x.cpp: added mouse wheel support [Alexander R. Pruss]
 
 V0.8 (snapshot) - 21.Oct.1999
 	- sony.cpp/disk.cpp/cdrom.cpp: disk insertions are now checked for

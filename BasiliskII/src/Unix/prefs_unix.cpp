@@ -30,7 +30,9 @@
 prefs_desc platform_prefs_items[] = {
 	{"keycodes", TYPE_BOOLEAN, false},		// Use keycodes rather than keysyms to decode keyboard (video_x.cpp)
 	{"keycodefile", TYPE_STRING, false},	// File name of keycode translation table (video_x.cpp)
-	{"fbdevicefile", TYPE_STRING, false},	// File name of frame buffer device specifications
+	{"fbdevicefile", TYPE_STRING, false},	// File name of frame buffer device specifications (video_x.cpp)
+	{"mousewheelmode", TYPE_INT16, false},	// Mouse wheel support mode (0=Page up/down, 1=Cursor up/down) (video_x.cpp)
+	{"mousewheellines", TYPE_INT16, false},	// Number of lines to scroll in mouse whell mode 1 (video_x.cpp)
 	{NULL, TYPE_END, false}	// End of list
 };
 
@@ -94,4 +96,6 @@ void AddPlatformPrefsDefaults(void)
 {
 	PrefsAddBool("keycodes", false);
 	PrefsReplaceString("extfs", "/");
+	PrefsReplaceInt16("mousewheelmode", 1);
+	PrefsReplaceInt16("mousewheellines", 3);
 }
