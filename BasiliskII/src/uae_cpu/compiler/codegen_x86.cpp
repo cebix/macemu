@@ -2343,94 +2343,227 @@ static void vec(int x, struct sigcontext sc)
  * Checking for CPU features                                             *
  *************************************************************************/
 
-typedef struct {
-    uae_u32 eax;
-    uae_u32 ecx;
-    uae_u32 edx;
-    uae_u32 ebx;
-} x86_regs;
+struct cpuinfo_x86 {
+  uae_u8	x86;			// CPU family
+  uae_u8	x86_vendor;		// CPU vendor
+  uae_u8	x86_processor;	// CPU canonical processor type
+  uae_u8	x86_brand_id;	// CPU BrandID if supported, yield 0 otherwise
+  uae_u32	x86_hwcap;
+  uae_u8	x86_model;
+  uae_u8	x86_mask;
+  int		cpuid_level;    // Maximum supported CPUID level, -1=no CPUID
+  char		x86_vendor_id[16];
+};
+struct cpuinfo_x86 cpuinfo;
 
+enum {
+  X86_VENDOR_INTEL		= 0,
+  X86_VENDOR_CYRIX		= 1,
+  X86_VENDOR_AMD		= 2,
+  X86_VENDOR_UMC		= 3,
+  X86_VENDOR_NEXGEN		= 4,
+  X86_VENDOR_CENTAUR	= 5,
+  X86_VENDOR_RISE		= 6,
+  X86_VENDOR_TRANSMETA	= 7,
+  X86_VENDOR_NSC		= 8,
+  X86_VENDOR_UNKNOWN	= 0xff
+};
 
-/* This could be so much easier if it could make assumptions about the
-   compiler... */
+enum {
+  X86_PROCESSOR_I386,                       /* 80386 */
+  X86_PROCESSOR_I486,                       /* 80486DX, 80486SX, 80486DX[24] */
+  X86_PROCESSOR_PENTIUM,
+  X86_PROCESSOR_PENTIUMPRO,
+  X86_PROCESSOR_K6,
+  X86_PROCESSOR_ATHLON,
+  X86_PROCESSOR_PENTIUM4,
+  X86_PROCESSOR_max
+};
 
-static uae_u8 cpuid_space[256];   
-static uae_u32 cpuid_ptr;
-static uae_u32 cpuid_level;
+static const char * x86_processor_string_table[X86_PROCESSOR_max] = {
+  "80386",
+  "80486",
+  "Pentium",
+  "PentiumPro",
+  "K6",
+  "Athlon",
+  "Pentium4"
+};
 
-static x86_regs cpuid(uae_u32 level)
+static struct ptt {
+  const int align_loop;
+  const int align_loop_max_skip;
+  const int align_jump;
+  const int align_jump_max_skip;
+  const int align_func;
+}
+x86_alignments[X86_PROCESSOR_max] = {
+  {  4,  3,  4,  3,  4 },
+  { 16, 15, 16, 15, 16 },
+  { 16,  7, 16,  7, 16 },
+  { 16, 15, 16,  7, 16 },
+  { 32,  7, 32,  7, 32 },
+  { 16,  7, 64,  7, 16 },
+  {  0,  0,  0,  0,  0 }
+};
+
+static void
+x86_get_cpu_vendor(struct cpuinfo_x86 *c)
 {
-    x86_regs answer;
-    uae_u8* tmp=get_target();
+	char *v = c->x86_vendor_id;
 
-    cpuid_ptr=(uae_u32)&answer;
-    cpuid_level=level;
-
-    set_target(cpuid_space);
-    raw_push_l_r(0); /* eax */
-    raw_push_l_r(1); /* ecx */
-    raw_push_l_r(2); /* edx */
-    raw_push_l_r(3); /* ebx */
-    raw_push_l_r(7); /* edi */
-    raw_mov_l_rm(0,(uae_u32)&cpuid_level);
-    raw_cpuid(0);
-    raw_mov_l_rm(7,(uae_u32)&cpuid_ptr);
-    raw_mov_l_Rr(7,0,0);
-    raw_mov_l_Rr(7,1,4);
-    raw_mov_l_Rr(7,2,8);
-    raw_mov_l_Rr(7,3,12);
-    raw_pop_l_r(7);
-    raw_pop_l_r(3);
-    raw_pop_l_r(2);
-    raw_pop_l_r(1);
-    raw_pop_l_r(0);
-    raw_ret();
-    set_target(tmp);
-
-    ((cpuop_func*)cpuid_space)(0);
-    return answer;
+	if (!strcmp(v, "GenuineIntel"))
+		c->x86_vendor = X86_VENDOR_INTEL;
+	else if (!strcmp(v, "AuthenticAMD"))
+		c->x86_vendor = X86_VENDOR_AMD;
+	else if (!strcmp(v, "CyrixInstead"))
+		c->x86_vendor = X86_VENDOR_CYRIX;
+	else if (!strcmp(v, "Geode by NSC"))
+		c->x86_vendor = X86_VENDOR_NSC;
+	else if (!strcmp(v, "UMC UMC UMC "))
+		c->x86_vendor = X86_VENDOR_UMC;
+	else if (!strcmp(v, "CentaurHauls"))
+		c->x86_vendor = X86_VENDOR_CENTAUR;
+	else if (!strcmp(v, "NexGenDriven"))
+		c->x86_vendor = X86_VENDOR_NEXGEN;
+	else if (!strcmp(v, "RiseRiseRise"))
+		c->x86_vendor = X86_VENDOR_RISE;
+	else if (!strcmp(v, "GenuineTMx86") ||
+		 !strcmp(v, "TransmetaCPU"))
+		c->x86_vendor = X86_VENDOR_TRANSMETA;
+	else
+		c->x86_vendor = X86_VENDOR_UNKNOWN;
 }
 
-static void raw_init_cpu(void)
+static void
+cpuid(uae_u32 op, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 *edx)
 {
-    x86_regs x;
-    uae_u32 maxlev;
-    
-    x=cpuid(0);
-    maxlev=x.eax;
-    write_log("Max CPUID level=%d Processor is %c%c%c%c%c%c%c%c%c%c%c%c\n",
-	      maxlev,
-	      x.ebx,
-	      x.ebx>>8,
-	      x.ebx>>16,
-	      x.ebx>>24,
-	      x.edx,
-	      x.edx>>8,
-	      x.edx>>16,
-	      x.edx>>24,
-	      x.ecx,
-	      x.ecx>>8,
-	      x.ecx>>16,
-	      x.ecx>>24
-	      );
-    have_rat_stall=(x.ecx==0x6c65746e);
+  static uae_u8 cpuid_space[256];   
+  uae_u8* tmp=get_target();
 
-    if (maxlev>=1) {
-	x=cpuid(1);
-	if (x.edx&(1<<15)) 
-	    have_cmov=1;
-    }
-    if (!have_cmov)
-	have_rat_stall=0;
-#if 0   /* For testing of non-cmov code! */
-    have_cmov=0;
-#endif
-#if 1 /* It appears that partial register writes are a bad idea even on
+  set_target(cpuid_space);
+  raw_push_l_r(0); /* eax */
+  raw_push_l_r(1); /* ecx */
+  raw_push_l_r(2); /* edx */
+  raw_push_l_r(3); /* ebx */
+  raw_mov_l_rm(0,(uae_u32)&op);
+  raw_cpuid(0);
+  if (eax != NULL) raw_mov_l_mr((uae_u32)eax,0);
+  if (ebx != NULL) raw_mov_l_mr((uae_u32)ebx,3);
+  if (ecx != NULL) raw_mov_l_mr((uae_u32)ecx,1);
+  if (edx != NULL) raw_mov_l_mr((uae_u32)edx,2);
+  raw_pop_l_r(3);
+  raw_pop_l_r(2);
+  raw_pop_l_r(1);
+  raw_pop_l_r(0);
+  raw_ret();
+  set_target(tmp);
+
+  ((cpuop_func*)cpuid_space)(0);
+}
+
+static void
+raw_init_cpu(void)
+{
+  struct cpuinfo_x86 *c = &cpuinfo;
+
+  /* Defaults */
+  c->x86_vendor = X86_VENDOR_UNKNOWN;
+  c->cpuid_level = -1;				/* CPUID not detected */
+  c->x86_model = c->x86_mask = 0;	/* So far unknown... */
+  c->x86_vendor_id[0] = '\0';		/* Unset */
+  c->x86_hwcap = 0;
+  
+  /* Get vendor name */
+  c->x86_vendor_id[12] = '\0';
+  cpuid(0x00000000,
+		(uae_u32 *)&c->cpuid_level,
+		(uae_u32 *)&c->x86_vendor_id[0],
+		(uae_u32 *)&c->x86_vendor_id[8],
+		(uae_u32 *)&c->x86_vendor_id[4]);
+  x86_get_cpu_vendor(c);
+
+  /* Intel-defined flags: level 0x00000001 */
+  c->x86_brand_id = 0;
+  if ( c->cpuid_level >= 0x00000001 ) {
+	uae_u32 tfms, brand_id;
+	cpuid(0x00000001, &tfms, &brand_id, NULL, &c->x86_hwcap);
+	c->x86 = (tfms >> 8) & 15;
+	c->x86_model = (tfms >> 4) & 15;
+	c->x86_brand_id = brand_id & 0xff;
+	if ( (c->x86_vendor == X86_VENDOR_AMD) &&
+		 (c->x86 == 0xf)) {
+	  /* AMD Extended Family and Model Values */
+	  c->x86 += (tfms >> 20) & 0xff;
+	  c->x86_model += (tfms >> 12) & 0xf0;
+	}
+	c->x86_mask = tfms & 15;
+  } else {
+	/* Have CPUID level 0 only - unheard of */
+	c->x86 = 4;
+  }
+
+  /* Canonicalize processor ID */
+  c->x86_processor = X86_PROCESSOR_max;
+  switch (c->x86) {
+  case 3:
+	c->x86_processor = X86_PROCESSOR_I386;
+	break;
+  case 4:
+	c->x86_processor = X86_PROCESSOR_I486;
+	break;
+  case 5:
+	if (c->x86_vendor == X86_VENDOR_AMD)
+	  c->x86_processor = X86_PROCESSOR_K6;
+	else
+	  c->x86_processor = X86_PROCESSOR_PENTIUM;
+	break;
+  case 6:
+	if (c->x86_vendor == X86_VENDOR_AMD)
+	  c->x86_processor = X86_PROCESSOR_ATHLON;
+	else
+	  c->x86_processor = X86_PROCESSOR_PENTIUMPRO;
+	break;
+  case 15:
+	if (c->x86_vendor == X86_VENDOR_INTEL) {
+	  /*  Assume any BranID >= 8 and family == 15 yields a Pentium 4 */
+	  if (c->x86_brand_id >= 8)
+		c->x86_processor = X86_PROCESSOR_PENTIUM4;
+	}
+	break;
+  }
+  if (c->x86_processor == X86_PROCESSOR_max) {
+	fprintf(stderr, "Error: unknown processor type\n");
+	fprintf(stderr, "  Family  : %d\n", c->x86);
+	fprintf(stderr, "  Model   : %d\n", c->x86_model);
+	fprintf(stderr, "  Mask    : %d\n", c->x86_mask);
+	if (c->x86_brand_id)
+	  fprintf(stderr, "  BrandID : %02x\n", c->x86_brand_id);
+	abort();
+  }
+
+  /* Have CMOV support? */
+  have_cmov = (c->x86_hwcap & (1 << 15)) && true;
+
+  /* Can the host CPU suffer from partial register stalls? */
+  have_rat_stall = (c->x86_vendor == X86_VENDOR_INTEL);
+#if 1
+  /* It appears that partial register writes are a bad idea even on
 	 AMD K7 cores, even though they are not supposed to have the
 	 dreaded rat stall. Why? Anyway, that's why we lie about it ;-) */
-    if (have_cmov)
-      have_rat_stall=1;
+  if (c->x86_processor == X86_PROCESSOR_ATHLON)
+	have_rat_stall = true;
 #endif
+
+  /* Alignments */
+  if (tune_alignment) {
+	align_loops = x86_alignments[c->x86_processor].align_loop;
+	align_jumps = x86_alignments[c->x86_processor].align_jump;
+  }
+
+  write_log("Max CPUID level=%d Processor is %s [%s]\n",
+			c->cpuid_level, c->x86_vendor_id,
+			x86_processor_string_table[c->x86_processor]);
 }
 
 

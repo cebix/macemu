@@ -88,6 +88,9 @@ static bool		lazy_flush			= true;		// Flag: lazy translation cache invalidation
 static bool		avoid_fpu			= true;		// Flag: compile FPU instructions ?
 static bool		have_cmov			= false;	// target has CMOV instructions ?
 static bool		have_rat_stall		= true;		// target has partial register stalls ?
+static bool		tune_alignment		= false;	// Tune code alignments for running CPU ?
+static int		align_loops			= 32;		// Align the start of loops
+static int		align_jumps			= 32;		// Align the start of jumps
 static int		zero_fd				= -1;
 static int		optcount[10]		= {
 	10,		// How often a block has to be executed before it is translated
@@ -104,16 +107,9 @@ struct op_properties {
 };
 static op_properties prop[65536];
 
-// gb-- Control Flow Predicates
-
 static inline int end_block(uae_u32 opcode)
 {
 	return (prop[opcode].cflow & fl_end_block);
-}
-
-static inline bool may_trap(uae_u32 opcode)
-{
-	return (prop[opcode].cflow & fl_trap);
 }
 
 uae_u8* start_pc_p;
@@ -4562,6 +4558,7 @@ void compiler_init(void)
 	raw_init_cpu();
 	write_log("<JIT compiler> : target processor has CMOV instructions : %s\n", have_cmov ? "yes" : "no");
 	write_log("<JIT compiler> : target processor can suffer from partial register stalls : %s\n", have_rat_stall ? "yes" : "no");
+	write_log("<JIT compiler> : alignment for loops, jumps are %d, %d\n", align_loops, align_jumps);
 	
 	// Translation cache flush mechanism
 	lazy_flush = PrefsFindBool("jitlazyflush");
@@ -5407,54 +5404,55 @@ static __inline__ void create_popalls(void)
      registers before jumping back to the various get-out routines.
      This generates the code for it.
   */
-  popall_do_nothing=current_compile_p;
+  align_target(align_jumps);
+  popall_do_nothing=get_target();
   for (i=0;i<N_REGS;i++) {
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
   }
   raw_jmp((uae_u32)do_nothing);
-  align_target(32);
   
+  align_target(align_jumps);
   popall_execute_normal=get_target();
   for (i=0;i<N_REGS;i++) {
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
   }
   raw_jmp((uae_u32)execute_normal);
-  align_target(32);
 
+  align_target(align_jumps);
   popall_cache_miss=get_target();
   for (i=0;i<N_REGS;i++) {
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
   }
   raw_jmp((uae_u32)cache_miss);
-  align_target(32);
 
+  align_target(align_jumps);
   popall_recompile_block=get_target();
   for (i=0;i<N_REGS;i++) {
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
   }
   raw_jmp((uae_u32)recompile_block);
-  align_target(32);
-  
+
+  align_target(align_jumps);
   popall_exec_nostats=get_target();
   for (i=0;i<N_REGS;i++) {
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
   }
   raw_jmp((uae_u32)exec_nostats);
-  align_target(32);
-  
+
+  align_target(align_jumps);
   popall_check_checksum=get_target();
   for (i=0;i<N_REGS;i++) {
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
   }
   raw_jmp((uae_u32)check_checksum);
-  align_target(32);
-  
+
+  align_target(align_jumps);
   current_compile_p=get_target();
 #else
   popall_exec_nostats=(void *)exec_nostats;
@@ -5496,19 +5494,17 @@ static void prepare_block(blockinfo* bi)
     int i;
 
     set_target(current_compile_p);
-    align_target(32);
+    align_target(align_jumps);
     bi->direct_pen=(cpuop_func *)get_target();
     raw_mov_l_rm(0,(uae_u32)&(bi->pc_p));
     raw_mov_l_mr((uae_u32)&regs.pc_p,0);
     raw_jmp((uae_u32)popall_execute_normal);
 
-    align_target(32);
+    align_target(align_jumps);
     bi->direct_pcc=(cpuop_func *)get_target();
     raw_mov_l_rm(0,(uae_u32)&(bi->pc_p));
     raw_mov_l_mr((uae_u32)&regs.pc_p,0);
     raw_jmp((uae_u32)popall_check_checksum);
-
-    align_target(32);
     current_compile_p=get_target();
 
     bi->deplist=NULL;
@@ -5920,7 +5916,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 
 	bi->needed_flags=liveflags[0];
 
-	align_target(32);
+	align_target(align_loops);
 	was_comp=0;
 
 	bi->direct_handler=(cpuop_func *)get_target();
@@ -6095,7 +6091,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 		raw_jmp((uae_u32)popall_do_nothing);
 		create_jmpdep(bi,0,tba,t1);
 
-		align_target(16);
+		align_target(align_jumps);
 		/* not-predicted outcome */
 		*branchadd=(uae_u32)get_target()-((uae_u32)branchadd+4);
 		live=tmp; /* Ouch again */
@@ -6201,7 +6197,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 #endif
 	
 	log_dump();
-	align_target(32);
+	align_target(align_jumps);
 
 	/* This is the non-direct handler */
 	bi->handler=
@@ -6217,9 +6213,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 
 	raw_jmp((uae_u32)bi->direct_handler);
 
-	align_target(32);
 	current_compile_p=get_target();
-
 	raise_in_cl_list(bi);
 	
 	/* We will flush soon, anyway, so let's do it now */
