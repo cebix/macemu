@@ -158,6 +158,14 @@ typedef struct timespec tm_time_t;
 typedef struct timeval tm_time_t;
 #endif
 
+/* Define codes for all the float formats that we know of.
+ * Though we only handle IEEE format.  */
+#define UNKNOWN_FLOAT_FORMAT 0
+#define IEEE_FLOAT_FORMAT 1
+#define VAX_FLOAT_FORMAT 2
+#define IBM_FLOAT_FORMAT 3
+#define C4X_FLOAT_FORMAT 4
+
 /* UAE CPU data types */
 #define uae_s8 int8
 #define uae_u8 uint8
