@@ -709,6 +709,7 @@ void gen_code(const char *name, const char *demangled_name,
         }
         fprintf(outfile, "))\n");
         fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
+        fprintf(outfile, "#define HAVE_gen_%s\n", func_name);
         fprintf(outfile, "{\n");
         print_code(outfile, name, p_start + start_offset - offset, copy_size);
 
@@ -1208,6 +1209,9 @@ int load_elf(const char *filename, FILE *outfile, int out_type)
     elf_shdr *data_sec;
     uint8_t *data;
     int data_shndx;
+    elf_shdr *rodata_cst4_sec;
+    uint8_t *rodata_cst4 = NULL;
+    int rodata_cst4_shndx;
     elf_shdr *rodata_cst16_sec;
     uint8_t *rodata_cst16 = NULL;
     int rodata_cst16_shndx;
@@ -1281,7 +1285,12 @@ int load_elf(const char *filename, FILE *outfile, int out_type)
     data_shndx = data_sec - shdr;
     data = sdata[data_shndx];
 
-    /* data section */
+    /* rodata sections */
+    rodata_cst4_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".rodata.cst4");
+    if (rodata_cst4_sec) {
+      rodata_cst4_shndx = rodata_cst4_sec - shdr;
+      rodata_cst4 = sdata[rodata_cst4_shndx];
+    }
     rodata_cst16_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".rodata.cst16");
     if (rodata_cst16_sec) {
       rodata_cst16_shndx = rodata_cst16_sec - shdr;
@@ -1363,11 +1372,18 @@ int load_elf(const char *filename, FILE *outfile, int out_type)
             }
             /* emit local symbols */
             else if (strstart(name, ".LC", NULL)) {
-              if (sym->st_shndx != (rodata_cst16_sec - shdr))
+              if (sym->st_shndx == (rodata_cst16_sec - shdr)) {
+                fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
+                do_print_code(outfile, gen_dot_prefix(name), rodata_cst16 + sym->st_value, 16);
+                fprintf(outfile, "#endif\n");
+              }
+              else if (sym->st_shndx == (rodata_cst4_sec - shdr)) {
+                fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
+                do_print_code(outfile, gen_dot_prefix(name), rodata_cst4 + sym->st_value, 4);
+                fprintf(outfile, "#endif\n");
+              }
+              else
                 error("invalid section for local data %s (%x)\n", name, sym->st_shndx);
-              fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
-              do_print_code(outfile, gen_dot_prefix(name), rodata_cst16 + sym->st_value, 16);
-              fprintf(outfile, "#endif\n");
             }
             else {
               /* demangle C++ symbols */
