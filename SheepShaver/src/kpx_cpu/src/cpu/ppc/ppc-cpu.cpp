@@ -461,7 +461,10 @@ void powerpc_cpu::execute(uint32 entry)
 						}
 					}
 
-					if ((bi->pc != pc()) && ((bi = block_cache.find(pc())) == NULL))
+					// Don't check for backward branches here as this
+					// is now done by generated code. Besides, we will
+					// get here if the fast cache lookup failed too.
+					if ((bi = block_cache.find(pc())) == NULL)
 						break;
 				}
 			}

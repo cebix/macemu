@@ -86,6 +86,8 @@ struct powerpc_dyngen_helper {
 	static double & fp_result()					{ return CPU->fp_result(); }
 	static uint64 & fp_result_dw()				{ return CPU->fp_result_dw(); }
 	static inline void set_cr(int crfd, int v)	{ CPU->cr().set(crfd, v); }
+
+	static inline powerpc_block_info *find_block(uint32 pc) { return CPU->block_cache.fast_find(pc); }
 };
 
 
@@ -1206,3 +1208,18 @@ void OPPROTO op_nego_T0(void)
 	T0 = -T0;
 }
 
+/**
+ *		Generate possible call to next basic block without going
+ *		through register state restore & full cache lookup
+ **/
+
+void OPPROTO op_jump_next_A0(void)
+{
+	// Make sure there is no pending interrupt request
+	if (powerpc_dyngen_helper::spcflags().empty()) {
+		powerpc_block_info *bi = (powerpc_block_info *)reg_A0;
+		uint32 pc = powerpc_dyngen_helper::get_pc();
+		if (bi->pc == pc || (bi = powerpc_dyngen_helper::find_block(pc)) != NULL)
+			goto *(bi->entry_point);
+	}
+}

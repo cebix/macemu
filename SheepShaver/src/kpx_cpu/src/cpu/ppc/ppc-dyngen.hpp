@@ -119,6 +119,7 @@ public:
 	DEFINE_ALIAS(decrement_ctr_T0,0);
 	DEFINE_ALIAS(branch_A0_if_T0,1);
 	DEFINE_ALIAS(branch_A0_if_not_T0,1);
+	DEFINE_ALIAS(jump_next_A0,0);
 
 	// Compare & Record instructions
 	DEFINE_ALIAS(record_cr0_T0,0);
