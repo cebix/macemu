@@ -97,7 +97,7 @@ struct Library *AHIBase = NULL;
 struct Library *DiskBase = NULL;
 
 struct Task *MainTask;							// Our task
-uint32 ScratchMem = NULL;						// Scratch memory for Mac ROM writes
+uint8 *ScratchMem = NULL;						// Scratch memory for Mac ROM writes
 APTR OldTrapHandler = NULL;						// Old trap handler
 APTR OldExceptionHandler = NULL;				// Old exception handler
 BYTE IRQSig = -1;								// "Interrupt" signal number
@@ -228,7 +228,7 @@ int main(void)
 	TimerBase = (struct Library *)timereq->tr_node.io_Device;
 
 	// Allocate scratch memory
-	ScratchMem = (uint32)AllocMem(SCRATCH_MEM_SIZE, MEMF_PUBLIC);
+	ScratchMem = (uint8 *)AllocMem(SCRATCH_MEM_SIZE, MEMF_PUBLIC);
 	if (ScratchMem == NULL) {
 		ErrorAlert(GetString(STR_NO_MEM_ERR));
 		QuitEmulator();
