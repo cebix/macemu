@@ -41,7 +41,7 @@
 #include "audio.h"
 #include "audio_defs.h"
 
-#if ENABLE_ESD
+#ifdef ENABLE_ESD
 #include <esd.h>
 #endif
 
@@ -138,7 +138,7 @@ bool audio_init_dsp(void)
 // Init using ESD, returns false on error
 bool audio_init_esd(void)
 {
-#if ENABLE_ESD
+#ifdef ENABLE_ESD
 	printf("Using ESD audio output\n");
 
 	// ESD audio format
@@ -195,7 +195,7 @@ void AudioInit(void)
 	// Try to open /dev/dsp
 	audio_fd = open(DSP_NAME, O_WRONLY);
 	if (audio_fd < 0) {
-#if ENABLE_ESD
+#ifdef ENABLE_ESD
 		if (!audio_init_esd())
 			return;
 #else

@@ -24,6 +24,11 @@
 #define DEBUG 0
 #include "debug.h"
 
+// For NetBSD with broken pthreads headers
+#ifndef CLOCK_REALTIME
+#define CLOCK_REALTIME 0
+#endif
+
 
 /*
  *  Return microseconds since boot (64 bit)

@@ -31,6 +31,30 @@
 /* Define to 'off_t' if <sys/types.h> doesn't define. */
 #undef loff_t
 
+/* Define if using ESD. */
+#undef ENABLE_ESD
+
+/* Define if using DGA with framebuffer device. */
+#undef ENABLE_FBDEV_DGA
+
+/* Define if using GTK. */
+#undef ENABLE_GTK
+
+/* Define if using "mon". */
+#undef ENABLE_MON
+
+/* Define if using native 68k mode. */
+#undef ENABLE_NATIVE_M68K
+
+/* Define if using XFree86 DGA extension. */
+#undef ENABLE_XF86_DGA
+
+/* Define if using XFree86 VidMode extension. */
+#undef ENABLE_XF86_VIDMODE
+
+/* Define if pthreads are available. */
+#undef HAVE_PTHREADS
+
 /* The number of bytes in a int.  */
 #undef SIZEOF_INT
 
@@ -67,6 +91,12 @@
 /* Define if you have the <fcntl.h> header file.  */
 #undef HAVE_FCNTL_H
 
+/* Define if you have the <history.h> header file.  */
+#undef HAVE_HISTORY_H
+
+/* Define if you have the <readline.h> header file.  */
+#undef HAVE_READLINE_H
+
 /* Define if you have the <readline/history.h> header file.  */
 #undef HAVE_READLINE_HISTORY_H
 
@@ -87,3 +117,6 @@
 
 /* Define if you have the readline library (-lreadline).  */
 #undef HAVE_LIBREADLINE
+
+/* Define if you have the termcap library (-ltermcap).  */
+#undef HAVE_LIBTERMCAP

@@ -25,10 +25,12 @@
  * with mutex. Seems to be working correctly now.
  */
 
-#include <stdio.h>
 #include <sys/types.h>
+#include <stdio.h>
 #include <errno.h>
+#include <time.h>
 #include <pthread.h>
+
 #include "semaphore.h"
 
 extern "C" {
@@ -62,7 +64,6 @@ int sem_destroy(sem_t* sem)
 	}
 	pthread_mutex_destroy(&sem->sem_lock);
 	sem->sem_waiting = 0;
-	sem->sem_lock = NULL;
 	sem->sem_value = 0;
 	return 0;
 }

@@ -42,7 +42,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
 
 #ifdef HAVE_FCNTL_H
 # include <fcntl.h>
@@ -60,17 +59,33 @@
 #endif
 
 
-/* Are the Mac and the host address space the same? */
+#ifdef ENABLE_NATIVE_M68K
+
+/* Mac and host address space are the same */
+#define REAL_ADDRESSING 1
+
+/* Using 68k natively */
+#define EMULATED_68K 0
+
+/* Mac ROM is not write protected */
+#define ROM_IS_WRITE_PROTECTED 0
+
+#else
+
+/* Mac and host address space are distinct */
 #define REAL_ADDRESSING 0
 
-/* Are we using a 68k emulator or the real thing? */
+/* Using 68k emulator */
 #define EMULATED_68K 1
 
-/* Is the Mac ROM write protected? */
+/* Mac ROM is write protected */
 #define ROM_IS_WRITE_PROTECTED 1
+
+#endif
 
 /* ExtFS is supported */
 #define SUPPORTS_EXTFS 1
+
 
 /* Data types */
 typedef unsigned char uint8;

@@ -37,6 +37,13 @@ user_string_def platform_strings[] = {
 	{STR_NO_FBDEVICE_FILE_ERR, "Cannot open frame buffer device specification file %s (%s)."},
 	{STR_FBDEV_NAME_ERR, "The %s frame buffer is not supported in %d bit mode."},
 	{STR_FBDEV_MMAP_ERR, "Cannot mmap() the frame buffer memory (%s)."},
+	{STR_NO_DEV_ZERO_ERR, "Cannot open /dev/zero (%s)."},
+	{STR_LOW_MEM_MMAP_ERR, "Cannot map Low Memory Globals (%s)."},
+	{STR_SIGALTSTACK_ERR, "Cannot install alternate signal stack (%s)."},
+	{STR_SIG_INSTALL_ERR, "Cannot install %s handler (%s)."},
+	{STR_TIMER_CREATE_ERR, "Cannot create timer (%s)."},
+	{STR_TIMER_SETTIME_ERR, "Cannot start timer (%s)."},
+	{STR_TICK_THREAD_ERR, "Cannot create 60Hz thread (%s)."},
 
 	{STR_NO_SHEEP_NET_DRIVER_WARN, "Cannot open %s (%s). Ethernet will not be available."},
 	{STR_SHEEP_NET_ATTACH_WARN, "Cannot attach to Ethernet card (%s). Ethernet will not be available."},

@@ -34,8 +34,23 @@
 #include <X11/extensions/XShm.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#include <pthread.h>
 #include <errno.h>
+
+#ifdef HAVE_PTHREADS
+# include <pthread.h>
+#endif
+
+#ifdef ENABLE_XF86_DGA
+# include <X11/extensions/xf86dga.h>
+#endif
+
+#ifdef ENABLE_XF86_VIDMODE
+# include <X11/extensions/xf86vmode.h>
+#endif
+
+#ifdef ENABLE_FBDEV_DGA
+# include <sys/mman.h>
+#endif
 
 #include "cpu_emulation.h"
 #include "main.h"
@@ -47,19 +62,6 @@
 
 #define DEBUG 1
 #include "debug.h"
-
-#if ENABLE_XF86_DGA
-#include <X11/extensions/xf86dga.h>
-#endif
-
-#if ENABLE_XF86_VIDMODE
-#include <X11/extensions/xf86vmode.h>
-#endif
-
-#if ENABLE_FBDEV_DGA
-#include <sys/mman.h>
-#endif
-
 
 
 // Display types
@@ -80,9 +82,12 @@ static int16 mouse_wheel_lines = 3;
 
 static int display_type = DISPLAY_WINDOW;			// See enum above
 static uint8 *the_buffer;							// Mac frame buffer
+
+#ifdef HAVE_PTHREADS
 static bool redraw_thread_active = false;			// Flag: Redraw thread installed
 static volatile bool redraw_thread_cancel = false;	// Flag: Cancel Redraw thread
 static pthread_t redraw_thread;						// Redraw thread
+#endif
 
 static bool has_dga = false;						// Flag: Video DGA capable
 static bool has_vidmode = false;					// Flag: VidMode extension available
@@ -112,9 +117,11 @@ static int eventmask;
 static const int win_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | EnterWindowMask | ExposureMask;
 static const int dga_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
 
-static pthread_mutex_t palette_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect palette
 static XColor palette[256];							// Color palette for 8-bit mode
 static bool palette_changed = false;				// Flag: Palette changed, redraw thread must set new colors
+#ifdef HAVE_PTHREADS
+static pthread_mutex_t palette_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect palette
+#endif
 
 // Variables for window mode
 static GC the_gc;
@@ -136,13 +143,15 @@ static int sm_no_boxes[] = {1,8,32,64,128,300};
 static int current_dga_cmap;						// Number (0 or 1) of currently installed DGA colormap
 static Window suspend_win;							// "Suspend" window
 static void *fb_save = NULL;						// Saved frame buffer for suspend
+#ifdef HAVE_PTHREADS
 static pthread_mutex_t frame_buffer_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer
+#endif
 
 // Variables for fbdev DGA mode
 const char FBDEVICE_FILE_NAME[] = "/dev/fb";
 static int fbdev_fd;
 
-#if ENABLE_XF86_VIDMODE
+#ifdef ENABLE_XF86_VIDMODE
 // Variables for XF86 VidMode support
 static XF86VidModeModeInfo **x_video_modes;			// Array of all available modes
 static int num_x_video_modes;
@@ -168,37 +177,52 @@ extern void SysMountFirstFloppy(void);
 // Set VideoMonitor according to video mode
 void set_video_monitor(int width, int height, int bytes_per_row, bool native_byte_order)
 {
+#if !REAL_ADDRESSING
 	int layout = FLAYOUT_DIRECT;
 	switch (depth) {
 		case 1:
 			layout = FLAYOUT_DIRECT;
-			VideoMonitor.mode = VMODE_1BIT;
 			break;
 		case 8:
 			layout = FLAYOUT_DIRECT;
-			VideoMonitor.mode = VMODE_8BIT;
 			break;
 		case 15:
 			layout = FLAYOUT_HOST_555;
-			VideoMonitor.mode = VMODE_16BIT;
 			break;
 		case 16:
 			layout = FLAYOUT_HOST_565;
-			VideoMonitor.mode = VMODE_16BIT;
 			break;
 		case 24:
 		case 32:
 			layout = FLAYOUT_HOST_888;
+			break;
+	}
+	if (native_byte_order)
+		MacFrameLayout = layout;
+	else
+		MacFrameLayout = FLAYOUT_DIRECT;
+#endif
+	switch (depth) {
+		case 1:
+			VideoMonitor.mode = VMODE_1BIT;
+			break;
+		case 8:
+			VideoMonitor.mode = VMODE_8BIT;
+			break;
+		case 15:
+			VideoMonitor.mode = VMODE_16BIT;
+			break;
+		case 16:
+			VideoMonitor.mode = VMODE_16BIT;
+			break;
+		case 24:
+		case 32:
 			VideoMonitor.mode = VMODE_32BIT;
 			break;
 	}
 	VideoMonitor.x = width;
 	VideoMonitor.y = height;
 	VideoMonitor.bytes_per_row = bytes_per_row;
-	if (native_byte_order)
-		MacFrameLayout = layout;
-	else
-		MacFrameLayout = FLAYOUT_DIRECT;
 }
 
 // Trap SHM errors
@@ -340,7 +364,6 @@ static bool init_window(int width, int height)
 	
 #if REAL_ADDRESSING
 	VideoMonitor.mac_frame_base = (uint32)the_buffer;
-	MacFrameLayout = FLAYOUT_DIRECT;
 #else
 	VideoMonitor.mac_frame_base = MacFrameBaseMac;
 #endif
@@ -350,7 +373,7 @@ static bool init_window(int width, int height)
 // Init fbdev DGA display
 static bool init_fbdev_dga(char *in_fb_name)
 {
-#if ENABLE_FBDEV_DGA
+#ifdef ENABLE_FBDEV_DGA
 	// Find the maximum depth available
 	int ndepths, max_depth(0);
 	int *depths = XListDepths(x_display, screen, &ndepths);
@@ -476,7 +499,6 @@ static bool init_fbdev_dga(char *in_fb_name)
 	set_video_monitor(width, height, bytes_per_row, true);
 #if REAL_ADDRESSING
 	VideoMonitor.mac_frame_base = (uint32)the_buffer;
-	MacFrameLayout = FLAYOUT_DIRECT;
 #else
 	VideoMonitor.mac_frame_base = MacFrameBaseMac;
 #endif
@@ -490,11 +512,11 @@ static bool init_fbdev_dga(char *in_fb_name)
 // Init XF86 DGA display
 static bool init_xf86_dga(int width, int height)
 {
-#if ENABLE_XF86_DGA
+#ifdef ENABLE_XF86_DGA
 	// Set relative mouse mode
 	ADBSetRelMouseMode(true);
 
-#if ENABLE_XF86_VIDMODE
+#ifdef ENABLE_XF86_VIDMODE
 	// Switch to best mode
 	if (has_vidmode) {
 		int best = 0;
@@ -652,7 +674,7 @@ bool VideoInit(bool classic)
 	// Get screen depth
 	xdepth = DefaultDepth(x_display, screen);
 	
-#if ENABLE_FBDEV_DGA
+#ifdef ENABLE_FBDEV_DGA
 	// Frame buffer name
 	char fb_name[20];
 	
@@ -663,7 +685,7 @@ bool VideoInit(bool classic)
 		has_dga = false;
 #endif
 
-#if ENABLE_XF86_DGA
+#ifdef ENABLE_XF86_DGA
 	// DGA available?
 	int dga_event_base, dga_error_base;
 	if (XF86DGAQueryExtension(x_display, &dga_event_base, &dga_error_base)) {
@@ -674,7 +696,7 @@ bool VideoInit(bool classic)
 		has_dga = false;
 #endif
 
-#if ENABLE_XF86_VIDMODE
+#ifdef ENABLE_XF86_VIDMODE
 	// VidMode available?
 	int vm_event_base, vm_error_base;
 	has_vidmode = XF86VidModeQueryExtension(x_display, &vm_event_base, &vm_error_base);
@@ -747,7 +769,7 @@ bool VideoInit(bool classic)
 	if (mode_str) {
 		if (sscanf(mode_str, "win/%d/%d", &width, &height) == 2)
 			display_type = DISPLAY_WINDOW;
-#if ENABLE_FBDEV_DGA
+#ifdef ENABLE_FBDEV_DGA
 		else if (has_dga && sscanf(mode_str, "dga/%19s", fb_name) == 1) {
 #else
 		else if (has_dga && sscanf(mode_str, "dga/%d/%d", &width, &height) == 2) {
@@ -771,7 +793,7 @@ bool VideoInit(bool classic)
 				return false;
 			break;
 		case DISPLAY_DGA:
-#if ENABLE_FBDEV_DGA
+#ifdef ENABLE_FBDEV_DGA
 			if (!init_fbdev_dga(fb_name))
 #else
 			if (!init_xf86_dga(width, height))
@@ -780,8 +802,10 @@ bool VideoInit(bool classic)
 			break;
 	}
 
+#ifdef HAVE_PTHREADS
 	// Lock down frame buffer
 	pthread_mutex_lock(&frame_buffer_lock);
+#endif
 
 #if !REAL_ADDRESSING
 	// Set variables for UAE memory mapping
@@ -793,12 +817,17 @@ bool VideoInit(bool classic)
 		MacFrameLayout = FLAYOUT_NONE;
 #endif
 
-	// Start redraw/input thread
 	XSync(x_display, false);
+
+#ifdef HAVE_PTHREADS
+	// Start redraw/input thread
 	redraw_thread_active = (pthread_create(&redraw_thread, NULL, redraw_func, NULL) == 0);
-	if (!redraw_thread_active)
+	if (!redraw_thread_active) {
 		printf("FATAL: cannot create redraw thread\n");
-	return redraw_thread_active;
+		return false;
+	}
+#endif
+	return true;
 }
 
 
@@ -808,6 +837,7 @@ bool VideoInit(bool classic)
 
 void VideoExit(void)
 {
+#ifdef HAVE_PTHREADS
 	// Stop redraw thread
 	if (redraw_thread_active) {
 		redraw_thread_cancel = true;
@@ -817,15 +847,18 @@ void VideoExit(void)
 		pthread_join(redraw_thread, NULL);
 		redraw_thread_active = false;
 	}
+#endif
 
+#ifdef HAVE_PTHREADS
 	// Unlock frame buffer
 	pthread_mutex_unlock(&frame_buffer_lock);
+#endif
 
 	// Close window and server connection
 	if (x_display != NULL) {
 		XSync(x_display, false);
 
-#if ENABLE_XF86_DGA
+#ifdef ENABLE_XF86_DGA
 		if (display_type == DISPLAY_DGA) {
 			XF86DGADirectVideo(x_display, screen, 0);
 			XUngrabPointer(x_display, CurrentTime);
@@ -833,12 +866,12 @@ void VideoExit(void)
 		}
 #endif
 
-#if ENABLE_XF86_VIDMODE
+#ifdef ENABLE_XF86_VIDMODE
 		if (has_vidmode && display_type == DISPLAY_DGA)
 			XF86VidModeSwitchToMode(x_display, screen, x_video_modes[0]);
 #endif
 
-#if ENABLE_FBDEV_DGA
+#ifdef ENABLE_FBDEV_DGA
 		if (display_type == DISPLAY_DGA) {
 			XUngrabPointer(x_display, CurrentTime);
 			XUngrabKeyboard(x_display, CurrentTime);
@@ -888,10 +921,12 @@ void VideoInterrupt(void)
 	if (emerg_quit)
 		QuitEmulator();
 
+#ifdef HAVE_PTHREADS
 	// Temporarily give up frame buffer lock (this is the point where
 	// we are suspended when the user presses Ctrl-Tab)
 	pthread_mutex_unlock(&frame_buffer_lock);
 	pthread_mutex_lock(&frame_buffer_lock);
+#endif
 }
 
 
@@ -901,7 +936,9 @@ void VideoInterrupt(void)
 
 void video_set_palette(uint8 *pal)
 {
+#ifdef HAVE_PTHREDS
 	pthread_mutex_lock(&palette_lock);
+#endif
 
 	// Convert colors to XColor array
 	for (int i=0; i<256; i++) {
@@ -915,7 +952,9 @@ void video_set_palette(uint8 *pal)
 	// Tell redraw thread to change palette
 	palette_changed = true;
 
+#ifdef HAVE_PTHREADS
 	pthread_mutex_unlock(&palette_lock);
+#endif
 }
 
 
@@ -923,7 +962,7 @@ void video_set_palette(uint8 *pal)
  *  Suspend/resume emulator
  */
 
-#if ENABLE_XF86_DGA || ENABLE_FBDEV_DGA
+#if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
 static void suspend_emul(void)
 {
 	if (display_type == DISPLAY_DGA) {
@@ -931,8 +970,10 @@ static void suspend_emul(void)
 		ADBKeyUp(0x36);
 		ctrl_down = false;
 
+#ifdef HAVE_PTHREADS
 		// Lock frame buffer (this will stop the MacOS thread)
 		pthread_mutex_lock(&frame_buffer_lock);
+#endif
 
 		// Save frame buffer
 		fb_save = malloc(VideoMonitor.y * VideoMonitor.bytes_per_row);
@@ -940,7 +981,7 @@ static void suspend_emul(void)
 			memcpy(fb_save, the_buffer, VideoMonitor.y * VideoMonitor.bytes_per_row);
 
 		// Close full screen display
-#if ENABLE_XF86_DGA
+#ifdef ENABLE_XF86_DGA
 		XF86DGADirectVideo(x_display, screen, 0);
 #endif
 		XUngrabPointer(x_display, CurrentTime);
@@ -981,7 +1022,7 @@ static void resume_emul(void)
 	XSync(x_display, false);
 	XGrabKeyboard(x_display, rootwin, 1, GrabModeAsync, GrabModeAsync, CurrentTime);
 	XGrabPointer(x_display, rootwin, 1, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
-#if ENABLE_XF86_DGA
+#ifdef ENABLE_XF86_DGA
 	XF86DGADirectVideo(x_display, screen, XF86DGADirectGraphics | XF86DGADirectKeyb | XF86DGADirectMouse);
 	XF86DGASetViewPort(x_display, screen, 0, 0);
 #endif
@@ -994,14 +1035,16 @@ static void resume_emul(void)
 		fb_save = NULL;
 	}
 	
+#ifdef ENABLE_XF86_DGA
 	if (depth == 8)
-#if ENABLE_XF86_DGA
 		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
 #endif
 
+#ifdef HAVE_PTHREADS
 	// Unlock frame buffer (and continue MacOS thread)
 	pthread_mutex_unlock(&frame_buffer_lock);
 	emul_suspended = false;
+#endif
 }
 #endif
 
@@ -1063,7 +1106,7 @@ static int kc_decode(KeySym ks)
 		case XK_period: case XK_greater: return 0x2f;
 		case XK_slash: case XK_question: return 0x2c;
 
-#if ENABLE_XF86_DGA || ENABLE_FBDEV_DGA
+#if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
 		case XK_Tab: if (ctrl_down) {suspend_emul(); return -1;} else return 0x30;
 #else
 		case XK_Tab: return 0x30;
@@ -1242,7 +1285,7 @@ static void handle_events(void)
 						if (code == 0x36)
 							ctrl_down = true;
 					} else {
-#if ENABLE_XF86_DGA || ENABLE_FBDEV_DGA
+#if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
 						if (code == 0x31)
 							resume_emul();	// Space wakes us up
 #endif
@@ -1378,72 +1421,69 @@ static void update_display(int ticker)
  *  Thread for screen refresh, input handling etc.
  */
 
+void VideoRefresh(void)
+{
+#if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
+	// Quit DGA mode if requested
+	if (quit_full_screen) {
+		quit_full_screen = false;
+		if (display_type == DISPLAY_DGA) {
+#ifdef ENABLE_XF86_DGA
+			XF86DGADirectVideo(x_display, screen, 0);
+#endif
+			XUngrabPointer(x_display, CurrentTime);
+			XUngrabKeyboard(x_display, CurrentTime);
+			XUnmapWindow(x_display, the_win);
+			XSync(x_display, false);
+		}
+	}
+#endif
+
+	// Handle X events
+	handle_events();
+
+	// Handle palette changes
+#ifdef HAVE_PTHREADS
+	pthread_mutex_lock(&palette_lock);
+#endif
+	if (palette_changed) {
+		palette_changed = false;
+		if (depth == 8) {
+			XStoreColors(x_display, cmap[0], palette, 256);
+			XStoreColors(x_display, cmap[1], palette, 256);
+				
+#ifdef ENABLE_XF86_DGA
+			if (display_type == DISPLAY_DGA) {
+				current_dga_cmap ^= 1;
+				XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
+			}
+#endif
+		}
+	}
+#ifdef HAVE_PTHREADS
+	pthread_mutex_unlock(&palette_lock);
+#endif
+
+	// In window mode, update display
+	static int tick_counter = 0;
+	if (display_type == DISPLAY_WINDOW) {
+		tick_counter++;
+		update_display(tick_counter);
+	}
+}
+
+#ifdef HAVE_PTHREADS
 static void *redraw_func(void *arg)
 {
-	int tick_counter = 0;
-
 	while (!redraw_thread_cancel) {
-
-		// Wait
 #ifdef HAVE_NANOSLEEP
 		struct timespec req = {0, 16666667};
 		nanosleep(&req, NULL);
 #else
 		usleep(16667);
 #endif
-
-#if ENABLE_XF86_DGA
-		// Quit DGA mode if requested
-		if (quit_full_screen) {
-			quit_full_screen = false;
-			if (display_type == DISPLAY_DGA) {
-				XF86DGADirectVideo(x_display, screen, 0);
-				XUngrabPointer(x_display, CurrentTime);
-				XUngrabKeyboard(x_display, CurrentTime);
-				XUnmapWindow(x_display, the_win);
-				XSync(x_display, false);
-			}
-		}
-#endif
-
-#if ENABLE_FBDEV_DGA
-		// Quit DGA mode if requested
-		if (quit_full_screen) {
-			quit_full_screen = false;
-			if (display_type == DISPLAY_DGA) {
-				XUngrabPointer(x_display, CurrentTime);
-				XUngrabKeyboard(x_display, CurrentTime);
-				XUnmapWindow(x_display, the_win);
-				XSync(x_display, false);
-			}
-		}
-#endif
-		// Handle X events
-		handle_events();
-
-		// Handle palette changes
-		pthread_mutex_lock(&palette_lock);
-		if (palette_changed) {
-			palette_changed = false;
-			if (depth == 8) {
-				XStoreColors(x_display, cmap[0], palette, 256);
-				XStoreColors(x_display, cmap[1], palette, 256);
-				
-#if ENABLE_XF86_DGA
-				if (display_type == DISPLAY_DGA) {
-					current_dga_cmap ^= 1;
-					XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
-				}
-#endif
-			}
-		}
-		pthread_mutex_unlock(&palette_lock);
-
-		// In window mode, update display
-		if (display_type == DISPLAY_WINDOW) {
-			tick_counter++;
-			update_display(tick_counter);
-		}
+		VideoRefresh();
 	}
 	return NULL;
 }
+#endif

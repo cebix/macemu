@@ -525,7 +525,7 @@ static GtkWidget *l_frameskip, *l_display_x, *l_display_y;
 static int display_type;
 static int dis_width, dis_height;
 
-#if ENABLE_FBDEV_DGA
+#ifdef ENABLE_FBDEV_DGA
 static GtkWidget *w_fbdev_name, *w_fbdevice_file;
 static GtkWidget *l_fbdev_name, *l_fbdevice_file;
 static char fbdev_name[256];
@@ -537,7 +537,7 @@ static void hide_show_graphics_widgets(void)
 	switch (display_type) {
 		case DISPLAY_WINDOW:
 			gtk_widget_show(w_frameskip); gtk_widget_show(l_frameskip);
-#if ENABLE_FBDEV_DGA
+#ifdef ENABLE_FBDEV_DGA
 			gtk_widget_show(w_display_x); gtk_widget_show(l_display_x);
 			gtk_widget_show(w_display_y); gtk_widget_show(l_display_y);
 			gtk_widget_hide(w_fbdev_name); gtk_widget_hide(l_fbdev_name);
@@ -545,7 +545,7 @@ static void hide_show_graphics_widgets(void)
 			break;
 		case DISPLAY_SCREEN:
 			gtk_widget_hide(w_frameskip); gtk_widget_hide(l_frameskip);
-#if ENABLE_FBDEV_DGA
+#ifdef ENABLE_FBDEV_DGA
 			gtk_widget_hide(w_display_x); gtk_widget_hide(l_display_x);
 			gtk_widget_hide(w_display_y); gtk_widget_hide(l_display_y);
 			gtk_widget_show(w_fbdev_name); gtk_widget_show(l_fbdev_name);
@@ -588,7 +588,7 @@ static void parse_graphics_prefs(void)
 	display_type = DISPLAY_WINDOW;
 	dis_width = 512;
 	dis_height = 384;
-#if ENABLE_FBDEV_DGA
+#ifdef ENABLE_FBDEV_DGA
 	fbdev_name[0] = 0;
 #endif
 
@@ -596,7 +596,7 @@ static void parse_graphics_prefs(void)
 	if (str) {
 		if (sscanf(str, "win/%d/%d", &dis_width, &dis_height) == 2)
 			display_type = DISPLAY_WINDOW;
-#if ENABLE_FBDEV_DGA
+#ifdef ENABLE_FBDEV_DGA
 		else if (sscanf(str, "dga/%255s", fbdev_name) == 1)
 #else
 		else if (sscanf(str, "dga/%d/%d", &dis_width, &dis_height) == 2)
@@ -622,7 +622,7 @@ static void read_graphics_settings(void)
 			sprintf(pref, "win/%d/%d", dis_width, dis_height);
 			break;
 		case DISPLAY_SCREEN:
-#if ENABLE_FBDEV_DGA
+#ifdef ENABLE_FBDEV_DGA
 			str = gtk_entry_get_text(GTK_ENTRY(w_fbdev_name));
 			sprintf(pref, "dga/%s", str);
 #else
@@ -746,7 +746,7 @@ static void create_graphics_pane(GtkWidget *top)
 	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 3, 4, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 	w_display_y = GTK_COMBO(combo)->entry;
 
-#if ENABLE_FBDEV_DGA
+#ifdef ENABLE_FBDEV_DGA
 	l_fbdev_name = gtk_label_new(GetString(STR_FBDEV_NAME_CTRL));
 	gtk_widget_show(l_fbdev_name);
 	gtk_table_attach(GTK_TABLE(table), l_fbdev_name, 0, 1, 4, 5, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
@@ -1021,6 +1021,7 @@ static void create_memory_pane(GtkWidget *top)
 	}
 	make_option_menu(box, STR_MODELID_CTRL, model_options, active);
 
+#if EMULATED_68K
 	static const opt_desc cpu_options[] = {
 		{STR_CPU_68020_LAB, GTK_SIGNAL_FUNC(mn_cpu_68020)},
 		{STR_CPU_68020_FPU_LAB, GTK_SIGNAL_FUNC(mn_cpu_68020_fpu)},
@@ -1038,6 +1039,7 @@ static void create_memory_pane(GtkWidget *top)
 		case 4: active = 4;
 	}
 	make_option_menu(box, STR_CPU_CTRL, cpu_options, active);
+#endif
 
 	w_rom_file = make_entry(box, STR_ROM_FILE_CTRL, "rom");
 
