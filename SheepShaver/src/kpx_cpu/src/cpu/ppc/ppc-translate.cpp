@@ -23,6 +23,10 @@
 #include "cpu/ppc/ppc-instructions.hpp"
 #include "cpu/ppc/ppc-operands.hpp"
 
+#ifdef SHEEPSHAVER
+#include "xlowmem.h"
+#endif
+
 #include <stdio.h>
 
 #define DEBUG 1
@@ -406,16 +410,23 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			goto do_branch;
 		{
 		  do_branch:
-			// FIXME: something is wrong with the conditions!
-			if (BO_CONDITIONAL_BRANCH(BO_field::extract(opcode)))
-				goto do_generic;
+			const int bo = BO_field::extract(opcode);
+			const int bi = BI_field::extract(opcode);
+
+#ifdef SHEEPSHAVER
+			if (BO_CONDITIONAL_BRANCH(bo)) {
+				// FIXME: use the slow way if we expect to clobber CR
+				// in m68k emulator. In that case, we should merge CR
+				// flags, not commit cached one to memory.
+				if (vm_read_memory_4(XLM_RUN_MODE) == MODE_68K)
+					goto do_generic;
+			}
+#endif
 
 			const uint32 npc = dpc + 4;
 			if (LK_field::test(opcode))
 				dg.gen_store_im_LR(npc);
 
-			const int bo = BO_field::extract(opcode);
-			const int bi = BI_field::extract(opcode);
 			dg.gen_bc_A0(bo, bi, npc);
 			break;
 		}
