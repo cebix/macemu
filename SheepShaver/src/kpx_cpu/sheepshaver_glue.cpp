@@ -796,9 +796,9 @@ sigsegv_return_t sigsegv_handler(sigsegv_address_t fault_address, sigsegv_addres
 #error "FIXME: You don't have the capability to skip instruction within signal handlers"
 #endif
 
-	printf("SIGSEGV\n");
-	printf("  pc %p\n", fault_instruction);
-	printf("  ea %p\n", fault_address);
+	fprintf(stderr, "SIGSEGV\n");
+	fprintf(stderr, "  pc %p\n", fault_instruction);
+	fprintf(stderr, "  ea %p\n", fault_address);
 	dump_registers();
 	ppc_cpu->dump_log();
 	enter_mon();
