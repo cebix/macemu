@@ -90,6 +90,9 @@ DEFINE_OP(mov_32_T1_A0, T1 = A0);
 DEFINE_OP(mov_32_A0_im, A0 = PARAM1);
 DEFINE_OP(mov_32_A0_T0, A0 = T0);
 DEFINE_OP(mov_32_A0_T1, A0 = T1);
+DEFINE_OP(mov_32_T0_0,  T0 = 0);
+DEFINE_OP(mov_32_T1_0,  T1 = 0);
+DEFINE_OP(mov_32_A0_0,  A0 = 0);
 
 void OPPROTO op_mov_ad_A0_im(void)
 {

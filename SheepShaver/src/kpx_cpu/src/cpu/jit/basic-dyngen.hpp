@@ -96,13 +96,13 @@ public:
 #define DEFINE_ALIAS(NAME, N)	DEFINE_ALIAS_##N(NAME)
 
 	// Register moves
-	DEFINE_ALIAS(mov_32_T0_im,1);
+	void gen_mov_32_T0_im(int32 value);
 	DEFINE_ALIAS(mov_32_T0_T1,0);
 	DEFINE_ALIAS(mov_32_T0_A0,0);
-	DEFINE_ALIAS(mov_32_T1_im,1);
+	void gen_mov_32_T1_im(int32 value);
 	DEFINE_ALIAS(mov_32_T1_T0,0);
 	DEFINE_ALIAS(mov_32_T1_A0,0);
-	DEFINE_ALIAS(mov_32_A0_im,1);
+	void gen_mov_32_A0_im(int32 value);
 	DEFINE_ALIAS(mov_32_A0_T0,0);
 	DEFINE_ALIAS(mov_32_A0_T1,0);
 	DEFINE_ALIAS(mov_ad_A0_im,1);
@@ -270,6 +270,22 @@ basic_dyngen::gen_end() const
 	flush_icache_range((unsigned long)gen_code_start, (unsigned long)code_ptr());
 	return !full_translation_cache();
 }
+
+#define DEFINE_OP(REG)								\
+inline void											\
+basic_dyngen::gen_mov_32_##REG##_im(int32 value)	\
+{													\
+	if (value == 0)									\
+		gen_op_mov_32_##REG##_0();					\
+	else											\
+		gen_op_mov_32_##REG##_im(value);			\
+}
+
+DEFINE_OP(T0);
+DEFINE_OP(T1);
+DEFINE_OP(A0);
+
+#undef DEFINE_OP
 
 #define DEFINE_OP(OP,REG)										\
 inline void														\
