@@ -525,18 +525,24 @@ static void read_jit_settings(void)
 #endif
 }
 
+// "Use built-in 68k DR emulator" button toggled
+static void tb_jit_68k(GtkWidget *widget)
+{
+	PrefsReplaceBool("jit68k", GTK_TOGGLE_BUTTON(widget)->active);
+}
+
 // Create "JIT Compiler" pane
 static void create_jit_pane(GtkWidget *top)
 {
-#if USE_JIT
 	GtkWidget *box, *table, *label, *menu;
 	char str[32];
 	
 	box = make_pane(top, STR_JIT_PANE_TITLE);
+#if USE_JIT
 	make_checkbox(box, STR_JIT_CTRL, "jit", GTK_SIGNAL_FUNC(tb_jit));
-	
 	set_jit_sensitive();
 #endif
+	make_checkbox(box, STR_JIT_68K_CTRL, "jit68k", GTK_SIGNAL_FUNC(tb_jit_68k));
 }
 
 

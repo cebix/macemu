@@ -134,6 +134,7 @@ enum {
 	// JIT Compiler pane
 	STR_JIT_PANE_TITLE = 3700,
 	STR_JIT_CTRL,
+	STR_JIT_68K_CTRL,
 
 	// Mac window
 	STR_WINDOW_TITLE = 4000,

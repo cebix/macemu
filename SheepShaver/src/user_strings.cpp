@@ -141,6 +141,7 @@ user_string_def common_strings[] = {
 
 	{STR_JIT_PANE_TITLE, "JIT Compiler"},
 	{STR_JIT_CTRL, "Enable JIT Compiler"},
+	{STR_JIT_68K_CTRL, "Enable built-in 68k DR Emulator"},
 
 	{STR_WINDOW_TITLE, "SheepShaver"},
 	{STR_WINDOW_TITLE_FROZEN, "SheepShaver *** FROZEN ***"},
