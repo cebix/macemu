@@ -290,7 +290,7 @@ static bool Screen_fault_handler_init()
 	// Setup SIGSEGV handler to process writes to frame buffer
 	sigemptyset(&vosf_sa.sa_mask);
 	vosf_sa.sa_sigaction = Screen_fault_handler;
-	vosf_sa.sa_flags = 0;
+	vosf_sa.sa_flags = SA_SIGINFO;
 	return (sigaction(SIGSEGV, &vosf_sa, NULL) == 0);
 }
 #elif defined(HAVE_SIGCONTEXT_SUBTERFUGE)

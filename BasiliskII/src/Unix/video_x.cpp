@@ -703,7 +703,7 @@ static bool init_xf86_dga(int width, int height)
 		the_buffer = (uint8 *)allocate_framebuffer(the_buffer_size);
 		memset(the_buffer, 0, the_buffer_size);
 	}
-#elif ENABLE_VOSF
+#elif defined(ENABLE_VOSF)
 	// The UAE memory handlers will already handle color conversion, if needed.
 	use_vosf = false;
 #endif

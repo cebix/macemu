@@ -318,6 +318,7 @@ AC_CACHE_CHECK("whether your system supports extended signal handlers",
   AC_LANG_CPLUSPLUS
   AC_TRY_RUN([
     #include <unistd.h>
+    #include <stdlib.h>
     #include <signal.h>
     #include <fcntl.h>
     #include <sys/mman.h>
@@ -332,7 +333,7 @@ AC_CACHE_CHECK("whether your system supports extended signal handlers",
     int main()
     { if ((zero_fd = open("/dev/zero", O_RDWR)) < 0) exit(1);
       if ((mem = (caddr_t)mmap(0, getpagesize(), PROT_READ, MAP_PRIVATE, zero_fd, 0)) == (caddr_t)MAP_FAILED) exit(1);
-      struct sigaction sa; sa.sa_sigaction = segfault_handler; sa.sa_flags = 0;
+      struct sigaction sa; sa.sa_sigaction = segfault_handler; sa.sa_flags = SA_SIGINFO;
       sigaction(SIGSEGV, &sa, 0);
       mem[0] = 0;
       exit(1); // should not be reached
@@ -372,7 +373,7 @@ if [[ "x$ac_cv_have_extended_signals" = "xno" ]]; then
             { if ((zero_fd = open("/dev/zero", O_RDWR)) < 0) exit(1);
               if ((mem = (caddr_t)mmap(0, getpagesize(), PROT_READ, MAP_PRIVATE, zero_fd, 0)) == (caddr_t)MAP_FAILED) exit(1);
               struct sigaction sa; sa.sa_flags = 0;
-			  sa.sa_handler = (RETSIGTYPE (*)(int))segfault_handler;
+              sa.sa_handler = (RETSIGTYPE (*)(int))segfault_handler;
               sigaction(SIGSEGV, &sa, 0);
               mem[0] = 0;
               exit(1); // should not be reached
@@ -383,7 +384,7 @@ if [[ "x$ac_cv_have_extended_signals" = "xno" ]]; then
           )
           AC_LANG_RESTORE
         ])
-		AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, $ac_cv_have_sigcontext_hack)
+        AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, $ac_cv_have_sigcontext_hack)
       fi
     ;;
   esac
