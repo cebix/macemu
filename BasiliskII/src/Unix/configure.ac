@@ -70,13 +70,11 @@ HAVE_M68K=no
 HAVE_SPARC=no
 HAVE_POWERPC=no
 case "$target_cpu" in
-  i386* | i486* | i586* | i686* | i786* ) CPU_TYPE=i386 HAVE_I386=yes;;
-  m68k* ) CPU_TYPE=m68k HAVE_M68K=yes;;
-  sparc* ) CPU_TYPE=sparc HAVE_SPARC=yes;;
-  powerpc* ) CPU_TYPE=powerpc HAVE_POWERPC=yes;;
-  *) CPU_TYPE=`echo $target_cpu | sed -e 's/-/_/g'`;;
+  i386* | i486* | i586* | i686* | i786* ) HAVE_I386=yes;;
+  m68k* ) HAVE_M68K=yes;;
+  sparc* ) HAVE_SPARC=yes;;
+  powerpc* ) HAVE_POWERPC=yes;;
 esac
-DEFINES="$DEFINES -DCPU_$CPU_TYPE"
 
 dnl Checks for programs.
 AC_PROG_CC
