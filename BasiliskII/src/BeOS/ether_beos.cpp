@@ -363,9 +363,6 @@ int16 ether_write(uint32 wds)
 		// Copy packet to buffer
 		int len = ether_wds_to_buffer(wds, p->data);
 
-		// Set source address
-		memcpy(p->data + 6, ether_addr, 6);
-
 #if MONITOR
 		bug("Sending Ethernet packet:\n");
 		for (int i=0; i<len; i++) {

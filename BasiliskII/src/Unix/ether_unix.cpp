@@ -280,10 +280,6 @@ int16 ether_detach_ph(uint16 type)
 
 int16 ether_write(uint32 wds)
 {
-	// Set source address
-	uint32 hdr = ReadMacInt32(wds + 2);
-	Host2Mac_memcpy(hdr + 6, ether_addr, 6);
-
 	// Copy packet to buffer
 	uint8 packet[1516], *p = packet;
 	int len = 0;

@@ -182,12 +182,18 @@ void EtherReset(void)
 
 
 /*
- *  Check whether Ethernet address is AppleTalk broadcast address
+ *  Check whether Ethernet address is AppleTalk or Ethernet broadcast address
  */
 
 static inline bool is_apple_talk_broadcast(uint8 *p)
 {
 	return p[0] == 0x09 && p[1] == 0x00 && p[2] == 0x07
+	    && p[3] == 0xff && p[4] == 0xff && p[5] == 0xff;
+}
+
+static inline bool is_ethernet_broadcast(uint8 *p)
+{
+	return p[0] == 0xff && p[1] == 0xff && p[2] == 0xff
 	    && p[3] == 0xff && p[4] == 0xff && p[5] == 0xff;
 }
 
@@ -290,9 +296,15 @@ int16 EtherControl(uint32 pb, uint32 dce)
 
 		case kENetWrite: {		// Transmit raw Ethernet packet
 			uint32 wds = ReadMacInt32(pb + ePointer);
-			D(bug(" EtherWrite\n"));
+			D(bug(" EtherWrite "));
 			if (ReadMacInt16(wds) < 14)
 				return eLenErr;	// Header incomplete
+
+			// Set source address
+			uint32 hdr = ReadMacInt32(wds + 2);
+			Host2Mac_memcpy(hdr + 6, ether_addr, 6);
+			D(bug("to %08x%04x, type %04x\n", ReadMacInt32(hdr), ReadMacInt16(hdr + 4), ReadMacInt16(hdr + 12)));
+
 			if (net_open) {
 #if SUPPORTS_UDP_TUNNEL
 				if (udp_tunnel) {
@@ -301,12 +313,11 @@ int16 EtherControl(uint32 pb, uint32 dce)
 					uint8 packet[1514];
 					int len = ether_wds_to_buffer(wds, packet);
 
-					// Set source address and extract destination address
-					memcpy(packet + 6, ether_addr, 6);
+					// Extract destination address
 					uint32 dest_ip;
 					if (packet[0] == 'B' && packet[1] == '2')
 						dest_ip = (packet[2] << 24) | (packet[3] << 16) | (packet[4] << 8) | packet[5];
-					else if (is_apple_talk_broadcast(packet))
+					else if (is_apple_talk_broadcast(packet) || is_ethernet_broadcast(packet))
 						dest_ip = INADDR_BROADCAST;
 					else
 						return eMultiErr;

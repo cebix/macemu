@@ -585,10 +585,9 @@ static __saveds void net_func(void)
 						}
 						write_io->ios2_DataLength = len;
 
-						// Get destination address, set source address
+						// Get destination address
 						uint32 hdr = ReadMacInt32(wds + 2);
 						Mac2Host_memcpy(write_io->ios2_DstAddr, hdr, 6);
-						Host2Mac_memcpy(hdr + 6, ether_addr, 6);
 
 						// Get packet type
 						uint32 type = ReadMacInt16(hdr + 12);
