@@ -333,7 +333,7 @@ uint32 audio_get_speaker_volume(void)
 {
 	if (mixer_fd >= 0) {
 		int vol;
-		if (ioctl(mixer_fd, SOUND_MIXER_READ_SPEAKER, &vol) == 0) {
+		if (ioctl(mixer_fd, SOUND_MIXER_READ_VOLUME, &vol) == 0) {
 			int left = vol >> 8;
 			int right = vol & 0xff;
 			return ((left * 256 / 100) << 16) | (right * 256 / 100);
@@ -366,6 +366,6 @@ void audio_set_speaker_volume(uint32 vol)
 		int left = vol >> 16;
 		int right = vol & 0xffff;
 		int p = ((left * 100 / 256) << 8) | (right * 100 / 256);
-		ioctl(mixer_fd, SOUND_MIXER_WRITE_SPEAKER, &p);
+		ioctl(mixer_fd, SOUND_MIXER_WRITE_VOLUME, &p);
 	}
 }

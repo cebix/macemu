@@ -67,7 +67,7 @@ struct ext2type {
 };
 
 static const ext2type e2t_translation[] = {
-	{".z", 'ZIVM', 'LZIV'},
+	{".Z", 'ZIVM', 'LZIV'},
 	{".gz", 'Gzip', 'Gzip'},
 	{".hqx", 'TEXT', 'SITx'},
 	{".pdf", 'PDF ', 'CARO'},
@@ -102,6 +102,7 @@ static const ext2type e2t_translation[] = {
 	{".txt", 'TEXT', 'ttxt'},
 	{".rtf", 'TEXT', 'MSWD'},
 	{".c", 'TEXT', 'R*ch'},
+	{".C", 'TEXT', 'R*ch'},
 	{".cc", 'TEXT', 'R*ch'},
 	{".cpp", 'TEXT', 'R*ch'},
 	{".cxx", 'TEXT', 'R*ch'},
@@ -110,6 +111,7 @@ static const ext2type e2t_translation[] = {
 	{".hpp", 'TEXT', 'R*ch'},
 	{".hxx", 'TEXT', 'R*ch'},
 	{".s", 'TEXT', 'R*ch'},
+	{".S", 'TEXT', 'R*ch'},
 	{".i", 'TEXT', 'R*ch'},
 	{".mpg", 'MPEG', 'TVOD'},
 	{".mpeg", 'MPEG', 'TVOD'},
