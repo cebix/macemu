@@ -31,6 +31,7 @@ enum {
 };
 extern int ROMType;
 
+extern bool DecodeROM(uint8 *data, uint32 size);
 extern bool PatchROM(void);
 extern void InstallDrivers(void);
 

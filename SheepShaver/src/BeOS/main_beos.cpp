@@ -736,49 +736,6 @@ void SheepShaver::init_rom(void)
  *  file_read_error: Cannot read ROM file
  */
 
-// Decode LZSS data
-static void decode_lzss(const uint8 *src, uint8 *dest, int size)
-{
-	char dict[0x1000];
-	int run_mask = 0, dict_idx = 0xfee;
-	for (;;) {
-		if (run_mask < 0x100) {
-			// Start new run
-			if (--size < 0)
-				break;
-			run_mask = *src++ | 0xff00;
-		}
-		bool bit = run_mask & 1;
-		run_mask >>= 1;
-		if (bit) {
-			// Verbatim copy
-			if (--size < 0)
-				break;
-			int c = *src++;
-			dict[dict_idx++] = c;
-			*dest++ = c;
-			dict_idx &= 0xfff;
-		} else {
-			// Copy from dictionary
-			if (--size < 0)
-				break;
-			int idx = *src++;
-			if (--size < 0)
-				break;
-			int cnt = *src++;
-			idx |= (cnt << 4) & 0xf00;
-			cnt = (cnt & 0x0f) + 3;
-			while (cnt--) {
-				char c = dict[idx++];
-				dict[dict_idx++] = c;
-				*dest++ = c;
-				idx &= 0xfff;
-				dict_idx &= 0xfff;
-			}
-		}
-	}
-}
-
 void SheepShaver::load_rom(void)
 {
 	// Get rom file path from preferences
@@ -807,39 +764,15 @@ void SheepShaver::load_rom(void)
 
 	uint8 *rom = new uint8[ROM_SIZE];	// Reading directly into the area doesn't work
 	ssize_t actual = file.Read((void *)rom, ROM_SIZE);
-	if (actual == ROM_SIZE) {
-		// Plain ROM image
-		memcpy((void *)ROM_BASE, rom, ROM_SIZE);
-		delete[] rom;
-	} else {
-		if (strncmp((char *)rom, "<CHRP-BOOT>", 11) == 0) {
-			// CHRP compressed ROM image
-			D(bug("CHRP ROM image\n"));
-			uint32 lzss_offset, lzss_size;
-
-			char *s = strstr((char *)rom, "constant lzss-offset"); 
-			if (s == NULL)
-				throw rom_size_error();
-			s -= 7;
-			if (sscanf(s, "%06lx", &lzss_offset) != 1)
-				throw rom_size_error();
-			s = strstr((char *)rom, "constant lzss-size"); 
-			if (s == NULL)
-				throw rom_size_error();
-			s -= 7;
-			if (sscanf(s, "%06lx", &lzss_size) != 1)
-				throw rom_size_error();
-			D(bug("Offset of compressed data: %08lx\n", lzss_offset));
-			D(bug("Size of compressed data: %08lx\n", lzss_size));
-
-			D(bug("Uncompressing ROM...\n"));
-			decode_lzss(rom + lzss_offset, (uint8 *)ROM_BASE, lzss_size);
-			delete[] rom;
-		} else if (rom_size != 4*1024*1024)
+	
+	// Decode Mac ROM
+	if (!DecodeROM(rom, actual)) {
+		if (rom_size != 4*1024*1024)
 			throw rom_size_error();
 		else
 			throw file_read_error();
 	}
+	delete[] rom;
 }
 
 

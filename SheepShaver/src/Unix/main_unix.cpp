@@ -263,50 +263,6 @@ extern void paranoia_check(void);
 #endif
 
 
-// Decode LZSS data
-static void decode_lzss(const uint8 *src, uint8 *dest, int size)
-{
-	char dict[0x1000];
-	int run_mask = 0, dict_idx = 0xfee;
-	for (;;) {
-		if (run_mask < 0x100) {
-			// Start new run
-			if (--size < 0)
-				break;
-			run_mask = *src++ | 0xff00;
-		}
-		bool bit = run_mask & 1;
-		run_mask >>= 1;
-		if (bit) {
-			// Verbatim copy
-			if (--size < 0)
-				break;
-			int c = *src++;
-			dict[dict_idx++] = c;
-			*dest++ = c;
-			dict_idx &= 0xfff;
-		} else {
-			// Copy from dictionary
-			if (--size < 0)
-				break;
-			int idx = *src++;
-			if (--size < 0)
-				break;
-			int cnt = *src++;
-			idx |= (cnt << 4) & 0xf00;
-			cnt = (cnt & 0x0f) + 3;
-			while (cnt--) {
-				char c = dict[idx++];
-				dict[dict_idx++] = c;
-				*dest++ = c;
-				idx &= 0xfff;
-				dict_idx &= 0xfff;
-			}
-		}
-	}
-}
-
-
 /*
  *  Main program
  */
@@ -540,43 +496,10 @@ int main(int argc, char **argv)
 	rom_tmp = new uint8[ROM_SIZE];
 	actual = read(rom_fd, (void *)rom_tmp, ROM_SIZE);
 	close(rom_fd);
-	if (actual == ROM_SIZE) {
-		// Plain ROM image
-		memcpy((void *)ROM_BASE, rom_tmp, ROM_SIZE);
-		delete[] rom_tmp;
-	} else {
-		if (strncmp((char *)rom_tmp, "<CHRP-BOOT>", 11) == 0) {
-			// CHRP compressed ROM image
-			D(bug("CHRP ROM image\n"));
-			uint32 lzss_offset, lzss_size;
-
-			char *s = strstr((char *)rom_tmp, "constant lzss-offset"); 
-			if (s == NULL) {
-				ErrorAlert(GetString(STR_ROM_SIZE_ERR));
-				goto quit;
-			}
-			s -= 7;
-			if (sscanf(s, "%06x", &lzss_offset) != 1) {
-				ErrorAlert(GetString(STR_ROM_SIZE_ERR));
-				goto quit;
-			}
-			s = strstr((char *)rom_tmp, "constant lzss-size"); 
-			if (s == NULL) {
-				ErrorAlert(GetString(STR_ROM_SIZE_ERR));
-				goto quit;
-			}
-			s -= 7;
-			if (sscanf(s, "%06x", &lzss_size) != 1) {
-				ErrorAlert(GetString(STR_ROM_SIZE_ERR));
-				goto quit;
-			}
-			D(bug("Offset of compressed data: %08x\n", lzss_offset));
-			D(bug("Size of compressed data: %08x\n", lzss_size));
-
-			D(bug("Uncompressing ROM...\n"));
-			decode_lzss(rom_tmp + lzss_offset, (uint8 *)ROM_BASE, lzss_size);
-			delete[] rom_tmp;
-		} else if (rom_size != 4*1024*1024) {
+	
+	// Decode Mac ROM
+	if (!DecodeROM(rom_tmp, actual)) {
+		if (rom_size != 4*1024*1024) {
 			ErrorAlert(GetString(STR_ROM_SIZE_ERR));
 			goto quit;
 		} else {
@@ -584,6 +507,7 @@ int main(int argc, char **argv)
 			goto quit;
 		}
 	}
+	delete[] rom_tmp;
 
 	// Load NVRAM
 	XPRAMInit();
