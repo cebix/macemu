@@ -20,6 +20,10 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifdef __i386__
+#error The sheep driver only runs on PowerPC machines.
+#endif
+
 #include <drivers/KernelExport.h>
 #include <drivers/Drivers.h>
 #include <stdio.h>
