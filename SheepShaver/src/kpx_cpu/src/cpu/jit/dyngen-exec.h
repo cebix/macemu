@@ -98,12 +98,25 @@ extern int __op_cpuparam;
 
 // Direct block chaining support
 #if defined(__powerpc__)
-#define DYNGEN_FAST_DISPATCH(TARGET) asm volatile ("b " #TARGET)
+#define DYNGEN_FAST_DISPATCH(TARGET) asm volatile ("b " ASM_NAME(TARGET))
 #endif
 #if defined(__i386__) || defined(__x86_64__)
-#define DYNGEN_FAST_DISPATCH(TARGET) asm volatile ("jmp " #TARGET)
+#define DYNGEN_FAST_DISPATCH(TARGET) asm volatile ("jmp " ASM_NAME(TARGET))
 #endif
 
 extern int __op_jmp0, __op_jmp1;
+
+// Sections handling
+#if defined(__CYGWIN__)
+#define ASM_DATA_SECTION ".section .data\n"
+#define ASM_PREVIOUS_SECTION ".section .text\n"
+#define ASM_NAME(NAME) "_" #NAME
+#define ASM_SIZE(NAME) ""
+#else
+#define ASM_DATA_SECTION ".section \".data\"\n"
+#define ASM_PREVIOUS_SECTION ".previous\n"
+#define ASM_NAME(NAME) #NAME
+#define ASM_SIZE(NAME) ".size " ASM_NAME(NAME) ",.-" ASM_NAME(NAME)
+#endif
 
 #endif /* DYNGEN_EXEC_H */
