@@ -69,9 +69,6 @@ enum {
 extern volatile uint32 InterruptFlags;						// Currently pending interrupts
 extern void SetInterruptFlag(uint32);
 extern void ClearInterruptFlag(uint32);
-#if EMULATED_PPC
-extern void HandleInterrupt(void);							// Handle SIGUSR1 interrupt in emulator thread
-#endif
 extern void TriggerInterrupt(void);							// Trigger SIGUSR1 interrupt in emulator thread
 extern void DisableInterrupt(void);							// Disable SIGUSR1 interrupt (can be nested)
 extern void EnableInterrupt(void);							// Enable SIGUSR1 interrupt (can be nested)

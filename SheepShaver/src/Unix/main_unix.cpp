@@ -319,7 +319,6 @@ static void *emul_func(void *arg);
 static void *nvram_func(void *arg);
 static void *tick_func(void *arg);
 #if EMULATED_PPC
-static void sigusr2_handler(int sig);
 extern void emul_ppc(uint32 start);
 extern void init_emul_ppc(void);
 extern void exit_emul_ppc(void);
@@ -1421,7 +1420,7 @@ void B2_delete_mutex(B2_mutex *mutex)
  *  Trigger signal USR2 from another thread
  */
 
-#if !EMULATED_PPC || ASYNC_IRQ
+#if !EMULATED_PPC
 void TriggerInterrupt(void)
 {
 	if (ready_for_signals)
@@ -1471,15 +1470,7 @@ void EnableInterrupt(void)
  *  USR2 handler
  */
 
-#if EMULATED_PPC
-static void sigusr2_handler(int sig)
-{
-#if ASYNC_IRQ
-	extern void HandleInterrupt(void);
-	HandleInterrupt();
-#endif
-}
-#else
+#if !EMULATED_PPC
 static void sigusr2_handler(int sig, siginfo_t *sip, void *scp)
 {
 	machine_regs *r = MACHINE_REGISTERS(scp);

@@ -72,8 +72,6 @@
 #define POWERPC_ROM 1
 
 #if EMULATED_PPC
-// Handle interrupts asynchronously?
-#define ASYNC_IRQ 0
 // Mac ROM is write protected when banked memory is used
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 # define ROM_IS_WRITE_PROTECTED 0
@@ -83,7 +81,7 @@
 #endif
 // Configure PowerPC emulator
 #define PPC_REENTRANT_JIT 1
-#define PPC_CHECK_INTERRUPTS (ASYNC_IRQ ? 0 : 1)
+#define PPC_CHECK_INTERRUPTS 1
 #define PPC_DECODE_CACHE 1
 #define PPC_FLIGHT_RECORDER 1
 #define PPC_PROFILE_COMPILE_TIME 0

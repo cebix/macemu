@@ -84,9 +84,6 @@ extern "C" void check_load_invoc(uint32 type, int16 id, uint32 h);
 // PowerPC EmulOp to exit from emulation looop
 const uint32 POWERPC_EXEC_RETURN = POWERPC_EMUL_OP | 1;
 
-// Enable multicore (main/interrupts) cpu emulation?
-#define MULTICORE_CPU (ASYNC_IRQ ? 1 : 0)
-
 // Enable interrupt routine safety checks?
 #define SAFE_INTERRUPT_PPC 1
 
@@ -603,13 +600,11 @@ void sheepshaver_cpu::interrupt(uint32 entry)
 	depth++;
 #endif
 
-#if !MULTICORE_CPU
 	// Save program counters and branch registers
 	uint32 saved_pc = pc();
 	uint32 saved_lr = lr();
 	uint32 saved_ctr= ctr();
 	uint32 saved_sp = gpr(1);
-#endif
 
 	// Initialize stack pointer to SheepShaver alternate stack base
 	gpr(1) = SignalStackBase() - 64;
@@ -649,13 +644,11 @@ void sheepshaver_cpu::interrupt(uint32 entry)
 	// Enter nanokernel
 	execute(entry);
 
-#if !MULTICORE_CPU
 	// Restore program counters and branch registers
 	pc() = saved_pc;
 	lr() = saved_lr;
 	ctr()= saved_ctr;
 	gpr(1) = saved_sp;
-#endif
 
 #if EMUL_TIME_STATS
 	interrupt_time += (clock() - interrupt_start);
@@ -857,43 +850,25 @@ inline void sheepshaver_cpu::get_resource(uint32 old_get_resource)
  *		SheepShaver CPU engine interface
  **/
 
-static sheepshaver_cpu *main_cpu = NULL;		// CPU emulator to handle usual control flow
-static sheepshaver_cpu *interrupt_cpu = NULL;	// CPU emulator to handle interrupts
-static sheepshaver_cpu *current_cpu = NULL;		// Current CPU emulator context
+// PowerPC CPU emulator
+static sheepshaver_cpu *ppc_cpu = NULL;
 
 void FlushCodeCache(uintptr start, uintptr end)
 {
 	D(bug("FlushCodeCache(%08x, %08x)\n", start, end));
-	main_cpu->invalidate_cache_range(start, end);
-#if MULTICORE_CPU
-	interrupt_cpu->invalidate_cache_range(start, end);
-#endif
-}
-
-static inline void cpu_push(sheepshaver_cpu *new_cpu)
-{
-#if MULTICORE_CPU
-	current_cpu = new_cpu;
-#endif
-}
-
-static inline void cpu_pop()
-{
-#if MULTICORE_CPU
-	current_cpu = main_cpu;
-#endif
+	ppc_cpu->invalidate_cache_range(start, end);
 }
 
 // Dump PPC registers
 static void dump_registers(void)
 {
-	current_cpu->dump_registers();
+	ppc_cpu->dump_registers();
 }
 
 // Dump log
 static void dump_log(void)
 {
-	current_cpu->dump_log();
+	ppc_cpu->dump_log();
 }
 
 /*
@@ -916,7 +891,7 @@ static sigsegv_return_t sigsegv_handler(sigsegv_address_t fault_address, sigsegv
 		return SIGSEGV_RETURN_SKIP_INSTRUCTION;
 
 	// Get program counter of target CPU
-	sheepshaver_cpu * const cpu = current_cpu;
+	sheepshaver_cpu * const cpu = ppc_cpu;
 	const uint32 pc = cpu->pc();
 	
 	// Fault in Mac ROM or RAM?
@@ -956,9 +931,8 @@ static sigsegv_return_t sigsegv_handler(sigsegv_address_t fault_address, sigsegv
 	printf("SIGSEGV\n");
 	printf("  pc %p\n", fault_instruction);
 	printf("  ea %p\n", fault_address);
-	printf(" cpu %s\n", current_cpu == main_cpu ? "main" : "interrupts");
 	dump_registers();
-	current_cpu->dump_log();
+	ppc_cpu->dump_log();
 	enter_mon();
 	QuitEmulator();
 
@@ -968,15 +942,10 @@ static sigsegv_return_t sigsegv_handler(sigsegv_address_t fault_address, sigsegv
 void init_emul_ppc(void)
 {
 	// Initialize main CPU emulator
-	main_cpu = new sheepshaver_cpu();
-	main_cpu->set_register(powerpc_registers::GPR(3), any_register((uint32)ROM_BASE + 0x30d000));
-	main_cpu->set_register(powerpc_registers::GPR(4), any_register(KernelDataAddr + 0x1000));
+	ppc_cpu = new sheepshaver_cpu();
+	ppc_cpu->set_register(powerpc_registers::GPR(3), any_register((uint32)ROM_BASE + 0x30d000));
+	ppc_cpu->set_register(powerpc_registers::GPR(4), any_register(KernelDataAddr + 0x1000));
 	WriteMacInt32(XLM_RUN_MODE, MODE_68K);
-
-#if MULTICORE_CPU
-	// Initialize alternate CPU emulator to handle interrupts
-	interrupt_cpu = new sheepshaver_cpu();
-#endif
 
 	// Install the handler for SIGSEGV
 	sigsegv_install_handler(sigsegv_handler);
@@ -1022,10 +991,7 @@ void exit_emul_ppc(void)
 	printf("\n");
 #endif
 
-	delete main_cpu;
-#if MULTICORE_CPU
-	delete interrupt_cpu;
-#endif
+	delete ppc_cpu;
 }
 
 #if PPC_ENABLE_JIT && PPC_REENTRANT_JIT
@@ -1060,35 +1026,27 @@ void init_emul_op_trampolines(basic_dyngen & dg)
 
 void emul_ppc(uint32 entry)
 {
-	current_cpu = main_cpu;
 #if 0
-	current_cpu->start_log();
+	ppc_cpu->start_log();
 #endif
 	// start emulation loop and enable code translation or caching
-	current_cpu->execute(entry);
+	ppc_cpu->execute(entry);
 }
 
 /*
  *  Handle PowerPC interrupt
  */
 
-#if ASYNC_IRQ
-void HandleInterrupt(void)
-{
-	main_cpu->handle_interrupt();
-}
-#else
 void TriggerInterrupt(void)
 {
 #if 0
   WriteMacInt32(0x16a, ReadMacInt32(0x16a) + 1);
 #else
   // Trigger interrupt to main cpu only
-  if (main_cpu)
-	  main_cpu->trigger_interrupt();
+  if (ppc_cpu)
+	  ppc_cpu->trigger_interrupt();
 #endif
 }
-#endif
 
 void sheepshaver_cpu::handle_interrupt(void)
 {
@@ -1111,7 +1069,6 @@ void sheepshaver_cpu::handle_interrupt(void)
 	switch (ReadMacInt32(XLM_RUN_MODE)) {
 	case MODE_68K:
 		// 68k emulator active, trigger 68k interrupt level 1
-		assert(current_cpu == main_cpu);
 		WriteMacInt16(tswap32(kernel_data->v[0x67c >> 2]), 1);
 		set_cr(get_cr() | tswap32(kernel_data->v[0x674 >> 2]));
 		break;
@@ -1119,7 +1076,6 @@ void sheepshaver_cpu::handle_interrupt(void)
 #if INTERRUPTS_IN_NATIVE_MODE
 	case MODE_NATIVE:
 		// 68k emulator inactive, in nanokernel?
-		assert(current_cpu == main_cpu);
 		if (gpr(1) != KernelDataAddr && interrupt_depth == 1) {
 			interrupt_context ctx(this, "PowerPC mode");
 
@@ -1131,12 +1087,10 @@ void sheepshaver_cpu::handle_interrupt(void)
       
 			// Execute nanokernel interrupt routine (this will activate the 68k emulator)
 			DisableInterrupt();
-			cpu_push(interrupt_cpu);
 			if (ROMType == ROMTYPE_NEWWORLD)
-				current_cpu->interrupt(ROM_BASE + 0x312b1c);
+				ppc_cpu->interrupt(ROM_BASE + 0x312b1c);
 			else
-				current_cpu->interrupt(ROM_BASE + 0x312a3c);
-			cpu_pop();
+				ppc_cpu->interrupt(ROM_BASE + 0x312a3c);
 		}
 		break;
 #endif
@@ -1321,7 +1275,7 @@ void sheepshaver_cpu::execute_native_op(uint32 selector)
 
 void Execute68k(uint32 pc, M68kRegisters *r)
 {
-	current_cpu->execute_68k(pc, r);
+	ppc_cpu->execute_68k(pc, r);
 }
 
 /*
@@ -1344,49 +1298,49 @@ void Execute68kTrap(uint16 trap, M68kRegisters *r)
 
 uint32 call_macos(uint32 tvect)
 {
-	return current_cpu->execute_macos_code(tvect, 0, NULL);
+	return ppc_cpu->execute_macos_code(tvect, 0, NULL);
 }
 
 uint32 call_macos1(uint32 tvect, uint32 arg1)
 {
 	const uint32 args[] = { arg1 };
-	return current_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
+	return ppc_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
 }
 
 uint32 call_macos2(uint32 tvect, uint32 arg1, uint32 arg2)
 {
 	const uint32 args[] = { arg1, arg2 };
-	return current_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
+	return ppc_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
 }
 
 uint32 call_macos3(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3)
 {
 	const uint32 args[] = { arg1, arg2, arg3 };
-	return current_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
+	return ppc_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
 }
 
 uint32 call_macos4(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, uint32 arg4)
 {
 	const uint32 args[] = { arg1, arg2, arg3, arg4 };
-	return current_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
+	return ppc_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
 }
 
 uint32 call_macos5(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, uint32 arg4, uint32 arg5)
 {
 	const uint32 args[] = { arg1, arg2, arg3, arg4, arg5 };
-	return current_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
+	return ppc_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
 }
 
 uint32 call_macos6(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, uint32 arg4, uint32 arg5, uint32 arg6)
 {
 	const uint32 args[] = { arg1, arg2, arg3, arg4, arg5, arg6 };
-	return current_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
+	return ppc_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
 }
 
 uint32 call_macos7(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, uint32 arg4, uint32 arg5, uint32 arg6, uint32 arg7)
 {
 	const uint32 args[] = { arg1, arg2, arg3, arg4, arg5, arg6, arg7 };
-	return current_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
+	return ppc_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
 }
 
 /*
@@ -1395,25 +1349,25 @@ uint32 call_macos7(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, uint32 a
 
 void get_resource(void)
 {
-	current_cpu->get_resource(ReadMacInt32(XLM_GET_RESOURCE));
+	ppc_cpu->get_resource(ReadMacInt32(XLM_GET_RESOURCE));
 }
 
 void get_1_resource(void)
 {
-	current_cpu->get_resource(ReadMacInt32(XLM_GET_1_RESOURCE));
+	ppc_cpu->get_resource(ReadMacInt32(XLM_GET_1_RESOURCE));
 }
 
 void get_ind_resource(void)
 {
-	current_cpu->get_resource(ReadMacInt32(XLM_GET_IND_RESOURCE));
+	ppc_cpu->get_resource(ReadMacInt32(XLM_GET_IND_RESOURCE));
 }
 
 void get_1_ind_resource(void)
 {
-	current_cpu->get_resource(ReadMacInt32(XLM_GET_1_IND_RESOURCE));
+	ppc_cpu->get_resource(ReadMacInt32(XLM_GET_1_IND_RESOURCE));
 }
 
 void r_get_resource(void)
 {
-	current_cpu->get_resource(ReadMacInt32(XLM_R_GET_RESOURCE));
+	ppc_cpu->get_resource(ReadMacInt32(XLM_R_GET_RESOURCE));
 }
