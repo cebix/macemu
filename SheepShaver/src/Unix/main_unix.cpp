@@ -533,6 +533,15 @@ int main(int argc, char **argv)
 		sprintf(str, GetString(STR_PROC_CPUINFO_WARN), strerror(errno));
 		WarningAlert(str);
 	}
+
+	// Get actual bus frequency
+	proc_file = fopen("/proc/device-tree/clock-frequency", "r");
+	if (proc_file) {
+		union { uint8 b[4]; uint32 l; } value;
+		if (fread(value.b, sizeof(value), 1, proc_file) == 1)
+			BusClockSpeed = value.l;
+		fclose(proc_file);
+	}
 #endif
 	D(bug("PVR: %08x (assumed)\n", PVR));
 
@@ -792,9 +801,9 @@ int main(int argc, char **argv)
 		kernel_data->v[0xc50 >> 2] = htonl(RAMBase);
 		kernel_data->v[0xc54 >> 2] = htonl(RAMSize);
 		kernel_data->v[0xf60 >> 2] = htonl(PVR);
-		kernel_data->v[0xf64 >> 2] = htonl(CPUClockSpeed);
-		kernel_data->v[0xf68 >> 2] = htonl(BusClockSpeed);
-		kernel_data->v[0xf6c >> 2] = htonl(CPUClockSpeed);
+		kernel_data->v[0xf64 >> 2] = htonl(CPUClockSpeed);			// clock-frequency
+		kernel_data->v[0xf68 >> 2] = htonl(BusClockSpeed);			// bus-frequency
+		kernel_data->v[0xf6c >> 2] = htonl(BusClockSpeed / 4);		// timebase-frequency
 	} else {
 		kernel_data->v[0xc80 >> 2] = htonl(RAMSize);
 		kernel_data->v[0xc84 >> 2] = htonl(RAMSize);
@@ -806,9 +815,9 @@ int main(int argc, char **argv)
 		kernel_data->v[0xcb0 >> 2] = htonl(RAMBase);
 		kernel_data->v[0xcb4 >> 2] = htonl(RAMSize);
 		kernel_data->v[0xf80 >> 2] = htonl(PVR);
-		kernel_data->v[0xf84 >> 2] = htonl(CPUClockSpeed);
-		kernel_data->v[0xf88 >> 2] = htonl(BusClockSpeed);
-		kernel_data->v[0xf8c >> 2] = htonl(CPUClockSpeed);
+		kernel_data->v[0xf84 >> 2] = htonl(CPUClockSpeed);			// clock-frequency
+		kernel_data->v[0xf88 >> 2] = htonl(BusClockSpeed);			// bus-frequency
+		kernel_data->v[0xf8c >> 2] = htonl(BusClockSpeed / 4);		// timebase-frequency
 	}
 
 	// Initialize extra low memory

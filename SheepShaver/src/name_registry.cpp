@@ -136,6 +136,10 @@ void DoPatchNameRegistry(void)
 		if (!RegistryCStrEntryCreate(device_tree.ptr(), str, power_pc.ptr())) {
 			u32.set_value(CPUClockSpeed);
 			RegistryPropertyCreate(power_pc.ptr(), "clock-frequency", u32.ptr(), 4);
+			u32.set_value(BusClockSpeed);
+			RegistryPropertyCreate(power_pc.ptr(), "bus-frequency", u32.ptr(), 4);
+			u32.set_value(BusClockSpeed / 4);
+			RegistryPropertyCreate(power_pc.ptr(), "timebase-frequency", u32.ptr(), 4);
 			u32.set_value(PVR);
 			RegistryPropertyCreate(power_pc.ptr(), "cpu-version", u32.ptr(), 4);
 			RegistryPropertyCreateStr(power_pc.ptr(), "device_type", "cpu");
