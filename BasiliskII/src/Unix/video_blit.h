@@ -32,18 +32,23 @@
 
 static void FB_FUNC_NAME(uint8 * dest, const uint8 * source, uint32 length)
 {
+	union {
+	uint8 *  bp;
+	uint16 * wp;
+	uint32 * lp;
+	} s, d;
+	
+	s.bp = (uint8 *)source;
+	d.bp = dest;
+	
 #if FB_DEPTH <= 8
 	// Align source and dest to 16-bit word boundaries
 	if (FB_DEPTH <= 8 && ((unsigned long) source) & 1) {
-		*dest++ = *source++;
+		*d.bp++ = *s.bp++;
 		length -= 1;
 	}
 #endif
 	
-	// source and dest are mutually aligned
-	uint16 * swp = ((uint16 *)source);
-	uint16 * dwp = ((uint16 *) dest );
-
 #if FB_DEPTH <= 8
 	if (length >= 2) {
 #endif
@@ -51,8 +56,8 @@ static void FB_FUNC_NAME(uint8 * dest, const uint8 * source, uint32 length)
 #if FB_DEPTH <= 16
 	// Align source and dest to 32-bit word boundaries
 	if (((unsigned long) source) & 2) {
-		const uint16 val = *swp++;
-		FB_BLIT_1(*dwp++, val);
+		const uint16 val = *s.wp++;
+		FB_BLIT_1(*d.wp++, val);
 		length -= 2;
 	}
 #endif
@@ -60,36 +65,42 @@ static void FB_FUNC_NAME(uint8 * dest, const uint8 * source, uint32 length)
 	// Blit 4-byte words
 	if (length >= 4) {
 		const int remainder = (length / 4) % 8;
-		uint32 * slp = (uint32 *)swp + remainder;
-		uint32 * dlp = (uint32 *)dwp + remainder;
+		s.lp += remainder;
+		d.lp += remainder;
 		
 		int n = ((length / 4) + 7) / 8;
 		switch (remainder) {
 		case 0:	do {
-				slp += 8; dlp += 8;
-				FB_BLIT_2(dlp[-8], slp[-8]);
-		case 7: FB_BLIT_2(dlp[-7], slp[-7]);
-		case 6: FB_BLIT_2(dlp[-6], slp[-6]);
-		case 5: FB_BLIT_2(dlp[-5], slp[-5]);
-		case 4: FB_BLIT_2(dlp[-4], slp[-4]);
-		case 3: FB_BLIT_2(dlp[-3], slp[-3]);
-		case 2: FB_BLIT_2(dlp[-2], slp[-2]);
-		case 1: FB_BLIT_2(dlp[-1], slp[-1]);
+				s.lp += 8; d.lp += 8;
+				FB_BLIT_2(d.lp[-8], s.lp[-8]);
+		case 7: FB_BLIT_2(d.lp[-7], s.lp[-7]);
+		case 6: FB_BLIT_2(d.lp[-6], s.lp[-6]);
+		case 5: FB_BLIT_2(d.lp[-5], s.lp[-5]);
+		case 4: FB_BLIT_2(d.lp[-4], s.lp[-4]);
+		case 3: FB_BLIT_2(d.lp[-3], s.lp[-3]);
+		case 2: FB_BLIT_2(d.lp[-2], s.lp[-2]);
+		case 1: FB_BLIT_2(d.lp[-1], s.lp[-1]);
 				} while (--n > 0);
 		}
 	}
 	
 #if FB_DEPTH <= 16
-	// There might remain one word to blit
+	// There might remain at least one word to blit
 	if (length & 2) {
-		uint16 * const s = (uint16 *)(((uint8 *)swp) + length - 2);
-		uint16 * const d = (uint16 *)(((uint8 *)dwp) + length - 2);
-		FB_BLIT_1(*d, *s);
+		FB_BLIT_1(*d.wp, *s.wp);
+#if FB_DEPTH <= 8
+		d.wp++;
+		s.wp++;
+#endif
 	}
 #endif
 	
 #if FB_DEPTH <= 8
 	}
+	
+	// There might remain one byte to blit
+	if (length & 1)
+		*d.bp = *s.bp;
 #endif
 }
 
