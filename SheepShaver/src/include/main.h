@@ -23,6 +23,7 @@
 
 // Global variables
 extern void *TOC;				// TOC pointer
+extern void *R13;				// r13 register
 extern uint32 KernelDataAddr;	// Address of Kernel Data
 extern uint32 BootGlobsAddr;	// Address of BootGlobs structure at top of Mac RAM
 extern uint32 PVR;				// Theoretical PVR

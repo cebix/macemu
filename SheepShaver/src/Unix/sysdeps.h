@@ -82,6 +82,7 @@
 // Otherwise, use Direct Addressing mode if NATMEM_OFFSET is set
 #if !defined(EMULATED_PPC)
 #define REAL_ADDRESSING 1
+#include "ppc_asm.tmpl"
 #elif defined(__CYGWIN__)
 #define DIRECT_ADDRESSING 1
 #define DIRECT_ADDRESSING_HACK 1

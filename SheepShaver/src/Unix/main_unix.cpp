@@ -27,12 +27,14 @@
  *  is slightly different from the SysV ABI used by Linux:
  *    - Stack frames are different (e.g. LR is stored in 8(r1) under
  *      MacOS, but in 4(r1) under Linux)
- *    - There is no TOC under Linux; r2 is free for the user
+ *    - There is a pointer to Thread Local Storage (TLS) under Linux with
+ *      recent enough glibc. This is r2 in 32-bit mode and r13 in
+ *      64-bit mode (PowerOpen/AIX ABI)
  *    - r13 is used as a small data pointer under Linux (but appearently
  *      it is not used this way? To be sure, we specify -msdata=none
  *      in the Makefile)
- *    - As there is no TOC, there are also no TVECTs under Linux;
- *      function pointers point directly to the function code
+ *    - There are no TVECTs under Linux; function pointers point
+ *      directly to the function code
  *  The Execute*() functions have to account for this. Additionally, we
  *  cannot simply call MacOS functions by getting their TVECT and jumping
  *  to it. Such calls are done via the call_macos*() functions in
@@ -284,7 +286,8 @@ static inline void sig_stack_release(void)
 
 // Global variables (exported)
 #if !EMULATED_PPC
-void *TOC;				// Small data pointer (r13)
+void *TOC;				// Pointer to Thread Local Storage (r2)
+void *R13;				// Pointer to .sdata section (r13 under Linux)
 #endif
 uint32 RAMBase;			// Base address of Mac RAM
 uint32 RAMSize;			// Size of Mac RAM
@@ -370,8 +373,11 @@ static void sigill_handler(int sig, siginfo_t *sip, void *scp);
 
 // From asm_linux.S
 #if !EMULATED_PPC
-extern "C" void *get_toc(void);
 extern "C" void *get_sp(void);
+extern "C" void *get_r2(void);
+extern "C" void set_r2(void *);
+extern "C" void *get_r13(void);
+extern "C" void set_r13(void *);
 extern "C" void flush_icache_range(uint32 start, uint32 end);
 extern "C" void jump_to_rom(uint32 entry, uint32 context);
 extern "C" void quit_emulator(void);
@@ -482,8 +488,14 @@ int main(int argc, char **argv)
 	printf(" %s\n", GetString(STR_ABOUT_TEXT2));
 
 #if !EMULATED_PPC
+#ifdef SYSTEM_CLOBBERS_R2
 	// Get TOC pointer
-	TOC = get_toc();
+	TOC = get_r2();
+#endif
+#ifdef SYSTEM_CLOBBERS_R13
+	// Get r13 register
+	R13 = get_r13();
+#endif
 #endif
 
 #ifdef ENABLE_GTK
@@ -1607,6 +1619,15 @@ static void sigusr2_handler(int sig, siginfo_t *sip, void *scp)
 	if (*(int32 *)XLM_IRQ_NEST > 0)
 		return;
 
+#ifdef SYSTEM_CLOBBERS_R2
+	// Restore pointer to Thread Local Storage
+	set_r2(TOC);
+#endif
+#ifdef SYSTEM_CLOBBERS_R13
+	// Restore pointer to .sdata section
+	set_r13(R13);
+#endif
+
 	// Disable MacOS stack sniffer
 	WriteMacInt32(0x110, 0);
 
@@ -1697,6 +1718,15 @@ static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 	// Get effective address
 	uint32 addr = r->dar();
 	
+#ifdef SYSTEM_CLOBBERS_R2
+	// Restore pointer to Thread Local Storage
+	set_r2(TOC);
+#endif
+#ifdef SYSTEM_CLOBBERS_R13
+	// Restore pointer to .sdata section
+	set_r13(R13);
+#endif
+
 #if ENABLE_VOSF
 	// Handle screen fault.
 	extern bool Screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction);
@@ -1945,6 +1975,15 @@ static void sigill_handler(int sig, siginfo_t *sip, void *scp)
 {
 	machine_regs *r = MACHINE_REGISTERS(scp);
 	char str[256];
+
+#ifdef SYSTEM_CLOBBERS_R2
+	// Restore pointer to Thread Local Storage
+	set_r2(TOC);
+#endif
+#ifdef SYSTEM_CLOBBERS_R13
+	// Restore pointer to .sdata section
+	set_r13(R13);
+#endif
 
 	// Fault in Mac ROM or RAM?
 	bool mac_fault = (r->pc() >= ROM_BASE) && (r->pc() < (ROM_BASE + ROM_AREA_SIZE)) || (r->pc() >= RAMBase) && (r->pc() < (RAMBase + RAMSize));

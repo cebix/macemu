@@ -42,7 +42,9 @@ const uint32 SIG_STACK_SIZE = 0x10000;		// Size of signal stack
 
 // Prototypes
 extern "C" void *get_sp(void);
-extern "C" void set_r2(uint32 val);
+extern "C" void *get_r2(void);
+extern "C" void set_r2(void *);
+extern "C" void *get_r13(void);
 extern void paranoia_check(void);
 static void sigusr2_handler(int sig, sigcontext_struct *sc);
 
@@ -56,6 +58,12 @@ static int sig_sc_signal = 0;
 static void *sig_sc_regs = NULL;
 static uint32 sig_r2 = 0;
 
+
+int raise(int sig)
+{
+	// Reimplement to get rid of access to r2 (TLS pointer)
+	return kill(getpid(), sig);
+}
 
 void paranoia_check(void)
 {
@@ -95,8 +103,14 @@ void paranoia_check(void)
 	}
 
 	// Raise SIGUSR2
-	set_r2(0xaffebad5);
+	TOC = get_r2();
+	R13 = get_r13();
+	set_r2((void *)0xaffebad5);
 	raise(SIGUSR2);
+	if (TOC != get_r2())
+		err = 6;
+	if (R13 != get_r13())
+		err = 7;
 
 	// Check error code
 	switch (err) {
@@ -115,6 +129,11 @@ void paranoia_check(void)
 		case 5:
 			printf("FATAL: sc->regs->gpr[2] in signal handler (%08lx) doesn't have expected value (%08x)\n", (uint32)sig_r2, 0xaffebad5);
 			break;
+		case 6:
+			printf("FATAL: signal handler failed to restore initial r2 value (%08x, was %08x)\n", (uint32)get_r2(), (uint32)TOC);
+			break;
+		case 7:
+			printf("FATAL: signal handler failed to restore initial r13 value (%08x, was %08x)\n", get_r13(), (uint32)R13);
 	}
 	if (err) {
 		printf("Maybe you need a different kernel?\n");
@@ -135,34 +154,40 @@ static void sigusr2_handler(int sig, sigcontext_struct *sc)
 	sig_sp = get_sp();
 	if (sig_sp < sig_stack || sig_sp >= ((uint8 *)sig_stack + SIG_STACK_SIZE)) {
 		err = 1;
-		return;
+		goto ret;
 	}
 
 	// Check whether r4 points to info on the stack
 	sig_r4 = sc;
 	if (sig_r4 < sig_stack || sig_r4 >= ((uint8 *)sig_stack + SIG_STACK_SIZE)) {
 		err = 2;
-		return;
+		goto ret;
 	}
 
 	// Check whether r4 looks like a sigcontext
 	sig_sc_signal = sc->signal;
 	if (sig_sc_signal != SIGUSR2) {
 		err = 3;
-		return;
+		goto ret;
 	}
 
 	// Check whether sc->regs points to info on the stack
 	sig_sc_regs = sc->regs;
 	if (sig_sc_regs < sig_stack || sig_sc_regs >= ((uint8 *)sig_stack + SIG_STACK_SIZE)) {
 		err = 4;
-		return;
+		goto ret;
 	}
 
 	// Check whether r2 still holds the value we set it to
 	sig_r2 = sc->regs->gpr[2];
 	if (sig_r2 != 0xaffebad5) {
 		err = 5;
-		return;
+		goto ret;
 	}
+
+	// Restore pointer to Thread Local Storage
+  ret:
+#ifdef SYSTEM_CLOBBERS_R2
+	sc->regs->gpr[2] = (unsigned long)TOC;
+#endif
 }

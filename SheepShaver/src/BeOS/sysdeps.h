@@ -36,6 +36,7 @@
 #ifdef __POWERPC__
 #define EMULATED_PPC 0
 #define WORDS_BIGENDIAN 1
+#define SYSTEM_CLOBBERS_R2 1
 #else
 #define EMULATED_PPC 1
 #undef  WORDS_BIGENDIAN

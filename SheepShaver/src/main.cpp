@@ -232,7 +232,12 @@ bool InitAll(void)
 	WriteMacInt16(XLM_EXEC_RETURN_OPCODE, M68K_EXEC_RETURN);		// For Execute68k() (RTS from the executed 68k code will jump here and end 68k mode)
 	WriteMacInt32(XLM_ZERO_PAGE, SheepMem::ZeroPage());				// Pointer to read-only page with all bits set to 0
 #if !EMULATED_PPC
-	WriteMacInt32(XLM_TOC, (uint32)TOC);								// TOC pointer of emulator
+#ifdef SYSTEM_CLOBBERS_R2
+	WriteMacInt32(XLM_TOC, (uint32)TOC);							// TOC pointer of emulator
+#endif
+#ifdef SYSTEM_CLOBBERS_R13
+	WriteMacInt32(XLM_R13, (uint32)R13);							// TLS register
+#endif
 #endif
 	WriteMacInt32(XLM_ETHER_INIT, NativeFunction(NATIVE_ETHER_INIT));	// DLPI ethernet driver functions
 	WriteMacInt32(XLM_ETHER_TERM, NativeFunction(NATIVE_ETHER_TERM));

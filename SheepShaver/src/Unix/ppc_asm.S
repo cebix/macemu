@@ -25,16 +25,6 @@
 
 
 /*
- *  void *get_toc(void) - Get TOC pointer (small data pointer r13 under Linux)
- */
-
-	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_toc)
-C_SYMBOL_NAME(get_toc):
-	mr	r3,r13
-	blr
-
-
-/*
  *  void *get_sp(void) - Get stack pointer
  */
 
@@ -45,12 +35,41 @@ C_SYMBOL_NAME(get_sp):
 
 
 /*
- *  void set_r2(uint32 val {r3}) - Set r2
+ *  void *get_r2(void) - Get r2
+ */
+
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_r2)
+C_SYMBOL_NAME(get_r2):
+	mr	r3,r2
+	blr
+
+
+/*
+ *  void set_r2(void *val {r3}) - Set r2
  */
 
 	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(set_r2)
 C_SYMBOL_NAME(set_r2):
 	mr	r2,r3
+	blr
+
+
+/*
+ *  void *get_r13(void) - Get r13 (small data pointer under Linux)
+ */
+
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_r13)
+C_SYMBOL_NAME(get_r13):
+	mr	r3,r13
+	blr
+
+/*
+ *  void set_r13(void *val {r3}) - Set r13 (small data pointer under Linux)
+ */
+
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(set_r13)
+C_SYMBOL_NAME(set_r13):
+	mr	r13,r3
 	blr
 
 
@@ -225,6 +244,7 @@ C_SYMBOL_NAME(jump_to_rom):
 
 	// Restore PowerPC registers
 	lwz	r1,XLM_EMUL_RETURN_STACK(0)
+	RESTORE_SYSTEM_R2
 	lmw	r13,20(r1)
 	lfd	f14,20+19*4+0*8(r1)
 	lfd	f15,20+19*4+1*8(r1)
@@ -361,6 +381,7 @@ C_SYMBOL_NAME(jump_to_rom):
 	stw	r0,16(r1)
 	stw	r2,12(r1)
 	stwu	r1,-(24+16*4+15*8)(r1)
+	RESTORE_SYSTEM_R2
 
 	// Save 68k registers (M68kRegisters)
 	stw	r8,24+0*4(r1)	// d[0]..d[7]
@@ -397,7 +418,8 @@ C_SYMBOL_NAME(jump_to_rom):
 	stfd	f0,24+16*4+14*8(r1)
 
 	// Execute native routine
-	lwz	r13,XLM_TOC(0)
+	RESTORE_SYSTEM_R2
+	RESTORE_SYSTEM_R13
 	addi	r3,r1,24
 	mr	r4,r24
 	bl	C_SYMBOL_NAME(EmulOp)
@@ -573,7 +595,8 @@ ASM_MACRO_START	prolog
 ASM_MACRO_END
 
 ASM_MACRO_START	epilog
-	lwz	r13,XLM_TOC(0)
+	RESTORE_SYSTEM_R2
+	RESTORE_SYSTEM_R13
 	lwz	r0,64+4(r1)
 	mtlr	r0
 	addi	r1,r1,64
@@ -701,6 +724,7 @@ C_SYMBOL_NAME(get_resource):
 	lwz	r2,XLM_RES_LIB_TOC(0)
 	mtctr	r0
 	bctrl
+	RESTORE_SYSTEM_R2
 	stw	r3,56+8(r1)		// Save handle
 
 	// Call CheckLoad
@@ -732,6 +756,7 @@ C_SYMBOL_NAME(get_1_resource):
 	lwz	r2,XLM_RES_LIB_TOC(0)
 	mtctr	r0
 	bctrl
+	RESTORE_SYSTEM_R2
 	stw	r3,56+8(r1)		// Save handle
 
 	// Call CheckLoad
@@ -763,6 +788,7 @@ C_SYMBOL_NAME(get_ind_resource):
 	lwz	r2,XLM_RES_LIB_TOC(0)
 	mtctr	r0
 	bctrl
+	RESTORE_SYSTEM_R2
 	stw	r3,56+8(r1)		// Save handle
 
 	// Call CheckLoad
@@ -794,6 +820,7 @@ C_SYMBOL_NAME(get_1_ind_resource):
 	lwz	r2,XLM_RES_LIB_TOC(0)
 	mtctr	r0
 	bctrl
+	RESTORE_SYSTEM_R2
 	stw	r3,56+8(r1)		// Save handle
 
 	// Call CheckLoad
@@ -825,6 +852,7 @@ C_SYMBOL_NAME(r_get_resource):
 	lwz	r2,XLM_RES_LIB_TOC(0)
 	mtctr	r0
 	bctrl
+	RESTORE_SYSTEM_R2
 	stw	r3,56+8(r1)		// Save handle
 
 	// Call CheckLoad
@@ -888,3 +916,57 @@ C_SYMBOL_NAME(ppc_interrupt):
 	// Enter nanokernel
 	mtlr	r3
 	blr
+
+
+/*
+ *  Glue for glibc with TLS support which clobbers r2
+ *
+ *  The following is derived from dietlibc and only provides
+ *  pass-through to kernel syscalls. You also lose asynchronous
+ *  cancellation support.
+ */
+
+#if defined(__linux__)
+#define __NR_getpid		20
+#define __NR__newselect		142
+
+#define syscall_weak(name,wsym,sym) \
+.text; \
+.type wsym,@function; \
+.weak wsym; \
+wsym: ; \
+.type sym,@function; \
+.global sym; \
+sym: \
+	li	0,__NR_##name; \
+	b	__unified_syscall
+
+#define syscall(name,sym) \
+.text; \
+.type sym,@function; \
+.global sym; \
+sym: \
+	li	0,__NR_##name; \
+	b	__unified_syscall
+
+
+	.type __unified_syscall,@function
+__unified_syscall:
+	sc
+	bnslr+
+	stwu	1,-16(1)
+	mflr	0
+	stw	0,20(1)
+	stw	3,12(1)
+	bl	__errno_location
+	lwz	0,12(1)
+	stw	0,0(3)
+	lwz	0,20(1)
+	mtlr	0
+	addi	1,1,16
+	blr
+
+/*		name		weak symbol	symbol		*/
+syscall(	getpid,		getpid)
+syscall_weak(	_newselect,	select,		__select)
+#endif

@@ -1,3 +1,27 @@
+/* Define usage of "reserved" registers */
+#if defined(__linux__)
+#define SYSTEM_CLOBBERS_R2	1	/* Pointer to Thread Local Storage */
+#define SYSTEM_CLOBBERS_R13	1	/* Pointer to .sdata section */
+#endif
+
+#ifdef __ASSEMBLY__
+/* Helper macros */
+#ifdef SYSTEM_CLOBBERS_R2
+#define RESTORE_SYSTEM_R2	lwz r2,XLM_TOC(0)
+#define SAVE_SYSTEM_R2		stw r2,XLM_TOC(0)
+#else
+#define RESTORE_SYSTEM_R2
+#define SAVE_SYSTEM_R2
+#endif
+#ifdef SYSTEM_CLOBBERS_R13
+#define RESTORE_SYSTEM_R13	lwz r13,XLM_R13(0)
+#define SAVE_SYSTEM_R13		stw r13,XLM_R13(0)
+#else
+#define RESTORE_SYSTEM_R13
+#define SAVE_SYSTEM_R13
+#endif
+
+/* Apple assembler perticularities */
 #if (defined(__APPLE__) && defined(__MACH__))
 #define C_SYMBOL_NAME(NAME)	_ ## NAME
 #define ASM_MACRO_END		.endmacro
@@ -86,4 +110,5 @@
 #define	f29	29
 #define	f30	30
 #define	f31	31
+#endif
 #endif
