@@ -89,6 +89,9 @@ static void enter_mon(void)
 // Pointer to Kernel Data
 static KernelData * const kernel_data = (KernelData *)KERNEL_DATA_BASE;
 
+// SIGSEGV handler
+static sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
+
 
 /**
  *		PowerPC emulator glue with special 'sheep' opcodes
@@ -136,6 +139,9 @@ public:
 	// FIXME: really make surre array allocation fail at link time?
 	void *operator new[](size_t);
 	void operator delete[](void *p);
+
+	// Make sure the SIGSEGV handler can access CPU registers
+	friend sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
 };
 
 lazy_allocator< sheepshaver_cpu > allocator_helper< sheepshaver_cpu, lazy_allocator >::allocator;
@@ -554,9 +560,36 @@ static sigsegv_return_t sigsegv_handler(sigsegv_address_t fault_address, sigsegv
 	if ((addr - ROM_BASE) < ROM_SIZE)
 		return SIGSEGV_RETURN_SKIP_INSTRUCTION;
 
-	// Ignore all other faults, if requested
-	if (PrefsFindBool("ignoresegv"))
-		return SIGSEGV_RETURN_FAILURE;
+	// Get program counter of target CPU
+	sheepshaver_cpu * const cpu = current_cpu;
+	const uint32 pc = cpu->pc();
+	
+	// Fault in Mac ROM or RAM?
+	bool mac_fault = (pc >= ROM_BASE) && (pc < (ROM_BASE + ROM_AREA_SIZE)) || (pc >= RAMBase) && (pc < (RAMBase + RAMSize));
+	if (mac_fault) {
+
+		// "VM settings" during MacOS 8 installation
+		if (pc == ROM_BASE + 0x488160 && cpu->gpr(20) == 0xf8000000)
+			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
+	
+		// MacOS 8.5 installation
+		else if (pc == ROM_BASE + 0x488140 && cpu->gpr(16) == 0xf8000000)
+			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
+	
+		// MacOS 8 serial drivers on startup
+		else if (pc == ROM_BASE + 0x48e080 && (cpu->gpr(8) == 0xf3012002 || cpu->gpr(8) == 0xf3012000))
+			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
+	
+		// MacOS 8.1 serial drivers on startup
+		else if (pc == ROM_BASE + 0x48c5e0 && (cpu->gpr(20) == 0xf3012002 || cpu->gpr(20) == 0xf3012000))
+			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
+		else if (pc == ROM_BASE + 0x4a10a0 && (cpu->gpr(20) == 0xf3012002 || cpu->gpr(20) == 0xf3012000))
+			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
+
+		// Ignore all other faults, if requested
+		if (PrefsFindBool("ignoresegv"))
+			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
+	}
 #else
 #error "FIXME: You don't have the capability to skip instruction within signal handlers"
 #endif
