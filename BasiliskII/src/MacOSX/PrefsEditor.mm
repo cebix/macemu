@@ -115,7 +115,7 @@
 
 #import <prefs.h>
 
-#define DEBUG 0
+#define DEBUG 1
 #import <debug.h>
 
 - (PrefsEditor *) init
@@ -260,7 +260,12 @@
 
 - (IBAction) ChangeDisableSound: (NSButton *)sender
 {
-	PrefsReplaceBool("nosound", [disableSound state]);
+	BOOL	noSound = [disableSound state];
+
+	if ( ! noSound )
+		WarningSheet(@"Sound is currently unimplemented", panel);
+
+	PrefsReplaceBool("nosound", noSound);
 	edited = YES;
 }
 
@@ -280,28 +285,35 @@
 
 // This is called when any of the screen/window, width, height or depth is changed
 
-- (IBAction) ChangeScreen: (NSMatrix *)sender
+- (IBAction) ChangeScreen: (id)sender
 {
 	short newx		= [width  intValue];
 	short newy		= [height intValue];
 	short newbpp	= [depth  intValue];
-	short newtype	= DISPLAY_WINDOW;
+	short newtype;
 	char  str[20];
 
-	if ( [sender selectedCell] == openGL )
+	if ( [openGL state] )
 		newtype = DISPLAY_OPENGL;
-	if ( [sender selectedCell] == screen )
+	else if ( [screen state] )
 		newtype = DISPLAY_SCREEN;
+	else if ( [window state] )
+		newtype = DISPLAY_WINDOW;
+	else
+		newtype = display_type;
 
 	// Check that a field actually changed
 	if ( newbpp == init_depth && newx == init_width &&
 		 newy == init_height && newtype == display_type )
+	{
+		NSLog(@"No changed GUI items in ChangeScreen");
 		return;
-
+	}
 
 	// If we are changing type, supply some sensible defaults
 	if ( newtype != display_type )
 	{
+		NSLog(@"Changing disylay type in ChangeScreen");
 		if ( newtype == DISPLAY_SCREEN )		// If changing to full screen
 		{
 			// supply main screen dimensions as a default
@@ -360,7 +372,10 @@
 	edited = YES;
 
 	if ( display_type != DISPLAY_SCREEN )
+	{
+		NSLog(@"Display type is not SCREEN (%d), resizing window", display_type);
 		resizeWinTo(newx, newy);
+	}
 }
 
 - (IBAction) CreateVolume: (id)sender
@@ -385,7 +400,7 @@
 			NSString *details = [NSString stringWithFormat:
 								 @"The dd command failed.\nReturn status %d (%s)",
 								 retVal, strerror(errno)];
-			WarningSheet(@"Unable to create volume", details, @"OK", panel);
+			WarningSheet(@"Unable to create volume", details, nil, panel);
 		}
 		else
 		{
@@ -427,7 +442,7 @@
 	int		B = (int) [bytes floatValue];
 	float	M = B / 1024 / 1024;
 
-	NSLog(@"%s = %f %d", __PRETTY_FUNCTION__, M, B);
+	D(NSLog(@"%s = %f %d", __PRETTY_FUNCTION__, M, B));
 	PrefsReplaceInt32("ramsize", B);
 	[MB setFloatValue: M];
 	edited = YES;
@@ -471,7 +486,7 @@
 	float	M = [MB floatValue];
 	int		B = (int) (M * 1024 * 1024);
 
-	NSLog(@"%s = %f %d", __PRETTY_FUNCTION__, M, B);
+	D(NSLog(@"%s = %f %d", __PRETTY_FUNCTION__, M, B));
 	PrefsReplaceInt32("ramsize", B);
 	[bytes setIntValue: B];
 	edited = YES;
@@ -482,17 +497,6 @@
 	NSString	*path = [printer stringValue];
 
 	PrefsReplaceString("serialb", [path cString]);
-	edited = YES;
-}
-
-- (IBAction) EditRAMsize: (NSTextField *)sender
-{
-	int		B = [bytes intValue];
-	float	M =  B / (1024.0 * 1024.0);
-
-	NSLog(@"%s = %d %f", __PRETTY_FUNCTION__, B, M);
-	PrefsReplaceInt32("ramsize", B);
-	[MB setFloatValue: M];
 	edited = YES;
 }
 
@@ -551,7 +555,7 @@
 	}
 	else
 	{
-		WarningSheet(@"Please select a volume first", @"", @"OK", panel);
+		WarningSheet(@"Please select a volume first", panel);
 		return NULL;
 	}
 }
@@ -659,7 +663,7 @@
 		// Window already created by NIB file, just display
 		[panel makeKeyAndOrderFront:self];
 		WarningSheet(@"Compiled-in memory model does not support 24bit",
-						@"Disabling Mac Classic emulation", @"OK", panel);
+						@"Disabling Mac Classic emulation", nil, panel);
 		cpu = [CPU68030 tag];
 		PrefsReplaceInt32("cpu", cpu);
 		tmp = [IIci tag];
