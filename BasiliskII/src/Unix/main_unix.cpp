@@ -685,10 +685,10 @@ static void sigint_handler(...)
 
 #ifdef HAVE_PTHREADS
 /*
- * Pthread configuration
+ *  Pthread configuration
  */
-void
-Set_pthread_attr(pthread_attr_t *attr, int priority)
+
+void Set_pthread_attr(pthread_attr_t *attr, int priority)
 {
 	pthread_attr_init(attr);
 #if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)

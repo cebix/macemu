@@ -120,8 +120,8 @@ void SysMountFirstFloppy(void)
 void SysAddFloppyPrefs(void)
 {
 #if defined(__linux__)
-	PrefsAddString("floppy", "/dev/fd0H1440");
-	PrefsAddString("floppy", "/dev/fd1H1440");
+	PrefsAddString("floppy", "/dev/fd0u1440");
+	PrefsAddString("floppy", "/dev/fd1u1440");
 #elif defined(__NetBSD__)
 	PrefsAddString("floppy", "/dev/fd0a");
 	PrefsAddString("floppy", "/dev/fd1a");
