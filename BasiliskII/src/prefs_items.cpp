@@ -62,6 +62,7 @@ prefs_desc common_prefs_items[] = {
 	{"jitdebug", TYPE_BOOLEAN, false,    "enable JIT debugger (requires mon builtin)"},
 	{"jitcachesize", TYPE_INT32, false,  "translation cache size in KB"},
 	{"jitlazyflush", TYPE_BOOLEAN, false, "enable lazy invalidation of translation cache"},
+	{"jitblacklist", TYPE_STRING, false, "blacklist opcodes from translation"},
 	{"keyboardtype", TYPE_INT32, false, "hardware keyboard type"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
