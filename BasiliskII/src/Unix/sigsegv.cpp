@@ -29,8 +29,13 @@
 #include "config.h"
 #endif
 
+#include <list>
 #include <signal.h>
 #include "sigsegv.h"
+
+#ifndef NO_STD_NAMESPACE
+using std::list;
+#endif
 
 // Return value type of a signal handler (standard type if not defined)
 #ifndef RETSIGTYPE
@@ -40,8 +45,15 @@
 // Type of the system signal handler
 typedef RETSIGTYPE (*signal_handler)(int);
 
-// Is the fault to be ignored?
-static bool sigsegv_ignore_fault = false;
+// Ignore range chain
+struct ignore_range_t {
+	sigsegv_address_t	start;
+	unsigned long		length;
+	int					transfer_type;
+};
+
+typedef list<ignore_range_t> ignore_range_list_t;
+ignore_range_list_t sigsegv_ignore_ranges;
 
 // User's SIGSEGV handler
 static sigsegv_fault_handler_t sigsegv_fault_handler = 0;
@@ -52,17 +64,20 @@ static sigsegv_state_dumper_t sigsegv_state_dumper = 0;
 // Actual SIGSEGV handler installer
 static bool sigsegv_do_install_handler(int sig);
 
+// Find ignore range matching address
+static inline ignore_range_list_t::iterator sigsegv_find_ignore_range(sigsegv_address_t address)
+{
+	ignore_range_list_t::iterator it;
+	for (it = sigsegv_ignore_ranges.begin(); it != sigsegv_ignore_ranges.end(); it++)
+		if (address >= it->start && address < it->start + it->length)
+			break;
+	return it;
+}
+
 
 /*
  *  Instruction decoding aids
  */
-
-// Transfer type
-enum transfer_type_t {
-	TYPE_UNKNOWN,
-	TYPE_LOAD,
-	TYPE_STORE
-};
 
 // Transfer size
 enum transfer_size_t {
@@ -83,6 +98,7 @@ enum addressing_mode_t {
 };
 
 // Decoded instruction
+typedef sigsegv_transfer_type_t transfer_type_t;
 struct instruction_t {
 	transfer_type_t		transfer_type;
 	transfer_size_t		transfer_size;
@@ -103,71 +119,71 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 	signed int imm = (signed short)(opcode & 0xffff);
 	
 	// Analyze opcode
-	transfer_type_t transfer_type = TYPE_UNKNOWN;
+	transfer_type_t transfer_type = SIGSEGV_TRANSFER_UNKNOWN;
 	transfer_size_t transfer_size = SIZE_UNKNOWN;
 	addressing_mode_t addr_mode = MODE_UNKNOWN;
 	switch (primop) {
 	case 31:
 		switch (exop) {
 		case 23:	// lwzx
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_LONG; addr_mode = MODE_X; break;
+			transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_LONG; addr_mode = MODE_X; break;
 		case 55:	// lwzux
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_LONG; addr_mode = MODE_UX; break;
+			transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_LONG; addr_mode = MODE_UX; break;
 		case 87:	// lbzx
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_X; break;
+			transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_X; break;
 		case 119:	// lbzux
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_UX; break;
+			transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_UX; break;
 		case 151:	// stwx
-			transfer_type = TYPE_STORE; transfer_size = SIZE_LONG; addr_mode = MODE_X; break;
+			transfer_type = SIGSEGV_TRANSFER_STORE; transfer_size = SIZE_LONG; addr_mode = MODE_X; break;
 		case 183:	// stwux
-			transfer_type = TYPE_STORE; transfer_size = SIZE_LONG; addr_mode = MODE_UX; break;
+			transfer_type = SIGSEGV_TRANSFER_STORE; transfer_size = SIZE_LONG; addr_mode = MODE_UX; break;
 		case 215:	// stbx
-			transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_X; break;
+			transfer_type = SIGSEGV_TRANSFER_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_X; break;
 		case 247:	// stbux
-			transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_UX; break;
+			transfer_type = SIGSEGV_TRANSFER_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_UX; break;
 		case 279:	// lhzx
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_X; break;
+			transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_X; break;
 		case 311:	// lhzux
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_UX; break;
+			transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_UX; break;
 		case 343:	// lhax
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_X; break;
+			transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_X; break;
 		case 375:	// lhaux
-			transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_UX; break;
+			transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_UX; break;
 		case 407:	// sthx
-			transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_X; break;
+			transfer_type = SIGSEGV_TRANSFER_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_X; break;
 		case 439:	// sthux
-			transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_UX; break;
+			transfer_type = SIGSEGV_TRANSFER_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_UX; break;
 		}
 		break;
 	
 	case 32:	// lwz
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_LONG; addr_mode = MODE_NORM; break;
+		transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_LONG; addr_mode = MODE_NORM; break;
 	case 33:	// lwzu
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_LONG; addr_mode = MODE_U; break;
+		transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_LONG; addr_mode = MODE_U; break;
 	case 34:	// lbz
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_NORM; break;
+		transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_NORM; break;
 	case 35:	// lbzu
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_U; break;
+		transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_U; break;
 	case 36:	// stw
-		transfer_type = TYPE_STORE; transfer_size = SIZE_LONG; addr_mode = MODE_NORM; break;
+		transfer_type = SIGSEGV_TRANSFER_STORE; transfer_size = SIZE_LONG; addr_mode = MODE_NORM; break;
 	case 37:	// stwu
-		transfer_type = TYPE_STORE; transfer_size = SIZE_LONG; addr_mode = MODE_U; break;
+		transfer_type = SIGSEGV_TRANSFER_STORE; transfer_size = SIZE_LONG; addr_mode = MODE_U; break;
 	case 38:	// stb
-		transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_NORM; break;
+		transfer_type = SIGSEGV_TRANSFER_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_NORM; break;
 	case 39:	// stbu
-		transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_U; break;
+		transfer_type = SIGSEGV_TRANSFER_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_U; break;
 	case 40:	// lhz
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_NORM; break;
+		transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_NORM; break;
 	case 41:	// lhzu
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_U; break;
+		transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_U; break;
 	case 42:	// lha
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_NORM; break;
+		transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_NORM; break;
 	case 43:	// lhau
-		transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_U; break;
+		transfer_type = SIGSEGV_TRANSFER_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_U; break;
 	case 44:	// sth
-		transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_NORM; break;
+		transfer_type = SIGSEGV_TRANSFER_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_NORM; break;
 	case 45:	// sthu
-		transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_U; break;
+		transfer_type = SIGSEGV_TRANSFER_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_U; break;
 	}
 	
 	// Calculate effective address
@@ -455,7 +471,7 @@ static bool ix86_skip_instruction(unsigned int * regs)
 	if (eip == 0)
 		return false;
 	
-	transfer_type_t transfer_type = TYPE_UNKNOWN;
+	transfer_type_t transfer_type = SIGSEGV_TRANSFER_UNKNOWN;
 	transfer_size_t transfer_size = SIZE_LONG;
 	
 	int reg = -1;
@@ -477,15 +493,15 @@ static bool ix86_skip_instruction(unsigned int * regs)
 		switch (eip[2] & 0xc0) {
 		case 0x80:
 		    reg = (eip[2] >> 3) & 7;
-		    transfer_type = TYPE_LOAD;
+		    transfer_type = SIGSEGV_TRANSFER_LOAD;
 		    break;
 		case 0x40:
 		    reg = (eip[2] >> 3) & 7;
-		    transfer_type = TYPE_LOAD;
+		    transfer_type = SIGSEGV_TRANSFER_LOAD;
 		    break;
 		case 0x00:
 		    reg = (eip[2] >> 3) & 7;
-		    transfer_type = TYPE_LOAD;
+		    transfer_type = SIGSEGV_TRANSFER_LOAD;
 		    break;
 		}
 		len += 3 + ix86_step_over_modrm(eip + 2);
@@ -498,15 +514,15 @@ static bool ix86_skip_instruction(unsigned int * regs)
 		switch (eip[1] & 0xc0) {
 		case 0x80:
 			reg = (eip[1] >> 3) & 7;
-			transfer_type = TYPE_LOAD;
+			transfer_type = SIGSEGV_TRANSFER_LOAD;
 			break;
 		case 0x40:
 			reg = (eip[1] >> 3) & 7;
-			transfer_type = TYPE_LOAD;
+			transfer_type = SIGSEGV_TRANSFER_LOAD;
 			break;
 		case 0x00:
 			reg = (eip[1] >> 3) & 7;
-			transfer_type = TYPE_LOAD;
+			transfer_type = SIGSEGV_TRANSFER_LOAD;
 			break;
 		}
 		len += 2 + ix86_step_over_modrm(eip + 1);
@@ -517,27 +533,27 @@ static bool ix86_skip_instruction(unsigned int * regs)
 		switch (eip[1] & 0xc0) {
 		case 0x80:
 			reg = (eip[1] >> 3) & 7;
-			transfer_type = TYPE_STORE;
+			transfer_type = SIGSEGV_TRANSFER_STORE;
 			break;
 		case 0x40:
 			reg = (eip[1] >> 3) & 7;
-			transfer_type = TYPE_STORE;
+			transfer_type = SIGSEGV_TRANSFER_STORE;
 			break;
 		case 0x00:
 			reg = (eip[1] >> 3) & 7;
-			transfer_type = TYPE_STORE;
+			transfer_type = SIGSEGV_TRANSFER_STORE;
 			break;
 		}
 		len += 2 + ix86_step_over_modrm(eip + 1);
 		break;
 	}
 
-	if (transfer_type == TYPE_UNKNOWN) {
+	if (transfer_type == SIGSEGV_TRANSFER_UNKNOWN) {
 		// Unknown machine code, let it crash. Then patch the decoder
 		return false;
 	}
 
-	if (transfer_type == TYPE_LOAD && reg != -1) {
+	if (transfer_type == SIGSEGV_TRANSFER_LOAD && reg != -1) {
 		static const int x86_reg_map[8] = {
 			X86_REG_EAX, X86_REG_ECX, X86_REG_EDX, X86_REG_EBX,
 			X86_REG_ESP, X86_REG_EBP, X86_REG_ESI, X86_REG_EDI
@@ -563,14 +579,14 @@ static bool ix86_skip_instruction(unsigned int * regs)
 #if DEBUG
 	printf("%08x: %s %s access", regs[X86_REG_EIP],
 		   transfer_size == SIZE_BYTE ? "byte" : transfer_size == SIZE_WORD ? "word" : "long",
-		   transfer_type == TYPE_LOAD ? "read" : "write");
+		   transfer_type == SIGSEGV_TRANSFER_LOAD ? "read" : "write");
 	
 	if (reg != -1) {
 		static const char * x86_reg_str_map[8] = {
 			"eax", "ecx", "edx", "ebx",
 			"esp", "ebp", "esi", "edi"
 		};
-		printf(" %s register %%%s", transfer_type == TYPE_LOAD ? "to" : "from", x86_reg_str_map[reg]);
+		printf(" %s register %%%s", transfer_type == SIGSEGV_TRANSFER_LOAD ? "to" : "from", x86_reg_str_map[reg]);
 	}
 	printf(", %d bytes instruction\n", len);
 #endif
@@ -587,25 +603,31 @@ static bool powerpc_skip_instruction(unsigned int * nip_p, unsigned int * regs)
 	instruction_t instr;
 	powerpc_decode_instruction(&instr, *nip_p, regs);
 	
-	if (instr.transfer_type == TYPE_UNKNOWN) {
+	if (instr.transfer_type == SIGSEGV_TRANSFER_UNKNOWN) {
 		// Unknown machine code, let it crash. Then patch the decoder
+		return false;
+	}
+
+	ignore_range_list_t::iterator it = sigsegv_find_ignore_range((sigsegv_address_t)instr.addr);
+	if (it == sigsegv_ignore_ranges.end() || ((it->transfer_type & instr.transfer_type) != instr.transfer_type)) {
+		// Address doesn't fall into ignore ranges list, let it crash.
 		return false;
 	}
 
 #if DEBUG
 	printf("%08x: %s %s access", *nip_p,
 		   instr.transfer_size == SIZE_BYTE ? "byte" : instr.transfer_size == SIZE_WORD ? "word" : "long",
-		   instr.transfer_type == TYPE_LOAD ? "read" : "write");
+		   instr.transfer_type == SIGSEGV_TRANSFER_LOAD ? "read" : "write");
 	
 	if (instr.addr_mode == MODE_U || instr.addr_mode == MODE_UX)
 		printf(" r%d (ra = %08x)\n", instr.ra, instr.addr);
-	if (instr.transfer_type == TYPE_LOAD)
+	if (instr.transfer_type == SIGSEGV_TRANSFER_LOAD)
 		printf(" r%d (rd = 0)\n", instr.rd);
 #endif
 	
 	if (instr.addr_mode == MODE_U || instr.addr_mode == MODE_UX)
 		regs[instr.ra] = instr.addr;
-	if (instr.transfer_type == TYPE_LOAD)
+	if (instr.transfer_type == SIGSEGV_TRANSFER_LOAD)
 		regs[instr.rd] = 0;
 	
 	*nip_p += 4;
@@ -644,7 +666,7 @@ static void sigsegv_handler(SIGSEGV_FAULT_HANDLER_ARGLIST)
 		fault_recovered = true;
 	}
 #if HAVE_SIGSEGV_SKIP_INSTRUCTION
-	else if (sigsegv_ignore_fault) {
+	else if (sigsegv_ignore_ranges.size() > 0) {
 		// Call the instruction skipper with the register file available
 		if (SIGSEGV_SKIP_INSTRUCTION(SIGSEGV_REGISTER_FILE))
 			fault_recovered = true;
@@ -674,11 +696,11 @@ static bool sigsegv_do_install_handler(int sig)
 {
 	// Setup SIGSEGV handler to process writes to frame buffer
 #ifdef HAVE_SIGACTION
-	struct sigaction vosf_sa;
-	sigemptyset(&vosf_sa.sa_mask);
-	vosf_sa.sa_sigaction = sigsegv_handler;
-	vosf_sa.sa_flags = SA_SIGINFO;
-	return (sigaction(sig, &vosf_sa, 0) == 0);
+	struct sigaction sigsegv_sa;
+	sigemptyset(&sigsegv_sa.sa_mask);
+	sigsegv_sa.sa_sigaction = sigsegv_handler;
+	sigsegv_sa.sa_flags = SA_SIGINFO;
+	return (sigaction(sig, &sigsegv_sa, 0) == 0);
 #else
 	return (signal(sig, (signal_handler)sigsegv_handler) != SIG_ERR);
 #endif
@@ -690,16 +712,15 @@ static bool sigsegv_do_install_handler(int sig)
 {
 	// Setup SIGSEGV handler to process writes to frame buffer
 #ifdef HAVE_SIGACTION
-	struct sigaction vosf_sa;
-	sigemptyset(&vosf_sa.sa_mask);
-	vosf_sa.sa_handler = (signal_handler)sigsegv_handler;
+	struct sigaction sigsegv_sa;
+	sigemptyset(&sigsegv_sa.sa_mask);
+	sigsegv_sa.sa_handler = (signal_handler)sigsegv_handler;
+	sigsegv_sa.sa_flags = 0;
 #if !EMULATED_68K && defined(__NetBSD__)
-	sigaddset(&vosf_sa.sa_mask, SIGALRM);
-	vosf_sa.sa_flags = SA_ONSTACK;
-#else
-	vosf_sa.sa_flags = 0;
+	sigaddset(&sigsegv_sa.sa_mask, SIGALRM);
+	sigsegv_sa.sa_flags |= SA_ONSTACK;
 #endif
-	return (sigaction(sig, &vosf_sa, 0) == 0);
+	return (sigaction(sig, &sigsegv_sa, 0) == 0);
 #else
 	return (signal(sig, (signal_handler)sigsegv_handler) != SIG_ERR);
 #endif
@@ -738,12 +759,39 @@ void sigsegv_deinstall_handler(void)
 
 
 /*
- *  SIGSEGV ignore state modifier
+ *  Add SIGSEGV ignore range
  */
 
-void sigsegv_set_ignore_state(bool ignore_fault)
+void sigsegv_add_ignore_range(sigsegv_address_t address, unsigned long length, int transfer_type)
 {
-	sigsegv_ignore_fault = ignore_fault;
+	ignore_range_t ignore_range;
+	ignore_range.start = address;
+	ignore_range.length = length;
+	ignore_range.transfer_type = transfer_type;
+	sigsegv_ignore_ranges.push_front(ignore_range);
+}
+
+
+/*
+ *  Remove SIGSEGV ignore range. Range must match installed one, otherwise FALSE is returned.
+ */
+
+bool sigsegv_remove_ignore_range(sigsegv_address_t address, unsigned long length, int transfer_type)
+{
+	ignore_range_list_t::iterator it;
+	for (it = sigsegv_ignore_ranges.begin(); it != sigsegv_ignore_ranges.end(); it++)
+		if (it->start == address && it->length == length && ((it->transfer_type & transfer_type) == transfer_type))
+			break;
+
+	if (it != sigsegv_ignore_ranges.end()) {
+		if (it->transfer_type != transfer_type)
+			it->transfer_type &= ~transfer_type;
+		else
+			sigsegv_ignore_ranges.erase(it);
+		return true;
+	}
+
+	return false;
 }
 
 
@@ -823,7 +871,7 @@ int main(void)
 	if (vm_protect((char *)page, page_size, VM_PAGE_NOACCESS) < 0)
 		return 1;
 	
-	sigsegv_set_ignore_state(true);
+	sigsegv_add_ignore_range((char *)page, page_size, SIGSEGV_TRANSFER_LOAD | SIGSEGV_TRANSFER_STORE);
 
 #define TEST_SKIP_INSTRUCTION(TYPE) do {				\
 		const unsigned int TAG = 0x12345678;			\

@@ -357,10 +357,10 @@ int main(int argc, char **argv)
 		if (!PrefsEditor())
 			QuitEmulator();
 
-	// Register request to ignore segmentation faults
+	// Register request to ignore all segmentation faults
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 	if (PrefsFindBool("ignoresegv"))
-	  sigsegv_set_ignore_state(true);
+		sigsegv_add_ignore_range(0, ~(0UL), SIGSEGV_TRANSFER_LOAD | SIGSEGV_TRANSFER_STORE);
 #endif
 
 	// Register dump state function when we got mad after a segfault
