@@ -187,14 +187,21 @@ static void add_standard_modes(const video_depth depth)
 // Helper function to get a 32bit int from a dictionary
 static int32 getCFint32 (CFDictionaryRef dict, CFStringRef key)
 {
-	int32		val = 0;
 	CFNumberRef	ref = CFDictionaryGetValue(dict, key);
 
-	if ( ref && CFNumberGetValue(ref, kCFNumberSInt32Type, &val) )
-		if ( ! val )
-			NSLog(@"getCFint32() - Logic error - Got a value of 0");
+	if ( ref )
+	{
+		int32	val;
 
-	return val;
+		if ( CFNumberGetValue(ref, kCFNumberSInt32Type, &val) )
+			return val;
+		else
+			NSLog(@"getCFint32() - Failed to get the value %@", key);
+	}
+	else
+		NSLog(@"getCFint32() - Failed to get a 32bit int for %@", key);
+
+	return 0;
 }
 
 static bool add_CGDirectDisplay_modes()
