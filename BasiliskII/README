@@ -351,7 +351,7 @@ ether <ethernet card description>
          configure your kernel to enable routing and the ethertap device:
          under "Networking options", enable "Kernel/User netlink socket" and
          "Netlink device emulation", under "Network device support", activate
-         "Ethertap network tap". You also have to modify devices/net/ethertap.c
+         "Ethertap network tap". You also have to modify drivers/net/ethertap.c
          a bit before compiling the new kernel:
 
           - insert "#define CONFIG_ETHERTAP_MC 1" near the top (after the

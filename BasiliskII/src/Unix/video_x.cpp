@@ -122,7 +122,7 @@ static Colormap cmap[2];							// Two colormaps (DGA) for 8-bit mode
 static XColor black, white;
 static unsigned long black_pixel, white_pixel;
 static int eventmask;
-static const int win_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | EnterWindowMask | ExposureMask;
+static const int win_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | EnterWindowMask | FocusChangeMask | ExposureMask;
 static const int dga_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
 
 static XColor palette[256];							// Color palette for 8-bit mode
@@ -345,29 +345,62 @@ static bool init_window(int width, int height)
 	the_win = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
 		InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel |
 		CWBackingStore | CWBackingPlanes, &wattr);
-	XSync(x_display, false);
-	XStoreName(x_display, the_win, GetString(STR_WINDOW_TITLE));
-	XMapRaised(x_display, the_win);
-	XSync(x_display, false);
 
-	// Set colormap
-	if (depth == 8) {
-		XSetWindowColormap(x_display, the_win, cmap[0]);
-		XSetWMColormapWindows(x_display, the_win, &the_win, 1);
+	// Indicate that we want keyboard input
+	{
+		XWMHints *hints = XAllocWMHints();
+		if (hints) {
+			hints->input = True;
+			hints->flags = InputHint;
+			XSetWMHints(x_display, the_win, hints);
+			XFree((char *)hints);
+		}
 	}
 
 	// Make window unresizable
-	XSizeHints *hints;
-	if ((hints = XAllocSizeHints()) != NULL) {
-		hints->min_width = width;
-		hints->max_width = width;
-		hints->min_height = height;
-		hints->max_height = height;
-		hints->flags = PMinSize | PMaxSize;
-		XSetWMNormalHints(x_display, the_win, hints);
-		XFree((char *)hints);
+	{
+		XSizeHints *hints = XAllocSizeHints();
+		if (hints) {
+			hints->min_width = width;
+			hints->max_width = width;
+			hints->min_height = height;
+			hints->max_height = height;
+			hints->flags = PMinSize | PMaxSize;
+			XSetWMNormalHints(x_display, the_win, hints);
+			XFree((char *)hints);
+		}
 	}
 	
+	// Set window title
+	{
+		XTextProperty title_prop;
+		const char *title = GetString(STR_WINDOW_TITLE);
+		XStringListToTextProperty((char **)&title, 1, &title_prop);
+		XSetWMName(x_display, the_win, &title_prop);
+		XFree(title_prop.value);
+	}
+
+	// Set window class
+	{
+		XClassHint *hints;
+		hints = XAllocClassHint();
+		if (hints) {
+			hints->res_name = "BasiliskII";
+			hints->res_class = "BasiliskII";
+			XSetClassHint(x_display, the_win, hints);
+			XFree((char *)hints);
+		}
+	}
+
+	// Show window
+	XSync(x_display, false);
+	XMapRaised(x_display, the_win);
+	XFlush(x_display);
+
+	// Set colormap
+	if (depth == 8)
+		XSetWindowColormap(x_display, the_win, cmap[0]);
+
 	// Try to create and attach SHM image
 	have_shm = false;
 	if (depth != 1 && local_X11 && XShmQueryExtension(x_display)) {
@@ -563,10 +596,8 @@ static bool init_fbdev_dga(char *in_fb_name)
 		GrabModeAsync, GrabModeAsync, the_win, None, CurrentTime);
 	
 	// Set colormap
-	if (depth == 8) {
+	if (depth == 8)
 		XSetWindowColormap(x_display, the_win, cmap[0]);
-		XSetWMColormapWindows(x_display, the_win, &the_win, 1);
-	}
 	
 	// Set VideoMonitor
 	int bytes_per_row = width;
@@ -679,7 +710,6 @@ static bool init_xf86_dga(int width, int height)
 	// Set colormap
 	if (depth == 8) {
 		XSetWindowColormap(x_display, the_win, cmap[current_dga_cmap = 0]);
-		XSetWMColormapWindows(x_display, the_win, &the_win, 1);
 		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
 	}
 
@@ -1626,6 +1656,10 @@ static void handle_events(void)
 					} else					// Static refresh
 						memset(the_buffer_copy, 0, VideoMonitor.bytes_per_row * VideoMonitor.y);
 				}
+				break;
+
+			case FocusIn:
+			case FocusOut:
 				break;
 		}
 	}
