@@ -43,7 +43,10 @@
  * FDBcc:
  *  The loop termination condition was wrong.
  *  Possible leak from int16 to int32 fixed.
- * Now fpcr high 16 bits are always read as zeores, no matter what was
+ * get_fp_value:
+ *  Immediate addressing mode && Operation Length == Byte -> 
+ *  Use the low-order byte of the extension word.
+ * Now fpcr high 16 bits are always read as zeroes, no matter what was
  * written to them.
  *
  * Other:
@@ -377,7 +380,7 @@ static __inline__ double to_exten(uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 		if( wrd2 | wrd3 ) {
 			// mantissa, not fraction.
 			uae_u64 man = ((uae_u64)wrd2 << 32) | wrd3;
-			while( (man & UVAL64(0x8000000000000000)) == 0 ) {
+			while( exp > 0 && (man & UVAL64(0x8000000000000000)) == 0 ) {
 				man <<= 1;
 				exp--;
 			}
@@ -410,6 +413,53 @@ static __inline__ double to_exten(uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 	D(bug("to_exten (%X,%X,%X) = %.04f\r\n",wrd1,wrd2,wrd3,(float)result));
 
 	return(result);
+}
+
+/*
+	Would be so much easier with full size floats :(
+	... this is so vague.
+*/
+static __inline__ void to_exten_no_normalize(
+	uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3, uae_u32 *p
+)
+{
+	// double result;
+	// uae_u32 *p = (uae_u32 *)&result;
+
+	// Is it zero?
+  if ((wrd1 & 0x7fff0000) == 0 && wrd2 == 0 && wrd3 == 0) {
+		MAKE_ZERO_POSITIVE(p);
+		return;
+	}
+
+	// Is it NaN?
+	if( (wrd1 & 0x7FFF0000) == 0x7FFF0000 ) {
+		if( (wrd1 & 0x0000FFFF) || wrd2 || wrd3 ) {
+			MAKE_NAN( p );
+			return;
+		}
+	}
+
+	uae_u32 sign =  wrd1 & 0x80000000;
+	uae_u32 exp  = (wrd1 >> 16) & 0x7fff;
+
+	if(exp < 16383 - 1023) {
+		// should set underflow.
+		exp = 0;
+	} else if(exp > 16383 + 1023) {
+		// should set overflow.
+		exp = 2047;
+	} else {
+		exp = exp + 1023 - 16383;
+	}
+
+	// drop the explicit integer bit.
+	p[FLO] = (wrd2 << 21) | (wrd3 >> 11);
+	p[FHI] = sign | (exp << 20) | ((wrd2 & 0x7FFFFFFF) >> 11);
+
+	D(bug("to_exten (%X,%X,%X) = %.04f\r\n",wrd1,wrd2,wrd3,(float)(*(double *)p)));
+
+	// return(result);
 }
 
 static __inline__ void from_exten(double src, uae_u32 * wrd1, uae_u32 * wrd2, uae_u32 * wrd3)
@@ -459,10 +509,12 @@ static __inline__ double to_double(uae_u32 wrd1, uae_u32 wrd2)
 
 static __inline__ void from_double(double src, uae_u32 * wrd1, uae_u32 * wrd2)
 {
+/*
   if (src == 0.0) {
 		*wrd1 = *wrd2 = 0;
 		return;
   }
+*/
 	uae_u32 *p = (uae_u32 *)&src;
 	*wrd2 = p[FLO];
 	*wrd1 = p[FHI];
@@ -801,6 +853,9 @@ static __inline__ int get_fp_value (uae_u32 opcode, uae_u16 extra, double *src)
 				case 4:
 			    ad = m68k_getpc ();
 					m68k_setpc (ad + sz2[size]);
+					// Immediate addressing mode && Operation Length == Byte -> 
+					// Use the low-order byte of the extension word.
+					if(size == 6) ad++;
 					break;
 				default:
 					return 0;
@@ -1053,14 +1108,14 @@ static __inline__ int get_fp_ad(uae_u32 opcode, uae_u32 * ad)
   return 1;
 }
 
-static __inline__ int fpp_cond(uae_u32 opcode, int contition)
+static __inline__ int fpp_cond(uae_u32 opcode, int condition)
 {
-  int N = (regs.fpsr & 0x8000000) != 0;
-  int Z = (regs.fpsr & 0x4000000) != 0;
-  /* int I = (regs.fpsr & 0x2000000) != 0; */
-  int NotANumber = (regs.fpsr & 0x1000000) != 0;
+#define N ((regs.fpsr & 0x8000000) != 0)
+#define Z ((regs.fpsr & 0x4000000) != 0)
+#define I ((regs.fpsr & 0x2000000) != 0)
+#define NotANumber ((regs.fpsr & 0x1000000) != 0)
 
-  switch (contition) {
+  switch (condition) {
     case 0x00:
 			CONDRET("False",0);
     case 0x01:
@@ -1126,11 +1181,16 @@ static __inline__ int fpp_cond(uae_u32 opcode, int contition)
 			CONDRET("Signaling Not Equal",!Z);
     case 0x1f:
 			CONDRET("Signaling True",1);
+	default:
+			CONDRET("",-1);
   }
-	CONDRET("",-1);
+#undef N
+#undef Z
+#undef I
+#undef NotANumber
 }
 
-void fdbcc_opp(uae_u32 opcode, uae_u16 extra)
+void REGPARAM2 fdbcc_opp(uae_u32 opcode, uae_u16 extra)
 {
   uaecptr pc = (uae_u32) m68k_getpc ();
   uae_s32 disp = (uae_s32) (uae_s16) next_iword();
@@ -1161,7 +1221,7 @@ void fdbcc_opp(uae_u32 opcode, uae_u16 extra)
   }
 }
 
-void fscc_opp(uae_u32 opcode, uae_u16 extra)
+void REGPARAM2 fscc_opp(uae_u32 opcode, uae_u16 extra)
 {
   uae_u32 ad;
   int cc;
@@ -1184,7 +1244,7 @@ void fscc_opp(uae_u32 opcode, uae_u16 extra)
   }
 }
 
-void ftrapcc_opp(uae_u32 opcode, uaecptr oldpc)
+void REGPARAM2 ftrapcc_opp(uae_u32 opcode, uaecptr oldpc)
 {
   int cc;
 
@@ -1200,7 +1260,7 @@ void ftrapcc_opp(uae_u32 opcode, uaecptr oldpc)
 }
 
 // NOTE that we get here also when there is a FNOP (nontrapping false, displ 0)
-void fbcc_opp(uae_u32 opcode, uaecptr pc, uae_u32 extra)
+void REGPARAM2 fbcc_opp(uae_u32 opcode, uaecptr pc, uae_u32 extra)
 {
   int cc;
 
@@ -1219,7 +1279,7 @@ void fbcc_opp(uae_u32 opcode, uaecptr pc, uae_u32 extra)
 
 // FSAVE has no post-increment
 // 0x1f180000 == IDLE state frame, coprocessor version number 1F
-void fsave_opp(uae_u32 opcode)
+void REGPARAM2 fsave_opp(uae_u32 opcode)
 {
   uae_u32 ad;
   int incr = (opcode & 0x38) == 0x20 ? -1 : 1;
@@ -1278,7 +1338,7 @@ void fsave_opp(uae_u32 opcode)
 }
 
 // FRESTORE has no pre-decrement
-void frestore_opp(uae_u32 opcode)
+void REGPARAM2 frestore_opp(uae_u32 opcode)
 {
   uae_u32 ad;
   uae_u32 d;
@@ -1607,42 +1667,17 @@ void fpp_opp(uae_u32 opcode, uae_u16 extra)
 						uae_u32 wrd1, wrd2, wrd3;
 						if( list & 0x80 ) {
 							from_exten(regs.fp[reg],&wrd1, &wrd2, &wrd3);
-							put_long (ad, wrd3);
+							put_long (ad, wrd1);
 							ad += 4;
 							put_long (ad, wrd2);
 							ad += 4;
-							put_long (ad, wrd1);
+							put_long (ad, wrd3);
 							ad += 4;
 						}
 						list <<= 1;
 					}
 				}
 
-				/*
-				while (list) {
-					uae_u32 wrd1, wrd2, wrd3;
-					if (incr < 0) {
-						from_exten(regs.fp[fpp_movem_index2[list]],
-						 &wrd1, &wrd2, &wrd3);
-						ad -= 4;
-						put_long (ad, wrd3);
-						ad -= 4;
-						put_long (ad, wrd2);
-						ad -= 4;
-						put_long (ad, wrd1);
-					} else {
-						from_exten(regs.fp[fpp_movem_index1[list]],
-						 &wrd1, &wrd2, &wrd3);
-						put_long (ad, wrd1);
-						ad += 4;
-						put_long (ad, wrd2);
-						ad += 4;
-						put_long (ad, wrd3);
-						ad += 4;
-					}
-					list = fpp_movem_next[list];
-				}
-				*/
 				if ((opcode & 0x38) == 0x18) // post-increment?
 					m68k_areg (regs, opcode & 7) = ad;
 				if ((opcode & 0x38) == 0x20) // pre-decrement?
@@ -1685,13 +1720,14 @@ void fpp_opp(uae_u32 opcode, uae_u16 extra)
 					for(reg=7; reg>=0; reg--) {
 						uae_u32 wrd1, wrd2, wrd3;
 						if( list & 0x80 ) {
-							wrd1 = get_long (ad);
-							ad -= 4;
-							wrd2 = get_long (ad);
 							ad -= 4;
 							wrd3 = get_long (ad);
 							ad -= 4;
-							regs.fp[reg] = to_exten (wrd1, wrd2, wrd3);
+							wrd2 = get_long (ad);
+							ad -= 4;
+							wrd1 = get_long (ad);
+							// regs.fp[reg] = to_exten (wrd1, wrd2, wrd3);
+							to_exten_no_normalize (wrd1, wrd2, wrd3, (uae_u32 *)&regs.fp[reg]);
 						}
 						list <<= 1;
 					}
@@ -1705,36 +1741,12 @@ void fpp_opp(uae_u32 opcode, uae_u16 extra)
 							ad += 4;
 							wrd3 = get_long (ad);
 							ad += 4;
-							regs.fp[reg] = to_exten (wrd1, wrd2, wrd3);
+							// regs.fp[reg] = to_exten (wrd1, wrd2, wrd3);
+							to_exten_no_normalize (wrd1, wrd2, wrd3, (uae_u32 *)&regs.fp[reg]);
 						}
 						list <<= 1;
 					}
 				}
-				/**/
-
-				/*
-				while (list) {
-					uae_u32 wrd1, wrd2, wrd3;
-					if (incr < 0) {
-						ad -= 4;
-						wrd3 = get_long (ad);
-						ad -= 4;
-						wrd2 = get_long (ad);
-						ad -= 4;
-						wrd1 = get_long (ad);
-						regs.fp[fpp_movem_index2[list]] = to_exten (wrd1, wrd2, wrd3);
-			    } else {
-						wrd1 = get_long (ad);
-						ad += 4;
-						wrd2 = get_long (ad);
-						ad += 4;
-						wrd3 = get_long (ad);
-						ad += 4;
-						regs.fp[fpp_movem_index1[list]] = to_exten (wrd1, wrd2, wrd3);
-					}
-					list = fpp_movem_next[list];
-				}
-				*/
 				if ((opcode & 0x38) == 0x18) // post-increment?
 			    m68k_areg (regs, opcode & 7) = ad;
 				if ((opcode & 0x38) == 0x20) // pre-decrement?
@@ -1865,6 +1877,7 @@ void fpp_opp(uae_u32 opcode, uae_u16 extra)
 				dump_fp_regs( "END  ");
 				return;
 			}
+			D(bug("returned from get_fp_value m68k_getpc()=%X\r\n",m68k_getpc()));
 
 			switch (extra & 0x7f) {
 				case 0x00:		/* FMOVE */
@@ -1983,6 +1996,8 @@ void fpp_opp(uae_u32 opcode, uae_u16 extra)
 					MAKE_FPSR(regs.fpsr,regs.fp[reg]);
 					break;
 				case 0x18:		/* FABS */
+				case 0x58:		/* single precision rounding */
+				case 0x5C:		/* double precision rounding */
 					D(bug("FABS %.04f\r\n",(float)src));
 					regs.fp[reg] = src < 0 ? -src : src;
 					MAKE_FPSR(regs.fpsr,regs.fp[reg]);
@@ -2065,6 +2080,8 @@ void fpp_opp(uae_u32 opcode, uae_u16 extra)
 				}
 				break;
 			case 0x22:		/* FADD */
+			case 0x62:		/* single */
+			case 0x66:		/* double */
 				D(bug("FADD %.04f\r\n",(float)src));
 				regs.fp[reg] += src;
 				MAKE_FPSR(regs.fpsr,regs.fp[reg]);
@@ -2206,7 +2223,8 @@ void fpp_opp(uae_u32 opcode, uae_u16 extra)
 					}
 				} else {
 					double tmp = regs.fp[reg] - src;
-					regs.fpsr = (regs.fpsr & 0x00FFFFFF) | (tmp == 0 ? 0x4000000 : 0) | (tmp < 0 ? 0x8000000 : 0);
+					// regs.fpsr = (regs.fpsr & 0x00FFFFFF) | (tmp == 0 ? 0x4000000 : 0) | (tmp < 0 ? 0x8000000 : 0);
+					regs.fpsr = (tmp == 0 ? 0x4000000 : 0) | (tmp < 0 ? 0x8000000 : 0);
 				}
 #else
 				{
@@ -2226,6 +2244,7 @@ void fpp_opp(uae_u32 opcode, uae_u16 extra)
 				op_illg (opcode);
 				break;
 		}
+		D(bug("END m68k_getpc()=%X\r\n",m68k_getpc()));
 		dump_fp_regs( "END  ");
 		return;
   }

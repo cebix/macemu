@@ -47,7 +47,8 @@
 enum {
 	DISPLAY_WINDOW,
 	DISPLAY_PIP,
-	DISPLAY_SCREEN
+	DISPLAY_SCREEN_P96,
+	DISPLAY_SCREEN_CGFX
 };
 
 // Global variables
@@ -58,8 +59,6 @@ static struct Window *the_win = NULL;
 static struct BitMap *the_bitmap = NULL;
 static LONG black_pen = -1, white_pen = -1;
 static struct Process *periodic_proc = NULL;	// Periodic process
-static bool is_cgfx = false;					// Flag: screen mode is a CyberGfx mode
-static bool is_p96 = false;						// Flag: screen mode is a Picasso96 mode
 
 extern struct Task *MainTask;					// Pointer to main task (from main_amiga.cpp)
 
@@ -186,33 +185,15 @@ static bool init_pip(int width, int height)
 	return true;
 }
 
-// Open screen (requires Picasso96/CyberGfx as we need chunky modes)
-static bool init_screen(ULONG mode_id)
+// Open Picasso96 screen
+static bool init_screen_p96(ULONG mode_id)
 {
 	// Set relative mouse mode
 	ADBSetRelMouseMode(true);
 
-	// Check whether the mode is a Picasso96 mode or a CyberGfx mode
-	if (P96Base && p96GetModeIDAttr(mode_id, P96IDA_ISP96))
-		is_p96 = true;
-	else if (CyberGfxBase && IsCyberModeID(mode_id))
-		is_cgfx = true;
-	else {
-		ErrorAlert(GetString(STR_NO_P96_MODE_ERR));
-		return false;
-	}
-
-	uint32 depth;
-	uint32 format;
-
 	// Check if the mode is one we can handle
-	if (is_p96) {
-		depth = p96GetModeIDAttr(mode_id, P96IDA_DEPTH);
-		format = p96GetModeIDAttr(mode_id, P96IDA_RGBFORMAT);
-	} else {
-		depth = GetCyberIDAttr(CYBRIDATTR_DEPTH, mode_id);
-		format = GetCyberIDAttr(CYBRIDATTR_PIXFMT, mode_id);
-	}
+	uint32 depth = p96GetModeIDAttr(mode_id, P96IDA_DEPTH);
+	uint32 format = p96GetModeIDAttr(mode_id, P96IDA_RGBFORMAT);
 
 	switch (depth) {
 		case 8:
@@ -220,7 +201,7 @@ static bool init_screen(ULONG mode_id)
 			break;
 		case 15:
 		case 16:
-			if (format != RGBFB_R5G5B5 && format != PIXFMT_RGB16) {
+			if (format != RGBFB_R5G5B5) {
 				ErrorAlert(GetString(STR_WRONG_SCREEN_FORMAT_ERR));
 				return false;
 			}
@@ -228,7 +209,7 @@ static bool init_screen(ULONG mode_id)
 			break;
 		case 24:
 		case 32:
-			if (format != RGBFB_A8R8G8B8 && format != PIXFMT_ARGB32) {
+			if (format != RGBFB_A8R8G8B8) {
 				ErrorAlert(GetString(STR_WRONG_SCREEN_FORMAT_ERR));
 				return false;
 			}
@@ -240,40 +221,22 @@ static bool init_screen(ULONG mode_id)
 	}
 
 	// Yes, get width and height
-	uint32 width;
-	uint32 height;
+	uint32 width = p96GetModeIDAttr(mode_id, P96IDA_WIDTH);
+	uint32 height = p96GetModeIDAttr(mode_id, P96IDA_HEIGHT);
 
-	if (is_p96) {
-		width = p96GetModeIDAttr(mode_id, P96IDA_WIDTH);
-		height = p96GetModeIDAttr(mode_id, P96IDA_HEIGHT);
-	} else {
-		width = GetCyberIDAttr(CYBRIDATTR_WIDTH, mode_id);
-		height = GetCyberIDAttr(CYBRIDATTR_HEIGHT, mode_id);
-	}
 	VideoMonitor.x = width;
 	VideoMonitor.y = height;
 
 	// Open screen
-	if (is_p96) {
-		the_screen = p96OpenScreenTags(
-			P96SA_DisplayID, mode_id,
-			P96SA_Title, (ULONG)GetString(STR_WINDOW_TITLE),
-			P96SA_Quiet, TRUE,
-			P96SA_NoMemory, TRUE,
-			P96SA_NoSprite, TRUE,
-			P96SA_Exclusive, TRUE,
-			TAG_END
-		);
-	} else {
-		the_screen = OpenScreenTags(NULL,
-			SA_DisplayID, mode_id,
-			SA_Title, (ULONG)GetString(STR_WINDOW_TITLE),
-			SA_Quiet, TRUE,
-			SA_Exclusive, TRUE,
-			TAG_END
-		);
-	}
-
+	the_screen = p96OpenScreenTags(
+		P96SA_DisplayID, mode_id,
+		P96SA_Title, (ULONG)GetString(STR_WINDOW_TITLE),
+		P96SA_Quiet, TRUE,
+		P96SA_NoMemory, TRUE,
+		P96SA_NoSprite, TRUE,
+		P96SA_Exclusive, TRUE,
+		TAG_END
+	);
 	if (the_screen == NULL) {
 		ErrorAlert(GetString(STR_OPEN_SCREEN_ERR));
 		return false;
@@ -298,19 +261,92 @@ static bool init_screen(ULONG mode_id)
 
 	// Set VideoMonitor
 	ScreenToFront(the_screen);
-	if (is_p96) {
-		VideoMonitor.mac_frame_base = p96GetBitMapAttr(the_screen->RastPort.BitMap, P96BMA_MEMORY);
-		VideoMonitor.bytes_per_row = p96GetBitMapAttr(the_screen->RastPort.BitMap, P96BMA_BYTESPERROW);
-	} else {
-		static UWORD ptr[] = { 0, 0, 0, 0 };
-		SetPointer(the_win, ptr, 0, 0, 0, 0);	// Hide Pointer
+	VideoMonitor.mac_frame_base = p96GetBitMapAttr(the_screen->RastPort.BitMap, P96BMA_MEMORY);
+	VideoMonitor.bytes_per_row = p96GetBitMapAttr(the_screen->RastPort.BitMap, P96BMA_BYTESPERROW);
+	return true;
+}
 
-		APTR handle = LockBitMapTags(the_screen->RastPort.BitMap, 
-				LBMI_BASEADDRESS, (ULONG)&VideoMonitor.mac_frame_base,
-				TAG_END);
-		UnLockBitMap(handle);
-		VideoMonitor.bytes_per_row = GetCyberMapAttr(the_screen->RastPort.BitMap, CYBRMATTR_XMOD);
+// Open CyberGraphX screen
+static bool init_screen_cgfx(ULONG mode_id)
+{
+	// Set relative mouse mode
+	ADBSetRelMouseMode(true);
+
+	// Check if the mode is one we can handle
+	uint32 depth = GetCyberIDAttr(CYBRIDATTR_DEPTH, mode_id);
+	uint32 format = GetCyberIDAttr(CYBRIDATTR_PIXFMT, mode_id);
+
+	switch (depth) {
+		case 8:
+			VideoMonitor.mode = VMODE_8BIT;
+			break;
+		case 15:
+		case 16:
+			if (format != PIXFMT_RGB16) {
+				ErrorAlert(GetString(STR_WRONG_SCREEN_FORMAT_ERR));
+				return false;
+			}
+			VideoMonitor.mode = VMODE_16BIT;
+			break;
+		case 24:
+		case 32:
+			if (format != PIXFMT_ARGB32) {
+				ErrorAlert(GetString(STR_WRONG_SCREEN_FORMAT_ERR));
+				return false;
+			}
+			VideoMonitor.mode = VMODE_32BIT;
+			break;
+		default:
+			ErrorAlert(GetString(STR_WRONG_SCREEN_DEPTH_ERR));
+			return false;
 	}
+
+	// Yes, get width and height
+	uint32 width = GetCyberIDAttr(CYBRIDATTR_WIDTH, mode_id);
+	uint32 height = GetCyberIDAttr(CYBRIDATTR_HEIGHT, mode_id);
+
+	VideoMonitor.x = width;
+	VideoMonitor.y = height;
+
+	// Open screen
+	the_screen = OpenScreenTags(NULL,
+		SA_DisplayID, mode_id,
+		SA_Title, (ULONG)GetString(STR_WINDOW_TITLE),
+		SA_Quiet, TRUE,
+		SA_Exclusive, TRUE,
+		TAG_END
+	);
+	if (the_screen == NULL) {
+		ErrorAlert(GetString(STR_OPEN_SCREEN_ERR));
+		return false;
+	}
+
+	// Open window
+	the_win = OpenWindowTags(NULL,
+		WA_Left, 0, WA_Top, 0,
+		WA_Width, width, WA_Height, height,
+		WA_NoCareRefresh, TRUE,
+		WA_Borderless, TRUE,
+		WA_Activate, TRUE,
+		WA_RMBTrap, TRUE,
+		WA_ReportMouse, TRUE,
+		WA_CustomScreen, (ULONG)the_screen,
+		TAG_END
+	);
+	if (the_win == NULL) {
+		ErrorAlert(GetString(STR_OPEN_WINDOW_ERR));
+		return false;
+	}
+
+	// Set VideoMonitor
+	ScreenToFront(the_screen);
+	static UWORD ptr[] = { 0, 0, 0, 0 };
+	SetPointer(the_win, ptr, 0, 0, 0, 0);	// Hide mouse pointer
+	APTR handle = LockBitMapTags(the_screen->RastPort.BitMap, 
+			LBMI_BASEADDRESS, (ULONG)&VideoMonitor.mac_frame_base,
+			TAG_END);
+	UnLockBitMap(handle);
+	VideoMonitor.bytes_per_row = GetCyberMapAttr(the_screen->RastPort.BitMap, CYBRMATTR_XMOD);
 	return true;
 }
 
@@ -337,8 +373,16 @@ bool VideoInit(bool classic)
 			display_type = DISPLAY_WINDOW;
 		else if (sscanf(mode_str, "pip/%d/%d", &width, &height) == 2 && P96Base)
 			display_type = DISPLAY_PIP;
-		else if (sscanf(mode_str, "scr/%08lx", &mode_id) == 1 && (CyberGfxBase || P96Base))
-			display_type = DISPLAY_SCREEN;
+		else if (sscanf(mode_str, "scr/%08lx", &mode_id) == 1 && (CyberGfxBase || P96Base)) {
+			if (P96Base && p96GetModeIDAttr(mode_id, P96IDA_ISP96))
+				display_type = DISPLAY_SCREEN_P96;
+			else if (CyberGfxBase && IsCyberModeID(mode_id))
+				display_type = DISPLAY_SCREEN_CGFX;
+			else {
+				ErrorAlert(GetString(STR_NO_P96_MODE_ERR));
+				return false;
+			}
+		}
 	}
 
 	// Open display
@@ -353,8 +397,13 @@ bool VideoInit(bool classic)
 				return false;
 			break;
 
-		case DISPLAY_SCREEN:
-			if (!init_screen(mode_id))
+		case DISPLAY_SCREEN_P96:
+			if (!init_screen_p96(mode_id))
+				return false;
+			break;
+
+		case DISPLAY_SCREEN_CGFX:
+			if (!init_screen_cgfx(mode_id))
 				return false;
 			break;
 	}
@@ -413,7 +462,7 @@ void VideoExit(void)
 				p96PIP_Close(the_win);
 			break;
 
-		case DISPLAY_SCREEN:
+		case DISPLAY_SCREEN_P96:
 
 			// Close window
 			if (the_win)
@@ -421,11 +470,20 @@ void VideoExit(void)
 
 			// Close screen
 			if (the_screen) {
-				if (is_p96)
-					p96CloseScreen(the_screen);
-				else
-					CloseScreen(the_screen);
+				p96CloseScreen(the_screen);
+				the_screen = NULL;
+			}
+			break;
 
+		case DISPLAY_SCREEN_CGFX:
+
+			// Close window
+			if (the_win)
+				CloseWindow(the_win);
+
+			// Close screen
+			if (the_screen) {
+				CloseScreen(the_screen);
 				the_screen = NULL;
 			}
 			break;
@@ -439,7 +497,7 @@ void VideoExit(void)
 
 void video_set_palette(uint8 *pal)
 {
-	if (display_type == DISPLAY_SCREEN) {
+	if (display_type == DISPLAY_SCREEN_P96 || display_type == DISPLAY_SCREEN_CGFX) {
 
 		// Convert palette to 32 bits
 		ULONG table[2 + 256 * 3];
@@ -482,7 +540,7 @@ static __saveds void periodic_func(void)
 	if (win_port) {
 		win_mask = 1 << win_port->mp_SigBit;
 		the_win->UserPort = win_port;
-		ModifyIDCMP(the_win, IDCMP_MOUSEBUTTONS | IDCMP_MOUSEMOVE | IDCMP_RAWKEY | (display_type == DISPLAY_SCREEN ? IDCMP_DELTAMOVE : 0));
+		ModifyIDCMP(the_win, IDCMP_MOUSEBUTTONS | IDCMP_MOUSEMOVE | IDCMP_RAWKEY | ((display_type == DISPLAY_SCREEN_P96 || display_type == DISPLAY_SCREEN_CGFX) ? IDCMP_DELTAMOVE : 0));
 	}
 
 	// Start 60Hz timer for window refresh
@@ -540,7 +598,7 @@ static __saveds void periodic_func(void)
 				// Handle message according to class
 				switch (cl) {
 					case IDCMP_MOUSEMOVE:
-						if (display_type == DISPLAY_SCREEN)
+						if (display_type == DISPLAY_SCREEN || display_type == DISPLAY_SCREEN_CGFX)
 							ADBMouseMoved(mx, my);
 						else
 							ADBMouseMoved(mx - the_win->BorderLeft, my - the_win->BorderTop);

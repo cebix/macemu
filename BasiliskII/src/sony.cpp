@@ -42,8 +42,10 @@
 #define DEBUG 0
 #include "debug.h"
 
+
+// Check for inserted disks by polling?
 #ifdef AMIGA
-#define DISK_INSERT_CHECK 1		// Check for inserted disks (problem: on most hardware, disks are not ejected and automatically remounted)
+#define DISK_INSERT_CHECK 1
 #else
 #define DISK_INSERT_CHECK 0
 #endif
@@ -122,9 +124,6 @@ static DriveInfo *first_drive_info;
 // Icon addresses (Mac address space, set by PatchROM())
 uint32 SonyDiskIconAddr;
 uint32 SonyDriveIconAddr;
-
-// Number of ticks between checks for disk insertion
-const int driver_delay = 120;
 
 // Flag: Control(accRun) has been called, interrupt routine is now active
 static bool acc_run_called = false;
@@ -520,18 +519,13 @@ int16 SonyStatus(uint32 pb, uint32 dce)
 
 
 /*
- *  Driver interrupt routine - check for volumes to be mounted
+ *  Driver interrupt routine (1Hz) - check for volumes to be mounted
  */
 
 void SonyInterrupt(void)
 {
-	static int tick_count = 0;
 	if (!acc_run_called)
 		return;
 
-	tick_count++;
-	if (tick_count > driver_delay) {
-		tick_count = 0;
-		mount_mountable_volumes();
-	}
+	mount_mountable_volumes();
 }

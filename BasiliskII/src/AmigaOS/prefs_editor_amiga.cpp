@@ -513,6 +513,9 @@ quit:
 	FreeAslRequest(dev_request);
 	FreeAslRequest(file_request);
 
+	// Delete menus
+	LT_DisposeMenu(menu);
+
 	// Delete handle
 	LT_DeleteHandle(h);
 
@@ -873,9 +876,6 @@ do_req:						if (req) {
 		}
 	} while (!done);
 
-	// Delete handle
-	LT_DeleteHandle(h);
-
 	// Update preferences and list view
 	if (ok_clicked) {
 		char str[256];
@@ -913,6 +913,9 @@ do_req:						if (req) {
 		LT_SetAttributes(h2, GAD_DISK_LIST, GTLV_Labels, (ULONG)&disk_list, TAG_END);
 		ghost_volumes_gadgets(h2);
 	}
+
+	// Delete handle
+	LT_DeleteHandle(h);
 }
 
 // Remove volume from list

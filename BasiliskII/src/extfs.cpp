@@ -40,10 +40,13 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <fcntl.h>
-#include <dirent.h>
 #include <errno.h>
+
+#ifndef WIN32
+#include <unistd.h>
+#include <dirent.h>
+#endif
 
 #include "cpu_emulation.h"
 #include "macos_util.h"
@@ -54,6 +57,10 @@
 #include "user_strings.h"
 #include "extfs.h"
 #include "extfs_defs.h"
+
+#ifdef WIN32
+# include "posix_emu.h"
+#endif
 
 #define DEBUG 0
 #include "debug.h"
@@ -110,6 +117,11 @@ const uint32 ROOT_PARENT_ID = 1;
 
 // File system stack size
 const int STACK_SIZE = 0x10000;
+
+// Allocation block and clump size as reported to MacOS (these are of course
+// not the real values and have no meaning on the host OS)
+const int ALBLK_SIZE = 0x4000;
+const int CLUMP_SIZE = 0x4000;
 
 // Drive number of our pseudo-drive
 static int drive_number;
@@ -257,6 +269,8 @@ static void cstr2pstr(char *dst, const char *src)
 	*dst++ = strlen(src);
 	char c;
 	while ((c = *src++) != 0) {
+		// Note: we are converting host ':' characters to Mac '/' characters here
+		// '/' is not a path separator as this function is only used on object names
 		if (c == ':')
 			c = '/';
 		*dst++ = c;
@@ -269,6 +283,8 @@ static void pstr2cstr(char *dst, const char *src)
 	int size = *src++;
 	while (size--) {
 		char c = *src++;
+		// Note: we are converting Mac '/' characters to host ':' characters here
+		// '/' is not a path separator as this function is only used on object names
 		if (c == '/')
 			c = ':';
 		*dst++ = c;
@@ -281,6 +297,8 @@ static void strn2cstr(char *dst, const char *src, int size)
 {
 	while (size--) {
 		char c = *src++;
+		// Note: we are converting Mac '/' characters to host ':' characters here
+		// '/' is not a path separator as this function is only used on object names
 		if (c == '/')
 			c = ':';
 		*dst++ = c;
@@ -356,6 +374,7 @@ void ExtFSInit(void)
 	p->parent_id = ROOT_PARENT_ID;
 	p->parent = first_fs_item;
 	strncpy(p->name, GetString(STR_EXTFS_VOLUME_NAME), 32);
+	p->name[31] = 0;
 
 	// Find path for root
 	if ((RootPath = PrefsFindString("extfs")) != NULL) {
@@ -731,7 +750,7 @@ static int16 get_current_dir(uint32 pb, uint32 dirID, uint32 &current_dir, bool 
 	int16 vRefNum = ReadMacInt16(fs_data + fsReturn + 4);
 	uint32 vcb = ReadMacInt32(fs_data + fsReturn + 6);
 	D(bug("  UTDetermineVol() returned %d, status %d\n", r.d[0], status));
-	result = r.d[0] & 0xffff;
+	result = (int16)(r.d[0] & 0xffff);
 
 	if (result == noErr) {
 		switch (status) {
@@ -756,7 +775,7 @@ static int16 get_current_dir(uint32 pb, uint32 dirID, uint32 &current_dir, bool 
 					Execute68k(fs_data + fsResolveWDCB, &r);
 					uint32 wdcb = ReadMacInt32(fs_data + fsReturn);
 					D(bug("  UTResolveWDCB() returned %d, dirID %d\n", r.d[0], ReadMacInt32(wdcb + wdDirID)));
-					result = r.d[0] & 0xffff;
+					result = (int16)(r.d[0] & 0xffff);
 					if (result == noErr)
 						current_dir = ReadMacInt32(wdcb + wdDirID);
 				}
@@ -772,7 +791,7 @@ static int16 get_current_dir(uint32 pb, uint32 dirID, uint32 &current_dir, bool 
 					r.a[0] = wdpb;
 					Execute68k(fs_data + fsGetDefaultVol, &r);
 					D(bug("  UTGetDefaultVol() returned %d, dirID %d\n", r.d[0], ReadMacInt32(wdpb + ioWDDirID)));
-					result = r.d[0] & 0xffff;
+					result = (int16)(r.d[0] & 0xffff);
 					if (result == noErr)
 						current_dir = ReadMacInt32(wdpb + ioWDDirID);
 				}
@@ -798,7 +817,7 @@ static int16 get_path_component_name(uint32 rec)
 	r.a[0] = rec;
 	Execute68k(fs_data + fsGetPathComponentName, &r);
 //	D(bug("  UTGetPathComponentName returned %d\n", r.d[0]));
-	return r.d[0] & 0xffff;
+	return (int16)(r.d[0] & 0xffff);
 }
 
 
@@ -834,7 +853,7 @@ static int16 get_item_and_path(uint32 pb, uint32 dirID, FSItem *&item, bool no_v
 	r.a[1] = ReadMacInt32(parseRec + ppNamePtr);
 	Execute68k(fs_data + fsParsePathname, &r);
 	D(bug("  UTParsePathname() returned %d, startOffset %d\n", r.d[0], ReadMacInt16(parseRec + ppStartOffset)));
-	result = r.d[0] & 0xffff;
+	result = (int16)(r.d[0] & 0xffff);
 	if (result == noErr) {
 
 		// Check for leading delimiter of the partial pathname
@@ -968,11 +987,11 @@ static int16 fs_volume_mount(uint32 pb)
 	uint32 vcb = ReadMacInt32(fs_data + fsReturn + 2);
 	D(bug("  UTAllocateVCB() returned %d, vcb %08lx, size %d\n", r.d[0], vcb, sysVCBLength));
 	if (r.d[0] & 0xffff)
-		return r.d[0];
+		return (int16)r.d[0];
 
 	// Init VCB
 	WriteMacInt16(vcb + vcbSigWord, 0x4244);
-#ifdef __BEOS__
+#if defined(__BEOS__) || defined(WIN32)
 	WriteMacInt32(vcb + vcbCrDate, root_stat.st_crtime + TIME_OFFSET);
 #else
 	WriteMacInt32(vcb + vcbCrDate, 0);
@@ -982,8 +1001,8 @@ static int16 fs_volume_mount(uint32 pb)
 	WriteMacInt16(vcb + vcbNmFls, 1);			//!!
 	WriteMacInt16(vcb + vcbNmRtDirs, 1);		//!!
 	WriteMacInt16(vcb + vcbNmAlBlks, 0xffff);	//!!
-	WriteMacInt32(vcb + vcbAlBlkSiz, 1024);
-	WriteMacInt32(vcb + vcbClpSiz, 1024);
+	WriteMacInt32(vcb + vcbAlBlkSiz, AL_BLK_SIZE);
+	WriteMacInt32(vcb + vcbClpSiz, CLUMPSIZE);
 	WriteMacInt32(vcb + vcbNxtCNID, next_cnid);
 	WriteMacInt16(vcb + vcbFreeBks, 0xffff);	//!!
 	Host2Mac_memcpy(vcb + vcbVN, VOLUME_NAME, 28);
@@ -997,10 +1016,10 @@ static int16 fs_volume_mount(uint32 pb)
 	r.a[0] = fs_data + fsReturn;
 	r.a[1] = vcb;
 	Execute68k(fs_data + fsAddNewVCB, &r);
-	int16 vRefNum = ReadMacInt32(fs_data + fsReturn);
+	int16 vRefNum = (int16)ReadMacInt32(fs_data + fsReturn);
 	D(bug("  UTAddNewVCB() returned %d, vRefNum %d\n", r.d[0], vRefNum));
 	if (r.d[0] & 0xffff)
-		return r.d[0];
+		return (int16)r.d[0];
 
 	// Post diskInsertEvent
 	D(bug("  posting diskInsertEvent\n"));
@@ -1024,7 +1043,7 @@ static int16 fs_unmount_vol(uint32 vcb)
 	r.a[0] = vcb;
 	Execute68k(fs_data + fsDisposeVCB, &r);
 	D(bug("  UTDisposeVCB() returned %d\n", r.d[0]));
-	return r.d[0];
+	return (int16)r.d[0];
 }
 
 // Get information about a volume (HVolumeParam)
@@ -1035,7 +1054,7 @@ static int16 fs_get_vol_info(uint32 pb, bool hfs)
 	// Fill in struct
 	if (ReadMacInt32(pb + ioNamePtr))
 		pstrcpy((char *)Mac2HostAddr(ReadMacInt32(pb + ioNamePtr)), VOLUME_NAME);
-#ifdef __BEOS__
+#if defined(__BEOS__) || defined(WIN32)
 	WriteMacInt32(pb + ioVCrDate, root_stat.st_crtime + TIME_OFFSET);
 #else
 	WriteMacInt32(pb + ioVCrDate, 0);
@@ -1046,8 +1065,8 @@ static int16 fs_get_vol_info(uint32 pb, bool hfs)
 	WriteMacInt16(pb + ioVBitMap, 0);
 	WriteMacInt16(pb + ioAllocPtr, 0);
 	WriteMacInt16(pb + ioVNmAlBlks, 0xffff);	//!!
-	WriteMacInt32(pb + ioVAlBlkSiz, 1024);
-	WriteMacInt32(pb + ioVClpSiz, 1024);
+	WriteMacInt32(pb + ioVAlBlkSiz, AL_BLK_SIZE);
+	WriteMacInt32(pb + ioVClpSiz, CLUMP_SIZE);
 	WriteMacInt16(pb + ioAlBlSt, 0);
 	WriteMacInt32(pb + ioVNxtCNID, next_cnid);
 	WriteMacInt16(pb + ioVFrBlk, 0xffff);		//!!
@@ -1105,7 +1124,7 @@ static int16 fs_get_vol(uint32 pb)
 	r.a[0] = pb;
 	Execute68k(fs_data + fsGetDefaultVol, &r);
 	D(bug("  UTGetDefaultVol() returned %d\n", r.d[0]));
-	return r.d[0];
+	return (int16)r.d[0];
 }
 
 // Set default volume (WDParam)
@@ -1161,7 +1180,7 @@ static int16 fs_set_vol(uint32 pb, bool hfs, uint32 vcb)
 	r.d[2] = refNum;
 	Execute68k(fs_data + fsSetDefaultVol, &r);
 	D(bug("  UTSetDefaultVol() returned %d\n", r.d[0]));
-	return r.d[0];
+	return (int16)r.d[0];
 }
 
 // Query file attributes (HFileParam)
@@ -1227,7 +1246,7 @@ read_next_de:
 	WriteMacInt8(pb + ioFlAttrib, access(full_path, W_OK) == 0 ? 0 : faLocked);
 	WriteMacInt32(pb + ioDirID, fs_item->id);
 
-#ifdef __BEOS__
+#if defined(__BEOS__) || defined(WIN32)
 	WriteMacInt32(pb + ioFlCrDat, st.st_crtime + TIME_OFFSET);
 #else
 	WriteMacInt32(pb + ioFlCrDat, 0);
@@ -1245,11 +1264,11 @@ read_next_de:
 
 	WriteMacInt16(pb + ioFlStBlk, 0);
 	WriteMacInt32(pb + ioFlLgLen, st.st_size);
-	WriteMacInt32(pb + ioFlPyLen, (st.st_size + 1023) & ~1023);
+	WriteMacInt32(pb + ioFlPyLen, (st.st_size | (AL_BLK_SIZE - 1)) + 1);
 	WriteMacInt16(pb + ioFlRStBlk, 0);
 	uint32 rf_size = get_rfork_size(full_path);
 	WriteMacInt32(pb + ioFlRLgLen, rf_size);
-	WriteMacInt32(pb + ioFlRPyLen, (rf_size + 1023) & ~1023);
+	WriteMacInt32(pb + ioFlRPyLen, (rf_size | (AL_BLK_SIZE - 1)) + 1);
 
 	if (hfs) {
 		WriteMacInt32(pb + ioFlBkDat, 0);
@@ -1357,7 +1376,7 @@ read_next_de:
 	WriteMacInt8(pb + ioACUser, 0);
 	WriteMacInt32(pb + ioDirID, fs_item->id);
 	WriteMacInt32(pb + ioFlParID, fs_item->parent_id);
-#ifdef __BEOS__
+#if defined(__BEOS__) || defined(WIN32)
 	WriteMacInt32(pb + ioFlCrDat, st.st_crtime + TIME_OFFSET);
 #else
 	WriteMacInt32(pb + ioFlCrDat, 0);
@@ -1411,11 +1430,11 @@ read_next_de:
 		WriteMacInt16(pb + ioFlFndrInfo + fdFlags, fflags);
 		WriteMacInt16(pb + ioFlStBlk, 0);
 		WriteMacInt32(pb + ioFlLgLen, st.st_size);
-		WriteMacInt32(pb + ioFlPyLen, (st.st_size + 1023) & ~1023);
+		WriteMacInt32(pb + ioFlPyLen, (st.st_size | (AL_BLK_SIZE - 1)) + 1);
 		WriteMacInt16(pb + ioFlRStBlk, 0);
 		uint32 rf_size = get_rfork_size(full_path);
 		WriteMacInt32(pb + ioFlRLgLen, rf_size);
-		WriteMacInt32(pb + ioFlRPyLen, (rf_size + 1023) & ~1023);
+		WriteMacInt32(pb + ioFlRPyLen, (rf_size | (AL_BLK_SIZE - 1)) + 1);
 		WriteMacInt32(pb + ioFlClpSiz, 0);
 	}
 	return noErr;
@@ -1438,9 +1457,9 @@ static int16 fs_set_cat_info(uint32 pb)
 		return errno2oserr();
 
 	// Set attributes
-	if (S_ISDIR(st.st_mode))
+	if (S_ISDIR(st.st_mode)) {
 		set_finder_flags(full_path, ReadMacInt16(pb + ioDrUsrWds + frFlags));
-	else {
+	} else {
 		set_finder_type(full_path, ReadMacInt32(pb + ioFlFndrInfo + fdType), ReadMacInt32(pb + ioFlFndrInfo + fdCreator));
 		set_finder_flags(full_path, ReadMacInt16(pb + ioFlFndrInfo + fdFlags));
 	}
@@ -1490,7 +1509,7 @@ static int16 fs_open(uint32 pb, uint32 dirID, uint32 vcb, bool resource_fork)
 		if (access(full_path, F_OK))
 			return fnfErr;
 		fd = open_rfork(full_path, flag);
-		if (fd > 0) {
+		if (fd >= 0) {
 			if (fstat(fd, &st) < 0) {
 				close(fd);
 				return errno2oserr();
@@ -1518,17 +1537,17 @@ static int16 fs_open(uint32 pb, uint32 dirID, uint32 vcb, bool resource_fork)
 	D(bug("  UTAllocateFCB() returned %d, fRefNum %d, fcb %08lx\n", r.d[0], ReadMacInt16(pb + ioRefNum), fcb));
 	if (r.d[0] & 0xffff) {
 		close(fd);
-		return r.d[0];
+		return (int16)r.d[0];
 	}
 
 	// Initialize FCB, fd is stored in fcbCatPos
 	WriteMacInt32(fcb + fcbFlNm, fs_item->id);
 	WriteMacInt8(fcb + fcbFlags, ((flag == O_WRONLY || flag == O_RDWR) ? fcbWriteMask : 0) | (resource_fork ? fcbResourceMask : 0) | (write_ok ? 0 : fcbFileLockedMask));
 	WriteMacInt32(fcb + fcbEOF, st.st_size);
-	WriteMacInt32(fcb + fcbPLen, (st.st_size + 1023) & ~1023);
+	WriteMacInt32(fcb + fcbPLen, (st.st_size | (AL_BLK_SIZE - 1)) + 1);
 	WriteMacInt32(fcb + fcbCrPs, 0);
 	WriteMacInt32(fcb + fcbVPtr, vcb);
-	WriteMacInt32(fcb + fcbClmpSize, 1024);
+	WriteMacInt32(fcb + fcbClmpSize, CLUMP_SIZE);
 	uint32 type, creator;	// BeOS: fcb may point to kernel space, but stack is switched
 	get_finder_type(full_path, type, creator);
 	WriteMacInt32(fcb + fcbFType, type);
@@ -1568,7 +1587,7 @@ static int16 fs_close(uint32 pb)
 	r.d[0] = ReadMacInt16(pb + ioRefNum);
 	Execute68k(fs_data + fsReleaseFCB, &r);
 	D(bug("  UTReleaseFCB() returned %d\n", r.d[0]));
-	return r.d[0];
+	return (int16)r.d[0];
 }
 
 // Query information about FCB (FCBPBRec)
@@ -1596,7 +1615,7 @@ static int16 fs_get_fcb_info(uint32 pb, uint32 vcb)
 			fcb = ReadMacInt32(fs_data + fsReturn);
 			D(bug("  UTIndexFCB() returned %d, fcb %p\n", r.d[0], fcb));
 			if (r.d[0] & 0xffff)
-				return r.d[0];
+				return (int16)r.d[0];
 		}
 	}
 	if (fcb == 0)
@@ -1644,7 +1663,7 @@ static int16 fs_get_eof(uint32 pb)
 
 	// Adjust FCBs
 	WriteMacInt32(fcb + fcbEOF, st.st_size);
-	WriteMacInt32(fcb + fcbPLen, (st.st_size + 1023) & ~1023);
+	WriteMacInt32(fcb + fcbPLen, (st.st_size | (AL_BLK_SIZE - 1)) + 1);
 	WriteMacInt32(pb + ioMisc, st.st_size);
 	D(bug("  adjusting FCBs\n"));
 	r.d[0] = ReadMacInt16(pb + ioRefNum);
@@ -1679,7 +1698,7 @@ static int16 fs_set_eof(uint32 pb)
 
 	// Adjust FCBs
 	WriteMacInt32(fcb + fcbEOF, size);
-	WriteMacInt32(fcb + fcbPLen, (size + 1023) & ~1023);
+	WriteMacInt32(fcb + fcbPLen, (size | (AL_BLK_SIZE - 1)) + 1);
 	D(bug("  adjusting FCBs\n"));
 	r.d[0] = ReadMacInt16(pb + ioRefNum);
 	Execute68k(fs_data + fsAdjustEOF, &r);
@@ -1764,6 +1783,10 @@ static int16 fs_read(uint32 pb)
 {
 	D(bug(" fs_read(%08lx), refNum %d, buffer %p, count %d, posMode %d, posOffset %d\n", pb, ReadMacInt16(pb + ioRefNum), ReadMacInt32(pb + ioBuffer), ReadMacInt32(pb + ioReqCount), ReadMacInt16(pb + ioPosMode), ReadMacInt32(pb + ioPosOffset)));
 
+	// Check parameters
+	if ((int32)ReadMacInt32(pb + ioReqCount) < 0)
+		return paramErr;
+
 	// Find FCB and fd for file
 	uint32 fcb = find_fcb(ReadMacInt16(pb + ioRefNum));
 	if (fcb == 0)
@@ -1812,6 +1835,10 @@ static int16 fs_read(uint32 pb)
 static int16 fs_write(uint32 pb)
 {
 	D(bug(" fs_write(%08lx), refNum %d, buffer %p, count %d, posMode %d, posOffset %d\n", pb, ReadMacInt16(pb + ioRefNum), ReadMacInt32(pb + ioBuffer), ReadMacInt32(pb + ioReqCount), ReadMacInt16(pb + ioPosMode), ReadMacInt32(pb + ioPosOffset)));
+
+	// Check parameters
+	if ((int32)ReadMacInt32(pb + ioReqCount) < 0)
+		return paramErr;
 
 	// Find FCB and fd for file
 	uint32 fcb = find_fcb(ReadMacInt16(pb + ioRefNum));
@@ -2023,7 +2050,7 @@ static int16 fs_open_wd(uint32 pb)
 	r.a[0] = pb;
 	Execute68k(fs_data + fsAllocateWDCB, &r);
 	D(bug("  UTAllocateWDCB returned %d, refNum is %d\n", r.d[0], ReadMacInt16(pb + ioVRefNum)));
-	return r.d[0];
+	return (int16)r.d[0];
 }
 
 // Close working directory (WDParam)
@@ -2037,7 +2064,7 @@ static int16 fs_close_wd(uint32 pb)
 	r.d[0] = ReadMacInt16(pb + ioVRefNum);
 	Execute68k(fs_data + fsReleaseWDCB, &r);
 	D(bug("  UTReleaseWDCB returned %d\n", r.d[0]));
-	return r.d[0];
+	return (int16)r.d[0];
 }
 
 // Query information about working directory (WDParam)
@@ -2066,7 +2093,7 @@ static int16 fs_get_wd_info(uint32 pb, uint32 vcb)
 	uint32 wdcb = ReadMacInt32(fs_data + fsReturn);
 	D(bug("  UTResolveWDCB() returned %d, dirID %d\n", r.d[0], ReadMacInt32(wdcb + wdDirID)));
 	if (r.d[0] & 0xffff)
-		return r.d[0];
+		return (int16)r.d[0];
 
 	// Return information
 	WriteMacInt32(pb + ioWDProcID, ReadMacInt32(wdcb + wdProcID));

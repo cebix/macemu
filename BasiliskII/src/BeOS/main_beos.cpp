@@ -503,6 +503,8 @@ status_t BasiliskII::tick_func(void *arg)
 		if (++tick_counter > 60) {
 			tick_counter = 0;
 			WriteMacInt32(0x20c, TimerDateTime());
+			SetInterruptFlag(INTFLAG_1HZ);
+			TriggerInterrupt();
 		}
 
 		// Trigger 60Hz interrupt

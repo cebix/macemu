@@ -1,4 +1,13 @@
 V0.8 (snapshot) -
+	- AmigaOS: enabled floppy support, fixed floppy bugs [Jürgen Lachmann]
+	- AmigaOS/sys_amiga.cpp: workaround for 2060scsi.device bug when
+	  when reading from CD-ROM [Jürgen Lachmann]
+	- AmigaOS/prefs_editor_amiga.cpp: fixed bug when adding volumes
+	  [Jürgen Lachmann]
+	- Imported some changes from the Windows port, most notably FPU fixes
+	  and the 1Hz interrupt [Lauri Pesonen]
+
+V0.8 (snapshot) - 13.Jul.2000
 	- Unix: runs natively on NetBSD/m68k
 	- Unix: compiles without pthreads, but without serial/ethernet/audio
 	  support

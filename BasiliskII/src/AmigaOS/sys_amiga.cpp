@@ -52,6 +52,8 @@ struct file_handle {
 	ULONG block_size;		// Block size of device (must be a power of two)
 	bool is_nsd;			// New style device?
 	bool does_64bit;		// Supports 64 bit trackdisk commands?
+	bool is_ejected;		// Volume has been (logically) ejected
+	bool is_2060scsi;		// Enable workaround for 2060scsi.device CD-ROM TD_READ bug
 };
 
 
@@ -89,10 +91,14 @@ void SysInit(void)
 void SysExit(void)
 {
 	// Delete port and temporary buffer
-	if (the_port)
+	if (the_port) {
 		DeleteMsgPort(the_port);
-	if (tmp_buf)
+		the_port = NULL;
+	}
+	if (tmp_buf) {
 		FreeMem(tmp_buf, TMP_BUF_SIZE);
+		tmp_buf = NULL;
+	}
 }
 
 
@@ -103,16 +109,14 @@ void SysExit(void)
 
 void SysAddFloppyPrefs(void)
 {
-#if 0
 	for (int i=0; i<4; i++) {
 		ULONG id = GetUnitID(i);
 		if (id == DRT_150RPM) {	// We need an HD drive
 			char str[256];
-			sprintf(str, "/dev/mfm.device/%d/0/0/1474560/512", i);
+			sprintf(str, "/dev/mfm.device/%d/0/0/2880/512", i);
 			PrefsAddString("floppy", str);
 		}
 	}
-#endif
 }
 
 
@@ -257,6 +261,8 @@ void *Sys_open(const char *name, bool read_only)
 		fh->block_size = dev_bsize;
 		fh->is_nsd = is_nsd;
 		fh->does_64bit = does_64bit;
+		fh->is_ejected = false;
+		fh->is_2060scsi = (strcmp(dev_name, "2060scsi.device") == 0);
 		return fh;
 	}
 }
@@ -313,9 +319,72 @@ static loff_t send_io_request(file_handle *fh, bool writing, ULONG length, loff_
 	fh->io->io_Length = length;
 	fh->io->io_Offset = offset;
 	fh->io->io_Data = data;
-	if (DoIO((struct IORequest *)fh->io) || fh->io->io_Actual != length)
-		return 0;
-	return fh->io->io_Actual;
+
+	if (fh->is_2060scsi && fh->block_size == 2048) {
+
+		// 2060scsi.device has serious problems reading CD-ROMs via TD_READ
+		static struct SCSICmd scsi;
+		const int SENSE_LENGTH = 256;
+		static UBYTE sense_buffer[SENSE_LENGTH];		// Buffer for autosense data
+		static UBYTE cmd_buffer[10] = { 0x28, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+		D(bug("send_io_request length=%lu  offset=%lu\n", length, (ULONG) offset));
+
+		memset(sense_buffer, 0, sizeof(sense_buffer));
+
+		scsi.scsi_Command = cmd_buffer;
+		scsi.scsi_CmdLength = sizeof(cmd_buffer);
+		scsi.scsi_SenseData = sense_buffer;
+		scsi.scsi_SenseLength = SENSE_LENGTH;
+		scsi.scsi_Flags = SCSIF_AUTOSENSE | (writing ? SCSIF_WRITE : SCSIF_READ);
+		scsi.scsi_Data = (UWORD  *) data;
+		scsi.scsi_Length = length;
+
+		ULONG block_offset = (ULONG) offset / fh->block_size;
+		ULONG block_length = length / fh->block_size;
+
+		cmd_buffer[2] = block_offset >> 24;
+		cmd_buffer[3] = block_offset >> 16;
+		cmd_buffer[4] = block_offset >> 8;
+		cmd_buffer[5] = block_offset & 0xff;
+
+		cmd_buffer[7] = block_length >> 8;
+		cmd_buffer[8] = block_length & 0xff;
+
+		fh->io->io_Command = HD_SCSICMD;
+		fh->io->io_Actual = 0;
+		fh->io->io_Offset = 0;
+		fh->io->io_Data = &scsi;
+		fh->io->io_Length = sizeof(scsi);
+
+		BYTE result = DoIO((struct IORequest *)fh->io);
+
+		if (result) {
+			D(bug("send_io_request SCSI FAIL result=%lu\n", result));
+
+			if (result == HFERR_BadStatus) {
+				D(bug("send_io_request SCSI Status=%lu\n", scsi.scsi_Status));
+				if (scsi.scsi_Status == 2) {
+					D(bug("send_io_request Sense Key=%02lx\n", sense_buffer[2] & 0x0f));
+					D(bug("send_io_request ASC=%02lx  ASCQ=%02lx\n", sense_buffer[12], sense_buffer[13]));
+				}
+			}
+			return 0;
+		}
+
+		D(bug("send_io_request SCSI Actual=%lu\n", scsi.scsi_Actual));
+
+		if (scsi.scsi_Actual != length)
+			return 0;
+
+		return scsi.scsi_Actual;
+
+	} else {
+
+		if (DoIO((struct IORequest *)fh->io) || fh->io->io_Actual != length)
+			return 0;
+		return fh->io->io_Actual;
+	}
 }
 
 
@@ -528,6 +597,8 @@ void SysEject(void *arg)
 		fh->io->io_Command = TD_EJECT;
 		fh->io->io_Length = 1;
 		DoIO((struct IORequest *)fh->io);
+
+		fh->is_ejected = true;
 	}
 }
 
@@ -565,9 +636,8 @@ bool SysIsReadOnly(void *arg)
 	} else {
 
 		// Device, check write protection
-		fh->io->io_Flags = IOF_QUICK;
 		fh->io->io_Command = TD_PROTSTATUS;
-		BeginIO((struct IORequest *)fh->io);
+		DoIO((struct IORequest *)fh->io);
 		if (fh->io->io_Actual)
 			return true;
 		else
@@ -605,11 +675,22 @@ bool SysIsDiskInserted(void *arg)
 	else {
 
 		// Check medium status
-		fh->io->io_Flags = IOF_QUICK;
 		fh->io->io_Command = TD_CHANGESTATE;
 		fh->io->io_Actual = 0;
-		BeginIO((struct IORequest *)fh->io);
-		return fh->io->io_Actual == 0;
+		DoIO((struct IORequest *)fh->io);
+		bool inserted = (fh->io->io_Actual == 0);
+
+		if (!inserted) {
+			// Disk was ejected and has now been taken out
+			fh->is_ejected = false;
+		}
+
+		if (fh->is_ejected) {
+			// Disk was ejected but has not yet been taken out, report it as
+			// no longer in the drive
+			return false;
+		} else
+			return inserted;
 	}
 }
 

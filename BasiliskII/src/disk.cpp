@@ -90,9 +90,6 @@ static DriveInfo *first_drive_info;
 // Icon address (Mac address space, set by PatchROM())
 uint32 DiskIconAddr;
 
-// Number of ticks between checks for disk insertion
-const int driver_delay = 120;
-
 // Flag: Control(accRun) has been called, interrupt routine is now active
 static bool acc_run_called = false;
 
@@ -495,18 +492,13 @@ int16 DiskStatus(uint32 pb, uint32 dce)
 
 
 /*
- *  Driver interrupt routine - check for volumes to be mounted
+ *  Driver interrupt routine (1Hz) - check for volumes to be mounted
  */
 
 void DiskInterrupt(void)
 {
-	static int tick_count = 0;
 	if (!acc_run_called)
 		return;
 
-	tick_count++;
-	if (tick_count > driver_delay) {
-		tick_count = 0;
-		mount_mountable_volumes();
-	}
+	mount_mountable_volumes();
 }

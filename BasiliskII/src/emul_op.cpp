@@ -413,6 +413,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 
 		case M68K_EMUL_OP_IRQ:			// Level 1 interrupt
 			r->d[0] = 0;
+
 			if (InterruptFlags & INTFLAG_60HZ) {
 				ClearInterruptFlag(INTFLAG_60HZ);
 				if (HasMacStarted()) {
@@ -421,9 +422,6 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 					ADBInterrupt();
 					TimerInterrupt();
 					VideoInterrupt();
-					SonyInterrupt();
-					DiskInterrupt();
-					CDROMInterrupt();
 
 					// Call DoVBLTask(0)
 					if (ROMVersion == ROM_VERSION_32) {
@@ -435,14 +433,27 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 					r->d[0] = 1;			// Flag: 68k interrupt routine executes VBLTasks etc.
 				}
 			}
+
+			if (InterruptFlags & INTFLAG_1HZ) {
+				ClearInterruptFlag(INTFLAG_1HZ);
+
+				if (HasMacStarted()) {
+					SonyInterrupt();
+					DiskInterrupt();
+					CDROMInterrupt();
+				}
+			}
+
 			if (InterruptFlags & INTFLAG_SERIAL) {
 				ClearInterruptFlag(INTFLAG_SERIAL);
 				SerialInterrupt();
 			}
+
 			if (InterruptFlags & INTFLAG_ETHER) {
 				ClearInterruptFlag(INTFLAG_ETHER);
 				EtherInterrupt();
 			}
+
 			if (InterruptFlags & INTFLAG_AUDIO) {
 				ClearInterruptFlag(INTFLAG_AUDIO);
 				AudioInterrupt();

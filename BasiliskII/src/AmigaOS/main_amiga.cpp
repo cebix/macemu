@@ -347,6 +347,13 @@ void __saveds quit_emulator(void)
 
 void QuitEmulator(void)
 {
+	// Stop 60Hz thread
+	if (tick_proc) {
+		SetSignal(0, SIGF_SINGLE);
+		tick_proc_active = false;
+		Wait(SIGF_SINGLE);
+	}
+
 	// Restore stack
 	if (stack_swapped) {
 		stack_swapped = false;
@@ -358,13 +365,6 @@ void QuitEmulator(void)
 		SetExcept(0, SIGBREAKF_CTRL_C | IRQSigMask);
 		MainTask->tc_ExceptCode = OldExceptionHandler;
 		FreeSignal(IRQSig);
-	}
-
-	// Stop 60Hz thread
-	if (tick_proc) {
-		SetSignal(0, SIGF_SINGLE);
-		tick_proc_active = false;
-		Wait(SIGF_SINGLE);
 	}
 
 	// Remove trap handler
@@ -495,6 +495,8 @@ static __saveds void tick_func(void)
 		if (++tick_counter > 60) {
 			tick_counter = 0;
 			WriteMacInt32(0x20c, TimerDateTime());
+			SetInterruptFlag(INTFLAG_1HZ);
+			TriggerInterrupt();
 		}
 
 		// Trigger 60Hz interrupt

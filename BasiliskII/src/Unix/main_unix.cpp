@@ -708,6 +708,9 @@ static void one_second(void)
 	// Pseudo Mac 1Hz interrupt, update local time
 	WriteMacInt32(0x20c, TimerDateTime());
 
+	SetInterruptFlag(INTFLAG_60HZ);
+	TriggerInterrupt();
+
 #ifndef HAVE_PTHREADS
 	static int second_counter = 0;
 	if (++second_counter > 60) {

@@ -19,6 +19,7 @@
  */
 
 #include "sysdeps.h"
+
 #include "cpu_emulation.h"
 #include "main.h"
 #include "emul_op.h"
@@ -81,7 +82,9 @@ bool Init680x0(void)
 #endif
 
 	init_m68k();
+#ifdef USE_COMPILER
 	compiler_init();
+#endif
 	return true;
 }
 

@@ -51,11 +51,12 @@ extern bool ChoiceAlert(const char *text, const char *pos, const char *neg);	// 
 
 // Interrupt flags
 enum {
-	INTFLAG_60HZ = 1,	// 60Hz VBL
-	INTFLAG_SERIAL = 2,	// Serial driver
-	INTFLAG_ETHER = 4,	// Ethernet driver
-	INTFLAG_AUDIO = 8,	// Audio block read
-	INTFLAG_TIMER = 16	// Time Manager
+	INTFLAG_60HZ = 1,	// 60.15Hz VBL
+	INTFLAG_1HZ = 2,	// ~1Hz interrupt
+	INTFLAG_SERIAL = 4,	// Serial driver
+	INTFLAG_ETHER = 8,	// Ethernet driver
+	INTFLAG_AUDIO = 16,	// Audio block read
+	INTFLAG_TIMER = 32	// Time Manager
 };
 
 extern uint32 InterruptFlags;									// Currently pending interrupts

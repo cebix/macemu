@@ -26,6 +26,7 @@ const uint16 M68K_ILLEGAL = 0x4afc;
 const uint16 M68K_NOP = 0x4e71;
 const uint16 M68K_RTS = 0x4e75;
 const uint16 M68K_RTD = 0x4e74;
+const uint16 M68K_RTR = 0x4e77;
 const uint16 M68K_JMP = 0x4ef9;
 const uint16 M68K_JMP_A0 = 0x4ed0;
 const uint16 M68K_JSR = 0x4eb9;
