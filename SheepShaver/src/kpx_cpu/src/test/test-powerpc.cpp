@@ -19,10 +19,15 @@
  */
 
 #include <vector>
+#include <limits>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <netinet/in.h> // ntohl(), htonl()
+#include <setjmp.h>
+#include <signal.h>
+#include <ctype.h>
+#include <math.h>
 
 #if EMU_KHEPERIX
 #include "sysdeps.h"
@@ -85,6 +90,8 @@ typedef uintptr_t uintptr;
 #define TEST_LOGICAL	1
 #define TEST_COMPARE	1
 #define TEST_CR_LOGICAL	1
+#define TEST_VMX_LOAD	1
+#define TEST_VMX_ARITH	1
 
 // Partial PowerPC runtime assembler from GNU lightning
 #define _I(X)			((uint32)(X))
@@ -98,16 +105,24 @@ typedef uintptr_t uintptr;
 #define _u6(I)          _ck_u( 6,I)
 #define _u9(I)          _ck_u( 9,I)
 #define _u10(I)         _ck_u(10,I)
+#define _u11(I)			_ck_u(11,I)
 #define _s16(I)         _ck_s(16,I)
 
 #define _D(   OP,RD,RA,         DD )  	_I((_u6(OP)<<26)|(_u5(RD)<<21)|(_u5(RA)<<16)|                _s16(DD)                          )
 #define _X(   OP,RD,RA,RB,   XO,RC )  	_I((_u6(OP)<<26)|(_u5(RD)<<21)|(_u5(RA)<<16)|( _u5(RB)<<11)|              (_u10(XO)<<1)|_u1(RC))
 #define _XO(  OP,RD,RA,RB,OE,XO,RC )  	_I((_u6(OP)<<26)|(_u5(RD)<<21)|(_u5(RA)<<16)|( _u5(RB)<<11)|(_u1(OE)<<10)|( _u9(XO)<<1)|_u1(RC))
 #define _M(   OP,RS,RA,SH,MB,ME,RC )  	_I((_u6(OP)<<26)|(_u5(RS)<<21)|(_u5(RA)<<16)|( _u5(SH)<<11)|(_u5(MB)<< 6)|( _u5(ME)<<1)|_u1(RC))
+#define _VX(  OP,VD,VA,VB,   XO    )	_I((_u6(OP)<<26)|(_u5(VD)<<21)|(_u5(VA)<<16)|( _u5(VB)<<11)|               _u11(XO)            )
+#define _VXR( OP,VD,VA,VB,   XO,RC )	_I((_u6(OP)<<26)|(_u5(VD)<<21)|(_u5(VA)<<16)|( _u5(VB)<<11)|              (_u1(RC)<<10)|_u10(XO))
+#define _VA(  OP,VD,VA,VB,VC,XO    )	_I((_u6(OP)<<26)|(_u5(VD)<<21)|(_u5(VA)<<16)|( _u5(VB)<<11)|(_u5(VC)<< 6)|  _u6(XO)            )
 
 // PowerPC opcodes
 static inline uint32 POWERPC_MR(int RD, int RA) { return _X(31,RA,RD,RA,444,0); }
 static inline uint32 POWERPC_MFCR(int RD) { return _X(31,RD,00,00,19,0); }
+static inline uint32 POWERPC_LVX(int vD, int rA, int rB) { return _X(31,vD,rA,rB,103,0); }
+static inline uint32 POWERPC_STVX(int vS, int rA, int rB) { return _X(31,vS,rA,rB,231,0); }
+static inline uint32 POWERPC_MFSPR(int rD, int SPR) { return _X(31,rD,(SPR&0x1f),((SPR>>5)&0x1f),339,0); }
+static inline uint32 POWERPC_MTSPR(int rS, int SPR) { return _X(31,rS,(SPR&0x1f),((SPR>>5)&0x1f),467,0); }
 const uint32 POWERPC_NOP = 0x60000000;
 const uint32 POWERPC_BLR = 0x4e800020;
 const uint32 POWERPC_BLRL = 0x4e800021;
@@ -174,13 +189,6 @@ void powerpc_cpu_base::execute_return(uint32 opcode)
 
 void powerpc_cpu_base::init_decoder()
 {
-#ifndef PPC_NO_STATIC_II_INDEX_TABLE
-	static bool initialized = false;
-	if (initialized)
-		return;
-	initialized = true;
-#endif
-
 	static const instr_info_t return_ii_table[] = {
 		{ "return",
 		  (execute_pmf)&powerpc_cpu_base::execute_return,
@@ -400,6 +408,14 @@ typedef bit_field< 16, 20 > rB_field;
 typedef bit_field<  6, 10 > rD_field;
 typedef bit_field<  6, 10 > rS_field;
 
+// Vector registers
+typedef bit_field< 11, 15 > vA_field;
+typedef bit_field< 16, 20 > vB_field;
+typedef bit_field< 21, 25 > vC_field;
+typedef bit_field<  6, 10 > vD_field;
+typedef bit_field<  6, 10 > vS_field;
+typedef bit_field< 22, 25 > vSH_field;
+
 // Condition registers
 typedef bit_field< 11, 15 > crbA_field;
 typedef bit_field< 16, 20 > crbB_field;
@@ -432,6 +448,144 @@ typedef bit_field<  2,  2 > XER_CA_field;
 #define OV XER_OV_field::mask()
 #undef  SO
 #define SO XER_SO_field::mask()
+
+// Flag: does the host support AltiVec instructions?
+static bool has_altivec = true;
+
+// A 128-bit AltiVec register
+typedef uint8 vector_t[16] __attribute__((aligned(16)));
+
+union vector_helper_t {
+	vector_t v;
+	uint8	b[16];
+	uint16	h[8];
+	uint32	w[4];
+	float	f[4];
+};
+
+static void print_vector(vector_t const & v, char type = 'b')
+{
+	vector_helper_t x;
+	memcpy(&x.b, &v, sizeof(vector_t));
+
+	printf("{");
+	switch (type) {
+	case 'b':
+	default:
+		for (int i = 0; i < 16; i++) {
+			if (i != 0)
+				printf(",");
+			printf(" %02x", x.b[i]);
+		}
+		break;
+	case 'h':
+		for (int i = 0; i < 8; i++) {
+			if (i != 0)
+				printf(",");
+			printf(" %04x", x.h[i]);
+		}
+		break;
+	case 'w':
+		for (int i = 0; i < 4; i++) {
+			if (i != 0)
+				printf(",");
+			printf(" %08x", x.w[i]);
+		}
+		break;
+	case 'f':
+	case 'e': // estimate result
+	case 'l': // estimate log2 result
+		for (int i = 0; i < 4; i++) {
+			x.w[i] = ntohl(x.w[i]);
+			if (i != 0)
+				printf(",");
+			printf(" %g", x.f[i]);
+		}
+		break;
+	}
+	printf(" }");
+}
+
+static inline bool do_float_equals(float a, float b, float tolerance)
+{
+	if (a == b)
+		return true;
+
+	if (isnan(a) && isnan(b))
+		return true;
+
+	if (isinf(a) && isinf(b) && signbit(a) == signbit(b))
+		return true;
+
+	if ((b < (a + tolerance)) && (b > (a - tolerance)))
+		return true;
+
+	return false;
+}
+
+static inline bool float_equals(float a, float b)
+{
+	return do_float_equals(a, b, 3 * std::numeric_limits<float>::epsilon());
+}
+
+static bool vector_equals(char type, vector_t const & a, vector_t const & b)
+{
+	// the vector is in ppc big endian format
+	float tolerance;
+	switch (type) {
+	case 'f':
+		tolerance = 3 * std::numeric_limits<float>::epsilon();
+		goto do_compare;
+	case 'l': // FIXME: this does not handle |x-1|<=1/8 case
+		tolerance = 1. / 32.;
+		goto do_compare;
+	case 'e':
+		tolerance = 1. / 4096.;
+	  do_compare:
+		for (int i = 0; i < 4; i++) {
+			union { float f; uint32 i; } u, v;
+			u.i = ntohl(((uint32 *)&a)[i]);
+			v.i = ntohl(((uint32 *)&b)[i]);
+			if (!do_float_equals(u.f, v.f, tolerance))
+				return false;
+		}
+		return true;
+	}
+
+	return memcmp(&a, &b, sizeof(vector_t)) == 0;
+}
+
+static bool vector_all_eq(char type, vector_t const & b)
+{
+	uint32 v;
+	vector_helper_t x;
+	memcpy(&x.v, &b, sizeof(vector_t));
+
+	bool all_eq = true;
+	switch (type) {
+	case 'b':
+	default:
+		v = x.b[0];
+		for (int i = 1; all_eq && i < 16; i++)
+			if (x.b[i] != v)
+				all_eq = false;
+		break;
+	case 'h':
+		v = x.h[0];
+		for (int i = 1; all_eq && i < 8; i++)
+			if (x.h[i] != v)
+				all_eq = false;
+		break;
+	case 'w':
+	case 'f':
+		v = x.w[0];
+		for (int i = 1; all_eq && i < 4; i++)
+			if (x.w[i] != v)
+				all_eq = false;
+		break;
+	}
+	return all_eq;
+}
 
 // Define PowerPC tester
 class powerpc_test_cpu
@@ -477,8 +631,10 @@ private:
 	FILE *results_file;
 	uint32 get32();
 	void put32(uint32 v);
+	void get_vector(vector_t & v);
+	void put_vector(vector_t const & v);
 
-	// Initial CR0, XER state
+	// Initial CR0, XER states
 	uint32 init_cr;
 	uint32 init_xer;
 
@@ -490,12 +646,36 @@ private:
 	enum {
 		RD = 3,
 		RA = 4,
-		RB = 5
+		RB = 5,
+		RC = 6,
+		VSCR = 7,
+	};
+
+	// Operands
+	enum {
+		__,
+		vD, vS, vA, vB, vC, vI, vN,
+		rD, rS, rA, rB, rC,
+	};
+
+	struct vector_test_t {
+		uint8	name[14];
+		char	type;
+		char	op_type;
+		uint32	opcode;
+		uint8	operands[4];
+	};
+
+	struct vector_value_t {
+		char type;
+		vector_t v;
 	};
 
 	static const uint32 reg_values[];
 	static const uint32 imm_values[];
 	static const uint32 msk_values[];
+	static const vector_value_t vector_values[];
+	static const vector_value_t vector_fp_values[];
 
 	void test_one_1(uint32 *code, const char *insn, uint32 a1, uint32 a2, uint32 a3, uint32 a0 = 0);
 	void test_one(uint32 *code, const char *insn, uint32 a1, uint32 a2, uint32 a3, uint32 a0 = 0);
@@ -522,6 +702,12 @@ private:
 	void test_logical(void);
 	void test_compare(void);
 	void test_cr_logical(void);
+
+	void test_one_vector(uint32 *code, vector_test_t const & vt, uint8 *rA, uint8 *rB = 0, uint8 *rC = 0);
+	void test_one_vector(uint32 *code, vector_test_t const & vt, vector_t const *vA = 0, vector_t const *vB = 0, vector_t const *vC = 0)
+		{ test_one_vector(code, vt, (uint8 *)vA, (uint8 *)vB, (uint8 *)vC); }
+	void test_vector_load(void);
+	void test_vector_arith(void);
 };
 
 powerpc_test_cpu::powerpc_test_cpu()
@@ -554,6 +740,22 @@ void powerpc_test_cpu::put32(uint32 v)
 	uint32 out = htonl(v);
 	if (fwrite(&out, sizeof(out), 1, results_file) != 1) {
 		fprintf(stderr, "could not write item to results file\n");
+		exit(EXIT_FAILURE);
+	}
+}
+
+void powerpc_test_cpu::get_vector(vector_t & v)
+{
+	if (fread(&v, sizeof(v), 1, results_file) != 1) {
+		fprintf(stderr, "ERROR: unexpected end of results file\n");
+		exit(EXIT_FAILURE);
+	}
+}
+
+void powerpc_test_cpu::put_vector(vector_t const & v)
+{
+	if (fwrite(&v, sizeof(v), 1, results_file) != 1) {
+		fprintf(stderr, "could not write vector to results file\n");
 		exit(EXIT_FAILURE);
 	}
 }
@@ -1265,13 +1467,520 @@ void powerpc_test_cpu::test_cr_logical(void)
 #endif
 }
 
+// Template-generated vector values
+const powerpc_test_cpu::vector_value_t powerpc_test_cpu::vector_values[] = {
+	{'w',{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}},
+	{'w',{0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01}},
+	{'w',{0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02}},
+	{'w',{0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03}},
+	{'w',{0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04}},
+	{'w',{0x05,0x05,0x05,0x05,0x05,0x05,0x05,0x05,0x05,0x05,0x05,0x05,0x05,0x05,0x05,0x05}},
+	{'w',{0x06,0x06,0x06,0x06,0x06,0x06,0x06,0x06,0x06,0x06,0x06,0x06,0x06,0x06,0x06,0x06}},
+	{'w',{0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07}},
+	{'w',{0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08}},
+	{'w',{0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x10}},
+	{'w',{0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18}},
+	{'w',{0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20}},
+	{'w',{0x28,0x28,0x28,0x28,0x28,0x28,0x28,0x28,0x28,0x28,0x28,0x28,0x28,0x28,0x28,0x28}},
+	{'w',{0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30}},
+	{'w',{0x38,0x38,0x38,0x38,0x38,0x38,0x38,0x38,0x38,0x38,0x38,0x38,0x38,0x38,0x38,0x38}},
+	{'w',{0x40,0x40,0x40,0x40,0x40,0x40,0x40,0x40,0x40,0x40,0x40,0x40,0x40,0x40,0x40,0x40}},
+	{'w',{0x48,0x48,0x48,0x48,0x48,0x48,0x48,0x48,0x48,0x48,0x48,0x48,0x48,0x48,0x48,0x48}},
+	{'w',{0x50,0x50,0x50,0x50,0x50,0x50,0x50,0x50,0x50,0x50,0x50,0x50,0x50,0x50,0x50,0x50}},
+	{'w',{0x58,0x58,0x58,0x58,0x58,0x58,0x58,0x58,0x58,0x58,0x58,0x58,0x58,0x58,0x58,0x58}},
+	{'w',{0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x60}},
+	{'w',{0x68,0x68,0x68,0x68,0x68,0x68,0x68,0x68,0x68,0x68,0x68,0x68,0x68,0x68,0x68,0x68}},
+	{'w',{0x70,0x70,0x70,0x70,0x70,0x70,0x70,0x70,0x70,0x70,0x70,0x70,0x70,0x70,0x70,0x70}},
+	{'w',{0x78,0x78,0x78,0x78,0x78,0x78,0x78,0x78,0x78,0x78,0x78,0x78,0x78,0x78,0x78,0x78}},
+	{'w',{0x00,0x00,0x01,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01,0x00}},
+	{'w',{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x04}},
+	{'w',{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x10}},
+	{'w',{0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff}},
+	{'w',{0x11,0x11,0x11,0x11,0x22,0x22,0x22,0x22,0x33,0x33,0x33,0x33,0x44,0x44,0x44,0x44}},
+	{'w',{0x88,0x88,0x88,0x88,0x77,0x77,0x77,0x77,0x66,0x66,0x66,0x66,0x55,0x55,0x55,0x55}},
+	{'w',{0x99,0x99,0x99,0x99,0xaa,0xaa,0xaa,0xaa,0xbb,0xbb,0xbb,0xbb,0xcc,0xcc,0xcc,0xcc}},
+	{'w',{0x00,0x00,0x00,0x00,0xff,0xff,0xff,0xff,0xee,0xee,0xee,0xee,0xdd,0xdd,0xdd,0xdd}},
+	{'h',{0x00,0x00,0x11,0x11,0x22,0x22,0x33,0x33,0x44,0x44,0x55,0x55,0x66,0x66,0x77,0x77}},
+	{'h',{0x00,0x01,0x00,0x02,0x00,0x03,0x00,0x04,0x00,0x05,0x00,0x06,0x00,0x07,0x00,0x08}},
+	{'h',{0x00,0x16,0x00,0x15,0x00,0x14,0x00,0x13,0x00,0x12,0x00,0x10,0x00,0x10,0x00,0x09}},
+	{'b',{0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88,0x99,0xaa,0xbb,0xcc,0xdd,0xee,0xff}},
+	{'b',{0xff,0xee,0xdd,0xcc,0xbb,0xaa,0x99,0x88,0x77,0x66,0x55,0x44,0x33,0x22,0x11,0x00}},
+	{'b',{0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f}},
+	{'b',{0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f}},
+	{'b',{0x2f,0x2e,0x2d,0x2c,0x2b,0x2a,0x29,0x28,0x27,0x26,0x25,0x24,0x23,0x22,0x21,0x20}}
+};
+
+const powerpc_test_cpu::vector_value_t powerpc_test_cpu::vector_fp_values[] = {
+	{'f',{0x80,0x00,0x00,0x00,0x80,0x00,0x00,0x00,0x80,0x00,0x00,0x00,0x80,0x00,0x00,0x00}}, // -0, -0, -0, -0
+	{'f',{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}}, // 0, 0, 0, 0
+	{'f',{0xbf,0x80,0x00,0x00,0xbf,0x80,0x00,0x00,0xbf,0x80,0x00,0x00,0xbf,0x80,0x00,0x00}}, // -1, -1, -1, -1
+	{'f',{0x3f,0x80,0x00,0x00,0x3f,0x80,0x00,0x00,0x3f,0x80,0x00,0x00,0x3f,0x80,0x00,0x00}}, // 1, 1, 1, 1
+	{'f',{0xc0,0x00,0x00,0x00,0xc0,0x00,0x00,0x00,0xc0,0x00,0x00,0x00,0xc0,0x00,0x00,0x00}}, // -2, -2, -2, -2
+	{'f',{0x40,0x00,0x00,0x00,0x40,0x00,0x00,0x00,0x40,0x00,0x00,0x00,0x40,0x00,0x00,0x00}}, // 2, 2, 2, 2
+	{'f',{0xc0,0x00,0x00,0x00,0xbf,0x80,0x00,0x00,0x3f,0x80,0x00,0x00,0x40,0x00,0x00,0x00}}, // -2, -1, 1, 2
+	{'f',{0xc0,0x40,0x00,0x00,0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x40,0x40,0x00,0x00}}, // -3, -0, 0, 3
+	{'f',{0x40,0x00,0x00,0x00,0x3f,0x80,0x00,0x00,0xbf,0x80,0x00,0x00,0xc0,0x00,0x00,0x00}}  // 2, 1, -1, -2
+};
+
+void powerpc_test_cpu::test_one_vector(uint32 *code, vector_test_t const & vt, uint8 *rAp, uint8 *rBp, uint8 *rCp)
+{
+#if TEST_VMX_OPS
+	static vector_t native_vD;
+	memset(&native_vD, 0, sizeof(native_vD));
+	static vector_helper_t native_vSCR;
+	memset(&native_vSCR, 0, sizeof(native_vSCR));
+	static vector_t dummy_vector;
+	if (!rAp) rAp = dummy_vector;
+	if (!rBp) rBp = dummy_vector;
+	if (!rCp) rCp = dummy_vector;
+#if defined(__powerpc__)
+	// Invoke native code
+	const uint32 save_cr = native_get_cr();
+	native_set_cr(init_cr);
+	native_vSCR.w[3] = 0;
+	typedef void (*func_t)(uint8 *, uint8 *, uint8 *, uint8 *, uint8 *);
+	func_t func = (func_t)code;
+	func((uint8 *)&native_vD, rAp, rBp, rCp, native_vSCR.b);
+	const uint32 native_cr = native_get_cr();
+	const uint32 native_vscr = native_vSCR.w[3];
+	native_set_cr(save_cr);
+	if (results_file) {
+		put_vector(native_vD);
+		put32(native_cr);
+		put32(native_vscr);
+	}
+#else
+	get_vector(native_vD);
+	const uint32 native_cr = get32();
+	const uint32 native_vscr = get32();
+#endif
+
+	// Invoke emulated code
+	static vector_t emul_vD;
+	memset(&emul_vD, 0, sizeof(emul_vD));
+	static vector_helper_t emul_vSCR;
+	memset(&emul_vSCR, 0, sizeof(emul_vSCR));
+	emul_vSCR.w[3] = 0;
+	emul_set_cr(init_cr);
+	set_gpr(RD, (uintptr)&emul_vD);
+	set_gpr(RA, (uintptr)rAp);
+	set_gpr(RB, (uintptr)rBp);
+	set_gpr(RC, (uintptr)rCp);
+	set_gpr(VSCR, (uintptr)emul_vSCR.b);
+	execute(code);
+	const uint32 emul_cr = emul_get_cr();
+	const uint32 emul_vscr = ntohl(emul_vSCR.w[3]);
+
+	++tests;
+
+	bool ok = vector_equals(vt.type, native_vD, emul_vD)
+		&& native_cr == emul_cr
+		&& native_vscr == emul_vscr;
+
+	if (!ok) {
+		printf("FAIL: %s [%08x]\n", vt.name, vt.opcode);
+		errors++;
+	}
+	else if (verbose) {
+		printf("PASS: %s [%08x]\n", vt.name, vt.opcode);
+	}
+
+	if (!ok || verbose) {
+#if ENABLE_MON
+		disass_ppc(stdout, (uintptr)code, vt.opcode);
+#endif
+		char op_type = tolower(vt.op_type);
+		if (!op_type)
+			op_type = vt.type;
+#define PRINT_OPERAND(N, vX, rX)									\
+		switch (vt.operands[N]) {									\
+		case vX:													\
+			printf(#vX " = ");										\
+			print_vector(*((vector_t *)rX##p));						\
+			printf("\n");											\
+			break;													\
+		case vI:													\
+		case vN:													\
+			printf(#vX " = %d\n", vX##_field::extract(vt.opcode));	\
+			break;													\
+		case rX:													\
+			printf(#rX " = %08x", rX##p);							\
+			if (rX##p) switch (op_type) {							\
+			case 'b': printf(" [%02x]", *rX##p); break;				\
+			case 'h': printf(" [%04x]", *((uint16 *)rX##p)); break;	\
+			case 'w': printf(" [%08x]", *((uint32 *)rX##p)); break;	\
+			}														\
+			printf("\n");											\
+			break;													\
+		}
+		PRINT_OPERAND(1, vA, rA);
+		PRINT_OPERAND(2, vB, rB);
+		PRINT_OPERAND(3, vC, rC);
+#undef  PRINT_OPERAND
+		printf("vD.N = ");
+		print_vector(native_vD, vt.type);
+		printf("\n");
+		printf("vD.E = ");
+		print_vector(emul_vD, vt.type);
+		printf("\n");
+		printf("CR.N = %08x ; VSCR.N = %08x\n", native_cr, native_vscr);
+		printf("CR.E = %08x ; VSCR.E = %08x\n", emul_cr, emul_vscr);
+	}
+#endif
+}
+
+void powerpc_test_cpu::test_vector_load(void)
+{
+#if TEST_VMX_LOAD
+	// Tested instructions
+	static const vector_test_t tests[] = {
+		{ "lvebx",  'b', 0, _X (31,00,00,00,  7,0), { vD, rA, rB } },
+		{ "lvehx",  'h', 0, _X (31,00,00,00, 39,0), { vD, rA, rB } },
+		{ "lvewx",  'w', 0, _X (31,00,00,00, 71,0), { vD, rA, rB } }
+	};
+
+	// Code template
+	static uint32 code[] = {
+		POWERPC_MFSPR(12, 256),			// mfvrsave r12
+		_D(15,0,0,0x1000),				// lis r0,0x1000 ([v3])
+		POWERPC_MTSPR(0, 256),			// mtvrsave r0
+		POWERPC_LVX(RD, 0, RD),			// lvx v3,r3(0)
+		0,								// <insn>
+		POWERPC_STVX(RD, 0, RD),		// stvx v3,r3(0)
+		POWERPC_MTSPR(12, 256),			// mtvrsave r12
+		POWERPC_BLR						// blr
+	};
+
+	int i_opcode = -1;
+	const int n_instructions = sizeof(code) / sizeof(code[0]);
+	for (int i = 0; i < n_instructions; i++) {
+		if (code[i] == 0) {
+			i_opcode = i;
+			break;
+		}
+	}
+	assert(i_opcode != -1);
+
+	const int n_elements = sizeof(tests) / sizeof(tests[0]);
+	for (int i = 0; i < n_elements; i++) {
+		vector_test_t const & vt = tests[i];
+		code[i_opcode] = vt.opcode;
+		vD_field::insert(code[i_opcode], RD);
+		rA_field::insert(code[i_opcode], 00);
+		rB_field::insert(code[i_opcode], RA);
+		flush_icache_range(code, sizeof(code));
+
+		printf("Testing %s\n", vt.name);
+		const int n_vector_values = sizeof(vector_values)/sizeof(vector_values[0]);
+		for (int j = 0; j < n_vector_values; j++) {
+			switch (vt.type) {
+			case 'b':
+				for (int k = 0; k < 16; k++)
+					test_one_vector(code, vt, ((uint8 *)&vector_values[j].v) + 1 * k);
+				break;
+			case 'h':
+				for (int k = 0; k < 8; k++)
+					test_one_vector(code, vt, ((uint8 *)&vector_values[j].v) + 2 * k);
+				break;
+			case 'w':
+				for (int k = 0; k < 4; k++)
+					test_one_vector(code, vt, ((uint8 *)&vector_values[j].v) + 4 * k);
+				break;
+			}
+		}
+	}
+#endif
+}
+
+void powerpc_test_cpu::test_vector_arith(void)
+{
+#if TEST_VMX_ARITH
+	// Tested instructions
+	static const vector_test_t tests[] = {
+		{ "vaddcuw",	'w',  0 , _VX(04,RD,RA,RB, 384), { vD, vA, vB } },
+		{ "vaddfp",		'f',  0 , _VX(04,RD,RA,RB,  10), { vD, vA, vB } },
+		{ "vaddsbs",	'b',  0 , _VX(04,RD,RA,RB, 768), { vD, vA, vB } },
+		{ "vaddshs",	'h',  0 , _VX(04,RD,RA,RB, 832), { vD, vA, vB } },
+		{ "vaddsws",	'w',  0 , _VX(04,RD,RA,RB, 896), { vD, vA, vB } },
+		{ "vaddubm",	'b',  0 , _VX(04,RD,RA,RB,   0), { vD, vA, vB } },
+		{ "vaddubs",	'b',  0 , _VX(04,RD,RA,RB, 512), { vD, vA, vB } },
+		{ "vadduhm",	'h',  0 , _VX(04,RD,RA,RB,  64), { vD, vA, vB } },
+		{ "vadduhs",	'h',  0 , _VX(04,RD,RA,RB, 576), { vD, vA, vB } },
+		{ "vadduwm",	'w',  0 , _VX(04,RD,RA,RB, 128), { vD, vA, vB } },
+		{ "vadduws",	'w',  0 , _VX(04,RD,RA,RB, 640), { vD, vA, vB } },
+		{ "vand",		'w',  0 , _VX(04,RD,RA,RB,1028), { vD, vA, vB } },
+		{ "vandc",		'w',  0 , _VX(04,RD,RA,RB,1092), { vD, vA, vB } },
+		{ "vavgsb",		'b',  0 , _VX(04,RD,RA,RB,1282), { vD, vA, vB } },
+		{ "vavgsh",		'h',  0 , _VX(04,RD,RA,RB,1346), { vD, vA, vB } },
+		{ "vavgsw",		'w',  0 , _VX(04,RD,RA,RB,1410), { vD, vA, vB } },
+		{ "vavgub",		'b',  0 , _VX(04,RD,RA,RB,1026), { vD, vA, vB } },
+		{ "vavguh",		'h',  0 , _VX(04,RD,RA,RB,1090), { vD, vA, vB } },
+		{ "vavguw",		'w',  0 , _VX(04,RD,RA,RB,1154), { vD, vA, vB } },
+		{ "vcfsx",		'f', 'w', _VX(04,RD,00,RB, 842), { vD, vI, vB } },
+		{ "vcfux",		'f', 'w', _VX(04,RD,00,RB, 778), { vD, vI, vB } },
+		{ "vcmpbfp",	'w', 'f', _VXR(04,RD,RA,RB,966,0), { vD, vA, vB } },
+		{ "vcmpbfp.",	'w', 'f', _VXR(04,RD,RA,RB,966,1), { vD, vA, vB } },
+		{ "vcmpeqfp",	'w', 'f', _VXR(04,RD,RA,RB,198,0), { vD, vA, vB } },
+		{ "vcmpeqfp.",	'w', 'f', _VXR(04,RD,RA,RB,198,1), { vD, vA, vB } },
+		{ "vcmpequb",	'b',  0 , _VXR(04,RD,RA,RB,  6,0), { vD, vA, vB } },
+		{ "vcmpequb.",	'b',  0 , _VXR(04,RD,RA,RB,  6,1), { vD, vA, vB } },
+		{ "vcmpequh",	'h',  0 , _VXR(04,RD,RA,RB, 70,0), { vD, vA, vB } },
+		{ "vcmpequh.",	'h',  0 , _VXR(04,RD,RA,RB, 70,1), { vD, vA, vB } },
+		{ "vcmpequw",	'w',  0 , _VXR(04,RD,RA,RB,134,0), { vD, vA, vB } },
+		{ "vcmpequw.",	'w',  0 , _VXR(04,RD,RA,RB,134,1), { vD, vA, vB } },
+		{ "vcmpgefp",	'w', 'f', _VXR(04,RD,RA,RB,454,0), { vD, vA, vB } },
+		{ "vcmpgefp.",	'w', 'f', _VXR(04,RD,RA,RB,454,1), { vD, vA, vB } },
+		{ "vcmpgtfp",	'w', 'f', _VXR(04,RD,RA,RB,710,0), { vD, vA, vB } },
+		{ "vcmpgtfp.",	'w', 'f', _VXR(04,RD,RA,RB,710,1), { vD, vA, vB } },
+		{ "vcmpgtsb",	'b',  0 , _VXR(04,RD,RA,RB,774,0), { vD, vA, vB } },
+		{ "vcmpgtsb.",	'b',  0 , _VXR(04,RD,RA,RB,774,1), { vD, vA, vB } },
+		{ "vcmpgtsh",	'h',  0 , _VXR(04,RD,RA,RB,838,0), { vD, vA, vB } },
+		{ "vcmpgtsh.",	'h',  0 , _VXR(04,RD,RA,RB,838,1), { vD, vA, vB } },
+		{ "vcmpgtsw",	'w',  0 , _VXR(04,RD,RA,RB,902,0), { vD, vA, vB } },
+		{ "vcmpgtsw.",	'w',  0 , _VXR(04,RD,RA,RB,902,1), { vD, vA, vB } },
+		{ "vcmpgtub",	'b',  0 , _VXR(04,RD,RA,RB,518,0), { vD, vA, vB } },
+		{ "vcmpgtub.",	'b',  0 , _VXR(04,RD,RA,RB,518,1), { vD, vA, vB } },
+		{ "vcmpgtuh",	'h',  0 , _VXR(04,RD,RA,RB,582,0), { vD, vA, vB } },
+		{ "vcmpgtuh.",	'h',  0 , _VXR(04,RD,RA,RB,582,1), { vD, vA, vB } },
+		{ "vcmpgtuw",	'w',  0 , _VXR(04,RD,RA,RB,646,0), { vD, vA, vB } },
+		{ "vcmpgtuw.",	'w',  0 , _VXR(04,RD,RA,RB,646,1), { vD, vA, vB } },
+		{ "vctsxs",		'w', 'f', _VX(04,RD,00,RB, 970), { vD, vI, vB } },
+		{ "vctuxs",		'w', 'f', _VX(04,RD,00,RB, 906), { vD, vI, vB } },
+		{ "vexptefp",	'f',  0 , _VX(04,RD,00,RB, 394), { vD, __, vB } },
+		{ "vlogefp",	'l', 'f', _VX(04,RD,00,RB, 458), { vD, __, vB } },
+		{ "vmaddfp",	'f',  0 , _VA(04,RD,RA,RB,RC,46),{ vD, vA, vB, vC } },
+		{ "vmaxfp",		'f',  0 , _VX(04,RD,RA,RB,1034), { vD, vA, vB } },
+		{ "vmaxsb",		'b',  0 , _VX(04,RD,RA,RB, 258), { vD, vA, vB } },
+		{ "vmaxsh",		'h',  0 , _VX(04,RD,RA,RB, 322), { vD, vA, vB } },
+		{ "vmaxsw",		'w',  0 , _VX(04,RD,RA,RB, 386), { vD, vA, vB } },
+		{ "vmaxub",		'b',  0 , _VX(04,RD,RA,RB,   2), { vD, vA, vB } },
+		{ "vmaxuh",		'h',  0 , _VX(04,RD,RA,RB,  66), { vD, vA, vB } },
+		{ "vmaxuw",		'w',  0 , _VX(04,RD,RA,RB, 130), { vD, vA, vB } },
+		{ "vmhaddshs",	'h',  0 , _VA(04,RD,RA,RB,RC,32),{ vD, vA, vB, vC } },
+		{ "vmhraddshs",	'h',  0 , _VA(04,RD,RA,RB,RC,33),{ vD, vA, vB, vC } },
+		{ "vminfp",		'f',  0 , _VX(04,RD,RA,RB,1098), { vD, vA, vB } },
+		{ "vminsb",		'b',  0 , _VX(04,RD,RA,RB, 770), { vD, vA, vB } },
+		{ "vminsh",		'h',  0 , _VX(04,RD,RA,RB, 834), { vD, vA, vB } },
+		{ "vminsw",		'w',  0 , _VX(04,RD,RA,RB, 898), { vD, vA, vB } },
+		{ "vminub",		'b',  0 , _VX(04,RD,RA,RB, 514), { vD, vA, vB } },
+		{ "vminuh",		'h',  0 , _VX(04,RD,RA,RB, 578), { vD, vA, vB } },
+		{ "vminuw",		'w',  0 , _VX(04,RD,RA,RB, 642), { vD, vA, vB } },
+		{ "vmladduhm",	'h',  0 , _VA(04,RD,RA,RB,RC,34),{ vD, vA, vB, vC } },
+		{ "vmrghb",		'b',  0 , _VX(04,RD,RA,RB,  12), { vD, vA, vB } },
+		{ "vmrghh",		'h',  0 , _VX(04,RD,RA,RB,  76), { vD, vA, vB } },
+		{ "vmrghw",		'w',  0 , _VX(04,RD,RA,RB, 140), { vD, vA, vB } },
+		{ "vmrglb",		'b',  0 , _VX(04,RD,RA,RB, 268), { vD, vA, vB } },
+		{ "vmrglh",		'h',  0 , _VX(04,RD,RA,RB, 332), { vD, vA, vB } },
+		{ "vmrglw",		'w',  0 , _VX(04,RD,RA,RB, 396), { vD, vA, vB } },
+		{ "vmsummbm",	'b',  0 , _VA(04,RD,RA,RB,RC,37),{ vD, vA, vB, vC } },
+		{ "vmsumshm",	'h',  0 , _VA(04,RD,RA,RB,RC,40),{ vD, vA, vB, vC } },
+		{ "vmsumshs",	'h',  0 , _VA(04,RD,RA,RB,RC,41),{ vD, vA, vB, vC } },
+		{ "vmsumubm",	'b',  0 , _VA(04,RD,RA,RB,RC,36),{ vD, vA, vB, vC } },
+		{ "vmsumuhm",	'h',  0 , _VA(04,RD,RA,RB,RC,38),{ vD, vA, vB, vC } },
+		{ "vmsumuhs",	'h',  0 , _VA(04,RD,RA,RB,RC,39),{ vD, vA, vB, vC } },
+		{ "vmulesb",	'b',  0 , _VX(04,RD,RA,RB, 776), { vD, vA, vB } },
+		{ "vmulesh",	'h',  0 , _VX(04,RD,RA,RB, 840), { vD, vA, vB } },
+		{ "vmuleub",	'b',  0 , _VX(04,RD,RA,RB, 520), { vD, vA, vB } },
+		{ "vmuleuh",	'h',  0 , _VX(04,RD,RA,RB, 584), { vD, vA, vB } },
+		{ "vmulosb",	'b',  0 , _VX(04,RD,RA,RB, 264), { vD, vA, vB } },
+		{ "vmulosh",	'h',  0 , _VX(04,RD,RA,RB, 328), { vD, vA, vB } },
+		{ "vmuloub",	'b',  0 , _VX(04,RD,RA,RB,   8), { vD, vA, vB } },
+		{ "vmulouh",	'h',  0 , _VX(04,RD,RA,RB,  72), { vD, vA, vB } },
+		{ "vnmsubfp",	'f',  0 , _VA(04,RD,RA,RB,RC,47),{ vD, vA, vB, vC } },
+		{ "vnor",		'w',  0 , _VX(04,RD,RA,RB,1284), { vD, vA, vB } },
+		{ "vor",		'w',  0 , _VX(04,RD,RA,RB,1156), { vD, vA, vB } },
+		{ "vperm",		'b',  0 , _VA(04,RD,RA,RB,RC,43),{ vD, vA, vB, vC } },
+		{ "vpkpx",		'h',  0 , _VX(04,RD,RA,RB, 782), { vD, vA, vB } },
+		{ "vpkshss",	'b',  0 , _VX(04,RD,RA,RB, 398), { vD, vA, vB } },
+		{ "vpkshus",	'b',  0 , _VX(04,RD,RA,RB, 270), { vD, vA, vB } },
+		{ "vpkswss",	'h',  0 , _VX(04,RD,RA,RB, 462), { vD, vA, vB } },
+		{ "vpkswus",	'h',  0 , _VX(04,RD,RA,RB, 334), { vD, vA, vB } },
+		{ "vpkuhum",	'b',  0 , _VX(04,RD,RA,RB,  14), { vD, vA, vB } },
+		{ "vpkuhus",	'b',  0 , _VX(04,RD,RA,RB, 142), { vD, vA, vB } },
+		{ "vpkuwum",	'h',  0 , _VX(04,RD,RA,RB,  78), { vD, vA, vB } },
+		{ "vpkuwus",	'h',  0 , _VX(04,RD,RA,RB, 206), { vD, vA, vB } },
+		{ "vrefp",		'e', 'f', _VX(04,RD,00,RB, 266), { vD, __, vB } },
+		{ "vrfim",		'f',  0 , _VX(04,RD,00,RB, 714), { vD, __, vB } },
+		{ "vrfin",		'f',  0 , _VX(04,RD,00,RB, 522), { vD, __, vB } },
+		{ "vrfip",		'f',  0 , _VX(04,RD,00,RB, 650), { vD, __, vB } },
+		{ "vrfiz",		'f',  0 , _VX(04,RD,00,RB, 586), { vD, __, vB } },
+		{ "vrlb",		'b',  0 , _VX(04,RD,RA,RB,   4), { vD, vA, vB } },
+		{ "vrlh",		'h',  0 , _VX(04,RD,RA,RB,  68), { vD, vA, vB } },
+		{ "vrlw",		'w',  0 , _VX(04,RD,RA,RB, 132), { vD, vA, vB } },
+		{ "vrsqrtefp",	'e', 'f', _VX(04,RD,00,RB, 330), { vD, __, vB } },
+		{ "vsel",		'b',  0 , _VA(04,RD,RA,RB,RC,42),{ vD, vA, vB, vC } },
+		{ "vsl",		'b', 'B', _VX(04,RD,RA,RB, 452), { vD, vA, vB } },
+		{ "vslb",		'b',  0 , _VX(04,RD,RA,RB, 260), { vD, vA, vB } },
+		{ "vsldoi",		'b',  0 , _VA(04,RD,RA,RB,00,44),{ vD, vA, vB, vI } },
+		{ "vslh",		'h',  0 , _VX(04,RD,RA,RB, 324), { vD, vA, vB } },
+		{ "vslo",		'b',  0 , _VX(04,RD,RA,RB,1036), { vD, vA, vB } },
+		{ "vslw",		'w',  0 , _VX(04,RD,RA,RB, 388), { vD, vA, vB } },
+		{ "vspltb",		'b',  0 , _VX(04,RD,00,RB, 524), { vD, vI, vB } },
+		{ "vsplth",		'h',  0 , _VX(04,RD,00,RB, 588), { vD, vI, vB } },
+		{ "vspltisb",	'b',  0 , _VX(04,RD,00,00, 780), { vD, vI } },
+		{ "vspltish",	'h',  0 , _VX(04,RD,00,00, 844), { vD, vI } },
+		{ "vspltisw",	'w',  0 , _VX(04,RD,00,00, 908), { vD, vI } },
+		{ "vspltw",		'w',  0 , _VX(04,RD,00,RB, 652), { vD, vI, vB } },
+		{ "vsr",		'b', 'B', _VX(04,RD,RA,RB, 708), { vD, vA, vB } },
+		{ "vsrab",		'b',  0 , _VX(04,RD,RA,RB, 772), { vD, vA, vB } },
+		{ "vsrah",		'h',  0 , _VX(04,RD,RA,RB, 836), { vD, vA, vB } },
+		{ "vsraw",		'w',  0 , _VX(04,RD,RA,RB, 900), { vD, vA, vB } },
+		{ "vsrb",		'b',  0 , _VX(04,RD,RA,RB, 516), { vD, vA, vB } },
+		{ "vsrh",		'h',  0 , _VX(04,RD,RA,RB, 580), { vD, vA, vB } },
+		{ "vsro",		'b',  0 , _VX(04,RD,RA,RB,1100), { vD, vA, vB } },
+		{ "vsrw",		'w',  0 , _VX(04,RD,RA,RB, 644), { vD, vA, vB } },
+		{ "vsubcuw",	'w',  0 , _VX(04,RD,RA,RB,1408), { vD, vA, vB } },
+		{ "vsubfp",		'f',  0 , _VX(04,RD,RA,RB,  74), { vD, vA, vB } },
+		{ "vsubsbs",	'b',  0 , _VX(04,RD,RA,RB,1792), { vD, vA, vB } },
+		{ "vsubshs",	'h',  0 , _VX(04,RD,RA,RB,1856), { vD, vA, vB } },
+		{ "vsubsws",	'w',  0 , _VX(04,RD,RA,RB,1920), { vD, vA, vB } },
+		{ "vsububm",	'b',  0 , _VX(04,RD,RA,RB,1024), { vD, vA, vB } },
+		{ "vsububs",	'b',  0 , _VX(04,RD,RA,RB,1536), { vD, vA, vB } },
+		{ "vsubuhm",	'h',  0 , _VX(04,RD,RA,RB,1088), { vD, vA, vB } },
+		{ "vsubuhs",	'h',  0 , _VX(04,RD,RA,RB,1600), { vD, vA, vB } },
+		{ "vsubuwm",	'w',  0 , _VX(04,RD,RA,RB,1152), { vD, vA, vB } },
+		{ "vsubuws",	'w',  0 , _VX(04,RD,RA,RB,1664), { vD, vA, vB } },
+		{ "vsum2sws",	'w',  0 , _VX(04,RD,RA,RB,1672), { vD, vA, vB } },
+		{ "vsum4sbs",	'w',  0 , _VX(04,RD,RA,RB,1800), { vD, vA, vB } },
+		{ "vsum4shs",	'w',  0 , _VX(04,RD,RA,RB,1608), { vD, vA, vB } },
+		{ "vsum4ubs",	'w',  0 , _VX(04,RD,RA,RB,1544), { vD, vA, vB } },
+		{ "vsumsws",	'w',  0 , _VX(04,RD,RA,RB,1928), { vD, vA, vB } },
+		{ "vupkhpx",	'w',  0 , _VX(04,RD,00,RB, 846), { vD, __, vB } },
+		{ "vupkhsb",	'h',  0 , _VX(04,RD,00,RB, 526), { vD, __, vB } },
+		{ "vupkhsh",	'w',  0 , _VX(04,RD,00,RB, 590), { vD, __, vB } },
+		{ "vupklpx",	'w',  0 , _VX(04,RD,00,RB, 974), { vD, __, vB } },
+		{ "vupklsb",	'h',  0 , _VX(04,RD,00,RB, 654), { vD, __, vB } },
+		{ "vupklsh",	'w',  0 , _VX(04,RD,00,RB, 718), { vD, __, vB } },
+		{ "vxor",		'w',  0 , _VX(04,RD,RA,RB,1220), { vD, vA, vB } },
+	};
+
+	// Code template
+	static uint32 code[] = {
+		POWERPC_MFSPR(12, 256),			// mfvrsave	r12
+		_D(15,0,0,0x1e00),				// lis		r0,0x9e00 ([v0;v3-v6])
+		POWERPC_MTSPR(0, 256),			// mtvrsave	r0
+		POWERPC_LVX(RA, 0, RA),			// lvx		v4,r4(0)
+		POWERPC_LVX(RB, 0, RB),			// lvx		v5,r5(0)
+		POWERPC_LVX(RC, 0, RC),			// lvx		v6,r6(0)
+		POWERPC_LVX(0, 0, VSCR),		// lvx		v0,r7(0)
+		_VX(04,00,00,00,1604),			// mtvscr	v0
+		0,								// <op>		v3,v4,v5
+		_VX(04,00,00,00,1540),			// mfvscr	v0
+		POWERPC_STVX(0, 0, VSCR),		// stvx		v0,r7(0)
+		POWERPC_STVX(RD, 0, RD),		// stvx		v3,r3(0)
+		POWERPC_MTSPR(12, 256),			// mtvrsave	r12
+		POWERPC_BLR						// blr
+	};
+
+	int i_opcode = -1;
+	const int n_instructions = sizeof(code) / sizeof(code[0]);
+	for (int i = 0; i < n_instructions; i++) {
+		if (code[i] == 0) {
+			i_opcode = i;
+			break;
+		}
+	}
+	assert(i_opcode != -1);
+
+	const int n_elements = sizeof(tests) / sizeof(tests[0]);
+	for (int n = 0; n < n_elements; n++) {
+		vector_test_t vt = tests[n];
+		code[i_opcode] = vt.opcode;
+		flush_icache_range(code, sizeof(code));
+
+		// Operand type
+		char op_type = vt.op_type;
+		if (!op_type)
+			op_type = vt.type;
+
+		// Operand values
+		int n_vector_values;
+		const vector_value_t *vvp;
+		if (op_type == 'f') {
+			n_vector_values = sizeof(vector_fp_values)/sizeof(vector_fp_values[0]);
+			vvp = vector_fp_values;
+		}
+		else {
+			n_vector_values = sizeof(vector_values)/sizeof(vector_values[0]);
+			vvp = vector_values;
+		}
+
+		printf("Testing %s\n", vt.name);
+		if (vt.operands[1] == vA && vt.operands[2] == vB && vt.operands[3] == vC) {
+			for (int i = 0; i < n_vector_values; i++)
+				for (int j = 0; j < n_vector_values; j++)
+					for (int k = 0; k < n_vector_values; k++)
+						test_one_vector(code, vt, &vvp[i].v, &vvp[j].v, &vvp[k].v);
+		}
+		else if (vt.operands[1] == vA && vt.operands[2] == vB && vt.operands[3] == vN) {
+			for (int i = 0; i < 16; i++) {
+				vSH_field::insert(vt.opcode, i);
+				code[i_opcode] = vt.opcode;
+				flush_icache_range(code, sizeof(code));
+				for (int j = 0; j < n_vector_values; j++)
+					for (int k = 0; k < n_vector_values; k++)
+						test_one_vector(code, vt, &vvp[i].v, &vvp[j].v);
+			}
+		}
+		else if (vt.operands[1] == vA && vt.operands[2] == vB) {
+			for (int i = 0; i < n_vector_values; i++) {
+				for (int j = 0; j < n_vector_values; j++) {
+					if (op_type == 'B') {
+						if (!vector_all_eq('b', vvp[j].v))
+							continue;
+					}
+					test_one_vector(code, vt, &vvp[i].v, &vvp[j].v);
+				}
+			}
+		}
+		else if (vt.operands[1] == vI && vt.operands[2] == vB) {
+			for (int i = 0; i < 32; i++) {
+				rA_field::insert(vt.opcode, i);
+				code[i_opcode] = vt.opcode;
+				flush_icache_range(code, sizeof(code));
+				for (int j = 0; j < n_vector_values; j++)
+					test_one_vector(code, vt, NULL, &vvp[j].v);
+			}
+		}
+		else if (vt.operands[1] == vI) {
+			for (int i = 0; i < 32; i++) {
+				rA_field::insert(vt.opcode, i);
+				code[i_opcode] = vt.opcode;
+				flush_icache_range(code, sizeof(code));
+				test_one_vector(code, vt);
+			}
+		}
+		else if (vt.operands[1] == __ && vt.operands[2] == vB) {
+			for (int i = 0; i < n_vector_values; i++)
+				test_one_vector(code, vt, NULL, &vvp[i].v);
+		}
+		else {
+			printf("ERROR: unhandled test case\n");
+			abort();
+		}
+	}
+#endif
+}
+
+// Illegal handler to catch out AltiVec instruction
+#if defined(__powerpc__)
+static sigjmp_buf env;
+
+static void sigill_handler(int sig)
+{
+	has_altivec = false;
+	siglongjmp(env, 1);
+}
+#endif
+
 bool powerpc_test_cpu::test(void)
 {
 	// Tests initialization
 	tests = errors = 0;
 	init_cr = init_xer = 0;
 
-	// Execution tests
+	// Execution ALU tests
+#if TEST_ALU_OPS
 	test_add();
 	test_sub();
 	test_mul();
@@ -1281,6 +1990,15 @@ bool powerpc_test_cpu::test(void)
 	test_logical();
 	test_compare();
 	test_cr_logical();
+#endif
+
+	// Execute VMX tests
+#if TEST_VMX_OPS
+	if (has_altivec) {
+		test_vector_load();
+		test_vector_arith();
+	}
+#endif
 
 	printf("%u errors out of %u tests\n", errors, tests);
 	return errors != 0;
@@ -1317,6 +2035,15 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "ERROR: a results file for reference is required\n");
 		return EXIT_FAILURE;
 	}
+#endif
+
+	// Check if host CPU supports AltiVec instructions
+	has_altivec = true;
+#if defined(__powerpc__)
+	signal(SIGILL, sigill_handler);
+	if (!sigsetjmp(env, 1))
+		asm volatile(".long 0x10000484"); // vor v0,v0,v0
+	signal(SIGILL, SIG_DFL);
 #endif
 
 	int ret = ppc.test();
