@@ -96,7 +96,21 @@ static int16 exec_tib(uint32 tib)
 		uint32 ptr = ReadMacInt32(tib); tib += 4;
 		uint32 len = ReadMacInt32(tib); tib += 4;
 
-		D(bug(" %d %08x %d\n", cmd, ptr, len));
+#if DEBUG
+		const char *cmd_str;
+		switch (cmd) {
+			case scInc:   cmd_str = "INC  "; break;
+			case scNoInc: cmd_str = "NOINC"; break;
+			case scAdd:   cmd_str = "ADD  "; break;
+			case scMove:  cmd_str = "MOVE "; break;
+			case scLoop:  cmd_str = "LOOP "; break;
+			case scNop:   cmd_str = "NOP  "; break;
+			case scStop:  cmd_str = "STOP "; break;
+			case scComp:  cmd_str = "COMP "; break;
+			default:      cmd_str = "???  "; break;
+		}
+		D(bug(" %s(%d) %08x %d\n", cmd_str, cmd, ptr, len));
+#endif
 
 		switch (cmd) {
 			case scInc:
@@ -218,7 +232,23 @@ int16 SCSISelect(int id)
 
 int16 SCSICmd(int cmd_length, uint8 *cmd)
 {
-	D(bug("SCSICmd len %d, cmd %08x%08x%08x\n", cmd_length, ntohl(0[(uint32 *)cmd]), ntohl(1[(uint32 *)cmd]), ntohl(2[(uint32 *)cmd])));
+#if DEBUG
+	switch (cmd_length) {
+		case 6:
+			D(bug("SCSICmd len 6, cmd %02x %02x %02x %02x %02x %02x\n", cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5]));
+			break;
+		case 10:
+			D(bug("SCSICmd len 10, cmd %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n", cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5], cmd[6], cmd[7], cmd[8], cmd[9]));
+			break;
+		case 12:
+			D(bug("SCSICmd len 12, cmd %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n", cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5], cmd[6], cmd[7], cmd[8], cmd[9], cmd[10], cmd[11]));
+			break;
+		default:
+			D(bug("SCSICmd bogus length %d\n", cmd_length));
+			break;
+	}
+#endif
+
 	if (phase != PH_SELECTED)
 		return scPhaseErr;
 

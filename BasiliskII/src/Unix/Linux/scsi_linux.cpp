@@ -26,6 +26,8 @@
 #include <unistd.h>
 #include <errno.h>
 
+#define DRIVER_SENSE 0x08
+
 #include "main.h"
 #include "prefs.h"
 #include "user_strings.h"
@@ -63,7 +65,7 @@ void SCSIInit(void)
 		sprintf(prefs_name, "scsi%d", id);
 		const char *str = PrefsFindString(prefs_name);
 		if (str) {
-			int fd = fds[id] = open(str, O_RDWR);
+			int fd = fds[id] = open(str, O_RDWR | O_EXCL);
 			if (fd > 0) {
 				// Is it really a Generic SCSI device?
 				int timeout = ioctl(fd, SG_GET_TIMEOUT);
@@ -122,7 +124,7 @@ void SCSIExit(void)
 
 static bool try_buffer(uint32 size)
 {
-	size += sizeof(struct sg_header) + 12;
+	size += sizeof(sg_header) + 12;
 	if (size <= buffer_size)
 		return true;
 
@@ -166,9 +168,9 @@ bool scsi_set_target(int id, int lun)
 	if (new_fd < 0)
 		return false;
 	if (new_fd != fd) {
-		// Clear autosense data
-		struct sg_header *h = (struct sg_header *)buffer;
-		h->sense_buffer[2] = 0;
+		// New target, clear autosense data
+		sg_header *h = (sg_header *)buffer;
+		h->driver_status &= ~DRIVER_SENSE;
 	}
 	fd = new_fd;
 	return true;
@@ -195,7 +197,7 @@ bool scsi_send_cmd(size_t data_length, bool reading, int sg_size, uint8 **sg_ptr
 	// Process S/G table when writing
 	if (!reading) {
 		D(bug(" writing to buffer\n"));
-		uint8 *buffer_ptr = buffer + sizeof(struct sg_header) + the_cmd_len;
+		uint8 *buffer_ptr = buffer + sizeof(sg_header) + the_cmd_len;
 		for (int i=0; i<sg_size; i++) {
 			uint32 len = sg_len[i];
 			D(bug("  %d bytes from %08lx\n", len, sg_ptr[i]));
@@ -205,51 +207,59 @@ bool scsi_send_cmd(size_t data_length, bool reading, int sg_size, uint8 **sg_ptr
 	}
 
 	// Request Sense and autosense data valid?
-	struct sg_header *h = (struct sg_header *)buffer;
+	sg_header *h = (sg_header *)buffer;
 	int res;
-	if (the_cmd[0] == 0x03 && (h->sense_buffer[2] & 0x0f)) {
+	if (reading && the_cmd[0] == 0x03 && (h->target_status & DRIVER_SENSE)) {
 
 		// Yes, fake command
 		D(bug(" autosense\n"));
-		memcpy(buffer + sizeof(struct sg_header), h->sense_buffer, 16);
+		memcpy(buffer + sizeof(sg_header), h->sense_buffer, 16);
+		h->target_status &= ~DRIVER_SENSE;
 		res = 0;
 		*stat = 0;
 
 	} else {
 
 		// No, send regular command
-		int to = timeout * HZ / 60;
-		ioctl(fd, SG_SET_TIMEOUT, &to);
+		if (timeout) {
+			int to = timeout * HZ / 60;
+			ioctl(fd, SG_SET_TIMEOUT, &to);
+		}
+		ioctl(fd, SG_NEXT_CMD_LEN, &the_cmd_len);
+
 		D(bug(" sending command, length %d\n", data_length));
+
 		int request_size, reply_size;
 		if (reading) {
-			h->pack_len = request_size = sizeof(struct sg_header) + the_cmd_len;
-			h->reply_len = reply_size = sizeof(struct sg_header) + data_length;
+			h->pack_len = request_size = sizeof(sg_header) + the_cmd_len;
+			h->reply_len = reply_size = sizeof(sg_header) + data_length;
 		} else {
-			h->pack_len = request_size = sizeof(struct sg_header) + the_cmd_len + data_length;
-			h->reply_len = reply_size = sizeof(struct sg_header);
+			h->pack_len = request_size = sizeof(sg_header) + the_cmd_len + data_length;
+			h->reply_len = reply_size = sizeof(sg_header);
 		}
 		h->pack_id = pack_id++;
 		h->result = 0;
 		h->twelve_byte = (the_cmd_len == 12);
-		h->sense_buffer[2] = 0;
-		memcpy(buffer + sizeof(struct sg_header), the_cmd, the_cmd_len);
+		h->target_status = 0;
+		h->host_status = 0;
+		h->driver_status = 0;
+		h->other_flags = 0;
+		memcpy(buffer + sizeof(sg_header), the_cmd, the_cmd_len);
+
 		res = write(fd, buffer, request_size);
 		D(bug(" request sent, actual %d, result %d\n", res, h->result));
 		if (res >= 0) {
 			res = read(fd, buffer, reply_size);
-			D(bug(" reply read, actual %d, result %d\n", res, h->result));
+			D(bug(" reply read, actual %d, result %d, status %02x\n", res, h->result, h->target_status << 1));
 		}
-		if (h->sense_buffer[2] & 0x0f)
-			*stat = 2;	// Check condition
-		else
-			*stat = 0;	// No error
+
+		*stat = h->target_status << 1;
 	}
 
 	// Process S/G table when reading
 	if (reading && h->result == 0) {
 		D(bug(" reading from buffer\n"));
-		uint8 *buffer_ptr = buffer + sizeof(struct sg_header);
+		uint8 *buffer_ptr = buffer + sizeof(sg_header);
 		for (int i=0; i<sg_size; i++) {
 			uint32 len = sg_len[i];
 			D(bug("  %d bytes to %08lx\n", len, sg_ptr[i]));

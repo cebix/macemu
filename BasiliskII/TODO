@@ -41,7 +41,6 @@ Unix:
 - clip_unix.cpp: use X selections instead of cut buffer
 - sys_unix.cpp: SysFormat(), SysIsFixedDisk(), SysIsDiskInserted(),
   prevent/allow for non-floppy/CDROM devices
-- scsi_linux.cpp: adapt to SCSI Generic driver V2.0
 - ESD is also available on Solaris
 - serial_unix.cpp: provide a way to pipe input/output to programs
 - display progress bar during disk file creation in prefs editor
