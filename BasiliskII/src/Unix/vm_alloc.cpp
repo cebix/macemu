@@ -449,6 +449,17 @@ int vm_protect(void * addr, size_t size, int prot)
 #endif
 }
 
+/* Returns the size of a page.  */
+
+int vm_page_size(void)
+{
+#ifdef _WIN32
+    return 4096;
+#else
+    return getpagesize();
+#endif
+}
+
 #ifdef CONFIGURE_TEST_VM_MAP
 /* Tests covered here:
    - TEST_VM_PROT_* program slices actually succeeds when a crash occurs
@@ -459,11 +470,7 @@ int main(void)
 	vm_init();
 	
 #define page_align(address) ((char *)((unsigned long)(address) & -page_size))
-#ifdef _WIN32
-	const unsigned long page_size = 4096;
-#else
-	unsigned long page_size = getpagesize();
-#endif
+	unsigned long page_size = vm_page_size();
 	
 	const int area_size = 6 * page_size;
 	volatile char * area = (volatile char *) vm_acquire(area_size);

@@ -109,4 +109,8 @@ extern int vm_release(void * addr, size_t size);
 
 extern int vm_protect(void * addr, size_t size, int prot);
 
+/* Returns the size of a page.  */
+
+extern int vm_page_size(void);
+
 #endif /* VM_ALLOC_H */
