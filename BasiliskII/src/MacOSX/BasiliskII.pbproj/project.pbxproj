@@ -1545,7 +1545,6 @@
 				18AB34C500AA6EAE7F000001,
 				F59F45B0020FC25D01A80001,
 				0130A85800A96A627F000001,
-				F59F459E020D578A01A80001,
 				F66A596A021B9B1701877872,
 				F59F4590020CD8DE01A80001,
 				F59F45A2020E1C5A01A80001,
@@ -1553,6 +1552,7 @@
 				00EC4BFDFFD1D45E95877872,
 				00EC0D3FFFF8DE1B95877872,
 				1A5BA122008C02B47F000001,
+				F51A2DB7042B25ED0187C272,
 				F59F4595020D42B301A80001,
 				F59F459B020D559E01A80001,
 				080E96DDFE201D6D7F000001,
@@ -1595,10 +1595,11 @@
 			children = (
 				29B97324FDCFA39411CA2CEA,
 				F562922B0213394501000102,
+				F606CD3B023748C5015CB6F1,
 				1058C7A1FEA54F0111CA2CBB,
 				0160729200BCA6097F000001,
 				29B97325FDCFA39411CA2CEA,
-				F606CD3B023748C5015CB6F1,
+				F51A2DBD042B27920187C272,
 			);
 			isa = PBXGroup;
 			name = Frameworks;
@@ -1653,7 +1654,7 @@
 	<key>CFBundleExecutable</key>
 	<string>BasiliskII</string>
 	<key>CFBundleGetInfoString</key>
-	<string>Basilisk II version 1.0, Copyright © 1997-2002 Christian Bauer et al. Mac OS X port 7</string>
+	<string>Basilisk II version 1.0, Copyright © 1997-2003 Christian Bauer et al. Mac OS X port 7</string>
 	<key>CFBundleIconFile</key>
 	<string>BasiliskII.icns</string>
 	<key>CFBundleIdentifier</key>
@@ -1665,7 +1666,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>Basilisk II 1.0, Mac OS X port 10</string>
+	<string>Basilisk II 1.0, Mac OS X port 12</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>NSHelpFile</key>
@@ -1798,6 +1799,7 @@
 				01933687FFD1BA0395877872,
 				F59F45A7020E2BD601A80001,
 				01933688FFD1BA0395877872,
+				F51A2DB9042B25ED0187C272,
 			);
 			isa = PBXSourcesBuildPhase;
 			name = Sources;
@@ -1811,6 +1813,7 @@
 				0160729300BCA6097F000001,
 				F562922C0213394501000102,
 				F606CD3C023748C5015CB6F1,
+				F51A2DBE042B27930187C272,
 			);
 			isa = PBXFrameworksBuildPhase;
 			name = "Frameworks & Libraries";
@@ -1854,6 +1857,29 @@
 		};
 		F50E39520187F78A01877872 = {
 			fileRef = F50E39510187F78A01877872;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		F51A2DB7042B25ED0187C272 = {
+			isa = PBXFileReference;
+			path = sys_darwin.cpp;
+			refType = 2;
+		};
+		F51A2DB9042B25ED0187C272 = {
+			fileRef = F51A2DB7042B25ED0187C272;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		F51A2DBD042B27920187C272 = {
+			isa = PBXFrameworkReference;
+			name = IOKit.framework;
+			path = /System/Library/Frameworks/IOKit.framework;
+			refType = 0;
+		};
+		F51A2DBE042B27930187C272 = {
+			fileRef = F51A2DBD042B27920187C272;
 			isa = PBXBuildFile;
 			settings = {
 			};
@@ -1920,11 +1946,6 @@
 			isa = PBXBuildFile;
 			settings = {
 			};
-		};
-		F59F459E020D578A01A80001 = {
-			isa = PBXFileReference;
-			path = audio_macosx.cpp;
-			refType = 2;
 		};
 		F59F45A2020E1C5A01A80001 = {
 			isa = PBXFileReference;
