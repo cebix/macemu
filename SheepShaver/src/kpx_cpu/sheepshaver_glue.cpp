@@ -21,6 +21,7 @@
 #include "sysdeps.h"
 #include "cpu_emulation.h"
 #include "main.h"
+#include "prefs.h"
 #include "xlowmem.h"
 #include "emul_op.h"
 #include "rom_patches.h"
@@ -536,47 +537,38 @@ static void dump_log(void)
  *  Initialize CPU emulation
  */
 
-static struct sigaction sigsegv_action;
-
-#if defined(__powerpc__)
-#include <sys/ucontext.h>
-#endif
-
-static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
+static sigsegv_return_t sigsegv_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction)
 {
-	const uintptr addr = (uintptr)sip->si_addr;
 #if ENABLE_VOSF
-	// Handle screen fault.
-	extern bool Screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction);
-	if (Screen_fault_handler((sigsegv_address_t)addr, SIGSEGV_INVALID_PC))
-		return;
+	// Handle screen fault
+	extern bool Screen_fault_handler(sigsegv_address_t, sigsegv_address_t);
+	if (Screen_fault_handler(fault_address, fault_instruction))
+		return SIGSEGV_RETURN_SUCCESS;
 #endif
-#if defined(__powerpc__)
-	if (addr >= ROM_BASE && addr < ROM_BASE + ROM_SIZE) {
-		printf("IGNORE write access to ROM at %08x\n", addr);
-		(((ucontext_t *)scp)->uc_mcontext.regs)->nip += 4;
-		return;
-	}
-	if (addr >= 0xf3012000 && addr < 0xf3014000 && 0) {
-		printf("IGNORE write access to ROM at %08x\n", addr);
-		(((ucontext_t *)scp)->uc_mcontext.regs)->nip += 4;
-		return;
-	}
-#endif
-	printf("Caught SIGSEGV at address %p\n", sip->si_addr);
-	printf("Native PC: %08x\n", (((ucontext_t *)scp)->uc_mcontext.regs)->nip);
-	printf("Current CPU: %s\n", current_cpu == main_cpu ? "main" : "interrupts");
-#if 1
-	dump_registers();
+
+	const uintptr addr = (uintptr)fault_address;
+#if HAVE_SIGSEGV_SKIP_INSTRUCTION
+	// Ignore writes to ROM
+	if ((addr - ROM_BASE) < ROM_SIZE)
+		return SIGSEGV_RETURN_SKIP_INSTRUCTION;
+
+	// Ignore all other faults, if requested
+	if (PrefsFindBool("ignoresegv"))
+		return SIGSEGV_RETURN_FAILURE;
 #else
-	printf("Main CPU context\n");
-	main_cpu->dump_registers();
-	printf("Interrupts CPU context\n");
-	interrupt_cpu->dump_registers();
+#error "FIXME: You don't have the capability to skip instruction within signal handlers"
 #endif
+
+	printf("SIGSEGV\n");
+	printf("  pc %p\n", fault_instruction);
+	printf("  ea %p\n", fault_address);
+	printf(" cpu %s\n", current_cpu == main_cpu ? "main" : "interrupts");
+	dump_registers();
 	current_cpu->dump_log();
 	enter_mon();
 	QuitEmulator();
+
+	return SIGSEGV_RETURN_FAILURE;
 }
 
 void init_emul_ppc(void)
@@ -591,13 +583,9 @@ void init_emul_ppc(void)
 	interrupt_cpu = new sheepshaver_cpu();
 #endif
 
-	// Install SIGSEGV handler
-	sigemptyset(&sigsegv_action.sa_mask);
-	sigsegv_action.sa_sigaction = sigsegv_handler;
-	sigsegv_action.sa_flags = SA_SIGINFO;
-	sigsegv_action.sa_restorer = NULL;
-	sigaction(SIGSEGV, &sigsegv_action, NULL);
-
+	// Install the handler for SIGSEGV
+	sigsegv_install_handler(sigsegv_handler);
+	
 #if ENABLE_MON
 	// Install "regs" command in cxmon
 	mon_add_command("regs", dump_registers, "regs                     Dump PowerPC registers\n");
