@@ -1307,6 +1307,8 @@ static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 		}
 		break;
 #endif
+	case SIGSEGV_RETURN_FAILURE:
+		return false;
 	}
         
         // We can't do anything with the fault_address, dump state?
