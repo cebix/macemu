@@ -76,7 +76,7 @@ uninstall:
 	rm -f $(man1dir)/$(APP).1
 
 clean:
-	rm -f $(APP) $(OBJ_DIR)/* core* *.core *~ *.bak
+	rm -f $(APP) $(OBJ_DIR)/* core* *.core *~ *.bak ppc-execute-impl.cpp
 
 distclean: clean
 	rm -rf $(OBJ_DIR)
@@ -94,6 +94,13 @@ $(OBJ_DIR)/%.o : %.S
 	$(CPP) $(CPPFLAGS) -D__ASSEMBLY__ $< -o $*.s
 	$(AS) $(ASFLAGS) -o $@ $*.s
 	rm $*.s
+
+# Kheperix CPU emulator
+GENEXEC = ../kpx_cpu/src/cpu/ppc/genexec.pl
+
+../kpx_cpu/src/cpu/ppc/ppc-execute.cpp: ppc-execute-impl.cpp
+ppc-execute-impl.cpp: ../kpx_cpu/src/cpu/ppc/ppc-decode.cpp $(GENEXEC)
+	$(CPP) $(CPPFLAGS) $< | $(GENEXEC) > $@
 
 #-------------------------------------------------------------------------
 # DO NOT DELETE THIS LINE -- make depend depends on it.
