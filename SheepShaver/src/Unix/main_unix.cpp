@@ -632,6 +632,8 @@ int main(int argc, char **argv)
 					PVR = 0x000a0000;
 				else if (strcmp(value, "750") == 0)
 					PVR = 0x00080000;
+				else if (strcmp(value, "750FX") == 0)
+					PVR = 0x70000000;
 				else if (strcmp(value, "821") == 0)
 					PVR = 0x00320000;
 				else if (strcmp(value, "860") == 0)
@@ -640,6 +642,12 @@ int main(int argc, char **argv)
 					PVR = 0x000c0000;
 				else if (strcmp(value, "7410") == 0)
 					PVR = 0x800c0000;
+				else if (strcmp(value, "7450") == 0)
+					PVR = 0x80000000;
+				else if (strcmp(value, "7455") == 0)
+					PVR = 0x80010000;
+				else if (strcmp(value, "7457") == 0)
+					PVR = 0x80020000;
 				else
 					printf("WARNING: Unknown CPU type '%s', assuming 604\n", value);
 			}

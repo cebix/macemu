@@ -847,7 +847,8 @@ static bool patch_nanokernel_boot(void)
 			lp[7] = htonl(0x00040004);	// Inst cache assoc/Data cache assoc
 			lp[8] = htonl(0x00400002);	// TLB total size/TLB assoc
 			break;
-		case 8:		// 750
+		case 8:		// 750, 750FX
+		case 0x7000:
 			lp[0] = htonl(0x1000);		// Page size
 			lp[1] = htonl(0x8000);		// Data cache size
 			lp[2] = htonl(0x8000);		// Inst cache size
@@ -871,8 +872,11 @@ static bool patch_nanokernel_boot(void)
 			lp[8] = htonl(0x00800002);	// TLB total size/TLB assoc
 			break;
 //		case 11:	// X704?
-		case 12:	// 7400, 7410
+		case 12:	// 7400, 7410, 7450, 7455, 7457
 		case 0x800c:
+		case 0x8000:
+		case 0x8001:
+		case 0x8002:
 			lp[0] = htonl(0x1000);		// Page size
 			lp[1] = htonl(0x8000);		// Data cache size
 			lp[2] = htonl(0x8000);		// Inst cache size
