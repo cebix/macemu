@@ -57,6 +57,8 @@ static int display_type = DISPLAY_WINDOW;		// See enum above
 static struct Screen *the_screen = NULL;
 static struct Window *the_win = NULL;
 static struct BitMap *the_bitmap = NULL;
+static UWORD *null_pointer = NULL;				// Blank mouse pointer data
+static UWORD *current_pointer = (UWORD *)-1;	// Currently visible mouse pointer data
 static LONG black_pen = -1, white_pen = -1;
 static struct Process *periodic_proc = NULL;	// Periodic process
 
@@ -352,6 +354,13 @@ static bool init_screen_cgfx(ULONG mode_id)
 
 bool VideoInit(bool classic)
 {
+	// Allocate blank mouse pointer data
+	null_pointer = (UWORD *)AllocMem(12, MEMF_PUBLIC | MEMF_CHIP | MEMF_CLEAR);
+	if (null_pointer == NULL) {
+		ErrorAlert(GetString(STR_NO_MEM_ERR));
+		return false;
+	}
+
 	// Read frame skip prefs
 	frame_skip = PrefsFindInt32("frameskip");
 	if (frame_skip == 0)
@@ -488,6 +497,12 @@ void VideoExit(void)
 			}
 			break;
 	}
+
+	// Free mouse pointer
+	if (null_pointer) {
+		FreeMem(null_pointer, 12);
+		null_pointer = NULL;
+	}
 }
 
 
@@ -600,8 +615,24 @@ static __saveds void periodic_func(void)
 					case IDCMP_MOUSEMOVE:
 						if (display_type == DISPLAY_SCREEN_P96 || display_type == DISPLAY_SCREEN_CGFX)
 							ADBMouseMoved(mx, my);
-						else
+						else {
 							ADBMouseMoved(mx - the_win->BorderLeft, my - the_win->BorderTop);
+							if (mx < the_win->BorderLeft
+							 || my < the_win->BorderTop
+							 || mx >= the_win->BorderLeft + VideoMonitor.x
+							 || my >= the_win->BorderTop + VideoMonitor.y) {
+								if (current_pointer) {
+									ClearPointer(the_win);
+									current_pointer = NULL;
+								}
+							} else {
+								if (current_pointer != null_pointer) {
+									// Hide mouse pointer inside window
+									SetPointer(the_win, null_pointer, 1, 16, 0, 0);
+									current_pointer = null_pointer;
+								}
+							}
+						}
 						break;
 
 					case IDCMP_MOUSEBUTTONS:

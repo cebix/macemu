@@ -1,5 +1,6 @@
 V0.8 (snapshot) -
 	- AmigaOS: enabled floppy support, fixed floppy bugs [Jürgen Lachmann]
+	- AmigaOS: Amiga mouse pointer is hidden inside windowed Mac displays
 	- AmigaOS/sys_amiga.cpp: workaround for 2060scsi.device bug when
 	  when reading from CD-ROM [Jürgen Lachmann]
 	- AmigaOS/prefs_editor_amiga.cpp: fixed bug when adding volumes
