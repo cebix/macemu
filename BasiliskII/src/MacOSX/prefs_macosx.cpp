@@ -93,5 +93,5 @@ void SavePrefs(void)
 void AddPlatformPrefsDefaults(void)
 {
 	PrefsReplaceString("extfs", "/");
-	PrefsReplaceString("screen", "win/512/342/32");
+	PrefsReplaceString("screen", "win/512/384/16");
 }
