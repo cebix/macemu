@@ -435,6 +435,14 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 				PatchNativeResourceManager();
 			break;
 
+		case OP_NTRB_17_PATCH4:
+			r->d[0] = ReadMacInt16(r->a[7]);
+			r->a[7] += 2;
+		 	D(bug("%d %d\n", ReadMacInt16(r->a[2]), ReadMacInt16(r->a[2] + 6)));
+			if (ReadMacInt16(r->a[2]) == 11 && ReadMacInt16(r->a[2] + 6) == 17)
+				PatchNativeResourceManager();
+			break;
+
 		case OP_CHECKLOAD: {		// vCheckLoad() patch
 			uint32 type = ReadMacInt32(r->a[7]);
 			r->a[7] += 4;

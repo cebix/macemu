@@ -136,10 +136,15 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 				// Check when ntrb 17 is installed (for native Resource Manager patch) (7.6, 7.6.1, 8.0, 8.1)
 				p[7] = htons(M68K_EMUL_OP_NTRB_17_PATCH);
 				D(bug(" patch 3 applied\n"));
-			} else if (PM(0,0x3f2a) && PM(1,0x0006) && PM(2,0x3f2a) && PM(3,0x0002) && PM(4,0x61ff)) {
+			} else if (PM(0,0x3f2a) && PM(1,0x0006) && PM(2,0x3f2a) && PM(3,0x0002) && PM(4,0x61ff) && PM(8,0x245f)) {
 				// Check when ntrb 17 is installed (for native Resource Manager patch) (8.5, 8.6)
 				p[8] = htons(M68K_EMUL_OP_NTRB_17_PATCH);
 				D(bug(" patch 4 applied\n"));
+			} else if (PM(0,0x3f2a) && PM(1,0x0006) && PM(2,0x3f2a) && PM(3,0x0002) && PM(4,0x61ff) && PM(7,0x301f)) {
+				// Check when ntrb 17 is installed (for native Resource Manager patch) (9.0)
+				p[7] = htons(M68K_EMUL_OP_NTRB_17_PATCH4);
+				p[8] = htons(ntohs(p[8]) & 0xf0ff); // bra
+				D(bug(" patch 8 applied\n"));
 			} else if (PM(0,0x0c39) && PM(1,0x0001) && PM(2,0xf800) && PM(3,0x0008) && PM(4,0x6f00)) {
 				// Don't read from 0xf8000008 (8.5 with Zanzibar ROM, 8.6)
 				p[0] = htons(M68K_NOP);
@@ -177,6 +182,20 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 			p16 = (uint16 *)((uintptr)p + base + 6);
 			*p16 = htons(M68K_EMUL_OP_NTRB_17_PATCH2);
 			D(bug(" patch 1 applied\n"));
+		}
+
+	} else if (type == FOURCC('p','t','c','h') && id == 156) {
+		D(bug("ptch 156 found\n"));
+		size >>= 1;
+		while (size--) {
+			if (PM(0,0x4e56) && PM(1,0xfffa) && PM(2,0x48e7) && PM(3,0x1f18) && PM(4,0x7800) && PM(5,0x267c) && PM(6,0x6900) && PM(7,0x0000)) {
+				// Don't call FE0A opcode (9.0)
+				p[0] = htons(0x7000);		// moveq #0,d0
+				p[1] = htons(M68K_RTS);
+				D(bug(" patch 1 applied\n"));
+				break;
+			}
+			p++;
 		}
 
 	} else if (type == FOURCC('p','t','c','h') && id == 420) {
