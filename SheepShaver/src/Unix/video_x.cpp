@@ -1611,86 +1611,247 @@ void VideoVBL(void)
  *  Install graphics acceleration
  */
 
-#if 0
-// Rectangle filling/inversion
-static void accl_fillrect8(accl_params *p)
+// Rectangle inversion
+template< int bpp >
+static inline void do_invrect(uint8 *dest, uint32 length)
 {
-	D(bug("accl_fillrect8\n"));
+#define INVERT_1(PTR, OFS) ((uint8  *)(PTR))[OFS] = ~((uint8  *)(PTR))[OFS]
+#define INVERT_2(PTR, OFS) ((uint16 *)(PTR))[OFS] = ~((uint16 *)(PTR))[OFS]
+#define INVERT_4(PTR, OFS) ((uint32 *)(PTR))[OFS] = ~((uint32 *)(PTR))[OFS]
+#define INVERT_8(PTR, OFS) ((uint64 *)(PTR))[OFS] = ~((uint64 *)(PTR))[OFS]
 
-	// Get filling parameters
-	int16 dest_X = p->dest_rect[1] - p->dest_bounds[1];
-	int16 dest_Y = p->dest_rect[0] - p->dest_bounds[0];
-	int16 dest_X_max = p->dest_rect[3] - p->dest_bounds[1] - 1;
-	int16 dest_Y_max = p->dest_rect[2] - p->dest_bounds[0] - 1;
-	uint8 color = p->pen_mode == 8 ? p->fore_pen : p->back_pen;
-	D(bug(" dest X %d, dest Y %d\n", dest_X, dest_Y));
-	D(bug(" dest X max %d, dest Y max %d\n", dest_X_max, dest_Y_max));
+#ifndef UNALIGNED_PROFITABLE
+	// Align on 16-bit boundaries
+	if (bpp < 16 && (((uintptr)dest) & 1)) {
+		INVERT_1(dest, 0);
+		dest += 1; length -= 1;
+	}
 
-	// And perform the fill
-	fillrect8_hook(dest_X, dest_Y, dest_X_max, dest_Y_max, color);
+	// Align on 32-bit boundaries
+	if (bpp < 32 && (((uintptr)dest) & 2)) {
+		INVERT_2(dest, 0);
+		dest += 2; length -= 2;
+	}
+#endif
+
+	// Invert 8-byte words
+	if (length >= 8) {
+		const int r = (length / 8) % 8;
+		dest += r * 8;
+
+		int n = ((length / 8) + 7) / 8;
+		switch (r) {
+		case 0: do {
+				dest += 64;
+				INVERT_8(dest, -8);
+		case 7: INVERT_8(dest, -7);
+		case 6: INVERT_8(dest, -6);
+		case 5: INVERT_8(dest, -5);
+		case 4: INVERT_8(dest, -4);
+		case 3: INVERT_8(dest, -3);
+		case 2: INVERT_8(dest, -2);
+		case 1: INVERT_8(dest, -1);
+				} while (--n > 0);
+		}
+	}
+
+	// 32-bit cell to invert?
+	if (length & 4) {
+		INVERT_4(dest, 0);
+		if (bpp <= 16)
+			dest += 4;
+	}
+
+	// 16-bit cell to invert?
+	if (bpp <= 16 && (length & 2)) {
+		INVERT_2(dest, 0);
+		if (bpp <= 8)
+			dest += 2;
+	}
+
+	// 8-bit cell to invert?
+	if (bpp <= 8 && (length & 1))
+		INVERT_1(dest, 0);
+
+#undef INVERT_1
+#undef INVERT_2
+#undef INVERT_4
+#undef INVERT_8
 }
 
-static void accl_fillrect32(accl_params *p)
+void NQD_invrect(uint32 arg)
 {
-	D(bug("accl_fillrect32\n"));
-
-	// Get filling parameters
-	int16 dest_X = p->dest_rect[1] - p->dest_bounds[1];
-	int16 dest_Y = p->dest_rect[0] - p->dest_bounds[0];
-	int16 dest_X_max = p->dest_rect[3] - p->dest_bounds[1] - 1;
-	int16 dest_Y_max = p->dest_rect[2] - p->dest_bounds[0] - 1;
-	uint32 color = p->pen_mode == 8 ? p->fore_pen : p->back_pen;
-	D(bug(" dest X %d, dest Y %d\n", dest_X, dest_Y));
-	D(bug(" dest X max %d, dest Y max %d\n", dest_X_max, dest_Y_max));
-
-	// And perform the fill
-	fillrect32_hook(dest_X, dest_Y, dest_X_max, dest_Y_max, color);
-}
-
-static void accl_invrect(accl_params *p)
-{
-	D(bug("accl_invrect\n"));
+	D(bug("accl_invrect %08x\n", arg));
+	accl_params *p = (accl_params *)arg;
 
 	// Get inversion parameters
 	int16 dest_X = p->dest_rect[1] - p->dest_bounds[1];
 	int16 dest_Y = p->dest_rect[0] - p->dest_bounds[0];
-	int16 dest_X_max = p->dest_rect[3] - p->dest_bounds[1] - 1;
-	int16 dest_Y_max = p->dest_rect[2] - p->dest_bounds[0] - 1;
+	int16 width  = p->dest_rect[3] - p->dest_rect[1];
+	int16 height = p->dest_rect[2] - p->dest_rect[0];
 	D(bug(" dest X %d, dest Y %d\n", dest_X, dest_Y));
-	D(bug(" dest X max %d, dest Y max %d\n", dest_X_max, dest_Y_max));
+	D(bug(" width %d, height %d, bytes_per_row %d\n", width, height, p->dest_row_bytes));
 
 	//!!?? pen_mode == 14
 
 	// And perform the inversion
-	invrect_hook(dest_X, dest_Y, dest_X_max, dest_Y_max);
+	const int bpp = bytes_per_pixel(p->dest_pixel_size);
+	const int dest_row_bytes = p->dest_row_bytes;
+	uint8 *dest = (uint8 *)(p->dest_base_addr + (dest_Y * dest_row_bytes) + (dest_X * bpp));
+	width *= bpp;
+	switch (bpp) {
+	case 1:
+		for (int i = 0; i < height; i++) {
+			do_invrect<8>(dest, width);
+			dest += dest_row_bytes;
+		}
+		break;
+	case 2:
+		for (int i = 0; i < height; i++) {
+			do_invrect<16>(dest, width);
+			dest += dest_row_bytes;
+		}
+		break;
+	case 4:
+		for (int i = 0; i < height; i++) {
+			do_invrect<32>(dest, width);
+			dest += dest_row_bytes;
+		}
+		break;
+	}
 }
 
-static bool accl_fillrect_hook(accl_params *p)
+// Rectangle filling
+template< int bpp >
+static inline void do_fillrect(uint8 *dest, uint32 color, uint32 length)
 {
-	D(bug("accl_fillrect_hook %p\n", p));
+#define FILL_1(PTR, OFS, VAL) ((uint8  *)(PTR))[OFS] = (VAL)
+#define FILL_2(PTR, OFS, VAL) ((uint16 *)(PTR))[OFS] = (VAL)
+#define FILL_4(PTR, OFS, VAL) ((uint32 *)(PTR))[OFS] = (VAL)
+#define FILL_8(PTR, OFS, VAL) ((uint64 *)(PTR))[OFS] = (VAL)
+
+#ifndef UNALIGNED_PROFITABLE
+	// Align on 16-bit boundaries
+	if (bpp < 16 && (((uintptr)dest) & 1)) {
+		FILL_1(dest, 0, color);
+		dest += 1; length -= 1;
+	}
+
+	// Align on 32-bit boundaries
+	if (bpp < 32 && (((uintptr)dest) & 2)) {
+		FILL_2(dest, 0, color);
+		dest += 2; length -= 2;
+	}
+#endif
+
+	// Fill 8-byte words
+	if (length >= 8) {
+		const uint64 c = (((uint64)color) << 32) | color;
+		const int r = (length / 8) % 8;
+		dest += r * 8;
+
+		int n = ((length / 8) + 7) / 8;
+		switch (r) {
+		case 0: do {
+				dest += 64;
+				FILL_8(dest, -8, c);
+		case 7: FILL_8(dest, -7, c);
+		case 6: FILL_8(dest, -6, c);
+		case 5: FILL_8(dest, -5, c);
+		case 4: FILL_8(dest, -4, c);
+		case 3: FILL_8(dest, -3, c);
+		case 2: FILL_8(dest, -2, c);
+		case 1: FILL_8(dest, -1, c);
+				} while (--n > 0);
+		}
+	}
+
+	// 32-bit cell to fill?
+	if (length & 4) {
+		FILL_4(dest, 0, color);
+		if (bpp <= 16)
+			dest += 4;
+	}
+
+	// 16-bit cell to fill?
+	if (bpp <= 16 && (length & 2)) {
+		FILL_2(dest, 0, color);
+		if (bpp <= 8)
+			dest += 2;
+	}
+
+	// 8-bit cell to fill?
+	if (bpp <= 8 && (length & 1))
+		FILL_1(dest, 0, color);
+
+#undef FILL_1
+#undef FILL_2
+#undef FILL_4
+#undef FILL_8
+}
+
+void NQD_fillrect(uint32 arg)
+{
+	D(bug("accl_fillrect %08x\n", arg));
+	accl_params *p = (accl_params *)arg;
+
+	// Get filling parameters
+	int16 dest_X = p->dest_rect[1] - p->dest_bounds[1];
+	int16 dest_Y = p->dest_rect[0] - p->dest_bounds[0];
+	int16 width  = p->dest_rect[3] - p->dest_rect[1];
+	int16 height = p->dest_rect[2] - p->dest_rect[0];
+	uint32 color = p->pen_mode == 8 ? p->fore_pen : p->back_pen;
+	D(bug(" dest X %d, dest Y %d\n", dest_X, dest_Y));
+	D(bug(" width %d, height %d\n", width, height));
+	D(bug(" bytes_per_row %d color %08x\n", p->dest_row_bytes, color));
+
+	// And perform the fill
+	const int bpp = bytes_per_pixel(p->dest_pixel_size);
+	const int dest_row_bytes = p->dest_row_bytes;
+	uint8 *dest = (uint8 *)(p->dest_base_addr + (dest_Y * dest_row_bytes) + (dest_X * bpp));
+	width *= bpp;
+	switch (bpp) {
+	case 1:
+		for (int i = 0; i < height; i++) {
+			memset(dest, color, width);
+			dest += dest_row_bytes;
+		}
+		break;
+	case 2:
+		for (int i = 0; i < height; i++) {
+			do_fillrect<16>(dest, color, width);
+			dest += dest_row_bytes;
+		}
+		break;
+	case 4:
+		for (int i = 0; i < height; i++) {
+			do_fillrect<32>(dest, color, width);
+			dest += dest_row_bytes;
+		}
+		break;
+	}
+}
+
+bool NQD_fillrect_hook(uint32 arg)
+{
+	D(bug("accl_fillrect_hook %08x\n", arg));
+	accl_params *p = (accl_params *)arg;
 
 	// Check if we can accelerate this fillrect
-	if (p->dest_base_addr == screen_base && ((uint32 *)p)[0x284 >> 2] != 0 && display_type == DIS_SCREEN) {
+	if (((uint32 *)p)[0x284 >> 2] != 0 && p->dest_pixel_size >= 8) {
 		if (p->transfer_mode == 8) {
 			// Fill
-			if (p->dest_pixel_size == 8 && fillrect8_hook != NULL) {
-				p->draw_proc = accl_fillrect8;
-				return true;
-			} else if (p->dest_pixel_size == 32 && fillrect32_hook != NULL) {
-				p->draw_proc = accl_fillrect32;
-				return true;
-			}
-		} else if (p->transfer_mode == 10 && invrect_hook != NULL) {
+			p->draw_proc = NativeTVECT(NATIVE_FILLRECT);
+			return true;
+		}
+		else if (p->transfer_mode == 10) {
 			// Invert
-			p->draw_proc = accl_invrect;
+			p->draw_proc = NativeTVECT(NATIVE_INVRECT);
 			return true;
 		}
 	}
 	return false;
 }
-
-static struct accl_hook_info fillrect_hook_info = {accl_fillrect_hook, accl_sync_hook, ACCL_FILLRECT};
-#endif
 
 // Rectangle blitting
 // TODO: optimize for VOSF and target pixmap == screen
@@ -1737,6 +1898,27 @@ void NQD_bitblt(uint32 arg)
 	}
 }
 
+/*
+  BitBlt transfer modes:
+  0 : srcCopy
+  1 : srcOr
+  2 : srcXor
+  3 : srcBic
+  4 : notSrcCopy
+  5 : notSrcOr
+  6 : notSrcXor
+  7 : notSrcBic
+  32 : blend
+  33 : addPin
+  34 : addOver
+  35 : subPin
+  36 : transparent
+  37 : adMax
+  38 : subOver
+  39 : adMin
+  50 : hilite
+*/
+
 bool NQD_bitblt_hook(uint32 arg)
 {
 	D(bug("accl_draw_hook %08x\n", arg));
@@ -1746,8 +1928,8 @@ bool NQD_bitblt_hook(uint32 arg)
 	if (((uint32 *)p)[0x18 >> 2] + ((uint32 *)p)[0x128 >> 2] == 0 &&
 		((uint32 *)p)[0x130 >> 2] == 0 &&
 		p->src_pixel_size >= 8 && p->src_pixel_size == p->dest_pixel_size &&
-		((p->src_row_bytes ^ p->dest_row_bytes) >> 31) == 0 &&
-		p->transfer_mode == 0 &&
+		(p->src_row_bytes ^ p->dest_row_bytes) >= 0 &&	// same sign?
+		p->transfer_mode == 0 &&						// srcCopy?
 		((uint32 *)p)[0x15c >> 2] > 0) {
 
 		// Yes, set function pointer
@@ -1766,6 +1948,11 @@ bool NQD_sync_hook(uint32 arg)
 
 void VideoInstallAccel(void)
 {
+	// Temporary hack until it's fixed for e.g. little-endian & 64-bit platforms
+#ifndef __powerpc__
+	return;
+#endif
+
 	// Install acceleration hooks
 	if (PrefsFindBool("gfxaccel")) {
 		D(bug("Video: Installing acceleration hooks\n"));
@@ -1776,11 +1963,14 @@ void VideoInstallAccel(void)
 		WriteMacInt32(base + 0, NativeTVECT(NATIVE_BITBLT_HOOK));
 		WriteMacInt32(base + 4, NativeTVECT(NATIVE_SYNC_HOOK));
 		WriteMacInt32(base + 8, ACCL_BITBLT);
-#if defined(__powerpc__) // Temporary hack until it's fixed for e.g. little-endian & 64-bit platforms
 		NQDMisc(6, bitblt_hook_info.ptr());
-#endif
 
-//		NQDMisc(6, &fillrect_hook_info);
+		SheepVar fillrect_hook_info(sizeof(accl_hook_info));
+		base = fillrect_hook_info.addr();
+		WriteMacInt32(base + 0, NativeTVECT(NATIVE_FILLRECT_HOOK));
+		WriteMacInt32(base + 4, NativeTVECT(NATIVE_SYNC_HOOK));
+		WriteMacInt32(base + 8, ACCL_FILLRECT);
+		NQDMisc(6, fillrect_hook_info.ptr());
 	}
 }
 

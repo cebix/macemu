@@ -994,20 +994,15 @@ static void NativeOp(int selector)
 	case NATIVE_BITBLT:
 		NQD_bitblt(GPR(3));
 		break;
-#if 0
 	case NATIVE_FILLRECT_HOOK:
 		GPR(3) = NQD_fillrect_hook(GPR(3));
 		break;
 	case NATIVE_INVRECT:
 		NQD_invrect(GPR(3));
 		break;
-	case NATIVE_FILLRECT_8:
-		NQD_fillrect8(GPR(3));
+	case NATIVE_FILLRECT:
+		NQD_fillrect(GPR(3));
 		break;
-	case NATIVE_FILLRECT_32:
-		NQD_fillrect32(GPR(3));
-		break;
-#endif
 #else
 	case NATIVE_ETHER_INIT:
 		// FIXME: needs more complicated thunks
