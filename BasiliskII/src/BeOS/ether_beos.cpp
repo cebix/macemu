@@ -90,6 +90,18 @@ static NetProtocol *find_protocol(uint16 type)
 
 
 /*
+ *  Remove all protocols
+ */
+
+static void remove_all_protocols(void)
+{
+	NetProtocol *p;
+	while ((p = (NetProtocol *)prot_list.RemoveItem((long)0)) != NULL)
+		delete p;
+}
+
+
+/*
  *  Initialization
  */
 
@@ -248,9 +260,7 @@ void EtherExit(void)
 		delete_area(buffer_area);
 
 		// Remove all protocols
-		NetProtocol *p;
-		while ((p = (NetProtocol *)prot_list.RemoveItem((long)0)) != NULL)
-			delete p;
+		remove_all_protocols();
 	}
 }
 
@@ -261,10 +271,7 @@ void EtherExit(void)
 
 void EtherReset(void)
 {
-	// Remove all protocols
-	NetProtocol *p;
-	while ((p = (NetProtocol *)prot_list.RemoveItem((long)0)) != NULL)
-		delete p;
+	remove_all_protocols();
 }
 
 
