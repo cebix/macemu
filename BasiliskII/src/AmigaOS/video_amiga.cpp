@@ -537,7 +537,7 @@ void VideoExit(void)
  *  Set palette
  */
 
-void video_set_palette(uint8 *pal, in num)
+void video_set_palette(uint8 *pal, int num)
 {
 	if ((display_type == DISPLAY_SCREEN_P96 || display_type == DISPLAY_SCREEN_CGFX)
 	 && !IsDirectMode(VideoMonitor.mode)) {
@@ -563,6 +563,15 @@ void video_set_palette(uint8 *pal, in num)
  */
 
 void video_switch_to_mode(const video_mode &mode)
+{
+}
+
+
+/*
+ *  Close down full-screen mode (if bringing up error alerts is unsafe while in full-screen mode)
+ */
+
+void VideoQuitFullScreen(void)
 {
 }
 
