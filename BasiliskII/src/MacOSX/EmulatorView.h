@@ -50,7 +50,8 @@
 						fullScreen;	// Is this Emulator using the whole screen?
 
 	NSRect				displayBox;	// Cached dimensions of the screen
-	int					screen_height;
+
+	int					screen_height; // Height of the screen with the key window
 }
 
 - (void) benchmark;
@@ -88,6 +89,7 @@
 - (BOOL) isFullScreen;
 - (BOOL) mouseInView: (NSEvent *) event;
 - (BOOL) mouseInView;
+- (void) fullscreenMouseMove;
 - (BOOL) processMouseMove: (NSEvent *) event;
 
 #ifdef CGDRAWBITMAP

@@ -52,6 +52,14 @@
 	return self;
 }
 
+- (void) awakeFromNib
+{
+	// Here we store the height of the screen which the app was opened on.
+	// NSApplication's sendEvent: always uses that screen for its mouse co-ords
+	screen_height = (int) [[NSScreen mainScreen] frame].size.height;
+}
+
+
 // Mouse click in this window. If window is not active,
 // should the click be passed to this view?
 - (BOOL) acceptsFirstMouse: (NSEvent *) event
@@ -59,6 +67,12 @@
 	return [self mouseInView];
 }
 
+
+//
+// Key event processing.
+// OS X doesn't send us separate events for the modifier keys
+// (shift/control/command), so we need to monitor them separately
+//
 
 #include <adb.h>
 
@@ -101,6 +115,10 @@ static int prevFlags;
 	prevFlags = flags;
 }
 
+//
+// Windowed mode. We only send mouse/key events
+// if the OS X mouse is within the little screen
+//
 - (BOOL) mouseInView: (NSEvent *) event
 {
 	NSRect	box;
@@ -183,6 +201,8 @@ static int prevFlags;
 		  imageWidth: (short) width
 		 imageHeight: (short) height
 {
+	D(NSLog(@"readyToDraw: theBitmap=%lx\n", theBitmap));
+
 	bitmap = theBitmap;
 	numBytes = [theBitmap bytesPerRow] * height;
 #endif
@@ -191,8 +211,10 @@ static int prevFlags;
 		  imageWidth: (short) width
 		 imageHeight: (short) height
 {
+	D(NSLog(@"readyToDraw: theBitmap=%lx\n", [cgImgRef bitmap]));
+
 	cgImgRep = image;
-	numBytes = CGImageGetBytesPerRow(image);
+	numBytes = CGImageGetBytesPerRow(image) * height;
 #endif
 #ifdef CGDRAWBITMAP
 - (void) readyToDraw: (void *) theBitmap
@@ -205,6 +227,8 @@ static int prevFlags;
 			isPlanar: (BOOL)  planar
 			hasAlpha: (BOOL)  alpha
 {
+	D(NSLog(@"readyToDraw: theBitmap=%lx\n", theBitmap));
+
 	bitmap = theBitmap;
 	bps = bitsPerSample;
 	spp = samplesPerPixel;
@@ -216,7 +240,6 @@ static int prevFlags;
 #endif
 	x = width, y = height;
 	drawView = YES;
-
 	[[self window] setAcceptsMouseMovedEvents:	YES];
 //	[[self window] setInitialFirstResponder:	self];
 	[[self window] makeFirstResponder:			self];
@@ -233,7 +256,6 @@ static int prevFlags;
 
 	fullScreen = YES;
 	memcpy(&displayBox, &displayBounds, sizeof(displayBox));
-	screen_height = (int)displayBounds.size.height;
 }
 
 - (short) width
@@ -298,6 +320,19 @@ static int prevFlags;
 	}
 }
 
+
+- (void) fullscreenMouseMove
+{
+	NSPoint location = [NSEvent mouseLocation];
+
+	D(NSLog (@"%s - loc.x=%f, loc.y=%f",
+				__PRETTY_FUNCTION__, location.x, location.y));
+	D(NSLog (@"%s - Sending ADBMouseMoved(%d,%d). (%d-%d)",
+					__PRETTY_FUNCTION__, (int)location.x,
+					screen_height - (int)location.y, screen_height, (int)location.y));
+	ADBMouseMoved((int)location.x, screen_height - (int)location.y);
+}
+
 static NSPoint	mouse;			// Previous/current mouse location
 
 - (BOOL) processMouseMove: (NSEvent *) event
@@ -305,20 +340,20 @@ static NSPoint	mouse;			// Previous/current mouse location
 	NSPoint location;
 
 	if ( fullScreen )
-		location = [NSEvent mouseLocation];
-	else
-		location = [self convertPoint: [event locationInWindow] fromView:nil];
+	{
+		[self fullscreenMouseMove];
+		return YES;
+	}
+
+	location = [self convertPoint: [event locationInWindow] fromView:nil];
+
+	D(NSLog (@"%s - loc.x=%f, loc.y=%f",
+				__PRETTY_FUNCTION__, location.x, location.y));
 
 	if ( NSEqualPoints(location, mouse) )
 		return NO;
 
 	mouse = location;
-
-	if ( fullScreen )
-	{
-		ADBMouseMoved((int)mouse.x, screen_height - (int)mouse.y);
-		return YES;
-	}
 
 #ifdef CAN_RESIZE_VIEW
 	int	mouseY = y - y * mouse.y / [self height];
