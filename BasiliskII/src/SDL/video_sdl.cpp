@@ -1381,23 +1381,23 @@ static int kc_decode(SDL_keysym const & ks, bool key_down)
 
 	case SDLK_1: case SDLK_EXCLAIM: return 0x12;
 	case SDLK_2: case SDLK_AT: return 0x13;
-//	case SDLK_3: case SDLK_numbersign: return 0x14;
+	case SDLK_3: case SDLK_HASH: return 0x14;
 	case SDLK_4: case SDLK_DOLLAR: return 0x15;
-//	case SDLK_5: case SDLK_percent: return 0x17;
+	case SDLK_5: return 0x17;
 	case SDLK_6: return 0x16;
 	case SDLK_7: return 0x1a;
 	case SDLK_8: return 0x1c;
 	case SDLK_9: return 0x19;
 	case SDLK_0: return 0x1d;
 
-//	case SDLK_BACKQUOTE: case SDLK_asciitilde: return 0x0a;
+	case SDLK_BACKQUOTE: return 0x0a;
 	case SDLK_MINUS: case SDLK_UNDERSCORE: return 0x1b;
 	case SDLK_EQUALS: case SDLK_PLUS: return 0x18;
-//	case SDLK_bracketleft: case SDLK_braceleft: return 0x21;
-//	case SDLK_bracketright: case SDLK_braceright: return 0x1e;
-//	case SDLK_BACKSLASH: case SDLK_bar: return 0x2a;
+	case SDLK_LEFTBRACKET: return 0x21;
+	case SDLK_RIGHTBRACKET: return 0x1e;
+	case SDLK_BACKSLASH: return 0x2a;
 	case SDLK_SEMICOLON: case SDLK_COLON: return 0x29;
-//	case SDLK_apostrophe: case SDLK_QUOTEDBL: return 0x27;
+	case SDLK_QUOTE: case SDLK_QUOTEDBL: return 0x27;
 	case SDLK_COMMA: case SDLK_LESS: return 0x2b;
 	case SDLK_PERIOD: case SDLK_GREATER: return 0x2f;
 	case SDLK_SLASH: case SDLK_QUESTION: return 0x2c;
