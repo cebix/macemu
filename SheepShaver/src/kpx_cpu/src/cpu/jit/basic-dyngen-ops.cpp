@@ -273,13 +273,6 @@ DEFINE_OP(8,T0,1,T1);
 	dyngen_barrier();													\
 } while (0)
 
-#if defined(__powerpc__)
-#define FAST_DISPATCH(TARGET) asm volatile ("b " #TARGET)
-#endif
-#if defined(__i386__) || defined(__x86_64__)
-#define FAST_DISPATCH(TARGET) asm volatile ("jmp " #TARGET)
-#endif
-
 extern "C" void OPPROTO op_execute(uint8 *entry_point, basic_cpu *this_cpu);
 void OPPROTO op_execute(uint8 *entry_point, basic_cpu *this_cpu)
 {
@@ -340,11 +333,16 @@ void OPPROTO op_jmp_slow(void)
 
 void OPPROTO op_jmp_fast(void)
 {
-#ifdef FAST_DISPATCH
-	FAST_DISPATCH(__op_param1);
+#ifdef DYNGEN_FAST_DISPATCH
+	DYNGEN_FAST_DISPATCH(__op_param1);
 #else
 	SLOW_DISPATCH(PARAM1);
 #endif
+}
+
+void OPPROTO op_jmp_A0(void)
+{
+	SLOW_DISPATCH(reg_A0);
 }
 
 // Register calling conventions based arches don't need a stack frame
@@ -475,6 +473,18 @@ DEFINE_OP(op_invoke_direct_CPU_im_im, {
 	typedef void (*func_t)(void *, uint32, uint32);
 	func_t func = (func_t)PARAM1;
 	CALL(func(CPU, PARAM2, PARAM3));
+});
+
+DEFINE_OP(op_invoke_CPU_T0_ret_A0, {
+	typedef void *(*func_t)(void *, uintptr);
+	func_t func = (func_t)reg_A0;
+	reg_A0 = (uintptr)CALL(func(CPU, reg_T0));
+});
+
+DEFINE_OP(op_invoke_direct_CPU_T0_ret_A0, {
+	typedef void *(*func_t)(void *, uintptr);
+	func_t func = (func_t)PARAM1;
+	reg_A0 = (uintptr)CALL(func(CPU, reg_T0));
 });
 
 #undef DEFINE_OP

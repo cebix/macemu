@@ -45,6 +45,17 @@
 #endif
 
 /**
+ *	DYNGEN_DIRECT_BLOCK_CHAINING
+ *
+ *		Define to enable direct block chaining on platforms supporting
+ *		that feature. e.g. PowerPC.
+ **/
+
+#ifndef DYNGEN_DIRECT_BLOCK_CHAINING
+#define DYNGEN_DIRECT_BLOCK_CHAINING 0
+#endif
+
+/**
  *	Helpers to reach JIT backends headers
  **/
 

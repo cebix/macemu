@@ -337,6 +337,9 @@ private:
 	friend class powerpc_dyngen;
 	powerpc_dyngen codegen;
 	block_info *compile_block(uint32 entry);
+#if DYNGEN_DIRECT_BLOCK_CHAINING
+	void *compile_chain_block(block_info *sbi);
+#endif
 #endif
 
 	// Semantic action templates

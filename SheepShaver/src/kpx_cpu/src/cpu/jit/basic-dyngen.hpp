@@ -84,6 +84,7 @@ public:
 	void gen_invoke_CPU_T0(void (*func)(dyngen_cpu_base, uint32));
 	void gen_invoke_CPU_im(void (*func)(dyngen_cpu_base, uint32), uint32 value);
 	void gen_invoke_CPU_im_im(void (*func)(dyngen_cpu_base, uint32, uint32), uint32 param1, uint32 param2);
+	void gen_invoke_CPU_T0_ret_A0(void *(*func)(dyngen_cpu_base));
 
 	// Raw aliases
 #define DEFINE_ALIAS_RAW(NAME, ARGLIST, ARGS) \
@@ -176,6 +177,7 @@ public:
 	// Jump instructions
 	DEFINE_ALIAS(jmp_slow,1);
 	DEFINE_ALIAS(jmp_fast,1);
+	DEFINE_ALIAS(jmp_A0,0);
 
 	// Load/Store instructions
 	DEFINE_ALIAS(load_u32_T0_A0_T1,0);
@@ -203,7 +205,36 @@ public:
 #undef DEFINE_ALIAS_2
 #undef DEFINE_ALIAS_3
 #undef DEFINE_ALIAS_RAW
+
+#if DYNGEN_DIRECT_BLOCK_CHAINING
+	// Jump addresses for direct chaining
+	uint8 *jmp_addr[2];
+
+	// Set jump target address
+	void set_jmp_target(uint8 *jmp_addr, uint8 *addr);
+#endif
 };
+
+#if DYNGEN_DIRECT_BLOCK_CHAINING
+inline void
+basic_dyngen::set_jmp_target(uint8 *jmp_addr, uint8 *addr)
+{
+#if defined(__powerpc__)
+	// patch the branch destination
+	uint32 *ptr = (uint32 *)jmp_addr;
+	uint32 val  = *ptr;
+    val = (val & ~0x03fffffc) | ((addr - jmp_addr) & 0x03fffffc);
+    *ptr = val;
+
+    // flush icache
+    asm volatile ("dcbst 0,%0" : : "r"(ptr) : "memory");
+    asm volatile ("sync" : : : "memory");
+    asm volatile ("icbi 0,%0" : : "r"(ptr) : "memory");
+    asm volatile ("sync" : : : "memory");
+    asm volatile ("isync" : : : "memory");
+#endif
+}
+#endif
 
 inline bool
 basic_dyngen::direct_jump_possible(uintptr target) const

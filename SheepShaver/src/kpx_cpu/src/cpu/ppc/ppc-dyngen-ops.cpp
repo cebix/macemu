@@ -684,7 +684,7 @@ DEFINE_OP(branch_if_not_T0);
 #undef DEFINE_OP
 #undef DEFINE_OP_CTR
 
-template< int bo >
+template< int bo, bool chain >
 static inline void do_execute_branch_bo(uint32 tpc, uint32 npc)
 {
 	bool ctr_ok = true;
@@ -706,20 +706,33 @@ static inline void do_execute_branch_bo(uint32 tpc, uint32 npc)
 		powerpc_dyngen_helper::set_ctr(ctr);
 	}
 
-	if (ctr_ok && cond_ok)
+	if (ctr_ok && cond_ok) {
 		powerpc_dyngen_helper::set_pc(tpc);
-	else
+#ifdef DYNGEN_FAST_DISPATCH
+		if (chain && powerpc_dyngen_helper::spcflags().empty())
+			DYNGEN_FAST_DISPATCH(__op_jmp0);
+#endif
+	}
+	else {
 		powerpc_dyngen_helper::set_pc(npc);
+#ifdef DYNGEN_FAST_DISPATCH
+		if (chain && powerpc_dyngen_helper::spcflags().empty())
+			DYNGEN_FAST_DISPATCH(__op_jmp1);
+#endif
+	}
 
 	dyngen_barrier();
 }
 
 #define BO(A,B,C,D) (((A) << 4)| ((B) << 3) | ((C) << 2) | ((D) << 1))
-#define DEFINE_OP(BO_SUFFIX, BO_VALUE)				\
-void OPPROTO op_branch_A0_bo_##BO_SUFFIX(void)		\
-{													\
-	do_execute_branch_bo<BO BO_VALUE>(A0, PARAM1);	\
+#define DEFINE_OP1(BO_SUFFIX, BO_VALUE, CHAIN)				\
+void OPPROTO op_branch_A0_bo_##BO_SUFFIX##_##CHAIN(void)	\
+{															\
+	do_execute_branch_bo<BO BO_VALUE, CHAIN>(A0, PARAM1);	\
 }
+#define DEFINE_OP(BO_SUFFIX, BO_VALUE)			\
+DEFINE_OP1(BO_SUFFIX, BO_VALUE, 0)				\
+DEFINE_OP1(BO_SUFFIX, BO_VALUE, 1)
 
 DEFINE_OP(0000,(0,0,0,0));
 DEFINE_OP(0001,(0,0,0,1));

@@ -867,7 +867,7 @@ void gen_code(const char *name, const char *demangled_name,
                                runtime to do translated block
                                chaining: the offset of the instruction
                                needs to be stored */
-                            fprintf(outfile, "    jmp_offsets[%d] = %d + (code_ptr() - gen_code_buf);\n",
+                            fprintf(outfile, "    jmp_addr[%d] = code_ptr() + %d;\n",
                                     n, rel->r_offset - start_offset);
                             continue;
                         }

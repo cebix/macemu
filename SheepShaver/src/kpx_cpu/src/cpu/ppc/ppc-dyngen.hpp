@@ -219,7 +219,7 @@ public:
 	void gen_store_single_F0_A0_im(int32 offset);
 
 	// Branch instructions
-	void gen_bc_A0(int bo, int bi, uint32 npc);
+	void gen_bc_A0(int bo, int bi, uint32 npc, bool direct_chaining);
 
 	// Vector instructions
 	void gen_load_ad_VD_VR(int i);

@@ -135,3 +135,15 @@ basic_dyngen::gen_invoke_CPU_im_im(void (*func)(dyngen_cpu_base, uint32, uint32)
 		gen_op_invoke_CPU_im_im(param1, param2);
 	}
 }
+
+void
+basic_dyngen::gen_invoke_CPU_T0_ret_A0(void *(*func)(dyngen_cpu_base))
+{
+	if (direct_call_possible((uintptr)func))
+		gen_op_invoke_direct_CPU_T0_ret_A0((uintptr)func);
+	else {
+		gen_op_mov_ad_A0_im((uintptr)func);
+		gen_op_invoke_CPU_T0_ret_A0();
+	}
+}
+

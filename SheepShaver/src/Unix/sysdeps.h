@@ -88,6 +88,10 @@
 #define PPC_PROFILE_COMPILE_TIME 0
 #define PPC_PROFILE_GENERIC_CALLS 0
 #define KPX_MAX_CPUS 1
+// direct block chaining is only tested on PPC right now
+#if defined(__powerpc__)
+#define DYNGEN_DIRECT_BLOCK_CHAINING 1
+#endif
 #else
 // Mac ROM is write protected
 #define ROM_IS_WRITE_PROTECTED 1

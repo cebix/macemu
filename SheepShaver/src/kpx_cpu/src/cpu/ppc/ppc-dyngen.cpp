@@ -236,33 +236,57 @@ DEFINE_INSN(store, T0);
 
 #undef DEFINE_INSN
 
-void powerpc_dyngen::gen_bc_A0(int bo, int bi, uint32 npc)
+void powerpc_dyngen::gen_bc_A0(int bo, int bi, uint32 npc, bool direct_chaining)
 {
 #if 1
 	if (BO_CONDITIONAL_BRANCH(bo)) {
 		gen_load_T0_CR();
 		gen_and_32_T0_im(1 << (31 - bi));
 	}
+	if (direct_chaining) {
 	switch (bo >> 1) {
 #define _(A,B,C,D) (((A) << 3)| ((B) << 2) | ((C) << 1) | (D))
-	case _(0,0,0,0): gen_op_branch_A0_bo_0000(npc); break;
-	case _(0,0,0,1): gen_op_branch_A0_bo_0001(npc); break;
+	case _(0,0,0,0): gen_op_branch_A0_bo_0000_1(npc); break;
+	case _(0,0,0,1): gen_op_branch_A0_bo_0001_1(npc); break;
 	case _(0,0,1,0):
-	case _(0,0,1,1): gen_op_branch_A0_bo_001x(npc); break;
-	case _(0,1,0,0): gen_op_branch_A0_bo_0100(npc); break;
-	case _(0,1,0,1): gen_op_branch_A0_bo_0101(npc); break;
+	case _(0,0,1,1): gen_op_branch_A0_bo_001x_1(npc); break;
+	case _(0,1,0,0): gen_op_branch_A0_bo_0100_1(npc); break;
+	case _(0,1,0,1): gen_op_branch_A0_bo_0101_1(npc); break;
 	case _(0,1,1,0):
-	case _(0,1,1,1): gen_op_branch_A0_bo_011x(npc); break;
+	case _(0,1,1,1): gen_op_branch_A0_bo_011x_1(npc); break;
 	case _(1,0,0,0):
-	case _(1,1,0,0): gen_op_branch_A0_bo_1x00(npc); break;
+	case _(1,1,0,0): gen_op_branch_A0_bo_1x00_1(npc); break;
 	case _(1,0,0,1):
-	case _(1,1,0,1): gen_op_branch_A0_bo_1x01(npc); break;
+	case _(1,1,0,1): gen_op_branch_A0_bo_1x01_1(npc); break;
 	case _(1,0,1,0):
 	case _(1,0,1,1):
 	case _(1,1,1,0):
-	case _(1,1,1,1): gen_op_branch_A0_bo_1x1x(); break;
+	case _(1,1,1,1): gen_op_branch_A0_bo_1x1x_1(); break;
 #undef _
 	default: abort();
+	}
+	} else {
+	switch (bo >> 1) {
+#define _(A,B,C,D) (((A) << 3)| ((B) << 2) | ((C) << 1) | (D))
+	case _(0,0,0,0): gen_op_branch_A0_bo_0000_0(npc); break;
+	case _(0,0,0,1): gen_op_branch_A0_bo_0001_0(npc); break;
+	case _(0,0,1,0):
+	case _(0,0,1,1): gen_op_branch_A0_bo_001x_0(npc); break;
+	case _(0,1,0,0): gen_op_branch_A0_bo_0100_0(npc); break;
+	case _(0,1,0,1): gen_op_branch_A0_bo_0101_0(npc); break;
+	case _(0,1,1,0):
+	case _(0,1,1,1): gen_op_branch_A0_bo_011x_0(npc); break;
+	case _(1,0,0,0):
+	case _(1,1,0,0): gen_op_branch_A0_bo_1x00_0(npc); break;
+	case _(1,0,0,1):
+	case _(1,1,0,1): gen_op_branch_A0_bo_1x01_0(npc); break;
+	case _(1,0,1,0):
+	case _(1,0,1,1):
+	case _(1,1,1,0):
+	case _(1,1,1,1): gen_op_branch_A0_bo_1x1x_0(); break;
+#undef _
+	default: abort();
+	}
 	}
 #else
 	if (BO_CONDITIONAL_BRANCH(bo)) {

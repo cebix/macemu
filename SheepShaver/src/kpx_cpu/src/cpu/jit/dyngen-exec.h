@@ -96,6 +96,14 @@ extern int __op_cpuparam;
 #define CPUPARAM ((long)(&__op_cpuparam))
 #endif
 
+// Direct block chaining support
+#if defined(__powerpc__)
+#define DYNGEN_FAST_DISPATCH(TARGET) asm volatile ("b " #TARGET)
+#endif
+#if defined(__i386__) || defined(__x86_64__)
+#define DYNGEN_FAST_DISPATCH(TARGET) asm volatile ("jmp " #TARGET)
+#endif
+
 extern int __op_jmp0, __op_jmp1;
 
 #endif /* DYNGEN_EXEC_H */

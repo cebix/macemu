@@ -133,6 +133,9 @@ powerpc_cpu::compile_block(uint32 entry_point)
 	bi->init(entry_point);
 	bi->entry_point = dg.gen_start();
 
+	// Direct block chaining support variables
+	bool use_direct_block_chaining = false;
+
 	uint32 dpc = entry_point - 4;
 	uint32 min_pc, max_pc;
 	min_pc = max_pc = entry_point;
@@ -429,6 +432,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			break;
 		}
 		case PPC_I(BC):			// Branch Conditional
+		{
 #if FOLLOW_CONST_JUMPS
 			if (!LK_field::test(opcode)) {
 				const int bo = BO_field::extract(opcode);
@@ -440,8 +444,16 @@ powerpc_cpu::compile_block(uint32 entry_point)
 				}
 			}
 #endif
-			dg.gen_mov_32_A0_im(((AA_field::test(opcode) ? 0 : dpc) + operand_BD::get(this, opcode)) & -4);
+			const uint32 tpc = ((AA_field::test(opcode) ? 0 : dpc) + operand_BD::get(this, opcode)) & -4;
+#if DYNGEN_DIRECT_BLOCK_CHAINING
+			// Use direct block chaining for in-page jumps or jumps to ROM area
+			const uint32 npc = dpc + 4;
+			if (((tpc & -4096) == (npc & -4096)) || is_read_only_memory(tpc))
+				use_direct_block_chaining = true;
+#endif
+			dg.gen_mov_32_A0_im(tpc);
 			goto do_branch;
+		}
 		case PPC_I(BCCTR):		// Branch Conditional to Count Register
 			dg.gen_load_A0_CTR();
 			goto do_branch;
@@ -457,7 +469,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			if (LK_field::test(opcode))
 				dg.gen_store_im_LR(npc);
 
-			dg.gen_bc_A0(bo, bi, npc);
+			dg.gen_bc_A0(bo, bi, npc, use_direct_block_chaining);
 			break;
 		}
 		case PPC_I(B):			// Branch
@@ -491,7 +503,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			dg.gen_mov_32_A0_im(tpc);
 
 			// BO field is built so that we always branch to A0
-			dg.gen_bc_A0(BO_MAKE(0,0,0,0), 0, 0);
+			dg.gen_bc_A0(BO_MAKE(0,0,0,0), 0, 0, false);
 			break;
 		}
 		case PPC_I(CMP):		// Compare
@@ -1428,6 +1440,33 @@ powerpc_cpu::compile_block(uint32 entry_point)
 	bi->size = dg.code_ptr() - bi->entry_point;
 	if (disasm)
 		disasm_translation(entry_point, dpc - entry_point + 4, bi->entry_point, bi->size);
+
+#if DYNGEN_DIRECT_BLOCK_CHAINING
+	// Generate backpatch trampolines
+	if (use_direct_block_chaining) {
+		typedef void *(*func_t)(dyngen_cpu_base);
+		func_t func = (func_t)nv_mem_fun(&powerpc_cpu::compile_chain_block).ptr();
+
+		// Taken PC
+		uint8 *p = dg.gen_start();
+		dg.gen_mov_ad_T0_im(((uintptr)bi) | 0);
+		dg.gen_invoke_CPU_T0_ret_A0(func);
+		dg.gen_jmp_A0();
+		dg.gen_end();
+		bi->jmp_addr[0] = dg.jmp_addr[0];
+		dg.set_jmp_target(dg.jmp_addr[0], p);
+
+		// Not taken PC
+		p = dg.gen_start();
+		dg.gen_mov_ad_T0_im(((uintptr)bi) | 1);
+		dg.gen_invoke_CPU_T0_ret_A0(func);
+		dg.gen_jmp_A0();
+		dg.gen_end();
+		bi->jmp_addr[1] = dg.jmp_addr[1];
+		dg.set_jmp_target(dg.jmp_addr[1], p);
+	}
+#endif
+
 	block_cache.add_to_cl_list(bi);
 	if (is_read_only_memory(bi->pc))
 		block_cache.add_to_dormant_list(bi);

@@ -21,6 +21,7 @@
 #ifndef PPC_BLOCKINFO_H
 #define PPC_BLOCKINFO_H
 
+#include "cpu/jit/jit-config.hpp"
 #include "nvmemfun.hpp"
 #include "basic-blockinfo.hpp"
 
@@ -42,6 +43,9 @@ struct powerpc_block_info
 #endif
 #if PPC_ENABLE_JIT
 	uint8 *				entry_point;
+#if DYNGEN_DIRECT_BLOCK_CHAINING
+	uint8 *				jmp_addr[2]; // Jump addresses for direct chaining
+#endif
 #endif
 	uintptr				min_pc, max_pc;
 

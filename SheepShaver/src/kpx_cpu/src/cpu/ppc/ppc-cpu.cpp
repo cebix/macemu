@@ -431,6 +431,26 @@ bool powerpc_cpu::check_spcflags()
 	return true;
 }
 
+#if DYNGEN_DIRECT_BLOCK_CHAINING
+void *powerpc_cpu::compile_chain_block(block_info *sbi)
+{
+	// Block index is stuffed into the source basic block pointer,
+	// which is aligned at least on 4-byte boundaries
+	const int n = ((uintptr)sbi) & 3;
+	sbi = (block_info *)(((uintptr)sbi) & ~3L);
+	const uint32 bpc = sbi->pc;
+
+	const uint32 tpc = pc();
+	block_info *tbi = block_cache.find(tpc);
+	if (tbi == NULL)
+		tbi = compile_block(tpc);
+	assert(tbi && tbi->pc == tpc);
+
+	codegen.set_jmp_target(sbi->jmp_addr[n], tbi->entry_point);
+	return tbi->entry_point;
+}
+#endif
+
 void powerpc_cpu::execute(uint32 entry)
 {
 	pc() = entry;
@@ -644,6 +664,13 @@ void powerpc_cpu::invalidate_cache_range(uintptr start, uintptr end)
 {
 	D(bug("Invalidate cache block [%08x - %08x]\n", start, end));
 #if PPC_DECODE_CACHE || PPC_ENABLE_JIT
+#if DYNGEN_DIRECT_BLOCK_CHAINING
+	if (use_jit) {
+		// Invalidate on page boundaries
+		start &= -4096;
+		end = (end + 4095) & -4096;
+	}
+#endif
 	block_cache.clear_range(start, end);
 #endif
 }
