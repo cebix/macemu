@@ -69,6 +69,7 @@ static inline bool is_read_only_memory(uintptr addr)
 #define TARGET_NATIVE	TARGET_POWERPC
 #endif
 
+#if PPC_ENABLE_JIT
 static void disasm_block(int target, uint8 *start, uint32 length)
 {
 #if ENABLE_MON
@@ -96,8 +97,13 @@ static void disasm_translation(uint32 src_addr, uint32 src_len,
 	printf("IN:\n");
 	disasm_block(TARGET_POWERPC, vm_do_get_real_address(src_addr), src_len);
 	printf("OUT:\n");
+#ifdef TARGET_NATIVE
 	disasm_block(TARGET_NATIVE, dst_addr, dst_len);
+#else
+	printf("unsupported disassembler for this archicture\n");
+#endif
 }
+#endif
 
 
 /**
