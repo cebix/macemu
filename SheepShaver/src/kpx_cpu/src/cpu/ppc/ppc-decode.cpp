@@ -267,7 +267,7 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  X_form, 31, 246, CFLOW_NORMAL
 	},
 	{ "dcbz",
-	  EXECUTE_0(nop),
+	  EXECUTE_2(dcbz, operand_RA_or_0, operand_RB),
 	  NULL,
 	  X_form, 31, 1014, CFLOW_NORMAL
 	},

@@ -564,8 +564,15 @@ void powerpc_cpu::execute_loadstore_multiple(uint32 opcode)
 	uint32 ea = a + d;
 
 	// FIXME: generate exception if ea is not word-aligned
-	if ((ea & 3) != 0)
+	if ((ea & 3) != 0) {
+#ifdef SHEEPSHAVER
+		D(bug("unaligned EA load/store multiple\n"));
+		increment_pc(4);
+		return;
+#else
 		abort();
+#endif
+	}
 
 	int r = LD ? rD_field::extract(opcode) : rS_field::extract(opcode);
 	while (r <= 31) {
@@ -1065,11 +1072,25 @@ void powerpc_cpu::execute_mftbr(uint32 opcode)
 void powerpc_cpu::execute_icbi(uint32 opcode)
 {
 	// TODO: record address range of code to invalidate
+	increment_pc(4);
 }
 
 void powerpc_cpu::execute_isync(uint32 opcode)
 {
 	invalidate_cache();
+	increment_pc(4);
+}
+
+/**
+ *		(Fake) data cache management
+ **/
+
+template< class RA, class RB >
+void powerpc_cpu::execute_dcbz(uint32 opcode)
+{
+	uint32 ea = RA::get(this, opcode) + RB::get(this, opcode);
+	vm_memset(ea - (ea % 32), 0, 32);
+	increment_pc(4);
 }
 
 /**
