@@ -507,6 +507,29 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 			p16[1] = htons(M68K_RTS);
 			D(bug(" patch 1 applied\n"));
 		}
+
+	} else if (type == FOURCC('N','O','b','j') && id == 100) {
+		D(bug("NObj 100 found\n"));
+
+		// Don't access VIA registers in MacBench 5.0
+		static const uint8 dat1[] = {0x7c, 0x08, 0x02, 0xa6, 0xbf, 0x01, 0xff, 0xe0, 0x90, 0x01, 0x00, 0x08};
+		base = find_rsrc_data((uint8 *)p, size, dat1, sizeof(dat1));
+		if (base) {
+			p[(base + 0x00) >> 1] = htons(0x3860);		// li r3,0
+			p[(base + 0x02) >> 1] = htons(0x0000);
+			p[(base + 0x04) >> 1] = htons(0x4e80);		// blr
+			p[(base + 0x06) >> 1] = htons(0x0020);
+			D(bug(" patch 1 applied\n"));
+		}
+		static const uint8 dat2[] = {0x7c, 0x6c, 0x1b, 0x78, 0x7c, 0x8b, 0x23, 0x78, 0x38, 0xc0, 0x3f, 0xfd};
+		base = find_rsrc_data((uint8 *)p, size, dat2, sizeof(dat2));
+		if (base) {
+			p[(base + 0x00) >> 1] = htons(0x3860);		// li r3,0
+			p[(base + 0x02) >> 1] = htons(0x0000);
+			p[(base + 0x04) >> 1] = htons(0x4e80);		// blr
+			p[(base + 0x06) >> 1] = htons(0x0020);
+			D(bug(" patch 2 applied\n"));
+		}
 	}
 }
 
