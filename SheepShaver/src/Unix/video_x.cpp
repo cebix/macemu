@@ -27,10 +27,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <errno.h>
-
-#ifdef HAVE_PTHREADS
-# include <pthread.h>
-#endif
+#include <pthread.h>
 
 #ifdef ENABLE_XF86_DGA
 #include <X11/extensions/xf86dga.h>
