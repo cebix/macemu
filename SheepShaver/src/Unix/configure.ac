@@ -1110,6 +1110,8 @@ if [[ "x$ac_cv_use_dyngen" = "xyes" ]]; then
     ac_cv_have_static_data_exec=no
     )
   ])
+else
+  ac_cv_use_dyngen=no
 fi
 AC_TRANSLATE_DEFINE(HAVE_STATIC_DATA_EXEC, "$ac_cv_have_static_data_exec",
   [Define if your system marks static data pages as executable.])
@@ -1119,6 +1121,7 @@ if [[ "x$WANT_JIT" = "xyes" ]]; then
 fi
 
 dnl Generate Makefile.
+AC_SUBST(USE_DYNGEN, [$ac_cv_use_dyngen])
 AC_SUBST(DYNGENSRCS)
 AC_SUBST(DYNGEN_CC)
 AC_SUBST(DYNGEN_OP_FLAGS)
