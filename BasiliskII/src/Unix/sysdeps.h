@@ -156,7 +156,10 @@ typedef int64 intptr;
 #endif
 
 #ifndef HAVE_LOFF_T
-   typedef off_t loff_t;
+typedef off_t loff_t;
+#endif
+#ifndef HAVE_CADDR_T
+typedef char * caddr_t;
 #endif
 
 /* Time data type for Time Manager emulation */

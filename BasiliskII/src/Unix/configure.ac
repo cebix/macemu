@@ -227,7 +227,7 @@ AC_SYS_LARGEFILE
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(unistd.h fcntl.h sys/time.h sys/mman.h mach/mach.h)
+AC_CHECK_HEADERS(unistd.h fcntl.h sys/types.h sys/time.h sys/mman.h mach/mach.h)
 AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -243,8 +243,8 @@ AC_CHECK_SIZEOF(double, 8)
 AC_CHECK_SIZEOF(long double, 12)
 AC_CHECK_SIZEOF(void *, 4)
 AC_TYPE_OFF_T
-AC_CHECK_TYPE(loff_t, off_t)
-AC_CHECK_TYPE(caddr_t, [char *])
+AC_CHECK_TYPES(loff_t)
+AC_CHECK_TYPES(caddr_t)
 AC_TYPE_SIZE_T
 AC_TYPE_SIGNAL
 AC_HEADER_TIME
