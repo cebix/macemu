@@ -64,7 +64,8 @@
 	[super dealloc];
 }
 
-// Mouse click in this window. If window is not active, should click be passed to this view?
+// Mouse click in this window. If window is not active,
+// should the click be passed to this view?
 - (BOOL) acceptsFirstMouse: (NSEvent *) event
 {
 	return [self mouseInView];
@@ -114,14 +115,21 @@ static int prevFlags;
 
 - (BOOL) mouseInView: (NSEvent *) event
 {
-	NSPoint loc = [event locationInWindow];
 	NSRect	box;
+	NSPoint loc;
+
 	if ( fullScreen )
-		return YES;
+	{
+		box = displayBox;
+		loc = [NSEvent mouseLocation];
+	}
 	else
+	{
 		box = [self frame];
-	D(NSLog (@"%s - loc.x=%f, loc.y=%f, box.origin.x=%f, box.origin.y=%f",
-				__PRETTY_FUNCTION__, loc.x, loc.y, box.origin.x, box.origin.y));
+		loc = [event locationInWindow];
+	}
+
+	D(NSLog (@"%s - loc.x=%f, loc.y=%f, box.origin.x=%f, box.origin.y=%f, box.size.width=%f, box.size.height=%f", __PRETTY_FUNCTION__, loc.x, loc.y, box.origin.x, box.origin.y, box.size.width, box.size.height));
 	return [self mouse: loc inRect: box];
 }
 
@@ -133,7 +141,6 @@ static int prevFlags;
 				__PRETTY_FUNCTION__, loc.x, loc.y, box.origin.x, box.origin.y));
 	return [self mouse: loc inRect: box];
 }
-
 
 //
 // Custom methods
@@ -229,9 +236,13 @@ static int prevFlags;
 	drawView = NO;
 }
 
-- (void) startedFullScreen
+- (void) startedFullScreen: (CGDirectDisplayID) display
 {
+	CGRect	displayBounds = CGDisplayBounds(display);
+
 	fullScreen = YES;
+	memcpy(&displayBox, &displayBounds, sizeof(displayBox));
+	screen_height = (int)displayBounds.size.height;
 }
 
 - (short) width
@@ -300,22 +311,17 @@ static NSPoint	mouse;			// Previous/current mouse location
 
 - (BOOL) processMouseMove: (NSEvent *) event
 {
-	NSPoint locInView;
+	NSPoint location;
 
 	if ( fullScreen )
-		locInView = [NSEvent mouseLocation];
-// CGAssociateMouseAndMouseCursorPosition(bool)
-// which will let you unlink the mouse input and the mouse cursor. So I
-// unlink the two, and the cursor doesn't move, but I still receive
-// MouseMoved events and can get the movement value using
-// CGGetLastMouseDelta. 
+		location = [NSEvent mouseLocation];
 	else
-		locInView = [self convertPoint: [event locationInWindow] fromView:nil];
+		location = [self convertPoint: [event locationInWindow] fromView:nil];
 
-	if ( NSEqualPoints(locInView, mouse) )
+	if ( NSEqualPoints(location, mouse) )
 		return NO;
 
-	mouse = locInView;
+	mouse = location;
 
 	if ( fullScreen )
 	{

@@ -46,7 +46,10 @@
 
 	BOOL				drawView,	// Set when the bitmap is all set up
 									// and ready to display
-						fullScreen;	// Is this Emulator running in a full screen?
+						fullScreen;	// Is this Emulator using the whole screen?
+
+	NSRect				displayBox;	// Cached dimensions of the screen
+	int					screen_height;
 }
 
 - (void) benchmark;
@@ -76,7 +79,7 @@
 #endif
 
 - (void) disableDrawing;
-- (void) startedFullScreen;
+- (void) startedFullScreen: (CGDirectDisplayID) theDisplay;
 
 - (short) width;
 - (short) height;
