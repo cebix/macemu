@@ -223,6 +223,7 @@ AC_CHECK_FUNCS(nanosleep)
 AC_CHECK_FUNCS(sigaction signal)
 AC_CHECK_FUNCS(mmap mprotect munmap)
 AC_CHECK_FUNCS(vm_allocate vm_deallocate vm_protect)
+AC_CHECK_FUNCS(posix_memalign memalign valloc)
 
 dnl Darwin seems to define mach_task_self() instead of task_self().
 AC_CHECK_FUNCS(mach_task_self task_self)

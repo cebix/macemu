@@ -40,6 +40,7 @@
 #include "ether.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #if ENABLE_MON
 #include "mon.h"
@@ -167,16 +168,31 @@ void *operator new(size_t size)
 {
 	void *p;
 
-	/* XXX: try different approaches */
+#if defined(HAVE_POSIX_MEMALIGN)
 	if (posix_memalign(&p, 16, size) != 0)
 		throw std::bad_alloc();
+#elif defined(HAVE_MEMALIGN)
+	p = memalign(16, size);
+#elif defined(HAVE_VALLOC)
+	p = valloc(size); // page-aligned!
+#else
+	/* XXX: handle padding ourselves */
+	p = malloc(size);
+#endif
 
 	return p;
 }
 
 void operator delete(void *p)
 {
+#if defined(HAVE_MEMALIGN) || defined(HAVE_VALLOC)
+#if defined(__GLIBC__)
+	// this is known to work only with GNU libc
 	free(p);
+#endif
+#else
+	free(p);
+#endif
 }
 
 sheepshaver_cpu::sheepshaver_cpu()
