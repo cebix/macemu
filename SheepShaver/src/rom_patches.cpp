@@ -2135,6 +2135,20 @@ void InstallDrivers(void)
 	M68kRegisters r;
 	uint8 pb[SIZEOF_IOParam];
 
+	// Install floppy driver
+	if (ROMType == ROMTYPE_NEWWORLD) {
+
+		// Force installation of floppy driver with NewWorld ROMs
+		r.a[0] = ROM_BASE + sony_offset;
+		r.d[0] = (uint32)SonyRefNum;
+		Execute68kTrap(0xa43d, &r);		// DrvrInstallRsrvMem()
+		r.a[0] = ReadMacInt32(ReadMacInt32(0x11c) + ~SonyRefNum * 4);	// Get driver handle from Unit Table
+		Execute68kTrap(0xa029, &r);		// HLock()
+		uint32 dce = ReadMacInt32(r.a[0]);
+		WriteMacInt32(dce + dCtlDriver, ROM_BASE + sony_offset);
+		WriteMacInt16(dce + dCtlFlags, SonyDriverFlags);
+	}
+
 	// Open .Sony driver
 	WriteMacInt8((uint32)pb + ioPermssn, 0);
 	WriteMacInt32((uint32)pb + ioNamePtr, (uint32)"\005.Sony");
