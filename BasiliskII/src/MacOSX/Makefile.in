@@ -23,16 +23,16 @@ GENEMUS = cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp \
 	  cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp
 
 # Symlinks to files in other directories
-GENLINK = README.txt acconfig.h install-sh \
+GENLINK = README.txt install-sh \
 	  config.guess config.sub user_strings_unix.h
 
-GEN  = $(GENEMUS) $(GENSRCS) $(GENLINK)
+GEN  = $(GENEMUS) $(GENSRCS)
 
 SRCS =  BasiliskII.icns Controller.h Controller.mm Credits.html \
 	Emulator.h Emulator.mm EmulatorView.h EmulatorView.mm English.lproj \
 	NNThread.h NNThread.m PrefsEditor.h PrefsEditor.mm \
 	ToDo.html Versions.html \
-	audio_macosx.cpp extfs_macosx.mm macos_util_macosx.h main_macosx.h \
+	audio_macosx.mm extfs_macosx.mm macos_util_macosx.h main_macosx.h \
 	main_macosx.mm misc_macosx.h misc_macosx.mm prefs_macosx.cpp \
 	sysdeps.h video_macosx.mm video_macosx.h
 APP = $(OBJ_DIR)/BasiliskII.app
@@ -71,7 +71,8 @@ clean: mostlyclean
 
 distclean: clean
 	rm -fr $(OBJ_DIR)
-	rm -f config.cache config.log config.status config.h
+	rm -fr $(GENLINK)
+	rm -f config.cache config.log config.status config.h config.h.in
 	rm -f configure
 	rm -f Makefile
 
@@ -96,68 +97,18 @@ cpuemu.cpp cpustbl.cpp cputbl.h: $(OBJ_DIR)/gencpu
 	$<
 
 
-cpuemu1.cpp: cpuemu.cpp
-	echo '#define PART_1' > $@
-	echo '#include "$<"' >> $@
-cpuemu2.cpp: cpuemu.cpp
-	echo '#define PART_2' > $@
-	echo '#include "$<"' >> $@
-cpuemu3.cpp: cpuemu.cpp
-	echo '#define PART_3' > $@
-	echo '#include "$<"' >> $@
-cpuemu4.cpp: cpuemu.cpp
-	echo '#define PART_4' > $@
-	echo '#include "$<"' >> $@
-cpuemu5.cpp: cpuemu.cpp
-	echo '#define PART_5' > $@
-	echo '#include "$<"' >> $@
-cpuemu6.cpp: cpuemu.cpp
-	echo '#define PART_6' > $@
-	echo '#include "$<"' >> $@
-cpuemu7.cpp: cpuemu.cpp
-	echo '#define PART_7' > $@
-	echo '#include "$<"' >> $@
-cpuemu8.cpp: cpuemu.cpp
-	echo '#define PART_8' > $@
-	echo '#include "$<"' >> $@
+$(GENEMUS) : cpuemu.cpp
+	for i in 1 2 3 4 5 6 7 8; \
+	do \
+	printf "#define  PART_%d\n#include \"%s\"\n" $$i $<  >cpuemu$$i.cpp; \
+	done
 
 
-cpufast.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
-	$(CXX) $(CPPFLAGS) $(DEFS) -S $(CXXFLAGS) $< -o cputmp.s
-	$(OBJ_DIR)/cpuopti <cputmp.s >$@ || mv cputmp.s $@
-	rm -f cputmp.s
-cpufast1.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 -S $(CXXFLAGS) $< -o cputmp1.s
-	$(OBJ_DIR)/cpuopti <cputmp1.s >$@ || mv cputmp1.s $@
-	rm -f cputmp1.s
-cpufast2.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 -S $(CXXFLAGS) $< -o cputmp2.s
-	$(OBJ_DIR)/cpuopti <cputmp2.s >$@ || mv cputmp2.s $@
-	rm -f cputmp2.s
-cpufast3.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 -S $(CXXFLAGS) $< -o cputmp3.s
-	$(OBJ_DIR)/cpuopti <cputmp3.s >$@ || mv cputmp3.s $@
-	rm -f cputmp3.s
-cpufast4.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 -S $(CXXFLAGS) $< -o cputmp4.s
-	$(OBJ_DIR)/cpuopti <cputmp4.s >$@ || mv cputmp4.s $@
-	rm -f cputmp4.s
-cpufast5.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 -S $(CXXFLAGS) $< -o cputmp5.s
-	$(OBJ_DIR)/cpuopti <cputmp5.s >$@ || mv cputmp5.s $@
-	rm -f cputmp5.s
-cpufast6.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 -S $(CXXFLAGS) $< -o cputmp6.s
-	$(OBJ_DIR)/cpuopti <cputmp6.s >$@ || mv cputmp6.s $@
-	rm -f cputmp6.s
-cpufast7.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 -S $(CXXFLAGS) $< -o cputmp7.s
-	$(OBJ_DIR)/cpuopti <cputmp7.s >$@ || mv cputmp7.s $@
-	rm -f cputmp7.s
-cpufast8.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 -S $(CXXFLAGS) $< -o cputmp8.s
-	$(OBJ_DIR)/cpuopti <cputmp8.s >$@ || mv cputmp8.s $@
-	rm -f cputmp8.s
+cpufast.s: cpuemu.s $(OBJ_DIR)/cpuopti
+	$(OBJ_DIR)/cpuopti <cpuemu.s >$@ || mv cputmp.s $@
+
+cpuemu.s: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -S $(CXXFLAGS) $< -o $@
 
 #-------------------------------------------------------------------------
 # DO NOT DELETE THIS LINE -- make depend depends on it.
