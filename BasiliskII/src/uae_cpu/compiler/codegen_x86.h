@@ -1,4 +1,4 @@
-/******************************** -*- C -*- ****************************
+/******************** -*- mode: C; tab-width: 8 -*- ********************
  *
  *	Run-time assembler for i386 and x86-64
  *
@@ -95,7 +95,7 @@
 
 /* --- Register set -------------------------------------------------------- */
 
-typedef enum {
+enum {
 #if X86_FLAT_REGISTERS
   X86_NOREG      = 0,
   X86_Reg8L_Base =  0x10,
@@ -106,14 +106,14 @@ typedef enum {
 #else
   X86_NOREG      = -1,
   X86_Reg8L_Base = 0,
-  X86_Reg8H_Base = 0,
+  X86_Reg8H_Base = 16,
   X86_Reg16_Base = 0,
   X86_Reg32_Base = 0,
   X86_Reg64_Base = 0,
 #endif
-} X86_Base_Reg_No;
+};
 
-typedef enum {
+enum {
   X86_AL  = X86_Reg8L_Base,
   X86_CL,   X86_DL,   X86_BL,
   X86_AH,   X86_CH,   X86_DH,   X86_BH,
@@ -121,31 +121,31 @@ typedef enum {
   X86_R12B, X86_R13B, X86_R14B, X86_R15B,
   X86_SPL = X86_Reg8H_Base + 4,
   X86_BPL,  X86_SIL,  X86_DIL
-} X86_Reg8_No;
+};
 
-typedef enum {
+enum {
   X86_AX  = X86_Reg16_Base,
   X86_CX,   X86_DX,   X86_BX,
   X86_SP,   X86_BP,   X86_SI,   X86_DI,
   X86_R8W,  X86_R9W,  X86_R10W, X86_R11W,
   X86_R12W, X86_R13W, X86_R14W, X86_R15W
-} X86_Reg16_No;
+};
 
-typedef enum {
+enum {
   X86_EAX = X86_Reg32_Base,
   X86_ECX,  X86_EDX,  X86_EBX,
   X86_ESP,  X86_EBP,  X86_ESI,  X86_EDI,
   X86_R8D,  X86_R9D,  X86_R10D, X86_R11D,
   X86_R12D, X86_R13D, X86_R14D, X86_R15D
-} X86_Reg32_No;
+};
 
-typedef enum {
+enum {
   X86_RAX = X86_Reg64_Base,
   X86_RCX,  X86_RDX,  X86_RBX,
   X86_RSP,  X86_RBP,  X86_RSI,  X86_RDI,
   X86_R8,   X86_R9,   X86_R10,  X86_R11,
   X86_R12,  X86_R13,  X86_R14,  X86_R15
-} X86_Reg64_No;
+};
 
 /* Register control and access
  *
@@ -473,11 +473,12 @@ typedef unsigned int	_ul;
  *		+ r	= register operand
  *		+ m	= memory operand (disp,base,index,scale)
  *		+ sr/sm	= a star preceding a register or memory
+ *		+ 0	= top of stack register (for FPU instructions)
  */
 
 /* --- ALU instructions ---------------------------------------------------- */
 
-typedef enum {
+enum {
   X86_ADD = 0,
   X86_OR  = 1,
   X86_ADC = 2,
@@ -486,8 +487,7 @@ typedef enum {
   X86_SUB = 5,
   X86_XOR = 6,
   X86_CMP = 7,
-  X86_NALU
-} X86_ALU_Opcode;
+};
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
@@ -718,7 +718,7 @@ typedef enum {
 
 /* --- Shift/Rotate instructions ------------------------------------------- */
 
-typedef enum {
+enum {
   X86_ROL = 0,
   X86_ROR = 1,
   X86_RCL = 2,
@@ -726,7 +726,7 @@ typedef enum {
   X86_SHL = 4,
   X86_SHR = 5,
   X86_SAR = 7,
-} X86_Shift_Opcode;
+};
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
@@ -945,12 +945,12 @@ typedef enum {
 
 /* --- Bit test instructions ----------------------------------------------- */
 
-typedef enum {
+enum {
   X86_BT  = 4,
   X86_BTS = 5,
   X86_BTR = 6,
   X86_BTC = 7,
-} X86_Bit_Test_Opcode;
+};
 
 /*									_format		Opcd		 ,Mod ,r      ,m	,mem=dsp+sib	,imm... */
 
@@ -1061,14 +1061,14 @@ typedef enum {
 
 /* --- Unary and Multiply/Divide instructions ------------------------------ */
 
-typedef enum {
+enum {
   X86_NOT  = 2,
   X86_NEG  = 3,
   X86_MUL  = 4,
   X86_IMUL = 5,
   X86_DIV  = 6,
   X86_IDIV = 7,
-} X86_Unary_Opcode;
+};
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
@@ -1472,8 +1472,9 @@ typedef enum {
 #define LAHF()				_m32only(			_O		(0x9f								))
 #define SAHF()				_m32only(			_O		(0x9e								))
 
-#define RDTSC()								_OO		(0xff31								)
+/*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
+#define RDTSC()								_OO		(0xff31								)
 
 #define ENTERii(W, B)							_O_W_B		(0xc8						  ,_su16(W),_su8(B))
 
@@ -1482,5 +1483,101 @@ typedef enum {
 #define RETi(IM)							_O_W		(0xc2							,_su16(IM))
 
 #define NOP()								_O		(0x90								)
+
+
+/* --- FLoating-Point instructions ----------------------------------------- */
+
+#define _ESCmi(D,B,I,S,OP)	(_REXLrm(0,B,I), _O_r_X(0xd8|(OP & 7), (OP >> 3), D,B,I,S))
+
+#define FLDr(R)			_OOr(0xd9c0,_rN(R))
+#define FLDLm(D,B,I,S)		_ESCmi(D,B,I,S,005)
+#define FLDSm(D,B,I,S)		_ESCmi(D,B,I,S,001)
+#define FLDTm(D,B,I,S)		_ESCmi(D,B,I,S,053)
+
+#define FSTr(R)			_OOr(0xddd0,_rN(R))
+#define FSTSm(D,B,I,S)		_ESCmi(D,B,I,S,021)
+#define FSTLm(D,B,I,S)		_ESCmi(D,B,I,S,025)
+
+#define FSTPr(R)		_OOr(0xddd8,_rN(R))
+#define FSTPSm(D,B,I,S)		_ESCmi(D,B,I,S,031)
+#define FSTPLm(D,B,I,S)		_ESCmi(D,B,I,S,035)
+#define FSTPTm(D,B,I,S)		_ESCmi(D,B,I,S,073)
+
+#define FADDr0(R)		_OOr(0xd8c0,_rN(R))
+#define FADD0r(R)		_OOr(0xdcc0,_rN(R))
+#define FADDP0r(R)		_OOr(0xdec0,_rN(R))
+#define FADDSm(D,B,I,S)		_ESCmi(D,B,I,S,000)
+#define FADDLm(D,B,I,S)		_ESCmi(D,B,I,S,004)
+
+#define FSUBSm(D,B,I,S)		_ESCmi(D,B,I,S,040)
+#define FSUBLm(D,B,I,S)		_ESCmi(D,B,I,S,044)
+#define FSUBr0(R)		_OOr(0xd8e0,_rN(R))
+#define FSUB0r(R)		_OOr(0xdce8,_rN(R))
+#define FSUBP0r(R)		_OOr(0xdee8,_rN(R))
+
+#define FSUBRr0(R)		_OOr(0xd8e8,_rN(R))
+#define FSUBR0r(R)		_OOr(0xdce0,_rN(R))
+#define FSUBRP0r(R)		_OOr(0xdee0,_rN(R))
+#define FSUBRSm(D,B,I,S)	_ESCmi(D,B,I,S,050)
+#define FSUBRLm(D,B,I,S)	_ESCmi(D,B,I,S,054)
+
+#define FMULr0(R)		_OOr(0xd8c8,_rN(R))
+#define FMUL0r(R)		_OOr(0xdcc8,_rN(R))
+#define FMULP0r(R)		_OOr(0xdec8,_rN(R))
+#define FMULSm(D,B,I,S)		_ESCmi(D,B,I,S,010)
+#define FMULLm(D,B,I,S)		_ESCmi(D,B,I,S,014)
+
+#define FDIVr0(R)		_OOr(0xd8f0,_rN(R))
+#define FDIV0r(R)		_OOr(0xdcf8,_rN(R))
+#define FDIVP0r(R)		_OOr(0xdef8,_rN(R))
+#define FDIVSm(D,B,I,S)		_ESCmi(D,B,I,S,060)
+#define FDIVLm(D,B,I,S)		_ESCmi(D,B,I,S,064)
+
+#define FDIVRr0(R)		_OOr(0xd8f8,_rN(R))
+#define FDIVR0r(R)		_OOr(0xdcf0,_rN(R))
+#define FDIVRP0r(R)		_OOr(0xdef0,_rN(R))
+#define FDIVRSm(D,B,I,S)	_ESCmi(D,B,I,S,070)
+#define FDIVRLm(D,B,I,S)	_ESCmi(D,B,I,S,074)
+
+#define FCMOVBr0(R)		_OOr(0xdac0,_rN(R))
+#define FCMOVBEr0(R)		_OOr(0xdad0,_rN(R))
+#define FCMOVEr0(R)		_OOr(0xdac8,_rN(R))
+#define FCMOVNBr0(R)		_OOr(0xdbc0,_rN(R))
+#define FCMOVNBEr0(R)		_OOr(0xdbd0,_rN(R))
+#define FCMOVNEr0(R)		_OOr(0xdbc8,_rN(R))
+#define FCMOVNUr0(R)		_OOr(0xdbd8,_rN(R))
+#define FCMOVUr0(R)		_OOr(0xdad8,_rN(R))
+#define FCOMIr0(R)		_OOr(0xdbf0,_rN(R))
+#define FCOMIPr0(R)		_OOr(0xdff0,_rN(R))
+
+#define FCOMr(R)		_OOr(0xd8d0,_rN(R))
+#define FCOMSm(D,B,I,S)		_ESCmi(D,B,I,S,020)
+#define FCOMLm(D,B,I,S)		_ESCmi(D,B,I,S,024)
+
+#define FCOMPr(R)		_OOr(0xd8d8,_rN(R))
+#define FCOMPSm(D,B,I,S)	_ESCmi(D,B,I,S,030)
+#define FCOMPLm(D,B,I,S)	_ESCmi(D,B,I,S,034)
+
+#define FUCOMIr0(R)		_OOr(0xdbe8,_rN(R))
+#define FUCOMIPr0(R)		_OOr(0xdfe8,_rN(R))
+#define FUCOMPr(R)		_OOr(0xdde8,_rN(R))
+#define FUCOMr(R)		_OOr(0xdde0,_rN(R))
+
+#define FIADDLm(D,B,I,S)	_ESCmi(D,B,I,S,002)
+#define FICOMLm(D,B,I,S)	_ESCmi(D,B,I,S,022)
+#define FICOMPLm(D,B,I,S)	_ESCmi(D,B,I,S,032)
+#define FIDIVLm(D,B,I,S)	_ESCmi(D,B,I,S,062)
+#define FIDIVRLm(D,B,I,S)	_ESCmi(D,B,I,S,072)
+#define FILDLm(D,B,I,S)		_ESCmi(D,B,I,S,003)
+#define FILDQm(D,B,I,S)		_ESCmi(D,B,I,S,057)
+#define FIMULLm(D,B,I,S)	_ESCmi(D,B,I,S,012)
+#define FISTLm(D,B,I,S)		_ESCmi(D,B,I,S,023)
+#define FISTPLm(D,B,I,S)	_ESCmi(D,B,I,S,033)
+#define FISTPQm(D,B,I,S)	_ESCmi(D,B,I,S,077)
+#define FISUBLm(D,B,I,S)	_ESCmi(D,B,I,S,042)
+#define FISUBRLm(D,B,I,S)	_ESCmi(D,B,I,S,052)
+
+#define FREEr(R)		_OOr(0xddc0,_rN(R))
+#define FXCHr(R)		_OOr(0xd9c8,_rN(R))
 
 #endif /* X86_RTASM_H */
