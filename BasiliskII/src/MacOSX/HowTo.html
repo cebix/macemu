@@ -19,10 +19,11 @@ To run Basilisk II, you need both:
 <UL>
 <LI>A Mac ROM image. Even though there is a ROM in your OS X Mac,
 	it is too new for a 68k Mac to make use of. Any Mac II ROM,
-	and most of the Quadra ROMS, will work. In the near future,
-	Mac Plus, SE or Classic ROMS may also be usable (though only
-	for emulating a monochrome Mac). Quadra 660av and 840av
-	ROMS are currently also unusable </LI>
+	and most of the Quadra ROMS, will work.
+	<BR> (Quadra 660av and 840av ROMs are currently unusable.
+	I don't know about Mac LC ROMs. In the near future, Mac Plus,
+	SE or Classic ROMS may also be usable, though only for emulating
+	a monochrome Mac). </LI>
 <LI>A copy of the MacOS, which at the moment has to either be on
 	a CD-ROM, or on a disk image </LI>
 </UL>
@@ -54,8 +55,9 @@ Note that this probably contravenes several copyright laws. </P>
 </OL>
 </P>
 
-<P> If you want to press the Run button on the 'BasilsikII Emulator' window,
-after a few moments you should see a Mac screen, with a picture of a floppy
+<P> If you want to test this, press the Run or Power button
+(in the top right corner of the 'BasiliskII Emulator' window).
+After a few moments you should see a Mac screen, with a picture of a floppy
 disk with a flashing question mark. That is the Mac telling you that it needs
 a disk to boot from. </P>
 
@@ -63,9 +65,10 @@ a disk to boot from. </P>
 
 <H2> <A NAME="b-disk"> Creating a boot disk </A> </H2>
 
-<P> Basilisk II needs a copy of the MacOS to boot from. Anything from System 6
-through to MacOS 8.1 should be usable, although I have only tested System 7.1
-and 7.6. </P>
+<P> Basilisk II needs a copy of the MacOS to boot from. Anything from System 7
+through to MacOS 8.1 should be usable.
+<BR> (Felix Eng and I have only tested System 7.0.1, 7.1, 7.5.3 and 7.6,
+although Felix also got System 6.0.8 to work with SE/30 Roms) </P>
 
 <P> It is possible to use Basilisk II with a CD-ROM, but because most bootable
 CDs have a minimal System Folder, it is better if you use a disk image with the
@@ -75,6 +78,13 @@ MacOS installed on it. </P>
 or create one yourself. If you have some time, and access to a MacOS install CD,
 then these instructions will help you do the latter. </P>
 
+<P> Note that there is currently no Install CD image on Apple's Web site -
+they only seem to have MacOS 7.5.3 floppy disk images (all 19 of them).
+If you do not have a friend with an install CD, you can possibly make one
+by copying the System Folder from a bootable OS 7 or 8 CD, and burning that
+onto a CD with the floppy disk images.
+<BR>Thanks to Attilio Farina for this tip! </P>
+
 
 <H3> Create a new BasiliskII disk </H3>
 
@@ -82,7 +92,7 @@ then these instructions will help you do the latter. </P>
 you need to create a disk to install onto: </P>
 
 <OL>
-<LI> Start up the Basilisk spplication.<BR>
+<LI> Start up the Basilisk application.<BR>
 	(If it is already running, skip this step)</LI>
 <LI> Open the preferences. </LI>
 <LI> Go to the Disk Volumes tab. </LI>
@@ -103,7 +113,9 @@ the Finder to mount the disk. While still in your preferences: </P>
 <LI> Go to the Emulation tab and check that your emulation is appropriate
      for your install image
      <BR>(<I>e.g.</I> I had to change from Quadra900 to IIci,
-          because my generic 7.1 install CD didn't support the Quadra). </LI>
+          because my generic 7.1 install CD didn't support the Quadra),
+     and that you have the RAM size set appropriately
+	 <BR>(<I>e.g.</I> 8MB RAM may not be enough for a 7.5.3 install). </LI>
 <LI> Click the save button. </LI>
 <LI> In the BasiliskII Emulator window, click Run. <BR>
 	(If it is already running, but showing the floppy with the question mark,
@@ -124,7 +136,7 @@ and you should boot into your installed OS. </P>
 
 <H2> <A NAME="mount">Mounting Unix Files</A> </H2>
 
-<P> If Basilisk II is running MacOS 7.6 or newer, you can easily access some
+<P> If Basilisk II is running MacOS 7.5.3 or newer, you can easily access some
 of the files from your OS X disks. Just set the 'Unix directory to mount' in the
 Volumes tab of the Preferences. Next time the Emulator starts up, a new disk will
 appear on its Desktop (called Unix). </P>
