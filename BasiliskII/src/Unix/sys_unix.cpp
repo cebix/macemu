@@ -31,6 +31,7 @@
 #include <linux/major.h>
 #include <linux/kdev_t.h>
 #include <linux/unistd.h>
+#include <dirent.h>
 
 #ifdef __NR__llseek
 _syscall5(int, _llseek, unsigned int, fd, unsigned long, hi, unsigned long, lo, loff_t *, res, unsigned int, wh);
@@ -120,8 +121,24 @@ void SysMountFirstFloppy(void)
 void SysAddFloppyPrefs(void)
 {
 #if defined(__linux__)
-	PrefsAddString("floppy", "/dev/fd0u1440");
-	PrefsAddString("floppy", "/dev/fd1u1440");
+	if (access("/dev/.devfsd", F_OK)) {
+		PrefsAddString("floppy", "/dev/fd0u1440");
+		PrefsAddString("floppy", "/dev/fd1u1440");
+	} else {
+		DIR *fd_dir = opendir("/dev/floppy");
+		if (fd_dir) {
+			struct dirent *floppy_dev;
+			while ((floppy_dev = readdir(fd_dir)) != NULL) {
+				if (strstr(floppy_dev->d_name, "u1440") != NULL) {
+					char *fd_dev = new char[20];
+					sprintf(fd_dev, "/dev/floppy/%s", floppy_dev->d_name);
+					PrefsAddString("floppy", fd_dev);
+					delete[] fd_dev;
+				}
+			}
+			closedir(fd_dir);
+		}
+	}
 #elif defined(__NetBSD__)
 	PrefsAddString("floppy", "/dev/fd0a");
 	PrefsAddString("floppy", "/dev/fd1a");
@@ -176,7 +193,23 @@ void SysAddCDROMPrefs(void)
 		return;
 
 #if defined(__linux__)
-	PrefsAddString("cdrom", "/dev/cdrom");
+	if (access("/dev/.devfsd", F_OK))
+		PrefsAddString("cdrom", "/dev/cdrom");
+	else {
+		DIR *cd_dir = opendir("/dev/cdroms");
+		if (cd_dir) {
+			struct dirent *cdrom_dev;
+			while ((cdrom_dev = readdir(cd_dir)) != NULL) {
+				if (strcmp(cdrom_dev->d_name, ".") != 0 && strcmp(cdrom_dev->d_name, "..") != 0) {
+					char *cd_dev = new char[20];
+					strcpy(cd_dev, "/dev/cdroms/%s", cdrom_dev->d_name);
+					PrefsAddString("cdrom", cd_dev);
+					delete[] cd_dev;
+				}
+			}
+			closedir(cd_dir);
+		}
+	}
 #elif defined(__FreeBSD__)
 	PrefsAddString("cdrom", "/dev/cd0c");
 #elif defined(__NetBSD__)
@@ -192,8 +225,13 @@ void SysAddCDROMPrefs(void)
 void SysAddSerialPrefs(void)
 {
 #if defined(__linux__)
-	PrefsAddString("seriala", "/dev/ttyS0");
-	PrefsAddString("serialb", "/dev/ttyS1");
+	if (access("/dev/.devfsd", F_OK)) {
+		PrefsAddString("seriala", "/dev/ttyS0");
+		PrefsAddString("serialb", "/dev/ttyS1");
+	} else {
+		PrefsAddString("seriala", "/dev/tts/0");
+		PrefsAddString("serialb", "/dev/tts/1");
+	}
 #elif defined(__FreeBSD__)
 	PrefsAddString("seriala", "/dev/cuaa0");
 	PrefsAddString("serialb", "/dev/cuaa1");
