@@ -517,16 +517,16 @@ static
 #else
 extern "C"
 #endif
-void check_load_invoc(uint32 type, int16 id, uint16 **h)
+void check_load_invoc(uint32 type, int16 id, uint32 h)
 {
-	if (h == NULL)
+	if (h == 0)
 		return;
-	uint16 *p = *h;
-	if (p == NULL)
+	uint32 p = ReadMacInt32(h);
+	if (p == 0)
 		return;
-	uint32 size = ((uint32 *)p)[-2] & 0xffffff;
+	uint32 size = ReadMacInt32(p - 2 * 4) & 0xffffff;
 
-	CheckLoad(type, id, p, size);
+	CheckLoad(type, id, (uint16 *)p, size);
 }
 
 #ifdef __BEOS__
@@ -708,15 +708,15 @@ void PatchNativeResourceManager(void)
 	D(bug("PatchNativeResourceManager\n"));
 
 	// Patch native GetResource()
-	uint32 **upp = (uint32 **)(uintptr)ReadMacInt32(0x1480);
-	if (((uint32)upp & 0xffc00000) == ROM_BASE)
+	uint32 upp = ReadMacInt32(0x1480);
+	if ((upp & 0xffc00000) == ROM_BASE)
 		return;
-	uint32 *tvec = upp[5];
-	D(bug(" GetResource() entry %08x, TOC %08x\n", tvec[0], tvec[1]));
+	uint32 *tvec = (uint32 *)ReadMacInt32(upp + 5 * 4);
+	D(bug(" GetResource() entry %08x, TOC %08x\n", ntohl(tvec[0]), ntohl(tvec[1])));
 	*(uint32 *)XLM_RES_LIB_TOC = tvec[1];
 	*(uint32 *)XLM_GET_RESOURCE = tvec[0];
 #if EMULATED_PPC
-	tvec[0] = POWERPC_NATIVE_OP_FUNC(NATIVE_GET_RESOURCE);
+	tvec[0] = htonl(POWERPC_NATIVE_OP_FUNC(NATIVE_GET_RESOURCE));
 #else
 #ifdef __BEOS__
 	uint32 *tvec2 = (uint32 *)get_resource;
@@ -728,12 +728,12 @@ void PatchNativeResourceManager(void)
 #endif
 
 	// Patch native Get1Resource()
-	upp = *(uint32 ***)0xe7c;
-	tvec = upp[5];
-	D(bug(" Get1Resource() entry %08x, TOC %08x\n", tvec[0], tvec[1]));
+	upp = ReadMacInt32(0x0e7c);
+	tvec = (uint32 *)ReadMacInt32(upp + 5 * 4);
+	D(bug(" Get1Resource() entry %08x, TOC %08x\n", ntohl(tvec[0]), ntohl(tvec[1])));
 	*(uint32 *)XLM_GET_1_RESOURCE = tvec[0];
 #if EMULATED_PPC
-	tvec[0] = POWERPC_NATIVE_OP_FUNC(NATIVE_GET_1_RESOURCE);
+	tvec[0] = htonl(POWERPC_NATIVE_OP_FUNC(NATIVE_GET_1_RESOURCE));
 #else
 #ifdef __BEOS__
 	tvec2 = (uint32 *)get_1_resource;
@@ -745,12 +745,12 @@ void PatchNativeResourceManager(void)
 #endif
 
 	// Patch native GetIndResource()
-	upp = *(uint32 ***)0x1474;
-	tvec = upp[5];
-	D(bug(" GetIndResource() entry %08x, TOC %08x\n", tvec[0], tvec[1]));
+	upp = ReadMacInt32(0x1474);
+	tvec = (uint32 *)ReadMacInt32(upp + 5 * 4);
+	D(bug(" GetIndResource() entry %08x, TOC %08x\n", ntohl(tvec[0]), ntohl(tvec[1])));
 	*(uint32 *)XLM_GET_IND_RESOURCE = tvec[0];
 #if EMULATED_PPC
-	tvec[0] = POWERPC_NATIVE_OP_FUNC(NATIVE_GET_IND_RESOURCE);
+	tvec[0] = htonl(POWERPC_NATIVE_OP_FUNC(NATIVE_GET_IND_RESOURCE));
 #else
 #ifdef __BEOS__
 	tvec2 = (uint32 *)get_ind_resource;
@@ -762,12 +762,12 @@ void PatchNativeResourceManager(void)
 #endif
 
 	// Patch native Get1IndResource()
-	upp = *(uint32 ***)0xe38;
-	tvec = upp[5];
-	D(bug(" Get1IndResource() entry %08x, TOC %08x\n", tvec[0], tvec[1]));
+	upp = ReadMacInt32(0x0e38);
+	tvec = (uint32 *)ReadMacInt32(upp + 5 * 4);
+	D(bug(" Get1IndResource() entry %08x, TOC %08x\n", ntohl(tvec[0]), ntohl(tvec[1])));
 	*(uint32 *)XLM_GET_1_IND_RESOURCE = tvec[0];
 #if EMULATED_PPC
-	tvec[0] = POWERPC_NATIVE_OP_FUNC(NATIVE_GET_1_IND_RESOURCE);
+	tvec[0] = htonl(POWERPC_NATIVE_OP_FUNC(NATIVE_GET_1_IND_RESOURCE));
 #else
 #ifdef __BEOS__
 	tvec2 = (uint32 *)get_1_ind_resource;
@@ -779,12 +779,12 @@ void PatchNativeResourceManager(void)
 #endif
 
 	// Patch native RGetResource()
-	upp = *(uint32 ***)0xe30;
-	tvec = upp[5];
-	D(bug(" RGetResource() entry %08x, TOC %08x\n", tvec[0], tvec[1]));
+	upp = ReadMacInt32(0x0e30);
+	tvec = (uint32 *)ReadMacInt32(upp + 5 * 4);
+	D(bug(" RGetResource() entry %08x, TOC %08x\n", ntohl(tvec[0]), ntohl(tvec[1])));
 	*(uint32 *)XLM_R_GET_RESOURCE = tvec[0];
 #if EMULATED_PPC
-	tvec[0] = POWERPC_NATIVE_OP_FUNC(NATIVE_R_GET_RESOURCE);
+	tvec[0] = htonl(POWERPC_NATIVE_OP_FUNC(NATIVE_R_GET_RESOURCE));
 #else
 #ifdef __BEOS__
 	tvec2 = (uint32 *)r_get_resource;
