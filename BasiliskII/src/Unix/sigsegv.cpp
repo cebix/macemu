@@ -513,7 +513,7 @@ static bool ix86_skip_instruction(unsigned int * regs)
 	}
 
 #if DEBUG
-	printf("%08x: %s %s access", fault_instruction,
+	printf("%08x: %s %s access", regs[X86_REG_EIP],
 		   transfer_size == SIZE_BYTE ? "byte" : transfer_size == SIZE_WORD ? "word" : "long",
 		   transfer_type == TYPE_LOAD ? "read" : "write");
 	
