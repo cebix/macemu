@@ -86,7 +86,7 @@ struct DLPIStream {
 
 	void AddMulticast(uint8 *addr)
 	{
-		multicast_node *n = new multicast_node;
+		multicast_node *n = (multicast_node *)Mac_sysalloc(sizeof(multicast_node));
 		memcpy(n->addr, addr, kEnetPhysicalAddressLength);
 		n->next = multicast_list;
 		multicast_list = n;
@@ -106,7 +106,7 @@ struct DLPIStream {
 		while (q) {
 			if (q->next == p) {
 				q->next = p->next;
-				delete p;
+				Mac_sysfree(p);
 				return;
 			}
 			q = q->next;
@@ -1542,7 +1542,7 @@ static void DLPI_enable_multi(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 	AO_enable_multicast(reqaddr);
 
 	// Add new address to multicast list
-	uint8 *addr = new uint8[kEnetPhysicalAddressLength];
+	uint8 *addr = (uint8 *)Mac_sysalloc(kEnetPhysicalAddressLength);
 	OTCopy48BitAddress(reqaddr, addr);
 	the_stream->AddMulticast(addr);
 
@@ -1580,7 +1580,7 @@ static void DLPI_disable_multi(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 
 	// Found, then remove
 	the_stream->RemoveMulticast(addr);
-	delete addr;
+	Mac_sysfree(addr);
 
 	// Tell add-on to disable multicast address
 	AO_disable_multicast(reqaddr);

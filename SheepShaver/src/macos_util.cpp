@@ -58,6 +58,18 @@ static inline int16 CloseConnection(uint32 *arg1)
 {
 	return (int16)CallMacOS1(cc_ptr, cc_tvect, arg1);
 }
+typedef void *(*nps_ptr)(uint32);
+static uint32 nps_tvect = 0;
+static inline void *NewPtrSys(uint32 arg1)
+{
+	return (void *)CallMacOS1(nps_ptr, nps_tvect, arg1);
+}
+typedef void (*d_ptr)(void *);
+static uint32 d_tvect = 0;
+static inline void DisposePtr(void *arg1)
+{
+	CallMacOS1(d_ptr, d_tvect, arg1);
+}
 
 
 /*
@@ -270,6 +282,20 @@ void InitCallUniversalProc()
 		printf("FATAL: Can't find CloseConnection()\n");
 		QuitEmulator();
 	}
+
+	nps_tvect = (uint32)FindLibSymbol("\014InterfaceLib", "\011NewPtrSys");
+	D(bug("NewPtrSys TVECT at %08lx\n", nps_tvect));
+	if (nps_tvect == 0) {
+		printf("FATAL: Can't find NewPtrSys()\n");
+		QuitEmulator();
+	}
+
+	d_tvect = (uint32)FindLibSymbol("\014InterfaceLib", "\012DisposePtr");
+	D(bug("DisposePtr TVECT at %08lx\n", d_tvect));
+	if (d_tvect == 0) {
+		printf("FATAL: Can't find DisposePtr()\n");
+		QuitEmulator();
+	}
 }
 
 
@@ -308,4 +334,19 @@ uint32 TimeToMacTime(time_t t)
 	int intervening_leap_days = (a4 - b4) - (a100 - b100) + (a400 - b400);
 	uint32 days = local->tm_yday + 365 * (local->tm_year - 4) + intervening_leap_days;
 	return local->tm_sec + 60 * (local->tm_min + 60 * (local->tm_hour + 24 * days));
+}
+
+
+/*
+ *  Memory allocators in MacOS system heap zone
+ */
+
+void *Mac_sysalloc(uint32 size)
+{
+	return NewPtrSys(size);
+}
+
+void Mac_sysfree(void *p)
+{
+	DisposePtr(p);
 }

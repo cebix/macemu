@@ -357,6 +357,8 @@ extern void *FindLibSymbol(char *lib, char *sym);		// Find symbol in shared libr
 extern void InitCallUniversalProc(void);				// Init CallUniversalProc()
 extern long CallUniversalProc(void *upp, uint32 info);	// CallUniversalProc()
 extern uint32 TimeToMacTime(time_t t);					// Convert time_t value to MacOS time
+extern void *Mac_sysalloc(uint32 size);					// Allocate block in MacOS system heap zone
+extern void Mac_sysfree(void * p);						// Release block occupied by the nonrelocatable block p
 
 // Construct four-character-code from string
 #define FOURCC(a,b,c,d) (((uint32)(a) << 24) | ((uint32)(b) << 16) | ((uint32)(c) << 8) | (uint32)(d))
