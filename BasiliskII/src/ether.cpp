@@ -56,6 +56,13 @@ using std::map;
 #define MONITOR 0
 
 
+#ifdef __BEOS__
+#define CLOSESOCKET closesocket
+#else
+#define CLOSESOCKET close
+#endif
+
+
 // Global variables
 uint8 ether_addr[6];			// Ethernet address (set by ether_init())
 static bool net_open = false;	// Flag: initialization succeeded, network device open (set by EtherInit())
@@ -101,7 +108,7 @@ void EtherInit(void)
 		sa.sin_port = htons(udp_port);
 		if (bind(udp_socket, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
 			perror("bind");
-			close(udp_socket);
+			CLOSESOCKET(udp_socket);
 			udp_socket = -1;
 			return;
 		}
@@ -130,12 +137,16 @@ void EtherInit(void)
 
 		// Set socket options
 		int on = 1;
+#ifdef __BEOS__
+		setsockopt(udp_socket, SOL_SOCKET, SO_NONBLOCK, &on, sizeof(on));
+#else
 		setsockopt(udp_socket, SOL_SOCKET, SO_BROADCAST, &on, sizeof(on));
 		ioctl(udp_socket, FIONBIO, &on);
+#endif
 
 		// Start thread for packet reception
 		if (!ether_start_udp_thread(udp_socket)) {
-			close(udp_socket);
+			CLOSESOCKET(udp_socket);
 			udp_socket = -1;
 			return;
 		}
@@ -159,7 +170,7 @@ void EtherExit(void)
 		if (udp_tunnel) {
 			if (udp_socket >= 0) {
 				ether_stop_udp_thread();
-				close(udp_socket);
+				CLOSESOCKET(udp_socket);
 				udp_socket = -1;
 			}
 		} else

@@ -19,6 +19,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "sysdeps.h"
+
 #include <KernelKit.h>
 #include <AppKit.h>
 #include <StorageKit.h>
@@ -27,8 +29,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 
-#include "sysdeps.h"
 #include "cpu_emulation.h"
 #include "main.h"
 #include "prefs.h"
@@ -63,6 +65,9 @@ static net_buffer *net_buffer_ptr;			// Pointer to packet buffer
 static uint32 rd_pos;						// Current read position in packet buffer
 static uint32 wr_pos;						// Current write position in packet buffer
 static sem_id read_sem, write_sem;			// Semaphores to trigger packet reading/writing
+
+static int fd = -1;							// UDP socket fd
+static bool udp_tunnel = false;
 
 
 // Prototypes
@@ -382,7 +387,7 @@ int16 ether_write(uint32 wds)
 
 
 /*
- *  Packet reception thread
+ *  Packet reception thread (non-UDP)
  */
 
 static status_t receive_proc(void *data)
@@ -400,6 +405,56 @@ static status_t receive_proc(void *data)
 
 
 /*
+ *  Packet reception thread (UDP)
+ */
+
+static status_t receive_proc_udp(void *data)
+{
+	while (ether_thread_active) {
+		fd_set readfds;
+		FD_ZERO(&readfds);
+		FD_SET(fd, &readfds);
+		struct timeval timeout;
+		timeout.tv_sec = 1;
+		timeout.tv_usec = 0;
+		if (select(fd+1, &readfds, NULL, NULL, &timeout) > 0) {
+			D(bug(" packet received, triggering Ethernet interrupt\n"));
+			SetInterruptFlag(INTFLAG_ETHER);
+			TriggerInterrupt();
+		}
+	}
+	return 0;
+}
+
+
+/*
+ *  Start UDP packet reception thread
+ */
+
+bool ether_start_udp_thread(int socket_fd)
+{
+	fd = socket_fd;
+	udp_tunnel = true;
+	ether_thread_active = true;
+	read_thread = spawn_thread(receive_proc_udp, "UDP Receiver", B_URGENT_DISPLAY_PRIORITY, NULL);
+	resume_thread(read_thread);
+	return true;
+}
+
+
+/*
+ *  Stop UDP packet reception thread
+ */
+
+void ether_stop_udp_thread(void)
+{
+	ether_thread_active = false;
+	status_t result;
+	wait_for_thread(read_thread, &result);
+}
+
+
+/*
  *  Ethernet interrupt - activate deferred tasks to call IODone or protocol handlers
  */
 
@@ -407,46 +462,64 @@ void EtherInterrupt(void)
 {
 	D(bug("EtherIRQ\n"));
 
-	// Call protocol handler for received packets
-	net_packet *p = &net_buffer_ptr->read[rd_pos];
-	while (p->cmd & IN_USE) {
-		if ((p->cmd >> 8) == SHEEP_PACKET) {
-#if MONITOR
-			bug("Receiving Ethernet packet:\n");
-			for (int i=0; i<p->length; i++) {
-				bug("%02x ", p->data[i]);
-			}
-			bug("\n");
-#endif
-			// Get packet type
-			uint16 type = ntohs(*(uint16 *)(p->data + 12));
+	if (udp_tunnel) {
 
-			// Look for protocol
-			NetProtocol *prot = find_protocol(type);
-			if (prot == NULL)
-				goto next;
+		uint8 packet[1514];
+		ssize_t length;
 
-			// No default handler
-			if (prot->handler == 0)
-				goto next;
-
-			// Copy header to RHA
-			Host2Mac_memcpy(ether_data + ed_RHA, p->data, 14);
-			D(bug(" header %08lx%04lx %08lx%04lx %04lx\n", ReadMacInt32(ether_data + ed_RHA), ReadMacInt16(ether_data + ed_RHA + 4), ReadMacInt32(ether_data + ed_RHA + 6), ReadMacInt16(ether_data + ed_RHA + 10), ReadMacInt16(ether_data + ed_RHA + 12)));
-
-			// Call protocol handler
-			M68kRegisters r;
-			r.d[0] = type;									// Packet type
-			r.d[1] = p->length - 14;						// Remaining packet length (without header, for ReadPacket)
-			r.a[0] = (uint32)p->data + 14;					// Pointer to packet (host address, for ReadPacket)
-			r.a[3] = ether_data + ed_RHA + 14;				// Pointer behind header in RHA
-			r.a[4] = ether_data + ed_ReadPacket;			// Pointer to ReadPacket/ReadRest routines
-			D(bug(" calling protocol handler %08lx, type %08lx, length %08lx, data %08lx, rha %08lx, read_packet %08lx\n", prot->handler, r.d[0], r.d[1], r.a[0], r.a[3], r.a[4]));
-			Execute68k(prot->handler, &r);
+		// Read packets from socket and hand to ether_udp_read() for processing
+		while (true) {
+			struct sockaddr_in from;
+			socklen_t from_len = sizeof(from);
+			length = recvfrom(fd, packet, 1514, 0, (struct sockaddr *)&from, &from_len);
+			if (length < 14)
+				break;
+			ether_udp_read(packet, length, &from);
 		}
-next:	p->cmd = 0;	// Free packet
-		rd_pos = (rd_pos + 1) % READ_PACKET_COUNT;
-		p = &net_buffer_ptr->read[rd_pos];
+
+	} else {
+
+		// Call protocol handler for received packets
+		net_packet *p = &net_buffer_ptr->read[rd_pos];
+		while (p->cmd & IN_USE) {
+			if ((p->cmd >> 8) == SHEEP_PACKET) {
+#if MONITOR
+				bug("Receiving Ethernet packet:\n");
+				for (int i=0; i<p->length; i++) {
+					bug("%02x ", p->data[i]);
+				}
+				bug("\n");
+#endif
+				// Get packet type
+				uint16 type = ntohs(*(uint16 *)(p->data + 12));
+
+				// Look for protocol
+				NetProtocol *prot = find_protocol(type);
+				if (prot == NULL)
+					goto next;
+
+				// No default handler
+				if (prot->handler == 0)
+					goto next;
+
+				// Copy header to RHA
+				Host2Mac_memcpy(ether_data + ed_RHA, p->data, 14);
+				D(bug(" header %08lx%04lx %08lx%04lx %04lx\n", ReadMacInt32(ether_data + ed_RHA), ReadMacInt16(ether_data + ed_RHA + 4), ReadMacInt32(ether_data + ed_RHA + 6), ReadMacInt16(ether_data + ed_RHA + 10), ReadMacInt16(ether_data + ed_RHA + 12)));
+
+				// Call protocol handler
+				M68kRegisters r;
+				r.d[0] = type;									// Packet type
+				r.d[1] = p->length - 14;						// Remaining packet length (without header, for ReadPacket)
+				r.a[0] = (uint32)p->data + 14;					// Pointer to packet (host address, for ReadPacket)
+				r.a[3] = ether_data + ed_RHA + 14;				// Pointer behind header in RHA
+				r.a[4] = ether_data + ed_ReadPacket;			// Pointer to ReadPacket/ReadRest routines
+				D(bug(" calling protocol handler %08lx, type %08lx, length %08lx, data %08lx, rha %08lx, read_packet %08lx\n", prot->handler, r.d[0], r.d[1], r.a[0], r.a[3], r.a[4]));
+				Execute68k(prot->handler, &r);
+			}
+next:		p->cmd = 0;	// Free packet
+			rd_pos = (rd_pos + 1) % READ_PACKET_COUNT;
+			p = &net_buffer_ptr->read[rd_pos];
+		}
 	}
 	D(bug(" EtherIRQ done\n"));
 }

@@ -49,6 +49,9 @@
 // ExtFS is supported
 #define SUPPORTS_EXTFS 1
 
+// BSD socket API is supported
+#define SUPPORTS_UDP_TUNNEL 1
+
 // mon is not supported
 #undef ENABLE_MON
 
@@ -57,6 +60,10 @@ typedef bigtime_t tm_time_t;
 
 // 64 bit file offsets
 typedef off_t loff_t;
+
+// Networking types
+#define PF_INET AF_INET
+typedef int socklen_t;
 
 // UAE CPU data types
 #define uae_s8 int8

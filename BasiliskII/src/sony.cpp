@@ -28,6 +28,8 @@
  *    Technote FL 24: "Don't Look at ioPosOffset for Devices"
  */
 
+#include "sysdeps.h"
+
 #include <string.h>
 #include <vector>
 
@@ -35,7 +37,6 @@
 using std::vector;
 #endif
 
-#include "sysdeps.h"
 #include "cpu_emulation.h"
 #include "main.h"
 #include "macos_util.h"

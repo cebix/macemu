@@ -80,6 +80,7 @@ const uint32 MSG_NOSOUND = 'nosn';
 const uint32 MSG_SER_A = 'sera';			// "Serial/Network" pane
 const uint32 MSG_SER_B = 'serb';
 const uint32 MSG_ETHER = 'ethr';
+const uint32 MSG_UDPTUNNEL = 'udpt';
 
 const uint32 MSG_RAMSIZE = 'rmsz';			// "Memory/Misc" pane
 const uint32 MSG_MODELID_5 = 'mi05';
@@ -221,6 +222,8 @@ private:
 	void read_volumes_prefs(void);
 	void hide_show_graphics_ctrls(void);
 	void read_graphics_prefs(void);
+	void hide_show_serial_ctrls(void);
+	void read_serial_prefs(void);
 	void add_serial_names(BPopUpMenu *menu, uint32 msg);
 	void read_memory_prefs(void);
 
@@ -248,6 +251,8 @@ private:
 	BMenuField *scr_mode_menu;
 	BCheckBox *nosound_checkbox;
 	BCheckBox *ether_checkbox;
+	BCheckBox *udptunnel_checkbox;
+	NumberControl *udpport_ctrl;
 	RAMSlider *ramsize_slider;
 	PathControl *extfs_control;
 	PathControl *rom_control;
@@ -593,8 +598,24 @@ BView *PrefsWindow::create_graphics_pane(void)
 
 
 /*
- *  Create "Serial Ports" pane
+ *  Create "Serial/Network" pane
  */
+
+void PrefsWindow::hide_show_serial_ctrls(void)
+{
+	if (udptunnel_checkbox->Value() == B_CONTROL_ON) {
+		ether_checkbox->SetEnabled(false);
+		udpport_ctrl->SetEnabled(true);
+	} else {
+		ether_checkbox->SetEnabled(true);
+		udpport_ctrl->SetEnabled(false);
+	}
+}
+
+void PrefsWindow::read_serial_prefs(void)
+{
+	PrefsReplaceInt32("udpport", udpport_ctrl->Value());
+}
 
 void PrefsWindow::add_serial_names(BPopUpMenu *menu, uint32 msg)
 {
@@ -655,6 +676,14 @@ BView *PrefsWindow::create_serial_pane(void)
 	pane->AddChild(ether_checkbox);
 	ether_checkbox->SetValue(PrefsFindString("ether") ? B_CONTROL_ON : B_CONTROL_OFF);
 
+	udptunnel_checkbox = new BCheckBox(BRect(10, 67, right, 72), "udptunnel", GetString(STR_UDPTUNNEL_CTRL), new BMessage(MSG_UDPTUNNEL));
+	pane->AddChild(udptunnel_checkbox);
+	udptunnel_checkbox->SetValue(PrefsFindBool("udptunnel") ? B_CONTROL_ON : B_CONTROL_OFF);
+
+	udpport_ctrl = new NumberControl(BRect(10, 87, right / 2, 105), 118, "udpport", GetString(STR_UDPPORT_CTRL), PrefsFindInt32("udpport"), NULL);
+	pane->AddChild(udpport_ctrl);
+
+	hide_show_serial_ctrls();
 	return pane;
 }
 
@@ -936,6 +965,11 @@ void PrefsWindow::MessageReceived(BMessage *msg)
 				PrefsReplaceString("ether", "yes");
 			else
 				PrefsRemoveItem("ether");
+			break;
+
+		case MSG_UDPTUNNEL:
+			PrefsReplaceBool("udptunnel", udptunnel_checkbox->Value() == B_CONTROL_ON);
+			hide_show_serial_ctrls();
 			break;
 
 		case MSG_RAMSIZE:

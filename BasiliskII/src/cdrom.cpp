@@ -28,6 +28,8 @@
  *    Technote FL 36: "Apple Extensions to ISO 9660"
  */
 
+#include "sysdeps.h"
+
 #include <string.h>
 #include <vector>
 
@@ -35,7 +37,6 @@
 using std::vector;
 #endif
 
-#include "sysdeps.h"
 #include "cpu_emulation.h"
 #include "main.h"
 #include "macos_util.h"
