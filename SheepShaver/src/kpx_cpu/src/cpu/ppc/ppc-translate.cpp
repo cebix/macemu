@@ -140,8 +140,11 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			done_compile = true;
 
 #if PPC_FLIGHT_RECORDER
-		if (is_logging())
-			dg.gen_invoke_CPU_im(nv_mem_fun(&powerpc_cpu::record_step).ptr(), opcode);
+		if (is_logging()) {
+			typedef void (*func_t)(dyngen_cpu_base, uint32, uint32);
+			func_t func = (func_t)nv_mem_fun((execute_pmf)&powerpc_cpu::do_record_step).ptr();
+			dg.gen_invoke_CPU_im_im(func, dpc, opcode);
+		}
 #endif
 
 		union operands_t {

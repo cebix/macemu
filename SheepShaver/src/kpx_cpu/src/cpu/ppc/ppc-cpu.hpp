@@ -176,7 +176,8 @@ private:
 #else
 	static const bool logging = false;
 #endif
-	void record_step(uint32 opcode);
+	void do_record_step(uint32 pc, uint32 opcode);
+	void record_step(uint32 opcode) { do_record_step(pc(), opcode); }
 
 	// Syscall callback must return TRUE if no error occurred
 	typedef bool (*syscall_fn)(powerpc_cpu *cpu);

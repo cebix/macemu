@@ -81,6 +81,7 @@ public:
 	void gen_invoke_CPU(void (*func)(dyngen_cpu_base));
 	void gen_invoke_CPU_T0(void (*func)(dyngen_cpu_base, uint32));
 	void gen_invoke_CPU_im(void (*func)(dyngen_cpu_base, uint32), uint32 value);
+	void gen_invoke_CPU_im_im(void (*func)(dyngen_cpu_base, uint32, uint32), uint32 param1, uint32 param2);
 
 	// Raw aliases
 #define DEFINE_ALIAS_RAW(NAME, ARGLIST, ARGS) \

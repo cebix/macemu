@@ -507,6 +507,12 @@ DEFINE_OP(op_invoke_CPU_im, {
 	CALL(func(CPU, PARAM1));
 });
 
+DEFINE_OP(op_invoke_CPU_im_im, {
+	typedef void (*func_t)(void *, uint32, uint32);
+	func_t func = (func_t)reg_A0;
+	CALL(func(CPU, PARAM1, PARAM2));
+});
+
 DEFINE_OP(op_invoke_direct, {
 	typedef void (*func_t)(void);
 	func_t func = (func_t)PARAM1;
@@ -541,6 +547,12 @@ DEFINE_OP(op_invoke_direct_CPU_im, {
 	typedef void (*func_t)(void *, uint32);
 	func_t func = (func_t)PARAM1;
 	CALL(func(CPU, PARAM2));
+});
+
+DEFINE_OP(op_invoke_direct_CPU_im_im, {
+	typedef void (*func_t)(void *, uint32, uint32);
+	func_t func = (func_t)PARAM1;
+	CALL(func(CPU, PARAM2, PARAM3));
 });
 
 #undef DEFINE_OP

@@ -130,10 +130,10 @@ void powerpc_cpu::init_flight_recorder()
 #endif
 }
 
-void powerpc_cpu::record_step(uint32 opcode)
+void powerpc_cpu::do_record_step(uint32 pc, uint32 opcode)
 {
 #if PPC_FLIGHT_RECORDER
-	log[log_ptr].pc = pc();
+	log[log_ptr].pc = pc;
 	log[log_ptr].opcode = opcode;
 #ifdef SHEEPSHAVER
 	log[log_ptr].sp = gpr(1);
