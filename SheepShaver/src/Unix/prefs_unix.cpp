@@ -30,6 +30,8 @@
 // Platform-specific preferences items
 prefs_desc platform_prefs_items[] = {
 	{"ether", TYPE_STRING, false, "device name of Mac ethernet adapter"},
+	{"keycodes", TYPE_BOOLEAN, false, "use keycodes rather than keysyms to decode keyboard"},
+	{"keycodefile", TYPE_STRING, false, "path of keycode translation file"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
@@ -91,6 +93,7 @@ void SavePrefs(void)
 
 void AddPlatformPrefsDefaults(void)
 {
+	PrefsAddBool("keycodes", false);
 	PrefsReplaceString("extfs", "/");
 	PrefsAddInt32("windowmodes", 3);
 	PrefsAddInt32("screenmodes", 0x3f);

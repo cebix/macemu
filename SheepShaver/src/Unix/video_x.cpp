@@ -18,15 +18,28 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "sysdeps.h"
+
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 #include <X11/extensions/XShm.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#include <pthread.h>
+#include <errno.h>
 
-#include "sysdeps.h"
+#ifdef HAVE_PTHREADS
+# include <pthread.h>
+#endif
+
+#ifdef ENABLE_XF86_DGA
+#include <X11/extensions/xf86dga.h>
+#endif
+
+#ifdef ENABLE_XF86_VIDMODE
+# include <X11/extensions/xf86vmode.h>
+#endif
+
 #include "main.h"
 #include "adb.h"
 #include "prefs.h"
@@ -38,14 +51,9 @@
 #define DEBUG 0
 #include "debug.h"
 
-#ifdef ENABLE_XF86_DGA
-#include <X11/extensions/xf86dga.h>
-#endif
 
-#ifdef ENABLE_XF86_VIDMODE
-#include <X11/extensions/xf86vmode.h>
-#endif
-
+// Constants
+const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
 
 // Global variables
 static int32 frame_skip;
@@ -74,6 +82,8 @@ static bool emerg_quit = false;				// Flag: Ctrl-Esc pressed, emergency quit req
 static bool emul_suspended = false;			// Flag: emulator suspended
 static Window suspend_win;					// "Suspend" window
 static void *fb_save = NULL;				// Saved frame buffer for suspend
+static bool use_keycodes = false;			// Flag: Use keycodes rather than keysyms
+static int keycode_table[256];				// X keycode -> Mac keycode translation table
 
 // X11 variables
 static int screen;							// Screen number
@@ -534,6 +544,71 @@ static void close_display(void)
  *  Initialization
  */
 
+// Init keycode translation table
+static void keycode_init(void)
+{
+	bool use_kc = PrefsFindBool("keycodes");
+	if (use_kc) {
+
+		// Get keycode file path from preferences
+		const char *kc_path = PrefsFindString("keycodefile");
+
+		// Open keycode table
+		FILE *f = fopen(kc_path ? kc_path : KEYCODE_FILE_NAME, "r");
+		if (f == NULL) {
+			char str[256];
+			sprintf(str, GetString(STR_KEYCODE_FILE_WARN), kc_path ? kc_path : KEYCODE_FILE_NAME, strerror(errno));
+			WarningAlert(str);
+			return;
+		}
+
+		// Default translation table
+		for (int i=0; i<256; i++)
+			keycode_table[i] = -1;
+
+		// Search for server vendor string, then read keycodes
+		const char *vendor = ServerVendor(x_display);
+		bool vendor_found = false;
+		char line[256];
+		while (fgets(line, 255, f)) {
+			// Read line
+			int len = strlen(line);
+			if (len == 0)
+				continue;
+			line[len-1] = 0;
+
+			// Comments begin with "#" or ";"
+			if (line[0] == '#' || line[0] == ';' || line[0] == 0)
+				continue;
+
+			if (vendor_found) {
+				// Read keycode
+				int x_code, mac_code;
+				if (sscanf(line, "%d %d", &x_code, &mac_code) == 2)
+					keycode_table[x_code & 0xff] = mac_code;
+				else
+					break;
+			} else {
+				// Search for vendor string
+				if (strstr(vendor, line) == vendor)
+					vendor_found = true;
+			}
+		}
+
+		// Keycode file completely read
+		fclose(f);
+		use_keycodes = vendor_found;
+
+		// Vendor not found? Then display warning
+		if (!vendor_found) {
+			char str[256];
+			sprintf(str, GetString(STR_KEYCODE_VENDOR_WARN), vendor, kc_path ? kc_path : KEYCODE_FILE_NAME);
+			WarningAlert(str);
+			return;
+		}
+	}
+}
+
 static void add_mode(VideoInfo *&p, uint32 allow, uint32 test, long apple_mode, long apple_id, int type)
 {
 	if (allow & test) {
@@ -607,6 +682,9 @@ bool VideoInit(void)
 	local_X11 = (strncmp(XDisplayName(x_display_name), ":", 1) == 0)
 	         || (strncmp(XDisplayName(x_display_name), "unix:", 5) == 0);
     
+	// Init keycode translation
+	keycode_init();
+
 	// Init variables
 	private_data = NULL;
 	cur_mode = 0;	// Window 640x480
@@ -1078,14 +1156,14 @@ static int kc_decode(KeySym ks)
 	return -1;
 }
 
-static int event2keycode(XKeyEvent *ev)
+static int event2keycode(XKeyEvent &ev)
 {
 	KeySym ks;
 	int as;
 	int i = 0;
 
 	do {
-		ks = XLookupKeysym(ev, i++);
+		ks = XLookupKeysym(&ev, i++);
 		as = kc_decode(ks);
 		if (as != -1)
 			return as;
@@ -1128,8 +1206,10 @@ static void handle_events(void)
 
 			// Keyboard
 			case KeyPress: {
-				int code;
-				if ((code = event2keycode((XKeyEvent *)&event)) != -1) {
+				int code = event2keycode(event.xkey);
+				if (use_keycodes && code != -1)
+					code = keycode_table[event.xkey.keycode & 0xff];
+				if (code != -1) {
 					if (!emul_suspended) {
 						ADBKeyDown(code);
 						if (code == 0x36)
@@ -1142,8 +1222,10 @@ static void handle_events(void)
 				break;
 			}
 			case KeyRelease: {
-				int code;
-				if ((code = event2keycode((XKeyEvent *)&event)) != -1) {
+				int code = event2keycode(event.xkey);
+				if (use_keycodes && code != 1)
+					code = keycode_table[event.xkey.keycode & 0xff];
+				if (code != -1) {
 					ADBKeyUp(code);
 					if (code == 0x36)
 						ctrl_down = false;

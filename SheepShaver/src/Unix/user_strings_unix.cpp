@@ -55,6 +55,8 @@ user_string_def platform_strings[] = {
 	{STR_AUDIO_FORMAT_WARN, "/dev/dsp doesn't support signed 16 bit format. Audio output will be disabled."},
 	{STR_SCSI_DEVICE_OPEN_WARN, "Cannot open %s (%s). SCSI Manager access to this device will be disabled."},
 	{STR_SCSI_DEVICE_NOT_SCSI_WARN, "%s doesn't seem to comply to the Generic SCSI API. SCSI Manager access to this device will be disabled."},
+	{STR_KEYCODE_FILE_WARN, "Cannot open keycode translation file %s (%s)."},
+	{STR_KEYCODE_VENDOR_WARN, "Cannot find vendor '%s' in keycode translation file %s."},
 	{STR_PREFS_MENU_FILE_GTK, "/_File"},
 	{STR_PREFS_ITEM_START_GTK, "/File/_Start SheepShaver"},
 	{STR_PREFS_ITEM_ZAP_PRAM_GTK, "/File/_Zap PRAM File"},
@@ -62,6 +64,9 @@ user_string_def platform_strings[] = {
 	{STR_PREFS_ITEM_QUIT_GTK, "/File/_Quit SheepShaver"},
 	{STR_HELP_MENU_GTK, "/_Help"},
 	{STR_HELP_ITEM_ABOUT_GTK, "/Help/_About SheepShaver"},
+	{STR_INPUT_PANE_TITLE, "Keyboard"},
+	{STR_KEYCODES_CTRL, "Use Raw Keycodes"},
+	{STR_KEYCODE_FILE_CTRL, "Keycode Translation File"},
 	{STR_SUSPEND_WINDOW_TITLE, "SheepShaver suspended. Press Space to reactivate."},
 	{STR_VOSF_INIT_ERR, "Cannot initialize Video on SEGV signals."},
 

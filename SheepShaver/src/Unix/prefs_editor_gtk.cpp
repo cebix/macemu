@@ -44,6 +44,7 @@ static bool start_clicked = true;	// Return value of PrefsEditor() function
 // Prototypes
 static void create_volumes_pane(GtkWidget *top);
 static void create_graphics_pane(GtkWidget *top);
+static void create_input_pane(GtkWidget *top);
 static void create_serial_pane(GtkWidget *top);
 static void create_memory_pane(GtkWidget *top);
 static void read_settings(void);
@@ -168,6 +169,11 @@ static GtkWidget *make_entry(GtkWidget *top, int label_id, const char *prefs_ite
 	gtk_entry_set_text(GTK_ENTRY(entry), str); 
 	gtk_box_pack_start(GTK_BOX(box), entry, TRUE, TRUE, 0);
 	return entry;
+}
+
+static char *get_file_entry_path(GtkWidget *entry)
+{
+	return gtk_entry_get_text(GTK_ENTRY(entry));
 }
 
 static GtkWidget *make_checkbox(GtkWidget *top, int label_id, const char *prefs_item, GtkSignalFunc func)
@@ -313,6 +319,7 @@ bool PrefsEditor(void)
 
 	create_volumes_pane(notebook);
 	create_graphics_pane(notebook);
+	create_input_pane(notebook);
 	create_serial_pane(notebook);
 	create_memory_pane(notebook);
 
@@ -627,6 +634,50 @@ static void create_graphics_pane(GtkWidget *top)
 	make_checkbox(vbox, STR_1600x1200_CTRL, PrefsFindInt32("screenmodes") & 32, GTK_SIGNAL_FUNC(tb_fs1600x1200));
 
 	make_checkbox(box, STR_NOSOUND_CTRL, "nosound", GTK_SIGNAL_FUNC(tb_nosound));
+}
+
+
+/*
+ *  "Input" pane
+ */
+
+static GtkWidget *w_keycode_file;
+
+// Set sensitivity of widgets
+static void set_input_sensitive(void)
+{
+	gtk_widget_set_sensitive(w_keycode_file, PrefsFindBool("keycodes"));
+}
+
+// "Use Raw Keycodes" button toggled
+static void tb_keycodes(GtkWidget *widget)
+{
+	PrefsReplaceBool("keycodes", GTK_TOGGLE_BUTTON(widget)->active);
+	set_input_sensitive();
+}
+
+// Read settings from widgets and set preferences
+static void read_input_settings(void)
+{
+	const char *str = get_file_entry_path(w_keycode_file);
+	if (str && strlen(str))
+		PrefsReplaceString("keycodefile", str);
+	else
+		PrefsRemoveItem("keycodefile");
+}
+
+// Create "Input" pane
+static void create_input_pane(GtkWidget *top)
+{
+	GtkWidget *box, *hbox, *menu, *label;
+	GtkObject *adj;
+
+	box = make_pane(top, STR_INPUT_PANE_TITLE);
+
+	make_checkbox(box, STR_KEYCODES_CTRL, "keycodes", GTK_SIGNAL_FUNC(tb_keycodes));
+	w_keycode_file = make_entry(box, STR_KEYCODE_FILE_CTRL, "keycodefile");
+
+	set_input_sensitive();
 }
 
 
