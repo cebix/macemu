@@ -1,0 +1,5 @@
+This is a version of the interface that would allow multiple emulations to
+run side-by-side, in different windows. Currently, the uae_cpu engine is not
+re-entrant, and some of the Basilisk glue would not allow this, so this will
+probably never be used. I will save it here for educational purposes, and just
+in case this feature is ever needed.

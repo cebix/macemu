@@ -1,0 +1,32 @@
+{
+    IBClasses = (
+        {
+            ACTIONS = {NewEmulator = id; ShowAbout = id; pauseAll = id; terminateAll = id; }; 
+            CLASS = Controller; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {myEmulator = id; }; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {
+            ACTIONS = {
+                Interrupt = id; 
+                PowerKey = id; 
+                Restart = id; 
+                Resume = id; 
+                Snapshot = id; 
+                SpeedChange = id; 
+                Suspend = id; 
+                Terminate = id; 
+                ToggleState = id; 
+                ZapPRAM = id; 
+            }; 
+            CLASS = Emulator; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {barberPole = id; runOrPause = id; screen = id; speed = id; win = id; }; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {CLASS = EmulatorView; LANGUAGE = ObjC; SUPERCLASS = NSView; }, 
+        {CLASS = FirstResponder; LANGUAGE = ObjC; SUPERCLASS = NSObject; }
+    ); 
+    IBVersion = 1; 
+}

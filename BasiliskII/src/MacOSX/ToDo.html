@@ -1,0 +1,39 @@
+Bugs:
+<UL>
+<LI>In window mode, if the framerate is low (<I>e.g.</I> if you leave it at the
+	default of 10fps), really fast mouse clicks are sometimes not picked up
+	by the Emulator. For now, click more slowly</LI>
+<LI>Some special keys (<I>e.g.</I> the cursor keys) are not being correctly
+	passed through to the Emulator (<I>e.g.</I> up arrow causes the Emulator
+	to try and shut down). Looks like some further key decoding is needed</LI>
+</UL>
+Untested:
+<UL>
+<LI>Mac Classic emulation. I don't have a ROM, but I suspect it will crash</LI>
+<LI>CD-ROM stuff. Should be the same as BSD, but who knows how Apple's stuff affects this</LI>
+<LI>Floppy stuff. See above</LI>
+<LI>Serial port code. See above</LI>
+</UL>
+Unimplemented:
+<UL>
+<LI>Ethernet</LI>
+<LI>Reset and Interrupt functions for emulator</LI>
+<LI>Sound</LI>
+<LI>Window depth. It is currently stuck at 32bits, which Quartz dithers down
+	to whatever the user's display is set to. This is mainly due to the fact
+	that NSBitmapImageRep does not support any 16bit modes. The Core Graphics
+	primitives may allow a workaround, though</LI>
+</UL>
+Possible Enhancements:
+<UL>
+<LI>Use NSFileManager's movePath:toPath:handler to rename all a file's forks in extfs_macosx.mm</LI>
+<LI>Emulator snapshot - save the current emulator state
+	(memory + registers) to a file for fast startup next time</LI>
+<LI>Multiple emulators. The window stuff is mostly there,
+	but the uae_cpu code has lots of globals, and is not re-entrant</LI>
+<LI>Real or Direct addressing mode for the emulator.
+	At the moment, OS X's mmap() call does not support anything useful</LI>
+<LI>Get VOSF (Video on Seg Fault) working, to speed up screen redrawing</LI>
+<LI>Implement OpenGL windowing mode (to speed up emulator screen redrawing)</LI>
+<LI>Improve Objective-C object allocation. e.g. <A HREF="http://www.mulle-kybernetik.com/artikel/Optimisation/opti-5.html"> here</A>. </LI>
+</UL>

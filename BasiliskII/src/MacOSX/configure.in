@@ -1,0 +1,690 @@
+dnl Process this file with autoconf to produce a configure script.
+dnl Based on Unix/configure.in
+dnl Written in 1999 by Christian Bauer et al.
+
+AC_INIT(main_macosx.mm)
+AC_PREREQ(2.12)
+AC_CONFIG_HEADER(config.h)
+
+dnl These defines are necessary to get 64-bit file size support.
+AC_DEFINE(_USE_LARGEFILE_SOURCE, 1, [Get more functions for correct standard I/O])
+AC_DEFINE(_FILE_OFFSET_BITS, 64, [Get 64-bit file size support])
+
+dnl Options.
+AC_ARG_ENABLE(full,
+[  --enable-full		use full screen mode [default=no]], [WANT_FULL=$enableval], [WANT_FULL=no])
+AC_ARG_ENABLE(multiwin,
+[  --enable-multiwin	allow multiple emulator windows [default=no]], [WANT_MWIN=$enableval], [WANT_MWIN=no])
+
+dnl FPU emulation core.
+AC_ARG_ENABLE(fpe,
+[  --enable-fpe=which      specify which fpu emulator to use [default=opt]],
+[ case "$enableval" in
+    default)	FPE_CORE="default";; dnl fpu_x86.cpp if i386 architecture, fpu_uae.cpp otherwise
+	uae)		FPE_CORE="uae";;
+	*)			AC_MSG_ERROR([--enable-fpe takes only one of the following values: default, uae]);;
+  esac
+],
+[ FPE_CORE="default"
+])
+
+dnl Addressing modes.
+AC_ARG_ENABLE(addressing,
+[  --enable-addressing=AM  specify the addressing mode to use [default=fastest]],
+[ case "$enableval" in
+    real) 	ADDRESSING_TEST_ORDER="real";;
+    direct)	ADDRESSING_TEST_ORDER="direct";;
+    banks)	ADDRESSING_TEST_ORDER="banks";;
+    fastest)ADDRESSING_TEST_ORDER="direct banks";;
+    *)		AC_MSG_ERROR([--enable-addressing takes only one of the following values: fastest, real, direct, banks]);;
+  esac
+],
+[ ADDRESSING_TEST_ORDER="direct banks"
+])
+
+dnl External packages.
+AC_ARG_WITH(mon,             [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=yes])
+
+dnl Canonical system information.
+AC_CANONICAL_HOST
+AC_CANONICAL_TARGET
+
+dnl Target OS type
+OS_TYPE=darwin
+DEFINES="$DEFINES -DOS_$OS_TYPE"
+
+dnl Target CPU type.
+HAVE_I386=no
+HAVE_M68K=no
+HAVE_SPARC=no
+HAVE_POWERPC=no
+case "$target_cpu" in
+  i386* | i486* | i586* | i686* | i786* ) CPU_TYPE=i386 HAVE_I386=yes;;
+  m68k* ) CPU_TYPE=m68k HAVE_M68K=yes;;
+  sparc* ) CPU_TYPE=sparc HAVE_SPARC=yes;;
+  powerpc* ) CPU_TYPE=powerpc HAVE_POWERPC=yes;;
+  *) CPU_TYPE=`echo $target_cpu | sed -e 's/-/_/g'`;;
+esac
+DEFINES="$DEFINES -DCPU_$CPU_TYPE"
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PROG_CC_C_O
+AC_PROG_CPP
+AC_PROG_CXX
+AC_PROG_MAKE_SET
+AC_PROG_INSTALL
+
+dnl We use mon if possible.
+MONSRCS=
+if [[ "x$WANT_MON" = "xyes" ]]; then
+  AC_MSG_CHECKING(for mon)
+  mon_srcdir=../../../mon/src
+  if grep mon_init $mon_srcdir/mon.h >/dev/null 2>/dev/null; then
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(ENABLE_MON)
+    MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_z80.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c"
+    CXXFLAGS="$CXXFLAGS -I$mon_srcdir -I$mon_srcdir/disass"
+    AC_CHECK_LIB(readline, readline)
+    AC_CHECK_LIB(termcap, tputs)
+    AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
+  else
+    AC_MSG_RESULT(no)
+    AC_MSG_WARN([Could not find mon, ignoring --with-mon.])
+    WANT_MON=no
+  fi
+fi
+
+dnl We want pthreads.
+HAVE_PTHREADS=yes
+AC_CHECK_FUNCS(pthread_cancel)
+
+dnl If POSIX.4 semaphores are not available, we emulate them with pthread mutexes.
+SEMSRC=
+AC_CHECK_FUNCS(sem_init, , [
+  if test "x$HAVE_PTHREADS" = "xyes"; then
+    SEMSRC=posix_sem.cpp
+  fi
+])
+
+dnl We allow full screen mode if possible.
+if [[ "x$WANT_FULL" = "xyes" ]]; then
+  WANT_FULL=yes
+  DEFINES="$DEFINES -DENABLE_FULL=1"
+  LIBS="$LIBS $FRMWKS/QuickTime.framework/QuickTime"
+else
+  DEFINES="$DEFINES -DENABLE_FULL=0"
+fi
+
+
+dnl Ditto for multiple window support
+if [[ "x$WANT_MWIN" = "xyes" ]]; then
+  WANT_MWIN=yes
+  DEFINES="$DEFINES -DENABLE_MULTIPLE"
+fi
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS(unistd.h fcntl.h sys/time.h sys/mman.h)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_BIGENDIAN
+AC_C_CONST
+AC_C_INLINE
+AC_CHECK_SIZEOF(short, 2)
+AC_CHECK_SIZEOF(int, 4)
+AC_CHECK_SIZEOF(long, 4)
+AC_CHECK_SIZEOF(long long, 8)
+AC_CHECK_SIZEOF(void *, 4)
+AC_TYPE_OFF_T
+AC_CHECK_TYPE(loff_t, off_t)
+dnl TYPE_SOCKLEN_T
+AC_CHECK_TYPE(socklen_t)
+AC_TYPE_SIZE_T
+AC_TYPE_SIGNAL
+AC_HEADER_TIME
+AC_STRUCT_TM
+
+dnl Checks for library functions.
+AC_CHECK_FUNCS(strdup cfmakeraw)
+AC_CHECK_FUNCS(clock_gettime timer_create)
+AC_CHECK_FUNCS(sigaction signal)
+AC_CHECK_FUNCS(mmap mprotect munmap)
+AC_CHECK_FUNCS(vm_allocate vm_deallocate vm_protect)
+
+dnl Darwin seems to define mach_task_self() instead of task_self().
+AC_CHECK_FUNCS(mach_task_self task_self)
+
+dnl Select system-dependant source files.
+DEFINES="$DEFINES -DBSD_COMP"
+  dnl Check for the CAM library
+  AC_CHECK_LIB(cam, cam_open_btl, HAVE_LIBCAM=yes, HAVE_LIBCAM=no)
+  if [[ "x$HAVE_LIBCAM" = "xno" ]]; then
+    AC_MSG_WARN([Cannot find libcam for SCSI management, disabling SCSI support.])
+  else 
+    dnl Check for the sys kernel includes 
+    AC_CHECK_HEADER(camlib.h)
+    if [[ "x$ac_cv_header_camlib_h" = "xno" ]]; then
+      dnl In this case I should fix this thing including a "patch"
+      dnl to access directly to the functions in the kernel :) --Orlando
+      AC_MSG_WARN([Cannot find includes for CAM library, disabling SCSI support.])
+    else
+      SCSISRC=FreeBSD/scsi_freebsd.cpp
+      LIBS="$LIBS -lcam"
+      DEFINES="$DEFINES -DCAM"
+    fi
+  fi
+
+dnl Use 68k CPU natively?
+WANT_NATIVE_M68K=no
+
+SYSSRCS=$SCSISRC
+
+dnl Define a macro that translates a yesno-variable into a C macro definition
+dnl to be put into the config.h file
+dnl $1 -- the macro to define
+dnl $2 -- the value to translate
+AC_DEFUN(AC_TRANSLATE_DEFINE, [
+    if [[ "x$2" = "xyes" -o "x$2" = "xguessing yes" ]]; then
+        AC_DEFINE($1)
+    fi
+])
+
+dnl Various checks if the system supports vm_allocate() and the like functions.
+have_mach_vm=no
+if [[ "x$ac_cv_func_vm_allocate" = "xyes" -a "x$ac_cv_func_vm_deallocate" = "xyes" -a \
+      "x$ac_cv_func_vm_protect" = "xyes" ]]; then
+  have_mach_vm=yes
+fi
+AC_TRANSLATE_DEFINE(HAVE_MACH_VM, "$have_mach_vm")
+
+dnl Check that vm_allocate(), vm_protect() work
+if [[ "x$have_mach_vm" = "xyes" ]]; then
+
+AC_CACHE_CHECK("whether vm_protect works",
+  ac_cv_vm_protect_works, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  ac_cv_vm_protect_works=yes
+  dnl First the tests that should segfault
+  for test_def in NONE_READ NONE_WRITE READ_WRITE; do
+    AC_TRY_RUN([
+      #define CONFIGURE_TEST_VM_MAP
+      #define TEST_VM_PROT_$test_def
+      #include "vm_alloc.cpp"
+    ], ac_cv_vm_protect_works=no, rm -f core,
+    dnl When cross-compiling, do not assume anything
+    ac_cv_vm_protect_works="guessing no"
+    )
+  done
+  AC_TRY_RUN([
+    #define CONFIGURE_TEST_VM_MAP
+    #define TEST_VM_PROT_RDWR_WRITE
+    #include "vm_alloc.cpp"
+  ], , ac_cv_vm_protect_works=no,
+  dnl When cross-compiling, do not assume anything
+  ac_cv_vm_protect_works="guessing no"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+
+dnl Remove support for vm_allocate() if vm_protect() does not work
+if [[ "x$have_mach_vm" = "xyes" ]]; then
+  case $ac_cv_vm_protect_works in
+    *yes) have_mach_vm=yes;;
+    *no) have_mach_vm=no;;
+  esac
+fi
+AC_TRANSLATE_DEFINE(HAVE_MACH_VM, "$have_mach_vm")
+
+fi dnl HAVE_MACH_VM
+
+dnl Various checks if the system supports mmap() and the like functions.
+dnl ... and Mach memory allocators are not supported
+have_mmap_vm=no
+if [[ "x$ac_cv_func_mmap" = "xyes" -a "x$ac_cv_func_munmap" = "xyes" -a \
+      "x$ac_cv_func_mprotect" = "xyes" ]]; then
+  if [[ "x$have_mach_vm" = "xno" ]]; then
+    have_mmap_vm=yes
+  fi
+fi
+AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, "$have_mmap_vm")
+
+dnl Check that mmap() and associated functions work.
+if [[ "x$have_mmap_vm" = "xyes" ]]; then
+
+dnl Check if we have a working anonymous mmap()
+AC_CACHE_CHECK("whether mmap supports MAP_ANON",
+  ac_cv_mmap_anon, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #define HAVE_MMAP_ANON
+    #define CONFIGURE_TEST_VM_MAP
+    #define TEST_VM_MMAP_ANON
+    #include "vm_alloc.cpp"
+  ], ac_cv_mmap_anon=yes, ac_cv_mmap_anon=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_mmap_anon="guessing no"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(HAVE_MMAP_ANON, "$ac_cv_mmap_anon")
+
+AC_CACHE_CHECK("whether mmap supports MAP_ANONYMOUS",
+  ac_cv_mmap_anonymous, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #define HAVE_MMAP_ANONYMOUS
+    #define CONFIGURE_TEST_VM_MAP
+    #define TEST_VM_MMAP_ANON
+    #include "vm_alloc.cpp"
+  ], ac_cv_mmap_anonymous=yes, ac_cv_mmap_anonymous=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_mmap_anonymous="guessing no"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(HAVE_MMAP_ANONYMOUS, "$ac_cv_mmap_anonymous")
+
+AC_CACHE_CHECK("whether mprotect works",
+  ac_cv_mprotect_works, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  ac_cv_mprotect_works=yes
+  dnl First the tests that should segfault
+  for test_def in NONE_READ NONE_WRITE READ_WRITE; do
+    AC_TRY_RUN([
+      #define CONFIGURE_TEST_VM_MAP
+      #define TEST_VM_PROT_$test_def
+      #include "vm_alloc.cpp"
+    ], ac_cv_mprotect_works=no, rm -f core,
+    dnl When cross-compiling, do not assume anything
+    ac_cv_mprotect_works="guessing no"
+    )
+  done
+  AC_TRY_RUN([
+    #define CONFIGURE_TEST_VM_MAP
+    #define TEST_VM_PROT_RDWR_WRITE
+    #include "vm_alloc.cpp"
+  ], , ac_cv_mprotect_works=no,
+  dnl When cross-compiling, do not assume anything
+  ac_cv_mprotect_works="guessing no"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+
+dnl Remove support for mmap() if mprotect() does not work
+if [[ "x$have_mmap_vm" = "xyes" ]]; then
+  case $ac_cv_mprotect_works in
+    *yes) have_mmap_vm=yes;;
+    *no) have_mmap_vm=no;;
+  esac
+fi
+AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, $have_mmap_vm)
+
+fi dnl HAVE_MMAP_VM
+
+dnl Check if we can mmap 0x2000 bytes from 0x0000
+AC_CACHE_CHECK("whether we can map Low Memory area 0x0000-0x2000",
+  ac_cv_can_map_lm, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #include "vm_alloc.cpp"
+    int main(void) { /* returns 0 if we could map the lowmem globals */
+      volatile char * lm;
+      if (vm_init() < 0) exit(1);
+      if ((lm = (volatile char *)vm_acquire_fixed(0, 0x2000)) == VM_MAP_FAILED) exit(1);
+      lm[0] = 'z';
+      if (vm_release((char *)lm, 0x2000) < 0) exit(1);
+      vm_exit(); exit(0);
+    }
+  ], ac_cv_can_map_lm=yes, ac_cv_can_map_lm=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_can_map_lm="guessing no"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+
+dnl Check signal handlers need to be reinstalled
+AC_CACHE_CHECK("whether signal handlers need to be reinstalled",
+  ac_cv_signal_need_reinstall, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #include <stdlib.h>
+    #ifdef HAVE_UNISTD_H
+    #include <unistd.h>
+    #endif
+    #include <signal.h>
+    static int handled_signal = 0;
+    RETSIGTYPE sigusr1_handler(int) { handled_signal++; }
+    int main(void) { /* returns 0 if signals need not to be reinstalled */
+      signal(SIGUSR1, sigusr1_handler); raise(SIGUSR1); raise(SIGUSR1);
+      exit(handled_signal == 2);
+    }
+  ], ac_cv_signal_need_reinstall=yes, ac_cv_signal_need_reinstall=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_signal_need_reinstall="guessing yes"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(SIGNAL_NEED_REINSTALL, "$ac_cv_signal_need_reinstall")
+
+dnl Check if sigaction handlers need to be reinstalled
+AC_CACHE_CHECK("whether sigaction handlers need to be reinstalled",
+  ac_cv_sigaction_need_reinstall, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #include <stdlib.h>
+    #ifdef HAVE_UNISTD_H
+    #include <unistd.h>
+    #endif
+    #include <signal.h>
+    static int handled_signal = 0;
+    RETSIGTYPE sigusr1_handler(int) { handled_signal++; }
+    typedef RETSIGTYPE (*signal_handler)(int);
+    static signal_handler mysignal(int sig, signal_handler handler) {
+      struct sigaction old_sa;
+      struct sigaction new_sa;
+      new_sa.sa_handler = handler;
+      return ((sigaction(sig,&new_sa,&old_sa) < 0) ? SIG_IGN : old_sa.sa_handler);
+    }
+    int main(void) { /* returns 0 if signals need not to be reinstalled */
+      mysignal(SIGUSR1, sigusr1_handler); raise(SIGUSR1); raise(SIGUSR1);
+      exit(handled_signal == 2);
+    }
+  ], ac_cv_sigaction_need_reinstall=yes, ac_cv_sigaction_need_reinstall=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_sigaction_need_reinstall="guessing yes"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(SIGACTION_NEED_REINSTALL, "$ac_cv_sigaction_need_reinstall")
+
+dnl Check if extended signals are supported.
+AC_CACHE_CHECK("whether your system supports extended signal handlers",
+  ac_cv_have_extended_signals, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #define HAVE_SIGINFO_T 1
+    #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+    #include "vm_alloc.cpp"
+    #include "sigsegv.cpp"
+  ], ac_cv_have_extended_signals=yes, ac_cv_have_extended_signals=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_have_extended_signals=no
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_extended_signals")
+ 
+dnl Otherwise, check for subterfuges.
+if [[ "x$ac_cv_have_extended_signals" = "xno" ]]; then
+  AC_CACHE_CHECK("whether we then have a subterfuge for your system",
+  ac_cv_have_sigcontext_hack, [
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
+    AC_TRY_RUN([
+      #define HAVE_SIGCONTEXT_SUBTERFUGE 1
+      #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+      #include "vm_alloc.cpp"
+      #include "sigsegv.cpp"
+    ], ac_cv_have_sigcontext_hack=yes, ac_cv_have_sigcontext_hack=no,
+    dnl When cross-compiling, do not assume anything.
+    ac_cv_have_sigcontext_hack=no
+    )
+    AC_LANG_RESTORE
+  ])
+  AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack")
+fi
+
+dnl Can we do Video on SEGV Signals ?
+CAN_VOSF=no
+if [[ "$ac_cv_have_extended_signals" = "yes" -o "$ac_cv_have_sigcontext_hack" = "yes" ]]; then
+  CAN_VOSF=yes
+fi
+
+dnl Determine the addressing mode to use
+if [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
+  ADDRESSING_MODE="real"
+else
+  ADDRESSING_MODE=""
+  AC_MSG_CHECKING([for the addressing mode to use])
+  for am in $ADDRESSING_TEST_ORDER; do
+    case $am in
+    real)
+      dnl Requires ability to mmap() Low Memory globals
+      if [[ "x$ac_cv_can_map_lm" = "xno" ]]; then
+        continue
+      fi
+	  dnl Requires VOSF screen updates
+      if [[ "x$CAN_VOSF" = "xno" ]]; then
+        continue
+      fi
+      dnl Real addressing will probably work.
+      ADDRESSING_MODE="real"
+      WANT_VOSF=yes dnl we can use VOSF and we need it actually
+      DEFINES="$DEFINES -DREAL_ADDRESSING"
+      break
+      ;;
+    direct)
+      dnl Requires VOSF screen updates
+      if [[ "x$CAN_VOSF" = "xyes" ]]; then
+        ADDRESSING_MODE="direct"
+        WANT_VOSF=yes dnl we can use VOSF and we need it actually
+        DEFINES="$DEFINES -DDIRECT_ADDRESSING"
+        break
+      fi
+      ;;
+    banks)
+      dnl Default addressing mode
+      ADDRESSING_MODE="memory banks"
+      break
+      ;;
+    *)
+      AC_MSG_ERROR([Internal configure.in script error for $am addressing mode])
+    esac
+  done
+  AC_MSG_RESULT($ADDRESSING_MODE)
+  if [[ "x$ADDRESSING_MODE" = "x" ]]; then
+    AC_MSG_WARN([Sorry, no suitable addressing mode in $ADDRESSING_TEST_ORDER])
+    ADDRESSING_MODE="memory banks"
+  fi
+fi
+
+dnl Enable VOSF screen updates with this feature is requested and feasible
+if [[ "x$WANT_VOSF" = "xyes" -a "x$CAN_VOSF" = "xyes" ]]; then
+    AC_DEFINE(ENABLE_VOSF)
+else
+    WANT_VOSF=no
+fi
+
+dnl Check for GAS.
+HAVE_GAS=no
+AC_MSG_CHECKING(for GAS .p2align feature)
+cat >conftest.S << EOF
+	.text
+	.p2align 5
+EOF
+if $CC conftest.S -c -o conftest.o >/dev/null 2>&1 ; then HAVE_GAS=yes; fi
+AC_MSG_RESULT($HAVE_GAS)
+
+dnl Check for GCC 2.7 or higher.
+HAVE_GCC27=no
+AC_MSG_CHECKING(for GCC 2.7 or higher)
+AC_EGREP_CPP(yes,
+[#if __GNUC__ - 1 > 1 || __GNUC_MINOR__ - 1 > 5
+  yes
+#endif
+], [AC_MSG_RESULT(yes); HAVE_GCC27=yes], AC_MSG_RESULT(no))
+
+dnl Check for GCC 3.0 or higher.
+HAVE_GCC30=no
+AC_MSG_CHECKING(for GCC 3.0 or higher)
+AC_EGREP_CPP(yes,
+[#if __GNUC__ >= 3
+  yes
+#endif
+], [AC_MSG_RESULT(yes); HAVE_GCC30=yes], AC_MSG_RESULT(no))
+
+dnl Set "-fomit-frame-pointer" on i386 GCC 2.7 or higher.
+if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
+  CFLAGS="$CFLAGS -fomit-frame-pointer"
+  CXXFLAGS="$CXXFLAGS -fomit-frame-pointer"
+fi
+
+dnl (gb) Do not merge constants since it breaks fpu/fpu_x86.cpp.
+dnl As of 2001/08/02, this affects the following compilers:
+dnl Official: probably gcc-3.1 (mainline CVS)
+dnl Mandrake: gcc-2.96 >= 0.59mdk, gcc-3.0.1 >= 0.1mdk
+dnl Red Hat : gcc-2.96 >= 89, gcc-3.0 >= 1
+if [[ "x$HAVE_GCC27" = "xyes" ]]; then
+  SAVED_CXXFLAGS="$CXXFLAGS"
+  CXXFLAGS="$CXXFLAGS -fno-merge-constants"
+  AC_CACHE_CHECK([whether GCC supports constants merging], ac_cv_gcc_constants_merging, [
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
+    AC_TRY_COMPILE([],[],[ac_cv_gcc_constants_merging=yes],[ac_cv_gcc_constants_merging=no])
+    AC_LANG_RESTORE
+  ])
+  if [[ "x$ac_cv_gcc_constants_merging" != "xyes" ]]; then
+    CXXFLAGS="$SAVED_CXXFLAGS"
+  fi
+fi
+
+dnl Select appropriate CPU source and REGPARAM define.
+ASM_OPTIMIZATIONS=none
+CPUSRCS="cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
+FPUSRCS="../uae_cpu/fpu/fpu_uae.cpp"
+if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" -a "x$OS_TYPE" != "xfreebsd" ]]; then
+  dnl i386 CPU
+  DEFINES="$DEFINES -DREGPARAM=\"__attribute__((regparm(3)))\""
+  if [[ "x$HAVE_GAS" = "xyes" ]]; then
+    ASM_OPTIMIZATIONS=i386
+    DEFINES="$DEFINES -DX86_ASSEMBLY -DUNALIGNED_PROFITABLE -DOPTIMIZED_FLAGS"
+    CPUSRCS="cpufast1.s cpufast2.s cpufast3.s cpufast4.s cpufast5.s cpufast6.s cpufast7.s cpufast8.s"
+    FPUSRCS="../uae_cpu/fpu_x86.cpp"
+  fi
+elif [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xyes" ]]; then
+  dnl SPARC CPU
+  case "$target_os" in
+  solaris*)
+    AC_MSG_CHECKING(SPARC CPU architecture)
+    SPARC_TYPE=`Solaris/which_sparc`
+    AC_MSG_RESULT($SPARC_TYPE)
+    case "$SPARC_TYPE" in
+    SPARC_V8)
+      ASM_OPTIMIZATIONS="SPARC V8 architecture"
+      DEFINES="$DEFINES -DSPARC_V8_ASSEMBLY" dnl -DOPTIMIZED_FLAGS"
+      CFLAGS="$CFLAGS -Wa,-Av8"
+      CXXFLAGS="$CXXFLAGS -Wa,-Av8"
+      ;;
+    SPARC_V9)
+      ASM_OPTIMIZATIONS="SPARC V9 architecture"
+      DEFINES="$DEFINES -DSPARC_V9_ASSEMBLY" dnl -DOPTIMIZED_FLAGS"
+      CFLAGS="$CFLAGS -Wa,-Av9"
+      CXXFLAGS="$CXXFLAGS -Wa,-Av9"
+      ;;
+    esac
+    ;;
+  esac
+elif [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
+  dnl Native m68k, no emulation
+  CPUINCLUDES="-I../native_cpu"
+  CPUSRCS="asm_support.s"
+fi
+
+dnl Select appropriate FPU source.
+dnl 1. Optimized X86 assembly core if target is i386 architecture
+SAVED_DEFINES=$DEFINES
+if [[ "x$FPE_CORE" = "xdefault" ]]; then
+  if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" -a "x$HAVE_GAS" = "xyes" ]]; then
+    DEFINES="$DEFINES -DFPU_X86"
+    FPE_CORE_STR="i386 optimized core"
+    FPUSRCS="../uae_cpu/fpu/fpu_x86.cpp"
+    FPE_CORE="i386"
+  else
+    FPE_CORE="uae"
+  fi
+fi
+
+dnl 2. JIT-FPU only supports IEEE-based implementation.
+if [[ "x$WANT_JIT_FPU" = "xyes" -a "x$FPE_CORE" != "xieee" ]]; then
+  AC_MSG_WARN([Sorry, JIT-FPU supports only the "ieee" FPE implementation])
+  FPE_CORE="ieee"
+  dnl Restore previous variables. FPE_CORE_STR and FPUSRCS are overwritten
+  DEFINES=$SAVED_DEFINES
+fi
+
+dnl 3. Choose either IEEE-based implementation or the old UAE core
+if [[ "x$FPE_CORE" = "xieee" ]]; then
+  AC_CHECK_HEADERS(fenv.h)
+  AC_CHECK_FUNCS(feclearexcept fegetexceptflag feraiseexcept fesetexceptflag fetestexcept)
+  AC_CHECK_FUNCS(fegetround fesetround)
+  DEFINES="$DEFINES -DFPU_IEEE"
+  FPE_CORE_STR="ieee-based fpu core"
+  FPUSRCS="../uae_cpu/fpu/fpu_ieee.cpp"
+elif [[ "x$FPE_CORE" = "xuae" ]]; then
+  DEFINES="$DEFINES -DFPU_UAE"
+  FPE_CORE_STR="original uae core"
+  FPUSRCS="../uae_cpu/fpu/fpu_uae.cpp"
+fi
+
+dnl Check for certain math functions
+AC_CHECK_FUNCS(atanh)
+AC_CHECK_FUNCS(isnan isinf)		dnl C99
+AC_CHECK_FUNCS(isnanl isinfl)	dnl IEEE ?
+
+dnl UAE CPU sources for all non-m68k-native architectures.
+if [[ "x$WANT_NATIVE_M68K" = "xno" ]]; then
+  CPUINCLUDES="-I../uae_cpu"
+  CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp $FPUSRCS cpustbl.cpp cpudefs.cpp $CPUSRCS"
+fi
+
+dnl Remove the "-g" option if set for GCC.
+if [[ "x$HAVE_GCC27" = "xyes" ]]; then
+  CFLAGS=`echo $CFLAGS | sed -e 's/-g//g'`
+  CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-g//g'`
+fi
+
+dnl Or if we have -Ofast
+if [[ "x$HAVE_OFAST" = "xyes" ]]; then
+  CFLAGS="`echo $CFLAGS | sed -e 's/-g//g'` -Ofast"
+  CXXFLAGS="`echo $CXXFLAGS | sed -e 's/-g//g'` -Ofast"
+  CXXFLAGS="-LANG:std $CXXFLAGS"
+  LDFLAGS="$LDFLAGS -Ofast"
+fi
+
+dnl Generate Makefile.
+AC_SUBST(DEFINES)
+AC_SUBST(SYSSRCS)
+AC_SUBST(CPUINCLUDES)
+AC_SUBST(CPUSRCS)
+AC_OUTPUT(Makefile)
+
+dnl Print summary.
+echo
+echo Basilisk II configuration summary:
+echo
+echo Full screen support .............. : $WANT_FULL
+echo Multiple emulator windows ........ : $WANT_MWIN
+echo Enable video on SEGV signals ..... : $WANT_VOSF
+echo mon debugger support ............. : $WANT_MON
+echo Floating-Point emulation core .... : $FPE_CORE_STR
+echo Assembly optimizations ........... : $ASM_OPTIMIZATIONS
+echo Addressing mode .................. : $ADDRESSING_MODE
+echo
+echo "Configuration done. Now type \"make\" (or \"gmake\")."

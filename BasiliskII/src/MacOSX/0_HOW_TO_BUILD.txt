@@ -1,0 +1,52 @@
+			How to build this source
+			------------------------
+
+1) Install the OS X Development tools
+
+   Source should build on either 10.0 or 10.1
+   (If anyone wants a version that will compile on Public Beta, email me)
+
+2) If grabbing this source from a tarball, put this MacOSX directory in
+   BasiliskII-1.0/src. Source is currently only compatible with 1.0 snapshot.
+
+3) Open a Terminal, and cd to BasiliskII-1.0/src/MacOSX
+
+   If the source was grabbed from CVS, run the following commands:
+
+   ln -s /usr/libexec/config.guess .
+   ln -s /usr/libexec/config.sub   .
+   ln -s ../Unix/acconfig.h .
+   ln -s ../Unix/install-sh .
+
+4) type autoconf
+
+   Ignore the warning. autoconf should generate ./configure
+
+5) type ./configure
+
+   This should generate a Makefile and some header files
+
+6) type make
+
+   This should generate some symlinks, the uae_cpu emulator core's source,
+   and then the application.
+
+* It is also possible to use the OS X integrated development environment
+  (i.e. the "Project Builder" IDE) to build the application, instead of make.
+  Instead of step 6) above, do this:
+
+6) make ide
+
+   This should generate some symlinks and the uae_cpu emulator core's source,
+   and then open the IDE with the file BasiliskII.pbproj
+
+7) From the Build menu, choose 'Build' or 'Build & Run'
+
+   This should build everything
+
+
+
+* There is one file in the source, cpuemu.cpp, which takes _ages_ to
+  compile, particularly if optimisation is on. The Unix source splits the
+  file into 8 smaller parts to compile separately, but I didn't find that
+  really helped on OS X. Basically, you just have to be patient.

@@ -1,0 +1,4 @@
+/* Localized versions of Info.plist keys */
+
+CFBundleName = "BasiliskII";
+NSHumanReadableCopyright = "Copyright 1997-2001 Christian Bauer et al., Freely distributable under the terms of the GNU GPL";

@@ -1,0 +1,38 @@
+Versions of MacOS X port of Basilisk II:
+<OL>
+<LI>Initial port to Public Beta, made minor changes to get it to compile under Final Release.
+	<BR>Gave a copy of this version to Gwenole Beauchesne (one of the other porters)</LI>
+<LI>Ported to version 0.9 of the Basilisk II tarball.
+	<BR>Re-engineered autoconfig files to give a clean autoconf and make of cpu_uae code.
+	<BR>Fixed a bug in the EmulatorView class (I was customising release instead of dealloc).
+	<BR>Added:
+		<UL>
+		<LI>Transparency to icon</LI>
+		<LI>Port-specific doco: 0_HOW_TO_BUILD.txt, ToDo.html and Versions.html</LI>
+		<LI>Screen Snapshot code</LI>
+		<LI>Preferences saving and resetting</LI>
+		<LI>Delegate code, called when user attempts to close emulator window or quit application,
+			to check whether preferences need saving or application should be allowed to quit</LI>
+		<LI>ExtFS resource and type/creator access code</LI>
+		<LI>Window resizing stuff:
+			<OL>
+			<LI>The screensize can be set in the preferences. If the emulator has yet to
+				start then the window and emulator screen is resized. Otherwise, and</LI>
+			<LI>At any time, the window can be resized, which scales the emulator screen image</LI>
+			</OL>
+			</LI>
+		</UL>
+	<BR>Gave a copy of this to Max Horn</LI>
+<LI>Some code fixes suggested by Max, doco updates, and porting to OS 10.1</LI>
+<LI>Event handling re-write inspired by Max (subclassing NSApplication for custom sendEvent:).
+	Command key and double clicks are now passed correctly to the Emulator. Took out the custom
+	"About" window stuff, and added some credits (with an html link to the official Basilisk home
+	page) in the standard About box. Also has the standard README in the help menu.
+	<BR>Gave a copy to Max</LI>
+<LI>Streamlining of event sending (filter mouseMoved events when not in Emulator screen)</LI>
+<LI>Recompile in Project Builder, because the makefile generated binary dies at startup</LI>
+<LI>Ported to the Basilisk II 1.0 snapshot's source and implemented video resolution switching.
+	Also uses Objective-C++, which eliminates some of the wrapper code which was previously needed.</LI>
+<LI>Video preferences fixes, small tidyup of source.</LI>
+<LI>Full screen mode added, more source tidied up.</LI>
+</OL>

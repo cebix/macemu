@@ -1,0 +1,118 @@
+{
+    IBClasses = (
+        {
+            ACTIONS = {
+                NewEmulator = id; 
+                PauseAll = id; 
+                RunAll = id; 
+                ShowAbout = id; 
+                TerminateAll = id; 
+            }; 
+            CLASS = Controller; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {myEmulator = id; }; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {
+            ACTIONS = {
+                Interrupt = id; 
+                PowerKey = id; 
+                Restart = id; 
+                Resume = id; 
+                Snapshot = id; 
+                SpeedChange = id; 
+                Suspend = id; 
+                Terminate = id; 
+                ToggleState = id; 
+                ZapPRAM = id; 
+            }; 
+            CLASS = Emulator; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {barberPole = id; runOrPause = id; screen = id; speed = id; win = id; }; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {CLASS = EmulatorView; LANGUAGE = ObjC; SUPERCLASS = NSView; }, 
+        {
+            ACTIONS = {
+                Interrupt = id; 
+                PowerKey = id; 
+                Restart = id; 
+                Resume = id; 
+                Snapshot = id; 
+                Suspend = id; 
+                Terminate = id; 
+                ZapPRAM = id; 
+            }; 
+            CLASS = FirstResponder; 
+            LANGUAGE = ObjC; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {
+            ACTIONS = {
+                AddSCSI = id; 
+                AddVolume = id; 
+                BrowseEtherNet = id; 
+                BrowseExtFS = id; 
+                BrowseModem = id; 
+                BrowsePrinter = id; 
+                BrowseROM = id; 
+                ChangeBootFrom = id; 
+                ChangeCPU = id; 
+                ChangeDisableCD = id; 
+                ChangeDisableSound = id; 
+                ChangeFPU = id; 
+                ChangeModel = id; 
+                CreateVolume = id; 
+                DeleteVolume = id; 
+                EditBytes = id; 
+                EditDelay = id; 
+                EditDepth = id; 
+                EditEtherNetDevice = id; 
+                EditExtFS = id; 
+                EditFrequency = id; 
+                EditHeight = id; 
+                EditMB = id; 
+                EditModemDevice = id; 
+                EditPrinterDevice = id; 
+                EditROMpath = id; 
+                EditWidth = id; 
+                RemoveSCSI = id; 
+                RemoveVolume = id; 
+                ShowPrefs = id; 
+            }; 
+            CLASS = PrefsEditor; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {
+                CPU68000 = id; 
+                CPU68020 = id; 
+                CPU68030 = id; 
+                CPU68040 = id; 
+                FPU = id; 
+                IIci = id; 
+                MB = id; 
+                Quadra900 = id; 
+                ROMfile = id; 
+                SCSIdisks = id; 
+                bootFromAny = id; 
+                bootFromCD = id; 
+                bytes = id; 
+                classic = id; 
+                delay = id; 
+                depth = id; 
+                disableCD = id; 
+                disableSound = id; 
+                diskImages = id; 
+                etherNet = id; 
+                extFS = id; 
+                frequency = id; 
+                height = id; 
+                modem = id; 
+                panel = id; 
+                printer = id; 
+                width = id; 
+            }; 
+            SUPERCLASS = NSObject; 
+        }
+    ); 
+    IBVersion = 1; 
+}

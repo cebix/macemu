@@ -1,0 +1,176 @@
+# MacOS X makefile for Basilisk II. Slightly based on the Unix one
+
+## System specific configuration
+@SET_MAKE@
+SHELL = /bin/sh
+
+
+CC = @CC@
+CXX = @CXX@
+CFLAGS = @CFLAGS@
+CXXFLAGS = @CXXFLAGS@
+CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../uae_cpu
+DEFS = @DEFS@ @DEFINES@ -D_REENTRANT
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+
+## Files
+OBJ_DIR = build
+GENSRCS = user_strings_unix.h cpudefs.cpp cpuemu.cpp cpustbl.cpp cputbl.h \
+	  README.txt
+SRCS =  BasiliskII.icns Controller.h Controller.mm Credits.html \
+	Emulator.h Emulator.mm EmulatorView.h EmulatorView.mm English.lproj \
+	NNThread.h NNThread.m PrefsEditor.h PrefsEditor.mm \
+	ToDo.html Versions.html \
+	audio_macosx.cpp extfs_macosx.mm macos_util_macosx.h main_macosx.h \
+	main_macosx.mm misc_macosx.h misc_macosx.mm prefs_macosx.cpp \
+	sysdeps.h video_macosx.mm video_macosx.h
+APP = $(OBJ_DIR)/BasiliskII.app
+
+## Rules
+
+.PHONY: mostlyclean clean distclean depend dep
+.SUFFIXES:
+.SUFFIXES: .c .cpp .s .o .h
+
+all: $(APP)
+
+ide: $(OBJ_DIR) $(GENSRCS) $(SRCS)
+	open BasiliskII.pbproj
+
+test: $(APP)
+	open $(APP)
+
+$(OBJ_DIR)::
+	@[ -d $(OBJ_DIR) ] || mkdir $(OBJ_DIR) > /dev/null 2>&1
+
+
+$(APP): $(OBJ_DIR) $(GENSRCS) $(SRCS)
+	pbxbuild -buildstyle Deployment
+#	pbxbuild
+
+README.txt : ../../README
+	ln -s $< $@
+
+user_strings_unix.h : ../Unix/user_strings_unix.h
+	ln -s $< $@
+
+mostlyclean:
+	rm -fr English.lproj/*~* $(OBJ_DIR)/* core* *.core *~ *.bak
+
+clean: mostlyclean
+	rm -f $(GENSRCS)
+	rm -f cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp
+
+distclean: clean
+	rm -fr $(OBJ_DIR)
+	rm -f config.cache config.log config.status config.h
+	rm -f configure
+	rm -f Makefile
+
+
+
+
+$(OBJ_DIR)/build68k: ../uae_cpu/build68k.c
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(LDFLAGS) $< -o $@
+
+$(OBJ_DIR)/cpuopti: ../uae_cpu/cpuopti.c
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(LDFLAGS) $< -o $@
+
+#$(OBJ_DIR)/gencpu: cpudefs.cpp ../uae_cpu/gencpu.c ../uae_cpu/readcpu.cpp
+#	$(CXX) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(CXXFLAGS) $(LDFLAGS) $< -o $@
+
+$(OBJ_DIR)/gencpu: $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+	$(CC) $(LDFLAGS) $^ -o $@
+
+$(OBJ_DIR)/gencpu.o : ../uae_cpu/gencpu.c
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/readcpu.o: ../uae_cpu/readcpu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/cpudefs.o: cpudefs.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
+
+
+cpudefs.cpp: $(OBJ_DIR)/build68k ../uae_cpu/table68k
+	$(OBJ_DIR)/build68k < ../uae_cpu/table68k > $@
+
+cpuemu.cpp cpustbl.cpp cputbl.h: $(OBJ_DIR)/gencpu
+	$<
+
+
+$(OBJ_DIR)/cpuemu1.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu2.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu3.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu4.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu5.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu6.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu7.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu8.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 $(CXXFLAGS) -c $< -o $@
+
+cpuemu1.cpp: cpuemu.cpp
+	$(CXX) -E -DPART_1 $< >$@
+cpuemu2.cpp: cpuemu.cpp
+	$(CXX) -E -DPART_2 $< >$@
+cpuemu3.cpp: cpuemu.cpp
+	$(CXX) -E -DPART_3 $< >$@
+cpuemu4.cpp: cpuemu.cpp
+	$(CXX) -E -DPART_4 $< >$@
+cpuemu5.cpp: cpuemu.cpp
+	$(CXX) -E -DPART_5 $< >$@
+cpuemu6.cpp: cpuemu.cpp
+	$(CXX) -E -DPART_6 $< >$@
+cpuemu7.cpp: cpuemu.cpp
+	$(CXX) -E -DPART_7 $< >$@
+cpuemu8.cpp: cpuemu.cpp
+	$(CXX) -E -DPART_8 $< >$@
+
+
+cpufast.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -S $(CXXFLAGS) $< -o cputmp.s
+	$(OBJ_DIR)/cpuopti <cputmp.s >$@ || mv cputmp.s $@
+	rm -f cputmp.s
+cpufast1.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 -S $(CXXFLAGS) $< -o cputmp1.s
+	$(OBJ_DIR)/cpuopti <cputmp1.s >$@ || mv cputmp1.s $@
+	rm -f cputmp1.s
+cpufast2.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 -S $(CXXFLAGS) $< -o cputmp2.s
+	$(OBJ_DIR)/cpuopti <cputmp2.s >$@ || mv cputmp2.s $@
+	rm -f cputmp2.s
+cpufast3.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 -S $(CXXFLAGS) $< -o cputmp3.s
+	$(OBJ_DIR)/cpuopti <cputmp3.s >$@ || mv cputmp3.s $@
+	rm -f cputmp3.s
+cpufast4.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 -S $(CXXFLAGS) $< -o cputmp4.s
+	$(OBJ_DIR)/cpuopti <cputmp4.s >$@ || mv cputmp4.s $@
+	rm -f cputmp4.s
+cpufast5.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 -S $(CXXFLAGS) $< -o cputmp5.s
+	$(OBJ_DIR)/cpuopti <cputmp5.s >$@ || mv cputmp5.s $@
+	rm -f cputmp5.s
+cpufast6.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 -S $(CXXFLAGS) $< -o cputmp6.s
+	$(OBJ_DIR)/cpuopti <cputmp6.s >$@ || mv cputmp6.s $@
+	rm -f cputmp6.s
+cpufast7.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 -S $(CXXFLAGS) $< -o cputmp7.s
+	$(OBJ_DIR)/cpuopti <cputmp7.s >$@ || mv cputmp7.s $@
+	rm -f cputmp7.s
+cpufast8.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 -S $(CXXFLAGS) $< -o cputmp8.s
+	$(OBJ_DIR)/cpuopti <cputmp8.s >$@ || mv cputmp8.s $@
+	rm -f cputmp8.s
+
+#-------------------------------------------------------------------------
+# DO NOT DELETE THIS LINE -- make depend depends on it.
