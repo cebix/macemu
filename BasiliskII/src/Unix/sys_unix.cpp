@@ -145,13 +145,15 @@ void SysAddFloppyPrefs(void)
 	PrefsAddString("floppy", "/dev/fd0a");
 	PrefsAddString("floppy", "/dev/fd1a");
 #elif defined(__APPLE__) && defined(__MACH__)
-	// FIXME: We assume an Aqua build causes <AvailabilityMacros.h> to
-	// be included, thusly enabling this part of code that would cause
-	// Basilisk II to hang otherwise.
-#ifdef MAC_OS_X_VERSION_10_0
-	PrefsAddString("floppy", "/dev/fd/0");
-	PrefsAddString("floppy", "/dev/fd/1");
-#endif
+  #ifdef AQUA
+	extern	void DarwinAddFloppyPrefs(void);
+
+	DarwinAddFloppyPrefs();
+  #else
+	// Until I can convince the other guys that my Darwin code is useful,
+	// we just add something safe (a non-existant device):
+	PrefsAddString("floppy", "/dev/null");
+  #endif
 #else
 	PrefsAddString("floppy", "/dev/fd0");
 	PrefsAddString("floppy", "/dev/fd1");
@@ -222,10 +224,15 @@ void SysAddCDROMPrefs(void)
 			closedir(cd_dir);
 		}
 	}
-#elif defined(__APPLE__) && defined(__MACH__) && defined(MAC_OS_X_VERSION_10_0)
+#elif defined(__APPLE__) && defined(__MACH__)
+  #ifdef AQUA
 	extern	void DarwinAddCDROMPrefs(void);
 
 	DarwinAddCDROMPrefs();
+  #else
+	// Until I can convince the other guys that my Darwin code is useful,
+	// we just do nothing (it is safe to have no cdrom device)
+  #endif
 #elif defined(__FreeBSD__) || defined(__NetBSD__)
 	PrefsAddString("cdrom", "/dev/cd0c");
 #endif
@@ -253,15 +260,16 @@ void SysAddSerialPrefs(void)
 	PrefsAddString("seriala", "/dev/tty00");
 	PrefsAddString("serialb", "/dev/tty01");
 #elif defined(__APPLE__) && defined(__MACH__)
-	// FIXME: We assume an Aqua build causes <AvailabilityMacros.h> to
-	// be included, thusly enabling this part of code that would cause
-	// Basilisk II to hang otherwise.
-#ifdef MAC_OS_X_VERSION_10_0
-	PrefsAddString("seriala", "/dev/ttys0");
-	PrefsAddString("serialb", "/dev/ttys1");
-#endif
-//	PrefsAddString("seriala", "/dev/cu.modem");
-//	PrefsAddString("serialb", "/dev/cu.IrDA-IrCOMMch-b");
+  #ifdef AQUA
+	extern	void DarwinAddSerialPrefs(void);
+
+	DarwinAddSerialPrefs();
+  #else
+	// Until I can convince the other guys that my Darwin code is useful,
+	// we just add something safe (non-existant devices):
+	PrefsAddString("seriala", "/dev/null");
+	PrefsAddString("serialb", "/dev/null");
+  #endif
 #endif
 }
 
