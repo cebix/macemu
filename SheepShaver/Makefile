@@ -11,6 +11,9 @@ TMPDIR := $(shell date +/tmp/build%m%s)
 DOCS := HISTORY LOG TODO
 SRCS := src
 
+# Where Basilisk II directory can be found
+B2_TOPDIR := ../BasiliskII
+
 default: help
 
 help:
@@ -54,7 +57,8 @@ links:
 	       Unix/audio_oss_esd.cpp Unix/extfs_unix.cpp Unix/serial_unix.cpp \
 	       Unix/sys_unix.cpp Unix/timer_unix.cpp Unix/xpram_unix.cpp \
 	       Unix/Linux/scsi_linux.cpp Unix/Linux/NetDriver'; \
+	PREFIX="`pwd`/"; case $(B2_TOPDIR) in /*) PREFIX="";; esac; \
 	for i in $$list; do \
 	  echo $$i; \
-	  ln -sf `pwd`/../BasiliskII/src/$$i src/$$i; \
+	  ln -sf $${PREFIX}$(B2_TOPDIR)/src/$$i src/$$i; \
 	done;
