@@ -1339,28 +1339,7 @@ int load_elf(const char *filename, FILE *outfile, int out_type)
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             const char *name;
             name = strtab + sym->st_name;
-            /* demangle C++ symbols */
-            demangled_name = cxx_demangle(name, demangled_name, &nd, &status);
-            if (status == 0 && strstart(demangled_name, OP_PREFIX, NULL)) {
-                /* get real function name */
-                char *p = strchr(demangled_name, '(');
-                if (p && !strstart(p, "()::label", NULL)) {
-                  int func_name_length = p - demangled_name;
-                  if (nd > nf) {
-                    nf = nd;
-                    if ((func_name = realloc(func_name, nf)) == NULL)
-                      return -1;
-                  }
-                  strncpy(func_name, demangled_name, func_name_length);
-                  func_name[func_name_length] = '\0';
-                  /* emit code generator */
-                  if (sym->st_shndx != (text_sec - shdr))
-                    error("invalid section for opcode (%s:0x%x)", name, sym->st_shndx);
-                  gen_code(func_name, demangled_name, sym->st_value, sym->st_size, outfile, 
-                           text, relocs, nb_relocs, 3, NULL);
-                }
-            }
-            else if (strstart(name, OP_PREFIX "execute", NULL)) {
+            if (strstart(name, OP_PREFIX "execute", NULL)) {
                 strcpy(func_name, name);
                 if (sym->st_shndx != (text_sec - shdr))
                   error("invalid section for opcode (0x%x)", sym->st_shndx);
@@ -1389,6 +1368,29 @@ int load_elf(const char *filename, FILE *outfile, int out_type)
               fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
               do_print_code(outfile, gen_dot_prefix(name), rodata_cst16 + sym->st_value, 16);
               fprintf(outfile, "#endif\n");
+            }
+            else {
+              /* demangle C++ symbols */
+              demangled_name = cxx_demangle(name, demangled_name, &nd, &status);
+              if (status == 0 && strstart(demangled_name, OP_PREFIX, NULL)) {
+                /* get real function name */
+                char *p = strchr(demangled_name, '(');
+                if (p && !strstart(p, "()::label", NULL)) {
+                  int func_name_length = p - demangled_name;
+                  if (nd > nf) {
+                    nf = nd;
+                    if ((func_name = realloc(func_name, nf)) == NULL)
+                      return -1;
+                  }
+                  strncpy(func_name, demangled_name, func_name_length);
+                  func_name[func_name_length] = '\0';
+                  /* emit code generator */
+                  if (sym->st_shndx != (text_sec - shdr))
+                    error("invalid section for opcode (%s:0x%x)", name, sym->st_shndx);
+                  gen_code(func_name, demangled_name, sym->st_value, sym->st_size, outfile, 
+                           text, relocs, nb_relocs, 3, NULL);
+                }
+              }
             }
         }
         fprintf(outfile, "#undef DEFINE_CST\n");
