@@ -115,7 +115,7 @@
 
 #import <prefs.h>
 
-#define DEBUG 1
+#define DEBUG 0
 #import <debug.h>
 
 - (PrefsEditor *) init
@@ -281,23 +281,26 @@
 	edited = YES;
 }
 
-// Screen/window changing stuff
+// This is called when any of the screen/openGL/window,
+// width, height or depth is clicked.
+//
+// Note that sender may not actually be an NSMatrix.
 
-// This is called when any of the screen/window, width, height or depth is changed
-
-- (IBAction) ChangeScreen: (id)sender
+- (IBAction) ChangeScreen: (NSMatrix *)sender
 {
+	NSButton *cell  = [sender selectedCell];
+
 	short newx		= [width  intValue];
 	short newy		= [height intValue];
 	short newbpp	= [depth  intValue];
 	short newtype;
 	char  str[20];
 
-	if ( [openGL state] )
+	if ( cell == openGL )
 		newtype = DISPLAY_OPENGL;
-	else if ( [screen state] )
+	else if ( cell == screen )
 		newtype = DISPLAY_SCREEN;
-	else if ( [window state] )
+	else if ( cell == window )
 		newtype = DISPLAY_WINDOW;
 	else
 		newtype = display_type;
@@ -317,13 +320,8 @@
 		if ( newtype == DISPLAY_SCREEN )		// If changing to full screen
 		{
 			// supply main screen dimensions as a default
-			NSScreen	*s = [NSScreen mainScreen];
-			NSRect		sr = [s frame];
-
-			newx = (short) sr.size.width;
-			newy = (short) sr.size.height;
-			// This always returns 24, despite the mode
-			//newbpp = NSBitsPerPixelFromDepth([s depth]);
+			newx   = CGDisplayPixelsWide  (kCGDirectMainDisplay);
+			newy   = CGDisplayPixelsHigh  (kCGDirectMainDisplay);
 			newbpp = CGDisplayBitsPerPixel(kCGDirectMainDisplay);
 		}
 
