@@ -1236,6 +1236,9 @@ int load_elf(const char *filename, FILE *outfile, int out_type)
     elf_shdr *rodata_cst4_sec;
     uint8_t *rodata_cst4 = NULL;
     int rodata_cst4_shndx;
+	elf_shdr *rodata_cst8_sec;
+	uint8_t *rodata_cst8 = NULL;
+	int rodata_cst8_shndx;
     elf_shdr *rodata_cst16_sec;
     uint8_t *rodata_cst16 = NULL;
     int rodata_cst16_shndx;
@@ -1314,6 +1317,11 @@ int load_elf(const char *filename, FILE *outfile, int out_type)
     if (rodata_cst4_sec) {
       rodata_cst4_shndx = rodata_cst4_sec - shdr;
       rodata_cst4 = sdata[rodata_cst4_shndx];
+    }
+    rodata_cst8_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".rodata.cst8");
+    if (rodata_cst8_sec) {
+      rodata_cst8_shndx = rodata_cst8_sec - shdr;
+      rodata_cst8 = sdata[rodata_cst8_shndx];
     }
     rodata_cst16_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".rodata.cst16");
     if (rodata_cst16_sec) {
@@ -1399,6 +1407,11 @@ int load_elf(const char *filename, FILE *outfile, int out_type)
               if (sym->st_shndx == (rodata_cst16_sec - shdr)) {
                 fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
                 do_print_code(outfile, gen_dot_prefix(name), rodata_cst16 + sym->st_value, 16);
+                fprintf(outfile, "#endif\n");
+              }
+              else if (sym->st_shndx == (rodata_cst8_sec - shdr)) {
+                fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
+                do_print_code(outfile, gen_dot_prefix(name), rodata_cst8 + sym->st_value, 8);
                 fprintf(outfile, "#endif\n");
               }
               else if (sym->st_shndx == (rodata_cst4_sec - shdr)) {
