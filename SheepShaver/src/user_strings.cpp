@@ -118,6 +118,7 @@ user_string_def common_strings[] = {
 	{STR_640x480_CTRL, "Fullscreen 640x480"},
 	{STR_800x600_CTRL, "Fullscreen 800x600"},
 	{STR_1024x768_CTRL, "Fullscreen 1024x768"},
+	{STR_1152x768_CTRL, "Fullscreen 1152x768"},
 	{STR_1152x900_CTRL, "Fullscreen 1152x900"},
 	{STR_1280x1024_CTRL, "Fullscreen 1280x1024"},
 	{STR_1600x1200_CTRL, "Fullscreen 1600x1200"},
