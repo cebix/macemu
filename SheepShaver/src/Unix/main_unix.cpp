@@ -127,7 +127,13 @@
 #include "debug.h"
 
 
+#ifdef USE_SDL
+#include <SDL.h>
+#endif
+
+#ifndef USE_SDL_VIDEO
 #include <X11/Xlib.h>
+#endif
 
 #ifdef ENABLE_GTK
 #include <gtk/gtk.h>
@@ -272,10 +278,12 @@ int64 BusClockSpeed;	// Bus clock speed (Hz)
 
 
 // Global variables
+#ifndef USE_SDL_VIDEO
 char *x_display_name = NULL;				// X11 display name
 Display *x_display = NULL;					// X11 display handle
 #ifdef X11_LOCK_TYPE
 X11_LOCK_TYPE x_display_lock = X11_LOCK_INIT; // X11 display lock
+#endif
 #endif
 
 static int zero_fd = 0;						// FD of /dev/zero
@@ -452,16 +460,35 @@ int main(int argc, char **argv)
 	for (int i=1; i<argc; i++) {
 		if (strcmp(argv[i], "--help") == 0) {
 			usage(argv[0]);
+#ifndef USE_SDL_VIDEO
 		} else if (strcmp(argv[i], "--display") == 0) {
 			i++;
 			if (i < argc)
 				x_display_name = strdup(argv[i]);
+#endif
 		} else if (argv[i][0] == '-') {
 			fprintf(stderr, "Unrecognized option '%s'\n", argv[i]);
 			usage(argv[0]);
 		}
 	}
 
+#ifdef USE_SDL
+	// Initialize SDL system
+	int sdl_flags = 0;
+#ifdef USE_SDL_VIDEO
+	sdl_flags |= SDL_INIT_VIDEO;
+#endif
+	assert(sdl_flags != 0);
+	if (SDL_Init(sdl_flags) == -1) {
+		char str[256];
+		sprintf(str, "Could not initialize SDL: %s.\n", SDL_GetError());
+		ErrorAlert(str);
+		goto quit;
+	}
+	atexit(SDL_Quit);
+#endif
+
+#ifndef USE_SDL_VIDEO
 	// Open display
 	x_display = XOpenDisplay(x_display_name);
 	if (x_display == NULL) {
@@ -474,6 +501,7 @@ int main(int argc, char **argv)
 #if defined(ENABLE_XF86_DGA) && !defined(ENABLE_MON)
 	// Fork out, so we can return from fullscreen mode when things get ugly
 	XF86DGAForkApp(DefaultScreen(x_display));
+#endif
 #endif
 
 #ifdef ENABLE_MON
@@ -1121,8 +1149,10 @@ static void Quit(void)
 #endif
 
 	// Close X11 server connection
+#ifndef USE_SDL_VIDEO
 	if (x_display)
 		XCloseDisplay(x_display);
+#endif
 
 	exit(0);
 }
@@ -1566,6 +1596,11 @@ void EnableInterrupt(void)
 static void sigusr2_handler(int sig, siginfo_t *sip, void *scp)
 {
 	machine_regs *r = MACHINE_REGISTERS(scp);
+
+#ifdef USE_SDL_VIDEO
+	// We must fill in the events queue in the same thread that did call SDL_SetVideoMode()
+	SDL_PumpEvents();
+#endif
 
 	// Do nothing if interrupts are disabled
 	if (*(int32 *)XLM_IRQ_NEST > 0)
@@ -2166,7 +2201,7 @@ void display_alert(int title_id, int prefix_id, int button_id, const char *text)
 
 void ErrorAlert(const char *text)
 {
-#ifdef ENABLE_GTK
+#if defined(ENABLE_GTK) && !defined(USE_SDL_VIDEO)
 	if (PrefsFindBool("nogui") || x_display == NULL) {
 		printf(GetString(STR_SHELL_ERROR_PREFIX), text);
 		return;
@@ -2185,7 +2220,7 @@ void ErrorAlert(const char *text)
 
 void WarningAlert(const char *text)
 {
-#ifdef ENABLE_GTK
+#if defined(ENABLE_GTK) && !defined(USE_SDL_VIDEO)
 	if (PrefsFindBool("nogui") || x_display == NULL) {
 		printf(GetString(STR_SHELL_WARNING_PREFIX), text);
 		return;

@@ -79,6 +79,9 @@ user_string_def platform_strings[] = {
 	{STR_SUSPEND_WINDOW_TITLE, "SheepShaver suspended. Press Space to reactivate."},
 	{STR_VOSF_INIT_ERR, "Cannot initialize Video on SEGV signals."},
 
+	{STR_OPEN_WINDOW_ERR, "Cannot open Mac window."},
+	{STR_WINDOW_TITLE_GRABBED, "SheepShaver (mouse grabbed, press Ctrl-F5 to release)"},
+
 	{-1, NULL}	// End marker
 };
 

@@ -43,6 +43,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef USE_SDL_VIDEO
+#include <SDL_events.h>
+#endif
+
 #if ENABLE_MON
 #include "mon.h"
 #include "mon_disass.h"
@@ -1059,6 +1063,11 @@ void TriggerInterrupt(void)
 
 void sheepshaver_cpu::handle_interrupt(void)
 {
+#ifdef USE_SDL_VIDEO
+	// We must fill in the events queue in the same thread that did call SDL_SetVideoMode()
+	SDL_PumpEvents();
+#endif
+
 	// Do nothing if interrupts are disabled
 	if (int32(ReadMacInt32(XLM_IRQ_NEST)) > 0)
 		return;
