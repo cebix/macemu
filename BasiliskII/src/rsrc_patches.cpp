@@ -69,7 +69,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 	uint16 *p16;
 	uint32 base;
 	D(bug("vCheckLoad %c%c%c%c (%08x) ID %d, data %08x, size %d\n", (char)(type >> 24), (char)((type >> 16) & 0xff), (char )((type >> 8) & 0xff), (char )(type & 0xff), type, id, p, size));
-
+	
 	if (type == FOURCC('b','o','o','t') && id == 3) {
 		D(bug(" boot 3 found\n"));
 
@@ -90,12 +90,13 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 		if (base) {
 			p16 = (uint16 *)(p + base);
 
-#if defined(AMIGA) || defined(__NetBSD__)
+#if defined(AMIGA) || defined(__NetBSD__) || defined(USE_SCRATCHMEM_SUBTERFUGE)
 			// Set 0x0000 to scratch memory area
-			extern uint32 ScratchMem;
+			extern uint8 *ScratchMem;
+			const uint32 ScratchMemBase = Host2MacAddr(ScratchMem);
 			*p16++ = htons(0x207c);			// move.l	#ScratchMem,a0
-			*p16++ = htons(ScratchMem >> 16);
-			*p16++ = htons(ScratchMem);
+			*p16++ = htons(ScratchMemBase >> 16);
+			*p16++ = htons(ScratchMemBase);
 			*p16++ = htons(M68K_NOP);
 			*p16 = htons(M68K_NOP);
 #else
@@ -114,12 +115,13 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 		if (base) {
 			p16 = (uint16 *)(p + base);
 
-#if defined(AMIGA) || defined(__NetBSD__)
+#if defined(AMIGA) || defined(__NetBSD__) || defined(USE_SCRATCHMEM_SUBTERFUGE)
 			// Set 0x0000 to scratch memory area
-			extern uint32 ScratchMem;
+			extern uint8 *ScratchMem;
+			const uint32 ScratchMemBase = Host2MacAddr(ScratchMem);
 			*p16++ = htons(0x207c);			// move.l	#ScratchMem,a0
-			*p16++ = htons(ScratchMem >> 16);
-			*p16++ = htons(ScratchMem);
+			*p16++ = htons(ScratchMemBase >> 16);
+			*p16++ = htons(ScratchMemBase);
 			*p16++ = htons(M68K_NOP);
 			*p16 = htons(M68K_NOP);
 #else
@@ -600,4 +602,27 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 		FlushCodeCache(p, 6);
 		D(bug("  patch 1 applied\n"));
 	}
+#if REAL_ADDRESSING && !defined(AMIGA)
+	else if (type == FOURCC('D','R','V','R') && id == 41) {
+		D(bug(" DRVR 41 found\n"));
+		
+		// gb-- [0x28E (ROM85)] contains 0x3fff that will be placed into a0
+		// Seems to be caused by the AppleShare extension from MacOS 8.1 (3.7.4)
+		// .AFPTranslator (DRVR addr 0x2372)
+		static const uint8 dat[] = {0x3a, 0x2e, 0x00, 0x0a, 0x55, 0x4f, 0x3e, 0xb8, 0x02, 0x8e, 0x30, 0x1f, 0x48, 0xc0, 0x24, 0x40, 0x20, 0x40};
+		base = find_rsrc_data(p, size, dat, sizeof(dat));
+		if (base) {
+			p16 = (uint16 *)(p + base + 4);
+			*p16++ = htons(0x3078);		// movea.w	ROM85,%a0
+			*p16++ = htons(0x028e);
+			*p16++ = htons(0xd1fc);		// adda.l	#RAMBaseMac,%a0
+			*p16++ = htons((RAMBaseMac >> 16) & 0xffff);
+			*p16++ = htons(RAMBaseMac & 0xffff);
+			*p16++ = htons(0x2448);		// movea.l	%a0,%a2
+			*p16++ = htons(M68K_NOP);
+			FlushCodeCache(p + base + 4, 14);
+			D(bug("  patch 1 applied\n"));
+		}
+	}
+#endif
 }
