@@ -9,6 +9,10 @@
 #ifndef NEWCPU_H
 #define NEWCPU_H
 
+#ifndef FLIGHT_RECORDER
+#define FLIGHT_RECORDER 0
+#endif
+
 #include "m68k.h"
 #include "readcpu.h"
 #include "spcflags.h"
@@ -26,8 +30,8 @@ extern int broken_in;
 #define CFLOW_NORMAL		0
 #define CFLOW_BRANCH		1
 #define CFLOW_JUMP			2
-#define CFLOW_TRAP			CFLOW_JUMP
 #define CFLOW_RETURN		3
+#define CFLOW_TRAP			4
 #define CFLOW_SPCFLAGS		32	/* some spcflags are set */
 #define CFLOW_EXEC_RETURN	64	/* must exit from the execution loop */
 
@@ -54,6 +58,18 @@ struct cputbl {
     uae_u16 specific;
     uae_u16 opcode;
 };
+
+extern cpuop_func *cpufunctbl[65536] ASM_SYM_FOR_FUNC ("cpufunctbl");
+
+#if USE_JIT
+typedef void compop_func (uae_u32) REGPARAM;
+
+struct comptbl {
+    compop_func *handler;
+	uae_u32		specific;
+	uae_u32		opcode;
+};
+#endif
 
 extern cpuop_rettype REGPARAM2 op_illg (uae_u32) REGPARAM;
 
@@ -277,7 +293,14 @@ extern struct cputbl op_smalltbl_3_ff[];
 /* 68000 slow but compatible.  */
 extern struct cputbl op_smalltbl_4_ff[];
 
+#if FLIGHT_RECORDER
+extern void m68k_record_step(uaecptr);
+#endif
 extern void m68k_do_execute(void);
 extern void m68k_execute(void);
+#if USE_JIT
+extern void m68k_do_compile_execute(void);
+extern void m68k_compile_execute(void);
+#endif
  
 #endif /* NEWCPU_H */

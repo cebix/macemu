@@ -22,6 +22,7 @@ extern int intlev(void);	// From baisilisk_glue.cpp
 #include "memory.h"
 #include "readcpu.h"
 #include "newcpu.h"
+#include "compiler/compemu.h"
 #include "fpu/fpu.h"
 
 #if defined(ENABLE_EXCLUSIVE_SPCFLAGS) && !defined(HAVE_HARDWARE_LOCKS)
@@ -53,8 +54,6 @@ int movem_next[256];
 
 cpuop_func *cpufunctbl[65536];
 
-#define FLIGHT_RECORDER 0
-
 #if FLIGHT_RECORDER
 struct rec_step {
 	uae_u32 d[8];
@@ -72,7 +71,7 @@ static const char *log_filename(void)
 	return name ? name : "log.68k";
 }
 
-static void record_step(uaecptr pc)
+void m68k_record_step(uaecptr pc)
 {
 	for (int i = 0; i < 8; i++) {
 		log[log_ptr].d[i] = m68k_dreg(regs, i);
@@ -802,7 +801,22 @@ int m68k_move2c (int regno, uae_u32 *regp)
 	switch (regno) {
 	 case 0: regs.sfc = *regp & 7; break;
 	 case 1: regs.dfc = *regp & 7; break;
-	 case 2: cacr = *regp & (CPUType < 4 ? 0x3 : 0x80008000); break;
+	 case 2:
+		cacr = *regp & (CPUType < 4 ? 0x3 : 0x80008000);
+#if USE_JIT
+		if (CPUType < 4) {
+			set_cache_state(cacr&1);
+			if (*regp & 0x08)
+				flush_icache(1);
+		}
+		else {
+			set_cache_state((cacr&0x8000) || 0);
+			// FIXME: The User Manual claims bit 3 of CACR is undefined
+			if (*regp & 0x08)
+				flush_icache(2);
+		}
+#endif
+	 break;
 	 case 3: tc = *regp & 0xc000; break;
 	 case 4: itt0 = *regp & 0xffffe364; break;
 	 case 5: itt1 = *regp & 0xffffe364; break;
@@ -1191,6 +1205,9 @@ cpuop_rettype REGPARAM2 op_illg (uae_u32 opcode)
     }
 
     write_log ("Illegal instruction: %04x at %08lx\n", opcode, pc);
+#if USE_JIT && JIT_DEBUG
+    compiler_dumpstate();
+#endif
 
     Exception (4,0);
 	cpuop_return(CFLOW_TRAP);
@@ -1248,6 +1265,18 @@ static void do_trace (void)
 
 int m68k_do_specialties (void)
 {
+#if USE_JIT
+    // Block was compiled
+    SPCFLAGS_CLEAR( SPCFLAG_JIT_END_COMPILE );
+
+    // Retain the request to get out of compiled code until
+    // we reached the toplevel execution, i.e. the one that
+    // can compile then run compiled code. This also means
+    // we processed all (nested) EmulOps
+    if ((m68k_execute_depth == 0) && SPCFLAGS_TEST( SPCFLAG_JIT_EXEC_RETURN ))
+	SPCFLAGS_CLEAR( SPCFLAG_JIT_EXEC_RETURN );
+#endif
+	
     if (SPCFLAGS_TEST( SPCFLAG_DOTRACE )) {
 	Exception (9,last_trace_ad);
     }
@@ -1289,7 +1318,7 @@ void m68k_do_execute (void)
 	for (;;) {
 		uae_u32 opcode = GET_OPCODE;
 #if FLIGHT_RECORDER
-		record_step(m68k_getpc());
+		m68k_record_step(m68k_getpc());
 #endif
 #ifdef X86_ASSEMBLY
 		__asm__ __volatile__("\tpushl %%ebp\n\tcall *%%ebx\n\tpopl %%ebp" /* FIXME */
@@ -1305,8 +1334,32 @@ void m68k_do_execute (void)
 	}
 }
 
+#if USE_JIT
+void m68k_compile_execute (void)
+{
+    for (;;) {
+	if (quit_program > 0) {
+	    if (quit_program == 1)
+		break;
+	    quit_program = 0;
+	    m68k_reset ();
+	}
+	m68k_do_compile_execute();
+    }
+    if (debugging) {
+	uaecptr nextpc;
+	m68k_dumpstate(&nextpc);
+	exit(1);
+    }
+}
+#endif
+
 void m68k_execute (void)
 {
+#if USE_JIT
+    ++m68k_execute_depth;
+#endif
+	
     for (;;) {
 	if (quit_program > 0) {
 	    if (quit_program == 1)
@@ -1321,6 +1374,10 @@ void m68k_execute (void)
 		m68k_dumpstate(&nextpc);
 		exit(1);
 	}
+	
+#if USE_JIT
+    --m68k_execute_depth;
+#endif
 }
 
 static void m68k_verify (uaecptr addr, uaecptr *nextpc)

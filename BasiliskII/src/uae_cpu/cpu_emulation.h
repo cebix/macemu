@@ -82,6 +82,13 @@ extern bool Init680x0(void);	// This routine may want to look at CPUType/FPUType
 extern void Exit680x0(void);
 extern void InitFrameBufferMapping(void);
 
+// 680x0 dynamic recompilation activation flag
+#if USE_JIT
+extern bool UseJIT;
+#else
+const bool UseJIT = false;
+#endif
+
 // 680x0 emulation functions
 struct M68kRegisters;
 extern void Start680x0(void);									// Reset and start 680x0

@@ -22,16 +22,18 @@
 
 #include "cpu_emulation.h"
 #include "main.h"
+#include "prefs.h"
 #include "emul_op.h"
 #include "rom_patches.h"
 #include "m68k.h"
 #include "memory.h"
 #include "readcpu.h"
 #include "newcpu.h"
+#include "compiler/compemu.h"
 
 
 // RAM and ROM pointers
-uint32 RAMBaseMac = 0;		// RAM base (Mac address space) gb-- init is important
+uint32 RAMBaseMac = 0;		// RAM base (Mac address space) gb-- initializer is important
 uint8 *RAMBaseHost;			// RAM base (host address space)
 uint32 RAMSize;				// Size of RAM
 uint32 ROMBaseMac;			// ROM base (Mac address space)
@@ -47,6 +49,10 @@ int MacFrameLayout;			// Frame buffer layout
 
 #if DIRECT_ADDRESSING
 uintptr MEMBaseDiff;		// Global offset between a Mac address and its Host equivalent
+#endif
+
+#if USE_JIT
+bool UseJIT = false;
 #endif
 
 // From newcpu.cpp
@@ -90,6 +96,11 @@ bool Init680x0(void)
 #endif
 
 	init_m68k();
+#if USE_JIT
+	UseJIT = compiler_use_jit();
+	if (UseJIT)
+	    compiler_init();
+#endif
 	return true;
 }
 
@@ -100,6 +111,10 @@ bool Init680x0(void)
 
 void Exit680x0(void)
 {
+#if USE_JIT
+    if (UseJIT)
+	compiler_exit();
+#endif
 	exit_m68k();
 }
 
@@ -122,6 +137,11 @@ void InitFrameBufferMapping(void)
 void Start680x0(void)
 {
 	m68k_reset();
+#if USE_JIT
+    if (UseJIT)
+	m68k_compile_execute();
+    else
+#endif
 	m68k_execute();
 }
 
