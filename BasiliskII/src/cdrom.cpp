@@ -310,6 +310,7 @@ void CDROMExit(void)
 {
 	DriveInfo *info = first_drive_info, *next;
 	while (info != NULL) {
+		SysAllowRemoval(info->fh);
 		Sys_close(info->fh);
 		next = info->next;
 		delete info;

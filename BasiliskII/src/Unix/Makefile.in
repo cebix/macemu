@@ -62,12 +62,14 @@ $(APP): $(OBJ_DIR) $(OBJS)
 modules:
 	cd Linux/NetDriver; make
 
-install: $(APP)
+install: $(APP) installdirs
 	$(INSTALL_PROGRAM) $(APP) $(bindir)/$(APP)
 	-$(INSTALL_DATA) $(APP).1 $(man1dir)/$(APP).1
-	$(INSTALL) -d $(datadir)/$(APP)
 	$(INSTALL_DATA) keycodes $(datadir)/$(APP)/keycodes
 	$(INSTALL_DATA) fbdevices $(datadir)/$(APP)/fbdevices
+
+installdirs:
+	$(SHELL) mkinstalldirs $(bindir) $(man1dir) $(datadir)/$(APP)
 
 uninstall:
 	rm -f $(bindir)/$(APP)

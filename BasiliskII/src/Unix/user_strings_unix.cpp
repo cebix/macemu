@@ -43,6 +43,7 @@ user_string_def platform_strings[] = {
 	{STR_SCSI_DEVICE_OPEN_WARN, "Cannot open %s (%s). SCSI Manager access to this device will be disabled."},
 	{STR_SCSI_DEVICE_NOT_SCSI_WARN, "%s doesn't seem to comply to the Generic SCSI API. SCSI Manager access to this device will be disabled."},
 	{STR_NO_AUDIO_DEV_WARN, "Cannot open %s (%s). Audio output will be disabled."},
+	{STR_NO_ESD_WARN, "Cannot open ESD connection. Audio output will be disabled."},
 	{STR_AUDIO_FORMAT_WARN, "Audio hardware doesn't support signed 16 bit format. Audio output will be disabled."},
 	{STR_KEYCODE_FILE_WARN, "Cannot open keycode translation file %s (%s)."},
 	{STR_KEYCODE_VENDOR_WARN, "Cannot find vendor '%s' in keycode translation file %s."},

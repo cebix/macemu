@@ -1,5 +1,5 @@
 /*
- *  audio_linux.cpp - Audio support, Linux (OSS) implementation
+ *  audio_oss_esd.cpp - Audio support, implementation for OSS and ESD (Linux and FreeBSD)
  *
  *  Basilisk II (C) 1997-1999 Christian Bauer
  *
@@ -21,11 +21,18 @@
 #include "sysdeps.h"
 
 #include <sys/ioctl.h>
-#include <linux/soundcard.h>
 #include <unistd.h>
 #include <errno.h>
 #include <pthread.h>
 #include <semaphore.h>
+
+#ifdef __linux__
+#include <linux/soundcard.h>
+#endif
+
+#ifdef __FreeBSD__
+#include <machine/soundcard.h>
+#endif
 
 #include "cpu_emulation.h"
 #include "main.h"
@@ -33,6 +40,10 @@
 #include "user_strings.h"
 #include "audio.h"
 #include "audio_defs.h"
+
+#if ENABLE_ESD
+#include <esd.h>
+#endif
 
 #define DEBUG 0
 #include "debug.h"
@@ -46,16 +57,20 @@ uint16 audio_sample_sizes[] = {16};
 int audio_num_channel_counts = 1;
 uint16 audio_channel_counts[] = {2};
 
+// Constants
+#define DSP_NAME "/dev/dsp"
+
 // Global variables
-static int dsp_fd = -1;						// fd of /dev/dsp
-static int mixer_fd = -1;					// fd of /dev/mixer
-static sem_t audio_irq_done_sem;			// Signal from interrupt to streaming thread: data block read
-static bool sem_inited = false;				// Flag: audio_irq_done_sem initialized
-static pthread_t stream_thread;				// Audio streaming thread
-static pthread_attr_t stream_thread_attr;	// Streaming thread attributes
-static bool stream_thread_active = false;
-static int sound_buffer_size;				// Size of sound buffer in bytes
-static bool little_endian = false;			// Flag: DSP accepts only little-endian 16-bit sound data
+static int audio_fd = -1;							// fd of /dev/dsp or ESD
+static int mixer_fd = -1;							// fd of /dev/mixer
+static sem_t audio_irq_done_sem;					// Signal from interrupt to streaming thread: data block read
+static bool sem_inited = false;						// Flag: audio_irq_done_sem initialized
+static int sound_buffer_size;						// Size of sound buffer in bytes
+static bool little_endian = false;					// Flag: DSP accepts only little-endian 16-bit sound data
+static pthread_t stream_thread;						// Audio streaming thread
+static pthread_attr_t stream_thread_attr;			// Streaming thread attributes
+static bool stream_thread_active = false;			// Flag: streaming thread installed
+static volatile bool stream_thread_cancel = false;	// Flag: cancel streaming thread
 
 // Prototypes
 static void *stream_func(void *arg);
@@ -64,6 +79,86 @@ static void *stream_func(void *arg);
 /*
  *  Initialization
  */
+
+// Init using /dev/dsp, returns false on error
+bool audio_init_dsp(void)
+{
+	printf("Using " DSP_NAME " audio output\n");
+
+	// Get supported sample formats
+	unsigned long format;
+	ioctl(audio_fd, SNDCTL_DSP_GETFMTS, &format);
+	if ((format & (AFMT_U8 | AFMT_S16_BE | AFMT_S16_LE)) == 0) {
+		WarningAlert(GetString(STR_AUDIO_FORMAT_WARN));
+		close(audio_fd);
+		audio_fd = -1;
+		return false;
+	}
+	if (format & (AFMT_S16_BE | AFMT_S16_LE))
+		audio_sample_sizes[0] = 16;
+	else
+		audio_sample_sizes[0] = 8;
+	if (!(format & AFMT_S16_BE))
+		little_endian = true;
+
+	// Set DSP parameters
+	format = AudioStatus.sample_size == 8 ? AFMT_U8 : (little_endian ? AFMT_S16_LE : AFMT_S16_BE);
+	ioctl(audio_fd, SNDCTL_DSP_SETFMT, &format);
+	int frag = 0x0004000c;		// Block size: 4096 frames
+	ioctl(audio_fd, SNDCTL_DSP_SETFRAGMENT, &frag);
+	int stereo = (AudioStatus.channels == 2);
+	ioctl(audio_fd, SNDCTL_DSP_STEREO, &stereo);
+	int rate = AudioStatus.sample_rate >> 16;
+	ioctl(audio_fd, SNDCTL_DSP_SPEED, &rate);
+
+	// Get sound buffer size
+	ioctl(audio_fd, SNDCTL_DSP_GETBLKSIZE, &audio_frames_per_block);
+	D(bug("DSP_GETBLKSIZE %d\n", audio_frames_per_block));
+	sound_buffer_size = (AudioStatus.sample_size >> 3) * AudioStatus.channels * audio_frames_per_block;
+	return true;
+}
+
+// Init using ESD, returns false on error
+bool audio_init_esd(void)
+{
+#if ENABLE_ESD
+	printf("Using ESD audio output\n");
+
+	// ESD audio format
+	esd_format_t format = ESD_STREAM | ESD_PLAY;
+	if (AudioStatus.sample_size == 8)
+		format |= ESD_BITS8;
+	else
+		format |= ESD_BITS16;
+	if (AudioStatus.channels == 1)
+		format |= ESD_MONO;
+	else
+		format |= ESD_STEREO;
+
+#if WORDS_BIGENDIAN
+	little_endian = false;
+#else
+	little_endian = true;
+#endif
+
+	// Open connection to ESD server
+	audio_fd = esd_play_stream(format, AudioStatus.sample_rate >> 16, NULL, NULL);
+	if (audio_fd < 0) {
+		char str[256];
+		sprintf(str, GetString(STR_NO_ESD_WARN), strerror(errno));
+		WarningAlert(str);
+		return false;
+	}
+
+	// Sound buffer size = 4096 frames
+	audio_frames_per_block = 4096;
+	sound_buffer_size = (AudioStatus.sample_size >> 3) * AudioStatus.channels * audio_frames_per_block;
+	return true;
+#else
+	ErrorAlert("Basilisk II has been compiled with ESD support disabled.");
+	return false;
+#endif
+}
 
 void AudioInit(void)
 {
@@ -81,44 +176,20 @@ void AudioInit(void)
 	if (PrefsFindBool("nosound"))
 		return;
 
-	// Open /dev/dsp
-	dsp_fd = open("/dev/dsp", O_WRONLY);
-	if (dsp_fd < 0) {
-		sprintf(str, GetString(STR_NO_AUDIO_DEV_WARN), "/dev/dsp", strerror(errno));
+	// Try to open /dev/dsp
+	audio_fd = open(DSP_NAME, O_WRONLY);
+	if (audio_fd < 0) {
+#if ENABLE_ESD
+		if (!audio_init_esd())
+			return;
+#else
+		sprintf(str, GetString(STR_NO_AUDIO_DEV_WARN), DSP_NAME, strerror(errno));
 		WarningAlert(str);
 		return;
-	}
-
-	// Get supported sample formats
-	unsigned long format;
-	ioctl(dsp_fd, SNDCTL_DSP_GETFMTS, &format);
-	if ((format & (AFMT_U8 | AFMT_S16_BE | AFMT_S16_LE)) == 0) {
-		WarningAlert(GetString(STR_AUDIO_FORMAT_WARN));
-		close(dsp_fd);
-		dsp_fd = -1;
-		return;
-	}
-	if (format & (AFMT_S16_BE | AFMT_S16_LE))
-		audio_sample_sizes[0] = 16;
-	else
-		audio_sample_sizes[0] = 8;
-	if (!(format & AFMT_S16_BE))
-		little_endian = true;
-
-	// Set DSP parameters
-	format = AudioStatus.sample_size == 8 ? AFMT_U8 : (little_endian ? AFMT_S16_LE : AFMT_S16_BE);
-	ioctl(dsp_fd, SNDCTL_DSP_SETFMT, &format);
-	int frag = 0x0004000c;		// Block size: 4096 frames
-	ioctl(dsp_fd, SNDCTL_DSP_SETFRAGMENT, &frag);
-	int stereo = (AudioStatus.channels == 2);
-	ioctl(dsp_fd, SNDCTL_DSP_STEREO, &stereo);
-	int rate = AudioStatus.sample_rate >> 16;
-	ioctl(dsp_fd, SNDCTL_DSP_SPEED, &rate);
-
-	// Get sound buffer size
-	ioctl(dsp_fd, SNDCTL_DSP_GETBLKSIZE, &audio_frames_per_block);
-	D(bug("DSP_GETBLKSIZE %d\n", audio_frames_per_block));
-	sound_buffer_size = (AudioStatus.sample_size >> 3) * AudioStatus.channels * audio_frames_per_block;
+#endif
+	} else
+		if (!audio_init_dsp())
+			return;
 
 	// Try to open /dev/mixer
 	mixer_fd = open("/dev/mixer", O_RDWR);
@@ -156,7 +227,10 @@ void AudioExit(void)
 {
 	// Stop stream and delete semaphore
 	if (stream_thread_active) {
+		stream_thread_cancel = true;
+#ifdef HAVE_PTHREAD_CANCEL
 		pthread_cancel(stream_thread);
+#endif
 		pthread_join(stream_thread, NULL);
 		stream_thread_active = false;
 	}
@@ -164,8 +238,8 @@ void AudioExit(void)
 		sem_destroy(&audio_irq_done_sem);
 
 	// Close /dev/dsp
-	if (dsp_fd > 0)
-		close(dsp_fd);
+	if (audio_fd > 0)
+		close(audio_fd);
 
 	// Close /dev/mixer
 	if (mixer_fd > 0)
@@ -205,7 +279,7 @@ static void *stream_func(void *arg)
 	int16 *last_buffer = new int16[sound_buffer_size / 2];
 	memset(silent_buffer, 0, sound_buffer_size);
 
-	for (;;) {
+	while (!stream_thread_cancel) {
 		if (AudioStatus.num_sources) {
 
 			// Trigger audio interrupt to get new buffer
@@ -228,7 +302,7 @@ static void *stream_func(void *arg)
 
 				// Send data to DSP
 				if (work_size == sound_buffer_size && !little_endian)
-					write(dsp_fd, Mac2HostAddr(ReadMacInt32(apple_stream_info + scd_buffer)), sound_buffer_size);
+					write(audio_fd, Mac2HostAddr(ReadMacInt32(apple_stream_info + scd_buffer)), sound_buffer_size);
 				else {
 					// Last buffer or little-endian DSP
 					if (little_endian) {
@@ -238,7 +312,7 @@ static void *stream_func(void *arg)
 					} else
 						memcpy(last_buffer, Mac2HostAddr(ReadMacInt32(apple_stream_info + scd_buffer)), work_size);
 					memset((uint8 *)last_buffer + work_size, 0, sound_buffer_size - work_size);
-					write(dsp_fd, last_buffer, sound_buffer_size);
+					write(audio_fd, last_buffer, sound_buffer_size);
 				}
 				D(bug("stream: data written\n"));
 			} else
@@ -247,10 +321,9 @@ static void *stream_func(void *arg)
 		} else {
 
 			// Audio not active, play silence
-silence:	write(dsp_fd, silent_buffer, sound_buffer_size);
+silence:	write(audio_fd, silent_buffer, sound_buffer_size);
 		}
 	}
-	ioctl(dsp_fd, SNDCTL_DSP_SYNC);
 	delete[] silent_buffer;
 	delete[] last_buffer;
 	return NULL;

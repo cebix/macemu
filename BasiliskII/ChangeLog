@@ -1,3 +1,11 @@
+V0.8 -
+	- medium removal is allowed in CDROMExit()
+	- Unix: added support for ESD audio output; merged with OSS audio
+	  and put in a new "audio_oss_esd.cpp" file which is also used under
+	  FreeBSD 3.x
+	- Unix: added mkinstalldirs to "make install" target
+	- Unix: cleaned up the configure script
+
 V0.8 (snapshot) - 21.Oct.1999
 	- sony.cpp/disk.cpp/cdrom.cpp: disk insertions are now checked for
 	  by an interrupt routine
