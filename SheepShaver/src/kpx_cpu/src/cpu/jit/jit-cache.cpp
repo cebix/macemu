@@ -25,13 +25,11 @@
 #define DEBUG 0
 #include "debug.h"
 
-// FIXME: Define this only for SheepShaver. Kheperix will need
-// something like KPX_MAX_CPUS == 1.
-#ifndef SHEEPSHAVER
-#undef HAVE_STATIC_DATA_EXEC
+#if KPX_MAX_CPUS == 1 && HAVE_STATIC_DATA_EXEC
+#define STATIC_ICACHE_ALLOC 1
 #endif
 
-#if HAVE_STATIC_DATA_EXEC
+#if STATIC_ICACHE_ALLOC
 static uint8 g_translation_cache[basic_jit_cache::JIT_CACHE_SIZE];
 #endif
 
@@ -54,7 +52,7 @@ basic_jit_cache::init_translation_cache(uint32 size)
 	uint32 effective_cache_size = (size - JIT_CACHE_SIZE_GUARD) & -roundup;
 	cache_size = size & -roundup;
 
-#if HAVE_STATIC_DATA_EXEC
+#if STATIC_ICACHE_ALLOC
 	if (cache_size <= JIT_CACHE_SIZE) {
 		tcode_start = g_translation_cache;
 		goto done;
@@ -85,7 +83,7 @@ void
 basic_jit_cache::kill_translation_cache()
 {
 	if (tcode_start) {
-#if HAVE_STATIC_DATA_EXEC
+#if STATIC_ICACHE_ALLOC
 		if (cache_size > JIT_CACHE_SIZE)
 #endif
 		vm_release(tcode_start, cache_size);
