@@ -673,7 +673,7 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 	[height setIntValue: init_height];
 	[depth	setIntValue: init_depth];
 
-	[window setState: NO];
+	[screen setState: NO];
 	switch ( display_type )
 	{
 		case DISPLAY_WINDOW: [window setState: YES]; break;
