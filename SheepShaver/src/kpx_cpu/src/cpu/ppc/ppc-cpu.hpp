@@ -235,8 +235,6 @@ protected:
 	};
 #if PPC_CHECK_INTERRUPTS
 	int pending_interrupts;
-#else
-	static const int pending_interrupts = 0;
 #endif
 public:
 	void check_pending_interrupts();
@@ -371,6 +369,7 @@ inline void powerpc_cpu::trigger_interrupt()
 
 inline void powerpc_cpu::check_pending_interrupts()
 {
+#if PPC_CHECK_INTERRUPTS
 	if (pending_interrupts) {
 		if (pending_interrupts & INTERRUPT_HANDLE) {
 			pending_interrupts &= ~INTERRUPT_HANDLE;
@@ -381,6 +380,7 @@ inline void powerpc_cpu::check_pending_interrupts()
 			pending_interrupts |= INTERRUPT_HANDLE;
 		}
 	}
+#endif
 }
 
 #endif /* PPC_CPU_H */

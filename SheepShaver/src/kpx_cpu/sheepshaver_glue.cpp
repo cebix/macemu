@@ -586,7 +586,12 @@ void emul_ppc(uint32 entry)
  *  Handle PowerPC interrupt
  */
 
-#if !ASYNC_IRQ
+#if ASYNC_IRQ
+void HandleInterrupt(void)
+{
+	main_cpu->handle_interrupt();
+}
+#else
 void TriggerInterrupt(void)
 {
 #if 0
