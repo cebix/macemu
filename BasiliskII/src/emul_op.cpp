@@ -503,6 +503,10 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			break;
 #endif
 
+		case M68K_EMUL_OP_BLOCK_MOVE:		// BlockMove() replacement
+			memmove(Mac2HostAddr(r->a[1]), Mac2HostAddr(r->a[0]), r->d[0]);
+			break;
+
 		default:
 			printf("FATAL: EMUL_OP called with bogus opcode %08x\n", opcode);
 			printf("d0 %08lx d1 %08lx d2 %08lx d3 %08lx\n"

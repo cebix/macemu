@@ -1403,6 +1403,14 @@ static bool patch_rom_32(void)
 	*wp++ = htons(M68K_EMUL_OP_MEMORY_DISPATCH);
 	*wp = htons(M68K_RTS);
 
+#if EMULATED_68K
+	// Replace BlockMove()
+	wp = (uint16 *)(ROMBaseHost + find_rom_trap(0xa02e));	// BlockMove()
+	*wp++ = htons(M68K_EMUL_OP_BLOCK_MOVE);
+	*wp++ = htons(0x7000);
+	*wp = htons(M68K_RTS);
+#endif
+
 	// Patch VIA interrupt handler
 	wp = (uint16 *)(ROMBaseHost + 0x9bc4);	// Level 1 handler
 	*wp++ = htons(0x7002);		// moveq	#2,d0 (always 60Hz interrupt)

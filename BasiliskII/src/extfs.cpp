@@ -211,7 +211,9 @@ static void add_path_comp(const char *s)
 
 static void get_path_for_fsitem(FSItem *p)
 {
-	if (p->id == ROOT_ID) {
+	if (p->id == ROOT_PARENT_ID) {
+		full_path[0] = 0;
+	} else if (p->id == ROOT_ID) {
 		strncpy(full_path, RootPath, MAX_PATH_LENGTH-1);
 		full_path[MAX_PATH_LENGTH-1] = 0;
 	} else {
