@@ -107,7 +107,7 @@ $(OBJ_DIR)/cpuopti: $(OBJ_DIR)/cpuopti.o
 $(OBJ_DIR)/build68k: $(OBJ_DIR)/build68k.o
 	$(CC) $(LDFLAGS) -o $(OBJ_DIR)/build68k $(OBJ_DIR)/build68k.o
 $(OBJ_DIR)/gencpu: $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
-	$(CC) $(LDFLAGS) -o $(OBJ_DIR)/gencpu $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+	$(CXX) $(LDFLAGS) -o $(OBJ_DIR)/gencpu $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
 cpudefs.cpp: $(OBJ_DIR)/build68k ../uae_cpu/table68k
 	$(OBJ_DIR)/build68k <../uae_cpu/table68k >cpudefs.cpp
 cpustbl.cpp: cpuemu.cpp

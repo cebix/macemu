@@ -672,7 +672,7 @@ dnl Mandrake: gcc-2.96 >= 0.59mdk, gcc-3.0.1 >= 0.1mdk
 dnl Red Hat : gcc-2.96 >= 89, gcc-3.0 >= 1
 if [[ "x$HAVE_GCC27" = "xyes" ]]; then
   SAVED_CXXFLAGS="$CXXFLAGS"
-  CXXFLAGS="$CFLAGS -fno-merge-constants"
+  CXXFLAGS="$CXXFLAGS -fno-merge-constants"
   AC_CACHE_CHECK([whether GCC supports constants merging], ac_cv_gcc_constants_merging, [
     AC_LANG_SAVE
     AC_LANG_CPLUSPLUS
