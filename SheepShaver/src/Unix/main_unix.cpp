@@ -485,6 +485,39 @@ int main(int argc, char **argv)
 	BusClockSpeed = 100000000;	// Default: 100MHz
 #if EMULATED_PPC
 	PVR = 0x000c0000;			// Default: 7400 (with AltiVec)
+#elif defined(__APPLE__) && defined(__MACH__)
+	proc_file = popen("ioreg -c IOPlatformDevice", "r");
+	if (proc_file) {
+		char line[256];
+		bool powerpc_node = false;
+		while (fgets(line, sizeof(line) - 1, proc_file)) {
+			// Read line
+			int len = strlen(line);
+			if (len == 0)
+				continue;
+			line[len - 1] = 0;
+
+			// Parse line
+			if (strstr(line, "o PowerPC,"))
+				powerpc_node = true;
+			else if (powerpc_node) {
+				uint32 value;
+				char head[256];
+				if (sscanf(line, "%[ |]\"cpu-version\" = <%x>", head, &value) == 2)
+					PVR = value;
+				else if (sscanf(line, "%[ |]\"clock-frequency\" = <%x>", head, &value) == 2)
+					CPUClockSpeed = value;
+				else if (sscanf(line, "%[ |]\"bus-frequency\" = <%x>", head, &value) == 2)
+					BusClockSpeed = value;
+				else if (strchr(line, '}'))
+					powerpc_node = false;
+			}
+		}
+		fclose(proc_file);
+	} else {
+		sprintf(str, GetString(STR_PROC_CPUINFO_WARN), strerror(errno));
+		WarningAlert(str);
+	}
 #else
 	proc_file = fopen("/proc/cpuinfo", "r");
 	if (proc_file) {
