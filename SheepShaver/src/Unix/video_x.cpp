@@ -1889,7 +1889,7 @@ void NQD_bitblt(uint32 p)
 		uint8 *src = Mac2HostAddr(ReadMacInt32(p + acclSrcBaseAddr) + (src_Y * src_row_bytes) + (src_X * bpp));
 		uint8 *dst = Mac2HostAddr(ReadMacInt32(p + acclDestBaseAddr) + (dest_Y * dst_row_bytes) + (dest_X * bpp));
 		for (int i = 0; i < height; i++) {
-			memcpy(dst, src, width);
+			memmove(dst, src, width);
 			src += src_row_bytes;
 			dst += dst_row_bytes;
 		}
@@ -1900,7 +1900,7 @@ void NQD_bitblt(uint32 p)
 		uint8 *src = Mac2HostAddr(ReadMacInt32(p + acclSrcBaseAddr) + ((src_Y + height - 1) * src_row_bytes) + (src_X * bpp));
 		uint8 *dst = Mac2HostAddr(ReadMacInt32(p + acclDestBaseAddr) + ((dest_Y + height - 1) * dst_row_bytes) + (dest_X * bpp));
 		for (int i = height - 1; i >= 0; i--) {
-			memcpy(dst, src, width);
+			memmove(dst, src, width);
 			src -= src_row_bytes;
 			dst -= dst_row_bytes;
 		}
