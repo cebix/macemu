@@ -165,7 +165,7 @@ struct external_syment
   uint16_t e_type;
   char e_sclass[1];
   char e_numaux[1];
-};
+} __attribute__((packed));
 
 #define N_BTMASK	(0xf)
 #define N_TMASK		(0x30)
