@@ -185,16 +185,12 @@ static void find_hfs_partition(DriveInfo *info)
 		if (Sys_read(info->fh, map, i * 512, 512) != 512)
 			break;
 
-		// Skip driver descriptor
-		uint16 sig = ntohs(((uint16 *)map)[0]);
-		if (sig == 0x4552)
-			continue;
-
-		// No partition map? Then look at next block
+		// Not a partition map block? Then look at next block
+		uint16 sig = (map[0] << 8) | map[1];
 		if (sig != 0x504d)
 			continue;
 
-		// Partition map found, Apple HFS partition?
+		// Partition map block found, Apple HFS partition?
 		if (strcmp((char *)(map + 48), "Apple_HFS") == 0) {
 			info->start_byte = ntohl(((uint32 *)map)[2]) << 9;
 			D(bug(" HFS partition found at %d, %d blocks\n", info->start_byte, ntohl(((uint32 *)map)[3])));

@@ -273,7 +273,7 @@ void *Sys_open(const char *name, bool read_only)
 	}
 
 	// Open file/device
-#if defined(__linux__)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__)
 	int fd = open(name, (read_only ? O_RDONLY : O_RDWR) | (is_cdrom ? O_NONBLOCK : 0));
 #else
 	int fd = open(name, read_only ? O_RDONLY : O_RDWR);
@@ -549,6 +549,17 @@ bool SysIsDiskInserted(void *arg)
 		lseek(fh->fd, 0, SEEK_SET);
 		return read(fh->fd, block, 512) == 512;
 	} else if (fh->is_cdrom) {
+#ifdef CDROM_MEDIA_CHANGED
+		if (fh->cdrom_cap & CDC_MEDIA_CHANGED) {
+			// If we don't do this, all attempts to read from a disc fail
+			// once the tray has been open (altough the TOC reads fine).
+			// Can somebody explain this to me?
+			if (ioctl(fh->fd, CDROM_MEDIA_CHANGED) == 1) {
+				close(fh->fd);
+				fh->fd = open(fh->name, O_RDONLY | O_NONBLOCK);
+			}
+		}
+#endif
 #ifdef CDROM_DRIVE_STATUS
 		if (fh->cdrom_cap & CDC_DRIVE_STATUS) {
 			return ioctl(fh->fd, CDROM_DRIVE_STATUS, CDSL_CURRENT) == CDS_DISC_OK;
