@@ -24,7 +24,6 @@
 #include <string.h>
 
 #include <SDL.h>
-#include <SDL_mutex.h>
 
 #include "sysdeps.h"
 #include "main.h"
@@ -134,45 +133,6 @@ sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
 uintptr SignalStackBase(void)
 {
 	return sig_stack + SIG_STACK_SIZE;
-}
-
-
-/*
- *  Atomic operations
- */
-
-#if HAVE_SPINLOCKS
-static spinlock_t atomic_ops_lock = SPIN_LOCK_UNLOCKED;
-#else
-#define spin_lock(LOCK)
-#define spin_unlock(LOCK)
-#endif
-
-int atomic_add(int *var, int v)
-{
-	spin_lock(&atomic_ops_lock);
-	int ret = *var;
-	*var += v;
-	spin_unlock(&atomic_ops_lock);
-	return ret;
-}
-
-int atomic_and(int *var, int v)
-{
-	spin_lock(&atomic_ops_lock);
-	int ret = *var;
-	*var &= v;
-	spin_unlock(&atomic_ops_lock);
-	return ret;
-}
-
-int atomic_or(int *var, int v)
-{
-	spin_lock(&atomic_ops_lock);
-	int ret = *var;
-	*var |= v;
-	spin_unlock(&atomic_ops_lock);
-	return ret;
 }
 
 
@@ -875,9 +835,7 @@ static DWORD tick_func(void *arg)
  */
 
 struct B2_mutex {
-	B2_mutex() { m = SDL_CreateMutex(); }
-	~B2_mutex() { if (m) SDL_DestroyMutex(m); }
-	SDL_mutex *m;
+	mutex_t m;
 };
 
 B2_mutex *B2_create_mutex(void)
@@ -887,14 +845,12 @@ B2_mutex *B2_create_mutex(void)
 
 void B2_lock_mutex(B2_mutex *mutex)
 {
-	if (mutex)
-		SDL_LockMutex(mutex->m);
+	mutex->m.lock();
 }
 
 void B2_unlock_mutex(B2_mutex *mutex)
 {
-	if (mutex)
-		SDL_UnlockMutex(mutex->m);
+	mutex->m.unlock();
 }
 
 void B2_delete_mutex(B2_mutex *mutex)
@@ -908,15 +864,20 @@ void B2_delete_mutex(B2_mutex *mutex)
  */
 
 volatile uint32 InterruptFlags = 0;
+static mutex_t intflags_mutex;
 
 void SetInterruptFlag(uint32 flag)
 {
-	atomic_or((int *)&InterruptFlags, flag);
+	intflags_mutex.lock();
+	InterruptFlags |= flag;
+	intflags_mutex.unlock();
 }
 
 void ClearInterruptFlag(uint32 flag)
 {
-	atomic_and((int *)&InterruptFlags, ~flag);
+	intflags_mutex.lock();
+	InterruptFlags &= ~flag;
+	intflags_mutex.unlock();
 }
 
 
