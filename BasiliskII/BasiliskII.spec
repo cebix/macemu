@@ -56,8 +56,8 @@ if [ -x /usr/bin/getconf ] ; then
 else  
   NCPU=1
 fi
-PARL=$[ $NCPU + 1 ]
-make -j $PARL
+(make -k -j $NCPU; exit 0)
+make
 
 %install
 rm -rf ${RPM_BUILD_ROOT}
