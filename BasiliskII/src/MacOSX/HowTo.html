@@ -9,6 +9,7 @@
 <LI> <A HREF="#rom">	Macintosh ROM image	</A> </LI>
 <LI> <A HREF="#b-disk">	Creating a boot disk</A> </LI>
 <LI> <A HREF="#mount">	Mounting Unix Files</A> </LI>
+<LI> <A HREF="#import">	Importing Mac Files</A> </LI>
 </UL>
 
 <HR>
@@ -141,12 +142,24 @@ and you should boot into your installed OS. </P>
 
 <P> If Basilisk II is running MacOS 7.5.3 or newer, you can easily access some
 of the files from your OS X disks. Just set the 'Unix directory to mount' in the
-Volumes tab of the Preferences. Next time the Emulator starts up, a new disk will
-appear on its Desktop (called Unix). </P>
+Volumes tab of the Preferences. Next time the Emulator starts up, a new disk
+will appear on its Desktop (called Unix). </P>
 
 <P> To prevent clashes with the OS X desktop files, I suggest that the directory
 you select is not a whole disk (<I>e.g.</I> '/' or '/Volumes/disk'). Mount a
 sub-folder instead (like '/Applications (Mac OS 9)'). </P>
+
+<HR>
+
+<H2> <A NAME="import">Importing Mac Files</A> </H2>
+
+<P> If you are not running MacOS 7.5.3 or newer, the above trick won't work.
+This makes getting files into Basilisk II harder. Luckily, older versions of
+Apple's "Disk Copy" utility can create a disk image file that is compatible
+with Basilisk II (<I>i.e.<.I> you can add it as a disk volume).
+
+<P>Open 10.1's Disk Copy program, and create a "Mac Standard" image, or
+use Disk Copy 6.??? in Classic.
 
 <HR>
 
