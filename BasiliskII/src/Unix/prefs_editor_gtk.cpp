@@ -227,13 +227,21 @@ static void mn_about(...)
 {
 	GtkWidget *dialog, *label, *button;
 
-	char str[256];
-	sprintf(str, GetString(STR_ABOUT_TEXT1), VERSION_MAJOR, VERSION_MINOR);
-	strncat(str, "\n", 255);
-	strncat(str, GetString(STR_ABOUT_TEXT2), 255);
+	char str[512];
+	sprintf(str,
+		"Basilisk II\nVersion %d.%d\n\n"
+		"Copyright (C) 1997-2001 Christian Bauer et al.\n"
+		"E-mail: Christian.Bauer@uni-mainz.de\n"
+		"http://www.uni-mainz.de/~bauec002/B2Main.html\n\n"
+		"Basilisk II comes with ABSOLUTELY NO\n"
+		"WARRANTY. This is free software, and\n"
+		"you are welcome to redistribute it\n"
+		"under the terms of the GNU General\n"
+		"Public License.\n",
+		VERSION_MAJOR, VERSION_MINOR
+	);
 
 	dialog = gtk_dialog_new();
-	gtk_widget_set_usize(GTK_WIDGET(dialog), strlen(GetString(STR_ABOUT_TEXT2)) + 200, 120);
 	gtk_window_set_title(GTK_WINDOW(dialog), GetString(STR_ABOUT_TITLE));
 	gtk_container_border_width(GTK_CONTAINER(dialog), 5);
 	gtk_widget_set_uposition(GTK_WIDGET(dialog), 100, 150);

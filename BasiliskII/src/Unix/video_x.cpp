@@ -87,8 +87,8 @@ static bool local_X11;								// Flag: X server running on local machine?
 static uint8 *the_buffer = NULL;					// Mac frame buffer (where MacOS draws into)
 static uint8 *the_buffer_copy = NULL;				// Copy of Mac frame buffer (for refreshed modes)
 
-#ifdef HAVE_PTHREADS
 static bool redraw_thread_active = false;			// Flag: Redraw thread installed
+#ifdef HAVE_PTHREADS
 static volatile bool redraw_thread_cancel;			// Flag: Cancel Redraw thread
 static pthread_t redraw_thread;						// Redraw thread
 #endif
@@ -345,14 +345,14 @@ driver_base::driver_base()
 
 driver_base::~driver_base()
 {
-	XFlush(x_display);
-	XSync(x_display, false);
-
 	if (w) {
 		XUnmapWindow(x_display, w);
 		wait_unmapped(w);
 		XDestroyWindow(x_display, w);
 	}
+
+	XFlush(x_display);
+	XSync(x_display, false);
 
 	// Free frame buffer(s)
 	if (!use_vosf) {
@@ -446,7 +446,7 @@ driver_window::driver_window(const video_mode &mode)
 	wait_mapped(w);
 
 	// Try to create and attach SHM image
-	if (local_X11 && mode.depth != VDEPTH_1BIT && XShmQueryExtension(x_display)) {
+	if (local_X11 && XShmQueryExtension(x_display)) {
 
 		// Create SHM image ("height + 2" for safety)
 		img = XShmCreateImage(x_display, vis, mode.depth == VDEPTH_1BIT ? 1 : xdepth, mode.depth == VDEPTH_1BIT ? XYBitmap : ZPixmap, 0, &shminfo, width, height);
@@ -659,14 +659,13 @@ void driver_dga::resume(void)
  *  fbdev DGA display driver
  */
 
+const char FBDEVICES_FILE_NAME[] = DATADIR "/fbdevices";
+const char FBDEVICE_FILE_NAME[] = "/dev/fb";
+
 class driver_fbdev : public driver_dga {
 public:
 	driver_fbdev(const video_mode &mode);
 	~driver_fbdev();
-
-private:
-	const char FBDEVICES_FILE_NAME[] = DATADIR "/fbdevices";
-	const char FBDEVICE_FILE_NAME[] = "/dev/fb";
 };
 
 // Open display
@@ -799,7 +798,7 @@ driver_fbdev::driver_fbdev(const video_mode &mode)
 	
 	// Set VideoMonitor
 	VideoModes[0].bytes_per_row = bytes_per_row;
-	VideoModes[0].depth = DepthModeForPixelDepth();
+	VideoModes[0].depth = DepthModeForPixelDepth(fb_depth);
 	VideoMonitor.mode = mode;
 	set_mac_frame_buffer(mode.depth, true);
 
@@ -1070,14 +1069,16 @@ static bool video_open(const video_mode &mode)
 	XSync(x_display, false);
 	LOCK_FRAME_BUFFER;
 
-#ifdef HAVE_PTHREADS
 	// Start redraw/input thread
+#ifdef HAVE_PTHREADS
 	redraw_thread_cancel = false;
 	redraw_thread_active = (pthread_create(&redraw_thread, NULL, redraw_func, NULL) == 0);
 	if (!redraw_thread_active) {
 		printf("FATAL: cannot create redraw thread\n");
 		return false;
 	}
+#else
+	redraw_thread_active = true;
 #endif
 
 	return true;
@@ -1260,17 +1261,17 @@ bool VideoInit(bool classic)
 // Close display
 static void video_close(void)
 {
-#ifdef HAVE_PTHREADS
 	// Stop redraw thread
+#ifdef HAVE_PTHREADS
 	if (redraw_thread_active) {
 		redraw_thread_cancel = true;
 #ifdef HAVE_PTHREAD_CANCEL
 		pthread_cancel(redraw_thread);
 #endif
 		pthread_join(redraw_thread, NULL);
-		redraw_thread_active = false;
 	}
 #endif
+	redraw_thread_active = false;
 
 	// Unlock frame buffer
 	UNLOCK_FRAME_BUFFER;
@@ -2051,8 +2052,10 @@ static void VideoRefreshInit(void)
 
 void VideoRefresh(void)
 {
-	// TODO: make main_unix/VideoRefresh call directly video_refresh() ?
-	video_refresh();
+	// We need to check redraw_thread_active to inhibit refreshed during
+	// mode changes on non-threaded platforms
+	if (redraw_thread_active)
+		video_refresh();
 }
 
 #ifdef HAVE_PTHREADS
