@@ -98,9 +98,9 @@ $(OBJ_DIR)/%.o : %.S
 # Kheperix CPU emulator
 GENEXEC = ../kpx_cpu/src/cpu/ppc/genexec.pl
 
-../kpx_cpu/src/cpu/ppc/ppc-execute.cpp: ppc-execute-impl.cpp
+$(OBJ_DIR)/ppc-execute.o: ppc-execute-impl.cpp
 ppc-execute-impl.cpp: ../kpx_cpu/src/cpu/ppc/ppc-decode.cpp $(GENEXEC)
-	$(CPP) $(CPPFLAGS) $< | $(GENEXEC) > $@
+	$(CPP) $(CPPFLAGS) -DGENEXEC $< | $(GENEXEC) > $@
 
 #-------------------------------------------------------------------------
 # DO NOT DELETE THIS LINE -- make depend depends on it.
