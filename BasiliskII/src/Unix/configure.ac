@@ -872,6 +872,13 @@ if [[ "x$WANT_JIT" = "xyes" -a "x$CAN_JIT" ]]; then
       WANT_JIT_DEBUG=no
     fi
   fi
+
+  dnl IEEE core is the only FPU emulator to use with the JIT compiler
+  case $FPE_CORE_TEST_ORDER in
+  ieee*) ;;
+  *) AC_MSG_WARN([Forcing use of the IEEE FPU core, as the JIT compiler supports only this one.]) ;;
+  esac
+  FPE_CORE_TEST_ORDER="ieee"
 else
   WANT_JIT=no
   WANT_JIT_DEBUG=no
