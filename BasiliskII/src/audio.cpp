@@ -611,27 +611,27 @@ int16 SoundInStatus(uint32 pb, uint32 dce)
 
 		case siDeviceIcon: {
 			M68kRegisters r;
-			static const uint16 proc[] = {
-				0x558f,					// 	subq.l	#2,sp
-				0xa994,					// 	CurResFile
-				0x4267,					// 	clr.w	-(sp)
-				0xa998,					// 	UseResFile
-				0x598f,					// 	subq.l	#4,sp
-				0x4879, 0x4943, 0x4e23,	// 	move.l	#'ICN#',-(sp)
-				0x3f3c, 0xbf76,			// 	move.w	#-16522,-(sp)
-				0xa9a0,					// 	GetResource
-				0x245f,					// 	move.l	(sp)+,a2
-				0xa998,					// 	UseResFile
-				0x200a,					// 	move.l	a2,d0
-				0x6604,					// 	bne		1
-				0x7000,					//  moveq	#0,d0
-				M68K_RTS,
-				0x2f0a,					//1 move.l	a2,-(sp)
-				0xa992,					//  DetachResource
-				0x204a,					//  move.l	a2,a0
-				0xa04a,					//	HNoPurge
-				0x7001,					//	moveq	#1,d0
-				M68K_RTS
+			static const uint8 proc[] = {
+				0x55, 0x8f,							// 	subq.l	#2,sp
+				0xa9, 0x94,							// 	CurResFile
+				0x42, 0x67,							// 	clr.w	-(sp)
+				0xa9, 0x98,							// 	UseResFile
+				0x59, 0x8f,							// 	subq.l	#4,sp
+				0x48, 0x79, 0x49, 0x43, 0x4e, 0x23,	// 	move.l	#'ICN#',-(sp)
+				0x3f, 0x3c, 0xbf, 0x76,				// 	move.w	#-16522,-(sp)
+				0xa9, 0xa0,							// 	GetResource
+				0x24, 0x5f,							// 	move.l	(sp)+,a2
+				0xa9, 0x98,							// 	UseResFile
+				0x20, 0x0a,							// 	move.l	a2,d0
+				0x66, 0x04,							// 	bne		1
+				0x70, 0x00,							//  moveq	#0,d0
+				M68K_RTS >> 8, M68K_RTS & 0xff,
+				0x2f, 0x0a,							//1 move.l	a2,-(sp)
+				0xa9, 0x92,							//  DetachResource
+				0x20, 0x4a,							//  move.l	a2,a0
+				0xa0, 0x4a,							//	HNoPurge
+				0x70, 0x01,							//	moveq	#1,d0
+				M68K_RTS >> 8, M68K_RTS & 0xff
 			};
 			Execute68k((uint32)proc, &r);
 			if (r.d[0]) {
