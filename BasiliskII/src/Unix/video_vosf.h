@@ -350,6 +350,39 @@ static bool Screen_fault_handler_init()
  *	Update display for Windowed mode and VOSF
  */
 
+/*	How can we deal with array overrun conditions ?
+	
+	The state of the framebuffer pages that have been touched are maintained
+	in the dirtyPages[] table. That table is (pageCount + 2) bytes long.
+
+Terminology
+	
+	"Last Page" denotes the pageCount-nth page, i.e. dirtyPages[pageCount - 1].
+	"CLEAR Page Guard" refers to the page following the Last Page but is always
+	in the CLEAR state. "SET Page Guard" refers to the page following the CLEAR
+	Page Guard but is always in the SET state.
+
+Rough process
+	
+	The update routines must determine which pages have to blitted to the
+	screen. This job consists in finding the first_page that was touched.
+	i.e. find the next page that is SET. Then, finding how many pages were
+	touched starting from first_page. i.e. find the next page that is CLEAR.
+
+Two cases
+
+	- Last Page is CLEAR: find_next_page_set() will reach the SET Page Guard
+	but it is beyond the valid pageCount value. Therefore, we exit from the
+	update routine.
+	
+	- Last Page is SET: first_page equals (pageCount - 1) and
+	find_next_page_clear() will reach the CLEAR Page Guard. We blit the last
+	page to the screen. On the next iteration, page equals pageCount and
+	find_next_page_set() will reach the SET Page Guard. We still safely exit
+	from the update routine because the SET Page Guard position is greater
+	than pageCount.
+*/
+
 static inline void update_display_window_vosf(void)
 {
 	int page = 0;

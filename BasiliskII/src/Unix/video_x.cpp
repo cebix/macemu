@@ -264,8 +264,6 @@ static inline int find_next_page_clear(int page)
 	char *match = strchr(mainBuffer.dirtyPages + page, PFLAG_CLEAR_VALUE);
 	return match ? match - mainBuffer.dirtyPages : mainBuffer.pageCount;
 #else
-	// NOTE: the loop is bound to terminate because the last
-	// page in mainBuffer.dirtyPages[] shall be set to CLEAR
 	while (PFLAG_ISSET_4(page))
 		page += 4;
 	while (PFLAG_ISSET(page))
@@ -945,7 +943,7 @@ bool VideoInitBuffer()
 		if (mainBuffer.dirtyPages != 0)
 			free(mainBuffer.dirtyPages);
 
-		mainBuffer.dirtyPages = (char *) malloc(mainBuffer.pageCount + 1);
+		mainBuffer.dirtyPages = (char *) malloc(mainBuffer.pageCount + 2);
 
 		if (mainBuffer.pageInfo != 0)
 			free(mainBuffer.pageInfo);
@@ -956,12 +954,10 @@ bool VideoInitBuffer()
 			return false;
 
 		PFLAG_CLEAR_ALL;
-		
-		// Make sure there is at least one page marked, so the
-		// loops in the update routine will terminate
-		// gb-- Set the last page as cleared because the update
-		// routine finally searches for a page that was not touched
+		// Safety net to insure the loops in the update routines will terminate
+		// See a discussion in <video_vosf.h> for further details
 		PFLAG_CLEAR(mainBuffer.pageCount);
+		PFLAG_SET(mainBuffer.pageCount+1);
 
 		uint32 a = 0;
 		for (int i = 0; i < mainBuffer.pageCount; i++) {
@@ -1955,7 +1951,7 @@ static void update_display_static(void)
 
 // We suggest the compiler to inline the next two functions so that it
 // may specialise the code according to the current screen depth and
-// display type. A clever compiler would that job by itself though...
+// display type. A clever compiler would do that job by itself though...
 
 // NOTE: update_display_vosf is inlined too
 
