@@ -36,28 +36,58 @@
 /* particular window, instead of as a separate window (Panel or Dialog)	*/
 /************************************************************************/
 
+void ErrorSheet (NSString * message, NSWindow * window)
+{
+	NSLog(message);
+	NSBeginCriticalAlertSheet(message, nil, nil, nil, window,
+									   nil, nil, nil, NULL, @"");
+	while ( [window attachedSheet] )
+		[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow: 1.0]];
+}
 
 void ErrorSheet (NSString * message1, NSString * message2,
-				 NSString * button,   NSWindow * win)
+				 NSString * button,   NSWindow * window)
 {
-	NSBeginCriticalAlertSheet(message1, button, nil, nil, win,
-							  nil, NULL, NULL, NULL, message2);
+	NSLog(message1);
+	NSLog(message2);
+	NSBeginCriticalAlertSheet(message1, button, nil, nil, window,
+									nil, nil, nil, NULL, message2);
+	while ( [window attachedSheet] )
+		[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow: 1.0]];
 }
 
+
+void WarningSheet (NSString * message, NSWindow * window)
+{
+	NSLog(message);
+	NSBeginAlertSheet(message, nil, nil, nil, window,
+							   nil, nil, nil, NULL, @"");
+}
 
 void WarningSheet (NSString * message1, NSString * message2,
-				   NSString * button,   NSWindow * win)
+				   NSString * button,   NSWindow * window)
 {
-	NSBeginAlertSheet(message1, button, nil, nil, win,
-					  nil, NULL, NULL, NULL, message2);
+	NSLog(message1);
+	NSLog(message2);
+	NSBeginAlertSheet(message1, button, nil, nil, window,
+							nil, nil, nil, NULL, message2);
 }
 
 
-void InfoSheet (NSString * message1, NSString * message2,
-				NSString * button,   NSWindow * win)
+void InfoSheet (NSString * message, NSWindow * window)
 {
-	NSBeginInformationalAlertSheet(message1, button, nil, nil, win,
-								nil, NULL, NULL, NULL, message2);
+	NSLog(message);
+	NSBeginInformationalAlertSheet(message, nil, nil, nil, window,
+											nil, nil, nil, NULL, @"");
+}
+
+void InfoSheet (NSString * message1, NSString * message2,
+				NSString * button,   NSWindow * window)
+{
+	NSLog(message1);
+	NSLog(message2);
+	NSBeginInformationalAlertSheet(message1, nil, nil, nil, window,
+										nil, nil, nil, NULL, message2);
 }
 
 
