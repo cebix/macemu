@@ -28,19 +28,12 @@
  *  Page-aligned memory allocation
  */
 
-// Align on page boundaries
-static uintptr align_on_page_boundary(uintptr size)
+// Extend size to page boundary
+static uint32 page_extend(uint32 size)
 {
 	const uint32 page_size = getpagesize();
 	const uint32 page_mask = page_size - 1;
 	return (size + page_mask) & ~page_mask;
-}
-
-// Allocate memory on page boundary
-static void * allocate_framebuffer(uint32 size, uint8 * hint = 0)
-{
-	// Remind that the system can allocate at 0x00000000...
-	return mmap((caddr_t)hint, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, zero_fd, 0);
 }
 
 // Screen fault handler
@@ -55,10 +48,10 @@ static bool screen_fault_handler(sigsegv_address_t fault_address, sigsegv_addres
 	 */
 	if ((addr >= mainBuffer.memStart) && (addr < mainBuffer.memEnd)) {
 		const int page  = (addr - mainBuffer.memStart) >> mainBuffer.pageBits;
-		caddr_t page_ad = (caddr_t)(addr & ~(mainBuffer.pageSize - 1));
+		caddr_t page_ad = (caddr_t)(addr & -mainBuffer.pageSize);
 		LOCK_VOSF;
 		PFLAG_SET(page);
-		mprotect(page_ad, mainBuffer.pageSize, PROT_READ | PROT_WRITE);
+		vm_protect((char *)page_ad, mainBuffer.pageSize, VM_PAGE_READ | VM_PAGE_WRITE);
 		mainBuffer.dirty = true;
 		UNLOCK_VOSF;
 		return true;
@@ -127,7 +120,7 @@ static inline void update_display_window_vosf(void)
 		// Make the dirty pages read-only again
 		const int32 offset  = first_page << mainBuffer.pageBits;
 		const uint32 length = (page - first_page) << mainBuffer.pageBits;
-		mprotect((caddr_t)(mainBuffer.memStart + offset), length, PROT_READ);
+		vm_protect((char *)mainBuffer.memStart + offset, length, VM_PAGE_READ);
 		
 		// There is at least one line to update
 		const int y1 = mainBuffer.pageInfo[first_page].top;
@@ -185,7 +178,7 @@ static inline void update_display_dga_vosf(void)
 		// Make the dirty pages read-only again
 		const int32 offset  = first_page << mainBuffer.pageBits;
 		const uint32 length = (page - first_page) << mainBuffer.pageBits;
-		mprotect((caddr_t)(mainBuffer.memStart + offset), length, PROT_READ);
+		vm_protect((char *)mainBuffer.memStart + offset, length, VM_PAGE_READ);
 		
 		// I am sure that y2 >= y1 and depth != 1
 		const int y1 = mainBuffer.pageInfo[first_page].top;

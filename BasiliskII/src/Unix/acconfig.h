@@ -56,6 +56,18 @@
 /* Define if we know a hack to replace siginfo_t::si_addr member */
 #undef HAVE_SIGCONTEXT_SUBTERFUGE
 
+/* Define if your system has a working vm_allocate()-based memory allocator */
+#undef HAVE_MACH_VM
+
+/* Define if your system has a working mmap()-based memory allocator */
+#undef HAVE_MMAP_VM
+
+/* Define if <sys/mman.h> defines MAP_ANON and mmap()'ing with MAP_ANON works */
+#undef HAVE_MMAP_ANON
+
+/* Define if <sys/mman.h> defines MAP_ANONYMOUS and mmap()'ing with MAP_ANONYMOUS works */
+#undef HAVE_MMAP_ANONYMOUS
+
 
 /* Leave that blank line there!!  Autoheader needs it.
    If you're adding to this file, keep in mind:

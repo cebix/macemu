@@ -56,6 +56,7 @@
 # include <fcntl.h>
 # include <sys/mman.h>
 # include "sigsegv.h"
+# include "vm_alloc.h"
 #endif
 
 #include "cpu_emulation.h"
@@ -187,9 +188,9 @@ struct ScreenPageInfo {
 };
 
 struct ScreenInfo {
-    uint32 memBase;				// Real start address 
-    uint32 memStart;			// Start address aligned to page boundary
-    uint32 memEnd;				// Address of one-past-the-end of the screen
+    uintptr memBase;			// Real start address 
+    uintptr memStart;			// Start address aligned to page boundary
+    uintptr memEnd;				// Address of one-past-the-end of the screen
     uint32 memLength;			// Length of the memory addressed by the screen pages
     
     uint32 pageSize;			// Size of a page
@@ -544,15 +545,11 @@ static bool init_window(int width, int height)
 	}
 
 #ifdef ENABLE_VOSF
-	// Allocate a page-aligned chunk of memory for frame buffer
-	the_buffer_size = align_on_page_boundary((aligned_height + 2) * img->bytes_per_line);
+	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	the_host_buffer = the_buffer_copy;
-	
-	the_buffer_copy = (uint8 *)allocate_framebuffer(the_buffer_size);
-	memset(the_buffer_copy, 0, the_buffer_size);
-	
-	the_buffer = (uint8 *)allocate_framebuffer(the_buffer_size);
-	memset(the_buffer, 0, the_buffer_size);
+	the_buffer_size = page_extend((aligned_height + 2) * img->bytes_per_line);
+	the_buffer_copy = (uint8 *)vm_acquire(the_buffer_size);
+	the_buffer = (uint8 *)vm_acquire(the_buffer_size);
 #else
 	// Allocate memory for frame buffer
 	the_buffer = (uint8 *)malloc((aligned_height + 2) * img->bytes_per_line);
@@ -721,12 +718,11 @@ static bool init_fbdev_dga(char *in_fb_name)
 	use_vosf = Screen_blitter_init(&visualInfo, true);
 	
 	if (use_vosf) {
-		the_host_buffer = the_buffer;
-		the_buffer_size = align_on_page_boundary((height + 2) * bytes_per_row);
-		the_buffer_copy = (uint8 *)malloc(the_buffer_size);
-		memset(the_buffer_copy, 0, the_buffer_size);
-		the_buffer = (uint8 *)allocate_framebuffer(the_buffer_size);
-		memset(the_buffer, 0, the_buffer_size);
+	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
+	  the_host_buffer = the_buffer;
+	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
+	  the_buffer_copy = (uint8 *)vm_acquire(the_buffer_size);
+	  the_buffer = (uint8 *)vm_acquire(the_buffer_size);
 	}
 #else
 	use_vosf = false;
@@ -821,23 +817,23 @@ static bool init_xf86_dga(int width, int height)
 			bytes_per_row *= 4;
 			break;
 	}
-	
+
+#ifdef VIDEO_VOSF
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 	// Screen_blitter_init() returns TRUE if VOSF is mandatory
 	// i.e. the framebuffer update function is not Blit_Copy_Raw
 	use_vosf = Screen_blitter_init(&visualInfo, true);
 	
 	if (use_vosf) {
-		the_host_buffer = the_buffer;
-		the_buffer_size = align_on_page_boundary((height + 2) * bytes_per_row);
-		the_buffer_copy = (uint8 *)malloc(the_buffer_size);
-		memset(the_buffer_copy, 0, the_buffer_size);
-		the_buffer = (uint8 *)allocate_framebuffer(the_buffer_size);
-		memset(the_buffer, 0, the_buffer_size);
+	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
+	  the_host_buffer = the_buffer;
+	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
+	  the_buffer_copy = (uint8 *)vm_acquire(the_buffer_size);
+	  the_buffer = (uint8 *)vm_acquire(the_buffer_size);
 	}
-#elif defined(ENABLE_VOSF)
-	// The UAE memory handlers will already handle color conversion, if needed.
+#else
 	use_vosf = false;
+#endif
 #endif
 	
 	set_video_monitor(width, height, bytes_per_row, true);
@@ -926,9 +922,9 @@ bool VideoInitBuffer()
 		const uint32 page_size	= getpagesize();
 		const uint32 page_mask	= page_size - 1;
 		
-		mainBuffer.memBase      = (uint32) the_buffer;
+		mainBuffer.memBase      = (uintptr) the_buffer;
 		// Align the frame buffer on page boundary
-		mainBuffer.memStart		= (uint32)((((unsigned long) the_buffer) + page_mask) & ~page_mask);
+		mainBuffer.memStart		= (uintptr)((((unsigned long) the_buffer) + page_mask) & ~page_mask);
 		mainBuffer.memLength	= the_buffer_size;
 		mainBuffer.memEnd       = mainBuffer.memStart + mainBuffer.memLength;
 
@@ -976,7 +972,7 @@ bool VideoInitBuffer()
 		}
 		
 		// We can now write-protect the frame buffer
-		if (mprotect((caddr_t)mainBuffer.memStart, mainBuffer.memLength, PROT_READ) != 0)
+		if (vm_protect((char *)mainBuffer.memStart, mainBuffer.memLength, VM_PAGE_READ) != 0)
 			return false;
 	}
 #endif
@@ -1260,13 +1256,13 @@ void VideoExit(void)
 		}
 #ifdef ENABLE_VOSF
 		else {
-			if (the_buffer != (uint8 *)MAP_FAILED) {
-				munmap((caddr_t)the_buffer, the_buffer_size);
+			if (the_buffer != (uint8 *)VM_MAP_FAILED) {
+				vm_release(the_buffer, the_buffer_size);
 				the_buffer = 0;
 			}
 			
-			if (the_buffer_copy != (uint8 *)MAP_FAILED) {
-				munmap((caddr_t)the_buffer_copy, the_buffer_size);
+			if (the_buffer_copy != (uint8 *)VM_MAP_FAILED) {
+				vm_release(the_buffer_copy, the_buffer_size);
 				the_buffer_copy = 0;
 			}
 		}

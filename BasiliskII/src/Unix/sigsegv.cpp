@@ -70,14 +70,29 @@ static bool sigsegv_do_install_handler(int sig);
 #endif
 #if (defined(sparc) || defined(__sparc__))
 #include <asm/sigcontext.h>
-#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext* scp, char* addr
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp, char* addr
 #define SIGSEGV_FAULT_ADDRESS			addr
 #endif
 #if (defined(powerpc) || defined(__powerpc__))
 #include <asm/sigcontext.h>
-#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, struct sigcontext* scp
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, struct sigcontext *scp
 #define SIGSEGV_FAULT_ADDRESS			scp->regs->dar
 #define SIGSEGV_FAULT_INSTRUCTION		scp->regs->nip
+#endif
+#if (defined(alpha) || defined(__alpha__))
+#include <asm/sigcontext.h>
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
+#define SIGSEGV_FAULT_ADDRESS			get_fault_address(scp)
+#define SIGSEGV_FAULT_INSTRUCTION		scp->sc_pc
+
+// From Boehm's GC 6.0alpha8
+static sigsegv_address_t get_fault_address(struct sigcontext *scp)
+{
+	unsigned int instruction = *((unsigned int *)(scp->sc_pc));
+	unsigned long fault_address = scp->sc_regs[(instruction >> 16) & 0x1f];
+	fault_address += (signed long)(signed short)(instruction & 0xffff);
+	return (sigsegv_address_t)fault_address;
+}
 #endif
 #endif
 
@@ -130,6 +145,114 @@ static bool sigsegv_do_install_handler(int sig);
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, void *scp, char *addr
 #define SIGSEGV_FAULT_ADDRESS			addr
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGBUS)
+#endif
+#endif
+
+// MacOS X
+#if defined(__APPLE__) && defined(__MACH__)
+#if (defined(ppc) || defined(__ppc__))
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
+#define SIGSEGV_FAULT_ADDRESS			get_fault_address(scp)
+#define SIGSEGV_FAULT_INSTRUCTION		scp->sc_ir
+#define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGBUS)
+
+// From Boehm's GC 6.0alpha8
+#define EXTRACT_OP1(iw)     (((iw) & 0xFC000000) >> 26)
+#define EXTRACT_OP2(iw)     (((iw) & 0x000007FE) >> 1)
+#define EXTRACT_REGA(iw)    (((iw) & 0x001F0000) >> 16)
+#define EXTRACT_REGB(iw)    (((iw) & 0x03E00000) >> 21)
+#define EXTRACT_REGC(iw)    (((iw) & 0x0000F800) >> 11)
+#define EXTRACT_DISP(iw)    ((short *) &(iw))[1]
+
+static sigsegv_address_t get_fault_address(struct sigcontext *scp)
+{
+	unsigned int   instr = *((unsigned int *) scp->sc_ir);
+	unsigned int * regs = &((unsigned int *) scp->sc_regs)[2];
+	int            disp = 0, tmp;
+	unsigned int   baseA = 0, baseB = 0;
+	unsigned int   addr, alignmask = 0xFFFFFFFF;
+
+	switch(EXTRACT_OP1(instr)) {
+	case 38:   /* stb */
+	case 39:   /* stbu */
+	case 54:   /* stfd */
+	case 55:   /* stfdu */
+	case 52:   /* stfs */
+	case 53:   /* stfsu */
+	case 44:   /* sth */
+	case 45:   /* sthu */
+	case 47:   /* stmw */
+	case 36:   /* stw */
+	case 37:   /* stwu */
+		tmp = EXTRACT_REGA(instr);
+		if(tmp > 0)
+			baseA = regs[tmp];
+		disp = EXTRACT_DISP(instr);
+		break;
+	case 31:
+		switch(EXTRACT_OP2(instr)) {
+		case 86:    /* dcbf */
+		case 54:    /* dcbst */
+		case 1014:  /* dcbz */
+		case 247:   /* stbux */
+		case 215:   /* stbx */
+		case 759:   /* stfdux */
+		case 727:   /* stfdx */
+		case 983:   /* stfiwx */
+		case 695:   /* stfsux */
+		case 663:   /* stfsx */
+		case 918:   /* sthbrx */
+		case 439:   /* sthux */
+		case 407:   /* sthx */
+		case 661:   /* stswx */
+		case 662:   /* stwbrx */
+		case 150:   /* stwcx. */
+		case 183:   /* stwux */
+		case 151:   /* stwx */
+		case 135:   /* stvebx */
+		case 167:   /* stvehx */
+		case 199:   /* stvewx */
+		case 231:   /* stvx */
+		case 487:   /* stvxl */
+			tmp = EXTRACT_REGA(instr);
+			if(tmp > 0)
+				baseA = regs[tmp];
+			baseB = regs[EXTRACT_REGC(instr)];
+			/* determine Altivec alignment mask */
+			switch(EXTRACT_OP2(instr)) {
+			case 167:   /* stvehx */
+				alignmask = 0xFFFFFFFE;
+				break;
+			case 199:   /* stvewx */
+				alignmask = 0xFFFFFFFC;
+				break;
+			case 231:   /* stvx */
+				alignmask = 0xFFFFFFF0;
+				break;
+			case 487:  /* stvxl */
+				alignmask = 0xFFFFFFF0;
+				break;
+			}
+			break;
+		case 725:   /* stswi */
+			tmp = EXTRACT_REGA(instr);
+			if(tmp > 0)
+				baseA = regs[tmp];
+			break;
+		default:   /* ignore instruction */
+			return 0;
+			break;
+		}
+		break;
+	default:   /* ignore instruction */
+		return 0;
+		break;
+	}
+	
+	addr = (baseA + baseB) + disp;
+	addr &= alignmask;
+	return (sigsegv_address_t)addr;
+}
 #endif
 #endif
 #endif
@@ -243,12 +366,12 @@ void sigsegv_deinstall_handler(void)
  *  Test program used for configure/test
  */
 
-#ifdef CONFIGURE_TEST
+#ifdef CONFIGURE_TEST_SIGSEGV_RECOVERY
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include "vm_alloc.h"
 
 static int page_size;
 static volatile char * page = 0;
@@ -259,20 +382,21 @@ static bool sigsegv_test_handler(sigsegv_address_t fault_address, sigsegv_addres
 	handler_called++;
 	if ((fault_address - 123) != page)
 		exit(1);
-	if (mprotect((char *)((unsigned long)fault_address & -page_size), page_size, PROT_READ | PROT_WRITE) != 0)
+	if (vm_protect((char *)((unsigned long)fault_address & -page_size), page_size, VM_PAGE_READ | VM_PAGE_WRITE) != 0)
 		exit(1);
 	return true;
 }
 
 int main(void)
 {
-	int zero_fd = open("/dev/zero", O_RDWR);
-	if (zero_fd < 0)
+	if (vm_init() < 0)
 		return 1;
 
 	page_size = getpagesize();
-   	page = (char *)mmap(0, page_size, PROT_READ, MAP_PRIVATE, zero_fd, 0);
-	if (page == MAP_FAILED)
+	if ((page = (char *)vm_acquire(page_size)) == VM_MAP_FAILED)
+		return 1;
+	
+	if (vm_protect((char *)page, page_size, VM_PAGE_READ) < 0)
 		return 1;
 	
 	if (!sigsegv_install_handler(sigsegv_test_handler))
@@ -284,6 +408,7 @@ int main(void)
 	if (handler_called != 1)
 		return 1;
 
+	vm_exit();
 	return 0;
 }
 #endif

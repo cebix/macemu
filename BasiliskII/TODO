@@ -2,6 +2,8 @@ Bugs:
 - System 7.1 with Quadra900 ModelID (1MB ROM): 0x108 gets strange value
 - Real memory addressing: something is still wrong in the Unix part, though
   it works under Linux/i386
+- VOSF does not work with Darwin/X11. Probably due to a combination of
+  select()/signals/sigsegv handling/vm_protect()
 
 General:
 - Sony: rdVerify, Tag Buffer
@@ -35,7 +37,6 @@ BeOS:
 - Last sound buffer is not played
 
 Unix:
-- video_vosf.h: check correctness of {15,16,24 bpp} blitters on big endian systems
 - clip_unix.cpp: clip Unix->Basilisk
 - clip_unix.cpp: use X selections instead of cut buffer
 - sys_unix.cpp: SysFormat(), SysIsFixedDisk(), SysIsDiskInserted(), prevent/allow

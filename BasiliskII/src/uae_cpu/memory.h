@@ -113,16 +113,15 @@ extern void byteput(uaecptr addr, uae_u32 b);
 #endif /* !DIRECT_ADDRESSING && !REAL_ADDRESSING */
 
 #if REAL_ADDRESSING
+const uintptr MEMBaseDiff = 0;
 #define do_get_real_address(a)		((uae_u8 *)(a))
 #define do_get_virtual_address(a)	((uae_u32)(a))
-#define InitMEMBaseDiff(va, ra)		do { } while (0)
 #endif /* REAL_ADDRESSING */
 
 #if DIRECT_ADDRESSING
 extern uintptr MEMBaseDiff;
 #define do_get_real_address(a)		((uae_u8 *)(a) + MEMBaseDiff)
 #define do_get_virtual_address(a)	((uae_u32)(a) - MEMBaseDiff)
-#define InitMEMBaseDiff(va, ra)		(MEMBaseDiff = (uintptr)(va) - (uintptr)(ra))
 #endif /* DIRECT_ADDRESSING */
 
 #if REAL_ADDRESSING || DIRECT_ADDRESSING

@@ -64,7 +64,10 @@ bool Init680x0(void)
 	RAMBaseMac = (uint32)RAMBaseHost;
 	ROMBaseMac = (uint32)ROMBaseHost;
 #elif DIRECT_ADDRESSING
-	InitMEMBaseDiff(RAMBaseHost, RAMBaseMac);
+	// Mac address space = host address space minus constant offset (MEMBaseDiff)
+	// NOTE: MEMBaseDiff is set in main_unix.cpp/main()
+	RAMBaseMac = 0;
+	ROMBaseMac = Host2MacAddr(ROMBaseHost);
 #else
 	// Initialize UAE memory banks
 	RAMBaseMac = 0;

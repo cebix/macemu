@@ -71,6 +71,7 @@ struct sigstate {
 #include "user_strings.h"
 #include "version.h"
 #include "main.h"
+#include "vm_alloc.h"
 
 #ifdef ENABLE_MON
 # include "mon.h"
@@ -108,7 +109,6 @@ bool TwentyFourBitAddressing;
 char *x_display_name = NULL;						// X11 display name
 Display *x_display = NULL;							// X11 display handle
 
-static int zero_fd = -1;							// FD of /dev/zero
 static uint8 last_xpram[256];						// Buffer for monitoring XPRAM changes
 
 #ifdef HAVE_PTHREADS
@@ -154,11 +154,6 @@ static void sigint_handler(...);
 
 #if REAL_ADDRESSING
 static bool lm_area_mapped = false;	// Flag: Low Memory area mmap()ped
-static bool memory_mapped_from_zero = false; // Flag: Could allocate RAM area from 0
-#endif
-
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
-static uint32 mapped_ram_rom_size;		// Total size of mmap()ed RAM/ROM area
 #endif
 
 
@@ -272,14 +267,6 @@ int main(int argc, char **argv)
 		if (!PrefsEditor())
 			QuitEmulator();
 
-	// Open /dev/zero
-	zero_fd = open("/dev/zero", O_RDWR);
-	if (zero_fd < 0) {
-		sprintf(str, GetString(STR_NO_DEV_ZERO_ERR), strerror(errno));
-		ErrorAlert(str);
-		QuitEmulator();
-	}
-
 	// Read RAM size
 	RAMSize = PrefsFindInt32("ramsize") & 0xfff00000;	// Round down to 1MB boundary
 	if (RAMSize < 1024*1024) {
@@ -288,32 +275,37 @@ int main(int argc, char **argv)
 	}
 
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
-	const uint32 page_size = getpagesize();
-	const uint32 page_mask = page_size - 1;
-	const uint32 aligned_ram_size = (RAMSize + page_mask) & ~page_mask;
-	mapped_ram_rom_size = aligned_ram_size + 0x100000;
+	RAMSize = RAMSize & -getpagesize();					// Round down to page boundary
 #endif
+	
+	// Initialize VM system
+	vm_init();
 
 #if REAL_ADDRESSING
-	// Try to allocate the complete address space from zero
-	// gb-- the Solaris manpage about mmap(2) states that using MAP_FIXED
-	// implies undefined behaviour for further use of sbrk(), malloc(), etc.
-	// cebix-- on NetBSD/m68k, this causes a segfault
+	// Flag: RAM and ROM are contigously allocated from address 0
+	bool memory_mapped_from_zero = false;
+	
+	// Under Solaris/SPARC and NetBSD/m68k, Basilisk II is known to crash
+	// when trying to map a too big chunk of memory starting at address 0
 #if defined(OS_solaris) || defined(OS_netbsd)
-	// Anyway, it doesn't work...
-	if (0) {
+	const bool can_map_all_memory = false;
 #else
-	if (mmap((caddr_t)0x0000, mapped_ram_rom_size, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE, zero_fd, 0) != MAP_FAILED) {
+	const bool can_map_all_memory = true;
 #endif
+	
+	// Try to allocate all memory from 0x0000, if it is not known to crash
+	if (can_map_all_memory && (vm_acquire_fixed(0, RAMSize + 0x100000) == 0)) {
 		D(bug("Could allocate RAM and ROM from 0x0000\n"));
 		memory_mapped_from_zero = true;
 	}
-	// Create Low Memory area (0x0000..0x2000)
-	else if (mmap((char *)0x0000, 0x2000, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE, zero_fd, 0) != MAP_FAILED) {
+	
+	// Otherwise, just create the Low Memory area (0x0000..0x2000)
+	else if (vm_acquire_fixed(0, 0x2000) == 0) {
 		D(bug("Could allocate the Low Memory globals\n"));
 		lm_area_mapped = true;
 	}
-	// Exit on error
+	
+	// Exit on failure
 	else {
 		sprintf(str, GetString(STR_LOW_MEM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
@@ -323,8 +315,8 @@ int main(int argc, char **argv)
 
 #if USE_SCRATCHMEM_SUBTERFUGE
 	// Allocate scratch memory
-	ScratchMem = (uint8 *)malloc(SCRATCH_MEM_SIZE);
-	if (ScratchMem == NULL) {
+	ScratchMem = (uint8 *)vm_acquire(SCRATCH_MEM_SIZE);
+	if (ScratchMem == VM_MAP_FAILED) {
 		ErrorAlert(GetString(STR_NO_MEM_ERR));
 		QuitEmulator();
 	}
@@ -332,41 +324,29 @@ int main(int argc, char **argv)
 #endif
 
 	// Create areas for Mac RAM and ROM
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
-	// gb-- Overkill, needs to be cleaned up. Probably explode it for either
-	// real or direct addressing mode.
 #if REAL_ADDRESSING
 	if (memory_mapped_from_zero) {
 		RAMBaseHost = (uint8 *)0;
-		ROMBaseHost = RAMBaseHost + aligned_ram_size;
+		ROMBaseHost = RAMBaseHost + RAMSize;
 	}
 	else
 #endif
 	{
-		RAMBaseHost = (uint8 *)mmap(0, mapped_ram_rom_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, zero_fd, 0);
-		if (RAMBaseHost == (uint8 *)MAP_FAILED) {
+		RAMBaseHost = (uint8 *)vm_acquire(RAMSize);
+		ROMBaseHost = (uint8 *)vm_acquire(0x100000);
+		if (RAMBaseHost == VM_MAP_FAILED || ROMBaseHost == VM_MAP_FAILED) {
 			ErrorAlert(GetString(STR_NO_MEM_ERR));
 			QuitEmulator();
 		}
-		ROMBaseHost = RAMBaseHost + aligned_ram_size;
 	}
-#else
-	RAMBaseHost = (uint8 *)malloc(RAMSize);
-	ROMBaseHost = (uint8 *)malloc(0x100000);
-	if (RAMBaseHost == NULL || ROMBaseHost == NULL) {
-		ErrorAlert(GetString(STR_NO_MEM_ERR));
-		QuitEmulator();
-	}
-#endif
 
 #if DIRECT_ADDRESSING
-	// Initialize MEMBaseDiff now so that Host2MacAddr in the Video module
-	// will return correct results
+	// RAMBaseMac shall always be zero
+	MEMBaseDiff = (uintptr)RAMBaseHost;
 	RAMBaseMac = 0;
-	ROMBaseMac = RAMBaseMac + aligned_ram_size;
-	InitMEMBaseDiff(RAMBaseHost, RAMBaseMac);
+	ROMBaseMac = Host2MacAddr(ROMBaseHost);
 #endif
-#if REAL_ADDRESSING // && !EMULATED_68K
+#if REAL_ADDRESSING
 	RAMBaseMac = (uint32)RAMBaseHost;
 	ROMBaseMac = (uint32)ROMBaseHost;
 #endif
@@ -623,31 +603,19 @@ void QuitEmulator(void)
 	ExitAll();
 
 	// Free ROM/RAM areas
-#if REAL_ADDRESSING
-	if (memory_mapped_from_zero)
-		munmap((caddr_t)0x0000, mapped_ram_rom_size);
-	else
-#endif
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
-	if (RAMBaseHost != (uint8 *)MAP_FAILED) {
-		munmap((caddr_t)RAMBaseHost, mapped_ram_rom_size);
+	if (RAMBaseHost != VM_MAP_FAILED) {
+		vm_release(RAMBaseHost, RAMSize);
 		RAMBaseHost = NULL;
 	}
-#else
-	if (ROMBaseHost) {
-		free(ROMBaseHost);
+	if (ROMBaseHost != VM_MAP_FAILED) {
+		vm_release(ROMBaseHost, 0x100000);
 		ROMBaseHost = NULL;
 	}
-	if (RAMBaseHost) {
-		free(RAMBaseHost);
-		RAMBaseHost = NULL;
-	}
-#endif
 
 #if USE_SCRATCHMEM_SUBTERFUGE
 	// Delete scratch memory area
-	if (ScratchMem) {
-		free((void *)(ScratchMem - SCRATCH_MEM_SIZE/2));
+	if (ScratchMem != (uint8 *)VM_MAP_FAILED) {
+		vm_release((void *)(ScratchMem - SCRATCH_MEM_SIZE/2), SCRATCH_MEM_SIZE);
 		ScratchMem = NULL;
 	}
 #endif
@@ -655,12 +623,11 @@ void QuitEmulator(void)
 #if REAL_ADDRESSING
 	// Delete Low Memory area
 	if (lm_area_mapped)
-		munmap((char *)0x0000, 0x2000);
+		vm_release(0, 0x2000);
 #endif
-
-	// Close /dev/zero
-	if (zero_fd > 0)
-		close(zero_fd);
+	
+	// Exit VM wrappers
+	vm_exit();
 
 	// Exit system routines
 	SysExit();
