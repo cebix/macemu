@@ -69,8 +69,9 @@ static bool sigsegv_do_install_handler(int sig);
 enum transfer_size_t {
 	SIZE_UNKNOWN,
 	SIZE_BYTE,
-	SIZE_WORD,
-	SIZE_LONG
+	SIZE_WORD, // 2 bytes
+	SIZE_LONG, // 4 bytes
+	SIZE_QUAD, // 8 bytes
 };
 
 // Transfer type
@@ -231,7 +232,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #if defined(__FreeBSD__)
 #if (defined(i386) || defined(__i386__))
 #define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_eip)
-#define SIGSEGV_REGISTER_FILE			((unsigned int *)&(((struct sigcontext *)scp)->sc_edi)) /* EDI is the first GPR (even below EIP) in sigcontext */
+#define SIGSEGV_REGISTER_FILE			((unsigned long *)&(((struct sigcontext *)scp)->sc_edi)) /* EDI is the first GPR (even below EIP) in sigcontext */
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #endif
@@ -240,7 +241,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #include <sys/ucontext.h>
 #define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[14] /* should use REG_EIP instead */
-#define SIGSEGV_REGISTER_FILE			(unsigned int *)SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)SIGSEGV_CONTEXT_REGS
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(x86_64) || defined(__x86_64__))
@@ -248,6 +249,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[16] /* should use REG_RIP instead */
 #define SIGSEGV_REGISTER_FILE			(unsigned long *)SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(ia64) || defined(__ia64__))
 #define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_ip & ~0x3ULL) /* slot number is in bits 0 and 1 */
@@ -273,7 +275,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_FAULT_HANDLER_ARGS		&scs
 #define SIGSEGV_FAULT_ADDRESS			scp->cr2
 #define SIGSEGV_FAULT_INSTRUCTION		scp->eip
-#define SIGSEGV_REGISTER_FILE			(unsigned int *)scp
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)scp
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(sparc) || defined(__sparc__))
@@ -384,7 +386,7 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 #define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp, addr
 #define SIGSEGV_FAULT_ADDRESS			addr
 #define SIGSEGV_FAULT_INSTRUCTION		scp->sc_eip
-#define SIGSEGV_REGISTER_FILE			((unsigned int *)&scp->sc_edi)
+#define SIGSEGV_REGISTER_FILE			((unsigned long *)&scp->sc_edi)
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #endif
@@ -577,9 +579,10 @@ handleExceptions(void *priv)
 
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 // Decode and skip X86 instruction
-#if (defined(i386) || defined(__i386__))
+#if (defined(i386) || defined(__i386__)) || defined(__x86_64__)
 #if defined(__linux__)
 enum {
+#if (defined(i386) || defined(__i386__))
 	X86_REG_EIP = 14,
 	X86_REG_EAX = 11,
 	X86_REG_ECX = 10,
@@ -589,10 +592,31 @@ enum {
 	X86_REG_EBP = 6,
 	X86_REG_ESI = 5,
 	X86_REG_EDI = 4
+#endif
+#if defined(__x86_64__)
+	X86_REG_R8  = 0,
+	X86_REG_R9  = 1,
+	X86_REG_R10 = 2,
+	X86_REG_R11 = 3,
+	X86_REG_R12 = 4,
+	X86_REG_R13 = 5,
+	X86_REG_R14 = 6,
+	X86_REG_R15 = 7,
+	X86_REG_EDI = 8,
+	X86_REG_ESI = 9,
+	X86_REG_EBP = 10,
+	X86_REG_EBX = 11,
+	X86_REG_EDX = 12,
+	X86_REG_EAX = 13,
+	X86_REG_ECX = 14,
+	X86_REG_ESP = 15,
+	X86_REG_EIP = 16
+#endif
 };
 #endif
 #if defined(__NetBSD__) || defined(__FreeBSD__)
 enum {
+#if (defined(i386) || defined(__i386__))
 	X86_REG_EIP = 10,
 	X86_REG_EAX = 7,
 	X86_REG_ECX = 6,
@@ -602,6 +626,7 @@ enum {
 	X86_REG_EBP = 2,
 	X86_REG_ESI = 1,
 	X86_REG_EDI = 0
+#endif
 };
 #endif
 // FIXME: this is partly redundant with the instruction decoding phase
@@ -638,7 +663,7 @@ static inline int ix86_step_over_modrm(unsigned char * p)
 	return offset;
 }
 
-static bool ix86_skip_instruction(unsigned int * regs)
+static bool ix86_skip_instruction(unsigned long * regs)
 {
 	unsigned char * eip = (unsigned char *)regs[X86_REG_EIP];
 
@@ -650,13 +675,51 @@ static bool ix86_skip_instruction(unsigned int * regs)
 	
 	int reg = -1;
 	int len = 0;
-	
+
+#if DEBUG
+	printf("IP: %p [%02x %02x %02x %02x...]\n",
+		   eip, eip[0], eip[1], eip[2], eip[3]);
+#endif
+
 	// Operand size prefix
 	if (*eip == 0x66) {
 		eip++;
 		len++;
 		transfer_size = SIZE_WORD;
 	}
+
+	// REX prefix
+#if defined(__x86_64__)
+	struct rex_t {
+		unsigned char W;
+		unsigned char R;
+		unsigned char X;
+		unsigned char B;
+	};
+	rex_t rex = { 0, 0, 0, 0 };
+	bool has_rex = false;
+	if ((*eip & 0xf0) == 0x40) {
+		has_rex = true;
+		const unsigned char b = *eip;
+		rex.W = b & (1 << 3);
+		rex.R = b & (1 << 2);
+		rex.X = b & (1 << 1);
+		rex.B = b & (1 << 0);
+#if DEBUG
+		printf("REX: %c,%c,%c,%c\n",
+			   rex.W ? 'W' : '_',
+			   rex.R ? 'R' : '_',
+			   rex.X ? 'X' : '_',
+			   rex.B ? 'B' : '_');
+#endif
+		eip++;
+		len++;
+		if (rex.W)
+			transfer_size = SIZE_QUAD;
+	}
+#else
+	const bool has_rex = false;
+#endif
 
 	// Decode instruction
 	switch (eip[0]) {
@@ -727,24 +790,39 @@ static bool ix86_skip_instruction(unsigned int * regs)
 		return false;
 	}
 
+#if defined(__x86_64__)
+	if (rex.R)
+		reg += 8;
+#endif
+
 	if (transfer_type == SIGSEGV_TRANSFER_LOAD && reg != -1) {
-		static const int x86_reg_map[8] = {
+		static const int x86_reg_map[] = {
 			X86_REG_EAX, X86_REG_ECX, X86_REG_EDX, X86_REG_EBX,
-			X86_REG_ESP, X86_REG_EBP, X86_REG_ESI, X86_REG_EDI
+			X86_REG_ESP, X86_REG_EBP, X86_REG_ESI, X86_REG_EDI,
+#if defined(__x86_64__)
+			X86_REG_R8,  X86_REG_R9,  X86_REG_R10, X86_REG_R11,
+			X86_REG_R12, X86_REG_R13, X86_REG_R14, X86_REG_R15,
+#endif
 		};
 		
-		if (reg < 0 || reg >= 8)
+		if (reg < 0 || reg >= (sizeof(x86_reg_map)/sizeof(x86_reg_map[0]) - 1))
 			return false;
 
+		// Set 0 to the relevant register part
+		// NOTE: this is only valid for MOV alike instructions
 		int rloc = x86_reg_map[reg];
 		switch (transfer_size) {
 		case SIZE_BYTE:
-			regs[rloc] = (regs[rloc] & ~0xff);
+			if (!has_rex && reg >= 4)
+				regs[rloc - 4] = (regs[rloc - 4] & ~0xff00L);
+			else
+				regs[rloc] = (regs[rloc] & ~0xffL);
 			break;
 		case SIZE_WORD:
-			regs[rloc] = (regs[rloc] & ~0xffff);
+			regs[rloc] = (regs[rloc] & ~0xffffL);
 			break;
 		case SIZE_LONG:
+		case SIZE_QUAD: // zero-extension
 			regs[rloc] = 0;
 			break;
 		}
@@ -752,15 +830,51 @@ static bool ix86_skip_instruction(unsigned int * regs)
 
 #if DEBUG
 	printf("%08x: %s %s access", regs[X86_REG_EIP],
-		   transfer_size == SIZE_BYTE ? "byte" : transfer_size == SIZE_WORD ? "word" : "long",
+		   transfer_size == SIZE_BYTE ? "byte" :
+		   transfer_size == SIZE_WORD ? "word" :
+		   transfer_size == SIZE_LONG ? "long" :
+		   transfer_size == SIZE_QUAD ? "quad" : "unknown",
 		   transfer_type == SIGSEGV_TRANSFER_LOAD ? "read" : "write");
 	
 	if (reg != -1) {
-		static const char * x86_reg_str_map[8] = {
-			"eax", "ecx", "edx", "ebx",
-			"esp", "ebp", "esi", "edi"
+		static const char * x86_byte_reg_str_map[] = {
+			"al",   "cl",   "dl",   "bl",
+			"spl",  "bpl",  "sil",  "dil",
+			"r8b",  "r9b",  "r10b", "r11b",
+			"r12b", "r13b", "r14b", "r15b",
+			"ah",   "ch",   "dh",   "bh",
 		};
-		printf(" %s register %%%s", transfer_type == SIGSEGV_TRANSFER_LOAD ? "to" : "from", x86_reg_str_map[reg]);
+		static const char * x86_word_reg_str_map[] = {
+			"ax",   "cx",   "dx",   "bx",
+			"sp",   "bp",   "si",   "di",
+			"r8w",  "r9w",  "r10w", "r11w",
+			"r12w", "r13w", "r14w", "r15w",
+		};
+		static const char *x86_long_reg_str_map[] = {
+			"eax",  "ecx",  "edx",  "ebx",
+			"esp",  "ebp",  "esi",  "edi",
+			"r8d",  "r9d",  "r10d", "r11d",
+			"r12d", "r13d", "r14d", "r15d",
+		};
+		static const char *x86_quad_reg_str_map[] = {
+			"rax", "rcx", "rdx", "rbx",
+			"rsp", "rbp", "rsi", "rdi",
+			"r8",  "r9",  "r10", "r11",
+			"r12", "r13", "r14", "r15",
+		};
+		const char * reg_str = NULL;
+		switch (transfer_size) {
+		case SIZE_BYTE:
+			reg_str = x86_byte_reg_str_map[(!has_rex && reg >= 4 ? 12 : 0) + reg];
+			break;
+		case SIZE_WORD: reg_str = x86_word_reg_str_map[reg]; break;
+		case SIZE_LONG: reg_str = x86_long_reg_str_map[reg]; break;
+		case SIZE_QUAD: reg_str = x86_quad_reg_str_map[reg]; break;
+		}
+		if (reg_str)
+			printf(" %s register %%%s",
+				   transfer_type == SIGSEGV_TRANSFER_LOAD ? "to" : "from",
+				   reg_str);
 	}
 	printf(", %d bytes instruction\n", len);
 #endif
@@ -1268,6 +1382,63 @@ static sigsegv_return_t sigsegv_insn_handler(sigsegv_address_t fault_address, si
 
 	return SIGSEGV_RETURN_FAILURE;
 }
+
+// More sophisticated tests for instruction skipper
+static bool arch_insn_skipper_tests()
+{
+#if (defined(i386) || defined(__i386__)) || defined(__x86_64__)
+	static const unsigned char code[] = {
+		0x8a, 0x00,                    // mov    (%eax),%al
+		0x8a, 0x2c, 0x18,              // mov    (%eax,%ebx,1),%ch
+		0x88, 0x20,                    // mov    %ah,(%eax)
+		0x88, 0x08,                    // mov    %cl,(%eax)
+		0x66, 0x8b, 0x00,              // mov    (%eax),%ax
+		0x66, 0x8b, 0x0c, 0x18,        // mov    (%eax,%ebx,1),%cx
+		0x66, 0x89, 0x00,              // mov    %ax,(%eax)
+		0x66, 0x89, 0x0c, 0x18,        // mov    %cx,(%eax,%ebx,1)
+		0x8b, 0x00,                    // mov    (%eax),%eax
+		0x8b, 0x0c, 0x18,              // mov    (%eax,%ebx,1),%ecx
+		0x89, 0x00,                    // mov    %eax,(%eax)
+		0x89, 0x0c, 0x18,              // mov    %ecx,(%eax,%ebx,1)
+#if defined(__x86_64__)
+		0x44, 0x8a, 0x00,              // mov    (%rax),%r8b
+		0x44, 0x8a, 0x20,              // mov    (%rax),%r12b
+		0x42, 0x8a, 0x3c, 0x10,        // mov    (%rax,%r10,1),%dil
+		0x44, 0x88, 0x00,              // mov    %r8b,(%rax)
+		0x44, 0x88, 0x20,              // mov    %r12b,(%rax)
+		0x42, 0x88, 0x3c, 0x10,        // mov    %dil,(%rax,%r10,1)
+		0x66, 0x44, 0x8b, 0x00,        // mov    (%rax),%r8w
+		0x66, 0x42, 0x8b, 0x0c, 0x10,  // mov    (%rax,%r10,1),%cx
+		0x66, 0x44, 0x89, 0x00,        // mov    %r8w,(%rax)
+		0x66, 0x42, 0x89, 0x0c, 0x10,  // mov    %cx,(%rax,%r10,1)
+		0x44, 0x8b, 0x00,              // mov    (%rax),%r8d
+		0x42, 0x8b, 0x0c, 0x10,        // mov    (%rax,%r10,1),%ecx
+		0x44, 0x89, 0x00,              // mov    %r8d,(%rax)
+		0x42, 0x89, 0x0c, 0x10,        // mov    %ecx,(%rax,%r10,1)
+		0x48, 0x8b, 0x08,              // mov    (%rax),%rcx
+		0x4c, 0x8b, 0x18,              // mov    (%rax),%r11
+		0x4a, 0x8b, 0x0c, 0x10,        // mov    (%rax,%r10,1),%rcx
+		0x4e, 0x8b, 0x1c, 0x10,        // mov    (%rax,%r10,1),%r11
+		0x48, 0x89, 0x08,              // mov    %rcx,(%rax)
+		0x4c, 0x89, 0x18,              // mov    %r11,(%rax)
+		0x4a, 0x89, 0x0c, 0x10,        // mov    %rcx,(%rax,%r10,1)
+		0x4e, 0x89, 0x1c, 0x10,        // mov    %r11,(%rax,%r10,1)
+#endif
+		0                              // end
+	};
+	const int N_REGS = 20;
+	unsigned long regs[N_REGS];
+	for (int i = 0; i < N_REGS; i++)
+		regs[i] = i;
+	const unsigned long start_code = (unsigned long)&code;
+	regs[X86_REG_EIP] = start_code;
+	while ((regs[X86_REG_EIP] - start_code) < (sizeof(code) - 1)
+		   && ix86_skip_instruction(regs))
+		; /* simply iterate */
+	return (regs[X86_REG_EIP] - start_code) == (sizeof(code) - 1);
+#endif
+	return true;
+}
 #endif
 
 int main(void)
@@ -1314,9 +1485,10 @@ int main(void)
 		return 8;
 	
 #define TEST_SKIP_INSTRUCTION(TYPE) do {				\
-		const unsigned int TAG = 0x12345678;			\
+		const unsigned long TAG = 0x12345678 |			\
+		(sizeof(long) == 8 ? 0x9abcdef0UL << 31 : 0);	\
 		TYPE data = *((TYPE *)(page + sizeof(TYPE)));	\
-		volatile unsigned int effect = data + TAG;		\
+		volatile unsigned long effect = data + TAG;		\
 		if (effect != TAG)								\
 			return 9;									\
 	} while (0)
@@ -1329,25 +1501,14 @@ int main(void)
 	TEST_SKIP_INSTRUCTION(unsigned char);
 	TEST_SKIP_INSTRUCTION(unsigned short);
 	TEST_SKIP_INSTRUCTION(unsigned int);
+	TEST_SKIP_INSTRUCTION(unsigned long);
  L_e_region2:
 #endif
+
+	if (!arch_insn_skipper_tests())
+		return 20;
 
 	vm_exit();
 	return 0;
 }
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
