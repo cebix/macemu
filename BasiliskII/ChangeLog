@@ -7,10 +7,15 @@ V1.0 (snapshot) - <date>
 	  thread-safe mouse handling
 	- the TIME_OFFSET constant has been replaced by a (portable) function
 	  TimeToMacTime(); file dates in ExtFS should now be correct
+	- ADBInterrupt() is no longer called from the 60Hz interrupt but has
+	  its own interrupt flag, potentially increasing the smoothness of
+	  mouse movement
 	- Unix: windowed display mode supports different resolutions and color
-	  depth, which can be switched on-the-fly
+	  depths, which can be switched on-the-fly
 	- Unix: Ctrl-F5 grabs mouse in windowed mode (enhanced compatibility
 	  with games like flight simulators)
+	- Unix: X11 events are handled as soon as they arrive, outside of the
+	  60Hz video refresh raster
 	- Unix: audio sample rate, bit depth and channel count are adjustable
 	  in the MacOS "Sound" control panel
 

@@ -66,7 +66,8 @@ enum {
 	INTFLAG_ETHER = 8,	// Ethernet driver
 	INTFLAG_AUDIO = 16,	// Audio block read
 	INTFLAG_TIMER = 32,	// Time Manager
-	INTFLAG_NMI = 64	// NMI
+	INTFLAG_ADB = 64,	// ADB
+	INTFLAG_NMI = 128	// NMI
 };
 
 extern uint32 InterruptFlags;									// Currently pending interrupts

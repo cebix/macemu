@@ -616,9 +616,14 @@ Keyboard:
   On PC-style keyboards, "Alt" is the Mac "Command" key, while the "Windows"
   key is the Mac "Option" key.
 
+Mouse:
+  Under Unix, press Ctrl-F5 while the Basilisk II window is active will grab
+  the mouse. This is needed for compatibility with some MacOS programs,
+  especially games. Press Ctrl-F5 again to return to normal mouse operation.
+
 Floppy:
   Basilisk II can only handle 1.44MB MFM floppies. Depending on your platform,
-  flopyy disk changes might not be detected automatically. Under Linux, press
+  floppy disk changes might not be detected automatically. Under Unix, press
   Ctrl-F1 to mount a floppy. Under BeOS, select the appropriate "Mount" menu
   item or press Ctrl-F1 to mount a floppy. Under Windows, press Ctrl-Shift-F11.
 

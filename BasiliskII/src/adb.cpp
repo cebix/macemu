@@ -57,7 +57,7 @@ static uint8 mouse_reg_3[2] = {0x63, 0x01};	// Mouse ADB register 3
 static uint8 key_reg_2[2] = {0xff, 0xff};	// Keyboard ADB register 2
 static uint8 key_reg_3[2] = {0x62, 0x05};	// Keyboard ADB register 3
 
-// ADB mouse input state lock (for platforms that use separate input thread)
+// ADB mouse motion lock (for platforms that use separate input thread)
 static B2_mutex *mouse_lock;
 
 
@@ -231,6 +231,8 @@ void ADBMouseMoved(int x, int y)
 		mouse_x = x; mouse_y = y;
 	}
 	B2_unlock_mutex(mouse_lock);
+	SetInterruptFlag(INTFLAG_ADB);
+	TriggerInterrupt();
 }
 
 
@@ -240,21 +242,21 @@ void ADBMouseMoved(int x, int y)
 
 void ADBMouseDown(int button)
 {
-	B2_lock_mutex(mouse_lock);
 	mouse_button[button] = true;
-	B2_unlock_mutex(mouse_lock);
+	SetInterruptFlag(INTFLAG_ADB);
+	TriggerInterrupt();
 }
 
 
 /*
- *  First mouse button released
+ *  Mouse button released
  */
 
 void ADBMouseUp(int button)
 {
-	B2_lock_mutex(mouse_lock);
 	mouse_button[button] = false;
-	B2_unlock_mutex(mouse_lock);
+	SetInterruptFlag(INTFLAG_ADB);
+	TriggerInterrupt();
 }
 
 
@@ -264,7 +266,10 @@ void ADBMouseUp(int button)
 
 void ADBSetRelMouseMode(bool relative)
 {
-	relative_mouse = relative;
+	if (relative_mouse != relative) {
+		relative_mouse = relative;
+		mouse_x = mouse_y = 0;
+	}
 }
 
 
@@ -280,6 +285,10 @@ void ADBKeyDown(int code)
 
 	// Set key in matrix
 	key_states[code >> 3] |= (1 << (~code & 7));
+
+	// Trigger interrupt
+	SetInterruptFlag(INTFLAG_ADB);
+	TriggerInterrupt();
 }
 
 
@@ -295,6 +304,10 @@ void ADBKeyUp(int code)
 
 	// Clear key in matrix
 	key_states[code >> 3] &= ~(1 << (~code & 7));
+
+	// Trigger interrupt
+	SetInterruptFlag(INTFLAG_ADB);
+	TriggerInterrupt();
 }
 
 

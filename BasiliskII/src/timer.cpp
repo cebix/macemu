@@ -249,10 +249,8 @@ int16 PrimeTime(uint32 tm, int32 time)
 
 			//!! PrimeTime(0) means continue previous delay
 			// (save wakeup time in RmvTime?)
-			if (time == 0) {
-				printf("FATAL: Unsupported PrimeTime(0)\n");
-				return 0;
-			}
+			if (time == 0)
+				printf("WARNING: Unsupported PrimeTime(0)\n");
 
 			// Yes, calculate wakeup time relative to last scheduled time
 			tm_time_t wakeup;

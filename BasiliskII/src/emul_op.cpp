@@ -440,7 +440,6 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 				if (HasMacStarted()) {
 
 					// Mac has started, execute all 60Hz interrupt functions
-					ADBInterrupt();
 					TimerInterrupt();
 					VideoInterrupt();
 
@@ -457,7 +456,6 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 
 			if (InterruptFlags & INTFLAG_1HZ) {
 				ClearInterruptFlag(INTFLAG_1HZ);
-
 				if (HasMacStarted()) {
 					SonyInterrupt();
 					DiskInterrupt();
@@ -480,11 +478,16 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 				AudioInterrupt();
 			}
 
+			if (InterruptFlags & INTFLAG_ADB) {
+				ClearInterruptFlag(INTFLAG_ADB);
+				if (HasMacStarted())
+					ADBInterrupt();
+			}
+
 			if (InterruptFlags & INTFLAG_NMI) {
 				ClearInterruptFlag(INTFLAG_NMI);
-				if (HasMacStarted()) {
+				if (HasMacStarted())
 					TriggerNMI();
-				}
 			}
 			break;
 

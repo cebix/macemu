@@ -475,7 +475,28 @@ int main(int argc, char **argv)
 	sigaction(SIGINT, &sigint_sa, NULL);
 #endif
 
-#if defined(HAVE_TIMER_CREATE) && defined(_POSIX_REALTIME_SIGNALS)
+#if defined(HAVE_PTHREADS)
+
+	// POSIX threads available, start 60Hz thread
+	pthread_attr_init(&tick_thread_attr);
+#if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)
+	if (geteuid() == 0) {
+		pthread_attr_setinheritsched(&tick_thread_attr, PTHREAD_EXPLICIT_SCHED);
+		pthread_attr_setschedpolicy(&tick_thread_attr, SCHED_FIFO);
+		struct sched_param fifo_param;
+		fifo_param.sched_priority = (sched_get_priority_min(SCHED_FIFO) + sched_get_priority_max(SCHED_FIFO)) / 2;
+		pthread_attr_setschedparam(&tick_thread_attr, &fifo_param);
+	}
+#endif
+	tick_thread_active = (pthread_create(&tick_thread, &tick_thread_attr, tick_func, NULL) == 0);
+	if (!tick_thread_active) {
+		sprintf(str, GetString(STR_TICK_THREAD_ERR), strerror(errno));
+		ErrorAlert(str);
+		QuitEmulator();
+	}
+	D(bug("60Hz thread started\n"));
+
+#elif defined(HAVE_TIMER_CREATE) && defined(_POSIX_REALTIME_SIGNALS)
 
 	// POSIX.4 timers and real-time signals available, start 60Hz timer
 	sigemptyset(&timer_sa.sa_mask);
@@ -505,27 +526,6 @@ int main(int argc, char **argv)
 		QuitEmulator();
 	}
 	D(bug("60Hz timer started\n"));
-
-#elif defined(HAVE_PTHREADS)
-
-	// POSIX threads available, start 60Hz thread
-	pthread_attr_init(&tick_thread_attr);
-#if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)
-	if (geteuid() == 0) {
-		pthread_attr_setinheritsched(&tick_thread_attr, PTHREAD_EXPLICIT_SCHED);
-		pthread_attr_setschedpolicy(&tick_thread_attr, SCHED_FIFO);
-		struct sched_param fifo_param;
-		fifo_param.sched_priority = (sched_get_priority_min(SCHED_FIFO) + sched_get_priority_max(SCHED_FIFO)) / 2;
-		pthread_attr_setschedparam(&tick_thread_attr, &fifo_param);
-	}
-#endif
-	tick_thread_active = (pthread_create(&tick_thread, &tick_thread_attr, tick_func, NULL) == 0);
-	if (!tick_thread_active) {
-		sprintf(str, GetString(STR_TICK_THREAD_ERR), strerror(errno));
-		ErrorAlert(str);
-		QuitEmulator();
-	}
-	D(bug("60Hz thread started\n"));
 
 #else
 
@@ -575,10 +575,7 @@ void QuitEmulator(void)
 	Exit680x0();
 #endif
 
-#if defined(HAVE_TIMER_CREATE) && defined(_POSIX_REALTIME_SIGNALS)
-	// Stop 60Hz timer
-	timer_delete(timer);
-#elif defined(HAVE_PTHREADS)
+#if defined(HAVE_PTHREADS)
 	// Stop 60Hz thread
 	if (tick_thread_active) {
 		tick_thread_cancel = true;
@@ -587,6 +584,9 @@ void QuitEmulator(void)
 #endif
 		pthread_join(tick_thread, NULL);
 	}
+#elif defined(HAVE_TIMER_CREATE) && defined(_POSIX_REALTIME_SIGNALS)
+	// Stop 60Hz timer
+	timer_delete(timer);
 #else
 	struct itimerval req;
 	req.it_interval.tv_sec = req.it_value.tv_sec = 0;
@@ -849,6 +849,8 @@ static void one_tick(...)
 #ifdef HAVE_PTHREADS
 static void *tick_func(void *arg)
 {
+	uint64 start = GetTicks_usec();
+	int64 ticks = 0;
 	uint64 next = GetTicks_usec();
 	while (!tick_thread_cancel) {
 		one_tick();
@@ -858,108 +860,13 @@ static void *tick_func(void *arg)
 			Delay_usec(delay);
 		else if (delay < -16625)
 			next = GetTicks_usec();
+		ticks++;
 	}
+	uint64 end = GetTicks_usec();
+	D(bug("%Ld ticks in %Ld usec = %f ticks/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
 	return NULL;
 }
 #endif
-
-
-/*
- *  Get current value of microsecond timer
- */
-
-uint64 GetTicks_usec(void)
-{
-#ifdef HAVE_CLOCK_GETTIME
-	struct timespec t;
-	clock_gettime(CLOCK_REALTIME, &t);
-	return (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
-#else
-	struct timeval t;
-	gettimeofday(&t, NULL);
-	return (uint64)t.tv_sec * 1000000 + t.tv_usec;
-#endif
-}
-
-
-/*
- *  Delay by specified number of microseconds (<1 second)
- *  (adapted from SDL_Delay() source; this function is designed to provide
- *  the highest accuracy possible)
- */
-
-#if defined(linux)
-// Linux select() changes its timeout parameter upon return to contain
-// the remaining time. Most other unixen leave it unchanged or undefined.
-#define SELECT_SETS_REMAINING
-#elif defined(__FreeBSD__) || defined(__sun__)
-#define USE_NANOSLEEP
-#elif defined(HAVE_PTHREADS) && defined(sgi)
-// SGI pthreads has a bug when using pthreads+signals+nanosleep,
-// so instead of using nanosleep, wait on a CV which is never signalled.
-#define USE_COND_TIMEDWAIT
-#endif
-
-void Delay_usec(uint32 usec)
-{
-	int was_error;
-
-#if defined(USE_NANOSLEEP)
-	struct timespec elapsed, tv;
-#elif defined(USE_COND_TIMEDWAIT)
-	// Use a local mutex and cv, so threads remain independent
-	pthread_cond_t delay_cond = PTHREAD_COND_INITIALIZER;
-	pthread_mutex_t delay_mutex = PTHREAD_MUTEX_INITIALIZER;
-	struct timespec elapsed;
-	uint64 future;
-#else
-	struct timeval tv;
-#ifndef SELECT_SETS_REMAINING
-	uint64 then, now, elapsed;
-#endif
-#endif
-
-	// Set the timeout interval - Linux only needs to do this once
-#if defined(SELECT_SETS_REMAINING)
-    tv.tv_sec = 0;
-    tv.tv_usec = usec;
-#elif defined(USE_NANOSLEEP)
-    elapsed.tv_sec = 0;
-    elapsed.tv_nsec = usec * 1000;
-#elif defined(USE_COND_TIMEDWAIT)
-	future = GetTicks_usec() + usec;
-	elapsed.tv_sec = future / 1000000;
-	elapsed.tv_nsec = (future % 1000000) * 1000;
-#else
-    then = GetTicks_usec();
-#endif
-
-	do {
-		errno = 0;
-#if defined(USE_NANOSLEEP)
-		tv.tv_sec = elapsed.tv_sec;
-		tv.tv_nsec = elapsed.tv_nsec;
-		was_error = nanosleep(&tv, &elapsed);
-#elif defined(USE_COND_TIMEDWAIT)
-		was_error = pthread_mutex_lock(&delay_mutex);
-		was_error = pthread_cond_timedwait(&delay_cond, &delay_mutex, &elapsed);
-		was_error = pthread_mutex_unlock(&delay_mutex);
-#else
-#ifndef SELECT_SETS_REMAINING
-		// Calculate the time interval left (in case of interrupt)
-		now = GetTicks_usec();
-		elapsed = now - then;
-		then = now;
-		if (elapsed >= usec)
-			break;
-		usec -= elapsed;
-		tv.tv_sec = 0;
-		tv.tv_usec = usec;
-#endif
-		was_error = select(0, NULL, NULL, NULL, &tv);
-#endif
-	} while (was_error && (errno == EINTR));
-}
 
 
 #if !EMULATED_68K

@@ -80,7 +80,7 @@ enum {
 // Constants
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
 
-static const int win_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | ExposureMask | StructureNotifyMask;
+static const int win_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | EnterWindowMask | ExposureMask | StructureNotifyMask;
 static const int dga_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | StructureNotifyMask;
 
 
@@ -429,12 +429,17 @@ public:
 	virtual void toggle_mouse_grab(void) {}
 	virtual void mouse_moved(int x, int y) { ADBMouseMoved(x, y); }
 
+	void disable_mouse_accel(void);
+	void restore_mouse_accel(void);
+
 	virtual void grab_mouse(void) {}
 	virtual void ungrab_mouse(void) {}
 
 public:
 	bool init_ok;	// Initialization succeeded (we can't use exceptions because of -fomit-frame-pointer)
 	Window w;		// The window we draw into
+
+	int orig_accel_numer, orig_accel_denom, orig_threshold;	// Original mouse acceleration
 };
 
 class driver_window;
@@ -478,11 +483,13 @@ driver_base::driver_base()
 {
 	the_buffer = NULL;
 	the_buffer_copy = NULL;
+	XGetPointerControl(x_display, &orig_accel_numer, &orig_accel_denom, &orig_threshold);
 }
 
 driver_base::~driver_base()
 {
 	ungrab_mouse();
+	restore_mouse_accel();
 
 	if (w) {
 		XUnmapWindow(x_display, w);
@@ -533,6 +540,18 @@ void driver_base::update_palette(void)
 		XStoreColors(x_display, cmap[1], palette, num);
 	}
 	XSync(x_display, false);
+}
+
+// Disable mouse acceleration
+void driver_base::disable_mouse_accel(void)
+{
+	XChangePointerControl(x_display, True, False, 1, 1, 0);
+}
+
+// Restore mouse acceleration to original value
+void driver_base::restore_mouse_accel(void)
+{
+	XChangePointerControl(x_display, True, True, orig_accel_numer, orig_accel_denom, orig_threshold);
 }
 
 
@@ -728,9 +747,9 @@ void driver_window::grab_mouse(void)
 		Delay_usec(100000);
 	}
 	if (result == GrabSuccess) {
-		ADBSetRelMouseMode(mouse_grabbed = true);
 		XStoreName(x_display, w, GetString(STR_WINDOW_TITLE_GRABBED));
-		XSync(x_display, false);
+		ADBSetRelMouseMode(mouse_grabbed = true);
+		disable_mouse_accel();
 	}
 }
 
@@ -741,6 +760,7 @@ void driver_window::ungrab_mouse(void)
 		XUngrabPointer(x_display, CurrentTime);
 		XStoreName(x_display, w, GetString(STR_WINDOW_TITLE));
 		ADBSetRelMouseMode(mouse_grabbed = false);
+		restore_mouse_accel();
 	}
 }
 
@@ -836,6 +856,7 @@ void driver_dga::suspend(void)
 #endif
 	XUngrabPointer(x_display, CurrentTime);
 	XUngrabKeyboard(x_display, CurrentTime);
+	restore_mouse_accel();
 	XUnmapWindow(x_display, w);
 	wait_unmapped(w);
 
@@ -865,6 +886,7 @@ void driver_dga::resume(void)
 	XWarpPointer(x_display, None, rootwin, 0, 0, 0, 0, 0, 0);
 	XGrabKeyboard(x_display, rootwin, True, GrabModeAsync, GrabModeAsync, CurrentTime);
 	XGrabPointer(x_display, rootwin, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+	disable_mouse_accel();
 #ifdef ENABLE_XF86_DGA
 	XF86DGADirectVideo(x_display, screen, XF86DGADirectGraphics | XF86DGADirectKeyb | XF86DGADirectMouse);
 	XF86DGASetViewPort(x_display, screen, 0, 0);
@@ -1011,6 +1033,7 @@ driver_fbdev::driver_fbdev(const video_mode &mode)
 	XGrabPointer(x_display, w, True,
 		PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
 		GrabModeAsync, GrabModeAsync, w, None, CurrentTime);
+	disable_mouse_accel();
 	
 	// Calculate bytes per row
 	int bytes_per_row = TrivialBytesPerRow(mode.x, mode.depth);
@@ -1150,6 +1173,7 @@ driver_xf86dga::driver_xf86dga(const video_mode &mode)
 	XWarpPointer(x_display, None, rootwin, 0, 0, 0, 0, 0, 0);
 	XGrabKeyboard(x_display, rootwin, True, GrabModeAsync, GrabModeAsync, CurrentTime);
 	XGrabPointer(x_display, rootwin, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+	disable_mouse_accel();
 
 	int v_width, v_bank, v_size;
 	XF86DGAGetVideo(x_display, screen, (char **)&the_buffer, &v_width, &v_bank, &v_size);
@@ -1344,12 +1368,18 @@ static bool video_open(const video_mode &mode)
 			--bloss;
 	}
 
-	// Preset palette pixel values for gamma table
+	// Preset palette pixel values for CLUT or gamma table
 	if (color_class == DirectColor) {
 		int num = vis->map_entries;
 		for (int i=0; i<num; i++) {
 			int c = (i * 256) / num;
 			palette[i].pixel = map_rgb(c, c, c);
+			palette[i].flags = DoRed | DoGreen | DoBlue;
+		}
+	} else if (color_class == PseudoColor) {
+		for (int i=0; i<256; i++) {
+			palette[i].pixel = i;
+			palette[i].flags = DoRed | DoGreen | DoBlue;
 		}
 	}
 
@@ -1360,9 +1390,6 @@ static bool video_open(const video_mode &mode)
 		palette[i].red = c * 0x0101;
 		palette[i].green = c * 0x0101;
 		palette[i].blue = c * 0x0101;
-		if (color_class == PseudoColor)
-			palette[i].pixel = i;
-		palette[i].flags = DoRed | DoGreen | DoBlue;
 	}
 	if (cmap[0] && cmap[1]) {
 		XStoreColors(x_display, cmap[0], palette, num);
@@ -1371,7 +1398,7 @@ static bool video_open(const video_mode &mode)
 
 #ifdef ENABLE_VOSF
 	// Load gray ramp to 8->16/32 expand map
-	if (!IsDirectMode(mode) && (color_class == TrueColor || color_class == DirectColor))
+	if (!IsDirectMode(mode) && xdepth > 8)
 		for (int i=0; i<256; i++)
 			ExpandMap[i] = map_rgb(i, i, i);
 #endif
@@ -1722,15 +1749,12 @@ void video_set_palette(uint8 *pal, int num_in)
 		p->red = pal[c*3 + 0] * 0x0101;
 		p->green = pal[c*3 + 1] * 0x0101;
 		p->blue = pal[c*3 + 2] * 0x0101;
-		if (color_class == PseudoColor)
-			p->pixel = i;
-		p->flags = DoRed | DoGreen | DoBlue;
 		p++;
 	}
 
 #ifdef ENABLE_VOSF
 	// Recalculate pixel color expansion map
-	if (!IsDirectMode(VideoMonitor.mode) && (color_class == TrueColor || color_class == DirectColor)) {
+	if (!IsDirectMode(VideoMonitor.mode) && xdepth > 8) {
 		for (int i=0; i<256; i++) {
 			int c = i & (num_in-1); // If there are less than 256 colors, we repeat the first entries (this makes color expansion easier)
 			ExpandMap[i] = map_rgb(pal[c*3+0], pal[c*3+1], pal[c*3+2]);
@@ -1943,6 +1967,7 @@ static void handle_events(void)
 		XNextEvent(x_display, &event);
 
 		switch (event.type) {
+
 			// Mouse button
 			case ButtonPress: {
 				unsigned int button = event.xbutton.button;
@@ -1973,6 +1998,12 @@ static void handle_events(void)
 			// Mouse moved
 			case MotionNotify:
 				drv->mouse_moved(event.xmotion.x, event.xmotion.y);
+				break;
+
+			// Mouse entered window
+			case EnterNotify:
+				if (event.xcrossing.mode != NotifyGrab && event.xcrossing.mode != NotifyUngrab)
+					drv->mouse_moved(event.xmotion.x, event.xmotion.y);
 				break;
 
 			// Keyboard
@@ -2311,12 +2342,6 @@ static void video_refresh_dga(void)
 {
 	// Quit DGA mode if requested
 	possibly_quit_dga_mode();
-	
-	// Handle X events
-	handle_events();
-	
-	// Handle palette changes
-	handle_palette_changes();
 }
 
 #ifdef ENABLE_VOSF
@@ -2325,12 +2350,6 @@ static void video_refresh_dga_vosf(void)
 {
 	// Quit DGA mode if requested
 	possibly_quit_dga_mode();
-	
-	// Handle X events
-	handle_events();
-	
-	// Handle palette changes
-	handle_palette_changes();
 	
 	// Update display (VOSF variant)
 	static int tick_counter = 0;
@@ -2349,12 +2368,6 @@ static void video_refresh_window_vosf(void)
 {
 	// Ungrab mouse if requested
 	possibly_ungrab_mouse();
-	
-	// Handle X events
-	handle_events();
-	
-	// Handle palette changes
-	handle_palette_changes();
 	
 	// Update display (VOSF variant)
 	static int tick_counter = 0;
@@ -2375,12 +2388,6 @@ static void video_refresh_window_static(void)
 	// Ungrab mouse if requested
 	possibly_ungrab_mouse();
 
-	// Handle X events
-	handle_events();
-	
-	// Handle_palette changes
-	handle_palette_changes();
-	
 	// Update display (static variant)
 	static int tick_counter = 0;
 	if (++tick_counter >= frame_skip) {
@@ -2394,12 +2401,6 @@ static void video_refresh_window_dynamic(void)
 	// Ungrab mouse if requested
 	possibly_ungrab_mouse();
 
-	// Handle X events
-	handle_events();
-	
-	// Handle_palette changes
-	handle_palette_changes();
-	
 	// Update display (dynamic variant)
 	static int tick_counter = 0;
 	tick_counter++;
@@ -2435,32 +2436,69 @@ static void VideoRefreshInit(void)
 	}
 }
 
+// This function is called on non-threaded platforms from a timer interrupt
 void VideoRefresh(void)
 {
 	// We need to check redraw_thread_active to inhibit refreshed during
 	// mode changes on non-threaded platforms
-	if (redraw_thread_active)
-		video_refresh();
+	if (!redraw_thread_active)
+		return;
+
+	// Handle X events
+	handle_events();
+
+	// Handle palette changes
+	handle_palette_changes();
+
+	// Update display
+	video_refresh();
 }
+
+const int VIDEO_REFRESH_HZ = 60;
+const int VIDEO_REFRESH_DELAY = 1000000 / VIDEO_REFRESH_HZ;
 
 #ifdef HAVE_PTHREADS
 static void *redraw_func(void *arg)
 {
+	int fd = ConnectionNumber(x_display);
+
 	uint64 start = GetTicks_usec();
 	int64 ticks = 0;
-	uint64 next = GetTicks_usec();
+	uint64 next = GetTicks_usec() + VIDEO_REFRESH_DELAY;
+
 	while (!redraw_thread_cancel) {
-		video_refresh();
-		next += 16667;
+
 		int64 delay = next - GetTicks_usec();
-		if (delay > 0)
-			Delay_usec(delay);
-		else if (delay < -16667)
+		if (delay < -VIDEO_REFRESH_DELAY) {
+
+			// We are lagging far behind, so we reset the delay mechanism
 			next = GetTicks_usec();
-		ticks++;
+
+		} else if (delay <= 0) {
+
+			// Delay expired, refresh display
+			handle_events();
+			handle_palette_changes();
+			video_refresh();
+			next += VIDEO_REFRESH_DELAY;
+			ticks++;
+
+		} else {
+
+			// No display refresh pending, check for X events
+			fd_set readfds;
+			FD_ZERO(&readfds);
+			FD_SET(fd, &readfds);
+			struct timeval timeout;
+			timeout.tv_sec = 0;
+			timeout.tv_usec = delay;
+			if (select(fd+1, &readfds, NULL, NULL, &timeout) > 0)
+				handle_events();
+		}
 	}
+
 	uint64 end = GetTicks_usec();
-	// printf("%Ld ticks in %Ld usec = %Ld ticks/sec\n", ticks, end - start, ticks * 1000000 / (end - start));
+	D(bug("%Ld refreshes in %Ld usec = %f refreshes/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
 	return NULL;
 }
 #endif

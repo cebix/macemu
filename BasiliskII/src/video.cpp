@@ -23,6 +23,8 @@
  *  SEE ALSO
  *    Inside Macintosh: Devices, chapter 1 "Device Manager"
  *    Designing Cards and Drivers for the Macintosh Family, Second Edition
+ *    Designing PCI Cards and Drivers for Power Macintosh Computers
+ *    Display Device Driver Guide
  */
 
 #include <stdio.h>
