@@ -24,6 +24,10 @@
 #include <sys/stat.h>
 #include <errno.h>
 
+#ifdef HAVE_AVAILABILITYMACROS_H
+#include <AvailabilityMacros.h>
+#endif
+
 #ifdef __linux__
 #include <sys/mount.h>
 #include <linux/cdrom.h>
@@ -145,7 +149,7 @@ void SysAddFloppyPrefs(void)
 	PrefsAddString("floppy", "/dev/fd0a");
 	PrefsAddString("floppy", "/dev/fd1a");
 #elif defined(__APPLE__) && defined(__MACH__)
-  #ifdef AQUA
+  #if defined(AQUA) || defined(HAVE_FRAMEWORK_IOKIT)
 	extern	void DarwinAddFloppyPrefs(void);
 
 	DarwinAddFloppyPrefs();
@@ -225,7 +229,7 @@ void SysAddCDROMPrefs(void)
 		}
 	}
 #elif defined(__APPLE__) && defined(__MACH__)
-  #ifdef AQUA
+  #if defined(AQUA) || defined(HAVE_FRAMEWORK_IOKIT)
 	extern	void DarwinAddCDROMPrefs(void);
 
 	DarwinAddCDROMPrefs();
@@ -260,7 +264,7 @@ void SysAddSerialPrefs(void)
 	PrefsAddString("seriala", "/dev/tty00");
 	PrefsAddString("serialb", "/dev/tty01");
 #elif defined(__APPLE__) && defined(__MACH__)
-  #ifdef AQUA
+  #if defined(AQUA) || defined(HAVE_FRAMEWORK_IOKIT)
 	extern	void DarwinAddSerialPrefs(void);
 
 	DarwinAddSerialPrefs();

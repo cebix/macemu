@@ -258,6 +258,7 @@ AC_HEADER_STDC
 AC_CHECK_HEADERS(unistd.h fcntl.h sys/types.h sys/time.h sys/mman.h mach/mach.h)
 AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
 AC_CHECK_HEADERS(linux/if.h linux/if_tun.h net/if.h net/if_tun.h)
+AC_CHECK_HEADERS(AvailabilityMacros.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
@@ -350,6 +351,28 @@ AC_CHECK_FILE([/dev/ptc],
 dnl (end of code from openssh-3.2.2p1 configure.ac)
 
 
+dnl AC_CHECK_FRAMEWORK($1=NAME, $2=INCLUDES)
+AC_DEFUN(AC_CHECK_FRAMEWORK, [
+  AS_VAR_PUSHDEF([ac_Framework], [ac_cv_framework_$1])dnl
+  AC_CACHE_CHECK([whether compiler supports framework $1],
+    ac_Framework, [
+    saved_LIBS="$LIBS"
+    LIBS="$LIBS -framework $1"
+    AC_TRY_LINK(
+      [$2], [int main(void) { return 0; }], 
+      [AS_VAR_SET(ac_Framework, yes)], [AS_VAR_SET(ac_Framework, no); LIBS="$saved_LIBS"]
+    )
+  ])
+  AS_IF([test AS_VAR_GET(ac_Framework) = yes],
+    [AC_DEFINE(AS_TR_CPP(HAVE_FRAMEWORK_$1), 1, [Define if framework $1 is available.])]
+  )
+  AS_VAR_POPDEF([ac_Framework])dnl
+])
+
+dnl Check for some MacOS X frameworks
+AC_CHECK_FRAMEWORK(Carbon, [#include <Carbon/Carbon.h>])
+AC_CHECK_FRAMEWORK(IOKit, [#include <IOKit/IOKitLib.h>])
+
 dnl Select system-dependant source files.
 SERIALSRC=serial_unix.cpp
 ETHERSRC=../dummy/ether_dummy.cpp
@@ -410,7 +433,11 @@ irix*)
   dnl Do a test compile of an empty function
   AC_TRY_COMPILE(,, [AC_MSG_RESULT(yes); HAVE_IPA=yes], AC_MSG_RESULT(no))
   CFLAGS="$ocflags"
-
+  ;;
+darwin*)
+  if [[ "x$ac_cv_framework_IOKit" = "xyes" ]]; then
+    EXTRASYSSRCS="../MacOSX/sys_darwin.cpp"
+  fi
   ;;
 esac
 dnl SDL overrides
@@ -418,12 +445,18 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
   AC_DEFINE(USE_SDL, 1, [Define to enble SDL support])
 fi
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
-  VIDEOSRCS="../SDL/video_sdl.cpp ../dummy/clip_dummy.cpp"
+  VIDEOSRCS="../SDL/video_sdl.cpp"
   AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support])
   KEYCODES="../SDL/keycodes"
+  if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
+    EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp"
+  else
+    EXTRASYSSRCS="$EXTRASYSSRCS ../dummy/clip_dummy.cpp"
+  fi
 else
-  VIDEOSRCS="video_x.cpp clip_unix.cpp"
+  VIDEOSRCS="video_x.cpp"
   KEYCODES="keycodes"
+  EXTRASYSSRCS="$EXTRASYSSRCS clip_unix.cpp"
 fi
 
 dnl Use 68k CPU natively?
