@@ -2379,8 +2379,12 @@ static void *redraw_func(void *arg)
 					// Set new cursor image if it was changed
 					if (hw_mac_cursor_accl && cursor_changed) {
 						cursor_changed = false;
-						memcpy(cursor_image->data, MacCursor + 4, 32);
-						memcpy(cursor_mask_image->data, MacCursor + 36, 32);
+						uint8 *x_data = (uint8 *)cursor_image->data;
+						uint8 *x_mask = (uint8 *)cursor_mask_image->data;
+						for (int i = 0; i < 32; i++) {
+							x_mask[i] = MacCursor[4 + i] | MacCursor[36 + i];
+							x_data[i] = MacCursor[4 + i];
+						}
 						XDisplayLock();
 						XFreeCursor(x_display, mac_cursor);
 						XPutImage(x_display, cursor_map, cursor_gc, cursor_image, 0, 0, 0, 0, 16, 16);
