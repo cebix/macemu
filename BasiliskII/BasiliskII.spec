@@ -8,7 +8,7 @@ Version: %{version}
 Release: %{release}
 Copyright: GPL
 Group: Applications/Emulators
-Source: %{name}_src_08122000.tar.gz
+Source: %{name}_src_31052001.tar.gz
 URL: http://www.uni-mainz.de/~bauec002/B2Main.html
 BuildRoot: %{_tmppath}/%{name}-root
 
