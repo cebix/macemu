@@ -34,6 +34,9 @@
 /* Define to 'off_t' if <sys/types.h> doesn't define. */
 #undef loff_t
 
+/* Define to 'char *' if <sys/types.h> doesn't define. */
+#undef caddr_t
+
 /* Define to 'int' if <sys/types.h> doesn't define. */
 #undef socklen_t
 
@@ -138,6 +141,12 @@
 
 /* Define if you have the pthread_cancel function.  */
 #undef HAVE_PTHREAD_CANCEL
+
+/* Define if you have the pthread_mutexattr_setprotocol function.  */
+#undef HAVE_PTHREAD_MUTEXATTR_SETPROTOCOL
+
+/* Define if you have the pthread_mutexattr_settype function.  */
+#undef HAVE_PTHREAD_MUTEXATTR_SETTYPE
 
 /* Define if you have the sem_init function.  */
 #undef HAVE_SEM_INIT
