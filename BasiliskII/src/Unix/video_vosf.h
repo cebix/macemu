@@ -43,15 +43,12 @@ static void * allocate_framebuffer(uint32 size, uint8 * hint = 0)
 	return mmap((caddr_t)hint, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, zero_fd, 0);
 }
 
-
-/*
- *	Screen fault handler
- */
-
-const uintptr INVALID_PC = (uintptr)-1;
-
-static inline void do_handle_screen_fault(uintptr addr, uintptr pc = INVALID_PC)
+// Screen fault handler
+static bool screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction)
 {
+	D(bug("screen_fault_handler: ADDR=0x%08X from IP=0x%08X\n", fault_address, fault_instruction));
+	const uintptr addr = (uintptr)fault_address;
+	
 	/* Someone attempted to write to the frame buffer. Make it writeable
 	 * now so that the data could actually be written. It will be made
 	 * read-only back in one of the screen update_*() functions.
@@ -64,104 +61,16 @@ static inline void do_handle_screen_fault(uintptr addr, uintptr pc = INVALID_PC)
 		mprotect(page_ad, mainBuffer.pageSize, PROT_READ | PROT_WRITE);
 		mainBuffer.dirty = true;
 		UNLOCK_VOSF;
-		return;
+		return true;
 	}
 	
 	/* Otherwise, we don't know how to handle the fault, let it crash */
 	fprintf(stderr, "do_handle_screen_fault: unhandled address 0x%08X", addr);
-	if (pc != INVALID_PC)
-		fprintf(stderr, " [IP=0x%08X]", pc);
+	if (fault_instruction != SIGSEGV_INVALID_PC)
+		fprintf(stderr, " [IP=0x%08X]", fault_instruction);
 	fprintf(stderr, "\n");
-	
-	signal(SIGSEGV, SIG_DFL);
+	return false;
 }
-
-#if defined(HAVE_SIGINFO_T)
-
-static void Screen_fault_handler(int, siginfo_t * sip, void *)
-{
-	D(bug("Screen_fault_handler: ADDR=0x%08X\n", sip->si_addr));
-	do_handle_screen_fault((uintptr)sip->si_addr);
-}
-
-#elif defined(HAVE_SIGCONTEXT_SUBTERFUGE)
-
-# if defined(__i386__) && defined(__linux__)
-static void Screen_fault_handler(int, struct sigcontext scs)
-{
-	D(bug("Screen_fault_handler: ADDR=0x%08X from IP=0x%08X\n", scs.cr2, scs.eip));
-	do_handle_screen_fault((uintptr)scs.cr2, (uintptr)scs.eip);
-}
-
-# elif defined(__m68k__) && defined(__NetBSD__)
-
-# include <m68k/frame.h>
-static void Screen_fault_handler(int, int code, struct sigcontext *scp)
-{
-	D(bug("Screen_fault_handler: ADDR=0x%08X\n", code));
-	struct sigstate {
-		int ss_flags;
-		struct frame ss_frame;
-	};
-	struct sigstate *state = (struct sigstate *)scp->sc_ap;
-	uintptr fault_addr;
-	switch (state->ss_frame.f_format) {
-		case 7:		// 68040 access error
-			// "code" is sometimes unreliable (i.e. contains NULL or a bogus address), reason unknown
-			fault_addr = state->ss_frame.f_fmt7.f_fa;
-			break;
-		default:
-			fault_addr = (uintptr)code;
-			break;
-	}
-	do_handle_screen_fault(fault_addr);
-}
-
-# elif defined(__powerpc__) && defined(__linux__)
-
-static void Screen_fault_handler(int, struct sigcontext_struct *scs)
-{
-	D(bug("Screen_fault_handler: ADDR=0x%08X from IP=0x%08X\n", scs->regs->dar, scs->regs->nip));
-	do_handle_screen_fault((uintptr)scs->regs->dar, (uintptr)scs->regs->nip);
-}
-
-# else
-#  error "No suitable subterfuge for Video on SEGV signals"
-# endif
-#else
-# error "Can't do Video on SEGV signals"
-#endif
-
-
-/*
- *	Screen fault handler initialization
- */
-
-#if defined(HAVE_SIGINFO_T)
-static bool Screen_fault_handler_init()
-{
-	// Setup SIGSEGV handler to process writes to frame buffer
-	sigemptyset(&vosf_sa.sa_mask);
-	vosf_sa.sa_sigaction = Screen_fault_handler;
-	vosf_sa.sa_flags = SA_SIGINFO;
-	return (sigaction(SIGSEGV, &vosf_sa, NULL) == 0);
-}
-#elif defined(HAVE_SIGCONTEXT_SUBTERFUGE)
-static bool Screen_fault_handler_init()
-{
-	// Setup SIGSEGV handler to process writes to frame buffer
-	sigemptyset(&vosf_sa.sa_mask);
-	vosf_sa.sa_handler = (void (*)(int)) Screen_fault_handler;
-#if !EMULATED_68K && defined(__NetBSD__)
-	sigaddset(&vosf_sa.sa_mask, SIGALRM);
-	vosf_sa.sa_flags = SA_ONSTACK;
-#else
-	vosf_sa.sa_flags = 0;
-#endif
-	return (sigaction(SIGSEGV, &vosf_sa, NULL) == 0);
-}
-#endif
-
 
 /*
  *	Update display for Windowed mode and VOSF

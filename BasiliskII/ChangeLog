@@ -5,6 +5,9 @@ V0.9 - <insert date here>
 	  [Kolja Waschk]
 	- Unix: some performance improvements to VOSF screen update code
 	  [Brian J. Johnson]
+	- Unix: renewed SIGSEGV support functions. Side effect: configure
+	  script cleanups and probable Direct Addressing/VOSF support for
+	  other platforms (NetBSD, AIX, OSF/1, Irix) [Gwenole Beauchesne]
 	- Unix: -Ofast option is supplied to MIPSPro compiler [Brian J. Johnson]
 	- Unix: workaround for IRIX pthreads bug in Delay_usec()
 	  [Brian J. Johnson]

@@ -212,6 +212,7 @@ AC_STRUCT_TM
 dnl Checks for library functions.
 AC_CHECK_FUNCS(strdup cfmakeraw)
 AC_CHECK_FUNCS(clock_gettime timer_create)
+AC_CHECK_FUNCS(sigaction signal)
 
 dnl Select system-dependant source files.
 SERIALSRC=serial_unix.cpp
@@ -328,33 +329,74 @@ AC_CACHE_CHECK("whether we can map Low Memory area 0x0000-0x2000",
   ]
 )
 
+dnl Check signal handlers need to be reinstalled
+AC_CACHE_CHECK("whether signal handlers need to be reinstalled",
+	ac_cv_signal_need_reinstall, [
+	AC_LANG_SAVE
+	AC_LANG_CPLUSPLUS
+	AC_TRY_RUN([
+		#include <stdlib.h>
+		#ifdef HAVE_UNISTD_H
+		#include <unistd.h>
+		#endif
+		#include <signal.h>
+		static int handled_signal = 0;
+		RETSIGTYPE sigusr1_handler(int) { handled_signal++; }
+		int main(void) { /* returns 0 if signals need not to be reinstalled */
+			signal(SIGUSR1, sigusr1_handler); raise(SIGUSR1); raise(SIGUSR1);
+			exit(handled_signal == 2);
+		}
+	],
+	[ac_cv_signal_need_reinstall=yes],
+	[ac_cv_signal_need_reinstall=no]
+	)
+	AC_LANG_RESTORE
+	]
+)
+AC_TRANSLATE_DEFINE(SIGNAL_NEED_REINSTALL, "$ac_cv_signal_need_reinstall")
+
+dnl Check if sigaction handlers need to be reinstalled
+AC_CACHE_CHECK("whether sigaction handlers need to be reinstalled",
+  ac_cv_sigaction_need_reinstall, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #include <stdlib.h>
+    #ifdef HAVE_UNISTD_H
+    #include <unistd.h>
+    #endif
+    #include <signal.h>
+    static int handled_signal = 0;
+    RETSIGTYPE sigusr1_handler(int) { handled_signal++; }
+    typedef RETSIGTYPE (*signal_handler)(int);
+    static signal_handler mysignal(int sig, signal_handler handler) {
+      struct sigaction old_sa;
+      struct sigaction new_sa;
+      new_sa.sa_handler = handler;
+      return ((sigaction(sig,&new_sa,&old_sa) < 0) ? SIG_IGN : old_sa.sa_handler);
+    }
+    int main(void) { /* returns 0 if signals need not to be reinstalled */
+      mysignal(SIGUSR1, sigusr1_handler); raise(SIGUSR1); raise(SIGUSR1);
+      exit(handled_signal == 2);
+    }
+  ],
+  [ac_cv_sigaction_need_reinstall=yes],
+  [ac_cv_sigaction_need_reinstall=no]
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(SIGACTION_NEED_REINSTALL, "$ac_cv_sigaction_need_reinstall")
+
 dnl Check if extended signals are supported.
 AC_CACHE_CHECK("whether your system supports extended signal handlers",
   ac_cv_have_extended_signals, [
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
   AC_TRY_RUN([
-    #include <unistd.h>
-    #include <stdlib.h>
-    #include <signal.h>
-    #include <fcntl.h>
-    #include <sys/mman.h>
-
-    static volatile caddr_t mem = 0;
-    static int zero_fd = -1;
-
-    static RETSIGTYPE segfault_handler(int, siginfo_t * sip, void *)
-    { if ((caddr_t)(sip->si_addr) != mem) exit(1);
-      munmap(mem, getpagesize()); close(zero_fd); exit(0); }
-
-    int main()
-    { if ((zero_fd = open("/dev/zero", O_RDWR)) < 0) exit(1);
-      if ((mem = (caddr_t)mmap(0, getpagesize(), PROT_READ, MAP_PRIVATE, zero_fd, 0)) == (caddr_t)MAP_FAILED) exit(1);
-      struct sigaction sa; sa.sa_sigaction = segfault_handler; sa.sa_flags = SA_SIGINFO;
-      sigaction(SIGSEGV, &sa, 0);
-      mem[0] = 0;
-      exit(1); // should not be reached
-    }
+    #define HAVE_SIGINFO_T 1
+    #define CONFIGURE_TEST
+    #include "sigsegv.cpp"
   ],
   [ac_cv_have_extended_signals=yes],
   [ac_cv_have_extended_signals=no]
@@ -366,116 +408,21 @@ AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_extended_signals")
  
 dnl Otherwise, check for subterfuges.
 if [[ "x$ac_cv_have_extended_signals" = "xno" ]]; then
-  case "$target_os" in
-    linux*)
-      if [[ "x$HAVE_I386" = "xyes" ]]; then
-        AC_CACHE_CHECK("whether we then have a subterfuge for your system",
-		  ac_cv_have_sigcontext_hack, [
-          AC_LANG_SAVE
-          AC_LANG_CPLUSPLUS
-          AC_TRY_RUN([
-            #include <unistd.h>
-            #include <signal.h>
-            #include <fcntl.h>
-            #include <sys/mman.h>
-
-            static volatile caddr_t mem = 0;
-            static int zero_fd = -1;
-
-            static RETSIGTYPE segfault_handler(int, struct sigcontext scs)
-            { if ((caddr_t)(scs.cr2) != mem) exit(1);
-              munmap(mem, getpagesize()); close(zero_fd); exit(0); }
-
-            int main()
-            { if ((zero_fd = open("/dev/zero", O_RDWR)) < 0) exit(1);
-              if ((mem = (caddr_t)mmap(0, getpagesize(), PROT_READ, MAP_PRIVATE, zero_fd, 0)) == (caddr_t)MAP_FAILED) exit(1);
-              struct sigaction sa; sa.sa_flags = 0;
-              sa.sa_handler = (RETSIGTYPE (*)(int))segfault_handler;
-              sigaction(SIGSEGV, &sa, 0);
-              mem[0] = 0;
-              exit(1); // should not be reached
-            }
-          ],
-          [ac_cv_have_sigcontext_hack=yes],
-          [ac_cv_have_sigcontext_hack=no]
-          )
-          AC_LANG_RESTORE
-        ])
-        AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, $ac_cv_have_sigcontext_hack)
-      elif [[ "x$HAVE_POWERPC" = "xyes" ]]; then
-        AC_CACHE_CHECK("whether we then have a subterfuge for your system",
-		  ac_cv_have_sigcontext_hack, [
-          AC_LANG_SAVE
-          AC_LANG_CPLUSPLUS
-          AC_TRY_RUN([
-            #include <unistd.h>
-            #include <signal.h>
-            #include <fcntl.h>
-            #include <sys/mman.h>
-
-            static volatile caddr_t mem = 0;
-            static int zero_fd = -1;
-
-            static RETSIGTYPE segfault_handler(int, struct sigcontext_struct *scs)
-            { if ((caddr_t)(scs->regs->dar) != mem) exit(1);
-              munmap(mem, getpagesize()); close(zero_fd); exit(0); }
-
-            int main()
-            { if ((zero_fd = open("/dev/zero", O_RDWR)) < 0) exit(1);
-              if ((mem = (caddr_t)mmap(0, getpagesize(), PROT_READ, MAP_PRIVATE, zero_fd, 0)) == (caddr_t)MAP_FAILED) exit(1);
-              struct sigaction sa; sa.sa_flags = 0;
-              sa.sa_handler = (RETSIGTYPE (*)(int))segfault_handler;
-              sigaction(SIGSEGV, &sa, 0);
-              mem[0] = 0;
-              exit(1); // should not be reached
-            }
-          ],
-          [ac_cv_have_sigcontext_hack=yes],
-          [ac_cv_have_sigcontext_hack=no]
-          )
-          AC_LANG_RESTORE
-        ])
-        AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, $ac_cv_have_sigcontext_hack)
-      fi
-      ;;
-    netbsd*)
-      if [[ "x$HAVE_M68K" = "xyes" ]]; then
-        AC_CACHE_CHECK("whether we then have a subterfuge for your system",
-		  ac_cv_have_sigcontext_hack, [
-          AC_LANG_SAVE
-          AC_LANG_CPLUSPLUS
-          AC_TRY_RUN([
-            #include <unistd.h>
-            #include <signal.h>
-            #include <fcntl.h>
-            #include <sys/mman.h>
-
-            static volatile caddr_t mem = 0;
-            static int zero_fd = -1;
-
-            static RETSIGTYPE segfault_handler(int, int code)
-            { if ((caddr_t)code != mem) exit(1);
-              munmap(mem, getpagesize()); close(zero_fd); exit(0); }
-
-            int main()
-            { if ((zero_fd = open("/dev/zero", O_RDWR)) < 0) exit(1);
-              if ((mem = (caddr_t)mmap(0, getpagesize(), PROT_READ, MAP_PRIVATE, zero_fd, 0)) == (caddr_t)MAP_FAILED) exit(1);
-              struct sigaction sa; sa.sa_flags = 0;
-              sa.sa_handler = (RETSIGTYPE (*)(int))segfault_handler;
-              sigaction(SIGSEGV, &sa, 0);
-              mem[0] = 0;
-              exit(1); // should not be reached
-            }
-          ],
-          [ac_cv_have_sigcontext_hack=yes],
-          [ac_cv_have_sigcontext_hack=no]
-          )
-          AC_LANG_RESTORE
-        ])
-        AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, $ac_cv_have_sigcontext_hack)
-      fi
-    ;;
-  esac
+  AC_CACHE_CHECK("whether we then have a subterfuge for your system",
+  ac_cv_have_sigcontext_hack, [
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
+    AC_TRY_RUN([
+      #define HAVE_SIGCONTEXT_SUBTERFUGE 1
+      #define CONFIGURE_TEST
+      #include "sigsegv.cpp"
+    ],
+    [ac_cv_have_sigcontext_hack=yes],
+    [ac_cv_have_sigcontext_hack=no]
+    )
+    AC_LANG_RESTORE
+  ])
+  AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack")
 fi
 
 dnl Can we do Video on SEGV Signals ?

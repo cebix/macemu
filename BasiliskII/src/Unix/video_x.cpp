@@ -53,10 +53,9 @@
 #endif
 
 #ifdef ENABLE_VOSF
-# include <unistd.h>
-# include <signal.h>
 # include <fcntl.h>
 # include <sys/mman.h>
+# include "sigsegv.h"
 #endif
 
 #include "cpu_emulation.h"
@@ -278,8 +277,6 @@ static inline int find_next_page_clear(int page)
 }
 
 static int zero_fd = -1;
-static bool Screen_fault_handler_init();
-static struct sigaction vosf_sa;
 
 #ifdef HAVE_PTHREADS
 static pthread_mutex_t vosf_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer (dirtyPages in fact)
@@ -1172,7 +1169,7 @@ bool VideoInit(bool classic)
 		}
 
 		// Initialize the handler for SIGSEGV
-		if (!Screen_fault_handler_init()) {
+		if (!sigsegv_install_handler(screen_fault_handler)) {
 			// TODO: STR_VOSF_INIT_ERR ?
 			ErrorAlert("Could not initialize Video on SEGV signals");
 			return false;

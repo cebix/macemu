@@ -44,6 +44,12 @@
 /* Define if using video enabled on SEGV signals */
 #undef ENABLE_VOSF
 
+/* Define if your system requires signals to be reinstalled */
+#undef SIGNAL_NEED_REINSTALL
+
+/* Define if your system requires sigactions to be reinstalled */
+#undef SIGACTION_NEED_REINSTALL
+
 /* Define if your system support extended signals */
 #undef HAVE_SIGINFO_T
 
