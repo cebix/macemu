@@ -680,11 +680,18 @@ void OPPROTO op_srw_T0_T1(void)
 
 void OPPROTO op_sraw_T0_T1(void)
 {
-	const uint32 n = T1 & 0x3f;
-	const uint32 RD = ((int32)T0) >> n;
-	const bool ca = (((int32)T0) < 0) && (T0 & ~(0xffffffff << n));
-	powerpc_dyngen_helper::xer().set_ca(ca);
-	T0 = RD;
+	T1 &= 0x3f;
+	if (T1 & 0x20) {
+		const uint32 SB = T0 >> 31;
+		powerpc_dyngen_helper::xer().set_ca(SB);
+		T0 = -SB;
+	}
+	else {
+		const uint32 RD = ((int32)T0) >> T1;
+		const bool CA = (int32)T0 < 0 && (T0 & ~(0xffffffff << T1));
+		powerpc_dyngen_helper::xer().set_ca(CA);
+		T0 = RD;
+	}
 	dyngen_barrier();
 }
 

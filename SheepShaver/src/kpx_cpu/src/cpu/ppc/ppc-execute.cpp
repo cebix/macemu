@@ -272,15 +272,20 @@ void powerpc_cpu::execute_shift(uint32 opcode)
 {
 	const uint32 n = SO::apply(SH::get(this, opcode));
 	const uint32 r = RA::get(this, opcode);
+	uint32 d;
 
 	// Shift operation is valid only if rB[26] = 0
-	// TODO: optimize srw case where shift operation would zero result
-	uint32 d = (n & 0x20) ? invalid_shift<OP>::value(r) : OP::apply(r, n);
-
-	// Set XER (CA) if instruction is algebraic variant
-	if (CA::test(opcode)) {
-		const uint32 carry = (r & 0x80000000) && (r & ~(0xffffffff << n));
-		xer().set_ca(carry);
+	if (n & 0x20) {
+		d = invalid_shift<OP>::value(r);
+		if (CA::test(opcode))
+			xer().set_ca(d >> 31);
+	}
+	else {
+		d = OP::apply(r, n);
+		if (CA::test(opcode)) {
+			const uint32 ca = (r & 0x80000000) && (r & ~(0xffffffff << n));
+			xer().set_ca(ca);
+		}
 	}
 
 	// Set CR0 (LT, GT, EQ, SO) if instruction has Rc set
