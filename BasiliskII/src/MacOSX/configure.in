@@ -1,3 +1,5 @@
+dnl Mac OS X configuration driver
+dnl $Id$
 dnl Process this file with autoconf to produce a configure script.
 dnl Based on Unix/configure.in
 dnl Written in 1999 by Christian Bauer et al.
@@ -23,7 +25,7 @@ AC_ARG_ENABLE(fpe,
     ieee)	FPE_CORE_TEST_ORDER="ieee";;
     uae)	FPE_CORE_TEST_ORDER="uae";;
     x86)	FPE_CORE_TEST_ORDER="x86";;
-    *)		AC_MSG_ERROR([--enable-fpe takes only one of the following values: auto, x86, ieee, uae]);;
+	*)		AC_MSG_ERROR([--enable-fpe takes only one of the following values: auto, x86, ieee, uae]);;
   esac
 ],
 [ FPE_CORE_TEST_ORDER="ieee uae"
@@ -59,14 +61,14 @@ HAVE_I386=no
 HAVE_M68K=no
 HAVE_SPARC=no
 HAVE_POWERPC=no
+HAVE_X86_64=no
 case "$target_cpu" in
-  i386* | i486* | i586* | i686* | i786* ) CPU_TYPE=i386 HAVE_I386=yes;;
-  m68k* ) CPU_TYPE=m68k HAVE_M68K=yes;;
-  sparc* ) CPU_TYPE=sparc HAVE_SPARC=yes;;
-  powerpc* ) CPU_TYPE=powerpc HAVE_POWERPC=yes;;
-  *) CPU_TYPE=`echo $target_cpu | sed -e 's/-/_/g'`;;
+  i386* | i486* | i586* | i686* | i786* ) HAVE_I386=yes;;
+  m68k* ) HAVE_M68K=yes;;
+  sparc* ) HAVE_SPARC=yes;;
+  powerpc* ) HAVE_POWERPC=yes;;
+  x86_64* ) HAVE_X86_64=yes;;
 esac
-DEFINES="$DEFINES -DCPU_$CPU_TYPE"
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -92,7 +94,12 @@ if [[ "x$WANT_MON" = "xyes" ]]; then
     AC_DEFINE(ENABLE_MON, 1, [Define if using "mon".])
     MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_z80.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/mon_lowmem.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c"
     CXXFLAGS="$CXXFLAGS -I$mon_srcdir -I$mon_srcdir/disass"
-    AC_CHECK_LIB(termcap, tputs)
+    AC_CHECK_LIB(ncurses, tgetent, ,
+      AC_CHECK_LIB(termcap, tgetent, ,
+        AC_CHECK_LIB(termlib, tgetent, ,
+          AC_CHECK_LIB(terminfo, tgetent, ,
+            AC_CHECK_LIB(Hcurses, tgetent, ,
+              AC_CHECK_LIB(curses, tgetent))))))
     AC_CHECK_LIB(readline, readline)
     AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
   else
@@ -142,20 +149,17 @@ AC_CHECK_SIZEOF(float, 4)
 AC_CHECK_SIZEOF(double, 8)
 AC_CHECK_SIZEOF(long double, 12)
 AC_CHECK_SIZEOF(void *, 4)
+AC_TYPE_OFF_T
 dnl These two symbols are not defined in 10.1's autoconf files:
 dnl AC_CHECK_TYPE(loff_t, off_t)
 dnl AC_CHECK_TYPE(caddr_t, [char *])
 dnl which causes problems for autoheader.
 dnl We define loff_t as a typedef of off_t in sysdeps.h if we don't have LOFF_T
-AC_CHECK_TYPE(off_t)
-dnl We still need off_t, though:
-AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
 AC_TYPE_SIGNAL
 AC_HEADER_TIME
 AC_STRUCT_TM
 
-dnl AC_CHECK_TYPE(socklen_t)
 dnl Check whether sys/socket.h defines type socklen_t.
 dnl (extracted from ac-archive/Miscellaneous)
 AC_CACHE_CHECK([for socklen_t],
@@ -172,7 +176,6 @@ AC_CACHE_CHECK([for socklen_t],
 if [[ "x$ac_cv_type_socklen_t" != "xyes" ]]; then
   AC_DEFINE(socklen_t, int, [Define to 'int' if <sys/types.h> doesn't define.])
 fi
-
 
 dnl Checks for library functions.
 AC_CHECK_FUNCS(strdup cfmakeraw)
@@ -207,7 +210,6 @@ DEFINES="$DEFINES -DBSD_COMP"
 dnl Use 68k CPU natively?
 WANT_NATIVE_M68K=no
 
-SYSSRCS="$SERIALSRC $ETHERSRC $SCSISRC $AUDIOSRC $SEMSRC $UISRCS $MONSRCS $EXTRASYSSRCS"
 
 dnl Define a macro that translates a yesno-variable into a C macro definition
 dnl to be put into the config.h file
@@ -642,16 +644,22 @@ dnl Other platforms should define their own set of noflags file variants
 CAN_JIT=no
 JITSRCS="compemu1.cpp compemu2.cpp compemu3.cpp compemu4.cpp compemu5.cpp compemu6.cpp compemu7.cpp compemu8.cpp"
 
-if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" -a "x$OS_TYPE" != "xfreebsd" ]]; then
+if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
   dnl i386 CPU
   DEFINES="$DEFINES -DUNALIGNED_PROFITABLE -DREGPARAM=\"__attribute__((regparm(3)))\""
   if [[ "x$HAVE_GAS" = "xyes" ]]; then
     ASM_OPTIMIZATIONS=i386
     DEFINES="$DEFINES -DX86_ASSEMBLY -DOPTIMIZED_FLAGS -DSAHF_SETO_PROFITABLE"
-    CPUSRCS="cpufast1.s cpufast2.s cpufast3.s cpufast4.s cpufast5.s cpufast6.s cpufast7.s cpufast8.s"
-    JITSRCS="cpufast1_nf.s cpufast2_nf.s cpufast3_nf.s cpufast4_nf.s cpufast5_nf.s cpufast6_nf.s cpufast7_nf.s cpufast8_nf.s $JITSRCS"
+    JITSRCS="cpuemu1_nf.cpp cpuemu2_nf.cpp cpuemu3_nf.cpp cpuemu4_nf.cpp cpuemu5_nf.cpp cpuemu6_nf.cpp cpuemu7_nf.cpp cpuemu8_nf.cpp $JITSRCS"
+    CAN_JIT=yes
   fi
-  CAN_JIT=yes
+elif [[ "x$HAVE_GCC30" = "xyes" -a "x$HAVE_X86_64" = "xyes" ]]; then
+  dnl x86-64 CPU
+  DEFINES="$DEFINES -DUNALIGNED_PROFITABLE"
+  if [[ "x$HAVE_GAS" = "xyes" ]]; then
+    ASM_OPTIMIZATIONS="x86-64"
+    DEFINES="$DEFINES -DX86_64_ASSEMBLY -DOPTIMIZED_FLAGS"
+  fi
 elif [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xyes" ]]; then
   dnl SPARC CPU
   case "$target_os" in
@@ -910,12 +918,12 @@ if [[ "x$HAVE_GCC27" = "xyes" ]]; then
   CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-g//g'`
 fi
 
-dnl Or if we have -Ofast
-if [[ "x$HAVE_OFAST" = "xyes" ]]; then
-  CFLAGS="`echo $CFLAGS | sed -e 's/-g//g'` -Ofast"
-  CXXFLAGS="`echo $CXXFLAGS | sed -e 's/-g//g'` -Ofast"
+dnl Or if we have -IPA (MIPSPro compilers)
+if [[ "x$HAVE_IPA" = "xyes" ]]; then
+  CFLAGS="`echo $CFLAGS | sed -e 's/-g//g'` -O3 -OPT:Olimit=0 -IPA"
+  CXXFLAGS="`echo $CXXFLAGS | sed -e 's/-g//g'` -O3 -OPT:Olimit=0 -IPA"
   CXXFLAGS="-LANG:std $CXXFLAGS"
-  LDFLAGS="$LDFLAGS -ipa"
+  LDFLAGS="$LDFLAGS -O3 -OPT:Olimit=0 -IPA"
 fi
 
 dnl Generate Makefile.
