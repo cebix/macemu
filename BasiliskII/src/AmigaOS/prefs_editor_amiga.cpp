@@ -142,7 +142,11 @@ static void read_settings(struct LayoutHandle *h);
  *  Locale hook - returns string for given ID
  */
 
+#ifdef __GNUC__
+static __saveds __attribute__((regparm(3))) const char *locale_hook_func(struct Hook *hook /*a0*/, void *id /*a1*/, struct LayoutHandle *h /*a2*/)
+#else
 static __saveds __regargs const char *locale_hook_func(struct Hook *hook /*a0*/, void *id /*a1*/, struct LayoutHandle *h /*a2*/)
+#endif
 {
 	return GetString((uint32)id);
 }

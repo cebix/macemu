@@ -56,8 +56,9 @@
 #include "debug.h"
 
 
-// Our minimum stack requirement
-unsigned long __stack = 0x4000;
+// Options for libnix
+unsigned long __stack = 0x4000;		// Stack requirement
+int __nocommandline = 1;			// Disable command line parsing
 
 
 // Constants

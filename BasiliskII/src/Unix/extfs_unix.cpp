@@ -57,6 +57,21 @@ void extfs_exit(void)
 
 
 /*
+ *  Add component to path name
+ */
+
+void add_path_component(char *path, const char *component, int max_len)
+{
+	int l = strlen(path);
+	if (l < max_len-1 && path[l-1] != '/') {
+		path[l] = '/';
+		path[l+1] = 0;
+	}
+	strncat(path, s, max_len-1);
+}
+
+
+/*
  *  Get/set finder type/creator for file specified by full path
  */
 

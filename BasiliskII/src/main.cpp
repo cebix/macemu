@@ -95,8 +95,10 @@ bool InitAll(void)
 	CDROMInit();
 	SCSIInit();
 
+#if SUPPORTS_EXTFS
 	// Init external file system
 	ExtFSInit();
+#endif
 
 	// Init serial ports
 	SerialInit();
@@ -159,8 +161,10 @@ void ExitAll(void)
 	// Exit network
 	EtherExit();
 
+#if SUPPORTS_EXTFS
 	// Exit external file system
 	ExtFSExit();
+#endif
 
 	// Exit drivers
 	SCSIExit();

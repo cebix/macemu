@@ -12,14 +12,15 @@ AS = PhxAss
 ASFLAGS = OPT ! INCPATH GG:os-include MACHINE=68020 FPU=1
 
 ## Files
-SRCS = ../main.cpp main_amiga.cpp ../prefs.cpp prefs_amiga.cpp prefs_editor_amiga.cpp \
-    sys_amiga.cpp ../rom_patches.cpp ../slot_rom.cpp ../rsrc_patches.cpp \
-    ../emul_op.cpp ../macos_util.cpp ../xpram.cpp xpram_amiga.cpp \
-    ../timer.cpp timer_amiga.cpp clip_amiga.cpp ../adb.cpp ../serial.cpp \
+SRCS = ../main.cpp main_amiga.cpp ../prefs.cpp prefs_amiga.cpp \
+    prefs_editor_amiga.cpp sys_amiga.cpp ../rom_patches.cpp \
+    ../slot_rom.cpp ../rsrc_patches.cpp ../emul_op.cpp \
+    ../macos_util.cpp ../xpram.cpp xpram_amiga.cpp ../timer.cpp \
+    timer_amiga.cpp clip_amiga.cpp ../adb.cpp ../serial.cpp \
     serial_amiga.cpp ../ether.cpp ether_amiga.cpp ../sony.cpp ../disk.cpp \
     ../cdrom.cpp ../scsi.cpp scsi_amiga.cpp ../video.cpp video_amiga.cpp \
-    ../audio.cpp audio_amiga.cpp ../user_strings.cpp user_strings_amiga.cpp \
-    asm_support.asm
+    ../audio.cpp audio_amiga.cpp ../extfs.cpp extfs_amiga.cpp \
+    ../user_strings.cpp user_strings_amiga.cpp asm_support.asm
 APP = BasiliskII
 
 ## Rules

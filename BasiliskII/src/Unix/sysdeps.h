@@ -69,6 +69,9 @@
 /* Is the Mac ROM write protected? */
 #define ROM_IS_WRITE_PROTECTED 1
 
+/* ExtFS is supported */
+#define SUPPORTS_EXTFS 1
+
 /* Data types */
 typedef unsigned char uint8;
 typedef signed char int8;

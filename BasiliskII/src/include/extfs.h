@@ -32,6 +32,7 @@ extern int16 ExtFSHFS(uint32 vcb, uint16 selectCode, uint32 paramBlock, uint32 g
 // System specific and internal functions/data
 extern void extfs_init(void);
 extern void extfs_exit(void);
+extern void add_path_component(char *path, const char *component, int max_len);
 extern void get_finder_type(const char *path, uint32 &type, uint32 &creator);
 extern void set_finder_type(const char *path, uint32 type, uint32 creator);
 extern void get_finder_flags(const char *path, uint16 &flags);

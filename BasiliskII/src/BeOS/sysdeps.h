@@ -40,6 +40,9 @@
 // Is the Mac ROM write protected?
 #define ROM_IS_WRITE_PROTECTED 1
 
+// ExtFS is supported
+#define SUPPORTS_EXTFS 1
+
 // Time data type for Time Manager emulation
 typedef bigtime_t tm_time_t;
 

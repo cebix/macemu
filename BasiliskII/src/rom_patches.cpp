@@ -648,8 +648,10 @@ void PatchAfterStartup(void)
 	r.d[0] = 0xa05c;
 	Execute68kTrap(0xa247, &r);		// SetOSTrapAddress()
 
+#if SUPPORTS_EXTFS
 	// Install external file system
 	InstallExtFS();
+#endif
 }
 
 
@@ -666,7 +668,7 @@ bool CheckROM(void)
 	// Real addressing mode requires a 32-bit clean ROM
 	return ROMVersion == ROM_VERSION_32;
 #else
-	// Virtual addressing mode works with 32-bit clean Mac II ROMs and Classic ROMs (experimental)
+	// Virtual addressing mode works with 32-bit clean Mac II ROMs and Classic ROMs
 	return (ROMVersion == ROM_VERSION_CLASSIC) || (ROMVersion == ROM_VERSION_32);
 #endif
 }
