@@ -55,7 +55,7 @@ $(OBJ_DIR)::
 	@[ -d $(OBJ_DIR) ] || mkdir $(OBJ_DIR) > /dev/null 2>&1
 
 
-$(APP): $(OBJ_DIR) $(GENSRCS) $(SRCS)
+$(APP): $(OBJ_DIR) $(GEN) $(SRCS)
 	pbxbuild -buildstyle Deployment
 #	pbxbuild
 
