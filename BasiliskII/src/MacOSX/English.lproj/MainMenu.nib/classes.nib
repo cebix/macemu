@@ -56,6 +56,7 @@
                 AddSCSI = id; 
                 AddVolume = id; 
                 BrowseExtFS = id; 
+                BrowsePrefs = id; 
                 BrowseROM = id; 
                 ChangeBootFrom = id; 
                 ChangeCPU = id; 
@@ -75,6 +76,7 @@
                 EditModemDevice = id; 
                 EditPrinterDevice = id; 
                 EditROMpath = id; 
+                LoadPrefs = id; 
                 RemoveSCSI = id; 
                 RemoveVolume = id; 
                 ResetPrefs = id; 
@@ -112,6 +114,7 @@
                 newVolumeSize = id; 
                 newVolumeView = id; 
                 panel = id; 
+                prefsFile = id; 
                 printer = id; 
                 quadra900 = id; 
                 screen = id; 
