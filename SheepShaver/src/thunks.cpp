@@ -22,6 +22,7 @@
 #include "thunks.h"
 #include "emul_op.h"
 #include "cpu_emulation.h"
+#include "xlowmem.h"
 
 // Native function declarations
 #include "main.h"
@@ -30,6 +31,9 @@
 #include "serial.h"
 #include "ether.h"
 #include "macos_util.h"
+
+// Generate PowerPC thunks for GetResource() replacements?
+#define POWERPC_GET_RESOURCE_THUNKS 1
 
 
 /*		NativeOp instruction format:
@@ -53,6 +57,7 @@ uint32 NativeOpcode(int selector)
 	switch (selector) {
 	case NATIVE_DISABLE_INTERRUPT:
 	case NATIVE_ENABLE_INTERRUPT:
+	case NATIVE_CHECK_LOAD_INVOC:
 		opcode = POWERPC_NATIVE_OP(0, selector);
 		break;
   	case NATIVE_PATCH_NAME_REGISTRY:
@@ -90,6 +95,92 @@ uint32 NativeOpcode(int selector)
 
 
 /*
+ *  Generate PowerPC thunks for GetResource() replacements
+ */
+
+#if EMULATED_PPC
+static uint32 get_resource_func;
+static uint32 get_1_resource_func;
+static uint32 get_ind_resource_func;
+static uint32 get_1_ind_resource_func;
+static uint32 r_get_resource_func;
+
+static void generate_powerpc_thunks(void)
+{
+	static uint32 get_resource_template[] = {
+		PL(0x7c0802a6),		// mflr    r0
+		PL(0x90010008),		// stw     r0,8(r1)
+		PL(0x9421ffbc),		// stwu    r1,-68(r1)
+		PL(0x90610038),		// stw     r3,56(r1)
+		PL(0x9081003c),		// stw     r4,60(r1)
+		PL(0x00000000),		// lwz     r0,XLM_GET_RESOURCE(r0)
+		PL(0x80402834),		// lwz     r2,XLM_RES_LIB_TOC(r0)
+		PL(0x7c0903a6),		// mtctr   r0
+		PL(0x4e800421),		// bctrl
+		PL(0x90610040),		// stw     r3,64(r1)
+		PL(0x80610038),		// lwz     r3,56(r1)
+		PL(0xa881003e),		// lha     r4,62(r1)
+		PL(0x80a10040),		// lwz     r5,64(r1)
+		PL(0x00000001),		// <check_load_invoc>
+		PL(0x80610040),		// lwz     r3,64(r1)
+		PL(0x8001004c),		// lwz     r0,76(r1)
+		PL(0x7c0803a6),		// mtlr    r0
+		PL(0x38210044),		// addi    r1,r1,68
+		PL(0x4e800020)		// blr
+	};
+	const uint32 get_resource_template_size = sizeof(get_resource_template);
+
+	int xlm_index = -1, check_load_invoc_index = -1;
+	for (int i = 0; i < get_resource_template_size/4; i++) {
+		uint32 opcode = ntohl(get_resource_template[i]);
+		switch (opcode) {
+		case 0x00000000:
+			xlm_index = i;
+			break;
+		case 0x00000001:
+			check_load_invoc_index = i;
+			break;
+		}
+	}
+	assert(xlm_index != -1 && check_load_invoc_index != -1);
+
+	uint32 check_load_invoc_opcode = NativeOpcode(NATIVE_CHECK_LOAD_INVOC);
+	uintptr base;
+
+	// GetResource()
+	get_resource_func = base = SheepMem::Reserve(get_resource_template_size);
+	Host2Mac_memcpy(base, get_resource_template, get_resource_template_size);
+	WriteMacInt32(base + xlm_index * 4, 0x80000000 | XLM_GET_RESOURCE);
+	WriteMacInt32(base + check_load_invoc_index * 4, check_load_invoc_opcode);
+
+	// Get1Resource()
+	get_1_resource_func = base = SheepMem::Reserve(get_resource_template_size);
+	Host2Mac_memcpy(base, get_resource_template, get_resource_template_size);
+	WriteMacInt32(base + xlm_index * 4, 0x80000000 | XLM_GET_1_RESOURCE);
+	WriteMacInt32(base + check_load_invoc_index * 4, check_load_invoc_opcode);
+
+	// GetIndResource()
+	get_ind_resource_func = base = SheepMem::Reserve(get_resource_template_size);
+	Host2Mac_memcpy(base, get_resource_template, get_resource_template_size);
+	WriteMacInt32(base + xlm_index * 4, 0x80000000 | XLM_GET_IND_RESOURCE);
+	WriteMacInt32(base + check_load_invoc_index * 4, check_load_invoc_opcode);
+
+	// Get1IndResource()
+	get_1_ind_resource_func = base = SheepMem::Reserve(get_resource_template_size);
+	Host2Mac_memcpy(base, get_resource_template, get_resource_template_size);
+	WriteMacInt32(base + xlm_index * 4, 0x80000000 | XLM_GET_1_IND_RESOURCE);
+	WriteMacInt32(base + check_load_invoc_index * 4, check_load_invoc_opcode);
+
+	// RGetResource()
+	r_get_resource_func = base = SheepMem::Reserve(get_resource_template_size);
+	Host2Mac_memcpy(base, get_resource_template, get_resource_template_size);
+	WriteMacInt32(base + xlm_index * 4, 0x80000000 | XLM_R_GET_RESOURCE);
+	WriteMacInt32(base + check_load_invoc_index * 4, check_load_invoc_opcode);
+}
+#endif
+
+
+/*
  *  Initialize the thunks system
  */
 
@@ -111,6 +202,14 @@ bool ThunksInit(void)
 		native_op[i].tvect = base;
 		native_op[i].func  = base + 8;
 	}
+#if POWERPC_GET_RESOURCE_THUNKS
+	generate_powerpc_thunks();
+	native_op[NATIVE_GET_RESOURCE].func = get_resource_func;
+	native_op[NATIVE_GET_1_RESOURCE].func = get_1_resource_func;
+	native_op[NATIVE_GET_IND_RESOURCE].func = get_ind_resource_func;
+	native_op[NATIVE_GET_1_IND_RESOURCE].func = get_1_ind_resource_func;
+	native_op[NATIVE_R_GET_RESOURCE].func = r_get_resource_func;
+#endif
 #else
 #if defined(__linux__) || (defined(__APPLE__) && defined(__MACH__))
 #define DEFINE_NATIVE_OP(ID, FUNC) do {				\

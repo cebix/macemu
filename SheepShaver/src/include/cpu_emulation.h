@@ -97,6 +97,15 @@ static inline void *Mac2Mac_memcpy(uint32 dest, uint32 src, size_t n) {return me
 #define PW(X) ((((X) >> 8) & 0xff) | (((X) & 0xff) << 8))
 #endif
 
+// PowerPC procedure helper to write a big-endian 32-bit word
+#ifdef WORDS_BIGENDIAN
+#define PL(X) X
+#else
+#define PL(X)													\
+     ((((X) & 0xff000000) >> 24) | (((X) & 0x00ff0000) >>  8) |	\
+      (((X) & 0x0000ff00) <<  8) | (((X) & 0x000000ff) << 24))
+#endif
+
 struct M68kRegisters;
 extern void Execute68k(uint32, M68kRegisters *r);			// Execute 68k subroutine from EMUL_OP routine, must be ended with RTS
 extern void Execute68kTrap(uint16 trap, M68kRegisters *r);	// Execute 68k A-Trap from EMUL_OP routine

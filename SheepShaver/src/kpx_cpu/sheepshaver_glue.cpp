@@ -76,6 +76,9 @@ static void enter_mon(void)
 // From main_*.cpp
 extern uintptr SignalStackBase();
 
+// From rsrc_patches.cpp
+extern "C" void check_load_invoc(uint32 type, int16 id, uint32 h);
+
 // PowerPC EmulOp to exit from emulation looop
 const uint32 POWERPC_EXEC_RETURN = POWERPC_EMUL_OP | 1;
 
@@ -133,6 +136,9 @@ public:
 	uint32 get_xer() const		{ return xer().get(); }
 	void set_xer(uint32 v)		{ xer().set(v); }
 
+	// Execute EMUL_OP routine
+	void execute_emul_op(uint32 emul_op);
+
 	// Execute 68k routine
 	void execute_68k(uint32 entry, M68kRegisters *r);
 
@@ -141,6 +147,9 @@ public:
 
 	// Execute MacOS/PPC code
 	uint32 execute_macos_code(uint32 tvect, int nargs, uint32 const *args);
+
+	// Compile one instruction
+	virtual bool compile1(codegen_context_t & cg_context);
 
 	// Resource manager thunk
 	void get_resource(uint32 old_get_resource);
@@ -211,6 +220,30 @@ typedef bit_field< 20, 20 > FN_field;
 typedef bit_field< 21, 25 > NATIVE_OP_field;
 typedef bit_field< 26, 31 > EMUL_OP_field;
 
+// Execute EMUL_OP routine
+void sheepshaver_cpu::execute_emul_op(uint32 emul_op)
+{
+	M68kRegisters r68;
+	WriteMacInt32(XLM_68K_R25, gpr(25));
+	WriteMacInt32(XLM_RUN_MODE, MODE_EMUL_OP);
+	for (int i = 0; i < 8; i++)
+		r68.d[i] = gpr(8 + i);
+	for (int i = 0; i < 7; i++)
+		r68.a[i] = gpr(16 + i);
+	r68.a[7] = gpr(1);
+	uint32 saved_cr = get_cr() & CR_field<2>::mask();
+	uint32 saved_xer = get_xer();
+	EmulOp(&r68, gpr(24), emul_op);
+	set_cr(saved_cr);
+	set_xer(saved_xer);
+	for (int i = 0; i < 8; i++)
+		gpr(8 + i) = r68.d[i];
+	for (int i = 0; i < 7; i++)
+		gpr(16 + i) = r68.a[i];
+	gpr(1) = r68.a[7];
+	WriteMacInt32(XLM_RUN_MODE, MODE_68K);
+}
+
 // Execute SheepShaver instruction
 void sheepshaver_cpu::execute_sheep(uint32 opcode)
 {
@@ -234,30 +267,111 @@ void sheepshaver_cpu::execute_sheep(uint32 opcode)
 			pc() += 4;
 		break;
 
-	default: {	// EMUL_OP
-		M68kRegisters r68;
-		WriteMacInt32(XLM_68K_R25, gpr(25));
-		WriteMacInt32(XLM_RUN_MODE, MODE_EMUL_OP);
-		for (int i = 0; i < 8; i++)
-			r68.d[i] = gpr(8 + i);
-		for (int i = 0; i < 7; i++)
-			r68.a[i] = gpr(16 + i);
-		r68.a[7] = gpr(1);
-		uint32 saved_cr = get_cr() & CR_field<2>::mask();
-		uint32 saved_xer = get_xer();
-		EmulOp(&r68, gpr(24), EMUL_OP_field::extract(opcode) - 3);
-		set_cr(saved_cr);
-		set_xer(saved_xer);
-		for (int i = 0; i < 8; i++)
-			gpr(8 + i) = r68.d[i];
-		for (int i = 0; i < 7; i++)
-			gpr(16 + i) = r68.a[i];
-		gpr(1) = r68.a[7];
-		WriteMacInt32(XLM_RUN_MODE, MODE_68K);
+	default:	// EMUL_OP
+		execute_emul_op(EMUL_OP_field::extract(opcode) - 3);
 		pc() += 4;
 		break;
 	}
+}
+
+// Compile one instruction
+bool sheepshaver_cpu::compile1(codegen_context_t & cg_context)
+{
+#if PPC_ENABLE_JIT
+	const instr_info_t *ii = cg_context.instr_info;
+	if (ii->mnemo != PPC_I(SHEEP))
+		return false;
+
+	bool compiled = false;
+	powerpc_dyngen & dg = cg_context.codegen;
+	uint32 opcode = cg_context.opcode;
+
+	switch (opcode & 0x3f) {
+	case 0:		// EMUL_RETURN
+		dg.gen_invoke(QuitEmulator);
+		compiled = true;
+		break;
+
+	case 1:		// EXEC_RETURN
+		dg.gen_spcflags_set(SPCFLAG_CPU_EXEC_RETURN);
+		compiled = true;
+		break;
+
+	case 2: {	// EXEC_NATIVE
+		uint32 selector = NATIVE_OP_field::extract(opcode);
+		switch (selector) {
+		case NATIVE_PATCH_NAME_REGISTRY:
+			dg.gen_invoke(DoPatchNameRegistry);
+			compiled = true;
+			break;
+		case NATIVE_VIDEO_INSTALL_ACCEL:
+			dg.gen_invoke(VideoInstallAccel);
+			compiled = true;
+			break;
+		case NATIVE_VIDEO_VBL:
+			dg.gen_invoke(VideoVBL);
+			compiled = true;
+			break;
+		case NATIVE_GET_RESOURCE:
+		case NATIVE_GET_1_RESOURCE:
+		case NATIVE_GET_IND_RESOURCE:
+		case NATIVE_GET_1_IND_RESOURCE:
+		case NATIVE_R_GET_RESOURCE: {
+			static const uint32 get_resource_ptr[] = {
+				XLM_GET_RESOURCE,
+				XLM_GET_1_RESOURCE,
+				XLM_GET_IND_RESOURCE,
+				XLM_GET_1_IND_RESOURCE,
+				XLM_R_GET_RESOURCE
+			};
+			uint32 old_get_resource = ReadMacInt32(get_resource_ptr[selector - NATIVE_GET_RESOURCE]);
+			typedef void (*func_t)(dyngen_cpu_base, uint32);
+			func_t func = (func_t)nv_mem_fun(&sheepshaver_cpu::get_resource).ptr();
+			dg.gen_invoke_CPU_im(func, old_get_resource);
+			compiled = true;
+			break;
+		}
+		case NATIVE_DISABLE_INTERRUPT:
+			dg.gen_invoke(DisableInterrupt);
+			compiled = true;
+			break;
+		case NATIVE_ENABLE_INTERRUPT:
+			dg.gen_invoke(EnableInterrupt);
+			compiled = true;
+			break;
+		case NATIVE_CHECK_LOAD_INVOC:
+			dg.gen_load_T0_GPR(3);
+			dg.gen_load_T1_GPR(4);
+			dg.gen_se_16_32_T1();
+			dg.gen_load_T2_GPR(5);
+			dg.gen_invoke_T0_T1_T2((void (*)(uint32, uint32, uint32))check_load_invoc);
+			compiled = true;
+			break;
+		}
+		if (FN_field::test(opcode)) {
+			if (compiled) {
+				dg.gen_load_A0_LR();
+				dg.gen_set_PC_A0();
+			}
+			cg_context.done_compile = true;
+		}
+		else
+			cg_context.done_compile = false;
+		break;
 	}
+
+	default: {	// EMUL_OP
+		typedef void (*func_t)(dyngen_cpu_base, uint32);
+		func_t func = (func_t)nv_mem_fun(&sheepshaver_cpu::execute_emul_op).ptr();
+		dg.gen_invoke_CPU_im(func, EMUL_OP_field::extract(opcode) - 3);
+		cg_context.done_compile = false;
+		compiled = true;
+		break;
+	}
+	}
+	return compiled;
+#endif
+	return false;
 }
 
 // Handle MacOS interrupt
@@ -493,8 +607,6 @@ inline void sheepshaver_cpu::execute_ppc(uint32 entry)
 }
 
 // Resource Manager thunk
-extern "C" void check_load_invoc(uint32 type, int16 id, uint32 h);
-
 inline void sheepshaver_cpu::get_resource(uint32 old_get_resource)
 {
 	uint32 type = gpr(3);
@@ -904,6 +1016,9 @@ static void NativeOp(int selector)
 		break;
 	case NATIVE_MAKE_EXECUTABLE:
 		MakeExecutable(0, (void *)GPR(4), GPR(5));
+		break;
+	case NATIVE_CHECK_LOAD_INVOC:
+		check_load_invoc(GPR(3), GPR(4), GPR(5));
 		break;
 	default:
 		printf("FATAL: NATIVE_OP called with bogus selector %d\n", selector);
