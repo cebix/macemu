@@ -36,16 +36,7 @@ register struct powerpc_cpu *CPU asm(REG_CPU);
 register uint32 A0 asm(REG_A0);
 register uint32 T0 asm(REG_T0);
 register uint32 T1 asm(REG_T1);
-#ifdef REG_T2
-register uint32 CC_LHS asm(REG_T2);
-#else
-#define CC_LHS powerpc_dyngen_helper::cc_lhs()
-#endif
-#ifdef REG_T3
-register uint32 CC_RHS asm(REG_T3);
-#else
-#define CC_RHS powerpc_dyngen_helper::cc_rhs()
-#endif
+register uint32 RC asm(REG_T2);
 
 // Semantic action templates
 #define DYNGEN_OPS
@@ -71,8 +62,6 @@ struct powerpc_dyngen_helper {
 	static inline void record(int crf, int32 v)	{ CPU->record_cr(crf, v); }
 	static inline powerpc_cr_register & cr()	{ return CPU->cr(); }
 	static inline powerpc_xer_register & xer()	{ return CPU->xer(); }
-	static inline uint32 & cc_lhs() { return CPU->codegen_ptr()->rc_cache.cc_lhs; }
-	static inline uint32 & cc_rhs() { return CPU->codegen_ptr()->rc_cache.cc_rhs; }
 };
 
 
@@ -206,78 +195,42 @@ DEFINE_REG(31);
 #undef DEFINE_REG
 #undef DEFINE_OP
 
-#define DEFINE_OP(CRF, REG)						\
-void OPPROTO op_load_##REG##_cr##CRF(void)		\
-{												\
-	T0 = powerpc_dyngen_helper::cr().get(CRF);	\
-}												\
-void OPPROTO op_store_##REG##_cr##CRF(void)		\
-{												\
-	powerpc_dyngen_helper::cr().set(CRF, REG);	\
+#define DEFINE_OP(CRF, REG)										\
+void OPPROTO op_load_##REG##_cr##CRF(void)						\
+{																\
+	REG = powerpc_dyngen_helper::cr().get(CRF);					\
+}																\
+void OPPROTO op_store_##REG##_cr##CRF(void)						\
+{																\
+	powerpc_dyngen_helper::cr().set(CRF, REG);					\
+}																\
+void OPPROTO op_commit_so_cache_cr##CRF(void)					\
+{																\
+	uint32 cr = powerpc_dyngen_helper::get_cr();				\
+	const uint32 cr_mask = CR_SO_field<CRF>::mask();			\
+	cr = (cr & ~cr_mask) | ((RC << (28 - 4 * CRF)) & cr_mask);	\
+	powerpc_dyngen_helper::set_cr(cr);							\
+}																\
+void OPPROTO op_commit_rc_cache_cr##CRF(void)					\
+{																\
+	uint32 cr = powerpc_dyngen_helper::get_cr();				\
+	const uint32 cr_mask = (CR_LT_field<CRF>::mask() |			\
+							CR_GT_field<CRF>::mask() |			\
+							CR_EQ_field<CRF>::mask());			\
+	cr = (cr & ~cr_mask) | ((RC << (28 - 4 * CRF)) & cr_mask);	\
+	powerpc_dyngen_helper::set_cr(cr);							\
 }
 
-DEFINE_OP(0, T0);
-DEFINE_OP(1, T0);
-DEFINE_OP(2, T0);
-DEFINE_OP(3, T0);
-DEFINE_OP(4, T0);
-DEFINE_OP(5, T0);
-DEFINE_OP(6, T0);
-DEFINE_OP(7, T0);
+DEFINE_OP(0, RC);
+DEFINE_OP(1, RC);
+DEFINE_OP(2, RC);
+DEFINE_OP(3, RC);
+DEFINE_OP(4, RC);
+DEFINE_OP(5, RC);
+DEFINE_OP(6, RC);
+DEFINE_OP(7, RC);
 
 #undef DEFINE_OP
-
-#define DEFINE_OP(CRF)								\
-void OPPROTO op_commit_so_cache_cr##CRF(void)		\
-{													\
-	int so = powerpc_dyngen_helper::xer().get_so();	\
-	powerpc_dyngen_helper::cr().set_so(CRF, so);	\
-}
-
-DEFINE_OP(0);
-DEFINE_OP(1);
-DEFINE_OP(2);
-DEFINE_OP(3);
-DEFINE_OP(4);
-DEFINE_OP(5);
-DEFINE_OP(6);
-DEFINE_OP(7);
-
-#undef DEFINE_OP
-
-#define DEFINE_OP_1(NAME,TYPE,CRF)					\
-void OPPROTO op_##NAME##_rc_cache_cr##CRF(void)		\
-{													\
-	uint32 cr = powerpc_dyngen_helper::get_cr();	\
-	cr &= ~(CR_LT_field<CRF>::mask() |				\
-			CR_GT_field<CRF>::mask() |				\
-			CR_EQ_field<CRF>::mask());				\
-													\
-	if ((TYPE)CC_LHS < (TYPE)CC_RHS)				\
-		cr |= CR_LT_field<CRF>::mask();				\
-	else if ((TYPE)CC_LHS > (TYPE)CC_RHS)			\
-		cr |= CR_GT_field<CRF>::mask();				\
-	else											\
-		cr |= CR_EQ_field<CRF>::mask();				\
-													\
-	powerpc_dyngen_helper::set_cr(cr);				\
-	dyngen_barrier();								\
-}
-#define DEFINE_OP(CRF)							\
-DEFINE_OP_1(commit,int32,CRF);					\
-DEFINE_OP_1(commit_logical,uint32,CRF)
-
-DEFINE_OP(0);
-DEFINE_OP(1);
-DEFINE_OP(2);
-DEFINE_OP(3);
-DEFINE_OP(4);
-DEFINE_OP(5);
-DEFINE_OP(6);
-DEFINE_OP(7);
-
-#undef DEFINE_OP
-#undef DEFINE_OP_1
 
 
 /**
@@ -394,9 +347,9 @@ static inline void do_execute_branch(uint32 tpc, uint32 npc)
 }
 
 template< int crb >
-struct CR_comparator {
+struct RC_comparator {
 	static inline bool test() {
-		return (T0 & crb);
+		return (RC & crb);
 	}
 };
 
@@ -414,14 +367,14 @@ struct bool_condition< false, comparator > {
 	}
 };
 
-typedef bool_condition< true, CR_comparator<8> > blt_condition;
-typedef bool_condition<false, CR_comparator<8> > bnlt_condition;
-typedef bool_condition< true, CR_comparator<4> > bgt_condition;
-typedef bool_condition<false, CR_comparator<4> > bngt_condition;
-typedef bool_condition< true, CR_comparator<2> > beq_condition;
-typedef bool_condition<false, CR_comparator<2> > bneq_condition;
-typedef bool_condition< true, CR_comparator<1> > bso_condition;
-typedef bool_condition<false, CR_comparator<1> > bnso_condition;
+typedef bool_condition< true, RC_comparator<8> > blt_condition;
+typedef bool_condition<false, RC_comparator<8> > bnlt_condition;
+typedef bool_condition< true, RC_comparator<4> > bgt_condition;
+typedef bool_condition<false, RC_comparator<4> > bngt_condition;
+typedef bool_condition< true, RC_comparator<2> > beq_condition;
+typedef bool_condition<false, RC_comparator<2> > bneq_condition;
+typedef bool_condition< true, RC_comparator<1> > bso_condition;
+typedef bool_condition<false, RC_comparator<1> > bnso_condition;
 
 struct ctr_0x_condition {
 	static inline bool test() {
@@ -453,7 +406,7 @@ void OPPROTO op_##COND##_##CTR(void)										\
 #define DEFINE_OP(COND)							\
 DEFINE_OP_CTR(COND,0x);							\
 DEFINE_OP_CTR(COND,10);							\
-DEFINE_OP_CTR(COND,11)
+DEFINE_OP_CTR(COND,11);
 
 DEFINE_OP(blt);
 DEFINE_OP(bgt);
@@ -478,52 +431,9 @@ void OPPROTO op_record_nego_T0(void)
 	dyngen_barrier();
 }
 
-void OPPROTO op_record_cr0_T0(void)
-{
-	uint32 cr = powerpc_dyngen_helper::get_cr();
-	cr &= ~(CR_LT_field<0>::mask() |
-			CR_GT_field<0>::mask() |
-			CR_EQ_field<0>::mask() |
-			CR_SO_field<0>::mask());
-
-#if DYNGEN_ASM_OPTS
-#if defined(__powerpc__)
-	uint32 v;
-	asm volatile ("cmpwi 0,%1,0 ; mfcr %0" : "=r" (v) : "r" (T0) : "cr0");
-	cr |= (v & (0xe0000000));
-	cr |= (powerpc_dyngen_helper::xer().get_so() << (31 - 3));
-	goto end;
-#endif
-#endif
-
-	if (powerpc_dyngen_helper::xer().get_so())
-		cr |= CR_SO_field<0>::mask();
-	if ((int32)T0 < 0)
-		cr |= CR_LT_field<0>::mask();
-	else if ((int32)T0 > 0)
-		cr |= CR_GT_field<0>::mask();
-	else
-		cr |= CR_EQ_field<0>::mask();
-
-  end:
-	powerpc_dyngen_helper::set_cr(cr);
-	dyngen_barrier();
-}
-
 #define im PARAM1
 
-#define DEFINE_OP(LHS, RHS)						\
-void OPPROTO op_compare_##LHS##_##RHS(void)		\
-{												\
-	CC_LHS = LHS;								\
-	CC_RHS = RHS;								\
-}
-DEFINE_OP(T0,T1);
-DEFINE_OP(T0,im);
-DEFINE_OP(T0,0);
-#undef DEFINE_OP
-
-#if DYNGEN_ASM_OPTS && defined(__powerpc__)
+#if DYNGEN_ASM_OPTS && defined(__powerpc__) && 0
 
 #define DEFINE_OP(NAME, COMP, LHS, RHST, RHS)												\
 void OPPROTO op_##NAME##_##LHS##_##RHS(void)												\
@@ -543,26 +453,25 @@ DEFINE_OP(do_compare_logical,"cmplwi",T0,"i",0);
 
 #else
 
-#define DEFINE_OP(NAME, TYPE, LHS, RHS)					\
-void OPPROTO op_##NAME##_##LHS##_##RHS(void)			\
-{														\
-	uint32 cr = powerpc_dyngen_helper::xer().get_so();	\
-	if ((TYPE)LHS < (TYPE)RHS)							\
-		cr |= standalone_CR_LT_field::mask();			\
-	else if ((TYPE)LHS > (TYPE)RHS)						\
-		cr |= standalone_CR_GT_field::mask();			\
-	else												\
-		cr |= standalone_CR_EQ_field::mask();			\
-	T0 = cr;											\
-	dyngen_barrier();									\
+#define DEFINE_OP(NAME, TYPE, LHS, RHS)			\
+void OPPROTO op_##NAME##_##LHS##_##RHS(void)	\
+{												\
+	RC = powerpc_dyngen_helper::xer().get_so();	\
+	if ((TYPE)LHS < (TYPE)RHS)					\
+		RC |= standalone_CR_LT_field::mask();	\
+	else if ((TYPE)LHS > (TYPE)RHS)				\
+		RC |= standalone_CR_GT_field::mask();	\
+	else										\
+		RC |= standalone_CR_EQ_field::mask();	\
+	dyngen_barrier();							\
 }
 
-DEFINE_OP(do_compare,int32,T0,T1);
-DEFINE_OP(do_compare,int32,T0,im);
-DEFINE_OP(do_compare,int32,T0,0);
-DEFINE_OP(do_compare_logical,uint32,T0,T1);
-DEFINE_OP(do_compare_logical,uint32,T0,im);
-DEFINE_OP(do_compare_logical,uint32,T0,0);
+DEFINE_OP(compare,int32,T0,T1);
+DEFINE_OP(compare,int32,T0,im);
+DEFINE_OP(compare,int32,T0,0);
+DEFINE_OP(compare_logical,uint32,T0,T1);
+DEFINE_OP(compare_logical,uint32,T0,im);
+DEFINE_OP(compare_logical,uint32,T0,0);
 
 #endif
 

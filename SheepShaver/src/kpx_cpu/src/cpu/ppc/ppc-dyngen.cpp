@@ -31,51 +31,44 @@
 
 void powerpc_dyngen::invalidate_so_cache()
 {
-	rc_cache.so_status = RC_cache::STATUS_TRASH;
+	rc_cache.set_so_status(RC_cache::STATUS_TRASH);
 }
 
 void powerpc_dyngen::invalidate_cr_cache()
 {
 	invalidate_so_cache();
-	rc_cache.val_status = RC_cache::STATUS_TRASH;
-	rc_cache.crf = -1;
-}
-
-void powerpc_dyngen::do_gen_commit_cr()
-{
-	gen_commit_so();
-	switch (rc_cache.val_status) {
-	case RC_cache::STATUS_VALID:
-		gen_commit_rc_cache_cr(rc_cache.crf);
-		break;
-	case RC_cache::STATUS_VALID_LOGICAL:
-		gen_commit_logical_rc_cache_cr(rc_cache.crf);
-		break;
-	default:
-		abort();
-	}
-	invalidate_cr_cache();
-}
-
-void powerpc_dyngen::do_gen_commit_so()
-{
-	gen_commit_so_cache_cr(rc_cache.crf);
-	invalidate_so_cache();
+	rc_cache.set_val_status(RC_cache::STATUS_TRASH);
+	rc_cache.set_crf(-1);
 }
 
 void powerpc_dyngen::gen_commit_cr()
 {
-	if (rc_cache.val_status != RC_cache::STATUS_TRASH) {
-		assert(rc_cache.crf != -1);
-		do_gen_commit_cr();
+	if (rc_cache.val_status() == RC_cache::STATUS_VALID &&
+		rc_cache.so_status() == RC_cache::STATUS_VALID) {
+		const int crf = rc_cache.crf();
+		assert(crf != -1);
+		gen_store_RC_cr(crf);
+		invalidate_cr_cache();
+	}
+	else if (rc_cache.val_status() == RC_cache::STATUS_VALID) {
+		const int crf = rc_cache.crf();
+		assert(crf != -1);
+		gen_commit_rc_cache_cr(crf);
+		invalidate_cr_cache();
+	}
+	else {
+		// Maybe only SO field left to spill
+		gen_commit_so();
 	}
 }
 
 void powerpc_dyngen::gen_commit_so()
 {
-	if (rc_cache.so_status != RC_cache::STATUS_TRASH) {
-		assert(rc_cache.crf != -1);
-		do_gen_commit_so();
+	if (rc_cache.so_status() == RC_cache::STATUS_VALID) {
+		const int crf = rc_cache.crf();
+		assert(crf != -1);
+		gen_commit_so_cache_cr(crf);
+		invalidate_so_cache();
 	}
 }
 
@@ -102,8 +95,8 @@ void powerpc_dyngen::gen_compare_logical_T0_T1(int crf)
 {
 	if (!rc_cache.has_field(crf))
 		gen_commit_cr();
-	gen_op_compare_T0_T1();
-	rc_cache.cache_field(crf, RC_cache::STATUS_VALID_LOGICAL);
+	gen_op_compare_logical_T0_T1();
+	rc_cache.cache_field(crf);
 }
 
 void powerpc_dyngen::gen_compare_logical_T0_im(int crf, int32 value)
@@ -111,10 +104,10 @@ void powerpc_dyngen::gen_compare_logical_T0_im(int crf, int32 value)
 	if (!rc_cache.has_field(crf))
 		gen_commit_cr();
 	if (value == 0)
-		gen_op_compare_T0_0();
+		gen_op_compare_logical_T0_0();
 	else
-		gen_op_compare_T0_im(value);
-	rc_cache.cache_field(crf, RC_cache::STATUS_VALID_LOGICAL);
+		gen_op_compare_logical_T0_im(value);
+	rc_cache.cache_field(crf);
 }
 
 /**
@@ -193,11 +186,10 @@ void powerpc_dyngen::gen_##OP##_##REG##_cr(int crf)	\
 	}												\
 }
 
-DEFINE_INSN(load, T0);
-DEFINE_INSN(store, T0);
+DEFINE_INSN(load, RC);
+DEFINE_INSN(store, RC);
 DEFINE_INSN(commit, so_cache);
 DEFINE_INSN(commit, rc_cache);
-DEFINE_INSN(commit_logical, rc_cache);
 
 #undef DEFINE_INSN
 
@@ -206,12 +198,20 @@ void powerpc_dyngen::gen_record_cr0_T0(void)
 	gen_compare_T0_im(0, 0);
 }
 
+void powerpc_dyngen::gen_prepare_RC(int bi)
+{
+	const int crf = bi / 4;
+	const int crb = bi % 4;
+
+	gen_commit_cr();
+	gen_load_RC_cr(crf);
+}
+
 void powerpc_dyngen::gen_bc_A0(int bo, int bi, uint32 npc)
 {
-	gen_commit_cr();
 	if (BO_CONDITIONAL_BRANCH(bo)) {
 		enum { lt, gt, eq, so };
-		gen_load_T0_cr(bi / 4);
+		gen_prepare_RC(bi);
 		const int n = ((bi % 4) << 2) | ((bo >> 1) & 3);
 #define _(CR,DCTR,CTR0) (((CR) << 2) | ((DCTR) ? 0 : 2) | ((CTR0) ? 1 : 0))
 		if (BO_BRANCH_IF_TRUE(bo)) {
@@ -239,6 +239,7 @@ void powerpc_dyngen::gen_bc_A0(int bo, int bi, uint32 npc)
 #undef _
 	}
 	else {
+		gen_commit_cr();
 		if (BO_DECREMENT_CTR(bo)) {
 			gen_decrement_ctr_T0();
 			if (BO_BRANCH_IF_CTR_ZERO(bo))

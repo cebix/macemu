@@ -37,30 +37,33 @@ class powerpc_dyngen
 #	include "ppc-dyngen-ops.hpp"
 #endif
 
-	struct RC_cache {
+	class RC_cache {
+		int m_val_status;
+		int m_so_status;
+		int m_crf;
+
+	public:
+		int crf() const					{ return m_crf; }
+		int val_status() const			{ return m_val_status; }
+		int so_status() const			{ return m_so_status; }
+		void set_crf(int v)				{ m_crf = v; }
+		void set_val_status(int v)		{ m_val_status = v; }
+		void set_so_status(int v)		{ m_so_status = v; }
+
 		enum {
 			STATUS_TRASH,
 			STATUS_VALID,
-			STATUS_VALID_LOGICAL
 		};
-		int val_status;
-		int so_status;
-		int crf;
-
-		// Used only by generated code if not enough native registers
-		// are available to cache them all
-		uint32 cc_lhs;
-		uint32 cc_rhs;
 
 		RC_cache()
-			: val_status(STATUS_TRASH), so_status(STATUS_TRASH), crf(-1)
+			: m_val_status(STATUS_TRASH), m_so_status(STATUS_TRASH), m_crf(-1)
 			{ }
 
-		bool has_field(int test_crf)
-			{ return val_status != STATUS_TRASH && crf == test_crf; }
+		bool has_field(int crf) const
+			{ return m_crf == crf; }
 
-		void cache_field(int new_crf, int new_status = STATUS_VALID)
-			{ val_status = so_status = new_status; crf = new_crf; }
+		void cache_field(int crf)
+			{ m_val_status = m_so_status = STATUS_VALID; m_crf = crf; }
 	};
 	RC_cache rc_cache;
 
@@ -102,11 +105,8 @@ public:
 
 	// Condition registers
 private:
-	void do_gen_commit_so();
-	void do_gen_commit_cr();
 	void gen_commit_so_cache_cr(int crf);
 	void gen_commit_rc_cache_cr(int crf);
-	void gen_commit_logical_rc_cache_cr(int crf);
 public:
 	void invalidate_so_cache();
 	void invalidate_cr_cache();
@@ -120,8 +120,9 @@ public:
 	void gen_load_T1_crb(int i);
 	void gen_store_T0_crb(int i);
 	void gen_store_T1_crb(int i);
-	void gen_load_T0_cr(int crf);
-	void gen_store_T0_cr(int crf);
+	void gen_load_RC_cr(int crf);
+	void gen_store_RC_cr(int crf);
+	void gen_prepare_RC(int bi);
 
 	// Special purpose registers
 	DEFINE_ALIAS(load_T0_PC,0);
