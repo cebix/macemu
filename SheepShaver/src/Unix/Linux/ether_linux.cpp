@@ -148,8 +148,8 @@ void EtherInit(void)
 	case NET_IF_ETHERTAP:
 		sprintf(dev_name, "/dev/%s", name);
 		break;
-	case NET_IF_TUNTAP:
-		sprintf(dev_name, "/dev/net/tun", name);
+	case NET_IF_TUNTAP:	
+		strcpy(dev_name, "/dev/net/tun");
 		break;
 	case NET_IF_SHEEPNET:
 		strcpy(dev_name, "/dev/sheep_net");
@@ -485,7 +485,7 @@ void EtherIRQ(void)
 			mblk_t *mp;
 			if ((mp = allocb(size, 0)) != NULL) {
 				D(bug(" packet data at %p\n", (void *)mp->b_rptr));
-				read(fd, mp->b_rptr, 1514);
+				read(fd, mp->b_rptr, size);
 #if MONITOR
 				bug("Receiving Ethernet packet:\n");
 				for (int i=0; i<size; i++) {
