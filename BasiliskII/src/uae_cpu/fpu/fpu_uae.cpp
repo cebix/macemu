@@ -1886,8 +1886,6 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 				FPU registers[reg] = 1.0e256;
 				fpu_debug(("FP const: 1.0e256\n"));
 				break;
-
-				// Valid for 64 bits only (see fpu.cpp)
 #if 0
 			case 0x3c:
 				FPU registers[reg] = 1.0e512;

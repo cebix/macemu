@@ -1621,6 +1621,7 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 				FPU registers[reg] = 1.0e256;
 				fpu_debug(("FP const: 1.0e256\n"));
 				break;
+#if USE_LONG_DOUBLE
 			case 0x3c:
 				FPU registers[reg] = 1.0e512;
 				fpu_debug(("FP const: 1.0e512\n"));
@@ -1636,6 +1637,7 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 			case 0x3f:
 				FPU registers[reg] = 1.0e4096;
 				fpu_debug(("FP const: 1.0e4096\n"));
+#endif
 				break;
 			default:
 				m68k_setpc (m68k_getpc () - 4);
