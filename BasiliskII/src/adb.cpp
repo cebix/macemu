@@ -377,13 +377,13 @@ void ADBInterrupt(void)
 		// Update mouse position (absolute)
 		if (mx != old_mouse_x || my != old_mouse_y) {
 #ifdef POWERPC_ROM
-			static const uint8 proc[] = {
-				0x2f, 0x08,		// move.l a0,-(sp)
-				0x2f, 0x00,		// move.l d0,-(sp)
-				0x2f, 0x01,		// move.l d1,-(sp)
-				0x70, 0x01,		// moveq #1,d0 (MoveTo)
-				0xaa, 0xdb,		// CursorDeviceDispatch
-				M68K_RTS >> 8, M68K_RTS & 0xff
+			static const uint16 proc[] = {
+				PW(0x2f08),		// move.l a0,-(sp)
+				PW(0x2f00),		// move.l d0,-(sp)
+				PW(0x2f01),		// move.l d1,-(sp)
+				PW(0x7001),		// moveq #1,d0 (MoveTo)
+				PW(0xaadb),		// CursorDeviceDispatch
+				PW(M68K_RTS)
 			};
 			r.a[0] = ReadMacInt32(mouse_base + 4);
 			r.d[0] = mx;
