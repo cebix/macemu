@@ -27,6 +27,7 @@
 #ifdef __linux__
 #include <linux/cdrom.h>
 #include <linux/fd.h>
+#include <linux/fs.h>
 #include <linux/major.h>
 #include <linux/kdev_t.h>
 #include <linux/unistd.h>
@@ -428,9 +429,11 @@ loff_t SysGetFileSize(void *arg)
 		return fh->file_size;
 	else {
 #if defined(__linux__)
-		loff_t pos = 0;
-		_llseek(fh->fd, 0, 0, &pos, SEEK_END);
-		return pos - fh->start_byte;
+		long blocks;
+		if (ioctl(fh->fd, BLKGETSIZE, &blocks) < 0)
+			return 0;
+		D(bug(" BLKGETSIZE returns %d blocks\n", blocks));
+		return (loff_t)blocks * 512;
 #else
 		return lseek(fh->fd, 0, SEEK_END) - fh->start_byte;
 #endif

@@ -410,33 +410,6 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			break;
 		}
 
-		case M68K_EMUL_OP_MEMORY_DISPATCH: {	// MemoryDispatch() replacement routine
-			int16 sel = r->d[0];
-			D(bug("MemoryDispatch(%d)\n", sel));
-			switch (sel) {
-				case -6:	// GetLogicalRAMSize
-					r->d[0] = RAMSize;
-					break;
-				case -3:
-					r->d[0] = 0x1000;
-					break;
-				case 0:		// HoldMemory
-				case 1:		// UnholdMemory
-				case 2:		// LockMemory
-				case 3:		// UnlockMemory
-				case 4:		// LockMemoryContiguous
-				case 6:		// ProtectMemory
-				case 7:		// UnprotectMemory
-					r->d[0] = 0;
-					break;
-				default:
-					printf("WARNING: MemoryDispatch(%d): unimplemented selector\n", sel);
-					r->d[0] = (uint32)-502;
-					break;
-			}
-			break;
-		}
-
 		case M68K_EMUL_OP_IRQ:			// Level 1 interrupt
 			r->d[0] = 0;
 			if (InterruptFlags & INTFLAG_60HZ) {

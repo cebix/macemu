@@ -2514,7 +2514,7 @@ static void generate_one_opcode (int rp)
     }
     fprintf (stblfile, "{ op_%lx_%d, 0, %ld }, /* %s */\n", opcode, postfix, opcode, lookuptab[i].name);
     fprintf (headerfile, "extern cpuop_func op_%lx_%d;\n", opcode, postfix);
-    printf ("unsigned long REGPARAM2 op_%lx_%d(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, lookuptab[i].name);
+    printf ("void REGPARAM2 op_%lx_%d(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, lookuptab[i].name);
 
     switch (table68k[opcode].stype) {
      case 0: smsk = 7; break;
@@ -2628,7 +2628,6 @@ static void generate_one_opcode (int rp)
     gen_opcode (opcode);
     if (need_endlabel)
 	printf ("%s: ;\n", endlabelstr);
-    printf ("return %d;\n", insn_n_cycles);
     printf ("}\n");
     opcode_next_clev[rp] = next_cpu_level;
     opcode_last_postfix[rp] = postfix;

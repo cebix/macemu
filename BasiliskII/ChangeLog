@@ -4,10 +4,16 @@ V0.8 -
 	- removed Windows sources from the source archive; a version of
 	  these that actually compiles and works can be downloaded from
 	  Lauri Pesonen's site
-	- fixed one possible source of "unimplemented trap" errors on MacOS
-	  bootup
+	- removed the MemoryDispatch() replacement routine; the routine
+	  in the ROM is now always used; this fixes the MacOS 8 Finder
+	  copying bug and also most "unimplemented trap" errors on MacOS
+	  bootup; yeah :-)
+	- a warning is issued if the ROM seems to require an FPU but FPU
+	  emulation is turned off
 	- medium removal is allowed in CDROMExit()
-	- added (incomplete) emulation of 68040 instructions
+	- added (incomplete) emulation of 68040 instructions (CINV, CPUSH,
+	  MOVE16 (Ax)+,(Ay)+, and FPU stack frames), enough to boot MacOS
+	- UAE CPU: opcode routines no longer return the cycle count
 	- extfs.cpp: fixed bug with fsResolveWDCB in fs_get_wd_info()
 	- Unix: added support for ESD audio output; merged with OSS audio
 	  and put in a new "audio_oss_esd.cpp" file which is also used under
@@ -26,6 +32,7 @@ V0.8 -
 	- Unix/audio_oss_esd.cpp: "silence" in 8-bit mode used wrong fill
 	  value (0 instead of 0x80) [Alexander R. Pruss]
 	- Unix/video_x.cpp: added mouse wheel support [Alexander R. Pruss]
+	- Unix/sys_unix.cpp: device size is read correctly under Linux
 
 V0.8 (snapshot) - 21.Oct.1999
 	- sony.cpp/disk.cpp/cdrom.cpp: disk insertions are now checked for

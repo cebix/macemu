@@ -2073,6 +2073,7 @@ void fpp_opp(uae_u32 opcode, uae_u16 extra)
 				break;
 			case 0x23:		/* FMUL */
 				D(bug("FMUL %.04f\r\n",(float)src));
+#if HAVE_IEEE_DOUBLE
 				GET_DEST_FLAGS((uae_u32 *)&regs.fp[reg]);
 				GET_SOURCE_FLAGS((uae_u32 *)&src);
 				if(fl_dest.in_range && fl_source.in_range) {
@@ -2099,6 +2100,10 @@ void fpp_opp(uae_u32 opcode, uae_u16 extra)
 						MAKE_INF_POSITIVE((uae_u32 *)&regs.fp[reg]);
 					}
 				}
+#else
+				D(bug("FMUL %.04f\r\n",(float)src));
+				regs.fp[reg] *= src;
+#endif
 				MAKE_FPSR(regs.fpsr,regs.fp[reg]);
 				break;
 			case 0x24:		/* FSGLDIV */

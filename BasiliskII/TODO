@@ -1,9 +1,8 @@
 Bugs:
 - System 7.1 with Quadra900 ModelID (1MB ROM): 0x108 gets strange value
 - Strange things happen when the Mac ROM is lower in memory than the RAM
-- Something seems to be wrong with the UAE FPU (Calculator and scroll bars in
-  MacOS 8 don't work properly)
-- MacOS 8: Finder threads don't work
+- Something still seems to be wrong with the UAE FPU (Calculator and scroll
+  bars in MacOS 8 don't work properly)
 
 General:
 - Sony: rdVerify, Tag Buffer, DskErr

@@ -268,7 +268,7 @@ int16 DiskOpen(uint32 pb, uint32 dce)
 				info->num_blocks = SysGetFileSize(info->fh) / 512;
 				info->to_be_mounted = true;
 			}
-			D(bug(" %ld blocks\n", info->num_blocks));
+			D(bug(" %d blocks\n", info->num_blocks));
 			WriteMacInt16(info->status + dsDriveSize, info->num_blocks & 0xffff);
 			WriteMacInt16(info->status + dsDriveS1, info->num_blocks >> 16);
 

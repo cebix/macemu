@@ -353,8 +353,11 @@ void FlushCodeCache(void *start, uint32 size)
  */
 
 #if ENABLE_MON
+extern void m68k_dumpstate(uaecptr *nextpc);
 static void sigint_handler(...)
 {
+	uaecptr nextpc;
+	m68k_dumpstate(&nextpc);
 	char *arg[2] = {"rmon", NULL};
 	mon(1, arg);
 	QuitEmulator();

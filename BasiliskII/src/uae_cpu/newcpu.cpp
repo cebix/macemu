@@ -111,12 +111,11 @@ static __inline__ unsigned int cft_map (unsigned int f)
 #endif
 }
 
-static unsigned long REGPARAM2 op_illg_1 (uae_u32 opcode) REGPARAM;
+static void REGPARAM2 op_illg_1 (uae_u32 opcode) REGPARAM;
 
-static unsigned long REGPARAM2 op_illg_1 (uae_u32 opcode)
+static void REGPARAM2 op_illg_1 (uae_u32 opcode)
 {
     op_illg (cft_map (opcode));
-    return 4;
 }
 
 static void build_cpufunctbl (void)
@@ -1051,7 +1050,7 @@ void m68k_reset (void)
     regs.fpcr = regs.fpsr = regs.fpiar = 0;
 }
 
-unsigned long REGPARAM2 op_illg (uae_u32 opcode)
+void REGPARAM2 op_illg (uae_u32 opcode)
 {
     uaecptr pc = m68k_getpc ();
 
@@ -1065,7 +1064,7 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 		if (opcode == M68K_EXEC_RETURN) {
 			regs.spcflags |= SPCFLAG_BRK;
 			quit_program = 1;
-			return 4;
+			return;
 		}
 
 		// Call EMUL_OP opcode
@@ -1084,23 +1083,24 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 		MakeFromSR();
 		m68k_incpc(2);
 		fill_prefetch_0 ();
-		return 4;
+		return;
 	}
 
     if ((opcode & 0xF000) == 0xA000) {
 	Exception(0xA,0);
-	return 4;
+	return;
+    }
+
+//    write_log ("Illegal instruction: %04x at %08lx\n", opcode, pc);
+
+    if ((opcode & 0xF000) == 0xF000) {
+	Exception(0xB,0);
+	return;
     }
 
     write_log ("Illegal instruction: %04x at %08lx\n", opcode, pc);
 
-    if ((opcode & 0xF000) == 0xF000) {
-	Exception(0xB,0);
-	return 4;
-    }
-
     Exception (4,0);
-    return 4;
 }
 
 void mmu_op(uae_u32 opcode, uae_u16 extra)
@@ -1195,48 +1195,17 @@ static int do_specialties (void)
 
 static void m68k_run_1 (void)
 {
-    for (;;) {
-	int cycles;
-	uae_u32 opcode = GET_OPCODE;
-#if 0
-	if (get_ilong (0) != do_get_mem_long (&regs.prefetch)) {
-	    debugging = 1;
-	    return;
+	for (;;) {
+		uae_u32 opcode = GET_OPCODE;
+		(*cpufunctbl[opcode])(opcode);
+		if (regs.spcflags) {
+			if (do_specialties())
+				return;
+		}
 	}
-#endif
-	/* assert (!regs.stopped && !(regs.spcflags & SPCFLAG_STOP)); */
-/*	regs_backup[backup_pointer = (backup_pointer + 1) % 16] = regs;*/
-#if COUNT_INSTRS == 2
-	if (table68k[cft_map (opcode)].handler != -1)
-	    instrcount[table68k[cft_map (opcode)].handler]++;
-#elif COUNT_INSTRS == 1
-	instrcount[opcode]++;
-#endif
-#if defined(X86_ASSEMBLYxxx)
-	__asm__ __volatile__("\tcall *%%ebx"
-			     : "=&a" (cycles) : "b" (cpufunctbl[opcode]), "0" (opcode)
-			     : "%edx", "%ecx",
-			     "%esi", "%edi", "%ebp", "memory", "cc");
-#else
-	cycles = (*cpufunctbl[opcode])(opcode);
-#endif
-	/*n_insns++;*/
-	if (regs.spcflags) {
-	    if (do_specialties ())
-		return;
-	}
-    }
 }
 
-#ifdef X86_ASSEMBLYxxx
-static __inline__ void m68k_run1 (void)
-{
-    /* Work around compiler bug: GCC doesn't push %ebp in m68k_run_1. */
-    __asm__ __volatile__ ("pushl %%ebp\n\tcall *%0\n\tpopl %%ebp" : : "r" (m68k_run_1) : "%eax", "%edx", "%ecx", "memory", "cc");
-}
-#else
 #define m68k_run1 m68k_run_1
-#endif
 
 int in_m68k_go = 0;
 

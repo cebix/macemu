@@ -47,7 +47,6 @@ bool PrintROMInfo = false;	// Flag: print ROM information in PatchROM()
 static uint32 sony_offset;				// ROM offset of .Sony driver
 static uint32 serd_offset;				// ROM offset of SERD resource (serial drivers)
 static uint32 microseconds_offset;		// ROM offset of Microseconds() replacement routine
-static uint32 memory_dispatch_offset;	// ROM offset of MemoryDispatch() replacement routine
 
 // Prototypes
 uint16 ROMVersion;
@@ -82,6 +81,8 @@ static uint32 find_rom_resource(uint32 s_type, int16 s_id, bool cont = false)
 
 	if (!cont)
 		rsrc_ptr = x;
+	else
+		rsrc_ptr = ReadMacInt32(ROMBaseMac + rsrc_ptr + 8);
 
 	for (;;) {
 		lp = ROMBaseMac + rsrc_ptr;
@@ -698,11 +699,6 @@ void InstallDrivers(uint32 pb)
 	// Install Microseconds() replacement routine
 	r.a[0] = ROMBaseMac + microseconds_offset;
 	r.d[0] = 0xa093;
-	Execute68kTrap(0xa247, &r);		// SetOSTrapAddress()
-
-	// Install MemoryDispatch() replacement routine
-	r.a[0] = ROMBaseMac + memory_dispatch_offset;
-	r.d[0] = 0xa05c;
 	Execute68kTrap(0xa247, &r);		// SetOSTrapAddress()
 
 	// Install disk driver
@@ -1459,7 +1455,7 @@ static bool patch_rom_32(void)
 	static const uint8 memdisp_dat[] = {0x30, 0x3c, 0xa8, 0x9f, 0xa7, 0x46, 0x30, 0x3c, 0xa0, 0x5c, 0xa2, 0x47};
 	base = find_rom_data(0x4f100, 0x4f180, memdisp_dat, sizeof(memdisp_dat));
 	D(bug("memdisp %08lx\n", base));
-	if (base) {	// ROM15/32
+	if (base) {	// ROM15/22/23/26/27/32
 		wp = (uint16 *)(ROMBaseHost + base + 10);
 		*wp = htons(M68K_NOP);
 	}
@@ -1565,12 +1561,6 @@ static bool patch_rom_32(void)
 	*wp++ = htons(base >> 16);
 	*wp = htons(base & 0xffff);
 
-	// Install MemoryDispatch() replacement routine (activated in PatchAfterStartup())
-	memory_dispatch_offset = sony_offset + 0xc20;
-	wp = (uint16 *)(ROMBaseHost + memory_dispatch_offset);
-	*wp++ = htons(M68K_EMUL_OP_MEMORY_DISPATCH);
-	*wp = htons(M68K_RTS);
-
 #if EMULATED_68K
 	// Replace BlockMove()
 	wp = (uint16 *)(ROMBaseHost + find_rom_trap(0xa02e));	// BlockMove()
@@ -1578,6 +1568,11 @@ static bool patch_rom_32(void)
 	*wp++ = htons(0x7000);
 	*wp = htons(M68K_RTS);
 #endif
+
+	// Look for double PACK 4 resources
+	if ((base = find_rom_resource('PACK', 4)) == 0) return false;
+	if ((base = find_rom_resource('PACK', 4, true)) == 0 && FPUType == 0)
+		printf("WARNING: This ROM seems to require an FPU\n");
 
 	// Patch VIA interrupt handler
 	wp = (uint16 *)(ROMBaseHost + 0x9bc4);	// Level 1 handler
