@@ -131,6 +131,8 @@ uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
 #define X86_TARGET_64BIT		1
 #endif
 #define X86_FLAT_REGISTERS		0
+#define X86_OPTIMIZE_ALU		1
+#define X86_OPTIMIZE_ROTSHI		1
 #include "codegen_x86.h"
 
 #define x86_emit_byte(B)		emit_byte(B)
@@ -358,19 +360,19 @@ LENDFUNC(WRITE,NONE,2,raw_shrl_b_rr,(RW1 d, R1 r))
 
 LOWFUNC(WRITE,NONE,2,raw_shra_l_rr,(RW4 d, R1 r))
 {
-	abort();
+	SARLrr(r, d);
 }
 LENDFUNC(WRITE,NONE,2,raw_shra_l_rr,(RW4 d, R1 r))
 
 LOWFUNC(WRITE,NONE,2,raw_shra_w_rr,(RW2 d, R1 r))
 {
-	abort();
+	SARWrr(r, d);
 }
 LENDFUNC(WRITE,NONE,2,raw_shra_w_rr,(RW2 d, R1 r))
 
 LOWFUNC(WRITE,NONE,2,raw_shra_b_rr,(RW1 d, R1 r))
 {
-	abort();
+	SARBrr(r, d);
 }
 LENDFUNC(WRITE,NONE,2,raw_shra_b_rr,(RW1 d, R1 r))
 
@@ -412,19 +414,19 @@ LENDFUNC(WRITE,NONE,2,raw_shrl_b_ri,(RW1 r, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_shra_l_ri,(RW4 r, IMM i))
 {
-	abort();
+	SARLir(i, r);
 }
 LENDFUNC(WRITE,NONE,2,raw_shra_l_ri,(RW4 r, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_shra_w_ri,(RW2 r, IMM i))
 {
-	abort();
+	SARWir(i, r);
 }
 LENDFUNC(WRITE,NONE,2,raw_shra_w_ri,(RW2 r, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_shra_b_ri,(RW1 r, IMM i))
 {
-	abort();
+	SARBir(i, r);
 }
 LENDFUNC(WRITE,NONE,2,raw_shra_b_ri,(RW1 r, IMM i))
 
@@ -496,25 +498,33 @@ LENDFUNC(NONE,NONE,2,raw_zero_extend_8_rr,(W4 d, R1 s))
 
 LOWFUNC(NONE,NONE,2,raw_imul_32_32,(RW4 d, R4 s))
 {
-	abort();
+	IMULLrr(s, d);
 }
 LENDFUNC(NONE,NONE,2,raw_imul_32_32,(RW4 d, R4 s))
 
 LOWFUNC(NONE,NONE,2,raw_imul_64_32,(RW4 d, RW4 s))
 {
+	if (d!=MUL_NREG1 || s!=MUL_NREG2) {
+	write_log("Bad register in IMUL: d=%d, s=%d\n",d,s);
 	abort();
+	}
+	IMULLr(s);
 }
 LENDFUNC(NONE,NONE,2,raw_imul_64_32,(RW4 d, RW4 s))
 
 LOWFUNC(NONE,NONE,2,raw_mul_64_32,(RW4 d, RW4 s))
 {
+	if (d!=MUL_NREG1 || s!=MUL_NREG2) {
+	write_log("Bad register in MUL: d=%d, s=%d\n",d,s);
 	abort();
+	}
+	MULLr(s);
 }
 LENDFUNC(NONE,NONE,2,raw_mul_64_32,(RW4 d, RW4 s))
 
 LOWFUNC(NONE,NONE,2,raw_mul_32_32,(RW4 d, R4 s))
 {
-	abort();
+	abort(); /* %^$&%^$%#^ x86! */
 }
 LENDFUNC(NONE,NONE,2,raw_mul_32_32,(RW4 d, R4 s))
 
