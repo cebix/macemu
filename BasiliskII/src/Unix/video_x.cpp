@@ -68,7 +68,6 @@ enum {
 	DISPLAY_DGA		// DGA fullscreen display
 };
 
-
 // Constants
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
 const char FBDEVICES_FILE_NAME[] = DATADIR "/fbdevices";
@@ -128,6 +127,10 @@ static GC cursor_gc, cursor_mask_gc;
 static uint8 *the_buffer_copy = NULL;				// Copy of Mac frame buffer
 static uint8 the_cursor[64];						// Cursor image data
 static bool have_shm = false;						// Flag: SHM extensions available
+static bool updt_box[17][17];						// Flag for Update
+static int nr_boxes;
+static const int sm_uptd[] = {4,1,6,3,0,5,2,7};
+static int sm_no_boxes[] = {1,8,32,64,128,300};
 
 // Variables for XF86 DGA mode
 static int current_dga_cmap;						// Number (0 or 1) of currently installed DGA colormap
@@ -214,6 +217,9 @@ static int error_handler(Display *d, XErrorEvent *e)
 // Init window mode
 static bool init_window(int width, int height)
 {
+	int aligned_width = (width + 15) & ~15;
+	int aligned_height = (height + 15) & ~15;
+
 	// Set absolute mouse mode
 	ADBSetRelMouseMode(false);
 
@@ -227,7 +233,8 @@ static bool init_window(int width, int height)
 	wattr.event_mask = eventmask = win_eventmask;
 	wattr.background_pixel = black_pixel;
 	wattr.border_pixel = black_pixel;
-	wattr.backing_store = Always;
+	wattr.backing_store = NotUseful;
+	wattr.save_under = false;
 	wattr.backing_planes = xdepth;
 
 	XSync(x_display, false);
@@ -263,9 +270,9 @@ static bool init_window(int width, int height)
 
 		// Create SHM image ("height + 2" for safety)
 		img = XShmCreateImage(x_display, vis, depth, depth == 1 ? XYBitmap : ZPixmap, 0, &shminfo, width, height);
-		shminfo.shmid = shmget(IPC_PRIVATE, (height + 2) * img->bytes_per_line, IPC_CREAT | 0777);
-		the_buffer = (uint8 *)shmat(shminfo.shmid, 0, 0);
-		shminfo.shmaddr = img->data = (char *)the_buffer;
+		shminfo.shmid = shmget(IPC_PRIVATE, (aligned_height + 2) * img->bytes_per_line, IPC_CREAT | 0777);
+		the_buffer_copy = (uint8 *)shmat(shminfo.shmid, 0, 0);
+		shminfo.shmaddr = img->data = (char *)the_buffer_copy;
 		shminfo.readOnly = False;
 
 		// Try to attach SHM image, catching errors
@@ -286,7 +293,7 @@ static bool init_window(int width, int height)
 	
 	// Create normal X image if SHM doesn't work ("height + 2" for safety)
 	if (!have_shm) {
-		int bytes_per_row = width;
+		int bytes_per_row = aligned_width;
 		switch (depth) {
 			case 1:
 				bytes_per_row /= 8;
@@ -300,8 +307,8 @@ static bool init_window(int width, int height)
 				bytes_per_row *= 4;
 				break;
 		}
-		the_buffer = (uint8 *)malloc((height + 2) * bytes_per_row);
-		img = XCreateImage(x_display, vis, depth, depth == 1 ? XYBitmap : ZPixmap, 0, (char *)the_buffer, width, height, 32, bytes_per_row);
+		the_buffer_copy = (uint8 *)malloc((aligned_height + 2) * bytes_per_row);
+		img = XCreateImage(x_display, vis, depth, depth == 1 ? XYBitmap : ZPixmap, 0, (char *)the_buffer_copy, aligned_width, aligned_height, 32, bytes_per_row);
 	}
 
 	// 1-Bit mode is big-endian
@@ -311,24 +318,18 @@ static bool init_window(int width, int height)
 	}
 
 	// Allocate memory for frame buffer copy
-	the_buffer_copy = (uint8 *)malloc((height + 2) * img->bytes_per_line);
+	the_buffer = (uint8 *)malloc((aligned_height + 2) * img->bytes_per_line);
 
 	// Create GC
 	the_gc = XCreateGC(x_display, the_win, 0, 0);
 	XSetState(x_display, the_gc, black_pixel, white_pixel, GXcopy, AllPlanes);
 
-	// Create cursor
-	cursor_image = XCreateImage(x_display, vis, 1, XYPixmap, 0, (char *)the_cursor, 16, 16, 16, 2);
-	cursor_image->byte_order = MSBFirst;
-	cursor_image->bitmap_bit_order = MSBFirst;
-	cursor_mask_image = XCreateImage(x_display, vis, 1, XYPixmap, 0, (char *)the_cursor+32, 16, 16, 16, 2);
-	cursor_mask_image->byte_order = MSBFirst;
-	cursor_mask_image->bitmap_bit_order = MSBFirst;
-	cursor_map = XCreatePixmap(x_display, the_win, 16, 16, 1);
-	cursor_mask_map = XCreatePixmap(x_display, the_win, 16, 16, 1);
-	cursor_gc = XCreateGC(x_display, cursor_map, 0, 0);
-	cursor_mask_gc = XCreateGC(x_display, cursor_mask_map, 0, 0);
-	mac_cursor = XCreatePixmapCursor(x_display, cursor_map, cursor_mask_map, &black, &white, 0, 0);
+	// Create no_cursor
+	mac_cursor = XCreatePixmapCursor (x_display,
+					   XCreatePixmap (x_display, the_win, 1, 1, 1),
+					   XCreatePixmap (x_display, the_win, 1, 1, 1),
+					   &black, &white, 0, 0);
+	XDefineCursor (x_display, the_win, mac_cursor);
 
 	// Set VideoMonitor
 #ifdef WORDS_BIGENDIAN
@@ -844,17 +845,22 @@ void VideoExit(void)
 			close(fbdev_fd);
 		}
 #endif
-		
-		if (the_buffer_copy) {
-			free(the_buffer_copy);
-			the_buffer_copy = NULL;
-		}
 
 		XFlush(x_display);
 		XSync(x_display, false);
 		if (depth == 8) {
 			XFreeColormap(x_display, cmap[0]);
 			XFreeColormap(x_display, cmap[1]);
+		}
+
+		if (the_buffer) {
+			free(the_buffer);
+			the_buffer = NULL;
+		}
+
+		if (!have_shm && the_buffer_copy) {
+			free(the_buffer_copy);
+			the_buffer_copy = NULL;
 		}
 	}
 }
@@ -1261,8 +1267,13 @@ static void handle_events(void)
 
 			// Hidden parts exposed, force complete refresh of window
 			case Expose:
-				if (display_type == DISPLAY_WINDOW)
-					memset(the_buffer_copy, 0, VideoMonitor.bytes_per_row * VideoMonitor.y);
+				if (display_type == DISPLAY_WINDOW) {
+					int x1, y1;
+					for (y1=0; y1<16; y1++)
+					for (x1=0; x1<16; x1++)
+						updt_box[x1][y1] = true;
+					nr_boxes = 16 * 16;
+				}
 				break;
 		}
 	}
@@ -1273,139 +1284,92 @@ static void handle_events(void)
  *  Window display update
  */
 
-static void update_display(void)
+static void update_display(int ticker)
 {
-	// In classic mode, copy the frame buffer from Mac RAM
-	if (classic_mode)
-		Mac2Host_memcpy(the_buffer, 0x3fa700, VideoMonitor.bytes_per_row * VideoMonitor.y);
-	
-	// Incremental update code
-	int wide = 0, high = 0, x1, x2, y1, y2, i, j;
+	int y1, y2, y2s, y2a, i, x1, xm, xmo, ymo, yo, yi, yil, xic, xicl, xi;
+	int xil = 0;
+	int rxm = 0, rxmo = 0;
 	int bytes_per_row = VideoMonitor.bytes_per_row;
 	int bytes_per_pixel = VideoMonitor.bytes_per_row / VideoMonitor.x;
-	uint8 *p, *p2;
+	int rx = VideoMonitor.bytes_per_row / 16;
+	int ry = VideoMonitor.y / 16;
+	int max_box;
 
-	// Check for first line from top and first line from bottom that have changed
-	y1 = 0;
-	for (j=0; j<VideoMonitor.y; j++) {
-		if (memcmp(&the_buffer[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
-			y1 = j;
+	y2s = sm_uptd[ticker % 8];
+	y2a = 8;
+	for (i = 0; i < 6; i++)
+		if (ticker % (2 << i))
 			break;
-		}
-	}
-	y2 = y1 - 1;
-	for (j=VideoMonitor.y-1; j>=y1; j--) {
-		if (memcmp(&the_buffer[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
-			y2 = j;
-			break;
-		}
-	}
-	high = y2 - y1 + 1;
+	max_box = sm_no_boxes[i];
 
-	// Check for first column from left and first column from right that have changed
-	if (high) {
-		if (depth == 1) {
-			x1 = VideoMonitor.x;
-			for (j=y1; j<=y2; j++) {
-				p = &the_buffer[j * bytes_per_row];
-				p2 = &the_buffer_copy[j * bytes_per_row];
-				for (i=0; i<(x1>>3); i++) {
-					if (*p != *p2) {
-						x1 = i << 3;
-						break;
+	if (y2a) {
+		for (y1=0; y1<16; y1++) {
+			for (y2=y2s; y2 < ry; y2 += y2a) {
+				i = ((y1 * ry) + y2) * bytes_per_row; 
+				for (x1=0; x1<16; x1++, i += rx) {
+					if (updt_box[x1][y1] == false) {
+						if (memcmp(&the_buffer_copy[i], &the_buffer[i], rx)) {
+							updt_box[x1][y1] = true;
+							nr_boxes++;
+						}
 					}
-					p++;
-					p2++;
-				}
-			}
-			x2 = x1;
-			for (j=y1; j<=y2; j++) {
-				p = &the_buffer[j * bytes_per_row];
-				p2 = &the_buffer_copy[j * bytes_per_row];
-				p += bytes_per_row;
-				p2 += bytes_per_row;
-				for (i=(VideoMonitor.x>>3); i>(x2>>3); i--) {
-					p--;
-					p2--;
-					if (*p != *p2) {
-						x2 = i << 3;
-						break;
-					}
-				}
-			}
-			wide = x2 - x1;
-
-			// Update copy of the_buffer
-			if (high && wide) {
-				for (j=y1; j<=y2; j++) {
-					i = j * bytes_per_row + (x1 >> 3);
-					memcpy(&the_buffer_copy[i], &the_buffer[i], wide >> 3);
-				}
-			}
-
-		} else {
-			x1 = VideoMonitor.x;
-			for (j=y1; j<=y2; j++) {
-				p = &the_buffer[j * bytes_per_row];
-				p2 = &the_buffer_copy[j * bytes_per_row];
-				for (i=0; i<x1; i++) {
-					if (memcmp(p, p2, bytes_per_pixel)) {
-						x1 = i;
-						break;
-					}
-					p += bytes_per_pixel;
-					p2 += bytes_per_pixel;
-				}
-			}
-			x2 = x1;
-			for (j=y1; j<=y2; j++) {
-				p = &the_buffer[j * bytes_per_row];
-				p2 = &the_buffer_copy[j * bytes_per_row];
-				p += bytes_per_row;
-				p2 += bytes_per_row;
-				for (i=VideoMonitor.x; i>x2; i--) {
-					p -= bytes_per_pixel;
-					p2 -= bytes_per_pixel;
-					if (memcmp(p, p2, bytes_per_pixel)) {
-						x2 = i;
-						break;
-					}
-				}
-			}
-			wide = x2 - x1;
-
-			// Update copy of the_buffer
-			if (high && wide) {
-				for (j=y1; j<=y2; j++) {
-					i = j * bytes_per_row + x1 * bytes_per_pixel;
-					memcpy(&the_buffer_copy[i], &the_buffer[i], bytes_per_pixel * wide);
 				}
 			}
 		}
 	}
 
-	// Refresh display
-	if (high && wide) {
-		if (have_shm)
-			XShmPutImage(x_display, the_win, the_gc, img, x1, y1, x1, y1, wide, high, 0);
-		else
-			XPutImage(x_display, the_win, the_gc, img, x1, y1, x1, y1, wide, high);
-	}
-
-	// Has the Mac started? (cursor data is not valid otherwise)
-	if (HasMacStarted()) {
-
-		// Set new cursor image if it was changed
-		if (memcmp(the_cursor, Mac2HostAddr(0x844), 64)) {
-			Mac2Host_memcpy(the_cursor, 0x844, 64);
-			memcpy(cursor_image->data, the_cursor, 32);
-			memcpy(cursor_mask_image->data, the_cursor+32, 32);
-			XFreeCursor(x_display, mac_cursor);
-			XPutImage(x_display, cursor_map, cursor_gc, cursor_image, 0, 0, 0, 0, 16, 16);
-			XPutImage(x_display, cursor_mask_map, cursor_mask_gc, cursor_mask_image, 0, 0, 0, 0, 16, 16);
-			mac_cursor = XCreatePixmapCursor(x_display, cursor_map, cursor_mask_map, &black, &white, ReadMacInt8(0x885), ReadMacInt8(0x887));
-			XDefineCursor(x_display, the_win, mac_cursor);
+	if ((nr_boxes <= max_box) && (nr_boxes)) {
+		for (y1=0; y1<16; y1++) {
+			for (x1=0; x1<16; x1++) {
+				if (updt_box[x1][y1] == true) {
+					if (rxm == 0)
+						xm = x1;
+					rxm += rx; 
+					updt_box[x1][y1] = false;
+				}
+				if (((updt_box[x1+1][y1] == false) || (x1 == 15)) && (rxm)) {
+					if ((rxmo != rxm) || (xmo != xm) || (yo != y1 - 1)) {
+						if (rxmo) {
+							xi = xmo * rx;
+							yi = ymo * ry;
+							xil = rxmo;
+							yil = (yo - ymo +1) * ry;
+						}
+						rxmo = rxm;
+						xmo = xm;
+						ymo = y1;
+					}
+					rxm = 0;
+					yo = y1;
+				}	
+				if (xil) {
+					i = (yi * bytes_per_row) + xi;
+					for (y2=0; y2 < yil; y2++, i += bytes_per_row)
+						memcpy(&the_buffer_copy[i], &the_buffer[i], xil);
+					if (depth == 1) {
+						if (have_shm)
+							XShmPutImage(x_display, the_win, the_gc, img, xi * 8, yi, xi * 8, yi, xil * 8, yil, 0);
+						else
+							XPutImage(x_display, the_win, the_gc, img, xi * 8, yi, xi * 8, yi, xil * 8, yil);
+					} else {
+						if (have_shm)
+							XShmPutImage(x_display, the_win, the_gc, img, xi / bytes_per_pixel, yi, xi / bytes_per_pixel, yi, xil / bytes_per_pixel, yil, 0);
+						else
+							XPutImage(x_display, the_win, the_gc, img, xi / bytes_per_pixel, yi, xi / bytes_per_pixel, yi, xil / bytes_per_pixel, yil);
+					}
+					xil = 0;
+				}
+				if ((x1 == 15) && (y1 == 15) && (rxmo)) {
+					x1--;
+					xi = xmo * rx;
+					yi = ymo * ry;
+					xil = rxmo;
+					yil = (yo - ymo +1) * ry;
+					rxmo = 0;
+				}
+			}
 		}
+		nr_boxes = 0;
 	}
 }
 
@@ -1475,13 +1439,10 @@ static void *redraw_func(void *arg)
 		}
 		pthread_mutex_unlock(&palette_lock);
 
-		// In window mode, update display and mouse pointer
+		// In window mode, update display
 		if (display_type == DISPLAY_WINDOW) {
 			tick_counter++;
-			if (tick_counter >= frame_skip) {
-				tick_counter = 0;
-				update_display();
-			}
+			update_display(tick_counter);
 		}
 	}
 	return NULL;
