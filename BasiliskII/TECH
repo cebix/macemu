@@ -54,7 +54,7 @@ and EMULATED_68K defines in "sysdeps.h"):
    functions (do_get_mem_long() etc.) that translate addresses. This slows
    down the emulator, of course.
 
-2. Emulated CPU, "real" addressing (EMULATED_68K = 1, REAL_ADDRESSING = 0):
+2. Emulated CPU, "real" addressing (EMULATED_68K = 1, REAL_ADDRESSING = 1):
    This mode is intended for big-endian non-68k systems that do allow access to
    RAM at 0x0000..0x1fff. As in the virtual addressing mode, the 68k processor
    is emulated with the UAE CPU engine and two areas are set up for RAM and ROM
