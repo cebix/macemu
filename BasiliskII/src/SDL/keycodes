@@ -1,0 +1,244 @@
+# /usr/share/BasiliskII/keycodes
+#
+# Basilisk II (C) 1997-2004 Christian Bauer
+#
+# This file is used to translate the (server-specific) scancodes to
+# Mac keycodes depending on the window server being used.
+#
+# The format of this file is as follows:
+#
+# sdl <driver string>
+# <SDL scancode> <Mac keycode>
+# <SDL scancode> <Mac keycode>
+# <SDL scancode> <Mac keycode>
+# ...
+# sdl <driver string>
+# <SDL scancode> <Mac keycode>
+# <SDL scancode> <Mac keycode>
+# ...
+#
+# The "driver string" must match the first part of the SDL driver vendor
+# description as reported by SDL_VideoDriverName(). If a match is found,
+# the keycode translation table is constructed from the following
+# lines. Each line contains an SDL scancode followed by its associated
+# Mac keycode. Both keycodes have to be given in decimal. Lines
+# beginning with "#" or ";" are treated as comments and ignored.
+#
+
+#
+# X11 server
+#
+sdl x11
+sdl dga
+9	53	# Esc
+67	122	# F1
+68	120	# F2
+69	99	# F3
+70	118	# F4
+71	96	# F5
+72	97	# F6
+73	98	# F7
+74	100	# F8
+75	101	# F9
+76	109	# F10
+95	103	# F11
+96	111	# F12
+111	105	# PrintScrn
+78	107	# Scroll Lock
+110	113	# Pause
+49	10	# `
+10	18	# 1
+11	19	# 2
+12	20	# 3
+13	21	# 4
+14	23	# 5
+15	22	# 6
+16	26	# 7
+17	28	# 8
+18	25	# 9
+19	29	# 0
+20	27	# -
+21	24	# =
+22	51	# Backspace
+106	114	# Insert
+97	115	# Home
+99	116	# Page Up
+77	71	# Num Lock
+112	75	# KP /
+63	67	# KP *
+82	78	# KP -
+23	48	# Tab
+24	12	# Q
+25	13	# W
+26	14	# E
+27	15	# R
+28	17	# T
+29	16	# Y
+30	32	# U
+31	34	# I
+32	31	# O
+33	35	# P
+34	33	# [
+35	30	# ]
+36	36	# Return
+107	117	# Delete
+103	119	# End
+105	121	# Page Down
+79	89	# KP 7
+80	91	# KP 8
+81	92	# KP 9
+86	69	# KP +
+66	57	# Caps Lock
+38	0	# A
+39	1	# S
+40	2	# D
+41	3	# F
+42	5	# G
+43	4	# H
+44	38	# J
+45	40	# K
+46	37	# L
+47	41	# ;
+48	39	# '
+83	86	# KP 4
+84	87	# KP 5
+85	88	# KP 6
+50	56	# Shift Left
+94	50	# International
+52	6	# Z
+53	7	# X
+54	8	# C
+55	9	# V
+56	11	# B
+57	45	# N
+58	46	# M
+59	43	# ,
+60	47	# .
+61	44	# /
+62	56	# Shift Right
+51	42	# \
+98	62	# Cursor Up
+87	83	# KP 1
+88	84	# KP 2
+89	85	# KP 3
+108	76	# KP Enter
+37	54	# Ctrl Left
+115	58	# Logo Left (-> Option)
+64	55	# Alt Left (-> Command)
+65	49	# Space
+113	55	# Alt Right (-> Command)
+116	58	# Logo Right (-> Option)
+117	50	# Menu (-> International)
+109	54	# Ctrl Right
+100	59	# Cursor Left
+104	61	# Cursor Down
+102	60	# Cursor Right
+90	82	# KP 0
+91	65	# KP .
+
+#
+# Quartz (1:1 translation actually)
+#
+sdl Quartz
+53	53	# Esc
+122	122	# F1
+120	120	# F2
+99	99	# F3
+118	118	# F4
+96	96	# F5
+97	97	# F6
+98	98	# F7
+100	100	# F8
+101	101	# F9
+109	109	# F10
+103	103	# F11
+111	111	# F12
+105	105	# F13/PrintScrn
+107	107	# F14/Scroll Lock
+113	113	# F15/Pause
+10	10	# `
+18	18	# 1
+19	19	# 2
+20	20	# 3
+21	21	# 4
+23	23	# 5
+22	22	# 6
+26	26	# 7
+28	28	# 8
+25	25	# 9
+29	29	# 0
+27	27	# -
+24	24	# =
+51	51	# Backspace
+114	114	# Help/Insert
+115	115	# Home
+116	116	# Page Up
+71	71	# Num Lock
+81	81	# KP =
+75	75	# KP /
+67	67	# KP *
+48	48	# Tab
+12	12	# Q
+13	13	# W
+14	14	# E
+15	15	# R
+17	17	# T
+16	16	# Y
+32	32	# U
+34	34	# I
+31	31	# O
+35	35	# P
+33	33	# [
+30	30	# ]
+36	36	# Return
+117	117	# Delete
+119	119	# End
+121	121	# Page Down
+89	89	# KP 7
+91	91	# KP 8
+92	92	# KP 9
+78	78	# KP -
+57	57	# Caps Lock
+0	0	# A
+1	1	# S
+2	2	# D
+3	3	# F
+5	5	# G
+4	4	# H
+38	38	# J
+40	40	# K
+37	37	# L
+41	41	# ;
+39	39	# '
+42	42	# \
+86	86	# KP 4
+87	87	# KP 5
+88	88	# KP 6
+69	69	# KP +
+56	56	# Shift
+50	50	# International
+6	6	# Z
+7	7	# X
+8	8	# C
+9	9	# V
+11	11	# B
+45	45	# N
+46	46	# M
+43	43	# ,
+47	47	# .
+44	44	# /
+126	62	# Cursor Up
+123	59	# Cursor Left
+125	61	# Cursor Down
+124	60	# Cursor Right
+83	83	# KP 1
+84	84	# KP 2
+85	85	# KP 3
+76	76	# KP Enter
+54	54	# Ctrl
+58	58	# Option
+55	55	# Command
+54	54	# Ctrl Left
+49	49	# Space
+82	82	# KP 0
+65	65	# KP .
