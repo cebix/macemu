@@ -58,15 +58,15 @@ static inline int16 CloseConnection(uint32 *arg1)
 {
 	return (int16)CallMacOS1(cc_ptr, cc_tvect, arg1);
 }
-typedef void *(*nps_ptr)(uint32);
+typedef uint32 (*nps_ptr)(uint32);
 static uint32 nps_tvect = 0;
-static inline void *NewPtrSys(uint32 arg1)
+static inline uint32 NewPtrSys(uint32 arg1)
 {
-	return (void *)CallMacOS1(nps_ptr, nps_tvect, arg1);
+	return CallMacOS1(nps_ptr, nps_tvect, arg1);
 }
-typedef void (*d_ptr)(void *);
+typedef void (*d_ptr)(uint32);
 static uint32 d_tvect = 0;
-static inline void DisposePtr(void *arg1)
+static inline void DisposePtr(uint32 arg1)
 {
 	CallMacOS1(d_ptr, d_tvect, arg1);
 }
@@ -163,7 +163,7 @@ void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_s
  *  lib and sym must be Pascal strings!
  */
 
-void *FindLibSymbol(char *lib_str, char *sym_str)
+uint32 FindLibSymbol(char *lib_str, char *sym_str)
 {
 	SheepVar32 conn_id = 0;
 	SheepVar32 main_addr = 0;
@@ -202,7 +202,7 @@ void *FindLibSymbol(char *lib_str, char *sym_str)
 		Execute68k(proc1, &r);
 		D(bug(" GetSharedLibrary: ret %d, connection ID %ld, main %p\n", (int16)r.d[0], conn_id.value(), main_addr.value()));
 		if (r.d[0])
-			return NULL;
+			return 0;
 	
 		// Find symbol
 		static const uint8 proc2_template[] = {
@@ -225,9 +225,9 @@ void *FindLibSymbol(char *lib_str, char *sym_str)
 		D(bug(" FindSymbol1: ret %d, sym_addr %p, sym_class %ld\n", (int16)r.d[0], sym_addr.value(), sym_class.value()));
 //!! CloseConnection()?
 		if (r.d[0])
-			return NULL;
+			return 0;
 		else
-			return (void *)sym_addr.value();
+			return sym_addr.value();
 
 	} else {
 
@@ -239,14 +239,14 @@ void *FindLibSymbol(char *lib_str, char *sym_str)
 		res = GetSharedLibrary(lib.addr(), FOURCC('p','w','p','c'), 1, conn_id.addr(), main_addr.addr(), err.addr());
 		D(bug(" GetSharedLibrary: ret %d, connection ID %ld, main %p\n", res, conn_id.value(), main_addr.value()));
 		if (res)
-			return NULL;
+			return 0;
 		res = FindSymbol(conn_id.value(), sym.addr(), sym_addr.addr(), sym_class.addr());
 		D(bug(" FindSymbol: ret %d, sym_addr %p, sym_class %ld\n", res, sym_addr.value(), sym_class.value()));
 //!!??		CloseConnection(&conn_id);
 		if (res)
-			return NULL;
+			return 0;
 		else
-			return (void *)sym_addr.value();
+			return sym_addr.value();
 	}
 }
 
@@ -257,42 +257,42 @@ void *FindLibSymbol(char *lib_str, char *sym_str)
 
 void InitCallUniversalProc()
 {
-	cu_tvect = (uint32)FindLibSymbol("\014InterfaceLib", "\021CallUniversalProc");
+	cu_tvect = FindLibSymbol("\014InterfaceLib", "\021CallUniversalProc");
 	D(bug("CallUniversalProc TVECT at %08lx\n", cu_tvect));
 	if (cu_tvect == 0) {
 		printf("FATAL: Can't find CallUniversalProc()\n");
 		QuitEmulator();
 	}
 
-	gsl_tvect = (uint32)FindLibSymbol("\014InterfaceLib", "\020GetSharedLibrary");
+	gsl_tvect = FindLibSymbol("\014InterfaceLib", "\020GetSharedLibrary");
 	D(bug("GetSharedLibrary TVECT at %08lx\n", gsl_tvect));
 	if (gsl_tvect == 0) {
 		printf("FATAL: Can't find GetSharedLibrary()\n");
 		QuitEmulator();
 	}
 
-	fs_tvect = (uint32)FindLibSymbol("\014InterfaceLib", "\012FindSymbol");
+	fs_tvect = FindLibSymbol("\014InterfaceLib", "\012FindSymbol");
 	D(bug("FindSymbol TVECT at %08lx\n", fs_tvect));
 	if (fs_tvect == 0) {
 		printf("FATAL: Can't find FindSymbol()\n");
 		QuitEmulator();
 	}
 
-	cc_tvect = (uint32)FindLibSymbol("\014InterfaceLib", "\017CloseConnection");
+	cc_tvect = FindLibSymbol("\014InterfaceLib", "\017CloseConnection");
 	D(bug("CloseConnection TVECT at %08lx\n", cc_tvect));
 	if (cc_tvect == 0) {
 		printf("FATAL: Can't find CloseConnection()\n");
 		QuitEmulator();
 	}
 
-	nps_tvect = (uint32)FindLibSymbol("\014InterfaceLib", "\011NewPtrSys");
+	nps_tvect = FindLibSymbol("\014InterfaceLib", "\011NewPtrSys");
 	D(bug("NewPtrSys TVECT at %08lx\n", nps_tvect));
 	if (nps_tvect == 0) {
 		printf("FATAL: Can't find NewPtrSys()\n");
 		QuitEmulator();
 	}
 
-	d_tvect = (uint32)FindLibSymbol("\014InterfaceLib", "\012DisposePtr");
+	d_tvect = FindLibSymbol("\014InterfaceLib", "\012DisposePtr");
 	D(bug("DisposePtr TVECT at %08lx\n", d_tvect));
 	if (d_tvect == 0) {
 		printf("FATAL: Can't find DisposePtr()\n");
@@ -343,12 +343,12 @@ uint32 TimeToMacTime(time_t t)
  *  Memory allocators in MacOS system heap zone
  */
 
-void *Mac_sysalloc(uint32 size)
+uint32 Mac_sysalloc(uint32 size)
 {
 	return NewPtrSys(size);
 }
 
-void Mac_sysfree(void *p)
+void Mac_sysfree(uint32 addr)
 {
-	DisposePtr(p);
+	DisposePtr(addr);
 }

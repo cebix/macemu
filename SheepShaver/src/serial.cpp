@@ -59,7 +59,7 @@ int16 SerialOpen(uint32 pb, uint32 dce)
 	D(bug("SerialOpen pb %08lx, dce %08lx\n", pb, dce));
 
 	// Get IOCommandIsComplete function
-	iocic_tvect = (uint32)FindLibSymbol("\021DriverServicesLib", "\023IOCommandIsComplete");
+	iocic_tvect = FindLibSymbol("\021DriverServicesLib", "\023IOCommandIsComplete");
 	D(bug("IOCommandIsComplete TVECT at %08lx\n", iocic_tvect));
 	if (iocic_tvect == 0) {
 		printf("FATAL: SerialOpen(): Can't find IOCommandIsComplete()\n");
@@ -82,8 +82,10 @@ int16 SerialOpen(uint32 pb, uint32 dce)
 		return res;
 
 	// Allocate Deferred Task structures
-	uint32 input_dt = the_port->input_dt = (uint32)the_port->dt_store;
-	uint32 output_dt = the_port->output_dt = (uint32)the_port->dt_store + SIZEOF_serdt;
+	if ((the_port->dt_store = Mac_sysalloc(SIZEOF_serdt * 2)) == 0)
+		return openErr;
+	uint32 input_dt = the_port->input_dt = the_port->dt_store;
+	uint32 output_dt = the_port->output_dt = the_port->dt_store + SIZEOF_serdt;
 	D(bug(" input_dt %08lx, output_dt %08lx\n", input_dt, output_dt));
 
 	WriteMacInt16(input_dt + qType, dtQType);
@@ -270,6 +272,7 @@ int16 SerialClose(uint32 pb, uint32 dce)
 	// Close port if open
 	SERDPort *the_port = the_serd_port[(-(int16)ReadMacInt16(dce + dCtlRefNum)-6) >> 1];
 	if (the_port->is_open) {
+		Mac_sysfree(the_port->dt_store);
 		int16 res = the_port->close();
 		the_port->is_open = false;
 		return res;

@@ -889,35 +889,35 @@ int16 VideoDoDriverIO(uint32 spaceID, uint32 commandID, uint32 commandContents, 
 				delete private_data->gammaTable;
 			delete private_data;
 
-			iocic_tvect = (uint32)FindLibSymbol("\021DriverServicesLib", "\023IOCommandIsComplete");
+			iocic_tvect = FindLibSymbol("\021DriverServicesLib", "\023IOCommandIsComplete");
 			D(bug("IOCommandIsComplete TVECT at %08lx\n", iocic_tvect));
 			if (iocic_tvect == 0) {
 				printf("FATAL: VideoDoDriverIO(): Can't find IOCommandIsComplete()\n");
 				err = -1;
 				break;
 			}
-			vslnewis_tvect = (uint32)FindLibSymbol("\020VideoServicesLib", "\026VSLNewInterruptService");
+			vslnewis_tvect = FindLibSymbol("\020VideoServicesLib", "\026VSLNewInterruptService");
 			D(bug("VSLNewInterruptService TVECT at %08lx\n", vslnewis_tvect));
 			if (vslnewis_tvect == 0) {
 				printf("FATAL: VideoDoDriverIO(): Can't find VSLNewInterruptService()\n");
 				err = -1;
 				break;
 			}
-			vsldisposeis_tvect = (uint32)FindLibSymbol("\020VideoServicesLib", "\032VSLDisposeInterruptService");
+			vsldisposeis_tvect = FindLibSymbol("\020VideoServicesLib", "\032VSLDisposeInterruptService");
 			D(bug("VSLDisposeInterruptService TVECT at %08lx\n", vsldisposeis_tvect));
 			if (vsldisposeis_tvect == 0) {
 				printf("FATAL: VideoDoDriverIO(): Can't find VSLDisposeInterruptService()\n");
 				err = -1;
 				break;
 			}
-			vsldois_tvect = (uint32)FindLibSymbol("\020VideoServicesLib", "\025VSLDoInterruptService");
+			vsldois_tvect = FindLibSymbol("\020VideoServicesLib", "\025VSLDoInterruptService");
 			D(bug("VSLDoInterruptService TVECT at %08lx\n", vsldois_tvect));
 			if (vsldois_tvect == 0) {
 				printf("FATAL: VideoDoDriverIO(): Can't find VSLDoInterruptService()\n");
 				err = -1;
 				break;
 			}
-			nqdmisc_tvect = (uint32)FindLibSymbol("\014InterfaceLib", "\007NQDMisc");
+			nqdmisc_tvect = FindLibSymbol("\014InterfaceLib", "\007NQDMisc");
 			D(bug("NQDMisc TVECT at %08lx\n", nqdmisc_tvect));
 			if (nqdmisc_tvect == 0) {
 				printf("FATAL: VideoDoDriverIO(): Can't find NQDMisc()\n");

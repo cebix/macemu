@@ -37,6 +37,9 @@
 #define DEBUG 0
 #include "debug.h"
 
+#if DIRECT_ADDRESSING
+#warning "This code is not direct addressing clean"
+#endif
 
 // Packet types
 enum {
@@ -86,7 +89,7 @@ struct DLPIStream {
 
 	void AddMulticast(uint8 *addr)
 	{
-		multicast_node *n = (multicast_node *)Mac_sysalloc(sizeof(multicast_node));
+		multicast_node *n = (multicast_node *)Mac2HostAddr(Mac_sysalloc(sizeof(multicast_node)));
 		memcpy(n->addr, addr, kEnetPhysicalAddressLength);
 		n->next = multicast_list;
 		multicast_list = n;
@@ -106,7 +109,7 @@ struct DLPIStream {
 		while (q) {
 			if (q->next == p) {
 				q->next = p->next;
-				Mac_sysfree(p);
+				Mac_sysfree(Host2MacAddr((uint8 *)p));
 				return;
 			}
 			q = q->next;
@@ -318,75 +321,75 @@ uint8 InitStreamModule(void *theID)
 	ether_driver_opened = false;
 
 	// Import functions from OTKernelLib
-	allocb_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\006allocb");
+	allocb_tvect = FindLibSymbol("\013OTKernelLib", "\006allocb");
 	D(bug("allocb TVECT at %08lx\n", allocb_tvect));
 	if (allocb_tvect == 0)
 		return false;
-	freeb_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\005freeb");
+	freeb_tvect = FindLibSymbol("\013OTKernelLib", "\005freeb");
 	D(bug("freeb TVECT at %08lx\n", freeb_tvect));
 	if (freeb_tvect == 0)
 		return false;
-	freemsg_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\007freemsg");
+	freemsg_tvect = FindLibSymbol("\013OTKernelLib", "\007freemsg");
 	D(bug("freemsg TVECT at %08lx\n", freemsg_tvect));
 	if (freemsg_tvect == 0)
 		return false;
-	copyb_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\005copyb");
+	copyb_tvect = FindLibSymbol("\013OTKernelLib", "\005copyb");
 	D(bug("copyb TVECT at %08lx\n", copyb_tvect));
 	if (copyb_tvect == 0)
 		return false;
-	dupmsg_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\006dupmsg");
+	dupmsg_tvect = FindLibSymbol("\013OTKernelLib", "\006dupmsg");
 	D(bug("dupmsg TVECT at %08lx\n", dupmsg_tvect));
 	if (dupmsg_tvect == 0)
 		return false;
-	getq_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\004getq");
+	getq_tvect = FindLibSymbol("\013OTKernelLib", "\004getq");
 	D(bug("getq TVECT at %08lx\n", getq_tvect));
 	if (getq_tvect == 0)
 		return false;
-	putq_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\004putq");
+	putq_tvect = FindLibSymbol("\013OTKernelLib", "\004putq");
 	D(bug("putq TVECT at %08lx\n", putq_tvect));
 	if (putq_tvect == 0)
 		return false;
-	putnext_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\007putnext");
+	putnext_tvect = FindLibSymbol("\013OTKernelLib", "\007putnext");
 	D(bug("putnext TVECT at %08lx\n", putnext_tvect));
 	if (putnext_tvect == 0)
 		return false;
-	putnextctl1_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\013putnextctl1");
+	putnextctl1_tvect = FindLibSymbol("\013OTKernelLib", "\013putnextctl1");
 	D(bug("putnextctl1 TVECT at %08lx\n", putnextctl1_tvect));
 	if (putnextctl1_tvect == 0)
 		return false;
-	canputnext_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\012canputnext");
+	canputnext_tvect = FindLibSymbol("\013OTKernelLib", "\012canputnext");
 	D(bug("canputnext TVECT at %08lx\n", canputnext_tvect));
 	if (canputnext_tvect == 0)
 		return false;
-	qreply_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\006qreply");
+	qreply_tvect = FindLibSymbol("\013OTKernelLib", "\006qreply");
 	D(bug("qreply TVECT at %08lx\n", qreply_tvect));
 	if (qreply_tvect == 0)
 		return false;
-	flushq_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\006flushq");
+	flushq_tvect = FindLibSymbol("\013OTKernelLib", "\006flushq");
 	D(bug("flushq TVECT at %08lx\n", flushq_tvect));
 	if (flushq_tvect == 0)
 		return false;
-	msgdsize_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\010msgdsize");
+	msgdsize_tvect = FindLibSymbol("\013OTKernelLib", "\010msgdsize");
 	D(bug("msgdsize TVECT at %08lx\n", msgdsize_tvect));
 	if (msgdsize_tvect == 0)
 		return false;
-	otenterint_tvect = (uint32)FindLibSymbol("\017OTKernelUtilLib", "\020OTEnterInterrupt");
+	otenterint_tvect = FindLibSymbol("\017OTKernelUtilLib", "\020OTEnterInterrupt");
 	D(bug("OTEnterInterrupt TVECT at %08lx\n", otenterint_tvect));
 	if (otenterint_tvect == 0)
 		return false;
-	otleaveint_tvect = (uint32)FindLibSymbol("\017OTKernelUtilLib", "\020OTLeaveInterrupt");
+	otleaveint_tvect = FindLibSymbol("\017OTKernelUtilLib", "\020OTLeaveInterrupt");
 	D(bug("OTLeaveInterrupt TVECT at %08lx\n", otleaveint_tvect));
 	if (otleaveint_tvect == 0)
 		return false;
-	mi_open_comm_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\014mi_open_comm");
+	mi_open_comm_tvect = FindLibSymbol("\013OTKernelLib", "\014mi_open_comm");
 	D(bug("mi_open_comm TVECT at %08lx\n", mi_open_comm_tvect));
 	if (mi_open_comm_tvect == 0)
 		return false;
-	mi_close_comm_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\015mi_close_comm");
+	mi_close_comm_tvect = FindLibSymbol("\013OTKernelLib", "\015mi_close_comm");
 	D(bug("mi_close_comm TVECT at %08lx\n", mi_close_comm_tvect));
 	if (mi_close_comm_tvect == 0)
 		return false;
-	mi_next_ptr_tvect = (uint32)FindLibSymbol("\013OTKernelLib", "\013mi_next_ptr");
+	mi_next_ptr_tvect = FindLibSymbol("\013OTKernelLib", "\013mi_next_ptr");
 	D(bug("mi_next_ptr TVECT at %08lx\n", mi_next_ptr_tvect));
 	if (mi_next_ptr_tvect == 0)
 		return false;
@@ -1542,7 +1545,7 @@ static void DLPI_enable_multi(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 	AO_enable_multicast(reqaddr);
 
 	// Add new address to multicast list
-	uint8 *addr = (uint8 *)Mac_sysalloc(kEnetPhysicalAddressLength);
+	uint8 *addr = Mac2HostAddr(Mac_sysalloc(kEnetPhysicalAddressLength));
 	OTCopy48BitAddress(reqaddr, addr);
 	the_stream->AddMulticast(addr);
 
@@ -1580,7 +1583,7 @@ static void DLPI_disable_multi(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 
 	// Found, then remove
 	the_stream->RemoveMulticast(addr);
-	Mac_sysfree(addr);
+	Mac_sysfree(Host2MacAddr(addr));
 
 	// Tell add-on to disable multicast address
 	AO_disable_multicast(reqaddr);

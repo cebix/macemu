@@ -353,12 +353,12 @@ extern void Enqueue(uint32 elem, uint32 list);			// Enqueue QElem to list
 extern int FindFreeDriveNumber(int num);				// Find first free drive number, starting at "num"
 extern void MountVolume(void *fh);						// Mount volume with given file handle (see sys.h)
 extern void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_size);	// Calculate disk image file layout given file size and first 256 data bytes
-extern void *FindLibSymbol(char *lib, char *sym);		// Find symbol in shared library
+extern uint32 FindLibSymbol(char *lib, char *sym);		// Find symbol in shared library
 extern void InitCallUniversalProc(void);				// Init CallUniversalProc()
 extern long CallUniversalProc(void *upp, uint32 info);	// CallUniversalProc()
 extern uint32 TimeToMacTime(time_t t);					// Convert time_t value to MacOS time
-extern void *Mac_sysalloc(uint32 size);					// Allocate block in MacOS system heap zone
-extern void Mac_sysfree(void * p);						// Release block occupied by the nonrelocatable block p
+extern uint32 Mac_sysalloc(uint32 size);				// Allocate block in MacOS system heap zone
+extern void Mac_sysfree(uint32 addr);					// Release block occupied by the nonrelocatable block p
 
 // Construct four-character-code from string
 #define FOURCC(a,b,c,d) (((uint32)(a) << 24) | ((uint32)(b) << 16) | ((uint32)(c) << 8) | (uint32)(d))

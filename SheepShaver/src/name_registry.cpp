@@ -343,9 +343,9 @@ void DoPatchNameRegistry(void)
 void PatchNameRegistry(void)
 {
 	// Find RegistryCStrEntryCreate() and RegistryPropertyCreate() TVECTs
-	rcec_tvect = (uint32)FindLibSymbol("\017NameRegistryLib", "\027RegistryCStrEntryCreate");
+	rcec_tvect = FindLibSymbol("\017NameRegistryLib", "\027RegistryCStrEntryCreate");
 	D(bug("RegistryCStrEntryCreate TVECT at %08x\n", rcec_tvect));
-	rpc_tvect = (uint32)FindLibSymbol("\017NameRegistryLib", "\026RegistryPropertyCreate");
+	rpc_tvect = FindLibSymbol("\017NameRegistryLib", "\026RegistryPropertyCreate");
 	D(bug("RegistryPropertyCreate TVECT at %08x\n", rpc_tvect));
 	if (rcec_tvect == 0 || rpc_tvect == 0) {
 		ErrorAlert(GetString(STR_NO_NAME_REGISTRY_ERR));

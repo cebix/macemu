@@ -259,7 +259,7 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 			InstallDrivers();
 
 			// Patch MakeExecutable()
-			MakeExecutableTvec = (uint32)FindLibSymbol("\023PrivateInterfaceLib", "\016MakeExecutable");
+			MakeExecutableTvec = FindLibSymbol("\023PrivateInterfaceLib", "\016MakeExecutable");
 			D(bug("MakeExecutable TVECT at %08x\n", MakeExecutableTvec));
 			WriteMacInt32(MakeExecutableTvec, NativeFunction(NATIVE_MAKE_EXECUTABLE));
 #if !EMULATED_PPC
