@@ -30,7 +30,7 @@
 #include <stdio.h>
 #include <map>
 
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(sgi)
 #include <net/if.h>
 #endif
 

@@ -17,6 +17,9 @@
 /* Define to 'off_t' if <sys/types.h> doesn't define. */
 #undef loff_t
 
+/* Define to 'int' if <sys/types.h> doesn't define. */
+#undef socklen_t
+
 /* Define if using ESD. */
 #undef ENABLE_ESD
 

@@ -206,6 +206,7 @@ AC_CHECK_SIZEOF(long long, 8)
 AC_CHECK_SIZEOF(void *, 4)
 AC_TYPE_OFF_T
 AC_CHECK_TYPE(loff_t, off_t)
+TYPE_SOCKLEN_T
 AC_TYPE_SIZE_T
 AC_TYPE_SIGNAL
 AC_HEADER_TIME
@@ -265,11 +266,13 @@ solaris*)
   DEFINES="$DEFINES -DBSD_COMP -D_POSIX_PTHREAD_SEMANTICS"
   ;;
 irix*)
+  ETHERSRC=ether_unix.cpp
   AUDIOSRC=Irix/audio_irix.cpp
   EXTRASYSSRCS=Irix/unaligned.c
   dnl IRIX headers work fine, but somehow don't define or use "STDC_HEADERS"
   DEFINES="$DEFINES -DCRTSCTS=CNEW_RTSCTS -DB230400=B115200 -DSTDC_HEADERS"
   LIBS="$LIBS -laudio"
+  WANT_ESD=no
 
   dnl Check if our compiler supports -Ofast (MIPSPro)
   HAVE_OFAST=no
