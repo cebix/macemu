@@ -5717,6 +5717,15 @@ static void prepare_block(blockinfo* bi)
     //bi->env=empty_ss;
 }
 
+static bool avoid_opcode(uae_u32 opcode)
+{
+#if JIT_DEBUG
+	struct instr *dp = &table68k[opcode];
+	// filter opcodes per type, integral value, or whatever
+#endif
+	return false;
+}
+
 void build_comp(void) 
 {
 	int i;
@@ -5763,7 +5772,7 @@ void build_comp(void)
 		prop[cft_map(tbl[i].opcode)].cflow = cflow;
 
 		int uses_fpu = tbl[i].specific & 32;
-		if (uses_fpu && avoid_fpu)
+		if ((uses_fpu && avoid_fpu) || avoid_opcode(tbl[i].opcode))
 			compfunctbl[cft_map(tbl[i].opcode)] = NULL;
 		else
 			compfunctbl[cft_map(tbl[i].opcode)] = tbl[i].handler;
@@ -5771,7 +5780,7 @@ void build_comp(void)
 
     for (i = 0; nftbl[i].opcode < 65536; i++) {
 		int uses_fpu = tbl[i].specific & 32;
-		if (uses_fpu && avoid_fpu)
+		if ((uses_fpu && avoid_fpu) || avoid_opcode(nftbl[i].opcode))
 			nfcompfunctbl[cft_map(nftbl[i].opcode)] = NULL;
 		else
 			nfcompfunctbl[cft_map(nftbl[i].opcode)] = nftbl[i].handler;
