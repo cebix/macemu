@@ -59,20 +59,38 @@
 #endif
 static char * next_address = (char *)MAP_BASE;
 #ifdef HAVE_MMAP_ANON
-#define map_flags	(MAP_PRIVATE | MAP_ANON | MAP_EXTRA_FLAGS)
+#define map_flags	(MAP_ANON | MAP_EXTRA_FLAGS)
 #define zero_fd		-1
 #else
 #ifdef HAVE_MMAP_ANONYMOUS
-#define map_flags	(MAP_PRIVATE | MAP_ANONYMOUS | MAP_EXTRA_FLAGS)
+#define map_flags	(MAP_ANONYMOUS | MAP_EXTRA_FLAGS)
 #define zero_fd		-1
 #else
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#define map_flags	(MAP_PRIVATE | MAP_EXTRA_FLAGS)
+#define map_flags	(MAP_EXTRA_FLAGS)
 static int zero_fd	= -1;
 #endif
 #endif
+#endif
+
+/* Translate generic VM map flags to host values.  */
+
+#ifdef HAVE_MMAP_VM
+static int translate_map_flags(int vm_flags)
+{
+	int flags = 0;
+	if (vm_flags & VM_MAP_SHARED)
+		flags |= MAP_SHARED;
+	if (vm_flags & VM_MAP_PRIVATE)
+		flags |= MAP_PRIVATE;
+	if (vm_flags & VM_MAP_FIXED)
+		flags |= MAP_FIXED;
+	if (vm_flags & VM_MAP_32BIT)
+		flags |= MAP_32BIT;
+	return flags;
+}
 #endif
 
 /* Initialize the VM system. Returns 0 if successful, -1 for errors.  */
@@ -104,19 +122,29 @@ void vm_exit(void)
    and default protection bits are read / write. The return value
    is the actual mapping address chosen or VM_MAP_FAILED for errors.  */
 
-void * vm_acquire(size_t size)
+void * vm_acquire(size_t size, int options)
 {
 	void * addr;
-	
+
+	// VM_MAP_FIXED are to be used with vm_acquire_fixed() only
+	if (options & VM_MAP_FIXED)
+		return VM_MAP_FAILED;
+
 #ifdef HAVE_MACH_VM
 	// vm_allocate() returns a zero-filled memory region
 	if (vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, TRUE) != KERN_SUCCESS)
 		return VM_MAP_FAILED;
 #else
 #ifdef HAVE_MMAP_VM
-	if ((addr = mmap((caddr_t)next_address, size, VM_PAGE_DEFAULT, map_flags, zero_fd, 0)) == MAP_FAILED)
+	const int extra_map_flags = translate_map_flags(options);
+
+	if ((addr = mmap((caddr_t)next_address, size, VM_PAGE_DEFAULT, extra_map_flags | map_flags, zero_fd, 0)) == MAP_FAILED)
 		return VM_MAP_FAILED;
 	
+	// Sanity checks for 64-bit platforms
+	if (sizeof(void *) == 8 && (options & VM_MAP_32BIT) && !((char *)addr <= (char *)0xffffffff))
+		return VM_MAP_FAILED;
+
 	next_address = (char *)addr + size;
 	
 	// Since I don't know the standard behavior of mmap(), zero-fill here
@@ -142,15 +170,21 @@ void * vm_acquire(size_t size)
 /* Allocate zero-filled memory at exactly ADDR (which must be page-aligned).
    Retuns 0 if successful, -1 on errors.  */
 
-int vm_acquire_fixed(void * addr, size_t size)
+int vm_acquire_fixed(void * addr, size_t size, int options)
 {
+	// Fixed mappings are required to be private
+	if (options & VM_MAP_SHARED)
+		return -1;
+
 #ifdef HAVE_MACH_VM
 	// vm_allocate() returns a zero-filled memory region
 	if (vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, 0) != KERN_SUCCESS)
 		return -1;
 #else
 #ifdef HAVE_MMAP_VM
-	if (mmap((caddr_t)addr, size, VM_PAGE_DEFAULT, map_flags | MAP_FIXED, zero_fd, 0) == MAP_FAILED)
+	const int extra_map_flags = translate_map_flags(options);
+
+	if (mmap((caddr_t)addr, size, VM_PAGE_DEFAULT, extra_map_flags | map_flags | MAP_FIXED, zero_fd, 0) == MAP_FAILED)
 		return -1;
 	
 	// Since I don't know the standard behavior of mmap(), zero-fill here
