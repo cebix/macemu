@@ -41,6 +41,15 @@
 /* Define if pthreads are available. */
 #undef HAVE_PTHREADS
 
+/* Define if using video enabled on SEGV signals */
+#undef ENABLE_VOSF
+
+/* Define if your system support extended signals */
+#undef HAVE_SIGINFO_T
+
+/* Define if we know a hack to replace siginfo_t::si_addr member */
+#undef HAVE_SIGCONTEXT_SUBTERFUGE
+
 
 /* Leave that blank line there!!  Autoheader needs it.
    If you're adding to this file, keep in mind:
