@@ -128,6 +128,7 @@ bool ThunksInit(void)
 #else
 #error "FIXME: define NativeOp for your platform"
 #endif
+	// FIXME: add GetResource() and friends for completeness
 	DEFINE_NATIVE_OP(NATIVE_PATCH_NAME_REGISTRY, DoPatchNameRegistry);
 	DEFINE_NATIVE_OP(NATIVE_VIDEO_INSTALL_ACCEL, VideoInstallAccel);
 	DEFINE_NATIVE_OP(NATIVE_VIDEO_VBL, VideoVBL);
@@ -150,9 +151,12 @@ bool ThunksInit(void)
 #undef DEFINE_NATIVE_OP
 #endif
 
-	// Initialize routine descriptors
-	for (int i = 0; i < NATIVE_OP_MAX; i++)
-		native_op[i].desc = new SheepRoutineDescriptor(0, NativeTVECT(i));
+	// Initialize routine descriptors (if TVECT exists)
+	for (int i = 0; i < NATIVE_OP_MAX; i++) {
+		uint32 tvect = native_op[i].tvect;
+		if (tvect)
+			native_op[i].desc = new SheepRoutineDescriptor(0, tvect);
+	}
 
 	return true;
 }
