@@ -32,13 +32,16 @@
 #include <cpu_emulation.h>
 #include <main.h>
 #include "macos_util_macosx.h"
-#include "main_macosx.h"
 #include <prefs.h>
 #include <user_strings.h>
 #include "video_macosx.h"
 
 #define DEBUG 0
 #include "debug.h"
+
+#ifdef NSBITMAP
+#import <AppKit/NSBitmapImageRep.h>
+#endif
 
 #import <Foundation/NSString.h>				// Needed for NSLog(@"")
 #import "misc_macosx.h"						// WarningSheet() prototype
@@ -54,32 +57,8 @@ uint16		init_width  = MIN_WIDTH,		// as well as this code
 
 		EmulatorView	*output = nil;		// Set by [EmulatorView init]
 		NSWindow		*the_win = nil;		// Set by [Emulator awakeFromNib]
-static	void			*the_buffer = NULL;
 
-
-#ifdef CGIMAGEREF
-static CGImageRef		imageRef = nil;
-#endif
-
-#ifdef NSBITMAP
-#import <AppKit/NSBitmapImageRep.h>
-
-static NSBitmapImageRep	*bitmap = nil;
-#endif
-
-// These record changes we made in setting full screen mode
-static CGDirectDisplayID	theDisplay   = NULL;
-static CFDictionaryRef		originalMode = NULL,
-							newMode      = NULL;
-static BOOL					singleDisplay = YES;
-
-
-// Prototypes
-
-static bool video_open	(const video_mode &mode);
-static void video_close	(void);
-
-
+static	BOOL			singleDisplay = YES;
 
 /*
  *  Utility functions
@@ -143,11 +122,15 @@ parse_screen_prefs(const char *mode_str)
 	return true;
 }
 
+// Supported video modes
+static vector<video_mode> VideoModes;
+
 
 // Add mode to list of supported modes
 static void
 add_mode(const uint16 width, const uint16 height,
 		 const uint32 resolution_id, const uint32 bytes_per_row,
+		 const uint32 user_data,
 		 const video_depth depth)
 {
 	vector<video_mode>::const_iterator	i,
@@ -168,6 +151,7 @@ add_mode(const uint16 width, const uint16 height,
 	mode.y = height;
 	mode.resolution_id = resolution_id;
 	mode.bytes_per_row = bytes_per_row;
+	mode.user_data = user_data;
 	mode.depth = depth;
 
 	D(bug("Added video mode: w=%d  h=%d  d=%d(%d bits)\n",
@@ -182,15 +166,15 @@ static void add_standard_modes(const video_depth depth)
 	D(bug("add_standard_modes: depth=%d(%d bits)\n",
 						depth, bits_from_depth(depth) ));
 
-	add_mode(512,  384,  0x80, TrivialBytesPerRow(512,  depth), depth);
-	add_mode(640,  480,  0x81, TrivialBytesPerRow(640,  depth), depth);
-	add_mode(800,  600,  0x82, TrivialBytesPerRow(800,  depth), depth);
-	add_mode(832,  624,  0x83, TrivialBytesPerRow(832,  depth), depth);
-	add_mode(1024, 768,  0x84, TrivialBytesPerRow(1024, depth), depth);
-	add_mode(1152, 768,  0x85, TrivialBytesPerRow(1152, depth), depth);
-	add_mode(1152, 870,  0x86, TrivialBytesPerRow(1152, depth), depth);
-	add_mode(1280, 1024, 0x87, TrivialBytesPerRow(1280, depth), depth);
-	add_mode(1600, 1200, 0x88, TrivialBytesPerRow(1600, depth), depth);
+	add_mode(512,  384,  0x80, TrivialBytesPerRow(512,  depth), 0, depth);
+	add_mode(640,  480,  0x81, TrivialBytesPerRow(640,  depth), 0, depth);
+	add_mode(800,  600,  0x82, TrivialBytesPerRow(800,  depth), 0, depth);
+	add_mode(832,  624,  0x83, TrivialBytesPerRow(832,  depth), 0, depth);
+	add_mode(1024, 768,  0x84, TrivialBytesPerRow(1024, depth), 0, depth);
+	add_mode(1152, 768,  0x85, TrivialBytesPerRow(1152, depth), 0, depth);
+	add_mode(1152, 870,  0x86, TrivialBytesPerRow(1152, depth), 0, depth);
+	add_mode(1280, 1024, 0x87, TrivialBytesPerRow(1280, depth), 0, depth);
+	add_mode(1600, 1200, 0x88, TrivialBytesPerRow(1600, depth), 0, depth);
 }
 
 // Helper function to get a 32bit int from a dictionary
@@ -211,6 +195,33 @@ static int32 getCFint32 (CFDictionaryRef dict, CFStringRef key)
 		NSLog(@"getCFint32() - Failed to get a 32bit int for %@", key);
 
 	return 0;
+}
+
+// Nasty hack. CGDisplayAvailableModes() does not provide bytes per row,
+// and the emulator doesn't like setting the bytes per row after the screen,
+// so we use a lot of magic numbers here.
+// This will probably fail on some video hardware.
+// I have tested on my G4 PowerBook 400 and G3 PowerBook Series 292
+
+static int
+CGBytesPerRow(const uint16 width, const video_depth depth)
+{
+	if ( depth == VDEPTH_8BIT )
+		switch ( width )
+		{
+			case 640:
+			case 720:	return 768;
+			case 800:
+			case 896:	return 1024;
+			case 1152:	return 1280;
+		}
+
+	if ( width == 720  && depth == VDEPTH_16BIT)	return 1536;
+	if ( width == 720  && depth == VDEPTH_32BIT)	return 3072;
+	if ( width == 800  && depth == VDEPTH_16BIT)	return 1792;
+	if ( width == 800  && depth == VDEPTH_32BIT)	return 3328;
+
+	return TrivialBytesPerRow(width, depth);
 }
 
 static bool add_CGDirectDisplay_modes()
@@ -239,6 +250,7 @@ static bool add_CGDirectDisplay_modes()
 			add_mode(CGDisplayPixelsWide(d),
 					 CGDisplayPixelsHigh(d),
 					 res_id++, CGDisplayBytesPerRow(d),
+					 (const uint32) d,
 					 DepthModeForPixelDepth(CGDisplayBitsPerPixel(d)));
 		else
 		{
@@ -273,7 +285,8 @@ static bool add_CGDirectDisplay_modes()
 						++res_id;
 					}
 
-				add_mode(width, height, res_id, 0, depth);
+				add_mode(width, height, res_id,
+						 CGBytesPerRow(width, depth), (const uint32) d, depth);
 			}
 		}
 	}
@@ -281,11 +294,71 @@ static bool add_CGDirectDisplay_modes()
 	return true;
 }
 
+
+// monitor_desc subclass for Mac OS X displays
+
+class OSX_monitor : public monitor_desc
+{
+	public:
+		OSX_monitor(const vector<video_mode>	&available_modes,
+					video_depth					default_depth,
+					uint32						default_id);
+
+		virtual void set_palette(uint8 *pal, int num);
+		virtual void switch_to_current_mode(void);
+
+				void set_mac_frame_buffer(const video_mode mode);
+
+				void video_close(void);
+				bool video_open (const video_mode &mode);
+
+
+	private:
+		bool init_opengl(const video_mode &mode);
+		bool init_screen(      video_mode &mode);
+		bool init_window(const video_mode &mode);
+
+
+#ifdef CGIMAGEREF
+		CGImageRef			imageRef;
+#endif
+#ifdef NSBITMAP
+		NSBitmapImageRep	*bitmap;
+#endif
+		void				*the_buffer;
+
+
+		// These record changes we made in setting full screen mode,
+		// so that we can set the display back as it was again.
+		CGDirectDisplayID	theDisplay;
+		CFDictionaryRef		originalMode,
+							newMode;
+};
+
+
+OSX_monitor :: OSX_monitor (const	vector<video_mode>	&available_modes,
+									video_depth			default_depth,
+									uint32				default_id)
+			: monitor_desc (available_modes, default_depth, default_id)
+{
+#ifdef CGIMAGEREF
+	imageRef = nil;
+#endif
+#ifdef NSBITMAP
+	bitmap = nil;
+#endif
+	newMode = originalMode = nil;
+	the_buffer = NULL;
+	theDisplay = nil;
+};
+
+
 // Set Mac frame layout and base address (uses the_buffer/MacFrameBaseMac)
-static void set_mac_frame_buffer(const video_depth depth)
+void
+OSX_monitor::set_mac_frame_buffer(const video_mode mode)
 {
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
-	switch ( depth )
+	switch ( mode.depth )
 	{
 	//	case VDEPTH_15BIT:
 		case VDEPTH_16BIT: MacFrameLayout = FLAYOUT_HOST_555; break;
@@ -293,16 +366,16 @@ static void set_mac_frame_buffer(const video_depth depth)
 		case VDEPTH_32BIT: MacFrameLayout = FLAYOUT_HOST_888; break;
 		default			 : MacFrameLayout = FLAYOUT_DIRECT;
 	}
-	VideoMonitor.mac_frame_base = MacFrameBaseMac;
+	set_mac_frame_base(MacFrameBaseMac);
 
 	// Set variables used by UAE memory banking
 	MacFrameBaseHost = the_buffer;
-	MacFrameSize = VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y;
+	MacFrameSize = mode.bytes_per_row * mode.y;
 	InitFrameBufferMapping();
 #else
-	VideoMonitor.mac_frame_base = Host2MacAddr(the_buffer);
+	set_mac_frame_base(Host2MacAddr(the_buffer));
 #endif
-	D(bug("VideoMonitor.mac_frame_base = %08x\n", VideoMonitor.mac_frame_base));
+	D(bug("mac_frame_base = %08x\n", get_mac_frame_base()));
 }
 
 static void
@@ -334,7 +407,8 @@ void resizeWinTo(const uint16 newWidth, const uint16 newHeight)
 }
 
 // Open window
-static bool init_window(const video_mode &mode)
+bool
+OSX_monitor::init_window(const video_mode &mode)
 {
 #ifdef CGIMAGEREF
 	CGColorSpaceRef		colourSpace;
@@ -467,22 +541,21 @@ static bool init_window(const video_mode &mode)
 			   hasAlpha: NO];
 #endif
 
-	// Set VideoMonitor
-	VideoMonitor.mode = mode;
-	set_mac_frame_buffer(mode.depth);
-
 	return true;
 }
 
 #import <AppKit/NSEvent.h>
 #import <Carbon/Carbon.h>
+#import "NNThread.h"
 
-static bool init_screen(video_mode &mode)
+bool
+OSX_monitor::init_screen(video_mode &mode)
 {
 	// Set absolute mouse mode
 	ADBSetRelMouseMode(false);
 
-	theDisplay = kCGDirectMainDisplay;	// For now
+	// Display stored by add_CGDirectDisplay_modes()
+	theDisplay = (CGDirectDisplayID) mode.user_data;
 
 	originalMode = CGDisplayCurrentMode(theDisplay);
 	if ( ! originalMode )
@@ -513,8 +586,6 @@ static bool init_screen(video_mode &mode)
 		return false;
 	}
 
-	[output startedFullScreen: theDisplay];		// For mouse event processing
-
 	D(NSLog(@"About to call CGDisplaySwitchToMode()"));
 	if ( CGDisplaySwitchToMode(theDisplay, newMode) != CGDisplayNoErr )
 	{
@@ -523,6 +594,22 @@ static bool init_screen(video_mode &mode)
 		ErrorSheet(@"Could not switch to matching screen mode", the_win);
 		return false;
 	}
+
+	// For mouse event processing: update screen height
+	[output startedFullScreen: theDisplay];
+
+	the_buffer = CGDisplayBaseAddress(theDisplay);
+	if ( ! the_buffer )
+	{
+		CGDisplaySwitchToMode(theDisplay, originalMode);
+		CGDisplayRelease(theDisplay);
+//		[the_win deminiaturize: nil];
+		ErrorSheet(@"Could not get base address of screen", the_win);
+		return false;
+	}
+NSLog(@"Starting full screen mode, height = %d",
+					CGDisplayPixelsHigh(theDisplay));
+	[output startedFullScreen: theDisplay];		// For mouse event processing
 
 	if ( mode.bytes_per_row != CGDisplayBytesPerRow(theDisplay) )
 	{
@@ -545,29 +632,28 @@ static bool init_screen(video_mode &mode)
 			ErrorSheet(@"Could move (jump) cursor on screen", the_win);
 			return false;
 		}
+
+		// Send emulated mouse to current location
+//		[output performSelector: @selector(processMouseMove:)
+//					 withObject: nil
+//					 afterDelay: 7.0];
+//		NNTimer	*moveMouse = [[NNTimer new] retain];
+//		[moveMouse perform: @selector(processMouseMove:)
+//						of: output
+//					 after: 3
+//					 units: NNseconds];
 	}
 	else
 	{
 		// Should set up something to hide the cursor when it enters theDisplay?
 	}
 
-	the_buffer = CGDisplayBaseAddress(theDisplay);
-	if ( ! the_buffer )
-	{
-		video_close();
-		ErrorSheet(@"Could not get base address of screen", the_win);
-		return false;
-	}
-
-	// Set VideoMonitor
-	VideoMonitor.mode = mode;
-	set_mac_frame_buffer(mode.depth);
-
-
 	return true;
 }
 
-static bool init_opengl(const video_mode &mode)
+
+bool
+OSX_monitor::init_opengl(const video_mode &mode)
 {
 	ErrorAlert("Sorry. OpenGL mode is not implemented yet");
 	return false;
@@ -576,6 +662,25 @@ static bool init_opengl(const video_mode &mode)
 /*
  *  Initialization
  */
+static bool
+monitor_init(const video_mode &init_mode)
+{
+	OSX_monitor	*monitor;
+	BOOL		success;
+
+	monitor = new OSX_monitor(VideoModes, init_mode.depth,
+										  init_mode.resolution_id);
+	success = monitor->video_open(init_mode);
+
+	if ( success )
+	{
+		monitor->set_mac_frame_buffer(init_mode);
+		VideoMonitors.push_back(monitor);
+		return YES;
+	}
+
+	return NO;
+}
 
 bool VideoInit(bool classic)
 {
@@ -596,7 +701,7 @@ bool VideoInit(bool classic)
 
 	// Construct list of supported modes
 	if (classic)
-		add_mode(512, 342, 0x80, 64, VDEPTH_1BIT);
+		add_mode(512, 342, 0x80, 64, 0, VDEPTH_1BIT);
 	else
 		switch ( display_type )
 		{
@@ -617,7 +722,7 @@ bool VideoInit(bool classic)
 				break;
 		}
 
-	video_init_depth_list();
+//	video_init_depth_list();		Now done in monitor_desc constructor?
 
 #if DEBUG
 	bug("Available video modes:\n");
@@ -641,7 +746,7 @@ bool VideoInit(bool classic)
 					i->x, i->y, bits_from_depth(i->depth)));
 			if (i->x == init_width && i->y == init_height
 					&& bits_from_depth(i->depth) == init_depth)
-				return video_open(*i);
+				return monitor_init(*i);
 		}
 	}
 
@@ -651,12 +756,13 @@ bool VideoInit(bool classic)
 			colours_from_depth(init_depth), "Using lowest resolution");
 	WarningAlert(str);
 
-	return video_open(VideoModes[0]);
+	return monitor_init(VideoModes[0]);
 }
 
 
 // Open display for specified mode
-static bool video_open(const video_mode &mode)
+bool
+OSX_monitor::video_open(const video_mode &mode)
 {
 	D(bug("video_open: width=%d  height=%d  depth=%d  bytes_per_row=%d\n",
 			mode.x, mode.y, bits_from_depth(mode.depth), mode.bytes_per_row));
@@ -673,7 +779,8 @@ static bool video_open(const video_mode &mode)
 }
 
 
-static void video_close()
+void
+OSX_monitor::video_close()
 {
 	D(bug("video_close()\n"));
 
@@ -717,7 +824,13 @@ static void video_close()
 
 void VideoExit(void)
 {
-	video_close();
+	// Close displays
+	vector<monitor_desc *>::iterator	i, end;
+
+	end = VideoMonitors.end();
+
+	for (i = VideoMonitors.begin(); i != end; ++i)
+		dynamic_cast<OSX_monitor *>(*i)->video_close();
 }
 
 
@@ -725,10 +838,11 @@ void VideoExit(void)
  *  Set palette
  */
 
-void video_set_palette(uint8 *pal, int num)
+void
+OSX_monitor::set_palette(uint8 *pal, int num)
 {
 	if ( [output isFullScreen] && CGDisplayCanSetPalette(theDisplay)
-								&& ! IsDirectMode(VideoMonitor.mode) )
+								&& ! IsDirectMode(get_current_mode()) )
 	{
 		CGDirectPaletteRef	CGpal;
 		CGDisplayErr		err;
@@ -747,13 +861,15 @@ void video_set_palette(uint8 *pal, int num)
  *  Switch video mode
  */
 
-void video_switch_to_mode(const video_mode &mode)
+void
+OSX_monitor::switch_to_current_mode(void)
 {
+	video_mode	mode = get_current_mode();
 	char		*failure = NULL;
 
 
 	D(bug("switch_to_current_mode(): width=%d  height=%d  depth=%d  bytes_per_row=%d\n", mode.x, mode.y, bits_from_depth(mode.depth), mode.bytes_per_row));
-
+	
 	if ( display_type == DISPLAY_SCREEN && originalMode )
 	{
 		D(NSLog(@"About to call CGDisplayBestModeForParameters()"));
@@ -769,13 +885,15 @@ void video_switch_to_mode(const video_mode &mode)
 				failure = "Could not switch to matching screen mode";
 		}
 
+		// For mouse event processing: update screen height
+		[output startedFullScreen: theDisplay];
+
 		if ( ! failure &&
 			mode.bytes_per_row != CGDisplayBytesPerRow(theDisplay) )
 		{
 			D(bug("Bytes per row (%d) doesn't match current (%ld)\n",
 					mode.bytes_per_row, CGDisplayBytesPerRow(theDisplay)));
-			((video_mode &)mode).bytes_per_row
-									= CGDisplayBytesPerRow(theDisplay);
+			mode.bytes_per_row = CGDisplayBytesPerRow(theDisplay);
 		}
 
 		if ( ! failure &&
@@ -800,7 +918,7 @@ void video_switch_to_mode(const video_mode &mode)
 		QuitEmulator();
 	}
 	else
-		set_mac_frame_buffer(mode.depth);
+		set_mac_frame_buffer(mode);
 }
 
 /*
