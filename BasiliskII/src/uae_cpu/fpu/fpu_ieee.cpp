@@ -180,7 +180,7 @@ PRIVATE inline fpu_register FFPU make_single(uae_u32 value)
 #if 1
 	// Use a single, otherwise some checks for NaN, Inf, Zero would have to
 	// be performed
-	fpu_single result;
+	fpu_single result = 0; // = 0 to workaround a compiler bug on SPARC
 	fp_declare_init_shape(srp, result, single);
 	srp->ieee.negative	= (value >> 31) & 1;
 	srp->ieee.exponent	= (value >> 23) & FP_SINGLE_EXP_MAX;
