@@ -1239,7 +1239,7 @@ void VideoInterrupt(void)
 
 void video_set_palette(uint8 *pal)
 {
-#ifdef HAVE_PTHREDS
+#ifdef HAVE_PTHREADS
 	pthread_mutex_lock(&palette_lock);
 #endif
 

@@ -860,27 +860,35 @@ uint64 GetTicks_usec(void)
 
 /*
  *  Delay by specified number of microseconds (<1 second)
- *  (adapted from SDL_Delay() source)
+ *  (adapted from SDL_Delay() source; this function is designed to provide
+ *  the highest accuracy possible)
  */
 
 void Delay_usec(uint32 usec)
 {
 	int was_error;
-#ifndef __linux__	// Non-Linux implementations need to calculate time left
+
+#if defined(linux)
+	struct timeval tv;
+#elif defined(__FreeBSD__) || defined(sgi)
+	struct timespec elapsed, tv;
+#else	// Non-Linux implementations need to calculate time left
 	uint64 then, now, elapsed;
 #endif
-	struct timeval tv;
 
 	// Set the timeout interval - Linux only needs to do this once
-#ifdef __linux__
+#if defined(linux)
 	tv.tv_sec = 0;
 	tv.tv_usec = usec;
+#elif defined(__FreeBSD__)
+	elapsed.tv_sec = 0;
+	elapsed.tv_nsec = usec * 1000;
 #else
 	then = GetTicks_usec();
 #endif
 	do {
 		errno = 0;
-#ifndef __linux__
+#if !defined(linux) && !defined(__FreeBSD__) && !defined(sgi)
 		/* Calculate the time interval left (in case of interrupt) */
 		now = GetTicks_usec();
 		elapsed = now - then;
@@ -891,7 +899,13 @@ void Delay_usec(uint32 usec)
 		tv.tv_sec = 0;
 		tv.tv_usec = usec;
 #endif
+#if defined(__FreeBSD__) || defined(sgi)
+		tv.tv_sec = elapsed.tv_sec;
+		tv.tv_nsec = elapsed.tv_nsec;
+		was_error = nanosleep(&tv, &elapsed);
+#else
 		was_error = select(0, NULL, NULL, NULL, &tv);
+#endif
 	} while (was_error && (errno == EINTR));
 }
 

@@ -245,6 +245,8 @@ AC_ARG_ENABLE(esdtest, [  --disable-esdtest       Do not try to compile and run 
   if test "$ESD_CONFIG" = "no" ; then
     no_esd=yes
   else
+    AC_LANG_SAVE
+    AC_LANG_C
     ESD_CFLAGS=`$ESD_CONFIG $esdconf_args --cflags`
     ESD_LIBS=`$ESD_CONFIG $esdconf_args --libs`
 
@@ -321,6 +323,7 @@ int main ()
 ],, no_esd=yes,[echo $ac_n "cross compiling; assumed OK... $ac_c"])
        CFLAGS="$ac_save_CFLAGS"
        LIBS="$ac_save_LIBS"
+       AC_LANG_RESTORE
      fi
   fi
   if test "x$no_esd" = x ; then
@@ -340,6 +343,8 @@ int main ()
           echo "*** Could not run ESD test program, checking why..."
           CFLAGS="$CFLAGS $ESD_CFLAGS"
           LIBS="$LIBS $ESD_LIBS"
+          AC_LANG_SAVE
+          AC_LANG_C
           AC_TRY_LINK([
 #include <stdio.h>
 #include <esd.h>
@@ -359,6 +364,7 @@ int main ()
           echo "*** may want to edit the esd-config script: $ESD_CONFIG" ])
           CFLAGS="$ac_save_CFLAGS"
           LIBS="$ac_save_LIBS"
+          AC_LANG_RESTORE
        fi
      fi
      ESD_CFLAGS=""

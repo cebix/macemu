@@ -8,6 +8,8 @@ V0.8 (snapshot) - <date>
 	  (default addressing mode, if possible)
 	- Unix: added screen updates on SEGV signals [Gwenole Beauchesne]
 	  (activated through the "--enable-vosf" configure option)
+	- Unix: added IRIX audio driver [Brian J. Johnson]
+	- Unix: improved timing of periodic threads
 	- AmigaOS: enabled floppy support, fixed floppy bugs [Jürgen Lachmann]
 	- AmigaOS: Amiga mouse pointer is hidden inside windowed Mac displays
 	- AmigaOS/sys_amiga.cpp: workaround for 2060scsi.device bug when
@@ -18,7 +20,6 @@ V0.8 (snapshot) - <date>
 	  FInfo/FXInfo, replaced get/set_finder_*() functions by get/set_finfo()
 	- AmigaOS: added MacsBug support (tested with MacsBug6.6.1),
 	  fixed <move sr,(sp)> bug [Jürgen Lachmann]
-	- Unix: improved timing of periodic threads
 	- include/macos_util.h: defines FOURCC() macro to make MacOS-like
 	  four-character-codes, replaced most instances of multi-character
 	  constants in the sources by this macro to avoid compiler warnings
