@@ -130,6 +130,9 @@ bool ThirtyThreeBitAddressing = false;
 #ifndef USE_SDL_VIDEO
 extern char *x_display_name;						// X11 display name
 extern Display *x_display;							// X11 display handle
+#ifdef X11_LOCK_TYPE
+X11_LOCK_TYPE x_display_lock = X11_LOCK_INIT;		// X11 display lock
+#endif
 #endif
 
 static uint8 last_xpram[XPRAM_SIZE];				// Buffer for monitoring XPRAM changes

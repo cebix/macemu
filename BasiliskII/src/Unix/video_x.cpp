@@ -197,6 +197,10 @@ extern void *vm_acquire_mac(size_t size);
 // From sys_unix.cpp
 extern void SysMountFirstFloppy(void);
 
+// From clip_unix.cpp
+extern void ClipboardSelectionClear(XSelectionClearEvent *);
+extern void ClipboardSelectionRequest(XSelectionRequestEvent *);
+
 
 /*
  *  monitor_desc subclass for X11 display
@@ -2043,10 +2047,28 @@ static int event2keycode(XKeyEvent &ev, bool key_down)
 
 static void handle_events(void)
 {
-	while (XPending(x_display)) {
+	for (;;) {
 		XEvent event;
-		XNextEvent(x_display, &event);
+		XDisplayLock();
 
+		if (!XCheckMaskEvent(x_display, eventmask, &event)) {
+			// Handle clipboard events
+			if (XCheckTypedEvent(x_display, SelectionRequest, &event))
+				ClipboardSelectionRequest(&event.xselectionrequest);
+			else if (XCheckTypedEvent(x_display, SelectionClear, &event))
+				ClipboardSelectionClear(&event.xselectionclear);
+
+			// Window "close" widget clicked
+			else if (XCheckTypedEvent(x_display, ClientMessage, &event)) {
+				if (event.xclient.format == 32 && event.xclient.data.l[0] == WM_DELETE_WINDOW) {
+					ADBKeyDown(0x7f);	// Power key
+					ADBKeyUp(0x7f);
+				}
+			}
+			XDisplayUnlock();
+			break;
+		}
+		
 		switch (event.type) {
 
 			// Mouse button
@@ -2154,15 +2176,9 @@ static void handle_events(void)
 						memset(the_buffer_copy, 0, mode.bytes_per_row * mode.y);
 				}
 				break;
-
-			// Window "close" widget clicked
-			case ClientMessage:
-				if (event.xclient.format == 32 && event.xclient.data.l[0] == WM_DELETE_WINDOW) {
-					ADBKeyDown(0x7f);	// Power key
-					ADBKeyUp(0x7f);
-				}
-				break;
 		}
+
+		XDisplayUnlock();
 	}
 }
 
@@ -2207,6 +2223,7 @@ static void update_display_dynamic(int ticker, driver_window *drv)
 		}
 	}
 
+	XDisplayLock();
 	if ((nr_boxes <= max_box) && (nr_boxes)) {
 		for (y1=0; y1<16; y1++) {
 			for (x1=0; x1<16; x1++) {
@@ -2260,6 +2277,7 @@ static void update_display_dynamic(int ticker, driver_window *drv)
 		}
 		nr_boxes = 0;
 	}
+	XDisplayUnlock();
 }
 
 // Static display update (fixed frame rate, but incremental)
@@ -2369,12 +2387,14 @@ static void update_display_static(driver_window *drv)
 	}
 
 	// Refresh display
+	XDisplayLock();
 	if (high && wide) {
 		if (drv->have_shm)
 			XShmPutImage(x_display, drv->w, drv->gc, drv->img, x1, y1, x1, y1, wide, high, 0);
 		else
 			XPutImage(x_display, drv->w, drv->gc, drv->img, x1, y1, x1, y1, wide, high);
 	}
+	XDisplayUnlock();
 }
 
 
@@ -2416,7 +2436,9 @@ static inline void handle_palette_changes(void)
 
 	if (x_palette_changed) {
 		x_palette_changed = false;
+		XDisplayLock();
 		drv->update_palette();
+		XDisplayUnlock();
 	}
 
 	UNLOCK_PALETTE;

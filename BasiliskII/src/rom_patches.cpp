@@ -41,6 +41,7 @@
 // Global variables
 uint32 UniversalInfo;		// ROM offset of UniversalInfo
 uint32 PutScrapPatch;		// Mac address of PutScrap() patch
+uint32 GetScrapPatch = 0;	// Mac address of GetScrap() patch
 uint32 ROMBreakpoint = 0;	// ROM offset of breakpoint (0 = disabled, 0x2310 = CritError)
 bool PrintROMInfo = false;	// Flag: print ROM information in PatchROM()
 bool PatchHWBases = true;	// Flag: patch hardware base addresses
@@ -1621,6 +1622,15 @@ static bool patch_rom_32(void)
 	base = ROMBaseMac + find_rom_trap(0xa9fe);
 	wp = (uint16 *)(ROMBaseHost + sony_offset + 0xc00);
 	*wp++ = htons(M68K_EMUL_OP_PUT_SCRAP);
+	*wp++ = htons(M68K_JMP);
+	*wp++ = htons(base >> 16);
+	*wp = htons(base & 0xffff);
+
+	// Install GetScrap() patch for clipboard data exchange (the patch is activated by EMUL_OP_INSTALL_DRIVERS)
+	GetScrapPatch = ROMBaseMac + sony_offset + 0xd00;
+	base = ROMBaseMac + find_rom_trap(0xa9fd);
+	wp = (uint16 *)(ROMBaseHost + sony_offset + 0xd00);
+	*wp++ = htons(M68K_EMUL_OP_GET_SCRAP);
 	*wp++ = htons(M68K_JMP);
 	*wp++ = htons(base >> 16);
 	*wp = htons(base & 0xffff);

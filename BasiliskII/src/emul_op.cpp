@@ -240,6 +240,13 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			r.a[0] = PutScrapPatch;
 			Execute68kTrap(0xa647, &r);		// SetToolTrap()
 
+			// Install GetScrap() patch
+			if (GetScrapPatch) {
+				r.d[0] = 0xa9fd;
+				r.a[0] = GetScrapPatch;
+				Execute68kTrap(0xa647, &r);	// SetToolTrap()
+			}
+
 			// Setup fake ASC registers
 			if (ROMVersion == ROM_VERSION_32) {
 				r.d[0] = 0x1000;
@@ -500,6 +507,14 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			uint32 type = ReadMacInt32(r->a[7] + 8);
 			int32 length = ReadMacInt32(r->a[7] + 12);
 			PutScrap(type, scrap, length);
+			break;
+		}
+
+		case M68K_EMUL_OP_GET_SCRAP: {		// GetScrap() patch
+			void **scrap_handle = (void **)Mac2HostAddr(ReadMacInt32(r->a[7] + 4));
+			uint32 type = ReadMacInt32(r->a[7] + 8);
+			int32 length = ReadMacInt32(r->a[7] + 12);
+			GetScrap(scrap_handle, type, length);
 			break;
 		}
 

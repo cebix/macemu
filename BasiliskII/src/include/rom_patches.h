@@ -41,6 +41,9 @@ extern uint32 UniversalInfo;
 // Mac address of PutScrap() patch
 extern uint32 PutScrapPatch;
 
+// Mac address of GetScrap() patch
+extern uint32 GetScrapPatch;
+
 // Flag: print ROM information in PatchROM()
 extern bool PrintROMInfo;
 
