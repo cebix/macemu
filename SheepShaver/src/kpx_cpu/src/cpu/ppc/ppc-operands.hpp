@@ -79,6 +79,23 @@ struct output_fpr {
 template< class field >
 struct fpr_operand : input_fpr< field >, output_fpr< field > { };
 
+template< class field >
+struct input_fpr_dw {
+	static inline uint64 get(powerpc_cpu * cpu, uint32 opcode) {
+		return cpu->fpr_dw(field::extract(opcode));
+	}
+};
+
+template< class field >
+struct output_fpr_dw {
+	static inline void set(powerpc_cpu * cpu, uint32 opcode, uint64 value) {
+		cpu->fpr_dw(field::extract(opcode)) = value;
+	}
+};
+
+template< class field >
+struct fpr_dw_operand : input_fpr_dw< field >, output_fpr_dw< field > { };
+
 /**
  *		Immediate operands
  **/
@@ -208,6 +225,11 @@ typedef fpr_operand<frB_field>					operand_fp_RB;
 typedef fpr_operand<frC_field>					operand_fp_RC;
 typedef fpr_operand<frD_field>					operand_fp_RD;
 typedef fpr_operand<frS_field>					operand_fp_RS;
+typedef fpr_dw_operand<frA_field>				operand_fp_dw_RA;
+typedef fpr_dw_operand<frB_field>				operand_fp_dw_RB;
+typedef fpr_dw_operand<frC_field>				operand_fp_dw_RC;
+typedef fpr_dw_operand<frD_field>				operand_fp_dw_RD;
+typedef fpr_dw_operand<frS_field>				operand_fp_dw_RS;
 typedef xer_operand<XER_CA_field>				operand_XER_CA;
 typedef xer_operand<XER_COUNT_field>			operand_XER_COUNT;
 typedef fpscr_operand<FPSCR_RN_field>			operand_FPSCR_RN;

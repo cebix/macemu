@@ -345,6 +345,17 @@ typedef basic_spcflags powerpc_spcflags;
 
 
 /**
+ *		Floating point register
+ **/
+
+union powerpc_fpr {
+	uint64 j;
+	double d;
+};
+
+
+
+/**
  *		VEA Register Set
  **/
 
@@ -366,7 +377,7 @@ struct powerpc_registers
 	static inline int FPR(int r) { return FPR_BASE + r; }
 	
 	uint32	gpr[32];			// General-Purpose Registers
-	double	fpr[32];			// Floating-Point Registers
+	powerpc_fpr fpr[32];		// Floating-Point Registers
 	powerpc_cr_register cr;		// Condition Register
 	uint32	fpscr;				// Floating-Point Status and Control Register
 	powerpc_xer_register xer;	// XER Register (SPR 1)

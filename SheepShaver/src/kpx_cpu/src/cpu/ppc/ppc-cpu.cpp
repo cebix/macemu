@@ -45,11 +45,11 @@ static clock_t emul_end_time	= 0;
 void powerpc_cpu::set_register(int id, any_register const & value)
 {
 	if (id >= powerpc_registers::GPR(0) && id <= powerpc_registers::GPR(31)) {
-		regs.gpr[id - powerpc_registers::GPR_BASE] = value.i;
+		gpr(id - powerpc_registers::GPR_BASE) = value.i;
 		return;
 	}
 	if (id >= powerpc_registers::FPR(0) && id <= powerpc_registers::FPR(31)) {
-		regs.fpr[id - powerpc_registers::FPR_BASE] = value.d;
+		fpr(id - powerpc_registers::FPR_BASE) = value.d;
 		return;
 	}
 	switch (id) {
@@ -72,11 +72,11 @@ any_register powerpc_cpu::get_register(int id)
 {
 	any_register value;
 	if (id >= powerpc_registers::GPR(0) && id <= powerpc_registers::GPR(31)) {
-		value.i = regs.gpr[id - powerpc_registers::GPR_BASE];
+		value.i = gpr(id - powerpc_registers::GPR_BASE);
 		return value;
 	}
 	if (id >= powerpc_registers::FPR(0) && id <= powerpc_registers::FPR(31)) {
-		value.d = regs.fpr[id - powerpc_registers::FPR_BASE];
+		value.d = fpr(id - powerpc_registers::FPR_BASE);
 		return value;
 	}
 	switch (id) {

@@ -76,8 +76,10 @@ public:
 
 	uint32 & gpr(int i)			{ return regs.gpr[i]; }
 	uint32 gpr(int i) const		{ return regs.gpr[i]; }
-	double & fpr(int i)			{ return regs.fpr[i]; }
-	double fpr(int i) const		{ return regs.fpr[i]; }
+	double & fpr(int i)			{ return regs.fpr[i].d; }
+	double fpr(int i) const		{ return regs.fpr[i].d; }
+	uint64 & fpr_dw(int i)		{ return regs.fpr[i].j; }
+	uint64 fpr_dw(int i) const	{ return regs.fpr[i].j; }
 
 protected:
 

@@ -603,27 +603,18 @@ void powerpc_cpu::execute_fp_loadstore(uint32 opcode)
 	const uint32 a = RA::get(this, opcode);
 	const uint32 b = RB::get(this, opcode);
 	const uint32 ea = a + b;
-	any_register d;
 
 	if (LD) {
-		if (DB) {
-			d.j = vm_read_memory_8(ea);
-			operand_fp_RD::set(this, opcode, d.d);
-		}
-		else {
-			d.i = vm_read_memory_4(ea);
-			operand_fp_RD::set(this, opcode, (double)d.f);
-		}
+		if (DB)
+			operand_fp_dw_RD::set(this, opcode, vm_read_memory_8(ea));
+		else
+			operand_fp_dw_RD::set(this, opcode, vm_read_memory_4(ea));
 	}
 	else {
-		if (DB) {
-			d.d = operand_fp_RS::get(this, opcode);
-			vm_write_memory_8(ea, d.j);
-		}
-		else {
-			d.f = (float)operand_fp_RS::get(this, opcode);
-			vm_write_memory_4(ea, d.i);
-		}
+		if (DB)
+			vm_write_memory_8(ea, operand_fp_dw_RS::get(this, opcode));
+		else
+			vm_write_memory_4(ea, operand_fp_dw_RS::get(this, opcode));
 	}
 
 	if (UP)
