@@ -93,8 +93,9 @@ protected:
 	static uint32  page_size;
 	static uintptr zero_page;
 	static uintptr base;
-	static uintptr top;
-	static const uint32 size = 0x40000; // 256 KB
+	static uintptr data;
+	static uintptr proc;
+	static const uint32 size = 0x80000; // 512 KB
 public:
 	static bool Init(void);
 	static void Exit(void);
@@ -102,6 +103,7 @@ public:
 	static uint32 ZeroPage();
 	static uint32 Reserve(uint32 size);
 	static void Release(uint32 size);
+	static uint32 ReserveProc(uint32 size);
 	friend class SheepVar;
 };
 
@@ -123,14 +125,29 @@ inline uint32 SheepMem::ZeroPage()
 
 inline uint32 SheepMem::Reserve(uint32 size)
 {
-	top -= align(size);
-	assert(top >= base);
-	return top;
+	data -= align(size);
+	assert(data >= proc);
+	return data;
 }
 
 inline void SheepMem::Release(uint32 size)
 {
-	top += align(size);
+	data += align(size);
+}
+
+inline uint32 SheepMem::ReserveProc(uint32 size)
+{
+	uint32 mproc = proc;
+	proc += align(size);
+	assert(proc < data);
+	return mproc;
+}
+
+static inline uint32 SheepProc(const uint8 *proc, uint32 proc_size)
+{
+	uint32 mac_proc = SheepMem::ReserveProc(proc_size);
+	Host2Mac_memcpy(mac_proc, proc, proc_size);
+	return mac_proc;
 }
 
 class SheepVar

@@ -229,7 +229,8 @@ static void *extra_stack = NULL;	// Stack for SIGSEGV inside interrupt handler
 uint32  SheepMem::page_size;		// Size of a native page
 uintptr SheepMem::zero_page = 0;	// Address of ro page filled in with zeros
 uintptr SheepMem::base;				// Address of SheepShaver data
-uintptr SheepMem::top;				// Top of SheepShaver data (stack like storage)
+uintptr SheepMem::proc;				// Bottom address of SheepShave procedures
+uintptr SheepMem::data;				// Top of SheepShaver data (stack like storage)
 static area_id SheepMemArea;		// SheepShaver data area ID
 
 
@@ -2109,7 +2110,7 @@ bool SheepMem::Init(void)
 		delete_area(old_sheep_area);
 
 	// Create area for SheepShaver data
-	base = 0x60000000;
+	proc = base = 0x60000000;
 	SheepMemArea = create_area(SHEEP_AREA_NAME, (void **)&base, B_BASE_ADDRESS, size, B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
 	if (SheepMemArea < 0)
 		return false;
@@ -2119,7 +2120,7 @@ bool SheepMem::Init(void)
 	zero_page = const_zero_page;
 
 	D(bug("SheepShaver area %ld at %p\n", SheepMemArea, base));
-	top = base + size;
+	data = base + size;
 	return true;
 }
 
