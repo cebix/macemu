@@ -232,11 +232,7 @@ static void sigill_handler(int sig, sigcontext_struct *sc);
 
 
 // From asm_linux.S
-#if EMULATED_PPC
-extern int atomic_add(int *var, int v);
-extern int atomic_and(int *var, int v);
-extern int atomic_or(int *var, int v);
-#else
+#if !EMULATED_PPC
 extern "C" void *get_toc(void);
 extern "C" void *get_sp(void);
 extern "C" void flush_icache_range(void *start, void *end);
@@ -248,6 +244,47 @@ extern "C" int atomic_add(int *var, int v);
 extern "C" int atomic_and(int *var, int v);
 extern "C" int atomic_or(int *var, int v);
 extern void paranoia_check(void);
+#endif
+
+
+#if EMULATED_PPC
+/*
+ *  Atomic operations
+ */
+
+#if HAVE_SPINLOCKS
+static spinlock_t atomic_ops_lock = SPIN_LOCK_UNLOCKED;
+#else
+#define spin_lock(LOCK)
+#define spin_unlock(LOCK)
+#endif
+
+int atomic_add(int *var, int v)
+{
+	spin_lock(&atomic_ops_lock);
+	int ret = *var;
+	*var += v;
+	spin_unlock(&atomic_ops_lock);
+	return ret;
+}
+
+int atomic_and(int *var, int v)
+{
+	spin_lock(&atomic_ops_lock);
+	int ret = *var;
+	*var &= v;
+	spin_unlock(&atomic_ops_lock);
+	return ret;
+}
+
+int atomic_or(int *var, int v)
+{
+	spin_lock(&atomic_ops_lock);
+	int ret = *var;
+	*var |= v;
+	spin_unlock(&atomic_ops_lock);
+	return ret;
+}
 #endif
 
 

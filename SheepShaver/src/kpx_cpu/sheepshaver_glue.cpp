@@ -57,7 +57,7 @@ static void enter_mon(void)
 }
 
 // Enable multicore (main/interrupts) cpu emulation?
-#define MULTICORE_CPU 0
+#define MULTICORE_CPU (ASYNC_IRQ ? 1 : 0)
 
 // Enable Execute68k() safety checks?
 #define SAFE_EXEC_68K 1
@@ -604,11 +604,6 @@ void emul_ppc(uint32 entry)
  *  Handle PowerPC interrupt
  */
 
-// Atomic operations
-extern int atomic_add(int *var, int v);
-extern int atomic_and(int *var, int v);
-extern int atomic_or(int *var, int v);
-
 #if !ASYNC_IRQ
 void TriggerInterrupt(void)
 {
@@ -899,31 +894,6 @@ uint32 call_macos7(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, uint32 a
 {
 	const uint32 args[] = { arg1, arg2, arg3, arg4, arg5, arg6, arg7 };
 	return current_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
-}
-
-/*
- *  Atomic operations
- */
-
-int atomic_add(int *var, int v)
-{
-	int ret = *var;
-	*var += v;
-	return ret;
-}
-
-int atomic_and(int *var, int v)
-{
-	int ret = *var;
-	*var &= v;
-	return ret;
-}
-
-int atomic_or(int *var, int v)
-{
-	int ret = *var;
-	*var |= v;
-	return ret;
 }
 
 /*
