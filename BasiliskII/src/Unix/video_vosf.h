@@ -21,7 +21,7 @@
 #ifndef VIDEO_VOSF_H
 #define VIDEO_VOSF_H
 
-// Note: this file is #include'd in video_x.cpp
+// Note: this file must be #include'd only in video_x.cpp
 #ifdef ENABLE_VOSF
 
 #include <fcntl.h>
@@ -200,11 +200,6 @@ static uint32 page_extend(uint32 size)
  *  Initialize the VOSF system (mainBuffer structure, SIGSEGV handler)
  */
 
-#if !EMULATED_PPC && !POWERPC_ROM
-static
-#endif
-bool Screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction);
-
 static bool video_vosf_init(X11_MONITOR_INIT)
 {
 	VIDEO_MODE_INIT;
@@ -259,12 +254,6 @@ static bool video_vosf_init(X11_MONITOR_INIT)
 	// We can now write-protect the frame buffer
 	if (vm_protect((char *)mainBuffer.memStart, mainBuffer.memLength, VM_PAGE_READ) != 0)
 		return false;
-	
-#if !EMULATED_PPC && !POWERPC_ROM
-	// Initialize the handler for SIGSEGV
-	if (!sigsegv_install_handler(Screen_fault_handler))
-		return false;
-#endif
 	
 	// The frame buffer is sane, i.e. there is no write to it yet
 	mainBuffer.dirty = false;

@@ -210,6 +210,32 @@ char *strdup(const char *s)
 
 
 /*
+ *  SIGSEGV handler
+ */
+
+static sigsegv_return_t sigsegv_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction)
+{
+#if ENABLE_VOSF
+	// Handle screen fault
+	extern bool Screen_fault_handler(sigsegv_address_t, sigsegv_address_t);
+	if (Screen_fault_handler(fault_address, fault_instruction))
+		return SIGSEGV_RETURN_SUCCESS;
+#endif
+
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+	// Ignore writes to ROM
+	if (((uintptr)fault_address - (uintptr)ROMBaseHost) < ROMSize)
+		return SIGSEGV_RETURN_SKIP_INSTRUCTION;
+
+	// Ignore all other faults, if requested
+	if (PrefsFindBool("ignoresegv"))
+		return SIGSEGV_RETURN_SKIP_INSTRUCTION;
+#endif
+
+	return SIGSEGV_RETURN_FAILURE;
+}
+
+/*
  *  Dump state when everything went wrong after a SEGV
  */
 
@@ -357,12 +383,10 @@ int main(int argc, char **argv)
 		if (!PrefsEditor())
 			QuitEmulator();
 
-	// Register request to ignore all segmentation faults
-#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
-	if (PrefsFindBool("ignoresegv"))
-		sigsegv_add_ignore_range(0, ~(0UL), SIGSEGV_TRANSFER_LOAD | SIGSEGV_TRANSFER_STORE);
-#endif
-
+	// Install the handler for SIGSEGV
+	if (!sigsegv_install_handler(sigsegv_handler))
+		return false;
+	
 	// Register dump state function when we got mad after a segfault
 	sigsegv_set_dump_state(sigsegv_dump_state);
 

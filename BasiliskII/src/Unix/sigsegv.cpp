@@ -45,16 +45,6 @@ using std::list;
 // Type of the system signal handler
 typedef RETSIGTYPE (*signal_handler)(int);
 
-// Ignore range chain
-struct ignore_range_t {
-	sigsegv_address_t	start;
-	unsigned long		length;
-	int					transfer_type;
-};
-
-typedef list<ignore_range_t> ignore_range_list_t;
-ignore_range_list_t sigsegv_ignore_ranges;
-
 // User's SIGSEGV handler
 static sigsegv_fault_handler_t sigsegv_fault_handler = 0;
 
@@ -63,16 +53,6 @@ static sigsegv_state_dumper_t sigsegv_state_dumper = 0;
 
 // Actual SIGSEGV handler installer
 static bool sigsegv_do_install_handler(int sig);
-
-// Find ignore range matching address
-static inline ignore_range_list_t::iterator sigsegv_find_ignore_range(sigsegv_address_t address)
-{
-	ignore_range_list_t::iterator it;
-	for (it = sigsegv_ignore_ranges.begin(); it != sigsegv_ignore_ranges.end(); it++)
-		if (address >= it->start && address < it->start + it->length)
-			break;
-	return it;
-}
 
 
 /*
@@ -610,12 +590,6 @@ static bool powerpc_skip_instruction(unsigned int * nip_p, unsigned int * regs)
 		return false;
 	}
 
-	ignore_range_list_t::iterator it = sigsegv_find_ignore_range((sigsegv_address_t)instr.addr);
-	if (it == sigsegv_ignore_ranges.end() || ((it->transfer_type & instr.transfer_type) != instr.transfer_type)) {
-		// Address doesn't fall into ignore ranges list, let it crash.
-		return false;
-	}
-
 #if DEBUG
 	printf("%08x: %s %s access", *nip_p,
 		   instr.transfer_size == SIZE_BYTE ? "byte" : instr.transfer_size == SIZE_WORD ? "word" : "long",
@@ -661,22 +635,24 @@ static void sigsegv_handler(SIGSEGV_FAULT_HANDLER_ARGLIST)
 	bool fault_recovered = false;
 	
 	// Call user's handler and reinstall the global handler, if required
-	if (sigsegv_fault_handler(fault_address, fault_instruction)) {
+	switch (sigsegv_fault_handler(fault_address, fault_instruction)) {
+	case SIGSEGV_RETURN_SUCCESS:
 #if (defined(HAVE_SIGACTION) ? defined(SIGACTION_NEED_REINSTALL) : defined(SIGNAL_NEED_REINSTALL))
 		sigsegv_do_install_handler(sig);
 #endif
 		fault_recovered = true;
-	}
+		break;
 #if HAVE_SIGSEGV_SKIP_INSTRUCTION
-	else if (sigsegv_ignore_ranges.size() > 0) {
+	case SIGSEGV_RETURN_SKIP_INSTRUCTION:
 		// Call the instruction skipper with the register file available
 		if (SIGSEGV_SKIP_INSTRUCTION(SIGSEGV_REGISTER_FILE))
 			fault_recovered = true;
-	}
+		break;
 #endif
+	}
 
 	if (!fault_recovered) {
-		// FAIL: reinstall default handler for "safe" crash
+		// Failure: reinstall default handler for "safe" crash
 #define FAULT_HANDLER(sig) signal(sig, SIG_DFL);
 		SIGSEGV_ALL_SIGNALS
 #undef FAULT_HANDLER
@@ -761,43 +737,6 @@ void sigsegv_deinstall_handler(void)
 
 
 /*
- *  Add SIGSEGV ignore range
- */
-
-void sigsegv_add_ignore_range(sigsegv_address_t address, unsigned long length, int transfer_type)
-{
-	ignore_range_t ignore_range;
-	ignore_range.start = address;
-	ignore_range.length = length;
-	ignore_range.transfer_type = transfer_type;
-	sigsegv_ignore_ranges.push_front(ignore_range);
-}
-
-
-/*
- *  Remove SIGSEGV ignore range. Range must match installed one, otherwise FALSE is returned.
- */
-
-bool sigsegv_remove_ignore_range(sigsegv_address_t address, unsigned long length, int transfer_type)
-{
-	ignore_range_list_t::iterator it;
-	for (it = sigsegv_ignore_ranges.begin(); it != sigsegv_ignore_ranges.end(); it++)
-		if (it->start == address && it->length == length && ((it->transfer_type & transfer_type) == transfer_type))
-			break;
-
-	if (it != sigsegv_ignore_ranges.end()) {
-		if (it->transfer_type != transfer_type)
-			it->transfer_type &= ~transfer_type;
-		else
-			sigsegv_ignore_ranges.erase(it);
-		return true;
-	}
-
-	return false;
-}
-
-
-/*
  *  Set callback function when we cannot handle the fault
  */
 
@@ -822,20 +761,22 @@ static int page_size;
 static volatile char * page = 0;
 static volatile int handler_called = 0;
 
-static bool sigsegv_test_handler(sigsegv_address_t fault_address, sigsegv_address_t instruction_address)
+static sigsegv_return_t sigsegv_test_handler(sigsegv_address_t fault_address, sigsegv_address_t instruction_address)
 {
 	handler_called++;
 	if ((fault_address - 123) != page)
 		exit(1);
 	if (vm_protect((char *)((unsigned long)fault_address & -page_size), page_size, VM_PAGE_READ | VM_PAGE_WRITE) != 0)
 		exit(1);
-	return true;
+	return SIGSEGV_RETURN_SUCCESS;
 }
 
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
-static bool sigsegv_insn_handler(sigsegv_address_t fault_address, sigsegv_address_t instruction_address)
+static sigsegv_return_t sigsegv_insn_handler(sigsegv_address_t fault_address, sigsegv_address_t instruction_address)
 {
-	return false;
+	if (((unsigned long)fault_address - (unsigned long)page) < page_size)
+		return SIGSEGV_SRETURN_KIP_INSTRUCTION;
+	return SIGSEGV_RETURN_FAILURE;
 }
 #endif
 
@@ -873,8 +814,6 @@ int main(void)
 	if (vm_protect((char *)page, page_size, VM_PAGE_NOACCESS) < 0)
 		return 1;
 	
-	sigsegv_add_ignore_range((char *)page, page_size, SIGSEGV_TRANSFER_LOAD | SIGSEGV_TRANSFER_STORE);
-
 #define TEST_SKIP_INSTRUCTION(TYPE) do {				\
 		const unsigned int TAG = 0x12345678;			\
 		TYPE data = *((TYPE *)(page + sizeof(TYPE)));	\
