@@ -43,6 +43,10 @@ static void FB_FUNC_NAME(uint8 * dest, const uint8 * source, uint32 length)
 	// source and dest are mutually aligned
 	uint16 * swp = ((uint16 *)source);
 	uint16 * dwp = ((uint16 *) dest );
+
+#if FB_DEPTH <= 8
+	if (length >= 2) {
+#endif
 	
 #if FB_DEPTH <= 16
 	// Align source and dest to 32-bit word boundaries
@@ -81,6 +85,10 @@ static void FB_FUNC_NAME(uint8 * dest, const uint8 * source, uint32 length)
 		uint16 * const s = (uint16 *)(((uint8 *)swp) + length - 2);
 		uint16 * const d = (uint16 *)(((uint8 *)dwp) + length - 2);
 		FB_BLIT_1(*d, *s);
+	}
+#endif
+	
+#if FB_DEPTH <= 8
 	}
 #endif
 }
