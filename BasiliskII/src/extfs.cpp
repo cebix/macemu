@@ -1063,18 +1063,17 @@ static int16 fs_get_vol_parms(uint32 pb)
 //	D(bug(" fs_get_vol_parms(%08lx)\n", pb));
 
 	// Return parameter block
-	uint8 vol[SIZEOF_GetVolParmsInfoBuffer];
-	WriteMacInt16((uint32)vol + vMVersion, 2);
-	WriteMacInt32((uint32)vol + vMAttrib, kNoMiniFndr | kNoVNEdit | kNoLclSync | kTrshOffLine | kNoSwitchTo | kNoBootBlks | kNoSysDir | kHasExtFSVol);
-	WriteMacInt32((uint32)vol + vMLocalHand, 0);
-	WriteMacInt32((uint32)vol + vMServerAdr, 0);
-	WriteMacInt32((uint32)vol + vMVolumeGrade, 0);
-	WriteMacInt16((uint32)vol + vMForeignPrivID, 0);
 	uint32 actual = ReadMacInt32(pb + ioReqCount);
-	if (actual > sizeof(vol))
-		actual = sizeof(vol);
-	Host2Mac_memcpy(ReadMacInt32(pb + ioBuffer), vol, actual);
+	if (actual > SIZEOF_GetVolParmsInfoBuffer)
+		actual = SIZEOF_GetVolParmsInfoBuffer;
 	WriteMacInt32(pb + ioActCount, actual);
+	uint32 p = ReadMacInt32(pb + ioBuffer);
+	if (actual > vMVersion) WriteMacInt16(p + vMVersion, 2);
+	if (actual > vMAttrib) WriteMacInt32(p + vMAttrib, kNoMiniFndr | kNoVNEdit | kNoLclSync | kTrshOffLine | kNoSwitchTo | kNoBootBlks | kNoSysDir | kHasExtFSVol);
+	if (actual > vMLocalHand) WriteMacInt32(p + vMLocalHand, 0);
+	if (actual > vMServerAdr) WriteMacInt32(p + vMServerAdr, 0);
+	if (actual > vMVolumeGrade) WriteMacInt32(p + vMVolumeGrade, 0);
+	if (actual > vMForeignPrivID) WriteMacInt16(p + vMForeignPrivID, 0);
 	return noErr;
 }
 
@@ -1475,8 +1474,10 @@ static int16 fs_open(uint32 pb, uint32 dirID, uint32 vcb, bool resource_fork)
 			return fnfErr;
 		fd = open_rfork(full_path, flag);
 		if (fd > 0) {
-			if (fstat(fd, &st) < 0)
+			if (fstat(fd, &st) < 0) {
+				close(fd);
 				return errno2oserr();
+			}
 		} else {	// Resource fork not supported, silently ignore it ("pseudo" resource fork)
 			st.st_size = 0;
 			st.st_mode = 0;
@@ -1485,8 +1486,10 @@ static int16 fs_open(uint32 pb, uint32 dirID, uint32 vcb, bool resource_fork)
 		fd = open(full_path, flag);
 		if (fd < 0)
 			return errno2oserr();
-		if (fstat(fd, &st) < 0)
+		if (fstat(fd, &st) < 0) {
+			close(fd);
 			return errno2oserr();
+		}
 	}
 
 	// File open, allocate FCB
@@ -1509,7 +1512,7 @@ static int16 fs_open(uint32 pb, uint32 dirID, uint32 vcb, bool resource_fork)
 	WriteMacInt32(fcb + fcbCrPs, 0);
 	WriteMacInt32(fcb + fcbVPtr, vcb);
 	WriteMacInt32(fcb + fcbClmpSize, 1024);
-	uint32 type, creator;	// fcb may point to kernel space, but stack is switched
+	uint32 type, creator;	// BeOS: fcb may point to kernel space, but stack is switched
 	get_finder_type(full_path, type, creator);
 	WriteMacInt32(fcb + fcbFType, type);
 	WriteMacInt32(fcb + fcbCatPos, fd);
