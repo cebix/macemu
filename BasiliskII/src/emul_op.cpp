@@ -152,9 +152,8 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 					}
 				} else if (reg < 0x08 && is_read) {
 					uint32 t = TimerDateTime();
-					uint8 b;
+					uint8 b = t;
 					switch (reg & 3) {
-						case 0: b = t; break;
 						case 1: b = t >> 8; break;
 						case 2: b = t >> 16; break;
 						case 3: b = t >> 24; break;

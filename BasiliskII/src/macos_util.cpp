@@ -56,7 +56,7 @@ static bool is_drive_number_free(int num)
 	uint32 e = ReadMacInt32(0x308 + qHead);
 	while (e) {
 		uint32 d = e - dsQLink;
-		if (ReadMacInt16(d + dsQDrive) == num)
+		if ((int)ReadMacInt16(d + dsQDrive) == num)
 			return false;
 		e = ReadMacInt32(e + qLink);
 	}

@@ -392,7 +392,7 @@ bool InstallSlotROM(void)
 
 	// Calculate CRC
 	uint32 crc = 0;
-	for (int i=0; i<p; i++) {
+	for (uint32 i=0; i<p; i++) {
 		crc = (crc << 1) | (crc >> 31);
 		crc += srom[i];
 	}

@@ -142,7 +142,7 @@ extern void SysMountFirstFloppy(void);
 // Set VideoMonitor according to video mode
 void set_video_monitor(int width, int height, int bytes_per_row, bool native_byte_order)
 {
-	int layout;
+	int layout = FLAYOUT_DIRECT;
 	switch (depth) {
 		case 1:
 			layout = FLAYOUT_DIRECT;
@@ -470,9 +470,13 @@ bool VideoInit(bool classic)
 
 #if ENABLE_DGA
 	// DGA available?
-	int dga_flags = 0;
-	XF86DGAQueryDirectVideo(x_display, screen, &dga_flags);
-	has_dga = dga_flags & XF86DGADirectPresent;
+	int event_base, error_base;
+	if (XF86DGAQueryExtension(x_display, &event_base, &error_base)) {
+		int dga_flags = 0;
+		XF86DGAQueryDirectVideo(x_display, screen, &dga_flags);
+		has_dga = dga_flags & XF86DGADirectPresent;
+	} else
+		has_dga = false;
 #endif
 
 	// Find black and white colors
