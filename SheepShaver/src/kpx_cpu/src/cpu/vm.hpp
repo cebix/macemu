@@ -234,33 +234,33 @@ static inline uint32 vm_read_memory_4_reversed(vm_addr_t addr)
 static inline void vm_write_memory_1(vm_addr_t addr, uint32 value)
 {
 	uint8 * const m = vm_do_get_real_address(addr);
-	return vm_do_write_memory_1(m, value);
+	vm_do_write_memory_1(m, value);
 }
 static inline void vm_write_memory_2(vm_addr_t addr, uint32 value)
 {
 	uint16 * const m = (uint16 *)vm_do_get_real_address(addr);
-	return vm_do_write_memory_2(m, value);
+	vm_do_write_memory_2(m, value);
 }
 static inline void vm_write_memory_4(vm_addr_t addr, uint32 value)
 {
 	uint32 * const m = (uint32 *)vm_do_get_real_address(addr);
-	return vm_do_write_memory_4(m, value);
+	vm_do_write_memory_4(m, value);
 }
 static inline void vm_write_memory_8(vm_addr_t addr, uint64 value)
 {
 	uint64 * const m = (uint64 *)vm_do_get_real_address(addr);
-	return vm_do_write_memory_8(m, value);
+	vm_do_write_memory_8(m, value);
 }
 #define vm_write_memory_1_reversed vm_write_memory_1
 static inline void vm_write_memory_2_reversed(vm_addr_t addr, uint32 value)
 {
 	uint16 * const m = (uint16 *)vm_do_get_real_address(addr);
-	return vm_do_write_memory_2_reversed(m, value);
+	vm_do_write_memory_2_reversed(m, value);
 }
 static inline void vm_write_memory_4_reversed(vm_addr_t addr, uint32 value)
 {
 	uint32 * const m = (uint32 *)vm_do_get_real_address(addr);
-	return vm_do_write_memory_4_reversed(m, value);
+	vm_do_write_memory_4_reversed(m, value);
 }
 static inline void *vm_memset(vm_addr_t addr, int c, size_t n)
 {
