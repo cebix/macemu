@@ -185,7 +185,7 @@ _ExceptionHandlerAsm
 		pea	1$
 		move.w	_EmulatedSR,d0
 		move.w	d0,-(sp)
-		or.w	#$0100,d0		;Set interrupt level in SR
+		or.w	#$2100,d0		;Set interrupt level in SR, enter (virtual) supervisor mode
 		move.w	d0,_EmulatedSR
 		move.l	$64.w,-(sp)		;Jump to MacOS interrupt handler
 		rts
@@ -474,7 +474,7 @@ doprivviol	move.l	d0,(sp)			;Save d0
 		cmp.w	#$40d0,d0		;move sr,(a0)?
 		beq	movefromsra0
 		cmp.w	#$40d7,d0		;move sr,(sp)?
-		beq	movefromsrsp	;+++jl+++
+		beq	movefromsrsp
 
 		cmp.w	#$f327,d0		;fsave -(sp)?
 		beq	fsavepush
@@ -889,21 +889,21 @@ movecfromcr	move.w	([6,sp],2),d0		;Get next instruction word
 		beq.s	movectcd0
 		cmp.w	#$1003,d0		;movec tc,d1?
 		beq.s	movectcd1
-		cmp.w	#$1000,d0		;movec SFC,d1?
+		cmp.w	#$1000,d0		;movec sfc,d1?
 		beq	movecsfcd1
-		cmp.w	#$1001,d0		;movec DFC,d1?
+		cmp.w	#$1001,d0		;movec dfc,d1?
 		beq	movecdfcd1
-		cmp.w	#$0806,d0		;movec URP,d0?
+		cmp.w	#$0806,d0		;movec urp,d0?
 		beq	movecurpd0
-		cmp.w	#$0807,d0		;movec SRP,d0?
+		cmp.w	#$0807,d0		;movec srp,d0?
 		beq.s	movecsrpd0
-		cmp.w	#$0004,d0		;movec ITT0,d0
+		cmp.w	#$0004,d0		;movec itt0,d0
 		beq.s	movecitt0d0
-		cmp.w	#$0005,d0		;movec ITT1,d0
+		cmp.w	#$0005,d0		;movec itt1,d0
 		beq.s	movecitt1d0
-		cmp.w	#$0006,d0		;movec DTT0,d0
+		cmp.w	#$0006,d0		;movec dtt0,d0
 		beq.s	movecdtt0d0
-		cmp.w	#$0007,d0		;movec DTT1,d0
+		cmp.w	#$0007,d0		;movec dtt1,d0
 		beq.s	movecdtt1d0
 
 		bra	pv_unhandled
@@ -950,24 +950,24 @@ movectcd1	move.l	(sp)+,d0		;Restore d0
 		addq.l	#4,2(sp)
 		rte
 
-; movec SFC,d1	+jl+
+; movec sfc,d1	+jl+
 movecsfcd1:	move.l	(sp)+,d0		;Restore d0
-		moveq	#0,d1			;MMU is always off
+		moveq	#0,d1
 		addq.l	#4,2(sp)
 		rte
 
-; movec DFC,d1	+jl+
+; movec dfc,d1	+jl+
 movecdfcd1:	move.l	(sp)+,d0		;Restore d0
-		moveq	#0,d1			;MMU is always off
+		moveq	#0,d1
 		addq.l	#4,2(sp)
 		rte
 
-movecurpd0:		; movec URP,d0	+jl+
-movecsrpd0:		; movec SRP,d0
-movecitt0d0:		; movec ITT0,d0
-movecitt1d0:		; movec ITT1,d0
-movecdtt0d0:		; movec DTT0,d0
-movecdtt1d0:		; movec DTT1,d0
+movecurpd0:		; movec urp,d0	+jl+
+movecsrpd0:		; movec srp,d0
+movecitt0d0:		; movec itt0,d0
+movecitt1d0:		; movec itt1,d0
+movecdtt0d0:		; movec dtt0,d0
+movecdtt1d0:		; movec dtt1,d0
 		addq.l	#4,sp
 		moveq.l	#0,d0			;MMU is always off
 		addq.l	#4,2(sp)		;skip instruction
@@ -984,9 +984,9 @@ movectocr	move.w	([6,sp],2),d0		;Get next instruction word
 		beq.s	movectocacr
 		cmp.w	#$1002,d0		;movec d1,cacr?
 		beq.s	movectocacr
-		cmp.w	#$1000,d0		;movec d1,SFC?
+		cmp.w	#$1000,d0		;movec d1,sfc?
 		beq.s	movectoxfc
-		cmp.w	#$1001,d0		;movec d1,DFC?
+		cmp.w	#$1001,d0		;movec d1,dfc?
 		beq.s	movectoxfc
 
 		bra	pv_unhandled
@@ -1005,8 +1005,8 @@ movectocacr	movem.l	d1/a0-a1/a6,-(sp)	;Move to CACR, clear caches
 		addq.l	#4,2(sp)
 		rte
 
-; movec x,SFC
-; movec x,DFC
+; movec x,sfc
+; movec x,dfc
 movectoxfc	move.l	(sp)+,d0		;Ignore moves to SFC, DFC
 		addq.l	#4,2(sp)
 		rte

@@ -9,7 +9,7 @@ dnl Options.
 AC_ARG_ENABLE(xf86-dga,      [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(xf86-vidmode,  [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
 AC_ARG_ENABLE(fbdev-dga,     [  --enable-fbdev-dga      use direct frame buffer access via /dev/fb [default=yes]], [WANT_FBDEV_DGA=$enableval], [WANT_FBDEV_DGA=yes])
-AC_ARG_ENABLE(vosf,          [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=no])
+AC_ARG_ENABLE(vosf,          [  --enable-vosf           enable video on SEGV signals [default=no]], [WANT_VOSF=$enableval], [WANT_VOSF=no])
 AC_ARG_ENABLE(16bit-vidmode, [  --enable-16bit-vidmode  enable 16-bit video if possible [default=yes]], [WANT_16BIT_VIDMODE=$enableval], [WANT_16BIT_VIDMODE=yes])
 AC_ARG_ENABLE(addressing,
 [  --enable-addressing=mode specify the addressing mode to use [default=fastest]], 
@@ -204,7 +204,7 @@ ETHERSRC=../dummy/ether_dummy.cpp
 SCSISRC=../dummy/scsi_dummy.cpp
 AUDIOSRC=../dummy/audio_dummy.cpp
 EXTRASYSSRCS=
-SUPPORTS_NATIVE_M68K=no
+CAN_NATIVE_M68K=no
 case "$target_os" in
 linux*)
   ETHERSRC=Linux/ether_linux.cpp
@@ -252,7 +252,7 @@ freebsd*)
   fi
   ;;
 netbsd*)
-  SUPPORTS_NATIVE_M68K=yes
+  CAN_NATIVE_M68K=yes
   ;;
 solaris*)
   AUDIOSRC=Solaris/audio_solaris.cpp
@@ -264,6 +264,13 @@ irix*)
   LIBS="$LIBS -lm"
   ;;
 esac
+
+dnl Use 68k CPU natively?
+WANT_NATIVE_M68K=no
+if [[ "x$HAVE_M68K" = "xyes" -a "x$CAN_NATIVE_M68K" = "xyes" ]]; then
+  AC_DEFINE(ENABLE_NATIVE_M68K)
+  WANT_NATIVE_M68K=yes
+fi
 
 if [[ "x$HAVE_PTHREADS" = "xno" ]]; then
   dnl Serial, ethernet and audio support needs pthreads
@@ -386,6 +393,43 @@ if [[ "x$ac_cv_have_extended_signals" = "xno" ]]; then
         ])
         AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, $ac_cv_have_sigcontext_hack)
       fi
+      ;;
+    netbsd*)
+      if [[ "x$HAVE_M68K" = "xyes" ]]; then
+        AC_CACHE_CHECK("whether we then have a subterfuge for your system",
+		  ac_cv_have_sigcontext_hack, [
+          AC_LANG_SAVE
+          AC_LANG_CPLUSPLUS
+          AC_TRY_RUN([
+            #include <unistd.h>
+            #include <signal.h>
+            #include <fcntl.h>
+            #include <sys/mman.h>
+
+            static volatile caddr_t mem = 0;
+            static int zero_fd = -1;
+
+            static RETSIGTYPE segfault_handler(int, int code)
+            { if ((caddr_t)code != mem) exit(1);
+              munmap(mem, getpagesize()); close(zero_fd); exit(0); }
+
+            int main()
+            { if ((zero_fd = open("/dev/zero", O_RDWR)) < 0) exit(1);
+              if ((mem = (caddr_t)mmap(0, getpagesize(), PROT_READ, MAP_PRIVATE, zero_fd, 0)) == (caddr_t)MAP_FAILED) exit(1);
+              struct sigaction sa; sa.sa_flags = 0;
+              sa.sa_handler = (RETSIGTYPE (*)(int))segfault_handler;
+              sigaction(SIGSEGV, &sa, 0);
+              mem[0] = 0;
+              exit(1); // should not be reached
+            }
+          ],
+          [ac_cv_have_sigcontext_hack=yes],
+          [ac_cv_have_sigcontext_hack=no]
+          )
+          AC_LANG_RESTORE
+        ])
+        AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, $ac_cv_have_sigcontext_hack)
+      fi
     ;;
   esac
 fi
@@ -397,58 +441,62 @@ if [[ "$ac_cv_have_extended_signals" = "yes" -o "$ac_cv_have_sigcontext_hack" = 
 fi
 
 dnl Determine the addressing mode to use
-ADDRESSING_MODE=""
-AC_MSG_CHECKING([for the addressing mode to use])
-for am in $ADDRESSING_TEST_ORDER; do
-  case $am in
-  real)
-    dnl Requires ability to mmap Low Memory globals.
-    if [[ "x$ac_cv_can_map_lm" = "xno" ]]; then
-      continue
-    fi
-    if [[ "x$ac_cv_c_bigendian" = "xyes" ]]; then
-      dnl Requires only VOSF if 16-bit vidmode enable
-      if [[ "x$WANT_16BIT_VIDMODE" = "xyes" ]]; then
+if [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
+  ADDRESSING_MODE="real"
+else
+  ADDRESSING_MODE=""
+  AC_MSG_CHECKING([for the addressing mode to use])
+  for am in $ADDRESSING_TEST_ORDER; do
+    case $am in
+    real)
+      dnl Requires ability to mmap Low Memory globals.
+      if [[ "x$ac_cv_can_map_lm" = "xno" ]]; then
+        continue
+      fi
+      if [[ "x$ac_cv_c_bigendian" = "xyes" ]]; then
+        dnl Requires only VOSF if 16-bit vidmode enable
+        if [[ "x$WANT_16BIT_VIDMODE" = "xyes" ]]; then
+          if [[ "x$CAN_VOSF" = "xno" ]]; then
+            continue
+          fi
+        else
+          DEFINES="$DEFINES -DDISABLE_16BIT_VIDMODE"
+        fi
+      else
+        dnl Requires VOSF
         if [[ "x$CAN_VOSF" = "xno" ]]; then
           continue
         fi
-      else
-        DEFINES="$DEFINES -DDISABLE_16BIT_VIDMODE"
       fi
-    else
-      dnl Requires VOSF
-      if [[ "x$CAN_VOSF" = "xno" ]]; then
-        continue
-      fi
-    fi
-    dnl Real addressing will probably work
-    ADDRESSING_MODE="real"
-    WANT_VOSF=yes dnl we can use VOSF and we need it actually
-    DEFINES="$DEFINES -DREAL_ADDRESSING"
-    break
-    ;;
-  direct)
-    dnl Requires VOSF
-    if [[ "x$CAN_VOSF" = "xyes" ]]; then
-      ADDRESSING_MODE="direct"
+      dnl Real addressing will probably work
+      ADDRESSING_MODE="real"
       WANT_VOSF=yes dnl we can use VOSF and we need it actually
-      DEFINES="$DEFINES -DDIRECT_ADDRESSING"
+      DEFINES="$DEFINES -DREAL_ADDRESSING"
       break
-    fi
-    ;;
-  banks)
-    dnl Default addressing mode
+      ;;
+    direct)
+      dnl Requires VOSF
+      if [[ "x$CAN_VOSF" = "xyes" ]]; then
+        ADDRESSING_MODE="direct"
+        WANT_VOSF=yes dnl we can use VOSF and we need it actually
+        DEFINES="$DEFINES -DDIRECT_ADDRESSING"
+        break
+      fi
+      ;;
+    banks)
+      dnl Default addressing mode
+      ADDRESSING_MODE="memory banks"
+      break
+      ;;
+    *)
+      AC_MSG_ERROR([Internal configure.in script error for $am addressing mode])
+    esac
+  done
+  AC_MSG_RESULT($ADDRESSING_MODE)
+  if [[ "x$ADDRESSING_MODE" = "x" ]]; then
+    AC_MSG_WARN([Sorry, no suitable addressing mode in $ADDRESSING_TEST_ORDER])
     ADDRESSING_MODE="memory banks"
-    break
-    ;;
-  *)
-    AC_MSG_ERROR([Internal configure.in script error for $am addressing mode])
-  esac
-done
-AC_MSG_RESULT($ADDRESSING_MODE)
-if [[ "x$ADDRESSING_MODE" = "x" ]]; then
-  AC_MSG_WARN([Sorry, no suitable addressing mode in $ADDRESSING_TEST_ORDER])
-  ADDRESSING_MODE="memory banks"
+  fi
 fi
 
 dnl Since real and direct addressing modes automatically activate VOSF,
@@ -489,7 +537,6 @@ fi
 
 dnl Select appropriate CPU source and REGPARAM define.
 ASM_OPTIMIZATIONS=none
-WANT_NATIVE_M68K=no
 CPUSRCS="cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
 FPUSRCS="../uae_cpu/fpp.cpp"
 if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
@@ -524,20 +571,16 @@ elif [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xy
     esac
     ;;
   esac
-elif [[ "x$HAVE_M68K" = "xyes" -a "x$SUPPORTS_NATIVE_M68K" = "xyes" ]]; then
+elif [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
   dnl Native m68k, no emulation
-  CPUSRCS=""
-  AC_DEFINE(ENABLE_NATIVE_M68K)
-  WANT_NATIVE_M68K=yes
+  CPUINCLUDES="-I../native_cpu"
+  CPUSRCS="asm_support.s"
 fi
 
 dnl UAE CPU sources for all non-m68k-native architectures.
 if [[ "x$WANT_NATIVE_M68K" = "xno" ]]; then
   CPUINCLUDES="-I../uae_cpu"
   CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp $FPUSRCS cpustbl.cpp cpudefs.cpp $CPUSRCS"
-else
-  CPUINCLUDES="-I../native_cpu"
-  CPUSRCS="asm_support.s"
 fi
 
 dnl Remove the "-g" option if set for GCC.

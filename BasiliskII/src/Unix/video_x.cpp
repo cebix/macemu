@@ -1745,7 +1745,7 @@ static void update_display_static(void)
 	// Check for first column from left and first column from right that have changed
 	if (high) {
 		if (depth == 1) {
-			x1 = VideoMonitor.x;
+			x1 = VideoMonitor.x - 1;
 			for (j=y1; j<=y2; j++) {
 				p = &the_buffer[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];

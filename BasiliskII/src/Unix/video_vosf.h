@@ -260,18 +260,46 @@ static inline void do_handle_screen_fault(uintptr addr)
 }
 
 #if defined(HAVE_SIGINFO_T)
+
 static void Screen_fault_handler(int, siginfo_t * sip, void *)
 {
 	D(bug("Screen_fault_handler: ADDR=0x%08X\n", sip->si_addr));
 	do_handle_screen_fault((uintptr)sip->si_addr);
 }
+
 #elif defined(HAVE_SIGCONTEXT_SUBTERFUGE)
+
 # if defined(__i386__) && defined(__linux__)
 static void Screen_fault_handler(int, struct sigcontext scs)
 {
 	D(bug("Screen_fault_handler: ADDR=0x%08X from IP=0x%08X\n", scs.cr2, scs.eip));
 	do_handle_screen_fault((uintptr)scs.cr2);
 }
+
+# elif defined(__m68k__) && defined(__NetBSD__)
+
+# include <m68k/frame.h>
+static void Screen_fault_handler(int, int code, struct sigcontext *scp)
+{
+	D(bug("Screen_fault_handler: ADDR=0x%08X\n", code));
+	struct sigstate {
+		int ss_flags;
+		struct frame ss_frame;
+	};
+	struct sigstate *state = (struct sigstate *)scp->sc_ap;
+	uintptr fault_addr;
+	switch (state->ss_frame.f_format) {
+		case 7:		// 68040 access error
+			// "code" is sometimes unreliable (i.e. contains NULL or a bogus address), reason unknown
+			fault_addr = state->ss_frame.f_fmt7.f_fa;
+			break;
+		default:
+			fault_addr = (uintptr)code;
+			break;
+	}
+	do_handle_screen_fault(fault_addr);
+}
+
 # else
 #  error "No suitable subterfuge for Video on SEGV signals"
 # endif
@@ -344,40 +372,78 @@ static inline void update_display_window_vosf(void)
 		
 		// Check for first column from left and first column
 		// from right that have changed
-		int x1 = VideoMonitor.x * bytes_per_pixel - 1;
-		for (j = y1; j <= y2; j++) {
-			uint8 * const p1 = &the_buffer[j * bytes_per_row];
-			uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
-			for (i = 0; i < x1; i++) {
-				if (p1[i] != p2[i]) {
-					x1 = i;
-					break;
+		int x1, x2, width;
+		if (depth == 1) {
+
+			x1 = VideoMonitor.x - 1;
+			for (j = y1; j <= y2; j++) {
+				uint8 * const p1 = &the_buffer[j * bytes_per_row];
+				uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
+				for (i = 0; i < (x1>>3); i++) {
+					if (p1[i] != p2[i]) {
+						x1 = i << 3;
+						break;
+					}
 				}
 			}
-		}
-		x1 /= bytes_per_pixel;
-		
-		int x2 = x1 * bytes_per_pixel;
-		for (j = y2; j >= y1; j--) {
-			uint8 * const p1 = &the_buffer[j * bytes_per_row];
-			uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
-			for (i = VideoMonitor.x * bytes_per_pixel - 1; i > x2; i--) {
-				if (p1[i] != p2[i]) {
-					x2 = i;
-					break;
+
+			x2 = x1;
+			for (j = y2; j >= y1; j--) {
+				uint8 * const p1 = &the_buffer[j * bytes_per_row];
+				uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
+				for (i = (VideoMonitor.x>>3) - 1; i > (x2>>3); i--) {
+					if (p1[i] != p2[i]) {
+						x2 = i << 3;
+						break;
+					}
 				}
 			}
-		}
-		x2 /= bytes_per_pixel;
+			width = x2 - x1 + 1;
+
+			// Update the_host_buffer and copy of the_buffer
+			i = y1 * bytes_per_row + (x1 >> 3);
+			for (j = y1; j <= y2; j++) {
+				do_update_framebuffer(the_host_buffer + i, the_buffer + i, width >> 3);
+				memcpy(the_buffer_copy + i, the_buffer + i, width >> 3);
+				i += bytes_per_row;
+			}
+
+		} else {
+
+			x1 = VideoMonitor.x * bytes_per_pixel - 1;
+			for (j = y1; j <= y2; j++) {
+				uint8 * const p1 = &the_buffer[j * bytes_per_row];
+				uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
+				for (i = 0; i < x1; i++) {
+					if (p1[i] != p2[i]) {
+						x1 = i;
+						break;
+					}
+				}
+			}
+			x1 /= bytes_per_pixel;
 		
-		// Update the_host_buffer and copy of the_buffer
-		// There is at least one pixel to copy
-		const int width = x2 - x1 + 1;
-		i = y1 * bytes_per_row + x1 * bytes_per_pixel;
-		for (j = y1; j <= y2; j++) {
-			do_update_framebuffer(the_host_buffer + i, the_buffer + i, bytes_per_pixel * width);
-			memcpy(the_buffer_copy + i, the_buffer + i, bytes_per_pixel * width);
-			i += bytes_per_row;
+			x2 = x1 * bytes_per_pixel;
+			for (j = y2; j >= y1; j--) {
+				uint8 * const p1 = &the_buffer[j * bytes_per_row];
+				uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
+				for (i = VideoMonitor.x * bytes_per_pixel - 1; i > x2; i--) {
+					if (p1[i] != p2[i]) {
+						x2 = i;
+						break;
+					}
+				}
+			}
+			x2 /= bytes_per_pixel;
+			width = x2 - x1 + 1;
+
+			// Update the_host_buffer and copy of the_buffer
+			i = y1 * bytes_per_row + x1 * bytes_per_pixel;
+			for (j = y1; j <= y2; j++) {
+				do_update_framebuffer(the_host_buffer + i, the_buffer + i, bytes_per_pixel * width);
+				memcpy(the_buffer_copy + i, the_buffer + i, bytes_per_pixel * width);
+				i += bytes_per_row;
+			}
 		}
 		
 		if (have_shm)

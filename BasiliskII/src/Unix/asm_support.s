@@ -1,5 +1,5 @@
 /*
- *  asm_support.s - Utility functions in assemmbly language
+ *  asm_support.s - Utility functions in assemmbly language (for native 68k support)
  *
  *  Basilisk II (C) 1997-1999 Christian Bauer
  *
