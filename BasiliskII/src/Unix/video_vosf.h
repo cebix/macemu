@@ -29,6 +29,49 @@
 #include "sigsegv.h"
 #include "vm_alloc.h"
 
+// Glue for SheepShaver and BasiliskII
+#if POWERPC_ROM
+#define X11_MONITOR_INIT		/* nothing */
+#define VIDEO_DRV_INIT			/* nothing */
+#define VIDEO_DRV_WINDOW		the_win
+#define VIDEO_DRV_GC			the_gc
+#define VIDEO_DRV_IMAGE			img
+#define VIDEO_DRV_HAVE_SHM		have_shm
+#define VIDEO_MODE_INIT			VideoInfo const & mode = VModes[cur_mode]
+#define VIDEO_MODE_ROW_BYTES	mode.viRowBytes
+#define VIDEO_MODE_X			mode.viXsize
+#define VIDEO_MODE_Y			mode.viYsize
+#define VIDEO_MODE_DEPTH		mode.viAppleMode
+enum {
+  VIDEO_DEPTH_1BIT = APPLE_1_BIT,
+  VIDEO_DEPTH_2BIT = APPLE_2_BIT,
+  VIDEO_DEPTH_4BIT = APPLE_4_BIT,
+  VIDEO_DEPTH_8BIT = APPLE_8_BIT,
+  VIDEO_DEPTH_16BIT = APPLE_16_BIT,
+  VIDEO_DEPTH_32BIT = APPLE_32_BIT
+};
+#else
+#define X11_MONITOR_INIT		X11_monitor_desc &monitor
+#define VIDEO_DRV_INIT			driver_window *drv
+#define VIDEO_DRV_WINDOW		drv->w
+#define VIDEO_DRV_GC			drv->gc
+#define VIDEO_DRV_IMAGE			drv->img
+#define VIDEO_DRV_HAVE_SHM		drv->have_shm
+#define VIDEO_MODE_INIT			video_mode const & mode = drv->monitor.get_current_mode();
+#define VIDEO_MODE_ROW_BYTES	mode.bytes_per_row
+#define VIDEO_MODE_X			mode.x
+#define VIDEO_MODE_Y			mode.y
+#define VIDEO_MODE_DEPTH		(int)mode.depth
+enum {
+  VIDEO_DEPTH_1BIT = VDEPTH_1BIT,
+  VIDEO_DEPTH_2BIT = VDEPTH_2BIT,
+  VIDEO_DEPTH_4BIT = VDEPTH_4BIT,
+  VIDEO_DEPTH_8BIT = VDEPTH_8BIT,
+  VIDEO_DEPTH_16BIT = VDEPTH_16BIT,
+  VIDEO_DEPTH_32BIT = VDEPTH_32BIT
+};
+#endif
+
 // Variables for Video on SEGV support
 static uint8 *the_host_buffer;	// Host frame buffer in VOSF mode
 
@@ -157,11 +200,14 @@ static uint32 page_extend(uint32 size)
  *  Initialize the VOSF system (mainBuffer structure, SIGSEGV handler)
  */
 
-static bool screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction);
+#if !EMULATED_PPC && !POWERPC_ROM
+static
+#endif
+bool Screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction);
 
-static bool video_vosf_init(X11_monitor_desc &monitor)
+static bool video_vosf_init(X11_MONITOR_INIT)
 {
-	const video_mode &mode = monitor.get_current_mode();
+	VIDEO_MODE_INIT;
 
 	const uintptr page_size = getpagesize();
 	const uintptr page_mask = page_size - 1;
@@ -194,13 +240,13 @@ static bool video_vosf_init(X11_monitor_desc &monitor)
 	
 	uint32 a = 0;
 	for (unsigned i = 0; i < mainBuffer.pageCount; i++) {
-		unsigned y1 = a / mode.bytes_per_row;
-		if (y1 >= mode.y)
-			y1 = mode.y - 1;
+		unsigned y1 = a / VIDEO_MODE_ROW_BYTES;
+		if (y1 >= VIDEO_MODE_Y)
+			y1 = VIDEO_MODE_Y - 1;
 
-		unsigned y2 = (a + mainBuffer.pageSize) / mode.bytes_per_row;
-		if (y2 >= mode.y)
-			y2 = mode.y - 1;
+		unsigned y2 = (a + mainBuffer.pageSize) / VIDEO_MODE_ROW_BYTES;
+		if (y2 >= VIDEO_MODE_Y)
+			y2 = VIDEO_MODE_Y - 1;
 
 		mainBuffer.pageInfo[i].top = y1;
 		mainBuffer.pageInfo[i].bottom = y2;
@@ -214,9 +260,11 @@ static bool video_vosf_init(X11_monitor_desc &monitor)
 	if (vm_protect((char *)mainBuffer.memStart, mainBuffer.memLength, VM_PAGE_READ) != 0)
 		return false;
 	
+#if !EMULATED_PPC && !POWERPC_ROM
 	// Initialize the handler for SIGSEGV
-	if (!sigsegv_install_handler(screen_fault_handler))
+	if (!sigsegv_install_handler(Screen_fault_handler))
 		return false;
+#endif
 	
 	// The frame buffer is sane, i.e. there is no write to it yet
 	mainBuffer.dirty = false;
@@ -245,9 +293,8 @@ static void video_vosf_exit(void)
  * Screen fault handler
  */
 
-static bool screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction)
+bool Screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction)
 {
-//	D(bug("screen_fault_handler: ADDR=%p from IP=%p\n", fault_address, fault_instruction));
 	const uintptr addr = (uintptr)fault_address;
 	
 	/* Someone attempted to write to the frame buffer. Make it writeable
@@ -275,7 +322,7 @@ static bool screen_fault_handler(sigsegv_address_t fault_address, sigsegv_addres
 
 // From video_blit.cpp
 extern void (*Screen_blit)(uint8 * dest, const uint8 * source, uint32 length);
-extern bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, video_depth mac_depth);
+extern bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, int mac_depth);
 extern uint32 ExpandMap[256];
 
 /*	How can we deal with array overrun conditions ?
@@ -311,9 +358,9 @@ There are two cases to check:
 	than pageCount.
 */
 
-static inline void update_display_window_vosf(driver_window *drv)
+static inline void update_display_window_vosf(VIDEO_DRV_INIT)
 {
-	const video_mode &mode = drv->monitor.get_current_mode();
+	VIDEO_MODE_INIT;
 
 	int page = 0;
 	for (;;) {
@@ -334,15 +381,15 @@ static inline void update_display_window_vosf(driver_window *drv)
 		const int y2 = mainBuffer.pageInfo[page - 1].bottom;
 		const int height = y2 - y1 + 1;
 		
-		if (mode.depth < VDEPTH_8BIT) {
+		if (VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
 
 			// Update the_host_buffer and copy of the_buffer
-			const int src_bytes_per_row = mode.bytes_per_row;
-			const int dst_bytes_per_row = drv->img->bytes_per_line;
-			const int pixels_per_byte = mode.x / src_bytes_per_row;
+			const int src_bytes_per_row = VIDEO_MODE_ROW_BYTES;
+			const int dst_bytes_per_row = VIDEO_DRV_IMAGE->bytes_per_line;
+			const int pixels_per_byte = VIDEO_MODE_X / src_bytes_per_row;
 			int i1 = y1 * src_bytes_per_row, i2 = y1 * dst_bytes_per_row, j;
 			for (j = y1; j <= y2; j++) {
-				Screen_blit(the_host_buffer + i2, the_buffer + i1, mode.x / pixels_per_byte);
+				Screen_blit(the_host_buffer + i2, the_buffer + i1, VIDEO_MODE_X / pixels_per_byte);
 				i1 += src_bytes_per_row;
 				i2 += dst_bytes_per_row;
 			}
@@ -350,21 +397,21 @@ static inline void update_display_window_vosf(driver_window *drv)
 		} else {
 
 			// Update the_host_buffer and copy of the_buffer
-			const int src_bytes_per_row = mode.bytes_per_row;
-			const int dst_bytes_per_row = drv->img->bytes_per_line;
-			const int bytes_per_pixel = src_bytes_per_row / mode.x;
+			const int src_bytes_per_row = VIDEO_MODE_ROW_BYTES;
+			const int dst_bytes_per_row = VIDEO_DRV_IMAGE->bytes_per_line;
+			const int bytes_per_pixel = src_bytes_per_row / VIDEO_MODE_X;
 			int i1 = y1 * src_bytes_per_row, i2 = y1 * dst_bytes_per_row, j;
 			for (j = y1; j <= y2; j++) {
-				Screen_blit(the_host_buffer + i2, the_buffer + i1, bytes_per_pixel * mode.x);
+				Screen_blit(the_host_buffer + i2, the_buffer + i1, bytes_per_pixel * VIDEO_MODE_X);
 				i1 += src_bytes_per_row;
 				i2 += dst_bytes_per_row;
 			}
 		}
 
-		if (drv->have_shm)
-			XShmPutImage(x_display, drv->w, drv->gc, drv->img, 0, y1, 0, y1, mode.x, height, 0);
+		if (VIDEO_DRV_HAVE_SHM)
+			XShmPutImage(x_display, VIDEO_DRV_WINDOW, VIDEO_DRV_GC, VIDEO_DRV_IMAGE, 0, y1, 0, y1, VIDEO_MODE_X, height, 0);
 		else
-			XPutImage(x_display, drv->w, drv->gc, drv->img, 0, y1, 0, y1, mode.x, height);
+			XPutImage(x_display, VIDEO_DRV_WINDOW, VIDEO_DRV_GC, VIDEO_DRV_IMAGE, 0, y1, 0, y1, VIDEO_MODE_X, height);
 	}
 	mainBuffer.dirty = false;
 }
@@ -378,7 +425,7 @@ static inline void update_display_window_vosf(driver_window *drv)
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 static inline void update_display_dga_vosf(void)
 {
-	const video_mode &mode = drv->monitor.get_current_mode();
+	VIDEO_MODE_INIT;
 
 	int page = 0;
 	for (;;) {
@@ -398,13 +445,13 @@ static inline void update_display_dga_vosf(void)
 		const int y1 = mainBuffer.pageInfo[first_page].top;
 		const int y2 = mainBuffer.pageInfo[page - 1].bottom;
 		
-		const int bytes_per_row = mode.bytes_per_row;
-		const int bytes_per_pixel = mode.bytes_per_row / mode.x;
+		const int bytes_per_row = VIDEO_MODE_ROW_BYTES;
+		const int bytes_per_pixel = VIDEO_MODE_ROW_BYTES / VIDEO_MODE_X;
 		int i, j;
 		
 		// Check for first column from left and first column
 		// from right that have changed
-		int x1 = mode.x * bytes_per_pixel - 1;
+		int x1 = VIDEO_MODE_X * bytes_per_pixel - 1;
 		for (j = y1; j <= y2; j++) {
 			uint8 * const p1 = &the_buffer[j * bytes_per_row];
 			uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
@@ -421,7 +468,7 @@ static inline void update_display_dga_vosf(void)
 		for (j = y2; j >= y1; j--) {
 			uint8 * const p1 = &the_buffer[j * bytes_per_row];
 			uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
-			for (i = mode.x * bytes_per_pixel - 1; i > x2; i--) {
+			for (i = VIDEO_MODE_X * bytes_per_pixel - 1; i > x2; i--) {
 				if (p1[i] != p2[i]) {
 					x2 = i;
 					break;

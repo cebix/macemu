@@ -444,10 +444,10 @@ static Screen_blit_func_info Screen_blitters[] = {
 // Initialize the framebuffer update function
 // Returns FALSE, if the function was to be reduced to a simple memcpy()
 // --> In that case, VOSF is not necessary
-bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, video_depth mac_depth)
+bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, int mac_depth)
 {
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
-	if (mac_depth == VDEPTH_1BIT) {
+	if (mac_depth == 1) {
 
 		// 1-bit mode uses a 1-bit X image, so there's no need for special blitting routines
 		Screen_blit = Blit_Copy_Raw;
@@ -474,32 +474,32 @@ bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, vide
 	
 		// 2/4/8-bit mode on 8/16/32-bit screen?
 		if (visualFormat.depth == 8) {
-			if (mac_depth == VDEPTH_2BIT) {
+			if (mac_depth == 2) {
 				Screen_blit = Blit_Expand_2_To_8;
 				blitter_found = true;
-			} else if (mac_depth == VDEPTH_4BIT) {
+			} else if (mac_depth == 4) {
 				Screen_blit = Blit_Expand_4_To_8;
 				blitter_found = true;
 			}
 		} else if (visualFormat.depth == 15 || visualFormat.depth == 16) {
-			if (mac_depth == VDEPTH_2BIT) {
+			if (mac_depth == 2) {
 				Screen_blit = Blit_Expand_2_To_16;
 				blitter_found = true;
-			} else if (mac_depth == VDEPTH_4BIT) {
+			} else if (mac_depth == 4) {
 				Screen_blit = Blit_Expand_4_To_16;
 				blitter_found = true;
-			} else if (mac_depth == VDEPTH_8BIT) {
+			} else if (mac_depth == 8) {
 				Screen_blit = Blit_Expand_8_To_16;
 				blitter_found = true;
 			}
 		} else if (visualFormat.depth == 24 || visualFormat.depth == 32) {
-			if (mac_depth == VDEPTH_2BIT) {
+			if (mac_depth == 2) {
 				Screen_blit = Blit_Expand_2_To_32;
 				blitter_found = true;
-			} else if (mac_depth == VDEPTH_4BIT) {
+			} else if (mac_depth == 4) {
 				Screen_blit = Blit_Expand_4_To_32;
 				blitter_found = true;
-			} else if (mac_depth == VDEPTH_8BIT) {
+			} else if (mac_depth == 8) {
 				Screen_blit = Blit_Expand_8_To_32;
 				blitter_found = true;
 			}

@@ -214,6 +214,35 @@ public:
  *  Utility functions
  */
 
+// Map video_mode depth ID to numerical depth value
+static inline int depth_of_video_mode(video_mode const & mode)
+{
+	int depth = -1;
+	switch (mode.depth) {
+	case VDEPTH_1BIT:
+		depth = 1;
+		break;
+	case VDEPTH_2BIT:
+		depth = 2;
+		break;
+	case VDEPTH_4BIT:
+		depth = 4;
+		break;
+	case VDEPTH_8BIT:
+		depth = 8;
+		break;
+	case VDEPTH_16BIT:
+		depth = 16;
+		break;
+	case VDEPTH_32BIT:
+		depth = 32;
+		break;
+	default:
+		abort();
+	}
+	return depth;
+}
+
 // Map RGB color to pixel value (this only works in TrueColor/DirectColor visuals)
 static inline uint32 map_rgb(uint8 red, uint8 green, uint8 blue)
 {
@@ -725,7 +754,7 @@ driver_window::driver_window(X11_monitor_desc &m)
 	native_byte_order = (XImageByteOrder(x_display) == LSBFirst);
 #endif
 #ifdef ENABLE_VOSF
-	Screen_blitter_init(&visualInfo, native_byte_order, mode.depth);
+	Screen_blitter_init(&visualInfo, native_byte_order, depth_of_video_mode(mode));
 #endif
 
 	// Set frame buffer base
@@ -1226,7 +1255,7 @@ driver_xf86dga::driver_xf86dga(X11_monitor_desc &m)
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 	// Screen_blitter_init() returns TRUE if VOSF is mandatory
 	// i.e. the framebuffer update function is not Blit_Copy_Raw
-	use_vosf = Screen_blitter_init(&visualInfo, native_byte_order, mode.depth);
+	use_vosf = Screen_blitter_init(&visualInfo, native_byte_order, depth_of_video_mode(mode));
 	
 	if (use_vosf) {
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
