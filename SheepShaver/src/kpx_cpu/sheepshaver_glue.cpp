@@ -181,13 +181,6 @@ sheepshaver_cpu::sheepshaver_cpu()
 
 void sheepshaver_cpu::init_decoder()
 {
-#ifndef PPC_NO_STATIC_II_INDEX_TABLE
-	static bool initialized = false;
-	if (initialized)
-		return;
-	initialized = true;
-#endif
-
 	static const instr_info_t sheep_ii_table[] = {
 		{ "sheep",
 		  (execute_pmf)&sheepshaver_cpu::execute_sheep,

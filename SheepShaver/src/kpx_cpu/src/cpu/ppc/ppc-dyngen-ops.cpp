@@ -79,6 +79,8 @@ struct powerpc_dyngen_helper {
 	static inline void set_fpscr(uint32 value)	{ CPU->fpscr() = value; }
 	static inline uint32 get_xer()				{ return CPU->xer().get(); }
 	static inline void set_xer(uint32 value)	{ CPU->xer().set(value); }
+	static inline uint32 get_vrsave()			{ return CPU->vrsave(); }
+	static inline void set_vrsave(uint32 value)	{ CPU->vrsave() = value; }
 	static inline void record(int crf, int32 v)	{ CPU->record_cr(crf, v); }
 	static inline powerpc_cr_register & cr()	{ return CPU->cr(); }
 	static inline powerpc_xer_register & xer()	{ return CPU->xer(); }
@@ -472,6 +474,16 @@ DEFINE_OP(fnmsubs_FD_F0_F1_F2, FD, do_fnmsub(F0, F1, F2));
 /**
  *		Special purpose registers
  **/
+
+void OPPROTO op_load_T0_VRSAVE(void)
+{
+	T0 = powerpc_dyngen_helper::get_vrsave();
+}
+
+void OPPROTO op_store_T0_VRSAVE(void)
+{
+	powerpc_dyngen_helper::set_vrsave(T0);
+}
 
 void OPPROTO op_load_T0_XER(void)
 {

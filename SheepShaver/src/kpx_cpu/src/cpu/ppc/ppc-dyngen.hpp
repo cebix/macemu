@@ -94,6 +94,8 @@ public:
 	void gen_mtcrf_T0_im(uint32 mask);
 
 	// Special purpose registers
+	DEFINE_ALIAS(load_T0_VRSAVE,0);
+	DEFINE_ALIAS(store_T0_VRSAVE,0);
 	DEFINE_ALIAS(load_T0_XER,0);
 	DEFINE_ALIAS(store_T0_XER,0);
 	DEFINE_ALIAS(load_T0_PC,0);

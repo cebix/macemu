@@ -163,6 +163,58 @@ union powerpc_fpr {
 
 
 /**
+ *		Vector Status and Control Register
+ **/
+
+class powerpc_vscr
+{
+	uint8 nj;
+	uint8 sat;
+public:
+	powerpc_vscr();
+	void set(uint32 v);
+	uint32 get() const;
+	uint32 get_nj() const		{ return nj; }
+	void set_nj(int v)			{ nj = v; }
+	uint32 get_sat() const		{ return sat; }
+	void set_sat(int v)			{ sat = v; }
+};
+
+inline
+powerpc_vscr::powerpc_vscr()
+	: nj(0), sat(0)
+{ }
+
+inline uint32
+powerpc_vscr::get() const
+{
+	return (nj << 16) | sat;
+}
+
+inline void
+powerpc_vscr::set(uint32 v)
+{
+	nj = VSCR_NJ_field::extract(v);
+	sat = VSCR_SAT_field::extract(v);
+}
+
+
+/**
+ *		Vector register
+ **/
+
+union powerpc_vr
+{
+	uint8	b[16];
+	uint16	h[8];
+	uint32	w[4];
+	uint64	j[2];
+	float	f[4];
+	double	d[2];
+};
+
+
+/**
  *		User Environment Architecture (UEA) Register Set
  **/
 
@@ -185,6 +237,7 @@ struct powerpc_registers
 		SPR_CTR		= 9,
 		SPR_SDR1	= 25,
 		SPR_PVR		= 287,
+		SPR_VRSAVE	= 256,
 	};
 
 	static inline int GPR(int r) { return GPR_BASE + r; }
@@ -203,6 +256,9 @@ struct powerpc_registers
 	static uint32 reserve_valid;
 	static uint32 reserve_addr;
 	static uint32 reserve_data;
+	powerpc_vr vr[32];			// Vector Registers
+	powerpc_vscr vscr;			// Vector Status and Control Register
+	uint32 vrsave;				// AltiVec Save Register
 };
 
 #endif /* PPC_REGISTERS_H */

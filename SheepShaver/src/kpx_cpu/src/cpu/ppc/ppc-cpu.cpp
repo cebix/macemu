@@ -431,7 +431,6 @@ bool powerpc_cpu::check_spcflags()
 	return true;
 }
 
-
 void powerpc_cpu::execute(uint32 entry)
 {
 	pc() = entry;

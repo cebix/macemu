@@ -90,6 +90,39 @@
 #define EXECUTE_FP_LOADSTORE(RA, RB, LD, DB, UP) \
 &powerpc_cpu::execute_fp_loadstore<operand_##RA, operand_##RB, LD, DB, UP>
 
+#define EXECUTE_VECTOR_LOADSTORE(OP, VD, RA, RB) \
+&powerpc_cpu::execute_vector_##OP<operand_vD_##VD, operand_##RA, operand_##RB>
+
+#define EXECUTE_VECTOR_ARITH(OP, VD, VA, VB, VC) \
+&powerpc_cpu::execute_vector_arith<op_##OP, operand_vD_##VD, operand_vA_##VA, operand_vB_##VB, operand_vC_##VC, fake_bit_field< bool, false >, 0 >
+
+#define EXECUTE_VECTOR_ARITH_MIXED(OP, VD, VA, VB, VC) \
+&powerpc_cpu::execute_vector_arith_mixed<op_##OP, operand_vD_##VD, operand_vA_##VA, operand_vB_##VB, operand_vC_##VC>
+
+#define EXECUTE_VECTOR_ARITH_ODD(ODD, OP, VD, VA, VB, VC) \
+&powerpc_cpu::execute_vector_arith_odd<ODD, op_##OP, operand_vD_##VD, operand_vA_##VA, operand_vB_##VB, operand_vC_##VC>
+
+#define EXECUTE_VECTOR_MERGE(VD, VA, VB, LO) \
+&powerpc_cpu::execute_vector_merge<operand_vD_##VD, operand_vA_##VA, operand_vB_##VB, LO>
+
+#define EXECUTE_VECTOR_COMPARE(OP, VD, VA, VB, C1) \
+&powerpc_cpu::execute_vector_arith<op_##OP, operand_vD_##VD, operand_vA_##VA, operand_vB_##VB, operand_vC_NONE, vRC_BIT_G, C1>
+
+#define EXECUTE_VECTOR_PACK(VD, VA, VB) \
+&powerpc_cpu::execute_vector_pack<operand_vD_##VD, operand_vA_##VA, operand_vB_##VB>
+
+#define EXECUTE_VECTOR_UNPACK(LO, VD, VB) \
+&powerpc_cpu::execute_vector_unpack<LO, operand_vD_##VD, operand_vB_##VB>
+
+#define EXECUTE_VECTOR_SHIFT_OCTET(SD, VD, VA, VB, SH) \
+&powerpc_cpu::execute_vector_shift_octet<SD, operand_vD_##VD, operand_vA_##VA, operand_vB_##VB, operand_##SH>
+
+#define EXECUTE_VECTOR_SPLAT(OP, VD, VB, IM) \
+&powerpc_cpu::execute_vector_splat<op_##OP, operand_vD_##VD, operand_vB_##VB, IM>
+
+#define EXECUTE_VECTOR_SUM(SZ, VD, VA, VB) \
+&powerpc_cpu::execute_vector_sum<SZ, operand_vD_##VD, operand_vA_##VA, operand_vB_##VB>
+
 #define _DECODE_ADDITION(RA, RB, RC, CA) \
 powerpc_cpu::decode_addition<operand_##RA, operand_##RB, operand_##RC, CA>
 
@@ -342,6 +375,24 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  NULL,
 	  PPC_I(DIVWU),
 	  XO_form, 31, 459, CFLOW_NORMAL
+	},
+	{ "dss",
+	  EXECUTE_0(nop),
+	  NULL,
+	  PPC_I(DSS),
+	  X_form, 31, 822, CFLOW_NORMAL
+	},
+	{ "dst",
+	  EXECUTE_0(nop),
+	  NULL,
+	  PPC_I(DST),
+	  X_form, 31, 342, CFLOW_NORMAL
+	},
+	{ "dstst",
+	  EXECUTE_0(nop),
+	  NULL,
+	  PPC_I(DST),
+	  X_form, 31, 374, CFLOW_NORMAL
 	},
 	{ "eciwx",
 	  EXECUTE_0(nop),
@@ -685,6 +736,36 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  PPC_I(LSWX),
 	  X_form, 31, 533, CFLOW_NORMAL
 	},
+	{ "lvebx",
+	  EXECUTE_VECTOR_LOADSTORE(load, V16QIm, RA_or_0, RB),
+	  NULL,
+	  PPC_I(LVEBX),
+	  X_form, 31, 7, CFLOW_NORMAL
+	},
+	{ "lvehx",
+	  EXECUTE_VECTOR_LOADSTORE(load, V8HIm, RA_or_0, RB),
+	  NULL,
+	  PPC_I(LVEHX),
+	  X_form, 31, 39, CFLOW_NORMAL
+	},
+	{ "lvewx",
+	  EXECUTE_VECTOR_LOADSTORE(load, V4SI, RA_or_0, RB),
+	  NULL,
+	  PPC_I(LVEWX),
+	  X_form, 31, 71, CFLOW_NORMAL
+	},
+	{ "lvx",
+	  EXECUTE_VECTOR_LOADSTORE(load, V2DI, RA_or_0, RB),
+	  NULL,
+	  PPC_I(LVX),
+	  X_form, 31, 103, CFLOW_NORMAL
+	},
+	{ "lvxl",
+	  EXECUTE_VECTOR_LOADSTORE(load, V2DI, RA_or_0, RB),
+	  NULL,
+	  PPC_I(LVXL),
+	  X_form, 31, 359, CFLOW_NORMAL
+	},
 	{ "lwarx",
 	  EXECUTE_1(lwarx, operand_RA_or_0),
 	  NULL,
@@ -763,6 +844,12 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  PPC_I(MFTB),
 	  XFX_form, 31, 371, CFLOW_NORMAL
 	},
+	{ "mfvscr",
+	  EXECUTE_0(mfvscr),
+	  NULL,
+	  PPC_I(MFVSCR),
+	  VX_form, 4, 1540, CFLOW_NORMAL
+	},
 	{ "mtcrf",
 	  EXECUTE_0(mtcrf),
 	  NULL,
@@ -798,6 +885,12 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  NULL,
 	  PPC_I(MTSPR),
 	  XFX_form, 31, 467, CFLOW_NORMAL
+	},
+	{ "mtvscr",
+	  EXECUTE_0(mtvscr),
+	  NULL,
+	  PPC_I(MTVSCR),
+	  VX_form, 4, 1604, CFLOW_NORMAL
 	},
 	{ "mulhw",
 	  EXECUTE_4(multiply, true, true, OE_BIT_0, RC_BIT_G),
@@ -1033,6 +1126,36 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  PPC_I(STSWX),
 	  X_form, 31, 661, CFLOW_NORMAL
 	},
+	{ "stvebx",
+	  EXECUTE_VECTOR_LOADSTORE(store, V16QIm, RA_or_0, RB),
+	  NULL,
+	  PPC_I(STVEBX),
+	  X_form, 31, 135, CFLOW_NORMAL
+	},
+	{ "stvehx",
+	  EXECUTE_VECTOR_LOADSTORE(store, V8HIm, RA_or_0, RB),
+	  NULL,
+	  PPC_I(STVEHX),
+	  X_form, 31, 167, CFLOW_NORMAL
+	},
+	{ "stvewx",
+	  EXECUTE_VECTOR_LOADSTORE(store, V4SI, RA_or_0, RB),
+	  NULL,
+	  PPC_I(STVEWX),
+	  X_form, 31, 199, CFLOW_NORMAL
+	},
+	{ "stvx",
+	  EXECUTE_VECTOR_LOADSTORE(store, V2DI, RA_or_0, RB),
+	  NULL,
+	  PPC_I(STVX),
+	  X_form, 31, 231, CFLOW_NORMAL
+	},
+	{ "stvxl",
+	  EXECUTE_VECTOR_LOADSTORE(store, V2DI, RA_or_0, RB),
+	  NULL,
+	  PPC_I(STVXL),
+	  X_form, 31, 487, CFLOW_NORMAL
+	},
 	{ "stw",
 	  EXECUTE_LOADSTORE(nop, RA_or_0, D, false, 4, false, false),
 	  NULL,
@@ -1128,23 +1251,863 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  NULL,
 	  PPC_I(XORIS),
 	  D_form, 27, 0, CFLOW_NORMAL
+	},
+	{ "vaddcuw",
+	  EXECUTE_VECTOR_ARITH(addcuw, V4SI, V4SI, V4SI, NONE),
+	  NULL,
+	  PPC_I(VADDCUW),
+	  VX_form, 4, 384, CFLOW_NORMAL
+	},
+	{ "vaddfp",
+	  EXECUTE_VECTOR_ARITH(fadds, V4SF, V4SF, V4SF, NONE),
+	  NULL,
+	  PPC_I(VADDFP),
+	  VX_form, 4, 10, CFLOW_NORMAL
+	},
+	{ "vaddsbs",
+	  EXECUTE_VECTOR_ARITH(add, V16QI_SAT<int8>, V16QI_SAT<int8>, V16QI_SAT<int8>, NONE),
+	  NULL,
+	  PPC_I(VADDSBS),
+	  VX_form, 4, 768, CFLOW_NORMAL
+	},
+	{ "vaddshs",
+	  EXECUTE_VECTOR_ARITH(add, V8HI_SAT<int16>, V8HI_SAT<int16>, V8HI_SAT<int16>, NONE),
+	  NULL,
+	  PPC_I(VADDSHS),
+	  VX_form, 4, 832, CFLOW_NORMAL
+	},
+	{ "vaddsws",
+	  EXECUTE_VECTOR_ARITH(add_64, V4SI_SAT<int32>, V4SI_SAT<int32>, V4SI_SAT<int32>, NONE),
+	  NULL,
+	  PPC_I(VADDSWS),
+	  VX_form, 4, 896, CFLOW_NORMAL
+	},
+	{ "vaddubm",
+	  EXECUTE_VECTOR_ARITH(add, V16QI, V16QI, V16QI, NONE),
+	  NULL,
+	  PPC_I(VADDUBM),
+	  VX_form, 4, 0, CFLOW_NORMAL
+	},
+	{ "vaddubs",
+	  EXECUTE_VECTOR_ARITH(add, V16QI_SAT<uint8>, V16QI_SAT<uint8>, V16QI_SAT<uint8>, NONE),
+	  NULL,
+	  PPC_I(VADDUBS),
+	  VX_form, 4, 512, CFLOW_NORMAL
+	},
+	{ "vadduhm",
+	  EXECUTE_VECTOR_ARITH(add, V8HI, V8HI, V8HI, NONE),
+	  NULL,
+	  PPC_I(VADDUHM),
+	  VX_form, 4, 64, CFLOW_NORMAL
+	},
+	{ "vadduhs",
+	  EXECUTE_VECTOR_ARITH(add, V8HI_SAT<uint16>, V8HI_SAT<uint16>, V8HI_SAT<uint16>, NONE),
+	  NULL,
+	  PPC_I(VADDUHS),
+	  VX_form, 4, 576, CFLOW_NORMAL
+	},
+	{ "vadduwm",
+	  EXECUTE_VECTOR_ARITH(add, V4SI, V4SI, V4SI, NONE),
+	  NULL,
+	  PPC_I(VADDUWM),
+	  VX_form, 4, 128, CFLOW_NORMAL
+	},
+	{ "vadduws",
+	  EXECUTE_VECTOR_ARITH(add_64, V4SI_SAT<uint32>, V4SI_SAT<uint32>, V4SI_SAT<uint32>, NONE),
+	  NULL,
+	  PPC_I(VADDUWS),
+	  VX_form, 4, 640, CFLOW_NORMAL
+	},
+	{ "vand",
+	  EXECUTE_VECTOR_ARITH(and_64, V2DI, V2DI, V2DI, NONE),
+	  NULL,
+	  PPC_I(VAND),
+	  VX_form, 4, 1028, CFLOW_NORMAL
+	},
+	{ "vandc",
+	  EXECUTE_VECTOR_ARITH(andc_64, V2DI, V2DI, V2DI, NONE),
+	  NULL,
+	  PPC_I(VANDC),
+	  VX_form, 4, 1092, CFLOW_NORMAL
+	},
+	{ "vavgsb",
+	  EXECUTE_VECTOR_ARITH(avgsb, V16QI, V16QI, V16QI, NONE),
+	  NULL,
+	  PPC_I(VAVGSB),
+	  VX_form, 4, 1282, CFLOW_NORMAL
+	},
+	{ "vavgsh",
+	  EXECUTE_VECTOR_ARITH(avgsh, V8HI, V8HI, V8HI, NONE),
+	  NULL,
+	  PPC_I(VAVGSH),
+	  VX_form, 4, 1346, CFLOW_NORMAL
+	},
+	{ "vavgsw",
+	  EXECUTE_VECTOR_ARITH(avgsw, V4SI, V4SI, V4SI, NONE),
+	  NULL,
+	  PPC_I(VAVGSW),
+	  VX_form, 4, 1410, CFLOW_NORMAL
+	},
+	{ "vavgub",
+	  EXECUTE_VECTOR_ARITH(avgub, V16QI, V16QI, V16QI, NONE),
+	  NULL,
+	  PPC_I(VAVGUB),
+	  VX_form, 4, 1026, CFLOW_NORMAL
+	},
+	{ "vavguh",
+	  EXECUTE_VECTOR_ARITH(avguh, V8HI, V8HI, V8HI, NONE),
+	  NULL,
+	  PPC_I(VAVGUH),
+	  VX_form, 4, 1090, CFLOW_NORMAL
+	},
+	{ "vavguw",
+	  EXECUTE_VECTOR_ARITH(avguw, V4SI, V4SI, V4SI, NONE),
+	  NULL,
+	  PPC_I(VAVGUW),
+	  VX_form, 4, 1154, CFLOW_NORMAL
+	},
+	{ "vcfsx",
+	  EXECUTE_VECTOR_ARITH(cvt_si2fp<int32>, V4SF, UIMM, V4SIs, NONE),
+	  NULL,
+	  PPC_I(VCFSX),
+	  VX_form, 4, 842, CFLOW_NORMAL
+	},
+	{ "vcfux",
+	  EXECUTE_VECTOR_ARITH(cvt_si2fp<uint32>, V4SF, UIMM, V4SI, NONE),
+	  NULL,
+	  PPC_I(VCFUX),
+	  VX_form, 4, 778, CFLOW_NORMAL
+	},
+	{ "vcmpbfp",
+	  EXECUTE_VECTOR_COMPARE(cmpbfp, V4SI, V4SF, V4SF, 0),
+	  NULL,
+	  PPC_I(VCMPBFP),
+	  VXR_form, 4, 966, CFLOW_NORMAL
+	},
+	{ "vcmpeqfp",
+	  EXECUTE_VECTOR_COMPARE(cmp_eq<float>, V4SI, V4SF, V4SF, 1),
+	  NULL,
+	  PPC_I(VCMPEQFP),
+	  VXR_form, 4, 198, CFLOW_NORMAL
+	},
+	{ "vcmpequb",
+	  EXECUTE_VECTOR_COMPARE(cmp_eq<uint8>, V16QI, V16QI, V16QI, 1),
+	  NULL,
+	  PPC_I(VCMPEQUB),
+	  VXR_form, 4, 6, CFLOW_NORMAL
+	},
+	{ "vcmpequh",
+	  EXECUTE_VECTOR_COMPARE(cmp_eq<uint16>, V8HI, V8HI, V8HI, 1),
+	  NULL,
+	  PPC_I(VCMPEQUH),
+	  VXR_form, 4, 70, CFLOW_NORMAL
+	},
+	{ "vcmpequw",
+	  EXECUTE_VECTOR_COMPARE(cmp_eq<uint32>, V4SI, V4SI, V4SI, 1),
+	  NULL,
+	  PPC_I(VCMPEQUW),
+	  VXR_form, 4, 134, CFLOW_NORMAL
+	},
+	{ "vcmpgefp",
+	  EXECUTE_VECTOR_COMPARE(cmp_ge<float>, V4SI, V4SF, V4SF, 1),
+	  NULL,
+	  PPC_I(VCMPGEFP),
+	  VXR_form, 4, 454, CFLOW_NORMAL
+	},
+	{ "vcmpgtfp",
+	  EXECUTE_VECTOR_COMPARE(cmp_gt<float>, V4SI, V4SF, V4SF, 1),
+	  NULL,
+	  PPC_I(VCMPGTFP),
+	  VXR_form, 4, 710, CFLOW_NORMAL
+	},
+	{ "vcmpgtsb",
+	  EXECUTE_VECTOR_COMPARE(cmp_gt<int8>, V16QI, V16QIs, V16QIs, 1),
+	  NULL,
+	  PPC_I(VCMPGTSB),
+	  VXR_form, 4, 774, CFLOW_NORMAL
+	},
+	{ "vcmpgtsh",
+	  EXECUTE_VECTOR_COMPARE(cmp_gt<int16>, V8HI, V8HIs, V8HIs, 1),
+	  NULL,
+	  PPC_I(VCMPGTSH),
+	  VXR_form, 4, 838, CFLOW_NORMAL
+	},
+	{ "vcmpgtsw",
+	  EXECUTE_VECTOR_COMPARE(cmp_gt<int32>, V4SI, V4SIs, V4SIs, 1),
+	  NULL,
+	  PPC_I(VCMPGTSW),
+	  VXR_form, 4, 902, CFLOW_NORMAL
+	},
+	{ "vcmpgtub",
+	  EXECUTE_VECTOR_COMPARE(cmp_gt<uint8>, V16QI, V16QI, V16QI, 1),
+	  NULL,
+	  PPC_I(VCMPGTUB),
+	  VXR_form, 4, 518, CFLOW_NORMAL
+	},
+	{ "vcmpgtuh",
+	  EXECUTE_VECTOR_COMPARE(cmp_gt<uint16>, V8HI, V8HI, V8HI, 1),
+	  NULL,
+	  PPC_I(VCMPGTUH),
+	  VXR_form, 4, 582, CFLOW_NORMAL
+	},
+	{ "vcmpgtuw",
+	  EXECUTE_VECTOR_COMPARE(cmp_gt<uint32>, V4SI, V4SI, V4SI, 1),
+	  NULL,
+	  PPC_I(VCMPGTUW),
+	  VXR_form, 4, 646, CFLOW_NORMAL
+	},
+	{ "vctsxs",
+	  EXECUTE_VECTOR_ARITH(cvt_fp2si, V4SI_SAT<int32>, UIMM, V4SF, NONE),
+	  NULL,
+	  PPC_I(VCTSXS),
+	  VX_form, 4, 970, CFLOW_NORMAL
+	},
+	{ "vctuxs",
+	  EXECUTE_VECTOR_ARITH(cvt_fp2si, V4SI_SAT<uint32>, UIMM, V4SF, NONE),
+	  NULL,
+	  PPC_I(VCTUXS),
+	  VX_form, 4, 906, CFLOW_NORMAL
+	},
+	{ "vexptefp",
+	  EXECUTE_VECTOR_ARITH(exp2, V4SF, NONE, V4SF, NONE),
+	  NULL,
+	  PPC_I(VEXPTEFP),
+	  VX_form, 4, 394, CFLOW_NORMAL
+	},
+	{ "vlogefp",
+	  EXECUTE_VECTOR_ARITH(log2, V4SF, NONE, V4SF, NONE),
+	  NULL,
+	  PPC_I(VLOGEFP),
+	  VX_form, 4, 458, CFLOW_NORMAL
+	},
+	{ "vmaddfp",
+	  EXECUTE_VECTOR_ARITH(vmaddfp, V4SF, V4SF, V4SF, V4SF),
+	  NULL,
+	  PPC_I(VMADDFP),
+	  VA_form, 4, 46, CFLOW_NORMAL
+	},
+	{ "vmaxfp",
+	  EXECUTE_VECTOR_ARITH(max<float>, V4SF, V4SF, V4SF, NONE),
+	  NULL,
+	  PPC_I(VMAXFP),
+	  VX_form, 4, 1034, CFLOW_NORMAL
+	},
+	{ "vmaxsb",
+	  EXECUTE_VECTOR_ARITH(max<int8>, V16QI, V16QI, V16QI, NONE),
+	  NULL,
+	  PPC_I(VMAXSB),
+	  VX_form, 4, 258, CFLOW_NORMAL
+	},
+	{ "vmaxsh",
+	  EXECUTE_VECTOR_ARITH(max<int16>, V8HI, V8HI, V8HI, NONE),
+	  NULL,
+	  PPC_I(VMAXSH),
+	  VX_form, 4, 322, CFLOW_NORMAL
+	},
+	{ "vmaxsw",
+	  EXECUTE_VECTOR_ARITH(max<int32>, V4SI, V4SI, V4SI, NONE),
+	  NULL,
+	  PPC_I(VMAXSW),
+	  VX_form, 4, 386, CFLOW_NORMAL
+	},
+	{ "vmaxub",
+	  EXECUTE_VECTOR_ARITH(max<uint8>, V16QI, V16QI, V16QI, NONE),
+	  NULL,
+	  PPC_I(VMAXUB),
+	  VX_form, 4, 2, CFLOW_NORMAL
+	},
+	{ "vmaxuh",
+	  EXECUTE_VECTOR_ARITH(max<uint16>, V8HI, V8HI, V8HI, NONE),
+	  NULL,
+	  PPC_I(VMAXUH),
+	  VX_form, 4, 66, CFLOW_NORMAL
+	},
+	{ "vmaxuw",
+	  EXECUTE_VECTOR_ARITH(max<uint32>, V4SI, V4SI, V4SI, NONE),
+	  NULL,
+	  PPC_I(VMAXUW),
+	  VX_form, 4, 130, CFLOW_NORMAL
+	},
+	{ "vmhaddshs",
+	  EXECUTE_VECTOR_ARITH(mhraddsh<0>, V8HI_SAT<int16>, V8HI_SAT<int16>, V8HI_SAT<int16>, V8HI_SAT<int16>),
+	  NULL,
+	  PPC_I(VMHADDSHS),
+	  VA_form, 4, 32, CFLOW_NORMAL
+	},
+	{ "vmhraddshs",
+	  EXECUTE_VECTOR_ARITH(mhraddsh<0x4000>, V8HI_SAT<int16>, V8HI_SAT<int16>, V8HI_SAT<int16>, V8HI_SAT<int16>),
+	  NULL,
+	  PPC_I(VMHRADDSHS),
+	  VA_form, 4, 33, CFLOW_NORMAL
+	},
+	{ "vminfp",
+	  EXECUTE_VECTOR_ARITH(min<float>, V4SF, V4SF, V4SF, NONE),
+	  NULL,
+	  PPC_I(VMINFP),
+	  VX_form, 4, 1098, CFLOW_NORMAL
+	},
+	{ "vminsb",
+	  EXECUTE_VECTOR_ARITH(min<int8>, V16QI, V16QI, V16QI, NONE),
+	  NULL,
+	  PPC_I(VMINSB),
+	  VX_form, 4, 770, CFLOW_NORMAL
+	},
+	{ "vminsh",
+	  EXECUTE_VECTOR_ARITH(min<int16>, V8HI, V8HI, V8HI, NONE),
+	  NULL,
+	  PPC_I(VMINSH),
+	  VX_form, 4, 834, CFLOW_NORMAL
+	},
+	{ "vminsw",
+	  EXECUTE_VECTOR_ARITH(min<int32>, V4SI, V4SI, V4SI, NONE),
+	  NULL,
+	  PPC_I(VMINSW),
+	  VX_form, 4, 898, CFLOW_NORMAL
+	},
+	{ "vminub",
+	  EXECUTE_VECTOR_ARITH(min<uint8>, V16QI, V16QI, V16QI, NONE),
+	  NULL,
+	  PPC_I(VMINUB),
+	  VX_form, 4, 514, CFLOW_NORMAL
+	},
+	{ "vminuh",
+	  EXECUTE_VECTOR_ARITH(min<uint16>, V8HI, V8HI, V8HI, NONE),
+	  NULL,
+	  PPC_I(VMINUH),
+	  VX_form, 4, 578, CFLOW_NORMAL
+	},
+	{ "vminuw",
+	  EXECUTE_VECTOR_ARITH(min<uint32>, V4SI, V4SI, V4SI, NONE),
+	  NULL,
+	  PPC_I(VMINUW),
+	  VX_form, 4, 642, CFLOW_NORMAL
+	},
+	{ "vmladduhm",
+	  EXECUTE_VECTOR_ARITH(mladduh, V8HI, V8HI, V8HI, V8HI),
+	  NULL,
+	  PPC_I(VMLADDUHM),
+	  VA_form, 4, 34, CFLOW_NORMAL
+	},
+	{ "vmrghb",
+	  EXECUTE_VECTOR_MERGE(V16QIm, V16QIm, V16QIm, 0),
+	  NULL,
+	  PPC_I(VMRGHB),
+	  VX_form, 4, 12, CFLOW_NORMAL
+	},
+	{ "vmrghh",
+	  EXECUTE_VECTOR_MERGE(V8HIm, V8HIm, V8HIm, 0),
+	  NULL,
+	  PPC_I(VMRGHH),
+	  VX_form, 4, 76, CFLOW_NORMAL
+	},
+	{ "vmrghw",
+	  EXECUTE_VECTOR_MERGE(V4SI, V4SI, V4SI, 0),
+	  NULL,
+	  PPC_I(VMRGHW),
+	  VX_form, 4, 140, CFLOW_NORMAL
+	},
+	{ "vmrglb",
+	  EXECUTE_VECTOR_MERGE(V16QIm, V16QIm, V16QIm, 1),
+	  NULL,
+	  PPC_I(VMRGLB),
+	  VX_form, 4, 268, CFLOW_NORMAL
+	},
+	{ "vmrglh",
+	  EXECUTE_VECTOR_MERGE(V8HIm, V8HIm, V8HIm, 1),
+	  NULL,
+	  PPC_I(VMRGLH),
+	  VX_form, 4, 332, CFLOW_NORMAL
+	},
+	{ "vmrglw",
+	  EXECUTE_VECTOR_MERGE(V4SI, V4SI, V4SI, 1),
+	  NULL,
+	  PPC_I(VMRGLW),
+	  VX_form, 4, 396, CFLOW_NORMAL
+	},
+	{ "vmsummbm",
+	  EXECUTE_VECTOR_ARITH_MIXED(smul, V4SI, V16QI_SAT<int8>, V16QI_SAT<uint8>, V4SI),
+	  NULL,
+	  PPC_I(VMSUMMBM),
+	  VA_form, 4, 37, CFLOW_NORMAL
+	},
+	{ "vmsumshm",
+	  EXECUTE_VECTOR_ARITH_MIXED(smul, V4SI, V8HI_SAT<int16>, V8HI_SAT<int16>, V4SI),
+	  NULL,
+	  PPC_I(VMSUMSHM),
+	  VA_form, 4, 40, CFLOW_NORMAL
+	},
+	{ "vmsumshs",
+	  EXECUTE_VECTOR_ARITH_MIXED(smul_64, V4SI_SAT<int32>, V8HI_SAT<int16>, V8HI_SAT<int16>, V4SIs),
+	  NULL,
+	  PPC_I(VMSUMSHS),
+	  VA_form, 4, 41, CFLOW_NORMAL
+	},
+	{ "vmsumubm",
+	  EXECUTE_VECTOR_ARITH_MIXED(mul, V4SI, V16QI, V16QI, V4SI),
+	  NULL,
+	  PPC_I(VMSUMUBM),
+	  VA_form, 4, 36, CFLOW_NORMAL
+	},
+	{ "vmsumuhm",
+	  EXECUTE_VECTOR_ARITH_MIXED(mul, V4SI, V8HI, V8HI, V4SI),
+	  NULL,
+	  PPC_I(VMSUMUHM),
+	  VA_form, 4, 38, CFLOW_NORMAL
+	},
+	{ "vmsumuhs",
+	  EXECUTE_VECTOR_ARITH_MIXED(mul, V4SI_SAT<uint32>, V8HI, V8HI, V4SI),
+	  NULL,
+	  PPC_I(VMSUMUHS),
+	  VA_form, 4, 39, CFLOW_NORMAL
+	},
+	{ "vmulesb",
+	  EXECUTE_VECTOR_ARITH_ODD(0, smul, V8HIm, V16QIm_SAT<int8>, V16QIm_SAT<int8>, NONE),
+	  NULL,
+	  PPC_I(VMULESB),
+	  VX_form, 4, 776, CFLOW_NORMAL
+	},
+	{ "vmulesh",
+	  EXECUTE_VECTOR_ARITH_ODD(0, smul, V4SI, V8HIm_SAT<int16>, V8HIm_SAT<int16>, NONE),
+	  NULL,
+	  PPC_I(VMULESH),
+	  VX_form, 4, 840, CFLOW_NORMAL
+	},
+	{ "vmuleub",
+	  EXECUTE_VECTOR_ARITH_ODD(0, mul, V8HIm, V16QIm, V16QIm, NONE),
+	  NULL,
+	  PPC_I(VMULEUB),
+	  VX_form, 4, 520, CFLOW_NORMAL
+	},
+	{ "vmuleuh",
+	  EXECUTE_VECTOR_ARITH_ODD(0, mul, V4SI, V8HIm, V8HIm, NONE),
+	  NULL,
+	  PPC_I(VMULEUH),
+	  VX_form, 4, 584, CFLOW_NORMAL
+	},
+	{ "vmulosb",
+	  EXECUTE_VECTOR_ARITH_ODD(1, smul, V8HIm, V16QIm_SAT<int8>, V16QIm_SAT<int8>, NONE),
+	  NULL,
+	  PPC_I(VMULOSB),
+	  VX_form, 4, 264, CFLOW_NORMAL
+	},
+	{ "vmulosh",
+	  EXECUTE_VECTOR_ARITH_ODD(1, smul, V4SI, V8HIm_SAT<int16>, V8HIm_SAT<int16>, NONE),
+	  NULL,
+	  PPC_I(VMULOSH),
+	  VX_form, 4, 328, CFLOW_NORMAL
+	},
+	{ "vmuloub",
+	  EXECUTE_VECTOR_ARITH_ODD(1, mul, V8HIm, V16QIm, V16QIm, NONE),
+	  NULL,
+	  PPC_I(VMULOUB),
+	  VX_form, 4, 8, CFLOW_NORMAL
+	},
+	{ "vmulouh",
+	  EXECUTE_VECTOR_ARITH_ODD(1, mul, V4SI, V8HIm, V8HIm, NONE),
+	  NULL,
+	  PPC_I(VMULOUH),
+	  VX_form, 4, 72, CFLOW_NORMAL
+	},
+	{ "vnmsubfp",
+	  EXECUTE_VECTOR_ARITH(vnmsubfp, V4SF, V4SF, V4SF, V4SF),
+	  NULL,
+	  PPC_I(VNMSUB),
+	  VA_form, 4, 47, CFLOW_NORMAL
+	},
+	{ "vnor",
+	  EXECUTE_VECTOR_ARITH(nor_64, V2DI, V2DI, V2DI, NONE),
+	  NULL,
+	  PPC_I(VNOR),
+	  VX_form, 4, 1284, CFLOW_NORMAL
+	},
+	{ "vor",
+	  EXECUTE_VECTOR_ARITH(or_64, V2DI, V2DI, V2DI, NONE),
+	  NULL,
+	  PPC_I(VOR),
+	  VX_form, 4, 1156, CFLOW_NORMAL
+	},
+	{ "vperm",
+	  EXECUTE_0(vector_permute),
+	  NULL,
+	  PPC_I(VPERM),
+	  VA_form, 4, 43, CFLOW_NORMAL
+	},
+	{ "vpkpx",
+	  EXECUTE_0(vector_pack_pixel),
+	  NULL,
+	  PPC_I(VPKPX),
+	  VX_form, 4, 782, CFLOW_NORMAL
+	},
+	{ "vpkshss",
+	  EXECUTE_VECTOR_PACK(V16QIm_SAT<int8>, V8HIm, V8HIm),
+	  NULL,
+	  PPC_I(VPKSHSS),
+	  VX_form, 4, 398, CFLOW_NORMAL
+	},
+	{ "vpkshus",
+	  EXECUTE_VECTOR_PACK(V16QIm_SAT<uint8>, V8HIm, V8HIm),
+	  NULL,
+	  PPC_I(VPKSHUS),
+	  VX_form, 4, 270, CFLOW_NORMAL
+	},
+	{ "vpkswss",
+	  EXECUTE_VECTOR_PACK(V8HIm_SAT<int16>, V4SI, V4SI),
+	  NULL,
+	  PPC_I(VPKSWSS),
+	  VX_form, 4, 462, CFLOW_NORMAL
+	},
+	{ "vpkswus",
+	  EXECUTE_VECTOR_PACK(V8HIm_SAT<uint16>, V4SI, V4SI),
+	  NULL,
+	  PPC_I(VPKSWUS),
+	  VX_form, 4, 334, CFLOW_NORMAL
+	},
+	{ "vpkuhum",
+	  EXECUTE_VECTOR_PACK(V16QIm, V8HIm, V8HIm),
+	  NULL,
+	  PPC_I(VPKUHUM),
+	  VX_form, 4, 14, CFLOW_NORMAL
+	},
+	{ "vpkuhus",
+	  EXECUTE_VECTOR_PACK(V16QIm_USAT<uint8>, V8HIm, V8HIm),
+	  NULL,
+	  PPC_I(VPKUHUS),
+	  VX_form, 4, 142, CFLOW_NORMAL
+	},
+	{ "vpkuwum",
+	  EXECUTE_VECTOR_PACK(V8HIm, V4SI, V4SI),
+	  NULL,
+	  PPC_I(VPKUWUM),
+	  VX_form, 4, 78, CFLOW_NORMAL
+	},
+	{ "vpkuwus",
+	  EXECUTE_VECTOR_PACK(V8HIm_USAT<uint16>, V4SI, V4SI),
+	  NULL,
+	  PPC_I(VPKUWUS),
+	  VX_form, 4, 206, CFLOW_NORMAL
+	},
+	{ "vrefp",
+	  EXECUTE_VECTOR_ARITH(fres, V4SF, NONE, V4SF, NONE),
+	  NULL,
+	  PPC_I(VREFP),
+	  VX_form, 4, 266, CFLOW_NORMAL
+	},
+	{ "vrfim",
+	  EXECUTE_VECTOR_ARITH(frim, V4SF, NONE, V4SF, NONE),
+	  NULL,
+	  PPC_I(VRFIM),
+	  VX_form, 4, 714, CFLOW_NORMAL
+	},
+	{ "vrfin",
+	  EXECUTE_VECTOR_ARITH(frin, V4SF, NONE, V4SF, NONE),
+	  NULL,
+	  PPC_I(VRFIN),
+	  VX_form, 4, 522, CFLOW_NORMAL
+	},
+	{ "vrfip",
+	  EXECUTE_VECTOR_ARITH(frip, V4SF, NONE, V4SF, NONE),
+	  NULL,
+	  PPC_I(VRFIP),
+	  VX_form, 4, 650, CFLOW_NORMAL
+	},
+	{ "vrfiz",
+	  EXECUTE_VECTOR_ARITH(friz, V4SF, NONE, V4SF, NONE),
+	  NULL,
+	  PPC_I(VRFIZ),
+	  VX_form, 4, 586, CFLOW_NORMAL
+	},
+	{ "vrlb",
+	  EXECUTE_VECTOR_ARITH(vrl<uint8>, V16QI, V16QI, V16QI, NONE),
+	  NULL,
+	  PPC_I(VRLB),
+	  VX_form, 4, 4, CFLOW_NORMAL
+	},
+	{ "vrlh",
+	  EXECUTE_VECTOR_ARITH(vrl<uint16>, V8HI, V8HI, V8HI, NONE),
+	  NULL,
+	  PPC_I(VRLH),
+	  VX_form, 4, 68, CFLOW_NORMAL
+	},
+	{ "vrlw",
+	  EXECUTE_VECTOR_ARITH(vrl<uint32>, V4SI, V4SI, V4SI, NONE),
+	  NULL,
+	  PPC_I(VRLW),
+	  VX_form, 4, 132, CFLOW_NORMAL
+	},
+	{ "vrsqrtefp",
+	  EXECUTE_VECTOR_ARITH(frsqrt, V4SF, NONE, V4SF, NONE),
+	  NULL,
+	  PPC_I(VRSQRTEFP),
+	  VX_form, 4, 330, CFLOW_NORMAL
+	},
+	{ "vsel",
+	  EXECUTE_VECTOR_ARITH(vsel, V4SI, V4SI, V4SI, V4SI),
+	  NULL,
+	  PPC_I(VSEL),
+	  VA_form, 4, 42, CFLOW_NORMAL
+	},
+	{ "vsl",
+	  EXECUTE_1(vector_shift, -1),
+	  NULL,
+	  PPC_I(VSL),
+	  VX_form, 4, 452, CFLOW_NORMAL
+	},
+	{ "vslb",
+	  EXECUTE_VECTOR_ARITH(vsl<uint8>, V16QI, V16QI, V16QI, NONE),
+	  NULL,
+	  PPC_I(VSLB),
+	  VX_form, 4, 260, CFLOW_NORMAL
+	},
+	{ "vsldoi",
+	  EXECUTE_VECTOR_SHIFT_OCTET(-1, V16QIm, V16QIm, V16QIm, SHB),
+	  NULL,
+	  PPC_I(VSLDOI),
+	  VA_form, 4, 44, CFLOW_NORMAL
+	},
+	{ "vslh",
+	  EXECUTE_VECTOR_ARITH(vsl<uint16>, V8HI, V8HI, V8HI, NONE),
+	  NULL,
+	  PPC_I(VSLH),
+	  VX_form, 4, 324, CFLOW_NORMAL
+	},
+	{ "vslo",
+	  EXECUTE_VECTOR_SHIFT_OCTET(-1, V16QIm, V16QIm, NONE, SHBO),
+	  NULL,
+	  PPC_I(VSLO),
+	  VX_form, 4, 1036, CFLOW_NORMAL
+	},
+	{ "vslw",
+	  EXECUTE_VECTOR_ARITH(vsl<uint32>, V4SI, V4SI, V4SI, NONE),
+	  NULL,
+	  PPC_I(VSLW),
+	  VX_form, 4, 388, CFLOW_NORMAL
+	},
+	{ "vspltb",
+	  EXECUTE_VECTOR_SPLAT(nop, V16QI, V16QIm, false),
+	  NULL,
+	  PPC_I(VSPLTB),
+	  VX_form, 4, 524, CFLOW_NORMAL
+	},
+	{ "vsplth",
+	  EXECUTE_VECTOR_SPLAT(nop, V8HI, V8HIm, false),
+	  NULL,
+	  PPC_I(VSPLTH),
+	  VX_form, 4, 588, CFLOW_NORMAL
+	},
+	{ "vspltisb",
+	  EXECUTE_VECTOR_SPLAT(sign_extend_5_32, V16QI, UIMM, true),
+	  NULL,
+	  PPC_I(VSPLTISB),
+	  VX_form, 4, 780, CFLOW_NORMAL
+	},
+	{ "vspltish",
+	  EXECUTE_VECTOR_SPLAT(sign_extend_5_32, V8HI, UIMM, true),
+	  NULL,
+	  PPC_I(VSPLTISH),
+	  VX_form, 4, 844, CFLOW_NORMAL
+	},
+	{ "vspltisw",
+	  EXECUTE_VECTOR_SPLAT(sign_extend_5_32, V4SI, UIMM, true),
+	  NULL,
+	  PPC_I(VSPLTISW),
+	  VX_form, 4, 908, CFLOW_NORMAL
+	},
+	{ "vspltw",
+	  EXECUTE_VECTOR_SPLAT(nop, V4SI, V4SI, false),
+	  NULL,
+	  PPC_I(VSPLTW),
+	  VX_form, 4, 652, CFLOW_NORMAL
+	},
+	{ "vsr",
+	  EXECUTE_1(vector_shift, +1),
+	  NULL,
+	  PPC_I(VSR),
+	  VX_form, 4, 708, CFLOW_NORMAL
+	},
+	{ "vsrab",
+	  EXECUTE_VECTOR_ARITH(vsr<int8>, V16QI, V16QIs, V16QI, NONE),
+	  NULL,
+	  PPC_I(VSRAB),
+	  VX_form, 4, 772, CFLOW_NORMAL
+	},
+	{ "vsrah",
+	  EXECUTE_VECTOR_ARITH(vsr<int16>, V8HI, V8HIs, V8HI, NONE),
+	  NULL,
+	  PPC_I(VSRAH),
+	  VX_form, 4, 836, CFLOW_NORMAL
+	},
+	{ "vsraw",
+	  EXECUTE_VECTOR_ARITH(vsr<int32>, V4SI, V4SIs, V4SIs, NONE),
+	  NULL,
+	  PPC_I(VSRAW),
+	  VX_form, 4, 900, CFLOW_NORMAL
+	},
+	{ "vsrb",
+	  EXECUTE_VECTOR_ARITH(vsr<uint8>, V16QI, V16QI, V16QI, NONE),
+	  NULL,
+	  PPC_I(VSRB),
+	  VX_form, 4, 516, CFLOW_NORMAL
+	},
+	{ "vsrh",
+	  EXECUTE_VECTOR_ARITH(vsr<uint16>, V8HI, V8HI, V8HI, NONE),
+	  NULL,
+	  PPC_I(VSRH),
+	  VX_form, 4, 580, CFLOW_NORMAL
+	},
+	{ "vsro",
+	  EXECUTE_VECTOR_SHIFT_OCTET(+1, V16QIm, V16QIm, NONE, SHBO),
+	  NULL,
+	  PPC_I(VSRO),
+	  VX_form, 4, 1100, CFLOW_NORMAL
+	},
+	{ "vsrw",
+	  EXECUTE_VECTOR_ARITH(vsr<uint32>, V4SI, V4SI, V4SI, NONE),
+	  NULL,
+	  PPC_I(VSRW),
+	  VX_form, 4, 644, CFLOW_NORMAL
+	},
+	{ "vsubcuw",
+	  EXECUTE_VECTOR_ARITH(subcuw, V4SI, V4SI, V4SI, NONE),
+	  NULL,
+	  PPC_I(VSUBCUW),
+	  VX_form, 4, 1408, CFLOW_NORMAL
+	},
+	{ "vsubfp",
+	  EXECUTE_VECTOR_ARITH(fsubs, V4SF, V4SF, V4SF, NONE),
+	  NULL,
+	  PPC_I(VSUBFP),
+	  VX_form, 4, 74, CFLOW_NORMAL
+	},
+	{ "vsubsbs",
+	  EXECUTE_VECTOR_ARITH(sub, V16QI_SAT<int8>, V16QI_SAT<int8>, V16QI_SAT<int8>, NONE),
+	  NULL,
+	  PPC_I(VSUBSBS),
+	  VX_form, 4, 1792, CFLOW_NORMAL
+	},
+	{ "vsubshs",
+	  EXECUTE_VECTOR_ARITH(sub, V8HI_SAT<int16>, V8HI_SAT<int16>, V8HI_SAT<int16>, NONE),
+	  NULL,
+	  PPC_I(VSUBSHS),
+	  VX_form, 4, 1856, CFLOW_NORMAL
+	},
+	{ "vsubsws",
+	  EXECUTE_VECTOR_ARITH(sub_64, V4SI_SAT<int32>, V4SI_SAT<int32>, V4SI_SAT<int32>, NONE),
+	  NULL,
+	  PPC_I(VSUBSWS),
+	  VX_form, 4, 1920, CFLOW_NORMAL
+	},
+	{ "vsububm",
+	  EXECUTE_VECTOR_ARITH(sub, V16QI, V16QI, V16QI, NONE),
+	  NULL,
+	  PPC_I(VSUBUBM),
+	  VX_form, 4, 1024, CFLOW_NORMAL
+	},
+	{ "vsububs",
+	  EXECUTE_VECTOR_ARITH(sub, V16QI_SAT<uint8>, V16QI_SAT<uint8>, V16QI_SAT<uint8>, NONE),
+	  NULL,
+	  PPC_I(VSUBUBS),
+	  VX_form, 4, 1536, CFLOW_NORMAL
+	},
+	{ "vsubuhm",
+	  EXECUTE_VECTOR_ARITH(sub, V8HI, V8HI, V8HI, NONE),
+	  NULL,
+	  PPC_I(VSUBUHM),
+	  VX_form, 4, 1088, CFLOW_NORMAL
+	},
+	{ "vsubuhs",
+	  EXECUTE_VECTOR_ARITH(sub, V8HI_SAT<uint16>, V8HI_SAT<uint16>, V8HI_SAT<uint16>, NONE),
+	  NULL,
+	  PPC_I(VSUBUHS),
+	  VX_form, 4, 1600, CFLOW_NORMAL
+	},
+	{ "vsubuwm",
+	  EXECUTE_VECTOR_ARITH(sub, V4SI, V4SI, V4SI, NONE),
+	  NULL,
+	  PPC_I(VSUBUWM),
+	  VX_form, 4, 1152, CFLOW_NORMAL
+	},
+	{ "vsubuws",
+	  EXECUTE_VECTOR_ARITH(sub_64, V4SI_SAT<uint32>, V4SI_SAT<uint32>, V4SI_SAT<uint32>, NONE),
+	  NULL,
+	  PPC_I(VSUBUWS),
+	  VX_form, 4, 1664, CFLOW_NORMAL
+	},
+	{ "vsumsws",
+	  EXECUTE_VECTOR_SUM(1, V4SI_SAT<int32>, V4SIs, V4SIs),
+	  NULL,
+	  PPC_I(VSUMSWS),
+	  VX_form, 4, 1928, CFLOW_NORMAL
+	},
+	{ "vsum2sws",
+	  EXECUTE_VECTOR_SUM(2, V4SI_SAT<int32>, V4SIs, V4SIs),
+	  NULL,
+	  PPC_I(VSUM2SWS),
+	  VX_form, 4, 1672, CFLOW_NORMAL
+	},
+	{ "vsum4sbs",
+	  EXECUTE_VECTOR_SUM(4, V4SI_SAT<int32>, V16QIs, V4SIs),
+	  NULL,
+	  PPC_I(VSUM4SBS),
+	  VX_form, 4, 1800, CFLOW_NORMAL
+	},
+	{ "vsum4shs",
+	  EXECUTE_VECTOR_SUM(4, V4SI_SAT<int32>, V8HIs, V4SIs),
+	  NULL,
+	  PPC_I(VSUM4SHS),
+	  VX_form, 4, 1608, CFLOW_NORMAL
+	},
+	{ "vsum4ubs",
+	  EXECUTE_VECTOR_SUM(4, V4SI_SAT<uint32>, V16QI, V4SI),
+	  NULL,
+	  PPC_I(VSUM4UBS),
+	  VX_form, 4, 1544, CFLOW_NORMAL
+	},
+	{ "vupkhpx",
+	  EXECUTE_1(vector_unpack_pixel, 0),
+	  NULL,
+	  PPC_I(VUPKHPX),
+	  VX_form, 4, 846, CFLOW_NORMAL
+	},
+	{ "vupkhsb",
+	  EXECUTE_VECTOR_UNPACK(0, V8HIms, V16QIms),
+	  NULL,
+	  PPC_I(VUPKHSB),
+	  VX_form, 4, 526, CFLOW_NORMAL
+	},
+	{ "vupkhsh",
+	  EXECUTE_VECTOR_UNPACK(0, V4SIs, V8HIms),
+	  NULL,
+	  PPC_I(VUPKHSH),
+	  VX_form, 4, 590, CFLOW_NORMAL
+	},
+	{ "vupklpx",
+	  EXECUTE_1(vector_unpack_pixel, 1),
+	  NULL,
+	  PPC_I(VUPKLPX),
+	  VX_form, 4, 974, CFLOW_NORMAL
+	},
+	{ "vupklsb",
+	  EXECUTE_VECTOR_UNPACK(1, V8HIms, V16QIms),
+	  NULL,
+	  PPC_I(VUPKLSB),
+	  VX_form, 4, 654, CFLOW_NORMAL
+	},
+	{ "vupklsh",
+	  EXECUTE_VECTOR_UNPACK(1, V4SIs, V8HIms),
+	  NULL,
+	  PPC_I(VUPKLSH),
+	  VX_form, 4, 718, CFLOW_NORMAL
+	},
+	{ "vxor",
+	  EXECUTE_VECTOR_ARITH(xor_64, V2DI, V2DI, V2DI, NONE),
+	  NULL,
+	  PPC_I(VXOR),
+	  VX_form, 4, 1220, CFLOW_NORMAL
 	}
 };
 
-#ifndef PPC_NO_STATIC_II_INDEX_TABLE
-powerpc_cpu::ii_index_t powerpc_cpu::ii_index_table[II_INDEX_TABLE_SIZE];
-std::vector<powerpc_cpu::instr_info_t> powerpc_cpu::ii_table;
-#endif
-
 void powerpc_cpu::init_decoder()
 {
-#ifndef PPC_NO_STATIC_II_INDEX_TABLE
-	static bool initialized = false;
-	if (initialized)
-		return;
-	initialized = true;
-#endif
-
 	const int ii_count = sizeof(powerpc_ii_table)/sizeof(powerpc_ii_table[0]);
 	D(bug("PowerPC decode table has %d entries\n", ii_count));
 	assert(ii_count < (1 << (8 * sizeof(ii_index_t))));
@@ -1176,13 +2139,13 @@ void powerpc_cpu::init_decoder_entry(const instr_info_t * ii)
 	case I_form:
 	case M_form:
 		// Primary opcode only
-		for (int j = 0; j < 1024; j++)
+		for (int j = 0; j < 2048; j++)
 			ii_index_table[make_ii_index(ii->opcode, j)] = ii_index;
 		break;
 
 	case SC_form:
 		// Primary opcode only, with reserved bits
-		ii_index_table[make_ii_index(ii->opcode, 1)] = ii_index;
+		ii_index_table[make_ii_index(ii->opcode, 2)] = ii_index;
 		break;
 
 	case X_form:
@@ -1190,19 +2153,41 @@ void powerpc_cpu::init_decoder_entry(const instr_info_t * ii)
 	case XFX_form:
 	case XFL_form:
 		// Extended opcode in bits 21..30
-		ii_index_table[make_ii_index(ii->opcode, ii->xo)] = ii_index;
+		ii_index_table[make_ii_index(ii->opcode, (ii->xo << 1)    )] = ii_index;
+		ii_index_table[make_ii_index(ii->opcode, (ii->xo << 1) | 1)] = ii_index;
 		break;
 
 	case XO_form:
 		// Extended opcode in bits 22..30, with OE bit 21
-		ii_index_table[make_ii_index(ii->opcode,          ii->xo)] = ii_index;
-		ii_index_table[make_ii_index(ii->opcode, 1 << 9 | ii->xo)] = ii_index;
+		ii_index_table[make_ii_index(ii->opcode,             (ii->xo << 1)    )] = ii_index;
+		ii_index_table[make_ii_index(ii->opcode, (1 << 10) | (ii->xo << 1)    )] = ii_index;
+		ii_index_table[make_ii_index(ii->opcode,             (ii->xo << 1) | 1)] = ii_index;
+		ii_index_table[make_ii_index(ii->opcode, (1 << 10) | (ii->xo << 1) | 1)] = ii_index;
 		break;
 
 	case A_form:
 		// Extended opcode in bits 26..30
+		for (int j = 0; j < 32; j++) {
+			ii_index_table[make_ii_index(ii->opcode, (j << 6) | (ii->xo << 1)    )] = ii_index;
+			ii_index_table[make_ii_index(ii->opcode, (j << 6) | (ii->xo << 1) | 1)] = ii_index;
+		}
+		break;
+
+	case VX_form:
+		// Extended opcode in bits 21..31
+		ii_index_table[make_ii_index(ii->opcode, ii->xo)] = ii_index;
+		break;
+
+	case VXR_form:
+		// Extended opcode in bits 22..31
+		ii_index_table[make_ii_index(ii->opcode,             ii->xo)] = ii_index;
+		ii_index_table[make_ii_index(ii->opcode, (1 << 10) | ii->xo)] = ii_index;
+		break;
+
+	case VA_form:
+		// Extended opcode in bits 26..31
 		for (int j = 0; j < 32; j++)
-			ii_index_table[make_ii_index(ii->opcode, (j << 5) | ii->xo)] = ii_index;
+			ii_index_table[make_ii_index(ii->opcode, (j << 6) | ii->xo)] = ii_index;
 		break;
 
 	default:

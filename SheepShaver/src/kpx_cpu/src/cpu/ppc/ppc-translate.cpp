@@ -684,6 +684,9 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			case powerpc_registers::SPR_CTR:
 				dg.gen_load_T0_CTR();
 				break;
+			case powerpc_registers::SPR_VRSAVE:
+				dg.gen_load_T0_VRSAVE();
+				break;
 #ifdef SHEEPSHAVER
 			case powerpc_registers::SPR_SDR1:
 				dg.gen_mov_32_T0_im(0xdead001f);
@@ -697,7 +700,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 				dg.gen_mov_32_T0_im(0);
 				break;
 #else
-			default: goto do_illegal;
+			default: goto do_generic;
 #endif
 			}
 			dg.gen_store_T0_GPR(rD_field::extract(opcode));
@@ -717,8 +720,11 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			case powerpc_registers::SPR_CTR:
 				dg.gen_store_T0_CTR();
 				break;
+			case powerpc_registers::SPR_VRSAVE:
+				dg.gen_store_T0_VRSAVE();
+				break;
 #ifndef SHEEPSHAVER
-			default: goto do_illegal;
+			default: goto do_generic;
 #endif
 			}
 			break;

@@ -21,6 +21,21 @@
 #ifndef PPC_OPERANDS_H
 #define PPC_OPERANDS_H
 
+#include <limits>
+
+/**
+ *		Compile time checks
+ **/
+
+template< int a, int b >
+struct ensure_equals;
+
+template< int n >
+struct ensure_equals<n, n> { };
+
+template< class type, int size >
+struct ensure_sizeof : ensure_equals<sizeof(type), size> { };
+
 /**
  *		General purpose registers
  **/
@@ -95,6 +110,191 @@ struct output_fpr_dw {
 
 template< class field >
 struct fpr_dw_operand : input_fpr_dw< field >, output_fpr_dw< field > { };
+
+/**
+ *		Vector registers
+ **/
+
+struct ev_direct {
+	static inline int byte_element(int i) { return i; }
+	static inline int half_element(int i) { return i; }
+	static inline int word_element(int i) { return i; }
+};
+
+// This supposes elements are loaded by 4-byte word parts
+#ifdef WORDS_BIGENDIAN
+typedef ev_direct ev_mixed;
+#else
+struct ev_mixed : public ev_direct {
+#if 0
+	static inline int byte_element(int i) { return (i & ~3) + (3 - (i & 3)); }
+	static inline int half_element(int i) { return (i & ~1) + (1 - (i & 1)); }
+#else
+	static inline int byte_element(int i) {
+		static const int lookup[16] = {
+			3,  2,  1,  0,
+			7,  6,  5,  4,
+			11, 10, 9,  8,
+			15, 14, 13, 12
+		};
+		return lookup[i];
+	}
+	static inline int half_element(int i) {
+		static const int lookup[8] = {
+			1, 0, 3, 2,
+			5, 4, 7, 6
+		};
+		return lookup[i];
+	}
+#endif
+};
+#endif
+
+struct null_vector_operand {
+	typedef uint32 type;
+	typedef uint32 element_type;
+	static const uint32	element_size = sizeof(element_type);
+	static inline type const_ref(powerpc_cpu *, uint32) { return 0; } // fake so that compiler optimizes it out
+	static inline element_type get_element(type const & reg, int i) { return 0; }
+};
+
+template< class field >
+struct vimm_operand {
+	typedef uint32 type;
+	typedef uint32 element_type;
+	static const uint32 element_size = sizeof(element_type);
+	static inline type const_ref(powerpc_cpu *, uint32 opcode) { return field::extract(opcode); }
+	static inline element_type get_element(type const & reg, int i) { return reg; }
+};
+
+template< class field >
+struct input_vr {
+	static inline powerpc_vr const & const_ref(powerpc_cpu * cpu, uint32 opcode) {
+		return cpu->vr(field::extract(opcode));
+	}
+};
+
+template< class field >
+struct output_vr {
+	static inline powerpc_vr & ref(powerpc_cpu * cpu, uint32 opcode) {
+		return cpu->vr(field::extract(opcode));
+	}
+};
+
+template< class field, class value_type >
+struct vector_operand : input_vr< field >, output_vr< field > {
+	typedef powerpc_vr	type;
+	typedef value_type	element_type;
+	static const uint32	element_size = sizeof(element_type);
+	static inline bool	saturate(element_type) { return false; }
+};
+
+template< class field, class value_type, class sat_type >
+struct vector_saturate_operand : input_vr< field >, output_vr< field > {
+	typedef powerpc_vr	type;
+	typedef sat_type	element_type;
+	static const uint32	element_size = sizeof(value_type);
+	static inline bool saturate(element_type & v) {
+		bool sat = false;
+		if (v > std::numeric_limits<value_type>::max()) {
+			v = std::numeric_limits<value_type>::max();
+			sat = true;
+		}
+		else if (v < std::numeric_limits<value_type>::min()) {
+			v = std::numeric_limits<value_type>::min();
+			sat = true;
+		}
+		return sat;
+	}
+};
+
+template< class field, class value_type, class sat_type = int16, class ev = ev_direct >
+struct v16qi_sat_operand : vector_saturate_operand< field, value_type, sat_type >, ensure_sizeof< sat_type, 2 > {
+	static inline sat_type get_element(powerpc_vr const & reg, int i) {
+		return (sat_type)(value_type)reg.b[ev::byte_element(i)];
+	}
+	static inline void set_element(powerpc_vr & reg, int i, sat_type value) {
+		reg.b[ev::byte_element(i)] = value;
+	}
+};
+
+template< class field, class value_type, class sat_type = int32, class ev = ev_direct >
+struct v8hi_sat_operand : vector_saturate_operand< field, value_type, sat_type >, ensure_sizeof< sat_type, 4 > {
+	static inline sat_type get_element(powerpc_vr const & reg, int i) {
+		return (sat_type)(value_type)reg.h[ev::half_element(i)];
+	}
+	static inline void set_element(powerpc_vr & reg, int i, sat_type value) {
+		reg.h[ev::half_element(i)] = value;
+	}
+};
+
+template< class field, class value_type, class sat_type = int64 >
+struct v4si_sat_operand : vector_saturate_operand< field, value_type, sat_type >, ensure_sizeof< sat_type, 8 > {
+	static inline sat_type get_element(powerpc_vr const & reg, int i) {
+		return (sat_type)(value_type)reg.w[i];
+	}
+	static inline void set_element(powerpc_vr & reg, int i, sat_type value) {
+		reg.w[i] = value;
+	}
+};
+
+template< class field, class value_type = uint8, class ev = ev_direct >
+struct v16qi_operand : vector_operand< field, value_type >, ensure_sizeof< value_type, 1 > {
+	static inline value_type get_element(powerpc_vr const & reg, int i) {
+		return reg.b[ev::byte_element(i)];
+	}
+	static inline void set_element(powerpc_vr & reg, int i, value_type value) {
+		reg.b[ev::byte_element(i)] = value;
+	}
+};
+
+template< class field, class value_type = uint16, class ev = ev_direct >
+struct v8hi_operand : vector_operand< field, value_type >, ensure_sizeof< value_type, 2 > {
+	static inline value_type get_element(powerpc_vr const & reg, int i) {
+		return reg.h[ev::half_element(i)];
+	}
+	static inline void set_element(powerpc_vr & reg, int i, value_type value) {
+		reg.h[ev::half_element(i)] = value;
+	}
+};
+
+template< class field, class value_type = uint32 >
+struct v4si_operand : vector_operand< field, value_type >, ensure_sizeof< value_type, 4 > {
+	static inline value_type get_element(powerpc_vr const & reg, int i) {
+		return reg.w[i];
+	}
+	static inline void set_element(powerpc_vr & reg, int i, value_type value) {
+		reg.w[i] = value;
+	}
+};
+
+template< class field, class value_type = uint64 >
+struct v2di_operand : vector_operand< field, value_type >, ensure_sizeof< value_type, 8 > {
+	static inline value_type get_element(powerpc_vr const & reg, int i) {
+		return reg.j[i];
+	}
+	static inline void set_element(powerpc_vr & reg, int i, value_type value) {
+		reg.j[i] = value;
+	}
+};
+
+template< class field >
+struct v4sf_operand : vector_operand< field, float > {
+	static inline float get_element(powerpc_vr const & reg, int i) {
+		return reg.f[i];
+	}
+	static inline void set_element(powerpc_vr & reg, int i, float value) {
+		reg.f[i] = value;
+	}
+};
+
+template< class field >
+struct vSH_operand {
+	static inline uint32 get(powerpc_cpu * cpu, uint32 opcode) {
+		return (cpu->vr(field::extract(opcode)).b[ev_mixed::byte_element(15)] >> 3) & 15;
+	}
+};
+
 
 /**
  *		Immediate operands
@@ -239,6 +439,108 @@ typedef fpscr_operand<FPSCR_RN_field>			operand_FPSCR_RN;
 typedef spr_operand								operand_SPR;
 typedef tbr_operand								operand_TBR;
 typedef mask_operand							operand_MASK;
+typedef null_vector_operand						operand_vD_NONE;
+typedef null_vector_operand						operand_vA_NONE;
+typedef null_vector_operand						operand_vB_NONE;
+typedef null_vector_operand						operand_vC_NONE;
+typedef v16qi_operand<vD_field>					operand_vD_V16QI;
+typedef v16qi_operand<vA_field>					operand_vA_V16QI;
+typedef v16qi_operand<vB_field>					operand_vB_V16QI;
+typedef v16qi_operand<vC_field>					operand_vC_V16QI;
+typedef v16qi_operand<vD_field, int8>			operand_vD_V16QIs;
+typedef v16qi_operand<vA_field, int8>			operand_vA_V16QIs;
+typedef v16qi_operand<vB_field, int8>			operand_vB_V16QIs;
+typedef v16qi_operand<vC_field, int8>			operand_vC_V16QIs;
+typedef v16qi_operand<vD_field, int8, ev_mixed>	operand_vD_V16QIms;
+typedef v16qi_operand<vB_field, int8, ev_mixed>	operand_vB_V16QIms;
+typedef v8hi_operand<vD_field>					operand_vD_V8HI;
+typedef v8hi_operand<vA_field>					operand_vA_V8HI;
+typedef v8hi_operand<vB_field>					operand_vB_V8HI;
+typedef v8hi_operand<vC_field>					operand_vC_V8HI;
+typedef v8hi_operand<vD_field, int16>			operand_vD_V8HIs;
+typedef v8hi_operand<vA_field, int16>			operand_vA_V8HIs;
+typedef v8hi_operand<vB_field, int16>			operand_vB_V8HIs;
+typedef v8hi_operand<vC_field, int16>			operand_vC_V8HIs;
+typedef v8hi_operand<vD_field, int16, ev_mixed>	operand_vD_V8HIms;
+typedef v8hi_operand<vB_field, int16, ev_mixed>	operand_vB_V8HIms;
+typedef v4si_operand<vD_field>					operand_vD_V4SI;
+typedef v4si_operand<vA_field>					operand_vA_V4SI;
+typedef v4si_operand<vB_field>					operand_vB_V4SI;
+typedef v4si_operand<vC_field>					operand_vC_V4SI;
+typedef v4si_operand<vD_field, int32>			operand_vD_V4SIs;
+typedef v4si_operand<vA_field, int32>			operand_vA_V4SIs;
+typedef v4si_operand<vB_field, int32>			operand_vB_V4SIs;
+typedef v4si_operand<vC_field, int32>			operand_vC_V4SIs;
+typedef v2di_operand<vD_field>					operand_vD_V2DI;
+typedef v2di_operand<vA_field>					operand_vA_V2DI;
+typedef v2di_operand<vB_field>					operand_vB_V2DI;
+typedef v2di_operand<vC_field>					operand_vC_V2DI;
+typedef v2di_operand<vD_field, int64>			operand_vD_V2DIs;
+typedef v2di_operand<vA_field, int64>			operand_vA_V2DIs;
+typedef v2di_operand<vB_field, int64>			operand_vB_V2DIs;
+typedef v2di_operand<vC_field, int64>			operand_vC_V2DIs;
+typedef v4sf_operand<vD_field>					operand_vD_V4SF;
+typedef v4sf_operand<vA_field>					operand_vA_V4SF;
+typedef v4sf_operand<vB_field>					operand_vB_V4SF;
+typedef v4sf_operand<vC_field>					operand_vC_V4SF;
+typedef v4si_operand<vS_field>					operand_vS_V4SI;
+typedef v2di_operand<vS_field>					operand_vS_V2DI;
+typedef vimm_operand<vA_field>					operand_vA_UIMM;
+typedef vimm_operand<vB_field>					operand_vB_UIMM;
+typedef vSH_operand<vB_field>					operand_SHBO;
+
+// vector mixed element accessors
+typedef v16qi_operand<vA_field, uint8, ev_mixed>		operand_vA_V16QIm;
+typedef v16qi_operand<vB_field, uint8, ev_mixed>		operand_vB_V16QIm;
+typedef v16qi_operand<vD_field, uint8, ev_mixed>		operand_vD_V16QIm;
+typedef v8hi_operand<vA_field, uint16, ev_mixed>		operand_vA_V8HIm;
+typedef v8hi_operand<vB_field, uint16, ev_mixed>		operand_vB_V8HIm;
+typedef v8hi_operand<vD_field, uint16, ev_mixed>		operand_vD_V8HIm;
+
+#define DEFINE_VECTOR_SAT_OPERAND(EV, REG, OP)										\
+template< class value_type >														\
+struct operand_##REG##_##EV##_SAT : OP##_sat_operand<REG##_field, value_type> { }
+
+DEFINE_VECTOR_SAT_OPERAND(V4SI, vD, v4si);
+DEFINE_VECTOR_SAT_OPERAND(V4SI, vA, v4si);
+DEFINE_VECTOR_SAT_OPERAND(V4SI, vB, v4si);
+DEFINE_VECTOR_SAT_OPERAND(V4SI, vC, v4si);
+DEFINE_VECTOR_SAT_OPERAND(V8HI, vD, v8hi);
+DEFINE_VECTOR_SAT_OPERAND(V8HI, vA, v8hi);
+DEFINE_VECTOR_SAT_OPERAND(V8HI, vB, v8hi);
+DEFINE_VECTOR_SAT_OPERAND(V8HI, vC, v8hi);
+DEFINE_VECTOR_SAT_OPERAND(V16QI, vD, v16qi);
+DEFINE_VECTOR_SAT_OPERAND(V16QI, vA, v16qi);
+DEFINE_VECTOR_SAT_OPERAND(V16QI, vB, v16qi);
+DEFINE_VECTOR_SAT_OPERAND(V16QI, vC, v16qi);
+
+#undef DEFINE_VECTOR_SAT_OPERAND
+
+#define DEFINE_VECTOR_MIXED_SAT_OPERAND(EV, SAT, REG, OP, TYPE)										   \
+template< class value_type >																	   \
+struct operand_##REG##_##EV##m_##SAT : OP##_sat_operand<REG##_field, value_type, TYPE, ev_mixed> { }
+
+DEFINE_VECTOR_MIXED_SAT_OPERAND(V16QI, SAT, vA, v16qi, int16);
+DEFINE_VECTOR_MIXED_SAT_OPERAND(V16QI, SAT, vB, v16qi, int16);
+DEFINE_VECTOR_MIXED_SAT_OPERAND(V16QI, SAT, vD, v16qi, int16);
+DEFINE_VECTOR_MIXED_SAT_OPERAND(V16QI, USAT, vD, v16qi, uint16);
+DEFINE_VECTOR_MIXED_SAT_OPERAND(V8HI, SAT, vA, v8hi, int32);
+DEFINE_VECTOR_MIXED_SAT_OPERAND(V8HI, SAT, vB, v8hi, int32);
+DEFINE_VECTOR_MIXED_SAT_OPERAND(V8HI, SAT, vD, v8hi, int32);
+DEFINE_VECTOR_MIXED_SAT_OPERAND(V8HI, USAT, vD, v8hi, uint32);
+
+#undef DEFINE_VECTOR_MIXED_SAT_OPERAND
+
+#define DEFINE_VECTOR_USAT_OPERAND(EV, REG, OP, TYPE)										\
+template< class value_type >																\
+struct operand_##REG##_##EV##_USAT : OP##_sat_operand<REG##_field, value_type, TYPE> { }
+
+// FIXME: temporary for vector pack unsigned saturate variants
+DEFINE_VECTOR_USAT_OPERAND(V4SI,  vD, v4si,  uint64);
+DEFINE_VECTOR_USAT_OPERAND(V8HI,  vD, v8hi,  uint32);
+DEFINE_VECTOR_USAT_OPERAND(V16QI, vD, v16qi, uint16);
+
+#undef DEFINE_VECTOR_USAT_OPERAND
 
 #define DEFINE_IMMEDIATE_OPERAND(NAME, FIELD, OP) \
 typedef immediate_operand<FIELD##_field, op_##OP> operand_##NAME
@@ -255,6 +557,7 @@ DEFINE_IMMEDIATE_OPERAND(D, d, sign_extend_16_32);
 DEFINE_IMMEDIATE_OPERAND(NB, NB, nop);
 DEFINE_IMMEDIATE_OPERAND(SH, SH, nop);
 DEFINE_IMMEDIATE_OPERAND(FM, FM, nop);
+DEFINE_IMMEDIATE_OPERAND(SHB, vSH, nop);
 
 #undef DEFINE_IMMEDIATE_OPERAND
 

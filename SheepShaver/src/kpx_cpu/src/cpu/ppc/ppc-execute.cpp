@@ -54,25 +54,49 @@
 
 template< class RT, class OP, class RA, class RB, class RC >
 struct op_apply {
-	template< class T >
-	static inline RT apply(T a, T b, T c) {
+	template< class A, class B, class C >
+	static inline RT apply(A a, B b, C c) {
 		return OP::apply(a, b, c);
 	}
 };
 
 template< class RT, class OP, class RA, class RB >
 struct op_apply<RT, OP, RA, RB, null_operand> {
-	template< class T >
-	static inline RT apply(T a, T b, T) {
+	template< class A, class B, class C >
+	static inline RT apply(A a, B b, C) {
 		return OP::apply(a, b);
 	}
 };
 
 template< class RT, class OP, class RA >
 struct op_apply<RT, OP, RA, null_operand, null_operand> {
-	template< class T >
-	static inline RT apply(T a, T, T) {
+	template< class A, class B, class C >
+	static inline RT apply(A a, B, C) {
 		return OP::apply(a);
+	}
+};
+
+template< class RT, class OP, class RA, class RB >
+struct op_apply<RT, OP, RA, RB, null_vector_operand> {
+	template< class A, class B, class C >
+	static inline RT apply(A a, B b, C) {
+		return (RT)OP::apply(a, b);
+	}
+};
+
+template< class RT, class OP, class RA >
+struct op_apply<RT, OP, RA, null_vector_operand, null_vector_operand> {
+	template< class A, class B, class C >
+	static inline RT apply(A a, B, C) {
+		return (RT)OP::apply(a);
+	}
+};
+
+template< class RT, class OP, class RB >
+struct op_apply<RT, OP, null_vector_operand, RB, null_vector_operand> {
+	template< class A, class B, class C >
+	static inline RT apply(A, B b, C) {
+		return (RT)OP::apply(b);
 	}
 };
 
@@ -1111,6 +1135,7 @@ void powerpc_cpu::execute_mfspr(uint32 opcode)
 	case powerpc_registers::SPR_XER:	d = xer().get();break;
 	case powerpc_registers::SPR_LR:		d = lr();		break;
 	case powerpc_registers::SPR_CTR:	d = ctr();		break;
+	case powerpc_registers::SPR_VRSAVE:	d = vrsave();	break;
 #ifdef SHEEPSHAVER
 	case powerpc_registers::SPR_SDR1:	d = 0xdead001f;	break;
 	case powerpc_registers::SPR_PVR: {
@@ -1137,6 +1162,7 @@ void powerpc_cpu::execute_mtspr(uint32 opcode)
 	case powerpc_registers::SPR_XER:	xer().set(s);	break;
 	case powerpc_registers::SPR_LR:		lr() = s;		break;
 	case powerpc_registers::SPR_CTR:	ctr() = s;		break;
+	case powerpc_registers::SPR_VRSAVE:	vrsave() = s;	break;
 #ifndef SHEEPSHAVER
 	default: execute_illegal(opcode);
 #endif
@@ -1206,6 +1232,480 @@ void powerpc_cpu::execute_dcbz(uint32 opcode)
 {
 	uint32 ea = RA::get(this, opcode) + RB::get(this, opcode);
 	vm_memset(ea - (ea % 32), 0, 32);
+	increment_pc(4);
+}
+
+/**
+ *		Vector load/store instructions
+ **/
+
+template< class VD, class RA, class RB >
+void powerpc_cpu::execute_vector_load(uint32 opcode)
+{
+	uint32 ea = RA::get(this, opcode) + RB::get(this, opcode);
+	typename VD::type & vD = VD::ref(this, opcode);
+	switch (VD::element_size) {
+	case 1:
+		VD::set_element(vD, (ea & 0x0f), vm_read_memory_1(ea));
+		break;
+	case 2:
+		VD::set_element(vD, ((ea >> 1) & 0x07), vm_read_memory_2(ea & ~1));
+		break;
+	case 4:
+		VD::set_element(vD, ((ea >> 2) & 0x03), vm_read_memory_4(ea & ~3));
+		break;
+	case 8:
+		ea &= ~15;
+		vD.w[0] = vm_read_memory_4(ea +  0);
+		vD.w[1] = vm_read_memory_4(ea +  4);
+		vD.w[2] = vm_read_memory_4(ea +  8);
+		vD.w[3] = vm_read_memory_4(ea + 12);
+		break;
+	}
+	increment_pc(4);
+}
+
+template< class VS, class RA, class RB >
+void powerpc_cpu::execute_vector_store(uint32 opcode)
+{
+	uint32 ea = RA::get(this, opcode) + RB::get(this, opcode);
+	typename VS::type & vS = VS::ref(this, opcode);
+	switch (VS::element_size) {
+	case 1:
+		vm_write_memory_1(ea, VS::get_element(vS, (ea & 0x0f)));
+		break;
+	case 2:
+		vm_write_memory_2(ea & ~1, VS::get_element(vS, ((ea >> 1) & 0x07)));
+		break;
+	case 4:
+		vm_write_memory_4(ea & ~3, VS::get_element(vS, ((ea >> 2) & 0x03)));
+		break;
+	case 8:
+		ea &= ~15;
+		vm_write_memory_4(ea +  0, vS.w[0]);
+		vm_write_memory_4(ea +  4, vS.w[1]);
+		vm_write_memory_4(ea +  8, vS.w[2]);
+		vm_write_memory_4(ea + 12, vS.w[3]);
+		break;
+	}
+	increment_pc(4);
+}
+
+/**
+ *	Vector arithmetic
+ *
+ *		OP		Operation to perform on element
+ *		VD		Output operand vector
+ *		VA		Input operand vector
+ *		VB		Input operand vector (optional: operand_NONE)
+ *		VC		Input operand vector (optional: operand_NONE)
+ *		Rc		Predicate to record CR6
+ *		C1		If recording CR6, do we check for '1' bits in vD?
+ **/
+
+template< class OP, class VD, class VA, class VB, class VC, class Rc, int C1 >
+void powerpc_cpu::execute_vector_arith(uint32 opcode)
+{
+	typename VA::type const & vA = VA::const_ref(this, opcode);
+	typename VB::type const & vB = VB::const_ref(this, opcode);
+	typename VC::type const & vC = VC::const_ref(this, opcode);
+	typename VD::type & vD = VD::ref(this, opcode);
+	const int n_elements = 16 / VD::element_size;
+
+	for (int i = 0; i < n_elements; i++) {
+		const typename VA::element_type a = VA::get_element(vA, i);
+		const typename VB::element_type b = VB::get_element(vB, i);
+		const typename VC::element_type c = VC::get_element(vC, i);
+		typename VD::element_type d = op_apply<typename VD::element_type, OP, VA, VB, VC>::apply(a, b, c);
+		if (VD::saturate(d))
+			vscr().set_sat(1);
+		VD::set_element(vD, i, d);
+	}
+
+	// Propagate all conditions to CR6
+	if (Rc::test(opcode))
+		record_cr6(vD, C1);
+
+	increment_pc(4);
+}
+
+/**
+ *	Vector mixed arithmetic
+ *
+ *		OP		Operation to perform on element
+ *		VD		Output operand vector
+ *		VA		Input operand vector
+ *		VB		Input operand vector (optional: operand_NONE)
+ *		VC		Input operand vector (optional: operand_NONE)
+ **/
+
+template< class OP, class VD, class VA, class VB, class VC >
+void powerpc_cpu::execute_vector_arith_mixed(uint32 opcode)
+{
+	typename VA::type const & vA = VA::const_ref(this, opcode);
+	typename VB::type const & vB = VB::const_ref(this, opcode);
+	typename VC::type const & vC = VC::const_ref(this, opcode);
+	typename VD::type & vD = VD::ref(this, opcode);
+	const int n_elements = 16 / VD::element_size;
+	const int n_sub_elements = 4 / VA::element_size;
+
+	for (int i = 0; i < n_elements; i++) {
+		const typename VC::element_type c = VC::get_element(vC, i);
+		typename VD::element_type d = c;
+		for (int j = 0; j < n_sub_elements; j++) {
+			const typename VA::element_type a = VA::get_element(vA, i * n_sub_elements + j);
+			const typename VB::element_type b = VB::get_element(vB, i * n_sub_elements + j);
+			d += op_apply<typename VD::element_type, OP, VA, VB, null_vector_operand>::apply(a, b, c);
+		}
+		if (VD::saturate(d))
+			vscr().set_sat(1);
+		VD::set_element(vD, i, d);
+	}
+
+	increment_pc(4);
+}
+
+/**
+ *	Vector odd/even arithmetic
+ *
+ *		ODD		Flag: are we computing every odd element?
+ *		OP		Operation to perform on element
+ *		VD		Output operand vector
+ *		VA		Input operand vector
+ *		VB		Input operand vector (optional: operand_NONE)
+ *		VC		Input operand vector (optional: operand_NONE)
+ **/
+
+template< int ODD, class OP, class VD, class VA, class VB, class VC >
+void powerpc_cpu::execute_vector_arith_odd(uint32 opcode)
+{
+	typename VA::type const & vA = VA::const_ref(this, opcode);
+	typename VB::type const & vB = VB::const_ref(this, opcode);
+	typename VC::type const & vC = VC::const_ref(this, opcode);
+	typename VD::type & vD = VD::ref(this, opcode);
+	const int n_elements = 16 / VD::element_size;
+
+	for (int i = 0; i < n_elements; i++) {
+		const typename VA::element_type a = VA::get_element(vA, (i * 2) + ODD);
+		const typename VB::element_type b = VB::get_element(vB, (i * 2) + ODD);
+		const typename VC::element_type c = VC::get_element(vC, (i * 2) + ODD);
+		typename VD::element_type d = op_apply<typename VD::element_type, OP, VA, VB, VC>::apply(a, b, c);
+		if (VD::saturate(d))
+			vscr().set_sat(1);
+		VD::set_element(vD, i, d);
+	}
+
+	increment_pc(4);
+}
+
+/**
+ *	Vector merge instructions
+ *
+ *		OP		Operation to perform on element
+ *		VD		Output operand vector
+ *		VA		Input operand vector
+ *		VB		Input operand vector (optional: operand_NONE)
+ *		VC		Input operand vector (optional: operand_NONE)
+ *		LO		Flag: use lower part of element
+ **/
+
+template< class VD, class VA, class VB, int LO >
+void powerpc_cpu::execute_vector_merge(uint32 opcode)
+{
+	typename VA::type const & vA = VA::const_ref(this, opcode);
+	typename VB::type const & vB = VB::const_ref(this, opcode);
+	typename VD::type & vD = VD::ref(this, opcode);
+	const int n_elements = 16 / VD::element_size;
+
+	for (int i = 0; i < n_elements; i += 2) {
+		VD::set_element(vD, i    , VA::get_element(vA, (i / 2) + LO * (n_elements / 2)));
+		VD::set_element(vD, i + 1, VB::get_element(vB, (i / 2) + LO * (n_elements / 2)));
+	}
+
+	increment_pc(4);
+}
+
+/**
+ *	Vector pack/unpack instructions
+ *
+ *		OP		Operation to perform on element
+ *		VD		Output operand vector
+ *		VA		Input operand vector
+ *		VB		Input operand vector (optional: operand_NONE)
+ *		VC		Input operand vector (optional: operand_NONE)
+ *		LO		Flag: use lower part of element
+ **/
+
+template< class VD, class VA, class VB >
+void powerpc_cpu::execute_vector_pack(uint32 opcode)
+{
+	typename VA::type const & vA = VA::const_ref(this, opcode);
+	typename VB::type const & vB = VB::const_ref(this, opcode);
+	typename VD::type & vD = VD::ref(this, opcode);
+	const int n_elements = 16 / VD::element_size;
+	const int n_pivot = n_elements / 2;
+
+	for (int i = 0; i < n_elements; i++) {
+		typename VD::element_type d;
+		if (i < n_pivot)
+			d = VA::get_element(vA, i);
+		else
+			d = VB::get_element(vB, i - n_pivot);
+		if (VD::saturate(d))
+			vscr().set_sat(1);
+		VD::set_element(vD, i, d);
+	}
+
+	increment_pc(4);
+}
+
+template< int LO, class VD, class VA >
+void powerpc_cpu::execute_vector_unpack(uint32 opcode)
+{
+	typename VA::type const & vA = VA::const_ref(this, opcode);
+	typename VD::type & vD = VD::ref(this, opcode);
+	const int n_elements = 16 / VD::element_size;
+
+	for (int i = 0; i < n_elements; i++)
+		VD::set_element(vD, i, VA::get_element(vA, i + LO * n_elements));
+
+	increment_pc(4);
+}
+
+void powerpc_cpu::execute_vector_pack_pixel(uint32 opcode)
+{
+	powerpc_vr const & vA = vr(vA_field::extract(opcode));
+	powerpc_vr const & vB = vr(vB_field::extract(opcode));
+	powerpc_vr & vD = vr(vD_field::extract(opcode));
+
+	for (int i = 0; i < 4; i++) {
+		const uint32 a = vA.w[i];
+		vD.h[ev_mixed::half_element(i)] = ((a >> 9) & 0xfc00) | ((a >> 6) & 0x03e0) | ((a >> 3) & 0x001f);
+		const uint32 b = vB.w[i];
+		vD.h[ev_mixed::half_element(i + 4)] = ((b >> 9) & 0xfc00) | ((b >> 6) & 0x03e0) | ((b >> 3) & 0x001f);
+	}
+
+	increment_pc(4);
+}
+
+template< int LO >
+void powerpc_cpu::execute_vector_unpack_pixel(uint32 opcode)
+{
+	powerpc_vr const & vB = vr(vB_field::extract(opcode));
+	powerpc_vr & vD = vr(vD_field::extract(opcode));
+
+	for (int i = 0; i < 4; i++) {
+		const uint32 h = vB.h[ev_mixed::half_element(i + LO * 4)];
+		vD.w[i] = (((h & 0x8000) ? 0xff000000 : 0) |
+				   ((h & 0x7c00) << 6) |
+				   ((h & 0x03e0) << 3) |
+				   (h & 0x001f));
+	}
+
+	increment_pc(4);
+}
+
+/**
+ *	Vector shift instructions
+ *
+ *		SD		Shift direction: left (-1), right (+1)
+ *		OP		Operation to perform on element
+ *		VD		Output operand vector
+ *		VA		Input operand vector
+ *		VB		Input operand vector (optional: operand_NONE)
+ *		VC		Input operand vector (optional: operand_NONE)
+ *		SH		Shift count operand
+ **/
+
+template< int SD >
+void powerpc_cpu::execute_vector_shift(uint32 opcode)
+{
+	powerpc_vr const & vA = vr(vA_field::extract(opcode));
+	powerpc_vr const & vB = vr(vB_field::extract(opcode));
+	powerpc_vr & vD = vr(vD_field::extract(opcode));
+
+	// The contents of the low-order three bits of all byte
+	// elements in vB must be identical to vB[125-127]; otherwise
+	// the value placed into vD is undefined.
+	const int sh = vB.b[ev_mixed::byte_element(15)] & 7;
+	if (sh == 0) {
+		for (int i = 0; i < 4; i++)
+			vD.w[i] = vA.w[i];
+	}
+	else {
+		uint32 prev_bits = 0;
+		if (SD < 0) {
+			for (int i = 3; i >= 0; i--) {
+				uint32 next_bits = vA.w[i] >> (32 - sh);
+				vD.w[i] = ((vA.w[i] << sh) | prev_bits);
+				prev_bits = next_bits;
+			}
+		}
+		else if (SD > 0) {
+			for (int i = 0; i < 4; i++) {
+				uint32 next_bits = vA.w[i] << (32 - sh);
+				vD.w[i] = ((vA.w[i] >> sh) | prev_bits);
+				prev_bits = next_bits;
+			}
+		}
+	}
+
+	increment_pc(4);
+}
+
+template< int SD, class VD, class VA, class VB, class SH >
+void powerpc_cpu::execute_vector_shift_octet(uint32 opcode)
+{
+	typename VA::type const & vA = VA::const_ref(this, opcode);
+	typename VB::type const & vB = VB::const_ref(this, opcode);
+	typename VD::type & vD = VD::ref(this, opcode);
+	const int n_elements = 16 / VD::element_size;
+
+	const int sh = SH::get(this, opcode);
+	if (SD < 0) {
+		for (int i = 0; i < 16; i++) {
+			if (i + sh < 16)
+				VD::set_element(vD, i, VA::get_element(vA, i + sh));
+			else
+				VD::set_element(vD, i, VB::get_element(vB, 16 - (i + sh)));
+		}
+	}
+	else if (SD > 0) {
+		for (int i = 0; i < 16; i++) {
+			if (i < sh)
+				VD::set_element(vD, i, VB::get_element(vB, 16 - (i - sh)));
+			else
+				VD::set_element(vD, i, VA::get_element(vA, i - sh));
+		}
+	}
+
+	increment_pc(4);
+}
+
+/**
+ *	Vector splat instructions
+ *
+ *		OP		Operation to perform on element
+ *		VD		Output operand vector
+ *		VA		Input operand vector
+ *		VB		Input operand vector (optional: operand_NONE)
+ *		IM		Immediate value to replicate
+ **/
+
+template< class OP, class VD, class VB, bool IM >
+void powerpc_cpu::execute_vector_splat(uint32 opcode)
+{
+	typename VD::type & vD = VD::ref(this, opcode);
+	const int n_elements = 16 / VD::element_size;
+
+	uint32 value;
+	if (IM)
+		value = OP::apply(vUIMM_field::extract(opcode));
+	else {
+		typename VB::type const & vB = VB::const_ref(this, opcode);
+		const int n = vUIMM_field::extract(opcode) & (n_elements - 1);
+		value = OP::apply(VB::get_element(vB, n));
+	}
+
+	for (int i = 0; i < n_elements; i++)
+		VD::set_element(vD, i, value);
+
+	increment_pc(4);
+}
+
+/**
+ *	Vector sum instructions
+ *
+ *		SZ		Size of destination vector elements
+ *		VD		Output operand vector
+ *		VA		Input operand vector
+ *		VB		Input operand vector (optional: operand_NONE)
+ **/
+
+template< int SZ, class VD, class VA, class VB >
+void powerpc_cpu::execute_vector_sum(uint32 opcode)
+{
+	typename VA::type const & vA = VA::const_ref(this, opcode);
+	typename VB::type const & vB = VB::const_ref(this, opcode);
+	typename VD::type & vD = VD::ref(this, opcode);
+	typename VD::element_type d;
+	
+	switch (SZ) {
+	case 1: // vsum
+		d = VB::get_element(vB, 3);
+		for (int j = 0; j < 4; j++)
+			d += VA::get_element(vA, j);
+		if (VD::saturate(d))
+			vscr().set_sat(1);
+		VD::set_element(vD, 0, 0);
+		VD::set_element(vD, 1, 0);
+		VD::set_element(vD, 2, 0);
+		VD::set_element(vD, 3, d);
+		break;
+
+	case 2: // vsum2
+		for (int i = 0; i < 4; i += 2) {
+			d = VB::get_element(vB, i + 1);
+			for (int j = 0; j < 2; j++)
+				d += VA::get_element(vA, i + j);
+			if (VD::saturate(d))
+				vscr().set_sat(1);
+			VD::set_element(vD, i + 0, 0);
+			VD::set_element(vD, i + 1, d);
+		}
+		break;
+
+	case 4: // vsum4
+		for (int i = 0; i < 4; i += 1) {
+			d = VB::get_element(vB, i);
+			const int n_elements = 4 / VA::element_size;
+			for (int j = 0; j < n_elements; j++)
+				d += VA::get_element(vA, i * n_elements + j);
+			if (VD::saturate(d))
+				vscr().set_sat(1);
+			VD::set_element(vD, i, d);
+		}
+		break;
+	}
+
+	increment_pc(4);
+}
+
+/**
+ *		Misc vector instructions
+ **/
+
+void powerpc_cpu::execute_vector_permute(uint32 opcode)
+{
+	powerpc_vr const & vA = vr(vA_field::extract(opcode));
+	powerpc_vr const & vB = vr(vB_field::extract(opcode));
+	powerpc_vr const & vC = vr(vC_field::extract(opcode));
+	powerpc_vr & vD = vr(vD_field::extract(opcode));
+
+	for (int i = 0; i < 16; i++) {
+		const int ei = ev_mixed::byte_element(i);
+		const int n  = vC.b[ei] & 0x1f;
+		const int en = ev_mixed::byte_element(n & 0xf);
+		vD.b[ei] = (n & 0x10) ? vB.b[en] : vA.b[en];
+	}
+
+	increment_pc(4);
+}
+
+void powerpc_cpu::execute_mfvscr(uint32 opcode)
+{
+	const int vD = vD_field::extract(opcode);
+	vr(vD).w[0] = 0;
+	vr(vD).w[1] = 0;
+	vr(vD).w[2] = 0;
+	vr(vD).w[3] = vscr().get();
+	increment_pc(4);
+}
+
+void powerpc_cpu::execute_mtvscr(uint32 opcode)
+{
+	const int vB = vB_field::extract(opcode);
+	vscr().set(vr(vB).w[3]);
 	increment_pc(4);
 }
 

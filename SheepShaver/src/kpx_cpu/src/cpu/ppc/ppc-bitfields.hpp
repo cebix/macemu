@@ -88,6 +88,17 @@ typedef bit_field< 21, 25 > frC_field;
 typedef bit_field<  6, 10 > frD_field;
 typedef bit_field<  6, 10 > frS_field;
 
+// Vector registers
+typedef bit_field< 11, 15 > vA_field;
+typedef bit_field< 16, 20 > vB_field;
+typedef bit_field< 21, 25 > vC_field;
+typedef bit_field<  6, 10 > vD_field;
+typedef bit_field<  6, 10 > vS_field;
+
+typedef bit_field< 21, 21 > vRc_field;
+typedef bit_field< 11, 15 > vUIMM_field;
+typedef bit_field< 22, 25 > vSH_field;
+
 // Condition registers
 typedef bit_field< 11, 15 > crbA_field;
 typedef bit_field< 16, 20 > crbB_field;
@@ -151,6 +162,10 @@ typedef bit_field< 17, 17 > FPSCR_FPRF_FG_field; // >
 typedef bit_field< 18, 18 > FPSCR_FPRF_FE_field; // =
 typedef bit_field< 19, 19 > FPSCR_FPRF_FU_field; // ?
 
+// Vector Status and Control Register
+typedef bit_field< 15, 15 > VSCR_NJ_field;
+typedef bit_field< 31, 31 > VSCR_SAT_field;
+
 // Define variations for branch instructions
 typedef bit_field< 30, 30 > AA_field;
 typedef bit_field< 31, 31 > LK_field;
@@ -202,6 +217,7 @@ DEFINE_FIELD_ALIAS(AA_BIT, AA);
 DEFINE_FIELD_ALIAS(LK_BIT, LK);
 DEFINE_FIELD_ALIAS(BO_BIT, BO);
 DEFINE_FIELD_ALIAS(BI_BIT, BI);
+DEFINE_FIELD_ALIAS(vRC_BIT, vRc);
 
 #undef DEFINE_FIELD_ALIAS
 #undef DEFINE_FAKE_FIELD_ALIAS

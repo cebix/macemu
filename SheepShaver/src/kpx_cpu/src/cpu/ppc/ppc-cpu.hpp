@@ -48,7 +48,11 @@ protected:
 	powerpc_cr_register const & cr() const { return regs.cr; }
 	powerpc_xer_register & xer() { return regs.xer; }
 	powerpc_xer_register const & xer() const { return regs.xer; }
+	powerpc_vscr & vscr() { return regs.vscr; }
+	powerpc_vscr const & vscr() const { return regs.vscr; }
 
+	uint32 vrsave() const		{ return regs.vrsave; }
+	uint32 & vrsave()			{ return regs.vrsave; }
 	double fp_result() const	{ return regs.fp_result.d; }
 	double & fp_result()		{ return regs.fp_result.d; }
 	uint64 fp_result_dw() const	{ return regs.fp_result.j; }
@@ -79,6 +83,8 @@ public:
 	double fpr(int i) const		{ return regs.fpr[i].d; }
 	uint64 & fpr_dw(int i)		{ return regs.fpr[i].j; }
 	uint64 fpr_dw(int i) const	{ return regs.fpr[i].j; }
+	powerpc_vr & vr(int i)		{ return regs.vr[i]; }
+	powerpc_vr const & vr(int i) const { return regs.vr[i]; }
 
 protected:
 
@@ -90,6 +96,15 @@ protected:
 	void record_cr1()
 		{ cr().set((cr().get() & ~CR_field<1>::mask()) | ((fpscr() >> 4) & 0x0f000000)); }
 	void record_fpscr();
+	void record_cr6(powerpc_vr const & vS, bool check_one) {
+		if (check_one && (vS.j[0] == UVAL64(0xffffffffffffffff) &&
+						  vS.j[1] == UVAL64(0xffffffffffffffff)))
+			cr().set(6, 8);
+		else if (vS.j[0] == UVAL64(0) && vS.j[1] == UVAL64(0))
+			cr().set(6, 2);
+		else
+			cr().set(6, 0);
+	}
 
 	template< class FP >
 	void fp_classify(FP x);
@@ -125,7 +140,8 @@ protected:
 		MD_form, MDS_form,
 		SC_form,
 		X_form,
-		XFL_form, XFX_form, XL_form, XO_form, XS_form
+		XFL_form, XFX_form, XL_form, XO_form, XS_form,
+		VX_form, VXR_form, VA_form,
 	};
 
 	// Control flow types
@@ -149,13 +165,13 @@ protected:
 
 	// Instruction information structure
 	struct instr_info_t {
-		char			name[8];		// Instruction name
+		char			name[12];		// Instruction name
 		execute_fn		execute;		// Semantic routine for this instruction
 		decode_fn		decode;			// Specialized instruction decoder
 		uint16			mnemo;			// Mnemonic
 		uint16			format;			// Instruction format (XO-form, D-form, etc.)
-		uint32			opcode:6;		// Primary opcode
-		uint32			xo:10;			// Extended opcode
+		uint16			opcode;			// Primary opcode
+		uint16			xo;				// Extended opcode
 		uint16			cflow;			// Mask of control flow information
 	};
 
@@ -192,25 +208,15 @@ private:
 	syscall_fn execute_do_syscall;
 	int syscall_exit_code;
 
-#ifdef PPC_NO_STATIC_II_INDEX_TABLE
-#define PPC_STATIC_II_TABLE
-#else
-#define PPC_STATIC_II_TABLE static
-#endif
-
 	static const instr_info_t powerpc_ii_table[];
-	PPC_STATIC_II_TABLE std::vector<instr_info_t> ii_table;
-	typedef uint8 ii_index_t;
-	static const int II_INDEX_TABLE_SIZE = 0x10000;
-	PPC_STATIC_II_TABLE ii_index_t ii_index_table[II_INDEX_TABLE_SIZE];
+	std::vector<instr_info_t> ii_table;
+	typedef uint16 ii_index_t;
+	static const int II_INDEX_TABLE_SIZE = 0x20000;
+	ii_index_t ii_index_table[II_INDEX_TABLE_SIZE];
 
-#ifdef PPC_OPCODE_HASH_XO_PRIMARY
+	// Pack/unpack index into decode table
 	uint32 make_ii_index(uint32 opcode, uint32 xo) { return opcode | (xo << 6); }
-	uint32 get_ii_index(uint32 opcode) { return (opcode >> 26) | ((opcode & 0x7fe) << 5); }
-#else
-	uint32 make_ii_index(uint32 opcode, uint32 xo) { return opcode << 10 | xo; }
-	uint32 get_ii_index(uint32 opcode) { return ((opcode >> 16) & 0xfc00) | ((opcode >> 1) & 0x3ff); }
-#endif
+	uint32 get_ii_index(uint32 opcode) { return (opcode >> 26) | ((opcode & 0x7ff) << 6); }
 
 	// Convert 8-bit field mask (e.g. mtcrf) to bit mask
 	uint32 field2mask[256];
@@ -411,6 +417,36 @@ private:
 	void execute_invalidate_cache_range();
 	template< class RA, class RB >
 	void execute_dcbz(uint32 opcode);
+	template< class VD, class RA, class RB >
+	void execute_vector_load(uint32 opcode);
+	template< class VS, class RA, class RB >
+	void execute_vector_store(uint32 opcode);
+	void execute_mfvscr(uint32 opcode);
+	void execute_mtvscr(uint32 opcode);
+	template< class OP, class VD, class VA, class VB, class VC, class Rc, int C1 >
+	void execute_vector_arith(uint32 opcode);
+	template< class OP, class VD, class VA, class VB, class VC >
+	void execute_vector_arith_mixed(uint32 opcode);
+	template< int ODD, class OP, class VD, class VA, class VB, class VC >
+	void execute_vector_arith_odd(uint32 opcode);
+	template< class VD, class VA, class VB, int LO >
+	void execute_vector_merge(uint32 opcode);
+	template< class VD, class VA, class VB >
+	void execute_vector_pack(uint32 opcode);
+	void execute_vector_pack_pixel(uint32 opcode);
+	template< int LO >
+	void execute_vector_unpack_pixel(uint32 opcode);
+	template< int LO, class VD, class VA >
+	void execute_vector_unpack(uint32 opcode);
+	void execute_vector_permute(uint32 opcode);
+	template< int SD >
+	void execute_vector_shift(uint32 opcode);
+	template< int SD, class VD, class VA, class VB, class SH >
+	void execute_vector_shift_octet(uint32 opcode);
+	template< class OP, class VD, class VB, bool IM >
+	void execute_vector_splat(uint32 opcode);
+	template< int SZ, class VD, class VA, class VB >
+	void execute_vector_sum(uint32 opcode);
 
 	// Specialized instruction decoders
 	template< class RA, class RB, class RC, class CA >

@@ -38,32 +38,6 @@
 
 
 /**
- *	PPC_NO_STATIC_II_INDEX_TABLE
- *
- *		Define to make sure the ii_index_table[] is a non static
- *		member so that powerpc_cpu object size is reduced by 64
- *		KB. This is only supported for mono CPU configurations.
- **/
-
-#ifndef PPC_NO_STATIC_II_INDEX_TABLE
-#define PPC_NO_STATIC_II_INDEX_TABLE
-#endif
-
-
-/**
- *	PPC_OPCODE_HASH_XO_PRIMARY
- *
- *		Define to hash opcode hash (xo, primary opcode) instead of
- *		(primary opcode, xo). This simply reduces the computation
- *		index into instr_info[] table by one operation.
- **/
-
-#ifndef PPC_OPCODE_HASH_XO_PRIMARY
-#define PPC_OPCODE_HASH_XO_PRIMARY
-#endif
-
-
-/**
  *	PPC_ENABLE_FPU_EXCEPTIONS
  *
  *		Define to enable a more precise FPU emulation with support for
@@ -146,15 +120,6 @@
 
 #ifndef PPC_PROFILE_GENERIC_CALLS
 #define PPC_PROFILE_GENERIC_CALLS 0
-#endif
-
-
-/**
- *		Sanity checks and features enforcements
- **/
-
-#if KPX_MAX_CPUS == 1
-#undef PPC_NO_STATIC_II_INDEX_TABLE
 #endif
 
 #endif /* PPC_CONFIG_H */
