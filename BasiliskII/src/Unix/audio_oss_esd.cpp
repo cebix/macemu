@@ -31,7 +31,7 @@
 #endif
 
 #ifdef __FreeBSD__
-#include <machine/soundcard.h>
+#include <sys/soundcard.h>
 #endif
 
 #include "cpu_emulation.h"
