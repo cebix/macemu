@@ -4,7 +4,7 @@
  *
  *	$Id$
  *
- *  Basilisk II (C) 1997-2001 Christian Bauer
+ *  Basilisk II (C) 1997-2003 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -281,6 +281,21 @@
 	edited = YES;
 }
 
+
+// If we are not using the CGIMAGEREF drawing strategy,
+// then source bitmaps must be 32bits deep.
+
+- (short) testWinDepth: (int) newbpp
+{
+#ifdef CGIMAGEREF
+	return newbpp;
+#else
+	if ( newbpp != 32 )
+		WarningSheet(@"Sorry - In windowed mode, depth must be 32", panel);
+	return 32
+#endif
+}
+
 // This is called when any of the screen/openGL/window,
 // width, height or depth is clicked.
 //
@@ -314,44 +329,38 @@
 	}
 
 	// If we are changing type, supply some sensible defaults
+
+	short	screenx	= CGDisplayPixelsWide(kCGDirectMainDisplay),
+			screeny	= CGDisplayPixelsHigh(kCGDirectMainDisplay),
+			screenb = CGDisplayBitsPerPixel(kCGDirectMainDisplay);
+
 	if ( newtype != display_type )
 	{
 		D(NSLog(@"Changing display type in ChangeScreen"));
-		if ( newtype == DISPLAY_SCREEN )		// If changing to full screen
-		{
-			// supply main screen dimensions as a default
-			newx   = CGDisplayPixelsWide  (kCGDirectMainDisplay);
-			newy   = CGDisplayPixelsHigh  (kCGDirectMainDisplay);
-			newbpp = CGDisplayBitsPerPixel(kCGDirectMainDisplay);
-		}
 
-		if ( display_type == DISPLAY_SCREEN )	// If changing from full screen
+		// If changing to full screen, supply main screen dimensions as a default
+		if ( newtype == DISPLAY_SCREEN )
+			newx = screenx, newy = screeny, newbpp = screenb;
+
+		// If changing from full screen, use minimum screen resolutions
+		if ( display_type == DISPLAY_SCREEN )
         {
 			newx = MIN_WIDTH, newy = MIN_HEIGHT;
-#ifndef MAC_OS_X_VERSION_SUPPORTS_LOWER_DEPTHS
-            newbpp = 32;
-#endif
+			newbpp = [self testWinDepth: newbpp];
         }
-
-		[width	setIntValue: newx];
-		[height setIntValue: newy];
-		[depth	setIntValue: newbpp];
 	}
 	else
 	{
-#ifndef MAC_OS_X_VERSION_SUPPORTS_LOWER_DEPTHS
-		// Check depth
+		newbpp = [self testWinDepth: newbpp];
 
-		if ( display_type == DISPLAY_WINDOW && newbpp != 32 )
-		{
-			WarningSheet(@"Sorry - In windowed mode, depth must be 32", panel);
-			[depth setIntValue: 32];
-		}
-#endif		
 		// Check size is within ranges of MIN_WIDTH ... MAX_WIDTH
 		//							and MIN_HEIGHT ... MAX_HEIGHT
 		// ???
 	}
+
+	[width	setIntValue: newx];
+	[height setIntValue: newy];
+	[depth	setIntValue: newbpp];
 
 
 	// Store new prefs
