@@ -370,3 +370,40 @@ int main ()
   rm -f conf.esdtest
 ])
 
+dnl AM_ESD_SUPPORTS_MULTIPLE_RECORD([ACTION-IF-SUPPORTS [, ACTION-IF-NOT-SUPPORTS]])
+dnl Test, whether esd supports multiple recording clients (version >=0.2.21)
+dnl
+AC_DEFUN(AM_ESD_SUPPORTS_MULTIPLE_RECORD,
+[dnl
+  AC_MSG_NOTICE([whether installed esd version supports multiple recording clients])
+  ac_save_ESD_CFLAGS="$ESD_CFLAGS"
+  ac_save_ESD_LIBS="$ESD_LIBS"
+  AM_PATH_ESD(0.2.21,
+    ifelse([$1], , [
+      AM_CONDITIONAL(ESD_SUPPORTS_MULTIPLE_RECORD, true)
+      AC_DEFINE(ESD_SUPPORTS_MULTIPLE_RECORD, 1,
+	[Define if you have esound with support of multiple recording clients.])],
+    [$1]),
+    ifelse([$2], , [AM_CONDITIONAL(ESD_SUPPORTS_MULTIPLE_RECORD, false)], [$2])
+    if test "x$ac_save_ESD_CFLAGS" != x ; then
+       ESD_CFLAGS="$ac_save_ESD_CFLAGS"
+    fi
+    if test "x$ac_save_ESD_LIBS" != x ; then
+       ESD_LIBS="$ac_save_ESD_LIBS"
+    fi
+  )
+])
+
+# Define a conditional.
+
+AC_DEFUN(AM_CONDITIONAL,
+[AC_SUBST($1_TRUE)
+AC_SUBST($1_FALSE)
+if $2; then
+  $1_TRUE=
+  $1_FALSE='#'
+else
+  $1_TRUE='#'
+  $1_FALSE=
+fi])
+

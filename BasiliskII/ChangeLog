@@ -1,4 +1,7 @@
-V0.9 (snapshot) - 29.May.2001
+V0.9 (release 0.9-1) - 31.May 2001
+	- final adjustments for 0.9 release
+
+V0.9 (snapshot) - 29.May 2001
 	- added help for command line arguments, PrefsInit() now removes
 	  all processed options
 	- serial_unix.cpp: input/output_thread_cancel weren't initialized
