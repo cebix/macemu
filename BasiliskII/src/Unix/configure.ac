@@ -98,6 +98,7 @@ AC_PROG_CPP
 AC_PROG_CXX
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
+AC_PROG_EGREP
 
 dnl We use mon if possible.
 MONSRCS=
@@ -144,8 +145,17 @@ fi
 if [[ "x$WANT_SDL" = "xyes" ]]; then
   AC_PATH_PROG(sdl_config, "sdl-config")
   if [[ -n "$sdl_config" ]]; then
-    sdl_cflags=`$sdl_config --cflags`
-    sdl_libs=`$sdl_config --libs`
+    case $target_os in
+    # Special treatment for Cygwin so that we can still use the POSIX layer
+    *cygwin*)
+      sdl_cflags="-I`$sdl_config --prefix`/include/SDL"
+      sdl_libs="-L`$sdl_config --exec-prefix`/lib -lSDL"
+      ;;
+    *)
+      sdl_cflags=`$sdl_config --cflags`
+      sdl_libs=`$sdl_config --libs`
+      ;;
+    esac
     CFLAGS="$CFLAGS $sdl_cflags"
     CXXFLAGS="$CXXFLAGS $sdl_cflags"
     LIBS="$LIBS $sdl_libs"
@@ -342,6 +352,9 @@ mips-sony-bsd|mips-sony-newsos4)
 *-*-sco3.2v5*)
 	no_dev_ptmx=1
 	;;
+*-*-cygwin*)
+	no_dev_ptmx=1
+	;;
 esac
 
 if test -z "$no_dev_ptmx" ; then
@@ -451,6 +464,9 @@ darwin*)
   if [[ "x$ac_cv_framework_IOKit" = "xyes" ]]; then
     EXTRASYSSRCS="../MacOSX/sys_darwin.cpp"
   fi
+  ;;
+cygwin*)
+  SERIALSRC="../dummy/serial_dummy.cpp"
   ;;
 esac
 dnl SDL overrides
@@ -842,6 +858,30 @@ AC_CACHE_CHECK([whether your system supports Mach exceptions],
 )
 AC_TRANSLATE_DEFINE(HAVE_MACH_EXCEPTIONS, "$ac_cv_have_mach_exceptions",
   [Define if your system supports Mach exceptions.])
+
+dnl Check if Windows exceptions are supported.
+AC_CACHE_CHECK([whether your system supports Windows exceptions],
+  ac_cv_have_win32_exceptions, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #define HAVE_WIN32_EXCEPTIONS 1
+    #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+    #include "vm_alloc.cpp"
+    #include "sigsegv.cpp"
+  ], [
+  sigsegv_recovery=win32
+  ac_cv_have_win32_exceptions=yes
+  ],
+  ac_cv_have_win32_exceptions=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_have_win32_exceptions=no
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(HAVE_WIN32_EXCEPTIONS, "$ac_cv_have_win32_exceptions",
+  [Define if your system supports Windows exceptions.])
 
 dnl Otherwise, check if extended signals are supported.
 if [[ -z "$sigsegv_recovery" ]]; then
