@@ -306,6 +306,7 @@ static Screen_blit_func_info Screen_blitters[] = {
 // --> In that case, VOSF is not necessary
 bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order)
 {
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
 	visualFormat.depth = visual_info->depth;
 	visualFormat.Rmask = visual_info->red_mask;
 	visualFormat.Gmask = visual_info->green_mask;
@@ -349,6 +350,11 @@ bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order)
 			visualFormat.Rshift, visualFormat.Gshift, visualFormat.Bshift);
 		abort();
 	}
+#else
+	// The UAE memory handlers will blit correctly
+	// --> no need for specialised blitters here
+	Screen_blit = Blit_Copy_Raw;
+#endif
 	
 	// If the blitter simply reduces to a copy, we don't need VOSF in DGA mode
 	// --> In that case, we return FALSE
