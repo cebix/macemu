@@ -13,7 +13,7 @@ dnl Options.
 AC_ARG_ENABLE(jit,          [  --enable-jit            enable JIT compiler [default=yes]], [WANT_JIT=$enableval], [WANT_JIT=yes])
 AC_ARG_ENABLE(ppc-emulator, [  --enable-ppc-emulator   use the selected PowerPC emulator [default=auto]], [WANT_EMULATED_PPC=$enableval], [WANT_EMULATED_PPC=auto])
 AC_ARG_ENABLE(xf86-dga,     [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
-AC_ARG_ENABLE(xf86-vidmode, [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
+AC_ARG_ENABLE(xf86-vidmode, [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=no]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=no])
 AC_ARG_ENABLE(vosf,         [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=yes])
 AC_ARG_WITH(esd,            [  --with-esd              support ESD for sound under Linux/FreeBSD [default=yes]], [WANT_ESD=$withval], [WANT_ESD=yes])
 AC_ARG_WITH(gtk,            [  --with-gtk              use GTK user interface [default=yes]], [WANT_GTK=$withval], [WANT_GTK=yes])
@@ -526,10 +526,8 @@ AC_CACHE_CHECK([whether your system supports Mach exceptions],
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
     #include "vm_alloc.cpp"
     #include "sigsegv.cpp"
-  ], [
-  sigsegv_recovery=mach
-  ac_cv_have_mach_exceptions=yes
   ],
+  ac_cv_have_mach_exceptions=yes,
   ac_cv_have_mach_exceptions=no,
   dnl When cross-compiling, do not assume anything.
   ac_cv_have_mach_exceptions=no
@@ -537,6 +535,9 @@ AC_CACHE_CHECK([whether your system supports Mach exceptions],
   AC_LANG_RESTORE
   ]
 )
+if [[ "$ac_cv_have_mach_exceptions" = "yes" ]]; then
+  sigsegv_recovery=mach
+fi
 AC_TRANSLATE_DEFINE(HAVE_MACH_EXCEPTIONS, "$ac_cv_have_mach_exceptions",
   [Define if your system supports Mach exceptions.])
 
@@ -551,10 +552,8 @@ if [[ -z "$sigsegv_recovery" ]]; then
       #define CONFIGURE_TEST_SIGSEGV_RECOVERY
       #include "vm_alloc.cpp"
       #include "sigsegv.cpp"
-    ], [
-    sigsegv_recovery=siginfo
-    ac_cv_have_extended_signals=yes
     ],
+    ac_cv_have_extended_signals=yes,
     ac_cv_have_extended_signals=no,
     dnl When cross-compiling, do not assume anything.
     ac_cv_have_extended_signals=no
@@ -562,6 +561,9 @@ if [[ -z "$sigsegv_recovery" ]]; then
     AC_LANG_RESTORE
     ]
   )
+  if [[ "$ac_cv_have_extended_signals" = "yes" ]]; then
+    sigsegv_recovery=siginfo
+  fi
   AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_extended_signals",
     [Define if your system support extended signals.])
 fi
@@ -577,16 +579,17 @@ if [[ -z "$sigsegv_recovery" ]]; then
       #define CONFIGURE_TEST_SIGSEGV_RECOVERY
       #include "vm_alloc.cpp"
       #include "sigsegv.cpp"
-    ], [
-    sigsegv_recovery=sigcontext
-    ac_cv_have_sigcontext_hack=yes
     ],
+    ac_cv_have_sigcontext_hack=yes,
     ac_cv_have_sigcontext_hack=no,
     dnl When cross-compiling, do not assume anything.
     ac_cv_have_sigcontext_hack=no
     )
     AC_LANG_RESTORE
   ])
+  if [[ "$ac_cv_have_sigcontext_hack" = "yes" ]]; then
+    sigsegv_recovery=sigcontext
+  fi
   AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack",
     [Define if we know a hack to replace siginfo_t->si_addr member.])
 fi
