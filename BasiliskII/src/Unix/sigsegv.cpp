@@ -217,8 +217,11 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_FAULT_ADDRESS			sip->si_addr
 #if (defined(i386) || defined(__i386__))
 #define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_eip)
-#define SIGSEGV_REGISTER_FILE			((unsigned int *)&(((struct sigcontext *)scp)->sc_edi))
+#define SIGSEGV_REGISTER_FILE			((unsigned int *)&(((struct sigcontext *)scp)->sc_edi)) /* EDI is the first GPR (even below EIP) in sigcontext */
+/* (gb) Disable because this would hang configure script for some reason
+ * though standalone testing gets it right. Any idea why?
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+*/
 #endif
 #if defined(__linux__)
 #if (defined(i386) || defined(__i386__))
@@ -463,7 +466,9 @@ static bool ix86_skip_instruction(unsigned int * regs)
 	// Decode instruction
 	switch (eip[0]) {
 	case 0x0f:
-	    if (eip[1] == 0xb7) { // MOVZX r32, r/m16
+	    switch (eip[1]) {
+	    case 0xb6: // MOVZX r32, r/m8
+	    case 0xb7: // MOVZX r32, r/m16
 		switch (eip[2] & 0xc0) {
 		case 0x80:
 		    reg = (eip[2] >> 3) & 7;
@@ -479,6 +484,7 @@ static bool ix86_skip_instruction(unsigned int * regs)
 		    break;
 		}
 		len += 3 + ix86_step_over_modrm(eip + 2);
+		break;
 	    }
 	  break;
 	case 0x8a: // MOV r8, r/m8

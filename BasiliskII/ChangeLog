@@ -3,8 +3,7 @@ V1.0 (snapshot) - <date>
    just 60Hz (e.g. moving the mouse made the caret blink faster)
  - Unix: cleaned up pthread attributes [Brian Johnson]
  - Unix: fixed floppy problems under Linux
- - Unix: implement "ignoresegv" feature on Linux/x86, Linux/ppc, Darwin/ppc,
-   FreeBSD/x86
+ - Unix: implement "ignoresegv" feature on Linux/x86, Linux/ppc, Darwin/ppc
 
 V1.0 (snapshot) - 15.Jan.2002
  - added support for on-the-fly video resolution and depth switching, and

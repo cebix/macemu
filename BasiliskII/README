@@ -578,7 +578,7 @@ Unix:
 
     Set this to "true" to ignore illegal memory accesses. The default
     is "false". This feature is only implemented on the following
-    platforms: Linux/x86, Linux/ppc, Darwin/ppc, FreeBSD/x86.
+    platforms: Linux/x86, Linux/ppc, Darwin/ppc.
 
 AmigaOS:
 
