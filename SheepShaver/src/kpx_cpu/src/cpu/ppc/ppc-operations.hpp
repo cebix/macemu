@@ -127,6 +127,25 @@ DEFINE_ALIAS_OP(xor_64, xor, uint64);
 
 // Floating-point basic operations
 
+#ifndef HAVE_EXP2F
+#ifdef HAVE_EXP2
+#define exp2f(x) (float)exp2(x)
+#else
+#define exp2f(x) powf(2.0, (x))
+#endif
+#endif
+
+#ifndef HAVE_LOG2F
+#ifdef HAVE_LOG2
+#define log2f(x) (float)log2(x)
+#else
+#ifndef M_LN2
+#define M_LN2 logf(2.0)
+#endif
+#define log2f(x) logf(x) / M_LN2
+#endif
+#endif
+
 DEFINE_OP1(fnop, double, x);
 DEFINE_OP1(fabs, double, fabs(x));
 DEFINE_OP2(fadd, double, x + y);
