@@ -95,6 +95,7 @@ bool Init680x0(void)
 
 void Exit680x0(void)
 {
+	exit_m68k();
 }
 
 
