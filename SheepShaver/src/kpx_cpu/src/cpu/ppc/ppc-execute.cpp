@@ -566,7 +566,7 @@ void powerpc_cpu::execute_loadstore_multiple(uint32 opcode)
 	// FIXME: generate exception if ea is not word-aligned
 	if ((ea & 3) != 0) {
 #ifdef SHEEPSHAVER
-		D(bug("unaligned EA load/store multiple\n"));
+		D(bug("unaligned load/store multiple to %08x\n", ea));
 		increment_pc(4);
 		return;
 #else

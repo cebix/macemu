@@ -101,6 +101,7 @@ protected:
 #endif
 		uint32 pc;
 		uint32 opcode;
+		uint32 extra;
 	};
 
 	// Instruction formats
@@ -202,10 +203,12 @@ public:
 
 	// Handle flight recorder
 #if PPC_FLIGHT_RECORDER
+	bool is_logging() { return logging; }
 	void start_log() { logging = true; }
 	void stop_log() { logging = false; }
 	void dump_log(const char *filename = NULL);
 #else
+	bool is_logging() { return false; }
 	void start_log() { }
 	void stop_log() { }
 	void dump_log(const char *filename = NULL) { }
