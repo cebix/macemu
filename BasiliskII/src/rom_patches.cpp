@@ -34,7 +34,7 @@
 #include "prefs.h"
 #include "rom_patches.h"
 
-#define DEBUG 0
+#define DEBUG 1
 #include "debug.h"
 
 
@@ -1157,13 +1157,20 @@ static bool patch_rom_32(void)
 	*wp++ = htons(M68K_NOP);
 	*wp = htons(M68K_NOP);
 
-	// Fix logical/physical RAM size (CompBootStack) (must be done after InitMemMgr!)
-	static const uint8 fix_memsize_dat[] = {0x4e, 0x75};
-	if ((base = find_rom_data(0x490, 0x4b0, fix_memsize_dat, sizeof(fix_memsize_dat))) == 0) return false;
-	D(bug("fix_memsize %08lx\n", base));
-	wp = (uint16 *)(ROMBaseHost + base);
+	// Compute boot stack pointer and fix logical/physical RAM size (CompBootStack) (must be done after InitMemMgr!)
+	wp = (uint16 *)(ROMBaseHost + 0x490);
+	*wp++ = htons(0x2038);	// move.l	$10c,d0
+	*wp++ = htons(0x010c);
+	*wp++ = htons(0xd0b8);	// add.l	$2a6,d0
+	*wp++ = htons(0x02a6);
+	*wp++ = htons(0xe288);	// lsr.l	#1,d0
+	*wp++ = htons(0x0880);	// bclr		#0,d0
+	*wp++ = htons(0x0000);
+	*wp++ = htons(0x0440);	// subi.w	#$400,d0
+	*wp++ = htons(0x0400);
+	*wp++ = htons(0x2040);	// move.l	d0,a0
 	*wp++ = htons(M68K_EMUL_OP_FIX_MEMSIZE);
-	*wp = htons(M68K_RTS);
+	*wp++ = htons(M68K_RTS);
 
 	static const uint8 fix_memsize2_dat[] = {0x22, 0x30, 0x81, 0xe2, 0x0d, 0xdc, 0xff, 0xba, 0xd2, 0xb0, 0x81, 0xe2, 0x0d, 0xdc, 0xff, 0xec, 0x21, 0xc1, 0x1e, 0xf8};
 	base = find_rom_data(0x4c000, 0x4c080, fix_memsize2_dat, sizeof(fix_memsize2_dat));

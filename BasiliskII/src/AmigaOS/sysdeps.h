@@ -42,6 +42,9 @@
 // ExtFS is supported
 #define SUPPORTS_EXTFS 1
 
+// mon is not supported
+#define ENABLE_MON 0
+
 // Data types
 typedef unsigned char uint8;
 typedef signed char int8;

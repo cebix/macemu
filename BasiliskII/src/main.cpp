@@ -41,6 +41,20 @@
 #define DEBUG 0
 #include "debug.h"
 
+#if ENABLE_MON
+#include "mon.h"
+
+static uint32 mon_read_byte_b2(uint32 adr)
+{
+	return ReadMacInt8(adr);
+}
+
+static void mon_write_byte_b2(uint32 adr, uint32 b)
+{
+	WriteMacInt8(adr, b);
+}
+#endif
+
 
 /*
  *  Initialize everything, returns false on error
@@ -130,6 +144,14 @@ bool InitAll(void)
 		ErrorAlert(GetString(STR_UNSUPPORTED_ROM_TYPE_ERR));
 		return false;
 	}
+
+#if ENABLE_MON
+	// Initialize mon
+	mon_init();
+	mon_read_byte = mon_read_byte_b2;
+	mon_write_byte = mon_write_byte_b2;
+#endif
+
 	return true;
 }
 
@@ -140,6 +162,11 @@ bool InitAll(void)
 
 void ExitAll(void)
 {
+#if ENABLE_MON
+	// Deinitialize mon
+	mon_exit();
+#endif
+
 	// Save XPRAM
 	XPRAMExit();
 

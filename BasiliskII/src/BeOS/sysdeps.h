@@ -43,6 +43,9 @@
 // ExtFS is supported
 #define SUPPORTS_EXTFS 1
 
+// mon is not supported
+#define ENABLE_MON 0
+
 // Time data type for Time Manager emulation
 typedef bigtime_t tm_time_t;
 

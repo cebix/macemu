@@ -22,6 +22,19 @@ AC_PROG_CXX
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
 
+dnl We use mon if possible.
+MONSRCS=
+AC_MSG_CHECKING(for mon)
+if grep mon_init ../../../mon/src/mon.h >/dev/null 2>/dev/null; then
+  AC_MSG_RESULT(yes)
+  DEFINES="$DEFINES -DENABLE_MON=1"
+  MONSRCS="../../../mon/src/mon.cpp ../../../mon/src/mon_6502.cpp ../../../mon/src/mon_68k.cpp ../../../mon/src/mon_8080.cpp ../../../mon/src/mon_cmd.cpp ../../../mon/src/mon_ppc.cpp ../../../mon/src/mon_x86.cpp"
+  CXXFLAGS="$CXXFLAGS -I../../../mon/src"
+else
+  AC_MSG_RESULT(no)
+  DEFINES="$DEFINES -DENABLE_MON=0"
+fi
+
 dnl Checks for libraries.
 AC_CHECK_LIB(posix4, sem_init)
 
@@ -176,7 +189,7 @@ if MACHINE=`uname -a 2>/dev/null`; then
     ;;
   esac
 fi
-SYSSRCS="$SYSSRCS $SEMSRCS $UISRCS"
+SYSSRCS="$SYSSRCS $SEMSRCS $UISRCS $MONSRCS"
 
 dnl Check for i386 CPU.
 HAVE_I386=no
