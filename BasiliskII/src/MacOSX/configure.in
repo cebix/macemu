@@ -687,4 +687,4 @@ echo Floating-Point emulation core .... : $FPE_CORE_STR
 echo Assembly optimizations ........... : $ASM_OPTIMIZATIONS
 echo Addressing mode .................. : $ADDRESSING_MODE
 echo
-echo "Configuration done. Now type \"make\" (or \"gmake\")."
+echo "Configuration done. Now type \"make\" (or \"make ide\")."
