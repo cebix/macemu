@@ -51,6 +51,8 @@ extern int test_and_set(int *var, int val);
 extern int __clone(int (*fn)(void *), void *, int, void *);
 
 /* struct sem_t */
+#define status __status
+#define spinlock __spinlock
 #define sem_lock __sem_lock
 #define sem_value __sem_value
 #define sem_waiting __sem_waiting
