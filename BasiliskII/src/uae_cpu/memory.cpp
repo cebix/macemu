@@ -19,12 +19,20 @@
 #include "main.h"
 #include "video.h"
 
+#if !REAL_ADDRESSING && !DIRECT_ADDRESSING
+
 static bool illegal_mem = false;
 
 #ifdef SAVE_MEMORY_BANKS
 addrbank *mem_banks[65536];
 #else
 addrbank mem_banks[65536];
+#endif
+
+#ifdef WORDS_BIGENDIAN
+# define swap_words(X) (X)
+#else
+# define swap_words(X) (((X) >> 16) | ((X) << 16))
 #endif
 
 #ifdef NO_INLINE_MEMORY_ACCESS
@@ -399,7 +407,7 @@ uae_u32 REGPARAM2 frame_host_555_lget(uaecptr addr)
     uae_u32 *m, l;
     m = (uae_u32 *)(FrameBaseDiff + addr);
     l = *m;
-    return (l >> 16) | (l << 16);
+	return swap_words(l);
 }
 
 uae_u32 REGPARAM2 frame_host_555_wget(uaecptr addr)
@@ -413,7 +421,7 @@ void REGPARAM2 frame_host_555_lput(uaecptr addr, uae_u32 l)
 {
     uae_u32 *m;
     m = (uae_u32 *)(FrameBaseDiff + addr);
-    *m = (l >> 16) | (l << 16);
+    *m = swap_words(l);
 }
 
 void REGPARAM2 frame_host_555_wput(uaecptr addr, uae_u32 w)
@@ -429,7 +437,7 @@ uae_u32 REGPARAM2 frame_host_565_lget(uaecptr addr)
     m = (uae_u32 *)(FrameBaseDiff + addr);
     l = *m;
     l = (l & 0x001f001f) | ((l >> 1) & 0x7fe07fe0);
-    return (l >> 16) | (l << 16);
+    return swap_words(l);
 }
 
 uae_u32 REGPARAM2 frame_host_565_wget(uaecptr addr)
@@ -445,7 +453,7 @@ void REGPARAM2 frame_host_565_lput(uaecptr addr, uae_u32 l)
     uae_u32 *m;
     m = (uae_u32 *)(FrameBaseDiff + addr);
     l = (l & 0x001f001f) | ((l << 1) & 0xffc0ffc0);
-    *m = (l >> 16) | (l << 16);
+    *m = swap_words(l);
 }
 
 void REGPARAM2 frame_host_565_wput(uaecptr addr, uae_u32 w)
@@ -609,3 +617,6 @@ void map_banks(addrbank *bank, int start, int size)
 	for (bnr = start; bnr < start+size; bnr++)
 	    put_mem_bank((bnr + hioffs) << 16, bank);
 }
+
+#endif /* !REAL_ADDRESSING && !DIRECT_ADDRESSING */
+
