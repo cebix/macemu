@@ -393,37 +393,37 @@ void OPPROTO op_mtcrf_T0_im(void)
 #define do_fabs(x)				fabs(x)
 #endif
 #ifndef do_fadd
-#define do_fadd(x, y)			x + y
+#define do_fadd(x, y)			(x) + (y)
 #endif
 #ifndef do_fdiv
-#define do_fdiv(x, y)			x / y
+#define do_fdiv(x, y)			(x) / (y)
 #endif
 #ifndef do_fmadd
-#define do_fmadd(x, y, z)		((x * y) + z)
+#define do_fmadd(x, y, z)		(((x) * (y)) + (z))
 #endif
 #ifndef do_fmsub
-#define do_fmsub(x, y, z)		((x * y) - z)
+#define do_fmsub(x, y, z)		(((x) * (y)) - (z))
 #endif
 #ifndef do_fmul
-#define do_fmul(x, y)			(x * y)
+#define do_fmul(x, y)			((x) * (y))
 #endif
 #ifndef do_fneg
-#define do_fneg(x)				-x
+#define do_fneg(x)				-(x)
 #endif
 #ifndef do_fnabs
 #define do_fnabs(x)				do_fneg(do_fabs(x))
 #endif
 #ifndef do_fnmadd
-#define do_fnmadd(x, y, z)		do_fneg((x * y) + z)
+#define do_fnmadd(x, y, z)		do_fneg(((x) * (y)) + (z))
 #endif
 #ifndef do_fnmsub
-#define do_fnmsub(x, y, z)		do_fneg((x * y) - z)
+#define do_fnmsub(x, y, z)		do_fneg(((x) * (y)) - (z))
 #endif
 #ifndef do_fsub
-#define do_fsub(x, y)			x - y
+#define do_fsub(x, y)			(x) - (y)
 #endif
 #ifndef do_fmov
-#define do_fmov(x)				x
+#define do_fmov(x)				(x)
 #endif
 
 
