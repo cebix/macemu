@@ -1129,20 +1129,62 @@ bool VideoInit(void)
 		break;
 	}
 
+	// Get screen mode from preferences
+	const char *mode_str = PrefsFindString("screen");
+	int default_width = 640, default_height = 480;
+	if (mode_str) {
+		display_type = DIS_INVALID;
+		if (sscanf(mode_str, "win/%d/%d", &default_width, &default_height) == 2)
+			display_type = DIS_WINDOW;
+#ifdef ENABLE_XF86_DGA
+		else if (has_dga && sscanf(mode_str, "dga/%d/%d", &default_width, &default_height) == 2)
+			display_type = DIS_SCREEN;
+#endif
+		if (display_type == DIS_INVALID) {
+			D(bug("Invalid screen mode specified, defaulting to old modes selection\n"));
+			mode_str = NULL;
+		}
+		else {
+			if (default_width <= 0)
+				default_width = DisplayWidth(x_display, screen);
+			else if (default_width > DisplayWidth(x_display, screen))
+				default_width = DisplayWidth(x_display, screen);
+			if (default_height <= 0)
+				default_height = DisplayHeight(x_display, screen);
+			else if (default_height > DisplayHeight(x_display, screen))
+				default_height = DisplayHeight(x_display, screen);
+		}
+	}
+
 	// Construct video mode table
 	uint32 window_modes = PrefsFindInt32("windowmodes");
 	uint32 screen_modes = PrefsFindInt32("screenmodes");
 	if (!has_dga)
 		screen_modes = 0;
-	if (window_modes == 0 && screen_modes == 0)
+	if (mode_str)
+		window_modes = screen_modes = 0;
+	else if (window_modes == 0 && screen_modes == 0)
 		window_modes |= 3;	// Allow at least 640x480 and 800x600 window modes
 
 	VideoInfo *p = VModes;
-	for (unsigned int d = APPLE_1_BIT; d <= APPLE_32_BIT; d++)
-		if (find_visual_for_depth(d))
-			add_window_modes(p, window_modes, d);
-
-	if (has_vidmode) {
+	if (mode_str) {
+		if (display_type == DIS_WINDOW) {
+			for (unsigned int d = APPLE_1_BIT; d <= APPLE_32_BIT; d++) {
+				if (find_visual_for_depth(d)) {
+					if (default_width > 640 && default_height > 480)
+						add_mode(p, 3, 1, d, APPLE_W_640x480, DIS_WINDOW);
+					if (default_width > 800 && default_height > 600)
+						add_mode(p, 3, 2, d, APPLE_W_800x600, DIS_WINDOW);
+					add_custom_mode(p, display_type, default_width, default_height, d, APPLE_CUSTOM);
+				}
+			}
+		} else
+			add_custom_mode(p, display_type, default_width, default_height, default_mode, APPLE_CUSTOM);
+	} else if (window_modes) {
+		for (unsigned int d = APPLE_1_BIT; d <= APPLE_32_BIT; d++)
+			if (find_visual_for_depth(d))
+				add_window_modes(p, window_modes, d);
+	} else if (has_vidmode) {
 		if (has_mode(640, 480))
 			add_mode(p, screen_modes, 1, default_mode, APPLE_640x480, DIS_SCREEN);
 		if (has_mode(800, 600))
@@ -1183,7 +1225,9 @@ bool VideoInit(void)
 		int apple_id = find_apple_resolution(screen_width, screen_height);
 		if (apple_id != -1)
 			cur_mode = find_mode(default_mode, apple_id, DIS_SCREEN);
-	}
+	} else if (has_dga && mode_str)
+		cur_mode = find_mode(default_mode, APPLE_CUSTOM, DIS_SCREEN);
+
 	if (cur_mode == -1) {
 		// pick up first windowed mode available
 		for (VideoInfo *p = VModes; p->viType != DIS_INVALID; p++) {
