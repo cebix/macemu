@@ -180,11 +180,13 @@ static void find_hfs_partition(cdrom_drive_info &info)
 {
 	info.start_byte = 0;
 	uint8 *map = new uint8[512];
+	D(bug("Looking for HFS partitions on CD-ROM...\n"));
 
 	// Search first 64 blocks for HFS partition
 	for (int i=0; i<64; i++) {
 		if (Sys_read(info.fh, map, i * 512, 512) != 512)
 			break;
+		D(bug(" block %d, signature '%c%c' (%02x%02x)\n", i, map[0], map[1], map[0], map[1]));
 
 		// Not a partition map block? Then look at next block
 		uint16 sig = (map[0] << 8) | map[1];

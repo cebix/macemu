@@ -208,10 +208,8 @@ void SysAddCDROMPrefs(void)
 			closedir(cd_dir);
 		}
 	}
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 	PrefsAddString("cdrom", "/dev/cd0c");
-#elif defined(__NetBSD__)
-	PrefsAddString("cdrom", "/dev/cd0d");
 #endif
 }
 
