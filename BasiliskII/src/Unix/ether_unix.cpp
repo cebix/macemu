@@ -466,7 +466,8 @@ void EtherInterrupt(void)
 	D(bug("EtherIRQ\n"));
 
 	// Call protocol handler for received packets
-	uint8 packet[1516];
+	// NOTE: "static" so that packet[] has a 32-bit address (.data section, not stack)
+	static uint8 packet[1516];
 	ssize_t length;
 	for (;;) {
 
