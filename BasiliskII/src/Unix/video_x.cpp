@@ -52,6 +52,10 @@
 #include <X11/extensions/xf86dga.h>
 #endif
 
+#if ENABLE_XF86_VIDMODE
+#include <X11/extensions/xf86vmode.h>
+#endif
+
 #if ENABLE_FBDEV_DGA
 #include <sys/mman.h>
 #endif
@@ -82,6 +86,7 @@ static volatile bool redraw_thread_cancel = false;	// Flag: Cancel Redraw thread
 static pthread_t redraw_thread;						// Redraw thread
 
 static bool has_dga = false;						// Flag: Video DGA capable
+static bool has_vidmode = false;					// Flag: VidMode extension available
 
 static bool ctrl_down = false;						// Flag: Ctrl key pressed
 static bool caps_on = false;						// Flag: Caps Lock on
@@ -133,6 +138,12 @@ static pthread_mutex_t frame_buffer_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex t
 // Variables for fbdev DGA mode
 const char FBDEVICE_FILE_NAME[] = "/dev/fb";
 static int fbdev_fd;
+
+#if ENABLE_XF86_VIDMODE
+// Variables for XF86 VidMode support
+static XF86VidModeModeInfo **x_video_modes;			// Array of all available modes
+static int num_x_video_modes;
+#endif
 
 
 // Prototypes
@@ -482,6 +493,21 @@ static bool init_xf86_dga(int width, int height)
 	// Set relative mouse mode
 	ADBSetRelMouseMode(true);
 
+#if ENABLE_XF86_VIDMODE
+	// Switch to best mode
+	if (has_vidmode) {
+		int best = 0;
+		for (int i=1; i<num_x_video_modes; i++) {
+			if (x_video_modes[i]->hdisplay >= width && x_video_modes[i]->vdisplay >= height &&
+				x_video_modes[i]->hdisplay <= x_video_modes[best]->hdisplay && x_video_modes[i]->vdisplay <= x_video_modes[best]->vdisplay) {
+				best = i;
+			}
+		}
+		XF86VidModeSwitchToMode(x_display, screen, x_video_modes[best]);
+		XF86VidModeSetViewPort(x_display, screen, 0, 0);
+	}
+#endif
+
 	// Create window
 	XSetWindowAttributes wattr;
 	wattr.event_mask = eventmask = dga_eventmask;
@@ -635,11 +661,11 @@ bool VideoInit(bool classic)
 	else
 		has_dga = false;
 #endif
-	
+
 #if ENABLE_XF86_DGA
 	// DGA available?
-	int event_base, error_base;
-	if (XF86DGAQueryExtension(x_display, &event_base, &error_base)) {
+	int dga_event_base, dga_error_base;
+	if (XF86DGAQueryExtension(x_display, &dga_event_base, &dga_error_base)) {
 		int dga_flags = 0;
 		XF86DGAQueryDirectVideo(x_display, screen, &dga_flags);
 		has_dga = dga_flags & XF86DGADirectPresent;
@@ -647,6 +673,14 @@ bool VideoInit(bool classic)
 		has_dga = false;
 #endif
 
+#if ENABLE_XF86_VIDMODE
+	// VidMode available?
+	int vm_event_base, vm_error_base;
+	has_vidmode = XF86VidModeQueryExtension(x_display, &vm_event_base, &vm_error_base);
+	if (has_vidmode)
+		XF86VidModeGetAllModeLines(x_display, screen, &num_x_video_modes, &x_video_modes);
+#endif
+	
 	// Find black and white colors
 	XParseColor(x_display, DefaultColormap(x_display, screen), "rgb:00/00/00", &black);
 	XAllocColor(x_display, DefaultColormap(x_display, screen), &black);
@@ -796,6 +830,11 @@ void VideoExit(void)
 			XUngrabPointer(x_display, CurrentTime);
 			XUngrabKeyboard(x_display, CurrentTime);
 		}
+#endif
+
+#if ENABLE_XF86_VIDMODE
+		if (has_vidmode && display_type == DISPLAY_DGA)
+			XF86VidModeSwitchToMode(x_display, screen, x_video_modes[0]);
 #endif
 
 #if ENABLE_FBDEV_DGA
