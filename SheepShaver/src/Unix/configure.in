@@ -602,6 +602,8 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
     fi
   fi
   CPUSRCS="$CPUSRCS ../kpx_cpu/sheepshaver_glue.cpp"
+else
+  WANT_JIT=no
 fi
 if [[ "x$ac_cv_use_dyngen" = "xyes" ]]; then
   AC_CACHE_CHECK([whether static data regions are executable],
