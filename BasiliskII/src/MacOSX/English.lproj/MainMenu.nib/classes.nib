@@ -1,7 +1,15 @@
 {
     IBClasses = (
         {
-            ACTIONS = {NewEmulator = id; PauseAll = id; RunAll = id; TerminateAll = id; }; 
+            ACTIONS = {
+                HelpHowTo = id; 
+                HelpToDo = id; 
+                HelpVersions = id; 
+                NewEmulator = id; 
+                PauseAll = id; 
+                RunAll = id; 
+                TerminateAll = id; 
+            }; 
             CLASS = Controller; 
             LANGUAGE = ObjC; 
             OUTLETS = {theEmulator = id; thePrefsEditor = id; }; 
