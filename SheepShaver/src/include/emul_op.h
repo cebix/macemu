@@ -52,9 +52,12 @@ enum { // Selectors for NATIVE_EXEC callbacks (only used with PPC emulation)
   NATIVE_GET_IND_RESOURCE,
   NATIVE_GET_1_IND_RESOURCE,
   NATIVE_R_GET_RESOURCE,
+  NATIVE_DISABLE_INTERRUPT,
+  NATIVE_ENABLE_INTERRUPT,
   NATIVE_OP_MAX
 };
-#define POWERPC_NATIVE_OP_FUNC(SELECTOR) ((uint32)(uintptr)&NativeOpTable[SELECTOR])
+#define POWERPC_NATIVE_OP(SELECTOR) NativeOpTable[SELECTOR]
+#define POWERPC_NATIVE_OP_FUNC(SELECTOR) ((uint32)(uintptr)&POWERPC_NATIVE_OP(SELECTOR))
 extern const uint32 NativeOpTable[NATIVE_OP_MAX];
 
 // 68k opcodes
