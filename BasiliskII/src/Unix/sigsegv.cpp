@@ -79,6 +79,8 @@ static bool sigsegv_do_install_handler(int sig);
 #if (defined(powerpc) || defined(__powerpc__))
 #include <sys/ucontext.h>
 #define SIGSEGV_FAULT_INSTRUCTION		(((ucontext_t *)scp)->uc_mcontext.regs->nip)
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)(((ucontext_t *)scp)->uc_mcontext.regs)
+#define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
 #endif
 #endif
 #endif
@@ -105,6 +107,8 @@ static bool sigsegv_do_install_handler(int sig);
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, struct sigcontext *scp
 #define SIGSEGV_FAULT_ADDRESS			scp->regs->dar
 #define SIGSEGV_FAULT_INSTRUCTION		scp->regs->nip
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)(scp->regs)
+#define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
 #endif
 #if (defined(alpha) || defined(__alpha__))
 #include <asm/sigcontext.h>
@@ -445,7 +449,7 @@ static bool ix86_skip_instruction(sigsegv_address_t fault_instruction, unsigned 
 	}
 
 #if DEBUG
-	printf("%08x: %s %s access", regs[X86_REG_EIP],
+	printf("%08x: %s %s access", fault_instruction,
 		   transfer_size == SIZE_BYTE ? "byte" : transfer_size == SIZE_WORD ? "word" : "long",
 		   transfer_type == TYPE_LOAD ? "read" : "write");
 	
@@ -460,6 +464,154 @@ static bool ix86_skip_instruction(sigsegv_address_t fault_instruction, unsigned 
 #endif
 	
 	regs[X86_REG_EIP] += len;
+	return true;
+}
+#endif
+// Decode and skip PPC instruction
+#if (defined(powerpc) || defined(__powerpc__))
+#if defined(__linux__)
+enum {
+	POWERPC_REG_GPR = 0,
+	POWERPC_REG_NIP = 32
+};
+#endif
+static bool powerpc_skip_instruction(sigsegv_address_t fault_instruction, unsigned long * regs)
+{
+	// Get opcode and divide into fields
+	unsigned int opcode = *((unsigned int *)fault_instruction);
+	unsigned int primop = opcode >> 26;
+	unsigned int exop = (opcode >> 1) & 0x3ff;
+	unsigned int ra = (opcode >> 16) & 0x1f;
+	unsigned int rb = (opcode >> 11) & 0x1f;
+	unsigned int rd = (opcode >> 21) & 0x1f;
+	signed int imm = (signed short)(opcode & 0xffff);
+	
+	// Analyze opcode
+	enum {
+		TYPE_UNKNOWN,
+		TYPE_LOAD,
+		TYPE_STORE
+	} transfer_type = TYPE_UNKNOWN;
+	enum {
+		SIZE_UNKNOWN,
+		SIZE_BYTE,
+		SIZE_HALFWORD,
+		SIZE_WORD
+	} transfer_size = SIZE_UNKNOWN;
+	enum {
+		MODE_UNKNOWN,
+		MODE_NORM,
+		MODE_U,
+		MODE_X,
+		MODE_UX
+	} addr_mode = MODE_UNKNOWN;
+	switch (primop) {
+	case 31:
+		switch (exop) {
+		case 23:	// lwzx
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_X; break;
+		case 55:	// lwzux
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_UX; break;
+		case 87:	// lbzx
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_X; break;
+		case 119:	// lbzux
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_UX; break;
+		case 151:	// stwx
+			transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_X; break;
+		case 183:	// stwux
+			transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_UX; break;
+		case 215:	// stbx
+			transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_X; break;
+		case 247:	// stbux
+			transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_UX; break;
+		case 279:	// lhzx
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_X; break;
+		case 311:	// lhzux
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_UX; break;
+		case 343:	// lhax
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_X; break;
+		case 375:	// lhaux
+			transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_UX; break;
+		case 407:	// sthx
+			transfer_type = TYPE_STORE; transfer_size = SIZE_HALFWORD; addr_mode = MODE_X; break;
+		case 439:	// sthux
+			transfer_type = TYPE_STORE; transfer_size = SIZE_HALFWORD; addr_mode = MODE_UX; break;
+		}
+		break;
+	
+	case 32:	// lwz
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_NORM; break;
+	case 33:	// lwzu
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_WORD; addr_mode = MODE_U; break;
+	case 34:	// lbz
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_NORM; break;
+	case 35:	// lbzu
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_BYTE; addr_mode = MODE_U; break;
+	case 36:	// stw
+		transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_NORM; break;
+	case 37:	// stwu
+		transfer_type = TYPE_STORE; transfer_size = SIZE_WORD; addr_mode = MODE_U; break;
+	case 38:	// stb
+		transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_NORM; break;
+	case 39:	// stbu
+		transfer_type = TYPE_STORE; transfer_size = SIZE_BYTE; addr_mode = MODE_U; break;
+	case 40:	// lhz
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_NORM; break;
+	case 41:	// lhzu
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_U; break;
+	case 42:	// lha
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_NORM; break;
+	case 43:	// lhau
+		transfer_type = TYPE_LOAD; transfer_size = SIZE_HALFWORD; addr_mode = MODE_U; break;
+	case 44:	// sth
+		transfer_type = TYPE_STORE; transfer_size = SIZE_HALFWORD; addr_mode = MODE_NORM; break;
+	case 45:	// sthu
+		transfer_type = TYPE_STORE; transfer_size = SIZE_HALFWORD; addr_mode = MODE_U; break;
+	}
+	
+	// Calculate effective address
+	unsigned int addr = 0;
+	switch (addr_mode) {
+	case MODE_X:
+	case MODE_UX:
+		if (ra == 0)
+			addr = regs[POWERPC_REG_GPR + rb];
+		else
+			addr = regs[POWERPC_REG_GPR + ra] + regs[POWERPC_REG_GPR + rb];
+		break;
+	case MODE_NORM:
+	case MODE_U:
+		if (ra == 0)
+			addr = (signed int)(signed short)imm;
+		else
+			addr = regs[POWERPC_REG_GPR + ra] + (signed int)(signed short)imm;
+		break;
+	default:
+		break;
+	}
+	
+	if (transfer_type == TYPE_UNKNOWN) {
+		// Unknown machine code, let it crash. Then patch the decoder
+		return false;
+	}
+
+#if DEBUG
+	printf("%08x: %s %s access", fault_instruction,
+		   transfer_size == SIZE_BYTE ? "byte" : transfer_size == SIZE_HALFWORD ? "word" : "long",
+		   transfer_type == TYPE_LOAD ? "read" : "write");
+	
+	if (addr_mode == MODE_U || addr_mode == MODE_UX)
+		printf(" r%d (ra = %08x)\n", ra, addr);
+	if (transfer_type == TYPE_LOAD)
+		printf(" r%d (rd = 0)\n", rd);
+#endif
+	
+	if (addr_mode == MODE_U || addr_mode == MODE_UX)
+		regs[POWERPC_REG_GPR + ra] = addr;
+	if (transfer_type == TYPE_LOAD)
+		regs[POWERPC_REG_GPR + rd] = 0;
+	
+	regs[POWERPC_REG_NIP] += 4;
 	return true;
 }
 #endif
