@@ -855,6 +855,7 @@ for fpe in $FPE_CORE_TEST_ORDER; do
     IEEE*)
       FPE_CORE="IEEE fpu core"
       DEFINES="$DEFINES -DFPU_IEEE"
+      AC_DEFINE(FPU_IEEE, 1, [Floating Point Core emulation method is IEEE.])
       FPUSRCS="../uae_cpu/fpu/fpu_ieee.cpp"
       dnl Math functions not mandated by C99 standard
       AC_CHECK_FUNCS(isnanl isinfl)
@@ -880,6 +881,7 @@ for fpe in $FPE_CORE_TEST_ORDER; do
   uae)
     FPE_CORE="uae fpu core"
     DEFINES="$DEFINES -DFPU_UAE"
+    AC_DEFINE(FPU_UAE, 1, [Floating Point Core emulation is standard UAE.])
     FPUSRCS="../uae_cpu/fpu/fpu_uae.cpp"
     break
     ;;
