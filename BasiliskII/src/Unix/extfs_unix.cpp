@@ -161,6 +161,7 @@ static const ext2type e2t_translation[] = {
 	{".Z", FOURCC('Z','I','V','M'), FOURCC('L','Z','I','V')},
 	{".gz", FOURCC('G','z','i','p'), FOURCC('G','z','i','p')},
 	{".hqx", FOURCC('T','E','X','T'), FOURCC('S','I','T','x')},
+	{".bin", FOURCC('T','E','X','T'), FOURCC('S','I','T','x')},
 	{".pdf", FOURCC('P','D','F',' '), FOURCC('C','A','R','O')},
 	{".ps", FOURCC('T','E','X','T'), FOURCC('t','t','x','t')},
 	{".sit", FOURCC('S','I','T','!'), FOURCC('S','I','T','x')},

@@ -39,7 +39,7 @@ case "$target_os" in
   netbsd*)	OS_TYPE=netbsd;;
   freebsd*)	OS_TYPE=freebsd;;
   solaris*)	OS_TYPE=solaris;;
-  *)		OS_TYPE=`echo $target_os | sed -e 's/-/_/'`;;
+  *)		OS_TYPE=`echo $target_os | sed -e 's/-/_/' | sed -e 's/\./_/'`;;
 esac
 DEFINES="$DEFINES -DOS_$OS_TYPE"
 
@@ -260,7 +260,8 @@ solaris*)
   ;;
 irix*)
   EXTRASYSSRCS=Irix/unaligned.c
-  DEFINES="$DEFINES -DCRTSCTS=CNEW_RTSCTS -DB230400=B115200"
+  dnl IRIX headers work fine, but somehow don't define or use "STDC_HEADERS"
+  DEFINES="$DEFINES -DCRTSCTS=CNEW_RTSCTS -DB230400=B115200 -DSTDC_HEADERS"
   LIBS="$LIBS -lm"
   ;;
 esac
