@@ -750,6 +750,35 @@ void powerpc_cpu::execute_stwcx(uint32 opcode)
 }
 
 /**
+ *	Basic (and probably incorrect) implementation for missing functions
+ *	in older C libraries
+ **/
+
+#ifndef signbit
+#define signbit(X) my_signbit(X)
+#endif
+
+static inline bool my_signbit(double X) {
+	return X < 0.0;
+}
+
+#ifndef isless
+#define isless(X, Y) my_isless(X, Y)
+#endif
+
+static inline bool my_isless(double X, double Y) {
+	return X < Y;
+}
+
+#ifndef isgreater
+#define isgreater(X, Y) my_isgreater(X, Y)
+#endif
+
+static inline bool my_isgreater(double X, double Y) {
+	return X > Y;
+}
+
+/**
  *	Floating-point compare instruction
  *
  *		OC		Predicate for ordered compare
