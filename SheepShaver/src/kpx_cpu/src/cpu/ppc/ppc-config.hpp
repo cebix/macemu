@@ -83,7 +83,7 @@
  **/
 
 #ifndef PPC_LAZY_PC_UPDATE
-#define PPC_LAZY_PC_UPDATE
+#undef  PPC_LAZY_PC_UPDATE
 #endif
 
 
@@ -124,7 +124,7 @@
  **/
 
 #ifndef PPC_NO_DECODE_CACHE
-#undef  PPC_NO_DECODE_CACHE
+#define PPC_NO_DECODE_CACHE 1
 #endif
 
 
