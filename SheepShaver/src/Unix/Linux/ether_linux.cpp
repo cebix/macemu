@@ -453,7 +453,7 @@ void EtherIRQ(void)
 			num_rx_packets++;
 			mblk_t *mp;
 			if ((mp = allocb(size, 0)) != NULL) {
-				D(bug(" packet data at %p\n", mp->b_rptr));
+				D(bug(" packet data at %p\n", (void *)mp->b_rptr));
 				memcpy(mp->b_rptr, p, size);
 				mp->b_wptr += size;
 				ether_packet_received(mp);
@@ -484,7 +484,7 @@ void EtherIRQ(void)
 			num_rx_packets++;
 			mblk_t *mp;
 			if ((mp = allocb(size, 0)) != NULL) {
-				D(bug(" packet data at %p\n", mp->b_rptr));
+				D(bug(" packet data at %p\n", (void *)mp->b_rptr));
 				read(fd, mp->b_rptr, 1514);
 #if MONITOR
 				bug("Receiving Ethernet packet:\n");

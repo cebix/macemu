@@ -381,7 +381,7 @@ void EtherIRQ(void)
 			//!! maybe use esballoc()
 			mblk_t *mp;
 			if ((mp = allocb(size, 0)) != NULL) {
-				D(bug(" packet data at %p\n", mp->b_rptr));
+				D(bug(" packet data at %p\n", (void *)mp->b_rptr));
 				memcpy(mp->b_rptr, p->data, size);
 				mp->b_wptr += size;
 				ether_packet_received(mp);

@@ -58,7 +58,7 @@ static const int kGSshift = 6;
 static const int kGSmask = 0x1F;
 
 struct multicast_node {
-	multicast_node *next;
+	nw_multicast_node_p next;
 	uint8 addr[kEnetPhysicalAddressLength];
 };
 
@@ -124,15 +124,20 @@ struct DLPIStream {
 		return NULL;
 	}
 
-	uint32 minor_num;					// Minor device number of this stream
-	uint32 dlpi_state;					// DLPI state of this stream
-	uint32 flags;						// Flags
-	uint16 dlsap;						// SAP bound to this stream
-	bool framing_8022;					// Using 802.2 framing? This is only used to report the MAC type for DL_INFO_ACK and can be set with an ioctl() call
-	queue_t *rdq;						// Read queue for this stream
-	uint32 group_sap[kGroupSAPMapSize];	// Map of bound group SAPs
-	uint8 snap[k8022SNAPLength];		// SNAP bound to this stream
-	multicast_node *multicast_list;		// List of enabled multicast addresses
+	nw_uint32 minor_num;					// Minor device number of this stream
+	nw_uint32 dlpi_state;					// DLPI state of this stream
+	nw_uint32 flags;						// Flags
+	nw_uint16 dlsap;						// SAP bound to this stream
+	nw_bool framing_8022;					// Using 802.2 framing? This is only used to report the MAC type for DL_INFO_ACK and can be set with an ioctl() call
+	nw_queue_p rdq;							// Read queue for this stream
+	nw_uint32 group_sap[kGroupSAPMapSize];	// Map of bound group SAPs
+	uint8 snap[k8022SNAPLength];			// SNAP bound to this stream
+	nw_multicast_node_p multicast_list;		// List of enabled multicast addresses
+};
+
+// Hack to make DLPIStream list initialization early to NULL (do we really need this?)
+struct DLPIStreamInit {
+	DLPIStreamInit(nw_DLPIStream_p *dlpi_stream_p) { *dlpi_stream_p = NULL; }
 };
 
 // Stream flags
@@ -144,7 +149,8 @@ enum {
 };
 
 // List of opened streams (used internally by OpenTransport)
-static DLPIStream *dlpi_stream_list = NULL;
+static nw_DLPIStream_p dlpi_stream_list;
+static DLPIStreamInit dlpi_stream_init(&dlpi_stream_list);
 
 // Are we open?
 bool ether_driver_opened = false;
@@ -433,7 +439,7 @@ int ether_open(queue_t *rdq, void *dev, int flag, int sflag, void *creds)
 		return 0;
 
 	// Allocate DLPIStream structure
-	int err = mi_open_comm(&dlpi_stream_list, sizeof(DLPIStream), rdq, dev, flag, sflag, creds);
+	int err = mi_open_comm((DLPIStream **)&dlpi_stream_list, sizeof(DLPIStream), rdq, dev, flag, sflag, creds);
 	if (err)
 		return err;
 	DLPIStream *the_stream = (DLPIStream *)rdq->q_ptr;
@@ -476,7 +482,7 @@ int ether_close(queue_t *rdq, int flag, void *creds)
 	the_stream->multicast_list = NULL;
 
 	// Delete the DLPIStream
-	return mi_close_comm(&dlpi_stream_list, rdq);
+	return mi_close_comm((DLPIStream **)&dlpi_stream_list, rdq);
 }
 
 
@@ -499,7 +505,7 @@ int ether_wput(queue_t *q, mblk_t *mp)
 	if (the_stream == NULL)
 		return MAC_ENXIO;
 
-	D(bug(" db_type %d\n", mp->b_datap->db_type));
+	D(bug(" db_type %d\n", (int)mp->b_datap->db_type));
 	switch (mp->b_datap->db_type) {
 
 		case M_DATA:
@@ -511,7 +517,7 @@ int ether_wput(queue_t *q, mblk_t *mp)
 
 		case M_PROTO:
 		case M_PCPROTO: {
-			union DL_primitives *dlp = (union DL_primitives *)mp->b_rptr;
+			union DL_primitives *dlp = (union DL_primitives *)(void *)mp->b_rptr;
 			uint32 prim = dlp->dl_primitive;
 			D(bug(" dl_primitive %d\n", prim));
 			switch (prim) {
@@ -605,8 +611,8 @@ int ether_rsrv(queue_t *q)
 
 static void ether_ioctl(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 {
-	struct iocblk *ioc = (struct iocblk *)mp->b_rptr;
-	D(bug(" ether_ioctl(%p,%p) cmd %d\n", q, mp, ioc->ioc_cmd));
+	struct iocblk *ioc = (struct iocblk *)(void *)mp->b_rptr;
+	D(bug(" ether_ioctl(%p,%p) cmd %d\n", q, mp, (int)ioc->ioc_cmd));
 
 	switch (ioc->ioc_cmd) {
 
@@ -616,7 +622,7 @@ static void ether_ioctl(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 				ioc->ioc_error = MAC_EINVAL;
 				goto ioctl_error;
 			}
-			uint32 framing_type = *(uint32 *)info_mp->b_rptr;
+			uint32 framing_type = ntohl(*(uint32 *)(void *)info_mp->b_rptr);
 			D(bug("  I_OTSetFramingType type %d\n", framing_type));
 			if (framing_type != kOTGetFramingValue)
 				the_stream->framing_8022 = (framing_type == kOTFraming8022);
@@ -663,8 +669,8 @@ static void ether_ioctl(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 				ioc->ioc_error = MAC_EINVAL;
 				goto ioctl_error;
 			}
-			dlrc = (dl_recv_control_t *)info_mp->b_rptr;
-			D(bug("  I_OTSetRawMode primitive %d\n", dlrc->dl_primitive));
+			dlrc = (dl_recv_control_t *)(void *)info_mp->b_rptr;
+			D(bug("  I_OTSetRawMode primitive %d\n", (int)dlrc->dl_primitive));
 			ioc->ioc_error = MAC_EINVAL;
 			goto ioctl_error;
 		}
@@ -797,7 +803,7 @@ static mblk_t *reuse_message_block(mblk_t *mp, uint16 needed_size)
 static mblk_t *build_tx_packet_header(DLPIStream *the_stream, mblk_t *mp, bool fast_path)
 {
 	// Only handle unit_data requests
-	dl_unitdata_req_t *req = (dl_unitdata_req_t *)mp->b_rptr;
+	dl_unitdata_req_t *req = (dl_unitdata_req_t *)(void *)mp->b_rptr;
 	if (req->dl_primitive != DL_UNITDATA_REQ) {
 		freemsg(mp);
 		return NULL;
@@ -815,10 +821,10 @@ static mblk_t *build_tx_packet_header(DLPIStream *the_stream, mblk_t *mp, bool f
 			dlsap = the_stream->dlsap;
 			break;
 		case kEnetAndSAPAddressLength:	
-			dlsap = *(uint16 *)(destAddrOrig + kEnetPhysicalAddressLength);
+			dlsap = ntohs(*(uint16 *)(destAddrOrig + kEnetPhysicalAddressLength));
 			break;
 		case kEnetPhysicalAddressLength + k8022DLSAPLength + k8022SNAPLength:	// SNAP SAP
-			dlsap = *(uint16 *)(destAddrOrig + kEnetPhysicalAddressLength);
+			dlsap = ntohs(*(uint16 *)(destAddrOrig + kEnetPhysicalAddressLength));
 			break;
 		default:
 			dlsap = the_stream->dlsap;
@@ -870,7 +876,7 @@ static mblk_t *build_tx_packet_header(DLPIStream *the_stream, mblk_t *mp, bool f
 	// Resize header info in message block
 	if ((mp = reuse_message_block(mp, hdrsize)) == NULL)
 		return NULL;
-	struct T8022FullPacketHeader *packetHeader = (struct T8022FullPacketHeader *)mp->b_rptr;
+	struct T8022FullPacketHeader *packetHeader = (struct T8022FullPacketHeader *)(void *)mp->b_rptr;
 
 	// Set protocol type/size field
 	packetHeader->fEnetPart.fProto = proto;
@@ -910,7 +916,7 @@ static mblk_t *build_tx_packet_header(DLPIStream *the_stream, mblk_t *mp, bool f
 
 static void transmit_packet(mblk_t *mp)
 {
-	EnetPacketHeader *enetHeader = (EnetPacketHeader *)mp->b_rptr;
+	EnetPacketHeader *enetHeader = (EnetPacketHeader *)(void *)mp->b_rptr;
 
 	// Fill in length in 802.3 packets
 	if (enetHeader->fProto == 0)
@@ -967,7 +973,7 @@ static void handle_received_packet(DLPIStream *the_stream, mblk_t *mp, uint16 pa
 
 	// Set message type
 	nmp->b_datap->db_type = M_PROTO;
-	dl_unitdata_ind_t *ind = (dl_unitdata_ind_t*)nmp->b_rptr;
+	dl_unitdata_ind_t *ind = (dl_unitdata_ind_t*)(void *)nmp->b_rptr;
 	ind->dl_primitive = DL_UNITDATA_IND;
 	nmp->b_wptr += (sizeof(dl_unitdata_ind_t) + 2*addr_len);
 
@@ -984,7 +990,7 @@ static void handle_received_packet(DLPIStream *the_stream, mblk_t *mp, uint16 pa
 	ind->dl_group_address = dest_addr_type;
 
 	// Set address fields
-	T8022FullPacketHeader *packetHeader = (T8022FullPacketHeader *)mp->b_rptr;
+	T8022FullPacketHeader *packetHeader = (T8022FullPacketHeader *)(void *)mp->b_rptr;
 	T8022AddressStruct *destAddr = ((T8022AddressStruct*)(nmp->b_rptr + ind->dl_dest_addr_offset));
 	T8022AddressStruct *srcAddr = ((T8022AddressStruct*)(nmp->b_rptr + ind->dl_src_addr_offset));
 
@@ -1016,7 +1022,7 @@ static void handle_received_packet(DLPIStream *the_stream, mblk_t *mp, uint16 pa
 void ether_packet_received(mblk_t *mp)
 {
 	// Extract address and types
-	EnetPacketHeader *pkt = (EnetPacketHeader *)mp->b_rptr;
+	EnetPacketHeader *pkt = (EnetPacketHeader *)(void *)mp->b_rptr;
 	T8022FullPacketHeader *fullpkt = (T8022FullPacketHeader *)pkt;
 	uint16 sourceSAP, destSAP;
 	destSAP = fullpkt->fEnetPart.fProto;
@@ -1108,7 +1114,7 @@ static void DLPI_error_ack(DLPIStream *the_stream, queue_t *q, mblk_t *ack_mp, u
 		return;
 
 	ack_mp->b_datap->db_type = M_PCPROTO;
-	dl_error_ack_t *errp = (dl_error_ack_t *)ack_mp->b_wptr;
+	dl_error_ack_t *errp = (dl_error_ack_t *)(void *)ack_mp->b_wptr;
 	errp->dl_primitive = DL_ERROR_ACK;
 	errp->dl_error_primitive = prim;
 	errp->dl_errno = err;
@@ -1138,7 +1144,7 @@ static void DLPI_ok_ack(DLPIStream *the_stream, queue_t *q, mblk_t *ack_mp, uint
 	}
 
 	ack_mp->b_datap->db_type = M_PCPROTO;
-	dl_ok_ack_t *ackp = (dl_ok_ack_t *)ack_mp->b_rptr;
+	dl_ok_ack_t *ackp = (dl_ok_ack_t *)(void *)ack_mp->b_rptr;
 	ackp->dl_primitive = DL_OK_ACK;
 	ackp->dl_correct_primitive = prim;
 	ack_mp->b_wptr = ack_mp->b_rptr + sizeof(dl_ok_ack_t);
@@ -1178,7 +1184,7 @@ static void DLPI_info(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 
 	// Set up message type
 	ack_mp->b_datap->db_type = M_PCPROTO;
-	dl_info_ack_t *ackp = (dl_info_ack_t *)ack_mp->b_rptr;
+	dl_info_ack_t *ackp = (dl_info_ack_t *)(void *)ack_mp->b_rptr;
 	ackp->dl_primitive = DL_INFO_ACK;
 
 	// Info/version fields
@@ -1230,7 +1236,7 @@ static void DLPI_info(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 static void DLPI_phys_addr(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 {
 	D(bug("  DLPI_phys_addr(%p,%p)\n", the_stream, mp));
-	dl_phys_addr_req_t *req = (dl_phys_addr_req_t *)mp->b_rptr;
+	dl_phys_addr_req_t *req = (dl_phys_addr_req_t *)(void *)mp->b_rptr;
 
 	// Allocate message block for reply
 	mblk_t *ack_mp;
@@ -1241,7 +1247,7 @@ static void DLPI_phys_addr(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 
 	// Set up message type
 	ack_mp->b_datap->db_type = M_PCPROTO;
-	dl_phys_addr_ack_t *ackp = (dl_phys_addr_ack_t *)ack_mp->b_wptr;
+	dl_phys_addr_ack_t *ackp = (dl_phys_addr_ack_t *)(void *)ack_mp->b_wptr;
 	ackp->dl_primitive = DL_PHYS_ADDR_ACK;
 
 	// Fill in address
@@ -1270,7 +1276,7 @@ static void DLPI_phys_addr(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 
 static void DLPI_bind(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 {
-	dl_bind_req_t *req = (dl_bind_req_t *)mp->b_rptr;
+	dl_bind_req_t *req = (dl_bind_req_t *)(void *)mp->b_rptr;
 	uint32 sap = req->dl_sap;
 	D(bug("  DLPI_bind(%p,%p) SAP %04x\n", the_stream, mp, sap));
 
@@ -1307,7 +1313,7 @@ static void DLPI_bind(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 
 	// Set up message type
 	ack_mp->b_datap->db_type = M_PCPROTO;
-	dl_bind_ack_t *ackp = (dl_bind_ack_t *)ack_mp->b_rptr;
+	dl_bind_ack_t *ackp = (dl_bind_ack_t *)(void *)ack_mp->b_rptr;
 	ackp->dl_primitive = DL_BIND_ACK;
 
 	// Fill in other fields
@@ -1380,10 +1386,10 @@ static void DLPI_unbind(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 
 static void DLPI_subs_bind(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 {
-	dl_subs_bind_req_t *req = (dl_subs_bind_req_t *)mp->b_rptr;
+	dl_subs_bind_req_t *req = (dl_subs_bind_req_t *)(void *)mp->b_rptr;
 	uint8 *sap = ((uint8 *)req) + req->dl_subs_sap_offset;
 	int32 length = req->dl_subs_sap_length;
-	uint16 theSap = *((uint16 *)sap);
+	uint16 theSap = ntohs(*((uint16 *)sap));
 	int32 error = 0;
 	D(bug("  DLPI_subs_bind(%p,%p) SAP %02x%02x%02x%02x%02x\n", the_stream, mp, sap[0], sap[1], sap[2], sap[3], sap[4]));
 
@@ -1438,7 +1444,7 @@ static void DLPI_subs_bind(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 
 	// Set up message type
 	ack_mp->b_datap->db_type = M_PCPROTO;
-	dl_subs_bind_ack_t *ackp = (dl_subs_bind_ack_t *)ack_mp->b_wptr;
+	dl_subs_bind_ack_t *ackp = (dl_subs_bind_ack_t *)(void *)ack_mp->b_wptr;
 	memset(ackp, 0, sizeof(dl_subs_bind_ack_t) + length);
 	ackp->dl_primitive = DL_SUBS_BIND_ACK;
 
@@ -1465,7 +1471,7 @@ static void DLPI_subs_bind(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 
 static void DLPI_subs_unbind(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 {
-	dl_subs_unbind_req_t *req = (dl_subs_unbind_req_t *)mp->b_rptr;
+	dl_subs_unbind_req_t *req = (dl_subs_unbind_req_t *)(void *)mp->b_rptr;
 	uint8 *sap = ((uint8 *)req) + req->dl_subs_sap_offset;
 	int32 length = req->dl_subs_sap_length;
 	int32 error = 0;
@@ -1516,7 +1522,7 @@ static void DLPI_subs_unbind(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 
 static void DLPI_enable_multi(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 {
-	dl_enabmulti_req_t*	req = (dl_enabmulti_req_t*)mp->b_rptr;
+	dl_enabmulti_req_t*	req = (dl_enabmulti_req_t*)(void *)mp->b_rptr;
 	uint8 *reqaddr = (uint8 *)(mp->b_rptr + req->dl_addr_offset);
 	D(bug("  DLPI_enable_multi(%p,%p) addr %02x%02x%02x%02x%02x%02x\n", the_stream, mp, reqaddr[0], reqaddr[1], reqaddr[2], reqaddr[3], reqaddr[4], reqaddr[5]));
 
@@ -1555,7 +1561,7 @@ static void DLPI_enable_multi(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 
 static void DLPI_disable_multi(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 {
-	dl_disabmulti_req_t *req = (dl_disabmulti_req_t*)mp->b_rptr;
+	dl_disabmulti_req_t *req = (dl_disabmulti_req_t*)(void *)mp->b_rptr;
 	uint8 *reqaddr = (uint8 *)(mp->b_rptr + req->dl_addr_offset);
 	D(bug("  DLPI_disable_multi(%p,%p) addr %02x%02x%02x%02x%02x%02x\n", the_stream, mp, reqaddr[0], reqaddr[1], reqaddr[2], reqaddr[3], reqaddr[4], reqaddr[5]));
 
@@ -1596,7 +1602,7 @@ static void DLPI_disable_multi(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 static void DLPI_unit_data(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 {
 	D(bug("  DLPI_unit_data(%p,%p)\n", the_stream, mp));
-	dl_unitdata_req_t *req = (dl_unitdata_req_t *)mp->b_rptr;
+	dl_unitdata_req_t *req = (dl_unitdata_req_t *)(void *)mp->b_rptr;
 
 	// Stream must be idle
 	if (the_stream->dlpi_state != DL_IDLE) {
@@ -1611,7 +1617,7 @@ static void DLPI_unit_data(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 			return;
 		}
 		bp->b_datap->db_type = M_PROTO;
-		errp = (dl_uderror_ind_t *)bp->b_wptr;
+		errp = (dl_uderror_ind_t *)(void *)bp->b_wptr;
 		errp->dl_primitive = DL_UDERROR_IND;
 		errp->dl_errno = DL_OUTSTATE;
 		errp->dl_unix_errno = 0;

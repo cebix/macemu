@@ -189,201 +189,287 @@ enum EAddrType {
 
 
 /*
+ *  Data member wrappers
+ */
+
+// Big-endian memory accessor
+template< int nbytes >
+struct nw_memory_helper;
+
+template<>
+struct nw_memory_helper<1> {
+	static inline uint8 load(void *ptr) { return *((uint8 *)ptr); }
+	static inline void store(void *ptr, uint8 val) { *((uint8 *)ptr) = val; }
+};
+
+template<>
+struct nw_memory_helper<2> {
+	static inline uint16 load(void *ptr) { return ntohs(*((uint16 *)ptr)); }
+	static inline void  store(void *ptr, uint16 val) { *((uint16 *)ptr) = htons(val); }
+};
+
+template<>
+struct nw_memory_helper<4> {
+	static inline uint32 load(void *ptr) { return ntohl(*((uint32 *)ptr)); }
+	static inline void  store(void *ptr, uint32 val) { *((uint32 *)ptr) = htonl(val); }
+};
+
+// Scalar data member wrapper (specialise for pointer member types?)
+template< class type, class public_type >
+class nw_scalar_member_helper {
+	uint8 _pad[sizeof(type)];
+public:
+	operator public_type () const {
+		return (public_type)nw_memory_helper<sizeof(type)>::load((void *)this);
+	}
+	public_type operator -> () const {
+		return this->operator public_type ();
+	}
+	nw_scalar_member_helper<type, public_type> & operator = (public_type val) {
+		nw_memory_helper<sizeof(type)>::store((void *)this, (type)val);
+		return *this;
+	}
+	nw_scalar_member_helper<type, public_type> & operator += (int val) {
+		*this = *this + val;
+		return *this;
+	}
+	nw_scalar_member_helper<type, public_type> & operator -= (int val) {
+		*this = *this - val;
+		return *this;
+	}
+	nw_scalar_member_helper<type, public_type> & operator &= (int val) {
+		*this = *this & val;
+		return *this;
+	}
+	nw_scalar_member_helper<type, public_type> & operator |= (int val) {
+		*this = *this | val;
+		return *this;
+	}
+};
+
+// Predefined member types
+typedef nw_scalar_member_helper<uint8, int8>			nw_int8;
+typedef nw_scalar_member_helper<uint16, int16>			nw_int16;
+typedef nw_scalar_member_helper<uint32, int32>			nw_int32;
+typedef nw_scalar_member_helper<uint8, uint8>			nw_uint8;
+typedef nw_scalar_member_helper<uint16, uint16>			nw_uint16;
+typedef nw_scalar_member_helper<uint32, uint32>			nw_uint32;
+typedef nw_scalar_member_helper<int, bool>				nw_bool;
+typedef nw_scalar_member_helper<uint32, uint8 *>		nw_uint8_p;
+typedef nw_scalar_member_helper<uint32, void *>			nw_void_p;
+
+struct datab;
+typedef nw_scalar_member_helper<uint32, datab *>		nw_datab_p;
+
+struct msgb;
+typedef nw_scalar_member_helper<uint32, msgb *>			nw_msgb_p;
+
+struct queue;
+typedef nw_scalar_member_helper<uint32, queue *>		nw_queue_p;
+
+struct multicast_node;
+typedef nw_scalar_member_helper<uint32, multicast_node *> nw_multicast_node_p;
+
+struct DLPIStream;
+typedef nw_scalar_member_helper<uint32, DLPIStream *>	nw_DLPIStream_p;
+
+
+/*
  *  Structures
  */
 
 // Data block
 struct datab {
-	datab *db_freep;
-	uint8 *db_base;
-	uint8 *db_lim;
-	uint8 db_ref;
-	uint8 db_type;
+	nw_datab_p db_freep;
+	nw_uint8_p db_base;
+	nw_uint8_p db_lim;
+	nw_uint8   db_ref;
+	nw_uint8   db_type;
 	// ...
 };
 
 // Message block
 struct msgb {
-	msgb *b_next;
-	msgb *b_prev;
-	msgb *b_cont;
-	uint8 *b_rptr;
-	uint8 *b_wptr;
-	datab *b_datap;
+	nw_msgb_p  b_next;
+	nw_msgb_p  b_prev;
+	nw_msgb_p  b_cont;
+	nw_uint8_p b_rptr;
+	nw_uint8_p b_wptr;
+	nw_datab_p b_datap;
 	// ...
 };
 
 // Queue (full structure required because of size)
 struct queue {
-	void *q_qinfo;
-	msgb *q_first;
-	msgb *q_last;
-	queue *q_next;
-	queue *q_link;
-	void *q_ptr;
-	uint32 q_count;
-	int32 q_minpsz;
-	int32 q_maxpsz;
-	uint32 q_hiwat;
-	uint32 q_lowat;
-	void *q_bandp;
-	uint16 q_flag;
-	uint8 q_nband;
-	uint8 q_pad1[1];
-	void *q_osx;
-	queue *q_ffcp;
-	queue *q_bfcp;
+	nw_void_p q_qinfo;
+	nw_msgb_p q_first;
+	nw_msgb_p q_last;
+	nw_queue_p q_next;
+	nw_queue_p q_link;
+	nw_DLPIStream_p q_ptr;
+	nw_uint32 q_count;
+	nw_int32 q_minpsz;
+	nw_int32 q_maxpsz;
+	nw_uint32 q_hiwat;
+	nw_uint32 q_lowat;
+	nw_void_p q_bandp;
+	nw_uint16 q_flag;
+	nw_uint8 q_nband;
+	uint8 _q_pad1[1];
+	nw_void_p q_osx;
+	nw_queue_p q_ffcp;
+	nw_queue_p q_bfcp;
 };
 typedef struct queue queue_t;
 
 // M_IOCTL parameters
 struct iocblk {
-	int32 ioc_cmd;
-	void *ioc_cr;
-	uint32 ioc_id;
-	uint32 ioc_count;
-	int32 ioc_error;
-	int32 ioc_rval;
-	int32 ioc_filler[4];
+	nw_int32 ioc_cmd;
+	nw_void_p ioc_cr;
+	nw_uint32 ioc_id;
+	nw_uint32 ioc_count;
+	nw_int32 ioc_error;
+	nw_int32 ioc_rval;
+	int32 _ioc_filler[4];
 };
 
 // Priority specification
 struct dl_priority_t {
-	int32 dl_min, dl_max;
+	nw_int32 dl_min, dl_max;
 };
 
 // DPLI primitives
 struct dl_info_req_t {
-	uint32 dl_primitive; // DL_INFO_REQ
+	nw_uint32 dl_primitive; // DL_INFO_REQ
 };
 
 struct dl_info_ack_t {
-	uint32 dl_primitive; // DL_INFO_ACK
-    uint32 dl_max_sdu;
-    uint32 dl_min_sdu;
-    uint32 dl_addr_length;
-    uint32 dl_mac_type;
-    uint32 dl_reserved;
-    uint32 dl_current_state;
-    int32 dl_sap_length;
-    uint32 dl_service_mode;
-    uint32 dl_qos_length;
-    uint32 dl_qos_offset;
-    uint32 dl_qos_range_length;
-    uint32 dl_qos_range_offset;
-    uint32 dl_provider_style;
-    uint32 dl_addr_offset;
-    uint32 dl_version;
-    uint32 dl_brdcst_addr_length;
-    uint32 dl_brdcst_addr_offset;
-    uint32 dl_growth;
+	nw_uint32 dl_primitive; // DL_INFO_ACK
+    nw_uint32 dl_max_sdu;
+    nw_uint32 dl_min_sdu;
+    nw_uint32 dl_addr_length;
+    nw_uint32 dl_mac_type;
+    nw_uint32 dl_reserved;
+    nw_uint32 dl_current_state;
+    nw_int32 dl_sap_length;
+    nw_uint32 dl_service_mode;
+    nw_uint32 dl_qos_length;
+    nw_uint32 dl_qos_offset;
+    nw_uint32 dl_qos_range_length;
+    nw_uint32 dl_qos_range_offset;
+    nw_uint32 dl_provider_style;
+    nw_uint32 dl_addr_offset;
+    nw_uint32 dl_version;
+    nw_uint32 dl_brdcst_addr_length;
+    nw_uint32 dl_brdcst_addr_offset;
+    nw_uint32 dl_growth;
 };
 
 struct dl_bind_req_t {
-	uint32 dl_primitive; // DL_BIND_REQ
-	uint32 dl_sap;
-	uint32 dl_max_conind;
-	uint16 dl_service_mode;
-	uint16 dl_conn_mgmt;
-	uint32 dl_xidtest_flg;
+	nw_uint32 dl_primitive; // DL_BIND_REQ
+	nw_uint32 dl_sap;
+	nw_uint32 dl_max_conind;
+	nw_uint16 dl_service_mode;
+	nw_uint16 dl_conn_mgmt;
+	nw_uint32 dl_xidtest_flg;
 };
 
 struct dl_bind_ack_t {
-	uint32 dl_primitive; // DL_BIND_ACK
-	uint32 dl_sap;
-	uint32 dl_addr_length;
-	uint32 dl_addr_offset;
-	uint32 dl_max_conind;
-	uint32 dl_xidtest_flg;
+	nw_uint32 dl_primitive; // DL_BIND_ACK
+	nw_uint32 dl_sap;
+	nw_uint32 dl_addr_length;
+	nw_uint32 dl_addr_offset;
+	nw_uint32 dl_max_conind;
+	nw_uint32 dl_xidtest_flg;
 };
 
 struct dl_error_ack_t {
-	uint32 dl_primitive; // DL_ERROR_ACK
-	uint32 dl_error_primitive;
-	uint32 dl_errno;
-	uint32 dl_unix_errno;
+	nw_uint32 dl_primitive; // DL_ERROR_ACK
+	nw_uint32 dl_error_primitive;
+	nw_uint32 dl_errno;
+	nw_uint32 dl_unix_errno;
 };
 
 struct dl_ok_ack_t {
-	uint32 dl_primitive; // DL_ERROR_ACK
-	uint32 dl_correct_primitive;
+	nw_uint32 dl_primitive; // DL_ERROR_ACK
+	nw_uint32 dl_correct_primitive;
 };
 
 struct dl_unitdata_req_t {
-	uint32 dl_primitive; // DL_UNITDATA_REQ
-	uint32 dl_dest_addr_length;
-	uint32 dl_dest_addr_offset;
+	nw_uint32 dl_primitive; // DL_UNITDATA_REQ
+	nw_uint32 dl_dest_addr_length;
+	nw_uint32 dl_dest_addr_offset;
 	dl_priority_t   dl_priority;
 };
 
 struct dl_unitdata_ind_t {
-	uint32 dl_primitive; // DL_UNITDATA_IND
-	uint32 dl_dest_addr_length;
-	uint32 dl_dest_addr_offset;
-	uint32 dl_src_addr_length;
-	uint32 dl_src_addr_offset;
-	uint32 dl_group_address;
+	nw_uint32 dl_primitive; // DL_UNITDATA_IND
+	nw_uint32 dl_dest_addr_length;
+	nw_uint32 dl_dest_addr_offset;
+	nw_uint32 dl_src_addr_length;
+	nw_uint32 dl_src_addr_offset;
+	nw_uint32 dl_group_address;
 };
 
 struct dl_uderror_ind_t {
-	uint32 dl_primitive; // DL_UDERROR_IND
-	uint32 dl_dest_addr_length;
-	uint32 dl_dest_addr_offset;
-	uint32 dl_unix_errno;
-	uint32 dl_errno;
+	nw_uint32 dl_primitive; // DL_UDERROR_IND
+	nw_uint32 dl_dest_addr_length;
+	nw_uint32 dl_dest_addr_offset;
+	nw_uint32 dl_unix_errno;
+	nw_uint32 dl_errno;
 };
 
 struct dl_subs_bind_req_t {
-	uint32 dl_primitive; // DL_SUBS_BIND_REQ
-	uint32 dl_subs_sap_offset;
-	uint32 dl_subs_sap_length;
-	uint32 dl_subs_bind_class;
+	nw_uint32 dl_primitive; // DL_SUBS_BIND_REQ
+	nw_uint32 dl_subs_sap_offset;
+	nw_uint32 dl_subs_sap_length;
+	nw_uint32 dl_subs_bind_class;
 };
 
 struct dl_subs_bind_ack_t {
-	uint32 dl_primitive; // DL_SUBS_BIND_ACK
-	uint32 dl_subs_sap_offset;
-	uint32 dl_subs_sap_length;
+	nw_uint32 dl_primitive; // DL_SUBS_BIND_ACK
+	nw_uint32 dl_subs_sap_offset;
+	nw_uint32 dl_subs_sap_length;
 };
 
 struct dl_subs_unbind_req_t {
-	uint32 dl_primitive; // DL_SUBS_UNBIND_REQ
-	uint32 dl_subs_sap_offset;
-	uint32 dl_subs_sap_length;
+	nw_uint32 dl_primitive; // DL_SUBS_UNBIND_REQ
+	nw_uint32 dl_subs_sap_offset;
+	nw_uint32 dl_subs_sap_length;
 };
 
 struct dl_enabmulti_req_t {
-	uint32 dl_primitive; // DL_ENABMULTI_REQ
-	uint32 dl_addr_length;
-	uint32 dl_addr_offset;
+	nw_uint32 dl_primitive; // DL_ENABMULTI_REQ
+	nw_uint32 dl_addr_length;
+	nw_uint32 dl_addr_offset;
 };
 
 struct dl_disabmulti_req_t {
-	uint32 dl_primitive; // DL_DISABMULTI_REQ
-	uint32 dl_addr_length;
-	uint32 dl_addr_offset;
+	nw_uint32 dl_primitive; // DL_DISABMULTI_REQ
+	nw_uint32 dl_addr_length;
+	nw_uint32 dl_addr_offset;
 };
 
 struct dl_phys_addr_req_t {
-	uint32 dl_primitive; // DL_PHYS_ADDR_REQ
-	uint32 dl_addr_type;
+	nw_uint32 dl_primitive; // DL_PHYS_ADDR_REQ
+	nw_uint32 dl_addr_type;
 };
 
 struct dl_phys_addr_ack_t {
-	uint32 dl_primitive; // DL_PHYS_ADDR_ACK
-	uint32 dl_addr_length;
-	uint32 dl_addr_offset;
+	nw_uint32 dl_primitive; // DL_PHYS_ADDR_ACK
+	nw_uint32 dl_addr_length;
+	nw_uint32 dl_addr_offset;
 };
 
 // Parameters for I_OTSetRawMode/kOTSetRecvMode ioctl()
 struct dl_recv_control_t {
-	uint32 dl_primitive;
-	uint32 dl_flags;
-	uint32 dl_truncation_length;
+	nw_uint32 dl_primitive;
+	nw_uint32 dl_flags;
+	nw_uint32 dl_truncation_length;
 };
 
 union DL_primitives {
-	uint32 dl_primitive;
+	nw_uint32 dl_primitive;
 	dl_info_req_t info_req;
 	dl_info_ack_t info_ack;
 	dl_bind_req_t bind_req;
@@ -410,7 +496,7 @@ union DL_primitives {
 struct EnetPacketHeader {
 	uint8 fDestAddr[6];
 	uint8 fSourceAddr[6];
-	uint16 fProto;
+	nw_uint16 fProto;
 } PACKED__;
 
 struct T8022Header {
@@ -433,7 +519,7 @@ struct T8022FullPacketHeader {
 
 struct T8022AddressStruct {
 	uint8 fHWAddr[6];
-	uint16 fSAP;
+	nw_uint16 fSAP;
 	uint8 fSNAP[k8022SNAPLength];
 } PACKED__;
 
