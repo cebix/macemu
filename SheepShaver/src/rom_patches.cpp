@@ -1820,8 +1820,12 @@ static bool patch_68k(void)
 		if ((base = find_rom_data(0x13000, 0x20000, gc_mask2_dat, sizeof(gc_mask2_dat))) == 0) return false;
 		D(bug("gc_mask2 %08lx\n", base));
 		wp = (uint16 *)(ROM_BASE + base);
-		if (ROMType == ROMTYPE_GOSSAMER)
+		if (ROMType == ROMTYPE_GOSSAMER) {
 			*wp++ = htons(M68K_NOP);
+			*wp++ = htons(M68K_NOP);
+			*wp++ = htons(M68K_NOP);
+			*wp++ = htons(M68K_NOP);
+		}
 		for (int i=0; i<5; i++) {
 			*wp++ = htons(M68K_NOP);
 			*wp++ = htons(M68K_NOP);
