@@ -65,7 +65,7 @@ static inline bool is_read_only_memory(uintptr addr)
 #if defined(x86_64) || defined(__x86_64__)
 #define TARGET_NATIVE	TARGET_AMD64
 #endif
-#if defined(powerpc) || defined(__powerpc__)
+#if defined(powerpc) || defined(__powerpc__) || defined(__ppc__)
 #define TARGET_NATIVE	TARGET_POWERPC
 #endif
 
