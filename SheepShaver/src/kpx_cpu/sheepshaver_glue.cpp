@@ -46,6 +46,21 @@
 #define DEBUG 0
 #include "debug.h"
 
+// Emulation time statistics
+#define EMUL_TIME_STATS 1
+
+#if EMUL_TIME_STATS
+static clock_t emul_start_time;
+static uint32 interrupt_count = 0;
+static clock_t interrupt_time = 0;
+static uint32 exec68k_count = 0;
+static clock_t exec68k_time = 0;
+static uint32 native_exec_count = 0;
+static clock_t native_exec_time = 0;
+static uint32 macos_exec_count = 0;
+static clock_t macos_exec_time = 0;
+#endif
+
 static void enter_mon(void)
 {
 	// Start up mon in real-mode
@@ -224,6 +239,11 @@ void sheepshaver_cpu::execute(uint32 entry, bool enable_cache)
 // Handle MacOS interrupt
 void sheepshaver_cpu::interrupt(uint32 entry)
 {
+#if EMUL_TIME_STATS
+	interrupt_count++;
+	const clock_t interrupt_start = clock();
+#endif
+
 #if !MULTICORE_CPU
 	// Save program counters and branch registers
 	uint32 saved_pc = pc();
@@ -277,11 +297,20 @@ void sheepshaver_cpu::interrupt(uint32 entry)
 	ctr()= saved_ctr;
 	gpr(1) = saved_sp;
 #endif
+
+#if EMUL_TIME_STATS
+	interrupt_time += (clock() - interrupt_start);
+#endif
 }
 
 // Execute 68k routine
 void sheepshaver_cpu::execute_68k(uint32 entry, M68kRegisters *r)
 {
+#if EMUL_TIME_STATS
+	exec68k_count++;
+	const clock_t exec68k_start = clock();
+#endif
+
 #if SAFE_EXEC_68K
 	if (ReadMacInt32(XLM_RUN_MODE) != MODE_EMUL_OP)
 		printf("FATAL: Execute68k() not called from EMUL_OP mode\n");
@@ -364,11 +393,20 @@ void sheepshaver_cpu::execute_68k(uint32 entry, M68kRegisters *r)
 	lr() = saved_lr;
 	ctr()= saved_ctr;
 	set_cr(saved_cr);
+
+#if EMUL_TIME_STATS
+	exec68k_time += (clock() - exec68k_start);
+#endif
 }
 
 // Call MacOS PPC code
 uint32 sheepshaver_cpu::execute_macos_code(uint32 tvect, int nargs, uint32 const *args)
 {
+#if EMUL_TIME_STATS
+	macos_exec_count++;
+	const clock_t macos_exec_start = clock();
+#endif
+
 	// Save program counters and branch registers
 	uint32 saved_pc = pc();
 	uint32 saved_lr = lr();
@@ -406,6 +444,10 @@ uint32 sheepshaver_cpu::execute_macos_code(uint32 tvect, int nargs, uint32 const
 	pc() = saved_pc;
 	lr() = saved_lr;
 	ctr()= saved_ctr;
+
+#if EMUL_TIME_STATS
+	macos_exec_time += (clock() - macos_exec_start);
+#endif
 
 	return retval;
 }
@@ -550,6 +592,10 @@ void init_emul_ppc(void)
 	mon_add_command("regs", dump_registers, "regs                     Dump PowerPC registers\n");
 	mon_add_command("log", dump_log, "log                      Dump PowerPC emulation log\n");
 #endif
+
+#if EMUL_TIME_STATS
+	emul_start_time = clock();
+#endif
 }
 
 /*
@@ -558,6 +604,30 @@ void init_emul_ppc(void)
 
 void exit_emul_ppc(void)
 {
+#if EMUL_TIME_STATS
+	clock_t emul_end_time = clock();
+
+	printf("### Statistics for SheepShaver emulation parts\n");
+	const clock_t emul_time = emul_end_time - emul_start_time;
+	printf("Total emulation time : %.1f sec\n", double(emul_time) / double(CLOCKS_PER_SEC));
+	printf("Total interrupt count: %d (%2.1f Hz)\n", interrupt_count,
+		   (double(interrupt_count) * CLOCKS_PER_SEC) / double(emul_time));
+
+#define PRINT_STATS(LABEL, VAR_PREFIX) do {								\
+		printf("Total " LABEL " count : %d\n", VAR_PREFIX##_count);		\
+		printf("Total " LABEL " time  : %.1f sec (%.1f%%)\n",			\
+			   double(VAR_PREFIX##_time) / double(CLOCKS_PER_SEC),		\
+			   100.0 * double(VAR_PREFIX##_time) / double(emul_time));	\
+	} while (0)
+
+	PRINT_STATS("Execute68k[Trap] execution", exec68k);
+	PRINT_STATS("NativeOp execution", native_exec);
+	PRINT_STATS("MacOS routine execution", macos_exec);
+
+#undef PRINT_STATS
+	printf("\n");
+#endif
+
 	delete main_cpu;
 #if MULTICORE_CPU
 	delete interrupt_cpu;
@@ -727,6 +797,11 @@ static void r_get_resource(void);
 
 static void NativeOp(int selector)
 {
+#if EMUL_TIME_STATS
+	native_exec_count++;
+	const clock_t native_exec_start = clock();
+#endif
+
 	switch (selector) {
 	case NATIVE_PATCH_NAME_REGISTRY:
 		DoPatchNameRegistry();
@@ -790,6 +865,10 @@ static void NativeOp(int selector)
 		QuitEmulator();
 		break;
 	}
+
+#if EMUL_TIME_STATS
+	native_exec_time += (clock() - native_exec_start);
+#endif
 }
 
 /*
