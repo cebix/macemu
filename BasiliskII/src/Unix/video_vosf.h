@@ -88,7 +88,6 @@ static void do_fbcopy_raw(uint8 * dest, const uint8 * source, uint32 length)
 	memcpy(dest, source, length);
 }
 #else
-#error "incomplete"
 #define FB_BLIT_1(dst, src)	(dst = (src))
 #define FB_BLIT_2(dst, src)	(dst = (src))
 #define FB_DEPTH			0
