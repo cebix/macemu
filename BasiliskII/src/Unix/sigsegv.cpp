@@ -228,7 +228,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[REG_PC]
 #endif
 #endif
-#if defined(__NetBSD__) || defined(__FreeBSD__)
+#if defined(__FreeBSD__)
 #if (defined(i386) || defined(__i386__))
 #define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_eip)
 #define SIGSEGV_REGISTER_FILE			((unsigned int *)&(((struct sigcontext *)scp)->sc_edi)) /* EDI is the first GPR (even below EIP) in sigcontext */
@@ -297,15 +297,6 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp
 #define SIGSEGV_FAULT_ADDRESS			get_fault_address(scp)
 #define SIGSEGV_FAULT_INSTRUCTION		scp->sc_pc
-
-// From Boehm's GC 6.0alpha8
-static sigsegv_address_t get_fault_address(struct sigcontext *scp)
-{
-	unsigned int instruction = *((unsigned int *)(scp->sc_pc));
-	unsigned long fault_address = scp->sc_regs[(instruction >> 16) & 0x1f];
-	fault_address += (signed long)(signed short)(instruction & 0xffff);
-	return (sigsegv_address_t)fault_address;
-}
 #endif
 #endif
 
@@ -343,8 +334,8 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
 #endif
 
-// NetBSD or FreeBSD
-#if defined(__NetBSD__) || defined(__FreeBSD__)
+// NetBSD
+#if defined(__NetBSD__)
 #if (defined(m68k) || defined(__m68k__))
 #include <m68k/frame.h>
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
@@ -372,13 +363,44 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 	}
 	return (sigsegv_address_t)fault_addr;
 }
-#else
-#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, void *scp, char *addr
-#define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp, addr
-#define SIGSEGV_FAULT_ADDRESS			addr
+#endif
+#if (defined(alpha) || defined(__alpha__))
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
+#define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp
+#define SIGSEGV_FAULT_ADDRESS			get_fault_address(scp)
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGBUS)
 #endif
+#if (defined(i386) || defined(__i386__))
+#error "FIXME: need to decode instruction and compute EA"
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
+#define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp
+#define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
 #endif
+#endif
+#if defined(__FreeBSD__)
+#define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGBUS)
+#if (defined(i386) || defined(__i386__))
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp, char *addr
+#define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp, addr
+#define SIGSEGV_FAULT_ADDRESS			addr
+#define SIGSEGV_FAULT_INSTRUCTION		scp->sc_eip
+#define SIGSEGV_REGISTER_FILE			((unsigned int *)&scp->sc_edi)
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#endif
+#endif
+
+// Extract fault address out of a sigcontext
+#if (defined(alpha) || defined(__alpha__))
+// From Boehm's GC 6.0alpha8
+static sigsegv_address_t get_fault_address(struct sigcontext *scp)
+{
+	unsigned int instruction = *((unsigned int *)(scp->sc_pc));
+	unsigned long fault_address = scp->sc_regs[(instruction >> 16) & 0x1f];
+	fault_address += (signed long)(signed short)(instruction & 0xffff);
+	return (sigsegv_address_t)fault_address;
+}
+#endif
+
 
 // MacOS X, not sure which version this works in. Under 10.1
 // vm_protect does not appear to work from a signal handler. Under
