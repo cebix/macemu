@@ -1077,12 +1077,14 @@
 		};
 		0193367EFFD1BA0395877872 = {
 			isa = PBXFileReference;
-			path = sys_unix.cpp;
+			name = sys_unix.cpp;
+			path = ../Unix/sys_unix.cpp;
 			refType = 2;
 		};
 		0193367FFFD1BA0395877872 = {
 			isa = PBXFileReference;
-			path = timer_unix.cpp;
+			name = timer_unix.cpp;
+			path = ../Unix/timer_unix.cpp;
 			refType = 2;
 		};
 		01933680FFD1BA0395877872 = {
@@ -1144,7 +1146,7 @@
 		01BDE8DC007837927F000001 = {
 			isa = PBXFileReference;
 			path = Versions.html;
-			refType = 4;
+			refType = 2;
 		};
 		01BDE8DD007837927F000001 = {
 			fileRef = 01BDE8DC007837927F000001;
@@ -1155,7 +1157,7 @@
 		01BDE8DE0078384A7F000001 = {
 			isa = PBXFileReference;
 			path = ToDo.html;
-			refType = 4;
+			refType = 2;
 		};
 		01BDE8DF0078384A7F000001 = {
 			fileRef = 01BDE8DE0078384A7F000001;
@@ -1527,8 +1529,6 @@
 		};
 		29B97314FDCFA39411CA2CEA = {
 			children = (
-				01BDE8DE0078384A7F000001,
-				01BDE8DC007837927F000001,
 				04D13618FF9F161695877872,
 				29B97315FDCFA39411CA2CEA,
 				29B97317FDCFA39411CA2CEA,
@@ -1566,10 +1566,13 @@
 			children = (
 				018DC3970071BA107F000001,
 				F50E39510187F78A01877872,
+				F52D357004EC78CA0187C272,
 				089C165CFE840E0CC02AAC07,
 				29B97318FDCFA39411CA2CEA,
 				13A81DD900421B6A95877872,
 				F5495FEC018CD1890116CB19,
+				01BDE8DE0078384A7F000001,
+				01BDE8DC007837927F000001,
 			);
 			isa = PBXGroup;
 			name = Resources;
@@ -1627,6 +1630,7 @@
 				043355C9FE30361CC02AAC07,
 			);
 			buildSettings = {
+				DEBUGGING_SYMBOLS = NO;
 				FRAMEWORK_SEARCH_PATHS = "\"$(SYSTEM_LIBRARY_DIR)/PrivateFrameworks\" \"$(SYSTEM_LIBRARY_DIR)/Frameworks/CoreServices.framework/Versions/A/Frameworks\"";
 				HEADER_SEARCH_PATHS = "";
 				INSTALL_PATH = "$(HOME)/Applications";
@@ -1654,7 +1658,7 @@
 	<key>CFBundleExecutable</key>
 	<string>BasiliskII</string>
 	<key>CFBundleGetInfoString</key>
-	<string>Basilisk II version 1.0, Copyright © 1997-2003 Christian Bauer et al. Mac OS X port 7</string>
+	<string>Basilisk II version 1.0, Copyright © 1997-2003 Christian Bauer et al. Mac OS X port 14b</string>
 	<key>CFBundleIconFile</key>
 	<string>BasiliskII.icns</string>
 	<key>CFBundleIdentifier</key>
@@ -1666,7 +1670,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>Basilisk II 1.0, Mac OS X port 12</string>
+	<string>Basilisk II 1.0, Mac OS X port 14b</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>NSHelpFile</key>
@@ -1736,6 +1740,7 @@
 				01BDE8DF0078384A7F000001,
 				F50E39520187F78A01877872,
 				F5495FED018CD1890116CB19,
+				F52D357104EC78CA0187C272,
 			);
 			isa = PBXResourcesBuildPhase;
 			name = "Bundle Resources";
@@ -1763,6 +1768,7 @@
 				F579F2640213ECB101877872,
 				1A5BA123008C02B47F000001,
 				F59F459C020D559E01A80001,
+				F51A2DB9042B25ED0187C272,
 				00ED5A78FF9F427D95877872,
 				00ED5A79FF9F427D95877872,
 				00ED5A76FF9F427D95877872,
@@ -1793,14 +1799,13 @@
 				00ED5A98FF9F42CA95877872,
 				00ED5A99FF9F42CA95877872,
 				00ED5A9AFF9F42CA95877872,
+				F5BACDE9042F21EF01A80001,
+				F5028E6004DB9DD30135D59B,
 				01933685FFD1BA0395877872,
 				01933686FFD1BA0395877872,
 				01933687FFD1BA0395877872,
 				F59F45A7020E2BD601A80001,
 				01933688FFD1BA0395877872,
-				F51A2DB9042B25ED0187C272,
-				F5BACDE9042F21EF01A80001,
-				F5028E6004DB9DD30135D59B,
 			);
 			isa = PBXSourcesBuildPhase;
 			name = Sources;
@@ -1891,10 +1896,20 @@
 			settings = {
 			};
 		};
+		F52D357004EC78CA0187C272 = {
+			isa = PBXFileReference;
+			path = HowTo.html;
+			refType = 2;
+		};
+		F52D357104EC78CA0187C272 = {
+			fileRef = F52D357004EC78CA0187C272;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
 		F5495FEC018CD1890116CB19 = {
 			isa = PBXFileReference;
-			name = README.txt;
-			path = ../../README;
+			path = README.txt;
 			refType = 2;
 		};
 		F5495FED018CD1890116CB19 = {
