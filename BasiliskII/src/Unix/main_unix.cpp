@@ -774,7 +774,7 @@ static void *xpram_func(void *arg)
 {
 	while (!xpram_thread_cancel) {
 		for (int i=0; i<60 && !xpram_thread_cancel; i++)
-			Delay_usec(999999);
+			Delay_usec(999999);		// Only wait 1 second so we quit promptly when xpram_thread_cancel becomes true
 		xpram_watchdog();
 	}
 	return NULL;

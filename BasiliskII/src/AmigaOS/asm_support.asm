@@ -28,6 +28,7 @@
 		XDEF	_AtomicAnd
 		XDEF	_AtomicOr
 		XDEF	_MoveVBR
+		XDEF	_DisableSuperBypass
 		XDEF	_Execute68k
 		XDEF	_Execute68kTrap
 		XDEF	_TrapHandlerAsm
@@ -49,6 +50,8 @@
 		XREF	_quit_emulator
 
 		SECTION	text,CODE
+
+		MACHINE	68020
 
 *
 * Atomic bit operations (don't trust the compiler)
@@ -105,6 +108,29 @@ getvbr		movec	vbr,d0
 
 setvbr		movec	d0,vbr
 		rte
+
+*
+* Disable 68060 Super Bypass mode
+*
+
+_DisableSuperBypass
+		movem.l	d0-d1/a0-a1/a5-a6,-(sp)
+		move.l	_SysBase,a6
+
+		lea	dissb,a5
+		JSRLIB	Supervisor
+
+		movem.l	(sp)+,d0-d1/a0-a1/a5-a6
+		rts
+
+		MACHINE	68060
+
+dissb		movec	pcr,d0
+		bset	#5,d0
+		movec	d0,pcr
+		rte
+
+		MACHINE	68020
 
 *
 * Execute 68k subroutine (must be ended with rts)

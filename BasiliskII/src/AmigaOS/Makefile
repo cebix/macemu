@@ -9,7 +9,7 @@ DEFS =
 LDFLAGS = -noixemul
 LIBS = /gg/lib/libnix/swapstack.o
 AS = PhxAss
-ASFLAGS = OPT ! INCPATH GG:os-include MACHINE=68020 FPU=1
+ASFLAGS = OPT ! INCPATH GG:os-include FPU=1
 
 ## Files
 SRCS = ../main.cpp main_amiga.cpp ../prefs.cpp ../prefs_items.cpp \

@@ -108,6 +108,9 @@ static struct timerequest *timereq = NULL;		// IORequest for timer
 static struct MsgPort *ahi_port = NULL;			// Port for AHI
 static struct AHIRequest *ahi_io = NULL;		// IORequest for AHI
 
+static struct Process *xpram_proc = NULL;		// XPRAM watchdog
+static volatile bool xpram_proc_active = true;	// Flag for quitting the XPRAM watchdog
+
 static struct Process *tick_proc = NULL;		// 60Hz process
 static volatile bool tick_proc_active = true;	// Flag for quitting the 60Hz process
 
@@ -120,6 +123,7 @@ struct trap_regs;
 extern "C" void AtomicAnd(uint32 *p, uint32 val);
 extern "C" void AtomicOr(uint32 *p, uint32 val);
 extern "C" void MoveVBR(void);
+extern "C" void DisableSuperBypass(void);
 extern "C" void TrapHandlerAsm(void);
 extern "C" void ExceptionHandlerAsm(void);
 extern "C" void IllInstrHandler(trap_regs *regs);
@@ -131,6 +135,7 @@ uint16 EmulatedSR;					// Emulated SR (supervisor bit and interrupt mask)
 
 // Prototypes
 static void jump_to_rom(void);
+static void xpram_func(void);
 static void tick_func(void);
 
 
@@ -303,6 +308,10 @@ int main(int argc, char **argv)
 	// Move VBR away from 0 if neccessary
 	MoveVBR();
 
+	// On 68060, disable Super Bypass mode because of a CPU bug that is triggered by MacOS 8
+	if (CPUIs68060)
+		DisableSuperBypass();
+
 	// Install trap handler
 	EmulatedSR = 0x2700;
 	OldTrapHandler = MainTask->tc_TrapCode;
@@ -314,6 +323,14 @@ int main(int argc, char **argv)
 	OldExceptionHandler = MainTask->tc_ExceptCode;
 	MainTask->tc_ExceptCode = (APTR)ExceptionHandlerAsm;
 	SetExcept(SIGBREAKF_CTRL_C | IRQSigMask, SIGBREAKF_CTRL_C | IRQSigMask);
+
+	// Start XPRAM watchdog process
+	xpram_proc = CreateNewProcTags(
+		NP_Entry, (ULONG)xpram_func,
+		NP_Name, (ULONG)"Basilisk II XPRAM Watchdog",
+		NP_Priority, 0,
+		TAG_END
+	);
 
 	// Start 60Hz process
 	tick_proc = CreateNewProcTags(
@@ -362,10 +379,17 @@ void __saveds quit_emulator(void)
 
 void QuitEmulator(void)
 {
-	// Stop 60Hz thread
+	// Stop 60Hz process
 	if (tick_proc) {
 		SetSignal(0, SIGF_SINGLE);
 		tick_proc_active = false;
+		Wait(SIGF_SINGLE);
+	}
+
+	// Stop XPRAM watchdog process
+	if (xpram_proc) {
+		SetSignal(0, SIGF_SINGLE);
+		xpram_proc_active = false;
 		Wait(SIGF_SINGLE);
 	}
 
@@ -475,7 +499,7 @@ void TriggerNMI(void)
 
 
 /*
- *  60Hz thread
+ *  60Hz thread (really 60.15Hz)
  */
 
 static __saveds void tick_func(void)
@@ -534,6 +558,30 @@ static __saveds void tick_func(void)
 	}
 	if (timer_port)
 		DeleteMsgPort(timer_port);
+
+	// Main task asked for termination, send signal
+	Forbid();
+	Signal(MainTask, SIGF_SINGLE);
+}
+
+
+/*
+ *  XPRAM watchdog thread (saves XPRAM every minute)
+ */
+
+static __saveds void xpram_func(void)
+{
+	uint8 last_xpram[256];
+	memcpy(last_xpram, XPRAM, 256);
+
+	while (xpram_proc_active) {
+		for (int i=0; i<60 && xpram_proc_active; i++)
+			Delay(50);		// Only wait 1 second so we quit promptly when xpram_proc_active becomes false
+		if (memcmp(last_xpram, XPRAM, 256)) {
+			memcpy(last_xpram, XPRAM, 256);
+			SaveXPRAM();
+		}
+	}
 
 	// Main task asked for termination, send signal
 	Forbid();

@@ -19,6 +19,9 @@ V0.8 (snapshot) - <date>
 	  [Jürgen Lachmann]
 	- AmigaOS: added MacsBug support (tested with MacsBug6.6.1),
 	  fixed <move sr,(sp)> bug [Jürgen Lachmann]
+	- AmigaOS: disabled 68060 Super Bypass mode because of CPU bug triggered
+	  by MacOS 8
+	- AmigaOS: implemented XPRAM watchdog task
 	- AmigaOS/Unix/extfs_*.cpp: .finf helper file now stores complete
 	  FInfo/FXInfo, replaced get/set_finder_*() functions by get/set_finfo()
 	- AmigaOS/Unix: it's possible to specify preferences items on the
