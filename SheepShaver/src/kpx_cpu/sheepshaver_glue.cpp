@@ -196,10 +196,14 @@ public:
 
 	// Make sure the SIGSEGV handler can access CPU registers
 	friend sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
+
+	// Memory allocator returning areas aligned on 16-byte boundaries
+	void *operator new(size_t size);
+	void operator delete(void *p);
 };
 
 // Memory allocator returning areas aligned on 16-byte boundaries
-void *operator new(size_t size)
+void *sheepshaver_cpu::operator new(size_t size)
 {
 	void *p;
 
@@ -218,7 +222,7 @@ void *operator new(size_t size)
 	return p;
 }
 
-void operator delete(void *p)
+void sheepshaver_cpu::operator delete(void *p)
 {
 #if defined(HAVE_MEMALIGN) || defined(HAVE_VALLOC)
 #if defined(__GLIBC__)
