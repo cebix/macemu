@@ -95,12 +95,18 @@ uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
 #define CLOBBER_BT   clobber_flags()
 #define CLOBBER_BSF  clobber_flags()
 
+const bool optimize_accum		= true;
 const bool optimize_imm8		= true;
 const bool optimize_shift_once	= true;
 
 /*************************************************************************
  * Actual encoding of the instructions on the target CPU                 *
  *************************************************************************/
+
+static __inline__ int isaccum(int r)
+{
+	return (r == EAX_INDEX);
+}
 
 static __inline__ int isbyte(uae_s32 x)
 {
@@ -202,8 +208,12 @@ LOWFUNC(WRITE,NONE,2,raw_sub_w_ri,(RW2 d, IMM i))
 	emit_byte(i);
     }
     else {
+	if (optimize_accum && isaccum(d))
+	emit_byte(0x2d);
+	else {
 	emit_byte(0x81);
 	emit_byte(0xe8+d);
+	}
 	emit_word(i);
     }
 }
@@ -1371,8 +1381,12 @@ LENDFUNC(WRITE,RMW,2,raw_add_b_mi,(IMM d, IMM s))
 
 LOWFUNC(WRITE,NONE,2,raw_test_l_ri,(R4 d, IMM i))
 {
+	if (optimize_accum && isaccum(d))
+	emit_byte(0xa9);
+	else {
     emit_byte(0xf7);
     emit_byte(0xc0+d);
+	}
     emit_long(i);
 }
 LENDFUNC(WRITE,NONE,2,raw_test_l_ri,(R4 d, IMM i))
@@ -1402,24 +1416,39 @@ LENDFUNC(WRITE,NONE,2,raw_test_b_rr,(R1 d, R1 s))
 LOWFUNC(WRITE,NONE,2,raw_and_l_ri,(RW4 d, IMM i))
 {
 	if (optimize_imm8 && isbyte(i)) {
-    emit_byte(0x83);
-    emit_byte(0xe0+d);
-    emit_byte(i);
+	emit_byte(0x83);
+	emit_byte(0xe0+d);
+	emit_byte(i);
 	}
 	else {
-    emit_byte(0x81);
-    emit_byte(0xe0+d);
-    emit_long(i);
+	if (optimize_accum && isaccum(d))
+	emit_byte(0x25);
+	else {
+	emit_byte(0x81);
+	emit_byte(0xe0+d);
+	}
+	emit_long(i);
 	}
 }
 LENDFUNC(WRITE,NONE,2,raw_and_l_ri,(RW4 d, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_and_w_ri,(RW2 d, IMM i))
 {
-    emit_byte(0x66);
-    emit_byte(0x81);
-    emit_byte(0xe0+d);
-    emit_word(i);
+	emit_byte(0x66);
+	if (optimize_imm8 && isbyte(i)) {
+	emit_byte(0x83);
+	emit_byte(0xe0+d);
+	emit_byte(i);
+	}
+	else {
+	if (optimize_accum && isaccum(d))
+	emit_byte(0x25);
+	else {
+	emit_byte(0x81);
+	emit_byte(0xe0+d);
+	}
+	emit_word(i);
+	}
 }
 LENDFUNC(WRITE,NONE,2,raw_and_w_ri,(RW2 d, IMM i))
 
@@ -1453,8 +1482,12 @@ LOWFUNC(WRITE,NONE,2,raw_or_l_ri,(RW4 d, IMM i))
     emit_byte(i);
 	}
 	else {
+	if (optimize_accum && isaccum(d))
+	emit_byte(0x0d);
+	else {
     emit_byte(0x81);
     emit_byte(0xc8+d);
+	}
     emit_long(i);
 	}
 }
@@ -1534,8 +1567,12 @@ LOWFUNC(WRITE,NONE,2,raw_sub_l_ri,(RW4 d, IMM i))
     emit_byte(i);
   }
   else {
+    if (optimize_accum && isaccum(d))
+    emit_byte(0x2d);
+    else {
     emit_byte(0x81);
     emit_byte(0xe8+d);
+    }
     emit_long(i);
   }
 }
@@ -1543,8 +1580,12 @@ LENDFUNC(WRITE,NONE,2,raw_sub_l_ri,(RW4 d, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_sub_b_ri,(RW1 d, IMM i))
 {
+	if (optimize_accum && isaccum(d))
+	emit_byte(0x2c);
+	else {
     emit_byte(0x80);
     emit_byte(0xe8+d);
+	}
     emit_byte(i);
 }
 LENDFUNC(WRITE,NONE,2,raw_sub_b_ri,(RW1 d, IMM i))
@@ -1557,8 +1598,12 @@ LOWFUNC(WRITE,NONE,2,raw_add_l_ri,(RW4 d, IMM i))
 	emit_byte(i);
     }
     else {
+	if (optimize_accum && isaccum(d))
+	emit_byte(0x05);
+	else {
 	emit_byte(0x81);
 	emit_byte(0xc0+d);
+	}
 	emit_long(i);
     }
 }
@@ -1566,16 +1611,19 @@ LENDFUNC(WRITE,NONE,2,raw_add_l_ri,(RW4 d, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_add_w_ri,(RW2 d, IMM i))
 {
-    if (isbyte(i)) {
 	emit_byte(0x66);
+    if (isbyte(i)) {
 	emit_byte(0x83);
 	emit_byte(0xc0+d);
 	emit_byte(i);
     }
     else {
-	emit_byte(0x66);
+	if (optimize_accum && isaccum(d))
+	emit_byte(0x05);
+	else {
 	emit_byte(0x81);
 	emit_byte(0xc0+d);
+	}
 	emit_word(i);
     }
 }
@@ -1583,8 +1631,12 @@ LENDFUNC(WRITE,NONE,2,raw_add_w_ri,(RW2 d, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_add_b_ri,(RW1 d, IMM i))
 {
-    emit_byte(0x80);
-    emit_byte(0xc0+d);
+	if (optimize_accum && isaccum(d))
+	emit_byte(0x04);
+	else {
+	emit_byte(0x80);
+	emit_byte(0xc0+d);
+	}
     emit_byte(i);
 }
 LENDFUNC(WRITE,NONE,2,raw_add_b_ri,(RW1 d, IMM i))
@@ -1648,8 +1700,12 @@ LOWFUNC(WRITE,NONE,2,raw_cmp_l_ri,(R4 r, IMM i))
     emit_byte(i);
 	}
 	else {
+	if (optimize_accum && isaccum(r))
+	emit_byte(0x3d);
+	else {
     emit_byte(0x81);
     emit_byte(0xf8+r);
+	}
     emit_long(i);
 	}
 }
@@ -1665,8 +1721,12 @@ LENDFUNC(WRITE,NONE,2,raw_cmp_w,(R2 d, R2 s))
 
 LOWFUNC(WRITE,NONE,2,raw_cmp_b_ri,(R1 d, IMM i))
 {
+  if (optimize_accum && isaccum(d))
+  emit_byte(0x3c);
+  else {
   emit_byte(0x80);
   emit_byte(0xf8+d);
+  }
   emit_byte(i);
 }
 LENDFUNC(WRITE,NONE,2,raw_cmp_b_ri,(R1 d, IMM i))
@@ -2034,7 +2094,7 @@ static __inline__ void raw_load_flagx(uae_u32 target, uae_u32 r)
 
 static __inline__ void raw_inc_sp(int off)
 {
-    raw_add_l_ri(4,off);
+    raw_add_l_ri(ESP_INDEX,off);
 }
 
 /*************************************************************************
