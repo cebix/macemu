@@ -34,12 +34,12 @@ typedef unsigned long ULONG_PTR, *PULONG_PTR;
 // Most people don't have the Platform SDK, so I take this one out.
 // #include <ntddndis.h>
 
-#include "inc\ntddpack.h"
+#include "inc/ntddpack.h"
 
 #include "ether.h"
 #include "ether_defs.h"
-#include "b2ether\multiopt.h"
-#include "b2ether\inc\b2ether_hl.h"
+#include "b2ether/multiopt.h"
+#include "b2ether/inc/b2ether_hl.h"
 
 
 

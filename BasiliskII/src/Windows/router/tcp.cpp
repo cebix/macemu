@@ -82,7 +82,7 @@
 #include "iphelp.h"
 #include "tcp.h"
 #include "dump.h"
-#include "mib\interfaces.h"
+#include "mib/interfaces.h"
 #include "ftp.h"
 
 #if DEBUG

@@ -62,8 +62,8 @@
 
 #include "sysdeps.h"
 #include "mibaccess.h"
-#include "..\dynsockets.h"
-#include "..\dump.h"
+#include "../dynsockets.h"
+#include "../dump.h"
 
 #if DEBUG
 #pragma optimize("",off)
