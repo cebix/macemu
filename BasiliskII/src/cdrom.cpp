@@ -664,7 +664,7 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 				return offLinErr;
 
 			uint8 start_m, start_s, start_f;
-			if (!position2msf(info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, start_m, start_s, start_f))
+			if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, start_m, start_s, start_f))
 				return paramErr;
 			info->play_mode = ReadMacInt8(pb + csParam + 9) & 0x0f;
 			if (!SysCDPlay(info->fh, start_m, start_s, start_f, info->stop_at[0], info->stop_at[1], info->stop_at[2]))
@@ -681,12 +681,12 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 
 			if (ReadMacInt16(pb + csParam + 6)) {
 				// Given stopping address
-				if (!position2msf(info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), true, info->stop_at[0], info->stop_at[1], info->stop_at[2]))
+				if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), true, info->stop_at[0], info->stop_at[1], info->stop_at[2]))
 					return paramErr;
 			} else {
 				// Given starting address
 				uint8 start_m, start_s, start_f;
-				if (!position2msf(info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, start_m, start_s, start_f))
+				if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, start_m, start_s, start_f))
 					return paramErr;
 				info->play_mode = ReadMacInt8(pb + csParam + 9) & 0x0f;
 				if (!SysCDPlay(info->fh, start_m, start_s, start_f, info->stop_at[0], info->stop_at[1], info->stop_at[2]))
@@ -723,7 +723,7 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 					return paramErr;
 			} else {
 				// Given stopping address
-				if (!position2msf(info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), true, info->stop_at[0], info->stop_at[1], info->stop_at[2]))
+				if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), true, info->stop_at[0], info->stop_at[1], info->stop_at[2]))
 					return paramErr;
 			}
 			return noErr;
@@ -768,7 +768,7 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 				return offLinErr;
 
 			uint8 start_m, start_s, start_f;
-			if (!position2msf(info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, start_m, start_s, start_f))
+			if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, start_m, start_s, start_f))
 				return paramErr;
 
 			if (!SysCDScan(info->fh, start_m, start_s, start_f, ReadMacInt16(pb + csParam + 6)))
