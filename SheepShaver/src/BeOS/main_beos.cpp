@@ -1265,18 +1265,6 @@ void Execute68kTrap(uint16 trap, M68kRegisters *r)
 
 
 /*
- *  Execute PPC code from EMUL_OP routine (real mode switch)
- */
-
-void ExecutePPC(void (*func)())
-{
-	SheepRoutineDescriptor desc(0, (uint32)func);
-	M68kRegisters r;
-	Execute68k(desc.addr(), &r);
-}
-
-
-/*
  *  Quit emulator (must only be called from main thread)
  */
 
@@ -1331,7 +1319,7 @@ void MakeExecutable(int dummy, void *start, uint32 length)
 
 void PatchAfterStartup(void)
 {
-	ExecutePPC(VideoInstallAccel);
+	ExecuteNative(NATIVE_VIDEO_INSTALL_ACCEL);
 	InstallExtFS();
 }
 
@@ -1579,7 +1567,7 @@ void SheepShaver::sigusr1_handler(vregs *r)
 					if (InterruptFlags & INTFLAG_VIA) {
 						ClearInterruptFlag(INTFLAG_VIA);
 						ADBInterrupt();
-						ExecutePPC(VideoVBL);
+						ExecuteNative(NATIVE_VIDEO_VBL);
 					}
 				}
 #endif

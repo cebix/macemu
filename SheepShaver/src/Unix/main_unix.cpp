@@ -672,24 +672,16 @@ int main(int argc, char **argv)
 	WriteMacInt32(XLM_PVR, PVR);									// Theoretical PVR
 	WriteMacInt32(XLM_BUS_CLOCK, BusClockSpeed);					// For DriverServicesLib patch
 	WriteMacInt16(XLM_EXEC_RETURN_OPCODE, M68K_EXEC_RETURN);		// For Execute68k() (RTS from the executed 68k code will jump here and end 68k mode)
-#if EMULATED_PPC
-	WriteMacInt32(XLM_ETHER_INIT, NativeFunction(NATIVE_ETHER_INIT));
+#if !EMULATED_PPC
+	WriteMacInt32(XLM_TOC, (uint32)TOC);								// TOC pointer of emulator
+#endif
+	WriteMacInt32(XLM_ETHER_INIT, NativeFunction(NATIVE_ETHER_INIT));	// DLPI ethernet driver functions
 	WriteMacInt32(XLM_ETHER_TERM, NativeFunction(NATIVE_ETHER_TERM));
 	WriteMacInt32(XLM_ETHER_OPEN, NativeFunction(NATIVE_ETHER_OPEN));
 	WriteMacInt32(XLM_ETHER_CLOSE, NativeFunction(NATIVE_ETHER_CLOSE));
 	WriteMacInt32(XLM_ETHER_WPUT, NativeFunction(NATIVE_ETHER_WPUT));
 	WriteMacInt32(XLM_ETHER_RSRV, NativeFunction(NATIVE_ETHER_RSRV));
 	WriteMacInt32(XLM_VIDEO_DOIO, NativeFunction(NATIVE_VIDEO_DO_DRIVER_IO));
-#else
-	WriteMacInt32(XLM_TOC, (uint32)TOC);							// TOC pointer of emulator
-	WriteMacInt32(XLM_ETHER_INIT, (uint32)InitStreamModule);		// DLPI ethernet driver functions
-	WriteMacInt32(XLM_ETHER_TERM, (uint32)TerminateStreamModule);
-	WriteMacInt32(XLM_ETHER_OPEN, (uint32)ether_open);
-	WriteMacInt32(XLM_ETHER_CLOSE, (uint32)ether_close);
-	WriteMacInt32(XLM_ETHER_WPUT, (uint32)ether_wput);
-	WriteMacInt32(XLM_ETHER_RSRV, (uint32)ether_rsrv);
-	WriteMacInt32(XLM_VIDEO_DOIO, (uint32)VideoDoDriverIO);
-#endif
 	D(bug("Low Memory initialized\n"));
 
 	// Start 60Hz thread
@@ -958,19 +950,6 @@ void Execute68kTrap(uint16 trap, M68kRegisters *r)
 	uint16 proc[2] = {trap, M68K_RTS};
 	Execute68k((uint32)proc, r);
 }
-
-
-/*
- *  Execute PPC code from EMUL_OP routine (real mode switch)
- */
-
-void ExecutePPC(void (*func)())
-{
-	uint32 tvect[2] = {(uint32)func, 0};	// Fake TVECT
-	SheepRoutineDescriptor desc(0, (uint32)tvect);
-	M68kRegisters r;
-	Execute68k(desc.addr(), &r);
-}
 #endif
 
 
@@ -1049,11 +1028,7 @@ void MakeExecutable(int dummy, void *start, uint32 length)
 
 void PatchAfterStartup(void)
 {
-#if EMULATED_PPC
 	ExecuteNative(NATIVE_VIDEO_INSTALL_ACCEL);
-#else
-	ExecutePPC(VideoInstallAccel);
-#endif
 	InstallExtFS();
 }
 
@@ -1394,7 +1369,7 @@ static void sigusr2_handler(int sig, sigcontext_struct *sc)
 					if (InterruptFlags & INTFLAG_VIA) {
 						ClearInterruptFlag(INTFLAG_VIA);
 						ADBInterrupt();
-						ExecutePPC(VideoVBL);
+						ExecuteNative(NATIVE_VIDEO_VBL);
 					}
 				}
 #endif

@@ -29,6 +29,7 @@
 #include "name_registry.h"
 #include "serial.h"
 #include "ether.h"
+#include "macos_util.h"
 
 
 /*		NativeOp instruction format:
@@ -41,7 +42,10 @@
 #define POWERPC_NATIVE_OP(LR, OP) \
 		(POWERPC_EMUL_OP | ((LR) << 11) | (((uint32)OP) << 6) | 2)
 
-// Return the fake PowerPC opcode to handle specified native code
+/*
+ *  Return the fake PowerPC opcode to handle specified native code
+ */
+
 #if EMULATED_PPC
 uint32 NativeOpcode(int selector)
 {
@@ -84,14 +88,17 @@ uint32 NativeOpcode(int selector)
 }
 #endif
 
-// NativeOp -> { TVECT, function base } mappings
+
+/*
+ *  Initialize the thunks system
+ */
+
 struct native_op_t {
 	uint32 tvect;
 	uint32 func;
 };
 static native_op_t native_op[NATIVE_OP_MAX];
 
-// Initialize the thunks system
 bool ThunksInit(void)
 {
 #if EMULATED_PPC
@@ -120,6 +127,17 @@ bool ThunksInit(void)
 #else
 #error "FIXME: define NativeOp for your platform"
 #endif
+	DEFINE_NATIVE_OP(NATIVE_PATCH_NAME_REGISTRY, DoPatchNameRegistry);
+	DEFINE_NATIVE_OP(NATIVE_VIDEO_INSTALL_ACCEL, VideoInstallAccel);
+	DEFINE_NATIVE_OP(NATIVE_VIDEO_VBL, VideoVBL);
+	DEFINE_NATIVE_OP(NATIVE_VIDEO_DO_DRIVER_IO, VideoDoDriverIO);
+	DEFINE_NATIVE_OP(NATIVE_ETHER_IRQ, EtherIRQ);
+	DEFINE_NATIVE_OP(NATIVE_ETHER_INIT, InitStreamModule);
+	DEFINE_NATIVE_OP(NATIVE_ETHER_TERM, TerminateStreamModule);
+	DEFINE_NATIVE_OP(NATIVE_ETHER_OPEN, ether_open);
+	DEFINE_NATIVE_OP(NATIVE_ETHER_CLOSE, ether_close);
+	DEFINE_NATIVE_OP(NATIVE_ETHER_WPUT, ether_wput);
+	DEFINE_NATIVE_OP(NATIVE_ETHER_RSRV, ether_rsrv);
 	DEFINE_NATIVE_OP(NATIVE_SERIAL_NOTHING, SerialNothing);
 	DEFINE_NATIVE_OP(NATIVE_SERIAL_OPEN, SerialOpen);
 	DEFINE_NATIVE_OP(NATIVE_SERIAL_PRIME_IN, SerialPrimeIn);
@@ -133,20 +151,40 @@ bool ThunksInit(void)
 	return true;
 }
 
-// Return the native function descriptor (TVECT)
+
+/*
+ *  Return the native function descriptor (TVECT)
+ */
+
 uint32 NativeTVECT(int selector)
 {
 	assert(selector < NATIVE_OP_MAX);
 	const uint32 tvect = native_op[selector].tvect;
 	assert(tvect != 0);
-	return native_op[selector].tvect;
+	return tvect;
 }
 
-// Return the native function address
+
+/*
+ *  Return the native function address
+ */
+
 uint32 NativeFunction(int selector)
 {
 	assert(selector < NATIVE_OP_MAX);
 	const uint32 func = native_op[selector].func;
 	assert(func != 0);
-	return native_op[selector].func;
+	return func;
+}
+
+
+/*
+ *  Execute native code from EMUL_OP routine (real mode switch)
+ */
+
+void ExecuteNative(int selector)
+{
+	SheepRoutineDescriptor desc(0, NativeTVECT(selector));
+	M68kRegisters r;
+	Execute68k(desc.addr(), &r);
 }

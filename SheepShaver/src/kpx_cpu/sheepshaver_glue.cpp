@@ -784,7 +784,7 @@ void sheepshaver_cpu::handle_interrupt(void)
 				if (InterruptFlags & INTFLAG_VIA) {
 					ClearInterruptFlag(INTFLAG_VIA);
 					ADBInterrupt();
-					ExecutePPC(VideoVBL);
+					ExecuteNative(NATIVE_VIDEO_VBL);
 				}
 			}
 #endif
@@ -905,17 +905,6 @@ static void NativeOp(int selector)
 #if EMUL_TIME_STATS
 	native_exec_time += (clock() - native_exec_start);
 #endif
-}
-
-/*
- *  Execute native subroutine (LR must contain return address)
- */
-
-void ExecuteNative(int selector)
-{
-	SheepRoutineDescriptor desc(0, NativeTVECT(selector));
-	M68kRegisters r;
-	Execute68k(desc.addr(), &r);
 }
 
 /*

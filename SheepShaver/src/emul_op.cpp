@@ -307,11 +307,7 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 #if !PRECISE_TIMING
 					TimerInterrupt();
 #endif
-#if EMULATED_PPC
 					ExecuteNative(NATIVE_VIDEO_VBL);
-#else
-					ExecutePPC(VideoVBL);
-#endif
 
 					static int tick_counter = 0;
 					if (++tick_counter >= 60) {
@@ -329,11 +325,7 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 				}
 				if (InterruptFlags & INTFLAG_ETHER) {
 					ClearInterruptFlag(INTFLAG_ETHER);
-#if EMULATED_PPC
 					ExecuteNative(NATIVE_ETHER_IRQ);
-#else
-					ExecutePPC(EtherIRQ);
-#endif
 				}
 				if (InterruptFlags & INTFLAG_TIMER) {
 					ClearInterruptFlag(INTFLAG_TIMER);

@@ -302,9 +302,5 @@ void PatchNameRegistry(void)
 	}
 
 	// Main routine must be executed in PPC mode
-#if EMULATED_PPC
 	ExecuteNative(NATIVE_PATCH_NAME_REGISTRY);
-#else
-	ExecutePPC(DoPatchNameRegistry);
-#endif
 }
