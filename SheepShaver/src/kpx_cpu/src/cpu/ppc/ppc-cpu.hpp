@@ -281,6 +281,7 @@ protected:
 		uint32				pc;
 		uint32				opcode;
 		const instr_info_t *instr_info;
+		bool				done_compile;
 
 		codegen_context_t(powerpc_dyngen & codegen_init)
 			: codegen(codegen_init)

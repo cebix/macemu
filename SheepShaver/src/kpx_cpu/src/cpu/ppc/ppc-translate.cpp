@@ -1025,6 +1025,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			cg_context.pc = dpc;
 			cg_context.opcode = opcode;
 			cg_context.instr_info = ii;
+			cg_context.done_compile = done_compile;
 			if (!compile1(cg_context)) {
 				if ((dpc - sync_pc) > sync_pc_offset) {
 					sync_pc = dpc;
@@ -1034,6 +1035,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 				sync_pc_offset += 4;
 				dg.gen_invoke_CPU_im(func, opcode);
 			}
+			done_compile = cg_context.done_compile;
 		}
 		}
 		if (dg.full_translation_cache()) {
