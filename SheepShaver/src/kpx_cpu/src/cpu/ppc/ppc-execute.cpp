@@ -1145,7 +1145,7 @@ static inline uint64 get_tb_ticks(void)
 {
 	uint64 ticks;
 #ifdef SHEEPSHAVER
-	const uint32 TBFreq = BusClockSpeed / 4;
+	const uint32 TBFreq = TimebaseSpeed;
 	ticks = muldiv64(GetTicks_usec(), TBFreq, 1000000);
 #else
 	const uint32 TBFreq = 25 * 1000 * 1000; // 25 MHz

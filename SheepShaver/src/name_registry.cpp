@@ -138,7 +138,7 @@ void DoPatchNameRegistry(void)
 			RegistryPropertyCreate(power_pc.ptr(), "clock-frequency", u32.ptr(), 4);
 			u32.set_value(BusClockSpeed);
 			RegistryPropertyCreate(power_pc.ptr(), "bus-frequency", u32.ptr(), 4);
-			u32.set_value(BusClockSpeed / 4);
+			u32.set_value(TimebaseSpeed);
 			RegistryPropertyCreate(power_pc.ptr(), "timebase-frequency", u32.ptr(), 4);
 			u32.set_value(PVR);
 			RegistryPropertyCreate(power_pc.ptr(), "cpu-version", u32.ptr(), 4);

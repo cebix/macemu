@@ -28,6 +28,7 @@ extern uint32 BootGlobsAddr;	// Address of BootGlobs structure at top of Mac RAM
 extern uint32 PVR;				// Theoretical PVR
 extern int64 CPUClockSpeed;		// Processor clock speed (Hz)
 extern int64 BusClockSpeed;		// Bus clock speed (Hz)
+extern int64 TimebaseSpeed;		// Timebase clock speed (Hz)
 
 #ifdef __BEOS__
 extern system_info SysInfo;		// System information

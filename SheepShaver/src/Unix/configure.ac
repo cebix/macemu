@@ -224,7 +224,7 @@ AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(mach/vm_map.h mach/mach_init.h sys/mman.h)
 AC_CHECK_HEADERS(sys/time.h sys/times.h sys/socket.h)
-AC_CHECK_HEADERS(unistd.h fcntl.h byteswap.h)
+AC_CHECK_HEADERS(unistd.h fcntl.h byteswap.h dirent.h)
 AC_CHECK_HEADERS(linux/if.h, [], [], [
 #if HAVE_SYS_SOCKET_H
 # include <sys/socket.h>

@@ -127,6 +127,10 @@
 #include "debug.h"
 
 
+#ifdef HAVE_DIRENT_H
+#include <dirent.h>
+#endif
+
 #ifdef USE_SDL
 #include <SDL.h>
 #endif
@@ -275,6 +279,7 @@ uint32 DRCacheAddr;		// Address of DR Cache
 uint32 PVR;				// Theoretical PVR
 int64 CPUClockSpeed;	// Processor clock speed (Hz)
 int64 BusClockSpeed;	// Bus clock speed (Hz)
+int64 TimebaseSpeed;	// Timebase clock speed (Hz)
 
 
 // Global variables
@@ -566,6 +571,7 @@ int main(int argc, char **argv)
 	PVR = 0x00040000;			// Default: 604
 	CPUClockSpeed = 100000000;	// Default: 100MHz
 	BusClockSpeed = 100000000;	// Default: 100MHz
+	TimebaseSpeed =  25000000;	// Default:  25MHz
 #if EMULATED_PPC
 	PVR = 0x000c0000;			// Default: 7400 (with AltiVec)
 #elif defined(__APPLE__) && defined(__MACH__)
@@ -669,6 +675,27 @@ int main(int argc, char **argv)
 		if (fread(value.b, sizeof(value), 1, proc_file) == 1)
 			BusClockSpeed = value.l;
 		fclose(proc_file);
+	}
+
+	// Get actual timebase frequency
+	TimebaseSpeed = BusClockSpeed / 4;
+	DIR *cpus_dir;
+	if ((cpus_dir = opendir("/proc/device-tree/cpus")) != NULL) {
+		struct dirent *cpu_entry;
+		while ((cpu_entry = readdir(cpus_dir)) != NULL) {
+			if (strstr(cpu_entry->d_name, "PowerPC,") == cpu_entry->d_name) {
+				char timebase_freq_node[256];
+				sprintf(timebase_freq_node, "/proc/device-tree/cpus/%s/timebase-frequency", cpu_entry->d_name);
+				proc_file = fopen(timebase_freq_node, "r");
+				if (proc_file) {
+					union { uint8 b[4]; uint32 l; } value;
+					if (fread(value.b, sizeof(value), 1, proc_file) == 1)
+						TimebaseSpeed = value.l;
+					fclose(proc_file);
+				}
+			}
+		}
+		closedir(cpus_dir);
 	}
 #endif
 	D(bug("PVR: %08x (assumed)\n", PVR));
@@ -954,7 +981,7 @@ int main(int argc, char **argv)
 		kernel_data->v[0xf60 >> 2] = htonl(PVR);
 		kernel_data->v[0xf64 >> 2] = htonl(CPUClockSpeed);			// clock-frequency
 		kernel_data->v[0xf68 >> 2] = htonl(BusClockSpeed);			// bus-frequency
-		kernel_data->v[0xf6c >> 2] = htonl(BusClockSpeed / 4);		// timebase-frequency
+		kernel_data->v[0xf6c >> 2] = htonl(TimebaseSpeed);			// timebase-frequency
 	} else {
 		kernel_data->v[0xc80 >> 2] = htonl(RAMSize);
 		kernel_data->v[0xc84 >> 2] = htonl(RAMSize);
@@ -968,7 +995,7 @@ int main(int argc, char **argv)
 		kernel_data->v[0xf80 >> 2] = htonl(PVR);
 		kernel_data->v[0xf84 >> 2] = htonl(CPUClockSpeed);			// clock-frequency
 		kernel_data->v[0xf88 >> 2] = htonl(BusClockSpeed);			// bus-frequency
-		kernel_data->v[0xf8c >> 2] = htonl(BusClockSpeed / 4);		// timebase-frequency
+		kernel_data->v[0xf8c >> 2] = htonl(TimebaseSpeed);			// timebase-frequency
 	}
 
 	// Initialize extra low memory

@@ -219,6 +219,7 @@ uint32 DREmulatorAddr;	// Address of DR Emulator
 uint32 PVR;				// Theoretical PVR
 int64 CPUClockSpeed;	// Processor clock speed (Hz)
 int64 BusClockSpeed;	// Bus clock speed (Hz)
+int64 TimebaseSpeed;	// Timebase clock speed (Hz)
 system_info SysInfo;	// System information
 
 static void *sig_stack = NULL;		// Stack for signal handlers
@@ -299,6 +300,7 @@ void SheepShaver::ReadyToRun(void)
 	}
 	CPUClockSpeed = SysInfo.cpu_clock_speed;
 	BusClockSpeed = SysInfo.bus_clock_speed;
+	TimebaseSpeed = BusClockSpeed / 4;
 
 	// Delete old areas
 	area_id old_kernel_area = find_area(KERNEL_AREA_NAME);
