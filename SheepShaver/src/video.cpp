@@ -448,7 +448,7 @@ static int16 VideoControl(uint32 pb, VidLocals *csSave)
 			MacCursor[3] = ReadMacInt8(0x887);
 
 			// Set new cursor image
-			if (display_type == DIS_SCREEN)
+			if (!video_can_change_cursor())
 				return controlErr;
 			if (changed)
 				video_set_cursor();

@@ -57,6 +57,7 @@ using std::sort;
 
 // Constants
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
+static const bool mac_cursor_enabled = false;	// Flag: Enable MacOS to X11 copy of cursor?
 
 // Global variables
 static int32 frame_skip;
@@ -505,18 +506,29 @@ static bool open_window(int width, int height)
 	XSetState(x_display, the_gc, black_pixel, white_pixel, GXcopy, AllPlanes);
 
 	// Create cursor
-	cursor_image = XCreateImage(x_display, vis, 1, XYPixmap, 0, (char *)MacCursor + 4, 16, 16, 16, 2);
-	cursor_image->byte_order = MSBFirst;
-	cursor_image->bitmap_bit_order = MSBFirst;
-	cursor_mask_image = XCreateImage(x_display, vis, 1, XYPixmap, 0, (char *)MacCursor + 36, 16, 16, 16, 2);
-	cursor_mask_image->byte_order = MSBFirst;
-	cursor_mask_image->bitmap_bit_order = MSBFirst;
-	cursor_map = XCreatePixmap(x_display, the_win, 16, 16, 1);
-	cursor_mask_map = XCreatePixmap(x_display, the_win, 16, 16, 1);
-	cursor_gc = XCreateGC(x_display, cursor_map, 0, 0);
-	cursor_mask_gc = XCreateGC(x_display, cursor_mask_map, 0, 0);
-	mac_cursor = XCreatePixmapCursor(x_display, cursor_map, cursor_mask_map, &black, &white, 0, 0);
-	cursor_changed = false;
+	if (mac_cursor_enabled) {
+		cursor_image = XCreateImage(x_display, vis, 1, XYPixmap, 0, (char *)MacCursor + 4, 16, 16, 16, 2);
+		cursor_image->byte_order = MSBFirst;
+		cursor_image->bitmap_bit_order = MSBFirst;
+		cursor_mask_image = XCreateImage(x_display, vis, 1, XYPixmap, 0, (char *)MacCursor + 36, 16, 16, 16, 2);
+		cursor_mask_image->byte_order = MSBFirst;
+		cursor_mask_image->bitmap_bit_order = MSBFirst;
+		cursor_map = XCreatePixmap(x_display, the_win, 16, 16, 1);
+		cursor_mask_map = XCreatePixmap(x_display, the_win, 16, 16, 1);
+		cursor_gc = XCreateGC(x_display, cursor_map, 0, 0);
+		cursor_mask_gc = XCreateGC(x_display, cursor_mask_map, 0, 0);
+		mac_cursor = XCreatePixmapCursor(x_display, cursor_map, cursor_mask_map, &black, &white, 0, 0);
+		cursor_changed = false;
+	}
+
+	// Create no_cursor
+	else {
+		mac_cursor = XCreatePixmapCursor(x_display,
+			XCreatePixmap(x_display, the_win, 1, 1, 1),
+			XCreatePixmap(x_display, the_win, 1, 1, 1),
+			&black, &white, 0, 0);
+		XDefineCursor(x_display, the_win, mac_cursor);
+	}
 
 	// Init blitting routines
 	bool native_byte_order;
@@ -2075,6 +2087,16 @@ void video_set_palette(void)
 
 
 /*
+ *  Can we set the MacOS cursor image into the window?
+ */
+
+bool video_can_change_cursor(void)
+{
+	return mac_cursor_enabled && (display_type != DIS_SCREEN);
+}
+
+
+/*
  *  Set cursor image for window
  */
 
@@ -2319,7 +2341,7 @@ static void *redraw_func(void *arg)
 						update_display();
 
 					// Set new cursor image if it was changed
-					if (cursor_changed) {
+					if (mac_cursor_enabled && cursor_changed) {
 						cursor_changed = false;
 						memcpy(cursor_image->data, MacCursor + 4, 32);
 						memcpy(cursor_mask_image->data, MacCursor + 36, 32);

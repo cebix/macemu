@@ -759,6 +759,16 @@ void video_set_palette(void)
 
 
 /*
+ *  Can we set the MacOS cursor image into the window?
+ */
+
+bool video_can_change_cursor(void)
+{
+	return (display_type != DIS_SCREEN);
+}
+
+
+/*
  *  Set cursor image for window
  */
 
