@@ -1,4 +1,8 @@
 V0.7 (alpha)
+	- Source tree imported into CVS
+	- Unix: "basilisk_ii_keycodes" renamed to "keycodes", default
+	  location of keycodes file is now /usr/local/share/BasiliskII/keycodes
+	- Unix: improved the install target
 	- Unix/sys_unix.cpp: Sys_open() checks whether an HFS volume is currently
 	  mounted under Linux and tries to unmount it
 	- Unix/sys_unix.cpp: implemented SysAddDiskPrefs() for Linux (scans
