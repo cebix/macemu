@@ -352,7 +352,7 @@ static void sigill_handler(int sig, siginfo_t *sip, void *scp);
 #if !EMULATED_PPC
 extern "C" void *get_toc(void);
 extern "C" void *get_sp(void);
-extern "C" void flush_icache_range(void *start, void *end);
+extern "C" void flush_icache_range(uint32 start, uint32 end);
 extern "C" void jump_to_rom(uint32 entry, uint32 context);
 extern "C" void quit_emulator(void);
 extern "C" void execute_68k(uint32 pc, M68kRegisters *r);
@@ -905,7 +905,7 @@ int main(int argc, char **argv)
 
 	// Clear caches (as we loaded and patched code) and write protect ROM
 #if !EMULATED_PPC
-	MakeExecutable(0, ROM_BASE, ROM_AREA_SIZE);
+	flush_icache_range(ROM_BASE, ROM_BASE + ROM_AREA_SIZE);
 #endif
 	vm_protect(ROMBaseHost, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_EXECUTE);
 
@@ -1286,7 +1286,7 @@ void MakeExecutable(int dummy, uint32 start, uint32 length)
 #if EMULATED_PPC
 	FlushCodeCache(start, start + length);
 #else
-	flush_icache_range(start, (void *)(start + length));
+	flush_icache_range(start, start + length);
 #endif
 }
 
