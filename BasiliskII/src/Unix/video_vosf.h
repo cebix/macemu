@@ -189,30 +189,33 @@ static uint32 page_extend(uint32 size)
  *  Check if VOSF acceleration is profitable on this platform
  */
 
-const int VOSF_PROFITABLE_THRESHOLD = 8000; // 8 ms, aka (60 Hz / 2) for work processing
+const int VOSF_PROFITABLE_TRIES = 3;			// Make 3 attempts for full screen update
+const int VOSF_PROFITABLE_THRESHOLD = 16667;	// 60 Hz
 
 static bool video_vosf_profitable(void)
 {
-	uint64 start = GetTicks_usec();
+	int64 durations[VOSF_PROFITABLE_TRIES];
+	int mean_duration = 0;
 
-	for (int i = 0; i < mainBuffer.pageCount; i++) {
-		uint8 *addr = (uint8 *)(mainBuffer.memStart + (i * mainBuffer.pageSize));
-		memset(addr, 0, mainBuffer.pageSize); // Trigger Screen_fault_handler()
+	for (int i = 0; i < VOSF_PROFITABLE_TRIES; i++) {
+		uint64 start = GetTicks_usec();
+		for (int p = 0; p < mainBuffer.pageCount; p++) {
+			uint8 *addr = (uint8 *)(mainBuffer.memStart + (p * mainBuffer.pageSize));
+			addr[0] = 0; // Trigger Screen_fault_handler()
+		}
+		int64 duration = GetTicks_usec() - start;
+		mean_duration += duration;
+		durations[i] = duration;
+
+		PFLAG_CLEAR_ALL;
+		mainBuffer.dirty = false;
+		if (vm_protect((char *)mainBuffer.memStart, mainBuffer.memLength, VM_PAGE_READ) != 0)
+			return false;
 	}
 
-	uint64 end = GetTicks_usec();
-	const int diff = end - start;
-	D(bug("Triggered %d screen faults in %ld usec\n", mainBuffer.pageCount, diff));
-
-	if (diff > (VOSF_PROFITABLE_THRESHOLD * (frame_skip + 1)))
-		return false;
-
-	// Reset VOSF variables to initial state
-	PFLAG_CLEAR_ALL;
-	if (vm_protect((char *)mainBuffer.memStart, mainBuffer.memLength, VM_PAGE_READ) != 0)
-		return false;
-	mainBuffer.dirty = false;
-	return true;
+	mean_duration /= VOSF_PROFITABLE_TRIES;
+	D(bug("Triggered %d screen faults in %ld usec on average\n", mainBuffer.pageCount, mean_duration));
+	return (mean_duration < (VOSF_PROFITABLE_THRESHOLD * (frame_skip ? frame_skip : 1)));
 }
 
 
