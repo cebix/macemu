@@ -44,7 +44,8 @@
 #endif
 
 #ifndef WIN32
-#define PROFILE_COMPILE_TIME	1
+#define PROFILE_COMPILE_TIME		1
+#define PROFILE_UNTRANSLATED_INSNS	1
 #endif
 
 #ifdef WIN32
@@ -67,6 +68,17 @@ static uae_u32 compile_count	= 0;
 static clock_t compile_time		= 0;
 static clock_t emul_start_time	= 0;
 static clock_t emul_end_time	= 0;
+#endif
+
+#if PROFILE_UNTRANSLATED_INSNS
+const int untranslated_top_ten = 20;
+static uae_u32 raw_cputbl_count[65536] = { 0, };
+static uae_u16 opcode_nums[65536];
+
+static int untranslated_compfn(const void *e1, const void *e2)
+{
+	return raw_cputbl_count[*(const uae_u16 *)e1] < raw_cputbl_count[*(const uae_u16 *)e2];
+}
 #endif
 
 compop_func *compfunctbl[65536];
@@ -4641,6 +4653,10 @@ void compiler_init(void)
 	
 	initialized = true;
 	
+#if PROFILE_UNTRANSLATED_INSNS
+	write_log("<JIT compiler> : gather statistics on untranslated insns count\n");
+#endif
+
 #if PROFILE_COMPILE_TIME
 	write_log("<JIT compiler> : gather statistics on translation time\n");
 	emul_start_time = clock();
@@ -4673,6 +4689,28 @@ void compiler_exit(void)
 	write_log("Total compilation time : %.1f sec (%.1f%%)\n", double(compile_time)/double(CLOCKS_PER_SEC),
 		100.0*double(compile_time)/double(emul_time));
 	write_log("\n");
+#endif
+
+#if PROFILE_UNTRANSLATED_INSNS
+	uae_u64 untranslated_count = 0;
+	for (int i = 0; i < 65536; i++) {
+		opcode_nums[i] = i;
+		untranslated_count += raw_cputbl_count[i];
+	}
+	write_log("Sorting out untranslated instructions count...\n");
+	qsort(opcode_nums, 65536, sizeof(uae_u16), untranslated_compfn);
+	write_log("\nRank  Opc      Count Name\n");
+	for (int i = 0; i < untranslated_top_ten; i++) {
+		uae_u32 count = raw_cputbl_count[opcode_nums[i]];
+		struct instr *dp;
+		struct mnemolookup *lookup;
+		if (!count)
+			break;
+		dp = table68k + opcode_nums[i];
+		for (lookup = lookuptab; lookup->mnemo != dp->mnemo; lookup++)
+			;
+		write_log("%03d: %04x %10lu %s\n", i, opcode_nums[i], count, lookup->name);
+	}
 #endif
 }
 
@@ -6152,6 +6190,10 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 		    raw_mov_l_mi((uae_u32)&regs.pc_p,
 				 (uae_u32)pc_hist[i].location);
 		    raw_call((uae_u32)cputbl[opcode]);
+#if PROFILE_UNTRANSLATED_INSNS
+			// raw_cputbl_count[] is indexed with plain opcode (in m68k order)
+			raw_add_l_mi((uae_u32)&raw_cputbl_count[cft_map(opcode)],1);
+#endif
 		    //raw_add_l_mi((uae_u32)&oink,1); // FIXME
 #if USE_NORMAL_CALLING_CONVENTION
 		    raw_inc_sp(4);
