@@ -196,7 +196,7 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 	{
 		[volsDS addObject: (NSObject *) locked
 				 withPath: [oP filename] ];
-		PrefsAddString("disk", [[oP filename] cString]);
+		PrefsAddString("disk", [[oP filename] UTF8String]);
 		[diskImages reloadData];
 		edited = YES;
 	}
@@ -217,7 +217,7 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 							types:nil] == NSOKButton )
 	{
 		[extFS setStringValue: [oP directory] ];
-		PrefsReplaceString("extfs", [[oP directory] cString]);
+		PrefsReplaceString("extfs", [[oP directory] UTF8String]);
 		edited = YES;
 	}
 }
@@ -234,7 +234,7 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 							types:nil] == NSOKButton )
 	{
 		[prefsFile setStringValue: [oP filename] ];
-		UserPrefsPath = [[oP filename] cString];
+		UserPrefsPath = [[oP filename] UTF8String];
 	}
 }
 
@@ -250,7 +250,7 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 							types:nil] == NSOKButton )
 	{
 		[ROMfile setStringValue: [oP filename] ];
-		PrefsReplaceString("rom", [[oP filename] cString]);
+		PrefsReplaceString("rom", [[oP filename] UTF8String]);
 		edited = YES;
 	}
 }
@@ -434,7 +434,7 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 	if ( [sP runModalForDirectory:NSHomeDirectory() file:@"basilisk-II.vol"] == NSOKButton )
 	{
 		char		cmd[1024];
-		const char	*filename = [[sP filename] cString];
+		const char	*filename = [[sP filename] UTF8String];
 		int			retVal,
 					size = [newVolumeSize intValue];
 
@@ -471,15 +471,14 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 
 - (IBAction) DeleteVolume: (id)sender
 {
-//	const char *path = [self RemoveVolumeEntry];
-//	if ( unlink(path) == -1 )
 	NSString	*Path = [self RemoveVolumeEntry];
 
 	if ( ! [[NSFileManager defaultManager] removeFileAtPath: Path
 													handler: self] )
 	{
 		WarningSheet(@"Unable to delete volume", panel);
-//		NSLog(@"%s unlink(%s) failed - %s", __PRETTY_FUNCTION__, path, strerror(errno));
+		NSLog(@"%s unlink(%s) failed - %s", __PRETTY_FUNCTION__,
+									[Path cString], strerror(errno));
 	}
 }
 
@@ -514,7 +513,7 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 {
 	NSString	*path = [etherNet stringValue];
 
-	PrefsReplaceString("ether", [path cString]);
+	PrefsReplaceString("ether", [path UTF8String]);
 	edited = YES;
 }
 
@@ -522,7 +521,7 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 {
 	NSString	*path = [extFS stringValue];
 
-	PrefsReplaceString("extfs", [path cString]);
+	PrefsReplaceString("extfs", [path UTF8String]);
 	edited = YES;
 }
 
@@ -539,7 +538,7 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 {
 	NSString	*path = [modem stringValue];
 
-	PrefsReplaceString("seriala", [path cString]);
+	PrefsReplaceString("seriala", [path UTF8String]);
 	edited = YES;
 }
 
@@ -558,7 +557,7 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 {
 	NSString	*path = [printer stringValue];
 
-	PrefsReplaceString("serialb", [path cString]);
+	PrefsReplaceString("serialb", [path UTF8String]);
 	edited = YES;
 }
 
@@ -566,7 +565,7 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 {
 	NSString	*path = [ROMfile stringValue];
 
-	PrefsReplaceString("rom", [path cString]);
+	PrefsReplaceString("rom", [path UTF8String]);
 }
 
 - (IBAction) RemoveSCSI: (id)sender
@@ -579,7 +578,8 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 		NSLog (@"%s - [SCSIds deleteRow: %d] failed", __PRETTY_FUNCTION__, row);
 	[SCSIdisks reloadData];
 	sprintf(pref, "scsi%d", SCSIid);
-	PrefsRemoveItem(pref,0);
+	//PrefsRemoveItem(pref,0);
+	PrefsRemoveItem(pref, 1);
 }
 
 //- (const char *) RemoveVolumeEntry
@@ -590,7 +590,7 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 	if ( row != -1 )
 	{
 		NSString	*Path = [volsDS pathAtRow: row];
-		const char	*path = [Path cString],
+		const char	*path = [Path UTF8String],
 					*str;
 		int			tmp = 0;
 
@@ -656,7 +656,7 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 	char	*argv[2];
 
 	argv[0] = "--prefs",
-	argv[1] = (char *) [[prefsFile stringValue] cString];
+	argv[1] = (char *) [[prefsFile stringValue] UTF8String];
 
 	[self loadPrefs: argc
 			   args: argv];
@@ -669,12 +669,12 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 }
 
 - (void) setStringOf: (NSTextField *) field
-			fromPref: (const char *)  prefName
+				fromPref: (const char *)  prefName
 {
 	const char	*value = PrefsFindString(prefName, 0);
 
 	if ( value )
-		[field setStringValue: [NSString stringWithCString: value] ];
+		[field setStringValue: [NSString stringWithUTF8String: value] ];
 }
 
 - (IBAction) SavePrefs: (id)sender
@@ -711,9 +711,9 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 	[self setStringOf: extFS	 fromPref: "extfs"	];
 	[self setStringOf: modem	 fromPref: "seriala"];
 	[self setStringOf: printer	 fromPref: "serialb"];
-    [self setStringOf: ROMfile	 fromPref: "rom"	];
+    [self setStringOf: ROMfile	 fromPref: "rom"];
 
-	[prefsFile setStringValue: [NSString stringWithCString: UserPrefsPath.c_str()] ];
+	[prefsFile setStringValue: [NSString stringWithUTF8String: UserPrefsPath.c_str()] ];
 
 
 	parse_screen_prefs(PrefsFindString("screen"));
@@ -806,10 +806,10 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 	{
 		if ( *str == '*' )
 			[volsDS addObject: (NSObject *) locked
-					 withPath: [NSString stringWithCString: str+1]];
+					 withPath: [NSString stringWithUTF8String: str+1]];
 		else
 			[volsDS addObject: (NSObject *) blank
-					 withPath: [NSString stringWithCString: str]];
+					 withPath: [NSString stringWithUTF8String: str]];
 	}
 
 	[diskImages setDataSource: volsDS];
