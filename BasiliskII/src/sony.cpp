@@ -195,10 +195,12 @@ bool SonyMountVolume(void *fh)
 	while (info != end && info->fh != fh)
 		++info;
 	if (info != end) {
+		D(bug("Looking for disk in drive %d\n", info->num));
 		if (SysIsDiskInserted(info->fh)) {
 			info->read_only = SysIsReadOnly(info->fh);
 			WriteMacInt8(info->status + dsDiskInPlace, 1);	// Inserted removable disk
 			WriteMacInt8(info->status + dsWriteProt, info->read_only ? 0xff : 0);
+			D(bug(" disk inserted, mounting\n"));
 			info->to_be_mounted = true;
 		}
 		return true;
@@ -219,7 +221,7 @@ static void mount_mountable_volumes(void)
 
 #if DISK_INSERT_CHECK
 		// Disk in drive?
-		if (!ReadMacInt8(info->status + dsDiskInPlace)) {
+		if (ReadMacInt8(info->status + dsDiskInPlace) == 0) {
 
 			// No, check if disk was inserted
 			if (SysIsDiskInserted(info->fh))
@@ -246,6 +248,7 @@ static void mount_mountable_volumes(void)
 
 static int16 set_dsk_err(int16 err)
 {
+	D(bug("set_dsk_err(%d)\n", err));
 	WriteMacInt16(0x142, err);
 	return err;
 }
@@ -307,6 +310,7 @@ int16 SonyOpen(uint32 pb, uint32 dce)
 			if (SysIsDiskInserted(info->fh)) {
 				WriteMacInt8(info->status + dsDiskInPlace, 1);	// Inserted removable disk
 				WriteMacInt8(info->status + dsWriteProt, info->read_only ? 0xff : 0);
+				D(bug(" disk inserted, flagging for mount\n"));
 				info->to_be_mounted = true;
 			}
 
