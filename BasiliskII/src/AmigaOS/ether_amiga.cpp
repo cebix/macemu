@@ -116,11 +116,11 @@ static int16 send_to_proc(uint32 what, uint32 pointer = 0, uint16 type = 0)
  *  Initialization
  */
 
-void EtherInit(void)
+bool ether_init(void)
 {
 	// Do nothing if no Ethernet device specified
 	if (PrefsFindString("ether") == NULL)
-		return;
+		return false;
 
 	// Initialize protocol list
 	NewList(&prot_list);
@@ -151,8 +151,7 @@ void EtherInit(void)
 		goto open_error;
 
 	// Everything OK
-	net_open = true;
-	return;
+	return true;
 
 open_error:
 	net_proc = NULL;
@@ -160,6 +159,7 @@ open_error:
 		DeleteMsgPort(reply_port);
 		reply_port = NULL;
 	}
+	return false;
 }
 
 
@@ -167,7 +167,7 @@ open_error:
  *  Deinitialization
  */
 
-void EtherExit(void)
+void ether_exit(void)
 {
 	// Stop process
 	if (net_proc) {
@@ -191,7 +191,7 @@ void EtherExit(void)
 void EtherReset(void)
 {
 	// Remove all protocols
-	if (net_open)
+	if (net_proc)
 		send_to_proc(MSG_CLEANUP);
 }
 

@@ -103,6 +103,9 @@
 /* ExtFS is supported */
 #define SUPPORTS_EXTFS 1
 
+/* BSD socket API supported */
+#define SUPPORTS_UDP_TUNNEL 1
+
 
 /* Data types */
 typedef unsigned char uint8;

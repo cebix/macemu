@@ -394,6 +394,25 @@ ether <ethernet card description>
     not an Ethernet device, Basilisk II will display a warning message and
     disable Ethernet networking.
 
+  See the next item for an alternative way to do networking with Basilisk II.
+
+udptunnel <"true" or "false">
+
+  Setting this to "true" enables a special network mode in which all network
+  packets sent by MacOS are tunnelled over UDP using the host operating
+  system's native TCP/IP stack. This only works with AppleTalk and can only
+  be used to connect computers running Basilisk II (and not, for example, for
+  connecting to an AppleShare server running on a real Mac), but it is
+  probably the easiest way to set up a network between two instances of
+  Basilisk II because the UDP tunnelling doesn't require any special kernel
+  modules or network add-ons. It relies on IP broadcasting, however, so
+  its range is limited.
+
+udpport <IP port number>
+
+  This item specifies the IP port number to use for the "AppleTalk over UDP"
+  tunnel mode. The default is 6066.
+
 rom <ROM file path>
 
   This item specifies the file name of the Mac ROM file to be used by

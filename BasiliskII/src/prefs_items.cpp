@@ -43,6 +43,8 @@ prefs_desc common_prefs_items[] = {
 	{"seriala", TYPE_STRING, false,   "device name of Mac serial port A"},
 	{"serialb", TYPE_STRING, false,   "device name of Mac serial port B"},
 	{"ether", TYPE_STRING, false,     "device name of Mac ethernet adapter"},
+	{"udptunnel", TYPE_BOOLEAN, false, "tunnel all network packets over UDP"},
+	{"udpport", TYPE_INT32, false,    "IP port number for tunneling"},
 	{"rom", TYPE_STRING, false,       "path of ROM file"},
 	{"bootdrive", TYPE_INT32, false,  "boot drive number"},
 	{"bootdriver", TYPE_INT32, false, "boot driver number"},
@@ -66,6 +68,8 @@ prefs_desc common_prefs_items[] = {
 void AddPrefsDefaults(void)
 {
 	SysAddSerialPrefs();
+	PrefsAddBool("udptunnel", false);
+	PrefsAddInt32("udpport", 6066);
 	PrefsAddInt32("bootdriver", 0);
 	PrefsAddInt32("bootdrive", 0);
 	PrefsAddInt32("ramsize", 8 * 1024 * 1024);

@@ -27,8 +27,10 @@
 #include <errno.h>
 #include <stdio.h>
 
-#if defined(__FreeBSD__)
+#include <netinet/in.h>
 #include <sys/socket.h>
+
+#if defined(__FreeBSD__)
 #include <net/if.h>
 #endif
 
@@ -63,6 +65,7 @@ static pthread_attr_t ether_thread_attr;	// Packet reception thread attributes
 static bool thread_active = false;			// Flag: Packet reception thread installed
 static sem_t int_ack;						// Interrupt acknowledge semaphore
 static bool is_ethertap;					// Flag: Ethernet device is ethertap
+static bool udp_tunnel;						// Flag: UDP tunnelling active, fd is the socket descriptor
 
 // Prototypes
 static void *receive_func(void *arg);
@@ -107,10 +110,57 @@ static void remove_all_protocols(void)
 
 
 /*
+ *  Start packet reception thread
+ */
+
+static bool start_thread(void)
+{
+	if (sem_init(&int_ack, 0, 0) < 0) {
+		printf("WARNING: Cannot init semaphore");
+		return false;
+	}
+
+	pthread_attr_init(&ether_thread_attr);
+#if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)
+	if (geteuid() == 0) {
+		pthread_attr_setinheritsched(&ether_thread_attr, PTHREAD_EXPLICIT_SCHED);
+		pthread_attr_setschedpolicy(&ether_thread_attr, SCHED_FIFO);
+		struct sched_param fifo_param;
+		fifo_param.sched_priority = (sched_get_priority_min(SCHED_FIFO) + sched_get_priority_max(SCHED_FIFO)) / 2 + 1;
+		pthread_attr_setschedparam(&ether_thread_attr, &fifo_param);
+	}
+#endif
+
+	thread_active = (pthread_create(&ether_thread, &ether_thread_attr, receive_func, NULL) == 0);
+	if (!thread_active) {
+		printf("WARNING: Cannot start Ethernet thread");
+		return false;
+	}
+
+	return true;
+}
+
+
+/*
+ *  Stop packet reception thread
+ */
+
+static void stop_thread(void)
+{
+	if (thread_active) {
+		pthread_cancel(ether_thread);
+		pthread_join(ether_thread, NULL);
+		sem_destroy(&int_ack);
+		thread_active = false;
+	}
+}
+
+
+/*
  *  Initialization
  */
 
-void EtherInit(void)
+bool ether_init(void)
 {
 	int nonblock = 1;
 	char str[256];
@@ -118,7 +168,7 @@ void EtherInit(void)
 	// Do nothing if no Ethernet device specified
 	const char *name = PrefsFindString("ether");
 	if (name == NULL)
-		return;
+		return false;
 
 	// Is it Ethertap?
 	is_ethertap = (strncmp(name, "tap", 3) == 0);
@@ -162,41 +212,20 @@ void EtherInit(void)
 	D(bug("Ethernet address %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
 
 	// Start packet reception thread
-	if (sem_init(&int_ack, 0, 0) < 0) {
-		printf("WARNING: Cannot init semaphore");
+	if (!start_thread())
 		goto open_error;
-	}
-	pthread_attr_init(&ether_thread_attr);
-#if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)
-	if (geteuid() == 0) {
-		pthread_attr_setinheritsched(&ether_thread_attr, PTHREAD_EXPLICIT_SCHED);
-		pthread_attr_setschedpolicy(&ether_thread_attr, SCHED_FIFO);
-		struct sched_param fifo_param;
-		fifo_param.sched_priority = (sched_get_priority_min(SCHED_FIFO) + sched_get_priority_max(SCHED_FIFO)) / 2 + 1;
-		pthread_attr_setschedparam(&ether_thread_attr, &fifo_param);
-	}
-#endif
-	thread_active = (pthread_create(&ether_thread, &ether_thread_attr, receive_func, NULL) == 0);
-	if (!thread_active) {
-		printf("WARNING: Cannot start Ethernet thread");
-		goto open_error;
-	}
 
 	// Everything OK
-	net_open = true;
-	return;
+	return true;
 
 open_error:
-	if (thread_active) {
-		pthread_cancel(ether_thread);
-		pthread_join(ether_thread, NULL);
-		sem_destroy(&int_ack);
-		thread_active = false;
-	}
+	stop_thread();
+
 	if (fd > 0) {
 		close(fd);
 		fd = -1;
 	}
+	return false;
 }
 
 
@@ -204,7 +233,7 @@ open_error:
  *  Deinitialization
  */
 
-void EtherExit(void)
+void ether_exit(void)
 {
 	// Stop reception thread
 	if (thread_active) {
@@ -334,15 +363,7 @@ int16 ether_write(uint32 wds)
 		len += 2;
 	}
 #endif
-	for (;;) {
-		int w = ReadMacInt16(wds);
-		if (w == 0)
-			break;
-		Mac2Host_memcpy(p, ReadMacInt32(wds + 2), w);
-		len += w;
-		p += w;
-		wds += 6;
-	}
+	len += ether_wds_to_buffer(wds, p);
 
 #if MONITOR
 	bug("Sending Ethernet packet:\n");
@@ -358,6 +379,29 @@ int16 ether_write(uint32 wds)
 		return excessCollsns;
 	} else
 		return noErr;
+}
+
+
+/*
+ *  Start UDP packet reception thread
+ */
+
+bool ether_start_udp_thread(int socket_fd)
+{
+	fd = socket_fd;
+	udp_tunnel = true;
+	return start_thread();
+}
+
+
+/*
+ *  Stop UDP packet reception thread
+ */
+
+void ether_stop_udp_thread(void)
+{
+	stop_thread();
+	fd = -1;
 }
 
 
@@ -397,59 +441,73 @@ void EtherInterrupt(void)
 
 	// Call protocol handler for received packets
 	uint8 packet[1516];
+	ssize_t length;
 	for (;;) {
 
-		// Read packet from sheep_net device
+		if (udp_tunnel) {
+
+			// Read packet from socket
+			struct sockaddr_in from;
+			socklen_t from_len = sizeof(from);
+			length = recvfrom(fd, packet, 1514, 0, (struct sockaddr *)&from, &from_len);
+			if (length < 14)
+				break;
+			ether_udp_read(packet, length, &from);
+
+		} else {
+
+			// Read packet from sheep_net device
 #if defined(__linux__)
-		ssize_t length = read(fd, packet, is_ethertap ? 1516 : 1514);
+			length = read(fd, packet, is_ethertap ? 1516 : 1514);
 #else
-		ssize_t length = read(fd, packet, 1514);
+			length = read(fd, packet, 1514);
 #endif
-		if (length < 14)
-			break;
+			if (length < 14)
+				break;
 
 #if MONITOR
-		bug("Receiving Ethernet packet:\n");
-		for (int i=0; i<length; i++) {
-			bug("%02x ", packet[i]);
-		}
-		bug("\n");
+			bug("Receiving Ethernet packet:\n");
+			for (int i=0; i<length; i++) {
+				bug("%02x ", packet[i]);
+			}
+			bug("\n");
 #endif
 
-		// Pointer to packet data (Ethernet header)
-		uint8 *p = packet;
+			// Pointer to packet data (Ethernet header)
+			uint8 *p = packet;
 #if defined(__linux__)
-		if (is_ethertap) {
-			p += 2;			// Linux ethertap has two random bytes before the packet
-			length -= 2;
-		}
+			if (is_ethertap) {
+				p += 2;			// Linux ethertap has two random bytes before the packet
+				length -= 2;
+			}
 #endif
 
-		// Get packet type
-		uint16 type = ntohs(*(uint16 *)(p + 12));
+			// Get packet type
+			uint16 type = (p[12] << 8) | p[13];
 
-		// Look for protocol
-		NetProtocol *prot = find_protocol(type);
-		if (prot == NULL)
-			continue;
+			// Look for protocol
+			NetProtocol *prot = find_protocol(type);
+			if (prot == NULL)
+				continue;
 
-		// No default handler
-		if (prot->handler == 0)
-			continue;
+			// No default handler
+			if (prot->handler == 0)
+				continue;
 
-		// Copy header to RHA
-		Host2Mac_memcpy(ether_data + ed_RHA, p, 14);
-		D(bug(" header %08lx%04lx %08lx%04lx %04lx\n", ReadMacInt32(ether_data + ed_RHA), ReadMacInt16(ether_data + ed_RHA + 4), ReadMacInt32(ether_data + ed_RHA + 6), ReadMacInt16(ether_data + ed_RHA + 10), ReadMacInt16(ether_data + ed_RHA + 12)));
+			// Copy header to RHA
+			Host2Mac_memcpy(ether_data + ed_RHA, p, 14);
+			D(bug(" header %08x%04x %08x%04x %04x\n", ReadMacInt32(ether_data + ed_RHA), ReadMacInt16(ether_data + ed_RHA + 4), ReadMacInt32(ether_data + ed_RHA + 6), ReadMacInt16(ether_data + ed_RHA + 10), ReadMacInt16(ether_data + ed_RHA + 12)));
 
-		// Call protocol handler
-		M68kRegisters r;
-		r.d[0] = type;									// Packet type
-		r.d[1] = length - 14;							// Remaining packet length (without header, for ReadPacket)
-		r.a[0] = (uint32)p + 14;						// Pointer to packet (host address, for ReadPacket)
-		r.a[3] = ether_data + ed_RHA + 14;				// Pointer behind header in RHA
-		r.a[4] = ether_data + ed_ReadPacket;			// Pointer to ReadPacket/ReadRest routines
-		D(bug(" calling protocol handler %08lx, type %08lx, length %08lx, data %08lx, rha %08lx, read_packet %08lx\n", prot->handler, r.d[0], r.d[1], r.a[0], r.a[3], r.a[4]));
-		Execute68k(prot->handler, &r);
+			// Call protocol handler
+			M68kRegisters r;
+			r.d[0] = type;									// Packet type
+			r.d[1] = length - 14;							// Remaining packet length (without header, for ReadPacket)
+			r.a[0] = (uint32)p + 14;						// Pointer to packet (host address, for ReadPacket)
+			r.a[3] = ether_data + ed_RHA + 14;				// Pointer behind header in RHA
+			r.a[4] = ether_data + ed_ReadPacket;			// Pointer to ReadPacket/ReadRest routines
+			D(bug(" calling protocol handler %08x, type %08x, length %08x, data %08x, rha %08x, read_packet %08x\n", prot->handler, r.d[0], r.d[1], r.a[0], r.a[3], r.a[4]));
+			Execute68k(prot->handler, &r);
+		}
 	}
 
 	// Acknowledge interrupt to reception thread

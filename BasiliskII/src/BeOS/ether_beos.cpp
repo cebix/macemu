@@ -105,11 +105,11 @@ static void remove_all_protocols(void)
  *  Initialization
  */
 
-void EtherInit(void)
+bool ether_init(void)
 {
 	// Do nothing if no Ethernet device specified
 	if (PrefsFindString("ether") == NULL)
-		return;
+		return false;
 
 	// Find net_server team
 i_wanna_try_that_again:
@@ -148,12 +148,12 @@ i_wanna_try_that_again:
 		// It was found, so something else must be wrong
 		if (sheep_net_found) {
 			WarningAlert(GetString(STR_NO_NET_ADDON_WARN));
-			return;
+			return false;
 		}
 
 		// Not found, inform the user
 		if (!ChoiceAlert(GetString(STR_NET_CONFIG_MODIFY_WARN), GetString(STR_OK_BUTTON), GetString(STR_CANCEL_BUTTON)))
-			return;
+			return false;
 
 		// Change the network config file and restart the network
 		fin = fopen("/boot/home/config/settings/network", "r");
@@ -208,16 +208,16 @@ i_wanna_try_that_again:
 	area_id handler_buffer;
 	if ((handler_buffer = find_area("packet buffer")) < B_NO_ERROR) {
 		WarningAlert(GetString(STR_NET_ADDON_INIT_FAILED));
-		return;
+		return false;
 	}
 	if ((buffer_area = clone_area("local packet buffer", (void **)&net_buffer_ptr, B_ANY_ADDRESS, B_READ_AREA | B_WRITE_AREA, handler_buffer)) < B_NO_ERROR) {
 		D(bug("EtherInit: couldn't clone packet area\n"));
 		WarningAlert(GetString(STR_NET_ADDON_CLONE_FAILED));
-		return;
+		return false;
 	}
 	if ((read_sem = create_sem(0, "ether read")) < B_NO_ERROR) {
 		printf("FATAL: can't create Ethernet semaphore\n");
-		return;
+		return false;
 	}
 	net_buffer_ptr->read_sem = read_sem;
 	write_sem = net_buffer_ptr->write_sem;
@@ -233,7 +233,7 @@ i_wanna_try_that_again:
 	D(bug("Ethernet address %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
 
 	// Everything OK
-	net_open = true;
+	return true;
 }
 
 
@@ -241,27 +241,24 @@ i_wanna_try_that_again:
  *  Deinitialization
  */
 
-void EtherExit(void)
+void ether_exit(void)
 {
-	if (net_open) {
+	// Close communications with add-on
+	for (int i=0; i<WRITE_PACKET_COUNT; i++)
+		net_buffer_ptr->write[i].cmd = IN_USE | (DEACTIVATE_SHEEP_NET << 8);
+	release_sem(write_sem);
 
-		// Close communications with add-on
-		for (int i=0; i<WRITE_PACKET_COUNT; i++)
-			net_buffer_ptr->write[i].cmd = IN_USE | (DEACTIVATE_SHEEP_NET << 8);
-		release_sem(write_sem);
+	// Quit reception thread
+	ether_thread_active = false;
+	status_t result;
+	release_sem(read_sem);
+	wait_for_thread(read_thread, &result);
 
-		// Quit reception thread
-		ether_thread_active = false;
-		status_t result;
-		release_sem(read_sem);
-		wait_for_thread(read_thread, &result);
+	delete_sem(read_sem);
+	delete_area(buffer_area);
 
-		delete_sem(read_sem);
-		delete_area(buffer_area);
-
-		// Remove all protocols
-		remove_all_protocols();
-	}
+	// Remove all protocols
+	remove_all_protocols();
 }
 
 
@@ -364,30 +361,21 @@ int16 ether_write(uint32 wds)
 	} else {
 
 		// Copy packet to buffer
-		uint8 *start;
-		uint8 *bp = start = p->data;
-		for (;;) {
-			int len = ReadMacInt16(wds);
-			if (len == 0)
-				break;
-			Mac2Host_memcpy(bp, ReadMacInt32(wds + 2), len);
-			bp += len;
-			wds += 6;
-		}
+		int len = ether_wds_to_buffer(wds, p->data);
 
 		// Set source address
-		memcpy(start + 6, ether_addr, 6);
+		memcpy(p->data + 6, ether_addr, 6);
 
 #if MONITOR
 		bug("Sending Ethernet packet:\n");
-		for (int i=0; i<(uint32)(bp-start); i++) {
-			bug("%02x ", start[i]);
+		for (int i=0; i<len; i++) {
+			bug("%02x ", p->data[i]);
 		}
 		bug("\n");
 #endif
 
 		// Notify add-on
-		p->length = (uint32)(bp - start);
+		p->length = len;
 		p->cmd = IN_USE | (SHEEP_PACKET << 8);
 		wr_pos = (wr_pos + 1) % WRITE_PACKET_COUNT;
 		release_sem(write_sem);

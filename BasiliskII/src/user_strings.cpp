@@ -184,6 +184,8 @@ user_string_def common_strings[] = {
 	{STR_ISPAR_CTRL, "Parallel Device"},
 	{STR_ETHER_ENABLE_CTRL, "Enable Ethernet"},
 	{STR_ETHERNET_IF_CTRL, "Ethernet Interface"},
+	{STR_UDPTUNNEL_CTRL, "Tunnel AppleTalk over UDP"},
+	{STR_UDPPORT_CTRL, "UDP Port Number"},
 
 	{STR_MEMORY_MISC_PANE_TITLE, "Memory/Misc"},
 	{STR_RAMSIZE_SLIDER, "MacOS RAM Size:"},

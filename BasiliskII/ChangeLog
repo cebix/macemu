@@ -10,6 +10,10 @@ V1.0 (snapshot) - <date>
 	- ADBInterrupt() is no longer called from the 60Hz interrupt but has
 	  its own interrupt flag, potentially increasing the smoothness of
 	  mouse movement
+	- ether.cpp: implemented relatively platform-independant "AppleTalk
+	  over UDP" mode that doesn't require any special kernel modules or
+	  network drivers but can only interconnect instances of Basilisk II;
+	  this is enabled by setting "udptunnel" to true
 	- Unix: windowed display mode supports different resolutions and color
 	  depths, which can be switched on-the-fly
 	- Unix: Ctrl-F5 grabs mouse in windowed mode (enhanced compatibility

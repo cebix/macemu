@@ -853,7 +853,23 @@ static void create_input_pane(GtkWidget *top)
  *  "Serial/Network" pane
  */
 
-static GtkWidget *w_seriala, *w_serialb, *w_ether;
+static GtkWidget *w_seriala, *w_serialb, *w_ether, *w_udp_port;
+
+// Set sensitivity of widgets
+static void set_serial_sensitive(void)
+{
+#if SUPPORTS_UDP_TUNNEL
+	gtk_widget_set_sensitive(w_ether, !PrefsFindBool("udptunnel"));
+	gtk_widget_set_sensitive(w_udp_port, PrefsFindBool("udptunnel"));
+#endif
+}
+
+// "Tunnel AppleTalk over IP" button toggled
+static void tb_udptunnel(GtkWidget *widget)
+{
+	PrefsReplaceBool("udptunnel", GTK_TOGGLE_BUTTON(widget)->active);
+	set_serial_sensitive();
+}
 
 // Read settings from widgets and set preferences
 static void read_serial_settings(void)
@@ -871,6 +887,10 @@ static void read_serial_settings(void)
 		PrefsReplaceString("ether", str);
 	else
 		PrefsRemoveItem("ether");
+
+#if SUPPORTS_UDP_TUNNEL
+	PrefsReplaceInt32("udpport", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w_udp_port)));
+#endif
 }
 
 // Add names of serial devices
@@ -954,8 +974,8 @@ static GList *add_ether_names(void)
 // Create "Serial/Network" pane
 static void create_serial_pane(GtkWidget *top)
 {
-	GtkWidget *box, *table, *label, *combo, *sep;
-	GList *glist = add_serial_names();
+	GtkWidget *box, *hbox, *table, *label, *combo, *sep;
+	GtkObject *adj;
 
 	box = make_pane(top, STR_SERIAL_NETWORK_PANE_TITLE);
 	table = make_table(box, 2, 4);
@@ -964,6 +984,7 @@ static void create_serial_pane(GtkWidget *top)
 	gtk_widget_show(label);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
+	GList *glist = add_serial_names();
 	combo = gtk_combo_new();
 	gtk_widget_show(combo);
 	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
@@ -1006,6 +1027,25 @@ static void create_serial_pane(GtkWidget *top)
 	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
 	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 3, 4, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
 	w_ether = GTK_COMBO(combo)->entry;
+
+#if SUPPORTS_UDP_TUNNEL
+	make_checkbox(box, STR_UDPTUNNEL_CTRL, "udptunnel", GTK_SIGNAL_FUNC(tb_udptunnel));
+
+	hbox = gtk_hbox_new(FALSE, 4);
+	gtk_widget_show(hbox);
+	gtk_box_pack_start(GTK_BOX(box), hbox, FALSE, FALSE, 0);
+
+	label = gtk_label_new(GetString(STR_UDPPORT_CTRL));
+	gtk_widget_show(label);
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+	adj = gtk_adjustment_new(PrefsFindInt32("udpport"), 1, 65535, 1, 5, 0);
+	w_udp_port = gtk_spin_button_new(GTK_ADJUSTMENT(adj), 0.0, 0);
+	gtk_widget_show(w_udp_port);
+	gtk_box_pack_start(GTK_BOX(hbox), w_udp_port, FALSE, FALSE, 0);
+#endif
+
+	set_serial_sensitive();
 }
 
 
