@@ -1030,6 +1030,7 @@ OSX_monitor::switch_to_current_mode(void)
 			failure = "Could not get base address of screen";
 
 	}
+#ifdef CGIMAGEREF
 	// Clean up the old CGImageRef stuff
 	else if ( display_type == DISPLAY_WINDOW && imageRef )
 	{
@@ -1048,6 +1049,7 @@ OSX_monitor::switch_to_current_mode(void)
 		else
 			failure = "Could not video_open() requested mode";
 	}
+#endif
 	else if ( ! video_open(mode) )
 		failure = "Could not video_open() requested mode";
 
@@ -1102,4 +1104,15 @@ void VideoInterrupt(void)
 // This function is called on non-threaded platforms from a timer interrupt
 void VideoRefresh(void)
 {
+}
+
+
+
+// Deal with a memory access signal referring to the screen.
+// For now, just ignore
+bool Screen_fault_handler(char *a, char *b)
+{
+//	NSLog(@"Got a screen fault %lx %lx", a, b);
+//	[output setNeedsDisplay: YES];
+	return YES;
 }
