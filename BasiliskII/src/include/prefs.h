@@ -23,8 +23,10 @@
 
 #include <stdio.h>
 
-extern void PrefsInit(int argc, char **argv);
+extern void PrefsInit(int &argc, char **&argv);
 extern void PrefsExit(void);
+
+extern void PrefsPrintUsage(void);
 
 extern void AddPrefsDefaults(void);
 extern void AddPlatformPrefsDefaults(void);
@@ -70,6 +72,7 @@ struct prefs_desc {
 	const char *name;	// Name of keyword
 	prefs_type type;	// Type (see above)
 	bool multiple;		// Can this item occur multiple times (only for TYPE_STRING)?
+	const char *help;	// Help/descriptive text about this item
 };
 
 // List of common preferences items (those which exist on all platforms)

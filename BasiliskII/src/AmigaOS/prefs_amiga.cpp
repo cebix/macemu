@@ -26,8 +26,8 @@
 
 // Platform-specific preferences items
 prefs_desc platform_prefs_items[] = {
-	{"sound", TYPE_STRING, false},		// Sound output mode description (audio_amiga.cpp)
-	{NULL, TYPE_END, false}	// End of list
+	{"sound", TYPE_STRING, false, "sound output mode description"},
+	{NULL, TYPE_END, false, NULL} // End of list
 };
 
 

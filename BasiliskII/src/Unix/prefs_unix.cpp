@@ -28,12 +28,12 @@
 
 // Platform-specific preferences items
 prefs_desc platform_prefs_items[] = {
-	{"keycodes", TYPE_BOOLEAN, false},		// Use keycodes rather than keysyms to decode keyboard (video_x.cpp)
-	{"keycodefile", TYPE_STRING, false},	// File name of keycode translation table (video_x.cpp)
-	{"fbdevicefile", TYPE_STRING, false},	// File name of frame buffer device specifications (video_x.cpp)
-	{"mousewheelmode", TYPE_INT32, false},	// Mouse wheel support mode (0=Page up/down, 1=Cursor up/down) (video_x.cpp)
-	{"mousewheellines", TYPE_INT32, false},	// Number of lines to scroll in mouse whell mode 1 (video_x.cpp)
-	{NULL, TYPE_END, false}	// End of list
+	{"keycodes", TYPE_BOOLEAN, false,      "use keycodes rather than keysyms to decode keyboard"},
+	{"keycodefile", TYPE_STRING, false,    "path of keycode translation file"},
+	{"fbdevicefile", TYPE_STRING, false,   "path of frame buffer device specification file"},
+	{"mousewheelmode", TYPE_INT32, false,  "mouse wheel support mode (0=page up/down, 1=cursor up/down)"},
+	{"mousewheellines", TYPE_INT32, false, "number of lines to scroll in mouse wheel mode 1"},
+	{NULL, TYPE_END, false, NULL} // End of list
 };
 
 

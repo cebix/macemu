@@ -30,8 +30,8 @@
 
 // Platform-specific preferences items
 prefs_desc platform_prefs_items[] = {
-	{"powerrom", TYPE_STRING, false},	// Path of PowerMac ROM (powerrom_cpu.cpp)
-	{NULL, TYPE_END, false}	// End of list
+	{"powerrom", TYPE_STRING, false, "path of PowerMac ROM"},
+	{NULL, TYPE_END, false, NULL} // End of list
 };
 
 

@@ -195,6 +195,17 @@ char *strdup(const char *s)
  *  Main program
  */
 
+static void usage(const char *prg_name)
+{
+	printf("Usage: %s [OPTION...]\n", prg_name);
+	printf("\nUnix options:\n");
+	printf("  --display STRING\n    X display to use\n");
+	printf("  --break ADDRESS\n    set ROM breakpoint\n");
+	printf("  --rominfo\n    dump ROM information\n");
+	PrefsPrintUsage();
+	exit(0);
+}
+
 int main(int argc, char **argv)
 {
 	char str[256];
@@ -216,35 +227,26 @@ int main(int argc, char **argv)
 	x_display_name = gdk_get_display(); // gtk_init() handles and removes the "--display" argument
 #endif
 
-	// Parse and remove arguments
+	// Read preferences
+	PrefsInit(argc, argv);
+
+	// Parse command line arguments
 	for (int i=1; i<argc; i++) {
-		if (strcmp(argv[i], "--display") == 0) {
-			argv[i] = NULL;
-			if ((i + 1) < argc && argv[i + 1]) {
-				argv[i++] = NULL;
+		if (strcmp(argv[i], "--help") == 0) {
+			usage(argv[0]);
+		} else if (strcmp(argv[i], "--display") == 0) {
+			i++;
+			if (i < argc)
 				x_display_name = strdup(argv[i]);
-			}
 		} else if (strcmp(argv[i], "--break") == 0) {
-			argv[i] = NULL;
-			if ((i + 1) < argc && argv[i + 1]) {
-				argv[i++] = NULL;
+			i++;
+			if (i < argc)
 				ROMBreakpoint = strtol(argv[i], NULL, 0);
-			}
 		} else if (strcmp(argv[i], "--rominfo") == 0) {
-			argv[i] = NULL;
 			PrintROMInfo = true;
-		}
-	}
-	for (int i=1; i<argc; i++) {
-		int k;
-		for (k=i; k<argc; k++)
-			if (argv[k] != NULL)
-				break;
-		if (k > i) {
-			k -= i;
-			for (int j=i+k; j<argc; j++)
-				argv[j-k] = argv[j];
-			argc -= k;
+		} else if (argv[i][0] == '-') {
+			fprintf(stderr, "Unrecognized option '%s'\n", argv[i]);
+			usage(argv[0]);
 		}
 	}
 
@@ -261,9 +263,6 @@ int main(int argc, char **argv)
 	// Fork out, so we can return from fullscreen mode when things get ugly
 	XF86DGAForkApp(DefaultScreen(x_display));
 #endif
-
-	// Read preferences
-	PrefsInit(argc, argv);
 
 	// Init system routines
 	SysInit();

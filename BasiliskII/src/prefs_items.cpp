@@ -28,34 +28,34 @@
 // Except for "disk", "floppy", "cdrom", "scsiX", "screen", "rom" and "ether",
 // these are guaranteed to be in the prefs.
 prefs_desc common_prefs_items[] = {
-	{"disk", TYPE_STRING, true},		// Device/file names of Mac volumes (disk.cpp)
-	{"floppy", TYPE_STRING, true},		// Device/file names of Mac floppy drives (sony.cpp)
-	{"cdrom", TYPE_STRING, true},		// Device/file names of Mac CD-ROM drives (cdrom.cpp)
-	{"extfs", TYPE_STRING, false},		// Root path of ExtFS (extfs.cpp)
-	{"scsi0", TYPE_STRING, false},		// SCSI targets for Mac SCSI ID 0..6 (scsi_*.cpp)
-	{"scsi1", TYPE_STRING, false},
-	{"scsi2", TYPE_STRING, false},
-	{"scsi3", TYPE_STRING, false},
-	{"scsi4", TYPE_STRING, false},
-	{"scsi5", TYPE_STRING, false},
-	{"scsi6", TYPE_STRING, false},
-	{"screen", TYPE_STRING, false},		// Video mode (video.cpp)
-	{"seriala", TYPE_STRING, false},	// Device name of Mac serial port A (serial_*.cpp)
-	{"serialb", TYPE_STRING, false},	// Device name of Mac serial port B (serial_*.cpp)
-	{"ether", TYPE_STRING, false},		// Device name of Mac ethernet adapter (ether_*.cpp)
-	{"rom", TYPE_STRING, false},		// Path of ROM file (main_*.cpp)
-	{"bootdrive", TYPE_INT32, false},	// Boot drive number (main.cpp)
-	{"bootdriver", TYPE_INT32, false},	// Boot driver number (main.cpp)
-	{"ramsize", TYPE_INT32, false},		// Size of Mac RAM in bytes (main_*.cpp)
-	{"frameskip", TYPE_INT32, false},	// Number of frames to skip in refreshed video modes (video_*.cpp)
-	{"modelid", TYPE_INT32, false},		// Mac Model ID (Gestalt Model ID minus 6) (rom_patches.cpp)
-	{"cpu", TYPE_INT32, false},			// CPU type (0 = 68000, 1 = 68010 etc.) (main.cpp)
-	{"fpu", TYPE_BOOLEAN, false},		// Enable FPU emulation (main.cpp)
-	{"nocdrom", TYPE_BOOLEAN, false},	// Don't install CD-ROM driver (cdrom.cpp/rom_patches.cpp)
-	{"nosound", TYPE_BOOLEAN, false},	// Don't enable sound output (audio_*.cpp)
-	{"noclipconversion", TYPE_BOOLEAN, false}, // Don't convert clipboard contents (clip_*.cpp)
-	{"nogui", TYPE_BOOLEAN, false},		// Disable GUI (main_*.cpp)
-	{NULL, TYPE_END, false}	// End of list
+	{"disk", TYPE_STRING, true,       "device/file name of Mac volume"},
+	{"floppy", TYPE_STRING, true,     "device/file name of Mac floppy drive"},
+	{"cdrom", TYPE_STRING, true,      "device/file names of Mac CD-ROM drive"},
+	{"extfs", TYPE_STRING, false,     "root path of ExtFS"},
+	{"scsi0", TYPE_STRING, false,     "SCSI target for Mac SCSI ID 0"},
+	{"scsi1", TYPE_STRING, false,     "SCSI target for Mac SCSI ID 1"},
+	{"scsi2", TYPE_STRING, false,     "SCSI target for Mac SCSI ID 2"},
+	{"scsi3", TYPE_STRING, false,     "SCSI target for Mac SCSI ID 3"},
+	{"scsi4", TYPE_STRING, false,     "SCSI target for Mac SCSI ID 4"},
+	{"scsi5", TYPE_STRING, false,     "SCSI target for Mac SCSI ID 5"},
+	{"scsi6", TYPE_STRING, false,     "SCSI target for Mac SCSI ID 6"},
+	{"screen", TYPE_STRING, false,    "video mode"},
+	{"seriala", TYPE_STRING, false,   "device name of Mac serial port A"},
+	{"serialb", TYPE_STRING, false,   "device name of Mac serial port B"},
+	{"ether", TYPE_STRING, false,     "device name of Mac ethernet adapter"},
+	{"rom", TYPE_STRING, false,       "path of ROM file"},
+	{"bootdrive", TYPE_INT32, false,  "boot drive number"},
+	{"bootdriver", TYPE_INT32, false, "boot driver number"},
+	{"ramsize", TYPE_INT32, false,    "size of Mac RAM in bytes"},
+	{"frameskip", TYPE_INT32, false,  "number of frames to skip in refreshed video modes"},
+	{"modelid", TYPE_INT32, false,    "Mac Model ID (Gestalt Model ID minus 6)"},
+	{"cpu", TYPE_INT32, false,        "CPU type (0 = 68000, 1 = 68010 etc.)"},
+	{"fpu", TYPE_BOOLEAN, false,      "enable FPU emulation"},
+	{"nocdrom", TYPE_BOOLEAN, false,  "don't install CD-ROM driver"},
+	{"nosound", TYPE_BOOLEAN, false,  "don't enable sound output"},
+	{"noclipconversion", TYPE_BOOLEAN, false, "don't convert clipboard contents"},
+	{"nogui", TYPE_BOOLEAN, false,    "disable GUI"},
+	{NULL, TYPE_END, false, NULL} // End of list
 };
 
 

@@ -47,7 +47,7 @@ static const prefs_desc *find_prefs_desc(const char *name);
  *  Initialize preferences
  */
 
-void PrefsInit(int argc, char **argv)
+void PrefsInit(int &argc, char **&argv)
 {
 	// Set defaults
 	AddPrefsDefaults();
@@ -56,55 +56,69 @@ void PrefsInit(int argc, char **argv)
 	// Load preferences from settings file
 	LoadPrefs();
 
-	// Override prefs with command line arguments
-	argc--; argv++;
-	for (; argc>0; argc--, argv++) {
+	// Override prefs with command line options
+	for (int i=1; i<argc; i++) {
 
-		// Arguments are of the form '--keyword'
-		if (strlen(*argv) < 3 || argv[0][0] != '-' || argv[0][1] != '-') {
-			printf("WARNING: Unrecognized argument '%s'\n", *argv);
+		// Options are of the form '--keyword'
+		const char *option = argv[i];
+		if (strlen(option) < 3 || option[0] != '-' || option[1] != '-')
 			continue;
-		}
-		const char *keyword = *argv + 2;
+		const char *keyword = option + 2;
+
+		// Find descriptor for keyword
 		const prefs_desc *d = find_prefs_desc(keyword);
-		if (d == NULL) {
-			printf("WARNING: Unrecognized argument '%s'\n", *argv);
+		if (d == NULL)
+			continue;
+		argv[i] = NULL;
+
+		// Get value
+		i++;
+		if (i >= argc) {
+			fprintf(stderr, "Option '%s' must be followed by a value\n", option);
 			continue;
 		}
+		const char *value = argv[i];
+		argv[i] = NULL;
 
 		// Add/replace prefs item
 		switch (d->type) {
 			case TYPE_STRING:
-				if (argc < 2) {
-					printf("WARNING: Argument '%s' must be followed by value\n", *argv);
-					break;
-				}
-				argc--; argv++;
 				if (d->multiple)
-					PrefsAddString(keyword, *argv);
+					PrefsAddString(keyword, value);
 				else
-					PrefsReplaceString(keyword, *argv);
+					PrefsReplaceString(keyword, value);
 				break;
 
-			case TYPE_BOOLEAN:
-				if (argc > 1 && argv[1][0] != '-') {
-					argc--; argv++;
-					PrefsReplaceBool(keyword, !strcmp(*argv, "true") || !strcmp(*argv, "on"));
-				} else
+			case TYPE_BOOLEAN: {
+				if (!strcmp(value, "true") || !strcmp(value, "on") || !strcmp(value, "yes"))
 					PrefsReplaceBool(keyword, true);
+				else if (!strcmp(value, "false") || !strcmp(value, "off") || !strcmp(value, "no"))
+					PrefsReplaceBool(keyword, false);
+				else
+					fprintf(stderr, "Value for option '%s' must be 'true' or 'false'\n", option);
 				break;
+			}
 
 			case TYPE_INT32:
-				if (argc < 2) {
-					printf("WARNING: Argument '%s' must be followed by value\n", *argv);
-					break;
-				}
-				argc--; argv++;
-				PrefsReplaceInt32(keyword, atoi(*argv));
+				PrefsReplaceInt32(keyword, atoi(value));
 				break;
 
 			default:
 				break;
+		}
+	}
+
+	// Remove processed arguments
+	for (int i=1; i<argc; i++) {
+		int k;
+		for (k=i; k<argc; k++)
+			if (argv[k] != NULL)
+				break;
+		if (k > i) {
+			k -= i;
+			for (int j=i+k; j<argc; j++)
+				argv[j-k] = argv[j];
+			argc -= k;
 		}
 	}
 }
@@ -125,6 +139,56 @@ void PrefsExit(void)
 		delete p;
 		p = next;
 	}
+}
+
+
+/*
+ *  Print preferences options help
+ */
+
+static void print_options(const prefs_desc *list)
+{
+	while (list->type != TYPE_END) {
+		if (list->help) {
+			const char *typestr, *defstr;
+			char numstr[32];
+			switch (list->type) {
+				case TYPE_STRING:
+					typestr = "STRING";
+					defstr = PrefsFindString(list->name);
+					if (defstr == NULL)
+						defstr = "none";
+					break;
+				case TYPE_BOOLEAN:
+					typestr = "BOOL";
+					if (PrefsFindBool(list->name))
+						defstr = "true";
+					else
+						defstr = "false";
+					break;
+				case TYPE_INT32:
+					typestr = "NUMBER";
+					sprintf(numstr, "%d", PrefsFindInt32(list->name));
+					defstr = numstr;
+					break;
+				default:
+					typestr = "<unknown>";
+					defstr = "none";
+					break;
+			}
+			printf("  --%s %s\n    %s [default=%s]\n", list->name, typestr, list->help, defstr);
+		}
+		list++;
+	}
+}
+
+void PrefsPrintUsage(void)
+{
+	printf("\nGeneral options:\n");
+	print_options(common_prefs_items);
+	printf("\nPlatform-specific options:\n");
+	print_options(platform_prefs_items);
+	printf("\nBoolean options are specified as '--OPTION true|on|yes' or\n'--OPTION false|off|no'.\n");
 }
 
 
