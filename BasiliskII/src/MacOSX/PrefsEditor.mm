@@ -298,10 +298,8 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 - (IBAction) ChangeKeyboard: (NSPopUpButton *)sender
 {
 	// Deselest current item
-	int		val = PrefsFindInt32("keyboardtype");
-	int		current = [keyboard indexOfItemWithTag: val];
-
-	if ( current )
+	int  current = [keyboard indexOfItemWithTag: PrefsFindInt32("keyboardtype")];
+	if ( current != -1 )
 		[[keyboard itemAtIndex: current] setState: FALSE];
 
 	PrefsReplaceInt32("keyboardtype", [[sender selectedItem] tag]);
@@ -774,7 +772,9 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 	// Lists of thingies:
 
 	val = PrefsFindInt32("keyboardtype");
-	[keyboard selectItemAtIndex: [keyboard indexOfItemWithTag: val]];
+	tmp = [keyboard indexOfItemWithTag: val];
+	if ( tmp != -1 )
+		[keyboard selectItemAtIndex: tmp];
 	for ( tmp = 0; tmp < [keyboard numberOfItems]; ++tmp )
 	{
 		NSMenuItem	*type = [keyboard itemAtIndex: tmp];
