@@ -460,7 +460,7 @@ void powerpc_cpu::execute(uint32 entry)
 #endif
 	execute_depth++;
 #if PPC_DECODE_CACHE || PPC_ENABLE_JIT
-	if (execute_depth == 1 || PPC_REENTRANT_JIT) {
+	if (execute_depth == 1 || (PPC_ENABLE_JIT && PPC_REENTRANT_JIT)) {
 #if PPC_ENABLE_JIT
 		if (use_jit) {
 			block_info *bi = block_cache.find(pc());
