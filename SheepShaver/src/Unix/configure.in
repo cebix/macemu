@@ -82,7 +82,7 @@ fi
 dnl If POSIX.4 semaphores are not available, we emulate them with pthread mutexes.
 SEMSRC=
 AC_CHECK_FUNCS(sem_init, , [
-  if [[ "x$HAVE_PTHREADS" = "xyes" ]]; then
+  if test "x$HAVE_PTHREADS" = "xyes"; then
     SEMSRC=posix_sem.cpp
   fi
 ])
@@ -140,7 +140,7 @@ fi
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(unistd.h fcntl.h sys/time.h)
+AC_CHECK_HEADERS(unistd.h fcntl.h sys/time.h sys/mman.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
@@ -150,16 +150,22 @@ AC_CHECK_SIZEOF(short, 2)
 AC_CHECK_SIZEOF(int, 4)
 AC_CHECK_SIZEOF(long, 4)
 AC_CHECK_SIZEOF(long long, 8)
+AC_CHECK_SIZEOF(float, 4)
+AC_CHECK_SIZEOF(double, 8)
 AC_CHECK_SIZEOF(void *, 4)
 AC_TYPE_OFF_T
 AC_CHECK_TYPE(loff_t, off_t)
 AC_TYPE_SIZE_T
+AC_TYPE_SIGNAL
 AC_HEADER_TIME
 AC_STRUCT_TM
 
 dnl Checks for library functions.
 AC_CHECK_FUNCS(strdup cfmakeraw)
 AC_CHECK_FUNCS(nanosleep clock_gettime timer_create)
+AC_CHECK_FUNCS(sigaction signal)
+AC_CHECK_FUNCS(mmap mprotect munmap)
+AC_CHECK_FUNCS(vm_allocate vm_deallocate vm_protect)
 
 dnl Select system-dependant sources.
 if [[ "x$HAVE_PPC" = "xyes" ]]; then
@@ -168,6 +174,308 @@ else
   SYSSRCS="../emul_ppc/emul_ppc.cpp"
 fi
 SYSSRCS="$SYSSRCS $SEMSRCS $UISRCS $MONSRCS"
+
+dnl Define a macro that translates a yesno-variable into a C macro definition
+dnl to be put into the config.h file
+dnl $1 -- the macro to define
+dnl $2 -- the value to translate
+dnl $3 -- template name
+AC_DEFUN(AC_TRANSLATE_DEFINE, [
+    if [[ "x$2" = "xyes" -o "x$2" = "xguessing yes" ]]; then
+        AC_DEFINE($1, 1, $3)
+    fi
+])
+
+dnl Various checks if the system supports vm_allocate() and the like functions.
+have_mach_vm=no
+if [[ "x$ac_cv_func_vm_allocate" = "xyes" -a "x$ac_cv_func_vm_deallocate" = "xyes" -a \
+      "x$ac_cv_func_vm_protect" = "xyes" ]]; then
+  have_mach_vm=yes
+fi
+AC_TRANSLATE_DEFINE(HAVE_MACH_VM, "$have_mach_vm",
+  [Define if your system has a working vm_allocate()-based memory allocator.])
+
+dnl Check that vm_allocate(), vm_protect() work
+if [[ "x$have_mach_vm" = "xyes" ]]; then
+
+AC_CACHE_CHECK([whether vm_protect works],
+  ac_cv_vm_protect_works, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  ac_cv_vm_protect_works=yes
+  dnl First the tests that should segfault
+  for test_def in NONE_READ NONE_WRITE READ_WRITE; do
+    AC_TRY_RUN([
+      #define CONFIGURE_TEST_VM_MAP
+      #define TEST_VM_PROT_$test_def
+      #include "vm_alloc.cpp"
+    ], ac_cv_vm_protect_works=no, rm -f core,
+    dnl When cross-compiling, do not assume anything
+    ac_cv_vm_protect_works="guessing no"
+    )
+  done
+  AC_TRY_RUN([
+    #define CONFIGURE_TEST_VM_MAP
+    #define TEST_VM_PROT_RDWR_WRITE
+    #include "vm_alloc.cpp"
+  ], , ac_cv_vm_protect_works=no,
+  dnl When cross-compiling, do not assume anything
+  ac_cv_vm_protect_works="guessing no"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+
+dnl Remove support for vm_allocate() if vm_protect() does not work
+if [[ "x$have_mach_vm" = "xyes" ]]; then
+  case $ac_cv_vm_protect_works in
+    *yes) have_mach_vm=yes;;
+    *no) have_mach_vm=no;;
+  esac
+fi
+AC_TRANSLATE_DEFINE(HAVE_MACH_VM, "$have_mach_vm",
+  [Define if your system has a working vm_allocate()-based memory allocator.])
+
+fi dnl HAVE_MACH_VM
+
+dnl Various checks if the system supports mmap() and the like functions.
+dnl ... and Mach memory allocators are not supported
+have_mmap_vm=no
+if [[ "x$ac_cv_func_mmap" = "xyes" -a "x$ac_cv_func_munmap" = "xyes" -a \
+      "x$ac_cv_func_mprotect" = "xyes" ]]; then
+  if [[ "x$have_mach_vm" = "xno" ]]; then
+    have_mmap_vm=yes
+  fi
+fi
+AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, "$have_mmap_vm",
+  [Define if your system has a working mmap()-based memory allocator.])
+
+dnl Check that mmap() and associated functions work.
+if [[ "x$have_mmap_vm" = "xyes" ]]; then
+
+dnl Check if we have a working anonymous mmap()
+AC_CACHE_CHECK([whether mmap supports MAP_ANON],
+  ac_cv_mmap_anon, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #define HAVE_MMAP_ANON
+    #define CONFIGURE_TEST_VM_MAP
+    #define TEST_VM_MMAP_ANON
+    #include "vm_alloc.cpp"
+  ], ac_cv_mmap_anon=yes, ac_cv_mmap_anon=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_mmap_anon="guessing no"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(HAVE_MMAP_ANON, "$ac_cv_mmap_anon",
+  [Define if <sys/mman.h> defines MAP_ANON and mmap()'ing with MAP_ANON works.])
+
+AC_CACHE_CHECK([whether mmap supports MAP_ANONYMOUS],
+  ac_cv_mmap_anonymous, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #define HAVE_MMAP_ANONYMOUS
+    #define CONFIGURE_TEST_VM_MAP
+    #define TEST_VM_MMAP_ANON
+    #include "vm_alloc.cpp"
+  ], ac_cv_mmap_anonymous=yes, ac_cv_mmap_anonymous=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_mmap_anonymous="guessing no"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(HAVE_MMAP_ANONYMOUS, "$ac_cv_mmap_anonymous",
+  [Define if <sys/mman.h> defines MAP_ANONYMOUS and mmap()'ing with MAP_ANONYMOUS works.])
+
+AC_CACHE_CHECK([whether mprotect works],
+  ac_cv_mprotect_works, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  ac_cv_mprotect_works=yes
+  dnl First the tests that should segfault
+  for test_def in NONE_READ NONE_WRITE READ_WRITE; do
+    AC_TRY_RUN([
+      #define CONFIGURE_TEST_VM_MAP
+      #define TEST_VM_PROT_$test_def
+      #include "vm_alloc.cpp"
+    ], ac_cv_mprotect_works=no, rm -f core,
+    dnl When cross-compiling, do not assume anything
+    ac_cv_mprotect_works="guessing no"
+    )
+  done
+  AC_TRY_RUN([
+    #define CONFIGURE_TEST_VM_MAP
+    #define TEST_VM_PROT_RDWR_WRITE
+    #include "vm_alloc.cpp"
+  ], , ac_cv_mprotect_works=no,
+  dnl When cross-compiling, do not assume anything
+  ac_cv_mprotect_works="guessing no"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+
+dnl Remove support for mmap() if mprotect() does not work
+if [[ "x$have_mmap_vm" = "xyes" ]]; then
+  case $ac_cv_mprotect_works in
+    *yes) have_mmap_vm=yes;;
+    *no) have_mmap_vm=no;;
+  esac
+fi
+AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, $have_mmap_vm,
+  [Define if your system has a working mmap()-based memory allocator.])
+
+fi dnl HAVE_MMAP_VM
+
+dnl Check if we can mmap 0x2000 bytes from 0x0000
+AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x2000],
+  ac_cv_can_map_lm, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #include "vm_alloc.cpp"
+    int main(void) { /* returns 0 if we could map the lowmem globals */
+      volatile char * lm = 0;
+      if (vm_init() < 0) exit(1);
+      if (vm_acquire_fixed(0, 0x2000) < 0) exit(1);
+      lm[0] = 'z';
+      if (vm_release((char *)lm, 0x2000) < 0) exit(1);
+      vm_exit(); exit(0);
+    }
+  ], ac_cv_can_map_lm=yes, ac_cv_can_map_lm=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_can_map_lm="guessing no"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+
+dnl Check signal handlers need to be reinstalled
+AC_CACHE_CHECK([whether signal handlers need to be reinstalled],
+  ac_cv_signal_need_reinstall, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #include <stdlib.h>
+    #ifdef HAVE_UNISTD_H
+    #include <unistd.h>
+    #endif
+    #include <signal.h>
+    static int handled_signal = 0;
+    RETSIGTYPE sigusr1_handler(int) { handled_signal++; }
+    int main(void) { /* returns 0 if signals need not to be reinstalled */
+      signal(SIGUSR1, sigusr1_handler); raise(SIGUSR1); raise(SIGUSR1);
+      exit(handled_signal == 2);
+    }
+  ], ac_cv_signal_need_reinstall=yes, ac_cv_signal_need_reinstall=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_signal_need_reinstall="guessing yes"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(SIGNAL_NEED_REINSTALL, "$ac_cv_signal_need_reinstall",
+  [Define if your system requires signals to be reinstalled.])
+
+dnl Check if sigaction handlers need to be reinstalled
+AC_CACHE_CHECK([whether sigaction handlers need to be reinstalled],
+  ac_cv_sigaction_need_reinstall, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #include <stdlib.h>
+    #ifdef HAVE_UNISTD_H
+    #include <unistd.h>
+    #endif
+    #include <signal.h>
+    static int handled_signal = 0;
+    RETSIGTYPE sigusr1_handler(int) { handled_signal++; }
+    typedef RETSIGTYPE (*signal_handler)(int);
+    static signal_handler mysignal(int sig, signal_handler handler) {
+      struct sigaction old_sa;
+      struct sigaction new_sa;
+      new_sa.sa_handler = handler;
+      return ((sigaction(sig,&new_sa,&old_sa) < 0) ? SIG_IGN : old_sa.sa_handler);
+    }
+    int main(void) { /* returns 0 if signals need not to be reinstalled */
+      mysignal(SIGUSR1, sigusr1_handler); raise(SIGUSR1); raise(SIGUSR1);
+      exit(handled_signal == 2);
+    }
+  ], ac_cv_sigaction_need_reinstall=yes, ac_cv_sigaction_need_reinstall=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_sigaction_need_reinstall="guessing yes"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(SIGACTION_NEED_REINSTALL, "$ac_cv_sigaction_need_reinstall",
+  [Define if your system requires sigactions to be reinstalled.])
+
+dnl Check if extended signals are supported.
+AC_CACHE_CHECK([whether your system supports extended signal handlers],
+  ac_cv_have_extended_signals, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #define HAVE_SIGINFO_T 1
+    #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+    #include "vm_alloc.cpp"
+    #include "sigsegv.cpp"
+  ], ac_cv_have_extended_signals=yes, ac_cv_have_extended_signals=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_have_extended_signals=no
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_extended_signals",
+  [Define if your system support extended signals.])
+
+dnl Otherwise, check for subterfuges.
+if [[ "x$ac_cv_have_extended_signals" = "xno" ]]; then
+  AC_CACHE_CHECK([whether we then have a subterfuge for your system],
+  ac_cv_have_sigcontext_hack, [
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
+    AC_TRY_RUN([
+      #define HAVE_SIGCONTEXT_SUBTERFUGE 1
+      #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+      #include "vm_alloc.cpp"
+      #include "sigsegv.cpp"
+    ], ac_cv_have_sigcontext_hack=yes, ac_cv_have_sigcontext_hack=no,
+    dnl When cross-compiling, do not assume anything.
+    ac_cv_have_sigcontext_hack=no
+    )
+    AC_LANG_RESTORE
+  ])
+  AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack",
+    [Define if we know a hack to replace siginfo_t->si_addr member.])
+fi
+
+dnl Check if we can ignore the fault (instruction skipping in SIGSEGV handler)
+AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
+  ac_cv_have_skip_instruction, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #define HAVE_SIGSEGV_SKIP_INSTRUCTION 1
+    #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+    #include "vm_alloc.cpp"
+    #include "sigsegv.cpp"
+  ], ac_cv_have_skip_instruction=yes, ac_cv_have_skip_instruction=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_have_skip_instruction=no
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(HAVE_SIGSEGV_SKIP_INSTRUCTION, "$ac_cv_have_skip_instruction",
+  [Define if we can ignore the fault (instruction skipping in SIGSEGV handler).])
 
 dnl Generate Makefile.
 AC_SUBST(SYSSRCS)

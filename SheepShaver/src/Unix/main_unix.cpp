@@ -107,6 +107,7 @@
 #include "macos_util.h"
 #include "rom_patches.h"
 #include "user_strings.h"
+#include "vm_alloc.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -420,7 +421,7 @@ int main(int argc, char **argv)
 	}
 
 	// Create Low Memory area (0x0000..0x3000)
-	if (mmap((char *)0x0000, 0x3000, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE, zero_fd, 0) == (void *)-1) {
+	if (vm_acquire_fixed((char *)0, 0x3000) < 0) {
 		sprintf(str, GetString(STR_LOW_MEM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
@@ -450,11 +451,18 @@ int main(int argc, char **argv)
 	D(bug("Kernel Data at %p, Emulator Data at %p\n", kernel_data, emulator_data));
 
 	// Create area for Mac ROM
-	if (mmap((char *)ROM_BASE, ROM_AREA_SIZE, PROT_EXEC | PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE, zero_fd, 0) == (void *)-1) {
+	if (vm_acquire_fixed((char *)ROM_BASE, ROM_AREA_SIZE) < 0) {
 		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
+#if !EMULATED_PPC
+	if (vm_protect((char *)ROM_BASE, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
+		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+#endif
 	rom_area_mapped = true;
 	D(bug("ROM area at %08x\n", ROM_BASE));
 
@@ -465,12 +473,19 @@ int main(int argc, char **argv)
 		RAMSize = 8*1024*1024;
 	}
 
-	mmap_RAMBase = mmap((void *)0x20000000, RAMSize, PROT_EXEC | PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE, zero_fd, 0);
-	if (mmap_RAMBase == (void *)-1) {
+	mmap_RAMBase = (void *)0x20000000;
+	if (vm_acquire_fixed(mmap_RAMBase, RAMSize) < 0) {
 		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
+#if !EMULATED_PPC
+	if (vm_protect(mmap_RAMBase, RAMSize, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
+		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+#endif
 	RAMBase = (uint32)mmap_RAMBase;
 	ram_area_mapped = true;
 	D(bug("RAM area at %08x\n", RAMBase));
@@ -567,7 +582,7 @@ int main(int argc, char **argv)
 #if !EMULATED_PPC
 	MakeExecutable(0, (void *)ROM_BASE, ROM_AREA_SIZE);
 #endif
-	mprotect((char *)ROM_BASE, ROM_AREA_SIZE, PROT_EXEC | PROT_READ);
+	vm_protect((char *)ROM_BASE, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_EXECUTE);
 
 	// Initialize Kernel Data
 	memset(kernel_data, 0, sizeof(KernelData));
@@ -779,11 +794,11 @@ static void Quit(void)
 
 	// Delete RAM area
 	if (ram_area_mapped)
-		munmap(mmap_RAMBase, RAMSize);
+		vm_release(mmap_RAMBase, RAMSize);
 
 	// Delete ROM area
 	if (rom_area_mapped)
-		munmap((char *)ROM_BASE, ROM_AREA_SIZE);
+		vm_release((char *)ROM_BASE, ROM_AREA_SIZE);
 
 	// Delete Kernel Data area
 	if (kernel_area >= 0) {

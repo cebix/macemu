@@ -57,6 +57,8 @@ links:
 	       Unix/audio_oss_esd.cpp Unix/extfs_unix.cpp Unix/serial_unix.cpp \
 	       Unix/sshpty.h Unix/sshpty.c Unix/strlcpy.h Unix/strlcpy.c \
 	       Unix/sys_unix.cpp Unix/timer_unix.cpp Unix/xpram_unix.cpp \
+	       Unix/sigsegv.h Unix/sigsegv.cpp Unix/vm_alloc.h Unix/vm_alloc.cpp \
+	       Unix/posix_sem.cpp \
 	       Unix/Linux/scsi_linux.cpp Unix/Linux/NetDriver'; \
 	PREFIX="`pwd`/"; case $(B2_TOPDIR) in /*) PREFIX="";; esac; \
 	for i in $$list; do \
