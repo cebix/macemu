@@ -38,6 +38,7 @@ using std::string;
 #include "xpram.h"
 #include "timer.h"
 #include "video.h"
+#include "cdrom.h"
 #include "emul_op.h"
 #include "prefs.h"
 #include "prefs_editor.h"
@@ -210,6 +211,7 @@ static void usage(const char *prg_name)
 int main(int argc, char **argv)
 {
 	char str[256];
+	bool cd_boot = false;
 
 	// Initialize variables
 	RAMBaseHost = NULL;
@@ -241,6 +243,9 @@ int main(int argc, char **argv)
 		} else if (strcmp(argv[i], "--rominfo") == 0) {
 			argv[i] = NULL;
 			PrintROMInfo = true;
+		} else if (strcmp(argv[i], "--cdboot") == 0) {
+			argv[i] = NULL;
+			cd_boot = true;
 		}
 	}
 
@@ -260,6 +265,10 @@ int main(int argc, char **argv)
 
 	// Read preferences
 	PrefsInit(argc, argv);
+
+	// Boot MacOS from CD-ROM?
+	if (cd_boot)
+		PrefsReplaceInt32("bootdriver", CDROMRefNum);
 
 	// Any command line arguments left?
 	for (int i=1; i<argc; i++) {
