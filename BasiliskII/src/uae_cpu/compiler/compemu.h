@@ -38,10 +38,16 @@ union cacheline {
 #define USE_SEPARATE_BIA 1
 
 /* Use chain of checksum_info_t to compute the block checksum */
-#define USE_CHECKSUM_INFO 0
+#define USE_CHECKSUM_INFO 1
 
 /* Use code inlining, aka follow-up of constant jumps */
-#define USE_INLINING 0
+#define USE_INLINING 1
+
+/* Inlining requires the chained checksuming information */
+#if USE_INLINING
+#undef  USE_CHECKSUM_INFO
+#define USE_CHECKSUM_INFO 1
+#endif
 
 #define USE_F_ALIAS 1
 #define USE_OFFSET 1
