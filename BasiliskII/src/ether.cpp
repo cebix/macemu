@@ -114,8 +114,8 @@ void EtherInit(void)
 		}
 
 		// Retrieve local IP address (or at least one of them)
-		socklen_t sa_len = sizeof(sa);
-		getsockname(udp_socket, (struct sockaddr *)&sa, &sa_len);
+		socklen_t sa_length = sizeof(sa);
+		getsockname(udp_socket, (struct sockaddr *)&sa, &sa_length);
 		uint32 udp_ip = sa.sin_addr.s_addr;
 		if (udp_ip == INADDR_ANY || udp_ip == INADDR_LOOPBACK) {
 			char name[256];
