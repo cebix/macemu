@@ -36,6 +36,7 @@
 #endif
 
 #include <list>
+#include <stdio.h>
 #include <signal.h>
 #include "sigsegv.h"
 
@@ -270,6 +271,10 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_REGISTER_FILE			(unsigned int *)&SIGSEGV_CONTEXT_REGS->nip, (unsigned int *)(SIGSEGV_CONTEXT_REGS->gpr)
 #define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
 #endif
+#if (defined(hppa) || defined(__hppa__))
+#undef  SIGSEGV_FAULT_ADDRESS
+#define SIGSEGV_FAULT_ADDRESS			sip->si_ptr
+#endif
 #endif
 #endif
 
@@ -390,14 +395,21 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 #endif
 #endif
 #if defined(__FreeBSD__)
-#define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGBUS)
 #if (defined(i386) || defined(__i386__))
+#define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGBUS)
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp, char *addr
 #define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp, addr
 #define SIGSEGV_FAULT_ADDRESS			addr
 #define SIGSEGV_FAULT_INSTRUCTION		scp->sc_eip
 #define SIGSEGV_REGISTER_FILE			((unsigned long *)&scp->sc_edi)
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#endif
+#if (defined(alpha) || defined(__alpha__))
+#define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, char *addr, struct sigcontext *scp
+#define SIGSEGV_FAULT_HANDLER_ARGS		sig, addr, scp
+#define SIGSEGV_FAULT_ADDRESS			addr
+#define SIGSEGV_FAULT_INSTRUCTION		scp->sc_pc
 #endif
 #endif
 
@@ -1524,6 +1536,13 @@ static void *b_region, *e_region;
 
 static sigsegv_return_t sigsegv_test_handler(sigsegv_address_t fault_address, sigsegv_address_t instruction_address)
 {
+#if DEBUG
+	printf("sigsegv_test_handler(%p, %p)\n", fault_address, instruction_address);
+	printf("expected fault at %p\n", page + REF_INDEX);
+#ifdef __GNUC__
+	printf("expected instruction address range: %p-%p\n", b_region, e_region);
+#endif
+#endif
 	handler_called++;
 	if ((fault_address - REF_INDEX) != page)
 		exit(10);
