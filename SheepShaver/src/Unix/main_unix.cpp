@@ -604,6 +604,9 @@ int main(int argc, char **argv)
 	// Init external file system
 	ExtFSInit(); 
 
+	// Init ADB
+	ADBInit();
+
 	// Init audio
 	AudioInit();
 
@@ -840,6 +843,9 @@ static void Quit(void)
 
 	// Exit audio
 	AudioExit();
+
+	// Exit ADB
+	ADBExit();
 
 	// Exit video
 	VideoExit();
