@@ -923,9 +923,14 @@ PRIVATE inline fpu_extended fp_do_expm1(fpu_extended x)
 
 PRIVATE inline fpu_extended fp_do_sgn1(fpu_extended x)
 {
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
 	fp_declare_init_shape(sxp, x, extended);
 	sxp->ieee_nan.exponent	= FP_EXTENDED_EXP_MAX;
 	sxp->ieee_nan.one		= 1;
+#else
+	fp_declare_init_shape(sxp, x, double);
+	sxp->ieee_nan.exponent  = FP_DOUBLE_EXP_MAX;
+#endif
 	sxp->ieee_nan.quiet_nan	= 0;
 	sxp->ieee_nan.mantissa0	= 0;
 	sxp->ieee_nan.mantissa1	= 0;
