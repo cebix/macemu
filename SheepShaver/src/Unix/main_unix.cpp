@@ -484,6 +484,9 @@ int main(int argc, char **argv)
 #ifdef USE_SDL_VIDEO
 	sdl_flags |= SDL_INIT_VIDEO;
 #endif
+#ifdef USE_SDL_AUDIO
+	sdl_flags |= SDL_INIT_AUDIO;
+#endif
 	assert(sdl_flags != 0);
 	if (SDL_Init(sdl_flags) == -1) {
 		char str[256];
