@@ -46,6 +46,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef HAVE_PTHREADS
+# include <pthread.h>
+#endif
+
 #ifdef HAVE_FCNTL_H
 # include <fcntl.h>
 #endif
@@ -71,17 +75,6 @@
 # define REAL_ADDRESSING 0
 #endif
 
-/* Linear address translation (i.e. just an offset between Emulator & host)  */
-#ifndef DIRECT_ADDRESSING
-# ifdef MAC_OS_X_VERSION_10_2
-/* For some reason, compiling on 10.2 with DIRECT_ADDRESSING enabled gives an   */
-/* app that never writes to its screen! (i.e. it never calls most of video.cpp) */
-#  define DIRECT_ADDRESSING 0
-# else
-#  define DIRECT_ADDRESSING 1
-# endif
-#endif
-
 /* Using 68k emulator */
 #define EMULATED_68K 1
 
@@ -96,10 +89,17 @@
 # define ROM_IS_WRITE_PROTECTED 1
 #endif
 
+/* Direct Addressing requires Video on SEGV signals */
+#if DIRECT_ADDRESSING && !ENABLE_VOSF
+# undef  ENABLE_VOSF
+# define ENABLE_VOSF 1
+#endif
 
 /* ExtFS is supported */
 #define SUPPORTS_EXTFS 1
 
+/* BSD socket API supported */
+#define SUPPORTS_UDP_TUNNEL 1
 
 /* Data types */
 typedef unsigned char uint8;
@@ -146,7 +146,10 @@ typedef int64 intptr;
 #endif
 
 #ifndef HAVE_LOFF_T
-   typedef off_t loff_t;
+typedef off_t loff_t;
+#endif
+#ifndef HAVE_CADDR_T
+typedef char * caddr_t;
 #endif
 
 /* Time data type for Time Manager emulation */
@@ -156,8 +159,13 @@ typedef struct timespec tm_time_t;
 typedef struct timeval tm_time_t;
 #endif
 
-/* Offset Mac->Unix time in seconds */
-#define TIME_OFFSET 0x7c25b080
+/* Define codes for all the float formats that we know of.
+ * Though we only handle IEEE format.  */
+#define UNKNOWN_FLOAT_FORMAT 0
+#define IEEE_FLOAT_FORMAT 1
+#define VAX_FLOAT_FORMAT 2
+#define IBM_FLOAT_FORMAT 3
+#define C4X_FLOAT_FORMAT 4
 
 /* UAE CPU data types */
 #define uae_s8 int8
@@ -178,6 +186,11 @@ typedef uae_u32 uaecptr;
 /* Timing functions */
 extern uint64 GetTicks_usec(void);
 extern void Delay_usec(uint32 usec);
+
+#ifdef HAVE_PTHREADS
+/* Centralized pthread attribute setup */
+void Set_pthread_attr(pthread_attr_t *attr, int priority);
+#endif
 
 /* UAE CPU defines */
 #ifdef WORDS_BIGENDIAN
@@ -289,8 +302,6 @@ static inline uae_u32 do_byteswap_16(uae_u32 v)
 #define ENUMDECL typedef enum
 #define ENUMNAME(name) name
 #define write_log printf
-#undef USE_MAPPED_MEMORY
-#undef CAN_MAP_MEMORY
 
 #if defined(X86_ASSEMBLY) || defined(X86_64_ASSEMBLY)
 #define ASM_SYM_FOR_FUNC(a) __asm__(a)
