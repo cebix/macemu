@@ -1271,6 +1271,7 @@ static DWORD kernel_area_size;				// Size of Kernel Data area
 
 static bool kernel_data_init(void)
 {
+	char str[256];
 #ifdef _WIN32
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
@@ -1278,7 +1279,6 @@ static bool kernel_data_init(void)
 	kernel_area_size = (KERNEL_AREA_SIZE + allocation_granule - 1) & -allocation_granule;
 
 	char rcs[10];
-	char str[256];
 	LPVOID kernel_addr;
 	kernel_handle = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, kernel_area_size, NULL);
 	if (kernel_handle == NULL) {
