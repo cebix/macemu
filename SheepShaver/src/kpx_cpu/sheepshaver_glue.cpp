@@ -144,7 +144,7 @@ void sheepshaver_cpu::init_decoder()
 		{ "sheep",
 		  (execute_fn)&sheepshaver_cpu::execute_sheep,
 		  NULL,
-		  D_form, 6, 0, CFLOW_TRAP
+		  D_form, 6, 0, CFLOW_JUMP | CFLOW_TRAP
 		}
 	};
 
@@ -492,6 +492,15 @@ static sheepshaver_cpu *main_cpu = NULL;		// CPU emulator to handle usual contro
 static sheepshaver_cpu *interrupt_cpu = NULL;	// CPU emulator to handle interrupts
 static sheepshaver_cpu *current_cpu = NULL;		// Current CPU emulator context
 
+void FlushCodeCache(uintptr start, uintptr end)
+{
+	D(bug("FlushCodeCache(%08x, %08x)\n", start, end));
+	main_cpu->invalidate_cache_range(start, end);
+#if MULTICORE_CPU
+	interrupt_cpu->invalidate_cache_range(start, end);
+#endif
+}
+
 static inline void cpu_push(sheepshaver_cpu *new_cpu)
 {
 #if MULTICORE_CPU
@@ -723,6 +732,7 @@ const uint32 NativeOpTable[NATIVE_OP_MAX] = {
 	POWERPC_NATIVE_OP_INIT(1, NATIVE_R_GET_RESOURCE),
 	POWERPC_NATIVE_OP_INIT(0, NATIVE_DISABLE_INTERRUPT),
 	POWERPC_NATIVE_OP_INIT(0, NATIVE_ENABLE_INTERRUPT),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_MAKE_EXECUTABLE),
 };
 
 static void get_resource(void);
@@ -789,6 +799,9 @@ static void NativeOp(int selector)
 		break;
 	case NATIVE_ENABLE_INTERRUPT:
 		EnableInterrupt();
+		break;
+	case NATIVE_MAKE_EXECUTABLE:
+		MakeExecutable(0, (void *)GPR(4), GPR(5));
 		break;
 	default:
 		printf("FATAL: NATIVE_OP called with bogus selector %d\n", selector);

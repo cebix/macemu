@@ -91,6 +91,7 @@ struct M68kRegisters;
 extern void Execute68k(uint32, M68kRegisters *r);			// Execute 68k subroutine from EMUL_OP routine, must be ended with RTS
 extern void Execute68kTrap(uint16 trap, M68kRegisters *r);	// Execute 68k A-Trap from EMUL_OP routine
 #if EMULATED_PPC
+extern void FlushCodeCache(uintptr start, uintptr end);		// Invalidate emulator caches
 extern void ExecuteNative(int selector);					// Execute native code from EMUL_OP routine (real mode switch)
 #else
 extern void ExecutePPC(void (*func)(void));					// Execute PPC code from EMUL_OP routine (real mode switch)

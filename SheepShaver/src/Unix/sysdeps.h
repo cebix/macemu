@@ -79,6 +79,7 @@
 #endif
 // Configure PowerPC emulator
 #define PPC_NO_LAZY_PC_UPDATE 1
+#define PPC_NO_DECODE_CACHE 1
 #define PPC_FLIGHT_RECORDER 1
 #else
 // Mac ROM is write protected

@@ -364,16 +364,15 @@ inline void powerpc_cpu::do_execute()
 		uint32 dpc = pc() - 4;
 		do {
 			uint32 opcode = vm_read_memory_4(dpc += 4);
-			ii = decode(opcode);
-			di->opcode = opcode;
-			di->execute = ii->execute;
 #if PPC_FLIGHT_RECORDER
 			if (is_logging()) {
-				di++;
 				di->opcode = opcode;
 				di->execute = &powerpc_cpu::record_step;
+				di++;
 			}
 #endif
+			di->opcode = opcode;
+			di->execute = ii->execute;
 			if (++di >= decode_cache_end_p) {
 				// Invalidate cache and move current code to start
 				invalidate_cache();

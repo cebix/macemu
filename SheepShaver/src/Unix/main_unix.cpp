@@ -987,10 +987,12 @@ void Dump68kRegs(M68kRegisters *r)
 
 void MakeExecutable(int dummy, void *start, uint32 length)
 {
-#if !EMULATED_PPC
-	if (((uint32)start >= ROM_BASE) && ((uint32)start < (ROM_BASE + ROM_SIZE)))
+	if (((uintptr)start >= ROM_BASE) && ((uintptr)start < (ROM_BASE + ROM_SIZE)))
 		return;
-	flush_icache_range(start, (void *)((uint32)start + length));
+#if EMULATED_PPC
+	FlushCodeCache((uintptr)start, (uintptr)start + length);
+#else
+	flush_icache_range(start, (void *)((uintptr)start + length));
 #endif
 }
 
