@@ -326,7 +326,12 @@
 		}
 
 		if ( display_type == DISPLAY_SCREEN )	// If changing from full screen
+        {
 			newx = MIN_WIDTH, newy = MIN_HEIGHT;
+#ifndef MAC_OS_X_VERSION_SUPPORTS_LOWER_DEPTHS
+            newbpp = 32;
+#endif
+        }
 
 		[width	setIntValue: newx];
 		[height setIntValue: newy];
@@ -334,6 +339,15 @@
 	}
 	else
 	{
+#ifndef MAC_OS_X_VERSION_SUPPORTS_LOWER_DEPTHS
+		// Check depth
+
+		if ( display_type == DISPLAY_WINDOW && newbpp != 32 )
+		{
+			WarningSheet(@"Sorry - In windowed mode, depth must be 32", panel);
+			[depth setIntValue: 32];
+		}
+#endif		
 		// Check size is within ranges of MIN_WIDTH ... MAX_WIDTH
 		//							and MIN_HEIGHT ... MAX_HEIGHT
 		// ???
