@@ -226,7 +226,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 
 #if HAVE_SIGINFO_T
 // Generic extended signal handler
-#if defined(__NetBSD__) || defined(__FreeBSD__)
+#if defined(__FreeBSD__)
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGBUS)
 #else
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
@@ -261,6 +261,15 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #if (defined(i386) || defined(__i386__))
 #define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_eip)
 #define SIGSEGV_REGISTER_FILE			((unsigned long *)&(((struct sigcontext *)scp)->sc_edi)) /* EDI is the first GPR (even below EIP) in sigcontext */
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#endif
+#endif
+#if defined(__NetBSD__)
+#if (defined(i386) || defined(__i386__))
+#include <sys/ucontext.h>
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.__gregs)
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[_REG_EIP]
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)SIGSEGV_CONTEXT_REGS
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #endif
@@ -684,7 +693,22 @@ enum {
 #endif
 };
 #endif
-#if defined(__NetBSD__) || defined(__FreeBSD__)
+#if defined(__NetBSD__)
+enum {
+#if (defined(i386) || defined(__i386__))
+	X86_REG_EIP = _REG_EIP,
+	X86_REG_EAX = _REG_EAX,
+	X86_REG_ECX = _REG_ECX,
+	X86_REG_EDX = _REG_EDX,
+	X86_REG_EBX = _REG_EBX,
+	X86_REG_ESP = _REG_ESP,
+	X86_REG_EBP = _REG_EBP,
+	X86_REG_ESI = _REG_ESI,
+	X86_REG_EDI = _REG_EDI
+#endif
+};
+#endif
+#if defined(__FreeBSD__)
 enum {
 #if (defined(i386) || defined(__i386__))
 	X86_REG_EIP = 10,
