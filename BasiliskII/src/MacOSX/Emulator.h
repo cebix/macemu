@@ -58,13 +58,13 @@
 
 - (IBAction) Benchmark:		(id)sender;
 - (IBAction) Interrupt:		(id)sender;
-- (IBAction) Suspend:		(id)sender;
 - (IBAction) PowerKey:		(id)sender;
 - (IBAction) Restart:		(id)sender;
+- (IBAction) Resume:		(id)sender;
 - (IBAction) ScreenHideShow:(NSButton *)sender;
 - (IBAction) Snapshot:		(id)sender;
 - (IBAction) SpeedChange:	(NSSlider *)sender;
-- (IBAction) Resume:		(id)sender;
+- (IBAction) Suspend:		(id)sender;
 - (IBAction) Terminate:		(id)sender;
 - (IBAction) ToggleState:	(NSButton *)sender;
 - (IBAction) ZapPRAM:		(id)sender;
