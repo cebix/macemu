@@ -396,13 +396,11 @@ static NSPoint	mouse;			// Previous/current mouse location
 
 	mouse = location;
 
-#ifdef CAN_RESIZE_VIEW
 	int	mouseY = y - y * mouse.y / [self height];
 	int	mouseX =	 x * mouse.x / [self width];
-#else
-	int	mouseY = y - (int) mouse.y;
-	int	mouseX =	 (int) mouse.x;
-#endif
+	// If the view was not resizable, then this would be simpler:
+	// int	mouseY = y - (int) mouse.y;
+	// int	mouseX =	 (int) mouse.x;
 
 	ADBMouseMoved(mouseX, mouseY);
 	return YES;
@@ -477,6 +475,28 @@ static NSPoint	mouse;			// Previous/current mouse location
 #ifdef CGDRAWBITMAP
 	[self CGDrawBitmap];
 #endif
+}
+
+- (void) setTo: (int) val		// Set all of bitmap to val
+{
+	unsigned char	*data
+  #ifdef NSBITMAP
+							= [bitmap bitmapData];
+  #else
+							= bitmap;
+  #endif
+
+	memset(data, val, numBytes);
+}
+
+- (void) blacken	// Set bitmap black
+{
+	[self setTo: 0];
+}
+
+- (void) clear		// Set bitmap white
+{
+	[self setTo: 0xFF];
 }
 
 //
