@@ -54,6 +54,17 @@ uint16 ROMVersion;
 
 
 /*
+ *	Convenience functions for retrieving a particular 16-bit word from
+ *	a 32-bit word value.
+ *	
+ *	gb-- probably put those elsewhere...
+ */
+
+#define HiWord(X) (((X) >> 16) & 0xffff)
+#define LoWord(X) ((X) & 0xffff)
+
+
+/*
  *  Search ROM for byte string, return ROM offset (or 0)
  */
 
@@ -818,8 +829,8 @@ bool CheckROM(void)
 	// Read version
 	ROMVersion = ntohs(*(uint16 *)(ROMBaseHost + 8));
 
-#if REAL_ADDRESSING
-	// Real addressing mode requires a 32-bit clean ROM
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	// Real and direct addressing modes require a 32-bit clean ROM
 	return ROMVersion == ROM_VERSION_32;
 #else
 	// Virtual addressing mode works with 32-bit clean Mac II ROMs and Classic ROMs
@@ -1221,19 +1232,22 @@ static bool patch_rom_32(void)
 
 #if REAL_ADDRESSING
 	// Move system zone to start of Mac RAM
-	lp = (uint32 *)(ROMBaseHost + 0x50a);
-	*lp++ = htonl(RAMBaseMac);
-	*lp = htonl(RAMBaseMac + 0x1800);
+	wp = (uint16 *)(ROMBaseHost + 0x50a);
+	*wp++ = htons(HiWord(RAMBaseMac + 0x2000));
+	*wp++ = htons(LoWord(RAMBaseMac + 0x2000));
+	*wp++ = htons(HiWord(RAMBaseMac + 0x3800));
+	*wp = htons(LoWord(RAMBaseMac + 0x3800));
 #endif
 
 #if !ROM_IS_WRITE_PROTECTED
-#if defined(AMIGA)
+#if defined(AMIGA) || defined(USE_SCRATCHMEM_SUBTERFUGE)
 	// Set fake handle at 0x0000 to scratch memory area (so broken Mac programs won't write into Mac ROM)
-	extern uint32 ScratchMem;
+	extern uint8 *ScratchMem;
+	const uint32 ScratchMemBase = Host2MacAddr(ScratchMem);
 	wp = (uint16 *)(ROMBaseHost + 0xccaa);
 	*wp++ = htons(0x203c);			// move.l	#ScratchMem,d0
-	*wp++ = htons(ScratchMem >> 16);
-	*wp = htons(ScratchMem);
+	*wp++ = htons(ScratchMemBase >> 16);
+	*wp = htons(ScratchMemBase);
 #else
 #error System specific handling for writable ROM is required here
 #endif
@@ -1245,7 +1259,14 @@ static bool patch_rom_32(void)
 	*wp++ = htons(M68K_NOP);
 	*wp = htons(M68K_NOP);
 #endif
-
+	
+#if REAL_ADDRESSING && !defined(AMIGA)
+	// gb-- Temporary hack to get rid of crashes in Speedometer
+	wp = (uint16 *)(ROMBaseHost + 0xdba2);
+	if (ntohs(*wp) == 0x662c)		// bne.b	#$2c
+		*wp = htons(0x602c);		// bra.b	#$2c
+#endif
+	
 	// Don't write to VIA in InitTimeMgr
 	wp = (uint16 *)(ROMBaseHost + 0xb0e2);
 	*wp++ = htons(0x4cdf);			// movem.l	(sp)+,d0-d5/a0-a4
