@@ -255,7 +255,7 @@ static void build_insn (int insn)
 	int pos = 0;
 	int mnp = 0;
 	int bitno = 0;
-	char mnemonic[10];
+	char mnemonic[64];
 
 	wordsizes sz = sz_long;
 	int srcgather = 0, dstgather = 0;
@@ -332,6 +332,11 @@ static void build_insn (int insn)
 		    }
 		}
 		mnp++;
+		if ((unsigned)mnp >= sizeof(mnemonic) - 1) {
+			mnemonic[sizeof(mnemonic) - 1] = 0;
+			fprintf(stderr, "Instruction %s overflow\n", mnemonic);
+			abort();
+		}
 	    }
 	    pos++;
 	}
