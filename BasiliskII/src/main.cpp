@@ -176,7 +176,8 @@ bool InitAll(void)
 	// Set default video mode in XPRAM
 	XPRAM[0x56] = 0x42;	// 'B'
 	XPRAM[0x57] = 0x32;	// '2'
-	XPRAM[0x58] = DepthToAppleMode(VideoMonitor.mode.depth);
+	const monitor_desc &main_monitor = *VideoMonitors[0];
+	XPRAM[0x58] = main_monitor.depth_to_apple_mode(main_monitor.get_current_mode().depth);
 	XPRAM[0x59] = 0;
 
 #if EMULATED_68K

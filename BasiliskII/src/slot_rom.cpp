@@ -105,12 +105,14 @@ static void PString(char *str)
 		srom[p++] = 0;
 }
 
-static uint32 VModeParms(const video_mode &mode, video_depth depth)
+static uint32 VModeParms(const monitor_desc &m, video_depth depth)
 {
+	const video_mode &mode = m.get_current_mode();
+
 	uint32 ret = p;
 	Long(50);					// Length
 	Long(0);					// Base offset
-	Word(video_bytes_per_row(depth, mode.resolution_id));
+	Word(m.get_bytes_per_row(depth, mode.resolution_id));
 	Word(0);					// Bounds
 	Word(0);
 	Word(mode.y);
@@ -173,15 +175,64 @@ static uint32 VModeDesc(uint32 params, bool direct)
 	return ret;
 }
 
+static uint32 VMonitor(const monitor_desc &m, uint32 videoType, uint32 videoName, uint32 vidDrvrDir, uint32 gammaDir)
+{
+	uint32 minorBase, minorLength;
+	uint32 vidModeParms1, vidModeParms2, vidModeParms4, vidModeParms8, vidModeParms16, vidModeParms32;
+	uint32 vidMode1, vidMode2, vidMode4, vidMode8, vidMode16, vidMode32;
+	uint32 ret;
+
+	minorBase = p;
+	Long(m.get_mac_frame_base());	// Frame buffer base
+	minorLength = p;
+	Long(0);					// Frame buffer size (unspecified)
+
+	vidModeParms1 = VModeParms(m, VDEPTH_1BIT);
+	vidModeParms2 = VModeParms(m, VDEPTH_2BIT);
+	vidModeParms4 = VModeParms(m, VDEPTH_4BIT);
+	vidModeParms8 = VModeParms(m, VDEPTH_8BIT);
+	vidModeParms16 = VModeParms(m, VDEPTH_16BIT);
+	vidModeParms32 = VModeParms(m, VDEPTH_32BIT);
+
+	vidMode1 = VModeDesc(vidModeParms1, false);
+	vidMode2 = VModeDesc(vidModeParms2, false);
+	vidMode4 = VModeDesc(vidModeParms4, false);
+	vidMode8 = VModeDesc(vidModeParms8, false);
+	vidMode16 = VModeDesc(vidModeParms16, true);
+	vidMode32 = VModeDesc(vidModeParms32, true);
+
+	ret = p;
+	Offs(0x01, videoType);				// Video type descriptor
+	Offs(0x02, videoName);				// Driver name
+	Offs(0x04, vidDrvrDir);				// Driver directory
+	Rsrc(0x08, 0x4232);					// Hardware device ID ('B2')
+	Offs(0x0a, minorBase);				// Frame buffer base
+	Offs(0x0b, minorLength);			// Frame buffer length
+	Offs(0x40, gammaDir);				// Gamma directory
+	Rsrc(0x7d, 6);						// Video attributes: Default to color, built-in
+	if (m.has_depth(VDEPTH_1BIT))
+		Offs(m.depth_to_apple_mode(VDEPTH_1BIT), vidMode1);	// Video mode parameters for 1 bit
+	if (m.has_depth(VDEPTH_2BIT))
+		Offs(m.depth_to_apple_mode(VDEPTH_2BIT), vidMode2);	// Video mode parameters for 2 bit
+	if (m.has_depth(VDEPTH_4BIT))
+		Offs(m.depth_to_apple_mode(VDEPTH_4BIT), vidMode4);	// Video mode parameters for 4 bit
+	if (m.has_depth(VDEPTH_8BIT))
+		Offs(m.depth_to_apple_mode(VDEPTH_8BIT), vidMode8);	// Video mode parameters for 8 bit
+	if (m.has_depth(VDEPTH_16BIT))
+		Offs(m.depth_to_apple_mode(VDEPTH_16BIT), vidMode16);	// Video mode parameters for 16 bit
+	if (m.has_depth(VDEPTH_32BIT))
+		Offs(m.depth_to_apple_mode(VDEPTH_32BIT), vidMode32);	// Video mode parameters for 32 bit
+	EndOfList();
+	return ret;
+}
+
 bool InstallSlotROM(void)
 {
 	uint32 boardType, boardName, vendorID, revLevel, partNum, date;
 	uint32 vendorInfo, sRsrcBoard;
 
-	uint32 videoType, videoName, minorBase, minorLength, videoDrvr, vidDrvrDir;
-	uint32 defaultGamma, gammaDir, sRsrcVideo;
-	uint32 vidModeParms1, vidModeParms2, vidModeParms4, vidModeParms8, vidModeParms16, vidModeParms32;
-	uint32 vidMode1, vidMode2, vidMode4, vidMode8, vidMode16, vidMode32;
+	uint32 videoType, videoName, videoDrvr, vidDrvrDir;
+	uint32 defaultGamma, gammaDir;
 
 	uint32 cpuType, cpuName, cpuMajor, cpuMinor, sRsrcCPU;
 
@@ -189,7 +240,11 @@ bool InstallSlotROM(void)
 
 	uint32 sRsrcDir;
 
+	vector<monitor_desc *>::const_iterator m, mend = VideoMonitors.end();
+	vector<uint32> sRsrcVideo;
+
 	char str[256];
+	int i;
 	p = 0;
 
 	// Board sResource
@@ -221,15 +276,10 @@ bool InstallSlotROM(void)
 	Offs(0x24, vendorInfo);				// Vendor Info
 	EndOfList();
 
-	// Video sResource for default mode
-	videoType = p;						// Literals
+	videoType = p;
 	Word(3); Word(1); Word(1); Word(0x4232);	// Display Video Apple 'B2'
 	videoName = p;
 	String("Display_Video_Apple_Basilisk");
-	minorBase = p;
-	Long(VideoMonitor.mac_frame_base);	// Frame buffer base
-	minorLength = p;
-	Long(0);							// Frame buffer size (unspecified)
 
 	videoDrvr = p;						// Video driver
 	Long(0x72);							// Length
@@ -302,42 +352,8 @@ bool InstallSlotROM(void)
 	Offs(0x80, defaultGamma);
 	EndOfList();
 
-	vidModeParms1 = VModeParms(VideoMonitor.mode, VDEPTH_1BIT);
-	vidModeParms2 = VModeParms(VideoMonitor.mode, VDEPTH_2BIT);
-	vidModeParms4 = VModeParms(VideoMonitor.mode, VDEPTH_4BIT);
-	vidModeParms8 = VModeParms(VideoMonitor.mode, VDEPTH_8BIT);
-	vidModeParms16 = VModeParms(VideoMonitor.mode, VDEPTH_16BIT);
-	vidModeParms32 = VModeParms(VideoMonitor.mode, VDEPTH_32BIT);
-
-	vidMode1 = VModeDesc(vidModeParms1, false);
-	vidMode2 = VModeDesc(vidModeParms2, false);
-	vidMode4 = VModeDesc(vidModeParms4, false);
-	vidMode8 = VModeDesc(vidModeParms8, false);
-	vidMode16 = VModeDesc(vidModeParms16, true);
-	vidMode32 = VModeDesc(vidModeParms32, true);
-
-	sRsrcVideo = p;
-	Offs(0x01, videoType);				// Video type descriptor
-	Offs(0x02, videoName);				// Driver name
-	Offs(0x04, vidDrvrDir);				// Driver directory
-	Rsrc(0x08, 0x4232);					// Hardware device ID ('B2')
-	Offs(0x0a, minorBase);				// Frame buffer base
-	Offs(0x0b, minorLength);			// Frame buffer length
-	Offs(0x40, gammaDir);				// Gamma directory
-	Rsrc(0x7d, 6);						// Video attributes: Default to color, built-in
-	if (video_has_depth(VDEPTH_1BIT))
-		Offs(DepthToAppleMode(VDEPTH_1BIT), vidMode1);		// Video mode parameters for 1 bit
-	if (video_has_depth(VDEPTH_2BIT))
-		Offs(DepthToAppleMode(VDEPTH_2BIT), vidMode2);		// Video mode parameters for 2 bit
-	if (video_has_depth(VDEPTH_4BIT))
-		Offs(DepthToAppleMode(VDEPTH_4BIT), vidMode4);		// Video mode parameters for 4 bit
-	if (video_has_depth(VDEPTH_8BIT))
-		Offs(DepthToAppleMode(VDEPTH_8BIT), vidMode8);		// Video mode parameters for 8 bit
-	if (video_has_depth(VDEPTH_16BIT))
-		Offs(DepthToAppleMode(VDEPTH_16BIT), vidMode16);	// Video mode parameters for 16 bit
-	if (video_has_depth(VDEPTH_32BIT))
-		Offs(DepthToAppleMode(VDEPTH_32BIT), vidMode32);	// Video mode parameters for 32 bit
-	EndOfList();
+	for (m = VideoMonitors.begin(); m != mend; ++m)
+		sRsrcVideo.push_back(VMonitor(**m, videoType, videoName, vidDrvrDir, gammaDir));
 
 	// CPU sResource
 	cpuType = p;						// Literals
@@ -415,7 +431,8 @@ bool InstallSlotROM(void)
 	// sResource directory
 	sRsrcDir = p;
 	Offs(0x01, sRsrcBoard);
-	Offs(0x80, sRsrcVideo);
+	for (m = VideoMonitors.begin(), i = 0; m != mend; ++m, ++i)
+		Offs((*m)->get_slot_id(), sRsrcVideo[i]);
 	Offs(0xf0, sRsrcCPU);
 	Offs(0xf1, sRsrcEther);
 	EndOfList();

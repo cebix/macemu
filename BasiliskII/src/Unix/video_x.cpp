@@ -39,10 +39,6 @@
 
 #include <algorithm>
 
-#ifndef NO_STD_NAMESPACE
-using std::sort;
-#endif
-
 #ifdef HAVE_PTHREADS
 # include <pthread.h>
 #endif
@@ -70,6 +66,9 @@ using std::sort;
 #define DEBUG 0
 #include "debug.h"
 
+
+// Supported video modes
+static vector<video_mode> VideoModes;
 
 // Display types
 enum {
@@ -140,8 +139,8 @@ static int rshift, rloss, gshift, gloss, bshift, bloss;	// Pixel format of Direc
 
 static Colormap cmap[2] = {0, 0};					// Colormaps for indexed modes (DGA needs two of them)
 
-static XColor palette[256];							// Color palette to be used as CLUT and gamma table
-static bool palette_changed = false;				// Flag: Palette changed, redraw thread must set new colors
+static XColor x_palette[256];							// Color palette to be used as CLUT and gamma table
+static bool x_palette_changed = false;				// Flag: Palette changed, redraw thread must set new colors
 
 #ifdef ENABLE_FBDEV_DGA
 static int fbdev_fd = -1;
@@ -154,9 +153,9 @@ static int num_x_video_modes;
 
 // Mutex to protect palette
 #ifdef HAVE_PTHREADS
-static pthread_mutex_t palette_lock = PTHREAD_MUTEX_INITIALIZER;
-#define LOCK_PALETTE pthread_mutex_lock(&palette_lock)
-#define UNLOCK_PALETTE pthread_mutex_unlock(&palette_lock)
+static pthread_mutex_t x_palette_lock = PTHREAD_MUTEX_INITIALIZER;
+#define LOCK_PALETTE pthread_mutex_lock(&x_palette_lock)
+#define UNLOCK_PALETTE pthread_mutex_unlock(&x_palette_lock)
 #else
 #define LOCK_PALETTE
 #define UNLOCK_PALETTE
@@ -192,6 +191,23 @@ extern Display *x_display;
 
 // From sys_unix.cpp
 extern void SysMountFirstFloppy(void);
+
+
+/*
+ *  monitor_desc subclass for X11 display
+ */
+
+class X11_monitor_desc : public monitor_desc {
+public:
+	X11_monitor_desc(const vector<video_mode> &available_modes, video_depth default_depth, uint32 default_id) : monitor_desc(available_modes, default_depth, default_id) {}
+	~X11_monitor_desc() {}
+
+	virtual void switch_to_current_mode(void);
+	virtual void set_palette(uint8 *pal, int num);
+
+	bool video_open(void);
+	void video_close(void);
+};
 
 
 /*
@@ -332,7 +348,7 @@ static void add_window_modes(video_depth depth)
 }
 
 // Set Mac frame layout and base address (uses the_buffer/MacFrameBaseMac)
-static void set_mac_frame_buffer(video_depth depth, bool native_byte_order)
+static void set_mac_frame_buffer(X11_monitor_desc &monitor, video_depth depth, bool native_byte_order)
 {
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 	int layout = FLAYOUT_DIRECT;
@@ -344,16 +360,17 @@ static void set_mac_frame_buffer(video_depth depth, bool native_byte_order)
 		MacFrameLayout = layout;
 	else
 		MacFrameLayout = FLAYOUT_DIRECT;
-	VideoMonitor.mac_frame_base = MacFrameBaseMac;
+	monitor.set_mac_frame_base(MacFrameBaseMac);
 
 	// Set variables used by UAE memory banking
+	const video_mode &mode = monitor.get_current_mode();
 	MacFrameBaseHost = the_buffer;
-	MacFrameSize = VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y;
+	MacFrameSize = mode.bytes_per_row * mode.y;
 	InitFrameBufferMapping();
 #else
-	VideoMonitor.mac_frame_base = Host2MacAddr(the_buffer);
+	monitor.set_mac_frame_base(Host2MacAddr(the_buffer));
 #endif
-	D(bug("VideoMonitor.mac_frame_base = %08x\n", VideoMonitor.mac_frame_base));
+	D(bug("monitor.mac_frame_base = %08x\n", monitor.get_mac_frame_base()));
 }
 
 // Set window name and class
@@ -431,7 +448,7 @@ static int error_handler(Display *d, XErrorEvent *e)
 
 class driver_base {
 public:
-	driver_base();
+	driver_base(X11_monitor_desc &m);
 	virtual ~driver_base();
 
 	virtual void update_palette(void);
@@ -447,6 +464,9 @@ public:
 	virtual void ungrab_mouse(void) {}
 
 public:
+	X11_monitor_desc &monitor; // Associated video monitor
+	const video_mode &mode;    // Video mode handled by the driver
+
 	bool init_ok;	// Initialization succeeded (we can't use exceptions because of -fomit-frame-pointer)
 	Window w;		// The window we draw into
 
@@ -464,7 +484,7 @@ class driver_window : public driver_base {
 	friend void update_display_static(driver_window *drv);
 
 public:
-	driver_window(const video_mode &mode);
+	driver_window(X11_monitor_desc &monitor);
 	~driver_window();
 
 	void toggle_mouse_grab(void);
@@ -489,8 +509,8 @@ static driver_base *drv = NULL;	// Pointer to currently used driver object
 # include "video_vosf.h"
 #endif
 
-driver_base::driver_base()
- : init_ok(false), w(0)
+driver_base::driver_base(X11_monitor_desc &m)
+ : monitor(m), mode(m.get_current_mode()), init_ok(false), w(0)
 {
 	the_buffer = NULL;
 	the_buffer_copy = NULL;
@@ -549,10 +569,10 @@ void driver_base::update_palette(void)
 {
 	if (color_class == PseudoColor || color_class == DirectColor) {
 		int num = vis->map_entries;
-		if (!IsDirectMode(VideoMonitor.mode) && color_class == DirectColor)
+		if (!IsDirectMode(monitor.get_current_mode()) && color_class == DirectColor)
 			return; // Indexed mode on true color screen, don't set CLUT
-		XStoreColors(x_display, cmap[0], palette, num);
-		XStoreColors(x_display, cmap[1], palette, num);
+		XStoreColors(x_display, cmap[0], x_palette, num);
+		XStoreColors(x_display, cmap[1], x_palette, num);
 	}
 	XSync(x_display, false);
 }
@@ -575,8 +595,8 @@ void driver_base::restore_mouse_accel(void)
  */
 
 // Open display
-driver_window::driver_window(const video_mode &mode)
- : gc(0), img(NULL), have_shm(false), mac_cursor(0), mouse_grabbed(false)
+driver_window::driver_window(X11_monitor_desc &m)
+ : driver_base(m), gc(0), img(NULL), have_shm(false), mac_cursor(0), mouse_grabbed(false)
 {
 	int width = mode.x, height = mode.y;
 	int aligned_width = (width + 15) & ~15;
@@ -708,9 +728,8 @@ driver_window::driver_window(const video_mode &mode)
 	Screen_blitter_init(&visualInfo, native_byte_order, mode.depth);
 #endif
 
-	// Set VideoMonitor
-	VideoMonitor.mode = mode;
-	set_mac_frame_buffer(mode.depth, native_byte_order);
+	// Set frame buffer base
+	set_mac_frame_buffer(monitor, mode.depth, native_byte_order);
 
 	// Everything went well
 	init_ok = true;
@@ -790,7 +809,7 @@ void driver_window::mouse_moved(int x, int y)
 	// Warped mouse motion (this code is taken from SDL)
 
 	// Post first mouse event
-	int width = VideoMonitor.mode.x, height = VideoMonitor.mode.y;
+	int width = monitor.get_current_mode().x, height = monitor.get_current_mode().y;
 	int delta_x = x - mouse_last_x, delta_y = y - mouse_last_y;
 	mouse_last_x = x; mouse_last_y = y;
 	ADBMouseMoved(delta_x, delta_y);
@@ -827,7 +846,7 @@ void driver_window::mouse_moved(int x, int y)
 
 class driver_dga : public driver_base {
 public:
-	driver_dga();
+	driver_dga(X11_monitor_desc &monitor);
 	~driver_dga();
 
 	void suspend(void);
@@ -838,8 +857,8 @@ private:
 	void *fb_save;			// Saved frame buffer for suspend/resume
 };
 
-driver_dga::driver_dga()
- : suspend_win(0), fb_save(NULL)
+driver_dga::driver_dga(X11_monitor_desc &m)
+ : driver_base(m), suspend_win(0), fb_save(NULL)
 {
 }
 
@@ -860,9 +879,9 @@ void driver_dga::suspend(void)
 	LOCK_FRAME_BUFFER;
 
 	// Save frame buffer
-	fb_save = malloc(VideoMonitor.mode.y * VideoMonitor.mode.bytes_per_row);
+	fb_save = malloc(mode.y * mode.bytes_per_row);
 	if (fb_save)
-		memcpy(fb_save, the_buffer, VideoMonitor.mode.y * VideoMonitor.mode.bytes_per_row);
+		memcpy(fb_save, the_buffer, mode.y * mode.bytes_per_row);
 
 	// Close full screen display
 #ifdef ENABLE_XF86_DGA
@@ -915,7 +934,7 @@ void driver_dga::resume(void)
 		LOCK_VOSF;
 		PFLAG_SET_ALL;
 		UNLOCK_VOSF;
-		memset(the_buffer_copy, 0, VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y);
+		memset(the_buffer_copy, 0, mode.bytes_per_row * mode.y);
 	}
 #endif
 	
@@ -925,7 +944,7 @@ void driver_dga::resume(void)
 		// Don't copy fb_save to the temporary frame buffer in VOSF mode
 		if (!use_vosf)
 #endif
-		memcpy(the_buffer, fb_save, VideoMonitor.mode.y * VideoMonitor.mode.bytes_per_row);
+		memcpy(the_buffer, fb_save, mode.y * mode.bytes_per_row);
 		free(fb_save);
 		fb_save = NULL;
 	}
@@ -947,12 +966,12 @@ const char FBDEVICE_FILE_NAME[] = "/dev/fb";
 
 class driver_fbdev : public driver_dga {
 public:
-	driver_fbdev(const video_mode &mode);
+	driver_fbdev(X11_monitor_desc &monitor);
 	~driver_fbdev();
 };
 
 // Open display
-driver_fbdev::driver_fbdev(const video_mode &mode)
+driver_fbdev::driver_fbdev(X11_monitor_desc &m) : driver_dga(m)
 {
 	int width = mode.x, height = mode.y;
 
@@ -1081,10 +1100,9 @@ driver_fbdev::driver_fbdev(const video_mode &mode)
 #endif
 #endif
 	
-	// Set VideoMonitor
-	VideoModes[0].bytes_per_row = bytes_per_row;
-	VideoModes[0].depth = DepthModeForPixelDepth(fb_depth);
-	VideoMonitor.mode = mode;
+	// Set frame buffer base
+	const_cast<video_mode *>(&mode)->bytes_per_row = bytes_per_row;
+	const_cast<video_mode *>(&mode)->depth = DepthModeForPixelDepth(fb_depth);
 	set_mac_frame_buffer(mode.depth, true);
 
 	// Everything went well
@@ -1121,7 +1139,7 @@ driver_fbdev::~driver_fbdev()
 
 class driver_xf86dga : public driver_dga {
 public:
-	driver_xf86dga(const video_mode &mode);
+	driver_xf86dga(X11_monitor_desc &monitor);
 	~driver_xf86dga();
 
 	void update_palette(void);
@@ -1132,8 +1150,8 @@ private:
 };
 
 // Open display
-driver_xf86dga::driver_xf86dga(const video_mode &mode)
- : current_dga_cmap(0)
+driver_xf86dga::driver_xf86dga(X11_monitor_desc &m)
+ : driver_dga(m), current_dga_cmap(0)
 {
 	int width = mode.x, height = mode.y;
 
@@ -1214,10 +1232,9 @@ driver_xf86dga::driver_xf86dga(const video_mode &mode)
 #endif
 #endif
 	
-	// Set VideoMonitor
+	// Set frame buffer base
 	const_cast<video_mode *>(&mode)->bytes_per_row = bytes_per_row;
-	VideoMonitor.mode = mode;
-	set_mac_frame_buffer(mode.depth, true);
+	set_mac_frame_buffer(monitor, mode.depth, true);
 
 	// Everything went well
 	init_ok = true;
@@ -1248,7 +1265,7 @@ void driver_xf86dga::update_palette(void)
 {
 	driver_dga::update_palette();
 	current_dga_cmap ^= 1;
-	if (!IsDirectMode(VideoMonitor.mode) && cmap[current_dga_cmap])
+	if (!IsDirectMode(monitor.get_current_mode()) && cmap[current_dga_cmap])
 		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
 }
 
@@ -1256,7 +1273,7 @@ void driver_xf86dga::update_palette(void)
 void driver_xf86dga::resume(void)
 {
 	driver_dga::resume();
-	if (!IsDirectMode(VideoMonitor.mode))
+	if (!IsDirectMode(monitor.get_current_mode()))
 		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
 }
 #endif
@@ -1331,10 +1348,11 @@ static void keycode_init(void)
 	}
 }
 
-// Open display for specified mode
-static bool video_open(const video_mode &mode)
+// Open display for current mode
+bool X11_monitor_desc::video_open(void)
 {
 	D(bug("video_open()\n"));
+	const video_mode &mode = get_current_mode();
 
 	// Find best available X visual
 	if (!find_visual_for_depth(mode.depth)) {
@@ -1375,13 +1393,13 @@ static bool video_open(const video_mode &mode)
 		int num = vis->map_entries;
 		for (int i=0; i<num; i++) {
 			int c = (i * 256) / num;
-			palette[i].pixel = map_rgb(c, c, c);
-			palette[i].flags = DoRed | DoGreen | DoBlue;
+			x_palette[i].pixel = map_rgb(c, c, c);
+			x_palette[i].flags = DoRed | DoGreen | DoBlue;
 		}
 	} else if (color_class == PseudoColor) {
 		for (int i=0; i<256; i++) {
-			palette[i].pixel = i;
-			palette[i].flags = DoRed | DoGreen | DoBlue;
+			x_palette[i].pixel = i;
+			x_palette[i].flags = DoRed | DoGreen | DoBlue;
 		}
 	}
 
@@ -1389,13 +1407,13 @@ static bool video_open(const video_mode &mode)
 	int num = (color_class == DirectColor ? vis->map_entries : 256);
 	for (int i=0; i<num; i++) {
 		int c = (i * 256) / num;
-		palette[i].red = c * 0x0101;
-		palette[i].green = c * 0x0101;
-		palette[i].blue = c * 0x0101;
+		x_palette[i].red = c * 0x0101;
+		x_palette[i].green = c * 0x0101;
+		x_palette[i].blue = c * 0x0101;
 	}
 	if (color_class == PseudoColor || color_class == DirectColor) {
-		XStoreColors(x_display, cmap[0], palette, num);
-		XStoreColors(x_display, cmap[1], palette, num);
+		XStoreColors(x_display, cmap[0], x_palette, num);
+		XStoreColors(x_display, cmap[1], x_palette, num);
 	}
 
 #ifdef ENABLE_VOSF
@@ -1408,16 +1426,16 @@ static bool video_open(const video_mode &mode)
 	// Create display driver object of requested type
 	switch (display_type) {
 		case DISPLAY_WINDOW:
-			drv = new driver_window(mode);
+			drv = new driver_window(*this);
 			break;
 #ifdef ENABLE_FBDEV_DGA
 		case DISPLAY_DGA:
-			drv = new driver_fbdev(mode);
+			drv = new driver_fbdev(*this);
 			break;
 #endif
 #ifdef ENABLE_XF86_DGA
 		case DISPLAY_DGA:
-			drv = new driver_xf86dga(mode);
+			drv = new driver_xf86dga(*this);
 			break;
 #endif
 	}
@@ -1432,7 +1450,7 @@ static bool video_open(const video_mode &mode)
 #ifdef ENABLE_VOSF
 	if (use_vosf) {
 		// Initialize the VOSF system
-		if (!video_vosf_init()) {
+		if (!video_vosf_init(*this)) {
 			ErrorAlert(STR_VOSF_INIT_ERR);
         	return false;
 		}
@@ -1494,7 +1512,7 @@ bool VideoInit(bool classic)
 		ErrorAlert(STR_UNSUPP_DEPTH_ERR);
 		return false;
 	}
-	sort(avail_depths, avail_depths + num_depths);
+	std::sort(avail_depths, avail_depths + num_depths);
 	
 #ifdef ENABLE_FBDEV_DGA
 	// Frame buffer name
@@ -1597,34 +1615,39 @@ bool VideoInit(bool classic)
 		ErrorAlert(STR_NO_XVISUAL_ERR);
 		return false;
 	}
-	video_init_depth_list();
+
+	// Find requested default mode with specified dimensions
+	uint32 default_id;
+	std::vector<video_mode>::const_iterator i, end = VideoModes.end();
+	for (i = VideoModes.begin(); i != end; ++i) {
+		if (i->x == default_width && i->y == default_height && i->depth == default_depth) {
+			default_id = i->resolution_id;
+			break;
+		}
+	}
+	if (i == end) { // not found, use first available mode
+		default_depth = VideoModes[0].depth;
+		default_id = VideoModes[0].resolution_id;
+	}
 
 #if DEBUG
 	D(bug("Available video modes:\n"));
-	vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
-	while (i != end) {
+	for (i = VideoModes.begin(); i != end; ++i) {
 		int bits = 1 << i->depth;
 		if (bits == 16)
 			bits = 15;
 		else if (bits == 32)
 			bits = 24;
 		D(bug(" %dx%d (ID %02x), %d colors\n", i->x, i->y, i->resolution_id, 1 << bits));
-		++i;
 	}
 #endif
 
-	// Find requested default mode and open display
-	if (VideoModes.size() == 1)
-		return video_open(VideoModes[0]);
-	else {
-		// Find mode with specified dimensions
-		std::vector<video_mode>::const_iterator i, end = VideoModes.end();
-		for (i = VideoModes.begin(); i != end; ++i) {
-			if (i->x == default_width && i->y == default_height && i->depth == default_depth)
-				return video_open(*i);
-		}
-		return video_open(VideoModes[0]);
-	}
+	// Create X11_monitor_desc for this (the only) display
+	X11_monitor_desc *monitor = new X11_monitor_desc(VideoModes, default_depth, default_id);
+	VideoMonitors.push_back(monitor);
+
+	// Open display
+	return monitor->video_open();
 }
 
 
@@ -1633,7 +1656,7 @@ bool VideoInit(bool classic)
  */
 
 // Close display
-static void video_close(void)
+void X11_monitor_desc::video_close(void)
 {
 	D(bug("video_close()\n"));
 
@@ -1678,8 +1701,10 @@ static void video_close(void)
 
 void VideoExit(void)
 {
-	// Close display
-	video_close();
+	// Close displays
+	vector<monitor_desc *>::iterator i, end = VideoMonitors.end();
+	for (i = VideoMonitors.begin(); i != end; ++i)
+		dynamic_cast<X11_monitor_desc *>(*i)->video_close();
 
 #ifdef ENABLE_XF86_VIDMODE
 	// Free video mode list
@@ -1737,19 +1762,21 @@ void VideoInterrupt(void)
  *  Set palette
  */
 
-void video_set_palette(uint8 *pal, int num_in)
+void X11_monitor_desc::set_palette(uint8 *pal, int num_in)
 {
+	const video_mode &mode = get_current_mode();
+
 	LOCK_PALETTE;
 
 	// Convert colors to XColor array
 	int num_out = 256;
 	bool stretch = false;
-	if (IsDirectMode(VideoMonitor.mode)) {
+	if (IsDirectMode(mode)) {
 		// If X is in 565 mode we have to stretch the gamma table from 32 to 64 entries
 		num_out = vis->map_entries;
 		stretch = true;
 	}
-	XColor *p = palette;
+	XColor *p = x_palette;
 	for (int i=0; i<num_out; i++) {
 		int c = (stretch ? (i * num_in) / num_out : i);
 		p->red = pal[c*3 + 0] * 0x0101;
@@ -1760,7 +1787,7 @@ void video_set_palette(uint8 *pal, int num_in)
 
 #ifdef ENABLE_VOSF
 	// Recalculate pixel color expansion map
-	if (!IsDirectMode(VideoMonitor.mode) && xdepth > 8) {
+	if (!IsDirectMode(mode) && xdepth > 8) {
 		for (int i=0; i<256; i++) {
 			int c = i & (num_in-1); // If there are less than 256 colors, we repeat the first entries (this makes color expansion easier)
 			ExpandMap[i] = map_rgb(pal[c*3+0], pal[c*3+1], pal[c*3+2]);
@@ -1770,12 +1797,12 @@ void video_set_palette(uint8 *pal, int num_in)
 		LOCK_VOSF;
 		PFLAG_SET_ALL;
 		UNLOCK_VOSF;
-		memset(the_buffer_copy, 0, VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y);
+		memset(the_buffer_copy, 0, mode.bytes_per_row * mode.y);
 	}
 #endif
 
 	// Tell redraw thread to change palette
-	palette_changed = true;
+	x_palette_changed = true;
 
 	UNLOCK_PALETTE;
 }
@@ -1785,11 +1812,11 @@ void video_set_palette(uint8 *pal, int num_in)
  *  Switch video mode
  */
 
-void video_switch_to_mode(const video_mode &mode)
+void X11_monitor_desc::switch_to_current_mode(void)
 {
 	// Close and reopen display
 	video_close();
-	video_open(mode);
+	video_open();
 
 	if (drv == NULL) {
 		ErrorAlert(STR_OPEN_WINDOW_ERR);
@@ -2059,12 +2086,13 @@ static void handle_events(void)
 			// Hidden parts exposed, force complete refresh of window
 			case Expose:
 				if (display_type == DISPLAY_WINDOW) {
+					const video_mode &mode = VideoMonitors[0]->get_current_mode();
 #ifdef ENABLE_VOSF
 					if (use_vosf) {			// VOSF refresh
 						LOCK_VOSF;
 						PFLAG_SET_ALL;
 						UNLOCK_VOSF;
-						memset(the_buffer_copy, 0, VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y);
+						memset(the_buffer_copy, 0, mode.bytes_per_row * mode.y);
 					}
 					else
 #endif
@@ -2075,7 +2103,7 @@ static void handle_events(void)
 							updt_box[x1][y1] = true;
 						nr_boxes = 16 * 16;
 					} else					// Static refresh
-						memset(the_buffer_copy, 0, VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y);
+						memset(the_buffer_copy, 0, mode.bytes_per_row * mode.y);
 				}
 				break;
 
@@ -2101,10 +2129,11 @@ static void update_display_dynamic(int ticker, driver_window *drv)
 	int y1, y2, y2s, y2a, i, x1, xm, xmo, ymo, yo, yi, yil, xi;
 	int xil = 0;
 	int rxm = 0, rxmo = 0;
-	int bytes_per_row = VideoMonitor.mode.bytes_per_row;
-	int bytes_per_pixel = VideoMonitor.mode.bytes_per_row / VideoMonitor.mode.x;
-	int rx = VideoMonitor.mode.bytes_per_row / 16;
-	int ry = VideoMonitor.mode.y / 16;
+	const video_mode &mode = drv->monitor.get_current_mode();
+	int bytes_per_row = mode.bytes_per_row;
+	int bytes_per_pixel = mode.bytes_per_row / mode.x;
+	int rx = mode.bytes_per_row / 16;
+	int ry = mode.y / 16;
 	int max_box;
 
 	y2s = sm_uptd[ticker % 8];
@@ -2158,7 +2187,7 @@ static void update_display_dynamic(int ticker, driver_window *drv)
 					i = (yi * bytes_per_row) + xi;
 					for (y2=0; y2 < yil; y2++, i += bytes_per_row)
 						memcpy(&the_buffer_copy[i], &the_buffer[i], xil);
-					if (VideoMonitor.mode.depth == VDEPTH_1BIT) {
+					if (mode.depth == VDEPTH_1BIT) {
 						if (drv->have_shm)
 							XShmPutImage(x_display, drv->w, drv->gc, drv->img, xi * 8, yi, xi * 8, yi, xil * 8, yil, 0);
 						else
@@ -2190,20 +2219,21 @@ static void update_display_static(driver_window *drv)
 {
 	// Incremental update code
 	unsigned wide = 0, high = 0, x1, x2, y1, y2, i, j;
-	int bytes_per_row = VideoMonitor.mode.bytes_per_row;
-	int bytes_per_pixel = VideoMonitor.mode.bytes_per_row / VideoMonitor.mode.x;
+	const video_mode &mode = drv->monitor.get_current_mode();
+	int bytes_per_row = mode.bytes_per_row;
+	int bytes_per_pixel = mode.bytes_per_row / mode.x;
 	uint8 *p, *p2;
 
 	// Check for first line from top and first line from bottom that have changed
 	y1 = 0;
-	for (j=0; j<VideoMonitor.mode.y; j++) {
+	for (j=0; j<mode.y; j++) {
 		if (memcmp(&the_buffer[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
 			y1 = j;
 			break;
 		}
 	}
 	y2 = y1 - 1;
-	for (j=VideoMonitor.mode.y-1; j>=y1; j--) {
+	for (j=mode.y-1; j>=y1; j--) {
 		if (memcmp(&the_buffer[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
 			y2 = j;
 			break;
@@ -2213,8 +2243,8 @@ static void update_display_static(driver_window *drv)
 
 	// Check for first column from left and first column from right that have changed
 	if (high) {
-		if (VideoMonitor.mode.depth == VDEPTH_1BIT) {
-			x1 = VideoMonitor.mode.x - 1;
+		if (mode.depth == VDEPTH_1BIT) {
+			x1 = mode.x - 1;
 			for (j=y1; j<=y2; j++) {
 				p = &the_buffer[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
@@ -2232,7 +2262,7 @@ static void update_display_static(driver_window *drv)
 				p2 = &the_buffer_copy[j * bytes_per_row];
 				p += bytes_per_row;
 				p2 += bytes_per_row;
-				for (i=(VideoMonitor.mode.x>>3); i>(x2>>3); i--) {
+				for (i=(mode.x>>3); i>(x2>>3); i--) {
 					p--; p2--;
 					if (*p != *p2) {
 						x2 = (i << 3) + 7;
@@ -2251,7 +2281,7 @@ static void update_display_static(driver_window *drv)
 			}
 
 		} else {
-			x1 = VideoMonitor.mode.x;
+			x1 = mode.x;
 			for (j=y1; j<=y2; j++) {
 				p = &the_buffer[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
@@ -2269,7 +2299,7 @@ static void update_display_static(driver_window *drv)
 				p2 = &the_buffer_copy[j * bytes_per_row];
 				p += bytes_per_row;
 				p2 += bytes_per_row;
-				for (i=VideoMonitor.mode.x*bytes_per_pixel; i>x2*bytes_per_pixel; i--) {
+				for (i=mode.x*bytes_per_pixel; i>x2*bytes_per_pixel; i--) {
 					p--;
 					p2--;
 					if (*p != *p2) {
@@ -2336,8 +2366,8 @@ static inline void handle_palette_changes(void)
 {
 	LOCK_PALETTE;
 
-	if (palette_changed) {
-		palette_changed = false;
+	if (x_palette_changed) {
+		x_palette_changed = false;
 		drv->update_palette();
 	}
 
