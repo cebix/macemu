@@ -384,8 +384,11 @@ int main(int argc, char **argv)
 			QuitEmulator();
 
 	// Install the handler for SIGSEGV
-	if (!sigsegv_install_handler(sigsegv_handler))
-		return false;
+	if (!sigsegv_install_handler(sigsegv_handler)) {
+		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGSEGV", strerror(errno));
+		ErrorAlert(str);
+		QuitEmulator();
+	}
 	
 	// Register dump state function when we got mad after a segfault
 	sigsegv_set_dump_state(sigsegv_dump_state);
