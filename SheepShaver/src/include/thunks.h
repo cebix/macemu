@@ -85,6 +85,22 @@ extern uint32 NativeRoutineDescriptor(int selector);
 
 /*
  *  Helpers to share 32-bit addressable data with MacOS
+ *
+ *  There are two distinct allocatable regions:
+ *
+ *  - The Data region is used to share data between MacOS and
+ *    SheepShaver. This is stack-like allocation since it is
+ *    meant to only hold temporary data which dies at the end
+ *    of the current function scope.
+ *
+ *  - The Procedure region is used to hold permanent M68K or
+ *    PowerPC code to assist native routine implementations.
+ *
+ *  - The Procedure region grows up whereas the Data region
+ *    grows down. They may intersect into the ZeroPage, which
+ *    is a read-only page with all bits set to zero. In practise,
+ *    the intersection is unlikely since the Procedure region is
+ *    static and the Data region is meant to be small (< 256 KB).
  */
 
 class SheepMem {
