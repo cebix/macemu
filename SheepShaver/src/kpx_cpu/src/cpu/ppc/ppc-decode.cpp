@@ -26,6 +26,15 @@
 #define DEBUG 0
 #include "debug.h"
 
+// Enable specialized instruction decoders?
+#define SPECIALIZED_DECODERS 0
+
+#if SPECIALIZED_DECODERS
+#define SPD(X) X
+#else
+#define SPD(X) NULL
+#endif
+
 #define EXECUTE_0(HANDLER) \
 &powerpc_cpu::execute_##HANDLER
 
@@ -80,6 +89,18 @@
 #define EXECUTE_FP_LOADSTORE(RA, RB, LD, DB, UP) \
 &powerpc_cpu::execute_fp_loadstore<operand_##RA, operand_##RB, LD, DB, UP>
 
+#define _DECODE_ADDITION(RA, RB, RC, CA) \
+powerpc_cpu::decode_addition<operand_##RA, operand_##RB, operand_##RC, CA>
+
+#define DECODE_ADDITION(RA, RB, RC, CA) \
+SPD(&_DECODE_ADDITION(RA, RB, RC, CA))
+
+#define _DECODE_RLWINM(RA, RS) \
+powerpc_cpu::decode_rlwinm<operand_##RA, operand_##RS>
+
+#define DECODE_RLWINM(RA, RS) \
+SPD(&_DECODE_RLWINM(RA, RS))
+
 const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	{ "invalid",
 	  EXECUTE_0(illegal),
@@ -88,17 +109,17 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	},
 	{ "add",
 	  EXECUTE_ADDITION(RA, RB, NONE, CA_BIT_0, OE_BIT_G, RC_BIT_G),
-	  NULL,
+	  DECODE_ADDITION(RA, RB, NONE, CA_BIT_0),
 	  XO_form, 31, 266, CFLOW_NORMAL
 	},
 	{ "addc",
 	  EXECUTE_ADDITION(RA, RB, NONE, CA_BIT_1, OE_BIT_G, RC_BIT_G),
-	  NULL,
+	  DECODE_ADDITION(RA, RB, NONE, CA_BIT_1),
 	  XO_form, 31,  10, CFLOW_NORMAL
 	},
 	{ "adde",
 	  EXECUTE_ADDITION(RA, RB, XER_CA, CA_BIT_1, OE_BIT_G, RC_BIT_G),
-	  NULL,
+	  DECODE_ADDITION(RA, RB, XER_CA, CA_BIT_1),
 	  XO_form, 31, 138, CFLOW_NORMAL
 	},
 	{ "addi",
@@ -123,12 +144,12 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	},
 	{ "addme",
 	  EXECUTE_ADDITION(RA, MINUS_ONE, XER_CA, CA_BIT_1, OE_BIT_G, RC_BIT_G),
-	  NULL,
+	  DECODE_ADDITION(RA, MINUS_ONE, XER_CA, CA_BIT_1),
 	  XO_form, 31, 234, CFLOW_NORMAL
 	},
 	{ "addze",
 	  EXECUTE_ADDITION(RA, ZERO, XER_CA, CA_BIT_1, OE_BIT_G, RC_BIT_G),
-	  NULL,
+	  DECODE_ADDITION(RA, ZERO, XER_CA, CA_BIT_1),
 	  XO_form, 31, 202, CFLOW_NORMAL
 	},
 	{ "and",
@@ -718,7 +739,7 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	},
 	{ "rlwinm",
 	  EXECUTE_GENERIC_ARITH(ppc_rlwinm, RA, RS, SH, MASK, OE_BIT_0, RC_BIT_G),
-	  NULL,
+	  DECODE_RLWINM(RA, RS),
 	  M_form, 21, 0, CFLOW_NORMAL
 	},
 	{ "rlwnm",
@@ -883,17 +904,17 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	},
 	{ "subf",
 	  EXECUTE_ADDITION(RA_compl, RB, ONE, CA_BIT_0, OE_BIT_G, RC_BIT_G),
-	  NULL,
+	  DECODE_ADDITION(RA_compl, RB, ONE, CA_BIT_0),
 	  XO_form, 31, 40, CFLOW_NORMAL
 	},
 	{ "subfc",
 	  EXECUTE_ADDITION(RA_compl, RB, ONE, CA_BIT_1, OE_BIT_G, RC_BIT_G),
-	  NULL,
+	  DECODE_ADDITION(RA_compl, RB, ONE, CA_BIT_1),
 	  XO_form, 31, 8, CFLOW_NORMAL
 	},
 	{ "subfe",
 	  EXECUTE_ADDITION(RA_compl, RB, XER_CA, CA_BIT_1, OE_BIT_G, RC_BIT_G),
-	  NULL,
+	  DECODE_ADDITION(RA_compl, RB, XER_CA, CA_BIT_1),
 	  XO_form, 31, 136, CFLOW_NORMAL
 	},
 	{ "subfic",
@@ -903,12 +924,12 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	},
 	{ "subfme",
 	  EXECUTE_ADDITION(RA_compl, XER_CA, MINUS_ONE, CA_BIT_1, OE_BIT_G, RC_BIT_G),
-	  NULL,
+	  DECODE_ADDITION(RA_compl, XER_CA, MINUS_ONE, CA_BIT_1),
 	  XO_form, 31, 232, CFLOW_NORMAL
 	},
 	{ "subfze",
 	  EXECUTE_ADDITION(RA_compl, XER_CA, ZERO, CA_BIT_1, OE_BIT_G, RC_BIT_G),
-	  NULL,
+	  DECODE_ADDITION(RA_compl, XER_CA, ZERO, CA_BIT_1),
 	  XO_form, 31, 200, CFLOW_NORMAL
 	},
 	{ "sync",
@@ -1013,3 +1034,80 @@ void powerpc_cpu::init_decoder_entry(const instr_info_t * ii)
 		break;
 	}
 }
+
+#if SPECIALIZED_DECODERS
+
+#define DEFINE_TEMPLATE_1(T1)					class T1
+#define DEFINE_TEMPLATE_2(T1, T2)				class T1, class T2
+#define DEFINE_TEMPLATE_3(T1, T2, T3)			class T1, class T2, class T3
+#define DEFINE_TEMPLATE_4(T1, T2, T3, T4)		class T1, class T2, class T3, class T4
+#define DEFINE_TEMPLATE_5(T1, T2, T3, T4, T5)	class T1, class T2, class T3, class T4, class T5
+
+#ifndef GENEXEC
+#define DEFINE_TEMPLATE(NAME, NARGS, ARGLIST)	\
+template< DEFINE_TEMPLATE_##NARGS ARGLIST > powerpc_cpu::execute_fn powerpc_cpu::decode_##NAME(uint32 opcode)
+#endif
+
+DEFINE_TEMPLATE(addition, 4, (RA, RB, RC, CA))
+{
+	if (OE_field::test(opcode)) {
+		if (Rc_field::test(opcode))
+			return &powerpc_cpu::execute_addition< RA, RB, RC, CA, OE_BIT_1, RC_BIT_1 >;
+		else
+			return &powerpc_cpu::execute_addition< RA, RB, RC, CA, OE_BIT_1, RC_BIT_0 >;
+	}
+	else {
+		if (Rc_field::test(opcode))
+			return &powerpc_cpu::execute_addition< RA, RB, RC, CA, OE_BIT_0, RC_BIT_1 >;
+		else
+			return &powerpc_cpu::execute_addition< RA, RB, RC, CA, OE_BIT_0, RC_BIT_0 >;
+	}
+	abort();
+	return NULL;
+}
+
+#define IMPL_DECODE_ADDITION(RA, RB, RC, CA) \
+template powerpc_cpu::execute_fn _DECODE_ADDITION(RA, RB, RC, CA)(uint32)
+
+IMPL_DECODE_ADDITION(RA, RB, NONE, CA_BIT_0);
+IMPL_DECODE_ADDITION(RA, RB, NONE, CA_BIT_1);
+IMPL_DECODE_ADDITION(RA, RB, XER_CA, CA_BIT_1);
+IMPL_DECODE_ADDITION(RA, MINUS_ONE, XER_CA, CA_BIT_1);
+IMPL_DECODE_ADDITION(RA, ZERO, XER_CA, CA_BIT_1);
+IMPL_DECODE_ADDITION(RA_compl, RB, ONE, CA_BIT_0);
+IMPL_DECODE_ADDITION(RA_compl, RB, ONE, CA_BIT_1);
+IMPL_DECODE_ADDITION(RA_compl, RB, XER_CA, CA_BIT_1);
+IMPL_DECODE_ADDITION(RA_compl, XER_CA, MINUS_ONE, CA_BIT_1);
+IMPL_DECODE_ADDITION(RA_compl, XER_CA, ZERO, CA_BIT_1);
+
+DEFINE_TEMPLATE(rlwinm, 2, (RA, RS))
+{
+	int SH = SH_field::extract(opcode);
+	int MB = MB_field::extract(opcode);
+	int ME = ME_field::extract(opcode);
+	int Rc = Rc_field::extract(opcode);
+#define _(SH, MB, ME, Rc) (((SH) << 11) | ((MB) << 6) | ((ME) << 1) | (Rc))
+	switch (_(SH, MB, ME, Rc)) {
+#define CASE_SHIFT_1(SH) \
+case _((SH), 0, 31 - (SH), 0): return EXECUTE_7(generic_arith, op_shll, RA, RS, immediate_value<SH>, operand_NONE, OE_BIT_0, RC_BIT_0); \
+case _((SH), 0, 31 - (SH), 1): return EXECUTE_7(generic_arith, op_shll, RA, RS, immediate_value<SH>, operand_NONE, OE_BIT_0, RC_BIT_1);
+#define CASE_SHIFT_2(SH)  CASE_SHIFT_1(SH); CASE_SHIFT_1(SH+1)
+#define CASE_SHIFT_4(SH)  CASE_SHIFT_2(SH); CASE_SHIFT_2(SH+2)
+#define CASE_SHIFT_8(SH)  CASE_SHIFT_4(SH); CASE_SHIFT_4(SH+4)
+#define CASE_SHIFT_16(SH) CASE_SHIFT_8(SH); CASE_SHIFT_8(SH+8)
+		CASE_SHIFT_16(0);
+		CASE_SHIFT_16(16);
+	}
+#undef _
+	if (Rc)
+		return EXECUTE_GENERIC_ARITH(ppc_rlwinm, RA, RS, SH, MASK, OE_BIT_0, RC_BIT_1);
+	else
+		return EXECUTE_GENERIC_ARITH(ppc_rlwinm, RA, RS, SH, MASK, OE_BIT_0, RC_BIT_0);
+}
+
+#define IMPL_DECODE_RLWINM(RA, RS) \
+template powerpc_cpu::execute_fn _DECODE_RLWINM(RA, RS)(uint32)
+
+IMPL_DECODE_RLWINM(RA, RS);
+
+#endif /* SPECIALIZED_DECODERS */

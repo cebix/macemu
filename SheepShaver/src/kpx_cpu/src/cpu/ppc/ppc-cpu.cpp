@@ -342,7 +342,7 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 				}
 #endif
 				di->opcode = opcode;
-				di->execute = ii->execute;
+				di->execute = ii->decode ? (this->*(ii->decode))(opcode) : ii->execute;
 				di++;
 #ifdef PPC_EXECUTE_DUMP_STATE
 				if (dump_state) {
