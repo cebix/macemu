@@ -21,6 +21,7 @@
 #include "main.h"
 #include "prefs.h"
 #include "user_strings.h"
+#include "vm_alloc.h"
 
 #include "m68k.h"
 #include "memory.h"
@@ -5156,18 +5157,12 @@ void alloc_cache(void)
 		return;
 	
 	while (!compiled_code && cache_size) {
-#ifndef WIN32
-		compiled_code = (uae_u8 *)mmap(0, cache_size * 1024,
-			PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE, zero_fd, 0);
-		if (compiled_code == (uae_u8 *)MAP_FAILED) {
-#else
-		compiled_code = (uae_u8 *)malloc(cache_size * 1024);
-		if (compiled_code == 0) {
-#endif
+		if ((compiled_code = (uae_u8 *)vm_acquire(cache_size * 1024)) == VM_MAP_FAILED) {
 			compiled_code = 0;
 			cache_size /= 2;
 		}
 	}
+	vm_protect(compiled_code, cache_size, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE);
 	
 	if (compiled_code) {
 		write_log("<JIT compiler> : actual translation cache size : %d KB at 0x%08X\n", cache_size, compiled_code);
