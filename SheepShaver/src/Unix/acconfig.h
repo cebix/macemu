@@ -32,6 +32,9 @@
 /* Define if using XFree86 VidMode extension. */
 #undef ENABLE_XF86_VIDMODE
 
+/* Define is using PowerPC emulator. */
+#undef EMULATED_PPC
+
 
 /* Leave that blank line there!!  Autoheader needs it.
    If you're adding to this file, keep in mind:

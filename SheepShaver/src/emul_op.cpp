@@ -67,7 +67,6 @@ static uint32 *MakeExecutableTvec;
 
 void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 {
-
 	D(bug("EmulOp %04x at %08x\n", selector, pc));
 	switch (selector) {
 		case OP_BREAK:				// Breakpoint
@@ -271,10 +270,10 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 #endif
 
 			// Patch DebugStr()
-			static const uint16 proc[] = {
-				M68K_EMUL_OP_DEBUG_STR,
-				0x4e74,			// rtd	#4
-				0x0004
+			static const uint8 proc[] = {
+				M68K_EMUL_OP_DEBUG_STR >> 8, M68K_EMUL_OP_DEBUG_STR & 0xff,
+				0x4e, 0x74,			// rtd	#4
+				0x00, 0x04
 			};
 			WriteMacInt32(0x1dfc, (uint32)proc);
 			break;
@@ -311,7 +310,11 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 #if !PRECISE_TIMING
 					TimerInterrupt();
 #endif
+#if EMULATED_PPC
+					ExecuteNative(NATIVE_VIDEO_VBL);
+#else
 					ExecutePPC(VideoVBL);
+#endif
 
 					static int tick_counter = 0;
 					if (++tick_counter >= 60) {
@@ -329,7 +332,11 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 				}
 				if (InterruptFlags & INTFLAG_ETHER) {
 					ClearInterruptFlag(INTFLAG_ETHER);
+#if EMULATED_PPC
+					ExecuteNative(NATIVE_ETHER_IRQ);
+#else
 					ExecutePPC(EtherIRQ);
+#endif
 				}
 				if (InterruptFlags & INTFLAG_TIMER) {
 					ClearInterruptFlag(INTFLAG_TIMER);

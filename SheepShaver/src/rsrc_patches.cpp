@@ -319,6 +319,14 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 				// Don't call FE0A opcode (7.6, 7.6.1, 8.0, 8.1, 8.5, 8.6)
 				p[1] = 0x7000;
 				D(bug(" patch 3 applied\n"));
+			} else if (p[0] == 0x6c00 && p[1] == 0x016a && p[2] == 0x2278 && p[3] == 0x0134) {
+				// We don't have SonyVars (8.6)
+				p[-4] = 0x21fc;	// move.l $40810000,($0000)
+				p[-3] = 0x4081;
+				p[-2] = 0x0000;
+				p[-1] = 0x0000;
+				p[0] = 0x6000;
+				D(bug(" patch 4 applied\n"));
 			}
 			p++;
 		}
@@ -479,6 +487,19 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 				break;
 			}
 			p++;
+		}
+
+	} else if (type == FOURCC('s','c','o','d') && id == -16465) {
+		D(bug("scod -16465 found\n"));
+
+		// Don't crash in Process Manager on reset/shutdown (8.6)
+		static const uint8 dat[] = {0x4e, 0x56, 0x00, 0x00, 0x48, 0xe7, 0x03, 0x18, 0x2c, 0x2e, 0x00, 0x10};
+		base = find_rsrc_data((uint8 *)p, size, dat, sizeof(dat));
+		if (base) {
+			p16 = (uint16 *)((uint32)p + base);
+			p16[0] = 0x7000;	// moveq #0,d0
+			p16[1] = M68K_RTS;
+			D(bug(" patch 1 applied\n"));
 		}
 	}
 }
@@ -684,13 +705,16 @@ void PatchNativeResourceManager(void)
 	D(bug("PatchNativeResourceManager\n"));
 
 	// Patch native GetResource()
-	uint32 **upp = *(uint32 ***)0x1480;
+	uint32 **upp = (uint32 **)(uintptr)ReadMacInt32(0x1480);
 	if (((uint32)upp & 0xffc00000) == ROM_BASE)
 		return;
 	uint32 *tvec = upp[5];
 	D(bug(" GetResource() entry %08x, TOC %08x\n", tvec[0], tvec[1]));
 	*(uint32 *)XLM_RES_LIB_TOC = tvec[1];
 	*(uint32 *)XLM_GET_RESOURCE = tvec[0];
+#if EMULATED_PPC
+	tvec[0] = POWERPC_NATIVE_OP_FUNC(NATIVE_GET_RESOURCE);
+#else
 #ifdef __BEOS__
 	uint32 *tvec2 = (uint32 *)get_resource;
 	tvec[0] = tvec2[0];
@@ -698,12 +722,16 @@ void PatchNativeResourceManager(void)
 #else
 	tvec[0] = (uint32)get_resource;
 #endif
+#endif
 
 	// Patch native Get1Resource()
 	upp = *(uint32 ***)0xe7c;
 	tvec = upp[5];
 	D(bug(" Get1Resource() entry %08x, TOC %08x\n", tvec[0], tvec[1]));
 	*(uint32 *)XLM_GET_1_RESOURCE = tvec[0];
+#if EMULATED_PPC
+	tvec[0] = POWERPC_NATIVE_OP_FUNC(NATIVE_GET_1_RESOURCE);
+#else
 #ifdef __BEOS__
 	tvec2 = (uint32 *)get_1_resource;
 	tvec[0] = tvec2[0];
@@ -711,12 +739,16 @@ void PatchNativeResourceManager(void)
 #else
 	tvec[0] = (uint32)get_1_resource;
 #endif
+#endif
 
 	// Patch native GetIndResource()
 	upp = *(uint32 ***)0x1474;
 	tvec = upp[5];
 	D(bug(" GetIndResource() entry %08x, TOC %08x\n", tvec[0], tvec[1]));
 	*(uint32 *)XLM_GET_IND_RESOURCE = tvec[0];
+#if EMULATED_PPC
+	tvec[0] = POWERPC_NATIVE_OP_FUNC(NATIVE_GET_IND_RESOURCE);
+#else
 #ifdef __BEOS__
 	tvec2 = (uint32 *)get_ind_resource;
 	tvec[0] = tvec2[0];
@@ -724,12 +756,16 @@ void PatchNativeResourceManager(void)
 #else
 	tvec[0] = (uint32)get_ind_resource;
 #endif
+#endif
 
 	// Patch native Get1IndResource()
 	upp = *(uint32 ***)0xe38;
 	tvec = upp[5];
 	D(bug(" Get1IndResource() entry %08x, TOC %08x\n", tvec[0], tvec[1]));
 	*(uint32 *)XLM_GET_1_IND_RESOURCE = tvec[0];
+#if EMULATED_PPC
+	tvec[0] = POWERPC_NATIVE_OP_FUNC(NATIVE_GET_1_IND_RESOURCE);
+#else
 #ifdef __BEOS__
 	tvec2 = (uint32 *)get_1_ind_resource;
 	tvec[0] = tvec2[0];
@@ -737,17 +773,22 @@ void PatchNativeResourceManager(void)
 #else
 	tvec[0] = (uint32)get_1_ind_resource;
 #endif
+#endif
 
 	// Patch native RGetResource()
 	upp = *(uint32 ***)0xe30;
 	tvec = upp[5];
 	D(bug(" RGetResource() entry %08x, TOC %08x\n", tvec[0], tvec[1]));
 	*(uint32 *)XLM_R_GET_RESOURCE = tvec[0];
+#if EMULATED_PPC
+	tvec[0] = POWERPC_NATIVE_OP_FUNC(NATIVE_R_GET_RESOURCE);
+#else
 #ifdef __BEOS__
 	tvec2 = (uint32 *)r_get_resource;
 	tvec[0] = tvec2[0];
 	tvec[1] = tvec2[1];
 #else
 	tvec[0] = (uint32)r_get_resource;
+#endif
 #endif
 }

@@ -25,6 +25,7 @@
 #include "main.h"
 #include "macos_util.h"
 #include "user_strings.h"
+#include "emul_op.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -60,7 +61,7 @@ static const uint8 ethernet_driver[] = {
  *  Patch Name Registry during startup
  */
 
-static void patch_name_registry(void)
+void DoPatchNameRegistry(void)
 {
 	uint32 u32;
 	D(bug("Patching Name Registry..."));
@@ -286,5 +287,9 @@ void PatchNameRegistry(void)
 	}
 
 	// Main routine must be executed in PPC mode
-	ExecutePPC(patch_name_registry);
+#if EMULATED_PPC
+	ExecuteNative(NATIVE_PATCH_NAME_REGISTRY);
+#else
+	ExecutePPC(DoPatchNameRegistry);
+#endif
 }

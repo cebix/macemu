@@ -21,6 +21,7 @@
 #ifndef NAME_REGISTRY_H
 #define NAME_REGISTRY_H
 
+extern void DoPatchNameRegistry(void);
 extern void PatchNameRegistry(void);
 
 #endif

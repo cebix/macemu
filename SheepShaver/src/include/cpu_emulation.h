@@ -68,6 +68,11 @@ static inline void *Mac2Mac_memcpy(uint32 dest, uint32 src, size_t n) {return me
 struct M68kRegisters;
 extern void Execute68k(uint32, M68kRegisters *r);			// Execute 68k subroutine from EMUL_OP routine, must be ended with RTS
 extern void Execute68kTrap(uint16 trap, M68kRegisters *r);	// Execute 68k A-Trap from EMUL_OP routine
-extern void ExecutePPC(void (*func)());						// Execute PPC code from EMUL_OP routine (real mode switch)
+#if EMULATED_PPC
+extern void HandleInterrupt(void);
+extern void ExecuteNative(int selector);					// Execute native code from EMUL_OP routine (real mode switch)
+#else
+extern void ExecutePPC(void (*func)(void));					// Execute PPC code from EMUL_OP routine (real mode switch)
+#endif
 
 #endif

@@ -222,8 +222,8 @@ static pthread_t emul_thread;				// MacOS thread
 static bool ready_for_signals = false;		// Handler installed, signals can be sent
 static int64 num_segv = 0;					// Number of handled SEGV signals
 
-#if !EMULATED_PPC
 static struct sigaction sigusr2_action;		// Interrupt signal (of emulator thread)
+#if !EMULATED_PPC
 static struct sigaction sigsegv_action;		// Data access exception signal (of emulator thread)
 static struct sigaction sigill_action;		// Illegal instruction signal (of emulator thread)
 static void *sig_stack = NULL;				// Stack for signal handlers
@@ -238,8 +238,8 @@ static void Quit(void);
 static void *emul_func(void *arg);
 static void *nvram_func(void *arg);
 static void *tick_func(void *arg);
-#if !EMULATED_PPC
 static void sigusr2_handler(int sig, sigcontext_struct *sc);
+#if !EMULATED_PPC
 static void sigsegv_handler(int sig, sigcontext_struct *sc);
 static void sigill_handler(int sig, sigcontext_struct *sc);
 #endif
@@ -457,7 +457,7 @@ int main(int argc, char **argv)
 		ErrorAlert(str);
 		goto quit;
 	}
-#if !EMULATED_PPC
+#if !EMULATED_PPC || defined(__powerpc__)
 	if (vm_protect((char *)ROM_BASE, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
 		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
@@ -637,7 +637,15 @@ int main(int argc, char **argv)
 	WriteMacInt32(XLM_PVR, PVR);									// Theoretical PVR
 	WriteMacInt32(XLM_BUS_CLOCK, BusClockSpeed);					// For DriverServicesLib patch
 	WriteMacInt16(XLM_EXEC_RETURN_OPCODE, M68K_EXEC_RETURN);		// For Execute68k() (RTS from the executed 68k code will jump here and end 68k mode)
-#if !EMULATED_PPC
+#if EMULATED_PPC
+	WriteMacInt32(XLM_ETHER_INIT, POWERPC_NATIVE_OP_FUNC(NATIVE_ETHER_INIT));
+	WriteMacInt32(XLM_ETHER_TERM, POWERPC_NATIVE_OP_FUNC(NATIVE_ETHER_TERM));
+	WriteMacInt32(XLM_ETHER_OPEN, POWERPC_NATIVE_OP_FUNC(NATIVE_ETHER_OPEN));
+	WriteMacInt32(XLM_ETHER_CLOSE, POWERPC_NATIVE_OP_FUNC(NATIVE_ETHER_CLOSE));
+	WriteMacInt32(XLM_ETHER_WPUT, POWERPC_NATIVE_OP_FUNC(NATIVE_ETHER_WPUT));
+	WriteMacInt32(XLM_ETHER_RSRV, POWERPC_NATIVE_OP_FUNC(NATIVE_ETHER_RSRV));
+	WriteMacInt32(XLM_VIDEO_DOIO, POWERPC_NATIVE_OP_FUNC(NATIVE_VIDEO_DO_DRIVER_IO));
+#else
 	WriteMacInt32(XLM_TOC, (uint32)TOC);							// TOC pointer of emulator
 	WriteMacInt32(XLM_ETHER_INIT, (uint32)InitStreamModule);		// DLPI ethernet driver functions
 	WriteMacInt32(XLM_ETHER_TERM, (uint32)TerminateStreamModule);
@@ -707,18 +715,21 @@ int main(int argc, char **argv)
 		ErrorAlert(str);
 		goto quit;
 	}
+#endif
 
 	// Install interrupt signal handler
 	sigemptyset(&sigusr2_action.sa_mask);
 	sigusr2_action.sa_handler = (__sighandler_t)sigusr2_handler;
+	sigusr2_action.sa_flags = 0;
+#if !EMULATED_PPC
 	sigusr2_action.sa_flags = SA_ONSTACK | SA_RESTART;
+#endif
 	sigusr2_action.sa_restorer = NULL;
 	if (sigaction(SIGUSR2, &sigusr2_action, NULL) < 0) {
 		sprintf(str, GetString(STR_SIGUSR2_INSTALL_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
-#endif
 
 	// Get my thread ID and execute MacOS thread function
 	emul_thread = pthread_self();
@@ -995,7 +1006,11 @@ void MakeExecutable(int dummy, void *start, uint32 length)
 
 void PatchAfterStartup(void)
 {
+#if EMULATED_PPC
+	ExecuteNative(NATIVE_VIDEO_INSTALL_ACCEL);
+#else
 	ExecutePPC(VideoInstallAccel);
+#endif
 	InstallExtFS();
 }
 
@@ -1135,16 +1150,8 @@ void B2_delete_mutex(B2_mutex *mutex)
 
 void TriggerInterrupt(void)
 {
-#if EMULATED_PPC
-	WriteMacInt32(0x16a, ReadMacInt32(0x16a) + 1);
-#else
-#if 0
-	WriteMacInt32(0x16a, ReadMacInt32(0x16a) + 1);
-#else
 	if (ready_for_signals)
 		pthread_kill(emul_thread, SIGUSR2);
-#endif
-#endif
 }
 
 
@@ -1171,7 +1178,7 @@ void ClearInterruptFlag(uint32 flag)
 
 void DisableInterrupt(void)
 {
-	atomic_add((int *)XLM_IRQ_NEST, 1);
+	atomic_add((int *)XLM_IRQ_NEST, tswap32(1));
 }
 
 
@@ -1181,17 +1188,19 @@ void DisableInterrupt(void)
 
 void EnableInterrupt(void)
 {
-	atomic_add((int *)XLM_IRQ_NEST, -1);
+	atomic_add((int *)XLM_IRQ_NEST, tswap32((uint32)-1));
 }
 
 
-#if !EMULATED_PPC
 /*
  *  USR2 handler
  */
 
 static void sigusr2_handler(int sig, sigcontext_struct *sc)
 {
+#if EMULATED_PPC
+	HandleInterrupt();
+#else
 	pt_regs *r = sc->regs;
 
 	// Do nothing if interrupts are disabled
@@ -1273,9 +1282,11 @@ static void sigusr2_handler(int sig, sigcontext_struct *sc)
 #endif
 
 	}
+#endif
 }
 
 
+#if !EMULATED_PPC
 /*
  *  SIGSEGV handler
  */

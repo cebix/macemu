@@ -447,7 +447,17 @@ static const uint8 cdrom_driver[] = {	// CD-ROM driver
 	0x4e, 0x75							//  rts
 };
 
-#ifdef __linux__
+#if EMULATED_PPC
+#define SERIAL_TRAMPOLINES 1
+static uint32 serial_nothing_tvect[2] = {POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_NOTHING), 0};
+static uint32 serial_open_tvect[2] = {POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_OPEN), 0};
+static uint32 serial_prime_in_tvect[2] = {POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_PRIME_IN), 0};
+static uint32 serial_prime_out_tvect[2] = {POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_PRIME_OUT), 0};
+static uint32 serial_control_tvect[2] = {POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_CONTROL), 0};
+static uint32 serial_status_tvect[2] = {POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_STATUS), 0};
+static uint32 serial_close_tvect[2] = {POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_CLOSE), 0};
+#elif defined(__linux__)
+#define SERIAL_TRAMPOLINES 1
 static uint32 serial_nothing_tvect[2] = {(uint32)SerialNothing, 0};
 static uint32 serial_open_tvect[2] = {(uint32)SerialOpen, 0};
 static uint32 serial_prime_in_tvect[2] = {(uint32)SerialPrimeIn, 0};
@@ -464,7 +474,7 @@ static const uint32 ain_driver[] = {	// .AIn driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_nothing_tvect,
 #else
 	0x00010004, (uint32)SerialNothing,
@@ -472,7 +482,7 @@ static const uint32 ain_driver[] = {	// .AIn driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_prime_in_tvect,
 #else
 	0x00010004, (uint32)SerialPrimeIn,
@@ -480,7 +490,7 @@ static const uint32 ain_driver[] = {	// .AIn driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_control_tvect,
 #else
 	0x00010004, (uint32)SerialControl,
@@ -488,7 +498,7 @@ static const uint32 ain_driver[] = {	// .AIn driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_status_tvect,
 #else
 	0x00010004, (uint32)SerialStatus,
@@ -496,7 +506,7 @@ static const uint32 ain_driver[] = {	// .AIn driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_nothing_tvect,
 #else
 	0x00010004, (uint32)SerialNothing,
@@ -511,7 +521,7 @@ static const uint32 aout_driver[] = {	// .AOut driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_open_tvect,
 #else
 	0x00010004, (uint32)SerialOpen,
@@ -519,7 +529,7 @@ static const uint32 aout_driver[] = {	// .AOut driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_prime_out_tvect,
 #else
 	0x00010004, (uint32)SerialPrimeOut,
@@ -527,7 +537,7 @@ static const uint32 aout_driver[] = {	// .AOut driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_control_tvect,
 #else
 	0x00010004, (uint32)SerialControl,
@@ -535,7 +545,7 @@ static const uint32 aout_driver[] = {	// .AOut driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_status_tvect,
 #else
 	0x00010004, (uint32)SerialStatus,
@@ -543,7 +553,7 @@ static const uint32 aout_driver[] = {	// .AOut driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_close_tvect,
 #else
 	0x00010004, (uint32)SerialClose,
@@ -558,7 +568,7 @@ static const uint32 bin_driver[] = {	// .BIn driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_nothing_tvect,
 #else
 	0x00010004, (uint32)SerialNothing,
@@ -566,7 +576,7 @@ static const uint32 bin_driver[] = {	// .BIn driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_prime_in_tvect,
 #else
 	0x00010004, (uint32)SerialPrimeIn,
@@ -574,7 +584,7 @@ static const uint32 bin_driver[] = {	// .BIn driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_control_tvect,
 #else
 	0x00010004, (uint32)SerialControl,
@@ -582,7 +592,7 @@ static const uint32 bin_driver[] = {	// .BIn driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_status_tvect,
 #else
 	0x00010004, (uint32)SerialStatus,
@@ -590,7 +600,7 @@ static const uint32 bin_driver[] = {	// .BIn driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_nothing_tvect,
 #else
 	0x00010004, (uint32)SerialNothing,
@@ -605,7 +615,7 @@ static const uint32 bout_driver[] = {	// .BOut driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_open_tvect,
 #else
 	0x00010004, (uint32)SerialOpen,
@@ -613,7 +623,7 @@ static const uint32 bout_driver[] = {	// .BOut driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_prime_out_tvect,
 #else
 	0x00010004, (uint32)SerialPrimeOut,
@@ -621,7 +631,7 @@ static const uint32 bout_driver[] = {	// .BOut driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_control_tvect,
 #else
 	0x00010004, (uint32)SerialControl,
@@ -629,7 +639,7 @@ static const uint32 bout_driver[] = {	// .BOut driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_status_tvect,
 #else
 	0x00010004, (uint32)SerialStatus,
@@ -637,7 +647,7 @@ static const uint32 bout_driver[] = {	// .BOut driver header
 	0x00000000, 0x00000000,
 	0xaafe0700, 0x00000000,
 	0x00000000, 0x00179822,
-#ifdef __linux__
+#ifdef SERIAL_TRAMPOLINES
 	0x00010004, (uint32)serial_close_tvect,
 #else
 	0x00010004, (uint32)SerialClose,
@@ -1030,15 +1040,17 @@ static bool patch_68k_emul(void)
 	*lp = htonl(POWERPC_ILLEGAL);
 
 #if EMULATED_PPC
-	// Install EMUL_RETURN, EXEC_RETURN and EMUL_OP opcodes
+	// Install EMUL_RETURN, EXEC_RETURN, EXEC_NATIVE and EMUL_OP opcodes
 	lp = (uint32 *)(ROM_BASE + 0x380000 + (M68K_EMUL_RETURN << 3));
 	*lp++ = htonl(POWERPC_EMUL_OP);
 	*lp++ = htonl(0x4bf66e80);							// b	0x366084
 	*lp++ = htonl(POWERPC_EMUL_OP | 1);
 	*lp++ = htonl(0x4bf66e78);							// b	0x366084
+	*lp++ = htonl(POWERPC_EMUL_OP | 2);
+	*lp++ = htonl(0x4bf66e70);							// b	0x366084
 	for (int i=0; i<OP_MAX; i++) {
-		*lp++ = htonl(POWERPC_EMUL_OP | (i + 2));
-		*lp++ = htonl(0x4bf66e70 - i*8);			// b	0x366084
+		*lp++ = htonl(POWERPC_EMUL_OP | (i + 3));
+		*lp++ = htonl(0x4bf66e68 - i*8);				// b	0x366084
 	}
 #else
 	// Install EMUL_RETURN, EXEC_RETURN and EMUL_OP opcodes
@@ -1047,9 +1059,11 @@ static bool patch_68k_emul(void)
 	*lp++ = htonl(0x4bf705fc);							// b	0x36f800
 	*lp++ = htonl(0x80000000 + XLM_EXEC_RETURN_PROC);	// lwz	r0,XLM_EXEC_RETURN_PROC
 	*lp++ = htonl(0x4bf705f4);							// b	0x36f800
+	*lp++ = htonl(0x00dead00);							// Let SheepShaver crash, since
+	*lp++ = htonl(0x00beef00);							// no native opcode is available
 	for (int i=0; i<OP_MAX; i++) {
 		*lp++ = htonl(0x38a00000 + i);				// li	r5,OP_*
-		*lp++ = htonl(0x4bf705f4 - i*8);			// b	0x36f808
+		*lp++ = htonl(0x4bf705ec - i*8);			// b	0x36f808
 	}
 
 	// Extra routines for EMUL_RETURN/EXEC_RETURN/EMUL_OP
@@ -2136,6 +2150,12 @@ void InstallDrivers(void)
 	D(bug("Installing drivers...\n"));
 	M68kRegisters r;
 	uint8 pb[SIZEOF_IOParam];
+
+#if DISABLE_SCSI && 0
+	// Fake SCSIGlobals
+	static const uint8 fake_scsi_globals[32] = {0,};
+	WriteMacInt32(0xc0c, (uint32)fake_scsi_globals);
+#endif
 
 	// Install floppy driver
 	if (ROMType == ROMTYPE_NEWWORLD) {
