@@ -63,6 +63,7 @@
 static inline uint32 POWERPC_MR(int RD, int RA) { return _X(31,RA,RD,RA,444,0); }
 static inline uint32 POWERPC_MFCR(int RD) { return _X(31,RD,00,00,19,0); }
 const uint32 POWERPC_BLR = 0x4e800020;
+const uint32 POWERPC_BLRL = 0x4e800021;
 const uint32 POWERPC_ILLEGAL = 0x00000000;
 const uint32 POWERPC_EMUL_OP = 0x18000000;
 
@@ -237,12 +238,36 @@ void powerpc_test_cpu::init_decoder()
 
 void powerpc_test_cpu::execute(uint32 *code_p)
 {
-	static uint32 code[] = { POWERPC_BLR | 1, POWERPC_EMUL_OP };
-	assert((uintptr)code <= INT_MAX);
+	static uint32 code[2];
+	code[0] = htonl(POWERPC_BLRL);
+	code[1] = htonl(POWERPC_EMUL_OP);
+
+#if !defined(__powerpc__)
+	const int n_func_words = 1024;
+	static uint32 func[n_func_words];
+	static int old_i;
+  again:
+	int i = old_i;
+	for (int j = 0; ; j++, i++) {
+		if (i >= n_func_words) {
+			old_i = 0;
+			invalidate_cache();
+			goto again;
+		}
+		uint32 opcode = code_p[j];
+		func[i] = htonl(opcode);
+		if (opcode == POWERPC_BLR)
+			break;
+	}
+	code_p = &func[old_i];
+	old_i = i;
+#endif
+
+	assert((uintptr)code_p <= UINT_MAX);
 	lr() = (uintptr)code_p;
 
-	pc() = (uintptr)code;
-	powerpc_cpu::execute();
+	assert((uintptr)code <= UINT_MAX);
+	powerpc_cpu::execute((uintptr)code);
 }
 
 void powerpc_test_cpu::print_flags(uint32 cr, uint32 xer, int crf) const
@@ -885,12 +910,7 @@ bool powerpc_test_cpu::test(void)
 {
 	// Tests initialization
 	tests = errors = 0;
-#if defined(__powerpc__)
-	init_cr = native_get_cr() & ~CR_field<0>::mask();
-	init_xer = native_get_xer() & ~(XER_OV_field::mask() | XER_CA_field::mask());
-#else
 	init_cr = init_xer = 0;
-#endif
 
 	// Tests execution
 	test_add();
