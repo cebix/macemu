@@ -30,7 +30,7 @@
 # include <pthread.h>
 #endif
 
-#if defined(USE_MAPPED_MEMORY) || REAL_ADDRESSING
+#if defined(USE_MAPPED_MEMORY) || REAL_ADDRESSING || DIRECT_ADDRESSING
 # include <sys/mman.h>
 #endif
 
@@ -133,7 +133,11 @@ static struct sigaction sigirq_sa;	// Virtual 68k interrupt signal
 static struct sigaction sigill_sa;	// Illegal instruction
 static void *sig_stack = NULL;		// Stack for signal handlers
 uint16 EmulatedSR;					// Emulated bits of SR (supervisor bit and interrupt mask)
-uint32 ScratchMem = NULL;			// Scratch memory for Mac ROM writes
+uint8 *ScratchMem = NULL;			// Scratch memory for Mac ROM writes
+#endif
+
+#if USE_SCRATCHMEM_SUBTERFUGE
+uint8 *ScratchMem = 0;				// Scratch memory for Mac ROM writes
 #endif
 
 static struct sigaction timer_sa;	// sigaction used for timer
@@ -150,6 +154,7 @@ static void sigint_handler(...);
 
 #if REAL_ADDRESSING
 static bool lm_area_mapped = false;	// Flag: Low Memory area mmap()ped
+static bool memory_mapped_from_zero = false; // Flag: Could allocate RAM area from 0
 #endif
 
 #ifdef USE_MAPPED_MEMORY
@@ -260,19 +265,42 @@ int main(int argc, char **argv)
 		RAMSize = 1024*1024;
 	}
 
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	const uint32 page_size = getpagesize();
+	const uint32 page_mask = page_size - 1;
+	const uint32 aligned_ram_size = (RAMSize + page_mask) & ~page_mask;
+	const uint32 ram_rom_size = aligned_ram_size + 0x100000;
+#endif
+
 #if REAL_ADDRESSING
+	// Try to allocate the complete address space from zero
+	// gb-- the Solaris manpage about mmap(2) states that using MAP_FIXED
+	// implies undefined behaviour for further use of sbrk(), malloc(), etc.
+#if defined(OS_solaris)
+	// Anyway, it doesn't work...
+	if (0) {
+#else
+	if (mmap((caddr_t)0x0000, ram_rom_size, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE, zero_fd, 0) != MAP_FAILED) {
+#endif
+		D(bug("Could allocate RAM and ROM from 0x0000\n"));
+		memory_mapped_from_zero = true;
+	}
 	// Create Low Memory area (0x0000..0x2000)
-	if (mmap((char *)0x0000, 0x2000, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE, zero_fd, 0) == (void *)-1) {
+	else if (mmap((char *)0x0000, 0x2000, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE, zero_fd, 0) != MAP_FAILED) {
+		D(bug("Could allocate the Low Memory globals\n"));
+		lm_area_mapped = true;
+	}
+	// Exit on error
+	else {
 		sprintf(str, GetString(STR_LOW_MEM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		QuitEmulator();
 	}
-	lm_area_mapped = true;
 #endif
 
-#if !EMULATED_68K
+#if !EMULATED_68K || USE_SCRATCHMEM_SUBTERFUGE
 	// Allocate scratch memory
-	ScratchMem = (uint32)malloc(SCRATCH_MEM_SIZE);
+	ScratchMem = (uint8 *)malloc(SCRATCH_MEM_SIZE);
 	if (ScratchMem == NULL) {
 		ErrorAlert(GetString(STR_NO_MEM_ERR));
 		QuitEmulator();
@@ -300,21 +328,46 @@ int main(int argc, char **argv)
         mmap(good_address_map + i, 4096, PROT_READ, MAP_FIXED | MAP_PRIVATE, good_address_fd, 0);
     for (int i=0; i<0x80000; i+=4096)
         mmap(good_address_map + i + 0x00400000, 4096, PROT_READ, MAP_FIXED | MAP_PRIVATE, good_address_fd, 0);
+#elif REAL_ADDRESSING || DIRECT_ADDRESSING
+	// gb-- Overkill, needs to be cleaned up. Probably explode it for either
+	// real or direct addressing mode.
+#if REAL_ADDRESSING
+	if (memory_mapped_from_zero) {
+		RAMBaseHost = (uint8 *)0;
+		ROMBaseHost = RAMBaseHost + aligned_ram_size;
+	}
+	else
+#endif
+	{
+		RAMBaseHost = (uint8 *)mmap(0, ram_rom_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, zero_fd, 0);
+		if (RAMBaseHost == (uint8 *)MAP_FAILED) {
+			ErrorAlert(GetString(STR_NO_MEM_ERR));
+			QuitEmulator();
+		}
+		ROMBaseHost = RAMBaseHost + aligned_ram_size;
+	}
 #else
 	RAMBaseHost = (uint8 *)malloc(RAMSize);
 	ROMBaseHost = (uint8 *)malloc(0x100000);
-#endif
 	if (RAMBaseHost == NULL || ROMBaseHost == NULL) {
 		ErrorAlert(GetString(STR_NO_MEM_ERR));
 		QuitEmulator();
 	}
-#if REAL_ADDRESSING && !EMULATED_68K
+#endif
+#if DIRECT_ADDRESSING
+	// Initialize MEMBaseDiff now so that Host2MacAddr in the Video module
+	// will return correct results
+	RAMBaseMac = 0;
+	ROMBaseMac = RAMBaseMac + aligned_ram_size;
+	InitMEMBaseDiff(RAMBaseHost, RAMBaseMac);
+#endif
+#if REAL_ADDRESSING // && !EMULATED_68K
 	RAMBaseMac = (uint32)RAMBaseHost;
 	ROMBaseMac = (uint32)ROMBaseHost;
 #endif
 	D(bug("Mac RAM starts at %p (%08x)\n", RAMBaseHost, RAMBaseMac));
 	D(bug("Mac ROM starts at %p (%08x)\n", ROMBaseHost, ROMBaseMac));
-
+	
 	// Get rom file path from preferences
 	const char *rom_path = PrefsFindString("rom");
 
@@ -564,6 +617,20 @@ void QuitEmulator(void)
 	// Deinitialize everything
 	ExitAll();
 
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	// Unmap ROM area
+	if (ROMBaseHost != (uint8 *)MAP_FAILED) {
+		munmap((caddr_t)ROMBaseHost, 0x100000);
+		ROMBaseHost = 0;
+	}
+	
+	//Unmap RAM area
+	if (RAMBaseHost != (uint8 *)MAP_FAILED) {
+		const uint32 page_size = getpagesize();
+		const uint32 page_mask = page_size - 1;
+		munmap((caddr_t)RAMBaseHost, ((RAMSize + page_mask) & ~page_mask));
+	}
+#else
 	// Delete ROM area
 	if (ROMBaseHost) {
 		free(ROMBaseHost);
@@ -575,8 +642,9 @@ void QuitEmulator(void)
 		free(RAMBaseHost);
 		RAMBaseHost = NULL;
 	}
+#endif
 
-#if !EMULATED_68K
+#if !EMULATED_68K || USE_SCRATMEM_SUBTERFUGE
 	// Delete scratch memory area
 	if (ScratchMem) {
 		free((void *)(ScratchMem - SCRATCH_MEM_SIZE/2));
