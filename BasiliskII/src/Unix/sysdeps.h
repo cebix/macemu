@@ -155,6 +155,10 @@ typedef int64 intptr;
 #error "Unsupported size of pointer"
 #endif
 
+#ifndef HAVE_LOFF_T
+   typedef off_t loff_t;
+#endif
+
 /* Time data type for Time Manager emulation */
 #ifdef HAVE_CLOCK_GETTIME
 typedef struct timespec tm_time_t;
