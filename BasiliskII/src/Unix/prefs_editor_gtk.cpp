@@ -436,6 +436,7 @@ static void create_volumes_pane(GtkWidget *top)
 	gtk_widget_show(volume_list);
 	gtk_clist_set_selection_mode(GTK_CLIST(volume_list), GTK_SELECTION_SINGLE);
 	gtk_clist_set_shadow_type(GTK_CLIST(volume_list), GTK_SHADOW_NONE);
+	gtk_clist_set_reorderable(GTK_CLIST(volume_list), true);
 	gtk_signal_connect(GTK_OBJECT(volume_list), "select_row", GTK_SIGNAL_FUNC(cl_selected), NULL);
 	char *str;
 	int32 index = 0;
