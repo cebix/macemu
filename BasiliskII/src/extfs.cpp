@@ -72,7 +72,7 @@ enum {
 	fsHFSProcStub = 6,
 	fsDrvStatus = 12,				// Drive Status record
 	fsFSD = 42,						// File system descriptor
-	fsPB = 238,						// IOParam (for mounting and renaming)
+	fsPB = 238,						// IOParam (for mounting and renaming), also used for temporary storage
 	fsVMI = 288,					// VoumeMountInfoHeader (for mounting)
 	fsParseRec = 296,				// ParsePathRec struct
 	fsReturn = 306,					// Area for return data of 68k routines
@@ -1253,14 +1253,7 @@ read_next_de:
 #endif
 	WriteMacInt32(pb + ioFlMdDat, st.st_mtime + TIME_OFFSET);
 
-	Mac_memset(pb + ioFlFndrInfo, 0, SIZEOF_FInfo);
-	uint32 type, creator;	// pb may point to kernel space, but stack is switched
-	get_finder_type(full_path, type, creator);
-	WriteMacInt32(pb + ioFlFndrInfo + fdType, type);
-	WriteMacInt32(pb + ioFlFndrInfo + fdCreator, creator);
-	uint16 fflags;
-	get_finder_flags(full_path, fflags);
-	WriteMacInt16(pb + ioFlFndrInfo + fdFlags, fflags);
+	get_finfo(full_path, pb + ioFlFndrInfo, hfs ? pb + ioFlXFndrInfo : 0);
 
 	WriteMacInt16(pb + ioFlStBlk, 0);
 	WriteMacInt32(pb + ioFlLgLen, st.st_size);
@@ -1272,7 +1265,6 @@ read_next_de:
 
 	if (hfs) {
 		WriteMacInt32(pb + ioFlBkDat, 0);
-		Mac_memset(pb + ioFlXFndrInfo, 0, SIZEOF_FXInfo);
 		WriteMacInt32(pb + ioFlParID, fs_item->parent_id);
 		WriteMacInt32(pb + ioFlClpSiz, 0);
 	}
@@ -1297,9 +1289,9 @@ static int16 fs_set_file_info(uint32 pb, bool hfs, uint32 dirID)
 	if (S_ISDIR(st.st_mode))
 		return fnfErr;
 
-	// Set attributes
-	set_finder_type(full_path, ReadMacInt32(pb + ioFlFndrInfo + fdType), ReadMacInt32(pb + ioFlFndrInfo + fdCreator));
-	set_finder_flags(full_path, ReadMacInt16(pb + ioFlFndrInfo + fdFlags));
+	// Set Finder info
+	set_finfo(full_path, pb + ioFlFndrInfo, hfs ? pb + ioFlXFndrInfo : 0);
+
 	//!! times
 	return noErr;
 }
@@ -1389,12 +1381,10 @@ read_next_de:
 	}
 	WriteMacInt32(pb + ioFlMdDat, mtime + TIME_OFFSET);
 	WriteMacInt32(pb + ioFlBkDat, 0);
+
+	get_finfo(full_path, pb + ioFlFndrInfo, pb + ioFlXFndrInfo);
+
 	if (S_ISDIR(st.st_mode)) {
-		Mac_memset(pb + ioDrUsrWds, 0, SIZEOF_DInfo);
-		Mac_memset(pb + ioDrFndrInfo, 0, SIZEOF_DXInfo);
-		uint16 fflags;	// pb may point to kernel space, but stack is switched
-		get_finder_flags(full_path, fflags);
-		WriteMacInt16(pb + ioDrUsrWds + frFlags, fflags);
 
 		// Determine number of files in directory (cached)
 		int count;
@@ -1419,15 +1409,6 @@ read_next_de:
 		}
 		WriteMacInt16(pb + ioDrNmFls, count);
 	} else {
-		Mac_memset(pb + ioFlFndrInfo, 0, SIZEOF_FInfo);
-		Mac_memset(pb + ioFlXFndrInfo, 0, SIZEOF_FXInfo);
-		uint32 type, creator;	// pb may point to kernel space, but stack is switched
-		get_finder_type(full_path, type, creator);
-		WriteMacInt32(pb + ioFlFndrInfo + fdType, type);
-		WriteMacInt32(pb + ioFlFndrInfo + fdCreator, creator);
-		uint16 fflags;
-		get_finder_flags(full_path, fflags);
-		WriteMacInt16(pb + ioFlFndrInfo + fdFlags, fflags);
 		WriteMacInt16(pb + ioFlStBlk, 0);
 		WriteMacInt32(pb + ioFlLgLen, st.st_size);
 		WriteMacInt32(pb + ioFlPyLen, (st.st_size | (AL_BLK_SIZE - 1)) + 1);
@@ -1456,13 +1437,9 @@ static int16 fs_set_cat_info(uint32 pb)
 	if (stat(full_path, &st) < 0)
 		return errno2oserr();
 
-	// Set attributes
-	if (S_ISDIR(st.st_mode)) {
-		set_finder_flags(full_path, ReadMacInt16(pb + ioDrUsrWds + frFlags));
-	} else {
-		set_finder_type(full_path, ReadMacInt32(pb + ioFlFndrInfo + fdType), ReadMacInt32(pb + ioFlFndrInfo + fdCreator));
-		set_finder_flags(full_path, ReadMacInt16(pb + ioFlFndrInfo + fdFlags));
-	}
+	// Set Finder info
+	set_finfo(full_path, pb + ioFlFndrInfo, pb + ioFlXFndrInfo);
+
 	//!! times
 	return noErr;
 }
@@ -1548,9 +1525,10 @@ static int16 fs_open(uint32 pb, uint32 dirID, uint32 vcb, bool resource_fork)
 	WriteMacInt32(fcb + fcbCrPs, 0);
 	WriteMacInt32(fcb + fcbVPtr, vcb);
 	WriteMacInt32(fcb + fcbClmpSize, CLUMP_SIZE);
-	uint32 type, creator;	// BeOS: fcb may point to kernel space, but stack is switched
-	get_finder_type(full_path, type, creator);
-	WriteMacInt32(fcb + fcbFType, type);
+
+	get_finfo(full_path, fs_data + fsPB, 0);
+	WriteMacInt32(fcb + fcbFType, ReadMacInt32(fs_data + fsPB + fdType));
+
 	WriteMacInt32(fcb + fcbCatPos, fd);
 	WriteMacInt32(fcb + fcbDirID, fs_item->parent_id);
 	cstr2pstr((char *)Mac2HostAddr(fcb + fcbCName), fs_item->name);

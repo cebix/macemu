@@ -4,6 +4,8 @@ V0.8 (snapshot) -
 	  when reading from CD-ROM [Jürgen Lachmann]
 	- AmigaOS/prefs_editor_amiga.cpp: fixed bug when adding volumes
 	  [Jürgen Lachmann]
+	- AmigaOS/Unix/extfs_*.cpp: .finf helper file now stores complete
+	  FInfo/FXInfo, replaced get/set_finder_*() functions by get/set_finfo()
 	- Imported some changes from the Windows port, most notably FPU fixes
 	  and the 1Hz interrupt [Lauri Pesonen]
 

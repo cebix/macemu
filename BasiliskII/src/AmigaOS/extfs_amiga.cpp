@@ -77,15 +77,10 @@ void add_path_component(char *path, const char *component)
  *    /path/.finf/file
  *  Resource fork:
  *    /path/.rsrc/file
+ *
+ *  The .finf files store a FInfo/DInfo, followed by a FXInfo/DXInfo
+ *  (16+16 bytes)
  */
-
-// Layout of Finder info helper files (all fields big-endian)
-struct finf_struct {
-	uint32 type;
-	uint32 creator;
-	uint16 flags;
-	uint8 pad0[22];	// total size: 32 bytes to match the size of FInfo+FXInfo
-};
 
 static void make_helper_path(const char *src, char *dest, const char *add, bool only_dir = false)
 {
@@ -110,6 +105,8 @@ static int create_helper_dir(const char *path, const char *add)
 {
 	char helper_dir[MAX_PATH_LENGTH];
 	make_helper_path(path, helper_dir, add, true);
+	if (helper_dir[strlen(helper_dir) - 1] == '/')	// Remove trailing "/"
+		helper_dir[strlen(helper_dir) - 1] = 0;
 	return mkdir(helper_dir, 0777);
 }
 
@@ -187,6 +184,7 @@ static const ext2type e2t_translation[] = {
 	{".tga", 'TPIC', 'ogle'},
 	{".tif", 'TIFF', 'ogle'},
 	{".tiff", 'TIFF', 'ogle'},
+	{".htm", 'TEXT', 'MOSS'},
 	{".html", 'TEXT', 'MOSS'},
 	{".txt", 'TEXT', 'ttxt'},
 	{".rtf", 'TEXT', 'MSWD'},
@@ -207,110 +205,61 @@ static const ext2type e2t_translation[] = {
 	{".mov", 'MooV', 'TVOD'},
 	{".fli", 'FLI ', 'TVOD'},
 	{".avi", 'VfW ', 'TVOD'},
+	{".qxd", 'XDOC', 'XPR3'},
+	{".hfv", 'DDim', 'ddsk'},
+	{".dsk", 'DDim', 'ddsk'},
+	{".img", 'rohd', 'ddsk'},
 	{NULL, 0, 0}	// End marker
 };
 
-void get_finder_type(const char *path, uint32 &type, uint32 &creator)
+void get_finfo(const char *path, uint32 finfo, uint32 fxinfo)
 {
-	type = 0;
-	creator = 0;
+	// Set default finder info
+	Mac_memset(finfo, 0, SIZEOF_FInfo);
+	if (fxinfo)
+		Mac_memset(fxinfo, 0, SIZEOF_FXInfo);
+	WriteMacInt16(finfo + fdFlags, DEFAULT_FINDER_FLAGS);
+	WriteMacInt32(finfo + fdLocation, (uint32)-1);
 
-	// Open Finder info file
+	// Read Finder info file
 	int fd = open_finf(path, O_RDONLY);
 	if (fd >= 0) {
-
-		// Read file
-		finf_struct finf;
-		if (read(fd, &finf, sizeof(finf_struct)) >= 8) {
-
-			// Type/creator are in Finder info file, return them
-			type = ntohl(finf.type);
-			creator = ntohl(finf.creator);
-			close(fd);
-			return;
-		}
+		ssize_t actual = read(fd, Mac2HostAddr(finfo), SIZEOF_FInfo);
+		if (fxinfo)
+			actual += read(fd, Mac2HostAddr(fxinfo), SIZEOF_FXInfo);
 		close(fd);
+		if (actual >= SIZEOF_FInfo)
+			return;
 	}
 
 	// No Finder info file, translate file name extension to MacOS type/creator
-	int path_len = strlen(path);
-	for (int i=0; e2t_translation[i].ext; i++) {
-		int ext_len = strlen(e2t_translation[i].ext);
-		if (path_len < ext_len)
-			continue;
-		if (!strcmp(path + path_len - ext_len, e2t_translation[i].ext)) {
-			type = e2t_translation[i].type;
-			creator = e2t_translation[i].creator;
-			break;
+	struct stat st;
+	if (stat(path, &st) == 0 && !S_ISDIR(st.st_mode)) {
+		int path_len = strlen(path);
+		for (int i=0; e2t_translation[i].ext; i++) {
+			int ext_len = strlen(e2t_translation[i].ext);
+			if (path_len < ext_len)
+				continue;
+			if (!strcasecmp(path + path_len - ext_len, e2t_translation[i].ext)) {
+				WriteMacInt32(finfo + fdType, e2t_translation[i].type);
+				WriteMacInt32(finfo + fdCreator, e2t_translation[i].creator);
+				break;
+			}
 		}
 	}
 }
 
-void set_finder_type(const char *path, uint32 type, uint32 creator)
+void set_finfo(const char *path, uint32 finfo, uint32 fxinfo)
 {
 	// Open Finder info file
 	int fd = open_finf(path, O_RDWR);
 	if (fd < 0)
 		return;
 
-	// Read file
-	finf_struct finf;
-	finf.flags = DEFAULT_FINDER_FLAGS;
-	memset(&finf, 0, sizeof(finf_struct));
-	read(fd, &finf, sizeof(finf_struct));
-
-	// Set Finder flags
-	finf.type = htonl(type);
-	finf.creator = htonl(creator);
-
-	// Update file
-	lseek(fd, 0, SEEK_SET);
-	write(fd, &finf, sizeof(finf_struct));
-	close(fd);
-}
-
-
-/*
- *  Get/set finder flags for file/dir specified by full path
- */
-
-void get_finder_flags(const char *path, uint16 &flags)
-{
-	flags = DEFAULT_FINDER_FLAGS;	// Default
-
-	// Open Finder info file
-	int fd = open_finf(path, O_RDONLY);
-	if (fd < 0)
-		return;
-
-	// Read Finder flags
-	finf_struct finf;
-	if (read(fd, &finf, sizeof(finf_struct)) >= 10)
-		flags = ntohs(finf.flags);
-
-	// Close file
-	close(fd);
-}
-
-void set_finder_flags(const char *path, uint16 flags)
-{
-	// Open Finder info file
-	int fd = open_finf(path, O_RDWR);
-	if (fd < 0)
-		return;
-
-	// Read file
-	finf_struct finf;
-	memset(&finf, 0, sizeof(finf_struct));
-	finf.flags = DEFAULT_FINDER_FLAGS;
-	read(fd, &finf, sizeof(finf_struct));
-
-	// Set Finder flags
-	finf.flags = htons(flags);
-
-	// Update file
-	lseek(fd, 0, SEEK_SET);
-	write(fd, &finf, sizeof(finf_struct));
+	// Write file
+	write(fd, Mac2HostAddr(finfo), SIZEOF_FInfo);
+	if (fxinfo)
+		write(fd, Mac2HostAddr(fxinfo), SIZEOF_FXInfo);
 	close(fd);
 }
 
