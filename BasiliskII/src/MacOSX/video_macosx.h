@@ -48,7 +48,8 @@
 
 
 #define MIN_WIDTH	512
-#define MIN_HEIGHT	342
+#define MIN_HEIGHT	384
+#define MIN_HEIGHTC	342		// For classic emulation
 
 #define MAX_WIDTH	1240
 #define MAX_HEIGHT	1024
