@@ -2017,6 +2017,8 @@ static void gen_opcode (unsigned long int opcode)
 	    break;
 	 case i_BFINS:
 	    printf ("\ttmp = m68k_dreg(regs, (extra >> 12) & 7);\n");
+	    printf ("\tSET_NFLG (tmp & (1 << (width - 1)) ? 1 : 0);\n");
+	    printf ("\tSET_ZFLG (tmp == 0);\n");
 	    break;
 	 default:
 	    break;
