@@ -1103,7 +1103,7 @@ driver_fbdev::driver_fbdev(X11_monitor_desc &m) : driver_dga(m)
 	// Set frame buffer base
 	const_cast<video_mode *>(&mode)->bytes_per_row = bytes_per_row;
 	const_cast<video_mode *>(&mode)->depth = DepthModeForPixelDepth(fb_depth);
-	set_mac_frame_buffer(mode.depth, true);
+	set_mac_frame_buffer(monitor, mode.depth, true);
 
 	// Everything went well
 	init_ok = true;
