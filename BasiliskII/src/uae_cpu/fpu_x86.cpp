@@ -1359,12 +1359,14 @@ static void do_ftan( float80 dest, float80 src )
 		MOV			EDI, [dest]
     FLD     TBYTE PTR [ESI]
 		FPTAN
+		FSTP    ST(0)	; pop 1.0 (the 8087/287 compatibility thing)
 		FXAM
     FNSTSW  sw
 		FSTP    TBYTE PTR [EDI]
 	} */
 	_ASM(	"fldt	%2\n"
 			"fptan	\n"
+			"fstp	%%st(0)\n"
 			"fxam	\n"
 			"fnstsw	%0\n"
 			"fstpt	%1\n"
