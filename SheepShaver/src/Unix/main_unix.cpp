@@ -264,22 +264,22 @@ static void build_sigregs(sigregs *srp, machine_regs *mrp)
 static struct sigaltstack sig_stacks[SIG_STACK_COUNT];	// Stacks for signal handlers
 static int sig_stack_id = 0;							// Stack slot currently used
 
-static inline void sig_stack_acquire(void)
+static inline int sig_stack_acquire(void)
 {
-	if (++sig_stack_id == SIG_STACK_COUNT) {
+	if (sig_stack_id >= SIG_STACK_COUNT) {
 		printf("FATAL: signal stack overflow\n");
-		return;
+		return -1;
 	}
-	sigaltstack(&sig_stacks[sig_stack_id], NULL);
+	return sigaltstack(&sig_stacks[sig_stack_id++], NULL);
 }
 
-static inline void sig_stack_release(void)
+static inline int sig_stack_release(void)
 {
-	if (--sig_stack_id < 0) {
+	if (sig_stack_id <= 0) {
 		printf("FATAL: signal stack underflow\n");
-		return;
+		return -1;
 	}
-	sigaltstack(&sig_stacks[sig_stack_id], NULL);
+	return sigaltstack(&sig_stacks[--sig_stack_id], NULL);
 }
 #endif
 
@@ -576,8 +576,7 @@ int main(int argc, char **argv)
 		sig_stacks[i].ss_flags = 0;
 		sig_stacks[i].ss_size = SIG_STACK_SIZE;
 	}
-	sig_stack_id = 0;
-	if (sigaltstack(&sig_stacks[0], NULL) < 0) {
+	if (sig_stack_acquire() < 0) {
 		sprintf(str, GetString(STR_SIGALTSTACK_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
