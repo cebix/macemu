@@ -556,6 +556,12 @@ static void mn_15hz(...) {PrefsReplaceInt32("frameskip", 4);}
 static void mn_30hz(...) {PrefsReplaceInt32("frameskip", 2);}
 static void mn_60hz(...) {PrefsReplaceInt32("frameskip", 1);}
 
+// QuickDraw acceleration
+static void tb_gfxaccel(GtkWidget *widget)
+{
+	PrefsReplaceBool("gfxaccel", GTK_TOGGLE_BUTTON(widget)->active);
+}
+
 // Video modes
 static void tb_w640x480(GtkWidget *widget)
 {
@@ -677,6 +683,8 @@ static void create_graphics_pane(GtkWidget *top)
 		case 1: active = 5; break;
 	}
 	w_frameskip = make_option_menu(box, STR_FRAMESKIP_CTRL, options, active);
+
+	make_checkbox(box, STR_GFXACCEL_CTRL, PrefsFindBool("gfxaccel"), GTK_SIGNAL_FUNC(tb_gfxaccel));
 
 	frame = gtk_frame_new (GetString(STR_VIDEO_MODE_CTRL));
 	gtk_widget_show(frame);
@@ -948,6 +956,12 @@ static void create_serial_pane(GtkWidget *top)
 static GtkObject *w_ramsize_adj;
 static GtkWidget *w_rom_file;
 
+// Don't use CPU when idle?
+static void tb_idlewait(GtkWidget *widget)
+{
+	PrefsReplaceBool("idlewait", GTK_TOGGLE_BUTTON(widget)->active);
+}
+
 // "Ignore SEGV" button toggled
 static void tb_ignoresegv(GtkWidget *widget)
 {
@@ -1014,6 +1028,7 @@ static void create_memory_pane(GtkWidget *top)
 	w_rom_file = make_entry(box, STR_ROM_FILE_CTRL, "rom");
 
 	make_checkbox(box, STR_IGNORESEGV_CTRL, "ignoresegv", GTK_SIGNAL_FUNC(tb_ignoresegv));
+	make_checkbox(box, STR_IDLEWAIT_CTRL, "idlewait", GTK_SIGNAL_FUNC(tb_idlewait));
 }
 
 
