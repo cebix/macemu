@@ -22,7 +22,7 @@ a Macintosh ROM image to use Basilisk II.
 
 Basilisk II has currently been ported to the following systems:
   - BeOS R4 (PowerPC and x86)
-  - Unix (tested under Linux, Solaris 2.5, FreeBSD 3.x, NetBSD 1.4.2 and
+  - Unix (tested under Linux, Solaris 2.x, FreeBSD 3.x, NetBSD 1.4.x and
     IRIX 6.5)
   - AmigaOS 3.x
   - Windows NT 4.0 (mostly works under Windows 95/98, too)
@@ -94,21 +94,28 @@ disk <volume description>
   This item describes one MacOS volume to be mounted by Basilisk II.
   There can be multiple "disk" lines in the preferences file. Basilisk II
   can handle hardfiles (byte-per-byte images of HFS volumes in a file on
-  the host system) as well as HFS partitions on hard disks etc. (but Basilisk
-  II doesn't know about MacOS partition tables; it relies on the host OS to
-  handle this). The "volume description" is either the pathname of a hardfile
-  or a platform-dependant description of an HFS partition or drive. If the
-  volume description starts with an asterisk ("*"), the volume is write
-  protected for MacOS (and the "*" is discarded).
+  the host system), HFS partitions on hard disks etc., and MacOS-partitioned
+  disks (it can only access the first partition, though). The "volume
+  description" is either the pathname of a hardfile or a platform-dependant
+  description of an HFS partition or drive. If the volume description is
+  prefixed by an asterisk ("*"), the volume is write protected for MacOS.
+
+  Basilisk II can also handle some types of Mac "disk image" files directly,
+  as long as they are uncompressed and unencoded.
 
   BeOS:
     To specify an HFS partition, simply specify its path (e.g.
-    "/dev/disk/scsi/0/1/0/0_3"). If you don't specify any volume, Basilisk II
+    "/dev/disk/scsi/0/1/0/0_3"). If you don't specify any volumes, Basilisk II
     will search for and use all available HFS partitions.
 
   Unix:
-    To specify an HFS partition, simply specify its path (e.g.
-    "/dev/sda5").
+    To specify an HFS partition, simply specify its path (e.g. "/dev/sda5").
+    If you want to access a MacOS-partitioned hard disk or removable volume
+    (Jaz, Zip etc.) and your operating system doesn't understand MacOS
+    partition tables, you can specify the block device name (e.g. "/dev/sda")
+    to access the first HFS partition on the device. Under Linux, if you
+    don't specify any volumes, Basilisk II will search /etc/fstab for
+    unmounted HFS partitions and use these.
 
   AmigaOS:
     Partitions/drives are specified in the following format:
@@ -146,6 +153,7 @@ extfs <direcory path>
   This item specifies the root directory for the "Host Directory Tree"
   file system (the "Unix/BeOS/Amiga/..." icon on the Finder desktop).
   All objects contained in that directory are accessible by Mac applications.
+
   This feature is only available when File System Manager V1.2 or later
   is installed on the Mac side. FSM 1.2 is built-in beginning with MacOS 7.6
   and can be installed as a system extension (downloadable from Apple, look
@@ -185,10 +193,10 @@ scsi0 <SCSI target> ... scsi6 <SCSI target>
 
 screen <video mode>
 
-  This item describes the type of video display to be used by Basilisk II.
-  If you are using a Mac Classic ROM, the display is always 1-bit 512x342
-  and this item is ignored. The format of the "video mode" is platform
-  specific.
+  This item describes the type of video display to be used by default for
+  Basilisk II. If you are using a Mac Classic ROM, the display is always
+  1-bit 512x342 and this item is ignored. The format of the "video mode" is
+  platform specific.
 
   BeOS:
     The "video mode" is one of the following:
@@ -208,9 +216,11 @@ screen <video mode>
   Unix:
     The "video mode" is one of the following:
       win/<width>/<height>
-        Color display in an X11 window of the given size. The color depth
-        (8/15/24 bit) depends on the depth of the underlying X11 screen.
-        This is the default.
+        Color display in an X11 window of the given size. There are several
+        resolutions and color depths available. The set of color depths
+        depends on the capabilities of the X11 server, the operating system,
+        and Basilisk II compile-time options, but 1 bit and the default depth
+        of the X11 screen should always be available.
       dga/<width>/<height>
         [if Basilisk II was configured with --enable-xf86-dga]
         Full-screen display using the XFree86 DGA extension. The color depth
@@ -324,6 +334,11 @@ ether <ethernet card description>
   is not available and this setting is ignored. The "ethernet card description"
   is a platform-dependant description of an ethernet card.
 
+  General note: To use TCP/IP from MacOS, you should assign a different IP
+  address to the MacOS (entered into the MacOS TCP/IP (or MacTCP) control
+  panel). Otherwise there will be confusion about which operating system will
+  handle incoming packets.
+
   BeOS:
     It doesn't matter what you give as "ethernet card description", Basilisk II
     will always use the first Ethernet card it finds as long an an "ether"
@@ -336,20 +351,42 @@ ether <ethernet card description>
     The "ethernet card description" is the name of an Ethernet interface.
     There are two approaches to networking with Basilisk II:
 
-      1. Direct access to an Ethernet card via the "sheep_net" driver.
-         In this case, the "ethernet card description" must be the name
-         of a real Ethernet card, e.g. "eth0". It also requires the "sheep_net"
-         driver to be installed and accessible. This approach will allow you
-         to run all networking protocols under MacOS (TCP/IP, AppleTalk, IPX
-         etc.) but there is no connection between Linux networking and MacOS
-         networking. MacOS will only be able to talk to other machines on
-         the Ethernet, but not to other networks that your Linux box routes
-         (e.g. a second Ethernet or a PPP connection to the Internet).
+      1. Direct access to an Ethernet card via the "sheep_net" kernel module.
+         The "ethernet card description" must be the name of a real Ethernet
+         card, e.g. "eth0".
+
+         The sheep_net module is included in the Basilisk II source
+         distribution in the directory "src/Unix/Linux/NetDriver". You have
+         to compile and install the module yourself:
+
+           $ su
+           [enter root password]
+           # make
+           # make dev
+           [this will create a /dev/sheep_net device node; you should give
+            appropriate access rights to the user(s) running Basilisk II]
+           # insmod sheep_net.o
+
+         If you copy the sheep_net.o module to a place where it can be found
+         by the kernel module loader ("/lib/modules/<version>/kernel/drivers/net"
+         for 2.4 kernels) and add the line
+
+           alias char-major-10-198 sheep_net
+
+         to "/etc/modules.conf", the kernel should be able to load the module
+         automatically when Basilisk II is started.
+
+         The sheep_net module will allow you to run all networking protocols
+         under MacOS (TCP/IP, AppleTalk, IPX etc.) but there is no connection
+         between Linux networking and MacOS networking. MacOS will only be
+         able to talk to other machines on the Ethernet, but not to other
+         networks that your Linux box routes (e.g. a second Ethernet or a PPP
+         connection to the Internet).
 
       2. Putting Basilisk II on a virtual Ethernet via the "ethertap" device.
          In this case, the "ethernet card description" must be the name
          of an ethertap interface, e.g. "tap0". It also requires that you
-         configure your kernel to enable routing and the ethertap device:
+         configure your kernel to enable routing and ethertap support:
          under "Networking options", enable "Kernel/User netlink socket" and
          "Netlink device emulation", under "Network device support", activate
          "Ethertap network tap". You also have to modify drivers/net/ethertap.c
@@ -400,18 +437,19 @@ udptunnel <"true" or "false">
 
   Setting this to "true" enables a special network mode in which all network
   packets sent by MacOS are tunnelled over UDP using the host operating
-  system's native TCP/IP stack. This only works with AppleTalk and can only
-  be used to connect computers running Basilisk II (and not, for example, for
-  connecting to an AppleShare server running on a real Mac), but it is
-  probably the easiest way to set up a network between two instances of
-  Basilisk II because the UDP tunnelling doesn't require any special kernel
-  modules or network add-ons. It relies on IP broadcasting, however, so
-  its range is limited.
+  system's native TCP/IP stack. This can only be used to connect computers
+  running Basilisk II (and not, for example, for connecting to the Internet
+  or an AppleShare server running on a real Mac), but it is probably the
+  easiest way to set up a network between two instances of Basilisk II
+  because the UDP tunnelling doesn't require any special kernel modules or
+  network add-ons. It relies on IP broadcasting, however, so its range is
+  limited. It should be fine though for doing a little file sharing or
+  playing Spectre.
 
 udpport <IP port number>
 
-  This item specifies the IP port number to use for the "AppleTalk over UDP"
-  tunnel mode. The default is 6066.
+  This item specifies the IP port number to use for the "UDP Tunnel" mode.
+  The default is 6066.
 
 rom <ROM file path>
 
@@ -447,13 +485,13 @@ frameskip <frames to skip>
 
 modelid <MacOS model ID>
 
-  Specifies the Model ID that Basilisk II should report to MacOS.
-  The default is "5" which corresponds to a Mac IIci. If you want to
-  run MacOS 8, you have to set this to "14" (Quadra 900). Other values
-  are not officially supported and may result in crashes. MacOS versions
-  earlier than 7.5 may only run with the Model ID set to "5". If you are
-  using a Mac Classic ROM, the model is always "Mac Classic" and this
-  setting is ignored.
+  Specifies the Macintosh model ID that Basilisk II should report to MacOS.
+  The default is "5" which corresponds to a Mac IIci. If you want to run
+  MacOS 8, you have to set this to "14" (Quadra 900). Other values are not
+  officially supported and may result in crashes. MacOS versions earlier
+  than 7.5 may only run with the Model ID set to "5". If you are using a Mac
+  Classic ROM, the model is always "Mac Classic" and this setting is
+  ignored.
 
 nosound <"true" or "false">
 
@@ -550,7 +588,7 @@ Windows:
     means is that the control is not returned to the application until the
     command is completely finished. Normally this is not an issue, but when a
     CDR/CDRW is closed or erased the burner program typically wants to wait in
-    some progress dialog The result may be that the application reports a
+    some progress dialog the result may be that the application reports a
     time-out error, but the operation completes all right anyway.
 
   nofloppyboot <"true" or "false">
@@ -564,9 +602,9 @@ Windows:
     This is very useful since many devices have almost identical ATAPI and SCSI
     versions of their hardware, and MacOS applications usually support the SCSI
     version only. The example below is typical:
-  
+
       replacescsi "HP" "CD-Writer+ 7100" "PHILIPS" "CDD3600"
-  
+
     Note the use of quotes.
 
   rightmouse <0/1>
@@ -591,7 +629,7 @@ Windows:
     and some other need it to be turned off. Consult the documentation
     of your CD software to learn which one is optimal for you.
 
-  framesleepticks <milliseconds>    
+  framesleepticks <milliseconds>
 
     The amount of time between video frames.
 
@@ -601,16 +639,17 @@ Windows:
 
   stickymenu <true/false>
 
-    If true, the main menu bar is kept open even after the mouse button is released,
-    under all OS versions (OS 8 has this feature already). There are extensions to do 
-    the same thing, but it's faster to handle this in native code.
-    Default is "true".
+    If true, the main menu bar is kept open even after the mouse button is
+    released, under all OS versions (OS 8 has this feature already). There
+    are extensions to do the same thing, but it's faster to handle this in
+    native code. Default is "true".
 
   ntdx5hack <"true" or "false">
 
-    You may need this on NT if your display adapter driver has a bug in DirectX
-    palette support. Black and white are reversed. It fixes the palette issue
-    by using GDI palette instead of D3D palette. Default is false.
+    You may need this on NT if your display adapter driver has a bug in
+    DirectX palette support. Black and white are reversed. It fixes the
+    palette issue by using GDI palette instead of D3D palette. Default is
+    false.
 
 
 Usage
@@ -636,9 +675,10 @@ Keyboard:
   key is the Mac "Option" key.
 
 Mouse:
-  Under Unix, press Ctrl-F5 while the Basilisk II window is active will grab
-  the mouse. This is needed for compatibility with some MacOS programs,
-  especially games. Press Ctrl-F5 again to return to normal mouse operation.
+  Under Unix, pressing Ctrl-F5 while the Basilisk II window is active will
+  grab the mouse. This is needed for compatibility with some MacOS programs,
+  especially games such as flight simulators. Press Ctrl-F5 again to return
+  to normal mouse operation.
 
 Floppy:
   Basilisk II can only handle 1.44MB MFM floppies. Depending on your platform,
@@ -649,7 +689,7 @@ Floppy:
 HFS partitions:
   Having HFS partitions mounted for read-write access under Basilisk II while
   they are also mounted on the host OS will most likely result in volume
-  corruption and data losses. Unmount your HFS volumes before starting
+  corruption and data loss. Unmount your HFS volumes before starting
   Basilisk II.
 
 ZIP drives:
@@ -668,18 +708,26 @@ Mac Classic emulation:
   ROM. Also, the video display is fixed to 512x342 in monochrome. The AmigaOS
   and BeOS/PPC versions of Basilisk II cannot do Mac Classic emulation.
 
+Video resolution switching:
+  Run-time switching of video resolutions requires the Display Manager. This
+  is included in MacOS versions 7.6 and above, and available as a system
+  extension for earlier MacOS versions as a free download from ftp.apple.com
+  (look for "Display Software 2.x"). Click on "Options..." in the "Monitors"
+  control panel to select the resolution.
+
 Sound output:
   Sound output under Basilisk II requires Sound Manager 3.0 or later. This
-  is included starting with MacOS 7.5 and available as a system extension
-  for earlier MacOS versions. Sample rate, bit resolution and mono/stereo
-  can be selected in the Sound control panel (section "Sound Out").
+  is included in MacOS versions 7.5 and above, and available as a system
+  extension for earlier MacOS versions as a free download from ftp.apple.com.
+  Sample rate, bit resolution and mono/stereo can be selected in the Sound
+  control panel (section "Sound Out").
 
 Ethernet:
   Basilisk II supports all Ethernet protocols. Running a protocol under
   Basilisk II that already runs within the host operating system on the same
   network card (e.g. running MacTCP under Basilisk II on a BeOS machine) may
   or may not work (generally, it should work, but some specific things like
-  "ping" may not). If you have problems with FTP, try setting your FTP client
+  "ping" may not). If you have problems with FTP, try setting the FTP client
   to passive mode.
 
 LocalTalk:
@@ -689,7 +737,7 @@ LocalTalk:
 
 Serial:
   You can use the serial ports in Basilisk II to connect to the Internet
-  with a modem and "MacPPP".
+  with a modem and the "MacPPP" or "Open Transport/PPP" software.
 
 
 Technical Documentation
@@ -703,8 +751,8 @@ Acknowledgements
 
 Contributions by (in alphabetical order):
  - Orlando Bassotto <future@powercube.mediabit.net>: FreeBSD support
- - Gwenole Beauchesne <gb@dial.oleane.com>: SPARC assembly optimizations and
-   fbdev video code
+ - Gwenolé Beauchesne <gb@dial.oleane.com>: SPARC assembly optimizations,
+   lots of work on the Unix video code
  - Marc Chabanas <Marc.Chabanas@france.sun.com>: Solaris sound support
  - Marc Hellwig <Marc.Hellwig@uni-mainz.de>: audio output, BeOS video code
    and networking
@@ -733,6 +781,12 @@ You found a bug? Well, use the source, fix it and send the fix to
   <Christian.Bauer@uni-mainz.de>
 for inclusion in the next release of Basilisk II.
 
+If you don't have a fix, you should post a bug report using the Source Forge
+bug tracker, supplying as much information as possible (operating system and
+versions of Basilisk II and MacOS being used, relevant hardware information,
+the exact steps to reproduce the bug, etc.):
+  http://sourceforge.net/tracker/?group_id=2123&atid=102123
+
 
 Author
 ------
@@ -740,7 +794,7 @@ Author
 You can contact me at <Christian.Bauer@uni-mainz.de>. Don't send bug
 reports, send fixes. Ports to other platforms are also very welcome.
 Please contact me before you intend to make major changes to the source.
-You might be working on something that I have already done or I may have
+You might be working on something that I have already done, or I may have
 different ideas about the Right Way to do it.
 
 Questions about ROM files will not be answered. There is also no point in
@@ -755,7 +809,17 @@ Support
 The official Basilisk II home page is at
   http://www.uni-mainz.de/~bauec002/B2Main.html
 
-There is no user-level support for Basilisk II at the moment.
+The Basilisk II project page on SourceForge is at
+  http://sourceforge.net/projects/basilisk/
+
+If you have problems, you may want to visit the Basilisk II forums:
+  http://sourceforge.net/forum/?group_id=2123
+
+There is also a mailing list for Basilisk II users:
+  http://lists.sourceforge.net/lists/listinfo/basilisk-user
+
+And another mailing list for Basilisk II developers:
+  http://lists.sourceforge.net/lists/listinfo/basilisk-devel
 
 
 History

@@ -16,7 +16,7 @@ ROM files. No, I won't send you one.
 Depending on the platform you use, Basilisk II has additional requirements:
 
 BeOS:
-  You need BeOS R4 or better.
+  You need BeOS R4 or later versions.
   Basilisk II cannot do Mac Classic emulation.
 
 Unix:
@@ -73,20 +73,9 @@ Unix:
     make install    [optionally]
 
   To use Ethernet networking under Linux, you either have to configure your
-  kernel for ethertap support or make and install the "sheep_net" driver:
-
-    make modules
-
-  This should produce a kernel module "sheep_net.o" in the "Linux/NetDriver"
-  directory. Now su root and say
-
-    cd Linux/NetDriver
-    make dev
-    /sbin/insmod sheep_net.o
-
-  This will install the device node "/dev/sheep_net" and load the driver.
-  You should give appropriate access rights to /dev/sheep_net if you don't
-  want to have to run Basilisk II as root.
+  kernel for ethertap support or make and install the "sheep_net" driver
+  (this is explained in the README file, at the description of the "ether"
+  preferences item).
 
   This is what Brian J. Johnson says about compiling for IRIX:
    "I recommend compiling with "-Ofast".  This requires changing "-g"
@@ -99,7 +88,8 @@ Unix:
   must NOT use a pthreads library. User-level threads libraries such as PTL
   interfere with the signal handlers installed by Basilisk II and kernel-
   level threads are not supported by NetBSD, so you will have to live without
-  pthreads (and thus, without serial/ethernet/audio support).
+  pthreads, and thus without serial/ethernet/audio support (but the "UDP
+  tunnelling" network should work).
 
   ATTENTION NetBSD/mac68k USERS:
   Current (as of July 2000) versions of the NetBSD/mac68k kernel have a bug

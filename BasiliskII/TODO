@@ -21,9 +21,6 @@ General:
 AmigaOS:
 - "Create Hardfile..." button
 - Support for ShapeShifter External Video Drivers
-- Direct SCSI transfers, i.e. no buffering for contiguous transfers (can't check if
-  the device supports that); buffer is always in Chip memory now
-- Preemptive threads don't work?
 - clip_amiga.cpp: clip AmigaOS->Basilisk
 - sys_amiga.cpp: MaxTransfer/BufMemType/TransferMask, SysAddCDROMPrefs(),
   SysFormat()
@@ -31,18 +28,19 @@ AmigaOS:
 - Input handler instead of IDCMP?
 - Last sound buffer is not played
 - Sound output rate/bits/channels switching
+- Video depth/resolution switching
 
 BeOS:
 - clip_beos.cpp: clip BeOS->Basilisk
 - Last sound buffer is not played
 - Sound output rate/bits/channels switching
+- Video depth/resolution switching
 
 Unix:
 - clip_unix.cpp: clip Unix->Basilisk
 - clip_unix.cpp: use X selections instead of cut buffer
-- sys_unix.cpp: SysFormat(), SysIsFixedDisk(), SysIsDiskInserted(), prevent/allow
-  for non-floppy/CDROM devices
+- sys_unix.cpp: SysFormat(), SysIsFixedDisk(), SysIsDiskInserted(),
+  prevent/allow for non-floppy/CDROM devices
 - scsi_linux.cpp: adapt to SCSI Generic driver V2.0
 - ESD is also available on Solaris
-- maybe use SDL for sound?
 - serial_unix.cpp: provide a way to pipe input/output to programs
