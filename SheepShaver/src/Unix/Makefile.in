@@ -145,7 +145,6 @@ ppc-execute-impl.cpp: $(kpxsrcdir)/cpu/ppc/ppc-decode.cpp $(GENEXEC) $(DYNGENDEP
 ifneq ($(DYNGENSRCS),)
 DYNGENDEPS = basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 
-basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 $(DYNGEN): $(DYNGENOBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(DYNGENOBJS)
 
