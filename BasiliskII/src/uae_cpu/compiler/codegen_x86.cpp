@@ -462,7 +462,16 @@ LENDFUNC(READ,WRITE,2,raw_setcc_m,(MEMW d, IMM cc))
 
 LOWFUNC(READ,NONE,3,raw_cmov_l_rr,(RW4 d, R4 s, IMM cc))
 {
-	CMOVLrr(cc, s, d);
+	if (have_cmov)
+		CMOVLrr(cc, s, d);
+	else { /* replacement using branch and mov */
+#if defined(__x86_64__)
+		write_log("x86-64 implementations are bound to have CMOV!\n");
+		abort();
+#endif
+		JCCSii(cc^1, 2);
+		MOVLrr(s, d);
+	}
 }
 LENDFUNC(READ,NONE,3,raw_cmov_l_rr,(RW4 d, R4 s, IMM cc))
 
@@ -620,13 +629,31 @@ LENDFUNC(NONE,READ,4,raw_mov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor)
 
 LOWFUNC(NONE,READ,5,raw_cmov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor, IMM cond))
 {
-	CMOVLmr(cond, base, X86_NOREG, index, factor, d);
+	if (have_cmov)
+		CMOVLmr(cond, base, X86_NOREG, index, factor, d);
+	else { /* replacement using branch and mov */
+#if defined(__x86_64__)
+		write_log("x86-64 implementations are bound to have CMOV!\n");
+		abort();
+#endif
+		JCCSii(cond^1, 7);
+		MOVLmr(base, X86_NOREG, index, factor, d);
+	}
 }
 LENDFUNC(NONE,READ,5,raw_cmov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor, IMM cond))
 
 LOWFUNC(NONE,READ,3,raw_cmov_l_rm,(W4 d, IMM mem, IMM cond))
 {
-	CMOVLmr(cond, mem, X86_NOREG, X86_NOREG, 1, d);
+	if (have_cmov)
+		CMOVLmr(cond, mem, X86_NOREG, X86_NOREG, 1, d);
+	else { /* replacement using branch and mov */
+#if defined(__x86_64__)
+		write_log("x86-64 implementations are bound to have CMOV!\n");
+		abort();
+#endif
+		JCCSii(cond^1, 6);
+		MOVLmr(mem, X86_NOREG, X86_NOREG, 1, d);
+	}
 }
 LENDFUNC(NONE,READ,3,raw_cmov_l_rm,(W4 d, IMM mem, IMM cond))
 
