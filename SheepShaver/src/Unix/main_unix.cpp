@@ -204,7 +204,9 @@ static bool ready_for_signals = false;		// Handler installed, signals can be sen
 static int64 num_segv = 0;					// Number of handled SEGV signals
 
 static struct sigaction sigusr2_action;		// Interrupt signal (of emulator thread)
-#if !EMULATED_PPC
+#if EMULATED_PPC
+static uintptr sig_stack = 0;				// Stack for PowerPC interrupt routine
+#else
 static struct sigaction sigsegv_action;		// Data access exception signal (of emulator thread)
 static struct sigaction sigill_action;		// Illegal instruction signal (of emulator thread)
 static void *sig_stack = NULL;				// Stack for signal handlers
@@ -252,6 +254,16 @@ extern void paranoia_check(void);
 
 
 #if EMULATED_PPC
+/*
+ *  Return signal stack base
+ */
+
+uintptr SignalStackBase(void)
+{
+	return sig_stack + SIG_STACK_SIZE;
+}
+
+
 /*
  *  Atomic operations
  */
@@ -1773,17 +1785,26 @@ rti:;
 
 bool SheepMem::Init(void)
 {
+	const int page_size = getpagesize();
+
+	// Allocate SheepShaver globals
 	if (vm_acquire_fixed((char *)base, size) < 0)
 		return false;
 
+	// Allocate page with all bits set to 0
 	zero_page = base + size;
-
-	int page_size = getpagesize();
 	if (vm_acquire_fixed((char *)zero_page, page_size) < 0)
 		return false;
 	memset((char *)zero_page, 0, page_size);
 	if (vm_protect((char *)zero_page, page_size, VM_PAGE_READ) < 0)
 		return false;
+
+#if EMULATED_PPC
+	// Allocate alternate stack for PowerPC interrupt routine
+	sig_stack = zero_page + page_size;
+	if (vm_acquire_fixed((char *)sig_stack, SIG_STACK_SIZE) < 0)
+		return false;
+#endif
 
 	top = base + size;
 	return true;
@@ -1792,8 +1813,18 @@ bool SheepMem::Init(void)
 void SheepMem::Exit(void)
 {
 	if (top) {
-		// The zero page is next to SheepShaver globals
-		vm_release((void *)base, size + getpagesize());
+		const int page_size = getpagesize();
+
+		// Delete SheepShaver globals
+		vm_release((void *)base, size);
+
+		// Delete zero page
+		vm_release((void *)zero_page, page_size);
+
+#if EMULATED_PPC
+		// Delete alternate stack for PowerPC interrupt routine
+		vm_release((void *)sig_stack, SIG_STACK_SIZE);
+#endif
 	}
 }
 

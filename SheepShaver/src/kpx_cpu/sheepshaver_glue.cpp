@@ -73,6 +73,9 @@ static void enter_mon(void)
 #endif
 }
 
+// From main_*.cpp
+extern uintptr SignalStackBase();
+
 // PowerPC EmulOp to exit from emulation looop
 const uint32 POWERPC_EXEC_RETURN = POWERPC_EMUL_OP | 1;
 
@@ -268,8 +271,7 @@ void sheepshaver_cpu::interrupt(uint32 entry)
 #endif
 
 	// Initialize stack pointer to SheepShaver alternate stack base
-	SheepArray<64> stack_area;
-	gpr(1) = stack_area.addr();
+	gpr(1) = SignalStackBase() - 64;
 
 	// Build trampoline to return from interrupt
 	SheepVar32 trampoline = POWERPC_EXEC_RETURN;
