@@ -323,11 +323,6 @@ static void close_audio(void)
 
 	// Close dsp or ESD socket
 	if (audio_fd >= 0) {
-		if (is_dsp_audio) {
-			// Stop the device immediately. Otherwise, close() sends
-			// SNDCTL_DSP_SYNC, which may hang
-			ioctl(audio_fd, SNDCTL_DSP_RESET, 0);
-		}
 		close(audio_fd);
 		audio_fd = -1;
 	}
@@ -337,6 +332,11 @@ static void close_audio(void)
 
 void AudioExit(void)
 {
+	// Stop the device immediately. Otherwise, close() sends
+	// SNDCTL_DSP_SYNC, which may hang
+	if (is_dsp_audio)
+		ioctl(audio_fd, SNDCTL_DSP_RESET, 0);
+
 	// Close audio device
 	close_audio();
 
