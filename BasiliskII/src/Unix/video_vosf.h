@@ -184,7 +184,7 @@ static int log_base_2(uint32 x)
 // Extend size to page boundary
 static uint32 page_extend(uint32 size)
 {
-	const uint32 page_size = vm_page_size();
+	const uint32 page_size = vm_get_page_size();
 	const uint32 page_mask = page_size - 1;
 	return (size + page_mask) & ~page_mask;
 }
@@ -232,7 +232,7 @@ static bool video_vosf_init(MONITOR_INIT)
 {
 	VIDEO_MODE_INIT_MONITOR;
 
-	const uintptr page_size = vm_page_size();
+	const uintptr page_size = vm_get_page_size();
 	const uintptr page_mask = page_size - 1;
 	
 	// Round up frame buffer base to page boundary

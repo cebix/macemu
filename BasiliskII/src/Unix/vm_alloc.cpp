@@ -451,7 +451,7 @@ int vm_protect(void * addr, size_t size, int prot)
 
 /* Returns the size of a page.  */
 
-int vm_page_size(void)
+int vm_get_page_size(void)
 {
 #ifdef _WIN32
     return 4096;
@@ -470,7 +470,7 @@ int main(void)
 	vm_init();
 	
 #define page_align(address) ((char *)((unsigned long)(address) & -page_size))
-	unsigned long page_size = vm_page_size();
+	unsigned long page_size = vm_get_page_size();
 	
 	const int area_size = 6 * page_size;
 	volatile char * area = (volatile char *) vm_acquire(area_size);
