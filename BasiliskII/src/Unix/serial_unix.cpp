@@ -181,13 +181,13 @@ int16 XSERDPort::Open(uint16 config)
 	if (fd < 0)
 		goto open_error;
 
-#ifdef __linux__
+#if defined(__linux__)
 	// Parallel port?
 	struct stat st;
 	if (fstat(fd, &st) == 0)
 		if (S_ISCHR(st.st_mode))
 			is_parallel = (MAJOR(st.st_rdev) == LP_MAJOR);
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 	// Parallel port?
 	struct stat st;
 	if (fstat(fd, &st) == 0)

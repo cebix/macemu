@@ -46,7 +46,7 @@ static int _llseek(uint fd, ulong hi, ulong lo, loff_t *res, uint wh)
 #endif
 #endif
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include <sys/cdio.h>
 #endif
 
@@ -121,6 +121,9 @@ void SysAddFloppyPrefs(void)
 #if defined(__linux__)
 	PrefsAddString("floppy", "/dev/fd0H1440");
 	PrefsAddString("floppy", "/dev/fd1H1440");
+#elif defined(__NetBSD__)
+	PrefsAddString("floppy", "/dev/fd0a");
+	PrefsAddString("floppy", "/dev/fd1a");
 #else
 	PrefsAddString("floppy", "/dev/fd0");
 	PrefsAddString("floppy", "/dev/fd1");
@@ -148,10 +151,11 @@ void SysAddDiskPrefs(void)
 
 			// Parse line
 			char *dev, *mnt_point, *fstype;
-			if (sscanf(line, "%s %s %s", &dev, &mnt_point, &fstype) == 3) {
+			if (sscanf(line, "%as %as %as", &dev, &mnt_point, &fstype) == 3) {
 				if (strcmp(fstype, "hfs") == 0)
 					PrefsAddString("disk", dev);
 			}
+			free(dev); free(mnt_point); free(fstype);
 		}
 		fclose(f);
 	}
@@ -174,6 +178,8 @@ void SysAddCDROMPrefs(void)
 	PrefsAddString("cdrom", "/dev/cdrom");
 #elif defined(__FreeBSD__)
 	PrefsAddString("cdrom", "/dev/cd0c");
+#elif defined(__NetBSD__)
+	PrefsAddString("cdrom", "/dev/cd0d");
 #endif
 }
 
@@ -190,6 +196,9 @@ void SysAddSerialPrefs(void)
 #elif defined(__FreeBSD__)
 	PrefsAddString("seriala", "/dev/cuaa0");
 	PrefsAddString("serialb", "/dev/cuaa1");
+#elif defined(__NetBSD__)
+	PrefsAddString("seriala", "/dev/tty00");
+	PrefsAddString("serialb", "/dev/tty01");
 #endif
 }
 
@@ -214,8 +223,9 @@ static bool is_drive_mounted(const char *dev_name, char *mount_name)
 			// Parse line
 			if (strncmp(line, dev_name, strlen(dev_name)) == 0) {
 				mount_name[0] = 0;
-				char dummy[256];
-				sscanf(line, "%s %s", dummy, mount_name);
+				char *dummy;
+				sscanf(line, "%as %s", &dummy, mount_name);
+				free(dummy);
 				fclose(f);
 				return true;
 			}
@@ -234,7 +244,7 @@ static bool is_drive_mounted(const char *dev_name, char *mount_name)
 void *Sys_open(const char *name, bool read_only)
 {
 	bool is_file = strncmp(name, "/dev/", 5) != 0;
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__)
 	                // SCSI                             IDE
 	bool is_cdrom = strncmp(name, "/dev/cd", 7) == 0 || strncmp(name, "/dev/acd", 8) == 0;
 #else
@@ -262,7 +272,7 @@ void *Sys_open(const char *name, bool read_only)
 	}
 
 	// Open file/device
-#ifdef __linux__
+#if defined(__linux__)
 	int fd = open(name, (read_only ? O_RDONLY : O_RDWR) | (is_cdrom ? O_NONBLOCK : 0));
 #else
 	int fd = open(name, read_only ? O_RDONLY : O_RDWR);
@@ -284,7 +294,7 @@ void *Sys_open(const char *name, bool read_only)
 		if (fh->is_file) {
 			// Detect disk image file layout
 			loff_t size = 0;
-#ifdef __linux__
+#if defined(__linux__)
 			_llseek(fh->fd, 0, 0, &size, SEEK_END);
 #else
 			size = lseek(fd, 0, SEEK_END);
@@ -309,7 +319,7 @@ void *Sys_open(const char *name, bool read_only)
 #else
 					fh->cdrom_cap = 0;
 #endif
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 					fh->is_floppy = ((st.st_rdev >> 16) == 2);
 #ifdef CDIOCCAPABILITY
 					if (is_cdrom) {
@@ -362,7 +372,7 @@ size_t Sys_read(void *arg, void *buffer, loff_t offset, size_t length)
 		return 0;
 
 	// Seek to position
-#ifdef __linux__
+#if defined(__linux__)
 	loff_t pos = offset + fh->start_byte, res;
 	if (_llseek(fh->fd, pos >> 32, pos, &res, SEEK_SET) < 0)
 		return 0;
@@ -388,7 +398,7 @@ size_t Sys_write(void *arg, void *buffer, loff_t offset, size_t length)
 		return 0;
 
 	// Seek to position
-#ifdef __linux__
+#if defined(__linux__)
 	loff_t pos = offset + fh->start_byte, res;
 	if (_llseek(fh->fd, pos >> 32, pos, &res, SEEK_SET) < 0)
 		return 0;
@@ -415,7 +425,7 @@ loff_t SysGetFileSize(void *arg)
 	if (fh->is_file)
 		return fh->file_size;
 	else {
-#ifdef __linux__
+#if defined(__linux__)
 		loff_t pos = 0;
 		_llseek(fh->fd, 0, 0, &pos, SEEK_END);
 		return pos - fh->start_byte;
@@ -446,7 +456,7 @@ void SysEject(void *arg)
 		close(fh->fd);	// Close and reopen so the driver will see the media change
 		fh->fd = open(fh->name, O_RDONLY | O_NONBLOCK);
 	}
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 	if (fh->is_floppy) {
 		fsync(fh->fd);
 		//ioctl(fh->fd, FDFLUSH);
@@ -485,7 +495,7 @@ bool SysIsReadOnly(void *arg)
 	if (!fh)
 		return true;
 
-#ifdef __linux__
+#if defined(__linux__)
 	if (fh->is_floppy) {
 		struct floppy_drive_struct stat;
 		ioctl(fh->fd, FDGETDRVSTAT, &stat);
@@ -541,7 +551,7 @@ bool SysIsDiskInserted(void *arg)
 #endif
 		cdrom_tochdr header;
 		return ioctl(fh->fd, CDROMREADTOCHDR, &header) == 0;
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 	} else if (fh->is_floppy) {
 		return false;	//!!
 	} else if (fh->is_cdrom) {
@@ -645,7 +655,7 @@ bool SysCDReadTOC(void *arg, uint8 *toc)
 		*toc++ = toc_size >> 8;
 		*toc++ = toc_size & 0xff;
 		return true;
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 		uint8 *p = toc + 2;
 
 		// Header
@@ -730,7 +740,7 @@ bool SysCDGetPosition(void *arg, uint8 *pos)
 		*pos++ = chan.cdsc_reladdr.msf.second;
 		*pos++ = chan.cdsc_reladdr.msf.frame;
 		return true;
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 		struct ioc_read_subchannel chan;
 		chan.data_format = CD_MSF_FORMAT;
 		chan.address_format = CD_MSF_FORMAT;
@@ -780,7 +790,7 @@ bool SysCDPlay(void *arg, uint8 start_m, uint8 start_s, uint8 start_f, uint8 end
 		play.cdmsf_sec1 = end_s;
 		play.cdmsf_frame1 = end_f;
 		return ioctl(fh->fd, CDROMPLAYMSF, &play) == 0;
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 		struct ioc_play_msf play;
 		play.start_m = start_m;
 		play.start_s = start_s;
@@ -808,7 +818,7 @@ bool SysCDPause(void *arg)
 	if (fh->is_cdrom) {
 #if defined(__linux__)
 		return ioctl(fh->fd, CDROMPAUSE) == 0;
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 		return ioctl(fh->fd, CDIOCPAUSE) == 0;
 #endif
 	} else
@@ -829,7 +839,7 @@ bool SysCDResume(void *arg)
 	if (fh->is_cdrom) {
 #if defined(__linux__)
 		return ioctl(fh->fd, CDROMRESUME) == 0;
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 		return ioctl(fh->fd, CDIOCRESUME) == 0;
 #endif
 	} else
@@ -850,7 +860,7 @@ bool SysCDStop(void *arg, uint8 lead_out_m, uint8 lead_out_s, uint8 lead_out_f)
 	if (fh->is_cdrom) {
 #if defined(__linux__)
 		return ioctl(fh->fd, CDROMSTOP) == 0;
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 		return ioctl(fh->fd, CDIOCSTOP) == 0;
 #endif
 	} else
@@ -889,7 +899,7 @@ void SysCDSetVolume(void *arg, uint8 left, uint8 right)
 		vol.channel0 = vol.channel2 = left;
 		vol.channel1 = vol.channel3 = right;
 		ioctl(fh->fd, CDROMVOLCTRL, &vol);
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 		struct ioc_vol vol;
 		vol.vol[0] = vol.vol[2] = left;
 		vol.vol[1] = vol.vol[3] = right;
@@ -916,7 +926,7 @@ void SysCDGetVolume(void *arg, uint8 &left, uint8 &right)
 		ioctl(fh->fd, CDROMVOLREAD, &vol);
 		left = vol.channel0;
 		right = vol.channel1;
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 		struct ioc_vol vol;
 		ioctl(fh->fd, CDIOCGETVOL, &vol);
 		left = vol.vol[0];
