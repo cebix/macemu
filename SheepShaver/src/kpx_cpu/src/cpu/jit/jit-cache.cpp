@@ -29,6 +29,16 @@
 #define STATIC_ICACHE_ALLOC 1
 #endif
 
+// Default cache size
+#if defined(__alpha__)
+const int JIT_CACHE_SIZE = 2 * 1024 * 1024;
+#elif defined(__powerpc__)
+const int JIT_CACHE_SIZE = 4 * 1024 * 1024;
+#else
+const int JIT_CACHE_SIZE = 8 * 1024 * 1024;
+#endif
+const int JIT_CACHE_SIZE_GUARD = 4096;
+
 #if STATIC_ICACHE_ALLOC
 const int G_TRANSLATION_CACHE_SIZE = 3 * 1024 * 1024; // 3 MB
 static uint8 g_translation_cache[G_TRANSLATION_CACHE_SIZE];
