@@ -74,7 +74,7 @@ void DarwinAddCDROMPrefs(void)
 		// has a property with key kIOMediaEjectable.  We limit
 		// the match only to those CDs that are actually ejectable
 		CFDictionarySetValue(classesToMatch,
-							 CFSTR(kIOMediaEjectable), kCFBooleanTrue); 
+							 CFSTR(kIOMediaEjectableKey), kCFBooleanTrue); 
 	}
 
 	if ( IOServiceGetMatchingServices(masterPort,
@@ -90,8 +90,9 @@ void DarwinAddCDROMPrefs(void)
 	{
 		char		bsdPath[MAXPATHLEN];
 		CFTypeRef	bsdPathAsCFString =
-						IORegistryEntryCreateCFProperty(nextCD, CFSTR(kIOBSDName),
-															kCFAllocatorDefault, 0);
+						IORegistryEntryCreateCFProperty(nextCD,
+														CFSTR(kIOBSDNameKey),
+														kCFAllocatorDefault, 0);
 		*bsdPath = '\0';
 		if ( bsdPathAsCFString )
 		{
