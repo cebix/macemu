@@ -118,6 +118,11 @@ void TriggerInterrupt(void)
 	regs.spcflags |= SPCFLAG_INT;
 }
 
+void TriggerNMI(void)
+{
+	//!! not implemented yet
+}
+
 
 /*
  *  Get 68k interrupt level

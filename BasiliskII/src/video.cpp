@@ -244,7 +244,7 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 
 		case cscGetModeTiming:		// Get video timing for mode
 			D(bug(" GetModeTiming mode %08lx\n", ReadMacInt32(param + csTimingMode)));
-			WriteMacInt32(param + csTimingFormat, 'decl');
+			WriteMacInt32(param + csTimingFormat, FOURCC('d', 'e', 'c', 'l'));
 			WriteMacInt32(param + csTimingData, 220);		// 21" Multiscan
 			WriteMacInt32(param + csTimingFlags, 0x0f);		// Mode valid, safe, default and shown in Monitors panel
 			return noErr;

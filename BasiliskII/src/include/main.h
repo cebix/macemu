@@ -63,6 +63,5 @@ enum {
 extern uint32 InterruptFlags;									// Currently pending interrupts
 extern void SetInterruptFlag(uint32 flag);						// Set/clear interrupt flags
 extern void ClearInterruptFlag(uint32 flag);
-extern void TriggerNMI(void);
 
 #endif
