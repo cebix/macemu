@@ -1,12 +1,19 @@
-Summary:   A free, portable Mac II emulator
-Name:      BasiliskII
-Version:   0.8
-Release:   1
-URL:       http://www.uni-mainz.de/~bauec002/B2Main.html
-Source:    BasiliskII_src_02111999.tar.gz
+# Note that this is NOT a relocatable package
+%define ver 0.8
+%define rel 1
+%define prefix /usr
+
+Summary: A free, portable Mac II emulator
+Name: BasiliskII
+Version: %ver
+Release: %rel
 Copyright: GPL
-Group:     Applications/Emulators
+Group: Applications/Emulators
+Source: BasiliskII_src_02111999.tar.gz
+BuildRoot: /tmp/BasiliskII-%{ver}-root
 Packager:  Christian Bauer <Christian.Bauer@uni-mainz.de>
+URL: http://www.uni-mainz.de/~bauec002/B2Main.html
+Docdir: %{prefix}/doc
 
 %description
 Basilisk II is a free, portable, Open Source 68k Mac emulator. It requires
@@ -35,15 +42,26 @@ Some features of Basilisk II:
 
 %build
 cd src/Unix
-./configure --prefix=/usr
-make RPM_OPT_FLAGS="$RPM_OPT_FLAGS"
+CFLAGS="$RPM_OPT_FLAGS" CXXFLAGS="$RPM_OPT_FLAGS" ./configure --prefix=%prefix
+if [ "$SMP" != "" ]; then
+  (make "MAKE=make -k -j $SMP"; exit 0)
+  make
+else
+  make
+fi
 
 %install
+rm -rf $RPM_BUILD_ROOT
 cd src/Unix
-make install
+make prefix=$RPM_BUILD_ROOT%{prefix} install
+
+%clean
+rm -rf $RPM_BUILD_ROOT
 
 %files
+%defattr(-, root, root)
 %doc ChangeLog COPYING INSTALL README TECH TODO
 /usr/bin/BasiliskII
 /usr/man/man1/BasiliskII.1
 /usr/share/BasiliskII/keycodes
+/usr/share/BasiliskII/fbdevices
