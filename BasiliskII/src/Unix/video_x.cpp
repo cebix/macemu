@@ -61,7 +61,7 @@ enum {
 
 
 // Constants
-const char KEYCODE_FILE_NAME[] = SHAREDIR "keycodes";
+const char KEYCODE_FILE_NAME[] = SHAREDIR "/keycodes";
 
 
 // Global variables
@@ -75,6 +75,7 @@ static pthread_t redraw_thread;						// Redraw thread
 static bool has_dga = false;						// Flag: Video DGA capable
 
 static bool ctrl_down = false;						// Flag: Ctrl key pressed
+static bool caps_on = false;						// Flag: Caps Lock on
 static bool quit_full_screen = false;				// Flag: DGA close requested from redraw thread
 static bool emerg_quit = false;						// Flag: Ctrl-Esc pressed, emergency quit requested from MacOS thread
 static bool emul_suspended = false;					// Flag: Emulator suspended
@@ -539,11 +540,17 @@ bool VideoInit(bool classic)
 	if (mode_str) {
 		if (sscanf(mode_str, "win/%d/%d", &width, &height) == 2)
 			display_type = DISPLAY_WINDOW;
-		else if (has_dga && strcmp(mode_str, "dga") == 0) {
+		else if (has_dga && sscanf(mode_str, "dga/%d/%d", &width, &height) == 2) {
 			display_type = DISPLAY_DGA;
-			width = DisplayWidth(x_display, screen);
-			height = DisplayHeight(x_display, screen);
+			if (width > DisplayWidth(x_display, screen))
+				width = DisplayWidth(x_display, screen);
+			if (height > DisplayHeight(x_display, screen))
+				height = DisplayHeight(x_display, screen);
 		}
+		if (width <= 0)
+			width = DisplayWidth(x_display, screen);
+		if (height <= 0)
+			height = DisplayHeight(x_display, screen);
 	}
 
 	// Initialize according to display type
@@ -968,7 +975,16 @@ static void handle_events(void)
 					code = event2keycode((XKeyEvent *)&event);
 				if (code != -1) {
 					if (!emul_suspended) {
-						ADBKeyDown(code);
+						if (code == 0x39) {	// Caps Lock pressed
+							if (caps_on) {
+								ADBKeyUp(code);
+								caps_on = false;
+							} else {
+								ADBKeyDown(code);
+								caps_on = true;
+							}
+						} else
+							ADBKeyDown(code);
 						if (code == 0x36)
 							ctrl_down = true;
 					} else {
@@ -987,7 +1003,7 @@ static void handle_events(void)
 					code = keycode_table[((XKeyEvent *)&event)->keycode & 0xff];
 				} else
 					code = event2keycode((XKeyEvent *)&event);
-				if (code != -1) {
+				if (code != -1 && code != 0x39) {	// Don't propagate Caps Lock releases
 					ADBKeyUp(code);
 					if (code == 0x36)
 						ctrl_down = false;

@@ -526,13 +526,9 @@ static void hide_show_graphics_widgets(void)
 	switch (display_type) {
 		case DISPLAY_WINDOW:
 			gtk_widget_show(w_frameskip); gtk_widget_show(l_frameskip);
-			gtk_widget_show(w_display_x); gtk_widget_show(l_display_x);
-			gtk_widget_show(w_display_y); gtk_widget_show(l_display_y);
 			break;
 		case DISPLAY_SCREEN:
 			gtk_widget_hide(w_frameskip); gtk_widget_hide(l_frameskip);
-			gtk_widget_hide(w_display_x); gtk_widget_hide(l_display_x);
-			gtk_widget_hide(w_display_y); gtk_widget_hide(l_display_y);
 			break;
 	}
 }
@@ -576,7 +572,7 @@ static void parse_graphics_prefs(void)
 	if (str) {
 		if (sscanf(str, "win/%d/%d", &dis_width, &dis_height) == 2)
 			display_type = DISPLAY_WINDOW;
-		else if (strcmp(str, "dga") == 0)
+		else if (sscanf(str, "dga/%d/%d", &dis_width, &dis_height) == 2)
 			display_type = DISPLAY_SCREEN;
 	}
 }
@@ -598,7 +594,7 @@ static void read_graphics_settings(void)
 			sprintf(pref, "win/%d/%d", dis_width, dis_height);
 			break;
 		case DISPLAY_SCREEN:
-			strcpy(pref, "dga");
+			sprintf(pref, "dga/%d/%d", dis_width, dis_height);
 			break;
 		default:
 			PrefsRemoveItem("screen");
@@ -610,7 +606,7 @@ static void read_graphics_settings(void)
 // Create "Graphics/Sound" pane
 static void create_graphics_pane(GtkWidget *top)
 {
-	GtkWidget *box, *table, *label, *opt, *menu;
+	GtkWidget *box, *table, *label, *opt, *menu, *combo;
 	char str[32];
 
 	parse_graphics_prefs();
@@ -679,21 +675,43 @@ static void create_graphics_pane(GtkWidget *top)
 	gtk_widget_show(l_display_x);
 	gtk_table_attach(GTK_TABLE(table), l_display_x, 0, 1, 2, 3, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
-	w_display_x = gtk_entry_new();
-	gtk_widget_show(w_display_x);
-	sprintf(str, "%d", dis_width);
-	gtk_entry_set_text(GTK_ENTRY(w_display_x), str); 
-	gtk_table_attach(GTK_TABLE(table), w_display_x, 1, 2, 2, 3, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
+	combo = gtk_combo_new();
+	gtk_widget_show(combo);
+	GList *glist1 = NULL;
+	glist1 = g_list_append(glist1, (char *)"512");
+	glist1 = g_list_append(glist1, (char *)"640");
+	glist1 = g_list_append(glist1, (char *)"800");
+	glist1 = g_list_append(glist1, (char *)"1024");
+	glist1 = g_list_append(glist1, (char *)"MAX");
+	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist1);
+	if (dis_width)
+		sprintf(str, "%d", dis_width);
+	else
+		strcpy(str, "MAX");
+	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
+	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 2, 3, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
+	w_display_x = GTK_COMBO(combo)->entry;
 
 	l_display_y = gtk_label_new(GetString(STR_DISPLAY_Y_CTRL));
 	gtk_widget_show(l_display_y);
 	gtk_table_attach(GTK_TABLE(table), l_display_y, 0, 1, 3, 4, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
-	w_display_y = gtk_entry_new();
-	gtk_widget_show(w_display_y);
-	sprintf(str, "%d", dis_height);
-	gtk_entry_set_text(GTK_ENTRY(w_display_y), str); 
-	gtk_table_attach(GTK_TABLE(table), w_display_y, 1, 2, 3, 4, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
+	combo = gtk_combo_new();
+	gtk_widget_show(combo);
+	GList *glist2 = NULL;
+	glist2 = g_list_append(glist2, (char *)"384");
+	glist2 = g_list_append(glist2, (char *)"480");
+	glist2 = g_list_append(glist2, (char *)"600");
+	glist2 = g_list_append(glist2, (char *)"768");
+	glist2 = g_list_append(glist2, (char *)"MAX");
+	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist2);
+	if (dis_height)
+		sprintf(str, "%d", dis_height);
+	else
+		strcpy(str, "MAX");
+	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
+	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 3, 4, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
+	w_display_y = GTK_COMBO(combo)->entry;
 
 	make_checkbox(box, STR_NOSOUND_CTRL, "nosound", GTK_SIGNAL_FUNC(tb_nosound));
 
@@ -759,7 +777,7 @@ static GList *add_serial_names(void)
 	if (glist)
 		g_list_sort(glist, gl_str_cmp);
 	else
-		glist = g_list_append(glist, "<none>");
+		glist = g_list_append(glist, (char *)"<none>");
 	return glist;
 }
 
@@ -795,7 +813,7 @@ static GList *add_ether_names(void)
 	if (glist)
 		g_list_sort(glist, gl_str_cmp);
 	else
-		glist = g_list_append(glist, "<none>");
+		glist = g_list_append(glist, (char *)"<none>");
 	return glist;
 }
 
