@@ -86,6 +86,9 @@ const uint32 POWERPC_EXEC_RETURN = POWERPC_EMUL_OP | 1;
 // Enable multicore (main/interrupts) cpu emulation?
 #define MULTICORE_CPU (ASYNC_IRQ ? 1 : 0)
 
+// Enable interrupt routine safety checks?
+#define SAFE_INTERRUPT_PPC 1
+
 // Enable Execute68k() safety checks?
 #define SAFE_EXEC_68K 1
 
@@ -412,6 +415,17 @@ void sheepshaver_cpu::interrupt(uint32 entry)
 	const clock_t interrupt_start = clock();
 #endif
 
+#if SAFE_INTERRUPT_PPC
+	static int depth = 0;
+	if (depth != 0)
+		printf("FATAL: sheepshaver_cpu::interrupt() called more than once: %d\n", depth);
+	depth++;
+#endif
+#if SAFE_INTERRUPT_PPC >= 2
+	uint32 saved_regs[32];
+	memcpy(&saved_regs[0], &gpr(0), sizeof(saved_regs));
+#endif
+
 #if !MULTICORE_CPU
 	// Save program counters and branch registers
 	uint32 saved_pc = pc();
@@ -468,6 +482,14 @@ void sheepshaver_cpu::interrupt(uint32 entry)
 
 #if EMUL_TIME_STATS
 	interrupt_time += (clock() - interrupt_start);
+#endif
+
+#if SAFE_INTERRUPT_PPC >= 2
+	if (memcmp(&saved_regs[0], &gpr(0), sizeof(saved_regs)) != 0)
+		printf("FATAL: dirty PowerPC registers\n");
+#endif
+#if SAFE_INTERRUPT_PPC
+	depth--;
 #endif
 }
 
