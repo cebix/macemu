@@ -73,8 +73,8 @@ public:
 	friend class powerpc_dyngen_helper;
 
 	// Default constructor
-	powerpc_dyngen(dyngen_cpu_base cpu)
-		: basic_dyngen(cpu)
+	powerpc_dyngen(dyngen_cpu_base cpu, int cache_size = -1)
+		: basic_dyngen(cpu, cache_size)
 		{ }
 
 	// Load/store registers

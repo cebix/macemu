@@ -52,7 +52,7 @@ class basic_dyngen
 public:
 
 	// Constructor, parent CPU required
-	basic_dyngen(dyngen_cpu_base cpu);
+	basic_dyngen(dyngen_cpu_base cpu, int cache_size = -1);
 
 	// Return CPU context associated to this code generator
 	dyngen_cpu_base cpu() const

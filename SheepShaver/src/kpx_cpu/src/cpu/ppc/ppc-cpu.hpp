@@ -33,7 +33,7 @@
 #include <vector>
 
 class powerpc_cpu
-#ifndef PPC_NO_BASIC_CPU_BASE
+#ifndef SHEEPSHAVER
 	: public basic_cpu
 #endif
 {
@@ -200,10 +200,13 @@ private:
 	// Check special CPU flags
 	bool check_spcflags();
 
+	// Current execute() nested level
+	int execute_depth;
+
 public:
 
 	// Initialization & finalization
-#ifdef PPC_NO_BASIC_CPU_BASE
+#ifdef SHEEPSHAVER
 	powerpc_cpu()
 #if PPC_ENABLE_JIT
 		: codegen(this)
@@ -238,7 +241,7 @@ public:
 	void fake_dump_registers(uint32);
 
 	// Start emulation loop
-	void execute(uint32 entry, bool enable_cache = true);
+	void execute(uint32 entry);
 	void execute();
 
 	// Interrupts handling
@@ -311,7 +314,6 @@ private:
 	friend class powerpc_dyngen;
 	powerpc_dyngen codegen;
 	block_info *compile_block(uint32 entry);
-	powerpc_dyngen *codegen_ptr() { return &codegen; }
 #endif
 
 	// Semantic action templates

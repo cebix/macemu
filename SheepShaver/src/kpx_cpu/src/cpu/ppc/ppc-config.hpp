@@ -38,20 +38,6 @@
 
 
 /**
- *	PPC_NO_BASIC_CPU_BASE
- *
- *		Define to not inherit from basic_cpu, thus removing two
- *		vtables. Otherwise, access to registers require an extra
- *		offset from "this" because vtables are stored before other
- *		regular members.
- **/
-
-#ifndef PPC_NO_BASIC_CPU_BASE
-#undef  PPC_NO_BASIC_CPU_BASE
-#endif
-
-
-/**
  *	PPC_NO_STATIC_II_INDEX_TABLE
  *
  *		Define to make sure the ii_index_table[] is a non static
@@ -144,8 +130,7 @@
  *		Sanity checks and features enforcements
  **/
 
-#ifdef SHEEPSHAVER
-#define PPC_NO_BASIC_CPU_BASE
+#if KPX_MAX_CPUS == 1
 #undef PPC_NO_STATIC_II_INDEX_TABLE
 #endif
 

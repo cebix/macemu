@@ -28,8 +28,8 @@ int __op_jmp0, __op_jmp1;
 #define DEFINE_GEN(NAME,ARGS) void basic_dyngen::NAME ARGS
 #include "basic-dyngen-ops.hpp"
 
-basic_dyngen::basic_dyngen(dyngen_cpu_base cpu)
-	: parent_cpu(cpu)
+basic_dyngen::basic_dyngen(dyngen_cpu_base cpu, int cache_size)
+	: parent_cpu(cpu), basic_jit_cache(cache_size)
 {
 	execute_func = gen_start();
 	gen_op_execute();

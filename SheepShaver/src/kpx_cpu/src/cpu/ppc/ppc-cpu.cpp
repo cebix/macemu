@@ -225,6 +225,7 @@ void powerpc_cpu::initialize()
 	init_decoder();
 	init_registers();
 	init_decode_cache();
+	execute_depth = 0;
 
 	// Init cache range invalidate recorder
 	cache_range.start = cache_range.end = 0;
@@ -365,14 +366,16 @@ bool powerpc_cpu::check_spcflags()
 	return true;
 }
 
-void powerpc_cpu::execute(uint32 entry, bool enable_cache)
+
+void powerpc_cpu::execute(uint32 entry)
 {
 	pc() = entry;
 #if PPC_EXECUTE_DUMP_STATE
 	const bool dump_state = true;
 #endif
+	execute_depth++;
 #if PPC_ENABLE_JIT
-	if (enable_cache) {
+	if (execute_depth == 1) {
 		for (;;) {
 			block_info *bi = compile_block(pc());
 
@@ -382,7 +385,7 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 
 				if (!spcflags().empty()) {
 					if (!check_spcflags())
-						return;
+						goto return_site;
 
 					// Force redecoding if cache was invalidated
 					if (spcflags().test(SPCFLAG_JIT_EXEC_RETURN)) {
@@ -395,11 +398,11 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 					break;
 			}
 		}
-		return;
+		goto return_site;
 	}
 #endif
 #if PPC_DECODE_CACHE
-	if (enable_cache) {
+	if (execute_depth == 1) {
 		for (;;) {
 #if PPC_PROFILE_COMPILE_TIME
 			compile_count++;
@@ -474,7 +477,7 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 
 				if (!spcflags().empty()) {
 					if (!check_spcflags())
-						return;
+						goto return_site;
 
 					// Force redecoding if cache was invalidated
 					if (spcflags().test(SPCFLAG_JIT_EXEC_RETURN)) {
@@ -487,7 +490,7 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 					break;
 			}
 		}
-		return;
+		goto return_site;
 	}
 #endif
 	for (;;) {
@@ -508,8 +511,10 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 			dump_registers();
 #endif
 		if (!spcflags().empty() && !check_spcflags())
-			return;
+			goto return_site;
 	}
+  return_site:
+	--execute_depth;
 }
 
 void powerpc_cpu::execute()

@@ -28,10 +28,8 @@
 class basic_jit_cache
 {
 	// Default cache size (2 MB)
-public:
 	static const uint32 JIT_CACHE_SIZE = 2 * 1024 * 1024;
 	static const uint32 JIT_CACHE_SIZE_GUARD = 4096;
-private:
 	uint32 cache_size;
 
 	// Translation cache (allocated base, current pointer, end pointer)
@@ -43,7 +41,7 @@ private:
 protected:
 
 	// Initialize translation cache
-	bool init_translation_cache(uint32 size);
+	bool init_translation_cache(int size);
 	void kill_translation_cache();
 
 	// Initialize user code start
@@ -56,8 +54,8 @@ public:
 
 public:
 
-	// Default constructor & destructor
-	basic_jit_cache(uint32 init_cache_size = JIT_CACHE_SIZE);
+	// Default constructor & destructor (use default JIT_CACHE_SIZE)
+	basic_jit_cache(int init_cache_size = -1);
 	~basic_jit_cache();
 
 	// Invalidate translation cache

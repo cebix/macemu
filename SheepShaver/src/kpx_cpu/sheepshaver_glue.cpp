@@ -118,9 +118,6 @@ public:
 	uint32 get_cr() const		{ return cr().get(); }
 	void set_cr(uint32 v)		{ cr().set(v); }
 
-	// Execution loop
-	void execute(uint32 entry, bool enable_cache = false);
-
 	// Execute 68k routine
 	void execute_68k(uint32 entry, M68kRegisters *r);
 
@@ -242,12 +239,6 @@ void sheepshaver_cpu::execute_sheep(uint32 opcode)
 		break;
 	}
 	}
-}
-
-// Execution loop
-void sheepshaver_cpu::execute(uint32 entry, bool enable_cache)
-{
-	powerpc_cpu::execute(entry, enable_cache);
 }
 
 // Handle MacOS interrupt
@@ -686,7 +677,7 @@ void emul_ppc(uint32 entry)
 	current_cpu->start_log();
 #endif
 	// start emulation loop and enable code translation or caching
-	current_cpu->execute(entry, true);
+	current_cpu->execute(entry);
 }
 
 /*
