@@ -1,8 +1,8 @@
 # Makefile for creating Basilisk II distributions
 # Written in 1999 by Christian Bauer <Christian.Bauer@uni-mainz.de>
 
-VERSION := $(shell sed <BasiliskII.spec -n '/^Version: */s///p')
-RELEASE := $(shell sed <BasiliskII.spec -n '/^Release: */s///p')
+VERSION := $(shell sed <BasiliskII.spec -n '/^\%define ver */s///p')
+RELEASE := $(shell sed <BasiliskII.spec -n '/^\%define rel */s///p')
 VERNAME := BasiliskII-$(VERSION)
 
 SRCARCHIVE := $(shell date +BasiliskII_src_%d%m%Y.tar.gz)
