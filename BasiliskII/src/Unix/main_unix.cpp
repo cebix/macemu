@@ -803,7 +803,9 @@ struct B2_mutex {
 #if defined(HAVE_PTHREAD_MUTEXATTR_SETTYPE) && defined(PTHREAD_MUTEX_NORMAL)
 	    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);
 #endif
+#ifdef HAVE_PTHREAD_MUTEXATTR_SETPSHARED
 	    pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_PRIVATE);
+#endif
 	    pthread_mutex_init(&m, &attr);
 	    pthread_mutexattr_destroy(&attr);
 	}
