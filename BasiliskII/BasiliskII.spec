@@ -29,7 +29,7 @@ Some features of Basilisk II:
   - Uses UAE 68k emulation or (under AmigaOS) real 68k processor
 
 %prep
-%setup -n BasiliskII
+%setup
 
 %build
 cd src/Unix

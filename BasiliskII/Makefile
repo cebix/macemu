@@ -1,6 +1,8 @@
 # Makefile for creating Basilisk II distributions
 # Written in 1999 by Christian Bauer <Christian.Bauer@uni-mainz.de>
 
+VERSION = $(shell grep '^Version' <BasiliskII.spec | sed 's/Version: *//')
+
 SRCARCHIVE = $(shell date +BasiliskII_src_%d%m%Y.tar.gz)
 AMIGAARCHIVE = $(shell date +BasiliskII_amiga_%d%m%Y.lha)
 BEOSPPCARCHIVE = $(shell date +BasiliskII_beos_ppc_%d%m%Y.zip)
@@ -12,9 +14,9 @@ SRCS = src
 
 default:
 	@echo "This top-level Makefile is for creating Basilisk II distributions."
-	@echo "If you want to install Basilisk II on your system, please follow"
+	@echo "If you want to install Basilisk II V$(VERSION) on your system, please follow"
 	@echo "the instructions in the file INSTALL."
-	@echo "If you want to create a Basilisk II distribution, type \"make help\""
+	@echo "If you want to create a Basilisk II V$(VERSION) distribution, type \"make help\""
 	@echo "to get a list of possible targets."
 
 help:
@@ -35,7 +37,8 @@ $(SRCARCHIVE): $(SRCS) $(DOCS)
 	mkdir $(BUILDDIR)
 	cd $(BUILDDIR); cvs checkout BasiliskII
 	rm -rf $(BUILDDIR)/BasiliskII/src/powerrom_cpu	#not yet ready for distribution
-	cd $(BUILDDIR); tar cfz $@ BasiliskII
+	mv $(BUILDDIR)/BasiliskII $(BUILDDIR)/BasiliskII-$(VERSION)
+	cd $(BUILDDIR); tar cfz $@ BasiliskII-$(VERSION)
 	mv $(BUILDDIR)/$@ .
 	rm -rf $(BUILDDIR)
 
