@@ -915,6 +915,9 @@ static bool patch_nanokernel_boot(void)
 	lp = (uint32 *)(ROM_BASE + 0x3131f4);
 	if (ntohl(*lp) == 0x7e5f42a6)	// NewWorld ROM
 		*lp = htonl(0x82400000 + XLM_PVR);	// lwz	r18,(theoretical PVR)
+	lp = (uint32 *)(ROM_BASE + 0x314600);
+	if (ntohl(*lp) == 0x7d3f42a6)
+		*lp = htonl(0x81200000 + XLM_PVR);	// lzw  r9,(theoritical PVR)
 
 	// Don't read SDR1
 	static const uint32 sdr1_ofs[] = {0x174, 0x174, 0x174, 0x17c, 0x19c};
@@ -1120,7 +1123,7 @@ static bool patch_68k_emul(void)
 	*lp = htonl(0x4e800020);					// blr
 
 	// Extra routine for Reset/FC1E opcode
-	lp = (uint32 *)(ROM_BASE + 0x36fc00);
+	lp = (uint32 *)(ROM_BASE + 0x36fb00);
 	*lp++ = htonl(0x7c2903a6);					// mtctr	r1
 	*lp++ = htonl(0x80200000 + XLM_IRQ_NEST);	// lwz		r1,XLM_IRQ_NEST
 	*lp++ = htonl(0x38210001);					// addi		r1,r1,1
@@ -1141,7 +1144,7 @@ static bool patch_68k_emul(void)
 	*lp++ = htonl(0x80e10660);					// lwz		r7,$0660(r1)
 	*lp++ = htonl(0x7d8802a6);					// mflr		r12
 	*lp++ = htonl(0x50e74001);					// rlwimi.	r7,r7,8,$80000000
-	*lp++ = htonl(0x814105f4);					// lwz		r10,0x05f8(r1)
+	*lp++ = htonl(0x814105f8);					// lwz		r10,0x05f8(r1)
 	*lp++ = htonl(0x7d4803a6);					// mtlr		r10
 	*lp++ = htonl(0x7d8a6378);					// mr		r10,r12
 	*lp++ = htonl(0x3d600002);					// lis		r11,0x0002
@@ -1171,7 +1174,7 @@ static bool patch_68k_emul(void)
 	*lp++ = htonl(0x80e10660);					// lwz		r7,$0660(r1)
 	*lp++ = htonl(0x7d8802a6);					// mflr		r12
 	*lp++ = htonl(0x50e74001);					// rlwimi.	r7,r7,8,$80000000
-	*lp++ = htonl(0x814105f4);					// lwz		r10,0x05fc(r1)
+	*lp++ = htonl(0x814105fc);					// lwz		r10,0x05fc(r1)
 	*lp++ = htonl(0x7d4803a6);					// mtlr		r10
 	*lp++ = htonl(0x7d8a6378);					// mr		r10,r12
 	*lp++ = htonl(0x3d600002);					// lis		r11,0x0002
@@ -1338,7 +1341,7 @@ static bool patch_68k(void)
 	// Patch UniversalInfo
 	if (ROMType == ROMTYPE_NEWWORLD) {
 		static const uint8 univ_info_dat[] = {0x3f, 0xff, 0x04, 0x00};
-		if ((base = find_rom_data(0x14000, 0x16000, univ_info_dat, sizeof(univ_info_dat))) == 0) return false;
+		if ((base = find_rom_data(0x14000, 0x18000, univ_info_dat, sizeof(univ_info_dat))) == 0) return false;
 		D(bug("universal_info %08lx\n", base));
 		lp = (uint32 *)(ROM_BASE + base - 0x14);
 		lp[0x00 >> 2] = htonl(ADDR_MAP_PATCH_SPACE - (base - 0x14));
@@ -1716,14 +1719,14 @@ static bool patch_68k(void)
 
 	// Patch GetCPUSpeed (via 0x27a) (some ROMs have two of them)
 	static const uint8 cpu_speed_dat[] = {0x20, 0x30, 0x81, 0xf2, 0x5f, 0xff, 0xef, 0xd8, 0x00, 0x04, 0x4c, 0x7c};
-	if ((base = find_rom_data(0x6000, 0x9000, cpu_speed_dat, sizeof(cpu_speed_dat))) == 0) return false;
+	if ((base = find_rom_data(0x6000, 0xa000, cpu_speed_dat, sizeof(cpu_speed_dat))) == 0) return false;
 	D(bug("cpu_speed %08lx\n", base));
 	wp = (uint16 *)(ROM_BASE + base);
 	*wp++ = htons(0x203c);			// move.l	#(MHz<<16)|MHz,d0
 	*wp++ = htons(CPUClockSpeed / 1000000);
 	*wp++ = htons(CPUClockSpeed / 1000000);
 	*wp = htons(M68K_RTS);
-	if ((base = find_rom_data(base, 0x9000, cpu_speed_dat, sizeof(cpu_speed_dat))) != 0) {
+	if ((base = find_rom_data(base, 0xa000, cpu_speed_dat, sizeof(cpu_speed_dat))) != 0) {
 		D(bug("cpu_speed2 %08lx\n", base));
 		wp = (uint16 *)(ROM_BASE + base);
 		*wp++ = htons(0x203c);			// move.l	#(MHz<<16)|MHz,d0
@@ -2040,7 +2043,7 @@ static bool patch_68k(void)
 
 	if (ROMType == ROMTYPE_NEWWORLD) {
 		static const uint8 via_int3_dat[] = {0x48, 0xe7, 0xf0, 0xf0, 0x76, 0x01, 0x60, 0x26};
-		if ((base = find_rom_data(0x15000, 0x18000, via_int3_dat, sizeof(via_int3_dat))) == 0) return false;
+		if ((base = find_rom_data(0x15000, 0x19000, via_int3_dat, sizeof(via_int3_dat))) == 0) return false;
 		D(bug("via_int3 %08lx\n", base));
 		wp = (uint16 *)(ROM_BASE + base);	// CHRP level 1 handler
 		*wp++ = htons(M68K_JMP);
