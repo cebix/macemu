@@ -158,23 +158,26 @@ public:
 	void interrupt(uint32 entry);
 	void handle_interrupt();
 
-	// Lazy memory allocator (one item at a time)
-	void *operator new(size_t size)
-		{ return allocator_helper< sheepshaver_cpu, lazy_allocator >::allocate(); }
-	void operator delete(void *p)
-		{ allocator_helper< sheepshaver_cpu, lazy_allocator >::deallocate(p); }
-	// FIXME: really make surre array allocation fail at link time?
-	void *operator new[](size_t);
-	void operator delete[](void *p);
-
 	// Make sure the SIGSEGV handler can access CPU registers
 	friend sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
 };
 
-// FIXME: this specialization doesn't work with GCC
-// template<> lazy_allocator< sheepshaver_cpu > allocator_helper< sheepshaver_cpu, lazy_allocator >::allocator;
-template< class data_type, template< class > class allocator_type >
-allocator_type< data_type > allocator_helper< data_type, allocator_type >::allocator;
+// Memory allocator returning areas aligned on 16-byte boundaries
+void *operator new(size_t size)
+{
+	void *p;
+
+	/* XXX: try different approaches */
+	if (posix_memalign(&p, 16, size) != 0)
+		throw std::bad_alloc();
+
+	return p;
+}
+
+void operator delete(void *p)
+{
+	free(p);
+}
 
 sheepshaver_cpu::sheepshaver_cpu()
 	: powerpc_cpu(enable_jit_p())
