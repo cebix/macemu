@@ -3,7 +3,7 @@
 #   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
 #   Free Software Foundation, Inc.
 
-timestamp='2001-06-05'
+timestamp='2001-04-20'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ version="\
 GNU config.guess ($timestamp)
 
 Originally written by Per Bothner.
-Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 99, 2000
 Free Software Foundation, Inc.
 
 This is free software; see the source for copying conditions.  There is NO
@@ -883,27 +883,38 @@ EOF
 	# The BFD linker knows what the default object file format is, so
 	# first see if it will tell us. cd to the root directory to prevent
 	# problems with other programs or directories called `ld' in the path.
-	ld_supported_targets=`cd /; ld --help 2>&1 \
-			 | sed -ne '/supported targets:/!d
+	ld_supported_emulations=`cd /; ld --help 2>&1 \
+			 | sed -ne '/supported emulations:/!d
 				    s/[ 	][ 	]*/ /g
-				    s/.*supported targets: *//
+				    s/.*supported emulations: *//
 				    s/ .*//
 				    p'`
-        case "$ld_supported_targets" in
-	  elf32-i386)
+        case "$ld_supported_emulations" in
+	  i*86linux)
+		echo "${UNAME_MACHINE}-pc-linux-gnuaout"
+		exit 0
+		;;
+	  elf_i*86)
 		TENTATIVE="${UNAME_MACHINE}-pc-linux-gnu"
 		;;
-	  a.out-i386-linux)
-		echo "${UNAME_MACHINE}-pc-linux-gnuaout"
-		exit 0 ;;		
-	  coff-i386)
+	  i*86coff)
 		echo "${UNAME_MACHINE}-pc-linux-gnucoff"
-		exit 0 ;;
-	  "")
-		# Either a pre-BFD a.out linker (linux-gnuoldld) or
-		# one that does not give us useful --help.
-		echo "${UNAME_MACHINE}-pc-linux-gnuoldld"
-		exit 0 ;;
+		exit 0
+		;;
+	esac
+	# Either a pre-BFD a.out linker (linux-gnuoldld)
+	# or one that does not give us useful --help.
+	# GCC wants to distinguish between linux-gnuoldld and linux-gnuaout.
+	# If ld does not provide *any* "supported emulations:"
+	# that means it is gnuoldld.
+	test -z "$ld_supported_emulations" && echo "${UNAME_MACHINE}-pc-linux-gnuoldld" && exit 0
+	case "${UNAME_MACHINE}" in
+	i*86)
+	  VENDOR=pc;
+	  ;;
+	*)
+	  VENDOR=unknown;
+	  ;;
 	esac
 	# Determine whether the default compiler is a.out or elf
 	cat >$dummy.c <<EOF
@@ -917,15 +928,15 @@ EOF
 #ifdef __ELF__
 # ifdef __GLIBC__
 #  if __GLIBC__ >= 2
-    printf ("%s-pc-linux-gnu\n", argv[1]);
+    printf ("%s-${VENDOR}-linux-gnu\n", argv[1]);
 #  else
-    printf ("%s-pc-linux-gnulibc1\n", argv[1]);
+    printf ("%s-${VENDOR}-linux-gnulibc1\n", argv[1]);
 #  endif
 # else
-   printf ("%s-pc-linux-gnulibc1\n", argv[1]);
+   printf ("%s-${VENDOR}-linux-gnulibc1\n", argv[1]);
 # endif
 #else
-  printf ("%s-pc-linux-gnuaout\n", argv[1]);
+  printf ("%s-${VENDOR}-linux-gnuaout\n", argv[1]);
 #endif
   return 0;
 }
