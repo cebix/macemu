@@ -27,10 +27,12 @@
 %
 % Fields on a line: 
 % 16 chars bitpattern : 
-% CPU level / privildge level :
+% CPU level / privilege level :
 %   CPU level 0: 68000
 %             1: 68010
 %             2: 68020
+%             3: 68020/68881
+%             4: 68040
 %   privilege level 0: not privileged
 %                   1: unprivileged only on 68000 (check regs.s)
 %                   2: privileged                 (check regs.s)
@@ -239,4 +241,11 @@
 1111 0011 00ss sSSS:32:?????:?????:20: FSAVE    s[!Dreg,Areg,Aipi,Immd,PC8r,PC16]
 1111 0011 01ss sSSS:32:?????:?????:10: FRESTORE s[!Dreg,Areg,Apdi,Immd]
 
-1111 0000 00ss sSSS:40:?????:?????:11: MMUOP    #1,s
+% 68040 instructions
+1111 0100 ii00 1rrr:42:-----:-----:02: CINVL    #i,Ar
+1111 0100 ii01 0rrr:42:-----:-----:02: CINVP    #i,Ar
+1111 0100 ii01 1rrr:42:-----:-----:00: CINVA    #i
+1111 0100 ii10 1rrr:42:-----:-----:02: CPUSHL   #i,Ar
+1111 0100 ii11 0rrr:42:-----:-----:02: CPUSHP   #i,Ar
+1111 0100 ii11 1rrr:42:-----:-----:00: CPUSHA   #i
+1111 0110 0010 0rrr:40:-----:-----:12: MOVE16   ArP,ARP

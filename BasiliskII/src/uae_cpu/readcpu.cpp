@@ -130,6 +130,15 @@ struct mnemolookup lookuptab[] = {
     { i_FBcc, "FBcc" },
     { i_FSAVE, "FSAVE" },
     { i_FRESTORE, "FRESTORE" },
+
+    { i_CINVL, "CINVL" },
+    { i_CINVP, "CINVP" },
+    { i_CINVA, "CINVA" },
+    { i_CPUSHL, "CPUSHL" },
+    { i_CPUSHP, "CPUSHP" },
+    { i_CPUSHA, "CPUSHA" },
+    { i_MOVE16, "MOVE16" },
+
     { i_MMUOP, "MMUOP" },
     { i_ILLG, "" },
 };

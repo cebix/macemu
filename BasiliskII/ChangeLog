@@ -7,6 +7,7 @@ V0.8 -
 	- fixed one possible source of "unimplemented trap" errors on MacOS
 	  bootup
 	- medium removal is allowed in CDROMExit()
+	- added (incomplete) emulation of 68040 instructions
 	- extfs.cpp: fixed bug with fsResolveWDCB in fs_get_wd_info()
 	- Unix: added support for ESD audio output; merged with OSS audio
 	  and put in a new "audio_oss_esd.cpp" file which is also used under

@@ -156,7 +156,7 @@ int main(int argc, char **argv)
 		QuitEmulator();
 	}
 
-#if ENABLE_XF86_DGA
+#if ENABLE_XF86_DGA && !ENABLE_MON
 	// Fork out, so we can return from fullscreen mode when things get ugly
 	XF86DGAForkApp(DefaultScreen(x_display));
 #endif

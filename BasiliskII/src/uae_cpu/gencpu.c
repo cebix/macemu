@@ -59,7 +59,7 @@ static void read_counts (void)
     if (file) {
 	fscanf (file, "Total: %lu\n", &total);
 	while (fscanf (file, "%lx: %lu %s\n", &opcode, &count, name) == 3) {
-	    opcode_next_clev[nr] = 3;
+	    opcode_next_clev[nr] = 4;
 	    opcode_last_postfix[nr] = -1;
 	    opcode_map[nr++] = opcode;
 	    counts[opcode] = count;
@@ -72,7 +72,7 @@ static void read_counts (void)
 	if (table68k[opcode].handler == -1 && table68k[opcode].mnemo != i_ILLG
 	    && counts[opcode] == 0)
 	{
-	    opcode_next_clev[nr] = 3;
+	    opcode_next_clev[nr] = 4;
 	    opcode_last_postfix[nr] = -1;
 	    opcode_map[nr++] = opcode;
 	    counts[opcode] = count;
@@ -1517,6 +1517,8 @@ static void gen_opcode (unsigned long int opcode)
 	    printf ("\tif ((format & 0xF000) == 0x0000) { break; }\n");
 	    printf ("\telse if ((format & 0xF000) == 0x1000) { ; }\n");
 	    printf ("\telse if ((format & 0xF000) == 0x2000) { m68k_areg(regs, 7) += 4; break; }\n");
+	    printf ("\telse if ((format & 0xF000) == 0x3000) { m68k_areg(regs, 7) += 4; break; }\n");
+	    printf ("\telse if ((format & 0xF000) == 0x7000) { m68k_areg(regs, 7) += 52; break; }\n");
 	    printf ("\telse if ((format & 0xF000) == 0x8000) { m68k_areg(regs, 7) += 50; break; }\n");
 	    printf ("\telse if ((format & 0xF000) == 0x9000) { m68k_areg(regs, 7) += 12; break; }\n");
 	    printf ("\telse if ((format & 0xF000) == 0xa000) { m68k_areg(regs, 7) += 24; break; }\n");
@@ -2442,6 +2444,24 @@ static void gen_opcode (unsigned long int opcode)
 	swap_opcode ();
 	printf ("\tfrestore_opp(opcode);\n");
 	break;
+     case i_CINVL:
+     case i_CINVP:
+     case i_CINVA:
+     case i_CPUSHL:
+     case i_CPUSHP:
+     case i_CPUSHA:
+	break;
+     case i_MOVE16:
+	printf ("\tuaecptr mems = m68k_areg(regs, srcreg) & ~15, memd;\n");
+	printf ("\tdstreg = (%s >> 12) & 7;\n", gen_nextiword());
+	printf ("\tmemd = m68k_areg(regs, dstreg) & ~15;\n");
+	printf ("\tput_long(memd, get_long(mems));\n");
+	printf ("\tput_long(memd+4, get_long(mems+4));\n");
+	printf ("\tput_long(memd+8, get_long(mems+8));\n");
+	printf ("\tput_long(memd+12, get_long(mems+12));\n");
+	printf ("\tm68k_areg(regs, srcreg) += 16;\n");
+	printf ("\tm68k_areg(regs, dstreg) += 16;\n");
+	break;
      case i_MMUOP:
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0);
 	sync_m68k_pc ();
@@ -2620,9 +2640,9 @@ static void generate_func (void)
 
     using_prefetch = 0;
     using_exception_3 = 0;
-    for (i = 0; i < 5; i++) {
-	cpu_level = 3 - i;
-	if (i == 4) {
+    for (i = 0; i < 6; i++) {
+	cpu_level = 4 - i;
+	if (i == 5) {
 	    cpu_level = 0;
 	    using_prefetch = 1;
 	    using_exception_3 = 1;

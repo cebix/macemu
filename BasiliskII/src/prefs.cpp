@@ -49,12 +49,13 @@ prefs_desc common_prefs_items[] = {
 	{"serialb", TYPE_STRING, false},	// Device name of Mac serial port B (serial_*.cpp)
 	{"ether", TYPE_STRING, false},		// Device name of Mac ethernet adapter (ether_*.cpp)
 	{"rom", TYPE_STRING, false},		// Path of ROM file (main_*.cpp)
-	{"bootdrive", TYPE_INT16, false},	// Boot drive number (main_*.cpp)
-	{"bootdriver", TYPE_INT16, false},	// Boot driver number (main_*.cpp)
+	{"bootdrive", TYPE_INT16, false},	// Boot drive number (main.cpp)
+	{"bootdriver", TYPE_INT16, false},	// Boot driver number (main.cpp)
 	{"ramsize", TYPE_INT32, false},		// Size of Mac RAM in bytes (main_*.cpp)
 	{"frameskip", TYPE_INT32, false},	// Number of frames to skip in refreshed video modes (video_*.cpp)
 	{"modelid", TYPE_INT32, false},		// Mac Model ID (Gestalt Model ID minus 6) (rom_patches.cpp)
-	{"fpu", TYPE_BOOLEAN, false},		// Enable FPU emulation (main_*.cpp)
+	{"cpu", TYPE_INT32, false},			// CPU type (0 = 68000, 1 = 68010 etc.) (main.cpp)
+	{"fpu", TYPE_BOOLEAN, false},		// Enable FPU emulation (main.cpp)
 	{"nocdrom", TYPE_BOOLEAN, false},	// Don't install CD-ROM driver (cdrom.cpp/rom_patches.cpp)
 	{"nosound", TYPE_BOOLEAN, false},	// Don't enable sound output (audio_*.cpp)
 	{"nogui", TYPE_BOOLEAN, false},		// Disable GUI (main_*.cpp)
@@ -90,6 +91,7 @@ void PrefsInit(void)
 	PrefsAddInt32("ramsize", 8 * 1024 * 1024);
 	PrefsAddInt32("frameskip", 6);
 	PrefsAddInt32("modelid", 5);	// Mac IIci
+	PrefsAddInt32("cpu", 3);		// 68030
 	PrefsAddBool("fpu", false);
 	PrefsAddBool("nocdrom", false);
 	PrefsAddBool("nosound", false);

@@ -123,11 +123,23 @@ static void build_cpufunctbl (void)
 {
     int i;
     unsigned long opcode;
-	int cpu_level = (FPUType ? 3 : CPUType >= 2 ? 2 : CPUType == 1 ? 1 : 0);
-    struct cputbl *tbl = (cpu_level == 3 ? op_smalltbl_0
-			  : cpu_level == 2 ? op_smalltbl_1
-			  : cpu_level == 1 ? op_smalltbl_2
-			  : op_smalltbl_3);
+	int cpu_level = 0;		// 68000 (default)
+	if (CPUType == 4)
+		cpu_level = 4;		// 68040 with FPU
+	else {
+		if (FPUType)
+			cpu_level = 3;	// 68020 with FPU
+		else if (CPUType >= 2)
+			cpu_level = 2;	// 68020
+		else if (CPUType == 1)
+			cpu_level = 1;
+	}
+    struct cputbl *tbl = (
+		  cpu_level == 4 ? op_smalltbl_0
+		: cpu_level == 3 ? op_smalltbl_1
+		: cpu_level == 2 ? op_smalltbl_2
+		: cpu_level == 1 ? op_smalltbl_3
+		: op_smalltbl_4);
 
     for (opcode = 0; opcode < 65536; opcode++)
 	cpufunctbl[cft_map (opcode)] = op_illg_1;
@@ -710,7 +722,7 @@ static void Interrupt(int nr)
     regs.spcflags |= SPCFLAG_INT;
 }
 
-static int caar, cacr;
+static int caar, cacr, tc, itt0, itt1, dtt0, dtt1;
 
 void m68k_move2c (int regno, uae_u32 *regp)
 {
@@ -721,6 +733,11 @@ void m68k_move2c (int regno, uae_u32 *regp)
 	 case 0: regs.sfc = *regp & 7; break;
 	 case 1: regs.dfc = *regp & 7; break;
 	 case 2: cacr = *regp & 0x3; break;	/* ignore C and CE */
+	 case 3: tc = *regp & 0xc000; break;
+	 case 4: itt0 = *regp & 0xffffe364; break;
+	 case 5: itt1 = *regp & 0xffffe364; break;
+	 case 6: dtt0 = *regp & 0xffffe364; break;
+	 case 7: dtt1 = *regp & 0xffffe364; break;
 	 case 0x800: regs.usp = *regp; break;
 	 case 0x801: regs.vbr = *regp; break;
 	 case 0x802: caar = *regp &0xfc; break;
@@ -741,6 +758,11 @@ void m68k_movec2 (int regno, uae_u32 *regp)
 	 case 0: *regp = regs.sfc; break;
 	 case 1: *regp = regs.dfc; break;
 	 case 2: *regp = cacr; break;
+	 case 3: *regp = tc; break;
+	 case 4: *regp = itt0; break;
+	 case 5: *regp = itt1; break;
+	 case 6: *regp = dtt0; break;
+	 case 7: *regp = dtt1; break;
 	 case 0x800: *regp = regs.usp; break;
 	 case 0x801: *regp = regs.vbr; break;
 	 case 0x802: *regp = caar; break;
@@ -1070,6 +1092,7 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 	return 4;
     }
 
+printf("Illegal instruction %04x at %08lx\n", opcode, pc);	//!!
     if ((opcode & 0xF000) == 0xF000) {
 	Exception(0xB,0);
 	return 4;

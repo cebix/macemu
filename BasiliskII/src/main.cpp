@@ -79,13 +79,19 @@ bool InitAll(void)
 			TwentyFourBitAddressing = true;
 			break;
 		case ROM_VERSION_II:
-			CPUType = 2;
+			CPUType = PrefsFindInt32("cpu");
+			if (CPUType < 2) CPUType = 2;
+			if (CPUType > 4) CPUType = 4;
 			FPUType = PrefsFindBool("fpu") ? 1 : 0;
+			if (CPUType == 4) FPUType = 1;	// 68040 always with FPU
 			TwentyFourBitAddressing = true;
 			break;
 		case ROM_VERSION_32:
-			CPUType = 3;
+			CPUType = PrefsFindInt32("cpu");
+			if (CPUType < 2) CPUType = 2;
+			if (CPUType > 4) CPUType = 4;
 			FPUType = PrefsFindBool("fpu") ? 1 : 0;
+			if (CPUType == 4) FPUType = 1;	// 68040 always with FPU
 			TwentyFourBitAddressing = false;
 			break;
 	}

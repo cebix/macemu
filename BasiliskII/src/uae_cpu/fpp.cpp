@@ -71,6 +71,7 @@
 #include "memory.h"
 #include "readcpu.h"
 #include "newcpu.h"
+#include "main.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -1234,31 +1235,40 @@ void fsave_opp(uae_u32 opcode)
 		return;
   }
 	
-	// Put 28 byte IDLE frame.
-	// NOTE!!! IDLE frame is only 4 bytes on a 68040!!
-
-  if (incr < 0) {
-	  D(bug("fsave_opp pre-decrement\r\n"));
-		ad -= 4;
-		// What's this? Some BIU flags, or (incorrectly placed) command/condition?
-		put_long (ad, 0x70000000);
-		for (i = 0; i < 5; i++) {
-	    ad -= 4;
-	    put_long (ad, 0x00000000);
+	if (CPUType == 4) {
+		// Put 4 byte 68040 IDLE frame.
+		if (incr < 0) {
+			ad -= 4;
+			put_long (ad, 0x41000000);
+		} else {
+			put_long (ad, 0x41000000);
+			ad += 4;
 		}
-		ad -= 4;
-		put_long (ad, 0x1f180000); // IDLE, vers 1f
-  } else {
-		put_long (ad, 0x1f180000); // IDLE, vers 1f
-		ad += 4;
-		for (i = 0; i < 5; i++) {
-	    put_long (ad, 0x00000000);
-	    ad += 4;
-		}
-		// What's this? Some BIU flags, or (incorrectly placed) command/condition?
-		put_long (ad, 0x70000000);
-		ad += 4;
-  }
+	} else {
+		// Put 28 byte 68881 IDLE frame.
+	  if (incr < 0) {
+		  D(bug("fsave_opp pre-decrement\r\n"));
+			ad -= 4;
+			// What's this? Some BIU flags, or (incorrectly placed) command/condition?
+			put_long (ad, 0x70000000);
+			for (i = 0; i < 5; i++) {
+		    ad -= 4;
+		    put_long (ad, 0x00000000);
+			}
+			ad -= 4;
+			put_long (ad, 0x1f180000); // IDLE, vers 1f
+	  } else {
+			put_long (ad, 0x1f180000); // IDLE, vers 1f
+			ad += 4;
+			for (i = 0; i < 5; i++) {
+		    put_long (ad, 0x00000000);
+		    ad += 4;
+			}
+			// What's this? Some BIU flags, or (incorrectly placed) command/condition?
+			put_long (ad, 0x70000000);
+			ad += 4;
+	  }
+	}
   if ((opcode & 0x38) == 0x18) {
 		m68k_areg (regs, opcode & 7) = ad; // Never executed on a 68881
 	  D(bug("PROBLEM: fsave_opp post-increment\r\n"));
@@ -1269,7 +1279,7 @@ void fsave_opp(uae_u32 opcode)
 	}
 }
 
-// FSAVE has no pre-decrement
+// FRESTORE has no pre-decrement
 void frestore_opp(uae_u32 opcode)
 {
   uae_u32 ad;
@@ -1284,37 +1294,70 @@ void frestore_opp(uae_u32 opcode)
 		return;
   }
 
-  if (incr < 0) {
-
-	  D(bug("PROBLEM: frestore_opp incr < 0\r\n"));
-
-		// this may be wrong, but it's never called.
-		ad -= 4;
-		d = get_long (ad);
-		if ((d & 0xff000000) != 0) {
-	    if ((d & 0x00ff0000) == 0x00180000)
-				ad -= 6 * 4;
-	    else if ((d & 0x00ff0000) == 0x00380000)
-				ad -= 14 * 4;
-	    else if ((d & 0x00ff0000) == 0x00b40000)
-				ad -= 45 * 4;
+	if (CPUType == 4) {
+		// 68040
+		if (incr < 0) {
+		  D(bug("PROBLEM: frestore_opp incr < 0\r\n"));
+			// this may be wrong, but it's never called.
+			ad -= 4;
+			d = get_long (ad);
+			if ((d & 0xff000000) != 0) { // Not a NULL frame?
+				if ((d & 0x00ff0000) == 0) { // IDLE
+				  D(bug("frestore_opp found IDLE frame at %X\r\n",ad-4));
+				} else if ((d & 0x00ff0000) == 0x00300000) { // UNIMP
+				  D(bug("PROBLEM: frestore_opp found UNIMP frame at %X\r\n",ad-4));
+					ad -= 44;
+				} else if ((d & 0x00ff0000) == 0x00600000) { // BUSY
+				  D(bug("PROBLEM: frestore_opp found BUSY frame at %X\r\n",ad-4));
+					ad -= 92;
+				}
+			}
+		} else {
+			d = get_long (ad);
+		  D(bug("frestore_opp frame at %X = %X\r\n",ad,d));
+			ad += 4;
+			if ((d & 0xff000000) != 0) { // Not a NULL frame?
+				if ((d & 0x00ff0000) == 0) { // IDLE
+				  D(bug("frestore_opp found IDLE frame at %X\r\n",ad-4));
+				} else if ((d & 0x00ff0000) == 0x00300000) { // UNIMP
+				  D(bug("PROBLEM: frestore_opp found UNIMP frame at %X\r\n",ad-4));
+					ad += 44;
+				} else if ((d & 0x00ff0000) == 0x00600000) { // BUSY
+				  D(bug("PROBLEM: frestore_opp found BUSY frame at %X\r\n",ad-4));
+					ad += 92;
+				}
+			}
 		}
-  } else {
-		d = get_long (ad);
-
-	  D(bug("frestore_opp frame at %X = %X\r\n",ad,d));
-
-		ad += 4;
-		if ((d & 0xff000000) != 0) { // Not a NULL frame?
-	    if ((d & 0x00ff0000) == 0x00180000) { // IDLE
-			  D(bug("frestore_opp found IDLE frame at %X\r\n",ad-4));
-				ad += 6 * 4;
-	    } else if ((d & 0x00ff0000) == 0x00380000) {// UNIMP? shouldn't it be 3C?
-				ad += 14 * 4;
-			  D(bug("PROBLEM: frestore_opp found UNIMP? frame at %X\r\n",ad-4));
-	    } else if ((d & 0x00ff0000) == 0x00b40000) {// BUSY
-			  D(bug("PROBLEM: frestore_opp found BUSY frame at %X\r\n",ad-4));
-				ad += 45 * 4;
+	} else {
+		// 68881
+	  if (incr < 0) {
+		  D(bug("PROBLEM: frestore_opp incr < 0\r\n"));
+			// this may be wrong, but it's never called.
+			ad -= 4;
+			d = get_long (ad);
+			if ((d & 0xff000000) != 0) {
+		    if ((d & 0x00ff0000) == 0x00180000)
+					ad -= 6 * 4;
+		    else if ((d & 0x00ff0000) == 0x00380000)
+					ad -= 14 * 4;
+		    else if ((d & 0x00ff0000) == 0x00b40000)
+					ad -= 45 * 4;
+			}
+	  } else {
+			d = get_long (ad);
+		  D(bug("frestore_opp frame at %X = %X\r\n",ad,d));
+			ad += 4;
+			if ((d & 0xff000000) != 0) { // Not a NULL frame?
+		    if ((d & 0x00ff0000) == 0x00180000) { // IDLE
+				  D(bug("frestore_opp found IDLE frame at %X\r\n",ad-4));
+					ad += 6 * 4;
+		    } else if ((d & 0x00ff0000) == 0x00380000) {// UNIMP? shouldn't it be 3C?
+					ad += 14 * 4;
+				  D(bug("PROBLEM: frestore_opp found UNIMP? frame at %X\r\n",ad-4));
+		    } else if ((d & 0x00ff0000) == 0x00b40000) {// BUSY
+				  D(bug("PROBLEM: frestore_opp found BUSY frame at %X\r\n",ad-4));
+					ad += 45 * 4;
+				}
 			}
 		}
   }

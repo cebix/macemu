@@ -31,6 +31,7 @@ ENUMDECL {
     i_BFTST,i_BFEXTU,i_BFCHG,i_BFEXTS,i_BFCLR,i_BFFFO,i_BFSET,i_BFINS,
     i_PACK, i_UNPK, i_TAS, i_BKPT, i_CALLM, i_RTM, i_TRAPcc, i_MOVES,
     i_FPP, i_FDBcc, i_FScc, i_FTRAPcc, i_FBcc, i_FSAVE, i_FRESTORE,
+    i_CINVL, i_CINVP, i_CINVA, i_CPUSHL, i_CPUSHP, i_CPUSHA, i_MOVE16,
     i_MMUOP
 } ENUMNAME (instrmnem);
 

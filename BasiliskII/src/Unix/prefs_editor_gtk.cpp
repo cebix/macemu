@@ -933,11 +933,12 @@ static GtkWidget *w_keycode_file;
 static void mn_modelid_5(...) {PrefsReplaceInt32("modelid", 5);}
 static void mn_modelid_14(...) {PrefsReplaceInt32("modelid", 14);}
 
-// "FPU Emulation" button toggled
-static void tb_fpu(GtkWidget *widget)
-{
-	PrefsReplaceBool("fpu", GTK_TOGGLE_BUTTON(widget)->active);
-}
+// CPU/FPU type
+static void mn_cpu_68020(...) {PrefsReplaceInt32("cpu", 2); PrefsReplaceBool("fpu", false);}
+static void mn_cpu_68020_fpu(...) {PrefsReplaceInt32("cpu", 2); PrefsReplaceBool("fpu", true);}
+static void mn_cpu_68030(...) {PrefsReplaceInt32("cpu", 3); PrefsReplaceBool("fpu", false);}
+static void mn_cpu_68030_fpu(...) {PrefsReplaceInt32("cpu", 3); PrefsReplaceBool("fpu", true);}
+static void mn_cpu_68040(...) {PrefsReplaceInt32("cpu", 4); PrefsReplaceBool("fpu", true);}
 
 // "Use Raw Keycodes" button toggled
 static void tb_keycodes(GtkWidget *widget)
@@ -1008,7 +1009,7 @@ static void create_memory_pane(GtkWidget *top)
 	gtk_box_pack_start(GTK_BOX(hbox), vbox, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(box), hbox, FALSE, FALSE, 0);
 
-	static const opt_desc options[] = {
+	static const opt_desc model_options[] = {
 		{STR_MODELID_5_LAB, GTK_SIGNAL_FUNC(mn_modelid_5)},
 		{STR_MODELID_14_LAB, GTK_SIGNAL_FUNC(mn_modelid_14)},
 		{0, NULL}
@@ -1018,11 +1019,27 @@ static void create_memory_pane(GtkWidget *top)
 		case 5: active = 0; break;
 		case 14: active = 1; break;
 	}
-	menu = make_option_menu(box, STR_MODELID_CTRL, options, active);
+	make_option_menu(box, STR_MODELID_CTRL, model_options, active);
+
+	static const opt_desc cpu_options[] = {
+		{STR_CPU_68020_LAB, GTK_SIGNAL_FUNC(mn_cpu_68020)},
+		{STR_CPU_68020_FPU_LAB, GTK_SIGNAL_FUNC(mn_cpu_68020_fpu)},
+		{STR_CPU_68030_LAB, GTK_SIGNAL_FUNC(mn_cpu_68030)},
+		{STR_CPU_68030_FPU_LAB, GTK_SIGNAL_FUNC(mn_cpu_68030_fpu)},
+		{STR_CPU_68040_LAB, GTK_SIGNAL_FUNC(mn_cpu_68040)},
+		{0, NULL}
+	};
+	int cpu = PrefsFindInt32("cpu");
+	bool fpu = PrefsFindBool("fpu");
+	active = 0;
+	switch (cpu) {
+		case 2: active = fpu ? 1 : 0; break;
+		case 3: active = fpu ? 3 : 2; break;
+		case 4: active = 4;
+	}
+	make_option_menu(box, STR_CPU_CTRL, cpu_options, active);
 
 	w_rom_file = make_entry(box, STR_ROM_FILE_CTRL, "rom");
-
-	make_checkbox(box, STR_FPU_CTRL, "fpu", GTK_SIGNAL_FUNC(tb_fpu));
 
 	make_checkbox(box, STR_KEYCODES_CTRL, "keycodes", GTK_SIGNAL_FUNC(tb_keycodes));
 	w_keycode_file = make_entry(box, STR_KEYCODE_FILE_CTRL, "keycodefile");
