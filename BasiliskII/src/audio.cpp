@@ -48,6 +48,16 @@ bool AudioAvailable = false;		// Flag: audio output available (from the software
 
 
 /*
+ *  Reset audio emulation
+ */
+
+void AudioReset(void)
+{
+	audio_data = 0;
+}
+
+
+/*
  *  Get audio info
  */
 

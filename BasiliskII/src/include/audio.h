@@ -28,6 +28,7 @@ extern bool AudioAvailable;		// Flag: audio output available (from the software 
 // System specific and internal functions/data
 extern void AudioInit(void);
 extern void AudioExit(void);
+extern void AudioReset(void);
 
 extern void AudioInterrupt(void);
 

@@ -84,6 +84,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			D(bug("*** RESET ***\n"));
 			TimerReset();
 			EtherReset();
+			AudioReset();
 
 			// Create BootGlobs at top of memory
 			Mac_memset(RAMBaseMac + RAMSize - 4096, 0, 4096);
