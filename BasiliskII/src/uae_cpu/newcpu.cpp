@@ -1092,13 +1092,13 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 	return 4;
     }
 
-printf("Illegal instruction %04x at %08lx\n", opcode, pc);	//!!
+    write_log ("Illegal instruction: %04x at %08lx\n", opcode, pc);
+
     if ((opcode & 0xF000) == 0xF000) {
 	Exception(0xB,0);
 	return 4;
     }
 
-    write_log ("Illegal instruction: %04x at %08lx\n", opcode, pc);
     Exception (4,0);
     return 4;
 }
