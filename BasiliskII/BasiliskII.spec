@@ -1,9 +1,9 @@
 Summary:   A free, portable Mac II emulator
 Name:      BasiliskII
-Version:   0.7
-Release:   2
+Version:   0.8
+Release:   1
 URL:       http://www.uni-mainz.de/~bauec002/B2Main.html
-Source:    BasiliskII_src_06101999.tar.gz
+Source:    BasiliskII_src_21101999.tar.gz
 Copyright: GPL
 Group:     Applications/Emulators
 Packager:  Christian Bauer <Christian.Bauer@uni-mainz.de>
@@ -22,6 +22,8 @@ Some features of Basilisk II:
   - Floppy disk driver (only 1.44MB disks supported)
   - Driver for HFS partitions and hardfiles
   - CD-ROM driver with basic audio functions
+  - Easy file exchange with the host OS via a "Host Directory Tree" icon
+    on the Mac desktop
   - Ethernet driver
   - Serial drivers
   - SCSI Manager (old-style) emulation

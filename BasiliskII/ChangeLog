@@ -1,4 +1,4 @@
-V0.7 -
+V0.8 (snapshot) - 21.Oct.1999
 	- sony.cpp/disk.cpp/cdrom.cpp: disk insertions are now checked for
 	  by an interrupt routine
 	- localizable strings are now split into a common and a platform-

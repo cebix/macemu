@@ -239,6 +239,7 @@ which are relatively independent from each other:
  - floppy driver ("sony.cpp")
  - disk driver ("disk.cpp")
  - CD-ROM driver ("cdrom.cpp")
+ - external file system ("extfs.cpp")
  - serial drivers ("serial.cpp")
  - Ethernet driver ("ether.cpp")
  - system-dependant device access ("sys_*.cpp")
@@ -380,7 +381,19 @@ MacOS floppy driver comes from the fact that the 3.5" floppy drive in the first
 Mac models was custom-built for Apple by Sony (this was one of the first
 applications of the 3.5" floppy format which was also invented by Sony).
 
-6.10. Serial drivers
+6.10. External file system
+--------------------------
+
+Basilisk II also provides a method for accessing files and direcories on the
+host OS from the MacOS side by means of an "external" file system (henceforth
+called "ExtFS"). The ExtFS is built upon the File System Manager 1.2 interface
+that is built into MacOS 7.6 (and later) and available as a system extension
+for earlier MacOS versions. Unlike other parts of Basilisk II, extfs.cpp
+requires POSIX file I/O and this is not going to change any time soon, so if
+you are porting Basilisk II to a system without POSIX file functions, you
+should emulate them.
+
+6.11. Serial drivers
 --------------------
 
 Similar to the disk drivers, Basilisk II contains replacement serial drivers
@@ -404,7 +417,7 @@ install a Deferred Task to do the job. The Deferred Task will be called by
 MacOS when it returns to interrupt level 0. This mechanism sounds complicated
 but is necessary to ensure stable operation of the serial driver.
 
-6.11. Ethernet driver
+6.12. Ethernet driver
 ---------------------
 
 A driver for Ethernet networking is also contained in the NuBus slot ROM.
@@ -474,7 +487,7 @@ of what happens upon reception of a packet:
 
 For a more detailed description of the Ethernet driver, see "Inside AppleTalk".
 
-6.12. System-dependant device access
+6.13. System-dependant device access
 ------------------------------------
 
 The method for accessing floppy drives, hard disks, CD-ROM drives and files
@@ -483,14 +496,15 @@ portable, all device I/O is made via the functions declared in "sys.h" and
 implemented by the (system-dependant) "sys_*.cpp" modules which provides a
 standard, Unix-like interface to all kinds of devices.
 
-6.13. User interface strings
+6.14. User interface strings
 ----------------------------
 
 To aid in localization, all user interface strings of Basilisk II are collected
-in "user_strings.cpp" and accessed via the GetString() function. This way,
-Basilisk II may be easily translated to different languages.
+in "user_strings.cpp" (for common strings) and "user_strings_*.cpp" (for
+platform-specific strings), and accessed via the GetString() function. This
+way, Basilisk II may be easily translated to different languages.
 
-6.14. Preferences management
+6.15. Preferences management
 ----------------------------
 
 The module "prefs.cpp" handles user preferences in a system-independant way.

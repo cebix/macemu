@@ -22,8 +22,8 @@
 #define VERSION_H
 
 const int VERSION_MAJOR = 0;
-const int VERSION_MINOR = 7;
+const int VERSION_MINOR = 8;
 
-#define VERSION_STRING "Basilisk II V0.7"
+#define VERSION_STRING "Basilisk II V0.8"
 
 #endif

@@ -1,5 +1,5 @@
 
-	Basilisk II, Version 0.7
+	Basilisk II, Version 0.8
 	A free, portable Mac II emulator
 
 	Copyright (C) 1997-1999 Christian Bauer et al.
@@ -35,6 +35,8 @@ Some features of Basilisk II:
   - Floppy disk driver (only 1.44MB disks supported)
   - Driver for HFS partitions and hardfiles
   - CD-ROM driver with basic audio functions
+  - Easy file exchange with the host OS via a "Host Directory Tree" icon
+    on the Mac desktop
   - Ethernet driver
   - Serial drivers
   - SCSI Manager (old-style) emulation
@@ -137,6 +139,16 @@ cdrom <CD-ROM drive description>
   installed CD-ROM drives. The format of the "CD-ROM drive description"
   is the same as that of "disk" lines.
 
+extfs <direcory path>
+
+  This item specifies the root directory for the "Host Directory Tree"
+  file system (the "Unix/BeOS/Amiga/..." icon on the Finder desktop).
+  All objects contained in that directory are accessible by Mac applications.
+  This feature is only available when File System Manager V1.2 or later
+  is installed on the Mac side. FSM 1.2 is built-in beginning with MacOS 7.6
+  and can be installed as a system extension (downloadable from Apple, look
+  for the FSM SDK in the developer section) for earlier MacOS versions.
+
 scsi0 <SCSI target> ... scsi6 <SCSI target>
 
   These items describe the SCSI target to be used for a given Mac SCSI
@@ -198,12 +210,19 @@ screen <video mode>
         (8/15/24 bit) depends on the depth of the underlying X11 screen.
         This is the default.
       dga/<width>/<height>
-        Full-screen display using the X11 DGA extensions. The color depth
+        [if Basilisk II was configured with --enable-xf86-dga]
+        Full-screen display using the XFree86 DGA extension. The color depth
         (8/15/24 bit) depends on the depth of the underlying X11 screen.
         "width" and "height" specify the maximum width/height to use.
-        Saying "dga/0/0" means "complete screen". For DGA to work, Basilisk II
-        must be compiled with DGA support enabled (selectable in the configure
-        script).
+        Saying "dga/0/0" means "complete screen".
+      dga/<frame buffer name>
+        [if Basilisk II was configured with --enable-fbdev-dga]
+        Full-screen display using the frame buffer device /dev/fb. The color
+        depth (8/15/24 bit) depends on the depth of the underlying X11 screen.
+        The "frame buffer name" is looked up in the "fbdevices" file (whose
+        path can be specified with the "fbdevicefile" prefs item) to determine
+        certain characteristics of the device (doing a "ls -l /dev/fb" should
+        tell you what your frame buffer name is).
 
   AmigaOS:
     The "video mode" is one of the following:
@@ -414,7 +433,7 @@ System-specific configuration
 Unix:
 
   keycodes <"true" or "false">
-  keycodefile <Keycode file path>
+  keycodefile <keycodes file path>
 
     By default, the X11 event handler in Basilisk II uses KeySyms to
     translate keyboard event to Mac keycodes. While this method is very
@@ -425,10 +444,17 @@ Unix:
     not on the selected keymap. Unfortunately it depends on the X server
     being used and possibly also on the type of keyboard attached. So
     Basilisk II needs a table to translate X keycodes to Mac keycodes.
-    This table is read by default from /usr/local/lib/basilisk_ii_keycodes
+    This table is read by default from /usr/local/share/BasiliskII/keycodes
     unless you specify a different file with the "keycodefile" item.
-    A sample keycode file ("basilisk_ii_keycodes") is included with
-    Basilisk II.
+    A sample keycode file is included with Basilisk II.
+
+  fbdevicefile <fbdevices file path>
+
+    This option specifies the file that contains frame buffer device
+    specifications for the fbdev-DGA video mode (when Basilisk II was
+    configured with --enable-fbdev-dga). The default location of the file
+    is /usr/local/share/BasiliskII/fbdevices. A sample file is included
+    with Basilisk II.
 
 AmigaOS:
 
