@@ -6,6 +6,10 @@ AC_CONFIG_SRCDIR(main_unix.cpp)
 AC_PREREQ(2.52)
 AC_CONFIG_HEADER(config.h)
 
+dnl Aliases for PACKAGE and VERSION macros.
+AC_DEFINE(PACKAGE, PACKAGE_NAME, [Alias to PACKAGE for i18n.])
+AC_DEFINE(VERSION, PACKAGE_VERSION, [Alias to VERSION for i18n.])
+
 dnl Video options.
 AC_ARG_ENABLE(xf86-dga,      [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(xf86-vidmode,  [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
