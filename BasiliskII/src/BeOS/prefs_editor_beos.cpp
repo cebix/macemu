@@ -302,7 +302,7 @@ PrefsWindow::PrefsWindow(uint32 msg) : BWindow(BRect(0, 0, 400, 289), GetString(
 	bar->AddItem(menu);
 	AddChild(bar);
 	SetKeyMenuBar(bar);
-	int mbar_height = bar->Bounds().bottom + 1;
+	int mbar_height = int(bar->Bounds().bottom) + 1;
 
 	// Resize window to fit menu bar
 	ResizeBy(0, mbar_height);
