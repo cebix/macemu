@@ -378,7 +378,11 @@ static NSPoint	mouse;			// Previous/current mouse location
 
 - (BOOL) processMouseMove: (NSEvent *) event
 {
-	NSPoint location;
+	if ( ! drawView )
+	{
+		D(NSLog(@"Unable to process event - Emulator has not started yet"));
+		return NO;
+	}
 
 	if ( fullScreen )
 	{
@@ -386,7 +390,7 @@ static NSPoint	mouse;			// Previous/current mouse location
 		return YES;
 	}
 
-	location = [self convertPoint: [event locationInWindow] fromView:nil];
+	NSPoint location = [self convertPoint: [event locationInWindow] fromView:nil];
 
 	D(NSLog (@"%s - loc.x=%f, loc.y=%f",
 				__PRETTY_FUNCTION__, location.x, location.y));
