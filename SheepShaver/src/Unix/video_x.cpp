@@ -1,7 +1,7 @@
 /*
  *  video_x.cpp - Video/graphics emulation, X11 specific stuff
  *
- *  SheepShaver (C) 1997-2003 Marc Hellwig and Christian Bauer
+ *  SheepShaver (C) 1997-2004 Marc Hellwig and Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

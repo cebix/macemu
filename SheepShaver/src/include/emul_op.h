@@ -1,7 +1,7 @@
 /*
  *  emul_op.h - 68k opcodes for ROM patches
  *
- *  SheepShaver (C) 1997-2002 Christian Bauer and Marc Hellwig
+ *  SheepShaver (C) 1997-2004 Christian Bauer and Marc Hellwig
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

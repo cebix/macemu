@@ -1,7 +1,7 @@
 /*
  *  prefs_editor_linux.cpp - Preferences editor, Linux implementation using GTK+
  *
- *  SheepShaver (C) 1997-2002 Christian Bauer and Marc Hellwig
+ *  SheepShaver (C) 1997-2004 Christian Bauer and Marc Hellwig
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -245,7 +245,7 @@ static void mn_about(...)
 	char str[512];
 	sprintf(str,
 		"SheepShaver\nVersion %d.%d\n\n"
-		"Copyright (C) 1997-2002 Christian Bauer and Marc Hellwig\n"
+		"Copyright (C) 1997-2004 Christian Bauer and Marc Hellwig\n"
 		"E-mail: Christian.Bauer@uni-mainz.de\n"
 		"http://www.uni-mainz.de/~bauec002/\n\n"
 		"SheepShaver comes with ABSOLUTELY NO\n"

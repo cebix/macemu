@@ -1,7 +1,7 @@
 /*
  *  about_window_beos.cpp - "About" window, BeOS implementation
  *
- *  SheepShaver (C) 1997-2002 Christian Bauer and Marc Hellwig
+ *  SheepShaver (C) 1997-2004 Christian Bauer and Marc Hellwig
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -122,7 +122,7 @@ public:
 		MovePenTo(20, 40);
 		DrawString(GetString(STR_ABOUT_TEXT2));
 		MovePenTo(20, 60);
-		DrawString(B_UTF8_COPYRIGHT "1997-2002 Christian Bauer and Marc Hellwig");
+		DrawString(B_UTF8_COPYRIGHT "1997-2004 Christian Bauer and Marc Hellwig");
 	}
 
 	virtual void MouseDown(BPoint point)
