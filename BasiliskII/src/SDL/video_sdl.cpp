@@ -342,15 +342,58 @@ static int sdl_depth_of_video_depth(int video_depth)
 	return depth;
 }
 
+// Check wether specified mode is available
+static bool has_mode(int type, int width, int height)
+{
+	// FIXME: no fullscreen support yet
+	if (type == DISPLAY_SCREEN)
+		return false;
+
+#ifdef SHEEPSHAVER
+	// Filter out Classic resolutiosn
+	if (width == 512 && height == 384)
+		return false;
+
+	// Read window modes prefs
+	static uint32 window_modes = 0;
+	static uint32 screen_modes = 0;
+	if (window_modes == 0 || screen_modes == 0) {
+		window_modes = PrefsFindInt32("windowmodes");
+		screen_modes = PrefsFindInt32("screenmodes");
+		if (window_modes == 0 || screen_modes == 0)
+			window_modes |= 3;			// Allow at least 640x480 and 800x600 window modes
+	}
+
+	if (type == DISPLAY_WINDOW) {
+		int apple_mask, apple_id = find_apple_resolution(width, height);
+		switch (apple_id) {
+		case APPLE_640x480:		apple_mask = 0x01; break;
+		case APPLE_800x600:		apple_mask = 0x02; break;
+		case APPLE_1024x768:	apple_mask = 0x04; break;
+		case APPLE_1152x768:	apple_mask = 0x40; break;
+		case APPLE_1152x900:	apple_mask = 0x08; break;
+		case APPLE_1280x1024:	apple_mask = 0x10; break;
+		case APPLE_1600x1200:	apple_mask = 0x20; break;
+		default:				apple_mask = 0x00; break;
+		}
+		return (window_modes & apple_mask);
+	}
+#else
+	return true;
+#endif
+	return false;
+}
+
 // Add mode to list of supported modes
 static void add_mode(int type, int width, int height, int resolution_id, int bytes_per_row, int depth)
 {
-	VIDEO_MODE mode;
-#ifdef SHEEPSHAVER
-	// Don't add 512x384 modes
-	if (width == 512 && height == 384)
+	// Filter out unsupported modes
+	if (!has_mode(type, width, height))
 		return;
 
+	// Fill in VideoMode entry
+	VIDEO_MODE mode;
+#ifdef SHEEPSHAVER
 	// Recalculate dimensions to fit Apple modes
 	resolution_id = match_apple_resolution(width, height);
 	mode.viType = type;
@@ -748,6 +791,10 @@ bool SDL_monitor_desc::video_open(void)
 {
 	D(bug("video_open()\n"));
 	const VIDEO_MODE &mode = get_current_mode();
+#if DEBUG
+	D(bug("Current video mode:\n"));
+	D(bug(" %dx%d (ID %02x), %d bpp\n", VIDEO_MODE_X, VIDEO_MODE_Y, VIDEO_MODE_RESOLUTION, 1 << (VIDEO_MODE_DEPTH & 0x0f)));
+#endif
 
 	// Create display driver object of requested type
 	switch (display_type) {
@@ -820,11 +867,13 @@ bool VideoInit(bool classic)
 	mouse_wheel_lines = PrefsFindInt32("mousewheellines");
 
 	// Get screen mode from preferences
-	const char *mode_str;
+	const char *mode_str = NULL;
+#ifndef SHEEPSHAVER
 	if (classic_mode)
 		mode_str = "win/512/342";
 	else
 		mode_str = PrefsFindString("screen");
+#endif
 
 	// Determine display type and default dimensions
 	int default_width, default_height;
@@ -842,12 +891,14 @@ bool VideoInit(bool classic)
 			display_type = DISPLAY_WINDOW;
 	}
 	int max_width = 640, max_height = 480;
-	if (display_type == DISPLAY_SCREEN) {
-		SDL_Rect **modes = SDL_ListModes(NULL, SDL_FULLSCREEN | SDL_HWSURFACE);
-		if (modes && modes != (SDL_Rect **)-1) {
-			max_width = modes[0]->w;
-			max_height = modes[0]->h;
-		}
+	SDL_Rect **modes = SDL_ListModes(NULL, SDL_FULLSCREEN | SDL_HWSURFACE);
+	if (modes && modes != (SDL_Rect **)-1) {
+		max_width = modes[0]->w;
+		max_height = modes[0]->h;
+		if (default_width > max_width)
+			default_width = max_width;
+		if (default_height > max_height)
+			default_height = max_height;
 	}
 	if (default_width <= 0)
 		default_width = max_width;
@@ -914,12 +965,14 @@ bool VideoInit(bool classic)
 	}
 
 #ifdef SHEEPSHAVER
-	for (int i = 0; i < VideoModes.size(); ++i)
+	for (int i = 0; i < VideoModes.size(); i++)
 		VModes[i] = VideoModes[i];
-
-	const VIDEO_MODE & mode = VideoModes[cur_mode];
-	D(bug("Current video mode\n"));
-	D(bug(" %dx%d (ID %02x), %d bpp\n", VIDEO_MODE_X, VIDEO_MODE_Y, VIDEO_MODE_RESOLUTION, 1 << (VIDEO_MODE_DEPTH - 0x80)));
+	VideoInfo *p = &VModes[VideoModes.size()];
+	p->viType = DIS_INVALID;        // End marker
+	p->viRowBytes = 0;
+	p->viXsize = p->viYsize = 0;
+	p->viAppleMode = 0;
+	p->viAppleID = 0;
 #endif
 
 #if DEBUG
