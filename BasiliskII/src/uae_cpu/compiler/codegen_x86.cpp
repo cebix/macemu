@@ -7,6 +7,8 @@
  *    Gwenole Beauchesne
  *
  *  Basilisk II (C) 1997-2002 Christian Bauer
+ *
+ *  Portions related to CPU detection come from linux/arch/i386/kernel/setup.c
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
