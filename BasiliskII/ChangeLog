@@ -22,6 +22,8 @@ V0.8 (snapshot) - <date>
 	- include/macos_util.h: defines FOURCC() macro to make MacOS-like
 	  four-character-codes, replaced most instances of multi-character
 	  constants in the sources by this macro to avoid compiler warnings
+	- cdrom.cpp: implemented Status(6) call (return format list)
+	  [Landon Fuller]
 	- Imported some changes from the Windows port, most notably FPU fixes
 	  and the 1Hz interrupt [Lauri Pesonen]
 	- Ported Lauri Pesonen's FPU core to GCC/i386 [Gwenole Beauchesne]

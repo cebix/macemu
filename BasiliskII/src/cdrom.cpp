@@ -917,6 +917,16 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 
 	// Drive-specific codes
 	switch (code) {
+		case 6:			// Return format list
+			if (ReadMacInt16(pb + csParam) > 0) {
+				uint32 adr = ReadMacInt32(pb + csParam + 2);
+				WriteMacInt16(pb + csParam, 1);						// 1 format
+				WriteMacInt32(adr, SysGetFileSize(info->fh) / 512);	// Number of blocks
+				WriteMacInt32(adr + 4, 0);							// heads/track/sectors
+				return noErr;
+			} else
+				return paramErr;
+
 		case 8:			// DriveStatus
 			Mac2Mac_memcpy(pb + csParam, info->status, 22);
 			return noErr;
