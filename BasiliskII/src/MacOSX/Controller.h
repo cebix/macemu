@@ -26,7 +26,6 @@
 // If the application supports multiple windows, define this:
 // #define ENABLE_MULTIPLE
 
-//@interface Controller : NSObject
 @interface Controller : NSApplication
 {
 #ifdef ENABLE_MULTIPLE
@@ -48,6 +47,7 @@
 - (IBAction) TerminateAll:	(id)sender;
 #endif
 
+- (BOOL)  isAnyEmulatorDisplayingSheets;
 - (BOOL)  isAnyEmulatorRunning;
 - (short) emulatorCreatedCount;		// If any emulator environments have been setup, count how many
 

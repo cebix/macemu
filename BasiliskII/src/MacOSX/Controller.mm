@@ -66,14 +66,19 @@
 
 - (void) sendEvent: (NSEvent *)event;
 {
-	NSEventType	type = [event type];
-
-	if ( type == NSKeyUp || type == NSKeyDown || type == NSFlagsChanged )
-		[self dispatchKeyEvent: event
-						  type: type];
+	if ( [self isAnyEmulatorDisplayingSheets] || ! [self isAnyEmulatorRunning] )
+		[super sendEvent: event];
 	else
-		[self dispatchEvent:	event
-					   type:	type];
+	{
+		NSEventType	type = [event type];
+
+		if ( type == NSKeyUp || type == NSKeyDown || type == NSFlagsChanged )
+			[self dispatchKeyEvent: event
+							  type: type];
+		else
+			[self dispatchEvent: event
+						   type: type];
+	}
 }
 
 // NSApplication methods which are invoked through delegation
@@ -144,18 +149,22 @@
 	for ( tmp = 0; tmp < [emulators count], ++tmp )
 	{
 		theEmulator = [emulators objectAtIndex: tmp];
-		if ( [ theEmulator isRunning ] && [[theEmulator window] isKeyWindow ] )
+		view = [theEmulator screen];
+
+		if ( [ theEmulator isRunning ] &&
+				( [[theEmulator window] isKeyWindow] || [view isFullScreen] ) )
 			break;
 	}
 	
 	if ( tmp < [emulators count] )		// i.e. if we exited the for loop
 #else
-	if ( FULLSCREEN ||
-		[theEmulator isRunning] && [[theEmulator window] isKeyWindow ] )
+	view = [theEmulator screen];
+
+	if ( [theEmulator isRunning] &&
+				( [[theEmulator window] isKeyWindow] || [view isFullScreen] ) )
 #endif
 	{
-		view = [theEmulator screen];
-NSLog(@"Got a key event - %d\n", [event keyCode]);
+		D(NSLog(@"Got a key event - %d\n", [event keyCode]));
 		switch ( type )
 		{
 			case NSKeyUp:
@@ -182,6 +191,8 @@ NSLog(@"Got a key event - %d\n", [event keyCode]);
 - (void) dispatchEvent: (NSEvent *)event
 				  type: (NSEventType)type				
 {
+	EmulatorView	*view;
+
 #ifdef ENABLE_MULTIPLE
 	// We need to work out what window's Emulator should receive these messages
 
@@ -191,20 +202,22 @@ NSLog(@"Got a key event - %d\n", [event keyCode]);
 	for ( tmp = 0; tmp < [emulators count], ++tmp )
 	{
 		theEmulator = [emulators objectAtIndex: tmp];
-		if ( [ theEmulator isRunning ] &&  [[theEmulator window] isMainWindow ] )
+		view = [theEmulator screen];
+
+		if ( [theEmulator isRunning] &&
+				( [[theEmulator window] isMainWindow] || [view isFullScreen] ) )
 			break;
 	}
 	
 	if ( tmp < [emulators count] )		// i.e. if we exited the for loop
 #else
-	if ( FULLSCREEN ||
-		( [theEmulator isRunning] && [[theEmulator window] isMainWindow ] ) )
+	view = [theEmulator screen];
+
+	if ( [theEmulator isRunning] &&
+				( [[theEmulator window] isMainWindow] || [view isFullScreen] ) )
 #endif
 	{
-		EmulatorView	*view = [theEmulator screen];
-
-//		if ( [view mouseInView] )
-		if ( [view mouseInView: event] || FULLSCREEN )
+		if ( [view mouseInView: event] )
 		{
 			switch ( type )
 			{
@@ -277,6 +290,24 @@ NSLog(@"Got a key event - %d\n", [event keyCode]);
 }
 
 #endif
+
+- (BOOL) isAnyEmulatorDisplayingSheets
+{
+#ifdef ENABLE_MULTIPLE
+	int	tmp;
+
+	for ( tmp = 0; tmp < [emulators count], ++tmp )
+		if ( [[[emulators objectAtIndex: tmp] window] attachedSheet] )
+			break;
+	
+	if ( tmp < [emulators count] )		// i.e. if we exited the for loop
+#else
+	if ( [[theEmulator window] attachedSheet] )
+#endif
+		return TRUE;
+
+	return FALSE;
+}
 
 - (BOOL) isAnyEmulatorRunning
 {
