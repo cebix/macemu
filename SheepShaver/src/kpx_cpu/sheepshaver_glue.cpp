@@ -181,7 +181,7 @@ void sheepshaver_cpu::execute_sheep(uint32 opcode)
 	case 0:		// EMUL_RETURN
 		QuitEmulator();
 		break;
-		
+
 	case 1:		// EXEC_RETURN
 		throw sheepshaver_exec_return();
 		break;
@@ -294,7 +294,7 @@ void sheepshaver_cpu::interrupt(uint32 entry)
 	gpr(8)  = 0;
 	gpr(10) = (uint32)trampoline;
 	gpr(12) = (uint32)trampoline;
-	gpr(13) = cr().get();
+	gpr(13) = get_cr();
 
 	// rlwimi. r7,r7,8,0,0
 	uint32 result = op_ppc_rlwimi::apply(gpr(7), 8, 0x80000000, gpr(7));
@@ -302,7 +302,7 @@ void sheepshaver_cpu::interrupt(uint32 entry)
 	gpr(7) = result;
 
 	gpr(11) = 0xf072; // MSR (SRR1)
-	cr().set((gpr(11) & 0x0fff0000) | (cr().get() & ~0x0fff0000));
+	cr().set((gpr(11) & 0x0fff0000) | (get_cr() & ~0x0fff0000));
 
 	// Enter nanokernel
 	execute(entry);
@@ -328,6 +328,7 @@ void sheepshaver_cpu::execute_68k(uint32 entry, M68kRegisters *r)
 	uint32 saved_pc = pc();
 	uint32 saved_lr = lr();
 	uint32 saved_ctr= ctr();
+	uint32 saved_cr = get_cr();
 
 	// Create MacOS stack frame
 	// FIXME: make sure MacOS doesn't expect PPC registers to live on top
@@ -399,6 +400,7 @@ void sheepshaver_cpu::execute_68k(uint32 entry, M68kRegisters *r)
 	pc() = saved_pc;
 	lr() = saved_lr;
 	ctr()= saved_ctr;
+	set_cr(saved_cr);
 }
 
 // Call MacOS PPC code
