@@ -3,15 +3,16 @@
 
 VERSION = $(shell sed <BasiliskII.spec -n '/^Version: */s///p')
 RELEASE = $(shell sed <BasiliskII.spec -n '/^Release: */s///p')
+VERNAME = BasiliskII-$(VERSION)
 
 SRCARCHIVE = $(shell date +BasiliskII_src_%d%m%Y.tar.gz)
-SRCRPM = BasiliskII-$(VERSION)-$(RELEASE).src.rpm
-I386RPM = BasiliskII-$(VERSION)-$(RELEASE).i386.rpm
-AMIGAARCHIVE = BasiliskII-$(VERSION)-$(RELEASE).amiga.lha
-BEOSPPCARCHIVE = BasiliskII-$(VERSION)-$(RELEASE).beosppc.zip
-BEOSX86ARCHIVE = BasiliskII-$(VERSION)-$(RELEASE).beosx86.zip
+SRCRPM = $(VERNAME)-$(RELEASE).src.rpm
+I386RPM = $(VERNAME)-$(RELEASE).i386.rpm
+AMIGAARCHIVE = $(VERNAME)-$(RELEASE).amiga.lha
+BEOSPPCARCHIVE = $(VERNAME)-$(RELEASE).beosppc.zip
+BEOSX86ARCHIVE = $(VERNAME)-$(RELEASE).beosx86.zip
 
-BUILDDIR = /tmp/build
+TMPDIR = /tmp/build
 RPMDIR = /usr/src/redhat
 DOCS = $(shell sed <BasiliskII.spec -n '/^\%doc */s///p')
 SRCS = src
@@ -33,7 +34,7 @@ help:
 
 clean:
 	-rm -f $(SRCARCHIVE)
-	-rm -f $(SRCRPM)
+	-rm -f $(SRCRPM) $(I386RPM)
 	-rm -f $(AMIGAARCHIVE) $(BEOSPPCARCHIVE) $(BEOSX86ARCHIVE)
 
 #
@@ -42,14 +43,14 @@ clean:
 tarball: $(SRCARCHIVE)
 
 $(SRCARCHIVE): $(SRCS) $(DOCS)
-	-rm -rf $(BUILDDIR)
-	mkdir $(BUILDDIR)
-	cd $(BUILDDIR); cvs checkout BasiliskII
-	rm -rf $(BUILDDIR)/BasiliskII/src/powerrom_cpu	#not yet ready for distribution
-	mv $(BUILDDIR)/BasiliskII $(BUILDDIR)/BasiliskII-$(VERSION)
-	cd $(BUILDDIR); tar cfz $@ BasiliskII-$(VERSION)
-	mv $(BUILDDIR)/$@ .
-	rm -rf $(BUILDDIR)
+	-rm -rf $(TMPDIR)
+	mkdir $(TMPDIR)
+	cd $(TMPDIR); cvs checkout BasiliskII
+	rm -rf $(TMPDIR)/BasiliskII/src/powerrom_cpu	#not yet ready for distribution
+	mv $(TMPDIR)/BasiliskII $(TMPDIR)/$(VERNAME)
+	cd $(TMPDIR); tar cfz $@ $(VERNAME)
+	mv $(TMPDIR)/$@ .
+	rm -rf $(TMPDIR)
 
 #
 # RPMs (source and i386 binary)
@@ -74,15 +75,16 @@ $(I386RPM): $(RPMDIR)/RPMS/i386/$(I386RPM)
 amiga: $(AMIGAARCHIVE)
 
 $(AMIGAARCHIVE): $(SRCS) $(DOCS) src/AmigaOS/BasiliskII
-	-rm -rf $(BUILDDIR)
-	mkdir $(BUILDDIR)
-	mkdir $(BUILDDIR)/BasiliskII
-	cp $(DOCS) $(BUILDDIR)/BasiliskII
-	cp src/AmigaOS/BasiliskII $(BUILDDIR)/BasiliskII
-	cp src/AmigaOS/BasiliskII.info $(BUILDDIR)/BasiliskII.info
-	cd $(BUILDDIR); lha a $@ BasiliskII
-	mv $(BUILDDIR)/$@ .
-	rm -rf $(BUILDDIR)
+	-rm -rf $(TMPDIR)
+	mkdir $(TMPDIR)
+	mkdir $(TMPDIR)/$(VERNAME)
+	cp $(DOCS) $(TMPDIR)/$(VERNAME)
+	cp src/AmigaOS/BasiliskII $(TMPDIR)/$(VERNAME)
+	cp src/AmigaOS/BasiliskII.info $(TMPDIR)/$(VERNAME)
+	chmod 775 $(TMPDIR)/$(VERNAME)/BasiliskII
+	cd $(TMPDIR); lha a $@ $(VERNAME)
+	mv $(TMPDIR)/$@ .
+	rm -rf $(TMPDIR)
 
 #
 # Binary archive for BeOS/ppc
@@ -90,14 +92,15 @@ $(AMIGAARCHIVE): $(SRCS) $(DOCS) src/AmigaOS/BasiliskII
 beosppc: $(BEOSPPCARCHIVE)
 
 $(BEOSPPCARCHIVE): $(SRCS) $(DOCS) src/BeOS/obj.ppc/BasiliskII
-	-rm -rf $(BUILDDIR)
-	mkdir $(BUILDDIR)
-	mkdir $(BUILDDIR)/BasiliskII
-	cp $(DOCS) $(BUILDDIR)/BasiliskII
-	mv src/BeOS/obj.ppc/BasiliskII $(BUILDDIR)/BasiliskII
-	cd $(BUILDDIR); zip -ry $@ BasiliskII/
-	mv $(BUILDDIR)/$@ .
-	rm -rf $(BUILDDIR)
+	-rm -rf $(TMPDIR)
+	mkdir $(TMPDIR)
+	mkdir $(TMPDIR)/$(VERNAME)
+	cp $(DOCS) $(TMPDIR)/$(VERNAME)
+	cp src/BeOS/obj.ppc/BasiliskII $(TMPDIR)/$(VERNAME)
+	mimeset -f $(TMPDIR)
+	cd $(TMPDIR); zip -ry $@ $(VERNAME)/
+	mv $(TMPDIR)/$@ .
+	rm -rf $(TMPDIR)
 
 #
 # Binary archive for BeOS/x86
@@ -105,11 +108,12 @@ $(BEOSPPCARCHIVE): $(SRCS) $(DOCS) src/BeOS/obj.ppc/BasiliskII
 beosx86: $(BEOSX86ARCHIVE)
 
 $(BEOSX86ARCHIVE): $(SRCS) $(DOCS) src/BeOS/obj.x86/BasiliskII
-	-rm -rf $(BUILDDIR)
-	mkdir $(BUILDDIR)
-	mkdir $(BUILDDIR)/BasiliskII
-	cp $(DOCS) $(BUILDDIR)/BasiliskII
-	mv src/BeOS/obj.x86/BasiliskII $(BUILDDIR)/BasiliskII
-	cd $(BUILDDIR); zip -ry $@ BasiliskII/
-	mv $(BUILDDIR)/$@ .
-	rm -rf $(BUILDDIR)
+	-rm -rf $(TMPDIR)
+	mkdir $(TMPDIR)
+	mkdir $(TMPDIR)/$(VERNAME)
+	cp $(DOCS) $(TMPDIR)/$(VERNAME)
+	cp src/BeOS/obj.x86/BasiliskII $(TMPDIR)/$(VERNAME)
+	mimeset -f $(TMPDIR)
+	cd $(TMPDIR); zip -ry $@ $(VERNAME)/
+	mv $(TMPDIR)/$@ .
+	rm -rf $(TMPDIR)
