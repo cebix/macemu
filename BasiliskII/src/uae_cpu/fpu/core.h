@@ -217,16 +217,16 @@ extern void fpu_dump_registers(void);
 extern void fpu_dump_flags(void);
 
 /* Accessors to FPU Control Register */
-extern inline uae_u32 get_fpcr(void);
-extern inline void set_fpcr(uae_u32 new_fpcr);
+static inline uae_u32 get_fpcr(void);
+static inline void set_fpcr(uae_u32 new_fpcr);
 
 /* Accessors to FPU Status Register */
-extern inline uae_u32 get_fpsr(void);
-extern void set_fpsr(uae_u32 new_fpsr);
+static inline uae_u32 get_fpsr(void);
+static inline void set_fpsr(uae_u32 new_fpsr);
 	
 /* Accessors to FPU Instruction Address Register */
-extern inline uae_u32 get_fpiar();
-extern inline void set_fpiar(uae_u32 new_fpiar);
+static inline uae_u32 get_fpiar();
+static inline void set_fpiar(uae_u32 new_fpiar);
 
 /* Initialization / Finalization */
 extern void fpu_init(bool integral_68040);

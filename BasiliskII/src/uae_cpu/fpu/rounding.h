@@ -130,11 +130,11 @@ PRIVATE inline void set_host_control_word(void)
 #if defined(FPU_USE_GENERIC_ROUNDING_MODE) || defined(FPU_USE_X86_ROUNDING_MODE)
 
 /* Return the current rounding mode in m68k format */
-PUBLIC inline uae_u32 FFPU get_rounding_mode(void)
+static inline uae_u32 FFPU get_rounding_mode(void)
 	{ return FPU fpcr.rounding_mode; }
 
 /* Convert and set to native rounding mode */
-PUBLIC inline void FFPU set_rounding_mode(uae_u32 new_rounding_mode)
+static inline void FFPU set_rounding_mode(uae_u32 new_rounding_mode)
 	{ FPU fpcr.rounding_mode = new_rounding_mode; }
 
 #endif
@@ -142,11 +142,11 @@ PUBLIC inline void FFPU set_rounding_mode(uae_u32 new_rounding_mode)
 #if defined(FPU_USE_GENERIC_ROUNDING_PRECISION) || defined(FPU_USE_X86_ROUNDING_PRECISION)
 
 /* Return the current rounding precision in m68k format */
-PUBLIC inline uae_u32 FFPU get_rounding_precision(void)
+static inline uae_u32 FFPU get_rounding_precision(void)
 	{ return FPU fpcr.rounding_precision; }
 
 /* Convert and set to native rounding precision */
-PUBLIC inline void FFPU set_rounding_precision(uae_u32 new_rounding_precision)
+static inline void FFPU set_rounding_precision(uae_u32 new_rounding_precision)
 	{ FPU fpcr.rounding_precision = new_rounding_precision; }
 
 #endif

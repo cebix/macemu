@@ -117,7 +117,7 @@ PRIVATE inline void FFPU set_accrued_exception(uae_u32 new_status)
 #ifdef FPU_USE_GENERIC_EXCEPTIONS
 
 /* Initialize native exception management */
-PUBLIC inline void FFPU fpu_init_native_exceptions(void)
+static inline void FFPU fpu_init_native_exceptions(void)
 	{ }
 
 /* Return m68k floating-point exception status */

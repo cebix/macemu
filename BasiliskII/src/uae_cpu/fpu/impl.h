@@ -48,7 +48,7 @@
 #ifdef FPU_X86
 
 /* Return the floating-point status register in m68k format */
-PUBLIC inline uae_u32 FFPU get_fpsr(void)
+static inline uae_u32 FFPU get_fpsr(void)
 {
 	return	to_m68k_fpcond[(x86_status_word & 0x4700) >> 8]
 		|	FPU fpsr.quotient
@@ -58,7 +58,7 @@ PUBLIC inline uae_u32 FFPU get_fpsr(void)
 }
 
 /* Set the floating-point status register from an m68k format */
-PUBLIC inline void FFPU set_fpsr(uae_u32 new_fpsr)
+static inline void FFPU set_fpsr(uae_u32 new_fpsr)
 {
 	x86_status_word = to_host_fpcond[(new_fpsr & FPSR_CCB) >> 24 ]
 		| exception_mac2host[(new_fpsr & FPSR_EXCEPTION_STATUS) >> 8];
@@ -74,7 +74,7 @@ PUBLIC inline void FFPU set_fpsr(uae_u32 new_fpsr)
 #ifndef FPU_X86
 
 /* Return the floating-point status register in m68k format */
-PUBLIC inline uae_u32 FFPU get_fpsr(void)
+static inline uae_u32 FFPU get_fpsr(void)
 {
 	uae_u32 condition_codes		= get_fpccr();
 	uae_u32 exception_status	= get_exception_status();
@@ -84,7 +84,7 @@ PUBLIC inline uae_u32 FFPU get_fpsr(void)
 }
 
 /* Set the floating-point status register from an m68k format */
-PUBLIC inline void FFPU set_fpsr(uae_u32 new_fpsr)
+static inline void FFPU set_fpsr(uae_u32 new_fpsr)
 {
 	set_fpccr					( new_fpsr & FPSR_CCB				);
 	set_exception_status		( new_fpsr & FPSR_EXCEPTION_STATUS	);
@@ -99,7 +99,7 @@ PUBLIC inline void FFPU set_fpsr(uae_u32 new_fpsr)
 /* -------------------------------------------------------------------------- */
 
 /* Return the floating-point control register in m68k format */
-PUBLIC inline uae_u32 FFPU get_fpcr(void)
+static inline uae_u32 FFPU get_fpcr(void)
 {
 	uae_u32 rounding_precision	= get_rounding_precision();
 	uae_u32 rounding_mode		= get_rounding_mode();
@@ -107,7 +107,7 @@ PUBLIC inline uae_u32 FFPU get_fpcr(void)
 }
 
 /* Set the floating-point control register from an m68k format */
-PUBLIC inline void FFPU set_fpcr(uae_u32 new_fpcr)
+static inline void FFPU set_fpcr(uae_u32 new_fpcr)
 {
 	set_rounding_precision		( new_fpcr & FPCR_ROUNDING_PRECISION);
 	set_rounding_mode			( new_fpcr & FPCR_ROUNDING_MODE		);
@@ -121,7 +121,7 @@ PUBLIC inline void FFPU set_fpcr(uae_u32 new_fpcr)
 #ifdef FPU_X86
 
 /* Retrieve a floating-point register value and convert it to double precision */
-PUBLIC inline double FFPU fpu_get_register(int r)
+static inline double FFPU fpu_get_register(int r)
 {
 	double f;
 	__asm__ __volatile__("fldt %1\n\tfstpl %0" : "=m" (f) : "m" (FPU registers[r]));
@@ -137,7 +137,7 @@ PUBLIC inline double FFPU fpu_get_register(int r)
 #if defined(FPU_UAE) || defined(FPU_IEEE)
 
 /* Retrieve a floating-point register value and convert it to double precision */
-PUBLIC inline double FFPU fpu_get_register(int r)
+static inline double FFPU fpu_get_register(int r)
 {
 	return FPU registers[r];
 }
