@@ -416,10 +416,18 @@ void monitor_desc::switch_mode(vector<video_mode>::const_iterator it, uint32 par
 		WriteMacInt32(0x824, mac_frame_base);		// ScrnBase
 		WriteMacInt32(0x898, mac_frame_base);		// CrsrBase
 		uint32 gdev = ReadMacInt32(0x8a4);			// MainDevice
-		gdev = ReadMacInt32(gdev);
-		uint32 pmap = ReadMacInt32(gdev + 0x16);	// gdPMap
-		pmap = ReadMacInt32(pmap);
-		WriteMacInt32(pmap, mac_frame_base);		// baseAddr
+		D(bug("MainDevice handle at %08lx\n", gdev));
+		if (gdev != 0 && gdev != 0xffffffff) {
+			gdev = ReadMacInt32(gdev);
+			D(bug("          pointer at %08lx\n", gdev));
+			uint32 pmap = ReadMacInt32(gdev + 0x16);	// gdPMap
+			D(bug("    PixMap handle at %08lx\n", pmap));
+			pmap = ReadMacInt32(pmap);
+			D(bug("          pointer at %08lx\n", pmap));
+			WriteMacInt32(pmap, mac_frame_base);		// baseAddr
+		}
+		gdev = ReadMacInt32(0xcc8);			// TheGDevice
+		D(bug("TheGDevice handle at %08lx\n", gdev));
 	}
 }
 
