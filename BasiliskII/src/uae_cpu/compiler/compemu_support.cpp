@@ -2,6 +2,10 @@
 #error "Only Real or Direct Addressing is supported with the JIT Compiler"
 #endif
 
+#if X86_ASSEMBLY && !SAHF_SETO_PROFITABLE
+#error "Only [LS]AHF scheme to [gs]et flags is supported with the JIT Compiler"
+#endif
+
 #define USE_MATCH 0
 
 /* kludge for Brian, so he can compile under MSVC++ */
