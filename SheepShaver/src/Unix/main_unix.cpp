@@ -335,10 +335,13 @@ static const char *crash_reason = NULL;		// Reason of the crash (SIGSEGV, SIGBUS
 uint32  SheepMem::page_size;				// Size of a native page
 uintptr SheepMem::zero_page = 0;			// Address of ro page filled in with zeros
 uintptr SheepMem::base = 0x60000000;		// Address of SheepShaver data
-uintptr SheepMem::top = 0;					// Top of SheepShaver data (stack like storage)
+uintptr SheepMem::proc;						// Bottom address of SheepShave procedures
+uintptr SheepMem::data;						// Top of SheepShaver data (stack like storage)
 
 
 // Prototypes
+static bool kernel_data_init(void);
+static void kernel_data_exit(void);
 static void Quit(void);
 static void *emul_func(void *arg);
 static void *nvram_func(void *arg);
@@ -420,6 +423,21 @@ int atomic_or(int *var, int v)
 	return ret;
 }
 #endif
+
+
+/*
+ *  Memory management helpers
+ */
+
+static inline int vm_mac_acquire(uint32 addr, uint32 size)
+{
+	return vm_acquire_fixed(Mac2HostAddr(addr), size);
+}
+
+static inline int vm_mac_release(uint32 addr, uint32 size)
+{
+	return vm_release(Mac2HostAddr(addr), size);
+}
 
 
 /*
@@ -769,7 +787,7 @@ int main(int argc, char **argv)
 
 #ifndef PAGEZERO_HACK
 	// Create Low Memory area (0x0000..0x3000)
-	if (vm_acquire_fixed((char *)NATMEM_OFFSET, 0x3000) < 0) {
+	if (vm_mac_acquire(0, 0x3000) < 0) {
 		sprintf(str, GetString(STR_LOW_MEM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
@@ -778,36 +796,22 @@ int main(int argc, char **argv)
 #endif
 
 	// Create areas for Kernel Data
-	kernel_area = shmget(IPC_PRIVATE, KERNEL_AREA_SIZE, 0600);
-	if (kernel_area == -1) {
-		sprintf(str, GetString(STR_KD_SHMGET_ERR), strerror(errno));
-		ErrorAlert(str);
+	if (!kernel_data_init())
 		goto quit;
-	}
-	if (shmat(kernel_area, (void *)(KERNEL_DATA_BASE + NATMEM_OFFSET), 0) < 0) {
-		sprintf(str, GetString(STR_KD_SHMAT_ERR), strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-	if (shmat(kernel_area, (void *)(KERNEL_DATA2_BASE + NATMEM_OFFSET), 0) < 0) {
-		sprintf(str, GetString(STR_KD2_SHMAT_ERR), strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-	kernel_data = (KernelData *)(KERNEL_DATA_BASE + NATMEM_OFFSET);
+	kernel_data = (KernelData *)Mac2HostAddr(KERNEL_DATA_BASE);
 	emulator_data = &kernel_data->ed;
 	KernelDataAddr = KERNEL_DATA_BASE;
 	D(bug("Kernel Data at %p (%08x)\n", kernel_data, KERNEL_DATA_BASE));
 	D(bug("Emulator Data at %p (%08x)\n", emulator_data, KERNEL_DATA_BASE + offsetof(KernelData, ed)));
 
 	// Create area for DR Cache
-	if (vm_acquire_fixed((void *)(DR_EMULATOR_BASE + NATMEM_OFFSET), DR_EMULATOR_SIZE) < 0) {
+	if (vm_mac_acquire(DR_EMULATOR_BASE, DR_EMULATOR_SIZE) < 0) {
 		sprintf(str, GetString(STR_DR_EMULATOR_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
 	dr_emulator_area_mapped = true;
-	if (vm_acquire_fixed((void *)(DR_CACHE_BASE + NATMEM_OFFSET), DR_CACHE_SIZE) < 0) {
+	if (vm_mac_acquire(DR_CACHE_BASE, DR_CACHE_SIZE) < 0) {
 		sprintf(str, GetString(STR_DR_CACHE_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
@@ -831,12 +835,12 @@ int main(int argc, char **argv)
 	}
 
 	// Create area for Mac ROM
-	ROMBaseHost = (uint8 *)(ROM_BASE + NATMEM_OFFSET);
-	if (vm_acquire_fixed(ROMBaseHost, ROM_AREA_SIZE) < 0) {
+	if (vm_mac_acquire(ROM_BASE, ROM_AREA_SIZE) < 0) {
 		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
+	ROMBaseHost = Mac2HostAddr(ROM_BASE);
 #if !EMULATED_PPC
 	if (vm_protect(ROMBaseHost, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
 		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
@@ -854,12 +858,12 @@ int main(int argc, char **argv)
 		RAMSize = 8*1024*1024;
 	}
 
-	RAMBaseHost = (uint8 *)(RAM_BASE + NATMEM_OFFSET);
-	if (vm_acquire_fixed(RAMBaseHost, RAMSize) < 0) {
+	if (vm_mac_acquire(RAM_BASE, RAMSize) < 0) {
 		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
+	RAMBaseHost = Mac2HostAddr(RAM_BASE);
 #if !EMULATED_PPC
 	if (vm_protect(RAMBaseHost, RAMSize, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
 		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
@@ -1208,28 +1212,24 @@ static void Quit(void)
 
 	// Delete RAM area
 	if (ram_area_mapped)
-		vm_release(RAMBaseHost, RAMSize);
+		vm_mac_release(RAM_BASE, RAMSize);
 
 	// Delete ROM area
 	if (rom_area_mapped)
-		vm_release(ROMBaseHost, ROM_AREA_SIZE);
+		vm_mac_release(ROM_BASE, ROM_AREA_SIZE);
 
 	// Delete DR cache areas
 	if (dr_emulator_area_mapped)
-		vm_release((void *)(DR_EMULATOR_BASE + NATMEM_OFFSET), DR_EMULATOR_SIZE);
+		vm_mac_release(DR_EMULATOR_BASE, DR_EMULATOR_SIZE);
 	if (dr_cache_area_mapped)
-		vm_release((void *)(DR_CACHE_BASE + NATMEM_OFFSET), DR_CACHE_SIZE);
+		vm_mac_release(DR_CACHE_BASE, DR_CACHE_SIZE);
 
 	// Delete Kernel Data area
-	if (kernel_area >= 0) {
-		shmdt((void *)(KERNEL_DATA_BASE + NATMEM_OFFSET));
-		shmdt((void *)(KERNEL_DATA2_BASE + NATMEM_OFFSET));
-		shmctl(kernel_area, IPC_RMID, NULL);
-	}
+	kernel_data_exit();
 
 	// Delete Low Memory area
 	if (lm_area_mapped)
-		vm_release((void *)NATMEM_OFFSET, 0x3000);
+		vm_mac_release(0, 0x3000);
 
 	// Close /dev/zero
 	if (zero_fd > 0)
@@ -1253,6 +1253,95 @@ static void Quit(void)
 #endif
 
 	exit(0);
+}
+
+
+/*
+ *  Initialize Kernel Data segments
+ */
+
+#if defined(__CYGWIN__)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+static HANDLE kernel_handle;				// Shared memory handle for Kernel Data
+static DWORD allocation_granule;			// Minimum size of allocateable are (64K)
+static DWORD kernel_area_size;				// Size of Kernel Data area
+#endif
+
+static bool kernel_data_init(void)
+{
+#ifdef _WIN32
+	SYSTEM_INFO si;
+	GetSystemInfo(&si);
+	allocation_granule = si.dwAllocationGranularity;
+	kernel_area_size = (KERNEL_AREA_SIZE + allocation_granule - 1) & -allocation_granule;
+
+	char rcs[10];
+	char str[256];
+	LPVOID kernel_addr;
+	kernel_handle = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, kernel_area_size, NULL);
+	if (kernel_handle == NULL) {
+		sprintf(rcs, "%d", GetLastError());
+		sprintf(str, GetString(STR_KD_SHMGET_ERR), rcs);
+		ErrorAlert(str);
+		return false;
+	}
+	kernel_addr = (LPVOID)Mac2HostAddr(KERNEL_DATA_BASE & -allocation_granule);
+	if (MapViewOfFileEx(kernel_handle, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, kernel_area_size, kernel_addr) != kernel_addr) {
+		sprintf(rcs, "%d", GetLastError());
+		sprintf(str, GetString(STR_KD_SHMAT_ERR), rcs);
+		ErrorAlert(str);
+		return false;
+	}
+	kernel_addr = (LPVOID)Mac2HostAddr(KERNEL_DATA2_BASE & -allocation_granule);
+	if (MapViewOfFileEx(kernel_handle, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, kernel_area_size, kernel_addr) != kernel_addr) {
+		sprintf(rcs, "%d", GetLastError());
+		sprintf(str, GetString(STR_KD2_SHMAT_ERR), rcs);
+		ErrorAlert(str);
+		return false;
+	}
+#else
+	kernel_area = shmget(IPC_PRIVATE, KERNEL_AREA_SIZE, 0600);
+	if (kernel_area == -1) {
+		sprintf(str, GetString(STR_KD_SHMGET_ERR), strerror(errno));
+		ErrorAlert(str);
+		return false;
+	}
+	if (shmat(kernel_area, Mac2HostAddr(KERNEL_DATA_BASE), 0) < 0) {
+		sprintf(str, GetString(STR_KD_SHMAT_ERR), strerror(errno));
+		ErrorAlert(str);
+		return false;
+	}
+	if (shmat(kernel_area, Mac2HostAddr(KERNEL_DATA2_BASE), 0) < 0) {
+		sprintf(str, GetString(STR_KD2_SHMAT_ERR), strerror(errno));
+		ErrorAlert(str);
+		return false;
+	}
+#endif
+	return true;
+}
+
+
+/*
+ *  Deallocate Kernel Data segments
+ */
+
+static void kernel_data_exit(void)
+{
+#ifdef _WIN32
+	if (kernel_handle) {
+		UnmapViewOfFile(Mac2HostAddr(KERNEL_DATA_BASE & -allocation_granule));
+		UnmapViewOfFile(Mac2HostAddr(KERNEL_DATA2_BASE & -allocation_granule));
+		CloseHandle(kernel_handle);
+	}
+#else
+	if (kernel_area >= 0) {
+		shmdt(Mac2HostAddr(KERNEL_DATA_BASE));
+		shmdt(Mac2HostAddr(KERNEL_DATA2_BASE));
+		shmctl(kernel_area, IPC_RMID, NULL);
+	}
+#endif
 }
 
 
@@ -1561,7 +1650,7 @@ struct B2_mutex {
 	    pthread_mutexattr_init(&attr);
 	    // Initialize the mutex for priority inheritance --
 	    // required for accurate timing.
-#ifdef HAVE_PTHREAD_MUTEXATTR_SETPROTOCOL
+#if defined(HAVE_PTHREAD_MUTEXATTR_SETPROTOCOL) && !defined(__CYGWIN__)
 	    pthread_mutexattr_setprotocol(&attr, PTHREAD_PRIO_INHERIT);
 #endif
 #if defined(HAVE_PTHREAD_MUTEXATTR_SETTYPE) && defined(PTHREAD_MUTEX_NORMAL)
@@ -2211,41 +2300,37 @@ bool SheepMem::Init(void)
 	page_size = getpagesize();
 
 	// Allocate SheepShaver globals
-	if (vm_acquire_fixed((char *)(base + NATMEM_OFFSET), size) < 0)
+	proc = base;
+	if (vm_mac_acquire(base, size) < 0)
 		return false;
 
-	// Allocate page with all bits set to 0
-	zero_page = base + size;
-	uint8 *zero_page_host = (uint8 *)zero_page + NATMEM_OFFSET;
-	if (vm_acquire_fixed(zero_page_host, page_size) < 0)
-		return false;
-	memset(zero_page_host, 0, page_size);
-	if (vm_protect(zero_page_host, page_size, VM_PAGE_READ) < 0)
+	// Allocate page with all bits set to 0, right in the middle
+	// This is also used to catch undesired overlaps between proc and data areas
+	zero_page = proc + (size / 2);
+	Mac_memset(zero_page, 0, page_size);
+	if (vm_protect(Mac2HostAddr(zero_page), page_size, VM_PAGE_READ) < 0)
 		return false;
 
 #if EMULATED_PPC
 	// Allocate alternate stack for PowerPC interrupt routine
-	sig_stack = zero_page + page_size;
-	if (vm_acquire_fixed((char *)(sig_stack + NATMEM_OFFSET), SIG_STACK_SIZE) < 0)
+	sig_stack = base + size;
+	if (vm_mac_acquire(sig_stack, SIG_STACK_SIZE) < 0)
 		return false;
 #endif
 
-	top = base + size;
+	data = base + size;
 	return true;
 }
 
 void SheepMem::Exit(void)
 {
-	if (top) {
+	if (data) {
 		// Delete SheepShaver globals
-		vm_release((void *)(base + NATMEM_OFFSET), size);
-
-		// Delete zero page
-		vm_release((void *)(zero_page + NATMEM_OFFSET), page_size);
+		vm_mac_release(base, size);
 
 #if EMULATED_PPC
 		// Delete alternate stack for PowerPC interrupt routine
-		vm_release((void *)(sig_stack + NATMEM_OFFSET), SIG_STACK_SIZE);
+		vm_mac_release(sig_stack, SIG_STACK_SIZE);
 #endif
 	}
 }
