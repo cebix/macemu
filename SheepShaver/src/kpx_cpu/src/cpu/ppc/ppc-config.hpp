@@ -202,7 +202,7 @@
 #endif
 
 #if defined(PPC_LAZY_CC_UPDATE) && !defined(PPC_HAVE_SPLIT_CR)
-#define PPC_HAVE_SPLIT_CR
+#define PPC_HAVE_SPLIT_CR 1
 #endif
 
 #endif /* PPC_CONFIG_H */
