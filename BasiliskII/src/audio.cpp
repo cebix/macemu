@@ -134,18 +134,6 @@ static int32 AudioGetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			WriteMacInt32(infoPtr, audio_get_speaker_volume());
 			break;
 
-		case siHeadphoneMute:
-			WriteMacInt16(infoPtr, 0);
-			break;
-
-		case siHeadphoneVolume:
-			WriteMacInt32(infoPtr, 0x01000100);
-			break;
-
-		case siHeadphoneVolumeSteps:
-			WriteMacInt16(infoPtr, 13);
-			break;
-
 		case siHardwareMute:
 			WriteMacInt16(infoPtr, audio_get_main_mute());
 			break;
@@ -155,11 +143,22 @@ static int32 AudioGetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			break;
 
 		case siHardwareVolumeSteps:
-			WriteMacInt16(infoPtr, 13);
+			WriteMacInt16(infoPtr, 7);
 			break;
 
 		case siHardwareBusy:
 			WriteMacInt16(infoPtr, AudioStatus.num_sources != 0);
+			break;
+
+		case siHardwareFormat:
+			WriteMacInt32(infoPtr + scd_flags, 0);
+			WriteMacInt32(infoPtr + scd_format, AudioStatus.sample_size == 16 ? FOURCC('t','w','o','s') : FOURCC('r','a','w',' '));
+			WriteMacInt16(infoPtr + scd_numChannels, AudioStatus.channels);
+			WriteMacInt16(infoPtr + scd_sampleSize, AudioStatus.sample_size);
+			WriteMacInt32(infoPtr + scd_sampleRate, AudioStatus.sample_rate);
+			WriteMacInt32(infoPtr + scd_sampleCount, audio_frames_per_block);
+			WriteMacInt32(infoPtr + scd_buffer, 0);
+			WriteMacInt32(infoPtr + scd_reserved, 0);
 			break;
 
 		default:	// Delegate to Apple Mixer
@@ -242,10 +241,6 @@ static int32 AudioSetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			audio_set_speaker_volume(infoPtr);
 			break;
 
-		case siHeadphoneMute:
-		case siHeadphoneVolume:
-			break;
-
 		case siHardwareMute:
 			audio_set_main_mute((uint16)infoPtr);
 			break;
@@ -279,15 +274,19 @@ int32 AudioDispatch(uint32 params, uint32 globals)
 	D(bug("AudioDispatch params %08lx (size %d), what %d\n", params, ReadMacInt8(params + cp_paramSize), (int16)ReadMacInt16(params + cp_what)));
 	M68kRegisters r;
 	uint32 p = params + cp_params;
+	int16 selector = (int16)ReadMacInt16(params + cp_what);
 
-	switch ((int16)ReadMacInt16(params + cp_what)) {
-		// Basic component functions
+	switch (selector) {
+
+		// General component functions
 		case kComponentOpenSelect:
 			if (audio_data == 0) {
 
 				// Allocate global data area
 				r.d[0] = SIZEOF_adat;
-				Execute68kTrap(0xa71e, &r);	// NewPtrSysClear()
+				Execute68kTrap(0xa040, &r);	// ResrvMem()
+				r.d[0] = SIZEOF_adat;
+				Execute68kTrap(0xa31e, &r);	// NewPtrClear()
 				if (r.a[0] == 0)
 					return memFullErr;
 				audio_data = r.a[0];
@@ -374,6 +373,18 @@ int32 AudioDispatch(uint32 params, uint32 globals)
 				WriteMacInt16(p, 0xa82a); p += 2;	// ComponentDispatch
 				WriteMacInt16(p, 0x201f); p += 2;	// move.l	(sp)+,d0
 				WriteMacInt16(p, M68K_RTS); p += 2;	// rts
+				if (p - audio_data != adatStartSource)
+					goto adat_error;
+				WriteMacInt16(p, 0x598f); p += 2;	// subq.l	#4,sp
+				WriteMacInt16(p, 0x2f09); p += 2;	// move.l	a1,-(sp)
+				WriteMacInt16(p, 0x3f00); p += 2;	// move.w	d0,-(sp)
+				WriteMacInt16(p, 0x2f08); p += 2;	// move.l	a0,-(sp)
+				WriteMacInt16(p, 0x2f3c); p += 2;	// move.l	#$00060105,-(sp)
+				WriteMacInt32(p, 0x00060105); p+= 4;
+				WriteMacInt16(p, 0x7000); p += 2;	// moveq	#0,d0
+				WriteMacInt16(p, 0xa82a); p += 2;	// ComponentDispatch
+				WriteMacInt16(p, 0x201f); p += 2;	// move.l	(sp)+,d0
+				WriteMacInt16(p, M68K_RTS); p += 2;	// rts
 				if (p - audio_data != adatData)
 					goto adat_error;
 			}
@@ -387,29 +398,50 @@ adat_error:	printf("FATAL: audio component data block initialization error\n");
 			QuitEmulator();
 			return openErr;
 
-		case kComponentCanDoSelect:
-		case kComponentRegisterSelect:
-			return noErr;
-
-		case kComponentVersionSelect:
-			return 0x00010003;
-
 		case kComponentCloseSelect:
 			open_count--;
 			if (open_count == 0) {
-				if (AudioStatus.mixer) {
-					// Close Apple Mixer
-					r.a[0] = AudioStatus.mixer;
-					Execute68k(audio_data + adatCloseMixer, &r);
-					AudioStatus.mixer = 0;
-					return r.d[0];
+				if (audio_data) {
+					if (AudioStatus.mixer) {
+						// Close Apple Mixer
+						r.a[0] = AudioStatus.mixer;
+						Execute68k(audio_data + adatCloseMixer, &r);
+						AudioStatus.mixer = 0;
+						return r.d[0];
+					}
+					r.a[0] = audio_data;
+					Execute68kTrap(0xa01f, &r);	// DisposePtr()
+					audio_data = 0;
 				}
 				AudioStatus.num_sources = 0;
 				audio_exit_stream();
 			}
 			return noErr;
 
-		// Sound component functions
+		case kComponentCanDoSelect:
+			switch ((int16)ReadMacInt16(p)) {
+				case kComponentOpenSelect:
+				case kComponentCloseSelect:
+				case kComponentCanDoSelect:
+				case kComponentVersionSelect:
+				case kComponentRegisterSelect:
+				case kSoundComponentInitOutputDeviceSelect:
+				case kSoundComponentGetSourceSelect:
+				case kSoundComponentGetInfoSelect:
+				case kSoundComponentSetInfoSelect:
+				case kSoundComponentStartSourceSelect:
+					return 1;
+				default:
+					return 0;
+			}
+
+		case kComponentVersionSelect:
+			return 0x00010003;
+
+		case kComponentRegisterSelect:
+			return noErr;
+
+		// Sound component functions (not delegated)
 		case kSoundComponentInitOutputDeviceSelect:
 			D(bug(" InitOutputDevice\n"));
 			if (!audio_open)
@@ -437,6 +469,12 @@ adat_error:	printf("FATAL: audio component data block initialization error\n");
 			D(bug(" OpenMixer() returns %08lx, mixer %08lx\n", r.d[0], AudioStatus.mixer));
 			return r.d[0];
 
+		case kSoundComponentGetSourceSelect:
+			D(bug(" GetSource source %08lx\n", ReadMacInt32(p)));
+			WriteMacInt32(ReadMacInt32(p), AudioStatus.mixer);
+			return noErr;
+
+		// Sound component functions (delegated)
 		case kSoundComponentAddSourceSelect:
 			D(bug(" AddSource\n"));
 			AudioStatus.num_sources++;
@@ -446,6 +484,22 @@ adat_error:	printf("FATAL: audio component data block initialization error\n");
 			D(bug(" RemoveSource\n"));
 			AudioStatus.num_sources--;
 			goto delegate;
+
+		case kSoundComponentGetInfoSelect:
+			return AudioGetInfo(ReadMacInt32(p), ReadMacInt32(p + 4), ReadMacInt32(p + 8));
+
+		case kSoundComponentSetInfoSelect:
+			return AudioSetInfo(ReadMacInt32(p), ReadMacInt32(p + 4), ReadMacInt32(p + 8));
+
+		case kSoundComponentStartSourceSelect:
+			D(bug(" StartSource count %d\n", ReadMacInt16(p + 4)));
+			D(bug(" starting Apple Mixer\n"));
+			r.d[0] = ReadMacInt16(p + 4);
+			r.a[0] = ReadMacInt32(p);
+			r.a[1] = AudioStatus.mixer;
+			Execute68k(audio_data + adatStartSource, &r);
+			D(bug(" returns %08lx\n", r.d[0]));
+			return noErr;
 
 		case kSoundComponentStopSourceSelect:
 			D(bug(" StopSource\n"));
@@ -461,18 +515,8 @@ delegate:	// Delegate call to Apple Mixer
 			D(bug(" returns %08lx\n", r.d[0]));
 			return r.d[0];
 
-		case kSoundComponentStartSourceSelect:
-			D(bug(" StartSource\n"));
-			return noErr;
-
-		case kSoundComponentGetInfoSelect:
-			return AudioGetInfo(ReadMacInt32(p), ReadMacInt32(p + 4), ReadMacInt32(p + 8));
-
-		case kSoundComponentSetInfoSelect:
-			return AudioSetInfo(ReadMacInt32(p), ReadMacInt32(p + 4), ReadMacInt32(p + 8));
-
 		case kSoundComponentPlaySourceBufferSelect:
-			D(bug(" PlaySourceBuffer\n"));
+			D(bug(" PlaySourceBuffer flags %08lx\n", ReadMacInt32(p)));
 			r.d[0] = ReadMacInt32(p);
 			r.a[0] = ReadMacInt32(p + 4);
 			r.a[1] = ReadMacInt32(p + 8);
@@ -482,7 +526,10 @@ delegate:	// Delegate call to Apple Mixer
 			return r.d[0];
 
 		default:
-			return badComponentSelector;
+			if (selector >= 0x100)
+				goto delegate;
+			else
+				return badComponentSelector;
 	}
 }
 

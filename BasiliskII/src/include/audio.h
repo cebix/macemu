@@ -87,10 +87,11 @@ enum {
 	adatSetInfo = 78,			// 68k code to call SetInfo()
 	adatPlaySourceBuffer = 102,	// 68k code to call PlaySourceBuffer()
 	adatGetSourceData = 126,	// 68k code to call GetSourceData()
-	adatData = 146,				// SoundComponentData struct
-	adatMixer = 174,			// Mac address of mixer, returned by adatOpenMixer
-	adatStreamInfo = 178,		// Mac address of stream info, returned by adatGetSourceData
-	SIZEOF_adat = 182
+	adatStartSource = 146,		// 68k code to call StartSource()
+	adatData = 168,				// SoundComponentData struct
+	adatMixer = 196,			// Mac address of mixer, returned by adatOpenMixer
+	adatStreamInfo = 200,		// Mac address of stream info, returned by adatGetSourceData
+	SIZEOF_adat = 204
 };
 
 extern uint32 audio_data;		// Mac address of global data area
