@@ -481,6 +481,20 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 #endif
 #endif
 
+#if HAVE_WIN32_EXCEPTIONS
+#define WIN32_LEAN_AND_MEAN /* avoid including junk */
+#include <windows.h>
+#include <winerror.h>
+
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	EXCEPTION_POINTERS *ExceptionInfo
+#define SIGSEGV_FAULT_HANDLER_ARGS		ExceptionInfo
+#define SIGSEGV_FAULT_ADDRESS			ExceptionInfo->ExceptionRecord->ExceptionInformation[1]
+#define SIGSEGV_CONTEXT_REGS			ExceptionInfo->ContextRecord
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS->Eip
+#define SIGSEGV_REGISTER_FILE			((unsigned long *)&SIGSEGV_CONTEXT_REGS->Edi)
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#endif
+
 #if HAVE_MACH_EXCEPTIONS
 
 // This can easily be extended to other Mach systems, but really who
@@ -668,6 +682,21 @@ enum {
 	X86_REG_EBX = 4,
 	X86_REG_ESP = 13,
 	X86_REG_EBP = 2,
+	X86_REG_ESI = 1,
+	X86_REG_EDI = 0
+#endif
+};
+#endif
+#if defined(_WIN32)
+enum {
+#if (defined(i386) || defined(__i386__))
+	X86_REG_EIP = 7,
+	X86_REG_EAX = 5,
+	X86_REG_ECX = 4,
+	X86_REG_EDX = 3,
+	X86_REG_EBX = 2,
+	X86_REG_ESP = 10,
+	X86_REG_EBP = 6,
 	X86_REG_ESI = 1,
 	X86_REG_EDI = 0
 #endif
@@ -1437,7 +1466,6 @@ static bool arm_skip_instruction(unsigned long * regs)
  *  SIGSEGV global handler
  */
 
-#if defined(HAVE_SIGSEGV_RECOVERY) || defined(HAVE_MACH_EXCEPTIONS)
 // This function handles the badaccess to memory.
 // It is called from the signal handler or the exception handler.
 static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
@@ -1481,7 +1509,6 @@ static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 
 	return false;
 }
-#endif
 
 
 /*
@@ -1775,6 +1802,95 @@ static bool sigsegv_do_install_handler(sigsegv_fault_handler_t handler)
 }
 #endif
 
+#ifdef HAVE_WIN32_EXCEPTIONS
+static LONG WINAPI main_exception_filter(EXCEPTION_POINTERS *ExceptionInfo)
+{
+	if (sigsegv_fault_handler != NULL
+		&& ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION
+		&& ExceptionInfo->ExceptionRecord->NumberParameters == 2
+		&& handle_badaccess(ExceptionInfo))
+		return EXCEPTION_CONTINUE_EXECUTION;
+
+	return EXCEPTION_CONTINUE_SEARCH;
+}
+
+#if defined __CYGWIN__ && defined __i386__
+/* In Cygwin programs, SetUnhandledExceptionFilter has no effect because Cygwin
+   installs a global exception handler.  We have to dig deep in order to install
+   our main_exception_filter.  */
+
+/* Data structures for the current thread's exception handler chain.
+   On the x86 Windows uses register fs, offset 0 to point to the current
+   exception handler; Cygwin mucks with it, so we must do the same... :-/ */
+
+/* Magic taken from winsup/cygwin/include/exceptions.h.  */
+
+struct exception_list {
+    struct exception_list *prev;
+    int (*handler) (EXCEPTION_RECORD *, void *, CONTEXT *, void *);
+};
+typedef struct exception_list exception_list;
+
+/* Magic taken from winsup/cygwin/exceptions.cc.  */
+
+__asm__ (".equ __except_list,0");
+
+extern exception_list *_except_list __asm__ ("%fs:__except_list");
+
+/* For debugging.  _except_list is not otherwise accessible from gdb.  */
+static exception_list *
+debug_get_except_list ()
+{
+  return _except_list;
+}
+
+/* Cygwin's original exception handler.  */
+static int (*cygwin_exception_handler) (EXCEPTION_RECORD *, void *, CONTEXT *, void *);
+
+/* Our exception handler.  */
+static int
+libsigsegv_exception_handler (EXCEPTION_RECORD *exception, void *frame, CONTEXT *context, void *dispatch)
+{
+  EXCEPTION_POINTERS ExceptionInfo;
+  ExceptionInfo.ExceptionRecord = exception;
+  ExceptionInfo.ContextRecord = context;
+  if (main_exception_filter (&ExceptionInfo) == EXCEPTION_CONTINUE_SEARCH)
+    return cygwin_exception_handler (exception, frame, context, dispatch);
+  else
+    return 0;
+}
+
+static void
+do_install_main_exception_filter ()
+{
+  /* We cannot insert any handler into the chain, because such handlers
+     must lie on the stack (?).  Instead, we have to replace(!) Cygwin's
+     global exception handler.  */
+  cygwin_exception_handler = _except_list->handler;
+  _except_list->handler = libsigsegv_exception_handler;
+}
+
+#else
+
+static void
+do_install_main_exception_filter ()
+{
+  SetUnhandledExceptionFilter ((LPTOP_LEVEL_EXCEPTION_FILTER) &main_exception_filter);
+}
+#endif
+
+static bool sigsegv_do_install_handler(sigsegv_fault_handler_t handler)
+{
+	static bool main_exception_filter_installed = false;
+	if (!main_exception_filter_installed) {
+		do_install_main_exception_filter();
+		main_exception_filter_installed = true;
+	}
+	sigsegv_fault_handler = handler;
+	return true;
+}
+#endif
+
 bool sigsegv_install_handler(sigsegv_fault_handler_t handler)
 {
 #if defined(HAVE_SIGSEGV_RECOVERY)
@@ -1785,7 +1901,7 @@ bool sigsegv_install_handler(sigsegv_fault_handler_t handler)
 	if (success)
             sigsegv_fault_handler = handler;
 	return success;
-#elif defined(HAVE_MACH_EXCEPTIONS)
+#elif defined(HAVE_MACH_EXCEPTIONS) || defined(HAVE_WIN32_EXCEPTIONS)
 	return sigsegv_do_install_handler(handler);
 #else
 	// FAIL: no siginfo_t nor sigcontext subterfuge is available
@@ -1811,6 +1927,9 @@ void sigsegv_deinstall_handler(void)
 	SIGSEGV_ALL_SIGNALS
 #undef FAULT_HANDLER
 #endif
+#ifdef HAVE_WIN32_EXCEPTIONS
+	sigsegv_fault_handler = NULL;
+#endif
 }
 
 
@@ -1832,7 +1951,9 @@ void sigsegv_set_dump_state(sigsegv_state_dumper_t handler)
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
+#endif
 #include "vm_alloc.h"
 
 const int REF_INDEX = 123;
@@ -1956,7 +2077,11 @@ int main(void)
 	if (vm_init() < 0)
 		return 1;
 
+#ifdef _WIN32
+	page_size = 4096;
+#else
 	page_size = getpagesize();
+#endif
 	if ((page = (char *)vm_acquire(page_size)) == VM_MAP_FAILED)
 		return 2;
 	
