@@ -27,6 +27,7 @@
 // Platform-specific preferences items
 prefs_desc platform_prefs_items[] = {
 	{"sound", TYPE_STRING, false, "sound output mode description"},
+	{"scsimemtype", TYPE_INT32, false, "SCSI buffer memory type"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
@@ -84,4 +85,5 @@ void SavePrefs(void)
 void AddPlatformPrefsDefaults(void)
 {
 	PrefsReplaceString("extfs", "WORK:");
+	PrefsAddInt32("scsimemtype", 0);
 }

@@ -94,6 +94,7 @@ const int GAD_SCSI3_UNIT = 0x0413;
 const int GAD_SCSI4_UNIT = 0x0414;
 const int GAD_SCSI5_UNIT = 0x0415;
 const int GAD_SCSI6_UNIT = 0x0416;
+const int GAD_SCSI_MEMTYPE = 0x0420;
 
 const int GAD_VIDEO_TYPE = 0x0500;			// "Graphics/Sound" pane
 const int GAD_DISPLAY_X = 0x0501;
@@ -360,6 +361,10 @@ bool PrefsEditor(void)
 									PrefsReplaceInt32("bootdriver", CDROMRefNum);
 									break;
 							}
+							break;
+
+						case GAD_SCSI_MEMTYPE:
+							PrefsReplaceInt32("scsimemtype", code);
 							break;
 
 						case GAD_VIDEO_TYPE:
@@ -1087,6 +1092,7 @@ static void create_volumes_pane(struct LayoutHandle *h)
 
 static char scsi_dev[6][256];
 static LONG scsi_unit[6];
+static LONG scsi_memtype;
 
 // Read SCSI preferences
 static void parse_scsi_prefs(void)
@@ -1101,6 +1107,8 @@ static void parse_scsi_prefs(void)
 		if (str)
 			sscanf(str, "%[^/]/%ld", scsi_dev[i], &scsi_unit[i]);
 	}
+
+	scsi_memtype = PrefsFindInt32("scsimemtype");
 }
 
 // Read settings from gadgets and set preferences
@@ -1125,32 +1133,47 @@ static void create_scsi_pane(struct LayoutHandle *h)
 	parse_scsi_prefs();
 
 	VGROUP;
-		for (int i=0; i<7; i++) {
-			HGROUP;
-				LT_New(h, LA_Type, TEXT_KIND,
-					LA_LabelID, STR_SCSI_ID_0 + i,
-					TAG_END
-				);
-				LT_New(h, LA_Type, STRING_KIND,
-					LA_LabelID, STR_DEVICE_CTRL,
-					LA_ID, GAD_SCSI0_DEVICE + i,
-					LA_Chars, 20,
-					LA_STRPTR, (ULONG)scsi_dev[i],
-					GTST_MaxChars, sizeof(scsi_dev[i]) - 1,
-					LAST_Picker, TRUE,
-					TAG_END
-				);
-				LT_New(h, LA_Type, INTEGER_KIND,
-					LA_LabelID, STR_UNIT_CTRL,
-					LA_ID, GAD_SCSI0_UNIT + i,
-					LA_Chars, 4,
-					LA_LONG, (ULONG)&scsi_unit[i],
-					LAIN_UseIncrementers, TRUE,
-					GTIN_MaxChars, 8,
-					TAG_END
-				);
-			ENDGROUP;
-		}
+		LT_New(h, LA_Type, VERTICAL_KIND,
+			LA_LabelID, STR_SCSI_DEVICES_CTRL,
+			TAG_END
+		);
+			for (int i=0; i<7; i++) {
+				HGROUP;
+					LT_New(h, LA_Type, TEXT_KIND,
+						LA_LabelID, STR_SCSI_ID_0 + i,
+						TAG_END
+					);
+					LT_New(h, LA_Type, STRING_KIND,
+						LA_LabelID, STR_DEVICE_CTRL,
+						LA_ID, GAD_SCSI0_DEVICE + i,
+						LA_Chars, 20,
+						LA_STRPTR, (ULONG)scsi_dev[i],
+						GTST_MaxChars, sizeof(scsi_dev[i]) - 1,
+						LAST_Picker, TRUE,
+						TAG_END
+					);
+					LT_New(h, LA_Type, INTEGER_KIND,
+						LA_LabelID, STR_UNIT_CTRL,
+						LA_ID, GAD_SCSI0_UNIT + i,
+						LA_Chars, 4,
+						LA_LONG, (ULONG)&scsi_unit[i],
+						LAIN_UseIncrementers, TRUE,
+						GTIN_MaxChars, 8,
+						TAG_END
+					);
+				ENDGROUP;
+			}
+		ENDGROUP;
+		VGROUP;
+			LT_New(h, LA_Type, CYCLE_KIND,
+				LA_LabelID, STR_SCSI_MEMTYPE_CTRL,
+				LA_ID, GAD_SCSI_MEMTYPE,
+				LACY_FirstLabel, STR_MEMTYPE_CHIP_LAB,
+				LACY_LastLabel, STR_MEMTYPE_ANY_LAB,
+				LA_LONG, (ULONG)&scsi_memtype,
+				TAG_END
+			);
+		ENDGROUP;
 	ENDGROUP;
 }
 
@@ -1166,7 +1189,7 @@ enum {
 	DISPLAY_SCREEN
 };
 
-static BYTE display_type;
+static LONG display_type;
 static LONG dis_width, dis_height;
 static ULONG mode_id;
 static BYTE frameskip_num;
@@ -1210,9 +1233,9 @@ static void parse_graphics_prefs(void)
 
 	const char *str = PrefsFindString("screen");
 	if (str) {
-		if (sscanf(str, "win/%d/%d", &dis_width, &dis_height) == 2)
+		if (sscanf(str, "win/%ld/%ld", &dis_width, &dis_height) == 2)
 			display_type = DISPLAY_WINDOW;
-		else if (sscanf(str, "pip/%d/%d", &dis_width, &dis_height) == 2)
+		else if (sscanf(str, "pip/%ld/%ld", &dis_width, &dis_height) == 2)
 			display_type = DISPLAY_PIP;
 		else if (sscanf(str, "scr/%08lx", &mode_id) == 1)
 			display_type = DISPLAY_SCREEN;
@@ -1368,7 +1391,7 @@ static void create_graphics_pane(struct LayoutHandle *h)
 				LA_LabelID, STR_VIDEO_TYPE_CTRL,
 				LA_ID, GAD_VIDEO_TYPE,
 				LACY_LabelTable, (ULONG)labels,
-				LA_BYTE, (ULONG)&display_type,
+				LA_LONG, (ULONG)&display_type,
 				TAG_END
 			);
 			LT_New(h, LA_Type, INTEGER_KIND,

@@ -508,6 +508,19 @@ AmigaOS:
 
       ahi/<hexadecimal mode ID>
 
+  scsimemtype <type>
+
+    This item controls the type of memory to use for SCSI buffers. Possible
+    values are:
+      0 Chip memory
+      1 24-bit DMA capable memory
+      2 Any memory
+
+    Be warned that many SCSI host adapters will not work with the "Any memory"
+    setting. Basilisk II has no way of knowing which memory type is supported
+    by the host adapter and setting an unsupported type will result in data
+    corruption.
+
 Windows:
 
   noscsi <"true" or "false">

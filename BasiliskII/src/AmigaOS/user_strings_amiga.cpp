@@ -44,9 +44,14 @@ user_string_def platform_strings[] = {
 	{STR_NO_GTLAYOUT_LIB_WARN, "Cannot open gtlayout.library V39. The preferences editor GUI will not be available."},
 	{STR_NO_AHI_WARN, "Cannot open ahi.device V2. Audio output will be disabled."},
 	{STR_NO_AHI_CTRL_WARN, "Cannot open AHI control structure. Audio output will be disabled."},
-	{STR_AHI_MODE_CTRL, "AHI Mode"},
-
 	{STR_NOT_ENOUGH_MEM_WARN, "Could not get %lu MBytes of memory.\nShould I use the largest Block (%lu MBytes) instead ?"},
+
+	{STR_AHI_MODE_CTRL, "AHI Mode"},
+	{STR_SCSI_MEMTYPE_CTRL, "Buffer Memory Type"},
+	{STR_MEMTYPE_CHIP_LAB, "Chip"},
+	{STR_MEMTYPE_24BITDMA_LAB, "24-Bit DMA"},
+	{STR_MEMTYPE_ANY_LAB, "Any"},
+	{STR_SCSI_DEVICES_CTRL, "Virtual SCSI Devices"},
 
 	{-1, NULL}	// End marker
 };

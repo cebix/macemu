@@ -44,6 +44,7 @@ static struct MsgPort *the_port = NULL;	// Message port for device communication
 
 static ULONG buffer_size;				// Size of data buffer
 static UBYTE *buffer = NULL;			// Pointer to data buffer
+static ULONG buffer_memf;				// Buffer memory flags
 
 static UBYTE cmd_buffer[12];			// Buffer for SCSI command
 
@@ -59,9 +60,22 @@ void SCSIInit(void)
 {
 	int id, lun;
 
+	int memtype = PrefsFindInt32("scsimemtype");
+	switch (memtype) {
+		case 1:
+			buffer_memf = MEMF_24BITDMA | MEMF_PUBLIC;
+			break;
+		case 2:
+			buffer_memf = MEMF_ANY | MEMF_PUBLIC;
+			break;
+		default:
+			buffer_memf = MEMF_CHIP | MEMF_PUBLIC;
+			break;
+	}
+
 	// Create port and buffers
 	the_port = CreateMsgPort();
-	buffer = (UBYTE *)AllocMem(buffer_size = 0x10000, MEMF_CHIP | MEMF_PUBLIC);
+	buffer = (UBYTE *)AllocMem(buffer_size = 0x10000, buffer_memf);
 	sense_buffer = (UBYTE *)AllocMem(SENSE_LENGTH, MEMF_CHIP | MEMF_PUBLIC);
 	if (the_port == NULL || buffer == NULL || sense_buffer == NULL) {
 		ErrorAlert(GetString(STR_NO_MEM_ERR));
@@ -142,7 +156,7 @@ static bool try_buffer(int size)
 	if (size <= buffer_size)
 		return true;
 
-	UBYTE *new_buffer = (UBYTE *)AllocMem(size, MEMF_CHIP | MEMF_PUBLIC);
+	UBYTE *new_buffer = (UBYTE *)AllocMem(size, buffer_memf);
 	if (new_buffer == NULL)
 		return false;
 	FreeMem(buffer, buffer_size);
@@ -241,7 +255,7 @@ bool scsi_send_cmd(size_t data_length, bool reading, int sg_size, uint8 **sg_ptr
 	}
 
 	// Process S/G table when reading
-	if (res == 0) {
+	if (reading && res == 0) {
 		D(bug(" reading from buffer\n"));
 		uint8 *buffer_ptr = buffer;
 		for (int i=0; i<sg_size; i++) {
