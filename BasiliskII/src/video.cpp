@@ -154,10 +154,8 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 			uint32 p = VidLocal.desc->mac_frame_base;
 			uint32 pat = pattern[VidLocal.desc->mode];
 			for (uint32 y=0; y<VidLocal.desc->y; y++) {
-				uint32 p2 = p;
-				for (uint32 x=0; x<VidLocal.desc->bytes_per_row / 4; x++) {
-					WriteMacInt32(p2, pat);
-					p2 += 4;
+				for (uint32 x=0; x<VidLocal.desc->bytes_per_row; x+=4) {
+					WriteMacInt32(p + x, pat);
 					if (VidLocal.desc->mode == VMODE_32BIT)
 						pat = ~pat;
 				}
