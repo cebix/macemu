@@ -1518,6 +1518,36 @@ enum {
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
+#define MOVSBWrr(RS, RD)		(_d16(), _REXLrr(RD, RS),	_OO_Mrm		(0x0fbe		,_b11,_r2(RD),_r1(RS)				))
+#define MOVSBWmr(MD, MB, MI, MS, RD)	(_d16(), _REXLmr(MB, MI, RD),	_OO_r_X		(0x0fbe		     ,_r2(RD)		,MD,MB,MI,MS		))
+#define MOVZBWrr(RS, RD)		(_d16(), _REXLrr(RD, RS),	_OO_Mrm		(0x0fb6		,_b11,_r2(RD),_r1(RS)				))
+#define MOVZBWmr(MD, MB, MI, MS, RD)	(_d16(), _REXLmr(MB, MI, RD),	_OO_r_X		(0x0fb6		     ,_r2(RD)		,MD,MB,MI,MS		))
+
+#define MOVSBLrr(RS, RD)		(_REXLrr(RD, RS),		_OO_Mrm		(0x0fbe		,_b11,_r4(RD),_r1(RS)				))
+#define MOVSBLmr(MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_OO_r_X		(0x0fbe		     ,_r4(RD)		,MD,MB,MI,MS		))
+#define MOVZBLrr(RS, RD)		(_REXLrr(RD, RS),		_OO_Mrm		(0x0fb6		,_b11,_r4(RD),_r1(RS)				))
+#define MOVZBLmr(MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_OO_r_X		(0x0fb6		     ,_r4(RD)		,MD,MB,MI,MS		))
+
+#define MOVSBQrr(RS, RD)		(_REXQrr(RD, RS),		_OO_Mrm		(0x0fbe		,_b11,_r8(RD),_r1(RS)				))
+#define MOVSBQmr(MD, MB, MI, MS, RD)	(_REXQmr(MB, MI, RD),		_OO_r_X		(0x0fbe		     ,_r8(RD)		,MD,MB,MI,MS		))
+#define MOVZBQrr(RS, RD)		(_REXQrr(RD, RS),		_OO_Mrm		(0x0fb6		,_b11,_r8(RD),_r1(RS)				))
+#define MOVZBQmr(MD, MB, MI, MS, RD)	(_REXQmr(MB, MI, RD),		_OO_r_X		(0x0fb6		     ,_r8(RD)		,MD,MB,MI,MS		))
+
+#define MOVSWLrr(RS, RD)		(_REXLrr(RD, RS),		_OO_Mrm		(0x0fbf		,_b11,_r4(RD),_r2(RS)				))
+#define MOVSWLmr(MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_OO_r_X		(0x0fbf		     ,_r4(RD)		,MD,MB,MI,MS		))
+#define MOVZWLrr(RS, RD)		(_REXLrr(RD, RS),		_OO_Mrm		(0x0fb7		,_b11,_r4(RD),_r2(RS)				))
+#define MOVZWLmr(MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_OO_r_X		(0x0fb7		     ,_r4(RD)		,MD,MB,MI,MS		))
+
+#define MOVSWQrr(RS, RD)		(_REXQrr(RD, RS),		_OO_Mrm		(0x0fbf		,_b11,_r8(RD),_r2(RS)				))
+#define MOVSWQmr(MD, MB, MI, MS, RD)	(_REXQmr(MB, MI, RD),		_OO_r_X		(0x0fbf		     ,_r8(RD)		,MD,MB,MI,MS		))
+#define MOVZWQrr(RS, RD)		(_REXQrr(RD, RS),		_OO_Mrm		(0x0fb7		,_b11,_r8(RD),_r2(RS)				))
+#define MOVZWQmr(MD, MB, MI, MS, RD)	(_REXQmr(MB, MI, RD),		_OO_r_X		(0x0fb7		     ,_r8(RD)		,MD,MB,MI,MS		))
+
+#define MOVSLQrr(RS, RD)		_m64only((_REXQrr(RD, RS),	_O_Mrm		(0x63		,_b11,_r8(RD),_r4(RS)				)))
+#define MOVSLQmr(MD, MB, MI, MS, RD)	_m64only((_REXQmr(MB, MI, RD),	_O_r_X		(0x63		     ,_r8(RD)		,MD,MB,MI,MS		)))
+
+/*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
+
 #define LEALmr(MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_O_r_X		(0x8d		     ,_r4(RD)		,MD,MB,MI,MS		))
 
 #define BSWAPLr(R)			(_REXLrr(0, R),			_OOr		(0x0fc8,_r4(R)							))
