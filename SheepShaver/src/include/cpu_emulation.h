@@ -27,18 +27,16 @@
  */
 
 // Constants
-const uint32 ROM_BASE = 0x40800000;			// Base address of ROM
-const uint32 ROM_SIZE = 0x00400000;			// Size of ROM file
-const uint32 ROM_AREA_SIZE = 0x500000;		// Size of ROM area
-const uint32 ROM_END = ROM_BASE + ROM_SIZE;	// End of ROM
-const uint32 DR_CACHE_BASE = 0x69000000;	// Address of DR cache
-const uint32 DR_CACHE_SIZE = 0x80000;		// Size of DR Cache
-const uint32 SHEEP_BASE = 0x60000000;		// Address of SheepShaver data
-const uint32 SHEEP_SIZE = 0x40000;			// Size of SheepShaver data
+const uintptr ROM_BASE = 0x40800000;			// Base address of ROM
+const uint32  ROM_SIZE = 0x400000;				// Size of ROM file
+const uint32  ROM_AREA_SIZE = 0x500000;			// Size of ROM area
+const uintptr ROM_END = ROM_BASE + ROM_SIZE;	// End of ROM
+const uintptr DR_CACHE_BASE = 0x69000000;		// Address of DR cache
+const uint32  DR_CACHE_SIZE = 0x80000;			// Size of DR Cache
 
-const uint32 KERNEL_DATA_BASE = 0x68ffe000;	// Address of Kernel Data
-const uint32 KERNEL_DATA2_BASE = 0x5fffe000;// Alternate address of Kernel Data
-const uint32 KERNEL_AREA_SIZE = 0x2000;		// Size of Kernel Data area
+const uintptr KERNEL_DATA_BASE = 0x68ffe000;	// Address of Kernel Data
+const uintptr KERNEL_DATA2_BASE = 0x5fffe000;	// Alternate address of Kernel Data
+const uint32  KERNEL_AREA_SIZE = 0x2000;		// Size of Kernel Data area
 
 // MacOS 68k Emulator Data
 struct EmulatorData {
@@ -54,9 +52,6 @@ struct KernelData {
 // RAM and ROM pointers (allocated and set by main_*.cpp)
 extern uint32 RAMBase;			// Base address of Mac RAM
 extern uint32 RAMSize;			// Size address of Mac RAM
-extern uint32 SheepStack1Base;	// SheepShaver first alternate stack base
-extern uint32 SheepStack2Base;	// SheepShaver second alternate stack base
-extern uint32 SheepThunksBase;	// SheepShaver thunks base
 
 // Mac memory access functions
 #if EMULATED_PPC

@@ -22,6 +22,8 @@
 #define MACOS_UTIL_H
 
 #include "cpu_emulation.h"
+#include "thunks.h"
+#include <stddef.h>
 
 
 /*
@@ -303,7 +305,7 @@ enum {
 typedef uint32 ProcInfoType;
 typedef int8 ISAType;
 typedef uint16 RoutineFlagsType;
-typedef long (*ProcPtr)();
+typedef uint32 ProcPtr;
 typedef uint8 RDFlagsType;
 
 struct RoutineRecord {
@@ -327,29 +329,22 @@ struct RoutineDescriptor {
 	RoutineRecord 					routineRecords[1];			/* The individual routines */
 };
 
-#define BUILD_PPC_ROUTINE_DESCRIPTOR(procInfo, procedure) 							\
-	{																				\
-		htons(0xAAFE),								/* Mixed Mode A-Trap */ 		\
-		7,											/* version */					\
-		0,											/* RD Flags - not dispatched */	\
-		0,											/* reserved 1 */				\
-		0,											/* reserved 2 */				\
-		0,											/* selector info */				\
-		0,											/* number of routines */		\
-		{											/* It's an array */				\
-			{										/* It's a struct */				\
-				htonl(procInfo),					/* the ProcInfo */				\
-				0,									/* reserved */					\
-				1, 									/* ISA and RTA */				\
-				htons(0 |							/* Flags - it's absolute addr */\
-				0 |									/* It's prepared */				\
-				4 ),								/* Always use native ISA */		\
-				(ProcPtr)htonl((uint32)procedure),	/* the procedure */				\
-				0,									/* reserved */					\
-				0									/* Not dispatched */			\
-			}																		\
-		}																			\
+struct SheepRoutineDescriptor
+	: public SheepVar
+{
+	SheepRoutineDescriptor(ProcInfoType procInfo, uint32 procedure)
+		: SheepVar(sizeof(RoutineDescriptor))
+	{
+		const uintptr desc = addr();
+		Mac_memset(desc, 0, sizeof(RoutineDescriptor));
+		WriteMacInt16(desc + offsetof(RoutineDescriptor, goMixedModeTrap), 0xAAFE);
+		WriteMacInt8 (desc + offsetof(RoutineDescriptor, version), 7);
+		WriteMacInt32(desc + offsetof(RoutineDescriptor, routineRecords[0].procInfo), procInfo);
+		WriteMacInt8 (desc + offsetof(RoutineDescriptor, routineRecords[0].ISA), 1);
+		WriteMacInt16(desc + offsetof(RoutineDescriptor, routineRecords[0].routineFlags), 0 | 0 | 4);
+		WriteMacInt32(desc + offsetof(RoutineDescriptor, routineRecords[0].procDescriptor), procedure);
 	}
+};
 
 
 // Functions

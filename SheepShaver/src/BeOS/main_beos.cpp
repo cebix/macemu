@@ -88,6 +88,7 @@
 #include "macos_util.h"
 #include "rom_patches.h"
 #include "user_strings.h"
+#include "thunks.h"
 
 #include "sheep_driver.h"
 
@@ -116,6 +117,7 @@ const char KERNEL_AREA2_NAME[] = "Macintosh Kernel Data 2";
 const char RAM_AREA_NAME[] = "Macintosh RAM";
 const char ROM_AREA_NAME[] = "Macintosh ROM";
 const char DR_CACHE_AREA_NAME[] = "Macintosh DR Cache";
+const char SHEEP_AREA_NAME[] = "SheepShaver Virtual Stack";
 
 const uint32 SIG_STACK_SIZE = 8192;			// Size of signal stack
 
@@ -218,6 +220,9 @@ system_info SysInfo;	// System information
 
 static void *sig_stack = NULL;		// Stack for signal handlers
 static void *extra_stack = NULL;	// Stack for SIGSEGV inside interrupt handler
+static uintptr SheepMem::base;		// Address of SheepShaver data
+static uintptr SheepMem::top;		// Top of SheepShaver data (stack like storage)
+static area_id SheepMemArea;		// SheepShaver data area ID
 
 
 // Prototypes
@@ -394,6 +399,14 @@ void SheepShaver::StartEmulator(void)
 	}
 	D(bug("Kernel Data 2 area %ld at %p\n", kernel_area2, kernel_data2));
 
+	// Create area for SheepShaver data
+	if (!SheepMem::Init()) {
+		sprintf(str, GetString(STR_NO_SHEEP_MEM_AREA_ERR));
+		ErrorAlert(str);
+		PostMessage(B_QUIT_REQUESTED);
+		return;
+	}
+	
 	// Create area for Mac RAM
 	RAMSize = PrefsFindInt32("ramsize") & 0xfff00000;	// Round down to 1MB boundary
 	if (RAMSize < 8*1024*1024) {
@@ -462,6 +475,12 @@ void SheepShaver::StartEmulator(void)
 	boot_globs[0] = htonl(RAMBase);					// First RAM bank
 	boot_globs[1] = htonl(RAMSize);
 	boot_globs[2] = htonl((uint32)-1);				// End of bank table
+
+	// Init thunks
+	if (!InitThunks()) {
+		PostMessage(B_QUIT_REQUESTED);
+		return;
+	}
 
 	// Init drivers
 	SonyInit();
@@ -654,6 +673,9 @@ void SheepShaver::Quit(void)
 	CDROMExit();
 	DiskExit();
 	SonyExit();
+
+	// Delete SheepShaver globals
+	SheepMem::Exit();
 
 	// Delete DR Cache area
 	if (dr_cache_area >= 0)
@@ -1248,7 +1270,7 @@ void Execute68kTrap(uint16 trap, M68kRegisters *r)
 
 void ExecutePPC(void (*func)())
 {
-	RoutineDescriptor desc = BUILD_PPC_ROUTINE_DESCRIPTOR(0, func);
+	SheepRoutineDescriptor desc(0, (uint32)func);
 	M68kRegisters r;
 	Execute68k((uint32)&desc, &r);
 }
@@ -2049,6 +2071,35 @@ rti:
 	r->r10 = segv_r[10];
 	r->r11 = segv_r[11];
 	r->r12 = segv_r[12];
+}
+
+
+/*
+ *  Helpers to share 32-bit addressable data with MacOS
+ */
+
+bool SheepMem::Init(void)
+{
+	// Delete old area
+	area_id old_sheep_area = find_area(SHEEP_AREA_NAME);
+	if (old_sheep_area > 0)
+		delete_area(old_sheep_area);
+
+	// Create area for SheepShaver data
+	base = 0x60000000;
+	SheepMemArea = create_area(SHEEP_AREA_NAME, (void **)&base, B_BASE_ADDRESS, size, B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
+	if (SheepMemArea < 0)
+		return false;
+
+	D(bug("SheepShaver area %ld at %p\n", SheepMemArea, base));
+	top = base + size;
+	return true;
+}
+
+void SheepMem::Exit(void)
+{
+	if (SheepMemArea >= 0)
+		delete_area(SheepMemArea);
 }
 
 

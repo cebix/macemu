@@ -109,6 +109,7 @@
 #include "user_strings.h"
 #include "vm_alloc.h"
 #include "sigsegv.h"
+#include "thunks.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -145,7 +146,7 @@
 const char ROM_FILE_NAME[] = "ROM";
 const char ROM_FILE_NAME2[] = "Mac OS ROM";
 
-const uint32 RAM_BASE = 0x20000000;			// Base address of RAM
+const uintptr RAM_BASE = 0x20000000;		// Base address of RAM
 const uint32 SIG_STACK_SIZE = 0x10000;		// Size of signal stack
 
 
@@ -172,9 +173,6 @@ void *TOC;				// Small data pointer (r13)
 #endif
 uint32 RAMBase;			// Base address of Mac RAM
 uint32 RAMSize;			// Size of Mac RAM
-uint32 SheepStack1Base;	// SheepShaver first alternate stack base
-uint32 SheepStack2Base;	// SheepShaver second alternate stack base
-uint32 SheepThunksBase;	// SheepShaver thunks base
 uint32 KernelDataAddr;	// Address of Kernel Data
 uint32 BootGlobsAddr;	// Address of BootGlobs structure at top of Mac RAM
 uint32 PVR;				// Theoretical PVR
@@ -187,7 +185,6 @@ char *x_display_name = NULL;				// X11 display name
 Display *x_display = NULL;					// X11 display handle
 
 static int zero_fd = 0;						// FD of /dev/zero
-static bool sheep_area_mapped = false;		// Flag: SheepShaver data area mmap()ed
 static bool lm_area_mapped = false;			// Flag: Low Memory area mmap()ped
 static int kernel_area = -1;				// SHM ID of Kernel Data area
 static bool rom_area_mapped = false;		// Flag: Mac ROM mmap()ped
@@ -215,6 +212,9 @@ static void *extra_stack = NULL;			// Stack for SIGSEGV inside interrupt handler
 static bool emul_thread_fatal = false;		// Flag: MacOS thread crashed, tick thread shall dump debug output
 static sigregs sigsegv_regs;				// Register dump when crashed
 #endif
+
+uintptr SheepMem::base = 0x60000000;		// Address of SheepShaver data
+uintptr SheepMem::top = 0;					// Top of SheepShaver data (stack like storage)
 
 
 // Prototypes
@@ -470,21 +470,17 @@ int main(int argc, char **argv)
 		ErrorAlert(str);
 		goto quit;
 	}
-	kernel_data = (KernelData *)0x68ffe000;
+	kernel_data = (KernelData *)KERNEL_DATA_BASE;
 	emulator_data = &kernel_data->ed;
-	KernelDataAddr = (uint32)kernel_data;
+	KernelDataAddr = KERNEL_DATA_BASE;
 	D(bug("Kernel Data at %p, Emulator Data at %p\n", kernel_data, emulator_data));
 
 	// Create area for SheepShaver data
-	if (vm_acquire_fixed((char *)SHEEP_BASE, SHEEP_SIZE) < 0) {
+	if (!SheepMem::Init()) {
 		sprintf(str, GetString(STR_SHEEP_MEM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
-	SheepStack1Base = SHEEP_BASE + 0x10000;
-	SheepStack2Base = SheepStack1Base + 0x10000;
-	SheepThunksBase = SheepStack2Base + 0x1000;
-	sheep_area_mapped = true;
 
 	// Create area for Mac ROM
 	if (vm_acquire_fixed((char *)ROM_BASE, ROM_AREA_SIZE) < 0) {
@@ -579,6 +575,10 @@ int main(int argc, char **argv)
 	boot_globs[1] = htonl(RAMSize);
 	boot_globs[2] = htonl((uint32)-1);			// End of bank table
 
+	// Init thunks
+	if (!ThunksInit())
+		goto quit;
+
 	// Init drivers
 	SonyInit();
 	DiskInit();
@@ -622,16 +622,17 @@ int main(int argc, char **argv)
 	// Initialize Kernel Data
 	memset(kernel_data, 0, sizeof(KernelData));
 	if (ROMType == ROMTYPE_NEWWORLD) {
-		static uint32 of_dev_tree[4] = {0, 0, 0, 0};
-		static uint8 vector_lookup_tbl[128];
-		static uint8 vector_mask_tbl[64];
+		uintptr of_dev_tree = SheepMem::Reserve(4 * sizeof(uint32));
+		memset((void *)of_dev_tree, 0, 4 * sizeof(uint32));
+		uintptr vector_lookup_tbl = SheepMem::Reserve(128);
+		uintptr vector_mask_tbl = SheepMem::Reserve(64);
 		memset((uint8 *)kernel_data + 0xb80, 0x3d, 0x80);
-		memset(vector_lookup_tbl, 0, 128);
-		memset(vector_mask_tbl, 0, 64);
+		memset((void *)vector_lookup_tbl, 0, 128);
+		memset((void *)vector_mask_tbl, 0, 64);
 		kernel_data->v[0xb80 >> 2] = htonl(ROM_BASE);
-		kernel_data->v[0xb84 >> 2] = htonl((uint32)of_dev_tree);	// OF device tree base
-		kernel_data->v[0xb90 >> 2] = htonl((uint32)vector_lookup_tbl);
-		kernel_data->v[0xb94 >> 2] = htonl((uint32)vector_mask_tbl);
+		kernel_data->v[0xb84 >> 2] = htonl(of_dev_tree);			// OF device tree base
+		kernel_data->v[0xb90 >> 2] = htonl(vector_lookup_tbl);
+		kernel_data->v[0xb94 >> 2] = htonl(vector_mask_tbl);
 		kernel_data->v[0xb98 >> 2] = htonl(ROM_BASE);				// OpenPIC base
 		kernel_data->v[0xbb0 >> 2] = htonl(0);						// ADB base
 		kernel_data->v[0xc20 >> 2] = htonl(RAMSize);
@@ -667,18 +668,18 @@ int main(int argc, char **argv)
 	D(bug("Initializing Low Memory...\n"));
 	memset(NULL, 0, 0x3000);
 	WriteMacInt32(XLM_SIGNATURE, FOURCC('B','a','a','h'));			// Signature to detect SheepShaver
-	WriteMacInt32(XLM_KERNEL_DATA, (uint32)kernel_data);			// For trap replacement routines
+	WriteMacInt32(XLM_KERNEL_DATA, KernelDataAddr);					// For trap replacement routines
 	WriteMacInt32(XLM_PVR, PVR);									// Theoretical PVR
 	WriteMacInt32(XLM_BUS_CLOCK, BusClockSpeed);					// For DriverServicesLib patch
 	WriteMacInt16(XLM_EXEC_RETURN_OPCODE, M68K_EXEC_RETURN);		// For Execute68k() (RTS from the executed 68k code will jump here and end 68k mode)
 #if EMULATED_PPC
-	WriteMacInt32(XLM_ETHER_INIT, POWERPC_NATIVE_OP_FUNC(NATIVE_ETHER_INIT));
-	WriteMacInt32(XLM_ETHER_TERM, POWERPC_NATIVE_OP_FUNC(NATIVE_ETHER_TERM));
-	WriteMacInt32(XLM_ETHER_OPEN, POWERPC_NATIVE_OP_FUNC(NATIVE_ETHER_OPEN));
-	WriteMacInt32(XLM_ETHER_CLOSE, POWERPC_NATIVE_OP_FUNC(NATIVE_ETHER_CLOSE));
-	WriteMacInt32(XLM_ETHER_WPUT, POWERPC_NATIVE_OP_FUNC(NATIVE_ETHER_WPUT));
-	WriteMacInt32(XLM_ETHER_RSRV, POWERPC_NATIVE_OP_FUNC(NATIVE_ETHER_RSRV));
-	WriteMacInt32(XLM_VIDEO_DOIO, POWERPC_NATIVE_OP_FUNC(NATIVE_VIDEO_DO_DRIVER_IO));
+	WriteMacInt32(XLM_ETHER_INIT, NativeFunction(NATIVE_ETHER_INIT));
+	WriteMacInt32(XLM_ETHER_TERM, NativeFunction(NATIVE_ETHER_TERM));
+	WriteMacInt32(XLM_ETHER_OPEN, NativeFunction(NATIVE_ETHER_OPEN));
+	WriteMacInt32(XLM_ETHER_CLOSE, NativeFunction(NATIVE_ETHER_CLOSE));
+	WriteMacInt32(XLM_ETHER_WPUT, NativeFunction(NATIVE_ETHER_WPUT));
+	WriteMacInt32(XLM_ETHER_RSRV, NativeFunction(NATIVE_ETHER_RSRV));
+	WriteMacInt32(XLM_VIDEO_DOIO, NativeFunction(NATIVE_VIDEO_DO_DRIVER_IO));
 #else
 	WriteMacInt32(XLM_TOC, (uint32)TOC);							// TOC pointer of emulator
 	WriteMacInt32(XLM_ETHER_INIT, (uint32)InitStreamModule);		// DLPI ethernet driver functions
@@ -843,6 +844,9 @@ static void Quit(void)
 	DiskExit();
 	SonyExit();
 
+	// Delete SheepShaver globals
+	SheepMem::Exit();
+
 	// Delete RAM area
 	if (ram_area_mapped)
 		vm_release((char *)RAM_BASE, RAMSize);
@@ -963,7 +967,7 @@ void Execute68kTrap(uint16 trap, M68kRegisters *r)
 void ExecutePPC(void (*func)())
 {
 	uint32 tvect[2] = {(uint32)func, 0};	// Fake TVECT
-	RoutineDescriptor desc = BUILD_PPC_ROUTINE_DESCRIPTOR(0, tvect);
+	SheepRoutineDescriptor desc(0, tvect);
 	M68kRegisters r;
 	Execute68k((uint32)&desc, &r);
 }
@@ -1784,6 +1788,25 @@ power_inst:		sprintf(str, GetString(STR_POWER_INSTRUCTION_ERR), r->nip, r->gpr[1
 rti:;
 }
 #endif
+
+
+/*
+ *  Helpers to share 32-bit addressable data with MacOS
+ */
+
+bool SheepMem::Init(void)
+{
+	if (vm_acquire_fixed((char *)base, size) < 0)
+		return false;
+	top = base + size;
+	return true;
+}
+
+void SheepMem::Exit(void)
+{
+	if (top)
+		vm_release((void *)base, size);
+}
 
 
 /*

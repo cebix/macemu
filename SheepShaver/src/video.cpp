@@ -35,6 +35,7 @@
 #include "macos_util.h"
 #include "user_strings.h"
 #include "version.h"
+#include "thunks.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -167,9 +168,9 @@ static int16 VideoOpen(uint32 pb, VidLocals *csSave)
 	set_gamma(csSave, 0);
 
 	// Install and activate interrupt service
-	uint32 theServiceID = 0;
-	VSLNewInterruptService(csSave->regEntryID, FOURCC('v','b','l',' '), &theServiceID);
-	csSave->vslServiceID = ntohl(theServiceID);
+	SheepVar32 theServiceID = 0;
+	VSLNewInterruptService(csSave->regEntryID, FOURCC('v','b','l',' '), (uint32 *)theServiceID.addr());
+	csSave->vslServiceID = theServiceID.value();
 	D(bug(" Interrupt ServiceID %08lx\n", csSave->vslServiceID));
 	csSave->interruptsEnabled = true;
 

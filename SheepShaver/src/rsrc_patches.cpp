@@ -31,6 +31,7 @@
 #include "rom_patches.h"
 #include "main.h"
 #include "audio.h"
+#include "thunks.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -716,7 +717,7 @@ void PatchNativeResourceManager(void)
 	*(uint32 *)XLM_RES_LIB_TOC = tvec[1];
 	*(uint32 *)XLM_GET_RESOURCE = tvec[0];
 #if EMULATED_PPC
-	tvec[0] = htonl(POWERPC_NATIVE_OP_FUNC(NATIVE_GET_RESOURCE));
+	tvec[0] = htonl(NativeFunction(NATIVE_GET_RESOURCE));
 #else
 #ifdef __BEOS__
 	uint32 *tvec2 = (uint32 *)get_resource;
@@ -733,7 +734,7 @@ void PatchNativeResourceManager(void)
 	D(bug(" Get1Resource() entry %08x, TOC %08x\n", ntohl(tvec[0]), ntohl(tvec[1])));
 	*(uint32 *)XLM_GET_1_RESOURCE = tvec[0];
 #if EMULATED_PPC
-	tvec[0] = htonl(POWERPC_NATIVE_OP_FUNC(NATIVE_GET_1_RESOURCE));
+	tvec[0] = htonl(NativeFunction(NATIVE_GET_1_RESOURCE));
 #else
 #ifdef __BEOS__
 	tvec2 = (uint32 *)get_1_resource;
@@ -750,7 +751,7 @@ void PatchNativeResourceManager(void)
 	D(bug(" GetIndResource() entry %08x, TOC %08x\n", ntohl(tvec[0]), ntohl(tvec[1])));
 	*(uint32 *)XLM_GET_IND_RESOURCE = tvec[0];
 #if EMULATED_PPC
-	tvec[0] = htonl(POWERPC_NATIVE_OP_FUNC(NATIVE_GET_IND_RESOURCE));
+	tvec[0] = htonl(NativeFunction(NATIVE_GET_IND_RESOURCE));
 #else
 #ifdef __BEOS__
 	tvec2 = (uint32 *)get_ind_resource;
@@ -767,7 +768,7 @@ void PatchNativeResourceManager(void)
 	D(bug(" Get1IndResource() entry %08x, TOC %08x\n", ntohl(tvec[0]), ntohl(tvec[1])));
 	*(uint32 *)XLM_GET_1_IND_RESOURCE = tvec[0];
 #if EMULATED_PPC
-	tvec[0] = htonl(POWERPC_NATIVE_OP_FUNC(NATIVE_GET_1_IND_RESOURCE));
+	tvec[0] = htonl(NativeFunction(NATIVE_GET_1_IND_RESOURCE));
 #else
 #ifdef __BEOS__
 	tvec2 = (uint32 *)get_1_ind_resource;
@@ -784,7 +785,7 @@ void PatchNativeResourceManager(void)
 	D(bug(" RGetResource() entry %08x, TOC %08x\n", ntohl(tvec[0]), ntohl(tvec[1])));
 	*(uint32 *)XLM_R_GET_RESOURCE = tvec[0];
 #if EMULATED_PPC
-	tvec[0] = htonl(POWERPC_NATIVE_OP_FUNC(NATIVE_R_GET_RESOURCE));
+	tvec[0] = htonl(NativeFunction(NATIVE_R_GET_RESOURCE));
 #else
 #ifdef __BEOS__
 	tvec2 = (uint32 *)r_get_resource;

@@ -40,6 +40,7 @@
 #include "audio_defs.h"
 #include "serial.h"
 #include "macos_util.h"
+#include "thunks.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -447,212 +448,141 @@ static const uint8 cdrom_driver[] = {	// CD-ROM driver
 	0x4e, 0x75							//  rts
 };
 
-#if EMULATED_PPC
-#define SERIAL_TRAMPOLINES 1
-static uint32 serial_nothing_tvect[2] = {tswap32(POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_NOTHING)), 0};
-static uint32 serial_open_tvect[2] = {tswap32(POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_OPEN)), 0};
-static uint32 serial_prime_in_tvect[2] = {tswap32(POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_PRIME_IN)), 0};
-static uint32 serial_prime_out_tvect[2] = {tswap32(POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_PRIME_OUT)), 0};
-static uint32 serial_control_tvect[2] = {tswap32(POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_CONTROL)), 0};
-static uint32 serial_status_tvect[2] = {tswap32(POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_STATUS)), 0};
-static uint32 serial_close_tvect[2] = {tswap32(POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_CLOSE)), 0};
-#elif defined(__linux__)
-#define SERIAL_TRAMPOLINES 1
-static uint32 serial_nothing_tvect[2] = {(uint32)SerialNothing, 0};
-static uint32 serial_open_tvect[2] = {(uint32)SerialOpen, 0};
-static uint32 serial_prime_in_tvect[2] = {(uint32)SerialPrimeIn, 0};
-static uint32 serial_prime_out_tvect[2] = {(uint32)SerialPrimeOut, 0};
-static uint32 serial_control_tvect[2] = {(uint32)SerialControl, 0};
-static uint32 serial_status_tvect[2] = {(uint32)SerialStatus, 0};
-static uint32 serial_close_tvect[2] = {(uint32)SerialClose, 0};
-#endif
+static uint32 long_ptr;
 
-static const uint32 ain_driver[] = {	// .AIn driver header
-	0x4d000000, 0x00000000,
-	0x00200040, 0x00600080,
-	0x00a0042e, 0x41496e00,
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_nothing_tvect,
-#else
-	0x00010004, (uint32)SerialNothing,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_prime_in_tvect,
-#else
-	0x00010004, (uint32)SerialPrimeIn,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_control_tvect,
-#else
-	0x00010004, (uint32)SerialControl,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_status_tvect,
-#else
-	0x00010004, (uint32)SerialStatus,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_nothing_tvect,
-#else
-	0x00010004, (uint32)SerialNothing,
-#endif
-	0x00000000, 0x00000000,
+static void SetLongBase(uint32 addr)
+{
+	long_ptr = addr;
+}
+
+static void Long(uint32 value)
+{
+	WriteMacInt32(long_ptr, value);
+	long_ptr += 4;
+}
+
+static void gen_ain_driver(uintptr addr)
+{
+	SetLongBase(addr);
+
+	// .AIn driver header
+	Long(0x4d000000); Long(0x00000000);
+	Long(0x00200040); Long(0x00600080);
+	Long(0x00a0042e); Long(0x41496e00);
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_NOTHING));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_PRIME_IN));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_CONTROL));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_STATUS));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_NOTHING));
+	Long(0x00000000); Long(0x00000000);
 };
 
-static const uint32 aout_driver[] = {	// .AOut driver header
-	0x4d000000, 0x00000000,
-	0x00200040, 0x00600080,
-	0x00a0052e, 0x414f7574,
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_open_tvect,
-#else
-	0x00010004, (uint32)SerialOpen,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_prime_out_tvect,
-#else
-	0x00010004, (uint32)SerialPrimeOut,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_control_tvect,
-#else
-	0x00010004, (uint32)SerialControl,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_status_tvect,
-#else
-	0x00010004, (uint32)SerialStatus,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_close_tvect,
-#else
-	0x00010004, (uint32)SerialClose,
-#endif
-	0x00000000, 0x00000000,
+static void gen_aout_driver(uintptr addr)
+{
+	SetLongBase(addr);
+
+	// .AOut driver header
+	Long(0x4d000000); Long(0x00000000);
+	Long(0x00200040); Long(0x00600080);
+	Long(0x00a0052e); Long(0x414f7574);
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_OPEN));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_PRIME_OUT));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_CONTROL));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_STATUS));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_CLOSE));
+	Long(0x00000000); Long(0x00000000);
 };
 
-static const uint32 bin_driver[] = {	// .BIn driver header
-	0x4d000000, 0x00000000,
-	0x00200040, 0x00600080,
-	0x00a0042e, 0x42496e00,
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_nothing_tvect,
-#else
-	0x00010004, (uint32)SerialNothing,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_prime_in_tvect,
-#else
-	0x00010004, (uint32)SerialPrimeIn,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_control_tvect,
-#else
-	0x00010004, (uint32)SerialControl,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_status_tvect,
-#else
-	0x00010004, (uint32)SerialStatus,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_nothing_tvect,
-#else
-	0x00010004, (uint32)SerialNothing,
-#endif
-	0x00000000, 0x00000000,
+static void gen_bin_driver(uintptr addr)
+{
+	SetLongBase(addr);
+
+	// .BIn driver header
+	Long(0x4d000000); Long(0x00000000);
+	Long(0x00200040); Long(0x00600080);
+	Long(0x00a0042e); Long(0x42496e00);
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_NOTHING));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_PRIME_IN));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_CONTROL));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_STATUS));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_NOTHING));
+	Long(0x00000000); Long(0x00000000);
 };
 
-static const uint32 bout_driver[] = {	// .BOut driver header
-	0x4d000000, 0x00000000,
-	0x00200040, 0x00600080,
-	0x00a0052e, 0x424f7574,
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_open_tvect,
-#else
-	0x00010004, (uint32)SerialOpen,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_prime_out_tvect,
-#else
-	0x00010004, (uint32)SerialPrimeOut,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_control_tvect,
-#else
-	0x00010004, (uint32)SerialControl,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_status_tvect,
-#else
-	0x00010004, (uint32)SerialStatus,
-#endif
-	0x00000000, 0x00000000,
-	0xaafe0700, 0x00000000,
-	0x00000000, 0x00179822,
-#ifdef SERIAL_TRAMPOLINES
-	0x00010004, (uint32)serial_close_tvect,
-#else
-	0x00010004, (uint32)SerialClose,
-#endif
-	0x00000000, 0x00000000,
+static void gen_bout_driver(uintptr addr)
+{
+	SetLongBase(addr);
+
+	// .BOut driver header
+	Long(0x4d000000); Long(0x00000000);
+	Long(0x00200040); Long(0x00600080);
+	Long(0x00a0052e); Long(0x424f7574);
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_OPEN));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_PRIME_OUT));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_CONTROL));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_STATUS));
+	Long(0x00000000); Long(0x00000000);
+	Long(0xaafe0700); Long(0x00000000);
+	Long(0x00000000); Long(0x00179822);
+	Long(0x00010004); Long(NativeTVECT(NATIVE_SERIAL_CLOSE));
+	Long(0x00000000); Long(0x00000000);
 };
 
 static const uint8 adbop_patch[] = {	// Call ADBOp() completion procedure
@@ -1109,7 +1039,7 @@ static bool patch_68k_emul(void)
 	lp = (uint32 *)(ROM_BASE + 0x36f900);
 	*lp++ = htonl(0x7c2903a6);					// mtctr	r1
 #if EMULATED_PPC
-	*lp++ = POWERPC_NATIVE_OP(NATIVE_DISABLE_INTERRUPT);
+	*lp++ = htonl(NativeOpcode(NATIVE_DISABLE_INTERRUPT));
 #else
 	*lp++ = htonl(0x80200000 + XLM_IRQ_NEST);	// lwz		r1,XLM_IRQ_NEST
 	*lp++ = htonl(0x38210001);					// addi		r1,r1,1
@@ -1143,7 +1073,7 @@ static bool patch_68k_emul(void)
 	lp = (uint32 *)(ROM_BASE + 0x36fa00);
 	*lp++ = htonl(0x7c2903a6);					// mtctr	r1
 #if EMULATED_PPC
-	*lp++ = POWERPC_NATIVE_OP(NATIVE_DISABLE_INTERRUPT);
+	*lp++ = htonl(NativeOpcode(NATIVE_DISABLE_INTERRUPT));
 #else
 	*lp++ = htonl(0x80200000 + XLM_IRQ_NEST);	// lwz		r1,XLM_IRQ_NEST
 	*lp++ = htonl(0x38210001);					// addi		r1,r1,1
@@ -1177,7 +1107,7 @@ static bool patch_68k_emul(void)
 	lp = (uint32 *)(ROM_BASE + 0x36fb00);
 	*lp++ = htonl(0x7c2903a6);					// mtctr	r1
 #if EMULATED_PPC
-	*lp++ = POWERPC_NATIVE_OP(NATIVE_DISABLE_INTERRUPT);
+	*lp++ = htonl(NativeOpcode(NATIVE_DISABLE_INTERRUPT));
 #else
 	*lp++ = htonl(0x80200000 + XLM_IRQ_NEST);	// lwz		r1,XLM_IRQ_NEST
 	*lp++ = htonl(0x38210001);					// addi		r1,r1,1
@@ -1211,7 +1141,7 @@ static bool patch_68k_emul(void)
 	lp = (uint32 *)(ROM_BASE + 0x36fc00);
 	*lp++ = htonl(0x7c2903a6);					// mtctr	r1
 #if EMULATED_PPC
-	*lp++ = POWERPC_NATIVE_OP(NATIVE_DISABLE_INTERRUPT);
+	*lp++ = htonl(NativeOpcode(NATIVE_DISABLE_INTERRUPT));
 #else
 	*lp++ = htonl(0x80200000 + XLM_IRQ_NEST);	// lwz		r1,XLM_IRQ_NEST
 	*lp++ = htonl(0x38210001);					// addi		r1,r1,1
@@ -1352,7 +1282,7 @@ static bool patch_nanokernel(void)
 
 	lp = (uint32 *)(ROM_BASE + 0x318000);
 #if EMULATED_PPC
-	*lp++ = POWERPC_NATIVE_OP(NATIVE_ENABLE_INTERRUPT);
+	*lp++ = htonl(NativeOpcode(NATIVE_ENABLE_INTERRUPT));
 	*lp = htonl(0x48000000 + ((xlp - 0x8004) & 0x03fffffc));	// b		ROM_BASE+0x312c2c
 #else
 	*lp++ = htonl(0x81400000 + XLM_IRQ_NEST);	// lwz	r10,XLM_IRQ_NEST
@@ -2032,10 +1962,10 @@ static bool patch_68k(void)
 	memcpy((void *)(ROM_BASE + sony_offset + 0x200), cdrom_driver, sizeof(cdrom_driver));
 
 	// Install serial drivers
-	memcpy_powerpc_code((void *)(ROM_BASE + sony_offset + 0x300), ain_driver, sizeof(ain_driver));
-	memcpy_powerpc_code((void *)(ROM_BASE + sony_offset + 0x400), aout_driver, sizeof(aout_driver));
-	memcpy_powerpc_code((void *)(ROM_BASE + sony_offset + 0x500), bin_driver, sizeof(bin_driver));
-	memcpy_powerpc_code((void *)(ROM_BASE + sony_offset + 0x600), bout_driver, sizeof(bout_driver));
+	gen_ain_driver( ROM_BASE + sony_offset + 0x300);
+	gen_aout_driver(ROM_BASE + sony_offset + 0x400);
+	gen_bin_driver( ROM_BASE + sony_offset + 0x500);
+	gen_bout_driver(ROM_BASE + sony_offset + 0x600);
 
 	// Copy icons to ROM
 	SonyDiskIconAddr = ROM_BASE + sony_offset + 0x800;
@@ -2237,7 +2167,8 @@ void InstallDrivers(void)
 {
 	D(bug("Installing drivers...\n"));
 	M68kRegisters r;
-	uint8 pb[SIZEOF_IOParam];
+	SheepArray<SIZEOF_IOParam> pb_var;
+	const uintptr pb = pb_var.addr();
 
 	// Install floppy driver
 	if (ROMType == ROMTYPE_NEWWORLD || ROMType == ROMTYPE_GOSSAMER) {
@@ -2260,9 +2191,10 @@ void InstallDrivers(void)
 #endif
 
 	// Open .Sony driver
-	WriteMacInt8((uint32)pb + ioPermssn, 0);
-	WriteMacInt32((uint32)pb + ioNamePtr, (uint32)"\005.Sony");
-	r.a[0] = (uint32)pb;
+	SheepString sony_str("\005.Sony");
+	WriteMacInt8(pb + ioPermssn, 0);
+	WriteMacInt32(pb + ioNamePtr, sony_str.addr());
+	r.a[0] = pb;
 	Execute68kTrap(0xa000, &r);		// Open()
 
 	// Install disk driver
@@ -2276,8 +2208,9 @@ void InstallDrivers(void)
 	WriteMacInt16(dce + dCtlFlags, DiskDriverFlags);
 
 	// Open disk driver
-	WriteMacInt32((uint32)pb + ioNamePtr, (uint32)"\005.Disk");
-	r.a[0] = (uint32)pb;
+	SheepString disk_str("\005.Disk");
+	WriteMacInt32(pb + ioNamePtr, disk_str.addr());
+	r.a[0] = pb;
 	Execute68kTrap(0xa000, &r);		// Open()
 
 	// Install CD-ROM driver unless nocdrom option given
@@ -2294,8 +2227,9 @@ void InstallDrivers(void)
 		WriteMacInt16(dce + dCtlFlags, CDROMDriverFlags);
 
 		// Open CD-ROM driver
-		WriteMacInt32((uint32)pb + ioNamePtr, (uint32)"\010.AppleCD");
-		r.a[0] = (uint32)pb;
+		SheepString apple_cd("\010.AppleCD");
+		WriteMacInt32(pb + ioNamePtr, apple_cd.addr());
+		r.a[0] = pb;
 		Execute68kTrap(0xa000, &r);		// Open()
 	}
 

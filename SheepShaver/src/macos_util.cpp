@@ -27,6 +27,7 @@
 #include "xlowmem.h"
 #include "emul_op.h"
 #include "macos_util.h"
+#include "thunks.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -150,15 +151,19 @@ void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_s
  *  lib and sym must be Pascal strings!
  */
 
-void *FindLibSymbol(char *lib, char *sym)
+void *FindLibSymbol(char *lib_str, char *sym_str)
 {
-	uint32 conn_id = 0;
-	void *main_addr = NULL;
-	char err[256] = "";
-	uint32 *sym_addr = NULL;
-	uint32 sym_class = 0;
+	SheepVar32 conn_id = 0;
+	SheepVar32 main_addr = 0;
+	SheepArray<256> err;
+	WriteMacInt8(err.addr(), 0);
+	SheepVar32 sym_addr = 0;
+	SheepVar32 sym_class = 0;
 
-	D(bug("FindLibSymbol %s in %s...\n", sym+1, lib+1));
+	SheepString lib(lib_str);
+	SheepString sym(sym_str);
+
+	D(bug("FindLibSymbol %s in %s...\n", sym.value()+1, lib.value()+1));
 
 	if (ReadMacInt32(XLM_RUN_MODE) == MODE_EMUL_OP) {
 		M68kRegisters r;
@@ -177,12 +182,12 @@ void *FindLibSymbol(char *lib, char *sym)
 			0x30, 0x1f,							// move.w	(a7)+,d0
 			M68K_RTS >> 8, M68K_RTS & 0xff
 		};
-		r.a[0] = (uint32)lib;
-		r.a[1] = (uint32)&conn_id;
-		r.a[2] = (uint32)&main_addr;
-		r.a[3] = (uint32)err;
+		r.a[0] = lib.addr();
+		r.a[1] = conn_id.addr();
+		r.a[2] = main_addr.addr();
+		r.a[3] = err.addr();
 		Execute68k((uint32)proc1, &r);
-		D(bug(" GetSharedLibrary: ret %d, connection ID %ld, main %p\n", (int16)r.d[0], ntohl(conn_id), ntohl((uintptr)main_addr)));
+		D(bug(" GetSharedLibrary: ret %d, connection ID %ld, main %p\n", (int16)r.d[0], conn_id.value(), main_addr.value()));
 		if (r.d[0])
 			return NULL;
 	
@@ -198,17 +203,17 @@ void *FindLibSymbol(char *lib, char *sym)
 			0x30, 0x1f,					// move.w	(a7)+,d0
 			M68K_RTS >> 8, M68K_RTS & 0xff
 		};
-		r.d[0] = ntohl(conn_id);
-		r.a[0] = (uint32)sym;
-		r.a[1] = (uint32)&sym_addr;
-		r.a[2] = (uint32)&sym_class;
+		r.d[0] = conn_id.value();
+		r.a[0] = sym.addr();
+		r.a[1] = sym_addr.addr();
+		r.a[2] = sym_class.addr();
 		Execute68k((uint32)proc2, &r);
-		D(bug(" FindSymbol1: ret %d, sym_addr %p, sym_class %ld\n", (int16)r.d[0], ntohl((uintptr)sym_addr), ntohl(sym_class)));
+		D(bug(" FindSymbol1: ret %d, sym_addr %p, sym_class %ld\n", (int16)r.d[0], sym_addr.value(), sym_class.value()));
 //!! CloseConnection()?
 		if (r.d[0])
 			return NULL;
 		else
-			return (void *)ntohl((uintptr)sym_addr);
+			return (void *)sym_addr.value();
 
 	} else {
 
@@ -217,17 +222,17 @@ void *FindLibSymbol(char *lib, char *sym)
 			return 0;
 		}
 		int16 res;
-		res = GetSharedLibrary(lib, FOURCC('p','w','p','c'), 1, &conn_id, &main_addr, err);
-		D(bug(" GetSharedLibrary: ret %d, connection ID %ld, main %p\n", res, ntohl(conn_id), ntohl((uintptr)main_addr)));
+		res = GetSharedLibrary(lib.value(), FOURCC('p','w','p','c'), 1, (uint32 *)conn_id.addr(), (void **)main_addr.addr(), (char *)err.addr());
+		D(bug(" GetSharedLibrary: ret %d, connection ID %ld, main %p\n", res, conn_id.value(), main_addr.value()));
 		if (res)
 			return NULL;
-		res = FindSymbol(ntohl(conn_id), sym, (void **)&sym_addr, &sym_class);
-		D(bug(" FindSymbol: ret %d, sym_addr %p, sym_class %ld\n", res, ntohl((uintptr)sym_addr), ntohl(sym_class)));
+		res = FindSymbol(conn_id.value(), sym.value(), (void **)sym_addr.addr(), (uint32 *)sym_class.addr());
+		D(bug(" FindSymbol: ret %d, sym_addr %p, sym_class %ld\n", res, sym_addr.value(), sym_class.value()));
 //!!??		CloseConnection(&conn_id);
 		if (res)
 			return NULL;
 		else
-			return (void *)ntohl((uintptr)sym_addr);
+			return (void *)sym_addr.value();
 	}
 }
 

@@ -45,6 +45,7 @@
 #include "name_registry.h"
 #include "user_strings.h"
 #include "emul_op.h"
+#include "thunks.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -260,14 +261,8 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 			// Patch MakeExecutable()
 			MakeExecutableTvec = (uint32 *)FindLibSymbol("\023PrivateInterfaceLib", "\016MakeExecutable");
 			D(bug("MakeExecutable TVECT at %p\n", MakeExecutableTvec));
-#if EMULATED_PPC
-			MakeExecutableTvec[0] = htonl(POWERPC_NATIVE_OP_FUNC(NATIVE_MAKE_EXECUTABLE));
-#else
-#ifdef __BEOS__
-			MakeExecutableTvec[0] = ((uint32 *)MakeExecutable)[0];
-#else
-			MakeExecutableTvec[0] = (uint32)MakeExecutable;
-#endif
+			MakeExecutableTvec[0] = htonl(NativeFunction(NATIVE_MAKE_EXECUTABLE));
+#if !EMULATED_PPC
 			MakeExecutableTvec[1] = (uint32)TOC;
 #endif
 

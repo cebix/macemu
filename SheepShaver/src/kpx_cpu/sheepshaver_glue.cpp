@@ -31,6 +31,7 @@
 #include "cpu/ppc/ppc-cpu.hpp"
 #include "cpu/ppc/ppc-operations.hpp"
 #include "cpu/ppc/ppc-instructions.hpp"
+#include "thunks.h"
 
 // Used for NativeOp trampolines
 #include "video.h"
@@ -71,6 +72,9 @@ static void enter_mon(void)
 	mon(3, arg);
 #endif
 }
+
+// PowerPC EmulOp to exit from emulation looop
+const uint32 POWERPC_EXEC_RETURN = POWERPC_EMUL_OP | 1;
 
 // Enable multicore (main/interrupts) cpu emulation?
 #define MULTICORE_CPU (ASYNC_IRQ ? 1 : 0)
@@ -264,10 +268,11 @@ void sheepshaver_cpu::interrupt(uint32 entry)
 #endif
 
 	// Initialize stack pointer to SheepShaver alternate stack base
-	gpr(1) = SheepStack1Base - 64;
+	SheepArray<64> stack_area;
+	gpr(1) = stack_area.addr();
 
 	// Build trampoline to return from interrupt
-	uint32 trampoline[] = { htonl(POWERPC_EMUL_OP | 1) };
+	SheepVar32 trampoline = POWERPC_EXEC_RETURN;
 
 	// Prepare registers for nanokernel interrupt routine
 	kernel_data->v[0x004 >> 2] = htonl(gpr(1));
@@ -286,8 +291,8 @@ void sheepshaver_cpu::interrupt(uint32 entry)
 	gpr(1)  = KernelDataAddr;
 	gpr(7)  = ntohl(kernel_data->v[0x660 >> 2]);
 	gpr(8)  = 0;
-	gpr(10) = (uint32)trampoline;
-	gpr(12) = (uint32)trampoline;
+	gpr(10) = trampoline.addr();
+	gpr(12) = trampoline.addr();
 	gpr(13) = get_cr();
 
 	// rlwimi. r7,r7,8,0,0
@@ -424,8 +429,8 @@ uint32 sheepshaver_cpu::execute_macos_code(uint32 tvect, int nargs, uint32 const
 	uint32 saved_ctr= ctr();
 
 	// Build trampoline with EXEC_RETURN
-	uint32 trampoline[] = { htonl(POWERPC_EMUL_OP | 1) };
-	lr() = (uint32)trampoline;
+	SheepVar32 trampoline = POWERPC_EXEC_RETURN;
+	lr() = trampoline.addr();
 
 	gpr(1) -= 64;								// Create stack frame
 	uint32 proc = ReadMacInt32(tvect);			// Get routine address
@@ -469,8 +474,9 @@ inline void sheepshaver_cpu::execute_ppc(uint32 entry)
 	// Save branch registers
 	uint32 saved_lr = lr();
 
-	const uint32 trampoline[] = { htonl(POWERPC_EMUL_OP | 1) };
-	lr() = (uint32)trampoline;
+	SheepVar32 trampoline = POWERPC_EXEC_RETURN;
+	WriteMacInt32(trampoline.addr(), POWERPC_EXEC_RETURN);
+	lr() = trampoline.addr();
 
 	execute(entry);
 
@@ -788,43 +794,6 @@ void sheepshaver_cpu::handle_interrupt(void)
 	}
 }
 
-/*
- *  Execute NATIVE_OP opcode (called by PowerPC emulator)
- */
-
-#define POWERPC_NATIVE_OP_INIT(LR, OP) \
-		tswap32(POWERPC_EMUL_OP | ((LR) << 11) | (((uint32)OP) << 6) | 2)
-
-// FIXME: Make sure 32-bit relocations are used
-const uint32 NativeOpTable[NATIVE_OP_MAX] = {
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_PATCH_NAME_REGISTRY),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_VIDEO_INSTALL_ACCEL),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_VIDEO_VBL),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_VIDEO_DO_DRIVER_IO),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_ETHER_IRQ),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_ETHER_INIT),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_ETHER_TERM),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_ETHER_OPEN),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_ETHER_CLOSE),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_ETHER_WPUT),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_ETHER_RSRV),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_SERIAL_NOTHING),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_SERIAL_OPEN),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_SERIAL_PRIME_IN),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_SERIAL_PRIME_OUT),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_SERIAL_CONTROL),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_SERIAL_STATUS),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_SERIAL_CLOSE),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_GET_RESOURCE),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_GET_1_RESOURCE),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_GET_IND_RESOURCE),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_GET_1_IND_RESOURCE),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_R_GET_RESOURCE),
-	POWERPC_NATIVE_OP_INIT(0, NATIVE_DISABLE_INTERRUPT),
-	POWERPC_NATIVE_OP_INIT(0, NATIVE_ENABLE_INTERRUPT),
-	POWERPC_NATIVE_OP_INIT(1, NATIVE_MAKE_EXECUTABLE),
-};
-
 static void get_resource(void);
 static void get_1_resource(void);
 static void get_ind_resource(void);
@@ -944,12 +913,9 @@ static void NativeOp(int selector)
 
 void ExecuteNative(int selector)
 {
-	uint32 tvect[2];
-	tvect[0] = tswap32(POWERPC_NATIVE_OP_FUNC(selector));
-	tvect[1] = 0; // Fake TVECT
-	RoutineDescriptor desc = BUILD_PPC_ROUTINE_DESCRIPTOR(0, tvect);
+	SheepRoutineDescriptor desc(0, NativeTVECT(selector));
 	M68kRegisters r;
-	Execute68k((uint32)&desc, &r);
+	Execute68k(desc.addr(), &r);
 }
 
 /*
@@ -970,10 +936,11 @@ void Execute68k(uint32 pc, M68kRegisters *r)
 
 void Execute68kTrap(uint16 trap, M68kRegisters *r)
 {
-	uint16 proc[2];
-	proc[0] = htons(trap);
-	proc[1] = htons(M68K_RTS);
-	Execute68k((uint32)proc, r);
+	SheepVar proc_var(4);
+	uint32 proc = proc_var.addr();
+	WriteMacInt16(proc, trap);
+	WriteMacInt16(proc + 2, M68K_RTS);
+	Execute68k(proc, r);
 }
 
 /*
