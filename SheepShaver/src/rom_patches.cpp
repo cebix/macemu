@@ -1750,7 +1750,7 @@ static bool patch_68k(void)
 	*wp++ = htons(0x1000);
 	*wp++ = htons(0x001e);
 	*wp++ = htons(0x157c);			// move.b	#PVR,$1d(a2)
-	*wp++ = htons(PVR >> 16);
+	*wp++ = htons(((PVR & 0x80000000) ? 0x10 : 0) | ((PVR >> 16) & 0xff));
 	*wp++ = htons(0x001d);
 	*wp++ = htons(0x263c);			// move.l	#RAMSize,d3
 	*wp++ = htons(RAMSize >> 16);
