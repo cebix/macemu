@@ -35,6 +35,10 @@
 #include "basic-kernel.hpp"
 #endif
 
+#ifdef SHEEPSHAVER
+#include "main.h"
+#endif
+
 #if ENABLE_MON
 #include "mon.h"
 #include "mon_disass.h"
@@ -1114,14 +1118,50 @@ void powerpc_cpu::execute_mtspr(uint32 opcode)
 	increment_pc(4);
 }
 
+// Compute with 96 bit intermediate result: (a * b) / c
+static uint64 muldiv64(uint64 a, uint32 b, uint32 c)
+{
+	union {
+		uint64 ll;
+		struct {
+#ifdef WORDS_BIGENDIAN
+			uint32 high, low;
+#else
+			uint32 low, high;
+#endif
+		} l;
+	} u, res;
+
+	u.ll = a;
+	uint64 rl = (uint64)u.l.low * (uint64)b;
+	uint64 rh = (uint64)u.l.high * (uint64)b;
+	rh += (rl >> 32);
+	res.l.high = rh / c;
+	res.l.low = (((rh % c) << 32) + (rl & 0xffffffff)) / c;
+	return res.ll;
+}
+
+static inline uint64 get_tb_ticks(void)
+{
+	uint64 ticks;
+#ifdef SHEEPSHAVER
+	const uint32 TBFreq = BusClockSpeed / 4;
+	ticks = muldiv64(GetTicks_usec(), TBFreq, 1000000);
+#else
+	const uint32 TBFreq = 25 * 1000 * 1000; // 25 MHz
+	ticks = muldiv64((uint64)clock(), TBFreq, CLOCKS_PER_SEC);
+#endif
+	return ticks;
+}
+
 template< class TBR >
 void powerpc_cpu::execute_mftbr(uint32 opcode)
 {
 	uint32 tbr = TBR::get(this, opcode);
 	uint32 d;
 	switch (tbr) {
-	case 268: d = clock(); break;
-	case 269: d = 0; break;
+	case 268: d = (uint32)get_tb_ticks(); break;
+	case 269: d = (get_tb_ticks() >> 32); break;
 	default: execute_illegal(opcode);
 	}
 	operand_RD::set(this, opcode, d);
