@@ -32,6 +32,9 @@ enum {
 
 extern uint16 ROMVersion;
 
+// ROM offset of breakpoint
+extern uint32 ROMBreakpoint;
+
 // ROM offset of UniversalInfo, set by PatchROM()
 extern uint32 UniversalInfo;
 

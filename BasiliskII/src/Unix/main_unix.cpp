@@ -54,6 +54,10 @@
 #include <X11/extensions/xf86dga.h>
 #endif
 
+#if ENABLE_MON
+#include "mon.h"
+#endif
+
 
 // Constants
 const char ROM_FILE_NAME[] = "ROM";
@@ -85,6 +89,11 @@ static pthread_mutex_t intflag_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to pro
 #define SIG_TIMER SIGRTMIN
 static struct sigaction timer_sa;					// sigaction used for timer
 static timer_t timer;								// 60Hz timer
+#endif
+
+#if ENABLE_MON
+static struct sigaction sigint_sa;					// sigaction for SIGINT handler
+static void sigint_handler(...);
 #endif
 
 
@@ -132,6 +141,8 @@ int main(int argc, char **argv)
 	for (int i=1; i<argc; i++) {
 		if (strcmp(argv[i], "-display") == 0 && ++i < argc)
 			x_display_name = argv[i];
+		else if (strcmp(argv[i], "-break") == 0 && ++i < argc)
+			ROMBreakpoint = strtol(argv[i], NULL, 0);
 	}
 
 	// Open display
@@ -252,6 +263,14 @@ int main(int argc, char **argv)
 	}
 #endif
 
+#if ENABLE_MON
+	// Setup SIGINT handler to enter mon
+	sigemptyset(&sigint_sa.sa_mask);
+	sigint_sa.sa_flags = 0;
+	sigint_sa.sa_handler = sigint_handler;
+	sigaction(SIGINT, &sigint_sa, NULL);
+#endif
+
 	// Start 68k and jump to ROM boot routine
 	Start680x0();
 
@@ -323,6 +342,20 @@ void QuitEmulator(void)
 #if EMULATED_68K
 void FlushCodeCache(void *start, uint32 size)
 {
+}
+#endif
+
+
+/*
+ *  SIGINT handler, enters mon
+ */
+
+#if ENABLE_MON
+static void sigint_handler(...)
+{
+	char *arg[2] = {"rmon", NULL};
+	mon(1, arg);
+	QuitEmulator();
 }
 #endif
 

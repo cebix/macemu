@@ -38,9 +38,8 @@
 #include "debug.h"
 
 
-// Breakpoint
-//#define M68K_BREAKPOINT 0x2310	// CritError
-//#define M68K_BREAKPOINT 0x1d10	// BootMe
+// Breakpoint (offset into ROM)
+uint32 ROMBreakpoint = 0;	// 0 = disabled, 0x2310 = CritError
 
 // Global variables
 uint32 UniversalInfo;	// ROM offset of UniversalInfo
@@ -547,6 +546,11 @@ void InstallDrivers(uint32 pb)
 	r.d[0] = 0xa093;
 	Execute68kTrap(0xa247, &r);		// SetOSTrapAddress()
 
+	// Install MemoryDispatch() replacement routine
+	r.a[0] = ROMBaseMac + memory_dispatch_offset;
+	r.d[0] = 0xa05c;
+	Execute68kTrap(0xa247, &r);		// SetOSTrapAddress()
+
 	// Install disk driver
 	r.a[0] = ROMBaseMac + sony_offset + 0x100;
 	r.d[0] = (uint32)DiskRefNum;
@@ -642,12 +646,6 @@ void InstallSERD(void)
 
 void PatchAfterStartup(void)
 {
-	// Install MemoryDispatch() replacement routine
-	M68kRegisters r;
-	r.a[0] = ROMBaseMac + memory_dispatch_offset;
-	r.d[0] = 0xa05c;
-	Execute68kTrap(0xa247, &r);		// SetOSTrapAddress()
-
 #if SUPPORTS_EXTFS
 	// Install external file system
 	InstallExtFS();
@@ -1303,6 +1301,15 @@ static bool patch_rom_32(void)
 		}
 	}
 
+	// Don't set MemoryDispatch() to unimplemented trap
+	static const uint8 memdisp_dat[] = {0x30, 0x3c, 0xa8, 0x9f, 0xa7, 0x46, 0x30, 0x3c, 0xa0, 0x5c, 0xa2, 0x47};
+	base = find_rom_data(0x4f100, 0x4f180, memdisp_dat, sizeof(memdisp_dat));
+	D(bug("memdisp %08lx\n", base));
+	if (base) {	// ROM15/32
+		wp = (uint16 *)(ROMBaseHost + base + 10);
+		*wp = htons(M68K_NOP);
+	}
+
 	// Patch .EDisk driver (don't scan for EDisks in the area ROMBase..0xe00000)
 	uint32 edisk_offset = find_rom_resource('DRVR', 51);
 	if (edisk_offset) {
@@ -1455,11 +1462,11 @@ bool PatchROM(void)
 			return false;
 	}
 
-#ifdef M68K_BREAKPOINT
 	// Install breakpoint
-	uint16 *wp = (uint16 *)(ROMBaseHost + M68K_BREAKPOINT);
-	*wp = htons(M68K_EMUL_BREAK);
-#endif
+	if (ROMBreakpoint) {
+		uint16 *wp = (uint16 *)(ROMBaseHost + ROMBreakpoint);
+		*wp = htons(M68K_EMUL_BREAK);
+	}
 
 	// Clear caches as we loaded and patched code
 	FlushCodeCache(ROMBaseHost, ROMSize);

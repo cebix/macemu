@@ -5,6 +5,8 @@ Basilisk II \- a free, portable Mac II emulator
 .B BasiliskII
 [\-display
 .IR display-name ]
+[\-break
+.IR offset ]
 .SH DESCRIPTION
 .B Basilisk II
 is an attempt at creating a free, portable 68k Mac emulator.
@@ -14,6 +16,9 @@ For more information, see the included "README" file.
 .BI "\-display " display-name
 specifies the display to use; see
 .BR X (1)
+.TP
+.BI "\-break " offset
+specifies a ROM offset where a breakpoint will be placed
 .SH FILES
 .TP
 .I /usr/share/BasiliskII/keycodes

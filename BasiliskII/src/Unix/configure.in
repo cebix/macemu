@@ -8,8 +8,9 @@ AC_CONFIG_HEADER(config.h)
 dnl Options.
 AC_ARG_ENABLE(xf86-dga,  [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(fbdev-dga, [  --enable-fbdev-dga      use direct frame buffer access via /dev/fb [default=yes]], [WANT_FBDEV_DGA=$enableval], [WANT_FBDEV_DGA=yes])
-AC_ARG_ENABLE(esd,       [  --enable-esd            Enlightened Sound Daemon support [default=yes]], [WANT_ESD=$enableval], [WANT_ESD=yes])
-AC_ARG_ENABLE(ui,        [  --enable-ui             use GTK user interface [default=yes]], [WANT_UI=$enableval], [WANT_UI=yes])
+AC_ARG_WITH(esd,       [  --with-esd              support ESD for sound under Linux/FreeBSD [default=yes]], [WANT_ESD=$withval], [WANT_ESD=yes])
+AC_ARG_WITH(gtk,       [  --with-gtk              use GTK user interface [default=yes]], [WANT_GTK=$withval], [WANT_GTK=yes])
+AC_ARG_WITH(mon,       [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=yes])
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -27,6 +28,8 @@ if grep mon_init ../../../mon/src/mon.h >/dev/null 2>/dev/null; then
   DEFINES="$DEFINES -DENABLE_MON=1"
   MONSRCS="../../../mon/src/mon.cpp ../../../mon/src/mon_6502.cpp ../../../mon/src/mon_68k.cpp ../../../mon/src/mon_8080.cpp ../../../mon/src/mon_cmd.cpp ../../../mon/src/mon_ppc.cpp ../../../mon/src/mon_x86.cpp"
   CXXFLAGS="$CXXFLAGS -I../../../mon/src"
+  AC_CHECK_LIB(readline, readline)
+  AC_CHECK_HEADERS(readline/readline.h readline/history.h)
 else
   AC_MSG_RESULT(no)
   WANT_MON=no
@@ -85,7 +88,7 @@ fi
 
 dnl We use GTK+ if possible.
 UISRCS=../dummy/prefs_editor_dummy.cpp
-if [[ "x$WANT_UI" = "xyes" ]]; then
+if [[ "x$WANT_GTK" = "xyes" ]]; then
   AM_PATH_GTK(1.2.0, [
     DEFINES="$DEFINES -DENABLE_GTK=1"
     CFLAGS="$CFLAGS $GTK_CFLAGS"
@@ -94,7 +97,7 @@ if [[ "x$WANT_UI" = "xyes" ]]; then
     UISRCS=prefs_editor_gtk.cpp
   ], [
     AC_MSG_WARN([Could not find GTK+, disabling user interface.])
-    WANT_UI=no
+    WANT_GTK=no
   ])
 fi
 
@@ -291,7 +294,7 @@ echo
 echo XFree86 DGA support .............. : $WANT_XF86_DGA
 echo fbdev DGA support ................ : $WANT_FBDEV_DGA
 echo ESD sound support ................ : $WANT_ESD
-echo GTK user interface ............... : $WANT_UI
+echo GTK user interface ............... : $WANT_GTK
 echo mon debugger support ............. : $WANT_MON
 echo i386 assembly optimizations ...... : $WANT_X86_ASSEMBLY
 echo SPARC V8 assembly optimizations .. : $WANT_SPARC_V8_ASSEMBLY
