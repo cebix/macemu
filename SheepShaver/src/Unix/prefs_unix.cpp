@@ -29,9 +29,14 @@
 
 // Platform-specific preferences items
 prefs_desc platform_prefs_items[] = {
-	{"ether", TYPE_STRING, false, "device name of Mac ethernet adapter"},
-	{"keycodes", TYPE_BOOLEAN, false, "use keycodes rather than keysyms to decode keyboard"},
-	{"keycodefile", TYPE_STRING, false, "path of keycode translation file"},
+	{"ether", TYPE_STRING, false,          "device name of Mac ethernet adapter"},
+	{"keycodes", TYPE_BOOLEAN, false,      "use keycodes rather than keysyms to decode keyboard"},
+	{"keycodefile", TYPE_STRING, false,    "path of keycode translation file"},
+	{"dsp", TYPE_STRING, false,            "audio output (dsp) device name"},
+	{"mixer", TYPE_STRING, false,          "audio mixer device name"},
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+	{"ignoresegv", TYPE_BOOLEAN, false,    "ignore illegal memory accesses"},
+#endif
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
@@ -97,4 +102,19 @@ void AddPlatformPrefsDefaults(void)
 	PrefsReplaceString("extfs", "/");
 	PrefsAddInt32("windowmodes", 3);
 	PrefsAddInt32("screenmodes", 0x3f);
+#ifdef __linux__
+	if (access("/dev/.devfsd", F_OK) < 0) {
+		PrefsReplaceString("dsp", "/dev/dsp");
+		PrefsReplaceString("mixer", "/dev/mixer");
+	} else {
+		PrefsReplaceString("dsp", "/dev/sound/dsp");
+		PrefsReplaceString("mixer", "/dev/sound/mixer");
+	}
+#else
+	PrefsReplaceString("dsp", "/dev/dsp");
+	PrefsReplaceString("mixer", "/dev/mixer");
+#endif
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+	PrefsAddBool("ignoresegv", false);
+#endif
 }

@@ -546,6 +546,8 @@ static void create_jit_pane(GtkWidget *top)
 
 static GtkWidget *w_frameskip;
 
+static GtkWidget *w_dspdevice_file, *w_mixerdevice_file;
+
 // "5 Hz".."60Hz" selected
 static void mn_5hz(...) {PrefsReplaceInt32("frameskip", 12);}
 static void mn_7hz(...) {PrefsReplaceInt32("frameskip", 8);}
@@ -619,15 +621,26 @@ static void tb_fs1600x1200(GtkWidget *widget)
 		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") & ~32);
 }
 
+// Set sensitivity of widgets
+static void set_graphics_sensitive(void)
+{
+	const bool sound_enabled = !PrefsFindBool("nosound");
+	gtk_widget_set_sensitive(w_dspdevice_file, sound_enabled);
+	gtk_widget_set_sensitive(w_mixerdevice_file, sound_enabled);
+}
+
 // "Disable Sound Output" button toggled
 static void tb_nosound(GtkWidget *widget)
 {
 	PrefsReplaceBool("nosound", GTK_TOGGLE_BUTTON(widget)->active);
+	set_graphics_sensitive();
 }
 
 // Read settings from widgets and set preferences
 static void read_graphics_settings(void)
 {
+	PrefsReplaceString("dsp", get_file_entry_path(w_dspdevice_file));
+	PrefsReplaceString("mixer", get_file_entry_path(w_mixerdevice_file));
 }
 
 // Create "Graphics/Sound" pane
@@ -675,7 +688,12 @@ static void create_graphics_pane(GtkWidget *top)
 	make_checkbox(vbox, STR_1280x1024_CTRL, PrefsFindInt32("screenmodes") & 16, GTK_SIGNAL_FUNC(tb_fs1280x1024));
 	make_checkbox(vbox, STR_1600x1200_CTRL, PrefsFindInt32("screenmodes") & 32, GTK_SIGNAL_FUNC(tb_fs1600x1200));
 
+	make_separator(box);
 	make_checkbox(box, STR_NOSOUND_CTRL, "nosound", GTK_SIGNAL_FUNC(tb_nosound));
+	w_dspdevice_file = make_entry(box, STR_DSPDEVICE_FILE_CTRL, "dsp");
+	w_mixerdevice_file = make_entry(box, STR_MIXERDEVICE_FILE_CTRL, "mixer");
+
+	set_graphics_sensitive();
 }
 
 

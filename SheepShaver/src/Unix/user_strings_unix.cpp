@@ -64,6 +64,8 @@ user_string_def platform_strings[] = {
 	{STR_PREFS_ITEM_QUIT_GTK, "/File/_Quit SheepShaver"},
 	{STR_HELP_MENU_GTK, "/_Help"},
 	{STR_HELP_ITEM_ABOUT_GTK, "/Help/_About SheepShaver"},
+	{STR_DSPDEVICE_FILE_CTRL, "Audio Output Device"},
+	{STR_MIXERDEVICE_FILE_CTRL, "Audio Mixer Device"},
 	{STR_INPUT_PANE_TITLE, "Keyboard"},
 	{STR_KEYCODES_CTRL, "Use Raw Keycodes"},
 	{STR_KEYCODE_FILE_CTRL, "Keycode Translation File"},
