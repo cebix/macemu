@@ -2057,6 +2057,68 @@ static __inline__ void raw_nop(void)
     emit_byte(0x90);
 }
 
+static __inline__ void raw_emit_nop_filler(int nbytes)
+{
+  /* Source: GNU Binutils 2.12.90.0.15 */
+  /* Various efficient no-op patterns for aligning code labels.
+     Note: Don't try to assemble the instructions in the comments.
+     0L and 0w are not legal.  */
+  static const uae_u8 f32_1[] =
+    {0x90};									/* nop					*/
+  static const uae_u8 f32_2[] =
+    {0x89,0xf6};							/* movl %esi,%esi		*/
+  static const uae_u8 f32_3[] =
+    {0x8d,0x76,0x00};						/* leal 0(%esi),%esi	*/
+  static const uae_u8 f32_4[] =
+    {0x8d,0x74,0x26,0x00};					/* leal 0(%esi,1),%esi	*/
+  static const uae_u8 f32_5[] =
+    {0x90,									/* nop					*/
+     0x8d,0x74,0x26,0x00};					/* leal 0(%esi,1),%esi	*/
+  static const uae_u8 f32_6[] =
+    {0x8d,0xb6,0x00,0x00,0x00,0x00};		/* leal 0L(%esi),%esi	*/
+  static const uae_u8 f32_7[] =
+    {0x8d,0xb4,0x26,0x00,0x00,0x00,0x00};	/* leal 0L(%esi,1),%esi */
+  static const uae_u8 f32_8[] =
+    {0x90,									/* nop					*/
+     0x8d,0xb4,0x26,0x00,0x00,0x00,0x00};	/* leal 0L(%esi,1),%esi */
+  static const uae_u8 f32_9[] =
+    {0x89,0xf6,								/* movl %esi,%esi		*/
+     0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
+  static const uae_u8 f32_10[] =
+    {0x8d,0x76,0x00,						/* leal 0(%esi),%esi	*/
+     0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
+  static const uae_u8 f32_11[] =
+    {0x8d,0x74,0x26,0x00,					/* leal 0(%esi,1),%esi	*/
+     0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
+  static const uae_u8 f32_12[] =
+    {0x8d,0xb6,0x00,0x00,0x00,0x00,			/* leal 0L(%esi),%esi	*/
+     0x8d,0xbf,0x00,0x00,0x00,0x00};		/* leal 0L(%edi),%edi	*/
+  static const uae_u8 f32_13[] =
+    {0x8d,0xb6,0x00,0x00,0x00,0x00,			/* leal 0L(%esi),%esi	*/
+     0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
+  static const uae_u8 f32_14[] =
+    {0x8d,0xb4,0x26,0x00,0x00,0x00,0x00,	/* leal 0L(%esi,1),%esi */
+     0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
+  static const uae_u8 f32_15[] =
+    {0xeb,0x0d,0x90,0x90,0x90,0x90,0x90,	/* jmp .+15; lotsa nops	*/
+     0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90};
+  static const uae_u8 f32_16[] =
+    {0xeb,0x0d,0x90,0x90,0x90,0x90,0x90,	/* jmp .+15; lotsa nops	*/
+     0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90};
+  static const uae_u8 *const f32_patt[] = {
+    f32_1, f32_2, f32_3, f32_4, f32_5, f32_6, f32_7, f32_8,
+    f32_9, f32_10, f32_11, f32_12, f32_13, f32_14, f32_15
+  };
+
+  int nloops = nbytes / 16;
+  while (nloops-- > 0)
+	emit_block(f32_16, sizeof(f32_16));
+
+  nbytes %= 16;
+  if (nbytes)
+	emit_block(f32_patt[nbytes - 1], nbytes);
+}
+
 
 /*************************************************************************
  * Flag handling, to and fro UAE flag register                           *

@@ -128,7 +128,8 @@ static bool		lazy_flush			= true;		// Flag: lazy translation cache invalidation
 static bool		avoid_fpu			= true;		// Flag: compile FPU instructions ?
 static bool		have_cmov			= false;	// target has CMOV instructions ?
 static bool		have_rat_stall		= true;		// target has partial register stalls ?
-static bool		tune_alignment		= true;		// Tune code alignments for running CPU ?
+const bool		tune_alignment		= true;		// Tune code alignments for running CPU ?
+const bool		tune_nop_fillers	= true;		// Tune no-op fillers for architecture
 static int		align_loops			= 32;		// Align the start of loops
 static int		align_jumps			= 32;		// Align the start of jumps
 static int		zero_fd				= -1;
@@ -696,6 +697,12 @@ static __inline__ void emit_long(uae_u32 x)
 {
     *((uae_u32*)target)=x;
     target+=4;
+}
+
+static __inline__ void emit_block(const uae_u8 *block, uae_u32 blocklen)
+{
+	memcpy((uae_u8 *)target,block,blocklen);
+	target+=blocklen;
 }
 
 static __inline__ uae_u32 reverse32(uae_u32 v)
@@ -4965,9 +4972,13 @@ void freescratch(void)
 
 static void align_target(uae_u32 a)
 {
-    /* Fill with NOPs --- makes debugging with gdb easier */
-    while ((uae_u32)target&(a-1)) 
-	*target++=0x90;
+	if (tune_nop_fillers)
+		raw_emit_nop_filler(a - (((uae_u32)target) & (a - 1)));
+	else {
+		/* Fill with NOPs --- makes debugging with gdb easier */
+		while ((uae_u32)target&(a-1)) 
+			*target++=0x90;
+	}
 }
 
 static __inline__ int isinrom(uintptr addr)
