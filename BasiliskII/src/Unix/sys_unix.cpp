@@ -145,8 +145,13 @@ void SysAddFloppyPrefs(void)
 	PrefsAddString("floppy", "/dev/fd0a");
 	PrefsAddString("floppy", "/dev/fd1a");
 #elif defined(__APPLE__) && defined(__MACH__)
+	// FIXME: We assume an Aqua build causes <AvailabilityMacros.h> to
+	// be included, thusly enabling this part of code that would cause
+	// Basilisk II to hang otherwise.
+#ifdef MAC_OS_X_VERSION_10_0
 	PrefsAddString("floppy", "/dev/fd/0");
 	PrefsAddString("floppy", "/dev/fd/1");
+#endif
 #else
 	PrefsAddString("floppy", "/dev/fd0");
 	PrefsAddString("floppy", "/dev/fd1");
@@ -217,7 +222,7 @@ void SysAddCDROMPrefs(void)
 			closedir(cd_dir);
 		}
 	}
-#elif defined(__APPLE__) && defined(__MACH__)
+#elif defined(__APPLE__) && defined(__MACH__) && defined(MAC_OS_X_VERSION_10_0)
 	extern	void DarwinAddCDROMPrefs(void);
 
 	DarwinAddCDROMPrefs();
@@ -248,8 +253,13 @@ void SysAddSerialPrefs(void)
 	PrefsAddString("seriala", "/dev/tty00");
 	PrefsAddString("serialb", "/dev/tty01");
 #elif defined(__APPLE__) && defined(__MACH__)
+	// FIXME: We assume an Aqua build causes <AvailabilityMacros.h> to
+	// be included, thusly enabling this part of code that would cause
+	// Basilisk II to hang otherwise.
+#ifdef MAC_OS_X_VERSION_10_0
 	PrefsAddString("seriala", "/dev/ttys0");
 	PrefsAddString("serialb", "/dev/ttys1");
+#endif
 //	PrefsAddString("seriala", "/dev/cu.modem");
 //	PrefsAddString("serialb", "/dev/cu.IrDA-IrCOMMch-b");
 #endif
