@@ -25,7 +25,7 @@
 %
 % Arp: --> -(Ar)
 % ArP: --> (Ar)+
-% Al : --> (xxx).L
+% L: (xxx).L
 %
 % Fields on a line: 
 % 16 chars bitpattern : 
@@ -146,18 +146,14 @@
 0100 1110 11ss sSSS:00://///://///:80: JMP.L   s[!Dreg,Areg,Aipi,Apdi,Immd]
 0100 rrr1 11ss sSSS:00:-----:-----:02: LEA.L   s[!Dreg,Areg,Aipi,Apdi,Immd],Ar
 
-% This variant of ADDQ is word and long sized only
 0101 jjj0 01dd dDDD:00:-----:-----:13: ADDA.W  #j,d[Areg]      
 0101 jjj0 10dd dDDD:00:-----:-----:13: ADDA.L  #j,d[Areg]      
 0101 jjj0 zzdd dDDD:00:XNZVC:-----:13: ADD.z   #j,d[!Areg]
-
-% This variant of SUBQ is word and long sized only
 0101 jjj1 01dd dDDD:00:-----:-----:13: SUBA.W  #j,d[Areg]      
 0101 jjj1 10dd dDDD:00:-----:-----:13: SUBA.L  #j,d[Areg]      
 0101 jjj1 zzdd dDDD:00:XNZVC:-----:13: SUB.z   #j,d[!Areg]
-
-0101 cccc 1100 1rrr:00:-----:+++++:31: DBcc.W  Dr,#1
-0101 cccc 11dd dDDD:00:-----:+++++:20: Scc.B   d[!Areg]
+0101 cccc 1100 1rrr:00:-----:-++++:31: DBcc.W  Dr,#1
+0101 cccc 11dd dDDD:00:-----:-++++:20: Scc.B   d[!Areg]
 0101 cccc 1111 1010:20:?????:?????:10: TRAPcc  #1
 0101 cccc 1111 1011:20:?????:?????:10: TRAPcc  #2
 0101 cccc 1111 1100:20:?????:?????:00: TRAPcc
@@ -168,9 +164,9 @@
 0110 0001 0000 0000:00://///://///:40: BSR.W   #1
 0110 0001 IIII IIII:00://///://///:40: BSR.B   #i
 0110 0001 1111 1111:00://///://///:40: BSR.L   #2
-0110 CCCC 0000 0000:00:-----:+++++:40: Bcc.W   #1
-0110 CCCC IIII IIII:00:-----:+++++:40: Bcc.B   #i
-0110 CCCC 1111 1111:00:-----:+++++:40: Bcc.L   #2
+0110 CCCC 0000 0000:00:-----:-++++:40: Bcc.W   #1
+0110 CCCC IIII IIII:00:-----:-++++:40: Bcc.B   #i
+0110 CCCC 1111 1111:00:-----:-++++:40: Bcc.L   #2
 
 0111 rrr0 iiii iiii:00:-NZ00:-----:12: MOVE.L  #i,Dr
 
@@ -256,8 +252,9 @@
 1111 0100 pp10 1rrr:42:-----:-----:02: CPUSHL   #p,Ar
 1111 0100 pp11 0rrr:42:-----:-----:02: CPUSHP   #p,Ar
 1111 0100 pp11 1rrr:42:-----:-----:00: CPUSHA   #p
-1111 0110 0010 0rrr:40:-----:-----:12: MOVE16   ArP,ARP
-1111 0110 00ss sSSS:40:-----:-----:12: MOVE16   s[Dreg-Aipi],Al
-1111 0110 00dd dDDD:40:-----:-----:12: MOVE16   Al,d[Areg-Aipi]
-1111 0110 00ss sSSS:40:-----:-----:12: MOVE16   s[Aind],Al
-1111 0110 00dd dDDD:40:-----:-----:12: MOVE16   Al,d[Aipi-Aind]
+% destination register number is encoded in the following word
+1111 0110 0010 0rrr:40:-----:-----:12: MOVE16   ArP,AxP
+1111 0110 00ss sSSS:40:-----:-----:12: MOVE16   s[Dreg-Aipi],L
+1111 0110 00dd dDDD:40:-----:-----:12: MOVE16   L,d[Areg-Aipi]
+1111 0110 00ss sSSS:40:-----:-----:12: MOVE16   s[Aind],L
+1111 0110 00dd dDDD:40:-----:-----:12: MOVE16   L,d[Aipi-Aind]

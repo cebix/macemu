@@ -910,22 +910,20 @@ static void gen_opcode (unsigned long int opcode)
 	genastore ("newv", curi->dmode, "dstreg", curi->size, "dst");
 	break;
      case i_SBCD:
-	/* Let's hope this works... */
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	start_brace ();
 	printf ("\tuae_u16 newv_lo = (dst & 0xF) - (src & 0xF) - (GET_XFLG ? 1 : 0);\n");
 	printf ("\tuae_u16 newv_hi = (dst & 0xF0) - (src & 0xF0);\n");
-	printf ("\tuae_u16 newv;\n");
-	printf ("\tint cflg;\n");
-	printf ("\tif (newv_lo > 9) { newv_lo-=6; newv_hi-=0x10; }\n");
-	printf ("\tnewv = newv_hi + (newv_lo & 0xF);");
-	printf ("\tcflg = (newv_hi & 0x1F0) > 0x90;\n");
-	printf ("\tSET_CFLG (cflg);\n");
+	printf ("\tuae_u16 newv, tmp_newv;\n");
+	printf ("\tint bcd = 0;\n");
+	printf ("\tnewv = tmp_newv = newv_hi + newv_lo;\n");
+	printf ("\tif (newv_lo & 0xF0) { newv -= 6; bcd = 6; };\n");
+	printf ("\tif ((((dst & 0xFF) - (src & 0xFF) - (GET_XFLG ? 1 : 0)) & 0x100) > 0xFF) { newv -= 0x60; }\n");
+	printf ("\tSET_CFLG ((((dst & 0xFF) - (src & 0xFF) - bcd - (GET_XFLG ? 1 : 0)) & 0x300) > 0xFF);\n");
 	duplicate_carry ();
-	printf ("\tif (cflg) newv -= 0x60;\n");
 	genflags (flag_zn, curi->size, "newv", "", "");
-	genflags (flag_sv, curi->size, "newv", "src", "dst");
+	printf ("\tSET_VFLG ((tmp_newv & 0x80) != 0 && (newv & 0x80) == 0);\n");
 	genastore ("newv", curi->dmode, "dstreg", curi->size, "dst");
 	break;
      case i_ADD:
@@ -957,16 +955,16 @@ static void gen_opcode (unsigned long int opcode)
 	start_brace ();
 	printf ("\tuae_u16 newv_lo = (src & 0xF) + (dst & 0xF) + (GET_XFLG ? 1 : 0);\n");
 	printf ("\tuae_u16 newv_hi = (src & 0xF0) + (dst & 0xF0);\n");
-	printf ("\tuae_u16 newv;\n");
+	printf ("\tuae_u16 newv, tmp_newv;\n");
 	printf ("\tint cflg;\n");
-	printf ("\tif (newv_lo > 9) { newv_lo +=6; }\n");
-	printf ("\tnewv = newv_hi + newv_lo;");
-	printf ("\tcflg = (newv & 0x1F0) > 0x90;\n");
+	printf ("\tnewv = tmp_newv = newv_hi + newv_lo;");
+	printf ("\tif (newv_lo > 9) { newv += 6; }\n");
+	printf ("\tcflg = (newv & 0x3F0) > 0x90;\n");
+	printf ("\tif (cflg) newv += 0x60;\n");
 	printf ("\tSET_CFLG (cflg);\n");
 	duplicate_carry ();
-	printf ("\tif (cflg) newv += 0x60;\n");
 	genflags (flag_zn, curi->size, "newv", "", "");
-	genflags (flag_sv, curi->size, "newv", "src", "dst");
+	printf ("\tSET_VFLG ((tmp_newv & 0x80) == 0 && (newv & 0x80) != 0);\n");
 	genastore ("newv", curi->dmode, "dstreg", curi->size, "dst");
 	break;
      case i_NEG:
@@ -990,12 +988,12 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tuae_u16 newv_hi = - (src & 0xF0);\n");
 	printf ("\tuae_u16 newv;\n");
 	printf ("\tint cflg;\n");
-	printf ("\tif (newv_lo > 9) { newv_lo-=6; newv_hi-=0x10; }\n");
-	printf ("\tnewv = newv_hi + (newv_lo & 0xF);");
-	printf ("\tcflg = cflg = (newv_hi & 0x1F0) > 0x90;\n");
+	printf ("\tif (newv_lo > 9) { newv_lo -= 6; }\n");
+	printf ("\tnewv = newv_hi + newv_lo;");
+	printf ("\tcflg = (newv & 0x1F0) > 0x90;\n");
+	printf ("\tif (cflg) newv -= 0x60;\n");
 	printf ("\tSET_CFLG (cflg);\n");
 	duplicate_carry();
-	printf ("\tif (cflg) newv -= 0x60;\n");
 	genflags (flag_zn, curi->size, "newv", "", "");
 	genastore ("newv", curi->smode, "srcreg", curi->size, "src");
 	break;

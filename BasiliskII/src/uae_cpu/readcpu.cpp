@@ -339,7 +339,6 @@ static void build_insn (int insn)
 	 case 'A':
 	    srcmode = Areg;
 	    switch (opcstr[pos++]) {
-		 case 'l': srcmode = absl; break;
 	     case 'r': srcreg = bitval[bitr]; srcgather = 1; srcpos = bitpos[bitr]; break;
 	     case 'R': srcreg = bitval[bitR]; srcgather = 1; srcpos = bitpos[bitR]; break;
 	     default: abort();
@@ -349,6 +348,9 @@ static void build_insn (int insn)
 	     case 'P': srcmode = Aipi; pos++; break;
 	    }
 	    break;
+	case 'L':
+		srcmode = absl;
+		break;
 	 case '#':
 	    switch (opcstr[pos++]) {
 	     case 'z': srcmode = imm; break;
@@ -395,7 +397,7 @@ static void build_insn (int insn)
 		}
 		break;
 		 case 'p': srcmode = immi; srcreg = bitval[bitp];
-		if (CPU_EMU_SIZE < 5) { // gb-- what is CPU_EMU_SIZE used for ??
+		if (CPU_EMU_SIZE < 5) {
 			/* 0..3 */
 			srcgather = 1;
 			srctype = 7;
@@ -526,20 +528,27 @@ static void build_insn (int insn)
 	     case 'R': destreg = bitval[bitR]; dstgather = 1; dstpos = bitpos[bitR]; break;
 	     default: abort();
 	    }
+		if (dstpos < 0 || dstpos >= 32)
+			abort();
 	    break;
 	 case 'A':
 	    destmode = Areg;
 	    switch (opcstr[pos++]) {
-		 case 'l': destmode = absl; break;
 	     case 'r': destreg = bitval[bitr]; dstgather = 1; dstpos = bitpos[bitr]; break;
 	     case 'R': destreg = bitval[bitR]; dstgather = 1; dstpos = bitpos[bitR]; break;
+		case 'x': destreg = 0; dstgather = 0; dstpos = 0; break;
 	     default: abort();
 	    }
+		if (dstpos < 0 || dstpos >= 32)
+			abort();
 	    switch (opcstr[pos]) {
 	     case 'p': destmode = Apdi; pos++; break;
 	     case 'P': destmode = Aipi; pos++; break;
 	    }
 	    break;
+	case 'L':
+		destmode = absl;
+		break;
 	 case '#':
 	    switch (opcstr[pos++]) {
 	     case 'z': destmode = imm; break;
