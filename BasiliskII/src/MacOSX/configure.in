@@ -98,6 +98,8 @@ fi
 dnl We want pthreads.
 HAVE_PTHREADS=yes
 AC_CHECK_FUNCS(pthread_cancel)
+AC_CHECK_FUNCS(pthread_mutexattr_setprotocol)
+AC_CHECK_FUNCS(pthread_mutexattr_settype)
 
 dnl If POSIX.4 semaphores are not available, we emulate them with pthread mutexes.
 SEMSRC=
@@ -541,9 +543,11 @@ AC_EGREP_CPP(yes,
 ], [AC_MSG_RESULT(yes); HAVE_GCC30=yes], AC_MSG_RESULT(no))
 
 dnl Set "-fomit-frame-pointer" on i386 GCC 2.7 or higher.
+dnl Also set "-fno-exceptions" for C++ because exception handling requires
+dnl the frame pointer.
 if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
   CFLAGS="$CFLAGS -fomit-frame-pointer"
-  CXXFLAGS="$CXXFLAGS -fomit-frame-pointer"
+  CXXFLAGS="$CXXFLAGS -fomit-frame-pointer -fno-exceptions"
 fi
 
 dnl (gb) Do not merge constants since it breaks fpu/fpu_x86.cpp.
