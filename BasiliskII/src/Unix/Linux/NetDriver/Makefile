@@ -3,7 +3,7 @@
 ## System specific configuration
 CC = cc
 CPPFLAGS = -I. -I/usr/src/linux/include
-CFLAGS = -O2 -Wall -fno-builtin -D__KERNEL__ -DMODULE
+CFLAGS = -O2 -Wall -D__KERNEL__ -DMODULE -DLINUX
 ASFLAGS =
 LDFLAGS =
 LIBS =

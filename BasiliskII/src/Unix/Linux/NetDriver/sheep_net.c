@@ -18,9 +18,18 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
+
+#ifdef CONFIG_MODVERSIONS
+#define MODVERSIONS
+#include <linux/modversions.h>
+#endif
+
+#ifdef CONFIG_SMP
+#define __SMP__
+#endif
+
 #include <linux/miscdevice.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -35,6 +44,9 @@
 #include <net/arp.h>
 #include <net/ip.h>
 #include <asm/uaccess.h>
+
+MODULE_AUTHOR("Christian Bauer");
+MODULE_DESCRIPTION("Pseudo ethernet device for emulators");
 
 /* Compatibility glue */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
@@ -138,14 +150,11 @@ int init_module(void)
  *  Deinitialize module
  */
 
-int cleanup_module(void)
+void cleanup_module(void)
 {
-	int ret;
-
 	/* Unregister driver */
-	ret = misc_deregister(&sheep_net_device);
+	misc_deregister(&sheep_net_device);
 	D(bug("Sheep net driver removed\n"));
-	return ret;
 }
 
 
