@@ -106,7 +106,7 @@ DIRECT_ADDRESSING and EMULATED_68K defines in "sysdeps.h"):
    be made available, using the real addressing mode is not possible.
    
    Note: currently, real addressing mode is known to work only on AmigaOS,
-   NetBSD/m68k, FreeBSD/i386 and Linux/i386.
+   NetBSD/m68k, FreeBSD/i386, Linux/ppc and Linux/i386.
 
 4. Native CPU (EMULATED_68K = 0, this also requires REAL_ADDRESSING = 1)
    This mode is designed for systems that use a 68k (68020 or better) processor
