@@ -1,9 +1,9 @@
 /*
- *	EmulatorView.mm - Custom NSView for Basilisk II graphics output
+ *	EmulatorView.mm - Custom NSView for Basilisk II windowed graphics output
  *
  *	$Id$
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2003 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -157,9 +157,14 @@ static int prevFlags;
 	int			i;
 	float		seconds;
 	NSDate		*startDate;
+	char		*method;
 
 	if ( ! drawView )
+	{
+		WarningSheet (@"The emulator has not been setup yet.",
+					  @"Try to run, then pause the emulator, first.", nil, [self window]);
 		return;
+	}
 
 	drawView = NO;
 	[self lockFocus];
@@ -178,9 +183,20 @@ static int prevFlags;
 	[self unlockFocus];
 	drawView = YES;
 
-	InfoSheet(@"Benchmark run. 300 frames.",
+#ifdef NSBITMAP
+	method = "NSBITMAP";
+#endif
+#ifdef CGIMAGEREF
+	method = "CGIMAGEREF";
+#endif
+#ifdef CGDRAWBITMAP
+	method = "CGDRAWBITMAP";
+#endif
+
+	InfoSheet(@"Ran benchmark (300 screen redraws)",
 			  [NSString stringWithFormat:
-				@"%.2f seconds, %.3f frames per second", seconds, i/seconds],
+				@"%.2f seconds, %.3f frames per second (using %s implementation)",
+				seconds, i/seconds, method],
 			  @"Thanks", [self window]);
 }
 
@@ -190,9 +206,38 @@ static int prevFlags;
 #ifdef NSBITMAP
 	return [bitmap TIFFRepresentation];
 #else
-	WarningAlert("How do I get a TIFF from a CGImageRef?");
+	NSBitmapImageRep	*b = [NSBitmapImageRep alloc];
+
+	b = [b initWithBitmapDataPlanes: (unsigned char **) &bitmap
+						 pixelsWide: x
+						 pixelsHigh: y
+  #ifdef CGIMAGEREF
+					  bitsPerSample: CGImageGetBitsPerComponent(cgImgRep)
+					samplesPerPixel: 3
+						   hasAlpha: NO
+						   isPlanar: NO
+					 colorSpaceName: NSCalibratedRGBColorSpace
+						bytesPerRow: CGImageGetBytesPerRow(cgImgRep)
+					   bitsPerPixel: CGImageGetBitsPerPixel(cgImgRep)];
+  #endif
+  #ifdef CGDRAWBITMAP
+					  bitsPerSample: bps
+					samplesPerPixel: spp
+						   hasAlpha: hasAlpha
+						   isPlanar: isPlanar
+					 colorSpaceName: NSCalibratedRGBColorSpace
+						bytesPerRow: bytesPerRow
+					   bitsPerPixel: bpp];
+  #endif
+
+    if ( ! b )
+	{
+		ErrorAlert("Could not allocate an NSBitmapImageRep for the TIFF");
+		return nil;
+	}
+
+	return [b TIFFRepresentation];
 #endif
-	return nil;
 }
 
 // Enable display of, and drawing into, the view
@@ -201,18 +246,14 @@ static int prevFlags;
 		  imageWidth: (short) width
 		 imageHeight: (short) height
 {
-	D(NSLog(@"readyToDraw: theBitmap=%lx\n", theBitmap));
-
-	bitmap = theBitmap;
 	numBytes = [theBitmap bytesPerRow] * height;
 #endif
 #ifdef CGIMAGEREF
 - (void) readyToDraw: (CGImageRef) image
+			  bitmap: (void *) theBitmap
 		  imageWidth: (short) width
 		 imageHeight: (short) height
 {
-	D(NSLog(@"readyToDraw: theBitmap=%lx\n", [cgImgRef bitmap]));
-
 	cgImgRep = image;
 	numBytes = CGImageGetBytesPerRow(image) * height;
 #endif
@@ -227,9 +268,6 @@ static int prevFlags;
 			isPlanar: (BOOL)  planar
 			hasAlpha: (BOOL)  alpha
 {
-	D(NSLog(@"readyToDraw: theBitmap=%lx\n", theBitmap));
-
-	bitmap = theBitmap;
 	bps = bitsPerSample;
 	spp = samplesPerPixel;
 	bpp = bitsPerPixel;
@@ -238,6 +276,9 @@ static int prevFlags;
 	hasAlpha = alpha;
 	numBytes = bpr * height;
 #endif
+	D(NSLog(@"readyToDraw: theBitmap=%lx\n", theBitmap));
+
+	bitmap = theBitmap;
 	x = width, y = height;
 	drawView = YES;
 	[[self window] setAcceptsMouseMovedEvents:	YES];
@@ -396,17 +437,16 @@ static NSPoint	mouse;			// Previous/current mouse location
 	ADBMouseUp(0);
 }
 
-#if DEBUG && ! defined(CGIMAGEREF)
+#if DEBUG
 - (void) randomise		// Draw some coloured snow in the bitmap
 {
 	unsigned char	*data,
 					*pixel;
 
-  #ifdef CGDRAWBITMAP
-	data = bitmap;
-  #endif
   #ifdef NSBITMAP
 	data = [bitmap bitmapData];
+  #else
+	data = bitmap;
   #endif
 
 	for ( int i = 0; i < 1000; ++i )
@@ -424,9 +464,7 @@ static NSPoint	mouse;			// Previous/current mouse location
 
 #if DEBUG
 	NSLog(@"In drawRect");
-# ifndef CGIMAGEREF
 	[self randomise];
-# endif
 #endif
 
 #ifdef NSBITMAP
