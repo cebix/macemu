@@ -333,7 +333,7 @@ static bool open_display(void)
 			depth = 8;
 			break;
 		case APPLE_16_BIT:
-			depth = 16;
+			depth = xdepth == 15 ? 15 : 16;
 			break;
 		case APPLE_32_BIT:
 			depth = 32;
