@@ -4,7 +4,7 @@
  *  video_macosx.mm - Interface between Basilisk II and Cocoa windowing.
  *                    Based on video_amiga.cpp and video_x.cpp
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2003 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -366,7 +366,11 @@ class OSX_monitor : public monitor_desc
 
 
 #ifdef CGIMAGEREF
+		CGColorSpaceRef		colourSpace;
+		uint8 				*colourTable;
 		CGImageRef			imageRef;
+		CGDataProviderRef	provider;
+		short				x, y, bpp, depth, bpr;
 #endif
 #ifdef NSBITMAP
 		NSBitmapImageRep	*bitmap;
@@ -388,7 +392,10 @@ OSX_monitor :: OSX_monitor (const	vector<video_mode>	&available_modes,
 			: monitor_desc (available_modes, default_depth, default_id)
 {
 #ifdef CGIMAGEREF
+	colourSpace = nil;
+	colourTable = (uint8 *) malloc(256 * 3);
 	imageRef = nil;
+	provider = nil;
 #endif
 #ifdef NSBITMAP
 	bitmap = nil;
@@ -397,6 +404,11 @@ OSX_monitor :: OSX_monitor (const	vector<video_mode>	&available_modes,
 	the_buffer = NULL;
 	theDisplay = nil;
 };
+
+// Should also have a destructor which does
+//#ifdef CGIMAGEREF
+//	free(colourTable);
+//#endif
 
 
 // Set Mac frame layout and base address (uses the_buffer/MacFrameBaseMac)
@@ -456,13 +468,6 @@ void resizeWinTo(const uint16 newWidth, const uint16 newHeight)
 bool
 OSX_monitor::init_window(const video_mode &mode)
 {
-#ifdef CGIMAGEREF
-	CGColorSpaceRef		colourSpace;
-	CGDataProviderRef	provider;
-#endif
-	short				bitsPer, samplesPer;	// How big is each Pixel?
-	int					the_buffer_size;
-
 	D(bug("init_window: depth=%d(%d bits)\n",
 			mode.depth, bits_from_depth(mode.depth) ));
 
@@ -471,7 +476,7 @@ OSX_monitor::init_window(const video_mode &mode)
 	ADBSetRelMouseMode(false);
 
 
-	// Open window
+	// Is the window open?
 	if ( ! the_win )
 	{
 		ErrorAlert(STR_OPEN_WINDOW_ERR);
@@ -481,7 +486,8 @@ OSX_monitor::init_window(const video_mode &mode)
 
 
 	// Create frame buffer ("height + 2" for safety)
-	the_buffer_size = mode.bytes_per_row * (mode.y + 2);
+	int the_buffer_size = mode.bytes_per_row * (mode.y + 2);
+
 	the_buffer = calloc(the_buffer_size, 1);
 	if ( ! the_buffer )
 	{
@@ -492,23 +498,31 @@ OSX_monitor::init_window(const video_mode &mode)
 	D(bug("the_buffer = %p\n", the_buffer));
 
 
-	if ( mode.depth == VDEPTH_1BIT )
-		bitsPer = 1;
-	else
-		bitsPer = 8;
-
-	if ( mode.depth == VDEPTH_32BIT )
-		samplesPer = 3;
-	else
-		samplesPer = 1;
+	unsigned char *offsetBuffer = (unsigned char *) the_buffer;
+	offsetBuffer += 1;		// OS X NSBitmaps are RGBA, but Basilisk generates ARGB
 
 #ifdef CGIMAGEREF
 	switch ( mode.depth )
 	{
-		//case VDEPTH_1BIT:	colourSpace = CGColorSpaceCreateDeviceMono(); break
-		case VDEPTH_8BIT:	colourSpace = CGColorSpaceCreateDeviceGray(); break;
-		case VDEPTH_32BIT:	colourSpace = CGColorSpaceCreateDeviceRGB();  break;
-		default:			colourSpace = NULL;
+		case VDEPTH_1BIT:	bpp = 1; break;
+		case VDEPTH_2BIT:	bpp = 2; break;
+		case VDEPTH_4BIT:	bpp = 4; break;
+		case VDEPTH_8BIT:	bpp = 8; break;
+		case VDEPTH_16BIT:	bpp = 5; break;
+		case VDEPTH_32BIT:	bpp = 8; break;
+	}
+
+	x = mode.x, y = mode.y, depth = bits_from_depth(mode.depth), bpr = mode.bytes_per_row;
+
+	colourSpace = CGColorSpaceCreateDeviceRGB();
+
+	if ( mode.depth < VDEPTH_16BIT )
+	{
+		CGColorSpaceRef	oldColourSpace = colourSpace;
+
+		colourSpace = CGColorSpaceCreateIndexed(colourSpace, 255, colourTable);
+
+		CGColorSpaceRelease(oldColourSpace);
 	}
 
 	if ( ! colourSpace )
@@ -524,12 +538,8 @@ OSX_monitor::init_window(const video_mode &mode)
 		ErrorAlert("Could not create CGDataProvider from buffer data");
 		return false;
 	}
-	imageRef = CGImageCreate(mode.x,
-							 mode.y,
-							 bitsPer,
-							 bits_from_depth(mode.depth),
-							 mode.bytes_per_row,
-							 colourSpace,
+
+	imageRef = CGImageCreate(x, y, bpp, depth, bpr, colourSpace,
   #ifdef CG_USE_ALPHA
 							 kCGImageAlphaPremultipliedFirst,
   #else
@@ -544,20 +554,35 @@ OSX_monitor::init_window(const video_mode &mode)
 		ErrorAlert("Could not create CGImage from CGDataProvider");
 		return false;
 	}
-	CGDataProviderRelease(provider);
-	CGColorSpaceRelease(colourSpace);
 
 	[output readyToDraw: imageRef
-			 imageWidth: mode.x
-			imageHeight: mode.y];
+				 bitmap: offsetBuffer
+			 imageWidth: x
+			imageHeight: y];
+
 
   #ifdef CG_USE_ALPHA
-	mask_buffer(the_buffer, mode.x, the_buffer_size);
+	mask_buffer(the_buffer, x, the_buffer_size);
   #endif
-#else
-	unsigned char *offsetBuffer = (unsigned char *) the_buffer;
-	offsetBuffer += 1;	// OS X NSBitmaps are RGBA, but Basilisk generates ARGB
+
+	return true;
 #endif
+
+
+#ifndef CGIMAGEREF
+	short	bitsPer, samplesPer;	// How big is each Pixel?
+
+	if ( mode.depth == VDEPTH_1BIT )
+		bitsPer = 1;
+	else
+		bitsPer = 8;
+
+	if ( mode.depth == VDEPTH_32BIT )
+		samplesPer = 3;
+	else
+		samplesPer = 1;
+#endif
+
 
 #ifdef NSBITMAP
 	bitmap = [NSBitmapImageRep alloc];
@@ -749,8 +774,10 @@ bool VideoInit(bool classic)
 			case DISPLAY_OPENGL:
 				// Same as window depths and sizes?
 			case DISPLAY_WINDOW:
-#ifdef MAC_OS_X_VERSION_SUPPORTS_LOWER_DEPTHS
+#ifdef CGIMAGEREF
 				add_standard_modes(VDEPTH_1BIT);
+				add_standard_modes(VDEPTH_2BIT);
+				add_standard_modes(VDEPTH_4BIT);
 				add_standard_modes(VDEPTH_8BIT);
 				add_standard_modes(VDEPTH_16BIT);
 #endif
@@ -828,6 +855,8 @@ OSX_monitor::video_close()
 			// Free frame buffer stuff
 #ifdef CGIMAGEREF
 			CGImageRelease(imageRef);
+			CGColorSpaceRelease(colourSpace);
+			CGDataProviderRelease(provider);
 #endif
 #ifdef NSBITMAP
 			[bitmap release];
@@ -890,6 +919,60 @@ OSX_monitor::set_palette(uint8 *pal, int num)
 			NSLog(@"Failed to set palette, error = %d", err);
 		CGPaletteRelease(CGpal);
 	}
+
+#ifdef CGIMAGEREF
+	if ( display_type != DISPLAY_WINDOW )
+		return;
+
+	// To change the palette, we have to regenerate
+	// the CGImageRef with the new colour space.
+
+	CGImageRef			oldImageRef = imageRef;
+	CGColorSpaceRef		oldColourSpace = colourSpace;
+
+	colourSpace = CGColorSpaceCreateDeviceRGB();
+
+	if ( depth < 16 )
+	{
+		CGColorSpaceRef		tempColourSpace = colourSpace;
+
+		colourSpace = CGColorSpaceCreateIndexed(colourSpace, 255, pal);
+		CGColorSpaceRelease(tempColourSpace);
+	}
+
+	if ( ! colourSpace )
+	{
+		ErrorAlert("No valid colour space");
+		return;
+	}
+
+	imageRef = CGImageCreate(x, y, bpp, depth, bpr, colourSpace,
+  #ifdef CG_USE_ALPHA
+							 kCGImageAlphaPremultipliedFirst,
+  #else
+							 kCGImageAlphaNoneSkipFirst,
+  #endif
+							 provider,
+							 NULL, 	// colourMap translation table
+							 NO,	// shouldInterpolate colours?
+							 kCGRenderingIntentDefault);
+	if ( ! imageRef )
+	{
+		ErrorAlert("Could not create CGImage from CGDataProvider");
+		return;
+	}
+
+	unsigned char *offsetBuffer = (unsigned char *) the_buffer;
+	offsetBuffer += 1;		// OS X NSBitmaps are RGBA, but Basilisk generates ARGB
+
+	[output readyToDraw: imageRef
+				 bitmap: offsetBuffer
+			 imageWidth: x
+			imageHeight: y];
+
+	CGColorSpaceRelease(oldColourSpace);
+	CGImageRelease(oldImageRef);
+#endif
 }
 
 
