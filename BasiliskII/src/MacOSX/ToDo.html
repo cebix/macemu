@@ -1,3 +1,4 @@
+<!-- $Id$><-->
 Bugs:
 <UL>
 <LI>The restart button no longer works correctly. It quits the emulation, but
@@ -5,8 +6,8 @@ Bugs:
 <LI>In window mode, if the framerate is low (<I>e.g.</I> if you leave it at the
 	default of 10fps), really fast mouse clicks are sometimes not picked up
 	by the Emulator. For now, click more slowly</LI>
-<LI>In full screen mode, when the mouse is first moved, the emulated pointer
-	jumps to the location that it was before fullscreen mode was entered.
+<LI>In full screen mode after a restart, when the mouse is first moved,
+	the emulated pointer jumps to the location that it was before the restart.
 	Disturbing, but not damaging.</LI>
 </UL>
 Untested:
@@ -25,7 +26,7 @@ Unimplemented:
 <LI>Window depth. It is currently stuck at 32bits, which Quartz dithers down
 	to whatever the user's display is set to. This is mainly due to the fact
 	that NSBitmapImageRep does not support any 16bit modes. The Core Graphics
-	primitives, or 10.2, may allow a workaround though</LI>
+	primitives may allow a workaround though</LI>
 <LI>'nogui' to disable GUI alerts (and maybe preferences, but I need to split
 	MainMenu.nib to do that)</LI>
 <LI>Better documentation. There are README, ToDo and Versions in the help menu,
@@ -52,4 +53,5 @@ Possible Enhancements:
 <LI>Improve Objective-C object allocation. e.g. <A HREF="http://www.mulle-kybernetik.com/artikel/Optimisation/opti-5.html"> here</A>. </LI>
 <LI>Use automake instead of the current 1_prepare_files.sh ?</LI>
 <LI>Add JIT options to preferences.</LI>
+<LI>"Publish" at mac.emuscene.com http://www.emulation.net</LI>
 </UL>
