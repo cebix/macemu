@@ -82,6 +82,9 @@ public:
 	dyngen_cpu_base cpu() const
 		{ return parent_cpu; }
 
+	// Align on ALIGN byte boundaries, ALIGN must be a power of 2
+	uint8 *gen_align(int align = 16);
+
 	// Start code generation of a new block
 	// Align on 16-byte boundaries
 	// Returns pointer to entry point
@@ -231,7 +234,8 @@ public:
 #undef DEFINE_ALIAS_RAW
 
 	// Address of jump offset to patch for direct chaining
-	uint8 *jmp_addr[2];
+	static const int MAX_JUMPS = 2;
+	uint8 *jmp_addr[MAX_JUMPS];
 };
 
 inline bool
@@ -295,11 +299,19 @@ basic_dyngen::direct_call_possible(uintptr target) const
 }
 
 inline uint8 *
+basic_dyngen::gen_align(int align)
+{
+	while ((uintptr)code_ptr() & (align - 1))
+		inc_code_ptr(1);
+	return code_ptr();
+}
+
+inline uint8 *
 basic_dyngen::gen_start()
 {
-	while ((uintptr)code_ptr() & 15)
-		inc_code_ptr(1);
-	gen_code_start = code_ptr();
+	for (int i = 0; i < MAX_JUMPS; i++)
+		jmp_addr[i] = NULL;
+	gen_code_start = gen_align();
 	return gen_code_start;
 }
 

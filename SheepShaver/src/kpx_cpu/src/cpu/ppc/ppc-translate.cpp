@@ -138,12 +138,6 @@ powerpc_cpu::compile_block(uint32 entry_point)
 	block_info *bi = block_cache.new_blockinfo();
 	bi->init(entry_point);
 	bi->entry_point = dg.gen_start();
-#if DYNGEN_DIRECT_BLOCK_CHAINING
-	for (int i = 0; i < 2; i++) {
-		dg.jmp_addr[i] = NULL;
-		bi->jmp_pc[i] = block_info::INVALID_PC;
-	}
-#endif
 
 	// Direct block chaining support variables
 	bool use_direct_block_chaining = false;
@@ -484,10 +478,10 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			// Use direct block chaining for in-page jumps or jumps to ROM area
 			if (direct_chaining_possible(bi->pc, tpc)) {
 				use_direct_block_chaining = true;
-				bi->jmp_pc[0] = tpc;
+				bi->li[0].jmp_pc = tpc;
 				// Make sure it's a conditional branch
 				if (BO_CONDITIONAL_BRANCH(bo) || BO_DECREMENT_CTR(bo))
-					bi->jmp_pc[1] = npc;
+					bi->li[1].jmp_pc = npc;
 			}
 #endif
 
@@ -547,7 +541,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			// Use direct block chaining, addresses will be resolved at execution
 			if (direct_chaining_possible(bi->pc, tpc)) {
 				use_direct_block_chaining = true;
-				bi->jmp_pc[0] = tpc;
+				bi->li[0].jmp_pc = tpc;
 			}
 #endif
 
@@ -1507,7 +1501,6 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		}
 		dg.gen_exec_return();
 	}
-	dg.gen_end();
 	bi->end_pc = dpc;
 	if (dpc < min_pc)
 		min_pc = dpc;
@@ -1524,22 +1517,22 @@ powerpc_cpu::compile_block(uint32 entry_point)
 	if (use_direct_block_chaining) {
 		typedef void *(*func_t)(dyngen_cpu_base);
 		func_t func = (func_t)nv_mem_fun(&powerpc_cpu::compile_chain_block).ptr();
-		for (int i = 0; i < 2; i++) {
-			if (bi->jmp_pc[i] != block_info::INVALID_PC) {
-				uint8 *p = dg.gen_start();
+		for (int i = 0; i < block_info::MAX_TARGETS; i++) {
+			if (bi->li[i].jmp_pc != block_info::INVALID_PC) {
+				uint8 *p = dg.gen_align(16);
 				dg.gen_mov_ad_T0_im(((uintptr)bi) | i);
 				dg.gen_invoke_CPU_T0_ret_A0(func);
 				dg.gen_jmp_A0();
-				dg.gen_end();
 				assert(dg.jmp_addr[i] != NULL);
-				bi->jmp_addr[i] = dg.jmp_addr[i];
-				bi->jmp_resolve_addr[i] = p;
-				dg_set_jmp_target(bi->jmp_addr[i], bi->jmp_resolve_addr[i]);
+				bi->li[i].jmp_addr = dg.jmp_addr[i];
+				bi->li[i].jmp_resolve_addr = p;
+				dg_set_jmp_target(bi->li[i].jmp_addr, bi->li[i].jmp_resolve_addr);
 			}
 		}
 	}
 #endif
 
+	dg.gen_end();
 	block_cache.add_to_cl_list(bi);
 	if (is_read_only_memory(bi->pc))
 		block_cache.add_to_dormant_list(bi);

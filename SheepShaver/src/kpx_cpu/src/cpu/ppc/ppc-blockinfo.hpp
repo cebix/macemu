@@ -44,17 +44,36 @@ struct powerpc_block_info
 #if PPC_ENABLE_JIT
 	uint8 *				entry_point;
 #if DYNGEN_DIRECT_BLOCK_CHAINING
-	uint8 *				jmp_resolve_addr[2];			// Address of default code to resolve target addr
-	uint8 *				jmp_addr[2];					// Address of target native branch offset to patch
-	uint32				jmp_pc[2];						// Target jump addresses in emulated address space
+	struct link_info {
+		uint8 *			jmp_resolve_addr;				// Address of default code to resolve target addr
+		uint8 *			jmp_addr;						// Address of target native branch offset to patch
+		uint32			jmp_pc;							// Target jump addresses in emulated address space
+	};
 	static const uint32	INVALID_PC = 0xffffffff;		// An invalid PC address to mark jmp_pc[] as stale
+	link_info			li[MAX_TARGETS];
 #endif
 #endif
 	uintptr				min_pc, max_pc;
 
+	void init(uintptr start_pc);
 	bool intersect(uintptr start, uintptr end);
 	void invalidate();
 };
+
+inline void
+powerpc_block_info::init(uintptr start_pc)
+{
+	basic_block_info::init(start_pc);
+#if PPC_DECODE_CACHE
+	di = NULL;
+#endif
+#if PPC_ENABLE_JIT
+#if DYNGEN_DIRECT_BLOCK_CHAINING
+	for (int i = 0; i < MAX_TARGETS; i++)
+		li[i].jmp_pc = INVALID_PC;
+#endif
+#endif
+}
 
 inline bool
 powerpc_block_info::intersect(uintptr start, uintptr end)

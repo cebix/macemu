@@ -440,13 +440,13 @@ void *powerpc_cpu::compile_chain_block(block_info *sbi)
 	sbi = (block_info *)(((uintptr)sbi) & ~3L);
 	const uint32 bpc = sbi->pc;
 
-	const uint32 tpc = sbi->jmp_pc[n];
+	const uint32 tpc = sbi->li[n].jmp_pc;
 	block_info *tbi = block_cache.find(tpc);
 	if (tbi == NULL)
 		tbi = compile_block(tpc);
 	assert(tbi && tbi->pc == tpc);
 
-	dg_set_jmp_target(sbi->jmp_addr[n], tbi->entry_point);
+	dg_set_jmp_target(sbi->li[n].jmp_addr, tbi->entry_point);
 	return tbi->entry_point;
 }
 #endif
@@ -462,9 +462,10 @@ void powerpc_cpu::execute(uint32 entry)
 	if (execute_depth == 1 || PPC_REENTRANT_JIT) {
 #if PPC_ENABLE_JIT
 		if (use_jit) {
+			block_info *bi = block_cache.find(pc());
+			if (bi == NULL)
+				bi = compile_block(pc());
 			for (;;) {
-				block_info *bi = compile_block(pc());
-
 				// Execute all cached blocks
 				for (;;) {
 					codegen.execute(bi->entry_point);
@@ -486,23 +487,33 @@ void powerpc_cpu::execute(uint32 entry)
 					if ((bi = block_cache.find(pc())) == NULL)
 						break;
 				}
+
+				// Compile new block
+				bi = compile_block(pc());
 			}
 			goto return_site;
 		}
 #endif
 #if PPC_DECODE_CACHE
+		block_info *bi = block_cache.find(pc());
+		if (bi != NULL)
+			goto pdi_execute;
 		for (;;) {
+		  pdi_compile:
 #if PPC_PROFILE_COMPILE_TIME
 			compile_count++;
 			clock_t start_time = clock();
 #endif
-			block_info *bi = block_cache.new_blockinfo();
+			bi = block_cache.new_blockinfo();
 			bi->init(pc());
 
 			// Predecode a new block
-			block_info::decode_info *di = bi->di = decode_cache_p;
+		  pdi_decode:
+			block_info::decode_info *di;
 			const instr_info_t *ii;
-			uint32 dpc = pc() - 4;
+			uint32 dpc;
+			di = bi->di = decode_cache_p;
+			dpc = pc() - 4;
 			do {
 				uint32 opcode = vm_read_memory_4(dpc += 4);
 				ii = decode(opcode);
@@ -551,6 +562,7 @@ void powerpc_cpu::execute(uint32 entry)
 #endif
 
 			// Execute all cached blocks
+		  pdi_execute:
 			for (;;) {
 				const int r = bi->size % 4;
 				di = bi->di + r;
@@ -647,6 +659,7 @@ void powerpc_cpu::kill_decode_cache()
 
 void powerpc_cpu::invalidate_cache()
 {
+	D(bug("Invalidate all cache blocks\n"));
 #if PPC_DECODE_CACHE || PPC_ENABLE_JIT
 	block_cache.clear();
 	block_cache.initialize();
@@ -662,13 +675,19 @@ void powerpc_cpu::invalidate_cache()
 
 inline void powerpc_block_info::invalidate()
 {
+#if PPC_DECODE_CACHE
+	// Don't do anything if this is a predecoded block
+	if (di)
+		return;
+#endif
 #if DYNGEN_DIRECT_BLOCK_CHAINING
-	for (int i = 0; i < 2; i++) {
-		uint32 tpc = jmp_pc[i];
+	for (int i = 0; i < MAX_TARGETS; i++) {
+		link_info * const tli = &li[i];
+		uint32 tpc = tli->jmp_pc;
 		// For any jump within page boundaries, reset the jump address
 		// to the target block resolver (trampoline)
 		if (tpc != INVALID_PC && ((tpc ^ pc) >> 12) == 0)
-			dg_set_jmp_target(jmp_addr[i], jmp_resolve_addr[i]);
+			dg_set_jmp_target(tli->jmp_addr, tli->jmp_resolve_addr);
 	}
 #endif
 }
@@ -682,6 +701,7 @@ void powerpc_cpu::invalidate_cache_range(uintptr start, uintptr end)
 		// Invalidate on page boundaries
 		start &= -4096;
 		end = (end + 4095) & -4096;
+		D(bug("    at page boundaries [%08x - %08x]\n", start, end));
 	}
 #endif
 	block_cache.clear_range(start, end);
