@@ -2717,7 +2717,7 @@ static bool target_check_bsf(void)
 			int flags = (g_SF << 7) | (g_OF << 11) | (g_ZF << 6) | g_CF;
 			int tmp = value;
 			__asm__ __volatile__ ("push %0; popf; bsf %1,%1; pushf; pop %0"
-								  : "+r" (flags), "+r" (tmp) : : "flags");
+								  : "+r" (flags), "+r" (tmp) : : "cc");
 			int OF = (flags >> 11) & 1;
 			int SF = (flags >>  7) & 1;
 			int ZF = (flags >>  6) & 1;
