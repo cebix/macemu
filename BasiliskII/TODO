@@ -10,7 +10,6 @@ General:
 - Disk: rdVerify
 - CD-ROM: track lists, positioning type 3, TOC type 4/5, ReadHeader/ReadMCN/
   ReadISRC/ReadAudio/ReadAllSubcodes
-- Sound output rate/bits/channels switching
 - Sound in
 - Video: multiple monitor support
 - More accurate Time Manager
@@ -31,10 +30,12 @@ AmigaOS:
 - Patch 512K ROM for 68040/060 caches
 - Input handler instead of IDCMP?
 - Last sound buffer is not played
+- Sound output rate/bits/channels switching
 
 BeOS:
 - clip_beos.cpp: clip BeOS->Basilisk
 - Last sound buffer is not played
+- Sound output rate/bits/channels switching
 
 Unix:
 - clip_unix.cpp: clip Unix->Basilisk
@@ -42,7 +43,6 @@ Unix:
 - sys_unix.cpp: SysFormat(), SysIsFixedDisk(), SysIsDiskInserted(), prevent/allow
   for non-floppy/CDROM devices
 - scsi_linux.cpp: adapt to SCSI Generic driver V2.0
-- ESD vs. /dev/dsp should be a prefs item
 - ESD is also available on Solaris
 - maybe use SDL for sound?
 - serial_unix.cpp: provide a way to pipe input/output to programs

@@ -49,13 +49,10 @@
 #include "debug.h"
 
 
-// Supported sample rates, sizes and channels (defaults)
-int audio_num_sample_rates = 1;
-uint32 audio_sample_rates[] = {44100 << 16};
-int audio_num_sample_sizes = 1;
-uint16 audio_sample_sizes[] = {16};
-int audio_num_channel_counts = 1;
-uint16 audio_channel_counts[] = {2};
+// The currently selected audio parameters (indices in audio_sample_rates[] etc. vectors)
+static int audio_sample_rate_index = 0;
+static int audio_sample_size_index = 0;
+static int audio_channel_count_index = 0;
 
 // Constants
 #define DSP_NAME "/dev/dsp"
@@ -63,6 +60,7 @@ uint16 audio_channel_counts[] = {2};
 // Global variables
 static int audio_fd = -1;							// fd of /dev/dsp or ESD
 static int mixer_fd = -1;							// fd of /dev/mixer
+static bool formats_known = false;					// Flag: available audio formats have been probed
 static sem_t audio_irq_done_sem;					// Signal from interrupt to streaming thread: data block read
 static bool sem_inited = false;						// Flag: audio_irq_done_sem initialized
 static int sound_buffer_size;						// Size of sound buffer in bytes
@@ -84,70 +82,120 @@ static void *stream_func(void *arg);
 // Set AudioStatus to reflect current audio stream format
 static void set_audio_status_format(void)
 {
-	AudioStatus.sample_rate = audio_sample_rates[0];
-	AudioStatus.sample_size = audio_sample_sizes[0];
-	AudioStatus.channels = audio_channel_counts[0];
+	AudioStatus.sample_rate = audio_sample_rates[audio_sample_rate_index];
+	AudioStatus.sample_size = audio_sample_sizes[audio_sample_size_index];
+	AudioStatus.channels = audio_channel_counts[audio_channel_count_index];
 }
 
 // Init using /dev/dsp, returns false on error
-bool audio_init_dsp(void)
+static bool open_dsp(void)
 {
+	// Open /dev/dsp
+	audio_fd = open(DSP_NAME, O_WRONLY);
+	if (audio_fd < 0) {
+		fprintf(stderr, "WARNING: Cannot open %s (%s)\n", DSP_NAME, strerror(errno));
+		return false;
+	}
+
 	printf("Using " DSP_NAME " audio output\n");
 
 	// Get supported sample formats
-	unsigned long format;
-	ioctl(audio_fd, SNDCTL_DSP_GETFMTS, &format);
-	if ((format & (AFMT_U8 | AFMT_S16_BE | AFMT_S16_LE)) == 0) {
-		WarningAlert(GetString(STR_AUDIO_FORMAT_WARN));
-		close(audio_fd);
-		audio_fd = -1;
-		return false;
+	if (!formats_known) {
+		unsigned long format;
+		ioctl(audio_fd, SNDCTL_DSP_GETFMTS, &format);
+		if (format & AFMT_U8)
+			audio_sample_sizes.push_back(8);
+		if (format & (AFMT_S16_BE | AFMT_S16_LE))
+			audio_sample_sizes.push_back(16);
+
+		int stereo = 0;
+		if (ioctl(audio_fd, SNDCTL_DSP_STEREO, &stereo) == 0 && stereo == 0)
+			audio_channel_counts.push_back(1);
+		stereo = 1;
+		if (ioctl(audio_fd, SNDCTL_DSP_STEREO, &stereo) == 0 && stereo == 1)
+			audio_channel_counts.push_back(2);
+
+		if (audio_sample_sizes.empty() || audio_channel_counts.empty()) {
+			WarningAlert(GetString(STR_AUDIO_FORMAT_WARN));
+			close(audio_fd);
+			audio_fd = -1;
+			return false;
+		}
+
+		audio_sample_rates.push_back(11025 << 16);
+		audio_sample_rates.push_back(22050 << 16);
+		int rate = 44100;
+		ioctl(audio_fd, SNDCTL_DSP_SPEED, &rate);
+		if (rate > 22050)
+			audio_sample_rates.push_back(rate << 16);
+
+		// Default to highest supported values
+		audio_sample_rate_index = audio_sample_rates.size() - 1;
+		audio_sample_size_index = audio_sample_sizes.size() - 1;
+		audio_channel_count_index = audio_channel_counts.size() - 1;
+		formats_known = true;
 	}
-	if (format & (AFMT_S16_BE | AFMT_S16_LE)) {
-		audio_sample_sizes[0] = 16;
-		silence_byte = 0;
-	} else {
-		audio_sample_sizes[0] = 8;
-		silence_byte = 0x80;
-	}
-	if (!(format & AFMT_S16_BE))
-		little_endian = true;
 
 	// Set DSP parameters
-	format = audio_sample_sizes[0] == 8 ? AFMT_U8 : (little_endian ? AFMT_S16_LE : AFMT_S16_BE);
+	unsigned long format;
+	if (audio_sample_sizes[audio_sample_size_index] == 8) {
+		format = AFMT_U8;
+		little_endian = false;
+		silence_byte = 0x80;
+	} else {
+		unsigned long sup_format;
+		ioctl(audio_fd, SNDCTL_DSP_GETFMTS, &format);
+		if (sup_format & AFMT_S16_BE) {
+			little_endian = false;
+			format = AFMT_S16_BE;
+		} else {
+			little_endian = true;
+			format = AFMT_S16_LE;
+		}
+		silence_byte = 0;
+	}
 	ioctl(audio_fd, SNDCTL_DSP_SETFMT, &format);
 	int frag = 0x0004000c;		// Block size: 4096 frames
 	ioctl(audio_fd, SNDCTL_DSP_SETFRAGMENT, &frag);
-	int stereo = (audio_channel_counts[0] == 2);
+	int stereo = (audio_channel_counts[audio_channel_count_index] == 2);
 	ioctl(audio_fd, SNDCTL_DSP_STEREO, &stereo);
-	int rate = audio_sample_rates[0] >> 16;
+	int rate = audio_sample_rates[audio_sample_rate_index] >> 16;
 	ioctl(audio_fd, SNDCTL_DSP_SPEED, &rate);
-	audio_sample_rates[0] = rate << 16;
-
-	// Set AudioStatus again because we now know more about the sound
-	// system's capabilities
-	set_audio_status_format();
 
 	// Get sound buffer size
 	ioctl(audio_fd, SNDCTL_DSP_GETBLKSIZE, &audio_frames_per_block);
 	D(bug("DSP_GETBLKSIZE %d\n", audio_frames_per_block));
-	sound_buffer_size = (AudioStatus.sample_size >> 3) * AudioStatus.channels * audio_frames_per_block;
 	return true;
 }
 
 // Init using ESD, returns false on error
-bool audio_init_esd(void)
+static bool open_esd(void)
 {
 #ifdef ENABLE_ESD
-	printf("Using ESD audio output\n");
+	// ESD supports a variety of audio formats
+	if (!formats_known) {
+		audio_sample_rates.push_back(11025 << 16);
+		audio_sample_rates.push_back(22050 << 16);
+		audio_sample_rates.push_back(44100 << 16);
+		audio_sample_sizes.push_back(8);
+		audio_sample_sizes.push_back(16);
+		audio_channel_counts.push_back(1);
+		audio_channel_counts.push_back(2);
+
+		// Default to 44.1kHz, 16-bit, stereo
+		audio_sample_rate_index = 2;
+		audio_sample_size_index = 1;
+		audio_channel_count_index = 1;
+		formats_known = true;
+	}
 
 	// ESD audio format
 	esd_format_t format = ESD_STREAM | ESD_PLAY;
-	if (AudioStatus.sample_size == 8)
+	if (audio_sample_sizes[audio_sample_size_index] == 8)
 		format |= ESD_BITS8;
 	else
 		format |= ESD_BITS16;
-	if (AudioStatus.channels == 1)
+	if (audio_channel_counts[audio_channel_count_index] == 1)
 		format |= ESD_MONO;
 	else
 		format |= ESD_STEREO;
@@ -160,62 +208,49 @@ bool audio_init_esd(void)
 	silence_byte = 0;	// Is this correct for 8-bit mode?
 
 	// Open connection to ESD server
-	audio_fd = esd_play_stream(format, AudioStatus.sample_rate >> 16, NULL, NULL);
+	audio_fd = esd_play_stream(format, audio_sample_rates[audio_sample_rate_index] >> 16, NULL, NULL);
 	if (audio_fd < 0) {
-		char str[256];
-		sprintf(str, GetString(STR_NO_ESD_WARN), strerror(errno));
-		WarningAlert(str);
+		fprintf(stderr, "WARNING: Cannot open ESD connection\n");
+		formats_known = false;
 		return false;
 	}
 
+	printf("Using ESD audio output\n");
+
 	// Sound buffer size = 4096 frames
 	audio_frames_per_block = 4096;
-	sound_buffer_size = (AudioStatus.sample_size >> 3) * AudioStatus.channels * audio_frames_per_block;
 	return true;
-#else
-	ErrorAlert("Basilisk II has been compiled with ESD support disabled.");
-	return false;
 #endif
 }
 
-void AudioInit(void)
+static bool open_audio(void)
 {
-	char str[256];
-
-	// Init audio status (defaults) and feature flags
-	set_audio_status_format();
-	AudioStatus.mixer = 0;
-	AudioStatus.num_sources = 0;
-	audio_component_flags = cmpWantsRegisterMessage | kStereoOut | k16BitOut;
-
-	// Sound disabled in prefs? Then do nothing
-	if (PrefsFindBool("nosound"))
-		return;
+#ifdef ENABLE_ESD
+	// If ESPEAKER is set, the user probably wants to use ESD, so try that first
+	if (getenv("ESPEAKER"))
+		if (open_esd())
+			goto dev_opened;
+#endif
 
 	// Try to open /dev/dsp
-	audio_fd = open(DSP_NAME, O_WRONLY);
-	if (audio_fd < 0) {
+	if (open_dsp())
+		goto dev_opened;
+
 #ifdef ENABLE_ESD
-		if (!audio_init_esd())
-			return;
-#else
-		sprintf(str, GetString(STR_NO_AUDIO_DEV_WARN), DSP_NAME, strerror(errno));
-		WarningAlert(str);
-		return;
+	// Hm, /dev/dsp failed so we try ESD again if ESPEAKER wasn't set
+	if (!getenv("ESPEAKER"))
+		if (open_esd())
+			goto dev_opened;
 #endif
-	} else
-		if (!audio_init_dsp())
-			return;
 
-	// Try to open /dev/mixer
-	mixer_fd = open("/dev/mixer", O_RDWR);
-	if (mixer_fd < 0)
-		printf("WARNING: Cannot open /dev/mixer (%s)", strerror(errno));
+	// No audio device succeeded
+	WarningAlert(GetString(STR_NO_AUDIO_WARN));
+	return false;
 
-	// Init semaphore
-	if (sem_init(&audio_irq_done_sem, 0, 0) < 0)
-		return;
-	sem_inited = true;
+	// Device opened, set AudioStatus
+dev_opened:
+	sound_buffer_size = (audio_sample_sizes[audio_sample_size_index] >> 3) * audio_channel_counts[audio_channel_count_index] * audio_frames_per_block;
+	set_audio_status_format();
 
 	// Start streaming thread
 	pthread_attr_init(&stream_thread_attr);
@@ -228,10 +263,42 @@ void AudioInit(void)
 		pthread_attr_setschedparam(&stream_thread_attr, &fifo_param);
 	}
 #endif
+	stream_thread_cancel = false;
 	stream_thread_active = (pthread_create(&stream_thread, &stream_thread_attr, stream_func, NULL) == 0);
 
-	// Everything OK
+	// Everything went fine
 	audio_open = true;
+	return true;
+}
+
+void AudioInit(void)
+{
+	char str[256];
+
+	// Init audio status (reasonable defaults) and feature flags
+	AudioStatus.sample_rate = 44100 << 16;
+	AudioStatus.sample_size = 16;
+	AudioStatus.channels = 2;
+	AudioStatus.mixer = 0;
+	AudioStatus.num_sources = 0;
+	audio_component_flags = cmpWantsRegisterMessage | kStereoOut | k16BitOut;
+
+	// Sound disabled in prefs? Then do nothing
+	if (PrefsFindBool("nosound"))
+		return;
+
+	// Init semaphore
+	if (sem_init(&audio_irq_done_sem, 0, 0) < 0)
+		return;
+	sem_inited = true;
+
+	// Try to open /dev/mixer
+	mixer_fd = open("/dev/mixer", O_RDWR);
+	if (mixer_fd < 0)
+		printf("WARNING: Cannot open /dev/mixer (%s)", strerror(errno));
+
+	// Open and initialize audio device
+	open_audio();
 }
 
 
@@ -239,7 +306,7 @@ void AudioInit(void)
  *  Deinitialization
  */
 
-void AudioExit(void)
+static void close_audio(void)
 {
 	// Stop stream and delete semaphore
 	if (stream_thread_active) {
@@ -250,16 +317,28 @@ void AudioExit(void)
 		pthread_join(stream_thread, NULL);
 		stream_thread_active = false;
 	}
-	if (sem_inited)
-		sem_destroy(&audio_irq_done_sem);
 
-	// Close /dev/dsp
-	if (audio_fd > 0)
+	// Close /dev/dsp or ESD socket
+	if (audio_fd >= 0) {
 		close(audio_fd);
+		audio_fd = -1;
+	}
+
+	audio_open = false;
+}
+
+void AudioExit(void)
+{
+	if (sem_inited) {
+		sem_destroy(&audio_irq_done_sem);
+		sem_inited = false;
+	}
 
 	// Close /dev/mixer
-	if (mixer_fd > 0)
+	if (mixer_fd >= 0) {
 		close(mixer_fd);
+		mixer_fd = -1;
+	}
 }
 
 
@@ -372,20 +451,29 @@ void AudioInterrupt(void)
 
 /*
  *  Set sampling parameters
- *  "index" is an index into the audio_sample_rates[] etc. arrays
+ *  "index" is an index into the audio_sample_rates[] etc. vectors
  *  It is guaranteed that AudioStatus.num_sources == 0
  */
 
-void audio_set_sample_rate(int index)
+bool audio_set_sample_rate(int index)
 {
+	close_audio();
+	audio_sample_rate_index = index;
+	return open_audio();
 }
 
-void audio_set_sample_size(int index)
+bool audio_set_sample_size(int index)
 {
+	close_audio();
+	audio_sample_size_index = index;
+	return open_audio();
 }
 
-void audio_set_channels(int index)
+bool audio_set_channels(int index)
 {
+	close_audio();
+	audio_channel_count_index = index;
+	return open_audio();
 }
 
 

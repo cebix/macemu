@@ -9,6 +9,8 @@ V1.0 (snapshot) - <date>
 	  depth, which can be switched on-the-fly
 	- Unix: Ctrl-F5 grabs mouse in windowed mode (enhanced compatibility
 	  with games like flight simulators)
+	- Unix: audio sample rate, bit depth and channel count are adjustable
+	  in the MacOS "Sound" control panel
 
 V0.9 (release 0.9-1) - 31.May 2001
 	- final adjustments for 0.9 release

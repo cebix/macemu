@@ -21,6 +21,12 @@
 #ifndef AUDIO_H
 #define AUDIO_H
 
+#include <vector>
+
+#ifndef NO_STD_NAMESPACE
+using std::vector;
+#endif
+
 extern int32 AudioDispatch(uint32 params, uint32 ti);
 
 extern bool AudioAvailable;		// Flag: audio output available (from the software point of view)
@@ -41,9 +47,9 @@ extern void AudioInterrupt(void);
 extern void audio_enter_stream(void);
 extern void audio_exit_stream(void);
 
-extern void audio_set_sample_rate(int index);
-extern void audio_set_sample_size(int index);
-extern void audio_set_channels(int index);
+extern bool audio_set_sample_rate(int index);
+extern bool audio_set_sample_size(int index);
+extern bool audio_set_channels(int index);
 
 extern bool audio_get_main_mute(void);
 extern uint32 audio_get_main_volume(void);
@@ -68,12 +74,9 @@ extern bool audio_open;					// Flag: audio is open and ready
 extern int audio_frames_per_block;		// Number of audio frames per block
 extern uint32 audio_component_flags;	// Component feature flags
 
-extern int audio_num_sample_rates;		// Number of supported sample rates
-extern uint32 audio_sample_rates[];		// Array of supported sample rates (16.16 fixed point)
-extern int audio_num_sample_sizes;		// Number of supported sample sizes
-extern uint16 audio_sample_sizes[];		// Array of supported sample sizes
-extern int audio_num_channel_counts;	// Number of supported channel counts
-extern uint16 audio_channel_counts[];	// Array of supported channels counts
+extern vector<uint32> audio_sample_rates;	// Vector of supported sample rates (16.16 fixed point)
+extern vector<uint16> audio_sample_sizes;	// Vector of supported sample sizes
+extern vector<uint16> audio_channel_counts;	// Array of supported channels counts
 
 // Audio component global data and 68k routines
 enum {

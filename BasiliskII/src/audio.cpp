@@ -36,6 +36,11 @@
 #include "debug.h"
 
 
+// Supported sample rates, sizes and channels
+vector<uint32> audio_sample_rates;
+vector<uint16> audio_sample_sizes;
+vector<uint16> audio_channel_counts;
+
 // Global variables
 struct audio_status AudioStatus;	// Current audio status (sample rate etc.)
 bool audio_open = false;			// Flag: audio is initialized and ready
@@ -73,15 +78,15 @@ static int32 AudioGetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			break;
 
 		case siSampleSizeAvailable: {
-			r.d[0] = audio_num_sample_sizes * 2;
+			r.d[0] = audio_sample_sizes.size() * 2;
 			Execute68kTrap(0xa122, &r);	// NewHandle()
 			uint32 h = r.a[0];
 			if (h == 0)
 				return memFullErr;
-			WriteMacInt16(infoPtr + sil_count, audio_num_sample_sizes);
+			WriteMacInt16(infoPtr + sil_count, audio_sample_sizes.size());
 			WriteMacInt32(infoPtr + sil_infoHandle, h);
 			uint32 sp = ReadMacInt32(h);
-			for (i=0; i<audio_num_sample_sizes; i++)
+			for (i=0; i<audio_sample_sizes.size(); i++)
 				WriteMacInt16(sp + i*2, audio_sample_sizes[i]);
 			break;
 		}
@@ -91,15 +96,15 @@ static int32 AudioGetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			break;
 
 		case siChannelAvailable: {
-			r.d[0] = audio_num_channel_counts * 2;
+			r.d[0] = audio_channel_counts.size() * 2;
 			Execute68kTrap(0xa122, &r);	// NewHandle()
 			uint32 h = r.a[0];
 			if (h == 0)
 				return memFullErr;
-			WriteMacInt16(infoPtr + sil_count, audio_num_channel_counts);
+			WriteMacInt16(infoPtr + sil_count, audio_channel_counts.size());
 			WriteMacInt32(infoPtr + sil_infoHandle, h);
 			uint32 sp = ReadMacInt32(h);
-			for (i=0; i<audio_num_channel_counts; i++)
+			for (i=0; i<audio_channel_counts.size(); i++)
 				WriteMacInt16(sp + i*2, audio_channel_counts[i]);
 			break;
 		}
@@ -109,15 +114,15 @@ static int32 AudioGetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			break;
 
 		case siSampleRateAvailable: {
-			r.d[0] = audio_num_sample_rates * 4;
+			r.d[0] = audio_sample_rates.size() * 4;
 			Execute68kTrap(0xa122, &r);	// NewHandle()
 			uint32 h = r.a[0];
 			if (h == 0)
 				return memFullErr;
-			WriteMacInt16(infoPtr + sil_count, audio_num_sample_rates);
+			WriteMacInt16(infoPtr + sil_count, audio_sample_rates.size());
 			WriteMacInt32(infoPtr + sil_infoHandle, h);
 			uint32 lp = ReadMacInt32(h);
-			for (i=0; i<audio_num_sample_rates; i++)
+			for (i=0; i<audio_sample_rates.size(); i++)
 				WriteMacInt32(lp + i*4, audio_sample_rates[i]);
 			break;
 		}
@@ -189,10 +194,14 @@ static int32 AudioSetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			D(bug("  set sample size %08lx\n", infoPtr));
 			if (AudioStatus.num_sources)
 				return siDeviceBusyErr;
-			for (i=0; i<audio_num_sample_sizes; i++)
+			if (infoPtr == AudioStatus.sample_size)
+				return noErr;
+			for (i=0; i<audio_sample_sizes.size(); i++)
 				if (audio_sample_sizes[i] == infoPtr) {
-					audio_set_sample_size(i);
-					return noErr;
+					if (audio_set_sample_size(i))
+						return noErr;
+					else
+						return siInvalidSampleSize;
 				}
 			return siInvalidSampleSize;
 
@@ -200,10 +209,14 @@ static int32 AudioSetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			D(bug("  set sample rate %08lx\n", infoPtr));
 			if (AudioStatus.num_sources)
 				return siDeviceBusyErr;
-			for (i=0; i<audio_num_sample_rates; i++)
+			if (infoPtr == AudioStatus.sample_rate)
+				return noErr;
+			for (i=0; i<audio_sample_rates.size(); i++)
 				if (audio_sample_rates[i] == infoPtr) {
-					audio_set_sample_rate(i);
-					return noErr;
+					if (audio_set_sample_rate(i))
+						return noErr;
+					else
+						return siInvalidSampleRate;
 				}
 			return siInvalidSampleRate;
 
@@ -211,10 +224,14 @@ static int32 AudioSetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			D(bug("  set number of channels %08lx\n", infoPtr));
 			if (AudioStatus.num_sources)
 				return siDeviceBusyErr;
-			for (i=0; i<audio_num_channel_counts; i++)
+			if (infoPtr == AudioStatus.channels)
+				return noErr;
+			for (i=0; i<audio_channel_counts.size(); i++)
 				if (audio_channel_counts[i] == infoPtr) {
-					audio_set_channels(i);
-					return noErr;
+					if (audio_set_channels(i))
+						return noErr;
+					else
+						return badChannel;
 				}
 			return badChannel;
 

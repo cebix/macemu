@@ -40,14 +40,6 @@
 #include "debug.h"
 
 
-// Supported sample rates, sizes and channels (defaults)
-int audio_num_sample_rates = 1;
-uint32 audio_sample_rates[] = {44100 << 16};
-int audio_num_sample_sizes = 1;
-uint16 audio_sample_sizes[] = {16};
-int audio_num_channel_counts = 1;
-uint16 audio_channel_counts[] = {2};
-
 // Global variables
 static int audio_fd = -1;							// fd from audio library
 static sem_t audio_irq_done_sem;					// Signal from interrupt to streaming thread: data block read
@@ -168,6 +160,9 @@ bool audio_init_al(void)
 void AudioInit(void)
 {
 	// Init audio status (defaults) and feature flags
+	audio_sample_rates.push_back(44100 << 16);
+	audio_sample_sizes.push_back(16);
+	audio_channel_counts.push_back(2);
 	set_audio_status_format();
 	AudioStatus.mixer = 0;
 	AudioStatus.num_sources = 0;

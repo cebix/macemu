@@ -40,14 +40,6 @@
 #include "debug.h"
 
 
-// Supported sample rates, sizes and channels
-int audio_num_sample_rates = 1;
-uint32 audio_sample_rates[] = {44100 << 16};
-int audio_num_sample_sizes = 1;
-uint16 audio_sample_sizes[] = {16};
-int audio_num_channel_counts = 1;
-uint16 audio_channel_counts[] = {2};
-
 // Global variables
 static int fd = -1;							// fd of /dev/audio
 static sem_t audio_irq_done_sem;			// Signal from interrupt to streaming thread: data block read
@@ -64,14 +56,23 @@ static void *stream_func(void *arg);
  *  Initialization
  */
 
+// Set AudioStatus to reflect current audio stream format
+static void set_audio_status_format(void)
+{
+	AudioStatus.sample_rate = audio_sample_rates[0];
+	AudioStatus.sample_size = audio_sample_sizes[0];
+	AudioStatus.channels = audio_channel_counts[0];
+}
+
 void AudioInit(void)
 {
 	char str[256];
 
 	// Init audio status and feature flags
-	AudioStatus.sample_rate = audio_sample_rates[0];
-	AudioStatus.sample_size = audio_sample_sizes[0];
-	AudioStatus.channels = audio_channel_counts[0];
+	audio_sample_rates.push_back(44100 << 16);
+	audio_sample_sizes.push_back(16);
+	audio_channel_counts.push_back(2);
+	set_audio_status_format();
 	AudioStatus.mixer = 0;
 	AudioStatus.num_sources = 0;
 	audio_component_flags = cmpWantsRegisterMessage | kStereoOut | k16BitOut;
