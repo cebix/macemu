@@ -258,6 +258,19 @@
 
 // Methods to display documentation:
 
+- (IBAction) HelpHowTo: (id)sender
+{
+    NSString	*path = [[NSBundle mainBundle] pathForResource: @"HowTo"
+                                                        ofType: @"html"];
+
+    if ( ! path )
+        InfoSheet(@"Cannot find HowTo.html", [theEmulator window]);
+    else
+        if ( ! [[NSWorkspace sharedWorkspace] openFile: path
+                                       withApplication: @"TextEdit"] )
+            InfoSheet(@"Cannot open HowTo.html with TextEdit", [theEmulator window]);
+}
+
 - (IBAction) HelpToDo: (id)sender
 {
     NSString	*path = [[NSBundle mainBundle] pathForResource: @"ToDo"
@@ -281,7 +294,8 @@
     else
         if ( ! [[NSWorkspace sharedWorkspace] openFile: path
                                        withApplication: @"TextEdit"] )
-            InfoSheet(@"Cannot open Versions.html with TextEdit", [theEmulator window]);
+            InfoSheet(@"Cannot open Versions.html with TextEdit",
+												[theEmulator window]);
 }
 
 
