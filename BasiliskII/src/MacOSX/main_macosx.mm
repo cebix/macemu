@@ -32,19 +32,26 @@
 # include <sys/mman.h>
 #endif
 
+#include <string>
+using std::string;
+
 #include "cpu_emulation.h"
 #include "macos_util_macosx.h"
 #include "main.h"
 #include "prefs.h"
 #include "prefs_editor.h"
 #include "rom_patches.h"
+#include "sigsegv.h"
 #include "sys.h"
-#include "timer.h"
 #include "user_strings.h"
 #include "version.h"
 #include "video.h"
 #include "vm_alloc.h"
 #include "xpram.h"
+
+#if USE_JIT
+extern void (*flush_icache)(int); // from compemu_support.cpp
+#endif
 
 #ifdef ENABLE_MON
 # include "mon.h"
@@ -61,7 +68,6 @@
 
 // Constants
 const char ROM_FILE_NAME[] = "ROM";
-const int SIG_STACK_SIZE = SIGSTKSZ;	// Size of signal stack
 const int SCRATCH_MEM_SIZE = 0x10000;	// Size of scratch memory area
 
 
@@ -91,11 +97,6 @@ static pthread_mutex_t intflag_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to pro
 uint8 *ScratchMem = NULL;			// Scratch memory for Mac ROM writes
 #endif
 
-#if defined(HAVE_TIMER_CREATE) && defined(_POSIX_REALTIME_SIGNALS)
-#define SIG_TIMER SIGRTMIN
-static timer_t timer;				// 60Hz timer
-#endif
-
 #ifdef ENABLE_MON
 static struct sigaction sigint_sa;	// sigaction for SIGINT handler
 static void sigint_handler(...);
@@ -105,6 +106,31 @@ static void sigint_handler(...);
 static bool lm_area_mapped = false;	// Flag: Low Memory area mmap()ped
 #endif
 
+
+/*
+ *  Dump state when everything went wrong after a SEGV
+ */
+
+static void sigsegv_dump_state(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction)
+{
+	fprintf(stderr, "Caught SIGSEGV at address %p", fault_address);
+	if (fault_instruction != SIGSEGV_INVALID_PC)
+		fprintf(stderr, " [IP=%p]", fault_instruction);
+	fprintf(stderr, "\n");
+	uaecptr nextpc;
+	extern void m68k_dumpstate(uaecptr *nextpc);
+	m68k_dumpstate(&nextpc);
+#if USE_JIT && JIT_DEBUG
+	extern void compiler_dumpstate(void);
+	compiler_dumpstate();
+#endif
+	VideoQuitFullScreen();
+#ifdef ENABLE_MON
+	char *arg[4] = {"mon", "-m", "-r", NULL};
+	mon(3, arg);
+	QuitEmulator();
+#endif
+}
 
 
 /*
@@ -116,8 +142,10 @@ static void usage(const char *prg_name)
 	printf("Usage: %s [OPTION...]\n", prg_name);
 	printf("\nUnix options:\n");
 	printf("  --help\n    display this usage message\n");
+	printf("  --config FILE\n    read/write configuration from/to FILE\n");
 	printf("  --break ADDRESS\n    set ROM breakpoint\n");
 	printf("  --rominfo\n    dump ROM information\n");
+	LoadPrefs(); // read the prefs file so PrefsPrintUsage() will print the correct default values
 	PrefsPrintUsage();
 	exit(0);
 }
@@ -147,6 +175,13 @@ int main(int argc, char **argv)
 			i++;
 			if (i < argc)
 				ROMBreakpoint = strtol(argv[i], NULL, 0);
+		} else if (strcmp(argv[i], "--config") == 0) {
+			argv[i++] = NULL;
+			if (i < argc) {
+				extern string UserPrefsPath; // from prefs_unix.cpp
+				UserPrefsPath = argv[i];
+				argv[i] = NULL;
+			}
 		} else if (strcmp(argv[i], "--rominfo") == 0) {
 			PrintROMInfo = true;
 		} else if (argv[i][0] == '-') {
@@ -178,6 +213,15 @@ bool InitEmulator (void)
 {
 	char str[256];
 
+
+	// Register request to ignore segmentation faults
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+	if (PrefsFindBool("ignoresegv"))
+		sigsegv_set_ignore_state(true);
+#endif
+
+	// Register dump state function when we got mad after a segfault
+	sigsegv_set_dump_state(sigsegv_dump_state);
 
 	// Read RAM size
 	RAMSize = PrefsFindInt32("ramsize") & 0xfff00000;	// Round down to 1MB boundary
@@ -383,6 +427,10 @@ void QuitEmulator(void)
 
 void FlushCodeCache(void *start, uint32 size)
 {
+#if USE_JIT
+    if (UseJIT)
+		flush_icache(-1);
+#endif
 }
 
 
