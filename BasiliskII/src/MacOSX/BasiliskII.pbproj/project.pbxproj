@@ -1009,7 +1009,7 @@
 			);
 			buildSettings = {
 				COPY_PHASE_STRIP = NO;
-				OPTIMIZATION_CFLAGS = "-O3";
+				OPTIMIZATION_CFLAGS = "-O0";
 			};
 			isa = PBXBuildStyle;
 			name = Development;
@@ -1632,10 +1632,10 @@
 			buildSettings = {
 				DEBUGGING_SYMBOLS = NO;
 				FRAMEWORK_SEARCH_PATHS = "\"$(SYSTEM_LIBRARY_DIR)/PrivateFrameworks\" \"$(SYSTEM_LIBRARY_DIR)/Frameworks/CoreServices.framework/Versions/A/Frameworks\"";
-				HEADER_SEARCH_PATHS = "";
+				HEADER_SEARCH_PATHS = "../uae_cpu ../include";
 				INSTALL_PATH = "$(HOME)/Applications";
 				LIBRARY_SEARCH_PATHS = "";
-				OTHER_CFLAGS = "-I../uae_cpu";
+				OTHER_CFLAGS = "-DHAVE_CONFIG_H  -DOS_darwin -DBSD_COMP -DDIRECT_ADDRESSING -DFPU_IEEE -D_REENTRANT";
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = BasiliskII;
 				SECTORDER_FLAGS = "";
@@ -1658,7 +1658,7 @@
 	<key>CFBundleExecutable</key>
 	<string>BasiliskII</string>
 	<key>CFBundleGetInfoString</key>
-	<string>Basilisk II version 1.0, Copyright © 1997-2003 Christian Bauer et al. Mac OS X port 14b</string>
+	<string>Basilisk II version 1.0, Copyright © 1997-2004 Christian Bauer et al. Mac OS X port 15</string>
 	<key>CFBundleIconFile</key>
 	<string>BasiliskII.icns</string>
 	<key>CFBundleIdentifier</key>
@@ -1670,7 +1670,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>Basilisk II 1.0, Mac OS X port 14b</string>
+	<string>Basilisk II 1.0, Mac OS X port 15</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>NSHelpFile</key>
