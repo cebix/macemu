@@ -21,6 +21,7 @@
 #include "sysdeps.h"
 #include "cpu/ppc/ppc-dyngen.hpp"
 #include "cpu/ppc/ppc-bitfields.hpp"
+#include "cpu/ppc/ppc-instructions.hpp"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -28,6 +29,65 @@
 #define DYNGEN_IMPL 1
 #define DEFINE_GEN(NAME,ARGS) void powerpc_dyngen::NAME ARGS
 #include "ppc-dyngen-ops.hpp"
+
+
+/**
+ *		Determine x86 CPU features
+ **/
+
+/* XXX: move that in CPU dependent bits */
+#if defined(__i386__) || defined(__x86_64__)
+static uint32 cpu_features = 0;
+
+enum {
+	HWCAP_I386_CMOV		= 1 << 15,
+	HWCAP_I386_MMX		= 1 << 23,
+	HWCAP_I386_SSE		= 1 << 25,
+	HWCAP_I386_SSE2		= 1 << 26,
+};
+
+static unsigned int x86_cpuid(void)
+{
+	int fl1, fl2;
+
+#ifndef __x86_64__
+	/* See if we can use cpuid. On AMD64 we always can.  */
+	__asm__ ("pushfl; pushfl; popl %0; movl %0,%1; xorl %2,%0;"
+			 "pushl %0; popfl; pushfl; popl %0; popfl"
+			 : "=&r" (fl1), "=&r" (fl2)
+			 : "i" (0x00200000));
+	if (((fl1 ^ fl2) & 0x00200000) == 0)
+		return (0);
+#endif
+
+	/* Host supports cpuid.  See if cpuid gives capabilities, try
+	   CPUID(0).  Preserve %ebx and %ecx; cpuid insn clobbers these, we
+	   don't need their CPUID values here, and %ebx may be the PIC
+	   register.  */
+	__asm__ ("push %%ecx ; push %%ebx ; cpuid ; pop %%ebx ; pop %%ecx"
+			 : "=a" (fl1) : "0" (0) : "edx", "cc");
+	if (fl1 == 0)
+		return (0);
+
+	/* Invoke CPUID(1), return %edx; caller can examine bits to
+	   determine what's supported.  */
+#ifdef __x86_64__
+	__asm__ ("push %%rcx ; push %%rbx ; cpuid ; pop %%rbx ; pop %%rcx" : "=d" (fl2) : "a" (1) : "cc");
+#else
+	__asm__ ("push %%ecx ; push %%ebx ; cpuid ; pop %%ebx ; pop %%ecx" : "=d" (fl2) : "a" (1) : "cc");
+#endif
+
+	return fl2;
+}
+#endif
+
+powerpc_dyngen::powerpc_dyngen(dyngen_cpu_base cpu, int cache_size)
+	: basic_dyngen(cpu, cache_size)
+{
+#if defined(__i386__) || defined(__x86_64__)
+	cpu_features = x86_cpuid();
+#endif
+}
 
 void powerpc_dyngen::gen_compare_T0_T1(int crf)
 {
@@ -267,92 +327,129 @@ void powerpc_dyngen::gen_store_vect_VS_T0(int vS)
 	gen_op_store_vect_VD_T0();
 }
 
-void powerpc_dyngen::gen_vaddfp(int vD, int vA, int vB)
+/**
+ *		Code generators for AltiVec instructions
+ **/
+
+powerpc_dyngen::gen_handler_t
+powerpc_dyngen::vector_codegen(int insn)
 {
-	gen_load_ad_VD_VR(vD);
-	gen_load_ad_V0_VR(vA);
-	gen_load_ad_V1_VR(vB);
-	gen_op_vaddfp_VD_V0_V1();
+	gen_handler_t gen_op = 0;
+	switch (insn) {
+#define GEN_OP(NAME) nv_mem_fun(&powerpc_dyngen::gen_op_##NAME)
+	case PPC_I(VADDFP):		gen_op = GEN_OP(vaddfp_VD_V0_V1);	break;
+	case PPC_I(VSUBFP):		gen_op = GEN_OP(vsubfp_VD_V0_V1);	break;
+	case PPC_I(VMADDFP):	gen_op = GEN_OP(vmaddfp_VD_V0_V1_V2);	break;
+	case PPC_I(VNMSUBFP):	gen_op = GEN_OP(vnmsubfp_VD_V0_V1_V2);	break;
+	case PPC_I(VMAXFP):		gen_op = GEN_OP(vmaxfp_VD_V0_V1);	break;
+	case PPC_I(VMINFP):		gen_op = GEN_OP(vminfp_VD_V0_V1);	break;
+	case PPC_I(VAND):		gen_op = GEN_OP(vand_VD_V0_V1);		break;
+	case PPC_I(VANDC):		gen_op = GEN_OP(vandc_VD_V0_V1);	break;
+	case PPC_I(VNOR):		gen_op = GEN_OP(vnor_VD_V0_V1);		break;
+	case PPC_I(VOR):		gen_op = GEN_OP(vor_VD_V0_V1);		break;
+	case PPC_I(VXOR):		gen_op = GEN_OP(vxor_VD_V0_V1);		break;
+#undef GEN_OP
+	}
+	return gen_op;
 }
 
-void powerpc_dyngen::gen_vsubfp(int vD, int vA, int vB)
+#if defined(__i386__) || defined(__x86_64__)
+powerpc_dyngen::gen_handler_t
+powerpc_dyngen::vector_codegen_mmx(int insn)
 {
-	gen_load_ad_VD_VR(vD);
-	gen_load_ad_V0_VR(vA);
-	gen_load_ad_V1_VR(vB);
-	gen_op_vsubfp_VD_V0_V1();
+#ifdef HAVE_gen_op_mmx_nop
+	if (!(cpu_features & HWCAP_I386_MMX))
+		return 0;
+
+	/* XXX: auto-generate the table with individual handlers */
+	gen_handler_t gen_op = 0;
+	switch (insn) {
+#define GEN_OP(NAME) nv_mem_fun(&powerpc_dyngen::gen_op_mmx_##NAME)
+	case PPC_I(VADDUBM):	gen_op = GEN_OP(vaddubm);	break;
+	case PPC_I(VADDUHM):	gen_op = GEN_OP(vadduhm);	break;
+	case PPC_I(VADDUWM):	gen_op = GEN_OP(vadduwm);	break;
+	case PPC_I(VAND):		gen_op = GEN_OP(vand);		break;
+	case PPC_I(VANDC):		gen_op = GEN_OP(vandc);		break;
+	case PPC_I(VCMPEQUB):	gen_op = GEN_OP(vcmpequb);	break;
+	case PPC_I(VCMPEQUH):	gen_op = GEN_OP(vcmpequh);	break;
+	case PPC_I(VCMPEQUW):	gen_op = GEN_OP(vcmpequw);	break;
+	case PPC_I(VCMPGTSB):	gen_op = GEN_OP(vcmpgtsb);	break;
+	case PPC_I(VCMPGTSH):	gen_op = GEN_OP(vcmpgtsh);	break;
+	case PPC_I(VCMPGTSW):	gen_op = GEN_OP(vcmpgtsw);	break;
+	case PPC_I(VOR):		gen_op = GEN_OP(vor);		break;
+	case PPC_I(VSUBUBM):	gen_op = GEN_OP(vsububm);	break;
+	case PPC_I(VSUBUHM):	gen_op = GEN_OP(vsubuhm);	break;
+	case PPC_I(VSUBUWM):	gen_op = GEN_OP(vsubuwm);	break;
+	case PPC_I(VXOR):		gen_op = GEN_OP(vxor);		break;
+#undef GEN_OP
+	}
+
+#ifdef HAVE_gen_op_sse_nop
+	if (gen_op.ptr())
+		return gen_op;
+
+	if (!(cpu_features & HWCAP_I386_SSE))
+		return 0;
+
+	/* XXX: is the MMX unit really used for those? */
+	switch (insn) {
+#define GEN_OP(NAME) nv_mem_fun(&powerpc_dyngen::gen_op_mmx_##NAME)
+	case PPC_I(VMAXSH):		gen_op = GEN_OP(vmaxsh);	break;
+	case PPC_I(VMAXUB):		gen_op = GEN_OP(vmaxub);	break;
+	case PPC_I(VMINSH):		gen_op = GEN_OP(vminsh);	break;
+	case PPC_I(VMINUB):		gen_op = GEN_OP(vminub);	break;
+#undef GEN_OP
+	}
+#endif
+	return gen_op;
+#endif
+
+	return 0;
 }
 
-void powerpc_dyngen::gen_vmaddfp(int vD, int vA, int vB, int vC)
+powerpc_dyngen::gen_handler_t
+powerpc_dyngen::vector_codegen_sse(int insn)
 {
-	gen_load_ad_VD_VR(vD);
-	gen_load_ad_V0_VR(vA);
-	gen_load_ad_V1_VR(vB);
-	gen_load_ad_V2_VR(vC);
-	gen_op_vmaddfp_VD_V0_V1_V2();
+#ifdef HAVE_gen_op_sse_nop
+	if (!(cpu_features & HWCAP_I386_SSE))
+		return 0;
+
+	/* XXX: auto-generate the table with individual handlers */
+	gen_handler_t gen_op = 0;
+	switch (insn) {
+#define GEN_OP(NAME) nv_mem_fun(&powerpc_dyngen::gen_op_sse_##NAME)
+	case PPC_I(VADDFP):		gen_op = GEN_OP(vaddfp);	break;
+	case PPC_I(VAND):		gen_op = GEN_OP(vand);		break;
+	case PPC_I(VANDC):		gen_op = GEN_OP(vandc);		break;
+	case PPC_I(VCMPEQFP):	gen_op = GEN_OP(vcmpeqfp);	break;
+	case PPC_I(VCMPGEFP):	gen_op = GEN_OP(vcmpgefp);	break;
+	case PPC_I(VCMPGTFP):	gen_op = GEN_OP(vcmpgtfp);	break;
+	case PPC_I(VMADDFP):	gen_op = GEN_OP(vmaddfp);	break;
+	case PPC_I(VMAXFP):		gen_op = GEN_OP(vmaxfp);	break;
+	case PPC_I(VMINFP):		gen_op = GEN_OP(vminfp);	break;
+	case PPC_I(VNMSUBFP):	gen_op = GEN_OP(vnmsubfp);	break;
+	case PPC_I(VOR):		gen_op = GEN_OP(vor);		break;
+	case PPC_I(VSUBFP):		gen_op = GEN_OP(vsubfp);	break;
+	case PPC_I(VXOR):		gen_op = GEN_OP(vxor);		break;
+#undef GEN_OP
+	}
+	return gen_op;
+#endif
+
+	return 0;
 }
 
-void powerpc_dyngen::gen_vnmsubfp(int vD, int vA, int vB, int vC)
+powerpc_dyngen::gen_handler_t
+powerpc_dyngen::vector_codegen_sse2(int insn)
 {
-	gen_load_ad_VD_VR(vD);
-	gen_load_ad_V0_VR(vA);
-	gen_load_ad_V1_VR(vB);
-	gen_load_ad_V2_VR(vC);
-	gen_op_vnmsubfp_VD_V0_V1_V2();
+	return 0;
 }
 
-void powerpc_dyngen::gen_vmaxfp(int vD, int vA, int vB)
+void powerpc_dyngen::gen_mmx_clear(void)
 {
-	gen_load_ad_VD_VR(vD);
-	gen_load_ad_V0_VR(vA);
-	gen_load_ad_V1_VR(vB);
-	gen_op_vmaxfp_VD_V0_V1();
+#ifdef HAVE_gen_op_mmx_nop
+	if (cpu_features & HWCAP_I386_MMX)
+		gen_op_emms();
+#endif
 }
-
-void powerpc_dyngen::gen_vminfp(int vD, int vA, int vB)
-{
-	gen_load_ad_VD_VR(vD);
-	gen_load_ad_V0_VR(vA);
-	gen_load_ad_V1_VR(vB);
-	gen_op_vminfp_VD_V0_V1();
-}
-
-void powerpc_dyngen::gen_vand(int vD, int vA, int vB)
-{
-	gen_load_ad_VD_VR(vD);
-	gen_load_ad_V0_VR(vA);
-	gen_load_ad_V1_VR(vB);
-	gen_op_vand_VD_V0_V1();
-}
-
-void powerpc_dyngen::gen_vandc(int vD, int vA, int vB)
-{
-	gen_load_ad_VD_VR(vD);
-	gen_load_ad_V0_VR(vA);
-	gen_load_ad_V1_VR(vB);
-	gen_op_vandc_VD_V0_V1();
-}
-
-void powerpc_dyngen::gen_vnor(int vD, int vA, int vB)
-{
-	gen_load_ad_VD_VR(vD);
-	gen_load_ad_V0_VR(vA);
-	gen_load_ad_V1_VR(vB);
-	gen_op_vnor_VD_V0_V1();
-}
-
-void powerpc_dyngen::gen_vor(int vD, int vA, int vB)
-{
-	gen_load_ad_VD_VR(vD);
-	gen_load_ad_V0_VR(vA);
-	gen_load_ad_V1_VR(vB);
-	gen_op_vor_VD_V0_V1();
-}
-
-void powerpc_dyngen::gen_vxor(int vD, int vA, int vB)
-{
-	gen_load_ad_VD_VR(vD);
-	gen_load_ad_V0_VR(vA);
-	gen_load_ad_V1_VR(vB);
-	gen_op_vxor_VD_V0_V1();
-}
+#endif

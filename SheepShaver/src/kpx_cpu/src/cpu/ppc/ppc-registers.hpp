@@ -210,8 +210,13 @@ union powerpc_vr
 	uint32	w[4];
 	uint64	j[2];
 	float	f[4];
-	double	d[2];
-};
+}
+#if defined(__GNUC__)
+// 16-byte alignment is required for SIMD optimizations operating on
+// 128-bit aligned registers (e.g. SSE).
+__attribute__((aligned(16)))
+#endif
+;
 
 
 /**

@@ -22,6 +22,7 @@
 #define PPC_DYNGEN_H
 
 #include "sysdeps.h"
+#include "nvmemfun.hpp"
 #include "cpu/ppc/ppc-config.hpp"
 
 #if PPC_ENABLE_JIT
@@ -42,10 +43,11 @@ public:
 	// Make rc_cache accessible to codegen helper
 	friend class powerpc_dyngen_helper;
 
+	// Code generators
+	typedef nv_mem_fun_t< void, powerpc_dyngen > gen_handler_t;
+
 	// Default constructor
-	powerpc_dyngen(dyngen_cpu_base cpu, int cache_size = -1)
-		: basic_dyngen(cpu, cache_size)
-		{ }
+	powerpc_dyngen(dyngen_cpu_base cpu, int cache_size = -1);
 
 	// Load/store registers
 	void gen_load_A0_GPR(int i);
@@ -228,17 +230,16 @@ public:
 	void gen_load_vect_VD_T0(int vD);
 	void gen_store_word_VS_T0(int vS);
 	void gen_store_vect_VS_T0(int vS);
-	void gen_vaddfp(int vD, int vA, int vB);
-	void gen_vsubfp(int vD, int vA, int vB);
-	void gen_vmaddfp(int vD, int vA, int vB, int vC);
-	void gen_vnmsubfp(int vD, int vA, int vB, int vC);
-	void gen_vmaxfp(int vD, int vA, int vB);
-	void gen_vminfp(int vD, int vA, int vB);
-	void gen_vand(int vD, int vA, int vB);
-	void gen_vandc(int vD, int vA, int vB);
-	void gen_vnor(int vD, int vA, int vB);
-	void gen_vor(int vD, int vA, int vB);
-	void gen_vxor(int vD, int vA, int vB);
+	DEFINE_ALIAS(record_cr6_VD,0);
+
+	// Code generators for AltiVec instructions
+	gen_handler_t vector_codegen(int insn);
+#if defined(__i386__) || defined(__x86_64__)
+	gen_handler_t vector_codegen_mmx(int insn);
+	gen_handler_t vector_codegen_sse(int insn);
+	gen_handler_t vector_codegen_sse2(int insn);
+	void gen_mmx_clear(void);
+#endif
 
 #undef DEFINE_ALIAS
 #undef DEFINE_ALIAS_0

@@ -39,28 +39,33 @@ register struct powerpc_cpu *CPU asm(REG_CPU);
 #define REG32(X) X
 #endif
 #define FPREG(X) ((powerpc_fpr *)(X))
-#define VREG(X)  ((powerpc_vr *)(X))[0]
 #define A0 REG32(reg_A0)
-#define VD VREG(reg_A0)
 register uintptr reg_A0 asm(REG_A0);
 #define T0 REG32(reg_T0)
 #define F0 FPREG(reg_T0)->d
 #define F0_dw FPREG(reg_T0)->j
-#define V0 VREG(reg_T0)
 register uintptr reg_T0 asm(REG_T0);
 #define T1 REG32(reg_T1)
 #define F1 FPREG(reg_T1)->d
 #define F1_dw FPREG(reg_T1)->j
-#define V1 VREG(reg_T1)
 register uintptr reg_T1 asm(REG_T1);
 #define T2 REG32(reg_T2)
 #define F2 FPREG(reg_T2)->d
 #define F2_dw FPREG(reg_T2)->j
-#define V2 VREG(reg_T2)
 register uintptr reg_T2 asm(REG_T2);
 #define FD powerpc_dyngen_helper::fp_result()
 #define FD_dw powerpc_dyngen_helper::fp_result_dw()
 
+// Vector registers
+#define VREG(X)			((powerpc_vr *)(X))[0]
+#define VD				VREG(reg_VD)
+#define reg_VD			reg_A0
+#define V0				VREG(reg_V0)
+#define reg_V0			reg_T0
+#define V1				VREG(reg_V1)
+#define reg_V1			reg_T1
+#define V2				VREG(reg_V2)
+#define reg_V2			reg_T2
 
 /**
  *		Helper class to access protected CPU context
@@ -1416,9 +1421,21 @@ void op_vmaddfp_VD_V0_V1_V2(void)
 	vector_execute<op_vmaddfp, V4SF, V4SF, V4SF, V4SF>::apply();
 }
 
+#if defined(__i386__) && defined(__SSE__)
+// Workaround gcc 3.2.2 miscompilation that inserts SSE instructions
+struct op_do_vnmsubfp {
+	static inline float apply(float x, float y, float z) {
+//		return 0. - ((x * z) - y);
+		return y - (x * z);
+	}
+};
+#else
+typedef op_vnmsubfp op_do_vnmsubfp;
+#endif
+
 void op_vnmsubfp_VD_V0_V1_V2(void)
 {
-	vector_execute<op_vnmsubfp, V4SF, V4SF, V4SF, V4SF>::apply();
+	vector_execute<op_do_vnmsubfp, V4SF, V4SF, V4SF, V4SF>::apply();
 }
 
 void op_vmaxfp_VD_V0_V1(void)
@@ -1456,14 +1473,248 @@ void op_vxor_VD_V0_V1(void)
 	vector_execute<op_xor_64, V2DI, V2DI, V2DI>::apply();
 }
 
-#ifdef LONG_OPERATIONS
-void op_vcmpeqfp_VD_V0_V1(void)
+void op_record_cr6_VD(void)
 {
-	vector_execute<op_cmp_eq<float>, V4SF, V4SF, V4SF>::apply();
+	if (VD.j[0] == UVAL64(0xffffffffffffffff) &&
+		VD.j[1] == UVAL64(0xffffffffffffffff))
+		powerpc_dyngen_helper::cr().set(6, 8);
+	else if (VD.j[0] == UVAL64(0) && VD.j[1] == UVAL64(0))
+		powerpc_dyngen_helper::cr().set(6, 2);
+	else
+		powerpc_dyngen_helper::cr().set(6, 0);
+	dyngen_barrier();
 }
 
-void op_vaddubm_VD_V0_V1(void)
+/**
+ *		SSE optimizations
+ **/
+
+#if defined(__SSE__)
+#include <xmmintrin.h>
+#undef  VD
+#define VD *((__m128 *)reg_VD)
+#undef  V0
+#define V0 *((__m128 *)reg_V0)
+#undef  V1
+#define V1 *((__m128 *)reg_V1)
+#undef  V2
+#define V2 *((__m128 *)reg_V2)
+
+void op_sse_nop(void)
 {
-	vector_execute<op_template_add<uint8>, V16QI, V16QI, V16QI>::apply();
+	asm volatile ("nop");
 }
+
+void op_sse_vcmpeqfp(void)
+{
+	VD = _mm_cmpeq_ps(V0, V1);
+}
+
+void op_sse_vcmpgefp(void)
+{
+	VD = _mm_cmpge_ps(V0, V1);
+}
+
+void op_sse_vcmpgtfp(void)
+{
+	VD = _mm_cmpgt_ps(V0, V1);
+}
+
+void op_sse_vaddfp(void)
+{
+	VD = _mm_add_ps(V0, V1);
+}
+
+void op_sse_vsubfp(void)
+{
+	VD = _mm_sub_ps(V0, V1);
+}
+
+void op_sse_vmaddfp(void)
+{
+	VD = _mm_add_ps(_mm_mul_ps(V0, V2), V1);
+}
+
+void op_sse_vnmsubfp(void)
+{
+	VD = _mm_sub_ps(_mm_setzero_ps(), _mm_sub_ps(_mm_mul_ps(V0, V2), V1));
+}
+
+void op_sse_vmaxfp(void)
+{
+	VD = _mm_max_ps(V0, V1);
+}
+
+void op_sse_vminfp(void)
+{
+	VD = _mm_min_ps(V0, V1);
+}
+
+void op_sse_vand(void)
+{
+	VD = _mm_and_ps(V0, V1);
+}
+
+void op_sse_vandc(void)
+{
+	VD = _mm_andnot_ps(V1, V0);
+}
+
+void op_sse_vor(void)
+{
+	VD = _mm_or_ps(V0, V1);
+}
+
+void op_sse_vxor(void)
+{
+	VD = _mm_xor_ps(V0, V1);
+}
+#endif
+
+/**
+ *		MMX optimizations
+ **/
+
+#if defined(__MMX__)
+#include <mmintrin.h>
+#undef  VD
+#define VD ((__m64 *)reg_VD)
+#undef  V0
+#define V0 ((__m64 *)reg_V0)
+#undef  V1
+#define V1 ((__m64 *)reg_V1)
+#undef  V2
+#define V2 ((__m64 *)reg_V2)
+
+void op_mmx_nop(void)
+{
+	asm volatile ("nop");
+}
+
+void op_emms(void)
+{
+	_mm_empty();
+}
+
+void op_mmx_vcmpequb(void)
+{
+	VD[0] = _mm_cmpeq_pi8(V0[0], V1[0]);
+	VD[1] = _mm_cmpeq_pi8(V0[1], V1[1]);
+}
+
+void op_mmx_vcmpequh(void)
+{
+	VD[0] = _mm_cmpeq_pi16(V0[0], V1[0]);
+	VD[1] = _mm_cmpeq_pi16(V0[1], V1[1]);
+}
+
+void op_mmx_vcmpequw(void)
+{
+	VD[0] = _mm_cmpeq_pi32(V0[0], V1[0]);
+	VD[1] = _mm_cmpeq_pi32(V0[1], V1[1]);
+}
+
+void op_mmx_vcmpgtsb(void)
+{
+	VD[0] = _mm_cmpgt_pi8(V0[0], V1[0]);
+	VD[1] = _mm_cmpgt_pi8(V0[1], V1[1]);
+}
+
+void op_mmx_vcmpgtsh(void)
+{
+	VD[0] = _mm_cmpgt_pi16(V0[0], V1[0]);
+	VD[1] = _mm_cmpgt_pi16(V0[1], V1[1]);
+}
+
+void op_mmx_vcmpgtsw(void)
+{
+	VD[0] = _mm_cmpgt_pi32(V0[0], V1[0]);
+	VD[1] = _mm_cmpgt_pi32(V0[1], V1[1]);
+}
+
+void op_mmx_vaddubm(void)
+{
+	VD[0] = _mm_add_pi8(V0[0], V1[0]);
+	VD[1] = _mm_add_pi8(V0[1], V1[1]);
+}
+
+void op_mmx_vadduhm(void)
+{
+	VD[0] = _mm_add_pi16(V0[0], V1[0]);
+	VD[1] = _mm_add_pi16(V0[1], V1[1]);
+}
+
+void op_mmx_vadduwm(void)
+{
+	VD[0] = _mm_add_pi32(V0[0], V1[0]);
+	VD[1] = _mm_add_pi32(V0[1], V1[1]);
+}
+
+void op_mmx_vsububm(void)
+{
+	VD[0] = _mm_sub_pi8(V0[0], V1[0]);
+	VD[1] = _mm_sub_pi8(V0[1], V1[1]);
+}
+
+void op_mmx_vsubuhm(void)
+{
+	VD[0] = _mm_sub_pi16(V0[0], V1[0]);
+	VD[1] = _mm_sub_pi16(V0[1], V1[1]);
+}
+
+void op_mmx_vsubuwm(void)
+{
+	VD[0] = _mm_sub_pi32(V0[0], V1[0]);
+	VD[1] = _mm_sub_pi32(V0[1], V1[1]);
+}
+
+void op_mmx_vand(void)
+{
+	VD[0] = _mm_and_si64(V0[0], V1[0]);
+	VD[1] = _mm_and_si64(V0[1], V1[1]);
+}
+
+void op_mmx_vandc(void)
+{
+	VD[0] = _mm_andnot_si64(V1[0], V0[0]);
+	VD[1] = _mm_andnot_si64(V1[1], V0[1]);
+}
+
+void op_mmx_vor(void)
+{
+	VD[0] = _mm_or_si64(V0[0], V1[0]);
+	VD[1] = _mm_or_si64(V0[1], V1[1]);
+}
+
+void op_mmx_vxor(void)
+{
+	VD[0] = _mm_xor_si64(V0[0], V1[0]);
+	VD[1] = _mm_xor_si64(V0[1], V1[1]);
+}
+
+#if defined(__SSE__)
+void op_mmx_vmaxub(void)
+{
+	VD[0] = _mm_max_pu8(V0[0], V1[0]);
+	VD[1] = _mm_max_pu8(V0[1], V1[1]);
+}
+
+void op_mmx_vminub(void)
+{
+	VD[0] = _mm_min_pu8(V0[0], V1[0]);
+	VD[1] = _mm_min_pu8(V0[1], V1[1]);
+}
+
+void op_mmx_vmaxsh(void)
+{
+	VD[0] = _mm_max_pi16(V0[0], V1[0]);
+	VD[1] = _mm_max_pi16(V0[1], V1[1]);
+}
+
+void op_mmx_vminsh(void)
+{
+	VD[0] = _mm_min_pi16(V0[0], V1[0]);
+	VD[1] = _mm_min_pi16(V0[1], V1[1]);
+}
+#endif
 #endif
