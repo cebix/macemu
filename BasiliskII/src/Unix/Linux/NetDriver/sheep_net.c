@@ -18,35 +18,23 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
-
-#if CONFIG_MODVERSIONS == 1
-#define MODVERSIONS
-#include <linux/modversions.h>
-#endif
-
-#if CONFIG_SMP == 1
-#define __SMP__
-#endif
-
-#include <linux/sched.h>
-#include <linux/types.h>
-#include <linux/in.h>
-#include <linux/fs.h>
-#include <asm/uaccess.h>
-
 #include <linux/miscdevice.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
+#include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/init.h>
-#include <linux/wait.h>
 #include <net/sock.h>
+#include <asm/uaccess.h>
 #include <net/arp.h>
 #include <net/ip.h>
+#include <linux/in.h>
+#include <linux/wait.h>
 
 MODULE_AUTHOR("Christian Bauer");
 MODULE_DESCRIPTION("Pseudo ethernet device for emulators");
@@ -76,6 +64,7 @@ typedef struct wait_queue *wait_queue_head_t;
 #define PROT_MAGIC 1520			/* Our "magic" protocol type */
 
 #define ETH_ADDR_MULTICAST 0x1
+#define ETH_ADDR_LOCALLY_DEFINED 0x02
 
 #define SIOC_MOL_GET_IPFILTER SIOCDEVPRIVATE
 #define SIOC_MOL_SET_IPFILTER (SIOCDEVPRIVATE + 1)
@@ -153,11 +142,14 @@ int init_module(void)
  *  Deinitialize module
  */
 
-void cleanup_module(void)
+int cleanup_module(void)
 {
+	int ret;
+
 	/* Unregister driver */
-	misc_deregister(&sheep_net_device);
+	ret = misc_deregister(&sheep_net_device);
 	D(bug("Sheep net driver removed\n"));
+	return ret;
 }
 
 
@@ -346,8 +338,10 @@ static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, lo
 	/* Check packet size */
 	if (count < sizeof(struct ethhdr))
 		return -EINVAL;
-	if (count > 1514)
+	if (count > 1514) {
+		printk("sheep_net_write: packet size > 1514\n");
 		count = 1514;
+	}
 
 	/* Interface active? */
 	if (v->ether == NULL)
@@ -441,9 +435,9 @@ static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int cod
 	switch (code) {
 
 		/* Attach to Ethernet card
-		   arg: pointer to name of Ethernet device (char[8]) */
+		   arg: pointer to name of Ethernet device (char[20]) */
 		case SIOCSIFLINK: {
-			char name[8];
+			char name[20];
 			int err;
 
 			/* Already attached? */
@@ -451,9 +445,9 @@ static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int cod
 				return -EBUSY;
 
 			/* Get Ethernet card name */
-			if (copy_from_user(name, (void *)arg, 8))
+			if (copy_from_user(name, (void *)arg, 20))
 				return -EFAULT;
-			name[7] = 0;
+			name[19] = 0;
 
 			/* Find card */
 #ifdef LINUX_24
