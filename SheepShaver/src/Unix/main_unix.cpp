@@ -967,9 +967,9 @@ void Execute68kTrap(uint16 trap, M68kRegisters *r)
 void ExecutePPC(void (*func)())
 {
 	uint32 tvect[2] = {(uint32)func, 0};	// Fake TVECT
-	SheepRoutineDescriptor desc(0, tvect);
+	SheepRoutineDescriptor desc(0, (uint32)tvect);
 	M68kRegisters r;
-	Execute68k((uint32)&desc, &r);
+	Execute68k(desc.addr(), &r);
 }
 #endif
 
