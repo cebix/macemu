@@ -3,7 +3,7 @@ Name:      BasiliskII
 Version:   0.7
 Release:   2
 URL:       http://www.uni-mainz.de/~bauec002/B2Main.html
-Source:    BasiliskII_src_03101999.tar.gz
+Source:    BasiliskII_src_06101999.tar.gz
 Copyright: GPL
 Group:     Applications/Emulators
 Packager:  Christian Bauer <Christian.Bauer@uni-mainz.de>

@@ -1,7 +1,6 @@
-V0.7 (alpha)
-	- Source tree imported into CVS
-	- Added BasiliskII.spec file and top-level Makefile to simplify
-	  making distributions [with assistance from Roman Niewiarowski]
+V0.7 (release 0.7-2) - 6.Oct.1999
+	- Added BasiliskII.spec for making RPMs [with assistance from
+	  Roman Niewiarowski]
 	- Unix: "basilisk_ii_keycodes" renamed to "keycodes", default
 	  location of keycodes file is now /usr/local/share/BasiliskII/keycodes
 	- Unix: improved the install target, added uninstall target

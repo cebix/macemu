@@ -3,6 +3,9 @@ Bugs:
 - Strange things happen when the Mac ROM is lower in memory than the RAM
 - Something seems to be wrong with the UAE FPU (Calculator and scroll bars in
   MacOS 8 don't work properly)
+- Lauri reports that when a "please insert volume foo" dialog comes up,
+  disk insertions are not recognized. The PostEvent() code in sony.cpp
+  etc. in Control()/accRun should probably be moved to an interrupt handler.
 - MacOS 8: Finder threads don't work
 
 General:
@@ -13,7 +16,8 @@ General:
 - Sound output rate/bits/channels switching
 - Sound in
 - Video: gamma tables, resolution/depth switching, multiple monitor support
-- Double mouse pointer in window mode
+- Double mouse pointer in window mode (should be fixed by blanking the
+  Mac mouse pointer because the host mouse position is more accurate)
 - More accurate Time Manager
 - Serial driver: XOn/XOff handshaking
 - regs.spcflags in UAE CPU should be handled atomically
