@@ -105,6 +105,7 @@ public:
 
 	// Misc instructions
 	DEFINE_ALIAS(inc_32_mem,1);
+	DEFINE_ALIAS(mtcrf_T0_im,1);
 
 	// Condition registers
 private:

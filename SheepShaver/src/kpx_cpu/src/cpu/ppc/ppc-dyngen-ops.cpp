@@ -841,3 +841,11 @@ void OPPROTO op_inc_32_mem(void)
 	uint32 *m = (uint32 *)PARAM1;
 	*m += 1;
 }
+
+void OPPROTO op_mtcrf_T0_im(void)
+{
+	const uint32 mask = PARAM1;
+	uint32 cr = powerpc_dyngen_helper::get_cr() & ~mask;
+	cr |= T0 & mask;
+	powerpc_dyngen_helper::set_cr(cr);
+}

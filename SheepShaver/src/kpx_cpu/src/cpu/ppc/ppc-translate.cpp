@@ -994,6 +994,27 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		{
 			break;
 		}
+		case PPC_I(ISYNC):		// Instruction synchronize
+		{
+			typedef void (*func_t)(dyngen_cpu_base);
+			func_t func = (func_t)nv_mem_fun(&powerpc_cpu::execute_invalidate_cache_range).ptr();
+			dg.gen_invoke_CPU(func);
+			break;
+		}
+		case PPC_I(MTCRF):		// Move to Condition Register Fields
+		{
+			dg.gen_commit_cr();
+			dg.gen_load_T0_GPR(rS_field::extract(opcode));
+			dg.gen_mtcrf_T0_im(field2mask[CRM_field::extract(opcode)]);
+			break;
+		}
+		case PPC_I(MCRF):		// Move Condition Register Field
+		{
+			dg.gen_commit_cr();
+			dg.gen_load_RC_cr(crfS_field::extract(opcode));
+			dg.gen_store_RC_cr(crfD_field::extract(opcode));
+			break;
+		}
 		default:				// Direct call to instruction handler
 		{
 			typedef void (*func_t)(dyngen_cpu_base, uint32);
