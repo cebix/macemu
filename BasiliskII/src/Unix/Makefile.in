@@ -111,6 +111,10 @@ $(OBJ_DIR)/%.o : %.cpp
 $(OBJ_DIR)/%.o : %.s
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
 
+# Windows resources
+$(OBJ_DIR)/%.o: %.rc
+	windres --include-dir ../Windows -i $< -o $@
+
 $(OBJ_DIR)/build68k$(EXEEXT): $(OBJ_DIR)/build68k.o
 	$(CC) $(LDFLAGS) -o $(OBJ_DIR)/build68k$(EXEEXT) $(OBJ_DIR)/build68k.o
 $(OBJ_DIR)/gencpu$(EXEEXT): $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o

@@ -467,6 +467,7 @@ darwin*)
   ;;
 cygwin*)
   SERIALSRC="../dummy/serial_dummy.cpp"
+  EXTRASYSSRCS="../Windows/BasiliskII.rc"
   ;;
 esac
 dnl SDL overrides
