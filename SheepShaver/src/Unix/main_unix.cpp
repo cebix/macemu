@@ -598,6 +598,8 @@ int main(int argc, char **argv)
 					CPUClockSpeed = value;
 				else if (sscanf(line, "%[ |]\"bus-frequency\" = <%x>", head, &value) == 2)
 					BusClockSpeed = value;
+				else if (sscanf(line, "%[ |]\"timebase-frequency\" = <%x>", head, &value) == 2)
+					TimebaseSpeed = value;
 				else if (strchr(line, '}'))
 					powerpc_node = false;
 			}
