@@ -90,6 +90,8 @@
  *	x86_emit_failure(MSG)
  */
 
+#define x86_emit_failure0(MSG) (x86_emit_failure(MSG),0)
+
 
 /* --- Register set -------------------------------------------------------- */
 
@@ -183,8 +185,8 @@ enum {
  *	_rA(R)	Address register ID used for EA calculation
  */
 
-#define _r0P(R)		((R) == X86_NOREG)
-#define _rIP(R)		((R) == X86_RIP)
+#define _r0P(R)		((int)(R) == (int)X86_NOREG)
+#define _rIP(R)		((int)(R) == (int)X86_RIP)
 
 #define _rC(R)		((R) & 0xf0)
 #define _rR(R)		((R) & 0x0f)
@@ -200,18 +202,18 @@ enum {
 #define _rM(R)		_rN(R)
 #define _rX(R)		_rN(R)
 #else
-#define _r1(R)		( ((_rC(R) & (X86_Reg8L_Base | X86_Reg8H_Base)) != 0)	? _rN(R) : x86_emit_failure( "8-bit register required"))
-#define _r2(R)		( (_rC(R) == X86_Reg16_Base)				? _rN(R) : x86_emit_failure("16-bit register required"))
-#define _r4(R)		( (_rC(R) == X86_Reg32_Base)				? _rN(R) : x86_emit_failure("32-bit register required"))
-#define _r8(R)		( (_rC(R) == X86_Reg64_Base)				? _rN(R) : x86_emit_failure("64-bit register required"))
+#define _r1(R)		( ((_rC(R) & (X86_Reg8L_Base | X86_Reg8H_Base)) != 0)	? _rN(R) : x86_emit_failure0( "8-bit register required"))
+#define _r2(R)		( (_rC(R) == X86_Reg16_Base)				? _rN(R) : x86_emit_failure0("16-bit register required"))
+#define _r4(R)		( (_rC(R) == X86_Reg32_Base)				? _rN(R) : x86_emit_failure0("32-bit register required"))
+#define _r8(R)		( (_rC(R) == X86_Reg64_Base)				? _rN(R) : x86_emit_failure0("64-bit register required"))
 #define _rA(R)		( X86_TARGET_64BIT ? \
-			( (_rC(R) == X86_Reg64_Base)				? _rN(R) : x86_emit_failure("not a valid 64-bit base/index expression")) : \
-			( (_rC(R) == X86_Reg32_Base)				? _rN(R) : x86_emit_failure("not a valid 32-bit base/index expression")) )
-#define _rM(R)		( (_rC(R) == X86_RegMMX_Base)				? _rN(R) : x86_emit_failure("MMX register required"))
-#define _rX(R)		( (_rC(R) == X86_RegXMM_Base)				? _rN(R) : x86_emit_failure("SSE register required"))
+			( (_rC(R) == X86_Reg64_Base)				? _rN(R) : x86_emit_failure0("not a valid 64-bit base/index expression")) : \
+			( (_rC(R) == X86_Reg32_Base)				? _rN(R) : x86_emit_failure0("not a valid 32-bit base/index expression")) )
+#define _rM(R)		( (_rC(R) == X86_RegMMX_Base)				? _rN(R) : x86_emit_failure0("MMX register required"))
+#define _rX(R)		( (_rC(R) == X86_RegXMM_Base)				? _rN(R) : x86_emit_failure0("SSE register required"))
 #endif
 
-#define _rSP()		(X86_TARGET_64BIT ? X86_RSP : X86_ESP)
+#define _rSP()		(X86_TARGET_64BIT ? (int)X86_RSP : (int)X86_ESP)
 #define _rbpP(R)	(_rR(R) == _rR(X86_RBP))
 #define _rspP(R)	(_rR(R) == _rR(X86_RSP))
 #define _rsp12P(R)	(_rN(R) == _rN(X86_RSP))
@@ -252,10 +254,10 @@ typedef unsigned int	_ul;
 #define _ck_su(W,I)    	(_UL(I) & _MASK(W))
 #define _ck_d(W,I)    	(_UL(I) & _MASK(W))
 #else
-#define _ck_s(W,I)	(_siP(W,I) ? (_UL(I) & _MASK(W)) : x86_emit_failure(  "signed integer `"#I"' too large for "#W"-bit field"))
-#define _ck_u(W,I)    	(_uiP(W,I) ? (_UL(I) & _MASK(W)) : x86_emit_failure("unsigned integer `"#I"' too large for "#W"-bit field"))
-#define _ck_su(W,I)    	(_suiP(W,I) ? (_UL(I) & _MASK(W)) : x86_emit_failure(        "integer `"#I"' too large for "#W"-bit field"))
-#define _ck_d(W,I)    	(_siP(W,I) ? (_UL(I) & _MASK(W)) : x86_emit_failure(    "displacement `"#I"' too large for "#W"-bit field"))
+#define _ck_s(W,I)	(_siP(W,I) ? (_UL(I) & _MASK(W)) : x86_emit_failure0(  "signed integer `"#I"' too large for "#W"-bit field"))
+#define _ck_u(W,I)    	(_uiP(W,I) ? (_UL(I) & _MASK(W)) : x86_emit_failure0("unsigned integer `"#I"' too large for "#W"-bit field"))
+#define _ck_su(W,I)    	(_suiP(W,I) ? (_UL(I) & _MASK(W)) : x86_emit_failure0(        "integer `"#I"' too large for "#W"-bit field"))
+#define _ck_d(W,I)    	(_siP(W,I) ? (_UL(I) & _MASK(W)) : x86_emit_failure0(    "displacement `"#I"' too large for "#W"-bit field"))
 #endif
 
 #define _s0P(I)		((I)==0)
@@ -362,12 +364,12 @@ typedef unsigned int	_ul;
 # define _i(I)		(I)
 # define _b(B)		(B)
 #else
-# define _M(M)		(((M)>3) ? x86_emit_failure("internal error: mod = " #M) : (M))
-# define _r(R)		(((R)>7) ? x86_emit_failure("internal error: reg = " #R) : (R))
-# define _m(M)		(((M)>7) ? x86_emit_failure("internal error: r/m = " #M) : (M))
-# define _s(S)		(((S)>3) ? x86_emit_failure("internal error: memory scale = " #S) : (S))
-# define _i(I)		(((I)>7) ? x86_emit_failure("internal error: memory index = " #I) : (I))
-# define _b(B)		(((B)>7) ? x86_emit_failure("internal error: memory base = "  #B) : (B))
+# define _M(M)		(((M)>3) ? x86_emit_failure0("internal error: mod = " #M) : (M))
+# define _r(R)		(((R)>7) ? x86_emit_failure0("internal error: reg = " #R) : (R))
+# define _m(M)		(((M)>7) ? x86_emit_failure0("internal error: r/m = " #M) : (M))
+# define _s(S)		(((S)>3) ? x86_emit_failure0("internal error: memory scale = " #S) : (S))
+# define _i(I)		(((I)>7) ? x86_emit_failure0("internal error: memory index = " #I) : (I))
+# define _b(B)		(((B)>7) ? x86_emit_failure0("internal error: memory base = "  #B) : (B))
 #endif
 
 #define _Mrm(Md,R,M)	_B((_M(Md)<<6)|(_r(R)<<3)|_m(M))
@@ -376,7 +378,7 @@ typedef unsigned int	_ul;
 #define _SCL(S)		((((S)==1) ? _b00 : \
 			 (((S)==2) ? _b01 : \
 			 (((S)==4) ? _b10 : \
-			 (((S)==8) ? _b11 : x86_emit_failure("illegal scale: " #S))))))
+			 (((S)==8) ? _b11 : x86_emit_failure0("illegal scale: " #S))))))
 
 
 /* --- Memory subformats - urgh! ------------------------------------------- */
@@ -465,7 +467,7 @@ typedef unsigned int	_ul;
 
 // FIXME: can't mix new (SPL,BPL,SIL,DIL) with (AH,BH,CH,DH)
 #define _REXBrr(RR,MR)		_m64(__REXw_x_(((RR)|(MR))>=X86_SPL,0,RR,0,MR))
-#define _REXBmr(MB,MI,RD)	_m64(__REXw_x_(((RR)|(MR))>=X86_SPL,0,RD,_BIT(_rXP(MI)),MB))
+#define _REXBmr(MB,MI,RD)	_m64(__REXw_x_(((RD)|(MB))>=X86_SPL,0,RD,_BIT(_rXP(MI)),MB))
 #define _REXBrm(RS,MB,MI)	_REXBmr(MB,MI,RS)
 
 #define _REXLrr(RR,MR)		_m64(__REXw_x_(0,0,RR,0,MR))
@@ -1549,6 +1551,7 @@ enum {
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
+#define CPUID()								_OO		(0x0fa2								)
 #define RDTSC()								_OO		(0xff31								)
 
 #define ENTERii(W, B)							_O_W_B		(0xc8						  ,_su16(W),_su8(B))
