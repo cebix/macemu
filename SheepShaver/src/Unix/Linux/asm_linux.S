@@ -703,7 +703,7 @@ get_resource:
 
 	// Call CheckLoad
 	lwz	r3,56(r1)
-	lwz	r4,56+4(r1)
+	lha	r4,56+6(r1)
 	lwz	r5,56+8(r1)
 	bl	check_load_invoc
 	lwz	r3,56+8(r1)		// Restore handle
@@ -734,7 +734,7 @@ get_1_resource:
 
 	// Call CheckLoad
 	lwz	r3,56(r1)
-	lwz	r4,56+4(r1)
+	lha	r4,56+6(r1)
 	lwz	r5,56+8(r1)
 	bl	check_load_invoc
 	lwz	r3,56+8(r1)		// Restore handle
@@ -765,7 +765,7 @@ get_ind_resource:
 
 	// Call CheckLoad
 	lwz	r3,56(r1)
-	lwz	r4,56+4(r1)
+	lha	r4,56+6(r1)
 	lwz	r5,56+8(r1)
 	bl	check_load_invoc
 	lwz	r3,56+8(r1)		// Restore handle
@@ -796,7 +796,7 @@ get_1_ind_resource:
 
 	// Call CheckLoad
 	lwz	r3,56(r1)
-	lwz	r4,56+4(r1)
+	lha	r4,56+6(r1)
 	lwz	r5,56+8(r1)
 	bl	check_load_invoc
 	lwz	r3,56+8(r1)		// Restore handle
@@ -827,7 +827,7 @@ r_get_resource:
 
 	// Call CheckLoad
 	lwz	r3,56(r1)
-	lwz	r4,56+4(r1)
+	lha	r4,56+6(r1)
 	lwz	r5,56+8(r1)
 	bl	check_load_invoc
 	lwz	r3,56+8(r1)		// Restore handle
