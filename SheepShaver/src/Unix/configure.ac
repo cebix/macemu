@@ -31,7 +31,7 @@ AC_ARG_ENABLE(addressing,
   [case "$enableval" in
    real)        WANT_ADDRESSING_MODE="real";;
    direct)      WANT_ADDRESSING_MODE="direct";;
-   direct,0x*)  WANT_ADDRESSING_MODE="direct"; NATMEM_OFFSET=`echo "$enableval" | sed -n '/direct,\(0[[xX]][[0-9A-Fa-f]]*\)/s//\1/p'`;;
+   direct,0x*)  WANT_ADDRESSING_MODE="direct"; NATMEM_OFFSET=`echo "$enableval" | sed -n '/direct,\(0[[xX]][[0-9A-Fa-f]]*\([[UuLl]]\{1,2\}\)\?\)$/s//\1/p'`;;
    esac],
   [WANT_ADDRESSING_MODE="real"]
 )
@@ -919,7 +919,10 @@ int main(void)
 		memset(m, 0, ranges[[i]].size);
 		vm_release(m, ranges[[i]].size);
 		if (i == n_ranges - 1) {
-			printf("0x%08x\n", ofs);
+			if (sizeof(void *) == 8 && ofs > 0xffffffff)
+				printf("0x%lxul\n", ofs);
+			else
+				printf("0x%08x\n", ofs);
 			return 0;
 		}
 	}
