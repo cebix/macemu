@@ -118,6 +118,13 @@ DEFINE_INSN(store, A0, GPR);
 DEFINE_INSN(store, T0, GPR);
 DEFINE_INSN(store, T1, GPR);
 DEFINE_INSN(store, T2, GPR);
+DEFINE_INSN(load, F0, FPR);
+DEFINE_INSN(load, F1, FPR);
+DEFINE_INSN(load, F2, FPR);
+DEFINE_INSN(store, F0, FPR);
+DEFINE_INSN(store, F1, FPR);
+DEFINE_INSN(store, F2, FPR);
+DEFINE_INSN(store, FD, FPR);
 
 // Condition register bitfield
 DEFINE_INSN(load, T0, crb);
@@ -126,6 +133,23 @@ DEFINE_INSN(store, T0, crb);
 DEFINE_INSN(store, T1, crb);
 
 #undef DEFINE_INSN
+
+// Floating point load store
+#define DEFINE_OP(NAME, REG, TYPE)										\
+void powerpc_dyngen::gen_##NAME##_##TYPE##_##REG##_A0_im(int32 offset)	\
+{																		\
+	if (offset == 0)													\
+		gen_op_##NAME##_##TYPE##_##REG##_A0_0();						\
+	else																\
+		gen_op_##NAME##_##TYPE##_##REG##_A0_im(offset);					\
+}
+
+DEFINE_OP(load, FD, double);
+DEFINE_OP(load, FD, single);
+DEFINE_OP(store, F0, double);
+DEFINE_OP(store, F0, single);
+
+#undef DEFINE_OP
 
 #define DEFINE_INSN(OP, REG)							\
 void powerpc_dyngen::gen_##OP##_##REG##_crf(int crf)	\

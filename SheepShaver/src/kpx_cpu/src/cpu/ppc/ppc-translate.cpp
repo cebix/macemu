@@ -869,26 +869,39 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			const int SH = SH_field::extract(opcode);
 			const int MB = MB_field::extract(opcode);
 			const int ME = ME_field::extract(opcode);
+			const uint32 m = mask_operand::compute(MB, ME);
 			dg.gen_load_T0_GPR(rS);
-			if (MB == 0 && ME == 31) {
-				// rotlwi rA,rS,SH
-				if (SH > 0)
-					dg.gen_rol_32_T0_im(SH);
-			}
-			else if (MB == 0 && (ME == (31 - SH))) {
-				// slwi rA,rS,SH
-				dg.gen_lsl_32_T0_im(SH);
-			}
-			else {
-				const uint32 m = mask_operand::compute(MB, ME);
-				if (SH == 0) {
-					// andi rA,rS,MASK(MB,ME)
+			if (MB == 0) {
+				if (ME == 31) {
+					// rotlwi rA,rS,SH
+					if (SH > 0)
+						dg.gen_rol_32_T0_im(SH);
+				}
+				else if (ME == (31 - SH)) {
+					// slwi rA,rS,SH
+					dg.gen_lsl_32_T0_im(SH);
+				}
+				else if (SH == 0) {
+					// andi rA,rS,MASK(0,ME)
 					dg.gen_and_32_T0_im(m);
 				}
-				else {
-					// rlwinm rA,rS,SH,MB,ME
-					dg.gen_rlwinm_T0_T1(SH, m);
+				else goto do_generic_rlwinm;
+			}
+			else if (ME == 31) {
+				if (SH == (32 - MB)) {
+					// srwi rA,rS,SH
+					dg.gen_lsr_32_T0_im(MB);
 				}
+				else if (SH == 0) {
+					// andi rA,rS,MASK(MB,31)
+					dg.gen_and_32_T0_im(m);
+				}
+				else goto do_generic_rlwinm;
+			}
+			else {
+				// rlwinm rA,rS,SH,MB,ME
+			  do_generic_rlwinm:
+				dg.gen_rlwinm_T0_T1(SH, m);
 			}
 			dg.gen_store_T0_GPR(rA);
 			if (Rc_field::test(opcode))
@@ -900,10 +913,15 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			const int rS = rS_field::extract(opcode);
 			const int rB = rB_field::extract(opcode);
 			const int rA = rA_field::extract(opcode);
-			const uint32 m = operand_MASK::get(this, opcode);
+			const int MB = MB_field::extract(opcode);
+			const int ME = ME_field::extract(opcode);
+			const uint32 m = mask_operand::compute(MB, ME);
 			dg.gen_load_T0_GPR(rS);
 			dg.gen_load_T1_GPR(rB);
-			dg.gen_rlwnm_T0_T1(m);
+			if (MB == 0 && ME == 31)
+				dg.gen_rol_32_T0_T1();
+			else
+				dg.gen_rlwnm_T0_T1(m);
 			dg.gen_store_T0_GPR(rA);
 			if (Rc_field::test(opcode))
 				dg.gen_record_cr0_T0();
@@ -1010,6 +1028,241 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			dg.gen_store_T0_crf(crfD_field::extract(opcode));
 			break;
 		}
+		case PPC_I(LFD):		// Load Floating-Point Double
+			op.mem.size = 8;
+			op.mem.do_update = 0;
+			op.mem.do_indexed = 0;
+			goto do_fp_load;;
+		case PPC_I(LFDU):		// Load Floating-Point Double with Update
+			op.mem.size = 8;
+			op.mem.do_update = 1;
+			op.mem.do_indexed = 0;
+			goto do_fp_load;
+		case PPC_I(LFDUX):		// Load Floating-Point Double with Update Indexed
+			op.mem.size = 8;
+			op.mem.do_update = 1;
+			op.mem.do_indexed = 1;
+			goto do_fp_load;
+		case PPC_I(LFDX):		// Load Floating-Point Double Indexed
+			op.mem.size = 8;
+			op.mem.do_update = 0;
+			op.mem.do_indexed = 1;
+			goto do_fp_load;
+		case PPC_I(LFS):		// Load Floating-Point Single
+			op.mem.size = 4;
+			op.mem.do_update = 0;
+			op.mem.do_indexed = 0;
+			goto do_fp_load;
+		case PPC_I(LFSU):		// Load Floating-Point Single with Update
+			op.mem.size = 4;
+			op.mem.do_update = 1;
+			op.mem.do_indexed = 0;
+			goto do_fp_load;
+		case PPC_I(LFSUX):		// Load Floating-Point Single with Update Indexed
+			op.mem.size = 4;
+			op.mem.do_update = 1;
+			op.mem.do_indexed = 1;
+			goto do_fp_load;
+		case PPC_I(LFSX):		// Load Floating-Point Single Indexed
+			op.mem.size = 4;
+			op.mem.do_update = 0;
+			op.mem.do_indexed = 1;
+			goto do_fp_load;
+		{
+		  do_fp_load:
+			// Extract RZ operand
+			const int rA = rA_field::extract(opcode);
+			if (rA == 0 && !op.mem.do_update)
+				dg.gen_mov_32_A0_im(0);
+			else
+				dg.gen_load_A0_GPR(rA);
+
+			// Extract index operand
+			if (op.mem.do_indexed)
+				dg.gen_load_T1_GPR(rB_field::extract(opcode));
+
+			// Load floating point data
+			if (op.mem.size == 8) {
+				if (op.mem.do_indexed)
+					dg.gen_load_double_FD_A0_T1();
+				else
+					dg.gen_load_double_FD_A0_im(operand_D::get(this, opcode));
+			}
+			else {
+				if (op.mem.do_indexed)
+					dg.gen_load_single_FD_A0_T1();
+				else
+					dg.gen_load_single_FD_A0_im(operand_D::get(this, opcode));
+			}
+
+			// Commit result
+			dg.gen_store_FD_FPR(frD_field::extract(opcode));
+
+			// Update RA
+			if (op.mem.do_update) {
+				if (op.mem.do_indexed)
+					dg.gen_add_32_A0_T1();
+				else
+					dg.gen_add_32_A0_im(operand_D::get(this, opcode));
+				dg.gen_store_A0_GPR(rA);
+			}
+			break;
+		}
+		case PPC_I(STFD):		// Store Floating-Point Double
+			op.mem.size = 8;
+			op.mem.do_update = 0;
+			op.mem.do_indexed = 0;
+			goto do_fp_store;
+		case PPC_I(STFDU):		// Store Floating-Point Double with Update
+			op.mem.size = 8;
+			op.mem.do_update = 1;
+			op.mem.do_indexed = 0;
+			goto do_fp_store;
+		case PPC_I(STFDUX):		// Store Floating-Point Double with Update Indexed
+			op.mem.size = 8;
+			op.mem.do_update = 1;
+			op.mem.do_indexed = 1;
+			goto do_fp_store;
+		case PPC_I(STFDX):		// Store Floating-Point Double Indexed
+			op.mem.size = 8;
+			op.mem.do_update = 0;
+			op.mem.do_indexed = 1;
+			goto do_fp_store;
+		case PPC_I(STFS):		// Store Floating-Point Single
+			op.mem.size = 4;
+			op.mem.do_update = 0;
+			op.mem.do_indexed = 0;
+			goto do_fp_store;
+		case PPC_I(STFSU):		// Store Floating-Point Single with Update
+			op.mem.size = 4;
+			op.mem.do_update = 1;
+			op.mem.do_indexed = 0;
+			goto do_fp_store;
+		case PPC_I(STFSUX):		// Store Floating-Point Single with Update Indexed
+			op.mem.size = 4;
+			op.mem.do_update = 1;
+			op.mem.do_indexed = 1;
+			goto do_fp_store;
+		case PPC_I(STFSX):		// Store Floating-Point Single Indexed
+			op.mem.size = 4;
+			op.mem.do_update = 0;
+			op.mem.do_indexed = 1;
+			goto do_fp_store;
+		{
+		  do_fp_store:
+			// Extract RZ operand
+			const int rA = rA_field::extract(opcode);
+			if (rA == 0 && !op.mem.do_update)
+				dg.gen_mov_32_A0_im(0);
+			else
+				dg.gen_load_A0_GPR(rA);
+
+			// Extract index operand
+			if (op.mem.do_indexed)
+				dg.gen_load_T1_GPR(rB_field::extract(opcode));
+
+			// Load register to commit to memory
+			dg.gen_load_F0_FPR(frS_field::extract(opcode));
+
+			// Store floating point data
+			if (op.mem.size == 8) {
+				if (op.mem.do_indexed)
+					dg.gen_store_double_F0_A0_T1();
+				else
+					dg.gen_store_double_F0_A0_im(operand_D::get(this, opcode));
+			}
+			else {
+				if (op.mem.do_indexed)
+					dg.gen_store_single_F0_A0_T1();
+				else
+					dg.gen_store_single_F0_A0_im(operand_D::get(this, opcode));
+			}
+
+			// Update RA
+			if (op.mem.do_update) {
+				if (op.mem.do_indexed)
+					dg.gen_add_32_A0_T1();
+				else
+					dg.gen_add_32_A0_im(operand_D::get(this, opcode));
+				dg.gen_store_A0_GPR(rA);
+			}
+			break;
+		}
+#if PPC_ENABLE_FPU_EXCEPTIONS == 0
+		case PPC_I(FABS):		// Floating Absolute Value
+		case PPC_I(FNABS):		// Floating Negative Absolute Value
+		case PPC_I(FNEG):		// Floating Negate
+		case PPC_I(FMR):		// Floating Move Register
+		{
+			dg.gen_load_F0_FPR(frB_field::extract(opcode));
+			switch (ii->mnemo) {
+			case PPC_I(FABS):  dg.gen_fabs_FD_F0();  break;
+			case PPC_I(FNABS): dg.gen_fnabs_FD_F0(); break;
+			case PPC_I(FNEG):  dg.gen_fneg_FD_F0();  break;
+			case PPC_I(FMR):   dg.gen_fmov_FD_F0(); break;
+			}
+			dg.gen_store_FD_FPR(frD_field::extract(opcode));
+			if (Rc_field::test(opcode))
+				dg.gen_record_cr1();
+			break;
+		}
+		case PPC_I(FADD):		// Floating Add (Double-Precision)
+		case PPC_I(FSUB):		// Floating Subtract (Double-Precision)
+		case PPC_I(FMUL):		// Floating Multiply (Double-Precision)
+		case PPC_I(FDIV):		// Floating Divide (Double-Precision)
+		case PPC_I(FADDS):		// Floating Add (Single-Precision)
+		case PPC_I(FSUBS):		// Floating Subtract (Single-Precision)
+		case PPC_I(FMULS):		// Floating Multiply (Single-Precision)
+		case PPC_I(FDIVS):		// Floating Divide (Single-Precision)
+		{
+			dg.gen_load_F0_FPR(frA_field::extract(opcode));
+			if (ii->mnemo == PPC_I(FMUL) || ii->mnemo == PPC_I(FMULS))
+				dg.gen_load_F1_FPR(frC_field::extract(opcode));
+			else
+				dg.gen_load_F1_FPR(frB_field::extract(opcode));
+			switch (ii->mnemo) {
+			case PPC_I(FADD): dg.gen_fadd_FD_F0_F1(); break;
+			case PPC_I(FSUB): dg.gen_fsub_FD_F0_F1(); break;
+			case PPC_I(FMUL): dg.gen_fmul_FD_F0_F1(); break;
+			case PPC_I(FDIV): dg.gen_fdiv_FD_F0_F1(); break;
+			case PPC_I(FADDS): dg.gen_fadds_FD_F0_F1(); break;
+			case PPC_I(FSUBS): dg.gen_fsubs_FD_F0_F1(); break;
+			case PPC_I(FMULS): dg.gen_fmuls_FD_F0_F1(); break;
+			case PPC_I(FDIVS): dg.gen_fdivs_FD_F0_F1(); break;
+			}
+			dg.gen_store_FD_FPR(frD_field::extract(opcode));
+			if (Rc_field::test(opcode))
+				dg.gen_record_cr1();
+			break;
+		}
+		case PPC_I(FMADD):		// Floating Multiply-Add (Double-Precision)
+		case PPC_I(FMSUB):		// Floating Multiply-Subtract (Double-Precision)
+		case PPC_I(FNMADD):		// Floating Negative Multiply-Add (Double-Precision)
+		case PPC_I(FNMSUB):		// Floating Negative Multiply-Subract (Double-Precision)
+		case PPC_I(FMADDS):		// Floating Multiply-Add (Single-Precision)
+		case PPC_I(FMSUBS):		// Floating Multiply-Subtract (Single-Precision)
+		case PPC_I(FNMADDS):	// Floating Negative Multiply-Add (Single-Precision)
+		case PPC_I(FNMSUBS):	// Floating Negative Multiply-Subract (Single-Precision)
+		{
+			dg.gen_load_F0_FPR(frA_field::extract(opcode));
+			dg.gen_load_F1_FPR(frC_field::extract(opcode));
+			dg.gen_load_F2_FPR(frB_field::extract(opcode));
+			switch (ii->mnemo) {
+			case PPC_I(FMADD): dg.gen_fmadd_FD_F0_F1_F2(); break;
+			case PPC_I(FMSUB): dg.gen_fmsub_FD_F0_F1_F2(); break;
+			case PPC_I(FNMADD): dg.gen_fnmadd_FD_F0_F1_F2(); break;
+			case PPC_I(FNMSUB): dg.gen_fnmsub_FD_F0_F1_F2(); break;
+			case PPC_I(FMADDS): dg.gen_fmadds_FD_F0_F1_F2(); break;
+			case PPC_I(FMSUBS): dg.gen_fmsubs_FD_F0_F1_F2(); break;
+			case PPC_I(FNMADDS): dg.gen_fnmadds_FD_F0_F1_F2(); break;
+			case PPC_I(FNMSUBS): dg.gen_fnmsubs_FD_F0_F1_F2(); break;
+			}
+			dg.gen_store_FD_FPR(frD_field::extract(opcode));
+			if (Rc_field::test(opcode))
+				dg.gen_record_cr1();
+			break;
+		}
+#endif
 		default:				// Direct call to instruction handler
 		{
 			typedef void (*func_t)(dyngen_cpu_base, uint32);

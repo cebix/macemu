@@ -98,13 +98,23 @@ public:
 	// Register moves
 	void gen_mov_32_T0_im(int32 value);
 	DEFINE_ALIAS(mov_32_T0_T1,0);
+	DEFINE_ALIAS(mov_32_T0_T2,0);
 	DEFINE_ALIAS(mov_32_T0_A0,0);
 	void gen_mov_32_T1_im(int32 value);
 	DEFINE_ALIAS(mov_32_T1_T0,0);
+	DEFINE_ALIAS(mov_32_T1_T2,0);
 	DEFINE_ALIAS(mov_32_T1_A0,0);
+	void gen_mov_32_T2_im(int32 value);
+	DEFINE_ALIAS(mov_32_T2_T0,0);
+	DEFINE_ALIAS(mov_32_T2_T1,0);
+	DEFINE_ALIAS(mov_32_T2_A0,0);
 	void gen_mov_32_A0_im(int32 value);
 	DEFINE_ALIAS(mov_32_A0_T0,0);
 	DEFINE_ALIAS(mov_32_A0_T1,0);
+	DEFINE_ALIAS(mov_32_A0_T2,0);
+	DEFINE_ALIAS(mov_ad_T0_im,1);
+	DEFINE_ALIAS(mov_ad_T1_im,1);
+	DEFINE_ALIAS(mov_ad_T2_im,1);
 	DEFINE_ALIAS(mov_ad_A0_im,1);
 
 	// Arithmetic operations
@@ -283,6 +293,7 @@ basic_dyngen::gen_mov_32_##REG##_im(int32 value)	\
 
 DEFINE_OP(T0);
 DEFINE_OP(T1);
+DEFINE_OP(T2);
 DEFINE_OP(A0);
 
 #undef DEFINE_OP

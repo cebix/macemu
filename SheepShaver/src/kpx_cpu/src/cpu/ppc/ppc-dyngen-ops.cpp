@@ -33,10 +33,25 @@ register struct powerpc_cpu *CPU asm(REG_CPU);
 #else
 #define CPU ((powerpc_cpu *)CPUPARAM)
 #endif
-register uint32 A0 asm(REG_A0);
-register uint32 T0 asm(REG_T0);
-register uint32 T1 asm(REG_T1);
-register uint32 T2 asm(REG_T2);
+#if SIZEOF_VOID_P == 8
+#define REG32(X) ((uint32)X)
+#else
+#define REG32(X) X
+#endif
+#define FPREG64(X) (*((double *)(X)))
+#define A0 REG32(reg_A0)
+register uintptr reg_A0 asm(REG_A0);
+#define T0 REG32(reg_T0)
+#define F0 FPREG64(reg_T0)
+register uintptr reg_T0 asm(REG_T0);
+#define T1 REG32(reg_T1)
+#define F1 FPREG64(reg_T1)
+register uintptr reg_T1 asm(REG_T1);
+#define T2 REG32(reg_T2)
+#define F2 FPREG64(reg_T2)
+register uintptr reg_T2 asm(REG_T2);
+#define FD powerpc_dyngen_helper::fp_result()
+#define FD_dw powerpc_dyngen_helper::fp_result_dw()
 
 // Semantic action templates
 #define DYNGEN_OPS
@@ -57,12 +72,17 @@ struct powerpc_dyngen_helper {
 	static inline void set_ctr(uint32 value)	{ CPU->ctr() = value; }
 	static inline uint32 get_cr()				{ return CPU->cr().get(); }
 	static inline void set_cr(uint32 value)		{ CPU->cr().set(value); }
+	static inline uint32 get_fpscr()			{ return CPU->fpscr(); }
+	static inline void set_fpscr(uint32 value)	{ CPU->fpscr() = value; }
 	static inline uint32 get_xer()				{ return CPU->xer().get(); }
 	static inline void set_xer(uint32 value)	{ CPU->xer().set(value); }
 	static inline void record(int crf, int32 v)	{ CPU->record_cr(crf, v); }
 	static inline powerpc_cr_register & cr()	{ return CPU->cr(); }
 	static inline powerpc_xer_register & xer()	{ return CPU->xer(); }
 	static inline powerpc_spcflags & spcflags()	{ return CPU->spcflags(); }
+	static double & fp_result()					{ return CPU->fp_result(); }
+	static uint64 & fp_result_dw()				{ return CPU->fp_result_dw(); }
+	static inline void set_cr(int crfd, int v)	{ CPU->cr().set(crfd, v); }
 };
 
 
@@ -119,6 +139,99 @@ DEFINE_REG(30);
 DEFINE_REG(31);
 
 #undef DEFINE_REG
+#undef DEFINE_OP
+
+
+/**
+ *		Load/store floating-point registers
+ **/
+
+#define DEFINE_OP(REG, N)						\
+void OPPROTO op_load_F##REG##_FPR##N(void)		\
+{												\
+	reg_T##REG = (uintptr)&CPU->fpr(N);			\
+}												\
+void OPPROTO op_store_F##REG##_FPR##N(void)		\
+{												\
+	CPU->fpr(N) = F##REG;						\
+}
+#define DEFINE_REG(N)							\
+DEFINE_OP(0,N);									\
+DEFINE_OP(1,N);									\
+DEFINE_OP(2,N);									\
+void OPPROTO op_store_FD_FPR##N(void)			\
+{												\
+	CPU->fpr(N) = FD;							\
+}
+
+DEFINE_REG(0);
+DEFINE_REG(1);
+DEFINE_REG(2);
+DEFINE_REG(3);
+DEFINE_REG(4);
+DEFINE_REG(5);
+DEFINE_REG(6);
+DEFINE_REG(7);
+DEFINE_REG(8);
+DEFINE_REG(9);
+DEFINE_REG(10);
+DEFINE_REG(11);
+DEFINE_REG(12);
+DEFINE_REG(13);
+DEFINE_REG(14);
+DEFINE_REG(15);
+DEFINE_REG(16);
+DEFINE_REG(17);
+DEFINE_REG(18);
+DEFINE_REG(19);
+DEFINE_REG(20);
+DEFINE_REG(21);
+DEFINE_REG(22);
+DEFINE_REG(23);
+DEFINE_REG(24);
+DEFINE_REG(25);
+DEFINE_REG(26);
+DEFINE_REG(27);
+DEFINE_REG(28);
+DEFINE_REG(29);
+DEFINE_REG(30);
+DEFINE_REG(31);
+
+#undef DEFINE_REG
+#undef DEFINE_OP
+
+
+/**
+ *		Load/Store floating-point data
+ **/
+
+#define im PARAM1
+#define DEFINE_OP(OFFSET)								\
+void OPPROTO op_load_double_FD_A0_##OFFSET(void)		\
+{														\
+	FD_dw = vm_read_memory_8(A0 + OFFSET);				\
+}														\
+void OPPROTO op_load_single_FD_A0_##OFFSET(void)		\
+{														\
+	any_register *x = (any_register *)&FD;				\
+	x->i = vm_read_memory_4(A0 + OFFSET);				\
+	FD = (double)x->f;									\
+}														\
+void OPPROTO op_store_double_F0_A0_##OFFSET(void)		\
+{														\
+	vm_write_memory_8(A0 + OFFSET, *(uint64 *)reg_T0);	\
+}														\
+void OPPROTO op_store_single_F0_A0_##OFFSET(void)		\
+{														\
+	any_register *x = (any_register *)&FD;				\
+	x->f = (float)F0;									\
+	vm_write_memory_4(A0 + OFFSET, x->i);				\
+}
+
+DEFINE_OP(0);
+DEFINE_OP(im);
+DEFINE_OP(T1);
+
 #undef DEFINE_OP
 
 
@@ -215,6 +328,107 @@ void OPPROTO op_mtcrf_T0_im(void)
 	const uint32 cr = powerpc_dyngen_helper::get_cr();
 	powerpc_dyngen_helper::set_cr((cr & ~mask) | (T0 & mask));
 }
+
+
+/**
+ *		Native FP operations optimization
+ **/
+
+#ifndef do_fabs
+#define do_fabs(x)				fabs(x)
+#endif
+#ifndef do_fadd
+#define do_fadd(x, y)			x + y
+#endif
+#ifndef do_fdiv
+#define do_fdiv(x, y)			x / y
+#endif
+#ifndef do_fmadd
+#define do_fmadd(x, y, z)		((x * y) + z)
+#endif
+#ifndef do_fmsub
+#define do_fmsub(x, y, z)		((x * y) - z)
+#endif
+#ifndef do_fmul
+#define do_fmul(x, y)			(x * y)
+#endif
+#ifndef do_fnabs
+#define do_fnabs(x)				-fabs(x)
+#endif
+#ifndef do_fneg
+#define do_fneg(x)				-x
+#endif
+#ifndef do_fnmadd
+#define do_fnmadd(x, y, z)		-((x * y) + z)
+#endif
+#ifndef do_fnmsub
+#define do_fnmsub(x, y, z)		-((x * y) - z)
+#endif
+#ifndef do_fsub
+#define do_fsub(x, y)			x - y
+#endif
+#ifndef do_fmov
+#define do_fmov(x)				x
+#endif
+
+
+/**
+ *		Double-precision floating point operations
+ **/
+
+#define DEFINE_OP(NAME, CODE)					\
+void OPPROTO op_##NAME(void)					\
+{												\
+	CODE;										\
+}
+
+DEFINE_OP(fmov_F0_F1, F0 = F1);
+DEFINE_OP(fmov_F0_F2, F0 = F2);
+DEFINE_OP(fmov_F1_F0, F1 = F0);
+DEFINE_OP(fmov_F1_F2, F1 = F2);
+DEFINE_OP(fmov_F2_F0, F2 = F0);
+DEFINE_OP(fmov_F2_F1, F2 = F1);
+DEFINE_OP(fmov_FD_F0, FD = F0);
+DEFINE_OP(fmov_FD_F1, FD = F1);
+DEFINE_OP(fmov_FD_F2, FD = F2);
+
+DEFINE_OP(fabs_FD_F0, FD = do_fabs(F0));
+DEFINE_OP(fneg_FD_F0, FD = do_fneg(F0));
+DEFINE_OP(fnabs_FD_F0, FD = do_fnabs(F0));
+
+DEFINE_OP(fadd_FD_F0_F1, FD = F0 + F1);
+DEFINE_OP(fsub_FD_F0_F1, FD = F0 - F1);
+DEFINE_OP(fmul_FD_F0_F1, FD = F0 * F1);
+DEFINE_OP(fdiv_FD_F0_F1, FD = F0 / F1);
+DEFINE_OP(fmadd_FD_F0_F1_F2, FD = do_fmadd(F0, F1, F2));
+DEFINE_OP(fmsub_FD_F0_F1_F2, FD = do_fmsub(F0, F1, F2));
+DEFINE_OP(fnmadd_FD_F0_F1_F2, FD = do_fnmadd(F0, F1, F2));
+DEFINE_OP(fnmsub_FD_F0_F1_F2, FD = do_fnmsub(F0, F1, F2));
+
+#undef DEFINE_OP
+
+
+/**
+ *		Single-Precision floating point operations
+ **/
+
+#define DEFINE_OP(NAME, REG, OP)				\
+void OPPROTO op_##NAME(void)					\
+{												\
+	float x = OP;								\
+	REG = x;									\
+}
+
+DEFINE_OP(fadds_FD_F0_F1, FD, F0 + F1);
+DEFINE_OP(fsubs_FD_F0_F1, FD, F0 - F1);
+DEFINE_OP(fmuls_FD_F0_F1, FD, F0 * F1);
+DEFINE_OP(fdivs_FD_F0_F1, FD, F0 / F1);
+DEFINE_OP(fmadds_FD_F0_F1_F2, FD, do_fmadd(F0, F1, F2));
+DEFINE_OP(fmsubs_FD_F0_F1_F2, FD, do_fmsub(F0, F1, F2));
+DEFINE_OP(fnmadds_FD_F0_F1_F2, FD, do_fnmadd(F0, F1, F2));
+DEFINE_OP(fnmsubs_FD_F0_F1_F2, FD, do_fnmsub(F0, F1, F2));
+
+#undef DEFINE_OP
 
 
 /**
@@ -473,6 +687,12 @@ void OPPROTO op_record_cr0_T0(void)
 		cr |= CR_EQ_field<0>::mask();
 	powerpc_dyngen_helper::set_cr(cr);
 	dyngen_barrier();
+}
+
+void OPPROTO op_record_cr1(void)
+{
+	powerpc_dyngen_helper::set_cr((powerpc_dyngen_helper::get_cr() & ~CR_field<1>::mask()) |
+								  ((powerpc_dyngen_helper::get_fpscr() >> 4) & 0x0f000000));
 }
 
 #define im PARAM1

@@ -192,6 +192,7 @@ struct powerpc_registers
 	
 	uint32	gpr[32];			// General-Purpose Registers
 	powerpc_fpr fpr[32];		// Floating-Point Registers
+	powerpc_fpr	fp_result;		// Floating-Point result
 	powerpc_cr_register cr;		// Condition Register
 	uint32	fpscr;				// Floating-Point Status and Control Register
 	powerpc_xer_register xer;	// XER Register (SPR 1)

@@ -56,6 +56,13 @@ public:
 	void gen_store_T0_GPR(int i);
 	void gen_store_T1_GPR(int i);
 	void gen_store_T2_GPR(int i);
+	void gen_load_F0_FPR(int i);
+	void gen_load_F1_FPR(int i);
+	void gen_load_F2_FPR(int i);
+	void gen_store_FD_FPR(int i);
+	void gen_store_F0_FPR(int i);
+	void gen_store_F1_FPR(int i);
+	void gen_store_F2_FPR(int i);
 
 	// Raw aliases
 #define DEFINE_ALIAS_RAW(NAME, PRE, POST, ARGLIST, ARGS) \
@@ -115,6 +122,7 @@ public:
 
 	// Compare & Record instructions
 	DEFINE_ALIAS(record_cr0_T0,0);
+	DEFINE_ALIAS(record_cr1,0);
 	void gen_compare_T0_T1(int crf);
 	void gen_compare_T0_im(int crf, int32 value);
 	void gen_compare_logical_T0_T1(int crf);
@@ -162,6 +170,48 @@ public:
 	DEFINE_ALIAS(subfmeo_T0,0);
 	DEFINE_ALIAS(subfze_T0,0);
 	DEFINE_ALIAS(subfzeo_T0,0);
+
+	// Double-precision floating point operations
+	DEFINE_ALIAS(fmov_F0_F1,0);
+	DEFINE_ALIAS(fmov_F0_F2,0);
+	DEFINE_ALIAS(fmov_F1_F0,0);
+	DEFINE_ALIAS(fmov_F1_F2,0);
+	DEFINE_ALIAS(fmov_F2_F0,0);
+	DEFINE_ALIAS(fmov_F2_F1,0);
+	DEFINE_ALIAS(fmov_FD_F0,0);
+	DEFINE_ALIAS(fmov_FD_F1,0);
+	DEFINE_ALIAS(fmov_FD_F2,0);
+	DEFINE_ALIAS(fabs_FD_F0,0);
+	DEFINE_ALIAS(fneg_FD_F0,0);
+	DEFINE_ALIAS(fnabs_FD_F0,0);
+	DEFINE_ALIAS(fadd_FD_F0_F1,0);
+	DEFINE_ALIAS(fsub_FD_F0_F1,0);
+	DEFINE_ALIAS(fmul_FD_F0_F1,0);
+	DEFINE_ALIAS(fdiv_FD_F0_F1,0);
+	DEFINE_ALIAS(fmadd_FD_F0_F1_F2,0);
+	DEFINE_ALIAS(fmsub_FD_F0_F1_F2,0);
+	DEFINE_ALIAS(fnmadd_FD_F0_F1_F2,0);
+	DEFINE_ALIAS(fnmsub_FD_F0_F1_F2,0);
+
+	// Single-precision floating point operations
+	DEFINE_ALIAS(fadds_FD_F0_F1,0);
+	DEFINE_ALIAS(fsubs_FD_F0_F1,0);
+	DEFINE_ALIAS(fmuls_FD_F0_F1,0);
+	DEFINE_ALIAS(fdivs_FD_F0_F1,0);
+	DEFINE_ALIAS(fmadds_FD_F0_F1_F2,0);
+	DEFINE_ALIAS(fmsubs_FD_F0_F1_F2,0);
+	DEFINE_ALIAS(fnmadds_FD_F0_F1_F2,0);
+	DEFINE_ALIAS(fnmsubs_FD_F0_F1_F2,0);
+
+	// Load/store floating point data
+	DEFINE_ALIAS(load_double_FD_A0_T1,0);
+	void gen_load_double_FD_A0_im(int32 offset);
+	DEFINE_ALIAS(load_single_FD_A0_T1,0);
+	void gen_load_single_FD_A0_im(int32 offset);
+	DEFINE_ALIAS(store_double_F0_A0_T1,0);
+	void gen_store_double_F0_A0_im(int32 offset);
+	DEFINE_ALIAS(store_single_F0_A0_T1,0);
+	void gen_store_single_F0_A0_im(int32 offset);
 
 	// Branch instructions
 	void gen_bc_A0(int bo, int bi, uint32 npc);

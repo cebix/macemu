@@ -42,10 +42,8 @@ register uintptr reg_A0 asm(REG_A0);
 register uintptr reg_T0 asm(REG_T0);
 #define T1 REG32(reg_T1)
 register uintptr reg_T1 asm(REG_T1);
-#ifdef REG_T2
 #define T2 REG32(reg_T2)
 register uintptr reg_T2 asm(REG_T2);
-#endif
 #ifdef REG_T3
 #define T3 REG32(reg_T3)
 register uintptr reg_T3 asm(REG_T3);
@@ -83,29 +81,39 @@ void OPPROTO op_##NAME(void)					\
 // Register moves
 DEFINE_OP(mov_32_T0_im, T0 = PARAM1);
 DEFINE_OP(mov_32_T0_T1, T0 = T1);
+DEFINE_OP(mov_32_T0_T2, T0 = T2);
 DEFINE_OP(mov_32_T0_A0, T0 = A0);
 DEFINE_OP(mov_32_T1_im, T1 = PARAM1);
 DEFINE_OP(mov_32_T1_T0, T1 = T0);
+DEFINE_OP(mov_32_T1_T2, T1 = T2);
 DEFINE_OP(mov_32_T1_A0, T1 = A0);
+DEFINE_OP(mov_32_T2_im, T2 = PARAM1);
+DEFINE_OP(mov_32_T2_T1, T2 = T1);
+DEFINE_OP(mov_32_T2_T0, T2 = T0);
+DEFINE_OP(mov_32_T2_A0, T2 = A0);
 DEFINE_OP(mov_32_A0_im, A0 = PARAM1);
 DEFINE_OP(mov_32_A0_T0, A0 = T0);
 DEFINE_OP(mov_32_A0_T1, A0 = T1);
+DEFINE_OP(mov_32_A0_T2, A0 = T2);
 DEFINE_OP(mov_32_T0_0,  T0 = 0);
 DEFINE_OP(mov_32_T1_0,  T1 = 0);
+DEFINE_OP(mov_32_T2_0,  T2 = 0);
 DEFINE_OP(mov_32_A0_0,  A0 = 0);
 
-void OPPROTO op_mov_ad_A0_im(void)
-{
 #if SIZEOF_VOID_P == 8
 #if defined(__x86_64__)
-	asm volatile ("movabsq $__op_param1,%" REG_A0);
+#define DEFINE_MOV_AD(REG) asm volatile ("movabsq $__op_param1,%" REG_##REG)
 #else
 #error "unsupported 64-bit value move in"
 #endif
 #else
-	A0 = PARAM1;
+#define DEFINE_MOV_AD(REG) REG = PARAM1
 #endif
-}
+
+void OPPROTO op_mov_ad_T0_im(void) { DEFINE_MOV_AD(T0); }
+void OPPROTO op_mov_ad_T1_im(void) { DEFINE_MOV_AD(T1); }
+void OPPROTO op_mov_ad_T2_im(void) { DEFINE_MOV_AD(T2); }
+void OPPROTO op_mov_ad_A0_im(void) { DEFINE_MOV_AD(A0); }
 
 // Arithmetic operations
 DEFINE_OP(add_32_T0_T1, T0 += T1);
@@ -188,120 +196,6 @@ DEFINE_OP(se_8_32_T0, T0 = (int32)(int8)T0);
 DEFINE_OP(ze_8_32_T0, T0 = (uint32)(uint8)T0);
 
 #undef DEFINE_OP
-
-
-/**
- *		Native FP operations optimization
- **/
-
-#ifndef do_fabs
-#define do_fabs(x)				fabs(x)
-#endif
-#ifndef do_fadd
-#define do_fadd(x, y)			x + y
-#endif
-#ifndef do_fdiv
-#define do_fdiv(x, y)			x / y
-#endif
-#ifndef do_fmadd
-#define do_fmadd(x, y, z)		((x * y) + z)
-#endif
-#ifndef do_fmsub
-#define do_fmsub(x, y, z)		((x * y) - z)
-#endif
-#ifndef do_fmul
-#define do_fmul(x, y)			(x * y)
-#endif
-#ifndef do_fnabs
-#define do_fnabs(x)				-fabs(x)
-#endif
-#ifndef do_fneg
-#define do_fneg(x)				-x
-#endif
-#ifndef do_fnmadd
-#define do_fnmadd(x, y, z)		-((x * y) + z)
-#endif
-#ifndef do_fnmsub
-#define do_fnmsub(x, y, z)		-((x * y) - z)
-#endif
-#ifndef do_fsub
-#define do_fsub(x, y)			x - y
-#endif
-#ifndef do_fmov
-#define do_fmov(x)				x
-#endif
-
-
-/**
- *		FP double operations
- **/
-
-#if 0
-
-double OPPROTO op_lfd(void)
-{
-	union { double d; uint64 j; } r;
-	r.j = vm_do_read_memory_8((uint64 *)T1);
-	return r.d;
-}
-
-float OPPROTO op_lfs(void)
-{
-	union { float f; uint32 i; } r;
-	r.i = vm_do_read_memory_4((uint32 *)T1);
-	return r.f;
-}
-
-#define DEFINE_OP(NAME, OP, ARGS)							\
-double OPPROTO op_##NAME(double F0, double F1, double F2)	\
-{															\
-	return do_##OP ARGS;									\
-}
-
-DEFINE_OP(fmov_F1, fmov, (F1));
-DEFINE_OP(fmov_F2, fmov, (F2));
-DEFINE_OP(fabs, fabs, (F0));
-DEFINE_OP(fadd, fadd, (F0, F1));
-DEFINE_OP(fdiv, fdiv, (F0, F1));
-DEFINE_OP(fmadd, fmadd, (F0, F1, F2));
-DEFINE_OP(fmsub, fmsub, (F0, F1, F2));
-DEFINE_OP(fmul, fmul, (F0, F1));
-DEFINE_OP(fnabs, fnabs, (F0));
-DEFINE_OP(fneg, fneg, (F0));
-DEFINE_OP(fnmadd, fnmadd, (F0, F1, F2));
-DEFINE_OP(fnmsub, fnmsub, (F0, F1, F2));
-DEFINE_OP(fsub, fsub, (F0, F1));
-
-#undef DEFINE_OP
-
-
-/**
- *		FP single operations
- **/
-
-#define DEFINE_OP(NAME, OP, ARGS)						\
-float OPPROTO op_##NAME(float F0, float F1, float F2)	\
-{														\
-	return do_##OP ARGS;								\
-}
-
-DEFINE_OP(fmovs_F1, fmov, (F1));
-DEFINE_OP(fmovs_F2, fmov, (F2));
-DEFINE_OP(fabss_F0, fabs, (F0));
-DEFINE_OP(fadds_F0_F1, fadd, (F0, F1));
-DEFINE_OP(fdivs_F0_F1, fdiv, (F0, F1));
-DEFINE_OP(fmadds_F0_F1_F2, fmadd, (F0, F1, F2));
-DEFINE_OP(fmsubs_F0_F1_F2, fmsub, (F0, F1, F2));
-DEFINE_OP(fmuls_F0_F1, fmul, (F0, F1));
-DEFINE_OP(fnabss_F0, fnabs, (F0));
-DEFINE_OP(fnegs_F0, fneg, (F0));
-DEFINE_OP(fnmadds_F0_F1_F2, fnmadd, (F0, F1, F2));
-DEFINE_OP(fnmsubs_F0_F1_F2, fnmsub, (F0, F1, F2));
-DEFINE_OP(fsubs_F0_F1, fsub, (F0, F1));
-
-#undef DEFINE_OP
-
-#endif
 
 
 /**

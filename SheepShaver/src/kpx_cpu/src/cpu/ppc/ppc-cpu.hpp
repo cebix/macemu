@@ -49,6 +49,11 @@ protected:
 	powerpc_xer_register & xer() { return regs.xer; }
 	powerpc_xer_register const & xer() const { return regs.xer; }
 
+	double fp_result() const	{ return regs.fp_result.d; }
+	double & fp_result()		{ return regs.fp_result.d; }
+	uint64 fp_result_dw() const	{ return regs.fp_result.j; }
+	uint64 & fp_result_dw()		{ return regs.fp_result.j; }
+
 	uint32 & fpscr()			{ return regs.fpscr; }
 	uint32 fpscr() const		{ return regs.fpscr; }
 	uint32 & lr()				{ return regs.lr; }
