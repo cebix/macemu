@@ -127,9 +127,11 @@ public:
 	// Constructor
 	sheepshaver_cpu();
 
-	// Condition Register accessors
+	// CR & XER accessors
 	uint32 get_cr() const		{ return cr().get(); }
 	void set_cr(uint32 v)		{ cr().set(v); }
+	uint32 get_xer() const		{ return xer().get(); }
+	void set_xer(uint32 v)		{ xer().set(v); }
 
 	// Execute 68k routine
 	void execute_68k(uint32 entry, M68kRegisters *r);
@@ -241,7 +243,11 @@ void sheepshaver_cpu::execute_sheep(uint32 opcode)
 		for (int i = 0; i < 7; i++)
 			r68.a[i] = gpr(16 + i);
 		r68.a[7] = gpr(1);
+		uint32 saved_cr = get_cr() & CR_field<2>::mask();
+		uint32 saved_xer = get_xer();
 		EmulOp(&r68, gpr(24), EMUL_OP_field::extract(opcode) - 3);
+		set_cr(saved_cr);
+		set_xer(saved_xer);
 		for (int i = 0; i < 8; i++)
 			gpr(8 + i) = r68.d[i];
 		for (int i = 0; i < 7; i++)
@@ -623,6 +629,7 @@ void init_emul_ppc(void)
 	// Initialize main CPU emulator
 	main_cpu = new sheepshaver_cpu();
 	main_cpu->set_register(powerpc_registers::GPR(3), any_register((uint32)ROM_BASE + 0x30d000));
+	main_cpu->set_register(powerpc_registers::GPR(4), any_register(KernelDataAddr + 0x1000));
 	WriteMacInt32(XLM_RUN_MODE, MODE_68K);
 
 #if MULTICORE_CPU
@@ -687,7 +694,7 @@ void exit_emul_ppc(void)
 void emul_ppc(uint32 entry)
 {
 	current_cpu = main_cpu;
-#if DEBUG
+#if 0
 	current_cpu->start_log();
 #endif
 	// start emulation loop and enable code translation or caching
