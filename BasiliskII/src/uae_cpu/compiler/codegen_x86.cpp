@@ -107,7 +107,12 @@ uae_u8 call_saved[]={0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0};
    - Special registers (such like the stack pointer) should not be "preserved"
      by pushing, even though they are "saved" across function calls
 */
-uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1};
+#if defined(__x86_64__)
+/* callee-saved registers as defined by Linux/x86_64 ABI: rbx, rbp, rsp, r12 - r15 */
+static const uae_u8 need_to_preserve[]={0,0,0,1,0,1,0,0,0,0,0,0,1,1,1,1};
+#else
+static const uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
+#endif
 
 /* Whether classes of instructions do or don't clobber the native flags */
 #define CLOBBER_MOV
@@ -3139,7 +3144,28 @@ static __inline__ void raw_emit_nop_filler(int nbytes)
     f32_1, f32_2, f32_3, f32_4, f32_5, f32_6, f32_7, f32_8,
     f32_9, f32_10, f32_11, f32_12, f32_13, f32_14, f32_15
   };
+  static const uae_u8 prefixes[4] = { 0x66, 0x66, 0x66, 0x66 };
 
+#if defined(__x86_64__)
+  /* The recommended way to pad 64bit code is to use NOPs preceded by
+     maximally four 0x66 prefixes.  Balance the size of nops.  */
+  if (nbytes == 0)
+	  return;
+
+  int i;
+  int nnops = (nbytes + 3) / 4;
+  int len = nbytes / nnops;
+  int remains = nbytes - nnops * len;
+
+  for (i = 0; i < remains; i++) {
+	  emit_block(prefixes, len);
+	  raw_nop();
+  }
+  for (; i < nnops; i++) {
+	  emit_block(prefixes, len - 1);
+	  raw_nop();
+  }
+#else
   int nloops = nbytes / 16;
   while (nloops-- > 0)
 	emit_block(f32_16, sizeof(f32_16));
@@ -3147,6 +3173,7 @@ static __inline__ void raw_emit_nop_filler(int nbytes)
   nbytes %= 16;
   if (nbytes)
 	emit_block(f32_patt[nbytes - 1], nbytes);
+#endif
 }
 
 
