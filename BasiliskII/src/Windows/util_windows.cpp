@@ -22,6 +22,7 @@
 
 #include "sysdeps.h"
 #include "util_windows.h"
+#include "main.h"
 
 BOOL exists( const char *path )
 {
@@ -104,4 +105,33 @@ void wait_thread(HANDLE thread)
 void kill_thread(HANDLE thread)
 {
 	TerminateThread(thread, 0);
+}
+
+
+/*
+ *  Check that drivers are installed
+ */
+
+bool check_drivers(void)
+{
+	char path[_MAX_PATH];
+	GetSystemDirectory(path, sizeof(path));
+	strcat(path, "\\drivers\\cdenable.sys");
+
+	if (exists(path)) {
+		int32 size = get_file_size(path);
+		if (size != 6112) {
+			char str[256];
+			sprintf(str, "The CD-ROM driver file \"%s\" is too old or corrupted.", path);
+			ErrorAlert(str);
+			return false;
+		}
+	}
+	else {
+		char str[256];
+		sprintf(str, "The CD-ROM driver file \"%s\" is missing.", path);
+		WarningAlert(str);
+	}
+
+	return true;
 }

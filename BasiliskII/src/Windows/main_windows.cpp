@@ -48,6 +48,7 @@ using std::string;
 #include "main.h"
 #include "vm_alloc.h"
 #include "sigsegv.h"
+#include "util_windows.h"
 #include "kernel_windows.h"
 
 #if USE_JIT
@@ -296,6 +297,10 @@ int main(int argc, char **argv)
 		ErrorAlert(STR_NO_WIN32_NT_4);
 		QuitEmulator();
 	}
+
+	// Check that drivers are installed
+	if (!check_drivers())
+		QuitEmulator();
 
 	// Load win32 libraries
 	KernelInit();

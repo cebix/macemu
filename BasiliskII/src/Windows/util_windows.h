@@ -26,6 +26,7 @@
 BOOL exists( const char *path );
 int32 get_file_size( const char *path );
 BOOL create_file( const char *path, DWORD size );
+bool check_drivers(void);
 
 // Thread wrappers
 extern HANDLE create_thread(LPTHREAD_START_ROUTINE start_routine, void *arg = NULL);
