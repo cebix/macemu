@@ -34,8 +34,7 @@ B2_mutex *spcflags_lock = NULL;
 #include "mon_disass.h"
 #endif
 
-int quit_program = 0;
-const int debugging = 0;
+bool quit_program = false;
 struct flag_struct regflags;
 
 /* Opcode of faulting instruction */
@@ -1167,7 +1166,7 @@ void m68k_reset (void)
 void m68k_emulop_return(void)
 {
 	SPCFLAGS_SET( SPCFLAG_BRK );
-	quit_program = 1;
+	quit_program = true;
 }
 
 void m68k_emulop(uae_u32 opcode)
@@ -1320,36 +1319,21 @@ void m68k_do_execute (void)
 #if FLIGHT_RECORDER
 		m68k_record_step(m68k_getpc());
 #endif
-#ifdef X86_ASSEMBLY
-		__asm__ __volatile__("\tpushl %%ebp\n\tcall *%%ebx\n\tpopl %%ebp" /* FIXME */
-							 : : "b" (cpufunctbl[opcode]), "a" (opcode)
-							 : "%edx", "%ecx", "%esi", "%edi",  "%ebp", "memory", "cc");
-#else
 		(*cpufunctbl[opcode])(opcode);
-#endif
-	if (SPCFLAGS_TEST(SPCFLAG_ALL_BUT_EXEC_RETURN)) {
-	    if (m68k_do_specialties())
+		if (SPCFLAGS_TEST(SPCFLAG_ALL_BUT_EXEC_RETURN)) {
+			if (m68k_do_specialties())
 				return;
 		}
 	}
 }
 
-#if USE_JIT
+#if USE_JIT && !defined(X86_ASSEMBLY)
 void m68k_compile_execute (void)
 {
     for (;;) {
-	if (quit_program > 0) {
-	    if (quit_program == 1)
+	  if (quit_program)
 		break;
-	    quit_program = 0;
-	    m68k_reset ();
-	}
-	m68k_do_compile_execute();
-    }
-    if (debugging) {
-	uaecptr nextpc;
-	m68k_dumpstate(&nextpc);
-	exit(1);
+	  m68k_do_compile_execute();
     }
 }
 #endif
@@ -1359,22 +1343,11 @@ void m68k_execute (void)
 #if USE_JIT
     ++m68k_execute_depth;
 #endif
-	
     for (;;) {
-	if (quit_program > 0) {
-	    if (quit_program == 1)
+	  if (quit_program)
 		break;
-	    quit_program = 0;
-	    m68k_reset ();
-	}
-	m68k_do_execute();
+	  m68k_do_execute();
     }
-	if (debugging) {
-		uaecptr nextpc;
-		m68k_dumpstate(&nextpc);
-		exit(1);
-	}
-	
 #if USE_JIT
     --m68k_execute_depth;
 #endif

@@ -299,8 +299,13 @@ extern void m68k_record_step(uaecptr);
 extern void m68k_do_execute(void);
 extern void m68k_execute(void);
 #if USE_JIT
+#ifdef X86_ASSEMBLY
+/* This is generated code */
+extern void (*m68k_compile_execute)(void);
+#else
 extern void m68k_do_compile_execute(void);
 extern void m68k_compile_execute(void);
+#endif
 #endif
  
 #endif /* NEWCPU_H */

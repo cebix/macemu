@@ -74,6 +74,9 @@ compop_func *nfcompfunctbl[65536];
 cpuop_func *nfcpufunctbl[65536];
 uae_u8* comp_pc_p;
 
+// From newcpu.cpp
+extern bool quit_program;
+
 // gb-- Extra data for Basilisk II/JIT
 #if JIT_DEBUG
 static bool		JITDebug			= false;	// Enable runtime disassemblers through mon?
@@ -5461,7 +5464,6 @@ static __inline__ void create_popalls(void)
   popall_recompile_block=(void *)recompile_block;
   popall_do_nothing=(void *)do_nothing;
   popall_check_checksum=(void *)check_checksum;
-  pushall_call_handler=get_target();  
 #endif
 
   /* And now, the code to do the matching pushes and then jump
@@ -5477,6 +5479,36 @@ static __inline__ void create_popalls(void)
   raw_mov_l_rm(r,(uae_u32)&regs.pc_p);
   raw_and_l_ri(r,TAGMASK);
   raw_jmp_m_indexed((uae_u32)cache_tags,r,4);
+
+#ifdef X86_ASSEMBLY
+  align_target(align_jumps);
+  m68k_compile_execute = (void (*)(void))get_target();
+  for (i=N_REGS;i--;) {
+	  if (need_to_preserve[i])
+		  raw_push_l_r(i);
+  }
+  align_target(align_loops);
+  uae_u32 dispatch_loop = (uae_u32)get_target();
+  r=REG_PC_TMP;
+  raw_mov_l_rm(r,(uae_u32)&regs.pc_p);
+  raw_and_l_ri(r,TAGMASK);
+  raw_call_m_indexed((uae_u32)cache_tags,r,4);
+  raw_cmp_l_mi((uae_u32)&regs.spcflags,0);
+  raw_jcc_b_oponly(NATIVE_CC_EQ);
+  emit_byte(dispatch_loop-((uae_u32)get_target()+1));
+  raw_call((uae_u32)m68k_do_specialties);
+  raw_test_l_rr(REG_RESULT,REG_RESULT);
+  raw_jcc_b_oponly(NATIVE_CC_EQ);
+  emit_byte(dispatch_loop-((uae_u32)get_target()+1));
+  raw_cmp_b_mi((uae_u32)&quit_program,0);
+  raw_jcc_b_oponly(NATIVE_CC_EQ);
+  emit_byte(dispatch_loop-((uae_u32)get_target()+1));
+  for (i=0;i<N_REGS;i++) {
+	  if (need_to_preserve[i])
+		  raw_pop_l_r(i);
+  }
+  raw_ret();
+#endif
 }
 
 static __inline__ void reset_lists(void)
@@ -6239,13 +6271,7 @@ void exec_nostats(void)
 {
 	for (;;)  { 
 		uae_u32 opcode = GET_OPCODE;
-#ifdef X86_ASSEMBLY__disable
-		__asm__ __volatile__("\tpushl %%ebp\n\tcall *%%ebx\n\tpopl %%ebp" /* FIXME */
-							 : : "b" (cpufunctbl[opcode]), "a" (opcode)
-							 : "%edx", "%ecx", "%esi", "%edi",  "%ebp", "memory", "cc");
-#else
 		(*cpufunctbl[opcode])(opcode);
-#endif
 		if (end_block(opcode) || SPCFLAGS_TEST(SPCFLAG_ALL)) {
 			return; /* We will deal with the spcflags in the caller */
 		}
@@ -6270,13 +6296,7 @@ void execute_normal(void)
 #if FLIGHT_RECORDER
 			m68k_record_step(m68k_getpc());
 #endif
-#ifdef X86_ASSEMBLY__disable
-			__asm__ __volatile__("\tpushl %%ebp\n\tcall *%%ebx\n\tpopl %%ebp" /* FIXME */
-								 : : "b" (cpufunctbl[opcode]), "a" (opcode)
-								 : "%edx", "%ecx", "%esi", "%edi", "%ebp", "memory", "cc");
-#else
 			(*cpufunctbl[opcode])(opcode);
-#endif
 			if (end_block(opcode) || SPCFLAGS_TEST(SPCFLAG_ALL) || blocklen>=MAXRUN) {
 				compile_block(pc_hist, blocklen);
 				return; /* We will deal with the spcflags in the caller */
@@ -6289,16 +6309,13 @@ void execute_normal(void)
 
 typedef void (*compiled_handler)(void);
 
+#ifdef X86_ASSEMBLY
+void (*m68k_compile_execute)(void) = NULL;
+#else
 void m68k_do_compile_execute(void)
 {
 	for (;;) {
-#ifdef X86_ASSEMBLY
-		__asm__ __volatile__("\tpushl %%ebp\n\tcall *%%ebx\n\tpopl %%ebp" /* FIXME */
-							 : : "b" (cache_tags[cacheline(regs.pc_p)].handler)
-							 : "%edx", "%ecx", "%eax", "%esi", "%edi", "%ebp", "memory", "cc");
-#else
 		((compiled_handler)(pushall_call_handler))();
-#endif
 		/* Whenever we return from that, we should check spcflags */
 		if (SPCFLAGS_TEST(SPCFLAG_ALL)) {
 			if (m68k_do_specialties ())
@@ -6306,3 +6323,4 @@ void m68k_do_compile_execute(void)
 		}
 	}
 }
+#endif

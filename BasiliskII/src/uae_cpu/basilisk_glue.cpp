@@ -56,7 +56,7 @@ bool UseJIT = false;
 #endif
 
 // From newcpu.cpp
-extern int quit_program;
+extern bool quit_program;
 
 
 /*
@@ -198,7 +198,7 @@ void Execute68kTrap(uint16 trap, struct M68kRegisters *r)
 	// Execute trap
 	m68k_setpc(m68k_areg(regs, 7));
 	fill_prefetch_0();
-	quit_program = 0;
+	quit_program = false;
 	m68k_execute();
 
 	// Clean up stack
@@ -213,7 +213,7 @@ void Execute68kTrap(uint16 trap, struct M68kRegisters *r)
 		r->d[i] = m68k_dreg(regs, i);
 	for (i=0; i<7; i++)
 		r->a[i] = m68k_areg(regs, i);
-	quit_program = 0;
+	quit_program = false;
 }
 
 
@@ -245,7 +245,7 @@ void Execute68k(uint32 addr, struct M68kRegisters *r)
 	// Execute routine
 	m68k_setpc(addr);
 	fill_prefetch_0();
-	quit_program = 0;
+	quit_program = false;
 	m68k_execute();
 
 	// Clean up stack
@@ -260,5 +260,5 @@ void Execute68k(uint32 addr, struct M68kRegisters *r)
 		r->d[i] = m68k_dreg(regs, i);
 	for (i=0; i<7; i++)
 		r->a[i] = m68k_areg(regs, i);
-	quit_program = 0;
+	quit_program = false;
 }
