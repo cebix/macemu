@@ -59,9 +59,9 @@ modules:
 	cd Linux/NetDriver; make
 
 install: $(APP)
-	$(INSTALL_PROGRAM) BasiliskII $(bindir)
-	$(INSTALL_DATA) BasiliskII.1 $(mandir)/man1
-	$(INSTALL_DATA) keycodes $(sharedir)
+	$(INSTALL_PROGRAM) BasiliskII $(bindir)/
+	$(INSTALL_DATA) BasiliskII.1 $(mandir)/man1/
+	$(INSTALL_DATA) keycodes $(sharedir)/
 
 clean:
 	-rm -f $(OBJ_DIR)/* core* *.core *~ *.bak
