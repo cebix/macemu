@@ -785,7 +785,7 @@ PRIVATE inline uae_u32 FFPU get_quotient_sign(fpu_register const & ra, fpu_regis
 # define fp_ceil	ceil
 #endif
 
-#if defined(FPU_IEEE) && defined(X86_ASSEMBLY)
+#if defined(FPU_IEEE) && defined(USE_X87_ASSEMBLY)
 // Assembly optimized support functions. Taken from glibc 2.2.2
 
 #undef fp_log
@@ -1105,7 +1105,7 @@ DEFINE_ROUND_FUNC(zero, 0xc00)
 
 DEFINE_ROUND_FUNC(nearest, 0x000)
 
-#endif /* X86_ASSEMBLY */
+#endif /* USE_X87_ASSEMBLY */
 
 #ifndef fp_round_to_minus_infinity
 #define fp_round_to_minus_infinity(x) fp_floor(x)

@@ -38,7 +38,7 @@
 #undef	FPU
 #define	FPU		fpu.
 
-#if defined(FPU_IEEE) && defined(X86_ASSEMBLY)
+#if defined(FPU_IEEE) && defined(USE_X87_ASSEMBLY)
 
 PRIVATE fpu_extended fp_do_pow(fpu_extended x, fpu_extended y)
 {

@@ -50,13 +50,13 @@
 /* -------------------------------------------------------------------------- */
 
 /* Optimized i386 fpu core must use native exceptions */
-#if defined(FPU_X86) && defined(X86_ASSEMBLY)
+#if defined(FPU_X86) && defined(USE_X87_ASSEMBLY)
 # undef FPU_USE_GENERIC_EXCEPTIONS
 # define FPU_USE_X86_EXCEPTIONS
 #endif
 
 /* Optimized i386 fpu core must use native accrued exceptions */
-#if defined(FPU_X86) && defined(X86_ASSEMBLY)
+#if defined(FPU_X86) && defined(USE_X87_ASSEMBLY)
 # undef FPU_USE_GENERIC_ACCRUED_EXCEPTIONS
 # define FPU_USE_X86_ACCRUED_EXCEPTIONS
 #endif

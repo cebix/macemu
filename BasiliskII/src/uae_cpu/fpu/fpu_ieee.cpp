@@ -2105,7 +2105,7 @@ PUBLIC void FFPU fpu_init (bool integral_68040)
 #if defined(FPU_USE_X86_ROUNDING)
 	// Initial state after boot, reset and frestore(null frame)
 	x86_control_word = CW_INITIAL;
-#elif defined(__i386__) && defined(X86_ASSEMBLY)
+#elif defined(USE_X87_ASSEMBLY)
 	volatile unsigned short int cw;
 	__asm__ __volatile__("fnstcw %0" : "=m" (cw));
 	cw &= ~0x0300; cw |= 0x0300; // CW_PC_EXTENDED

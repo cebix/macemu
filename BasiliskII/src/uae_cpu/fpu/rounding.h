@@ -50,26 +50,26 @@
 /* -------------------------------------------------------------------------- */
 
 /* Optimized i386 fpu core must use native rounding mode */
-#if defined(FPU_X86) && defined(X86_ASSEMBLY)
+#if defined(FPU_X86) && defined(USE_X87_ASSEMBLY)
 # undef FPU_USE_GENERIC_ROUNDING_MODE
 # define FPU_USE_X86_ROUNDING_MODE
 #endif
 
 /* Optimized i386 fpu core must use native rounding precision */
-#if defined(FPU_X86) && defined(X86_ASSEMBLY)
+#if defined(FPU_X86) && defined(USE_X87_ASSEMBLY)
 # undef FPU_USE_GENERIC_ROUNDING_PRECISION
 # define FPU_USE_X86_ROUNDING_PRECISION
 #endif
 
 #if 0 // gb-- FIXME: that doesn't work
 /* IEEE-based fpu core can have native rounding mode on i386 */
-#if defined(FPU_IEEE) && defined(X86_ASSEMBLY)
+#if defined(FPU_IEEE) && defined(USE_X87_ASSEMBLY)
 # undef FPU_USE_GENERIC_ROUNDING_MODE
 # define FPU_USE_X86_ROUNDING_MODE
 #endif
 
 /* IEEE-based fpu core can have native rounding precision on i386 */
-#if defined(FPU_IEEE) && defined(X86_ASSEMBLY)
+#if defined(FPU_IEEE) && defined(USE_X87_ASSEMBLY)
 # undef FPU_USE_GENERIC_ROUNDING_PRECISION
 # define FPU_USE_X86_ROUNDING_PRECISION
 #endif

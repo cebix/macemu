@@ -49,13 +49,13 @@
 /* -------------------------------------------------------------------------- */
 
 /* Optimized i386 fpu core must use native flags */
-#if defined(FPU_X86) && defined(X86_ASSEMBLY)
+#if defined(FPU_X86) && defined(USE_X87_ASSEMBLY)
 # undef FPU_USE_GENERIC_FLAGS
 # define FPU_USE_X86_FLAGS
 #endif
 
 /* Old UAE FPU core can use native flags */
-#if defined(FPU_UAE) && defined(X86_ASSEMBLY)
+#if defined(FPU_UAE) && defined(USE_X87_ASSEMBLY)
 # undef FPU_USE_GENERIC_FLAGS
 # define FPU_USE_X86_FLAGS
 #endif
@@ -67,7 +67,7 @@
 #endif
 
 /* JIT Compilation for FPU only works with lazy evaluation of FPU flags */
-#if defined(FPU_IEEE) && defined(X86_ASSEMBLY) && defined(USE_JIT_FPU)
+#if defined(FPU_IEEE) && defined(USE_X87_ASSEMBLY) && defined(USE_JIT_FPU)
 # undef FPU_USE_GENERIC_FLAGS
 # define FPU_USE_LAZY_FLAGS
 #endif
