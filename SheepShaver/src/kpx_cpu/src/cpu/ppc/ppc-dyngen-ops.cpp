@@ -36,6 +36,7 @@ register struct powerpc_cpu *CPU asm(REG_CPU);
 register uint32 A0 asm(REG_A0);
 register uint32 T0 asm(REG_T0);
 register uint32 T1 asm(REG_T1);
+register uint32 T2 asm(REG_T2);
 
 // Semantic action templates
 #define DYNGEN_OPS
@@ -61,6 +62,7 @@ struct powerpc_dyngen_helper {
 	static inline void record(int crf, int32 v)	{ CPU->record_cr(crf, v); }
 	static inline powerpc_cr_register & cr()	{ return CPU->cr(); }
 	static inline powerpc_xer_register & xer()	{ return CPU->xer(); }
+	static inline powerpc_spcflags & spcflags()	{ return CPU->spcflags(); }
 };
 
 
@@ -80,7 +82,8 @@ void OPPROTO op_store_##REG##_GPR##N(void)		\
 #define DEFINE_REG(N)							\
 DEFINE_OP(A0,N);								\
 DEFINE_OP(T0,N);								\
-DEFINE_OP(T1,N);
+DEFINE_OP(T1,N);								\
+DEFINE_OP(T2,N);
 
 DEFINE_REG(0);
 DEFINE_REG(1);
@@ -296,6 +299,21 @@ void OPPROTO op_load_A0_CTR(void)
 void OPPROTO op_load_A0_LR(void)
 {
 	A0 = powerpc_dyngen_helper::get_lr() & -4;
+}
+
+void OPPROTO op_spcflags_init(void)
+{
+	powerpc_dyngen_helper::spcflags().set(PARAM1);
+}
+
+void OPPROTO op_spcflags_set(void)
+{
+	powerpc_dyngen_helper::spcflags().set(PARAM1);
+}
+
+void OPPROTO op_spcflags_clear(void)
+{
+	powerpc_dyngen_helper::spcflags().clear(PARAM1);
 }
 
 

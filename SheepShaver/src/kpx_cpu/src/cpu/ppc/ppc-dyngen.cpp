@@ -113,9 +113,11 @@ void powerpc_dyngen::gen_##OP##_##REG##_##REGT(int i)	\
 DEFINE_INSN(load, A0, GPR);
 DEFINE_INSN(load, T0, GPR);
 DEFINE_INSN(load, T1, GPR);
+DEFINE_INSN(load, T2, GPR);
 DEFINE_INSN(store, A0, GPR);
 DEFINE_INSN(store, T0, GPR);
 DEFINE_INSN(store, T1, GPR);
+DEFINE_INSN(store, T2, GPR);
 
 // Condition register bitfield
 DEFINE_INSN(load, T0, crb);

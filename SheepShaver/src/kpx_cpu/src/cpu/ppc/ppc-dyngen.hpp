@@ -51,9 +51,11 @@ public:
 	void gen_load_A0_GPR(int i);
 	void gen_load_T0_GPR(int i);
 	void gen_load_T1_GPR(int i);
+	void gen_load_T2_GPR(int i);
 	void gen_store_A0_GPR(int i);
 	void gen_store_T0_GPR(int i);
 	void gen_store_T1_GPR(int i);
+	void gen_store_T2_GPR(int i);
 
 	// Raw aliases
 #define DEFINE_ALIAS_RAW(NAME, PRE, POST, ARGLIST, ARGS) \
@@ -101,6 +103,10 @@ public:
 	DEFINE_ALIAS(load_T1_PC,0);
 	DEFINE_ALIAS(load_A0_LR,0);
 	DEFINE_ALIAS(store_im_LR,1);
+
+	DEFINE_ALIAS(spcflags_init,1);
+	DEFINE_ALIAS(spcflags_set,1);
+	DEFINE_ALIAS(spcflags_clear,1);
 
 	// Control Flow
 	DEFINE_ALIAS(decrement_ctr_T0,0);
