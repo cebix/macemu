@@ -28,6 +28,17 @@
 #include "cpu/ppc/ppc-instructions.hpp"
 #endif
 
+#if EMU_MICROLIB
+#include <ppcemul.h>
+typedef unsigned int uint32;
+typedef unsigned long uintptr;
+#undef RD
+#undef RA
+#undef RB
+#undef FB
+#undef FE
+#endif
+
 // Disassemblers needed for debugging purposes
 #if ENABLE_MON
 #include "mon.h"
@@ -103,9 +114,14 @@ static void inline flush_icache_range(uint32 *start_p, uint32 length)
 
 struct exec_return { };
 
-class powerpc_test_cpu
+#if EMU_KHEPERIX
+struct powerpc_cpu_base
 	: public powerpc_cpu
 {
+	powerpc_cpu_base();
+	void init_decoder();
+	void execute_return(uint32 opcode);
+
 	uint32 emul_get_xer() const
 		{ return xer().get(); }
 
@@ -117,7 +133,160 @@ class powerpc_test_cpu
 
 	void emul_set_cr(uint32 value)
 		{ cr().set(value); }
+};
 
+powerpc_cpu_base::powerpc_cpu_base()
+	: powerpc_cpu(NULL)
+{
+	init_decoder();
+}
+
+void powerpc_cpu_base::execute_return(uint32 opcode)
+{
+	spcflags().set(SPCFLAG_CPU_EXEC_RETURN);
+}
+
+void powerpc_cpu_base::init_decoder()
+{
+#ifndef PPC_NO_STATIC_II_INDEX_TABLE
+	static bool initialized = false;
+	if (initialized)
+		return;
+	initialized = true;
+#endif
+
+	static const instr_info_t return_ii_table[] = {
+		{ "return",
+		  (execute_pmf)&powerpc_cpu_base::execute_return,
+		  NULL,
+		  PPC_I(MAX),
+		  D_form, 6, 0, CFLOW_JUMP
+		}
+	};
+
+	const int ii_count = sizeof(return_ii_table)/sizeof(return_ii_table[0]);
+
+	for (int i = 0; i < ii_count; i++) {
+		const instr_info_t * ii = &return_ii_table[i];
+		init_decoder_entry(ii);
+	}
+}
+#endif
+
+#if EMU_MICROLIB
+static volatile bool ppc_running = false;
+
+struct powerpc_cpu_base
+{
+	powerpc_cpu_base();
+	void execute(uintptr);
+
+	void invalidate_cache()			{ }
+	uint32 emul_get_xer() const		{ return XER; }
+	void emul_set_xer(uint32 value)	{ XER = value; }
+	uint32 emul_get_cr() const		{ return CR; }
+	void emul_set_cr(uint32 value)	{ CR = value; }
+	uint32 lr() const				{ return LR; }
+	uint32 & lr()					{ return LR; }
+	uint32 gpr(int i) const			{ return GPR(i); }
+	uint32 & gpr(int i)				{ return GPR(i); }
+};
+
+void sheep_impl(ppc_inst_t inst)
+{
+	ppc_running = false;
+}
+
+extern "C" void init_table(int opcd, void (*impl)(ppc_inst_t), char *(*bin2c)(ppc_inst_t, addr_t, char *), char *(*disasm)(ppc_inst_t, addr_t, char *), void (*translate)(ppc_inst_t, struct DecodedInstruction *), void (*xmlize)(ppc_inst_t, addr_t, char *), char *mnemonic);
+
+powerpc_cpu_base::powerpc_cpu_base()
+{
+	ppc_init();
+	init_table(6, sheep_impl, NULL, NULL, NULL, NULL, "sheep");
+}
+
+#define ppc_code_fetch(A)  ntohl(*((uint32 *)(A)))
+
+void powerpc_cpu_base::execute(uintptr entry_point)
+{
+	PC = entry_point;
+
+	ppc_running = true;
+	while (ppc_running) {
+		ppc_inst_t inst = ppc_code_fetch(PC);
+		ppc_execute(inst);
+	}
+}
+#endif
+
+// Define bit-fields
+#if !EMU_KHEPERIX
+template< int FB, int FE >
+struct static_mask {
+	enum { value = (0xffffffff >> FB) ^ (0xffffffff >> (FE + 1)) };
+};
+
+template< int FB >
+struct static_mask<FB, 31> {
+	enum { value  = 0xffffffff >> FB };
+};
+
+template< int FB, int FE >
+struct bit_field {
+	static inline uint32 mask() {
+		return static_mask<FB, FE>::value;
+	}
+	static inline bool test(uint32 value) {
+		return value & mask();
+	}
+	static inline uint32 extract(uint32 value) {
+		const uint32 m = mask() >> (31 - FE);
+		return (value >> (31 - FE)) & m;
+	}
+	static inline void insert(uint32 & data, uint32 value) {
+		const uint32 m = mask();
+		data = (data & ~m) | ((value << (31 - FE)) & m);
+	}
+};
+
+// General purpose registers
+typedef bit_field< 11, 15 > rA_field;
+typedef bit_field< 16, 20 > rB_field;
+typedef bit_field<  6, 10 > rD_field;
+typedef bit_field<  6, 10 > rS_field;
+
+// Condition registers
+typedef bit_field< 11, 15 > crbA_field;
+typedef bit_field< 16, 20 > crbB_field;
+typedef bit_field<  6, 10 > crbD_field;
+typedef bit_field<  6,  8 > crfD_field;
+typedef bit_field< 11, 13 > crfS_field;
+
+// CR register fields
+template< int CRn > struct CR_field : bit_field< 4*CRn+0, 4*CRn+3 > { };
+template< int CRn > struct CR_LT_field : bit_field< 4*CRn+0, 4*CRn+0 > { };
+template< int CRn > struct CR_GT_field : bit_field< 4*CRn+1, 4*CRn+1 > { };
+template< int CRn > struct CR_EQ_field : bit_field< 4*CRn+2, 4*CRn+2 > { };
+template< int CRn > struct CR_SO_field : bit_field< 4*CRn+3, 4*CRn+3 > { };
+template< int CRn > struct CR_UN_field : bit_field< 4*CRn+3, 4*CRn+3 > { };
+
+// Immediates
+typedef bit_field< 16, 31 > UIMM_field;
+typedef bit_field< 21, 25 > MB_field;
+typedef bit_field< 26, 30 > ME_field;
+typedef bit_field< 16, 20 > SH_field;
+
+// XER register fields
+typedef bit_field<  0,  0 > XER_SO_field;
+typedef bit_field<  1,  1 > XER_OV_field;
+typedef bit_field<  2,  2 > XER_CA_field;
+typedef bit_field< 25, 31 > XER_COUNT_field;
+#endif
+
+// Define PowerPC tester
+class powerpc_test_cpu
+	: public powerpc_cpu_base
+{
 #if defined(__powerpc__)
 	uint32 native_get_xer() const
 		{ uint32 xer; asm volatile ("mfxer %0" : "=r" (xer)); return xer; }
@@ -135,9 +304,7 @@ class powerpc_test_cpu
 	void flush_icache_range(uint32 *start, uint32 size)
 		{ invalidate_cache(); ::flush_icache_range(start, size); }
 
-	void init_decoder();
 	void print_flags(uint32 cr, uint32 xer, int crf = 0) const;
-	void execute_return(uint32 opcode);
 	void execute(uint32 *code);
 
 public:
@@ -203,12 +370,11 @@ private:
 };
 
 powerpc_test_cpu::powerpc_test_cpu()
-	: powerpc_cpu(NULL), results_file(NULL)
+	: powerpc_cpu_base(), results_file(NULL)
 {
 #if ENABLE_MON
 	mon_init();
 #endif
-	init_decoder();
 }
 
 powerpc_test_cpu::~powerpc_test_cpu()
@@ -234,37 +400,6 @@ void powerpc_test_cpu::put32(uint32 v)
 	if (fwrite(&out, sizeof(out), 1, results_file) != 1) {
 		fprintf(stderr, "could not write item to results file\n");
 		exit(EXIT_FAILURE);
-	}
-}
-
-void powerpc_test_cpu::execute_return(uint32 opcode)
-{
-	spcflags().set(SPCFLAG_CPU_EXEC_RETURN);
-}
-
-void powerpc_test_cpu::init_decoder()
-{
-#ifndef PPC_NO_STATIC_II_INDEX_TABLE
-	static bool initialized = false;
-	if (initialized)
-		return;
-	initialized = true;
-#endif
-
-	static const instr_info_t return_ii_table[] = {
-		{ "return",
-		  (execute_pmf)&powerpc_test_cpu::execute_return,
-		  NULL,
-		  PPC_I(MAX),
-		  D_form, 6, 0, CFLOW_JUMP
-		}
-	};
-
-	const int ii_count = sizeof(return_ii_table)/sizeof(return_ii_table[0]);
-
-	for (int i = 0; i < ii_count; i++) {
-		const instr_info_t * ii = &return_ii_table[i];
-		init_decoder_entry(ii);
 	}
 }
 
@@ -299,7 +434,7 @@ void powerpc_test_cpu::execute(uint32 *code_p)
 	lr() = (uintptr)code_p;
 
 	assert((uintptr)code <= UINT_MAX);
-	powerpc_cpu::execute((uintptr)code);
+	powerpc_cpu_base::execute((uintptr)code);
 }
 
 void powerpc_test_cpu::print_flags(uint32 cr, uint32 xer, int crf) const
