@@ -1,0 +1,888 @@
+/*
+ *  asm_linux.S - Assembly routines
+ *
+ *  SheepShaver (C) 1997-2002 Christian Bauer and Marc Hellwig
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
+#include <ppc_asm.tmpl>
+#include <xlowmem.h>
+
+#define SAVE_FP_EXEC_68K 1
+
+
+/*
+ *  void *get_toc(void) - Get TOC pointer (small data pointer r13 under Linux)
+ */
+
+	.globl	get_toc
+get_toc:
+	mr	r3,r13
+	blr
+
+
+/*
+ *  void *get_sp(void) - Get stack pointer
+ */
+
+	.globl	get_sp
+get_sp:
+	mr	r3,r1
+	blr
+
+
+/*
+ *  void set_r2(uint32 val {r3}) - Set r2
+ */
+
+	.globl	set_r2
+set_r2:
+	mr	r2,r3
+	blr
+
+
+/*
+ *  void flush_icache_range(void *start {r3}, void *end {r3}) - Flush D and I cache
+ */
+
+CACHE_LINE_SIZE = 32
+LG_CACHE_LINE_SIZE = 5
+
+	.globl	flush_icache_range
+flush_icache_range:
+	li	r5,CACHE_LINE_SIZE-1
+	andc	r3,r3,r5
+	subf	r4,r3,r4
+	add	r4,r4,r5
+	srwi.	r4,r4,LG_CACHE_LINE_SIZE
+	beqlr
+	mtctr	r4
+	mr	r6,r3
+1:	dcbst	0,r3
+	addi	r3,r3,CACHE_LINE_SIZE
+	bdnz	1b
+	sync				/* wait for dcbst's to get to ram */
+	mtctr	r4
+2:	icbi	0,r6
+	addi	r6,r6,CACHE_LINE_SIZE
+	bdnz	2b
+	sync
+	isync
+	blr
+
+
+/*
+ *  long atomic_add(long *var{r3}, long add{r4}) - Atomic add operation
+ *  long atomic_and(long *var{r3}, long and{r4}) - Atomic and operation
+ *  long atomic_or(long *var{r3}, long or{r4}) - Atomic or operation
+ *  int test_and_set(int *var{r3}, int val{r4}) - Atomic test-and-set
+ */
+
+	.globl	atomic_add
+atomic_add:
+10:	dcbf	r0,r3
+	sync
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	isync
+	lwarx	r5,r0,r3
+	add	r0,r4,r5
+	stwcx.	r0,r0,r3
+	bne-	10b
+	mr	r3,r5
+	isync
+	blr
+
+	.globl	atomic_and
+atomic_and:
+10:	dcbf	r0,r3
+	sync
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	isync
+	lwarx	r5,r0,r3
+	and	r0,r4,r5
+	stwcx.	r0,r0,r3
+	bne-	10b
+	mr	r3,r5
+	isync
+	blr
+
+	.globl	atomic_or
+atomic_or:
+10:	dcbf	r0,r3
+	sync
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	isync
+	lwarx	r5,r0,r3
+	or	r0,r4,r5
+	stwcx.	r0,r0,r3
+	bne-	10b
+	mr	r3,r5
+	isync
+	blr
+
+	.globl	test_and_set
+test_and_set:
+10:	dcbf	r0,r3
+	sync
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	ori	r0,r0,1
+	isync
+	lwarx	r5,r0,r3
+	cmpi	0,r5,0x0000
+	beq	1f
+	stwcx.	r4,r0,r3
+	bne-	10b
+1:	isync     
+	mr	r3,r5
+	blr
+
+
+/*
+ *  void quit_emulator(void) - Jump to XLM_EMUL_RETURN_PROC
+ */
+
+	.globl	quit_emulator
+quit_emulator:
+	lwz	r0,XLM_EMUL_RETURN_PROC(r0)
+	mtlr	r0
+	blr
+
+
+/*
+ *  void jump_to_rom(uint32 entry {r3}, uint32 emulator_data {r4}) - Jump to Mac ROM
+ */
+
+	.globl	jump_to_rom
+jump_to_rom:
+	// Create stack frame
+	mflr	r0
+	stw	r0,4(r1)
+	stwu	r1,-(20+19*4+18*8)(r1)	// maintain 16 byte alignment
+
+	// Save PowerPC registers
+	stmw	r13,20(r1)
+	stfd	f14,20+19*4+0*8(r1)
+	stfd	f15,20+19*4+1*8(r1)
+	stfd	f16,20+19*4+2*8(r1)
+	stfd	f17,20+19*4+3*8(r1)
+	stfd	f18,20+19*4+4*8(r1)
+	stfd	f19,20+19*4+5*8(r1)
+	stfd	f20,20+19*4+6*8(r1)
+	stfd	f21,20+19*4+7*8(r1)
+	stfd	f22,20+19*4+8*8(r1)
+	stfd	f23,20+19*4+9*8(r1)
+	stfd	f24,20+19*4+10*8(r1)
+	stfd	f25,20+19*4+11*8(r1)
+	stfd	f26,20+19*4+12*8(r1)
+	stfd	f27,20+19*4+13*8(r1)
+	stfd	f28,20+19*4+14*8(r1)
+	stfd	f29,20+19*4+15*8(r1)
+	stfd	f30,20+19*4+16*8(r1)
+	stfd	f31,20+19*4+17*8(r1)
+
+	// Move entry address to ctr
+	mtctr	r3
+
+	// Skip over EMUL_RETURN routine and get its address
+	bl	1f
+
+
+	/*
+	 *  EMUL_RETURN: Returned from emulator
+	 */
+
+	// Restore PowerPC registers
+	lwz	r1,XLM_EMUL_RETURN_STACK(r0)
+	lmw	r13,20(r1)
+	lfd	f14,20+19*4+0*8(r1)
+	lfd	f15,20+19*4+1*8(r1)
+	lfd	f16,20+19*4+2*8(r1)
+	lfd	f17,20+19*4+3*8(r1)
+	lfd	f18,20+19*4+4*8(r1)
+	lfd	f19,20+19*4+5*8(r1)
+	lfd	f20,20+19*4+6*8(r1)
+	lfd	f21,20+19*4+7*8(r1)
+	lfd	f22,20+19*4+8*8(r1)
+	lfd	f23,20+19*4+9*8(r1)
+	lfd	f24,20+19*4+10*8(r1)
+	lfd	f25,20+19*4+11*8(r1)
+	lfd	f26,20+19*4+12*8(r1)
+	lfd	f27,20+19*4+13*8(r1)
+	lfd	f28,20+19*4+14*8(r1)
+	lfd	f29,20+19*4+15*8(r1)
+	lfd	f30,20+19*4+16*8(r1)
+	lfd	f31,20+19*4+17*8(r1)
+
+	// Exiting from 68k emulator
+	li	r0,1
+	stw	r0,XLM_IRQ_NEST(r0)
+	li	r0,MODE_NATIVE
+	stw	r0,XLM_RUN_MODE(r0)
+
+	// Return to caller of jump_to_rom()
+	lwz	r0,20+19*4+18*8+4(r1)
+	mtlr	r0
+	addi	r1,r1,20+19*4+18*8
+	blr
+
+
+	// Save address of EMUL_RETURN routine for 68k emulator patch
+1:	mflr	r0
+	stw	r0,XLM_EMUL_RETURN_PROC(r0)
+
+	// Skip over EXEC_RETURN routine and get its address
+	bl	2f
+
+
+	/*
+	 *  EXEC_RETURN: Returned from 68k routine executed with Execute68k()
+	 */
+
+	// Save r25 (contains current 68k interrupt level)
+	stw	r25,XLM_68K_R25(r0)
+
+	// Reentering EMUL_OP mode
+	li	r0,MODE_EMUL_OP
+	stw	r0,XLM_RUN_MODE(r0)
+
+	// Save 68k registers
+	lwz	r4,48(r1)	// Pointer to M68kRegisters
+	stw	r8,0*4(r4)	// d[0]...d[7]
+	stw	r9,1*4(r4)
+	stw	r10,2*4(r4)
+	stw	r11,3*4(r4)
+	stw	r12,4*4(r4)
+	stw	r13,5*4(r4)
+	stw	r14,6*4(r4)
+	stw	r15,7*4(r4)
+	stw	r16,8*4(r4)	// a[0]..a[6]
+	stw	r17,9*4(r4)
+	stw	r18,10*4(r4)
+	stw	r19,11*4(r4)
+	stw	r20,12*4(r4)
+	stw	r21,13*4(r4)
+	stw	r22,14*4(r4)
+
+	// Restore PowerPC registers
+	lmw	r13,56(r1)
+#if SAVE_FP_EXEC_68K
+	lfd	f14,56+19*4+0*8(r1)
+	lfd	f15,56+19*4+1*8(r1)
+	lfd	f16,56+19*4+2*8(r1)
+	lfd	f17,56+19*4+3*8(r1)
+	lfd	f18,56+19*4+4*8(r1)
+	lfd	f19,56+19*4+5*8(r1)
+	lfd	f20,56+19*4+6*8(r1)
+	lfd	f21,56+19*4+7*8(r1)
+	lfd	f22,56+19*4+8*8(r1)
+	lfd	f23,56+19*4+9*8(r1)
+	lfd	f24,56+19*4+10*8(r1)
+	lfd	f25,56+19*4+11*8(r1)
+	lfd	f26,56+19*4+12*8(r1)
+	lfd	f27,56+19*4+13*8(r1)
+	lfd	f28,56+19*4+14*8(r1)
+	lfd	f29,56+19*4+15*8(r1)
+	lfd	f30,56+19*4+16*8(r1)
+	lfd	f31,56+19*4+17*8(r1)
+#endif
+
+	// Return to caller
+	lwz	r0,52(r1)
+	mtcrf	0xff,r0
+	lwz	r0,56+19*4+18*8+4(r1)
+	mtlr	r0
+	addi	r1,r1,56+19*4+18*8
+	blr
+
+
+	// Save address of EXEC_RETURN routine for 68k emulator patch
+2:	mflr	r0
+	stw	r0,XLM_EXEC_RETURN_PROC(r0)
+
+	// Skip over EMUL_BREAK/EMUL_OP routine and get its address
+	bl	3f
+
+
+	/*
+	 *  EMUL_BREAK/EMUL_OP: Execute native routine, selector in r5 (my own private mode switch)
+	 *
+	 *  68k registers are stored in a M68kRegisters struct on the stack
+	 *  which the native routine may read and modify
+	 */
+
+	// Save r25 (contains current 68k interrupt level)
+	stw	r25,XLM_68K_R25(r0)
+
+	// Entering EMUL_OP mode within 68k emulator
+	li	r0,MODE_EMUL_OP
+	stw	r0,XLM_RUN_MODE(r0)
+
+	// Create PowerPC stack frame, reserve space for M68kRegisters
+	mr	r3,r1
+	subi	r1,r1,64	// Fake "caller" frame
+	rlwinm	r1,r1,0,0,27	// Align stack
+
+	mfcr	r0
+	rlwinm	r0,r0,0,11,8
+	stw	r0,4(r1)
+	mfxer	r0
+	stw	r0,16(r1)
+	stw	r2,12(r1)
+	stwu	r1,-(8+16*4+15*8)(r1)
+
+	// Save 68k registers (M68kRegisters)
+	stw	r8,8+0*4(r1)	// d[0]..d[7]
+	stw	r9,8+1*4(r1)
+	stw	r10,8+2*4(r1)
+	stw	r11,8+3*4(r1)
+	stw	r12,8+4*4(r1)
+	stw	r13,8+5*4(r1)
+	stw	r14,8+6*4(r1)
+	stw	r15,8+7*4(r1)
+	stw	r16,8+8*4(r1)	// a[0]..a[7]
+	stw	r17,8+9*4(r1)
+	stw	r18,8+10*4(r1)
+	stw	r19,8+11*4(r1)
+	stw	r20,8+12*4(r1)
+	stw	r21,8+13*4(r1)
+	stw	r22,8+14*4(r1)
+	stw	r3,8+15*4(r1)
+	stfd	f0,8+16*4+0*8(r1)
+	stfd	f1,8+16*4+1*8(r1)
+	stfd	f2,8+16*4+2*8(r1)
+	stfd	f3,8+16*4+3*8(r1)
+	stfd	f4,8+16*4+4*8(r1)
+	stfd	f5,8+16*4+5*8(r1)
+	stfd	f6,8+16*4+6*8(r1)
+	stfd	f7,8+16*4+7*8(r1)
+	mffs	f0
+	stfd	f8,8+16*4+8*8(r1)
+	stfd	f9,8+16*4+9*8(r1)
+	stfd	f10,8+16*4+10*8(r1)
+	stfd	f11,8+16*4+11*8(r1)
+	stfd	f12,8+16*4+12*8(r1)
+	stfd	f13,8+16*4+13*8(r1)
+	stfd	f0,8+16*4+14*8(r1)
+
+	// Execute native routine
+	lwz	r13,XLM_TOC(r0)
+	addi	r3,r1,8
+	mr	r4,r24
+	bl	EmulOp__FP13M68kRegistersUii
+
+	// Restore 68k registers (M68kRegisters)
+	lwz	r8,8+0*4(r1)	// d[0]..d[7]
+	lwz	r9,8+1*4(r1)
+	lwz	r10,8+2*4(r1)
+	lwz	r11,8+3*4(r1)
+	lwz	r12,8+4*4(r1)
+	lwz	r13,8+5*4(r1)
+	lwz	r14,8+6*4(r1)
+	lwz	r15,8+7*4(r1)
+	lwz	r16,8+8*4(r1)	// a[0]..a[7]
+	lwz	r17,8+9*4(r1)
+	lwz	r18,8+10*4(r1)
+	lwz	r19,8+11*4(r1)
+	lwz	r20,8+12*4(r1)
+	lwz	r21,8+13*4(r1)
+	lwz	r22,8+14*4(r1)
+	lwz	r3,8+15*4(r1)
+	lfd	f13,8+16*4+14*8(r1)
+	lfd	f0,8+16*4+0*8(r1)
+	lfd	f1,8+16*4+1*8(r1)
+	lfd	f2,8+16*4+2*8(r1)
+	lfd	f3,8+16*4+3*8(r1)
+	lfd	f4,8+16*4+4*8(r1)
+	lfd	f5,8+16*4+5*8(r1)
+	lfd	f6,8+16*4+6*8(r1)
+	lfd	f7,8+16*4+7*8(r1)
+	mtfsf	0xff,f13
+	lfd	f8,8+16*4+8*8(r1)
+	lfd	f9,8+16*4+9*8(r1)
+	lfd	f10,8+16*4+10*8(r1)
+	lfd	f11,8+16*4+11*8(r1)
+	lfd	f12,8+16*4+12*8(r1)
+	lfd	f13,8+16*4+13*8(r1)
+
+	// Delete PowerPC stack frame
+	lwz	r2,8+16*4+15*8+12(r1)
+	lwz	r0,8+16*4+15*8+16(r1)
+	mtxer	r0
+	lwz	r0,8+16*4+15*8+4(r1)
+	mtcrf	0xff,r0
+	mr	r1,r3
+
+	// Reentering 68k emulator
+	li	r0,MODE_68K
+	stw	r0,XLM_RUN_MODE(r0)
+
+	// Set r0 to 0 for 68k emulator
+	li	r0,0
+
+	// Execute next 68k opcode
+	rlwimi	r29,r27,3,13,28
+	lhau	r27,2(r24)
+	mtlr	r29
+	blr
+
+
+	// Save address of EMUL_BREAK/EMUL_OP routine for 68k emulator patch
+3:	mflr	r0
+	stw	r0,XLM_EMUL_OP_PROC(r0)
+
+	// Save stack pointer for EMUL_RETURN
+	stw	r1,XLM_EMUL_RETURN_STACK(r0)
+
+	// Preset registers for ROM boot routine
+	lis	r3,0x40b0		// Pointer to ROM boot structure
+	ori	r3,r3,0xd000
+
+	// 68k emulator is now active
+	li	r0,MODE_68K
+	stw	r0,XLM_RUN_MODE(r0)
+
+	// Jump to ROM
+	bctr
+
+
+/*
+ *  void execute_68k(uint32 pc {r3}, M68kRegisters *r {r4}) - Execute 68k routine
+ */
+
+	.globl	execute_68k
+execute_68k:
+	// Create MacOS stack frame
+	mflr	r0
+	stw	r0,4(r1)
+	stwu	r1,-(56+19*4+18*8)(r1)
+	mfcr	r0
+	stw	r4,48(r1)	// save pointer to M68kRegisters for EXEC_RETURN
+	stw	r0,52(r1)	// save CR
+
+	// Save PowerPC registers
+	stmw	r13,56(r1)
+#if SAVE_FP_EXEC_68K
+	stfd	f14,56+19*4+0*8(r1)
+	stfd	f15,56+19*4+1*8(r1)
+	stfd	f16,56+19*4+2*8(r1)
+	stfd	f17,56+19*4+3*8(r1)
+	stfd	f18,56+19*4+4*8(r1)
+	stfd	f19,56+19*4+5*8(r1)
+	stfd	f20,56+19*4+6*8(r1)
+	stfd	f21,56+19*4+7*8(r1)
+	stfd	f22,56+19*4+8*8(r1)
+	stfd	f23,56+19*4+9*8(r1)
+	stfd	f24,56+19*4+10*8(r1)
+	stfd	f25,56+19*4+11*8(r1)
+	stfd	f26,56+19*4+12*8(r1)
+	stfd	f27,56+19*4+13*8(r1)
+	stfd	f28,56+19*4+14*8(r1)
+	stfd	f29,56+19*4+15*8(r1)
+	stfd	f30,56+19*4+16*8(r1)
+	stfd	f31,56+19*4+17*8(r1)
+#endif
+
+	// Set up registers for 68k emulator
+	lwz	r31,XLM_KERNEL_DATA(r0)	// Pointer to Kernel Data
+	addi	r31,r31,0x1000
+	li	r0,0
+	mtcrf	0xff,r0
+	creqv	11,11,11			// Supervisor mode
+	lwz	r8,0*4(r4)	// d[0]..d[7]
+	lwz	r9,1*4(r4)
+	lwz	r10,2*4(r4)
+	lwz	r11,3*4(r4)
+	lwz	r12,4*4(r4)
+	lwz	r13,5*4(r4)
+	lwz	r14,6*4(r4)
+	lwz	r15,7*4(r4)
+	lwz	r16,8*4(r4)	// a[0]..a[6]
+	lwz	r17,9*4(r4)
+	lwz	r18,10*4(r4)
+	lwz	r19,11*4(r4)
+	lwz	r20,12*4(r4)
+	lwz	r21,13*4(r4)
+	lwz	r22,14*4(r4)
+	li	r23,0
+	mr	r24,r3
+	lwz	r25,XLM_68K_R25(r0)		// MSB of SR
+	li	r26,0
+	li	r28,0				// VBR
+	lwz	r29,0x74(r31)		// Pointer to opcode table
+	lwz	r30,0x78(r31)		// Address of emulator
+
+	// Push return address (points to EXEC_RETURN opcode) on stack
+	li	r0,XLM_EXEC_RETURN_OPCODE
+	stwu	r0,-4(r1)
+
+	// Reentering 68k emulator
+	li	r0,MODE_68K
+	stw	r0,XLM_RUN_MODE(r0)
+
+	// Set r0 to 0 for 68k emulator
+	li	r0,0
+
+	// Execute 68k opcode
+	lha	r27,0(r24)
+	rlwimi	r29,r27,3,13,28
+	lhau	r27,2(r24)
+	mtlr	r29
+	blr
+
+
+/*
+ *  uint32 call_macos1(uint32 tvect{r3}, uint32 arg1{r4}) ... - Call MacOS routines
+ */
+
+#define prolog \
+	mflr	r0;		\
+	stw	r0,4(r1);	\
+	stwu	r1,-64(r1)
+
+#define epilog \
+	lwz	r13,XLM_TOC(r0);\
+	lwz	r0,64+4(r1);	\
+	mtlr	r0;		\
+	addi	r1,r1,64;	\
+	blr
+
+	.globl	call_macos
+call_macos:
+	prolog
+	lwz	r0,0(r3)	// Get routine address
+	lwz	r2,4(r3)	// Load TOC pointer
+	mtctr	r0
+	bctrl
+	epilog
+
+	.globl	call_macos1
+call_macos1:
+	prolog
+	lwz	r0,0(r3)	// Get routine address
+	lwz	r2,4(r3)	// Load TOC pointer
+	mtctr	r0
+	mr	r3,r4
+	bctrl
+	epilog
+
+	.globl	call_macos2
+call_macos2:
+	prolog
+	lwz	r0,0(r3)	// Get routine address
+	lwz	r2,4(r3)	// Load TOC pointer
+	mtctr	r0
+	mr	r3,r4
+	mr	r4,r5
+	bctrl
+	epilog
+
+	.globl	call_macos3
+call_macos3:
+	prolog
+	lwz	r0,0(r3)	// Get routine address
+	lwz	r2,4(r3)	// Load TOC pointer
+	mtctr	r0
+	mr	r3,r4
+	mr	r4,r5
+	mr	r5,r6
+	bctrl
+	epilog
+
+	.globl	call_macos4
+call_macos4:
+	prolog
+	lwz	r0,0(r3)	// Get routine address
+	lwz	r2,4(r3)	// Load TOC pointer
+	mtctr	r0
+	mr	r3,r4
+	mr	r4,r5
+	mr	r5,r6
+	mr	r6,r7
+	bctrl
+	epilog
+
+	.globl	call_macos5
+call_macos5:
+	prolog
+	lwz	r0,0(r3)	// Get routine address
+	lwz	r2,4(r3)	// Load TOC pointer
+	mtctr	r0
+	mr	r3,r4
+	mr	r4,r5
+	mr	r5,r6
+	mr	r6,r7
+	mr	r7,r8
+	bctrl
+	epilog
+
+	.globl	call_macos6
+call_macos6:
+	prolog
+	lwz	r0,0(r3)	// Get routine address
+	lwz	r2,4(r3)	// Load TOC pointer
+	mtctr	r0
+	mr	r3,r4
+	mr	r4,r5
+	mr	r5,r6
+	mr	r6,r7
+	mr	r7,r8
+	mr	r8,r9
+	bctrl
+	epilog
+
+	.globl	call_macos7
+call_macos7:
+	prolog
+	lwz	r0,0(r3)	// Get routine address
+	lwz	r2,4(r3)	// Load TOC pointer
+	mtctr	r0
+	mr	r3,r4
+	mr	r4,r5
+	mr	r5,r6
+	mr	r6,r7
+	mr	r7,r8
+	mr	r8,r9
+	mr	r9,r10
+	bctrl
+	epilog
+
+
+/*
+ *  Native resource manager patches
+ */
+
+	.globl	get_resource
+get_resource:
+	// Create stack frame
+	mflr	r0
+	stw	r0,8(r1)
+	stwu	r1,-(56+12)(r1)
+
+	// Save type/ID
+	stw	r3,56(r1)
+	stw	r4,56+4(r1)
+
+	// Call old routine
+	lwz	r0,XLM_GET_RESOURCE(r0)
+	lwz	r2,XLM_RES_LIB_TOC(r0)
+	mtctr	r0
+	bctrl
+	stw	r3,56+8(r1)		// Save handle
+
+	// Call CheckLoad
+	lwz	r3,56(r1)
+	lwz	r4,56+4(r1)
+	lwz	r5,56+8(r1)
+	bl	check_load_invoc__FUisPPUs
+	lwz	r3,56+8(r1)		// Restore handle
+
+	// Return to caller
+	lwz	r0,56+12+8(r1)
+	mtlr	r0
+	addi	r1,r1,56+12
+	blr
+
+	.globl	get_1_resource
+get_1_resource:
+	// Create stack frame
+	mflr	r0
+	stw	r0,8(r1)
+	stwu	r1,-(56+12)(r1)
+
+	// Save type/ID
+	stw	r3,56(r1)
+	stw	r4,56+4(r1)
+
+	// Call old routine
+	lwz	r0,XLM_GET_1_RESOURCE(r0)
+	lwz	r2,XLM_RES_LIB_TOC(r0)
+	mtctr	r0
+	bctrl
+	stw	r3,56+8(r1)		// Save handle
+
+	// Call CheckLoad
+	lwz	r3,56(r1)
+	lwz	r4,56+4(r1)
+	lwz	r5,56+8(r1)
+	bl	check_load_invoc__FUisPPUs
+	lwz	r3,56+8(r1)		// Restore handle
+
+	// Return to caller
+	lwz	r0,56+12+8(r1)
+	mtlr	r0
+	addi	r1,r1,56+12
+	blr
+
+	.globl	get_ind_resource
+get_ind_resource:
+	// Create stack frame
+	mflr	r0
+	stw	r0,8(r1)
+	stwu	r1,-(56+12)(r1)
+
+	// Save type/index
+	stw	r3,56(r1)
+	stw	r4,56+4(r1)
+
+	// Call old routine
+	lwz	r0,XLM_GET_IND_RESOURCE(r0)
+	lwz	r2,XLM_RES_LIB_TOC(r0)
+	mtctr	r0
+	bctrl
+	stw	r3,56+8(r1)		// Save handle
+
+	// Call CheckLoad
+	lwz	r3,56(r1)
+	lwz	r4,56+4(r1)
+	lwz	r5,56+8(r1)
+	bl	check_load_invoc__FUisPPUs
+	lwz	r3,56+8(r1)		// Restore handle
+
+	// Return to caller
+	lwz	r0,56+12+8(r1)
+	mtlr	r0
+	addi	r1,r1,56+12
+	blr
+
+	.globl	get_1_ind_resource
+get_1_ind_resource:
+	// Create stack frame
+	mflr	r0
+	stw	r0,8(r1)
+	stwu	r1,-(56+12)(r1)
+
+	// Save type/index
+	stw	r3,56(r1)
+	stw	r4,56+4(r1)
+
+	// Call old routine
+	lwz	r0,XLM_GET_1_IND_RESOURCE(r0)
+	lwz	r2,XLM_RES_LIB_TOC(r0)
+	mtctr	r0
+	bctrl
+	stw	r3,56+8(r1)		// Save handle
+
+	// Call CheckLoad
+	lwz	r3,56(r1)
+	lwz	r4,56+4(r1)
+	lwz	r5,56+8(r1)
+	bl	check_load_invoc__FUisPPUs
+	lwz	r3,56+8(r1)		// Restore handle
+
+	// Return to caller
+	lwz	r0,56+12+8(r1)
+	mtlr	r0
+	addi	r1,r1,56+12
+	blr
+
+	.globl	r_get_resource
+r_get_resource:
+	// Create stack frame
+	mflr	r0
+	stw	r0,8(r1)
+	stwu	r1,-(56+12)(r1)
+
+	// Save type/ID
+	stw	r3,56(r1)
+	stw	r4,56+4(r1)
+
+	// Call old routine
+	lwz	r0,XLM_R_GET_RESOURCE(r0)
+	lwz	r2,XLM_RES_LIB_TOC(r0)
+	mtctr	r0
+	bctrl
+	stw	r3,56+8(r1)		// Save handle
+
+	// Call CheckLoad
+	lwz	r3,56(r1)
+	lwz	r4,56+4(r1)
+	lwz	r5,56+8(r1)
+	bl	check_load_invoc__FUisPPUs
+	lwz	r3,56+8(r1)		// Restore handle
+
+	// Return to caller
+	lwz	r0,56+12+8(r1)
+	mtlr	r0
+	addi	r1,r1,56+12
+	blr
+
+
+/*
+ *  void ppc_interrupt(uint32 entry{r3}, uint32 kernel_data{r4}) - Execute PPC interrupt
+ */
+
+	.globl	ppc_interrupt
+ppc_interrupt:
+	mflr	r0
+	stw	r0,4(r1)
+	stwu	r1,-64(r1)
+
+	// Get address of return routine
+	bl	1f
+
+	// Return routine
+	lwz	r0,64+4(r1)
+	mtlr	r0
+	addi	r1,r1,64
+	blr
+
+	// Prepare registers for nanokernel interrupt routine
+1:	mtctr	r1
+	mr	r1,r4
+	stw	r6,0x018(r1)
+	mfctr	r6
+	stw	r6,0x004(r1)
+	lwz	r6,0x65c(r1)
+	stw	r7,0x13c(r6)
+	stw	r8,0x144(r6)
+	stw	r9,0x14c(r6)
+	stw	r10,0x154(r6)
+	stw	r11,0x15c(r6)
+	stw	r12,0x164(r6)
+	stw	r13,0x16c(r6)
+
+	mflr	r10
+	mfcr	r13
+	lwz	r7,0x660(r1)
+	mflr	r12
+	rlwimi.	r7,r7,8,0,0
+	li	r11,0
+	ori	r11,r11,0xf072	// MSR (SRR1)
+	mtcrf	0x70,r11
+	li	r8,0
+
+	// Enter nanokernel
+	mtlr	r3
+	blr

@@ -1,0 +1,8 @@
+"SaveROM" is a program that allows you to save the ROM of
+a PowerMac running under BeOS to a file.
+
+1. Copy "sheep_driver" to ~/config/add-ons/kernel/drivers.
+2. Double-click the "SaveROM" icon.
+
+This will create a file called "ROM" which should be 4MB
+in size.

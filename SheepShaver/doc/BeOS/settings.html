@@ -1,0 +1,127 @@
+<HTML>
+<HEAD>
+<TITLE>Setting up SheepShaver</TITLE>
+</HEAD>
+<BODY BGCOLOR=#FFFFFF>
+
+<H1>Setting up SheepShaver</H1>
+
+In the "SheepShaver Settings" window that pops up when you double-click on
+the SheepShaver icon, you can configure certain features of SheepShaver.
+When you click on <B>"Start"</B>, the current settings are saved to disk and will be
+available next time you start SheepShaver.
+
+<P>The settings are divided into four groups: Volumes, Graphics/Sound, Serial/Network and Memory/Misc.
+
+<H2>Volumes</H2>
+
+<IMG SRC="volumes.gif">
+
+<P>The main part of the volumes pane is a <B>list</B> that contains all volumes to be mounted
+by SheepShaver. If this list is empty, SheepShaver will try to detect and mount all HFS partitions
+it can find. CD-ROM drives are always automatically detected and used.
+
+<P>SheepShaver can use HFS partitions, whole HFS formatted drives, and it can also
+emulate hard disks in single BeOS files ("hardfiles").
+
+<P>To add a Mac volume to the list, mount it on the BeOS side, click on <B>"Add..."</B>, go to the "Disks"
+level in the topmost popup menu of the file panel, click once on the volume you want and
+click on "Add". A line beginning with "/dev/disk/" should then appear in the volume list.
+After adding volumes to the list, you should unmount them on the BeOS side again.To remove
+a Mac volume, select it in the list and click on <B>"Remove"</B>.
+
+<P>You can create a new, empty hardfile by clicking on <B>"Create..."</B>. Enter the file
+name and the size of the hardfile and click on "Create". The hardfile will be created (this may
+take some seconds) and added to the volume list. The so-created hardfile will have to be
+formatted under MacOS before you can store something in it. If you start up SheepShaver,
+the Finder will display a message about an "unreadable" volume being found and give you the
+option to format it.
+
+<P>Double-clicking on an entry in the volume list will add or remove a "*" in front of the
+device name. Volumes marked with a "*" are read-only for the MacOS under SheepShaver.
+
+<P>SheepShaver will show a "BeOS" disk icon on the Mac desktop that allows access to BeOS
+files from Mac applications. In <B>"BeOS Root"</B> you specify which BeOS directory will
+be at the root of this virtual "BeOS" disk. You can enter a path name here or drag and drop a
+Tracker folder onto it. The default setting of "/boot" means that the "BeOS" icon in the MacOS
+Finder will correspond to your BeOS boot volume. If you want to access files on other BeOS
+volumes, you should enter "/" here. The "BeOS" disk will then contain folders for each BeOS
+volume (among other things). The MacOS will create files and folders like "Desktop", "Trash",
+"OpenFolderListDF" etc. in the directory you specify as "BeOS Root". If they annoy you, you
+can delete them.
+
+<P>To boot from CD-ROM, set the <B>"Boot From"</B> setting to <B>"CD-ROM"</B>.
+The <B>"Disable CD-ROM Driver"</B> box is used to disable SheepShaver's built-in CD-ROM driver.
+This is currently of not much use and you should leave the box unselected.
+
+<H2>Graphics/Sound</H2>
+
+<IMG SRC="graphics.gif">
+
+<P>WIth <B>"Window Refresh Rate"</B> you can set the refresh rate of the MacOS window.
+Higher rates mean faster screen updates and less "sluggish" behaviour, but also require more CPU time.
+
+<P>The <B>"QuickDraw Acceleration"</B> box should always be enabled. It allows for faster graphics in
+full-screen modes. But if your machine uses the "IXMicro" BeOS video driver, you have to disable the
+QuickDraw acceleration or full-screen modes won't work (this is because of BeOS bug #981112-032247).
+
+<P>The main part of the window is occupied by a list of checkboxes that allows you to select
+which <B>graphics modes</B> are available for displaying the MacOS desktop. You can, for
+example, disable the modes that your monitor or graphics card can't display, or disable the
+window modes when you want to run some Mac programs in full-screen mode that would otherwise
+erroneously switch to a window mode. The actual mode to be used is selected in the "Monitors"
+control panel under MacOS.
+
+<P>The <B>"Disable Sound Output"</B> box allows you to disable all sound output by SheepShaver.
+This is useful if the sound takes too much CPU time on your machine or to get rid of warning
+messages if SheepShaver can't use your audio hardware.
+
+<H2>Serial/Network</H2>
+
+<IMG SRC="serial.gif">
+
+<P>You can select to which ports the MacOS <B>modem and printer ports</B> are redirected.
+This doesn't make much sense on a PowerMac, but on a BeBox you can assign the modem
+and printer ports to any of the four serial ports (or com3/com4) or even parallel ports of
+the BeBox (useful for printing if you have Mac drivers for parallel printers, like the PowerPrint
+package from <A HREF="http://www.gdt.com">www.gdt.com</A>).
+
+<P>If you don't want SheepShaver's Ethernet support to be enabled for some reason, you
+can use the <B>"Disable Ethernet"</B> checkbox to disable it (this will also get rid of the annoying
+"no network hardware" messages if your Mac is not equipped with Ethernet).
+
+<H2>Memory/Misc</H2>
+
+<IMG SRC="memory.gif">
+
+<P>With <B>"MacOS RAM Size"</B> you select how much RAM will be available to the MacOS
+(and all MacOS applications running under it). SheepShaver uses the BeOS virtual memory system,
+so you can select more RAM than you physically have in your machine. The MacOS virtual memory
+system is not available under SheepShaver (i.e. if you have 32MB of RAM in your computer and
+select 64MB to be used for MacOS in the SheepShaver settings, MacOS will behave as if it's running on
+a computer that has 64MB of RAM but no virtual memory).
+
+<P>The <B>"Ignore Illegal Memory Accesses"</B> option is there to make some broken Mac
+programs work that access addresses where there is no RAM or ROM. With this option unchecked,
+SheepShaver will in this case display an error message and quit. When the option is activated,
+SheepShaver will try to continue as if the illegal access never happened (writes are ignored, reads
+return 0). This may or may not make the program work (when a program performs an illegal access,
+it is most likely that something else went wrong). When a Mac program behaves strangely or hangs,
+you can quit SheepShaver, uncheck this option and retry. If you get an "illegal access" message,
+you will know that something is broken.
+
+<P>If the <B>"Don't Use CPU When Idle"</B> option is enabled, SheepShaver will try to reduce
+CPU usage to a minimum when the MacOS is doing "nothing" but waiting for user input. This doesn't
+work with all programs and it may confuse the timing of some games but in general you should
+leave it enabled.
+
+<P><B>"ROM File"</B> specifies the path name of the Mac ROM file to be used. If it is left
+blank, SheepShaver expects the ROM file to be called "ROM" and be in the same directory as
+the SheepShaver application.
+
+<HR>
+<ADDRESS>
+SheepShaver User's Guide
+</ADDRESS>
+</BODY>
+</HTML>

@@ -1,0 +1,76 @@
+<HTML>
+<HEAD>
+<TITLE>Using SheepShaver</TITLE>
+</HEAD>
+<BODY BGCOLOR=#FFFFFF>
+
+<H1>Using SheepShaver</H1>
+
+<H2>Changing the display mode</H2>
+
+SheepShaver can display the MacOS user interface in a BeOS window or full-screen
+(much faster) in several resolutions and color depths. You select the display mode
+as usual under MacOS in the "Monitors" control panel (under System 7.x, click on "Options").
+The "75Hz" modes are full-screen modes, the "60Hz" modes are window modes
+(this doesn't mean that the video refresh rate is 75 or 60Hz in the respective modes;
+the rate displayed has no meaning; it's simply there to distinguish full screen modes
+from window modes).
+
+<H2>Window mode</H2>
+
+The SheepShaver window has a menu at the bottom that allows you to change the
+graphics refresh rate and to mount floppy disks (see below). The window refresh is
+disabled as long as the "Scroll Lock" key is pressed (the graphics output is then frozen).
+
+<H2>Full-screen mode</H2>
+
+The full-screen mode uses a whole BeOS workspace for displaying the MacOS user
+interface. You can switch workspaces with Command-F1/F2/F3/etc. Please note that
+the MacOS (and all MacOS applications) will be suspended when you switch to a different
+workspace. It will only be resumed when you go back to the SheepShaver workspace.
+
+<H2>Networking</H2>
+
+SheepShaver only supports Ethernet networking (and PPP via the serial
+ports). If there are multiple Ethernet cards installed, only the first
+card will be used. The Ethernet support is implemented at the data-link
+level. This implies that the "Mac" and the "Be" side must have two different
+network addresses.
+
+<H2>Using floppy disks</H2>
+
+Floppy disks are not automatically detected when they are inserted. They have to be
+mounted explicitly. After inserting a floppy disk, select the "Mount Floppy" item in the
+"SheepShaver" menu (when running in window mode), or press Ctrl-F1 (when running in
+full-screen mode). BeBox users should note that floppy disks also have to be unmounted
+under MacOS before ejecting them from the drive.
+
+<H2>Accessing BeOS files</H2>
+
+SheepShaver will display a "BeOS" disk icon on the Mac desktop that allows you
+to access any BeOS files/folders which are in the directory specified as "BeOS Root"
+in the "Volumes" pane of the SheepShaver settings. You can open and save files on the
+"BeOS" disk from Mac applications, copy, move or rename files from the Finder etc.
+Putting files/folder to the trash may however not always work. SheepShaver translates
+some BeOS file types to MacOS types and vice versa, so e.g. JPEG and PDF files will
+show up the correct icons in the Finder. To store Mac resources and other additional
+data, SheepShaver uses the following BeOS file attributes:
+
+<UL>
+<LI><CODE>MACOS:RFORK</CODE> contains the complete Mac resource fork of the file
+<LI><CODE>MACOS:HFS_FLAGS</CODE> contains Finder flags
+<LI><CODE>MACOS:CREATOR</CODE> contains the MacOS creator application ID
+</UL>
+
+<H2>Copying text via the clipboard</H2>
+
+SheepShaver tries to keep the BeOS and MacOS clipboards synchronized. That means,
+when you copy a piece of text under BeOS, you can paste it into a MacOS application
+and vice versa.
+
+<HR>
+<ADDRESS>
+SheepShaver User's Guide
+</ADDRESS>
+</BODY>
+</HTML>

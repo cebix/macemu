@@ -1,0 +1,79 @@
+<HTML>
+<HEAD>
+<TITLE>Troubleshooting</TITLE>
+</HEAD>
+<BODY BGCOLOR=#FFFFFF>
+
+<H1>Troubleshooting</H1>
+
+<H2>SheepShaver doesn't boot</H2>
+
+SheepShaver should boot all MacOS versions &gt;=7.5.2, except MacOS X. However,
+your mileage may vary. If it doesn't boot, try again with extensions disabled
+(by pressing the shift key) and then remove some of these extensions:
+"MacOS Licensing Extension", Speed Doubler, 68k FPU extensions and MacsBug.
+
+<H2>The colors are wrong in 16 or 32 bit graphics modes</H2>
+
+If you're running SheepShaver on a BeBox, the only graphics modes that have
+the right colors are the 8 bit modes (this is actually a hardware problem
+and has to do with frame buffers being little-endian on the BeBox), unless
+you are using a Matrox Milennium I/II.
+<P>You should also be aware that not all graphics cards support 16 bit modes
+under BeOS (especially S3 cards don't). Check the BeOS "Screen" preferences
+application to see if your card does.
+
+<H2>SheepShaver appears to be very slow</H2>
+
+<UL>
+<LI>Don't use the window modes, the fullscreen modes are much faster.
+<LI>If you nevertheless want (or have) to use a window mode, you should set the
+color depth in MacOS to the same as the BeOS workspace you are running SheepShaver on
+(e.g. if you are on a 16-bit workspace, set the color depth in MacOS to "Thousands").
+Also, set the window refresh rate to a low value (high values like 30Hz will make SheepShaver
+(and BeOS) slower, not faster!).
+</UL>
+
+<H2>Full-screen mode doesn't work</H2>
+
+If your machine uses the "IXMicro" BeOS video driver (TwinTurbo cards), you
+will have to disable the "QuickDraw Acceleration" in the "Video" pane of the
+SheepShaver settings.
+
+<H2>Ethernet doesn't work</H2>
+
+<UL>
+<LI>Is the Ethernet set up under BeOS? Ethernet will not work in SheepShaver if you didn't set it up in the BeOS "Network" preferences.
+<LI>If you're using TCP/IP on the MacOS side, you have to set up different IP addresses for the BeOS and for the MacOS.
+<LI>Try disabling AppleTalk in the BeOS Network preferences (there might be conflicts between BeOS AppleTalk and SheepShaver networking).
+</UL>
+
+<H2>SheepShaver crashes, but yesterday it worked</H2>
+
+Try the "Zap PRAM File" item in the main menu of the SheepShaver preferences editor.
+When you are using a ROM file and switching to a different ROM version, you <B>have</B>
+to zap the PRAM file or SheepShaver might behave very weird.
+
+<H2>Known incompatibilities</H2>
+
+<UL>
+<LI>MacOS programs or drivers which access Mac hardware directly are not supported by SheepShaver.
+<LI>Speed Doubler, RAM Doubler, 68k FPU emulators and similar programs don't run under SheepShaver.
+<LI>MacsBug is not compatible with SheepShaver.
+<LI>If you want to run RealPC on a BeBox, you have to disable one CPU in the "Pulse" application or it will crash.
+</UL>
+
+<H2>Known bugs</H2>
+
+<UL>
+<LI>The QuickTime 2.5 Cinepak codec crashes the emulator.
+<LI>Programs that use InputSprockets crash the emulator when in window mode.
+<LI>The mouse cursor hotspot in window mode is not correct.
+</UL>
+
+<HR>
+<ADDRESS>
+SheepShaver User's Guide
+</ADDRESS>
+</BODY>
+</HTML>

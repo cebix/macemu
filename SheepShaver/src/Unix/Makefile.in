@@ -1,0 +1,96 @@
+# Linux makefile for SheepShaver
+
+## System specific configuration
+@SET_MAKE@
+SHELL = /bin/sh
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+datadir = @datadir@
+mandir = @mandir@
+man1dir = $(mandir)/man1
+
+CC = @CC@
+CXX = @CXX@
+CFLAGS = @CFLAGS@
+CXXFLAGS = @CXXFLAGS@
+CPPFLAGS = @CPPFLAGS@ -I../include -I.
+DEFS = @DEFS@ -D_REENTRANT -DDATADIR=\"$(datadir)/$(APP)\"
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+SYSSRCS = @SYSSRCS@
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@ -s
+INSTALL_DATA = @INSTALL_DATA@
+
+## Files
+SRCS = main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp sys_unix.cpp \
+    ../rom_patches.cpp ../rsrc_patches.cpp ../emul_op.cpp ../name_registry.cpp \
+    ../macos_util.cpp ../timer.cpp timer_unix.cpp ../xpram.cpp xpram_unix.cpp \
+    ../adb.cpp clip_unix.cpp ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp \
+    Linux/scsi_linux.cpp ../video.cpp video_x.cpp ../audio.cpp audio_oss_esd.cpp ../ether.cpp \
+    Linux/ether_linux.cpp ../serial.cpp serial_unix.cpp ../extfs.cpp extfs_unix.cpp \
+    about_window_unix.cpp ../user_strings.cpp user_strings_unix.cpp $(SYSSRCS)
+APP = SheepShaver
+
+## Rules
+.PHONY: modules install uninstall clean distclean depend dep
+.SUFFIXES:
+.SUFFIXES: .c .cpp .S .o .h
+
+all: $(APP)
+
+OBJ_DIR = obj
+$(OBJ_DIR)::
+	@[ -d $(OBJ_DIR) ] || mkdir $(OBJ_DIR) > /dev/null 2>&1
+
+define SRCS_LIST_TO_OBJS
+	$(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(foreach file, $(SRCS), \
+	$(basename $(notdir $(file))))))
+endef
+OBJS = $(SRCS_LIST_TO_OBJS)
+
+SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
+VPATH :=
+VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
+
+$(APP): $(OBJ_DIR) $(OBJS)
+	$(CXX) -o $(APP) $(LDFLAGS) $(OBJS) $(LIBS)
+
+modules:
+	cd NetDriver; make
+
+install: $(APP) installdirs
+	$(INSTALL_PROGRAM) $(APP) $(bindir)/$(APP)
+	-$(INSTALL_DATA) $(APP).1 $(man1dir)/$(APP).1
+
+installdirs:
+	$(SHELL) mkinstalldirs $(bindir) $(man1dir)
+
+uninstall:
+	rm -f $(bindir)/$(APP)
+	rm -f $(man1dir)/$(APP).1
+
+clean:
+	rm -f $(APP) $(OBJ_DIR)/* core* *.core *~ *.bak
+
+distclean: clean
+	rm -rf $(OBJ_DIR)
+	rm -f Makefile
+	rm -f config.cache config.log config.status config.h
+
+depend dep:
+	makedepend $(CPPFLAGS) -Y. $(SRCS) 2>/dev/null
+
+$(OBJ_DIR)/%.o : %.c
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o : %.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o : %.S
+	$(CPP) $(CPPFLAGS) -D__ASSEMBLY__ $< -o $*.s
+	$(AS) $(ASFLAGS) -o $@ $*.s
+	rm $*.s
+
+#-------------------------------------------------------------------------
+# DO NOT DELETE THIS LINE -- make depend depends on it.

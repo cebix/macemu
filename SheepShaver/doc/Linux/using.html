@@ -1,0 +1,113 @@
+<HTML>
+<HEAD>
+<TITLE>Using SheepShaver</TITLE>
+</HEAD>
+<BODY BGCOLOR=#FFFFFF>
+
+<H1>Using SheepShaver</H1>
+
+<H2>Changing the display mode</H2>
+
+SheepShaver can display the MacOS user interface in an X11 window or full-screen
+(much faster). You select the display mode as usual under MacOS in the "Monitors"
+control panel (under System 7.x, click on "Options"). The "75Hz" modes are full-screen
+modes, the "60Hz" modes are window modes (this doesn't mean that the video refresh
+rate is 75 or 60Hz in the respective modes; the rate displayed has no meaning; it's
+simply there to distinguish full screen modes from window modes).
+
+<H2>Full-screen mode</H2>
+
+The full-screen mode uses the whole X11 screen for displaying the MacOS user interface.
+You can temporarily switch back to the X11 desktop by pressing Ctrl-Tab. The MacOS (and
+all MacOS applications) will now be suspended. You can resume SheepShaver by activating
+the "SheepShaver suspended" window and pressing the space key. Using full-screen mode
+requires a DGA capable X server.
+
+<H2>Networking</H2>
+
+There are three approaches to networking with SheepShaver:
+
+<OL>
+<LI>Direct access to an Ethernet card via the "sheep_net" driver.
+In this case, the "ethernet card description" must be the name
+of a real Ethernet card, e.g. "eth0". It also requires the "sheep_net"
+driver to be installed and accessible. This approach will allow you
+to run all networking protocols under MacOS (TCP/IP, AppleTalk, IPX
+etc.) but there is no connection between Linux networking and MacOS
+networking. MacOS will only be able to talk to other machines on
+the Ethernet, but not to other networks that your Linux box routes
+(e.g. a second Ethernet or a PPP connection to the Internet).
+
+<LI>Putting SheepShaver on a virtual Ethernet via the "ethertap" device.
+In this case, the "ethernet card description" must be the name
+of an ethertap interface, e.g. "tap0". It also requires that you
+configure your kernel to enable routing and the ethertap device:
+under "Networking options", enable "Kernel/User netlink socket" and
+"Netlink device emulation", under "Network device support", activate
+"Ethertap network tap". You also have to modify <CODE>devices/net/ethertap.c</CODE>
+a bit before compiling the new kernel:
+
+<UL>
+<LI>insert <CODE>#define CONFIG_ETHERTAP_MC 1</CODE> near the top (after the <CODE>#include</CODE> lines)
+<LI>comment out the line <CODE>dev->flags|=IFF_NOARP;</CODE> in <CODE>ethertap_probe()</CODE>
+</UL>
+
+<P>
+Next, see <CODE>/usr/src/linux/Documentation/networking/ethertap.txt</CODE> for
+information on how to set up <CODE>/dev/tap*</CODE> device nodes and activate the
+ethertap interface. Under MacOS, select an IP address that is on the
+virtual network and set the default gateway to the IP address of the
+ethertap interface. This approach will let you access all networks
+that your Linux box has access to (especially, if your Linux box has
+a dial-up Internet connection and is configured for IP masquerading,
+you can access the Internet from MacOS). The drawback is that you
+can only use network protocols that Linux can route, so you have to
+install and configure netatalk if you want to use AppleTalk. Here is
+an example <CODE>/etc/atalk/atalkd.conf</CODE> for a LAN:
+
+<PRE>
+eth0 -seed -phase 2 -net 1 -addr 1.47 -zone "Ethernet"
+tap0 -seed -phase 2 -net 2 -addr 2.47 -zone "Sheepnet"
+</PRE>
+
+(the "47" is an arbitrary node number). This will set up a zone
+"Ethernet" (net 1) for the Ethernet and a zone "Sheepnet" (net 2)
+for the internal network connection of the ethertap interface.
+MacOS should automatically recognize the nets and zones upon startup.
+If you are in an existing AppleTalk network, you should contact
+your network administrator about the nets and zones you can use
+(instead of the ones given in the example above).
+
+<LI>Networking protocols for serial connections (PPP and SLIP, for example)
+can be used provided that you have the appropriate MacOS system components
+installed (e.g. Open Transport/PPP).
+</OL>
+
+<H2>Using floppy disks</H2>
+
+Floppy disks are not automatically detected when they are inserted. They have to be
+mounted explicitly: after inserting a floppy disk, press Ctrl-F1.
+
+<H2>Accessing Linux files</H2>
+
+SheepShaver will display a "Linux" disk icon on the Mac desktop that allows you
+to access any Linux files which are in the directory specified as "Linux Root"
+in the "Volumes" pane of the SheepShaver settings. You can open and save files on the
+"Linux" disk from Mac applications, copy, move or rename files from the Finder etc.
+SheepShaver translates some file name extensions to MacOS types and vice versa,
+so e.g. *.jpg and *.pdf files will show the correct icons in the Finder. MacOS
+resources and Finder attributes are stored in hidden <CODE>.rsrc</CODE> and
+<CODE>.finf</CODE> directories.
+
+<H2>Copying text via the clipboard</H2>
+
+SheepShaver tries to keep the Linux and MacOS clipboards synchronized. That means,
+when you copy a piece of text under Linux, you can paste it into a MacOS application
+and vice versa.
+
+<HR>
+<ADDRESS>
+SheepShaver User's Guide
+</ADDRESS>
+</BODY>
+</HTML>
