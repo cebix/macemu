@@ -18,10 +18,15 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <stdio.h>
 #include <stdlib.h>
+#include <netinet/in.h> // ntohl(), htonl()
+
+#if EMU_KHEPERIX
 #include "sysdeps.h"
 #include "cpu/ppc/ppc-cpu.hpp"
 #include "cpu/ppc/ppc-instructions.hpp"
+#endif
 
 // Disassemblers needed for debugging purposes
 #if ENABLE_MON
@@ -142,10 +147,18 @@ public:
 
 	bool test(void);
 
+	void set_results_file(FILE *fp)
+		{ results_file = fp; }
+
 private:
 
 	static const bool verbose = false;
 	uint32 tests, errors;
+
+	// Results file for reference
+	FILE *results_file;
+	uint32 get32();
+	void put32(uint32 v);
 
 	// Initial CR0, XER state
 	uint32 init_cr;
@@ -190,7 +203,7 @@ private:
 };
 
 powerpc_test_cpu::powerpc_test_cpu()
-	: powerpc_cpu(NULL)
+	: powerpc_cpu(NULL), results_file(NULL)
 {
 #if ENABLE_MON
 	mon_init();
@@ -203,6 +216,25 @@ powerpc_test_cpu::~powerpc_test_cpu()
 #if ENABLE_MON
 	mon_exit();
 #endif
+}
+
+uint32 powerpc_test_cpu::get32()
+{
+	uint32 v;
+	if (fread(&v, sizeof(v), 1, results_file) != 1) {
+		fprintf(stderr, "ERROR: unexpected end of results file\n");
+		exit(EXIT_FAILURE);
+	}
+	return ntohl(v);
+}
+
+void powerpc_test_cpu::put32(uint32 v)
+{
+	uint32 out = htonl(v);
+	if (fwrite(&out, sizeof(out), 1, results_file) != 1) {
+		fprintf(stderr, "could not write item to results file\n");
+		exit(EXIT_FAILURE);
+	}
 }
 
 void powerpc_test_cpu::execute_return(uint32 opcode)
@@ -302,11 +334,15 @@ void powerpc_test_cpu::test_one(uint32 *code, const char *insn, uint32 a1, uint3
 	const uint32 native_cr = native_get_cr();
 	native_set_xer(save_xer);
 	native_set_cr(save_cr);
+	if (results_file) {
+		put32(native_rd);
+		put32(native_xer);
+		put32(native_cr);
+	}
 #else
-	// FIXME: Restore context from results file
-	const uint32 native_rd = 0;
-	const uint32 native_xer = 0;
-	const uint32 native_cr = 0;
+	const uint32 native_rd = get32();
+	const uint32 native_xer = get32();
+	const uint32 native_cr = get32();
 #endif
 
 	// Invoke emulated code
@@ -912,7 +948,7 @@ bool powerpc_test_cpu::test(void)
 	tests = errors = 0;
 	init_cr = init_xer = 0;
 
-	// Tests execution
+	// Execution tests
 	test_add();
 	test_sub();
 	test_mul();
@@ -928,12 +964,40 @@ bool powerpc_test_cpu::test(void)
 	return errors != 0;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+	FILE *fp = NULL;
 	powerpc_test_cpu ppc;
 
-	if (!ppc.test())
-		return EXIT_FAILURE;
+	if (argc > 1) {
+		const char *file = argv[1];
+#if defined(__powerpc__)
+		if ((fp = fopen(file, "w")) == NULL) {
+			fprintf(stderr, "ERROR: can't open %s for writing\n", file);
+			return EXIT_FAILURE;
+		}
+#else
+		if ((fp = fopen(file, "r")) == NULL) {
+			fprintf(stderr, "ERROR: can't open %s for reading\n", file);
+			return EXIT_FAILURE;
+		}
+#endif
+		ppc.set_results_file(fp);
 
-	return EXIT_SUCCESS;
+		// Use a large enough buffer
+		static char buffer[4096];
+		setvbuf(fp, buffer, _IOFBF, sizeof(buffer));
+	}
+
+	// We need a results file on non PowerPC platforms
+#if !defined(__powerpc__)
+	if (fp == NULL) {
+		fprintf(stderr, "ERROR: a results file for reference is required\n");
+		return EXIT_FAILURE;
+	}
+#endif
+
+	int ret = ppc.test();
+	if (fp) fclose(fp);
+	return !ret;
 }
