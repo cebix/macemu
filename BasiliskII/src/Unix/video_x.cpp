@@ -384,10 +384,8 @@ void driver_base::update_palette(void)
 {
 	if (cmap[0] && cmap[1]) {
 		int num = 256;
-		if (xdepth == 15)
-			num = 32;
-		else if (xdepth == 16)
-			num = 64;
+		if (vis->c_class == DirectColor && VideoMonitor.mode.depth == VDEPTH_16BIT)
+			num = vis->map_entries;
 		XStoreColors(x_display, cmap[0], palette, num);
 		XStoreColors(x_display, cmap[1], palette, num);
 	}
@@ -1164,7 +1162,8 @@ bool VideoInit(bool classic)
 		case 16:
 		case 24:
 		case 32: // Try DirectColor first, as this will allow gamma correction
-			if (!XMatchVisualInfo(x_display, screen, xdepth, DirectColor, &visualInfo))
+			color_class = DirectColor;
+			if (!XMatchVisualInfo(x_display, screen, xdepth, color_class, &visualInfo))
 				color_class = TrueColor;
 			break;
 		default:
@@ -1185,6 +1184,32 @@ bool VideoInit(bool classic)
 	if (color_class == PseudoColor || color_class == DirectColor) {
 		cmap[0] = XCreateColormap(x_display, rootwin, vis, AllocAll);
 		cmap[1] = XCreateColormap(x_display, rootwin, vis, AllocAll);
+
+		// Preset pixel members for gamma table
+		if (color_class == DirectColor) {
+			int num = vis->map_entries;
+			uint32 rmask = vis->red_mask, gmask = vis->green_mask, bmask = vis->blue_mask;
+			uint32 mask;
+			int rloss = 8, rshift = 0;
+			for (mask=rmask; !(mask&1); mask>>=1)
+				++rshift;
+			for (; mask&1; mask>>=1)
+				--rloss;
+			int gloss = 8, gshift = 0;
+			for (mask=gmask; !(mask&1); mask>>=1)
+				++gshift;
+			for (; mask&1; mask>>=1)
+				--gloss;
+			int bloss = 8, bshift = 0;
+			for (mask=bmask; !(mask&1); mask>>=1)
+				++bshift;
+			for (; mask&1; mask>>=1)
+				--bloss;
+			for (int i=0; i<num; i++) {
+				int c = (i * 256) / num;
+				palette[i].pixel = ((c >> rloss) << rshift) | ((c >> gloss) << gshift) | ((c >> bloss) << bshift);
+			}
+		}
 	}
 
 	// Get screen mode from preferences
@@ -1366,12 +1391,23 @@ void video_set_palette(uint8 *pal)
 	LOCK_PALETTE;
 
 	// Convert colors to XColor array
-	for (int i=0; i<256; i++) {
-		palette[i].red = pal[i*3] * 0x0101;
-		palette[i].green = pal[i*3+1] * 0x0101;
-		palette[i].blue = pal[i*3+2] * 0x0101;
-		palette[i].pixel = i;
-		palette[i].flags = DoRed | DoGreen | DoBlue;
+	int num_in = 256, num_out = 256;
+	if (VideoMonitor.mode.depth == VDEPTH_16BIT) {
+		num_in = 32;
+		// If X is in 565 mode we have to stretch the palette from 32 to 64 entries
+		if (vis->c_class == DirectColor)
+			num_out = vis->map_entries;
+	}
+	XColor *p = palette;
+	for (int i=0; i<num_out; i++) {
+		int c = (i * num_in) / num_out;
+		p->red = pal[c*3 + 0] * 0x0101;
+		p->green = pal[c*3 + 1] * 0x0101;
+		p->blue = pal[c*3 + 2] * 0x0101;
+		if (!IsDirectMode(VideoMonitor.mode))
+			p->pixel = i;
+		p->flags = DoRed | DoGreen | DoBlue;
+		p++;
 	}
 
 	// Tell redraw thread to change palette

@@ -169,10 +169,9 @@ static void load_ramp_palette(void)
 	}
 
 	int num = (VidLocal.desc->mode.depth == VDEPTH_16BIT ? 32 : 256);
-	int inc = 256 / num, value = 0;
 	uint8 *p = VidLocal.palette;
 	for (int i=0; i<num; i++) {
-		uint8 red = value, green = value, blue = value;
+		uint8 red = (i * 256 / num), green = red, blue = red;
 		if (have_gamma) {
 			red = red_gamma[red >> (8 - data_width)];
 			green = green_gamma[green >> (8 - data_width)];
@@ -181,7 +180,6 @@ static void load_ramp_palette(void)
 		*p++ = red;
 		*p++ = green;
 		*p++ = blue;
-		value += inc;
 	}
 
 	video_set_palette(VidLocal.palette);
