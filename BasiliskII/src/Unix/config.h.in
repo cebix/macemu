@@ -31,6 +31,9 @@
 /* Define if the X Window System is missing or not being used.  */
 #undef X_DISPLAY_MISSING
 
+/* Define to 'off_t' if <sys/types.h> doesn't define. */
+/* #undef loff_t */
+
 /* The number of bytes in a int.  */
 #undef SIZEOF_INT
 
