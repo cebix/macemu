@@ -145,11 +145,13 @@ class sheepshaver_cpu
 	// CPU context to preserve on interrupt
 	class interrupt_context {
 		uint32 gpr[32];
+		double fpr[32];
 		uint32 pc;
 		uint32 lr;
 		uint32 ctr;
 		uint32 cr;
 		uint32 xer;
+		uint32 fpscr;
 		sheepshaver_cpu *cpu;
 		const char *where;
 	public:
@@ -486,11 +488,13 @@ sheepshaver_cpu::interrupt_context::interrupt_context(sheepshaver_cpu *_cpu, con
 
 	// Save interrupt context
 	memcpy(&gpr[0], &cpu->gpr(0), sizeof(gpr));
+	memcpy(&fpr[0], &cpu->fpr(0), sizeof(fpr));
 	pc = cpu->pc();
 	lr = cpu->lr();
 	ctr = cpu->ctr();
 	cr = cpu->get_cr();
 	xer = cpu->get_xer();
+	fpscr = cpu->fpscr();
 #endif
 }
 
@@ -504,6 +508,12 @@ sheepshaver_cpu::interrupt_context::~interrupt_context()
 			if (gpr[i] != cpu->gpr(i))
 				printf(" r%d: %08x -> %08x\n", i, gpr[i], cpu->gpr(i));
 	}
+	if (memcmp(&fpr[0], &cpu->fpr(0), sizeof(fpr)) != 0) {
+		printf("FATAL: %s: interrupt clobbers registers\n", where);
+		for (int i = 0; i < 32; i++)
+			if (fpr[i] != cpu->fpr(i))
+				printf(" r%d: %f -> %f\n", i, fpr[i], cpu->fpr(i));
+	}
 	if (pc != cpu->pc())
 		printf("FATAL: %s: interrupt clobbers PC\n", where);
 	if (lr != cpu->lr())
@@ -514,6 +524,8 @@ sheepshaver_cpu::interrupt_context::~interrupt_context()
 		printf("FATAL: %s: interrupt clobbers CR\n", where);
 	if (xer != cpu->get_xer())
 		printf("FATAL: %s: interrupt clobbers XER\n", where);
+	if (fpscr != cpu->fpscr())
+		printf("FATAL: %s: interrupt clobbers FPSCR\n", where);
 #endif
 }
 
