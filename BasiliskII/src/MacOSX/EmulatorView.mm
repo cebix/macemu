@@ -47,6 +47,7 @@
 	output = self;		// Set global for access by Basilisk C++ code
 //	bitmap = nil;		// Set by readyToDraw:
 	drawView = NO;		// Disable drawing until later
+	fullScreen = NO;
 
 #ifdef SAVE_GSTATE
 	[self allocateGState];
@@ -114,7 +115,11 @@ static int prevFlags;
 - (BOOL) mouseInView: (NSEvent *) event
 {
 	NSPoint loc = [event locationInWindow];
-	NSRect	box = [self frame];
+	NSRect	box;
+	if ( fullScreen )
+		return YES;
+	else
+		box = [self frame];
 	D(NSLog (@"%s - loc.x=%f, loc.y=%f, box.origin.x=%f, box.origin.y=%f",
 				__PRETTY_FUNCTION__, loc.x, loc.y, box.origin.x, box.origin.y));
 	return [self mouse: loc inRect: box];
@@ -224,6 +229,11 @@ static int prevFlags;
 	drawView = NO;
 }
 
+- (void) startedFullScreen
+{
+	fullScreen = YES;
+}
+
 - (short) width
 {
 	return (short)[self bounds].size.width;
@@ -234,6 +244,11 @@ static int prevFlags;
 	return (short)[self bounds].size.height;
 }
 
+- (BOOL) isFullScreen
+{
+	return fullScreen;
+}
+
 - (BOOL) isOpaque
 {
 	return drawView;
@@ -241,7 +256,7 @@ static int prevFlags;
 
 - (BOOL) processKeyEvent: (NSEvent *) event
 {
-	if ( [self acceptsFirstMouse: event] || FULLSCREEN )
+	if ( fullScreen || [self acceptsFirstMouse: event] )
 		if ( [event isARepeat] )
 			return NO;
 		else
@@ -287,8 +302,13 @@ static NSPoint	mouse;			// Previous/current mouse location
 {
 	NSPoint locInView;
 
-	if ( FULLSCREEN )
+	if ( fullScreen )
 		locInView = [NSEvent mouseLocation];
+// CGAssociateMouseAndMouseCursorPosition(bool)
+// which will let you unlink the mouse input and the mouse cursor. So I
+// unlink the two, and the cursor doesn't move, but I still receive
+// MouseMoved events and can get the movement value using
+// CGGetLastMouseDelta. 
 	else
 		locInView = [self convertPoint: [event locationInWindow] fromView:nil];
 
@@ -297,7 +317,7 @@ static NSPoint	mouse;			// Previous/current mouse location
 
 	mouse = locInView;
 
-	if ( FULLSCREEN )
+	if ( fullScreen )
 	{
 		ADBMouseMoved((int)mouse.x, screen_height - (int)mouse.y);
 		return YES;

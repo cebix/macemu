@@ -44,8 +44,9 @@
 #endif
 	short				x, y;
 
-	BOOL				drawView;	// Set when the bitmap is all set up
+	BOOL				drawView,	// Set when the bitmap is all set up
 									// and ready to display
+						fullScreen;	// Is this Emulator running in a full screen?
 }
 
 - (void) benchmark;
@@ -75,10 +76,12 @@
 #endif
 
 - (void) disableDrawing;
+- (void) startedFullScreen;
 
 - (short) width;
 - (short) height;
 
+- (BOOL) isFullScreen;
 - (BOOL) mouseInView: (NSEvent *) event;
 - (BOOL) mouseInView;
 - (BOOL) processMouseMove: (NSEvent *) event;
