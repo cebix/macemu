@@ -392,13 +392,12 @@ static __saveds void net_func(void)
 	ULONG dev_unit;
 
 	str = PrefsFindString("ether");
-	if (str)
-		{
+	if (str) {
 		const char *FirstSlash = strchr(str, '/');
 		const char *LastSlash = strrchr(str, '/');
 
-		if (FirstSlash && FirstSlash && FirstSlash != LastSlash)
-			{
+		if (FirstSlash && FirstSlash && FirstSlash != LastSlash) {
+
 			// Device name contains path, i.e. "Networks/xyzzy.device"
 			const char *lp = str;
 			char *dp = dev_name;
@@ -410,28 +409,22 @@ static __saveds void net_func(void)
 			if (strlen(dev_name) < 1)
 				goto quit;
 
-			if (1 != sscanf(LastSlash, "/%ld", &dev_unit))
+			if (sscanf(LastSlash, "/%ld", &dev_unit) != 1)
 				goto quit;
-
-//			printf("dev=<%s> unit=%d\n", dev_name, dev_unit);
-			}
-		else
-			{
-			if (2 != sscanf(str, "%[^/]/%ld", dev_name, &dev_unit))
+		} else {
+			if (sscanf(str, "%[^/]/%ld", dev_name, &dev_unit) != 2)
 				goto quit;
-			}
 		}
-	else
+	} else
 		goto quit;
 
 	// Open device
 	control_io->ios2_BufferManagement = buffer_tags;
 	od_error = OpenDevice((UBYTE *)dev_name, dev_unit, (struct IORequest *)control_io, 0);
-	if (0 != od_error || control_io->ios2_Req.io_Device == 0)
-		{
+	if (od_error != 0 || control_io->ios2_Req.io_Device == 0) {
 		printf("WARNING: OpenDevice(<%s>, unit=%d) returned error %d)\n", (UBYTE *)dev_name, dev_unit, od_error);
 		goto quit;
-		}
+	}
 	opened = true;
 
 	// Is it Ethernet?
