@@ -44,7 +44,8 @@ struct powerpc_block_info
 #if PPC_ENABLE_JIT
 	uint8 *				entry_point;
 #if DYNGEN_DIRECT_BLOCK_CHAINING
-	uint8 *				jmp_addr[2]; // Jump addresses for direct chaining
+	uint8 *				jmp_addr[2];	// Address of target native branch offset to patch
+	uint32				jmp_pc[2];		// Target jump addresses in emulated address space
 #endif
 #endif
 	uintptr				min_pc, max_pc;

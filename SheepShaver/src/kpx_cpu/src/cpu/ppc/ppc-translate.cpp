@@ -448,8 +448,11 @@ powerpc_cpu::compile_block(uint32 entry_point)
 #if DYNGEN_DIRECT_BLOCK_CHAINING
 			// Use direct block chaining for in-page jumps or jumps to ROM area
 			const uint32 npc = dpc + 4;
-			if (((tpc & -4096) == (npc & -4096)) || is_read_only_memory(tpc))
+			if (((tpc & -4096) == (npc & -4096)) || is_read_only_memory(tpc)) {
 				use_direct_block_chaining = true;
+				bi->jmp_pc[0] = tpc;
+				bi->jmp_pc[1] = npc;
+			}
 #endif
 			dg.gen_mov_32_A0_im(tpc);
 			goto do_branch;

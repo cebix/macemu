@@ -52,6 +52,9 @@ public:
 	void init(uint32 v)
 		{ mask = v; }
 
+	uint32 get() const
+		{ return mask; }
+
 	void set(uint32 v)
 		{ mask |= v; }
 

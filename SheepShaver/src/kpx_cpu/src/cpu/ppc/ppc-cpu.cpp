@@ -440,7 +440,7 @@ void *powerpc_cpu::compile_chain_block(block_info *sbi)
 	sbi = (block_info *)(((uintptr)sbi) & ~3L);
 	const uint32 bpc = sbi->pc;
 
-	const uint32 tpc = pc();
+	const uint32 tpc = sbi->jmp_pc[n];
 	block_info *tbi = block_cache.find(tpc);
 	if (tbi == NULL)
 		tbi = compile_block(tpc);

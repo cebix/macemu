@@ -233,6 +233,11 @@ basic_dyngen::set_jmp_target(uint8 *jmp_addr, uint8 *addr)
     asm volatile ("sync" : : : "memory");
     asm volatile ("isync" : : : "memory");
 #endif
+#if defined(__i386__) || defined(__x86_64__)
+	// patch the branch destination
+	*(uint32 *)jmp_addr = addr - (jmp_addr + 4);
+	// no need to flush icache explicitly
+#endif
 }
 #endif
 

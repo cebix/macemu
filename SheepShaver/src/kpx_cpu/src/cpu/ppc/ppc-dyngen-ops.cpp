@@ -684,6 +684,17 @@ DEFINE_OP(branch_if_not_T0);
 #undef DEFINE_OP
 #undef DEFINE_OP_CTR
 
+#ifdef DYNGEN_FAST_DISPATCH
+#if defined(__x86_64__)
+#define FAST_COMPARE_SPECFLAGS_DISPATCH(SPCFLAGS, TARGET) \
+		asm volatile ("test %0,%0 ; jz " #TARGET : "+r" (SPCFLAGS))
+#endif
+#ifndef FAST_COMPARE_SPECFLAGS_DISPATCH
+#define FAST_COMPARE_SPECFLAGS_DISPATCH(SPCFLAGS, TARGET) \
+		if (SPCFLAGS == 0) DYNGEN_FAST_DISPATCH(TARGET)
+#endif
+#endif
+
 template< int bo, bool chain >
 static inline void do_execute_branch_bo(uint32 tpc, uint32 npc)
 {
@@ -698,29 +709,31 @@ static inline void do_execute_branch_bo(uint32 tpc, uint32 npc)
 	}
 
 	if (BO_DECREMENT_CTR(bo)) {
-		uint32 ctr = powerpc_dyngen_helper::get_ctr() - 1;
+		T1 = powerpc_dyngen_helper::get_ctr() - 1;
+		powerpc_dyngen_helper::set_ctr(T1);
 		if (BO_BRANCH_IF_CTR_ZERO(bo))
-			ctr_ok = ctr == 0;
+			ctr_ok = T1 == 0;
 		else
-			ctr_ok = ctr != 0;
-		powerpc_dyngen_helper::set_ctr(ctr);
+			ctr_ok = T1 != 0;
 	}
 
-	if (ctr_ok && cond_ok) {
-		powerpc_dyngen_helper::set_pc(tpc);
 #ifdef DYNGEN_FAST_DISPATCH
-		if (chain && powerpc_dyngen_helper::spcflags().empty())
-			DYNGEN_FAST_DISPATCH(__op_jmp0);
-#endif
+	if (chain) {
+		T1 = powerpc_dyngen_helper::spcflags().get();
+		if (ctr_ok && cond_ok) {
+			FAST_COMPARE_SPECFLAGS_DISPATCH(T1, __op_jmp0);
+			T0 = tpc;
+		}
+		else {
+			FAST_COMPARE_SPECFLAGS_DISPATCH(T1, __op_jmp1);
+			T0 = npc;
+		}
 	}
-	else {
-		powerpc_dyngen_helper::set_pc(npc);
-#ifdef DYNGEN_FAST_DISPATCH
-		if (chain && powerpc_dyngen_helper::spcflags().empty())
-			DYNGEN_FAST_DISPATCH(__op_jmp1);
+	else
 #endif
-	}
 
+	T0 = (ctr_ok && cond_ok) ? tpc : npc;
+	powerpc_dyngen_helper::set_pc(T0);
 	dyngen_barrier();
 }
 
