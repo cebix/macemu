@@ -225,6 +225,10 @@ public:
 	// Set syscall callback
 	void set_syscall_callback(syscall_fn fn) { execute_do_syscall = fn; }
 
+	// Caches invalidation
+	void invalidate_cache();
+	void invalidate_cache_range(uintptr start, uintptr end);
+
 protected:
 
 	// Init decoder with one instruction info
@@ -253,9 +257,6 @@ private:
 	block_info::decode_info * decode_cache;
 	block_info::decode_info * decode_cache_p;
 	block_info::decode_info * decode_cache_end_p;
-
-	void invalidate_cache();
-	void invalidate_cache_range(uintptr start, uintptr end);
 
 	// Instruction handlers
 	void execute_nop(uint32 opcode);

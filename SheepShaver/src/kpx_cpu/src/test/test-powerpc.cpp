@@ -116,6 +116,7 @@ void powerpc_test_cpu::execute(uint32 opcode)
 	uint32 code[] = { opcode, 0x18000000 };
 
 	try {
+		invalidate_cache();
 		pc() = (uintptr)code;
 		powerpc_cpu::execute();
 	}
@@ -145,6 +146,7 @@ bool powerpc_test_cpu::test(void)
 	uint32 init_xer = native_get_xer() & ~(XER_OV_field::mask() | XER_CA_field::mask());
 
 	// Emulated registers IDs
+	const int R_ = -1;
 	const int RD = 10;
 	const int RA = 11;
 	const int RB = 12;
@@ -164,53 +166,76 @@ bool powerpc_test_cpu::test(void)
 #define TEST_ASM_RRR_(OP,RD,RA,RB,RC) asm volatile (OP " %0,%1,%2" : "=r" (RD) : "r" (RA), "r" (RB) : "cc")
 #define TEST_ASM_RRIT(OP,RD,RA,SH,MK) asm volatile (OP " %0,%1,%2,%3" : "=r" (RD) : "r" (RA), "i" (SH), "T" (MK))
 
-#define TEST_INSTRUCTION(FORMAT, NATIVE_OP, EMUL_OP) do {				\
-		printf("Testing " NATIVE_OP "\n");								\
-		const uint32 opcode = EMUL_OP;									\
-		for (uint32 i = 0; i < 8; i++) {								\
-			const uint32 ra = i << 29;									\
-			for (uint32 j = 0; j < 8; j++) {							\
-				const uint32 rb = j << 29;								\
-																		\
-				uint32 native_rd, native_cr, native_xer;				\
-				native_set_xer(init_xer);								\
-				native_set_cr(init_cr);									\
-				TEST_ASM_##FORMAT(NATIVE_OP, native_rd, ra, rb, 0);		\
-				native_xer = native_get_xer();							\
-				native_cr = native_get_cr();							\
-																		\
-				gpr(RA) = ra;											\
-				gpr(RB) = rb;											\
-				emul_set_xer(init_xer);									\
-				emul_set_cr(init_cr);									\
-				execute(opcode);										\
-				uint32 emul_rd, emul_cr, emul_xer;						\
-				emul_xer = emul_get_xer();								\
-				emul_cr = emul_get_cr();								\
-				emul_rd = gpr(RD);										\
-																		\
-				bool ok = (native_rd == emul_rd)						\
-					&& (native_xer == emul_xer)							\
-					&& (native_cr == emul_cr);							\
-																		\
-				if (!ok) {												\
-					printf("FAIL: " NATIVE_OP " [%08x]\n", opcode);		\
-					errors++;											\
-				}														\
-																		\
-				if (!ok || verbose) {									\
-					printf(" %08x, %08x => %08x [", ra, rb, native_rd);	\
-					print_flags(native_cr, native_xer);					\
-					printf("]\n");										\
-					printf(" %08x, %08x => %08x [", ra, rb, emul_rd);	\
-					print_flags(emul_cr, emul_xer);						\
-					printf("]\n");										\
-				}														\
-			}															\
-		}																\
+#define TEST_ASM(FORMAT, OP, RD, CR, XER, A0, A1, A2) do {	\
+		native_set_xer(init_xer);							\
+		native_set_cr(init_cr);								\
+		TEST_ASM_##FORMAT(OP, RD, A0, A1, A2);				\
+		XER = native_get_xer();								\
+		CR = native_get_cr();								\
 	} while (0)
 
+#define TEST_EMU_R0(OP,PRE,POST) do { PRE; execute(OP); POST; } while (0)
+#define TEST_EMU_RD(OP,RD,VD,PRE) TEST_EMU_R0(OP,PRE,VD=gpr(RD))
+#define TEST_EMU_____(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_R0(/**/,/**/)
+#define TEST_EMU_R___(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_RD(OP,RD,VD,gpr(R0)=A0)
+#define TEST_EMU_RR__(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_RD(OP,RD,VD,gpr(R0)=A0;gpr(R1)=A1)
+#define TEST_EMU_RRR_(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_RD(OP,RD,VD,gpr(R0)=A0;gpr(R1)=A1;gpr(R2)=A2)
+
+#define TEST_EMU(FORMAT, OP, RD, VD, CR, XER, R0, A0, R1, A1, R2, A2) do {	\
+		emul_set_xer(init_xer);												\
+		emul_set_cr(init_cr);												\
+		TEST_EMU_##FORMAT(OP, RD, VD, R0, A0, R1, A1, R2, A2);				\
+		XER = emul_get_xer();												\
+		CR = emul_get_cr();													\
+	} while (0)
+
+#define TEST_ONE(FORMAT, NATIVE_OP, EMUL_OP, RD, R0, A0, R1, A1, R2, A2) do {				\
+		uint32 native_rd = 0, native_xer, native_cr;										\
+		TEST_ASM(FORMAT, NATIVE_OP, native_rd, native_cr, native_xer, A0, A1, A2);			\
+		uint32 emul_rd = 0, emul_xer, emul_cr;												\
+		TEST_EMU(FORMAT, EMUL_OP, RD, emul_rd, emul_cr, emul_xer, R0, A0, R1, A1, R2, A2);	\
+																							\
+		bool ok = native_rd == emul_rd														\
+			&& native_xer == emul_xer														\
+			&& native_cr == emul_cr;														\
+																							\
+		if (!ok) {																			\
+			printf("FAIL: " NATIVE_OP " [%08x]\n", opcode);									\
+			errors++;																		\
+		}																					\
+																							\
+		if (!ok || verbose) {																\
+			printf(" %08x, %08x => %08x [", ra, rb, native_rd);								\
+			print_flags(native_cr, native_xer);												\
+			printf("]\n");																	\
+			printf(" %08x, %08x => %08x [", ra, rb, emul_rd);								\
+			print_flags(emul_cr, emul_xer);													\
+			printf("]\n");																	\
+		}																					\
+	} while (0)
+
+#define TEST_INSTRUCTION(FORMAT, NATIVE_OP, EMUL_OP) do {							\
+		printf("Testing " NATIVE_OP "\n");											\
+		const uint32 opcode = EMUL_OP;												\
+		for (uint32 i = 0; i < 8; i++) {											\
+			const uint32 ra = i << 29;												\
+			for (uint32 j = 0; j < 8; j++) {										\
+				const uint32 rb = j << 29;											\
+				TEST_ONE(FORMAT, NATIVE_OP, EMUL_OP, RD, RA, ra, RB, rb, R_, 0);	\
+			}																		\
+		}																			\
+		for (int32 i = -2; i < 2; i++) {											\
+			const uint32 ra = i;													\
+			for (int32 j = -2; j < 2; j++) {										\
+				const uint32 rb = j;												\
+				TEST_ONE(FORMAT, NATIVE_OP, EMUL_OP, RD, RA, ra, RB, rb, R_, 0);	\
+			}																		\
+		}																			\
+	} while (0)
+
+	TEST_INSTRUCTION(RRR_,"add",		_XO(31,RD,RA,RB,0,266,0));
 	TEST_INSTRUCTION(RRR_,"add.",		_XO(31,RD,RA,RB,0,266,1));
+	TEST_INSTRUCTION(RRR_,"addo",		_XO(31,RD,RA,RB,1,266,0));
 	TEST_INSTRUCTION(RRR_,"addo." ,		_XO(31,RD,RA,RB,1,266,1));
 	TEST_INSTRUCTION(RRR_,"addc.",		_XO(31,RD,RA,RB,0, 10,1));
 	TEST_INSTRUCTION(RRR_,"addco.",		_XO(31,RD,RA,RB,1, 10,1));

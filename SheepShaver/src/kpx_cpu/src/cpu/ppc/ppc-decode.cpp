@@ -732,7 +732,7 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  SC_form, 17, 0, CFLOW_NORMAL
 	},
 	{ "slw",
-	  EXECUTE_SHIFT(shll, RA, RS, RB, andi<0x1f>, CA_BIT_0, RC_BIT_G),
+	  EXECUTE_SHIFT(shll, RA, RS, RB, andi<0x3f>, CA_BIT_0, RC_BIT_G),
 	  NULL,
 	  X_form, 31, 24, CFLOW_NORMAL
 	},
@@ -742,12 +742,12 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  X_form, 31, 792, CFLOW_NORMAL
 	},
 	{ "srawi",
-	  EXECUTE_SHIFT(shra, RA, RS, SH, nop, CA_BIT_1, RC_BIT_G),
+	  EXECUTE_SHIFT(shra, RA, RS, SH, andi<0x1f>, CA_BIT_1, RC_BIT_G),
 	  NULL,
 	  X_form, 31, 824, CFLOW_NORMAL
 	},
 	{ "srw",
-	  EXECUTE_SHIFT(shrl, RA, RS, RB, andi<0x1f>, CA_BIT_0, RC_BIT_G),
+	  EXECUTE_SHIFT(shrl, RA, RS, RB, andi<0x3f>, CA_BIT_0, RC_BIT_G),
 	  NULL,
 	  X_form, 31, 536, CFLOW_NORMAL
 	},

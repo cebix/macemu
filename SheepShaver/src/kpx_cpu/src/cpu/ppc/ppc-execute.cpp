@@ -247,12 +247,29 @@ void powerpc_cpu::execute_rlwimi(uint32 opcode)
  *		Rc		Predicate to record CR0
  **/
 
+template< class OP >
+struct invalid_shift {
+	static inline uint32 value(uint32) {
+		return 0;
+	}
+};
+
+template<>
+struct invalid_shift<op_shra> {
+	static inline uint32 value(uint32 r) {
+		return 0 - (r >> 31);
+	}
+};
+
 template< class OP, class RD, class RA, class SH, class SO, class CA, class Rc >
 void powerpc_cpu::execute_shift(uint32 opcode)
 {
 	const uint32 n = SO::apply(SH::get(this, opcode));
 	const uint32 r = RA::get(this, opcode);
-	uint32 d = OP::apply(r, n);
+
+	// Shift operation is valid only if rB[26] = 0
+	// TODO: optimize srw case where shift operation would zero result
+	uint32 d = (n & 0x20) ? invalid_shift<OP>::value(r) : OP::apply(r, n);
 
 	// Set XER (CA) if instruction is algebraic variant
 	if (CA::test(opcode)) {
@@ -415,9 +432,11 @@ void powerpc_cpu::execute_multiply(uint32 opcode)
 	const uint32 b = operand_RB::get(this, opcode);
 	uint64 d = SB ? (int64)(int32)a * (int64)(int32)b : (uint64)a * (uint64)b;
 
-	// Set XER (OV, SO) if instruction has OE set
-	if (OE::test(opcode))
-		xer().set_ov((d >> 32) != 0);
+	// Overflow if the product cannot be represented in 32 bits
+	if (OE::test(opcode)) {
+		const uint32 upper = d >> 32;
+		xer().set_ov(upper != 0 && upper != 0xffffffff);
+	}
 
 	// Only keep high word if multiply high instruction
 	if (HI)
