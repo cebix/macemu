@@ -129,8 +129,8 @@
 			isa = PBXVariantGroup;
 			name = MainMenu.nib;
 			path = "";
-			refType = 4;
-			sourceTree = "<group>";
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
 		};
 		29B97319FDCFA39411CA2CEA = {
 			isa = PBXFileReference;
@@ -234,7 +234,8 @@
 				FRAMEWORK_SEARCH_PATHS = /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks;
 				GCC_ENABLE_TRIGRAPHS = NO;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
-				GCC_PREPROCESSOR_DEFINITIONS = "HAVE_CONFIG_H OS_darwin BSD_COMP DIRECT_ADDRESSING FPU_IEEE _REENTRANT";
+				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_PREPROCESSOR_DEFINITIONS = "HAVE_CONFIG_H _REENTRANT";
 				GCC_WARN_ABOUT_MISSING_PROTOTYPES = NO;
 				GCC_WARN_FOUR_CHARACTER_CONSTANTS = NO;
 				GCC_WARN_UNKNOWN_PRAGMAS = NO;
@@ -399,10 +400,10 @@
 		8D1107310486CEB800E47090 = {
 			fileEncoding = 4;
 			isa = PBXFileReference;
-			lastKnownFileType = text.plist;
+			lastKnownFileType = text.plist.xml;
 			path = Info.plist;
-			refType = 4;
-			sourceTree = "<group>";
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
 		};
 		8D1107320486CEB800E47090 = {
 			explicitFileType = wrapper.application;
@@ -439,10 +440,9 @@
 		A685016A05C4EA0D00DDBA94 = {
 			isa = PBXFileReference;
 			lastKnownFileType = image.icns;
-			name = BasiliskII.icns;
-			path = /Volumes/Users/nigel/Programming/OSX/BasiliskII/BasiliskII/src/MacOSX/BasiliskII.icns;
-			refType = 0;
-			sourceTree = "<absolute>";
+			path = BasiliskII.icns;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
 		};
 		A685016B05C4EA0D00DDBA94 = {
 			fileRef = A685016A05C4EA0D00DDBA94;
@@ -454,10 +454,9 @@
 			fileEncoding = 30;
 			isa = PBXFileReference;
 			lastKnownFileType = text.html;
-			name = Credits.html;
-			path = /Volumes/Users/nigel/Programming/OSX/BasiliskII/BasiliskII/src/MacOSX/Credits.html;
-			refType = 0;
-			sourceTree = "<absolute>";
+			path = Credits.html;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
 		};
 		A685016F05C4EA2F00DDBA94 = {
 			fileRef = A685016E05C4EA2F00DDBA94;
@@ -469,10 +468,9 @@
 			fileEncoding = 30;
 			isa = PBXFileReference;
 			lastKnownFileType = text.html;
-			name = HowTo.html;
-			path = /Volumes/Users/nigel/Programming/OSX/BasiliskII/BasiliskII/src/MacOSX/HowTo.html;
-			refType = 0;
-			sourceTree = "<absolute>";
+			path = HowTo.html;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
 		};
 		A685017305C4EA3F00DDBA94 = {
 			fileRef = A685017205C4EA3F00DDBA94;
@@ -483,10 +481,9 @@
 		A685017605C4EA5A00DDBA94 = {
 			isa = PBXFileReference;
 			lastKnownFileType = image.icns;
-			name = nowrite.icns;
-			path = /Volumes/Users/nigel/Programming/OSX/BasiliskII/BasiliskII/src/MacOSX/nowrite.icns;
-			refType = 0;
-			sourceTree = "<absolute>";
+			path = nowrite.icns;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
 		};
 		A685017705C4EA5A00DDBA94 = {
 			fileRef = A685017605C4EA5A00DDBA94;
@@ -498,10 +495,9 @@
 			fileEncoding = 30;
 			isa = PBXFileReference;
 			lastKnownFileType = text;
-			name = README.txt;
-			path = /Volumes/Users/nigel/Programming/OSX/BasiliskII/BasiliskII/src/MacOSX/README.txt;
-			refType = 0;
-			sourceTree = "<absolute>";
+			path = README.txt;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
 		};
 		A685017905C4EA7A00DDBA94 = {
 			fileRef = A685017805C4EA7A00DDBA94;
@@ -513,10 +509,9 @@
 			fileEncoding = 30;
 			isa = PBXFileReference;
 			lastKnownFileType = text.html;
-			name = ToDo.html;
-			path = /Volumes/Users/nigel/Programming/OSX/BasiliskII/BasiliskII/src/MacOSX/ToDo.html;
-			refType = 0;
-			sourceTree = "<absolute>";
+			path = ToDo.html;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
 		};
 		A685017B05C4EA8500DDBA94 = {
 			fileRef = A685017A05C4EA8500DDBA94;
@@ -528,10 +523,9 @@
 			fileEncoding = 30;
 			isa = PBXFileReference;
 			lastKnownFileType = text.html;
-			name = Versions.html;
-			path = /Volumes/Users/nigel/Programming/OSX/BasiliskII/BasiliskII/src/MacOSX/Versions.html;
-			refType = 0;
-			sourceTree = "<absolute>";
+			path = Versions.html;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
 		};
 		A685017D05C4EA8E00DDBA94 = {
 			fileRef = A685017C05C4EA8E00DDBA94;
