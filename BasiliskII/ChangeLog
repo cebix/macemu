@@ -5,6 +5,8 @@ V0.8 -
 	- extfs.cpp: fixed bug in fs_rename() and fs_cat_move() (auxiliary
 	  IOParam block was not in Mac address space)
 	- some provisions for using UAE CPU compiler (doesn't work yet)
+	- video_x.cpp: XFree86 VidMode extension is used to switch modes
+	  in DGA mode
 
 V0.8 (snapshot) - 2.Nov.1999
 	- fixed many UAE FPU bugs [Lauri Pesonen]
