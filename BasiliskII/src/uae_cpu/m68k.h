@@ -145,167 +145,122 @@ static __inline__ int cctrue(int cc)
 #elif defined(__sparc__) && (defined(SPARC_V8_ASSEMBLY) || defined(SPARC_V9_ASSEMBLY))
 
 struct flag_struct {
-	union {
-		unsigned short	all;
-		unsigned char	bytes[2];
-	};
+    unsigned char nzvc;
+    unsigned char x;
 };
 
-typedef unsigned short *	flags_addr;
-extern struct flag_struct	regflags;
-#define M68K_FLAGS_ADDR		((flags_addr)(&regflags.all))
-#define M68K_FLAGS_NZVC		regflags.bytes[1]
-#define M68K_FLAGS_X		regflags.bytes[0]
+extern struct flag_struct regflags;
 
-#if 0
+#define SET_ZFLG(y) (regflags.nzvc = (regflags.nzvc & ~0x04) | (((y) & 1) << 2))
+#define SET_CFLG(y) (regflags.nzvc = (regflags.nzvc & ~1) | ((y) & 1))
+#define SET_VFLG(y) (regflags.nzvc = (regflags.nzvc & ~0x02) | (((y) & 1) << 1))
+#define SET_NFLG(y) (regflags.nzvc = (regflags.nzvc & ~0x08) | (((y) & 1) << 3))
+#define SET_XFLG(y) (regflags.x = (y))
 
-#define SET_ZFLG(y)	(M68K_FLAGS_NZVC = (M68K_FLAGS_NZVC & ~0x01) | ((y) & 1))
-#define SET_CFLG(y)	(M68K_FLAGS_NZVC = (M68K_FLAGS_NZVC & ~0x02) | (((y) & 1) << 1))
-#define SET_XFLG(y)	(M68K_FLAGS_X = ((y) & 1) << 1)
-#define SET_VFLG(y)	(M68K_FLAGS_NZVC = (M68K_FLAGS_NZVC & ~0x10) | (((y) & 1) << 4))
-#define SET_NFLG(y)	(M68K_FLAGS_NZVC = (M68K_FLAGS_NZVC & ~0x80) | (((y) & 1) << 7))
+#define GET_ZFLG ((regflags.nzvc >> 2) & 1)
+#define GET_CFLG (regflags.nzvc & 1)
+#define GET_VFLG ((regflags.nzvc >> 1) & 1)
+#define GET_NFLG ((regflags.nzvc >> 3) & 1)
+#define GET_XFLG (regflags.x & 1)
 
-#define GET_ZFLG	(M68K_FLAGS_NZVC & 1)
-#define GET_CFLG	((M68K_FLAGS_NZVC >> 1) & 1)
-#define GET_XFLG	((M68K_FLAGS_X >> 1) & 1)
-#define GET_VFLG	((M68K_FLAGS_NZVC >> 4) & 1)
-#define GET_NFLG	((M68K_FLAGS_NZVC >> 7) & 1)
-
-#define CLEAR_CZNV	(M68K_FLAGS_NZVC = 0)
-#define COPY_CARRY	(M68K_FLAGS_X = M68K_FLAGS_NZVC)
-
-#else
-
-#define M68K_FLAGS_ALL		regflags.all
-
-#define SET_ZFLG(y)	(M68K_FLAGS_ALL = (M68K_FLAGS_ALL & ~0x01) | ((y) & 1))
-#define SET_CFLG(y)	(M68K_FLAGS_ALL = (M68K_FLAGS_ALL & ~0x02) | (((y) & 1) << 1))
-#define SET_XFLG(y)	(M68K_FLAGS_ALL = (M68K_FLAGS_ALL & ~0x200)| (((y) & 1) << 9))
-#define SET_VFLG(y)	(M68K_FLAGS_ALL = (M68K_FLAGS_ALL & ~0x10) | (((y) & 1) << 4))
-#define SET_NFLG(y)	(M68K_FLAGS_ALL = (M68K_FLAGS_ALL & ~0x80) | (((y) & 1) << 7))
-
-#define GET_ZFLG	(M68K_FLAGS_ALL & 1)
-#define GET_CFLG	((M68K_FLAGS_ALL >> 1) & 1)
-#define GET_XFLG	((M68K_FLAGS_ALL >> 9) & 1)
-#define GET_VFLG	((M68K_FLAGS_ALL >> 4) & 1)
-#define GET_NFLG	((M68K_FLAGS_ALL >> 7) & 1)
-
-#define CLEAR_CZNV	(M68K_FLAGS_NZVC = 0)
-#define COPY_CARRY	(M68K_FLAGS_X = M68K_FLAGS_NZVC)
-
-#endif
+#define CLEAR_CZNV (regflags.nzvc = 0)
+#define COPY_CARRY (regflags.x = regflags.nzvc)
 
 static __inline__ int cctrue(int cc)
 {
-    uae_u32 nzvc = M68K_FLAGS_NZVC;
+    uae_u32 nzvc = regflags.nzvc;
     switch(cc){
-     case 0: return 1;						/* T */
-     case 1: return 0;						/* F */
-     case 2: return (nzvc & 0x03) == 0;		/* !GET_CFLG && !GET_ZFLG;  HI */
-     case 3: return (nzvc & 0x03) != 0;		/* GET_CFLG || GET_ZFLG;    LS */
-     case 4: return (nzvc & 0x02) == 0;		/* !GET_CFLG;               CC */
-     case 5: return (nzvc & 0x02) != 0;		/* GET_CFLG;                CS */
-     case 6: return (nzvc & 0x01) == 0;		/* !GET_ZFLG;               NE */
-     case 7: return (nzvc & 0x01) != 0;		/* GET_ZFLG;                EQ */
-     case 8: return (nzvc & 0x10) == 0;		/* !GET_VFLG;               VC */
-     case 9: return (nzvc & 0x10) != 0;		/* GET_VFLG;                VS */
-     case 10:return (nzvc & 0x80) == 0;		/* !GET_NFLG;               PL */
-     case 11:return (nzvc & 0x80) != 0;		/* GET_NFLG;                MI */
-     case 12:return (((nzvc << 3) ^ nzvc) & 0x80) == 0;	/* GET_NFLG == GET_VFLG;             GE */
-     case 13:return (((nzvc << 3) ^ nzvc) & 0x80) != 0;	/* GET_NFLG != GET_VFLG;             LT */
+     case 0: return 1;                       /* T */
+     case 1: return 0;                       /* F */
+     case 2: return (nzvc & 0x05) == 0; /* !GET_CFLG && !GET_ZFLG;  HI */
+     case 3: return (nzvc & 0x05) != 0; /* GET_CFLG || GET_ZFLG;    LS */
+     case 4: return (nzvc & 1) == 0;        /* !GET_CFLG;               CC */
+     case 5: return (nzvc & 1) != 0;           /* GET_CFLG;                CS */
+     case 6: return (nzvc & 0x04) == 0; /* !GET_ZFLG;               NE */
+     case 7: return (nzvc & 0x04) != 0; /* GET_ZFLG;                EQ */
+     case 8: return (nzvc & 0x02) == 0;/* !GET_VFLG;               VC */
+     case 9: return (nzvc & 0x02) != 0;/* GET_VFLG;                VS */
+     case 10:return (nzvc & 0x08) == 0; /* !GET_NFLG;               PL */
+     case 11:return (nzvc & 0x08) != 0; /* GET_NFLG;                MI */
+     case 12:return (((nzvc << 2) ^ nzvc) & 0x08) == 0; /* GET_NFLG == GET_VFLG;             GE */
+     case 13:return (((nzvc << 2) ^ nzvc) & 0x08) != 0;/* GET_NFLG != GET_VFLG;             LT */
      case 14:
-/*	N--V--CZ shifted by 3 leads to V--CZ--- */
-	return (((nzvc << 3) ^ nzvc) & 0x88) == 0; /* !GET_ZFLG && (GET_NFLG == GET_VFLG);  GT */
+	nzvc &= 0x0e;
+	return (((nzvc << 2) ^ nzvc) & 0x0c) == 0; /* !GET_ZFLG && (GET_NFLG == GET_VFLG);  GT */
      case 15:
-	return (((nzvc << 3) ^ nzvc) & 0x88) != 0; /* GET_ZFLG || (GET_NFLG != GET_VFLG);   LE */
+	nzvc &= 0x0e;
+	return (((nzvc << 2) ^ nzvc) & 0x0c) != 0; /* GET_ZFLG || (GET_NFLG != GET_VFLG);   LE */
     }
     return 0;
 }
 
 #ifdef SPARC_V8_ASSEMBLY
 
-static inline char *str_flags(void)
-{
-	static char str[8];
-	sprintf(str, "%c%c%c%c%c",
-		GET_XFLG ? 'X' : '-',
-		GET_NFLG ? 'N' : '-',
-		GET_ZFLG ? 'Z' : '-',
-		GET_VFLG ? 'V' : '-',
-		GET_CFLG ? 'C' : '-'
-		);
-	return str;
-}
-
-static inline uae_u32 sparc_v8_flag_add_8(flags_addr pflags, uae_u32 src, uae_u32 dst)
+static inline uae_u32 sparc_v8_flag_add_8(flag_struct *flags, uae_u32 src, uae_u32 dst)
 {
 	uae_u32 value;
 	__asm__	("\n"
 		"	sll		%2, 24, %%o0\n"
 		"	sll		%3, 24, %%o1\n"
 		"	addcc	%%o0, %%o1, %%o0\n"
-		"	subx	%%g0, %%g0, %%o1\n"
-		"	srl		%%o0, 24, %0		! 8-bit result\n"
-		"	and		%%o1, 0x202, %%o1	! X, C flags\n"
-		"	and		%0, 0x80, %%o0\n"
-		"	or		%%o1, %%o0, %%o1	! N flag\n"
-		"	subcc	%%g0, %0, %%g0\n"
-		"	subx	%%o1, -1, %%o1		! Z flag\n"
+		"	addx	%%g0, %%g0, %%o1	! X,C flags\n"
+		"	srl		%%o0, 24, %0\n"
+		"	stb		%%o1, [%1 + 1]\n"
+		"	bl,a	.+8\n"
+		"	or		%%o1, 0x08, %%o1	! N flag\n"
+		"	bz,a	.+8\n"
+		"	or		%%o1, 0x04, %%o1	! Z flag\n"
 		"	bvs,a	.+8\n"
-		"	or		%%o1, 0x10, %%o1	! V flag\n"
-		"	sth		%%o1, [%1]\n"
+		"	or		%%o1, 0x02, %%o1	! V flag\n"
+		"	stb		%%o1, [%1]\n"
 	:	"=&r" (value)
-	:	"r" (pflags), "r" (dst), "r" (src), "0" (value)
+	:	"r" (flags), "r" (dst), "r" (src)
 	:	"cc", "o0", "o1"
 	);
-	
-//	printf("%d + %d = %d (flags = %s)\n", dst, src, value, str_flags());
 	return value;
 }
 
-static inline uae_u32 sparc_v8_flag_add_16(flags_addr pflags, uae_u32 src, uae_u32 dst)
+static inline uae_u32 sparc_v8_flag_add_16(flag_struct *flags, uae_u32 src, uae_u32 dst)
 {
 	uae_u32 value;
 	__asm__	("\n"
 		"	sll		%2, 16, %%o0\n"
 		"	sll		%3, 16, %%o1\n"
 		"	addcc	%%o0, %%o1, %%o0\n"
-		"	subx	%%g0, %%g0, %%o1\n"
-		"	srl		%%o0, 16, %0		! 16-bit result\n"
-		"	and		%%o1, 0x202, %%o1	! X, C flags\n"
-		"	sra		%%o0, 24, %%o0\n"
-		"	and		%%o0, 0x80, %%o0\n"
-		"	or		%%o1, %%o0, %%o1	! N flag\n"
-		"	subcc	%%g0, %0, %%g0\n"
-		"	subx	%%o1, -1, %%o1		! Z flag\n"
+		"	addx	%%g0, %%g0, %%o1	! X,C flags\n"
+		"	srl		%%o0, 16, %0\n"
+		"	stb		%%o1, [%1 + 1]\n"
+		"	bl,a	.+8\n"
+		"	or		%%o1, 0x08, %%o1	! N flag\n"
+		"	bz,a	.+8\n"
+		"	or		%%o1, 0x04, %%o1	! Z flag\n"
 		"	bvs,a	.+8\n"
-		"	or		%%o1, 0x10, %%o1	! V flag\n"
-		"	sth		%%o1, [%1]\n"
+		"	or		%%o1, 0x02, %%o1	! V flag\n"
+		"	stb		%%o1, [%1]\n"
 	:	"=&r" (value)
-	:	"r" (pflags), "r" (dst), "r" (src), "0" (value)
+	:	"r" (flags), "r" (dst), "r" (src)
 	:	"cc", "o0", "o1"
 	);
 	return value;
 }
 
-static inline uae_u32 sparc_v8_flag_add_32(flags_addr pflags, uae_u32 src, uae_u32 dst)
+static inline uae_u32 sparc_v8_flag_add_32(flag_struct *flags, uae_u32 src, uae_u32 dst)
 {
 	uae_u32 value;
 	__asm__	("\n"
 		"	addcc	%2, %3, %0\n"
-		"	subx	%%g0, %%g0, %%o0\n"
-		"	sra		%0, 24, %%o1\n"
-		"	and		%%o0, 0x202, %%o0	! X, C flags\n"
-		"	and		%%o1, 0x80, %%o1\n"
-		"	or		%%o0, %%o1, %%o0	! N flag\n"
-		"	subcc	%%g0, %0, %%g0\n"
-		"	subx	%%o0, -1, %%o0		! Z flag\n"
+		"	addx	%%g0, %%g0, %%o0	! X,C flags\n"
+		"	stb		%%o0, [%1 + 1]\n"
+		"	bl,a	.+8\n"
+		"	or		%%o0, 0x08, %%o0	! N flag\n"
+		"	bz,a	.+8\n"
+		"	or		%%o0, 0x04, %%o0	! Z flag\n"
 		"	bvs,a	.+8\n"
-		"	or		%%o0, 0x10, %%o0	! V flag\n"
-		"	sth		%%o0, [%1]\n"
+		"	or		%%o0, 0x02, %%o0	! V flag\n"
+		"	stb		%%o0, [%1]\n"
 	:	"=&r" (value)
-	:	"r" (pflags), "r" (dst), "r" (src), "0" (value)
-	:	"cc", "o0", "o1"
+	:	"r" (flags), "r" (dst), "r" (src)
+	:	"cc", "o0"
 	);
 	return value;
 }
@@ -437,6 +392,85 @@ static inline void sparc_v8_flag_cmp_32(flag_struct *flags, uae_u32 src, uae_u32
 	:	"r" (flags), "r" (dst), "r" (src)
 	:	"cc", "o0", "o1"
 	);
+}
+
+static inline uae_u32 sparc_v8_flag_addx_8(flag_struct *flags, uae_u32 src, uae_u32 dst)
+{
+	uae_u32 value;
+	__asm__	("\n"
+		"	ldub	[%1 + 1], %%o1		! Get the X Flag\n"
+		"	subcc	%%g0, %%o1, %%g0	! Set the SPARC carry flag, if X set\n"
+		"	addxcc	%2, %3, %0\n"
+	:	"=&r" (value)
+	:	"r" (flags), "r" (dst), "r" (src)
+	:	"cc", "o0", "o1"
+	);
+	return value;
+}
+
+#if 0
+VERY SLOW...
+static inline uae_u32 sparc_v8_flag_addx_8(flag_struct *flags, uae_u32 src, uae_u32 dst)
+{
+	uae_u32 value;
+	__asm__	("\n"
+		"	sll		%2, 24, %%o0\n"
+		"	sll		%3, 24, %%o1\n"
+		"	addcc	%%o0, %%o1, %%o0\n"
+		"	addx	%%g0, %%g0, %%o1	! X,C flags\n"
+		"	bvs,a	.+8\n"
+		"	or		%%o1, 0x02, %%o1	! V flag\n"
+		"	ldub	[%1 + 1], %%o2\n"
+		"	subcc	%%g0, %%o2, %%g0\n"
+		"	addx	%%g0, %%g0, %%o2\n"
+		"	sll		%%o2, 24, %%o2\n"
+		"	addcc	%%o0, %%o2, %%o0\n"
+		"	srl		%%o0, 24, %0\n"
+		"	addx	%%g0, %%g0, %%o2\n"
+		"	or		%%o1, %%o2, %%o1	! update X,C flags\n"
+		"	bl,a	.+8\n"
+		"	or		%%o1, 0x08, %%o1	! N flag\n"
+		"	ldub	[%1], %%o0			! retreive the old NZVC flags (XXX)\n"
+		"	bvs,a	.+8\n"
+		"	or		%%o1, 0x02, %%o1	! update V flag\n"
+		"	and		%%o0, 0x04, %%o0	! (XXX) but keep only Z flag\n"
+		"	and		%%o1, 1, %%o2		! keep C flag in %%o2\n"
+		"	bnz,a	.+8\n"
+		"	or		%%g0, %%g0, %%o0	! Z flag cleared if non-zero result\n"
+		"	stb		%%o2, [%1 + 1]		! store the X flag\n"
+		"	or		%%o1, %%o0, %%o1\n"
+		"	stb		%%o1, [%1]\n"
+	:	"=&r" (value)
+	:	"r" (flags), "r" (dst), "r" (src)
+	:	"cc", "o0", "o1", "o2"
+	);
+	return value;
+}
+#endif
+
+static inline uae_u32 sparc_v8_flag_addx_32(flag_struct *flags, uae_u32 src, uae_u32 dst)
+{
+	uae_u32 value;
+	__asm__	("\n"
+		"	ldub	[%1 + 1], %%o0		! Get the X Flag\n"
+		"	subcc	%%g0, %%o0, %%g0	! Set the SPARC carry flag, if X set\n"
+		"	addxcc	%2, %3, %0\n"
+		"	ldub	[%1], %%o0			! retreive the old NZVC flags\n"
+		"	and		%%o0, 0x04, %%o0	! but keep only Z flag\n"
+		"	addx	%%o0, %%g0, %%o0	! X,C flags\n"
+		"	bl,a	.+8\n"
+		"	or		%%o0, 0x08, %%o0	! N flag\n"
+		"	bvs,a	.+8\n"
+		"	or		%%o0, 0x02, %%o0	! V flag\n"
+		"	bnz,a	.+8\n"
+		"	and		%%o0, 0x0B, %%o0	! Z flag cleared if result is non-zero\n"
+		"	stb		%%o0, [%1]\n"
+		"	stb		%%o0, [%1 + 1]\n"
+	:	"=&r" (value)
+	:	"r" (flags), "r" (dst), "r" (src)
+	:	"cc", "o0"
+	);
+	return value;
 }
 
 #endif /* SPARC_V8_ASSEMBLY */

@@ -723,16 +723,52 @@ static void genflags (flagtypes type, wordsizes size, char *value, char *src, ch
 			switch(size)
 			{
 				case sz_byte:
-					printf("\t%s = sparc_v8_flag_add_8(M68K_FLAGS_ADDR, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					printf("\t%s = sparc_v8_flag_add_8(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
 					break;
 				case sz_word:
-					printf("\t%s = sparc_v8_flag_add_16(M68K_FLAGS_ADDR, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					printf("\t%s = sparc_v8_flag_add_16(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
 					break;
 				case sz_long:
-					printf("\t%s = sparc_v8_flag_add_32(M68K_FLAGS_ADDR, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					printf("\t%s = sparc_v8_flag_add_32(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
 					break;
 			}
 			return;
+		
+		case flag_sub:
+			start_brace();
+			printf("\tuae_u32 %s;\n", value);
+			switch(size)
+			{
+				case sz_byte:
+					printf("\t%s = sparc_v8_flag_sub_8(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					break;
+				case sz_word:
+					printf("\t%s = sparc_v8_flag_sub_16(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					break;
+				case sz_long:
+					printf("\t%s = sparc_v8_flag_sub_32(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					break;
+			}
+			return;
+		
+		case flag_cmp:
+			switch(size)
+			{
+				case sz_byte:
+//					printf("\tsparc_v8_flag_cmp_8(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", src, dst);
+					break;
+				case sz_word:
+//					printf("\tsparc_v8_flag_cmp_16(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", src, dst);
+					break;
+				case sz_long:
+#if 1
+					printf("\tsparc_v8_flag_cmp_32(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", src, dst);
+					return;
+#endif
+					break;
+			}
+//			return;
+			break;
 	}
 #elif defined(SPARC_V9_ASSEMBLY)
 	switch(type)
