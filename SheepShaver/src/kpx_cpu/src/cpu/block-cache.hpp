@@ -76,6 +76,7 @@ public:
 
 template< class block_info, template<class T> class block_allocator >
 block_cache< block_info, block_allocator >::block_cache()
+	: active(NULL), dormant(NULL)
 {
 	initialize();
 }

@@ -21,7 +21,7 @@
 #ifndef PPC_BITFIELDS_H
 #define PPC_BITFIELDS_H
 
-#include "ppc-operations.hpp"
+#include "cpu/ppc/ppc-operations.hpp"
 
 ///
 ///		Bitfield management

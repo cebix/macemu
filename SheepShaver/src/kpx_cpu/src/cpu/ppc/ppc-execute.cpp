@@ -22,11 +22,11 @@
 #include <math.h>
 
 #include "sysdeps.h"
-#include "vm.hpp"
-#include "ppc-cpu.hpp"
-#include "ppc-bitfields.hpp"
-#include "ppc-operands.hpp"
-#include "ppc-operations.hpp"
+#include "cpu/vm.hpp"
+#include "cpu/ppc/ppc-cpu.hpp"
+#include "cpu/ppc/ppc-bitfields.hpp"
+#include "cpu/ppc/ppc-operands.hpp"
+#include "cpu/ppc/ppc-operations.hpp"
 
 #if ENABLE_MON
 #include "mon.h"
@@ -107,7 +107,9 @@ struct op_carry {
 template<>
 struct op_carry<op_add> {
 	static inline bool apply(uint32 a, uint32 b, uint32 c) {
-		return (((uint64)a + (uint64)b + c) >> 32) != 0;
+		// TODO: use 32-bit arithmetics
+		uint64 carry = (uint64)a + (uint64)b + (uint64)c;
+		return (carry >> 32) != 0;
 	}
 };
 
@@ -128,7 +130,9 @@ struct op_overflow<op_neg> {
 template<>
 struct op_overflow<op_add> {
 	static inline bool apply(uint32 a, uint32 b, uint32 c) {
-		return op_carry<op_add>::apply(a, b, c) ^ (((a & 0x7fffffff) + (b & 0x7fffffff) + c) >> 31);
+		// TODO: use 32-bit arithmetics
+		int64 overflow = (int64)(int32)a + (int64)(int32)b + (int64)(int32)c;
+		return (((uint64)overflow) >> 63) ^ (((uint32)overflow) >> 31);
 	}
 };
 
@@ -364,20 +368,33 @@ void powerpc_cpu::execute_divide(uint32 opcode)
 {
 	const uint32 a = operand_RA::get(this, opcode);
 	const uint32 b = operand_RB::get(this, opcode);
+	uint32 d;
 
 	if (b == 0 || (SB && a == 0x80000000 && b == 0xffffffff)) {
+		// Reference manual says rD is undefined
+		d = 0;
+#if 1
+		if (SB && b == 0) {
+			// However, checking against a real PowerPC (7410) yields
+			// that rD gets all bits set to rA MSB
+			d -= (a >> 31);
+		}
+#endif
 		if (OE::test(opcode))
 			xer().set_ov(1);
-		// TODO: contents of rD is undefined, set it to zero anyway?
 	}
 	else {
-		uint32 d = SB ? (int32)a/(int32)b : a/b;
-		operand_RD::set(this, opcode, d);
+		d = SB ? (int32)a/(int32)b : a/b;
 		if (OE::test(opcode))
 			xer().set_ov(0);
-		if (Rc::test(opcode))
-			record_cr0((int32)d);
 	}
+
+	// Set CR0 (LT, GT, EQ, SO) if instruction has Rc set
+	if (Rc::test(opcode))
+		record_cr0((int32)d);
+
+	// Commit result to output operand
+	operand_RD::set(this, opcode, d);
 
 	increment_pc(4);
 }
@@ -1020,6 +1037,20 @@ void powerpc_cpu::execute_mftbr(uint32 opcode)
 	}
 	operand_RD::set(this, opcode, d);
 	increment_pc(4);
+}
+
+/**
+ *		Instruction cache management
+ **/
+
+void powerpc_cpu::execute_icbi(uint32 opcode)
+{
+	// TODO: record address range of code to invalidate
+}
+
+void powerpc_cpu::execute_isync(uint32 opcode)
+{
+	invalidate_cache();
 }
 
 /**

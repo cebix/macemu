@@ -254,8 +254,8 @@ private:
 	block_info::decode_info * decode_cache_p;
 	block_info::decode_info * decode_cache_end_p;
 
-	void invalidate_cache_all();
-	void invalidate_cache_lazy();
+	void invalidate_cache();
+	void invalidate_cache_range(uintptr start, uintptr end);
 
 	// Instruction handlers
 	void execute_nop(uint32 opcode);
@@ -318,14 +318,8 @@ private:
 	void execute_fp_int_convert(uint32 opcode);
 	template< class Rc >
 	void execute_fp_round(uint32 opcode);
-
-	// Instruction decoders
-	template< class RA, class RB, class RC, class CA >
-	execute_fn decode_addition(uint32 opcode);
-	template< class PC, class DP, class AA >
-	execute_fn decode_branch(uint32 opcode);
-	template< class RA, class RS >
-	execute_fn decode_rlwinm(uint32 opcode);
+	void execute_icbi(uint32 opcode);
+	void execute_isync(uint32 opcode);
 };
 
 #endif /* PPC_CPU_H */

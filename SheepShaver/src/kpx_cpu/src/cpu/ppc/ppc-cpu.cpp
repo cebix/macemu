@@ -20,8 +20,8 @@
 
 #include "sysdeps.h"
 #include "vm_alloc.h"
-#include "ppc-cpu.hpp"
-#include "vm.hpp"
+#include "cpu/vm.hpp"
+#include "cpu/ppc/ppc-cpu.hpp"
 
 #if ENABLE_MON
 #include "mon.h"
@@ -276,7 +276,7 @@ void powerpc_cpu::execute()
 			di->execute = ii->execute;
 			if (++di >= decode_cache_end_p) {
 				// Invalidate cache and move current code to start
-				invalidate_cache_all();
+				invalidate_cache();
 				const int blocklen = di - bi->di;
 				memmove(decode_cache_p, bi->di, blocklen * sizeof(*di));
 				bi->di = decode_cache_p;
@@ -359,17 +359,19 @@ void powerpc_cpu::kill_decode_cache()
 #endif
 }
 
-#ifndef PPC_NO_DECODE_CACHE
-void powerpc_cpu::invalidate_cache_all()
+void powerpc_cpu::invalidate_cache()
 {
+#ifndef PPC_NO_DECODE_CACHE
 	block_cache.clear();
 	block_cache.initialize();
 	decode_cache_p = decode_cache;
+#endif
 }
 
-void powerpc_cpu::invalidate_cache_lazy()
+void powerpc_cpu::invalidate_cache_range(uintptr start, uintptr end)
 {
-	// TODO: implement this!
-	invalidate_cache_all();
-}
+#ifndef PPC_NO_DECODE_CACHE
+	// TODO: partial translation cache invalidatation
+	invalidate_cache();
 #endif
+}

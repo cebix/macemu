@@ -18,10 +18,10 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "ppc-cpu.hpp"
-#include "ppc-bitfields.hpp"
-#include "ppc-operands.hpp"
-#include "ppc-operations.hpp"
+#include "cpu/ppc/ppc-cpu.hpp"
+#include "cpu/ppc/ppc-bitfields.hpp"
+#include "cpu/ppc/ppc-operands.hpp"
+#include "cpu/ppc/ppc-operations.hpp"
 
 #define DEBUG 0
 #include "debug.h"
@@ -236,8 +236,6 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  NULL,
 	  XL_form, 19, 193, CFLOW_NORMAL
 	},
-#if 1
-	// FIXME: handle translation cache
 	{ "dcba",
 	  EXECUTE_0(nop),
 	  NULL,
@@ -273,7 +271,6 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  NULL,
 	  X_form, 31, 1014, CFLOW_NORMAL
 	},
-#endif
 	{ "divw",
 	  EXECUTE_3(divide, true, OE_BIT_G, RC_BIT_G),
 	  NULL,
@@ -284,7 +281,6 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  NULL,
 	  XO_form, 31, 459, CFLOW_NORMAL
 	},
-#if 1
 	{ "eciwx",
 	  EXECUTE_0(nop),
 	  NULL,
@@ -300,7 +296,6 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  NULL,
 	  X_form, 31, 854, CFLOW_NORMAL
 	},
-#endif
 	{ "eqv",
 	  EXECUTE_GENERIC_ARITH(eqv, RA, RS, RB, NONE, OE_BIT_0, RC_BIT_G),
 	  NULL,
@@ -441,23 +436,16 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  NULL,
 	  A_form, 59, 20, CFLOW_NORMAL
 	},
-	{ "nand",
-	  EXECUTE_GENERIC_ARITH(nand, RA, RS, RB, NONE, OE_BIT_0, RC_BIT_G),
-	  NULL, 
-	  X_form, 31, 476, CFLOW_NORMAL
-	},
-#if 1
 	{ "icbi",
-	  EXECUTE_0(nop),
+	  EXECUTE_0(icbi),
 	  NULL,
 	  X_form, 31, 982, CFLOW_NORMAL
 	},
 	{ "isync",
-	  EXECUTE_0(nop),
+	  EXECUTE_0(isync),
 	  NULL,
 	  X_form, 19, 150, CFLOW_NORMAL
 	},
-#endif
 	{ "lbz",
 	  EXECUTE_LOADSTORE(nop, RA_or_0, D, true, 1, false, false),
 	  NULL,
@@ -689,8 +677,8 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  XO_form, 31, 235, CFLOW_NORMAL
 	},
 	{ "nand",
-	  EXECUTE_GENERIC_ARITH(nand, RD, RS, RB, NONE, OE_BIT_0, RC_BIT_G),
-	  NULL,
+	  EXECUTE_GENERIC_ARITH(nand, RA, RS, RB, NONE, OE_BIT_0, RC_BIT_G),
+	  NULL, 
 	  X_form, 31, 476, CFLOW_NORMAL
 	},
 	{ "neg",
