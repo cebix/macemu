@@ -21,7 +21,14 @@ AC_ARG_ENABLE(xf86-dga,     [  --enable-xf86-dga       use the XFree86 DGA exten
 AC_ARG_ENABLE(xf86-vidmode, [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=no]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=no])
 AC_ARG_ENABLE(vosf,         [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=yes])
 AC_ARG_WITH(esd,            [  --with-esd              support ESD for sound under Linux/FreeBSD [default=yes]], [WANT_ESD=$withval], [WANT_ESD=yes])
-AC_ARG_WITH(gtk,            [  --with-gtk              use GTK user interface [default=yes]], [WANT_GTK=$withval], [WANT_GTK=yes])
+AC_ARG_WITH(gtk,            [  --with-gtk              use GTK user interface [default=yes]],
+  [case "$withval" in
+   gtk1)      WANT_GTK="gtk";;
+   gtk|gtk2)  WANT_GTK="$withval";;
+   yes)       WANT_GTK="gtk2 gtk";;
+   *)         WANT_GTK="no";;
+   esac],
+  [WANT_GTK="gtk2 gtk"])
 AC_ARG_WITH(mon,            [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=yes])
 AC_ARG_WITH(dgcc,           [  --with-dgcc=COMPILER    use C++ COMPILER to compile synthetic opcodes], [DYNGEN_CC=$withval])
 
@@ -222,7 +229,30 @@ fi
 
 dnl We use GTK+ if possible.
 UISRCS=../dummy/prefs_editor_dummy.cpp
-if [[ "x$WANT_GTK" = "xyes" ]]; then
+case "x$WANT_GTK" in
+xgtk2*)
+  AM_PATH_GTK_2_0(1.3.15, [
+    AC_DEFINE(ENABLE_GTK, 1, [Define if using GTK.])
+    CFLAGS="$CFLAGS $GTK_CFLAGS"
+    CXXFLAGS="$CXXFLAGS $GTK_CFLAGS"
+    LIBS="$LIBS $GTK_LIBS"
+    UISRCS=prefs_editor_gtk.cpp
+    WANT_GTK=gtk2
+  ], [
+    case "x${WANT_GTK}x" in
+    *gtkx)
+      AC_MSG_WARN([Could not find GTK+ 2.0, trying with GTK+ 1.2.])
+      WANT_GTK=gtk
+      ;;
+    *)
+      AC_MSG_WARN([Could not find GTK+, disabling user interface.])
+      WANT_GTK=no
+      ;;
+    esac
+  ])
+  ;;
+esac
+if [[ "x$WANT_GTK" = "xgtk" ]]; then
   AM_PATH_GTK(1.2.0, [
     AC_DEFINE(ENABLE_GTK, 1, [Define if using GTK.])
     CFLAGS="$CFLAGS $GTK_CFLAGS"
