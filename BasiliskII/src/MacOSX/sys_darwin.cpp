@@ -28,8 +28,10 @@
 #import <sys/param.h>
 #import <IOKit/IOKitLib.h>
 #import <IOKit/IOBSD.h>
+#import <IOKit/serial/IOSerialKeys.h>
 #import <IOKit/storage/IOMedia.h>
 #import <IOKit/storage/IOMediaBSDClient.h>
+#import <IOKit/storage/IOBlockStorageDevice.h>
 #import <IOKit/storage/IOCDMedia.h>
 #import <IOKit/storage/IOCDMediaBSDClient.h>
 #import <CoreFoundation/CoreFoundation.h>
@@ -63,7 +65,7 @@ void DarwinAddCDROMPrefs(void)
 
 	// Let this task talk to the guts of the kernel:
 	if ( IOMasterPort(MACH_PORT_NULL, &masterPort) != KERN_SUCCESS )
-		bug("IOMasterPort failed. Won't be able to do anything with CD drives");
+		bug("IOMasterPort failed. Won't be able to do anything with CD drives\n");
 
 
 	// CD media are instances of class kIOCDMediaClass
@@ -106,23 +108,163 @@ void DarwinAddCDROMPrefs(void)
 									 MAXPATHLEN - devPathLength,
 									 kCFStringEncodingASCII) )
 			{
-				// If we try to do raw reads on the file bsdPath (e.g. /dev/disk5),
-				// we get a lot of extra padding in the data. For some reason,
-				// the device we need has a different name (e.g. /dev/disk5s1)
-				//strcat(bsdPath, "s1");
 				D(bug("CDROM BSD path: %s\n", bsdPath));
+				PrefsAddString("cdrom", bsdPath);
 			}
 			else
 				D(bug("Could not get BSD device path for CD\n"));
 
 			CFRelease(bsdPathAsCFString);
 		}
-
-		PrefsAddString("cdrom", bsdPath);
+		else
+			D(bug("Cannot determine bsdPath for CD\n"));
 	}
 
 	IOObjectRelease(nextCD);
 	IOObjectRelease(allCDs);
+}
+
+
+void DarwinAddFloppyPrefs(void)
+{
+	mach_port_t				masterPort;		// The way to talk to the kernel
+	io_iterator_t			allFloppies;	// List of CD drives on the system
+	CFMutableDictionaryRef	classesToMatch;
+	io_object_t				nextFloppy;
+
+
+	if ( IOMasterPort(MACH_PORT_NULL, &masterPort) != KERN_SUCCESS )
+		bug("IOMasterPort failed. Won't be able to do anything with floppy drives\n");
+
+
+	classesToMatch = IOServiceMatching(kIOMediaClass); 
+	if ( classesToMatch )
+	{
+		// We acually want removables that are _not_ CDs,
+		// but I don't know how to do that yet.
+		CFDictionarySetValue(classesToMatch,
+							 CFSTR(kIOMediaRemovableKey), kCFBooleanTrue); 
+	}
+
+	if ( IOServiceGetMatchingServices(masterPort,
+									  classesToMatch, &allFloppies) != KERN_SUCCESS )
+	{
+		D(bug("IOServiceGetMatchingServices failed. No removable drives found?\n"));
+		return;
+	}
+
+
+	// Iterate through each floppy
+	while ( nextFloppy = IOIteratorNext(allFloppies))
+	{
+		char		bsdPath[MAXPATHLEN];
+		CFTypeRef	bsdPathAsCFString =
+						IORegistryEntryCreateCFProperty(nextFloppy,
+														CFSTR(kIOBSDNameKey),
+														kCFAllocatorDefault, 0);
+		*bsdPath = '\0';
+		if ( bsdPathAsCFString )
+		{
+			size_t devPathLength;
+
+			strcpy(bsdPath, "/dev/");
+			devPathLength = strlen(bsdPath);
+
+			if ( CFStringGetCString((const __CFString *)bsdPathAsCFString,
+									 bsdPath + devPathLength,
+									 MAXPATHLEN - devPathLength,
+									 kCFStringEncodingASCII) )
+			{
+				D(bug("Floppy BSD path: %s\n", bsdPath));
+				PrefsAddString("floppy", bsdPath);
+			}
+			else
+				D(bug("Could not get BSD device path for floppy\n"));
+
+			CFRelease(bsdPathAsCFString);
+		}
+		else
+			D(bug("Cannot determine bsdPath for floppy\n"));
+	}
+
+	IOObjectRelease(nextFloppy);
+	IOObjectRelease(allFloppies);
+}
+
+
+void DarwinAddSerialPrefs(void)
+{
+	mach_port_t				masterPort;		// The way to talk to the kernel
+	io_iterator_t			allModems;		// List of modems on the system
+	CFMutableDictionaryRef	classesToMatch;
+	io_object_t				nextModem;
+
+
+	if ( IOMasterPort(MACH_PORT_NULL, &masterPort) != KERN_SUCCESS )
+		bug("IOMasterPort failed. Won't be able to do anything with modems\n");
+
+
+    // Serial devices are instances of class IOSerialBSDClient
+    classesToMatch = IOServiceMatching(kIOSerialBSDServiceValue);
+	if ( classesToMatch )
+	{
+		// Narrow the search a little further. Each serial device object has
+		// a property with key kIOSerialBSDTypeKey and a value that is one of
+		// kIOSerialBSDAllTypes, kIOSerialBSDModemType, or kIOSerialBSDRS232Type.
+
+        CFDictionarySetValue(classesToMatch,
+                             CFSTR(kIOSerialBSDTypeKey),
+                             CFSTR(kIOSerialBSDModemType));
+
+        // This will find built-in and USB modems, but not serial modems.
+	}
+
+	if ( IOServiceGetMatchingServices(masterPort,
+									  classesToMatch, &allModems) != KERN_SUCCESS )
+	{
+		D(bug("IOServiceGetMatchingServices failed. No modems found?\n"));
+		return;
+	}
+
+	// Iterate through each modem
+	while ( nextModem = IOIteratorNext(allModems))
+	{
+		char		bsdPath[MAXPATHLEN];
+		CFTypeRef	bsdPathAsCFString =
+						IORegistryEntryCreateCFProperty(nextModem,
+														CFSTR(kIOCalloutDeviceKey),
+														// kIODialinDeviceKey?
+														kCFAllocatorDefault, 0);
+		*bsdPath = '\0';
+		if ( bsdPathAsCFString )
+		{
+			if ( CFStringGetCString((const __CFString *)bsdPathAsCFString,
+									 bsdPath, MAXPATHLEN,
+									 kCFStringEncodingASCII) )
+			{
+				D(bug("Modem BSD path: %s\n", bsdPath));
+
+				// Note that if there are multiple modems, we only get the last
+				PrefsAddString("seriala", bsdPath);
+			}
+			else
+				D(bug("Could not get BSD device path for modem\n"));
+
+			CFRelease(bsdPathAsCFString);
+		}
+		else
+			D(puts("Cannot determine bsdPath for modem\n"));
+	}
+
+	IOObjectRelease(nextModem);
+	IOObjectRelease(allModems);
+
+
+	// Getting a printer device is a bit harder. Creating a fake device
+	// that emulates a simple printer (e.g. a HP DeskJet) is one possibility,
+	// but for now I will just create a fake, safe, device entry:
+
+	PrefsAddString("serialb", "/dev/null");
 }
 
 
