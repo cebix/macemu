@@ -65,6 +65,7 @@ static int16 mouse_wheel_mode;
 static int16 mouse_wheel_lines;
 static bool redraw_thread_active = false;	// Flag: Redraw thread installed
 static pthread_attr_t redraw_thread_attr;	// Redraw thread attributes
+static volatile bool redraw_thread_cancel;	// Flag: Cancel Redraw thread
 static pthread_t redraw_thread;				// Redraw thread
 
 static bool local_X11;						// Flag: X server running on local machine?
@@ -1193,6 +1194,7 @@ bool VideoInit(void)
 	// Start periodic thread
 	XSync(x_display, false);
 	Set_pthread_attr(&redraw_thread_attr, 0);
+	redraw_thread_cancel = false;
 	redraw_thread_active = (pthread_create(&redraw_thread, &redraw_thread_attr, redraw_func, NULL) == 0);
 	D(bug("Redraw thread installed (%ld)\n", redraw_thread));
 	return true;
@@ -1207,6 +1209,7 @@ void VideoExit(void)
 {
 	// Stop redraw thread
 	if (redraw_thread_active) {
+		redraw_thread_cancel = true;
 		pthread_cancel(redraw_thread);
 		pthread_join(redraw_thread, NULL);
 		redraw_thread_active = false;
@@ -2295,7 +2298,7 @@ static void *redraw_func(void *arg)
 	int64 ticks = 0;
 	uint64 next = GetTicks_usec() + VIDEO_REFRESH_DELAY;
 
-	for (;;) {
+	while (!redraw_thread_cancel) {
 
 		// Pause if requested (during video mode switches)
 		while (thread_stop_req)
