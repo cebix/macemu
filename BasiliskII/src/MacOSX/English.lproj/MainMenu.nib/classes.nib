@@ -14,6 +14,7 @@
                 PowerKey = id; 
                 Restart = id; 
                 Resume = id; 
+                ScreenHideShow = id; 
                 Snapshot = id; 
                 SpeedChange = id; 
                 Suspend = id; 
@@ -93,6 +94,7 @@
                 disableCD = id; 
                 disableSound = id; 
                 diskImages = id; 
+                displayType = id; 
                 emuFreq = id; 
                 emuWin = id; 
                 etherNet = id; 
