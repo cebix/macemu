@@ -36,10 +36,10 @@
 #import "timer.h"
 
 #undef check				// memory.h defines a check macro, clashes with an OS X one?
-#import <cpu_emulation.h>
+#import "cpu_emulation.h"
 
 #define DEBUG 0
-#import <debug.h>
+#import "debug.h"
 
 @implementation Emulator
 
@@ -353,7 +353,7 @@ uint8 lastXPRAM[XPRAM_SIZE];		// Copy of PRAM
 #endif
 	emul   = [NNThread	new];
 	RTC    = [NNTimer	new];
-	redraw = [[NNTimer	alloc] initWithAutoReleasePool]
+	redraw = [[NNTimer	alloc] initWithAutoRelPool];
 	tick   = [NNTimer	new];
 	xPRAM  = [NNTimer	new];
 
