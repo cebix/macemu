@@ -80,6 +80,10 @@ using std::string;
 #include "vm_alloc.h"
 #include "sigsegv.h"
 
+#if USE_JIT
+extern void (*flush_icache)(int); // from compemu_support.cpp
+#endif
+
 #ifdef ENABLE_MON
 # include "mon.h"
 #endif
@@ -205,7 +209,7 @@ char *strdup(const char *s)
 
 static void sigsegv_dump_state(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction)
 {
-	fprintf(stderr, "do_handle_screen_fault: unhandled address %p", fault_address);
+	fprintf(stderr, "Caught SIGSEGV at address %p", fault_address);
 	if (fault_instruction != SIGSEGV_INVALID_PC)
 		fprintf(stderr, " [IP=%p]", fault_instruction);
 	fprintf(stderr, "\n");
@@ -213,6 +217,10 @@ static void sigsegv_dump_state(sigsegv_address_t fault_address, sigsegv_address_
 	uaecptr nextpc;
 	extern void m68k_dumpstate(uaecptr *nextpc);
 	m68k_dumpstate(&nextpc);
+#endif
+#if USE_JIT && JIT_DEBUG
+	extern void compiler_dumpstate(void);
+	compiler_dumpstate();
 #endif
 	VideoQuitFullScreen();
 #ifdef ENABLE_MON
@@ -726,6 +734,10 @@ void QuitEmulator(void)
 
 void FlushCodeCache(void *start, uint32 size)
 {
+#if USE_JIT
+    if (UseJIT)
+		flush_icache(-1);
+#endif
 #if !EMULATED_68K && defined(__NetBSD__)
 	m68k_sync_icache(start, size);
 #endif
