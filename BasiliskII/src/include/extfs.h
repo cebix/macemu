@@ -42,6 +42,7 @@ extern int open_rfork(const char *path, int flag);
 extern void close_rfork(const char *path, int fd);
 extern size_t extfs_read(int fd, void *buffer, size_t length);
 extern size_t extfs_write(int fd, void *buffer, size_t length);
+extern bool extfs_remove(const char *path);
 
 // Maximum length of full path name
 const int MAX_PATH_LENGTH = 1024;

@@ -1898,16 +1898,9 @@ static int16 fs_delete(uint32 pb, uint32 dirID)
 		return result;
 
 	// Delete file
-	if (remove(full_path) < 0) {
-		int16 err = errno2oserr();
-		if (errno == EISDIR) {	// Workaround for BeOS bug
-			if (rmdir(full_path) < 0)
-				return errno2oserr();
-			else
-				return noErr;
-		} else
-			return err;
-	} else
+	if (!extfs_remove(full_path))
+		return errno2oserr();
+	else
 		return noErr;
 }
 

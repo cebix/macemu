@@ -368,3 +368,28 @@ size_t extfs_write(int fd, void *buffer, size_t length)
 	errno = 0;
 	return write(fd, buffer, length);
 }
+
+
+/*
+ *  Remove file/directory (and associated helper files),
+ *  returns false on error (and sets errno)
+ */
+
+bool extfs_remove(const char *path)
+{
+	// Remove helpers first, don't complain if this fails
+	char helper_path[MAX_PATH_LENGTH];
+	make_helper_path(path, helper_path, ".finf/", false);
+	remove(helper_path);
+	make_helper_path(path, helper_path, ".rsrc/", false);
+	remove(helper_path);
+
+	// Now remove file or directory
+	if (remove(path) < 0) {
+		if (errno == EISDIR)
+			return rmdir(path) == 0;
+		else
+			return false;
+	}
+	return true;
+}

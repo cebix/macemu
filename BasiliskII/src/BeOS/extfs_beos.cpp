@@ -455,3 +455,19 @@ size_t extfs_write(int fd, void *buffer, size_t length)
 	}
 	return actual;
 }
+
+
+/*
+ *  Remove file/directory, returns false on error (and sets errno)
+ */
+
+bool extfs_remove(const char *path)
+{
+	if (remove(path) < 0) {
+		if (errno == EISDIR)
+			return rmdir(path) == 0;
+		else
+			return false;
+	}
+	return true;
+}
