@@ -319,7 +319,6 @@ static bool check_rom_patch_space(uint32 base, uint32 size)
 	size = (size + 3) & -4;
 	for (int i = 0; i < size; i += 4) {
 		uint32 x = ntohl(*(uint32 *)(ROM_BASE + base + i));
-		printf("%08x\n", x);
 		if (x != 0x6b636b63 && x != 0)
 			return false;
 	}
