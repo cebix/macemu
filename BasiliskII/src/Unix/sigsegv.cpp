@@ -57,6 +57,10 @@ static bool sigsegv_do_install_handler(int sig);
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, siginfo_t *sip, void *scp
 #define SIGSEGV_FAULT_ADDRESS			sip->si_addr
 #if defined(__linux__)
+#if (defined(i386) || defined(__i386__))
+#include <sys/ucontext.h>
+#define SIGSEGV_FAULT_INSTRUCTION		(((ucontext_t *)scp)->uc_mcontext.gregs[14]) /* should use REG_EIP instead */
+#endif
 #if (defined(ia64) || defined(__ia64__))
 #define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_ip & ~0x3ULL) /* slot number is in bits 0 and 1 */
 #endif
