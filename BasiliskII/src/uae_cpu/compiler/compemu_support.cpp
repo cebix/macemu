@@ -159,6 +159,20 @@ static inline bool is_const_jump(uae_u32 opcode)
 	return (prop[opcode].cflow == fl_const_jump);
 }
 
+static inline bool may_trap(uae_u32 opcode)
+{
+	return (prop[opcode].cflow & fl_trap);
+}
+
+static inline unsigned int cft_map (unsigned int f)
+{
+#ifndef HAVE_GET_WORD_UNSWAPPED
+    return f;
+#else
+    return ((f >> 8) & 255) | ((f & 255) << 8);
+#endif
+}
+
 uae_u8* start_pc_p;
 uae_u32 start_pc;
 uae_u32 current_block_pc_p;
@@ -185,10 +199,6 @@ static void* popall_execute_normal=NULL;
 static void* popall_cache_miss=NULL;
 static void* popall_recompile_block=NULL;
 static void* popall_check_checksum=NULL;
-
-extern uae_u32 oink;
-extern unsigned long foink3;
-extern unsigned long foink;
 
 /* The 68k only ever executes from even addresses. So right now, we
  * waste half the entries in this array
@@ -800,6 +810,241 @@ static __inline__ void flush_flags(void)
 }
 
 int touchcnt;
+
+/********************************************************************
+ * Partial register flushing for optimized calls                    *
+ ********************************************************************/
+
+struct regusage {
+	uae_u16 rmask;
+	uae_u16 wmask;
+};
+
+static inline void ru_set(uae_u16 *mask, int reg)
+{
+#if USE_OPTIMIZED_CALLS
+	*mask |= 1 << reg;
+#endif
+}
+
+static inline bool ru_get(const uae_u16 *mask, int reg)
+{
+#if USE_OPTIMIZED_CALLS
+	return (*mask & (1 << reg));
+#else
+	/* Default: instruction reads & write to register */
+	return true;
+#endif
+}
+
+static inline void ru_set_read(regusage *ru, int reg)
+{
+	ru_set(&ru->rmask, reg);
+}
+
+static inline void ru_set_write(regusage *ru, int reg)
+{
+	ru_set(&ru->wmask, reg);
+}
+
+static inline bool ru_read_p(const regusage *ru, int reg)
+{
+	return ru_get(&ru->rmask, reg);
+}
+
+static inline bool ru_write_p(const regusage *ru, int reg)
+{
+	return ru_get(&ru->wmask, reg);
+}
+
+static void ru_fill_ea(regusage *ru, int reg, amodes mode,
+					   wordsizes size, int write_mode)
+{
+	switch (mode) {
+	case Areg:
+		reg += 8;
+		/* fall through */
+	case Dreg:
+		ru_set(write_mode ? &ru->wmask : &ru->rmask, reg);
+		break;
+	case Ad16:
+		/* skip displacment */
+		m68k_pc_offset += 2;
+	case Aind:
+	case Aipi:
+	case Apdi:
+		ru_set_read(ru, reg+8);
+		break;
+	case Ad8r:
+		ru_set_read(ru, reg+8);
+		/* fall through */
+	case PC8r: {
+		uae_u16 dp = comp_get_iword((m68k_pc_offset+=2)-2);
+		reg = (dp >> 12) & 15;
+		ru_set_read(ru, reg);
+		if (dp & 0x100)
+			m68k_pc_offset += (((dp & 0x30) >> 3) & 7) + ((dp & 3) * 2);
+		break;
+	}
+	case PC16:
+	case absw:
+	case imm0:
+	case imm1:
+		m68k_pc_offset += 2;
+		break;
+	case absl:
+	case imm2:
+		m68k_pc_offset += 4;
+		break;
+	case immi:
+		m68k_pc_offset += (size == sz_long) ? 4 : 2;
+		break;
+	}
+}
+
+/* TODO: split into a static initialization part and a dynamic one
+   (instructions depending on extension words) */
+static void ru_fill(regusage *ru, uae_u32 opcode)
+{
+	m68k_pc_offset += 2;
+
+	/* Default: no register is used or written to */
+	ru->rmask = 0;
+	ru->wmask = 0;
+
+	uae_u32 real_opcode = cft_map(opcode);
+	struct instr *dp = &table68k[real_opcode];
+
+	bool rw_dest = true;
+	bool handled = false;
+
+	/* Handle some instructions specifically */
+	uae_u16 reg, ext;
+	switch (dp->mnemo) {
+	case i_BFCHG:
+	case i_BFCLR:
+	case i_BFEXTS:
+	case i_BFEXTU:
+	case i_BFFFO:
+	case i_BFINS:
+	case i_BFSET:
+	case i_BFTST:
+		ext = comp_get_iword((m68k_pc_offset+=2)-2);
+		if (ext & 0x800) ru_set_read(ru, (ext >> 6) & 7);
+		if (ext & 0x020) ru_set_read(ru, ext & 7);
+		ru_fill_ea(ru, dp->dreg, (amodes)dp->dmode, (wordsizes)dp->size, 1);
+		if (dp->dmode == Dreg)
+			ru_set_read(ru, dp->dreg);
+		switch (dp->mnemo) {
+		case i_BFEXTS:
+		case i_BFEXTU:
+		case i_BFFFO:
+			ru_set_write(ru, (ext >> 12) & 7);
+			break;
+		case i_BFINS:
+			ru_set_read(ru, (ext >> 12) & 7);
+			/* fall through */
+		case i_BFCHG:
+		case i_BFCLR:
+		case i_BSET:
+			if (dp->dmode == Dreg)
+				ru_set_write(ru, dp->dreg);
+			break;
+		}
+		handled = true;
+		rw_dest = false;
+		break;
+
+	case i_BTST:
+		rw_dest = false;
+		break;
+
+	case i_CAS:
+	{
+		ext = comp_get_iword((m68k_pc_offset+=2)-2);
+		int Du = ext & 7;
+		ru_set_read(ru, Du);
+		int Dc = (ext >> 6) & 7;
+		ru_set_read(ru, Dc);
+		ru_set_write(ru, Dc);
+		break;
+	}
+	case i_CAS2:
+	{
+		int Dc1, Dc2, Du1, Du2, Rn1, Rn2;
+		ext = comp_get_iword((m68k_pc_offset+=2)-2);
+		Rn1 = (ext >> 12) & 15;
+		Du1 = (ext >> 6) & 7;
+		Dc1 = ext & 7;
+		ru_set_read(ru, Rn1);
+		ru_set_read(ru, Du1);
+		ru_set_read(ru, Dc1);
+		ru_set_write(ru, Dc1);
+		ext = comp_get_iword((m68k_pc_offset+=2)-2);
+		Rn2 = (ext >> 12) & 15;
+		Du2 = (ext >> 6) & 7;
+		Dc2 = ext & 7;
+		ru_set_read(ru, Rn2);
+		ru_set_read(ru, Du2);
+		ru_set_write(ru, Dc2);
+		break;
+	}
+	case i_DIVL: case i_MULL:
+		m68k_pc_offset += 2;
+		break;
+	case i_LEA:
+	case i_MOVE: case i_MOVEA: case i_MOVE16:
+		rw_dest = false;
+		break;
+	case i_PACK: case i_UNPK:
+		rw_dest = false;
+		m68k_pc_offset += 2;
+		break;
+	case i_TRAPcc:
+		m68k_pc_offset += (dp->size == sz_long) ? 4 : 2;
+		break;
+	case i_RTR:
+		/* do nothing, just for coverage debugging */
+		break;
+	/* TODO: handle EXG instruction */
+	}
+
+	/* Handle A-Traps better */
+	if ((real_opcode & 0xf000) == 0xa000) {
+		handled = true;
+	}
+
+	/* Handle EmulOps better */
+	if ((real_opcode & 0xff00) == 0x7100) {
+		handled = true;
+		ru->rmask = 0xffff;
+		ru->wmask = 0;
+	}
+
+	if (dp->suse && !handled)
+		ru_fill_ea(ru, dp->sreg, (amodes)dp->smode, (wordsizes)dp->size, 0);
+
+	if (dp->duse && !handled)
+		ru_fill_ea(ru, dp->dreg, (amodes)dp->dmode, (wordsizes)dp->size, 1);
+
+	if (rw_dest)
+		ru->rmask |= ru->wmask;
+
+	handled = handled || dp->suse || dp->duse;
+
+	/* Mark all registers as used/written if the instruction may trap */
+	if (may_trap(opcode)) {
+		handled = true;
+		ru->rmask = 0xffff;
+		ru->wmask = 0xffff;
+	}
+
+	if (!handled) {
+		write_log("ru_fill: %04x = { %04x, %04x }\n",
+				  real_opcode, ru->rmask, ru->wmask);
+		abort();
+	}
+}
 
 /********************************************************************
  * register allocation per block logging                            *
@@ -4632,15 +4877,6 @@ static inline const char *str_on_off(bool b)
 	return b ? "on" : "off";
 }
 
-static __inline__ unsigned int cft_map (unsigned int f)
-{
-#ifndef HAVE_GET_WORD_UNSWAPPED
-    return f;
-#else
-    return ((f >> 8) & 255) | ((f & 255) << 8);
-#endif
-}
-
 void compiler_init(void)
 {
 	static bool initialized = false;
@@ -6220,7 +6456,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 			comp_pc_p=(uae_u8*)pc_hist[i].location;
 			init_comp();
 		    }
-		    was_comp++;
+		    was_comp=1;
 
 		    comptbl[opcode](opcode);
 		    freescratch();
@@ -6252,16 +6488,9 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 			// raw_cputbl_count[] is indexed with plain opcode (in m68k order)
 			raw_add_l_mi((uae_u32)&raw_cputbl_count[cft_map(opcode)],1);
 #endif
-		    //raw_add_l_mi((uae_u32)&oink,1); // FIXME
 #if USE_NORMAL_CALLING_CONVENTION
 		    raw_inc_sp(4);
 #endif
-		    if (needed_flags) {
-			//raw_mov_l_mi((uae_u32)&foink3,(uae_u32)opcode+65536);
-		    }
-		    else {
-			//raw_mov_l_mi((uae_u32)&foink3,(uae_u32)opcode);
-		    }
 		    
 		    if (i < blocklen - 1) {
 			uae_s8* branchadd;

@@ -57,6 +57,12 @@ union cacheline {
 	blockinfo_t * bi;
 };
 
+/* Use new spill/reload strategy when calling external functions */
+#define USE_OPTIMIZED_CALLS 0
+#if USE_OPTIMIZED_CALLS
+#error implementation in progress
+#endif
+
 /* (gb) When on, this option can save save up to 30% compilation time
  *  when many lazy flushes occur (e.g. apps in MacOS 8.x).
  */

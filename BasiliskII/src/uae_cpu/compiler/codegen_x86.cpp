@@ -77,9 +77,14 @@ uae_s8 always_used[]={4,-1};
 uae_s8 can_byte[]={0,1,2,3,-1};
 uae_s8 can_word[]={0,1,2,3,5,6,7,-1};
 
+#if USE_OPTIMIZED_CALLS
+/* Make sure interpretive core does not use cpuopti */
+uae_u8 call_saved[]={0,0,0,1,1,1,1,1};
+#else
 /* cpuopti mutate instruction handlers to assume registers are saved
    by the caller */
 uae_u8 call_saved[]={0,0,0,0,1,0,0,0};
+#endif
 
 /* This *should* be the same as call_saved. But:
    - We might not really know which registers are saved, and which aren't,

@@ -639,8 +639,6 @@ void comp_ftrapcc_opp (uae_u32 opcode, uaecptr oldpc)
     return;
 }
 
-extern unsigned long foink3, oink;
-
 void comp_fbcc_opp (uae_u32 opcode)
 {
     uae_u32 start_68k_offset=m68k_pc_offset;
@@ -677,7 +675,6 @@ void comp_fbcc_opp (uae_u32 opcode)
     v2=get_const(S1);
     fflags_into_flags(S2);
 
-    // mov_l_mi((uae_u32)&foink3,cc);
     switch(cc) {  
      case 0: break;  /* jump never */
      case 1: 
