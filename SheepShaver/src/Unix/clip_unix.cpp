@@ -74,12 +74,6 @@ using std::vector;
 #endif
 
 
-// Do we replace PutScrap()?
-#define REPLACE_PUTSCRAP 1
-
-// Do we replace GetScrap()?
-#define REPLACE_GETSCRAP 1
-
 // Do we want GetScrap() to check for TIMESTAMP and optimize out clipboard syncs?
 #define GETSCRAP_REQUESTS_TIMESTAMP 0
 
@@ -313,8 +307,6 @@ void ClipExit(void)
 void PutScrap(uint32 type, void *scrap, int32 length)
 {
 	D(bug("PutScrap type %08lx, data %p, length %ld\n", type, scrap, length));
-	if (!REPLACE_PUTSCRAP)
-		return;
 	if (we_put_this_data) {
 		we_put_this_data = false;
 		return;
@@ -389,8 +381,6 @@ static void do_putscrap(uint32 type, void *scrap, int32 length)
 void GetScrap(void **handle, uint32 type, int32 offset)
 {
 	D(bug("GetScrap handle %p, type %08x, offset %d\n", handle, type, offset));
-	if (!REPLACE_GETSCRAP)
-		return;
 
 	XDisplayLock();
 	do_getscrap(handle, type, offset);
