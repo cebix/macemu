@@ -650,10 +650,38 @@ AC_EGREP_CPP(yes,
 #endif
 ], [AC_MSG_RESULT(yes); HAVE_GCC27=yes], AC_MSG_RESULT(no))
 
+dnl Check for GCC 3.0 or higher.
+HAVE_GCC30=no
+AC_MSG_CHECKING(for GCC 3.0 or higher)
+AC_EGREP_CPP(yes,
+[#if __GNUC__ >= 3
+  yes
+#endif
+], [AC_MSG_RESULT(yes); HAVE_GCC30=yes], AC_MSG_RESULT(no))
+
 dnl Set "-fomit-frame-pointer" on i386 GCC 2.7 or higher.
 if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
   CFLAGS="$CFLAGS -fomit-frame-pointer"
   CXXFLAGS="$CXXFLAGS -fomit-frame-pointer"
+fi
+
+dnl (gb) Do not merge constants since it breaks fpu/fpu_x86.cpp.
+dnl As of 2001/08/02, this affects the following compilers:
+dnl Official: probably gcc-3.1 (mainline CVS)
+dnl Mandrake: gcc-2.96 >= 0.59mdk, gcc-3.0.1 >= 0.1mdk
+dnl Red Hat : gcc-2.96 >= 89, gcc-3.0 >= 1
+if [[ "x$HAVE_GCC27" = "xyes" ]]; then
+  SAVED_CXXFLAGS="$CXXFLAGS"
+  CXXFLAGS="$CFLAGS -fno-merge-constants"
+  AC_CACHE_CHECK([whether GCC supports constants merging], ac_cv_gcc_constants_merging, [
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
+    AC_TRY_COMPILE([],[],[ac_cv_gcc_constants_merging=yes],[ac_cv_gcc_constants_merging=no])
+    AC_LANG_RESTORE
+  ])
+  if [[ "x$ac_cv_gcc_constants_merging" != "xyes" ]]; then
+    CXXFLAGS="$SAVED_CXXFLAGS"
+  fi
 fi
 
 dnl Select appropriate CPU source and REGPARAM define.
@@ -706,6 +734,7 @@ if [[ "x$FPE_CORE" = "xdefault" ]]; then
     DEFINES="$DEFINES -DFPU_X86"
     FPE_CORE_STR="i386 optimized core"
     FPUSRCS="../uae_cpu/fpu/fpu_x86.cpp"
+    FPE_CORE="i386"
   else
     FPE_CORE="uae"
   fi
