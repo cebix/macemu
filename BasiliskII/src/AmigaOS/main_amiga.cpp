@@ -598,14 +598,14 @@ static __saveds void tick_func(void)
 
 static __saveds void xpram_func(void)
 {
-	uint8 last_xpram[256];
-	memcpy(last_xpram, XPRAM, 256);
+	uint8 last_xpram[XPRAM_SIZE];
+	memcpy(last_xpram, XPRAM, XPRAM_SIZE);
 
 	while (xpram_proc_active) {
 		for (int i=0; i<60 && xpram_proc_active; i++)
 			Delay(50);		// Only wait 1 second so we quit promptly when xpram_proc_active becomes false
-		if (memcmp(last_xpram, XPRAM, 256)) {
-			memcpy(last_xpram, XPRAM, 256);
+		if (memcmp(last_xpram, XPRAM, XPRAM_SIZE)) {
+			memcpy(last_xpram, XPRAM, XPRAM_SIZE);
 			SaveXPRAM();
 		}
 	}

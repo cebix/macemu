@@ -26,8 +26,13 @@
 
 
 // XPRAM file name
+#if POWERPC_ROM
+static char XPRAM_FILE_NAME[] = "ENV:SheepShaver_NVRAM";
+static char XPRAM_FILE_NAME_ARC[] = "ENVARC:SheepShaver_NVRAM";
+#else
 static char XPRAM_FILE_NAME[] = "ENV:BasiliskII_XPRAM";
 static char XPRAM_FILE_NAME_ARC[] = "ENVARC:BasiliskII_XPRAM";
+#endif
 
 
 /*
@@ -38,7 +43,7 @@ void LoadXPRAM(void)
 {
 	BPTR fh;
 	if ((fh = Open(XPRAM_FILE_NAME, MODE_OLDFILE)) != NULL) {
-		Read(fh, XPRAM, 256);
+		Read(fh, XPRAM, XPRAM_SIZE);
 		Close(fh);
 	}
 }
@@ -52,11 +57,11 @@ void SaveXPRAM(void)
 {
 	BPTR fh;
 	if ((fh = Open(XPRAM_FILE_NAME, MODE_NEWFILE)) != NULL) {
-		Write(fh, XPRAM, 256);
+		Write(fh, XPRAM, XPRAM_SIZE);
 		Close(fh);
 	}
 	if ((fh = Open(XPRAM_FILE_NAME_ARC, MODE_NEWFILE)) != NULL) {
-		Write(fh, XPRAM, 256);
+		Write(fh, XPRAM, XPRAM_SIZE);
 		Close(fh);
 	}
 }

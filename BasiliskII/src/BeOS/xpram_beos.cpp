@@ -26,7 +26,11 @@
 
 
 // XPRAM file name and path
+#if POWERPC_ROM
+const char XPRAM_FILE_NAME[] = "SheepShaver_NVRAM";
+#else
 const char XPRAM_FILE_NAME[] = "BasiliskII_XPRAM";
+#endif
 static BPath xpram_path;
 
 
@@ -43,7 +47,7 @@ void LoadXPRAM(void)
 	// Load XPRAM from settings file
 	int fd;
 	if ((fd = open(xpram_path.Path(), O_RDONLY)) >= 0) {
-		read(fd, XPRAM, 256);
+		read(fd, XPRAM, XPRAM_SIZE);
 		close(fd);
 	}
 }
@@ -59,7 +63,7 @@ void SaveXPRAM(void)
 		return;
 	int fd;
 	if ((fd = open(xpram_path.Path(), O_WRONLY | O_CREAT, 0666)) >= 0) {
-		write(fd, XPRAM, 256);
+		write(fd, XPRAM, XPRAM_SIZE);
 		close(fd);
 	}
 }

@@ -109,7 +109,7 @@ bool TwentyFourBitAddressing;
 char *x_display_name = NULL;						// X11 display name
 Display *x_display = NULL;							// X11 display handle
 
-static uint8 last_xpram[256];						// Buffer for monitoring XPRAM changes
+static uint8 last_xpram[XPRAM_SIZE];				// Buffer for monitoring XPRAM changes
 
 #ifdef HAVE_PTHREADS
 static pthread_t emul_thread;						// Handle of MacOS emulation thread (main thread)
@@ -548,7 +548,7 @@ int main(int argc, char **argv)
 
 #ifdef HAVE_PTHREADS
 	// Start XPRAM watchdog thread
-	memcpy(last_xpram, XPRAM, 256);
+	memcpy(last_xpram, XPRAM, XPRAM_SIZE);
 	xpram_thread_active = (pthread_create(&xpram_thread, NULL, xpram_func, NULL) == 0);
 	D(bug("XPRAM thread started\n"));
 #endif
@@ -786,8 +786,8 @@ void TriggerNMI(void)
 
 static void xpram_watchdog(void)
 {
-	if (memcmp(last_xpram, XPRAM, 256)) {
-		memcpy(last_xpram, XPRAM, 256);
+	if (memcmp(last_xpram, XPRAM, XPRAM_SIZE)) {
+		memcpy(last_xpram, XPRAM, XPRAM_SIZE);
 		SaveXPRAM();
 	}
 }

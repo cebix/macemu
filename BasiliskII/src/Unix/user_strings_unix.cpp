@@ -67,10 +67,10 @@ user_string_def platform_strings[] = {
 	{STR_FBDEV_NAME_CTRL, "Frame Buffer Name"},
 	{STR_FBDEVICE_FILE_CTRL, "Frame Buffer Spec File"},
 
-	{STR_INPUT_PANE_TITLE, "Input"},
+	{STR_INPUT_PANE_TITLE, "Mouse/Keyboard"},
 	{STR_KEYCODES_CTRL, "Use Raw Keycodes"},
 	{STR_KEYCODE_FILE_CTRL, "Keycode Translation File"},
-	{STR_MOUSEWHEELMODE_CTRL, "Mouse Wheel Mode"},
+	{STR_MOUSEWHEELMODE_CTRL, "Mouse Wheel Function"},
 	{STR_MOUSEWHEELMODE_PAGE_LAB, "Page Up/Down"},
 	{STR_MOUSEWHEELMODE_CURSOR_LAB, "Cursor Up/Down"},
 	{STR_MOUSEWHEELLINES_CTRL, "Lines To Scroll"},

@@ -550,13 +550,13 @@ status_t BasiliskII::tick_func(void *arg)
 
 status_t BasiliskII::xpram_func(void *arg)
 {
-	uint8 last_xpram[256];
-	memcpy(last_xpram, XPRAM, 256);
+	uint8 last_xpram[XPRAM_SIZE];
+	memcpy(last_xpram, XPRAM, XPRAM_SIZE);
 
 	while (((BasiliskII *)arg)->xpram_thread_active) {
 		snooze(60*1000000);
-		if (memcmp(last_xpram, XPRAM, 256)) {
-			memcpy(last_xpram, XPRAM, 256);
+		if (memcmp(last_xpram, XPRAM, XPRAM_SIZE)) {
+			memcpy(last_xpram, XPRAM, XPRAM_SIZE);
 			SaveXPRAM();
 		}
 	}

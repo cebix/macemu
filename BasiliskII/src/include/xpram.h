@@ -21,7 +21,13 @@
 #ifndef XPRAM_H
 #define XPRAM_H
 
-extern uint8 XPRAM[256];
+#if POWERPC_ROM
+const int XPRAM_SIZE = 8192;
+#else
+const int XPRAM_SIZE = 256;
+#endif
+
+extern uint8 XPRAM[XPRAM_SIZE];
 
 extern void XPRAMInit(void);
 extern void XPRAMExit(void);

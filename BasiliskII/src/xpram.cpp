@@ -30,7 +30,7 @@
 
 
 // Extended parameter RAM
-uint8 XPRAM[256];
+uint8 XPRAM[XPRAM_SIZE];
 
 
 /*
@@ -40,7 +40,7 @@ uint8 XPRAM[256];
 void XPRAMInit(void)
 {
 	// Clear XPRAM
-	memset(XPRAM, 0, 256);
+	memset(XPRAM, 0, XPRAM_SIZE);
 
 	// Load XPRAM from settings file
 	LoadXPRAM();
