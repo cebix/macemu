@@ -187,6 +187,10 @@ if [[ "x$WANT_GTK" = "xyes" ]]; then
     CXXFLAGS="$CXXFLAGS $GTK_CFLAGS"
     LIBS="$LIBS $GTK_LIBS"
     UISRCS=prefs_editor_gtk.cpp
+    dnl somehow, <gnome-i18n.h> would redefine gettext() to nothing if
+    dnl ENABLE_NLS is not set, thusly conflicting with C++ <string> which
+    dnl includes <libintl.h>
+    AM_GNU_GETTEXT
     B2_PATH_GNOMEUI([
       AC_DEFINE(HAVE_GNOMEUI, 1, [Define if libgnomeui is available.])
       CXXFLAGS="$CXXFLAGS $GNOMEUI_CFLAGS"
