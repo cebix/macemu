@@ -105,6 +105,7 @@ if [[ "x$WANT_MON" = "xyes" ]]; then
     WANT_MON=no
   fi
 fi
+AC_SUBST(MONSRCS)
 
 dnl Checks for libraries.
 AC_CHECK_LIB(posix4, sem_init)
@@ -445,7 +446,7 @@ if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
   AUDIOSRC="../SDL/audio_sdl.cpp"
 fi
 
-SYSSRCS="$VIDEOSRCS $EXTFSSRC $SERIALSRC $ETHERSRC $SCSISRC $AUDIOSRC $SEMSRC $UISRCS $MONSRCS $EXTRASYSSRCS"
+SYSSRCS="$VIDEOSRCS $EXTFSSRC $SERIALSRC $ETHERSRC $SCSISRC $AUDIOSRC $SEMSRC $UISRCS $EXTRASYSSRCS"
 
 dnl Define a macro that translates a yesno-variable into a C macro definition
 dnl to be put into the config.h file

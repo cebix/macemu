@@ -29,6 +29,10 @@
 #include <ctype.h>
 #include <math.h>
 
+#ifndef USE_JIT
+#define USE_JIT 0
+#endif
+
 #if EMU_KHEPERIX
 #include "sysdeps.h"
 #include "cpu/ppc/ppc-cpu.hpp"
@@ -159,6 +163,25 @@ static void inline ppc_flush_icache_range(uint32 *start_p, uint32 length)
 #endif
 
 #if EMU_KHEPERIX
+// Wrappers when building from SheepShaver tree
+#ifdef SHEEPSHAVER
+int64 TimebaseSpeed = 25000000;	// Default:  25 MHz
+uint32 PVR = 0x000c0000;		// Default: 7400 (with AltiVec)
+
+uint64 GetTicks_usec(void)
+{
+	return clock();
+}
+
+void init_emul_op_trampolines(basic_dyngen & dg)
+{
+}
+
+#define ENABLE_JIT_P (USE_JIT && 1)
+#else
+#define ENABLE_JIT_P NULL
+#endif
+
 struct powerpc_cpu_base
 	: public powerpc_cpu
 {
@@ -179,7 +202,7 @@ struct powerpc_cpu_base
 };
 
 powerpc_cpu_base::powerpc_cpu_base()
-	: powerpc_cpu(NULL)
+	: powerpc_cpu(ENABLE_JIT_P)
 {
 	init_decoder();
 }
