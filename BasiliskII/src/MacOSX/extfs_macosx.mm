@@ -77,7 +77,8 @@ void add_path_component(char *path, const char *component)
 
 
 /*
- *  Add rsrc to path name
+ *  Add /rsrc to path name. Note that the 'correct' way to do this is to
+ *  append '/..namedfork/rsrc', but I use this short form to save chars.
  */
 
 void add_rsrc(const char *path, char *dest)
