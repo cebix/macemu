@@ -53,6 +53,7 @@ static int cfmakeraw(struct termios *termios_p)
 	termios_p->c_lflag &= ~(ECHO|ECHONL|ICANON|ISIG|IEXTEN);
 	termios_p->c_cflag &= ~(CSIZE|PARENB);
 	termios_p->c_cflag |= CS8;
+	return 0;
 }
 #endif
 

@@ -747,6 +747,8 @@ bool SysCDReadTOC(void *arg, uint8 *toc)
 		*toc++ = toc_size >> 8;
 		*toc++ = toc_size & 0xff;
 		return true;
+#else
+		return false;
 #endif
 	} else
 		return false;
@@ -810,6 +812,8 @@ bool SysCDGetPosition(void *arg, uint8 *pos)
 		*pos++ = chan.data->what.position.reladdr.msf.second;
 		*pos++ = chan.data->what.position.reladdr.msf.frame;
 		return true;
+#else
+		return false;
 #endif
 	} else
 		return false;
@@ -845,6 +849,8 @@ bool SysCDPlay(void *arg, uint8 start_m, uint8 start_s, uint8 start_f, uint8 end
 		play.end_s = end_s;
 		play.end_f = end_f;
 		return ioctl(fh->fd, CDIOCPLAYMSF, &play) == 0;
+#else
+		return false;
 #endif
 	} else
 		return false;
@@ -866,6 +872,8 @@ bool SysCDPause(void *arg)
 		return ioctl(fh->fd, CDROMPAUSE) == 0;
 #elif defined(__FreeBSD__) || defined(__NetBSD__)
 		return ioctl(fh->fd, CDIOCPAUSE) == 0;
+#else
+		return false;
 #endif
 	} else
 		return false;
@@ -887,6 +895,8 @@ bool SysCDResume(void *arg)
 		return ioctl(fh->fd, CDROMRESUME) == 0;
 #elif defined(__FreeBSD__) || defined(__NetBSD__)
 		return ioctl(fh->fd, CDIOCRESUME) == 0;
+#else
+		return false;
 #endif
 	} else
 		return false;
@@ -908,6 +918,8 @@ bool SysCDStop(void *arg, uint8 lead_out_m, uint8 lead_out_s, uint8 lead_out_f)
 		return ioctl(fh->fd, CDROMSTOP) == 0;
 #elif defined(__FreeBSD__) || defined(__NetBSD__)
 		return ioctl(fh->fd, CDIOCSTOP) == 0;
+#else
+		return false;
 #endif
 	} else
 		return false;

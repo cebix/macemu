@@ -1000,7 +1000,7 @@ driver_fbdev::driver_fbdev(const video_mode &mode)
 		if ((line[0] == '#') || (line[0] == ';') || (line[0] == '\0'))
 			continue;
 		
-		if ((sscanf(line, "%19s %d %x", &fb_name, &fb_depth, &fb_offset) == 3)
+		if ((sscanf(line, "%19s %d %x", fb_name, &fb_depth, &fb_offset) == 3)
 		 && (strcmp(fb_name, fb_name) == 0) && (fb_depth == max_depth)) {
 			device_found = true;
 			break;
