@@ -90,6 +90,12 @@ static DriveInfo *first_drive_info;
 // Icon address (Mac address space, set by PatchROM())
 uint32 DiskIconAddr;
 
+// Number of ticks between checks for disk insertion
+const int driver_delay = 120;
+
+// Flag: Control(accRun) has been called, interrupt routine is now active
+static bool acc_run_called = false;
+
 
 /*
  *  Get pointer to drive info, NULL = invalid drive number
@@ -184,6 +190,39 @@ bool DiskMountVolume(void *fh)
 
 
 /*
+ *  Mount volumes for which the to_be_mounted flag is set
+ *  (called during interrupt time)
+ */
+
+static void mount_mountable_volumes(void)
+{
+	DriveInfo *info = first_drive_info;
+	while (info != NULL) {
+
+		// Disk in drive?
+		if (!ReadMacInt8(info->status + dsDiskInPlace)) {
+
+			// No, check if disk was inserted
+			if (SysIsDiskInserted(info->fh))
+				DiskMountVolume(info->fh);
+		}
+
+		// Mount disk if flagged
+		if (info->to_be_mounted) {
+			D(bug(" mounting drive %d\n", info->num));
+			M68kRegisters r;
+			r.d[0] = info->num;
+			r.a[0] = 7;	// diskEvent
+			Execute68kTrap(0xa02f, &r);		// PostEvent()
+			info->to_be_mounted = false;
+		}
+
+		info = info->next;
+	}
+}
+
+
+/*
  *  Driver Open() routine
  */
 
@@ -193,6 +232,7 @@ int16 DiskOpen(uint32 pb, uint32 dce)
 
 	// Set up DCE
 	WriteMacInt32(dce + dCtlPosition, 0);
+	acc_run_called = false;
 
 	// Install drives
 	for (DriveInfo *info = first_drive_info; info; info = info->next) {
@@ -306,30 +346,10 @@ int16 DiskControl(uint32 pb, uint32 dce)
 		case 1:		// KillIO
 			return noErr;
 
-		case 65: {	// Periodic action ("insert" disks on startup and check for disk changes)
-			DriveInfo *info = first_drive_info;
-			while (info != NULL) {
-
-				// Disk in drive?
-				if (!ReadMacInt8(info->status + dsDiskInPlace)) {
-
-					// No, check if disk was inserted
-					if (SysIsDiskInserted(info->fh))
-						DiskMountVolume(info->fh);
-				}
-
-				// Mount disk if flagged
-				if (info->to_be_mounted) {
-					D(bug(" mounting drive %d\n", info->num));
-					M68kRegisters r;
-					r.d[0] = info->num;
-					r.a[0] = 7;	// diskEvent
-					Execute68kTrap(0xa02f, &r);		// PostEvent()
-					info->to_be_mounted = false;
-				}
-
-				info = info->next;
-			}
+		case 65: {	// Periodic action (accRun, "insert" disks on startup)
+			mount_mountable_volumes();
+			WriteMacInt16(dce + dCtlFlags, ReadMacInt16(dce + dCtlFlags) & ~0x2000);	// Disable periodic action
+			acc_run_called = true;
 			return noErr;
 		}
 	}
@@ -470,5 +490,23 @@ int16 DiskStatus(uint32 pb, uint32 dce)
 		default:
 			printf("WARNING: Unknown DiskStatus(%d)\n", code);
 			return statusErr;
+	}
+}
+
+
+/*
+ *  Driver interrupt routine - check for volumes to be mounted
+ */
+
+void DiskInterrupt(void)
+{
+	static int tick_count = 0;
+	if (!acc_run_called)
+		return;
+
+	tick_count++;
+	if (tick_count > driver_delay) {
+		tick_count = 0;
+		mount_mountable_volumes();
 	}
 }

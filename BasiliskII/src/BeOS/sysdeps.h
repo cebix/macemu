@@ -25,6 +25,8 @@
 #include <support/SupportDefs.h>
 #include <support/ByteOrder.h>
 
+#include "user_strings_beos.h"
+
 // Are the Mac and the host address space the same?
 #ifdef __i386__
 #define REAL_ADDRESSING 0

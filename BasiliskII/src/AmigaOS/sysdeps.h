@@ -28,6 +28,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "user_strings_amiga.h"
+
 // Are the Mac and the host address space the same?
 #define REAL_ADDRESSING 1
 

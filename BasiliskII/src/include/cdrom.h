@@ -23,7 +23,6 @@
 
 const int CDROMRefNum = -62;			// RefNum of driver
 const uint16 CDROMDriverFlags = 0x6d04;	// Driver flags
-const uint16 CDROMDriverDelay = 120;	// Driver delay
 
 extern const uint8 CDROMIcon[258];		// Icon data (copied to ROM by PatchROM())
 
@@ -31,6 +30,8 @@ extern uint32 CDROMIconAddr;			// Icon address (Mac address space, set by PatchR
 
 extern void CDROMInit(void);
 extern void CDROMExit(void);
+
+extern void CDROMInterrupt(void);
 
 extern bool CDROMMountVolume(void *fh);
 

@@ -14,7 +14,7 @@ OBJS = prefs.o rom_patches.o slot_rom.o rsrc_patches.o emul_op.o macos_util.o \
        video.o audio.o user_strings.o \
        main_amiga.o asm_support.o prefs_amiga.o prefs_editor_amiga.o \
        sys_amiga.o xpram_amiga.o timer_amiga.o clip_amiga.o serial_amiga.o \
-       ether_amiga.o scsi_amiga.o audio_amiga.o video_amiga.o
+       ether_amiga.o scsi_amiga.o audio_amiga.o video_amiga.o user_strings_amiga.o
 APP = BasiliskII
 
 ## Rules
@@ -87,3 +87,5 @@ audio_amiga.o: audio_amiga.cpp
 	$(CC) $(INCLUDES) $(CFLAGS) audio_amiga.cpp
 video_amiga.o: video_amiga.cpp
 	$(CC) $(INCLUDES) $(CFLAGS) video_amiga.cpp
+user_strings_amiga.o: user_strings_amiga.cpp
+	$(CC) $(INCLUDES) $(CFLAGS) user_strings_amiga.cpp

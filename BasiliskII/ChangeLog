@@ -1,3 +1,11 @@
+V0.7 -
+	- sony.cpp/disk.cpp/cdrom.cpp: disk insertions are now checked for
+	  by an interrupt routine
+	- Localizable strings are now split into a common and a platform-
+	  specific set
+	- AmigaOS/clip_amiga.cpp: fixed small bug in CR->LF translation
+	  [Giacomo Magnini]
+
 V0.7 (release 0.7-2) - 6.Oct.1999
 	- Added BasiliskII.spec for making RPMs [with assistance from
 	  Roman Niewiarowski]

@@ -39,12 +39,13 @@ else
 	CPUSRCS = ../uae_cpu/basilisk_glue.cpp ../uae_cpu/newcpu.cpp \
 	    ../uae_cpu/readcpu.cpp ../uae_cpu/fpp.cpp cpustbl.cpp cpudefs.cpp cpuemu.cpp
 endif
-SRCS=../prefs.cpp ../rom_patches.cpp ../slot_rom.cpp ../rsrc_patches.cpp ../emul_op.cpp \
-    ../macos_util.cpp ../xpram.cpp ../timer.cpp ../adb.cpp ../serial.cpp ../ether.cpp ../sony.cpp \
-    ../disk.cpp ../cdrom.cpp ../scsi.cpp ../video.cpp ../audio.cpp ../user_strings.cpp \
-    main_beos.cpp prefs_beos.cpp prefs_editor_beos.cpp sys_beos.cpp xpram_beos.cpp \
-    timer_beos.cpp clip_beos.cpp serial_beos.cpp ether_beos.cpp scsi_beos.cpp video_beos.cpp \
-    audio_beos.cpp \
+SRCS = main_beos.cpp ../prefs.cpp prefs_beos.cpp prefs_editor_beos.cpp sys_beos.cpp \
+    ../rom_patches.cpp ../slot_rom.cpp ../rsrc_patches.cpp ../emul_op.cpp \
+    ../macos_util.cpp ../xpram.cpp xpram_beos.cpp ../timer.cpp timer_beos.cpp \
+    clip_beos.cpp ../adb.cpp ../serial.cpp serial_beos.cpp ../ether.cpp \
+    ether_beos.cpp ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp \
+    scsi_beos.cpp ../video.cpp video_beos.cpp ../audio.cpp audio_beos.cpp \
+    ../user_strings.cpp user_strings_beos.cpp \
     $(CPUSRCS)
 		
 #	specify the resource files to use

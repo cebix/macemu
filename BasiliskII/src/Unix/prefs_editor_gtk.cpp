@@ -678,16 +678,16 @@ static void create_graphics_pane(GtkWidget *top)
 	combo = gtk_combo_new();
 	gtk_widget_show(combo);
 	GList *glist1 = NULL;
-	glist1 = g_list_append(glist1, (char *)"512");
-	glist1 = g_list_append(glist1, (char *)"640");
-	glist1 = g_list_append(glist1, (char *)"800");
-	glist1 = g_list_append(glist1, (char *)"1024");
-	glist1 = g_list_append(glist1, (char *)"MAX");
+	glist1 = g_list_append(glist1, GetString(STR_SIZE_512_LAB));
+	glist1 = g_list_append(glist1, GetString(STR_SIZE_640_LAB));
+	glist1 = g_list_append(glist1, GetString(STR_SIZE_800_LAB));
+	glist1 = g_list_append(glist1, GetString(STR_SIZE_1024_LAB));
+	glist1 = g_list_append(glist1, GetString(STR_SIZE_MAX_LAB));
 	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist1);
 	if (dis_width)
 		sprintf(str, "%d", dis_width);
 	else
-		strcpy(str, "MAX");
+		strcpy(str, GetString(STR_SIZE_MAX_LAB));
 	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
 	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 2, 3, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 	w_display_x = GTK_COMBO(combo)->entry;
@@ -699,16 +699,16 @@ static void create_graphics_pane(GtkWidget *top)
 	combo = gtk_combo_new();
 	gtk_widget_show(combo);
 	GList *glist2 = NULL;
-	glist2 = g_list_append(glist2, (char *)"384");
-	glist2 = g_list_append(glist2, (char *)"480");
-	glist2 = g_list_append(glist2, (char *)"600");
-	glist2 = g_list_append(glist2, (char *)"768");
-	glist2 = g_list_append(glist2, (char *)"MAX");
+	glist2 = g_list_append(glist2, GetString(STR_SIZE_384_LAB));
+	glist2 = g_list_append(glist2, GetString(STR_SIZE_480_LAB));
+	glist2 = g_list_append(glist2, GetString(STR_SIZE_600_LAB));
+	glist2 = g_list_append(glist2, GetString(STR_SIZE_768_LAB));
+	glist2 = g_list_append(glist2, GetString(STR_SIZE_MAX_LAB));
 	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist2);
 	if (dis_height)
 		sprintf(str, "%d", dis_height);
 	else
-		strcpy(str, "MAX");
+		strcpy(str, GetString(STR_SIZE_MAX_LAB));
 	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
 	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 3, 4, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 	w_display_y = GTK_COMBO(combo)->entry;
@@ -777,7 +777,7 @@ static GList *add_serial_names(void)
 	if (glist)
 		g_list_sort(glist, gl_str_cmp);
 	else
-		glist = g_list_append(glist, (char *)"<none>");
+		glist = g_list_append(glist, GetString(STR_NONE_LAB));
 	return glist;
 }
 
@@ -813,7 +813,7 @@ static GList *add_ether_names(void)
 	if (glist)
 		g_list_sort(glist, gl_str_cmp);
 	else
-		glist = g_list_append(glist, (char *)"<none>");
+		glist = g_list_append(glist, GetString(STR_NONE_LAB));
 	return glist;
 }
 

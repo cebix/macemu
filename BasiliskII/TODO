@@ -3,9 +3,6 @@ Bugs:
 - Strange things happen when the Mac ROM is lower in memory than the RAM
 - Something seems to be wrong with the UAE FPU (Calculator and scroll bars in
   MacOS 8 don't work properly)
-- Lauri reports that when a "please insert volume foo" dialog comes up,
-  disk insertions are not recognized. The PostEvent() code in sony.cpp
-  etc. in Control()/accRun should probably be moved to an interrupt handler.
 - MacOS 8: Finder threads don't work
 
 General:

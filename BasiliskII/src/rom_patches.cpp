@@ -146,7 +146,7 @@ again:
 
 static const uint8 sony_driver[] = {	// Replacement for .Sony driver
 	// Driver header
-	SonyDriverFlags >> 8, SonyDriverFlags & 0xff, SonyDriverDelay >> 8, SonyDriverDelay & 0xff, 0x00, 0x00, 0x00, 0x00,
+	SonyDriverFlags >> 8, SonyDriverFlags & 0xff, 0, 0, 0, 0, 0, 0,
 	0x00, 0x18,							// Open() offset
 	0x00, 0x1c,							// Prime() offset
 	0x00, 0x20,							// Control() offset
@@ -194,7 +194,7 @@ static const uint8 sony_driver[] = {	// Replacement for .Sony driver
 
 static const uint8 disk_driver[] = {	// Generic disk driver
 	// Driver header
-	DiskDriverFlags >> 8, DiskDriverFlags & 0xff, DiskDriverDelay >> 8, DiskDriverDelay & 0xff, 0x00, 0x00, 0x00, 0x00,
+	DiskDriverFlags >> 8, DiskDriverFlags & 0xff, 0, 0, 0, 0, 0, 0,
 	0x00, 0x18,							// Open() offset
 	0x00, 0x1c,							// Prime() offset
 	0x00, 0x20,							// Control() offset
@@ -242,7 +242,7 @@ static const uint8 disk_driver[] = {	// Generic disk driver
 
 static const uint8 cdrom_driver[] = {	// CD-ROM driver
 	// Driver header
-	CDROMDriverFlags >> 8, CDROMDriverFlags & 0xff, CDROMDriverDelay >> 8, CDROMDriverDelay & 0xff, 0x00, 0x00, 0x00, 0x00,
+	CDROMDriverFlags >> 8, CDROMDriverFlags & 0xff, 0, 0, 0, 0, 0, 0,
 	0x00, 0x1c,							// Open() offset
 	0x00, 0x20,							// Prime() offset
 	0x00, 0x24,							// Control() offset
@@ -555,7 +555,6 @@ void InstallDrivers(uint32 pb)
 	uint32 dce = ReadMacInt32(r.a[0]);
 	WriteMacInt32(dce + dCtlDriver, ROMBaseMac + sony_offset + 0x100);
 	WriteMacInt16(dce + dCtlFlags, DiskDriverFlags);
-	WriteMacInt16(dce + dCtlDelay, DiskDriverDelay);
 
 	// Open disk driver
 	WriteMacInt32(pb + ioNamePtr, ROMBaseMac + sony_offset + 0x112);
@@ -574,7 +573,6 @@ void InstallDrivers(uint32 pb)
 		dce = ReadMacInt32(r.a[0]);
 		WriteMacInt32(dce + dCtlDriver, ROMBaseMac + sony_offset + 0x200);
 		WriteMacInt16(dce + dCtlFlags, CDROMDriverFlags);
-		WriteMacInt16(dce + dCtlDelay, CDROMDriverDelay);
 
 		// Open CD-ROM driver
 		WriteMacInt32(pb + ioNamePtr, ROMBaseMac + sony_offset + 0x212);

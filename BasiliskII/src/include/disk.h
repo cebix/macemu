@@ -23,7 +23,6 @@
 
 const int DiskRefNum = -63;				// RefNum of driver
 const uint16 DiskDriverFlags = 0x6f04;	// Driver flags
-const uint16 DiskDriverDelay = 120;		// Driver delay
 
 extern const uint8 DiskIcon[258];		// Icon data (copied to ROM by PatchROM())
 
@@ -31,6 +30,8 @@ extern uint32 DiskIconAddr;				// Icon address (Mac address space, set by PatchR
 
 extern void DiskInit(void);
 extern void DiskExit(void);
+
+extern void DiskInterrupt(void);
 
 extern bool DiskMountVolume(void *fh);
 

@@ -434,10 +434,13 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 				ClearInterruptFlag(INTFLAG_60HZ);
 				if (HasMacStarted()) {
 
-					// Mac has started, execute video, ADB and Time Manager interrupt functions
+					// Mac has started, execute all 60Hz interrupt functions
 					ADBInterrupt();
 					TimerInterrupt();
 					VideoInterrupt();
+					SonyInterrupt();
+					DiskInterrupt();
+					CDROMInterrupt();
 
 					// Call DoVBLTask(0)
 					if (ROMVersion == ROM_VERSION_32) {

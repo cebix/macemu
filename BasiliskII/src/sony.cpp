@@ -123,8 +123,11 @@ static DriveInfo *first_drive_info;
 uint32 SonyDiskIconAddr;
 uint32 SonyDriveIconAddr;
 
-// Flag: accRun called for the first time, run PatchAfterStartup()
-static bool periodic_first_time = false;
+// Number of ticks between checks for disk insertion
+const int driver_delay = 120;
+
+// Flag: Control(accRun) has been called, interrupt routine is now active
+static bool acc_run_called = false;
 
 
 /*
@@ -216,6 +219,41 @@ bool SonyMountVolume(void *fh)
 
 
 /*
+ *  Mount volumes for which the to_be_mounted flag is set
+ *  (called during interrupt time)
+ */
+
+static void mount_mountable_volumes(void)
+{
+	DriveInfo *info = first_drive_info;
+	while (info != NULL) {
+
+#if DISK_INSERT_CHECK
+		// Disk in drive?
+		if (!ReadMacInt8(info->status + dsDiskInPlace)) {
+
+			// No, check if disk was inserted
+			if (SysIsDiskInserted(info->fh))
+				SonyMountVolume(info->fh);
+		}
+#endif
+
+		// Mount disk if flagged
+		if (info->to_be_mounted) {
+			D(bug(" mounting drive %d\n", info->num));
+			M68kRegisters r;
+			r.d[0] = info->num;
+			r.a[0] = 7;	// diskEvent
+			Execute68kTrap(0xa02f, &r);		// PostEvent()
+			info->to_be_mounted = false;
+		}
+
+		info = info->next;
+	}
+}
+
+
+/*
  *  Driver Open() routine
  */
 
@@ -226,7 +264,7 @@ int16 SonyOpen(uint32 pb, uint32 dce)
 	// Set up DCE
 	WriteMacInt32(dce + dCtlPosition, 0);
 	WriteMacInt16(dce + dCtlQHdr + qFlags, ReadMacInt16(dce + dCtlQHdr + qFlags) & 0xff00 | 3);	// Version number, must be >=3 or System 8 will replace us
-	periodic_first_time = true;
+	acc_run_called = false;
 
 	// Install driver again with refnum -2 (HD20)
 	uint32 utab = ReadMacInt32(0x11c);
@@ -354,38 +392,12 @@ int16 SonyControl(uint32 pb, uint32 dce)
 		case 9:		// Track cache
 			return noErr;
 
-		case 65: {	// Periodic action ("insert" disks on startup and check for disk changes)
-			DriveInfo *info = first_drive_info;
-			while (info != NULL) {
-
-				// Disk in drive?
-				if (!ReadMacInt8(info->status + dsDiskInPlace)) {
-
-#if DISK_INSERT_CHECK
-					// No, check if disk was inserted
-					if (SysIsDiskInserted(info->fh))
-						SonyMountVolume(info->fh);
-#endif
-				}
-
-				// Mount disk if flagged
-				if (info->to_be_mounted) {
-					D(bug(" mounting drive %d\n", info->num));
-					M68kRegisters r;
-					r.d[0] = info->num;
-					r.a[0] = 7;	// diskEvent
-					Execute68kTrap(0xa02f, &r);		// PostEvent()
-					info->to_be_mounted = false;
-				}
-
-				info = info->next;
-			}
-			if (periodic_first_time) {
-				periodic_first_time = false;
-				PatchAfterStartup();		// Install patches after system startup
-			}
+		case 65:	// Periodic action (accRun, "insert" disks on startup)
+			mount_mountable_volumes();
+			PatchAfterStartup();		// Install patches after system startup
+			WriteMacInt16(dce + dCtlFlags, ReadMacInt16(dce + dCtlFlags) & ~0x2000);	// Disable periodic action
+			acc_run_called = true;
 			return noErr;
-		}
 	}
 
 	// Drive valid?
@@ -503,5 +515,23 @@ int16 SonyStatus(uint32 pb, uint32 dce)
 		default:
 			printf("WARNING: Unknown SonyStatus(%d)\n", code);
 			return statusErr;
+	}
+}
+
+
+/*
+ *  Driver interrupt routine - check for volumes to be mounted
+ */
+
+void SonyInterrupt(void)
+{
+	static int tick_count = 0;
+	if (!acc_run_called)
+		return;
+
+	tick_count++;
+	if (tick_count > driver_delay) {
+		tick_count = 0;
+		mount_mountable_volumes();
 	}
 }

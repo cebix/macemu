@@ -116,7 +116,7 @@ void PutScrap(uint32 type, void *scrap, int32 length)
 				uint8 c = *p++;
 				if (c < 0x80) {
 					if (c == 13)	// CR -> LF
-						c == 10;
+						c = 10;
 				} else
 					c = mac2iso[c & 0x7f];
 				*q++ = c;
