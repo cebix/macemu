@@ -1,7 +1,7 @@
 /*
  *  video_x.cpp - Video/graphics emulation, X11 specific stuff
  *
- *  SheepShaver (C) 1997-2002 Marc Hellwig and Christian Bauer
+ *  SheepShaver (C) 1997-2003 Marc Hellwig and Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -134,6 +134,11 @@ extern Display *x_display;
 
 // From sys_unix.cpp
 extern void SysMountFirstFloppy(void);
+
+// From clip_unix.cpp
+extern void ClipboardSelectionClear(XSelectionClearEvent *);
+extern void ClipboardSelectionRequest(XSelectionRequestEvent *);
+extern void ClipboardSelectionNotify(XSelectionEvent *req);
 
 
 // Video acceleration through SIGSEGV
@@ -1181,8 +1186,16 @@ static void handle_events(void)
 	for (;;) {
 		XEvent event;
 
-		if (!XCheckMaskEvent(x_display, eventmask, &event))
+		if (!XCheckMaskEvent(x_display, eventmask, &event)) {
+			// Handle clipboard events
+			if (XCheckTypedEvent(x_display, SelectionRequest, &event))
+				ClipboardSelectionRequest(&event.xselectionrequest);
+			else if (XCheckTypedEvent(x_display, SelectionClear, &event))
+				ClipboardSelectionClear(&event.xselectionclear);
+			else if (XCheckTypedEvent(x_display, SelectionNotify, &event))
+				ClipboardSelectionNotify(&event.xselection);
 			break;
+		}
 
 		switch (event.type) {
 			// Mouse button

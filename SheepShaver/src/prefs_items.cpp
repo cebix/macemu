@@ -51,6 +51,7 @@ prefs_desc common_prefs_items[] = {
 	{"nonet", TYPE_BOOLEAN, false,      "don't use Ethernet"},
 	{"nosound", TYPE_BOOLEAN, false,    "don't enable sound output"},
 	{"nogui", TYPE_BOOLEAN, false,      "disable GUI"},
+	{"noclipconversion", TYPE_BOOLEAN, false, "don't convert clipboard contents"},
 	{"ignoresegv", TYPE_BOOLEAN, false, "ignore illegal memory accesses"},
 	{"jit", TYPE_BOOLEAN, false,        "enable JIT compiler"},
 	{NULL, TYPE_END, false, NULL} // End of list
@@ -72,6 +73,7 @@ void AddPrefsDefaults(void)
 	PrefsAddBool("nonet", false);
 	PrefsAddBool("nosound", false);
 	PrefsAddBool("nogui", false);
+	PrefsAddBool("noclipconversion", false);
 	PrefsAddBool("ignoresegv", true);
 
 #if USE_JIT
