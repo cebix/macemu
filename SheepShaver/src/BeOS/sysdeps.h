@@ -53,6 +53,9 @@ typedef off_t loff_t;
 typedef uint32 uintptr;
 typedef int32 intptr;
 
+// Timing functions
+extern void Delay_usec(uint32 usec);
+
 // Macro for calling MacOS routines
 #define CallMacOS(type, proc) (*(type)proc)()
 #define CallMacOS1(type, proc, arg1) (*(type)proc)(arg1)

@@ -2228,19 +2228,20 @@ static bool patch_68k(void)
 	lp = (uint32 *)(ROM_BASE + ntohl(*lp));
 	lp[0xa9fd & 0x3ff] = htonl(GET_SCRAP_PATCH_SPACE);
 
-#if __BEOS__
 	// Patch SynchIdleTime()
 	if (PrefsFindBool("idlewait")) {
 		wp = (uint16 *)(ROM_BASE + find_rom_trap(0xabf7) + 4);	// SynchIdleTime()
 		D(bug("SynchIdleTime at %08lx\n", wp));
-		if (ntohs(*wp) == 0x2078) {
+		if (ntohs(*wp) == 0x2078) {								// movea.l	ExpandMem,a0
 			*wp++ = htons(M68K_EMUL_OP_IDLE_TIME);
 			*wp = htons(M68K_NOP);
-		} else {
+		}
+		else if (ntohs(*wp) == 0x70fe)							// moveq	#-2,d0
+			*wp++ = htons(M68K_EMUL_OP_IDLE_TIME_2);
+		else {
 			D(bug("SynchIdleTime patch not installed\n"));
 		}
 	}
-#endif
 
 	// Construct list of all sifters used by sound components in ROM
 	D(bug("Searching for sound components with type sdev in ROM\n"));
