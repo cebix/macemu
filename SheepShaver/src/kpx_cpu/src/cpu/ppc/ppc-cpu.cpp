@@ -141,6 +141,18 @@ void powerpc_cpu::record_step(uint32 opcode)
 #endif
 }
 
+void powerpc_cpu::start_log()
+{
+	logging = true;
+	invalidate_cache();
+}
+
+void powerpc_cpu::stop_log()
+{
+	logging = false;
+	invalidate_cache();
+}
+
 void powerpc_cpu::dump_log(const char *filename)
 {
 	if (filename == NULL)
@@ -270,6 +282,10 @@ void powerpc_cpu::init_decode_cache()
 	D(bug("powerpc_cpu: Allocated decode cache: %d KB at %p\n", DECODE_CACHE_SIZE / 1024, decode_cache));
 	decode_cache_p = decode_cache;
 	decode_cache_end_p = decode_cache + DECODE_CACHE_MAX_ENTRIES;
+#if FLIGHT_RECORDER
+	// Leave enough room to last call to record_step()
+	decode_cache_end_p -= 2;
+#endif
 
 	block_cache.initialize();
 #endif

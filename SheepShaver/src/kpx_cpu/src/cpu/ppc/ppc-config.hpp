@@ -189,6 +189,10 @@
 #undef PPC_LAZY_PC_UPDATE
 #endif
 
+#if PPC_FLIGHT_RECORDER
+#undef PPC_LAZY_PC_UPDATE
+#endif
+
 #if defined(PPC_LAZY_CC_UPDATE) && !defined(PPC_HAVE_SPLIT_CR)
 #define PPC_HAVE_SPLIT_CR
 #endif

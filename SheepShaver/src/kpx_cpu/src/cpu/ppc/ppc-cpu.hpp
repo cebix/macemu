@@ -204,8 +204,8 @@ public:
 	// Handle flight recorder
 #if PPC_FLIGHT_RECORDER
 	bool is_logging() { return logging; }
-	void start_log() { logging = true; }
-	void stop_log() { logging = false; }
+	void start_log();
+	void stop_log();
 	void dump_log(const char *filename = NULL);
 #else
 	bool is_logging() { return false; }
@@ -342,8 +342,10 @@ inline void powerpc_cpu::do_execute()
 #ifdef PPC_EXECUTE_DUMP_STATE
 		fprintf(stderr, "[%08x]-> %08x\n", pc(), opcode);
 #endif
-		if (logging)
+#if FLIGHT_RECORDER
+		if (is_logging())
 			record_step(opcode);
+#endif
 		assert(ii->execute != 0);
 		(this->*(ii->execute))(opcode);
 #ifdef PPC_EXECUTE_DUMP_STATE
@@ -365,6 +367,13 @@ inline void powerpc_cpu::do_execute()
 			ii = decode(opcode);
 			di->opcode = opcode;
 			di->execute = ii->execute;
+#if FLIGHT_RECORDER
+			if (is_logging()) {
+				di++;
+				di->opcode = opcode;
+				di->execute = record_step;
+			}
+#endif
 			if (++di >= decode_cache_end_p) {
 				// Invalidate cache and move current code to start
 				invalidate_cache();
