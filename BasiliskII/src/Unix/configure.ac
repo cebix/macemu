@@ -819,7 +819,7 @@ if [[ -n "$sigsegv_recovery" ]]; then
 fi
 
 dnl A dummy program that returns always true
-BLESS=/bin/true
+AC_PATH_PROG([BLESS], "true")
 
 dnl Determine the addressing mode to use
 if [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
