@@ -35,6 +35,9 @@
  *  - Events processing is bound to the general emulation thread as SDL requires
  *    to PumpEvents() within the same thread as the one that called SetVideoMode().
  *    Besides, there can't seem to be a way to call SetVideoMode() from a child thread.
+ *  - Refresh performance is still slow. Use SDL_CreateRGBSurface()?
+ *  - Backport hw cursor acceleration to Basilisk II?
+ *  - Move generic Native QuickDraw acceleration routines to gfxaccel.cpp
  */
 
 #include "sysdeps.h"
@@ -114,6 +117,8 @@ static int keycode_table[256];						// X keycode -> Mac keycode translation tabl
 
 // SDL variables
 static int screen_depth;							// Depth of current screen
+static SDL_Cursor *sdl_cursor;						// Copy of Mac cursor
+static volatile bool cursor_changed = false;		// Flag: cursor changed, redraw_func must update the cursor
 static SDL_Color sdl_palette[256];					// Color palette to be used as CLUT and gamma table
 static bool sdl_palette_changed = false;			// Flag: Palette changed, redraw thread must set new colors
 static const int sdl_eventmask = SDL_MOUSEBUTTONDOWNMASK | SDL_MOUSEBUTTONUPMASK | SDL_MOUSEMOTIONMASK | SDL_KEYUPMASK | SDL_KEYDOWNMASK | SDL_VIDEOEXPOSEMASK | SDL_QUITMASK;
@@ -627,11 +632,19 @@ driver_window::driver_window(SDL_monitor_desc &m)
 	D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
 #endif
 
-	// Set window name/class
-	set_window_name(STR_WINDOW_TITLE);
-
+#ifdef SHEEPSHAVER
+	// Create cursor
+	if ((sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, 0, 0)) != NULL) {
+		SDL_SetCursor(sdl_cursor);
+		cursor_changed = false;
+	}
+#else
 	// Hide cursor
 	SDL_ShowCursor(0);
+#endif
+
+	// Set window name/class
+	set_window_name(STR_WINDOW_TITLE);
 
 	// Init blitting routines
 	SDL_PixelFormat *f = s->format;
@@ -1221,8 +1234,7 @@ void SDL_monitor_desc::switch_to_current_mode(void)
 #ifdef SHEEPSHAVER
 bool video_can_change_cursor(void)
 {
-//	return hw_mac_cursor_accl && (display_type != DISPLAY_SCREEN);
-	return false;
+	return (display_type == DISPLAY_WINDOW);
 }
 #endif
 
@@ -1234,7 +1246,7 @@ bool video_can_change_cursor(void)
 #ifdef SHEEPSHAVER
 void video_set_cursor(void)
 {
-//	cursor_changed = true;
+	cursor_changed = true;
 }
 #endif
 
@@ -2157,6 +2169,17 @@ static int redraw_func(void *arg)
 
 		// Refresh display
 		video_refresh();
+
+#ifdef SHEEPSHAVER
+		// Set new cursor image if it was changed
+		if (cursor_changed && sdl_cursor) {
+			cursor_changed = false;
+			SDL_FreeCursor(sdl_cursor);
+			sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, MacCursor[2], MacCursor[3]);
+			if (sdl_cursor)
+				SDL_SetCursor(sdl_cursor);
+		}
+#endif
 
 		// Set new palette if it was changed
 		handle_palette_changes();
