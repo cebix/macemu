@@ -66,8 +66,13 @@
 // Define for external components
 #define SHEEPSHAVER 1
 
-// Mac and host address space are the same
+// Always use Real Addressing mode on native architectures
+// Otherwise, use Direct Addressing mode if NATMEM_OFFSET is set
+#if NATMEM_OFFSET == 0 || EMULATED_PPC == 0
 #define REAL_ADDRESSING 1
+#else
+#define DIRECT_ADDRESSING 1
+#endif
 
 #define POWERPC_ROM 1
 
@@ -413,14 +418,14 @@ extern X11_LOCK_TYPE x_display_lock;
 #endif
 
 // Macro for calling MacOS routines
-#define CallMacOS(type, tvect) call_macos((uint32)tvect)
-#define CallMacOS1(type, tvect, arg1) call_macos1((uint32)tvect, (uint32)arg1)
-#define CallMacOS2(type, tvect, arg1, arg2) call_macos2((uint32)tvect, (uint32)arg1, (uint32)arg2)
-#define CallMacOS3(type, tvect, arg1, arg2, arg3) call_macos3((uint32)tvect, (uint32)arg1, (uint32)arg2, (uint32)arg3)
-#define CallMacOS4(type, tvect, arg1, arg2, arg3, arg4) call_macos4((uint32)tvect, (uint32)arg1, (uint32)arg2, (uint32)arg3, (uint32)arg4)
-#define CallMacOS5(type, tvect, arg1, arg2, arg3, arg4, arg5) call_macos5((uint32)tvect, (uint32)arg1, (uint32)arg2, (uint32)arg3, (uint32)arg4, (uint32)arg5)
-#define CallMacOS6(type, tvect, arg1, arg2, arg3, arg4, arg5, arg6) call_macos6((uint32)tvect, (uint32)arg1, (uint32)arg2, (uint32)arg3, (uint32)arg4, (uint32)arg5, (uint32)arg6)
-#define CallMacOS7(type, tvect, arg1, arg2, arg3, arg4, arg5, arg6, arg7) call_macos7((uint32)tvect, (uint32)arg1, (uint32)arg2, (uint32)arg3, (uint32)arg4, (uint32)arg5, (uint32)arg6, (uint32)arg7)
+#define CallMacOS(type, tvect) call_macos((uintptr)tvect)
+#define CallMacOS1(type, tvect, arg1) call_macos1((uintptr)tvect, (uintptr)arg1)
+#define CallMacOS2(type, tvect, arg1, arg2) call_macos2((uintptr)tvect, (uintptr)arg1, (uintptr)arg2)
+#define CallMacOS3(type, tvect, arg1, arg2, arg3) call_macos3((uintptr)tvect, (uintptr)arg1, (uintptr)arg2, (uintptr)arg3)
+#define CallMacOS4(type, tvect, arg1, arg2, arg3, arg4) call_macos4((uintptr)tvect, (uintptr)arg1, (uintptr)arg2, (uintptr)arg3, (uintptr)arg4)
+#define CallMacOS5(type, tvect, arg1, arg2, arg3, arg4, arg5) call_macos5((uintptr)tvect, (uintptr)arg1, (uintptr)arg2, (uintptr)arg3, (uintptr)arg4, (uintptr)arg5)
+#define CallMacOS6(type, tvect, arg1, arg2, arg3, arg4, arg5, arg6) call_macos6((uintptr)tvect, (uintptr)arg1, (uintptr)arg2, (uintptr)arg3, (uintptr)arg4, (uintptr)arg5, (uintptr)arg6)
+#define CallMacOS7(type, tvect, arg1, arg2, arg3, arg4, arg5, arg6, arg7) call_macos7((uintptr)tvect, (uintptr)arg1, (uintptr)arg2, (uintptr)arg3, (uintptr)arg4, (uintptr)arg5, (uintptr)arg6, (uintptr)arg7)
 
 #ifdef __cplusplus
 extern "C" {

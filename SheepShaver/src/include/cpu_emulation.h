@@ -54,6 +54,8 @@ struct KernelData {
 // RAM and ROM pointers (allocated and set by main_*.cpp)
 extern uint32 RAMBase;			// Base address of Mac RAM
 extern uint32 RAMSize;			// Size address of Mac RAM
+extern uint8 *RAMBaseHost;		// Base address of Mac RAM (host address space)
+extern uint8 *ROMBaseHost;		// Base address of Mac ROM (host address space)
 
 // Mac memory access functions
 #if EMULATED_PPC

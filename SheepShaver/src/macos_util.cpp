@@ -42,15 +42,15 @@ static inline long CallUniversal(void *arg1, uint32 arg2)
 }
 typedef int16 (*gsl_ptr)(char *, uint32, uint32, uint32 *, void **, char *);
 static uint32 gsl_tvect = 0;
-static inline int16 GetSharedLibrary(char *arg1, uint32 arg2, uint32 arg3, uint32 *arg4, void **arg5, char *arg6)
+static inline int16 GetSharedLibrary(uintptr arg1, uint32 arg2, uint32 arg3, uintptr arg4, uintptr arg5, uintptr arg6)
 {
-	return (int16)CallMacOS6(gsl_ptr, gsl_tvect, arg1, arg2, arg3, arg4, arg5, arg6);
+	return (int16)CallMacOS6(gsl_ptr, gsl_tvect, (char *)arg1, arg2, arg3, (uint32 *)arg4, (void **)arg5, (char *)arg6);
 }
 typedef int16 (*fs_ptr)(uint32, char *, void **, uint32 *);
 static uint32 fs_tvect = 0;
-static inline int16 FindSymbol(uint32 arg1, char *arg2, void **arg3, uint32 *arg4)
+static inline int16 FindSymbol(uint32 arg1, uintptr arg2, uintptr arg3, uintptr arg4)
 {
-	return (int16)CallMacOS4(fs_ptr, fs_tvect, arg1, arg2, arg3, arg4);
+	return (int16)CallMacOS4(fs_ptr, fs_tvect, arg1, (char *)arg2, (void **)arg3, (uint32 **)arg4);
 }
 typedef int16 (*cc_ptr)(uint32 *);
 static uint32 cc_tvect = 0;
@@ -198,7 +198,7 @@ void *FindLibSymbol(char *lib_str, char *sym_str)
 		r.a[1] = conn_id.addr();
 		r.a[2] = main_addr.addr();
 		r.a[3] = err.addr();
-		Execute68k((uint32)proc1, &r);
+		Execute68k(Host2MacAddr((uint8 *)proc1), &r);
 		D(bug(" GetSharedLibrary: ret %d, connection ID %ld, main %p\n", (int16)r.d[0], conn_id.value(), main_addr.value()));
 		if (r.d[0])
 			return NULL;
@@ -219,7 +219,7 @@ void *FindLibSymbol(char *lib_str, char *sym_str)
 		r.a[0] = sym.addr();
 		r.a[1] = sym_addr.addr();
 		r.a[2] = sym_class.addr();
-		Execute68k((uint32)proc2, &r);
+		Execute68k(Host2MacAddr((uint8 *)proc2), &r);
 		D(bug(" FindSymbol1: ret %d, sym_addr %p, sym_class %ld\n", (int16)r.d[0], sym_addr.value(), sym_class.value()));
 //!! CloseConnection()?
 		if (r.d[0])
@@ -234,11 +234,11 @@ void *FindLibSymbol(char *lib_str, char *sym_str)
 			return 0;
 		}
 		int16 res;
-		res = GetSharedLibrary(lib.value(), FOURCC('p','w','p','c'), 1, (uint32 *)conn_id.addr(), (void **)main_addr.addr(), (char *)err.addr());
+		res = GetSharedLibrary(lib.addr(), FOURCC('p','w','p','c'), 1, conn_id.addr(), main_addr.addr(), err.addr());
 		D(bug(" GetSharedLibrary: ret %d, connection ID %ld, main %p\n", res, conn_id.value(), main_addr.value()));
 		if (res)
 			return NULL;
-		res = FindSymbol(conn_id.value(), sym.value(), (void **)sym_addr.addr(), (uint32 *)sym_class.addr());
+		res = FindSymbol(conn_id.value(), sym.addr(), sym_addr.addr(), sym_class.addr());
 		D(bug(" FindSymbol: ret %d, sym_addr %p, sym_class %ld\n", res, sym_addr.value(), sym_class.value()));
 //!!??		CloseConnection(&conn_id);
 		if (res)

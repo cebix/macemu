@@ -74,15 +74,15 @@ static long save_conf_mode = APPLE_8_BIT;
 // Function pointers of imported functions
 typedef int16 (*iocic_ptr)(void *, int16);
 static uint32 iocic_tvect = 0;
-static inline int16 IOCommandIsComplete(void *arg1, int16 arg2)
+static inline int16 IOCommandIsComplete(uintptr arg1, int16 arg2)
 {
-	return (int16)CallMacOS2(iocic_ptr, iocic_tvect, arg1, arg2);
+	return (int16)CallMacOS2(iocic_ptr, iocic_tvect, (void *)arg1, arg2);
 }
 typedef int16 (*vslnewis_ptr)(void *, uint32, uint32 *);
 static uint32 vslnewis_tvect = 0;
-static inline int16 VSLNewInterruptService(void *arg1, uint32 arg2, uint32 *arg3)
+static inline int16 VSLNewInterruptService(uintptr arg1, uint32 arg2, uintptr arg3)
 {
-	return (int16)CallMacOS3(vslnewis_ptr, vslnewis_tvect, arg1, arg2, arg3);
+	return (int16)CallMacOS3(vslnewis_ptr, vslnewis_tvect, (void *)arg1, arg2, (uint32 *)arg3);
 }
 typedef int16 (*vsldisposeis_ptr)(uint32);
 static uint32 vsldisposeis_tvect = 0;
@@ -98,9 +98,9 @@ int16 VSLDoInterruptService(uint32 arg1)
 }
 typedef void (*nqdmisc_ptr)(uint32, void *);
 static uint32 nqdmisc_tvect = 0;
-void NQDMisc(uint32 arg1, void *arg2)
+void NQDMisc(uint32 arg1, uintptr arg2)
 {
-	CallMacOS2(nqdmisc_ptr, nqdmisc_tvect, arg1, arg2);
+	CallMacOS2(nqdmisc_ptr, nqdmisc_tvect, arg1, (void *)arg2);
 }
 
 
@@ -169,7 +169,7 @@ static int16 VideoOpen(uint32 pb, VidLocals *csSave)
 
 	// Install and activate interrupt service
 	SheepVar32 theServiceID = 0;
-	VSLNewInterruptService(csSave->regEntryID, FOURCC('v','b','l',' '), (uint32 *)theServiceID.addr());
+	VSLNewInterruptService(Host2MacAddr((uint8 *)csSave->regEntryID), FOURCC('v','b','l',' '), theServiceID.addr());
 	csSave->vslServiceID = theServiceID.value();
 	D(bug(" Interrupt ServiceID %08lx\n", csSave->vslServiceID));
 	csSave->interruptsEnabled = true;
@@ -184,6 +184,7 @@ static int16 VideoOpen(uint32 pb, VidLocals *csSave)
 
 static int16 set_gamma(VidLocals *csSave, uint32 gamma)
 {
+#warning "FIXME: this code is not little endian aware"
 	GammaTbl *clientGamma = (GammaTbl *)gamma;
 	GammaTbl *gammaTable = csSave->gammaTable;
 
@@ -876,9 +877,9 @@ static int16 VideoClose(uint32 pb, VidLocals *csSave)
  *  Native (PCI) driver entry
  */
 
-int16 VideoDoDriverIO(void *spaceID, void *commandID, void *commandContents, uint32 commandCode, uint32 commandKind)
+int16 VideoDoDriverIO(uint32 spaceID, uint32 commandID, uint32 commandContents, uint32 commandCode, uint32 commandKind)
 {
-//	D(bug("VideoDoDriverIO space %p, command %p, contents %p, code %d, kind %d\n", spaceID, commandID, commandContents, commandCode, commandKind));
+//	D(bug("VideoDoDriverIO space %08x, command %08x, contents %08x, code %d, kind %d\n", spaceID, commandID, commandContents, commandCode, commandKind));
 	int16 err = noErr;
 
 	switch (commandCode) {
@@ -926,7 +927,7 @@ int16 VideoDoDriverIO(void *spaceID, void *commandID, void *commandContents, uin
 
 			private_data = new VidLocals;
 			private_data->gammaTable = NULL;
-			memcpy(private_data->regEntryID, (uint8 *)commandContents + 2, 16);	// DriverInitInfo.deviceEntry
+			Mac2Host_memcpy(&private_data->regEntryID, commandContents + 2, 16);	// DriverInitInfo.deviceEntry
 			private_data->interruptsEnabled = false;	// Disable interrupts
 			break;
 
@@ -939,19 +940,19 @@ int16 VideoDoDriverIO(void *spaceID, void *commandID, void *commandContents, uin
 			break;
 
 		case kOpenCommand:
-			err = VideoOpen((uint32)commandContents, private_data);
+			err = VideoOpen(commandContents, private_data);
 			break;
 
 		case kCloseCommand:
-			err = VideoClose((uint32)commandContents, private_data);
+			err = VideoClose(commandContents, private_data);
 			break;
 
 		case kControlCommand:
-			err = VideoControl((uint32)commandContents, private_data);
+			err = VideoControl(commandContents, private_data);
 			break;
 
 		case kStatusCommand:
-			err = VideoStatus((uint32)commandContents, private_data);
+			err = VideoStatus(commandContents, private_data);
 			break;
 
 		case kReadCommand:

@@ -221,6 +221,8 @@ int64 CPUClockSpeed;	// Processor clock speed (Hz)
 int64 BusClockSpeed;	// Bus clock speed (Hz)
 int64 TimebaseSpeed;	// Timebase clock speed (Hz)
 system_info SysInfo;	// System information
+uint8 *RAMBaseHost;		// Base address of Mac RAM (host address space)
+uint8 *ROMBaseHost;		// Base address of Mac ROM (host address space)
 
 static void *sig_stack = NULL;		// Stack for signal handlers
 static void *extra_stack = NULL;	// Stack for SIGSEGV inside interrupt handler
@@ -432,7 +434,8 @@ void SheepShaver::StartEmulator(void)
 		PostMessage(B_QUIT_REQUESTED);
 		return;
 	}
-	D(bug("RAM area %ld at %p\n", ram_area, RAMBase));
+	RAMBaseHost = (uint8 *)RAMBase
+	D(bug("RAM area %ld at %p\n", ram_area, RAMBaseHost));
 
 	// Create area and load Mac ROM
 	try {
@@ -542,7 +545,7 @@ void SheepShaver::StartEmulator(void)
 
 	// Clear caches (as we loaded and patched code) and write protect ROM
 #if !EMULATED_PPC
-	clear_caches((void *)ROM_BASE, ROM_AREA_SIZE, B_INVALIDATE_ICACHE | B_FLUSH_DCACHE);
+	clear_caches(ROMBaseHost, ROM_AREA_SIZE, B_INVALIDATE_ICACHE | B_FLUSH_DCACHE);
 #endif
 	set_area_protection(rom_area, B_READ_AREA);
 
@@ -754,8 +757,8 @@ void SheepShaver::init_rom(void)
 	page_size = B_PAGE_SIZE;
 
 	// Create area for ROM
-	void *rom_addr = (void *)ROM_BASE;
-	rom_area = create_area(ROM_AREA_NAME, &rom_addr, B_EXACT_ADDRESS, ROM_AREA_SIZE, B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
+	ROMBaseHost = (uint8 *)ROM_BASE;
+	rom_area = create_area(ROM_AREA_NAME, (void **)&ROMBaseHost, B_EXACT_ADDRESS, ROM_AREA_SIZE, B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
 	if (rom_area < 0)
 		throw area_error();
 	D(bug("ROM area %ld at %p\n", rom_area, rom_addr));
@@ -1337,11 +1340,11 @@ void Dump68kRegs(M68kRegisters *r)
  *  Make code executable
  */
 
-void MakeExecutable(int dummy, void *start, uint32 length)
+void MakeExecutable(int dummy, uint32 start, uint32 length)
 {
-	if (((uint32)start >= ROM_BASE) && ((uint32)start < (ROM_BASE + ROM_SIZE)))
+	if ((start >= ROM_BASE) && (start < (ROM_BASE + ROM_SIZE)))
 		return;
-	clear_caches(start, length, B_INVALIDATE_ICACHE | B_FLUSH_DCACHE);
+	clear_caches((void *)start, length, B_INVALIDATE_ICACHE | B_FLUSH_DCACHE);
 }
 
 

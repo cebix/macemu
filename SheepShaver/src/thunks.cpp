@@ -149,7 +149,7 @@ static void generate_powerpc_thunks(void)
 	assert(xlm_index != -1 && check_load_invoc_index != -1);
 
 	uint32 check_load_invoc_opcode = NativeOpcode(NATIVE_CHECK_LOAD_INVOC);
-	uintptr base;
+	uint32 base;
 
 	// GetResource()
 	get_resource_func = base = SheepMem::Reserve(get_resource_template_size);

@@ -687,8 +687,8 @@ void VideoInstallAccel(void)
 	// Install acceleration hooks
 	if (PrefsFindBool("gfxaccel")) {
 		D(bug("Video: Installing acceleration hooks\n"));
-		NQDMisc(6, &bitblt_hook_info);
-		NQDMisc(6, &fillrect_hook_info);
+		NQDMisc(6, (uintptr)&bitblt_hook_info);
+		NQDMisc(6, (uintptr)&fillrect_hook_info);
 	}
 }
 

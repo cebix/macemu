@@ -43,7 +43,7 @@ struct M68kRegisters {
 
 // Functions
 extern void Dump68kRegs(M68kRegisters *r);					// Dump 68k registers
-extern void MakeExecutable(int dummy, void *start, uint32 length);	// Make code executable
+extern void MakeExecutable(int dummy, uint32 start, uint32 length);	// Make code executable
 extern void PatchAfterStartup(void);						// Patches after system startup
 extern void QuitEmulator(void);								// Quit emulator (must only be called from main thread)
 extern void ErrorAlert(const char *text);					// Display error alert

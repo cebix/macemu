@@ -174,7 +174,12 @@
 const char ROM_FILE_NAME[] = "ROM";
 const char ROM_FILE_NAME2[] = "Mac OS ROM";
 
+#if REAL_ADDRESSING
 const uintptr RAM_BASE = 0x20000000;		// Base address of RAM
+#else
+// FIXME: needs to be >= 0x04000000
+const uintptr RAM_BASE = 0x10000000;		// Base address of RAM
+#endif
 const uint32 SIG_STACK_SIZE = 0x10000;		// Size of signal stack
 
 
@@ -280,6 +285,8 @@ uint32 PVR;				// Theoretical PVR
 int64 CPUClockSpeed;	// Processor clock speed (Hz)
 int64 BusClockSpeed;	// Bus clock speed (Hz)
 int64 TimebaseSpeed;	// Timebase clock speed (Hz)
+uint8 *RAMBaseHost;		// Base address of Mac RAM (host address space)
+uint8 *ROMBaseHost;		// Base address of Mac ROM (host address space)
 
 
 // Global variables
@@ -431,7 +438,6 @@ static void usage(const char *prg_name)
 int main(int argc, char **argv)
 {
 	char str[256];
-	uint32 *boot_globs;
 	int16 i16;
 	int rom_fd;
 	FILE *proc_file;
@@ -763,7 +769,7 @@ int main(int argc, char **argv)
 
 #ifndef PAGEZERO_HACK
 	// Create Low Memory area (0x0000..0x3000)
-	if (vm_acquire_fixed((char *)0, 0x3000) < 0) {
+	if (vm_acquire_fixed((char *)NATMEM_OFFSET, 0x3000) < 0) {
 		sprintf(str, GetString(STR_LOW_MEM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
@@ -778,29 +784,30 @@ int main(int argc, char **argv)
 		ErrorAlert(str);
 		goto quit;
 	}
-	if (shmat(kernel_area, (void *)KERNEL_DATA_BASE, 0) < 0) {
+	if (shmat(kernel_area, (void *)(KERNEL_DATA_BASE + NATMEM_OFFSET), 0) < 0) {
 		sprintf(str, GetString(STR_KD_SHMAT_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
-	if (shmat(kernel_area, (void *)KERNEL_DATA2_BASE, 0) < 0) {
+	if (shmat(kernel_area, (void *)(KERNEL_DATA2_BASE + NATMEM_OFFSET), 0) < 0) {
 		sprintf(str, GetString(STR_KD2_SHMAT_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
-	kernel_data = (KernelData *)KERNEL_DATA_BASE;
+	kernel_data = (KernelData *)(KERNEL_DATA_BASE + NATMEM_OFFSET);
 	emulator_data = &kernel_data->ed;
 	KernelDataAddr = KERNEL_DATA_BASE;
-	D(bug("Kernel Data at %p, Emulator Data at %p\n", kernel_data, emulator_data));
+	D(bug("Kernel Data at %p (%08x)\n", kernel_data, KERNEL_DATA_BASE));
+	D(bug("Emulator Data at %p (%08x)\n", emulator_data, KERNEL_DATA_BASE + offsetof(KernelData, ed)));
 
 	// Create area for DR Cache
-	if (vm_acquire_fixed((void *)DR_EMULATOR_BASE, DR_EMULATOR_SIZE) < 0) {
+	if (vm_acquire_fixed((void *)(DR_EMULATOR_BASE + NATMEM_OFFSET), DR_EMULATOR_SIZE) < 0) {
 		sprintf(str, GetString(STR_DR_EMULATOR_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
 	dr_emulator_area_mapped = true;
-	if (vm_acquire_fixed((void *)DR_CACHE_BASE, DR_CACHE_SIZE) < 0) {
+	if (vm_acquire_fixed((void *)(DR_CACHE_BASE + NATMEM_OFFSET), DR_CACHE_SIZE) < 0) {
 		sprintf(str, GetString(STR_DR_CACHE_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
@@ -824,20 +831,21 @@ int main(int argc, char **argv)
 	}
 
 	// Create area for Mac ROM
-	if (vm_acquire_fixed((char *)ROM_BASE, ROM_AREA_SIZE) < 0) {
+	ROMBaseHost = (uint8 *)(ROM_BASE + NATMEM_OFFSET);
+	if (vm_acquire_fixed(ROMBaseHost, ROM_AREA_SIZE) < 0) {
 		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
 #if !EMULATED_PPC
-	if (vm_protect((char *)ROM_BASE, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
+	if (vm_protect(ROMBaseHost, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
 		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
 #endif
 	rom_area_mapped = true;
-	D(bug("ROM area at %08x\n", ROM_BASE));
+	D(bug("ROM area at %p (%08x)\n", ROMBaseHost, ROM_BASE));
 
 	// Create area for Mac RAM
 	RAMSize = PrefsFindInt32("ramsize");
@@ -846,13 +854,14 @@ int main(int argc, char **argv)
 		RAMSize = 8*1024*1024;
 	}
 
-	if (vm_acquire_fixed((char *)RAM_BASE, RAMSize) < 0) {
+	RAMBaseHost = (uint8 *)(RAM_BASE + NATMEM_OFFSET);
+	if (vm_acquire_fixed(RAMBaseHost, RAMSize) < 0) {
 		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
 #if !EMULATED_PPC
-	if (vm_protect((char *)RAM_BASE, RAMSize, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
+	if (vm_protect(RAMBaseHost, RAMSize, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
 		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
@@ -860,7 +869,7 @@ int main(int argc, char **argv)
 #endif
 	RAMBase = RAM_BASE;
 	ram_area_mapped = true;
-	D(bug("RAM area at %08x\n", RAMBase));
+	D(bug("RAM area at %p (%08x)\n", RAMBaseHost, RAMBase));
 
 	if (RAMBase > ROM_BASE) {
 		ErrorAlert(GetString(STR_RAM_HIGHER_THAN_ROM_ERR));
@@ -938,13 +947,12 @@ int main(int argc, char **argv)
 	XPRAM[0x137b] = i16 & 0xff;
 
 	// Create BootGlobs at top of Mac memory
-	memset((void *)(RAMBase + RAMSize - 4096), 0, 4096);
+	memset(RAMBaseHost + RAMSize - 4096, 0, 4096);
 	BootGlobsAddr = RAMBase + RAMSize - 0x1c;
-	boot_globs = (uint32 *)BootGlobsAddr;
-	boot_globs[-5] = htonl(RAMBase + RAMSize);	// MemTop
-	boot_globs[0] = htonl(RAMBase);				// First RAM bank
-	boot_globs[1] = htonl(RAMSize);
-	boot_globs[2] = htonl((uint32)-1);			// End of bank table
+	WriteMacInt32(BootGlobsAddr - 5 * 4, RAMBase + RAMSize);	// MemTop
+	WriteMacInt32(BootGlobsAddr + 0 * 4, RAMBase);				// First RAM bank
+	WriteMacInt32(BootGlobsAddr + 1 * 4, RAMSize);
+	WriteMacInt32(BootGlobsAddr + 2 * 4, (uint32)-1);			// End of bank table
 
 	// Init thunks
 	if (!ThunksInit())
@@ -989,20 +997,20 @@ int main(int argc, char **argv)
 
 	// Clear caches (as we loaded and patched code) and write protect ROM
 #if !EMULATED_PPC
-	MakeExecutable(0, (void *)ROM_BASE, ROM_AREA_SIZE);
+	MakeExecutable(0, ROM_BASE, ROM_AREA_SIZE);
 #endif
-	vm_protect((char *)ROM_BASE, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_EXECUTE);
+	vm_protect(ROMBaseHost, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_EXECUTE);
 
 	// Initialize Kernel Data
 	memset(kernel_data, 0, sizeof(KernelData));
 	if (ROMType == ROMTYPE_NEWWORLD) {
-		uintptr of_dev_tree = SheepMem::Reserve(4 * sizeof(uint32));
-		memset((void *)of_dev_tree, 0, 4 * sizeof(uint32));
-		uintptr vector_lookup_tbl = SheepMem::Reserve(128);
-		uintptr vector_mask_tbl = SheepMem::Reserve(64);
+		uint32 of_dev_tree = SheepMem::Reserve(4 * sizeof(uint32));
+		Mac_memset(of_dev_tree, 0, 4 * sizeof(uint32));
+		uint32 vector_lookup_tbl = SheepMem::Reserve(128);
+		uint32 vector_mask_tbl = SheepMem::Reserve(64);
 		memset((uint8 *)kernel_data + 0xb80, 0x3d, 0x80);
-		memset((void *)vector_lookup_tbl, 0, 128);
-		memset((void *)vector_mask_tbl, 0, 64);
+		Mac_memset(vector_lookup_tbl, 0, 128);
+		Mac_memset(vector_mask_tbl, 0, 64);
 		kernel_data->v[0xb80 >> 2] = htonl(ROM_BASE);
 		kernel_data->v[0xb84 >> 2] = htonl(of_dev_tree);			// OF device tree base
 		kernel_data->v[0xb90 >> 2] = htonl(vector_lookup_tbl);
@@ -1040,7 +1048,7 @@ int main(int argc, char **argv)
 
 	// Initialize extra low memory
 	D(bug("Initializing Low Memory...\n"));
-	memset(NULL, 0, 0x3000);
+	Mac_memset(0, 0, 0x3000);
 	WriteMacInt32(XLM_SIGNATURE, FOURCC('B','a','a','h'));			// Signature to detect SheepShaver
 	WriteMacInt32(XLM_KERNEL_DATA, KernelDataAddr);					// For trap replacement routines
 	WriteMacInt32(XLM_PVR, PVR);									// Theoretical PVR
@@ -1200,28 +1208,28 @@ static void Quit(void)
 
 	// Delete RAM area
 	if (ram_area_mapped)
-		vm_release((char *)RAM_BASE, RAMSize);
+		vm_release(RAMBaseHost, RAMSize);
 
 	// Delete ROM area
 	if (rom_area_mapped)
-		vm_release((char *)ROM_BASE, ROM_AREA_SIZE);
+		vm_release(ROMBaseHost, ROM_AREA_SIZE);
 
 	// Delete DR cache areas
 	if (dr_emulator_area_mapped)
-		vm_release((void *)DR_EMULATOR_BASE, DR_EMULATOR_SIZE);
+		vm_release((void *)(DR_EMULATOR_BASE + NATMEM_OFFSET), DR_EMULATOR_SIZE);
 	if (dr_cache_area_mapped)
-		vm_release((void *)DR_CACHE_BASE, DR_CACHE_SIZE);
+		vm_release((void *)(DR_CACHE_BASE + NATMEM_OFFSET), DR_CACHE_SIZE);
 
 	// Delete Kernel Data area
 	if (kernel_area >= 0) {
-		shmdt((void *)KERNEL_DATA_BASE);
-		shmdt((void *)KERNEL_DATA2_BASE);
+		shmdt((void *)(KERNEL_DATA_BASE + NATMEM_OFFSET));
+		shmdt((void *)(KERNEL_DATA2_BASE + NATMEM_OFFSET));
 		shmctl(kernel_area, IPC_RMID, NULL);
 	}
 
 	// Delete Low Memory area
 	if (lm_area_mapped)
-		munmap((char *)0x0000, 0x3000);
+		vm_release((void *)NATMEM_OFFSET, 0x3000);
 
 	// Close /dev/zero
 	if (zero_fd > 0)
@@ -1377,14 +1385,14 @@ void Dump68kRegs(M68kRegisters *r)
  *  Make code executable
  */
 
-void MakeExecutable(int dummy, void *start, uint32 length)
+void MakeExecutable(int dummy, uint32 start, uint32 length)
 {
-	if (((uintptr)start >= ROM_BASE) && ((uintptr)start < (ROM_BASE + ROM_SIZE)))
+	if ((start >= ROM_BASE) && (start < (ROM_BASE + ROM_SIZE)))
 		return;
 #if EMULATED_PPC
-	FlushCodeCache((uintptr)start, (uintptr)start + length);
+	FlushCodeCache(start, start + length);
 #else
-	flush_icache_range(start, (void *)((uintptr)start + length));
+	flush_icache_range(start, (void *)(start + length));
 #endif
 }
 
@@ -2203,21 +2211,22 @@ bool SheepMem::Init(void)
 	page_size = getpagesize();
 
 	// Allocate SheepShaver globals
-	if (vm_acquire_fixed((char *)base, size) < 0)
+	if (vm_acquire_fixed((char *)(base + NATMEM_OFFSET), size) < 0)
 		return false;
 
 	// Allocate page with all bits set to 0
 	zero_page = base + size;
-	if (vm_acquire_fixed((char *)zero_page, page_size) < 0)
+	uint8 *zero_page_host = (uint8 *)zero_page + NATMEM_OFFSET;
+	if (vm_acquire_fixed(zero_page_host, page_size) < 0)
 		return false;
-	memset((char *)zero_page, 0, page_size);
-	if (vm_protect((char *)zero_page, page_size, VM_PAGE_READ) < 0)
+	memset(zero_page_host, 0, page_size);
+	if (vm_protect(zero_page_host, page_size, VM_PAGE_READ) < 0)
 		return false;
 
 #if EMULATED_PPC
 	// Allocate alternate stack for PowerPC interrupt routine
 	sig_stack = zero_page + page_size;
-	if (vm_acquire_fixed((char *)sig_stack, SIG_STACK_SIZE) < 0)
+	if (vm_acquire_fixed((char *)(sig_stack + NATMEM_OFFSET), SIG_STACK_SIZE) < 0)
 		return false;
 #endif
 
@@ -2229,14 +2238,14 @@ void SheepMem::Exit(void)
 {
 	if (top) {
 		// Delete SheepShaver globals
-		vm_release((void *)base, size);
+		vm_release((void *)(base + NATMEM_OFFSET), size);
 
 		// Delete zero page
-		vm_release((void *)zero_page, page_size);
+		vm_release((void *)(zero_page + NATMEM_OFFSET), page_size);
 
 #if EMULATED_PPC
 		// Delete alternate stack for PowerPC interrupt routine
-		vm_release((void *)sig_stack, SIG_STACK_SIZE);
+		vm_release((void *)(sig_stack + NATMEM_OFFSET), SIG_STACK_SIZE);
 #endif
 	}
 }

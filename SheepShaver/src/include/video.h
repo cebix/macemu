@@ -24,7 +24,7 @@
 extern bool VideoActivated(void);
 extern bool VideoSnapshot(int xsize, int ysize, uint8 *p);
 
-extern int16 VideoDoDriverIO(void *spaceID, void *commandID, void *commandContents, uint32 commandCode, uint32 commandKind);
+extern int16 VideoDoDriverIO(uint32 spaceID, uint32 commandID, uint32 commandContents, uint32 commandCode, uint32 commandKind);
 
 // System specific and internal functions/data
 struct VideoInfo {
@@ -142,7 +142,7 @@ extern bool video_can_change_cursor(void);
 extern int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr);
 
 extern int16 VSLDoInterruptService(uint32 arg1);
-extern void NQDMisc(uint32 arg1, void *arg2);
+extern void NQDMisc(uint32 arg1, uintptr arg2);
 
 // Native QuickDraw acceleration callbacks
 extern bool NQD_sync_hook(uint32);

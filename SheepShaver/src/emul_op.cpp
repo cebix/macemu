@@ -59,7 +59,7 @@
 
 
 // TVector of MakeExecutable
-static uint32 *MakeExecutableTvec;
+static uint32 MakeExecutableTvec;
 
 
 /*
@@ -259,11 +259,11 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 			InstallDrivers();
 
 			// Patch MakeExecutable()
-			MakeExecutableTvec = (uint32 *)FindLibSymbol("\023PrivateInterfaceLib", "\016MakeExecutable");
-			D(bug("MakeExecutable TVECT at %p\n", MakeExecutableTvec));
-			MakeExecutableTvec[0] = htonl(NativeFunction(NATIVE_MAKE_EXECUTABLE));
+			MakeExecutableTvec = (uint32)FindLibSymbol("\023PrivateInterfaceLib", "\016MakeExecutable");
+			D(bug("MakeExecutable TVECT at %08x\n", MakeExecutableTvec));
+			WriteMacInt32(MakeExecutableTvec, NativeFunction(NATIVE_MAKE_EXECUTABLE));
 #if !EMULATED_PPC
-			MakeExecutableTvec[1] = (uint32)TOC;
+			WriteMacInt32(MakeExecutableTvec + 4, (uint32)TOC);
 #endif
 
 			// Patch DebugStr()
@@ -272,7 +272,7 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 				PW(0x4e74),			// rtd	#4
 				PW(0x0004)
 			};
-			WriteMacInt32(0x1dfc, (uint32)proc);
+			WriteMacInt32(0x1dfc, Host2MacAddr((uint8 *)proc));
 			break;
 		}
 
@@ -297,7 +297,7 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 				WriteMacInt32(KernelDataAddr + 0x1b04, DR_CACHE_BASE);
 				WriteMacInt32(KernelDataAddr + 0x1b00, DR_EMULATOR_BASE);
 				memcpy((void *)DR_EMULATOR_BASE, (void *)(ROM_BASE + 0x370000), DR_EMULATOR_SIZE);
-				MakeExecutable(0, (void *)DR_EMULATOR_BASE, DR_EMULATOR_SIZE);
+				MakeExecutable(0, DR_EMULATOR_BASE, DR_EMULATOR_SIZE);
 			}
 			break;
 

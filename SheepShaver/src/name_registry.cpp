@@ -35,17 +35,17 @@
 // Function pointers
 typedef int16 (*rcec_ptr)(const RegEntryID *, const char *, RegEntryID *);
 static uint32 rcec_tvect = 0;
-static inline int16 RegistryCStrEntryCreate(const RegEntryID *arg1, const char *arg2, RegEntryID *arg3)
+static inline int16 RegistryCStrEntryCreate(uintptr arg1, const char *arg2, uint32 arg3)
 {
-	return (int16)CallMacOS3(rcec_ptr, rcec_tvect, arg1, arg2, arg3);
+	return (int16)CallMacOS3(rcec_ptr, rcec_tvect, (const RegEntryID *)arg1, Host2MacAddr((uint8 *)arg2), arg3);
 }
 typedef int16 (*rpc_ptr)(const RegEntryID *, const char *, const void *, uint32);
 static uint32 rpc_tvect = 0;
-static inline int16 RegistryPropertyCreate(const RegEntryID *arg1, const char *arg2, const void *arg3, uint32 arg4)
+static inline int16 RegistryPropertyCreate(uintptr arg1, const char *arg2, uintptr arg3, uint32 arg4)
 {
-	return (int16)CallMacOS4(rpc_ptr, rpc_tvect, arg1, arg2, arg3, arg4);
+	return (int16)CallMacOS4(rpc_ptr, rpc_tvect, (const RegEntryID *)arg1, Host2MacAddr((uint8 *)arg2), (const void *)arg3, arg4);
 }
-#define RegistryPropertyCreateStr(e,n,s) RegistryPropertyCreate(e,n,s,strlen(s)+1)
+#define RegistryPropertyCreateStr(e,n,s) RegistryPropertyCreate(e,n,Host2MacAddr((uint8 *)s),strlen(s)+1)
 
 // Video driver stub
 static const uint8 video_driver[] = {
@@ -58,16 +58,12 @@ static const uint8 ethernet_driver[] = {
 };
 
 // Helper for RegEntryID
-struct SheepRegEntryID : public SheepArray<sizeof(RegEntryID)> {
-	RegEntryID *ptr() const { return (RegEntryID *)addr(); }
-};
+typedef SheepArray<sizeof(RegEntryID)> SheepRegEntryID;
 
 // Helper for a <uint32, uint32> pair
 struct SheepPair : public SheepArray<8> {
 	SheepPair(uint32 base, uint32 size) : SheepArray<8>()
 		{ WriteMacInt32(addr(), base); WriteMacInt32(addr() + 4, size); }
-	uint32 *ptr() const
-		{ return (uint32 *)addr(); }
 };
 
 
@@ -82,17 +78,17 @@ void DoPatchNameRegistry(void)
 
 	// Create "device-tree"
 	SheepRegEntryID device_tree;
-	if (!RegistryCStrEntryCreate(NULL, "Devices:device-tree", device_tree.ptr())) {
+	if (!RegistryCStrEntryCreate(0, "Devices:device-tree", device_tree.addr())) {
 		u32.set_value(BusClockSpeed);
-		RegistryPropertyCreate(device_tree.ptr(), "clock-frequency", u32.ptr(), 4);
-		RegistryPropertyCreateStr(device_tree.ptr(), "model", "Power Macintosh");
+		RegistryPropertyCreate(device_tree.addr(), "clock-frequency", u32.addr(), 4);
+		RegistryPropertyCreateStr(device_tree.addr(), "model", "Power Macintosh");
 
 		// Create "AAPL,ROM"
 		SheepRegEntryID aapl_rom;
-		if (!RegistryCStrEntryCreate(device_tree.ptr(), "AAPL,ROM", aapl_rom.ptr())) {
-			RegistryPropertyCreateStr(aapl_rom.ptr(), "device_type", "rom");
+		if (!RegistryCStrEntryCreate(device_tree.addr(), "AAPL,ROM", aapl_rom.addr())) {
+			RegistryPropertyCreateStr(aapl_rom.addr(), "device_type", "rom");
 			SheepPair reg(ROM_BASE, ROM_SIZE);
-			RegistryPropertyCreate(aapl_rom.ptr(), "reg", reg.ptr(), 8);
+			RegistryPropertyCreate(aapl_rom.addr(), "reg", reg.addr(), 8);
 		}
 
 		// Create "PowerPC,60x"
@@ -133,127 +129,127 @@ void DoPatchNameRegistry(void)
 				str = "PowerPC,???";
 				break;
 		}
-		if (!RegistryCStrEntryCreate(device_tree.ptr(), str, power_pc.ptr())) {
+		if (!RegistryCStrEntryCreate(device_tree.addr(), str, power_pc.addr())) {
 			u32.set_value(CPUClockSpeed);
-			RegistryPropertyCreate(power_pc.ptr(), "clock-frequency", u32.ptr(), 4);
+			RegistryPropertyCreate(power_pc.addr(), "clock-frequency", u32.addr(), 4);
 			u32.set_value(BusClockSpeed);
-			RegistryPropertyCreate(power_pc.ptr(), "bus-frequency", u32.ptr(), 4);
+			RegistryPropertyCreate(power_pc.addr(), "bus-frequency", u32.addr(), 4);
 			u32.set_value(TimebaseSpeed);
-			RegistryPropertyCreate(power_pc.ptr(), "timebase-frequency", u32.ptr(), 4);
+			RegistryPropertyCreate(power_pc.addr(), "timebase-frequency", u32.addr(), 4);
 			u32.set_value(PVR);
-			RegistryPropertyCreate(power_pc.ptr(), "cpu-version", u32.ptr(), 4);
-			RegistryPropertyCreateStr(power_pc.ptr(), "device_type", "cpu");
+			RegistryPropertyCreate(power_pc.addr(), "cpu-version", u32.addr(), 4);
+			RegistryPropertyCreateStr(power_pc.addr(), "device_type", "cpu");
 			switch (PVR >> 16) {
 				case 1:		// 601
 					u32.set_value(64);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-block-size", u32.addr(), 4);
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-sets", u32.addr(), 4);
 					u32.set_value(0x8000);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-size", u32.addr(), 4);
 					u32.set_value(64);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-block-size", u32.addr(), 4);
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-sets", u32.addr(), 4);
 					u32.set_value(0x8000);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-size", u32.addr(), 4);
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-sets", u32.addr(), 4);
 					u32.set_value(256);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-size", u32.addr(), 4);
 					break;
 				case 3:		// 603
 					u32.set_value(32);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-block-size", u32.addr(), 4);
 					u32.set_value(64);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-sets", u32.addr(), 4);
 					u32.set_value(0x2000);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-size", u32.addr(), 4);
 					u32.set_value(32);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-block-size", u32.addr(), 4);
 					u32.set_value(64);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-sets", u32.addr(), 4);
 					u32.set_value(0x2000);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-size", u32.addr(), 4);
 					u32.set_value(32);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-sets", u32.addr(), 4);
 					u32.set_value(64);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-size", u32.addr(), 4);
 					break;
 				case 4:		// 604
 					u32.set_value(32);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-block-size", u32.addr(), 4);
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-sets", u32.addr(), 4);
 					u32.set_value(0x4000);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-size", u32.addr(), 4);
 					u32.set_value(32);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-block-size", u32.addr(), 4);
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-sets", u32.addr(), 4);
 					u32.set_value(0x4000);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-size", u32.addr(), 4);
 					u32.set_value(64);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-sets", u32.addr(), 4);
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-size", u32.addr(), 4);
 					break;
 				case 6:		// 603e
 				case 7:		// 603ev
 					u32.set_value(32);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-block-size", u32.addr(), 4);
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-sets", u32.addr(), 4);
 					u32.set_value(0x4000);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-size", u32.addr(), 4);
 					u32.set_value(32);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-block-size", u32.addr(), 4);
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-sets", u32.addr(), 4);
 					u32.set_value(0x4000);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-size", u32.addr(), 4);
 					u32.set_value(32);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-sets", u32.addr(), 4);
 					u32.set_value(64);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-size", u32.addr(), 4);
 					break;
 				case 8:		// 750, 750FX
 				case 0x7000:
 					u32.set_value(32);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-block-size", u32.addr(), 4);
 					u32.set_value(256);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-sets", u32.addr(), 4);
 					u32.set_value(0x8000);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-size", u32.addr(), 4);
 					u32.set_value(32);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-block-size", u32.addr(), 4);
 					u32.set_value(256);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-sets", u32.addr(), 4);
 					u32.set_value(0x8000);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-size", u32.addr(), 4);
 					u32.set_value(64);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-sets", u32.addr(), 4);
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-size", u32.addr(), 4);
 					break;
 				case 9:		// 604e
 				case 10:	// 604ev5
 					u32.set_value(32);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-block-size", u32.addr(), 4);
 					u32.set_value(256);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-sets", u32.addr(), 4);
 					u32.set_value(0x8000);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-size", u32.addr(), 4);
 					u32.set_value(32);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-block-size", u32.addr(), 4);
 					u32.set_value(256);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-sets", u32.addr(), 4);
 					u32.set_value(0x8000);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-size", u32.addr(), 4);
 					u32.set_value(64);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-sets", u32.addr(), 4);
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-size", u32.addr(), 4);
 					break;
 				case 12:	// 7400, 7410, 7450, 7455, 7457
 				case 0x800c:
@@ -261,72 +257,72 @@ void DoPatchNameRegistry(void)
 				case 0x8001:
 				case 0x8002:
 					u32.set_value(32);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-block-size", u32.addr(), 4);
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-sets", u32.addr(), 4);
 					u32.set_value(0x8000);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-size", u32.addr(), 4);
 					u32.set_value(32);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-block-size", u32.addr(), 4);
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-sets", u32.addr(), 4);
 					u32.set_value(0x8000);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-size", u32.addr(), 4);
 					u32.set_value(64);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-sets", u32.addr(), 4);
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-size", u32.addr(), 4);
 					break;
 				case 0x39:	// 970
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-block-size", u32.addr(), 4);
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-sets", u32.addr(), 4);
 					u32.set_value(0x8000);
-					RegistryPropertyCreate(power_pc.ptr(), "d-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "d-cache-size", u32.addr(), 4);
 					u32.set_value(128);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-block-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-block-size", u32.addr(), 4);
 					u32.set_value(512);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-sets", u32.addr(), 4);
 					u32.set_value(0x10000);
-					RegistryPropertyCreate(power_pc.ptr(), "i-cache-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "i-cache-size", u32.addr(), 4);
 					u32.set_value(256);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-sets", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-sets", u32.addr(), 4);
 					u32.set_value(0x1000);
-					RegistryPropertyCreate(power_pc.ptr(), "tlb-size", u32.ptr(), 4);
+					RegistryPropertyCreate(power_pc.addr(), "tlb-size", u32.addr(), 4);
 					break;
 				default:
 					break;
 			}
 			u32.set_value(32);
-			RegistryPropertyCreate(power_pc.ptr(), "reservation-granularity", u32.ptr(), 4);
+			RegistryPropertyCreate(power_pc.addr(), "reservation-granularity", u32.addr(), 4);
 			SheepPair reg(0, 0);
-			RegistryPropertyCreate(power_pc.ptr(), "reg", reg.ptr(), 8);
+			RegistryPropertyCreate(power_pc.addr(), "reg", reg.addr(), 8);
 		}
 
 		// Create "memory"
 		SheepRegEntryID memory;
-		if (!RegistryCStrEntryCreate(device_tree.ptr(), "memory", memory.ptr())) {
+		if (!RegistryCStrEntryCreate(device_tree.addr(), "memory", memory.addr())) {
 			SheepPair reg(RAMBase, RAMSize);
-			RegistryPropertyCreateStr(memory.ptr(), "device_type", "memory");
-			RegistryPropertyCreate(memory.ptr(), "reg", reg.ptr(), 8);
+			RegistryPropertyCreateStr(memory.addr(), "device_type", "memory");
+			RegistryPropertyCreate(memory.addr(), "reg", reg.addr(), 8);
 		}
 
 		// Create "video"
 		SheepRegEntryID video;
-		if (!RegistryCStrEntryCreate(device_tree.ptr(), "video", video.ptr())) {
-			RegistryPropertyCreateStr(video.ptr(), "AAPL,connector", "monitor");
-			RegistryPropertyCreateStr(video.ptr(), "device_type", "display");
-			RegistryPropertyCreate(video.ptr(), "driver,AAPL,MacOS,PowerPC", video_driver, sizeof(video_driver));
-			RegistryPropertyCreateStr(video.ptr(), "model", "SheepShaver Video");
+		if (!RegistryCStrEntryCreate(device_tree.addr(), "video", video.addr())) {
+			RegistryPropertyCreateStr(video.addr(), "AAPL,connector", "monitor");
+			RegistryPropertyCreateStr(video.addr(), "device_type", "display");
+			RegistryPropertyCreate(video.addr(), "driver,AAPL,MacOS,PowerPC", Host2MacAddr((uint8 *)video_driver), sizeof(video_driver));
+			RegistryPropertyCreateStr(video.addr(), "model", "SheepShaver Video");
 		}
 
 		// Create "ethernet"
 		SheepRegEntryID ethernet;
-		if (!RegistryCStrEntryCreate(device_tree.ptr(), "ethernet", ethernet.ptr())) {
-			RegistryPropertyCreateStr(ethernet.ptr(), "AAPL,connector", "ethernet");
-			RegistryPropertyCreateStr(ethernet.ptr(), "device_type", "network");
-			RegistryPropertyCreate(ethernet.ptr(), "driver,AAPL,MacOS,PowerPC", ethernet_driver, sizeof(ethernet_driver));
+		if (!RegistryCStrEntryCreate(device_tree.addr(), "ethernet", ethernet.addr())) {
+			RegistryPropertyCreateStr(ethernet.addr(), "AAPL,connector", "ethernet");
+			RegistryPropertyCreateStr(ethernet.addr(), "device_type", "network");
+			RegistryPropertyCreate(ethernet.addr(), "driver,AAPL,MacOS,PowerPC", Host2MacAddr((uint8 *)ethernet_driver), sizeof(ethernet_driver));
 			// local-mac-address
 			// max-frame-size 2048
 		}

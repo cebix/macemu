@@ -25,6 +25,17 @@ AC_ARG_WITH(gtk,            [  --with-gtk              use GTK user interface [d
 AC_ARG_WITH(mon,            [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=yes])
 AC_ARG_WITH(dgcc,           [  --with-dgcc=COMPILER    use C++ COMPILER to compile synthetic opcodes], [DYNGEN_CC=$withval])
 
+dnl Addressing mode
+AC_ARG_ENABLE(addressing,
+  [  --enable-addressing=AM  set the addressing mode to use [default=real]],
+  [case "$enableval" in
+   real)        WANT_ADDRESSING_MODE="real";;
+   direct)      WANT_ADDRESSING_MODE="direct";;
+   direct,0x*)  WANT_ADDRESSING_MODE="direct"; NATMEM_OFFSET=`echo "$enableval" | sed -n '/direct,\(0[[xX]][[0-9A-Fa-f]]*\)/s//\1/p'`;;
+   esac],
+  [WANT_ADDRESSING_MODE="real"]
+)
+
 dnl SDL options.
 AC_ARG_ENABLE(sdl-static,   [  --enable-sdl-static     use SDL static libraries for linking [default=no]], [WANT_SDL_STATIC=$enableval], [WANT_SDL_STATIC=no])
 AC_ARG_ENABLE(sdl-video,    [  --enable-sdl-video      use SDL for video graphics [default=no]], [WANT_SDL_VIDEO=$enableval], [WANT_SDL_VIDEO=no])
@@ -758,6 +769,87 @@ else
     WANT_VOSF=no
 fi
 
+dnl Check addressing mode to use
+AC_MSG_CHECKING([for addressing mode to use])
+if [[ "$EMULATED_PPC" != "yes" ]]; then
+  if [[ "$WANT_ADDRESSING_MODE" != "real" ]]; then
+    AC_MSG_WARN([Running in native PowerPC mode, force use of Real Addressing.])
+    WANT_ADDRESSING_MODE="real"
+  fi
+fi
+if [[ "$WANT_ADDRESSING_MODE" = "direct" ]]; then
+  if [[ -n "$NATMEM_OFFSET" ]]; then
+    NATMEM_OFFSET_DEF="-DNATMEM_OFFSET=$NATMEM_OFFSET"
+  fi
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  cat confdefs.h > conftest.$ac_ext
+  cat >> conftest.$ac_ext << EOF
+#include <stdio.h>
+#include <string.h>
+#include "vm_alloc.cpp"
+
+int main(void)
+{
+	if (vm_init() < 0)
+		return 1;
+
+	static const struct {
+		unsigned long base;
+		unsigned int size;
+	} ranges[[]] = {
+		{ 0x00000000, 0x0003000 },
+		{ 0x10000000, 0x2000000 },
+		{ 0x40800000, 0x0400000 },
+		{ 0x68070000, 0x0010000 },
+		{ 0x69000000, 0x0080000 },
+		{ 0x68ffe000, 0x0002000 },
+		{ 0x5fffe000, 0x0002000 },
+		{ 0x60000000, 0x0040000 },
+	};
+	const int n_ranges = sizeof(ranges)/ sizeof(ranges[[0]]);
+
+#ifdef NATMEM_OFFSET
+	unsigned long ofs = NATMEM_OFFSET;
+#else
+	for (unsigned long ofs = 0x10000000; ofs <= 0x90000000; ofs += 0x10000000)
+#endif
+	for (int i = 0; i < n_ranges; i++) {
+		char *m = (char *)(ranges[[i]].base + ofs);
+		if (vm_acquire_fixed(m, ranges[[i]].size) != 0)
+			break;
+		memset(m, 0, ranges[[i]].size);
+		vm_release(m, ranges[[i]].size);
+		if (i == n_ranges - 1) {
+			printf("0x%08x\n", ofs);
+			return 0;
+		}
+	}
+
+	vm_exit();
+	return 1;
+}
+EOF
+  doit='$CXX conftest.$ac_ext -o conftest.$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS $LIBS $NATMEM_OFFSET_DEF >& AS_MESSAGE_LOG_FD'
+  if AC_TRY_EVAL(doit); then
+    NATMEM_OFFSET=`./conftest.$ac_exeext`
+    if [[ -z "$NATMEM_OFFSET" ]]; then
+      AC_MSG_ERROR([could not determine a sensible NATMEM_OFFSET value])
+    else
+      WANT_ADDRESSING_MODE="direct,$NATMEM_OFFSET"
+    fi
+  fi
+  rm -f conftest*
+  AC_LANG_RESTORE
+fi
+AC_MSG_RESULT($WANT_ADDRESSING_MODE)
+
+if [[ -z "$NATMEM_OFFSET" ]]; then
+  NATMEM_OFFSET=0
+fi
+AC_DEFINE_UNQUOTED(NATMEM_OFFSET, $NATMEM_OFFSET,
+  [Define constant offset for Mac address translation])
+
 dnl Platform specific binary postprocessor
 AC_PATH_PROG(BLESS, "true")
 if [[ "x$ac_cv_pagezero_hack" = "xyes" ]]; then
@@ -791,7 +883,7 @@ if $CXX -V -v 2>&1 | grep -q "Intel(R) C++ Compiler"; then
 fi
 AC_MSG_RESULT($HAVE_ICC)
 
-# Test if the compiler can generate ELF objects
+dnl Test if the compiler can generate ELF objects
 AC_CACHE_CHECK([whether the compiler can generate ELF objects],
   ac_cv_elf_objects, [
   echo 'int i;' > conftest.$ac_ext
@@ -949,6 +1041,7 @@ echo Enable video on SEGV signals ..... : $WANT_VOSF
 echo ESD sound support ................ : $WANT_ESD
 echo GTK user interface ............... : $WANT_GTK
 echo mon debugger support ............. : $WANT_MON
+echo Addressing mode .................. : $WANT_ADDRESSING_MODE
 echo Bad memory access recovery type .. : $sigsegv_recovery
 echo
 echo "Configuration done. Now type \"make\"."

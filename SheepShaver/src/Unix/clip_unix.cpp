@@ -497,7 +497,7 @@ static void do_getscrap(void **handle, uint32 type, int32 offset)
 			PW(0x588f),					// addq.l	#4,sp
 			PW(M68K_RTS)
 		};
-		uint32 proc_area = (uint32)proc;
+		uint32 proc_area = Host2MacAddr((uint8 *)proc);
 		WriteMacInt32(proc_area +  6, data.size());
 		WriteMacInt32(proc_area + 12, type);
 		WriteMacInt32(proc_area + 18, scrap_area);

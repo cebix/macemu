@@ -99,8 +99,8 @@ public:
 	static bool Init(void);
 	static void Exit(void);
 	static uint32 PageSize();
-	static uintptr ZeroPage();
-	static uintptr Reserve(uint32 size);
+	static uint32 ZeroPage();
+	static uint32 Reserve(uint32 size);
 	static void Release(uint32 size);
 	friend class SheepVar;
 };
@@ -116,12 +116,12 @@ inline uint32 SheepMem::PageSize()
   return page_size;
 }
 
-inline uintptr SheepMem::ZeroPage()
+inline uint32 SheepMem::ZeroPage()
 {
   return zero_page;
 }
 
-inline uintptr SheepMem::Reserve(uint32 size)
+inline uint32 SheepMem::Reserve(uint32 size)
 {
 	top -= align(size);
 	assert(top >= base);
@@ -135,13 +135,12 @@ inline void SheepMem::Release(uint32 size)
 
 class SheepVar
 {
-	uintptr m_base;
-	uint32  m_size;
+	uint32 m_base;
+	uint32 m_size;
 public:
 	SheepVar(uint32 requested_size);
 	~SheepVar() { SheepMem::Release(m_size); }
-	uintptr addr() const { return m_base; }
-	void *ptr() const { return (void *)addr(); }
+	uint32 addr() const { return m_base; }
 };
 
 inline SheepVar::SheepVar(uint32 requested_size)
@@ -152,11 +151,10 @@ inline SheepVar::SheepVar(uint32 requested_size)
 
 // TODO: optimize for 32-bit platforms
 
-template< int size >
+template< int requested_size >
 struct SheepArray : public SheepVar
 {
-	SheepArray() : SheepVar(size) { }
-	uint8 *ptr() const { return (uint8 *)addr(); }
+	SheepArray() : SheepVar(requested_size) { }
 };
 
 struct SheepVar32 : public SheepVar
@@ -165,17 +163,14 @@ struct SheepVar32 : public SheepVar
 	SheepVar32(uint32 value) : SheepVar(4) { set_value(value); }
 	uint32 value() const { return ReadMacInt32(addr()); }
 	void set_value(uint32 v) { WriteMacInt32(addr(), v); }
-	uint32 *ptr() const { return (uint32 *)addr(); }
 };
 
 struct SheepString : public SheepVar
 {
 	SheepString(const char *str) : SheepVar(strlen(str) + 1)
-		{ if (str) strcpy((char *)addr(), str); else WriteMacInt8(addr(), 0); }
+		{ if (str) strcpy(value(), str); else WriteMacInt8(addr(), 0); }
 	char *value() const
-		{ return (char *)addr(); }
-	char *ptr() const
-		{ return (char *)addr(); }
+		{ return (char *)Mac2HostAddr(addr()); }
 };
 
 #endif

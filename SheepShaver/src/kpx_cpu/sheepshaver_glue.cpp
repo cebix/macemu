@@ -106,7 +106,7 @@ const uint32 POWERPC_EXEC_RETURN = POWERPC_EMUL_OP | 1;
 #define INTERRUPTS_IN_NATIVE_MODE 1
 
 // Pointer to Kernel Data
-static KernelData * const kernel_data = (KernelData *)KERNEL_DATA_BASE;
+static KernelData * kernel_data;
 
 // SIGSEGV handler
 sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
@@ -812,7 +812,7 @@ sigsegv_return_t sigsegv_handler(sigsegv_address_t fault_address, sigsegv_addres
 	const uintptr addr = (uintptr)fault_address;
 #if HAVE_SIGSEGV_SKIP_INSTRUCTION
 	// Ignore writes to ROM
-	if ((addr - ROM_BASE) < ROM_SIZE)
+	if ((addr - (uintptr)ROMBaseHost) < ROM_SIZE)
 		return SIGSEGV_RETURN_SKIP_INSTRUCTION;
 
 	// Get program counter of target CPU
@@ -872,6 +872,9 @@ sigsegv_return_t sigsegv_handler(sigsegv_address_t fault_address, sigsegv_addres
 
 void init_emul_ppc(void)
 {
+	// Get pointer to KernelData in host address space
+	kernel_data = (KernelData *)Mac2HostAddr(KERNEL_DATA_BASE);
+
 	// Initialize main CPU emulator
 	ppc_cpu = new sheepshaver_cpu();
 	ppc_cpu->set_register(powerpc_registers::GPR(3), any_register((uint32)ROM_BASE + 0x30d000));
@@ -1050,7 +1053,7 @@ void sheepshaver_cpu::handle_interrupt(void)
 				0x4e, 0xd0,						// jmp		(a0)
 				M68K_RTS >> 8, M68K_RTS & 0xff	// @1
 			};
-			Execute68k((uint32)proc, &r);
+			Execute68k(Host2MacAddr((uint8 *)proc), &r);
 			WriteMacInt32(XLM_68K_R25, old_r25);		// Restore interrupt level
 #else
 			// Only update cursor
@@ -1099,8 +1102,7 @@ void sheepshaver_cpu::execute_native_op(uint32 selector)
 		VideoVBL();
 		break;
 	case NATIVE_VIDEO_DO_DRIVER_IO:
-		gpr(3) = (int32)(int16)VideoDoDriverIO((void *)gpr(3), (void *)gpr(4),
-											   (void *)gpr(5), gpr(6), gpr(7));
+		gpr(3) = (int32)(int16)VideoDoDriverIO(gpr(3), gpr(4), gpr(5), gpr(6), gpr(7));
 		break;
 #ifdef WORDS_BIGENDIAN
 	case NATIVE_ETHER_IRQ:
@@ -1185,7 +1187,7 @@ void sheepshaver_cpu::execute_native_op(uint32 selector)
 		break;
 	}
 	case NATIVE_MAKE_EXECUTABLE:
-		MakeExecutable(0, (void *)gpr(4), gpr(5));
+		MakeExecutable(0, gpr(4), gpr(5));
 		break;
 	case NATIVE_CHECK_LOAD_INVOC:
 		check_load_invoc(gpr(3), gpr(4), gpr(5));

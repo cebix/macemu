@@ -503,7 +503,7 @@ static bool open_window(int width, int height)
 	the_buffer = (uint8 *)malloc((aligned_height + 2) * img->bytes_per_line);
 	D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
 #endif
-	screen_base = (uint32)the_buffer;
+	screen_base = Host2MacAddr(the_buffer);
 
 	// Create GC
 	the_gc = XCreateGC(x_display, the_win, 0, 0);
@@ -633,7 +633,7 @@ static bool open_dga(int width, int height)
 
 	// Set frame buffer base
 	D(bug("the_buffer = %p, use_vosf = %d\n", the_buffer, use_vosf));
-	screen_base = (uint32)the_buffer;
+	screen_base = Host2MacAddr(the_buffer);
 	VModes[cur_mode].viRowBytes = bytes_per_row;
 	return true;
 #else
@@ -1267,7 +1267,7 @@ static void suspend_emul(void)
 		// Save frame buffer
 		fb_save = malloc(VModes[cur_mode].viYsize * VModes[cur_mode].viRowBytes);
 		if (fb_save)
-			memcpy(fb_save, (void *)screen_base, VModes[cur_mode].viYsize * VModes[cur_mode].viRowBytes);
+			Mac2Host_memcpy(fb_save, screen_base, VModes[cur_mode].viYsize * VModes[cur_mode].viRowBytes);
 
 		// Close full screen display
 #ifdef ENABLE_XF86_DGA
@@ -1329,7 +1329,7 @@ static void resume_emul(void)
 		// Don't copy fb_save to the temporary frame buffer in VOSF mode
 		if (!use_vosf)
 #endif
-		memcpy((void *)screen_base, fb_save, VModes[cur_mode].viYsize * VModes[cur_mode].viRowBytes);
+		Host2Mac_memcpy(screen_base, fb_save, VModes[cur_mode].viYsize * VModes[cur_mode].viRowBytes);
 		free(fb_save);
 		fb_save = NULL;
 	}
