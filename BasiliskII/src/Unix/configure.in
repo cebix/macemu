@@ -621,6 +621,8 @@ if [[ "x$FPE_CORE" = "xdefault" ]]; then
     DEFINES="$DEFINES -DFPU_X86"
     FPE_CORE_STR="i386 optimized core"
     FPUSRCS="../uae_cpu/fpu/fpu_x86.cpp"
+  else
+    FPE_CORE="uae"
   fi
 fi
 
