@@ -135,7 +135,8 @@
 - (IBAction) EditROMpath:		(NSTextField *)sender;
 - (IBAction) RemoveSCSI:	(id)sender;
 - (IBAction) RemoveVolume:	(id)sender;
-- (const char *) RemoveVolumeEntry;
+//- (const char *) RemoveVolumeEntry;
+- (NSString *) RemoveVolumeEntry;
 - (IBAction) ResetPrefs:	(id)sender;
 - (IBAction) ShowPrefs: 	(id)sender;
 - (IBAction) SavePrefs:		(id)sender;

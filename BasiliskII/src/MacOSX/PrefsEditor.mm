@@ -30,8 +30,8 @@
 	self = [super init];
 
 	numItems = 0;
-	col1 = [[NSMutableArray alloc] init];
-	col2 = [[NSMutableArray alloc] init];
+	col1 = [NSMutableArray new];
+	col2 = [NSMutableArray new];
 
 	return self;
 }
@@ -126,14 +126,14 @@
 
 	devs = @"/dev";
 	home = NSHomeDirectory();
-	volsDS = [[TableDS alloc] init];
-	SCSIds = [[TableDS alloc] init];
+	volsDS = [TableDS new];
+	SCSIds = [TableDS new];
 
-	lockCell = [[NSImageCell alloc] init];
+	lockCell = [NSImageCell new];
 	if ( lockCell == nil )
 		NSLog (@"%s - Can't create NSImageCell?", __PRETTY_FUNCTION__);
 
-	blank  = [[NSImage alloc] init];
+	blank  = [NSImage new];
 	locked = [NSImage alloc];
 	if ( [locked initWithContentsOfFile:
 				 [[NSBundle mainBundle]
@@ -411,12 +411,29 @@
 	}
 }
 
+- (BOOL)    fileManager: (NSFileManager *) manager
+shouldProceedAfterError: (NSDictionary *) errorDict
+{
+	NSRunAlertPanel(@"File operation error",
+					@"%@ %@, toPath %@",
+					@"Bugger!", nil, nil, 
+					[errorDict objectForKey:@"Error"], 
+					[errorDict objectForKey:@"Path"],
+					[errorDict objectForKey:@"ToPath"]);
+	return NO;
+}
+
 - (IBAction) DeleteVolume: (id)sender
 {
-	const char *path = [self RemoveVolumeEntry];
-	if ( unlink(path) == -1 )
+//	const char *path = [self RemoveVolumeEntry];
+//	if ( unlink(path) == -1 )
+	NSString	*Path = [self RemoveVolumeEntry];
+
+	if ( ! [[NSFileManager defaultManager] removeFileAtPath: Path
+													handler: self] )
 	{
-		NSLog(@"%s unlink(%s) failed", __PRETTY_FUNCTION__, path, strerror(errno));
+		WarningSheet(@"Unable to delete volume", panel);
+//		NSLog(@"%s unlink(%s) failed - %s", __PRETTY_FUNCTION__, path, strerror(errno));
 	}
 }
 
@@ -519,13 +536,15 @@
 	PrefsRemoveItem(pref,0);
 }
 
-- (const char *) RemoveVolumeEntry
+//- (const char *) RemoveVolumeEntry
+- (NSString *) RemoveVolumeEntry
 {
 	int		row = [diskImages selectedRow];
 
 	if ( row != -1 )
 	{
-		const char	*path = [[volsDS pathAtRow: row] cString],
+		NSString	*Path = [volsDS pathAtRow: row];
+		const char	*path = [Path cString],
 					*str;
 		int			tmp = 0;
 
@@ -552,7 +571,8 @@
 		if ( ! [volsDS deleteRow: row] )
 			NSLog (@"%s - RemoveVolume %d failed", __PRETTY_FUNCTION__, tmp);
 		[diskImages reloadData];
-		return path;
+//		return path;
+		return Path;
 	}
 	else
 	{
