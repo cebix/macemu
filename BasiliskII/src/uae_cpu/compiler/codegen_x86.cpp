@@ -3834,8 +3834,8 @@ static bool target_check_bsf(void)
 	for (int g_OF = 0; g_OF <= 1; g_OF++) {
 	for (int g_SF = 0; g_SF <= 1; g_SF++) {
 		for (int value = -1; value <= 1; value++) {
-			int flags = (g_SF << 7) | (g_OF << 11) | (g_ZF << 6) | g_CF;
-			int tmp = value;
+			unsigned long flags = (g_SF << 7) | (g_OF << 11) | (g_ZF << 6) | g_CF;
+			unsigned long tmp = value;
 			__asm__ __volatile__ ("push %0; popf; bsf %1,%1; pushf; pop %0"
 								  : "+r" (flags), "+r" (tmp) : : "cc");
 			int OF = (flags >> 11) & 1;
