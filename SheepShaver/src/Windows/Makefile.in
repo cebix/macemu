@@ -1,0 +1,170 @@
+# Windows Makefile for SheepShaver
+
+## System specific configuration
+@SET_MAKE@
+SHELL = /bin/sh
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+datadir = @datadir@
+mandir = @mandir@
+man1dir = $(mandir)/man1
+
+DESTDIR =
+
+LN_S = @LN_S@
+CC = @CC@
+CXX = @CXX@
+CFLAGS = @CFLAGS@
+CXXFLAGS = @CXXFLAGS@
+CPPFLAGS = @CPPFLAGS@ -I../include -I.
+DEFS = @DEFS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+CPUSRCS = @CPUSRCS@
+PERL = @PERL@
+
+USE_DYNGEN = @USE_DYNGEN@
+DYNGENSRCS = @DYNGENSRCS@
+DYNGEN_CC = $(CXX)
+DYNGEN_OP_FLAGS = @DYNGEN_OP_FLAGS@
+
+HOST_CC = gcc
+HOST_CXX = g++
+HOST_CFLAGS = -O2
+HOST_CXXFLAGS = -O2
+HOST_LDFLAGS =
+
+## Files
+UNIXSRCS = vm_alloc.cpp vm_alloc.h sigsegv.cpp sigsegv.h video_vosf.h video_blit.cpp video_blit.h
+
+SRCS = ../main.cpp main_windows.cpp ../prefs.cpp ../prefs_items.cpp prefs_windows.cpp \
+	sys_windows.cpp cdenable/cache.cpp cdenable/eject_nt.cpp cdenable/ntcd.cpp \
+    ../rom_patches.cpp ../rsrc_patches.cpp ../emul_op.cpp ../name_registry.cpp \
+    ../macos_util.cpp ../timer.cpp timer_windows.cpp ../xpram.cpp xpram_windows.cpp \
+    ../adb.cpp ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp ../dummy/scsi_dummy.cpp \
+    ../gfxaccel.cpp ../video.cpp ../SDL/video_sdl.cpp video_blit.cpp \
+    ../audio.cpp ../SDL/audio_sdl.cpp ../ether.cpp ../dummy/ether_dummy.cpp \
+    ../thunks.cpp ../serial.cpp ../dummy/serial_dummy.cpp ../extfs.cpp extfs_windows.cpp \
+    about_window_windows.cpp ../user_strings.cpp user_strings_windows.cpp \
+    ../dummy/prefs_editor_dummy.cpp clip_windows.cpp util_windows.cpp \
+    vm_alloc.cpp sigsegv.cpp posix_emu.cpp SheepShaver.rc $(CPUSRCS)
+APP = SheepShaver.exe
+
+## Rules
+.PHONY: clean distclean
+.SUFFIXES:
+.SUFFIXES: .c .cpp .S .o .h
+
+all: $(APP)
+
+$(UNIXSRCS): %: ../Unix/%
+	$(LN_S) $< $@
+
+OBJ_DIR = obj
+$(OBJ_DIR)::
+	@[ -d $(OBJ_DIR) ] || mkdir $(OBJ_DIR) > /dev/null 2>&1
+
+define SRCS_LIST_TO_OBJS
+	$(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(foreach file, $(SRCS), \
+	$(basename $(notdir $(file))))))
+endef
+OBJS = $(SRCS_LIST_TO_OBJS)
+
+define DYNGENSRCS_LIST_TO_OBJS
+	$(addprefix $(OBJ_DIR)/, $(addsuffix .ho, $(foreach file, $(DYNGENSRCS), \
+	$(basename $(notdir $(file))))))
+endef
+DYNGENOBJS = $(DYNGENSRCS_LIST_TO_OBJS)
+
+SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
+VPATH :=
+VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
+
+$(APP): $(UNIXSRCS) $(OBJ_DIR) $(OBJS)
+	$(CXX) -o $(APP) $(LDFLAGS) $(OBJS) $(LIBS)
+
+clean:
+	rm -f $(UNIXSRCS)
+	rm -f $(APP) $(OBJ_DIR)/* core* *.core *~ *.bak ppc-execute-impl.cpp
+	rm -f dyngen basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
+
+distclean: clean
+	rm -rf $(OBJ_DIR)
+	rm -f Makefile
+	rm -f config.cache config.log config.status config.h
+
+depend dep:
+	makedepend $(CPPFLAGS) -Y. $(SRCS) 2>/dev/null
+
+$(OBJ_DIR)/%.ho : %.c
+	$(HOST_CC) $(CPPFLAGS) $(DEFS) $(HOST_CFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.ho : %.cpp
+	$(HOST_CXX) $(CPPFLAGS) $(DEFS) $(HOST_CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o : %.c
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o : %.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o : %.mm
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o : %.S
+	$(CPP) $(CPPFLAGS) -D__ASSEMBLY__ $< -o $*.out.s
+	$(AS) $(ASFLAGS) -o $@ $*.out.s
+	rm $*.out.s
+
+# Windows resources
+$(OBJ_DIR)/%.o: %.rc
+	windres --include-dir ../Windows -i $< -o $@
+
+# Kheperix CPU emulator
+kpxsrcdir = ../kpx_cpu/src
+GENEXECPL = $(kpxsrcdir)/cpu/ppc/genexec.pl
+DYNGEN    = dyngen.exe
+
+ifeq ($(USE_DYNGEN),yes)
+DYNGENDEPS = basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
+
+$(DYNGEN): $(DYNGENOBJS)
+	$(CXX) -o $@ $(LDFLAGS) $(DYNGENOBJS)
+
+$(OBJ_DIR)/basic-dyngen.o: basic-dyngen-ops.hpp
+$(OBJ_DIR)/basic-dyngen-ops.o: $(kpxsrcdir)/cpu/jit/basic-dyngen-ops.cpp
+	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
+basic-dyngen-ops.hpp: $(OBJ_DIR)/basic-dyngen-ops.o $(DYNGEN)
+	./$(DYNGEN) -o $@ $<
+
+$(OBJ_DIR)/ppc-dyngen.o: ppc-dyngen-ops.hpp
+$(OBJ_DIR)/ppc-dyngen-ops.o: $(kpxsrcdir)/cpu/ppc/ppc-dyngen-ops.cpp basic-dyngen-ops.hpp
+	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
+ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o $(DYNGEN)
+	./$(DYNGEN) -o $@ $<
+
+$(OBJ_DIR)/sheepshaver_glue.o $(OBJ_DIR)/ppc-cpu.o $(OBJ_DIR)/ppc-decode.o $(OBJ_DIR)/ppc-translate.o: basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
+endif
+
+$(OBJ_DIR)/ppc-execute.o: ppc-execute-impl.cpp
+ppc-execute-impl.cpp: $(kpxsrcdir)/cpu/ppc/ppc-decode.cpp $(GENEXECPL) $(DYNGENDEPS)
+	$(CPP) $(CPPFLAGS) -DGENEXEC $< | $(PERL) $(GENEXECPL) > $@
+
+# PowerPC CPU tester
+TESTSRCS_ = mathlib/ieeefp.cpp cpu/ppc/ppc-cpu.cpp cpu/ppc/ppc-decode.cpp cpu/ppc/ppc-execute.cpp cpu/ppc/ppc-translate.cpp test/test-powerpc.cpp $(MONSRCS) vm_alloc.cpp
+ifeq ($(USE_DYNGEN),yes)
+TESTSRCS_ += cpu/jit/jit-cache.cpp cpu/jit/basic-dyngen.cpp cpu/ppc/ppc-dyngen.cpp
+endif
+TESTSRCS  = $(TESTSRCS_:%.cpp=$(kpxsrcdir)/%.cpp)
+
+define TESTSRCS_LIST_TO_OBJS
+	$(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(foreach file, $(TESTSRCS), \
+	$(basename $(notdir $(file))))))
+endef
+TESTOBJS  = $(TESTSRCS_LIST_TO_OBJS)
+
+$(OBJ_DIR)/test-powerpc.o: $(kpxsrcdir)/test/test-powerpc.cpp
+	$(HOST_CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -DEMU_KHEPERIX -c $< -o $@
+
+test-powerpc.exe: $(TESTOBJS)
+	$(HOST_CXX) -o $@ $(LDFLAGS) $(TESTOBJS) -mconsole
+
+#-------------------------------------------------------------------------
+# DO NOT DELETE THIS LINE -- make depend depends on it.
