@@ -1,7 +1,7 @@
 /*
  *  prefs_editor_linux.cpp - Preferences editor, Linux implementation using GTK+
  *
- *  SheepShaver (C) 1997-2004 Christian Bauer and Marc Hellwig
+ *  SheepShaver (C) 1997-2005 Christian Bauer and Marc Hellwig
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

@@ -1,7 +1,7 @@
 /*
  *  ppc-instructions.hpp - PowerPC instructions IDs
  *
- *  Kheperix (C) 2003-2004 Gwenole Beauchesne
+ *  Kheperix (C) 2003-2005 Gwenole Beauchesne
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
