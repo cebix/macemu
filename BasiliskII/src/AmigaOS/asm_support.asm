@@ -18,6 +18,8 @@
 * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 *
 
+DEBUG_DETAIL	SET 1
+
 		INCLUDE	"exec/types.i"
 		INCLUDE	"exec/macros.i"
 		INCLUDE	"exec/memory.i"
@@ -25,7 +27,7 @@
 		INCLUDE	"dos/dos.i"
 		INCLUDE	"devices/timer.i"
 
-		INCLUDE	"asmsupp.i"
+;		INCLUDE	"asmsupp.i"
 
 		XDEF	_AtomicAnd
 		XDEF	_AtomicOr
@@ -199,7 +201,7 @@ _Execute68kTrap
 		rts
 
 *
-* Exception handler of main task (for 60Hz interrupts)
+* Exception handler of main task (for interrupts)
 *
 
 _ExceptionHandlerAsm
@@ -392,7 +394,7 @@ doaline		move.l	a0,(sp)			;Save a0
 		addq.l	#8,sp			;Remove exception frame from supervisor stack
 		andi	#$d8ff,sr		;Switch to user mode, enable interrupts
 
-		and.w	#$f8ff,_EmulatedSR	;enable interrupts in EmulatedSR
+;		and.w	#$f8ff,_EmulatedSR	;enable interrupts in EmulatedSR
 
 		move.l	$28.w,-(sp)		;Jump to MacOS exception handler
 		rts

@@ -192,11 +192,10 @@ int main(int argc, char **argv)
 		QuitEmulator();
 	}
 
-	if (FindTask((UBYTE *) "« Enforcer »"))
-		{
+	if (FindTask((UBYTE *) "« Enforcer »")) {
 		ErrorAlert(STR_ENFORCER_RUNNING_ERR);
 		QuitEmulator();
-		}
+	}
 
 	// These two can fail (the respective gfx support won't be available, then)
 	P96Base = OpenLibrary((UBYTE *) "Picasso96API.library", 2);

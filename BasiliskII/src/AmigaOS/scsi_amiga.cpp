@@ -53,6 +53,8 @@ static UBYTE cmd_buffer[12];			// Buffer for SCSI command
 const int SENSE_LENGTH = 256;
 static UBYTE *sense_buffer = NULL;		// Buffer for autosense data
 
+static bool direct_transfers_supported = false; // Direct data transfers (bypassing the buffer) are supported
+
 
 /*
  *  Initialization
@@ -69,6 +71,7 @@ void SCSIInit(void)
 			break;
 		case 2:
 			buffer_memf = MEMF_ANY | MEMF_PUBLIC;
+			direct_transfers_supported = true;
 			break;
 		default:
 			buffer_memf = MEMF_CHIP | MEMF_PUBLIC;
@@ -212,23 +215,29 @@ bool scsi_set_target(int id, int lun)
 
 bool scsi_send_cmd(size_t data_length, bool reading, int sg_size, uint8 **sg_ptr, uint32 *sg_len, uint16 *stat, uint32 timeout)
 {
-	// Check if buffer is large enough, allocate new buffer if needed
-	if (!try_buffer(data_length)) {
-		char str[256];
-		sprintf(str, GetString(STR_SCSI_BUFFER_ERR), data_length);
-		ErrorAlert(str);
-		return false;
-	}
+	// Bypass the buffer if there's only one S/G table entry
+	bool do_direct_transfer = (sg_size == 1 && ((uint32)sg_ptr[0] & 1) == 0 && direct_transfers_supported);
 
-	// Process S/G table when writing
-	if (!reading) {
-		D(bug(" writing to buffer\n"));
-		uint8 *buffer_ptr = buffer;
-		for (int i=0; i<sg_size; i++) {
-			uint32 len = sg_len[i];
-			D(bug("  %d bytes from %08lx\n", len, sg_ptr[i]));
-			memcpy(buffer_ptr, sg_ptr[i], len);
-			buffer_ptr += len;
+	if (!do_direct_transfer) {
+
+		// Check if buffer is large enough, allocate new buffer if needed
+		if (!try_buffer(data_length)) {
+			char str[256];
+			sprintf(str, GetString(STR_SCSI_BUFFER_ERR), data_length);
+			ErrorAlert(str);
+			return false;
+		}
+
+		// Process S/G table when writing
+		if (!reading) {
+			D(bug(" writing to buffer\n"));
+			uint8 *buffer_ptr = buffer;
+			for (int i=0; i<sg_size; i++) {
+				uint32 len = sg_len[i];
+				D(bug("  %d bytes from %08lx\n", len, sg_ptr[i]));
+				memcpy(buffer_ptr, sg_ptr[i], len);
+				buffer_ptr += len;
+			}
 		}
 	}
 
@@ -240,13 +249,19 @@ bool scsi_send_cmd(size_t data_length, bool reading, int sg_size, uint8 **sg_ptr
 		D(bug(" autosense\n"));
 		memcpy(buffer, sense_buffer, scsi.scsi_SenseActual);
 		scsi.scsi_Status = 0;
+		do_direct_transfer = false;
 
 	} else {
 
 		// No, send regular command
 		D(bug(" sending command, length %ld\n", data_length));
-		scsi.scsi_Data = (UWORD *)buffer;
-		scsi.scsi_Length = data_length;
+		if (do_direct_transfer) {
+			scsi.scsi_Data = (UWORD *)sg_ptr[0];
+			scsi.scsi_Length = sg_len[0];
+		} else {
+			scsi.scsi_Data = (UWORD *)buffer;
+			scsi.scsi_Length = data_length;
+		}
 		scsi.scsi_Actual = 0;
 		scsi.scsi_Flags = (reading ? SCSIF_READ : SCSIF_WRITE) | SCSIF_AUTOSENSE;
 		scsi.scsi_SenseActual = 0;
@@ -256,15 +271,18 @@ bool scsi_send_cmd(size_t data_length, bool reading, int sg_size, uint8 **sg_ptr
 		*stat = scsi.scsi_Status;
 	}
 
-	// Process S/G table when reading
-	if (reading && res == 0) {
-		D(bug(" reading from buffer\n"));
-		uint8 *buffer_ptr = buffer;
-		for (int i=0; i<sg_size; i++) {
-			uint32 len = sg_len[i];
-			D(bug("  %d bytes to %08lx\n", len, sg_ptr[i]));
-			memcpy(sg_ptr[i], buffer_ptr, len);
-			buffer_ptr += len;
+	if (!do_direct_transfer) {
+
+		// Process S/G table when reading
+		if (reading && res == 0) {
+			D(bug(" reading from buffer\n"));
+			uint8 *buffer_ptr = buffer;
+			for (int i=0; i<sg_size; i++) {
+				uint32 len = sg_len[i];
+				D(bug("  %d bytes to %08lx\n", len, sg_ptr[i]));
+				memcpy(sg_ptr[i], buffer_ptr, len);
+				buffer_ptr += len;
+			}
 		}
 	}
 	return res == 0;

@@ -251,9 +251,9 @@ bool VideoInit(bool classic)
 			break;
 
 		case DISPLAY_PIP:
-			default_depth = VDEPTH_16BIT;
 			default_width = window_width;
 			default_height = window_height;
+			default_depth = VDEPTH_16BIT;
 			add_modes(window_width, window_height, VDEPTH_16BIT);
 			break;
 
@@ -271,23 +271,22 @@ bool VideoInit(bool classic)
 			default_width = 1 + dimInfo.Nominal.MaxX - dimInfo.Nominal.MinX;
 			default_height = 1 + dimInfo.Nominal.MaxY - dimInfo.Nominal.MinY;
 
-			switch (dimInfo.MaxDepth)
-				{
-			case 1:
-				default_depth = VDEPTH_1BIT;
-				break;
-			case 8:
-				default_depth = VDEPTH_8BIT;
-				break;
-			case 15:
-			case 16:
-				default_depth = VDEPTH_16BIT;
-				break;
-			case 24:
-			case 32:
-				default_depth = VDEPTH_32BIT;
-				break;
-				}
+			switch (dimInfo.MaxDepth) {
+				case 1:
+					default_depth = VDEPTH_1BIT;
+					break;
+				case 8:
+					default_depth = VDEPTH_8BIT;
+					break;
+				case 15:
+				case 16:
+					default_depth = VDEPTH_16BIT;
+					break;
+				case 24:
+				case 32:
+					default_depth = VDEPTH_32BIT;
+					break;
+			}
 
 			for (unsigned d=VDEPTH_8BIT; d<=VDEPTH_32BIT; d++) {
 				ULONG mode_id = find_mode_for_depth(default_width, default_height, bits_from_depth(video_depth(d)));
@@ -297,8 +296,6 @@ bool VideoInit(bool classic)
 			}
 			break;
 	}
-
-//	video_init_depth_list();
 
 #if DEBUG
 	bug("Available video modes:\n");
@@ -313,8 +310,7 @@ bool VideoInit(bool classic)
 		__LINE__, default_width, default_height, default_depth));
 
 	// Find requested default mode and open display
-	if (VideoModes.size() == 1)
-		{
+	if (VideoModes.size() == 1) {
 		uint32 default_id ;
 
 		// Create Amiga_monitor_desc for this (the only) display
@@ -325,14 +321,14 @@ bool VideoInit(bool classic)
 
 		// Open display
 		return monitor->video_open();
-		}
-	else {
+
+	} else {
+
 		// Find mode with specified dimensions
 		std::vector<video_mode>::const_iterator i, end = VideoModes.end();
 		for (i = VideoModes.begin(); i != end; ++i) {
 			D(bug("VideoInit/%ld: w=%ld  h=%ld  d=%ld\n", __LINE__, i->x, i->y, bits_from_depth(i->depth)));
-			if (i->x == default_width && i->y == default_height && i->depth == default_depth)
-				{
+			if (i->x == default_width && i->y == default_height && i->depth == default_depth) {
 				// Create Amiga_monitor_desc for this (the only) display
 				uint32 default_id = i->resolution_id;
 				D(bug("VideoInit/%ld: default_id=%ld\n", __LINE__, default_id));
@@ -341,7 +337,7 @@ bool VideoInit(bool classic)
 
 				// Open display
 				return monitor->video_open();
-				}
+			}
 		}
 
 		// Create Amiga_monitor_desc for this (the only) display
@@ -370,8 +366,6 @@ bool Amiga_monitor_desc::video_open()
 		ErrorAlert(STR_NO_VIDEO_MODE_ERR);
 		return false;
 	}
-
-//	VideoMonitor.mode = mode;
 
 	D(bug("video_open/%ld: display_type=%ld\n", __LINE__, display_type));
 
@@ -435,6 +429,7 @@ void Amiga_monitor_desc::video_close()
 	}
 
 	delete drv;
+	drv = NULL;
 
 	// Free mouse pointer
 	if (null_pointer) {
@@ -556,14 +551,13 @@ static __saveds void periodic_func(void)
 //		D(bug("periodic_func/%ld: display_type=%ld  the_win=%08lx\n", __LINE__, drv->monitor.display_type, drv->the_win));
 
 		if (sig & timer_mask) {
-			if (drv->get_bitmap())
-				{
+			if (drv->get_bitmap()) {
 				// Timer tick, update display
 				BltTemplate(drv->get_bitmap()->Planes[0], 0,
 					drv->get_bitmap()->BytesPerRow, drv->the_win->RPort,
 					drv->the_win->BorderLeft, drv->the_win->BorderTop,
 					mode.x, mode.y);
-				}
+			}
 
 			// Restart timer
 			timer_io->tr_node.io_Command = TR_ADDREQUEST;
@@ -588,33 +582,32 @@ static __saveds void periodic_func(void)
 				// Handle message according to class
 				switch (cl) {
 					case IDCMP_MOUSEMOVE:
-						switch (drv->monitor.display_type)
-							{
-						case DISPLAY_SCREEN_P96:
-						case DISPLAY_SCREEN_CGFX:
-//							D(bug("periodic_func/%ld: IDCMP_MOUSEMOVE mx=%ld  my=%ld\n", __LINE__, mx, my));
-							ADBMouseMoved(mx, my);
-							break;
-						default:
-//							D(bug("periodic_func/%ld: IDCMP_MOUSEMOVE mx=%ld  my=%ld\n", __LINE__, mx - drv->the_win->BorderLeft, my - drv->the_win->BorderTop));
-							ADBMouseMoved(mx - drv->the_win->BorderLeft, my - drv->the_win->BorderTop);
-							if (mx < drv->the_win->BorderLeft
-							 || my < drv->the_win->BorderTop
-							 || mx >= drv->the_win->BorderLeft + mode.x
-							 || my >= drv->the_win->BorderTop + mode.y) {
-								if (current_pointer) {
-									ClearPointer(drv->the_win);
-									current_pointer = NULL;
+						switch (drv->monitor.display_type) {
+							case DISPLAY_SCREEN_P96:
+							case DISPLAY_SCREEN_CGFX:
+//								D(bug("periodic_func/%ld: IDCMP_MOUSEMOVE mx=%ld  my=%ld\n", __LINE__, mx, my));
+								ADBMouseMoved(mx, my);
+								break;
+							default:
+//								D(bug("periodic_func/%ld: IDCMP_MOUSEMOVE mx=%ld  my=%ld\n", __LINE__, mx - drv->the_win->BorderLeft, my - drv->the_win->BorderTop));
+								ADBMouseMoved(mx - drv->the_win->BorderLeft, my - drv->the_win->BorderTop);
+								if (mx < drv->the_win->BorderLeft
+								 || my < drv->the_win->BorderTop
+								 || mx >= drv->the_win->BorderLeft + mode.x
+								 || my >= drv->the_win->BorderTop + mode.y) {
+									if (current_pointer) {
+										ClearPointer(drv->the_win);
+										current_pointer = NULL;
+									}
+								} else {
+									if (current_pointer != null_pointer) {
+										// Hide mouse pointer inside window
+										SetPointer(drv->the_win, null_pointer, 1, 16, 0, 0);
+										current_pointer = null_pointer;
+									}
 								}
-							} else {
-								if (current_pointer != null_pointer) {
-									// Hide mouse pointer inside window
-									SetPointer(drv->the_win, null_pointer, 1, 16, 0, 0);
-									current_pointer = null_pointer;
-								}
-							}
-							break;
-							}
+								break;
+						}
 						break;
 
 					case IDCMP_MOUSEBUTTONS:
@@ -844,7 +837,7 @@ driver_base::~driver_base()
 driver_window::driver_window(Amiga_monitor_desc &m, int width, int height)
 	: black_pen(-1), white_pen(-1), driver_base(m)
 {
-	// Set relative mouse mode
+	// Set absolute mouse mode
 	ADBSetRelMouseMode(false);
 
 	// Open window
@@ -913,8 +906,10 @@ driver_window::~driver_window()
 driver_pip::driver_pip(Amiga_monitor_desc &m, int width, int height)
 	: driver_base(m)
 {
-	// Set relative mouse mode
+	// Set absolute mouse mode
 	ADBSetRelMouseMode(false);
+
+	D(bug("driver_pip(%d,%d)\n", width, height));
 
 	// Open window
 	ULONG error = 0;
@@ -923,6 +918,7 @@ driver_pip::driver_pip(Amiga_monitor_desc &m, int width, int height)
 		P96PIP_SourceWidth, width,
 		P96PIP_SourceHeight, height,
 		P96PIP_ErrorCode, (ULONG)&error,
+		P96PIP_AllowCropping, true,
 		WA_Left, 0, WA_Top, 0,
 		WA_InnerWidth, width, WA_InnerHeight, height,
 		WA_SimpleRefresh, true,
@@ -964,7 +960,7 @@ driver_pip::~driver_pip()
 driver_screen_p96::driver_screen_p96(Amiga_monitor_desc &m, ULONG mode_id)
 	: driver_base(m)
 {
-	// Set absolute mouse mode
+	// Set relative mouse mode
 	ADBSetRelMouseMode(true);
 
 	// Check if the mode is one we can handle
@@ -1167,4 +1163,3 @@ void driver_screen_cgfx::set_palette(uint8 *pal, int num)
 	// And load it
 	LoadRGB32(&the_screen->ViewPort, table);
 }
-
