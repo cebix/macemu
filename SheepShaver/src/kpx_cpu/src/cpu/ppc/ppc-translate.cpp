@@ -105,22 +105,24 @@ powerpc_cpu::compile_block(uint32 entry_point)
 	compile_count++;
 	clock_t start_time = clock();
 #endif
-	block_info *bi = block_cache.new_blockinfo();
-	bi->init(entry_point);
 
-  again:
 	powerpc_dyngen & dg = codegen;
-	bi->entry_point = dg.gen_start();
-	const instr_info_t *ii;
-
 	codegen_context_t cg_context(dg);
 	cg_context.entry_point = entry_point;
+  again:
+	block_info *bi = block_cache.new_blockinfo();
+	bi->init(entry_point);
+	bi->entry_point = dg.gen_start();
 
 	uint32 dpc = entry_point - 4;
 	int pc_offset = 0;
-	do {
+	bool done_compile = false;
+	while (!done_compile) {
 		uint32 opcode = vm_read_memory_4(dpc += 4);
-		ii = decode(opcode);
+		const instr_info_t *ii = decode(opcode);
+		if (ii->cflow & CFLOW_END_BLOCK)
+			done_compile = true;
+
 #if PPC_FLIGHT_RECORDER
 		if (is_logging())
 			dg.gen_invoke_CPU_im(nv_mem_fun(&powerpc_cpu::record_step).ptr(), opcode);
@@ -961,7 +963,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			invalidate_cache();
 			goto again;
 		}
-	} while ((ii->cflow & CFLOW_END_BLOCK) == 0);
+	}
 	dg.gen_commit_cr();
 	dg.gen_exec_return();
 	dg.gen_end();
