@@ -276,7 +276,7 @@ int main(int argc, char **argv)
 
 	// Load Mac ROM
 	BPTR rom_fh = Open(rom_path ? (char *)rom_path : (char *)ROM_FILE_NAME, MODE_OLDFILE);
-	if (rom_fh == NULL) {
+	if (rom_fh == 0) {
 		ErrorAlert(GetString(STR_NO_ROM_FILE_ERR));
 		QuitEmulator();
 	}

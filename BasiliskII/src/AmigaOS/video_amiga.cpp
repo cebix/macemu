@@ -119,8 +119,6 @@ static void set_video_monitor(uint32 width, uint32 height, uint32 bytes_per_row,
 			mode.depth = VDEPTH_8BIT;
 			break;
 		case 15:
-			mode.depth = VDEPTH_16BIT;
-			break;
 		case 16:
 			mode.depth = VDEPTH_16BIT;
 			break;
@@ -216,8 +214,8 @@ static bool init_pip(int width, int height)
 	p96PIP_GetTags(the_win, P96PIP_SourceBitMap, (ULONG)&the_bitmap, TAG_END);
 
 	// Add resolution and set VideoMonitor
-	set_video_monitor(width, height, p96GetBitMapAttr(the_bitmap, P96BMA_BYTESPERROW), 16);
 	VideoMonitor.mac_frame_base = p96GetBitMapAttr(the_bitmap, P96BMA_MEMORY);
+	set_video_monitor(width, height, p96GetBitMapAttr(the_bitmap, P96BMA_BYTESPERROW), 16);
 	return true;
 }
 
@@ -540,7 +538,8 @@ void VideoExit(void)
 
 void video_set_palette(uint8 *pal)
 {
-	if (display_type == DISPLAY_SCREEN_P96 || display_type == DISPLAY_SCREEN_CGFX) {
+	if ((display_type == DISPLAY_SCREEN_P96 || display_type == DISPLAY_SCREEN_CGFX)
+	 && !IsDirectMode(VideoMonitor.mode)) {
 
 		// Convert palette to 32 bits
 		ULONG table[2 + 256 * 3];

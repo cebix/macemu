@@ -1094,26 +1094,14 @@ static void sigill_handler(int sig, int code, struct sigcontext *scp)
 		}
 
 		case 0xf327:	// fsave -(sp)
-			if (CPUIs68060) {
-				regs->a[7] -= 4;
-				WriteMacInt32(regs->a[7], 0x60000000);	// Idle frame
-				regs->a[7] -= 4;
-				WriteMacInt32(regs->a[7], 0);
-				regs->a[7] -= 4;
-				WriteMacInt32(regs->a[7], 0);
-			} else {
-				regs->a[7] -= 4;
-				WriteMacInt32(regs->a[7], 0x41000000);	// Idle frame
-			}
+			regs->a[7] -= 4;
+			WriteMacInt32(regs->a[7], 0x41000000);	// Idle frame
 			scp->sc_sp = regs->a[7];
 			INC_PC(2);
 			break;
 
 		case 0xf35f:	// frestore (sp)+
-			if (CPUIs68060)
-				regs->a[7] += 12;
-			else
-				regs->a[7] += 4;
+			regs->a[7] += 4;
 			scp->sc_sp = regs->a[7];
 			INC_PC(2);
 			break;

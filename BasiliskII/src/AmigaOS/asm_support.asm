@@ -33,9 +33,6 @@
 		XDEF	_Execute68kTrap
 		XDEF	_TrapHandlerAsm
 		XDEF	_ExceptionHandlerAsm
-		XDEF	_Scod060Patch1
-		XDEF	_Scod060Patch2
-		XDEF	_ThInitFPUPatch
 		XDEF	_AsmTriggerNMI
 
 		XREF	_OldTrapHandler
@@ -242,63 +239,6 @@ _ExceptionHandlerAsm
 		jsr	_quit_emulator		;CTRL-C, quit emulator
 4$		move.l	(sp)+,d0
 		rts
-
-*
-* Process Manager 68060 FPU patches
-*
-
-_Scod060Patch1	fsave	-(sp)		;Save FPU state
-		tst.b	2(sp)		;Null?
-		beq.s	1$
-		fmovem.x fp0-fp7,-(sp)	;No, save FPU registers
-		fmove.l	fpiar,-(sp)
-		fmove.l	fpsr,-(sp)
-		fmove.l	fpcr,-(sp)
-		pea	-1		;Push "FPU state saved" flag
-1$		move.l	d1,-(sp)
-		move.l	d0,-(sp)
-		bsr.s	3$		;Switch integer registers and stack
-		addq.l	#8,sp
-		tst.b	2(sp)		;New FPU state null or "FPU state saved" flag set?
-		beq.s	2$
-		addq.l	#4,sp		;Flag set, skip it
-		fmove.l	(sp)+,fpcr	;Restore FPU registers and state
-		fmove.l	(sp)+,fpsr
-		fmove.l	(sp)+,fpiar
-		fmovem.x (sp)+,fp0-fp7
-2$		frestore (sp)+
-		movem.l	(sp)+,d0-d1
-		rts
-
-3$		move.l	4(sp),a0	;Switch integer registers and stack
-		move	sr,-(sp)
-		movem.l	d2-d7/a2-a6,-(sp)
-		cmp.w	#0,a0
-		beq.s	4$
-		move.l	sp,(a0)
-4$		move.l	$36(sp),a0
-		movem.l	(a0)+,d2-d7/a2-a6
-		move	(a0)+,sr
-		move.l	a0,sp
-		rts
-
-_Scod060Patch2	move.l	d0,-(sp)	;Create 68060 null frame on stack
-		move.l	d0,-(sp)
-		move.l	d0,-(sp)
-		frestore (sp)+		;and load it
-		rts
-
-*
-* Thread Manager 68060 FPU patches
-*
-
-_ThInitFPUPatch	tst.b	$40(a4)
-		bne.s	1$
-		moveq	#0,d0		;Create 68060 null frame on stack
-		move.l	d0,-(a3)
-		move.l	d0,-(a3)
-		move.l	d0,-(a3)
-1$		rts
 
 *
 * Trap handler of main task
@@ -695,38 +635,35 @@ movefromsrsp	move.l	a0,-(sp)		;Save a0
 fsavepush	move.l	(sp),d0			;Restore d0
 		move.l	a0,(sp)			;Save a0
 		move.l	usp,a0			;Get user stack pointer
-		fsave	-(a0)			;Push FP state
+		move.l	#$41000000,-(a0)	;Push idle frame
 		move.l	a0,usp			;Update USP
 		move.l	(sp)+,a0		;Restore a0
 		addq.l	#2,2(sp)		;Skip instruction
+		rte
+
+; fsave xxx(a5)
+fsavea5		move.l	(sp),d0			;Restore d0
+		move.l	a0,(sp)			;Save a0
+		move.l	a5,a0			;Get base register
+		add.w	([6,sp],2),a0		;Add offset to base register
+		move.l	#$41000000,(a0)		;Push idle frame
+		move.l	(sp)+,a0		;Restore a0
+		addq.l	#4,2(sp)		;Skip instruction
 		rte
 
 ; frestore (sp)+
 frestorepop	move.l	(sp),d0			;Restore d0
 		move.l	a0,(sp)			;Save a0
 		move.l	usp,a0			;Get user stack pointer
-		frestore (a0)+			;Restore FP state
+		addq.l	#4,a0			;Nothing to do...
 		move.l	a0,usp			;Update USP
 		move.l	(sp)+,a0		;Restore a0
 		addq.l	#2,2(sp)		;Skip instruction
 		rte
 
-; frestore xxx(a5) +jl+
+; frestore xxx(a5)
 frestorea5	move.l	(sp),d0			;Restore d0
 		move.l	a0,(sp)			;Save a0
-		move.l	a5,a0			;Get base register
-		add.w	([6,sp],2),a0		;Add offset to base register
-		frestore (a0)			;Restore FP state from (a0)
-		move.l	(sp)+,a0		;Restore a0
-		addq.l	#4,2(sp)		;Skip instruction
-		rte
-
-; fsave xxx(a5) +jl+
-fsavea5		move.l	(sp),d0			;Restore d0
-		move.l	a0,(sp)			;Save a0
-		move.l	a5,a0			;Get base register
-		add.w	([6,sp],2),a0		;Add offset to base register
-		fsave	(a0)			;Push FP state to (a0)
 		move.l	(sp)+,a0		;Restore a0
 		addq.l	#4,2(sp)		;Skip instruction
 		rte
