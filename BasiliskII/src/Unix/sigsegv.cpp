@@ -775,6 +775,7 @@ static bool ix86_skip_instruction(unsigned long * regs)
 	    case 0xb6: // MOVZX r32, r/m8
 			transfer_size = SIZE_BYTE;
 			goto do_mov_extend;
+		case 0xbf: // MOVSX r32, r/m16
 	    case 0xb7: // MOVZX r32, r/m16
 			transfer_size = SIZE_WORD;
 			goto do_mov_extend;
