@@ -221,7 +221,8 @@ static void sync_m68k_pc (void)
 }
 
 /* getv == 1: fetch data; getv != 0: check for odd address. If movem != 0,
- * the calling routine handles Apdi and Aipi modes. */
+ * the calling routine handles Apdi and Aipi modes.
+ * gb-- movem == 2 means the same thing but for a MOVE16 instruction */
 static void genamode (amodes mode, char *reg, wordsizes size, char *name, int getv, int movem)
 {
     start_brace ();
@@ -2452,15 +2453,34 @@ static void gen_opcode (unsigned long int opcode)
      case i_CPUSHA:
 	break;
      case i_MOVE16:
-	printf ("\tuaecptr mems = m68k_areg(regs, srcreg) & ~15, memd;\n");
-	printf ("\tdstreg = (%s >> 12) & 7;\n", gen_nextiword());
-	printf ("\tmemd = m68k_areg(regs, dstreg) & ~15;\n");
-	printf ("\tput_long(memd, get_long(mems));\n");
-	printf ("\tput_long(memd+4, get_long(mems+4));\n");
-	printf ("\tput_long(memd+8, get_long(mems+8));\n");
-	printf ("\tput_long(memd+12, get_long(mems+12));\n");
-	printf ("\tm68k_areg(regs, srcreg) += 16;\n");
-	printf ("\tm68k_areg(regs, dstreg) += 16;\n");
+	if ((opcode & 0xfff8) == 0xf620) {
+		/* MOVE16 (Ax)+,(Ay)+ */
+		printf ("\tuaecptr mems = m68k_areg(regs, srcreg) & ~15, memd;\n");
+		printf ("\tdstreg = (%s >> 12) & 7;\n", gen_nextiword());
+		printf ("\tmemd = m68k_areg(regs, dstreg) & ~15;\n");
+		printf ("\tput_long(memd, get_long(mems));\n");
+		printf ("\tput_long(memd+4, get_long(mems+4));\n");
+		printf ("\tput_long(memd+8, get_long(mems+8));\n");
+		printf ("\tput_long(memd+12, get_long(mems+12));\n");
+		printf ("\tif (srcreg != dstreg)\n");
+		printf ("\tm68k_areg(regs, srcreg) += 16;\n");
+		printf ("\tm68k_areg(regs, dstreg) += 16;\n");
+	}
+	else {
+		/* Other variants */
+		genamode (curi->smode, "srcreg", curi->size, "mems", 0, 2);
+		genamode (curi->dmode, "dstreg", curi->size, "memd", 0, 2);
+		printf ("\tmemsa &= ~15;\n");
+		printf ("\tmemda &= ~15;\n");
+		printf ("\tput_long(memda, get_long(memsa));\n");
+		printf ("\tput_long(memda+4, get_long(memsa+4));\n");
+		printf ("\tput_long(memda+8, get_long(memsa+8));\n");
+		printf ("\tput_long(memda+12, get_long(memsa+12));\n");
+		if ((opcode & 0xfff8) == 0xf600)
+		printf ("\tm68k_areg(regs, srcreg) += 16;\n");
+		else if ((opcode & 0xfff8) == 0xf608)
+		printf ("\tm68k_areg(regs, dstreg) += 16;\n");
+	}
 	break;
      case i_MMUOP:
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0);
@@ -2523,6 +2543,7 @@ static void generate_one_opcode (int rp)
      case 3: smsk = 7; break;
      case 4: smsk = 7; break;
      case 5: smsk = 63; break;
+	 case 7: smsk = 3; break;
      default: abort ();
     }
     dmsk = 7;

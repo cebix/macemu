@@ -54,7 +54,7 @@ ENUMDECL {
 
 ENUMDECL {
     bit0, bit1, bitc, bitC, bitf, biti, bitI, bitj, bitJ, bitk, bitK,
-    bits, bitS, bitd, bitD, bitr, bitR, bitz, lastbit
+    bits, bitS, bitd, bitD, bitr, bitR, bitz, bitp, lastbit
 } ENUMNAME (bitvals);
 
 struct instr_def {

@@ -9,6 +9,7 @@
 % J: immediate 0..15
 % k: immediate 0..7
 % K: immediate 0..63
+% p: immediate 0..3 (CINV and CPUSH: cache field)
 % s: source mode
 % S: source reg
 % d: dest mode
@@ -24,6 +25,7 @@
 %
 % Arp: --> -(Ar)
 % ArP: --> (Ar)+
+% Al : --> (xxx).L
 %
 % Fields on a line: 
 % 16 chars bitpattern : 
@@ -248,10 +250,14 @@
 1111 0011 01ss sSSS:32:?????:?????:10: FRESTORE s[!Dreg,Areg,Apdi,Immd]
 
 % 68040 instructions
-1111 0100 ii00 1rrr:42:-----:-----:02: CINVL    #i,Ar
-1111 0100 ii01 0rrr:42:-----:-----:02: CINVP    #i,Ar
-1111 0100 ii01 1rrr:42:-----:-----:00: CINVA    #i
-1111 0100 ii10 1rrr:42:-----:-----:02: CPUSHL   #i,Ar
-1111 0100 ii11 0rrr:42:-----:-----:02: CPUSHP   #i,Ar
-1111 0100 ii11 1rrr:42:-----:-----:00: CPUSHA   #i
+1111 0100 pp00 1rrr:42:-----:-----:02: CINVL    #p,Ar
+1111 0100 pp01 0rrr:42:-----:-----:02: CINVP    #p,Ar
+1111 0100 pp01 1rrr:42:-----:-----:00: CINVA    #p
+1111 0100 pp10 1rrr:42:-----:-----:02: CPUSHL   #p,Ar
+1111 0100 pp11 0rrr:42:-----:-----:02: CPUSHP   #p,Ar
+1111 0100 pp11 1rrr:42:-----:-----:00: CPUSHA   #p
 1111 0110 0010 0rrr:40:-----:-----:12: MOVE16   ArP,ARP
+1111 0110 00ss sSSS:40:-----:-----:12: MOVE16   s[Dreg-Aipi],Al
+1111 0110 00dd dDDD:40:-----:-----:12: MOVE16   Al,d[Areg-Aipi]
+1111 0110 00ss sSSS:40:-----:-----:12: MOVE16   s[Aind],Al
+1111 0110 00dd dDDD:40:-----:-----:12: MOVE16   Al,d[Aipi-Aind]

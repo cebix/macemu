@@ -339,6 +339,7 @@ static void build_insn (int insn)
 	 case 'A':
 	    srcmode = Areg;
 	    switch (opcstr[pos++]) {
+		 case 'l': srcmode = absl; break;
 	     case 'r': srcreg = bitval[bitr]; srcgather = 1; srcpos = bitpos[bitr]; break;
 	     case 'R': srcreg = bitval[bitR]; srcgather = 1; srcpos = bitpos[bitR]; break;
 	     default: abort();
@@ -391,6 +392,14 @@ static void build_insn (int insn)
 		    srcgather = 1;
 		    srctype = 5;
 		    srcpos = bitpos[bitK];
+		}
+		break;
+		 case 'p': srcmode = immi; srcreg = bitval[bitp];
+		if (CPU_EMU_SIZE < 5) { // gb-- what is CPU_EMU_SIZE used for ??
+			/* 0..3 */
+			srcgather = 1;
+			srctype = 7;
+			srcpos = bitpos[bitp];
 		}
 		break;
 	     default: abort();
@@ -521,6 +530,7 @@ static void build_insn (int insn)
 	 case 'A':
 	    destmode = Areg;
 	    switch (opcstr[pos++]) {
+		 case 'l': destmode = absl; break;
 	     case 'r': destreg = bitval[bitr]; dstgather = 1; dstpos = bitpos[bitr]; break;
 	     case 'R': destreg = bitval[bitR]; dstgather = 1; dstpos = bitpos[bitR]; break;
 	     default: abort();
@@ -747,6 +757,8 @@ static void handle_merges (long int opcode)
 	    smsk = 7; sbitdst = 8; break;
 	 case 5:
 	    smsk = 63; sbitdst = 64; break;
+	 case 7:
+	 	smsk = 3; sbitdst = 4; break;
 	 default:
 	    smsk = 0; sbitdst = 0;
 	    abort();
