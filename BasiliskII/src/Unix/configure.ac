@@ -991,6 +991,15 @@ for fpe in $FPE_CORE_TEST_ORDER; do
       FPE_CORE="IEEE fpu core"
       DEFINES="$DEFINES -DFPU_IEEE"
       FPUSRCS="../uae_cpu/fpu/fpu_ieee.cpp"
+      dnl Math functions not mandated by C99 standard
+      AC_CHECK_FUNCS(isnanl isinfl)
+      dnl Math functions required by C99 standard, but probably not
+      dnl implemented everywhere. In that case, we fall back to the
+      dnl regular variant for doubles.
+      AC_CHECK_FUNCS(logl log10l expl powl fabsl sqrtl)
+      AC_CHECK_FUNCS(sinl cosl tanl sinhl coshl tanhl)
+      AC_CHECK_FUNCS(asinl acosl atanl asinhl acoshl atanhl)
+      AC_CHECK_FUNCS(floorl ceill)
       break
       ;;
     esac
@@ -1020,8 +1029,7 @@ fi
 
 dnl Check for certain math functions
 AC_CHECK_FUNCS(atanh)
-AC_CHECK_FUNCS(isnan isinf)		dnl C99
-AC_CHECK_FUNCS(isnanl isinfl)	dnl IEEE ?
+AC_CHECK_FUNCS(isnan isinf finite isnormal signbit)
 
 dnl UAE CPU sources for all non-m68k-native architectures.
 if [[ "x$WANT_NATIVE_M68K" = "xno" ]]; then
