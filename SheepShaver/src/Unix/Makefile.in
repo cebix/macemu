@@ -11,6 +11,8 @@ datadir = @datadir@
 mandir = @mandir@
 man1dir = $(mandir)/man1
 
+DESTDIR =
+
 CC = @CC@
 CXX = @CXX@
 CFLAGS = @CFLAGS@
@@ -76,15 +78,20 @@ modules:
 	cd NetDriver; make
 
 install: $(APP) installdirs
-	$(INSTALL_PROGRAM) $(APP) $(bindir)/$(APP)
-	-$(INSTALL_DATA) $(APP).1 $(man1dir)/$(APP).1
+	$(INSTALL_PROGRAM) $(APP) $(DESTDIR)$(bindir)/$(APP)
+	-$(INSTALL_DATA) $(APP).1 $(DESTDIR)$(man1dir)/$(APP).1
+	$(INSTALL_DATA) keycodes $(DESTDIR)$(datadir)/$(APP)/keycodes
+	$(INSTALL_DATA) tunconfig $(DESTDIR)$(datadir)/$(APP)/tunconfig
 
 installdirs:
-	$(SHELL) mkinstalldirs $(bindir) $(man1dir)
+	$(SHELL) mkinstalldirs $(DESTDIR)$(bindir) $(DESTDIR)$(man1dir) $(DESTDIR)$(datadir)/$(APP)
 
 uninstall:
-	rm -f $(bindir)/$(APP)
-	rm -f $(man1dir)/$(APP).1
+	rm -f $(DESTDIR)$(bindir)/$(APP)
+	rm -f $(DESTDIR)$(man1dir)/$(APP).1
+	rm -f $(DESTDIR)$(datadir)/$(APP)/keycodes
+	rm -f $(DESTDIR)$(datadir)/$(APP)/tunconfig
+	rmdir $(DESTDIR)$(datadir)/$(APP)
 
 clean:
 	rm -f $(APP) $(OBJ_DIR)/* core* *.core *~ *.bak ppc-execute-impl.cpp
