@@ -435,6 +435,7 @@ static Screen_blit_func_info Screen_blitters[] = {
 	{  8, 0x000000, 0x000000, 0x000000, Blit_Copy_Raw	, Blit_Copy_Raw		},	// OK (NBO)
 	{ 15, 0x007c00, 0x0003e0, 0x00001f, Blit_Copy_Raw	, Blit_RGB555_OBO	},	// OK (OBO)
 	{ 15, 0x00001f, 0x0003e0, 0x007c00, Blit_BGR555_NBO	, Blit_BGR555_OBO	},	// NT
+	{ 16, 0x007c00, 0x0003e0, 0x00001f, Blit_Copy_Raw	, Blit_RGB555_OBO	},	// OK (OBO)
 	{ 16, 0x00f800, 0x0007e0, 0x00001f, Blit_RGB565_NBO	, Blit_RGB565_OBO	},	// OK (OBO)
 	{ 24, 0xff0000, 0x00ff00, 0x0000ff, Blit_Copy_Raw	, Blit_RGB888_OBO	},	// OK (OBO)
 	{ 24, 0x0000ff, 0x00ff00, 0xff0000, Blit_BGR888_NBO	, Blit_BGR888_OBO	},	// NT
