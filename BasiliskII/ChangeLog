@@ -1,4 +1,4 @@
-V0.8 -
+V0.8 (snapshot) - 2.Nov.1999
 	- fixed many UAE FPU bugs [Lauri Pesonen]
 	- added replacement for BlockMove() trap
 	- removed Windows sources from the source archive; a version of
