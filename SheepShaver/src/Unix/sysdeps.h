@@ -139,7 +139,7 @@ typedef int64 intptr;
  **/
 
 #if defined(__GNUC__)
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(__i386__)
 // Linux/AMD64 currently has no asm optimized bswap_32() in <byteswap.h>
 #define opt_bswap_32 do_opt_bswap_32
 static inline uint32 do_opt_bswap_32(uint32 x)
@@ -183,6 +183,14 @@ static inline uint32 generic_bswap_32(uint32 x)
 		  ((x & 0x0000ff00) <<  8) |
 		  ((x & 0x000000ff) << 24) );
 }
+
+#if defined(__i386__)
+#define opt_bswap_64 do_opt_bswap_64
+static inline uint64 do_opt_bswap_64(uint64 x)
+{
+  return (bswap_32(x >> 32) | (((uint64)bswap_32((uint32)x)) << 32));
+}
+#endif
 
 #ifdef  opt_bswap_64
 #undef  bswap_64
