@@ -1781,6 +1781,7 @@ bool SheepMem::Init(void)
 	int page_size = getpagesize();
 	if (vm_acquire_fixed((char *)zero_page, page_size) < 0)
 		return false;
+	memset((char *)zero_page, 0, page_size);
 	if (vm_protect((char *)zero_page, page_size, VM_PAGE_READ) < 0)
 		return false;
 
