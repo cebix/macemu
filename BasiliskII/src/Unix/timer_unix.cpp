@@ -57,7 +57,7 @@ uint32 TimerDateTime(void)
 	time_t utc_now = time(NULL);
 #if defined(__linux__) || defined(__SVR4)
 	long tz = timezone;
-	time_t local_now = uct_now - tz;
+	time_t local_now = utc_now - tz;
 	if (daylight)
 		local_now += 3600;
 #elif defined(__FreeBSD__) || defined(__NetBSD__)
