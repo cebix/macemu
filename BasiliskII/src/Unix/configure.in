@@ -662,7 +662,7 @@ fi
 dnl Or if we have -Ofast
 if [[ "x$HAVE_OFAST" = "xyes" ]]; then
   CFLAGS=`echo $CFLAGS | sed -e 's/ -g / -Ofast /;s/^-g /-Ofast /;s/-g$/ -Ofast/;s/^-g$/-Ofast/'`
-  CXXFLAGS=`echo $CXXFLAGS | sed -e 's/ -g / -Ofast /;s/^-g /-Ofast/;s/ -g$/ -Ofast/;s/^-g$/-Ofast/'`
+  CXXFLAGS=`echo $CXXFLAGS | sed -e 's/ -g / -Ofast /;s/^-g /-Ofast /;s/ -g$/ -Ofast/;s/^-g$/-Ofast/'`
   CXXFLAGS="-LANG:std $CXXFLAGS"
   LDFLAGS="$LDFLAGS -Ofast"
 fi
