@@ -1658,7 +1658,7 @@ partial_loop:
 	
 #else
 	
-	_ASM(	"fldt	%4\n"
+	_ASM(	"fldt	%3\n"
 			"fldt	%2\n"
 			"0:\n"					// partial_loop
 			"fprem	\n"
