@@ -4,6 +4,7 @@ V0.8 -
 	  and Mac2Mac_memcpy
 	- extfs.cpp: fixed bug in fs_rename() and fs_cat_move() (auxiliary
 	  IOParam block was not in Mac address space)
+	- extfs.cpp: several fixes [Lauri Pesonen]
 	- some provisions for using UAE CPU compiler (doesn't work yet)
 	- video_x.cpp: XFree86 VidMode extension is used to switch modes
 	  in DGA mode

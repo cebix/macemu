@@ -1187,7 +1187,7 @@ read_next_de:
 				return fnfErr;
 			}
 			if (de->d_name[0] == '.')
-				goto read_next_de;	// Suppress name beginning with '.' (MacOS could interpret these as driver names)
+				goto read_next_de;	// Suppress names beginning with '.' (MacOS could interpret these as driver names)
 			//!! suppress directories
 		}
 		add_path_comp(de->d_name);
@@ -1316,7 +1316,7 @@ read_next_de:
 				return fnfErr;
 			}
 			if (de->d_name[0] == '.')
-				goto read_next_de;	// Suppress name beginning with '.' (MacOS could interpret these as driver names)
+				goto read_next_de;	// Suppress names beginning with '.' (MacOS could interpret these as driver names)
 		}
 		add_path_comp(de->d_name);
 
@@ -1352,7 +1352,7 @@ read_next_de:
 		fs_item->mtime = mtime;
 		cached = false;
 	}
-	WriteMacInt32(pb + ioFlMdDat, mtime);
+	WriteMacInt32(pb + ioFlMdDat, mtime + TIME_OFFSET);
 	WriteMacInt32(pb + ioFlBkDat, 0);
 	if (S_ISDIR(st.st_mode)) {
 		Mac_memset(pb + ioDrUsrWds, 0, SIZEOF_DInfo);
@@ -1374,6 +1374,8 @@ read_next_de:
 					de = readdir(d);
 					if (de == NULL)
 						break;
+					if (de->d_name[0] == '.')
+						continue;	// Suppress names beginning with '.'
 					count++;
 				}
 				closedir(d);
@@ -1774,16 +1776,14 @@ static int16 fs_read(uint32 pb)
 
 	// Read
 	size_t actual = extfs_read(fd, Mac2HostAddr(ReadMacInt32(pb + ioBuffer)), ReadMacInt32(pb + ioReqCount));
+	int16 read_err = errno2oserr();
 	D(bug("  actual %d\n", actual));
 	WriteMacInt32(pb + ioActCount, actual);
 	uint32 pos = lseek(fd, 0, SEEK_CUR);
 	WriteMacInt32(fcb + fcbCrPs, pos);
 	WriteMacInt32(pb + ioPosOffset, pos);
 	if (actual != ReadMacInt32(pb + ioReqCount))
-		if (errno)
-			return errno2oserr();
-		else
-			return eofErr;
+		return read_err ? read_err : eofErr;
 	else
 		return noErr;
 }
@@ -1825,13 +1825,14 @@ static int16 fs_write(uint32 pb)
 
 	// Write
 	size_t actual = extfs_write(fd, Mac2HostAddr(ReadMacInt32(pb + ioBuffer)), ReadMacInt32(pb + ioReqCount));
+	int16 write_err = errno2oserr();
 	D(bug("  actual %d\n", actual));
 	WriteMacInt32(pb + ioActCount, actual);
 	uint32 pos = lseek(fd, 0, SEEK_CUR);
 	WriteMacInt32(fcb + fcbCrPs, pos);
 	WriteMacInt32(pb + ioPosOffset, pos);
 	if (actual != ReadMacInt32(pb + ioReqCount))
-		return errno2oserr();
+		return write_err;
 	else
 		return noErr;
 }
@@ -2053,7 +2054,7 @@ static int16 fs_get_wd_info(uint32 pb, uint32 vcb)
 		return r.d[0];
 
 	// Return information
-	WriteMacInt16(pb + ioWDProcID, ReadMacInt32(wdcb + wdProcID));
+	WriteMacInt32(pb + ioWDProcID, ReadMacInt32(wdcb + wdProcID));
 	WriteMacInt16(pb + ioWDVRefNum, ReadMacInt16(ReadMacInt32(wdcb + wdVCBPtr) + vcbVRefNum));
 	if (ReadMacInt32(pb + ioNamePtr))
 		Mac2Mac_memcpy(ReadMacInt32(pb + ioNamePtr), ReadMacInt32(wdcb + wdVCBPtr) + vcbVN, 28);

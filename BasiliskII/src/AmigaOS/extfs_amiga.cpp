@@ -118,7 +118,7 @@ static int open_helper(const char *path, const char *add, int flag)
 	char helper_path[MAX_PATH_LENGTH];
 	make_helper_path(path, helper_path, add);
 
-	if ((flag & O_RDWR) || (flag && O_WRONLY))
+	if ((flag & O_ACCMODE) == O_RDWR || (flag & O_ACCMODE) == O_WRONLY)
 		flag |= O_CREAT;
 	int fd = open(helper_path, flag, 0666);
 	if (fd < 0) {
