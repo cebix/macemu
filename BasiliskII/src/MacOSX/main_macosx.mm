@@ -172,7 +172,7 @@ int main(int argc, char **argv)
 	return i;
 }
 
-#define QuitEmulator()	QuitEmuNoExit() ; return NO;
+#define QuitEmulator()	{ QuitEmuNoExit() ; return NO; }
 
 bool InitEmulator (void)
 {
