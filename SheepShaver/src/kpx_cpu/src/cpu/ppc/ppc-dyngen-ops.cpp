@@ -1489,7 +1489,7 @@ void op_record_cr6_VD(void)
  *		SSE optimizations
  **/
 
-#if defined(__SSE__)
+#if defined(__SSE__) && defined(HAVE_XMMINTRIN_H)
 #include <xmmintrin.h>
 #undef  VD
 #define VD *((__m128 *)reg_VD)
@@ -1575,7 +1575,7 @@ void op_sse_vxor(void)
  *		MMX optimizations
  **/
 
-#if defined(__MMX__)
+#if defined(__MMX__) && defined(HAVE_MMINTRIN_H)
 #include <mmintrin.h>
 #undef  VD
 #define VD ((__m64 *)reg_VD)
