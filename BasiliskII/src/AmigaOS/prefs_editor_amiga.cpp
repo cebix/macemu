@@ -27,7 +27,7 @@
 #include <libraries/asl.h>
 #include <libraries/gtlayout.h>
 #include <libraries/Picasso96.h>
-#include <cybergraphx/cybergraphics.h>	// jl
+#include <cybergraphx/cybergraphics.h>
 #include <graphics/displayinfo.h>
 #include <devices/ahi.h>
 #include <proto/exec.h>
@@ -38,7 +38,7 @@
 #include <proto/graphics.h>
 #include <proto/asl.h>
 #include <proto/Picasso96.h>
-#include <proto/cybergraphics.h>	// jl
+#include <proto/cybergraphics.h>
 #include <proto/ahi.h>
 
 #include "sysdeps.h"
@@ -533,7 +533,7 @@ quit:
 	FreeAslRequest(dev_request);
 	FreeAslRequest(file_request);
 
-	// Delete Menus jl
+	// Delete Menus
 	LT_DisposeMenu(menu);
 
 	// Delete handle
@@ -1271,24 +1271,21 @@ static void screen_mode_req(struct Window *win, struct LayoutHandle *h)
 
 	ULONG id;
 
-	if (CyberGfxBase)
-		{
-		UWORD ModelArray[] = { PIXFMT_LUT8, PIXFMT_RGB15, PIXFMT_ARGB32, 0, ~0 };
-
-		id = (ULONG) CModeRequestTags(NULL,
-			CYBRMREQ_MinDepth, 8,
-			CYBRMREQ_CModelArray, (ULONG) ModelArray,
-			TAG_END
-			);
-		}
-	else
-		{
+	// Try P96 first, because it also provides a (fake) cybergraphics.library
+	if (P96Base) {
 		id = p96RequestModeIDTags(
 			P96MA_MinDepth, 8,
 			P96MA_FormatsAllowed, RGBFF_CLUT | RGBFF_R5G5B5 | RGBFF_A8R8G8B8,
 			TAG_END
 		);
-		}
+	} else {
+		UWORD ModelArray[] = { PIXFMT_LUT8, PIXFMT_RGB15, PIXFMT_ARGB32, 0, ~0 };
+		id = (ULONG) CModeRequestTags(NULL,
+			CYBRMREQ_MinDepth, 8,
+			CYBRMREQ_CModelArray, (ULONG) ModelArray,
+			TAG_END
+		);
+	}
 	LT_UnlockWindow(win);
 
 	if (id != INVALID_ID) {
@@ -1469,13 +1466,11 @@ static void parse_serial_prefs(void)
 	ether_unit = 0;
 
 	const char *str = PrefsFindString("ether");
-	if (str)
-		{
+	if (str) {
 		const char *FirstSlash = strchr(str, '/');
 		const char *LastSlash = strrchr(str, '/');
 
-		if (FirstSlash && FirstSlash && FirstSlash != LastSlash)
-			{
+		if (FirstSlash && FirstSlash && FirstSlash != LastSlash) {
 			// Device name contains path, i.e. "Networks/xyzzy.device"
 			const char *lp = str;
 			char *dp = ether_dev;
@@ -1487,12 +1482,10 @@ static void parse_serial_prefs(void)
 			sscanf(LastSlash, "/%ld", &ether_unit);
 
 //			printf("dev=<%s> unit=%d\n", ether_dev, ether_unit);
-			}
-		else
-			{
+		} else {
 			sscanf(str, "%[^/]/%ld", ether_dev, &ether_unit);
-			}
 		}
+	}
 }
 
 // Set serial preference item

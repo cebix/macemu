@@ -655,14 +655,13 @@ static __saveds void periodic_func(void)
 					case IDCMP_RAWKEY:
 						if (qualifier & IEQUALIFIER_REPEAT)	// Keyboard repeat is done by MacOS
 							break;
-						if ((IEQUALIFIER_LALT | IEQUALIFIER_LSHIFT | IEQUALIFIER_CONTROL) == 
-								(qualifier & (IEQUALIFIER_LALT | IEQUALIFIER_LSHIFT | IEQUALIFIER_CONTROL))
-							&& 0x5f == code)
-							{
+						if ((qualifier & (IEQUALIFIER_LALT | IEQUALIFIER_LSHIFT | IEQUALIFIER_CONTROL)) == 
+						    (IEQUALIFIER_LALT | IEQUALIFIER_LSHIFT | IEQUALIFIER_CONTROL))
+						 && code == 0x5f) {
 							SetInterruptFlag(INTFLAG_NMI);
 							TriggerInterrupt();
 							break;
-							}
+						}
 
 						if (code & IECODE_UP_PREFIX)
 							ADBKeyUp(keycode2mac[code & 0x7f]);
