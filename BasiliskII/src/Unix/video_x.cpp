@@ -384,8 +384,10 @@ void driver_base::update_palette(void)
 {
 	if (cmap[0] && cmap[1]) {
 		int num = 256;
-		if (vis->c_class == DirectColor && VideoMonitor.mode.depth == VDEPTH_16BIT)
-			num = vis->map_entries;
+		if (IsDirectMode(VideoMonitor.mode))
+			num = vis->map_entries; // Palette is gamma table
+		else if (vis->c_class == DirectColor)
+			return; // Indexed mode on true color screen, don't set CLUT
 		XStoreColors(x_display, cmap[0], palette, num);
 		XStoreColors(x_display, cmap[1], palette, num);
 	}
@@ -1185,9 +1187,11 @@ bool VideoInit(bool classic)
 		cmap[0] = XCreateColormap(x_display, rootwin, vis, AllocAll);
 		cmap[1] = XCreateColormap(x_display, rootwin, vis, AllocAll);
 
-		// Preset pixel members for gamma table
+		int num = 256;
 		if (color_class == DirectColor) {
-			int num = vis->map_entries;
+			num = vis->map_entries;
+
+			// Preset pixel values for gamma table
 			uint32 rmask = vis->red_mask, gmask = vis->green_mask, bmask = vis->blue_mask;
 			uint32 mask;
 			int rloss = 8, rshift = 0;
@@ -1210,6 +1214,18 @@ bool VideoInit(bool classic)
 				palette[i].pixel = ((c >> rloss) << rshift) | ((c >> gloss) << gshift) | ((c >> bloss) << bshift);
 			}
 		}
+
+		// Load gray ramp
+		for (int i=0; i<num; i++) {
+			int c = (i * 256) / num;
+			palette[i].red = c * 0x0101;
+			palette[i].green = c * 0x0101;
+			palette[i].blue = c * 0x0101;
+			if (color_class == PseudoColor)
+				palette[i].pixel = i;
+			palette[i].flags = DoRed | DoGreen | DoBlue;
+		}
+		XStoreColors(x_display, cmap[0], palette, num);
 	}
 
 	// Get screen mode from preferences
@@ -1392,11 +1408,11 @@ void video_set_palette(uint8 *pal)
 
 	// Convert colors to XColor array
 	int num_in = 256, num_out = 256;
-	if (VideoMonitor.mode.depth == VDEPTH_16BIT) {
+	if (VideoMonitor.mode.depth == VDEPTH_16BIT)
 		num_in = 32;
+	if (IsDirectMode(VideoMonitor.mode)) {
 		// If X is in 565 mode we have to stretch the palette from 32 to 64 entries
-		if (vis->c_class == DirectColor)
-			num_out = vis->map_entries;
+		num_out = vis->map_entries;
 	}
 	XColor *p = palette;
 	for (int i=0; i<num_out; i++) {

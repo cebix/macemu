@@ -57,7 +57,7 @@ struct {
 	uint32 current_id;
 	uint16 preferred_mode;		// Preferred depth/resolution
 	uint32 preferred_id;
-	uint32 sp;					// Mac address of Slot Manager parameter block
+	uint32 slot_param;			// Mac address of Slot Manager parameter block
 } VidLocal;
 
 
@@ -299,8 +299,8 @@ int16 VideoDriverOpen(uint32 pb, uint32 dce)
 	Execute68kTrap(0xa71e, &r);	// NewPtrSysClear()
 	if (r.a[0] == 0)
 		return memFullErr;
-	VidLocal.sp = r.a[0];
-	D(bug("SPBlock at %08x\n", VidLocal.sp));
+	VidLocal.slot_param = r.a[0];
+	D(bug("SPBlock at %08x\n", VidLocal.slot_param));
 
 	// Find and set default gamma table
 	VidLocal.gamma_table = 0;
@@ -505,7 +505,7 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 				WriteMacInt32(param + csBaseAddr, frame_base);
 
 				M68kRegisters r;
-				uint32 sp = VidLocal.sp;
+				uint32 sp = VidLocal.slot_param;
 				r.a[0] = sp;
 
 				// Find functional sResource for this display

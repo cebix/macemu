@@ -23,6 +23,24 @@
 
 #include <vector>
 
+/*
+   Some of the terminology here is completely frelled. In Basilisk II, a
+   "video mode" refers to a combination of resolution and color depth, and
+   this information is stored in a video_mode structure. In Apple
+   documentation, a "mode" historically refers to the color depth only
+   (because old Macs had fixed-frequency monitors and could not change the
+   resolution). These "modes" are assigned a number (0x80, 0x81, etc.),
+   which we here call "Apple mode". When Macs learned how to deal with
+   multiscan monitors, Apple introduced another type of "mode", also having
+   numbers starting from 0x80 but refrerring to the resolution and/or video
+   timing of the display (it's possible to have two modes with the same
+   dimension but different refresh rates). We call this a "resolution ID". 
+   The combination of "Apple mode" and "ID" corresponds to a Basilisk II
+   "video mode". To make the confusion worse, the video driver control call
+   that sets the color depth is called "SetMode" while the one that sets
+   both depth and resolution is "SwitchMode"...
+*/
+
 // Color depth codes
 enum video_depth {
 	VDEPTH_1BIT,  // 2 colors
@@ -53,6 +71,7 @@ inline bool IsDirectMode(uint16 mode)
 	return IsDirectMode(AppleModeToDepth(mode));
 }
 
+// Return the depth code that corresponds to the specified bits-per-pixel value
 inline video_depth DepthModeForPixelDepth(int depth)
 {
 	switch (depth) {
@@ -66,7 +85,7 @@ inline video_depth DepthModeForPixelDepth(int depth)
 	}
 }
 
-// Return a bytes-per-row value that assumes no padding for specified depth and pixel width
+// Return a bytes-per-row value (assuming no padding) for the specified depth and pixel width
 inline uint32 TrivialBytesPerRow(uint32 width, video_depth depth)
 {
 	switch (depth) {
@@ -79,7 +98,35 @@ inline uint32 TrivialBytesPerRow(uint32 width, video_depth depth)
 	}
 }
 
-// Description of one video mode
+/*
+   You are not completely free in your selection of depth/resolution
+   combinations:
+     1) the lowest supported color depth must be available in all
+        resolutions
+     2) if one resolution provides a certain color depth, it must also
+        provide all lower supported depths
+
+   For example, it is possible to have this set of modes:
+     640x480 @ 8 bit
+     640x480 @ 32 bit
+     800x600 @ 8 bit
+     800x600 @ 32 bit
+     1024x768 @ 8 bit
+
+   But this is not possible (violates rule 1):
+     640x480 @ 8 bit
+     800x600 @ 8 bit
+     1024x768 @ 1 bit
+
+   And neither is this (violates rule 2, 640x480 @ 16 bit is missing):
+     640x480 @ 8 bit
+     640x480 @ 32 bit
+     800x600 @ 8 bit
+     800x600 @ 16 bit
+     1024x768 @ 8 bit
+*/
+
+// Description of a video mode
 struct video_mode {
 	uint32 x;				// X size of screen (pixels)
 	uint32 y;				// Y size of screen (pixels)
@@ -102,7 +149,8 @@ struct monitor_desc {
 	video_mode mode;		// Currently selected video mode description
 };
 
-extern monitor_desc VideoMonitor;	// Description of the main monitor, set by VideoInit()
+// Description of the main (and currently the only) monitor, set by VideoInit()
+extern monitor_desc VideoMonitor;
 
 extern int16 VideoDriverOpen(uint32 pb, uint32 dce);
 extern int16 VideoDriverControl(uint32 pb, uint32 dce);
@@ -117,7 +165,11 @@ extern void VideoQuitFullScreen(void);
 extern void VideoInterrupt(void);
 extern void VideoRefresh(void);
 
+// Called by the video driver to switch the video mode
 extern void video_switch_to_mode(const video_mode &mode);
+
+// Called by the video driver to set the color palette (in indexed modes)
+// or gamma table (in direct modes)
 extern void video_set_palette(uint8 *pal);
 
 #endif
