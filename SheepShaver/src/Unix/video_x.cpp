@@ -57,7 +57,7 @@ using std::sort;
 
 // Constants
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
-static const bool mac_cursor_enabled = false;	// Flag: Enable MacOS to X11 copy of cursor?
+static const bool hw_mac_cursor_accl = true;	// Flag: Enable MacOS to X11 copy of cursor?
 
 // Global variables
 static int32 frame_skip;
@@ -506,7 +506,7 @@ static bool open_window(int width, int height)
 	XSetState(x_display, the_gc, black_pixel, white_pixel, GXcopy, AllPlanes);
 
 	// Create cursor
-	if (mac_cursor_enabled) {
+	if (hw_mac_cursor_accl) {
 		cursor_image = XCreateImage(x_display, vis, 1, XYPixmap, 0, (char *)MacCursor + 4, 16, 16, 16, 2);
 		cursor_image->byte_order = MSBFirst;
 		cursor_image->bitmap_bit_order = MSBFirst;
@@ -2092,7 +2092,7 @@ void video_set_palette(void)
 
 bool video_can_change_cursor(void)
 {
-	return mac_cursor_enabled && (display_type != DIS_SCREEN);
+	return hw_mac_cursor_accl && (display_type != DIS_SCREEN);
 }
 
 
@@ -2341,7 +2341,7 @@ static void *redraw_func(void *arg)
 						update_display();
 
 					// Set new cursor image if it was changed
-					if (mac_cursor_enabled && cursor_changed) {
+					if (hw_mac_cursor_accl && cursor_changed) {
 						cursor_changed = false;
 						memcpy(cursor_image->data, MacCursor + 4, 32);
 						memcpy(cursor_mask_image->data, MacCursor + 36, 32);
