@@ -189,7 +189,7 @@ else
 	../kpx_cpu/src/cpu/ppc/ppc-cpu.cpp \
 	../kpx_cpu/src/cpu/ppc/ppc-decode.cpp \
 	../kpx_cpu/src/cpu/ppc/ppc-execute.cpp"
-  CPPFLAGS="$CPPFLAGS -I../kpx_cpu -I../kpx_cpu/include -I../kpx_cpu/src -I../kpx_cpu/src/cpu"
+  CPPFLAGS="$CPPFLAGS -I../kpx_cpu/include -I../kpx_cpu/src"
 fi
 SYSSRCS="$SYSSRCS $SEMSRCS $UISRCS $MONSRCS"
 
