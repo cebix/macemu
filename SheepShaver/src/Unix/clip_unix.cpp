@@ -45,6 +45,11 @@
  *  For safety purposes, we lock the X11 display in the emulator
  *  thread during the whole GetScrap/PutScrap execution. Of course, we
  *  temporarily release the lock when waiting for SelectioNotify.
+ *
+ *  TODO:
+ *    - handle 'PICT' to image/png, image/ppm, PIXMAP (prefs order)
+ *    - handle 'styl' to text/richtext (OOo Writer)
+ *    - patch ZeroScrap so that we know when cached 'styl' is stale?
  */
 
 #include "sysdeps.h"
@@ -326,7 +331,7 @@ static void do_putscrap(uint32 type, void *scrap, int32 length)
 {
 	clip_data.type = None;
 	switch (type) {
-	case FOURCC('T','E','X','T'):
+	case FOURCC('T','E','X','T'): {
 		D(bug(" clipping TEXT\n"));
 		clip_data.type = XA_STRING;
 		clip_data.data.clear();
@@ -344,6 +349,28 @@ static void do_putscrap(uint32 type, void *scrap, int32 length)
 			clip_data.data.push_back(c);
 		}
 		break;
+	}
+
+	case FOURCC('s','t','y','l'): {
+		D(bug(" clipping styl\n"));
+		uint16 *p = (uint16 *)scrap;
+		uint16 n = ntohs(*p++);
+		D(bug(" %d styles (%d bytes)\n", n, length));
+		for (int i = 0; i < n; i++) {
+			uint32 offset = ntohl(*(uint32 *)p); p += 2;
+			uint16 line_height = ntohs(*p++);
+			uint16 font_ascent = ntohs(*p++);
+			uint16 font_family = ntohs(*p++);
+			uint16 style_code = ntohs(*p++);
+			uint16 char_size = ntohs(*p++);
+			uint16 r = ntohs(*p++);
+			uint16 g = ntohs(*p++);
+			uint16 b = ntohs(*p++);
+			D(bug("  offset=%d, height=%d, font ascent=%d, id=%d, style=%x, size=%d, RGB=%x/%x/%x\n",
+				  offset, line_height, font_ascent, font_family, style_code, char_size, r, g, b));
+		}
+		break;
+	}
 	}
 
 	// Acquire selection ownership
@@ -413,6 +440,7 @@ static void do_getscrap(void **handle, uint32 type, int32 offset)
 	long *atoms = (long *)data.data();
 	for (int i = 0; i < n_atoms; i++) {
 		Atom target = atoms[i];
+		D(bug("  target %08x (%s)\n", target, XGetAtomName(x_display, target)));
 		switch (type) {
 		case FOURCC('T','E','X','T'):
 			D(bug(" clipping TEXT\n"));
