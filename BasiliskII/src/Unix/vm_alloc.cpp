@@ -136,7 +136,7 @@ int vm_acquire_fixed(void * addr, size_t size)
 		return -1;
 	
 	// Since I don't know the standard behavior of mmap(), zero-fill here
-	if (memset(addr, 0, size) != 0)
+	if (memset(addr, 0, size) != addr)
 		return -1;
 #else
 	// Unsupported
