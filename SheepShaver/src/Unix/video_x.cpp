@@ -1776,7 +1776,9 @@ void VideoInstallAccel(void)
 		WriteMacInt32(base + 0, NativeTVECT(NATIVE_BITBLT_HOOK));
 		WriteMacInt32(base + 4, NativeTVECT(NATIVE_SYNC_HOOK));
 		WriteMacInt32(base + 8, ACCL_BITBLT);
+#if defined(__powerpc__) // Temporary hack until it's fixed for e.g. little-endian & 64-bit platforms
 		NQDMisc(6, bitblt_hook_info.ptr());
+#endif
 
 //		NQDMisc(6, &fillrect_hook_info);
 	}
