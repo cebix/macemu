@@ -1043,7 +1043,7 @@ static void read_memory_settings(void)
 // Create "Memory/Misc" pane
 static void create_memory_pane(GtkWidget *top)
 {
-	GtkWidget *box, *hbox, *vbox, *hbox2, *label, *scale, *menu;
+	GtkWidget *box, *hbox, *vbox, *hbox2, *label, *scale;
 
 	box = make_pane(top, STR_MEMORY_MISC_PANE_TITLE);
 

@@ -730,9 +730,6 @@ static int16 get_current_dir(uint32 pb, uint32 dirID, uint32 &current_dir, bool 
 	if (no_vol_name)
 		WriteMacInt32(pb + ioNamePtr, name_ptr);
 	int16 status = ReadMacInt16(fs_data + fsReturn);
-	int16 more_matches = ReadMacInt16(fs_data + fsReturn + 2);
-	int16 vRefNum = ReadMacInt16(fs_data + fsReturn + 4);
-	uint32 vcb = ReadMacInt32(fs_data + fsReturn + 6);
 	D(bug("  UTDetermineVol() returned %d, status %d\n", r.d[0], status));
 	result = (int16)(r.d[0] & 0xffff);
 
@@ -967,7 +964,9 @@ static int16 fs_volume_mount(uint32 pb)
 	r.a[0] = fs_data + fsReturn;
 	r.a[1] = fs_data + fsReturn + 2;
 	Execute68k(fs_data + fsAllocateVCB, &r);
+#if DEBUG
 	uint16 sysVCBLength = ReadMacInt16(fs_data + fsReturn);
+#endif
 	uint32 vcb = ReadMacInt32(fs_data + fsReturn + 2);
 	D(bug("  UTAllocateVCB() returned %d, vcb %08lx, size %d\n", r.d[0], vcb, sysVCBLength));
 	if (r.d[0] & 0xffff)

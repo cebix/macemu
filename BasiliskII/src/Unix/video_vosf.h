@@ -195,12 +195,12 @@ static bool video_vosf_init(void)
 		return false;
 	
 	uint32 a = 0;
-	for (int i = 0; i < mainBuffer.pageCount; i++) {
-		int y1 = a / VideoMonitor.mode.bytes_per_row;
+	for (unsigned i = 0; i < mainBuffer.pageCount; i++) {
+		unsigned y1 = a / VideoMonitor.mode.bytes_per_row;
 		if (y1 >= VideoMonitor.mode.y)
 			y1 = VideoMonitor.mode.y - 1;
 
-		int y2 = (a + mainBuffer.pageSize) / VideoMonitor.mode.bytes_per_row;
+		unsigned y2 = (a + mainBuffer.pageSize) / VideoMonitor.mode.bytes_per_row;
 		if (y2 >= VideoMonitor.mode.y)
 			y2 = VideoMonitor.mode.y - 1;
 
@@ -332,7 +332,7 @@ static inline void update_display_window_vosf(driver_window *drv)
 {
 	int page = 0;
 	for (;;) {
-		const int first_page = find_next_page_set(page);
+		const unsigned first_page = find_next_page_set(page);
 		if (first_page >= mainBuffer.pageCount)
 			break;
 
@@ -395,7 +395,7 @@ static inline void update_display_dga_vosf(void)
 {
 	int page = 0;
 	for (;;) {
-		const int first_page = find_next_page_set(page);
+		const unsigned first_page = find_next_page_set(page);
 		if (first_page >= mainBuffer.pageCount)
 			break;
 

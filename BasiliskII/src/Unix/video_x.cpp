@@ -184,7 +184,6 @@ static void (*video_refresh)(void);
 
 // Prototypes
 static void *redraw_func(void *arg);
-static int event2keycode(XKeyEvent &ev);
 
 // From main_unix.cpp
 extern char *x_display_name;
@@ -561,7 +560,7 @@ void driver_base::restore_mouse_accel(void)
 
 // Open display
 driver_window::driver_window(const video_mode &mode)
- : gc(0), img(NULL), have_shm(false), mouse_grabbed(false), mac_cursor(0)
+ : gc(0), img(NULL), have_shm(false), mac_cursor(0), mouse_grabbed(false)
 {
 	int width = mode.x, height = mode.y;
 	int aligned_width = (width + 15) & ~15;
@@ -2189,7 +2188,7 @@ static void update_display_dynamic(int ticker, driver_window *drv)
 static void update_display_static(driver_window *drv)
 {
 	// Incremental update code
-	int wide = 0, high = 0, x1, x2, y1, y2, i, j;
+	unsigned wide = 0, high = 0, x1, x2, y1, y2, i, j;
 	int bytes_per_row = VideoMonitor.mode.bytes_per_row;
 	int bytes_per_pixel = VideoMonitor.mode.bytes_per_row / VideoMonitor.mode.x;
 	uint8 *p, *p2;

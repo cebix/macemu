@@ -142,7 +142,7 @@ static bool open_dsp(void)
 		silence_byte = 0x80;
 	} else {
 		unsigned long sup_format;
-		ioctl(audio_fd, SNDCTL_DSP_GETFMTS, &format);
+		ioctl(audio_fd, SNDCTL_DSP_GETFMTS, &sup_format);
 		if (sup_format & AFMT_S16_BE) {
 			little_endian = false;
 			format = AFMT_S16_BE;
@@ -284,8 +284,6 @@ dev_opened:
 
 void AudioInit(void)
 {
-	char str[256];
-
 	// Init audio status (reasonable defaults) and feature flags
 	AudioStatus.sample_rate = 44100 << 16;
 	AudioStatus.sample_size = 16;
@@ -376,8 +374,6 @@ void audio_exit_stream()
 /*
  *  Streaming function
  */
-
-static uint32 apple_stream_info;	// Mac address of SoundComponentData struct describing next buffer
 
 static void *stream_func(void *arg)
 {

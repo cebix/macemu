@@ -220,7 +220,7 @@ static void set_gray_palette(void)
 static void load_ramp_palette(void)
 {
 	// Find tables for gamma correction
-	uint8 *red_gamma, *green_gamma, *blue_gamma;
+	uint8 *red_gamma = NULL, *green_gamma = NULL, *blue_gamma = NULL;
 	bool have_gamma = false;
 	int data_width = 0;
 	if (VidLocal.gamma_table) {
@@ -511,7 +511,7 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 				return paramErr;
 
 			// Find tables for gamma correction
-			uint8 *red_gamma, *green_gamma, *blue_gamma;
+			uint8 *red_gamma = NULL, *green_gamma = NULL, *blue_gamma = NULL;
 			bool have_gamma = false;
 			int data_width = 0;
 			if (VidLocal.gamma_table) {
@@ -862,26 +862,6 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 					WriteMacInt32(vp + vpVRes, 0x00480000);
 					uint32 pix_type, pix_size, cmp_count, cmp_size, dev_type;
 					switch (i->depth) {
-						case VDEPTH_1BIT:
-							pix_type = 0; pix_size = 1;
-							cmp_count = 1; cmp_size = 1;
-							dev_type = 0; // CLUT
-							break;
-						case VDEPTH_2BIT:
-							pix_type = 0; pix_size = 2;
-							cmp_count = 1; cmp_size = 2;
-							dev_type = 0; // CLUT
-							break;
-						case VDEPTH_4BIT:
-							pix_type = 0; pix_size = 4;
-							cmp_count = 1; cmp_size = 4;
-							dev_type = 0; // CLUT
-							break;
-						case VDEPTH_8BIT:
-							pix_type = 0; pix_size = 8;
-							cmp_count = 1; cmp_size = 8;
-							dev_type = 0; // CLUT
-							break;
 						case VDEPTH_16BIT:
 							pix_type = 0x10; pix_size = 16;
 							cmp_count = 3; cmp_size = 5;
@@ -891,6 +871,11 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 							pix_type = 0x10; pix_size = 32;
 							cmp_count = 3; cmp_size = 8;
 							dev_type = 2; // direct
+							break;
+						default:
+							pix_type = 0; pix_size = 1 << i->depth;
+							cmp_count = 1; cmp_size = 1 << i->depth;
+							dev_type = 0; // CLUT
 							break;
 					}
 					WriteMacInt16(vp + vpPixelType, pix_type);

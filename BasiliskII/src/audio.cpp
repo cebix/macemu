@@ -70,7 +70,6 @@ static int32 AudioGetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 {
 	D(bug(" AudioGetInfo %c%c%c%c, infoPtr %08lx, source ID %08lx\n", selector >> 24, (selector >> 16) & 0xff, (selector >> 8) & 0xff, selector & 0xff, infoPtr, sourceID));
 	M68kRegisters r;
-	int i;
 
 	switch (selector) {
 		case siSampleSize:
@@ -86,7 +85,7 @@ static int32 AudioGetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			WriteMacInt16(infoPtr + sil_count, audio_sample_sizes.size());
 			WriteMacInt32(infoPtr + sil_infoHandle, h);
 			uint32 sp = ReadMacInt32(h);
-			for (i=0; i<audio_sample_sizes.size(); i++)
+			for (unsigned i=0; i<audio_sample_sizes.size(); i++)
 				WriteMacInt16(sp + i*2, audio_sample_sizes[i]);
 			break;
 		}
@@ -104,7 +103,7 @@ static int32 AudioGetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			WriteMacInt16(infoPtr + sil_count, audio_channel_counts.size());
 			WriteMacInt32(infoPtr + sil_infoHandle, h);
 			uint32 sp = ReadMacInt32(h);
-			for (i=0; i<audio_channel_counts.size(); i++)
+			for (unsigned i=0; i<audio_channel_counts.size(); i++)
 				WriteMacInt16(sp + i*2, audio_channel_counts[i]);
 			break;
 		}
@@ -122,7 +121,7 @@ static int32 AudioGetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			WriteMacInt16(infoPtr + sil_count, audio_sample_rates.size());
 			WriteMacInt32(infoPtr + sil_infoHandle, h);
 			uint32 lp = ReadMacInt32(h);
-			for (i=0; i<audio_sample_rates.size(); i++)
+			for (unsigned i=0; i<audio_sample_rates.size(); i++)
 				WriteMacInt32(lp + i*4, audio_sample_rates[i]);
 			break;
 		}
@@ -187,7 +186,6 @@ static int32 AudioSetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 {
 	D(bug(" AudioSetInfo %c%c%c%c, infoPtr %08lx, source ID %08lx\n", selector >> 24, (selector >> 16) & 0xff, (selector >> 8) & 0xff, selector & 0xff, infoPtr, sourceID));
 	M68kRegisters r;
-	int i;
 
 	switch (selector) {
 		case siSampleSize:
@@ -196,7 +194,7 @@ static int32 AudioSetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 				return siDeviceBusyErr;
 			if (infoPtr == AudioStatus.sample_size)
 				return noErr;
-			for (i=0; i<audio_sample_sizes.size(); i++)
+			for (unsigned i=0; i<audio_sample_sizes.size(); i++)
 				if (audio_sample_sizes[i] == infoPtr) {
 					if (audio_set_sample_size(i))
 						return noErr;
@@ -211,7 +209,7 @@ static int32 AudioSetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 				return siDeviceBusyErr;
 			if (infoPtr == AudioStatus.sample_rate)
 				return noErr;
-			for (i=0; i<audio_sample_rates.size(); i++)
+			for (unsigned i=0; i<audio_sample_rates.size(); i++)
 				if (audio_sample_rates[i] == infoPtr) {
 					if (audio_set_sample_rate(i))
 						return noErr;
@@ -226,7 +224,7 @@ static int32 AudioSetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 				return siDeviceBusyErr;
 			if (infoPtr == AudioStatus.channels)
 				return noErr;
-			for (i=0; i<audio_channel_counts.size(); i++)
+			for (unsigned i=0; i<audio_channel_counts.size(); i++)
 				if (audio_channel_counts[i] == infoPtr) {
 					if (audio_set_channels(i))
 						return noErr;

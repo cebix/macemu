@@ -268,7 +268,7 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 static void Blit_Expand_2_To_8(uint8 * dest, const uint8 * p, uint32 length)
 {
 	uint8 *q = (uint8 *)dest;
-	for (int i=0; i<length; i++) {
+	for (uint32 i=0; i<length; i++) {
 		uint8 c = *p++;
 		*q++ = c >> 6;
 		*q++ = (c >> 4) & 3;
@@ -280,7 +280,7 @@ static void Blit_Expand_2_To_8(uint8 * dest, const uint8 * p, uint32 length)
 static void Blit_Expand_4_To_8(uint8 * dest, const uint8 * p, uint32 length)
 {
 	uint8 *q = (uint8 *)dest;
-	for (int i=0; i<length; i++) {
+	for (uint32 i=0; i<length; i++) {
 		uint8 c = *p++;
 		*q++ = c >> 4;
 		*q++ = c & 0x0f;
@@ -294,7 +294,7 @@ static void Blit_Expand_4_To_8(uint8 * dest, const uint8 * p, uint32 length)
 static void Blit_Expand_2_To_16(uint8 * dest, const uint8 * p, uint32 length)
 {
 	uint16 *q = (uint16 *)dest;
-	for (int i=0; i<length; i++) {
+	for (uint32 i=0; i<length; i++) {
 		uint8 c = *p++;
 		*q++ = ExpandMap[c >> 6];
 		*q++ = ExpandMap[c >> 4];
@@ -306,7 +306,7 @@ static void Blit_Expand_2_To_16(uint8 * dest, const uint8 * p, uint32 length)
 static void Blit_Expand_4_To_16(uint8 * dest, const uint8 * p, uint32 length)
 {
 	uint16 *q = (uint16 *)dest;
-	for (int i=0; i<length; i++) {
+	for (uint32 i=0; i<length; i++) {
 		uint8 c = *p++;
 		*q++ = ExpandMap[c >> 4];
 		*q++ = ExpandMap[c];
@@ -316,7 +316,7 @@ static void Blit_Expand_4_To_16(uint8 * dest, const uint8 * p, uint32 length)
 static void Blit_Expand_8_To_16(uint8 * dest, const uint8 * p, uint32 length)
 {
 	uint16 *q = (uint16 *)dest;
-	for (int i=0; i<length; i++)
+	for (uint32 i=0; i<length; i++)
 		*q++ = ExpandMap[*p++];
 }
 
@@ -327,7 +327,7 @@ static void Blit_Expand_8_To_16(uint8 * dest, const uint8 * p, uint32 length)
 static void Blit_Expand_2_To_32(uint8 * dest, const uint8 * p, uint32 length)
 {
 	uint32 *q = (uint32 *)dest;
-	for (int i=0; i<length; i++) {
+	for (uint32 i=0; i<length; i++) {
 		uint8 c = *p++;
 		*q++ = ExpandMap[c >> 6];
 		*q++ = ExpandMap[c >> 4];
@@ -339,7 +339,7 @@ static void Blit_Expand_2_To_32(uint8 * dest, const uint8 * p, uint32 length)
 static void Blit_Expand_4_To_32(uint8 * dest, const uint8 * p, uint32 length)
 {
 	uint32 *q = (uint32 *)dest;
-	for (int i=0; i<length; i++) {
+	for (uint32 i=0; i<length; i++) {
 		uint8 c = *p++;
 		*q++ = ExpandMap[c >> 4];
 		*q++ = ExpandMap[c];
@@ -349,7 +349,7 @@ static void Blit_Expand_4_To_32(uint8 * dest, const uint8 * p, uint32 length)
 static void Blit_Expand_8_To_32(uint8 * dest, const uint8 * p, uint32 length)
 {
 	uint32 *q = (uint32 *)dest;
-	for (int i=0; i<length; i++)
+	for (uint32 i=0; i<length; i++)
 		*q++ = ExpandMap[*p++];
 }
 

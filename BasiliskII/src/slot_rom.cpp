@@ -450,7 +450,7 @@ void ChecksumSlotROM(void)
 	p[slot_rom_size - 10] = 0;
 	p[slot_rom_size - 9] = 0;
 	uint32 crc = 0;
-	for (uint32 i=0; i<slot_rom_size; i++) {
+	for (int i=0; i<slot_rom_size; i++) {
 		crc = (crc << 1) | (crc >> 31);
 		crc += p[i];
 	}
