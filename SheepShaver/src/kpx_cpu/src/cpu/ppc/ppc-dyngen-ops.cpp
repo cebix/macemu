@@ -39,19 +39,24 @@ register struct powerpc_cpu *CPU asm(REG_CPU);
 #define REG32(X) X
 #endif
 #define FPREG(X) ((powerpc_fpr *)(X))
+#define VREG(X)  ((powerpc_vr *)(X))[0]
 #define A0 REG32(reg_A0)
+#define VD VREG(reg_A0)
 register uintptr reg_A0 asm(REG_A0);
 #define T0 REG32(reg_T0)
 #define F0 FPREG(reg_T0)->d
 #define F0_dw FPREG(reg_T0)->j
+#define V0 VREG(reg_T0)
 register uintptr reg_T0 asm(REG_T0);
 #define T1 REG32(reg_T1)
 #define F1 FPREG(reg_T1)->d
 #define F1_dw FPREG(reg_T1)->j
+#define V1 VREG(reg_T1)
 register uintptr reg_T1 asm(REG_T1);
 #define T2 REG32(reg_T2)
 #define F2 FPREG(reg_T2)->d
 #define F2_dw FPREG(reg_T2)->j
+#define V2 VREG(reg_T2)
 register uintptr reg_T2 asm(REG_T2);
 #define FD powerpc_dyngen_helper::fp_result()
 #define FD_dw powerpc_dyngen_helper::fp_result_dw()
@@ -1236,3 +1241,229 @@ void OPPROTO op_jump_next_A0(void)
 	}
 	dyngen_barrier();
 }
+
+/**
+ *		Load/store addresses to vector registers
+ **/
+
+#define reg_TD reg_A0
+#define DEFINE_OP(REG, N)						\
+void OPPROTO op_load_ad_V##REG##_VR##N(void)	\
+{												\
+	reg_T##REG = (uintptr)&CPU->vr(N);			\
+}												
+#define DEFINE_REG(N)							\
+DEFINE_OP(D,N);									\
+DEFINE_OP(0,N);									\
+DEFINE_OP(1,N);									\
+DEFINE_OP(2,N);									\
+
+DEFINE_REG(0);
+DEFINE_REG(1);
+DEFINE_REG(2);
+DEFINE_REG(3);
+DEFINE_REG(4);
+DEFINE_REG(5);
+DEFINE_REG(6);
+DEFINE_REG(7);
+DEFINE_REG(8);
+DEFINE_REG(9);
+DEFINE_REG(10);
+DEFINE_REG(11);
+DEFINE_REG(12);
+DEFINE_REG(13);
+DEFINE_REG(14);
+DEFINE_REG(15);
+DEFINE_REG(16);
+DEFINE_REG(17);
+DEFINE_REG(18);
+DEFINE_REG(19);
+DEFINE_REG(20);
+DEFINE_REG(21);
+DEFINE_REG(22);
+DEFINE_REG(23);
+DEFINE_REG(24);
+DEFINE_REG(25);
+DEFINE_REG(26);
+DEFINE_REG(27);
+DEFINE_REG(28);
+DEFINE_REG(29);
+DEFINE_REG(30);
+DEFINE_REG(31);
+
+#undef DEFINE_REG
+#undef DEFINE_OP
+#undef reg_TD
+
+void op_load_word_VD_T0(void)
+{
+	const uint32 ea = T0;
+	VD.w[(ea >> 2) & 3] = vm_read_memory_4(ea & ~3);
+}
+
+void op_store_word_VD_T0(void)
+{
+	const uint32 ea = T0;
+	vm_write_memory_4(ea & ~3, VD.w[(ea >> 2) & 3]);
+}
+
+void op_load_vect_VD_T0(void)
+{
+	const uint32 ea = T0 & ~15;
+	VD.w[0] = vm_read_memory_4(ea +  0);
+	VD.w[1] = vm_read_memory_4(ea +  4);
+	VD.w[2] = vm_read_memory_4(ea +  8);
+	VD.w[3] = vm_read_memory_4(ea + 12);
+}
+
+void op_store_vect_VD_T0(void)
+{
+	const uint32 ea = T0 & ~15;
+	vm_write_memory_4(ea +  0, VD.w[0]);
+	vm_write_memory_4(ea +  4, VD.w[1]);
+	vm_write_memory_4(ea +  8, VD.w[2]);
+	vm_write_memory_4(ea + 12, VD.w[3]);
+}
+
+/**
+ *		Vector operations helpers
+ **/
+
+struct VNONE {
+	typedef null_operand type;
+	static inline uint32 get(powerpc_vr const & v, int i) { return 0; }
+	static inline void set(powerpc_vr const & v, int i, uint32) { }
+};
+
+struct V16QI {
+	typedef uint8 type;
+	static inline type get(powerpc_vr const & v, int i) { return v.b[i]; }
+	static inline void set(powerpc_vr & v, int i, type x) { v.b[i] = x; }
+};
+
+struct V8HI {
+	typedef uint16 type;
+	static inline type get(powerpc_vr const & v, int i) { return v.h[i]; }
+	static inline void set(powerpc_vr & v, int i, type x) { v.h[i] = x; }
+};
+
+struct V4SI {
+	typedef uint32 type;
+	static inline type get(powerpc_vr const & v, int i) { return v.w[i]; }
+	static inline void set(powerpc_vr & v, int i, type x) { v.w[i] = x; }
+};
+
+struct V2DI {
+	typedef uint64 type;
+	static inline type get(powerpc_vr const & v, int i) { return v.j[i]; }
+	static inline void set(powerpc_vr & v, int i, type x) { v.j[i] = x; }
+};
+
+struct V4SF {
+	typedef float type;
+	static inline type get(powerpc_vr const & v, int i) { return v.f[i]; }
+	static inline void set(powerpc_vr & v, int i, type x) { v.f[i] = x; }
+};
+
+template< class OP, class VX, class VA, class VB, class VC, int N >
+struct do_vector_execute {
+	static inline void apply() {
+		do_vector_execute<OP, VX, VA, VB, VC, N - 1>::apply();
+		VX::set(
+			VD, N,
+			op_apply<typename VX::type, OP, typename VA::type, typename VB::type, typename VC::type>::apply(
+				VA::get(V0, N),
+				VB::get(V1, N),
+				VC::get(V2, N)));
+	}
+};
+
+template< class OP, class VX, class VA, class VB, class VC >
+struct do_vector_execute<OP, VX, VA, VB, VC, 0> {
+	static inline void apply() {
+		VX::set(
+			VD, 0, op_apply<typename VX::type, OP, typename VA::type, typename VB::type, typename VC::type>::apply(
+				VA::get(V0, 0),
+				VB::get(V1, 0),
+				VC::get(V2, 0)));
+	}
+};
+
+template< class OP, class VX, class VA, class VB = VNONE, class VC = VNONE >
+struct vector_execute {
+	static inline void apply() {
+		do_vector_execute<OP, VX, VA, VB, VC, (16 / sizeof(typename VX::type)) - 1>::apply();
+	}
+};
+
+
+/**
+ *		Vector synthetic operations
+ **/
+
+void op_vaddfp_VD_V0_V1(void)
+{
+	vector_execute<op_fadds, V4SF, V4SF, V4SF>::apply();
+}
+
+void op_vsubfp_VD_V0_V1(void)
+{
+	vector_execute<op_fsubs, V4SF, V4SF, V4SF>::apply();
+}
+
+void op_vmaddfp_VD_V0_V1_V2(void)
+{
+	vector_execute<op_vmaddfp, V4SF, V4SF, V4SF, V4SF>::apply();
+}
+
+void op_vnmsubfp_VD_V0_V1_V2(void)
+{
+	vector_execute<op_vnmsubfp, V4SF, V4SF, V4SF, V4SF>::apply();
+}
+
+void op_vmaxfp_VD_V0_V1(void)
+{
+	vector_execute<op_max<float>, V4SF, V4SF, V4SF>::apply();
+}
+
+void op_vminfp_VD_V0_V1(void)
+{
+	vector_execute<op_min<float>, V4SF, V4SF, V4SF>::apply();
+}
+
+void op_vand_VD_V0_V1(void)
+{
+	vector_execute<op_and_64, V2DI, V2DI, V2DI>::apply();
+}
+
+void op_vandc_VD_V0_V1(void)
+{
+	vector_execute<op_andc_64, V2DI, V2DI, V2DI>::apply();
+}
+
+void op_vnor_VD_V0_V1(void)
+{
+	vector_execute<op_nor_64, V2DI, V2DI, V2DI>::apply();
+}
+
+void op_vor_VD_V0_V1(void)
+{
+	vector_execute<op_or_64, V2DI, V2DI, V2DI>::apply();
+}
+
+void op_vxor_VD_V0_V1(void)
+{
+	vector_execute<op_xor_64, V2DI, V2DI, V2DI>::apply();
+}
+
+#ifdef LONG_OPERATIONS
+void op_vcmpeqfp_VD_V0_V1(void)
+{
+	vector_execute<op_cmp_eq<float>, V4SF, V4SF, V4SF>::apply();
+}
+
+void op_vaddubm_VD_V0_V1(void)
+{
+	vector_execute<op_template_add<uint8>, V16QI, V16QI, V16QI>::apply();
+}
+#endif

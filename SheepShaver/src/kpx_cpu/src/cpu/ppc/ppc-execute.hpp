@@ -37,6 +37,66 @@ template< bool SB > struct register_value { typedef uint32 type; };
 template< > struct register_value< true > { typedef  int32 type; };
 
 /**
+ *	Helper class to apply an unary/binary/trinary operation
+ *
+ *		OP		Operation to perform
+ *		RA		Input operand register
+ *		RB		Input operand register or immediate (optional: operand_NONE)
+ *		RC		Input operand register or immediate (optional: operand_NONE)
+ **/
+
+struct null_operand;
+struct null_vector_operand;
+
+template< class RT, class OP, class RA, class RB, class RC >
+struct op_apply {
+	template< class A, class B, class C >
+	static inline RT apply(A a, B b, C c) {
+		return OP::apply(a, b, c);
+	}
+};
+
+template< class RT, class OP, class RA, class RB >
+struct op_apply<RT, OP, RA, RB, null_operand> {
+	template< class A, class B, class C >
+	static inline RT apply(A a, B b, C) {
+		return OP::apply(a, b);
+	}
+};
+
+template< class RT, class OP, class RA >
+struct op_apply<RT, OP, RA, null_operand, null_operand> {
+	template< class A, class B, class C >
+	static inline RT apply(A a, B, C) {
+		return OP::apply(a);
+	}
+};
+
+template< class RT, class OP, class RA, class RB >
+struct op_apply<RT, OP, RA, RB, null_vector_operand> {
+	template< class A, class B, class C >
+	static inline RT apply(A a, B b, C) {
+		return (RT)OP::apply(a, b);
+	}
+};
+
+template< class RT, class OP, class RA >
+struct op_apply<RT, OP, RA, null_vector_operand, null_vector_operand> {
+	template< class A, class B, class C >
+	static inline RT apply(A a, B, C) {
+		return (RT)OP::apply(a);
+	}
+};
+
+template< class RT, class OP, class RB >
+struct op_apply<RT, OP, null_vector_operand, RB, null_vector_operand> {
+	template< class A, class B, class C >
+	static inline RT apply(A, B b, C) {
+		return (RT)OP::apply(b);
+	}
+};
+
+/**
  *		Add instruction templates
  **/
 

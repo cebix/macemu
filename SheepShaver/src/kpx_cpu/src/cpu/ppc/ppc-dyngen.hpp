@@ -219,6 +219,27 @@ public:
 	// Branch instructions
 	void gen_bc_A0(int bo, int bi, uint32 npc);
 
+	// Vector instructions
+	void gen_load_ad_VD_VR(int i);
+	void gen_load_ad_V0_VR(int i);
+	void gen_load_ad_V1_VR(int i);
+	void gen_load_ad_V2_VR(int i);
+	void gen_load_word_VD_T0(int vD);
+	void gen_load_vect_VD_T0(int vD);
+	void gen_store_word_VS_T0(int vS);
+	void gen_store_vect_VS_T0(int vS);
+	void gen_vaddfp(int vD, int vA, int vB);
+	void gen_vsubfp(int vD, int vA, int vB);
+	void gen_vmaddfp(int vD, int vA, int vB, int vC);
+	void gen_vnmsubfp(int vD, int vA, int vB, int vC);
+	void gen_vmaxfp(int vD, int vA, int vB);
+	void gen_vminfp(int vD, int vA, int vB);
+	void gen_vand(int vD, int vA, int vB);
+	void gen_vandc(int vD, int vA, int vB);
+	void gen_vnor(int vD, int vA, int vB);
+	void gen_vor(int vD, int vA, int vB);
+	void gen_vxor(int vD, int vA, int vB);
+
 #undef DEFINE_ALIAS
 #undef DEFINE_ALIAS_0
 #undef DEFINE_ALIAS_1

@@ -1269,6 +1269,75 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			break;
 		}
 #endif
+		// NOTE: A0/VD are clobbered in the following instructions!
+		case PPC_I(LVEWX):
+		case PPC_I(LVX):
+		case PPC_I(LVXL):
+		{
+			const int rA = rA_field::extract(opcode);
+			const int rB = rB_field::extract(opcode);
+			const int vD = vD_field::extract(opcode);
+			dg.gen_load_T0_GPR(rB);
+			if (rA != 0) {
+				dg.gen_load_T1_GPR(rA);
+				dg.gen_add_32_T0_T1();
+			}
+			switch (ii->mnemo) {
+			case PPC_I(LVEWX):	dg.gen_load_word_VD_T0(vD); break;
+			case PPC_I(LVX):	dg.gen_load_vect_VD_T0(vD); break;
+			case PPC_I(LVXL):	dg.gen_load_vect_VD_T0(vD); break;
+			}
+			break;
+		}
+		case PPC_I(STVEWX):
+		case PPC_I(STVX):
+		case PPC_I(STVXL):
+		{
+			const int rA = rA_field::extract(opcode);
+			const int rB = rB_field::extract(opcode);
+			const int vS = vS_field::extract(opcode);
+			dg.gen_load_T0_GPR(rB);
+			if (rA != 0) {
+				dg.gen_load_T1_GPR(rA);
+				dg.gen_add_32_T0_T1();
+			}
+			switch (ii->mnemo) {
+			case PPC_I(STVEWX):	dg.gen_store_word_VS_T0(vS); break;
+			case PPC_I(STVX):	dg.gen_store_vect_VS_T0(vS); break;
+			case PPC_I(STVXL):	dg.gen_store_vect_VS_T0(vS); break;
+			}
+			break;
+		}
+		case PPC_I(VADDFP):
+		case PPC_I(VSUBFP):
+		case PPC_I(VMADDFP):
+		case PPC_I(VNMSUBFP):
+		case PPC_I(VMAXFP):
+		case PPC_I(VMINFP):
+		case PPC_I(VAND):
+		case PPC_I(VANDC):
+		case PPC_I(VNOR):
+		case PPC_I(VOR):
+		case PPC_I(VXOR):
+		{
+			const int vD = vD_field::extract(opcode);
+			const int vA = vA_field::extract(opcode);
+			const int vB = vB_field::extract(opcode);
+			switch (ii->mnemo) {
+			case PPC_I(VADDFP):		dg.gen_vaddfp(vD, vA, vB); break;
+			case PPC_I(VSUBFP):		dg.gen_vsubfp(vD, vA, vB); break;
+			case PPC_I(VMADDFP):	dg.gen_vmaddfp(vD, vA, vB, vC_field::extract(opcode)); break;
+			case PPC_I(VNMSUBFP):	dg.gen_vnmsubfp(vD, vA, vB, vC_field::extract(opcode)); break;
+			case PPC_I(VMAXFP):		dg.gen_vmaxfp(vD, vA, vB); break;
+			case PPC_I(VMINFP):		dg.gen_vminfp(vD, vA, vB); break;
+			case PPC_I(VAND):		dg.gen_vand(vD, vA, vB); break;
+			case PPC_I(VANDC):		dg.gen_vandc(vD, vA, vB); break;
+			case PPC_I(VNOR):		dg.gen_vnor(vD, vA, vB); break;
+			case PPC_I(VOR):		dg.gen_vor(vD, vA, vB); break;
+			case PPC_I(VXOR):		dg.gen_vxor(vD, vA, vB); break;
+			}
+			break;
+		}
 		default:				// Direct call to instruction handler
 		{
 			typedef void (*func_t)(dyngen_cpu_base, uint32);

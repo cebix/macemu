@@ -290,7 +290,7 @@ enum powerpc_instruction {
 	PPC_I(VMULOSH),
 	PPC_I(VMULOUB),
 	PPC_I(VMULOUH),
-	PPC_I(VNMSUB),
+	PPC_I(VNMSUBFP),
 	PPC_I(VNOR),
 	PPC_I(VOR),
 	PPC_I(VPERM),

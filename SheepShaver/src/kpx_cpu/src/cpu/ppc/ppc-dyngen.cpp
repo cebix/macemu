@@ -125,6 +125,10 @@ DEFINE_INSN(store, F0, FPR);
 DEFINE_INSN(store, F1, FPR);
 DEFINE_INSN(store, F2, FPR);
 DEFINE_INSN(store, FD, FPR);
+DEFINE_INSN(load_ad, VD, VR);
+DEFINE_INSN(load_ad, V0, VR);
+DEFINE_INSN(load_ad, V1, VR);
+DEFINE_INSN(load_ad, V2, VR);
 
 // Condition register bitfield
 DEFINE_INSN(load, T0, crb);
@@ -233,4 +237,122 @@ void powerpc_dyngen::gen_bc_A0(int bo, int bi, uint32 npc)
 		}
 	}
 #endif
+}
+
+/**
+ *		Vector instructions
+ **/
+
+void powerpc_dyngen::gen_load_word_VD_T0(int vD)
+{
+	gen_load_ad_VD_VR(vD);
+	gen_op_load_word_VD_T0();
+}
+
+void powerpc_dyngen::gen_store_word_VS_T0(int vS)
+{
+	gen_load_ad_VD_VR(vS);
+	gen_op_store_word_VD_T0();
+}
+
+void powerpc_dyngen::gen_load_vect_VD_T0(int vD)
+{
+	gen_load_ad_VD_VR(vD);
+	gen_op_load_vect_VD_T0();
+}
+
+void powerpc_dyngen::gen_store_vect_VS_T0(int vS)
+{
+	gen_load_ad_VD_VR(vS);
+	gen_op_store_vect_VD_T0();
+}
+
+void powerpc_dyngen::gen_vaddfp(int vD, int vA, int vB)
+{
+	gen_load_ad_VD_VR(vD);
+	gen_load_ad_V0_VR(vA);
+	gen_load_ad_V1_VR(vB);
+	gen_op_vaddfp_VD_V0_V1();
+}
+
+void powerpc_dyngen::gen_vsubfp(int vD, int vA, int vB)
+{
+	gen_load_ad_VD_VR(vD);
+	gen_load_ad_V0_VR(vA);
+	gen_load_ad_V1_VR(vB);
+	gen_op_vsubfp_VD_V0_V1();
+}
+
+void powerpc_dyngen::gen_vmaddfp(int vD, int vA, int vB, int vC)
+{
+	gen_load_ad_VD_VR(vD);
+	gen_load_ad_V0_VR(vA);
+	gen_load_ad_V1_VR(vB);
+	gen_load_ad_V2_VR(vC);
+	gen_op_vmaddfp_VD_V0_V1_V2();
+}
+
+void powerpc_dyngen::gen_vnmsubfp(int vD, int vA, int vB, int vC)
+{
+	gen_load_ad_VD_VR(vD);
+	gen_load_ad_V0_VR(vA);
+	gen_load_ad_V1_VR(vB);
+	gen_load_ad_V2_VR(vC);
+	gen_op_vnmsubfp_VD_V0_V1_V2();
+}
+
+void powerpc_dyngen::gen_vmaxfp(int vD, int vA, int vB)
+{
+	gen_load_ad_VD_VR(vD);
+	gen_load_ad_V0_VR(vA);
+	gen_load_ad_V1_VR(vB);
+	gen_op_vmaxfp_VD_V0_V1();
+}
+
+void powerpc_dyngen::gen_vminfp(int vD, int vA, int vB)
+{
+	gen_load_ad_VD_VR(vD);
+	gen_load_ad_V0_VR(vA);
+	gen_load_ad_V1_VR(vB);
+	gen_op_vminfp_VD_V0_V1();
+}
+
+void powerpc_dyngen::gen_vand(int vD, int vA, int vB)
+{
+	gen_load_ad_VD_VR(vD);
+	gen_load_ad_V0_VR(vA);
+	gen_load_ad_V1_VR(vB);
+	gen_op_vand_VD_V0_V1();
+}
+
+void powerpc_dyngen::gen_vandc(int vD, int vA, int vB)
+{
+	gen_load_ad_VD_VR(vD);
+	gen_load_ad_V0_VR(vA);
+	gen_load_ad_V1_VR(vB);
+	gen_op_vandc_VD_V0_V1();
+}
+
+void powerpc_dyngen::gen_vnor(int vD, int vA, int vB)
+{
+	gen_load_ad_VD_VR(vD);
+	gen_load_ad_V0_VR(vA);
+	gen_load_ad_V1_VR(vB);
+	gen_op_vnor_VD_V0_V1();
+}
+
+void powerpc_dyngen::gen_vor(int vD, int vA, int vB)
+{
+	gen_load_ad_VD_VR(vD);
+	gen_load_ad_V0_VR(vA);
+	gen_load_ad_V1_VR(vB);
+	gen_op_vor_VD_V0_V1();
+}
+
+void powerpc_dyngen::gen_vxor(int vD, int vA, int vB)
+{
+	gen_load_ad_VD_VR(vD);
+	gen_load_ad_V0_VR(vA);
+	gen_load_ad_V1_VR(vB);
+	gen_op_vxor_VD_V0_V1();
 }

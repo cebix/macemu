@@ -1711,7 +1711,7 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	{ "vnmsubfp",
 	  EXECUTE_VECTOR_ARITH(vnmsubfp, V4SF, V4SF, V4SF, V4SF),
 	  NULL,
-	  PPC_I(VNMSUB),
+	  PPC_I(VNMSUBFP),
 	  VA_form, 4, 47, CFLOW_NORMAL
 	},
 	{ "vnor",
