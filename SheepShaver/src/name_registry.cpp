@@ -37,15 +37,21 @@ typedef int16 (*rcec_ptr)(const RegEntryID *, const char *, RegEntryID *);
 static uint32 rcec_tvect = 0;
 static inline int16 RegistryCStrEntryCreate(uintptr arg1, const char *arg2, uint32 arg3)
 {
-	return (int16)CallMacOS3(rcec_ptr, rcec_tvect, (const RegEntryID *)arg1, Host2MacAddr((uint8 *)arg2), arg3);
+	SheepString arg2str(arg2);
+	return (int16)CallMacOS3(rcec_ptr, rcec_tvect, (const RegEntryID *)arg1, arg2str.addr(), arg3);
 }
 typedef int16 (*rpc_ptr)(const RegEntryID *, const char *, const void *, uint32);
 static uint32 rpc_tvect = 0;
 static inline int16 RegistryPropertyCreate(uintptr arg1, const char *arg2, uintptr arg3, uint32 arg4)
 {
-	return (int16)CallMacOS4(rpc_ptr, rpc_tvect, (const RegEntryID *)arg1, Host2MacAddr((uint8 *)arg2), (const void *)arg3, arg4);
+	SheepString arg2str(arg2);
+	return (int16)CallMacOS4(rpc_ptr, rpc_tvect, (const RegEntryID *)arg1, arg2str.addr(), (const void *)arg3, arg4);
 }
-#define RegistryPropertyCreateStr(e,n,s) RegistryPropertyCreate(e,n,Host2MacAddr((uint8 *)s),strlen(s)+1)
+static inline int16 RegistryPropertyCreateStr(uintptr arg1, const char *arg2, const char *arg3)
+{
+	SheepString arg3str(arg3);
+	return RegistryPropertyCreate(arg1, arg2, arg3str.addr(), strlen(arg3) + 1);
+}
 
 // Video driver stub
 static const uint8 video_driver[] = {
@@ -313,7 +319,9 @@ void DoPatchNameRegistry(void)
 		if (!RegistryCStrEntryCreate(device_tree.addr(), "video", video.addr())) {
 			RegistryPropertyCreateStr(video.addr(), "AAPL,connector", "monitor");
 			RegistryPropertyCreateStr(video.addr(), "device_type", "display");
-			RegistryPropertyCreate(video.addr(), "driver,AAPL,MacOS,PowerPC", Host2MacAddr((uint8 *)video_driver), sizeof(video_driver));
+			SheepArray<sizeof(video_driver)> the_video_driver;
+			Host2Mac_memcpy(the_video_driver.addr(), video_driver, sizeof(video_driver));
+			RegistryPropertyCreate(video.addr(), "driver,AAPL,MacOS,PowerPC", the_video_driver.addr(), sizeof(video_driver));
 			RegistryPropertyCreateStr(video.addr(), "model", "SheepShaver Video");
 		}
 
@@ -322,7 +330,9 @@ void DoPatchNameRegistry(void)
 		if (!RegistryCStrEntryCreate(device_tree.addr(), "ethernet", ethernet.addr())) {
 			RegistryPropertyCreateStr(ethernet.addr(), "AAPL,connector", "ethernet");
 			RegistryPropertyCreateStr(ethernet.addr(), "device_type", "network");
-			RegistryPropertyCreate(ethernet.addr(), "driver,AAPL,MacOS,PowerPC", Host2MacAddr((uint8 *)ethernet_driver), sizeof(ethernet_driver));
+			SheepArray<sizeof(ethernet_driver)> the_ethernet_driver;
+			Host2Mac_memcpy(the_ethernet_driver.addr(), ethernet_driver, sizeof(ethernet_driver));
+			RegistryPropertyCreate(ethernet.addr(), "driver,AAPL,MacOS,PowerPC", the_ethernet_driver.addr(), sizeof(ethernet_driver));
 			// local-mac-address
 			// max-frame-size 2048
 		}
