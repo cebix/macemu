@@ -290,6 +290,7 @@ WANT_SPARC_V8_ASSEMBLY=no
 WANT_SPARC_V9_ASSEMBLY=no
 WANT_NATIVE_M68K=no
 CPUSRCS="cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
+FPUSRCS="../uae_cpu/fpp.cpp"
 if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
   dnl i386 CPU
   DEFINES="$DEFINES -DREGPARAM=\"__attribute__((regparm(3)))\""
@@ -297,6 +298,7 @@ if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
     WANT_X86_ASSEMBLY=yes
     DEFINES="$DEFINES -DX86_ASSEMBLY"
     CPUSRCS="../uae_cpu/compiler.cpp cpufast1.s cpufast2.s cpufast3.s cpufast4.s cpufast5.s cpufast6.s cpufast7.s cpufast8.s"
+    FPUSRCS="../uae_cpu/fpu_x86.cpp"
   fi
 elif [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xyes" ]]; then
   dnl SPARC CPU
@@ -331,7 +333,7 @@ fi
 dnl UAE CPU sources for all non-m68k-native architectures.
 if [[ "x$WANT_NATIVE_M68K" = "xno" ]]; then
   CPUINCLUDES="-I../uae_cpu"
-  CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp ../uae_cpu/fpp.cpp cpustbl.cpp cpudefs.cpp $CPUSRCS"
+  CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp $FPUSRCS cpustbl.cpp cpudefs.cpp $CPUSRCS"
 else
   CPUINCLUDES="-I../native_cpu"
   CPUSRCS="asm_support.s"
