@@ -546,7 +546,7 @@ if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
   DEFINES="$DEFINES -DREGPARAM=\"__attribute__((regparm(3)))\""
   if [[ "x$HAVE_GAS" = "xyes" ]]; then
     ASM_OPTIMIZATIONS=i386
-    DEFINES="$DEFINES -DX86_ASSEMBLY -DOPTFLAGS"
+    DEFINES="$DEFINES -DX86_ASSEMBLY -DUNALIGNED_PROFITABLE -DOPTIMIZED_FLAGS"
     CPUSRCS="../uae_cpu/compiler.cpp cpufast1.s cpufast2.s cpufast3.s cpufast4.s cpufast5.s cpufast6.s cpufast7.s cpufast8.s"
     FPUSRCS="../uae_cpu/fpu_x86.cpp"
   fi
@@ -560,13 +560,13 @@ elif [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xy
     case "$SPARC_TYPE" in
     SPARC_V8)
       ASM_OPTIMIZATIONS="SPARC V8 architecture"
-      DEFINES="$DEFINES -DSPARC_V8_ASSEMBLY" dnl -DOPTFLAGS"
+      DEFINES="$DEFINES -DSPARC_V8_ASSEMBLY" dnl -DOPTIMIZED_FLAGS"
       CFLAGS="$CFLAGS -Wa,-Av8"
       CXXFLAGS="$CXXFLAGS -Wa,-Av8"
       ;;
     SPARC_V9)
       ASM_OPTIMIZATIONS="SPARC V9 architecture"
-      DEFINES="$DEFINES -DSPARC_V9_ASSEMBLY" dnl -DOPTFLAGS"
+      DEFINES="$DEFINES -DSPARC_V9_ASSEMBLY" dnl -DOPTIMIZED_FLAGS"
       CFLAGS="$CFLAGS -Wa,-Av9"
       CXXFLAGS="$CXXFLAGS -Wa,-Av9"
       ;;
