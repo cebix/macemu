@@ -23,9 +23,9 @@ GENSRCS = cpudefs.cpp cpuemu.cpp cpustbl.cpp cputbl.h
 GENEMUS = cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp \
 	  cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp
 
-# Symlinks to files in other directories
+# Symlinks to, or copies of, files in other directories
 GENLINK = README.txt INSTALL.txt install-sh \
-	  config.guess config.sub \
+	  Darwin config.guess config.sub \
 	  sys_unix.cpp timer_unix.cpp user_strings_unix.h
 
 GEN  = $(GENEMUS) $(GENSRCS)
@@ -48,6 +48,9 @@ APP = $(OBJ_DIR)/BasiliskII.app
 all: $(APP)
 
 ide: $(OBJ_DIR) $(GEN) $(SRCS)
+	open BasiliskII.xcode
+
+oldide: $(OBJ_DIR) $(GEN) $(SRCS)
 	open BasiliskII.pbproj
 
 test: $(APP)
@@ -72,11 +75,14 @@ clean: mostlyclean
 	rm -f cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp
 
 distclean: clean
-	rm -fr $(OBJ_DIR)
-	rm -fr $(GENLINK)
-	rm -f config.cache config.log config.status config.h config.h.in
-	rm -f configure
+	rm -rf $(OBJ_DIR)
+	rm -rf autom4te.cache
 	rm -f Makefile
+	rm -f config.cache config.log config.status config.h config.h.in
+	rm -f Darwin/lowmem Darwin/pagezero
+	rm -f $(GENLINK)
+	rm -f configure
+	rm -f .DS_Store
 
 
 
