@@ -3,6 +3,11 @@
  * 
  *  Copyright (c) 2003-2004 Fabrice Bellard
  *
+ *  The COFF object format support was extracted from Kazu's QEMU port
+ *  to Win32.
+ *
+ *  Mach-O Support by Matt Reda and Pierre d'Herbemont
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -46,6 +51,17 @@
 #define HOST_AMD64 1
 #endif
 
+/* NOTE: we test CONFIG_WIN32 instead of _WIN32 to enabled cross
+   compilation */
+#if defined(CONFIG_WIN32)
+#define CONFIG_FORMAT_COFF
+#elif defined(CONFIG_DARWIN)
+#define CONFIG_FORMAT_MACH
+#else
+#define CONFIG_FORMAT_ELF
+#endif
+
+#ifdef CONFIG_FORMAT_ELF
 
 /* elf format definitions. We use these macros to test the CPU to
    allow cross compilation (this tool must be ran on the build
@@ -113,6 +129,13 @@
 #define elf_check_arch(x) ((x) == EM_ARM)
 #define ELF_USES_RELOC
 
+#elif defined(HOST_M68K)
+
+#define ELF_CLASS	ELFCLASS32
+#define ELF_ARCH	EM_68K
+#define elf_check_arch(x) ((x) == EM_68K)
+#define ELF_USES_RELOCA
+
 #else
 #error unsupported CPU - please update the code
 #endif
@@ -153,28 +176,137 @@ typedef ElfW(Rela) elf_rela;
 #define SHT_RELOC SHT_REL
 #endif
 
+#define EXE_RELOC ELF_RELOC
+#define EXE_SYM ElfW(Sym)
+
+#endif /* CONFIG_FORMAT_ELF */
+
+#ifdef CONFIG_FORMAT_COFF
+
+#include "a.out-defs.h"
+
+typedef int32_t host_long;
+typedef uint32_t host_ulong;
+
+#define FILENAMELEN 256
+
+typedef struct coff_sym {
+    struct external_syment *st_syment;
+    char st_name[FILENAMELEN];
+    uint32_t st_value;
+    int  st_size;
+    uint8_t st_type;
+    uint8_t st_shndx;
+} coff_Sym;
+
+typedef struct coff_rel {
+    struct external_reloc *r_reloc;
+    int  r_offset;
+    uint8_t r_type;
+} coff_Rel;
+
+#define EXE_RELOC struct coff_rel
+#define EXE_SYM struct coff_sym
+
+#endif /* CONFIG_FORMAT_COFF */
+
+#ifdef CONFIG_FORMAT_MACH
+
+#include <mach-o/loader.h>
+#include <mach-o/nlist.h>
+#include <mach-o/reloc.h>
+#include <mach-o/ppc/reloc.h>
+
+# define check_mach_header(x) (x.magic == MH_MAGIC)
+typedef int32_t host_long;
+typedef uint32_t host_ulong;
+
+struct nlist_extended
+{
+   union {
+   char *n_name; 
+   long  n_strx; 
+   } n_un;
+   unsigned char n_type; 
+   unsigned char n_sect; 
+   short st_desc;
+   unsigned long st_value;
+   unsigned long st_size;
+};
+
+#define EXE_RELOC struct relocation_info
+#define EXE_SYM struct nlist_extended
+
+#endif /* CONFIG_FORMAT_MACH */
+
 enum {
-    OUT_GEN_OP,
-    OUT_CODE,
-    OUT_INDEX_OP,
-	OUT_GEN_OP_ALL,
+    OUT_GEN_OP_ALL,
 };
 
 /* all dynamically generated functions begin with this code */
 #define OP_PREFIX "op_"
 
-int elf_must_swap(elfhdr *h)
-{
-  union {
-      uint32_t i;
-      uint8_t b[4];
-  } swaptest;
+int do_swap;
 
-  swaptest.i = 1;
-  return (h->e_ident[EI_DATA] == ELFDATA2MSB) != 
-      (swaptest.b[0] == 0);
+void __attribute__((noreturn)) __attribute__((format (printf, 1, 2))) error(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    fprintf(stderr, "dyngen: ");
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
+    exit(1);
 }
-  
+
+void *load_data(int fd, long offset, unsigned int size)
+{
+    char *data;
+
+    data = malloc(size);
+    if (!data)
+        return NULL;
+    lseek(fd, offset, SEEK_SET);
+    if (read(fd, data, size) != size) {
+        free(data);
+        return NULL;
+    }
+    return data;
+}
+
+int strstart(const char *str, const char *val, const char **ptr)
+{
+    const char *p, *q;
+    p = str;
+    q = val;
+    while (*q != '\0') {
+        if (*p != *q)
+            return 0;
+        p++;
+        q++;
+    }
+    if (ptr)
+        *ptr = p;
+    return 1;
+}
+
+void pstrcpy(char *buf, int buf_size, const char *str)
+{
+    int c;
+    char *q = buf;
+
+    if (buf_size <= 0)
+        return;
+
+    for(;;) {
+        c = *str++;
+        if (c == 0 || q >= buf + buf_size - 1)
+            break;
+        *q++ = c;
+    }
+    *q = '\0';
+}
+
 void swab16s(uint16_t *p)
 {
     *p = bswap_16(*p);
@@ -190,6 +322,108 @@ void swab64s(uint64_t *p)
     *p = bswap_64(*p);
 }
 
+uint16_t get16(uint16_t *p)
+{
+    uint16_t val;
+    val = *p;
+    if (do_swap)
+        val = bswap_16(val);
+    return val;
+}
+
+uint32_t get32(uint32_t *p)
+{
+    uint32_t val;
+    val = *p;
+    if (do_swap)
+        val = bswap_32(val);
+    return val;
+}
+
+void put16(uint16_t *p, uint16_t val)
+{
+    if (do_swap)
+        val = bswap_16(val);
+    *p = val;
+}
+
+void put32(uint32_t *p, uint32_t val)
+{
+    if (do_swap)
+        val = bswap_32(val);
+    *p = val;
+}
+
+/* generate op code */
+void gen_code(const char *name, const char *demangled_name,
+              host_ulong offset, host_ulong size, 
+              FILE *outfile, int gen_switch, const char *prefix);
+
+static void do_print_code(FILE *outfile, const char *name, const uint8_t *code_p, int code_size)
+{
+  int i;
+  fprintf(outfile, "    static const uint8 %s[] = {", name);
+  for (i = 0; i < code_size; i++) {
+    if ((i % 12) == 0) {
+      if (i != 0)
+        fprintf(outfile, ",");
+      fprintf(outfile, "\n       ");
+    }
+    else
+      fprintf(outfile, ", ");
+    fprintf(outfile, "0x%02x", code_p[i]);
+  }
+  fprintf(outfile, "\n    };\n");
+}
+
+static void print_code(FILE *outfile, const char *name, const uint8_t *code_p, int code_size)
+{
+  char *code_name;
+  code_name = alloca(strlen(name) + 5);
+  strcpy(code_name, name);
+  strcat(code_name, "_code");
+  do_print_code(outfile, code_name, code_p, code_size);
+}
+
+static char *gen_dot_prefix(const char *sym_name)
+{
+  static char name[256];
+  assert(sym_name[0] == '.');
+  snprintf(name, sizeof(name), "dg_dot_%s", sym_name + 1);
+  return name;
+}
+
+
+/* executable information */
+EXE_SYM *symtab;
+int nb_syms;
+int text_shndx;
+int data_shndx;
+uint8_t *text;
+uint8_t *data;
+EXE_RELOC *relocs;
+int nb_relocs;
+
+#ifdef CONFIG_FORMAT_ELF
+
+/* ELF file info */
+elf_shdr *shdr;
+uint8_t **sdata;
+elfhdr ehdr;
+char *strtab;
+
+int elf_must_swap(elfhdr *h)
+{
+  union {
+      uint32_t i;
+      uint8_t b[4];
+  } swaptest;
+
+  swaptest.i = 1;
+  return (h->e_ident[EI_DATA] == ELFDATA2MSB) != 
+      (swaptest.b[0] == 0);
+}
+  
 void elf_swap_ehdr(elfhdr *h)
 {
     swab16s(&h->e_type);			/* Object file type */
@@ -242,60 +476,6 @@ void elf_swap_rel(ELF_RELOC *rel)
 #endif
 }
 
-/* ELF file info */
-int do_swap;
-elf_shdr *shdr;
-uint8_t **sdata;
-elfhdr ehdr;
-ElfW(Sym) *symtab;
-int nb_syms;
-char *strtab;
-int text_shndx;
-
-uint16_t get16(uint16_t *p)
-{
-    uint16_t val;
-    val = *p;
-    if (do_swap)
-        val = bswap_16(val);
-    return val;
-}
-
-uint32_t get32(uint32_t *p)
-{
-    uint32_t val;
-    val = *p;
-    if (do_swap)
-        val = bswap_32(val);
-    return val;
-}
-
-void put16(uint16_t *p, uint16_t val)
-{
-    if (do_swap)
-        val = bswap_16(val);
-    *p = val;
-}
-
-void put32(uint32_t *p, uint32_t val)
-{
-    if (do_swap)
-        val = bswap_32(val);
-    *p = val;
-}
-
-void __attribute__((noreturn)) __attribute__((format (printf, 1, 2))) error(const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    fprintf(stderr, "dyngen: ");
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    va_end(ap);
-    exit(1);
-}
-
-
 elf_shdr *find_elf_section(elf_shdr *shdr, int shnum, const char *shstr, 
                                   const char *name)
 {
@@ -327,36 +507,827 @@ int find_reloc(int sh_index)
     return 0;
 }
 
-void *load_data(int fd, long offset, unsigned int size)
+static host_ulong get_rel_offset(EXE_RELOC *rel)
 {
-    char *data;
-
-    data = malloc(size);
-    if (!data)
-        return NULL;
-    lseek(fd, offset, SEEK_SET);
-    if (read(fd, data, size) != size) {
-        free(data);
-        return NULL;
-    }
-    return data;
+    return rel->r_offset;
 }
 
-int strstart(const char *str, const char *val, const char **ptr)
+static char *get_rel_sym_name(EXE_RELOC *rel)
 {
-    const char *p, *q;
-    p = str;
-    q = val;
-    while (*q != '\0') {
-        if (*p != *q)
-            return 0;
-        p++;
-        q++;
-    }
-    if (ptr)
-        *ptr = p;
-    return 1;
+    return strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
 }
+
+static char *get_sym_name(EXE_SYM *sym)
+{
+    return strtab + sym->st_name;
+}
+
+/* load an elf object file */
+int load_object(const char *filename, FILE *outfile)
+{
+    int fd;
+    elf_shdr *sec, *symtab_sec, *strtab_sec, *text_sec;
+    int i, j;
+    ElfW(Sym) *sym;
+    char *shstr;
+    ELF_RELOC *rel;
+    elf_shdr *data_sec;
+    elf_shdr *rodata_cst4_sec;
+    uint8_t *rodata_cst4 = NULL;
+    int rodata_cst4_shndx;
+    elf_shdr *rodata_cst8_sec;
+    uint8_t *rodata_cst8 = NULL;
+    int rodata_cst8_shndx;
+    elf_shdr *rodata_cst16_sec;
+    uint8_t *rodata_cst16 = NULL;
+    int rodata_cst16_shndx;
+    
+    fd = open(filename, O_RDONLY);
+    if (fd < 0) 
+        error("can't open file '%s'", filename);
+    
+    /* Read ELF header.  */
+    if (read(fd, &ehdr, sizeof (ehdr)) != sizeof (ehdr))
+        error("unable to read file header");
+
+    /* Check ELF identification.  */
+    if (ehdr.e_ident[EI_MAG0] != ELFMAG0
+     || ehdr.e_ident[EI_MAG1] != ELFMAG1
+     || ehdr.e_ident[EI_MAG2] != ELFMAG2
+     || ehdr.e_ident[EI_MAG3] != ELFMAG3
+     || ehdr.e_ident[EI_VERSION] != EV_CURRENT) {
+        error("bad ELF header");
+    }
+
+    do_swap = elf_must_swap(&ehdr);
+    if (do_swap)
+        elf_swap_ehdr(&ehdr);
+    if (ehdr.e_ident[EI_CLASS] != ELF_CLASS)
+        error("Unsupported ELF class");
+    if (ehdr.e_type != ET_REL)
+        error("ELF object file expected");
+    if (ehdr.e_version != EV_CURRENT)
+        error("Invalid ELF version");
+    if (!elf_check_arch(ehdr.e_machine))
+        error("Unsupported CPU (e_machine=%d)", ehdr.e_machine);
+
+    /* read section headers */
+    shdr = load_data(fd, ehdr.e_shoff, ehdr.e_shnum * sizeof(elf_shdr));
+    if (do_swap) {
+        for(i = 0; i < ehdr.e_shnum; i++) {
+            elf_swap_shdr(&shdr[i]);
+        }
+    }
+
+    /* read all section data */
+    sdata = malloc(sizeof(void *) * ehdr.e_shnum);
+    memset(sdata, 0, sizeof(void *) * ehdr.e_shnum);
+    
+    for(i = 0;i < ehdr.e_shnum; i++) {
+        sec = &shdr[i];
+        if (sec->sh_type != SHT_NOBITS)
+            sdata[i] = load_data(fd, sec->sh_offset, sec->sh_size);
+    }
+
+    sec = &shdr[ehdr.e_shstrndx];
+    shstr = sdata[ehdr.e_shstrndx];
+
+    /* swap relocations */
+    for(i = 0; i < ehdr.e_shnum; i++) {
+        sec = &shdr[i];
+        if (sec->sh_type == SHT_RELOC) {
+            nb_relocs = sec->sh_size / sec->sh_entsize;
+            if (do_swap) {
+                for(j = 0, rel = (ELF_RELOC *)sdata[i]; j < nb_relocs; j++, rel++)
+                    elf_swap_rel(rel);
+            }
+        }
+    }
+
+    /* data section */
+    data_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".data");
+    if (!data_sec)
+      error("could not find .data section");
+    data_shndx = data_sec - shdr;
+    data = sdata[data_shndx];
+
+    /* rodata sections */
+    rodata_cst4_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".rodata.cst4");
+    if (rodata_cst4_sec) {
+      rodata_cst4_shndx = rodata_cst4_sec - shdr;
+      rodata_cst4 = sdata[rodata_cst4_shndx];
+    }
+    rodata_cst8_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".rodata.cst8");
+    if (rodata_cst8_sec) {
+      rodata_cst8_shndx = rodata_cst8_sec - shdr;
+      rodata_cst8 = sdata[rodata_cst8_shndx];
+    }
+    rodata_cst16_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".rodata.cst16");
+    if (rodata_cst16_sec) {
+      rodata_cst16_shndx = rodata_cst16_sec - shdr;
+      rodata_cst16 = sdata[rodata_cst16_shndx];
+    }
+
+    /* text section */
+    text_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".text");
+    if (!text_sec)
+        error("could not find .text section");
+    text_shndx = text_sec - shdr;
+    text = sdata[text_shndx];
+
+    /* find text relocations, if any */
+    relocs = NULL;
+    nb_relocs = 0;
+    i = find_reloc(text_shndx);
+    if (i != 0) {
+        relocs = (ELF_RELOC *)sdata[i];
+        nb_relocs = shdr[i].sh_size / shdr[i].sh_entsize;
+    }
+
+    symtab_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".symtab");
+    if (!symtab_sec)
+        error("could not find .symtab section");
+    strtab_sec = &shdr[symtab_sec->sh_link];
+
+    symtab = (ElfW(Sym) *)sdata[symtab_sec - shdr];
+    strtab = sdata[symtab_sec->sh_link];
+    
+    nb_syms = symtab_sec->sh_size / sizeof(ElfW(Sym));
+    if (do_swap) {
+        for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
+            swab32s(&sym->st_name);
+            swabls(&sym->st_value);
+            swabls(&sym->st_size);
+            swab16s(&sym->st_shndx);
+        }
+    }
+    close(fd);
+
+    {
+        int status;
+        size_t nf, nd = 256;
+        char *demangled_name, *func_name;
+        if ((demangled_name = malloc(nd)) == NULL)
+            return -1;
+        if ((func_name = malloc(nf = nd)) == NULL)
+            return -1;
+
+        fprintf(outfile, "#ifndef DEFINE_CST\n");
+        fprintf(outfile, "#define DEFINE_CST(NAME, VALUE)\n");
+        fprintf(outfile, "#endif\n");
+        for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
+            const char *name;
+            name = get_sym_name(sym);
+            /* emit local symbols */
+            if (strstart(name, ".LC", NULL)) {
+                if (sym->st_shndx == (rodata_cst16_sec - shdr)) {
+                    fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
+                    do_print_code(outfile, gen_dot_prefix(name), rodata_cst16 + sym->st_value, 16);
+                    fprintf(outfile, "#endif\n");
+                }
+                else if (sym->st_shndx == (rodata_cst8_sec - shdr)) {
+                    fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
+                    do_print_code(outfile, gen_dot_prefix(name), rodata_cst8 + sym->st_value, 8);
+                    fprintf(outfile, "#endif\n");
+                }
+                else if (sym->st_shndx == (rodata_cst4_sec - shdr)) {
+                    fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
+                    do_print_code(outfile, gen_dot_prefix(name), rodata_cst4 + sym->st_value, 4);
+                    fprintf(outfile, "#endif\n");
+                }
+                else
+                    error("invalid section for local data %s (%x)\n", name, sym->st_shndx);
+            }
+        }
+    }
+    return 0;
+}
+
+#endif /* CONFIG_FORMAT_ELF */
+
+#ifdef CONFIG_FORMAT_COFF
+
+/* COFF file info */
+struct external_scnhdr *shdr;
+uint8_t **sdata;
+struct external_filehdr fhdr;
+struct external_syment *coff_symtab;
+char *strtab;
+int coff_text_shndx, coff_data_shndx;
+
+#define STRTAB_SIZE 4
+
+#define DIR32   0x06
+#define DISP32  0x14
+
+#define T_FUNCTION  0x20
+#define C_EXTERNAL  2
+
+void sym_ent_name(struct external_syment *ext_sym, EXE_SYM *sym)
+{
+    char *q;
+    int c, i, len;
+    
+    if (ext_sym->e.e.e_zeroes != 0) {
+        q = sym->st_name;
+        for(i = 0; i < 8; i++) {
+            c = ext_sym->e.e_name[i];
+            if (c == '\0')
+                break;
+            *q++ = c;
+        }
+        *q = '\0';
+    } else {
+        pstrcpy(sym->st_name, sizeof(sym->st_name), strtab + ext_sym->e.e.e_offset);
+    }
+
+    /* now convert the name to a C name (suppress the leading '_') */
+    if (sym->st_name[0] == '_') {
+        len = strlen(sym->st_name);
+        memmove(sym->st_name, sym->st_name + 1, len - 1);
+        sym->st_name[len - 1] = '\0';
+    }
+}
+
+char *name_for_dotdata(struct coff_rel *rel)
+{
+	int i;
+	struct coff_sym *sym;
+	uint32_t text_data;
+
+	text_data = *(uint32_t *)(text + rel->r_offset);
+
+	for (i = 0, sym = symtab; i < nb_syms; i++, sym++) {
+		if (sym->st_syment->e_scnum == data_shndx &&
+                    text_data >= sym->st_value &&
+                    text_data < sym->st_value + sym->st_size) {
+                    
+                    return sym->st_name;
+
+		}
+	}
+	return NULL;
+}
+
+static char *get_sym_name(EXE_SYM *sym)
+{
+    return sym->st_name;
+}
+
+static char *get_rel_sym_name(EXE_RELOC *rel)
+{
+    char *name;
+    name = get_sym_name(symtab + *(uint32_t *)(rel->r_reloc->r_symndx));
+    if (!strcmp(name, ".data"))
+        name = name_for_dotdata(rel);
+    return name;
+}
+
+static host_ulong get_rel_offset(EXE_RELOC *rel)
+{
+    return rel->r_offset;
+}
+
+struct external_scnhdr *find_coff_section(struct external_scnhdr *shdr, int shnum, const char *name)
+{
+    int i;
+    const char *shname;
+    struct external_scnhdr *sec;
+
+    for(i = 0; i < shnum; i++) {
+        sec = &shdr[i];
+        if (!sec->s_name)
+            continue;
+        shname = sec->s_name;
+        if (!strcmp(shname, name))
+            return sec;
+    }
+    return NULL;
+}
+
+/* load a coff object file */
+int load_object(const char *filename, FILE *outfile)
+{
+    int fd;
+    struct external_scnhdr *sec, *text_sec, *data_sec;
+    int i, j;
+    struct external_syment *ext_sym;
+    struct external_reloc *coff_relocs;
+    struct external_reloc *ext_rel;
+    uint32_t *n_strtab;
+    EXE_SYM *sym;
+    EXE_RELOC *rel;
+	
+    fd = open(filename, O_RDONLY 
+#ifdef _WIN32
+              | O_BINARY
+#endif
+              );
+    if (fd < 0) 
+        error("can't open file '%s'", filename);
+    
+    /* Read COFF header.  */
+    if (read(fd, &fhdr, sizeof (fhdr)) != sizeof (fhdr))
+        error("unable to read file header");
+
+    /* Check COFF identification.  */
+    if (fhdr.f_magic != I386MAGIC) {
+        error("bad COFF header");
+    }
+    do_swap = 0;
+
+    /* read section headers */
+    shdr = load_data(fd, sizeof(struct external_filehdr) + fhdr.f_opthdr, fhdr.f_nscns * sizeof(struct external_scnhdr));
+	
+    /* read all section data */
+    sdata = malloc(sizeof(void *) * fhdr.f_nscns);
+    memset(sdata, 0, sizeof(void *) * fhdr.f_nscns);
+    
+    const char *p;
+    for(i = 0;i < fhdr.f_nscns; i++) {
+        sec = &shdr[i];
+        if (!strstart(sec->s_name,  ".bss", &p))
+            sdata[i] = load_data(fd, sec->s_scnptr, sec->s_size);
+    }
+
+
+    /* text section */
+    text_sec = find_coff_section(shdr, fhdr.f_nscns, ".text");
+    if (!text_sec)
+        error("could not find .text section");
+    coff_text_shndx = text_sec - shdr;
+    text = sdata[coff_text_shndx];
+
+    /* data section */
+    data_sec = find_coff_section(shdr, fhdr.f_nscns, ".data");
+    if (!data_sec)
+        error("could not find .data section");
+    coff_data_shndx = data_sec - shdr;
+    data = sdata[coff_data_shndx];
+    
+    coff_symtab = load_data(fd, fhdr.f_symptr, fhdr.f_nsyms*SYMESZ);
+    for (i = 0, ext_sym = coff_symtab; i < nb_syms; i++, ext_sym++) {
+        for(j=0;j<8;j++)
+            printf(" %02x", ((uint8_t *)ext_sym->e.e_name)[j]);
+        printf("\n");
+    }
+
+    nb_syms = fhdr.f_nsyms;
+    n_strtab = load_data(fd, (fhdr.f_symptr + fhdr.f_nsyms*SYMESZ), STRTAB_SIZE);
+    strtab = load_data(fd, (fhdr.f_symptr + fhdr.f_nsyms*SYMESZ), *n_strtab); 
+    
+    for (i = 0, ext_sym = coff_symtab; i < nb_syms; i++, ext_sym++) {
+      if (strstart(ext_sym->e.e_name, ".text", NULL))
+		  text_shndx = ext_sym->e_scnum;
+	  if (strstart(ext_sym->e.e_name, ".data", NULL))
+		  data_shndx = ext_sym->e_scnum;
+    }
+
+	/* set coff symbol */
+	symtab = malloc(sizeof(struct coff_sym) * nb_syms);
+
+	int aux_size;
+	for (i = 0, ext_sym = coff_symtab, sym = symtab; i < nb_syms; i++, ext_sym++, sym++) {
+		memset(sym, 0, sizeof(*sym));
+		sym->st_syment = ext_sym;
+		sym_ent_name(ext_sym, sym);
+		sym->st_value = ext_sym->e_value;
+
+		aux_size = *(int8_t *)ext_sym->e_numaux;
+		if (ext_sym->e_scnum == text_shndx && ext_sym->e_type == T_FUNCTION) {
+			for (j = aux_size + 1; j < nb_syms - i; j++) {
+				if ((ext_sym + j)->e_scnum == text_shndx &&
+					(ext_sym + j)->e_type == T_FUNCTION ){
+					sym->st_size = (ext_sym + j)->e_value - ext_sym->e_value;
+					break;
+				} else if (j == nb_syms - i - 1) {
+					sec = &shdr[coff_text_shndx];
+					sym->st_size = sec->s_size - ext_sym->e_value;
+					break;
+				}
+			}
+		} else if (ext_sym->e_scnum == data_shndx && *(uint8_t *)ext_sym->e_sclass == C_EXTERNAL) {
+			for (j = aux_size + 1; j < nb_syms - i; j++) {
+				if ((ext_sym + j)->e_scnum == data_shndx) {
+					sym->st_size = (ext_sym + j)->e_value - ext_sym->e_value;
+					break;
+				} else if (j == nb_syms - i - 1) {
+					sec = &shdr[coff_data_shndx];
+					sym->st_size = sec->s_size - ext_sym->e_value;
+					break;
+				}
+			}
+		} else {
+			sym->st_size = 0;
+		}
+		
+		sym->st_type = ext_sym->e_type;
+		sym->st_shndx = ext_sym->e_scnum;
+	}
+
+		
+    /* find text relocations, if any */
+    sec = &shdr[coff_text_shndx];
+    coff_relocs = load_data(fd, sec->s_relptr, sec->s_nreloc*RELSZ);
+    nb_relocs = sec->s_nreloc;
+
+    /* set coff relocation */
+    relocs = malloc(sizeof(struct coff_rel) * nb_relocs);
+    for (i = 0, ext_rel = coff_relocs, rel = relocs; i < nb_relocs; 
+         i++, ext_rel++, rel++) {
+        memset(rel, 0, sizeof(*rel));
+        rel->r_reloc = ext_rel;
+        rel->r_offset = *(uint32_t *)ext_rel->r_vaddr;
+        rel->r_type = *(uint16_t *)ext_rel->r_type;
+    }
+    return 0;
+}
+
+#endif /* CONFIG_FORMAT_COFF */
+
+#ifdef CONFIG_FORMAT_MACH
+
+/* File Header */
+struct mach_header 	mach_hdr;
+
+/* commands */
+struct segment_command 	*segment = 0;
+struct dysymtab_command *dysymtabcmd = 0;
+struct symtab_command 	*symtabcmd = 0;
+
+/* section */
+struct section 	*section_hdr;
+struct section *text_sec_hdr;
+uint8_t 	**sdata;
+
+/* relocs */
+struct relocation_info *relocs;
+	
+/* symbols */
+EXE_SYM			*symtab;
+struct nlist 	*symtab_std;
+char			*strtab;
+
+/* indirect symbols */
+uint32_t 	*tocdylib;
+
+/* Utility functions */
+
+static inline char *find_str_by_index(int index)
+{
+    return strtab+index;
+}
+
+/* Used by dyngen common code */
+static char *get_sym_name(EXE_SYM *sym)
+{
+	char *name = find_str_by_index(sym->n_un.n_strx);
+	
+	if ( sym->n_type & N_STAB ) /* Debug symbols are ignored */
+		return "debug";
+			
+	if(!name)
+		return name;
+	if(name[0]=='_')
+		return name + 1;
+	else
+		return name;
+}
+
+/* find a section index given its segname, sectname */
+static int find_mach_sec_index(struct section *section_hdr, int shnum, const char *segname, 
+                                  const char *sectname)
+{
+    int i;
+    struct section *sec = section_hdr;
+
+    for(i = 0; i < shnum; i++, sec++) {
+        if (!sec->segname || !sec->sectname)
+            continue;
+        if (!strcmp(sec->sectname, sectname) && !strcmp(sec->segname, segname))
+            return i;
+    }
+    return -1;
+}
+
+/* find a section header given its segname, sectname */
+struct section *find_mach_sec_hdr(struct section *section_hdr, int shnum, const char *segname, 
+                                  const char *sectname)
+{
+    int index = find_mach_sec_index(section_hdr, shnum, segname, sectname);
+	if(index == -1)
+		return NULL;
+	return section_hdr+index;
+}
+
+
+static inline void fetch_next_pair_value(struct relocation_info * rel, unsigned int *value)
+{
+    struct scattered_relocation_info * scarel;
+	
+    if(R_SCATTERED & rel->r_address) {
+        scarel = (struct scattered_relocation_info*)rel;
+        if(scarel->r_type != PPC_RELOC_PAIR)
+            error("fetch_next_pair_value: looking for a pair which was not found (1)");
+        *value = scarel->r_value;
+    } else {
+		if(rel->r_type != PPC_RELOC_PAIR)
+			error("fetch_next_pair_value: looking for a pair which was not found (2)");
+		*value = rel->r_address;
+	}
+}
+
+/* find a sym name given its value, in a section number */
+static const char * find_sym_with_value_and_sec_number( int value, int sectnum, int * offset )
+{
+	int i, ret = -1;
+	
+	for( i = 0 ; i < nb_syms; i++ )
+	{
+	    if( !(symtab[i].n_type & N_STAB) && (symtab[i].n_type & N_SECT) &&
+			 (symtab[i].n_sect ==  sectnum) && (symtab[i].st_value <= value) )
+		{
+			if( (ret<0) || (symtab[i].st_value >= symtab[ret].st_value) )
+				ret = i;
+		}
+	}
+	if( ret < 0 ) {
+		*offset = 0;
+		return 0;
+	} else {
+		*offset = value - symtab[ret].st_value;
+		return get_sym_name(&symtab[ret]);
+	}
+}
+
+/* 
+ *  Find symbol name given a (virtual) address, and a section which is of type 
+ *  S_NON_LAZY_SYMBOL_POINTERS or S_LAZY_SYMBOL_POINTERS or S_SYMBOL_STUBS
+ */
+static const char * find_reloc_name_in_sec_ptr(int address, struct section * sec_hdr)
+{
+    unsigned int tocindex, symindex, size;
+    const char *name = 0;
+    
+    /* Sanity check */
+    if(!( address >= sec_hdr->addr && address < (sec_hdr->addr + sec_hdr->size) ) )
+        return (char*)0;
+		
+	if( sec_hdr->flags & S_SYMBOL_STUBS ){
+		size = sec_hdr->reserved2;
+		if(size == 0)
+		    error("size = 0");
+		
+	}
+	else if( sec_hdr->flags & S_LAZY_SYMBOL_POINTERS ||
+	            sec_hdr->flags & S_NON_LAZY_SYMBOL_POINTERS)
+		size = sizeof(unsigned long);
+	else
+		return 0;
+		
+    /* Compute our index in toc */
+	tocindex = (address - sec_hdr->addr)/size;
+	symindex = tocdylib[sec_hdr->reserved1 + tocindex];
+	
+	name = get_sym_name(&symtab[symindex]);
+
+    return name;
+}
+
+static const char * find_reloc_name_given_its_address(int address)
+{
+    unsigned int i;
+    for(i = 0; i < segment->nsects ; i++)
+    {
+        const char * name = find_reloc_name_in_sec_ptr(address, &section_hdr[i]);
+        if((long)name != -1)
+            return name;
+    }
+    return 0;
+}
+
+static const char * get_reloc_name(EXE_RELOC * rel, int * sslide)
+{
+	char * name = 0;
+	struct scattered_relocation_info * sca_rel = (struct scattered_relocation_info*)rel;
+	int sectnum = rel->r_symbolnum;
+	int sectoffset;
+	int other_half=0;
+	
+	/* init the slide value */
+	*sslide = 0;
+	
+	if(R_SCATTERED & rel->r_address)
+		return (char *)find_reloc_name_given_its_address(sca_rel->r_value);
+
+	if(rel->r_extern)
+	{
+		/* ignore debug sym */
+		if ( symtab[rel->r_symbolnum].n_type & N_STAB ) 
+			return 0;
+		return get_sym_name(&symtab[rel->r_symbolnum]);
+	}
+
+	/* Intruction contains an offset to the symbols pointed to, in the rel->r_symbolnum section */
+	sectoffset = *(uint32_t *)(text + rel->r_address) & 0xffff;
+			
+	if(sectnum==0xffffff)
+		return 0;
+
+	/* Sanity Check */
+	if(sectnum > segment->nsects)
+		error("sectnum > segment->nsects");
+
+	switch(rel->r_type)
+	{
+		case PPC_RELOC_LO16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (sectoffset & 0xffff);
+			break;
+		case PPC_RELOC_HI16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (other_half & 0xffff);
+			break;
+		case PPC_RELOC_HA16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (other_half & 0xffff);
+			break;
+		case PPC_RELOC_BR24:
+			sectoffset = ( *(uint32_t *)(text + rel->r_address) & 0x03fffffc );
+			if (sectoffset & 0x02000000) sectoffset |= 0xfc000000;
+			break;
+		default:
+			error("switch(rel->type) not found");
+	}
+
+	if(rel->r_pcrel)
+		sectoffset += rel->r_address;
+			
+	if (rel->r_type == PPC_RELOC_BR24)
+		name = (char *)find_reloc_name_in_sec_ptr((int)sectoffset, &section_hdr[sectnum-1]);
+
+	/* search it in the full symbol list, if not found */
+	if(!name)
+		name = (char *)find_sym_with_value_and_sec_number(sectoffset, sectnum, sslide);
+	
+	return name;
+}
+
+/* Used by dyngen common code */
+static const char * get_rel_sym_name(EXE_RELOC * rel)
+{
+	int sslide;
+	return get_reloc_name( rel, &sslide);
+}
+
+/* Used by dyngen common code */
+static host_ulong get_rel_offset(EXE_RELOC *rel)
+{
+	struct scattered_relocation_info * sca_rel = (struct scattered_relocation_info*)rel;
+    if(R_SCATTERED & rel->r_address)
+		return sca_rel->r_address;
+	else
+		return rel->r_address;
+}
+
+/* load a mach-o object file */
+int load_object(const char *filename, FILE *outfile)
+{
+	int fd;
+	unsigned int offset_to_segment = 0;
+    unsigned int offset_to_dysymtab = 0;
+    unsigned int offset_to_symtab = 0;
+    struct load_command lc;
+    unsigned int i, j;
+	EXE_SYM *sym;
+	struct nlist *syment;
+    
+	fd = open(filename, O_RDONLY);
+    if (fd < 0) 
+        error("can't open file '%s'", filename);
+		
+    /* Read Mach header.  */
+    if (read(fd, &mach_hdr, sizeof (mach_hdr)) != sizeof (mach_hdr))
+        error("unable to read file header");
+
+    /* Check Mach identification.  */
+    if (!check_mach_header(mach_hdr)) {
+        error("bad Mach header");
+    }
+    
+    if (mach_hdr.cputype != CPU_TYPE_POWERPC)
+        error("Unsupported CPU");
+        
+    if (mach_hdr.filetype != MH_OBJECT)
+        error("Unsupported Mach Object");
+    
+    /* read segment headers */
+    for(i=0, j=sizeof(mach_hdr); i<mach_hdr.ncmds ; i++)
+    {
+        if(read(fd, &lc, sizeof(struct load_command)) != sizeof(struct load_command))
+            error("unable to read load_command");
+        if(lc.cmd == LC_SEGMENT)
+        {
+            offset_to_segment = j;
+            lseek(fd, offset_to_segment, SEEK_SET);
+            segment = malloc(sizeof(struct segment_command));
+            if(read(fd, segment, sizeof(struct segment_command)) != sizeof(struct segment_command))
+                error("unable to read LC_SEGMENT");
+        }
+        if(lc.cmd == LC_DYSYMTAB)
+        {
+            offset_to_dysymtab = j;
+            lseek(fd, offset_to_dysymtab, SEEK_SET);
+            dysymtabcmd = malloc(sizeof(struct dysymtab_command));
+            if(read(fd, dysymtabcmd, sizeof(struct dysymtab_command)) != sizeof(struct dysymtab_command))
+                error("unable to read LC_DYSYMTAB");
+        }
+        if(lc.cmd == LC_SYMTAB)
+        {
+            offset_to_symtab = j;
+            lseek(fd, offset_to_symtab, SEEK_SET);
+            symtabcmd = malloc(sizeof(struct symtab_command));
+            if(read(fd, symtabcmd, sizeof(struct symtab_command)) != sizeof(struct symtab_command))
+                error("unable to read LC_SYMTAB");
+        }
+        j+=lc.cmdsize;
+
+        lseek(fd, j, SEEK_SET);
+    }
+
+    if(!segment)
+        error("unable to find LC_SEGMENT");
+
+    /* read section headers */
+    section_hdr = load_data(fd, offset_to_segment + sizeof(struct segment_command), segment->nsects * sizeof(struct section));
+
+    /* read all section data */
+    sdata = (uint8_t **)malloc(sizeof(void *) * segment->nsects);
+    memset(sdata, 0, sizeof(void *) * segment->nsects);
+    
+	/* Load the data in section data */
+	for(i = 0; i < segment->nsects; i++) {
+        sdata[i] = load_data(fd, section_hdr[i].offset, section_hdr[i].size);
+    }
+	
+    /* text section */
+	text_sec_hdr = find_mach_sec_hdr(section_hdr, segment->nsects, SEG_TEXT, SECT_TEXT);
+	i = find_mach_sec_index(section_hdr, segment->nsects, SEG_TEXT, SECT_TEXT);
+	if (i == -1 || !text_sec_hdr)
+        error("could not find __TEXT,__text section");
+    text = sdata[i];
+	
+    /* Make sure dysym was loaded */
+    if(!(int)dysymtabcmd)
+        error("could not find __DYSYMTAB segment");
+    
+    /* read the table of content of the indirect sym */
+    tocdylib = load_data( fd, dysymtabcmd->indirectsymoff, dysymtabcmd->nindirectsyms * sizeof(uint32_t) );
+    
+    /* Make sure symtab was loaded  */
+    if(!(int)symtabcmd)
+        error("could not find __SYMTAB segment");
+    nb_syms = symtabcmd->nsyms;
+
+    symtab_std = load_data(fd, symtabcmd->symoff, symtabcmd->nsyms * sizeof(struct nlist));
+    strtab = load_data(fd, symtabcmd->stroff, symtabcmd->strsize);
+	
+	symtab = malloc(sizeof(EXE_SYM) * nb_syms);
+	
+	/* Now transform the symtab, to an extended version, with the sym size, and the C name */
+	for(i = 0, sym = symtab, syment = symtab_std; i < nb_syms; i++, sym++, syment++) {
+        const char *name;
+        struct nlist *sym_follow, *sym_next = 0;
+        unsigned int j;
+        name = find_str_by_index(sym->n_un.n_strx);
+		memset(sym, 0, sizeof(*sym));
+		
+		if ( sym->n_type & N_STAB ) /* Debug symbols are skipped */
+            continue;
+			
+		memcpy(sym, syment, sizeof(*syment));
+			
+		/* Find the following symbol in order to get the current symbol size */
+        for(j = 0, sym_follow = symtab_std; j < nb_syms; j++, sym_follow++) {
+            if ( sym_follow->n_sect != 1 || sym_follow->n_type & N_STAB || !(sym_follow->n_value > sym->st_value))
+                continue;
+            if(!sym_next) {
+                sym_next = sym_follow;
+                continue;
+            }
+            if(!(sym_next->n_value > sym_follow->n_value))
+                continue;
+            sym_next = sym_follow;
+        }
+		if(sym_next)
+            sym->st_size = sym_next->n_value - sym->st_value;
+		else
+            sym->st_size = text_sec_hdr->size - sym->st_value;
+	}
+	
+    /* Find Reloc */
+    relocs = load_data(fd, text_sec_hdr->reloff, text_sec_hdr->nreloc * sizeof(struct relocation_info));
+    nb_relocs = text_sec_hdr->nreloc;
+
+	close(fd);
+	return 0;
+}
+
+#endif /* CONFIG_FORMAT_MACH */
 
 #ifdef HOST_ARM
 
@@ -415,7 +1386,7 @@ int arm_emit_ldr_info(const char *name, unsigned long start_offset,
                     relname[0] = '\0';
                     for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                         if (rel->r_offset == (pc_offset + start_offset)) {
-                            sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                            sym_name = get_rel_sym_name(rel);
                             /* the compiler leave some unnecessary references to the code */
                             if (strstart(sym_name, "__op_param", &p)) {
                                 snprintf(relname, sizeof(relname), "param%s", p);
@@ -457,48 +1428,13 @@ int arm_emit_ldr_info(const char *name, unsigned long start_offset,
 }
 #endif
 
-static void do_print_code(FILE *outfile, const char *name, const uint8_t *code_p, int code_size)
-{
-  int i;
-  fprintf(outfile, "    static const uint8 %s[] = {", name);
-  for (i = 0; i < code_size; i++) {
-    if ((i % 12) == 0) {
-      if (i != 0)
-        fprintf(outfile, ",");
-      fprintf(outfile, "\n       ");
-    }
-    else
-      fprintf(outfile, ", ");
-    fprintf(outfile, "0x%02x", code_p[i]);
-  }
-  fprintf(outfile, "\n    };\n");
-}
-
-static void print_code(FILE *outfile, const char *name, const uint8_t *code_p, int code_size)
-{
-  char *code_name;
-  code_name = alloca(strlen(name) + 5);
-  strcpy(code_name, name);
-  strcat(code_name, "_code");
-  do_print_code(outfile, code_name, code_p, code_size);
-}
-
-static char *gen_dot_prefix(const char *sym_name)
-{
-  static char name[256];
-  assert(sym_name[0] == '.');
-  snprintf(name, sizeof(name), "dg_dot_%s", sym_name + 1);
-  return name;
-}
-
 
 #define MAX_ARGS 3
 
 /* generate op code */
 void gen_code(const char *name, const char *demangled_name,
               host_ulong offset, host_ulong size, 
-              FILE *outfile, uint8_t *text, ELF_RELOC *relocs, int nb_relocs,
-              int gen_switch, const char *prefix)
+              FILE *outfile, int gen_switch, const char *prefix)
 {
     int copy_size = 0;
     uint8_t *p_start, *p_end;
@@ -506,7 +1442,7 @@ void gen_code(const char *name, const char *demangled_name,
     int nb_args, i, n;
     uint8_t args_present[MAX_ARGS];
     const char *sym_name, *p;
-    ELF_RELOC *rel;
+    EXE_RELOC *rel;
     int op_execute = 0;
 
     if (strncmp(name, "op_execute", 10) == 0)
@@ -523,133 +1459,141 @@ void gen_code(const char *name, const char *demangled_name,
     if (op_execute)
       copy_size = p_end - p_start;
     else
-    switch(ELF_ARCH) {
-    case EM_386:
-	case EM_X86_64:
-        {
-            int len;
-            len = p_end - p_start;
-            if (len == 0)
-                error("empty code for %s", name);
-            if (p_end[-1] == 0xc3) {
-                len--;
-            } else {
+#if defined(HOST_I386) || defined(HOST_AMD64)
+#ifdef CONFIG_FORMAT_COFF
+    {
+        uint8_t *p;
+        p = p_end - 1;
+        if (p == p_start)
+            error("empty code for %s", name);
+        while (*p != 0xc3) {
+            p--;
+            if (p <= p_start)
                 error("ret or jmp expected at the end of %s", name);
-            }
-            copy_size = len;
         }
-        break;
-    case EM_PPC:
-        {
-            uint8_t *p;
-            p = (void *)(p_end - 4);
-            if (p == p_start)
-                error("empty code for %s", name);
-            if (get32((uint32_t *)p) != 0x4e800020)
-                error("blr expected at the end of %s", name);
-            copy_size = p - p_start;
+        copy_size = p - p_start;
+    }
+#else
+    {
+        int len;
+        len = p_end - p_start;
+        if (len == 0)
+            error("empty code for %s", name);
+        if (p_end[-1] == 0xc3) {
+            len--;
+        } else {
+            error("ret or jmp expected at the end of %s", name);
         }
-        break;
-    case EM_S390:
-	{
-	    uint8_t *p;
-	    p = (void *)(p_end - 2);
-	    if (p == p_start)
-		error("empty code for %s", name);
-	    if (get16((uint16_t *)p) != 0x07fe && get16((uint16_t *)p) != 0x07f4)
-		error("br %%r14 expected at the end of %s", name);
-	    copy_size = p - p_start;
-	}
-        break;
-    case EM_ALPHA:
-        {
-	    uint8_t *p;
-	    p = p_end - 4;
-	    if (p == p_start)
-		error("empty code for %s", name);
-            if (get32((uint32_t *)p) != 0x6bfa8001)
-		error("ret expected at the end of %s", name);
-	    copy_size = p - p_start;	    
-	}
-	break;
-    case EM_IA_64:
-	{
-            uint8_t *p;
-            p = (void *)(p_end - 4);
-            if (p == p_start)
-                error("empty code for %s", name);
-	    /* br.ret.sptk.many b0;; */
-	    /* 08 00 84 00 */
-            if (get32((uint32_t *)p) != 0x00840008)
-                error("br.ret.sptk.many b0;; expected at the end of %s", name);
-            copy_size = p - p_start;
-	}
-        break;
-    case EM_SPARC:
-    case EM_SPARC32PLUS:
-	{
-	    uint32_t start_insn, end_insn1, end_insn2;
-            uint8_t *p;
-            p = (void *)(p_end - 8);
-            if (p <= p_start)
-                error("empty code for %s", name);
-	    start_insn = get32((uint32_t *)(p_start + 0x0));
-	    end_insn1 = get32((uint32_t *)(p + 0x0));
-	    end_insn2 = get32((uint32_t *)(p + 0x4));
-	    if ((start_insn & ~0x1fff) == 0x9de3a000) {
-		p_start += 0x4;
-		start_offset += 0x4;
-		if ((int)(start_insn | ~0x1fff) < -128)
-		    error("Found bogus save at the start of %s", name);
-		if (end_insn1 != 0x81c7e008 || end_insn2 != 0x81e80000)
-		    error("ret; restore; not found at end of %s", name);
-	    } else {
-		error("No save at the beginning of %s", name);
-	    }
+        copy_size = len;
+    }
+#endif    
+#elif defined(HOST_PPC)
+    {
+        uint8_t *p;
+        p = (void *)(p_end - 4);
+        if (p == p_start)
+            error("empty code for %s", name);
+        if (get32((uint32_t *)p) != 0x4e800020)
+            error("blr expected at the end of %s", name);
+        copy_size = p - p_start;
+    }
+#elif defined(HOST_S390)
+    {
+        uint8_t *p;
+        p = (void *)(p_end - 2);
+        if (p == p_start)
+            error("empty code for %s", name);
+        if (get16((uint16_t *)p) != 0x07fe && get16((uint16_t *)p) != 0x07f4)
+            error("br %%r14 expected at the end of %s", name);
+        copy_size = p - p_start;
+    }
+#elif defined(HOST_ALPHA)
+    {
+        uint8_t *p;
+        p = p_end - 4;
 #if 0
-	    /* Skip a preceeding nop, if present.  */
-	    if (p > p_start) {
-		skip_insn = get32((uint32_t *)(p - 0x4));
-		if (skip_insn == 0x01000000)
-		    p -= 4;
-	    }
+        /* XXX: check why it occurs */
+        if (p == p_start)
+            error("empty code for %s", name);
 #endif
-            copy_size = p - p_start;
-	}
-	break;
-    case EM_SPARCV9:
-	{
-	    uint32_t start_insn, end_insn1, end_insn2, skip_insn;
-            uint8_t *p;
-            p = (void *)(p_end - 8);
-            if (p <= p_start)
-                error("empty code for %s", name);
-	    start_insn = get32((uint32_t *)(p_start + 0x0));
-	    end_insn1 = get32((uint32_t *)(p + 0x0));
-	    end_insn2 = get32((uint32_t *)(p + 0x4));
-	    if ((start_insn & ~0x1fff) == 0x9de3a000) {
-		p_start += 0x4;
-		start_offset += 0x4;
-		if ((int)(start_insn | ~0x1fff) < -256)
-		    error("Found bogus save at the start of %s", name);
-		if (end_insn1 != 0x81c7e008 || end_insn2 != 0x81e80000)
-		    error("ret; restore; not found at end of %s", name);
-	    } else {
-		error("No save at the beginning of %s", name);
-	    }
-
-	    /* Skip a preceeding nop, if present.  */
-	    if (p > p_start) {
-		skip_insn = get32((uint32_t *)(p - 0x4));
-		if (skip_insn == 0x01000000)
-		    p -= 4;
-	    }
-
-            copy_size = p - p_start;
-	}
-	break;
-#ifdef HOST_ARM
-    case EM_ARM:
+        if (get32((uint32_t *)p) != 0x6bfa8001)
+            error("ret expected at the end of %s", name);
+        copy_size = p - p_start;	    
+    }
+#elif defined(HOST_IA64)
+    {
+        uint8_t *p;
+        p = (void *)(p_end - 4);
+        if (p == p_start)
+            error("empty code for %s", name);
+        /* br.ret.sptk.many b0;; */
+        /* 08 00 84 00 */
+        if (get32((uint32_t *)p) != 0x00840008)
+            error("br.ret.sptk.many b0;; expected at the end of %s", name);
+        copy_size = p - p_start;
+    }
+#elif defined(HOST_SPARC)
+    {
+        uint32_t start_insn, end_insn1, end_insn2;
+        uint8_t *p;
+        p = (void *)(p_end - 8);
+        if (p <= p_start)
+            error("empty code for %s", name);
+        start_insn = get32((uint32_t *)(p_start + 0x0));
+        end_insn1 = get32((uint32_t *)(p + 0x0));
+        end_insn2 = get32((uint32_t *)(p + 0x4));
+        if ((start_insn & ~0x1fff) == 0x9de3a000) {
+            p_start += 0x4;
+            start_offset += 0x4;
+            if ((int)(start_insn | ~0x1fff) < -128)
+                error("Found bogus save at the start of %s", name);
+            if (end_insn1 != 0x81c7e008 || end_insn2 != 0x81e80000)
+                error("ret; restore; not found at end of %s", name);
+        } else {
+            error("No save at the beginning of %s", name);
+        }
+#if 0
+        /* Skip a preceeding nop, if present.  */
+        if (p > p_start) {
+            skip_insn = get32((uint32_t *)(p - 0x4));
+            if (skip_insn == 0x01000000)
+                p -= 4;
+        }
+#endif
+        copy_size = p - p_start;
+    }
+#elif defined(HOST_SPARC64)
+    {
+        uint32_t start_insn, end_insn1, end_insn2, skip_insn;
+        uint8_t *p;
+        p = (void *)(p_end - 8);
+        if (p <= p_start)
+            error("empty code for %s", name);
+        start_insn = get32((uint32_t *)(p_start + 0x0));
+        end_insn1 = get32((uint32_t *)(p + 0x0));
+        end_insn2 = get32((uint32_t *)(p + 0x4));
+        if ((start_insn & ~0x1fff) == 0x9de3a000) {
+            p_start += 0x4;
+            start_offset += 0x4;
+            if ((int)(start_insn | ~0x1fff) < -256)
+                error("Found bogus save at the start of %s", name);
+            if (end_insn1 != 0x81c7e008 || end_insn2 != 0x81e80000)
+                error("ret; restore; not found at end of %s", name);
+        } else {
+            error("No save at the beginning of %s", name);
+        }
+        
+        /* Skip a preceeding nop, if present.  */
+        if (p > p_start) {
+            skip_insn = get32((uint32_t *)(p - 0x4));
+            if (skip_insn == 0x01000000)
+                p -= 4;
+        }
+        
+        copy_size = p - p_start;
+    }
+#elif defined(HOST_ARM)
+    {
         if ((p_end - p_start) <= 16)
             error("%s: function too small", name);
         if (get32((uint32_t *)p_start) != 0xe1a0c00d ||
@@ -660,20 +1604,36 @@ void gen_code(const char *name, const char *demangled_name,
         start_offset += 12;
         copy_size = arm_emit_ldr_info(name, start_offset, NULL, p_start, p_end, 
                                       relocs, nb_relocs);
-        break;
-#endif
-    default:
-	error("unknown ELF architecture");
     }
+#elif defined(HOST_M68K)
+    {
+        uint8_t *p;
+        p = (void *)(p_end - 2);
+        if (p == p_start)
+            error("empty code for %s", name);
+        // remove NOP's, probably added for alignment
+        while ((get16((uint16_t *)p) == 0x4e71) &&
+               (p>p_start)) 
+            p -= 2;
+        if (get16((uint16_t *)p) != 0x4e75)
+            error("rts expected at the end of %s", name);
+        copy_size = p - p_start;
+    }
+#else
+#error unsupported CPU
+#endif
 
     /* compute the number of arguments by looking at the relocations */
     for(i = 0;i < MAX_ARGS; i++)
         args_present[i] = 0;
 
     for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
-        if (rel->r_offset >= start_offset &&
-	    rel->r_offset < start_offset + (p_end - p_start)) {
-            sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+        host_ulong offset = get_rel_offset(rel);
+        if (offset >= start_offset &&
+	    offset < start_offset + (p_end - p_start)) {
+            sym_name = get_rel_sym_name(rel);
+            if(!sym_name)
+                continue;
             if (strstart(sym_name, "__op_param", &p)) {
                 n = strtoul(p, NULL, 10);
                 if (n > MAX_ARGS)
@@ -714,15 +1674,18 @@ void gen_code(const char *name, const char *demangled_name,
         print_code(outfile, name, p_start + start_offset - offset, copy_size);
 
         for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
-            if (rel->r_offset >= start_offset &&
-                rel->r_offset < start_offset + (p_end - p_start)) {
-              sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
-              if (*sym_name && 
-                  !strstart(sym_name, "__op_param", NULL) &&
-                  !strstart(sym_name, "__op_cpuparam", NULL) &&
-                  !strstart(sym_name, "__op_jmp", NULL) &&
-                  !strstart(sym_name, ".LC", NULL))
-                error("unexpected external symbol %s", sym_name);
+            host_ulong offset = get_rel_offset(rel);
+            if (offset >= start_offset &&
+                offset < start_offset + (p_end - p_start)) {
+                sym_name = get_rel_sym_name(rel);
+                if(!sym_name)
+                    continue;
+                if (*sym_name && 
+                    !strstart(sym_name, "__op_param", NULL) &&
+                    !strstart(sym_name, "__op_cpuparam", NULL) &&
+                    !strstart(sym_name, "__op_jmp", NULL) &&
+                    !strstart(sym_name, ".LC", NULL))
+                  error("unexpected external symbol %s", sym_name);
             }
         }
 
@@ -730,24 +1693,41 @@ void gen_code(const char *name, const char *demangled_name,
 
         /* emit code offset information */
         {
-            ElfW(Sym) *sym;
+            EXE_SYM *sym;
             const char *sym_name, *p;
-            uint32_t val; // FIXME: emulated CPU dependant?!
+            unsigned long val;
             int n;
 
             for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
-                sym_name = strtab + sym->st_name;
+                sym_name = get_sym_name(sym);
                 if (strstart(sym_name, "__op_label", &p)) {
                     uint8_t *ptr;
                     unsigned long offset;
                     
                     /* test if the variable refers to a label inside
                        the code we are generating */
+#ifdef CONFIG_FORMAT_COFF
+                    if (sym->st_shndx == text_shndx) {
+                        ptr = sdata[coff_text_shndx];
+                    } else if (sym->st_shndx == data_shndx) {
+                        ptr = sdata[coff_data_shndx];
+                    } else {
+                        ptr = NULL;
+                    }
+#elif defined(CONFIG_FORMAT_MACH)
+                    if(!sym->n_sect)
+                        continue;
+                    ptr = sdata[sym->n_sect-1];
+#else
                     ptr = sdata[sym->st_shndx];
+#endif
                     if (!ptr)
                         error("__op_labelN in invalid section");
                     offset = sym->st_value;
-                    val = *(uint32_t *)(ptr + offset);
+#ifdef CONFIG_FORMAT_MACH
+                    offset -= section_hdr[sym->n_sect-1].addr;
+#endif
+                    val = *(unsigned long *)(ptr + offset);
 #ifdef ELF_USES_RELOCA
                     {
                         int reloc_shndx, nb_relocs1, j;
@@ -786,19 +1766,19 @@ void gen_code(const char *name, const char *demangled_name,
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                 if (rel->r_offset >= start_offset &&
 		    rel->r_offset < start_offset + copy_size) {
-                    sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                    sym_name = get_rel_sym_name(rel);
                     if (strstart(sym_name, "__op_jmp", &p)) {
-                      int n;
-                      n = strtol(p, NULL, 10);
-                      /* __op_jmp relocations are done at
-                         runtime to do translated block
-                         chaining: the offset of the instruction
-                         needs to be stored */
-                      fprintf(outfile, "    jmp_addr[%d] = code_ptr() + %d;\n",
-                              n, rel->r_offset - start_offset);
-                      continue;
+                        int n;
+                        n = strtol(p, NULL, 10);
+                        /* __op_jmp relocations are done at
+                           runtime to do translated block
+                           chaining: the offset of the instruction
+                           needs to be stored */
+                        fprintf(outfile, "    jmp_offsets[%d] = %d + (code_ptr() - gen_code_buf);\n",
+                                n, rel->r_offset - start_offset);
+                        continue;
                     }
-
+                        
                     if (strstart(sym_name, "__op_param", &p)) {
                         snprintf(name, sizeof(name), "param%s", p);
                     } else if (strstart(sym_name, "__op_cpuparam", &p)) {
@@ -806,8 +1786,9 @@ void gen_code(const char *name, const char *demangled_name,
                     } else {
                         snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
                     }
-                    type = ELF32_R_TYPE(rel->r_info);
                     addend = get32((uint32_t *)(text + rel->r_offset));
+#ifdef CONFIG_FORMAT_ELF
+                    type = ELF32_R_TYPE(rel->r_info);
                     switch(type) {
                     case R_386_32:
                         fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = %s + %d;\n", 
@@ -820,6 +1801,36 @@ void gen_code(const char *name, const char *demangled_name,
                     default:
                         error("unsupported i386 relocation (%d)", type);
                     }
+#elif defined(CONFIG_FORMAT_COFF)
+                    {
+                        char *temp_name;
+                        int j;
+                        EXE_SYM *sym;
+                        temp_name = get_sym_name(symtab + *(uint32_t *)(rel->r_reloc->r_symndx));
+                        if (!strcmp(temp_name, ".data")) {
+                            for (j = 0, sym = symtab; j < nb_syms; j++, sym++) {
+                                if (strstart(sym->st_name, sym_name, NULL)) {
+                                    addend -= sym->st_value;
+                                }
+                            }
+                        }
+                    }
+                    type = rel->r_type;
+                    switch(type) {
+                    case DIR32:
+                        fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = %s + %d;\n", 
+                                rel->r_offset - start_offset, name, addend);
+                        break;
+                    case DISP32:
+                        fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = %s - (long)(code_ptr() + %d) + %d -4;\n", 
+                                rel->r_offset - start_offset, name, rel->r_offset - start_offset, addend);
+                        break;
+                    default:
+                        error("unsupported i386 relocation (%d)", type);
+                    }
+#else
+#error unsupport object format
+#endif
                 }
                 }
             }
@@ -849,7 +1860,7 @@ void gen_code(const char *name, const char *demangled_name,
                     else if (strstart(sym_name, ".LC", NULL))
                         snprintf(name, sizeof(name), "(long)(%s)", gen_dot_prefix(sym_name));
                     else
-                        snprintf(name, sizeof(name), "(long)(&%s)", sym_name[0]);
+                        snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
                     type = ELF32_R_TYPE(rel->r_info);
                     addend = rel->r_addend;
                     switch(type) {
@@ -858,15 +1869,15 @@ void gen_code(const char *name, const char *demangled_name,
                                 rel->r_offset - start_offset, name, addend);
                       break;
                     case R_X86_64_32:
-                        fprintf(outfile, "    *(uint32 *)(code_ptr() + %d) = (uint32)%s + %d;\n", 
+                        fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = (uint32_t)%s + %d;\n", 
                                 rel->r_offset - start_offset, name, addend);
                         break;
                     case R_X86_64_32S:
-                        fprintf(outfile, "    *(uint32 *)(code_ptr() + %d) = (int32)%s + %d;\n", 
+                        fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = (int32_t)%s + %d;\n", 
                                 rel->r_offset - start_offset, name, addend);
                         break;
                     case R_X86_64_PC32:
-                        fprintf(outfile, "    *(uint32 *)(code_ptr() + %d) = %s - (long)(code_ptr() + %d) + %d;\n", 
+                        fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = %s - (long)(code_ptr() + %d) + %d;\n", 
                                 rel->r_offset - start_offset, name, rel->r_offset - start_offset, addend);
                         break;
                     default:
@@ -877,6 +1888,7 @@ void gen_code(const char *name, const char *demangled_name,
             }
 #elif defined(HOST_PPC)
             {
+#ifdef CONFIG_FORMAT_ELF
                 char name[256];
                 int type;
                 int addend;
@@ -930,6 +1942,94 @@ void gen_code(const char *name, const char *demangled_name,
                         }
                     }
                 }
+#elif defined(CONFIG_FORMAT_MACH)
+				struct scattered_relocation_info *scarel;
+				struct relocation_info * rel;
+				char final_sym_name[256];
+				const char *sym_name;
+				const char *p;
+				int slide, sslide;
+				int i;
+	
+				for(i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
+					unsigned int offset, length, value = 0;
+					unsigned int type, pcrel, isym = 0;
+					unsigned int usesym = 0;
+				
+					if(R_SCATTERED & rel->r_address) {
+						scarel = (struct scattered_relocation_info*)rel;
+						offset = (unsigned int)scarel->r_address;
+						length = scarel->r_length;
+						pcrel = scarel->r_pcrel;
+						type = scarel->r_type;
+						value = scarel->r_value;
+					} else {
+						value = isym = rel->r_symbolnum;
+						usesym = (rel->r_extern);
+						offset = rel->r_address;
+						length = rel->r_length;
+						pcrel = rel->r_pcrel;
+						type = rel->r_type;
+					}
+				
+					slide = offset - start_offset;
+		
+					if (!(offset >= start_offset && offset < start_offset + size)) 
+						continue;  /* not in our range */
+
+					sym_name = get_reloc_name(rel, &sslide);
+					
+					if(usesym && symtab[isym].n_type & N_STAB)
+						continue; /* don't handle STAB (debug sym) */
+					
+					if (sym_name && strstart(sym_name, "__op_jmp", &p)) {
+						int n;
+						n = strtol(p, NULL, 10);
+						fprintf(outfile, "    jmp_offsets[%d] = %d + (code_ptr() - gen_code_buf);\n",
+							n, slide);
+						continue; /* Nothing more to do */
+					}
+					
+					if(!sym_name)
+					{
+						fprintf(outfile, "/* #warning relocation not handled in %s (value 0x%x, %s, offset 0x%x, length 0x%x, %s, type 0x%x) */\n",
+						           name, value, usesym ? "use sym" : "don't use sym", offset, length, pcrel ? "pcrel":"", type);
+						continue; /* dunno how to handle without final_sym_name */
+					}
+													   
+					if (strstart(sym_name, "__op_param", &p)) {
+						snprintf(final_sym_name, sizeof(final_sym_name), "param%s", p);
+					} else {
+						snprintf(final_sym_name, sizeof(final_sym_name), "(long)(&%s)", sym_name);
+					}
+			
+					switch(type) {
+					case PPC_RELOC_BR24:
+						fprintf(outfile, "{\n");
+						fprintf(outfile, "    uint32_t imm = *(uint32_t *)(code_ptr() + %d) & 0x3fffffc;\n", slide);
+						fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = (*(uint32_t *)(code_ptr() + %d) & ~0x03fffffc) | ((imm + ((long)%s - (long)code_ptr()) + %d) & 0x03fffffc);\n", 
+											slide, slide, name, sslide );
+						fprintf(outfile, "}\n");
+						break;
+					case PPC_RELOC_HI16:
+						fprintf(outfile, "    *(uint16_t *)(code_ptr() + %d + 2) = (%s + %d) >> 16;\n", 
+							slide, final_sym_name, sslide);
+						break;
+					case PPC_RELOC_LO16:
+						fprintf(outfile, "    *(uint16_t *)(code_ptr() + %d + 2) = (%s + %d);\n", 
+					slide, final_sym_name, sslide);
+                            break;
+					case PPC_RELOC_HA16:
+						fprintf(outfile, "    *(uint16_t *)(code_ptr() + %d + 2) = (%s + %d + 0x8000) >> 16;\n", 
+							slide, final_sym_name, sslide);
+						break;
+				default:
+					error("unsupported powerpc relocation (%d)", type);
+				}
+			}
+#else
+#error unsupport object format
+#endif
             }
 #elif defined(HOST_S390)
             {
@@ -1208,242 +2308,118 @@ void gen_code(const char *name, const char *demangled_name,
                 }
                 }
             }
+#elif defined(HOST_M68K)
+            {
+                char name[256];
+                int type;
+                int addend;
+		Elf32_Sym *sym;
+                for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
+                if (rel->r_offset >= start_offset &&
+		    rel->r_offset < start_offset + copy_size) {
+		    sym = &(symtab[ELFW(R_SYM)(rel->r_info)]);
+                    sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                    if (strstart(sym_name, "__op_param", &p)) {
+                        snprintf(name, sizeof(name), "param%s", p);
+                    } else {
+                        snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
+                    }
+                    type = ELF32_R_TYPE(rel->r_info);
+                    addend = get32((uint32_t *)(text + rel->r_offset)) + rel->r_addend;
+                    switch(type) {
+                    case R_68K_32:
+		        fprintf(outfile, "    /* R_68K_32 RELOC, offset %x */\n", rel->r_offset) ;
+                        fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = %s + %#x;\n", 
+                                rel->r_offset - start_offset, name, addend );
+                        break;
+                    case R_68K_PC32:
+		        fprintf(outfile, "    /* R_68K_PC32 RELOC, offset %x */\n", rel->r_offset);
+                        fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = %s - (long)(code_ptr() + %#x) + %#x;\n", 
+                                rel->r_offset - start_offset, name, rel->r_offset - start_offset, /*sym->st_value+*/ addend);
+                        break;
+                    default:
+                        error("unsupported m68k relocation (%d)", type);
+                    }
+                }
+                }
+            }
 #else
 #error unsupported CPU
 #endif
             fprintf(outfile, "    inc_code_ptr(%d);\n", copy_size);
-            fprintf(outfile, "}\n");
+        fprintf(outfile, "}\n");
             fprintf(outfile, "#endif\n");
             fprintf(outfile, "\n");
     }
 }
 
-/* load an elf object file */
-int load_elf(const char *filename, FILE *outfile, int out_type)
+int gen_file(FILE *outfile, int out_type)
 {
-    int fd;
-    elf_shdr *sec, *symtab_sec, *strtab_sec, *text_sec;
-    int i, j;
-    ElfW(Sym) *sym;
-    char *shstr;
-    uint8_t *text;
-    ELF_RELOC *relocs;
-    int nb_relocs;
-    ELF_RELOC *rel;
-    elf_shdr *data_sec;
-    uint8_t *data;
-    int data_shndx;
-    elf_shdr *rodata_cst4_sec;
-    uint8_t *rodata_cst4 = NULL;
-    int rodata_cst4_shndx;
-	elf_shdr *rodata_cst8_sec;
-	uint8_t *rodata_cst8 = NULL;
-	int rodata_cst8_shndx;
-    elf_shdr *rodata_cst16_sec;
-    uint8_t *rodata_cst16 = NULL;
-    int rodata_cst16_shndx;
-    
-    fd = open(filename, O_RDONLY);
-    if (fd < 0) 
-        error("can't open file '%s'", filename);
-    
-    /* Read ELF header.  */
-    if (read(fd, &ehdr, sizeof (ehdr)) != sizeof (ehdr))
-        error("unable to read file header");
-
-    /* Check ELF identification.  */
-    if (ehdr.e_ident[EI_MAG0] != ELFMAG0
-     || ehdr.e_ident[EI_MAG1] != ELFMAG1
-     || ehdr.e_ident[EI_MAG2] != ELFMAG2
-     || ehdr.e_ident[EI_MAG3] != ELFMAG3
-     || ehdr.e_ident[EI_VERSION] != EV_CURRENT) {
-        error("bad ELF header");
-    }
-
-    do_swap = elf_must_swap(&ehdr);
-    if (do_swap)
-        elf_swap_ehdr(&ehdr);
-    if (ehdr.e_ident[EI_CLASS] != ELF_CLASS)
-        error("Unsupported ELF class");
-    if (ehdr.e_type != ET_REL)
-        error("ELF object file expected");
-    if (ehdr.e_version != EV_CURRENT)
-        error("Invalid ELF version");
-    if (!elf_check_arch(ehdr.e_machine))
-        error("Unsupported CPU (e_machine=%d)", ehdr.e_machine);
-
-    /* read section headers */
-    shdr = load_data(fd, ehdr.e_shoff, ehdr.e_shnum * sizeof(elf_shdr));
-    if (do_swap) {
-        for(i = 0; i < ehdr.e_shnum; i++) {
-            elf_swap_shdr(&shdr[i]);
-        }
-    }
-
-    /* read all section data */
-    sdata = malloc(sizeof(void *) * ehdr.e_shnum);
-    memset(sdata, 0, sizeof(void *) * ehdr.e_shnum);
-    
-    for(i = 0;i < ehdr.e_shnum; i++) {
-        sec = &shdr[i];
-        if (sec->sh_type != SHT_NOBITS)
-            sdata[i] = load_data(fd, sec->sh_offset, sec->sh_size);
-    }
-
-    sec = &shdr[ehdr.e_shstrndx];
-    shstr = sdata[ehdr.e_shstrndx];
-
-    /* swap relocations */
-    for(i = 0; i < ehdr.e_shnum; i++) {
-        sec = &shdr[i];
-        if (sec->sh_type == SHT_RELOC) {
-            nb_relocs = sec->sh_size / sec->sh_entsize;
-            if (do_swap) {
-                for(j = 0, rel = (ELF_RELOC *)sdata[i]; j < nb_relocs; j++, rel++)
-                    elf_swap_rel(rel);
-            }
-        }
-    }
-
-    /* data section */
-    data_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".data");
-    if (!data_sec)
-      error("could not find .data section");
-    data_shndx = data_sec - shdr;
-    data = sdata[data_shndx];
-
-    /* rodata sections */
-    rodata_cst4_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".rodata.cst4");
-    if (rodata_cst4_sec) {
-      rodata_cst4_shndx = rodata_cst4_sec - shdr;
-      rodata_cst4 = sdata[rodata_cst4_shndx];
-    }
-    rodata_cst8_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".rodata.cst8");
-    if (rodata_cst8_sec) {
-      rodata_cst8_shndx = rodata_cst8_sec - shdr;
-      rodata_cst8 = sdata[rodata_cst8_shndx];
-    }
-    rodata_cst16_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".rodata.cst16");
-    if (rodata_cst16_sec) {
-      rodata_cst16_shndx = rodata_cst16_sec - shdr;
-      rodata_cst16 = sdata[rodata_cst16_shndx];
-    }
-
-    /* text section */
-    text_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".text");
-    if (!text_sec)
-        error("could not find .text section");
-    text_shndx = text_sec - shdr;
-    text = sdata[text_shndx];
-
-    /* find text relocations, if any */
-    relocs = NULL;
-    nb_relocs = 0;
-    i = find_reloc(text_shndx);
-    if (i != 0) {
-        relocs = (ELF_RELOC *)sdata[i];
-        nb_relocs = shdr[i].sh_size / shdr[i].sh_entsize;
-    }
-
-    symtab_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".symtab");
-    if (!symtab_sec)
-        error("could not find .symtab section");
-    strtab_sec = &shdr[symtab_sec->sh_link];
-
-    symtab = (ElfW(Sym) *)sdata[symtab_sec - shdr];
-    strtab = sdata[symtab_sec->sh_link];
-    
-    nb_syms = symtab_sec->sh_size / sizeof(ElfW(Sym));
-    if (do_swap) {
-        for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
-            swab32s(&sym->st_name);
-            swabls(&sym->st_value);
-            swabls(&sym->st_size);
-            swab16s(&sym->st_shndx);
-        }
-    }
+    int i;
+    EXE_SYM *sym;
 
     assert(out_type == OUT_GEN_OP_ALL);
     if (out_type == OUT_GEN_OP_ALL) {
-        /* generate gen_xxx functions */
         int status;
         size_t nf, nd = 256;
         char *demangled_name, *func_name;
         if ((demangled_name = malloc(nd)) == NULL)
-          return -1;
+            return -1;
         if ((func_name = malloc(nf = nd)) == NULL)
-          return -1;
+            return -1;
 
-        fprintf(outfile, "#ifndef DEFINE_CST\n");
-        fprintf(outfile, "#define DEFINE_CST(NAME, VALUE)\n");
-        fprintf(outfile, "#endif\n");
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             const char *name;
-            name = strtab + sym->st_name;
+            name = get_sym_name(sym);
             if (strstart(name, OP_PREFIX "execute", NULL)) {
                 strcpy(func_name, name);
-                if (sym->st_shndx != (text_sec - shdr))
-                  error("invalid section for opcode (0x%x)", sym->st_shndx);
-                gen_code(func_name, NULL, sym->st_value, sym->st_size, outfile, 
-                         text, relocs, nb_relocs, 3, NULL);
+#if defined(CONFIG_FORMAT_ELF) || defined(CONFIG_FORMAT_COFF)
+                if (sym->st_shndx != text_shndx)
+                    error("invalid section for opcode (0x%x)", sym->st_shndx);
+#endif
+                gen_code(func_name, NULL, sym->st_value, sym->st_size, outfile, 3, NULL);
             }
             else if (strstart(name, OP_PREFIX "exec_return_offset", NULL)) {
                 host_ulong *long_p;
-                if (sym->st_shndx != (data_sec - shdr))
-                  error("invalid section for data (0x%x)", sym->st_shndx);
+#if defined(CONFIG_FORMAT_ELF) || defined(CONFIG_FORMAT_COFF)
+                if (sym->st_shndx != data_shndx)
+                    error("invalid section for data (0x%x)", sym->st_shndx);
+#endif
                 fprintf(outfile, "DEFINE_CST(%s,0x%xL)\n\n", name, *((host_ulong *)(data + sym->st_value)));
             }
             else if (strstart(name, OP_PREFIX "invoke", NULL)) {
                 const char *prefix = "helper_";
                 strcpy(func_name, prefix);
                 strcat(func_name, name);
-                if (sym->st_shndx != (text_sec - shdr))
+#if defined(CONFIG_FORMAT_ELF) || defined(CONFIG_FORMAT_COFF)
+                if (sym->st_shndx != text_shndx)
                     error("invalid section for opcode (0x%x)", sym->st_shndx);
-                gen_code(func_name, NULL, sym->st_value, sym->st_size, outfile, 
-                         text, relocs, nb_relocs, 3, prefix);
-            }
-            /* emit local symbols */
-            else if (strstart(name, ".LC", NULL)) {
-              if (sym->st_shndx == (rodata_cst16_sec - shdr)) {
-                fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
-                do_print_code(outfile, gen_dot_prefix(name), rodata_cst16 + sym->st_value, 16);
-                fprintf(outfile, "#endif\n");
-              }
-              else if (sym->st_shndx == (rodata_cst8_sec - shdr)) {
-                fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
-                do_print_code(outfile, gen_dot_prefix(name), rodata_cst8 + sym->st_value, 8);
-                fprintf(outfile, "#endif\n");
-              }
-              else if (sym->st_shndx == (rodata_cst4_sec - shdr)) {
-                fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
-                do_print_code(outfile, gen_dot_prefix(name), rodata_cst4 + sym->st_value, 4);
-                fprintf(outfile, "#endif\n");
-              }
-              else
-                error("invalid section for local data %s (%x)\n", name, sym->st_shndx);
+#endif
+                gen_code(func_name, NULL, sym->st_value, sym->st_size, outfile, 3, prefix);
             }
             else {
-              /* demangle C++ symbols */
-              demangled_name = cxx_demangle(name, demangled_name, &nd, &status);
-              if (status == 0 && strstart(demangled_name, OP_PREFIX, NULL)) {
-                /* get real function name */
-                char *p = strchr(demangled_name, '(');
-                if (p && !strstart(p, "()::label", NULL)) {
-                  int func_name_length = p - demangled_name;
-                  if (nd > nf) {
-                    nf = nd;
-                    if ((func_name = realloc(func_name, nf)) == NULL)
-                      return -1;
-                  }
-                  strncpy(func_name, demangled_name, func_name_length);
-                  func_name[func_name_length] = '\0';
-                  /* emit code generator */
-                  if (sym->st_shndx != (text_sec - shdr))
-                    error("invalid section for opcode (%s:0x%x)", name, sym->st_shndx);
-                  gen_code(func_name, demangled_name, sym->st_value, sym->st_size, outfile, 
-                           text, relocs, nb_relocs, 3, NULL);
+                /* demangle C++ symbols */
+                demangled_name = cxx_demangle(name, demangled_name, &nd, &status);
+                if (status == 0 && strstart(demangled_name, OP_PREFIX, NULL)) {
+                    /* get real function name */
+                    char *p = strchr(demangled_name, '(');
+                    if (p && !strstart(p, "()::label", NULL)) {
+                        int func_name_length = p - demangled_name;
+                        if (nd > nf) {
+                            nf = nd;
+                            if ((func_name = realloc(func_name, nf)) == NULL)
+                                return -1;
+                        }
+                        strncpy(func_name, demangled_name, func_name_length);
+                        func_name[func_name_length] = '\0';
+                        /* emit code generator */
+#if defined(CONFIG_FORMAT_ELF) || defined(CONFIG_FORMAT_COFF)
+                        if (sym->st_shndx != text_shndx)
+                            error("invalid section for opcode (%s:0x%x)", name, sym->st_shndx);
+#endif
+                        gen_code(func_name, demangled_name, sym->st_value, sym->st_size, outfile, 3, NULL);
+                    }
                 }
-              }
             }
         }
         fprintf(outfile, "#undef DEFINE_CST\n");
@@ -1453,7 +2429,6 @@ int load_elf(const char *filename, FILE *outfile, int out_type)
         free(demangled_name);
     }
 
-    close(fd);
     return 0;
 }
 
@@ -1493,7 +2468,9 @@ int main(int argc, char **argv)
     outfile = fopen(outfilename, "w");
     if (!outfile)
         error("could not open '%s'", outfilename);
-    load_elf(filename, outfile, out_type);
+
+    load_object(filename, outfile);
+    gen_file(outfile, out_type);
     fclose(outfile);
     return 0;
 }
