@@ -1034,6 +1034,20 @@ int main(int argc, char **argv)
 		kernel_data->v[0xf64 >> 2] = htonl(CPUClockSpeed);			// clock-frequency
 		kernel_data->v[0xf68 >> 2] = htonl(BusClockSpeed);			// bus-frequency
 		kernel_data->v[0xf6c >> 2] = htonl(TimebaseSpeed);			// timebase-frequency
+	} else if (ROMType == ROMTYPE_GOSSAMER) {
+		kernel_data->v[0xc80 >> 2] = htonl(RAMSize);
+		kernel_data->v[0xc84 >> 2] = htonl(RAMSize);
+		kernel_data->v[0xc90 >> 2] = htonl(RAMSize);
+		kernel_data->v[0xc94 >> 2] = htonl(RAMSize);
+		kernel_data->v[0xc98 >> 2] = htonl(0x00010020);
+		kernel_data->v[0xc9c >> 2] = htonl(0x00200001);
+		kernel_data->v[0xca0 >> 2] = htonl(0x00010000);
+		kernel_data->v[0xcb0 >> 2] = htonl(RAMBase);
+		kernel_data->v[0xcb4 >> 2] = htonl(RAMSize);
+		kernel_data->v[0xf60 >> 2] = htonl(PVR);
+		kernel_data->v[0xf64 >> 2] = htonl(CPUClockSpeed);			// clock-frequency
+		kernel_data->v[0xf68 >> 2] = htonl(BusClockSpeed);			// bus-frequency
+		kernel_data->v[0xf6c >> 2] = htonl(TimebaseSpeed);			// timebase-frequency
 	} else {
 		kernel_data->v[0xc80 >> 2] = htonl(RAMSize);
 		kernel_data->v[0xc84 >> 2] = htonl(RAMSize);
