@@ -561,7 +561,7 @@ int main(int argc, char **argv)
 		ErrorAlert(str);
 		goto quit;
 	}
-#if !EMULATED_PPC || defined(__powerpc__)
+#if !EMULATED_PPC
 	if (vm_protect((char *)ROM_BASE, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
 		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
@@ -1627,8 +1627,8 @@ static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 				transfer_type = TYPE_STORE; transfer_size = SIZE_HALFWORD; addr_mode = MODE_U; break;
 #if EMULATE_UNALIGNED_LOADSTORE_MULTIPLE
 			case 46:	// lmw
-				if (sig == SIGBUS) {
-					uint32 ea = (ra == 0 ? 0 : r->gpr(ra)) + imm;
+				if ((addr % 4) != 0) {
+					uint32 ea = addr;
 					D(bug("WARNING: unaligned lmw to EA=%08x from IP=%08x\n", ea, r->pc()));
 					for (int i = rd; i <= 31; i++) {
 						r->gpr(i) = ReadMacInt32(ea);
@@ -1639,8 +1639,8 @@ static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 				}
 				break;
 			case 47:	// stmw
-				if (sig == SIGBUS) {
-					uint32 ea = (ra == 0 ? 0 : r->gpr(ra)) + imm;
+				if ((addr % 4) != 0) {
+					uint32 ea = addr;
 					D(bug("WARNING: unaligned stmw to EA=%08x from IP=%08x\n", ea, r->pc()));
 					for (int i = rd; i <= 31; i++) {
 						WriteMacInt32(ea, r->gpr(i));
