@@ -25,7 +25,6 @@
 
 #include <SDL.h>
 #include <SDL_mutex.h>
-#include <SDL_thread.h>
 
 #include "sysdeps.h"
 #include "main.h"
@@ -55,6 +54,7 @@
 #include "vm_alloc.h"
 #include "sigsegv.h"
 #include "thunks.h"
+#include "util_windows.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -99,11 +99,11 @@ static EmulatorData *emulator_data;
 static uint8 last_xpram[XPRAM_SIZE];		// Buffer for monitoring XPRAM changes
 static bool nvram_thread_active = false;	// Flag: NVRAM watchdog installed
 static volatile bool nvram_thread_cancel;	// Flag: Cancel NVRAM thread
-static SDL_Thread *nvram_thread = NULL;		// NVRAM watchdog
+static HANDLE nvram_thread = NULL;			// NVRAM watchdog
 static bool tick_thread_active = false;		// Flag: MacOS thread installed
 static volatile bool tick_thread_cancel;	// Flag: Cancel 60Hz thread
-static SDL_Thread *tick_thread = NULL;		// 60Hz thread
-static SDL_Thread *emul_thread = NULL;		// MacOS thread
+static HANDLE tick_thread = NULL;			// 60Hz thread
+static HANDLE emul_thread = NULL;			// MacOS thread
 static uintptr sig_stack = 0;				// Stack for PowerPC interrupt routine
 
 uint32  SheepMem::page_size;				// Size of a native page
@@ -117,8 +117,8 @@ uintptr SheepMem::data;						// Top of SheepShaver data (stack like storage)
 static bool kernel_data_init(void);
 static void kernel_data_exit(void);
 static void Quit(void);
-static int nvram_func(void *arg);
-static int tick_func(void *arg);
+static DWORD WINAPI nvram_func(void *arg);
+static DWORD WINAPI tick_func(void *arg);
 
 static void jump_to_rom(uint32 entry);
 extern void emul_ppc(uint32 start);
@@ -547,16 +547,19 @@ int main(int argc, char **argv)
 
 	// Start 60Hz thread
 	tick_thread_cancel = false;
-	tick_thread_active = ((tick_thread = SDL_CreateThread(tick_func, NULL)) != NULL);
+	tick_thread_active = ((tick_thread = create_thread(tick_func)) != NULL);
+	SetThreadPriority(tick_thread, THREAD_PRIORITY_ABOVE_NORMAL);
 	D(bug("Tick thread installed (%ld)\n", tick_thread));
 
 	// Start NVRAM watchdog thread
 	memcpy(last_xpram, XPRAM, XPRAM_SIZE);
 	nvram_thread_cancel = false;
-	nvram_thread_active = ((nvram_thread = SDL_CreateThread(nvram_func, NULL)) != NULL);
+	nvram_thread_active = ((nvram_thread = create_thread(nvram_func, NULL)) != NULL);
+	SetThreadPriority(nvram_thread, THREAD_PRIORITY_BELOW_NORMAL);
 	D(bug("NVRAM thread installed (%ld)\n", nvram_thread));
 
-	// Jump to ROM boot routine
+	// Get my thread ID and jump to ROM boot routine
+	emul_thread = GetCurrentThread();
 	D(bug("Jumping to ROM\n"));
 	jump_to_rom(ROM_BASE + 0x310000);
 	D(bug("Returned from ROM\n"));
@@ -579,13 +582,13 @@ static void Quit(void)
 	// Stop 60Hz thread
 	if (tick_thread_active) {
 		tick_thread_cancel = true;
-		SDL_WaitThread(tick_thread, NULL);
+		wait_thread(tick_thread);
 	}
 
 	// Stop NVRAM watchdog thread
 	if (nvram_thread_active) {
 		nvram_thread_cancel = true;
-		SDL_WaitThread(nvram_thread, NULL);
+		wait_thread(nvram_thread);
 	}
 
 	// Save NVRAM
@@ -747,12 +750,12 @@ void QuitEmulator(void)
 
 void PauseEmulator(void)
 {
-	// TODO: implement pause/resume
+	SuspendThread(emul_thread);
 }
 
 void ResumeEmulator(void)
 {
-	// TODO: implement pause/resume
+	ResumeThread(emul_thread);
 }
 
 
@@ -815,7 +818,7 @@ static void nvram_watchdog(void)
 	}
 }
 
-static int nvram_func(void *arg)
+static DWORD nvram_func(void *arg)
 {
 	while (!nvram_thread_cancel) {
 		for (int i=0; i<60 && !nvram_thread_cancel; i++)
@@ -830,7 +833,7 @@ static int nvram_func(void *arg)
  *  60Hz thread (really 60.15Hz)
  */
 
-static int tick_func(void *arg)
+static DWORD tick_func(void *arg)
 {
 	int tick_counter = 0;
 	uint64 start = GetTicks_usec();
