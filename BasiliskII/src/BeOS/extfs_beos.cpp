@@ -369,7 +369,7 @@ void close_rfork(const char *path, int fd)
 
 /*
  *  Read "length" bytes from file to "buffer",
- *  returns number of bytes read (or 0)
+ *  returns number of bytes read (or -1 on error)
  */
 
 static inline ssize_t sread(int fd, void *buf, size_t count)
@@ -379,42 +379,38 @@ static inline ssize_t sread(int fd, void *buf, size_t count)
 	return res;
 }
 
-size_t extfs_read(int fd, void *buffer, size_t length)
+ssize_t extfs_read(int fd, void *buffer, size_t length)
 {
-	errno = 0;
-
 	// Buffer in kernel space?
-	size_t actual = 0;
 	if ((uint32)buffer < 0x80000000) {
 
 		// Yes, transfer via buffer
+		ssize_t actual = 0;
 		while (length) {
 			size_t transfer_size = (length > TMP_BUF_SIZE) ? TMP_BUF_SIZE : length;
 			ssize_t res = sread(fd, tmp_buf, transfer_size);
-			if (res >= 0) {
-				memcpy(buffer, tmp_buf, res);
-				buffer = (void *)((uint8 *)buffer + res);
-				length -= res;
-				actual += res;
-			}
+			if (res < 0)
+				return res;
+			memcpy(buffer, tmp_buf, res);
+			buffer = (void *)((uint8 *)buffer + res);
+			length -= res;
+			actual += res;
 			if (res != transfer_size)
 				return actual;
 		}
+		return actual;
 
 	} else {
 
 		// No, transfer directly
-		actual = sread(fd, buffer, length);
-		if (actual < 0)
-			actual = 0;
+		return sread(fd, buffer, length);
 	}
-	return actual;
 }
 
 
 /*
  *  Write "length" bytes from "buffer" to file,
- *  returns number of bytes written (or 0)
+ *  returns number of bytes written (or -1 on error)
  */
 
 static inline ssize_t swrite(int fd, void *buf, size_t count)
@@ -424,36 +420,32 @@ static inline ssize_t swrite(int fd, void *buf, size_t count)
 	return res;
 }
 
-size_t extfs_write(int fd, void *buffer, size_t length)
+ssize_t extfs_write(int fd, void *buffer, size_t length)
 {
-	errno = 0;
-
 	// Buffer in kernel space?
-	size_t actual = 0;
 	if ((uint32)buffer < 0x80000000) {
 
 		// Yes, transfer via buffer
+		ssize_t actual = 0;
 		while (length) {
 			size_t transfer_size = (length > TMP_BUF_SIZE) ? TMP_BUF_SIZE : length;
 			memcpy(tmp_buf, buffer, transfer_size);
 			ssize_t res = swrite(fd, tmp_buf, transfer_size);
-			if (res >= 0) {
-				buffer = (void *)((uint8 *)buffer + res);
-				length -= res;
-				actual += res;
-			}
+			if (res < 0)
+				return res;
+			buffer = (void *)((uint8 *)buffer + res);
+			length -= res;
+			actual += res;
 			if (res != transfer_size)
 				return actual;
 		}
+		return actual;
 
 	} else {
 
 		// No, transfer directly
-		actual = swrite(fd, buffer, length);
-		if (actual < 0)
-			actual = 0;
+		return swrite(fd, buffer, length);
 	}
-	return actual;
 }
 
 

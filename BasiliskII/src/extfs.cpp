@@ -223,6 +223,23 @@ static void get_path_for_fsitem(FSItem *p)
 
 
 /*
+ *  Exchange parent CNIDs in all FSItems
+ */
+
+static void swap_parent_ids(uint32 parent1, uint32 parent2)
+{
+	FSItem *p = first_fs_item;
+	while (p) {
+		if (p->parent_id == parent1)
+			p->parent_id = parent2;
+		else if (p->parent_id == parent2)
+			p->parent_id = parent1;
+		p = p->next;
+	}
+}
+
+
+/*
  *  String handling functions
  */
 
@@ -1778,15 +1795,15 @@ static int16 fs_read(uint32 pb)
 	}
 
 	// Read
-	size_t actual = extfs_read(fd, Mac2HostAddr(ReadMacInt32(pb + ioBuffer)), ReadMacInt32(pb + ioReqCount));
+	ssize_t actual = extfs_read(fd, Mac2HostAddr(ReadMacInt32(pb + ioBuffer)), ReadMacInt32(pb + ioReqCount));
 	int16 read_err = errno2oserr();
 	D(bug("  actual %d\n", actual));
-	WriteMacInt32(pb + ioActCount, actual);
+	WriteMacInt32(pb + ioActCount, actual >= 0 ? actual : 0);
 	uint32 pos = lseek(fd, 0, SEEK_CUR);
 	WriteMacInt32(fcb + fcbCrPs, pos);
 	WriteMacInt32(pb + ioPosOffset, pos);
 	if (actual != ReadMacInt32(pb + ioReqCount))
-		return read_err ? read_err : eofErr;
+		return actual < 0 ? read_err : eofErr;
 	else
 		return noErr;
 }
@@ -1827,10 +1844,10 @@ static int16 fs_write(uint32 pb)
 	}
 
 	// Write
-	size_t actual = extfs_write(fd, Mac2HostAddr(ReadMacInt32(pb + ioBuffer)), ReadMacInt32(pb + ioReqCount));
+	ssize_t actual = extfs_write(fd, Mac2HostAddr(ReadMacInt32(pb + ioBuffer)), ReadMacInt32(pb + ioReqCount));
 	int16 write_err = errno2oserr();
 	D(bug("  actual %d\n", actual));
-	WriteMacInt32(pb + ioActCount, actual);
+	WriteMacInt32(pb + ioActCount, actual >= 0 ? actual : 0);
 	uint32 pos = lseek(fd, 0, SEEK_CUR);
 	WriteMacInt32(fcb + fcbCrPs, pos);
 	WriteMacInt32(pb + ioPosOffset, pos);
@@ -1940,6 +1957,7 @@ static int16 fs_rename(uint32 pb, uint32 dirID)
 		return errno2oserr();
 	else {
 		// The ID of the old file/dir has to stay the same, so we swap the IDs of the FSItems
+		swap_parent_ids(fs_item->id, new_item->id);
 		uint32 t = fs_item->id;
 		fs_item->id = new_item->id;
 		new_item->id = t;
@@ -1985,6 +2003,7 @@ static int16 fs_cat_move(uint32 pb)
 		// The ID of the old file/dir has to stay the same, so we swap the IDs of the FSItems
 		FSItem *new_item = find_fsitem(fs_item->name, new_dir_item);
 		if (new_item) {
+			swap_parent_ids(fs_item->id, new_item->id);
 			uint32 t = fs_item->id;
 			fs_item->id = new_item->id;
 			new_item->id = t;

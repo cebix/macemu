@@ -40,8 +40,8 @@ extern void set_finder_flags(const char *path, uint16 flags);
 extern uint32 get_rfork_size(const char *path);
 extern int open_rfork(const char *path, int flag);
 extern void close_rfork(const char *path, int fd);
-extern size_t extfs_read(int fd, void *buffer, size_t length);
-extern size_t extfs_write(int fd, void *buffer, size_t length);
+extern ssize_t extfs_read(int fd, void *buffer, size_t length);
+extern ssize_t extfs_write(int fd, void *buffer, size_t length);
 extern bool extfs_remove(const char *path);
 extern bool extfs_rename(const char *old_path, const char *new_path);
 

@@ -343,24 +343,22 @@ void close_rfork(const char *path, int fd)
 
 /*
  *  Read "length" bytes from file to "buffer",
- *  returns number of bytes read (or 0)
+ *  returns number of bytes read (or -1 on error)
  */
 
-size_t extfs_read(int fd, void *buffer, size_t length)
+ssize_t extfs_read(int fd, void *buffer, size_t length)
 {
-	errno = 0;
 	return read(fd, buffer, length);
 }
 
 
 /*
  *  Write "length" bytes from "buffer" to file,
- *  returns number of bytes written (or 0)
+ *  returns number of bytes written (or -1 on error)
  */
 
-size_t extfs_write(int fd, void *buffer, size_t length)
+ssize_t extfs_write(int fd, void *buffer, size_t length)
 {
-	errno = 0;
 	return write(fd, buffer, length);
 }
 
