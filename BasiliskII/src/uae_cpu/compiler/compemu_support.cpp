@@ -103,7 +103,7 @@ static bool		lazy_flush			= true;		// Flag: lazy translation cache invalidation
 static bool		avoid_fpu			= true;		// Flag: compile FPU instructions ?
 static bool		have_cmov			= false;	// target has CMOV instructions ?
 static bool		have_rat_stall		= true;		// target has partial register stalls ?
-static bool		tune_alignment		= false;	// Tune code alignments for running CPU ?
+static bool		tune_alignment		= true;		// Tune code alignments for running CPU ?
 static int		align_loops			= 32;		// Align the start of loops
 static int		align_jumps			= 32;		// Align the start of jumps
 static int		zero_fd				= -1;
@@ -5699,17 +5699,13 @@ void build_comp(void)
 		prop[opcode].cflow = fl_trap; // ILLEGAL instructions do trap
 	}
 	
-#define IS_CONST_JUMP(opc) \
-		(	((table68k[opc].mnemo == i_Bcc) && (table68k[opc].cc < 2)) \
-		||	(table68k[opc].mnemo == i_BSR) \
-		)
-	
 	for (i = 0; tbl[i].opcode < 65536; i++) {
 		int cflow = table68k[tbl[i].opcode].cflow;
-		if (USE_INLINING && IS_CONST_JUMP(tbl[i].opcode))
-			prop[cft_map(tbl[i].opcode)].cflow = fl_const_jump;
+		if (USE_INLINING && ((cflow & fl_const_jump) != 0))
+			cflow = fl_const_jump;
 		else
-			prop[cft_map(tbl[i].opcode)].cflow = cflow;
+			cflow &= ~fl_const_jump;
+		prop[cft_map(tbl[i].opcode)].cflow = cflow;
 
 		int uses_fpu = tbl[i].specific & 32;
 		if (uses_fpu && avoid_fpu)
@@ -5717,8 +5713,6 @@ void build_comp(void)
 		else
 			compfunctbl[cft_map(tbl[i].opcode)] = tbl[i].handler;
 	}
-
-#undef IS_CONST_JUMP
 
     for (i = 0; nftbl[i].opcode < 65536; i++) {
 		int uses_fpu = tbl[i].specific & 32;

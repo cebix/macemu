@@ -786,6 +786,11 @@ void read_table68k (void)
 		||	(table68k[opc].mnemo == i_BSR) \
 		)
 
+		// Precise const jumps as such. The JIT compiler will take
+		// care to actually enable that optimization or not
+		if (IS_CONST_JUMP(i))
+			table68k[i].cflow |= fl_const_jump;
+
 		// Fix flags used information for Scc, Bcc, TRAPcc, DBcc instructions
 		int flags_used = table68k[i].flaglive;
 		if	(	(mnemo == i_Scc)
