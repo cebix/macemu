@@ -96,6 +96,7 @@ uint32 NativeOpcode(int selector)
 struct native_op_t {
 	uint32 tvect;
 	uint32 func;
+	SheepRoutineDescriptor *desc;
 };
 static native_op_t native_op[NATIVE_OP_MAX];
 
@@ -148,7 +149,26 @@ bool ThunksInit(void)
 	DEFINE_NATIVE_OP(NATIVE_MAKE_EXECUTABLE, MakeExecutable);
 #undef DEFINE_NATIVE_OP
 #endif
+
+	// Initialize routine descriptors
+	for (int i = 0; i < NATIVE_OP_MAX; i++)
+		native_op[i].desc = new SheepRoutineDescriptor(0, NativeTVECT(i));
+
 	return true;
+}
+
+
+/*
+ *  Delete generated thunks
+ */
+
+void ThunksExit(void)
+{
+	for (int i = 0; i < NATIVE_OP_MAX; i++) {
+		SheepRoutineDescriptor *desc = native_op[i].desc;
+		if (desc)
+			delete desc;
+	}
 }
 
 
@@ -179,12 +199,24 @@ uint32 NativeFunction(int selector)
 
 
 /*
+ *  Return the routine descriptor address of the native function
+ */
+
+uint32 NativeRoutineDescriptor(int selector)
+{
+	assert(selector < NATIVE_OP_MAX);
+	SheepRoutineDescriptor * const desc = native_op[selector].desc;
+	assert(desc != 0);
+	return desc->addr();
+}
+
+
+/*
  *  Execute native code from EMUL_OP routine (real mode switch)
  */
 
 void ExecuteNative(int selector)
 {
-	SheepRoutineDescriptor desc(0, NativeTVECT(selector));
 	M68kRegisters r;
-	Execute68k(desc.addr(), &r);
+	Execute68k(NativeRoutineDescriptor(selector), &r);
 }

@@ -60,6 +60,9 @@ enum {
 // Initialize the thunks system
 extern bool ThunksInit(void);
 
+// Exit the thunks system
+extern void ThunksExit(void);
+
 // Return the fake PowerPC opcode to handle specified native code
 #if EMULATED_PPC
 extern uint32 NativeOpcode(int selector);
@@ -70,6 +73,9 @@ extern uint32 NativeTVECT(int selector);
 
 // Return the native function address
 extern uint32 NativeFunction(int selector);
+
+// Return the routine descriptor address of the native function
+extern uint32 NativeRoutineDescriptor(int selector);
 
 
 /*
@@ -82,7 +88,7 @@ protected:
 	static uintptr zero_page;
 	static uintptr base;
 	static uintptr top;
-	static const uint32 size = 0x40000;
+	static const uint32 size = 0x40000; // 256 KB
 public:
 	static bool Init(void);
 	static void Exit(void);

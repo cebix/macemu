@@ -676,6 +676,9 @@ void SheepShaver::Quit(void)
 	DiskExit();
 	SonyExit();
 
+	// Delete thunks
+	ThunksExit();
+
 	// Delete SheepShaver globals
 	SheepMem::Exit();
 

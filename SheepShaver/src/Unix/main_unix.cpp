@@ -869,6 +869,9 @@ static void Quit(void)
 	DiskExit();
 	SonyExit();
 
+	// Delete thunks
+	ThunksExit();
+
 	// Delete SheepShaver globals
 	SheepMem::Exit();
 
