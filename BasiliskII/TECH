@@ -38,35 +38,54 @@ compatibility and speed of this approach are very high.
 
 Basilisk II is designed to run on many different hardware platforms and on
 many different operating systems. To provide optimal performance under all
-environments, it can run in three different modes, depending on the features
-of the underlying environment (the modes are selected with the REAL_ADDRESSING
-and EMULATED_68K defines in "sysdeps.h"):
+environments, it can run in four different modes, depending on the features
+of the underlying environment (the modes are selected with the REAL_ADDRESSING,
+DIRECT_ADDRESSING and EMULATED_68K defines in "sysdeps.h"):
 
 1. Emulated CPU, "virtual" addressing (EMULATED_68K = 1, REAL_ADDRESSING = 0):
    This mode is designed for non-68k or little-endian systems or systems that
-   don't allow accessing RAM at 0x0000..0x1fff. This is also the only mode that
-   allows 24-bit addressing, and thus the only mode that allows Mac Classic
-   emulation. The 68k processor is emulated with the UAE CPU engine and two
-   memory areas are allocated for Mac RAM and ROM. The memory map seen by the
-   emulated CPU and the host CPU are different. Mac RAM starts at address 0
-   for the emulated 68k, but it may start at a different address for the host
-   CPU. All memory accesses of the CPU emulation go through memory access
-   functions (do_get_mem_long() etc.) that translate addresses. This slows
-   down the emulator, of course.
+   don't allow accessing RAM at 0x0000..0x1fff. This is also the only mode
+   that allows 24-bit addressing, and thus the only mode that allows Mac
+   Classic emulation. The 68k processor is emulated with the UAE CPU engine
+   and two memory areas are allocated for Mac RAM and ROM. The memory map
+   seen by the emulated CPU and the host CPU are different. Mac RAM starts at
+   address 0 for the emulated 68k, but it may start at a different address for
+   the host CPU.
 
-2. Emulated CPU, "real" addressing (EMULATED_68K = 1, REAL_ADDRESSING = 1):
-   This mode is intended for big-endian non-68k systems that do allow access to
-   RAM at 0x0000..0x1fff. As in the virtual addressing mode, the 68k processor
-   is emulated with the UAE CPU engine and two areas are set up for RAM and ROM
-   but the emulated CPU lives in the same address space as the host CPU.
-   This means that if something is located at a certain address for the 68k,
-   it is located at the exact same address for the host CPU. Mac addresses
-   and host addresses are the same. The memory accesses of the CPU emulation
-   still go through access functions but the address translation is no longer
-   needed, and if the host CPU uses big-endian data layout and can handle
-   unaligned accesses like the 68k, the memory access functions are replaced
-   by direct, inlined memory accesses, making for the fastest possible speed
-   of the emulator.
+   In order to handle the particularities of each memory area (RAM, ROM and
+   Frame Buffer), the address space of the emulated 68k is broken down into
+   banks. Each bank is associated with a series of pointers to specific
+   memory access functions that carry out the necessary operations (e.g.
+   byte-swapping, catching illegal writes to memory). A generic memory access
+   function, get_long() for example, goes through the table of memory banks
+   (mem_banks) and fetches the appropriate specific memory access fonction,
+   lget() in our example. This slows down the emulator, of course.
+
+2. Emulated CPU, "direct" addressing (EMULATED_68K = 1, DIRECT_ADDRESSING = 1):
+   As in the virtual addressing mode, the 68k processor is emulated with the
+   UAE CPU engine and two memory areas are set up for RAM and ROM. Mac RAM
+   starts at address 0 for the emulated 68k, but it may start at a different
+   address for the host CPU. Besides, the virtual memory areas seen by the
+   emulated 68k are separated by exactly the same amount of bytes as the
+   corresponding memory areas allocated on the host CPU. This means that
+   address translation simply implies the addition of a constant offset
+   (MEMBaseDiff). Therefore, the memory banks are no longer used and the
+   memory access functions are replaced by inline memory accesses.
+
+3. Emulated CPU, "real" addressing (EMULATED_68K = 1, REAL_ADDRESSING = 1):
+   This mode is intended for non-68k systems that do allow access to RAM
+   at 0x0000..0x1fff. As in the virtual addressing mode, the 68k processor
+   is emulated with the UAE CPU engine and two areas are allocated for RAM
+   and ROM but the emulated CPU lives in the same address space as the host
+   CPU. This means that if something is located at a certain address for
+   the 68k, it is located at the exact same address for the host CPU. Mac
+   addresses and host addresses are the same. The memory accesses of the CPU
+   emulation still go through access functions but the address translation
+   is no longer needed. The memory access functions are replaced by direct,
+   inlined memory accesses, making for the fastest possible speed of the
+   emulator. On little-endian systems, byte-swapping is still required, of
+   course.
+
    A usual consequence of the real addressing mode is that the Mac RAM doesn't
    any longer begin at address 0 for the Mac and that the Mac ROM also is not
    located where it usually is on a real Mac. But as the Mac ROM is relocatable
@@ -85,8 +104,11 @@ and EMULATED_68K defines in "sysdeps.h"):
    other systems, it might be possible to use access exception handlers to
    emulate accesses to this area. But if the Low Memory Globals area cannot
    be made available, using the real addressing mode is not possible.
+   
+   Note: currently, real addressing mode is known to work only on AmigaOS,
+   NetBSD/m68k, and Linux/i386.
 
-3. Native CPU (EMULATED_68K = 0, this also requires REAL_ADDRESSING = 1)
+4. Native CPU (EMULATED_68K = 0, this also requires REAL_ADDRESSING = 1)
    This mode is designed for systems that use a 68k (68020 or better) processor
    as host CPU and is the technically most difficult mode to handle. The Mac
    CPU is no longer emulated (the UAE CPU emulation is not needed) but MacOS
