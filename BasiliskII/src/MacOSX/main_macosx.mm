@@ -483,25 +483,6 @@ void ClearInterruptFlag(uint32 flag)
  *  Display error alert
  */
 
-//#import <Foundation/NSString.h>
-#import <AppKit/NSPanel.h>
-
-extern "C"
-{
-	int NSRunAlertPanel				(NSString *title, NSString *msg,
-									 NSString *defaultButton,
-									 NSString *alternateButton,
-									 NSString *otherButton, ...);
-	int NSRunInformationalAlertPanel(NSString *title, NSString *msg,
-									 NSString *defaultButton,
-									 NSString *alternateButton,
-									 NSString *otherButton, ...);
-	int NSRunCriticalAlertPanel		(NSString *title, NSString *msg,
-									 NSString *defaultButton,
-									 NSString *alternateButton,
-									 NSString *otherButton, ...);
-}
-
 void ErrorAlert(const char *text)
 {
 	NSString *title  = [NSString stringWithCString:
