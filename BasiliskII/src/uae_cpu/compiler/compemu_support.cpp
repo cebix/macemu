@@ -130,6 +130,7 @@ static bool		have_cmov			= false;	// target has CMOV instructions ?
 static bool		have_rat_stall		= true;		// target has partial register stalls ?
 const bool		tune_alignment		= true;		// Tune code alignments for running CPU ?
 const bool		tune_nop_fillers	= true;		// Tune no-op fillers for architecture
+static bool		setzflg_uses_bsf	= false;	// setzflg virtual instruction can use native BSF instruction correctly?
 static int		align_loops			= 32;		// Align the start of loops
 static int		align_jumps			= 32;		// Align the start of jumps
 static int		zero_fd				= -1;
@@ -2670,16 +2671,23 @@ MIDFUNC(3,cmov_l_rm,(RW4 d, IMM s, IMM cc))
 }
 MENDFUNC(3,cmov_l_rm,(RW4 d, IMM s, IMM cc))
 
-MIDFUNC(2,bsf_l_rr,(W4 d, R4 s))
+MIDFUNC(1,setzflg_l,(RW4 r))
 {
-    CLOBBER_BSF;
-    s=readreg(s,4);
-    d=writereg(d,4);
-    raw_bsf_l_rr(d,s);
-    unlock2(s);
-    unlock2(d);
+	if (setzflg_uses_bsf) {
+		CLOBBER_BSF;
+		r=rmw(r,4,4);
+		raw_bsf_l_rr(r,r);
+		unlock2(r);
+	}
+	else {
+		/* Errr, not implemented yet in a generic way. And actually,
+		   that should not be generated for now, if BSF doesn't
+		   preserve flags but ZF.  */
+		write_log("attempt to make unsupported setzflg()\n");
+		abort();
+	}
 }
-MENDFUNC(2,bsf_l_rr,(W4 d, R4 s))
+MENDFUNC(1,setzflg_l,(RW4 r))
 
 MIDFUNC(2,imul_32_32,(RW4 d, R4 s))
 {
@@ -4664,6 +4672,7 @@ void compiler_init(void)
 	
 	// Initialize target CPU (check for features, e.g. CMOV, rat stalls)
 	raw_init_cpu();
+	setzflg_uses_bsf = target_check_bsf();
 	write_log("<JIT compiler> : target processor has CMOV instructions : %s\n", have_cmov ? "yes" : "no");
 	write_log("<JIT compiler> : target processor can suffer from partial register stalls : %s\n", have_rat_stall ? "yes" : "no");
 	write_log("<JIT compiler> : alignment for loops, jumps are %d, %d\n", align_loops, align_jumps);
@@ -5747,7 +5756,8 @@ void build_comp(void)
 		prop[cft_map(tbl[i].opcode)].cflow = cflow;
 
 		int uses_fpu = tbl[i].specific & 32;
-		if (uses_fpu && avoid_fpu)
+		int uses_setzflg = tbl[i].specific & 64;
+		if ((uses_fpu && avoid_fpu) || (uses_setzflg && !setzflg_uses_bsf))
 			compfunctbl[cft_map(tbl[i].opcode)] = NULL;
 		else
 			compfunctbl[cft_map(tbl[i].opcode)] = tbl[i].handler;
@@ -5755,7 +5765,8 @@ void build_comp(void)
 
     for (i = 0; nftbl[i].opcode < 65536; i++) {
 		int uses_fpu = tbl[i].specific & 32;
-		if (uses_fpu && avoid_fpu)
+		int uses_setzflg = tbl[i].specific & 64;
+		if ((uses_fpu && avoid_fpu) || (uses_setzflg && !setzflg_uses_bsf))
 			nfcompfunctbl[cft_map(nftbl[i].opcode)] = NULL;
 		else
 			nfcompfunctbl[cft_map(nftbl[i].opcode)] = nftbl[i].handler;

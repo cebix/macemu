@@ -41,6 +41,7 @@
 #define uses_cmov		global_cmov=1
 #define mayfail			global_mayfail=1
 #define uses_fpu		global_fpu=1
+#define uses_setzflg	global_setzflg=1
 
 int hack_opcode;
 
@@ -52,6 +53,7 @@ static int global_cmov;
 static int long_opcode;
 static int global_mayfail;
 static int global_fpu;
+static int global_setzflg;
 
 static char endstr[1000];
 static char lines[100000];
@@ -1086,6 +1088,7 @@ genflags (flagtypes type, wordsizes size, char *value, char *src, char *dst)
       
      case flag_addx:
      case flag_subx:
+	uses_setzflg;
 	uses_cmov;
 	comprintf("\tdont_care_flags();\n");
 	{
@@ -1122,7 +1125,7 @@ genflags (flagtypes type, wordsizes size, char *value, char *src, char *dst)
 	    }
 	    comprintf("\tif (needed_flags&FLAG_Z) {\n"
 		      "\tcmov_l_rr(zero,one,5);\n"
-		      "\tbsf_l_rr(zero,zero);\n"
+		      "\tsetzflg_l(zero);\n"
 		      "\t}\n");
 	    comprintf("\tlive_flags();\n");
 	    comprintf("\tend_needflags();\n");
@@ -1381,14 +1384,16 @@ gen_opcode (unsigned long int opcode)
 	     case i_BTST: op="bt"; need_write=0; break;
 	    }
 	    comprintf("\t%s_l_rr(dst,s);\n"  /* Answer now in C */
-		      "\tsbb_l(s,s);\n" /* s is 0 if bit was 0, 
-					   -1 otherwise */
-		      "\tmake_flags_live();\n" /* Get the flags back */
-		      "\tdont_care_flags();\n" 
-		      "\tstart_needflags();\n"
-		      "\tbsf_l_rr(s,s);\n"
-		      "\tlive_flags();\n"
-		      "\tend_needflags();\n",op);
+				  "\tsbb_l(s,s);\n" /* s is 0 if bit was 0, -1 otherwise */
+				  "\tmake_flags_live();\n" /* Get the flags back */
+				  "\tdont_care_flags();\n",op);
+		if (!noflags) {
+		  uses_setzflg;
+		  comprintf("\tstart_needflags();\n"
+					"\tsetzflg_l(s);\n"
+					"\tlive_flags();\n"
+					"\tend_needflags();\n");
+		}
 	    if (need_write) 
 		genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
 	}
@@ -2941,6 +2946,7 @@ generate_one_opcode (int rp, int noflags)
 	if (global_isaddx)	flags|=8;
 	if (global_iscjump)	flags|=16;
 	if (global_fpu)		flags|=32;
+	if (global_setzflg)	flags|=64;
 	
 	comprintf ("}\n");
     

@@ -2691,6 +2691,32 @@ raw_init_cpu(void)
 			x86_processor_string_table[c->x86_processor]);
 }
 
+static bool target_check_bsf(void)
+{
+	bool mismatch = false;
+	for (int g_ZF = 0; g_ZF <= 1; g_ZF++) {
+	for (int g_CF = 0; g_CF <= 1; g_CF++) {
+	for (int g_OF = 0; g_OF <= 1; g_OF++) {
+	for (int g_SF = 0; g_SF <= 1; g_SF++) {
+		for (int value = -1; value <= 1; value++) {
+			int flags = (g_SF << 7) | (g_OF << 11) | (g_ZF << 6) | g_CF;
+			int tmp = value;
+			__asm__ __volatile__ ("push %0; popf; bsf %1,%1; pushf; pop %0"
+								  : "+r" (flags), "+r" (tmp) : : "flags");
+			int OF = (flags >> 11) & 1;
+			int SF = (flags >>  7) & 1;
+			int ZF = (flags >>  6) & 1;
+			int CF = flags & 1;
+			tmp = (value == 0);
+			if (ZF != tmp || SF != g_SF || OF != g_OF || CF != g_CF)
+				mismatch = true;
+		}
+	}}}}
+	if (mismatch)
+		write_log("Target CPU defines all flags on BSF instruction\n");
+	return !mismatch;
+}
+
 
 /*************************************************************************
  * FPU stuff                                                             *

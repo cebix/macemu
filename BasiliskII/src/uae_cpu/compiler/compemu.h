@@ -335,7 +335,8 @@ DECLARE_MIDFUNC(setcc(W1 d, IMM cc));
 DECLARE_MIDFUNC(setcc_m(IMM d, IMM cc));
 DECLARE_MIDFUNC(cmov_l_rr(RW4 d, R4 s, IMM cc));
 DECLARE_MIDFUNC(cmov_l_rm(RW4 d, IMM s, IMM cc));
-DECLARE_MIDFUNC(bsf_l_rr(W4 d, R4 s));
+/* Set native Z flag only if register is zero */
+DECLARE_MIDFUNC(setzflg_l(RW4 r));
 DECLARE_MIDFUNC(pop_m(IMM d));
 DECLARE_MIDFUNC(push_m(IMM d));
 DECLARE_MIDFUNC(pop_l(W4 d));
