@@ -40,6 +40,10 @@
 - (void) dispatchEvent:		(NSEvent *)event
 					 type:	(NSEventType)type;
 
+
+- (IBAction) HelpToDo:		(id)sender;
+- (IBAction) HelpVersions:	(id)sender;
+
 #ifdef ENABLE_MULTIPLE
 - (IBAction) NewEmulator:	(id)sender;
 - (IBAction) PauseAll:		(id)sender;
