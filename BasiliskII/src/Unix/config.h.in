@@ -29,7 +29,7 @@
 #undef X_DISPLAY_MISSING
 
 /* Define to 'off_t' if <sys/types.h> doesn't define. */
-/* #undef loff_t */
+#undef loff_t
 
 /* The number of bytes in a int.  */
 #undef SIZEOF_INT
