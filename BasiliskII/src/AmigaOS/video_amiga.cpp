@@ -193,10 +193,10 @@ static bool init_screen(ULONG mode_id)
 	ADBSetRelMouseMode(true);
 
 	// Check whether the mode is a Picasso96 mode or a CyberGfx mode
-	if (CyberGfxBase && IsCyberModeID(mode_id))
-		is_cgfx = true;
-	else if (P96Base && p96GetModeIDAttr(mode_id, P96IDA_ISP96))
+	if (P96Base && p96GetModeIDAttr(mode_id, P96IDA_ISP96))
 		is_p96 = true;
+	else if (CyberGfxBase && IsCyberModeID(mode_id))
+		is_cgfx = true;
 	else {
 		ErrorAlert(GetString(STR_NO_P96_MODE_ERR));
 		return false;

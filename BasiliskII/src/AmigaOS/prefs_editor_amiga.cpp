@@ -1248,17 +1248,17 @@ static void screen_mode_req(struct Window *win, struct LayoutHandle *h)
 
 	ULONG id;
 
-	if (CyberGfxBase) {
+	if (P96Base) {
+		id = p96RequestModeIDTags(
+			P96MA_MinDepth, 8,
+			P96MA_FormatsAllowed, RGBFF_CLUT | RGBFF_R5G5B5 | RGBFF_A8R8G8B8,
+			TAG_END
+		);
+	} else {
 		UWORD model_array[] = {PIXFMT_LUT8, PIXFMT_RGB16, PIXFMT_ARGB32, 0, ~0};
 		id = (ULONG) CModeRequestTags(NULL,
 			CYBRMREQ_MinDepth, 8,
 			CYBRMREQ_CModelArray, (ULONG)model_array,
-			TAG_END
-		);
-	} else {
-		id = p96RequestModeIDTags(
-			P96MA_MinDepth, 8,
-			P96MA_FormatsAllowed, RGBFF_CLUT | RGBFF_R5G5B5 | RGBFF_A8R8G8B8,
 			TAG_END
 		);
 	}
