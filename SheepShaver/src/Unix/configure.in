@@ -6,6 +6,7 @@ AC_PREREQ(2.12)
 AC_CONFIG_HEADER(config.h)
 
 dnl Options.
+AC_ARG_ENABLE(ppc-emulator, [  --enable-ppc-emulator   use the selected PowerPC emulator [default=auto]], [WANT_EMULATED_PPC=$enableval], [WANT_EMULATED_PPC=auto])
 AC_ARG_ENABLE(xf86-dga,     [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(xf86-vidmode, [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
 AC_ARG_ENABLE(vosf,         [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=yes])
@@ -29,6 +30,16 @@ AC_EGREP_CPP(yes,
   yes
 #endif
 ], [AC_MSG_RESULT(yes); HAVE_PPC=yes], AC_MSG_RESULT(no))
+
+dnl We use native CPU if possible.
+EMULATED_PPC=yes
+case $WANT_EMULATED_PPC in
+  auto) [[ "x$HAVE_PPC" = "xyes" ]] && EMULATED_PPC=no;;
+  no)   EMULATED_PPC=no;;
+esac
+if [[ "x$EMULATED_PPC" = "xyes" ]]; then
+  AC_DEFINE(EMULATED_PPC)
+fi
 
 dnl We use mon if possible.
 MONSRCS=
@@ -69,7 +80,7 @@ LIBS="$LIBS $X_PRE_LIBS $X_LIBS -lX11 -lXext $X_EXTRA_LIBS"
 
 dnl We need pthreads on non-PowerPC systems. Try libpthread first, then libc_r (FreeBSD), then PTL.
 HAVE_PTHREADS=yes
-if [[ "x$HAVE_PPC" = "xno" ]]; then
+if [[ "x$EMULATED_PPC" = "xyes" ]]; then
   AC_CHECK_LIB(pthread, pthread_create, , [
     AC_CHECK_LIB(c_r, pthread_create, , [
       AC_CHECK_LIB(PTL, pthread_create, , [
@@ -141,7 +152,9 @@ fi
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(unistd.h fcntl.h sys/time.h sys/mman.h)
+AC_CHECK_HEADERS(mach/vm_map.h mach/mach_init.h sys/mman.h)
+AC_CHECK_HEADERS(sys/time.h sys/times.h)
+AC_CHECK_HEADERS(unistd.h fcntl.h byteswap.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
@@ -169,10 +182,14 @@ AC_CHECK_FUNCS(mmap mprotect munmap)
 AC_CHECK_FUNCS(vm_allocate vm_deallocate vm_protect)
 
 dnl Select system-dependant sources.
-if [[ "x$HAVE_PPC" = "xyes" ]]; then
+if [[ "x$EMULATED_PPC" = "xno" ]]; then
   SYSSRCS="Linux/paranoia.cpp Linux/sheepthreads.c Linux/asm_linux.S"
 else
-  SYSSRCS="../emul_ppc/emul_ppc.cpp"
+  SYSSRCS="../kpx_cpu/sheepshaver_glue.cpp \
+	../kpx_cpu/src/cpu/ppc/ppc-cpu.cpp \
+	../kpx_cpu/src/cpu/ppc/ppc-decode.cpp \
+	../kpx_cpu/src/cpu/ppc/ppc-execute.cpp"
+  CPPFLAGS="$CPPFLAGS -I../kpx_cpu -I../kpx_cpu/include -I../kpx_cpu/src -I../kpx_cpu/src/cpu"
 fi
 SYSSRCS="$SYSSRCS $SEMSRCS $UISRCS $MONSRCS"
 
@@ -501,6 +518,7 @@ echo SheepShaver configuration summary:
 echo
 echo XFree86 DGA support .............. : $WANT_XF86_DGA
 echo XFree86 VidMode support .......... : $WANT_XF86_VIDMODE
+echo Using PowerPC emulator ........... : $EMULATED_PPC
 echo Enable video on SEGV signals ..... : $WANT_VOSF
 echo ESD sound support ................ : $WANT_ESD
 echo GTK user interface ............... : $WANT_GTK
