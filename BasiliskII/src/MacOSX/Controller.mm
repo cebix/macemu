@@ -150,11 +150,12 @@
 	
 	if ( tmp < [emulators count] )		// i.e. if we exited the for loop
 #else
-	if ( [theEmulator isRunning] && [[theEmulator window] isKeyWindow ] )
+	if ( FULLSCREEN ||
+		[theEmulator isRunning] && [[theEmulator window] isKeyWindow ] )
 #endif
 	{
 		view = [theEmulator screen];
-
+NSLog(@"Got a key event - %d\n", [event keyCode]);
 		switch ( type )
 		{
 			case NSKeyUp:
