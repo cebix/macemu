@@ -2181,6 +2181,7 @@ static void fflags_into_flags_internal(uae_u32 tmp)
 	else
     raw_fflags_into_flags(r);
     f_unlock(r);
+    live_flags();
 }
 
 
