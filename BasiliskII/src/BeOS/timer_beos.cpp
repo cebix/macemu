@@ -48,9 +48,9 @@ const uint32 TIME_OFFSET = 0x7c25b080;	// Offset Mac->BeOS time in seconds
 
 uint32 TimerDateTime(void)
 {
-	time_t uct_now = time(NULL);
+	time_t utc_now = time(NULL);
 	long tz = timezone;
-	time_t local_now = uct_now - tz;
+	time_t local_now = utc_now - tz;
 	if (daylight)
 		local_now += 3600;
 	return (uint32)local_now + TIME_OFFSET;
