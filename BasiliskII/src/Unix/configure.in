@@ -189,11 +189,7 @@ if [[ "x$SEMSRCS" != "x" ]]; then
   SYSSRCS="$SYSSRCS $SEMSRCS"
 fi
 
-dnl Defaults for UAE CPU.
-CPUINCLUDES="-I../uae_cpu"
-CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp ../uae_cpu/fpp.cpp cpustbl.cpp cpudefs.cpp"
-
-dnl Check for i386.
+dnl Check for i386 CPU.
 HAVE_I386=no
 AC_MSG_CHECKING(for x86 target CPU)
 AC_EGREP_CPP(yes,
@@ -202,6 +198,16 @@ AC_EGREP_CPP(yes,
   yes
 #endif
 ], [AC_MSG_RESULT(yes); HAVE_I386=yes], AC_MSG_RESULT(no))
+
+dnl Check for SPARC CPU.
+HAVE_SPARC=no
+AC_MSG_CHECKING(for SPARC target CPU)
+AC_EGREP_CPP(yes,
+[
+#ifdef __sparc__
+  yes
+#endif
+], [AC_MSG_RESULT(yes); HAVE_SPARC=yes], AC_MSG_RESULT(no))
 
 dnl Check for GAS.
 HAVE_GAS=no
@@ -222,24 +228,47 @@ AC_EGREP_CPP(yes,
 #endif
 ], [AC_MSG_RESULT(yes); HAVE_GCC27=yes], AC_MSG_RESULT(no))
 
-dnl Set "-fomit-frame-pointer" on GCC.
+dnl Set "-fomit-frame-pointer" on GCC 2.7 or higher.
 if [[ "x$HAVE_GCC27" = "xyes" ]]; then
   CFLAGS="$CFLAGS -fomit-frame-pointer"
   CXXFLAGS="$CXXFLAGS -fomit-frame-pointer"
 fi
 
 dnl Select appropriate CPU source and REGPARAM define.
+CPUSRCS="cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
 if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
+  dnl i386 CPU
   DEFINES="$DEFINES -DREGPARAM=\"__attribute__((regparm(3)))\""
   if [[ "x$HAVE_GAS" = "xyes" ]]; then
     DEFINES="$DEFINES -DX86_ASSEMBLY"
-    CPUSRCS="$CPUSRCS cpufast1.s cpufast2.s cpufast3.s cpufast4.s cpufast5.s cpufast6.s cpufast7.s cpufast8.s"
-  else
-    CPUSRCS="$CPUSRCS cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
+    CPUSRCS="cpufast1.s cpufast2.s cpufast3.s cpufast4.s cpufast5.s cpufast6.s cpufast7.s cpufast8.s"
   fi
-else
-  CPUSRCS="$CPUSRCS cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
+elif [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xyes" ]]; then
+  dnl SPARC CPU
+  case "$MACHINE" in
+  SunOS*)
+    AC_MSG_CHECKING(SPARC CPU architecture)
+    SPARC_TYPE=`Solaris/which_sparc`
+    AC_MSG_RESULT($SPARC_TYPE)
+    case "$SPARC_TYPE" in
+    SPARC_V8)
+      DEFINES="$DEFINES -DSPARC_V8_ASSEMBLY"
+      CFLAGS="$CFLAGS -Wa,-Av8"
+      CXXFLAGS="$CXXFLAGS -Wa,-Av8"
+      ;;
+    SPARC_V9)
+      DEFINES="$DEFINES -DSPARC_V9_ASSEMBLY"
+      CFLAGS="$CFLAGS -Wa,-Av9"
+      CXXFLAGS="$CXXFLAGS -Wa,-Av9"
+      ;;
+    esac
+    ;;
+  esac
 fi
+
+dnl UAE CPU sources for all architectures.
+CPUINCLUDES="-I../uae_cpu"
+CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp ../uae_cpu/fpp.cpp cpustbl.cpp cpudefs.cpp $CPUSRCS"
 
 dnl Generate Makefile.
 AC_SUBST(DEFINES)

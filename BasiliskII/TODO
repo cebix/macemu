@@ -32,8 +32,8 @@ AmigaOS:
 - Preemptive threads don't work?
 - clip_amiga.cpp: clip AmigaOS->Basilisk
 - sys_amiga.cpp: MaxTransfer/BufMemType/TransferMask, SysAddCDROMPrefs(), SysFormat()
+- sys_amiga.cpp: block size is not respected on writes
 - sony.cpp: DISK_INSERT_CHECK: disks are not ejected and automatically remounted on eject
-- Compile with GCC? (would simplify 64 bit disk access)
 - Patch 512K ROM for 68040/060 caches
 - Input handler instead of IDCMP?
 - Last sound buffer is not played

@@ -3562,14 +3562,11 @@ if [ "x$SEMSRCS" != "x" ]; then
   SYSSRCS="$SYSSRCS $SEMSRCS"
 fi
 
-CPUINCLUDES="-I../uae_cpu"
-CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp ../uae_cpu/fpp.cpp cpustbl.cpp cpudefs.cpp"
-
 HAVE_I386=no
 echo $ac_n "checking for x86 target CPU""... $ac_c" 1>&6
-echo "configure:3571: checking for x86 target CPU" >&5
+echo "configure:3568: checking for x86 target CPU" >&5
 cat > conftest.$ac_ext <<EOF
-#line 3573 "configure"
+#line 3570 "configure"
 #include "confdefs.h"
 
 #ifdef __i386__
@@ -3588,9 +3585,32 @@ fi
 rm -f conftest*
 
 
+HAVE_SPARC=no
+echo $ac_n "checking for SPARC target CPU""... $ac_c" 1>&6
+echo "configure:3591: checking for SPARC target CPU" >&5
+cat > conftest.$ac_ext <<EOF
+#line 3593 "configure"
+#include "confdefs.h"
+
+#ifdef __sparc__
+  yes
+#endif
+
+EOF
+if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
+  egrep "yes" >/dev/null 2>&1; then
+  rm -rf conftest*
+  echo "$ac_t""yes" 1>&6; HAVE_SPARC=yes
+else
+  rm -rf conftest*
+  echo "$ac_t""no" 1>&6
+fi
+rm -f conftest*
+
+
 HAVE_GAS=no
 echo $ac_n "checking for GAS .p2align feature""... $ac_c" 1>&6
-echo "configure:3594: checking for GAS .p2align feature" >&5
+echo "configure:3614: checking for GAS .p2align feature" >&5
 cat >conftest.S << EOF
 	.text
 	.p2align 5
@@ -3600,9 +3620,9 @@ echo "$ac_t""$HAVE_GAS" 1>&6
 
 HAVE_GCC27=no
 echo $ac_n "checking for GCC 2.7 or higher""... $ac_c" 1>&6
-echo "configure:3604: checking for GCC 2.7 or higher" >&5
+echo "configure:3624: checking for GCC 2.7 or higher" >&5
 cat > conftest.$ac_ext <<EOF
-#line 3606 "configure"
+#line 3626 "configure"
 #include "confdefs.h"
 #if __GNUC__ - 1 > 1 || __GNUC_MINOR__ - 1 > 5
   yes
@@ -3625,17 +3645,38 @@ if [ "x$HAVE_GCC27" = "xyes" ]; then
   CXXFLAGS="$CXXFLAGS -fomit-frame-pointer"
 fi
 
+CPUSRCS="cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
 if [ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]; then
-  DEFINES="$DEFINES -DREGPARAM=\"__attribute__((regparm(3)))\""
+    DEFINES="$DEFINES -DREGPARAM=\"__attribute__((regparm(3)))\""
   if [ "x$HAVE_GAS" = "xyes" ]; then
     DEFINES="$DEFINES -DX86_ASSEMBLY"
-    CPUSRCS="$CPUSRCS cpufast1.s cpufast2.s cpufast3.s cpufast4.s cpufast5.s cpufast6.s cpufast7.s cpufast8.s"
-  else
-    CPUSRCS="$CPUSRCS cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
+    CPUSRCS="cpufast1.s cpufast2.s cpufast3.s cpufast4.s cpufast5.s cpufast6.s cpufast7.s cpufast8.s"
   fi
-else
-  CPUSRCS="$CPUSRCS cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
+elif [ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xyes" ]; then
+    case "$MACHINE" in
+  SunOS*)
+    echo $ac_n "checking SPARC CPU architecture""... $ac_c" 1>&6
+echo "configure:3660: checking SPARC CPU architecture" >&5
+    SPARC_TYPE=`Solaris/which_sparc`
+    echo "$ac_t""$SPARC_TYPE" 1>&6
+    case "$SPARC_TYPE" in
+    SPARC_V8)
+      DEFINES="$DEFINES -DSPARC_V8_ASSEMBLY"
+      CFLAGS="$CFLAGS -Wa,-Av8"
+      CXXFLAGS="$CXXFLAGS -Wa,-Av8"
+      ;;
+    SPARC_V9)
+      DEFINES="$DEFINES -DSPARC_V9_ASSEMBLY"
+      CFLAGS="$CFLAGS -Wa,-Av9"
+      CXXFLAGS="$CXXFLAGS -Wa,-Av9"
+      ;;
+    esac
+    ;;
+  esac
 fi
+
+CPUINCLUDES="-I../uae_cpu"
+CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp ../uae_cpu/fpp.cpp cpustbl.cpp cpudefs.cpp $CPUSRCS"
 
 
 
