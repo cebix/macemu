@@ -395,7 +395,7 @@ typedef unsigned int	_ul;
 #define _r_4BIS(R, D,B,I,S)	(_Mrm(_b10,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B)),_L((long)(D)))
 
 #define _r_DB(  R, D,B    )	((_s0P(D) && (!_rbpP(B)) ? _r_0B  (R,  B    ) : (_s8P(D) ? _r_1B(  R,D,B    ) : _r_4B(  R,D,B    ))))
-#define _r_DBIS(R, D,B,I,S)	((_s0P(D)		 ? _r_0BIS(R,  B,I,S) : (_s8P(D) ? _r_1BIS(R,D,B,I,S) : _r_4BIS(R,D,B,I,S))))
+#define _r_DBIS(R, D,B,I,S)	((_s0P(D) && (!_rbpP(B)) ? _r_0BIS(R,  B,I,S) : (_s8P(D) ? _r_1BIS(R,D,B,I,S) : _r_4BIS(R,D,B,I,S))))
 
 #define _r_X(   R, D,B,I,S)	(_r0P(I) ? (_r0P(B)    ? _r_D   (R,D                )   : \
 				           (_rIP(B)    ? _r_DSIB(R,D                )   : \
