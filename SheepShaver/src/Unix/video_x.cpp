@@ -46,6 +46,7 @@
 #include "about_window.h"
 #include "video.h"
 #include "video_defs.h"
+#include "video_blit.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -101,6 +102,7 @@ static int depth;							// Depth of Mac frame buffer
 static Window rootwin, the_win;				// Root window and our window
 static int num_depths = 0;					// Number of available X depths
 static int *avail_depths = NULL;			// List of available X depths
+static VisualFormat visualFormat;
 static XVisualInfo visualInfo;
 static Visual *vis;
 static int color_class;
@@ -540,7 +542,7 @@ static bool open_window(int width, int height)
 	native_byte_order = (XImageByteOrder(x_display) == LSBFirst);
 #endif
 #ifdef ENABLE_VOSF
-	Screen_blitter_init(&visualInfo, native_byte_order, depth);
+	Screen_blitter_init(visualFormat, native_byte_order, depth);
 #endif
 
 	// Set bytes per row
@@ -614,7 +616,7 @@ static bool open_dga(int width, int height)
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 	// Screen_blitter_init() returns TRUE if VOSF is mandatory
 	// i.e. the framebuffer update function is not Blit_Copy_Raw
-	use_vosf = Screen_blitter_init(&visualInfo, native_byte_order, depth);
+	use_vosf = Screen_blitter_init(visualFormat, native_byte_order, depth);
 	
 	if (use_vosf) {
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
@@ -650,6 +652,12 @@ static bool open_display(void)
 		ErrorAlert(GetString(STR_NO_XVISUAL_ERR));
 		return false;
 	}
+
+	// Build up visualFormat structure
+	visualFormat.depth = visualInfo.depth;
+	visualFormat.Rmask = visualInfo.red_mask;
+	visualFormat.Gmask = visualInfo.green_mask;
+	visualFormat.Bmask = visualInfo.blue_mask;
 
 	// Create color maps
 	if (color_class == PseudoColor || color_class == DirectColor) {
