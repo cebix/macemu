@@ -32,6 +32,8 @@ prefs_desc platform_prefs_items[] = {
 	{"ether", TYPE_STRING, false,          "device name of Mac ethernet adapter"},
 	{"keycodes", TYPE_BOOLEAN, false,      "use keycodes rather than keysyms to decode keyboard"},
 	{"keycodefile", TYPE_STRING, false,    "path of keycode translation file"},
+	{"mousewheelmode", TYPE_INT32, false,  "mouse wheel support mode (0=page up/down, 1=cursor up/down)"},
+	{"mousewheellines", TYPE_INT32, false, "number of lines to scroll in mouse wheel mode 1"},
 	{"dsp", TYPE_STRING, false,            "audio output (dsp) device name"},
 	{"mixer", TYPE_STRING, false,          "audio mixer device name"},
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
@@ -100,6 +102,8 @@ void AddPlatformPrefsDefaults(void)
 {
 	PrefsAddBool("keycodes", false);
 	PrefsReplaceString("extfs", "/");
+	PrefsReplaceInt32("mousewheelmode", 1);
+	PrefsReplaceInt32("mousewheellines", 3);
 	PrefsAddInt32("windowmodes", 3);
 	PrefsAddInt32("screenmodes", 0x3f);
 #ifdef __linux__

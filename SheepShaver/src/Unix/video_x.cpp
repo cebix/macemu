@@ -54,6 +54,8 @@ const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
 
 // Global variables
 static int32 frame_skip;
+static int16 mouse_wheel_mode;
+static int16 mouse_wheel_lines;
 static bool redraw_thread_active = false;	// Flag: Redraw thread installed
 static pthread_t redraw_thread;				// Redraw thread
 
@@ -165,11 +167,6 @@ static bool open_window(int width, int height)
 
 	// Set absolute mouse mode
 	ADBSetRelMouseMode(false);
-
-	// Read frame skip prefs
-	frame_skip = PrefsFindInt32("frameskip");
-	if (frame_skip == 0)
-		frame_skip = 1;
 
 	// Create window
 	XSetWindowAttributes wattr;
@@ -682,6 +679,15 @@ bool VideoInit(void)
 	// Init keycode translation
 	keycode_init();
 
+	// Read frame skip prefs
+	frame_skip = PrefsFindInt32("frameskip");
+	if (frame_skip == 0)
+		frame_skip = 1;
+
+	// Read mouse wheel prefs
+	mouse_wheel_mode = PrefsFindInt32("mousewheelmode");
+	mouse_wheel_lines = PrefsFindInt32("mousewheellines");
+
 	// Init variables
 	private_data = NULL;
 	cur_mode = 0;	// Window 640x480
@@ -1184,6 +1190,19 @@ static void handle_events(void)
 				unsigned int button = ((XButtonEvent *)&event)->button;
 				if (button < 4)
 					ADBMouseDown(button - 1);
+				else if (button < 6) {	// Wheel mouse
+					if (mouse_wheel_mode == 0) {
+						int key = (button == 5) ? 0x79 : 0x74;	// Page up/down
+						ADBKeyDown(key);
+						ADBKeyUp(key);
+					} else {
+						int key = (button == 5) ? 0x3d : 0x3e;	// Cursor up/down
+						for(int i=0; i<mouse_wheel_lines; i++) {
+							ADBKeyDown(key);
+							ADBKeyUp(key);
+						}
+					}
+				}
 				break;
 			}
 			case ButtonRelease: {

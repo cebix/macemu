@@ -702,11 +702,13 @@ static void create_graphics_pane(GtkWidget *top)
  */
 
 static GtkWidget *w_keycode_file;
+static GtkWidget *w_mouse_wheel_lines;
 
 // Set sensitivity of widgets
 static void set_input_sensitive(void)
 {
 	gtk_widget_set_sensitive(w_keycode_file, PrefsFindBool("keycodes"));
+	gtk_widget_set_sensitive(w_mouse_wheel_lines, PrefsFindInt32("mousewheelmode") == 1);
 }
 
 // "Use Raw Keycodes" button toggled
@@ -716,6 +718,10 @@ static void tb_keycodes(GtkWidget *widget)
 	set_input_sensitive();
 }
 
+// "Mouse Wheel Mode" selected
+static void mn_wheel_page(...) {PrefsReplaceInt32("mousewheelmode", 0); set_input_sensitive();}
+static void mn_wheel_cursor(...) {PrefsReplaceInt32("mousewheelmode", 1); set_input_sensitive();}
+
 // Read settings from widgets and set preferences
 static void read_input_settings(void)
 {
@@ -724,6 +730,8 @@ static void read_input_settings(void)
 		PrefsReplaceString("keycodefile", str);
 	else
 		PrefsRemoveItem("keycodefile");
+
+	PrefsReplaceInt32("mousewheellines", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w_mouse_wheel_lines)));
 }
 
 // Create "Input" pane
@@ -736,6 +744,33 @@ static void create_input_pane(GtkWidget *top)
 
 	make_checkbox(box, STR_KEYCODES_CTRL, "keycodes", GTK_SIGNAL_FUNC(tb_keycodes));
 	w_keycode_file = make_entry(box, STR_KEYCODE_FILE_CTRL, "keycodefile");
+
+	make_separator(box);
+
+	static const opt_desc options[] = {
+		{STR_MOUSEWHEELMODE_PAGE_LAB, GTK_SIGNAL_FUNC(mn_wheel_page)},
+		{STR_MOUSEWHEELMODE_CURSOR_LAB, GTK_SIGNAL_FUNC(mn_wheel_cursor)},
+		{0, NULL}
+	};
+	int wheelmode = PrefsFindInt32("mousewheelmode"), active = 0;
+	switch (wheelmode) {
+		case 0: active = 0; break;
+		case 1: active = 1; break;
+	}
+	menu = make_option_menu(box, STR_MOUSEWHEELMODE_CTRL, options, active);
+
+	hbox = gtk_hbox_new(FALSE, 4);
+	gtk_widget_show(hbox);
+	gtk_box_pack_start(GTK_BOX(box), hbox, FALSE, FALSE, 0);
+
+	label = gtk_label_new(GetString(STR_MOUSEWHEELLINES_CTRL));
+	gtk_widget_show(label);
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+	adj = gtk_adjustment_new(PrefsFindInt32("mousewheellines"), 1, 1000, 1, 5, 0);
+	w_mouse_wheel_lines = gtk_spin_button_new(GTK_ADJUSTMENT(adj), 0.0, 0);
+	gtk_widget_show(w_mouse_wheel_lines);
+	gtk_box_pack_start(GTK_BOX(hbox), w_mouse_wheel_lines, FALSE, FALSE, 0);
 
 	set_input_sensitive();
 }
