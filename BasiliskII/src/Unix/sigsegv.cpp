@@ -226,6 +226,10 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #include <ucontext.h>
 #define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
 #define SIGSEGV_FAULT_INSTRUCTION		(unsigned long)SIGSEGV_CONTEXT_REGS[CTX_EPC]
+#if (defined(mips) || defined(__mips))
+#define SIGSEGV_REGISTER_FILE			SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_SKIP_INSTRUCTION		mips_skip_instruction
+#endif
 #endif
 #if defined(__sun__)
 #if (defined(sparc) || defined(__sparc__))
@@ -922,6 +926,169 @@ static bool powerpc_skip_instruction(unsigned int * nip_p, unsigned int * regs)
 	
 	*nip_p += 4;
 	return true;
+}
+#endif
+
+// Decode and skip MIPS instruction
+#if (defined(mips) || defined(__mips))
+enum {
+#if (defined(sgi) || defined(__sgi))
+  MIPS_REG_EPC = 35,
+#endif
+};
+static bool mips_skip_instruction(greg_t * regs)
+{
+  unsigned int * epc = (unsigned int *)(unsigned long)regs[MIPS_REG_EPC];
+
+  if (epc == 0)
+	return false;
+
+#if DEBUG
+  printf("IP: %p [%08x]\n", epc, epc[0]);
+#endif
+
+  transfer_type_t transfer_type = SIGSEGV_TRANSFER_UNKNOWN;
+  transfer_size_t transfer_size = SIZE_LONG;
+  int direction = 0;
+
+  const unsigned int opcode = epc[0];
+  switch (opcode >> 26) {
+  case 32: // Load Byte
+  case 36: // Load Byte Unsigned
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+	transfer_size = SIZE_BYTE;
+	break;
+  case 33: // Load Halfword
+  case 37: // Load Halfword Unsigned
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+	transfer_size = SIZE_WORD;
+	break;
+  case 35: // Load Word
+  case 39: // Load Word Unsigned
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+	transfer_size = SIZE_LONG;
+	break;
+  case 34: // Load Word Left
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+	transfer_size = SIZE_LONG;
+	direction = -1;
+	break;
+  case 38: // Load Word Right
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+	transfer_size = SIZE_LONG;
+	direction = 1;
+	break;
+  case 55: // Load Doubleword
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+	transfer_size = SIZE_QUAD;
+	break;
+  case 26: // Load Doubleword Left
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+	transfer_size = SIZE_QUAD;
+	direction = -1;
+	break;
+  case 27: // Load Doubleword Right
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+	transfer_size = SIZE_QUAD;
+	direction = 1;
+	break;
+  case 40: // Store Byte
+	transfer_type = SIGSEGV_TRANSFER_STORE;
+	transfer_size = SIZE_BYTE;
+	break;
+  case 41: // Store Halfword
+	transfer_type = SIGSEGV_TRANSFER_STORE;
+	transfer_size = SIZE_WORD;
+	break;
+  case 43: // Store Word
+  case 42: // Store Word Left
+  case 46: // Store Word Right
+	transfer_type = SIGSEGV_TRANSFER_STORE;
+	transfer_size = SIZE_LONG;
+	break;
+  case 63: // Store Doubleword
+  case 44: // Store Doubleword Left
+  case 45: // Store Doubleword Right
+	transfer_type = SIGSEGV_TRANSFER_STORE;
+	transfer_size = SIZE_QUAD;
+	break;
+  /* Misc instructions unlikely to be used within CPU emulators */
+  case 48: // Load Linked Word
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+	transfer_size = SIZE_LONG;
+	break;
+  case 52: // Load Linked Doubleword
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+	transfer_size = SIZE_QUAD;
+	break;
+  case 56: // Store Conditional Word
+	transfer_type = SIGSEGV_TRANSFER_STORE;
+	transfer_size = SIZE_LONG;
+	break;
+  case 60: // Store Conditional Doubleword
+	transfer_type = SIGSEGV_TRANSFER_STORE;
+	transfer_size = SIZE_QUAD;
+	break;
+  }
+
+  if (transfer_type == SIGSEGV_TRANSFER_UNKNOWN) {
+	// Unknown machine code, let it crash. Then patch the decoder
+	return false;
+  }
+
+  // Zero target register in case of a load operation
+  const int reg = (opcode >> 16) & 0x1f;
+  if (transfer_type == SIGSEGV_TRANSFER_LOAD) {
+	if (direction == 0)
+	  regs[reg] = 0;
+	else {
+	  // FIXME: untested code
+	  unsigned long ea = regs[(opcode >> 21) & 0x1f];
+	  ea += (signed long)(signed int)(signed short)(opcode & 0xffff);
+	  const int offset = ea & (transfer_size == SIZE_LONG ? 3 : 7);
+	  unsigned long value;
+	  if (direction > 0) {
+		const unsigned long rmask = ~((1L << ((offset + 1) * 8)) - 1);
+		value = regs[reg] & rmask;
+	  }
+	  else {
+		const unsigned long lmask = (1L << (offset * 8)) - 1;
+		value = regs[reg] & lmask;
+	  }
+	  // restore most significant bits
+	  if (transfer_size == SIZE_LONG)
+		value = (signed long)(signed int)value;
+	  regs[reg] = value;
+	}
+  }
+
+#if DEBUG
+#if (defined(_ABIN32) || defined(_ABI64))
+  static const char * mips_gpr_names[32] = {
+	"zero", "at",   "v0",   "v1",   "a0",   "a1",   "a2",   "a3",
+	"t0",   "t1",   "t2",   "t3",   "t4",   "t5",   "t6",   "t7",
+	"s0",   "s1",   "s2",   "s3",   "s4",   "s5",   "s6",   "s7",
+	"t8",   "t9",   "k0",   "k1",   "gp",   "sp",   "s8",   "ra"
+  };
+#else
+  static const char * mips_gpr_names[32] = {
+	"zero", "at",   "v0",   "v1",   "a0",   "a1",   "a2",   "a3",
+	"a4",   "a5",   "a6",   "a7",   "t0",   "t1",   "t2",   "t3",
+	"s0",   "s1",   "s2",   "s3",   "s4",   "s5",   "s6",   "s7",
+	"t8",   "t9",   "k0",   "k1",   "gp",   "sp",   "s8",   "ra"
+  };
+#endif
+  printf("%s %s register %s\n",
+		 transfer_size == SIZE_BYTE ? "byte" :
+		 transfer_size == SIZE_WORD ? "word" :
+		 transfer_size == SIZE_LONG ? "long" :
+		 transfer_size == SIZE_QUAD ? "quad" : "unknown",
+		 transfer_type == SIGSEGV_TRANSFER_LOAD ? "load to" : "store from",
+		 mips_gpr_names[reg]);
+#endif
+
+  regs[MIPS_REG_EPC] += 4;
+  return true;
 }
 #endif
 #endif
