@@ -146,6 +146,8 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
     LIBS="$LIBS $sdl_libs"
   else
     WANT_SDL=no
+    WANT_SDL_VIDEO=no
+    WANT_SDL_AUDIO=no
   fi
   SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
 else
@@ -153,7 +155,7 @@ else
 fi
 
 dnl We need X11, if not using SDL.
-if [[ "x$WANT_SDL" = "xno" ]]; then
+if [[ "x$WANT_SDL_VIDEO" != "xyes" ]]; then
   AC_PATH_XTRA
   if [[ "x$no_x" = "xyes" ]]; then
     AC_MSG_ERROR([You need X11 to run SheepShaver.])
