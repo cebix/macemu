@@ -1628,19 +1628,19 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 				break;
 #if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
 			case 0x3c:
-				FPU registers[reg] = 1.0e512;
+				FPU registers[reg] = 1.0e512L;
 				fpu_debug(("FP const: 1.0e512\n"));
 				break;
 			case 0x3d:
-				FPU registers[reg] = 1.0e1024;
+				FPU registers[reg] = 1.0e1024L;
 				fpu_debug(("FP const: 1.0e1024\n"));
 				break;
 			case 0x3e:
-				FPU registers[reg] = 1.0e2048;
+				FPU registers[reg] = 1.0e2048L;
 				fpu_debug(("FP const: 1.0e2048\n"));
 				break;
 			case 0x3f:
-				FPU registers[reg] = 1.0e4096;
+				FPU registers[reg] = 1.0e4096L;
 				fpu_debug(("FP const: 1.0e4096\n"));
 #endif
 				break;
