@@ -726,7 +726,6 @@ bool PatchROM(void)
 		return false;
 
 	// Check that other ROM addresses point to really free regions
-	printf("%08x\n", ntohl(*(uint32 *)(ROM_BASE + CHECK_LOAD_PATCH_SPACE)));
 	if (ntohl(*(uint32 *)(ROM_BASE + CHECK_LOAD_PATCH_SPACE)) != 0x6b636b63)
 		return false;
 	if (ntohl(*(uint32 *)(ROM_BASE + PUT_SCRAP_PATCH_SPACE)) != 0x6b636b63)
