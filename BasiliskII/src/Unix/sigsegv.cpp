@@ -775,7 +775,7 @@ static sigsegv_return_t sigsegv_test_handler(sigsegv_address_t fault_address, si
 static sigsegv_return_t sigsegv_insn_handler(sigsegv_address_t fault_address, sigsegv_address_t instruction_address)
 {
 	if (((unsigned long)fault_address - (unsigned long)page) < page_size)
-		return SIGSEGV_RETURN_KIP_INSTRUCTION;
+		return SIGSEGV_RETURN_SKIP_INSTRUCTION;
 	return SIGSEGV_RETURN_FAILURE;
 }
 #endif
