@@ -72,7 +72,7 @@
 
 /* Define to optimize absolute addresses for RIP relative addressing.  */
 #ifndef X86_RIP_RELATIVE_ADDR
-#define X86_RIP_RELATIVE_ADDR	0
+#define X86_RIP_RELATIVE_ADDR	1
 #endif 
 
 
@@ -193,10 +193,16 @@ enum {
 #define _r0P(R)		((int)(R) == (int)X86_NOREG)
 #define _rIP(R)		((int)(R) == (int)X86_RIP)
 
+#if X86_FLAT_REGISTERS
 #define _rC(R)		((R) & 0xf0)
 #define _rR(R)		((R) & 0x0f)
 #define _rN(R)		((R) & 0x07)
 #define _rXP(R)		((R) > 0 && _rR(R) > 7)
+#else
+#define _rN(R)		((R) & 0x07)
+#define _rR(R)		(int(R))
+#define _rXP(R)		(int(R) > 7)
+#endif
 
 #if !defined(_ASM_SAFETY) || ! X86_FLAT_REGISTERS
 #define _r1(R)		_rN(R)
@@ -484,7 +490,7 @@ typedef unsigned int	_ul;
 #define __REXwrx_(L,W,R,X,MR)	(__REXwrxb(L,W,R,X,_BIT(_rIP(MR)?0:_rXP(MR))))
 #define __REXw_x_(L,W,R,X,MR)	(__REXwrx_(L,W,_BIT(_rXP(R)),X,MR))
 #define __REX_reg(RR)		(__REXwrxb(0,0,0,00,_BIT(_rXP(RR))))
-#define __REX_mem(MB,MI)	(__REXwrxb(0,0,0,_BIT(_rXP(MI)),MB))
+#define __REX_mem(MB,MI)	(__REXwrxb(0,0,0,_BIT(_rXP(MI)),_BIT(_rXP(MB))))
 
 // FIXME: can't mix new (SPL,BPL,SIL,DIL) with (AH,BH,CH,DH)
 #define _REXBrr(RR,MR)		_m64(__REXw_x_(_r1e8lP(RR)||_r1e8lP(MR),0,RR,0,MR))
