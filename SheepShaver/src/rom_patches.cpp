@@ -449,13 +449,13 @@ static const uint8 cdrom_driver[] = {	// CD-ROM driver
 
 #if EMULATED_PPC
 #define SERIAL_TRAMPOLINES 1
-static uint32 serial_nothing_tvect[2] = {POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_NOTHING), 0};
-static uint32 serial_open_tvect[2] = {POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_OPEN), 0};
-static uint32 serial_prime_in_tvect[2] = {POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_PRIME_IN), 0};
-static uint32 serial_prime_out_tvect[2] = {POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_PRIME_OUT), 0};
-static uint32 serial_control_tvect[2] = {POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_CONTROL), 0};
-static uint32 serial_status_tvect[2] = {POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_STATUS), 0};
-static uint32 serial_close_tvect[2] = {POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_CLOSE), 0};
+static uint32 serial_nothing_tvect[2] = {tswap32(POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_NOTHING)), 0};
+static uint32 serial_open_tvect[2] = {tswap32(POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_OPEN)), 0};
+static uint32 serial_prime_in_tvect[2] = {tswap32(POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_PRIME_IN)), 0};
+static uint32 serial_prime_out_tvect[2] = {tswap32(POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_PRIME_OUT)), 0};
+static uint32 serial_control_tvect[2] = {tswap32(POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_CONTROL)), 0};
+static uint32 serial_status_tvect[2] = {tswap32(POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_STATUS)), 0};
+static uint32 serial_close_tvect[2] = {tswap32(POWERPC_NATIVE_OP_FUNC(NATIVE_SERIAL_CLOSE)), 0};
 #elif defined(__linux__)
 #define SERIAL_TRAMPOLINES 1
 static uint32 serial_nothing_tvect[2] = {(uint32)SerialNothing, 0};
