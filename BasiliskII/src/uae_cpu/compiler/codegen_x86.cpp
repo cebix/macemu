@@ -2216,6 +2216,21 @@ static __inline__ void raw_load_flagx(uae_u32 target, uae_u32 r)
 	raw_mov_l_rm(target,(uae_u32)live.state[r].mem);
 }
 
+#define NATIVE_FLAG_Z 0x40
+static __inline__ void raw_flags_set_zero(int f, int r, int t)
+{
+	// FIXME: this is really suboptimal
+	raw_pushfl();
+	raw_pop_l_r(f);
+	raw_and_l_ri(f,~NATIVE_FLAG_Z);
+	raw_test_l_rr(r,r);
+	raw_mov_l_ri(r,0);
+	raw_mov_l_ri(t,NATIVE_FLAG_Z);
+	raw_cmov_l_rr(r,t,NATIVE_CC_EQ);
+	raw_or_l(f,r);
+	raw_push_l_r(f);
+	raw_popfl();
+}
 
 static __inline__ void raw_inc_sp(int off)
 {

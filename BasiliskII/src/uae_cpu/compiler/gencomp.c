@@ -41,7 +41,6 @@
 #define uses_cmov		global_cmov=1
 #define mayfail			global_mayfail=1
 #define uses_fpu		global_fpu=1
-#define uses_setzflg	global_setzflg=1
 
 int hack_opcode;
 
@@ -53,7 +52,6 @@ static int global_cmov;
 static int long_opcode;
 static int global_mayfail;
 static int global_fpu;
-static int global_setzflg;
 
 static char endstr[1000];
 static char lines[100000];
@@ -1088,7 +1086,6 @@ genflags (flagtypes type, wordsizes size, char *value, char *src, char *dst)
       
      case flag_addx:
      case flag_subx:
-	uses_setzflg;
 	uses_cmov;
 	comprintf("\tdont_care_flags();\n");
 	{
@@ -1123,11 +1120,12 @@ genflags (flagtypes type, wordsizes size, char *value, char *src, char *dst)
 			  "\t%s_l(%s,%s);\n",op,dst,src);
 		break;
 	    }
+	    comprintf("\tlive_flags();\n");
 	    comprintf("\tif (needed_flags&FLAG_Z) {\n"
 		      "\tcmov_l_rr(zero,one,5);\n"
 		      "\tsetzflg_l(zero);\n"
+		      "\tlive_flags();\n"
 		      "\t}\n");
-	    comprintf("\tlive_flags();\n");
 	    comprintf("\tend_needflags();\n");
 	    duplicate_carry();
 	    comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
@@ -1388,7 +1386,6 @@ gen_opcode (unsigned long int opcode)
 				  "\tmake_flags_live();\n" /* Get the flags back */
 				  "\tdont_care_flags();\n",op);
 		if (!noflags) {
-		  uses_setzflg;
 		  comprintf("\tstart_needflags();\n"
 					"\tsetzflg_l(s);\n"
 					"\tlive_flags();\n"
@@ -2946,7 +2943,6 @@ generate_one_opcode (int rp, int noflags)
 	if (global_isaddx)	flags|=8;
 	if (global_iscjump)	flags|=16;
 	if (global_fpu)		flags|=32;
-	if (global_setzflg)	flags|=64;
 	
 	comprintf ("}\n");
     

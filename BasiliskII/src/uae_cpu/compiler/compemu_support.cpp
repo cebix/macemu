@@ -2680,11 +2680,18 @@ MIDFUNC(1,setzflg_l,(RW4 r))
 		unlock2(r);
 	}
 	else {
-		/* Errr, not implemented yet in a generic way. And actually,
-		   that should not be generated for now, if BSF doesn't
-		   preserve flags but ZF.  */
-		write_log("attempt to make unsupported setzflg()\n");
-		abort();
+		Dif (live.flags_in_flags!=VALID) {
+			write_log("setzflg() wanted flags in native flags, they are %d\n",
+					  live.flags_in_flags);
+			abort();
+		}
+		r=readreg(r,4);
+		int f=writereg(S11,4);
+		int t=writereg(S12,4);
+		raw_flags_set_zero(f,r,t);
+		unlock2(f);
+		unlock2(r);
+		unlock2(t);
 	}
 }
 MENDFUNC(1,setzflg_l,(RW4 r))
@@ -5756,8 +5763,7 @@ void build_comp(void)
 		prop[cft_map(tbl[i].opcode)].cflow = cflow;
 
 		int uses_fpu = tbl[i].specific & 32;
-		int uses_setzflg = tbl[i].specific & 64;
-		if ((uses_fpu && avoid_fpu) || (uses_setzflg && !setzflg_uses_bsf))
+		if (uses_fpu && avoid_fpu)
 			compfunctbl[cft_map(tbl[i].opcode)] = NULL;
 		else
 			compfunctbl[cft_map(tbl[i].opcode)] = tbl[i].handler;
@@ -5765,8 +5771,7 @@ void build_comp(void)
 
     for (i = 0; nftbl[i].opcode < 65536; i++) {
 		int uses_fpu = tbl[i].specific & 32;
-		int uses_setzflg = tbl[i].specific & 64;
-		if ((uses_fpu && avoid_fpu) || (uses_setzflg && !setzflg_uses_bsf))
+		if (uses_fpu && avoid_fpu)
 			nfcompfunctbl[cft_map(nftbl[i].opcode)] = NULL;
 		else
 			nfcompfunctbl[cft_map(nftbl[i].opcode)] = nftbl[i].handler;
