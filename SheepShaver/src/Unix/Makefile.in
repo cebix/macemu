@@ -27,6 +27,7 @@ DYNGENSRCS = @DYNGENSRCS@
 DYNGEN_CC = @DYNGEN_CC@
 DYNGEN_OP_FLAGS = @DYNGEN_OP_FLAGS@
 BLESS = @BLESS@
+EXEEXT = @EXEEXT@
 KEYCODES = @KEYCODES@
 INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@ -s
@@ -43,6 +44,7 @@ SRCS = main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp sys_unix.cpp
     vm_alloc.cpp sigsegv.cpp \
     sshpty.c strlcpy.c $(SYSSRCS) $(CPUSRCS)
 APP = SheepShaver
+APP_EXE = $(APP)$(EXEEXT)
 APP_APP = $(APP).app
 
 ## Rules
@@ -50,7 +52,7 @@ APP_APP = $(APP).app
 .SUFFIXES:
 .SUFFIXES: .c .cpp .S .o .h
 
-all: $(APP)
+all: $(APP_EXE)
 
 OBJ_DIR = obj
 $(OBJ_DIR)::
@@ -72,9 +74,9 @@ SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
 VPATH :=
 VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
 
-$(APP): $(OBJ_DIR) $(OBJS)
-	$(CXX) -o $(APP) $(LDFLAGS) $(OBJS) $(LIBS)
-	$(BLESS) $(APP)
+$(APP_EXE): $(OBJ_DIR) $(OBJS)
+	$(CXX) -o $(APP_EXE) $(LDFLAGS) $(OBJS) $(LIBS)
+	$(BLESS) $(APP_EXE)
 
 $(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/SheepShaver.icns
 	mkdir -p $(APP_APP)/Contents
@@ -89,8 +91,8 @@ $(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/SheepShaver.icns
 modules:
 	cd NetDriver; make
 
-install: $(APP) installdirs
-	$(INSTALL_PROGRAM) $(APP) $(DESTDIR)$(bindir)/$(APP)
+install: $(APP_EXE) installdirs
+	$(INSTALL_PROGRAM) $(APP_EXE) $(DESTDIR)$(bindir)/$(APP_EXE)
 	-$(INSTALL_DATA) $(APP).1 $(DESTDIR)$(man1dir)/$(APP).1
 	$(INSTALL_DATA) $(KEYCODES) $(DESTDIR)$(datadir)/$(APP)/keycodes
 	$(INSTALL_DATA) tunconfig $(DESTDIR)$(datadir)/$(APP)/tunconfig
@@ -100,14 +102,14 @@ installdirs:
 	$(SHELL) mkinstalldirs $(DESTDIR)$(bindir) $(DESTDIR)$(man1dir) $(DESTDIR)$(datadir)/$(APP)
 
 uninstall:
-	rm -f $(DESTDIR)$(bindir)/$(APP)
+	rm -f $(DESTDIR)$(bindir)/$(APP_EXE)
 	rm -f $(DESTDIR)$(man1dir)/$(APP).1
 	rm -f $(DESTDIR)$(datadir)/$(APP)/keycodes
 	rm -f $(DESTDIR)$(datadir)/$(APP)/tunconfig
 	rmdir $(DESTDIR)$(datadir)/$(APP)
 
 clean:
-	rm -f $(APP) $(OBJ_DIR)/* core* *.core *~ *.bak ppc-execute-impl.cpp
+	rm -f $(APP_EXE) $(OBJ_DIR)/* core* *.core *~ *.bak ppc-execute-impl.cpp
 	rm -f dyngen basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 	rm -rf $(APP_APP)
 
@@ -134,27 +136,33 @@ $(OBJ_DIR)/%.o : %.S
 # Kheperix CPU emulator
 kpxsrcdir = ../kpx_cpu/src
 GENEXEC   = $(kpxsrcdir)/cpu/ppc/genexec.pl
+DYNGEN    = dyngen$(EXEEXT)
 
 $(OBJ_DIR)/ppc-execute.o: ppc-execute-impl.cpp
-ppc-execute-impl.cpp: $(kpxsrcdir)/cpu/ppc/ppc-decode.cpp $(GENEXEC) basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
+ppc-execute-impl.cpp: $(kpxsrcdir)/cpu/ppc/ppc-decode.cpp $(GENEXEC) $(DYNGENDEPS)
 	$(CPP) $(CPPFLAGS) -DGENEXEC $< | $(GENEXEC) > $@
 
-dyngen: $(DYNGENOBJS)
+ifneq ($(DYNGENSRCS),)
+DYNGENDEPS = basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
+
+basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
+$(DYNGEN): $(DYNGENOBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(DYNGENOBJS)
 
 $(OBJ_DIR)/basic-dyngen.o: basic-dyngen-ops.hpp
 $(OBJ_DIR)/basic-dyngen-ops.o: $(kpxsrcdir)/cpu/jit/basic-dyngen-ops.cpp
 	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
-basic-dyngen-ops.hpp: $(OBJ_DIR)/basic-dyngen-ops.o dyngen
-	./dyngen -o $@ $<
+basic-dyngen-ops.hpp: $(OBJ_DIR)/basic-dyngen-ops.o $(DYNGEN)
+	./$(DYNGEN) -o $@ $<
 
 $(OBJ_DIR)/ppc-dyngen.o: ppc-dyngen-ops.hpp
 $(OBJ_DIR)/ppc-dyngen-ops.o: $(kpxsrcdir)/cpu/ppc/ppc-dyngen-ops.cpp basic-dyngen-ops.hpp
 	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
-ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o dyngen
-	./dyngen -o $@ $<
+ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o $(DYNGEN)
+	./$(DYNGEN) -o $@ $<
 
 $(OBJ_DIR)/sheepshaver_glue.o $(OBJ_DIR)/ppc-cpu.o $(OBJ_DIR)/ppc-decode.o $(OBJ_DIR)/ppc-translate.o: basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
+endif
 
 #-------------------------------------------------------------------------
 # DO NOT DELETE THIS LINE -- make depend depends on it.
