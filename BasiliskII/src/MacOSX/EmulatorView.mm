@@ -396,8 +396,8 @@ static NSPoint	mouse;			// Previous/current mouse location
 
 	mouse = location;
 
-	int	mouseY = y - y * mouse.y / [self height];
-	int	mouseX =	 x * mouse.x / [self width];
+	int	mouseY = y - (int) (y * mouse.y / [self height]);
+	int	mouseX =	 (int) (x * mouse.x / [self width]);
 	// If the view was not resizable, then this would be simpler:
 	// int	mouseY = y - (int) mouse.y;
 	// int	mouseX =	 (int) mouse.x;
@@ -483,10 +483,10 @@ static NSPoint	mouse;			// Previous/current mouse location
   #ifdef NSBITMAP
 							= [bitmap bitmapData];
   #else
-							= bitmap;
+							= (unsigned char *) bitmap;
   #endif
 
-	memset(data, val, numBytes);
+	memset(data, val, (long unsigned)numBytes);
 }
 
 - (void) blacken	// Set bitmap black
