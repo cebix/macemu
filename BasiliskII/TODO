@@ -22,6 +22,7 @@ General:
 - Write a nice User's Manual with linuxdoc or something similar
 
 AmigaOS:
+- XPRAM watchdog task
 - "Create Hardfile..." button
 - Support for ShapeShifter External Video Drivers
 - Direct SCSI transfers, i.e. no buffering for contiguous transfers (can't check if the device
