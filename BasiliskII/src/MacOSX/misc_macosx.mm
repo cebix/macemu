@@ -42,7 +42,8 @@ void ErrorSheet (NSString * message, NSWindow * window)
 	NSBeginCriticalAlertSheet(message, nil, nil, nil, window,
 									   nil, nil, nil, NULL, @"");
 	while ( [window attachedSheet] )
-		[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow: 1.0]];
+		sleep(1);
+		//[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow: 1.0]];
 }
 
 void ErrorSheet (NSString * message1, NSString * message2,
@@ -53,7 +54,8 @@ void ErrorSheet (NSString * message1, NSString * message2,
 	NSBeginCriticalAlertSheet(message1, button, nil, nil, window,
 									nil, nil, nil, NULL, message2);
 	while ( [window attachedSheet] )
-		[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow: 1.0]];
+		sleep(1);
+		//[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow: 1.0]];
 }
 
 
@@ -90,6 +92,10 @@ void InfoSheet (NSString * message1, NSString * message2,
 										nil, nil, nil, NULL, message2);
 }
 
+void EndSheet (NSWindow * window)
+{
+	[[window attachedSheet] close];
+}
 
 // Convert a frequency (i.e. updates per second) to a 60hz tick delay, and update prefs
 int	frequencyToTickDelay (float freq)

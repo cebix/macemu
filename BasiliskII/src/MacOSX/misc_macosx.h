@@ -32,6 +32,7 @@ extern void ErrorSheet	 (NSString *msg,	NSWindow *win),
 						  NSString *button,	NSWindow *win),
 			InfoSheet	 (NSString *msg,	NSWindow *win),
 			InfoSheet	 (NSString *msg1,	NSString *msg2,
-						  NSString *button,	NSWindow *win);
+						  NSString *button,	NSWindow *win),
+			EndSheet (NSWindow * window);
 
 extern int	frequencyToTickDelay (float frequency);
