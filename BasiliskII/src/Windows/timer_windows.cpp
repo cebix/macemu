@@ -47,7 +47,7 @@ static tm_time_t mac_now_diff;
  *  Initialize native Windows timers
  */
 
-void SysTimerInit(void)
+void timer_init(void)
 {
 	D(bug("SysTimerInit\n"));
 
