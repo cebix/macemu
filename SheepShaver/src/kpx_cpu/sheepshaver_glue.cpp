@@ -38,6 +38,7 @@
 #include "name_registry.h"
 #include "serial.h"
 #include "ether.h"
+#include "timer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -101,6 +102,9 @@ const uint32 POWERPC_EXEC_RETURN = POWERPC_EMUL_OP | 1;
 // Interrupts in native mode?
 #define INTERRUPTS_IN_NATIVE_MODE 1
 
+// Enable native EMUL_OPs to be run without a mode switch
+#define ENABLE_NATIVE_EMUL_OP 1
+
 // Pointer to Kernel Data
 static KernelData * const kernel_data = (KernelData *)KERNEL_DATA_BASE;
 
@@ -128,6 +132,14 @@ class sheepshaver_cpu
 {
 	void init_decoder();
 	void execute_sheep(uint32 opcode);
+
+	// Filter out EMUL_OP routines that only call native code
+	bool filter_execute_emul_op(uint32 emul_op);
+
+	// "Native" EMUL_OP routines
+	void execute_emul_op_microseconds();
+	void execute_emul_op_idle_time_1();
+	void execute_emul_op_idle_time_2();
 
 public:
 
@@ -238,9 +250,57 @@ typedef bit_field< 19, 19 > FN_field;
 typedef bit_field< 20, 25 > NATIVE_OP_field;
 typedef bit_field< 26, 31 > EMUL_OP_field;
 
+// "Native" EMUL_OP routines
+#define GPR_A(REG) gpr(16 + (REG))
+#define GPR_D(REG) gpr( 8 + (REG))
+
+void sheepshaver_cpu::execute_emul_op_microseconds()
+{
+	Microseconds(GPR_A(0), GPR_D(0));
+}
+
+void sheepshaver_cpu::execute_emul_op_idle_time_1()
+{
+	// Sleep if no events pending
+	if (ReadMacInt32(0x14c) == 0)
+		Delay_usec(16667);
+	GPR_A(0) = ReadMacInt32(0x2b6);
+}
+
+void sheepshaver_cpu::execute_emul_op_idle_time_2()
+{
+	// Sleep if no events pending
+	if (ReadMacInt32(0x14c) == 0)
+		Delay_usec(16667);
+	GPR_D(0) = (uint32)-2;
+}
+
+// Filter out EMUL_OP routines that only call native code
+bool sheepshaver_cpu::filter_execute_emul_op(uint32 emul_op)
+{
+	switch (emul_op) {
+	case OP_MICROSECONDS:
+		execute_emul_op_microseconds();
+		return true;
+	case OP_IDLE_TIME:
+		execute_emul_op_idle_time_1();
+		return true;
+	case OP_IDLE_TIME_2:
+		execute_emul_op_idle_time_2();
+		return true;
+	}
+	return false;
+}
+
 // Execute EMUL_OP routine
 void sheepshaver_cpu::execute_emul_op(uint32 emul_op)
 {
+#if ENABLE_NATIVE_EMUL_OP
+	// First, filter out EMUL_OPs that can be executed without a mode switch
+	if (filter_execute_emul_op(emul_op))
+		return;
+#endif
+
 	M68kRegisters r68;
 	WriteMacInt32(XLM_68K_R25, gpr(25));
 	WriteMacInt32(XLM_RUN_MODE, MODE_EMUL_OP);
@@ -394,9 +454,31 @@ bool sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 	}
 
 	default: {	// EMUL_OP
+		uint32 emul_op = EMUL_OP_field::extract(opcode) - 3;
+#if ENABLE_NATIVE_EMUL_OP
+		typedef void (*emul_op_func_t)(dyngen_cpu_base);
+		emul_op_func_t emul_op_func = 0;
+		switch (emul_op) {
+		case OP_MICROSECONDS:
+			emul_op_func = (emul_op_func_t)nv_mem_fun(&sheepshaver_cpu::execute_emul_op_microseconds).ptr();
+			break;
+		case OP_IDLE_TIME:
+			emul_op_func = (emul_op_func_t)nv_mem_fun(&sheepshaver_cpu::execute_emul_op_idle_time_1).ptr();
+			break;
+		case OP_IDLE_TIME_2:
+			emul_op_func = (emul_op_func_t)nv_mem_fun(&sheepshaver_cpu::execute_emul_op_idle_time_2).ptr();
+			break;
+		}
+		if (emul_op_func) {
+			dg.gen_invoke_CPU(emul_op_func);
+			cg_context.done_compile = false;
+			compiled = true;
+			break;
+		}
+#endif
 		typedef void (*func_t)(dyngen_cpu_base, uint32);
 		func_t func = (func_t)nv_mem_fun(&sheepshaver_cpu::execute_emul_op).ptr();
-		dg.gen_invoke_CPU_im(func, EMUL_OP_field::extract(opcode) - 3);
+		dg.gen_invoke_CPU_im(func, emul_op);
 		cg_context.done_compile = false;
 		compiled = true;
 		break;
