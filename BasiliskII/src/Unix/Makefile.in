@@ -32,6 +32,8 @@ SRCS=../prefs.cpp ../rom_patches.cpp ../slot_rom.cpp ../rsrc_patches.cpp ../emul
 APP = BasiliskII
 
 ## Rules
+.PHONY: clean distclean realclean depend
+
 default: $(APP)
 
 OBJ_DIR = obj
@@ -52,7 +54,7 @@ $(APP): $(OBJ_DIR) $(OBJS)
 	$(CXX) -o $(APP) $(LDFLAGS) $(OBJS) $(LIBS)
 
 modules:
-	cd Linux/NetDriver && make
+	cd Linux/NetDriver; make
 
 install: $(APP)
 	$(INSTALL_PROGRAM) -s BasiliskII $(bindir)
@@ -60,16 +62,16 @@ install: $(APP)
 	$(INSTALL_DATA) basilisk_ii_keycodes $(libdir)
 
 clean:
-	rm -f $(OBJ_DIR)/* core* *.core *~ *.bak
-	rm -f cpuemu.cpp cpudefs.cpp cputmp.s cpufast*.s cpustbl.cpp cputbl.h
+	-rm -f $(OBJ_DIR)/* core* *.core *~ *.bak
+	-rm -f cpuemu.cpp cpudefs.cpp cputmp.s cpufast*.s cpustbl.cpp cputbl.h
 
 distclean: clean
-	rm -f Makefile
-	rm -f config.cache config.log config.status config.h
-	strip $(APP)
+	-rm -f Makefile
+	-rm -f config.cache config.log config.status config.h
+	-strip $(APP)
 
 realclean: distclean
-	rm -f $(APP)
+	-rm -f $(APP)
 
 depend dep:
 	makedepend $(CPPFLAGS) -Y ../*.cpp ../*.c *.cpp
