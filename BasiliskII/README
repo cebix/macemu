@@ -26,6 +26,7 @@ Basilisk II has currently been ported to the following systems:
     IRIX 6.5)
   - AmigaOS 3.x
   - Windows NT 4.0 (mostly works under Windows 95/98, too)
+  - Mac OS X 10.1
 
 Some features of Basilisk II:
   - Emulates either a Mac Classic (which runs MacOS 0.x thru 7.5)
@@ -68,7 +69,7 @@ The settings are stored in a text file:
 BeOS:
   /boot/home/config/settings/BasiliskII_prefs
 
-Unix:
+Unix, Mac OS X:
   ~/.basilisk_ii_prefs
 
 AmigaOS:
@@ -283,6 +284,24 @@ screen <video mode>
     that mode. The screen is always full screen. When you switch to another
     application via Alt-Tab, Basilisk II is put in "snooze" mode (i.e. MacOS
     is frozen).
+
+
+  Mac OS X:
+    The "video mode" is one of the following:
+      win/<width>/<height>
+      win/<width>/<height>/<bits per pixel>
+        A refreshed (and buffered) [and very slow] Quartz window.
+        The default <bits> is 32, which is the only depth currently supported.
+      full/<width>/<height>
+      full/<width>/<height>/<bits per pixel>
+        A CGDirectDisplay full screen mode. <bits> can currently be 8, 16 or 32.
+        If not specified, the default is 32. There is currently no way to switch
+        between the Mac OS X and Basilisk II display, but Apple-Option-Escape
+        instantly and safely terminates the Basilisk II program.
+      opengl/<width>/<height>
+      opengl/<width>/<height>/<bits per pixel>
+        Currently unimplemented, will be a fast windowed mode.
+
 
 seriala <serial port description>
 
@@ -762,6 +781,7 @@ Contributions by (in alphabetical order):
  - Jürgen Lachmann <juergen_lachmann@t-online.de>: AmigaOS CyberGraphX support
  - Samuel Lander <blair_sp@hotmail.com>: tile-based window refresh code
  - David Lawrence <davidl@jlab.org>: incremental window refresh code
+ - Nigel Pearson <nigel@ind.tansu.com.au>: Mac OS X port
  - Lauri Pesonen <lpesonen@nic.fi>: Windows NT port
  - Bernd Schmidt <crux@pool.informatik.rwth-aachen.de>: UAE 68k emulation
  - and others...
