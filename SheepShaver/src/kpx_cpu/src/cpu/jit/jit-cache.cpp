@@ -60,9 +60,9 @@ basic_jit_cache::init_translation_cache(int size)
 	if (size == -1)
 		size = JIT_CACHE_SIZE;
 
-	// Round up translation cache size to next guard size boundaries boundaries
-	const uint32 roundup = JIT_CACHE_SIZE_GUARD;
-	cache_size = (size + roundup - 1) & -roundup;
+	// Round up translation cache size to 16 KB boundaries
+	const uint32 roundup = 16 * 1024;
+	cache_size = (size + JIT_CACHE_SIZE_GUARD + roundup - 1) & -roundup;
 	assert(cache_size > 0);
 
 #if STATIC_ICACHE_ALLOC
