@@ -449,7 +449,8 @@ resizeWinBy(const short deltaX, const short deltaY)
 
 	D(bug(", new x=%g, y=%g\n", rect.size.width, rect.size.height));
 
-	[the_win setFrame: rect display: YES];
+	[the_win setFrame: rect display: YES animate: YES];
+	[the_win center];
 	rect = [the_win frame];
 }
 
@@ -902,6 +903,9 @@ void VideoExit(void)
 
 	for (i = VideoMonitors.begin(); i != end; ++i)
 		dynamic_cast<OSX_monitor *>(*i)->video_close();
+
+	VideoMonitors.clear();
+	VideoModes.clear();
 }
 
 
