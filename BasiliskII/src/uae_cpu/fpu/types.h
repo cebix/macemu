@@ -133,7 +133,10 @@ typedef long double uae_f64;
 typedef long double uae_f96;
 typedef uae_f96 fpu_register;
 #define USE_LONG_DOUBLE 1
-#elif SIZEOF_LONG_DOUBLE == 16
+#elif (SIZEOF_LONG_DOUBLE == 16) && 0
+/* Disable for now and probably for good as (i) the emulator
+   implementation is not correct, (ii) I don't know of any CPU which
+   handles this kind of format *natively* with conformance to IEEE.  */
 typedef long double uae_f128;
 typedef uae_f128 fpu_register;
 #define USE_QUAD_DOUBLE 1
