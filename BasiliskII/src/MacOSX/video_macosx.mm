@@ -102,7 +102,10 @@ bool
 parse_screen_prefs(const char *mode_str)
 {
 	if ( ! mode_str )
-		return false;
+	{
+		// No screen pref was found. Supply a default:
+		mode_str = "win/512/384";
+	}
 
 	if (sscanf(mode_str, "win/%hd/%hd/%hd",
 				&init_width, &init_height, &init_depth) == 3)
