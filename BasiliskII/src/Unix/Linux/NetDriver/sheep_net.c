@@ -18,29 +18,23 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __KERNEL__
-#define __KERNEL__
-#endif
-
-#ifndef MODULE
-#define MODULE
-#endif
-
 /* determine whether to use checksummed versions of kernel symbols */
 #include <linux/config.h>
-#ifdef CONFIG_MODVERSIONS
+
+#if defined(CONFIG_MODVERSIONS) && !defined(MODVERSIONS)
 #define MODVERSIONS
+#endif
+
+#if defined(MODVERSIONS)
 #include <linux/modversions.h>
 #endif
 
 /* modversions.h redefines kernel symbols.  Now include other headers */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/version.h>
+
+#include <linux/types.h>
 #include <linux/miscdevice.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>

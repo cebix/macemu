@@ -3,10 +3,11 @@
 ## System specific configuration
 CC = cc
 CPPFLAGS = -I. -I/usr/src/linux/include
-CFLAGS = -O2 -Wall -D__KERNEL__ -DMODULE
+CFLAGS = -O2 -Wall -D__KERNEL__ -DMODULE -D_LOOSE_KERNEL_NAMES
 ASFLAGS =
 LDFLAGS =
 LIBS =
+KERNDIR = /lib/modules/$(shell uname -r)
 
 ## Files
 OBJS = sheep_net.o
@@ -19,8 +20,8 @@ dev:
 	mknod /dev/sheep_net c 10 198
 
 install: sheep_net.o
-	install -d /lib/modules/`uname -r`/misc
-	install -m 644 sheep_net.o /lib/modules/`uname -r`/misc
+	install -d $(KERNDIR)/misc
+	install -m 644 sheep_net.o $(KERNDIR)/misc
 
 clean:
 	-rm $(OBJS)
