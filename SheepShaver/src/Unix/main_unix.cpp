@@ -238,8 +238,8 @@ static void Quit(void);
 static void *emul_func(void *arg);
 static void *nvram_func(void *arg);
 static void *tick_func(void *arg);
-static void sigusr2_handler(int sig, sigcontext_struct *sc);
 #if !EMULATED_PPC
+static void sigusr2_handler(int sig, sigcontext_struct *sc);
 static void sigsegv_handler(int sig, sigcontext_struct *sc);
 static void sigill_handler(int sig, sigcontext_struct *sc);
 #endif
@@ -717,19 +717,18 @@ int main(int argc, char **argv)
 	}
 #endif
 
+#if !EMULATED_PPC
 	// Install interrupt signal handler
 	sigemptyset(&sigusr2_action.sa_mask);
 	sigusr2_action.sa_handler = (__sighandler_t)sigusr2_handler;
-	sigusr2_action.sa_flags = 0;
-#if !EMULATED_PPC
 	sigusr2_action.sa_flags = SA_ONSTACK | SA_RESTART;
-#endif
 	sigusr2_action.sa_restorer = NULL;
 	if (sigaction(SIGUSR2, &sigusr2_action, NULL) < 0) {
 		sprintf(str, GetString(STR_SIGUSR2_INSTALL_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
+#endif
 
 	// Get my thread ID and execute MacOS thread function
 	emul_thread = pthread_self();
@@ -917,7 +916,6 @@ void Execute68kTrap(uint16 trap, M68kRegisters *r)
 	uint16 proc[2] = {trap, M68K_RTS};
 	Execute68k((uint32)proc, r);
 }
-#endif
 
 
 /*
@@ -931,6 +929,7 @@ void ExecutePPC(void (*func)())
 	M68kRegisters r;
 	Execute68k((uint32)&desc, &r);
 }
+#endif
 
 
 /*
@@ -1121,6 +1120,56 @@ void Set_pthread_attr(pthread_attr_t *attr, int priority)
  *  Mutexes
  */
 
+#ifdef HAVE_PTHREADS
+
+struct B2_mutex {
+	B2_mutex() { 
+	    pthread_mutexattr_t attr;
+	    pthread_mutexattr_init(&attr);
+	    // Initialize the mutex for priority inheritance --
+	    // required for accurate timing.
+#ifdef HAVE_PTHREAD_MUTEXATTR_SETPROTOCOL
+	    pthread_mutexattr_setprotocol(&attr, PTHREAD_PRIO_INHERIT);
+#endif
+#if defined(HAVE_PTHREAD_MUTEXATTR_SETTYPE) && defined(PTHREAD_MUTEX_NORMAL)
+	    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);
+#endif
+#ifdef HAVE_PTHREAD_MUTEXATTR_SETPSHARED
+	    pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_PRIVATE);
+#endif
+	    pthread_mutex_init(&m, &attr);
+	    pthread_mutexattr_destroy(&attr);
+	}
+	~B2_mutex() { 
+	    pthread_mutex_trylock(&m); // Make sure it's locked before
+	    pthread_mutex_unlock(&m);  // unlocking it.
+	    pthread_mutex_destroy(&m);
+	}
+	pthread_mutex_t m;
+};
+
+B2_mutex *B2_create_mutex(void)
+{
+	return new B2_mutex;
+}
+
+void B2_lock_mutex(B2_mutex *mutex)
+{
+	pthread_mutex_lock(&mutex->m);
+}
+
+void B2_unlock_mutex(B2_mutex *mutex)
+{
+	pthread_mutex_unlock(&mutex->m);
+}
+
+void B2_delete_mutex(B2_mutex *mutex)
+{
+	delete mutex;
+}
+
+#else
+
 struct B2_mutex {
 	int dummy;
 };
@@ -1143,16 +1192,20 @@ void B2_delete_mutex(B2_mutex *mutex)
 	delete mutex;
 }
 
+#endif
+
 
 /*
  *  Trigger signal USR2 from another thread
  */
 
+#if !EMULATED_PPC
 void TriggerInterrupt(void)
 {
 	if (ready_for_signals)
 		pthread_kill(emul_thread, SIGUSR2);
 }
+#endif
 
 
 /*
@@ -1178,7 +1231,7 @@ void ClearInterruptFlag(uint32 flag)
 
 void DisableInterrupt(void)
 {
-	atomic_add((int *)XLM_IRQ_NEST, tswap32(1));
+	atomic_add((int *)XLM_IRQ_NEST, 1);
 }
 
 
@@ -1188,19 +1241,17 @@ void DisableInterrupt(void)
 
 void EnableInterrupt(void)
 {
-	atomic_add((int *)XLM_IRQ_NEST, tswap32((uint32)-1));
+	atomic_add((int *)XLM_IRQ_NEST, -1);
 }
 
 
+#if !EMULATED_PPC
 /*
  *  USR2 handler
  */
 
 static void sigusr2_handler(int sig, sigcontext_struct *sc)
 {
-#if EMULATED_PPC
-	HandleInterrupt();
-#else
 	pt_regs *r = sc->regs;
 
 	// Do nothing if interrupts are disabled
@@ -1282,11 +1333,9 @@ static void sigusr2_handler(int sig, sigcontext_struct *sc)
 #endif
 
 	}
-#endif
 }
 
 
-#if !EMULATED_PPC
 /*
  *  SIGSEGV handler
  */
