@@ -182,14 +182,14 @@ bool ether_init(void)
 	else
 		net_if_type = NET_IF_SHEEPNET;
 
-	// Open sheep_net or ethertap device
+	// Open sheep_net or ethertap or TUN/TAP device
 	char dev_name[16];
 	switch (net_if_type) {
 	case NET_IF_ETHERTAP:
 		sprintf(dev_name, "/dev/%s", name);
 		break;
 	case NET_IF_TUNTAP:
-		sprintf(dev_name, "/dev/net/tun", name);
+		strcpy(dev_name, "/dev/net/tun");
 		break;
 	case NET_IF_SHEEPNET:
 		strcpy(dev_name, "/dev/sheep_net");
