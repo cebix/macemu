@@ -59,17 +59,27 @@
 # endif
 #endif
 
+// Define for external components
+#define SHEEPSHAVER 1
+
 // Mac and host address space are the same
 #define REAL_ADDRESSING 1
 
-// Are we using a PPC emulator or the real thing?
-#ifdef __powerpc__
-#define EMULATED_PPC 0
-#else
-#define EMULATED_PPC 1
-#endif
-
 #define POWERPC_ROM 1
+
+#if EMULATED_PPC
+// Mac ROM is write protected when banked memory is used
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+# define ROM_IS_WRITE_PROTECTED 0
+# define USE_SCRATCHMEM_SUBTERFUGE 1
+#else
+# define ROM_IS_WRITE_PROTECTED 1
+#endif
+#else
+// Mac ROM is write protected
+#define ROM_IS_WRITE_PROTECTED 1
+#define USE_SCRATCHMEM_SUBTERFUGE 0
+#endif
 
 // Data types
 typedef unsigned char uint8;
@@ -113,6 +123,58 @@ typedef uint64 uintptr;
 typedef int64 intptr;
 #else
 #error "Unsupported size of pointer"
+#endif
+
+// Helper functions to byteswap data
+#ifdef HAVE_BYTESWAP_H
+#include <byteswap.h>
+#endif
+
+#ifndef bswap_16
+#define bswap_16 generic_bswap_16
+#endif
+
+static inline uint16 generic_bswap_16(uint16 x)
+{
+  return ((x & 0xff) << 8) | ((x >> 8) & 0xff);
+}
+
+#ifndef bswap_32
+#define bswap_32 generic_bswap_32
+#endif
+
+static inline uint32 generic_bswap_32(uint32 x)
+{
+  return (((x & 0xff000000) >> 24) |
+		  ((x & 0x00ff0000) >>  8) |
+		  ((x & 0x0000ff00) <<  8) |
+		  ((x & 0x000000ff) << 24) );
+}
+
+#ifndef bswap_64
+#define bswap_64 generic_bswap_64
+#endif
+
+static inline uint64 generic_bswap_64(uint64 x)
+{
+  return (((x & UVAL64(0xff00000000000000)) >> 56) |
+		  ((x & UVAL64(0x00ff000000000000)) >> 40) |
+		  ((x & UVAL64(0x0000ff0000000000)) >> 24) |
+		  ((x & UVAL64(0x000000ff00000000)) >>  8) |
+		  ((x & UVAL64(0x00000000ff000000)) <<  8) |
+		  ((x & UVAL64(0x0000000000ff0000)) << 24) |
+		  ((x & UVAL64(0x000000000000ff00)) << 40) |
+		  ((x & UVAL64(0x00000000000000ff)) << 56) );
+}
+
+#ifdef WORDS_BIGENDIAN
+static inline uint16 tswap16(uint16 x) { return x; }
+static inline uint32 tswap32(uint32 x) { return x; }
+static inline uint64 tswap64(uint64 x) { return x; }
+#else
+static inline uint16 tswap16(uint16 x) { return bswap_16(x); }
+static inline uint32 tswap32(uint32 x) { return bswap_32(x); }
+static inline uint64 tswap64(uint64 x) { return bswap_64(x); }
 #endif
 
 // Time data type for Time Manager emulation
