@@ -318,7 +318,7 @@ bool InitEmulator (void)
 
 void QuitEmuNoExit()
 {
-	extern	NSApplication *NSApp;
+//	extern	NSApplication *NSApp;
 
 
 	D(bug("QuitEmulator\n"));
@@ -362,8 +362,8 @@ void QuitEmuNoExit()
 	// Exit preferences
 	PrefsExit();
 
-	// Stop run loop
-	[NSApp terminate: nil];
+	// Stop run loop?
+	//[NSApp terminate: nil];
 }
 
 void QuitEmulator(void)
