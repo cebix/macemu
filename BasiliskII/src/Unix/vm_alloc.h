@@ -30,6 +30,11 @@
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
+#ifdef HAVE_MACH_VM
+extern "C" {
+#include <mach/mach.h>
+}
+#endif
 
 /* Return value of `vm_acquire' in case of an error.  */
 #ifdef HAVE_MACH_VM
