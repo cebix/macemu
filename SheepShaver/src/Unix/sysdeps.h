@@ -344,6 +344,10 @@ typedef struct timespec tm_time_t;
 typedef struct timeval tm_time_t;
 #endif
 
+// Timing functions
+extern uint64 GetTicks_usec(void);
+extern void Delay_usec(uint32 usec);
+
 // Setup pthread attributes
 extern void Set_pthread_attr(pthread_attr_t *attr, int priority);
 
