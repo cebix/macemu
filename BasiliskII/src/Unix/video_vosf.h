@@ -34,8 +34,8 @@
 #endif
 
 // Variables for Video on SEGV support
-static uint8 *the_host_buffer;						// Host frame buffer in VOSF mode
-static uint32 the_buffer_size;						// Size of allocated the_buffer
+static uint8 *the_host_buffer;	// Host frame buffer in VOSF mode
+static uint32 the_buffer_size;	// Size of allocated the_buffer
 
 struct ScreenPageInfo {
     int top, bottom;			// Mapping between this virtual page and Mac scanlines
@@ -131,8 +131,6 @@ static inline int find_next_page_clear(int page)
 #endif
 }
 
-static int zero_fd = -1;
-
 #ifdef HAVE_PTHREADS
 static pthread_mutex_t vosf_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer (dirtyPages in fact)
 #define LOCK_VOSF pthread_mutex_lock(&vosf_lock);
@@ -153,6 +151,14 @@ static int log_base_2(uint32 x)
 	return l;
 }
 
+// Extend size to page boundary
+static uint32 page_extend(uint32 size)
+{
+	const uint32 page_size = getpagesize();
+	const uint32 page_mask = page_size - 1;
+	return (size + page_mask) & ~page_mask;
+}
+
 
 /*
  *  Initialize mainBuffer structure
@@ -165,7 +171,7 @@ static bool video_init_buffer(void)
 		const uint32 page_mask	= page_size - 1;
 		
 		mainBuffer.memBase      = (uintptr) the_buffer;
-		// Align the frame buffer on page boundary
+		// Round up frame buffer base to page boundary
 		mainBuffer.memStart		= (uintptr)((((unsigned long) the_buffer) + page_mask) & ~page_mask);
 		mainBuffer.memLength	= the_buffer_size;
 		mainBuffer.memEnd       = mainBuffer.memStart + mainBuffer.memLength;
@@ -195,7 +201,7 @@ static bool video_init_buffer(void)
 
 		PFLAG_CLEAR_ALL;
 		// Safety net to insure the loops in the update routines will terminate
-		// See a discussion in <video_vosf.h> for further details
+		// See "How can we deal with array overrun conditions ?" hereunder for further details
 		PFLAG_CLEAR(mainBuffer.pageCount);
 		PFLAG_SET(mainBuffer.pageCount+1);
 
@@ -226,25 +232,16 @@ static bool video_init_buffer(void)
 
 
 /*
- *  Page-aligned memory allocation
+ * Screen fault handler
  */
 
-// Extend size to page boundary
-static uint32 page_extend(uint32 size)
-{
-	const uint32 page_size = getpagesize();
-	const uint32 page_mask = page_size - 1;
-	return (size + page_mask) & ~page_mask;
-}
-
-// Screen fault handler
 static bool screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction)
 {
 	D(bug("screen_fault_handler: ADDR=0x%08X from IP=0x%08X\n", fault_address, fault_instruction));
 	const uintptr addr = (uintptr)fault_address;
 	
 	/* Someone attempted to write to the frame buffer. Make it writeable
-	 * now so that the data could actually be written. It will be made
+	 * now so that the data could actually be written to. It will be made
 	 * read-only back in one of the screen update_*() functions.
 	 */
 	if ((addr >= mainBuffer.memStart) && (addr < mainBuffer.memEnd)) {
@@ -275,6 +272,7 @@ static bool screen_fault_handler(sigsegv_address_t fault_address, sigsegv_addres
 #endif
 	return false;
 }
+
 
 /*
  *	Update display for Windowed mode and VOSF
@@ -364,14 +362,13 @@ static inline void update_display_window_vosf(void)
 		else
 			XPutImage(x_display, the_win, the_gc, img, 0, y1, 0, y1, VideoMonitor.mode.x, height);
 	}
-
 	mainBuffer.dirty = false;
 }
 
 
 /*
  *	Update display for DGA mode and VOSF
- *	(only in Direct Addressing mode)
+ *	(only in Real or Direct Addressing mode)
  */
 
 #if REAL_ADDRESSING || DIRECT_ADDRESSING

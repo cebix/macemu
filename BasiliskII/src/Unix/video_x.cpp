@@ -803,15 +803,6 @@ bool VideoInit(bool classic)
 	classic_mode = classic;
 
 #ifdef ENABLE_VOSF
-	// Open /dev/zero
-	zero_fd = open("/dev/zero", O_RDWR);
-	if (zero_fd < 0) {
-        char str[256];
-		sprintf(str, GetString(STR_NO_DEV_ZERO_ERR), strerror(errno));
-		ErrorAlert(str);
-        return false;
-	}
-	
 	// Zero the mainBuffer structure
 	mainBuffer.dirtyPages = 0;
 	mainBuffer.pageInfo = 0;
@@ -1083,12 +1074,6 @@ static void video_close(void)
 void VideoExit(void)
 {
 	video_close();
-
-#ifdef ENABLE_VOSF
-	// Close /dev/zero
-	if (zero_fd > 0)
-		close(zero_fd);
-#endif
 }
 
 
