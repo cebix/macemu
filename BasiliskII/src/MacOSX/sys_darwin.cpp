@@ -129,9 +129,8 @@ void DarwinAddCDROMPrefs(void)
 
 void DarwinAddFloppyPrefs(void)
 {
-#ifdef MAC_OS_X_VERSION_10_2
 	mach_port_t				masterPort;		// The way to talk to the kernel
-	io_iterator_t			allFloppies;	// List of CD drives on the system
+	io_iterator_t			allFloppies;	// List of possible floppys
 	CFMutableDictionaryRef	classesToMatch;
 	io_object_t				nextFloppy;
 
@@ -140,13 +139,17 @@ void DarwinAddFloppyPrefs(void)
 		bug("IOMasterPort failed. Won't be able to do anything with floppy drives\n");
 
 
+	// This selects all partitions of all disks
 	classesToMatch = IOServiceMatching(kIOMediaClass); 
 	if ( classesToMatch )
 	{
-		// We acually want removables that are _not_ CDs,
-		// but I don't know how to do that yet.
+		// Skip drivers and partitions
 		CFDictionarySetValue(classesToMatch,
-							 CFSTR(kIOMediaRemovableKey), kCFBooleanTrue); 
+							 CFSTR(kIOMediaWholeKey), kCFBooleanTrue); 
+	
+		// Skip fixed drives (hard disks?)
+		CFDictionarySetValue(classesToMatch,
+							 CFSTR(kIOMediaEjectableKey), kCFBooleanTrue); 
 	}
 
 	if ( IOServiceGetMatchingServices(masterPort,
@@ -165,6 +168,26 @@ void DarwinAddFloppyPrefs(void)
 						IORegistryEntryCreateCFProperty(nextFloppy,
 														CFSTR(kIOBSDNameKey),
 														kCFAllocatorDefault, 0);
+		long		size;
+		CFTypeRef	sizeAsCFNumber =
+						IORegistryEntryCreateCFProperty(nextFloppy,
+														CFSTR(kIOMediaSizeKey),
+														kCFAllocatorDefault, 0);
+
+		if ( CFNumberGetValue((CFNumberRef)sizeAsCFNumber,
+								kCFNumberSInt32Type, &size) )
+		{
+			D(bug("Got size of %ld\n", size));
+			if ( size < 800 * 1024 || size > 1440 * 1024 )
+			{
+				D(puts("Device does not appear to be 800k or 1440k"));
+				continue;
+			}
+		}
+		else
+			bug("Couldn't get kIOMediaSizeKey of device");
+		
+		
 		*bsdPath = '\0';
 		if ( bsdPathAsCFString )
 		{
@@ -192,7 +215,6 @@ void DarwinAddFloppyPrefs(void)
 
 	IOObjectRelease(nextFloppy);
 	IOObjectRelease(allFloppies);
-#endif
 }
 
 
