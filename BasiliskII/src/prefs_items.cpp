@@ -62,6 +62,7 @@ prefs_desc common_prefs_items[] = {
 	{"jitdebug", TYPE_BOOLEAN, false,    "enable JIT debugger (requires mon builtin)"},
 	{"jitcachesize", TYPE_INT32, false,  "translation cache size in KB"},
 	{"jitlazyflush", TYPE_BOOLEAN, false, "enable lazy invalidation of translation cache"},
+	{"keyboardtype", TYPE_INT32, false, "hardware keyboard type"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
@@ -97,4 +98,6 @@ void AddPrefsDefaults(void)
 #else
 	PrefsAddBool("jit", false);
 #endif
+
+    PrefsAddInt32("keyboardtype", 5);
 }

@@ -28,8 +28,9 @@
 
 #include "sysdeps.h"
 #include "cpu_emulation.h"
-#include "main.h"
 #include "emul_op.h"
+#include "main.h"
+#include "prefs.h"
 #include "video.h"
 #include "adb.h"
 
@@ -57,6 +58,8 @@ static uint8 mouse_reg_3[2] = {0x63, 0x01};	// Mouse ADB register 3
 static uint8 key_reg_2[2] = {0xff, 0xff};	// Keyboard ADB register 2
 static uint8 key_reg_3[2] = {0x62, 0x05};	// Keyboard ADB register 3
 
+static uint8 m_keyboard_type = 0x05;
+
 // ADB mouse motion lock (for platforms that use separate input thread)
 static B2_mutex *mouse_lock;
 
@@ -68,6 +71,8 @@ static B2_mutex *mouse_lock;
 void ADBInit(void)
 {
 	mouse_lock = B2_create_mutex();
+	m_keyboard_type = (uint8)PrefsFindInt32("keyboardtype");
+	key_reg_3[1] = m_keyboard_type;
 }
 
 
@@ -99,7 +104,7 @@ void ADBOp(uint8 op, uint8 *data)
 		key_reg_2[0] = 0xff;
 		key_reg_2[1] = 0xff;
 		key_reg_3[0] = 0x62;
-		key_reg_3[1] = 0x05;
+		key_reg_3[1] = m_keyboard_type;
 		return;
 	}
 

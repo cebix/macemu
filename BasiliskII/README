@@ -524,6 +524,14 @@ nogui <"true" or "false">
   error alerts. All errors will then be reported to stdout. The default
   is "false".
 
+keyboardtype <keyboard-id>
+
+  Specifies the keyboard type that BasiliskII should report to the MacOS.
+  The default is "5" which is a "Apple Extended Keyboard II (ISO)",
+  but many other numbers are understood by most versions of the MacOS
+  (e.g. 11 is a "Macintosh Plus Keyboard with keypad",
+        13 is a "Apple PowerBook Keyboard (ISO)" )
+
 For additional information, consult the source.
 
 
