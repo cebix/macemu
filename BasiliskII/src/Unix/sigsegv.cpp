@@ -1201,10 +1201,25 @@ static sigsegv_return_t sigsegv_test_handler(sigsegv_address_t fault_address, si
 }
 
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+#ifdef __GNUC__
+// Code range where we expect the fault to come from
+static void *b_region, *e_region;
+#endif
+
 static sigsegv_return_t sigsegv_insn_handler(sigsegv_address_t fault_address, sigsegv_address_t instruction_address)
 {
-	if (((unsigned long)fault_address - (unsigned long)page) < page_size)
+	if (((unsigned long)fault_address - (unsigned long)page) < page_size) {
+#ifdef __GNUC__
+		// Make sure reported fault instruction address falls into
+		// expected code range
+		if (instruction_address != SIGSEGV_INVALID_PC
+			&& ((instruction_address <  (sigsegv_address_t)b_region) ||
+				(instruction_address >= (sigsegv_address_t)e_region)))
+			return SIGSEGV_RETURN_FAILURE;
+#endif
 		return SIGSEGV_RETURN_SKIP_INSTRUCTION;
+	}
+
 	return SIGSEGV_RETURN_FAILURE;
 }
 #endif
@@ -1251,9 +1266,15 @@ int main(void)
 			return 1;									\
 	} while (0)
 	
+#ifdef __GNUC__
+	b_region = &&L_b_region;
+	e_region = &&L_e_region;
+#endif
+ L_b_region:
 	TEST_SKIP_INSTRUCTION(unsigned char);
 	TEST_SKIP_INSTRUCTION(unsigned short);
 	TEST_SKIP_INSTRUCTION(unsigned int);
+ L_e_region:
 #endif
 
 	vm_exit();
