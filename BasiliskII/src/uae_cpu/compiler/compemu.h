@@ -80,6 +80,9 @@ union cacheline {
 #define USE_CHECKSUM_INFO 1
 #endif
 
+/* Does flush_icache_range() only check for blocks falling in the requested range? */
+#define LAZY_FLUSH_ICACHE_RANGE 0
+
 #define USE_F_ALIAS 1
 #define USE_OFFSET 1
 #define COMP_DEBUG 1
