@@ -3,9 +3,10 @@ Bugs:
 <LI>In window mode, if the framerate is low (<I>e.g.</I> if you leave it at the
 	default of 10fps), really fast mouse clicks are sometimes not picked up
 	by the Emulator. For now, click more slowly</LI>
-<LI>Some special keys (<I>e.g.</I> the cursor keys) are not being correctly
-	passed through to the Emulator (<I>e.g.</I> up arrow causes the Emulator
-	to try and shut down). Looks like some further key decoding is needed</LI>
+<LI>In full screen mode, sometimes the program hangs just after minimising the
+	window (i.e. full screen mode is never entered). If this happens, do a
+	force quit (Apple-Option-Escape) and start the program again, as it
+	usually works just fine then</LI>
 </UL>
 Untested:
 <UL>
@@ -31,7 +32,7 @@ Possible Enhancements:
 	(memory + registers) to a file for fast startup next time</LI>
 <LI>Multiple emulators. The window stuff is mostly there,
 	but the uae_cpu code has lots of globals, and is not re-entrant</LI>
-<LI>Real or Direct addressing mode for the emulator.
+<LI>Real addressing mode for the emulator.
 	At the moment, OS X's mmap() call does not support anything useful</LI>
 <LI>Get VOSF (Video on Seg Fault) working, to speed up screen redrawing</LI>
 <LI>Implement OpenGL windowing mode (to speed up emulator screen redrawing)</LI>
