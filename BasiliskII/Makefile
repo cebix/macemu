@@ -12,8 +12,9 @@ AMIGAARCHIVE := $(VERNAME)-$(RELEASE).amiga.lha
 BEOSPPCARCHIVE := $(VERNAME)-$(RELEASE).beosppc.zip
 BEOSX86ARCHIVE := $(VERNAME)-$(RELEASE).beosx86.zip
 
-TMPDIR := $(shell date +/tmp/build%m%s)
+TMPDIR := $(shell date +/tmp/build%M%S)
 RPMDIR := /usr/src/redhat
+ISODATE := $(shell date "+%Y-%m-%d %H:%M")
 DOCS := $(shell sed <BasiliskII.spec -n '/^\%doc */s///p')
 SRCS := src
 
@@ -45,7 +46,7 @@ tarball: $(SRCARCHIVE)
 $(SRCARCHIVE): $(SRCS) $(DOCS)
 	-rm -rf $(TMPDIR)
 	mkdir $(TMPDIR)
-	cd $(TMPDIR); cvs checkout BasiliskII
+	cd $(TMPDIR); cvs export -D "$(ISODATE)" BasiliskII
 	rm -rf $(TMPDIR)/BasiliskII/src/powerrom_cpu	#not yet ready for distribution
 	mv $(TMPDIR)/BasiliskII $(TMPDIR)/$(VERNAME)
 	cd $(TMPDIR); tar cfz $@ $(VERNAME)
