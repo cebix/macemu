@@ -1,14 +1,12 @@
 Summary:   A free, portable Mac II emulator
 Name:      BasiliskII
 Version:   0.7
-Release:   2
+Release:   1
 URL:       http://www.uni-mainz.de/~bauec002/B2Main.html
-Source:    BasiliskII_src_250799.tar.gz
+Source:    BasiliskII_src_03101999.tar.gz
 Copyright: GPL
 Group:     Applications/Emulators
-Vendor: PLD
-Packager: Christian Bauer <Christian.Bauer@uni-mainz.de>
-BuildRoot: /tmp/%{name}-%{version}-root
+Packager:  Christian Bauer <Christian.Bauer@uni-mainz.de>
 
 %description
 Basilisk II is a free, portable, Open Source 68k Mac emulator. It requires
@@ -35,30 +33,18 @@ Some features of Basilisk II:
 
 %build
 cd src/Unix
-./configure --prefix=/usr
-
+./configure --prefix=/usr --exec_prefix=/usr/X11R6
 make RPM_OPT_FLAGS="$RPM_OPT_FLAGS"
 
 %install
-rm -rf $RPM_BUILD_ROOT
-
-install -d $RPM_BUILD_ROOT/usr/lib/BasiliskII/Linux
-install -d $RPM_BUILD_ROOT/usr/X11R6/bin
-
-install -m755 -s src/Unix/BasiliskII $RPM_BUILD_ROOT/usr/X11R6/bin
-
-cp -R src/Unix/Linux/* $RPM_BUILD_ROOT/usr/lib/BasiliskII/Linux
-mkdir docs
-cp CHANGES COPYING README TECH TODO docs
-
-%clean
-rm -rf $RPM_BUILD_ROOT
+cd src/Unix
+make install
 
 %files
-%defattr(-,root,root)
-%doc docs/*
-/usr/lib/BasiliskII
-/usr/X11R6/bin/*
+%doc ChangeLog COPYING README TECH TODO
+/usr/X11R6/bin/BasiliskII
+/usr/man/man1/BasiliskII.1
+/usr/share/BasiliskII/keycodes
 
 %changelog
 * Fri Jul 23 1999 Roman Niewiarowski <newrom@pasjo.net.pl>
