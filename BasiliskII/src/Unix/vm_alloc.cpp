@@ -27,7 +27,11 @@
 #include <fcntl.h>
 #endif
 
-// TODO: Win32 VMs ?
+#ifdef HAVE_WIN32_VM
+#define WIN32_LEAN_AND_MEAN /* avoid including junk */
+#include <windows.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -173,6 +177,40 @@ static int translate_map_flags(int vm_flags)
 }
 #endif
 
+/* Align ADDR and SIZE to 64K boundaries.  */
+
+#ifdef HAVE_WIN32_VM
+static inline LPVOID align_addr_segment(LPVOID addr)
+{
+	return (LPVOID)(((DWORD)addr) & -65536);
+}
+
+static inline DWORD align_size_segment(LPVOID addr, DWORD size)
+{
+	return size + ((DWORD)addr - (DWORD)align_addr_segment(addr));
+}
+#endif
+
+/* Translate generic VM prot flags to host values.  */
+
+#ifdef HAVE_WIN32_VM
+static int translate_prot_flags(int prot_flags)
+{
+	int prot = PAGE_READWRITE;
+	if (prot_flags == (VM_PAGE_EXECUTE | VM_PAGE_READ | VM_PAGE_WRITE))
+		prot = PAGE_EXECUTE_READWRITE;
+	else if (prot_flags == (VM_PAGE_EXECUTE | VM_PAGE_READ))
+		prot = PAGE_EXECUTE_READ;
+	else if (prot_flags == (VM_PAGE_READ | VM_PAGE_WRITE))
+		prot = PAGE_READWRITE;
+	else if (prot_flags == VM_PAGE_READ)
+		prot = PAGE_READONLY;
+	else if (prot_flags == 0)
+		prot = PAGE_NOACCESS;
+	return prot;
+}
+#endif
+
 /* Initialize the VM system. Returns 0 if successful, -1 for errors.  */
 
 int vm_init(void)
@@ -263,11 +301,20 @@ void * vm_acquire(size_t size, int options)
 	}
 #endif
 #else
+#ifdef HAVE_WIN32_VM
+	if ((addr = VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE)) == NULL)
+		return VM_MAP_FAILED;
+
+	// Zero newly allocated memory
+	if (memset(addr, 0, size) != addr)
+		return VM_MAP_FAILED;
+#else
 	if ((addr = calloc(size, 1)) == 0)
 		return VM_MAP_FAILED;
 	
 	// Omit changes for protections because they are not supported in this mode
 	return addr;
+#endif
 #endif
 #endif
 
@@ -303,8 +350,25 @@ int vm_acquire_fixed(void * addr, size_t size, int options)
 	if (memset(addr, 0, size) != addr)
 		return -1;
 #else
+#ifdef HAVE_WIN32_VM
+	// Windows cannot allocate Low Memory
+	if (addr == NULL)
+		return -1;
+
+	// Allocate a possibly offset region to align on 64K boundaries
+	LPVOID req_addr = align_addr_segment(addr);
+	DWORD  req_size = align_size_segment(addr, size);
+	LPVOID ret_addr = VirtualAlloc(req_addr, req_size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	if (ret_addr != req_addr)
+		return -1;
+
+	// Zero newly allocated memory
+	if (memset(addr, 0, size) != addr)
+		return -1;
+#else
 	// Unsupported
 	return -1;
+#endif
 #endif
 #endif
 	
@@ -348,7 +412,12 @@ int vm_release(void * addr, size_t size)
 	}
 #endif
 #else
+#ifdef HAVE_WIN32_VM
+	if (VirtualFree(align_addr_segment(addr), 0, MEM_RELEASE) == 0)
+		return -1;
+#else
 	free(addr);
+#endif
 #endif
 #endif
 	
@@ -368,8 +437,14 @@ int vm_protect(void * addr, size_t size, int prot)
 	int ret_code = mprotect((caddr_t)addr, size, prot);
 	return ret_code == 0 ? 0 : -1;
 #else
+#ifdef HAVE_WIN32_VM
+	DWORD old_prot;
+	int ret_code = VirtualProtect(addr, size, translate_prot_flags(prot), &old_prot);
+	return ret_code != 0 ? 0 : -1;
+#else
 	// Unsupported
 	return -1;
+#endif
 #endif
 #endif
 }
@@ -384,7 +459,11 @@ int main(void)
 	vm_init();
 	
 #define page_align(address) ((char *)((unsigned long)(address) & -page_size))
+#ifdef _WIN32
+	const unsigned long page_size = 4096;
+#else
 	unsigned long page_size = getpagesize();
+#endif
 	
 	const int area_size = 6 * page_size;
 	volatile char * area = (volatile char *) vm_acquire(area_size);
