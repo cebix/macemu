@@ -727,6 +727,12 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  PPC_I(MCRF),
 	  XL_form, 19, 0, CFLOW_NORMAL
 	},
+	{ "mcrfs",
+	  EXECUTE_0(mcrfs),
+	  NULL,
+	  PPC_I(MCRFS),
+	  X_form, 63, 64, CFLOW_NORMAL
+	},
 	{ "mfcr",
 	  EXECUTE_GENERIC_ARITH(nop, RD, CR, NONE, NONE, OE_BIT_0, RC_BIT_0),
 	  NULL,

@@ -132,6 +132,7 @@ enum powerpc_instruction {
 	PPC_I(LWZUX),
 	PPC_I(LWZX),
 	PPC_I(MCRF),
+	PPC_I(MCRFS),
 	PPC_I(MFCR),
 	PPC_I(MFFS),
 	PPC_I(MFMSR),

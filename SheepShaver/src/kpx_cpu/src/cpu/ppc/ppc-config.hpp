@@ -64,6 +64,18 @@
 
 
 /**
+ *	PPC_ENABLE_FPU_EXCEPTIONS
+ *
+ *		Define to enable a more precise FPU emulation with support for
+ *		exception bits. This is slower and not fully correct yet.
+ **/
+
+#ifndef PPC_ENABLE_FPU_EXCEPTIONS
+#define PPC_ENABLE_FPU_EXCEPTIONS 0
+#endif
+
+
+/**
  *	PPC_DECODE_CACHE
  *
  *		Define to 0 to disable the decode cache. This is only useful

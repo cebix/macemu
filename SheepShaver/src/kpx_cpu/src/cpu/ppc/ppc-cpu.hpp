@@ -84,8 +84,11 @@ protected:
 		{ record_cr(0, value); }
 	void record_cr1()
 		{ cr().set((cr().get() & ~CR_field<1>::mask()) | ((fpscr() >> 4) & 0x0f000000)); }
+	void record_fpscr();
 
-	void fp_classify(double x);
+	template< class FP >
+	void fp_classify(FP x);
+	void fp_setround(int round);
 
 protected:
 
@@ -365,6 +368,7 @@ private:
 	template< class RA >
 	void execute_stwcx(uint32 opcode);
 	void execute_mcrf(uint32 opcode);
+	void execute_mcrfs(uint32 opcode);
 	void execute_mtcrf(uint32 opcode);
 	template< class FM, class RB, class Rc >
 	void execute_mtfsf(uint32 opcode);
