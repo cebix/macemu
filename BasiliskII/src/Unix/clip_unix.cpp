@@ -19,6 +19,9 @@
  */
 
 #include "sysdeps.h"
+
+#include <X11/Xlib.h>
+
 #include "clip.h"
 #include "macos_util.h"
 #include "prefs.h"
@@ -27,11 +30,8 @@
 #include "debug.h"
 
 
-// From video_x.cpp
-#ifndef USE_SDL_VIDEO
-#include <X11/Xlib.h>
+// From main_unix.cpp
 extern Display *x_display;
-#endif
 
 
 // Conversion tables
@@ -87,7 +87,6 @@ void PutScrap(uint32 type, void *scrap, int32 length)
 	if (length <= 0)
 		return;
 
-#ifndef USE_SDL_VIDEO
 	switch (type) {
 		case FOURCC('T','E','X','T'):
 			D(bug(" clipping TEXT\n"));
@@ -111,5 +110,4 @@ void PutScrap(uint32 type, void *scrap, int32 length)
 			delete[] buf;
 			break;
 	}
-#endif
 }

@@ -32,7 +32,7 @@ INSTALL_DATA = @INSTALL_DATA@
 SRCS = ../main.cpp main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp \
     sys_unix.cpp ../rom_patches.cpp ../slot_rom.cpp ../rsrc_patches.cpp \
     ../emul_op.cpp ../macos_util.cpp ../xpram.cpp xpram_unix.cpp ../timer.cpp \
-    timer_unix.cpp clip_unix.cpp ../adb.cpp ../serial.cpp ../ether.cpp \
+    timer_unix.cpp ../adb.cpp ../serial.cpp ../ether.cpp \
     ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp ../video.cpp video_blit.cpp \
     vm_alloc.cpp sigsegv.cpp ../audio.cpp ../extfs.cpp extfs_unix.cpp \
 	../user_strings.cpp user_strings_unix.cpp sshpty.c strlcpy.c \

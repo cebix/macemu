@@ -418,10 +418,10 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
   AC_DEFINE(USE_SDL, 1, [Define to enble SDL support])
 fi
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
-  VIDEOSRC="../SDL/video_sdl.cpp"
+  VIDEOSRCS="../SDL/video_sdl.cpp ../dummy/clip_dummy.cpp"
   AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support])
 else
-  VIDEOSRC="video_x.cpp"
+  VIDEOSRCS="video_x.cpp clip_unix.cpp"
 fi
 
 dnl Use 68k CPU natively?
@@ -438,7 +438,7 @@ if [[ "x$HAVE_PTHREADS" = "xno" ]]; then
   ETHERSRC=../dummy/ether_dummy.cpp
   AUDIOSRC=../dummy/audio_dummy.cpp
 fi
-SYSSRCS="$VIDEOSRC $SERIALSRC $ETHERSRC $SCSISRC $AUDIOSRC $SEMSRC $UISRCS $MONSRCS $EXTRASYSSRCS"
+SYSSRCS="$VIDEOSRCS $SERIALSRC $ETHERSRC $SCSISRC $AUDIOSRC $SEMSRC $UISRCS $MONSRCS $EXTRASYSSRCS"
 
 dnl Define a macro that translates a yesno-variable into a C macro definition
 dnl to be put into the config.h file
