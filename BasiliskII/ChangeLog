@@ -1,8 +1,12 @@
 V0.7 (alpha)
 	- Source tree imported into CVS
+	- Added BasiliskII.spec file and top-level Makefile to simplify
+	  making distributions [with assistance from Roman Niewiarowski]
 	- Unix: "basilisk_ii_keycodes" renamed to "keycodes", default
 	  location of keycodes file is now /usr/local/share/BasiliskII/keycodes
-	- Unix: improved the install target
+	- Unix: improved the install target, added uninstall target
+	- Unix/Linux/NetDriver: removed MAKEDEV, functionality now included
+	  in Makefile ("make dev")
 	- Unix/sys_unix.cpp: Sys_open() checks whether an HFS volume is currently
 	  mounted under Linux and tries to unmount it
 	- Unix/sys_unix.cpp: implemented SysAddDiskPrefs() for Linux (scans
@@ -10,6 +14,11 @@ V0.7 (alpha)
 	- Unix/sys_unix.cpp: implemented Sys(Prevent/Allow)Removal() [Ryan Cumming]
 	- Unix/main_unix.cpp: added call to gtk_set_locale() before gtk_init()
 	  [Toshimitsu Tanaka]
+	- Unix/video_x.cpp: "dga" screen preferences now takes width and
+	  height as parameters (e.g. dga/640/480), like "win" [Pablo Averbuj]
+	- Unix/video_x.cpp: Caps Lock behaves as expected [Pablo Averbuj]
+	- Unix/prefs_editor_gtk.cpp: made the window width/height widgets
+	  comboboxes providing some useful defaults
 
 V0.7 (alpha) - 25.Jul.1999
 	- with 32-bit clean ROMs, the CPU type is now reported as a 68030

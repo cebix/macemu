@@ -69,13 +69,13 @@ Unix:
   To use Ethernet networking under Linux, you either have to configure your
   kernel for ethertap support or make and install the "sheep_net" driver:
 
-    cd src/Unix
     make modules
 
   This should produce a kernel module "sheep_net.o" in the "Linux/NetDriver"
   directory. Now su root and say
 
-    ./MAKEDEV
+    cd Linux/NetDriver
+    make dev
     /sbin/insmod sheep_net.o
 
   This will install the device node "/dev/sheep_net" and load the driver.

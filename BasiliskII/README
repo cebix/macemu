@@ -198,11 +198,13 @@ screen <video mode>
         Color display in an X11 window of the given size. The color depth
         (8/15/24 bit) depends on the depth of the underlying X11 screen.
         This is the default.
-      dga
+      dga/<width>/<height>
         Full-screen display using the X11 DGA extensions. The color depth
         (8/15/24 bit) depends on the depth of the underlying X11 screen.
-        For DGA to work, Basilisk II must be compiled with DGA support
-        enabled (selectable in the configure script).
+        "width" and "height" specify the maximum width/height to use.
+        Saying "dga/0/0" means "complete screen". For DGA to work, Basilisk II
+        must be compiled with DGA support enabled (selectable in the configure
+        script).
 
   AmigaOS:
     The "video mode" is one of the following:

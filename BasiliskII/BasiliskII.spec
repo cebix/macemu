@@ -1,7 +1,7 @@
 Summary:   A free, portable Mac II emulator
 Name:      BasiliskII
 Version:   0.7
-Release:   1
+Release:   2
 URL:       http://www.uni-mainz.de/~bauec002/B2Main.html
 Source:    BasiliskII_src_03101999.tar.gz
 Copyright: GPL
@@ -45,8 +45,3 @@ make install
 /usr/X11R6/bin/BasiliskII
 /usr/man/man1/BasiliskII.1
 /usr/share/BasiliskII/keycodes
-
-%changelog
-* Fri Jul 23 1999 Roman Niewiarowski <newrom@pasjo.net.pl>
-  [0.6-1]
-- First rpm release
