@@ -21,6 +21,8 @@
 #ifndef CPU_EMULATION_H
 #define CPU_EMULATION_H
 
+#include <string.h>
+
 
 /*
  *  Memory system

@@ -9,7 +9,7 @@ Version: %ver
 Release: %rel
 Copyright: GPL
 Group: Applications/Emulators
-Source: BasiliskII_src_22121999.tar.gz
+Source: BasiliskII_src_30012000.tar.gz
 BuildRoot: /tmp/BasiliskII-%{ver}-root
 Packager:  Christian Bauer <Christian.Bauer@uni-mainz.de>
 URL: http://www.uni-mainz.de/~bauec002/B2Main.html
