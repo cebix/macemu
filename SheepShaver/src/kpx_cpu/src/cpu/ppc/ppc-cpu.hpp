@@ -341,7 +341,7 @@ inline void powerpc_cpu::do_execute()
 #endif
 		if (logging)
 			record_step(opcode);
-		assert(ii->execute != NULL);
+		assert(ii->execute != 0);
 		(this->*(ii->execute))(opcode);
 #ifdef PPC_EXECUTE_DUMP_STATE
 		dump_registers();
