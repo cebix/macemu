@@ -6,9 +6,11 @@ AC_PREREQ(2.12)
 AC_CONFIG_HEADER(config.h)
 
 dnl Options.
-WANT_DGA=yes
+WANT_XF86_DGA=yes
+WANT_FBDEV_DGA=yes
 WANT_UI=yes
-AC_ARG_ENABLE(dga, [  --enable-dga            use the DGA extension (default)], [WANT_DGA=$enableval], [])
+AC_ARG_ENABLE(xf86-dga, [  --enable-xf86-dga       use the XFree86 DGA extension (default)], [WANT_XF86_DGA=$enableval], [])
+AC_ARG_ENABLE(fbdev-dga, [  --enable-fbdev-dga      use direct frame buffer access via /dev/fb (default)], [WANT_FBDEV_DGA=$enableval], [])
 AC_ARG_ENABLE(ui,  [  --enable-ui             use GTK user interface (default)], [WANT_UI=$enableval], [])
 
 dnl Checks for programs.
@@ -51,14 +53,26 @@ fi
 AC_CHECK_FUNCS(pthread_cancel)
 
 dnl We use DGA if possible.
-if [[ "x$WANT_DGA" = "xyes" ]]; then
+if [[ "x$WANT_XF86_DGA" = "xyes" ]]; then
   AC_CHECK_LIB(Xxf86dga, XF86DGAQueryExtension, HAVE_DGA=yes, HAVE_DGA=no)
   if [[ "x$HAVE_DGA" = "xno" ]]; then
-    AC_MSG_WARN([Could not find DGA extension, ignoring --enable-dga.])
+    AC_MSG_WARN([Could not find XFree86 DGA extension, ignoring --enable-xf86-dga.])
+    DEFINES="$DEFINES -DENABLE_XF86_DGA=0"
   else
-    DEFINES="$DEFINES -DENABLE_DGA=1"
+    DEFINES="$DEFINES -DENABLE_XF86_DGA=1"
     LIBS="$LIBS -lXxf86dga"
+    if [[ "x$WANT_FBDEV_DGA" = "xyes" ]]; then
+      AC_MSG_WARN([Cannot have both --enable-xf86-dga and --enable-fbdev-dga, ignoring --enable-fbdev-dga.])
+      WANT_FBDEV_DGA=no
+    fi
   fi
+else
+  DEFINES="$DEFINES -DENABLE_XF86_DGA=0"
+fi
+if [[ "x$WANT_FBDEV_DGA" = "xyes" ]]; then
+  DEFINES="$DEFINES -DENABLE_FBDEV_DGA=1"
+else
+  DEFINES="$DEFINES -DENABLE_FBDEV_DGA=0"
 fi
 
 dnl We use GTK+ if possible.
@@ -165,11 +179,11 @@ if MACHINE=`uname -a 2>/dev/null`; then
     LIBS="$LIBS -lm"
     ;;
   esac
-  if [[ "x$WANT_UI" = "xyes" ]]; then
-    SYSSRCS="$SYSSRCS prefs_editor_gtk.cpp"
-  else
-    SYSSRCS="$SYSSRCS ../dummy/prefs_editor_dummy.cpp"
-  fi
+fi
+if [[ "x$WANT_UI" = "xyes" ]]; then
+  SYSSRCS="$SYSSRCS prefs_editor_gtk.cpp"
+else
+  SYSSRCS="$SYSSRCS ../dummy/prefs_editor_dummy.cpp"
 fi
 if [[ "x$SEMSRCS" != "x" ]]; then
   SYSSRCS="$SYSSRCS $SEMSRCS"

@@ -16,6 +16,8 @@ V0.7 -
 	  [Giacomo Magnini]
 	- Unix: compilation of cpuemu.cpp is now split in 8 parts
 	- Unix: volume list in GTK prefs editor is reorderable
+	- Unix: added fbdev DGA support and SPARC assembly optimizations to
+	  UAE core [Gwenole Beauchesne]
 
 V0.7 (release 0.7-2) - 6.Oct.1999
 	- Added BasiliskII.spec for making RPMs [with assistance from

@@ -67,11 +67,13 @@ install: $(APP)
 	-$(INSTALL_DATA) $(APP).1 $(man1dir)/$(APP).1
 	$(INSTALL) -d $(datadir)/$(APP)
 	$(INSTALL_DATA) keycodes $(datadir)/$(APP)/keycodes
+	$(INSTALL_DATA) fbdevices $(datadir)/$(APP)/fbdevices
 
 uninstall:
 	rm -f $(bindir)/$(APP)
 	rm -f $(man1dir)/$(APP).1
 	rm -f $(datadir)/$(APP)/keycodes
+	rm -f $(datadir)/$(APP)/fbdevices
 	rmdir $(datadir)/$(APP)
 
 mostlyclean:

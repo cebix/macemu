@@ -48,9 +48,14 @@
 #define DEBUG 1
 #include "debug.h"
 
-#if ENABLE_DGA
+#if ENABLE_XF86_DGA
 #include <X11/extensions/xf86dga.h>
 #endif
+
+#if ENABLE_FBDEV_DGA
+#include <sys/mman.h>
+#endif
+
 
 
 // Display types
@@ -62,6 +67,7 @@ enum {
 
 // Constants
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
+const char FBDEVICES_FILE_NAME[] = DATADIR "/fbdevices";
 
 
 // Global variables
@@ -115,12 +121,15 @@ static uint8 *the_buffer_copy = NULL;				// Copy of Mac frame buffer
 static uint8 the_cursor[64];						// Cursor image data
 static bool have_shm = false;						// Flag: SHM extensions available
 
-// Variables for DGA mode
+// Variables for XF86 DGA mode
 static int current_dga_cmap;						// Number (0 or 1) of currently installed DGA colormap
 static Window suspend_win;							// "Suspend" window
 static void *fb_save = NULL;						// Saved frame buffer for suspend
-
 static pthread_mutex_t frame_buffer_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer
+
+// Variables for fbdev DGA mode
+const char FBDEVICE_FILE_NAME[] = "/dev/fb";
+static int fbdev_fd;
 
 
 // Prototypes
@@ -204,11 +213,13 @@ static bool init_window(int width, int height)
 	wattr.event_mask = eventmask = win_eventmask;
 	wattr.background_pixel = black_pixel;
 	wattr.border_pixel = black_pixel;
-	wattr.backing_store = NotUseful;
+	wattr.backing_store = Always;
+	wattr.backing_planes = xdepth;
 
 	XSync(x_display, false);
 	the_win = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
-		InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel | CWBackingStore, &wattr);
+		InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel |
+		CWBackingStore | CWBackingPlanes, &wattr);
 	XSync(x_display, false);
 	XStoreName(x_display, the_win, GetString(STR_WINDOW_TITLE));
 	XMapRaised(x_display, the_win);
@@ -231,7 +242,7 @@ static bool init_window(int width, int height)
 		XSetWMNormalHints(x_display, the_win, hints);
 		XFree((char *)hints);
 	}
-
+	
 	// Try to create and attach SHM image
 	have_shm = false;
 	if (depth != 1 && XShmQueryExtension(x_display)) {
@@ -258,7 +269,7 @@ static bool init_window(int width, int height)
 			shmctl(shminfo.shmid, IPC_RMID, 0);
 		}
 	}
-
+	
 	// Create normal X image if SHM doesn't work ("height + 2" for safety)
 	if (!have_shm) {
 		int bytes_per_row = width;
@@ -311,6 +322,7 @@ static bool init_window(int width, int height)
 #else
 	set_video_monitor(width, height, img->bytes_per_line, img->bitmap_bit_order == LSBFirst);
 #endif
+	
 #if REAL_ADDRESSING
 	VideoMonitor.mac_frame_base = (uint32)the_buffer;
 	MacFrameLayout = FLAYOUT_DIRECT;
@@ -320,10 +332,152 @@ static bool init_window(int width, int height)
 	return true;
 }
 
-// Init DGA display
-static bool init_dga(int width, int height)
+// Init fbdev DGA display
+static bool init_fbdev_dga(char *in_fb_name)
 {
-#if ENABLE_DGA
+#if ENABLE_FBDEV_DGA
+	// Find the maximum depth available
+	int ndepths, max_depth(0);
+	int *depths = XListDepths(x_display, screen, &ndepths);
+	if (depths == NULL) {
+		fprintf(stderr, "Error: could not determine the maximal depth available\n");
+		return false;
+	} else {
+		while (ndepths-- > 0) {
+			if (depths[ndepths] > max_depth)
+				max_depth = depths[ndepths];
+		}
+	}
+	
+	// Get fbdevices file path from preferences
+	const char *fbd_path = PrefsFindString("fbdevices");
+	
+	// Open fbdevices file
+	FILE *fp = fopen(fbd_path ? fbd_path : FBDEVICES_FILE_NAME, "r");
+	if (fp == NULL) {
+		char str[256];
+		sprintf(str, GetString(STR_NO_FBDEVICE_FILE_ERR), fbd_path ? fbd_path : FBDEVICES_FILE_NAME, strerror(errno));
+		ErrorAlert(str);
+		return false;
+	}
+	
+	int fb_depth;		// supported depth
+	uint32 fb_offset;	// offset used for mmap(2)
+	char fb_name[20];
+	char line[256];
+	bool device_found = false;
+	while (fgets(line, 255, fp)) {
+		// Read line
+		int len = strlen(line);
+		if (len == 0)
+			continue;
+		line[len - 1] = '\0';
+		
+		// Comments begin with "#" or ";"
+		if ((line[0] == '#') || (line[0] == ';') || (line[0] == '\0'))
+			continue;
+		
+		if ((sscanf(line, "%s %d %x", &fb_name, &fb_depth, &fb_offset) == 3)
+		&& (strcmp(fb_name, in_fb_name) == 0) && (fb_depth == max_depth)) {
+			device_found = true;
+			break;
+		}
+	}
+	
+	// fbdevices file completely read
+	fclose(fp);
+	
+	// Frame buffer name not found ? Then, display warning
+	if (!device_found) {
+		char str[256];
+		sprintf(str, GetString(STR_FBDEV_NAME_ERR), in_fb_name, max_depth);
+		ErrorAlert(str);
+		return false;
+	}
+	
+	int width = DisplayWidth(x_display, screen);
+	int height = DisplayHeight(x_display, screen);
+	depth = fb_depth; // max_depth
+	
+	// Set relative mouse mode
+	ADBSetRelMouseMode(false);
+	
+	// Create window
+	XSetWindowAttributes wattr;
+	wattr.override_redirect	= True;
+	wattr.backing_store		= NotUseful;
+	wattr.background_pixel	= white_pixel;
+	wattr.border_pixel		= black_pixel;
+	wattr.event_mask		= eventmask = dga_eventmask;
+	
+	XSync(x_display, false);
+	the_win = XCreateWindow(x_display, rootwin,
+		0, 0, width, height,
+		0, xdepth, InputOutput, vis,
+		CWEventMask|CWBackPixel|CWBorderPixel|CWOverrideRedirect|CWBackingStore,
+		&wattr);
+	XSync(x_display, false);
+	XMapRaised(x_display, the_win);
+	XSync(x_display, false);
+	
+	// Grab mouse and keyboard
+	XGrabKeyboard(x_display, the_win, True,
+		GrabModeAsync, GrabModeAsync, CurrentTime);
+	XGrabPointer(x_display, the_win, True,
+		PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
+		GrabModeAsync, GrabModeAsync, the_win, None, CurrentTime);
+	
+	// Set colormap
+	if (depth == 8) {
+		XSetWindowColormap(x_display, the_win, cmap[current_dga_cmap = 0]);
+		XSetWMColormapWindows(x_display, the_win, &the_win, 1);
+	}
+	
+	// Set VideoMonitor
+	int bytes_per_row = width;
+	switch (depth) {
+		case 1:
+			bytes_per_row = ((width | 7) & ~7) >> 3;
+			break;
+		case 15:
+		case 16:
+			bytes_per_row *= 2;
+			break;
+		case 24:
+		case 32:
+			bytes_per_row *= 4;
+			break;
+	}
+	
+	if ((the_buffer = (uint8 *) mmap(NULL, height * bytes_per_row, PROT_READ | PROT_WRITE, MAP_PRIVATE, fbdev_fd, fb_offset)) == MAP_FAILED) {
+		if ((the_buffer = (uint8 *) mmap(NULL, height * bytes_per_row, PROT_READ | PROT_WRITE, MAP_SHARED, fbdev_fd, fb_offset)) == MAP_FAILED) {
+			char str[256];
+			sprintf(str, GetString(STR_FBDEV_MMAP_ERR), strerror(errno));
+			ErrorAlert(str);
+			return false;
+		}
+	}
+	
+	set_video_monitor(width, height, bytes_per_row, true);
+#if REAL_ADDRESSING
+	VideoMonitor.mac_frame_base = (uint32)the_buffer;
+	MacFrameLayout = FLAYOUT_DIRECT;
+#else
+	VideoMonitor.mac_frame_base = MacFrameBaseMac;
+#endif
+	
+	printf("FbDev DGA with %s in %d-bit mode enabled\n", fb_name, fb_depth);
+	return true;
+#else
+	ErrorAlert("Basilisk II has been compiled with fbdev DGA support disabled.");
+	return false;
+#endif
+}
+
+// Init XF86 DGA display
+static bool init_xf86_dga(int width, int height)
+{
+#if ENABLE_XF86_DGA
 	// Set relative mouse mode
 	ADBSetRelMouseMode(true);
 
@@ -384,7 +538,7 @@ static bool init_dga(int width, int height)
 #endif
 	return true;
 #else
-	ErrorAlert("Basilisk II has been compiled with DGA support disabled.");
+	ErrorAlert("Basilisk II has been compiled with XF86 DGA support disabled.");
 	return false;
 #endif
 }
@@ -462,11 +616,22 @@ bool VideoInit(bool classic)
 	// Find screen and root window
 	screen = XDefaultScreen(x_display);
 	rootwin = XRootWindow(x_display, screen);
-
+	
 	// Get screen depth
 	xdepth = DefaultDepth(x_display, screen);
-
-#if ENABLE_DGA
+	
+#if ENABLE_FBDEV_DGA
+	// Frame buffer name
+	char fb_name[20];
+	
+	// Could do fbdev dga ?
+	if ((fbdev_fd = open(FBDEVICE_FILE_NAME, O_RDWR)) != -1)
+		has_dga = true;
+	else
+		has_dga = false;
+#endif
+	
+#if ENABLE_XF86_DGA
 	// DGA available?
 	int event_base, error_base;
 	if (XF86DGAQueryExtension(x_display, &event_base, &error_base)) {
@@ -542,7 +707,11 @@ bool VideoInit(bool classic)
 	if (mode_str) {
 		if (sscanf(mode_str, "win/%d/%d", &width, &height) == 2)
 			display_type = DISPLAY_WINDOW;
+#if ENABLE_FBDEV_DGA
+		else if (has_dga && sscanf(mode_str, "dga/%s", fb_name) == 1) {
+#else
 		else if (has_dga && sscanf(mode_str, "dga/%d/%d", &width, &height) == 2) {
+#endif
 			display_type = DISPLAY_DGA;
 			if (width > DisplayWidth(x_display, screen))
 				width = DisplayWidth(x_display, screen);
@@ -562,7 +731,11 @@ bool VideoInit(bool classic)
 				return false;
 			break;
 		case DISPLAY_DGA:
-			if (!init_dga(width, height))
+#if ENABLE_FBDEV_DGA
+			if (!init_fbdev_dga(fb_name))
+#else
+			if (!init_xf86_dga(width, height))
+#endif
 				return false;
 			break;
 	}
@@ -612,7 +785,7 @@ void VideoExit(void)
 	if (x_display != NULL) {
 		XSync(x_display, false);
 
-#if ENABLE_DGA
+#if ENABLE_XF86_DGA
 		if (display_type == DISPLAY_DGA) {
 			XF86DGADirectVideo(x_display, screen, 0);
 			XUngrabPointer(x_display, CurrentTime);
@@ -620,6 +793,14 @@ void VideoExit(void)
 		}
 #endif
 
+#if ENABLE_FBDEV_DGA
+		if (display_type == DISPLAY_DGA) {
+			XUngrabPointer(x_display, CurrentTime);
+			XUngrabKeyboard(x_display, CurrentTime);
+			close(fbdev_fd);
+		}
+#endif
+		
 		if (the_buffer_copy) {
 			free(the_buffer_copy);
 			the_buffer_copy = NULL;
@@ -692,7 +873,7 @@ void video_set_palette(uint8 *pal)
  *  Suspend/resume emulator
  */
 
-#if ENABLE_DGA
+#if ENABLE_XF86_DGA || ENABLE_FBDEV_DGA
 static void suspend_emul(void)
 {
 	if (display_type == DISPLAY_DGA) {
@@ -709,7 +890,9 @@ static void suspend_emul(void)
 			memcpy(fb_save, the_buffer, VideoMonitor.y * VideoMonitor.bytes_per_row);
 
 		// Close full screen display
+#if ENABLE_XF86_DGA
 		XF86DGADirectVideo(x_display, screen, 0);
+#endif
 		XUngrabPointer(x_display, CurrentTime);
 		XUngrabKeyboard(x_display, CurrentTime);
 		XUnmapWindow(x_display, the_win);
@@ -723,6 +906,7 @@ static void suspend_emul(void)
 		wattr.backing_store = Always;
 		wattr.backing_planes = xdepth;
 		wattr.colormap = DefaultColormap(x_display, screen);
+		
 		XSync(x_display, false);
 		suspend_win = XCreateWindow(x_display, rootwin, 0, 0, 512, 1, 0, xdepth,
 			InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel |
@@ -747,8 +931,10 @@ static void resume_emul(void)
 	XSync(x_display, false);
 	XGrabKeyboard(x_display, rootwin, 1, GrabModeAsync, GrabModeAsync, CurrentTime);
 	XGrabPointer(x_display, rootwin, 1, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+#if ENABLE_XF86_DGA
 	XF86DGADirectVideo(x_display, screen, XF86DGADirectGraphics | XF86DGADirectKeyb | XF86DGADirectMouse);
 	XF86DGASetViewPort(x_display, screen, 0, 0);
+#endif
 	XSync(x_display, false);
 
 	// Restore frame buffer
@@ -757,8 +943,14 @@ static void resume_emul(void)
 		free(fb_save);
 		fb_save = NULL;
 	}
+	
 	if (depth == 8)
+#if ENABLE_XF86_DGA
 		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
+#endif
+#if ENABLE_FBDEV_DGA
+		XSetWindowColormap(x_display, the_win, cmap[current_dga_cmap]);
+#endif
 
 	// Unlock frame buffer (and continue MacOS thread)
 	pthread_mutex_unlock(&frame_buffer_lock);
@@ -824,7 +1016,7 @@ static int kc_decode(KeySym ks)
 		case XK_period: case XK_greater: return 0x2f;
 		case XK_slash: case XK_question: return 0x2c;
 
-#if ENABLE_DGA
+#if ENABLE_XF86_DGA || ENABLE_FBDEV_DGA
 		case XK_Tab: if (ctrl_down) {suspend_emul(); return -1;} else return 0x30;
 #else
 		case XK_Tab: return 0x30;
@@ -990,7 +1182,7 @@ static void handle_events(void)
 						if (code == 0x36)
 							ctrl_down = true;
 					} else {
-#if ENABLE_DGA
+#if ENABLE_XF86_DGA || ENABLE_FBDEV_DGA
 						if (code == 0x31)
 							resume_emul();	// Space wakes us up
 #endif
@@ -1032,7 +1224,7 @@ static void update_display(void)
 	// In classic mode, copy the frame buffer from Mac RAM
 	if (classic_mode)
 		memcpy(the_buffer, Mac2HostAddr(0x3fa700), VideoMonitor.bytes_per_row * VideoMonitor.y);
-
+	
 	// Incremental update code
 	int wide = 0, high = 0, x1, x2, y1, y2, i, j;
 	int bytes_per_row = VideoMonitor.bytes_per_row;
@@ -1182,7 +1374,7 @@ static void *redraw_func(void *arg)
 		usleep(16667);
 #endif
 
-#if ENABLE_DGA
+#if ENABLE_XF86_DGA
 		// Quit DGA mode if requested
 		if (quit_full_screen) {
 			quit_full_screen = false;
@@ -1196,6 +1388,18 @@ static void *redraw_func(void *arg)
 		}
 #endif
 
+#if ENABLE_FBDEV_DGA
+		// Quit DGA mode if requested
+		if (quit_full_screen) {
+			quit_full_screen = false;
+			if (display_type == DISPLAY_DGA) {
+				XUngrabPointer(x_display, CurrentTime);
+				XUngrabKeyboard(x_display, CurrentTime);
+				XUnmapWindow(x_display, the_win);
+				XSync(x_display, false);
+			}
+		}
+#endif
 		// Handle X events
 		handle_events();
 
@@ -1206,11 +1410,17 @@ static void *redraw_func(void *arg)
 			if (depth == 8) {
 				XStoreColors(x_display, cmap[0], palette, 256);
 				XStoreColors(x_display, cmap[1], palette, 256);
-#if ENABLE_DGA
+				
+#if ENABLE_XF86_DGA
 				if (display_type == DISPLAY_DGA) {
 					current_dga_cmap ^= 1;
 					XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
 				}
+#endif
+				
+#if ENABLE_FBDEV_DGA
+				if (display_type == DISPLAY_DGA)
+					XSetWindowColormap(x_display, the_win, cmap[current_dga_cmap]);
 #endif
 			}
 		}

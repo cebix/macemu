@@ -24,6 +24,10 @@
 #include "sysdeps.h"
 #include "readcpu.h"
 
+#if defined(SPARC_V8_ASSEMBLY) || defined(SPARC_V9_ASSEMBLY)
+#define SPARC_ASSEMBLY 0
+#endif
+
 #define BOOL_TYPE "int"
 
 static FILE *headerfile;
@@ -710,7 +714,156 @@ static void genflags_normal (flagtypes type, wordsizes size, char *value, char *
 
 static void genflags (flagtypes type, wordsizes size, char *value, char *src, char *dst)
 {
-#ifdef X86_ASSEMBLY
+#ifdef SPARC_V8_ASSEMBLY
+	switch(type)
+	{
+		case flag_add:
+			start_brace();
+			printf("\tuae_u32 %s;\n", value);
+			switch(size)
+			{
+				case sz_byte:
+					printf("\t%s = sparc_v8_flag_add_8(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					break;
+				case sz_word:
+					printf("\t%s = sparc_v8_flag_add_16(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					break;
+				case sz_long:
+					printf("\t%s = sparc_v8_flag_add_32(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					break;
+			}
+			return;
+		
+		case flag_sub:
+			start_brace();
+			printf("\tuae_u32 %s;\n", value);
+			switch(size)
+			{
+				case sz_byte:
+					printf("\t%s = sparc_v8_flag_sub_8(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					break;
+				case sz_word:
+					printf("\t%s = sparc_v8_flag_sub_16(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					break;
+				case sz_long:
+					printf("\t%s = sparc_v8_flag_sub_32(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					break;
+			}
+			return;
+		
+		case flag_cmp:
+			switch(size)
+			{
+				case sz_byte:
+//					printf("\tsparc_v8_flag_cmp_8(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", src, dst);
+					break;
+				case sz_word:
+//					printf("\tsparc_v8_flag_cmp_16(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", src, dst);
+					break;
+				case sz_long:
+#if 1
+					printf("\tsparc_v8_flag_cmp_32(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", src, dst);
+					return;
+#endif
+					break;
+			}
+//			return;
+			break;
+	}
+#elif defined(SPARC_V9_ASSEMBLY)
+	switch(type)
+	{
+		case flag_add:
+			start_brace();
+			printf("\tuae_u32 %s;\n", value);
+			switch(size)
+			{
+				case sz_byte:
+					printf("\t%s = sparc_v9_flag_add_8(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					break;
+				case sz_word:
+					printf("\t%s = sparc_v9_flag_add_16(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					break;
+				case sz_long:
+					printf("\t%s = sparc_v9_flag_add_32(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					break;
+			}
+			return;
+		
+		case flag_sub:
+			start_brace();
+			printf("\tuae_u32 %s;\n", value);
+			switch(size)
+			{
+				case sz_byte:
+					printf("\t%s = sparc_v9_flag_sub_8(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					break;
+				case sz_word:
+					printf("\t%s = sparc_v9_flag_sub_16(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					break;
+				case sz_long:
+					printf("\t%s = sparc_v9_flag_sub_32(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
+					break;
+			}
+			return;
+		
+		case flag_cmp:
+			switch(size)
+			{
+				case sz_byte:
+					printf("\tsparc_v9_flag_cmp_8(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", src, dst);
+					break;
+				case sz_word:
+					printf("\tsparc_v9_flag_cmp_16(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", src, dst);
+					break;
+				case sz_long:
+					printf("\tsparc_v9_flag_cmp_32(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", src, dst);
+					break;
+			}
+			return;
+		
+		case flag_logical:
+			if (strcmp(value, "0") == 0) {
+				printf("\tregflags.nzvc = 0x04;\n");
+			} else {
+				switch(size) {
+					case sz_byte:
+						printf("\tsparc_v9_flag_test_8(&regflags, (uae_u32)(%s));\n", value);
+						break;
+					case sz_word:
+						printf("\tsparc_v9_flag_test_16(&regflags, (uae_u32)(%s));\n", value);
+						break;
+					case sz_long:
+						printf("\tsparc_v9_flag_test_32(&regflags, (uae_u32)(%s));\n", value);
+						break;
+				}
+			}
+			return;
+		
+#if 0
+		case flag_logical_noclobber:
+			printf("\t{uae_u32 old_flags = regflags.nzvc & ~0x0C;\n");
+			if (strcmp(value, "0") == 0) {
+				printf("\tregflags.nzvc = old_flags | 0x04;\n");
+			} else {
+				switch(size) {
+					case sz_byte:
+						printf("\tsparc_v9_flag_test_8(&regflags, (uae_u32)(%s));\n", value);
+						break;
+					case sz_word:
+						printf("\tsparc_v9_flag_test_16(&regflags, (uae_u32)(%s));\n", value);
+						break;
+					case sz_long:
+						printf("\tsparc_v9_flag_test_32(&regflags, (uae_u32)(%s));\n", value);
+						break;
+				}
+				printf("\tregflags.nzvc |= old_flags;\n");
+			}
+			printf("\t}\n");
+			return;
+#endif
+	}
+#elif defined(X86_ASSEMBLY)
     switch (type) {
      case flag_add:
      case flag_sub:
@@ -2341,6 +2494,7 @@ static void generate_one_opcode (int rp)
     }
     fprintf (stblfile, "{ op_%lx_%d, 0, %ld }, /* %s */\n", opcode, postfix, opcode, lookuptab[i].name);
     fprintf (headerfile, "extern cpuop_func op_%lx_%d;\n", opcode, postfix);
+/*	fprintf (headerfile, "extern unsigned long REGPARAM2 op_%lx_%d(uae_u32);\n", opcode, postfix); */
     printf ("unsigned long REGPARAM2 op_%lx_%d(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, lookuptab[i].name);
 
     switch (table68k[opcode].stype) {
@@ -2507,7 +2661,6 @@ static void generate_func (void)
 
 	fprintf (stblfile, "{ 0, 0, 0 }};\n");
     }
-
 }
 
 int main (int argc, char **argv)

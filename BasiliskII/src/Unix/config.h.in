@@ -9,9 +9,6 @@
 /* Define to `long' if <sys/types.h> doesn't define.  */
 #undef off_t
 
-/* Define to `off_t' if <sys/types.h> doesn't define.  */
-#undef loff_t
-
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 #undef size_t
 
@@ -60,9 +57,6 @@
 
 /* Define if you have the sem_init function.  */
 #undef HAVE_SEM_INIT
-
-/* Define if you have the semget function.  */
-#undef HAVE_SEMGET
 
 /* Define if you have the strdup function.  */
 #undef HAVE_STRDUP
