@@ -108,9 +108,9 @@
 //
 //		switch ( NSRunAlertPanel(title, msg, def, alt, other, nil) )
 //		{
-//			case NSAlertDefault:   savePrefs();
-//			case NSAlertAlternate: return NSTerminateNow;
-//			case NSAlertOther:     return NSTerminateCancel;
+//			case NSAlertDefault:	savePrefs();
+//			case NSAlertAlternate:	return NSTerminateNow;
+//			case NSAlertOther:		return NSTerminateCancel;
 //		}
 //	}
 
@@ -261,41 +261,40 @@
 
 - (IBAction) HelpHowTo: (id)sender
 {
-    NSString	*path = [[NSBundle mainBundle] pathForResource: @"HowTo"
-                                                        ofType: @"html"];
+	NSString	*path = [[NSBundle mainBundle] pathForResource: @"HowTo"
+														ofType: @"html"];
 
-    if ( ! path )
-        InfoSheet(@"Cannot find HowTo.html", [theEmulator window]);
-    else
-        if ( ! [[NSWorkspace sharedWorkspace] openFile: path
-                                       withApplication: @"TextEdit"] )
-            InfoSheet(@"Cannot open HowTo.html with TextEdit", [theEmulator window]);
+	if ( ! path )
+		InfoSheet(@"Cannot find HowTo.html", [theEmulator window]);
+	else
+		if ( ! [[NSWorkspace sharedWorkspace] openFile: path] )
+			InfoSheet(@"Cannot open HowTo.html with default app", [theEmulator window]);
 }
 
 - (IBAction) HelpToDo: (id)sender
 {
-    NSString	*path = [[NSBundle mainBundle] pathForResource: @"ToDo"
-                                                        ofType: @"html"];
+	NSString	*path = [[NSBundle mainBundle] pathForResource: @"ToDo"
+														ofType: @"html"];
 
-    if ( ! path )
-        InfoSheet(@"Cannot find ToDo.html", [theEmulator window]);
-    else
-        if ( ! [[NSWorkspace sharedWorkspace] openFile: path
-                                       withApplication: @"TextEdit"] )
-            InfoSheet(@"Cannot open ToDo.html with TextEdit", [theEmulator window]);
+	if ( ! path )
+		InfoSheet(@"Cannot find ToDo.html", [theEmulator window]);
+	else
+		if ( ! [[NSWorkspace sharedWorkspace] openFile: path
+									   withApplication: @"TextEdit"] )
+			InfoSheet(@"Cannot open ToDo.html with TextEdit", [theEmulator window]);
 }
 
 - (IBAction) HelpVersions: (id)sender
 {
-    NSString	*path = [[NSBundle mainBundle] pathForResource: @"Versions"
-                                                        ofType: @"html"];
+	NSString	*path = [[NSBundle mainBundle] pathForResource: @"Versions"
+														ofType: @"html"];
 
-    if ( ! path )
-        InfoSheet(@"Cannot find Versions.html", [theEmulator window]);
-    else
-        if ( ! [[NSWorkspace sharedWorkspace] openFile: path
-                                       withApplication: @"TextEdit"] )
-            InfoSheet(@"Cannot open Versions.html with TextEdit",
+	if ( ! path )
+		InfoSheet(@"Cannot find Versions.html", [theEmulator window]);
+	else
+		if ( ! [[NSWorkspace sharedWorkspace] openFile: path
+									   withApplication: @"TextEdit"] )
+			InfoSheet(@"Cannot open Versions.html with TextEdit",
 												[theEmulator window]);
 }
 
