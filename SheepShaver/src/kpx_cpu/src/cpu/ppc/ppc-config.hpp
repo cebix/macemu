@@ -177,10 +177,6 @@
 #undef PPC_NO_STATIC_II_INDEX_TABLE
 #endif
 
-#if defined(PPC_FLIGHT_RECORDER) && !defined(PPC_NO_DECODE_CACHE)
-#define PPC_NO_DECODE_CACHE
-#endif
-
 #if defined(PPC_EXECUTE_DUMP_STATE) && !defined(PPC_NO_DECODE_CACHE)
 #define PPC_NO_DECODE_CACHE
 #endif

@@ -342,7 +342,7 @@ inline void powerpc_cpu::do_execute()
 #ifdef PPC_EXECUTE_DUMP_STATE
 		fprintf(stderr, "[%08x]-> %08x\n", pc(), opcode);
 #endif
-#if FLIGHT_RECORDER
+#if PPC_FLIGHT_RECORDER
 		if (is_logging())
 			record_step(opcode);
 #endif
@@ -367,11 +367,11 @@ inline void powerpc_cpu::do_execute()
 			ii = decode(opcode);
 			di->opcode = opcode;
 			di->execute = ii->execute;
-#if FLIGHT_RECORDER
+#if PPC_FLIGHT_RECORDER
 			if (is_logging()) {
 				di++;
 				di->opcode = opcode;
-				di->execute = record_step;
+				di->execute = &powerpc_cpu::record_step;
 			}
 #endif
 			if (++di >= decode_cache_end_p) {
