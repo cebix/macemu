@@ -23,9 +23,29 @@
 #import <video.h>
 
 /* Set the strategy for drawing the bitmap in the Mac OS X window */
-//#define CGIMAGEREF		15.05fps
-//#define CGDRAWBITMAP		15.2fps
-#define NSBITMAP			15.1fps
+#define CGDRAWBITMAP
+//#define CGIMAGEREF
+//#define NSBITMAP
+
+// The frames-per-second benchmark function on my machine does roughly:
+//
+//					OS:	10.1.5		10.2.2
+// CGDRAWBITMAP			15.2		36.6
+// CGIMAGEREF			15.0		27-135(i)
+// NSBITMAP				15.1		26.9
+//
+// (i) This seems to vary wildly between different builds on the same machine.
+//	   I don't know why, but I definately don't trust it. Recently I noticed
+//	   that it also varies by alpha channel strategy:
+//		kCGImageAlphaNone				36.6fps
+//		kCGImageAlphaPremultipliedFirst	112fps
+//		kCGImageAlphaNoneSkipFirst		135fps
+
+/* When the BasiliskII video driver respects the alpha bits, set this to let us use */
+/* kCGImageAlphaPremultipliedFirst, and to have nice rounded corners on the screen. */
+//#define CG_USE_ALPHA
+/* At the moment, it writes in the fill 32bits :-( */
+
 
 #define MIN_WIDTH	512
 #define MIN_HEIGHT	342
