@@ -132,6 +132,9 @@
 #endif
 
 
+// Enable emulation of unaligned lmw/stmw?
+#define EMULATE_UNALIGNED_LOADSTORE_MULTIPLE 1
+
 // Enable Execute68k() safety checks?
 #define SAFE_EXEC_68K 0
 
@@ -216,6 +219,7 @@ static void *sig_stack = NULL;				// Stack for signal handlers
 static void *extra_stack = NULL;			// Stack for SIGSEGV inside interrupt handler
 static bool emul_thread_fatal = false;		// Flag: MacOS thread crashed, tick thread shall dump debug output
 static sigregs sigsegv_regs;				// Register dump when crashed
+static const char *crash_reason = NULL;		// Reason of the crash (SIGSEGV, SIGBUS, SIGILL)
 #endif
 
 uintptr SheepMem::zero_page = 0;			// Address of ro page filled in with zeros
@@ -739,13 +743,18 @@ int main(int argc, char **argv)
 #endif
 
 #if !EMULATED_PPC
-	// Install SIGSEGV handler
+	// Install SIGSEGV and SIGBUS handlers
 	sigemptyset(&sigsegv_action.sa_mask);	// Block interrupts during SEGV handling
 	sigaddset(&sigsegv_action.sa_mask, SIGUSR2);
 	sigsegv_action.sa_handler = (__sighandler_t)sigsegv_handler;
 	sigsegv_action.sa_flags = SA_ONSTACK;
 	sigsegv_action.sa_restorer = NULL;
 	if (sigaction(SIGSEGV, &sigsegv_action, NULL) < 0) {
+		sprintf(str, GetString(STR_SIGSEGV_INSTALL_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+	if (sigaction(SIGBUS, &sigsegv_action, NULL) < 0) {
 		sprintf(str, GetString(STR_SIGSEGV_INSTALL_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
@@ -813,11 +822,12 @@ static void Quit(void)
 	}
 
 #if !EMULATED_PPC
-	// Uninstall SIGSEGV handler
+	// Uninstall SIGSEGV and SIGBUS handlers
 	sigemptyset(&sigsegv_action.sa_mask);
 	sigsegv_action.sa_handler = SIG_DFL;
 	sigsegv_action.sa_flags = 0;
 	sigaction(SIGSEGV, &sigsegv_action, NULL);
+	sigaction(SIGBUS, &sigsegv_action, NULL);
 
 	// Uninstall SIGILL handler
 	sigemptyset(&sigill_action.sa_mask);
@@ -1098,7 +1108,9 @@ static void *tick_func(void *arg)
 			// Yes, dump registers
 			pt_regs *r = (pt_regs *)&sigsegv_regs;
 			char str[256];
-			sprintf(str, "SIGSEGV\n"
+			if (crash_reason == NULL)
+				crash_reason = "SIGSEGV";
+			sprintf(str, "%s\n"
 				"   pc %08lx     lr %08lx    ctr %08lx    msr %08lx\n"
 				"  xer %08lx     cr %08lx  \n"
 				"   r0 %08lx     r1 %08lx     r2 %08lx     r3 %08lx\n"
@@ -1109,6 +1121,7 @@ static void *tick_func(void *arg)
 				"  r20 %08lx    r21 %08lx    r22 %08lx    r23 %08lx\n"
 				"  r24 %08lx    r25 %08lx    r26 %08lx    r27 %08lx\n"
 				"  r28 %08lx    r29 %08lx    r30 %08lx    r31 %08lx\n",
+				crash_reason,
 				r->nip, r->link, r->ctr, r->msr,
 				r->xer, r->ccr,
 				r->gpr[0], r->gpr[1], r->gpr[2], r->gpr[3],
@@ -1551,6 +1564,32 @@ static void sigsegv_handler(int sig, sigcontext_struct *sc)
 				transfer_type = TYPE_STORE; transfer_size = SIZE_HALFWORD; addr_mode = MODE_NORM; break;
 			case 45:	// sthu
 				transfer_type = TYPE_STORE; transfer_size = SIZE_HALFWORD; addr_mode = MODE_U; break;
+#if EMULATE_UNALIGNED_LOADSTORE_MULTIPLE
+			case 46:	// lmw
+				if (sig == SIGBUS) {
+					uint32 ea = (ra == 0 ? 0 : r->gpr[ra]) + imm;
+					D(bug("WARNING: unaligned lmw to EA=%08x from IP=%08x\n", ea, r->nip));
+					for (int i = rd; i <= 31; i++) {
+						r->gpr[i] = ReadMacInt32(ea);
+						ea += 4;
+					}
+					r->nip += 4;
+					goto rti;
+				}
+				break;
+			case 47:	// stmw
+				if (sig == SIGBUS) {
+					uint32 ea = (ra == 0 ? 0 : r->gpr[ra]) + imm;
+					D(bug("WARNING: unaligned stmw to EA=%08x from IP=%08x\n", ea, r->nip));
+					for (int i = rd; i <= 31; i++) {
+						WriteMacInt32(ea, r->gpr[i]);
+						ea += 4;
+					}
+					r->nip += 4;
+					goto rti;
+				}
+				break;
+#endif
 		}
 	
 		// Ignore ROM writes
@@ -1586,8 +1625,9 @@ static void sigsegv_handler(int sig, sigcontext_struct *sc)
 	}
 
 	// For all other errors, jump into debugger (sort of...)
+	crash_reason = (sig == SIGBUS) ? "SIGBUS" : "SIGSEGV";
 	if (!ready_for_signals) {
-		printf("SIGSEGV\n");
+		printf("%s\n");
 		printf(" sigcontext %p, pt_regs %p\n", sc, r);
 		printf(
 			"   pc %08lx     lr %08lx    ctr %08lx    msr %08lx\n"
@@ -1600,6 +1640,7 @@ static void sigsegv_handler(int sig, sigcontext_struct *sc)
 			"  r20 %08lx    r21 %08lx    r22 %08lx    r23 %08lx\n"
 			"  r24 %08lx    r25 %08lx    r26 %08lx    r27 %08lx\n"
 			"  r28 %08lx    r29 %08lx    r30 %08lx    r31 %08lx\n",
+			crash_reason,
 			r->nip, r->link, r->ctr, r->msr,
 			r->xer, r->ccr,
 			r->gpr[0], r->gpr[1], r->gpr[2], r->gpr[3],
@@ -1750,8 +1791,9 @@ power_inst:		sprintf(str, GetString(STR_POWER_INSTRUCTION_ERR), r->nip, r->gpr[1
 	}
 
 	// For all other errors, jump into debugger (sort of...)
+	crash_reason = "SIGILL";
 	if (!ready_for_signals) {
-		printf("SIGILL\n");
+		printf("%s\n");
 		printf(" sigcontext %p, pt_regs %p\n", sc, r);
 		printf(
 			"   pc %08lx     lr %08lx    ctr %08lx    msr %08lx\n"
@@ -1764,6 +1806,7 @@ power_inst:		sprintf(str, GetString(STR_POWER_INSTRUCTION_ERR), r->nip, r->gpr[1
 			"  r20 %08lx    r21 %08lx    r22 %08lx    r23 %08lx\n"
 			"  r24 %08lx    r25 %08lx    r26 %08lx    r27 %08lx\n"
 			"  r28 %08lx    r29 %08lx    r30 %08lx    r31 %08lx\n",
+			crash_reason,
 			r->nip, r->link, r->ctr, r->msr,
 			r->xer, r->ccr,
 			r->gpr[0], r->gpr[1], r->gpr[2], r->gpr[3],
