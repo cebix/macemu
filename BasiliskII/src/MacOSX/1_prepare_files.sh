@@ -28,12 +28,15 @@ ln -sf ../Unix/user_strings_unix.h .
 ln -sf ../Unix/install-sh .
 ln -sf ../../README README.txt
 
-T=/System/Library/CoreServices/loginwindow.app/Resources
-tiffutil -cat $T/resetH.tif	-out English.lproj/MainMenu.nib/resetH.tiff
-tiffutil -cat $T/resetN.tif	-out English.lproj/MainMenu.nib/resetN.tiff
-tiffutil -cat $T/shutdownH.tif	-out English.lproj/MainMenu.nib/shutdownH.tiff
-tiffutil -cat $T/shutdownN.tif	-out English.lproj/MainMenu.nib/shutdownN.tiff
-unset T
+#
+# This is how I generated the button images:
+#
+#T=/System/Library/CoreServices/loginwindow.app/Resources
+#tiffutil -cat $T/resetH.tif	-out English.lproj/MainMenu.nib/resetH.tiff
+#tiffutil -cat $T/resetN.tif	-out English.lproj/MainMenu.nib/resetN.tiff
+#tiffutil -cat $T/shutdownH.tif	-out English.lproj/MainMenu.nib/shutdownH.tiff
+#tiffutil -cat $T/shutdownN.tif	-out English.lproj/MainMenu.nib/shutdownN.tiff
+#unset T
 
 #
 # Generate ./configure from configure.in
