@@ -333,8 +333,6 @@ void LoadPrefsFromStream(FILE *f)
 
 		// Skip whitespace until value
 		while (isspace(*p)) p++;
-		if (*p == 0)
-			continue;
 		char *keyword = line;
 		char *value = p;
 		int32 i = atol(value);
