@@ -382,6 +382,11 @@ ether <ethernet card description>
          your network administrator about the nets and zones you can use
          (instead of the ones given in the example above).
 
+  FreeBSD:
+    The "ethertap" method described above also works under FreeBSD, but since
+    no-one has found the time to write a section for this manual, you're on
+    your own here...
+
   AmigaOS:
     You have to specify the name of the SANA-II Ethernet device and the device
     unit as "<device name>/<unit>" (e.g. "ariadne.device/0"). If the given

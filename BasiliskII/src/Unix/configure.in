@@ -222,47 +222,30 @@ EXTRASYSSRCS=
 CAN_NATIVE_M68K=no
 case "$target_os" in
 linux*)
-  ETHERSRC=Linux/ether_linux.cpp
-  SCSISRC=Linux/scsi_linux.cpp
+  ETHERSRC=ether_unix.cpp
   AUDIOSRC=audio_oss_esd.cpp
+  SCSISRC=Linux/scsi_linux.cpp
   ;;
-freebsd*3.*)
+freebsd*)
+  ETHERSRC=ether_unix.cpp
   AUDIOSRC=audio_oss_esd.cpp
   DEFINES="$DEFINES -DBSD_COMP"
+  CXXFLAGS="$CXXFLAGS -fpermissive"
   dnl Check for the CAM library
   AC_CHECK_LIB(cam, cam_open_btl, HAVE_LIBCAM=yes, HAVE_LIBCAM=no) 
   if [[ "x$HAVE_LIBCAM" = "xno" ]]; then
     AC_MSG_WARN([Cannot find libcam for SCSI management, disabling SCSI support.])
   else
     dnl Check for the sys kernel includes
-    AC_CHECK_HEADER(/sys/cam/cam.h)
-    if [[ "x$ac_cv_header__sys_cam_cam_h" = "xno" ]]; then
+    AC_CHECK_HEADER(camlib.h)
+    if [[ "x$ac_cv_header_camlib_h" = "xno" ]]; then
       dnl In this case I should fix this thing including a "patch"
       dnl to access directly to the functions in the kernel :) --Orlando
-      AC_MSG_WARN([Cannot find kernel includes for CAM library, disabling SCSI support.])
+      AC_MSG_WARN([Cannot find includes for CAM library, disabling SCSI support.])
     else
       SCSISRC=FreeBSD/scsi_freebsd.cpp
-      CXXFLAGS="$CXXFLAGS -I/sys"
-      CFLAGS="$CFLAGS -I/sys"
       LIBS="$LIBS -lcam"
       DEFINES="$DEFINES -DCAM"
-    fi
-  fi
-  ;;
-freebsd*)
-  DEFINES="$DEFINES -DBSD_COMP"
-  dnl Check for the SCSI library
-  AC_CHECK_LIB(scsi, scsi_open, HAVE_LIBSCSI=yes, HAVE_LIBSCSI=no)
-  if [[ "x$HAVE_LIBSCSI" = "xno" ]]; then
-    AC_MSG_WARN([Cannot find libscsi for SCSI management, disabling SCSI support.])
-  else
-    dnl Check for the sys kernel includes
-    AC_CHECK_HEADER(scsi.h sys/scsiio.h)
-    if [[ "x$ac_cv_header_scsi_h" = "xno" ]]; then
-      AC_MSG_WARN([Cannot find includes for the SCSI library, disabling SCSI support.])
-    else
-      SCSISRC=FreeBSD/scsi_freebsd.cpp
-      LIBS="$LIBS -lscsi"
     fi
   fi
   ;;
@@ -585,7 +568,7 @@ dnl Select appropriate CPU source and REGPARAM define.
 ASM_OPTIMIZATIONS=none
 CPUSRCS="cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
 FPUSRCS="../uae_cpu/fpp.cpp"
-if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
+if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" -a "x$OS_TYPE" != "xfreebsd" ]]; then
   dnl i386 CPU
   DEFINES="$DEFINES -DREGPARAM=\"__attribute__((regparm(3)))\""
   if [[ "x$HAVE_GAS" = "xyes" ]]; then

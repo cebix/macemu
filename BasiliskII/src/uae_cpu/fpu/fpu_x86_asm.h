@@ -2,7 +2,7 @@
 static void fpu_emit_macro_definitions()
 {
 #   define DEFINE_MACRO(name, value) \
-    __asm__ __volatile__ (#name ## " = " #value)
+    __asm__ __volatile__ (#name " = " #value)
     DEFINE_MACRO(BSUN, 0x00008000);
     DEFINE_MACRO(SNAN, 0x00004000);
     DEFINE_MACRO(OPERR, 0x00002000);
@@ -96,7 +96,7 @@ cat > $ofile << EOF
 static void fpu_emit_macro_definitions()
 {
 #   define DEFINE_MACRO(name, value) \\
-    __asm__ __volatile__ (#name ## " = " #value)
+    __asm__ __volatile__ (#name " = " #value)
 EOF
 
 # processing with awk

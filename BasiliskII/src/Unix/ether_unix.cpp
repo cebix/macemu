@@ -1,5 +1,5 @@
 /*
- *  ether_unix.cpp - Ethernet device driver, Unix specific stuff
+ *  ether_unix.cpp - Ethernet device driver, Unix specific stuff (Linux and FreeBSD)
  *
  *  Basilisk II (C) 1997-2001 Christian Bauer
  *
@@ -26,6 +26,11 @@
 #include <semaphore.h>
 #include <errno.h>
 #include <stdio.h>
+
+#if defined(__FreeBSD__)
+#include <sys/socket.h>
+#include <net/if.h>
+#endif
 
 #include "cpu_emulation.h"
 #include "main.h"
@@ -131,12 +136,14 @@ void EtherInit(void)
 		goto open_error;
 	}
 
+#if defined(__linux__)
 	// Attach sheep_net to selected Ethernet card
 	if (!is_ethertap && ioctl(fd, SIOCSIFLINK, name) < 0) {
 		sprintf(str, GetString(STR_SHEEP_NET_ATTACH_WARN), strerror(errno));
 		WarningAlert(str);
 		goto open_error;
 	}
+#endif
 
 	// Set nonblocking I/O
 	ioctl(fd, FIONBIO, &nonblock);
@@ -320,11 +327,13 @@ int16 ether_write(uint32 wds)
 	// Copy packet to buffer
 	uint8 packet[1516], *p = packet;
 	int len = 0;
+#if defined(__linux__)
 	if (is_ethertap) {
-		*p++ = 0;	// Ethertap discards the first 2 bytes
+		*p++ = 0;	// Linux ethertap discards the first 2 bytes
 		*p++ = 0;
 		len += 2;
 	}
+#endif
 	for (;;) {
 		int w = ReadMacInt16(wds);
 		if (w == 0)
@@ -391,7 +400,11 @@ void EtherInterrupt(void)
 	for (;;) {
 
 		// Read packet from sheep_net device
+#if defined(__linux__)
 		ssize_t length = read(fd, packet, is_ethertap ? 1516 : 1514);
+#else
+		ssize_t length = read(fd, packet, 1514);
+#endif
 		if (length < 14)
 			break;
 
@@ -405,10 +418,12 @@ void EtherInterrupt(void)
 
 		// Pointer to packet data (Ethernet header)
 		uint8 *p = packet;
+#if defined(__linux__)
 		if (is_ethertap) {
-			p += 2;			// Ethertap has two random bytes before the packet
+			p += 2;			// Linux ethertap has two random bytes before the packet
 			length -= 2;
 		}
+#endif
 
 		// Get packet type
 		uint16 type = ntohs(*(uint16 *)(p + 12));

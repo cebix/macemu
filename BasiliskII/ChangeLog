@@ -4,6 +4,9 @@ V0.9 - <insert date here>
 	- Unix: -Ofast option is supplied to MIPSPro compiler [Brian J. Johnson]
 	- Unix: workaround for IRIX pthreads bug in Delay_usec()
 	  [Brian J. Johnson]
+	- Unix: FreeBSD configure script cleanups [Michael Alyn Miller]
+	- Unix: ether_linux.cpp moved and renamed to ether_unix.cpp, now
+	  also works with the tap driver under FreeBSD [Michael Alyn Miller]
 
 V0.9 (snapshot) - 17.Feb.2001
 	- adapted for mon V3.0 which is now the required minimum
