@@ -1266,9 +1266,9 @@ static bool patch_68k_emul(void)
 dr_found:
 	lp++;
 	loc = (uintptr)lp - (uintptr)ROMBaseHost;
-	if ((base = rom_powerpc_branch_target(loc)) == 0) base = ROM_BASE + loc;
+	if ((base = rom_powerpc_branch_target(loc)) == 0) base = loc;
 	static const uint8 dr_ret_dat[] = {0x80, 0xbf, 0x08, 0x14, 0x53, 0x19, 0x4d, 0xac, 0x7c, 0xa8, 0x03, 0xa6};
-	if ((base = find_rom_data(base - ROM_BASE, 0x380000, dr_ret_dat, sizeof(dr_ret_dat))) == 0) return false;
+	if ((base = find_rom_data(base, 0x380000, dr_ret_dat, sizeof(dr_ret_dat))) == 0) return false;
 	D(bug("dr_ret %08lx\n", base));
 	if (base != loc) {
 		// OldWorld ROMs contain an absolute branch
