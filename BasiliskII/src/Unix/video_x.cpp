@@ -704,7 +704,7 @@ static bool init_xf86_dga(int width, int height)
 		memset(the_buffer, 0, the_buffer_size);
 	}
 #elif ENABLE_VOSF
-	// The UAE memory handlers will already color conversion, if needed.
+	// The UAE memory handlers will already handle color conversion, if needed.
 	use_vosf = false;
 #endif
 	
@@ -1589,34 +1589,24 @@ static void handle_events(void)
 			// Hidden parts exposed, force complete refresh of window
 			case Expose:
 				if (display_type == DISPLAY_WINDOW) {
-#ifdef ENABLE_VOSF
-					const XExposeEvent & xev = event.xexpose;
-					const uint32 start = xev.y * VideoMonitor.bytes_per_row + xev.x;
-					const uint32 end = (xev.y + xev.height - 1) * VideoMonitor.bytes_per_row + (xev.x + xev.width);
-					int page = start >> mainBuffer.pageBits;
-					uint32 addr = start;
-					while (addr < end) {
-						memset(the_buffer_copy + addr, 0, mainBuffer.pageSize);
-						addr += mainBuffer.pageSize;
-#ifdef HAVE_PTHREADS
-						pthread_mutex_lock(&Screen_draw_lock);
-#endif
-						PFLAG_SET(page);
-#ifdef HAVE_PTHREADS
-						pthread_mutex_unlock(&Screen_draw_lock);
-#endif
-						++page;
-					}
-#else
 					if (frame_skip == 0) {	// Dynamic refresh
 						int x1, y1;
 						for (y1=0; y1<16; y1++)
 						for (x1=0; x1<16; x1++)
 							updt_box[x1][y1] = true;
 						nr_boxes = 16 * 16;
-					} else
+					} else {
+#ifdef ENABLE_VOSF
+#ifdef HAVE_PTHREADS
+						pthread_mutex_lock(&Screen_draw_lock);
+#endif
+						PFLAG_SET_ALL;
+#ifdef HAVE_PTHREADS
+						pthread_mutex_unlock(&Screen_draw_lock);
+#endif
+#endif
 						memset(the_buffer_copy, 0, VideoMonitor.bytes_per_row * VideoMonitor.y);
-#endif /* ENABLE_VOSF */
+					}
 				}
 				break;
 		}
