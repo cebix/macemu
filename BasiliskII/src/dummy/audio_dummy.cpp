@@ -43,7 +43,7 @@ void AudioInit(void)
 
 	// Only one sample format is supported
 	audio_sample_rates.push_back(44100 << 16);
-	audio_sample_sized.push_back(16);
+	audio_sample_sizes.push_back(16);
 	audio_channel_counts.push_back(2);
 
 	// Sound disabled in prefs? Then do nothing

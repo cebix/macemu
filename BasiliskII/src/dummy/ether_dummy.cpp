@@ -19,6 +19,12 @@
  */
 
 #include "sysdeps.h"
+
+#if SUPPORTS_UDP_TUNNEL
+#include <netinet/in.h>
+#include <sys/socket.h>
+#endif
+
 #include "cpu_emulation.h"
 #include "main.h"
 #include "macos_util.h"
@@ -31,6 +37,13 @@
 #include "debug.h"
 
 #define MONITOR 0
+
+
+// Global variables
+#if SUPPORTS_UDP_TUNNEL
+static int fd = -1;						// UDP tunnel socket fd
+static bool udp_tunnel_active = false;
+#endif
 
 
 /*
@@ -114,9 +127,53 @@ int16 ether_write(uint32 wds)
 
 
 /*
+ *  Start UDP packet reception thread
+ */
+
+bool ether_start_udp_thread(int socket_fd)
+{
+#if SUPPORTS_UDP_TUNNEL
+	fd = socket_fd;
+	udp_tunnel_active = true;
+	return true;
+#else
+	return false;
+#endif
+}
+
+
+/*
+ *  Stop UDP packet reception thread
+ */
+
+void ether_stop_udp_thread(void)
+{
+#if SUPPORTS_UDP_TUNNEL
+	udp_tunnel_active = false;
+#endif
+}
+
+
+/*
  *  Ethernet interrupt - activate deferred tasks to call IODone or protocol handlers
  */
 
 void EtherInterrupt(void)
 {
+#if SUPPORTS_UDP_TUNNEL
+	if (udp_tunnel_active) {
+		uint8 packet[1514];
+		ssize_t length;
+
+		// Read packets from socket and hand to ether_udp_read() for processing
+		while (true) {
+			struct sockaddr_in from;
+			socklen_t from_len = sizeof(from);
+			length = recvfrom(fd, packet, 1514, 0, (struct sockaddr *)&from, &from_len);
+			if (length < 14)
+				break;
+			ether_udp_read(packet, length, &from);
+		}
+	}
+#endif
 }

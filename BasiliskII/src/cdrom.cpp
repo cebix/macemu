@@ -132,7 +132,7 @@ struct cdrom_drive_info {
 	void *fh;			// File handle
 	int block_size;		// CD-ROM block size
 	int twok_offset;	// Offset of beginning of 2K block to last Prime position
-	uint32 start_byte;	// Start of HFS partition on disk
+	loff_t start_byte;	// Start of HFS partition on disk
 	bool to_be_mounted;	// Flag: drive must be mounted in accRun
 	bool mount_non_hfs;	// Flag: Issue disk-inserted events for non-HFS disks
 

@@ -71,13 +71,14 @@ const uint8 DiskIcon[258] = {
 
 // Struct for each drive
 struct disk_drive_info {
-	disk_drive_info() : num(0), fh(NULL), read_only(false), status(0) {}
+	disk_drive_info() : num(0), fh(NULL), start_byte(0), read_only(false), status(0) {}
 	disk_drive_info(void *fh_, bool ro) : num(0), fh(fh_), read_only(ro), status(0) {}
 
 	void close_fh(void) { Sys_close(fh); }
 
 	int num;			// Drive number
 	void *fh;			// File handle
+	loff_t start_byte;	// Start of HFS partition on disk
 	uint32 num_blocks;	// Size in 512-byte blocks
 	bool to_be_mounted;	// Flag: drive must be mounted in accRun
 	bool read_only;		// Flag: force write protection
@@ -107,6 +108,39 @@ static drive_vec::iterator get_drive_info(int num)
 			return info;
 	}
 	return info;
+}
+
+
+/*
+ *  Find HFS partition, set info->start_byte and info->num_blocks
+ *  (0 = no partition map or HFS partition found, assume flat disk image)
+ */
+
+static void find_hfs_partition(disk_drive_info &info)
+{
+	info.start_byte = 0;
+	info.num_blocks = 0;
+	uint8 *map = new uint8[512];
+
+	// Search first 64 blocks for HFS partition
+	for (int i=0; i<64; i++) {
+		if (Sys_read(info.fh, map, i * 512, 512) != 512)
+			break;
+
+		// Not a partition map block? Then look at next block
+		uint16 sig = (map[0] << 8) | map[1];
+		if (sig != 0x504d)
+			continue;
+
+		// Partition map block found, Apple HFS partition?
+		if (strcmp((char *)(map + 48), "Apple_HFS") == 0) {
+			info.start_byte = ntohl(((uint32 *)map)[2]) << 9;
+			info.num_blocks = ntohl(((uint32 *)map)[3]);
+			D(bug(" HFS partition found at %d, %d blocks\n", info.start_byte, info.num_blocks));
+			break;
+		}
+	}
+	delete[] map;
 }
 
 
@@ -163,7 +197,9 @@ bool DiskMountVolume(void *fh)
 			info->read_only = SysIsReadOnly(info->fh);
 			WriteMacInt8(info->status + dsDiskInPlace, 1);	// Inserted removable disk
 			WriteMacInt8(info->status + dsWriteProt, info->read_only ? 0xff : 0);
-			info->num_blocks = SysGetFileSize(info->fh) / 512;
+			find_hfs_partition(*info);
+			if (info->start_byte == 0)
+				info->num_blocks = SysGetFileSize(info->fh) / 512;
 			WriteMacInt16(info->status + dsDriveSize, info->num_blocks & 0xffff);
 			WriteMacInt16(info->status + dsDriveS1, info->num_blocks >> 16);
 			info->to_be_mounted = true;
@@ -249,7 +285,9 @@ int16 DiskOpen(uint32 pb, uint32 dce)
 			if (disk_in_place) {
 				D(bug(" disk inserted\n"));
 				WriteMacInt8(info->status + dsWriteProt, info->read_only ? 0x80 : 0);
-				info->num_blocks = SysGetFileSize(info->fh) / 512;
+				find_hfs_partition(*info);
+				if (info->start_byte == 0)
+					info->num_blocks = SysGetFileSize(info->fh) / 512;
 				info->to_be_mounted = true;
 			}
 			D(bug(" %d blocks\n", info->num_blocks));
@@ -295,7 +333,7 @@ int16 DiskPrime(uint32 pb, uint32 dce)
 	if ((ReadMacInt16(pb + ioTrap) & 0xff) == aRdCmd) {
 
 		// Read
-		actual = Sys_read(info->fh, buffer, position, length);
+		actual = Sys_read(info->fh, buffer, position + info->start_byte, length);
 		if (actual != length)
 			return readErr;
 
@@ -304,7 +342,7 @@ int16 DiskPrime(uint32 pb, uint32 dce)
 		// Write
 		if (info->read_only)
 			return wPrErr;
-		actual = Sys_write(info->fh, buffer, position, length);
+		actual = Sys_write(info->fh, buffer, position + info->start_byte, length);
 		if (actual != length)
 			return writErr;
 	}

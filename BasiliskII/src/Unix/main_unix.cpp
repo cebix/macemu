@@ -835,8 +835,9 @@ static void one_tick(...)
 	}
 
 #ifndef HAVE_PTHREADS
-	// No threads available, perform video refresh from here
+	// No threads available, perform video refresh and networking from here
 	VideoRefresh();
+	SetInterruptFlag(INTFLAG_ETHER);
 #endif
 
 	// Trigger 60Hz interrupt
