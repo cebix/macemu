@@ -1,21 +1,21 @@
 # Makefile for creating Basilisk II distributions
 # Written in 1999 by Christian Bauer <Christian.Bauer@uni-mainz.de>
 
-VERSION = $(shell sed <BasiliskII.spec -n '/^Version: */s///p')
-RELEASE = $(shell sed <BasiliskII.spec -n '/^Release: */s///p')
-VERNAME = BasiliskII-$(VERSION)
+VERSION := $(shell sed <BasiliskII.spec -n '/^Version: */s///p')
+RELEASE := $(shell sed <BasiliskII.spec -n '/^Release: */s///p')
+VERNAME := BasiliskII-$(VERSION)
 
-SRCARCHIVE = $(shell date +BasiliskII_src_%d%m%Y.tar.gz)
-SRCRPM = $(VERNAME)-$(RELEASE).src.rpm
-BINRPM = $(VERNAME)-$(RELEASE).i386.rpm
-AMIGAARCHIVE = $(VERNAME)-$(RELEASE).amiga.lha
-BEOSPPCARCHIVE = $(VERNAME)-$(RELEASE).beosppc.zip
-BEOSX86ARCHIVE = $(VERNAME)-$(RELEASE).beosx86.zip
+SRCARCHIVE := $(shell date +BasiliskII_src_%d%m%Y.tar.gz)
+SRCRPM := $(VERNAME)-$(RELEASE).src.rpm
+BINRPM := $(VERNAME)-$(RELEASE).i386.rpm
+AMIGAARCHIVE := $(VERNAME)-$(RELEASE).amiga.lha
+BEOSPPCARCHIVE := $(VERNAME)-$(RELEASE).beosppc.zip
+BEOSX86ARCHIVE := $(VERNAME)-$(RELEASE).beosx86.zip
 
-TMPDIR = $(shell date +/tmp/build%m%s)
-RPMDIR = /usr/src/redhat
-DOCS = $(shell sed <BasiliskII.spec -n '/^\%doc */s///p')
-SRCS = src
+TMPDIR := $(shell date +/tmp/build%m%s)
+RPMDIR := /usr/src/redhat
+DOCS := $(shell sed <BasiliskII.spec -n '/^\%doc */s///p')
+SRCS := src
 
 default:
 	@echo "This top-level Makefile is for creating Basilisk II distributions."
