@@ -959,8 +959,16 @@ bool VideoInit(bool classic)
 	int max_width = 640, max_height = 480;
 	SDL_Rect **modes = SDL_ListModes(NULL, SDL_FULLSCREEN | SDL_HWSURFACE);
 	if (modes && modes != (SDL_Rect **)-1) {
-		max_width = modes[0]->w;
-		max_height = modes[0]->h;
+		// It turns out that on some implementations, and contrary to the documentation,
+		// the returned list is not sorted from largest to smallest (e.g. Windows)
+		for (int i = 0; modes[i] != NULL; i++) {
+			const int w = modes[i]->w;
+			const int h = modes[i]->h;
+			if (w > max_width && h > max_height) {
+				max_width = w;
+				max_height = h;
+			}
+		}
 		if (default_width > max_width)
 			default_width = max_width;
 		if (default_height > max_height)
