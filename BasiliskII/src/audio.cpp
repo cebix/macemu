@@ -470,3 +470,128 @@ delegate:	// Delegate call to Apple Mixer
 			return badComponentSelector;
 	}
 }
+
+
+/*
+ *  Sound input driver Open() routine
+ */
+
+int16 SoundInOpen(uint32 pb, uint32 dce)
+{
+	D(bug("SoundInOpen\n"));
+	return noErr;
+}
+
+
+/*
+ *  Sound input driver Prime() routine
+ */
+
+int16 SoundInPrime(uint32 pb, uint32 dce)
+{
+	D(bug("SoundInPrime\n"));
+	//!!
+	return paramErr;
+}
+
+
+/*
+ *  Sound input driver Control() routine
+ */
+
+int16 SoundInControl(uint32 pb, uint32 dce)
+{
+	uint16 code = ReadMacInt16(pb + csCode);
+	D(bug("SoundInControl %d\n", code));
+
+	if (code == 1) {
+		D(bug(" SoundInKillIO\n"));
+		//!!
+		return noErr;
+	}
+
+	if (code != 2)
+		return -231;	// siUnknownInfoType
+
+	uint32 *param = (uint32 *)Mac2HostAddr(pb + csParam);
+	uint32 selector = param[0];
+	D(bug(" selector %c%c%c%c\n", selector >> 24, selector >> 16, selector >> 8, selector));
+
+	switch (selector) {
+		default:
+			return -231;	// siUnknownInfoType
+	}
+}
+
+
+/*
+ *  Sound input driver Status() routine
+ */
+
+int16 SoundInStatus(uint32 pb, uint32 dce)
+{
+	uint16 code = ReadMacInt16(pb + csCode);
+	D(bug("SoundInStatus %d\n", code));
+	if (code != 2)
+		return -231;	// siUnknownInfoType
+
+	uint32 *param = (uint32 *)Mac2HostAddr(pb + csParam);
+	uint32 selector = param[0];
+	D(bug(" selector %c%c%c%c\n", selector >> 24, selector >> 16, selector >> 8, selector));
+	switch (selector) {
+#if 0
+		case siDeviceName: {
+			const char *str = GetString(STR_SOUND_IN_NAME);
+			param[0] = 0;
+			memcpy((void *)param[1], str, strlen(str));
+			return noErr;
+		}
+
+		case siDeviceIcon: {
+			M68kRegisters r;
+			static const uint16 proc[] = {
+				0x558f,					// 	subq.l	#2,sp
+				0xa994,					// 	CurResFile
+				0x4267,					// 	clr.w	-(sp)
+				0xa998,					// 	UseResFile
+				0x598f,					// 	subq.l	#4,sp
+				0x4879, 0x4943, 0x4e23,	// 	move.l	#'ICN#',-(sp)
+				0x3f3c, 0xbf76,			// 	move.w	#-16522,-(sp)
+				0xa9a0,					// 	GetResource
+				0x245f,					// 	move.l	(sp)+,a2
+				0xa998,					// 	UseResFile
+				0x200a,					// 	move.l	a2,d0
+				0x6604,					// 	bne		1
+				0x7000,					//  moveq	#0,d0
+				M68K_RTS,
+				0x2f0a,					//1 move.l	a2,-(sp)
+				0xa992,					//  DetachResource
+				0x204a,					//  move.l	a2,a0
+				0xa04a,					//	HNoPurge
+				0x7001,					//	moveq	#1,d0
+				M68K_RTS
+			};
+			Execute68k((uint32)proc, &r);
+			if (r.d[0]) {
+				param[0] = 4;		// Length of returned data
+				param[1] = r.a[2];	// Handle to icon suite
+				return noErr;
+			} else
+				return -192;		// resNotFound
+		}
+#endif
+		default:
+			return -231;	// siUnknownInfoType
+	}
+}
+
+
+/*
+ *  Sound input driver Close() routine
+ */
+
+int16 SoundInClose(uint32 pb, uint32 dce)
+{
+	D(bug("SoundInClose\n"));
+	return noErr;
+}

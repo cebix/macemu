@@ -348,6 +348,26 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			EtherReadPacket((uint8 **)&r->a[0], r->a[3], r->d[3], r->d[1]);
 			break;
 
+		case M68K_EMUL_OP_SOUNDIN_OPEN:		// Sound input driver functions
+			r->d[0] = SoundInOpen(r->a[0], r->a[1]);
+			break;
+
+		case M68K_EMUL_OP_SOUNDIN_PRIME:
+			r->d[0] = SoundInPrime(r->a[0], r->a[1]);
+			break;
+
+		case M68K_EMUL_OP_SOUNDIN_CONTROL:
+			r->d[0] = SoundInControl(r->a[0], r->a[1]);
+			break;
+
+		case M68K_EMUL_OP_SOUNDIN_STATUS:
+			r->d[0] = SoundInStatus(r->a[0], r->a[1]);
+			break;
+
+		case M68K_EMUL_OP_SOUNDIN_CLOSE:
+			r->d[0] = SoundInClose(r->a[0], r->a[1]);
+			break;
+
 		case M68K_EMUL_OP_SCSI_DISPATCH: {	// SCSIDispatch() replacement
 			uint32 ret = ReadMacInt32(r->a[7]);		// Get return address
 			uint16 sel = ReadMacInt16(r->a[7] + 4);	// Get selector

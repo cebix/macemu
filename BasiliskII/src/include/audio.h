@@ -25,6 +25,12 @@ extern int32 AudioDispatch(uint32 params, uint32 ti);
 
 extern bool AudioAvailable;		// Flag: audio output available (from the software point of view)
 
+extern int16 SoundInOpen(uint32 pb, uint32 dce);
+extern int16 SoundInPrime(uint32 pb, uint32 dce);
+extern int16 SoundInControl(uint32 pb, uint32 dce);
+extern int16 SoundInStatus(uint32 pb, uint32 dce);
+extern int16 SoundInClose(uint32 pb, uint32 dce);
+
 // System specific and internal functions/data
 extern void AudioInit(void);
 extern void AudioExit(void);
