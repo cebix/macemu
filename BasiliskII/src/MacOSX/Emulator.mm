@@ -151,7 +151,7 @@
 
 - (IBAction) Interrupt:	(id)sender;
 {
-	WarningSheet (@"Interrupt action not yet supported", @"", @"OK", win);
+	WarningSheet (@"Interrupt action not yet supported", win);
 }
 
 - (IBAction) PowerKey:	(id)sender;
@@ -216,7 +216,7 @@
 	if ( screen == nil || uaeCreated == NO  )
 		WarningSheet(@"The emulator has not yet started.",
 					 @"There is no screen output to snapshot",
-					 @"OK", win);
+					 nil, win);
 	else
 	{
 		NSData	*TIFFdata;
@@ -310,7 +310,8 @@ uint8 lastXPRAM[XPRAM_SIZE];		// Copy of PRAM
 - (void) createThreads
 {
 #ifdef USE_PTHREADS
-	[NSThread detachNewThreadSelector:(SEL)"" toTarget:nil withObject:nil]; // Make UI threadsafe
+	// Make UI threadsafe:
+	[NSThread detachNewThreadSelector:(SEL)"" toTarget:nil withObject:nil];
 	//emul   = [[NNThread	alloc] initWithAutoReleasePool];
 #endif
 	emul   = [[NNThread	alloc] init];
@@ -361,20 +362,18 @@ uint8 lastXPRAM[XPRAM_SIZE];		// Copy of PRAM
 	extern uint8		*RAMBaseHost, *ROMBaseHost;
 	NSAutoreleasePool	*pool = [[NSAutoreleasePool alloc] init];
 
-//	[screen allocBitmap];	// Do this first, because InitEmulator() calls VideoInit(), which needs the_bitmap.
-
 	InitEmulator();
 
 	if ( RAMBaseHost == NULL || ROMBaseHost == NULL )
-		ErrorSheet(@"Cannot start Emulator.",
-				   @"Emulator memory not allocated", @"OK", win);
+		ErrorSheet(@"Cannot start Emulator",
+				   @"Emulator memory not allocated", nil, win);
 	else
 	{
 		memcpy(lastXPRAM, XPRAM, XPRAM_SIZE);
 
 		uaeCreated = YES;		// Enable timers to access emulated Mac's memory
 
-		while ( screen == nil )	// If init sets running, but we are still loading from Nib?
+		while ( screen == nil )	// If we are still loading from Nib?
 			[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow: 1.0]];
 
 //		[screen readyToDraw];
