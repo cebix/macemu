@@ -56,6 +56,7 @@
 #include "video.h"
 #include "video_defs.h"
 #include "video_blit.h"
+#include "vm_alloc.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -96,6 +97,8 @@ static uint32 the_buffer_size;						// Size of allocated the_buffer
 static bool redraw_thread_active = false;			// Flag: Redraw thread installed
 static volatile bool redraw_thread_cancel;			// Flag: Cancel Redraw thread
 static SDL_Thread *redraw_thread = NULL;			// Redraw thread
+static volatile bool thread_stop_req = false;
+static volatile bool thread_stop_ack = false;		// Acknowledge for thread_stop_req
 
 #ifdef ENABLE_VOSF
 static bool use_vosf = false;						// Flag: VOSF enabled
@@ -142,6 +145,30 @@ static int redraw_func(void *arg);
 
 // From sys_unix.cpp
 extern void SysMountFirstFloppy(void);
+
+
+/*
+ *  Framebuffer allocation routines
+ */
+
+static void *vm_acquire_framebuffer(uint32 size)
+{
+#ifdef SHEEPSHAVER
+#ifdef DIRECT_ADDRESSING_HACK
+	const uint32 FRAME_BUFFER_BASE = 0x61000000;
+	uint8 *fb = Mac2HostAddr(FRAME_BUFFER_BASE);
+	if (vm_acquire_fixed(fb, size) < 0)
+		fb = VM_MAP_FAILED;
+	return fb;
+#endif
+#endif
+	return vm_acquire(size);
+}
+
+static inline void vm_release_framebuffer(void *fb, uint32 size)
+{
+	vm_release(fb, size);
+}
 
 
 /*
@@ -554,12 +581,15 @@ driver_base::~driver_base()
 	if (s)
 		SDL_FreeSurface(s);
 
+	// the_buffer shall always be mapped through vm_acquire_framebuffer()
+	if (the_buffer != VM_MAP_FAILED) {
+		D(bug(" releasing the_buffer at %p (%d bytes)\n", the_buffer, the_buffer_size));
+		vm_release_framebuffer(the_buffer, the_buffer_size);
+		the_buffer = NULL;
+	}
+
 	// Free frame buffer(s)
 	if (!use_vosf) {
-		if (the_buffer) {
-			free(the_buffer);
-			the_buffer = NULL;
-		}
 		if (the_buffer_copy) {
 			free(the_buffer_copy);
 			the_buffer_copy = NULL;
@@ -567,12 +597,6 @@ driver_base::~driver_base()
 	}
 #ifdef ENABLE_VOSF
 	else {
-		// the_buffer shall always be mapped through vm_acquire() so that we can vm_protect() it at will
-		if (the_buffer != VM_MAP_FAILED) {
-			D(bug(" releasing the_buffer at %p (%d bytes)\n", the_buffer, the_buffer_size));
-			vm_release(the_buffer, the_buffer_size);
-			the_buffer = NULL;
-		}
 		if (the_host_buffer) {
 			D(bug(" freeing the_host_buffer at %p\n", the_host_buffer));
 			free(the_host_buffer);
@@ -583,6 +607,9 @@ driver_base::~driver_base()
 			free(the_buffer_copy);
 			the_buffer_copy = NULL;
 		}
+
+		// Deinitialize VOSF
+		video_vosf_exit();
 	}
 #endif
 }
@@ -632,7 +659,7 @@ driver_window::driver_window(SDL_monitor_desc &m)
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	the_host_buffer = (uint8 *)s->pixels;
 	the_buffer_size = page_extend((aligned_height + 2) * s->pitch);
-	the_buffer = (uint8 *)vm_acquire(the_buffer_size);
+	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
 	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
 
@@ -656,7 +683,7 @@ driver_window::driver_window(SDL_monitor_desc &m)
 		// Allocate memory for frame buffer
 		the_buffer_size = (aligned_height + 2) * s->pitch;
 		the_buffer_copy = (uint8 *)calloc(1, the_buffer_size);
-		the_buffer = (uint8 *)calloc(1, the_buffer_size);
+		the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
 		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
 	}
 	
@@ -1048,13 +1075,6 @@ void SDL_monitor_desc::video_close(void)
 	UNLOCK_FRAME_BUFFER;
 	D(bug(" frame buffer unlocked\n"));
 
-#ifdef ENABLE_VOSF
-	if (use_vosf) {
-		// Deinitialize VOSF
-		video_vosf_exit();
-	}
-#endif
-
 	// Close display
 	delete drv;
 	drv = NULL;
@@ -1213,8 +1233,11 @@ int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr)
 			csSave->saveData = ReadMacInt32(ParamPtr + csData);
 			csSave->savePage = ReadMacInt16(ParamPtr + csPage);
 
-			// Disable interrupts
+			// Disable interrupts and pause redraw thread
 			DisableInterrupt();
+			thread_stop_ack = false;
+			thread_stop_req = true;
+			while (!thread_stop_ack) ;
 
 			cur_mode = i;
 			monitor_desc *monitor = VideoMonitors[0];
@@ -1225,7 +1248,8 @@ int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr)
 			csSave->saveData=VModes[cur_mode].viAppleID;/* First mode ... */
 			csSave->saveMode=VModes[cur_mode].viAppleMode;
 
-			// Enable interrupts
+			// Enable interrupts and resume redraw thread
+			thread_stop_req = false;
 			EnableInterrupt();
 			return noErr;
 		}
@@ -1865,6 +1889,14 @@ static int redraw_func(void *arg)
 		else if (delay < -VIDEO_REFRESH_DELAY)
 			next = GetTicks_usec();
 		ticks++;
+
+#ifdef SHEEPSHAVER
+		// Pause if requested (during video mode switches)
+		if (thread_stop_req) {
+			thread_stop_ack = true;
+			continue;
+		}
+#endif
 
 		// Handle SDL events
 		handle_events();
