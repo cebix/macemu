@@ -1,7 +1,7 @@
 /*
  *  Generic Dynamic compiler generator
  * 
- *  Copyright (c) 2003 Fabrice Bellard
+ *  Copyright (c) 2003-2004 Fabrice Bellard
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -1404,7 +1404,7 @@ int load_elf(const char *filename, FILE *outfile, int out_type)
 
 void usage(void)
 {
-    printf("dyngen (c) 2003 Fabrice Bellard\n"
+    printf("dyngen (c) 2003-2004 Fabrice Bellard\n"
            "usage: dyngen [-o outfile] objfile\n"
            "Generate a dynamic code generator from an object file\n"
            );

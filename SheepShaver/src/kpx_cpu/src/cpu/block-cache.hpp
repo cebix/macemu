@@ -1,7 +1,7 @@
 /*
  *  block-cache.hpp - Basic block cache management
  *
- *  Kheperix (C) 2003 Gwenole Beauchesne
+ *  Kheperix (C) 2003-2004 Gwenole Beauchesne
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
