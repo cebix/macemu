@@ -1,5 +1,7 @@
 Bugs:
 <UL>
+<LI>The restart button no longer works correctly. It quits the emulation, but
+	then fails to restart it. This used to work in older versions (up to v6)</LI>
 <LI>In window mode, if the framerate is low (<I>e.g.</I> if you leave it at the
 	default of 10fps), really fast mouse clicks are sometimes not picked up
 	by the Emulator. For now, click more slowly</LI>
@@ -10,32 +12,35 @@ Bugs:
 Untested:
 <UL>
 <LI>Mac Classic emulation. I don't have a ROM, but I suspect it will crash</LI>
-<LI>CD-ROM stuff. Should be the same as BSD, but who knows how Apple's stuff affects this</LI>
-<LI>Floppy stuff. See above</LI>
-<LI>Serial port code. See above</LI>
+<LI>Floppy stuff</LI>
+<LI>Serial port code</LI>
 </UL>
 Unimplemented:
 <UL>
+<LI>CD-ROM stuff. Should be the same as any other BSD, but Apple has stupidly
+    created different ioctls. I am still trying to get this to work</LI>
 <LI>Ethernet</LI>
 <LI>Reset and Interrupt functions for emulator</LI>
 <LI>Sound</LI>
 <LI>Window depth. It is currently stuck at 32bits, which Quartz dithers down
 	to whatever the user's display is set to. This is mainly due to the fact
 	that NSBitmapImageRep does not support any 16bit modes. The Core Graphics
-	primitives may allow a workaround, though</LI>
+	primitives, or 10.2, may allow a workaround though</LI>
 <LI>'nogui' to disable GUI alerts (and maybe preferences, but I need to split
 	MainMenu.nib to do that)</LI>
-<LI>Documentation. There is the README in the help menu, but I need to add
-	links to the ToDo and Versions doco, and include a HowTo document.
-	(<I>e.g.</I> How do I install the OS on a disk image?)</LI>
+<LI>Better documentation. There are README, ToDo and Versions in the help menu,
+    but I need to add some HowTo documents (<I>e.g.</I> How do I install the OS
+    on a disk image?), perhaps in the Help menu </LI>
 </UL>
 Other:
 <UL>
-<LI>Verify that ExtFS works under 7.5.3 (reported by Kentaro Nakatani), update doco</LI>
+<LI>Verify that ExtFS works under 7.5.3 (reported by Kentaro Nakatani),
+    update doco</LI>
 </UL>
 Possible Enhancements:
 <UL>
-<LI>Use NSFileManager's movePath:toPath:handler to rename all a file's forks in extfs_macosx.mm</LI>
+<LI>Use NSFileManager's movePath:toPath:handler to rename all a file's forks
+    in extfs_macosx.mm</LI>
 <LI>Emulator snapshot - save the current emulator state
 	(memory + registers) to a file for fast startup next time</LI>
 <LI>Multiple emulators. The window stuff is mostly there,
