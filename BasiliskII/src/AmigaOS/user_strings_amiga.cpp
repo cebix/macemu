@@ -40,6 +40,8 @@ user_string_def platform_strings[] = {
 	{STR_NO_VIDEO_MODE_ERR, "Cannot obtain selected video mode."},
 	{STR_WRONG_SCREEN_DEPTH_ERR, "Basilisk II only supports 8, 16 or 24 bit screens."},
 	{STR_WRONG_SCREEN_FORMAT_ERR, "Basilisk II only supports big-endian chunky ARGB screen modes."},
+	{STR_ENFORCER_RUNNING_ERR, "Enforcer/CyberGuard is running. Remove and then try again to start Basilisk II."},
+
 	{STR_NOT_ETHERNET_WARN, "The selected network device is not an Ethernet device. Networking will be disabled."},
 	{STR_NO_MULTICAST_WARN, "Your Ethernet card does not support multicast and is not usable with AppleTalk. Please report this to the manufacturer of the card."},
 	{STR_NO_GTLAYOUT_LIB_WARN, "Cannot open gtlayout.library V39. The preferences editor GUI will not be available."},

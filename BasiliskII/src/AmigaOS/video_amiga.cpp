@@ -97,6 +97,9 @@ static void add_mode(uint32 width, uint32 height, uint32 resolution_id, uint32 b
 static void add_modes(uint32 width, uint32 height, video_depth depth);
 static ULONG find_mode_for_depth(uint32 width, uint32 height, uint32 depth);
 static ULONG bits_from_depth(video_depth depth);
+static bool is_valid_modeid(int display_type, ULONG mode_id);
+static bool check_modeid_p96(ULONG mode_id);
+static bool check_modeid_cgfx(ULONG mode_id);
 
 
 /*
@@ -197,32 +200,14 @@ static bool init_screen_p96(ULONG mode_id)
 	ADBSetRelMouseMode(true);
 
 	// Check if the mode is one we can handle
-	uint32 depth = p96GetModeIDAttr(mode_id, P96IDA_DEPTH);
-	uint32 format = p96GetModeIDAttr(mode_id, P96IDA_RGBFORMAT);
-
-	switch (depth) {
-		case 8:
-			break;
-		case 15:
-		case 16:
-			if (format != RGBFB_R5G5B5) {
-				ErrorAlert(STR_WRONG_SCREEN_FORMAT_ERR);
-				return false;
-			}
-			break;
-		case 24:
-		case 32:
-			if (format != RGBFB_A8R8G8B8) {
-				ErrorAlert(STR_WRONG_SCREEN_FORMAT_ERR);
-				return false;
-			}
-			break;
-		default:
-			ErrorAlert(STR_WRONG_SCREEN_DEPTH_ERR);
-			return false;
-	}
+	if (!check_modeid_p96(mode_id))
+		{
+		ErrorAlert(STR_WRONG_SCREEN_FORMAT_ERR);
+		return false;
+		}
 
 	// Yes, get width and height
+	uint32 depth = p96GetModeIDAttr(mode_id, P96IDA_DEPTH);
 	uint32 width = p96GetModeIDAttr(mode_id, P96IDA_WIDTH);
 	uint32 height = p96GetModeIDAttr(mode_id, P96IDA_HEIGHT);
 
@@ -274,33 +259,14 @@ static bool init_screen_cgfx(ULONG mode_id)
 	ADBSetRelMouseMode(true);
 
 	// Check if the mode is one we can handle
-	uint32 depth = GetCyberIDAttr(CYBRIDATTR_DEPTH, mode_id);
-	uint32 format = GetCyberIDAttr(CYBRIDATTR_PIXFMT, mode_id);
-
-	switch (depth) {
-		case 8:
-			break;
-		case 15:
-		case 16:
-			// !!! PIXFMT_RGB15 is correct !!!
-			if (format != PIXFMT_RGB15) {
-				ErrorAlert(STR_WRONG_SCREEN_FORMAT_ERR);
-				return false;
-			}
-			break;
-		case 24:
-		case 32:
-			if (format != PIXFMT_ARGB32) {
-				ErrorAlert(STR_WRONG_SCREEN_FORMAT_ERR);
-				return false;
-			}
-			break;
-		default:
-			ErrorAlert(STR_WRONG_SCREEN_DEPTH_ERR);
-			return false;
-	}
+	if (!check_modeid_cgfx(mode_id))
+		{
+		ErrorAlert(STR_WRONG_SCREEN_FORMAT_ERR);
+		return false;
+		}
 
 	// Yes, get width and height
+	uint32 depth = GetCyberIDAttr(CYBRIDATTR_DEPTH, mode_id);
 	uint32 width = GetCyberIDAttr(CYBRIDATTR_WIDTH, mode_id);
 	uint32 height = GetCyberIDAttr(CYBRIDATTR_HEIGHT, mode_id);
 
@@ -429,9 +395,11 @@ bool VideoInit(bool classic)
 			default_height = 1 + dimInfo.Nominal.MaxY - dimInfo.Nominal.MinY;
 			default_depth = dimInfo.MaxDepth;
 
-			for (unsigned d=VDEPTH_1BIT; d<=VDEPTH_32BIT; d++)
+			for (unsigned d=VDEPTH_8BIT; d<=VDEPTH_32BIT; d++)
 				{
-				if (INVALID_ID != find_mode_for_depth(default_width, default_height, bits_from_depth(video_depth(d))))
+				ULONG mode_id = find_mode_for_depth(default_width, default_height, bits_from_depth(video_depth(d)));
+
+				if (is_valid_modeid(display_type, mode_id))
 					{
 					add_modes(default_width, default_height, video_depth(d));
 					}
@@ -877,6 +845,7 @@ static ULONG find_mode_for_depth(uint32 width, uint32 height, uint32 depth)
 	ULONG ID = BestModeID(BIDTAG_NominalWidth, width,
 		BIDTAG_NominalHeight, height,
 		BIDTAG_Depth, depth,
+		BIDTAG_DIPFMustNotHave, DIPF_IS_ECS | DIPF_IS_HAM | DIPF_IS_AA,
 		TAG_END);
 
 	return ID;
@@ -892,5 +861,87 @@ static ULONG bits_from_depth(video_depth depth)
 		bits = 24;
 
 	return bits;
+}
+
+
+static bool is_valid_modeid(int display_type, ULONG mode_id)
+{
+	if (INVALID_ID == mode_id)
+		return false;
+
+	switch (display_type)
+		{
+	case DISPLAY_SCREEN_P96:
+		return check_modeid_p96(mode_id);
+		break;
+	case DISPLAY_SCREEN_CGFX:
+		return check_modeid_cgfx(mode_id);
+		break;
+	default:
+		return false;
+		break;
+		}
+}
+
+
+static bool check_modeid_p96(ULONG mode_id)
+{
+	// Check if the mode is one we can handle
+	uint32 depth = p96GetModeIDAttr(mode_id, P96IDA_DEPTH);
+	uint32 format = p96GetModeIDAttr(mode_id, P96IDA_RGBFORMAT);
+
+	if (!p96GetModeIDAttr(screen_mode_id, P96IDA_ISP96))
+		return false;
+
+	switch (depth) {
+		case 8:
+			break;
+		case 15:
+		case 16:
+			if (format != RGBFB_R5G5B5)
+				return false;
+			break;
+		case 24:
+		case 32:
+			if (format != RGBFB_A8R8G8B8)
+				return false;
+			break;
+		default:
+			return false;
+	}
+
+	return true;
+}
+
+
+static bool check_modeid_cgfx(ULONG mode_id)
+{
+	uint32 depth = GetCyberIDAttr(CYBRIDATTR_DEPTH, mode_id);
+	uint32 format = GetCyberIDAttr(CYBRIDATTR_PIXFMT, mode_id);
+
+	D(bug("init_screen_cgfx: mode_id=%08lx  depth=%ld  format=%ld\n", mode_id, depth, format));
+
+	if (!IsCyberModeID(mode_id))
+		return false;
+
+	switch (depth) {
+		case 8:
+			break;
+		case 15:
+		case 16:
+			// !!! PIXFMT_RGB15 is correct !!!
+			if (format != PIXFMT_RGB15)
+				return false;
+			break;
+		case 24:
+		case 32:
+			if (format != PIXFMT_ARGB32)
+				return false;
+			break;
+		default:
+			return false;
+	}
+
+	return true;
 }
 
