@@ -981,6 +981,19 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			dg.gen_store_T0_GPR(rD_field::extract(opcode));
 			break;
 		}
+		case PPC_I(DCBA):		// Data Cache Block Allocate
+		case PPC_I(DCBF):		// Data Cache Block Flush
+		case PPC_I(DCBI):		// Data Cache Block Invalidate
+		case PPC_I(DCBST):		// Data Cache Block Store
+		case PPC_I(DCBT):		// Data Cache Block Touch
+		case PPC_I(DCBTST):		// Data Cache Block Touch for Store
+		case PPC_I(ECIWX):		// External Control In Word Indexed
+		case PPC_I(ECOWX):		// External Control Out Word Indexed
+		case PPC_I(EIEIO):		// Enforce In-Order Execution of I/O
+		case PPC_I(SYNC):		// Synchronize
+		{
+			break;
+		}
 		default:				// Direct call to instruction handler
 		{
 			typedef void (*func_t)(dyngen_cpu_base, uint32);
