@@ -48,6 +48,7 @@ AC_PROG_CXX
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
 AC_PROG_EGREP
+AC_CHECK_PROGS(FILE, [file false])
 
 dnl Check for PowerPC target CPU.
 HAVE_PPC=no
@@ -124,12 +125,21 @@ fi
 if [[ "x$WANT_SDL" = "xyes" ]]; then
   AC_PATH_PROG(sdl_config, "sdl-config")
   if [[ -n "$sdl_config" ]]; then
-    sdl_cflags=`$sdl_config --cflags`
-    if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
-      sdl_libs=`$sdl_config --static-libs`
-    else
-      sdl_libs=`$sdl_config --libs`
-    fi
+    case $target_os in
+    # Special treatment for Cygwin so that we can still use the POSIX layer
+    *cygwin*)
+      sdl_cflags="-I`$sdl_config --prefix`/include/SDL"
+      sdl_libs="-L`$sdl_config --exec-prefix`/lib -lSDL"
+      ;;
+    *)
+      sdl_cflags=`$sdl_config --cflags`
+      if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
+        sdl_libs=`$sdl_config --static-libs`
+      else
+        sdl_libs=`$sdl_config --libs`
+      fi
+      ;;
+    esac
     CFLAGS="$CFLAGS $sdl_cflags"
     CXXFLAGS="$CXXFLAGS $sdl_cflags"
     LIBS="$LIBS $sdl_libs"
@@ -240,6 +250,7 @@ AC_SYS_LARGEFILE
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
+AC_CHECK_HEADERS(malloc.h)
 AC_CHECK_HEADERS(mach/vm_map.h mach/mach_init.h sys/mman.h)
 AC_CHECK_HEADERS(sys/time.h sys/times.h sys/socket.h)
 AC_CHECK_HEADERS(unistd.h fcntl.h byteswap.h dirent.h)
@@ -305,6 +316,50 @@ no:linux*)
   ;;
 esac
 
+dnl Check for headers and functions related to pty support (sshpty.c)
+dnl From openssh-3.2.2p1 configure.ac
+AC_CHECK_HEADERS(strings.h login.h sys/bsdtty.h sys/stat.h util.h pty.h)
+AC_CHECK_FUNCS(_getpty vhangup strlcpy)
+
+case "$host" in
+*-*-hpux10.26)
+	disable_ptmx_check=yes
+	;;
+*-*-linux*)
+	no_dev_ptmx=1
+	;;
+mips-sony-bsd|mips-sony-newsos4)
+	AC_DEFINE(HAVE_NEWS4, 1, [Define if you are on NEWS-OS (additions from openssh-3.2.2p1, for sshpty.c).])
+	;;
+*-*-sco3.2v4*)
+	no_dev_ptmx=1
+	;;
+*-*-sco3.2v5*)
+	no_dev_ptmx=1
+	;;
+*-*-cygwin*)
+	no_dev_ptmx=1
+	;;
+esac
+
+if test -z "$no_dev_ptmx" ; then
+	if test "x$disable_ptmx_check" != "xyes" ; then
+		AC_CHECK_FILE([/dev/ptmx],
+			[
+				AC_DEFINE_UNQUOTED(HAVE_DEV_PTMX, 1, [Define if you have /dev/ptmx.])
+				have_dev_ptmx=1
+			]
+		)
+	fi
+fi
+AC_CHECK_FILE([/dev/ptc],
+	[
+		AC_DEFINE_UNQUOTED(HAVE_DEV_PTS_AND_PTC, 1, [Define if you have /dev/ptc.])
+		have_dev_ptc=1
+	]
+)
+dnl (end of code from openssh-3.2.2p1 configure.ac)
+
 dnl AC_CHECK_FRAMEWORK($1=NAME, $2=INCLUDES)
 AC_DEFUN(AC_CHECK_FRAMEWORK, [
   AS_VAR_PUSHDEF([ac_Framework], [ac_cv_framework_$1])dnl
@@ -354,6 +409,9 @@ darwin*)
     EXTFSSRC=../MacOSX/extfs_macosx.mm
   fi
   ;;
+cygwin*)
+  SERIALSRC="../dummy/serial_dummy.cpp"
+  ;;
 esac
 
 dnl SDL overrides
@@ -367,7 +425,14 @@ if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp"
   else
-    EXTRASYSSRCS="$EXTRASYSSRCS ../dummy/clip_dummy.cpp"
+    case "$target_os" in
+    cygwin*)
+      EXTRASYSSRCS="$EXTRASYSSRCS ../Windows/clip_windows.cpp"
+      ;;
+    *)
+      EXTRASYSSRCS="$EXTRASYSSRCS ../dummy/clip_dummy.cpp"
+      ;;
+    esac
   fi
 else
   VIDEOSRCS="video_x.cpp"
@@ -683,6 +748,30 @@ fi
 AC_TRANSLATE_DEFINE(HAVE_MACH_EXCEPTIONS, "$ac_cv_have_mach_exceptions",
   [Define if your system supports Mach exceptions.])
 
+dnl Check if Windows exceptions are supported.
+AC_CACHE_CHECK([whether your system supports Windows exceptions],
+  ac_cv_have_win32_exceptions, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #define HAVE_WIN32_EXCEPTIONS 1
+    #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+    #include "vm_alloc.cpp"
+    #include "sigsegv.cpp"
+  ], [
+  sigsegv_recovery=win32
+  ac_cv_have_win32_exceptions=yes
+  ],
+  ac_cv_have_win32_exceptions=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_have_win32_exceptions=no
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(HAVE_WIN32_EXCEPTIONS, "$ac_cv_have_win32_exceptions",
+  [Define if your system supports Windows exceptions.])
+
 dnl Otherwise, check if extended signals are supported.
 if [[ -z "$sigsegv_recovery" ]]; then
   AC_CACHE_CHECK([whether your system supports extended signal handlers],
@@ -771,6 +860,12 @@ fi
 
 dnl Check addressing mode to use
 AC_MSG_CHECKING([for addressing mode to use])
+case "$os_target" in
+cygwin*)
+  WANT_ADDRESSING_MODE="direct,cygwin-hack"
+  NATMEM_OFFSET=
+  ;;
+esac
 if [[ "$EMULATED_PPC" != "yes" ]]; then
   if [[ "$WANT_ADDRESSING_MODE" != "real" ]]; then
     AC_MSG_WARN([Running in native PowerPC mode, force use of Real Addressing.])
@@ -833,22 +928,21 @@ EOF
   doit='$CXX conftest.$ac_ext -o conftest.$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS $LIBS $NATMEM_OFFSET_DEF >& AS_MESSAGE_LOG_FD'
   if AC_TRY_EVAL(doit); then
     NATMEM_OFFSET=`./conftest.$ac_exeext`
-    if [[ -z "$NATMEM_OFFSET" ]]; then
-      AC_MSG_ERROR([could not determine a sensible NATMEM_OFFSET value])
-    else
-      WANT_ADDRESSING_MODE="direct,$NATMEM_OFFSET"
-    fi
+  else
+    NATMEM_OFFSET=
   fi
   rm -f conftest*
   AC_LANG_RESTORE
+
+  if [[ -z "$NATMEM_OFFSET" ]]; then
+    AC_MSG_ERROR([could not determine a sensible NATMEM_OFFSET value])
+  else
+    WANT_ADDRESSING_MODE="direct,$NATMEM_OFFSET"
+    AC_DEFINE_UNQUOTED(NATMEM_OFFSET, $NATMEM_OFFSET,
+      [Define constant offset for Mac address translation])
+  fi
 fi
 AC_MSG_RESULT($WANT_ADDRESSING_MODE)
-
-if [[ -z "$NATMEM_OFFSET" ]]; then
-  NATMEM_OFFSET=0
-fi
-AC_DEFINE_UNQUOTED(NATMEM_OFFSET, $NATMEM_OFFSET,
-  [Define constant offset for Mac address translation])
 
 dnl Platform specific binary postprocessor
 AC_PATH_PROG(BLESS, "true")
@@ -883,25 +977,28 @@ if $CXX -V -v 2>&1 | grep -q "Intel(R) C++ Compiler"; then
 fi
 AC_MSG_RESULT($HAVE_ICC)
 
-dnl Test if the compiler can generate ELF objects
+dnl Determine the generated object format
 AC_CACHE_CHECK([whether the compiler can generate ELF objects],
-  ac_cv_elf_objects, [
+  ac_cv_object_format, [
   echo 'int i;' > conftest.$ac_ext
-  ac_cv_elf_objects=no
+  ac_cv_object_format=no
   if AC_TRY_EVAL(ac_compile); then
     case `/usr/bin/file conftest.$ac_objext` in
     *"ELF"*)
-      ac_cv_elf_objects=yes
+      ac_cv_object_format=elf
+      ;;
+    *)
+      ac_cv_object_format=unknown
       ;;
     esac
   fi
   rm -rf conftest*
 ])
-ELF_OBJECTS=$ac_cv_elf_objects
 
 dnl CPU emulator sources
 if [[ "x$EMULATED_PPC" = "xyes" ]]; then
   CPUSRCS="\
+    ../kpx_cpu/src/mathlib/ieeefp.cpp \
     ../kpx_cpu/src/cpu/ppc/ppc-cpu.cpp \
     ../kpx_cpu/src/cpu/ppc/ppc-decode.cpp \
     ../kpx_cpu/src/cpu/ppc/ppc-execute.cpp \
@@ -912,14 +1009,14 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
   if [[ "x$WANT_JIT" = "xyes" ]]; then
     AC_CACHE_CHECK([whether dyngen can be used],
       ac_cv_use_dyngen, [
-      case $host_cpu:$ELF_OBJECTS in
-      powerpc:yes)
+      case $host_cpu:$ac_cv_object_format in
+      powerpc:elf)
         ac_cv_use_dyngen=yes
         ;;
-      x86_64:yes)
+      x86_64:elf)
         ac_cv_use_dyngen=yes
         ;;
-      i?86:yes)
+      i?86:elf)
         ac_cv_use_dyngen=yes
         ;;
       *:*)
