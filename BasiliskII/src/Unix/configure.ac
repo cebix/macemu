@@ -986,6 +986,22 @@ if [[ "x$HAVE_GCC27" = "xyes" ]]; then
   fi
 fi
 
+dnl Store motion was introduced in 3.3-hammer branch and any gcc >= 3.4
+dnl However, there are some corner cases exposed on x86-64
+if [[ "x$HAVE_GCC27" = "xyes" ]]; then
+  SAVED_CXXFLAGS="$CXXFLAGS"
+  CXXFLAGS="$CXXFLAGS -fno-gcse-sm"
+  AC_CACHE_CHECK([whether GCC supports store motion], ac_cv_gcc_store_motion, [
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
+    AC_TRY_COMPILE([],[],[ac_cv_gcc_store_motion=yes],[ac_cv_gcc_store_motion=no])
+    AC_LANG_RESTORE
+  ])
+  if [[ "x$ac_cv_gcc_store_motion" != "xyes" ]]; then
+    CXXFLAGS="$SAVED_CXXFLAGS"
+  fi
+fi
+
 dnl Select appropriate CPU source and REGPARAM define.
 ASM_OPTIMIZATIONS=none
 CPUSRCS="cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
@@ -1265,8 +1281,8 @@ fi
 
 dnl Remove the "-g" option if set for GCC.
 if [[ "x$HAVE_GCC27" = "xyes" ]]; then
-  CFLAGS=`echo $CFLAGS | sed -e 's/-g//g'`
-  CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-g//g'`
+  CFLAGS=`echo $CFLAGS | sed -e 's/-g\b//g'`
+  CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-g\b//g'`
 fi
 
 dnl Or if we have -IPA (MIPSPro compilers)
