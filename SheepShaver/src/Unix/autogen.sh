@@ -33,4 +33,11 @@ do
   autoheader; autoconf)
 done
 
-./configure "$@"
+if [ x"$NO_CONFIGURE" = "x" ]; then
+    echo " + Running 'configure $@':"
+    if [ -z "$*" ]; then
+        echo "   ** If you wish to pass arguments to ./configure, please"
+        echo "   ** specify them on the command line."
+    fi
+    ./configure "$@"
+fi
