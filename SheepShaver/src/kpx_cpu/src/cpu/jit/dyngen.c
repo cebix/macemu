@@ -33,6 +33,79 @@
 #include "sysdeps.h"
 #include "cxxdemangle.h"
 
+/* Debug generated code */
+#if ENABLE_MON && (defined(__i386__) || defined(__x86_64__)) && 0
+#define DYNGEN_PRETTY_PRINT 1
+
+#include "disass/dis-asm.h"
+
+static inline bfd_byte bfd_read_byte(bfd_vma from)
+{
+  bfd_byte *p = (bfd_byte *)(uintptr_t)from;
+  return *p;
+}
+
+int buffer_read_memory(bfd_vma from, bfd_byte *to, unsigned int length, struct disassemble_info *info)
+{
+  while (length--)
+    *to++ = bfd_read_byte(from++);
+  return 0;
+}
+
+void perror_memory(int status, bfd_vma memaddr, struct disassemble_info *info)
+{
+  info->fprintf_func(info->stream, "Unknown error %d\n", status);
+}
+
+static uintptr_t print_address_base;
+
+void generic_print_address(bfd_vma addr, struct disassemble_info *info)
+{
+  addr -= print_address_base;
+  if (addr >= UVAL64(0x100000000))
+    info->fprintf_func(info->stream, "$%08x%08x", (uint32)(addr >> 32), (uint32)addr);
+  else
+    info->fprintf_func(info->stream, "$%08x", (uint32)addr);
+}
+
+int generic_symbol_at_address(bfd_vma addr, struct disassemble_info *info)
+{
+  return 0;
+}
+
+struct SFILE {
+  char *buffer;
+  char *current;
+};
+
+static int dyngen_sprintf(struct SFILE *f, const char *format, ...)
+{
+  int n;
+  va_list args;
+  va_start(args, format);
+  vsprintf(f->current, format, args);
+  f->current += n = strlen(f->current);
+  va_end(args);
+  return n;
+}
+
+#if defined(__i386__) || defined(__x86_64__)
+static int pretty_print(char *buf, uintptr_t addr, uintptr_t base)
+{
+  disassemble_info info;
+  struct SFILE sfile = {buf, buf};
+  sfile.buffer = buf;
+  sfile.current = buf;
+  INIT_DISASSEMBLE_INFO(info, (FILE *)&sfile, (fprintf_ftype)dyngen_sprintf);
+#if defined(__x86_64__)
+  info.mach = bfd_mach_x86_64;
+#endif
+  print_address_base = base;
+  return print_insn_i386_att(addr, &info);
+}
+#endif
+#endif
+
 /* host cpu defs */
 #if defined(__i386__)
 #define HOST_I386 1
@@ -365,10 +438,50 @@ void gen_code(const char *name, const char *demangled_name,
               host_ulong offset, host_ulong size, 
               FILE *outfile, int gen_switch, const char *prefix);
 
-static void do_print_code(FILE *outfile, const char *name, const uint8_t *code_p, int code_size)
+static void do_print_code(FILE *outfile, const char *name, const uint8_t *code_p, int code_size, int is_code)
 {
-  int i;
+  int i, b;
   fprintf(outfile, "    static const uint8 %s[] = {", name);
+#ifdef DYNGEN_PRETTY_PRINT
+  if (is_code) {
+    const int BYTES_PER_LINE = 5;
+    uint8_t out[1024];
+    int outindex = 0;
+    char buf[1024];
+    uintptr_t addr = (uintptr_t)code_p;
+    uintptr_t end_addr = addr + code_size;
+    int ip = 0;
+    fprintf(outfile, "\n");
+    while (addr < end_addr) {
+      int num = pretty_print(buf, (uintptr_t)addr, (uintptr_t)code_p);
+      int max_num = num > BYTES_PER_LINE ? num : BYTES_PER_LINE;
+      for (i = 0; i < max_num; i++) {
+        if ((i % BYTES_PER_LINE) == 0)
+          fprintf(outfile, "/* %04x */  ", ip);
+        if (i < num) {
+          fprintf(outfile, "0x%02x", (out[outindex++] = code_p[ip++]));
+          if (ip != code_size)
+            fprintf(outfile, ", ");
+          else
+            fprintf(outfile, "  ");
+        }
+        else
+          fprintf(outfile, "      ");
+        if (i == BYTES_PER_LINE - 1)
+          fprintf(outfile, "/* %s */", buf);
+        if ((i + 1) % BYTES_PER_LINE == 0 || i == max_num - 1)
+          fprintf(outfile, "\n");
+      }
+      addr += num;
+    }
+    fprintf(outfile, "    };\n");
+
+    /* sanity check we have not forgotten any byte */
+    assert(outindex == code_size);
+    assert(memcmp(code_p, out, code_size) == 0);
+    return;
+  }
+#endif
   for (i = 0; i < code_size; i++) {
     if ((i % 12) == 0) {
       if (i != 0)
@@ -388,7 +501,12 @@ static void print_code(FILE *outfile, const char *name, const uint8_t *code_p, i
   code_name = alloca(strlen(name) + 5);
   strcpy(code_name, name);
   strcat(code_name, "_code");
-  do_print_code(outfile, code_name, code_p, code_size);
+  do_print_code(outfile, code_name, code_p, code_size, 1);
+}
+
+static void print_data(FILE *outfile, const char *name, const uint8_t *data, int data_size)
+{
+  do_print_code(outfile, name, data, data_size, 0);
 }
 
 static char *gen_dot_prefix(const char *sym_name)
@@ -685,17 +803,17 @@ int load_object(const char *filename, FILE *outfile)
             if (strstart(name, ".LC", NULL)) {
                 if (sym->st_shndx == (rodata_cst16_sec - shdr)) {
                     fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
-                    do_print_code(outfile, gen_dot_prefix(name), rodata_cst16 + sym->st_value, 16);
+                    print_data(outfile, gen_dot_prefix(name), rodata_cst16 + sym->st_value, 16);
                     fprintf(outfile, "#endif\n");
                 }
                 else if (sym->st_shndx == (rodata_cst8_sec - shdr)) {
                     fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
-                    do_print_code(outfile, gen_dot_prefix(name), rodata_cst8 + sym->st_value, 8);
+                    print_data(outfile, gen_dot_prefix(name), rodata_cst8 + sym->st_value, 8);
                     fprintf(outfile, "#endif\n");
                 }
                 else if (sym->st_shndx == (rodata_cst4_sec - shdr)) {
                     fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
-                    do_print_code(outfile, gen_dot_prefix(name), rodata_cst4 + sym->st_value, 4);
+                    print_data(outfile, gen_dot_prefix(name), rodata_cst4 + sym->st_value, 4);
                     fprintf(outfile, "#endif\n");
                 }
                 else
