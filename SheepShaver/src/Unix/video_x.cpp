@@ -197,12 +197,16 @@ static bool open_window(int width, int height)
 		XFree((char *)hints);
 	}
 
+	// 1-bit mode is big-endian; if the X server is little-endian, we can't
+	// use SHM because that doesn't allow changing the image byte order
+	bool need_msb_image = (depth == 1 && XImageByteOrder(x_display) == LSBFirst);
+
 	// Try to create and attach SHM image
 	have_shm = false;
-	if (local_X11 && depth != 1 && XShmQueryExtension(x_display)) {
+	if (local_X11 && !need_msb_image && XShmQueryExtension(x_display)) {
 
 		// Create SHM image ("height + 2" for safety)
-		img = XShmCreateImage(x_display, vis, depth, depth == 1 ? XYBitmap : ZPixmap, 0, &shminfo, width, height);
+		img = XShmCreateImage(x_display, vis, depth == 1 ? 1 : xdepth, depth == 1 ? XYBitmap : ZPixmap, 0, &shminfo, width, height);
 		shminfo.shmid = shmget(IPC_PRIVATE, (height + 2) * img->bytes_per_line, IPC_CREAT | 0777);
 		the_buffer_copy = (uint8 *)shmat(shminfo.shmid, 0, 0);
 		shminfo.shmaddr = img->data = (char *)the_buffer_copy;
