@@ -830,7 +830,7 @@ Contributions by (in alphabetical order):
  - Jürgen Lachmann <juergen_lachmann@t-online.de>: AmigaOS CyberGraphX support
  - Samuel Lander <blair_sp@hotmail.com>: tile-based window refresh code
  - David Lawrence <davidl@jlab.org>: incremental window refresh code
- - Bernier Meyer <bmeyer@csse.monash.edu.au>: original UAE-JIT code
+ - Bernie Meyer <bmeyer@csse.monash.edu.au>: original UAE-JIT code
  - Nigel Pearson <nigel@ind.tansu.com.au>: Mac OS X port
  - Lauri Pesonen <lpesonen@nic.fi>: Windows NT port
  - Bernd Schmidt <crux@pool.informatik.rwth-aachen.de>: UAE 68k emulation
