@@ -16,6 +16,7 @@ KEYCODES = ../SDL/keycodes
 DESTDIR =
 
 LN_S = @LN_S@
+WINDRES = @WINDRES@
 CC = @CC@
 CXX = @CXX@
 CFLAGS = @CFLAGS@
@@ -111,7 +112,7 @@ $(OBJ_DIR)/%.o : %.s
 
 # Windows resources
 $(OBJ_DIR)/%.o: %.rc
-	windres --include-dir ../Windows -i $< -o $@
+	$(WINDRES) --include-dir ../Windows -i $< -o $@
 $(OBJ_DIR)/build68k.exe: $(OBJ_DIR)/build68k.ho
 	$(HOST_CC) $(HOST_LDFLAGS) -o $@ $<
 $(OBJ_DIR)/gencpu.exe: $(OBJ_DIR)/gencpu.ho $(OBJ_DIR)/readcpu.ho $(OBJ_DIR)/cpudefs.ho

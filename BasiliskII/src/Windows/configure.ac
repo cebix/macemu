@@ -65,6 +65,7 @@ AC_PROG_CXX
 AC_PROG_MAKE_SET
 AC_PROG_EGREP
 AC_PROG_LN_S
+AC_CHECK_TOOL(WINDRES, windres)
 
 dnl We use 64-bit file size support if possible.
 AC_SYS_LARGEFILE
@@ -473,7 +474,7 @@ CPUINCLUDES="-I../uae_cpu"
 CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp $FPUSRCS cpustbl.cpp cpudefs.cpp $CPUSRCS $JITSRCS"
 
 dnl We really want SDL for now
-AC_PATH_PROG(sdl_config, "sdl-config", [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
+AC_CHECK_TOOL(sdl_config, sdl-config, [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
 sdl_cflags=`$sdl_config --cflags`
 sdl_libs=`$sdl_config --libs`
 CFLAGS="$CFLAGS $sdl_cflags"
