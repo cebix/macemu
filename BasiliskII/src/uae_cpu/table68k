@@ -100,7 +100,7 @@
 0011 DDDd ddss sSSS:00:-----:-----:12: MOVEA.W s,d[Areg]
 0011 DDDd ddss sSSS:00:-NZ00:-----:12: MOVE.W  s,d[!Areg]
 
-0100 0000 zzdd dDDD:00:XxZxC:-----:30: NEGX.z  d[!Areg]
+0100 0000 zzdd dDDD:00:XxZxC:X-Z--:30: NEGX.z  d[!Areg]
 0100 0000 11dd dDDD:01:?????:?????:10: MVSR2.W d[!Areg]
 0100 0010 zzdd dDDD:00:-0100:-----:20: CLR.z   d[!Areg]
 0100 0010 11dd dDDD:10:?????:?????:10: MVSR2.B d[!Areg]
