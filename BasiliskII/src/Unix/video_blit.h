@@ -166,6 +166,7 @@ static void FB_FUNC_NAME(uint8 * dest, const uint8 * source, uint32 length)
 		*dest = *source;
 #endif
 	
+#undef DEREF_QUAD_PTR
 #undef DEREF_LONG_PTR
 #undef DEREF_WORD_PTR
 }

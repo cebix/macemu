@@ -302,7 +302,7 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 #include "video_blit.h"
 
 /* -------------------------------------------------------------------------- */
-/* --- 1/2/4-bit indexed to 8-bit mode conversion                           --- */
+/* --- 1/2/4-bit indexed to 8-bit mode conversion                         --- */
 /* -------------------------------------------------------------------------- */
 
 static void Blit_Expand_1_To_8(uint8 * dest, const uint8 * p, uint32 length)
