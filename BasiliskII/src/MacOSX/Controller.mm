@@ -42,7 +42,7 @@
 - (id) init
 {
 #ifdef ENABLE_MULTIPLE
-	emulators  = [[NSMutableArray alloc] init];
+	emulators  = [NSMutableArray new];
 #endif
 	return [super init];
 }

@@ -37,10 +37,10 @@
 #import <prefs.h>
 #import <timer.h>
 
-#undef check()				// memory.h defines a check macro, which clashes with an OS X one?
+#undef check()				// memory.h defines a check macro, clashes with an OS X one?
 #import <cpu_emulation.h>
 
-#define DEBUG 1
+#define DEBUG 0
 #import <debug.h>
 
 // NSWindow method, which is invoked via delegation
@@ -120,8 +120,6 @@
 - (NSSlider *)		speed		{	return speed;		}
 - (NSWindow *)		window		{	return win;			}
 
-//#define DEBUG 1
-//#include <debug.h>
 
 // Update some UI elements
 
@@ -184,7 +182,7 @@
 
 		[emul terminate]; QuitEmuNoExit();
 
-		emul = [[NNThread alloc] init];
+		emul = [NNThread new];
 		[emul perform:@selector(emulThread) of:self];
 		[emul start];
 
@@ -314,11 +312,11 @@ uint8 lastXPRAM[XPRAM_SIZE];		// Copy of PRAM
 	[NSThread detachNewThreadSelector:(SEL)"" toTarget:nil withObject:nil];
 	//emul   = [[NNThread	alloc] initWithAutoReleasePool];
 #endif
-	emul   = [[NNThread	alloc] init];
-	RTC    = [[NNTimer	alloc] init];
-	redraw = [[NNTimer  alloc] init];
-	tick   = [[NNTimer	alloc] init];
-	xPRAM  = [[NNTimer	alloc] init];
+	emul   = [NNThread	new];
+	RTC    = [NNTimer	new];
+	redraw = [NNTimer	new];
+	tick   = [NNTimer	new];
+	xPRAM  = [NNTimer	new];
 
 	[emul  perform:@selector(emulThread)	of:self];
 	[RTC    repeat:@selector(RTCinterrupt)	of:self
@@ -360,7 +358,7 @@ uint8 lastXPRAM[XPRAM_SIZE];		// Copy of PRAM
 - (void) emulThread
 {
 	extern uint8		*RAMBaseHost, *ROMBaseHost;
-	NSAutoreleasePool	*pool = [[NSAutoreleasePool alloc] init];
+	NSAutoreleasePool	*pool = [NSAutoreleasePool new];
 
 	InitEmulator();
 
