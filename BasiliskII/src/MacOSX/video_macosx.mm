@@ -32,6 +32,7 @@
 #include <cpu_emulation.h>
 #include <main.h>
 #include "macos_util_macosx.h"
+#include "main_macosx.h"
 #include <prefs.h>
 #include <user_strings.h>
 #include "video_macosx.h"
@@ -49,8 +50,7 @@ uint8		display_type = DISPLAY_WINDOW,	// These are used by PrefsEditor
 			frame_skip;	
 uint16		init_width  = MIN_WIDTH,		// as well as this code
 			init_height = MIN_HEIGHT,
-			init_depth  = 32,
-			screen_height = 0;				// Used by processMouseMove:
+			init_depth  = 32;
 
 		EmulatorView	*output = nil;		// Set by [EmulatorView init]
 		NSWindow		*the_win = nil;		// Set by [Emulator awakeFromNib]
@@ -71,16 +71,10 @@ static NSBitmapImageRep	*bitmap = nil;
 static CGDirectDisplayID	theDisplay   = NULL;
 static CFDictionaryRef		originalMode = NULL,
 							newMode      = NULL;
-
+static BOOL					singleDisplay = YES;
 
 
 // Prototypes
-
-static void add_mode			(const uint16 width, const uint16 height,
-								 const uint32 resolution_id,
-								 const uint32 bytes_per_row,
-								 const video_depth depth);
-static void add_standard_modes	(const video_depth depth);
 
 static bool video_open	(const video_mode &mode);
 static void video_close	(void);
@@ -91,7 +85,8 @@ static void video_close	(void);
  *  Utility functions
  */
 
-uint8 bits_from_depth(const video_depth depth)
+static uint8
+bits_from_depth(const video_depth depth)
 {
 	int bits = 1 << depth;
 //	if (bits == 16)
@@ -101,7 +96,7 @@ uint8 bits_from_depth(const video_depth depth)
 	return bits;
 }
 
-char *
+static char *
 colours_from_depth(const video_depth depth)
 {
 	switch ( depth )
@@ -117,7 +112,7 @@ colours_from_depth(const video_depth depth)
 	return "illegal colour depth";
 }
 
-char *
+static char *
 colours_from_depth(const uint16 depth)
 {
 	return colours_from_depth(DepthModeForPixelDepth(depth) );
@@ -232,12 +227,15 @@ static bool add_CGDirectDisplay_modes()
 	if ( err != CGDisplayNoErr )
 		n = 1, displays[n] = kCGDirectMainDisplay;
 
+	if ( n > 1 )
+		singleDisplay = NO;
+
 	for ( CGDisplayCount dc = 0; dc < n; ++dc )
 	{
 		CGDirectDisplayID	d = displays[dc];
 		CFArrayRef			m = CGDisplayAvailableModes(d);
 
-		if ( m == NULL )					// Store the current display mode
+		if ( ! m )					// Store the current display mode
 			add_mode(CGDisplayPixelsWide(d),
 					 CGDisplayPixelsHigh(d),
 					 res_id++, CGDisplayBytesPerRow(d),
@@ -307,7 +305,8 @@ static void set_mac_frame_buffer(const video_depth depth)
 	D(bug("VideoMonitor.mac_frame_base = %08x\n", VideoMonitor.mac_frame_base));
 }
 
-void resizeWinBy(const short deltaX, const short deltaY)
+static void
+resizeWinBy(const short deltaX, const short deltaY)
 {
 	NSRect	rect = [the_win frame];
 
@@ -353,7 +352,7 @@ static bool init_window(const video_mode &mode)
 
 
 	// Open window
-	if (the_win == NULL)
+	if ( ! the_win )
 	{
 		ErrorAlert(STR_OPEN_WINDOW_ERR);
 		return false;
@@ -364,7 +363,7 @@ static bool init_window(const video_mode &mode)
 	// Create frame buffer ("height + 2" for safety)
 	the_buffer_size = mode.bytes_per_row * (mode.y + 2);
 	the_buffer = calloc(the_buffer_size, 1);
-	if (the_buffer == NULL)
+	if ( ! the_buffer )
 	{
 		NSLog(@"calloc(%d) failed", the_buffer_size);
 		ErrorAlert(STR_NO_MEM_ERR);
@@ -445,7 +444,7 @@ static bool init_window(const video_mode &mode)
 								  bytesPerRow: mode.bytes_per_row
 								 bitsPerPixel: bits_from_depth(mode.depth)];
 
-    if ( bitmap == nil )
+    if ( ! bitmap )
 	{
 		ErrorAlert("Could not allocate an NSBitmapImageRep");
 		return false;
@@ -486,7 +485,7 @@ static bool init_screen(video_mode &mode)
 	theDisplay = kCGDirectMainDisplay;	// For now
 
 	originalMode = CGDisplayCurrentMode(theDisplay);
-	if ( nil == originalMode )
+	if ( ! originalMode )
 	{
 		ErrorSheet(@"Could not get current mode of display", the_win);
 		return false;
@@ -496,7 +495,7 @@ static bool init_screen(video_mode &mode)
 	newMode = CGDisplayBestModeForParameters(theDisplay,
 											 bits_from_depth(mode.depth),
 													mode.x, mode.y, NULL);
-	if ( NULL == newMode )
+	if ( ! newMode )
 	{
 		ErrorSheet(@"Could not find a matching screen mode", the_win);
 		return false;
@@ -514,13 +513,12 @@ static bool init_screen(video_mode &mode)
 		return false;
 	}
 
-	// Set screen height for mouse co-ordinate flipping
-	if ( ! screen_height )
-		screen_height = CGDisplayPixelsHigh(theDisplay);
+	[output startedFullScreen: theDisplay];		// For mouse event processing
 
 	D(NSLog(@"About to call CGDisplaySwitchToMode()"));
 	if ( CGDisplaySwitchToMode(theDisplay, newMode) != CGDisplayNoErr )
 	{
+		CGDisplayRelease(theDisplay);
 //		[the_win deminiaturize: nil];
 		ErrorSheet(@"Could not switch to matching screen mode", the_win);
 		return false;
@@ -534,28 +532,37 @@ static bool init_screen(video_mode &mode)
 	}
 
 	HideMenuBar();
-	CGDisplayHideCursor(theDisplay);
+
+	if ( singleDisplay )
+	{
+		CGDisplayHideCursor(theDisplay);
+
+		// Send real mouse to emulated location
+		if ( CGDisplayMoveCursorToPoint(theDisplay, CGPointMake(15,15))
+														!= CGDisplayNoErr )
+		{
+			video_close();
+			ErrorSheet(@"Could move (jump) cursor on screen", the_win);
+			return false;
+		}
+	}
+	else
+	{
+		// Should set up something to hide the cursor when it enters theDisplay?
+	}
 
 	the_buffer = CGDisplayBaseAddress(theDisplay);
-	if ( the_buffer == NULL )
+	if ( ! the_buffer )
 	{
 		video_close();
 		ErrorSheet(@"Could not get base address of screen", the_win);
 		return false;
 	}
 
-	// Send emulated mouse to current location
-	NSPoint mouse = [NSEvent mouseLocation];
-	ADBMouseMoved((int)mouse.x, screen_height - (int)mouse.y);
-	//[output performSelector: @selector(processMouseMove:)
-	//			 withObject: nil
-	//			 afterDelay: 10.0];
-
 	// Set VideoMonitor
 	VideoMonitor.mode = mode;
 	set_mac_frame_buffer(mode.depth);
 
-	[output startedFullScreen];		// For [Controller sendEvent:]
 
 	return true;
 }
@@ -689,7 +696,8 @@ static void video_close()
 		case DISPLAY_SCREEN:
 			if ( theDisplay && originalMode )
 			{
-				CGDisplayShowCursor(theDisplay);
+				if ( singleDisplay )
+					CGDisplayShowCursor(theDisplay);
 				ShowMenuBar();
 				CGDisplaySwitchToMode(theDisplay, originalMode);
 				CGDisplayRelease(theDisplay);
@@ -741,16 +749,58 @@ void video_set_palette(uint8 *pal, int num)
 
 void video_switch_to_mode(const video_mode &mode)
 {
-	// Close and reopen display
-	video_close();
-	if (!video_open(mode))
+	char		*failure = NULL;
+
+
+	D(bug("switch_to_current_mode(): width=%d  height=%d  depth=%d  bytes_per_row=%d\n", mode.x, mode.y, bits_from_depth(mode.depth), mode.bytes_per_row));
+
+	if ( display_type == DISPLAY_SCREEN && originalMode )
 	{
+		D(NSLog(@"About to call CGDisplayBestModeForParameters()"));
+		newMode = CGDisplayBestModeForParameters(theDisplay,
+												 bits_from_depth(mode.depth),
+														mode.x, mode.y, NULL);
+		if ( ! newMode )
+			failure = "Could not find a matching screen mode";
+		else
+		{
+			D(NSLog(@"About to call CGDisplaySwitchToMode()"));
+			if ( CGDisplaySwitchToMode(theDisplay, newMode) != CGDisplayNoErr )
+				failure = "Could not switch to matching screen mode";
+		}
+
+		if ( ! failure &&
+			mode.bytes_per_row != CGDisplayBytesPerRow(theDisplay) )
+		{
+			D(bug("Bytes per row (%d) doesn't match current (%ld)\n",
+					mode.bytes_per_row, CGDisplayBytesPerRow(theDisplay)));
+			((video_mode &)mode).bytes_per_row
+									= CGDisplayBytesPerRow(theDisplay);
+		}
+
+		if ( ! failure &&
+			 ! ( the_buffer = CGDisplayBaseAddress(theDisplay) ) )
+			failure = "Could not get base address of screen";
+		else
+			// Send emulated mouse to current location
+			[output processMouseMove: nil];
+	}
+	else if ( ! video_open(mode) )
+		failure = "Could not video_open() requested mode";
+
+	if ( failure )
+	{
+		NSLog(@"In switch_to_current_mode():");
+		NSLog(@"%s.", failure);
+		video_close();
 		if ( display_type == DISPLAY_SCREEN )
 			ErrorAlert("Cannot switch screen to selected video mode");
 		else
 			ErrorAlert(STR_OPEN_WINDOW_ERR);
 		QuitEmulator();
 	}
+	else
+		set_mac_frame_buffer(mode.depth);
 }
 
 /*
