@@ -1,7 +1,7 @@
 /*
  *  clip_amiga.cpp - Clipboard handling, AmigaOS implementation
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,8 +23,11 @@
 #include <exec/types.h>
 #include <libraries/iffparse.h>
 #include <devices/clipboard.h>
+#define __USE_SYSBASE
 #include <proto/exec.h>
 #include <proto/iffparse.h>
+#include <inline/exec.h>
+#include <inline/iffparse.h>
 
 #include "clip.h"
 #include "prefs.h"

@@ -1,7 +1,7 @@
 /*
  *  ether_amiga.cpp - Ethernet device driver, AmigaOS specific stuff
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,8 +25,12 @@
 #include <dos/dosextens.h>
 #include <dos/dostags.h>
 #include <devices/sana2.h>
+#define __USE_SYSBASE
 #include <proto/exec.h>
 #include <proto/dos.h>
+#include <inline/exec.h>
+#include <inline/dos.h>
+#include <clib/alib_protos.h>
 
 #include "sysdeps.h"
 #include "cpu_emulation.h"
@@ -420,7 +424,7 @@ static __saveds void net_func(void)
 
 	// Open device
 	control_io->ios2_BufferManagement = buffer_tags;
-	od_error = OpenDevice((UBYTE *)dev_name, dev_unit, (struct IORequest *)control_io, 0);
+	od_error = OpenDevice((UBYTE *) dev_name, dev_unit, (struct IORequest *)control_io, 0);
 	if (od_error != 0 || control_io->ios2_Req.io_Device == 0) {
 		printf("WARNING: OpenDevice(<%s>, unit=%d) returned error %d)\n", (UBYTE *)dev_name, dev_unit, od_error);
 		goto quit;

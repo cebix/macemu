@@ -1,7 +1,7 @@
 *
 * asm_support.asm - AmigaOS utility functions in assembly language
 *
-* Basilisk II (C) 1997-2002 Christian Bauer
+* Basilisk II (C) 1997-2001 Christian Bauer
 *
 * This program is free software; you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 		INCLUDE	"dos/dos.i"
 		INCLUDE	"devices/timer.i"
 
+		INCLUDE	"asmsupp.i"
+
 		XDEF	_AtomicAnd
 		XDEF	_AtomicOr
 		XDEF	_MoveVBR
@@ -46,9 +48,15 @@
 		XREF	_SysBase
 		XREF	_quit_emulator
 
+INFO_LEVEL	equ	0
+
 		SECTION	text,CODE
 
 		MACHINE	68020
+
+		IFGE	INFO_LEVEL
+subSysName:	dc.b	'+',0
+		ENDIF
 
 *
 * Atomic bit operations (don't trust the compiler)
@@ -245,54 +253,120 @@ _ExceptionHandlerAsm
 *
 
 _TrapHandlerAsm:
+	IFEQ	INFO_LEVEL-1002
+	move.w	([6,a0]),-(sp)
+	move.w	#0,-(sp)
+	move.l	(4+6,a0),-(sp)
+	PUTMSG	0,'%s/TrapHandlerAsm:  addr=%08lx  opcode=%04lx'
+	lea	(2*4,sp),sp
+	ENDC
+
 		cmp.l	#4,(sp)			;Illegal instruction?
 		beq.s	doillinstr
 		cmp.l	#10,(sp)		;A-Line exception?
 		beq.s	doaline
 		cmp.l	#8,(sp)			;Privilege violation?
 		beq.s	doprivviol
+
 		cmp.l	#9,(sp)			;Trace?
 		beq	dotrace
 		cmp.l	#3,(sp)			;Illegal Address?
 		beq.s	doilladdr
+		cmp.l	#11,(sp)		;F-Line exception
+		beq.s	dofline
 
 		cmp.l	#32,(sp)
 		blt	1$
 		cmp.l	#47,(sp)
 		ble	doTrapXX		; Vector 32-47 : TRAP #0 - 15 Instruction Vectors
 
-1$		move.l	_OldTrapHandler,-(sp)	;No, jump to old trap handler
+1$:
+		cmp.l	#48,(sp)
+		blt	2$
+		cmp.l	#55,(sp)
+		ble	doTrapFPU
+2$:
+	IFEQ	INFO_LEVEL-1009
+	PUTMSG	0,'%s/TrapHandlerAsm:  stack=%08lx %08lx %08lx %08lx'
+	ENDC
+
+		move.l	_OldTrapHandler,-(sp)	;No, jump to old trap handler
 		rts
 
 *
 * TRAP #0 - 15 Instruction Vectors
 *
 
-doTrapXX	move.l	a0,(sp)			;Save a0
+doTrapXX:
+	IFEQ	INFO_LEVEL-1009
+	PUTMSG	0,'%s/doTrapXX:  stack=%08lx %08lx %08lx %08lx'
+	ENDC
+
+		movem.l	a0/d0,-(sp)		;Save a0,d0
+		move.l	(2*4,sp),d0		;vector number 32-47
+
 		move.l	usp,a0			;Get user stack pointer
-		move.l	2*4(sp),-(a0)		;Copy 4-word stack frame to user stack
-		move.l	1*4(sp),-(a0)
+		move.l	(4*4,sp),-(a0)		;Copy 4-word stack frame to user stack
+		move.l	(3*4,sp),-(a0)
 		move.l	a0,usp			;Update USP
-		move.l	(sp)+,a0		;Restore a0
+		or.w	#$2000,(a0)		;set Supervisor bit in SR
 
+		lsl.l	#2,d0			;convert vector number to vector offset
+		move.l	d0,a0
+		move.l	(a0),d0			;get mac trap vector
+
+		move.l	usp,a0			;Get user stack pointer
+		move.l	d0,-(a0)		;store vector offset as return address
+		move.l	a0,usp			;Update USP
+
+		movem.l	(sp)+,a0/d0		;Restore a0,d0
 		addq.l	#4*2,sp			;Remove exception frame from supervisor stack
-		andi	#$d8ff,sr		;Switch to user mode, enable interrupts
 
-		move.l	$2d*4.w,-(sp)		;Jump to MacOS exception handler
+		andi	#$d8ff,sr		;Switch to user mode, enable interrupts
 		rts
+
+
+*
+* FPU Exception Instruction Vectors
+*
+
+doTrapFPU:
+		move.l	d0,(sp)
+		fmove.l	fpcr,d0
+		and.w	#$00ff,d0		;disable FPU exceptions
+		fmove.l	d0,fpcr
+		move.l	(sp)+,d0		;Restore d0
+		rte
 
 
 *
 * trace Vector
 *
 
-dotrace		move.l	a0,(sp)			;Save a0
+dotrace
+	IFEQ	INFO_LEVEL-1009
+	PUTMSG	0,'%s/dotrace:  stack=%08lx %08lx %08lx %08lx'
+	ENDC
 
+		move.l	a0,(sp)			;Save a0
 		move.l	usp,a0			;Get user stack pointer
+
+	IFEQ	INFO_LEVEL-1009
+	move.l	(12,a0),-(sp)
+	move.l	(8,a0),-(sp)
+	move.l	(4,a0),-(sp)
+	move.l	(0,a0),-(sp)
+	move.l	a0,-(sp)
+	move.l	a7,-(sp)
+	PUTMSG	0,'%s/dotrace:  sp=%08lx  usp=%08lx (%08lx %08lx %08lx %08lx)'
+	lea	(6*4,sp),sp
+	ENDC
+
 		move.l	3*4(sp),-(a0)		;Copy 6-word stack frame to user stack
 		move.l	2*4(sp),-(a0)
 		move.l	1*4(sp),-(a0)
 		move.l	a0,usp			;Update USP
+		or.w	#$2000,(a0)		;set Supervisor bit in SR
 		move.l	(sp)+,a0		;Restore a0
 
 		lea	6*2(sp),sp		;Remove exception frame from supervisor stack
@@ -311,27 +385,55 @@ doaline		move.l	a0,(sp)			;Save a0
 		move.l	8(sp),-(a0)		;Copy stack frame to user stack
 		move.l	4(sp),-(a0)
 		move.l	a0,usp			;Update USP
+
+		or.w	#$2000,(a0)		;set Supervisor bit in SR
 		move.l	(sp)+,a0		;Restore a0
 
 		addq.l	#8,sp			;Remove exception frame from supervisor stack
 		andi	#$d8ff,sr		;Switch to user mode, enable interrupts
 
-		and.w	#$d8ff,_EmulatedSR	;enable interrupts in EmulatedSR
+		and.w	#$f8ff,_EmulatedSR	;enable interrupts in EmulatedSR
 
 		move.l	$28.w,-(sp)		;Jump to MacOS exception handler
+		rts
+
+*
+* F-Line handler: call F-Line exception handler
+*
+
+dofline		move.l	a0,(sp)			;Save a0
+		move.l	usp,a0			;Get user stack pointer
+		move.l	8(sp),-(a0)		;Copy stack frame to user stack
+		move.l	4(sp),-(a0)
+		move.l	a0,usp			;Update USP
+		or.w	#$2000,(a0)		;set Supervisor bit in SR
+		move.l	(sp)+,a0		;Restore a0
+
+		addq.l	#8,sp			;Remove exception frame from supervisor stack
+		andi	#$d8ff,sr		;Switch to user mode, enable interrupts
+
+		and.w	#$f8ff,_EmulatedSR	;enable interrupts in EmulatedSR
+
+		move.l	$2c.w,-(sp)		;Jump to MacOS exception handler
 		rts
 
 *
 * Illegal address handler
 *
 
-doilladdr	move.l	a0,(sp)			;Save a0
+doilladdr:
+	IFEQ	INFO_LEVEL-1009
+	PUTMSG	0,'%s/doilladdr:  stack=%08lx %08lx %08lx %08lx'
+	ENDC
+
+		move.l	a0,(sp)			;Save a0
 
 		move.l	usp,a0			;Get user stack pointer
 		move.l	3*4(sp),-(a0)		;Copy 6-word stack frame to user stack
 		move.l	2*4(sp),-(a0)
 		move.l	1*4(sp),-(a0)
 		move.l	a0,usp			;Update USP
+		or.w	#$2000,(a0)		;set Supervisor bit in SR
 		move.l	(sp)+,a0		;Restore a0
 
 		lea	6*2(sp),sp		;Remove exception frame from supervisor stack
@@ -350,6 +452,12 @@ doillinstr	movem.l	a0/d0,-(sp)
 		move.w	([6+2*4,sp]),d0
 		and.w	#$ff00,d0
 		cmp.w	#$7100,d0
+
+	IFEQ	INFO_LEVEL-1009
+	move.l	d0,-(sp)
+	PUTMSG	0,'%s/doillinst:  d0=%08lx stack=%08lx %08lx %08lx %08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		movem.l	(sp)+,a0/d0
 		beq	1$
 
@@ -358,6 +466,7 @@ doillinstr	movem.l	a0/d0,-(sp)
 		move.l	8(sp),-(a0)		;Copy stack frame to user stack
 		move.l	4(sp),-(a0)
 		move.l	a0,usp			;Update USP
+		or.w	#$2000,(a0)		;set Supervisor bit in SR
 		move.l	(sp)+,a0		;Restore a0
 
 		add.w	#3*4,sp			;Remove exception frame from supervisor stack
@@ -366,7 +475,8 @@ doillinstr	movem.l	a0/d0,-(sp)
 		move.l	$10.w,-(sp)		;Jump to MacOS exception handler
 		rts
 
-1$		move.l	a6,(sp)			;Save a6
+1$:
+		move.l	a6,(sp)			;Save a6
 		move.l	usp,a6			;Get user stack pointer
 
 		move.l	a6,-10(a6)		;Push USP (a7)
@@ -395,6 +505,13 @@ doillinstr	movem.l	a0/d0,-(sp)
 
 doprivviol	move.l	d0,(sp)			;Save d0
 		move.w	([6,sp]),d0		;Get instruction word
+
+	IFEQ	INFO_LEVEL-1001
+	move.w	([6,a0]),-(sp)
+	move.w	#0,-(sp)
+	PUTMSG	0,'%s/doprivviol:  opcode=%04lx'
+	lea	(1*4,sp),sp
+	ENDC
 
 		cmp.w	#$40e7,d0		;move sr,-(sp)?
 		beq	pushsr
@@ -520,6 +637,12 @@ pushsr		move.l	a0,-(sp)		;Save a0
 		move.l	(sp)+,a0		;Restore a0
 		move.l	(sp)+,d0		;Restore d0
 		addq.l	#2,2(sp)		;Skip instruction
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; move (sp)+,sr
@@ -546,6 +669,12 @@ popsr		move.l	a0,-(sp)		;Save a0
 		move.l	(sp)+,a0		;Restore a0
 		move.l	(sp)+,d0		;Restore d0
 		addq.l	#2,2(sp)		;Skip instruction
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; ori #xxxx,sr
@@ -558,6 +687,12 @@ orisr		move.w	4(sp),d0		;Get CCR from stack
 		move.w	d0,_EmulatedSR		;And save them
 		move.l	(sp)+,d0		;Restore d0
 		addq.l	#4,2(sp)		;Skip instruction
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; andi #xxxx,sr
@@ -581,6 +716,12 @@ storesr4	move.w	d0,4(sp)		;Store into CCR on stack
 		movem.l	(sp)+,d0-d1/a0-a1/a6
 1$		move.l	(sp)+,d0		;Restore d0
 		addq.l	#4,2(sp)		;Skip instruction
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; move #xxxx,sr
@@ -612,6 +753,12 @@ movefromsrabs	move.l	a0,-(sp)		;Save a0
 		move.l	(sp)+,a0		;Restore a0
 		move.l	(sp)+,d0		;Restore d0
 		addq.l	#4,2(sp)		;Skip instruction
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; move sr,(a0)
@@ -620,6 +767,12 @@ movefromsra0	move.w	4(sp),d0		;Get CCR
 		move.w	d0,(a0)			;Store SR
 		move.l	(sp)+,d0		;Restore d0
 		addq.l	#2,2(sp)		;Skip instruction
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; move sr,(sp)
@@ -631,6 +784,12 @@ movefromsrsp	move.l	a0,-(sp)		;Save a0
 		move.l	(sp)+,a0		;Restore a0
 		move.l	(sp)+,d0		;Restore d0
 		addq.l	#2,2(sp)		;Skip instruction
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; fsave -(sp)
@@ -641,6 +800,12 @@ fsavepush	move.l	(sp),d0			;Restore d0
 		move.l	a0,usp			;Update USP
 		move.l	(sp)+,a0		;Restore a0
 		addq.l	#2,2(sp)		;Skip instruction
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; fsave xxx(a5)
@@ -651,6 +816,12 @@ fsavea5		move.l	(sp),d0			;Restore d0
 		move.l	#$41000000,(a0)		;Push idle frame
 		move.l	(sp)+,a0		;Restore a0
 		addq.l	#4,2(sp)		;Skip instruction
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; frestore (sp)+
@@ -661,6 +832,12 @@ frestorepop	move.l	(sp),d0			;Restore d0
 		move.l	a0,usp			;Update USP
 		move.l	(sp)+,a0		;Restore a0
 		addq.l	#2,2(sp)		;Skip instruction
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; frestore xxx(a5)
@@ -668,6 +845,12 @@ frestorea5	move.l	(sp),d0			;Restore d0
 		move.l	a0,(sp)			;Save a0
 		move.l	(sp)+,a0		;Restore a0
 		addq.l	#4,2(sp)		;Skip instruction
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; rte
@@ -696,6 +879,12 @@ pvrte		movem.l	a0/a1,-(sp)		;Save a0 and a1
 		move.l	a0,usp			;Update USP
 		movem.l	(sp)+,a0/a1		;Restore a0 and a1
 		move.l	(sp)+,d0		;Restore d0
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; sizes of exceptions stack frames
@@ -723,6 +912,12 @@ movefromsrd0	addq.l	#4,sp			;Skip saved d0
 		move.w	(sp),d0			;Get CCR
 		or.w	_EmulatedSR,d0		;Add emulated supervisor bits
 		addq.l	#2,2(sp)		;Skip instruction
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 movefromsrd1	move.l	(sp)+,d0
@@ -730,6 +925,12 @@ movefromsrd1	move.l	(sp)+,d0
 		move.w	(sp),d1
 		or.w	_EmulatedSR,d1
 		addq.l	#2,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 movefromsrd2	move.l	(sp)+,d0
@@ -737,6 +938,12 @@ movefromsrd2	move.l	(sp)+,d0
 		move.w	(sp),d2
 		or.w	_EmulatedSR,d2
 		addq.l	#2,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 movefromsrd3	move.l	(sp)+,d0
@@ -744,6 +951,12 @@ movefromsrd3	move.l	(sp)+,d0
 		move.w	(sp),d3
 		or.w	_EmulatedSR,d3
 		addq.l	#2,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 movefromsrd4	move.l	(sp)+,d0
@@ -751,6 +964,12 @@ movefromsrd4	move.l	(sp)+,d0
 		move.w	(sp),d4
 		or.w	_EmulatedSR,d4
 		addq.l	#2,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 movefromsrd5	move.l	(sp)+,d0
@@ -758,6 +977,12 @@ movefromsrd5	move.l	(sp)+,d0
 		move.w	(sp),d5
 		or.w	_EmulatedSR,d5
 		addq.l	#2,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 movefromsrd6	move.l	(sp)+,d0
@@ -765,6 +990,12 @@ movefromsrd6	move.l	(sp)+,d0
 		move.w	(sp),d6
 		or.w	_EmulatedSR,d6
 		addq.l	#2,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 movefromsrd7	move.l	(sp)+,d0
@@ -772,6 +1003,12 @@ movefromsrd7	move.l	(sp)+,d0
 		move.w	(sp),d7
 		or.w	_EmulatedSR,d7
 		addq.l	#2,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; move dx,sr
@@ -793,6 +1030,12 @@ storesr2	move.w	d0,4(sp)
 		movem.l	(sp)+,d0-d1/a0-a1/a6
 1$		move.l	(sp)+,d0
 		addq.l	#2,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 movetosrd1	move.l	d1,d0
@@ -823,6 +1066,8 @@ movecfromcr	move.w	([6,sp],2),d0		;Get next instruction word
 		beq.s	movecvbra0
 		cmp.w	#$9801,d0		;movec vbr,a1?
 		beq.s	movecvbra1
+		cmp.w	#$A801,d0		;movec vbr,a2?
+		beq.s	movecvbra2
 		cmp.w	#$1801,d0		;movec vbr,d1?
 		beq	movecvbrd1
 		cmp.w	#$0002,d0		;movec cacr,d0?
@@ -856,54 +1101,120 @@ movecfromcr	move.w	([6,sp],2),d0		;Get next instruction word
 moveccacrd0	move.l	(sp)+,d0
 		move.l	#$3111,d0		;All caches and bursts on
 		addq.l	#4,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; movec cacr,d1
 moveccacrd1	move.l	(sp)+,d0
 		move.l	#$3111,d1		;All caches and bursts on
 		addq.l	#4,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; movec vbr,a0
 movecvbra0	move.l	(sp)+,d0
 		sub.l	a0,a0			;VBR always appears to be at 0
 		addq.l	#4,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; movec vbr,a1
 movecvbra1	move.l	(sp)+,d0
 		sub.l	a1,a1			;VBR always appears to be at 0
 		addq.l	#4,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
+		rte
+
+; movec vbr,a2
+movecvbra2	move.l	(sp)+,d0
+		sub.l	a2,a2			;VBR always appears to be at 0
+		addq.l	#4,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; movec vbr,d1
 movecvbrd1	move.l	(sp)+,d0
 		moveq.l	#0,d1			;VBR always appears to be at 0
 		addq.l	#4,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; movec tc,d0
 movectcd0	addq.l	#4,sp
 		moveq	#0,d0			;MMU is always off
 		addq.l	#4,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; movec tc,d1	+jl+
 movectcd1	move.l	(sp)+,d0		;Restore d0
 		moveq	#0,d1			;MMU is always off
 		addq.l	#4,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; movec sfc,d1	+jl+
 movecsfcd1	move.l	(sp)+,d0		;Restore d0
 		moveq	#0,d1
 		addq.l	#4,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; movec dfc,d1	+jl+
 movecdfcd1	move.l	(sp)+,d0		;Restore d0
 		moveq	#0,d1
 		addq.l	#4,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 movecurpd0		; movec urp,d0	+jl+
@@ -915,6 +1226,12 @@ movecdtt1d0		; movec dtt1,d0
 		addq.l	#4,sp
 		moveq.l	#0,d0			;MMU is always off
 		addq.l	#4,2(sp)		;skip instruction
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; movec x,cr
@@ -923,6 +1240,8 @@ movectocr	move.w	([6,sp],2),d0		;Get next instruction word
 		cmp.w	#$0801,d0		;movec d0,vbr?
 		beq.s	movectovbr
 		cmp.w	#$1801,d0		;movec d1,vbr?
+		beq.s	movectovbr
+		cmp.w	#$A801,d0		;movec a2,vbr?
 		beq.s	movectovbr
 		cmp.w	#$0002,d0		;movec d0,cacr?
 		beq.s	movectocacr
@@ -938,6 +1257,12 @@ movectocr	move.w	([6,sp],2),d0		;Get next instruction word
 ; movec x,vbr
 movectovbr	move.l	(sp)+,d0		;Ignore moves to VBR
 		addq.l	#4,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; movec dx,cacr
@@ -947,17 +1272,36 @@ movectocacr	movem.l	d1/a0-a1/a6,-(sp)	;Move to CACR, clear caches
 		movem.l	(sp)+,d1/a0-a1/a6
 		move.l	(sp)+,d0
 		addq.l	#4,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; movec x,sfc
 ; movec x,dfc
 movectoxfc	move.l	(sp)+,d0		;Ignore moves to SFC, DFC
 		addq.l	#4,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ; cpusha
 cpushadc
-cpushadcic	movem.l	d1/a0-a1/a6,-(sp)	;Clear caches
+cpushadcic
+	IFEQ	INFO_LEVEL-1003
+	move.l	(4),-(sp)
+	move.l	d0,-(sp)
+	PUTMSG	0,'%s/cpushadc:  opcode=%04lx  Execbase=%08lx'
+	lea	(2*4,sp),sp
+	ENDC
+		movem.l	d1/a0-a1/a6,-(sp)	;Clear caches
 		move.l	_SysBase,a6
 		JSRLIB	CacheClearU
 		movem.l	(sp)+,d1/a0-a1/a6
@@ -969,18 +1313,40 @@ cpushadcic	movem.l	d1/a0-a1/a6,-(sp)	;Clear caches
 moveuspa1	move.l	(sp)+,d0
 		move	usp,a1
 		addq.l	#2,2(sp)
+
+	IFEQ	INFO_LEVEL-1009
+	move.l	a1,-(sp)
+	move.l	a7,-(sp)
+	PUTMSG	0,'%s/moveuspa1:  a7=%08lx  a1=%08lx'
+	lea	(2*4,sp),sp
+	ENDC
+
 		rte
 
 ; move usp,a0	+jl+
 moveuspa0	move.l	(sp)+,d0
 		move	usp,a0
 		addq.l	#2,2(sp)
+
+	IFEQ	INFO_LEVEL-1009
+	move.l	a0,-(sp)
+	move.l	a7,-(sp)
+	PUTMSG	0,'%s/moveuspa0:  a7=%08lx  a0=%08lx'
+	lea	(2*4,sp),sp
+	ENDC
+
 		rte
 
 ; move a1,usp	+jl+
 moved1usp	move.l	(sp)+,d0
 		move	a1,usp
 		addq.l	#2,2(sp)
+
+	IFEQ	INFO_LEVEL-1001
+	move.l	(4),-(sp)
+	PUTMSG	0,'%s/doprivviol END:  Execbase=%08lx'
+	lea	(1*4,sp),sp
+	ENDC
 		rte
 
 ;
@@ -1001,5 +1367,25 @@ _AsmTriggerNMI	move.l	d0,-(sp)		;Save d0
 1$		move.l	(sp)+,d0		;Restore d0
 		rts
 
+
+CopyTrapStack:
+		movem.l	d0/a0/a1,-(sp)
+
+		move.w	(5*4+6,sp),d0		;get format word
+		lsr.w	#7,d0			;get stack frame Id 
+		lsr.w	#4,d0
+		and.w	#$001e,d0
+		move.w	(StackFormatTable,pc,d0.w),d0	; get total stack frame length
+
+		lea	(5*4,sp),a0		;get start of exception stack frame
+		move.l	usp,a1			;Get user stack pointer
+		bra	1$
+
+2$		move.w	(a0)+,(a1)+		; copy additional stack words back to supervisor stack
+1$		dbf	d0,2$
+
+		move.l	(3*4,sp),-(a0)		;copy return address to new top of stack 
+		move.l	a0,sp
+		rts
 
 		END

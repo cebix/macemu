@@ -1,7 +1,7 @@
 /*
  *  sys_amiga.cpp - System dependent routines, Amiga implementation
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,9 +24,13 @@
 #include <devices/trackdisk.h>
 #include <devices/scsidisk.h>
 #include <resources/disk.h>
+#define __USE_SYSBASE
 #include <proto/dos.h>
 #include <proto/exec.h>
 #include <proto/disk.h>
+#include <inline/dos.h>
+#include <inline/exec.h>
+#include <inline/disk.h>
 
 #include "sysdeps.h"
 #include "main.h"
@@ -212,7 +216,7 @@ void *Sys_open(const char *name, bool read_only)
 			return NULL;
 
 		// Open device
-		if (OpenDevice((UBYTE *)dev_name, dev_unit, (struct IORequest *)io, dev_flags)) {
+		if (OpenDevice((UBYTE *) dev_name, dev_unit, (struct IORequest *)io, dev_flags)) {
 			D(bug(" couldn't open device\n"));
 			DeleteIORequest(io);
 			return NULL;
@@ -381,8 +385,12 @@ static loff_t send_io_request(file_handle *fh, bool writing, ULONG length, loff_
 
 	} else {
 
-		if (DoIO((struct IORequest *)fh->io) || fh->io->io_Actual != length)
+//		if (DoIO((struct IORequest *)fh->io) || fh->io->io_Actual != length)
+		if (DoIO((struct IORequest *)fh->io))
+			{
+			D(bug("send_io_request/%ld: Actual=%lu  length=%lu  Err=%ld\n", __LINE__, fh->io->io_Actual, length, fh->io->io_Error));
 			return 0;
+			}
 		return fh->io->io_Actual;
 	}
 }
@@ -397,21 +405,35 @@ size_t Sys_read(void *arg, void *buffer, loff_t offset, size_t length)
 {
 	file_handle *fh = (file_handle *)arg;
 	if (!fh)
+		{
+		D(bug("Sys_read/%ld return 0\n", __LINE__));
 		return 0;
+		}
+
+	D(bug("Sys_read/%ld length=%ld\n", __LINE__, length));
 
 	// File or device?
 	if (fh->is_file) {
 
 		// File, seek to position
 		if (Seek(fh->f, offset + fh->start_byte, OFFSET_BEGINNING) == -1)
+			{
+			D(bug("Sys_read/%ld return 0\n", __LINE__));
 			return 0;
+			}
 
 		// Read data
 		LONG actual = Read(fh->f, buffer, length);
 		if (actual == -1)
+			{
+			D(bug("Sys_read/%ld return 0\n", __LINE__));
 			return 0;
+			}
 		else
+			{
+			D(bug("Sys_read/%ld return %ld\n", __LINE__, actual));
 			return actual;
+			}
 
 	} else {
 
@@ -423,7 +445,10 @@ size_t Sys_read(void *arg, void *buffer, loff_t offset, size_t length)
 
 			// Yes, read one block
 			if (send_io_request(fh, false, fh->block_size, pos - pre_offset, tmp_buf) == 0)
+				{
+				D(bug("Sys_read/%ld return %ld\n", __LINE__, 0));
 				return 0;
+				}
 
 			// Copy data to destination buffer
 			size_t pre_length = fh->block_size - pre_offset;
@@ -444,7 +469,10 @@ size_t Sys_read(void *arg, void *buffer, loff_t offset, size_t length)
 			// Yes, read blocks
 			size_t main_length = length & ~(fh->block_size - 1);
 			if (send_io_request(fh, false, main_length, pos, buffer) == 0)
+				{
+				D(bug("Sys_read/%ld return %ld\n", __LINE__, 0));
 				return 0;
+				}
 
 			// Adjust data pointers
 			buffer = (uint8 *)buffer + main_length;
@@ -458,13 +486,17 @@ size_t Sys_read(void *arg, void *buffer, loff_t offset, size_t length)
 
 			// Yes, read one block
 			if (send_io_request(fh, false, fh->block_size, pos, tmp_buf) == 0)
+				{
+				D(bug("Sys_read/%ld return %ld\n", __LINE__, 0));
 				return 0;
+				}
 
 			// Copy data to destination buffer
 			memcpy(buffer, tmp_buf, length);
 			actual += length;
 		}
 
+		D(bug("Sys_read/%ld return %ld\n", __LINE__, actual));
 		return actual;
 	}
 }
@@ -479,21 +511,35 @@ size_t Sys_write(void *arg, void *buffer, loff_t offset, size_t length)
 {
 	file_handle *fh = (file_handle *)arg;
 	if (!fh)
+		{
+		D(bug("Sys_write/%ld return %ld\n", __LINE__, 0));
 		return 0;
+		}
+
+	D(bug("Sys_write/%ld length=%ld\n", __LINE__, length));
 
 	// File or device?
 	if (fh->is_file) {
 
 		// File, seek to position if necessary
 		if (Seek(fh->f, offset + fh->start_byte, OFFSET_BEGINNING) == -1)
+			{
+			D(bug("Sys_write/%ld return %ld\n", __LINE__, 0));
 			return 0;
+			}
 
 		// Write data
 		LONG actual = Write(fh->f, buffer, length);
 		if (actual == -1)
+			{
+			D(bug("Sys_write/%ld return %ld\n", __LINE__, 0));
 			return 0;
+			}
 		else
+			{
+			D(bug("Sys_write/%ld return %ld\n", __LINE__, actual));
 			return actual;
+			}
 
 	} else {
 
@@ -505,7 +551,10 @@ size_t Sys_write(void *arg, void *buffer, loff_t offset, size_t length)
 
 			// Yes, read one block
 			if (send_io_request(fh, false, fh->block_size, pos - pre_offset, tmp_buf) == 0)
+				{
+				D(bug("Sys_write/%ld return %ld\n", __LINE__, 0));
 				return 0;
+				}
 
 			// Copy data from source buffer
 			size_t pre_length = fh->block_size - pre_offset;
@@ -515,7 +564,10 @@ size_t Sys_write(void *arg, void *buffer, loff_t offset, size_t length)
 
 			// Write block back
 			if (send_io_request(fh, true, fh->block_size, pos - pre_offset, tmp_buf) == 0)
+				{
+				D(bug("Sys_write/%ld return %ld\n", __LINE__, 0));
 				return 0;
+				}
 
 			// Adjust data pointers
 			buffer = (uint8 *)buffer + pre_length;
@@ -530,7 +582,10 @@ size_t Sys_write(void *arg, void *buffer, loff_t offset, size_t length)
 			// Yes, write blocks
 			size_t main_length = length & ~(fh->block_size - 1);
 			if (send_io_request(fh, true, main_length, pos, buffer) == 0)
+				{
+				D(bug("Sys_write/%ld return %ld\n", __LINE__, 0));
 				return 0;
+				}
 
 			// Adjust data pointers
 			buffer = (uint8 *)buffer + main_length;
@@ -544,17 +599,24 @@ size_t Sys_write(void *arg, void *buffer, loff_t offset, size_t length)
 
 			// Yes, read one block
 			if (send_io_request(fh, false, fh->block_size, pos, tmp_buf) == 0)
+				{
+				D(bug("Sys_write/%ld return %ld\n", __LINE__, 0));
 				return 0;
+				}
 
 			// Copy data from source buffer
 			memcpy(buffer, tmp_buf, length);
 
 			// Write block back
 			if (send_io_request(fh, true, fh->block_size, pos, tmp_buf) == 0)
+				{
+				D(bug("Sys_write/%ld return %ld\n", __LINE__, 0));
 				return 0;
+				}
 			actual += length;
 		}
 
+		D(bug("Sys_write/%ld return %ld\n", __LINE__, actual));
 		return actual;
 	}
 }

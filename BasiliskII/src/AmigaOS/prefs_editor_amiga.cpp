@@ -1,7 +1,7 @@
 /*
  *  prefs_editor_amiga.cpp - Preferences editor, AmigaOS implementation (using gtlayout.library)
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include <cybergraphics/cybergraphics.h>
 #include <graphics/displayinfo.h>
 #include <devices/ahi.h>
+#define __USE_SYSBASE
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <proto/intuition.h>
@@ -40,6 +41,18 @@
 #include <proto/Picasso96.h>
 #include <proto/cybergraphics.h>
 #include <proto/ahi.h>
+#include <inline/exec.h>
+#include <inline/dos.h>
+#include <inline/intuition.h>
+#include <inline/gadtools.h>
+#include <inline/gtlayout.h>
+#include <inline/graphics.h>
+#include <inline/asl.h>
+#include <inline/Picasso96.h>
+#include <inline/cybergraphics.h>
+#include <inline/cybergraphics.h>
+#include <inline/ahi.h>
+#include <clib/alib_protos.h>
 
 #include "sysdeps.h"
 #include "main.h"
@@ -177,7 +190,7 @@ bool PrefsEditor(void)
 	};
 
 	// Open gtlayout.library
-	GTLayoutBase = (struct Library *)OpenLibrary((UBYTE *)"gtlayout.library", 39);
+	GTLayoutBase = (struct Library *)OpenLibrary("gtlayout.library", 39);
 	if (GTLayoutBase == NULL) {
 		WarningAlert(GetString(STR_NO_GTLAYOUT_LIB_WARN));
 		return true;

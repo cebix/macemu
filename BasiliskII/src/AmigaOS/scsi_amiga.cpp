@@ -1,7 +1,7 @@
 /*
  *  scsi_amiga.cpp - SCSI Manager, Amiga specific stuff
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,9 @@
 #include <exec/memory.h>
 #include <devices/trackdisk.h>
 #include <devices/scsidisk.h>
+#define __USE_SYSBASE
 #include <proto/exec.h>
+#include <inline/exec.h>
 
 #include "sysdeps.h"
 #include "main.h"
@@ -97,7 +99,7 @@ void SCSIInit(void)
 					struct IOStdReq *io = (struct IOStdReq *)CreateIORequest(the_port, sizeof(struct IOStdReq));
 					if (io == NULL)
 						continue;
-					if (OpenDevice((UBYTE *)dev_name, dev_unit + lun * 10, (struct IORequest *)io, 0)) {
+					if (OpenDevice((UBYTE *) dev_name, dev_unit + lun * 10, (struct IORequest *)io, 0)) {
 						DeleteIORequest(io);
 						continue;
 					}

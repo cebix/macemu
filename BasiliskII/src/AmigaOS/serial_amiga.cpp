@@ -1,7 +1,7 @@
 /*
  *  serial_amiga.cpp - Serial device driver, AmigaOS specific stuff
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,8 +26,11 @@
 #include <dos/dostags.h>
 #include <devices/serial.h>
 #include <devices/parallel.h>
+#define __USE_SYSBASE
 #include <proto/exec.h>
 #include <proto/dos.h>
+#include <inline/exec.h>
+#include <inline/dos.h>
 
 #include "sysdeps.h"
 #include "cpu_emulation.h"
@@ -669,7 +672,7 @@ __saveds void ASERDPort::serial_func(void)
 		((IOExtPar *)read_io)->io_ParFlags = PARF_SHARED;
 	else
 		read_io->io_SerFlags = SERF_SHARED | SERF_7WIRE;
-	if (OpenDevice((UBYTE *)dev_name, dev_unit, (struct IORequest *)read_io, 0) || read_io->IOSer.io_Device == NULL)
+	if (OpenDevice((UBYTE *) dev_name, dev_unit, (struct IORequest *)read_io, 0) || read_io->IOSer.io_Device == NULL)
 		goto quit;
 	opened = true;
 

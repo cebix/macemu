@@ -1,7 +1,7 @@
 /*
  *  xpram_amiga.cpp - XPRAM handling, AmigaOS specific stuff
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,7 +19,9 @@
  */
 
 #include <exec/types.h>
+#define __USE_SYSBASE
 #include <proto/dos.h>
+#include <inline/dos.h>
 
 #include "sysdeps.h"
 #include "xpram.h"

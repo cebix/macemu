@@ -1,7 +1,7 @@
 /*
  *  main_amiga.cpp - Startup code for AmigaOS
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,9 +26,13 @@
 #include <intuition/intuition.h>
 #include <devices/timer.h>
 #include <devices/ahi.h>
+#define __USE_SYSBASE
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <proto/intuition.h>
+#include <inline/exec.h>
+#include <inline/dos.h>
+#include <inline/intuition.h>
 
 #include "sysdeps.h"
 #include "cpu_emulation.h"
@@ -158,31 +162,31 @@ int main(int argc, char **argv)
 	printf(" %s\n", GetString(STR_ABOUT_TEXT2));
 
 	// Open libraries
-	GfxBase = OpenLibrary((UBYTE *)"graphics.library", 39);
+	GfxBase = OpenLibrary((UBYTE *) "graphics.library", 39);
 	if (GfxBase == NULL) {
 		printf("Cannot open graphics.library V39.\n");
 		exit(1);
 	}
-	IntuitionBase = (struct IntuitionBase *)OpenLibrary((UBYTE *)"intuition.library", 39);
+	IntuitionBase = (struct IntuitionBase *)OpenLibrary((UBYTE *) "intuition.library", 39);
 	if (IntuitionBase == NULL) {
 		printf("Cannot open intuition.library V39.\n");
 		CloseLibrary(GfxBase);
 		exit(1);
 	}
-	DiskBase = (struct Library *)OpenResource((UBYTE *)"disk.resource");
+	DiskBase = (struct Library *)OpenResource((UBYTE *) "disk.resource");
 	if (DiskBase == NULL)
 		QuitEmulator();
-	GadToolsBase = OpenLibrary((UBYTE *)"gadtools.library", 39);
+	GadToolsBase = OpenLibrary((UBYTE *) "gadtools.library", 39);
 	if (GadToolsBase == NULL) {
 		ErrorAlert(STR_NO_GADTOOLS_LIB_ERR);
 		QuitEmulator();
 	}
-	IFFParseBase = OpenLibrary((UBYTE *)"iffparse.library", 39);
+	IFFParseBase = OpenLibrary((UBYTE *) "iffparse.library", 39);
 	if (IFFParseBase == NULL) {
 		ErrorAlert(STR_NO_IFFPARSE_LIB_ERR);
 		QuitEmulator();
 	}
-	AslBase = OpenLibrary((UBYTE *)"asl.library", 36);
+	AslBase = OpenLibrary((UBYTE *) "asl.library", 36);
 	if (AslBase == NULL) {
 		ErrorAlert(STR_NO_ASL_LIB_ERR);
 		QuitEmulator();
@@ -195,8 +199,8 @@ int main(int argc, char **argv)
 		}
 
 	// These two can fail (the respective gfx support won't be available, then)
-	P96Base = OpenLibrary((UBYTE *)"Picasso96API.library", 2);
-	CyberGfxBase = OpenLibrary((UBYTE *)"cybergraphics.library", 2);
+	P96Base = OpenLibrary((UBYTE *) "Picasso96API.library", 2);
+	CyberGfxBase = OpenLibrary((UBYTE *) "cybergraphics.library", 2);
 
 	// Read preferences
 	PrefsInit(argc, argv);
@@ -207,7 +211,7 @@ int main(int argc, char **argv)
 		ahi_io = (struct AHIRequest *)CreateIORequest(ahi_port, sizeof(struct AHIRequest));
 		if (ahi_io) {
 			ahi_io->ahir_Version = 2;
-			if (OpenDevice((UBYTE *)AHINAME, AHI_NO_UNIT, (struct IORequest *)ahi_io, 0) == 0) {
+			if (OpenDevice((UBYTE *) AHINAME, AHI_NO_UNIT, (struct IORequest *)ahi_io, 0) == 0) {
 				AHIBase = (struct Library *)ahi_io->ahir_Std.io_Device;
 			}
 		}
@@ -222,7 +226,7 @@ int main(int argc, char **argv)
 			QuitEmulator();
 
 	// Check start of Chip memory (because we need access to 0x0000..0x2000)
-	if ((uint32)FindName(&SysBase->MemList, (UBYTE *)"chip memory") < 0x2000) {
+	if ((uint32)FindName(&SysBase->MemList, (UBYTE *) "chip memory") < 0x2000) {
 		ErrorAlert(STR_NO_PREPARE_EMUL_ERR);
 		QuitEmulator();
 	}
@@ -233,7 +237,7 @@ int main(int argc, char **argv)
 		ErrorAlert(STR_NO_MEM_ERR);
 		QuitEmulator();
 	}
-	if (OpenDevice((UBYTE *)TIMERNAME, UNIT_MICROHZ, (struct IORequest *)timereq, 0)) {
+	if (OpenDevice((UBYTE *) TIMERNAME, UNIT_MICROHZ, (struct IORequest *)timereq, 0)) {
 		ErrorAlert(STR_NO_TIMER_DEV_ERR);
 		QuitEmulator();
 	}
@@ -265,7 +269,7 @@ int main(int argc, char **argv)
 			QuitEmulator();
 
 		RAMSize = newRAMSize;
-		RAMBaseHost = (uint8 *)AllocVec(RAMSize + 0x100000, MEMF_PUBLIC);
+		RAMBaseHost = (uint8 *)AllocVec(RAMSize - 0x100000, MEMF_PUBLIC);
 		if (RAMBaseHost == NULL) {
 			ErrorAlert(STR_NO_MEM_ERR);
 			QuitEmulator();
@@ -317,6 +321,8 @@ int main(int argc, char **argv)
 	// On 68060, disable Super Bypass mode because of a CPU bug that is triggered by MacOS 8
 	if (CPUIs68060)
 		DisableSuperBypass();
+
+	memset((UBYTE *) 8, 0, 0x2000-8);
 
 	// Install trap handler
 	EmulatedSR = 0x2700;
@@ -547,7 +553,7 @@ static __saveds void tick_func(void)
 	if (timer_port) {
 		timer_io = (struct timerequest *)CreateIORequest(timer_port, sizeof(struct timerequest));
 		if (timer_io) {
-			if (!OpenDevice((UBYTE *)TIMERNAME, UNIT_MICROHZ, (struct IORequest *)timer_io, 0)) {
+			if (!OpenDevice((UBYTE *) TIMERNAME, UNIT_MICROHZ, (struct IORequest *)timer_io, 0)) {
 				timer_mask = 1 << timer_port->mp_SigBit;
 				timer_io->tr_node.io_Command = TR_ADDREQUEST;
 				timer_io->tr_time.tv_secs = 0;
@@ -693,6 +699,8 @@ struct trap_regs {	// This must match the layout of M68kRegisters
 
 void __saveds IllInstrHandler(trap_regs *r)
 {
+//	D(bug("IllInstrHandler/%ld\n", __LINE__));
+
 	uint16 opcode = *(uint16 *)(r->pc);
 	if ((opcode & 0xff00) != 0x7100) {
 		printf("Illegal Instruction %04x at %08lx\n", *(uint16 *)(r->pc), r->pc);

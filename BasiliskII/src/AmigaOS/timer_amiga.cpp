@@ -1,7 +1,7 @@
 /*
  *  timer_amiga.cpp - Time Manager emulation, AmigaOS specific stuff
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,8 +20,11 @@
 
 #include <exec/types.h>
 #include <devices/timer.h>
+#define __USE_SYSBASE
 #include <proto/timer.h>
 #include <proto/intuition.h>
+#include <inline/timer.h>
+#include <inline/intuition.h>
 
 #include "sysdeps.h"
 #include "timer.h"
