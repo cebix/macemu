@@ -37,8 +37,7 @@ Versions of MacOS X port of Basilisk II:
 <LI>Video preferences fixes, small tidyup of source.</LI>
 <LI>Full screen mode added, more source tidied up.</LI>
 <!-- v10><-->
-<LI>Finally checked into CVS repository.
-	<BR>Key event bug fixes:
+<LI>Finally checked into CVS repository. Key event bug fixes:
 	<UL>
 		<LI>Cursor keys are now decoded and passed to the Emulator correctly</LI>
 		<LI>New one (in version 9) reported by Kentaro Nakatani -
@@ -53,13 +52,24 @@ Versions of MacOS X port of Basilisk II:
 	<BR>Initial CD-ROM reading code.</LI>
 <LI>Restarting the emulator should be safe and fairly reliable,
 	and errors in starting the emulator should now be caught.
-	<BR>Fixed a bug where the Prefs could not be edited while the emulator was running.
 	<BR>Resizing of window is now animated, and window is centred afterwards.
 	<BR>Reduced memory leaks when changing screensize in windowed mode.
-	<BR>Repaired help menu item (again) and added extra doco there.
 	<BR>Screen default pref is now Mac II (and not Classic) size.
-	<BR>Fixed the Preferences RAM size thing again.
-	<BR>Fixed a minor Prefs editor button anomaly</LI>
+	<BR>Fixed:
+	<UL>
+		<LI>Bug where the Prefs could not be edited while the emulator was running</LI>
+		<LI>Help menu item (again) and added extra doco there</LI>
+		<LI>Preferences RAM size thing (again)</LI>
+		<LI>A minor Prefs editor button anomaly</LI>
+	</UL></LI>
 <LI>Preferences file can now be specified on the command line,
-	and changed/loaded in the Preferences editor.</LI>
+	and changed/loaded in the Preferences editor.
+	Added a feature from the windows port - now supports different keyboard types.
+	Changed:
+	<UL>
+		<LI>Default extfs; was '/', now user's home directory (Suggestion by Olaf Pluta.
+			Seeing all the Unix dirs <I>is</I> a bit scary!)</LI>
+		<LI>HowTo now displayed by default web browser (as it contains links)</LI>
+		<LI>Project Builder defaults so that debug symbols are not included</LI>
+	</UL>
 </OL>
