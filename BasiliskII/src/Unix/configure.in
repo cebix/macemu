@@ -187,7 +187,7 @@ AC_EGREP_CPP(yes,
 #endif
 ], [AC_MSG_RESULT(yes); HAVE_I386=yes], AC_MSG_RESULT(no))
 
-dnl Check for GAS
+dnl Check for GAS.
 HAVE_GAS=no
 AC_MSG_CHECKING(for GAS .p2align feature)
 cat >conftest.S << EOF
@@ -197,7 +197,7 @@ EOF
 if $CC conftest.S -c -o conftest.o >/dev/null 2>&1 ; then HAVE_GAS=yes; fi
 AC_MSG_RESULT($HAVE_GAS)
 
-dnl Check for GCC 2.7 or higher
+dnl Check for GCC 2.7 or higher.
 HAVE_GCC27=no
 AC_MSG_CHECKING(for GCC 2.7 or higher)
 AC_EGREP_CPP(yes,
@@ -206,13 +206,13 @@ AC_EGREP_CPP(yes,
 #endif
 ], [AC_MSG_RESULT(yes); HAVE_GCC27=yes], AC_MSG_RESULT(no))
 
-dnl Set "-fomit-frame-pointer" on GCC
+dnl Set "-fomit-frame-pointer" on GCC.
 if [[ "x$HAVE_GCC27" = "xyes" ]]; then
   CFLAGS="$CFLAGS -fomit-frame-pointer"
   CXXFLAGS="$CXXFLAGS -fomit-frame-pointer"
 fi
 
-dnl Select appropriate CPU source and REGPARAM define
+dnl Select appropriate CPU source and REGPARAM define.
 if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
   DEFINES="$DEFINES -DREGPARAM=\"__attribute__((regparm(3)))\""
   if [[ "x$HAVE_GAS" = "xyes" ]]; then
@@ -225,7 +225,7 @@ else
   CPUSRCS="$CPUSRCS cpuemu.cpp"
 fi
 
-dnl Generate Makefile
+dnl Generate Makefile.
 AC_SUBST(DEFINES)
 AC_SUBST(STATICLIBS)
 AC_SUBST(SYSSRCS)
