@@ -19,6 +19,7 @@
  */
 
 #include "sysdeps.h"
+#include "video.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -304,51 +305,59 @@ static Screen_blit_func_info Screen_blitters[] = {
 // Initialize the framebuffer update function
 // Returns FALSE, if the function was to be reduced to a simple memcpy()
 // --> In that case, VOSF is not necessary
-bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order)
+bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, video_depth mac_depth)
 {
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
-	visualFormat.depth = visual_info->depth;
-	visualFormat.Rmask = visual_info->red_mask;
-	visualFormat.Gmask = visual_info->green_mask;
-	visualFormat.Bmask = visual_info->blue_mask;
+	if (mac_depth == VDEPTH_1BIT) {
+
+		// 1-bit mode uses a 1-bit X image, so there's no need for special blitting routines
+		Screen_blit = Blit_Copy_Raw;
+
+	} else {
+
+		visualFormat.depth = visual_info->depth;
+		visualFormat.Rmask = visual_info->red_mask;
+		visualFormat.Gmask = visual_info->green_mask;
+		visualFormat.Bmask = visual_info->blue_mask;
 	
-	// Compute RGB shift values
-	visualFormat.Rshift = 0;
-	for (uint32 Rmask = visualFormat.Rmask; Rmask && ((Rmask & 1) != 1); Rmask >>= 1)
-		++visualFormat.Rshift;
-	visualFormat.Gshift = 0;
-	for (uint32 Gmask = visualFormat.Gmask; Gmask && ((Gmask & 1) != 1); Gmask >>= 1)
-		++visualFormat.Gshift;
-	visualFormat.Bshift = 0;
-	for (uint32 Bmask = visualFormat.Bmask; Bmask && ((Bmask & 1) != 1); Bmask >>= 1)
-		++visualFormat.Bshift;
+		// Compute RGB shift values
+		visualFormat.Rshift = 0;
+		for (uint32 Rmask = visualFormat.Rmask; Rmask && ((Rmask & 1) != 1); Rmask >>= 1)
+			++visualFormat.Rshift;
+		visualFormat.Gshift = 0;
+		for (uint32 Gmask = visualFormat.Gmask; Gmask && ((Gmask & 1) != 1); Gmask >>= 1)
+			++visualFormat.Gshift;
+		visualFormat.Bshift = 0;
+		for (uint32 Bmask = visualFormat.Bmask; Bmask && ((Bmask & 1) != 1); Bmask >>= 1)
+			++visualFormat.Bshift;
 	
-	// Search for an adequate blit function
-	bool blitter_found = false;
-	const int blitters_count = sizeof(Screen_blitters)/sizeof(Screen_blitters[0]);
-	for (int i = 0; !blitter_found && (i < blitters_count); i++) {
-		if	(	(visualFormat.depth == Screen_blitters[i].depth)
-			&&	(visualFormat.Rmask == Screen_blitters[i].Rmask)
-			&&	(visualFormat.Gmask == Screen_blitters[i].Gmask)
-			&&	(visualFormat.Bmask == Screen_blitters[i].Bmask)
-			)
-		{
-			blitter_found = true;
-			Screen_blit = native_byte_order
-						? Screen_blitters[i].handler_nbo
-						: Screen_blitters[i].handler_obo
-						;
+		// Search for an adequate blit function
+		bool blitter_found = false;
+		const int blitters_count = sizeof(Screen_blitters)/sizeof(Screen_blitters[0]);
+		for (int i = 0; !blitter_found && (i < blitters_count); i++) {
+			if	(	(visualFormat.depth == Screen_blitters[i].depth)
+				&&	(visualFormat.Rmask == Screen_blitters[i].Rmask)
+				&&	(visualFormat.Gmask == Screen_blitters[i].Gmask)
+				&&	(visualFormat.Bmask == Screen_blitters[i].Bmask)
+				)
+			{
+				blitter_found = true;
+				Screen_blit = native_byte_order
+							? Screen_blitters[i].handler_nbo
+							: Screen_blitters[i].handler_obo
+							;
+			}
 		}
-	}
 	
-	// No appropriate blitter found, dump RGB mask values and abort()
-	if (!blitter_found) {
-		fprintf(stderr, "### No appropriate blitter found\n");
-		fprintf(stderr, "\tR/G/B mask values  : 0x%06x, 0x%06x, 0x%06x (depth = %d)\n",
-			visualFormat.Rmask, visualFormat.Gmask, visualFormat.Bmask, visualFormat.depth);
-		fprintf(stderr, "\tR/G/B shift values : %d/%d/%d\n",
-			visualFormat.Rshift, visualFormat.Gshift, visualFormat.Bshift);
-		abort();
+		// No appropriate blitter found, dump RGB mask values and abort()
+		if (!blitter_found) {
+			fprintf(stderr, "### No appropriate blitter found\n");
+			fprintf(stderr, "\tR/G/B mask values  : 0x%06x, 0x%06x, 0x%06x (depth = %d)\n",
+				visualFormat.Rmask, visualFormat.Gmask, visualFormat.Bmask, visualFormat.depth);
+			fprintf(stderr, "\tR/G/B shift values : %d/%d/%d\n",
+				visualFormat.Rshift, visualFormat.Gshift, visualFormat.Bshift);
+			abort();
+		}
 	}
 #else
 	// The UAE memory handlers will blit correctly

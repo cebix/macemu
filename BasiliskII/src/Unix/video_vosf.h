@@ -280,7 +280,7 @@ static bool screen_fault_handler(sigsegv_address_t fault_address, sigsegv_addres
 
 // From video_blit.cpp
 extern void (*Screen_blit)(uint8 * dest, const uint8 * source, uint32 length);
-extern bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order);
+extern bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, video_depth mac_depth);
 
 /*	How can we deal with array overrun conditions ?
 	

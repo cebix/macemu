@@ -67,11 +67,10 @@ struct {
 
 static bool has_resolution(uint32 id)
 {
-	vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
-	while (i != end) {
+	vector<video_mode>::const_iterator i, end = VideoModes.end();
+	for (i = VideoModes.begin(); i != end; ++i) {
 		if (i->resolution_id == id)
 			return true;
-		++i;
 	}
 	return false;
 }
@@ -83,11 +82,10 @@ static bool has_resolution(uint32 id)
 
 static vector<video_mode>::const_iterator find_mode(uint16 mode, uint32 id)
 {
-	vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
-	while (i != end) {
+	vector<video_mode>::const_iterator i, end = VideoModes.end();
+	for (i = VideoModes.begin(); i != end; ++i) {
 		if (i->resolution_id == id && DepthToAppleMode(i->depth) == mode)
 			return i;
-		++i;
 	}
 	return i;
 }
@@ -100,11 +98,10 @@ static vector<video_mode>::const_iterator find_mode(uint16 mode, uint32 id)
 static video_depth max_depth_of_resolution(uint32 id)
 {
 	video_depth m = VDEPTH_1BIT;
-	vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
-	while (i != end) {
+	vector<video_mode>::const_iterator i, end = VideoModes.end();
+	for (i = VideoModes.begin(); i != end; ++i) {
 		if (i->depth > m)
 			m = i->depth;
-		++i;
 	}
 	return m;
 }
@@ -116,14 +113,13 @@ static video_depth max_depth_of_resolution(uint32 id)
 
 static void get_size_of_resolution(uint32 id, uint32 &x, uint32 &y)
 {
-	vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
-	while (i != end) {
+	vector<video_mode>::const_iterator i, end = VideoModes.end();
+	for (i = VideoModes.begin(); i != end; ++i) {
 		if (i->resolution_id == id) {
 			x = i->x;
 			y = i->y;
 			return;
 		}
-		++i;
 	}
 }
 
@@ -273,6 +269,74 @@ static bool set_gamma_table(uint32 user_table)
 
 
 /*
+ *  Switch video mode
+ */
+
+static void switch_mode(const video_mode &mode, uint32 param, uint32 dce)
+{
+	// Switch mode
+	set_gray_palette();
+	video_switch_to_mode(mode);
+
+	// Update VidLocal
+	VidLocal.current_mode = DepthToAppleMode(mode.depth);
+	VidLocal.current_id = mode.resolution_id;
+
+	uint32 frame_base = VidLocal.desc->mac_frame_base;
+
+	M68kRegisters r;
+	uint32 sp = VidLocal.slot_param;
+	r.a[0] = sp;
+
+	// Find functional sResource for this display
+	WriteMacInt8(sp + spSlot, ReadMacInt8(dce + dCtlSlot));
+	WriteMacInt8(sp + spID, ReadMacInt8(dce + dCtlSlotId));
+	WriteMacInt8(sp + spExtDev, 0);
+	r.d[0] = 0x0016;
+	Execute68kTrap(0xa06e, &r);	// SRsrcInfo()
+	uint32 rsrc = ReadMacInt32(sp + spPointer);
+
+	// Patch minorBase (otherwise rebooting won't work)
+	WriteMacInt8(sp + spID, 0x0a); // minorBase
+	r.d[0] = 0x0006;
+	Execute68kTrap(0xa06e, &r); // SFindStruct()
+	uint32 minor_base = ReadMacInt32(sp + spPointer) - ROMBaseMac;
+	ROMBaseHost[minor_base + 0] = frame_base >> 24;
+	ROMBaseHost[minor_base + 1] = frame_base >> 16;
+	ROMBaseHost[minor_base + 2] = frame_base >> 8;
+	ROMBaseHost[minor_base + 3] = frame_base;
+
+	// Patch video mode parameter table
+	WriteMacInt32(sp + spPointer, rsrc);
+	WriteMacInt8(sp + spID, DepthToAppleMode(mode.depth));
+	r.d[0] = 0x0006;
+	Execute68kTrap(0xa06e, &r); // SFindStruct()
+	WriteMacInt8(sp + spID, 0x01);
+	r.d[0] = 0x0006;
+	Execute68kTrap(0xa06e, &r); // SFindStruct()
+	uint32 p = ReadMacInt32(sp + spPointer) - ROMBaseMac;
+	ROMBaseHost[p +  8] = mode.bytes_per_row >> 8;
+	ROMBaseHost[p +  9] = mode.bytes_per_row;
+	ROMBaseHost[p + 14] = mode.y >> 8;
+	ROMBaseHost[p + 15] = mode.y;
+	ROMBaseHost[p + 16] = mode.x >> 8;
+	ROMBaseHost[p + 17] = mode.x;
+
+	// Recalculate slot ROM checksum
+	ChecksumSlotROM();
+
+	// Update sResource
+	WriteMacInt8(sp + spID, ReadMacInt8(dce + dCtlSlotId));
+	r.d[0] = 0x002b;
+	Execute68kTrap(0xa06e, &r); // SUpdateSRT()
+
+	// Update frame buffer base in DCE and param block
+	WriteMacInt32(dce + dCtlDevBase, frame_base);
+	WriteMacInt32(param + csBaseAddr, frame_base);
+}
+
+
+/*
  *  Driver Open() routine
  */
 
@@ -338,11 +402,7 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 				vector<video_mode>::const_iterator i = find_mode(mode, VidLocal.current_id);
 				if (i == VideoModes.end())
 					return paramErr;
-				set_gray_palette();
-				video_switch_to_mode(*i);
-				VidLocal.current_mode = mode;
-				WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);
-				WriteMacInt32(dce + dCtlDevBase, VidLocal.desc->mac_frame_base);
+				switch_mode(*i, param, dce);
 			}
 			D(bug("  base %08x\n", VidLocal.desc->mac_frame_base));
 			return noErr;
@@ -497,61 +557,7 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 				vector<video_mode>::const_iterator i = find_mode(mode, id);
 				if (i == VideoModes.end())
 					return paramErr;
-				set_gray_palette();
-				video_switch_to_mode(*i);
-				VidLocal.current_mode = mode;
-				VidLocal.current_id = id;
-				uint32 frame_base = VidLocal.desc->mac_frame_base;
-				WriteMacInt32(param + csBaseAddr, frame_base);
-
-				M68kRegisters r;
-				uint32 sp = VidLocal.slot_param;
-				r.a[0] = sp;
-
-				// Find functional sResource for this display
-				WriteMacInt8(sp + spSlot, ReadMacInt8(dce + dCtlSlot));
-				WriteMacInt8(sp + spID, ReadMacInt8(dce + dCtlSlotId));
-				WriteMacInt8(sp + spExtDev, 0);
-				r.d[0] = 0x0016;
-				Execute68kTrap(0xa06e, &r);	// SRsrcInfo()
-				uint32 rsrc = ReadMacInt32(sp + spPointer);
-
-				// Patch minorBase (otherwise rebooting won't work)
-				WriteMacInt8(sp + spID, 0x0a); // minorBase
-				r.d[0] = 0x0006;
-				Execute68kTrap(0xa06e, &r); // SFindStruct()
-				uint32 minor_base = ReadMacInt32(sp + spPointer) - ROMBaseMac;
-				ROMBaseHost[minor_base + 0] = frame_base >> 24;
-				ROMBaseHost[minor_base + 1] = frame_base >> 16;
-				ROMBaseHost[minor_base + 2] = frame_base >> 8;
-				ROMBaseHost[minor_base + 3] = frame_base;
-
-				// Patch video mode parameter table
-				WriteMacInt32(sp + spPointer, rsrc);
-				WriteMacInt8(sp + spID, mode);
-				r.d[0] = 0x0006;
-				Execute68kTrap(0xa06e, &r); // SFindStruct()
-				WriteMacInt8(sp + spID, 0x01);
-				r.d[0] = 0x0006;
-				Execute68kTrap(0xa06e, &r); // SFindStruct()
-				uint32 p = ReadMacInt32(sp + spPointer) - ROMBaseMac;
-				ROMBaseHost[p +  8] = i->bytes_per_row >> 8;
-				ROMBaseHost[p +  9] = i->bytes_per_row;
-				ROMBaseHost[p + 14] = i->y >> 8;
-				ROMBaseHost[p + 15] = i->y;
-				ROMBaseHost[p + 16] = i->x >> 8;
-				ROMBaseHost[p + 17] = i->x;
-
-				// Recalculate slot ROM checksum
-				ChecksumSlotROM();
-
-				// Update sResource
-				WriteMacInt8(sp + spID, ReadMacInt8(dce + dCtlSlotId));
-				r.d[0] = 0x002b;
-				Execute68kTrap(0xa06e, &r); // SUpdateSRT()
-
-				// Update frame buffer base in DCE
-				WriteMacInt32(dce + dCtlDevBase, frame_base);
+				switch_mode(*i, param, dce);
 			}
 			D(bug("  base %08x\n", VidLocal.desc->mac_frame_base));
 			return noErr;
@@ -751,8 +757,8 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 			uint16 mode = ReadMacInt16(param + csDepthMode);
 			D(bug(" GetVideoParameters %04x/%08x\n", mode, id));
 
-			vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
-			while (i != end) {
+			vector<video_mode>::const_iterator i, end = VideoModes.end();
+			for (i = VideoModes.begin(); i != end; ++i) {
 				if (DepthToAppleMode(i->depth) == mode && i->resolution_id == id) {
 					uint32 vp = ReadMacInt32(param + csVPBlockPtr);
 					WriteMacInt32(vp + vpBaseOffset, 0);
@@ -807,7 +813,6 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 					WriteMacInt32(param + csDeviceType, dev_type);
 					return noErr;
 				}
-				++i;
 			}
 			return paramErr; // specified resolution/depth not supported
 		}

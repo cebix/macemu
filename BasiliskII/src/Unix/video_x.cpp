@@ -124,7 +124,9 @@ static XColor black, white;
 static unsigned long black_pixel, white_pixel;
 static int eventmask;
 
-static XColor palette[256];							// Color palette for indexed modes
+static int rshift, rloss, gshift, gloss, bshift, bloss;	// Pixel format of DirectColor/TrueColor modes
+
+static XColor palette[256];							// Color palette to be used as CLUT and gamma table
 static bool palette_changed = false;				// Flag: Palette changed, redraw thread must set new colors
 
 #ifdef ENABLE_FBDEV_DGA
@@ -203,7 +205,7 @@ static void set_mac_frame_buffer(video_depth depth, bool native_byte_order)
 	if (depth == VDEPTH_16BIT)
 		layout = (xdepth == 15) ? FLAYOUT_HOST_555 : FLAYOUT_HOST_565;
 	else if (depth == VDEPTH_32BIT)
-		layour = (xdepth == 24) ? FLAYOUT_HOST_888 : FLAYOUT_DIRECT;
+		layout = (xdepth == 24) ? FLAYOUT_HOST_888 : FLAYOUT_DIRECT;
 	if (native_byte_order)
 		MacFrameLayout = layout;
 	else
@@ -414,9 +416,9 @@ driver_window::driver_window(const video_mode &mode)
 	XSetWindowAttributes wattr;
 	wattr.event_mask = eventmask = win_eventmask;
 	wattr.background_pixel = black_pixel;
-	wattr.colormap = cmap[0];
+	wattr.colormap = (mode.depth == VDEPTH_1BIT && vis->c_class == PseudoColor ? DefaultColormap(x_display, screen) : cmap[0]);
 	w = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
-		InputOutput, vis, CWEventMask | CWBackPixel | ((mode.depth == VDEPTH_1BIT || cmap[0] == 0) ? 0 : CWColormap), &wattr);
+		InputOutput, vis, CWEventMask | CWBackPixel | (vis->c_class == PseudoColor || vis->c_class == DirectColor ? CWColormap : 0), &wattr);
 
 	// Set window name/class
 	set_window_name(w, STR_WINDOW_TITLE);
@@ -445,8 +447,12 @@ driver_window::driver_window(const video_mode &mode)
 	XMapWindow(x_display, w);
 	wait_mapped(w);
 
+	// 1-bit mode is big-endian; if the X server is little-endian, we can't
+	// use SHM because that doesn't allow changing the image byte order
+	bool need_msb_image = (mode.depth == VDEPTH_1BIT && XImageByteOrder(x_display) == LSBFirst);
+
 	// Try to create and attach SHM image
-	if (local_X11 && XShmQueryExtension(x_display)) {
+	if (local_X11 && !need_msb_image && XShmQueryExtension(x_display)) {
 
 		// Create SHM image ("height + 2" for safety)
 		img = XShmCreateImage(x_display, vis, mode.depth == VDEPTH_1BIT ? 1 : xdepth, mode.depth == VDEPTH_1BIT ? XYBitmap : ZPixmap, 0, &shminfo, width, height);
@@ -478,8 +484,7 @@ driver_window::driver_window(const video_mode &mode)
 		img = XCreateImage(x_display, vis, mode.depth == VDEPTH_1BIT ? 1 : xdepth, mode.depth == VDEPTH_1BIT ? XYBitmap : ZPixmap, 0, (char *)the_buffer_copy, aligned_width, aligned_height, 32, bytes_per_row);
 	}
 
-	// 1-Bit mode is big-endian
-	if (mode.depth == VDEPTH_1BIT) {
+	if (need_msb_image) {
 		img->byte_order = MSBFirst;
 		img->bitmap_bit_order = MSBFirst;
 	}
@@ -514,7 +519,7 @@ driver_window::driver_window(const video_mode &mode)
 	native_byte_order = (XImageByteOrder(x_display) == LSBFirst);
 #endif
 #ifdef ENABLE_VOSF
-	Screen_blitter_init(&visualInfo, native_byte_order);
+	Screen_blitter_init(&visualInfo, native_byte_order, mode.depth);
 #endif
 
 	// Set VideoMonitor
@@ -782,7 +787,7 @@ driver_fbdev::driver_fbdev(const video_mode &mode)
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 	// Screen_blitter_init() returns TRUE if VOSF is mandatory
 	// i.e. the framebuffer update function is not Blit_Copy_Raw
-	use_vosf = Screen_blitter_init(&visualInfo, true);
+	use_vosf = Screen_blitter_init(&visualInfo, true, mode.depth);
 	
 	if (use_vosf) {
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
@@ -898,7 +903,7 @@ driver_xf86dga::driver_xf86dga(const video_mode &mode)
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 	// Screen_blitter_init() returns TRUE if VOSF is mandatory
 	// i.e. the framebuffer update function is not Blit_Copy_Raw
-	use_vosf = Screen_blitter_init(&visualInfo, true);
+	use_vosf = Screen_blitter_init(&visualInfo, true, mode.depth);
 	
 	if (use_vosf) {
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
@@ -1022,6 +1027,22 @@ static void keycode_init(void)
 // Open display for specified mode
 static bool video_open(const video_mode &mode)
 {
+	// Load gray ramp to color map
+	int num = (vis->c_class == DirectColor ? vis->map_entries : 256);
+	for (int i=0; i<num; i++) {
+		int c = (i * 256) / num;
+		palette[i].red = c * 0x0101;
+		palette[i].green = c * 0x0101;
+		palette[i].blue = c * 0x0101;
+		if (vis->c_class == PseudoColor)
+			palette[i].pixel = i;
+		palette[i].flags = DoRed | DoGreen | DoBlue;
+	}
+	if (cmap[0] && cmap[1]) {
+		XStoreColors(x_display, cmap[0], palette, num);
+		XStoreColors(x_display, cmap[1], palette, num);
+	}
+
 	// Create display driver object of requested type
 	switch (display_type) {
 		case DISPLAY_WINDOW:
@@ -1186,46 +1207,34 @@ bool VideoInit(bool classic)
 	if (color_class == PseudoColor || color_class == DirectColor) {
 		cmap[0] = XCreateColormap(x_display, rootwin, vis, AllocAll);
 		cmap[1] = XCreateColormap(x_display, rootwin, vis, AllocAll);
+	}
 
-		int num = 256;
-		if (color_class == DirectColor) {
-			num = vis->map_entries;
+	// Find pixel format of direct modes
+	if (color_class == DirectColor || color_class == TrueColor) {
+		rshift = gshift = bshift = 0;
+		rloss = gloss = bloss = 8;
+		uint32 mask;
+		for (mask=vis->red_mask; !(mask&1); mask>>=1)
+			++rshift;
+		for (; mask&1; mask>>=1)
+			--rloss;
+		for (mask=vis->green_mask; !(mask&1); mask>>=1)
+			++gshift;
+		for (; mask&1; mask>>=1)
+			--gloss;
+		for (mask=vis->blue_mask; !(mask&1); mask>>=1)
+			++bshift;
+		for (; mask&1; mask>>=1)
+			--bloss;
+	}
 
-			// Preset pixel values for gamma table
-			uint32 rmask = vis->red_mask, gmask = vis->green_mask, bmask = vis->blue_mask;
-			uint32 mask;
-			int rloss = 8, rshift = 0;
-			for (mask=rmask; !(mask&1); mask>>=1)
-				++rshift;
-			for (; mask&1; mask>>=1)
-				--rloss;
-			int gloss = 8, gshift = 0;
-			for (mask=gmask; !(mask&1); mask>>=1)
-				++gshift;
-			for (; mask&1; mask>>=1)
-				--gloss;
-			int bloss = 8, bshift = 0;
-			for (mask=bmask; !(mask&1); mask>>=1)
-				++bshift;
-			for (; mask&1; mask>>=1)
-				--bloss;
-			for (int i=0; i<num; i++) {
-				int c = (i * 256) / num;
-				palette[i].pixel = ((c >> rloss) << rshift) | ((c >> gloss) << gshift) | ((c >> bloss) << bshift);
-			}
-		}
-
-		// Load gray ramp
+	// Preset palette pixel values for gamma table
+	if (color_class == DirectColor) {
+		int num = vis->map_entries;
 		for (int i=0; i<num; i++) {
 			int c = (i * 256) / num;
-			palette[i].red = c * 0x0101;
-			palette[i].green = c * 0x0101;
-			palette[i].blue = c * 0x0101;
-			if (color_class == PseudoColor)
-				palette[i].pixel = i;
-			palette[i].flags = DoRed | DoGreen | DoBlue;
+			palette[i].pixel = ((c >> rloss) << rshift) | ((c >> gloss) << gshift) | ((c >> bloss) << bshift);
 		}
-		XStoreColors(x_display, cmap[0], palette, num);
 	}
 
 	// Get screen mode from preferences
@@ -1261,34 +1270,45 @@ bool VideoInit(bool classic)
 	else if (default_height > DisplayHeight(x_display, screen))
 		default_height = DisplayHeight(x_display, screen);
 
-	// Mac screen depth is always 1 bit in Classic mode, but follows X depth otherwise
-	int depth = (classic_mode ? 1 : xdepth);
-	video_depth depth_mode = DepthModeForPixelDepth(depth);
+	// Mac screen depth follows X depth
+	video_depth default_depth = DepthModeForPixelDepth(xdepth);
 
 	// Construct list of supported modes
 	if (display_type == DISPLAY_WINDOW) {
 		if (classic)
-			add_mode(512, 342, 0x80, 64, depth_mode);
+			add_mode(512, 342, 0x80, 64, VDEPTH_1BIT);
 		else {
-			add_mode(512, 384, 0x80, TrivialBytesPerRow(512, depth_mode), depth_mode);
-			add_mode(640, 480, 0x81, TrivialBytesPerRow(640, depth_mode), depth_mode);
-			add_mode(800, 600, 0x82, TrivialBytesPerRow(800, depth_mode), depth_mode);
-			add_mode(1024, 768, 0x83, TrivialBytesPerRow(1024, depth_mode), depth_mode);
-			add_mode(1280, 1024, 0x84, TrivialBytesPerRow(1280, depth_mode), depth_mode);
+			if (default_depth != VDEPTH_1BIT) { // 1-bit modes are always available
+				add_mode(512, 384, 0x80, TrivialBytesPerRow(512, VDEPTH_1BIT), VDEPTH_1BIT);
+				add_mode(640, 480, 0x81, TrivialBytesPerRow(640, VDEPTH_1BIT), VDEPTH_1BIT);
+				add_mode(800, 600, 0x82, TrivialBytesPerRow(800, VDEPTH_1BIT), VDEPTH_1BIT);
+				add_mode(832, 624, 0x83, TrivialBytesPerRow(832, VDEPTH_1BIT), VDEPTH_1BIT);
+				add_mode(1024, 768, 0x84, TrivialBytesPerRow(1024, VDEPTH_1BIT), VDEPTH_1BIT);
+				add_mode(1152, 870, 0x85, TrivialBytesPerRow(1152, VDEPTH_1BIT), VDEPTH_1BIT);
+				add_mode(1280, 1024, 0x86, TrivialBytesPerRow(1280, VDEPTH_1BIT), VDEPTH_1BIT);
+				add_mode(1600, 1200, 0x87, TrivialBytesPerRow(1600, VDEPTH_1BIT), VDEPTH_1BIT);
+			}
+			add_mode(512, 384, 0x80, TrivialBytesPerRow(512, default_depth), default_depth);
+			add_mode(640, 480, 0x81, TrivialBytesPerRow(640, default_depth), default_depth);
+			add_mode(800, 600, 0x82, TrivialBytesPerRow(800, default_depth), default_depth);
+			add_mode(832, 624, 0x83, TrivialBytesPerRow(832, default_depth), default_depth);
+			add_mode(1024, 768, 0x84, TrivialBytesPerRow(1024, default_depth), default_depth);
+			add_mode(1152, 870, 0x85, TrivialBytesPerRow(1152, default_depth), default_depth);
+			add_mode(1280, 1024, 0x86, TrivialBytesPerRow(1280, default_depth), default_depth);
+			add_mode(1600, 1200, 0x87, TrivialBytesPerRow(1600, default_depth), default_depth);
 		}
 	} else
-		add_mode(default_width, default_height, 0x80, TrivialBytesPerRow(default_width, depth_mode), depth_mode);
+		add_mode(default_width, default_height, 0x80, TrivialBytesPerRow(default_width, default_depth), default_depth);
 
 	// Find requested default mode and open display
 	if (VideoModes.size() == 1)
 		return video_open(VideoModes[0]);
 	else {
 		// Find mode with specified dimensions
-		std::vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
-		while (i != end) {
-			if (i->x == default_width && i->y == default_height)
+		std::vector<video_mode>::const_iterator i, end = VideoModes.end();
+		for (i = VideoModes.begin(); i != end; ++i) {
+			if (i->x == default_width && i->y == default_height && i->depth == default_depth)
 				return video_open(*i);
-			++i;
 		}
 		return video_open(VideoModes[0]);
 	}
@@ -1420,7 +1440,7 @@ void video_set_palette(uint8 *pal)
 		p->red = pal[c*3 + 0] * 0x0101;
 		p->green = pal[c*3 + 1] * 0x0101;
 		p->blue = pal[c*3 + 2] * 0x0101;
-		if (!IsDirectMode(VideoMonitor.mode))
+		if (vis->c_class == PseudoColor)
 			p->pixel = i;
 		p->flags = DoRed | DoGreen | DoBlue;
 		p++;

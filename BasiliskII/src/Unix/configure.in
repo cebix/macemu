@@ -101,6 +101,7 @@ fi
 
 dnl Checks for libraries.
 AC_CHECK_LIB(posix4, sem_init)
+AC_CHECK_LIB(rt, timer_create)
 
 dnl We need X11.
 AC_PATH_XTRA

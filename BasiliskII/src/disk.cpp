@@ -27,6 +27,11 @@
  */
 
 #include <string.h>
+#include <vector>
+
+#ifndef NO_STD_NAMESPACE
+using std::vector;
+#endif
 
 #include "sysdeps.h"
 #include "cpu_emulation.h"
@@ -65,17 +70,12 @@ const uint8 DiskIcon[258] = {
 
 
 // Struct for each drive
-struct DriveInfo {
-	DriveInfo()
-	{
-		next = NULL;
-		num = 0;
-		fh = NULL;
-		read_only = false;
-		status = 0;
-	}
+struct disk_drive_info {
+	disk_drive_info() : num(0), fh(NULL), read_only(false), status(0) {}
+	disk_drive_info(void *fh_, bool ro) : num(0), fh(fh_), read_only(ro), status(0) {}
 
-	DriveInfo *next;	// Pointer to next DriveInfo (must be first in struct!)
+	void close_fh(void) { Sys_close(fh); }
+
 	int num;			// Drive number
 	void *fh;			// File handle
 	uint32 num_blocks;	// Size in 512-byte blocks
@@ -84,8 +84,9 @@ struct DriveInfo {
 	uint32 status;		// Mac address of drive status record
 };
 
-// Linked list of DriveInfos
-static DriveInfo *first_drive_info;
+// List of drives handled by this driver
+typedef vector<disk_drive_info> drive_vec;
+static drive_vec drives;
 
 // Icon address (Mac address space, set by PatchROM())
 uint32 DiskIconAddr;
@@ -95,18 +96,17 @@ static bool acc_run_called = false;
 
 
 /*
- *  Get pointer to drive info, NULL = invalid drive number
+ *  Get pointer to drive info or drives.end() if not found
  */
 
-static DriveInfo *get_drive_info(int num)
+static drive_vec::iterator get_drive_info(int num)
 {
-	DriveInfo *info = first_drive_info;
-	while (info != NULL) {
+	drive_vec::iterator info, end = drives.end();
+	for (info = drives.begin(); info != end; ++info) {
 		if (info->num == num)
 			return info;
-		info = info->next;
 	}
-	return NULL;
+	return info;
 }
 
 
@@ -116,14 +116,12 @@ static DriveInfo *get_drive_info(int num)
 
 void DiskInit(void)
 {
-	first_drive_info = NULL;
-
 	// No drives specified in prefs? Then add defaults
 	if (PrefsFindString("disk", 0) == NULL)
 		SysAddDiskPrefs();
 
 	// Add drives specified in preferences
-	int32 index = 0;
+	int index = 0;
 	const char *str;
 	while ((str = PrefsFindString("disk", index++)) != NULL) {
 		bool read_only = false;
@@ -132,16 +130,8 @@ void DiskInit(void)
 			str++;
 		}
 		void *fh = Sys_open(str, read_only);
-		if (fh) {
-			D(bug(" adding drive '%s'\n", str));
-			DriveInfo *info = new DriveInfo;
-			info->fh = fh;
-			info->read_only = SysIsReadOnly(fh);
-			DriveInfo *p = (DriveInfo *)&first_drive_info;
-			while (p->next != NULL)
-				p = p->next;
-			p->next = info;
-		}
+		if (fh)
+			drives.push_back(disk_drive_info(fh, SysIsReadOnly(fh)));
 	}
 }
 
@@ -152,13 +142,10 @@ void DiskInit(void)
 
 void DiskExit(void)
 {
-	DriveInfo *info = first_drive_info, *next;
-	while (info != NULL) {
-		Sys_close(info->fh);
-		next = info->next;
-		delete info;
-		info = next;
-	}
+	drive_vec::iterator info, end = drives.end();
+	for (info = drives.begin(); info != end; ++info)
+		info->close_fh();
+	drives.clear();
 }
 
 
@@ -168,9 +155,10 @@ void DiskExit(void)
 
 bool DiskMountVolume(void *fh)
 {
-	DriveInfo *info;
-	for (info = first_drive_info; info != NULL && info->fh != fh; info = info->next) ;
-	if (info) {
+	drive_vec::iterator info = drives.begin(), end = drives.end();
+	while (info != end && info->fh != fh)
+		++info;
+	if (info != end) {
 		if (SysIsDiskInserted(info->fh)) {
 			info->read_only = SysIsReadOnly(info->fh);
 			WriteMacInt8(info->status + dsDiskInPlace, 1);	// Inserted removable disk
@@ -193,8 +181,8 @@ bool DiskMountVolume(void *fh)
 
 static void mount_mountable_volumes(void)
 {
-	DriveInfo *info = first_drive_info;
-	while (info != NULL) {
+	drive_vec::iterator info, end = drives.end();
+	for (info = drives.begin(); info != end; ++info) {
 
 		// Disk in drive?
 		if (!ReadMacInt8(info->status + dsDiskInPlace)) {
@@ -213,8 +201,6 @@ static void mount_mountable_volumes(void)
 			Execute68kTrap(0xa02f, &r);		// PostEvent()
 			info->to_be_mounted = false;
 		}
-
-		info = info->next;
 	}
 }
 
@@ -232,7 +218,8 @@ int16 DiskOpen(uint32 pb, uint32 dce)
 	acc_run_called = false;
 
 	// Install drives
-	for (DriveInfo *info = first_drive_info; info; info = info->next) {
+	drive_vec::iterator info, end = drives.end();
+	for (info = drives.begin(); info != end; ++info) {
 
 		info->num = FindFreeDriveNumber(1);
 		info->to_be_mounted = false;
@@ -289,8 +276,8 @@ int16 DiskPrime(uint32 pb, uint32 dce)
 	WriteMacInt32(pb + ioActCount, 0);
 
 	// Drive valid and disk inserted?
-	DriveInfo *info;
-	if ((info = get_drive_info(ReadMacInt16(pb + ioVRefNum))) == NULL)
+	drive_vec::iterator info = get_drive_info(ReadMacInt16(pb + ioVRefNum));
+	if (info == drives.end())
 		return nsDrvErr;
 	if (!ReadMacInt8(info->status + dsDiskInPlace))
 		return offLinErr;
@@ -352,8 +339,8 @@ int16 DiskControl(uint32 pb, uint32 dce)
 	}
 
 	// Drive valid?
-	DriveInfo *info;
-	if ((info = get_drive_info(ReadMacInt16(pb + ioVRefNum))) == NULL)
+	drive_vec::iterator info = get_drive_info(ReadMacInt16(pb + ioVRefNum));
+	if (info == drives.end())
 		return nsDrvErr;
 
 	// Drive-specific codes
@@ -417,11 +404,11 @@ int16 DiskControl(uint32 pb, uint32 dce)
 
 int16 DiskStatus(uint32 pb, uint32 dce)
 {
-	DriveInfo *info = get_drive_info(ReadMacInt16(pb + ioVRefNum));
+	drive_vec::iterator info = get_drive_info(ReadMacInt16(pb + ioVRefNum));
 	uint16 code = ReadMacInt16(pb + csCode);
 	D(bug("DiskStatus %d\n", code));
 
-	// General codes
+	// General codes (we can get these even if the drive was invalid)
 	switch (code) {
 		case 43: {	// Driver gestalt
 			uint32 sel = ReadMacInt32(pb + csParam);
@@ -431,7 +418,7 @@ int16 DiskStatus(uint32 pb, uint32 dce)
 					WriteMacInt32(pb + csParam + 4, 0x01008000);
 					break;
 				case FOURCC('d','e','v','t'):	// Device type
-					if (info != NULL) {
+					if (info != drives.end()) {
 						if (ReadMacInt8(info->status + dsDiskInPlace) == 8)
 							WriteMacInt32(pb + csParam + 4, FOURCC('d','i','s','k'));
 						else
@@ -446,7 +433,7 @@ int16 DiskStatus(uint32 pb, uint32 dce)
 					WriteMacInt32(pb + csParam + 4, 0x01000000);
 					break;
 				case FOURCC('b','o','o','t'):	// Boot ID
-					if (info != NULL)
+					if (info != drives.end())
 						WriteMacInt16(pb + csParam + 4, info->num);
 					else
 						WriteMacInt16(pb + csParam + 4, 0);
@@ -475,7 +462,7 @@ int16 DiskStatus(uint32 pb, uint32 dce)
 	}
 
 	// Drive valid?
-	if (info == NULL)
+	if (info == drives.end())
 		return nsDrvErr;
 
 	// Drive-specific codes

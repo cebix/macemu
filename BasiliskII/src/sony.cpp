@@ -29,6 +29,11 @@
  */
 
 #include <string.h>
+#include <vector>
+
+#ifndef NO_STD_NAMESPACE
+using std::vector;
+#endif
 
 #include "sysdeps.h"
 #include "cpu_emulation.h"
@@ -99,17 +104,12 @@ const uint8 SonyDriveIcon[258] = {
 
 
 // Struct for each drive
-struct DriveInfo {
-	DriveInfo()
-	{
-		next = NULL;
-		num = 0;
-		fh = NULL;
-		read_only = false;
-		status = 0;
-	}
+struct sony_drive_info {
+	sony_drive_info() : num(0), fh(NULL), read_only(false), status(0) {}
+	sony_drive_info(void *fh_, bool ro) : num(0), fh(fh_), read_only(ro), status(0) {}
 
-	DriveInfo *next;	// Pointer to next DriveInfo (must be first in struct!)
+	void close_fh(void) { Sys_close(fh); }
+
 	int num;			// Drive number
 	void *fh;			// Floppy driver file handle
 	bool to_be_mounted;	// Flag: drive must be mounted in accRun
@@ -118,8 +118,9 @@ struct DriveInfo {
 	uint32 status;		// Mac address of drive status record
 };
 
-// Linked list of DriveInfos
-static DriveInfo *first_drive_info;
+// List of drives handled by this driver
+typedef vector<sony_drive_info> drive_vec;
+static drive_vec drives;
 
 // Icon addresses (Mac address space, set by PatchROM())
 uint32 SonyDiskIconAddr;
@@ -130,18 +131,17 @@ static bool acc_run_called = false;
 
 
 /*
- *  Get pointer to drive info, NULL = invalid drive number
+ *  Get reference to drive info or drives.end() if not found
  */
 
-static DriveInfo *get_drive_info(int num)
+static drive_vec::iterator get_drive_info(int num)
 {
-	DriveInfo *info = first_drive_info;
-	while (info != NULL) {
+	drive_vec::iterator info, end = drives.end();
+	for (info = drives.begin(); info != end; ++info) {
 		if (info->num == num)
 			return info;
-		info = info->next;
 	}
-	return NULL;
+	return info;
 }
 
 
@@ -151,14 +151,12 @@ static DriveInfo *get_drive_info(int num)
 
 void SonyInit(void)
 {
-	first_drive_info = NULL;
-
 	// No drives specified in prefs? Then add defaults
 	if (PrefsFindString("floppy", 0) == NULL)
 		SysAddFloppyPrefs();
 
 	// Add drives specified in preferences
-	int32 index = 0;
+	int index = 0;
 	const char *str;
 	while ((str = PrefsFindString("floppy", index++)) != NULL) {
 		bool read_only = false;
@@ -167,15 +165,8 @@ void SonyInit(void)
 			str++;
 		}
 		void *fh = Sys_open(str, read_only);
-		if (fh) {
-			DriveInfo *info = new DriveInfo;
-			info->fh = fh;
-			info->read_only = SysIsReadOnly(fh);
-			DriveInfo *p = (DriveInfo *)&first_drive_info;
-			while (p->next != NULL)
-				p = p->next;
-			p->next = info;
-		}
+		if (fh)
+			drives.push_back(sony_drive_info(fh, SysIsReadOnly(fh)));
 	}
 }
 
@@ -186,13 +177,10 @@ void SonyInit(void)
 
 void SonyExit(void)
 {
-	DriveInfo *info = first_drive_info, *next;
-	while (info != NULL) {
-		Sys_close(info->fh);
-		next = info->next;
-		delete info;
-		info = next;
-	}
+	drive_vec::iterator info, end = drives.end();
+	for (info = drives.begin(); info != end; ++info)
+		info->close_fh();
+	drives.clear();
 }
 
 
@@ -202,9 +190,10 @@ void SonyExit(void)
 
 bool SonyMountVolume(void *fh)
 {
-	DriveInfo *info;
-	for (info = first_drive_info; info != NULL && info->fh != fh; info = info->next) ;
-	if (info) {
+	drive_vec::iterator info = drives.begin(), end = drives.end();
+	while (info != end && info->fh != fh)
+		++info;
+	if (info != end) {
 		if (SysIsDiskInserted(info->fh)) {
 			info->read_only = SysIsReadOnly(info->fh);
 			WriteMacInt8(info->status + dsDiskInPlace, 1);	// Inserted removable disk
@@ -224,8 +213,8 @@ bool SonyMountVolume(void *fh)
 
 static void mount_mountable_volumes(void)
 {
-	DriveInfo *info = first_drive_info;
-	while (info != NULL) {
+	drive_vec::iterator info, end = drives.end();
+	for (info = drives.begin(); info != end; ++info) {
 
 #if DISK_INSERT_CHECK
 		// Disk in drive?
@@ -246,8 +235,6 @@ static void mount_mountable_volumes(void)
 			Execute68kTrap(0xa02f, &r);		// PostEvent()
 			info->to_be_mounted = false;
 		}
-
-		info = info->next;
 	}
 }
 
@@ -287,7 +274,8 @@ int16 SonyOpen(uint32 pb, uint32 dce)
 	set_dsk_err(0);
 
 	// Install drives
-	for (DriveInfo *info = first_drive_info; info; info = info->next) {
+	drive_vec::iterator info, end = drives.end();
+	for (info = drives.begin(); info != end; ++info) {
 
 		info->num = FindFreeDriveNumber(1);
 		info->to_be_mounted = false;
@@ -341,8 +329,8 @@ int16 SonyPrime(uint32 pb, uint32 dce)
 	WriteMacInt32(pb + ioActCount, 0);
 
 	// Drive valid and disk inserted?
-	DriveInfo *info;
-	if ((info = get_drive_info(ReadMacInt16(pb + ioVRefNum))) == NULL)
+	drive_vec::iterator info = get_drive_info(ReadMacInt16(pb + ioVRefNum));
+	if (info == drives.end())
 		return set_dsk_err(nsDrvErr);
 	if (!ReadMacInt8(info->status + dsDiskInPlace))
 		return set_dsk_err(offLinErr);
@@ -411,8 +399,8 @@ int16 SonyControl(uint32 pb, uint32 dce)
 	}
 
 	// Drive valid?
-	DriveInfo *info;
-	if ((info = get_drive_info(ReadMacInt16(pb + ioVRefNum))) == NULL)
+	drive_vec::iterator info = get_drive_info(ReadMacInt16(pb + ioVRefNum));
+	if (info == drives.end())
 		return set_dsk_err(nsDrvErr);
 
 	// Drive-specific codes
@@ -492,8 +480,8 @@ int16 SonyStatus(uint32 pb, uint32 dce)
 	D(bug("SonyStatus %d\n", code));
 
 	// Drive valid?
-	DriveInfo *info;
-	if ((info = get_drive_info(ReadMacInt16(pb + ioVRefNum))) == NULL)
+	drive_vec::iterator info = get_drive_info(ReadMacInt16(pb + ioVRefNum));
+	if (info == drives.end())
 		return set_dsk_err(nsDrvErr);
 
 	int16 err = noErr;
