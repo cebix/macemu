@@ -29,50 +29,21 @@
 #include "sigsegv.h"
 #include "vm_alloc.h"
 
-// Glue for SheepShaver and BasiliskII
-#if POWERPC_ROM
-enum {
-  VIDEO_DEPTH_1BIT = APPLE_1_BIT,
-  VIDEO_DEPTH_2BIT = APPLE_2_BIT,
-  VIDEO_DEPTH_4BIT = APPLE_4_BIT,
-  VIDEO_DEPTH_8BIT = APPLE_8_BIT,
-  VIDEO_DEPTH_16BIT = APPLE_16_BIT,
-  VIDEO_DEPTH_32BIT = APPLE_32_BIT
-};
-#else
-enum {
-  VIDEO_DEPTH_1BIT = VDEPTH_1BIT,
-  VIDEO_DEPTH_2BIT = VDEPTH_2BIT,
-  VIDEO_DEPTH_4BIT = VDEPTH_4BIT,
-  VIDEO_DEPTH_8BIT = VDEPTH_8BIT,
-  VIDEO_DEPTH_16BIT = VDEPTH_16BIT,
-  VIDEO_DEPTH_32BIT = VDEPTH_32BIT
-};
-#endif
+// Glue for SDL and X11 support
 #ifdef USE_SDL_VIDEO
 #define MONITOR_INIT			SDL_monitor_desc &monitor
 #define VIDEO_DRV_INIT			driver_window *drv
 #define VIDEO_DRV_ROW_BYTES		drv->s->pitch
 #define VIDEO_DRV_LOCK_PIXELS	if (SDL_MUSTLOCK(drv->s)) SDL_LockSurface(drv->s)
 #define VIDEO_DRV_UNLOCK_PIXELS	if (SDL_MUSTLOCK(drv->s)) SDL_UnlockSurface(drv->s)
-#define VIDEO_MODE_INIT			video_mode const & mode = drv->mode
-#define VIDEO_MODE_ROW_BYTES	mode.bytes_per_row
-#define VIDEO_MODE_X			mode.x
-#define VIDEO_MODE_Y			mode.y
-#define VIDEO_MODE_DEPTH		(int)mode.depth
 #else
-#if POWERPC_ROM
+#ifdef SHEEPSHAVER
 #define MONITOR_INIT			/* nothing */
 #define VIDEO_DRV_INIT			/* nothing */
 #define VIDEO_DRV_WINDOW		the_win
 #define VIDEO_DRV_GC			the_gc
 #define VIDEO_DRV_IMAGE			img
 #define VIDEO_DRV_HAVE_SHM		have_shm
-#define VIDEO_MODE_INIT			VideoInfo const & mode = VModes[cur_mode]
-#define VIDEO_MODE_ROW_BYTES	mode.viRowBytes
-#define VIDEO_MODE_X			mode.viXsize
-#define VIDEO_MODE_Y			mode.viYsize
-#define VIDEO_MODE_DEPTH		mode.viAppleMode
 #else
 #define MONITOR_INIT			X11_monitor_desc &monitor
 #define VIDEO_DRV_INIT			driver_window *drv
@@ -80,11 +51,6 @@ enum {
 #define VIDEO_DRV_GC			drv->gc
 #define VIDEO_DRV_IMAGE			drv->img
 #define VIDEO_DRV_HAVE_SHM		drv->have_shm
-#define VIDEO_MODE_INIT			video_mode const & mode = drv->mode
-#define VIDEO_MODE_ROW_BYTES	mode.bytes_per_row
-#define VIDEO_MODE_X			mode.x
-#define VIDEO_MODE_Y			mode.y
-#define VIDEO_MODE_DEPTH		(int)mode.depth
 #endif
 #define VIDEO_DRV_LOCK_PIXELS	/* nothing */
 #define VIDEO_DRV_UNLOCK_PIXELS	/* nothing */
