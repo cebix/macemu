@@ -3,13 +3,10 @@
 
 1) Install the OS X Development tools
 
-   Source should build on 10.0 thru 10.2
+   Source should build on 10.0 thru 10.2, and should be OK with 10.3
    (If anyone wants a version that will compile on Public Beta, email me)
 
-2) If grabbing this source from a tarball, put this MacOSX directory in
-   BasiliskII-1.0/src. The tarball is currently only compatible with the
-   BasiliskII_src_15012002.tar.gz (1.0) snapshot.
-   Open a Terminal, and cd to BasiliskII-1.0/src/MacOSX
+2) Open a Terminal, and cd to BasiliskII-1.0/src/MacOSX
 
 3) sh 1_prepare_files.sh
 
