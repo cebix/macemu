@@ -1120,13 +1120,13 @@ LENDFUNC(NONE,NONE,2,raw_xchg_l_rr,(RW4 r1, RW4 r2))
 
 LOWFUNC(READ,WRITE,0,raw_pushfl,(void))
 {
-	PUSHFD();
+	PUSHF();
 }
 LENDFUNC(READ,WRITE,0,raw_pushfl,(void))
 
 LOWFUNC(WRITE,READ,0,raw_popfl,(void))
 {
-	POPFD();
+	POPF();
 }
 LENDFUNC(WRITE,READ,0,raw_popfl,(void))
 
