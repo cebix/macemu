@@ -469,21 +469,24 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 			break;
 		}
 		// Could we fully translate this NativeOp?
-		if (FN_field::test(opcode)) {
-			if (status != COMPILE_FAILURE) {
+		if (status == COMPILE_CODE_OK) {
+			if (!FN_field::test(opcode))
+				cg_context.done_compile = false;
+			else {
 				dg.gen_load_A0_LR();
 				dg.gen_set_PC_A0();
+				cg_context.done_compile = true;
 			}
-			cg_context.done_compile = true;
-			break;
-		}
-		else if (status != COMPILE_FAILURE) {
-			cg_context.done_compile = false;
 			break;
 		}
 #if PPC_REENTRANT_JIT
 		// Try to execute NativeOp trampoline
-		dg.gen_set_PC_im(cg_context.pc + 4);
+		if (!FN_field::test(opcode))
+			dg.gen_set_PC_im(cg_context.pc + 4);
+		else {
+			dg.gen_load_A0_LR();
+			dg.gen_set_PC_A0();
+		}
 		dg.gen_mov_32_T0_im(selector);
 		dg.gen_jmp(native_op_trampoline);
 		cg_context.done_compile = true;
@@ -491,11 +494,15 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 		break;
 #endif
 		// Invoke NativeOp handler
-		typedef void (*func_t)(dyngen_cpu_base, uint32);
-		func_t func = (func_t)nv_mem_fun(&sheepshaver_cpu::execute_native_op).ptr();
-		dg.gen_invoke_CPU_im(func, selector);
-		cg_context.done_compile = false;
-		status = COMPILE_CODE_OK;
+		if (!FN_field::test(opcode)) {
+			typedef void (*func_t)(dyngen_cpu_base, uint32);
+			func_t func = (func_t)nv_mem_fun(&sheepshaver_cpu::execute_native_op).ptr();
+			dg.gen_invoke_CPU_im(func, selector);
+			cg_context.done_compile = false;
+			status = COMPILE_CODE_OK;
+		}
+		// Otherwise, let it generate a call to execute_sheep() which
+		// will cause necessary updates to the program counter
 		break;
 	}
 
