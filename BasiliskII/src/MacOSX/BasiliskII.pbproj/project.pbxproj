@@ -1630,7 +1630,7 @@
 				HEADER_SEARCH_PATHS = "";
 				INSTALL_PATH = "$(HOME)/Applications";
 				LIBRARY_SEARCH_PATHS = "";
-				OTHER_CFLAGS = "";
+				OTHER_CFLAGS = "-I../uae_cpu";
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = BasiliskII;
 				SECTORDER_FLAGS = "";
