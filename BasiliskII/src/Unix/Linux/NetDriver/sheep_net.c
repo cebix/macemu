@@ -21,29 +21,32 @@
 #include <linux/module.h>
 #include <linux/version.h>
 
-#ifdef CONFIG_MODVERSIONS
+#if CONFIG_MODVERSIONS == 1
 #define MODVERSIONS
 #include <linux/modversions.h>
 #endif
 
-#ifdef CONFIG_SMP
+#if CONFIG_SMP == 1
 #define __SMP__
 #endif
+
+#include <linux/sched.h>
+#include <linux/types.h>
+#include <linux/in.h>
+#include <linux/fs.h>
+#include <asm/uaccess.h>
 
 #include <linux/miscdevice.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
-#include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/init.h>
-#include <linux/in.h>
 #include <linux/wait.h>
 #include <net/sock.h>
 #include <net/arp.h>
 #include <net/ip.h>
-#include <asm/uaccess.h>
 
 MODULE_AUTHOR("Christian Bauer");
 MODULE_DESCRIPTION("Pseudo ethernet device for emulators");

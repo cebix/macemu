@@ -209,12 +209,23 @@ static bool find_visual_for_depth(video_depth depth)
 {
 	D(bug("have_visual_for_depth(%d)\n", 1 << depth));
 
+	// 1-bit works always and uses default visual
+	if (depth == VDEPTH_1BIT) {
+		vis = DefaultVisual(x_display, screen);
+		visualInfo.visualid = XVisualIDFromVisual(vis);
+		int num = 0;
+		XVisualInfo *vi = XGetVisualInfo(x_display, VisualIDMask, &visualInfo, &num);
+		visualInfo = vi[0];
+		XFree(vi);
+		xdepth = visualInfo.depth;
+		color_class = visualInfo.c_class;
+		D(bug(" found visual ID 0x%02x, depth %d\n", visualInfo.visualid, xdepth));
+		return true;
+	}
+
 	// Calculate minimum and maximum supported X depth
 	int min_depth = 1, max_depth = 32;
 	switch (depth) {
-		case VDEPTH_1BIT:	// 1-bit works always and uses default visual
-			min_depth = max_depth = DefaultDepth(x_display, screen);
-			break;
 #ifdef ENABLE_VOSF
 		case VDEPTH_2BIT:
 		case VDEPTH_4BIT:	// VOSF blitters can convert 2/4/8-bit -> 8/16/32-bit
@@ -513,14 +524,17 @@ driver_base::~driver_base()
 #ifdef ENABLE_VOSF
 	else {
 		if (the_host_buffer) {
+			D(bug(" freeing the_host_buffer at %p\n", the_host_buffer));
 			free(the_host_buffer);
 			the_host_buffer = NULL;
 		}
 		if (the_buffer) {
+			D(bug(" freeing the_buffer at %p\n", the_buffer));
 			free(the_buffer);
 			the_buffer = NULL;
 		}
 		if (the_buffer_copy) {
+			D(bug(" freeing the_buffer_copy at %p\n", the_buffer_copy));
 			free(the_buffer_copy);
 			the_buffer_copy = NULL;
 		}
@@ -579,6 +593,7 @@ driver_window::driver_window(const video_mode &mode)
 	wattr.colormap = (mode.depth == VDEPTH_1BIT ? DefaultColormap(x_display, screen) : cmap[0]);
 	w = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
 		InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel | CWColormap, &wattr);
+	D(bug(" window created\n"));
 
 	// Set window name/class
 	set_window_name(w, STR_WINDOW_TITLE);
@@ -602,10 +617,12 @@ driver_window::driver_window(const video_mode &mode)
 			XFree(hints);
 		}
 	}
+	D(bug(" window attributes set\n"));
 	
 	// Show window
 	XMapWindow(x_display, w);
 	wait_mapped(w);
+	D(bug(" window mapped\n"));
 
 	// 1-bit mode is big-endian; if the X server is little-endian, we can't
 	// use SHM because that doesn't allow changing the image byte order
@@ -616,6 +633,7 @@ driver_window::driver_window(const video_mode &mode)
 
 		// Create SHM image ("height + 2" for safety)
 		img = XShmCreateImage(x_display, vis, mode.depth == VDEPTH_1BIT ? 1 : xdepth, mode.depth == VDEPTH_1BIT ? XYBitmap : ZPixmap, 0, &shminfo, width, height);
+		D(bug(" shm image created\n"));
 		shminfo.shmid = shmget(IPC_PRIVATE, (aligned_height + 2) * img->bytes_per_line, IPC_CREAT | 0777);
 		the_buffer_copy = (uint8 *)shmat(shminfo.shmid, 0, 0);
 		shminfo.shmaddr = img->data = (char *)the_buffer_copy;
@@ -636,6 +654,7 @@ driver_window::driver_window(const video_mode &mode)
 			have_shm = true;
 			shmctl(shminfo.shmid, IPC_RMID, 0);
 		}
+		D(bug(" shm image attached\n"));
 	}
 	
 	// Create normal X image if SHM doesn't work ("height + 2" for safety)
@@ -643,6 +662,7 @@ driver_window::driver_window(const video_mode &mode)
 		int bytes_per_row = (mode.depth == VDEPTH_1BIT ? aligned_width/8 : TrivialBytesPerRow(aligned_width, DepthModeForPixelDepth(xdepth)));
 		the_buffer_copy = (uint8 *)malloc((aligned_height + 2) * bytes_per_row);
 		img = XCreateImage(x_display, vis, mode.depth == VDEPTH_1BIT ? 1 : xdepth, mode.depth == VDEPTH_1BIT ? XYBitmap : ZPixmap, 0, (char *)the_buffer_copy, aligned_width, aligned_height, 32, bytes_per_row);
+		D(bug(" X image created\n"));
 	}
 
 	if (need_msb_image) {
@@ -709,17 +729,22 @@ driver_window::~driver_window()
 	if (use_vosf) {
 		// don't free() memory mapped buffers in driver_base dtor
 		if (the_buffer != VM_MAP_FAILED) {
+			D(bug(" releasing the_buffer at %p\n", the_buffer));
 			vm_release(the_buffer, the_buffer_size);
 			the_buffer = NULL;
 		}
 		if (the_buffer_copy != VM_MAP_FAILED) {
+			D(bug(" releasing the_buffer_copy at %p\n", the_buffer_copy));
 			vm_release(the_buffer_copy, the_buffer_size);
 			the_buffer_copy = NULL;
 		}
 	}
 #endif
-	if (img)
+	if (img) {
+		if (!have_shm)
+			img->data = NULL;
 		XDestroyImage(img);
+	}
 	if (have_shm) {
 		shmdt(shminfo.shmaddr);
 		shmctl(shminfo.shmid, IPC_RMID, 0);
@@ -1339,6 +1364,8 @@ static void keycode_init(void)
 // Open display for specified mode
 static bool video_open(const video_mode &mode)
 {
+	D(bug("video_open()\n"));
+
 	// Find best available X visual
 	if (!find_visual_for_depth(mode.depth)) {
 		ErrorAlert(STR_NO_XVISUAL_ERR);
@@ -1637,6 +1664,8 @@ bool VideoInit(bool classic)
 // Close display
 static void video_close(void)
 {
+	D(bug("video_close()\n"));
+
 	// Stop redraw thread
 #ifdef HAVE_PTHREADS
 	if (redraw_thread_active) {
@@ -1652,6 +1681,7 @@ static void video_close(void)
 	// Unlock frame buffer
 	UNLOCK_FRAME_BUFFER;
 	XSync(x_display, false);
+	D(bug(" frame buffer unlocked\n"));
 
 #ifdef ENABLE_VOSF
 	if (use_vosf) {

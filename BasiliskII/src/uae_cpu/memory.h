@@ -119,6 +119,7 @@ const uintptr MEMBaseDiff = 0;
 extern uintptr MEMBaseDiff;
 #endif
 
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
 static __inline__ uae_u8 *do_get_real_address(uaecptr addr)
 {
 	return (uae_u8 *)MEMBaseDiff + addr;
@@ -127,8 +128,6 @@ static __inline__ uae_u32 do_get_virtual_address(uae_u8 *addr)
 {
 	return (uintptr)addr - MEMBaseDiff;
 }
-
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
 static __inline__ uae_u32 get_long(uaecptr addr)
 {
     uae_u32 * const m = (uae_u32 *)do_get_real_address(addr);

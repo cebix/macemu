@@ -1,7 +1,7 @@
 /*
- *  asm_support.s - Utility functions in assemmbly language (for native 68k support)
+ *  asm_support.s - Utility functions in assembly language (for native 68k support)
  *
- *  Basilisk II (C) 1997-1999 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

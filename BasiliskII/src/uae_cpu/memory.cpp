@@ -556,11 +556,6 @@ addrbank frame_host_888_bank = {
     frame_xlate, frame_check
 };
 
-void InitFrameBufferMapping(void)
-{
-
-}
-
 void memory_init(void)
 {
 	for(long i=0; i<65536; i++)
