@@ -35,3 +35,19 @@
 5) From the Build menu, choose 'Build' or 'Build & Run'
 
    This should build everything
+
+
+
+Notes:
+
+1) Compiling cpuemu.cpp takes 58 seconds on my 384MB G4 400.
+   Compiling it as separate files (cpuemu1.cpp thru cpuemu8.cpp)
+   takes 68 seconds on the same machine. If you have less RAM,
+   it may be faster to compile it as separate files.
+
+2) For some reason, compiling on 10.2 with DIRECT_ADDRESSING 1
+   results in an executable that cannot write to the screen.
+
+3) If you want to change the REAL_ADDRESSING or DIRECT_ADDRESSING
+   defaults in sysdeps.h, you will need to reconfigure.
+   (i.e. make distclean; sh 1_prepare_files.sh)
