@@ -28,8 +28,10 @@
 class basic_jit_cache
 {
 	// Default cache size (2 MB)
+public:
 	static const uint32 JIT_CACHE_SIZE = 2 * 1024 * 1024;
 	static const uint32 JIT_CACHE_SIZE_GUARD = 4096;
+private:
 	uint32 cache_size;
 
 	// Translation cache (allocated base, current pointer, end pointer)
