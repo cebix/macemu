@@ -22,6 +22,7 @@ LIBS = @LIBS@
 SYSSRCS = @SYSSRCS@
 CPUSRCS = @CPUSRCS@
 DYNGENSRCS = @DYNGENSRCS@
+DYNGEN_CC = @DYNGEN_CC@
 DYNGEN_OP_FLAGS = @DYNGEN_OP_FLAGS@
 BLESS = @BLESS@
 INSTALL = @INSTALL@
@@ -118,13 +119,13 @@ dyngen: $(DYNGENOBJS)
 
 $(OBJ_DIR)/basic-dyngen.o: basic-dyngen-ops.hpp
 $(OBJ_DIR)/basic-dyngen-ops.o: ../kpx_cpu/src/cpu/jit/basic-dyngen-ops.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
+	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
 basic-dyngen-ops.hpp: $(OBJ_DIR)/basic-dyngen-ops.o dyngen
 	./dyngen -o $@ $<
 
 $(OBJ_DIR)/ppc-dyngen.o: ppc-dyngen-ops.hpp
 $(OBJ_DIR)/ppc-dyngen-ops.o: ../kpx_cpu/src/cpu/ppc/ppc-dyngen-ops.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
+	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
 ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o dyngen
 	./dyngen -o $@ $<
 
