@@ -37,12 +37,18 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
+#ifdef __WIN32__
 #include <windows.h>
+#endif
+#include <sys/types.h>
+
 
 // Define for external components
 #define SHEEPSHAVER 1
 #define POWERPC_ROM 1
 #define EMULATED_PPC 1
+#define CONFIG_WIN32 1
 
 // Use Direct Addressing mode
 #define DIRECT_ADDRESSING 1
@@ -378,7 +384,9 @@ extern uint32 call_macos7(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, u
 #endif
 
 // Misc platform specific definitions
+#ifdef __WIN32__
 typedef int64 loff_t;
+#endif
 #define ATTRIBUTE_PACKED __attribute__((__packed__))
 
 #endif

@@ -14,6 +14,7 @@ man1dir = $(mandir)/man1
 DESTDIR =
 
 LN_S = @LN_S@
+WINDRES = @WINDRES@
 CC = @CC@
 CXX = @CXX@
 CFLAGS = @CFLAGS@
@@ -115,7 +116,7 @@ $(OBJ_DIR)/%.o : %.S
 
 # Windows resources
 $(OBJ_DIR)/%.o: %.rc
-	windres --include-dir ../Windows -i $< -o $@
+	$(WINDRES) --include-dir ../Windows -i $< -o $@
 
 # Kheperix CPU emulator
 kpxsrcdir = ../kpx_cpu/src
@@ -126,7 +127,7 @@ ifeq ($(USE_DYNGEN),yes)
 DYNGENDEPS = basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 
 $(DYNGEN): $(DYNGENOBJS)
-	$(CXX) -o $@ $(LDFLAGS) $(DYNGENOBJS)
+	$(HOST_CXX) -o $@ $(LDFLAGS) $(DYNGENOBJS)
 
 $(OBJ_DIR)/basic-dyngen.o: basic-dyngen-ops.hpp
 $(OBJ_DIR)/basic-dyngen-ops.o: $(kpxsrcdir)/cpu/jit/basic-dyngen-ops.cpp

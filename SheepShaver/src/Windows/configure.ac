@@ -22,6 +22,7 @@ AC_PROG_MAKE_SET
 AC_PROG_EGREP
 AC_PROG_LN_S
 AC_PATH_PROG(PERL, [perl])
+AC_CHECK_TOOL(WINDRES, windres)
 
 dnl We use 64-bit file size support if possible.
 AC_SYS_LARGEFILE
@@ -41,6 +42,7 @@ AC_CHECK_SIZEOF(float, 4)
 AC_CHECK_SIZEOF(double, 8)
 AC_CHECK_SIZEOF(void *, 4)
 AC_TYPE_OFF_T
+AC_CHECK_TYPES(loff_t)
 AC_TYPE_SIZE_T
 
 dnl Checks for library functions.
@@ -129,8 +131,8 @@ AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
     #include "../Unix/vm_alloc.cpp"
     #include "../Unix/sigsegv.cpp"
   ], ac_cv_have_skip_instruction=yes, ac_cv_have_skip_instruction=no,
-  dnl When cross-compiling, do not assume anything.
-  ac_cv_have_skip_instruction=no
+  dnl When cross-compiling, assume it works
+  ac_cv_have_skip_instruction="yes"
   )
   AC_LANG_RESTORE
   ]
@@ -199,7 +201,7 @@ fi
 CPUSRCS="$CPUSRCS ../kpx_cpu/sheepshaver_glue.cpp"
 
 dnl We really want SDL for now
-AC_PATH_PROG(sdl_config, "sdl-config", [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
+AC_CHECK_TOOL(sdl_config, sdl-config, [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
 sdl_cflags=`$sdl_config --cflags`
 sdl_libs=`$sdl_config --libs`
 CFLAGS="$CFLAGS $sdl_cflags"
