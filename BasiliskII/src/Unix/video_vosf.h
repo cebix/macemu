@@ -75,6 +75,7 @@ struct ScreenInfo {
     uint32 pageCount;			// Number of pages allocated to the screen
     
 	bool dirty;					// Flag: set if the frame buffer was touched
+	bool very_dirty;			// Flag: set if the frame buffer was completely modified (e.g. colormap changes)
     char * dirtyPages;			// Table of flags set if page was altered
     ScreenPageInfo * pageInfo;	// Table of mappings page -> Mac scanlines
 };
@@ -120,6 +121,11 @@ static ScreenInfo mainBuffer;
 #define PFLAG_CLEAR_ALL do { \
 	PFLAG_CLEAR_RANGE(0, mainBuffer.pageCount); \
 	mainBuffer.dirty = false; \
+	mainBuffer.very_dirty = false; \
+} while (0)
+
+#define PFLAG_SET_VERY_DIRTY do { \
+	mainBuffer.very_dirty = true; \
 } while (0)
 
 // Set the following macro definition to 1 if your system
@@ -429,9 +435,17 @@ static inline void update_display_dga_vosf(void)
 {
 	VIDEO_MODE_INIT;
 
-	int i, j;
-	int page = 0;
+	if (mainBuffer.very_dirty) {
+		PFLAG_CLEAR_ALL;
+		vm_protect((char *)mainBuffer.memStart, mainBuffer.memLength, VM_PAGE_READ);
+		VIDEO_DRV_LOCK_PIXELS;
+		memcpy(the_buffer_copy, the_buffer, VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y);
+		Screen_blit(the_host_buffer, the_buffer, VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y);
+		VIDEO_DRV_UNLOCK_PIXELS;
+		return;
+	}
 
+	int page = 0;
 	for (;;) {
 		const unsigned first_page = find_next_page_set(page);
 		if (first_page >= mainBuffer.pageCount)
@@ -445,17 +459,51 @@ static inline void update_display_dga_vosf(void)
 		const uint32 length = (page - first_page) << mainBuffer.pageBits;
 		vm_protect((char *)mainBuffer.memStart + offset, length, VM_PAGE_READ);
 		
-		// I am sure that y2 >= y1 and depth != 1
+		// There is at least one line to update
 		const int y1 = mainBuffer.pageInfo[first_page].top;
 		const int y2 = mainBuffer.pageInfo[page - 1].bottom;
 
+#ifndef USE_SDL_VIDEO
+		// Update the_host_buffer and copy of the_buffer (use 64 bytes chunks)
+		const int src_bytes_per_row = VIDEO_MODE_ROW_BYTES;
+		const int dst_bytes_per_row = the_host_buffer_row_bytes;
+		const int n_pixels = 64;
+		const int n_chunks = VIDEO_MODE_X / n_pixels;
+		const int src_chunk_size = src_bytes_per_row / n_chunks;
+		const int dst_chunk_size = dst_bytes_per_row / n_chunks;
+		const int src_chunk_size_left = src_bytes_per_row - (n_chunks * src_chunk_size);
+		const int dst_chunk_size_left = dst_bytes_per_row - (n_chunks * dst_chunk_size);
+		int i1 = y1 * src_bytes_per_row;
+		int i2 = y1 * dst_bytes_per_row;
+		VIDEO_DRV_LOCK_PIXELS;
+		for (int j = y1; j <= y2; j++) {
+			for (int i = 0; i < n_chunks; i++) {
+				if (memcmp(the_buffer_copy + i1, the_buffer + i1, src_chunk_size) != 0) {
+					memcpy(the_buffer_copy + i1, the_buffer + i1, src_chunk_size);
+					Screen_blit(the_host_buffer + i2, the_buffer + i1, src_chunk_size);
+				}
+				i1 += src_chunk_size;
+				i2 += dst_chunk_size;
+			}
+			if (src_chunk_size_left && dst_chunk_size_left) {
+				if (memcmp(the_buffer_copy + i1, the_buffer + i1, src_chunk_size_left) != 0) {
+					memcpy(the_buffer_copy + i1, the_buffer + i1, src_chunk_size_left);
+					Screen_blit(the_host_buffer + i2, the_buffer + i1, src_chunk_size_left);
+				}
+				i1 += src_chunk_size_left;
+				i2 += dst_chunk_size_left;
+			}
+		}
+		VIDEO_DRV_UNLOCK_PIXELS;
+#else
 		// Check for first chunk from left and first chunk from right that have changed
 		typedef uint64 chunk_t;
 		const int chunk_size = sizeof(chunk_t);
 		const int bytes_per_row = VIDEO_MODE_ROW_BYTES;
-		assert((bytes_per_row % chunk_size) == 0);
 
+		int i, j;
 		int b1 = bytes_per_row / chunk_size;
+		int b2 = 0;
 		for (j = y1; j <= y2; j++) {
 			chunk_t * const p1 = (chunk_t *)(the_buffer + (j * bytes_per_row));
 			chunk_t * const p2 = (chunk_t *)(the_buffer_copy + (j * bytes_per_row));
@@ -465,12 +513,8 @@ static inline void update_display_dga_vosf(void)
 					break;
 				}
 			}
-		}
-
-		int b2 = b1;
-		for (j = y2; j >= y1; j--) {
-			chunk_t * const p1 = (chunk_t *)(the_buffer + (j * bytes_per_row));
-			chunk_t * const p2 = (chunk_t *)(the_buffer_copy + (j * bytes_per_row));
+			if (b1 > b2)
+				b2 = b1;
 			for (i = (bytes_per_row / chunk_size) - 1; i > b2; i--) {
 				if (p1[i] != p2[i]) {
 					b2 = i;
@@ -517,6 +561,7 @@ static inline void update_display_dga_vosf(void)
 			i2 += dst_bytes_per_row;
 		}
 		VIDEO_DRV_UNLOCK_PIXELS;
+#endif
 	}
 	mainBuffer.dirty = false;
 }
