@@ -18,6 +18,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <vector>
 #include <stdio.h>
 #include <stdlib.h>
 #include <netinet/in.h> // ntohl(), htonl()
@@ -45,6 +46,14 @@ typedef unsigned long uintptr;
 #include "mon_disass.h"
 #endif
 
+// Define units to test (in-order: ALU, FPU, VMX)
+#define TEST_ALU_OPS	1
+#if EMU_KHEPERIX
+#define TEST_FPU_OPS	1
+#define TEST_VMX_OPS	1
+#endif
+
+// Define instructions to test
 #define TEST_ADD		1
 #define TEST_SUB		1
 #define TEST_MUL		1
@@ -280,8 +289,13 @@ typedef bit_field< 16, 20 > SH_field;
 typedef bit_field<  0,  0 > XER_SO_field;
 typedef bit_field<  1,  1 > XER_OV_field;
 typedef bit_field<  2,  2 > XER_CA_field;
-typedef bit_field< 25, 31 > XER_COUNT_field;
 #endif
+#undef  CA
+#define CA XER_CA_field::mask()
+#undef  OV
+#define OV XER_OV_field::mask()
+#undef  SO
+#define SO XER_SO_field::mask()
 
 // Define PowerPC tester
 class powerpc_test_cpu
@@ -304,6 +318,7 @@ class powerpc_test_cpu
 	void flush_icache_range(uint32 *start, uint32 size)
 		{ invalidate_cache(); ::flush_icache_range(start, size); }
 
+	void print_xer_flags(uint32 xer) const;
 	void print_flags(uint32 cr, uint32 xer, int crf = 0) const;
 	void execute(uint32 *code);
 
@@ -331,6 +346,10 @@ private:
 	uint32 init_cr;
 	uint32 init_xer;
 
+	// XER preset values to test with
+	std::vector<uint32> xer_values;
+	void gen_xer_values(uint32 use_mask, uint32 set_mask);
+
 	// Emulated registers IDs
 	enum {
 		RD = 3,
@@ -342,6 +361,7 @@ private:
 	static const uint32 imm_values[];
 	static const uint32 msk_values[];
 
+	void test_one_1(uint32 *code, const char *insn, uint32 a1, uint32 a2, uint32 a3, uint32 a0 = 0);
 	void test_one(uint32 *code, const char *insn, uint32 a1, uint32 a2, uint32 a3, uint32 a0 = 0);
 	void test_instruction_CNTLZ(const char *insn, uint32 opcode);
 	void test_instruction_RR___(const char *insn, uint32 opcode);
@@ -437,6 +457,40 @@ void powerpc_test_cpu::execute(uint32 *code_p)
 	powerpc_cpu_base::execute((uintptr)code);
 }
 
+void powerpc_test_cpu::gen_xer_values(uint32 use_mask, uint32 set_mask)
+{
+	const uint32 mask = use_mask | set_mask;
+
+	// Always test with XER=0
+	xer_values.clear();
+	xer_values.push_back(0);
+
+	// Iterate over XER fields, only handle CA, OV, SO
+	for (uint32 m = 0x80000000; m != 0; m >>= 1) {
+		if (m & (CA | OV | SO) & mask) {
+			const int n_xer_values = xer_values.size();
+			for (int i = 0; i < n_xer_values; i++)
+				xer_values.push_back(xer_values[i] | m);
+		}
+	}
+
+#if 0
+	printf("%d XER values\n", xer_values.size());
+	for (int i = 0; i < xer_values.size(); i++) {
+		print_xer_flags(xer_values[i]);
+		printf("\n");
+	}
+#endif
+}
+
+void powerpc_test_cpu::print_xer_flags(uint32 xer) const
+{
+	printf("%s,%s,%s",
+		   (xer & XER_CA_field::mask() ? "CA" : "__"),
+		   (xer & XER_OV_field::mask() ? "OV" : "__"),
+		   (xer & XER_SO_field::mask() ? "SO" : "__"));
+}
+
 void powerpc_test_cpu::print_flags(uint32 cr, uint32 xer, int crf) const
 {
 	cr = cr << (4 * crf);
@@ -455,6 +509,17 @@ void powerpc_test_cpu::print_flags(uint32 cr, uint32 xer, int crf) const
 } while (0)
 
 void powerpc_test_cpu::test_one(uint32 *code, const char *insn, uint32 a1, uint32 a2, uint32 a3, uint32 a0)
+{
+	// Iterate over test XER values as input
+	const int n_xer_values = xer_values.size();
+	for (int i = 0; i < n_xer_values; i++) {
+		init_xer = xer_values[i];
+		test_one_1(code, insn, a1, a2, a3, a0);
+	}
+	init_xer = 0;
+}
+
+void powerpc_test_cpu::test_one_1(uint32 *code, const char *insn, uint32 a1, uint32 a2, uint32 a3, uint32 a0)
 {
 #if defined(__powerpc__)
 	// Invoke native code
@@ -870,87 +935,78 @@ void powerpc_test_cpu::test_instruction_CCC__(const char *insn, uint32 opcode)
 void powerpc_test_cpu::test_add(void)
 {
 #if TEST_ADD
-	const int n_xer_values = 3;
-	uint32 xer_values[n_xer_values];
-	xer_values[0] = init_xer;
-	xer_values[1] = init_xer | XER_OV_field::mask();
-	xer_values[2] = init_xer | XER_CA_field::mask();
-
-	// Iterate over some specific XER values so that we make sure we
-	// only update them when actually needed
-	for (int i = 0; i < n_xer_values; i++) {
-		const uint32 saved_xer = init_xer;
-		init_xer = xer_values[i];
-		TEST_INSTRUCTION(RRR__,"add",		_XO(31,RD,RA,RB,0,266,0));
-		TEST_INSTRUCTION(RRR__,"add.",		_XO(31,RD,RA,RB,0,266,1));
-		TEST_INSTRUCTION(RRR__,"addo",		_XO(31,RD,RA,RB,1,266,0));
-		TEST_INSTRUCTION(RRR__,"addo." ,	_XO(31,RD,RA,RB,1,266,1));
-		TEST_INSTRUCTION(RRR__,"addc.",		_XO(31,RD,RA,RB,0, 10,1));
-		TEST_INSTRUCTION(RRR__,"addco.",	_XO(31,RD,RA,RB,1, 10,1));
-		TEST_INSTRUCTION(RRR__,"adde",		_XO(31,RD,RA,RB,0,138,0));
-		TEST_INSTRUCTION(RRR__,"adde.",		_XO(31,RD,RA,RB,0,138,1));
-		TEST_INSTRUCTION(RRR__,"addeo",		_XO(31,RD,RA,RB,1,138,0));
-		TEST_INSTRUCTION(RRR__,"addeo.",	_XO(31,RD,RA,RB,1,138,1));
-		TEST_INSTRUCTION(RRI__,"addi",		_D (14,RD,RA,00));
-		TEST_INSTRUCTION(RRI__,"addic",		_D (12,RD,RA,00));
-		TEST_INSTRUCTION(RRI__,"addic.",	_D (13,RD,RA,00));
-		TEST_INSTRUCTION(RRI__,"addis",		_D (15,RD,RA,00));
-		TEST_INSTRUCTION(RR___,"addme",		_XO(31,RD,RA,00,0,234,0));
-		TEST_INSTRUCTION(RR___,"addme.",	_XO(31,RD,RA,00,0,234,1));
-		TEST_INSTRUCTION(RR___,"addmeo",	_XO(31,RD,RA,00,1,234,0));
-		TEST_INSTRUCTION(RR___,"addmeo.",	_XO(31,RD,RA,00,1,234,1));
-		TEST_INSTRUCTION(RR___,"addze",		_XO(31,RD,RA,00,0,202,0));
-		TEST_INSTRUCTION(RR___,"addze.",	_XO(31,RD,RA,00,0,202,1));
-		TEST_INSTRUCTION(RR___,"addzeo",	_XO(31,RD,RA,00,1,202,0));
-		TEST_INSTRUCTION(RR___,"addzeo.",	_XO(31,RD,RA,00,1,202,1));
-		init_xer = saved_xer;
-	}
+	gen_xer_values(0, 0);
+	TEST_INSTRUCTION(RRI__,"addi",		_D (14,RD,RA,00));
+	TEST_INSTRUCTION(RRI__,"addis",		_D (15,RD,RA,00));
+	gen_xer_values(0, SO);
+	TEST_INSTRUCTION(RRR__,"add",		_XO(31,RD,RA,RB,0,266,0));
+	TEST_INSTRUCTION(RRR__,"add.",		_XO(31,RD,RA,RB,0,266,1));
+	gen_xer_values(0, SO|OV);
+	TEST_INSTRUCTION(RRR__,"addo",		_XO(31,RD,RA,RB,1,266,0));
+	TEST_INSTRUCTION(RRR__,"addo." ,	_XO(31,RD,RA,RB,1,266,1));
+	gen_xer_values(0, SO|CA);
+	TEST_INSTRUCTION(RRR__,"addc",		_XO(31,RD,RA,RB,0, 10,0));
+	TEST_INSTRUCTION(RRR__,"addc.",		_XO(31,RD,RA,RB,0, 10,1));
+	TEST_INSTRUCTION(RRI__,"addic",		_D (12,RD,RA,00));
+	TEST_INSTRUCTION(RRI__,"addic.",	_D (13,RD,RA,00));
+	gen_xer_values(0, SO|CA|OV);
+	TEST_INSTRUCTION(RRR__,"addco",		_XO(31,RD,RA,RB,1, 10,0));
+	TEST_INSTRUCTION(RRR__,"addco.",	_XO(31,RD,RA,RB,1, 10,1));
+	gen_xer_values(CA, SO|CA);
+	TEST_INSTRUCTION(RRR__,"adde",		_XO(31,RD,RA,RB,0,138,0));
+	TEST_INSTRUCTION(RRR__,"adde.",		_XO(31,RD,RA,RB,0,138,1));
+	TEST_INSTRUCTION(RR___,"addme",		_XO(31,RD,RA,00,0,234,0));
+	TEST_INSTRUCTION(RR___,"addme.",	_XO(31,RD,RA,00,0,234,1));
+	TEST_INSTRUCTION(RR___,"addze",		_XO(31,RD,RA,00,0,202,0));
+	TEST_INSTRUCTION(RR___,"addze.",	_XO(31,RD,RA,00,0,202,1));
+	gen_xer_values(CA, SO|CA|OV);
+	TEST_INSTRUCTION(RRR__,"addeo",		_XO(31,RD,RA,RB,1,138,0));
+	TEST_INSTRUCTION(RRR__,"addeo.",	_XO(31,RD,RA,RB,1,138,1));
+	TEST_INSTRUCTION(RR___,"addmeo",	_XO(31,RD,RA,00,1,234,0));
+	TEST_INSTRUCTION(RR___,"addmeo.",	_XO(31,RD,RA,00,1,234,1));
+	TEST_INSTRUCTION(RR___,"addzeo",	_XO(31,RD,RA,00,1,202,0));
+	TEST_INSTRUCTION(RR___,"addzeo.",	_XO(31,RD,RA,00,1,202,1));
 #endif
 }
 
 void powerpc_test_cpu::test_sub(void)
 {
 #if TEST_SUB
-	const int n_xer_values = 3;
-	uint32 xer_values[n_xer_values];
-	xer_values[0] = init_xer;
-	xer_values[1] = init_xer | XER_OV_field::mask();
-	xer_values[2] = init_xer | XER_CA_field::mask();
-
-	// Iterate over some specific XER values so that we make sure we
-	// only update them when actually needed
-	for (int i = 0; i < n_xer_values; i++) {
-		const uint32 saved_xer = init_xer;
-		init_xer = xer_values[i];
-		TEST_INSTRUCTION(RRR__,"subf",		_XO(31,RD,RA,RB,0, 40,0));
-		TEST_INSTRUCTION(RRR__,"subf.",		_XO(31,RD,RA,RB,0, 40,1));
-		TEST_INSTRUCTION(RRR__,"subfo",		_XO(31,RD,RA,RB,1, 40,0));
-		TEST_INSTRUCTION(RRR__,"subfo.",	_XO(31,RD,RA,RB,1, 40,1));
-		TEST_INSTRUCTION(RRR__,"subfc",		_XO(31,RD,RA,RB,0,  8,0));
-		TEST_INSTRUCTION(RRR__,"subfc.",	_XO(31,RD,RA,RB,0,  8,1));
-		TEST_INSTRUCTION(RRR__,"subfco",	_XO(31,RD,RA,RB,1,  8,0));
-		TEST_INSTRUCTION(RRR__,"subfco.",	_XO(31,RD,RA,RB,1,  8,1));
-		TEST_INSTRUCTION(RRR__,"subfe",		_XO(31,RD,RA,RB,0,136,0));
-		TEST_INSTRUCTION(RRR__,"subfe.",	_XO(31,RD,RA,RB,0,136,1));
-		TEST_INSTRUCTION(RRR__,"subfeo",	_XO(31,RD,RA,RB,1,136,0));
-		TEST_INSTRUCTION(RRR__,"subfeo.",	_XO(31,RD,RA,RB,1,136,1));
-		TEST_INSTRUCTION(RRI__,"subfic",	_D ( 8,RD,RA,00));
-		TEST_INSTRUCTION(RR___,"subfme",	_XO(31,RD,RA,00,0,232,0));
-		TEST_INSTRUCTION(RR___,"subfme.",	_XO(31,RD,RA,00,0,232,1));
-		TEST_INSTRUCTION(RR___,"subfmeo",	_XO(31,RD,RA,00,1,232,0));
-		TEST_INSTRUCTION(RR___,"subfmeo.",	_XO(31,RD,RA,00,1,232,1));
-		TEST_INSTRUCTION(RR___,"subfze",	_XO(31,RD,RA,00,0,200,0));
-		TEST_INSTRUCTION(RR___,"subfze.",	_XO(31,RD,RA,00,0,200,1));
-		TEST_INSTRUCTION(RR___,"subfzeo",	_XO(31,RD,RA,00,1,200,0));
-		TEST_INSTRUCTION(RR___,"subfzeo.",	_XO(31,RD,RA,00,1,200,1));
-		init_xer = saved_xer;
-	}
+	gen_xer_values(0, SO);
+	TEST_INSTRUCTION(RRR__,"subf",		_XO(31,RD,RA,RB,0, 40,0));
+	TEST_INSTRUCTION(RRR__,"subf.",		_XO(31,RD,RA,RB,0, 40,1));
+	gen_xer_values(0, SO|OV);
+	TEST_INSTRUCTION(RRR__,"subfo",		_XO(31,RD,RA,RB,1, 40,0));
+	TEST_INSTRUCTION(RRR__,"subfo.",	_XO(31,RD,RA,RB,1, 40,1));
+	gen_xer_values(0, SO|CA);
+	TEST_INSTRUCTION(RRR__,"subfc",		_XO(31,RD,RA,RB,0,  8,0));
+	TEST_INSTRUCTION(RRR__,"subfc.",	_XO(31,RD,RA,RB,0,  8,1));
+	gen_xer_values(0, SO|CA|OV);
+	TEST_INSTRUCTION(RRR__,"subfco",	_XO(31,RD,RA,RB,1,  8,0));
+	TEST_INSTRUCTION(RRR__,"subfco.",	_XO(31,RD,RA,RB,1,  8,1));
+	gen_xer_values(0, CA);
+	TEST_INSTRUCTION(RRI__,"subfic",	_D ( 8,RD,RA,00));
+	gen_xer_values(CA, SO|CA);
+	TEST_INSTRUCTION(RRR__,"subfe",		_XO(31,RD,RA,RB,0,136,0));
+	TEST_INSTRUCTION(RRR__,"subfe.",	_XO(31,RD,RA,RB,0,136,1));
+	TEST_INSTRUCTION(RR___,"subfme",	_XO(31,RD,RA,00,0,232,0));
+	TEST_INSTRUCTION(RR___,"subfme.",	_XO(31,RD,RA,00,0,232,1));
+	TEST_INSTRUCTION(RR___,"subfze",	_XO(31,RD,RA,00,0,200,0));
+	TEST_INSTRUCTION(RR___,"subfze.",	_XO(31,RD,RA,00,0,200,1));
+	gen_xer_values(CA, SO|CA|OV);
+	TEST_INSTRUCTION(RRR__,"subfeo",	_XO(31,RD,RA,RB,1,136,0));
+	TEST_INSTRUCTION(RRR__,"subfeo.",	_XO(31,RD,RA,RB,1,136,1));
+	TEST_INSTRUCTION(RR___,"subfmeo",	_XO(31,RD,RA,00,1,232,0));
+	TEST_INSTRUCTION(RR___,"subfmeo.",	_XO(31,RD,RA,00,1,232,1));
+	TEST_INSTRUCTION(RR___,"subfzeo",	_XO(31,RD,RA,00,1,200,0));
+	TEST_INSTRUCTION(RR___,"subfzeo.",	_XO(31,RD,RA,00,1,200,1));
 #endif
 }
 
 void powerpc_test_cpu::test_mul(void)
 {
 #if TEST_MUL
+	gen_xer_values(0, SO);
 	TEST_INSTRUCTION(RRR__,"mulhw",		_XO(31,RD,RA,RB,0, 75,0));
 	TEST_INSTRUCTION(RRR__,"mulhw.",	_XO(31,RD,RA,RB,0, 75,1));
 	TEST_INSTRUCTION(RRR__,"mulhwu",	_XO(31,RD,RA,RB,0, 11,0));
@@ -958,6 +1014,7 @@ void powerpc_test_cpu::test_mul(void)
 	TEST_INSTRUCTION(RRI__,"mulli",		_D ( 7,RD,RA,00));
 	TEST_INSTRUCTION(RRR__,"mullw",		_XO(31,RD,RA,RB,0,235,0));
 	TEST_INSTRUCTION(RRR__,"mullw.",	_XO(31,RD,RA,RB,0,235,1));
+	gen_xer_values(0, SO|OV);
 	TEST_INSTRUCTION(RRR__,"mullwo",	_XO(31,RD,RA,RB,1,235,0));
 	TEST_INSTRUCTION(RRR__,"mullwo.",	_XO(31,RD,RA,RB,1,235,1));
 #endif
@@ -966,12 +1023,14 @@ void powerpc_test_cpu::test_mul(void)
 void powerpc_test_cpu::test_div(void)
 {
 #if TEST_DIV
+	gen_xer_values(0, SO);
 	TEST_INSTRUCTION(RRR__,"divw",		_XO(31,RD,RA,RB,0,491,0));
 	TEST_INSTRUCTION(RRR__,"divw.",		_XO(31,RD,RA,RB,0,491,1));
-	TEST_INSTRUCTION(RRR__,"divwo",		_XO(31,RD,RA,RB,1,491,0));
-	TEST_INSTRUCTION(RRR__,"divwo.",	_XO(31,RD,RA,RB,1,491,1));
 	TEST_INSTRUCTION(RRR__,"divwu",		_XO(31,RD,RA,RB,0,459,0));
 	TEST_INSTRUCTION(RRR__,"divwu.",	_XO(31,RD,RA,RB,0,459,1));
+	gen_xer_values(0, SO|OV);
+	TEST_INSTRUCTION(RRR__,"divwo",		_XO(31,RD,RA,RB,1,491,0));
+	TEST_INSTRUCTION(RRR__,"divwo.",	_XO(31,RD,RA,RB,1,491,1));
 	TEST_INSTRUCTION(RRR__,"divwuo",	_XO(31,RD,RA,RB,1,459,0));
 	TEST_INSTRUCTION(RRR__,"divwuo.",	_XO(31,RD,RA,RB,1,459,1));
 #endif
@@ -980,6 +1039,7 @@ void powerpc_test_cpu::test_div(void)
 void powerpc_test_cpu::test_logical(void)
 {
 #if TEST_LOGICAL
+	gen_xer_values(0, SO);
 	TEST_INSTRUCTION(RRR__,"and",		_X (31,RA,RD,RB,28,0));
 	TEST_INSTRUCTION(RRR__,"and.",		_X (31,RA,RD,RB,28,1));
 	TEST_INSTRUCTION(RRR__,"andc",		_X (31,RA,RD,RB,60,0));
@@ -998,8 +1058,6 @@ void powerpc_test_cpu::test_logical(void)
 	TEST_INSTRUCTION(RRR__,"nand.",		_X (31,RA,RD,RB,476,1));
 	TEST_INSTRUCTION(RR___,"neg",		_XO(31,RD,RA,RB,0,104,0));
 	TEST_INSTRUCTION(RR___,"neg.",		_XO(31,RD,RA,RB,0,104,1));
-	TEST_INSTRUCTION(RR___,"nego",		_XO(31,RD,RA,RB,1,104,0));
-	TEST_INSTRUCTION(RR___,"nego.",		_XO(31,RD,RA,RB,1,104,1));
 	TEST_INSTRUCTION(RRR__,"nor",		_X (31,RA,RD,RB,124,0));
 	TEST_INSTRUCTION(RRR__,"nor.",		_X (31,RA,RD,RB,124,1));
 	TEST_INSTRUCTION(RRR__,"or",		_X (31,RA,RD,RB,444,0));
@@ -1012,12 +1070,16 @@ void powerpc_test_cpu::test_logical(void)
 	TEST_INSTRUCTION(RRR__,"xor.",		_X (31,RA,RD,RB,316,1));
 	TEST_INSTRUCTION(RRK__,"xori",		_D (26,RA,RD,00));
 	TEST_INSTRUCTION(RRK__,"xoris",		_D (27,RA,RD,00));
+	gen_xer_values(0, SO|OV);
+	TEST_INSTRUCTION(RR___,"nego",		_XO(31,RD,RA,RB,1,104,0));
+	TEST_INSTRUCTION(RR___,"nego.",		_XO(31,RD,RA,RB,1,104,1));
 #endif
 }
 
 void powerpc_test_cpu::test_shift(void)
 {
 #if TEST_SHIFT
+	gen_xer_values(0, SO);
 	TEST_INSTRUCTION(RRRSH,"slw",		_X (31,RA,RD,RB, 24,0));
 	TEST_INSTRUCTION(RRRSH,"slw.",		_X (31,RA,RD,RB, 24,1));
 	TEST_INSTRUCTION(RRRSH,"sraw",		_X (31,RA,RD,RB,792,0));
@@ -1032,6 +1094,7 @@ void powerpc_test_cpu::test_shift(void)
 void powerpc_test_cpu::test_rotate(void)
 {
 #if TEST_ROTATE
+	gen_xer_values(0, SO);
 	TEST_INSTRUCTION(RRIII,"rlwimi",	_M (20,RA,RD,00,00,00,0));
 	TEST_INSTRUCTION(RRIII,"rlwimi.",	_M (20,RA,RD,00,00,00,1));
 	TEST_INSTRUCTION(RRIII,"rlwinm",	_M (21,RA,RD,00,00,00,0));
@@ -1044,6 +1107,7 @@ void powerpc_test_cpu::test_rotate(void)
 void powerpc_test_cpu::test_compare(void)
 {
 #if TEST_COMPARE
+	gen_xer_values(0, SO);
 	TEST_INSTRUCTION(CRR__,"cmp",		_X (31,00,RA,RB,000,0));
 	TEST_INSTRUCTION(CRI__,"cmpi",		_D (11,00,RA,00));
 	TEST_INSTRUCTION(CRR__,"cmpl",		_X (31,00,RA,RB, 32,0));
@@ -1054,6 +1118,7 @@ void powerpc_test_cpu::test_compare(void)
 void powerpc_test_cpu::test_cr_logical(void)
 {
 #if TEST_CR_LOGICAL
+	gen_xer_values(0, SO);
 	TEST_INSTRUCTION(CCC__,"crand",		_X (19,00,00,00,257,0));
 	TEST_INSTRUCTION(CCC__,"crandc",	_X (19,00,00,00,129,0));
 	TEST_INSTRUCTION(CCC__,"creqv",		_X (19,00,00,00,289,0));
