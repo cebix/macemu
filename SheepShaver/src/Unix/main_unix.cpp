@@ -511,6 +511,27 @@ int main(int argc, char **argv)
 #endif
 
 #if !EMULATED_PPC
+	// Create and install stacks for signal handlers
+	for (int i = 0; i < SIG_STACK_COUNT; i++) {
+		void *sig_stack = malloc(SIG_STACK_SIZE);
+		D(bug("Signal stack %d at %p\n", i, sig_stack));
+		if (sig_stack == NULL) {
+			ErrorAlert(GetString(STR_NOT_ENOUGH_MEMORY_ERR));
+			goto quit;
+		}
+		sig_stacks[i].ss_sp = sig_stack;
+		sig_stacks[i].ss_flags = 0;
+		sig_stacks[i].ss_size = SIG_STACK_SIZE;
+	}
+	sig_stack_id = 0;
+	if (sigaltstack(&sig_stacks[0], NULL) < 0) {
+		sprintf(str, GetString(STR_SIGALTSTACK_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+#endif
+
+#if !EMULATED_PPC
 	// Install SIGSEGV and SIGBUS handlers
 	sigemptyset(&sigsegv_action.sa_mask);	// Block interrupts during SEGV handling
 	sigaddset(&sigsegv_action.sa_mask, SIGUSR2);
@@ -971,27 +992,6 @@ int main(int argc, char **argv)
 	nvram_thread_cancel = false;
 	nvram_thread_active = (pthread_create(&nvram_thread, NULL, nvram_func, NULL) == 0);
 	D(bug("NVRAM thread installed (%ld)\n", nvram_thread));
-
-#if !EMULATED_PPC
-	// Create and install stacks for signal handlers
-	for (int i = 0; i < SIG_STACK_COUNT; i++) {
-		void *sig_stack = malloc(SIG_STACK_SIZE);
-		D(bug("Signal stack %d at %p\n", i, sig_stack));
-		if (sig_stack == NULL) {
-			ErrorAlert(GetString(STR_NOT_ENOUGH_MEMORY_ERR));
-			goto quit;
-		}
-		sig_stacks[i].ss_sp = sig_stack;
-		sig_stacks[i].ss_flags = 0;
-		sig_stacks[i].ss_size = SIG_STACK_SIZE;
-	}
-	sig_stack_id = 0;
-	if (sigaltstack(&sig_stacks[0], NULL) < 0) {
-		sprintf(str, GetString(STR_SIGALTSTACK_ERR), strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-#endif
 
 #if !EMULATED_PPC
 	// Install SIGILL handler
