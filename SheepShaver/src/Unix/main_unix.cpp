@@ -65,6 +65,18 @@
  *  ExecutePPC (or any function that might cause a mode switch). The signal
  *  stack is restored before exiting the SIGUSR2 handler.
  *
+ *  There is apparently another problem when processing signals. In
+ *  fullscreen mode, we get quick updates of the mouse position. This
+ *  causes an increased number of calls to TriggerInterrupt(). And,
+ *  since IRQ_NEST is not fully handled atomically, nested calls to
+ *  ppc_interrupt() may cause stack corruption to eventually crash the
+ *  emulator.
+ *
+ *  FIXME:
+ *  The current solution is to allocate another signal stack when
+ *  processing ppc_interrupt(). However, it may be better to detect
+ *  the INTFLAG_ADB case and handle it specifically with some extra mutex?
+ *
  *  TODO:
  *    check if SIGSEGV handler works for all registers (including FP!)
  */
@@ -144,6 +156,9 @@
 // Interrupts in native mode?
 #define INTERRUPTS_IN_NATIVE_MODE 1
 
+// Number of alternate stacks for signal handlers?
+#define SIG_STACK_COUNT 4
+
 
 // Constants
 const char ROM_FILE_NAME[] = "ROM";
@@ -218,6 +233,27 @@ static void build_sigregs(sigregs *srp, machine_regs *mrp)
 	for (int i = 0; i < 32; i++)
 		srp->gpr[i] = mrp->gpr(i);
 }
+
+static struct sigaltstack sig_stacks[SIG_STACK_COUNT];	// Stacks for signal handlers
+static int sig_stack_id = 0;							// Stack slot currently used
+
+static inline void sig_stack_acquire(void)
+{
+	if (++sig_stack_id == SIG_STACK_COUNT) {
+		printf("FATAL: signal stack overflow\n");
+		return;
+	}
+	sigaltstack(&sig_stacks[sig_stack_id], NULL);
+}
+
+static inline void sig_stack_release(void)
+{
+	if (--sig_stack_id < 0) {
+		printf("FATAL: signal stack underflow\n");
+		return;
+	}
+	sigaltstack(&sig_stacks[sig_stack_id], NULL);
+}
 #endif
 
 
@@ -266,8 +302,6 @@ static uintptr sig_stack = 0;				// Stack for PowerPC interrupt routine
 #else
 static struct sigaction sigsegv_action;		// Data access exception signal (of emulator thread)
 static struct sigaction sigill_action;		// Illegal instruction signal (of emulator thread)
-static void *sig_stack = NULL;				// Stack for signal handlers
-static void *extra_stack = NULL;			// Stack for SIGSEGV inside interrupt handler
 static bool emul_thread_fatal = false;		// Flag: MacOS thread crashed, tick thread shall dump debug output
 static sigregs sigsegv_regs;				// Register dump when crashed
 static const char *crash_reason = NULL;		// Reason of the crash (SIGSEGV, SIGBUS, SIGILL)
@@ -809,23 +843,19 @@ int main(int argc, char **argv)
 
 #if !EMULATED_PPC
 	// Create and install stacks for signal handlers
-	sig_stack = malloc(SIG_STACK_SIZE);
-	D(bug("Signal stack at %p\n", sig_stack));
-	if (sig_stack == NULL) {
-		ErrorAlert(GetString(STR_NOT_ENOUGH_MEMORY_ERR));
-		goto quit;
+	for (int i = 0; i < SIG_STACK_COUNT; i++) {
+		void *sig_stack = malloc(SIG_STACK_SIZE);
+		D(bug("Signal stack %d at %p\n", i, sig_stack));
+		if (sig_stack == NULL) {
+			ErrorAlert(GetString(STR_NOT_ENOUGH_MEMORY_ERR));
+			goto quit;
+		}
+		sig_stacks[i].ss_sp = sig_stack;
+		sig_stacks[i].ss_flags = 0;
+		sig_stacks[i].ss_size = SIG_STACK_SIZE;
 	}
-	extra_stack = malloc(SIG_STACK_SIZE);
-	D(bug("Extra stack at %p\n", extra_stack));
-	if (extra_stack == NULL) {
-		ErrorAlert(GetString(STR_NOT_ENOUGH_MEMORY_ERR));
-		goto quit;
-	}
-	struct sigaltstack new_stack;
-	new_stack.ss_sp = sig_stack;
-	new_stack.ss_flags = 0;
-	new_stack.ss_size = SIG_STACK_SIZE;
-	if (sigaltstack(&new_stack, NULL) < 0) {
+	sig_stack_id = 0;
+	if (sigaltstack(&sig_stacks[0], NULL) < 0) {
 		sprintf(str, GetString(STR_SIGALTSTACK_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
@@ -929,6 +959,13 @@ static void Quit(void)
 	sigill_action.sa_handler = SIG_DFL;
 	sigill_action.sa_flags = 0;
 	sigaction(SIGILL, &sigill_action, NULL);
+
+	// Delete stacks for signal handlers
+	for (int i = 0; i < SIG_STACK_COUNT; i++) {
+		void *sig_stack = sig_stacks[i].ss_sp;
+		if (sig_stack)
+			free(sig_stack);
+	}
 #endif
 
 	// Save NVRAM
@@ -1457,16 +1494,23 @@ static void sigusr2_handler(int sig, siginfo_t *sip, void *scp)
 		case MODE_NATIVE:
 			// 68k emulator inactive, in nanokernel?
 			if (r->gpr(1) != KernelDataAddr) {
+
+				// Set extra stack for nested interrupts
+				sig_stack_acquire();
+				
 				// Prepare for 68k interrupt level 1
 				WriteMacInt16(ntohl(kernel_data->v[0x67c >> 2]), 1);
 				WriteMacInt32(ntohl(kernel_data->v[0x658 >> 2]) + 0xdc, ReadMacInt32(ntohl(kernel_data->v[0x658 >> 2]) + 0xdc) | ntohl(kernel_data->v[0x674 >> 2]));
 
 				// Execute nanokernel interrupt routine (this will activate the 68k emulator)
-				atomic_add((int32 *)XLM_IRQ_NEST, 1);
+				DisableInterrupt();
 				if (ROMType == ROMTYPE_NEWWORLD)
 					ppc_interrupt(ROM_BASE + 0x312b1c, KernelDataAddr);
 				else
 					ppc_interrupt(ROM_BASE + 0x312a3c, KernelDataAddr);
+
+				// Reset normal signal stack
+				sig_stack_release();
 			}
 			break;
 #endif
@@ -1477,11 +1521,7 @@ static void sigusr2_handler(int sig, siginfo_t *sip, void *scp)
 			if ((ReadMacInt32(XLM_68K_R25) & 7) == 0) {
 
 				// Set extra stack for SIGSEGV handler
-				struct sigaltstack new_stack;
-				new_stack.ss_sp = extra_stack;
-				new_stack.ss_flags = 0;
-				new_stack.ss_size = SIG_STACK_SIZE;
-				sigaltstack(&new_stack, NULL);
+				sig_stack_acquire();
 #if 1
 				// Execute full 68k interrupt routine
 				M68kRegisters r;
@@ -1508,10 +1548,7 @@ static void sigusr2_handler(int sig, siginfo_t *sip, void *scp)
 				}
 #endif
 				// Reset normal signal stack
-				new_stack.ss_sp = sig_stack;
-				new_stack.ss_flags = 0;
-				new_stack.ss_size = SIG_STACK_SIZE;
-				sigaltstack(&new_stack, NULL);
+				sig_stack_release();
 			}
 			break;
 #endif
