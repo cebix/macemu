@@ -36,7 +36,6 @@ register struct powerpc_cpu *CPU asm(REG_CPU);
 register uint32 A0 asm(REG_A0);
 register uint32 T0 asm(REG_T0);
 register uint32 T1 asm(REG_T1);
-register uint32 RC asm(REG_T2);
 
 // Semantic action templates
 #define DYNGEN_OPS
@@ -134,25 +133,16 @@ void OPPROTO op_store_T0_CR(void)
 	powerpc_dyngen_helper::set_cr(T0);
 }
 
-void OPPROTO op_load_T0_XER(void)
-{
-	T0 = powerpc_dyngen_helper::get_xer();
-}
-
-void OPPROTO op_store_T0_XER(void)
-{
-	powerpc_dyngen_helper::set_xer(T0);
-}
-
 #define DEFINE_OP(REG, N)											\
 void OPPROTO op_load_##REG##_crb##N(void)							\
 {																	\
-	REG = bit_field<N,N>::extract(powerpc_dyngen_helper::get_cr());	\
+	const uint32 cr = powerpc_dyngen_helper::get_cr();				\
+	REG = (cr >> (31 - N)) & 1; 									\
 }																	\
 void OPPROTO op_store_##REG##_crb##N(void)							\
 {																	\
-	uint32 cr = powerpc_dyngen_helper::get_cr();					\
-	bit_field<N,N>::insert(cr, REG);								\
+	uint32 cr = powerpc_dyngen_helper::get_cr() & ~(1 << (31 - N));	\
+	cr |= ((REG & 1) << (31 - N));									\
 	powerpc_dyngen_helper::set_cr(cr);								\
 }
 #define DEFINE_REG(N)							\
@@ -195,47 +185,48 @@ DEFINE_REG(31);
 #undef DEFINE_REG
 #undef DEFINE_OP
 
-#define DEFINE_OP(CRF, REG)										\
-void OPPROTO op_load_##REG##_cr##CRF(void)						\
-{																\
-	REG = powerpc_dyngen_helper::cr().get(CRF);					\
-}																\
-void OPPROTO op_store_##REG##_cr##CRF(void)						\
-{																\
-	powerpc_dyngen_helper::cr().set(CRF, REG);					\
-}																\
-void OPPROTO op_commit_so_cache_cr##CRF(void)					\
-{																\
-	uint32 cr = powerpc_dyngen_helper::get_cr();				\
-	const uint32 cr_mask = CR_SO_field<CRF>::mask();			\
-	cr = (cr & ~cr_mask) | ((RC << (28 - 4 * CRF)) & cr_mask);	\
-	powerpc_dyngen_helper::set_cr(cr);							\
-}																\
-void OPPROTO op_commit_rc_cache_cr##CRF(void)					\
-{																\
-	uint32 cr = powerpc_dyngen_helper::get_cr();				\
-	const uint32 cr_mask = (CR_LT_field<CRF>::mask() |			\
-							CR_GT_field<CRF>::mask() |			\
-							CR_EQ_field<CRF>::mask());			\
-	cr = (cr & ~cr_mask) | ((RC << (28 - 4 * CRF)) & cr_mask);	\
-	powerpc_dyngen_helper::set_cr(cr);							\
+#define DEFINE_OP(CRF, REG)						\
+void OPPROTO op_load_##REG##_cr##CRF(void)		\
+{												\
+	REG = powerpc_dyngen_helper::cr().get(CRF);	\
+}												\
+void OPPROTO op_store_##REG##_cr##CRF(void)		\
+{												\
+	powerpc_dyngen_helper::cr().set(CRF, REG);	\
 }
 
-DEFINE_OP(0, RC);
-DEFINE_OP(1, RC);
-DEFINE_OP(2, RC);
-DEFINE_OP(3, RC);
-DEFINE_OP(4, RC);
-DEFINE_OP(5, RC);
-DEFINE_OP(6, RC);
-DEFINE_OP(7, RC);
+DEFINE_OP(0, T0);
+DEFINE_OP(1, T0);
+DEFINE_OP(2, T0);
+DEFINE_OP(3, T0);
+DEFINE_OP(4, T0);
+DEFINE_OP(5, T0);
+DEFINE_OP(6, T0);
+DEFINE_OP(7, T0);
 
 #undef DEFINE_OP
+
+void OPPROTO op_mtcrf_T0_im(void)
+{
+	const uint32 mask = PARAM1;
+	const uint32 cr = powerpc_dyngen_helper::get_cr();
+	powerpc_dyngen_helper::set_cr((cr & ~mask) | (T0 & mask));
+}
 
 
 /**
  *		Special purpose registers
  **/
+
+void OPPROTO op_load_T0_XER(void)
+{
+	T0 = powerpc_dyngen_helper::get_xer();
+}
+
+void OPPROTO op_store_T0_XER(void)
+{
+	powerpc_dyngen_helper::set_xer(T0);
+}
 
 void OPPROTO op_load_T0_PC(void)
 {
@@ -346,35 +337,17 @@ static inline void do_execute_branch(uint32 tpc, uint32 npc)
 	dyngen_barrier();
 }
 
-template< int crb >
-struct RC_comparator {
+struct branch_if_T0_condition {
 	static inline bool test() {
-		return (RC & crb);
+		return T0 != 0;
 	}
 };
 
-template< bool br_true, class comparator >
-struct bool_condition {
+struct branch_if_not_T0_condition {
 	static inline bool test() {
-		return comparator::test();
+		return T0 == 0;
 	}
 };
-
-template< class comparator >
-struct bool_condition< false, comparator > {
-	static inline bool test() {
-		return !comparator::test();
-	}
-};
-
-typedef bool_condition< true, RC_comparator<8> > blt_condition;
-typedef bool_condition<false, RC_comparator<8> > bnlt_condition;
-typedef bool_condition< true, RC_comparator<4> > bgt_condition;
-typedef bool_condition<false, RC_comparator<4> > bngt_condition;
-typedef bool_condition< true, RC_comparator<2> > beq_condition;
-typedef bool_condition<false, RC_comparator<2> > bneq_condition;
-typedef bool_condition< true, RC_comparator<1> > bso_condition;
-typedef bool_condition<false, RC_comparator<1> > bnso_condition;
 
 struct ctr_0x_condition {
 	static inline bool test() {
@@ -399,7 +372,7 @@ struct ctr_11_condition {
 };
 
 #define DEFINE_OP_CTR(COND,CTR)												\
-void OPPROTO op_##COND##_##CTR(void)										\
+void OPPROTO op_##COND##_ctr_##CTR(void)									\
 {																			\
 	do_execute_branch<COND##_condition, ctr_##CTR##_condition>(A0, PARAM1);	\
 }
@@ -408,40 +381,93 @@ DEFINE_OP_CTR(COND,0x);							\
 DEFINE_OP_CTR(COND,10);							\
 DEFINE_OP_CTR(COND,11);
 
-DEFINE_OP(blt);
-DEFINE_OP(bgt);
-DEFINE_OP(beq);
-DEFINE_OP(bso);
-DEFINE_OP(bnlt);
-DEFINE_OP(bngt);
-DEFINE_OP(bneq);
-DEFINE_OP(bnso);
+DEFINE_OP(branch_if_T0);
+DEFINE_OP(branch_if_not_T0);
 
 #undef DEFINE_OP
 #undef DEFINE_OP_CTR
+
+template< int bo >
+static inline void do_execute_branch_bo(uint32 tpc, uint32 npc)
+{
+	bool ctr_ok = true;
+	bool cond_ok = true;
+
+	if (BO_CONDITIONAL_BRANCH(bo)) {
+		if (BO_BRANCH_IF_TRUE(bo))
+			cond_ok = T0;
+		else
+			cond_ok = !T0;
+	}
+
+	if (BO_DECREMENT_CTR(bo)) {
+		uint32 ctr = powerpc_dyngen_helper::get_ctr() - 1;
+		if (BO_BRANCH_IF_CTR_ZERO(bo))
+			ctr_ok = ctr == 0;
+		else
+			ctr_ok = ctr != 0;
+		powerpc_dyngen_helper::set_ctr(ctr);
+	}
+
+	if (ctr_ok && cond_ok)
+		powerpc_dyngen_helper::set_pc(tpc);
+	else
+		powerpc_dyngen_helper::set_pc(npc);
+
+	dyngen_barrier();
+}
+
+#define BO(A,B,C,D) (((A) << 4)| ((B) << 3) | ((C) << 2) | ((D) << 1))
+#define DEFINE_OP(BO_SUFFIX, BO_VALUE)				\
+void OPPROTO op_branch_A0_bo_##BO_SUFFIX(void)		\
+{													\
+	do_execute_branch_bo<BO BO_VALUE>(A0, PARAM1);	\
+}
+
+DEFINE_OP(0000,(0,0,0,0));
+DEFINE_OP(0001,(0,0,0,1));
+DEFINE_OP(001x,(0,0,1,0));
+DEFINE_OP(0100,(0,1,0,0));
+DEFINE_OP(0101,(0,1,0,1));
+DEFINE_OP(011x,(0,1,1,0));
+DEFINE_OP(1x00,(1,0,0,0));
+DEFINE_OP(1x01,(1,0,0,1));
+// NOTE: the compiler is expected to optimize out the use of PARAM1
+DEFINE_OP(1x1x,(1,0,1,0));
+
+#undef DEFINE_OP
+#undef BO
 
 
 /**
  *		Compare & Record instructions
  **/
 
-void OPPROTO op_record_nego_T0(void)
+void OPPROTO op_record_cr0_T0(void)
 {
-	powerpc_dyngen_helper::xer().set_ov(T0 == 0x80000000);
+	uint32 cr = powerpc_dyngen_helper::get_cr() & ~CR_field<0>::mask();
+	cr |= powerpc_dyngen_helper::xer().get_so() << 28;
+	if ((int32)T0 < 0)
+		cr |= CR_LT_field<0>::mask();
+	else if ((int32)T0 > 0)
+		cr |= CR_GT_field<0>::mask();
+	else
+		cr |= CR_EQ_field<0>::mask();
+	powerpc_dyngen_helper::set_cr(cr);
 	dyngen_barrier();
 }
 
 #define im PARAM1
 
-#if DYNGEN_ASM_OPTS && defined(__powerpc__)
+#if DYNGEN_ASM_OPTS && defined(__powerpc__) && 0
 
 #define DEFINE_OP(NAME, COMP, LHS, RHST, RHS)												\
 void OPPROTO op_##NAME##_##LHS##_##RHS(void)												\
 {																							\
-	RC = powerpc_dyngen_helper::xer().get_so();												\
+	T0 = powerpc_dyngen_helper::xer().get_so();												\
 	uint32 v;																				\
 	asm volatile (COMP " 7,%1,%2 ; mfcr %0" : "=r" (v) : "r" (LHS), RHST (RHS) : "cr7");	\
-	RC |= (v & 0xe);																		\
+	T0 |= (v & 0xe);																		\
 }
 
 DEFINE_OP(compare,"cmpw",T0,"r",T1);
@@ -453,17 +479,17 @@ DEFINE_OP(compare_logical,"cmplwi",T0,"i",0);
 
 #else
 
-#define DEFINE_OP(NAME, TYPE, LHS, RHS)			\
-void OPPROTO op_##NAME##_##LHS##_##RHS(void)	\
-{												\
-	RC = powerpc_dyngen_helper::xer().get_so();	\
-	if ((TYPE)LHS < (TYPE)RHS)					\
-		RC |= standalone_CR_LT_field::mask();	\
-	else if ((TYPE)LHS > (TYPE)RHS)				\
-		RC |= standalone_CR_GT_field::mask();	\
-	else										\
-		RC |= standalone_CR_EQ_field::mask();	\
-	dyngen_barrier();							\
+#define DEFINE_OP(NAME, TYPE, LHS, RHS)							\
+void OPPROTO op_##NAME##_##LHS##_##RHS(void)					\
+{																\
+	const uint32 SO = powerpc_dyngen_helper::xer().get_so();	\
+	if ((TYPE)LHS < (TYPE)RHS)									\
+		T0 = SO | standalone_CR_LT_field::mask();				\
+	else if ((TYPE)LHS > (TYPE)RHS)								\
+		T0 = SO | standalone_CR_GT_field::mask();				\
+	else														\
+		T0 = SO | standalone_CR_EQ_field::mask();				\
+	dyngen_barrier();											\
 }
 
 DEFINE_OP(compare,int32,T0,T1);
@@ -842,10 +868,9 @@ void OPPROTO op_inc_32_mem(void)
 	*m += 1;
 }
 
-void OPPROTO op_mtcrf_T0_im(void)
+void OPPROTO op_nego_T0(void)
 {
-	const uint32 mask = PARAM1;
-	uint32 cr = powerpc_dyngen_helper::get_cr() & ~mask;
-	cr |= T0 & mask;
-	powerpc_dyngen_helper::set_cr(cr);
+	powerpc_dyngen_helper::xer().set_ov(T0 == 0x80000000);
+	T0 = -T0;
 }
+

@@ -37,36 +37,6 @@ class powerpc_dyngen
 #	include "ppc-dyngen-ops.hpp"
 #endif
 
-	class RC_cache {
-		int m_val_status;
-		int m_so_status;
-		int m_crf;
-
-	public:
-		int crf() const					{ return m_crf; }
-		int val_status() const			{ return m_val_status; }
-		int so_status() const			{ return m_so_status; }
-		void set_crf(int v)				{ m_crf = v; }
-		void set_val_status(int v)		{ m_val_status = v; }
-		void set_so_status(int v)		{ m_so_status = v; }
-
-		enum {
-			STATUS_TRASH,
-			STATUS_VALID,
-		};
-
-		RC_cache()
-			: m_val_status(STATUS_TRASH), m_so_status(STATUS_TRASH), m_crf(-1)
-			{ }
-
-		bool has_field(int crf) const
-			{ return m_crf == crf; }
-
-		void cache_field(int crf)
-			{ m_val_status = m_so_status = STATUS_VALID; m_crf = crf; }
-	};
-	RC_cache rc_cache;
-
 public:
 
 	// Make rc_cache accessible to codegen helper
@@ -95,40 +65,28 @@ public:
 #define DEFINE_ALIAS_3(NAME,PRE,POST)	DEFINE_ALIAS_RAW(NAME,PRE,POST,(long p1,long p2,long p3),(p1,p2,p3))
 #ifdef NO_DEFINE_ALIAS
 #define DEFINE_ALIAS(NAME,N)
-#define DEFINE_ALIAS_CLOBBER_SO(NAME,N)
-#define DEFINE_ALIAS_CLOBBER_CR(NAME,N)
 #else
 #define DEFINE_ALIAS(NAME,N)			DEFINE_ALIAS_##N(NAME,,)
-#define DEFINE_ALIAS_CLOBBER_CR(NAME,N)	DEFINE_ALIAS_##N(NAME,gen_commit_cr(),)
-#define DEFINE_ALIAS_CLOBBER_SO(NAME,N)	DEFINE_ALIAS_##N(NAME,gen_commit_so(),)
 #endif
 
 	// Misc instructions
 	DEFINE_ALIAS(inc_32_mem,1);
-	DEFINE_ALIAS(mtcrf_T0_im,1);
+	DEFINE_ALIAS(nego_T0,0);
 
 	// Condition registers
-private:
-	void gen_commit_so_cache_cr(int crf);
-	void gen_commit_rc_cache_cr(int crf);
-public:
-	void invalidate_so_cache();
-	void invalidate_cr_cache();
-	void gen_commit_so();
-	void gen_commit_cr();
-	DEFINE_ALIAS_CLOBBER_CR(load_T0_CR,0);
-	DEFINE_ALIAS_CLOBBER_CR(store_T0_CR,0);
-	DEFINE_ALIAS(load_T0_XER,0);
-	DEFINE_ALIAS(store_T0_XER,0);
+	DEFINE_ALIAS(load_T0_CR,0);
+	DEFINE_ALIAS(store_T0_CR,0);
+	void gen_load_T0_crf(int crf);
+	void gen_store_T0_crf(int crf);
 	void gen_load_T0_crb(int i);
 	void gen_load_T1_crb(int i);
 	void gen_store_T0_crb(int i);
 	void gen_store_T1_crb(int i);
-	void gen_load_RC_cr(int crf);
-	void gen_store_RC_cr(int crf);
-	void gen_prepare_RC(int bi);
+	void gen_mtcrf_T0_im(uint32 mask);
 
 	// Special purpose registers
+	DEFINE_ALIAS(load_T0_XER,0);
+	DEFINE_ALIAS(store_T0_XER,0);
 	DEFINE_ALIAS(load_T0_PC,0);
 	DEFINE_ALIAS(store_T0_PC,0);
 	DEFINE_ALIAS(set_PC_im,1);
@@ -150,11 +108,7 @@ public:
 	DEFINE_ALIAS(branch_A0_if_not_T0,1);
 
 	// Compare & Record instructions
-	DEFINE_ALIAS_CLOBBER_SO(record_nego_T0,0);
-	void gen_record_cr0_T0();
-	DEFINE_ALIAS(compare_T0_T1,0);
-	DEFINE_ALIAS(compare_T0_0,0);
-	DEFINE_ALIAS(compare_T0_im,1);
+	DEFINE_ALIAS(record_cr0_T0,0);
 	void gen_compare_T0_T1(int crf);
 	void gen_compare_T0_im(int crf, int32 value);
 	void gen_compare_logical_T0_T1(int crf);
@@ -164,11 +118,11 @@ public:
 	DEFINE_ALIAS(mulhw_T0_T1,0);
 	DEFINE_ALIAS(mulhwu_T0_T1,0);
 	DEFINE_ALIAS(mulli_T0_im,1);
-	DEFINE_ALIAS_CLOBBER_SO(mullwo_T0_T1,0);
+	DEFINE_ALIAS(mullwo_T0_T1,0);
 	DEFINE_ALIAS(divw_T0_T1,0);
-	DEFINE_ALIAS_CLOBBER_SO(divwo_T0_T1,0);
+	DEFINE_ALIAS(divwo_T0_T1,0);
 	DEFINE_ALIAS(divwu_T0_T1,0);
-	DEFINE_ALIAS_CLOBBER_SO(divwuo_T0_T1,0);
+	DEFINE_ALIAS(divwuo_T0_T1,0);
 
 	// Shift/Rotate instructions
 	DEFINE_ALIAS(slw_T0_T1,0);
@@ -184,40 +138,27 @@ public:
 	DEFINE_ALIAS(addo_T0_T1,0);
 	DEFINE_ALIAS(addc_T0_im,1);
 	DEFINE_ALIAS(addc_T0_T1,0);
-	DEFINE_ALIAS_CLOBBER_SO(addco_T0_T1,0);
+	DEFINE_ALIAS(addco_T0_T1,0);
 	DEFINE_ALIAS(adde_T0_T1,0);
-	DEFINE_ALIAS_CLOBBER_SO(addeo_T0_T1,0);
+	DEFINE_ALIAS(addeo_T0_T1,0);
 	DEFINE_ALIAS(addme_T0,0);
-	DEFINE_ALIAS_CLOBBER_SO(addmeo_T0,0);
+	DEFINE_ALIAS(addmeo_T0,0);
 	DEFINE_ALIAS(addze_T0,0);
-	DEFINE_ALIAS_CLOBBER_SO(addzeo_T0,0);
+	DEFINE_ALIAS(addzeo_T0,0);
 	DEFINE_ALIAS(subf_T0_T1,0);
-	DEFINE_ALIAS_CLOBBER_SO(subfo_T0_T1,0);
+	DEFINE_ALIAS(subfo_T0_T1,0);
 	DEFINE_ALIAS(subfc_T0_im,1);
 	DEFINE_ALIAS(subfc_T0_T1,0);
-	DEFINE_ALIAS_CLOBBER_SO(subfco_T0_T1,0);
+	DEFINE_ALIAS(subfco_T0_T1,0);
 	DEFINE_ALIAS(subfe_T0_T1,0);
-	DEFINE_ALIAS_CLOBBER_SO(subfeo_T0_T1,0);
+	DEFINE_ALIAS(subfeo_T0_T1,0);
 	DEFINE_ALIAS(subfme_T0,0);
-	DEFINE_ALIAS_CLOBBER_SO(subfmeo_T0,0);
+	DEFINE_ALIAS(subfmeo_T0,0);
 	DEFINE_ALIAS(subfze_T0,0);
-	DEFINE_ALIAS_CLOBBER_SO(subfzeo_T0,0);
+	DEFINE_ALIAS(subfzeo_T0,0);
 
 	// Branch instructions
 	void gen_bc_A0(int bo, int bi, uint32 npc);
-#define DEFINE_ALIAS_GRP_1(CR,CTR)				\
-	DEFINE_ALIAS(b##CR##_##CTR,1);				\
-	DEFINE_ALIAS(bn##CR##_##CTR,1);
-#define DEFINE_ALIAS_GRP_2(CR)					\
-	DEFINE_ALIAS_GRP_1(CR,0x);					\
-	DEFINE_ALIAS_GRP_1(CR,10);					\
-	DEFINE_ALIAS_GRP_1(CR,11);
-	DEFINE_ALIAS_GRP_2(lt);
-	DEFINE_ALIAS_GRP_2(gt);
-	DEFINE_ALIAS_GRP_2(eq);
-	DEFINE_ALIAS_GRP_2(so);
-#undef DEFINE_ALAIS_GRP_2
-#undef DEFINE_ALIAS_GRP_1
 
 #undef DEFINE_ALIAS
 #undef DEFINE_ALIAS_0

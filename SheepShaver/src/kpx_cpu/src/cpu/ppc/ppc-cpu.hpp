@@ -216,7 +216,11 @@ public:
 
 	// Initialization & finalization
 	void initialize();
+#ifdef SHEEPSHAVER
 	powerpc_cpu();
+#else
+	powerpc_cpu(task_struct *parent_task);
+#endif
 	~powerpc_cpu();
 
 	// Handle flight recorder

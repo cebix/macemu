@@ -24,7 +24,6 @@
 #include "cpu/ppc/ppc-operands.hpp"
 
 #ifdef SHEEPSHAVER
-#include "xlowmem.h"
 #include "cpu_emulation.h"
 #endif
 
@@ -445,16 +444,6 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			const int bo = BO_field::extract(opcode);
 			const int bi = BI_field::extract(opcode);
 
-#ifdef SHEEPSHAVER
-			if (BO_CONDITIONAL_BRANCH(bo)) {
-				// FIXME: use the slow way if we expect to clobber CR
-				// in m68k emulator. In that case, we should merge CR
-				// flags, not commit cached one to memory.
-				if (vm_read_memory_4(XLM_RUN_MODE) == MODE_68K)
-					goto do_generic;
-			}
-#endif
-
 			const uint32 npc = dpc + 4;
 			if (LK_field::test(opcode))
 				dg.gen_store_im_LR(npc);
@@ -531,7 +520,6 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		case PPC_I(CRORC):		// Condition Register OR with Complement
 		case PPC_I(CRXOR):		// Condition Register XOR
 		{
-			dg.gen_commit_cr();
 			dg.gen_load_T0_crb(crbA_field::extract(opcode));
 			dg.gen_load_T1_crb(crbB_field::extract(opcode));
 			switch (ii->mnemo) {
@@ -660,8 +648,9 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		{
 			dg.gen_load_T0_GPR(rA_field::extract(opcode));
 			if (OE_field::test(opcode))
-				dg.gen_record_nego_T0();
-			dg.gen_neg_32_T0();
+				dg.gen_nego_T0();
+			else
+				dg.gen_neg_32_T0();
 			if (Rc_field::test(opcode))
 				dg.gen_record_cr0_T0();
 			dg.gen_store_T0_GPR(rD_field::extract(opcode));
@@ -669,7 +658,6 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		}
 		case PPC_I(MFCR):		// Move from Condition Register
 		{
-			dg.gen_commit_cr();
 			dg.gen_load_T0_CR();
 			dg.gen_store_T0_GPR(rD_field::extract(opcode));
 			break;
@@ -1003,16 +991,14 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		}
 		case PPC_I(MTCRF):		// Move to Condition Register Fields
 		{
-			dg.gen_commit_cr();
 			dg.gen_load_T0_GPR(rS_field::extract(opcode));
 			dg.gen_mtcrf_T0_im(field2mask[CRM_field::extract(opcode)]);
 			break;
 		}
 		case PPC_I(MCRF):		// Move Condition Register Field
 		{
-			dg.gen_commit_cr();
-			dg.gen_load_RC_cr(crfS_field::extract(opcode));
-			dg.gen_store_RC_cr(crfD_field::extract(opcode));
+			dg.gen_load_T0_crf(crfS_field::extract(opcode));
+			dg.gen_store_T0_crf(crfD_field::extract(opcode));
 			break;
 		}
 		default:				// Direct call to instruction handler
@@ -1043,7 +1029,6 @@ powerpc_cpu::compile_block(uint32 entry_point)
 					dg.gen_set_PC_im(dpc);
 				}
 				sync_pc_offset += 4;
-				dg.gen_commit_cr();
 				dg.gen_invoke_CPU_im(func, opcode);
 			}
 		}
@@ -1054,7 +1039,6 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			goto again;
 		}
 	}
-	dg.gen_commit_cr();
 	dg.gen_exec_return();
 	dg.gen_end();
 	bi->end_pc = dpc;
