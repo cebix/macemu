@@ -167,14 +167,14 @@ static inline int find_next_page_clear(int page)
 #endif
 }
 
-#ifdef HAVE_PTHREADS
-static pthread_mutex_t vosf_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer (dirtyPages in fact)
-#define LOCK_VOSF pthread_mutex_lock(&vosf_lock);
-#define UNLOCK_VOSF pthread_mutex_unlock(&vosf_lock);
-#elif defined(HAVE_SPINLOCKS)
+#ifdef HAVE_SPINLOCKS
 static spinlock_t vosf_lock = SPIN_LOCK_UNLOCKED;				// Mutex to protect frame buffer (dirtyPages in fact)
 #define LOCK_VOSF spin_lock(&vosf_lock)
 #define UNLOCK_VOSF spin_unlock(&vosf_lock)
+#elif defined(HAVE_PTHREADS)
+static pthread_mutex_t vosf_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer (dirtyPages in fact)
+#define LOCK_VOSF pthread_mutex_lock(&vosf_lock);
+#define UNLOCK_VOSF pthread_mutex_unlock(&vosf_lock);
 #else
 #define LOCK_VOSF
 #define UNLOCK_VOSF
