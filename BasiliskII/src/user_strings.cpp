@@ -201,6 +201,16 @@ user_string_def common_strings[] = {
 	{STR_CPU_68040_LAB, "68040"},
 	{STR_ROM_FILE_CTRL, "ROM File"},
 
+	{STR_JIT_PANE_TITLE, "JIT Compiler"},
+	{STR_JIT_CTRL, "Enable JIT Compiler"},
+	{STR_JIT_FPU_CTRL, "Compile FPU Instructions"},
+	{STR_JIT_CACHE_SIZE_CTRL, "Translation Cache Size"},
+	{STR_JIT_CACHE_SIZE_2MB_LAB, "2048"},
+	{STR_JIT_CACHE_SIZE_4MB_LAB, "4096"},
+	{STR_JIT_CACHE_SIZE_8MB_LAB, "8192"},
+	{STR_JIT_CACHE_SIZE_16MB_LAB, "16384"},
+	{STR_JIT_LAZY_CINV_CTRL, "Enable lazy invalidation of translation cache"},
+
 	{STR_WINDOW_TITLE, "Basilisk II"},
 	{STR_WINDOW_TITLE_FROZEN, "Basilisk II *** FROZEN ***"},
 	{STR_WINDOW_MENU, "Basilisk II"},

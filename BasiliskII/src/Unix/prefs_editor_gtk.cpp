@@ -52,6 +52,7 @@ static void create_graphics_pane(GtkWidget *top);
 static void create_input_pane(GtkWidget *top);
 static void create_serial_pane(GtkWidget *top);
 static void create_memory_pane(GtkWidget *top);
+static void create_jit_pane(GtkWidget *top);
 static void read_settings(void);
 
 
@@ -62,6 +63,10 @@ static void read_settings(void);
 struct opt_desc {
 	int label_id;
 	GtkSignalFunc func;
+};
+
+struct combo_desc {
+	int label_id;
 };
 
 static void add_menu_item(GtkWidget *menu, int label_id, GtkSignalFunc func)
@@ -203,7 +208,37 @@ static GtkWidget *make_checkbox(GtkWidget *top, int label_id, const char *prefs_
 	return button;
 }
 
+static GtkWidget *make_combobox(GtkWidget *top, int label_id, const char *prefs_item, const combo_desc *options)
+{
+	GtkWidget *box, *label, *combo;
+	char str[32];
 
+	box = gtk_hbox_new(FALSE, 4);
+	gtk_widget_show(box);
+	gtk_box_pack_start(GTK_BOX(top), box, FALSE, FALSE, 0);
+
+	label = gtk_label_new(GetString(label_id));
+	gtk_widget_show(label);
+	gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
+
+	GList *glist = NULL;
+	while (options->label_id) {
+		glist = g_list_append(glist, (void *)GetString(options->label_id));
+		options++;
+	}
+	
+	combo = gtk_combo_new();
+	gtk_widget_show(combo);
+	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
+	
+	sprintf(str, "%d", PrefsFindInt32(prefs_item));
+	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str);
+	gtk_box_pack_start(GTK_BOX(box), combo, TRUE, TRUE, 0);
+	
+	return combo;
+}
+
+ 
 /*
  *  Show preferences editor
  *  Returns true when user clicked on "Start", false otherwise
@@ -369,6 +404,7 @@ bool PrefsEditor(void)
 	create_input_pane(notebook);
 	create_serial_pane(notebook);
 	create_memory_pane(notebook);
+	create_jit_pane(notebook);
 
 	static const opt_desc buttons[] = {
 		{STR_START_BUTTON, GTK_SIGNAL_FUNC(cb_start)},
@@ -544,6 +580,84 @@ static void create_volumes_pane(GtkWidget *top)
 	make_checkbox(box, STR_NOCDROM_CTRL, "nocdrom", GTK_SIGNAL_FUNC(tb_nocdrom));
 }
 
+
+/*
+ *  "JIT Compiler" pane
+ */
+
+static GtkWidget *w_jit_fpu;
+static GtkWidget *w_jit_atraps;
+static GtkWidget *w_jit_cache_size;
+static GtkWidget *w_jit_lazy_flush;
+
+// Set sensitivity of widgets
+static void set_jit_sensitive(void)
+{
+	const bool jit_enabled = PrefsFindBool("jit");
+	gtk_widget_set_sensitive(w_jit_fpu, jit_enabled);
+	gtk_widget_set_sensitive(w_jit_cache_size, jit_enabled);
+	gtk_widget_set_sensitive(w_jit_lazy_flush, jit_enabled);
+}
+
+// "Use JIT Compiler" button toggled
+static void tb_jit(GtkWidget *widget)
+{
+	PrefsReplaceBool("jit", GTK_TOGGLE_BUTTON(widget)->active);
+	set_jit_sensitive();
+}
+
+// "Compile FPU Instructions" button toggled
+static void tb_jit_fpu(GtkWidget *widget)
+{
+	PrefsReplaceBool("jitfpu", GTK_TOGGLE_BUTTON(widget)->active);
+}
+
+// "Lazy translation cache invalidation" button toggled
+static void tb_jit_lazy_flush(GtkWidget *widget)
+{
+	PrefsReplaceBool("jitlazyflush", GTK_TOGGLE_BUTTON(widget)->active);
+}
+
+// Read settings from widgets and set preferences
+static void read_jit_settings(void)
+{
+#if USE_JIT
+	bool jit_enabled = PrefsFindBool("jit");
+	if (jit_enabled) {
+		const char *str = gtk_entry_get_text(GTK_ENTRY(GTK_COMBO(w_jit_cache_size)->entry));
+		PrefsReplaceInt32("jitcachesize", atoi(str));
+	}
+#endif
+}
+
+// Create "JIT Compiler" pane
+static void create_jit_pane(GtkWidget *top)
+{
+#if USE_JIT
+	GtkWidget *box, *table, *label, *menu;
+	char str[32];
+	
+	box = make_pane(top, STR_JIT_PANE_TITLE);
+	make_checkbox(box, STR_JIT_CTRL, "jit", GTK_SIGNAL_FUNC(tb_jit));
+	
+	w_jit_fpu = make_checkbox(box, STR_JIT_FPU_CTRL, "jitfpu", GTK_SIGNAL_FUNC(tb_jit_fpu));
+	
+	// Translation cache size
+	static const combo_desc options[] = {
+		STR_JIT_CACHE_SIZE_2MB_LAB,
+		STR_JIT_CACHE_SIZE_4MB_LAB,
+		STR_JIT_CACHE_SIZE_8MB_LAB,
+		STR_JIT_CACHE_SIZE_16MB_LAB,
+		0
+	};
+	w_jit_cache_size = make_combobox(box, STR_JIT_CACHE_SIZE_CTRL, "jitcachesize", options);
+	
+	// Lazy translation cache invalidation
+	w_jit_lazy_flush = make_checkbox(box, STR_JIT_LAZY_CINV_CTRL, "jitlazyflush", GTK_SIGNAL_FUNC(tb_jit_lazy_flush));
+	
+	set_jit_sensitive();
+#endif
+}
 
 /*
  *  "SCSI" pane
@@ -1253,4 +1367,5 @@ static void read_settings(void)
 	read_input_settings();
 	read_serial_settings();
 	read_memory_settings();
+	read_jit_settings();
 }

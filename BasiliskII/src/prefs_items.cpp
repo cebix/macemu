@@ -57,6 +57,11 @@ prefs_desc common_prefs_items[] = {
 	{"nosound", TYPE_BOOLEAN, false,  "don't enable sound output"},
 	{"noclipconversion", TYPE_BOOLEAN, false, "don't convert clipboard contents"},
 	{"nogui", TYPE_BOOLEAN, false,    "disable GUI"},
+	{"jit", TYPE_BOOLEAN, false,         "enable JIT compiler"},
+	{"jitfpu", TYPE_BOOLEAN, false,      "enable JIT compilation of FPU instructions"},
+	{"jitdebug", TYPE_BOOLEAN, false,    "enable JIT debugger (requires mon builtin)"},
+	{"jitcachesize", TYPE_INT32, false,  "translation cache size in KB"},
+	{"jitlazyflush", TYPE_BOOLEAN, false, "enable lazy invalidation of translation cache"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
@@ -81,4 +86,15 @@ void AddPrefsDefaults(void)
 	PrefsAddBool("nosound", false);
 	PrefsAddBool("noclipconversion", false);
 	PrefsAddBool("nogui", false);
+	
+#if USE_JIT
+	// JIT compiler specific options
+	PrefsAddBool("jit", true);
+	PrefsAddBool("jitfpu", true);
+	PrefsAddBool("jitdebug", false);
+	PrefsAddInt32("jitcachesize", 8192);
+	PrefsAddInt32("jitlazyflush", true);
+#else
+	PrefsAddBool("jit", false);
+#endif
 }
