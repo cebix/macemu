@@ -7,6 +7,7 @@ V0.9 - <insert date here>
 	- Unix: FreeBSD configure script cleanups [Michael Alyn Miller]
 	- Unix: ether_linux.cpp moved and renamed to ether_unix.cpp, now
 	  also works with the tap driver under FreeBSD [Michael Alyn Miller]
+	- BeOS: fixed some bugs in the extfs file types handling
 
 V0.9 (snapshot) - 17.Feb.2001
 	- adapted for mon V3.0 which is now the required minimum

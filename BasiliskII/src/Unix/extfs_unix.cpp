@@ -218,7 +218,7 @@ static const ext2type e2t_translation[] = {
 	{NULL, 0, 0}	// End marker
 };
 
-void get_finfo(const char *path, uint32 finfo, uint32 fxinfo)
+void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 {
 	// Set default finder info
 	Mac_memset(finfo, 0, SIZEOF_FInfo);
@@ -239,8 +239,7 @@ void get_finfo(const char *path, uint32 finfo, uint32 fxinfo)
 	}
 
 	// No Finder info file, translate file name extension to MacOS type/creator
-	struct stat st;
-	if (stat(path, &st) == 0 && !S_ISDIR(st.st_mode)) {
+	if (!is_dir) {
 		int path_len = strlen(path);
 		for (int i=0; e2t_translation[i].ext; i++) {
 			int ext_len = strlen(e2t_translation[i].ext);
@@ -255,7 +254,7 @@ void get_finfo(const char *path, uint32 finfo, uint32 fxinfo)
 	}
 }
 
-void set_finfo(const char *path, uint32 finfo, uint32 fxinfo)
+void set_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 {
 	// Open Finder info file
 	int fd = open_finf(path, O_RDWR);

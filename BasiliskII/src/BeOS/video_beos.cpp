@@ -41,7 +41,6 @@
 #include "memory.h"
 #include "readcpu.h"
 #include "newcpu.h"
-#include "compiler.h"
 
 #define DEBUG 0
 #include "debug.h"

@@ -1237,7 +1237,7 @@ read_next_de:
 #endif
 	WriteMacInt32(pb + ioFlMdDat, st.st_mtime + TIME_OFFSET);
 
-	get_finfo(full_path, pb + ioFlFndrInfo, hfs ? pb + ioFlXFndrInfo : 0);
+	get_finfo(full_path, pb + ioFlFndrInfo, hfs ? pb + ioFlXFndrInfo : 0, false);
 
 	WriteMacInt16(pb + ioFlStBlk, 0);
 	WriteMacInt32(pb + ioFlLgLen, st.st_size);
@@ -1274,7 +1274,7 @@ static int16 fs_set_file_info(uint32 pb, bool hfs, uint32 dirID)
 		return fnfErr;
 
 	// Set Finder info
-	set_finfo(full_path, pb + ioFlFndrInfo, hfs ? pb + ioFlXFndrInfo : 0);
+	set_finfo(full_path, pb + ioFlFndrInfo, hfs ? pb + ioFlXFndrInfo : 0, false);
 
 	//!! times
 	return noErr;
@@ -1366,7 +1366,7 @@ read_next_de:
 	WriteMacInt32(pb + ioFlMdDat, mtime + TIME_OFFSET);
 	WriteMacInt32(pb + ioFlBkDat, 0);
 
-	get_finfo(full_path, pb + ioFlFndrInfo, pb + ioFlXFndrInfo);
+	get_finfo(full_path, pb + ioFlFndrInfo, pb + ioFlXFndrInfo, S_ISDIR(st.st_mode));
 
 	if (S_ISDIR(st.st_mode)) {
 
@@ -1422,7 +1422,7 @@ static int16 fs_set_cat_info(uint32 pb)
 		return errno2oserr();
 
 	// Set Finder info
-	set_finfo(full_path, pb + ioFlFndrInfo, pb + ioFlXFndrInfo);
+	set_finfo(full_path, pb + ioFlFndrInfo, pb + ioFlXFndrInfo, S_ISDIR(st.st_mode));
 
 	//!! times
 	return noErr;
@@ -1510,7 +1510,7 @@ static int16 fs_open(uint32 pb, uint32 dirID, uint32 vcb, bool resource_fork)
 	WriteMacInt32(fcb + fcbVPtr, vcb);
 	WriteMacInt32(fcb + fcbClmpSize, CLUMP_SIZE);
 
-	get_finfo(full_path, fs_data + fsPB, 0);
+	get_finfo(full_path, fs_data + fsPB, 0, false);
 	WriteMacInt32(fcb + fcbFType, ReadMacInt32(fs_data + fsPB + fdType));
 
 	WriteMacInt32(fcb + fcbCatPos, fd);

@@ -33,8 +33,8 @@ extern int16 ExtFSHFS(uint32 vcb, uint16 selectCode, uint32 paramBlock, uint32 g
 extern void extfs_init(void);
 extern void extfs_exit(void);
 extern void add_path_component(char *path, const char *component);
-extern void get_finfo(const char *path, uint32 finfo, uint32 fxinfo);
-extern void set_finfo(const char *path, uint32 finfo, uint32 fxinfo);
+extern void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir);
+extern void set_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir);
 extern uint32 get_rfork_size(const char *path);
 extern int open_rfork(const char *path, int flag);
 extern void close_rfork(const char *path, int fd);

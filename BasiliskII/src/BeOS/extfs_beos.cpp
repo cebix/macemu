@@ -137,7 +137,7 @@ static const mime2type m2t_translation[] = {
 	{NULL, 0, 0, false}	// End marker
 };
 
-void get_finfo(const char *path, uint32 finfo, uint32 fxinfo)
+void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 {
 	// Set default finder info
 	Mac_memset(finfo, 0, SIZEOF_FInfo);
@@ -151,87 +151,84 @@ void get_finfo(const char *path, uint32 finfo, uint32 fxinfo)
 	if (fd < 0)
 		return;
 
-	// Read BeOS MIME type
-	char mime[256];
-	ssize_t actual = fs_read_attr(fd, "BEOS:TYPE", B_MIME_STRING_TYPE, 0, mime, 256);
-	mime[255] = 0;
+	if (!is_dir) {
 
-	if (actual > 0) {
+		// Read BeOS MIME type
+		ssize_t actual = fs_read_attr(fd, "BEOS:TYPE", B_MIME_STRING_TYPE, 0, tmp_buf, 256);
+		tmp_buf[255] = 0;
 
-		// Translate MIME type to MacOS type/creator
-		uint8 mactype[4];
-		if (sscanf(mime, "application/x-MacOS-%c%c%c%c", mactype, mactype+1, mactype+2, mactype+3) == 4) {
+		if (actual > 0) {
 
-			// MacOS style type
-			WriteMacInt32(finfo + fdType, (mactype[0] << 24) | (mactype[1] << 16) | (mactype[2] << 8) | mactype[3]);
+			// Translate MIME type to MacOS type/creator
+			uint8 mactype[4];
+			if (sscanf((char *)tmp_buf, "application/x-MacOS-%c%c%c%c", mactype, mactype+1, mactype+2, mactype+3) == 4) {
 
-		} else {
+				// MacOS style type
+				WriteMacInt32(finfo + fdType, (mactype[0] << 24) | (mactype[1] << 16) | (mactype[2] << 8) | mactype[3]);
 
-			// MIME string, look in table
-			for (int i=0; m2t_translation[i].mime; i++) {
-				if (!strcmp(mime, m2t_translation[i].mime)) {
-					WriteMacInt32(finfo + fdType, m2t_translation[i].type);
-					WriteMacInt32(finfo + fdCreator, m2t_translation[i].creator);
-					break;
+			} else {
+
+				// MIME string, look in table
+				for (int i=0; m2t_translation[i].mime; i++) {
+					if (!strcmp((char *)tmp_buf, m2t_translation[i].mime)) {
+						WriteMacInt32(finfo + fdType, m2t_translation[i].type);
+						WriteMacInt32(finfo + fdCreator, m2t_translation[i].creator);
+						break;
+					}
 				}
 			}
 		}
+
+		// Override file type with MACOS:CREATOR attribute
+		if (fs_read_attr(fd, "MACOS:CREATOR", B_UINT32_TYPE, 0, tmp_buf, 4) == 4)
+			WriteMacInt32(finfo + fdCreator, (tmp_buf[0] << 24) | (tmp_buf[1] << 16) | (tmp_buf[2] << 8) | tmp_buf[3]);
 	}
 
-	// Override file type with MACOS:CREATOR attribute
-	if (fs_read_attr(fd, "MACOS:CREATOR", B_UINT32_TYPE, 0, &mime, 4) == 4)
-		WriteMacInt32(finfo + fdCreator, (mime[0] << 24) | (mime[1] << 16) | (mime[2] << 8) | mime[3]);
-
 	// Read MACOS:HFS_FLAGS attribute
-	if (fs_read_attr(fd, "MACOS:HFS_FLAGS", B_UINT16_TYPE, 0, &mime, 2) == 2)
-		WriteMacInt16(finfo + fdFlags, (mime[0] << 8) | mime[1]);
+	if (fs_read_attr(fd, "MACOS:HFS_FLAGS", B_UINT16_TYPE, 0, tmp_buf, 2) == 2)
+		WriteMacInt16(finfo + fdFlags, (tmp_buf[0] << 8) | tmp_buf[1]);
 
 	// Close file
 	close(fd);
 }
 
-void set_finfo(const char *path, uint32 finfo, uint32 fxinfo)
+void set_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 {
-	char mime[256];
-
 	// Open file
 	int fd = open(path, O_WRONLY);
 	if (fd < 0)
 		return;
 
-	// Set BEOS:TYPE attribute
-	uint32 type = ReadMacInt32(finfo + fdType);
-	if (type) {
-		bool written = false;
-		for (int i=0; m2t_translation[i].mime; i++) {
-			if (m2t_translation[i].type == type && m2t_translation[i].reversible) {
-				fs_write_attr(fd, "BEOS:TYPE", B_MIME_STRING_TYPE, 0, m2t_translation[i].mime, strlen(m2t_translation[i].mime) + 1);
-				written = true;
-				break;
+	if (!is_dir) {
+
+		// Set BEOS:TYPE attribute
+		uint32 type = ReadMacInt32(finfo + fdType);
+		if (type) {
+			for (int i=0; m2t_translation[i].mime; i++) {
+				if (m2t_translation[i].type == type && m2t_translation[i].reversible) {
+					fs_write_attr(fd, "BEOS:TYPE", B_MIME_STRING_TYPE, 0, m2t_translation[i].mime, strlen(m2t_translation[i].mime) + 1);
+					break;
+				}
 			}
 		}
-		if (!written) {
-			sprintf(mime, "application/x-MacOS-%c%c%c%c", type >> 24, type >> 16, type >> 8, type);
-			fs_write_attr(fd, "BEOS:TYPE", B_MIME_STRING_TYPE, 0, mime, strlen(mime) + 1);
-		}
-	}
 
-	// Set MACOS:CREATOR attribute
-	uint32 creator = ReadMacInt32(finfo + fdType);
-	if (creator) {
-		mime[0] = creator >> 24;
-		mime[1] = creator >> 16;
-		mime[2] = creator >> 8;
-		mime[3] = creator;
-		fs_write_attr(fd, "MACOS:CREATOR", B_UINT32_TYPE, 0, &mime, 4);
+		// Set MACOS:CREATOR attribute
+		uint32 creator = ReadMacInt32(finfo + fdCreator);
+		if (creator) {
+			tmp_buf[0] = creator >> 24;
+			tmp_buf[1] = creator >> 16;
+			tmp_buf[2] = creator >> 8;
+			tmp_buf[3] = creator;
+			fs_write_attr(fd, "MACOS:CREATOR", B_UINT32_TYPE, 0, tmp_buf, 4);
+		}
 	}
 
 	// Write MACOS:HFS_FLAGS attribute
 	uint16 flags = ReadMacInt16(finfo + fdFlags);
 	if (flags != DEFAULT_FINDER_FLAGS) {
-		mime[0] = flags >> 8;
-		mime[1] = flags;
-		fs_write_attr(fd, "MACOS:HFS_FLAGS", B_UINT16_TYPE, 0, &mime, 2);
+		tmp_buf[0] = flags >> 8;
+		tmp_buf[1] = flags;
+		fs_write_attr(fd, "MACOS:HFS_FLAGS", B_UINT16_TYPE, 0, tmp_buf, 2);
 	} else
 		fs_remove_attr(fd, "MACOS:HFS_FLAGS");
 
