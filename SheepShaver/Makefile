@@ -92,7 +92,8 @@ kpx_cpu:
 	       src/cpu/ppc/ppc-config.hpp \
 	       src/cpu/ppc/ppc-operands.hpp \
 	       src/cpu/ppc/ppc-operations.hpp \
-	       src/cpu/ppc/ppc-registers.hpp'; \
+	       src/cpu/ppc/ppc-registers.hpp \
+	       src/test/test-powerpc.cpp'; \
 	for i in $$list; do \
 	  echo $$i; \
 	  mkdir -p src/kpx_cpu/`dirname $$i`; \
