@@ -1839,6 +1839,16 @@ static bool patch_68k(void)
 		*lp = htonl(0x38600000);		// li	r3,0
 	}
 
+	// FIXME: Fake reading from [HpChk]+4 (the callchain reports some function from DriverServicesLib)
+	if (1) {
+		uint32 hpchk_offset = find_rom_resource(FOURCC('n','l','i','b'), 10);
+		static const uint8 hpchk_dat[] = {0x80, 0x80, 0x03, 0x16, 0x94, 0x21, 0xff, 0xb0, 0x83, 0xc4, 0x00, 0x04};
+		if ((base = find_rom_data(hpchk_offset, hpchk_offset + 0x3000, hpchk_dat, sizeof(hpchk_dat))) == 0) return false;
+		D(bug("hpchk %08lx\n", base));
+		lp = (uint32 *)(ROM_BASE + base);
+		*lp = htonl(0x80800000 + XLM_ZERO_PAGE);		// lwz	r4,(zero page)
+	}
+
 	// Patch Name Registry
 	static const uint8 name_reg_dat[] = {0x70, 0xff, 0xab, 0xeb};
 	if ((base = find_rom_data(0x300, 0x380, name_reg_dat, sizeof(name_reg_dat))) == 0) return false;
@@ -2186,8 +2196,7 @@ void InstallDrivers(void)
 
 #if DISABLE_SCSI && 0
 	// Fake SCSIGlobals
-	static const uint8 fake_scsi_globals[32] = {0,};
-	WriteMacInt32(0xc0c, (uint32)fake_scsi_globals);
+	WriteMacInt32(0xc0c, SheepMem::ZeroPage());
 #endif
 
 	// Open .Sony driver
