@@ -131,11 +131,31 @@ typedef int64 intptr;
 #error "Unsupported size of pointer"
 #endif
 
-// Helper functions to byteswap data
+/**
+ *		Helper functions to byteswap data
+ **/
+
+#if defined(__GNUC__)
+#if defined(__x86_64__)
+// Linux/AMD64 currently has no asm optimized bswap_32() in <byteswap.h>
+#define opt_bswap_32 do_opt_bswap_32
+static inline uint32 do_opt_bswap_32(uint32 x)
+{
+  uint32 v;
+  __asm__ __volatile__ ("bswap %0" : "=r" (v) : "0" (x));
+  return v;
+}
+#endif
+#endif
+
 #ifdef HAVE_BYTESWAP_H
 #include <byteswap.h>
 #endif
 
+#ifdef  opt_bswap_16
+#undef  bswap_16
+#define bswap_16 opt_bswap_16
+#endif
 #ifndef bswap_16
 #define bswap_16 generic_bswap_16
 #endif
@@ -145,6 +165,10 @@ static inline uint16 generic_bswap_16(uint16 x)
   return ((x & 0xff) << 8) | ((x >> 8) & 0xff);
 }
 
+#ifdef  opt_bswap_32
+#undef  bswap_32
+#define bswap_32 opt_bswap_32
+#endif
 #ifndef bswap_32
 #define bswap_32 generic_bswap_32
 #endif
@@ -157,6 +181,10 @@ static inline uint32 generic_bswap_32(uint32 x)
 		  ((x & 0x000000ff) << 24) );
 }
 
+#ifdef  opt_bswap_64
+#undef  bswap_64
+#define bswap_64 opt_bswap_64
+#endif
 #ifndef bswap_64
 #define bswap_64 generic_bswap_64
 #endif
