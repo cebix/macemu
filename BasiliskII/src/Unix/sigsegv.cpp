@@ -813,10 +813,12 @@ static bool ix86_skip_instruction(unsigned long * regs)
 		int rloc = x86_reg_map[reg];
 		switch (transfer_size) {
 		case SIZE_BYTE:
-			if (!has_rex && reg >= 4)
-				regs[rloc - 4] = (regs[rloc - 4] & ~0xff00L);
-			else
-				regs[rloc] = (regs[rloc] & ~0xffL);
+			if (has_rex || reg < 4)
+				regs[rloc] = (regs[rloc] & ~0x00ffL);
+			else {
+				rloc = x86_reg_map[reg - 4];
+				regs[rloc] = (regs[rloc] & ~0xff00L);
+			}
 			break;
 		case SIZE_WORD:
 			regs[rloc] = (regs[rloc] & ~0xffffL);
