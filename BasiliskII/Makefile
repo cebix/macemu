@@ -8,7 +8,7 @@ VERNAME := BasiliskII-$(VERSION)
 SRCARCHIVE := $(shell date +BasiliskII_src_%d%m%Y.tar.gz)
 SRCRPM := $(VERNAME)-$(RELEASE).src.rpm
 BINRPM := $(VERNAME)-$(RELEASE).i386.rpm
-AMIGAARCHIVE := $(VERNAME)-$(RELEASE).amiga.lha
+AMIGAARCHIVE := $(VERNAME)-$(RELEASE).amiga.lzh
 BEOSPPCARCHIVE := $(VERNAME)-$(RELEASE).beosppc.zip
 BEOSX86ARCHIVE := $(VERNAME)-$(RELEASE).beosx86.zip
 
