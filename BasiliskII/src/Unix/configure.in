@@ -172,10 +172,14 @@ UISRCS=../dummy/prefs_editor_dummy.cpp
 if [[ "x$WANT_GTK" = "xyes" ]]; then
   AM_PATH_GTK(1.2.0, [
     AC_DEFINE(ENABLE_GTK)
-    CFLAGS="$CFLAGS $GTK_CFLAGS"
     CXXFLAGS="$CXXFLAGS $GTK_CFLAGS"
     LIBS="$LIBS $GTK_LIBS"
     UISRCS=prefs_editor_gtk.cpp
+    B2_PATH_GNOMEUI([
+      AC_DEFINE(HAVE_GNOMEUI)
+      CXXFLAGS="$CXXFLAGS $GNOMEUI_CFLAGS"
+      LIBS="$LIBS $GNOMEUI_LIBS"
+    ], [])
   ], [
     AC_MSG_WARN([Could not find GTK+, disabling user interface.])
     WANT_GTK=no

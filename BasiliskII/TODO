@@ -45,4 +45,3 @@ Unix:
 - ESD is also available on Solaris
 - serial_unix.cpp: provide a way to pipe input/output to programs
 - display progress bar during disk file creation in prefs editor
-- add file browsing window to "Unix Root", "Keycode Translation File", "ROM File"

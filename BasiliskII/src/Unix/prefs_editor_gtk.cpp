@@ -28,6 +28,10 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 
+#ifdef HAVE_GNOMEUI
+#include <gnome.h>
+#endif
+
 #include "user_strings.h"
 #include "version.h"
 #include "cdrom.h"
@@ -150,7 +154,7 @@ static GtkWidget *make_option_menu(GtkWidget *top, int label_id, const opt_desc 
 	return menu;
 }
 
-static GtkWidget *make_entry(GtkWidget *top, int label_id, const char *prefs_item)
+static GtkWidget *make_file_entry(GtkWidget *top, int label_id, const char *prefs_item, bool only_dirs = false)
 {
 	GtkWidget *box, *label, *entry;
 
@@ -162,14 +166,31 @@ static GtkWidget *make_entry(GtkWidget *top, int label_id, const char *prefs_ite
 	gtk_widget_show(label);
 	gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
 
-	entry = gtk_entry_new();
-	gtk_widget_show(entry);
 	const char *str = PrefsFindString(prefs_item);
 	if (str == NULL)
 		str = "";
+
+#ifdef HAVE_GNOMEUI
+	entry = gnome_file_entry_new(NULL, GetString(label_id));
+	if (only_dirs)
+		gnome_file_entry_set_directory(GNOME_FILE_ENTRY(entry), true);
+	gtk_entry_set_text(GTK_ENTRY(gnome_file_entry_gtk_entry(GNOME_FILE_ENTRY(entry))), str);
+#else
+	entry = gtk_entry_new();
 	gtk_entry_set_text(GTK_ENTRY(entry), str); 
+#endif
+	gtk_widget_show(entry);
 	gtk_box_pack_start(GTK_BOX(box), entry, TRUE, TRUE, 0);
 	return entry;
+}
+
+static char *get_file_entry_path(GtkWidget *entry)
+{
+#ifdef HAVE_GNOMEUI
+	return gnome_file_entry_get_full_path(GNOME_FILE_ENTRY(entry), false);
+#else
+	return gtk_entry_get_text(GTK_ENTRY(entry));
+#endif
 }
 
 static GtkWidget *make_checkbox(GtkWidget *top, int label_id, const char *prefs_item, GtkSignalFunc func)
@@ -225,7 +246,43 @@ static void dl_quit(GtkWidget *dialog)
 // "About" selected
 static void mn_about(...)
 {
-	GtkWidget *dialog, *label, *button;
+	GtkWidget *dialog;
+
+#ifdef HAVE_GNOMEUI
+
+	char version[32];
+	sprintf(version, "Version %d.%d", VERSION_MAJOR, VERSION_MINOR);
+	const char *authors[] = {
+		"Christian Bauer",
+		"Orlando Bassotto",
+		"Gwenolé Beauchesne",
+		"Marc Chabanas",
+		"Marc Hellwig",
+		"Biill Huey",
+		"Brian J. Johnson",
+		"Jürgen Lachmann",
+		"Samuel Lander",
+		"David Lawrence",
+		"Lauri Pesonen",
+		"Bernd Schmidt",
+		"and others",
+		NULL
+	};
+	dialog = gnome_about_new(
+		"Basilisk II",
+		version,
+		"Copyright (C) 1997-2002 Christian Bauer",
+		authors,
+		"Basilisk II comes with ABSOLUTELY NO WARRANTY."
+		"This is free software, and you are welcome to redistribute it"
+		"under the terms of the GNU General Public License.",
+		NULL
+	);
+	gnome_dialog_set_parent(GNOME_DIALOG(dialog), GTK_WINDOW(win));
+
+#else
+
+	GtkWidget *label, *button;
 
 	char str[512];
 	sprintf(str,
@@ -256,6 +313,9 @@ static void mn_about(...)
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, FALSE, FALSE, 0);
 	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
 	gtk_widget_grab_default(button);
+
+#endif
+
 	gtk_widget_show(dialog);
 }
 
@@ -431,7 +491,7 @@ static void read_volumes_settings(void)
 		PrefsAddString("disk", str);
 	}
 
-	PrefsReplaceString("extfs", gtk_entry_get_text(GTK_ENTRY(w_extfs)));
+	PrefsReplaceString("extfs", get_file_entry_path(w_extfs));
 }
 
 // Create "Volumes" pane
@@ -452,7 +512,7 @@ static void create_volumes_pane(GtkWidget *top)
 	gtk_signal_connect(GTK_OBJECT(volume_list), "select_row", GTK_SIGNAL_FUNC(cl_selected), NULL);
 	char *str;
 	int32 index = 0;
-	while ((str = (char *)PrefsFindString("disk", index++)) != NULL)
+	while ((str = const_cast<char *>(PrefsFindString("disk", index++))) != NULL)
 		gtk_clist_append(GTK_CLIST(volume_list), &str);
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scroll), volume_list);
 	gtk_box_pack_start(GTK_BOX(box), scroll, TRUE, TRUE, 0);
@@ -467,7 +527,7 @@ static void create_volumes_pane(GtkWidget *top)
 	make_button_box(box, 0, buttons);
 	make_separator(box);
 
-	w_extfs = make_entry(box, STR_EXTFS_CTRL, "extfs");
+	w_extfs = make_file_entry(box, STR_EXTFS_CTRL, "extfs", true);
 
 	static const opt_desc options[] = {
 		{STR_BOOT_ANY_LAB, GTK_SIGNAL_FUNC(mn_boot_any)},
@@ -497,7 +557,7 @@ static void read_scsi_settings(void)
 	for (int id=0; id<7; id++) {
 		char prefs_name[32];
 		sprintf(prefs_name, "scsi%d", id);
-		const char *str = gtk_entry_get_text(GTK_ENTRY(w_scsi[id]));
+		const char *str = get_file_entry_path(w_scsi[id]);
 		if (str && strlen(str))
 			PrefsReplaceString(prefs_name, str);
 		else
@@ -515,7 +575,7 @@ static void create_scsi_pane(GtkWidget *top)
 	for (int id=0; id<7; id++) {
 		char prefs_name[32];
 		sprintf(prefs_name, "scsi%d", id);
-		w_scsi[id] = make_entry(box, STR_SCSI_ID_0 + id, prefs_name);
+		w_scsi[id] = make_file_entry(box, STR_SCSI_ID_0 + id, prefs_name);
 	}
 }
 
@@ -645,6 +705,14 @@ static void read_graphics_settings(void)
 			return;
 	}
 	PrefsReplaceString("screen", pref);
+
+#ifdef ENABLE_FBDEV_DGA
+	str = get_file_entry_path(w_fbdevice_file);
+	if (str && strlen(str))
+		PrefsReplaceString("fbdevicefile", str);
+	else
+		PrefsRemoveItem("fbdevicefile");
+#endif
 }
 
 // Create "Graphics/Sound" pane
@@ -760,7 +828,7 @@ static void create_graphics_pane(GtkWidget *top)
 	gtk_entry_set_text(GTK_ENTRY(w_fbdev_name), fbdev_name); 
 	gtk_table_attach(GTK_TABLE(table), w_fbdev_name, 1, 2, 4, 5, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
-	w_fbdevice_file = make_entry(box, STR_FBDEVICE_FILE_CTRL, "fbdevicefile");
+	w_fbdevice_file = make_file_entry(box, STR_FBDEVICE_FILE_CTRL, "fbdevicefile");
 #endif
 
 	make_separator(box);
@@ -798,7 +866,7 @@ static void mn_wheel_cursor(...) {PrefsReplaceInt32("mousewheelmode", 1); set_in
 // Read settings from widgets and set preferences
 static void read_input_settings(void)
 {
-	const char *str = gtk_entry_get_text(GTK_ENTRY(w_keycode_file));
+	const char *str = get_file_entry_path(w_keycode_file);
 	if (str && strlen(str))
 		PrefsReplaceString("keycodefile", str);
 	else
@@ -816,7 +884,7 @@ static void create_input_pane(GtkWidget *top)
 	box = make_pane(top, STR_INPUT_PANE_TITLE);
 
 	make_checkbox(box, STR_KEYCODES_CTRL, "keycodes", GTK_SIGNAL_FUNC(tb_keycodes));
-	w_keycode_file = make_entry(box, STR_KEYCODE_FILE_CTRL, "keycodefile");
+	w_keycode_file = make_file_entry(box, STR_KEYCODE_FILE_CTRL, "keycodefile");
 
 	make_separator(box);
 
@@ -1072,7 +1140,7 @@ static void read_memory_settings(void)
 {
 	PrefsReplaceInt32("ramsize", int(GTK_ADJUSTMENT(w_ramsize_adj)->value) << 20);
 
-	const char *str = gtk_entry_get_text(GTK_ENTRY(w_rom_file));
+	const char *str = get_file_entry_path(w_rom_file);
 	if (str && strlen(str))
 		PrefsReplaceString("rom", str);
 	else
@@ -1157,7 +1225,7 @@ static void create_memory_pane(GtkWidget *top)
 	make_option_menu(box, STR_CPU_CTRL, cpu_options, active);
 #endif
 
-	w_rom_file = make_entry(box, STR_ROM_FILE_CTRL, "rom");
+	w_rom_file = make_file_entry(box, STR_ROM_FILE_CTRL, "rom");
 }
 
 

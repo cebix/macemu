@@ -51,6 +51,9 @@ struct sigstate {
 #ifdef ENABLE_GTK
 # include <gtk/gtk.h>
 # include <gdk/gdk.h>
+# ifdef HAVE_GNOMEUI
+#  include <gnome.h>
+# endif
 #endif
 
 #ifdef ENABLE_XF86_DGA
@@ -222,9 +225,16 @@ int main(int argc, char **argv)
 	printf(" %s\n", GetString(STR_ABOUT_TEXT2));
 
 #ifdef ENABLE_GTK
+#ifdef HAVE_GNOMEUI
+	// Init GNOME/GTK
+	char version[16];
+	sprintf(version, "%d.%d", VERSION_MAJOR, VERSION_MINOR);
+	gnome_init("Basilisk II", version, argc, argv);
+#else
 	// Init GTK
 	gtk_set_locale();
 	gtk_init(&argc, &argv);
+#endif
 	x_display_name = gdk_get_display(); // gtk_init() handles and removes the "--display" argument
 #endif
 

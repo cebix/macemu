@@ -71,6 +71,9 @@
 /* Define if <sys/mman.h> defines MAP_ANONYMOUS and mmap()'ing with MAP_ANONYMOUS works */
 #undef HAVE_MMAP_ANONYMOUS
 
+/* Define if libgnomeui is available */
+#undef HAVE_GNOMEUI
+
 
 /* Leave that blank line there!!  Autoheader needs it.
    If you're adding to this file, keep in mind:
