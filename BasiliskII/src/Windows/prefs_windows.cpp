@@ -42,6 +42,8 @@ prefs_desc platform_prefs_items[] = {
 	{"ignoresegv", TYPE_BOOLEAN, false,    "ignore illegal memory accesses"},
 #endif
 	{"enableextfs", TYPE_BOOLEAN, false,   "enable extfs system"},
+	{"debugextfs", TYPE_BOOLEAN, false,    "debug extfs system"},
+	{"extdrives", TYPE_STRING, false,      "define allowed extfs drives"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
@@ -107,11 +109,12 @@ void SavePrefs(void)
 void AddPlatformPrefsDefaults(void)
 {
 	PrefsAddBool("keycodes", false);
+	PrefsReplaceBool("enableextfs", false);
 	PrefsReplaceString("extfs", "");
+	PrefsReplaceString("extdrives", "CDEFGHIJKLMNOPQRSTUVWXYZ");
 	PrefsReplaceInt32("mousewheelmode", 1);
 	PrefsReplaceInt32("mousewheellines", 3);
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 	PrefsAddBool("ignoresegv", false);
 #endif
-	PrefsReplaceBool("enableextfs", false);
 }
