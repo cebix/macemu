@@ -261,13 +261,31 @@ static int prevFlags;
 - (void) keyDown: (NSEvent *) event
 {
 	if ( [self processKeyEvent: event] )
-		ADBKeyDown([event keyCode]);
+	{
+		int	code = [event keyCode];
+
+		if ( code == 126 )	code = 0x3e;	// CURS_UP
+		if ( code == 125 )	code = 0x3d;	// CURS_DOWN
+		if ( code == 124 )	code = 0x3c;	// CURS_RIGHT
+		if ( code == 123 )	code = 0x3b;	// CURS_LEFT
+
+		ADBKeyDown(code);
+	}
 }
 
 - (void) keyUp: (NSEvent *) event
 {
 	if ( [self processKeyEvent: event] )
-		ADBKeyUp([event keyCode]);
+	{
+		int	code = [event keyCode];
+
+		if ( code == 126 )	code = 0x3e;	// CURS_UP
+		if ( code == 125 )	code = 0x3d;	// CURS_DOWN
+		if ( code == 124 )	code = 0x3c;	// CURS_RIGHT
+		if ( code == 123 )	code = 0x3b;	// CURS_LEFT
+
+		ADBKeyUp(code);
+	}
 }
 
 static NSPoint	mouse;			// Previous/current mouse location
