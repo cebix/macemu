@@ -2,6 +2,7 @@
 
 ## System specific configuration
 @SET_MAKE@
+SHELL = /bin/sh
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
@@ -35,8 +36,10 @@ APP = BasiliskII
 
 ## Rules
 .PHONY: modules install uninstall clean distclean depend
+.SUFFIXES:
+.SUFFIXES: .c .cpp .s .o .h
 
-default: $(APP)
+all: $(APP)
 
 OBJ_DIR = obj
 $(OBJ_DIR)::
@@ -59,24 +62,27 @@ modules:
 	cd Linux/NetDriver; make
 
 install: $(APP)
-	$(INSTALL_PROGRAM) $(APP) $(bindir)
-	$(INSTALL_DATA) $(APP).1 $(man1dir)
+	$(INSTALL_PROGRAM) $(APP) $(bindir)/$(APP)
+	-$(INSTALL_DATA) $(APP).1 $(man1dir)/$(APP).1
 	$(INSTALL) -d $(datadir)/$(APP)
-	$(INSTALL_DATA) keycodes $(datadir)/$(APP)
+	$(INSTALL_DATA) keycodes $(datadir)/$(APP)/keycodes
 
 uninstall:
-	-rm -f $(bindir)/$(APP)
-	-rm -f $(man1dir)/$(APP).1
-	-rm -rf $(datadir)/$(APP)
+	rm -f $(bindir)/$(APP)
+	rm -f $(man1dir)/$(APP).1
+	rm -f $(datadir)/$(APP)/keycodes
+	rmdir $(datadir)/$(APP)
 
-clean:
-	-rm -f $(APP) $(OBJ_DIR)/* core* *.core *~ *.bak
-	-rm -f cpuemu.cpp cpudefs.cpp cputmp.s cpufast*.s cpustbl.cpp cputbl.h
+mostlyclean:
+	rm -f $(APP) $(OBJ_DIR)/* core* *.core *~ *.bak
+
+clean: mostlyclean
+	rm -f cpuemu.cpp cpudefs.cpp cputmp.s cpufast*.s cpustbl.cpp cputbl.h
 
 distclean: clean
-	-rm -rf $(OBJ_DIR)
-	-rm -f Makefile
-	-rm -f config.cache config.log config.status config.h
+	rm -rf $(OBJ_DIR)
+	rm -f Makefile
+	rm -f config.cache config.log config.status config.h
 
 depend dep:
 	makedepend $(CPPFLAGS) -Y. $(SRCS) 2>/dev/null
