@@ -164,8 +164,6 @@ DEFINE_OP(andc_32_T0_T1, T0 &= ~T1);
 DEFINE_OP(nand_32_T0_T1, T0 = ~(T0 & T1));
 DEFINE_OP(nor_32_T0_T1, T0 = ~(T0 | T1));
 DEFINE_OP(eqv_32_T0_T1, T0 = ~(T0 ^ T1));
-DEFINE_OP(and_logical_T0_T1, T0 = T0 && T1);
-DEFINE_OP(or_logical_T0_T1, T0 = T0 || T1);
 
 // Shift/Rotate operations
 DEFINE_OP(lsl_32_T0_T1, T0 = T0 << T1);

@@ -41,7 +41,7 @@
  **/
 
 #ifndef DYNGEN_ASM_OPTS
-#define DYNGEN_ASM_OPTS 1
+#define DYNGEN_ASM_OPTS 0
 #endif
 
 /**

@@ -140,8 +140,6 @@ public:
 	DEFINE_ALIAS(nand_32_T0_T1,0);
 	DEFINE_ALIAS(nor_32_T0_T1,0);
 	DEFINE_ALIAS(eqv_32_T0_T1,0);
-	DEFINE_ALIAS(and_logical_T0_T1,0);
-	DEFINE_ALIAS(or_logical_T0_T1,0);
 
 	// Shift/Rotate operations
 	DEFINE_ALIAS(lsl_32_T0_T1,0);
