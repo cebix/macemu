@@ -59,28 +59,36 @@ extern uint32 SheepStack2Base;	// SheepShaver second alternate stack base
 extern uint32 SheepThunksBase;	// SheepShaver thunks base
 
 // Mac memory access functions
+#if EMULATED_PPC
+#include "cpu/vm.hpp"
+static inline uint32 ReadMacInt8(uint32 addr) {return vm_read_memory_1(addr);}
+static inline void WriteMacInt8(uint32 addr, uint32 v) {vm_write_memory_1(addr, v);}
+static inline uint32 ReadMacInt16(uint32 addr) {return vm_read_memory_2(addr);}
+static inline void WriteMacInt16(uint32 addr, uint32 v) {vm_write_memory_2(addr, v);}
+static inline uint32 ReadMacInt32(uint32 addr) {return vm_read_memory_4(addr);}
+static inline void WriteMacInt32(uint32 addr, uint32 v) {vm_write_memory_4(addr, v);}
+static inline uint64 ReadMacInt64(uint32 addr) {return vm_read_memory_8(addr);}
+static inline void WriteMacInt64(uint32 addr, uint64 v) {vm_write_memory_8(addr, v);}
+static inline uint8 *Mac2HostAddr(uint32 addr) {return vm_do_get_real_address(addr);}
+static inline void *Mac_memset(uint32 addr, int c, size_t n) {return vm_memset(addr, c, n);}
+static inline void *Mac2Host_memcpy(void *dest, uint32 src, size_t n) {return vm_memcpy(dest, src, n);}
+static inline void *Host2Mac_memcpy(uint32 dest, const void *src, size_t n) {return vm_memcpy(dest, src, n);}
+static inline void *Mac2Mac_memcpy(uint32 dest, uint32 src, size_t n) {return vm_memcpy(dest, src, n);}
+#else
 static inline uint32 ReadMacInt8(uint32 addr) {return *(uint8 *)addr;}
 static inline void WriteMacInt8(uint32 addr, uint32 b) {*(uint8 *)addr = b;}
-#ifdef __i386__
-static inline uint32 ReadMacInt16(uint32 addr) {uint32 retval; __asm__ ("movzwl %w1,%k0\n\tshll $16,%k0\n\tbswapl %k0\n" : "=&r" (retval) : "m" (*(uint16 *)addr) : "cc"); return retval;}
-static inline uint32 ReadMacInt32(uint32 addr) {uint32 retval; __asm__ ("bswap %0" : "=r" (retval) : "0" (*(uint32 *)addr) : "cc"); return retval;}
-static inline uint64 ReadMacInt64(uint32 addr) {return ((uint64)ReadMacInt32(addr) << 32) | ReadMacInt32(addr + 4);}
-static inline void WriteMacInt16(uint32 addr, uint32 w) {__asm__ ("bswapl %0" : "=&r" (w) : "0" (w << 16) : "cc"); *(uint16 *)addr = w;}
-static inline void WriteMacInt32(uint32 addr, uint32 l) {__asm__ ("bswap %0" : "=r" (l) : "0" (l) : "cc"); *(uint32 *)addr = l;}
-static inline void WriteMacInt64(uint32 addr, uint64 ll) {WriteMacInt32(addr, ll >> 32); WriteMacInt32(addr, ll);}
-#else
 static inline uint32 ReadMacInt16(uint32 addr) {return *(uint16 *)addr;}
 static inline uint32 ReadMacInt32(uint32 addr) {return *(uint32 *)addr;}
 static inline uint64 ReadMacInt64(uint32 addr) {return *(uint64 *)addr;}
 static inline void WriteMacInt16(uint32 addr, uint32 w) {*(uint16 *)addr = w;}
 static inline void WriteMacInt32(uint32 addr, uint32 l) {*(uint32 *)addr = l;}
 static inline void WriteMacInt64(uint32 addr, uint64 ll) {*(uint64 *)addr = ll;}
-#endif
 static inline uint8 *Mac2HostAddr(uint32 addr) {return (uint8 *)addr;}
 static inline void *Mac_memset(uint32 addr, int c, size_t n) {return memset(Mac2HostAddr(addr), c, n);}
 static inline void *Mac2Host_memcpy(void *dest, uint32 src, size_t n) {return memcpy(dest, Mac2HostAddr(src), n);}
 static inline void *Host2Mac_memcpy(uint32 dest, const void *src, size_t n) {return memcpy(Mac2HostAddr(dest), src, n);}
 static inline void *Mac2Mac_memcpy(uint32 dest, uint32 src, size_t n) {return memcpy(Mac2HostAddr(dest), Mac2HostAddr(src), n);}
+#endif
 
 
 /*
