@@ -364,6 +364,8 @@ bool VideoInit(bool classic)
 		}
 	}
 
+	D(bug("display_type %d, window_width %d, window_height %d\n", display_type, window_width, window_height));
+
 	// Construct list of supported modes
 	switch (display_type) {
 		case DISPLAY_WINDOW:
@@ -385,7 +387,7 @@ bool VideoInit(bool classic)
 			struct DimensionInfo dimInfo;
 			DisplayInfoHandle handle = FindDisplayInfo(screen_mode_id);
 
-			if (NULL == handle)
+			if (handle == NULL)
 				return false;
 
 			if (GetDisplayInfoData(handle, (UBYTE *) &dimInfo, sizeof(dimInfo), DTAG_DIMS, 0) <= 0)
@@ -395,15 +397,12 @@ bool VideoInit(bool classic)
 			default_height = 1 + dimInfo.Nominal.MaxY - dimInfo.Nominal.MinY;
 			default_depth = dimInfo.MaxDepth;
 
-			for (unsigned d=VDEPTH_8BIT; d<=VDEPTH_32BIT; d++)
-				{
+			for (unsigned d=VDEPTH_8BIT; d<=VDEPTH_32BIT; d++) {
 				ULONG mode_id = find_mode_for_depth(default_width, default_height, bits_from_depth(video_depth(d)));
 
 				if (is_valid_modeid(display_type, mode_id))
-					{
 					add_modes(default_width, default_height, video_depth(d));
-					}
-				}
+			}
 			break;
 	}
 
@@ -426,12 +425,11 @@ bool VideoInit(bool classic)
 	else {
 		// Find mode with specified dimensions
 		std::vector<video_mode>::const_iterator i, end = VideoModes.end();
-		for (i = VideoModes.begin(); i != end; ++i)
-			{
+		for (i = VideoModes.begin(); i != end; ++i) {
 			D(bug("VideoInit: w=%ld  h=%ld  d=%ld\n", i->x, i->y, bits_from_depth(i->depth)));
 			if (i->x == default_width && i->y == default_height && bits_from_depth(i->depth) == default_depth)
 				return video_open(*i);
-			}
+		}
 		return video_open(VideoModes[0]);
 	}
 
@@ -446,11 +444,10 @@ static bool video_open(const video_mode &mode)
 
 	D(bug("video_open: width=%ld  height=%ld  depth=%ld  ID=%08lx\n", mode.x, mode.y, depth_bits, ID));
 
-	if (INVALID_ID == ID)
-		{
+	if (ID == INVALID_ID) {
 		ErrorAlert(STR_NO_VIDEO_MODE_ERR);
 		return false;
-		}
+	}
 
 	VideoMonitor.mode = mode;
 
@@ -613,11 +610,10 @@ void video_switch_to_mode(const video_mode &mode)
 {
 	// Close and reopen display
 	video_close();
-	if (!video_open(mode))
-		{
+	if (!video_open(mode)) {
 		ErrorAlert(STR_OPEN_WINDOW_ERR);
 		QuitEmulator();
-		}
+	}
 }
 
 
@@ -818,7 +814,7 @@ static void add_mode(uint32 width, uint32 height, uint32 resolution_id, uint32 b
 	VideoModes.push_back(mode);
 }
 
-// Add standard list of windowed modes for given color depth
+// Add standard list of modes for given color depth
 static void add_modes(uint32 width, uint32 height, video_depth depth)
 {
 	D(bug("add_modes: w=%ld  h=%ld  d=%ld\n", width, height, depth));
@@ -869,18 +865,17 @@ static bool is_valid_modeid(int display_type, ULONG mode_id)
 	if (INVALID_ID == mode_id)
 		return false;
 
-	switch (display_type)
-		{
-	case DISPLAY_SCREEN_P96:
-		return check_modeid_p96(mode_id);
-		break;
-	case DISPLAY_SCREEN_CGFX:
-		return check_modeid_cgfx(mode_id);
-		break;
-	default:
-		return false;
-		break;
-		}
+	switch (display_type) {
+		case DISPLAY_SCREEN_P96:
+			return check_modeid_p96(mode_id);
+			break;
+		case DISPLAY_SCREEN_CGFX:
+			return check_modeid_cgfx(mode_id);
+			break;
+		default:
+			return false;
+			break;
+	}
 }
 
 
@@ -889,6 +884,8 @@ static bool check_modeid_p96(ULONG mode_id)
 	// Check if the mode is one we can handle
 	uint32 depth = p96GetModeIDAttr(mode_id, P96IDA_DEPTH);
 	uint32 format = p96GetModeIDAttr(mode_id, P96IDA_RGBFORMAT);
+
+	D(bug("check_modeid_p96: mode_id=%08lx  depth=%ld  format=%ld\n", mode_id, depth, format));
 
 	if (!p96GetModeIDAttr(screen_mode_id, P96IDA_ISP96))
 		return false;
@@ -919,7 +916,7 @@ static bool check_modeid_cgfx(ULONG mode_id)
 	uint32 depth = GetCyberIDAttr(CYBRIDATTR_DEPTH, mode_id);
 	uint32 format = GetCyberIDAttr(CYBRIDATTR_PIXFMT, mode_id);
 
-	D(bug("init_screen_cgfx: mode_id=%08lx  depth=%ld  format=%ld\n", mode_id, depth, format));
+	D(bug("check_modeid_cgfx: mode_id=%08lx  depth=%ld  format=%ld\n", mode_id, depth, format));
 
 	if (!IsCyberModeID(mode_id))
 		return false;
@@ -929,7 +926,6 @@ static bool check_modeid_cgfx(ULONG mode_id)
 			break;
 		case 15:
 		case 16:
-			// !!! PIXFMT_RGB15 is correct !!!
 			if (format != PIXFMT_RGB15)
 				return false;
 			break;
@@ -944,4 +940,3 @@ static bool check_modeid_cgfx(ULONG mode_id)
 
 	return true;
 }
-
