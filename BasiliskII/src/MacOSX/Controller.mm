@@ -67,7 +67,8 @@
 
 - (void) sendEvent: (NSEvent *)event;
 {
-	if ( [self isAnyEmulatorDisplayingSheets] || ! [self isAnyEmulatorRunning] )
+	if ( [self isAnyEmulatorDisplayingSheets] ||
+			[[thePrefsEditor window] isVisible] || ! [self isAnyEmulatorRunning] )
 		[super sendEvent: event];
 	else
 	{
