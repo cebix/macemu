@@ -75,14 +75,14 @@ void extfs_exit(void)
  *  Add component to path name
  */
 
-void add_path_component(char *path, const char *component, int max_len)
+void add_path_component(char *path, const char *component)
 {
 	int l = strlen(path);
-	if (l < max_len-1 && path[l-1] != '/') {
+	if (l < MAX_PATH_LENGTH-1 && path[l-1] != '/') {
 		path[l] = '/';
 		path[l+1] = 0;
 	}
-	strncat(path, component, max_len-1);
+	strncat(path, component, MAX_PATH_LENGTH-1);
 }
 
 
