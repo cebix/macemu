@@ -262,6 +262,32 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 #include "video_blit.h"
 
 /* -------------------------------------------------------------------------- */
+/* --- 2/4-bit indexed to 8-bit mode conversion                           --- */
+/* -------------------------------------------------------------------------- */
+
+static void Blit_Expand_2_To_8(uint8 * dest, const uint8 * p, uint32 length)
+{
+	uint8 *q = (uint8 *)dest;
+	for (int i=0; i<length; i++) {
+		uint8 c = *p++;
+		*q++ = c >> 6;
+		*q++ = (c >> 4) & 3;
+		*q++ = (c >> 2) & 3;
+		*q++ = c & 3;
+	}
+}
+
+static void Blit_Expand_4_To_8(uint8 * dest, const uint8 * p, uint32 length)
+{
+	uint8 *q = (uint8 *)dest;
+	for (int i=0; i<length; i++) {
+		uint8 c = *p++;
+		*q++ = c >> 4;
+		*q++ = c & 0x0f;
+	}
+}
+
+/* -------------------------------------------------------------------------- */
 /* --- 2/4/8-bit indexed to 16-bit mode color expansion                   --- */
 /* -------------------------------------------------------------------------- */
 
@@ -402,32 +428,36 @@ bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, vide
 
 		bool blitter_found = false;
 	
-		// 2/4/8-bit mode on 16/32-bit screen?
-		if (visualFormat.depth > 8) {
+		// 2/4/8-bit mode on 8/16/32-bit screen?
+		if (visualFormat.depth == 8) {
 			if (mac_depth == VDEPTH_2BIT) {
-				if (visual_info->depth <= 16) {
-					Screen_blit = Blit_Expand_2_To_16;
-					blitter_found = true;
-				} else {
-					Screen_blit = Blit_Expand_2_To_32;
-					blitter_found = true;
-				}
+				Screen_blit = Blit_Expand_2_To_8;
+				blitter_found = true;
 			} else if (mac_depth == VDEPTH_4BIT) {
-				if (visual_info->depth <= 16) {
-					Screen_blit = Blit_Expand_4_To_16;
-					blitter_found = true;
-				} else {
-					Screen_blit = Blit_Expand_4_To_32;
-					blitter_found = true;
-				}
+				Screen_blit = Blit_Expand_4_To_8;
+				blitter_found = true;
+			}
+		} else if (visualFormat.depth == 15 || visualFormat.depth == 16) {
+			if (mac_depth == VDEPTH_2BIT) {
+				Screen_blit = Blit_Expand_2_To_16;
+				blitter_found = true;
+			} else if (mac_depth == VDEPTH_4BIT) {
+				Screen_blit = Blit_Expand_4_To_16;
+				blitter_found = true;
 			} else if (mac_depth == VDEPTH_8BIT) {
-				if (visual_info->depth <= 16) {
-					Screen_blit = Blit_Expand_8_To_16;
-					blitter_found = true;
-				} else {
-					Screen_blit = Blit_Expand_8_To_32;
-					blitter_found = true;
-				}
+				Screen_blit = Blit_Expand_8_To_16;
+				blitter_found = true;
+			}
+		} else if (visualFormat.depth == 24 || visualFormat.depth == 32) {
+			if (mac_depth == VDEPTH_2BIT) {
+				Screen_blit = Blit_Expand_2_To_32;
+				blitter_found = true;
+			} else if (mac_depth == VDEPTH_4BIT) {
+				Screen_blit = Blit_Expand_4_To_32;
+				blitter_found = true;
+			} else if (mac_depth == VDEPTH_8BIT) {
+				Screen_blit = Blit_Expand_8_To_32;
+				blitter_found = true;
 			}
 		}
 	

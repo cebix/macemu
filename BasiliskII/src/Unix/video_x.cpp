@@ -67,7 +67,7 @@ using std::sort;
 #include "user_strings.h"
 #include "video.h"
 
-#define DEBUG 0
+#define DEBUG 1
 #include "debug.h"
 
 
@@ -218,11 +218,8 @@ static bool find_visual_for_depth(video_depth depth)
 			break;
 #ifdef ENABLE_VOSF
 		case VDEPTH_2BIT:
-		case VDEPTH_4BIT:	// VOSF blitters can convert 2/4-bit -> 16/32-bit
-			min_depth = 15;
-			max_depth = 32;
-			break;
-		case VDEPTH_8BIT:	// VOSF blitters can convert 8-bit -> 16/32-bit
+		case VDEPTH_4BIT:	// VOSF blitters can convert 2/4/8-bit -> 8/16/32-bit
+		case VDEPTH_8BIT:
 			min_depth = 8;
 			max_depth = 32;
 			break;
@@ -525,10 +522,8 @@ driver_base::~driver_base()
 void driver_base::update_palette(void)
 {
 	if (cmap[0] && cmap[1]) {
-		int num = 256;
-		if (IsDirectMode(VideoMonitor.mode))
-			num = vis->map_entries; // Palette is gamma table
-		else if (color_class == DirectColor)
+		int num = vis->map_entries;
+		if (!IsDirectMode(VideoMonitor.mode) && color_class == DirectColor)
 			return; // Indexed mode on true color screen, don't set CLUT
 		XStoreColors(x_display, cmap[0], palette, num);
 		XStoreColors(x_display, cmap[1], palette, num);
@@ -1655,13 +1650,15 @@ void video_set_palette(uint8 *pal, int num_in)
 
 	// Convert colors to XColor array
 	int num_out = 256;
+	bool stretch = false;
 	if (IsDirectMode(VideoMonitor.mode)) {
 		// If X is in 565 mode we have to stretch the gamma table from 32 to 64 entries
 		num_out = vis->map_entries;
+		stretch = true;
 	}
 	XColor *p = palette;
 	for (int i=0; i<num_out; i++) {
-		int c = (i * num_in) / num_out;
+		int c = (stretch ? (i * num_in) / num_out : i);
 		p->red = pal[c*3 + 0] * 0x0101;
 		p->green = pal[c*3 + 1] * 0x0101;
 		p->blue = pal[c*3 + 2] * 0x0101;
