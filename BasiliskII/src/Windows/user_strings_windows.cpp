@@ -40,6 +40,7 @@ user_string_def platform_strings[] = {
 	{STR_KEYCODE_FILE_WARN, "Cannot open keycode translation file %s (%s)."},
 	{STR_KEYCODE_VENDOR_WARN, "Cannot find vendor '%s' in keycode translation file %s."},
 	{STR_WINDOW_TITLE_GRABBED, "Basilisk II (mouse grabbed, press Ctrl-F5 to release)"},
+	{STR_NO_WIN32_NT_4, "Basilisk II does not run on Windows NT versions less than 4.0"},
 
 	{-1, NULL}	// End marker
 };

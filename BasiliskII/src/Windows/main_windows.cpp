@@ -269,6 +269,15 @@ int main(int argc, char **argv)
 		}
 	}
 
+	// Check we are using a Windows NT kernel >= 4.0
+	OSVERSIONINFO osvi;
+	ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
+	osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+	if (!GetVersionEx(&osvi) || osvi.dwPlatformId != VER_PLATFORM_WIN32_NT || osvi.dwMajorVersion < 4) {
+		ErrorAlert(STR_NO_WIN32_NT_4);
+		QuitEmulator();
+	}
+
 	// Initialize SDL system
 	int sdl_flags = 0;
 #ifdef USE_SDL_VIDEO
@@ -602,46 +611,31 @@ static int tick_func(void *arg)
 
 
 /*
+ *  Get the main window handle
+ */
+
+#ifdef USE_SDL_VIDEO
+#include <SDL_syswm.h>
+static HWND GetMainWindowHandle(void)
+{
+	SDL_SysWMinfo wmInfo;
+	wmInfo.version.major = SDL_MAJOR_VERSION;
+	wmInfo.version.minor = SDL_MINOR_VERSION;
+	wmInfo.version.patch = SDL_PATCHLEVEL;
+	return SDL_GetWMInfo(&wmInfo) ? wmInfo.window : NULL;
+}
+#endif
+
+
+/*
  *  Display alert
  */
 
-#ifdef ENABLE_GTK
-static void dl_destroyed(void)
+static void display_alert(int title_id, const char *text, int flags)
 {
-	gtk_main_quit();
+	HWND hMainWnd = GetMainWindowHandle();
+	MessageBox(hMainWnd, text, GetString(title_id), MB_OK | flags);
 }
-
-static void dl_quit(GtkWidget *dialog)
-{
-	gtk_widget_destroy(dialog);
-}
-
-void display_alert(int title_id, int prefix_id, int button_id, const char *text)
-{
-	char str[256];
-	sprintf(str, GetString(prefix_id), text);
-
-	GtkWidget *dialog = gtk_dialog_new();
-	gtk_window_set_title(GTK_WINDOW(dialog), GetString(title_id));
-	gtk_container_border_width(GTK_CONTAINER(dialog), 5);
-	gtk_widget_set_uposition(GTK_WIDGET(dialog), 100, 150);
-	gtk_signal_connect(GTK_OBJECT(dialog), "destroy", GTK_SIGNAL_FUNC(dl_destroyed), NULL);
-
-	GtkWidget *label = gtk_label_new(str);
-	gtk_widget_show(label);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
-
-	GtkWidget *button = gtk_button_new_with_label(GetString(button_id));
-	gtk_widget_show(button);
-	gtk_signal_connect_object(GTK_OBJECT(button), "clicked", GTK_SIGNAL_FUNC(dl_quit), GTK_OBJECT(dialog));
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, FALSE, FALSE, 0);
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
-	gtk_widget_grab_default(button);
-	gtk_widget_show(dialog);
-
-	gtk_main();
-}
-#endif
 
 
 /*
@@ -650,17 +644,11 @@ void display_alert(int title_id, int prefix_id, int button_id, const char *text)
 
 void ErrorAlert(const char *text)
 {
-#if 0
-	// TODO: Windows message box
-	if (PrefsFindBool("nogui")) {
-		printf(GetString(STR_SHELL_ERROR_PREFIX), text);
+	if (PrefsFindBool("nogui"))
 		return;
-	}
+
 	VideoQuitFullScreen();
-	display_alert(STR_ERROR_ALERT_TITLE, STR_GUI_ERROR_PREFIX, STR_QUIT_BUTTON, text);
-#else
-	printf(GetString(STR_SHELL_ERROR_PREFIX), text);
-#endif
+	display_alert(STR_ERROR_ALERT_TITLE, text, MB_ICONSTOP);
 }
 
 
@@ -670,16 +658,10 @@ void ErrorAlert(const char *text)
 
 void WarningAlert(const char *text)
 {
-#if 0
-	// TODO: Windows message box
-	if (PrefsFindBool("nogui")) {
-		printf(GetString(STR_SHELL_WARNING_PREFIX), text);
+	if (PrefsFindBool("nogui"))
 		return;
-	}
-	display_alert(STR_WARNING_ALERT_TITLE, STR_GUI_WARNING_PREFIX, STR_OK_BUTTON, text);
-#else
-	printf(GetString(STR_SHELL_WARNING_PREFIX), text);
-#endif
+
+	display_alert(STR_WARNING_ALERT_TITLE, text, MB_ICONINFORMATION);
 }
 
 
