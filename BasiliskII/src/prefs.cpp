@@ -139,6 +139,7 @@ void PrefsExit(void)
 		delete p;
 		p = next;
 	}
+	the_prefs = NULL;
 }
 
 
