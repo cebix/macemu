@@ -135,8 +135,8 @@
 #include "memory.h"
 #include "readcpu.h"
 #include "newcpu.h"
-#include "fpu_x86.h"
-#include "fpu_x86_asm.h"
+#include "fpu/fpu_x86.h"
+#include "fpu/fpu_x86_asm.h"
 
 /* ---------------------------- Compatibility ---------------------------- */
 
