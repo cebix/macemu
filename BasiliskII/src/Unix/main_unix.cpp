@@ -153,7 +153,7 @@ int main(int argc, char **argv)
 
 #if ENABLE_DGA
 	// Fork out, so we can return from fullscreen mode when things get ugly
-	XF86DGAForkApp(XDefaultScreen(x_display));
+	XF86DGAForkApp(DefaultScreen(x_display));
 #endif
 
 #if ENABLE_GTK

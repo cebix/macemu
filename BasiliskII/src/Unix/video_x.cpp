@@ -204,13 +204,11 @@ static bool init_window(int width, int height)
 	wattr.event_mask = eventmask = win_eventmask;
 	wattr.background_pixel = black_pixel;
 	wattr.border_pixel = black_pixel;
-	wattr.backing_store = Always;
-	wattr.backing_planes = xdepth;
+	wattr.backing_store = NotUseful;
 
 	XSync(x_display, false);
 	the_win = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
-		InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel |
-		CWBackingStore | CWBackingPlanes, &wattr);
+		InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel | CWBackingStore, &wattr);
 	XSync(x_display, false);
 	XStoreName(x_display, the_win, GetString(STR_WINDOW_TITLE));
 	XMapRaised(x_display, the_win);
