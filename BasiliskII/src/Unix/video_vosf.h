@@ -237,7 +237,7 @@ static bool video_init_buffer(void)
 
 static bool screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction)
 {
-	D(bug("screen_fault_handler: ADDR=0x%08X from IP=0x%08X\n", fault_address, fault_instruction));
+//	D(bug("screen_fault_handler: ADDR=0x%08X from IP=0x%08X\n", fault_address, fault_instruction));
 	const uintptr addr = (uintptr)fault_address;
 	
 	/* Someone attempted to write to the frame buffer. Make it writeable

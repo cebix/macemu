@@ -37,6 +37,12 @@
 #include <sys/shm.h>
 #include <errno.h>
 
+#include <algorithm>
+
+#ifndef NO_STD_NAMESPACE
+using std::sort;
+#endif
+
 #ifdef HAVE_PTHREADS
 # include <pthread.h>
 #endif
@@ -116,16 +122,21 @@ static int keycode_table[256];						// X keycode -> Mac keycode translation tabl
 
 // X11 variables
 static int screen;									// Screen number
-static int xdepth;									// Depth of X screen
 static Window rootwin;								// Root window and our window
-static XVisualInfo visualInfo;
-static Visual *vis;
-static Colormap cmap[2] = {0, 0};					// Colormaps for indexed modes (DGA needs two of them)
+static int num_depths = 0;							// Number of available X depths
+static int *avail_depths = NULL;					// List of available X depths
 static XColor black, white;
 static unsigned long black_pixel, white_pixel;
 static int eventmask;
 
+static int xdepth;									// Depth of X screen
+static XVisualInfo visualInfo;
+static Visual *vis;
+static int color_class;
+
 static int rshift, rloss, gshift, gloss, bshift, bloss;	// Pixel format of DirectColor/TrueColor modes
+
+static Colormap cmap[2] = {0, 0};					// Colormaps for indexed modes (DGA needs two of them)
 
 static XColor palette[256];							// Color palette to be used as CLUT and gamma table
 static bool palette_changed = false;				// Flag: Palette changed, redraw thread must set new colors
@@ -190,6 +201,101 @@ extern void SysMountFirstFloppy(void);
 static inline uint32 map_rgb(uint8 red, uint8 green, uint8 blue)
 {
 	return ((red >> rloss) << rshift) | ((green >> gloss) << gshift) | ((blue >> bloss) << bshift);
+}
+
+// Do we have a visual for handling the specified Mac depth? If so, set the
+// global variables "xdepth", "visualInfo", "vis" and "color_class".
+static bool find_visual_for_depth(video_depth depth)
+{
+	D(bug("have_visual_for_depth(%d)\n", 1 << depth));
+
+	// Calculate minimum and maximum supported X depth
+	int min_depth = 1, max_depth = 32;
+	switch (depth) {
+		case VDEPTH_1BIT:	// 1-bit works always
+			min_depth = 1;
+			max_depth = 32;
+			break;
+#ifdef ENABLE_VOSF
+		case VDEPTH_2BIT:
+		case VDEPTH_4BIT:	// VOSF blitters can convert 2/4-bit -> 16/32-bit
+			min_depth = 15;
+			max_depth = 32;
+			break;
+		case VDEPTH_8BIT:	// VOSF blitters can convert 8-bit -> 16/32-bit
+			min_depth = 8;
+			max_depth = 32;
+			break;
+#else
+		case VDEPTH_2BIT:
+		case VDEPTH_4BIT:	// 2/4-bit requires VOSF blitters
+			return false;
+		case VDEPTH_8BIT:	// 8-bit without VOSF requires an 8-bit visual
+			min_depth = 8;
+			max_depth = 8;
+			break;
+#endif
+		case VDEPTH_16BIT:	// 16-bit requires a 15/16-bit visual
+			min_depth = 15;
+			max_depth = 16;
+			break;
+		case VDEPTH_32BIT:	// 32-bit requires a 24/32-bit visual
+			min_depth = 24;
+			max_depth = 32;
+			break;
+	}
+	D(bug(" minimum required X depth is %d, maximum supported X depth is %d\n", min_depth, max_depth));
+
+	// Try to find a visual for one of the color depths
+	bool visual_found = false;
+	for (int i=0; i<num_depths && !visual_found; i++) {
+
+		xdepth = avail_depths[i];
+		D(bug(" trying to find visual for depth %d\n", xdepth));
+		if (xdepth < min_depth || xdepth > max_depth)
+			continue;
+
+		// Determine best color class for this depth
+		switch (xdepth) {
+			case 1:	// Try StaticGray or StaticColor
+				if (XMatchVisualInfo(x_display, screen, xdepth, StaticGray, &visualInfo)
+				 || XMatchVisualInfo(x_display, screen, xdepth, StaticColor, &visualInfo))
+					visual_found = true;
+				break;
+			case 8:	// Need PseudoColor
+				if (XMatchVisualInfo(x_display, screen, xdepth, PseudoColor, &visualInfo))
+					visual_found = true;
+				break;
+			case 15:
+			case 16:
+			case 24:
+			case 32: // Try DirectColor first, as this will allow gamma correction
+				if (XMatchVisualInfo(x_display, screen, xdepth, DirectColor, &visualInfo)
+				 || XMatchVisualInfo(x_display, screen, xdepth, TrueColor, &visualInfo))
+					visual_found = true;
+				break;
+			default:
+				D(bug("  not a supported depth\n"));
+				break;
+		}
+	}
+	if (!visual_found)
+		return false;
+
+	// Visual was found
+	vis = visualInfo.visual;
+	color_class = visualInfo.c_class;
+	D(bug(" found visual ID 0x%02x, depth %d, class ", visualInfo.visualid, xdepth));
+#if DEBUG
+	switch (color_class) {
+		case StaticGray: D(bug("StaticGray\n")); break;
+		case GrayScale: D(bug("GrayScale\n")); break;
+		case StaticColor: D(bug("StaticColor\n")); break;
+		case PseudoColor: D(bug("PseudoColor\n")); break;
+		case TrueColor: D(bug("TrueColor\n")); break;
+		case DirectColor: D(bug("DirectColor\n")); break;
+	}
+#endif
 }
 
 // Add mode to list of supported modes
@@ -422,7 +528,7 @@ void driver_base::update_palette(void)
 		int num = 256;
 		if (IsDirectMode(VideoMonitor.mode))
 			num = vis->map_entries; // Palette is gamma table
-		else if (vis->c_class == DirectColor)
+		else if (color_class == DirectColor)
 			return; // Indexed mode on true color screen, don't set CLUT
 		XStoreColors(x_display, cmap[0], palette, num);
 		XStoreColors(x_display, cmap[1], palette, num);
@@ -450,9 +556,9 @@ driver_window::driver_window(const video_mode &mode)
 	XSetWindowAttributes wattr;
 	wattr.event_mask = eventmask = win_eventmask;
 	wattr.background_pixel = black_pixel;
-	wattr.colormap = (mode.depth == VDEPTH_1BIT && vis->c_class == PseudoColor ? DefaultColormap(x_display, screen) : cmap[0]);
+	wattr.colormap = (mode.depth == VDEPTH_1BIT && color_class == PseudoColor ? DefaultColormap(x_display, screen) : cmap[0]);
 	w = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
-		InputOutput, vis, CWEventMask | CWBackPixel | (vis->c_class == PseudoColor || vis->c_class == DirectColor ? CWColormap : 0), &wattr);
+		InputOutput, vis, CWEventMask | CWBackPixel | (color_class == PseudoColor || color_class == DirectColor ? CWColormap : 0), &wattr);
 
 	// Set window name/class
 	set_window_name(w, STR_WINDOW_TITLE);
@@ -1139,14 +1245,54 @@ static void keycode_init(void)
 // Open display for specified mode
 static bool video_open(const video_mode &mode)
 {
+	// Find best available X visual
+	if (!find_visual_for_depth(mode.depth)) {
+		ErrorAlert(STR_NO_XVISUAL_ERR);
+		return false;
+	}
+
+	// Create color maps
+	if (color_class == PseudoColor || color_class == DirectColor) {
+		cmap[0] = XCreateColormap(x_display, rootwin, vis, AllocAll);
+		cmap[1] = XCreateColormap(x_display, rootwin, vis, AllocAll);
+	}
+
+	// Find pixel format of direct modes
+	if (color_class == DirectColor || color_class == TrueColor) {
+		rshift = gshift = bshift = 0;
+		rloss = gloss = bloss = 8;
+		uint32 mask;
+		for (mask=vis->red_mask; !(mask&1); mask>>=1)
+			++rshift;
+		for (; mask&1; mask>>=1)
+			--rloss;
+		for (mask=vis->green_mask; !(mask&1); mask>>=1)
+			++gshift;
+		for (; mask&1; mask>>=1)
+			--gloss;
+		for (mask=vis->blue_mask; !(mask&1); mask>>=1)
+			++bshift;
+		for (; mask&1; mask>>=1)
+			--bloss;
+	}
+
+	// Preset palette pixel values for gamma table
+	if (color_class == DirectColor) {
+		int num = vis->map_entries;
+		for (int i=0; i<num; i++) {
+			int c = (i * 256) / num;
+			palette[i].pixel = map_rgb(c, c, c);
+		}
+	}
+
 	// Load gray ramp to color map
-	int num = (vis->c_class == DirectColor ? vis->map_entries : 256);
+	int num = (color_class == DirectColor ? vis->map_entries : 256);
 	for (int i=0; i<num; i++) {
 		int c = (i * 256) / num;
 		palette[i].red = c * 0x0101;
 		palette[i].green = c * 0x0101;
 		palette[i].blue = c * 0x0101;
-		if (vis->c_class == PseudoColor)
+		if (color_class == PseudoColor)
 			palette[i].pixel = i;
 		palette[i].flags = DoRed | DoGreen | DoBlue;
 	}
@@ -1157,7 +1303,7 @@ static bool video_open(const video_mode &mode)
 
 #ifdef ENABLE_VOSF
 	// Load gray ramp to 8->16/32 expand map
-	if (!IsDirectMode(mode) && (vis->c_class == TrueColor || vis->c_class == DirectColor))
+	if (!IsDirectMode(mode) && (color_class == TrueColor || color_class == DirectColor))
 		for (int i=0; i<256; i++)
 			ExpandMap[i] = map_rgb(i, i, i);
 #endif
@@ -1249,9 +1395,14 @@ bool VideoInit(bool classic)
 	// Find screen and root window
 	screen = XDefaultScreen(x_display);
 	rootwin = XRootWindow(x_display, screen);
-	
-	// Get screen depth
-	xdepth = DefaultDepth(x_display, screen);
+
+	// Get sorted list of available depths
+	avail_depths = XListDepths(x_display, screen, &num_depths);
+	if (avail_depths == NULL) {
+		ErrorAlert(STR_UNSUPP_DEPTH_ERR);
+		return false;
+	}
+	sort(avail_depths, avail_depths + num_depths);
 	
 #ifdef ENABLE_FBDEV_DGA
 	// Frame buffer name
@@ -1291,71 +1442,6 @@ bool VideoInit(bool classic)
 	black_pixel = BlackPixel(x_display, screen);
 	white_pixel = WhitePixel(x_display, screen);
 
-	// Get appropriate visual
-	int color_class;
-	switch (xdepth) {
-		case 1:
-			color_class = StaticGray;
-			break;
-		case 8:
-			color_class = PseudoColor;
-			break;
-		case 15:
-		case 16:
-		case 24:
-		case 32: // Try DirectColor first, as this will allow gamma correction
-			color_class = DirectColor;
-			if (!XMatchVisualInfo(x_display, screen, xdepth, color_class, &visualInfo))
-				color_class = TrueColor;
-			break;
-		default:
-			ErrorAlert(STR_UNSUPP_DEPTH_ERR);
-			return false;
-	}
-	if (!XMatchVisualInfo(x_display, screen, xdepth, color_class, &visualInfo)) {
-		ErrorAlert(STR_NO_XVISUAL_ERR);
-		return false;
-	}
-	if (visualInfo.depth != xdepth) {
-		ErrorAlert(STR_NO_XVISUAL_ERR);
-		return false;
-	}
-	vis = visualInfo.visual;
-
-	// Create color maps
-	if (color_class == PseudoColor || color_class == DirectColor) {
-		cmap[0] = XCreateColormap(x_display, rootwin, vis, AllocAll);
-		cmap[1] = XCreateColormap(x_display, rootwin, vis, AllocAll);
-	}
-
-	// Find pixel format of direct modes
-	if (color_class == DirectColor || color_class == TrueColor) {
-		rshift = gshift = bshift = 0;
-		rloss = gloss = bloss = 8;
-		uint32 mask;
-		for (mask=vis->red_mask; !(mask&1); mask>>=1)
-			++rshift;
-		for (; mask&1; mask>>=1)
-			--rloss;
-		for (mask=vis->green_mask; !(mask&1); mask>>=1)
-			++gshift;
-		for (; mask&1; mask>>=1)
-			--gloss;
-		for (mask=vis->blue_mask; !(mask&1); mask>>=1)
-			++bshift;
-		for (; mask&1; mask>>=1)
-			--bloss;
-	}
-
-	// Preset palette pixel values for gamma table
-	if (color_class == DirectColor) {
-		int num = vis->map_entries;
-		for (int i=0; i<num; i++) {
-			int c = (i * 256) / num;
-			palette[i].pixel = map_rgb(c, c, c);
-		}
-	}
-
 	// Get screen mode from preferences
 	const char *mode_str;
 	if (classic_mode)
@@ -1390,27 +1476,50 @@ bool VideoInit(bool classic)
 		default_height = DisplayHeight(x_display, screen);
 
 	// Mac screen depth follows X depth
-	video_depth default_depth = DepthModeForPixelDepth(xdepth);
+	video_depth default_depth = VDEPTH_1BIT;
+	switch (DefaultDepth(x_display, screen)) {
+		case 8:
+			default_depth = VDEPTH_8BIT;
+			break;
+		case 15: case 16:
+			default_depth = VDEPTH_16BIT;
+			break;
+		case 24: case 32:
+			default_depth = VDEPTH_32BIT;
+			break;
+	}
 
 	// Construct list of supported modes
 	if (display_type == DISPLAY_WINDOW) {
 		if (classic)
 			add_mode(512, 342, 0x80, 64, VDEPTH_1BIT);
 		else {
-			if (default_depth != VDEPTH_1BIT)
-				add_window_modes(VDEPTH_1BIT);	// 1-bit modes are always available
-#ifdef ENABLE_VOSF
-			if (default_depth > VDEPTH_8BIT) {
-				add_window_modes(VDEPTH_2BIT);	// 2, 4 and 8-bit modes are also possible on 16/32-bit screens with VOSF blitters
-				add_window_modes(VDEPTH_4BIT);
-				add_window_modes(VDEPTH_8BIT);
+			for (unsigned d=VDEPTH_1BIT; d<=VDEPTH_32BIT; d++) {
+				if (find_visual_for_depth(video_depth(d)))
+					add_window_modes(video_depth(d));
 			}
-#endif
-			add_window_modes(default_depth);
 		}
 	} else
 		add_mode(default_width, default_height, 0x80, TrivialBytesPerRow(default_width, default_depth), default_depth);
+	if (VideoModes.empty()) {
+		ErrorAlert(STR_NO_XVISUAL_ERR);
+		return false;
+	}
 	video_init_depth_list();
+
+#if DEBUG
+	D(bug("Available video modes:\n"));
+	vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
+	while (i != end) {
+		int bits = 1 << i->depth;
+		if (bits == 16)
+			bits = 15;
+		else if (bits == 32)
+			bits = 24;
+		D(bug(" %dx%d (ID %02x), %d colors\n", i->x, i->y, i->resolution_id, 1 << bits));
+		++i;
+	}
+#endif
 
 	// Find requested default mode and open display
 	if (VideoModes.size() == 1)
@@ -1467,12 +1576,6 @@ static void video_close(void)
 	// Close display
 	delete drv;
 	drv = NULL;
-}
-
-void VideoExit(void)
-{
-	// Close display
-	video_close();
 
 	// Free colormaps
 	if (cmap[0]) {
@@ -1483,6 +1586,12 @@ void VideoExit(void)
 		XFreeColormap(x_display, cmap[1]);
 		cmap[1] = 0;
 	}
+}
+
+void VideoExit(void)
+{
+	// Close display
+	video_close();
 
 #ifdef ENABLE_XF86_VIDMODE
 	// Free video mode list
@@ -1499,6 +1608,12 @@ void VideoExit(void)
 		fbdev_fd = -1;
 	}
 #endif
+
+	// Free depth list
+	if (avail_depths) {
+		XFree(avail_depths);
+		avail_depths = NULL;
+	}
 }
 
 
@@ -1550,7 +1665,7 @@ void video_set_palette(uint8 *pal, int num_in)
 		p->red = pal[c*3 + 0] * 0x0101;
 		p->green = pal[c*3 + 1] * 0x0101;
 		p->blue = pal[c*3 + 2] * 0x0101;
-		if (vis->c_class == PseudoColor)
+		if (color_class == PseudoColor)
 			p->pixel = i;
 		p->flags = DoRed | DoGreen | DoBlue;
 		p++;
@@ -1558,7 +1673,7 @@ void video_set_palette(uint8 *pal, int num_in)
 
 #ifdef ENABLE_VOSF
 	// Recalculate pixel color expansion map
-	if (!IsDirectMode(VideoMonitor.mode) && (vis->c_class == TrueColor || vis->c_class == DirectColor)) {
+	if (!IsDirectMode(VideoMonitor.mode) && (color_class == TrueColor || color_class == DirectColor)) {
 		for (int i=0; i<256; i++) {
 			int c = i & (num_in-1); // If there are less than 256 colors, we repeat the first entries (this makes color expansion easier)
 			ExpandMap[i] = map_rgb(pal[c*3+0], pal[c*3+1], pal[c*3+2]);
