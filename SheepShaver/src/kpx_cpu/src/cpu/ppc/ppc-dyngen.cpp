@@ -198,13 +198,49 @@ void powerpc_dyngen::gen_record_cr0_T0(void)
 	gen_compare_T0_im(0, 0);
 }
 
+/**
+ *	Prepare condition register cache for branch
+ *
+ *		This was meant to be a CR caching system but gain is almost
+ *		zero. However, this shows the ability to handle a CR cache
+ *		forwards and actually, a superblock-level (traces) optimizer
+ *		with proper code generation will benefit from it.
+ **/
+
+#define USE_CR_CACHE 1
+
 void powerpc_dyngen::gen_prepare_RC(int bi)
 {
 	const int crf = bi / 4;
 	const int crb = bi % 4;
 
+#if USE_CR_CACHE
+	if (rc_cache.crf() == crf) {
+		if (crb != 3) {
+			// Rematerialize (LT, GT, EQ) if they are not live
+			if (rc_cache.val_status() == RC_cache::STATUS_VALID)
+				gen_commit_rc_cache_cr(crf);
+			else
+				gen_load_RC_cr(crf);
+		}
+		else {
+			// Rematerialize SO if it is not in cache
+			if (rc_cache.so_status() == RC_cache::STATUS_VALID)
+				gen_commit_so_cache_cr(crf);
+			else
+				gen_load_RC_cr(crf);
+		}
+		invalidate_cr_cache();
+	}
+	else {
+		// Reload flags from memory
+		gen_commit_cr();
+		gen_load_RC_cr(crf);
+	}
+#else
 	gen_commit_cr();
 	gen_load_RC_cr(crf);
+#endif
 }
 
 void powerpc_dyngen::gen_bc_A0(int bo, int bi, uint32 npc)
