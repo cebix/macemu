@@ -39,6 +39,7 @@
 #endif
 
 #ifdef HAVE_MMAP_VM
+static char * next_address = 0;
 #ifdef HAVE_MMAP_ANON
 #define map_flags	(MAP_PRIVATE | MAP_ANON)
 #define zero_fd		-1
@@ -95,8 +96,10 @@ void * vm_acquire(size_t size)
 		return VM_MAP_FAILED;
 #else
 #ifdef HAVE_MMAP_VM
-	if ((addr = mmap(0, size, VM_PAGE_DEFAULT, map_flags, zero_fd, 0)) == MAP_FAILED)
+	if ((addr = mmap(next_address, size, VM_PAGE_DEFAULT, map_flags, zero_fd, 0)) == MAP_FAILED)
 		return VM_MAP_FAILED;
+	
+	next_address = (char *)addr + size;
 	
 	// Since I don't know the standard behavior of mmap(), zero-fill here
 	if (memset(addr, 0, size) != addr)
@@ -154,6 +157,10 @@ int vm_acquire_fixed(void * addr, size_t size)
 
 int vm_release(void * addr, size_t size)
 {
+	// Safety check: don't try to release memory that was not allocated
+	if (addr == VM_MAP_FAILED)
+		return 0;
+
 #ifdef HAVE_MACH_VM
 	int ret_code = vm_deallocate(mach_task_self(), (vm_address_t)addr, size);
 	return ret_code == KERN_SUCCESS ? 0 : -1;

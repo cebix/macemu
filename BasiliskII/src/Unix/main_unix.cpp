@@ -319,16 +319,6 @@ int main(int argc, char **argv)
 	}
 #endif
 
-#if USE_SCRATCHMEM_SUBTERFUGE
-	// Allocate scratch memory
-	ScratchMem = (uint8 *)vm_acquire(SCRATCH_MEM_SIZE);
-	if (ScratchMem == VM_MAP_FAILED) {
-		ErrorAlert(STR_NO_MEM_ERR);
-		QuitEmulator();
-	}
-	ScratchMem += SCRATCH_MEM_SIZE/2;	// ScratchMem points to middle of block
-#endif
-
 	// Create areas for Mac RAM and ROM
 #if REAL_ADDRESSING
 	if (memory_mapped_from_zero) {
@@ -345,6 +335,16 @@ int main(int argc, char **argv)
 			QuitEmulator();
 		}
 	}
+
+#if USE_SCRATCHMEM_SUBTERFUGE
+	// Allocate scratch memory
+	ScratchMem = (uint8 *)vm_acquire(SCRATCH_MEM_SIZE);
+	if (ScratchMem == VM_MAP_FAILED) {
+		ErrorAlert(STR_NO_MEM_ERR);
+		QuitEmulator();
+	}
+	ScratchMem += SCRATCH_MEM_SIZE/2;	// ScratchMem points to middle of block
+#endif
 
 #if DIRECT_ADDRESSING
 	// RAMBaseMac shall always be zero
