@@ -132,26 +132,29 @@ $(OBJ_DIR)/%.o : %.S
 	rm $*.s
 
 # Kheperix CPU emulator
-GENEXEC = ../kpx_cpu/src/cpu/ppc/genexec.pl
+kpxsrcdir = ../kpx_cpu/src
+GENEXEC   = $(kpxsrcdir)/cpu/ppc/genexec.pl
 
 $(OBJ_DIR)/ppc-execute.o: ppc-execute-impl.cpp
-ppc-execute-impl.cpp: ../kpx_cpu/src/cpu/ppc/ppc-decode.cpp $(GENEXEC)
+ppc-execute-impl.cpp: $(kpxsrcdir)/cpu/ppc/ppc-decode.cpp $(GENEXEC) basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 	$(CPP) $(CPPFLAGS) -DGENEXEC $< | $(GENEXEC) > $@
 
 dyngen: $(DYNGENOBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(DYNGENOBJS)
 
 $(OBJ_DIR)/basic-dyngen.o: basic-dyngen-ops.hpp
-$(OBJ_DIR)/basic-dyngen-ops.o: ../kpx_cpu/src/cpu/jit/basic-dyngen-ops.cpp
+$(OBJ_DIR)/basic-dyngen-ops.o: $(kpxsrcdir)/cpu/jit/basic-dyngen-ops.cpp
 	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
 basic-dyngen-ops.hpp: $(OBJ_DIR)/basic-dyngen-ops.o dyngen
 	./dyngen -o $@ $<
 
 $(OBJ_DIR)/ppc-dyngen.o: ppc-dyngen-ops.hpp
-$(OBJ_DIR)/ppc-dyngen-ops.o: ../kpx_cpu/src/cpu/ppc/ppc-dyngen-ops.cpp
+$(OBJ_DIR)/ppc-dyngen-ops.o: $(kpxsrcdir)/cpu/ppc/ppc-dyngen-ops.cpp basic-dyngen-ops.hpp
 	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
 ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o dyngen
 	./dyngen -o $@ $<
+
+$(OBJ_DIR)/sheepshaver_glue.o $(OBJ_DIR)/ppc-cpu.o $(OBJ_DIR)/ppc-decode.o $(OBJ_DIR)/ppc-translate.o: basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 
 #-------------------------------------------------------------------------
 # DO NOT DELETE THIS LINE -- make depend depends on it.
