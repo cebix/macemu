@@ -1,17 +1,17 @@
 /******************** -*- mode: C; tab-width: 8 -*- ********************
  *
- *	Run-time assembler for i386 and x86-64
+ *	Run-time assembler for IA-32 and AMD64
  *
  ***********************************************************************/
 
 
 /***********************************************************************
  *
- *  This file is derived from GNU lightning.
+ *  This file is derived from CCG.
  *
  *  Copyright 1999, 2000, 2001, 2002, 2003 Ian Piumarta
  *
- *  Adaptations and enhancements for x86-64 support, Copyright 2003
+ *  Adaptations and enhancements for AMD64 support, Copyright 2003
  *    Gwenole Beauchesne
  *
  *  Basilisk II (C) 1997-2003 Christian Bauer
@@ -191,7 +191,7 @@ enum {
 #define _rC(R)		((R) & 0xf0)
 #define _rR(R)		((R) & 0x0f)
 #define _rN(R)		((R) & 0x07)
-#define _rXP(R)		(_rR(R) > 7)
+#define _rXP(R)		((R) > 0 && _rR(R) > 7)
 
 #if !defined(_ASM_SAFETY) || ! X86_FLAT_REGISTERS
 #define _r1(R)		_rN(R)
@@ -398,8 +398,12 @@ typedef unsigned int	_ul;
 #define _r_DB(  R, D,B    )	((_s0P(D) && (!_rbpP(B)) ? _r_0B  (R,  B    ) : (_s8P(D) ? _r_1B(  R,D,B    ) : _r_4B(  R,D,B    ))))
 #define _r_DBIS(R, D,B,I,S)	((_s0P(D) && (!_rbpP(B)) ? _r_0BIS(R,  B,I,S) : (_s8P(D) ? _r_1BIS(R,D,B,I,S) : _r_4BIS(R,D,B,I,S))))
 
-#define _r_X(   R, D,B,I,S)	(_r0P(I) ? (_r0P(B)    ? _r_D   (R,D                )   : \
-				           (_rIP(B)    ? _r_DSIB(R,D                )   : \
+/* If we requested absolute 32-bit addressing in AMD64, we have to
+   force the displacement with a SIB byte, otherwise the effective
+   address would be RIP relative */
+#define _r_X(   R, D,B,I,S)	(_r0P(I) ? (_r0P(B)    ? (!X86_TARGET_64BIT ? _r_D(R,D) : \
+					                 _r_DSIB(R,D                ))  : \
+				           (_rIP(B)    ? _r_D   (R,D                )   : \
 				           (_rsp12P(B) ? _r_DBIS(R,D,_rSP(),_rSP(),1)   : \
 						         _r_DB  (R,D,     B       ))))  : \
 				 (_r0P(B)	       ? _r_4IS (R,D,	         I,S)   : \
@@ -520,12 +524,12 @@ enum {
 #define _ALUBim(OP, IM, MD, MB, MI, MS)	(_REXBrm(0, MB, MI),		_O_r_X_B	(0x80		     ,OP		,MD,MB,MI,MS	,_su8(IM)))
 
 #define _ALUWrr(OP, RS, RD)		(_d16(), _REXLrr(RS, RD),	_O_Mrm		(((OP) << 3) + 1,_b11,_r2(RS),_r2(RD)				))
-#define _ALUWmr(OP, MD, MB, MI, MS, RD)	(_d16(), _REXLmr(MD, MI, RD),	_O_r_X		(((OP) << 3) + 3     ,_r2(RD)		,MD,MB,MI,MS		))
-#define _ALUWrm(OP, RS, MD, MB, MI, MS)	(_d16(), _REXLrm(RS, MD, MI),	_O_r_X		(((OP) << 3) + 1     ,_r2(RS)		,MD,MB,MI,MS		))
+#define _ALUWmr(OP, MD, MB, MI, MS, RD)	(_d16(), _REXLmr(MB, MI, RD),	_O_r_X		(((OP) << 3) + 3     ,_r2(RD)		,MD,MB,MI,MS		))
+#define _ALUWrm(OP, RS, MD, MB, MI, MS)	(_d16(), _REXLrm(RS, MB, MI),	_O_r_X		(((OP) << 3) + 1     ,_r2(RS)		,MD,MB,MI,MS		))
 #define _ALUWir(OP, IM, RD)		(X86_OPTIMIZE_ALU && ((RD) == X86_AX) ? \
 					(_d16(), _REXLrr(0, RD),	_O_W		(((OP) << 3) + 5					,_su16(IM))) : \
 					(_d16(), _REXLrr(0, RD),	_Os_Mrm_sW	(0x81		,_b11,OP     ,_r2(RD)			,_su16(IM))) )
-#define _ALUWim(OP, IM, MD, MB, MI, MS)	(_d16(), _REXLrm(0, MD, MI),	_Os_r_X_sW	(0x81		     ,OP		,MD,MB,MI,MS	,_su16(IM)))
+#define _ALUWim(OP, IM, MD, MB, MI, MS)	(_d16(), _REXLrm(0, MB, MI),	_Os_r_X_sW	(0x81		     ,OP		,MD,MB,MI,MS	,_su16(IM)))
 
 #define _ALULrr(OP, RS, RD)		(_REXLrr(RS, RD),		_O_Mrm		(((OP) << 3) + 1,_b11,_r4(RS),_r4(RD)				))
 #define _ALULmr(OP, MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_O_r_X		(((OP) << 3) + 3     ,_r4(RD)		,MD,MB,MI,MS		))
@@ -1061,10 +1065,10 @@ enum {
 #define MOVBim(IM, MD, MB, MI, MS)	(_REXBrm(0, MB, MI),		_O_X_B		(0xc6					,MD,MB,MI,MS	,_su8(IM)))
 
 #define MOVWrr(RS, RD)			(_d16(), _REXLrr(RS, RD),	_O_Mrm		(0x89		,_b11,_r2(RS),_r2(RD)				))
-#define MOVWmr(MD, MB, MI, MS, RD)	(_d16(), _REXLmr(MD, MI, RD),	_O_r_X		(0x8b		     ,_r2(RD)		,MD,MB,MI,MS		))
-#define MOVWrm(RS, MD, MB, MI, MS)	(_d16(), _REXLrm(RS, MD, MI),	_O_r_X		(0x89		     ,_r2(RS)		,MD,MB,MI,MS		))
+#define MOVWmr(MD, MB, MI, MS, RD)	(_d16(), _REXLmr(MB, MI, RD),	_O_r_X		(0x8b		     ,_r2(RD)		,MD,MB,MI,MS		))
+#define MOVWrm(RS, MD, MB, MI, MS)	(_d16(), _REXLrm(RS, MB, MI),	_O_r_X		(0x89		     ,_r2(RS)		,MD,MB,MI,MS		))
 #define MOVWir(IM,  R)			(_d16(), _REXLrr(0, R),		_Or_W		(0xb8,_r2(R)						,_su16(IM)))
-#define MOVWim(IM, MD, MB, MI, MS)	(_d16(), _REXLrm(0, MD, MI),	_O_X_W		(0xc7					,MD,MB,MI,MS	,_su16(IM)))
+#define MOVWim(IM, MD, MB, MI, MS)	(_d16(), _REXLrm(0, MB, MI),	_O_X_W		(0xc7					,MD,MB,MI,MS	,_su16(IM)))
 
 #define MOVLrr(RS, RD)			(_REXLrr(RS, RD),		_O_Mrm		(0x89		,_b11,_r4(RS),_r4(RD)				))
 #define MOVLmr(MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_O_r_X		(0x8b		     ,_r4(RD)		,MD,MB,MI,MS		))
@@ -1394,11 +1398,8 @@ enum {
 #define PUSHA()				(_d16(),			_O		(0x60								))
 #define PUSHAD()							_O		(0x60								)
 
-#define POPF()				(_d16(),			_O		(0x9d								))
-#define POPFD()								_O		(0x9d								)
-
+#define POPF()								_O		(0x9d								)
 #define PUSHF()								_O		(0x9c								)
-#define PUSHFD()			(_d16(),			_O		(0x9c								))
 
 
 /* --- Test instructions --------------------------------------------------- */
@@ -1413,11 +1414,11 @@ enum {
 #define TESTBim(IM, MD, MB, MI, MS)	(_REXBrm(0, MB, MI),		_O_r_X_B	(0xf6		     ,_b000		,MD,MB,MI,MS	,_u8(IM)))
 
 #define TESTWrr(RS, RD)			(_d16(), _REXLrr(RS, RD),	_O_Mrm		(0x85		,_b11,_r2(RS),_r2(RD)				))
-#define TESTWrm(RS, MD, MB, MI, MS)	(_d16(), _REXLrm(RS, MD, MI),	_O_r_X		(0x85		     ,_r2(RS)		,MD,MB,MI,MS		))
+#define TESTWrm(RS, MD, MB, MI, MS)	(_d16(), _REXLrm(RS, MB, MI),	_O_r_X		(0x85		     ,_r2(RS)		,MD,MB,MI,MS		))
 #define TESTWir(IM, RD)			(X86_OPTIMIZE_ALU && ((RD) == X86_AX) ? \
 					(_d16(), _REXLrr(0, RD),	_O_W		(0xa9							,_u16(IM))) : \
 					(_d16(), _REXLrr(0, RD),	_O_Mrm_W	(0xf7		,_b11,_b000  ,_r2(RD)			,_u16(IM))) )
-#define TESTWim(IM, MD, MB, MI, MS)	(_d16(), _REXLrm(0, MD, MI),	_O_r_X_W	(0xf7		     ,_b000		,MD,MB,MI,MS	,_u16(IM)))
+#define TESTWim(IM, MD, MB, MI, MS)	(_d16(), _REXLrm(0, MB, MI),	_O_r_X_W	(0xf7		     ,_b000		,MD,MB,MI,MS	,_u16(IM)))
 
 #define TESTLrr(RS, RD)			(_REXLrr(RS, RD),		_O_Mrm		(0x85		,_b11,_r4(RS),_r4(RD)				))
 #define TESTLrm(RS, MD, MB, MI, MS)	(_REXLrm(RS, MB, MI),		_O_r_X		(0x85		     ,_r4(RS)		,MD,MB,MI,MS		))
