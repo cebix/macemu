@@ -1503,10 +1503,10 @@ int main(void)
 	TEST_SKIP_INSTRUCTION(unsigned int);
 	TEST_SKIP_INSTRUCTION(unsigned long);
  L_e_region2:
-#endif
 
 	if (!arch_insn_skipper_tests())
 		return 20;
+#endif
 
 	vm_exit();
 	return 0;
