@@ -35,7 +35,13 @@ if [[ "x$HAVE_PTHREADS" = "xno" ]]; then
   dnl Check even the libc_r (FreeBSD)
   AC_CHECK_LIB(c_r, pthread_create, HAVE_PTHREADS=yes, HAVE_PTHREADS=no)
   if [[ "x$HAVE_PTHREADS" = "xno" ]]; then
-     AC_MSG_ERROR([You need libpthreads to run Basilisk II.])
+    dnl Or maybe the user has PTL (NetBSD)
+    AC_CHECK_LIB(PTL, pthread_create, HAVE_PTHREADS=yes, HAVE_PTHREADS=no)
+    if [[ "x$HAVE_PTHREADS" = "xno" ]]; then
+      AC_MSG_ERROR([You need pthreads to run Basilisk II.])
+    else
+      LIBS="$LIBS -lPTL"
+    fi
   else
      LIBS="$LIBS -lc_r"
   fi

@@ -319,7 +319,7 @@ void *Sys_open(const char *name, bool read_only)
 #else
 					fh->cdrom_cap = 0;
 #endif
-#elif defined(__FreeBSD__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__)
 					fh->is_floppy = ((st.st_rdev >> 16) == 2);
 #ifdef CDIOCCAPABILITY
 					if (is_cdrom) {
@@ -329,6 +329,8 @@ void *Sys_open(const char *name, bool read_only)
 #else
 					fh->cdrom_cap = 0;
 #endif
+#elif defined(__NetBSD__)
+					fh->is_floppy = ((st.st_rdev >> 16) == 2);
 #endif
 				}
 			}
@@ -655,7 +657,7 @@ bool SysCDReadTOC(void *arg, uint8 *toc)
 		*toc++ = toc_size >> 8;
 		*toc++ = toc_size & 0xff;
 		return true;
-#elif defined(__FreeBSD__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__)
 		uint8 *p = toc + 2;
 
 		// Header
@@ -695,6 +697,30 @@ bool SysCDReadTOC(void *arg, uint8 *toc)
 		*p++ = entry.entry.addr.msf.minute;
 		*p++ = entry.entry.addr.msf.second;
 		*p++ = entry.entry.addr.msf.frame;
+
+		// TOC size
+		int toc_size = p - toc;
+		*toc++ = toc_size >> 8;
+		*toc++ = toc_size & 0xff;
+		return true;
+#elif defined(__NetBSD__)
+		uint8 *p = toc + 2;
+
+		// Header
+		struct ioc_toc_header header;
+		if (ioctl(fh->fd, CDIOREADTOCHEADER, &header) < 0)
+			return false;
+		*p++ = header.starting_track;
+		*p++ = header.ending_track;
+
+		// Tracks (this is nice... :-)
+		struct ioc_read_toc_entry entries;
+		entries.address_format = CD_MSF_FORMAT;
+		entries.starting_track = 1;
+		entries.data_len = 800;
+		entries.data = (cd_toc_entry *)p;
+		if (ioctl(fh->fd, CDIOREADTOCENTRIES, &entries) < 0)
+			return false;
 
 		// TOC size
 		int toc_size = p - toc;

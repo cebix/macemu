@@ -54,11 +54,17 @@ const uint32 TIME_OFFSET = 0x7c25b080;	// Offset Mac->Unix time in seconds
 
 uint32 TimerDateTime(void)
 {
-	time_t uct_now = time(NULL);
+	time_t utc_now = time(NULL);
+#if defined(__linux__) || defined(__SVR4)
 	long tz = timezone;
 	time_t local_now = uct_now - tz;
 	if (daylight)
 		local_now += 3600;
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
+	time_t local_now = utc_now + localtime(&utc_now)->tm_gmtoff;
+#else
+	time_t local_now = utc_now;
+#endif
 	return (uint32)local_now + TIME_OFFSET;
 }
 
