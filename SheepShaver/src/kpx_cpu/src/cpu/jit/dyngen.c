@@ -34,7 +34,6 @@
 #include "cxxdemangle.h"
 
 /* host cpu defs */
-
 #if defined(__i386__)
 #define HOST_I386 1
 #elif defined(__powerpc__)
@@ -49,6 +48,13 @@
 #define HOST_SPARC 1
 #elif defined(__x86_64__)
 #define HOST_AMD64 1
+#elif defined(__m68k__)
+#define HOST_M68K 1
+#endif
+
+/* object file format defs */
+#if defined(__CYGWIN__)
+#define CONFIG_WIN32 1
 #endif
 
 /* NOTE: we test CONFIG_WIN32 instead of _WIN32 to enabled cross
@@ -672,9 +678,6 @@ int load_object(const char *filename, FILE *outfile)
         if ((func_name = malloc(nf = nd)) == NULL)
             return -1;
 
-        fprintf(outfile, "#ifndef DEFINE_CST\n");
-        fprintf(outfile, "#define DEFINE_CST(NAME, VALUE)\n");
-        fprintf(outfile, "#endif\n");
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             const char *name;
             name = get_sym_name(sym);
@@ -1774,7 +1777,7 @@ void gen_code(const char *name, const char *demangled_name,
                            runtime to do translated block
                            chaining: the offset of the instruction
                            needs to be stored */
-                        fprintf(outfile, "    jmp_offsets[%d] = %d + (code_ptr() - gen_code_buf);\n",
+                        fprintf(outfile, "    jmp_addr[%d] = code_ptr() + %d;\n",
                                 n, rel->r_offset - start_offset);
                         continue;
                     }
@@ -1985,7 +1988,7 @@ void gen_code(const char *name, const char *demangled_name,
 					if (sym_name && strstart(sym_name, "__op_jmp", &p)) {
 						int n;
 						n = strtol(p, NULL, 10);
-						fprintf(outfile, "    jmp_offsets[%d] = %d + (code_ptr() - gen_code_buf);\n",
+						fprintf(outfile, "    jmp_addr[%d] = code_ptr() + %d;\n",
 							n, slide);
 						continue; /* Nothing more to do */
 					}
@@ -2368,6 +2371,9 @@ int gen_file(FILE *outfile, int out_type)
         if ((func_name = malloc(nf = nd)) == NULL)
             return -1;
 
+        fprintf(outfile, "#ifndef DEFINE_CST\n");
+        fprintf(outfile, "#define DEFINE_CST(NAME, VALUE)\n");
+        fprintf(outfile, "#endif\n");
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             const char *name;
             name = get_sym_name(sym);
