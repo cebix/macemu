@@ -1,19 +1,16 @@
 # Makefile for creating Basilisk II distributions
 # Written in 1999 by Christian Bauer <Christian.Bauer@uni-mainz.de>
 
-VERSION := $(shell sed <BasiliskII.spec -n '/^\%define ver */s///p')
-RELEASE := $(shell sed <BasiliskII.spec -n '/^\%define rel */s///p')
+VERSION := $(shell sed <BasiliskII.spec -n '/^\%define version */s///p')
+RELEASE := $(shell sed <BasiliskII.spec -n '/^\%define release */s///p')
 VERNAME := BasiliskII-$(VERSION)
 
 SRCARCHIVE := $(shell date +BasiliskII_src_%d%m%Y.tar.gz)
-SRCRPM := $(VERNAME)-$(RELEASE).src.rpm
-BINRPM := $(VERNAME)-$(RELEASE).i386.rpm
 AMIGAARCHIVE := $(VERNAME)-$(RELEASE).amiga.lzh
 BEOSPPCARCHIVE := $(VERNAME)-$(RELEASE).beosppc.zip
 BEOSX86ARCHIVE := $(VERNAME)-$(RELEASE).beosx86.zip
 
 TMPDIR := $(shell date +/tmp/build%M%S)
-RPMDIR := /usr/src/redhat
 ISODATE := $(shell date "+%Y-%m-%d %H:%M")
 DOCS := $(shell sed <BasiliskII.spec -n '/^\%doc */s///p')
 SRCS := src
@@ -28,14 +25,13 @@ default:
 help:
 	@echo "The following targets are available:"
 	@echo "  tarball  source tarball ($(SRCARCHIVE))"
-	@echo "  rpm      source and binary RPMs ($(SRCRPM) and $(BINRPM))"
+	@echo "  rpm      source and binary RPMs"
 	@echo "  amiga    AmigaOS binary archive ($(AMIGAARCHIVE))"
 	@echo "  beosppc  BeOS/ppc binary archive ($(BEOSPPCARCHIVE))"
 	@echo "  beosx86  BeOS/x86 binary archive ($(BEOSX86ARCHIVE))"
 
 clean:
 	-rm -f $(SRCARCHIVE)
-	-rm -f $(SRCRPM) $(BINRPM)
 	-rm -f $(AMIGAARCHIVE) $(BEOSPPCARCHIVE) $(BEOSX86ARCHIVE)
 
 #
@@ -47,7 +43,8 @@ $(SRCARCHIVE): $(SRCS) $(DOCS)
 	-rm -rf $(TMPDIR)
 	mkdir $(TMPDIR)
 	cd $(TMPDIR); cvs export -D "$(ISODATE)" BasiliskII
-	rm $(TMPDIR)/BasiliskII/BasiliskII.spec $(TMPDIR)/BasiliskII/Makefile
+	cp src/Unix/config.h.in src/Unix/configure $(TMPDIR)/BasiliskII/src/Unix
+	rm $(TMPDIR)/BasiliskII/Makefile
 	rm -rf $(TMPDIR)/BasiliskII/src/powerrom_cpu	#not yet ready for distribution
 	mv $(TMPDIR)/BasiliskII $(TMPDIR)/$(VERNAME)
 	cd $(TMPDIR); tar cfz $@ $(VERNAME)
@@ -55,21 +52,10 @@ $(SRCARCHIVE): $(SRCS) $(DOCS)
 	rm -rf $(TMPDIR)
 
 #
-# RPMs (source and i386 binary)
+# RPMs (source and binary)
 #
-rpm: $(SRCRPM) $(BINRPM)
-
-$(RPMDIR)/SOURCES/$(SRCARCHIVE): $(SRCARCHIVE)
-	cp $(SRCARCHIVE) $(RPMDIR)/SOURCES
-
-$(RPMDIR)/SRPMS/$(SRCRPM) $(RPMDIR)/RPMS/i386/$(BINRPM): $(RPMDIR)/SOURCES/$(SRCARCHIVE) BasiliskII.spec
-	rpm -ba BasiliskII.spec
-
-$(SRCRPM): $(RPMDIR)/SRPMS/$(SRCRPM)
-	cp $(RPMDIR)/SRPMS/$(SRCRPM) .
-
-$(BINRPM): $(RPMDIR)/RPMS/i386/$(BINRPM)
-	cp $(RPMDIR)/RPMS/i386/$(BINRPM) .
+rpm: $(SRCARCHIVE)
+	rpm --tarball a $(SRCARCHIVE)
 
 #
 # Binary archive for AmigaOS
