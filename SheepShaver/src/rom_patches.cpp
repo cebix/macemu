@@ -2344,6 +2344,15 @@ void InstallDrivers(void)
 	SheepArray<SIZEOF_IOParam> pb_var;
 	const uintptr pb = pb_var.addr();
 
+#if DISABLE_SCSI
+	// Setup fake SCSI Globals
+	r.d[0] = 0x1000;
+	Execute68kTrap(0xa71e, &r);		// NewPtrSysClear()
+	uint32 scsi_globals = r.a[0];
+	D(bug("Fake SCSI globals at %08lx\n", scsi_globals));
+	WriteMacInt32(0xc0c, scsi_globals);	// Set SCSIGlobals
+#endif
+
 	// Install floppy driver
 	if (ROMType == ROMTYPE_NEWWORLD || ROMType == ROMTYPE_GOSSAMER) {
 
@@ -2357,11 +2366,6 @@ void InstallDrivers(void)
 		WriteMacInt32(dce + dCtlDriver, ROM_BASE + sony_offset);
 		WriteMacInt16(dce + dCtlFlags, SonyDriverFlags);
 	}
-
-#if DISABLE_SCSI && HAVE_SIGSEGV_SKIP_INSTRUCTION
-	// Fake SCSIGlobals
-	WriteMacInt32(0xc0c, SheepMem::ZeroPage());
-#endif
 
 	// Open .Sony driver
 	SheepString sony_str("\005.Sony");
