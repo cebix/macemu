@@ -214,7 +214,18 @@ static void read_toc(cdrom_drive_info &info)
 	// Read TOC
 	memset(info.toc, 0, sizeof(info.toc));
 	SysCDReadTOC(info.fh, info.toc);
-	D(bug(" TOC: %08lx %08lx\n", ntohl(((uint32 *)info.toc)[0]), ntohl(((uint32 *)info.toc)[1])));
+
+#if DEBUG
+	// Dump TOC for debugging
+	D(bug(" TOC:\n  %02x%02x%02x%02x        : %d bytes, first track = %d, last track = %d\n", info.toc[0], info.toc[1], info.toc[2], info.toc[3], (info.toc[0] << 8) | info.toc[1], info.toc[2], info.toc[3]));
+	for (int i=4; i<804; i+=8) {
+		D(bug("  %02x%02x%02x%02x%02x%02x%02x%02x: ", info.toc[i+0], info.toc[i+1], info.toc[i+2], info.toc[i+3], info.toc[i+4], info.toc[i+5], info.toc[i+6], info.toc[i+7]));
+		const char *type = (info.toc[i+2] == 0xaa ? "lead-out" : (info.toc[i+1] & 0x04 ? "data" : "audio"));
+		D(bug("track %d (%s), addr/ctrl 0x%02x, M %d S %d F %d\n", info.toc[i+2], type, info.toc[i+1], info.toc[i+5], info.toc[i+6], info.toc[i+7]));
+		if (info.toc[i+2] == 0xaa)
+			break;
+	}
+#endif
 
 	// Find lead-out track
 	info.lead_out[0] = 0;
