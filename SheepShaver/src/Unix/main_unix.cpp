@@ -613,6 +613,13 @@ int main(int argc, char **argv)
 		goto quit;
 	}
 	dr_cache_area_mapped = true;
+#if !EMULATED_PPC
+	if (vm_protect((char *)DR_CACHE_BASE, DR_CACHE_SIZE, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
+		sprintf(str, GetString(STR_DR_CACHE_MMAP_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+#endif
 	DRCacheAddr = DR_CACHE_BASE;
 	D(bug("DR Cache at %p\n", DRCacheAddr));
 
