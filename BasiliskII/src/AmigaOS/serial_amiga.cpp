@@ -85,12 +85,12 @@ public:
 	{
 	}
 
-	virtual int16 Open(uint16 config);
-	virtual int16 PrimeIn(uint32 pb, uint32 dce);
-	virtual int16 PrimeOut(uint32 pb, uint32 dce);
-	virtual int16 Control(uint32 pb, uint32 dce, uint16 code);
-	virtual int16 Status(uint32 pb, uint32 dce, uint16 code);
-	virtual int16 Close(void);
+	virtual int16 open(uint16 config);
+	virtual int16 prime_in(uint32 pb, uint32 dce);
+	virtual int16 prime_out(uint32 pb, uint32 dce);
+	virtual int16 control(uint32 pb, uint32 dce, uint16 code);
+	virtual int16 status(uint32 pb, uint32 dce, uint16 code);
+	virtual int16 close(void);
 
 private:
 	bool configure(uint16 config);
@@ -147,7 +147,7 @@ void SerialExit(void)
  *  Open serial port
  */
 
-int16 ASERDPort::Open(uint16 config)
+int16 ASERDPort::open(uint16 config)
 {
 	// Don't open NULL name devices
 	if (device_name == NULL)
@@ -166,8 +166,8 @@ int16 ASERDPort::Open(uint16 config)
 	proc_arg = this;
 	SetSignal(0, SIGF_SINGLE);
 	serial_proc = CreateNewProcTags(
-		NP_Entry, serial_func,
-		NP_Name, "Basilisk II Serial Task",
+		NP_Entry, (ULONG)serial_func,
+		NP_Name, (ULONG)"Basilisk II Serial Task",
 		NP_Priority, 1,
 		TAG_END	
 	);
@@ -199,7 +199,7 @@ open_error:
  *  Read data from port
  */
 
-int16 ASERDPort::PrimeIn(uint32 pb, uint32 dce)
+int16 ASERDPort::prime_in(uint32 pb, uint32 dce)
 {
 	// Send input command to serial process
 	D(bug("primein\n"));
@@ -215,7 +215,7 @@ int16 ASERDPort::PrimeIn(uint32 pb, uint32 dce)
  *  Write data to port
  */
 
-int16 ASERDPort::PrimeOut(uint32 pb, uint32 dce)
+int16 ASERDPort::prime_out(uint32 pb, uint32 dce)
 {
 	// Send output command to serial process
 	D(bug("primeout\n"));
@@ -231,7 +231,7 @@ int16 ASERDPort::PrimeOut(uint32 pb, uint32 dce)
  *	Control calls
  */
 
-int16 ASERDPort::Control(uint32 pb, uint32 dce, uint16 code)
+int16 ASERDPort::control(uint32 pb, uint32 dce, uint16 code)
 {
 	D(bug("control(%ld)\n", (uint32)code));
 	switch (code) {
@@ -326,7 +326,7 @@ int16 ASERDPort::Control(uint32 pb, uint32 dce, uint16 code)
  *	Status calls
  */
 
-int16 ASERDPort::Status(uint32 pb, uint32 dce, uint16 code)
+int16 ASERDPort::status(uint32 pb, uint32 dce, uint16 code)
 {
 	D(bug("status(%ld)\n", (uint32)code));
 	switch (code) {
@@ -381,7 +381,7 @@ int16 ASERDPort::Status(uint32 pb, uint32 dce, uint16 code)
  *	Close serial port
  */
 
-int16 ASERDPort::Close()
+int16 ASERDPort::close()
 {
 	// Stop process
 	if (serial_proc) {

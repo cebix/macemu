@@ -1,4 +1,4 @@
-# AmigaOS makefile for Basilisk II
+# AmigaOS makefile for Basilisk II (SAS/C)
 
 ## System specific configuration
 CC = sc

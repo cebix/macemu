@@ -42,12 +42,12 @@ public:
 	{
 	}
 
-	virtual int16 Open(uint16 config);
-	virtual int16 PrimeIn(uint32 pb, uint32 dce);
-	virtual int16 PrimeOut(uint32 pb, uint32 dce);
-	virtual int16 Control(uint32 pb, uint32 dce, uint16 code);
-	virtual int16 Status(uint32 pb, uint32 dce, uint16 code);
-	virtual int16 Close(void);
+	virtual int16 open(uint16 config);
+	virtual int16 prime_in(uint32 pb, uint32 dce);
+	virtual int16 prime_out(uint32 pb, uint32 dce);
+	virtual int16 control(uint32 pb, uint32 dce, uint16 code);
+	virtual int16 status(uint32 pb, uint32 dce, uint16 code);
+	virtual int16 close(void);
 
 private:
 	char *device_name;			// Device name
@@ -81,7 +81,7 @@ void SerialExit(void)
  *  Open serial port
  */
 
-int16 DSERDPort::Open(uint16 config)
+int16 DSERDPort::open(uint16 config)
 {
 	return openErr;
 }
@@ -91,7 +91,7 @@ int16 DSERDPort::Open(uint16 config)
  *  Read data from port
  */
 
-int16 DSERDPort::PrimeIn(uint32 pb, uint32 dce)
+int16 DSERDPort::prime_in(uint32 pb, uint32 dce)
 {
 	return readErr;
 }
@@ -101,7 +101,7 @@ int16 DSERDPort::PrimeIn(uint32 pb, uint32 dce)
  *  Write data to port
  */
 
-int16 DSERDPort::PrimeOut(uint32 pb, uint32 dce)
+int16 DSERDPort::prime_out(uint32 pb, uint32 dce)
 {
 	return writErr;
 }
@@ -111,7 +111,7 @@ int16 DSERDPort::PrimeOut(uint32 pb, uint32 dce)
  *	Control calls
  */
  
-int16 DSERDPort::Control(uint32 pb, uint32 dce, uint16 code)
+int16 DSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 {
 	return controlErr;
 }
@@ -121,7 +121,7 @@ int16 DSERDPort::Control(uint32 pb, uint32 dce, uint16 code)
  *	Status calls
  */
 
-int16 DSERDPort::Status(uint32 pb, uint32 dce, uint16 code)
+int16 DSERDPort::status(uint32 pb, uint32 dce, uint16 code)
 {
 	return statusErr;
 }
@@ -131,7 +131,7 @@ int16 DSERDPort::Status(uint32 pb, uint32 dce, uint16 code)
  *	Close serial port
  */
 
-int16 DSERDPort::Close()
+int16 DSERDPort::close()
 {
 	return noErr;
 }

@@ -90,12 +90,12 @@ public:
 		delete device;
 	}
 
-	virtual int16 Open(uint16 config);
-	virtual int16 PrimeIn(uint32 pb, uint32 dce);
-	virtual int16 PrimeOut(uint32 pb, uint32 dce);
-	virtual int16 Control(uint32 pb, uint32 dce, uint16 code);
-	virtual int16 Status(uint32 pb, uint32 dce, uint16 code);
-	virtual int16 Close(void);
+	virtual int16 open(uint16 config);
+	virtual int16 prime_in(uint32 pb, uint32 dce);
+	virtual int16 prime_out(uint32 pb, uint32 dce);
+	virtual int16 control(uint32 pb, uint32 dce, uint16 code);
+	virtual int16 status(uint32 pb, uint32 dce, uint16 code);
+	virtual int16 close(void);
 
 private:
 	bool configure(uint16 config);
@@ -154,7 +154,7 @@ void SerialExit(void)
  *  Open serial port
  */
 
-int16 BeSERDPort::Open(uint16 config)
+int16 BeSERDPort::open(uint16 config)
 {
 	// Don't open NULL name devices
 	if (device_name == NULL)
@@ -204,7 +204,7 @@ int16 BeSERDPort::Open(uint16 config)
  *  Read data from port
  */
 
-int16 BeSERDPort::PrimeIn(uint32 pb, uint32 dce)
+int16 BeSERDPort::prime_in(uint32 pb, uint32 dce)
 {
 	// Send input command to input_thread
 	read_done = false;
@@ -221,7 +221,7 @@ int16 BeSERDPort::PrimeIn(uint32 pb, uint32 dce)
  *  Write data to port
  */
 
-int16 BeSERDPort::PrimeOut(uint32 pb, uint32 dce)
+int16 BeSERDPort::prime_out(uint32 pb, uint32 dce)
 {
 	// Send output command to output_thread
 	write_done = false;
@@ -238,7 +238,7 @@ int16 BeSERDPort::PrimeOut(uint32 pb, uint32 dce)
  *	Control calls
  */
  
-int16 BeSERDPort::Control(uint32 pb, uint32 dce, uint16 code)
+int16 BeSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 {
 	switch (code) {
 		case 1:			// KillIO
@@ -433,7 +433,7 @@ int16 BeSERDPort::Control(uint32 pb, uint32 dce, uint16 code)
  *	Status calls
  */
 
-int16 BeSERDPort::Status(uint32 pb, uint32 dce, uint16 code)
+int16 BeSERDPort::status(uint32 pb, uint32 dce, uint16 code)
 {
 	switch (code) {
 		case kSERDInputCount:
@@ -485,7 +485,7 @@ int16 BeSERDPort::Status(uint32 pb, uint32 dce, uint16 code)
  *	Close serial port
  */
 
-int16 BeSERDPort::Close()
+int16 BeSERDPort::close()
 {
 	// Kill threads
 	status_t l;

@@ -70,7 +70,7 @@ int16 SerialOpen(uint32 pb, uint32 dce, int port)
 		the_port->cum_errors = 0;
 
 		// Open port
-		int16 res = the_port->Open(ReadMacInt16(0x1fc + (port & 2)));
+		int16 res = the_port->open(ReadMacInt16(0x1fc + (port & 2)));
 		if (res)
 			return res;
 
@@ -79,7 +79,7 @@ int16 SerialOpen(uint32 pb, uint32 dce, int port)
 		r.d[0] = SIZEOF_serdt * 2;
 		Execute68kTrap(0xa71e, &r);		// NewPtrSysClear()
 		if (r.a[0] == 0) {
-			the_port->Close();
+			the_port->close();
 			return openErr;
 		}
 		uint32 input_dt = the_port->input_dt = r.a[0];
@@ -128,13 +128,13 @@ int16 SerialPrime(uint32 pb, uint32 dce, int port)
 			printf("FATAL: SerialPrimeIn() called while request is pending\n");
 			return readErr;
 		} else
-			return the_port->PrimeIn(pb, dce);
+			return the_port->prime_in(pb, dce);
 	} else {
 		if (the_port->write_pending) {
 			printf("FATAL: SerialPrimeOut() called while request is pending\n");
 			return readErr;
 		} else
-			return the_port->PrimeOut(pb, dce);
+			return the_port->prime_out(pb, dce);
 	}
 }
 
@@ -158,7 +158,7 @@ int16 SerialControl(uint32 pb, uint32 dce, int port)
 			return noErr;
 
 		default:
-			return the_port->Control(pb, dce, code);
+			return the_port->control(pb, dce, code);
 	}
 }
 
@@ -189,7 +189,7 @@ int16 SerialStatus(uint32 pb, uint32 dce, int port)
 			return noErr;
 
 		default:
-			return the_port->Status(pb, dce, code);
+			return the_port->status(pb, dce, code);
 	}
 }
 
@@ -212,7 +212,7 @@ int16 SerialClose(uint32 pb, uint32 dce, int port)
 		// Close port if open
 		SERDPort *the_port = the_serd_port[port >> 1];
 		if (the_port->is_open) {
-			int16 res = the_port->Close();
+			int16 res = the_port->close();
 			M68kRegisters r;				// Free Deferred Task structures
 			r.a[0] = the_port->input_dt;
 			Execute68kTrap(0xa01f, &r);		// DisposePtr()
@@ -232,11 +232,11 @@ static void serial_irq(SERDPort *p)
 {
 	if (p->is_open) {
 		if (p->read_pending && p->read_done) {
-			Enqueue(p->input_dt, 0xd92);
+			EnqueueMac(p->input_dt, 0xd92);
 			p->read_pending = p->read_done = false;
 		}
 		if (p->write_pending && p->write_done) {
-			Enqueue(p->output_dt, 0xd92);
+			EnqueueMac(p->output_dt, 0xd92);
 			p->write_pending = p->write_done = false;
 		}
 	}

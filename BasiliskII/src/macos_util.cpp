@@ -34,7 +34,7 @@
  *  Enqueue QElem to list
  */
 
-void Enqueue(uint32 elem, uint32 list)
+void EnqueueMac(uint32 elem, uint32 list)
 {
 	WriteMacInt32(elem + qLink, 0);
 	if (!ReadMacInt32(list + qTail)) {

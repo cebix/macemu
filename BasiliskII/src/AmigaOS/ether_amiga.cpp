@@ -135,8 +135,8 @@ void EtherInit(void)
 	proc_error = false;
 	SetSignal(0, SIGF_SINGLE);
 	net_proc = CreateNewProcTags(
-		NP_Entry, net_func,
-		NP_Name, "Basilisk II Ethernet Task",
+		NP_Entry, (ULONG)net_func,
+		NP_Name, (ULONG)"Basilisk II Ethernet Task",
 		NP_Priority, 1,
 		TAG_END	
 	);
@@ -287,7 +287,7 @@ static void remove_all_protocols(void)
  *  Copy received network packet to Mac side
  */
 
-static __saveds __asm LONG copy_to_buff(register __a0 uint8 *to, register __a1 uint8 *from, register __d0 uint32 packet_len)
+static __saveds __regargs LONG copy_to_buff(uint8 *to /*a0*/, uint8 *from /*a1*/, uint32 packet_len /*d0*/)
 {
 	D(bug("CopyToBuff to %08lx, from %08lx, size %08lx\n", to, from, packet_len));
 
@@ -313,23 +313,23 @@ static __saveds __asm LONG copy_to_buff(register __a0 uint8 *to, register __a1 u
  *  Copy data from Mac WDS to outgoing network packet
  */
 
-static __saveds __asm LONG copy_from_buff(register __a0 uint8 *to, register __a1 uint32 wds, register __d0 uint32 packet_len)
+static __saveds __regargs LONG copy_from_buff(uint8 *to /*a0*/, char *wds /*a1*/, uint32 packet_len /*d0*/)
 {
 	D(bug("CopyFromBuff to %08lx, wds %08lx, size %08lx\n", to, wds, packet_len));
 #if MONITOR
 	bug("Sending Ethernet packet:\n");
 #endif
 	for (;;) {
-		int len = ReadMacInt16(wds);
+		int len = ReadMacInt16((uint32)wds);
 		if (len == 0)
 			break;
 #if MONITOR
-		uint8 *adr = Mac2HostAddr(ReadMacInt32(wds + 2));
+		uint8 *adr = Mac2HostAddr(ReadMacInt32((uint32)wds + 2));
 		for (int i=0; i<len; i++) {
 			bug("%02lx ", adr[i]);
 		}
 #endif
-		CopyMem(Mac2HostAddr(ReadMacInt32(wds + 2)), to, len);
+		CopyMem(Mac2HostAddr(ReadMacInt32((uint32)wds + 2)), to, len);
 		to += len;
 		wds += 6;
 	}
@@ -635,7 +635,7 @@ void EtherInterrupt(void)
 
 	// Packet write done, enqueue DT to call IODone
 	if (write_done) {
-		Enqueue(ether_data + ed_DeferredTask, 0xd92);
+		EnqueueMac(ether_data + ed_DeferredTask, 0xd92);
 		write_done = false;
 	}
 

@@ -54,9 +54,9 @@ struct {
  *  Driver Open() routine
  */
 
-int16 VideoOpen(uint32 pb, uint32 dce)
+int16 VideoDriverOpen(uint32 pb, uint32 dce)
 {
-	D(bug("VideoOpen\n"));
+	D(bug("VideoDriverOpen\n"));
 
 	// Init local variables
 	VidLocal.desc = &VideoMonitor;
@@ -80,11 +80,11 @@ int16 VideoOpen(uint32 pb, uint32 dce)
  *  Driver Control() routine
  */
 
-int16 VideoControl(uint32 pb, uint32 dce)
+int16 VideoDriverControl(uint32 pb, uint32 dce)
 {
 	uint16 code = ReadMacInt16(pb + csCode);
 	uint32 param = ReadMacInt32(pb + csParam);
-	D(bug("VideoControl %d\n", code));
+	D(bug("VideoDriverControl %d\n", code));
 	switch (code) {
 
 		case cscSetMode:		// Set color depth
@@ -183,7 +183,7 @@ int16 VideoControl(uint32 pb, uint32 dce)
 			return noErr;
 
 		default:
-			printf("WARNING: Unknown VideoControl(%d)\n", code);
+			printf("WARNING: Unknown VideoDriverControl(%d)\n", code);
 			return controlErr;
 	}
 }
@@ -193,11 +193,11 @@ int16 VideoControl(uint32 pb, uint32 dce)
  *  Driver Status() routine
  */
 
-int16 VideoStatus(uint32 pb, uint32 dce)
+int16 VideoDriverStatus(uint32 pb, uint32 dce)
 {
 	uint16 code = ReadMacInt16(pb + csCode);
 	uint32 param = ReadMacInt32(pb + csParam);
-	D(bug("VideoStatus %d\n", code));
+	D(bug("VideoDriverStatus %d\n", code));
 	switch (code) {
 
 		case cscGetPageCnt:			// Get number of pages
@@ -255,7 +255,7 @@ int16 VideoStatus(uint32 pb, uint32 dce)
 			return noErr;
 
 		default:
-			printf("WARNING: Unknown VideoStatus(%d)\n", code);
+			printf("WARNING: Unknown VideoDriverStatus(%d)\n", code);
 			return statusErr;
 	}
 }

@@ -244,10 +244,10 @@ enum {	// DeferredTask struct
 
 
 // Functions
-extern void Enqueue(uint32 elem, uint32 list);	// Enqueue QElem in list
-extern int FindFreeDriveNumber(int num);		// Find first free drive number, starting at "num"
-extern void MountVolume(void *fh);				// Mount volume with given file handle (see sys.h)
-extern bool HasMacStarted(void);				// Test if basic MacOS initializations are done
+extern void EnqueueMac(uint32 elem, uint32 list);	// Enqueue QElem in list
+extern int FindFreeDriveNumber(int num);			// Find first free drive number, starting at "num"
+extern void MountVolume(void *fh);					// Mount volume with given file handle (see sys.h)
+extern bool HasMacStarted(void);					// Test if basic MacOS initializations are done
 extern void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_size);	// Calculate disk image file layout given file size and first 256 data bytes
 
 #endif

@@ -10,6 +10,8 @@ V0.7 -
 	- added patches for NetBSD [Bernd Sieker]
 	- corrected TimerDateTime() in timer_unix.cpp and timer_beos.cpp
 	  [Toshimitsu Tanaka]
+	- AmigaOS: fixed crash when gtlayout.library was not present
+	- AmigaOS: now compiles with GCC (Geek Gadgets)
 	- AmigaOS/clip_amiga.cpp: fixed small bug in CR->LF translation
 	  [Giacomo Magnini]
 	- Unix: compilation of cpuemu.cpp is now split in 8 parts

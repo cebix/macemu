@@ -59,12 +59,12 @@ public:
 		input_dt = output_dt = 0;
 	}
 
-	virtual int16 Open(uint16 config) = 0;
-	virtual int16 PrimeIn(uint32 pb, uint32 dce) = 0;
-	virtual int16 PrimeOut(uint32 pb, uint32 dce) = 0;
-	virtual int16 Control(uint32 pb, uint32 dce, uint16 code) = 0;
-	virtual int16 Status(uint32 pb, uint32 dce, uint16 code) = 0;
-	virtual int16 Close(void) = 0;
+	virtual int16 open(uint16 config) = 0;
+	virtual int16 prime_in(uint32 pb, uint32 dce) = 0;
+	virtual int16 prime_out(uint32 pb, uint32 dce) = 0;
+	virtual int16 control(uint32 pb, uint32 dce, uint16 code) = 0;
+	virtual int16 status(uint32 pb, uint32 dce, uint16 code) = 0;
+	virtual int16 close(void) = 0;
 
 	bool is_open;		// Port has been opened
 	uint8 cum_errors;	// Cumulative errors

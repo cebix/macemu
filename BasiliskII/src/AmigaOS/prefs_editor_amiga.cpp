@@ -139,12 +139,12 @@ static void read_settings(struct LayoutHandle *h);
 
 
 /*
- *  Locale hook function - returns string for given ID
+ *  Locale hook - returns string for given ID
  */
 
-static __saveds __asm char *locale_hook_func(register __a0 struct Hook *hook, register __a2 struct LayoutHandle *h, register __a1 LONG id)
+static __saveds __regargs const char *locale_hook_func(struct Hook *hook /*a0*/, void *id /*a1*/, struct LayoutHandle *h /*a2*/)
 {
-	return GetString(id);
+	return GetString((uint32)id);
 }
 
 struct Hook locale_hook = {{NULL, NULL}, (HOOKFUNC)locale_hook_func, NULL, NULL};
@@ -162,17 +162,27 @@ bool PrefsEditor(void)
 	struct Window *win = NULL;
 	struct Menu *menu = NULL;
 
+	// Pane tabs
+	static const LONG labels[] = {
+		STR_VOLUMES_PANE_TITLE,
+		STR_SCSI_PANE_TITLE,
+		STR_GRAPHICS_SOUND_PANE_TITLE,
+		STR_SERIAL_NETWORK_PANE_TITLE,
+		STR_MEMORY_MISC_PANE_TITLE,
+		-1
+	};
+
 	// Open gtlayout.library
 	GTLayoutBase = (struct Library *)OpenLibrary((UBYTE *)"gtlayout.library", 39);
 	if (GTLayoutBase == NULL) {
 		WarningAlert(GetString(STR_NO_GTLAYOUT_LIB_WARN));
-		goto quit;
+		return true;
 	}
 
 	// Create layout handle
 	h = LT_CreateHandleTags(NULL,
 		LAHN_AutoActivate, FALSE,
-		LAHN_LocaleHook, &locale_hook,
+		LAHN_LocaleHook, (ULONG)&locale_hook,
 		TAG_END
 	);
 	if (h == NULL)
@@ -180,36 +190,27 @@ bool PrefsEditor(void)
 
 	// Create menus
 	menu = LT_NewMenuTags(
-		LAMN_LayoutHandle, h,
+		LAMN_LayoutHandle, (ULONG)h,
 		LAMN_TitleID, STR_PREFS_MENU,
 		LAMN_ItemID, STR_PREFS_ITEM_ABOUT,
 		LAMN_UserData, MSG_ABOUT,
-		LAMN_ItemText, NM_BARLABEL,
+		LAMN_ItemText, (ULONG)NM_BARLABEL,
 		LAMN_ItemID, STR_PREFS_ITEM_START,
 		LAMN_UserData, MSG_OK,
 		LAMN_ItemID, STR_PREFS_ITEM_ZAP_PRAM,
 		LAMN_UserData, MSG_ZAP_PRAM,
-		LAMN_ItemText, NM_BARLABEL,
+		LAMN_ItemText, (ULONG)NM_BARLABEL,
 		LAMN_ItemID, STR_PREFS_ITEM_QUIT,
 		LAMN_UserData, MSG_CANCEL,
-		LAMN_KeyText, "Q",
+		LAMN_KeyText, (ULONG)"Q",
 		TAG_END
 	);
 
 	// Create window contents
 	VGROUP;
-		// Pane tabs
-		static const LONG labels[] = {
-			STR_VOLUMES_PANE_TITLE,
-			STR_SCSI_PANE_TITLE,
-			STR_GRAPHICS_SOUND_PANE_TITLE,
-			STR_SERIAL_NETWORK_PANE_TITLE,
-			STR_MEMORY_MISC_PANE_TITLE,
-			-1
-		};
 		VGROUP;
 			LT_New(h, LA_Type, TAB_KIND,
-				LATB_LabelTable, labels,
+				LATB_LabelTable, (ULONG)labels,
 				LATB_AutoPageID, GAD_PAGEGROUP,
 				LATB_FullWidth, TRUE,
 				TAG_END
@@ -261,7 +262,7 @@ bool PrefsEditor(void)
 	// Open window
 	win = LT_Build(h,
 		LAWN_TitleID, STR_PREFS_TITLE,
-		LAWN_Menu, menu,
+		LAWN_Menu, (ULONG)menu,
 		LAWN_IDCMP, IDCMP_CLOSEWINDOW,
 		LAWN_BelowMouse, TRUE,
 		LAWN_SmartZoom, TRUE,
@@ -279,14 +280,14 @@ bool PrefsEditor(void)
 	dev_request = (struct FileRequester *)AllocAslRequestTags(ASL_FileRequest,
 		ASLFR_DoPatterns, TRUE,
 		ASLFR_RejectIcons, TRUE,
-		ASLFR_InitialDrawer, "DEVS:",
-		ASLFR_InitialPattern, "#?.device",
+		ASLFR_InitialDrawer, (ULONG)"DEVS:",
+		ASLFR_InitialPattern, (ULONG)"#?.device",
 		TAG_END
 	);
 	file_request = (struct FileRequester *)AllocAslRequestTags(ASL_FileRequest,
 		ASLFR_DoPatterns, TRUE,
 		ASLFR_RejectIcons, TRUE,
-		ASLFR_InitialPattern, "#?",
+		ASLFR_InitialPattern, (ULONG)"#?",
 		TAG_END
 	);
 
@@ -427,14 +428,14 @@ bool PrefsEditor(void)
 						case GAD_ETHER_DEVICE:
 							if (dev_request) {
 								LT_LockWindow(win);
-								BOOL result = AslRequestTags(dev_request, ASLFR_Window, win, TAG_END);
+								BOOL result = AslRequestTags(dev_request, ASLFR_Window, (ULONG)win, TAG_END);
 								LT_UnlockWindow(win);
 								if (result) {
 									char *str;
-									GT_GetGadgetAttrs(gad, win, NULL, GTST_String, &str, TAG_END);
+									GT_GetGadgetAttrs(gad, win, NULL, GTST_String, (ULONG)&str, TAG_END);
 									strncpy(str, dev_request->rf_File, 255);	// Don't copy the directory part. This is usually "DEVS:" and we don't need that.
 									str[255] = 0;
-									LT_SetAttributes(h, gad->GadgetID, GTST_String, str, TAG_END);
+									LT_SetAttributes(h, gad->GadgetID, GTST_String, (ULONG)str, TAG_END);
 								}
 							}
 							break;
@@ -442,15 +443,15 @@ bool PrefsEditor(void)
 						case GAD_ROM_FILE:
 							if (file_request) {
 								LT_LockWindow(win);
-								BOOL result = AslRequestTags(file_request, ASLFR_Window, win, TAG_END);
+								BOOL result = AslRequestTags(file_request, ASLFR_Window, (ULONG)win, TAG_END);
 								LT_UnlockWindow(win);
 								if (result) {
 									char *str;
-									GT_GetGadgetAttrs(gad, win, NULL, GTST_String, &str, TAG_END);
+									GT_GetGadgetAttrs(gad, win, NULL, GTST_String, (ULONG)&str, TAG_END);
 									strncpy(str, file_request->rf_Dir, 255);
 									str[255] = 0;
 									AddPart(str, file_request->rf_File, 255);
-									LT_SetAttributes(h, gad->GadgetID, GTST_String, str, TAG_END);
+									LT_SetAttributes(h, gad->GadgetID, GTST_String, (ULONG)str, TAG_END);
 								}
 							}
 							break;
@@ -644,7 +645,7 @@ static void add_edit_volume(struct LayoutHandle *h2, bool adding)
 	struct Window *win = NULL;
 	h = LT_CreateHandleTags(NULL,
 		LAHN_AutoActivate, FALSE,
-		LAHN_LocaleHook, &locale_hook,
+		LAHN_LocaleHook, (ULONG)&locale_hook,
 		TAG_END
 	);
 	if (h == NULL)
@@ -657,7 +658,7 @@ static void add_edit_volume(struct LayoutHandle *h2, bool adding)
 			LT_New(h, LA_Type, CHECKBOX_KIND,
 				LA_LabelID, STR_VOL_READONLY_CTRL,
 				LA_ID, GAD_VOLUME_READONLY,
-				LA_BYTE, &read_only,
+				LA_BYTE, (ULONG)&read_only,
 				TAG_END
 			);
 			LT_New(h, LA_Type, CYCLE_KIND,
@@ -666,7 +667,7 @@ static void add_edit_volume(struct LayoutHandle *h2, bool adding)
 				LACY_AutoPageID, GAD_VOLUME_PAGEGROUP,
 				LACY_FirstLabel, STR_VOL_FILE_LAB,
 				LACY_LastLabel, STR_VOL_DEVICE_LAB,
-				LA_BYTE, &is_device,
+				LA_BYTE, (ULONG)&is_device,
 				TAG_END
 			);
 		ENDGROUP;
@@ -680,7 +681,7 @@ static void add_edit_volume(struct LayoutHandle *h2, bool adding)
 					LA_LabelID, STR_VOL_FILE_CTRL,
 					LA_ID, GAD_VOLUME_FILE,
 					LA_Chars, 20,
-					LA_STRPTR, file_name,
+					LA_STRPTR, (ULONG)file_name,
 					GTST_MaxChars, sizeof(file_name) - 1,
 					LAST_Picker, TRUE,
 					TAG_END
@@ -691,7 +692,7 @@ static void add_edit_volume(struct LayoutHandle *h2, bool adding)
 					LA_LabelID, STR_DEVICE_CTRL,
 					LA_ID, GAD_VOLUME_DEVICE,
 					LA_Chars, 20,
-					LA_STRPTR, dev_name,
+					LA_STRPTR, (ULONG)dev_name,
 					GTST_MaxChars, sizeof(dev_name) - 1,
 					LAST_Picker, TRUE,
 					TAG_END
@@ -699,7 +700,7 @@ static void add_edit_volume(struct LayoutHandle *h2, bool adding)
 				LT_New(h, LA_Type, INTEGER_KIND,
 					LA_LabelID, STR_UNIT_CTRL,
 					LA_ID, GAD_VOLUME_UNIT,
-					LA_LONG, &dev_unit,
+					LA_LONG, (ULONG)&dev_unit,
 					LAIN_UseIncrementers, TRUE,
 					GTIN_MaxChars, 8,
 					TAG_END
@@ -707,7 +708,7 @@ static void add_edit_volume(struct LayoutHandle *h2, bool adding)
 				LT_New(h, LA_Type, INTEGER_KIND,
 					LA_LabelID, STR_VOL_OPENFLAGS_CTRL,
 					LA_ID, GAD_VOLUME_OPENFLAGS,
-					LA_LONG, &dev_flags,
+					LA_LONG, (ULONG)&dev_flags,
 					LAIN_UseIncrementers, TRUE,
 					GTIN_MaxChars, 8,
 					TAG_END
@@ -715,7 +716,7 @@ static void add_edit_volume(struct LayoutHandle *h2, bool adding)
 				LT_New(h, LA_Type, INTEGER_KIND,
 					LA_LabelID, STR_VOL_STARTBLOCK_CTRL,
 					LA_ID, GAD_VOLUME_STARTBLOCK,
-					LA_LONG, &dev_start,
+					LA_LONG, (ULONG)&dev_start,
 					LAIN_UseIncrementers, TRUE,
 					GTIN_MaxChars, 8,
 					TAG_END
@@ -723,7 +724,7 @@ static void add_edit_volume(struct LayoutHandle *h2, bool adding)
 				LT_New(h, LA_Type, INTEGER_KIND,
 					LA_LabelID, STR_VOL_SIZE_CTRL,
 					LA_ID, GAD_VOLUME_SIZE,
-					LA_LONG, &dev_size,
+					LA_LONG, (ULONG)&dev_size,
 					LAIN_UseIncrementers, TRUE,
 					GTIN_MaxChars, 8,
 					TAG_END
@@ -731,7 +732,7 @@ static void add_edit_volume(struct LayoutHandle *h2, bool adding)
 				LT_New(h, LA_Type, INTEGER_KIND,
 					LA_LabelID, STR_VOL_BLOCKSIZE_CTRL,
 					LA_ID, GAD_VOLUME_BLOCKSIZE,
-					LA_LONG, &dev_bsize,
+					LA_LONG, (ULONG)&dev_bsize,
 					LAIN_UseIncrementers, TRUE,
 					GTIN_MaxChars, 8,
 					TAG_END
@@ -831,11 +832,11 @@ static void add_edit_volume(struct LayoutHandle *h2, bool adding)
 							req = dev_request;
 do_req:						if (req) {
 								LT_LockWindow(win);
-								BOOL result = AslRequestTags(req, ASLFR_Window, win, TAG_END);
+								BOOL result = AslRequestTags(req, ASLFR_Window, (ULONG)win, TAG_END);
 								LT_UnlockWindow(win);
 								if (result) {
 									char *str;
-									GT_GetGadgetAttrs(gad, win, NULL, GTST_String, &str, TAG_END);
+									GT_GetGadgetAttrs(gad, win, NULL, GTST_String, (ULONG)&str, TAG_END);
 									if (gad->GadgetID == GAD_VOLUME_FILE) {
 										strncpy(str, req->rf_Dir, 255);
 										str[255] = 0;
@@ -853,7 +854,7 @@ do_req:						if (req) {
 											LT_SetAttributes(h, GAD_VOLUME_BLOCKSIZE, GTIN_Number, dev_bsize, TAG_END);
 										}
 									}
-									LT_SetAttributes(h, gad->GadgetID, GTST_String, str, TAG_END);
+									LT_SetAttributes(h, gad->GadgetID, GTST_String, (ULONG)str, TAG_END);
 								}
 							}
 							break;
@@ -881,9 +882,10 @@ do_req:						if (req) {
 		if (adding) {
 
 			// Add new item
+			int i;
 			PrefsAddString("disk", str);
 			struct Node *item = (struct Node *)AllocMem(sizeof(struct Node), MEMF_CLEAR);
-			for (int i=0; PrefsFindString("disk", i); i++) ;
+			for (i=0; PrefsFindString("disk", i); i++) ;
 			item->ln_Name = (char *)PrefsFindString("disk", i - 1);
 			AddTail(&disk_list, item);
 
@@ -900,7 +902,7 @@ do_req:						if (req) {
 				item = item->ln_Succ;
 			}
 		}
-		LT_SetAttributes(h2, GAD_DISK_LIST, GTLV_Labels, &disk_list, TAG_END);
+		LT_SetAttributes(h2, GAD_DISK_LIST, GTLV_Labels, (ULONG)&disk_list, TAG_END);
 		ghost_volumes_gadgets(h2);
 	}
 }
@@ -924,7 +926,7 @@ static void remove_volume(struct LayoutHandle *h)
 			}
 			item = next;
 		}
-		LT_SetAttributes(h, GAD_DISK_LIST, GTLV_Labels, &disk_list, GTLV_Selected, 0xffff, TAG_END);
+		LT_SetAttributes(h, GAD_DISK_LIST, GTLV_Labels, (ULONG)&disk_list, GTLV_Selected, 0xffff, TAG_END);
 		ghost_volumes_gadgets(h);
 	}
 }
@@ -963,9 +965,9 @@ static void create_volumes_pane(struct LayoutHandle *h)
 			VGROUP;
 				LT_New(h, LA_Type, LISTVIEW_KIND,
 					LA_ID, GAD_DISK_LIST,
-					GTLV_Labels, &disk_list,
+					GTLV_Labels, (ULONG)&disk_list,
 					LALV_Lines, 6,
-					LALV_Link, NIL_LINK,
+					LALV_Link, (ULONG)NIL_LINK,
 					LALV_ResizeX, TRUE,
 					LALV_ResizeY, TRUE,
 					LALV_Selected, 0,
@@ -1002,7 +1004,7 @@ static void create_volumes_pane(struct LayoutHandle *h)
 				LA_LabelID, STR_DEVICE_CTRL,
 				LA_ID, GAD_CDROM_DEVICE,
 				LA_Chars, 20,
-				LA_STRPTR, cdrom_name,
+				LA_STRPTR, (ULONG)cdrom_name,
 				GTST_MaxChars, sizeof(cdrom_name) - 1,
 				LAST_Picker, TRUE,
 				TAG_END
@@ -1010,7 +1012,7 @@ static void create_volumes_pane(struct LayoutHandle *h)
 			LT_New(h, LA_Type, INTEGER_KIND,
 				LA_LabelID, STR_UNIT_CTRL,
 				LA_ID, GAD_CDROM_UNIT,
-				LA_LONG, &cdrom_unit,
+				LA_LONG, (ULONG)&cdrom_unit,
 				LAIN_UseIncrementers, TRUE,
 				GTIN_MaxChars, 8,
 				TAG_END
@@ -1020,13 +1022,13 @@ static void create_volumes_pane(struct LayoutHandle *h)
 				LA_ID, GAD_BOOTDRIVER,
 				LACY_FirstLabel, STR_BOOT_ANY_LAB,
 				LACY_LastLabel, STR_BOOT_CDROM_LAB,
-				LA_BYTE, &bootdriver_num,
+				LA_BYTE, (ULONG)&bootdriver_num,
 				TAG_END
 			);
 			LT_New(h, LA_Type, CHECKBOX_KIND,
 				LA_LabelID, STR_NOCDROM_CTRL,
 				LA_ID, GAD_NOCDROM,
-				LA_BYTE, &nocdrom,
+				LA_BYTE, (ULONG)&nocdrom,
 				TAG_END
 			);
 		ENDGROUP;
@@ -1088,7 +1090,7 @@ static void create_scsi_pane(struct LayoutHandle *h)
 					LA_LabelID, STR_DEVICE_CTRL,
 					LA_ID, GAD_SCSI0_DEVICE + i,
 					LA_Chars, 20,
-					LA_STRPTR, scsi_dev[i],
+					LA_STRPTR, (ULONG)scsi_dev[i],
 					GTST_MaxChars, sizeof(scsi_dev[i]) - 1,
 					LAST_Picker, TRUE,
 					TAG_END
@@ -1097,7 +1099,7 @@ static void create_scsi_pane(struct LayoutHandle *h)
 					LA_LabelID, STR_UNIT_CTRL,
 					LA_ID, GAD_SCSI0_UNIT + i,
 					LA_Chars, 4,
-					LA_LONG, &scsi_unit[i],
+					LA_LONG, (ULONG)&scsi_unit[i],
 					LAIN_UseIncrementers, TRUE,
 					GTIN_MaxChars, 8,
 					TAG_END
@@ -1177,7 +1179,7 @@ static void parse_graphics_prefs(void)
 	if (str) {
 		if (sscanf(str, "ahi/%08lx", &ahi_id) == 1 && AHIBase) {
 			AHI_GetAudioAttrs(ahi_id, NULL,
-				AHIDB_Name, ahi_mode_name,
+				AHIDB_Name, (ULONG)ahi_mode_name,
 				AHIDB_BufferLen, sizeof(ahi_mode_name) - 1,
 				TAG_END
 			);
@@ -1231,7 +1233,7 @@ static void screen_mode_req(struct Window *win, struct LayoutHandle *h)
 	if (id != INVALID_ID) {
 		mode_id = id;
 		GetDisplayInfoData(NULL, (UBYTE *)&mode_name, sizeof(mode_name), DTAG_NAME, mode_id);
-		LT_SetAttributes(h, GAD_SCREEN_MODE, GTTX_Text, mode_name.Name, TAG_END);
+		LT_SetAttributes(h, GAD_SCREEN_MODE, GTTX_Text, (ULONG)mode_name.Name, TAG_END);
 	}
 }
 
@@ -1242,7 +1244,7 @@ static void ahi_mode_req(struct Window *win, struct LayoutHandle *h)
 		return;
 
 	struct AHIAudioModeRequester *req = AHI_AllocAudioRequest(
-		AHIR_Window, win,
+		AHIR_Window, (ULONG)win,
 		TAG_END
 	);
 	if (req == NULL)
@@ -1258,11 +1260,11 @@ static void ahi_mode_req(struct Window *win, struct LayoutHandle *h)
 	if (ok) {
 		ahi_id = req->ahiam_AudioID;
 		AHI_GetAudioAttrs(ahi_id, NULL,
-			AHIDB_Name, ahi_mode_name,
+			AHIDB_Name, (ULONG)ahi_mode_name,
 			AHIDB_BufferLen, sizeof(ahi_mode_name) - 1,
 			TAG_END
 		);
-		LT_SetAttributes(h, GAD_AHI_MODE, GTTX_Text, ahi_mode_name, TAG_END);
+		LT_SetAttributes(h, GAD_AHI_MODE, GTTX_Text, (ULONG)ahi_mode_name, TAG_END);
 	}
 	AHI_FreeAudioRequest(req);
 }
@@ -1307,21 +1309,21 @@ static void create_graphics_pane(struct LayoutHandle *h)
 			LT_New(h, LA_Type, CYCLE_KIND,
 				LA_LabelID, STR_VIDEO_TYPE_CTRL,
 				LA_ID, GAD_VIDEO_TYPE,
-				LACY_LabelTable, labels,
-				LA_BYTE, &display_type,
+				LACY_LabelTable, (ULONG)labels,
+				LA_BYTE, (ULONG)&display_type,
 				TAG_END
 			);
 			LT_New(h, LA_Type, INTEGER_KIND,
 				LA_LabelID, STR_DISPLAY_X_CTRL,
 				LA_ID, GAD_DISPLAY_X,
-				LA_LONG, &dis_width,
+				LA_LONG, (ULONG)&dis_width,
 				GTIN_MaxChars, 8,
 				TAG_END
 			);
 			LT_New(h, LA_Type, INTEGER_KIND,
 				LA_LabelID, STR_DISPLAY_Y_CTRL,
 				LA_ID, GAD_DISPLAY_Y,
-				LA_LONG, &dis_height,
+				LA_LONG, (ULONG)&dis_height,
 				GTIN_MaxChars, 8,
 				TAG_END
 			);
@@ -1330,7 +1332,7 @@ static void create_graphics_pane(struct LayoutHandle *h)
 				LA_ID, GAD_FRAMESKIP,
 				LAPU_FirstLabel, STR_REF_5HZ_LAB,
 				LAPU_LastLabel, STR_REF_60HZ_LAB,
-				LA_BYTE, &frameskip_num,
+				LA_BYTE, (ULONG)&frameskip_num,
 				TAG_END
 			);
 			LT_New(h, LA_Type, TEXT_KIND,
@@ -1338,7 +1340,7 @@ static void create_graphics_pane(struct LayoutHandle *h)
 				LA_ID, GAD_SCREEN_MODE,
 				LA_Chars, DISPLAYNAMELEN,
 				LATX_Picker, TRUE,
-				GTTX_Text, mode_name.Name,
+				GTTX_Text, (ULONG)mode_name.Name,
 				GTTX_Border, TRUE,
 				TAG_END
 			);
@@ -1352,14 +1354,14 @@ static void create_graphics_pane(struct LayoutHandle *h)
 				LA_ID, GAD_AHI_MODE,
 				LA_Chars, DISPLAYNAMELEN,
 				LATX_Picker, TRUE,
-				GTTX_Text, ahi_mode_name,
+				GTTX_Text, (ULONG)ahi_mode_name,
 				GTTX_Border, TRUE,
 				TAG_END
 			);
 			LT_New(h, LA_Type, CHECKBOX_KIND,
 				LA_LabelID, STR_NOSOUND_CTRL,
 				LA_ID, GAD_NOSOUND,
-				LA_BYTE, &nosound,
+				LA_BYTE, (ULONG)&nosound,
 				TAG_END
 			);
 		ENDGROUP;
@@ -1381,7 +1383,7 @@ static char ether_dev[256];
 static ULONG ether_unit;
 
 // Read serial/network preferences
-static void parse_serial_prefs(const char *prefs, char *dev, LONG &unit, BYTE &ispar)
+static void parse_ser_prefs(const char *prefs, char *dev, LONG &unit, BYTE &ispar)
 {
 	dev[0] = 0;
 	unit = 0;
@@ -1395,11 +1397,17 @@ static void parse_serial_prefs(const char *prefs, char *dev, LONG &unit, BYTE &i
 		}
 		sscanf(str, "%[^/]/%ld", dev, &unit);
 	}
+}
+
+static void parse_serial_prefs(void)
+{
+	parse_ser_prefs("seriala", seriala_dev, seriala_unit, seriala_ispar);
+	parse_ser_prefs("serialb", serialb_dev, serialb_unit, serialb_ispar);
 
 	ether_dev[0] = 0;
 	ether_unit = 0;
 
-	str = PrefsFindString("ether");
+	const char *str = PrefsFindString("ether");
 	if (str)
 		sscanf(str, "%[^/]/%ld", ether_dev, &ether_unit);
 }
@@ -1432,8 +1440,7 @@ static void read_serial_settings(void)
 // Create "Serial/Network" pane
 static void create_serial_pane(struct LayoutHandle *h)
 {
-	parse_serial_prefs("seriala", seriala_dev, seriala_unit, seriala_ispar);
-	parse_serial_prefs("serialb", serialb_dev, serialb_unit, serialb_ispar);
+	parse_serial_prefs();
 
 	VGROUP;
 		LT_New(h, LA_Type, VERTICAL_KIND,
@@ -1444,7 +1451,7 @@ static void create_serial_pane(struct LayoutHandle *h)
 				LA_LabelID, STR_DEVICE_CTRL,
 				LA_ID, GAD_SERIALA_DEVICE,
 				LA_Chars, 20,
-				LA_STRPTR, seriala_dev,
+				LA_STRPTR, (ULONG)seriala_dev,
 				GTST_MaxChars, sizeof(seriala_dev) - 1,
 				LAST_Picker, TRUE,
 				TAG_END
@@ -1452,7 +1459,7 @@ static void create_serial_pane(struct LayoutHandle *h)
 			LT_New(h, LA_Type, INTEGER_KIND,
 				LA_LabelID, STR_UNIT_CTRL,
 				LA_ID, GAD_SERIALA_UNIT,
-				LA_LONG, &seriala_unit,
+				LA_LONG, (ULONG)&seriala_unit,
 				LAIN_UseIncrementers, TRUE,
 				GTIN_MaxChars, 8,
 				TAG_END
@@ -1460,7 +1467,7 @@ static void create_serial_pane(struct LayoutHandle *h)
 			LT_New(h, LA_Type, CHECKBOX_KIND,
 				LA_LabelID, STR_ISPAR_CTRL,
 				LA_ID, GAD_SERIALA_ISPAR,
-				LA_BYTE, &seriala_ispar,
+				LA_BYTE, (ULONG)&seriala_ispar,
 				TAG_END
 			);
 		ENDGROUP;
@@ -1473,7 +1480,7 @@ static void create_serial_pane(struct LayoutHandle *h)
 				LA_LabelID, STR_DEVICE_CTRL,
 				LA_ID, GAD_SERIALB_DEVICE,
 				LA_Chars, 20,
-				LA_STRPTR, serialb_dev,
+				LA_STRPTR, (ULONG)serialb_dev,
 				GTST_MaxChars, sizeof(serialb_dev) - 1,
 				LAST_Picker, TRUE,
 				TAG_END
@@ -1481,7 +1488,7 @@ static void create_serial_pane(struct LayoutHandle *h)
 			LT_New(h, LA_Type, INTEGER_KIND,
 				LA_LabelID, STR_UNIT_CTRL,
 				LA_ID, GAD_SERIALB_UNIT,
-				LA_LONG, &serialb_unit,
+				LA_LONG, (ULONG)&serialb_unit,
 				LAIN_UseIncrementers, TRUE,
 				GTIN_MaxChars, 8,
 				TAG_END
@@ -1489,7 +1496,7 @@ static void create_serial_pane(struct LayoutHandle *h)
 			LT_New(h, LA_Type, CHECKBOX_KIND,
 				LA_LabelID, STR_ISPAR_CTRL,
 				LA_ID, GAD_SERIALB_ISPAR,
-				LA_BYTE, &serialb_ispar,
+				LA_BYTE, (ULONG)&serialb_ispar,
 				TAG_END
 			);
 		ENDGROUP;
@@ -1502,7 +1509,7 @@ static void create_serial_pane(struct LayoutHandle *h)
 				LA_LabelID, STR_DEVICE_CTRL,
 				LA_ID, GAD_ETHER_DEVICE,
 				LA_Chars, 20,
-				LA_STRPTR, ether_dev,
+				LA_STRPTR, (ULONG)ether_dev,
 				GTST_MaxChars, sizeof(ether_dev) - 1,
 				LAST_Picker, TRUE,
 				TAG_END
@@ -1510,7 +1517,7 @@ static void create_serial_pane(struct LayoutHandle *h)
 			LT_New(h, LA_Type, INTEGER_KIND,
 				LA_LabelID, STR_UNIT_CTRL,
 				LA_ID, GAD_ETHER_UNIT,
-				LA_LONG, &ether_unit,
+				LA_LONG, (ULONG)&ether_unit,
 				LAIN_UseIncrementers, TRUE,
 				GTIN_MaxChars, 8,
 				TAG_END
@@ -1573,8 +1580,8 @@ static void create_memory_pane(struct LayoutHandle *h)
 			LA_LabelID, STR_RAMSIZE_SLIDER,
 			LA_ID, GAD_RAMSIZE,
 			LA_Chars, 20,
-			LA_LONG, &ramsize_mb,
-			GTSL_LevelFormat, GetString(STR_RAMSIZE_FMT),
+			LA_LONG, (ULONG)&ramsize_mb,
+			GTSL_LevelFormat, (ULONG)GetString(STR_RAMSIZE_FMT),
 			GTSL_Min, 1,
 			GTSL_Max, AvailMem(MEMF_LARGEST) >> 20,
 			TAG_END
@@ -1584,14 +1591,14 @@ static void create_memory_pane(struct LayoutHandle *h)
 			LA_ID, GAD_MODELID,
 			LACY_FirstLabel, STR_MODELID_5_LAB,
 			LACY_LastLabel, STR_MODELID_14_LAB,
-			LA_BYTE, &model_num,
+			LA_BYTE, (ULONG)&model_num,
 			TAG_END
 		);
 		LT_New(h, LA_Type, STRING_KIND,
 			LA_LabelID, STR_ROM_FILE_CTRL,
 			LA_ID, GAD_ROM_FILE,
 			LA_Chars, 20,
-			LA_STRPTR, rom_file,
+			LA_STRPTR, (ULONG)rom_file,
 			GTST_MaxChars, sizeof(rom_file) - 1,
 			LAST_Picker, TRUE,
 			TAG_END

@@ -33,6 +33,7 @@ user_string_def platform_strings[] = {
 	// Purely platform-specific strings
 	{STR_NO_PREPARE_EMUL_ERR, "PrepareEmul is not installed. Run PrepareEmul and then try again to start Basilisk II."},
 	{STR_NO_GADTOOLS_LIB_ERR, "Cannot open gadtools.library V39."},
+	{STR_NO_IFFPARSE_LIB_ERR, "Cannot open iffparse.library V39."},
 	{STR_NO_ASL_LIB_ERR, "Cannot open asl.library V36."},
 	{STR_NO_TIMER_DEV_ERR, "Cannot open timer.device."},
 	{STR_NO_P96_MODE_ERR, "The selected screen mode is not a Picasso96 mode."},

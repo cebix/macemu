@@ -107,7 +107,7 @@ static bool init_window(int width, int height)
 		WA_DragBar, TRUE,
 		WA_DepthGadget, TRUE,
 		WA_SizeGadget, FALSE,
-		WA_Title, GetString(STR_WINDOW_TITLE),
+		WA_Title, (ULONG)GetString(STR_WINDOW_TITLE),
 		TAG_END
 	);
 	if (the_win == NULL) {
@@ -150,7 +150,7 @@ static bool init_pip(int width, int height)
 		P96PIP_SourceFormat, RGBFB_R5G5B5,
 		P96PIP_SourceWidth, width,
 		P96PIP_SourceHeight, height,
-		P96PIP_ErrorCode, &error,
+		P96PIP_ErrorCode, (ULONG)&error,
 		WA_Left, 0, WA_Top, 0,
 		WA_InnerWidth, width, WA_InnerHeight, height,
 		WA_SimpleRefresh, TRUE,
@@ -161,8 +161,8 @@ static bool init_pip(int width, int height)
 		WA_DragBar, TRUE,
 		WA_DepthGadget, TRUE,
 		WA_SizeGadget, FALSE,
-		WA_Title, GetString(STR_WINDOW_TITLE),
-		WA_PubScreenName, "Workbench",
+		WA_Title, (ULONG)GetString(STR_WINDOW_TITLE),
+		WA_PubScreenName, (ULONG)"Workbench",
 		TAG_END
 	);
 	if (the_win == NULL || error) {
@@ -171,7 +171,7 @@ static bool init_pip(int width, int height)
 	}
 
 	// Find bitmap
-	p96PIP_GetTags(the_win, P96PIP_SourceBitMap, &the_bitmap, TAG_END);
+	p96PIP_GetTags(the_win, P96PIP_SourceBitMap, (ULONG)&the_bitmap, TAG_END);
 
 	// Set VideoMonitor
 	VideoMonitor.mac_frame_base = p96GetBitMapAttr(the_bitmap, P96BMA_MEMORY);
@@ -231,7 +231,7 @@ static bool init_screen(ULONG mode_id)
 	// Open screen
 	the_screen = p96OpenScreenTags(
 		P96SA_DisplayID, mode_id,
-		P96SA_Title, GetString(STR_WINDOW_TITLE),
+		P96SA_Title, (ULONG)GetString(STR_WINDOW_TITLE),
 		P96SA_Quiet, TRUE,
 		P96SA_NoMemory, TRUE,
 		P96SA_NoSprite, TRUE,
@@ -252,7 +252,7 @@ static bool init_screen(ULONG mode_id)
 		WA_Activate, TRUE,
 		WA_RMBTrap, TRUE,
 		WA_ReportMouse, TRUE,
-		WA_CustomScreen, the_screen,
+		WA_CustomScreen, (ULONG)the_screen,
 		TAG_END
 	);
 	if (the_win == NULL) {
@@ -314,8 +314,8 @@ bool VideoInit(bool classic)
 
 	// Start periodic process
 	periodic_proc = CreateNewProcTags(
-		NP_Entry, periodic_func,
-		NP_Name, "Basilisk II IDCMP Handler",
+		NP_Entry, (ULONG)periodic_func,
+		NP_Name, (ULONG)"Basilisk II IDCMP Handler",
 		NP_Priority, 0,
 		TAG_END
 	);

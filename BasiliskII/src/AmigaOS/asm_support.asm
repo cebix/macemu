@@ -47,7 +47,7 @@
 		XREF	_InterruptFlags
 		XREF	_MainTask
 		XREF	_SysBase
-		XREF	@QuitEmulator__Fv
+		XREF	_quit_emulator
 
 		SECTION	text,CODE
 
@@ -261,7 +261,7 @@ _ExceptionHandlerAsm
 		moveq	#0,d0			;Disable all exception signals
 		moveq	#-1,d1
 		JSRLIB	SetExcept
-		jsr	@QuitEmulator__Fv	;CTRL-C, quit emulator
+		jsr	_quit_emulator		;CTRL-C, quit emulator
 4$		move.l	(sp)+,d0
 		rts
 

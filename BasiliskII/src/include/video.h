@@ -43,9 +43,9 @@ struct video_desc {
 
 extern struct video_desc VideoMonitor;	// Description of the main monitor, set by VideoInit()
 
-extern int16 VideoOpen(uint32 pb, uint32 dce);
-extern int16 VideoControl(uint32 pb, uint32 dce);
-extern int16 VideoStatus(uint32 pb, uint32 dce);
+extern int16 VideoDriverOpen(uint32 pb, uint32 dce);
+extern int16 VideoDriverControl(uint32 pb, uint32 dce);
+extern int16 VideoDriverStatus(uint32 pb, uint32 dce);
 
 // System specific and internal functions/data
 extern bool VideoInit(bool classic);

@@ -296,15 +296,15 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			break;
 
 		case M68K_EMUL_OP_VIDEO_OPEN:		// Video driver functions
-			r->d[0] = VideoOpen(r->a[0], r->a[1]);
+			r->d[0] = VideoDriverOpen(r->a[0], r->a[1]);
 			break;
 
 		case M68K_EMUL_OP_VIDEO_CONTROL:
-			r->d[0] = VideoControl(r->a[0], r->a[1]);
+			r->d[0] = VideoDriverControl(r->a[0], r->a[1]);
 			break;
 
 		case M68K_EMUL_OP_VIDEO_STATUS:
-			r->d[0] = VideoStatus(r->a[0], r->a[1]);
+			r->d[0] = VideoDriverStatus(r->a[0], r->a[1]);
 			break;
 
 		case M68K_EMUL_OP_SERIAL_OPEN:		// Serial driver functions

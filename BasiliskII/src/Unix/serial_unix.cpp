@@ -101,12 +101,12 @@ public:
 		}
 	}
 
-	virtual int16 Open(uint16 config);
-	virtual int16 PrimeIn(uint32 pb, uint32 dce);
-	virtual int16 PrimeOut(uint32 pb, uint32 dce);
-	virtual int16 Control(uint32 pb, uint32 dce, uint16 code);
-	virtual int16 Status(uint32 pb, uint32 dce, uint16 code);
-	virtual int16 Close(void);
+	virtual int16 open(uint16 config);
+	virtual int16 prime_in(uint32 pb, uint32 dce);
+	virtual int16 prime_out(uint32 pb, uint32 dce);
+	virtual int16 control(uint32 pb, uint32 dce, uint16 code);
+	virtual int16 status(uint32 pb, uint32 dce, uint16 code);
+	virtual int16 close(void);
 
 private:
 	bool configure(uint16 config);
@@ -166,7 +166,7 @@ void SerialExit(void)
  *  Open serial port
  */
 
-int16 XSERDPort::Open(uint16 config)
+int16 XSERDPort::open(uint16 config)
 {
 	// Don't open NULL name devices
 	if (device_name == NULL)
@@ -249,7 +249,7 @@ open_error:
  *  Read data from port
  */
 
-int16 XSERDPort::PrimeIn(uint32 pb, uint32 dce)
+int16 XSERDPort::prime_in(uint32 pb, uint32 dce)
 {
 	// Send input command to input_thread
 	read_done = false;
@@ -265,7 +265,7 @@ int16 XSERDPort::PrimeIn(uint32 pb, uint32 dce)
  *  Write data to port
  */
 
-int16 XSERDPort::PrimeOut(uint32 pb, uint32 dce)
+int16 XSERDPort::prime_out(uint32 pb, uint32 dce)
 {
 	// Send output command to output_thread
 	write_done = false;
@@ -281,7 +281,7 @@ int16 XSERDPort::PrimeOut(uint32 pb, uint32 dce)
  *	Control calls
  */
 
-int16 XSERDPort::Control(uint32 pb, uint32 dce, uint16 code)
+int16 XSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 {
 	switch (code) {
 		case 1:			// KillIO
@@ -446,7 +446,7 @@ int16 XSERDPort::Control(uint32 pb, uint32 dce, uint16 code)
  *	Status calls
  */
 
-int16 XSERDPort::Status(uint32 pb, uint32 dce, uint16 code)
+int16 XSERDPort::status(uint32 pb, uint32 dce, uint16 code)
 {
 	switch (code) {
 		case kSERDInputCount: {
@@ -493,7 +493,7 @@ int16 XSERDPort::Status(uint32 pb, uint32 dce, uint16 code)
  *	Close serial port
  */
 
-int16 XSERDPort::Close()
+int16 XSERDPort::close()
 {
 	// Kill threads
 	if (input_thread_active) {

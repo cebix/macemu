@@ -56,9 +56,13 @@
 #include "debug.h"
 
 
+// Our minimum stack requirement
+unsigned long __stack = 0x4000;
+
+
 // Constants
 static const char ROM_FILE_NAME[] = "ROM";
-static const char __ver[] = "$VER: " VERSION_STRING " " __AMIGADATE__;
+static const char __ver[] = "$VER: " VERSION_STRING " " __DATE__;
 static const int SCRATCH_MEM_SIZE = 65536;
 
 
@@ -80,7 +84,10 @@ bool TwentyFourBitAddressing;
 
 // Global variables
 extern ExecBase *SysBase;
+struct Library *GfxBase = NULL;
+struct IntuitionBase *IntuitionBase = NULL;
 struct Library *GadToolsBase = NULL;
+struct Library *IFFParseBase = NULL;
 struct Library *AslBase = NULL;
 struct Library *P96Base = NULL;
 struct Library *TimerBase = NULL;
@@ -106,11 +113,6 @@ static bool stack_swapped = false;				// Stack swapping
 static StackSwapStruct stack_swap;
 
 
-// Prototypes
-static void jump_to_rom(void);
-static void tick_func(void);
-
-
 // Assembly functions
 struct trap_regs;
 extern "C" void AtomicAnd(uint32 *p, uint32 val);
@@ -120,7 +122,13 @@ extern "C" void TrapHandlerAsm(void);
 extern "C" void ExceptionHandlerAsm(void);
 extern "C" void IllInstrHandler(trap_regs *regs);
 extern "C" void PrivViolHandler(trap_regs *regs);
+extern "C" void quit_emulator(void);
 uint16 EmulatedSR;					// Emulated SR (supervisor bit and interrupt mask)
+
+
+// Prototypes
+static void jump_to_rom(void);
+static void tick_func(void);
 
 
 /*
@@ -141,10 +149,18 @@ int main(void)
 	printf(GetString(STR_ABOUT_TEXT1), VERSION_MAJOR, VERSION_MINOR);
 	printf(" %s\n", GetString(STR_ABOUT_TEXT2));
 
-	// Read preferences
-	PrefsInit();
-
 	// Open libraries
+	GfxBase = OpenLibrary((UBYTE *)"graphics.library", 39);
+	if (GfxBase == NULL) {
+		printf("Cannot open graphics.library V39.\n");
+		exit(1);
+	}
+	IntuitionBase = (struct IntuitionBase *)OpenLibrary((UBYTE *)"intuition.library", 39);
+	if (IntuitionBase == NULL) {
+		printf("Cannot open intuition.library V39.\n");
+		CloseLibrary(GfxBase);
+		exit(1);
+	}
 	DiskBase = (struct Library *)OpenResource((UBYTE *)"disk.resource");
 	if (DiskBase == NULL)
 		QuitEmulator();
@@ -153,12 +169,20 @@ int main(void)
 		ErrorAlert(GetString(STR_NO_GADTOOLS_LIB_ERR));
 		QuitEmulator();
 	}
+	IFFParseBase = OpenLibrary((UBYTE *)"iffparse.library", 39);
+	if (IFFParseBase == NULL) {
+		ErrorAlert(GetString(STR_NO_IFFPARSE_LIB_ERR));
+		QuitEmulator();
+	}
 	AslBase = OpenLibrary((UBYTE *)"asl.library", 36);
 	if (AslBase == NULL) {
 		ErrorAlert(GetString(STR_NO_ASL_LIB_ERR));
 		QuitEmulator();
 	}
 	P96Base = OpenLibrary((UBYTE *)"Picasso96API.library", 2);
+
+	// Read preferences
+	PrefsInit();
 
 	// Open AHI
 	ahi_port = CreateMsgPort();
@@ -228,7 +252,7 @@ int main(void)
 	const char *rom_path = PrefsFindString("rom");
 
 	// Load Mac ROM
-	BPTR rom_fh = Open(rom_path ? (char *)rom_path : ROM_FILE_NAME, MODE_OLDFILE);
+	BPTR rom_fh = Open(rom_path ? (char *)rom_path : (char *)ROM_FILE_NAME, MODE_OLDFILE);
 	if (rom_fh == NULL) {
 		ErrorAlert(GetString(STR_NO_ROM_FILE_ERR));
 		QuitEmulator();
@@ -275,8 +299,8 @@ int main(void)
 
 	// Start 60Hz process
 	tick_proc = CreateNewProcTags(
-		NP_Entry, tick_func,
-		NP_Name, "Basilisk II 60Hz",
+		NP_Entry, (ULONG)tick_func,
+		NP_Name, (ULONG)"Basilisk II 60Hz",
 		NP_Priority, 5,
 		TAG_END
 	);
@@ -310,7 +334,13 @@ void Start680x0(void)
  *  Quit emulator (__saveds because it might be called from an exception)
  */
 
-void __saveds QuitEmulator(void)
+// Assembly entry point
+void __saveds quit_emulator(void)
+{
+	QuitEmulator();
+}
+
+void QuitEmulator(void)
 {
 	// Restore stack
 	if (stack_swapped) {
@@ -371,8 +401,14 @@ void __saveds QuitEmulator(void)
 		CloseLibrary(P96Base);
 	if (AslBase)
 		CloseLibrary(AslBase);
+	if (IFFParseBase)
+		CloseLibrary(IFFParseBase);
 	if (GadToolsBase)
 		CloseLibrary(GadToolsBase);
+	if (IntuitionBase)
+		CloseLibrary((struct Library *)IntuitionBase);
+	if (GfxBase)
+		CloseLibrary(GfxBase);
 
 	exit(0);
 }
@@ -492,7 +528,7 @@ void ErrorAlert(const char *text)
 	req.es_Title = (UBYTE *)GetString(STR_ERROR_ALERT_TITLE);
 	req.es_TextFormat = (UBYTE *)GetString(STR_GUI_ERROR_PREFIX);
 	req.es_GadgetFormat = (UBYTE *)GetString(STR_QUIT_BUTTON);
-	EasyRequest(NULL, &req, NULL, text);
+	EasyRequest(NULL, &req, NULL, (ULONG)text);
 }
 
 
@@ -512,7 +548,7 @@ void WarningAlert(const char *text)
 	req.es_Title = (UBYTE *)GetString(STR_WARNING_ALERT_TITLE);
 	req.es_TextFormat = (UBYTE *)GetString(STR_GUI_WARNING_PREFIX);
 	req.es_GadgetFormat = (UBYTE *)GetString(STR_OK_BUTTON);
-	EasyRequest(NULL, &req, NULL, text);
+	EasyRequest(NULL, &req, NULL, (ULONG)text);
 }
 
 
@@ -530,7 +566,7 @@ bool ChoiceAlert(const char *text, const char *pos, const char *neg)
 	req.es_Title = (UBYTE *)GetString(STR_WARNING_ALERT_TITLE);
 	req.es_TextFormat = (UBYTE *)GetString(STR_GUI_WARNING_PREFIX);
 	req.es_GadgetFormat = (UBYTE *)str;
-	return EasyRequest(NULL, &req, NULL, text);
+	return EasyRequest(NULL, &req, NULL, (ULONG)text);
 }
 
 
