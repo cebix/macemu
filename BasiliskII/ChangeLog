@@ -15,6 +15,8 @@ V1.0 (snapshot) - <date>
  - Unix: the option "--config FILE" tells B2 to use a different config file
  - Unix: new prefs options "dsp" and "mixer" to set the OSS device names
    instead of the hardcoded '/dev/dsp' and '/dev/mixer'
+ - Unix: new ether prefs option 'tun' to use a TUN/TAP interface. The
+   configure script used can be overriden with "etherconfig"
 
 V1.0 (snapshot) - 15.Jan.2002
  - added support for on-the-fly video resolution and depth switching, and

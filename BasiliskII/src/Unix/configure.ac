@@ -229,6 +229,7 @@ dnl Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS(unistd.h fcntl.h sys/types.h sys/time.h sys/mman.h mach/mach.h)
 AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
+AC_CHECK_HEADERS(linux/if.h linux/if_tun.h net/if.h net/if_tun.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
@@ -411,6 +412,29 @@ AC_DEFUN(AC_TRANSLATE_DEFINE, [
         AC_DEFINE($1, 1, $3)
     fi
 ])
+
+dnl Check that the host supports TUN/TAP devices
+AC_CACHE_CHECK([whether TUN/TAP is supported],
+  ac_cv_tun_tap_support, [
+  AC_TRY_COMPILE([
+    #if defined(HAVE_LINUX_IF_H) && defined(HAVE_LINUX_IF_TUN_H)
+    #include <linux/if.h>
+    #include <linux/if_tun.h>
+    #endif
+    #if defined(HAVE_NET_IF_H) && defined(HAVE_NET_IF_TUN_H)
+    #include <net/if.h>
+    #include <net/if_tun.h>
+    #endif
+  ], [
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
+  ],
+  ac_cv_tun_tap_support=yes, ac_cv_tun_tap_support=no
+  )
+])
+AC_TRANSLATE_DEFINE(ENABLE_TUNTAP, "$ac_cv_tun_tap_support",
+  [Define if your system supports TUN/TAP devices.])
 
 dnl Various checks if the system supports vm_allocate() and the like functions.
 have_mach_vm=no

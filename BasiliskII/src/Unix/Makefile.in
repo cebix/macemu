@@ -72,6 +72,7 @@ install: $(APP) installdirs
 	-$(INSTALL_DATA) $(APP).1 $(DESTDIR)$(man1dir)/$(APP).1
 	$(INSTALL_DATA) keycodes $(DESTDIR)$(datadir)/$(APP)/keycodes
 	$(INSTALL_DATA) fbdevices $(DESTDIR)$(datadir)/$(APP)/fbdevices
+	$(INSTALL_DATA) tunconfig $(DESTDIR)$(datadir)/$(APP)/tunconfig
 
 installdirs:
 	$(SHELL) mkinstalldirs $(DESTDIR)$(bindir) $(DESTDIR)$(man1dir) $(DESTDIR)$(datadir)/$(APP)
@@ -81,6 +82,7 @@ uninstall:
 	rm -f $(DESTDIR)$(man1dir)/$(APP).1
 	rm -f $(DESTDIR)$(datadir)/$(APP)/keycodes
 	rm -f $(DESTDIR)$(datadir)/$(APP)/fbdevices
+	rm -f $(DESTDIR)$(datadir)/$(APP)/tunconfig
 	rmdir $(DESTDIR)$(datadir)/$(APP)
 
 mostlyclean:

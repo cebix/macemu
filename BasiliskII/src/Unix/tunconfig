@@ -1,0 +1,79 @@
+#!/bin/bash
+###########################################################################
+# Configuration of the tunN devices for usage with Basilisk II.
+# (derived MOL tunconfig script)
+#
+# This script should be named /usr/share/BasiliskII/tunconfig (unless
+# the default name has been changed with the 'etherconfig' keyword).
+#
+#       Usage:          tunconfig iface up|down
+#
+# If the linux box is configured as a firewall, the rules below might
+# need some adjustments.
+#
+###########################################################################
+
+SUDO=/usr/bin/sudo
+IPTABLES=/sbin/iptables
+
+#########################################################
+
+TUN_DEV=$1
+ACTION=$2
+
+TUN_NUM=`echo $TUN_DEV | sed s/[^0-9]//g`
+NET_NUM=`expr 40 + $TUN_NUM`
+TUN_NET=172.20.$NET_NUM.0/24
+TUN_HOST=172.20.$NET_NUM.1
+
+#########################################################
+# Misc Checks
+#########################################################
+
+[[ $# = 2 ]] || {
+	echo "Usage: tunconfig iface up|down"
+    exit 2
+}
+
+[[ "`id -u`" = "0" ]] && {
+	echo "---> $SUDO not necessary." 1>&2
+	SUDO=""
+}
+
+[[ -x $IPTABLES ]] && {
+	IPTABLES="$SUDO $IPTABLES"
+} || {
+    echo "---> $IPTABLES not found." 1>&2
+	IPTABLES=/bin/true
+}
+
+$IPTABLES -L -n -t nat > /dev/null || exit 1
+
+#########################################################
+# Remove old (possibly stale) ruleset
+#########################################################
+
+{
+    $IPTABLES -t nat -D POSTROUTING -s $TUN_NET -d ! $TUN_NET -j MASQUERADE
+} >& /dev/null
+
+#########################################################
+# Bring down interface
+#########################################################
+
+[[ "$ACTION" = down ]] && {
+    $SUDO /sbin/ifconfig $TUN_DEV down
+}
+
+#########################################################
+# Configure interface
+#########################################################
+
+[[ "$ACTION" = up ]] && {
+    $SUDO /sbin/ifconfig $TUN_DEV $TUN_HOST
+
+    # masquerade the tun network
+    $IPTABLES -t nat -A POSTROUTING -s $TUN_NET -d ! $TUN_NET -j MASQUERADE
+}
+
+exit 0
