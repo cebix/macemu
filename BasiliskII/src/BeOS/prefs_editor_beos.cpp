@@ -33,7 +33,7 @@
 #include "cdrom.h"
 #include "xpram.h"
 #include "prefs.h"
-#include "version.h"
+#include "about_window.h"
 #include "user_strings.h"
 #include "prefs_editor.h"
 
@@ -767,12 +767,7 @@ void PrefsWindow::MessageReceived(BMessage *msg)
 			break;
 
 		case B_ABOUT_REQUESTED: {	// "About" menu item selected
-			char str[256];
-			sprintf(str, GetString(STR_ABOUT_TEXT1), VERSION_MAJOR, VERSION_MINOR);
-			strcat(str, " ");
-			strcat(str, GetString(STR_ABOUT_TEXT2));
-			BAlert *about = new BAlert(GetString(STR_WINDOW_TITLE), str, GetString(STR_OK_BUTTON));
-			about->Go();
+			ShowAboutWindow();
 			break;
 		}
 

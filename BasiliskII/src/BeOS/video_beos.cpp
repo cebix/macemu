@@ -34,7 +34,7 @@
 #include "adb.h"
 #include "prefs.h"
 #include "user_strings.h"
-#include "version.h"
+#include "about_window.h"
 #include "video.h"
 
 #include "m68k.h"
@@ -619,12 +619,7 @@ void MacWindow::MessageReceived(BMessage *msg)
 		}
 
 		case MSG_ABOUT_REQUESTED: {
-			char str[256];
-			sprintf(str, GetString(STR_ABOUT_TEXT1), VERSION_MAJOR, VERSION_MINOR);
-			strcat(str, " ");
-			strcat(str, GetString(STR_ABOUT_TEXT2));
-			BAlert *about = new BAlert(GetString(STR_WINDOW_TITLE), str, GetString(STR_OK_BUTTON));
-			about->Go();
+			ShowAboutWindow();
 			break;
 		}
 
