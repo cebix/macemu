@@ -1,4 +1,7 @@
 #!/bin/sh
+#
+# $Id$
+#
 # Run this to generate all the initial makefiles, etc.
 
 #
@@ -11,26 +14,30 @@ then
 	#
 	# MacOS X 10.1
 	#
-	ln -s /usr/libexec/config.guess .
-	ln -s /usr/libexec/config.sub   .
+	ln -sf /usr/libexec/config.guess .
+	ln -sf /usr/libexec/config.sub   .
 else
 	#
 	# MacOS X 10.2 (and later?)
 	#
-	ln -s /usr/share/libtool/config.guess .
-	ln -s /usr/share/libtool/config.sub .
+	ln -sf /usr/share/libtool/config.guess .
+	ln -sf /usr/share/libtool/config.sub .
 fi
 
-ln -s ../Unix/user_strings_unix.h .
-ln -s ../Unix/acconfig.h .
-ln -s ../Unix/install-sh .
-ln -s ../../README README.txt
+ln -sf ../Unix/user_strings_unix.h .
+ln -sf ../Unix/install-sh .
+ln -sf ../../README README.txt
 
 autoconf
 
+autoheader
+
 if test -z "$*"; then
-   echo "I am going to run ./configure with no arguments - if you wish to pass"
-   echo " any to it, please specify them on the $0 command line."
+   echo "*************************************************"
+   echo "I am going to run ./configure with no arguments -"
+   echo "  if you wish to pass any to it, please specify"
+   echo "  them on the $0 command line."
+   echo "*************************************************"
 fi
 
 ./configure "$@"
