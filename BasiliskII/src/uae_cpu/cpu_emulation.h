@@ -1,5 +1,5 @@
 /*
- *  cpu_emulation.h - Definitions for Basilisk II CPU emulation module (UAE 0.8.8 version)
+ *  cpu_emulation.h - Definitions for Basilisk II CPU emulation module (UAE 0.8.10 version)
  *
  *  Basilisk II (C) 1997-1999 Christian Bauer
  *
