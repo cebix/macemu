@@ -2,21 +2,22 @@
 %define version 0.8
 %define release 1
 
-Summary: Free, portable 68k Macintosh emulator
+Summary: 68k Macintosh emulator
 Name: %{name}
 Version: %{version}
 Release: %{release}
 Copyright: GPL
 Group: Applications/Emulators
-Source: %{name}_src_05102000.tar.gz
+Source: %{name}_src_10102000.tar.gz
 URL: http://www.uni-mainz.de/~bauec002/B2Main.html
 BuildRoot: %{_tmppath}/%{name}-root
 Prefix: %{_prefix}
 
 %description
-Basilisk II is a free, portable, Open Source 68k Macintosh emulator. It
-requires a copy of a Mac ROM and a copy of MacOS to run. Basilisk II is
-freeware and distributed under the GNU General Public License.
+Basilisk II is an Open Source 68k Macintosh emulator. That is, it enables
+you to run 68k MacOS software on you computer, even if you are using a
+different operating system. However, you still need a copy of MacOS and
+a Macintosh ROM image to use Basilisk II.
 
 Some features of Basilisk II:
   - Emulates either a Mac Classic (which runs MacOS 0.x thru 7.5)
@@ -33,7 +34,8 @@ Some features of Basilisk II:
   - Serial drivers
   - SCSI Manager (old-style) emulation
   - Emulates extended ADB keyboard and 3-button mouse
-  - Uses UAE 68k emulation or (under AmigaOS) real 68k processor
+  - Uses UAE 68k emulation or (under AmigaOS and NetBSD/m68k) real 68k
+    processor
 
 %prep
 %setup -q

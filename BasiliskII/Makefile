@@ -45,7 +45,6 @@ $(SRCARCHIVE): $(SRCS) $(DOCS)
 	cd $(TMPDIR); cvs export -D "$(ISODATE)" BasiliskII
 	cp src/Unix/config.h.in src/Unix/configure $(TMPDIR)/BasiliskII/src/Unix
 	rm $(TMPDIR)/BasiliskII/Makefile
-	rm -rf $(TMPDIR)/BasiliskII/src/powerrom_cpu	#not yet ready for distribution
 	mv $(TMPDIR)/BasiliskII $(TMPDIR)/$(VERNAME)
 	cd $(TMPDIR); tar cfz $@ $(VERNAME)
 	mv $(TMPDIR)/$@ .
