@@ -285,6 +285,8 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #include <asm/ucontext.h> /* use kernel structure, glibc may not be in sync */
 #define SIGSEGV_CONTEXT_REGS			(((struct ucontext *)scp)->uc_mcontext)
 #define SIGSEGV_FAULT_INSTRUCTION		(SIGSEGV_CONTEXT_REGS.arm_pc)
+#define SIGSEGV_REGISTER_FILE			(&SIGSEGV_CONTEXT_REGS.arm_r0)
+#define SIGSEGV_SKIP_INSTRUCTION		arm_skip_instruction
 #endif
 #endif
 #endif
@@ -331,6 +333,8 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_FAULT_HANDLER_ARGS		&sc
 #define SIGSEGV_FAULT_ADDRESS			scp->fault_address
 #define SIGSEGV_FAULT_INSTRUCTION		scp->arm_pc
+#define SIGSEGV_REGISTER_FILE			&scp->arm_r0
+#define SIGSEGV_SKIP_INSTRUCTION		arm_skip_instruction
 #endif
 #endif
 
@@ -1252,6 +1256,155 @@ static bool sparc_skip_instruction(unsigned long * regs, gwindows_t * gwins, str
 #endif
 #endif
 
+// Decode and skip ARM instruction
+#if (defined(arm) || defined(__arm__))
+enum {
+#if (defined(__linux__))
+  ARM_REG_PC = 15,
+  ARM_REG_CPSR = 16
+#endif
+};
+static bool arm_skip_instruction(unsigned long * regs)
+{
+  unsigned int * pc = (unsigned int *)regs[ARM_REG_PC];
+
+  if (pc == 0)
+	return false;
+
+#if DEBUG
+  printf("IP: %p [%08x]\n", pc, pc[0]);
+#endif
+
+  transfer_type_t transfer_type = SIGSEGV_TRANSFER_UNKNOWN;
+  transfer_size_t transfer_size = SIZE_UNKNOWN;
+  enum { op_sdt = 1, op_sdth = 2 };
+  int op = 0;
+
+  // Handle load/store instructions only
+  const unsigned int opcode = pc[0];
+  switch ((opcode >> 25) & 7) {
+  case 0: // Halfword and Signed Data Transfer (LDRH, STRH, LDRSB, LDRSH)
+	op = op_sdth;
+	// Determine transfer size (S/H bits)
+	switch ((opcode >> 5) & 3) {
+	case 0: // SWP instruction
+	  break;
+	case 1: // Unsigned halfwords
+	case 3: // Signed halfwords
+	  transfer_size = SIZE_WORD;
+	  break;
+	case 2: // Signed byte
+	  transfer_size = SIZE_BYTE;
+	  break;
+	}
+	break;
+  case 2:
+  case 3: // Single Data Transfer (LDR, STR)
+	op = op_sdt;
+	// Determine transfer size (B bit)
+	if (((opcode >> 22) & 1) == 1)
+	  transfer_size = SIZE_BYTE;
+	else
+	  transfer_size = SIZE_LONG;
+	break;
+  default:
+	// FIXME: support load/store mutliple?
+	return false;
+  }
+
+  // Check for invalid transfer size (SWP instruction?)
+  if (transfer_size == SIZE_UNKNOWN)
+	return false;
+
+  // Determine transfer type (L bit)
+  if (((opcode >> 20) & 1) == 1)
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+  else
+	transfer_type = SIGSEGV_TRANSFER_STORE;
+
+  // Compute offset
+  int offset;
+  if (((opcode >> 25) & 1) == 0) {
+	if (op == op_sdt)
+	  offset = opcode & 0xfff;
+	else if (op == op_sdth) {
+	  int rm = opcode & 0xf;
+	  if (((opcode >> 22) & 1) == 0) {
+		// register offset
+		offset = regs[rm];
+	  }
+	  else {
+		// immediate offset
+		offset = ((opcode >> 4) & 0xf0) | (opcode & 0x0f);
+	  }
+	}
+  }
+  else {
+	const int rm = opcode & 0xf;
+	const int sh = (opcode >> 7) & 0x1f;
+	if (((opcode >> 4) & 1) == 1) {
+	  // we expect only legal load/store instructions
+	  printf("FATAL: invalid shift operand\n");
+	  return false;
+	}
+	const unsigned int v = regs[rm];
+	switch ((opcode >> 5) & 3) {
+	case 0: // logical shift left
+	  offset = sh ? v << sh : v;
+	  break;
+	case 1: // logical shift right
+	  offset = sh ? v >> sh : 0;
+	  break;
+	case 2: // arithmetic shift right
+	  if (sh)
+		offset = ((signed int)v) >> sh;
+	  else
+		offset = (v & 0x80000000) ? 0xffffffff : 0;
+	  break;
+	case 3: // rotate right
+	  if (sh)
+		offset = (v >> sh) | (v << (32 - sh));
+	  else
+		offset = (v >> 1) | ((regs[ARM_REG_CPSR] << 2) & 0x80000000);
+	  break;
+	}
+  }
+  if (((opcode >> 23) & 1) == 0)
+	offset = -offset;
+
+  int rd = (opcode >> 12) & 0xf;
+  int rn = (opcode >> 16) & 0xf;
+#if DEBUG
+  static const char * reg_names[] = {
+	"r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
+	"r9", "r9", "sl", "fp", "ip", "sp", "lr", "pc"
+  };
+  printf("%s %s register %s\n",
+		 transfer_size == SIZE_BYTE ? "byte" :
+		 transfer_size == SIZE_WORD ? "word" :
+		 transfer_size == SIZE_LONG ? "long" : "unknown",
+		 transfer_type == SIGSEGV_TRANSFER_LOAD ? "load to" : "store from",
+		 reg_names[rd]);
+#endif
+
+  unsigned int base = regs[rn];
+  if (((opcode >> 24) & 1) == 1)
+	base += offset;
+
+  if (transfer_type == SIGSEGV_TRANSFER_LOAD)
+	regs[rd] = 0;
+
+  if (((opcode >> 24) & 1) == 0)		// post-index addressing
+	regs[rn] += offset;
+  else if (((opcode >> 21) & 1) == 1)	// write-back address into base
+	regs[rn] = base;
+
+  regs[ARM_REG_PC] += 4;
+  return true;
+}
+#endif
+
+
 // Fallbacks
 #ifndef SIGSEGV_FAULT_INSTRUCTION
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_INVALID_PC
@@ -1711,6 +1864,9 @@ static sigsegv_return_t sigsegv_test_handler(sigsegv_address_t fault_address, si
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 static sigsegv_return_t sigsegv_insn_handler(sigsegv_address_t fault_address, sigsegv_address_t instruction_address)
 {
+#if DEBUG
+	printf("sigsegv_insn_handler(%p, %p)\n", fault_address, instruction_address);
+#endif
 	if (((unsigned long)fault_address - (unsigned long)page) < page_size) {
 #ifdef __GNUC__
 		// Make sure reported fault instruction address falls into
@@ -1845,6 +2001,10 @@ int main(void)
 	TEST_SKIP_INSTRUCTION(unsigned short);
 	TEST_SKIP_INSTRUCTION(unsigned int);
 	TEST_SKIP_INSTRUCTION(unsigned long);
+	TEST_SKIP_INSTRUCTION(signed char);
+	TEST_SKIP_INSTRUCTION(signed short);
+	TEST_SKIP_INSTRUCTION(signed int);
+	TEST_SKIP_INSTRUCTION(signed long);
  L_e_region2:
 
 	if (!arch_insn_skipper_tests())
