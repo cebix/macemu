@@ -69,13 +69,6 @@
 	return [self mouseInView];
 }
 
-/*****
-- (BOOL) acceptsFirstResponder
-{
-//	return YES;
-	return [self mouseInView];
-}
-*****/
 
 #include <adb.h>
 
