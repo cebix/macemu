@@ -707,7 +707,9 @@ void MakeFromSR (void)
     if (regs.t1 || regs.t0)
 	regs.spcflags |= SPCFLAG_TRACE;
     else
-	regs.spcflags &= ~(SPCFLAG_TRACE | SPCFLAG_DOTRACE);
+   	/* Keep SPCFLAG_DOTRACE, we still want a trace exception for
+	   SR-modifying instructions (including STOP).  */
+	regs.spcflags &= ~SPCFLAG_TRACE;
 }
 
 void Exception(int nr, uaecptr oldpc)
@@ -788,13 +790,13 @@ static void Interrupt(int nr)
     regs.spcflags |= SPCFLAG_INT;
 }
 
-static int caar, cacr, tc, itt0, itt1, dtt0, dtt1;
+static int caar, cacr, tc, itt0, itt1, dtt0, dtt1, mmusr, urp, srp;
 
 int m68k_move2c (int regno, uae_u32 *regp)
 {
   if ((CPUType == 1 && (regno & 0x7FF) > 1)
-  || (CPUType < 4 && (regno & 0x7FF) > 2)
-  || (CPUType == 4 && regno == 0x802))
+	  || (CPUType < 4 && (regno & 0x7FF) > 2)
+	  || (CPUType == 4 && regno == 0x802))
   {
 	op_illg (0x4E7B);
 	return 0;
@@ -813,6 +815,9 @@ int m68k_move2c (int regno, uae_u32 *regp)
 	 case 0x802: caar = *regp &0xfc; break;
 	 case 0x803: regs.msp = *regp; if (regs.m == 1) m68k_areg(regs, 7) = regs.msp; break;
 	 case 0x804: regs.isp = *regp; if (regs.m == 0) m68k_areg(regs, 7) = regs.isp; break;
+	case 0x805: mmusr = *regp; break;
+	case 0x806: urp = *regp; break;
+	case 0x807: srp = *regp; break;
 	 default:
 	    op_illg (0x4E7B);
 	    return 0;
@@ -824,8 +829,8 @@ int m68k_move2c (int regno, uae_u32 *regp)
 int m68k_movec2 (int regno, uae_u32 *regp)
 {
     if ((CPUType == 1 && (regno & 0x7FF) > 1)
-	|| (CPUType < 4 && (regno & 0x7FF) > 2)
-	|| (CPUType == 4 && regno == 0x802))
+		|| (CPUType < 4 && (regno & 0x7FF) > 2)
+		|| (CPUType == 4 && regno == 0x802))
     {
 	op_illg (0x4E7A);
 	return 0;
@@ -844,6 +849,9 @@ int m68k_movec2 (int regno, uae_u32 *regp)
 	 case 0x802: *regp = caar; break;
 	 case 0x803: *regp = regs.m == 1 ? m68k_areg(regs, 7) : regs.msp; break;
 	 case 0x804: *regp = regs.m == 0 ? m68k_areg(regs, 7) : regs.isp; break;
+	case 0x805: *regp = mmusr; break;
+	case 0x806: *regp = urp; break;
+	case 0x807: *regp = srp; break;
 	 default:
 	    op_illg (0x4E7A);
 	    return 0;
@@ -1195,12 +1203,13 @@ void REGPARAM2 op_illg (uae_u32 opcode)
 
 void mmu_op(uae_u32 opcode, uae_u16 extra)
 {
-    if ((extra & 0xB000) == 0) { /* PMOVE instruction */
-
-    } else if ((extra & 0xF000) == 0x2000) { /* PLOAD instruction */
-    } else if ((extra & 0xF000) == 0x8000) { /* PTEST instruction */
+    if ((opcode & 0xFE0) == 0x0500) {
+		/* PFLUSH */
+		mmusr = 0;
+	} else if ((opcode & 0x0FD8) == 0x548) {
+		/* PTEST */
     } else
-	op_illg (opcode);
+		op_illg (opcode);
 }
 
 static int n_insns = 0, n_spcinsns = 0;
@@ -1289,7 +1298,13 @@ static void m68k_run_1 (void)
 #if FLIGHT_RECORDER
 		record_step(m68k_getpc());
 #endif
+#ifdef X86_ASSEMBLY
+		__asm__ __volatile__("\tpushl %%ebp\n\tcall *%%ebx\n\tpopl %%ebp" /* FIXME */
+							 : : "b" (cpufunctbl[opcode]), "a" (opcode)
+							 : "%edx", "%ecx", "%esi", "%edi",  "%ebp", "memory", "cc");
+#else
 		(*cpufunctbl[opcode])(opcode);
+#endif
 		if (regs.spcflags) {
 			if (do_specialties())
 				return;

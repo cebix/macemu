@@ -222,7 +222,9 @@ static __inline__ void m68k_do_jsr(uaecptr oldpc, uaecptr dest)
 static __inline__ void m68k_setstopped (int stop)
 {
     regs.stopped = stop;
-    if (stop)
+    /* A traced STOP instruction drops through immediately without
+       actually stopping.  */
+    if (stop && (regs.spcflags & SPCFLAG_DOTRACE) == 0)
 	regs.spcflags |= SPCFLAG_STOP;
 }
 

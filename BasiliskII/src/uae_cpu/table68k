@@ -25,7 +25,7 @@
 %
 % Arp: --> -(Ar)
 % ArP: --> (Ar)+
-% L: (xxx).L
+% L: (xxx.L)
 %
 % Fields on a line: 
 % 16 chars bitpattern : 
@@ -246,6 +246,7 @@
 1111 0011 01ss sSSS:32:?????:?????:10: FRESTORE s[!Dreg,Areg,Apdi,Immd]
 
 % 68040 instructions
+1111 0101 iiii iSSS:40:?????:?????:11: MMUOP    #i,s
 1111 0100 pp00 1rrr:42:-----:-----:02: CINVL    #p,Ar
 1111 0100 pp01 0rrr:42:-----:-----:02: CINVP    #p,Ar
 1111 0100 pp01 1rrr:42:-----:-----:00: CINVA    #p
