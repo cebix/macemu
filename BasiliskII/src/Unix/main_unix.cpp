@@ -623,10 +623,13 @@ void QuitEmulator(void)
 	ExitAll();
 
 	// Free ROM/RAM areas
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if REAL_ADDRESSING
 	if (memory_mapped_from_zero)
 		munmap((caddr_t)0x0000, mapped_ram_rom_size);
-	else if (RAMBaseHost != (uint8 *)MAP_FAILED) {
+	else
+#endif
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	if (RAMBaseHost != (uint8 *)MAP_FAILED) {
 		munmap((caddr_t)RAMBaseHost, mapped_ram_rom_size);
 		RAMBaseHost = NULL;
 	}

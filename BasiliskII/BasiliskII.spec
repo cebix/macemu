@@ -40,7 +40,7 @@ Some features of Basilisk II:
 
 %build
 cd src/Unix
-./configure --prefix=%{_prefix}
+CFLAGS=${RPM_OPT_FLAGS} CXXFLAGS=${RPM_OPT_FLAGS} ./configure --prefix=%{_prefix} --mandir=%{_mandir}
 if [ -x /usr/bin/getconf ] ; then
   NCPU=$(/usr/bin/getconf _NPROCESSORS_ONLN)
   if [ $NCPU -eq 0 ] ; then
@@ -55,7 +55,7 @@ make -j $PARL
 %install
 rm -rf ${RPM_BUILD_ROOT}
 cd src/Unix
-make prefix=%{_prefix} DESTDIR=${RPM_BUILD_ROOT} install
+make DESTDIR=${RPM_BUILD_ROOT} install
 
 %clean
 rm -rf ${RPM_BUILD_ROOT}
@@ -67,5 +67,3 @@ rm -rf ${RPM_BUILD_ROOT}
 %{_mandir}/man1/BasiliskII.1
 %{_datadir}/BasiliskII/keycodes
 %{_datadir}/BasiliskII/fbdevices
-
-%changelog

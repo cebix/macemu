@@ -11,6 +11,8 @@ datadir = @datadir@
 mandir = @mandir@
 man1dir = $(mandir)/man1
 
+DESTDIR =
+
 CC = @CC@
 CXX = @CXX@
 CFLAGS = @CFLAGS@
@@ -37,7 +39,7 @@ SRCS = ../main.cpp main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp 
 APP = BasiliskII
 
 ## Rules
-.PHONY: modules install uninstall clean distclean depend dep
+.PHONY: modules install installdirs uninstall mostlyclean clean distclean depend dep
 .SUFFIXES:
 .SUFFIXES: .c .cpp .s .o .h
 
@@ -64,20 +66,20 @@ modules:
 	cd Linux/NetDriver; make
 
 install: $(APP) installdirs
-	$(INSTALL_PROGRAM) $(APP) $(bindir)/$(APP)
-	-$(INSTALL_DATA) $(APP).1 $(man1dir)/$(APP).1
-	$(INSTALL_DATA) keycodes $(datadir)/$(APP)/keycodes
-	$(INSTALL_DATA) fbdevices $(datadir)/$(APP)/fbdevices
+	$(INSTALL_PROGRAM) $(APP) $(DESTDIR)$(bindir)/$(APP)
+	-$(INSTALL_DATA) $(APP).1 $(DESTDIR)$(man1dir)/$(APP).1
+	$(INSTALL_DATA) keycodes $(DESTDIR)$(datadir)/$(APP)/keycodes
+	$(INSTALL_DATA) fbdevices $(DESTDIR)$(datadir)/$(APP)/fbdevices
 
 installdirs:
 	$(SHELL) mkinstalldirs $(bindir) $(man1dir) $(datadir)/$(APP)
 
 uninstall:
-	rm -f $(bindir)/$(APP)
-	rm -f $(man1dir)/$(APP).1
-	rm -f $(datadir)/$(APP)/keycodes
-	rm -f $(datadir)/$(APP)/fbdevices
-	rmdir $(datadir)/$(APP)
+	rm -f $(DESTDIR)$(bindir)/$(APP)
+	rm -f $(DESTDIR)$(man1dir)/$(APP).1
+	rm -f $(DESTDIR)$(datadir)/$(APP)/keycodes
+	rm -f $(DESTDIR)$(datadir)/$(APP)/fbdevices
+	rmdir $(DESTDIR)$(datadir)/$(APP)
 
 mostlyclean:
 	rm -f $(APP) $(OBJ_DIR)/* core* *.core *~ *.bak
