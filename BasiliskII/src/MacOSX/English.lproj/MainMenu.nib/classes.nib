@@ -63,6 +63,7 @@
                 ChangeDisableCD = id; 
                 ChangeDisableSound = id; 
                 ChangeFPU = id; 
+                ChangeKeyboard = id; 
                 ChangeModel = id; 
                 ChangeScreen = id; 
                 CreateVolume = id; 
@@ -110,6 +111,7 @@
                 extFS = id; 
                 frequency = id; 
                 height = id; 
+                keyboard = id; 
                 modem = id; 
                 newVolumeSize = id; 
                 newVolumeView = id; 
