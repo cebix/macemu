@@ -43,6 +43,7 @@ SRCS = main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp sys_unix.cpp
     vm_alloc.cpp sigsegv.cpp \
     sshpty.c strlcpy.c $(SYSSRCS) $(CPUSRCS)
 APP = SheepShaver
+APP_APP = $(APP).app
 
 ## Rules
 .PHONY: modules install uninstall clean distclean depend dep
@@ -75,6 +76,16 @@ $(APP): $(OBJ_DIR) $(OBJS)
 	$(CXX) -o $(APP) $(LDFLAGS) $(OBJS) $(LIBS)
 	$(BLESS) $(APP)
 
+$(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/SheepShaver.icns
+	mkdir -p $(APP_APP)/Contents
+	cp -f ../MacOSX/Info.plist $(APP_APP)/Contents/
+	echo -n 'APPL????' > $(APP_APP)/Contents/PkgInfo
+	mkdir -p $(APP_APP)/Contents/MacOS
+	cp -f $(APP) $(APP_APP)/Contents/MacOS/
+	strip $(APP_APP)/Contents/MacOS/$(APP)
+	mkdir -p $(APP_APP)/Contents/Resources
+	cp -f ../MacOSX/SheepShaver.icns $(APP_APP)/Contents/Resources/
+
 modules:
 	cd NetDriver; make
 
@@ -98,11 +109,13 @@ uninstall:
 clean:
 	rm -f $(APP) $(OBJ_DIR)/* core* *.core *~ *.bak ppc-execute-impl.cpp
 	rm -f dyngen basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
+	rm -rf $(APP_APP)
 
 distclean: clean
 	rm -rf $(OBJ_DIR)
 	rm -f Makefile
 	rm -f config.cache config.log config.status config.h
+	rm -f ../MacOSX/Info.plist
 
 depend dep:
 	makedepend $(CPPFLAGS) -Y. $(SRCS) 2>/dev/null

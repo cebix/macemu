@@ -916,7 +916,10 @@ AC_SUBST(SYSSRCS)
 AC_SUBST(CPUSRCS)
 AC_SUBST(BLESS)
 AC_SUBST(KEYCODES)
-AC_OUTPUT(Makefile)
+AC_OUTPUT([
+Makefile
+../MacOSX/Info.plist
+])
 
 dnl Print summary.
 echo
