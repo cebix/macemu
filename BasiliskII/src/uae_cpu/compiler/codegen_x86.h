@@ -223,10 +223,11 @@ enum {
 /* --- UTILITY ------------------------------------------------------------- */
 /* ========================================================================= */
 
-typedef char		_sc;
+typedef signed char	_sc;
 typedef unsigned char	_uc;
+typedef signed short	_ss;
 typedef unsigned short	_us;
-typedef int		_sl;
+typedef signed int	_sl;
 typedef unsigned int	_ul;
 
 #define _UC(X)		((_uc  )(X))
@@ -1228,6 +1229,7 @@ enum {
 #define JMPsm(D,B,I,S)			(_REXLrm(0, B, I),		_O_r_X		(0xff		     ,_b100		,(int)(D),B,I,S		))
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
+#define JCCSii(CC, D)							_O_B		(0x70|(CC)				,(_sc)(int)(D)		)
 #define JCCSim(CC, D)							_O_D8		(0x70|(CC)				,(int)(D)		)
 #define JOSm(D)				JCCSim(0x0, D)
 #define JNOSm(D)			JCCSim(0x1, D)
@@ -1259,6 +1261,7 @@ enum {
 #define JGSm(D)				JCCSim(0xf, D)
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
+#define JCCii(CC, D)							_OO_L		(0x0f80|(CC)				,(int)(D)		)
 #define JCCim(CC, D)							_OO_D32		(0x0f80|(CC)				,(int)(D)		)
 #define JOm(D)				JCCim(0x0, D)
 #define JNOm(D)				JCCim(0x1, D)
@@ -1404,22 +1407,30 @@ enum {
 
 #define TESTBrr(RS, RD)			(_REXBrr(RS, RD),		_O_Mrm		(0x84		,_b11,_r1(RS),_r1(RD)				))
 #define TESTBrm(RS, MD, MB, MI, MS)	(_REXBrm(RS, MB, MI),		_O_r_X		(0x84		     ,_r1(RS)		,MD,MB,MI,MS		))
-#define TESTBir(IM, RD)			(_REXBrr(0, RD),		_O_Mrm_B	(0xf6		,_b11,_b000  ,_r1(RD)			,_u8(IM)))
+#define TESTBir(IM, RD)			(X86_OPTIMIZE_ALU && ((RD) == X86_AL) ? \
+					(_REXBrr(0, RD),		_O_B		(0xa8							,_u8(IM))) : \
+					(_REXBrr(0, RD),		_O_Mrm_B	(0xf6		,_b11,_b000  ,_r1(RD)			,_u8(IM))) )
 #define TESTBim(IM, MD, MB, MI, MS)	(_REXBrm(0, MB, MI),		_O_r_X_B	(0xf6		     ,_b000		,MD,MB,MI,MS	,_u8(IM)))
 
 #define TESTWrr(RS, RD)			(_d16(), _REXLrr(RS, RD),	_O_Mrm		(0x85		,_b11,_r2(RS),_r2(RD)				))
 #define TESTWrm(RS, MD, MB, MI, MS)	(_d16(), _REXLrm(RS, MD, MI),	_O_r_X		(0x85		     ,_r2(RS)		,MD,MB,MI,MS		))
-#define TESTWir(IM, RD)			(_d16(), _REXLrr(0, RD),	_O_Mrm_W	(0xf7		,_b11,_b000  ,_r2(RD)			,_u16(IM)))
+#define TESTWir(IM, RD)			(X86_OPTIMIZE_ALU && ((RD) == X86_AX) ? \
+					(_d16(), _REXLrr(0, RD),	_O_W		(0xa9							,_u16(IM))) : \
+					(_d16(), _REXLrr(0, RD),	_O_Mrm_W	(0xf7		,_b11,_b000  ,_r2(RD)			,_u16(IM))) )
 #define TESTWim(IM, MD, MB, MI, MS)	(_d16(), _REXLrm(0, MD, MI),	_O_r_X_W	(0xf7		     ,_b000		,MD,MB,MI,MS	,_u16(IM)))
 
 #define TESTLrr(RS, RD)			(_REXLrr(RS, RD),		_O_Mrm		(0x85		,_b11,_r4(RS),_r4(RD)				))
 #define TESTLrm(RS, MD, MB, MI, MS)	(_REXLrm(RS, MB, MI),		_O_r_X		(0x85		     ,_r4(RS)		,MD,MB,MI,MS		))
-#define TESTLir(IM, RD)			(_REXLrr(0, RD),		_O_Mrm_L	(0xf7		,_b11,_b000  ,_r4(RD)			,IM	))
+#define TESTLir(IM, RD)			(X86_OPTIMIZE_ALU && ((RD) == X86_EAX) ? \
+					(_REXLrr(0, RD),		_O_L		(0xa9							,IM	)) : \
+					(_REXLrr(0, RD),		_O_Mrm_L	(0xf7		,_b11,_b000  ,_r4(RD)			,IM	)) )
 #define TESTLim(IM, MD, MB, MI, MS)	(_REXLrm(0, MB, MI),		_O_r_X_L	(0xf7		     ,_b000		,MD,MB,MI,MS	,IM	))
 
 #define TESTQrr(RS, RD)			(_REXQrr(RS, RD),		_O_Mrm		(0x85		,_b11,_r8(RS),_r8(RD)				))
 #define TESTQrm(RS, MD, MB, MI, MS)	(_REXQrm(RS, MB, MI),		_O_r_X		(0x85		     ,_r8(RS)		,MD,MB,MI,MS		))
-#define TESTQir(IM, RD)			(_REXQrr(0, RD),		_O_Mrm_L	(0xf7		,_b11,_b000  ,_r8(RD)			,IM	))
+#define TESTQir(IM, RD)			(X86_OPTIMIZE_ALU && ((RD) == X86_RAX) ? \
+					(_REXQrr(0, RD),		_O_L		(0xa9							,IM	)) : \
+					(_REXQrr(0, RD),		_O_Mrm_L	(0xf7		,_b11,_b000  ,_r8(RD)			,IM	)) )
 #define TESTQim(IM, MD, MB, MI, MS)	(_REXQrm(0, MB, MI),		_O_r_X_L	(0xf7		     ,_b000		,MD,MB,MI,MS	,IM	))
 
 
