@@ -70,6 +70,11 @@
 #define X86_OPTIMIZE_ROTSHI	1
 #endif
 
+/* Define to optimize absolute addresses for RIP relative addressing.  */
+#ifndef X86_RIP_RELATIVE_ADDR
+#define X86_RIP_RELATIVE_ADDR	0
+#endif 
+
 
 /* --- Macros -------------------------------------------------------------- */
 
@@ -245,6 +250,7 @@ typedef unsigned int	_ul;
 #define _B(B)		x86_emit_byte((B))
 #define _W(W)		x86_emit_word((W))
 #define _L(L)		x86_emit_long((L))
+#define _Q(Q)		x86_emit_quad((Q))
 
 #define _MASK(N)	((unsigned)((1<<(N)))-1)
 #define _siP(N,I)	(!((((unsigned)(I))^(((unsigned)(I))<<1))&~_MASK(N)))
@@ -400,11 +406,14 @@ typedef unsigned int	_ul;
 #define _r_DB(  R, D,B    )	((_s0P(D) && (!_rbp13P(B)) ? _r_0B  (R,  B    ) : (_s8P(D) ? _r_1B(  R,D,B    ) : _r_4B(  R,D,B    ))))
 #define _r_DBIS(R, D,B,I,S)	((_s0P(D) && (!_rbp13P(B)) ? _r_0BIS(R,  B,I,S) : (_s8P(D) ? _r_1BIS(R,D,B,I,S) : _r_4BIS(R,D,B,I,S))))
 
-/* If we requested absolute 32-bit addressing in AMD64, we have to
-   force the displacement with a SIB byte, otherwise the effective
-   address would be RIP relative */
-#define _r_X(   R, D,B,I,S)	(_r0P(I) ? (_r0P(B)    ? (!X86_TARGET_64BIT ? _r_D(R,D) : \
-					                 _r_DSIB(R,D                ))  : \
+/* Use RIP-addressing in 64-bit mode, if possible */
+#define _x86_RIP_addressing_possible(D,O)	(X86_RIP_RELATIVE_ADDR && \
+						((uintptr)x86_get_target() + 4 + (O) - (D) <= 0xffffffff))
+
+#define _r_X(   R, D,B,I,S,O)	(_r0P(I) ? (_r0P(B)    ? (!X86_TARGET_64BIT ? _r_D(R,D) : \
+					                 (_x86_RIP_addressing_possible(D, O) ? \
+				                          _r_D(R, (D) - ((uintptr)x86_get_target() + 4 + (O))) : \
+				                          _r_DSIB(R,D))) : \
 				           (_rIP(B)    ? _r_D   (R,D                )   : \
 				           (_rsp12P(B) ? _r_DBIS(R,D,_rSP(),_rSP(),1)   : \
 						         _r_DB  (R,D,     B       ))))  : \
@@ -429,6 +438,8 @@ typedef unsigned int	_ul;
 #define	  _Os(	     OP,B			)  (	_s8P(B) ? _B(((OP)|_b10)) : _B(OP)			  )
 #define	    _sW(			     W	)  (				       _s8P(W) ? _B(W):_W(W)	  )
 #define	    _sL(			     L	)  (				       _s8P(L) ? _B(L):_L(L)	  )
+#define	    _sWO(			     W	)  (				       _s8P(W) ?    1 :   2	  )
+#define	    _sLO(			     L	)  (				       _s8P(L) ?    1 :   4	  )
 #define	  _O_B(	     OP			    ,B	)  (	    _O	    (  OP  )			      ,_B(B)	  )
 #define	  _O_W(	     OP			    ,W	)  (	    _O	    (  OP  )			      ,_W(W)	  )
 #define	  _O_L(	     OP			    ,L	)  (	    _O	    (  OP  )			      ,_L(L)	  )
@@ -441,6 +452,7 @@ typedef unsigned int	_ul;
 #define	  _Or_B(     OP,R		    ,B	)  (	    _Or	    (  OP,R)			      ,_B(B)	  )
 #define	  _Or_W(     OP,R		    ,W	)  (	    _Or	    (  OP,R)			      ,_W(W)	  )
 #define	  _Or_L(     OP,R		    ,L	)  (	    _Or	    (  OP,R)			      ,_L(L)	  )
+#define	  _Or_Q(     OP,R		    ,Q	)  (	    _Or	    (  OP,R)			      ,_Q(Q)	  )
 #define	  _O_Mrm(    OP	 ,MO,R,M		)  (	    _O	    (  OP  ),_Mrm(MO,R,M	    )		  )
 #define	 _OO_Mrm(    OP	 ,MO,R,M		)  (	   _OO	    (  OP  ),_Mrm(MO,R,M	    )		  )
 #define	  _O_Mrm_B(  OP	 ,MO,R,M	    ,B	)  (	    _O	    (  OP  ),_Mrm(MO,R,M	    ) ,_B(B)	  )
@@ -449,14 +461,14 @@ typedef unsigned int	_ul;
 #define	 _OO_Mrm_B(  OP	 ,MO,R,M	    ,B	)  (	   _OO	    (  OP  ),_Mrm(MO,R,M	    ) ,_B(B)	  )
 #define	  _Os_Mrm_sW(OP	 ,MO,R,M	    ,W	)  (	    _Os	    (  OP,W),_Mrm(MO,R,M	    ),_sW(W)	  )
 #define	  _Os_Mrm_sL(OP	 ,MO,R,M	    ,L	)  (	    _Os	    (  OP,L),_Mrm(MO,R,M	    ),_sL(L)	  )
-#define	  _O_r_X(    OP	    ,R	,MD,MB,MI,MS	)  (	    _O	    (  OP  ),_r_X(   R	,MD,MB,MI,MS)		  )
-#define	 _OO_r_X(    OP	    ,R	,MD,MB,MI,MS	)  (	   _OO	    (  OP  ),_r_X(   R	,MD,MB,MI,MS)		  )
-#define	  _O_r_X_B(  OP	    ,R	,MD,MB,MI,MS,B	)  (	    _O	    (  OP  ),_r_X(   R	,MD,MB,MI,MS) ,_B(B)	  )
-#define	  _O_r_X_W(  OP	    ,R	,MD,MB,MI,MS,W	)  (	    _O	    (  OP  ),_r_X(   R	,MD,MB,MI,MS) ,_W(W)	  )
-#define	  _O_r_X_L(  OP	    ,R	,MD,MB,MI,MS,L	)  (	    _O	    (  OP  ),_r_X(   R	,MD,MB,MI,MS) ,_L(L)	  )
-#define	 _OO_r_X_B(  OP	    ,R	,MD,MB,MI,MS,B	)  (	   _OO	    (  OP  ),_r_X(   R	,MD,MB,MI,MS) ,_B(B)	  )
-#define	  _Os_r_X_sW(OP	    ,R	,MD,MB,MI,MS,W	)  (	    _Os	    (  OP,W),_r_X(   R	,MD,MB,MI,MS),_sW(W)	  )
-#define	  _Os_r_X_sL(OP	    ,R	,MD,MB,MI,MS,L	)  (	    _Os	    (  OP,L),_r_X(   R	,MD,MB,MI,MS),_sL(L)	  )
+#define	  _O_r_X(    OP	    ,R	,MD,MB,MI,MS	)  (	    _O	    (  OP  ),_r_X(   R	,MD,MB,MI,MS,0)		  )
+#define	 _OO_r_X(    OP	    ,R	,MD,MB,MI,MS	)  (	   _OO	    (  OP  ),_r_X(   R	,MD,MB,MI,MS,0)		  )
+#define	  _O_r_X_B(  OP	    ,R	,MD,MB,MI,MS,B	)  (	    _O	    (  OP  ),_r_X(   R	,MD,MB,MI,MS,1) ,_B(B)	  )
+#define	  _O_r_X_W(  OP	    ,R	,MD,MB,MI,MS,W	)  (	    _O	    (  OP  ),_r_X(   R	,MD,MB,MI,MS,2) ,_W(W)	  )
+#define	  _O_r_X_L(  OP	    ,R	,MD,MB,MI,MS,L	)  (	    _O	    (  OP  ),_r_X(   R	,MD,MB,MI,MS,4) ,_L(L)	  )
+#define	 _OO_r_X_B(  OP	    ,R	,MD,MB,MI,MS,B	)  (	   _OO	    (  OP  ),_r_X(   R	,MD,MB,MI,MS,1) ,_B(B)	  )
+#define	  _Os_r_X_sW(OP	    ,R	,MD,MB,MI,MS,W	)  (	    _Os	    (  OP,W),_r_X(   R	,MD,MB,MI,MS,_sWO(W)),_sW(W))
+#define	  _Os_r_X_sL(OP	    ,R	,MD,MB,MI,MS,L	)  (	    _Os	    (  OP,L),_r_X(   R	,MD,MB,MI,MS,_sLO(L)),_sL(L))
 #define	  _O_X_B(    OP		,MD,MB,MI,MS,B	)  (	    _O_r_X_B(  OP	    ,0	,MD,MB,MI,MS	 ,B)	  )
 #define	  _O_X_W(    OP		,MD,MB,MI,MS,W	)  (	    _O_r_X_W(  OP	    ,0	,MD,MB,MI,MS	 ,W)	  )
 #define	  _O_X_L(    OP		,MD,MB,MI,MS,L	)  (	    _O_r_X_L(  OP	    ,0	,MD,MB,MI,MS	 ,L)	  )
@@ -1088,7 +1100,7 @@ enum {
 #define MOVQrr(RS, RD)			(_REXQrr(RS, RD),		_O_Mrm		(0x89		,_b11,_r8(RS),_r8(RD)				))
 #define MOVQmr(MD, MB, MI, MS, RD)	(_REXQmr(MB, MI, RD),		_O_r_X		(0x8b		     ,_r8(RD)		,MD,MB,MI,MS		))
 #define MOVQrm(RS, MD, MB, MI, MS)	(_REXQrm(RS, MB, MI),		_O_r_X		(0x89		     ,_r8(RS)		,MD,MB,MI,MS		))
-#define MOVQir(IM,  R)			(_REXQrr(0, R),			_Or_L		(0xb8,_r8(R)						,IM	))
+#define MOVQir(IM,  R)			(_REXQrr(0, R),			_Or_Q		(0xb8,_r8(R)						,IM	))
 #define MOVQim(IM, MD, MB, MI, MS)	(_REXQrm(0, MB, MI),		_O_X_L		(0xc7					,MD,MB,MI,MS	,IM	))
 
 
@@ -1170,18 +1182,18 @@ enum {
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
-#define IMULWrr(RS, RD)			(_d16(), _REXLrr(RS, RD),	_OO_Mrm		(0x0faf		,_b11,_r2(RS),_r2(RD)				))
+#define IMULWrr(RS, RD)			(_d16(), _REXLrr(RD, RS),	_OO_Mrm		(0x0faf		,_b11,_r2(RD),_r2(RS)				))
 #define IMULWmr(MD, MB, MI, MS, RD)	(_d16(), _REXLmr(MB, MI, RD),	_OO_r_X		(0x0faf		     ,_r2(RD)		,MD,MB,MI,MS		))
 
 #define IMULWirr(IM,RS,RD)		(_d16(), _REXLrr(RS, RD),	_Os_Mrm_sW	(0x69		,_b11,_r2(RS),_r2(RD)			,_su16(IM)	))
 #define IMULWimr(IM,MD,MB,MI,MS,RD)	(_d16(), _REXLmr(MB, MI, RD),	_Os_r_X_sW	(0x69		     ,_r2(RD)		,MD,MB,MI,MS	,_su16(IM)	))
 
 #define IMULLir(IM, RD)			(_REXLrr(0, RD),		_Os_Mrm_sL	(0x69		,_b11,_r4(RD),_r4(RD)			,IM	))
-#define IMULLrr(RS, RD)			(_REXLrr(RS, RD),		_OO_Mrm		(0x0faf		,_b11,_r4(RD),_r4(RS)				))
+#define IMULLrr(RS, RD)			(_REXLrr(RD, RS),		_OO_Mrm		(0x0faf		,_b11,_r4(RD),_r4(RS)				))
 #define IMULLmr(MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_OO_r_X		(0x0faf		     ,_r4(RD)		,MD,MB,MI,MS		))
 
 #define IMULQir(IM, RD)			(_REXQrr(0, RD),		_Os_Mrm_sL	(0x69		,_b11,_r8(RD),_r8(RD)			,IM	))
-#define IMULQrr(RS, RD)			(_REXQrr(RS, RD),		_OO_Mrm		(0x0faf		,_b11,_r8(RD),_r8(RS)				))
+#define IMULQrr(RS, RD)			(_REXQrr(RD, RS),		_OO_Mrm		(0x0faf		,_b11,_r8(RD),_r8(RS)				))
 #define IMULQmr(MD, MB, MI, MS, RD)	(_REXQmr(MB, MI, RD),		_OO_r_X		(0x0faf		     ,_r8(RD)		,MD,MB,MI,MS		))
 
 #define IMULLirr(IM,RS,RD)		(_REXLrr(RS, RD),		_Os_Mrm_sL	(0x69		,_b11,_r4(RS),_r4(RD)			,IM	))
@@ -1541,9 +1553,9 @@ enum {
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
-#define MOVSBWrr(RS, RD)		(_d16(), _REXLrr(RD, RS),	_OO_Mrm		(0x0fbe		,_b11,_r2(RD),_r1(RS)				))
+#define MOVSBWrr(RS, RD)		(_d16(), _REXBLrr(RD, RS),	_OO_Mrm		(0x0fbe		,_b11,_r2(RD),_r1(RS)				))
 #define MOVSBWmr(MD, MB, MI, MS, RD)	(_d16(), _REXLmr(MB, MI, RD),	_OO_r_X		(0x0fbe		     ,_r2(RD)		,MD,MB,MI,MS		))
-#define MOVZBWrr(RS, RD)		(_d16(), _REXLrr(RD, RS),	_OO_Mrm		(0x0fb6		,_b11,_r2(RD),_r1(RS)				))
+#define MOVZBWrr(RS, RD)		(_d16(), _REXBLrr(RD, RS),	_OO_Mrm		(0x0fb6		,_b11,_r2(RD),_r1(RS)				))
 #define MOVZBWmr(MD, MB, MI, MS, RD)	(_d16(), _REXLmr(MB, MI, RD),	_OO_r_X		(0x0fb6		     ,_r2(RD)		,MD,MB,MI,MS		))
 
 #define MOVSBLrr(RS, RD)		(_REXBLrr(RD, RS),		_OO_Mrm		(0x0fbe		,_b11,_r4(RD),_r1(RS)				))
