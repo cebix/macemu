@@ -215,6 +215,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #endif
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, siginfo_t *sip, void *scp
 #define SIGSEGV_FAULT_ADDRESS			sip->si_addr
+#if defined(__NetBSD__) || defined(__FreeBSD__)
 #if (defined(i386) || defined(__i386__))
 #define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_eip)
 #define SIGSEGV_REGISTER_FILE			((unsigned int *)&(((struct sigcontext *)scp)->sc_edi)) /* EDI is the first GPR (even below EIP) in sigcontext */
@@ -222,6 +223,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
  * though standalone testing gets it right. Any idea why?
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 */
+#endif
 #endif
 #if defined(__linux__)
 #if (defined(i386) || defined(__i386__))
