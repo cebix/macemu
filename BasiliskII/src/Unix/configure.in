@@ -112,7 +112,7 @@ AC_CHECK_FUNCS(pthread_cancel)
 dnl If POSIX.4 semaphores are not available, we emulate them with pthread mutexes.
 SEMSRC=
 AC_CHECK_FUNCS(sem_init, , [
-  if [ "x$HAVE_PTHREADS" = "xyes" ]; then
+  if test "x$HAVE_PTHREADS" = "xyes"; then
     SEMSRC=posix_sem.cpp
   fi
 ])
@@ -510,13 +510,13 @@ elif [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xy
     AC_MSG_RESULT($SPARC_TYPE)
     case "$SPARC_TYPE" in
     SPARC_V8)
-	  ASM_OPTIMIZATIONS="SPARC V8 architecture"
+      ASM_OPTIMIZATIONS="SPARC V8 architecture"
       DEFINES="$DEFINES -DSPARC_V8_ASSEMBLY" dnl -DOPTFLAGS"
       CFLAGS="$CFLAGS -Wa,-Av8"
       CXXFLAGS="$CXXFLAGS -Wa,-Av8"
       ;;
     SPARC_V9)
-	  ASM_OPTIMIZATIONS="SPARC V9 architecture"
+      ASM_OPTIMIZATIONS="SPARC V9 architecture"
       DEFINES="$DEFINES -DSPARC_V9_ASSEMBLY" dnl -DOPTFLAGS"
       CFLAGS="$CFLAGS -Wa,-Av9"
       CXXFLAGS="$CXXFLAGS -Wa,-Av9"
@@ -542,9 +542,9 @@ fi
 
 dnl Remove the "-g" option if set for GCC.
 if [[ "x$HAVE_GCC27" = "xyes" ]]; then
-	dnl gb-- Probably not the cleanest way to take
-	CFLAGS=`echo $CFLAGS | sed -e 's/ -g / /;s/^-g / /;s/ -g$/ /;s/^-g$//'`
-	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/ -g / /;s/^-g / /;s/ -g$/ /;s/^-g$//'`
+  dnl gb-- Probably not the cleanest way to take
+  CFLAGS=`echo $CFLAGS | sed -e 's/ -g / /;s/^-g / /;s/ -g$/ /;s/^-g$//'`
+  CXXFLAGS=`echo $CXXFLAGS | sed -e 's/ -g / /;s/^-g / /;s/ -g$/ /;s/^-g$//'`
 fi
 
 dnl Generate Makefile.

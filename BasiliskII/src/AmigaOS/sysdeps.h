@@ -38,6 +38,7 @@
 
 // Mac ROM is not write protected
 #define ROM_IS_WRITE_PROTECTED 0
+#define USE_SCRATCHMEM_SUBTERFUGE 1
 
 // ExtFS is supported
 #define SUPPORTS_EXTFS 1

@@ -583,6 +583,7 @@ static bool init_fbdev_dga(char *in_fb_name)
 		}
 	}
 	
+#if ENABLE_VOSF
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 	// If the blit function is null, i.e. just a copy of the buffer,
 	// we first try to avoid the allocation of a temporary frame buffer
@@ -599,8 +600,9 @@ static bool init_fbdev_dga(char *in_fb_name)
 		the_buffer = (uint8 *)allocate_framebuffer(the_buffer_size);
 		memset(the_buffer, 0, the_buffer_size);
 	}
-#elif ENABLE_VOSF
+#else
 	use_vosf = false;
+#endif
 #endif
 	
 	set_video_monitor(width, height, bytes_per_row, true);
@@ -1905,6 +1907,7 @@ static void video_refresh_dga(void)
 	handle_palette_changes(depth, DISPLAY_DGA);
 }
 
+#ifdef ENABLE_VOSF
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 static void video_refresh_dga_vosf(void)
 {
@@ -1932,7 +1935,6 @@ static void video_refresh_dga_vosf(void)
 }
 #endif
 
-#ifdef ENABLE_VOSF
 static void video_refresh_window_vosf(void)
 {
 	// Quit DGA mode if requested
@@ -1957,7 +1959,7 @@ static void video_refresh_window_vosf(void)
 #endif
 	}
 }
-#endif
+#endif // def ENABLE_VOSF
 
 static void video_refresh_window_static(void)
 {
@@ -1998,7 +2000,7 @@ void VideoRefreshInit(void)
 {
 	// TODO: set up specialised 8bpp VideoRefresh handlers ?
 	if (display_type == DISPLAY_DGA) {
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if ENABLE_VOSF && (REAL_ADDRESSING || DIRECT_ADDRESSING)
 		if (use_vosf)
 			video_refresh = video_refresh_dga_vosf;
 		else

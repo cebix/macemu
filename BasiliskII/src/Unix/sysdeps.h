@@ -69,6 +69,7 @@
 
 /* Mac ROM is not write protected */
 #define ROM_IS_WRITE_PROTECTED 0
+#define USE_SCRATCHMEM_SUBTERFUGE 1
 
 #else
 
@@ -83,7 +84,7 @@
 /* The m68k emulator uses a prefetch buffer ? */
 #define USE_PREFETCH_BUFFER 0
 
-/* Mac ROM is write protected */
+/* Mac ROM is write protected when banked memory is used */
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 # define ROM_IS_WRITE_PROTECTED 0
 # define USE_SCRATCHMEM_SUBTERFUGE 1

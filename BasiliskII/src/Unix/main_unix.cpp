@@ -133,11 +133,10 @@ static struct sigaction sigirq_sa;	// Virtual 68k interrupt signal
 static struct sigaction sigill_sa;	// Illegal instruction
 static void *sig_stack = NULL;		// Stack for signal handlers
 uint16 EmulatedSR;					// Emulated bits of SR (supervisor bit and interrupt mask)
-uint8 *ScratchMem = NULL;			// Scratch memory for Mac ROM writes
 #endif
 
 #if USE_SCRATCHMEM_SUBTERFUGE
-uint8 *ScratchMem = 0;				// Scratch memory for Mac ROM writes
+uint8 *ScratchMem = NULL;			// Scratch memory for Mac ROM writes
 #endif
 
 static struct sigaction timer_sa;	// sigaction used for timer
@@ -155,6 +154,10 @@ static void sigint_handler(...);
 #if REAL_ADDRESSING
 static bool lm_area_mapped = false;	// Flag: Low Memory area mmap()ped
 static bool memory_mapped_from_zero = false; // Flag: Could allocate RAM area from 0
+#endif
+
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+static uint32 mapped_ram_rom_size;		// Total size of mmap()ed RAM/ROM area
 #endif
 
 #ifdef USE_MAPPED_MEMORY
@@ -269,18 +272,19 @@ int main(int argc, char **argv)
 	const uint32 page_size = getpagesize();
 	const uint32 page_mask = page_size - 1;
 	const uint32 aligned_ram_size = (RAMSize + page_mask) & ~page_mask;
-	const uint32 ram_rom_size = aligned_ram_size + 0x100000;
+	mapped_ram_rom_size = aligned_ram_size + 0x100000;
 #endif
 
 #if REAL_ADDRESSING
 	// Try to allocate the complete address space from zero
 	// gb-- the Solaris manpage about mmap(2) states that using MAP_FIXED
 	// implies undefined behaviour for further use of sbrk(), malloc(), etc.
-#if defined(OS_solaris)
+	// cebix-- on NetBSD/m68k, this causes a segfault
+#if defined(OS_solaris) || defined(OS_netbsd)
 	// Anyway, it doesn't work...
 	if (0) {
 #else
-	if (mmap((caddr_t)0x0000, ram_rom_size, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE, zero_fd, 0) != MAP_FAILED) {
+	if (mmap((caddr_t)0x0000, mapped_ram_rom_size, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE, zero_fd, 0) != MAP_FAILED) {
 #endif
 		D(bug("Could allocate RAM and ROM from 0x0000\n"));
 		memory_mapped_from_zero = true;
@@ -298,7 +302,7 @@ int main(int argc, char **argv)
 	}
 #endif
 
-#if !EMULATED_68K || USE_SCRATCHMEM_SUBTERFUGE
+#if USE_SCRATCHMEM_SUBTERFUGE
 	// Allocate scratch memory
 	ScratchMem = (uint8 *)malloc(SCRATCH_MEM_SIZE);
 	if (ScratchMem == NULL) {
@@ -339,7 +343,7 @@ int main(int argc, char **argv)
 	else
 #endif
 	{
-		RAMBaseHost = (uint8 *)mmap(0, ram_rom_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, zero_fd, 0);
+		RAMBaseHost = (uint8 *)mmap(0, mapped_ram_rom_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, zero_fd, 0);
 		if (RAMBaseHost == (uint8 *)MAP_FAILED) {
 			ErrorAlert(GetString(STR_NO_MEM_ERR));
 			QuitEmulator();
@@ -354,6 +358,7 @@ int main(int argc, char **argv)
 		QuitEmulator();
 	}
 #endif
+
 #if DIRECT_ADDRESSING
 	// Initialize MEMBaseDiff now so that Host2MacAddr in the Video module
 	// will return correct results
@@ -617,34 +622,26 @@ void QuitEmulator(void)
 	// Deinitialize everything
 	ExitAll();
 
+	// Free ROM/RAM areas
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
-	// Unmap ROM area
-	if (ROMBaseHost != (uint8 *)MAP_FAILED) {
-		munmap((caddr_t)ROMBaseHost, 0x100000);
-		ROMBaseHost = 0;
-	}
-	
-	//Unmap RAM area
-	if (RAMBaseHost != (uint8 *)MAP_FAILED) {
-		const uint32 page_size = getpagesize();
-		const uint32 page_mask = page_size - 1;
-		munmap((caddr_t)RAMBaseHost, ((RAMSize + page_mask) & ~page_mask));
+	if (memory_mapped_from_zero)
+		munmap((caddr_t)0x0000, mapped_ram_rom_size);
+	else if (RAMBaseHost != (uint8 *)MAP_FAILED) {
+		munmap((caddr_t)RAMBaseHost, mapped_ram_rom_size);
+		RAMBaseHost = NULL;
 	}
 #else
-	// Delete ROM area
 	if (ROMBaseHost) {
 		free(ROMBaseHost);
 		ROMBaseHost = NULL;
 	}
-
-	// Delete RAM area
 	if (RAMBaseHost) {
 		free(RAMBaseHost);
 		RAMBaseHost = NULL;
 	}
 #endif
 
-#if !EMULATED_68K || USE_SCRATMEM_SUBTERFUGE
+#if USE_SCRATCHMEM_SUBTERFUGE
 	// Delete scratch memory area
 	if (ScratchMem) {
 		free((void *)(ScratchMem - SCRATCH_MEM_SIZE/2));
@@ -747,6 +744,11 @@ void TriggerInterrupt(void)
 #else
 	raise(SIG_IRQ);
 #endif
+}
+
+void TriggerNMI(void)
+{
+	// not yet supported
 }
 #endif
 
