@@ -162,17 +162,18 @@ int vm_release(void * addr, size_t size)
 		return 0;
 
 #ifdef HAVE_MACH_VM
-	int ret_code = vm_deallocate(mach_task_self(), (vm_address_t)addr, size);
-	return ret_code == KERN_SUCCESS ? 0 : -1;
+	if (vm_deallocate(mach_task_self(), (vm_address_t)addr, size) != KERN_SUCCESS)
+		return -1;
 #else
 #ifdef HAVE_MMAP_VM
-	int ret_code = munmap(addr, size);
-	return ret_code == 0 ? 0 : -1;
+	if (munmap(addr, size) != 0)
+		return -1;
 #else
 	free(addr);
+#endif
+#endif
+	
 	return 0;
-#endif
-#endif
 }
 
 /* Change the memory protection of the region starting at ADDR and

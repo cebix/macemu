@@ -523,15 +523,16 @@ driver_base::~driver_base()
 	}
 #ifdef ENABLE_VOSF
 	else {
+		// the_buffer shall always be mapped through vm_acquire() so that we can vm_protect() it at will
+		if (the_buffer != VM_MAP_FAILED) {
+			D(bug(" releasing the_buffer at %p (%d bytes)\n", the_buffer, the_buffer_size));
+			vm_release(the_buffer, the_buffer_size);
+			the_buffer = NULL;
+		}
 		if (the_host_buffer) {
 			D(bug(" freeing the_host_buffer at %p\n", the_host_buffer));
 			free(the_host_buffer);
 			the_host_buffer = NULL;
-		}
-		if (the_buffer) {
-			D(bug(" freeing the_buffer at %p\n", the_buffer));
-			free(the_buffer);
-			the_buffer = NULL;
 		}
 		if (the_buffer_copy) {
 			D(bug(" freeing the_buffer_copy at %p\n", the_buffer_copy));
@@ -583,7 +584,7 @@ driver_window::driver_window(const video_mode &mode)
 	// Set absolute mouse mode
 	ADBSetRelMouseMode(mouse_grabbed);
 
-	// Create window (setting backround_pixel, border_pixel and colormap is
+	// Create window (setting background_pixel, border_pixel and colormap is
 	// mandatory when using a non-default visual; in 1-bit mode we use the
 	// default visual, so we can also use the default colormap)
 	XSetWindowAttributes wattr;
@@ -675,8 +676,8 @@ driver_window::driver_window(const video_mode &mode)
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	the_host_buffer = the_buffer_copy;
 	the_buffer_size = page_extend((aligned_height + 2) * img->bytes_per_line);
-	the_buffer_copy = (uint8 *)vm_acquire(the_buffer_size);
 	the_buffer = (uint8 *)vm_acquire(the_buffer_size);
+	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
 #else
 	// Allocate memory for frame buffer
@@ -725,21 +726,6 @@ driver_window::~driver_window()
 		the_buffer_copy = NULL; // don't free() in driver_base dtor
 #endif
 	}
-#ifdef ENABLE_VOSF
-	if (use_vosf) {
-		// don't free() memory mapped buffers in driver_base dtor
-		if (the_buffer != VM_MAP_FAILED) {
-			D(bug(" releasing the_buffer at %p\n", the_buffer));
-			vm_release(the_buffer, the_buffer_size);
-			the_buffer = NULL;
-		}
-		if (the_buffer_copy != VM_MAP_FAILED) {
-			D(bug(" releasing the_buffer_copy at %p\n", the_buffer_copy));
-			vm_release(the_buffer_copy, the_buffer_size);
-			the_buffer_copy = NULL;
-		}
-	}
-#endif
 	if (img) {
 		if (!have_shm)
 			img->data = NULL;
@@ -1086,7 +1072,7 @@ driver_fbdev::driver_fbdev(const video_mode &mode)
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	  the_host_buffer = the_buffer;
 	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
-	  the_buffer_copy = (uint8 *)vm_acquire(the_buffer_size);
+	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	  the_buffer = (uint8 *)vm_acquire(the_buffer_size);
 	}
 #else
@@ -1120,14 +1106,6 @@ driver_fbdev::~driver_fbdev()
 			// don't free() the screen buffer in driver_base dtor
 			munmap(the_host_buffer, the_buffer_size);
 			the_host_buffer = NULL;
-		}
-		if (the_buffer_copy != VM_MAP_FAILED) {
-			vm_release(the_buffer_copy, the_buffer_size);
-			the_buffer_copy = NULL;
-		}
-		if (the_buffer != VM_MAP_FAILED) {
-			vm_release(the_buffer, the_buffer_size);
-			the_buffer = NULL;
 		}
 	}
 #endif
@@ -1227,7 +1205,7 @@ driver_xf86dga::driver_xf86dga(const video_mode &mode)
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	  the_host_buffer = the_buffer;
 	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
-	  the_buffer_copy = (uint8 *)vm_acquire(the_buffer_size);
+	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	  the_buffer = (uint8 *)vm_acquire(the_buffer_size);
 	}
 #else
@@ -1256,15 +1234,6 @@ driver_xf86dga::~driver_xf86dga()
 	else {
 		// don't free() the screen buffer in driver_base dtor
 		the_host_buffer = NULL;
-		
-		if (the_buffer_copy != VM_MAP_FAILED) {
-			vm_release(the_buffer_copy, the_buffer_size);
-			the_buffer_copy = NULL;
-		}
-		if (the_buffer != VM_MAP_FAILED) {
-			vm_release(the_buffer, the_buffer_size);
-			the_buffer = NULL;
-		}
 	}
 #endif
 #ifdef ENABLE_XF86_VIDMODE

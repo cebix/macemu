@@ -181,8 +181,8 @@ static bool video_vosf_init(void)
 	// The "2" more bytes requested are a safety net to insure the
 	// loops in the update routines will terminate.
 	// See "How can we deal with array overrun conditions ?" hereunder for further details.
-	mainBuffer.dirtyPages = (char *) vm_acquire(mainBuffer.pageCount + 2);
-	if (mainBuffer.dirtyPages == VM_MAP_FAILED)
+	mainBuffer.dirtyPages = (char *) malloc(mainBuffer.pageCount + 2);
+	if (mainBuffer.dirtyPages == NULL)
 		return false;
 		
 	PFLAG_CLEAR_ALL;
@@ -190,8 +190,8 @@ static bool video_vosf_init(void)
 	PFLAG_SET(mainBuffer.pageCount+1);
 	
 	// Allocate and fill in pageInfo with start and end (inclusive) row in number of bytes
-	mainBuffer.pageInfo = (ScreenPageInfo *) vm_acquire(mainBuffer.pageCount * sizeof(ScreenPageInfo));
-	if (mainBuffer.pageInfo == VM_MAP_FAILED)
+	mainBuffer.pageInfo = (ScreenPageInfo *) malloc(mainBuffer.pageCount * sizeof(ScreenPageInfo));
+	if (mainBuffer.pageInfo == NULL)
 		return false;
 	
 	uint32 a = 0;
@@ -232,13 +232,13 @@ static bool video_vosf_init(void)
 
 static void video_vosf_exit(void)
 {
-	if (mainBuffer.pageInfo != VM_MAP_FAILED) {
-		vm_release(mainBuffer.pageInfo, mainBuffer.pageCount * sizeof(ScreenPageInfo));
-		mainBuffer.pageInfo = (ScreenPageInfo *) VM_MAP_FAILED;
+	if (mainBuffer.pageInfo) {
+		free(mainBuffer.pageInfo);
+		mainBuffer.pageInfo = NULL;
 	}
-	if (mainBuffer.dirtyPages != VM_MAP_FAILED) {
-		vm_release(mainBuffer.dirtyPages, mainBuffer.pageCount + 2);
-		mainBuffer.dirtyPages = (char *) VM_MAP_FAILED;
+	if (mainBuffer.dirtyPages) {
+		free(mainBuffer.dirtyPages);
+		mainBuffer.dirtyPages = NULL;
 	}
 }
 
