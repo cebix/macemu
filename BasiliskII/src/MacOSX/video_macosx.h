@@ -58,10 +58,3 @@ extern	void	resizeWinTo			(const uint16, const uint16);
 
 extern	NSWindow		*the_win;
 extern	EmulatorView	*output;
-
-// These record changes we made in setting full screen mode
-extern	CGDirectDisplayID	theDisplay;
-extern	CFDictionaryRef		originalMode, newMode;
-
-// Macro for checking if full screen mode has started
-#define FULLSCREEN	( theDisplay || originalMode || newMode )

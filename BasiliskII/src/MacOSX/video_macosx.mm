@@ -39,6 +39,9 @@
 #define DEBUG 0
 #include "debug.h"
 
+#import <Foundation/NSString.h>				// Needed for NSLog(@"")
+#import "misc_macosx.h"						// WarningSheet() prototype
+
 
 
 // Global variables
@@ -47,14 +50,12 @@ uint8		display_type = DISPLAY_WINDOW,	// These are used by PrefsEditor
 uint16		init_width  = MIN_WIDTH,		// as well as this code
 			init_height = MIN_HEIGHT,
 			init_depth  = 32,
-			screen_height = MIN_HEIGHT;		// Used by processMouseMove
+			screen_height = 0;				// Used by processMouseMove:
 
 		EmulatorView	*output = nil;		// Set by [EmulatorView init]
 		NSWindow		*the_win = nil;		// Set by [Emulator awakeFromNib]
 static	void			*the_buffer = NULL;
 
-
-#import <Foundation/NSString.h>				// Needed for NSLog(@"")
 
 #ifdef CGIMAGEREF
 static CGImageRef		imageRef = nil;
@@ -67,9 +68,9 @@ static NSBitmapImageRep	*bitmap = nil;
 #endif
 
 // These record changes we made in setting full screen mode
-CGDirectDisplayID	theDisplay   = NULL;
-CFDictionaryRef		originalMode = NULL,
-					newMode = NULL;
+static CGDirectDisplayID	theDisplay   = NULL;
+static CFDictionaryRef		originalMode = NULL,
+							newMode      = NULL;
 
 
 
@@ -154,14 +155,27 @@ add_mode(const uint16 width, const uint16 height,
 		 const uint32 resolution_id, const uint32 bytes_per_row,
 		 const video_depth depth)
 {
+	vector<video_mode>::const_iterator	i,
+										end = VideoModes.end();
+
+	for (i = VideoModes.begin(); i != end; ++i)
+		if ( i->x == width && i->y == height &&
+			 i->bytes_per_row == bytes_per_row && i->depth == depth )
+		{
+			D(NSLog(@"Duplicate mode (%hdx%hdx%ld, ID %02x, new ID %02x)\n",
+						width, height, depth, i->resolution_id, resolution_id));
+			return;
+		}
+
 	video_mode mode;
+
 	mode.x = width;
 	mode.y = height;
 	mode.resolution_id = resolution_id;
 	mode.bytes_per_row = bytes_per_row;
 	mode.depth = depth;
 
-	D(bug("Added video mode: w=%ld  h=%ld  d=%ld(%d bits)\n",
+	D(bug("Added video mode: w=%d  h=%d  d=%d(%d bits)\n",
 				width, height, depth, bits_from_depth(depth) ));
 
 	VideoModes.push_back(mode);
@@ -170,7 +184,7 @@ add_mode(const uint16 width, const uint16 height,
 // Add standard list of windowed modes for given color depth
 static void add_standard_modes(const video_depth depth)
 {
-	D(bug("add_standard_modes: depth=%ld(%d bits)\n",
+	D(bug("add_standard_modes: depth=%d(%d bits)\n",
 						depth, bits_from_depth(depth) ));
 
 	add_mode(512,  384,  0x80, TrivialBytesPerRow(512,  depth), depth);
@@ -216,7 +230,7 @@ static bool add_CGDirectDisplay_modes()
 
 	err = CGGetActiveDisplayList(kMaxDisplays, displays, &n);
 	if ( err != CGDisplayNoErr )
-		return false;
+		n = 1, displays[n] = kCGDirectMainDisplay;
 
 	for ( CGDisplayCount dc = 0; dc < n; ++dc )
 	{
@@ -238,7 +252,6 @@ static bool add_CGDirectDisplay_modes()
 
 				int32	bpp    = getCFint32(modeSpec, kCGDisplayBitsPerPixel);
 				int32	height = getCFint32(modeSpec, kCGDisplayHeight);
-				int32	mode   = getCFint32(modeSpec, kCGDisplayMode);
 				int32	width  = getCFint32(modeSpec, kCGDisplayWidth);
 				video_depth	depth = DepthModeForPixelDepth(bpp);
 
@@ -248,13 +261,10 @@ static bool add_CGDirectDisplay_modes()
 							mc, dc);
 					return false;
 				}
-#if DEBUG
+#if VERBOSE
 				else
 					NSLog(@"Display %ld, spec = %@", d, modeSpec);
 #endif
-
-				add_mode(width, height, res_id,
-						 TrivialBytesPerRow(width, depth), depth);
 
 				if ( ! oldRes )
 					oldRes = width * height;
@@ -264,6 +274,8 @@ static bool add_CGDirectDisplay_modes()
 						oldRes = width * height;
 						++res_id;
 					}
+
+				add_mode(width, height, res_id, 0, depth);
 			}
 		}
 	}
@@ -272,7 +284,7 @@ static bool add_CGDirectDisplay_modes()
 }
 
 // Set Mac frame layout and base address (uses the_buffer/MacFrameBaseMac)
-static void set_mac_frame_buffer(video_depth depth)
+static void set_mac_frame_buffer(const video_depth depth)
 {
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 	switch ( depth )
@@ -332,7 +344,7 @@ static bool init_window(const video_mode &mode)
 	short				bitsPer, samplesPer;	// How big is each Pixel?
 	int					the_buffer_size;
 
-	D(bug("init_window: depth=%ld(%d bits)\n",
+	D(bug("init_window: depth=%d(%d bits)\n",
 			mode.depth, bits_from_depth(mode.depth) ));
 
 
@@ -464,67 +476,89 @@ static bool init_window(const video_mode &mode)
 }
 
 #import <AppKit/NSEvent.h>
+#import <Carbon/Carbon.h>
 
-// How do I include this file?
-// #import <Carbon/HIToolbox/Menus.h>
-extern "C" void HideMenuBar(),
-				ShowMenuBar();
-
-static bool init_screen(const video_mode &mode)
+static bool init_screen(video_mode &mode)
 {
 	// Set absolute mouse mode
 	ADBSetRelMouseMode(false);
 
-
 	theDisplay = kCGDirectMainDisplay;	// For now
-	originalMode = CGDisplayCurrentMode(theDisplay);
 
+	originalMode = CGDisplayCurrentMode(theDisplay);
+	if ( nil == originalMode )
+	{
+		ErrorSheet(@"Could not get current mode of display", the_win);
+		return false;
+	}
+
+	D(NSLog(@"About to call CGDisplayBestModeForParameters()"));
 	newMode = CGDisplayBestModeForParameters(theDisplay,
 											 bits_from_depth(mode.depth),
 													mode.x, mode.y, NULL);
 	if ( NULL == newMode )
 	{
-		ErrorAlert("Could not find a matching screen mode");
+		ErrorSheet(@"Could not find a matching screen mode", the_win);
 		return false;
 	}
 
-	[the_win miniaturize: nil];
-//	[the_win setLevel: CGShieldingWindowLevel()];
-	the_win = nil;
+//	This sometimes takes ages to return after the window is genied,
+//	so for now we leave it onscreen
+//	[the_win miniaturize: nil];
 
-	HideMenuBar();
+	D(NSLog(@"About to call CGDisplayCapture()"));
+	if ( CGDisplayCapture(theDisplay) != CGDisplayNoErr )
+	{
+//		[the_win deminiaturize: nil];
+		ErrorSheet(@"Could not capture display", the_win);
+		return false;
+	}
 
-	CGDisplayCapture(theDisplay);
+	// Set screen height for mouse co-ordinate flipping
+	if ( ! screen_height )
+		screen_height = CGDisplayPixelsHigh(theDisplay);
 
+	D(NSLog(@"About to call CGDisplaySwitchToMode()"));
 	if ( CGDisplaySwitchToMode(theDisplay, newMode) != CGDisplayNoErr )
 	{
-		ErrorAlert("Could not switch to matching screen mode");
+//		[the_win deminiaturize: nil];
+		ErrorSheet(@"Could not switch to matching screen mode", the_win);
 		return false;
 	}
 
+	if ( mode.bytes_per_row != CGDisplayBytesPerRow(theDisplay) )
+	{
+		D(bug("Bytes per row (%d) doesn't match current (%ld)\n",
+				mode.bytes_per_row, CGDisplayBytesPerRow(theDisplay)));
+		mode.bytes_per_row = CGDisplayBytesPerRow(theDisplay);
+	}
+
+	HideMenuBar();
 	CGDisplayHideCursor(theDisplay);
 
 	the_buffer = CGDisplayBaseAddress(theDisplay);
 	if ( the_buffer == NULL )
 	{
-		ErrorAlert("Could not get base address of screen");
+		video_close();
+		ErrorSheet(@"Could not get base address of screen", the_win);
 		return false;
 	}
 
-	screen_height = mode.y;		// For mouse co-ordinate flipping
-
 	// Send emulated mouse to current location
-
 	NSPoint mouse = [NSEvent mouseLocation];
 	ADBMouseMoved((int)mouse.x, screen_height - (int)mouse.y);
+	//[output performSelector: @selector(processMouseMove:)
+	//			 withObject: nil
+	//			 afterDelay: 10.0];
 
 	// Set VideoMonitor
 	VideoMonitor.mode = mode;
 	set_mac_frame_buffer(mode.depth);
 
+	[output startedFullScreen];		// For [Controller sendEvent:]
+
 	return true;
 }
-
 
 static bool init_opengl(const video_mode &mode)
 {
@@ -586,7 +620,7 @@ bool VideoInit(bool classic)
 										colours_from_depth(i->depth));
 #endif
 
-	D(bug("VideoInit: width=%hd height=%hd depth=%ld\n",
+	D(bug("VideoInit: width=%hd height=%hd depth=%d\n",
 						init_width, init_height, init_depth));
 
 	// Find requested default mode and open display
@@ -596,7 +630,7 @@ bool VideoInit(bool classic)
 		std::vector<video_mode>::const_iterator i, end = VideoModes.end();
 		for (i = VideoModes.begin(); i != end; ++i)
 		{
-			D(bug("VideoInit: w=%ld h=%ld d=%ld\n",
+			D(bug("VideoInit: w=%d h=%d d=%d\n",
 					i->x, i->y, bits_from_depth(i->depth)));
 			if (i->x == init_width && i->y == init_height
 					&& bits_from_depth(i->depth) == init_depth)
@@ -617,28 +651,18 @@ bool VideoInit(bool classic)
 // Open display for specified mode
 static bool video_open(const video_mode &mode)
 {
-	D(bug("video_open: width=%ld  height=%ld  depth=%ld  bytes_per_row=%ld\n",
+	D(bug("video_open: width=%d  height=%d  depth=%d  bytes_per_row=%d\n",
 			mode.x, mode.y, bits_from_depth(mode.depth), mode.bytes_per_row));
 
 	// Open display
-	switch ( display_type ) {
-		case DISPLAY_WINDOW:
-			if ( ! init_window(mode) )
-				return false;
-			break;
-
-		case DISPLAY_SCREEN:
-			if ( ! init_screen(mode) )
-				return false;
-			break;
-
-		case DISPLAY_OPENGL:
-			if ( ! init_opengl(mode) )
-				return false;
-			break;
+	switch ( display_type )
+	{
+		case DISPLAY_WINDOW:	return init_window(mode);
+		case DISPLAY_SCREEN:	return init_screen((video_mode &)mode);
+		case DISPLAY_OPENGL:	return init_opengl(mode);
 	}
 
-	return true;
+	return false;
 }
 
 
@@ -665,10 +689,11 @@ static void video_close()
 		case DISPLAY_SCREEN:
 			if ( theDisplay && originalMode )
 			{
-				//CGDisplayShowCursor(theDisplay);
+				CGDisplayShowCursor(theDisplay);
+				ShowMenuBar();
 				CGDisplaySwitchToMode(theDisplay, originalMode);
 				CGDisplayRelease(theDisplay);
-				ShowMenuBar();
+				//[the_win deminiaturize: nil];
 			}
 			break;
 
@@ -694,8 +719,8 @@ void VideoExit(void)
 
 void video_set_palette(uint8 *pal, int num)
 {
-	if ( FULLSCREEN && CGDisplayCanSetPalette(theDisplay)
-					&& ! IsDirectMode(VideoMonitor.mode) )
+	if ( [output isFullScreen] && CGDisplayCanSetPalette(theDisplay)
+								&& ! IsDirectMode(VideoMonitor.mode) )
 	{
 		CGDirectPaletteRef	CGpal;
 		CGDisplayErr		err;
