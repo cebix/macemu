@@ -88,7 +88,7 @@ public:
 	uint32 output_dt;	// Mac address of Deferred Task for writing
 
 #ifdef POWERPC_ROM
-	uint8 dt_store[SIZEOF_serdt * 2];
+	uint32 dt_store;
 #endif
 };
 
