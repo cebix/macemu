@@ -61,28 +61,24 @@ enum {
 	__asm__ __volatile__("lock\n\tandl %1,%0" : "=m" (regs.spcflags) : "i" (~(m))); \
 } while (0)
 
-#elif defined(HAVE_PTHREADS)
+#else
 
 #undef HAVE_HARDWARE_LOCKS
 
-#include <pthread.h>
-extern pthread_mutex_t spcflags_lock;
+#include "main.h"
+extern B2_mutex *spcflags_lock;
 
 #define SPCFLAGS_SET(m) do { 				\
-	pthread_mutex_lock(&spcflags_lock);		\
+	B2_lock_mutex(spcflags_lock);			\
 	regs.spcflags |= (m);					\
-	pthread_mutex_unlock(&spcflags_lock);	\
+	B2_unlock_mutex(spcflags_lock);		\
 } while (0)
 
 #define SPCFLAGS_CLEAR(m) do {				\
-	pthread_mutex_lock(&spcflags_lock);		\
+	B2_lock_mutex(spcflags_lock);			\
 	regs.spcflags &= ~(m);					\
-	pthread_mutex_unlock(&spcflags_lock);	\
+	B2_unlock_mutex(spcflags_lock);		\
 } while (0)
-
-#else
-
-#error "Can't handle spcflags atomically!"
 
 #endif
 

@@ -23,9 +23,8 @@ extern int intlev(void);	// From baisilisk_glue.cpp
 #include "readcpu.h"
 #include "newcpu.h"
 
-#if defined(ENABLE_EXCLUSIVE_SPCFLAGS) && !defined(HAVE_HARDWARE_LOCKS) && defined(HAVE_PTHREADS)
-#include <pthread.h>
-pthread_mutex_t spcflags_lock = PTHREAD_MUTEX_INITIALIZER;
+#if defined(ENABLE_EXCLUSIVE_SPCFLAGS) && !defined(HAVE_HARDWARE_LOCKS)
+B2_mutex *spcflags_lock = NULL;
 #endif
 
 #if ENABLE_MON
@@ -265,6 +264,10 @@ void init_m68k (void)
     do_merges ();
 
     build_cpufunctbl ();
+	
+#if defined(ENABLE_EXCLUSIVE_SPCFLAGS) && !defined(HAVE_HARDWARE_LOCKS)
+	spcflags_lock = B2_create_mutex();
+#endif
     
     fpu_init ();
     fpu_set_integral_fpu (CPUType == 4);
@@ -273,6 +276,9 @@ void init_m68k (void)
 void exit_m68k (void)
 {
 	fpu_exit ();
+#if defined(ENABLE_EXCLUSIVE_SPCFLAGS) && !defined(HAVE_HARDWARE_LOCKS)
+	B2_delete_mutex(spcflags_lock);
+#endif
 }
 
 struct regstruct regs, lastint_regs;

@@ -12,12 +12,13 @@
 #include "sysdeps.h"
 
 #include "cpu_emulation.h"
+#include "main.h"
+#include "video.h"
+
 #include "m68k.h"
 #include "memory.h"
 #include "readcpu.h"
 #include "newcpu.h"
-#include "main.h"
-#include "video.h"
 
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 
