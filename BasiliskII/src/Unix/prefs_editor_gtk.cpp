@@ -402,8 +402,8 @@ static void cb_remove_volume(...)
 }
 
 // "Boot From" selected
-static void mn_boot_any(...) {PrefsReplaceInt16("bootdriver", 0);}
-static void mn_boot_cdrom(...) {PrefsReplaceInt16("bootdriver", CDROMRefNum);}
+static void mn_boot_any(...) {PrefsReplaceInt32("bootdriver", 0);}
+static void mn_boot_cdrom(...) {PrefsReplaceInt32("bootdriver", CDROMRefNum);}
 
 // "No CD-ROM Driver" button toggled
 static void tb_nocdrom(GtkWidget *widget)
@@ -466,7 +466,7 @@ static void create_volumes_pane(GtkWidget *top)
 		{STR_BOOT_CDROM_LAB, GTK_SIGNAL_FUNC(mn_boot_cdrom)},
 		{0, NULL}
 	};
-	int bootdriver = PrefsFindInt16("bootdriver"), active = 0;
+	int bootdriver = PrefsFindInt32("bootdriver"), active = 0;
 	switch (bootdriver) {
 		case 0: active = 0; break;
 		case CDROMRefNum: active = 1; break;
@@ -773,7 +773,7 @@ static GtkWidget *w_mouse_wheel_lines;
 static void set_input_sensitive(void)
 {
 	gtk_widget_set_sensitive(w_keycode_file, PrefsFindBool("keycodes"));
-	gtk_widget_set_sensitive(w_mouse_wheel_lines, PrefsFindInt16("mousewheelmode") == 1);
+	gtk_widget_set_sensitive(w_mouse_wheel_lines, PrefsFindInt32("mousewheelmode") == 1);
 }
 
 // "Use Raw Keycodes" button toggled
@@ -784,8 +784,8 @@ static void tb_keycodes(GtkWidget *widget)
 }
 
 // "Mouse Wheel Mode" selected
-static void mn_wheel_page(...) {PrefsReplaceInt16("mousewheelmode", 0); set_input_sensitive();}
-static void mn_wheel_cursor(...) {PrefsReplaceInt16("mousewheelmode", 1); set_input_sensitive();}
+static void mn_wheel_page(...) {PrefsReplaceInt32("mousewheelmode", 0); set_input_sensitive();}
+static void mn_wheel_cursor(...) {PrefsReplaceInt32("mousewheelmode", 1); set_input_sensitive();}
 
 // Read settings from widgets and set preferences
 static void read_input_settings(void)
@@ -796,7 +796,7 @@ static void read_input_settings(void)
 	else
 		PrefsRemoveItem("keycodefile");
 
-	PrefsReplaceInt16("mousewheellines", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w_mouse_wheel_lines)));
+	PrefsReplaceInt32("mousewheellines", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w_mouse_wheel_lines)));
 }
 
 // Create "Input" pane
@@ -817,7 +817,7 @@ static void create_input_pane(GtkWidget *top)
 		{STR_MOUSEWHEELMODE_CURSOR_LAB, GTK_SIGNAL_FUNC(mn_wheel_cursor)},
 		{0, NULL}
 	};
-	int wheelmode = PrefsFindInt16("mousewheelmode"), active = 0;
+	int wheelmode = PrefsFindInt32("mousewheelmode"), active = 0;
 	switch (wheelmode) {
 		case 0: active = 0; break;
 		case 1: active = 1; break;
@@ -832,7 +832,7 @@ static void create_input_pane(GtkWidget *top)
 	gtk_widget_show(label);
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
-	adj = gtk_adjustment_new(PrefsFindInt16("mousewheellines"), 1, 1000, 1, 5, 0);
+	adj = gtk_adjustment_new(PrefsFindInt32("mousewheellines"), 1, 1000, 1, 5, 0);
 	w_mouse_wheel_lines = gtk_spin_button_new(GTK_ADJUSTMENT(adj), 0.0, 0);
 	gtk_widget_show(w_mouse_wheel_lines);
 	gtk_box_pack_start(GTK_BOX(hbox), w_mouse_wheel_lines, FALSE, FALSE, 0);

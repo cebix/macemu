@@ -26,8 +26,7 @@
 
 // Common preferences items (those which exist on all platforms)
 // Except for "disk", "floppy", "cdrom", "scsiX", "screen", "rom" and "ether",
-// these are guaranteed to be in the prefs; "disk", "floppy" and "cdrom" can
-// occur multiple times
+// these are guaranteed to be in the prefs.
 prefs_desc common_prefs_items[] = {
 	{"disk", TYPE_STRING, true},		// Device/file names of Mac volumes (disk.cpp)
 	{"floppy", TYPE_STRING, true},		// Device/file names of Mac floppy drives (sony.cpp)
@@ -45,8 +44,8 @@ prefs_desc common_prefs_items[] = {
 	{"serialb", TYPE_STRING, false},	// Device name of Mac serial port B (serial_*.cpp)
 	{"ether", TYPE_STRING, false},		// Device name of Mac ethernet adapter (ether_*.cpp)
 	{"rom", TYPE_STRING, false},		// Path of ROM file (main_*.cpp)
-	{"bootdrive", TYPE_INT16, false},	// Boot drive number (main.cpp)
-	{"bootdriver", TYPE_INT16, false},	// Boot driver number (main.cpp)
+	{"bootdrive", TYPE_INT32, false},	// Boot drive number (main.cpp)
+	{"bootdriver", TYPE_INT32, false},	// Boot driver number (main.cpp)
 	{"ramsize", TYPE_INT32, false},		// Size of Mac RAM in bytes (main_*.cpp)
 	{"frameskip", TYPE_INT32, false},	// Number of frames to skip in refreshed video modes (video_*.cpp)
 	{"modelid", TYPE_INT32, false},		// Mac Model ID (Gestalt Model ID minus 6) (rom_patches.cpp)
@@ -67,8 +66,8 @@ prefs_desc common_prefs_items[] = {
 void AddPrefsDefaults(void)
 {
 	SysAddSerialPrefs();
-	PrefsAddInt16("bootdriver", 0);
-	PrefsAddInt16("bootdrive", 0);
+	PrefsAddInt32("bootdriver", 0);
+	PrefsAddInt32("bootdrive", 0);
 	PrefsAddInt32("ramsize", 8 * 1024 * 1024);
 	PrefsAddInt32("frameskip", 6);
 	PrefsAddInt32("modelid", 5);	// Mac IIci

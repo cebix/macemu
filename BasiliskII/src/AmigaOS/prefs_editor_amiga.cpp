@@ -354,10 +354,10 @@ bool PrefsEditor(void)
 						case GAD_BOOTDRIVER:
 							switch (code) {
 								case 0:
-									PrefsReplaceInt16("bootdriver", 0);
+									PrefsReplaceInt32("bootdriver", 0);
 									break;
 								case 1:
-									PrefsReplaceInt16("bootdriver", CDROMRefNum);
+									PrefsReplaceInt32("bootdriver", CDROMRefNum);
 									break;
 							}
 							break;
@@ -574,7 +574,7 @@ static void parse_volumes_prefs(void)
 
 	bootdriver_num = 0;
 
-	int bootdriver = PrefsFindInt16("bootdriver");
+	int bootdriver = PrefsFindInt32("bootdriver");
 	switch (bootdriver) {
 		case 0:
 			bootdriver_num = 0;

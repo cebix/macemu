@@ -425,12 +425,12 @@ BView *PrefsWindow::create_volumes_pane(void)
 	menu->AddItem(new BMenuItem(GetString(STR_BOOT_ANY_LAB), new BMessage(MSG_BOOT_ANY)));
 	menu->AddItem(new BMenuItem(GetString(STR_BOOT_CDROM_LAB), new BMessage(MSG_BOOT_CDROM)));
 	pane->AddChild(menu_field);
-	int16 i16 = PrefsFindInt16("bootdriver");
+	int32 i32 = PrefsFindInt32("bootdriver");
 	BMenuItem *item;
-	if (i16 == 0) {
+	if (i32 == 0) {
 		if ((item = menu->FindItem(GetString(STR_BOOT_ANY_LAB))) != NULL)
 			item->SetMarked(true);
-	} else if (i16 == CDROMRefNum) {
+	} else if (i32 == CDROMRefNum) {
 		if ((item = menu->FindItem(GetString(STR_BOOT_CDROM_LAB))) != NULL)
 			item->SetMarked(true);
 	}
@@ -875,11 +875,11 @@ void PrefsWindow::MessageReceived(BMessage *msg)
 		}
 
 		case MSG_BOOT_ANY:
-			PrefsReplaceInt16("bootdriver", 0);
+			PrefsReplaceInt32("bootdriver", 0);
 			break;
 
 		case MSG_BOOT_CDROM:
-			PrefsReplaceInt16("bootdriver", CDROMRefNum);
+			PrefsReplaceInt32("bootdriver", CDROMRefNum);
 			break;
 
 		case MSG_NOCDROM:

@@ -10,16 +10,19 @@ V0.8 (snapshot) - <date>
 	  (activated through the "--enable-vosf" configure option)
 	- Unix: added IRIX audio driver [Brian J. Johnson]
 	- Unix: improved timing of periodic threads
+	- Unix: command line options now use '--'-prefix, e.g. "--rominfo"
 	- AmigaOS: enabled floppy support, fixed floppy bugs [Jürgen Lachmann]
 	- AmigaOS: Amiga mouse pointer is hidden inside windowed Mac displays
 	- AmigaOS/sys_amiga.cpp: workaround for 2060scsi.device bug when
 	  when reading from CD-ROM [Jürgen Lachmann]
 	- AmigaOS/prefs_editor_amiga.cpp: fixed bug when adding volumes
 	  [Jürgen Lachmann]
-	- AmigaOS/Unix/extfs_*.cpp: .finf helper file now stores complete
-	  FInfo/FXInfo, replaced get/set_finder_*() functions by get/set_finfo()
 	- AmigaOS: added MacsBug support (tested with MacsBug6.6.1),
 	  fixed <move sr,(sp)> bug [Jürgen Lachmann]
+	- AmigaOS/Unix/extfs_*.cpp: .finf helper file now stores complete
+	  FInfo/FXInfo, replaced get/set_finder_*() functions by get/set_finfo()
+	- AmigaOS/Unix: it's possible to specify preferences items on the
+	  command line
 	- include/macos_util.h: defines FOURCC() macro to make MacOS-like
 	  four-character-codes, replaced most instances of multi-character
 	  constants in the sources by this macro to avoid compiler warnings

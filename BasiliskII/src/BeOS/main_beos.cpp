@@ -176,7 +176,7 @@ void BasiliskII::ReadyToRun(void)
 		delete_area(old_rom_area);
 
 	// Read preferences
-	PrefsInit();
+	PrefsInit(0, NULL);
 
 	// Init system routines
 	SysInit();

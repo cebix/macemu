@@ -23,7 +23,7 @@
 
 #include <stdio.h>
 
-extern void PrefsInit(void);
+extern void PrefsInit(int argc, char **argv);
 extern void PrefsExit(void);
 
 extern void AddPrefsDefaults(void);
@@ -39,17 +39,14 @@ extern void SavePrefsToStream(FILE *f);
 // Public preferences access functions
 extern void PrefsAddString(const char *name, const char *s);
 extern void PrefsAddBool(const char *name, bool b);
-extern void PrefsAddInt16(const char *name, int16 val);
 extern void PrefsAddInt32(const char *name, int32 val);
 
 extern void PrefsReplaceString(const char *name, const char *s, int index = 0);
 extern void PrefsReplaceBool(const char *name, bool b);
-extern void PrefsReplaceInt16(const char *name, int16 val);
 extern void PrefsReplaceInt32(const char *name, int32 val);
 
 extern const char *PrefsFindString(const char *name, int index = 0);
 extern bool PrefsFindBool(const char *name);
-extern int16 PrefsFindInt16(const char *name);
 extern int32 PrefsFindInt32(const char *name);
 
 extern void PrefsRemoveItem(const char *name, int index = 0);
@@ -63,7 +60,6 @@ extern void PrefsRemoveItem(const char *name, int index = 0);
 enum prefs_type {
 	TYPE_STRING,		// char[]
 	TYPE_BOOLEAN,		// bool
-	TYPE_INT16,			// int16
 	TYPE_INT32,			// int32
 	TYPE_ANY,			// Wildcard for find_node
 	TYPE_END = TYPE_ANY	// Terminator for prefs_desc list

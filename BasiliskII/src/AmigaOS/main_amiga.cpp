@@ -138,7 +138,7 @@ static void tick_func(void);
  *  Main program
  */
 
-int main(void)
+int main(int argc, char **argv)
 {
 	// Initialize variables
 	RAMBaseHost = NULL;
@@ -188,7 +188,7 @@ int main(void)
 	CyberGfxBase = OpenLibrary((UBYTE *)"cybergraphics.library", 2);
 
 	// Read preferences
-	PrefsInit();
+	PrefsInit(argc, argv);
 
 	// Open AHI
 	ahi_port = CreateMsgPort();

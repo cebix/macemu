@@ -37,24 +37,76 @@ struct prefs_node {
 };
 
 // List of prefs nodes
-static prefs_node *the_prefs;
+static prefs_node *the_prefs = NULL;
+
+// Prototypes
+static const prefs_desc *find_prefs_desc(const char *name);
 
 
 /*
  *  Initialize preferences
  */
 
-void PrefsInit(void)
+void PrefsInit(int argc, char **argv)
 {
-	// Start with empty list
-	the_prefs = NULL;
-
 	// Set defaults
 	AddPrefsDefaults();
 	AddPlatformPrefsDefaults();
 
 	// Load preferences from settings file
 	LoadPrefs();
+
+	// Override prefs with command line arguments
+	argc--; argv++;
+	for (; argc>0; argc--, argv++) {
+
+		// Arguments are of the form '--keyword'
+		if (strlen(*argv) < 3 || argv[0][0] != '-' || argv[0][1] != '-') {
+			printf("WARNING: Unrecognized argument '%s'\n", *argv);
+			continue;
+		}
+		const char *keyword = *argv + 2;
+		const prefs_desc *d = find_prefs_desc(keyword);
+		if (d == NULL) {
+			printf("WARNING: Unrecognized argument '%s'\n", *argv);
+			continue;
+		}
+
+		// Add/replace prefs item
+		switch (d->type) {
+			case TYPE_STRING:
+				if (argc < 2) {
+					printf("WARNING: Argument '%s' must be followed by value\n", *argv);
+					break;
+				}
+				argc--; argv++;
+				if (d->multiple)
+					PrefsAddString(keyword, *argv);
+				else
+					PrefsReplaceString(keyword, *argv);
+				break;
+
+			case TYPE_BOOLEAN:
+				if (argc > 1 && argv[1][0] != '-') {
+					argc--; argv++;
+					PrefsReplaceBool(keyword, !strcmp(*argv, "true") || !strcmp(*argv, "on"));
+				} else
+					PrefsReplaceBool(keyword, true);
+				break;
+
+			case TYPE_INT32:
+				if (argc < 2) {
+					printf("WARNING: Argument '%s' must be followed by value\n", *argv);
+					break;
+				}
+				argc--; argv++;
+				PrefsReplaceInt32(keyword, atoi(*argv));
+				break;
+
+			default:
+				break;
+		}
+	}
 }
 
 
@@ -90,6 +142,14 @@ static const prefs_desc *find_prefs_desc(const char *name, const prefs_desc *lis
 	return NULL;
 }
 
+static const prefs_desc *find_prefs_desc(const char *name)
+{
+	const prefs_desc *d = find_prefs_desc(name, common_prefs_items);
+	if (d == NULL)
+		d = find_prefs_desc(name, platform_prefs_items);
+	return d;
+}
+
 
 /*
  *  Set prefs items
@@ -123,11 +183,6 @@ void PrefsAddString(const char *name, const char *s)
 void PrefsAddBool(const char *name, bool b)
 {
 	add_data(name, TYPE_BOOLEAN, &b, sizeof(bool));
-}
-
-void PrefsAddInt16(const char *name, int16 val)
-{
-	add_data(name, TYPE_INT16, &val, sizeof(int16));
 }
 
 void PrefsAddInt32(const char *name, int32 val)
@@ -175,15 +230,6 @@ void PrefsReplaceBool(const char *name, bool b)
 		add_data(name, TYPE_BOOLEAN, &b, sizeof(bool));
 }
 
-void PrefsReplaceInt16(const char *name, int16 val)
-{
-	prefs_node *p = find_node(name, TYPE_INT16);
-	if (p)
-		*(int16 *)(p->data) = val;
-	else
-		add_data(name, TYPE_INT16, &val, sizeof(int16));
-}
-
 void PrefsReplaceInt32(const char *name, int32 val)
 {
 	prefs_node *p = find_node(name, TYPE_INT32);
@@ -214,15 +260,6 @@ bool PrefsFindBool(const char *name)
 		return *(bool *)(p->data);
 	else
 		return false;
-}
-
-int16 PrefsFindInt16(const char *name)
-{
-	prefs_node *p = find_node(name, TYPE_INT16, 0);
-	if (p)
-		return *(int16 *)(p->data);
-	else
-		return 0;
 }
 
 int32 PrefsFindInt32(const char *name)
@@ -292,10 +329,8 @@ void LoadPrefsFromStream(FILE *f)
 		char *value = p;
 		int32 i = atol(value);
 
-		// Look for keyword first in common item list, then in platform specific list
-		const prefs_desc *desc = find_prefs_desc(keyword, common_prefs_items);
-		if (desc == NULL)
-			desc = find_prefs_desc(keyword, platform_prefs_items);
+		// Look for keyword first in prefs item list
+		const prefs_desc *desc = find_prefs_desc(keyword);
 		if (desc == NULL) {
 			printf("WARNING: Unknown preferences keyword '%s'\n", keyword);
 			continue;
@@ -311,9 +346,6 @@ void LoadPrefsFromStream(FILE *f)
 				break;
 			case TYPE_BOOLEAN:
 				PrefsReplaceBool(keyword, !strcmp(value, "true"));
-				break;
-			case TYPE_INT16:
-				PrefsReplaceInt16(keyword, i);
 				break;
 			case TYPE_INT32:
 				PrefsReplaceInt32(keyword, i);
@@ -342,9 +374,6 @@ static void write_prefs(FILE *f, const prefs_desc *list)
 			}
 			case TYPE_BOOLEAN:
 				fprintf(f, "%s %s\n", list->name, PrefsFindBool(list->name) ? "true" : "false");
-				break;
-			case TYPE_INT16:
-				fprintf(f, "%s %d\n", list->name, PrefsFindInt16(list->name));
 				break;
 			case TYPE_INT32:
 				fprintf(f, "%s %d\n", list->name, PrefsFindInt32(list->name));

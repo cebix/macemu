@@ -954,8 +954,8 @@ bool VideoInit(bool classic)
 	keycode_init();
 
 	// Read prefs
-	mouse_wheel_mode = PrefsFindInt16("mousewheelmode");
-	mouse_wheel_lines = PrefsFindInt16("mousewheellines");
+	mouse_wheel_mode = PrefsFindInt32("mousewheelmode");
+	mouse_wheel_lines = PrefsFindInt32("mousewheellines");
 
 	// Find screen and root window
 	screen = XDefaultScreen(x_display);

@@ -102,10 +102,10 @@ bool InitAll(void)
 	XPRAMInit();
 
 	// Set boot volume
-	int16 i16 = PrefsFindInt16("bootdrive");
+	int16 i16 = PrefsFindInt32("bootdrive");
 	XPRAM[0x78] = i16 >> 8;
 	XPRAM[0x79] = i16 & 0xff;
-	i16 = PrefsFindInt16("bootdriver");
+	i16 = PrefsFindInt32("bootdriver");
 	XPRAM[0x7a] = i16 >> 8;
 	XPRAM[0x7b] = i16 & 0xff;
 

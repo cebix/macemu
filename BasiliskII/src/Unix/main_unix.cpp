@@ -50,6 +50,7 @@ struct sigstate {
 
 #ifdef ENABLE_GTK
 # include <gtk/gtk.h>
+# include <gdk/gdk.h>
 #endif
 
 #ifdef ENABLE_XF86_DGA
@@ -208,14 +209,43 @@ int main(int argc, char **argv)
 	printf(GetString(STR_ABOUT_TEXT1), VERSION_MAJOR, VERSION_MINOR);
 	printf(" %s\n", GetString(STR_ABOUT_TEXT2));
 
-	// Parse arguments
+#ifdef ENABLE_GTK
+	// Init GTK
+	gtk_set_locale();
+	gtk_init(&argc, &argv);
+	x_display_name = gdk_get_display(); // gtk_init() handles and removes the "--display" argument
+#endif
+
+	// Parse and remove arguments
 	for (int i=1; i<argc; i++) {
-		if (strcmp(argv[i], "-display") == 0 && ++i < argc)
-			x_display_name = argv[i];
-		else if (strcmp(argv[i], "-break") == 0 && ++i < argc)
-			ROMBreakpoint = strtol(argv[i], NULL, 0);
-		else if (strcmp(argv[i], "-rominfo") == 0)
+		if (strcmp(argv[i], "--display") == 0) {
+			argv[i] = NULL;
+			if ((i + 1) < argc && argv[i + 1]) {
+				argv[i++] = NULL;
+				x_display_name = strdup(argv[i]);
+			}
+		} else if (strcmp(argv[i], "--break") == 0) {
+			argv[i] = NULL;
+			if ((i + 1) < argc && argv[i + 1]) {
+				argv[i++] = NULL;
+				ROMBreakpoint = strtol(argv[i], NULL, 0);
+			}
+		} else if (strcmp(argv[i], "--rominfo") == 0) {
+			argv[i] = NULL;
 			PrintROMInfo = true;
+		}
+	}
+	for (int i=1; i<argc; i++) {
+		int k;
+		for (k=i; k<argc; k++)
+			if (argv[k] != NULL)
+				break;
+		if (k > i) {
+			k -= i;
+			for (int j=i+k; j<argc; j++)
+				argv[j-k] = argv[j];
+			argc -= k;
+		}
 	}
 
 	// Open display
@@ -232,14 +262,8 @@ int main(int argc, char **argv)
 	XF86DGAForkApp(DefaultScreen(x_display));
 #endif
 
-#ifdef ENABLE_GTK
-	// Init GTK
-	gtk_set_locale();
-	gtk_init(&argc, &argv);
-#endif
-
 	// Read preferences
-	PrefsInit();
+	PrefsInit(argc, argv);
 
 	// Init system routines
 	SysInit();
