@@ -207,6 +207,14 @@ void init_m68k (void)
     do_merges ();
 
     build_cpufunctbl ();
+    
+    fpu_init ();
+    fpu_set_integral_fpu (CPUType == 4);
+}
+
+void exit_m68k (void)
+{
+	fpu_exit ();
 }
 
 struct regstruct regs, lastint_regs;
@@ -1047,7 +1055,9 @@ void m68k_reset (void)
     regs.spcflags = 0;
     regs.intmask = 7;
     regs.vbr = regs.sfc = regs.dfc = 0;
-    regs.fpcr = regs.fpsr = regs.fpiar = 0;
+    /* gb-- moved into {fpp,fpu_x86}.cpp::fpu_init()
+    regs.fpcr = regs.fpsr = regs.fpiar = 0; */
+    fpu_reset();
 }
 
 void REGPARAM2 op_illg (uae_u32 opcode)
