@@ -171,7 +171,7 @@ typedef struct timeval tm_time_t;
 typedef uae_u32 uaecptr;
 
 /* Alignment restrictions */
-#if defined(__i386__) || defined(__powerpc__) || defined(__m68k__)
+#if defined(__i386__) || defined(__powerpc__) || defined(__m68k__) || defined(__x86_64__)
 # define CPU_CAN_ACCESS_UNALIGNED
 #endif
 
@@ -219,7 +219,7 @@ static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {uint8 *b = (uint8 *)a
 
 #else /* WORDS_BIGENDIAN */
 
-#ifdef __i386__
+#if defined(__i386__) || defined(__x86_64__)
 
 /* Intel x86 */
 #define X86_PPRO_OPT
@@ -292,7 +292,7 @@ static inline uae_u32 do_byteswap_16(uae_u32 v)
 #undef USE_MAPPED_MEMORY
 #undef CAN_MAP_MEMORY
 
-#ifdef X86_ASSEMBLY
+#if defined(X86_ASSEMBLY) || defined(X86_64_ASSEMBLY)
 #define ASM_SYM_FOR_FUNC(a) __asm__(a)
 #else
 #define ASM_SYM_FOR_FUNC(a)
