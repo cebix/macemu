@@ -77,13 +77,8 @@ AC_CHECK_FUNCS(sem_init)
 if [[ "x$ac_cv_func_sem_init" = "xno" ]]; then
   AC_CHECK_LIB(posix4, sem_init, HAVE_LIBPOSIX4=yes, HAVE_LIBPOSIX4=no)
   if [[ "x$HAVE_LIBPOSIX4" = "xno" ]]; then
-    dnl Checks for the existance of semget
-    AC_CHECK_FUNCS(semget)
-    if [[ "x$ac_cv_func_semget" = "xno" ]]; then
-      AC_MSG_ERROR([You need POSIX.4 semaphores to run Basilisk II.])
-    else
-      SEMSRCS="posix_sem.cpp"
-    fi
+    dnl Emulate semaphores with pthread mutexes
+    SEMSRCS="posix_sem.cpp"
   else
     LIBS="$LIBS -lposix4"
   fi
