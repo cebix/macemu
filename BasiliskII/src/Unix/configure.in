@@ -10,21 +10,22 @@ AC_ARG_ENABLE(xf86-dga,      [  --enable-xf86-dga       use the XFree86 DGA exte
 AC_ARG_ENABLE(xf86-vidmode,  [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
 AC_ARG_ENABLE(fbdev-dga,     [  --enable-fbdev-dga      use direct frame buffer access via /dev/fb [default=yes]], [WANT_FBDEV_DGA=$enableval], [WANT_FBDEV_DGA=yes])
 AC_ARG_ENABLE(vosf,          [  --enable-vosf           enable video on SEGV signals [default=no]], [WANT_VOSF=$enableval], [WANT_VOSF=no])
-AC_ARG_ENABLE(16bit-vidmode, [  --enable-16bit-vidmode  enable 16-bit video if possible [default=yes]], [WANT_16BIT_VIDMODE=$enableval], [WANT_16BIT_VIDMODE=yes])
+
+dnl Addressing modes.
 AC_ARG_ENABLE(addressing,
-[  --enable-addressing=mode specify the addressing mode to use [default=fastest]], 
+[  --enable-addressing=AM  specify the addressing mode to use [default=fastest]],
 [ case "$enableval" in
     real) 	ADDRESSING_TEST_ORDER="real";;
     direct)	ADDRESSING_TEST_ORDER="direct";;
     banks)	ADDRESSING_TEST_ORDER="banks";;
-dnl fastest)	ADDRESSING_TEST_ORDER="real direct banks";; gb-- will enable later...
-    fastest)	ADDRESSING_TEST_ORDER="direct banks";;
-    *)		AC_MSG_ERROR([--enable-mem-addressing takes only one of the following values: fastest, real, direct, banks]);;
+    fastest)ADDRESSING_TEST_ORDER="direct banks";;
+    *)		AC_MSG_ERROR([--enable-addressing takes only one of the following values: fastest, real, direct, banks]);;
   esac
 ],
-dnl [ ADDRESSING_TEST_ORDER="real direct banks" gb-- will probably reactivate later
 [ ADDRESSING_TEST_ORDER="direct banks"
 ])
+
+dnl External packages.
 AC_ARG_WITH(esd,             [  --with-esd              support ESD for sound under Linux/FreeBSD [default=yes]], [WANT_ESD=$withval], [WANT_ESD=yes])
 AC_ARG_WITH(gtk,             [  --with-gtk              use GTK user interface [default=yes]], [WANT_GTK=$withval], [WANT_GTK=yes])
 AC_ARG_WITH(mon,             [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=yes])
@@ -451,33 +452,22 @@ else
   for am in $ADDRESSING_TEST_ORDER; do
     case $am in
     real)
-      dnl Requires ability to mmap Low Memory globals.
+      dnl Requires ability to mmap() Low Memory globals
       if [[ "x$ac_cv_can_map_lm" = "xno" ]]; then
         continue
       fi
-      if [[ "x$ac_cv_c_bigendian" = "xyes" ]]; then
-        dnl Requires only VOSF if 16-bit vidmode enable
-        if [[ "x$WANT_16BIT_VIDMODE" = "xyes" ]]; then
-          if [[ "x$CAN_VOSF" = "xno" ]]; then
-            continue
-          fi
-        else
-          DEFINES="$DEFINES -DDISABLE_16BIT_VIDMODE"
-        fi
-      else
-        dnl Requires VOSF
-        if [[ "x$CAN_VOSF" = "xno" ]]; then
-          continue
-        fi
+	  dnl Requires VOSF screen updates
+      if [[ "x$CAN_VOSF" = "xno" ]]; then
+        continue
       fi
-      dnl Real addressing will probably work
+      dnl Real addressing will probably work.
       ADDRESSING_MODE="real"
       WANT_VOSF=yes dnl we can use VOSF and we need it actually
       DEFINES="$DEFINES -DREAL_ADDRESSING"
       break
       ;;
     direct)
-      dnl Requires VOSF
+      dnl Requires VOSF screen updates
       if [[ "x$CAN_VOSF" = "xyes" ]]; then
         ADDRESSING_MODE="direct"
         WANT_VOSF=yes dnl we can use VOSF and we need it actually
@@ -501,15 +491,11 @@ else
   fi
 fi
 
-dnl Since real and direct addressing modes automatically activate VOSF,
-dnl I put this test here.
-if [[ "x$WANT_VOSF" = "xyes" ]]; then
-  if [[ "x$CAN_VOSF" = "xno" ]]; then
-    AC_MSG_WARN([Sorry, your system does not support Video on SEGV signals])
-    WANT_VOSF=no
-  else
+dnl Enable VOSF screen updates with this feature is requested and feasible
+if [[ "x$WANT_VOSF" = "xyes" -a "x$CAN_VOSF" = "xyes" ]]; then
     AC_DEFINE(ENABLE_VOSF)
-  fi
+else
+    WANT_VOSF=no
 fi
 
 dnl Check for GAS.
