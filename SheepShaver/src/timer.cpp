@@ -74,7 +74,7 @@ static bool timer_thread_active = false;
 static volatile bool timer_thread_cancel = false;
 static tm_time_t wakeup_time_max = { 0x7fffffff, 999999999 };
 static tm_time_t wakeup_time = wakeup_time_max;
-static sem_t wakeup_time_sem;
+static pthread_mutex_t wakeup_time_lock = PTHREAD_MUTEX_INITIALIZER;
 static void *timer_func(void *arg);
 #endif
 #endif
@@ -185,7 +185,8 @@ static void sigresume_handler(int sig)
 static bool timer_thread_init(void)
 {
 	// Install suspend signal handler
-	sigfillset(&sigsuspend_action.sa_mask);
+	sigemptyset(&sigsuspend_action.sa_mask);
+	sigaddset(&sigsuspend_action.sa_mask, SIGRESUME);
 	sigsuspend_action.sa_handler = sigsuspend_handler;
 	sigsuspend_action.sa_flags = SA_RESTART;
 #ifdef HAVE_SIGNAL_SA_RESTORER
@@ -195,7 +196,7 @@ static bool timer_thread_init(void)
 		return false;
 
 	// Install resume signal handler
-	sigfillset(&sigresume_action.sa_mask);
+	sigemptyset(&sigresume_action.sa_mask);
 	sigresume_action.sa_handler = sigresume_handler;
 	sigresume_action.sa_flags = SA_RESTART;
 #ifdef HAVE_SIGNAL_SA_RESTORER
@@ -273,7 +274,6 @@ void TimerInit(void)
 	resume_thread(timer_thread);
 #endif
 #ifdef PRECISE_TIMING_POSIX
-	sem_init(&wakeup_time_sem, 0, 1);
 	timer_thread_active = timer_thread_init();
 #endif
 #endif
@@ -299,7 +299,6 @@ void TimerExit(void)
 #endif
 #ifdef PRECISE_TIMING_POSIX
 		timer_thread_kill();
-		sem_destroy(&wakeup_time_sem);
 #endif
 	}
 #endif
@@ -358,8 +357,8 @@ int16 RmvTime(uint32 tm)
 	suspend_thread(timer_thread);
 #endif
 #if PRECISE_TIMING_POSIX
-	sem_wait(&wakeup_time_sem);
 	timer_thread_suspend();
+	pthread_mutex_lock(&wakeup_time_lock);
 #endif
 	if (ReadMacInt16(tm + qType) & 0x8000) {
 
@@ -393,7 +392,7 @@ int16 RmvTime(uint32 tm)
 	} while (info.state == B_THREAD_SUSPENDED);	// Sometimes, resume_thread() doesn't work (BeOS bug?)
 #endif
 #if PRECISE_TIMING_POSIX
-	sem_post(&wakeup_time_sem);
+	pthread_mutex_unlock(&wakeup_time_lock);
 	timer_thread_resume();
 	assert(suspend_count == 0);
 #endif
@@ -466,8 +465,8 @@ int16 PrimeTime(uint32 tm, int32 time)
 	suspend_thread(timer_thread);
 #endif
 #if PRECISE_TIMING_POSIX
-	sem_wait(&wakeup_time_sem);
 	timer_thread_suspend();
+	pthread_mutex_lock(&wakeup_time_lock);
 #endif
 	WriteMacInt16(tm + qType, ReadMacInt16(tm + qType) | 0x8000);
 	enqueue_tm(tm);
@@ -488,7 +487,7 @@ int16 PrimeTime(uint32 tm, int32 time)
 	} while (info.state == B_THREAD_SUSPENDED);	// Sometimes, resume_thread() doesn't work (BeOS bug?)
 #endif
 #ifdef PRECISE_TIMING_POSIX
-	sem_post(&wakeup_time_sem);
+	pthread_mutex_unlock(&wakeup_time_lock);
 	timer_thread_resume();
 	assert(suspend_count == 0);
 #endif
@@ -531,9 +530,9 @@ static void *timer_func(void *arg)
 		// Wait until time specified by wakeup_time
 		clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &wakeup_time, NULL);
 
-		sem_wait(&wakeup_time_sem);
 		tm_time_t system_time;
 		timer_current_time(system_time);
+		pthread_mutex_lock(&wakeup_time_lock);
 		if (timer_cmp_time(wakeup_time, system_time) < 0) {
 
 			// Timer expired, trigger interrupt
@@ -541,7 +540,7 @@ static void *timer_func(void *arg)
 			SetInterruptFlag(INTFLAG_TIMER);
 			TriggerInterrupt();
 		}
-		sem_post(&wakeup_time_sem);
+		pthread_mutex_unlock(&wakeup_time_lock);
 	}
 	return NULL;
 }
@@ -588,8 +587,8 @@ void TimerInterrupt(void)
 	suspend_thread(timer_thread);
 #endif
 #if PRECISE_TIMING_POSIX
-	sem_wait(&wakeup_time_sem);
 	timer_thread_suspend();
+	pthread_mutex_lock(&wakeup_time_lock);
 #endif
 	wakeup_time = wakeup_time_max;
 	for (int j=0; j<NUM_DESCS; j++) {
@@ -606,7 +605,7 @@ void TimerInterrupt(void)
 	} while (info.state == B_THREAD_SUSPENDED);	// Sometimes, resume_thread() doesn't work (BeOS bug?)
 #endif
 #if PRECISE_TIMING_POSIX
-	sem_post(&wakeup_time_sem);
+	pthread_mutex_unlock(&wakeup_time_lock);
 	timer_thread_resume();
 	assert(suspend_count == 0);
 #endif
