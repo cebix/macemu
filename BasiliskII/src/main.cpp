@@ -102,6 +102,36 @@ bool InitAll(void)
 	// Load XPRAM
 	XPRAMInit();
 
+	// Load XPRAM default values if signature not found
+	if (XPRAM[0x0c] != 0x4e || XPRAM[0x0d] != 0x75
+	 || XPRAM[0x0e] != 0x4d || XPRAM[0x0f] != 0x63) {
+		D(bug("Loading XPRAM default values\n"));
+		memset(XPRAM, 0, 0x100);
+		XPRAM[0x0c] = 0x4e;	// "NuMc" signature
+		XPRAM[0x0d] = 0x75;
+		XPRAM[0x0e] = 0x4d;
+		XPRAM[0x0f] = 0x63;
+		XPRAM[0x01] = 0x80;	// InternalWaitFlags = DynWait (don't wait for SCSI devices upon bootup)
+		XPRAM[0x10] = 0xa8;	// Standard PRAM values
+		XPRAM[0x11] = 0x00;
+		XPRAM[0x12] = 0x00;
+		XPRAM[0x13] = 0x22;
+		XPRAM[0x14] = 0xcc;
+		XPRAM[0x15] = 0x0a;
+		XPRAM[0x16] = 0xcc;
+		XPRAM[0x17] = 0x0a;
+		XPRAM[0x1c] = 0x00;
+		XPRAM[0x1d] = 0x02;
+		XPRAM[0x1e] = 0x63;
+		XPRAM[0x1f] = 0x00;
+		XPRAM[0x08] = 0x13;
+		XPRAM[0x09] = 0x88;
+		XPRAM[0x0a] = 0x00;
+		XPRAM[0x0b] = 0xcc;
+		XPRAM[0x76] = 0x00;	// OSDefault = MacOS
+		XPRAM[0x77] = 0x01;
+	}
+
 	// Set boot volume
 	int16 i16 = PrefsFindInt32("bootdrive");
 	XPRAM[0x78] = i16 >> 8;
@@ -143,7 +173,7 @@ bool InitAll(void)
 	if (!VideoInit(ROMVersion == ROM_VERSION_64K || ROMVersion == ROM_VERSION_PLUS || ROMVersion == ROM_VERSION_CLASSIC))
 		return false;
 
-	// Set default video mode
+	// Set default video mode in XPRAM
 	XPRAM[0x56] = 0x42;	// 'B'
 	XPRAM[0x57] = 0x32;	// '2'
 	XPRAM[0x58] = DepthToAppleMode(VideoMonitor.mode.depth);
