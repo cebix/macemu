@@ -109,7 +109,10 @@ static inline uint64 vm_do_read_memory_8(uint64 *a)
 		((uint64)b[1] << 48) |
 		((uint64)b[2] << 40) |
 		((uint64)b[3] << 32) |
-		(b[4] << 24) | (b[5] << 16) | (b[6] << 8) | b[7];
+		((uint64)b[4] << 24) |
+		((uint64)b[5] << 16) |
+		((uint64)b[6] << 8) |
+		((uint64)b[7]);
 }
 
 static inline void vm_do_write_memory_8(uint64 *a, uint64 v)
