@@ -1288,27 +1288,30 @@ static void resume_emul(void)
 	XF86DGASetViewPort(x_display, screen, 0, 0);
 #endif
 	XSync(x_display, false);
-
+	
+	// the_buffer already contains the data to restore. i.e. since a temporary
+	// frame buffer is used when VOSF is actually used, fb_save is therefore
+	// not necessary.
+#ifdef ENABLE_VOSF
+	if (use_vosf) {
+#ifdef HAVE_PTHREADS
+		pthread_mutex_lock(&Screen_draw_lock);
+#endif
+		PFLAG_SET_ALL;
+#ifdef HAVE_PTHREADS
+		pthread_mutex_unlock(&Screen_draw_lock);
+#endif
+		memset(the_buffer_copy, 0, VideoMonitor.bytes_per_row * VideoMonitor.y);
+	}
+#endif
+	
 	// Restore frame buffer
 	if (fb_save) {
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
-		if (use_vosf)
-			mprotect((caddr_t)mainBuffer.memStart, mainBuffer.memLength, PROT_READ|PROT_WRITE);
+#ifdef ENABLE_VOSF
+		// Don't copy fb_save to the temporary frame buffer in VOSF mode
+		if (!use_vosf)
 #endif
 		memcpy(the_buffer, fb_save, VideoMonitor.y * VideoMonitor.bytes_per_row);
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
-		if (use_vosf) {
-			mprotect((caddr_t)mainBuffer.memStart, mainBuffer.memLength, PROT_READ);
-			do_update_framebuffer(the_host_buffer, the_buffer, VideoMonitor.x * VideoMonitor.bytes_per_row);
-#ifdef HAVE_PTHREADS
-			pthread_mutex_lock(&Screen_draw_lock);
-#endif
-			PFLAG_CLEAR_ALL;
-#ifdef HAVE_PTHREADS
-			pthread_mutex_unlock(&Screen_draw_lock);
-#endif
-		}
-#endif
 		free(fb_save);
 		fb_save = NULL;
 	}
@@ -1589,14 +1592,8 @@ static void handle_events(void)
 			// Hidden parts exposed, force complete refresh of window
 			case Expose:
 				if (display_type == DISPLAY_WINDOW) {
-					if (frame_skip == 0) {	// Dynamic refresh
-						int x1, y1;
-						for (y1=0; y1<16; y1++)
-						for (x1=0; x1<16; x1++)
-							updt_box[x1][y1] = true;
-						nr_boxes = 16 * 16;
-					} else {
 #ifdef ENABLE_VOSF
+					if (use_vosf) {			// VOSF refresh
 #ifdef HAVE_PTHREADS
 						pthread_mutex_lock(&Screen_draw_lock);
 #endif
@@ -1604,9 +1601,18 @@ static void handle_events(void)
 #ifdef HAVE_PTHREADS
 						pthread_mutex_unlock(&Screen_draw_lock);
 #endif
-#endif
 						memset(the_buffer_copy, 0, VideoMonitor.bytes_per_row * VideoMonitor.y);
 					}
+					else
+#endif
+					if (frame_skip == 0) {	// Dynamic refresh
+						int x1, y1;
+						for (y1=0; y1<16; y1++)
+						for (x1=0; x1<16; x1++)
+							updt_box[x1][y1] = true;
+						nr_boxes = 16 * 16;
+					} else					// Static refresh
+						memset(the_buffer_copy, 0, VideoMonitor.bytes_per_row * VideoMonitor.y);
 				}
 				break;
 		}
