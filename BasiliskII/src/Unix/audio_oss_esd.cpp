@@ -55,6 +55,7 @@ static int audio_sample_size_index = 0;
 static int audio_channel_count_index = 0;
 
 // Global variables
+static bool is_dsp_audio = false;					// Flag: is DSP audio
 static int audio_fd = -1;							// fd of dsp or ESD
 static int mixer_fd = -1;							// fd of mixer
 static sem_t audio_irq_done_sem;					// Signal from interrupt to streaming thread: data block read
@@ -95,6 +96,7 @@ static bool open_dsp(void)
 	}
 
 	printf("Using %s audio output\n", dsp);
+	is_dsp_audio = true;
 
 	// Get supported sample formats
 	if (audio_sample_sizes.empty()) {
@@ -321,6 +323,11 @@ static void close_audio(void)
 
 	// Close dsp or ESD socket
 	if (audio_fd >= 0) {
+		if (is_dsp_audio) {
+			// Stop the device immediately. Otherwise, close() sends
+			// SNDCTL_DSP_SYNC, which may hang
+			ioctl(audio_fd, SNDCTL_DSP_RESET, 0);
+		}
 		close(audio_fd);
 		audio_fd = -1;
 	}
