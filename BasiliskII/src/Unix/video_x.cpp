@@ -185,6 +185,12 @@ extern void SysMountFirstFloppy(void);
  *  Utility functions
  */
 
+// Map RGB color to pixel value (this only works in TrueColor/DirectColor visuals)
+static inline uint32 map_rgb(uint8 red, uint8 green, uint8 blue)
+{
+	return ((red >> rloss) << rshift) | ((green >> gloss) << gshift) | ((blue >> bloss) << bshift);
+}
+
 // Add mode to list of supported modes
 static void add_mode(uint32 width, uint32 height, uint32 resolution_id, uint32 bytes_per_row, video_depth depth)
 {
@@ -479,7 +485,7 @@ driver_window::driver_window(const video_mode &mode)
 	
 	// Create normal X image if SHM doesn't work ("height + 2" for safety)
 	if (!have_shm) {
-		int bytes_per_row = TrivialBytesPerRow(aligned_width, mode.depth);
+		int bytes_per_row = (mode.depth == VDEPTH_1BIT ? aligned_width/8 : TrivialBytesPerRow(aligned_width, DepthModeForPixelDepth(xdepth)));
 		the_buffer_copy = (uint8 *)malloc((aligned_height + 2) * bytes_per_row);
 		img = XCreateImage(x_display, vis, mode.depth == VDEPTH_1BIT ? 1 : xdepth, mode.depth == VDEPTH_1BIT ? XYBitmap : ZPixmap, 0, (char *)the_buffer_copy, aligned_width, aligned_height, 32, bytes_per_row);
 	}
@@ -1043,6 +1049,13 @@ static bool video_open(const video_mode &mode)
 		XStoreColors(x_display, cmap[1], palette, num);
 	}
 
+#ifdef ENABLE_VOSF
+	// Load gray ramp to 8->16/32 expand map
+	if (!IsDirectMode(mode) && (vis->c_class == TrueColor || vis->c_class == DirectColor))
+		for (int i=0; i<256; i++)
+			ExpandMap[i] = map_rgb(i, i, i);
+#endif
+
 	// Create display driver object of requested type
 	switch (display_type) {
 		case DISPLAY_WINDOW:
@@ -1233,7 +1246,7 @@ bool VideoInit(bool classic)
 		int num = vis->map_entries;
 		for (int i=0; i<num; i++) {
 			int c = (i * 256) / num;
-			palette[i].pixel = ((c >> rloss) << rshift) | ((c >> gloss) << gshift) | ((c >> bloss) << bshift);
+			palette[i].pixel = map_rgb(c, c, c);
 		}
 	}
 
@@ -1282,20 +1295,29 @@ bool VideoInit(bool classic)
 				add_mode(512, 384, 0x80, TrivialBytesPerRow(512, VDEPTH_1BIT), VDEPTH_1BIT);
 				add_mode(640, 480, 0x81, TrivialBytesPerRow(640, VDEPTH_1BIT), VDEPTH_1BIT);
 				add_mode(800, 600, 0x82, TrivialBytesPerRow(800, VDEPTH_1BIT), VDEPTH_1BIT);
-				add_mode(832, 624, 0x83, TrivialBytesPerRow(832, VDEPTH_1BIT), VDEPTH_1BIT);
-				add_mode(1024, 768, 0x84, TrivialBytesPerRow(1024, VDEPTH_1BIT), VDEPTH_1BIT);
-				add_mode(1152, 870, 0x85, TrivialBytesPerRow(1152, VDEPTH_1BIT), VDEPTH_1BIT);
-				add_mode(1280, 1024, 0x86, TrivialBytesPerRow(1280, VDEPTH_1BIT), VDEPTH_1BIT);
-				add_mode(1600, 1200, 0x87, TrivialBytesPerRow(1600, VDEPTH_1BIT), VDEPTH_1BIT);
+				add_mode(1024, 768, 0x83, TrivialBytesPerRow(1024, VDEPTH_1BIT), VDEPTH_1BIT);
+				add_mode(1152, 870, 0x84, TrivialBytesPerRow(1152, VDEPTH_1BIT), VDEPTH_1BIT);
+				add_mode(1280, 1024, 0x85, TrivialBytesPerRow(1280, VDEPTH_1BIT), VDEPTH_1BIT);
+				add_mode(1600, 1200, 0x86, TrivialBytesPerRow(1600, VDEPTH_1BIT), VDEPTH_1BIT);
 			}
+#ifdef ENABLE_VOSF
+			if (default_depth > VDEPTH_8BIT) { // 8-bit modes are also possible on 16/32-bit screens with VOSF blitters
+				add_mode(512, 384, 0x80, TrivialBytesPerRow(512, VDEPTH_8BIT), VDEPTH_8BIT);
+				add_mode(640, 480, 0x81, TrivialBytesPerRow(640, VDEPTH_8BIT), VDEPTH_8BIT);
+				add_mode(800, 600, 0x82, TrivialBytesPerRow(800, VDEPTH_8BIT), VDEPTH_8BIT);
+				add_mode(1024, 768, 0x83, TrivialBytesPerRow(1024, VDEPTH_8BIT), VDEPTH_8BIT);
+				add_mode(1152, 870, 0x84, TrivialBytesPerRow(1152, VDEPTH_8BIT), VDEPTH_8BIT);
+				add_mode(1280, 1024, 0x85, TrivialBytesPerRow(1280, VDEPTH_8BIT), VDEPTH_8BIT);
+				add_mode(1600, 1200, 0x86, TrivialBytesPerRow(1600, VDEPTH_8BIT), VDEPTH_8BIT);
+			}
+#endif
 			add_mode(512, 384, 0x80, TrivialBytesPerRow(512, default_depth), default_depth);
 			add_mode(640, 480, 0x81, TrivialBytesPerRow(640, default_depth), default_depth);
 			add_mode(800, 600, 0x82, TrivialBytesPerRow(800, default_depth), default_depth);
-			add_mode(832, 624, 0x83, TrivialBytesPerRow(832, default_depth), default_depth);
-			add_mode(1024, 768, 0x84, TrivialBytesPerRow(1024, default_depth), default_depth);
-			add_mode(1152, 870, 0x85, TrivialBytesPerRow(1152, default_depth), default_depth);
-			add_mode(1280, 1024, 0x86, TrivialBytesPerRow(1280, default_depth), default_depth);
-			add_mode(1600, 1200, 0x87, TrivialBytesPerRow(1600, default_depth), default_depth);
+			add_mode(1024, 768, 0x83, TrivialBytesPerRow(1024, default_depth), default_depth);
+			add_mode(1152, 870, 0x84, TrivialBytesPerRow(1152, default_depth), default_depth);
+			add_mode(1280, 1024, 0x85, TrivialBytesPerRow(1280, default_depth), default_depth);
+			add_mode(1600, 1200, 0x86, TrivialBytesPerRow(1600, default_depth), default_depth);
 		}
 	} else
 		add_mode(default_width, default_height, 0x80, TrivialBytesPerRow(default_width, default_depth), default_depth);
@@ -1445,6 +1467,20 @@ void video_set_palette(uint8 *pal)
 		p->flags = DoRed | DoGreen | DoBlue;
 		p++;
 	}
+
+#ifdef ENABLE_VOSF
+	// Recalculate pixel color expansion map
+	if (!IsDirectMode(VideoMonitor.mode) && (vis->c_class == TrueColor || vis->c_class == DirectColor)) {
+		for (int i=0; i<256; i++)
+			ExpandMap[i] = map_rgb(pal[i*3+0], pal[i*3+1], pal[i*3+2]);
+
+		// We have to redraw everything because the interpretation of pixel values changed
+		LOCK_VOSF;
+		PFLAG_SET_ALL;
+		UNLOCK_VOSF;
+		memset(the_buffer_copy, 0, VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y);
+	}
+#endif
 
 	// Tell redraw thread to change palette
 	palette_changed = true;

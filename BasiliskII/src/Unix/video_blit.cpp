@@ -35,6 +35,9 @@ struct VisualFormat {
 };
 static VisualFormat visualFormat;
 
+// This holds the pixels values of the palette colors for 8->16/32-bit expansion
+uint32 ExpandMap[256];
+
 /* -------------------------------------------------------------------------- */
 /* --- Raw Copy / No conversion required                                  --- */
 /* -------------------------------------------------------------------------- */
@@ -259,6 +262,28 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 #include "video_blit.h"
 
 /* -------------------------------------------------------------------------- */
+/* --- 8-bit indexed to 16-bit mode color expansion                       --- */
+/* -------------------------------------------------------------------------- */
+
+static void Blit_Expand_8_To_16(uint8 * dest, const uint8 * p, uint32 length)
+{
+	uint16 *q = (uint16 *)dest;
+	for (int i=0; i<length; i++)
+		*q++ = ExpandMap[*p++];
+}
+
+/* -------------------------------------------------------------------------- */
+/* --- 8-bit indexed to 32-bit mode color expansion                       --- */
+/* -------------------------------------------------------------------------- */
+
+static void Blit_Expand_8_To_32(uint8 * dest, const uint8 * p, uint32 length)
+{
+	uint32 *q = (uint32 *)dest;
+	for (int i=0; i<length; i++)
+		*q++ = ExpandMap[*p++];
+}
+
+/* -------------------------------------------------------------------------- */
 /* --- Blitters to the host frame buffer, or XImage buffer                --- */
 /* -------------------------------------------------------------------------- */
 
@@ -319,7 +344,7 @@ bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, vide
 		visualFormat.Rmask = visual_info->red_mask;
 		visualFormat.Gmask = visual_info->green_mask;
 		visualFormat.Bmask = visual_info->blue_mask;
-	
+
 		// Compute RGB shift values
 		visualFormat.Rshift = 0;
 		for (uint32 Rmask = visualFormat.Rmask; Rmask && ((Rmask & 1) != 1); Rmask >>= 1)
@@ -330,9 +355,21 @@ bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, vide
 		visualFormat.Bshift = 0;
 		for (uint32 Bmask = visualFormat.Bmask; Bmask && ((Bmask & 1) != 1); Bmask >>= 1)
 			++visualFormat.Bshift;
+
+		bool blitter_found = false;
+	
+		// 8-bit mode on 16/32-bit screen?
+		if (mac_depth == VDEPTH_8BIT && visualFormat.depth > 8) {
+			if (visual_info->depth <= 16) {
+				Screen_blit = Blit_Expand_8_To_16;
+				blitter_found = true;
+			} else {
+				Screen_blit = Blit_Expand_8_To_32;
+				blitter_found = true;
+			}
+		}
 	
 		// Search for an adequate blit function
-		bool blitter_found = false;
 		const int blitters_count = sizeof(Screen_blitters)/sizeof(Screen_blitters[0]);
 		for (int i = 0; !blitter_found && (i < blitters_count); i++) {
 			if	(	(visualFormat.depth == Screen_blitters[i].depth)

@@ -281,6 +281,7 @@ static bool screen_fault_handler(sigsegv_address_t fault_address, sigsegv_addres
 // From video_blit.cpp
 extern void (*Screen_blit)(uint8 * dest, const uint8 * source, uint32 length);
 extern bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, video_depth mac_depth);
+extern uint32 ExpandMap[256];
 
 /*	How can we deal with array overrun conditions ?
 	
@@ -336,13 +337,11 @@ static inline void update_display_window_vosf(driver_window *drv)
 		const int y2 = mainBuffer.pageInfo[page - 1].bottom;
 		const int height = y2 - y1 + 1;
 		
-		const int bytes_per_row = VideoMonitor.mode.bytes_per_row;
-		const int bytes_per_pixel = VideoMonitor.mode.bytes_per_row / VideoMonitor.mode.x;
-		int i = y1 * bytes_per_row, j;
-		
 		if (VideoMonitor.mode.depth == VDEPTH_1BIT) {
 
 			// Update the_host_buffer and copy of the_buffer
+			const int bytes_per_row = VideoMonitor.mode.bytes_per_row;
+			int i = y1 * bytes_per_row, j;
 			for (j = y1; j <= y2; j++) {
 				Screen_blit(the_host_buffer + i, the_buffer + i, VideoMonitor.mode.x >> 3);
 				i += bytes_per_row;
@@ -351,9 +350,14 @@ static inline void update_display_window_vosf(driver_window *drv)
 		} else {
 
 			// Update the_host_buffer and copy of the_buffer
+			const int src_bytes_per_row = VideoMonitor.mode.bytes_per_row;
+			const int dst_bytes_per_row = drv->img->bytes_per_line;
+			const int bytes_per_pixel = src_bytes_per_row / VideoMonitor.mode.x;
+			int i1 = y1 * src_bytes_per_row, i2 = y1 * dst_bytes_per_row, j;
 			for (j = y1; j <= y2; j++) {
-				Screen_blit(the_host_buffer + i, the_buffer + i, bytes_per_pixel * VideoMonitor.mode.x);
-				i += bytes_per_row;
+				Screen_blit(the_host_buffer + i2, the_buffer + i1, bytes_per_pixel * VideoMonitor.mode.x);
+				i1 += src_bytes_per_row;
+				i2 += dst_bytes_per_row;
 			}
 		}
 
