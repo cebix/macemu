@@ -680,6 +680,12 @@ void OPPROTO op_addo_T0_T1(void)
 	powerpc_dyngen_helper::xer().set_ov(XER_OV_field::extract(xer));
 	return;
 #endif
+#if defined(__i386__)
+	uint32 ov;
+	asm volatile ("add %2,%0; seto %b1" : "=r" (T0), "=r" (ov) : "r" (T1) : "cc");
+	powerpc_dyngen_helper::xer().set_ov(ov);
+	return;
+#endif
 #endif
 	T0 = do_execute_addition<false, false, true>(T0, T1);
 }
@@ -698,6 +704,12 @@ void OPPROTO op_addc_T0_T1(void)
 	powerpc_dyngen_helper::xer().set_ca(XER_CA_field::extract(xer));
 	return;
 #endif
+#if defined(__i386__)
+	uint32 ca;
+	asm volatile ("add %2,%0; setc %b1" : "=r" (T0), "=r" (ca) : "r" (T1) : "cc");
+	powerpc_dyngen_helper::xer().set_ca(ca);
+	return;
+#endif
 #endif
 	T0 = do_execute_addition<false, true, false>(T0, T1);
 }
@@ -712,6 +724,13 @@ void OPPROTO op_addco_T0_T1(void)
 	powerpc_dyngen_helper::xer().set_ov(XER_OV_field::extract(xer));
 	return;
 #endif
+#if defined(__i386__)
+	uint32 ca, ov;
+	asm volatile ("add %3,%0; setc %b1; seto %b2" : "=r" (T0), "=r" (ca), "=r" (ov) : "r" (T1) : "cc");
+	powerpc_dyngen_helper::xer().set_ca(ca);
+	powerpc_dyngen_helper::xer().set_ov(ov);
+	return;
+#endif
 #endif
 	T0 = do_execute_addition<false, true, true>(T0, T1);
 }
@@ -724,6 +743,12 @@ void OPPROTO op_adde_T0_T1(void)
 	asm volatile ("li 0,-1 ; addc 0,%0,0" : : "r" (ca) : "r0");
 	asm volatile ("adde %0,%0,%2 ; mfxer %1" : "=r" (T0), "=r" (xer) : "r" (T1));
 	powerpc_dyngen_helper::xer().set_ca(XER_CA_field::extract(xer));
+	return;
+#endif
+#if defined(__i386__)
+	uint32 ca = powerpc_dyngen_helper::xer().get_ca();
+	asm volatile ("neg %1; adc %2,%0; setc %b1" : "=r" (T0), "+r" (ca) : "r" (T1) : "cc");
+	powerpc_dyngen_helper::xer().set_ca(ca);
 	return;
 #endif
 #endif
@@ -741,6 +766,13 @@ void OPPROTO op_addeo_T0_T1(void)
 	powerpc_dyngen_helper::xer().set_ov(XER_OV_field::extract(xer));
 	return;
 #endif
+#if defined(__i386__)
+	uint32 ov, ca = powerpc_dyngen_helper::xer().get_ca();
+	asm volatile ("neg %1; adc %3,%0; setc %b1; seto %b2" : "=r" (T0), "+r" (ca), "=r" (ov) : "r" (T1) : "cc");
+	powerpc_dyngen_helper::xer().set_ca(ca);
+	powerpc_dyngen_helper::xer().set_ov(ov);
+	return;
+#endif
 #endif
 	T0 = do_execute_addition<true, false, true>(T0, T1);
 }
@@ -753,6 +785,12 @@ void OPPROTO op_addme_T0(void)
 	asm volatile ("li 0,-1 ; addc 0,%0,0" : : "r" (ca) : "r0");
 	asm volatile ("addme %0,%0 ; mfxer %1" : "=r" (T0), "=r" (xer));
 	powerpc_dyngen_helper::xer().set_ca(XER_CA_field::extract(xer));
+	return;
+#endif
+#if defined(__i386__)
+	uint32 ca = powerpc_dyngen_helper::xer().get_ca();
+	asm volatile ("neg %1; adc $-1,%0; setc %b1" : "=r" (T0), "+r" (ca) : : "cc");
+	powerpc_dyngen_helper::xer().set_ca(ca);
 	return;
 #endif
 #endif
@@ -770,6 +808,13 @@ void OPPROTO op_addmeo_T0(void)
 	powerpc_dyngen_helper::xer().set_ov(XER_OV_field::extract(xer));
 	return;
 #endif
+#if defined(__i386__)
+	uint32 ov, ca = powerpc_dyngen_helper::xer().get_ca();
+	asm volatile ("neg %1; adc $-1,%0; setc %b1; seto %b2" : "=r" (T0), "+r" (ca), "=r" (ov) : : "cc");
+	powerpc_dyngen_helper::xer().set_ca(ca);
+	powerpc_dyngen_helper::xer().set_ov(ov);
+	return;
+#endif
 #endif
 	T0 = do_execute_addition<true, false, true>(T0, 0xffffffff);
 }
@@ -782,6 +827,12 @@ void OPPROTO op_addze_T0(void)
 	asm volatile ("li 0,-1 ; addc 0,%0,0" : : "r" (ca) : "r0");
 	asm volatile ("addze %0,%0 ; mfxer %1" : "=r" (T0), "=r" (xer));
 	powerpc_dyngen_helper::xer().set_ca(XER_CA_field::extract(xer));
+	return;
+#endif
+#if defined(__i386__)
+	uint32 ca = powerpc_dyngen_helper::xer().get_ca();
+	asm volatile ("neg %1; adc $0,%0; setc %b1" : "=r" (T0), "+r" (ca) : : "cc");
+	powerpc_dyngen_helper::xer().set_ca(ca);
 	return;
 #endif
 #endif
@@ -797,6 +848,13 @@ void OPPROTO op_addzeo_T0(void)
 	asm volatile ("addzeo %0,%0 ; mfxer %1" : "=r" (T0), "=r" (xer));
 	powerpc_dyngen_helper::xer().set_ca(XER_CA_field::extract(xer));
 	powerpc_dyngen_helper::xer().set_ov(XER_OV_field::extract(xer));
+	return;
+#endif
+#if defined(__i386__)
+	uint32 ov, ca = powerpc_dyngen_helper::xer().get_ca();
+	asm volatile ("neg %1; adc $0,%0; setc %b1; seto %b2" : "=r" (T0), "+r" (ca), "=r" (ov) : : "cc");
+	powerpc_dyngen_helper::xer().set_ca(ca);
+	powerpc_dyngen_helper::xer().set_ov(ov);
 	return;
 #endif
 #endif
