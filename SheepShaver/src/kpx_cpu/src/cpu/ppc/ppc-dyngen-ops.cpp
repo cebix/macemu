@@ -56,10 +56,6 @@ register uintptr reg_T2 asm(REG_T2);
 #define FD powerpc_dyngen_helper::fp_result()
 #define FD_dw powerpc_dyngen_helper::fp_result_dw()
 
-// Semantic action templates
-#define DYNGEN_OPS
-#include "ppc-execute.hpp"
-
 
 /**
  *		Helper class to access protected CPU context
@@ -91,6 +87,10 @@ struct powerpc_dyngen_helper {
 
 	static inline powerpc_block_info *find_block(uint32 pc) { return CPU->block_cache.fast_find(pc); }
 };
+
+// Semantic action templates
+#define DYNGEN_OPS
+#include "ppc-execute.hpp"
 
 
 /**
