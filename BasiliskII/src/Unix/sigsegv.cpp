@@ -219,7 +219,8 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
 #endif
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, siginfo_t *sip, void *scp
-#define SIGSEGV_FAULT_HANDLER_ARGS	sig, sip, scp
+#define SIGSEGV_FAULT_HANDLER_ARGLIST_1	siginfo_t *sip, void *scp
+#define SIGSEGV_FAULT_HANDLER_ARGS		sip, scp
 #define SIGSEGV_FAULT_ADDRESS			sip->si_addr
 #if defined(__NetBSD__) || defined(__FreeBSD__)
 #if (defined(i386) || defined(__i386__))
@@ -263,22 +264,23 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #if (defined(i386) || defined(__i386__))
 #include <asm/sigcontext.h>
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, struct sigcontext scs
-#define SIGSEGV_FAULT_HANDLER_ARGS	sig, scs
-#define SIGSEGV_FAULT_ADDRESS			scs.cr2
-#define SIGSEGV_FAULT_INSTRUCTION		scs.eip
-#define SIGSEGV_REGISTER_FILE			(unsigned int *)(&scs)
+#define SIGSEGV_FAULT_HANDLER_ARGLIST_1	struct sigcontext *scp
+#define SIGSEGV_FAULT_HANDLER_ARGS		&scs
+#define SIGSEGV_FAULT_ADDRESS			scp->cr2
+#define SIGSEGV_FAULT_INSTRUCTION		scp->eip
+#define SIGSEGV_REGISTER_FILE			(unsigned int *)scp
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(sparc) || defined(__sparc__))
 #include <asm/sigcontext.h>
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp, char *addr
-#define SIGSEGV_FAULT_HANDLER_ARGS	sig, code, scp, addr
+#define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp, addr
 #define SIGSEGV_FAULT_ADDRESS			addr
 #endif
 #if (defined(powerpc) || defined(__powerpc__))
 #include <asm/sigcontext.h>
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, struct sigcontext *scp
-#define SIGSEGV_FAULT_HANDLER_ARGS	sig, scp
+#define SIGSEGV_FAULT_HANDLER_ARGS		sig, scp
 #define SIGSEGV_FAULT_ADDRESS			scp->regs->dar
 #define SIGSEGV_FAULT_INSTRUCTION		scp->regs->nip
 #define SIGSEGV_REGISTER_FILE			(unsigned int *)&scp->regs->nip, (unsigned int *)(scp->regs->gpr)
@@ -287,7 +289,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #if (defined(alpha) || defined(__alpha__))
 #include <asm/sigcontext.h>
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
-#define SIGSEGV_FAULT_HANDLER_ARGS	sig, code, scp
+#define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp
 #define SIGSEGV_FAULT_ADDRESS			get_fault_address(scp)
 #define SIGSEGV_FAULT_INSTRUCTION		scp->sc_pc
 
@@ -306,7 +308,7 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 #if (defined(sgi) || defined(__sgi)) && (defined(SYSTYPE_SVR4) || defined(__SYSTYPE_SVR4))
 #include <ucontext.h>
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
-#define SIGSEGV_FAULT_HANDLER_ARGS	sig, code, scp
+#define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp
 #define SIGSEGV_FAULT_ADDRESS			scp->sc_badvaddr
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
 #endif
@@ -314,7 +316,7 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 // HP-UX
 #if (defined(hpux) || defined(__hpux__))
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
-#define SIGSEGV_FAULT_HANDLER_ARGS	sig, code, scp
+#define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp
 #define SIGSEGV_FAULT_ADDRESS			scp->sc_sl.sl_ss.ss_narrow.ss_cr21
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV) FAULT_HANDLER(SIGBUS)
 #endif
@@ -323,7 +325,7 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 #if defined(__osf__)
 #include <ucontext.h>
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
-#define SIGSEGV_FAULT_HANDLER_ARGS	sig, code, scp
+#define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp
 #define SIGSEGV_FAULT_ADDRESS			scp->sc_traparg_a0
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
 #endif
@@ -331,7 +333,7 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 // AIX
 #if defined(_AIX)
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
-#define SIGSEGV_FAULT_HANDLER_ARGS	sig, code, scp
+#define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp
 #define SIGSEGV_FAULT_ADDRESS			scp->sc_jmpbuf.jmp_context.o_vaddr
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
 #endif
@@ -341,7 +343,7 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 #if (defined(m68k) || defined(__m68k__))
 #include <m68k/frame.h>
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
-#define SIGSEGV_FAULT_HANDLER_ARGS	sig, code, scp
+#define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp
 #define SIGSEGV_FAULT_ADDRESS			get_fault_address(scp)
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
 
@@ -367,7 +369,7 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 }
 #else
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, void *scp, char *addr
-#define SIGSEGV_FAULT_HANDLER_ARGS	sig, code, scp, addr
+#define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp, addr
 #define SIGSEGV_FAULT_ADDRESS			addr
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGBUS)
 #endif
@@ -779,6 +781,9 @@ static bool powerpc_skip_instruction(unsigned int * nip_p, unsigned int * regs)
 #ifndef SIGSEGV_FAULT_INSTRUCTION
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_INVALID_PC
 #endif
+#ifndef SIGSEGV_FAULT_HANDLER_ARGLIST_1
+#define SIGSEGV_FAULT_HANDLER_ARGLIST_1	SIGSEGV_FAULT_HANDLER_ARGLIST
+#endif
 
 // SIGSEGV recovery supported ?
 #if defined(SIGSEGV_ALL_SIGNALS) && defined(SIGSEGV_FAULT_HANDLER_ARGLIST) && defined(SIGSEGV_FAULT_ADDRESS)
@@ -793,7 +798,7 @@ static bool powerpc_skip_instruction(unsigned int * nip_p, unsigned int * regs)
 #if defined(HAVE_SIGSEGV_RECOVERY) || defined(HAVE_MACH_EXCEPTIONS)
 // This function handles the badaccess to memory.
 // It is called from the signal handler or the exception handler.
-static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST)
+static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 {
 	sigsegv_address_t fault_address = (sigsegv_address_t)SIGSEGV_FAULT_ADDRESS;
 	sigsegv_address_t fault_instruction = (sigsegv_address_t)SIGSEGV_FAULT_INSTRUCTION;
