@@ -773,7 +773,7 @@ static void *xpram_func(void *arg)
 {
 	while (!xpram_thread_cancel) {
 		for (int i=0; i<60 && !xpram_thread_cancel; i++)
-			Delay_usec(1000000);
+			Delay_usec(999999);
 		xpram_watchdog();
 	}
 	return NULL;
@@ -880,7 +880,7 @@ void Delay_usec(uint32 usec)
 #if defined(linux)
 	tv.tv_sec = 0;
 	tv.tv_usec = usec;
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(sgi)
 	elapsed.tv_sec = 0;
 	elapsed.tv_nsec = usec * 1000;
 #else
