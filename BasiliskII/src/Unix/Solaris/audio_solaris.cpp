@@ -268,16 +268,19 @@ void AudioInterrupt(void)
  *  It is guaranteed that AudioStatus.num_sources == 0
  */
 
-void audio_set_sample_rate(int index)
+bool audio_set_sample_rate(int index)
 {
+	return true;
 }
 
-void audio_set_sample_size(int index)
+bool audio_set_sample_size(int index)
 {
+	return true;
 }
 
-void audio_set_channels(int index)
+bool audio_set_channels(int index)
 {
+	return true;
 }
 
 
