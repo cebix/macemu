@@ -54,8 +54,13 @@ static bool sigsegv_do_install_handler(int sig);
 #if HAVE_SIGINFO_T
 // Generic extended signal handler
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
-#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, siginfo_t *sip, void *
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, siginfo_t *sip, void *scp
 #define SIGSEGV_FAULT_ADDRESS			sip->si_addr
+#if defined(__linux__)
+#if (defined(ia64) || defined(__ia64__))
+#define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_ip & ~0x3ULL) /* slot number is in bits 0 and 1 */
+#endif
+#endif
 #endif
 
 #if HAVE_SIGCONTEXT_SUBTERFUGE
@@ -70,7 +75,7 @@ static bool sigsegv_do_install_handler(int sig);
 #endif
 #if (defined(sparc) || defined(__sparc__))
 #include <asm/sigcontext.h>
-#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp, char* addr
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp, char *addr
 #define SIGSEGV_FAULT_ADDRESS			addr
 #endif
 #if (defined(powerpc) || defined(__powerpc__))
