@@ -236,6 +236,7 @@ extern void m68k_movec2 (int, uae_u32 *);
 extern void m68k_divl (uae_u32, uae_u32, uae_u16, uaecptr);
 extern void m68k_mull (uae_u32, uae_u32, uae_u16);
 extern void init_m68k (void);
+extern void exit_m68k (void);
 extern void m68k_go (int);
 extern void m68k_dumpstate (uaecptr *);
 extern void m68k_disasm (uaecptr, uaecptr *, int);
@@ -251,6 +252,11 @@ extern void ftrapcc_opp (uae_u32,uaecptr);
 extern void fbcc_opp (uae_u32, uaecptr, uae_u32);
 extern void fsave_opp (uae_u32);
 extern void frestore_opp (uae_u32);
+
+extern void fpu_set_integral_fpu (bool is_integral);
+extern void fpu_init (void);
+extern void fpu_exit (void);
+extern void fpu_reset (void);
 
 /* Opcode of faulting instruction */
 extern uae_u16 last_op_for_exception_3;
