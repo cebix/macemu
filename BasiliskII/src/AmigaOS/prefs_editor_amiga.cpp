@@ -27,7 +27,7 @@
 #include <libraries/asl.h>
 #include <libraries/gtlayout.h>
 #include <libraries/Picasso96.h>
-#include <cybergraphx/cybergraphics.h>
+#include <cybergraphics/cybergraphics.h>
 #include <graphics/displayinfo.h>
 #include <devices/ahi.h>
 #include <proto/exec.h>

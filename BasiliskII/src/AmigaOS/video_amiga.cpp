@@ -22,7 +22,7 @@
 #include <intuition/intuition.h>
 #include <graphics/rastport.h>
 #include <graphics/gfx.h>
-#include <cybergraphx/cybergraphics.h>
+#include <cybergraphics/cybergraphics.h>
 #include <dos/dostags.h>
 #include <devices/timer.h>
 #include <proto/exec.h>
@@ -598,7 +598,7 @@ static __saveds void periodic_func(void)
 				// Handle message according to class
 				switch (cl) {
 					case IDCMP_MOUSEMOVE:
-						if (display_type == DISPLAY_SCREEN || display_type == DISPLAY_SCREEN_CGFX)
+						if (display_type == DISPLAY_SCREEN_P96 || display_type == DISPLAY_SCREEN_CGFX)
 							ADBMouseMoved(mx, my);
 						else
 							ADBMouseMoved(mx - the_win->BorderLeft, my - the_win->BorderTop);
