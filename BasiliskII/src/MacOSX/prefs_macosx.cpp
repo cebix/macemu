@@ -100,7 +100,7 @@ void SavePrefs(void)
 
 void AddPlatformPrefsDefaults(void)
 {
-	PrefsReplaceString("extfs", "/");
+	PrefsReplaceString("extfs",  getenv("HOME"));
 	PrefsReplaceString("screen", "win/512/384/16");
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 	PrefsAddBool("ignoresegv", false);
