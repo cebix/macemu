@@ -213,9 +213,8 @@ static bool find_visual_for_depth(video_depth depth)
 	// Calculate minimum and maximum supported X depth
 	int min_depth = 1, max_depth = 32;
 	switch (depth) {
-		case VDEPTH_1BIT:	// 1-bit works always
-			min_depth = 1;
-			max_depth = 32;
+		case VDEPTH_1BIT:	// 1-bit works always and uses default visual
+			min_depth = max_depth = DefaultDepth(x_display, screen);
 			break;
 #ifdef ENABLE_VOSF
 		case VDEPTH_2BIT:
@@ -532,7 +531,7 @@ driver_base::~driver_base()
 // Palette has changed
 void driver_base::update_palette(void)
 {
-	if (cmap[0] && cmap[1]) {
+	if (color_class == PseudoColor || color_class == DirectColor) {
 		int num = vis->map_entries;
 		if (!IsDirectMode(VideoMonitor.mode) && color_class == DirectColor)
 			return; // Indexed mode on true color screen, don't set CLUT
@@ -570,13 +569,16 @@ driver_window::driver_window(const video_mode &mode)
 	// Set absolute mouse mode
 	ADBSetRelMouseMode(mouse_grabbed);
 
-	// Create window
+	// Create window (setting backround_pixel, border_pixel and colormap is
+	// mandatory when using a non-default visual; in 1-bit mode we use the
+	// default visual, so we can also use the default colormap)
 	XSetWindowAttributes wattr;
 	wattr.event_mask = eventmask = win_eventmask;
-	wattr.background_pixel = black_pixel;
-	wattr.colormap = (mode.depth == VDEPTH_1BIT && color_class == PseudoColor ? DefaultColormap(x_display, screen) : cmap[0]);
+	wattr.background_pixel = (vis == DefaultVisual(x_display, screen) ? black_pixel : 0);
+	wattr.border_pixel = 0;
+	wattr.colormap = (mode.depth == VDEPTH_1BIT ? DefaultColormap(x_display, screen) : cmap[0]);
 	w = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
-		InputOutput, vis, CWEventMask | CWBackPixel | (color_class == PseudoColor || color_class == DirectColor ? CWColormap : 0), &wattr);
+		InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel | CWColormap, &wattr);
 
 	// Set window name/class
 	set_window_name(w, STR_WINDOW_TITLE);
@@ -1347,6 +1349,9 @@ static bool video_open(const video_mode &mode)
 	if (color_class == PseudoColor || color_class == DirectColor) {
 		cmap[0] = XCreateColormap(x_display, rootwin, vis, AllocAll);
 		cmap[1] = XCreateColormap(x_display, rootwin, vis, AllocAll);
+	} else {
+		cmap[0] = XCreateColormap(x_display, rootwin, vis, AllocNone);
+		cmap[1] = XCreateColormap(x_display, rootwin, vis, AllocNone);
 	}
 
 	// Find pixel format of direct modes
@@ -1391,7 +1396,7 @@ static bool video_open(const video_mode &mode)
 		palette[i].green = c * 0x0101;
 		palette[i].blue = c * 0x0101;
 	}
-	if (cmap[0] && cmap[1]) {
+	if (color_class == PseudoColor || color_class == DirectColor) {
 		XStoreColors(x_display, cmap[0], palette, num);
 		XStoreColors(x_display, cmap[1], palette, num);
 	}
