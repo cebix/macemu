@@ -1,7 +1,7 @@
 /*
  *  Irix/unaligned.c - Optimized unaligned access for Irix
  *
- *  Basilisk II (C) 1997-1999 Christian Bauer
+ *  Basilisk II (C) 1997-2000 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

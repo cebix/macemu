@@ -1,7 +1,7 @@
 /*
  *  cpu_emulation.h - Definitions for Basilisk II CPU emulation module (Apple PowerMac ROM 680x0 emulator version (BeOS/PPC))
  *
- *  Basilisk II (C) 1997-1999 Christian Bauer
+ *  Basilisk II (C) 1997-2000 Christian Bauer
  */
 
 #ifndef CPU_EMULATION_H

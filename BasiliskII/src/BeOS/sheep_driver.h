@@ -1,7 +1,7 @@
 /*
  *  sheep_driver.h - Driver for SheepShaver (low memory, ROM access)
  *
- *  SheepShaver (C) 1997-1999 Mar"c" Hellwig and Christian Bauer
+ *  SheepShaver (C) 1997-2000 Mar"c" Hellwig and Christian Bauer
  *  All rights reserved.
  */
 

@@ -47,3 +47,4 @@ Unix:
 - ESD vs. /dev/dsp should be a prefs item
 - ESD is also available on Solaris
 - open /dev/dsp with O_NONBLOCK?
+- serial_unix.cpp: provide a way to pipe input/output to programs

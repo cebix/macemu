@@ -1,7 +1,7 @@
 /*
  *  audio.cpp - Audio support
  *
- *  Basilisk II (C) 1997-1999 Christian Bauer
+ *  Basilisk II (C) 1997-2000 Christian Bauer
  *  Portions (C) 1997-1999 Marc Hellwig
  *
  *  This program is free software; you can redistribute it and/or modify

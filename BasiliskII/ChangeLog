@@ -1,4 +1,4 @@
-V0.8 -
+V0.8 (snapshot) - 14.Mar.2000
 	- Unix/video_x.cpp: new window refresh code [Samuel Lander]
 	- Unix/timer_unix.cpp: fixed time zone handling under Linux and SVR4
 

@@ -1,7 +1,7 @@
 /*
  *  sheep_net.h - SheepShaver net server add-on
  *
- *  SheepShaver (C) 1997-1999 Mar"c Hellwig and Christian Bauer
+ *  SheepShaver (C) 1997-2000 Mar"c Hellwig and Christian Bauer
  *  All rights reserved.
  */
 

@@ -1,7 +1,7 @@
 /*
  *  pwoerrom_cpu.cpp - Using the 680x0 emulator in PowerMac ROMs for Basilisk II
  *
- *  Basilisk II (C) 1997-1999 Christian Bauer
+ *  Basilisk II (C) 1997-2000 Christian Bauer
  */
 
 #include <unistd.h>
