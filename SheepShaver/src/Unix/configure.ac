@@ -169,7 +169,7 @@ fi
 dnl We need pthreads on non-PowerPC systems. Try libpthread first, then libc_r (FreeBSD), then PTL.
 HAVE_PTHREADS=yes
 case $EMULATED_PPC:$target_os in
-no:linux*)
+no:linux*|no:netbsd*)
   dnl We do have our own pthread_cancel() implementation
   AC_DEFINE(HAVE_PTHREAD_CANCEL, 1, [Define if you have the pthread_cancel function.])
   ;;
@@ -401,12 +401,17 @@ linux*)
   AUDIOSRC=audio_oss_esd.cpp
   SCSISRC=Linux/scsi_linux.cpp
   if [[ "x$EMULATED_PPC" = "xno" ]]; then
-    EXTRASYSSRCS="Linux/paranoia.cpp Linux/sheepthreads.c Linux/asm_linux.S"
+    EXTRASYSSRCS="Linux/paranoia.cpp Linux/sheepthreads.c ppc_asm.S"
+  fi
+  ;;
+netbsd*)
+  if [[ "x$EMULATED_PPC" = "xno" ]]; then
+    EXTRASYSSRCS="NetBSD/paranoia.cpp NetBSD/sheepthreads.c ppc_asm.S"
   fi
   ;;
 darwin*)
   if [[ "x$EMULATED_PPC" = "xno" ]]; then
-    EXTRASYSSRCS="Darwin/paranoia.cpp Linux/asm_linux.S"
+    EXTRASYSSRCS="Darwin/paranoia.cpp ppc_asm.S"
   fi
   if [[ "x$ac_cv_framework_IOKit" = "xyes" ]]; then
     EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/sys_darwin.cpp"
