@@ -42,6 +42,8 @@ struct M68kRegisters {
 
 
 // Functions
+extern bool InitAll(void);
+extern void ExitAll(void);
 extern void Dump68kRegs(M68kRegisters *r);					// Dump 68k registers
 extern void MakeExecutable(int dummy, uint32 start, uint32 length);	// Make code executable
 extern void PatchAfterStartup(void);						// Patches after system startup

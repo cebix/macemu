@@ -30,7 +30,7 @@ TYPE= APP
 #	if two source files with the same name (source.c or source.cpp)
 #	are included from different directories.  Also note that spaces
 #	in folder names do not work well with this makefile.
-SRCS= main_beos.cpp ../prefs.cpp ../prefs_items.cpp prefs_beos.cpp \
+SRCS= ../main.cpp main_beos.cpp ../prefs.cpp ../prefs_items.cpp prefs_beos.cpp \
     prefs_editor_beos.cpp sys_beos.cpp ../rom_patches.cpp ../rsrc_patches.cpp \
     ../emul_op.cpp ../name_registry.cpp ../macos_util.cpp ../timer.cpp \
     timer_beos.cpp ../xpram.cpp xpram_beos.cpp ../adb.cpp clip_beos.cpp \

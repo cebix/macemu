@@ -74,21 +74,11 @@
 #include "xpram.h"
 #include "timer.h"
 #include "adb.h"
-#include "sony.h"
-#include "disk.h"
-#include "cdrom.h"
-#include "scsi.h"
 #include "video.h"
-#include "audio.h"
-#include "ether.h"
-#include "serial.h"
-#include "clip.h"
-#include "extfs.h"
 #include "sys.h"
 #include "macos_util.h"
 #include "rom_patches.h"
 #include "user_strings.h"
-#include "thunks.h"
 
 #include "sheep_driver.h"
 
@@ -371,7 +361,6 @@ void SheepShaver::MessageReceived(BMessage *msg)
 void SheepShaver::StartEmulator(void)
 {
 	char str[256];
-	int16 i16;
 
 	// Open sheep driver and remap low memory
 	sheep_fd = open("/dev/sheep", 0);
@@ -481,68 +470,12 @@ void SheepShaver::StartEmulator(void)
 	}
 	D(bug("DR Emulator area %ld at %p\n", dr_emulator_area, DREmulatorAddr));
 
-	// Load NVRAM
-	XPRAMInit();
-
-	// Set boot volume
-	i16 = PrefsFindInt32("bootdrive");
-	XPRAM[0x1378] = i16 >> 8;
-	XPRAM[0x1379] = i16 & 0xff;
-	i16 = PrefsFindInt32("bootdriver");
-	XPRAM[0x137a] = i16 >> 8;
-	XPRAM[0x137b] = i16 & 0xff;
-
-	// Create BootGlobs at top of Mac memory
-	memset((void *)(RAMBase + RAMSize - 4096), 0, 4096);
-	BootGlobsAddr = RAMBase + RAMSize - 0x1c;
-	uint32 *boot_globs = (uint32 *)BootGlobsAddr;
-	boot_globs[-5] = htonl(RAMBase + RAMSize);		// MemTop
-	boot_globs[0] = htonl(RAMBase);					// First RAM bank
-	boot_globs[1] = htonl(RAMSize);
-	boot_globs[2] = htonl((uint32)-1);				// End of bank table
-
-	// Init thunks
-	if (!InitThunks()) {
+	// Initialize everything
+	if (!InitAll()) {
 		PostMessage(B_QUIT_REQUESTED);
 		return;
 	}
-
-	// Init drivers
-	SonyInit();
-	DiskInit();
-	CDROMInit();
-	SCSIInit();
-
-	// Init external file system
-	ExtFSInit();
-
-	// Init audio
-	AudioInit();
-
-	// Init network
-	EtherInit();
-
-	// Init serial ports
-	SerialInit();
-
-	// Init Time Manager
-	TimerInit();
-
-	// Init clipboard
-	ClipInit();
-
-	// Init video
-	if (!VideoInit()) {
-		PostMessage(B_QUIT_REQUESTED);
-		return;
-	}
-
-	// Install ROM patches
-	if (!PatchROM()) {
-		ErrorAlert(GetString(STR_UNSUPPORTED_ROM_TYPE_ERR));
-		PostMessage(B_QUIT_REQUESTED);
-		return;
-	}
+	D(bug("Initialization complete\n"));
 
 	// Clear caches (as we loaded and patched code) and write protect ROM
 #if !EMULATED_PPC
@@ -550,71 +483,10 @@ void SheepShaver::StartEmulator(void)
 #endif
 	set_area_protection(rom_area, B_READ_AREA);
 
-	// Initialize Kernel Data
-	memset(kernel_data, 0, sizeof(KernelData));
-	if (ROMType == ROMTYPE_NEWWORLD) {
-		static uint32 of_dev_tree[4] = {0, 0, 0, 0};
-		static uint8 vector_lookup_tbl[128];
-		static uint8 vector_mask_tbl[64];
-		memset((uint8 *)kernel_data + 0xb80, 0x3d, 0x80);
-		memset(vector_lookup_tbl, 0, 128);
-		memset(vector_mask_tbl, 0, 64);
-		kernel_data->v[0xb80 >> 2] = htonl(ROM_BASE);
-		kernel_data->v[0xb84 >> 2] = htonl((uint32)of_dev_tree);	// OF device tree base
-		kernel_data->v[0xb90 >> 2] = htonl((uint32)vector_lookup_tbl);
-		kernel_data->v[0xb94 >> 2] = htonl((uint32)vector_mask_tbl);
-		kernel_data->v[0xb98 >> 2] = htonl(ROM_BASE);				// OpenPIC base
-		kernel_data->v[0xbb0 >> 2] = htonl(0);						// ADB base
-		kernel_data->v[0xc20 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc24 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc30 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc34 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc38 >> 2] = htonl(0x00010020);
-		kernel_data->v[0xc3c >> 2] = htonl(0x00200001);
-		kernel_data->v[0xc40 >> 2] = htonl(0x00010000);
-		kernel_data->v[0xc50 >> 2] = htonl(RAMBase);
-		kernel_data->v[0xc54 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xf60 >> 2] = htonl(PVR);
-		kernel_data->v[0xf64 >> 2] = htonl(CPUClockSpeed);
-		kernel_data->v[0xf68 >> 2] = htonl(BusClockSpeed);
-		kernel_data->v[0xf6c >> 2] = htonl(CPUClockSpeed);
-	} else {
-		kernel_data->v[0xc80 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc84 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc90 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc94 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc98 >> 2] = htonl(0x00010020);
-		kernel_data->v[0xc9c >> 2] = htonl(0x00200001);
-		kernel_data->v[0xca0 >> 2] = htonl(0x00010000);
-		kernel_data->v[0xcb0 >> 2] = htonl(RAMBase);
-		kernel_data->v[0xcb4 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xf80 >> 2] = htonl(PVR);
-		kernel_data->v[0xf84 >> 2] = htonl(CPUClockSpeed);
-		kernel_data->v[0xf88 >> 2] = htonl(BusClockSpeed);
-		kernel_data->v[0xf8c >> 2] = htonl(CPUClockSpeed);
-	}
-
 	// Initialize extra low memory
-	D(bug("Initializing Low Memory...\n"));
-	memset(NULL, 0, 0x3000);
-	WriteMacInt32(XLM_SIGNATURE, 'Baah');							// Signature to detect SheepShaver
-	WriteMacInt32(XLM_KERNEL_DATA, (uint32)kernel_data);			// For trap replacement routines
+	D(bug("Initializing extra Low Memory...\n"));
 	WriteMacInt32(XLM_SHEEP_OBJ, (uint32)this);						// Pointer to SheepShaver object
-	WriteMacInt32(XLM_PVR, PVR);									// Theoretical PVR
-	WriteMacInt32(XLM_BUS_CLOCK, BusClockSpeed);					// For DriverServicesLib patch
-	WriteMacInt16(XLM_EXEC_RETURN_OPCODE, M68K_EXEC_RETURN);		// For Execute68k() (RTS from the executed 68k code will jump here and end 68k mode)
-	WriteMacInt32(XLM_ZERO_PAGE, SheepMem::ZeroPage());				// Pointer to read-only page with all bits set to 0
-#if !EMULATED_PPC
-	WriteMacInt32(XLM_TOC, (uint32)TOC);							// TOC pointer of emulator
-	WriteMacInt32(XLM_ETHER_INIT, *(uint32 *)InitStreamModule);		// DLPI ethernet driver functions
-	WriteMacInt32(XLM_ETHER_TERM, *(uint32 *)TerminateStreamModule);
-	WriteMacInt32(XLM_ETHER_OPEN, *(uint32 *)ether_open);
-	WriteMacInt32(XLM_ETHER_CLOSE, *(uint32 *)ether_close);
-	WriteMacInt32(XLM_ETHER_WPUT, *(uint32 *)ether_wput);
-	WriteMacInt32(XLM_ETHER_RSRV, *(uint32 *)ether_rsrv);
-	WriteMacInt32(XLM_VIDEO_DOIO, *(uint32 *)VideoDoDriverIO);
-#endif
-	D(bug("Low Memory initialized\n"));
+	D(bug("Extra Low Memory initialized\n"));
 
 	// Disallow quitting with Alt-Q from now on
 	AllowQuitting = false;
@@ -670,38 +542,8 @@ void SheepShaver::Quit(void)
 	if (emul_thread > 0)
 		wait_for_thread(emul_thread, &l);
 
-	// Save NVRAM
-	XPRAMExit();
-
-	// Exit clipboard
-	ClipExit();
-
-	// Exit Time Manager
-	TimerExit();
-
-	// Exit serial
-	SerialExit();
-
-	// Exit network
-	EtherExit();
-
-	// Exit audio
-	AudioExit();
-
-	// Exit video
-	VideoExit();
-
-	// Exit external file system
-	ExtFSExit();
-
-	// Exit drivers
-	SCSIExit();
-	CDROMExit();
-	DiskExit();
-	SonyExit();
-
-	// Delete thunks
-	ThunksExit();
+	// Deinitialize everything
+	ExitAll();
 
 	// Delete SheepShaver globals
 	SheepMem::Exit();
@@ -1346,17 +1188,6 @@ void MakeExecutable(int dummy, uint32 start, uint32 length)
 	if ((start >= ROM_BASE) && (start < (ROM_BASE + ROM_SIZE)))
 		return;
 	clear_caches((void *)start, length, B_INVALIDATE_ICACHE | B_FLUSH_DCACHE);
-}
-
-
-/*
- *  Patch things after system startup (gets called by disk driver accRun routine)
- */
-
-void PatchAfterStartup(void)
-{
-	ExecuteNative(NATIVE_VIDEO_INSTALL_ACCEL);
-	InstallExtFS();
 }
 
 
