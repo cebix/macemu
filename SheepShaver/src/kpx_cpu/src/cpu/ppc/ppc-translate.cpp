@@ -25,6 +25,7 @@
 
 #ifdef SHEEPSHAVER
 #include "xlowmem.h"
+#include "cpu_emulation.h"
 #endif
 
 #include <stdio.h>
@@ -36,6 +37,19 @@
 #include "mon.h"
 #include "mon_disass.h"
 #endif
+
+// Define to enable const branches optimization
+#define FOLLOW_CONST_JUMPS 1
+
+// FIXME: define ROM areas
+static inline bool is_read_only_memory(uintptr addr)
+{
+#ifdef SHEEPSHAVER
+	if ((addr - ROM_BASE) < ROM_AREA_SIZE)
+		return true;
+#endif
+	return false;
+}
 
 
 /**
@@ -90,8 +104,6 @@ static void disasm_translation(uint32 src_addr, uint32 src_len,
 /**
  *		DynGen dynamic code translation
  **/
-
-#define FOLLOW_CONST_JUMPS 1
 
 #if PPC_ENABLE_JIT
 powerpc_cpu::block_info *
@@ -1015,7 +1027,10 @@ powerpc_cpu::compile_block(uint32 entry_point)
 	if (disasm)
 		disasm_translation(entry_point, dpc - entry_point + 4, bi->entry_point, bi->size);
 	block_cache.add_to_cl_list(bi);
-	block_cache.add_to_active_list(bi);
+	if (is_read_only_memory(bi->pc))
+		block_cache.add_to_dormant_list(bi);
+	else
+		block_cache.add_to_active_list(bi);
 #if PPC_PROFILE_COMPILE_TIME
 	compile_time += (clock() - start_time);
 #endif
