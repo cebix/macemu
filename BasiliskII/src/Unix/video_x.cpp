@@ -52,6 +52,14 @@
 # include <sys/mman.h>
 #endif
 
+#ifdef ENABLE_VOSF
+# include <math.h> // log()
+# include <unistd.h>
+# include <signal.h>
+# include <fcntl.h>
+# include <sys/mman.h>
+#endif
+
 #include "cpu_emulation.h"
 #include "main.h"
 #include "adb.h"
@@ -154,6 +162,68 @@ static XF86VidModeModeInfo **x_video_modes;			// Array of all available modes
 static int num_x_video_modes;
 #endif
 
+#ifdef ENABLE_VOSF
+static bool use_vosf = true;						// Flag: VOSF enabled
+#else
+static const bool use_vosf = false;					// Flag: VOSF enabled
+#endif
+
+#ifdef ENABLE_VOSF
+static uint8 * the_host_buffer;						// Host frame buffer in VOSF mode
+static uint32 the_buffer_size;						// Size of allocated the_buffer
+#endif
+
+#ifdef ENABLE_VOSF
+// Variables for Video on SEGV support (taken from the Win32 port)
+struct ScreenPageInfo {
+    int top, bottom;			// Mapping between this virtual page and Mac scanlines
+};
+
+struct ScreenInfo {
+    uint32 memBase;				// Real start address 
+    uint32 memStart;			// Start address aligned to page boundary
+    uint32 memEnd;				// Address of one-past-the-end of the screen
+    uint32 memLength;			// Length of the memory addressed by the screen pages
+    
+    uint32 pageSize;			// Size of a page
+    int pageBits;				// Shift count to get the page number
+    uint32 pageCount;			// Number of pages allocated to the screen
+    
+    uint8 * dirtyPages;			// Table of flags set if page was altered
+    ScreenPageInfo * pageInfo;	// Table of mappings page -> Mac scanlines
+};
+
+static ScreenInfo mainBuffer;
+
+#define PFLAG_SET(page)			mainBuffer.dirtyPages[page] = 1
+#define PFLAG_CLEAR(page)		mainBuffer.dirtyPages[page] = 0
+#define PFLAG_ISSET(page)		mainBuffer.dirtyPages[page]
+#define PFLAG_ISCLEAR(page)		(mainBuffer.dirtyPages[page] == 0)
+#ifdef UNALIGNED_PROFITABLE
+# define PFLAG_ISCLEAR_4(page)	(*((uint32 *)(mainBuffer.dirtyPages + page)) == 0)
+#else
+# define PFLAG_ISCLEAR_4(page)	\
+		(mainBuffer.dirtyPages[page  ] == 0) \
+	&&	(mainBuffer.dirtyPages[page+1] == 0) \
+	&&	(mainBuffer.dirtyPages[page+2] == 0) \
+	&&	(mainBuffer.dirtyPages[page+3] == 0)
+#endif
+#define PFLAG_CLEAR_ALL			memset(mainBuffer.dirtyPages, 0, mainBuffer.pageCount)
+#define PFLAG_SET_ALL			memset(mainBuffer.dirtyPages, 1, mainBuffer.pageCount)
+
+static int zero_fd = -1;
+static bool Screen_fault_handler_init();
+static struct sigaction vosf_sa;
+
+#ifdef HAVE_PTHREADS
+static pthread_mutex_t Screen_draw_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer (dirtyPages in fact)
+#endif
+
+#endif
+
+// VideoRefresh function
+void VideoRefreshInit(void);
+static void (*video_refresh)(void);
 
 // Prototypes
 static void *redraw_func(void *arg);
@@ -167,6 +237,10 @@ extern Display *x_display;
 // From sys_unix.cpp
 extern void SysMountFirstFloppy(void);
 
+#ifdef ENABLE_VOSF
+# include "video_vosf.h"
+#endif
+
 
 /*
  *  Initialization
@@ -175,7 +249,7 @@ extern void SysMountFirstFloppy(void);
 // Set VideoMonitor according to video mode
 void set_video_monitor(int width, int height, int bytes_per_row, bool native_byte_order)
 {
-#if !REAL_ADDRESSING
+#if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 	int layout = FLAYOUT_DIRECT;
 	switch (depth) {
 		case 1:
@@ -337,8 +411,20 @@ static bool init_window(int width, int height)
 		img->bitmap_bit_order = MSBFirst;
 	}
 
+#ifdef ENABLE_VOSF
+	// Allocate a page-aligned chunk of memory for frame buffer
+	the_buffer_size = align_on_page_boundary((aligned_height + 2) * img->bytes_per_line);
+	the_host_buffer = the_buffer_copy;
+	
+	the_buffer_copy = (uint8 *)allocate_framebuffer(the_buffer_size);
+	memset(the_buffer_copy, 0, the_buffer_size);
+	
+	the_buffer = (uint8 *)allocate_framebuffer(the_buffer_size);
+	memset(the_buffer, 0, the_buffer_size);
+#else
 	// Allocate memory for frame buffer
 	the_buffer = (uint8 *)malloc((aligned_height + 2) * img->bytes_per_line);
+#endif
 
 	// Create GC
 	the_gc = XCreateGC(x_display, the_win, 0, 0);
@@ -352,14 +438,19 @@ static bool init_window(int width, int height)
 	XDefineCursor(x_display, the_win, mac_cursor);
 
 	// Set VideoMonitor
+	bool native_byte_order;
 #ifdef WORDS_BIGENDIAN
-	set_video_monitor(width, height, img->bytes_per_line, img->bitmap_bit_order == MSBFirst);
+	native_byte_order = (img->bitmap_bit_order == MSBFirst);
 #else
-	set_video_monitor(width, height, img->bytes_per_line, img->bitmap_bit_order == LSBFirst);
+	native_byte_order = (img->bitmap_bit_order == LSBFirst);
 #endif
+#ifdef ENABLE_VOSF
+	do_update_framebuffer = GET_FBCOPY_FUNC(depth, native_byte_order, DISPLAY_WINDOW);
+#endif
+	set_video_monitor(width, height, img->bytes_per_line, native_byte_order);
 	
-#if REAL_ADDRESSING
-	VideoMonitor.mac_frame_base = (uint32)the_buffer;
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	VideoMonitor.mac_frame_base = Host2MacAddr(the_buffer);
 #else
 	VideoMonitor.mac_frame_base = MacFrameBaseMac;
 #endif
@@ -492,9 +583,29 @@ static bool init_fbdev_dga(char *in_fb_name)
 		}
 	}
 	
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	// If the blit function is null, i.e. just a copy of the buffer,
+	// we first try to avoid the allocation of a temporary frame buffer
+	use_vosf = true;
+	do_update_framebuffer = GET_FBCOPY_FUNC(depth, true, DISPLAY_DGA);
+	if (do_update_framebuffer == FBCOPY_FUNC(fbcopy_raw))
+		use_vosf = false;
+	
+	if (use_vosf) {
+		the_host_buffer = the_buffer;
+		the_buffer_size = align_on_page_boundary((height + 2) * bytes_per_row);
+		the_buffer_copy = (uint8 *)malloc(the_buffer_size);
+		memset(the_buffer_copy, 0, the_buffer_size);
+		the_buffer = (uint8 *)allocate_framebuffer(the_buffer_size);
+		memset(the_buffer, 0, the_buffer_size);
+	}
+#elif ENABLE_VOSF
+	use_vosf = false;
+#endif
+	
 	set_video_monitor(width, height, bytes_per_row, true);
-#if REAL_ADDRESSING
-	VideoMonitor.mac_frame_base = (uint32)the_buffer;
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	VideoMonitor.mac_frame_base = Host2MacAddr(the_buffer);
 #else
 	VideoMonitor.mac_frame_base = MacFrameBaseMac;
 #endif
@@ -575,10 +686,32 @@ static bool init_xf86_dga(int width, int height)
 			bytes_per_row *= 4;
 			break;
 	}
+	
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	// If the blit function is null, i.e. just a copy of the buffer,
+	// we first try to avoid the allocation of a temporary frame buffer
+	use_vosf = true;
+	do_update_framebuffer = GET_FBCOPY_FUNC(depth, true, DISPLAY_DGA);
+	if (do_update_framebuffer == FBCOPY_FUNC(fbcopy_raw))
+		use_vosf = false;
+	
+	if (use_vosf) {
+		the_host_buffer = the_buffer;
+		the_buffer_size = align_on_page_boundary((height + 2) * bytes_per_row);
+		the_buffer_copy = (uint8 *)malloc(the_buffer_size);
+		memset(the_buffer_copy, 0, the_buffer_size);
+		the_buffer = (uint8 *)allocate_framebuffer(the_buffer_size);
+		memset(the_buffer, 0, the_buffer_size);
+	}
+#elif ENABLE_VOSF
+	// The UAE memory handlers will already color conversion, if needed.
+	use_vosf = false;
+#endif
+	
 	set_video_monitor(width, height, bytes_per_row, true);
-#if REAL_ADDRESSING
-	VideoMonitor.mac_frame_base = (uint32)the_buffer;
-	MacFrameLayout = FLAYOUT_DIRECT;
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	VideoMonitor.mac_frame_base = Host2MacAddr(the_buffer);
+//	MacFrameLayout = FLAYOUT_DIRECT;
 #else
 	VideoMonitor.mac_frame_base = MacFrameBaseMac;
 #endif
@@ -654,8 +787,81 @@ static void keycode_init(void)
 	}
 }
 
+bool VideoInitBuffer()
+{
+#ifdef ENABLE_VOSF
+	if (use_vosf) {
+		const uint32 page_size	= getpagesize();
+		const uint32 page_mask	= page_size - 1;
+		
+		mainBuffer.memBase      = (uint32) the_buffer;
+		// Align the frame buffer on page boundary
+		mainBuffer.memStart		= (uint32)((((unsigned long) the_buffer) + page_mask) & ~page_mask);
+		mainBuffer.memLength	= the_buffer_size;
+		mainBuffer.memEnd       = mainBuffer.memStart + mainBuffer.memLength;
+
+		mainBuffer.pageSize     = page_size;
+		mainBuffer.pageCount	= (mainBuffer.memLength + page_mask)/mainBuffer.pageSize;
+		mainBuffer.pageBits     = int( log(mainBuffer.pageSize) / log(2.0) );
+
+		if (mainBuffer.dirtyPages != 0)
+			free(mainBuffer.dirtyPages);
+
+		mainBuffer.dirtyPages = (uint8 *) malloc(mainBuffer.pageCount);
+
+		if (mainBuffer.pageInfo != 0)
+			free(mainBuffer.pageInfo);
+
+		mainBuffer.pageInfo = (ScreenPageInfo *) malloc(mainBuffer.pageCount * sizeof(ScreenPageInfo));
+
+		if ((mainBuffer.dirtyPages == 0) || (mainBuffer.pageInfo == 0))
+			return false;
+
+		PFLAG_CLEAR_ALL;
+
+		uint32 a = 0;
+		for (int i = 0; i < mainBuffer.pageCount; i++) {
+			int y1 = a / VideoMonitor.bytes_per_row;
+			if (y1 >= VideoMonitor.y)
+				y1 = VideoMonitor.y - 1;
+
+			int y2 = (a + mainBuffer.pageSize) / VideoMonitor.bytes_per_row;
+			if (y2 >= VideoMonitor.y)
+				y2 = VideoMonitor.y - 1;
+
+			mainBuffer.pageInfo[i].top = y1;
+			mainBuffer.pageInfo[i].bottom = y2;
+
+			a += mainBuffer.pageSize;
+			if (a > mainBuffer.memLength)
+				a = mainBuffer.memLength;
+		}
+		
+		// We can now write-protect the frame buffer
+		if (mprotect((caddr_t)mainBuffer.memStart, mainBuffer.memLength, PROT_READ) != 0)
+			return false;
+	}
+#endif
+	return true;
+}
+
 bool VideoInit(bool classic)
 {
+#ifdef ENABLE_VOSF
+	// Open /dev/zero
+	zero_fd = open("/dev/zero", O_RDWR);
+	if (zero_fd < 0) {
+        char str[256];
+		sprintf(str, GetString(STR_NO_DEV_ZERO_ERR), strerror(errno));
+		ErrorAlert(str);
+        return false;
+	}
+	
+	// Zero the mainBuffer structure
+	mainBuffer.dirtyPages = 0;
+	mainBuffer.pageInfo = 0;
+#endif
+	
 	// Check if X server runs on local machine
 	local_X11 = (strncmp(XDisplayName(x_display_name), ":", 1) == 0)
 	         || (strncmp(XDisplayName(x_display_name), "unix:", 5) == 0);
@@ -807,7 +1013,7 @@ bool VideoInit(bool classic)
 	pthread_mutex_lock(&frame_buffer_lock);
 #endif
 
-#if !REAL_ADDRESSING
+#if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 	// Set variables for UAE memory mapping
 	MacFrameBaseHost = the_buffer;
 	MacFrameSize = VideoMonitor.bytes_per_row * VideoMonitor.y;
@@ -817,6 +1023,27 @@ bool VideoInit(bool classic)
 		MacFrameLayout = FLAYOUT_NONE;
 #endif
 
+#ifdef ENABLE_VOSF
+	if (use_vosf) {
+		// Initialize the mainBuffer structure
+		if (!VideoInitBuffer()) {
+			// TODO: STR_VOSF_INIT_ERR ?
+			ErrorAlert("Could not initialize Video on SEGV signals");
+        	return false;
+		}
+
+		// Initialize the handler for SIGSEGV
+		if (!Screen_fault_handler_init()) {
+			// TODO: STR_VOSF_INIT_ERR ?
+			ErrorAlert("Could not initialize Video on SEGV signals");
+			return false;
+		}
+	}
+#endif
+	
+	// Initialize VideoRefresh function
+	VideoRefreshInit();
+	
 	XSync(x_display, false);
 
 #ifdef HAVE_PTHREADS
@@ -885,17 +1112,51 @@ void VideoExit(void)
 			XFreeColormap(x_display, cmap[0]);
 			XFreeColormap(x_display, cmap[1]);
 		}
+		
+		if (!use_vosf) {
+			if (the_buffer) {
+				free(the_buffer);
+				the_buffer = NULL;
+			}
 
-		if (the_buffer) {
-			free(the_buffer);
-			the_buffer = NULL;
+			if (!have_shm && the_buffer_copy) {
+				free(the_buffer_copy);
+				the_buffer_copy = NULL;
+			}
+		}
+#ifdef ENABLE_VOSF
+		else {
+			if (the_buffer != (uint8 *)MAP_FAILED) {
+				munmap((caddr_t)the_buffer, the_buffer_size);
+				the_buffer = 0;
+			}
+			
+			if (the_buffer_copy != (uint8 *)MAP_FAILED) {
+				munmap((caddr_t)the_buffer_copy, the_buffer_size);
+				the_buffer_copy = 0;
+			}
+		}
+#endif
+	}
+	
+#ifdef ENABLE_VOSF
+	if (use_vosf) {
+		// Clear mainBuffer data
+		if (mainBuffer.pageInfo) {
+			free(mainBuffer.pageInfo);
+			mainBuffer.pageInfo = 0;
 		}
 
-		if (!have_shm && the_buffer_copy) {
-			free(the_buffer_copy);
-			the_buffer_copy = NULL;
+		if (mainBuffer.dirtyPages) {
+			free(mainBuffer.dirtyPages);
+			mainBuffer.dirtyPages = 0;
 		}
 	}
+
+	// Close /dev/zero
+	if (zero_fd > 0)
+		close(zero_fd);
+#endif
 }
 
 
@@ -1030,7 +1291,24 @@ static void resume_emul(void)
 
 	// Restore frame buffer
 	if (fb_save) {
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+		if (use_vosf)
+			mprotect((caddr_t)mainBuffer.memStart, mainBuffer.memLength, PROT_READ|PROT_WRITE);
+#endif
 		memcpy(the_buffer, fb_save, VideoMonitor.y * VideoMonitor.bytes_per_row);
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+		if (use_vosf) {
+			mprotect((caddr_t)mainBuffer.memStart, mainBuffer.memLength, PROT_READ);
+			do_update_framebuffer(the_host_buffer, the_buffer, VideoMonitor.x * VideoMonitor.bytes_per_row);
+#ifdef HAVE_PTHREADS
+			pthread_mutex_lock(&Screen_draw_lock);
+#endif
+			PFLAG_CLEAR_ALL;
+#ifdef HAVE_PTHREADS
+			pthread_mutex_unlock(&Screen_draw_lock);
+#endif
+		}
+#endif
 		free(fb_save);
 		fb_save = NULL;
 	}
@@ -1311,6 +1589,25 @@ static void handle_events(void)
 			// Hidden parts exposed, force complete refresh of window
 			case Expose:
 				if (display_type == DISPLAY_WINDOW) {
+#ifdef ENABLE_VOSF
+					const XExposeEvent & xev = event.xexpose;
+					const uint32 start = xev.y * VideoMonitor.bytes_per_row + xev.x;
+					const uint32 end = (xev.y + xev.height - 1) * VideoMonitor.bytes_per_row + (xev.x + xev.width);
+					int page = start >> mainBuffer.pageBits;
+					uint32 addr = start;
+					while (addr < end) {
+						memset(the_buffer_copy + addr, 0, mainBuffer.pageSize);
+						addr += mainBuffer.pageSize;
+#ifdef HAVE_PTHREADS
+						pthread_mutex_lock(&Screen_draw_lock);
+#endif
+						PFLAG_SET(page);
+#ifdef HAVE_PTHREADS
+						pthread_mutex_unlock(&Screen_draw_lock);
+#endif
+						++page;
+					}
+#else
 					if (frame_skip == 0) {	// Dynamic refresh
 						int x1, y1;
 						for (y1=0; y1<16; y1++)
@@ -1319,6 +1616,7 @@ static void handle_events(void)
 						nr_boxes = 16 * 16;
 					} else
 						memset(the_buffer_copy, 0, VideoMonitor.bytes_per_row * VideoMonitor.y);
+#endif /* ENABLE_VOSF */
 				}
 				break;
 		}
@@ -1536,9 +1834,201 @@ static void update_display_static(void)
 
 
 /*
+ *	Screen refresh functions
+ */
+
+// The specialisations hereunder are meant to enable VOSF with DGA in direct
+// addressing mode in case the address spaces (RAM, ROM, FrameBuffer) could
+// not get mapped correctly with respect to the predetermined host frame
+// buffer base address.
+//
+// Hmm, in other words, when in direct addressing mode and DGA is requested,
+// we first try to "triple allocate" the address spaces according to the real
+// host frame buffer address. Then, if it fails, we will use a temporary
+// frame buffer thus making the real host frame buffer updated when pages
+// of the temp frame buffer are altered.
+//
+// As a side effect, a little speed gain in screen updates could be noticed
+// for other modes than DGA.
+//
+// The following two functions below are inline so that a clever compiler
+// could specialise the code according to the current screen depth and
+// display type. A more clever compiler would the job by itself though...
+// (update_display_vosf is inlined as well)
+
+static inline void possibly_quit_dga_mode()
+{
+#if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
+	// Quit DGA mode if requested
+	if (quit_full_screen) {
+		quit_full_screen = false;
+#ifdef ENABLE_XF86_DGA
+		XF86DGADirectVideo(x_display, screen, 0);
+#endif
+		XUngrabPointer(x_display, CurrentTime);
+		XUngrabKeyboard(x_display, CurrentTime);
+		XUnmapWindow(x_display, the_win);
+		XSync(x_display, false);
+	}
+#endif
+}
+
+static inline void handle_palette_changes(int depth, int display_type)
+{
+#ifdef HAVE_PTHREADS
+	pthread_mutex_lock(&palette_lock);
+#endif
+	if (palette_changed) {
+		palette_changed = false;
+		if (depth == 8) {
+			XStoreColors(x_display, cmap[0], palette, 256);
+			XStoreColors(x_display, cmap[1], palette, 256);
+				
+#ifdef ENABLE_XF86_DGA
+			if (display_type == DISPLAY_DGA) {
+				current_dga_cmap ^= 1;
+				XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
+			}
+#endif
+		}
+	}
+#ifdef HAVE_PTHREADS
+	pthread_mutex_unlock(&palette_lock);
+#endif
+}
+
+static void video_refresh_dga(void)
+{
+	// Quit DGA mode if requested
+	possibly_quit_dga_mode();
+	
+	// Handle X events
+	handle_events();
+	
+	// Handle palette changes
+	handle_palette_changes(depth, DISPLAY_DGA);
+}
+
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+static void video_refresh_dga_vosf(void)
+{
+	// Quit DGA mode if requested
+	possibly_quit_dga_mode();
+	
+	// Handle X events
+	handle_events();
+	
+	// Handle palette changes
+	handle_palette_changes(depth, DISPLAY_DGA);
+	
+	// Update display (VOSF variant)
+	static int tick_counter = 0;
+	if (++tick_counter >= frame_skip) {
+		tick_counter = 0;
+#ifdef HAVE_PTHREADS
+		pthread_mutex_lock(&Screen_draw_lock);
+#endif
+		update_display_dga_vosf();
+#ifdef HAVE_PTHREADS
+		pthread_mutex_unlock(&Screen_draw_lock);
+#endif
+	}
+}
+#endif
+
+#ifdef ENABLE_VOSF
+static void video_refresh_window_vosf(void)
+{
+	// Quit DGA mode if requested
+	possibly_quit_dga_mode();
+	
+	// Handle X events
+	handle_events();
+	
+	// Handle palette changes
+	handle_palette_changes(depth, DISPLAY_WINDOW);
+	
+	// Update display (VOSF variant)
+	static int tick_counter = 0;
+	if (++tick_counter >= frame_skip) {
+		tick_counter = 0;
+#ifdef HAVE_PTHREADS
+		pthread_mutex_lock(&Screen_draw_lock);
+#endif
+		update_display_window_vosf();
+#ifdef HAVE_PTHREADS
+		pthread_mutex_unlock(&Screen_draw_lock);
+#endif
+	}
+}
+#endif
+
+static void video_refresh_window_static(void)
+{
+	// Handle X events
+	handle_events();
+	
+	// Handle_palette changes
+	handle_palette_changes(depth, DISPLAY_WINDOW);
+	
+	// Update display (static variant)
+	static int tick_counter = 0;
+	if (++tick_counter >= frame_skip) {
+		tick_counter = 0;
+		update_display_static();
+	}
+}
+
+static void video_refresh_window_dynamic(void)
+{
+	// Handle X events
+	handle_events();
+	
+	// Handle_palette changes
+	handle_palette_changes(depth, DISPLAY_WINDOW);
+	
+	// Update display (dynamic variant)
+	static int tick_counter = 0;
+	tick_counter++;
+	update_display_dynamic(tick_counter);
+}
+
+
+/*
  *  Thread for screen refresh, input handling etc.
  */
 
+void VideoRefreshInit(void)
+{
+	// TODO: set up specialised 8bpp VideoRefresh handlers ?
+	if (display_type == DISPLAY_DGA) {
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+		if (use_vosf)
+			video_refresh = video_refresh_dga_vosf;
+		else
+#endif
+			video_refresh = video_refresh_dga;
+	}
+	else {
+#ifdef ENABLE_VOSF
+		if (use_vosf)
+			video_refresh = video_refresh_window_vosf;
+		else
+#endif
+		if (frame_skip == 0)
+			video_refresh = video_refresh_window_dynamic;
+		else
+			video_refresh = video_refresh_window_static;
+	}
+}
+
+void VideoRefresh(void)
+{
+	// TODO: make main_unix/VideoRefresh call directly video_refresh() ?
+	video_refresh();
+}
+
+#if 0
 void VideoRefresh(void)
 {
 #if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
@@ -1594,25 +2084,27 @@ void VideoRefresh(void)
 		}
 	}
 }
+#endif
 
 #ifdef HAVE_PTHREADS
 static void *redraw_func(void *arg)
 {
-uint64 start = GetTicks_usec();
-int64 ticks = 0;
+	uint64 start = GetTicks_usec();
+	int64 ticks = 0;
 	uint64 next = GetTicks_usec();
 	while (!redraw_thread_cancel) {
-		VideoRefresh();
+//		VideoRefresh();
+		video_refresh();
 		next += 16667;
 		int64 delay = next - GetTicks_usec();
 		if (delay > 0)
 			Delay_usec(delay);
 		else if (delay < -16667)
 			next = GetTicks_usec();
-ticks++;
+		ticks++;
 	}
-uint64 end = GetTicks_usec();
-printf("%Ld ticks in %Ld usec = %Ld ticks/sec\n", ticks, end - start, (end - start) / ticks);
+	uint64 end = GetTicks_usec();
+	printf("%Ld ticks in %Ld usec = %Ld ticks/sec\n", ticks, end - start, (end - start) / ticks);
 	return NULL;
 }
 #endif
