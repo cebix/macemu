@@ -137,9 +137,9 @@ $(OBJ_DIR)/%.o : %.cpp
 $(OBJ_DIR)/%.o : %.mm
 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.S
-	$(CPP) $(CPPFLAGS) -D__ASSEMBLY__ $< -o $*.s
-	$(AS) $(ASFLAGS) -o $@ $*.s
-	rm $*.s
+	$(CPP) $(CPPFLAGS) -D__ASSEMBLY__ $< -o $*.out.s
+	$(AS) $(ASFLAGS) -o $@ $*.out.s
+	rm $*.out.s
 
 # Kheperix CPU emulator
 kpxsrcdir = ../kpx_cpu/src
