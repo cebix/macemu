@@ -22,6 +22,7 @@ AC_ARG_ENABLE(vosf,          [  --enable-vosf           enable video on SEGV sig
 
 dnl SDL options.
 AC_ARG_ENABLE(sdl-video,     [  --enable-sdl-video      use SDL for video graphics [default=no]], [WANT_SDL_VIDEO=$enableval], [WANT_SDL_VIDEO=no])
+AC_ARG_ENABLE(sdl-audio,     [  --enable-sdl-audio      use SDL for audio [default=no]], [WANT_SDL_AUDIO=$enableval], [WANT_SDL_AUDIO=no])
 
 dnl JIT compiler options.
 AC_ARG_ENABLE(jit-compiler,  [  --enable-jit-compiler   enable JIT compiler [default=no]], [WANT_JIT=$enableval], [WANT_JIT=no])
@@ -128,13 +129,16 @@ AC_CHECK_LIB(rt, timer_create)
 
 dnl Do we need SDL?
 WANT_SDL=no
-SDL_SUPPORT="none"
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   WANT_SDL=yes
   WANT_XF86_DGA=no
   WANT_XF86_VIDMODE=no
   WANT_FBDEV_DGA=no
-  SDL_SUPPORT="video"
+  SDL_SUPPORT="$SDL_SUPPORT video"
+fi
+if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
+  WANT_SDL=yes
+  SDL_SUPPORT="$SDL_SUPPORT audio"
 fi
 if [[ "x$WANT_SDL" = "xyes" ]]; then
   AC_PATH_PROG(sdl_config, "sdl-config")
@@ -147,6 +151,9 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
   else
     WANT_SDL=no
   fi
+  SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
+else
+  SDL_SUPPORT="none"
 fi
 
 dnl We need X11, if not using SDL.
@@ -445,8 +452,8 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
   AC_DEFINE(USE_SDL, 1, [Define to enble SDL support])
 fi
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
-  VIDEOSRCS="../SDL/video_sdl.cpp"
   AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support])
+  VIDEOSRCS="../SDL/video_sdl.cpp"
   KEYCODES="../SDL/keycodes"
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp"
@@ -457,6 +464,10 @@ else
   VIDEOSRCS="video_x.cpp"
   KEYCODES="keycodes"
   EXTRASYSSRCS="$EXTRASYSSRCS clip_unix.cpp"
+fi
+if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
+  AC_DEFINE(USE_SDL_AUDIO, 1, [Define to enable SDL audio support])
+  AUDIOSRC="../SDL/audio_sdl.cpp"
 fi
 
 dnl Use 68k CPU natively?
