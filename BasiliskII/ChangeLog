@@ -1,6 +1,7 @@
 V1.0 (snapshot) - <date>
  - fixed the problem with Ticks getting incremented on every interrupt, not
    just 60Hz (e.g. moving the mouse made the caret blink faster)
+ - Unix: integrated JIT compiler for Linux/x86 and FreeBSD/x86
  - Unix: moved minimum autoconf support to 2.52+
  - Unix: add large file support for 2+ GB hard disk images
  - Unix: cleaned up pthread attributes [Brian Johnson]
