@@ -96,7 +96,7 @@ void * vm_acquire(size_t size)
 		return VM_MAP_FAILED;
 #else
 #ifdef HAVE_MMAP_VM
-	if ((addr = mmap(next_address, size, VM_PAGE_DEFAULT, map_flags, zero_fd, 0)) == MAP_FAILED)
+	if ((addr = mmap((caddr_t)next_address, size, VM_PAGE_DEFAULT, map_flags, zero_fd, 0)) == MAP_FAILED)
 		return VM_MAP_FAILED;
 	
 	next_address = (char *)addr + size;
@@ -132,7 +132,7 @@ int vm_acquire_fixed(void * addr, size_t size)
 		return -1;
 #else
 #ifdef HAVE_MMAP_VM
-	if (mmap(addr, size, VM_PAGE_DEFAULT, map_flags | MAP_FIXED, zero_fd, 0) == MAP_FAILED)
+	if (mmap((caddr_t)addr, size, VM_PAGE_DEFAULT, map_flags | MAP_FIXED, zero_fd, 0) == MAP_FAILED)
 		return -1;
 	
 	// Since I don't know the standard behavior of mmap(), zero-fill here
@@ -166,7 +166,7 @@ int vm_release(void * addr, size_t size)
 		return -1;
 #else
 #ifdef HAVE_MMAP_VM
-	if (munmap(addr, size) != 0)
+	if (munmap((caddr_t)addr, size) != 0)
 		return -1;
 #else
 	free(addr);
@@ -186,7 +186,7 @@ int vm_protect(void * addr, size_t size, int prot)
 	return ret_code == KERN_SUCCESS ? 0 : -1;
 #else
 #ifdef HAVE_MMAP_VM
-	int ret_code = mprotect(addr, size, prot);
+	int ret_code = mprotect((caddr_t)addr, size, prot);
 	return ret_code == 0 ? 0 : -1;
 #else
 	// Unsupported
