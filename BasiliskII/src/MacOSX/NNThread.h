@@ -2,7 +2,7 @@
 //  NNThread.h -Not Nextstep Thread?
 //				Nigel's Nice Thread?
 //
-// 	Revision 1.1, Wed Nov 7 2001.
+// 	Revision 1.2, Tuesday May 25 2004
 //
 //  Created by Nigel Pearson on Tue Nov 28 2000.
 //  Public Domain. No rights reserved.
@@ -76,6 +76,8 @@ NNTimeUnits;
 	id				timerObject;
 	SEL				timerSel;
 }
+
+- (NNTimer *) initWithAutoRelPool;
 
 - (void) changeIntervalTo: (int)number	units: (NNTimeUnits)units;
 - (void) invalidate;
