@@ -7,7 +7,8 @@
    (If anyone wants a version that will compile on Public Beta, email me)
 
 2) If grabbing this source from a tarball, put this MacOSX directory in
-   BasiliskII-1.0/src. Source is currently only compatible with 1.0 snapshot.
+   BasiliskII-1.0/src. The tarball is currently only compatible with the
+   BasiliskII_src_15012002.tar.gz (1.0) snapshot.
    Open a Terminal, and cd to BasiliskII-1.0/src/MacOSX
 
 3) sh 1_prepare_files.sh
@@ -24,7 +25,7 @@
 
 * It is also possible to use the OS X integrated development environment
   (i.e. the "Project Builder" IDE) to build the application, instead of make.
-  Instead of step 6) above, do this:
+  Instead of step 4) above, do these steps:
 
 4) make ide
 
