@@ -97,6 +97,7 @@ static void dump_log(void)
 		disass_68k(f, log[j].pc);
 #endif
 	}
+	fclose(f);
 }
 #endif
 
