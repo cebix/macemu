@@ -18,7 +18,7 @@ LIBS = @LIBS@
 OBJ_DIR = build
 GENSRCS = user_strings_unix.h cpudefs.cpp cpuemu.cpp cpustbl.cpp cputbl.h \
 	  README.txt
-SRCS =  Controller.h Controller.mm Credits.html \
+SRCS =  BasiliskII.icns Controller.h Controller.mm Credits.html \
 	Emulator.h Emulator.mm EmulatorView.h EmulatorView.mm English.lproj \
 	NNThread.h NNThread.m PrefsEditor.h PrefsEditor.mm \
 	ToDo.html Versions.html \
@@ -54,6 +54,9 @@ README.txt : ../../README
 
 user_strings_unix.h : ../Unix/user_strings_unix.h
 	ln -s $< $@
+
+BasiliskII.icns :
+	touch $@
 
 mostlyclean:
 	rm -fr English.lproj/*~* $(OBJ_DIR)/* core* *.core *~ *.bak
