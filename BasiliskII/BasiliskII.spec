@@ -8,9 +8,14 @@ Version: %{version}
 Release: %{release}
 Copyright: GPL
 Group: Applications/Emulators
-Source: %{name}_src_10102000.tar.gz
+Source: %{name}_src_11102000.tar.gz
 URL: http://www.uni-mainz.de/~bauec002/B2Main.html
 BuildRoot: %{_tmppath}/%{name}-root
+
+# While the data file path (/usr/share/BasiliskII) is compiled into the
+# executable, the data files are not required for operation and their location
+# can be overridden with prefs items, so I consider this package to be
+# relocatable.
 Prefix: %{_prefix}
 
 %description
@@ -67,5 +72,5 @@ rm -rf ${RPM_BUILD_ROOT}
 %doc ChangeLog COPYING INSTALL README TECH TODO
 %{_bindir}/BasiliskII
 %{_mandir}/man1/BasiliskII.1
-%{_datadir}/BasiliskII/keycodes
-%{_datadir}/BasiliskII/fbdevices
+%config %{_datadir}/BasiliskII/keycodes
+%config %{_datadir}/BasiliskII/fbdevices
