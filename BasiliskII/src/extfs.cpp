@@ -1966,7 +1966,7 @@ static int16 fs_cat_move(uint32 pb)
 	strcpy(old_path, full_path);
 
 	// Find path for new directory
-	Mac2Host_memcpy(fs_data + fsPB, pb, SIZEOF_IOParam);
+	Mac2Mac_memcpy(fs_data + fsPB, pb, SIZEOF_IOParam);
 	WriteMacInt32(fs_data + fsPB + ioNamePtr, ReadMacInt32(pb + ioNewName));
 	FSItem *new_dir_item;
 	result = get_item_and_path(fs_data + fsPB, ReadMacInt32(pb + ioNewDirID), new_dir_item);
