@@ -127,7 +127,7 @@ static const uint8 iso2mac[0x80] = {
 // Flag: Don't convert clipboard text
 static bool no_clip_conversion;
 
-// Flag for PutScrap(): the data was put by GetScrap(), don't bounce it back to the Be side
+// Flag for PutScrap(): the data was put by GetScrap(), don't bounce it back to the Unix side
 static bool we_put_this_data = false;
 
 // X11 variables
