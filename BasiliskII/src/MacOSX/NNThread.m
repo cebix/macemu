@@ -2,7 +2,7 @@
 //  NNThread.m -Not Nextstep Thread?
 //				Nigel's Nice Thread?
 //
-//	Revision 1.3, Tuesday Oct 8 2002
+//	Revision 1.4, Tuesday May 25 2004
 //
 //  Created by Nigel Pearson on Tue Nov 28 2000.
 //  Public Domain. No rights reserved.
@@ -180,6 +180,15 @@ pthreadWrapper (void *arg)
 	repeating = YES;
 	return self;
 }
+
+- (NNTimer *) initWithAutoRelPool
+{
+	self = [super init];
+	allocPool = YES;
+	repeating = YES;
+	return self;
+}
+
 
 - (void) changeIntervalTo: (int)number
 					units: (NNTimeUnits)units
