@@ -1,6 +1,8 @@
 V1.0 (snapshot) - <date>
  - fixed the problem with Ticks getting incremented on every interrupt, not
    just 60Hz (e.g. moving the mouse made the caret blink faster)
+ - Unix: moved minimum autoconf support to 2.52+
+ - Unix: add large file support for 2+ GB hard disk images
  - Unix: cleaned up pthread attributes [Brian Johnson]
  - Unix: fixed floppy problems under Linux
  - Unix: implement "ignoresegv" feature on Linux/x86, Linux/ppc, Darwin/ppc
