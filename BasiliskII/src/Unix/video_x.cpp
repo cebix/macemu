@@ -334,7 +334,7 @@ static void set_window_name(Window w, int name)
 		hints->res_name = "BasiliskII";
 		hints->res_class = "BasiliskII";
 		XSetClassHint(x_display, w, hints);
-		XFree((char *)hints);
+		XFree(hints);
 	}
 }
 
@@ -347,7 +347,7 @@ static void set_window_focus(Window w)
 		hints->initial_state = NormalState;
 		hints->flags = InputHint | StateHint;
 		XSetWMHints(x_display, w, hints);
-		XFree((char *)hints);
+		XFree(hints);
 	}
 }
 
@@ -428,7 +428,7 @@ static bool init_window(int width, int height)
 			hints->max_height = height;
 			hints->flags = PMinSize | PMaxSize;
 			XSetWMNormalHints(x_display, the_win, hints);
-			XFree((char *)hints);
+			XFree(hints);
 		}
 	}
 	
