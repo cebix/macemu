@@ -82,7 +82,7 @@ void add_path_component(char *path, const char *component, int max_len)
 		path[l] = '/';
 		path[l+1] = 0;
 	}
-	strncat(path, s, max_len-1);
+	strncat(path, component, max_len-1);
 }
 
 
