@@ -130,13 +130,13 @@ static void do_fbcopy_raw(uint8 * dest, const uint8 * source, uint32 length)
 #define FB_FUNC_NAME do_fbcopy_16_nbo
 #include "video_blit.h"
 
-// opposite byte order (untested)
+// opposite byte order
 
 #define FB_BLIT_1(dst, src) \
-	(dst = ((((src) >> 6) & 0xff) | (((src) & 0x60) << 9)))
+	(dst = ((((src) >> 7) & 0xff) | (((src) << 9) & 0xc000) | (((src) << 8) & 0x1f00)))
 
 #define FB_BLIT_2(dst, src) \
-	(dst = ((((src) >> 6) & 0x00ff00ff) | (((src) & 0x00600060) << 9)))
+	(dst = ((((src) >> 7) & 0x00ff00ff) | (((src) << 9) & 0xc000c000) | (((src) << 8) & 0x1f001f00)))
 
 #define FB_DEPTH 16
 #define FB_FUNC_NAME do_fbcopy_16_obo
@@ -214,7 +214,7 @@ static fbcopy_func fbcopy_funcs[ID_DEPTH_COUNT][2][2] = {
 /*  1 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_raw)		},	// NT
 /*  8 bpp */	{	WD(fbcopy_raw)		,	WD(fbcopy_raw)		},	// OK (NBO)
 /* 15 bpp */	{	WD(fbcopy_15_obo)	,	WD(fbcopy_raw)		},	// NT
-/* 16 bpp */	{	WD(fbcopy_16_obo)	,	WD(fbcopy_16_nbo)	},	// NT
+/* 16 bpp */	{	WD(fbcopy_16_obo)	,	WD(fbcopy_16_nbo)	},	// OK (OBO)
 /* 24 bpp */	{	WD(fbcopy_24_obo)	,	WD(fbcopy_raw)		}	// NT
 #else
 				/*	opposite byte order		native byte order	*/

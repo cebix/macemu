@@ -518,9 +518,9 @@ static bool init_window(int width, int height)
 	// Set VideoMonitor
 	bool native_byte_order;
 #ifdef WORDS_BIGENDIAN
-	native_byte_order = (img->bitmap_bit_order == MSBFirst);
+	native_byte_order = (XImageByteOrder(x_display) == MSBFirst);
 #else
-	native_byte_order = (img->bitmap_bit_order == LSBFirst);
+	native_byte_order = (XImageByteOrder(x_display) == LSBFirst);
 #endif
 #ifdef ENABLE_VOSF
 	do_update_framebuffer = GET_FBCOPY_FUNC(depth, native_byte_order, DISPLAY_WINDOW);
