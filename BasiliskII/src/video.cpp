@@ -31,6 +31,7 @@
 #include "cpu_emulation.h"
 #include "main.h"
 #include "macos_util.h"
+#include "slot_rom.h"
 #include "video.h"
 #include "video_defs.h"
 
@@ -349,7 +350,7 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 				Execute68kTrap(0xa06e, &r);	// SRsrcInfo()
 				uint32 rsrc = ReadMacInt32(sp + spPointer);
 
-				// Patch minorBase
+				// Patch minorBase (otherwise rebooting won't work)
 				WriteMacInt8(sp + spID, 0x0a); // minorBase
 				r.d[0] = 0x0006;
 				Execute68kTrap(0xa06e, &r); // SFindStruct()
@@ -374,6 +375,9 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 				ROMBaseHost[p + 15] = i->y;
 				ROMBaseHost[p + 16] = i->x >> 8;
 				ROMBaseHost[p + 17] = i->x;
+
+				// Recalculate slot ROM checksum
+				ChecksumSlotROM();
 
 				// Update sResource
 				WriteMacInt8(sp + spID, ReadMacInt8(dce + dCtlSlotId));

@@ -42,6 +42,9 @@ static uint8 srom[4096];
 // Index in srom
 static uint32 p;
 
+// Length of slot ROM
+static int slot_rom_size = 0;
+
 
 // Check whether a mode with the specified depth exists
 static bool has_depth(video_depth depth)
@@ -433,23 +436,39 @@ bool InstallSlotROM(void)
 	// Format/header block
 	Offs(0, sRsrcDir);					// sResource directory
 	Long(p + 16);						// Length of declaration data
-	Long(0);							// CRC (calculated below)
+	Long(0);							// CRC (calculated later)
 	Word(0x0101);						// Rev. level, format
 	Long(0x5a932bc7);					// Test pattern
 	Word(0x000f);						// Byte lanes
 
-	// Calculate CRC
-	uint32 crc = 0;
-	for (uint32 i=0; i<p; i++) {
-		crc = (crc << 1) | (crc >> 31);
-		crc += srom[i];
-	}
-	srom[p - 12] = crc >> 24;
-	srom[p - 11] = crc >> 16;
-	srom[p - 10] = crc >> 8;
-	srom[p - 9] = crc;
-
 	// Copy slot ROM to Mac ROM
-	memcpy(ROMBaseHost + ROMSize - p, srom, p);
+	slot_rom_size = p;
+	memcpy(ROMBaseHost + ROMSize - slot_rom_size, srom, slot_rom_size);
+
+	// Calculate checksum
+	ChecksumSlotROM();
 	return true;
+}
+
+/*
+ *  Calculate slot ROM checksum (in-place)
+ */
+
+void ChecksumSlotROM(void)
+{
+	// Calculate CRC
+	uint8 *p = ROMBaseHost + ROMSize - slot_rom_size;
+	p[slot_rom_size - 12] = 0;
+	p[slot_rom_size - 11] = 0;
+	p[slot_rom_size - 10] = 0;
+	p[slot_rom_size - 9] = 0;
+	uint32 crc = 0;
+	for (uint32 i=0; i<slot_rom_size; i++) {
+		crc = (crc << 1) | (crc >> 31);
+		crc += p[i];
+	}
+	p[slot_rom_size - 12] = crc >> 24;
+	p[slot_rom_size - 11] = crc >> 16;
+	p[slot_rom_size - 10] = crc >> 8;
+	p[slot_rom_size - 9] = crc;
 }

@@ -22,5 +22,6 @@
 #define SLOT_ROM_H
 
 extern bool InstallSlotROM(void);
+extern void ChecksumSlotROM(void);
 
 #endif
