@@ -340,7 +340,7 @@ static bool init_fbdev_dga(char *in_fb_name)
 	int ndepths, max_depth(0);
 	int *depths = XListDepths(x_display, screen, &ndepths);
 	if (depths == NULL) {
-		fprintf(stderr, "Error: could not determine the maximal depth available\n");
+		printf("FATAL: Could not determine the maximal depth available\n");
 		return false;
 	} else {
 		while (ndepths-- > 0) {
@@ -429,7 +429,7 @@ static bool init_fbdev_dga(char *in_fb_name)
 	
 	// Set colormap
 	if (depth == 8) {
-		XSetWindowColormap(x_display, the_win, cmap[current_dga_cmap = 0]);
+		XSetWindowColormap(x_display, the_win, cmap[0]);
 		XSetWMColormapWindows(x_display, the_win, &the_win, 1);
 	}
 	
@@ -465,8 +465,6 @@ static bool init_fbdev_dga(char *in_fb_name)
 #else
 	VideoMonitor.mac_frame_base = MacFrameBaseMac;
 #endif
-	
-	printf("FbDev DGA with %s in %d-bit mode enabled\n", fb_name, fb_depth);
 	return true;
 #else
 	ErrorAlert("Basilisk II has been compiled with fbdev DGA support disabled.");
@@ -948,9 +946,6 @@ static void resume_emul(void)
 #if ENABLE_XF86_DGA
 		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
 #endif
-#if ENABLE_FBDEV_DGA
-		XSetWindowColormap(x_display, the_win, cmap[current_dga_cmap]);
-#endif
 
 	// Unlock frame buffer (and continue MacOS thread)
 	pthread_mutex_unlock(&frame_buffer_lock);
@@ -1416,11 +1411,6 @@ static void *redraw_func(void *arg)
 					current_dga_cmap ^= 1;
 					XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
 				}
-#endif
-				
-#if ENABLE_FBDEV_DGA
-				if (display_type == DISPLAY_DGA)
-					XSetWindowColormap(x_display, the_win, cmap[current_dga_cmap]);
 #endif
 			}
 		}
