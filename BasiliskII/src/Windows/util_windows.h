@@ -27,8 +27,19 @@ BOOL exists( const char *path );
 int32 get_file_size( const char *path );
 BOOL create_file( const char *path, DWORD size );
 
+// Thread wrappers
 extern HANDLE create_thread(LPTHREAD_START_ROUTINE start_routine, void *arg = NULL);
 extern void wait_thread(HANDLE thread);
 extern void kill_thread(HANDLE thread);
+
+// Mutex wrappers
+class mutex_t {
+    CRITICAL_SECTION cs;
+ public:
+    mutex_t()		{ InitializeCriticalSection(&cs); }
+    ~mutex_t()		{ DeleteCriticalSection(&cs); }
+    void lock()		{ EnterCriticalSection(&cs); }
+    void unlock()	{ LeaveCriticalSection(&cs); }
+};
 
 #endif // _UTIL_WINDOWS_H
