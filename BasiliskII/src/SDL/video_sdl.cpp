@@ -324,7 +324,7 @@ static inline int bytes_per_pixel(int depth)
 }
 
 // Map video_mode depth ID to numerical depth value
-static int sdl_depth_of_video_depth(int video_depth)
+static int mac_depth_of_video_depth(int video_depth)
 {
 	int depth = -1;
 	switch (video_depth) {
@@ -350,6 +350,12 @@ static int sdl_depth_of_video_depth(int video_depth)
 		abort();
 	}
 	return depth;
+}
+
+// Map video_mode depth ID to SDL screen depth
+static int sdl_depth_of_video_depth(int video_depth)
+{
+	return (video_depth <= VIDEO_DEPTH_8BIT) ? 8 : mac_depth_of_video_depth(video_depth);
 }
 
 // Check wether specified mode is available
@@ -617,7 +623,7 @@ driver_window::driver_window(SDL_monitor_desc &m)
 	ADBSetRelMouseMode(mouse_grabbed);
 
 	// Create surface
-	int depth = ((int)VIDEO_MODE_DEPTH <= VIDEO_DEPTH_8BIT ? 8 : screen_depth);
+	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
 	if ((s = SDL_SetVideoMode(width, height, depth, SDL_HWSURFACE)) == NULL)
 		return;
 
@@ -675,7 +681,7 @@ driver_window::driver_window(SDL_monitor_desc &m)
 	visualFormat.Rmask = f->Rmask;
 	visualFormat.Gmask = f->Gmask;
 	visualFormat.Bmask = f->Bmask;
-	Screen_blitter_init(visualFormat, true, sdl_depth_of_video_depth(VIDEO_MODE_DEPTH));
+	Screen_blitter_init(visualFormat, true, mac_depth_of_video_depth(VIDEO_MODE_DEPTH));
 
 	// Load gray ramp to 8->16/32 expand map
 	if (!IsDirectMode(mode))
@@ -954,7 +960,7 @@ bool VideoInit(bool classic)
 			add_mode(display_type, 512, 342, 0x80, 64, VIDEO_DEPTH_1BIT);
 		else {
 			for (int d = VIDEO_DEPTH_1BIT; d <= default_depth; d++) {
-				int bpp = (d <= VIDEO_DEPTH_8BIT ? 8 : sdl_depth_of_video_depth(d));
+				int bpp = sdl_depth_of_video_depth(d);
 				if (SDL_VideoModeOK(max_width, max_height, bpp, SDL_HWSURFACE))
 					add_window_modes(video_depth(d));
 			}
