@@ -353,15 +353,6 @@ void powerpc_cpu::execute_compare(uint32 opcode)
 template< class OP >
 void powerpc_cpu::execute_cr_op(uint32 opcode)
 {
-#if PPC_HAVE_SPLIT_CR
-	const uint32 crbA = crbA_field::extract(opcode);
-	uint32 a = (cr().get(crbA / 4) << (crbA % 4));
-	const uint32 crbB = crbB_field::extract(opcode);
-	uint32 b = (cr().get(crbB / 4) << (crbB % 4));
-	const uint32 crbD = crbD_field::extract(opcode);
-	uint32 d = ((OP::apply(a, b) & 8) >> (crbD % 4));
-	cr().set(crbD / 4, d | (cr().get(crbD / 4) & ~(1 << (3 - (crbD % 4)))));
-#else
 	const uint32 crbA = crbA_field::extract(opcode);
 	uint32 a = (cr().get() >> (31 - crbA)) & 1;
 	const uint32 crbB = crbB_field::extract(opcode);
@@ -369,7 +360,6 @@ void powerpc_cpu::execute_cr_op(uint32 opcode)
 	const uint32 crbD = crbD_field::extract(opcode);
 	uint32 d = OP::apply(a, b) & 1;
 	cr().set((cr().get() & ~(1 << (31 - crbD))) | (d << (31 - crbD)));
-#endif
 	increment_pc(4);
 }
 
@@ -826,7 +816,6 @@ void powerpc_cpu::execute_fp_compare(uint32 opcode)
 	else
 		cr().set(crfd, 2);
 
-#ifndef PPC_NO_FPSCR_UPDATE
 	fpscr() = (fpscr() & ~FPSCR_FPCC_field::mask()) | (cr().get(crfd) << 12);
 	if (is_SNaN(a) || is_SNaN(b)) {
 		fpscr() |= FPSCR_VXSNAN_field::mask();
@@ -835,7 +824,6 @@ void powerpc_cpu::execute_fp_compare(uint32 opcode)
 	}
 	else if (OC && (is_QNaN(a) || is_QNaN(b)))
 		fpscr() |= FPSCR_VXVC_field::mask();
-#endif
 
 	increment_pc(4);
 }
@@ -886,7 +874,6 @@ void powerpc_cpu::execute_fp_int_convert(uint32 opcode)
 
 void powerpc_cpu::fp_classify(double x)
 {
-#ifndef PPC_NO_FPSCR_UPDATE
 	uint32 c = fpscr() & ~FPSCR_FPRF_field::mask();
 	uint8 fc = fpclassify(x);
 	switch (fc) {
@@ -913,7 +900,6 @@ void powerpc_cpu::fp_classify(double x)
 		break;
 	}
 	fpscr() = c;
-#endif
 }
 
 template< class Rc >
@@ -974,10 +960,8 @@ void powerpc_cpu::execute_mtfsf(uint32 opcode)
 	if ((f & 0x80) == 0)
 		m &= ~FPSCR_FX_field::mask();
 
-#ifndef PPC_NO_FPSCR_UPDATE
 	// Move frB bits to FPSCR according to field mask
 	fpscr() = (fsf & m) | (fpscr() & ~m);
-#endif
 
 	// Set CR1 (FX, FEX, VX, VOX) if instruction has Rc set
 	if (Rc::test(opcode))
@@ -996,10 +980,8 @@ void powerpc_cpu::execute_mtfsfi(uint32 opcode)
 	if (crfD == 0)
 		m &= ~FPSCR_FX_field::mask();
 
-#ifndef PPC_NO_FPSCR_UPDATE
 	// Move immediate to FPSCR according to field crfD
 	fpscr() = (RB::get(this, opcode) & m) | (fpscr() & ~m);
-#endif
 
 	// Set CR1 (FX, FEX, VX, VOX) if instruction has Rc set
 	if (Rc::test(opcode))

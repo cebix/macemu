@@ -144,7 +144,6 @@ private:
 
 	// Emulated registers IDs
 	enum {
-		R_ = -1,
 		RD = 3,
 		RA = 4,
 		RB = 5

@@ -248,7 +248,7 @@ powerpc_cpu::~powerpc_cpu()
 	clock_t emul_end_time = clock();
 
 	const char *type = NULL;
-#ifndef PPC_NO_DECODE_CACHE
+#if PPC_DECODE_CACHE
 	type = "predecode";
 #endif
 	if (type) {
@@ -341,10 +341,10 @@ bool powerpc_cpu::check_spcflags()
 void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 {
 	pc() = entry;
-#ifdef PPC_EXECUTE_DUMP_STATE
+#if PPC_EXECUTE_DUMP_STATE
 	const bool dump_state = true;
 #endif
-#ifndef PPC_NO_DECODE_CACHE
+#if PPC_DECODE_CACHE
 	if (enable_cache) {
 		for (;;) {
 #if PROFILE_COMPILE_TIME
@@ -361,7 +361,7 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 			do {
 				uint32 opcode = vm_read_memory_4(dpc += 4);
 				ii = decode(opcode);
-#ifdef PPC_EXECUTE_DUMP_STATE
+#if PPC_EXECUTE_DUMP_STATE
 				if (dump_state) {
 					di->opcode = opcode;
 					di->execute = nv_mem_fun(&powerpc_cpu::dump_instruction);
@@ -377,7 +377,7 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 				di->opcode = opcode;
 				di->execute = ii->decode ? ii->decode(this, opcode) : ii->execute;
 				di++;
-#ifdef PPC_EXECUTE_DUMP_STATE
+#if PPC_EXECUTE_DUMP_STATE
 				if (dump_state) {
 					di->opcode = 0;
 					di->execute = nv_mem_fun(&powerpc_cpu::fake_dump_registers);
@@ -404,16 +404,8 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 
 			// Execute all cached blocks
 			for (;;) {
-#ifdef PPC_LAZY_PC_UPDATE
-				pc() = bi->end_pc;
-#endif
-				di = bi->di;
-#ifdef PPC_NO_DECODE_CACHE_UNROLL_EXECUTE
-				for (int i = 0; i < bi->size; i++)
-					di[i].execute(this, di[i].opcode);
-#else
 				const int r = bi->size % 4;
-				di += r;
+				di = bi->di + r;
 				int n = (bi->size + 3) / 4;
 				switch (r) {
 				case 0: do {
@@ -424,7 +416,6 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 				case 1: di[-1].execute(this, di[-1].opcode);
 					} while (--n > 0);
 				}
-#endif
 
 				if (!spcflags().empty()) {
 					if (!check_spcflags())
@@ -447,7 +438,7 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 	for (;;) {
 		uint32 opcode = vm_read_memory_4(pc());
 		const instr_info_t *ii = decode(opcode);
-#ifdef PPC_EXECUTE_DUMP_STATE
+#if PPC_EXECUTE_DUMP_STATE
 		if (dump_state)
 			dump_instruction(opcode);
 #endif
@@ -457,7 +448,7 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 #endif
 		assert(ii->execute != 0);
 		ii->execute(this, opcode);
-#ifdef PPC_EXECUTE_DUMP_STATE
+#if PPC_EXECUTE_DUMP_STATE
 		if (dump_state)
 			dump_registers();
 #endif
@@ -473,7 +464,7 @@ void powerpc_cpu::execute()
 
 void powerpc_cpu::init_decode_cache()
 {
-#ifndef PPC_NO_DECODE_CACHE
+#if PPC_DECODE_CACHE
 	decode_cache = (block_info::decode_info *)vm_acquire(DECODE_CACHE_SIZE);
 	if (decode_cache == VM_MAP_FAILED) {
 		fprintf(stderr, "powerpc_cpu: Could not allocate decode cache\n");
@@ -487,7 +478,7 @@ void powerpc_cpu::init_decode_cache()
 	// Leave enough room to last call to record_step()
 	decode_cache_end_p -= 2;
 #endif
-#ifdef PPC_EXECUTE_DUMP_STATE
+#if PPC_EXECUTE_DUMP_STATE
 	// Leave enough room to last calls to dump state functions
 	decode_cache_end_p -= 2;
 #endif
@@ -498,14 +489,14 @@ void powerpc_cpu::init_decode_cache()
 
 void powerpc_cpu::kill_decode_cache()
 {
-#ifndef PPC_NO_DECODE_CACHE
+#if PPC_DECODE_CACHE
 	vm_release(decode_cache, DECODE_CACHE_SIZE);
 #endif
 }
 
 void powerpc_cpu::invalidate_cache()
 {
-#ifndef PPC_NO_DECODE_CACHE
+#if PPC_DECODE_CACHE
 	block_cache.clear();
 	block_cache.initialize();
 	decode_cache_p = decode_cache;
@@ -516,7 +507,7 @@ void powerpc_cpu::invalidate_cache()
 void powerpc_cpu::invalidate_cache_range(uintptr start, uintptr end)
 {
 	D(bug("Invalidate cache block [%08x - %08x]\n", start, end));
-#ifndef PPC_NO_DECODE_CACHE
+#if PPC_DECODE_CACHE
 	block_cache.clear_range(start, end);
 #endif
 }

@@ -55,11 +55,7 @@ protected:
 	uint32 ctr() const			{ return regs.ctr; }
 	uint32 & pc()				{ return regs.pc; }
 	uint32 pc() const			{ return regs.pc; }
-#ifdef PPC_LAZY_PC_UPDATE
-	void increment_pc(int o)	{ }
-#else
 	void increment_pc(int o)	{ pc() += o; }
-#endif
 	uint32 & tbl()				{ return regs.tbl; }
 	uint32 tbl() const			{ return regs.tbl; }
 	uint32 & tbu()				{ return regs.tbu; }
@@ -133,12 +129,8 @@ protected:
 		CFLOW_JUMP			= 2,
 		CFLOW_TRAP			= 4,
 		CFLOW_CONST_JUMP	= 8,
-#ifdef PPC_LAZY_PC_UPDATE
-		CFLOW_END_BLOCK		= 7
-#else
 		// Instructions that can trap don't mark the end of a block
 		CFLOW_END_BLOCK		= 3
-#endif
 	};
 
 	// Callbacks associated with each instruction

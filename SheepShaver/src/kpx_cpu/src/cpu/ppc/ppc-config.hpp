@@ -78,84 +78,15 @@
 
 
 /**
- *	PPC_NO_FPSCR_UPDATE
+ *	PPC_DECODE_CACHE
  *
- *		Define to not touch to FPSCR register. This is only useful for
- *		debugging purposes and side-by-side comparision with other
- *		PowerPC emulators that don't handle the FPSCR register.
- **/
-
-#ifndef PPC_NO_FPSCR_UPDATE
-#undef  PPC_NO_FPSCR_UPDATE
-#endif
-
-
-/**
- *	PPC_LAZY_PC_UPDATE
- *
- *		Define to update program counter lazily, i.e. update it only
- *		on branch instructions. On entry of a block, program counter
- *		is speculatively set to the last instruction of that block.
- **/
-
-#ifndef PPC_LAZY_PC_UPDATE
-#define PPC_LAZY_PC_UPDATE
-#endif
-#ifdef  PPC_NO_LAZY_PC_UPDATE
-#undef  PPC_LAZY_PC_UPDATE
-#endif
-
-
-/**
- *	PPC_LAZY_CC_UPDATE
- *
- *		Define to update condition code register lazily, i.e. (LT, GT,
- *		EQ) fields will be computed on-demand from the last recorded
- *		operation result. (SO) is always copied from the XER register.
- *
- *		This implies PPC_HAVE_SPLIT_CR to be set. See below.
- **/
-
-#ifndef PPC_LAZY_CC_UPDATE
-#undef  PPC_LAZY_CC_UPDATE
-#endif
-
-
-/**
- *	PPC_HAVE_SPLIT_CR
- *
- *		Define to split condition register fields into 8 smaller
- *		aggregates. This is only useful for JIT backends where we
- *		don't want to bother shift-masking CR values.
- **/
-
-#ifndef PPC_HAVE_SPLIT_CR
-#undef  PPC_HAVE_SPLIT_CR
-#endif
-
-
-/**
- *	PPC_NO_DECODE_CACHE
- *
- *		Define to disable the decode cache. This is only useful for
- *		debugging purposes and side-by-side comparison with other
+ *		Define to 0 to disable the decode cache. This is only useful
+ *		for debugging purposes and side-by-side comparison with other
  *		PowerPC emulators.
  **/
 
-#ifndef PPC_NO_DECODE_CACHE
-#undef  PPC_NO_DECODE_CACHE
-#endif
-
-
-/**
- *	PPC_NO_DECODE_CACHE_UNROLL_EXECUTE
- *
- *		Define to disable decode_cache[] execute loop unrolling. This
- *		is a manual unrolling as a Duff's device makes things worse.
- **/
-
-#ifndef PPC_NO_DECODE_CACHE_UNROLL_EXECUTE
-#undef  PPC_NO_DECODE_CACHE_UNROLL_EXECUTE
+#ifndef PPC_DECODE_CACHE
+#define PPC_DECODE_CACHE 1
 #endif
 
 
@@ -167,7 +98,7 @@
  **/
 
 #ifndef PPC_EXECUTE_DUMP_STATE
-#undef  PPC_EXECUTE_DUMP_STATE
+#define PPC_EXECUTE_DUMP_STATE 0
 #endif
 
 
@@ -180,7 +111,7 @@
  **/
 
 #ifndef PPC_FLIGHT_RECORDER
-#undef  PPC_FLIGHT_RECORDER
+#define PPC_FLIGHT_RECORDER 0
 #endif
 
 
@@ -191,18 +122,6 @@
 #ifdef SHEEPSHAVER
 #define PPC_NO_BASIC_CPU_BASE
 #undef PPC_NO_STATIC_II_INDEX_TABLE
-#endif
-
-#ifdef PPC_NO_DECODE_CACHE
-#undef PPC_LAZY_PC_UPDATE
-#endif
-
-#if PPC_FLIGHT_RECORDER || PPC_EXECUTE_DUMP_STATE
-#undef PPC_LAZY_PC_UPDATE
-#endif
-
-#if defined(PPC_LAZY_CC_UPDATE) && !defined(PPC_HAVE_SPLIT_CR)
-#define PPC_HAVE_SPLIT_CR 1
 #endif
 
 #endif /* PPC_CONFIG_H */
