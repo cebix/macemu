@@ -2,7 +2,8 @@ Bugs:
 - System 7.1 with Quadra900 ModelID (1MB ROM): 0x108 gets strange value
 - Strange things happen when the Mac ROM is lower in memory than the RAM
 - Something still seems to be wrong with the UAE FPU (Calculator and scroll
-  bars in MacOS 8 don't work properly)
+  bars in MacOS 8 don't work properly), Lauri has fixed this and it has to
+  be integrated into the main sources
 
 General:
 - Sony: rdVerify, Tag Buffer, DskErr
@@ -48,3 +49,4 @@ Unix:
 - ESD is also available on Solaris
 - open /dev/dsp with O_NONBLOCK?
 - serial_unix.cpp: provide a way to pipe input/output to programs
+- NetBSD/m68k: FPU support

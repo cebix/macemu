@@ -22,7 +22,8 @@ distributed under the GNU General Public License.
 
 Basilisk II has currently been ported to the following systems:
   - BeOS R4 (PowerPC and x86)
-  - Unix (tested under Linux, Solaris 2.5, FreeBSD 3.x and IRIX 6.5)
+  - Unix (tested under Linux, Solaris 2.5, FreeBSD 3.x, NetBSD 1.4.2 and
+    IRIX 6.5)
   - AmigaOS 3.x
   - Windows NT 4.0 (mostly works under Windows 95/98, too)
 
@@ -41,7 +42,8 @@ Some features of Basilisk II:
   - Serial drivers
   - SCSI Manager (old-style) emulation
   - Emulates extended ADB keyboard and 3-button mouse
-  - Uses UAE 68k emulation or (under AmigaOS) real 68k processor
+  - Uses UAE 68k emulation or (under AmigaOS and NetBSD/m68k) real 68k
+    processor
 
 The emulator is not yet complete. See the file "TODO" for a list of
 unimplemented stuff.
@@ -414,7 +416,9 @@ frameskip <frames to skip>
   For refreshed graphics modes (usually window modes), this specifies
   how many frames to skip after drawing one frame. Higher values make
   the video display more responsive but require more processing power.
-  The default is "8".
+  The default is "8". Under Unix/X11, a value of "0" selects a "dynamic"
+  update mode that cuts the display into rectangles and updates each
+  rectangle individually, depending on display changes.
 
 modelid <MacOS model ID>
 
@@ -475,6 +479,18 @@ Unix:
     configured with --enable-fbdev-dga). The default location of the file
     is /usr/local/share/BasiliskII/fbdevices. A sample file is included
     with Basilisk II.
+
+  mousewheelmode <mode>
+
+    If you have a mouse with a wheel, this option specifies whether moving
+    the wheel will be reported to the MacOS as "Page up/down" (mode 0) or
+    "Cursor up/down" (mode 1) keys.
+
+  mousewheellines <number of lines>
+
+    If "mousewheelmode" is set to mode 1 (Cursor up/down), this option sets
+    the number of key events sent to MacOS for each wheel movement (the
+    number of lines to scroll).
 
 AmigaOS:
 

@@ -1,4 +1,13 @@
 V0.8 (snapshot) -
+	- Unix: runs natively on NetBSD/m68k
+	- Unix: compiles without pthreads, but without serial/ethernet/audio
+	  support
+	- Unix: "--without-mon" configure option now works
+	- Unix/video_x.cpp: DGA and SHM are only tried on local X11 displays
+	- Unix/video_x.cpp: re-integrated old window update method; frameskip=0
+	  ("Dynamic") selects new method, other values select old method
+	- Unix/prefs_editor_unix.cpp: new "Input" pane, containing keycode
+	  and mouse wheel options
 	- AmigaOS: added support for CyberGraphX [Jürgen Lachmann]
 	- audio.cpp: audio_data is cleared on reset [Lauri Pesonen]
 	- prefs.cpp: empty string prefs items could be written to prefs file
@@ -6,7 +15,6 @@ V0.8 (snapshot) -
 	- clip_*.cpp: added prefs item "noclipconversion" for turning off
 	  charset conversion of text clips (only CR->LF gets translated),
 	  [Toshimitsu Tanaka]
-	- Unix: "--without-mon" configure option now works
 
 V0.8 (snapshot) - 14.Mar.2000
 	- Unix/video_x.cpp: new window refresh code [Samuel Lander]

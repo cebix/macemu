@@ -23,9 +23,10 @@ BeOS:
   Basilisk II cannot do Mac Classic emulation.
 
 Unix:
-  You need X11R6, pthreads support and GNU make. To use the GUI preferences
-  editor, you also need GTK+ version 1.2 or better. On Linux, you need
-  glibc 2.0 or better.
+  You need X11R6 and a "make" utility with the VPATH feature (e.g. GNU make).
+  For serial, ethernet and audio support, you need pthreads. To use the GUI
+  preferences editor, you also need GTK+ version 1.2 or better. On Linux, you
+  need glibc 2.0 or better.
 
 AmigaOS:
   You need at least a 68020 and AmigaOS 3.0 or better. To get the GUI
@@ -88,6 +89,44 @@ Unix:
     to "-Ofast" in the Makefile, and adding "-ipa" to LDFLAGS.  This
     turns on massive interprocedural optimization, and makes for much
     better performance."
+
+  ATTENTION NetBSD/m68k USERS:
+  If you want to run Basilisk II natively (i.e. without CPU emulation), you
+  must NOT use a pthreads library. User-level threads libraries such as PTL
+  interfere with the signal handlers installed by Basilisk II and kernel-
+  level threads are not supported by NetBSD, so you will have to live without
+  pthreads (and thus, without serial/ethernet/audio support).
+
+  ATTENTION NetBSD/mac68k USERS:
+  Current (as of July 2000) versions of the NetBSD/mac68k kernel have a bug
+  that not only prevents Basilisk II from running properly but seems to even
+  cause kernel panics under certain conditions! Apply the following patch to
+  /sys/arch/mac68k/mac68k/macromasm.s, recompile and re-install the kernel
+  and reboot before using Basilisk II:
+
+    --- macromasm.s.orig    Wed Jul  5 19:29:01 2000
+    +++ macromasm.s Wed Jul  5 19:12:34 2000
+    @@ -37,6 +37,8 @@
+ 
+     #include "opt_adb.h"
+     #include "assym.h"
+    +#include <machine/asm.h>
+    +#include <machine/trap.h>
+ 
+ 
+            /* Define this symbol as global with (v) value */
+    @@ -437,8 +439,9 @@
+            movw    sp@(FR_HW + 4), d0      | retrieve status register
+            andw    #PSL_S, d0      | supervisor state?
+            bne     Lalnosup        | branch if supervisor
+    -       jbsr    _mrg_aline_user | user a-line trap
+    -       bra     Lalrts
+    +       addql   #4, sp          | pop frame ptr
+    +       movql   #T_ILLINST, d0  | user-mode fault
+    +       jra     _ASM_LABEL(fault)
+     Lalnosup:
+     #define FR_PC (FR_HW+2)
+            movl    sp@(FR_PC + 4), a0      | retrieve PC
 
 AmigaOS:
   If you have a binary distribution of Basilisk II for AmigaOS, there is an

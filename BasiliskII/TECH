@@ -105,11 +105,11 @@ and EMULATED_68K defines in "sysdeps.h"):
         priviledged instructions, mostly for interrupt control). So either
         the whole emulator has to be run in supervisor mode (which usually is
         not possible on multitasking systems) or priviledged instructions have
-        to be trapped and emulated. The Amiga version of Basilisk II uses the
-        latter approach (it is possible to run supervisor mode tasks under
-        the AmigaOS multitasking kernel (ShapeShifter does this) but it
-        requires modifying the task switcher and makes the emulator more
-        unstable).
+        to be trapped and emulated. The Amiga and NetBSD/m68k versions of
+        Basilisk II use the latter approach (it is possible to run supervisor
+        mode tasks under the AmigaOS multitasking kernel (ShapeShifter does
+        this) but it requires modifying the Exec task switcher and makes the
+        emulator more unstable).
      c) On multitasking systems, interrupts can usually not be handled as on
         a real Mac (or with the UAE CPU). The interrupt levels of the host
         will not be the same as on a Mac, and the operating systems might not

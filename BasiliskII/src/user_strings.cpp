@@ -137,6 +137,7 @@ user_string_def common_strings[] = {
 	{STR_REF_15HZ_LAB, "15 Hz"},
 	{STR_REF_30HZ_LAB, "30 Hz"},
 	{STR_REF_60HZ_LAB, "60 Hz"},
+	{STR_REF_DYNAMIC_LAB, "Dynamic"},
 	{STR_DISPLAY_X_CTRL, "Width"},
 	{STR_DISPLAY_Y_CTRL, "Height"},
 	{STR_SIZE_384_LAB, "384"},
