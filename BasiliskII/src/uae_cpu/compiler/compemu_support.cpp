@@ -6824,7 +6824,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 			int r2 = (r==0) ? 1 : 0;
 			raw_mov_l_ri(r2,(uintptr)popall_do_nothing);
 			raw_cmp_l_mi((uintptr)specflags,0);
-			raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,SIZEOF_VOID_P);
+			raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,NATIVE_CC_EQ);
 			raw_jmp_r(r2);
 		}
 		else if (was_comp && isconst(PC_P)) {
@@ -6850,7 +6850,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 			int r2 = (r==0) ? 1 : 0;
 			raw_mov_l_ri(r2,(uintptr)popall_do_nothing);
 			raw_cmp_l_mi((uintptr)specflags,0);
-			raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,SIZEOF_VOID_P);
+			raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,NATIVE_CC_EQ);
 			raw_jmp_r(r2);
 		}
 	    }
