@@ -21,7 +21,7 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#if defined(WIN32)
+#if defined(WIN32) && !defined(__CYGWIN__)
 
 // Windows debugging goes where it's supposed to go
 #include <stdio.h>
