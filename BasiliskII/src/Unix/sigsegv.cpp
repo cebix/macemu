@@ -766,27 +766,35 @@ static bool ix86_skip_instruction(unsigned long * regs)
 #endif
 
 	// Decode instruction
+	int target_size = SIZE_UNKNOWN;
 	switch (eip[0]) {
 	case 0x0f:
+		target_size = transfer_size;
 	    switch (eip[1]) {
+		case 0xbe: // MOVSX r32, r/m8
 	    case 0xb6: // MOVZX r32, r/m8
+			transfer_size = SIZE_BYTE;
+			goto do_mov_extend;
 	    case 0xb7: // MOVZX r32, r/m16
-		switch (eip[2] & 0xc0) {
-		case 0x80:
-		    reg = (eip[2] >> 3) & 7;
-		    transfer_type = SIGSEGV_TRANSFER_LOAD;
-		    break;
-		case 0x40:
-		    reg = (eip[2] >> 3) & 7;
-		    transfer_type = SIGSEGV_TRANSFER_LOAD;
-		    break;
-		case 0x00:
-		    reg = (eip[2] >> 3) & 7;
-		    transfer_type = SIGSEGV_TRANSFER_LOAD;
-		    break;
-		}
-		len += 3 + ix86_step_over_modrm(eip + 2);
-		break;
+			transfer_size = SIZE_WORD;
+			goto do_mov_extend;
+		  do_mov_extend:
+			switch (eip[2] & 0xc0) {
+			case 0x80:
+				reg = (eip[2] >> 3) & 7;
+				transfer_type = SIGSEGV_TRANSFER_LOAD;
+				break;
+			case 0x40:
+				reg = (eip[2] >> 3) & 7;
+				transfer_type = SIGSEGV_TRANSFER_LOAD;
+				break;
+			case 0x00:
+				reg = (eip[2] >> 3) & 7;
+				transfer_type = SIGSEGV_TRANSFER_LOAD;
+				break;
+			}
+			len += 3 + ix86_step_over_modrm(eip + 2);
+			break;
 	    }
 	  break;
 	case 0x8a: // MOV r8, r/m8
@@ -828,6 +836,8 @@ static bool ix86_skip_instruction(unsigned long * regs)
 		len += 2 + ix86_step_over_modrm(eip + 1);
 		break;
 	}
+	if (target_size == SIZE_UNKNOWN)
+		target_size = transfer_size;
 
 	if (transfer_type == SIGSEGV_TRANSFER_UNKNOWN) {
 		// Unknown machine code, let it crash. Then patch the decoder
@@ -855,7 +865,7 @@ static bool ix86_skip_instruction(unsigned long * regs)
 		// Set 0 to the relevant register part
 		// NOTE: this is only valid for MOV alike instructions
 		int rloc = x86_reg_map[reg];
-		switch (transfer_size) {
+		switch (target_size) {
 		case SIZE_BYTE:
 			if (has_rex || reg < 4)
 				regs[rloc] = (regs[rloc] & ~0x00ffL);
