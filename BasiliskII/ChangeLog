@@ -1,501 +1,484 @@
+V1.0 (snapshot) - <date>
+ - fixed the problem with Ticks getting incremented on every interrupt, not
+   just 60Hz (e.g. moving the mouse made the caret blink faster)
+
 V1.0 (snapshot) - 15.Jan.2002
-	- added support for on-the-fly video resolution and depth switching,
-	  and gamma tables
-	- fsave/frestore emulation under AmigaOS and NetBSD/m68k always behaves
-	  like a 68882/68040 FPU, eliminating the need for 68060 FPU patches
-	- added support for platform-independant mutexes, used by adb.cpp for
-	  thread-safe mouse handling
-	- the TIME_OFFSET constant has been replaced by a (portable) function
-	  TimeToMacTime(); file dates in ExtFS should now be correct
-	- ADBInterrupt() is no longer called from the 60Hz interrupt but has
-	  its own interrupt flag, potentially increasing the smoothness of
-	  mouse movement
-	- ether.cpp: implemented relatively platform-independant "AppleTalk
-	  over UDP" mode that doesn't require any special kernel modules or
-	  network drivers but can only interconnect instances of Basilisk II;
-	  this is enabled by setting "udptunnel" to true
-	- Unix: windowed display mode supports different resolutions and color
-	  depths, which can be switched on-the-fly
-	- Unix: Ctrl-F5 grabs mouse in windowed mode (enhanced compatibility
-	  with games like flight simulators)
-	- Unix: X11 events are handled as soon as they arrive, outside of the
-	  60Hz video refresh raster
-	- Unix: audio sample rate, bit depth and channel count are adjustable
-	  in the MacOS "Sound" control panel
+ - added support for on-the-fly video resolution and depth switching, and
+   gamma tables
+ - fsave/frestore emulation under AmigaOS and NetBSD/m68k always behaves like
+   a 68882/68040 FPU, eliminating the need for 68060 FPU patches
+ - added support for platform-independant mutexes, used by adb.cpp for
+   thread-safe mouse handling
+ - the TIME_OFFSET constant has been replaced by a (portable) function
+   TimeToMacTime(); file dates in ExtFS should now be correct
+ - ADBInterrupt() is no longer called from the 60Hz interrupt but has its own
+   interrupt flag, potentially increasing the smoothness of mouse movement
+ - ether.cpp: implemented relatively platform-independant "AppleTalk over UDP"
+   mode that doesn't require any special kernel modules or network drivers but
+   can only interconnect instances of Basilisk II; this is enabled by setting
+   "udptunnel" to true
+ - Unix: windowed display mode supports different resolutions and color depths,
+   which can be switched on-the-fly
+ - Unix: Ctrl-F5 grabs mouse in windowed mode (enhanced compatibility with
+   games like flight simulators)
+ - Unix: X11 events are handled as soon as they arrive, outside of the 60Hz
+   video refresh raster
+ - Unix: audio sample rate, bit depth and channel count are adjustable in the
+   MacOS "Sound" control panel
 
 V0.9 (release 0.9-1) - 31.May 2001
-	- final adjustments for 0.9 release
+ - final adjustments for 0.9 release
 
 V0.9 (snapshot) - 29.May 2001
-	- added help for command line arguments, PrefsInit() now removes
-	  all processed options
-	- serial_unix.cpp: input/output_thread_cancel weren't initialized
-	  [Kolja Waschk]
-	- Unix: some performance improvements to VOSF screen update code
-	  [Brian J. Johnson]
-	- Unix: renewed SIGSEGV support functions. Side effect: configure
-	  script cleanups and probable Direct Addressing/VOSF support for
-	  other platforms (NetBSD, AIX, OSF/1, Irix) [Gwenole Beauchesne]
-	- Unix: -Ofast option is supplied to MIPSPro compiler [Brian J. Johnson]
-	- Unix: workaround for IRIX pthreads bug in Delay_usec()
-	  [Brian J. Johnson]
-	- Unix: FreeBSD configure script cleanups [Michael Alyn Miller]
-	- Unix: ether_linux.cpp moved and renamed to ether_unix.cpp, now
-	  also works with the tap driver under FreeBSD [Michael Alyn Miller]
-	- BeOS: fixed some bugs in the extfs file types handling
-	- AmigaOS: SCSI buffer type can be selected
+ - added help for command line arguments, PrefsInit() now removes all processed
+   options
+ - serial_unix.cpp: input/output_thread_cancel weren't initialized
+   [Kolja Waschk]
+ - Unix: some performance improvements to VOSF screen update code
+   [Brian J. Johnson]
+ - Unix: renewed SIGSEGV support functions. Side effect: configure script
+   cleanups and probable Direct Addressing/VOSF support for other platforms
+   (NetBSD, AIX, OSF/1, Irix) [Gwenole Beauchesne]
+ - Unix: -Ofast option is supplied to MIPSPro compiler [Brian J. Johnson]
+ - Unix: workaround for IRIX pthreads bug in Delay_usec() [Brian J. Johnson]
+ - Unix: FreeBSD configure script cleanups [Michael Alyn Miller]
+ - Unix: ether_linux.cpp moved and renamed to ether_unix.cpp, now also works
+   with the tap driver under FreeBSD [Michael Alyn Miller]
+ - BeOS: fixed some bugs in the extfs file types handling
+ - AmigaOS: SCSI buffer type can be selected
 
 V0.9 (snapshot) - 17.Feb.2001
-	- adapted for cxmon V3.0 which is now the required minimum
-	- UAE cpu: fixed a bug in the memory handlers preventing from
-	  correctly updating 15 and 16 bpp displays on big endian systems
-	- Unix: added (experimental) real addressing mode [Gwenole Beauchesne]
-	  (activated through the "--enable-addressing=real" configure option)
-	- Unix: added direct addressing mode [Gwenole Beauchesne]
-	  (default addressing mode, if possible)
-	- Unix: added screen updates on SEGV signals [Gwenole Beauchesne]
-	  (activated through the "--enable-vosf" configure option)
-	- Unix: added IRIX audio driver [Brian J. Johnson]
-	- Unix: improved timing of periodic threads
-	- Unix: command line options now use '--'-prefix, e.g. "--rominfo"
-	- AmigaOS: enabled floppy support, fixed floppy bugs [Jürgen Lachmann]
-	- AmigaOS: Amiga mouse pointer is hidden inside windowed Mac displays
-	- AmigaOS/sys_amiga.cpp: workaround for 2060scsi.device bug when
-	  when reading from CD-ROM [Jürgen Lachmann]
-	- AmigaOS/prefs_editor_amiga.cpp: fixed bug when adding volumes
-	  [Jürgen Lachmann]
-	- AmigaOS: added MacsBug support (tested with MacsBug6.6.1),
-	  fixed <move sr,(sp)> bug [Jürgen Lachmann]
-	- AmigaOS: disabled 68060 Super Bypass mode because of CPU bug triggered
-	  by MacOS 8
-	- AmigaOS: implemented XPRAM watchdog task
-	- AmigaOS/Unix/extfs_*.cpp: .finf helper file now stores complete
-	  FInfo/FXInfo, replaced get/set_finder_*() functions by get/set_finfo()
-	- AmigaOS/Unix: it's possible to specify preferences items on the
-	  command line
-	- BeOS: implemented the "powerrom_cpu" CPU engine for BeOS/PPC that
-	  uses the 680x0 emulator contained in an Apple PowerMac ROM to run
-	  Basilisk II (ca. 4x speed improvement); when running on a BeBox,
-	  a PCI PowerMac ROM image is needed to use this (the path name of the
-	  ROM file can be set with the preferences item "powerrom", default
-	  is "PowerROM")
-	- include/macos_util.h: defines FOURCC() macro to make MacOS-like
-	  four-character-codes, replaced most instances of multi-character
-	  constants in the sources by this macro to avoid compiler warnings
-	- cdrom.cpp: implemented Status(6) call (return format list)
-	  [Landon Fuller]
-	- Imported some changes from the Windows port, most notably FPU fixes
-	  and the 1Hz interrupt [Lauri Pesonen]
-	- Ported Lauri Pesonen's FPU core to GCC/i386 [Gwenole Beauchesne]
+ - adapted for cxmon V3.0 which is now the required minimum
+ - UAE cpu: fixed a bug in the memory handlers preventing from correctly
+   updating 15 and 16 bpp displays on big endian systems
+ - Unix: added (experimental) real addressing mode [Gwenole Beauchesne]
+   (activated through the "--enable-addressing=real" configure option)
+ - Unix: added direct addressing mode [Gwenole Beauchesne] (default addressing
+   mode, if possible)
+ - Unix: added screen updates on SEGV signals [Gwenole Beauchesne] (activated
+   through the "--enable-vosf" configure option)
+ - Unix: added IRIX audio driver [Brian J. Johnson]
+ - Unix: improved timing of periodic threads
+ - Unix: command line options now use '--'-prefix, e.g. "--rominfo"
+ - AmigaOS: enabled floppy support, fixed floppy bugs [Jürgen Lachmann]
+ - AmigaOS: Amiga mouse pointer is hidden inside windowed Mac displays
+ - AmigaOS/sys_amiga.cpp: workaround for 2060scsi.device bug when when reading
+   from CD-ROM [Jürgen Lachmann]
+ - AmigaOS/prefs_editor_amiga.cpp: fixed bug when adding volumes
+   [Jürgen Lachmann]
+ - AmigaOS: added MacsBug support (tested with MacsBug6.6.1), fixed
+   <move sr,(sp)> bug [Jürgen Lachmann]
+ - AmigaOS: disabled 68060 Super Bypass mode because of CPU bug triggered by
+   MacOS 8
+ - AmigaOS: implemented XPRAM watchdog task
+ - AmigaOS/Unix/extfs_*.cpp: .finf helper file now stores complete
+   FInfo/FXInfo, replaced get/set_finder_*() functions by get/set_finfo()
+ - AmigaOS/Unix: it's possible to specify preferences items on the command line
+ - BeOS: implemented the "powerrom_cpu" CPU engine for BeOS/PPC that uses the
+   680x0 emulator contained in an Apple PowerMac ROM to run Basilisk II (ca.
+   4x speed improvement); when running on a BeBox, a PCI PowerMac ROM image is
+   needed to use this (the path name of the ROM file can be set with the
+   preferences item "powerrom", default is "PowerROM")
+ - include/macos_util.h: defines FOURCC() macro to make MacOS-like
+   four-character-codes, replaced most instances of multi-character constants
+   in the sources by this macro to avoid compiler warnings
+ - cdrom.cpp: implemented Status(6) call (return format list) [Landon Fuller]
+ - Imported some changes from the Windows port, most notably FPU fixes and the
+   1Hz interrupt [Lauri Pesonen]
+ - Ported Lauri Pesonen's FPU core to GCC/i386 [Gwenole Beauchesne]
 
 V0.8 (snapshot) - 13.Jul.2000
-	- Unix: runs natively on NetBSD/m68k
-	- Unix: compiles without pthreads, but without serial/ethernet/audio
-	  support
-	- Unix: "--without-mon" configure option now works
-	- Unix/video_x.cpp: DGA and SHM are only tried on local X11 displays
-	- Unix/video_x.cpp: re-integrated old window update method; frameskip=0
-	  ("Dynamic") selects new method, other values select old method
-	- Unix/prefs_editor_unix.cpp: new "Input" pane, containing keycode
-	  and mouse wheel options
-	- AmigaOS: added support for CyberGraphX [Jürgen Lachmann]
-	- audio.cpp: audio_data is cleared on reset [Lauri Pesonen]
-	- prefs.cpp: empty string prefs items could be written to prefs file
-	  but not read back correctly
-	- clip_*.cpp: added prefs item "noclipconversion" for turning off
-	  charset conversion of text clips (only CR->LF gets translated),
-	  [Toshimitsu Tanaka]
+ - Unix: runs natively on NetBSD/m68k
+ - Unix: compiles without pthreads, but without serial/ethernet/audio support
+ - Unix: "--without-mon" configure option now works
+ - Unix/video_x.cpp: DGA and SHM are only tried on local X11 displays
+ - Unix/video_x.cpp: re-integrated old window update method; frameskip=0
+   ("Dynamic") selects new method, other values select old method
+ - Unix/prefs_editor_unix.cpp: new "Input" pane, containing keycode and mouse
+   wheel options
+ - AmigaOS: added support for CyberGraphX [Jürgen Lachmann]
+ - audio.cpp: audio_data is cleared on reset [Lauri Pesonen]
+ - prefs.cpp: empty string prefs items could be written to prefs file but not
+   read back correctly
+ - clip_*.cpp: added prefs item "noclipconversion" for turning off charset
+   conversion of text clips (only CR->LF gets translated) [Toshimitsu Tanaka]
 
 V0.8 (snapshot) - 14.Mar.2000
-	- Unix/video_x.cpp: new window refresh code [Samuel Lander]
-	- Unix/timer_unix.cpp: fixed time zone handling under Linux and SVR4
+ - Unix/video_x.cpp: new window refresh code [Samuel Lander]
+ - Unix/timer_unix.cpp: fixed time zone handling under Linux and SVR4
 
 V0.8 (release 0.8-1) - 30.Jan.2000
-	- extfs: extended size of finf helper files to 32 bytes to eventually
-	  allow storing the complete FInfo/FXInfo in it
+ - extfs: extended size of finf helper files to 32 bytes to eventually allow
+   storing the complete FInfo/FXInfo in it
 
 V0.8 (snapshot) - 22.Dec.1999
-	- imported UAE CPU 0.8.10 changes
-	- new utility functions Mac_memset, Mac2Host_memcpy, Host2Mac_memcpu
-	  and Mac2Mac_memcpy
-	- extfs.cpp: fixed bug in fs_rename() and fs_cat_move() (auxiliary
-	  IOParam block was not in Mac address space and FSItem parent IDs
-	  didn't get swapped) [Lauri Pesonen]
-	- extfs.cpp: several fixes [Lauri Pesonen]
-	- some provisions for using UAE CPU compiler (doesn't work yet)
-	- video_x.cpp: XFree86 VidMode extension is used to switch modes
-	  in DGA mode
+ - imported UAE CPU 0.8.10 changes
+ - new utility functions Mac_memset, Mac2Host_memcpy, Host2Mac_memcpu and
+   Mac2Mac_memcpy
+ - extfs.cpp: fixed bug in fs_rename() and fs_cat_move() (auxiliary IOParam
+   block was not in Mac address space and FSItem parent IDs didn't get swapped)
+   [Lauri Pesonen]
+ - extfs.cpp: several fixes [Lauri Pesonen]
+ - some provisions for using UAE CPU compiler (doesn't work yet)
+ - video_x.cpp: XFree86 VidMode extension is used to switch modes in DGA mode
 
 V0.8 (snapshot) - 2.Nov.1999
-	- fixed many UAE FPU bugs [Lauri Pesonen]
-	- added replacement for BlockMove() trap
-	- removed Windows sources from the source archive; a version of
-	  these that actually compiles and works can be downloaded from
-	  Lauri Pesonen's site
-	- removed the MemoryDispatch() replacement routine; the routine
-	  in the ROM is now always used; this fixes the MacOS 8 Finder
-	  copying bug and also most "unimplemented trap" errors on MacOS
-	  bootup; yeah :-)
-	- a warning is issued if the ROM seems to require an FPU but FPU
-	  emulation is turned off
-	- medium removal is allowed in CDROMExit()
-	- added (incomplete) emulation of 68040 instructions (CINV, CPUSH,
-	  MOVE16 (Ax)+,(Ay)+, and FPU stack frames), enough to boot MacOS
-	- UAE CPU: opcode routines no longer return the cycle count
-	- extfs.cpp: fixed bug with fsResolveWDCB in fs_get_wd_info()
-	- Unix: added support for ESD audio output; merged with OSS audio
-	  and put in a new "audio_oss_esd.cpp" file which is also used under
-	  FreeBSD 3.x
-	- Unix: added mkinstalldirs to "make install" target
-	- Unix: cleaned up the configure script
-	- Unix: ROM breakpoint can be specified with "-break" command line
-	  argument
-	- Unix: "-rominfo" command line argument to print information
-	  about ROM version and tables
-	- Unix: ExtFS supports resource forks and Finder info (these are
-	  kept in hidden ".finf" and ".rsrc" directories)
-	- Unix/audio_oss_esd.cpp: AudioStatus is re-set after determining
-	  audio device capabilities (actual sample rate is also determined)
-	  [Alexander R. Pruss]
-	- Unix/audio_oss_esd.cpp: "silence" in 8-bit mode used wrong fill
-	  value (0 instead of 0x80) [Alexander R. Pruss]
-	- Unix/video_x.cpp: added mouse wheel support [Alexander R. Pruss]
-	- Unix/sys_unix.cpp: device size is read correctly under Linux
-	- AmigaOS: removed support for SAS/C
-	- AmigaOS/sys_amiga.cpp: supports 64-bit device I/O (NSD)
-	- AmigaOS/sys_amiga.cpp: device block size is respected on writes
+ - fixed many UAE FPU bugs [Lauri Pesonen]
+ - added replacement for BlockMove() trap
+ - removed Windows sources from the source archive; a version of these that
+   actually compiles and works can be downloaded from Lauri Pesonen's site
+ - removed the MemoryDispatch() replacement routine; the routine in the ROM is
+   now always used; this fixes the MacOS 8 Finder copying bug and also most
+   "unimplemented trap" errors on MacOS bootup; yeah :-)
+ - a warning is issued if the ROM seems to require an FPU but FPU emulation is
+   turned off
+ - medium removal is allowed in CDROMExit()
+ - added (incomplete) emulation of 68040 instructions (CINV, CPUSH,
+   MOVE16 (Ax)+,(Ay)+, and FPU stack frames), enough to boot MacOS
+ - UAE CPU: opcode routines no longer return the cycle count
+ - extfs.cpp: fixed bug with fsResolveWDCB in fs_get_wd_info()
+ - Unix: added support for ESD audio output; merged with OSS audio and put in
+   a new "audio_oss_esd.cpp" file which is also used under FreeBSD 3.x
+ - Unix: added mkinstalldirs to "make install" target
+ - Unix: cleaned up the configure script
+ - Unix: ROM breakpoint can be specified with "-break" command line argument
+ - Unix: "-rominfo" command line argument to print information about ROM
+   version and tables
+ - Unix: ExtFS supports resource forks and Finder info (these are kept in
+   hidden ".finf" and ".rsrc" directories)
+ - Unix/audio_oss_esd.cpp: AudioStatus is re-set after determining audio
+   device capabilities (actual sample rate is also determined)
+   [Alexander R. Pruss]
+ - Unix/audio_oss_esd.cpp: "silence" in 8-bit mode used wrong fill value
+   (0 instead of 0x80) [Alexander R. Pruss]
+ - Unix/video_x.cpp: added mouse wheel support [Alexander R. Pruss]
+ - Unix/sys_unix.cpp: device size is read correctly under Linux
+ - AmigaOS: removed support for SAS/C
+ - AmigaOS/sys_amiga.cpp: supports 64-bit device I/O (NSD)
+ - AmigaOS/sys_amiga.cpp: device block size is respected on writes
 
 V0.8 (snapshot) - 21.Oct.1999
-	- sony.cpp/disk.cpp/cdrom.cpp: disk insertions are now checked for
-	  by an interrupt routine
-	- localizable strings are now split into a common and a platform-
-	  specific set
-	- added external file system to access host OS files from the MacOS;
-	  root directory is specified by the "extfs" prefs item
-	- moved most initialization/deinitialization code to InitAll() and
-	  ExitAll() in main.cpp
-	- added patches for NetBSD [Bernd Sieker]
-	- corrected TimerDateTime() in timer_unix.cpp and timer_beos.cpp
-	  [Toshimitsu Tanaka]
-	- AmigaOS: fixed crash when gtlayout.library was not present
-	- AmigaOS: now compiles with GCC (Geek Gadgets)
-	- AmigaOS/clip_amiga.cpp: fixed small bug in CR->LF translation
-	  [Giacomo Magnini]
-	- Unix: compilation of cpuemu.cpp is now split in 8 parts
-	- Unix: volume list in GTK prefs editor is reorderable
-	- Unix: added fbdev DGA support and SPARC assembly optimizations to
-	  UAE core [Gwenole Beauchesne]
+ - sony.cpp/disk.cpp/cdrom.cpp: disk insertions are now checked for by an
+   interrupt routine
+ - localizable strings are now split into a common and a platform-specific set
+ - added external file system to access host OS files from the MacOS; root
+   directory is specified by the "extfs" prefs item
+ - moved most initialization/deinitialization code to InitAll() and ExitAll()
+   in main.cpp
+ - added patches for NetBSD [Bernd Sieker]
+ - corrected TimerDateTime() in timer_unix.cpp and timer_beos.cpp
+   [Toshimitsu Tanaka]
+ - AmigaOS: fixed crash when gtlayout.library was not present
+ - AmigaOS: now compiles with GCC (Geek Gadgets)
+ - AmigaOS/clip_amiga.cpp: fixed small bug in CR->LF translation
+   [Giacomo Magnini]
+ - Unix: compilation of cpuemu.cpp is now split in 8 parts
+ - Unix: volume list in GTK prefs editor is reorderable
+ - Unix: added fbdev DGA support and SPARC assembly optimizations to UAE core
+   [Gwenole Beauchesne]
 
 V0.7 (release 0.7-2) - 6.Oct.1999
-	- Added BasiliskII.spec for making RPMs [with assistance from
-	  Roman Niewiarowski]
-	- Unix: "basilisk_ii_keycodes" renamed to "keycodes", default
-	  location of keycodes file is now /usr/local/share/BasiliskII/keycodes
-	- Unix: improved the install target, added uninstall target
-	- Unix/Windows: fixed bugs in protocol removal [Lauri Pesonen]
-	- Unix/Linux/NetDriver: removed MAKEDEV, functionality now included
-	  in Makefile ("make dev")
-	- Unix/sys_unix.cpp: Sys_open() checks whether an HFS volume is currently
-	  mounted under Linux and tries to unmount it
-	- Unix/sys_unix.cpp: implemented SysAddDiskPrefs() for Linux (scans
-	  /etc/fstab to find HFS volumes)
-	- Unix/sys_unix.cpp: implemented Sys(Prevent/Allow)Removal() [Ryan Cumming]
-	- Unix/main_unix.cpp: added call to gtk_set_locale() before gtk_init()
-	  [Toshimitsu Tanaka]
-	- Unix/video_x.cpp: "dga" screen preferences now takes width and
-	  height as parameters (e.g. dga/640/480), like "win" [Pablo Averbuj]
-	- Unix/video_x.cpp: Caps Lock behaves as expected [Pablo Averbuj]
-	- Unix/prefs_editor_gtk.cpp: made the window width/height widgets
-	  comboboxes providing some useful defaults
+ - Added BasiliskII.spec for making RPMs [with assistance from Roman
+   Niewiarowski]
+ - Unix: "basilisk_ii_keycodes" renamed to "keycodes", default location of
+   keycodes file is now /usr/local/share/BasiliskII/keycodes
+ - Unix: improved the install target, added uninstall target
+ - Unix/Windows: fixed bugs in protocol removal [Lauri Pesonen]
+ - Unix/Linux/NetDriver: removed MAKEDEV, functionality now included in
+   Makefile ("make dev")
+ - Unix/sys_unix.cpp: Sys_open() checks whether an HFS volume is currently
+   mounted under Linux and tries to unmount it
+ - Unix/sys_unix.cpp: implemented SysAddDiskPrefs() for Linux (scans /etc/fstab
+   to find HFS volumes)
+ - Unix/sys_unix.cpp: implemented Sys(Prevent/Allow)Removal() [Ryan Cumming]
+ - Unix/main_unix.cpp: added call to gtk_set_locale() before gtk_init()
+   [Toshimitsu Tanaka]
+ - Unix/video_x.cpp: "dga" screen preferences now takes width and height as
+   parameters (e.g. dga/640/480), like "win" [Pablo Averbuj]
+ - Unix/video_x.cpp: Caps Lock behaves as expected [Pablo Averbuj]
+ - Unix/prefs_editor_gtk.cpp: made the window width/height widgets comboboxes
+   providing some useful defaults
 
 V0.7 (alpha) - 25.Jul.1999
-	- with 32-bit clean ROMs, the CPU type is now reported as a 68030
-	  (for those OpenTransport fans :-)
-	- added new prefs item "nosound" to disable sound output
-	- sound output implemented for BeOS, Linux, Solaris and AmigaOS
-	  (requires Sound Manager 3.x)
-	- dummy/audio_dummy.cpp: created
-	- dummy/prefs_dummy.cpp: created
-	- dummy/xpram_dummy.cpp: created
-	- macos_util.cpp: added FileDiskLayout()
-	- video.cpp: removed useless BlankMousePointer flag
-	- uae_cpu: updated to UAE 0.8.9
-	- uae_cpu/gencpu.c: fixed bug in CAS2, OpenTransport works now
-	- Unix: moved Linux- and FreeBSD-specific files to their respective
-	  directories
-	- Unix: added 64-bit data types (needed by timer_unix.cpp)
-	- Unix: added keyboard translation method using raw keycodes instead of
-	  keysyms (controlled by "keycodes" and "keycodefile" prefs items) which
-	  doesn't depend on the selected keymap
-	- Unix: when running as root, Basilisk II tries to assign real-time
-	  priorities to some threads
-	- Unix: calls to nanosleep() protected by autoconf define
-	- Unix/main_unix.cpp: tick thread replaced by POSIX.4 timer when possible
-	- Unix/timer_unix.cpp: uses POSIX.4 timing facilities when possible
-	- Unix/video_x.cpp: all X calls during emulation are now done from
-	  the redraw thread which is also active in DGA mode; as a result,
-	  XLockServer()/XUnlockServer() are no longer necessary
-	- Unix/sysdeps.h: changed C++ comments to C comments as this file is
-	  included by some *.c files in uae_cpu [Brian J. Johnson]
-	- Unix/sysdeps.h: added unaligned access functions for SGI MIPSPro
-	  compiler [Brian J. Johnson]
-	- Unix/Irix/unaligned.c: created [Brian J. Johnson]
-	- Windows: updated sources
+ - with 32-bit clean ROMs, the CPU type is now reported as a 68030 (for those
+   OpenTransport fans :-)
+ - added new prefs item "nosound" to disable sound output
+ - sound output implemented for BeOS, Linux, Solaris and AmigaOS (requires
+   Sound Manager 3.x)
+ - dummy/audio_dummy.cpp: created
+ - dummy/prefs_dummy.cpp: created
+ - dummy/xpram_dummy.cpp: created
+ - macos_util.cpp: added FileDiskLayout()
+ - video.cpp: removed useless BlankMousePointer flag
+ - uae_cpu: updated to UAE 0.8.9
+ - uae_cpu/gencpu.c: fixed bug in CAS2, OpenTransport works now
+ - Unix: moved Linux- and FreeBSD-specific files to their respective
+   directories
+ - Unix: added 64-bit data types (needed by timer_unix.cpp)
+ - Unix: added keyboard translation method using raw keycodes instead of
+   keysyms (controlled by "keycodes" and "keycodefile" prefs items) which
+   doesn't depend on the selected keymap
+ - Unix: when running as root, Basilisk II tries to assign real-time priorities
+   to some threads
+ - Unix: calls to nanosleep() protected by autoconf define
+ - Unix/main_unix.cpp: tick thread replaced by POSIX.4 timer when possible
+ - Unix/timer_unix.cpp: uses POSIX.4 timing facilities when possible
+ - Unix/video_x.cpp: all X calls during emulation are now done from the redraw
+   thread which is also active in DGA mode; as a result,
+   XLockServer()/XUnlockServer() are no longer necessary
+ - Unix/sysdeps.h: changed C++ comments to C comments as this file is included
+   by some *.c files in uae_cpu [Brian J. Johnson]
+ - Unix/sysdeps.h: added unaligned access functions for SGI MIPSPro compiler
+   [Brian J. Johnson]
+ - Unix/Irix/unaligned.c: created [Brian J. Johnson]
+ - Windows: updated sources
 
 V0.6 (alpha) - 12.Jul.1999
-	- Unix: Basilisk II now accepts a "-display <display>" argument to
-	  specify the X display to use
-	- Unix: mounting floppies with Ctrl-F1 now works
-	- Unix/ether_linux.cpp: now works when ethertap is configured for
-	  multicast support
-	- Unix/main_unix.cpp: XOpenDisplay() is now called from main()
-	- Unix/scsi_freebsd.cpp: added support for FreeBSD 2.x [Orlando Bassotto]
-	- Unix/posix_sem.cpp: updated [Orlando Bassotto]
-	- Unix/prefs_editor_gtk.cpp: serial pane recognizes FreeBSD serial/
-	  printer devices [Orlando Bassotto]
-	- Unix/serial_unix.cpp: FreeBSD printer devices are recognized
-	  [Orlando Bassotto]
-	- Unix/sys_unix.cpp: FreeBSD CD-ROM/floppy support, correct default
-	  serial prefs for FreeBSD [Orlando Bassotto]
-	- Unix/sys_unix.cpp: fixed SysIsDiskInserted for Linux floppy
-	- Unix/FreeBSD/scsidump.cpp: added [Orlando Bassotto]
+ - Unix: Basilisk II now accepts a "-display <display>" argument to specify the
+   X display to use
+ - Unix: mounting floppies with Ctrl-F1 now works
+ - Unix/ether_linux.cpp: now works when ethertap is configured for multicast
+   support
+ - Unix/main_unix.cpp: XOpenDisplay() is now called from main()
+ - Unix/scsi_freebsd.cpp: added support for FreeBSD 2.x [Orlando Bassotto]
+ - Unix/posix_sem.cpp: updated [Orlando Bassotto]
+ - Unix/prefs_editor_gtk.cpp: serial pane recognizes FreeBSD serial/printer
+   devices [Orlando Bassotto]
+ - Unix/serial_unix.cpp: FreeBSD printer devices are recognized
+   [Orlando Bassotto]
+ - Unix/sys_unix.cpp: FreeBSD CD-ROM/floppy support, correct default serial
+   prefs for FreeBSD [Orlando Bassotto]
+ - Unix/sys_unix.cpp: fixed SysIsDiskInserted for Linux floppy
+ - Unix/FreeBSD/scsidump.cpp: added [Orlando Bassotto]
 
 V0.6 (alpha) - 5.Jul.1999
-	- fixed mouse for Classic ROM and MacOS 6.x/7.x
-	- Unix/ether_linux.cpp: added ethertap support (see README for details)
-	- dummy/clip_dummy.cpp: created
+ - fixed mouse for Classic ROM and MacOS 6.x/7.x
+ - Unix/ether_linux.cpp: added ethertap support (see README for details)
+ - dummy/clip_dummy.cpp: created
 
 V0.6 (alpha) - 2.Jul.1999
-	- rom_patches.cpp: added CheckROM() which has to be called before
-	  PatchROM()
-	- rom_patches.cpp: started ROM patches for Classic/SE ROMs
-	- adb.cpp: ADB handlers get ADBBase passed in a3
-	- adb.cpp: moved temporary data area to ADBBase+0x163 (Mac Classic
-	  mouse handler wants it there)
-	- emul_op.cpp/EMUL_OP_CLKNOMEM: reading from the RTC time registers
-	  yields the correct time and date
-	- uae_cpu/cpu_emulation.h: added FLAYOUT_NONE to disable frame buffer
-	  mapping
-	- uae_cpu/basilisk_glue.cpp: RAMBaseMac/ROMBaseMac are now set in
-	  Init680x0() (instead of main_*.cpp)
-	- uae_cpu/memory.cpp: added support for Mac Plus/II memory maps
-	  and 24 bit addressing
-	- uae_cpu/newcpu.cpp: re-implemented support for 68000/010 emulation
-	- uae_cpu/cpuopti.c: patched for egcs [Orlando Bassotto]
-	- main_*.cpp: added TwentyFourBitAddressing flag
-	- main_*.cpp: CPU type and addressing mode depends on ROM version
-	- main_*.cpp: tick thread changed to use new TimerDateTime() function
-	- include/video.h: VideoInit() takes "classic" parameter to select
-	  "Classic" video mode (512x342, 1-bit)
-	- include/timer.h: new function TimerDateTime() to get local date/time
-	  in Mac format
-	- Unix: support for FreeBSD [Orlando Bassotto]
-	- Unix/scsi_freebsd-cam.cpp: created [Orlando Bassotto]
-	- Unix/posix_sem.cpp: created [Orlando Bassotto]
-	- Unix/main_unix.cpp: added call to XF86DGAForkApp()
-	- Unix/video_x.cpp: support for Classic video mode and display on
-	  1-bit screens
-	- Unix/video_x.cpp: added check whether screen is really DGA capable
-	- Unix/video_x.cpp: added check for image endianess
-	- Unix/sys_unix.cpp: added replacement for Linux llseek() for platforms
-	  that don't have it
-	- Unix/*.cpp: replaced sleep()/usleep() by nanosleep()
-	- Amiga/prefs_editor_amiga.cpp: ROM file selection via file requester
-	  didn't work
+ - rom_patches.cpp: added CheckROM() which has to be called before PatchROM()
+ - rom_patches.cpp: started ROM patches for Classic/SE ROMs
+ - adb.cpp: ADB handlers get ADBBase passed in a3
+ - adb.cpp: moved temporary data area to ADBBase+0x163 (Mac Classic mouse
+   handler wants it there)
+ - emul_op.cpp/EMUL_OP_CLKNOMEM: reading from the RTC time registers yields
+   the correct time and date
+ - uae_cpu/cpu_emulation.h: added FLAYOUT_NONE to disable frame buffer mapping
+ - uae_cpu/basilisk_glue.cpp: RAMBaseMac/ROMBaseMac are now set in Init680x0()
+   (instead of main_*.cpp)
+ - uae_cpu/memory.cpp: added support for Mac Plus/II memory maps and 24 bit
+   addressing
+ - uae_cpu/newcpu.cpp: re-implemented support for 68000/010 emulation
+ - uae_cpu/cpuopti.c: patched for egcs [Orlando Bassotto]
+ - main_*.cpp: added TwentyFourBitAddressing flag
+ - main_*.cpp: CPU type and addressing mode depends on ROM version
+ - main_*.cpp: tick thread changed to use new TimerDateTime() function
+ - include/video.h: VideoInit() takes "classic" parameter to select "Classic"
+   video mode (512x342, 1-bit)
+ - include/timer.h: new function TimerDateTime() to get local date/time in Mac
+   format
+ - Unix: support for FreeBSD [Orlando Bassotto]
+ - Unix/scsi_freebsd-cam.cpp: created [Orlando Bassotto]
+ - Unix/posix_sem.cpp: created [Orlando Bassotto]
+ - Unix/main_unix.cpp: added call to XF86DGAForkApp()
+ - Unix/video_x.cpp: support for Classic video mode and display on 1-bit
+   screens
+ - Unix/video_x.cpp: added check whether screen is really DGA capable
+ - Unix/video_x.cpp: added check for image endianess
+ - Unix/sys_unix.cpp: added replacement for Linux llseek() for platforms that
+   don't have it
+ - Unix/*.cpp: replaced sleep()/usleep() by nanosleep()
+ - Amiga/prefs_editor_amiga.cpp: ROM file selection via file requester didn't
+   work
 
 V0.6 (alpha) - 22.Jun.1999
-	- fixed small compilation problems on BeOS/x86
-	- rsrc_patches.cpp: fixed for MacOS 7.6.1
-	- dummy/scsi_dummy.cpp: scsi_send_cmd() was missing timeout parameter
-	- Unix/video_x.cpp: fixed compilation problem on systems without DGA
-	- BeOS/prefs_editor_beos.cpp: it is now possible to drop ROM files on
-	  the "ROM File" control
-	- BeOS/sys_beos.cpp: Basilisk II will not try to unmount volumes (from
-	  BeOS) that are to be mounted read-only
+ - fixed small compilation problems on BeOS/x86
+ - rsrc_patches.cpp: fixed for MacOS 7.6.1
+ - dummy/scsi_dummy.cpp: scsi_send_cmd() was missing timeout parameter
+ - Unix/video_x.cpp: fixed compilation problem on systems without DGA
+ - BeOS/prefs_editor_beos.cpp: it is now possible to drop ROM files on the
+   "ROM File" control
+ - BeOS/sys_beos.cpp: Basilisk II will not try to unmount volumes (from BeOS)
+   that are to be mounted read-only
 
 V0.6 (alpha) - 20.Jun.1999
-	- scsi.cpp: added "timeout" parameter to scsi_send_cmd()
-	- scsi_*.cpp: fixed S/G table processing bug in scsi_send_cmd()
-	  (every entry was written to/read from the same buffer address)
-	- Unix/scsi_linux.cpp: implemented
-	- Unix/video_x.cpp: new hotkeys: Ctrl-Esc = emergency quit from DGA mode,
-	  Ctrl-Tab = suspend DGA mode
-	- Unix/video_x.cpp: implemented VideoQuitFullScreen() (used by
-	  ErrorAlert())
-	- BeOS/video_beos.cpp: implemented VideoQuitFullScreen() (used by
-	  ErrorAlert())
+ - scsi.cpp: added "timeout" parameter to scsi_send_cmd()
+ - scsi_*.cpp: fixed S/G table processing bug in scsi_send_cmd() (every entry
+   was written to/read from the same buffer address)
+ - Unix/scsi_linux.cpp: implemented
+ - Unix/video_x.cpp: new hotkeys:
+     Ctrl-Esc = emergency quit from DGA mode,
+     Ctrl-Tab = suspend DGA mode
+ - Unix/video_x.cpp: implemented VideoQuitFullScreen() (used by ErrorAlert())
+ - BeOS/video_beos.cpp: implemented VideoQuitFullScreen() (used by ErrorAlert())
 
 V0.6 (alpha) - 19.Jun.1999
-	- sys_*.cpp: 400K DiskCopy disk images are now recognized (84 byte
-	  header)
-	- user_strings.cpp: added strings for GTK preferences editor
-	- Unix: implemented preferences editor (requires GTK)
-	- Unix: added "install" target to Makefile
-	- Unix: created minimal man page
-	- Unix/main_unix.cpp: ErrorAlert() and WarningAlert() pop up dialog
-	  boxes when GTK is present
-	- BeOS/prefs_editor_beos.cpp: added "Create" button to volume list
-	- BeOS/prefs_editor_beos.cpp: "About" dialog added
+ - sys_*.cpp: 400K DiskCopy disk images are now recognized (84 byte header)
+ - user_strings.cpp: added strings for GTK preferences editor
+ - Unix: implemented preferences editor (requires GTK)
+ - Unix: added "install" target to Makefile
+ - Unix: created minimal man page
+ - Unix/main_unix.cpp: ErrorAlert() and WarningAlert() pop up dialog boxes when
+   GTK is present
+ - BeOS/prefs_editor_beos.cpp: added "Create" button to volume list
+ - BeOS/prefs_editor_beos.cpp: "About" dialog added
 
 V0.5 (alpha) - 13.Jun.1999
-	- prefs.cpp: added ZapPRAM()
-	- prefs.cpp: PrefsReplaceString() can now take an index
-	- user_strings.cpp: added strings for preferences editor
-	- prefs_editor_*.*: created
-	- sys.h: SysCDStop() now takes the MSF address of the lead-out track
-	  as a parameter
-	- AmigaOS: start offset and size of devices is now given in blocks,
-	  not bytes
-	- AmigaOS: implemented preferences editor
-	- BeOS: implemented preferences editor
-	- AmigaOS/sys_amiga.cpp: added checks for NSD and 64-bit TD commands
-	  (not yet used)
-	- AmigaOS/sys_amiga.cpp: implemented CD audio commands
-	- Unix/sys_unix.cpp: CD-ROM devices are opened with O_NONBLOCK flag
-	- Unix/sys_unix.cpp: using CDROM_DRIVE_STATUS to check for inserted
-	  disks if drive supports it
-	- Unix/sys_unix.cpp: CD-ROM devices are closed and reopened on eject
-	  to clear the driver's internal buffers
-	- Unix/video_x.cpp: added incremental refresh mode [David Lawrence]
-	- Unix/video_x.cpp: small changes to the DGA code
+ - prefs.cpp: added ZapPRAM()
+ - prefs.cpp: PrefsReplaceString() can now take an index
+ - user_strings.cpp: added strings for preferences editor
+ - prefs_editor_*.*: created
+ - sys.h: SysCDStop() now takes the MSF address of the lead-out track as a
+   parameter
+ - AmigaOS: start offset and size of devices is now given in blocks, not bytes
+ - AmigaOS: implemented preferences editor
+ - BeOS: implemented preferences editor
+ - AmigaOS/sys_amiga.cpp: added checks for NSD and 64-bit TD commands (not yet
+   used)
+ - AmigaOS/sys_amiga.cpp: implemented CD audio commands
+ - Unix/sys_unix.cpp: CD-ROM devices are opened with O_NONBLOCK flag
+ - Unix/sys_unix.cpp: using CDROM_DRIVE_STATUS to check for inserted disks if
+   drive supports it
+ - Unix/sys_unix.cpp: CD-ROM devices are closed and reopened on eject to clear
+   the driver's internal buffers
+ - Unix/video_x.cpp: added incremental refresh mode [David Lawrence]
+ - Unix/video_x.cpp: small changes to the DGA code
 
 V0.5 (alpha) - 17.May 1999
-	- new "fpu" prefs item to enable/disable the (buggy) UAE FPU emulation
-	- Defaults for platform-specific prefs items can be set in the new
-	  AddPlatformPrefsDefault() function which gets called by PrefsInit()
-	- added dummy audio component, so MacOS versions >=7.5 should be more
-	  stable when running programs that try to do something with sound
-	- adb.cpp: relative mouse mode should work a bit better
-	- macos_util.cpp: new function HasMacStarted() to check Mac warm
-	  start flag
-	- macos_util.cpp: new function MountVolume() to aid implementation
-	  of manual volume mounting
-	- cdrom.cpp: added CDROMMountVolume()
-	- BeOS: replaced "Mount floppy" menu item by submenu with list of all
-	  removable volumes
-	- Win32: many fixes and improvements [Lauri Pesonen]
+ - new "fpu" prefs item to enable/disable the (buggy) UAE FPU emulation
+ - Defaults for platform-specific prefs items can be set in the new
+   AddPlatformPrefsDefault() function which gets called by PrefsInit()
+ - added dummy audio component, so MacOS versions >=7.5 should be more stable
+   when running programs that try to do something with sound
+ - adb.cpp: relative mouse mode should work a bit better
+ - macos_util.cpp: new function HasMacStarted() to check Mac warm start flag
+ - macos_util.cpp: new function MountVolume() to aid implementation of manual
+   volume mounting
+ - cdrom.cpp: added CDROMMountVolume()
+ - BeOS: replaced "Mount floppy" menu item by submenu with list of all
+   removable volumes
+ - Win32: many fixes and improvements [Lauri Pesonen]
 
 V0.5 (alpha) - 8.May 1999
-	- added information about GPL to all source files
-	- rom_patches.cpp: fixed one unaligned access problem (Sparc)
-	- replaced "off_t" by "loff_t" to allow 64 bit disk access under Linux
-	- created "dummy" platform directory containing generic "do-nothing"
-	  versions of certain files to aid in testing and porting
-	- Unix: improved autoconf stuff and sysdeps.h
-	- Unix: now compiles under Solaris
-	- Unix/video_x.cpp: automatic SHM detection, fallback to XPutImage
+ - added information about GPL to all source files
+ - rom_patches.cpp: fixed one unaligned access problem (Sparc)
+ - replaced "off_t" by "loff_t" to allow 64 bit disk access under Linux
+ - created "dummy" platform directory containing generic "do-nothing" versions
+   of certain files to aid in testing and porting
+ - Unix: improved autoconf stuff and sysdeps.h
+ - Unix: now compiles under Solaris
+ - Unix/video_x.cpp: automatic SHM detection, fallback to XPutImage
 
 V0.5 (alpha) - 26.Apr.1999
-	- main_*.cpp: ramsize is rounded down to 1MB boundary
-	- uae_cpu/memory.h: added "REGPARAM2" in more places [Lauri Pesonen]
-	- uae_cpu/memory.cpp: changed "Diff" variables from "uae_8 *" to
-	  "uae_u32" [Lauri Pesonen]
-	- uae_cpu/memory.cpp: added "REGPARAM2" in more places [Lauri Pesonen]
-	- uae_cpu/newcpu.h: added "REGPARAM2" in more places [Lauri Pesonen]
-	- uae_cpu/newcpu.cpp: added "REGPARAM2" in more places [Lauri Pesonen]
-	- Windows/*: integrated updated Windows sources from Lauri Pesonen
+ - main_*.cpp: ramsize is rounded down to 1MB boundary
+ - uae_cpu/memory.h: added "REGPARAM2" in more places [Lauri Pesonen]
+ - uae_cpu/memory.cpp: changed "Diff" variables from "uae_8 *" to "uae_u32"
+   [Lauri Pesonen]
+ - uae_cpu/memory.cpp: added "REGPARAM2" in more places [Lauri Pesonen]
+ - uae_cpu/newcpu.h: added "REGPARAM2" in more places [Lauri Pesonen]
+ - uae_cpu/newcpu.cpp: added "REGPARAM2" in more places [Lauri Pesonen]
+ - Windows/*: integrated updated Windows sources from Lauri Pesonen
 
 V0.5 (alpha) - 25.Apr.1999
-	- prefs.cpp/PrefsRemoveItem(): deleting the last item now works
-	- uae_cpu/memory.cpp: changed "uae_u8 REGPARAM2 *func()" to
-	  "uae_u8 *REGPARAM2 func()"
-	- Unix/ether_unix.cpp: implemented
-	- Unix/Linux/NetDriver: created
-	- Unix/video_x.cpp: added support for 32 bit screens, cleaned up
-	  VisualInfo code
-	- BeOS/ether_beos.cpp: cleaned up the code
-	- BeOS/video_beos.cpp: full screen video mode and color depth can now
-	  be set via prefs("scr/<mode>")
+ - prefs.cpp/PrefsRemoveItem(): deleting the last item now works
+ - uae_cpu/memory.cpp: changed "uae_u8 REGPARAM2 *func()" to
+   "uae_u8 *REGPARAM2 func()"
+ - Unix/ether_unix.cpp: implemented
+ - Unix/Linux/NetDriver: created
+ - Unix/video_x.cpp: added support for 32 bit screens, cleaned up VisualInfo
+   code
+ - BeOS/ether_beos.cpp: cleaned up the code
+ - BeOS/video_beos.cpp: full screen video mode and color depth can now be set
+   via prefs("scr/<mode>")
 
 V0.4 (alpha) - 15.Apr.1999
-	- Added some literature references to the source files
-	- Modularized CPU engine: the interface of the CPU engine is now
-	  defined in cpu_emulation.h, so different CPU engines can be
-	  substituted more easily [as requested by Bill Huey]
-	- uae_cpu/gencpu.c: duplicate_carry() was missing in SUB and NBCD routines
-	- Unix: added autoconf stuff
-	- Unix: modified the makefile so it won't fail if cpuopti didn't work
-	  [Daniel Thompson]
+ - Added some literature references to the source files
+ - Modularized CPU engine: the interface of the CPU engine is now defined in
+   cpu_emulation.h, so different CPU engines can be substituted more easily
+   [as requested by Bill Huey]
+ - uae_cpu/gencpu.c: duplicate_carry() was missing in SUB and NBCD routines
+ - Unix: added autoconf stuff
+ - Unix: modified the makefile so it won't fail if cpuopti didn't work
+   [Daniel Thompson]
 
 V0.4 (alpha) - 11.Apr.1999
-	- cdrom.cpp: find_hfs_partition() bailed out too soon when finding no
-	  "PN" signature [Lauri Pesonen]
-	- prefs.cpp: prefs file allows more whitespace between keyword and value
-	  [Lauri Pesonen]
-	- prefs.cpp: remodeled to allow platform-specific prefs items (list of
-	  keywords is kept in table)
-	- video.cpp/cscSetEntries: luminance mapping uses integer instead of
-	  floating point math
-	- video_*.cpp: on most systems, the frame buffer is allocated with
-	  two additional lines as some ROM versions seem to write behind
-	  the frame buffer proper
-	- BeOS/Unix/sysdeps.h: defined X86_ASSEMBLY on i386/GCC systems
-	- BeOS/Unix/sysdeps.h: redefined get/put_mem() functions to take and
-	  return an uae_u32 value, added some more x86 optimizations
-	- Unix/serial_unix.cpp/kSERDBaudRate: rates between 57600 and 65535
-	  result in a rate of 57600 [Lauri Pesonen]
+ - cdrom.cpp: find_hfs_partition() bailed out too soon when finding no "PN"
+   signature [Lauri Pesonen]
+ - prefs.cpp: prefs file allows more whitespace between keyword and value
+   [Lauri Pesonen]
+ - prefs.cpp: remodeled to allow platform-specific prefs items (list of
+   keywords is kept in table)
+ - video.cpp/cscSetEntries: luminance mapping uses integer instead of floating
+   point math
+ - video_*.cpp: on most systems, the frame buffer is allocated with two
+   additional lines as some ROM versions seem to write behind the frame buffer
+   proper
+ - BeOS/Unix/sysdeps.h: defined X86_ASSEMBLY on i386/GCC systems
+ - BeOS/Unix/sysdeps.h: redefined get/put_mem() functions to take and return
+   an uae_u32 value, added some more x86 optimizations
+ - Unix/serial_unix.cpp/kSERDBaudRate: rates between 57600 and 65535 result in
+   a rate of 57600 [Lauri Pesonen]
 
 V0.4 (alpha) - 10.Apr.1999
-	- upgraded to UAE 0.8.8 CPU, CPU is now built with "gencpu", UAE sources
-	  moved to "uae" directory
-	- new preferences item "rom" to specify the path of the ROM file
-	- new preferences item "ether" for Ethernet driver
-	- new INTFLAG_ETHER interrupt flag
-	- main_*.cpp: added ChoiceAlert()
-	- main_*.cpp: disabled UAE FPU (as it is buggy)
-	- serial_*.cpp: device_name is now a "const char *"
-	- serial_*.cpp: implemented monitor (#define MONITOR 1 to activate)
-	- *.h: changed "#ifdef _XXX_H_" to "#ifdef XXX_H" as symbols starting
-	  with an underscore are reserved
-	- rom_patches.cpp: icon data moved to sony/disk/cdrom.cpp
-	- rom_patches.cpp: removed unnecessary a0/a1 save/restore from drivers
-	- slot_rom.cpp: removed unnecessary a0/a1 save/restore from drivers
-	- serial_defs.h: added error codes
-	- AmigaOS: the Kickstart ROM is no longer used to redirect NIL pointer
-	  accesses as this crashes some machines (especially 68040-based);
-	  a scratch memory block is used instead
-	- AmigaOS/serial_amiga.cpp: implemented
-	- AmigaOS/ether_amiga.cpp: implemented
-	- AmigaOS/sys_amiga.cpp: SysAddSerialPrefs() now returns real defaults
-	- AmigaOS/main_amiga.cpp: when the memory for the Mac RAM and ROM
-	  cannot be allocated, an error message is displayed (instead of crashing)
-	- AmigaOS/main_amiga.cpp: interrupts are disabled during execution
-	  of an EMUL_OP routine
-	- AmigaOS/asm_support.asm: the CTRL-C handler checks for pending
-	  AmigaDOS operations
-	- AmigaOS/asm_support.asm: the interrupt signal exception is rethrown
-	  when the interrupt level in EmulatedSR gets lowered while interrupts
-	  are pending
-	- BeOS: switched from project files to Be supplied makefile system
-	- BeOS/ether_beos.cpp: implemented
-	- BeOS/serial_beos.cpp: modem status of parallel device is returned
-	  as (dsrEvent | dcdEvent | ctsEvent)
-	- BeOS/serial_beos.cpp: implemented kSERDBaudRate
-	- BeOS/serial_beos.cpp: serdtDCE is set in PrimeIn()/PrimeOut()
-	- Unix/serial_unix.cpp: added support for parallel ports
-	- Unix/serial_unix.cpp: serdtDCE is set in PrimeIn()/PrimeOut()
-	- Unix/video_x.cpp: pressing F12 and q will quit Basilisk II in DGA mode
-	  (useful when it crashed)
+ - upgraded to UAE 0.8.8 CPU, CPU is now built with "gencpu", UAE sources moved
+   to "uae" directory
+ - new preferences item "rom" to specify the path of the ROM file
+ - new preferences item "ether" for Ethernet driver
+ - new INTFLAG_ETHER interrupt flag
+ - main_*.cpp: added ChoiceAlert()
+ - main_*.cpp: disabled UAE FPU (as it is buggy)
+ - serial_*.cpp: device_name is now a "const char *"
+ - serial_*.cpp: implemented monitor (#define MONITOR 1 to activate)
+ - *.h: changed "#ifdef _XXX_H_" to "#ifdef XXX_H" as symbols starting with an
+   underscore are reserved
+ - rom_patches.cpp: icon data moved to sony/disk/cdrom.cpp
+ - rom_patches.cpp: removed unnecessary a0/a1 save/restore from drivers
+ - slot_rom.cpp: removed unnecessary a0/a1 save/restore from drivers
+ - serial_defs.h: added error codes
+ - AmigaOS: the Kickstart ROM is no longer used to redirect NIL pointer
+   accesses as this crashes some machines (especially 68040-based); a scratch
+   memory block is used instead
+ - AmigaOS/serial_amiga.cpp: implemented
+ - AmigaOS/ether_amiga.cpp: implemented
+ - AmigaOS/sys_amiga.cpp: SysAddSerialPrefs() now returns real defaults
+ - AmigaOS/main_amiga.cpp: when the memory for the Mac RAM and ROM cannot be
+   allocated, an error message is displayed (instead of crashing)
+ - AmigaOS/main_amiga.cpp: interrupts are disabled during execution of an
+   EMUL_OP routine
+ - AmigaOS/asm_support.asm: the CTRL-C handler checks for pending AmigaDOS
+   operations
+ - AmigaOS/asm_support.asm: the interrupt signal exception is rethrown when the
+   interrupt level in EmulatedSR gets lowered while interrupts are pending
+ - BeOS: switched from project files to Be supplied makefile system
+ - BeOS/ether_beos.cpp: implemented
+ - BeOS/serial_beos.cpp: modem status of parallel device is returned as
+   (dsrEvent | dcdEvent | ctsEvent)
+ - BeOS/serial_beos.cpp: implemented kSERDBaudRate
+ - BeOS/serial_beos.cpp: serdtDCE is set in PrimeIn()/PrimeOut()
+ - Unix/serial_unix.cpp: added support for parallel ports
+ - Unix/serial_unix.cpp: serdtDCE is set in PrimeIn()/PrimeOut()
+ - Unix/video_x.cpp: pressing F12 and q will quit Basilisk II in DGA mode
+   (useful when it crashed)
 
 V0.3 (alpha) - 14.Mar.1999
-	- Unix/video_x.cpp: added 15, 16 and 32 bit window modes [Bill Huey]
-	- BeOS/video_beos.cpp: "screen" prefs item is now either
-	  "win/<width>/<height>" for window mode or "scr" for full-screen
-	  mode
-	- added documentation of preferences file format to README
+ - Unix/video_x.cpp: added 15, 16 and 32 bit window modes [Bill Huey]
+ - BeOS/video_beos.cpp: "screen" prefs item is now either "win/<width>/<height>"
+   for window mode or "scr" for full-screen mode
+ - added documentation of preferences file format to README
 
 V0.2 (alpha) - 11.Mar.1999
-	- tested with ROM versions 19 and 26
-	- prefs.cpp: renamed TYPE_BOOL to TYPE_BOOLEAN beacuse of name clash on
-	  BeOS R4.1
-	- uae_memory.cpp: added support for frame buffer pixel type conversion
-	  in virtual addressing mode, the Mac frame buffer layout now has to be
-	  specified in MacFrameLayout (video.h)
-	- Unix/video_x.cpp: the "screen" prefs item is now read to select
-	  window mode (with a specified window size) or DGA mode
-	- Unix/video_x.cpp: DGA mode supports 15, 16 and 32 bit modes (packed
-	  24 bit pixels don't work)
-	- Unix/Makefile.linux: added -D_REENTRANT to compiler flags
+ - tested with ROM versions 19 and 26
+ - prefs.cpp: renamed TYPE_BOOL to TYPE_BOOLEAN beacuse of name clash on BeOS
+   R4.1
+ - uae_memory.cpp: added support for frame buffer pixel type conversion in
+   virtual addressing mode, the Mac frame buffer layout now has to be specified
+   in MacFrameLayout (video.h)
+ - Unix/video_x.cpp: the "screen" prefs item is now read to select window mode
+   (with a specified window size) or DGA mode
+ - Unix/video_x.cpp: DGA mode supports 15, 16 and 32 bit modes (packed 24 bit
+   pixels don't work)
+ - Unix/Makefile.linux: added -D_REENTRANT to compiler flags
 
 V0.2 (alpha) - 23.Jan.1999
-	- first alpha release
+ - first alpha release

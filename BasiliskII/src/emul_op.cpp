@@ -437,6 +437,10 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 
 			if (InterruptFlags & INTFLAG_60HZ) {
 				ClearInterruptFlag(INTFLAG_60HZ);
+
+				// Increment Ticks variable
+				WriteMacInt32(0x16a, ReadMacInt32(0x16a) + 1);
+
 				if (HasMacStarted()) {
 
 					// Mac has started, execute all 60Hz interrupt functions
