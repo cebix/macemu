@@ -32,6 +32,9 @@
  *  - Force relative mode in Grab mode even if SDL provides absolute coordinates?
  *  - Fullscreen mode
  *  - Gamma tables support is likely to be broken here
+ *  - Events processing is bound to the general emulation thread as SDL requires
+ *    to PumpEvents() within the same thread as the one that called SetVideoMode().
+ *    Besides, there can't seem to be a way to call SetVideoMode() from a child thread.
  */
 
 #include "sysdeps.h"
@@ -102,6 +105,7 @@ static int keycode_table[256];						// X keycode -> Mac keycode translation tabl
 static int screen_depth;							// Depth of current screen
 static SDL_Color sdl_palette[256];					// Color palette to be used as CLUT and gamma table
 static bool sdl_palette_changed = false;			// Flag: Palette changed, redraw thread must set new colors
+static const int sdl_eventmask = SDL_MOUSEBUTTONDOWNMASK | SDL_MOUSEBUTTONUPMASK | SDL_MOUSEMOTIONMASK | SDL_KEYUPMASK | SDL_KEYDOWNMASK | SDL_VIDEOEXPOSEMASK | SDL_QUITMASK;
 
 // Mutex to protect palette
 static SDL_mutex *sdl_palette_lock = NULL;
@@ -799,6 +803,9 @@ void VideoQuitFullScreen(void)
 
 void VideoInterrupt(void)
 {
+	// We must fill in the events queue in the same thread that did call SDL_SetVideoMode()
+	SDL_PumpEvents();
+
 	// Emergency quit requested? Then quit
 	if (emerg_quit)
 		QuitEmulator();
@@ -1021,9 +1028,14 @@ static int event2keycode(SDL_KeyboardEvent const &ev, bool key_down)
 
 static void handle_events(void)
 {
-	SDL_Event event;
-	while (SDL_PollEvent(&event)) {
-		switch (event.type) {
+	SDL_Event events[10];
+	const int n_max_events = sizeof(events) / sizeof(events[0]);
+	int n_events;
+
+	while ((n_events = SDL_PeepEvents(events, n_max_events, SDL_GETEVENT, sdl_eventmask)) > 0) {
+		for (int i = 0; i < n_events; i++) {
+			SDL_Event const & event = events[i];
+			switch (event.type) {
 
 			// Mouse button
 			case SDL_MOUSEBUTTONDOWN: {
@@ -1123,6 +1135,7 @@ static void handle_events(void)
 				ADBKeyDown(0x7f);	// Power key
 				ADBKeyUp(0x7f);
 				break;
+			}
 		}
 	}
 }
