@@ -282,8 +282,8 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 			MacOSUtilReset();
 			AudioReset();
 
-			// Enable DR emulator
-			if (PrefsFindBool("jit68k")) {
+			// Enable DR emulator (disabled for now)
+			if (PrefsFindBool("jit68k") && 0) {
 				D(bug("DR activated\n"));
 				WriteMacInt32(KernelDataAddr + 0x17a0, 3);		// Prepare for DR emulator activation
 				WriteMacInt32(KernelDataAddr + 0x17c0, DR_CACHE_BASE);
