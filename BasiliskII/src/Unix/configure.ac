@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl Written in 2002 by Christian Bauer et al.
 
 AC_INIT(main_unix.cpp)
-AC_PREREQ(2.12)
+AC_PREREQ(2.52)
 AC_CONFIG_HEADER(config.h)
 
 dnl Options.
@@ -89,7 +89,7 @@ if [[ "x$WANT_MON" = "xyes" ]]; then
   mon_srcdir=../../../mon/src
   if grep mon_init $mon_srcdir/mon.h >/dev/null 2>/dev/null; then
     AC_MSG_RESULT(yes)
-    AC_DEFINE(ENABLE_MON)
+    AC_DEFINE(ENABLE_MON, 1, [Define if using "mon".])
     MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_z80.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/mon_lowmem.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c"
     CXXFLAGS="$CXXFLAGS -I$mon_srcdir -I$mon_srcdir/disass"
     AC_CHECK_LIB(ncurses, tgetent, ,
@@ -130,7 +130,7 @@ AC_CHECK_LIB(pthread, pthread_create, , [
   ])
 ])
 if [[ "x$HAVE_PTHREADS" = "xyes" ]]; then
-  AC_DEFINE(HAVE_PTHREADS)
+  AC_DEFINE(HAVE_PTHREADS, 1, [Define if pthreads are available.])
 fi
 AC_CHECK_FUNCS(pthread_cancel)
 AC_CHECK_FUNCS(pthread_mutexattr_setprotocol)
@@ -147,7 +147,7 @@ AC_CHECK_FUNCS(sem_init, , [
 dnl We use DGA (XFree86 or fbdev) if possible.
 if [[ "x$WANT_XF86_DGA" = "xyes" ]]; then
   AC_CHECK_LIB(Xxf86dga, XF86DGAQueryExtension, [
-    AC_DEFINE(ENABLE_XF86_DGA)
+    AC_DEFINE(ENABLE_XF86_DGA, 1, [Define if using XFree86 DGA extension.])
     LIBS="$LIBS -lXxf86dga"
     if [[ "x$WANT_FBDEV_DGA" = "xyes" ]]; then
       AC_MSG_WARN([Cannot have both --enable-xf86-dga and --enable-fbdev-dga, ignoring --enable-fbdev-dga.])
@@ -159,13 +159,13 @@ if [[ "x$WANT_XF86_DGA" = "xyes" ]]; then
   ])
 fi
 if [[ "x$WANT_FBDEV_DGA" = "xyes" ]]; then
-  AC_DEFINE(ENABLE_FBDEV_DGA)
+  AC_DEFINE(ENABLE_FBDEV_DGA, 1, [Define if using DGA with framebuffer device.])
 fi
 
 dnl We use XFree86 VidMode if possible.
 if [[ "x$WANT_XF86_VIDMODE" = "xyes" ]]; then
   AC_CHECK_LIB(Xxf86vm, XF86VidModeQueryExtension, [
-    AC_DEFINE(ENABLE_XF86_VIDMODE)
+    AC_DEFINE(ENABLE_XF86_VIDMODE, 1, [Define if using XFree86 DGA extension.])
     LIBS="$LIBS -lXxf86vm"
   ], [
     AC_MSG_WARN([Could not find XFree86 VidMode extension, ignoring --enable-xf86-vidmode.])
@@ -177,12 +177,12 @@ dnl We use GTK+ if possible.
 UISRCS=../dummy/prefs_editor_dummy.cpp
 if [[ "x$WANT_GTK" = "xyes" ]]; then
   AM_PATH_GTK(1.2.0, [
-    AC_DEFINE(ENABLE_GTK)
+    AC_DEFINE(ENABLE_GTK, 1, [Define if using GTK.])
     CXXFLAGS="$CXXFLAGS $GTK_CFLAGS"
     LIBS="$LIBS $GTK_LIBS"
     UISRCS=prefs_editor_gtk.cpp
     B2_PATH_GNOMEUI([
-      AC_DEFINE(HAVE_GNOMEUI)
+      AC_DEFINE(HAVE_GNOMEUI, 1, [Define if libgnomeui is available.])
       CXXFLAGS="$CXXFLAGS $GNOMEUI_CFLAGS"
       LIBS="$LIBS $GNOMEUI_LIBS"
     ], [])
@@ -195,7 +195,7 @@ fi
 dnl We use ESD if possible.
 if [[ "x$WANT_ESD" = "xyes" ]]; then
   AM_PATH_ESD(0.2.8, [
-    AC_DEFINE(ENABLE_ESD)
+    AC_DEFINE(ENABLE_ESD, 1, [Define is using ESD.])
     CFLAGS="$CFLAGS $ESD_CFLAGS"
     CXXFLAGS="$CXXFLAGS $ESD_CFLAGS"
     LIBS="$LIBS $ESD_LIBS"
@@ -206,11 +206,7 @@ if [[ "x$WANT_ESD" = "xyes" ]]; then
 fi
 
 dnl We use 64-bit file size support if possible.
-dnl FIXME: Use AC_SYS_LARGEFILE from autoconf 2.5+
-if [[ "x$OS_TYPE" = "xlinux" ]]; then
-  AC_DEFINE(_USE_LARGEFILE_SOURCE, 1, [Get more functions for correct standard I/O])
-  AC_DEFINE(_FILE_OFFSET_BITS, 64, [Get 64-bit file size support])
-fi
+AC_SYS_LARGEFILE
 
 dnl Checks for header files.
 AC_HEADER_STDC
@@ -238,7 +234,7 @@ AC_STRUCT_TM
 
 dnl Check whether sys/socket.h defines type socklen_t.
 dnl (extracted from ac-archive/Miscellaneous)
-AC_CACHE_CHECK("for socklen_t",
+AC_CACHE_CHECK([for socklen_t],
   ac_cv_type_socklen_t, [
   AC_TRY_COMPILE([
     #include <sys/types.h>
@@ -250,7 +246,7 @@ AC_CACHE_CHECK("for socklen_t",
   )
 ])
 if [[ "x$ac_cv_type_socklen_t" != "xyes" ]]; then
-  AC_DEFINE(socklen_t, int)
+  AC_DEFINE(socklen_t, int, [Define to 'int' if <sys/types.h> doesn't define.])
 fi
 
 dnl Checks for library functions.
@@ -277,7 +273,7 @@ case "$host" in
 	no_dev_ptmx=1
 	;;
 mips-sony-bsd|mips-sony-newsos4)
-	AC_DEFINE(HAVE_NEWS4)
+	AC_DEFINE(HAVE_NEWS4, 1, [Define if you are on NEWS-OS (additions from openssh-3.2.2p1, for sshpty.c).])
 	;;
 *-*-sco3.2v4*)
 	no_dev_ptmx=1
@@ -289,17 +285,17 @@ esac
 
 if test -z "$no_dev_ptmx" ; then
 	if test "x$disable_ptmx_check" != "xyes" ; then
-		AC_CHECK_FILE("/dev/ptmx", 
+		AC_CHECK_FILE([/dev/ptmx],
 			[
-				AC_DEFINE_UNQUOTED(HAVE_DEV_PTMX)
+				AC_DEFINE_UNQUOTED(HAVE_DEV_PTMX, 1, [Define if you have /dev/ptmx.])
 				have_dev_ptmx=1
 			]
 		)
 	fi
 fi
-AC_CHECK_FILE("/dev/ptc", 
+AC_CHECK_FILE([/dev/ptc],
 	[
-		AC_DEFINE_UNQUOTED(HAVE_DEV_PTS_AND_PTC)
+		AC_DEFINE_UNQUOTED(HAVE_DEV_PTS_AND_PTC, 1, [Define if you have /dev/ptc.])
 		have_dev_ptc=1
 	]
 )
@@ -374,7 +370,7 @@ esac
 dnl Use 68k CPU natively?
 WANT_NATIVE_M68K=no
 if [[ "x$HAVE_M68K" = "xyes" -a "x$CAN_NATIVE_M68K" = "xyes" ]]; then
-  AC_DEFINE(ENABLE_NATIVE_M68K)
+  AC_DEFINE(ENABLE_NATIVE_M68K, 1, [Define if using native 68k mode.])
   WANT_NATIVE_M68K=yes
 fi
 
@@ -391,9 +387,10 @@ dnl Define a macro that translates a yesno-variable into a C macro definition
 dnl to be put into the config.h file
 dnl $1 -- the macro to define
 dnl $2 -- the value to translate
+dnl $3 -- template name
 AC_DEFUN(AC_TRANSLATE_DEFINE, [
     if [[ "x$2" = "xyes" -o "x$2" = "xguessing yes" ]]; then
-        AC_DEFINE($1)
+        AC_DEFINE($1, 1, $3)
     fi
 ])
 
@@ -403,12 +400,13 @@ if [[ "x$ac_cv_func_vm_allocate" = "xyes" -a "x$ac_cv_func_vm_deallocate" = "xye
       "x$ac_cv_func_vm_protect" = "xyes" ]]; then
   have_mach_vm=yes
 fi
-AC_TRANSLATE_DEFINE(HAVE_MACH_VM, "$have_mach_vm")
+AC_TRANSLATE_DEFINE(HAVE_MACH_VM, "$have_mach_vm",
+  [Define if your system has a working vm_allocate()-based memory allocator.])
 
 dnl Check that vm_allocate(), vm_protect() work
 if [[ "x$have_mach_vm" = "xyes" ]]; then
 
-AC_CACHE_CHECK("whether vm_protect works",
+AC_CACHE_CHECK([whether vm_protect works],
   ac_cv_vm_protect_works, [
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
@@ -443,7 +441,8 @@ if [[ "x$have_mach_vm" = "xyes" ]]; then
     *no) have_mach_vm=no;;
   esac
 fi
-AC_TRANSLATE_DEFINE(HAVE_MACH_VM, "$have_mach_vm")
+AC_TRANSLATE_DEFINE(HAVE_MACH_VM, "$have_mach_vm",
+  [Define if your system has a working vm_allocate()-based memory allocator.])
 
 fi dnl HAVE_MACH_VM
 
@@ -456,13 +455,14 @@ if [[ "x$ac_cv_func_mmap" = "xyes" -a "x$ac_cv_func_munmap" = "xyes" -a \
     have_mmap_vm=yes
   fi
 fi
-AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, "$have_mmap_vm")
+AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, "$have_mmap_vm",
+  [Define if your system has a working mmap()-based memory allocator.])
 
 dnl Check that mmap() and associated functions work.
 if [[ "x$have_mmap_vm" = "xyes" ]]; then
 
 dnl Check if we have a working anonymous mmap()
-AC_CACHE_CHECK("whether mmap supports MAP_ANON",
+AC_CACHE_CHECK([whether mmap supports MAP_ANON],
   ac_cv_mmap_anon, [
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
@@ -478,9 +478,10 @@ AC_CACHE_CHECK("whether mmap supports MAP_ANON",
   AC_LANG_RESTORE
   ]
 )
-AC_TRANSLATE_DEFINE(HAVE_MMAP_ANON, "$ac_cv_mmap_anon")
+AC_TRANSLATE_DEFINE(HAVE_MMAP_ANON, "$ac_cv_mmap_anon",
+  [Define if <sys/mman.h> defines MAP_ANON and mmap()'ing with MAP_ANON works.])
 
-AC_CACHE_CHECK("whether mmap supports MAP_ANONYMOUS",
+AC_CACHE_CHECK([whether mmap supports MAP_ANONYMOUS],
   ac_cv_mmap_anonymous, [
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
@@ -496,9 +497,10 @@ AC_CACHE_CHECK("whether mmap supports MAP_ANONYMOUS",
   AC_LANG_RESTORE
   ]
 )
-AC_TRANSLATE_DEFINE(HAVE_MMAP_ANONYMOUS, "$ac_cv_mmap_anonymous")
+AC_TRANSLATE_DEFINE(HAVE_MMAP_ANONYMOUS, "$ac_cv_mmap_anonymous",
+  [Define if <sys/mman.h> defines MAP_ANONYMOUS and mmap()'ing with MAP_ANONYMOUS works.])
 
-AC_CACHE_CHECK("whether mprotect works",
+AC_CACHE_CHECK([whether mprotect works],
   ac_cv_mprotect_works, [
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
@@ -533,12 +535,13 @@ if [[ "x$have_mmap_vm" = "xyes" ]]; then
     *no) have_mmap_vm=no;;
   esac
 fi
-AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, $have_mmap_vm)
+AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, $have_mmap_vm,
+  [Define if your system has a working mmap()-based memory allocator.])
 
 fi dnl HAVE_MMAP_VM
 
 dnl Check if we can mmap 0x2000 bytes from 0x0000
-AC_CACHE_CHECK("whether we can map Low Memory area 0x0000-0x2000",
+AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x2000],
   ac_cv_can_map_lm, [
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
@@ -561,7 +564,7 @@ AC_CACHE_CHECK("whether we can map Low Memory area 0x0000-0x2000",
 )
 
 dnl Check signal handlers need to be reinstalled
-AC_CACHE_CHECK("whether signal handlers need to be reinstalled",
+AC_CACHE_CHECK([whether signal handlers need to be reinstalled],
   ac_cv_signal_need_reinstall, [
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
@@ -584,10 +587,11 @@ AC_CACHE_CHECK("whether signal handlers need to be reinstalled",
   AC_LANG_RESTORE
   ]
 )
-AC_TRANSLATE_DEFINE(SIGNAL_NEED_REINSTALL, "$ac_cv_signal_need_reinstall")
+AC_TRANSLATE_DEFINE(SIGNAL_NEED_REINSTALL, "$ac_cv_signal_need_reinstall",
+  [Define if your system requires signals to be reinstalled.])
 
 dnl Check if sigaction handlers need to be reinstalled
-AC_CACHE_CHECK("whether sigaction handlers need to be reinstalled",
+AC_CACHE_CHECK([whether sigaction handlers need to be reinstalled],
   ac_cv_sigaction_need_reinstall, [
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
@@ -617,10 +621,11 @@ AC_CACHE_CHECK("whether sigaction handlers need to be reinstalled",
   AC_LANG_RESTORE
   ]
 )
-AC_TRANSLATE_DEFINE(SIGACTION_NEED_REINSTALL, "$ac_cv_sigaction_need_reinstall")
+AC_TRANSLATE_DEFINE(SIGACTION_NEED_REINSTALL, "$ac_cv_sigaction_need_reinstall",
+  [Define if your system requires sigactions to be reinstalled.])
 
 dnl Check if extended signals are supported.
-AC_CACHE_CHECK("whether your system supports extended signal handlers",
+AC_CACHE_CHECK([whether your system supports extended signal handlers],
   ac_cv_have_extended_signals, [
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
@@ -636,11 +641,12 @@ AC_CACHE_CHECK("whether your system supports extended signal handlers",
   AC_LANG_RESTORE
   ]
 )
-AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_extended_signals")
+AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_extended_signals",
+  [Define if your system support extended signals.])
 
 dnl Otherwise, check for subterfuges.
 if [[ "x$ac_cv_have_extended_signals" = "xno" ]]; then
-  AC_CACHE_CHECK("whether we then have a subterfuge for your system",
+  AC_CACHE_CHECK([whether we then have a subterfuge for your system],
   ac_cv_have_sigcontext_hack, [
     AC_LANG_SAVE
     AC_LANG_CPLUSPLUS
@@ -655,11 +661,12 @@ if [[ "x$ac_cv_have_extended_signals" = "xno" ]]; then
     )
     AC_LANG_RESTORE
   ])
-  AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack")
+  AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack",
+    [Define if we know a hack to replace siginfo_t->si_addr member.])
 fi
 
 dnl Check if we can ignore the fault (instruction skipping in SIGSEGV handler)
-AC_CACHE_CHECK("whether we can skip instruction in SIGSEGV handler",
+AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
   ac_cv_have_skip_instruction, [
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
@@ -675,7 +682,8 @@ AC_CACHE_CHECK("whether we can skip instruction in SIGSEGV handler",
   AC_LANG_RESTORE
   ]
 )
-AC_TRANSLATE_DEFINE(HAVE_SIGSEGV_SKIP_INSTRUCTION, "$ac_cv_have_skip_instruction")
+AC_TRANSLATE_DEFINE(HAVE_SIGSEGV_SKIP_INSTRUCTION, "$ac_cv_have_skip_instruction",
+  [Define if we can ignore the fault (instruction skipping in SIGSEGV handler).])
 
 dnl Can we do Video on SEGV Signals ?
 CAN_VOSF=no
@@ -733,7 +741,7 @@ fi
 
 dnl Enable VOSF screen updates with this feature is requested and feasible
 if [[ "x$WANT_VOSF" = "xyes" -a "x$CAN_VOSF" = "xyes" ]]; then
-    AC_DEFINE(ENABLE_VOSF)
+    AC_DEFINE(ENABLE_VOSF, 1, [Define if using video enabled on SEGV signals.])
 else
     WANT_VOSF=no
 fi
