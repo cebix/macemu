@@ -62,7 +62,11 @@ typedef off_t loff_t;
 #define uae_u16 uint16
 #define uae_s32 int32
 #define uae_u32 uint32
+#define uae_s64 int64
+#define uae_u64 uint64
 typedef uae_u32 uaecptr;
+#define VAL64(a) (a ## LL)
+#define UVAL64(a) (a ## uLL)
 
 // UAE CPU defines
 #ifdef __i386__

@@ -368,7 +368,7 @@ static __inline__ double to_exten(uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 		if( wrd2 | wrd3 ) {
 			// mantissa, not fraction.
 			uae_u64 man = ((uae_u64)wrd2 << 32) | wrd3;
-			while( (man & 0x8000000000000000LL) == 0 ) {
+			while( (man & UVAL64(0x8000000000000000)) == 0 ) {
 				man <<= 1;
 				exp--;
 			}
