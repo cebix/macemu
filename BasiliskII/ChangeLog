@@ -1,11 +1,4 @@
-V0.8 (snapshot) - 5.Sep.2000
-    - Ported Lauri Pesonen's FPU core to GCC/i386 [Gwenole Beauchesne]
-
-V0.8 (snapshot) -
-	- AmigaOS: added MacsBug support (tested with MacsBug6.6.1),
-	  fixed <move sr,(sp)> bug [Jürgen Lachmann]
-
-V0.8 (snapshot) -
+V0.8 (snapshot) - <date>
 	- AmigaOS: enabled floppy support, fixed floppy bugs [Jürgen Lachmann]
 	- AmigaOS: Amiga mouse pointer is hidden inside windowed Mac displays
 	- AmigaOS/sys_amiga.cpp: workaround for 2060scsi.device bug when
@@ -14,12 +7,15 @@ V0.8 (snapshot) -
 	  [Jürgen Lachmann]
 	- AmigaOS/Unix/extfs_*.cpp: .finf helper file now stores complete
 	  FInfo/FXInfo, replaced get/set_finder_*() functions by get/set_finfo()
+	- AmigaOS: added MacsBug support (tested with MacsBug6.6.1),
+	  fixed <move sr,(sp)> bug [Jürgen Lachmann]
 	- Unix: improved timing of periodic threads
 	- include/macos_util.h: defines FOURCC() macro to make MacOS-like
 	  four-character-codes, replaced most instances of multi-character
 	  constants in the sources by this macro to avoid compiler warnings
 	- Imported some changes from the Windows port, most notably FPU fixes
 	  and the 1Hz interrupt [Lauri Pesonen]
+	- Ported Lauri Pesonen's FPU core to GCC/i386 [Gwenole Beauchesne]
 
 V0.8 (snapshot) - 13.Jul.2000
 	- Unix: runs natively on NetBSD/m68k
