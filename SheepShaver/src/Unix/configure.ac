@@ -1063,17 +1063,6 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
         else
           DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -malign-functions=0"
         fi
-        saved_CPPFLAGS=$CPPFLAGS
-        CPPFLAGS="$CPPFLAGS -mmmx"
-        AC_CHECK_HEADERS(mmintrin.h,  [DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -mmmx"])
-        CPPFLAGS="$CPPFLAGS -msse"
-        AC_CHECK_HEADERS(xmmintrin.h, [DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -msse"])
-        CPPFLAGS="$CPPFLAGS -msse2"
-        AC_CHECK_HEADERS(emmintrin.h, [DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -msse2"])
-        CPPFLAGS=$saved_CPPFLAGS
-        ;;
-      x86_64)
-        AC_CHECK_HEADERS(mmintrin.h xmmintrin.h emmintrin.h)
         ;;
       esac
       DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -finline-limit=10000 -g0"

@@ -233,6 +233,8 @@ public:
 	void gen_store_word_VS_T0(int vS);
 	void gen_store_vect_VS_T0(int vS);
 	DEFINE_ALIAS(record_cr6_VD,0);
+	DEFINE_ALIAS(mfvscr_VD,0);
+	DEFINE_ALIAS(mtvscr_V0,0);
 
 	// Code generators for AltiVec instructions
 	gen_handler_t vector_codegen(int insn);
@@ -241,6 +243,7 @@ public:
 	gen_handler_t vector_codegen_sse(int insn);
 	gen_handler_t vector_codegen_sse2(int insn);
 	void gen_mmx_clear(void);
+	bool gen_vector_shift_octet(int vD, int vA, int vB, int SH);
 #endif
 
 #undef DEFINE_ALIAS

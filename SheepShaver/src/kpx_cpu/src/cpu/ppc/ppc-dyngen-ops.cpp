@@ -86,6 +86,8 @@ struct powerpc_dyngen_helper {
 	static inline void set_xer(uint32 value)	{ CPU->xer().set(value); }
 	static inline uint32 get_vrsave()			{ return CPU->vrsave(); }
 	static inline void set_vrsave(uint32 value)	{ CPU->vrsave() = value; }
+	static inline uint32 get_vscr()				{ return CPU->vscr().get(); }
+	static inline void set_vscr(uint32 value)	{ CPU->vscr().set(value); }
 	static inline void record(int crf, int32 v)	{ CPU->record_cr(crf, v); }
 	static inline powerpc_cr_register & cr()	{ return CPU->cr(); }
 	static inline powerpc_xer_register & xer()	{ return CPU->xer(); }
@@ -1563,6 +1565,19 @@ void op_record_cr6_VD(void)
 	dyngen_barrier();
 }
 
+void op_mfvscr_VD(void)
+{
+	VD.w[0] = 0;
+	VD.w[1] = 0;
+	VD.w[2] = 0;
+	VD.w[3] = powerpc_dyngen_helper::get_vscr();
+}
+
+void op_mtvscr_V0(void)
+{
+	powerpc_dyngen_helper::set_vscr(V0.w[3]);
+}
+
 #undef VNONE
 #undef V16QI
 #undef V8HI
@@ -1571,235 +1586,183 @@ void op_record_cr6_VD(void)
 #undef V4SF
 
 /**
- *		SSE optimizations
+ *		X86 SIMD optimizations
  **/
 
-#if defined(__SSE__) && defined(HAVE_XMMINTRIN_H)
-#include <xmmintrin.h>
-#undef  VD
-#define VD *((__m128 *)reg_VD)
-#undef  V0
-#define V0 *((__m128 *)reg_V0)
-#undef  V1
-#define V1 *((__m128 *)reg_V1)
-#undef  V2
-#define V2 *((__m128 *)reg_V2)
+#if defined(__i386__) || defined(__x86_64__)
+#undef VD
+#undef V0
+#undef V1
+#undef V2
 
-void op_sse_nop(void)
-{
-	asm volatile ("nop");
+// SSE2 instructions
+#define DEFINE_OP(NAME, OP, VA, VB)												\
+void op_sse2_##NAME(void)														\
+{																				\
+	asm volatile ("movdqa (%1),%%xmm0\n"										\
+				  #OP   " (%2),%%xmm0\n"										\
+				  "movaps %%xmm0,(%0)\n"										\
+				  : : "r" (reg_VD), "r" (reg_##VA), "r" (reg_##VB) : "xmm0");	\
 }
 
-void op_sse_vcmpeqfp(void)
-{
-	VD = _mm_cmpeq_ps(V0, V1);
+DEFINE_OP(vcmpequb, pcmpeqb, V0, V1);
+DEFINE_OP(vcmpequh, pcmpeqw, V0, V1);
+DEFINE_OP(vcmpequw, pcmpeqd, V0, V1);
+DEFINE_OP(vcmpgtsb, pcmpgtb, V0, V1);
+DEFINE_OP(vcmpgtsh, pcmpgtw, V0, V1);
+DEFINE_OP(vcmpgtsw, pcmpgtd, V0, V1);
+DEFINE_OP(vaddubm, paddb, V0, V1);
+DEFINE_OP(vadduhm, paddw, V0, V1);
+DEFINE_OP(vadduwm, paddd, V0, V1);
+DEFINE_OP(vsububm, psubb, V0, V1);
+DEFINE_OP(vsubuhm, psubw, V0, V1);
+DEFINE_OP(vsubuwm, psubd, V0, V1);
+DEFINE_OP(vand, pand, V0, V1);
+DEFINE_OP(vandc, pandn, V1, V0);
+DEFINE_OP(vor, por, V0, V1);
+DEFINE_OP(vxor, pxor, V0, V1);
+DEFINE_OP(vavgub, pavgb, V0, V1);
+DEFINE_OP(vavguh, pavgw, V0, V1);
+
+#undef DEFINE_OP
+
+#define DEFINE_OP(SH)										\
+void op_sse2_vsldoi_##SH(void)								\
+{															\
+	asm volatile ("movdqa (%1),%%xmm0\n"					\
+				  "movdqa (%2),%%xmm1\n"					\
+				  "pshufd %3,%%xmm0,%%xmm0\n"				\
+				  "pshufd %3,%%xmm1,%%xmm1\n"				\
+				  "pslldq %4,%%xmm0\n"						\
+				  "psrldq %5,%%xmm1\n"						\
+				  "pshufd %3,%%xmm0,%%xmm0\n"				\
+				  "pshufd %3,%%xmm1,%%xmm1\n"				\
+				  "por    %%xmm1,%%xmm0\n"					\
+				  "movaps %%xmm0,(%0)\n"					\
+				  : :										\
+				  "r" (reg_VD), "r" (reg_V0), "r" (reg_V1),	\
+				  "i" (0x1b), "i" (SH), "i" (16 - SH)		\
+				  : "xmm0", "xmm1");						\
 }
 
-void op_sse_vcmpgefp(void)
-{
-	VD = _mm_cmpge_ps(V0, V1);
+DEFINE_OP(1);
+DEFINE_OP(2);
+DEFINE_OP(3);
+DEFINE_OP(4);
+DEFINE_OP(5);
+DEFINE_OP(6);
+DEFINE_OP(7);
+DEFINE_OP(8);
+DEFINE_OP(9);
+DEFINE_OP(10);
+DEFINE_OP(11);
+DEFINE_OP(12);
+DEFINE_OP(13);
+DEFINE_OP(14);
+DEFINE_OP(15);
+
+#undef DEFINE_OP
+
+// SSE instructions
+#define DEFINE_OP(NAME, OP, VA, VB)												\
+void op_sse_##NAME(void)														\
+{																				\
+	asm volatile ("movaps (%1),%%xmm0\n"										\
+				  #OP   " (%2),%%xmm0\n"										\
+				  "movaps %%xmm0,(%0)\n"										\
+				  : : "r" (reg_VD), "r" (reg_##VA), "r" (reg_##VB) : "xmm0");	\
 }
 
-void op_sse_vcmpgtfp(void)
-{
-	VD = _mm_cmpgt_ps(V0, V1);
-}
+DEFINE_OP(vcmpeqfp, cmpeqps, V0, V1);
+DEFINE_OP(vcmpgefp, cmpleps, V1, V0);
+DEFINE_OP(vcmpgtfp, cmpltps, V1, V0);
+DEFINE_OP(vaddfp, addps, V0, V1);
+DEFINE_OP(vsubfp, subps, V0, V1);
+DEFINE_OP(vmaxfp, maxps, V0, V1);
+DEFINE_OP(vminfp, minps, V0, V1);
+DEFINE_OP(vand, andps, V0, V1);
+DEFINE_OP(vandc, andnps, V1, V0);
+DEFINE_OP(vor, orps, V0, V1);
+DEFINE_OP(vxor, xorps, V0, V1);
+DEFINE_OP(vminub, pminub, V0, V1);
+DEFINE_OP(vmaxub, pmaxub, V0, V1);
+DEFINE_OP(vminsh, pminsw, V0, V1);
+DEFINE_OP(vmaxsh, pmaxsw, V0, V1);
 
-void op_sse_vaddfp(void)
-{
-	VD = _mm_add_ps(V0, V1);
-}
-
-void op_sse_vsubfp(void)
-{
-	VD = _mm_sub_ps(V0, V1);
-}
+#undef DEFINE_OP
 
 void op_sse_vmaddfp(void)
 {
-	VD = _mm_add_ps(_mm_mul_ps(V0, V2), V1);
+	asm volatile ("movaps (%1),%%xmm0\n"
+				  "mulps  (%3),%%xmm0\n"
+				  "addps  (%2),%%xmm0\n"
+				  "movaps %%xmm0,(%0)\n"
+				  : : "r" (reg_VD), "r" (reg_V0), "r" (reg_V1), "r" (reg_V2) : "xmm0");
 }
 
 void op_sse_vnmsubfp(void)
 {
-	VD = _mm_sub_ps(_mm_setzero_ps(), _mm_sub_ps(_mm_mul_ps(V0, V2), V1));
+	asm volatile ("movaps (%1),%%xmm0\n"
+				  "xorps  %%xmm1,%%xmm1\n"
+				  "mulps  (%3),%%xmm0\n"
+				  "subps  (%2),%%xmm0\n"
+				  "subps  %%xmm0,%%xmm1\n"
+				  "movaps %%xmm1,(%0)\n"
+				  : : "r" (reg_VD), "r" (reg_V0), "r" (reg_V1), "r" (reg_V2) : "xmm0", "xmm1");
 }
 
-void op_sse_vmaxfp(void)
-{
-	VD = _mm_max_ps(V0, V1);
+#define DEFINE_OP(VD, VS)										\
+void op_sse_mov_##VD##_##VS(void)								\
+{																\
+	asm volatile ("movaps (%1),%%xmm0\n"						\
+				  "movaps %%xmm0,(%0)\n"						\
+				  : : "r" (reg_##VD), "r" (reg_##VS) : "xmm0");	\
 }
 
-void op_sse_vminfp(void)
-{
-	VD = _mm_min_ps(V0, V1);
-}
+DEFINE_OP(VD, V0);
+DEFINE_OP(VD, V1);
+DEFINE_OP(VD, V2);
 
-void op_sse_vand(void)
-{
-	VD = _mm_and_ps(V0, V1);
-}
+#undef DEFINE_OP
 
-void op_sse_vandc(void)
-{
-	VD = _mm_andnot_ps(V1, V0);
-}
-
-void op_sse_vor(void)
-{
-	VD = _mm_or_ps(V0, V1);
-}
-
-void op_sse_vxor(void)
-{
-	VD = _mm_xor_ps(V0, V1);
-}
-#endif
-
-/**
- *		MMX optimizations
- **/
-
-#if defined(__MMX__) && defined(HAVE_MMINTRIN_H)
-#include <mmintrin.h>
-#undef  VD
-#define VD ((__m64 *)reg_VD)
-#undef  V0
-#define V0 ((__m64 *)reg_V0)
-#undef  V1
-#define V1 ((__m64 *)reg_V1)
-#undef  V2
-#define V2 ((__m64 *)reg_V2)
-
-void op_mmx_nop(void)
-{
-	asm volatile ("nop");
-}
-
+// MMX instructions
 void op_emms(void)
 {
-	_mm_empty();
+	asm volatile ("emms");
 }
 
-void op_mmx_vcmpequb(void)
-{
-	VD[0] = _mm_cmpeq_pi8(V0[0], V1[0]);
-	VD[1] = _mm_cmpeq_pi8(V0[1], V1[1]);
+#define DEFINE_OP(NAME, OP, VA, VB)													\
+void op_mmx_##NAME(void)															\
+{																					\
+	asm volatile ("movq (%1),%%mm0\n"												\
+				  "movq 8(%1),%%mm1\n"												\
+				  #OP " (%2),%%mm0\n"												\
+				  #OP " 8(%2),%%mm1\n"												\
+				  "movq %%mm0,(%0)\n"												\
+				  "movq %%mm1,8(%0)\n"												\
+				  : : "r" (reg_VD), "r" (reg_##VA), "r" (reg_##VB) : "mm0", "mm1");	\
 }
 
-void op_mmx_vcmpequh(void)
-{
-	VD[0] = _mm_cmpeq_pi16(V0[0], V1[0]);
-	VD[1] = _mm_cmpeq_pi16(V0[1], V1[1]);
-}
+DEFINE_OP(vcmpequb, pcmpeqb, V0, V1);
+DEFINE_OP(vcmpequh, pcmpeqw, V0, V1);
+DEFINE_OP(vcmpequw, pcmpeqd, V0, V1);
+DEFINE_OP(vcmpgtsb, pcmpgtb, V0, V1);
+DEFINE_OP(vcmpgtsh, pcmpgtw, V0, V1);
+DEFINE_OP(vcmpgtsw, pcmpgtd, V0, V1);
+DEFINE_OP(vaddubm, paddb, V0, V1);
+DEFINE_OP(vadduhm, paddw, V0, V1);
+DEFINE_OP(vadduwm, paddd, V0, V1);
+DEFINE_OP(vsububm, psubb, V0, V1);
+DEFINE_OP(vsubuhm, psubw, V0, V1);
+DEFINE_OP(vsubuwm, psubd, V0, V1);
+DEFINE_OP(vand, pand, V0, V1);
+DEFINE_OP(vandc, pandn, V1, V0);
+DEFINE_OP(vor, por, V0, V1);
+DEFINE_OP(vxor, pxor, V0, V1);
+DEFINE_OP(vmaxub, pmaxub, V0, V1);
+DEFINE_OP(vminub, pminub, V0, V1);
+DEFINE_OP(vmaxsh, pmaxsw, V0, V1);
+DEFINE_OP(vminsh, pminsw, V0, V1);
 
-void op_mmx_vcmpequw(void)
-{
-	VD[0] = _mm_cmpeq_pi32(V0[0], V1[0]);
-	VD[1] = _mm_cmpeq_pi32(V0[1], V1[1]);
-}
-
-void op_mmx_vcmpgtsb(void)
-{
-	VD[0] = _mm_cmpgt_pi8(V0[0], V1[0]);
-	VD[1] = _mm_cmpgt_pi8(V0[1], V1[1]);
-}
-
-void op_mmx_vcmpgtsh(void)
-{
-	VD[0] = _mm_cmpgt_pi16(V0[0], V1[0]);
-	VD[1] = _mm_cmpgt_pi16(V0[1], V1[1]);
-}
-
-void op_mmx_vcmpgtsw(void)
-{
-	VD[0] = _mm_cmpgt_pi32(V0[0], V1[0]);
-	VD[1] = _mm_cmpgt_pi32(V0[1], V1[1]);
-}
-
-void op_mmx_vaddubm(void)
-{
-	VD[0] = _mm_add_pi8(V0[0], V1[0]);
-	VD[1] = _mm_add_pi8(V0[1], V1[1]);
-}
-
-void op_mmx_vadduhm(void)
-{
-	VD[0] = _mm_add_pi16(V0[0], V1[0]);
-	VD[1] = _mm_add_pi16(V0[1], V1[1]);
-}
-
-void op_mmx_vadduwm(void)
-{
-	VD[0] = _mm_add_pi32(V0[0], V1[0]);
-	VD[1] = _mm_add_pi32(V0[1], V1[1]);
-}
-
-void op_mmx_vsububm(void)
-{
-	VD[0] = _mm_sub_pi8(V0[0], V1[0]);
-	VD[1] = _mm_sub_pi8(V0[1], V1[1]);
-}
-
-void op_mmx_vsubuhm(void)
-{
-	VD[0] = _mm_sub_pi16(V0[0], V1[0]);
-	VD[1] = _mm_sub_pi16(V0[1], V1[1]);
-}
-
-void op_mmx_vsubuwm(void)
-{
-	VD[0] = _mm_sub_pi32(V0[0], V1[0]);
-	VD[1] = _mm_sub_pi32(V0[1], V1[1]);
-}
-
-void op_mmx_vand(void)
-{
-	VD[0] = _mm_and_si64(V0[0], V1[0]);
-	VD[1] = _mm_and_si64(V0[1], V1[1]);
-}
-
-void op_mmx_vandc(void)
-{
-	VD[0] = _mm_andnot_si64(V1[0], V0[0]);
-	VD[1] = _mm_andnot_si64(V1[1], V0[1]);
-}
-
-void op_mmx_vor(void)
-{
-	VD[0] = _mm_or_si64(V0[0], V1[0]);
-	VD[1] = _mm_or_si64(V0[1], V1[1]);
-}
-
-void op_mmx_vxor(void)
-{
-	VD[0] = _mm_xor_si64(V0[0], V1[0]);
-	VD[1] = _mm_xor_si64(V0[1], V1[1]);
-}
-
-#if defined(__SSE__)
-void op_mmx_vmaxub(void)
-{
-	VD[0] = _mm_max_pu8(V0[0], V1[0]);
-	VD[1] = _mm_max_pu8(V0[1], V1[1]);
-}
-
-void op_mmx_vminub(void)
-{
-	VD[0] = _mm_min_pu8(V0[0], V1[0]);
-	VD[1] = _mm_min_pu8(V0[1], V1[1]);
-}
-
-void op_mmx_vmaxsh(void)
-{
-	VD[0] = _mm_max_pi16(V0[0], V1[0]);
-	VD[1] = _mm_max_pi16(V0[1], V1[1]);
-}
-
-void op_mmx_vminsh(void)
-{
-	VD[0] = _mm_min_pi16(V0[0], V1[0]);
-	VD[1] = _mm_min_pi16(V0[1], V1[1]);
-}
-#endif
+#undef DEFINE_OP
 #endif

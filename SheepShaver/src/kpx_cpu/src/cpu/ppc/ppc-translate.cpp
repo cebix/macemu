@@ -1377,12 +1377,38 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			}
 			break;
 		}
+		case PPC_I(MFVSCR):
+		{
+			dg.gen_load_ad_VD_VR(vD_field::extract(opcode));
+			dg.gen_mfvscr_VD();
+			break;
+		}
+		case PPC_I(MTVSCR):
+		{
+			dg.gen_load_ad_V0_VR(vB_field::extract(opcode));
+			dg.gen_mtvscr_V0();
+			break;
+		}
+#if defined(__i386__) || defined(__x86_64__)
+		case PPC_I(VSLDOI):
+		{
+			const int vD = vD_field::extract(opcode);
+			const int vA = vA_field::extract(opcode);
+			const int vB = vB_field::extract(opcode);
+			const int SH = vSH_field::extract(opcode);
+			if (dg.gen_vector_shift_octet(vD, vA, vB, SH))
+				break;
+			// fall through
+		}
+#endif
 		case PPC_I(VADDFP):
 		case PPC_I(VADDUBM):
 		case PPC_I(VADDUHM):
 		case PPC_I(VADDUWM):
 		case PPC_I(VAND):
 		case PPC_I(VANDC):
+		case PPC_I(VAVGUB):
+		case PPC_I(VAVGUH):
 		case PPC_I(VCMPEQFP):
 		case PPC_I(VCMPEQUB):
 		case PPC_I(VCMPEQUH):
@@ -1413,7 +1439,10 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			/* XXX: analyze the block function */
 			bool mmx_used = false;
 
-			if ((gen_op = dg.vector_codegen_sse(ii->mnemo)).ptr()) {
+			if ((gen_op = dg.vector_codegen_sse2(ii->mnemo)).ptr()) {
+				/* SSE2 code generator available */
+			}
+			else if ((gen_op = dg.vector_codegen_sse(ii->mnemo)).ptr()) {
 				/* SSE code generator available */
 			}
 			else if ((gen_op = dg.vector_codegen_mmx(ii->mnemo)).ptr()) {
