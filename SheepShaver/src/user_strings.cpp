@@ -124,6 +124,19 @@ user_string_def common_strings[] = {
 	{STR_1600x1200_CTRL, "Fullscreen 1600x1200"},
 	{STR_VIDEO_MODE_CTRL, "Enabled Video Modes"},
 	{STR_FULLSCREEN_CTRL, "Fullscreen"},
+	{STR_WINDOW_CTRL, "Window"},
+	{STR_VIDEO_TYPE_CTRL, "Video Type"},
+	{STR_DISPLAY_X_CTRL, "Width"},
+	{STR_DISPLAY_Y_CTRL, "Height"},
+	{STR_SIZE_384_LAB, "384"},
+	{STR_SIZE_480_LAB, "480"},
+	{STR_SIZE_512_LAB, "512"},
+	{STR_SIZE_600_LAB, "600"},
+	{STR_SIZE_640_LAB, "640"},
+	{STR_SIZE_768_LAB, "768"},
+	{STR_SIZE_800_LAB, "800"},
+	{STR_SIZE_1024_LAB, "1024"},
+	{STR_SIZE_MAX_LAB, "Maximum"},
 	{STR_NOSOUND_CTRL, "Disable Sound Output"},
 
 	{STR_SERIAL_NETWORK_PANE_TITLE, "Serial/Network"},
@@ -141,7 +154,7 @@ user_string_def common_strings[] = {
 
 	{STR_JIT_PANE_TITLE, "JIT Compiler"},
 	{STR_JIT_CTRL, "Enable JIT Compiler"},
-	{STR_JIT_68K_CTRL, "Enable built-in 68k DR Emulator"},
+	{STR_JIT_68K_CTRL, "Enable built-in 68k DR Emulator (EXPERIMENTAL)"},
 
 	{STR_WINDOW_TITLE, "SheepShaver"},
 	{STR_WINDOW_TITLE_FROZEN, "SheepShaver *** FROZEN ***"},

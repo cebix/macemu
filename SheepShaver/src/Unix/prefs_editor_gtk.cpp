@@ -39,6 +39,7 @@
 // Global variables
 static GtkWidget *win;				// Preferences window
 static bool start_clicked = true;	// Return value of PrefsEditor() function
+static int screen_width, screen_height; // Screen dimensions
 
 
 // Prototypes
@@ -293,6 +294,10 @@ static GtkItemFactoryEntry menu_items[] = {
 
 bool PrefsEditor(void)
 {
+	// Get screen dimensions
+	screen_width = gdk_screen_width();
+	screen_height = gdk_screen_height();
+
 	// Create window
 	win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	gtk_window_set_title(GTK_WINDOW(win), GetString(STR_PREFS_TITLE));
@@ -554,9 +559,45 @@ static void create_jit_pane(GtkWidget *top)
  *  "Graphics/Sound" pane
  */
 
-static GtkWidget *w_frameskip;
+// Display types
+enum {
+	DISPLAY_WINDOW,
+	DISPLAY_SCREEN
+};
+
+static GtkWidget *w_frameskip, *w_display_x, *w_display_y;
+static GtkWidget *l_frameskip, *l_display_x, *l_display_y;
+static int display_type;
+static int dis_width, dis_height;
 
 static GtkWidget *w_dspdevice_file, *w_mixerdevice_file;
+
+// Hide/show graphics widgets
+static void hide_show_graphics_widgets(void)
+{
+	switch (display_type) {
+		case DISPLAY_WINDOW:
+			gtk_widget_show(w_frameskip); gtk_widget_show(l_frameskip);
+			break;
+		case DISPLAY_SCREEN:
+			gtk_widget_hide(w_frameskip); gtk_widget_hide(l_frameskip);
+			break;
+	}
+}
+
+// "Window" video type selected
+static void mn_window(...)
+{
+	display_type = DISPLAY_WINDOW;
+	hide_show_graphics_widgets();
+}
+
+// "Fullscreen" video type selected
+static void mn_fullscreen(...)
+{
+	display_type = DISPLAY_SCREEN;
+	hide_show_graphics_widgets();
+}
 
 // "5 Hz".."60Hz" selected
 static void mn_5hz(...) {PrefsReplaceInt32("frameskip", 12);}
@@ -570,79 +611,6 @@ static void mn_60hz(...) {PrefsReplaceInt32("frameskip", 1);}
 static void tb_gfxaccel(GtkWidget *widget)
 {
 	PrefsReplaceBool("gfxaccel", GTK_TOGGLE_BUTTON(widget)->active);
-}
-
-// Video modes
-static void tb_w640x480(GtkWidget *widget)
-{
-	if (GTK_TOGGLE_BUTTON(widget)->active)
-		PrefsReplaceInt32("windowmodes", PrefsFindInt32("windowmodes") | 1);
-	else
-		PrefsReplaceInt32("windowmodes", PrefsFindInt32("windowmodes") & ~1);
-}
-
-static void tb_w800x600(GtkWidget *widget)
-{
-	if (GTK_TOGGLE_BUTTON(widget)->active)
-		PrefsReplaceInt32("windowmodes", PrefsFindInt32("windowmodes") | 2);
-	else
-		PrefsReplaceInt32("windowmodes", PrefsFindInt32("windowmodes") & ~2);
-}
-
-static void tb_fs640x480(GtkWidget *widget)
-{
-	if (GTK_TOGGLE_BUTTON(widget)->active)
-		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") | 1);
-	else
-		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") & ~1);
-}
-
-static void tb_fs800x600(GtkWidget *widget)
-{
-	if (GTK_TOGGLE_BUTTON(widget)->active)
-		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") | 2);
-	else
-		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") & ~2);
-}
-
-static void tb_fs1024x768(GtkWidget *widget)
-{
-	if (GTK_TOGGLE_BUTTON(widget)->active)
-		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") | 4);
-	else
-		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") & ~4);
-}
-
-static void tb_fs1152x768(GtkWidget *widget)
-{
-	if (GTK_TOGGLE_BUTTON(widget)->active)
-		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") | 64);
-	else
-		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") & ~64);
-}
-
-static void tb_fs1152x900(GtkWidget *widget)
-{
-	if (GTK_TOGGLE_BUTTON(widget)->active)
-		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") | 8);
-	else
-		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") & ~8);
-}
-
-static void tb_fs1280x1024(GtkWidget *widget)
-{
-	if (GTK_TOGGLE_BUTTON(widget)->active)
-		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") | 16);
-	else
-		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") & ~16);
-}
-
-static void tb_fs1600x1200(GtkWidget *widget)
-{
-	if (GTK_TOGGLE_BUTTON(widget)->active)
-		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") | 32);
-	else
-		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") & ~32);
 }
 
 // Set sensitivity of widgets
@@ -660,9 +628,88 @@ static void tb_nosound(GtkWidget *widget)
 	set_graphics_sensitive();
 }
 
+// Read and convert graphics preferences
+static void parse_graphics_prefs(void)
+{
+	display_type = DISPLAY_WINDOW;
+	dis_width = 640;
+	dis_height = 480;
+
+	const char *str = PrefsFindString("screen");
+	if (str) {
+		if (sscanf(str, "win/%d/%d", &dis_width, &dis_height) == 2)
+			display_type = DISPLAY_WINDOW;
+		else if (sscanf(str, "dga/%d/%d", &dis_width, &dis_height) == 2)
+			display_type = DISPLAY_SCREEN;
+	}
+	else {
+		uint32 window_modes = PrefsFindInt32("windowmodes");
+		uint32 screen_modes = PrefsFindInt32("screenmodes");
+		if (screen_modes) {
+			display_type = DISPLAY_SCREEN;
+			static const struct {
+				int id;
+				int width;
+				int height;
+			}
+			modes[] = {
+				{  1,	 640,	 480 },
+				{  2,	 800,	 600 },
+				{  4,	1024,	 768 },
+				{ 64,	1152,	 768 },
+				{  8,	1152,	 900 },
+				{ 16,	1280,	1024 },
+				{ 32,	1600,	1200 },
+				{ 0, }
+			};
+			for (int i = 0; modes[i].id != 0; i++) {
+				if (screen_modes & modes[i].id) {
+					if (modes[i].width <= screen_width && modes[i].height <= screen_height) {
+						dis_width = modes[i].width;
+						dis_height = modes[i].height;
+					}
+				}
+			}
+		}
+		else if (window_modes) {
+			display_type = DISPLAY_WINDOW;
+			if (window_modes & 1)
+				dis_width = 640, dis_height = 480;
+			if (window_modes & 2)
+				dis_width = 800, dis_height = 600;
+		}
+	}
+	if (dis_width == screen_width)
+		dis_width = 0;
+	if (dis_height == screen_height)
+		dis_height = 0;
+}
+
 // Read settings from widgets and set preferences
 static void read_graphics_settings(void)
 {
+	const char *str;
+
+	str = gtk_entry_get_text(GTK_ENTRY(w_display_x));
+	dis_width = atoi(str);
+
+	str = gtk_entry_get_text(GTK_ENTRY(w_display_y));
+	dis_height = atoi(str);
+
+	char pref[256];
+	switch (display_type) {
+		case DISPLAY_WINDOW:
+			sprintf(pref, "win/%d/%d", dis_width, dis_height);
+			break;
+		case DISPLAY_SCREEN:
+			sprintf(pref, "dga/%d/%d", dis_width, dis_height);
+			break;
+		default:
+			PrefsRemoveItem("screen");
+			return;
+	}
+	PrefsReplaceString("screen", pref);
+
 	PrefsReplaceString("dsp", get_file_entry_path(w_dspdevice_file));
 	PrefsReplaceString("mixer", get_file_entry_path(w_mixerdevice_file));
 }
@@ -670,50 +717,106 @@ static void read_graphics_settings(void)
 // Create "Graphics/Sound" pane
 static void create_graphics_pane(GtkWidget *top)
 {
-	GtkWidget *box, *vbox, *frame;
+	GtkWidget *box, *table, *label, *opt, *menu, *combo;
+	char str[32];
+
+	parse_graphics_prefs();
 
 	box = make_pane(top, STR_GRAPHICS_SOUND_PANE_TITLE);
+	table = make_table(box, 2, 4);
 
-	static const opt_desc options[] = {
-		{STR_REF_5HZ_LAB, GTK_SIGNAL_FUNC(mn_5hz)},
-		{STR_REF_7_5HZ_LAB, GTK_SIGNAL_FUNC(mn_7hz)},
-		{STR_REF_10HZ_LAB, GTK_SIGNAL_FUNC(mn_10hz)},
-		{STR_REF_15HZ_LAB, GTK_SIGNAL_FUNC(mn_15hz)},
-		{STR_REF_30HZ_LAB, GTK_SIGNAL_FUNC(mn_30hz)},
-		{STR_REF_60HZ_LAB, GTK_SIGNAL_FUNC(mn_60hz)},
-		{0, NULL}
-	};
-	int frameskip = PrefsFindInt32("frameskip"), active = 0;
-	switch (frameskip) {
-		case 12: active = 0; break;
-		case 8: active = 1; break;
-		case 6: active = 2; break;
-		case 4: active = 3; break;
-		case 2: active = 4; break;
-		case 1: active = 5; break;
+	label = gtk_label_new(GetString(STR_VIDEO_TYPE_CTRL));
+	gtk_widget_show(label);
+	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+
+	opt = gtk_option_menu_new();
+	gtk_widget_show(opt);
+	menu = gtk_menu_new();
+	add_menu_item(menu, STR_WINDOW_CTRL, GTK_SIGNAL_FUNC(mn_window));
+	add_menu_item(menu, STR_FULLSCREEN_CTRL, GTK_SIGNAL_FUNC(mn_fullscreen));
+	switch (display_type) {
+		case DISPLAY_WINDOW:
+			gtk_menu_set_active(GTK_MENU(menu), 0);
+			break;
+		case DISPLAY_SCREEN:
+			gtk_menu_set_active(GTK_MENU(menu), 1);
+			break;
 	}
-	w_frameskip = make_option_menu(box, STR_FRAMESKIP_CTRL, options, active);
+	gtk_option_menu_set_menu(GTK_OPTION_MENU(opt), menu);
+	gtk_table_attach(GTK_TABLE(table), opt, 1, 2, 0, 1, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
+
+	l_frameskip = gtk_label_new(GetString(STR_FRAMESKIP_CTRL));
+	gtk_widget_show(l_frameskip);
+	gtk_table_attach(GTK_TABLE(table), l_frameskip, 0, 1, 1, 2, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+
+	w_frameskip = gtk_option_menu_new();
+	gtk_widget_show(w_frameskip);
+	menu = gtk_menu_new();
+	add_menu_item(menu, STR_REF_5HZ_LAB, GTK_SIGNAL_FUNC(mn_5hz));
+	add_menu_item(menu, STR_REF_7_5HZ_LAB, GTK_SIGNAL_FUNC(mn_7hz));
+	add_menu_item(menu, STR_REF_10HZ_LAB, GTK_SIGNAL_FUNC(mn_10hz));
+	add_menu_item(menu, STR_REF_15HZ_LAB, GTK_SIGNAL_FUNC(mn_15hz));
+	add_menu_item(menu, STR_REF_30HZ_LAB, GTK_SIGNAL_FUNC(mn_30hz));
+	add_menu_item(menu, STR_REF_60HZ_LAB, GTK_SIGNAL_FUNC(mn_60hz));
+	int frameskip = PrefsFindInt32("frameskip");
+	int item = -1;
+	switch (frameskip) {
+		case 12: item = 0; break;
+		case 8: item = 1; break;
+		case 6: item = 2; break;
+		case 4: item = 3; break;
+		case 2: item = 4; break;
+		case 1: item = 5; break;
+		case 0: item = 5; break;
+	}
+	if (item >= 0)
+		gtk_menu_set_active(GTK_MENU(menu), item);
+	gtk_option_menu_set_menu(GTK_OPTION_MENU(w_frameskip), menu);
+	gtk_table_attach(GTK_TABLE(table), w_frameskip, 1, 2, 1, 2, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
+
+	l_display_x = gtk_label_new(GetString(STR_DISPLAY_X_CTRL));
+	gtk_widget_show(l_display_x);
+	gtk_table_attach(GTK_TABLE(table), l_display_x, 0, 1, 2, 3, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+
+	combo = gtk_combo_new();
+	gtk_widget_show(combo);
+	GList *glist1 = NULL;
+	glist1 = g_list_append(glist1, (void *)GetString(STR_SIZE_512_LAB));
+	glist1 = g_list_append(glist1, (void *)GetString(STR_SIZE_640_LAB));
+	glist1 = g_list_append(glist1, (void *)GetString(STR_SIZE_800_LAB));
+	glist1 = g_list_append(glist1, (void *)GetString(STR_SIZE_1024_LAB));
+	glist1 = g_list_append(glist1, (void *)GetString(STR_SIZE_MAX_LAB));
+	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist1);
+	if (dis_width)
+		sprintf(str, "%d", dis_width);
+	else
+		strcpy(str, GetString(STR_SIZE_MAX_LAB));
+	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
+	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 2, 3, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
+	w_display_x = GTK_COMBO(combo)->entry;
+
+	l_display_y = gtk_label_new(GetString(STR_DISPLAY_Y_CTRL));
+	gtk_widget_show(l_display_y);
+	gtk_table_attach(GTK_TABLE(table), l_display_y, 0, 1, 3, 4, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+
+	combo = gtk_combo_new();
+	gtk_widget_show(combo);
+	GList *glist2 = NULL;
+	glist2 = g_list_append(glist2, (void *)GetString(STR_SIZE_384_LAB));
+	glist2 = g_list_append(glist2, (void *)GetString(STR_SIZE_480_LAB));
+	glist2 = g_list_append(glist2, (void *)GetString(STR_SIZE_600_LAB));
+	glist2 = g_list_append(glist2, (void *)GetString(STR_SIZE_768_LAB));
+	glist2 = g_list_append(glist2, (void *)GetString(STR_SIZE_MAX_LAB));
+	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist2);
+	if (dis_height)
+		sprintf(str, "%d", dis_height);
+	else
+		strcpy(str, GetString(STR_SIZE_MAX_LAB));
+	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
+	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 3, 4, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
+	w_display_y = GTK_COMBO(combo)->entry;
 
 	make_checkbox(box, STR_GFXACCEL_CTRL, PrefsFindBool("gfxaccel"), GTK_SIGNAL_FUNC(tb_gfxaccel));
-
-	frame = gtk_frame_new (GetString(STR_VIDEO_MODE_CTRL));
-	gtk_widget_show(frame);
-	gtk_box_pack_start(GTK_BOX(box), frame, FALSE, FALSE, 0);
-
-	vbox = gtk_vbox_new(FALSE, 4);
-	gtk_widget_show(vbox);
-	gtk_container_set_border_width(GTK_CONTAINER(vbox), 4);
-	gtk_container_add(GTK_CONTAINER(frame), vbox);
-
-	make_checkbox(vbox, STR_W_640x480_CTRL, PrefsFindInt32("windowmodes") & 1, GTK_SIGNAL_FUNC(tb_w640x480));
-	make_checkbox(vbox, STR_W_800x600_CTRL, PrefsFindInt32("windowmodes") & 2, GTK_SIGNAL_FUNC(tb_w800x600));
-	make_checkbox(vbox, STR_640x480_CTRL, PrefsFindInt32("screenmodes") & 1, GTK_SIGNAL_FUNC(tb_fs640x480));
-	make_checkbox(vbox, STR_800x600_CTRL, PrefsFindInt32("screenmodes") & 2, GTK_SIGNAL_FUNC(tb_fs800x600));
-	make_checkbox(vbox, STR_1024x768_CTRL, PrefsFindInt32("screenmodes") & 4, GTK_SIGNAL_FUNC(tb_fs1024x768));
-	make_checkbox(vbox, STR_1152x768_CTRL, PrefsFindInt32("screenmodes") & 64, GTK_SIGNAL_FUNC(tb_fs1152x768));
-	make_checkbox(vbox, STR_1152x900_CTRL, PrefsFindInt32("screenmodes") & 8, GTK_SIGNAL_FUNC(tb_fs1152x900));
-	make_checkbox(vbox, STR_1280x1024_CTRL, PrefsFindInt32("screenmodes") & 16, GTK_SIGNAL_FUNC(tb_fs1280x1024));
-	make_checkbox(vbox, STR_1600x1200_CTRL, PrefsFindInt32("screenmodes") & 32, GTK_SIGNAL_FUNC(tb_fs1600x1200));
 
 	make_separator(box);
 	make_checkbox(box, STR_NOSOUND_CTRL, "nosound", GTK_SIGNAL_FUNC(tb_nosound));
@@ -721,6 +824,8 @@ static void create_graphics_pane(GtkWidget *top)
 	w_mixerdevice_file = make_entry(box, STR_MIXERDEVICE_FILE_CTRL, "mixer");
 
 	set_graphics_sensitive();
+
+	hide_show_graphics_widgets();
 }
 
 
