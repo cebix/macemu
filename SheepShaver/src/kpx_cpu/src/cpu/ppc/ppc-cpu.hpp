@@ -349,7 +349,7 @@ private:
 	void execute_cr_op(uint32 opcode);
 	template< bool SB, class OE, class Rc >
 	void execute_divide(uint32 opcode);
-	template< class OP, class RD, class RA, class RB, class RC, class Rc, bool FPSCR >
+	template< class FP, class OP, class RD, class RA, class RB, class RC, class Rc, bool FPSCR >
 	void execute_fp_arith(uint32 opcode);
  	template< class OP, class RA, class RB, bool LD, int SZ, bool UP, bool RX >
 	void execute_loadstore(uint32 opcode);

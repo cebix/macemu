@@ -443,6 +443,7 @@ void powerpc_cpu::execute_multiply(uint32 opcode)
 /**
  *	Floating-point arithmetics
  *
+ *		FP		Floating Point type
  *		OP		Operation to perform
  *		RD		Output register
  *		RA		Input operand
@@ -452,13 +453,13 @@ void powerpc_cpu::execute_multiply(uint32 opcode)
  *		FPSCR	Predicate to compute FPSCR bits
  **/
 
-template< class OP, class RD, class RA, class RB, class RC, class Rc, bool FPSCR >
+template< class FP, class OP, class RD, class RA, class RB, class RC, class Rc, bool FPSCR >
 void powerpc_cpu::execute_fp_arith(uint32 opcode)
 {
 	const double a = RA::get(this, opcode);
 	const double b = RB::get(this, opcode);
 	const double c = RC::get(this, opcode);
-	double d = op_apply<OP, RA, RB, RC>::apply(a, b, c);
+	FP d = op_apply<OP, RA, RB, RC>::apply(a, b, c);
 
 #if 0
 	// FIXME: Compute FPSCR bits if instruction requests it

@@ -69,8 +69,8 @@
 #define EXECUTE_CR_OP(OP) \
 &powerpc_cpu::execute_cr_op<op_##OP>
 
-#define EXECUTE_FP_ARITH(OP, RD, RA, RB, RC, Rc, FPSCR) \
-&powerpc_cpu::execute_fp_arith<op_##OP, operand_fp_##RD, operand_fp_##RA, operand_fp_##RB, operand_fp_##RC, Rc, FPSCR>
+#define EXECUTE_FP_ARITH(FP, OP, RD, RA, RB, RC, Rc, FPSCR) \
+&powerpc_cpu::execute_fp_arith<FP, op_##OP, operand_fp_##RD, operand_fp_##RA, operand_fp_##RB, operand_fp_##RC, Rc, FPSCR>
 
 #define EXECUTE_LOADSTORE(OP, RA, RB, LD, SZ, UP, RX) \
 &powerpc_cpu::execute_loadstore<op_##OP, operand_##RA, operand_##RB, LD, SZ, UP, RX>
@@ -380,19 +380,19 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  X_form, 31, 922, CFLOW_NORMAL
 	},
 	{ "fabs",
-	  EXECUTE_FP_ARITH(fabs, RD, RB, NONE, NONE, RC_BIT_G, false),
+	  EXECUTE_FP_ARITH(double, fabs, RD, RB, NONE, NONE, RC_BIT_G, false),
 	  NULL,
 	  PPC_I(FABS),
 	  X_form, 63, 264, CFLOW_NORMAL
 	},
 	{ "fadd",
-	  EXECUTE_FP_ARITH(fadd, RD, RA, RB, NONE, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(double, fadd, RD, RA, RB, NONE, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FADD),
 	  A_form, 63, 21, CFLOW_NORMAL
 	},
 	{ "fadds",
-	  EXECUTE_FP_ARITH(fadds, RD, RA, RB, NONE, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(float, fadd, RD, RA, RB, NONE, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FADDS),
 	  A_form, 59, 21, CFLOW_NORMAL
@@ -422,91 +422,91 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  X_form, 63, 15, CFLOW_NORMAL
 	},
 	{ "fdiv",
-	  EXECUTE_FP_ARITH(fdiv, RD, RA, RB, NONE, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(double, fdiv, RD, RA, RB, NONE, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FDIV),
 	  A_form, 63, 18, CFLOW_NORMAL
 	},
 	{ "fdivs",
-	  EXECUTE_FP_ARITH(fdivs, RD, RA, RB, NONE, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(float, fdiv, RD, RA, RB, NONE, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FDIVS),
 	  A_form, 59, 18, CFLOW_NORMAL
 	},
 	{ "fmadd",
-	  EXECUTE_FP_ARITH(fmadd, RD, RA, RC, RB, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(double, fmadd, RD, RA, RC, RB, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FMADD),
 	  A_form, 63, 29, CFLOW_NORMAL
 	},
 	{ "fmadds",
-	  EXECUTE_FP_ARITH(fmadds, RD, RA, RC, RB, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(float, fmadd, RD, RA, RC, RB, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FMADDS),
 	  A_form, 59, 29, CFLOW_NORMAL
 	},
 	{ "fmr",
-	  EXECUTE_FP_ARITH(fnop, RD, RB, NONE, NONE, RC_BIT_G, false),
+	  EXECUTE_FP_ARITH(double, fnop, RD, RB, NONE, NONE, RC_BIT_G, false),
 	  NULL,
 	  PPC_I(FMR),
 	  X_form, 63, 72, CFLOW_NORMAL
 	},
 	{ "fmsub",
-	  EXECUTE_FP_ARITH(fmsub, RD, RA, RC, RB, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(double, fmsub, RD, RA, RC, RB, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FMSUB),
 	  A_form, 63, 28, CFLOW_NORMAL
 	},
 	{ "fmsubs",
-	  EXECUTE_FP_ARITH(fmsubs, RD, RA, RC, RB, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(float, fmsub, RD, RA, RC, RB, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FMSUBS),
 	  A_form, 59, 28, CFLOW_NORMAL
 	},
 	{ "fmul",
-	  EXECUTE_FP_ARITH(fmul, RD, RA, RC, NONE, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(double, fmul, RD, RA, RC, NONE, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FMUL),
 	  A_form, 63, 25, CFLOW_NORMAL
 	},
 	{ "fmuls",
-	  EXECUTE_FP_ARITH(fmuls, RD, RA, RC, NONE, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(float, fmul, RD, RA, RC, NONE, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FMULS),
 	  A_form, 59, 25, CFLOW_NORMAL
 	},
 	{ "fnabs",
-	  EXECUTE_FP_ARITH(fnabs, RD, RB, NONE, NONE, RC_BIT_G, false),
+	  EXECUTE_FP_ARITH(double, fnabs, RD, RB, NONE, NONE, RC_BIT_G, false),
 	  NULL,
 	  PPC_I(FNABS),
 	  X_form, 63, 136, CFLOW_NORMAL
 	},
 	{ "fneg",
-	  EXECUTE_FP_ARITH(fneg, RD, RB, NONE, NONE, RC_BIT_G, false),
+	  EXECUTE_FP_ARITH(double, fneg, RD, RB, NONE, NONE, RC_BIT_G, false),
 	  NULL,
 	  PPC_I(FNEG),
 	  X_form, 63, 40, CFLOW_NORMAL
 	},
 	{ "fnmadd",
-	  EXECUTE_FP_ARITH(fnmadd, RD, RA, RC, RB, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(double, fnmadd, RD, RA, RC, RB, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FNMADD),
 	  A_form, 63, 31, CFLOW_NORMAL
 	},
 	{ "fnmadds",
-	  EXECUTE_FP_ARITH(fnmadds, RD, RA, RC, RB, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(float, fnmadd, RD, RA, RC, RB, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FNMADDS),
 	  A_form, 59, 31, CFLOW_NORMAL
 	},
 	{ "fnmsub",
-	  EXECUTE_FP_ARITH(fnmsub, RD, RA, RC, RB, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(double, fnmsub, RD, RA, RC, RB, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FNMSUB),
 	  A_form, 63, 30, CFLOW_NORMAL
 	},
 	{ "fnmsubs",
-	  EXECUTE_FP_ARITH(fnmsubs, RD, RA, RC, RB, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(float, fnmsub, RD, RA, RC, RB, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FNMSUBS),
 	  A_form, 59, 30, CFLOW_NORMAL
@@ -518,13 +518,13 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  X_form, 63, 12, CFLOW_NORMAL
 	},
 	{ "fsub",
-	  EXECUTE_FP_ARITH(fsub, RD, RA, RB, NONE, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(double, fsub, RD, RA, RB, NONE, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FSUB),
 	  A_form, 63, 20, CFLOW_NORMAL
 	},
 	{ "fsubs",
-	  EXECUTE_FP_ARITH(fsubs, RD, RA, RB, NONE, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(float, fsub, RD, RA, RB, NONE, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FSUBS),
 	  A_form, 59, 20, CFLOW_NORMAL

@@ -95,23 +95,15 @@ DEFINE_OP3(ppc_rlwnm, uint32, (op_rotl::apply(x, (y & 0x1f)) & z));
 DEFINE_OP1(fnop, double, x);
 DEFINE_OP1(fabs, double, fabs(x));
 DEFINE_OP2(fadd, double, x + y);
-DEFINE_OP2(fadds, float, x + y);
 DEFINE_OP2(fdiv, double, x / y);
-DEFINE_OP2(fdivs, float, x / y);
 DEFINE_OP3(fmadd, double, (x * y) + z);
-DEFINE_OP3(fmadds, float, (x * y) + z);
 DEFINE_OP3(fmsub, double, (x * y) - z);
-DEFINE_OP3(fmsubs, float, (x * y) - z);
 DEFINE_OP2(fmul, double, x * y);
-DEFINE_OP2(fmuls, float, x * y);
 DEFINE_OP1(fnabs, double, -fabs(x));
 DEFINE_OP1(fneg, double, -x);
 DEFINE_OP3(fnmadd, double, -((x * y) + z));
-DEFINE_OP3(fnmadds, float, -((x * y) + z));
 DEFINE_OP3(fnmsub, double, -((x * y) - z));
-DEFINE_OP3(fnmsubs, float, -((x * y) - z));
 DEFINE_OP2(fsub, double, x - y);
-DEFINE_OP2(fsubs, float, x - y);
 
 #undef DEFINE_OP1
 #undef DEFINE_OP2
