@@ -5,11 +5,15 @@ AC_INIT(main_unix.cpp)
 AC_PREREQ(2.52)
 AC_CONFIG_HEADER(config.h)
 
-dnl Options.
+dnl Video options.
 AC_ARG_ENABLE(xf86-dga,      [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(xf86-vidmode,  [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
 AC_ARG_ENABLE(fbdev-dga,     [  --enable-fbdev-dga      use direct frame buffer access via /dev/fb [default=yes]], [WANT_FBDEV_DGA=$enableval], [WANT_FBDEV_DGA=yes])
 AC_ARG_ENABLE(vosf,          [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=yes])
+
+dnl JIT compiler options.
+AC_ARG_ENABLE(jit-compiler,  [  --enable-jit-compiler   enable JIT compiler [default=no]], [WANT_JIT=$enableval], [WANT_JIT=no])
+AC_ARG_ENABLE(jit-debug,     [  --enable-jit-debug      activate native code disassemblers [default=no]], [WANT_JIT_DEBUG=$enableval], [WANT_JIT_DEBUG=no])
 
 dnl FPU emulation core.
 AC_ARG_ENABLE(fpe,
@@ -740,6 +744,11 @@ else
   fi
 fi
 
+dnl Banked Memory Addressing mode is not supported by the JIT compiler
+if [[ "x$WANT_JIT" = "xyes" -a "x$ADDRESSING_MODE" = "xmemory banks" ]]; then
+  AC_MSG_ERROR([Sorry, the JIT Compiler requires Direct Addressing, at least])
+fi
+
 dnl Enable VOSF screen updates with this feature is requested and feasible
 if [[ "x$WANT_VOSF" = "xyes" -a "x$CAN_VOSF" = "xyes" ]]; then
     AC_DEFINE(ENABLE_VOSF, 1, [Define if using video enabled on SEGV signals.])
@@ -805,6 +814,12 @@ fi
 dnl Select appropriate CPU source and REGPARAM define.
 ASM_OPTIMIZATIONS=none
 CPUSRCS="cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
+
+dnl (gb) JITSRCS will be emptied later if the JIT is not available
+dnl Other platforms should define their own set of noflags file variants
+CAN_JIT=no
+JITSRCS="compemu1.cpp compemu2.cpp compemu3.cpp compemu4.cpp compemu5.cpp compemu6.cpp compemu7.cpp compemu8.cpp"
+
 if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" -a "x$OS_TYPE" != "xfreebsd" ]]; then
   dnl i386 CPU
   DEFINES="$DEFINES -DREGPARAM=\"__attribute__((regparm(3)))\""
@@ -812,7 +827,9 @@ if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" -a "x$OS_TYPE" != "xfree
     ASM_OPTIMIZATIONS=i386
     DEFINES="$DEFINES -DX86_ASSEMBLY -DUNALIGNED_PROFITABLE -DOPTIMIZED_FLAGS"
     CPUSRCS="cpufast1.s cpufast2.s cpufast3.s cpufast4.s cpufast5.s cpufast6.s cpufast7.s cpufast8.s"
+    JITSRCS="cpufast1_nf.s cpufast2_nf.s cpufast3_nf.s cpufast4_nf.s cpufast5_nf.s cpufast6_nf.s cpufast7_nf.s cpufast8_nf.s $JITSRCS"
   fi
+  CAN_JIT=yes
 elif [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xyes" ]]; then
   dnl SPARC CPU
   case "$target_os" in
@@ -840,6 +857,25 @@ elif [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
   dnl Native m68k, no emulation
   CPUINCLUDES="-I../native_cpu"
   CPUSRCS="asm_support.s"
+fi
+
+dnl Enable JIT compiler, if possible.
+if [[ "x$WANT_JIT" = "xyes" -a "x$CAN_JIT" ]]; then
+  JITSRCS="$JITSRCS ../uae_cpu/compiler/compemu_support.cpp ../uae_cpu/compiler/compemu_fpp.cpp compstbl.o cpustbl_nf.o"
+  DEFINES="$DEFINES -DUSE_JIT -DUSE_JIT_FPU"
+  
+  if [[ "x$WANT_JIT_DEBUG" = "xyes" ]]; then
+    if [[ "x$WANT_MON" = "xyes" ]]; then
+      DEFINES="$DEFINES -DJIT_DEBUG=1"
+    else
+      AC_MSG_WARN([cxmon not found, ignoring --enable-jit-debug])
+      WANT_JIT_DEBUG=no
+    fi
+  fi
+else
+  WANT_JIT=no
+  WANT_JIT_DEBUG=no
+  JITSRCS=""
 fi
 
 dnl Utility macro used by next two tests.
@@ -1034,7 +1070,7 @@ AC_CHECK_FUNCS(isnan isinf finite isnormal signbit)
 dnl UAE CPU sources for all non-m68k-native architectures.
 if [[ "x$WANT_NATIVE_M68K" = "xno" ]]; then
   CPUINCLUDES="-I../uae_cpu"
-  CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp $FPUSRCS cpustbl.cpp cpudefs.cpp $CPUSRCS"
+  CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp $FPUSRCS cpustbl.cpp cpudefs.cpp $CPUSRCS $JITSRCS"
 fi
 
 dnl Remove the "-g" option if set for GCC.
@@ -1070,6 +1106,8 @@ echo ESD sound support ...................... : $WANT_ESD
 echo GTK user interface ..................... : $WANT_GTK
 echo mon debugger support ................... : $WANT_MON
 echo Running m68k code natively ............. : $WANT_NATIVE_M68K
+echo Use JIT compiler ....................... : $WANT_JIT
+echo JIT debug mode ......................... : $WANT_JIT_DEBUG
 echo Floating-Point emulation core .......... : $FPE_CORE
 echo Assembly optimizations ................. : $ASM_OPTIMIZATIONS
 echo Addressing mode ........................ : $ADDRESSING_MODE
