@@ -330,15 +330,17 @@ void sheepshaver_cpu::execute_68k(uint32 entry, M68kRegisters *r)
 	uint32 saved_ctr= ctr();
 
 	// Create MacOS stack frame
+	// FIXME: make sure MacOS doesn't expect PPC registers to live on top
 	uint32 sp = gpr(1);
-	gpr(1) -= 56 + 19*4 + 18*8;
+	gpr(1) -= 56;
 	WriteMacInt32(gpr(1), sp);
 
 	// Save PowerPC registers
-	for (int i = 13; i < 32; i++)
-		WriteMacInt32(gpr(1) + 56 + i*4, gpr(i));
+	uint32 saved_GPRs[19];
+	memcpy(&saved_GPRs[0], &gpr(13), sizeof(uint32)*(32-13));
 #if SAVE_FP_EXEC_68K
-	memcpy(Mac2HostAddr(gpr(1)+56+19*4), &fpr(14), sizeof(double)*(32-14));
+	double saved_FPRs[18];
+	memcpy(&saved_FPRs[0], &fpr(14), sizeof(double)*(32-14));
 #endif
 
 	// Setup registers for 68k emulator
@@ -385,14 +387,13 @@ void sheepshaver_cpu::execute_68k(uint32 entry, M68kRegisters *r)
 	  r->a[i] = gpr(16 + i);
 
 	// Restore PowerPC registers
-	for (int i = 13; i < 32; i++)
-		gpr(i) = ReadMacInt32(gpr(1) + 56 + i*4);
+	memcpy(&gpr(13), &saved_GPRs[0], sizeof(uint32)*(32-13));
 #if SAVE_FP_EXEC_68K
-	memcpy(&fpr(14), Mac2HostAddr(gpr(1)+56+19*4), sizeof(double)*(32-14));
+	memcpy(&fpr(14), &saved_FPRs[0], sizeof(double)*(32-14));
 #endif
 
 	// Cleanup stack
-	gpr(1) += 56 + 19*4 + 18*8;
+	gpr(1) += 56;
 
 	// Restore program counters and branch registers
 	pc() = saved_pc;
@@ -449,17 +450,14 @@ inline void sheepshaver_cpu::execute_ppc(uint32 entry)
 {
 	// Save branch registers
 	uint32 saved_lr = lr();
-	uint32 saved_ctr= ctr();
 
 	const uint32 trampoline[] = { htonl(POWERPC_EMUL_OP | 1) };
-
 	lr() = (uint32)trampoline;
-	ctr()= entry;
+
 	execute(entry);
 
 	// Restore branch registers
 	lr() = saved_lr;
-	ctr()= saved_ctr;
 }
 
 // Resource Manager thunk
