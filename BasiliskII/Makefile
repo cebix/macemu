@@ -7,12 +7,12 @@ VERNAME = BasiliskII-$(VERSION)
 
 SRCARCHIVE = $(shell date +BasiliskII_src_%d%m%Y.tar.gz)
 SRCRPM = $(VERNAME)-$(RELEASE).src.rpm
-I386RPM = $(VERNAME)-$(RELEASE).i386.rpm
+BINRPM = $(VERNAME)-$(RELEASE).i386.rpm
 AMIGAARCHIVE = $(VERNAME)-$(RELEASE).amiga.lha
 BEOSPPCARCHIVE = $(VERNAME)-$(RELEASE).beosppc.zip
 BEOSX86ARCHIVE = $(VERNAME)-$(RELEASE).beosx86.zip
 
-TMPDIR = /tmp/build
+TMPDIR = $(shell date +/tmp/build%m%s)
 RPMDIR = /usr/src/redhat
 DOCS = $(shell sed <BasiliskII.spec -n '/^\%doc */s///p')
 SRCS = src
@@ -27,14 +27,14 @@ default:
 help:
 	@echo "The following targets are available:"
 	@echo "  tarball  source tarball ($(SRCARCHIVE))"
-	@echo "  rpm      source and binary RPMs ($(SRCRPM) and $(I386RPM))"
+	@echo "  rpm      source and binary RPMs ($(SRCRPM) and $(BINRPM))"
 	@echo "  amiga    AmigaOS binary archive ($(AMIGAARCHIVE))"
 	@echo "  beosppc  BeOS/ppc binary archive ($(BEOSPPCARCHIVE))"
 	@echo "  beosx86  BeOS/x86 binary archive ($(BEOSX86ARCHIVE))"
 
 clean:
 	-rm -f $(SRCARCHIVE)
-	-rm -f $(SRCRPM) $(I386RPM)
+	-rm -f $(SRCRPM) $(BINRPM)
 	-rm -f $(AMIGAARCHIVE) $(BEOSPPCARCHIVE) $(BEOSX86ARCHIVE)
 
 #
@@ -55,19 +55,19 @@ $(SRCARCHIVE): $(SRCS) $(DOCS)
 #
 # RPMs (source and i386 binary)
 #
-rpm: $(SRCRPM) $(I386RPM)
+rpm: $(SRCRPM) $(BINRPM)
 
 $(RPMDIR)/SOURCES/$(SRCARCHIVE): $(SRCARCHIVE)
 	cp $(SRCARCHIVE) $(RPMDIR)/SOURCES
 
-$(RPMDIR)/SRPMS/$(SRCRPM) $(RPMDIR)/RPMS/i386/$(I386RPM): $(RPMDIR)/SOURCES/$(SRCARCHIVE) BasiliskII.spec
+$(RPMDIR)/SRPMS/$(SRCRPM) $(RPMDIR)/RPMS/i386/$(BINRPM): $(RPMDIR)/SOURCES/$(SRCARCHIVE) BasiliskII.spec
 	rpm -ba BasiliskII.spec
 
 $(SRCRPM): $(RPMDIR)/SRPMS/$(SRCRPM)
 	cp $(RPMDIR)/SRPMS/$(SRCRPM) .
 
-$(I386RPM): $(RPMDIR)/RPMS/i386/$(I386RPM)
-	cp $(RPMDIR)/RPMS/i386/$(I386RPM) .
+$(BINRPM): $(RPMDIR)/RPMS/i386/$(BINRPM)
+	cp $(RPMDIR)/RPMS/i386/$(BINRPM) .
 
 #
 # Binary archive for AmigaOS
