@@ -217,6 +217,10 @@ static void mon_write_byte_ppc(uintptr addr, uint32 b)
 
 void powerpc_cpu::initialize()
 {
+#ifdef SHEEPSHAVER
+	printf("PowerPC CPU emulator by Gwenole Beauchesne\n");
+#endif
+
 	init_flight_recorder();
 	init_decoder();
 	init_registers();
