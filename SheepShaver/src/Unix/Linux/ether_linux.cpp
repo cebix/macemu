@@ -18,6 +18,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "sysdeps.h"
+
 #include <pthread.h>
 #include <semaphore.h>
 #include <unistd.h>
@@ -25,10 +27,20 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/poll.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "sysdeps.h"
+#if defined(HAVE_LINUX_IF_H) && defined(HAVE_LINUX_IF_TUN_H)
+#include <linux/if.h>
+#include <linux/if_tun.h>
+#endif
+
+#if defined(HAVE_NET_IF_H) && defined(HAVE_NET_IF_TUN_H)
+#include <net/if.h>
+#include <net/if_tun.h>
+#endif
+
 #include "main.h"
 #include "macos_util.h"
 #include "prefs.h"
@@ -43,6 +55,16 @@
 #define MONITOR 0
 
 
+// Ethernet device types
+enum {
+	NET_IF_SHEEPNET,
+	NET_IF_ETHERTAP,
+	NET_IF_TUNTAP,
+};
+
+// Constants
+static const char ETHERCONFIG_FILE_NAME[] = DATADIR "/tunconfig";
+
 // Global variables
 static int fd = -1;					// fd of sheep_net device
 
@@ -53,11 +75,42 @@ static sem_t int_ack;				// Interrupt acknowledge semaphore
 static uint8 ether_addr[6];			// Our Ethernet address
 
 static bool net_open = false;		// Flag: initialization succeeded, network device open
-static bool is_ethertap = false;	// Flag: Ethernet device is ethertap
+static int net_if_type = -1;		// Ethernet device type
+static char *net_if_name;			// TUN/TAP device name
+static const char *net_if_script;	// Network config script
 
 
 // Prototypes
 static void *receive_func(void *arg);
+
+
+/*
+ *  Execute network script up|down
+ */
+
+static bool execute_network_script(const char *action)
+{
+	if (net_if_script == NULL || net_if_name == NULL)
+		return false;
+
+	int pid = fork();
+	if (pid >= 0) {
+		if (pid == 0) {
+			char *args[4];
+			args[0] = (char *)net_if_script;
+			args[1] = net_if_name;
+			args[2] = (char *)action;
+			args[3] = NULL;
+			execv(net_if_script, args);
+			exit(1);
+		}
+		int status;
+		while (waitpid(pid, &status, 0) != pid);
+		return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+	}
+
+	return false;
+}
 
 
 /*
@@ -78,15 +131,30 @@ void EtherInit(void)
 	if (name == NULL)
 		return;
 
-	// Is it Ethertap?
-	is_ethertap = (strncmp(name, "tap", 3) == 0);
+	// Determine Ether device type
+	net_if_type = -1;
+	if (strncmp(name, "tap", 3) == 0)
+		net_if_type = NET_IF_ETHERTAP;
+#if ENABLE_TUNTAP
+	else if (strcmp(name, "tun") == 0)
+		net_if_type = NET_IF_TUNTAP;
+#endif
+	else
+		net_if_type = NET_IF_SHEEPNET;
 
 	// Open sheep_net or ethertap device
 	char dev_name[16];
-	if (is_ethertap)
+	switch (net_if_type) {
+	case NET_IF_ETHERTAP:
 		sprintf(dev_name, "/dev/%s", name);
-	else
+		break;
+	case NET_IF_TUNTAP:
+		sprintf(dev_name, "/dev/net/tun", name);
+		break;
+	case NET_IF_SHEEPNET:
 		strcpy(dev_name, "/dev/sheep_net");
+		break;
+	}
 	fd = open(dev_name, O_RDWR);
 	if (fd < 0) {
 		sprintf(str, GetString(STR_NO_SHEEP_NET_DRIVER_WARN), dev_name, strerror(errno));
@@ -94,8 +162,42 @@ void EtherInit(void)
 		goto open_error;
 	}
 
+#if ENABLE_TUNTAP
+	// Open TUN/TAP interface
+	if (net_if_type == NET_IF_TUNTAP) {
+		struct ifreq ifr;
+		memset(&ifr, 0, sizeof(ifr));
+		ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
+		strcpy(ifr.ifr_name, "tun%d");
+		if (ioctl(fd, TUNSETIFF, (void *) &ifr) != 0) {
+			sprintf(str, GetString(STR_SHEEP_NET_ATTACH_WARN), strerror(errno));
+			WarningAlert(str);
+			goto open_error;
+		}
+
+		// Get network config script file path
+		net_if_script = PrefsFindString("etherconfig");
+		if (net_if_script == NULL)
+			net_if_script = ETHERCONFIG_FILE_NAME;
+
+		// Start network script up
+		if (net_if_script == NULL) {
+			sprintf(str, GetString(STR_TUN_TAP_CONFIG_WARN), "script not found");
+			WarningAlert(str);
+			goto open_error;
+		}
+		net_if_name = strdup(ifr.ifr_name);
+		if (!execute_network_script("up")) {
+			sprintf(str, GetString(STR_TUN_TAP_CONFIG_WARN), "script execute error");
+			WarningAlert(str);
+			goto open_error;
+		}
+		D(bug("Connected to host network interface: %s\n", net_if_name));
+	}
+#endif
+
 	// Attach to selected Ethernet card
-	if (!is_ethertap && ioctl(fd, SIOCSIFLINK, name) < 0) {
+	if (net_if_type == NET_IF_SHEEPNET && ioctl(fd, SIOCSIFLINK, name) < 0) {
 		sprintf(str, GetString(STR_SHEEP_NET_ATTACH_WARN), strerror(errno));
 		WarningAlert(str);
 		goto open_error;
@@ -105,7 +207,7 @@ void EtherInit(void)
 	ioctl(fd, FIONBIO, &nonblock);
 
 	// Get Ethernet address
-	if (is_ethertap) {
+	if (net_if_type == NET_IF_ETHERTAP) {
 		pid_t p = getpid();	// If configured for multicast, ethertap requires that the lower 32 bit of the Ethernet address are our PID
 		ether_addr[0] = 0xfe;
 		ether_addr[1] = 0xfd;
@@ -160,6 +262,14 @@ void EtherExit(void)
 		thread_active = false;
 	}
 
+	// Shut down TUN/TAP interface
+	if (net_if_type == NET_IF_TUNTAP)
+		execute_network_script("down");
+
+	// Free TUN/TAP device name
+	if (net_if_name)
+		free(net_if_name);
+
 	// Close sheep_net device
 	if (fd > 0)
 		close(fd);
@@ -209,7 +319,7 @@ void AO_enable_multicast(uint8 *addr)
 {
 	D(bug("AO_enable_multicast\n"));
 	if (net_open) {
-		if (ioctl(fd, SIOCADDMULTI, addr) < 0) {
+		if (net_if_type != NET_IF_TUNTAP && ioctl(fd, SIOCADDMULTI, addr) < 0) {
 			D(bug("WARNING: couldn't enable multicast address\n"));
 		}
 	}
@@ -224,7 +334,7 @@ void AO_disable_multicast(uint8 *addr)
 {
 	D(bug("AO_disable_multicast\n"));
 	if (net_open) {
-		if (ioctl(fd, SIOCDELMULTI, addr) < 0) {
+		if (net_if_type != NET_IF_TUNTAP && ioctl(fd, SIOCDELMULTI, addr) < 0) {
 			D(bug("WARNING: couldn't disable multicast address\n"));
 		}
 	}
@@ -243,7 +353,7 @@ void AO_transmit_packet(mblk_t *mp)
 		// Copy packet to buffer
 		uint8 packet[1516], *p = packet;
 		int len = 0;
-		if (is_ethertap) {
+		if (net_if_type == NET_IF_ETHERTAP) {
 			*p++ = 0;	// Ethertap discards the first 2 bytes
 			*p++ = 0;
 			len += 2;
@@ -317,10 +427,10 @@ void EtherIRQ(void)
 	uint8 packet[1516];
 	for (;;) {
 
-		if (is_ethertap) {
+		if (net_if_type != NET_IF_SHEEPNET) {
 
 			// Read packet from ethertap device
-			ssize_t size = read(fd, packet, 1516);
+			ssize_t size = read(fd, packet, net_if_type == NET_IF_ETHERTAP ? 1516 : 1514);
 			if (size < 14)
 				break;
 
@@ -333,8 +443,11 @@ void EtherIRQ(void)
 #endif
 
 			// Pointer to packet data (Ethernet header)
-			uint8 *p = packet + 2;	// Ethertap has two random bytes before the packet
-			size -= 2;
+			uint8 *p = packet;
+			if (net_if_type == NET_IF_ETHERTAP) {
+				p += 2;	// Ethertap has two random bytes before the packet
+				size -= 2;
+			}
 
 			// Wrap packet in message block
 			num_rx_packets++;

@@ -30,6 +30,7 @@
 // Platform-specific preferences items
 prefs_desc platform_prefs_items[] = {
 	{"ether", TYPE_STRING, false,          "device name of Mac ethernet adapter"},
+	{"etherconfig", TYPE_STRING, false,    "path of network config script"},
 	{"keycodes", TYPE_BOOLEAN, false,      "use keycodes rather than keysyms to decode keyboard"},
 	{"keycodefile", TYPE_STRING, false,    "path of keycode translation file"},
 	{"mousewheelmode", TYPE_INT32, false,  "mouse wheel support mode (0=page up/down, 1=cursor up/down)"},
