@@ -48,9 +48,17 @@ fi
 
 dnl We use mon if possible.
 MONSRCS=
+case "x$WANT_MON" in
+x/* | x.*)
+  mon_srcdir=$WANT_MON
+  WANT_MON=yes
+  ;;
+yes)
+  mon_srcdir=../../../mon/src
+  ;;
+esac
 if [[ "x$WANT_MON" = "xyes" ]]; then
   AC_MSG_CHECKING(for mon)
-  mon_srcdir=../../../mon/src
   if grep mon_init $mon_srcdir/mon.h >/dev/null 2>/dev/null; then
     AC_MSG_RESULT(yes)
     AC_DEFINE(ENABLE_MON)
@@ -97,6 +105,9 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
   if [[ "x$HAVE_PTHREADS" = "xyes" ]]; then
     AC_DEFINE(HAVE_PTHREADS, 1, [Define if pthreads are available.])
   fi
+else
+  dnl We do have our own pthread_cancel() implementation
+  AC_DEFINE(HAVE_PTHREAD_CANCEL, 1, [Define if you have the pthread_cancel function.])
 fi
 
 dnl If POSIX.4 semaphores are not available, we emulate them with pthread mutexes.
