@@ -25,6 +25,7 @@
 
 // Format of the target visual
 struct VisualFormat {
+	bool	fullscreen;				// Full screen mode?
 	int		depth;					// Screen depth
 	uint32	Rmask, Gmask, Bmask;	// RGB mask values
 	uint32	Rshift, Gshift, Bshift;	// RGB shift values

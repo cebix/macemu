@@ -735,7 +735,8 @@ driver_window::driver_window(X11_monitor_desc &m)
 	use_vosf = true;
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	the_host_buffer = the_buffer_copy;
-	the_buffer_size = page_extend((aligned_height + 2) * img->bytes_per_line);
+	the_host_buffer_row_bytes = img->bytes_per_line;
+	the_buffer_size = page_extend((aligned_height + 2) * the_host_buffer_row_bytes);
 	the_buffer = (uint8 *)vm_acquire_mac(the_buffer_size);
 	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
@@ -1130,7 +1131,8 @@ driver_fbdev::driver_fbdev(X11_monitor_desc &m) : driver_dga(m)
 	if (use_vosf) {
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	  the_host_buffer = the_buffer;
-	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
+	  the_host_buffer_row_bytes = bytes_per_row;
+	  the_buffer_size = page_extend((height + 2) * the_host_buffer_row_bytes);
 	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	  the_buffer = (uint8 *)vm_acquire_mac(the_buffer_size);
 	}
@@ -1270,7 +1272,8 @@ driver_xf86dga::driver_xf86dga(X11_monitor_desc &m)
 	if (use_vosf) {
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	  the_host_buffer = the_buffer;
-	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
+	  the_host_buffer_row_bytes = bytes_per_row;
+	  the_buffer_size = page_extend((height + 2) * the_host_buffer_row_bytes);
 	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	  the_buffer = (uint8 *)vm_acquire_mac(the_buffer_size);
 	}
@@ -1412,6 +1415,7 @@ bool X11_monitor_desc::video_open(void)
 	}
 
 	// Build up visualFormat structure
+	visualFormat.fullscreen = (display_type == DISPLAY_DGA);
 	visualFormat.depth = visualInfo.depth;
 	visualFormat.Rmask = visualInfo.red_mask;
 	visualFormat.Gmask = visualInfo.green_mask;

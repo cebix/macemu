@@ -344,8 +344,24 @@ static void Blit_Expand_4_To_8(uint8 * dest, const uint8 * p, uint32 length)
 }
 
 /* -------------------------------------------------------------------------- */
-/* --- 2/4/8-bit indexed to 16-bit mode color expansion                   --- */
+/* --- 1/2/4/8-bit indexed to 16-bit mode color expansion                 --- */
 /* -------------------------------------------------------------------------- */
+
+static void Blit_Expand_1_To_16(uint8 * dest, const uint8 * p, uint32 length)
+{
+	uint16 *q = (uint16 *)dest;
+	for (uint32 i=0; i<length; i++) {
+		uint8 c = *p++;
+		*q++ = -(c >> 7);
+		*q++ = -((c >> 6) & 1);
+		*q++ = -((c >> 5) & 1);
+		*q++ = -((c >> 4) & 1);
+		*q++ = -((c >> 3) & 1);
+		*q++ = -((c >> 2) & 1);
+		*q++ = -((c >> 1) & 1);
+		*q++ = -(c & 1);
+	}
+}
 
 static void Blit_Expand_2_To_16(uint8 * dest, const uint8 * p, uint32 length)
 {
@@ -377,8 +393,24 @@ static void Blit_Expand_8_To_16(uint8 * dest, const uint8 * p, uint32 length)
 }
 
 /* -------------------------------------------------------------------------- */
-/* --- 2/4/8-bit indexed to 32-bit mode color expansion                   --- */
+/* --- 1/2/4/8-bit indexed to 32-bit mode color expansion                 --- */
 /* -------------------------------------------------------------------------- */
+
+static void Blit_Expand_1_To_32(uint8 * dest, const uint8 * p, uint32 length)
+{
+	uint32 *q = (uint32 *)dest;
+	for (uint32 i=0; i<length; i++) {
+		uint8 c = *p++;
+		*q++ = -(c >> 7);
+		*q++ = -((c >> 6) & 1);
+		*q++ = -((c >> 5) & 1);
+		*q++ = -((c >> 4) & 1);
+		*q++ = -((c >> 3) & 1);
+		*q++ = -((c >> 2) & 1);
+		*q++ = -((c >> 1) & 1);
+		*q++ = -(c & 1);
+	}
+}
 
 static void Blit_Expand_2_To_32(uint8 * dest, const uint8 * p, uint32 length)
 {
@@ -466,9 +498,9 @@ bool Screen_blitter_init(VisualFormat const & visual_format, bool native_byte_or
 	const bool use_sdl_video = false;
 #endif
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
-	if (!use_sdl_video && mac_depth == 1) {
+	if (mac_depth == 1 && !use_sdl_video && !visual_format.fullscreen) {
 
-		// 1-bit mode uses a 1-bit X image, so there's no need for special blitting routines
+		// Windowed 1-bit mode uses a 1-bit X image, so there's no need for special blitting routines
 		Screen_blit = Blit_Copy_Raw;
 
 	} else {
@@ -498,6 +530,7 @@ bool Screen_blitter_init(VisualFormat const & visual_format, bool native_byte_or
 		case 15:
 		case 16:
 			switch (mac_depth) {
+			case 1: Screen_blit = Blit_Expand_1_To_16; break;
 			case 2: Screen_blit = Blit_Expand_2_To_16; break;
 			case 4: Screen_blit = Blit_Expand_4_To_16; break;
 			case 8: Screen_blit = Blit_Expand_8_To_16; break;
@@ -506,6 +539,7 @@ bool Screen_blitter_init(VisualFormat const & visual_format, bool native_byte_or
 		case 24:
 		case 32:
 			switch (mac_depth) {
+			case 1: Screen_blit = Blit_Expand_1_To_32; break;
 			case 2: Screen_blit = Blit_Expand_2_To_32; break;
 			case 4: Screen_blit = Blit_Expand_4_To_32; break;
 			case 8: Screen_blit = Blit_Expand_8_To_32; break;

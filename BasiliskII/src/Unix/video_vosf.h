@@ -60,6 +60,7 @@
 
 // Variables for Video on SEGV support
 static uint8 *the_host_buffer;	// Host frame buffer in VOSF mode
+static uint32 the_host_buffer_row_bytes; // Host frame buffer number of bytes per row
 
 struct ScreenPageInfo {
     int top, bottom;			// Mapping between this virtual page and Mac scanlines
@@ -393,35 +394,16 @@ static inline void update_display_window_vosf(VIDEO_DRV_INIT)
 		const int y2 = mainBuffer.pageInfo[page - 1].bottom;
 		const int height = y2 - y1 + 1;
 
+		// Update the_host_buffer
 		VIDEO_DRV_LOCK_PIXELS;
-
-		if ((int)VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
-
-			// Update the_host_buffer and copy of the_buffer
-			const int src_bytes_per_row = VIDEO_MODE_ROW_BYTES;
-			const int dst_bytes_per_row = VIDEO_DRV_ROW_BYTES;
-			const int pixels_per_byte = VIDEO_MODE_X / src_bytes_per_row;
-			int i1 = y1 * src_bytes_per_row, i2 = y1 * dst_bytes_per_row, j;
-			for (j = y1; j <= y2; j++) {
-				Screen_blit(the_host_buffer + i2, the_buffer + i1, VIDEO_MODE_X / pixels_per_byte);
-				i1 += src_bytes_per_row;
-				i2 += dst_bytes_per_row;
-			}
-
-		} else {
-
-			// Update the_host_buffer and copy of the_buffer
-			const int src_bytes_per_row = VIDEO_MODE_ROW_BYTES;
-			const int dst_bytes_per_row = VIDEO_DRV_ROW_BYTES;
-			const int bytes_per_pixel = src_bytes_per_row / VIDEO_MODE_X;
-			int i1 = y1 * src_bytes_per_row, i2 = y1 * dst_bytes_per_row, j;
-			for (j = y1; j <= y2; j++) {
-				Screen_blit(the_host_buffer + i2, the_buffer + i1, bytes_per_pixel * VIDEO_MODE_X);
-				i1 += src_bytes_per_row;
-				i2 += dst_bytes_per_row;
-			}
+		const int src_bytes_per_row = VIDEO_MODE_ROW_BYTES;
+		const int dst_bytes_per_row = VIDEO_DRV_ROW_BYTES;
+		int i1 = y1 * src_bytes_per_row, i2 = y1 * dst_bytes_per_row, j;
+		for (j = y1; j <= y2; j++) {
+			Screen_blit(the_host_buffer + i2, the_buffer + i1, src_bytes_per_row);
+			i1 += src_bytes_per_row;
+			i2 += dst_bytes_per_row;
 		}
-
 		VIDEO_DRV_UNLOCK_PIXELS;
 
 #ifdef USE_SDL_VIDEO
@@ -447,7 +429,9 @@ static inline void update_display_dga_vosf(void)
 {
 	VIDEO_MODE_INIT;
 
+	int i, j;
 	int page = 0;
+
 	for (;;) {
 		const unsigned first_page = find_next_page_set(page);
 		if (first_page >= mainBuffer.pageCount)
@@ -464,48 +448,73 @@ static inline void update_display_dga_vosf(void)
 		// I am sure that y2 >= y1 and depth != 1
 		const int y1 = mainBuffer.pageInfo[first_page].top;
 		const int y2 = mainBuffer.pageInfo[page - 1].bottom;
-		
+
+		// Check for first chunk from left and first chunk from right that have changed
+		typedef uint64 chunk_t;
+		const int chunk_size = sizeof(chunk_t);
 		const int bytes_per_row = VIDEO_MODE_ROW_BYTES;
-		const int bytes_per_pixel = VIDEO_MODE_ROW_BYTES / VIDEO_MODE_X;
-		int i, j;
-		
-		// Check for first column from left and first column
-		// from right that have changed
-		int x1 = VIDEO_MODE_X * bytes_per_pixel - 1;
+		assert((bytes_per_row % chunk_size) == 0);
+
+		int b1 = bytes_per_row / chunk_size;
 		for (j = y1; j <= y2; j++) {
-			uint8 * const p1 = &the_buffer[j * bytes_per_row];
-			uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
-			for (i = 0; i < x1; i++) {
+			chunk_t * const p1 = (chunk_t *)(the_buffer + (j * bytes_per_row));
+			chunk_t * const p2 = (chunk_t *)(the_buffer_copy + (j * bytes_per_row));
+			for (i = 0; i < b1; i++) {
 				if (p1[i] != p2[i]) {
-					x1 = i;
+					b1 = i;
 					break;
 				}
 			}
 		}
-		x1 /= bytes_per_pixel;
-		
-		int x2 = x1 * bytes_per_pixel;
+
+		int b2 = b1;
 		for (j = y2; j >= y1; j--) {
-			uint8 * const p1 = &the_buffer[j * bytes_per_row];
-			uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
-			for (i = VIDEO_MODE_X * bytes_per_pixel - 1; i > x2; i--) {
+			chunk_t * const p1 = (chunk_t *)(the_buffer + (j * bytes_per_row));
+			chunk_t * const p2 = (chunk_t *)(the_buffer_copy + (j * bytes_per_row));
+			for (i = (bytes_per_row / chunk_size) - 1; i > b2; i--) {
 				if (p1[i] != p2[i]) {
-					x2 = i;
+					b2 = i;
 					break;
 				}
 			}
 		}
-		x2 /= bytes_per_pixel;
-		
+		b2++;
+
+		// Convert to pixel information
+		int x1, x2;
+		switch (VIDEO_MODE_DEPTH) {
+		case VIDEO_DEPTH_1BIT:	x1 = (b1 * chunk_size) << 3; x2 = (b2 * chunk_size) << 3;	break;
+		case VIDEO_DEPTH_2BIT:	x1 = (b1 * chunk_size) << 2; x2 = (b2 * chunk_size) << 2;	break;
+		case VIDEO_DEPTH_4BIT:	x1 = (b1 * chunk_size) << 1; x2 = (b2 * chunk_size) << 1;	break;
+		case VIDEO_DEPTH_8BIT:	x1 = b1 * chunk_size; x2 = b2 * chunk_size;					break;
+		case VIDEO_DEPTH_16BIT:	x1 = (b1 * chunk_size) >> 1; x2 = (b2 * chunk_size) >> 1;	break;
+		case VIDEO_DEPTH_32BIT:	x1 = (b1 * chunk_size) >> 2; x2 = (b2 * chunk_size) >> 2;	break;
+		}
+		const int width = x2 - x1;
+
+		// Normalize bounds for for the next blit
+		const int src_bytes_per_row = VIDEO_MODE_ROW_BYTES;
+		const int dst_bytes_per_row = the_host_buffer_row_bytes;
+		const int dst_bytes_per_pixel = dst_bytes_per_row / VIDEO_MODE_X;
+		int i2 = y1 * dst_bytes_per_row + x1 * dst_bytes_per_pixel;
+		int i1, n_bytes;
+		if ((int)VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
+			const int src_pixels_per_byte = VIDEO_MODE_X / src_bytes_per_row;
+			i1 = y1 * src_bytes_per_row + x1 / src_pixels_per_byte;
+			n_bytes = width / src_pixels_per_byte;
+		} else {
+			const int src_bytes_per_pixel = src_bytes_per_row / VIDEO_MODE_X;
+			i1 = y1 * src_bytes_per_row + x1 * src_bytes_per_pixel;
+			n_bytes = width * src_bytes_per_pixel;
+		}
+
 		// Update the_host_buffer and copy of the_buffer
-		// There should be at least one pixel to copy
 		VIDEO_DRV_LOCK_PIXELS;
-		const int width = x2 - x1 + 1;
-		i = y1 * bytes_per_row + x1 * bytes_per_pixel;
 		for (j = y1; j <= y2; j++) {
-			Screen_blit(the_host_buffer + i, the_buffer + i, bytes_per_pixel * width);
-			memcpy(the_buffer_copy + i, the_buffer + i, bytes_per_pixel * width);
-			i += bytes_per_row;
+			Screen_blit(the_host_buffer + i2, the_buffer + i1, n_bytes);
+			memcpy(the_buffer_copy + i1, the_buffer + i1, n_bytes);
+			i1 += src_bytes_per_row;
+			i2 += dst_bytes_per_row;
 		}
 		VIDEO_DRV_UNLOCK_PIXELS;
 	}
