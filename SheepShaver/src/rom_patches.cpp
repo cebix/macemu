@@ -131,7 +131,7 @@ void decode_parcels(const uint8 *src, uint8 *dest, int size)
 			  (parcel_type >> 8) & 0xff, parcel_type & 0xff, &parcel_data[6]));
 		if (parcel_type == FOURCC('r','o','m',' ')) {
 			uint32 lzss_offset  = ntohl(parcel_data[2]);
-			uint32 lzss_size = ((uint32)src + parcel_offset) - ((uint32)parcel_data + lzss_offset);
+			uint32 lzss_size = ((uintptr)src + next_offset) - ((uintptr)parcel_data + lzss_offset);
 			decode_lzss((uint8 *)parcel_data + lzss_offset, dest, lzss_size);
 		}
 		parcel_offset = next_offset;
