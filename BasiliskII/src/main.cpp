@@ -45,12 +45,12 @@
 #if ENABLE_MON
 #include "mon.h"
 
-static uint32 mon_read_byte_b2(uint32 adr)
+static uint32 mon_read_byte_b2(uintptr adr)
 {
 	return ReadMacInt8(adr);
 }
 
-static void mon_write_byte_b2(uint32 adr, uint32 b)
+static void mon_write_byte_b2(uintptr adr, uint32 b)
 {
 	WriteMacInt8(adr, b);
 }
