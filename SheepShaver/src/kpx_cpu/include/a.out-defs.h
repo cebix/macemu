@@ -167,10 +167,12 @@ struct external_syment
   char e_numaux[1];
 } __attribute__((packed));
 
+#ifndef _WIN32
 #define N_BTMASK	(0xf)
 #define N_TMASK		(0x30)
 #define N_BTSHFT	(4)
 #define N_TSHIFT	(2)
+#endif
 
 union external_auxent {
   struct {
@@ -245,6 +247,7 @@ struct external_reloc {
 #define _PE_H
 
 /* NT specific file attributes */
+#ifndef _WIN32
 #define IMAGE_FILE_RELOCS_STRIPPED           0x0001
 #define IMAGE_FILE_EXECUTABLE_IMAGE          0x0002
 #define IMAGE_FILE_LINE_NUMS_STRIPPED        0x0004
@@ -255,20 +258,24 @@ struct external_reloc {
 #define IMAGE_FILE_SYSTEM                    0x1000
 #define IMAGE_FILE_DLL                       0x2000
 #define IMAGE_FILE_BYTES_REVERSED_HI         0x8000
+#endif
 
 /* additional flags to be set for section headers to allow the NT loader to
    read and write to the section data (to replace the addresses of data in
    dlls for one thing); also to execute the section in .text's case=
  */
+#ifndef _WIN32
 #define IMAGE_SCN_MEM_DISCARDABLE 0x02000000
 #define IMAGE_SCN_MEM_EXECUTE     0x20000000
 #define IMAGE_SCN_MEM_READ        0x40000000
 #define IMAGE_SCN_MEM_WRITE       0x80000000
+#endif
 
 /*
  * Section characteristics added for ppc-nt
  */
 
+#ifndef _WIN32
 #define IMAGE_SCN_TYPE_NO_PAD                0x00000008  /* Reserved.  */
 
 #define IMAGE_SCN_CNT_CODE                   0x00000020  /* Section contains code. */
@@ -300,14 +307,17 @@ struct external_reloc {
 #define IMAGE_SCN_MEM_NOT_CACHED             0x04000000  /* Section is not cachable.               */
 #define IMAGE_SCN_MEM_NOT_PAGED              0x08000000  /* Section is not pageable.               */
 #define IMAGE_SCN_MEM_SHARED                 0x10000000  /* Section is shareable.                  */
+#endif
 
 /* COMDAT selection codes.  */
 
+#ifndef _WIN32
 #define IMAGE_COMDAT_SELECT_NODUPLICATES     (1) /* Warn if duplicates.  */
 #define IMAGE_COMDAT_SELECT_ANY		     (2) /* No warning.  */
 #define IMAGE_COMDAT_SELECT_SAME_SIZE	     (3) /* Warn if different size.  */
 #define IMAGE_COMDAT_SELECT_EXACT_MATCH	     (4) /* Warn if different.  */
 #define IMAGE_COMDAT_SELECT_ASSOCIATIVE	     (5) /* Base on other section.  */
+#endif
 
 /* Magic values that are true for all dos/nt implementations */
 #define DOSMAGIC       0x5a4d
@@ -419,9 +429,11 @@ typedef struct
 #define DT_FCN		(2)	/* function */
 #define DT_ARY		(3)	/* array */
 
+#ifndef _WIN32
 #define ISPTR(x)	(((x) & N_TMASK) == (DT_PTR << N_BTSHFT))
 #define ISFCN(x)	(((x) & N_TMASK) == (DT_FCN << N_BTSHFT))
 #define ISARY(x)	(((x) & N_TMASK) == (DT_ARY << N_BTSHFT))
+#endif
 
 #ifdef __cplusplus
 }
