@@ -57,6 +57,11 @@ extern int __clone(int (*fn)(void *), void *, int, void *);
 #define sem_value __sem_value
 #define sem_waiting __sem_waiting
 
+/* Wait for "clone" children only (Linux 2.4+ specific) */
+#ifndef __WCLONE
+#define __WCLONE 0
+#endif
+
 
 /*
  *  Return pthread ID of self
@@ -137,7 +142,7 @@ int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_
 int pthread_join(pthread_t thread, void **ret)
 {
 	do {
-		if (waitpid(thread, NULL, 0) >= 0)
+		if (waitpid(thread, NULL, __WCLONE) >= 0);
 			break;
 	} while (errno == EINTR);
 	if (ret)
@@ -325,7 +330,9 @@ void null_handler(int sig)
 int sem_wait(sem_t *sem)
 {
 	acquire_spinlock(&sem->sem_lock.spinlock);
-	if (atomic_add((int *)&sem->sem_value, -1) >= 0) {
+	if (sem->sem_value > 0)
+		atomic_add((int *)&sem->sem_value, -1);
+	else {
 		sigset_t mask;
 		if (!sem->sem_lock.status) {
 			struct sigaction sa;
@@ -352,9 +359,67 @@ int sem_wait(sem_t *sem)
 int sem_post(sem_t *sem)
 {
 	acquire_spinlock(&sem->sem_lock.spinlock);
-	atomic_add((int *)&sem->sem_value, 1);
-	if (sem->sem_waiting)
+	if (sem->sem_waiting == NULL)
+		atomic_add((int *)&sem->sem_value, 1);
+	else
 		kill((pid_t)sem->sem_waiting, sem->sem_lock.status);
 	release_spinlock(&sem->sem_lock.spinlock);
 	return 0;
 }
+
+
+/*
+ *  Simple producer/consumer test program
+ */
+
+#ifdef TEST
+#include <stdio.h>
+
+static sem_t p_sem, c_sem;
+static int data = 0;
+
+static void *producer_func(void *arg)
+{
+	int i, n = (int)arg;
+	for (i = 0; i < n; i++) {
+		sem_wait(&p_sem);
+		data++;
+		sem_post(&c_sem);
+	}
+	return NULL;
+}
+
+static void *consumer_func(void *arg)
+{
+	int i, n = (int)arg;
+	for (i = 0; i < n; i++) {
+		sem_wait(&c_sem);
+		printf("data: %d\n", data);
+		sem_post(&p_sem);
+	}
+	sleep(1); // for testing pthread_join()
+	return NULL;
+}
+
+int main(void)
+{
+	pthread_t producer_thread, consumer_thread;
+	static const int N = 5;
+
+	if (sem_init(&c_sem, 0, 0) < 0)
+		return 1;
+	if (sem_init(&p_sem, 0, 1) < 0)
+		return 2;
+	if (pthread_create(&producer_thread, NULL, producer_func, (void *)N) != 0)
+		return 3;
+	if (pthread_create(&consumer_thread, NULL, consumer_func, (void *)N) != 0)
+		return 4;
+	pthread_join(producer_thread, NULL);
+	pthread_join(consumer_thread, NULL);
+	sem_destroy(&p_sem);
+	sem_destroy(&c_sem);
+	if (data != N)
+		return 5;
+	return 0;
+}
+#endif
