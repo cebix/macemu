@@ -73,14 +73,30 @@
 #else
 
 /* Mac and host address space are distinct */
+#ifndef REAL_ADDRESSING
 #define REAL_ADDRESSING 0
+#endif
 
 /* Using 68k emulator */
 #define EMULATED_68K 1
 
-/* Mac ROM is write protected */
-#define ROM_IS_WRITE_PROTECTED 1
+/* The m68k emulator uses a prefetch buffer ? */
+#define USE_PREFETCH_BUFFER 0
 
+/* Mac ROM is write protected */
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+# define ROM_IS_WRITE_PROTECTED 0
+# define USE_SCRATCHMEM_SUBTERFUGE 1
+#else
+# define ROM_IS_WRITE_PROTECTED 1
+#endif
+
+#endif
+
+/* Direct Addressing requires Video on SEGV signals */
+#if DIRECT_ADDRESSING && !ENABLE_VOSF
+# undef  ENABLE_VOSF
+# define ENABLE_VOSF 1
 #endif
 
 /* ExtFS is supported */
@@ -120,6 +136,15 @@ typedef long long int64;
 #define UVAL64(a) (a ## uLL)
 #else
 #error "No 8 byte type, you lose."
+#endif
+#if SIZEOF_VOID_P == 4
+typedef uint32 uintptr;
+typedef int32 intptr;
+#elif SIZEOF_VOID_P == 8
+typedef uint64 uintptr;
+typedef int64 intptr;
+#else
+#error "Unsupported size of pointer"
 #endif
 
 /* Time data type for Time Manager emulation */
