@@ -1,0 +1,48 @@
+Bugs:
+- System 7.1 with Quadra900 ModelID (1MB ROM): 0x108 gets strange value
+- Strange things happen when the Mac ROM is lower in memory than the RAM
+- Something seems to be wrong with the UAE FPU (Calculator and scroll bars in
+  MacOS 8 don't work properly)
+- MacOS 8: Finder threads don't work
+
+General:
+- Sony: rdVerify, Tag Buffer, DskErr
+- Disk: rdVerify
+- CD-ROM: track lists, positioning type 3, TOC type 4/5, ReadHeader/ReadMCN/
+  ReadISRC/ReadAudio/ReadAllSubcodes
+- Sound output rate/bits/channels switching
+- Sound in
+- Video: gamma tables, resolution/depth switching, multiple monitor support
+- Double mouse pointer in window mode
+- More accurate Time Manager
+- Serial driver: XOn/XOff handshaking
+- regs.spcflags in UAE CPU should be handled atomically
+- Classic ROM: mouse button/movement is broken with ROM mouse handler
+- Classic ROM: sound output
+- Write a nice User's Manual with linuxdoc or something similar
+
+AmigaOS:
+- "Create Hardfile..." button
+- Mouse pointer in window mode
+- Support for ShapeShifter External Video Drivers
+- Direct SCSI transfers, i.e. no buffering for contiguous transfers (can't check if the device
+  supports that); buffer is always in Chip memory now
+- 64-bit disk access
+- Preemptive threads don't work?
+- clip_amiga.cpp: clip AmigaOS->Basilisk
+- sys_amiga.cpp: MaxTransfer/BufMemType/TransferMask, SysAddCDROMPrefs(), SysFormat()
+- sony.cpp: DISK_INSERT_CHECK: disks are not ejected and automatically remounted on eject
+- Compile with GCC? (would simplify 64 bit disk access)
+- Patch 512K ROM for 68040/060 caches
+- Input handler instead of IDCMP?
+- Last sound buffer is not played
+
+BeOS:
+- clip_beos.cpp: clip BeOS->Basilisk
+- Last sound buffer is not played
+
+Unix:
+- clip_unix.cpp: clip Unix->Basilisk
+- sys_unix.cpp: SysFormat(), SysIsFixedDisk(), SysIsDiskInserted(), prevent/allow for
+  non-floppy/CDROM devices
+- scsi_linux.cpp: adapt to SCSI Generic driver V2.0

@@ -1,0 +1,102 @@
+# Unix makefile for Basilisk II
+
+## System specific configuration
+@SET_MAKE@
+CC = @CC@
+CXX = @CXX@
+CFLAGS = @CFLAGS@
+CXXFLAGS = @CXXFLAGS@
+CPPFLAGS = @CPPFLAGS@ -I../include -I. @CPUINCLUDES@
+DEFS = @DEFS@ @DEFINES@ -D_REENTRANT
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+SYSSRCS = @SYSSRCS@
+CPUSRCS = @CPUSRCS@
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+bindir=$(exec_prefix)/bin
+libdir=$(exec_prefix)/lib
+mandir=$(prefix)/man
+INSTALL=@INSTALL@
+INSTALL_PROGRAM=@INSTALL_PROGRAM@
+INSTALL_DATA=@INSTALL_DATA@
+
+## Files
+SRCS=../prefs.cpp ../rom_patches.cpp ../slot_rom.cpp ../rsrc_patches.cpp ../emul_op.cpp \
+    ../macos_util.cpp ../xpram.cpp ../timer.cpp ../adb.cpp ../serial.cpp ../ether.cpp ../sony.cpp \
+    ../disk.cpp ../cdrom.cpp ../scsi.cpp ../video.cpp ../audio.cpp ../user_strings.cpp \
+    main_unix.cpp prefs_unix.cpp sys_unix.cpp xpram_unix.cpp timer_unix.cpp clip_unix.cpp \
+    serial_unix.cpp video_x.cpp \
+    $(SYSSRCS) $(CPUSRCS)
+APP = BasiliskII
+
+## Rules
+default: $(APP)
+
+OBJ_DIR = obj
+$(OBJ_DIR)::
+	@[ -d $(OBJ_DIR) ] || mkdir $(OBJ_DIR) > /dev/null 2>&1
+
+define SRCS_LIST_TO_OBJS
+	$(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(foreach file, $(SRCS), \
+	$(basename $(notdir $(file))))))
+endef
+OBJS = $(SRCS_LIST_TO_OBJS)
+
+SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
+VPATH :=
+VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
+
+$(APP): $(OBJ_DIR) $(OBJS)
+	$(CXX) -o $(APP) $(LDFLAGS) $(OBJS) $(LIBS)
+
+modules:
+	cd Linux/NetDriver && make
+
+install: $(APP)
+	$(INSTALL_PROGRAM) -s BasiliskII $(bindir)
+	$(INSTALL_DATA) BasiliskII.1 $(mandir)/man1/
+	$(INSTALL_DATA) basilisk_ii_keycodes $(libdir)
+
+clean:
+	rm -f $(OBJ_DIR)/* core* *.core *~ *.bak
+	rm -f cpuemu.cpp cpudefs.cpp cputmp.s cpufast*.s cpustbl.cpp cputbl.h
+
+distclean: clean
+	rm -f Makefile
+	rm -f config.cache config.log config.status config.h
+	strip $(APP)
+
+realclean: distclean
+	rm -f $(APP)
+
+depend dep:
+	makedepend $(CPPFLAGS) -Y ../*.cpp ../*.c *.cpp
+
+$(OBJ_DIR)/%.o : %.c
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o : %.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o : %.s
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/cpuopti: $(OBJ_DIR)/cpuopti.o
+	$(CC) $(LDFLAGS) -o $(OBJ_DIR)/cpuopti $(OBJ_DIR)/cpuopti.o
+$(OBJ_DIR)/build68k: $(OBJ_DIR)/build68k.o
+	$(CC) $(LDFLAGS) -o $(OBJ_DIR)/build68k $(OBJ_DIR)/build68k.o
+$(OBJ_DIR)/gencpu: $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+	$(CC) $(LDFLAGS) -o $(OBJ_DIR)/gencpu $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+cpudefs.cpp: $(OBJ_DIR)/build68k ../uae_cpu/table68k
+	$(OBJ_DIR)/build68k <../uae_cpu/table68k >cpudefs.cpp
+cpuemu.cpp: $(OBJ_DIR)/gencpu
+	$(OBJ_DIR)/gencpu
+cpustbl.cpp: cpuemu.cpp
+cputbl.h: cpuemu.cpp
+cpufast.s: cpuemu.cpp $(OBJ_DIR)/cpuopti
+	$(CXX) $(CPPFLAGS) $(DEFS) -S $(CXXFLAGS) $< -o cputmp.s
+	$(OBJ_DIR)/cpuopti <cputmp.s >$@ || mv cputmp.s $@
+	rm -f cputmp.s
+
+#-------------------------------------------------------------------------
+# DO NOT DELETE THIS LINE -- make depend depends on it.

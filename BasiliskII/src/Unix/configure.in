@@ -1,0 +1,236 @@
+dnl Process this file with autoconf to produce a configure script.
+dnl Written in 1999 by Christian Bauer et al.
+
+AC_INIT(main_unix.cpp)
+AC_PREREQ(2.12)
+AC_CONFIG_HEADER(config.h)
+
+dnl Options.
+WANT_DGA=yes
+WANT_UI=yes
+AC_ARG_ENABLE(dga, [  --enable-dga            use the DGA extension (default)], [WANT_DGA=$enableval], [])
+AC_ARG_ENABLE(ui,  [  --enable-ui             use GTK user interface (default)], [WANT_UI=$enableval], [])
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PROG_CXX
+AC_PROG_CPP
+AC_PROG_MAKE_SET
+AC_PROG_INSTALL
+
+dnl Checks for libraries.
+AC_PATH_XTRA
+if [[ "x$no_x" = "xyes" ]]; then
+  AC_MSG_ERROR([You need X11 to run Basilisk II.])
+fi
+
+CFLAGS="$CFLAGS $X_CFLAGS"
+CXXFLAGS="$CXXFLAGS $X_CFLAGS"
+LIBS="$LIBS $X_PRE_LIBS $X_LIBS -lX11 -lXext $X_EXTRA_LIBS"
+STATICLIBS=
+
+dnl We need pthreads.
+AC_CHECK_LIB(pthread, pthread_create, HAVE_PTHREADS=yes, HAVE_PTHREADS=no)
+if [[ "x$HAVE_PTHREADS" = "xno" ]]; then
+  dnl Check even the libc_r (FreeBSD)
+  AC_CHECK_LIB(c_r, pthread_create, HAVE_PTHREADS=yes, HAVE_PTHREADS=no)
+  if [[ "x$HAVE_PTHREADS" = "xno" ]]; then
+     AC_MSG_ERROR([You need libpthreads to run Basilisk II.])
+  else
+     LIBS="$LIBS -lc_r"
+  fi
+else
+  LIBS="$LIBS -lpthread"
+fi
+AC_CHECK_FUNCS(pthread_cancel)
+
+dnl We use DGA if possible.
+if [[ "x$WANT_DGA" = "xyes" ]]; then
+  AC_CHECK_LIB(Xxf86dga, XF86DGAQueryExtension, HAVE_DGA=yes, HAVE_DGA=no)
+  if [[ "x$HAVE_DGA" = "xno" ]]; then
+    AC_MSG_WARN([Could not find DGA extension, ignoring --enable-dga.])
+  else
+    DEFINES="$DEFINES -DENABLE_DGA=1"
+    LIBS="$LIBS -lXxf86dga"
+  fi
+fi
+
+dnl We use GTK+ if possible.
+if [[ "x$WANT_UI" = "xyes" ]]; then
+  AM_PATH_GTK(1.2.0)
+  if [[ "x$no_gtk" = "xyes" ]]; then
+    echo "Did not find gtk+, disabling user interface."
+    WANT_UI=no
+    GTK_CFLAGS=
+    GTK_LIBS=
+  else
+    DEFINES="$DEFINES -DENABLE_GTK=1"
+  fi
+  CFLAGS="$CFLAGS $GTK_CFLAGS"
+  CXXFLAGS="$CXXFLAGS $GTK_CFLAGS"
+  LIBS="$LIBS $GTK_LIBS"
+fi
+
+dnl We need POSIX.4 semaphores (and other POSIX.4 blessings).
+SEMSRCS=
+AC_CHECK_FUNCS(sem_init)
+if [[ "x$ac_cv_func_sem_init" = "xno" ]]; then
+  AC_CHECK_LIB(posix4, sem_init, HAVE_LIBPOSIX4=yes, HAVE_LIBPOSIX4=no)
+  if [[ "x$HAVE_LIBPOSIX4" = "xno" ]]; then
+    dnl Checks for the existance of semget
+    AC_CHECK_FUNCS(semget)
+    if [[ "x$ac_cv_func_semget" = "xno" ]]; then
+      AC_MSG_ERROR([You need POSIX.4 semaphores to run Basilisk II.])
+    else
+      SEMSRCS="posix_sem.cpp"
+    fi
+  else
+    LIBS="$LIBS -lposix4"
+  fi
+fi
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS(unistd.h fcntl.h sys/time.h)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_BIGENDIAN
+AC_C_CONST
+AC_C_INLINE
+AC_CHECK_SIZEOF(short, 2)
+AC_CHECK_SIZEOF(int, 4)
+AC_CHECK_SIZEOF(long, 4)
+AC_CHECK_SIZEOF(long long, 8)
+AC_TYPE_OFF_T
+AC_CHECK_TYPE(loff_t, off_t)
+AC_TYPE_SIZE_T
+AC_HEADER_TIME
+AC_STRUCT_TM
+
+dnl Checks for library functions.
+AC_CHECK_FUNCS(strdup cfmakeraw)
+AC_CHECK_FUNCS(nanosleep clock_gettime timer_create)
+
+dnl Select system-dependant source files.
+SYSSRCS="../dummy/ether_dummy.cpp ../dummy/scsi_dummy.cpp ../dummy/audio_dummy.cpp"
+if MACHINE=`uname -a 2>/dev/null`; then
+  case "$MACHINE" in
+  Linux*)
+    SYSSRCS="Linux/ether_linux.cpp Linux/scsi_linux.cpp Linux/audio_linux.cpp"
+    ;;
+  FreeBSD*3.*)
+    dnl Check for the CAM library
+    AC_CHECK_LIB(cam, cam_open_btl, HAVE_LIBCAM=yes, HAVE_LIBCAM=no) 
+    if [[ "x$HAVE_LIBCAM" = "xno" ]]; then
+      AC_MSG_ERROR([Cannot find libcam for SCSI management.])
+    else
+      dnl Check for the sys kernel includes
+      AC_CHECK_HEADER(/sys/cam/cam.h)
+      if [[ "x$ac_cv_header__sys_cam_cam_h" = "xno" ]]; then
+        dnl In this case I should fix this thing including a "patch"
+        dnl to access directly to the functions in the kernel :) --Orlando
+        AC_MSG_ERROR([Cannot find kernel includes for CAM library.])
+      fi
+      SYSSRCS="../dummy/ether_dummy.cpp FreeBSD/scsi_freebsd.cpp ../dummy/audio_dummy.cpp"
+      CXXFLAGS="$CXXFLAGS -I/sys"
+      CFLAGS="$CFLAGS -I/sys"
+      LIBS="$LIBS -lcam"
+      DEFINES="$DEFINES -DBSD_COMP -DCAM"
+    fi
+    ;;
+  FreeBSD*)
+    dnl Check for the SCSI library
+    AC_CHECK_LIB(scsi, scsi_open, HAVE_LIBSCSI=yes, HAVE_LIBSCSI=no)
+    if [[ "x$HAVE_LIBSCSI" = "xno" ]]; then
+      AC_MSG_ERROR([Cannot find libscsi for SCSI management.])
+    else
+      dnl Check for the sys kernel includes
+      AC_CHECK_HEADER(scsi.h sys/scsiio.h)
+      if [[ "x$ac_cv_header_scsi_h" = "xno" ]]; then
+        AC_MSG_ERROR([Cannot find includes for the SCSI library.])
+      fi
+      SYSSRCS="../dummy/ether_dummy.cpp FreeBSD/scsi_freebsd.cpp ../dummy/audio_dummy.cpp"
+      LIBS="$LIBS -lscsi"
+      DEFINES="$DEFINES -DBSD_COMP"
+    fi
+    ;;
+  SunOS*)
+    SYSSRCS="../dummy/ether_dummy.cpp ../dummy/scsi_dummy.cpp Solaris/audio_solaris.cpp"
+    DEFINES="$DEFINES -DBSD_COMP -D_POSIX_PTHREAD_SEMANTICS"
+    ;;
+  IRIX*)
+    SYSSRCS="../dummy/ether_dummy.cpp ../dummy/scsi_dummy.cpp ../dummy/audio_dummy.cpp Irix/unaligned.c"
+    DEFINES="$DEFINES -DCRTSCTS=CNEW_RTSCTS -DB230400=B115200"
+    LIBS="$LIBS -lm"
+    ;;
+  esac
+  if [[ "x$WANT_UI" = "xyes" ]]; then
+    SYSSRCS="$SYSSRCS prefs_editor_gtk.cpp"
+  else
+    SYSSRCS="$SYSSRCS ../dummy/prefs_editor_dummy.cpp"
+  fi
+fi
+if [[ "x$SEMSRCS" != "x" ]]; then
+  SYSSRCS="$SYSSRCS $SEMSRCS"
+fi
+
+dnl Defaults for UAE CPU.
+CPUINCLUDES="-I../uae_cpu"
+CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp ../uae_cpu/fpp.cpp cpustbl.cpp cpudefs.cpp"
+
+dnl Check for i386.
+HAVE_I386=no
+AC_MSG_CHECKING(for x86 target CPU)
+AC_EGREP_CPP(yes,
+[
+#ifdef __i386__
+  yes
+#endif
+], [AC_MSG_RESULT(yes); HAVE_I386=yes], AC_MSG_RESULT(no))
+
+dnl Check for GAS
+HAVE_GAS=no
+AC_MSG_CHECKING(for GAS .p2align feature)
+cat >conftest.S << EOF
+	.text
+	.p2align 5
+EOF
+if $CC conftest.S -c -o conftest.o >/dev/null 2>&1 ; then HAVE_GAS=yes; fi
+AC_MSG_RESULT($HAVE_GAS)
+
+dnl Check for GCC 2.7 or higher
+HAVE_GCC27=no
+AC_MSG_CHECKING(for GCC 2.7 or higher)
+AC_EGREP_CPP(yes,
+[#if __GNUC__ - 1 > 1 || __GNUC_MINOR__ - 1 > 5
+  yes
+#endif
+], [AC_MSG_RESULT(yes); HAVE_GCC27=yes], AC_MSG_RESULT(no))
+
+dnl Set "-fomit-frame-pointer" on GCC
+if [[ "x$HAVE_GCC27" = "xyes" ]]; then
+  CFLAGS="$CFLAGS -fomit-frame-pointer"
+  CXXFLAGS="$CXXFLAGS -fomit-frame-pointer"
+fi
+
+dnl Select appropriate CPU source and REGPARAM define
+if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
+  DEFINES="$DEFINES -DREGPARAM=\"__attribute__((regparm(3)))\""
+  if [[ "x$HAVE_GAS" = "xyes" ]]; then
+    DEFINES="$DEFINES -DX86_ASSEMBLY"
+    CPUSRCS="$CPUSRCS cpufast.s"
+  else
+    CPUSRCS="$CPUSRCS cpuemu.cpp"
+  fi
+else
+  CPUSRCS="$CPUSRCS cpuemu.cpp"
+fi
+
+dnl Generate Makefile
+AC_SUBST(DEFINES)
+AC_SUBST(STATICLIBS)
+AC_SUBST(SYSSRCS)
+AC_SUBST(CPUINCLUDES)
+AC_SUBST(CPUSRCS)
+AC_OUTPUT(Makefile)
+echo "Configuration done. Now type \"make\"."
