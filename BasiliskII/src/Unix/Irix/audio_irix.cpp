@@ -40,6 +40,12 @@
 #include "debug.h"
 
 
+// The currently selected audio parameters (indices in audio_sample_rates[]
+// etc. vectors)
+static int audio_sample_rate_index = 0;
+static int audio_sample_size_index = 0;
+static int audio_channel_count_index = 0;
+
 // Global variables
 static int audio_fd = -1;							// fd from audio library
 static sem_t audio_irq_done_sem;					// Signal from interrupt to streaming thread: data block read
@@ -52,6 +58,11 @@ static pthread_attr_t stream_thread_attr;			// Streaming thread attributes
 static bool stream_thread_active = false;			// Flag: streaming thread installed
 static volatile bool stream_thread_cancel = false;	// Flag: cancel streaming thread
 
+static bool current_main_mute = false;				// Flag: output muted
+static bool current_speaker_mute = false;			// Flag: speaker muted
+static uint32 current_main_volume = 0;				// Output volume
+static uint32 current_speaker_volume = 0;			// Speaker volume
+
 // IRIX libaudio control structures
 static ALconfig config;
 static ALport   port;
@@ -59,6 +70,9 @@ static ALport   port;
 
 // Prototypes
 static void *stream_func(void *arg);
+static uint32 read_volume(void);
+static bool read_mute(void);
+static void set_mute(bool mute);
 
 
 /*
@@ -68,37 +82,78 @@ static void *stream_func(void *arg);
 // Set AudioStatus to reflect current audio stream format
 static void set_audio_status_format(void)
 {
-	AudioStatus.sample_rate = audio_sample_rates[0];
-	AudioStatus.sample_size = audio_sample_sizes[0];
-	AudioStatus.channels = audio_channel_counts[0];
+	AudioStatus.sample_rate = audio_sample_rates[audio_sample_rate_index];
+	AudioStatus.sample_size = audio_sample_sizes[audio_sample_size_index];
+	AudioStatus.channels = audio_channel_counts[audio_channel_count_index];
 }
 
-// Init libaudio, returns false on error
-bool audio_init_al(void)
+bool open_audio(void)
 {
 	ALpv     pv[2];
 
 	printf("Using libaudio audio output\n");
 
-	// Try to open the audio library
+	// Get supported sample formats
 
+	if (audio_sample_sizes.empty()) {
+		// All sample sizes are supported
+		audio_sample_sizes.push_back(8);
+		audio_sample_sizes.push_back(16);
+
+		// Assume at least two channels are supported.  Some IRIX boxes
+		// can do 4 or more...  MacOS only handles up to 2.
+		audio_channel_counts.push_back(1);
+		audio_channel_counts.push_back(2);
+
+		if (audio_sample_sizes.empty() || audio_channel_counts.empty()) {
+			WarningAlert(GetString(STR_AUDIO_FORMAT_WARN));
+			alClosePort(port);
+			audio_fd = -1;
+			return false;
+		}
+
+		audio_sample_rates.push_back( 8000 << 16);
+		audio_sample_rates.push_back(11025 << 16);
+		audio_sample_rates.push_back(22050 << 16);
+		audio_sample_rates.push_back(44100 << 16);
+
+		// Default to highest supported values
+		audio_sample_rate_index = audio_sample_rates.size() - 1;
+		audio_sample_size_index = audio_sample_sizes.size() - 1;
+		audio_channel_count_index = audio_channel_counts.size() - 1;
+	}
+
+	// Set the sample format
+
+	D(bug("Size %d, channels %d, rate %d\n",
+		  audio_sample_sizes[audio_sample_size_index],
+		  audio_channel_counts[audio_channel_count_index],
+		  audio_sample_rates[audio_sample_rate_index] >> 16));
 	config = alNewConfig();
 	alSetSampFmt(config, AL_SAMPFMT_TWOSCOMP);
-	alSetWidth(config, AL_SAMPLE_16);
-	alSetChannels(config, 2);	// stereo
+	if (audio_sample_sizes[audio_sample_size_index] == 8) {
+		alSetWidth(config, AL_SAMPLE_8);
+	}
+	else {
+		alSetWidth(config, AL_SAMPLE_16);
+	}
+	alSetChannels(config, audio_channel_counts[audio_channel_count_index]);
 	alSetDevice(config, AL_DEFAULT_OUTPUT); // Allow selecting via prefs?
 	
+	// Try to open the audio library
+
 	port = alOpenPort("BasiliskII", "w", config);
 	if (port == NULL) {
 		fprintf(stderr, "ERROR: Cannot open audio port: %s\n", 
 				alGetErrorString(oserror()));
+		WarningAlert(GetString(STR_NO_AUDIO_WARN));
 		return false;
 	}
-
+	
 	// Set the sample rate
 
 	pv[0].param = AL_RATE;
-	pv[0].value.ll = alDoubleToFixed(audio_sample_rates[0] >> 16);
+	pv[0].value.ll = alDoubleToFixed(audio_sample_rates[audio_sample_rate_index] >> 16);
 	pv[1].param = AL_MASTER_CLOCK;
 	pv[1].value.i = AL_CRYSTAL_MCLK_TYPE;
 	if (alSetParams(AL_DEFAULT_OUTPUT, pv, 2) < 0) {
@@ -107,12 +162,6 @@ bool audio_init_al(void)
 		alClosePort(port);
 		return false;
 	}
-
-	// TODO:  list all supported sample formats?
-
-	// Set AudioStatus again because we now know more about the sound
-	// system's capabilities
-	set_audio_status_format();
 
 	// Compute sound buffer size and libaudio refill point
 
@@ -124,20 +173,33 @@ bool audio_init_al(void)
 		alClosePort(port);
 		return false;
 	}
-	D(bug("alGetQueueSize %d\n", audio_frames_per_block));
+	D(bug("alGetQueueSize %d, width %d, channels %d\n",
+		  audio_frames_per_block,
+		  alGetWidth(config),
+		  alGetChannels(config)));
+
+	// Put a limit on the Mac sound buffer size, to decrease delay
+#define AUDIO_BUFFER_MSEC 50	// milliseconds of sound to buffer
+	int target_frames_per_block = 
+		(audio_sample_rates[audio_sample_rate_index] >> 16) *
+		AUDIO_BUFFER_MSEC / 1000;
+	if (audio_frames_per_block > target_frames_per_block)
+		audio_frames_per_block = target_frames_per_block;
+	D(bug("frames per block %d\n", audio_frames_per_block));
 
 	alZeroFrames(port, audio_frames_per_block);	// so we don't underflow
 
-	// Put a limit on the Mac sound buffer size, to decrease delay
-	if (audio_frames_per_block > 2048)
-		audio_frames_per_block = 2048;
-	// Try to keep the buffer pretty full.  5000 samples of slack works well.
-	sound_buffer_fill_point = alGetQueueSize(config) - 5000;
+	// Try to keep the buffer pretty full
+	sound_buffer_fill_point = alGetQueueSize(config) - 
+		2 * audio_frames_per_block;
 	if (sound_buffer_fill_point < 0)
 		sound_buffer_fill_point = alGetQueueSize(config) / 3;
 	D(bug("fill point %d\n", sound_buffer_fill_point));
 
-	sound_buffer_size = (AudioStatus.sample_size >> 3) * AudioStatus.channels * audio_frames_per_block;
+	sound_buffer_size = (audio_sample_sizes[audio_sample_size_index] >> 3) *
+		audio_channel_counts[audio_channel_count_index] * 
+		audio_frames_per_block;
+	set_audio_status_format();
 
 	// Get a file descriptor we can select() on
 
@@ -149,21 +211,26 @@ bool audio_init_al(void)
 		return false;
 	}
 
+	// Initialize volume, mute settings
+	current_main_volume = current_speaker_volume = read_volume();
+	current_main_mute = current_speaker_mute = read_mute();
+
+
+	// Start streaming thread
+	Set_pthread_attr(&stream_thread_attr, 0);
+	stream_thread_active = (pthread_create(&stream_thread, &stream_thread_attr, stream_func, NULL) == 0);
+
+	// Everything went fine
+	audio_open = true;
 	return true;
 }
 
-
-/*
- *  Initialization
- */
-
 void AudioInit(void)
 {
-	// Init audio status (defaults) and feature flags
-	audio_sample_rates.push_back(44100 << 16);
-	audio_sample_sizes.push_back(16);
-	audio_channel_counts.push_back(2);
-	set_audio_status_format();
+	// Init audio status (reasonable defaults) and feature flags
+	AudioStatus.sample_rate = 44100 << 16;
+	AudioStatus.sample_size = 16;
+	AudioStatus.channels = 2;
 	AudioStatus.mixer = 0;
 	AudioStatus.num_sources = 0;
 	audio_component_flags = cmpWantsRegisterMessage | kStereoOut | k16BitOut;
@@ -172,21 +239,13 @@ void AudioInit(void)
 	if (PrefsFindBool("nosound"))
 		return;
 
-	// Try to open audio library
-	if (!audio_init_al())
-			return;
-
 	// Init semaphore
 	if (sem_init(&audio_irq_done_sem, 0, 0) < 0)
 		return;
 	sem_inited = true;
 
-	// Start streaming thread
-	Set_pthread_attr(&stream_thread_attr, 0);
-	stream_thread_active = (pthread_create(&stream_thread, &stream_thread_attr, stream_func, NULL) == 0);
-
-	// Everything OK
-	audio_open = true;
+	// Open and initialize audio device
+	open_audio();
 }
 
 
@@ -194,7 +253,7 @@ void AudioInit(void)
  *  Deinitialization
  */
 
-void AudioExit(void)
+static void close_audio(void)
 {
 	// Stop stream and delete semaphore
 	if (stream_thread_active) {
@@ -204,12 +263,25 @@ void AudioExit(void)
 #endif
 		pthread_join(stream_thread, NULL);
 		stream_thread_active = false;
+		stream_thread_cancel = false;
 	}
-	if (sem_inited)
-		sem_destroy(&audio_irq_done_sem);
 
 	// Close audio library
 	alClosePort(port);
+
+	audio_open = false;
+}
+
+void AudioExit(void)
+{
+	// Close audio device
+	close_audio();
+
+	// Delete semaphore
+	if (sem_inited) {
+		sem_destroy(&audio_irq_done_sem);
+		sem_inited = false;
+	}
 }
 
 
@@ -239,7 +311,7 @@ void audio_exit_stream()
 
 static void *stream_func(void *arg)
 {
-	int16 *last_buffer = new int16[sound_buffer_size / 2];
+	int32 *last_buffer = new int32[sound_buffer_size / 4];
 	fd_set audio_fdset;
 	int    numfds, was_error;
 
@@ -257,11 +329,11 @@ static void *stream_func(void *arg)
 			sem_wait(&audio_irq_done_sem);
 			D(bug("stream: ack received\n"));
 
-			uint32 apple_stream_info;	// Mac address of SoundComponentData struct describing next buffer
 			// Get size of audio data
-			apple_stream_info = ReadMacInt32(audio_data + adatStreamInfo);
-
-			if (apple_stream_info) {
+			uint32 apple_stream_info = ReadMacInt32(audio_data + adatStreamInfo);
+			if (!current_main_mute &&
+				!current_speaker_mute &&
+				apple_stream_info) {
 				int work_size = ReadMacInt32(apple_stream_info + scd_sampleCount) * (AudioStatus.sample_size >> 3) * AudioStatus.channels;
 				D(bug("stream: work_size %d\n", work_size));
 				if (work_size > sound_buffer_size)
@@ -269,8 +341,21 @@ static void *stream_func(void *arg)
 				if (work_size == 0)
 					goto silence;
 
-				// Send data to audio library
-				if (work_size == sound_buffer_size)
+				// Send data to audio library.  Convert 8-bit data
+				// unsigned->signed, using same algorithm as audio_amiga.cpp.
+				// It works fine for 8-bit mono, but not stereo.
+				if (AudioStatus.sample_size == 8) {
+					uint32 *p = (uint32 *)Mac2HostAddr(ReadMacInt32(apple_stream_info + scd_buffer));
+					uint32 *q = (uint32 *)last_buffer;
+					int r = work_size >> 2;
+					// XXX not quite right....
+					while (r--)
+						*q++ = *p++ ^ 0x80808080;
+					if (work_size != sound_buffer_size)
+						memset((uint8 *)last_buffer + work_size, silence_byte, sound_buffer_size - work_size);
+					alWriteFrames(port, last_buffer, audio_frames_per_block);
+				}
+				else if (work_size == sound_buffer_size)
 					alWriteFrames(port, Mac2HostAddr(ReadMacInt32(apple_stream_info + scd_buffer)), audio_frames_per_block);
 				else {
 					// Last buffer
@@ -314,6 +399,156 @@ static void *stream_func(void *arg)
 
 
 /*
+ * Read or set the current output volume using the audio library
+ */
+
+static uint32 read_volume(void)
+{
+	ALpv x[2];
+	ALfixed gain[8];
+	double maxgain, mingain;
+	ALparamInfo pi;
+	uint32 ret = 0x01000100;	// default, maximum value
+	int dev = alGetDevice(config);
+
+	// Fetch the maximum and minimum gain settings
+
+	alGetParamInfo(dev, AL_GAIN, &pi);
+	maxgain = alFixedToDouble(pi.max.ll);
+	mingain = alFixedToDouble(pi.min.ll);
+//	printf("maxgain = %lf dB, mingain = %lf dB\n", maxgain, mingain);
+
+	// Get the current gain values
+
+	x[0].param = AL_GAIN;
+	x[0].value.ptr = gain;
+	x[0].sizeIn = sizeof(gain) / sizeof(gain[0]);
+	x[1].param = AL_CHANNELS;
+	if (alGetParams(dev, x, 2) < 0) {
+		printf("alGetParams failed: %s\n", alGetErrorString(oserror()));
+	}
+	else {
+		if (x[0].sizeOut < 0) {
+			printf("AL_GAIN was an unrecognized parameter\n");
+		}
+		else {
+			double v;
+			uint32 left, right;
+
+			// Left
+			v = alFixedToDouble(gain[0]);
+			if (v < mingain)
+				v = mingain;	// handle gain == -inf
+			v = (v - mingain) / (maxgain - mingain); // scale to 0..1
+			left = (uint32)(v * (double)256); // convert to 8.8 fixed point
+
+			// Right
+			if (x[0].sizeOut <= 1) {	// handle a mono interface
+				right = left;
+			}
+			else {
+				v = alFixedToDouble(gain[1]);
+				if (v < mingain)
+					v = mingain; // handle gain == -inf
+				v = (v - mingain) / (maxgain - mingain); // scale to 0..1
+				right = (uint32)(v * (double)256); // convert to 8.8 fixed point
+			}
+
+			ret = (left << 16) | right;
+		}
+	}
+
+	return ret;
+}
+
+static void set_volume(uint32 vol)
+{
+	ALpv x[1];
+	ALfixed gain[2];			// left and right
+	double maxgain, mingain;
+	ALparamInfo pi;
+	int dev = alGetDevice(config);
+
+	// Fetch the maximum and minimum gain settings
+
+	alGetParamInfo(dev, AL_GAIN, &pi);
+	maxgain = alFixedToDouble(pi.max.ll);
+	mingain = alFixedToDouble(pi.min.ll);		
+
+	// Set the new gain values
+
+	x[0].param = AL_GAIN;
+	x[0].value.ptr = gain;
+	x[0].sizeIn = sizeof(gain) / sizeof(gain[0]);
+
+	uint32 left = vol >> 16;
+	uint32 right = vol & 0xffff;
+  	double lv, rv;
+
+	if (left == 0 && pi.specialVals & AL_NEG_INFINITY_BIT) {
+		lv = AL_NEG_INFINITY;
+	}
+	else {
+		lv = ((double)left / 256) * (maxgain - mingain) + mingain;
+	}
+
+	if (right == 0 && pi.specialVals & AL_NEG_INFINITY_BIT) {
+		rv = AL_NEG_INFINITY;
+	}
+	else {
+		rv = ((double)right / 256) * (maxgain - mingain) + mingain;
+	}
+
+	D(bug("set_volume:  left=%lf dB, right=%lf dB\n", lv, rv));
+
+	gain[0] = alDoubleToFixed(lv);
+	gain[1] = alDoubleToFixed(rv);
+
+	if (alSetParams(dev, x, 1) < 0) {
+		printf("alSetParams failed: %s\n", alGetErrorString(oserror()));
+	}
+}
+
+
+/*
+ * Read or set the mute setting using the audio library
+ */
+
+static bool read_mute(void)
+{
+	bool ret;
+	int dev = alGetDevice(config);
+	ALpv x;
+	x.param = AL_MUTE;
+
+	if (alGetParams(dev, &x, 1) < 0) {
+		printf("alSetParams failed: %s\n", alGetErrorString(oserror()));
+		return current_main_mute; // Or just return false?
+	}
+
+	ret = x.value.i;
+
+	D(bug("read_mute:  mute=%d\n", ret));
+	return ret;
+}
+
+static void set_mute(bool mute)
+{
+	D(bug("set_mute: mute=%ld\n", mute));
+
+	int dev = alGetDevice(config);
+	ALpv x;
+	x.param = AL_MUTE;
+	x.value.i = mute;
+
+	if (alSetParams(dev, &x, 1) < 0) {
+		printf("alSetParams failed: %s\n", alGetErrorString(oserror()));
+	}
+}
+
+
+
+/*
  *  MacOS audio interrupt, read next data block
  */
 
@@ -339,23 +574,29 @@ void AudioInterrupt(void)
 
 /*
  *  Set sampling parameters
- *  "index" is an index into the audio_sample_rates[] etc. arrays
+ *  "index" is an index into the audio_sample_rates[] etc. vectors
  *  It is guaranteed that AudioStatus.num_sources == 0
  */
 
 bool audio_set_sample_rate(int index)
 {
-	return true;
+	close_audio();
+	audio_sample_rate_index = index;
+	return open_audio();
 }
 
 bool audio_set_sample_size(int index)
 {
-	return true;
+	close_audio();
+	audio_sample_size_index = index;
+	return open_audio();
 }
 
 bool audio_set_channels(int index)
 {
-	return true;
+	close_audio();
+	audio_channel_count_index = index;
+	return open_audio();
 }
 
 
@@ -367,36 +608,73 @@ bool audio_set_channels(int index)
 
 bool audio_get_main_mute(void)
 {
-	return false;
+	D(bug("audio_get_main_mute:  mute=%ld\n", current_main_mute));
+
+	return current_main_mute;
 }
 
 uint32 audio_get_main_volume(void)
 {
-	return 0x01000100;
+	uint32 ret = current_main_volume;
+
+	D(bug("audio_get_main_volume:  vol=0x%x\n", ret));
+
+	return ret;
 }
 
 bool audio_get_speaker_mute(void)
 {
-	return false;
+	D(bug("audio_get_speaker_mute:  mute=%ld\n", current_speaker_mute));
+
+	return current_speaker_mute;
 }
 
 uint32 audio_get_speaker_volume(void)
 {
-	return 0x01000100;
+	uint32 ret = current_speaker_volume;
+
+	D(bug("audio_get_speaker_volume:  vol=0x%x\n", ret));
+
+	return ret;
 }
 
 void audio_set_main_mute(bool mute)
 {
+	D(bug("audio_set_main_mute: mute=%ld\n", mute));
+
+	if (mute != current_main_mute) {
+		current_main_mute = mute;
+	}
+
+	set_mute(current_main_mute);
 }
 
 void audio_set_main_volume(uint32 vol)
 {
+
+	D(bug("audio_set_main_volume:  vol=%x\n", vol));
+
+	current_main_volume = vol;
+
+	set_volume(vol);
 }
 
 void audio_set_speaker_mute(bool mute)
 {
+	D(bug("audio_set_speaker_mute: mute=%ld\n", mute));
+
+	if (mute != current_speaker_mute) {
+		current_speaker_mute = mute;
+	}
+
+	set_mute(current_speaker_mute);
 }
 
 void audio_set_speaker_volume(uint32 vol)
 {
+	D(bug("audio_set_speaker_volume:  vol=%x\n", vol));
+
+	current_speaker_volume = vol;
+
+	set_volume(vol);
 }
