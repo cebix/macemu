@@ -716,6 +716,7 @@
 				00F248BDFF9FB58D95877872,
 				00ED5A7BFF9F42CA95877872,
 				00F248D5FFA011DD95877872,
+				F5BACDE8042F21EF01A80001,
 				338FF87200CF1E867F000001,
 				00ED5A83FF9F42CA95877872,
 				00ED5A84FF9F42CA95877872,
@@ -1080,8 +1081,7 @@
 		};
 		0193367FFFD1BA0395877872 = {
 			isa = PBXFileReference;
-			name = timer_unix.cpp;
-			path = ../Unix/timer_unix.cpp;
+			path = timer_unix.cpp;
 			refType = 2;
 		};
 		01933680FFD1BA0395877872 = {
@@ -1788,7 +1788,6 @@
 				04D13626FF9F17C295877872,
 				04D13628FF9F182095877872,
 				00F248BAFF9FB3E495877872,
-				338FF87300CF1E867F000001,
 				00ED5A92FF9F42CA95877872,
 				00ED5A98FF9F42CA95877872,
 				00ED5A99FF9F42CA95877872,
@@ -1799,6 +1798,7 @@
 				F59F45A7020E2BD601A80001,
 				01933688FFD1BA0395877872,
 				F51A2DB9042B25ED0187C272,
+				F5BACDE9042F21EF01A80001
 			);
 			isa = PBXSourcesBuildPhase;
 			name = Sources;
@@ -1832,12 +1832,6 @@
 			name = fpu_uae.cpp;
 			path = ../uae_cpu/fpu/fpu_uae.cpp;
 			refType = 2;
-		};
-		338FF87300CF1E867F000001 = {
-			fileRef = 338FF87200CF1E867F000001;
-			isa = PBXBuildFile;
-			settings = {
-			};
 		};
 //330
 //331
@@ -1993,6 +1987,18 @@
 		};
 		F5B887510207D11E01A80001 = {
 			fileRef = F5B887500207D11D01A80001;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		F5BACDE8042F21EF01A80001 = {
+			isa = PBXFileReference;
+			name = fpu_ieee.cpp;
+			path = ../uae_cpu/fpu/fpu_ieee.cpp;
+			refType = 2;
+		};
+		F5BACDE9042F21EF01A80001 = {
+			fileRef = F5BACDE8042F21EF01A80001;
 			isa = PBXBuildFile;
 			settings = {
 			};
