@@ -285,7 +285,6 @@ screen <video mode>
     application via Alt-Tab, Basilisk II is put in "snooze" mode (i.e. MacOS
     is frozen).
 
-
   Mac OS X:
     The "video mode" is one of the following:
       win/<width>/<height>
@@ -301,7 +300,6 @@ screen <video mode>
       opengl/<width>/<height>
       opengl/<width>/<height>/<bits per pixel>
         Currently unimplemented, will be a fast windowed mode.
-
 
 seriala <serial port description>
 
@@ -579,6 +577,13 @@ Unix:
     Set this to "true" to ignore illegal memory accesses. The default
     is "false". This feature is only implemented on the following
     platforms: Linux/x86, Linux/ppc, Darwin/ppc.
+
+  dsp <device name>
+  mixer <device name>
+
+    Under Linux and FreeBSD, this specifies the devices to be used for sound
+    output and volume control, respectively. The defaults are "/dev/dsp" and
+    "/dev/mixer".
 
 AmigaOS:
 

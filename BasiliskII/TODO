@@ -28,7 +28,6 @@ AmigaOS:
 - Input handler instead of IDCMP?
 - Last sound buffer is not played
 - Sound output rate/bits/channels switching
-- Video depth/resolution switching
 
 BeOS:
 - clip_beos.cpp: clip BeOS->Basilisk

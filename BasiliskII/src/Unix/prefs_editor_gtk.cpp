@@ -715,6 +715,8 @@ static GtkWidget *l_fbdev_name, *l_fbdevice_file;
 static char fbdev_name[256];
 #endif
 
+static GtkWidget *w_dspdevice_file, *w_mixerdevice_file;
+
 // Hide/show graphics widgets
 static void hide_show_graphics_widgets(void)
 {
@@ -761,10 +763,19 @@ static void mn_30hz(...) {PrefsReplaceInt32("frameskip", 2);}
 static void mn_60hz(...) {PrefsReplaceInt32("frameskip", 1);}
 static void mn_dynamic(...) {PrefsReplaceInt32("frameskip", 0);}
 
+// Set sensitivity of widgets
+static void set_graphics_sensitive(void)
+{
+	const bool sound_enabled = !PrefsFindBool("nosound");
+	gtk_widget_set_sensitive(w_dspdevice_file, sound_enabled);
+	gtk_widget_set_sensitive(w_mixerdevice_file, sound_enabled);
+}
+
 // "Disable Sound Output" button toggled
 static void tb_nosound(GtkWidget *widget)
 {
 	PrefsReplaceBool("nosound", GTK_TOGGLE_BUTTON(widget)->active);
+	set_graphics_sensitive();
 }
 
 // Read graphics preferences
@@ -827,6 +838,8 @@ static void read_graphics_settings(void)
 	else
 		PrefsRemoveItem("fbdevicefile");
 #endif
+	PrefsReplaceString("dsp", get_file_entry_path(w_dspdevice_file));
+	PrefsReplaceString("mixer", get_file_entry_path(w_mixerdevice_file));
 }
 
 // Create "Graphics/Sound" pane
@@ -947,6 +960,10 @@ static void create_graphics_pane(GtkWidget *top)
 
 	make_separator(box);
 	make_checkbox(box, STR_NOSOUND_CTRL, "nosound", GTK_SIGNAL_FUNC(tb_nosound));
+	w_dspdevice_file = make_file_entry(box, STR_DSPDEVICE_FILE_CTRL, "dsp");
+	w_mixerdevice_file = make_file_entry(box, STR_MIXERDEVICE_FILE_CTRL, "mixer");
+
+	set_graphics_sensitive();
 
 	hide_show_graphics_widgets();
 }

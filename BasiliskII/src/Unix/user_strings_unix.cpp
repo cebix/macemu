@@ -66,6 +66,8 @@ user_string_def platform_strings[] = {
 
 	{STR_FBDEV_NAME_CTRL, "Frame Buffer Name"},
 	{STR_FBDEVICE_FILE_CTRL, "Frame Buffer Spec File"},
+	{STR_DSPDEVICE_FILE_CTRL, "Audio Output Device"},
+	{STR_MIXERDEVICE_FILE_CTRL, "Audio Mixer Device"},
 
 	{STR_INPUT_PANE_TITLE, "Mouse/Keyboard"},
 	{STR_KEYCODES_CTRL, "Use Raw Keycodes"},

@@ -5,13 +5,15 @@ V1.0 (snapshot) - <date>
  - Unix: add large file support for 2+ GB hard disk images
  - Unix: cleaned up pthread attributes [Brian Johnson]
  - Unix: fixed floppy problems under Linux
- - Unix: implement "ignoresegv" feature on Linux/x86, Linux/ppc, Darwin/ppc
+ - Unix: implemented "ignoresegv" feature on Linux/x86, Linux/ppc, Darwin/ppc
  - Unix: serial port baud rates are now set correctly
  - Unix: it is now possible to make the serial drivers pipe their input/output
    to programs by using a '|' followed by a command line as the modem or
    printer port setting (instead of a device name like '/dev/ttyS0')
    [Brian Johnson]
  - Unix: the option "--config FILE" tells B2 to use a different config file
+ - Unix: new prefs options "dsp" and "mixer" to set the OSS device names
+   instead of the hardcoded '/dev/dsp' and '/dev/mixer'
 
 V1.0 (snapshot) - 15.Jan.2002
  - added support for on-the-fly video resolution and depth switching, and

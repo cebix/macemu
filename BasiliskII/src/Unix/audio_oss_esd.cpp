@@ -31,7 +31,7 @@
 #endif
 
 #ifdef __FreeBSD__
-#include <sys/soundcard.h>
+#include <machine/soundcard.h>
 #endif
 
 #include "cpu_emulation.h"
@@ -54,12 +54,9 @@ static int audio_sample_rate_index = 0;
 static int audio_sample_size_index = 0;
 static int audio_channel_count_index = 0;
 
-// Constants
-#define DSP_NAME "/dev/dsp"
-
 // Global variables
-static int audio_fd = -1;							// fd of /dev/dsp or ESD
-static int mixer_fd = -1;							// fd of /dev/mixer
+static int audio_fd = -1;							// fd of dsp or ESD
+static int mixer_fd = -1;							// fd of mixer
 static sem_t audio_irq_done_sem;					// Signal from interrupt to streaming thread: data block read
 static bool sem_inited = false;						// Flag: audio_irq_done_sem initialized
 static int sound_buffer_size;						// Size of sound buffer in bytes
@@ -86,17 +83,18 @@ static void set_audio_status_format(void)
 	AudioStatus.channels = audio_channel_counts[audio_channel_count_index];
 }
 
-// Init using /dev/dsp, returns false on error
+// Init using the dsp device, returns false on error
 static bool open_dsp(void)
 {
-	// Open /dev/dsp
-	audio_fd = open(DSP_NAME, O_WRONLY);
+	// Open the device
+	const char *dsp = PrefsFindString("dsp");
+	audio_fd = open(dsp, O_WRONLY);
 	if (audio_fd < 0) {
-		fprintf(stderr, "WARNING: Cannot open %s (%s)\n", DSP_NAME, strerror(errno));
+		fprintf(stderr, "WARNING: Cannot open %s (%s)\n", dsp, strerror(errno));
 		return false;
 	}
 
-	printf("Using " DSP_NAME " audio output\n");
+	printf("Using %s audio output\n", dsp);
 
 	// Get supported sample formats
 	if (audio_sample_sizes.empty()) {
@@ -213,7 +211,7 @@ static bool open_esd(void)
 
 		// The reason we do this here is that we don't want to add sample
 		// rates etc. unless the ESD server connection could be opened
-		// (if ESD fails, /dev/dsp might be tried next)
+		// (if ESD fails, dsp might be tried next)
 		audio_sample_rates.push_back(11025 << 16);
 		audio_sample_rates.push_back(22050 << 16);
 		audio_sample_rates.push_back(44100 << 16);
@@ -246,12 +244,12 @@ static bool open_audio(void)
 			goto dev_opened;
 #endif
 
-	// Try to open /dev/dsp
+	// Try to open dsp
 	if (open_dsp())
 		goto dev_opened;
 
 #ifdef ENABLE_ESD
-	// Hm, /dev/dsp failed so we try ESD again if ESPEAKER wasn't set
+	// Hm, dsp failed so we try ESD again if ESPEAKER wasn't set
 	if (!getenv("ESPEAKER"))
 		if (open_esd())
 			goto dev_opened;
@@ -294,10 +292,11 @@ void AudioInit(void)
 		return;
 	sem_inited = true;
 
-	// Try to open /dev/mixer
-	mixer_fd = open("/dev/mixer", O_RDWR);
+	// Try to open the mixer device
+	const char *mixer = PrefsFindString("mixer");
+	mixer_fd = open(mixer, O_RDWR);
 	if (mixer_fd < 0)
-		printf("WARNING: Cannot open /dev/mixer (%s)", strerror(errno));
+		printf("WARNING: Cannot open %s (%s)\n", mixer, strerror(errno));
 
 	// Open and initialize audio device
 	open_audio();
@@ -320,7 +319,7 @@ static void close_audio(void)
 		stream_thread_active = false;
 	}
 
-	// Close /dev/dsp or ESD socket
+	// Close dsp or ESD socket
 	if (audio_fd >= 0) {
 		close(audio_fd);
 		audio_fd = -1;
@@ -340,7 +339,7 @@ void AudioExit(void)
 		sem_inited = false;
 	}
 
-	// Close /dev/mixer
+	// Close mixer device
 	if (mixer_fd >= 0) {
 		close(mixer_fd);
 		mixer_fd = -1;
