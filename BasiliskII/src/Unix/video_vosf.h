@@ -117,6 +117,14 @@ static void Screen_fault_handler(int, int code, struct sigcontext *scp)
 	do_handle_screen_fault(fault_addr);
 }
 
+# elif defined(__powerpc__) && defined(__linux__)
+
+static void Screen_fault_handler(int, struct sigcontext_struct *scs)
+{
+	D(bug("Screen_fault_handler: ADDR=0x%08X from IP=0x%08X\n", scs->regs->dar, scs->regs->nip));
+	do_handle_screen_fault((uintptr)scs->regs->dar, (uintptr)scs->regs->nip);
+}
+
 # else
 #  error "No suitable subterfuge for Video on SEGV signals"
 # endif

@@ -48,10 +48,12 @@ dnl Target CPU type.
 HAVE_I386=no
 HAVE_M68K=no
 HAVE_SPARC=no
+HAVE_POWERPC=no
 case "$target_cpu" in
   i386* | i486* | i586* | i686* | i786* ) CPU_TYPE=i386 HAVE_I386=yes;;
   m68k* ) CPU_TYPE=m68k HAVE_M68K=yes;;
   sparc* ) CPU_TYPE=sparc HAVE_SPARC=yes;;
+  powerpc* ) CPU_TYPE=powerpc HAVE_POWERPC=yes;;
   *) CPU_TYPE=`echo $target_cpu | sed -e 's/-/_/'`;;
 esac
 DEFINES="$DEFINES -DCPU_$CPU_TYPE"
@@ -377,6 +379,40 @@ if [[ "x$ac_cv_have_extended_signals" = "xno" ]]; then
 
             static RETSIGTYPE segfault_handler(int, struct sigcontext scs)
             { if ((caddr_t)(scs.cr2) != mem) exit(1);
+              munmap(mem, getpagesize()); close(zero_fd); exit(0); }
+
+            int main()
+            { if ((zero_fd = open("/dev/zero", O_RDWR)) < 0) exit(1);
+              if ((mem = (caddr_t)mmap(0, getpagesize(), PROT_READ, MAP_PRIVATE, zero_fd, 0)) == (caddr_t)MAP_FAILED) exit(1);
+              struct sigaction sa; sa.sa_flags = 0;
+              sa.sa_handler = (RETSIGTYPE (*)(int))segfault_handler;
+              sigaction(SIGSEGV, &sa, 0);
+              mem[0] = 0;
+              exit(1); // should not be reached
+            }
+          ],
+          [ac_cv_have_sigcontext_hack=yes],
+          [ac_cv_have_sigcontext_hack=no]
+          )
+          AC_LANG_RESTORE
+        ])
+        AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, $ac_cv_have_sigcontext_hack)
+      elif [[ "x$HAVE_POWERPC" = "xyes" ]]; then
+        AC_CACHE_CHECK("whether we then have a subterfuge for your system",
+		  ac_cv_have_sigcontext_hack, [
+          AC_LANG_SAVE
+          AC_LANG_CPLUSPLUS
+          AC_TRY_RUN([
+            #include <unistd.h>
+            #include <signal.h>
+            #include <fcntl.h>
+            #include <sys/mman.h>
+
+            static volatile caddr_t mem = 0;
+            static int zero_fd = -1;
+
+            static RETSIGTYPE segfault_handler(int, struct sigcontext_struct *scs)
+            { if ((caddr_t)(scs->regs->dar) != mem) exit(1);
               munmap(mem, getpagesize()); close(zero_fd); exit(0); }
 
             int main()
