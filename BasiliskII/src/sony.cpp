@@ -253,6 +253,17 @@ static void mount_mountable_volumes(void)
 
 
 /*
+ *  Set error code in DskErr
+ */
+
+static int16 set_dsk_err(int16 err)
+{
+	WriteMacInt16(0x142, err);
+	return err;
+}
+
+
+/*
  *  Driver Open() routine
  */
 
@@ -273,7 +284,7 @@ int16 SonyOpen(uint32 pb, uint32 dce)
 	WriteMacInt32(0x134, 0xdeadbeef);
 
 	// Clear DskErr
-	WriteMacInt16(0x142, 0);
+	set_dsk_err(0);
 
 	// Install drives
 	for (DriveInfo *info = first_drive_info; info; info = info->next) {
@@ -332,9 +343,9 @@ int16 SonyPrime(uint32 pb, uint32 dce)
 	// Drive valid and disk inserted?
 	DriveInfo *info;
 	if ((info = get_drive_info(ReadMacInt16(pb + ioVRefNum))) == NULL)
-		return nsDrvErr;
+		return set_dsk_err(nsDrvErr);
 	if (!ReadMacInt8(info->status + dsDiskInPlace))
-		return offLinErr;
+		return set_dsk_err(offLinErr);
 	WriteMacInt8(info->status + dsDiskInPlace, 2);	// Disk accessed
 
 	// Get parameters
@@ -342,7 +353,7 @@ int16 SonyPrime(uint32 pb, uint32 dce)
 	size_t length = ReadMacInt32(pb + ioReqCount);
 	loff_t position = ReadMacInt32(dce + dCtlPosition);
 	if ((length & 0x1ff) || (position & 0x1ff))
-		return paramErr;
+		return set_dsk_err(paramErr);
 
 	size_t actual = 0;
 	if ((ReadMacInt16(pb + ioTrap) & 0xff) == aRdCmd) {
@@ -350,7 +361,7 @@ int16 SonyPrime(uint32 pb, uint32 dce)
 		// Read
 		actual = Sys_read(info->fh, buffer, position, length);
 		if (actual != length)
-			return readErr;
+			return set_dsk_err(readErr);
 
 		// Clear TagBuf
 		WriteMacInt32(0x2fc, 0);
@@ -361,16 +372,16 @@ int16 SonyPrime(uint32 pb, uint32 dce)
 
 		// Write
 		if (info->read_only)
-			return wPrErr;
+			return set_dsk_err(wPrErr);
 		actual = Sys_write(info->fh, buffer, position, length);
 		if (actual != length)
-			return writErr;
+			return set_dsk_err(writErr);
 	}
 
 	// Update ParamBlock and DCE
 	WriteMacInt32(pb + ioActCount, actual);
 	WriteMacInt32(dce + dCtlPosition, ReadMacInt32(dce + dCtlPosition) + actual);
-	return noErr;
+	return set_dsk_err(noErr);
 }
 
 
@@ -386,10 +397,10 @@ int16 SonyControl(uint32 pb, uint32 dce)
 	// General codes
 	switch (code) {
 		case 1:		// KillIO
-			return -1;
+			return set_dsk_err(-1);
 
 		case 9:		// Track cache
-			return noErr;
+			return set_dsk_err(noErr);
 
 		case 65:	// Periodic action (accRun, "insert" disks on startup)
 			mount_mountable_volumes();
@@ -402,71 +413,72 @@ int16 SonyControl(uint32 pb, uint32 dce)
 	// Drive valid?
 	DriveInfo *info;
 	if ((info = get_drive_info(ReadMacInt16(pb + ioVRefNum))) == NULL)
-		return nsDrvErr;
+		return set_dsk_err(nsDrvErr);
 
 	// Drive-specific codes
+	int16 err = noErr;
 	switch (code) {
 		case 5:		// Verify disk
-			if (ReadMacInt8(info->status + dsDiskInPlace) > 0)
-				return noErr;
-			else
-				return verErr;
+			if (ReadMacInt8(info->status + dsDiskInPlace) <= 0)
+				err = verErr;
+			break;
 
 		case 6:		// Format disk
 			if (info->read_only)
-				return wPrErr;
+				err = wPrErr;
 			else if (ReadMacInt8(info->status + dsDiskInPlace) > 0) {
-				if (SysFormat(info->fh))
-					return noErr;
-				else
-					return writErr;
+				if (!SysFormat(info->fh))
+					err = writErr;
 			} else
-				return offLinErr;
+				err = offLinErr;
+			break;
 
 		case 7:		// Eject
 			if (ReadMacInt8(info->status + dsDiskInPlace) > 0) {
 				SysEject(info->fh);
 				WriteMacInt8(info->status + dsDiskInPlace, 0);
 			}
-			return noErr;
+			break;
 
 		case 8:		// Set tag buffer
 			info->tag_buffer = ReadMacInt32(pb + csParam);
-			return noErr;
+			break;
 
 		case 21:		// Get drive icon
 			WriteMacInt32(pb + csParam, SonyDriveIconAddr);
-			return noErr;
+			break;
 
 		case 22:		// Get disk icon
 			WriteMacInt32(pb + csParam, SonyDiskIconAddr);
-			return noErr;
+			break;
 
 		case 23:		// Get drive info
 			if (info->num == 1)
 				WriteMacInt32(pb + csParam, 0x0004);	// Internal drive
 			else
 				WriteMacInt32(pb + csParam, 0x0104);	// External drive
-			return noErr;
+			break;
 
-		case 0x5343: {	// Format and write to disk ('SC'), used by DiskCopy
+		case 0x5343:	// Format and write to disk ('SC'), used by DiskCopy
 			if (!ReadMacInt8(info->status + dsDiskInPlace))
-				return offLinErr;
-			if (info->read_only)
-				return wPrErr;
-
-			void *data = Mac2HostAddr(ReadMacInt32(pb + csParam + 2));
-			size_t actual = Sys_write(info->fh, data, 0, 2880*512);
-			if (actual != 2880*512)
-				return writErr;
-			else
-				return noErr;
-		}
+				err = offLinErr;
+			else if (info->read_only)
+				err = wPrErr;
+			else {
+				void *data = Mac2HostAddr(ReadMacInt32(pb + csParam + 2));
+				size_t actual = Sys_write(info->fh, data, 0, 2880*512);
+				if (actual != 2880*512)
+					err = writErr;
+			}
+			break;
 
 		default:
 			printf("WARNING: Unknown SonyControl(%d)\n", code);
-			return controlErr;
+			err = controlErr;
+			break;
 	}
+
+	return set_dsk_err(err);
 }
 
 
@@ -482,8 +494,9 @@ int16 SonyStatus(uint32 pb, uint32 dce)
 	// Drive valid?
 	DriveInfo *info;
 	if ((info = get_drive_info(ReadMacInt16(pb + ioVRefNum))) == NULL)
-		return nsDrvErr;
+		return set_dsk_err(nsDrvErr);
 
+	int16 err = noErr;
 	switch (code) {
 		case 6:		// Return format list
 			if (ReadMacInt16(pb + csParam) > 0) {
@@ -491,30 +504,33 @@ int16 SonyStatus(uint32 pb, uint32 dce)
 				WriteMacInt16(pb + csParam, 1);		// 1 format
 				WriteMacInt32(adr, 2880);			// 2880 sectors
 				WriteMacInt32(adr + 4, 0xd2120050);	// 2 heads, 18 secs/track, 80 tracks
-				return noErr;
 			} else
-				return paramErr;
+				err = paramErr;
+			break;
 
 		case 8:		// Get drive status
 			Mac2Mac_memcpy(pb + csParam, info->status, 22);
-			return noErr;
+			break;
 
 		case 10:	// Get disk type
 			WriteMacInt32(pb + csParam, ReadMacInt32(info->status + dsMFMDrive) & 0xffffff00 | 0xfe);
-			return noErr;
+			break;
 
 		case 0x4456: // Duplicator version supported ('DV')
 			WriteMacInt16(pb + csParam, 0x0410);
-			return noErr;
+			break;
 
 		case 0x5343: // Get address header format byte ('SC')
 			WriteMacInt8(pb + csParam, 0x22);	// 512 bytes/sector
-			return noErr;
+			break;
 
 		default:
 			printf("WARNING: Unknown SonyStatus(%d)\n", code);
-			return statusErr;
+			err = statusErr;
+			break;
 	}
+
+	return set_dsk_err(err);
 }
 
 
