@@ -215,6 +215,11 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #endif
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, siginfo_t *sip, void *scp
 #define SIGSEGV_FAULT_ADDRESS			sip->si_addr
+#if (defined(i386) || defined(__i386__))
+#define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_eip)
+#define SIGSEGV_REGISTER_FILE			((unsigned int *)&(((struct sigcontext *)scp)->sc_edi))
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#endif
 #if defined(__linux__)
 #if (defined(i386) || defined(__i386__))
 #include <sys/ucontext.h>
@@ -388,6 +393,19 @@ enum {
 	X86_REG_EDI = 4
 };
 #endif
+#if defined(__NetBSD__) || defined(__FreeBSD__)
+enum {
+	X86_REG_EIP = 10,
+	X86_REG_EAX = 7,
+	X86_REG_ECX = 6,
+	X86_REG_EDX = 5,
+	X86_REG_EBX = 4,
+	X86_REG_ESP = 13,
+	X86_REG_EBP = 2,
+	X86_REG_ESI = 1,
+	X86_REG_EDI = 0
+};
+#endif
 // FIXME: this is partly redundant with the instruction decoding phase
 // to discover transfer type and register number
 static inline int ix86_step_over_modrm(unsigned char * p)
@@ -444,6 +462,25 @@ static bool ix86_skip_instruction(unsigned int * regs)
 
 	// Decode instruction
 	switch (eip[0]) {
+	case 0x0f:
+	    if (eip[1] == 0xb7) { // MOVZX r32, r/m16
+		switch (eip[2] & 0xc0) {
+		case 0x80:
+		    reg = (eip[2] >> 3) & 7;
+		    transfer_type = TYPE_LOAD;
+		    break;
+		case 0x40:
+		    reg = (eip[2] >> 3) & 7;
+		    transfer_type = TYPE_LOAD;
+		    break;
+		case 0x00:
+		    reg = (eip[2] >> 3) & 7;
+		    transfer_type = TYPE_LOAD;
+		    break;
+		}
+		len += 3 + ix86_step_over_modrm(eip + 2);
+	    }
+	  break;
 	case 0x8a: // MOV r8, r/m8
 		transfer_size = SIZE_BYTE;
 	case 0x8b: // MOV r32, r/m32 (or 16-bit operation)
@@ -766,7 +803,7 @@ int main(void)
 	if (!sigsegv_install_handler(sigsegv_insn_handler))
 		return 1;
 	
-	if (vm_protect((char *)page, page_size, VM_PAGE_WRITE) < 0)
+	if (vm_protect((char *)page, page_size, VM_PAGE_READ | VM_PAGE_WRITE) < 0)
 		return 1;
 	
 	for (int i = 0; i < page_size; i++)
