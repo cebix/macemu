@@ -1242,6 +1242,11 @@ void TriggerInterrupt(void)
 		send_signal(emul_thread, SIGUSR1);
 }
 
+void TriggerNMI(void)
+{
+	//!! not implemented yet
+}
+
 
 /*
  *  Execute 68k subroutine
