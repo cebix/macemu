@@ -29,6 +29,7 @@ static inline void WriteMacInt32(uint32 addr, uint32 l) {*(uint32 *)addr = htonl
 static inline void WriteMacInt16(uint32 addr, uint32 w) {*(uint16 *)addr = htons(w);}
 static inline void WriteMacInt8(uint32 addr, uint32 b) {*(uint8 *)addr = b;}
 static inline uint8 *Mac2HostAddr(uint32 addr) {return (uint8 *)addr;}
+static inline uint32 Host2MacAddr(uint8 *addr) {return (uint32)addr;}
 
 
 /*

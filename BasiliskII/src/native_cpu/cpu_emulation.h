@@ -43,6 +43,7 @@ static inline void WriteMacInt32(uint32 addr, uint32 l) {*(uint32 *)addr = l;}
 static inline void WriteMacInt16(uint32 addr, uint32 w) {*(uint16 *)addr = w;}
 static inline void WriteMacInt8(uint32 addr, uint32 b) {*(uint8 *)addr = b;}
 static inline uint8 *Mac2HostAddr(uint32 addr) {return (uint8 *)addr;}
+static inline uint32 Host2MacAddr(uint8 *addr) {return (uint32)addr;}
 static inline void *Mac_memset(uint32 addr, int c, size_t n) {return memset(Mac2HostAddr(addr), c, n);}
 static inline void *Mac2Host_memcpy(void *dest, uint32 src, size_t n) {return memcpy(dest, Mac2HostAddr(src), n);}
 static inline void *Host2Mac_memcpy(uint32 dest, const void *src, size_t n) {return memcpy(Mac2HostAddr(dest), src, n);}
