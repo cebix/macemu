@@ -287,7 +287,7 @@ void VideoExit(void)
  *  Set palette
  */
 
-void video_set_palette(uint8 *pal)
+void video_set_palette(uint8 *pal, int num)
 {
 	switch (display_type) {
 		case DISPLAY_WINDOW: {

@@ -536,16 +536,16 @@ void VideoExit(void)
  *  Set palette
  */
 
-void video_set_palette(uint8 *pal)
+void video_set_palette(uint8 *pal, in num)
 {
 	if ((display_type == DISPLAY_SCREEN_P96 || display_type == DISPLAY_SCREEN_CGFX)
 	 && !IsDirectMode(VideoMonitor.mode)) {
 
 		// Convert palette to 32 bits
 		ULONG table[2 + 256 * 3];
-		table[0] = 256 << 16;
-		table[256 * 3 + 1] = 0;
-		for (int i=0; i<256; i++) {
+		table[0] = num << 16;
+		table[num * 3 + 1] = 0;
+		for (int i=0; i<num; i++) {
 			table[i*3+1] = pal[i*3] * 0x01010101;
 			table[i*3+2] = pal[i*3+1] * 0x01010101;
 			table[i*3+3] = pal[i*3+2] * 0x01010101;

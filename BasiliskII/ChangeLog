@@ -3,6 +3,8 @@ V1.0 (snapshot) - <date>
 	  and gamma tables
 	- fsave/frestore emulation under AmigaOS and NetBSD/m68k always behaves
 	  like a 68882/68040 FPU, eliminating the need for 68060 FPU patches
+	- Unix: windowed display mode supports different resolutions and color
+	  depth, which can be switched on-the-fly
 
 V0.9 (release 0.9-1) - 31.May 2001
 	- final adjustments for 0.9 release

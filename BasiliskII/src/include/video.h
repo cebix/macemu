@@ -175,6 +175,6 @@ extern void video_switch_to_mode(const video_mode &mode);
 
 // Called by the video driver to set the color palette (in indexed modes)
 // or gamma table (in direct modes)
-extern void video_set_palette(uint8 *pal);
+extern void video_set_palette(uint8 *pal, int num);
 
 #endif

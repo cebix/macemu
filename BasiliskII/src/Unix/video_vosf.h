@@ -337,14 +337,17 @@ static inline void update_display_window_vosf(driver_window *drv)
 		const int y2 = mainBuffer.pageInfo[page - 1].bottom;
 		const int height = y2 - y1 + 1;
 		
-		if (VideoMonitor.mode.depth == VDEPTH_1BIT) {
+		if (VideoMonitor.mode.depth < VDEPTH_8BIT) {
 
 			// Update the_host_buffer and copy of the_buffer
-			const int bytes_per_row = VideoMonitor.mode.bytes_per_row;
-			int i = y1 * bytes_per_row, j;
+			const int src_bytes_per_row = VideoMonitor.mode.bytes_per_row;
+			const int dst_bytes_per_row = drv->img->bytes_per_line;
+			const int pixels_per_byte = VideoMonitor.mode.x / src_bytes_per_row;
+			int i1 = y1 * src_bytes_per_row, i2 = y1 * dst_bytes_per_row, j;
 			for (j = y1; j <= y2; j++) {
-				Screen_blit(the_host_buffer + i, the_buffer + i, VideoMonitor.mode.x >> 3);
-				i += bytes_per_row;
+				Screen_blit(the_host_buffer + i2, the_buffer + i1, VideoMonitor.mode.x / pixels_per_byte);
+				i1 += src_bytes_per_row;
+				i2 += dst_bytes_per_row;
 			}
 
 		} else {

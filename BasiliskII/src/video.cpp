@@ -125,6 +125,24 @@ static void get_size_of_resolution(uint32 id, uint32 &x, uint32 &y)
 
 
 /*
+ *  Find palette size for given color depth
+ */
+
+static int palette_size(video_depth depth)
+{
+	switch (depth) {
+		case VDEPTH_1BIT: return 2;
+		case VDEPTH_2BIT: return 4;
+		case VDEPTH_4BIT: return 16;
+		case VDEPTH_8BIT: return 256;
+		case VDEPTH_16BIT: return 32;
+		case VDEPTH_32BIT: return 256;
+		default: return 0;
+	}
+}
+
+
+/*
  *  Set palette to 50% gray
  */
 
@@ -135,7 +153,7 @@ static void set_gray_palette(void)
 		VidLocal.palette[i * 3 + 1] = 127;
 		VidLocal.palette[i * 3 + 2] = 127;
 	}
-	video_set_palette(VidLocal.palette);
+	video_set_palette(VidLocal.palette, 256);
 }
 
 
@@ -178,7 +196,7 @@ static void load_ramp_palette(void)
 		*p++ = blue;
 	}
 
-	video_set_palette(VidLocal.palette);
+	video_set_palette(VidLocal.palette, num);
 }
 
 
@@ -483,7 +501,7 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 					s_pal += 8;
 				}
 			}
-			video_set_palette(VidLocal.palette);
+			video_set_palette(VidLocal.palette, palette_size(VidLocal.desc->mode.depth));
 			return noErr;
 		}
 

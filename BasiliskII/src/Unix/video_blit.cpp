@@ -262,8 +262,30 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 #include "video_blit.h"
 
 /* -------------------------------------------------------------------------- */
-/* --- 8-bit indexed to 16-bit mode color expansion                       --- */
+/* --- 2/4/8-bit indexed to 16-bit mode color expansion                   --- */
 /* -------------------------------------------------------------------------- */
+
+static void Blit_Expand_2_To_16(uint8 * dest, const uint8 * p, uint32 length)
+{
+	uint16 *q = (uint16 *)dest;
+	for (int i=0; i<length; i++) {
+		uint8 c = *p++;
+		*q++ = ExpandMap[c >> 6];
+		*q++ = ExpandMap[c >> 4];
+		*q++ = ExpandMap[c >> 2];
+		*q++ = ExpandMap[c];
+	}
+}
+
+static void Blit_Expand_4_To_16(uint8 * dest, const uint8 * p, uint32 length)
+{
+	uint16 *q = (uint16 *)dest;
+	for (int i=0; i<length; i++) {
+		uint8 c = *p++;
+		*q++ = ExpandMap[c >> 4];
+		*q++ = ExpandMap[c];
+	}
+}
 
 static void Blit_Expand_8_To_16(uint8 * dest, const uint8 * p, uint32 length)
 {
@@ -273,8 +295,30 @@ static void Blit_Expand_8_To_16(uint8 * dest, const uint8 * p, uint32 length)
 }
 
 /* -------------------------------------------------------------------------- */
-/* --- 8-bit indexed to 32-bit mode color expansion                       --- */
+/* --- 2/4/8-bit indexed to 32-bit mode color expansion                   --- */
 /* -------------------------------------------------------------------------- */
+
+static void Blit_Expand_2_To_32(uint8 * dest, const uint8 * p, uint32 length)
+{
+	uint32 *q = (uint32 *)dest;
+	for (int i=0; i<length; i++) {
+		uint8 c = *p++;
+		*q++ = ExpandMap[c >> 6];
+		*q++ = ExpandMap[c >> 4];
+		*q++ = ExpandMap[c >> 2];
+		*q++ = ExpandMap[c];
+	}
+}
+
+static void Blit_Expand_4_To_32(uint8 * dest, const uint8 * p, uint32 length)
+{
+	uint32 *q = (uint32 *)dest;
+	for (int i=0; i<length; i++) {
+		uint8 c = *p++;
+		*q++ = ExpandMap[c >> 4];
+		*q++ = ExpandMap[c];
+	}
+}
 
 static void Blit_Expand_8_To_32(uint8 * dest, const uint8 * p, uint32 length)
 {
@@ -358,14 +402,32 @@ bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, vide
 
 		bool blitter_found = false;
 	
-		// 8-bit mode on 16/32-bit screen?
-		if (mac_depth == VDEPTH_8BIT && visualFormat.depth > 8) {
-			if (visual_info->depth <= 16) {
-				Screen_blit = Blit_Expand_8_To_16;
-				blitter_found = true;
-			} else {
-				Screen_blit = Blit_Expand_8_To_32;
-				blitter_found = true;
+		// 2/4/8-bit mode on 16/32-bit screen?
+		if (visualFormat.depth > 8) {
+			if (mac_depth == VDEPTH_2BIT) {
+				if (visual_info->depth <= 16) {
+					Screen_blit = Blit_Expand_2_To_16;
+					blitter_found = true;
+				} else {
+					Screen_blit = Blit_Expand_2_To_32;
+					blitter_found = true;
+				}
+			} else if (mac_depth == VDEPTH_4BIT) {
+				if (visual_info->depth <= 16) {
+					Screen_blit = Blit_Expand_4_To_16;
+					blitter_found = true;
+				} else {
+					Screen_blit = Blit_Expand_4_To_32;
+					blitter_found = true;
+				}
+			} else if (mac_depth == VDEPTH_8BIT) {
+				if (visual_info->depth <= 16) {
+					Screen_blit = Blit_Expand_8_To_16;
+					blitter_found = true;
+				} else {
+					Screen_blit = Blit_Expand_8_To_32;
+					blitter_found = true;
+				}
 			}
 		}
 	

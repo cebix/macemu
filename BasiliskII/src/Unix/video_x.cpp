@@ -203,6 +203,18 @@ static void add_mode(uint32 width, uint32 height, uint32 resolution_id, uint32 b
 	VideoModes.push_back(mode);
 }
 
+// Add standard list of windowed modes for given color depth
+static void add_window_modes(video_depth depth)
+{
+	add_mode(512, 384, 0x80, TrivialBytesPerRow(512, depth), depth);
+	add_mode(640, 480, 0x81, TrivialBytesPerRow(640, depth), depth);
+	add_mode(800, 600, 0x82, TrivialBytesPerRow(800, depth), depth);
+	add_mode(1024, 768, 0x83, TrivialBytesPerRow(1024, depth), depth);
+	add_mode(1152, 870, 0x84, TrivialBytesPerRow(1152, depth), depth);
+	add_mode(1280, 1024, 0x85, TrivialBytesPerRow(1280, depth), depth);
+	add_mode(1600, 1200, 0x86, TrivialBytesPerRow(1600, depth), depth);
+}
+
 // Set Mac frame layout and base address (uses the_buffer/MacFrameBaseMac)
 static void set_mac_frame_buffer(video_depth depth, bool native_byte_order)
 {
@@ -1291,33 +1303,16 @@ bool VideoInit(bool classic)
 		if (classic)
 			add_mode(512, 342, 0x80, 64, VDEPTH_1BIT);
 		else {
-			if (default_depth != VDEPTH_1BIT) { // 1-bit modes are always available
-				add_mode(512, 384, 0x80, TrivialBytesPerRow(512, VDEPTH_1BIT), VDEPTH_1BIT);
-				add_mode(640, 480, 0x81, TrivialBytesPerRow(640, VDEPTH_1BIT), VDEPTH_1BIT);
-				add_mode(800, 600, 0x82, TrivialBytesPerRow(800, VDEPTH_1BIT), VDEPTH_1BIT);
-				add_mode(1024, 768, 0x83, TrivialBytesPerRow(1024, VDEPTH_1BIT), VDEPTH_1BIT);
-				add_mode(1152, 870, 0x84, TrivialBytesPerRow(1152, VDEPTH_1BIT), VDEPTH_1BIT);
-				add_mode(1280, 1024, 0x85, TrivialBytesPerRow(1280, VDEPTH_1BIT), VDEPTH_1BIT);
-				add_mode(1600, 1200, 0x86, TrivialBytesPerRow(1600, VDEPTH_1BIT), VDEPTH_1BIT);
-			}
+			if (default_depth != VDEPTH_1BIT)
+				add_window_modes(VDEPTH_1BIT);	// 1-bit modes are always available
 #ifdef ENABLE_VOSF
-			if (default_depth > VDEPTH_8BIT) { // 8-bit modes are also possible on 16/32-bit screens with VOSF blitters
-				add_mode(512, 384, 0x80, TrivialBytesPerRow(512, VDEPTH_8BIT), VDEPTH_8BIT);
-				add_mode(640, 480, 0x81, TrivialBytesPerRow(640, VDEPTH_8BIT), VDEPTH_8BIT);
-				add_mode(800, 600, 0x82, TrivialBytesPerRow(800, VDEPTH_8BIT), VDEPTH_8BIT);
-				add_mode(1024, 768, 0x83, TrivialBytesPerRow(1024, VDEPTH_8BIT), VDEPTH_8BIT);
-				add_mode(1152, 870, 0x84, TrivialBytesPerRow(1152, VDEPTH_8BIT), VDEPTH_8BIT);
-				add_mode(1280, 1024, 0x85, TrivialBytesPerRow(1280, VDEPTH_8BIT), VDEPTH_8BIT);
-				add_mode(1600, 1200, 0x86, TrivialBytesPerRow(1600, VDEPTH_8BIT), VDEPTH_8BIT);
+			if (default_depth > VDEPTH_8BIT) {
+				add_window_modes(VDEPTH_2BIT);	// 2, 4 and 8-bit modes are also possible on 16/32-bit screens with VOSF blitters
+				add_window_modes(VDEPTH_4BIT);
+				add_window_modes(VDEPTH_8BIT);
 			}
 #endif
-			add_mode(512, 384, 0x80, TrivialBytesPerRow(512, default_depth), default_depth);
-			add_mode(640, 480, 0x81, TrivialBytesPerRow(640, default_depth), default_depth);
-			add_mode(800, 600, 0x82, TrivialBytesPerRow(800, default_depth), default_depth);
-			add_mode(1024, 768, 0x83, TrivialBytesPerRow(1024, default_depth), default_depth);
-			add_mode(1152, 870, 0x84, TrivialBytesPerRow(1152, default_depth), default_depth);
-			add_mode(1280, 1024, 0x85, TrivialBytesPerRow(1280, default_depth), default_depth);
-			add_mode(1600, 1200, 0x86, TrivialBytesPerRow(1600, default_depth), default_depth);
+			add_window_modes(default_depth);
 		}
 	} else
 		add_mode(default_width, default_height, 0x80, TrivialBytesPerRow(default_width, default_depth), default_depth);
@@ -1444,16 +1439,14 @@ void VideoInterrupt(void)
  *  Set palette
  */
 
-void video_set_palette(uint8 *pal)
+void video_set_palette(uint8 *pal, int num_in)
 {
 	LOCK_PALETTE;
 
 	// Convert colors to XColor array
-	int num_in = 256, num_out = 256;
-	if (VideoMonitor.mode.depth == VDEPTH_16BIT)
-		num_in = 32;
+	int num_out = 256;
 	if (IsDirectMode(VideoMonitor.mode)) {
-		// If X is in 565 mode we have to stretch the palette from 32 to 64 entries
+		// If X is in 565 mode we have to stretch the gamma table from 32 to 64 entries
 		num_out = vis->map_entries;
 	}
 	XColor *p = palette;
@@ -1471,8 +1464,10 @@ void video_set_palette(uint8 *pal)
 #ifdef ENABLE_VOSF
 	// Recalculate pixel color expansion map
 	if (!IsDirectMode(VideoMonitor.mode) && (vis->c_class == TrueColor || vis->c_class == DirectColor)) {
-		for (int i=0; i<256; i++)
-			ExpandMap[i] = map_rgb(pal[i*3+0], pal[i*3+1], pal[i*3+2]);
+		for (int i=0; i<256; i++) {
+			int c = i % num_in; // If there are less than 256 colors, we repeat the first entries (this makes color expansion easier)
+			ExpandMap[i] = map_rgb(pal[c*3+0], pal[c*3+1], pal[c*3+2]);
+		}
 
 		// We have to redraw everything because the interpretation of pixel values changed
 		LOCK_VOSF;
