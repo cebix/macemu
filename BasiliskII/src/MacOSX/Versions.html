@@ -72,8 +72,7 @@ Versions of MacOS X port of Basilisk II:
 		<LI>HowTo now displayed by default web browser (as it contains links)</LI>
 		<LI>Project Builder defaults so that debug symbols are not included</LI>
 	</UL></LI>
-<LI>Now built on 10.3 and Xcode. Fixes a problem where the binary would always display
-	a black screen on 10.3 (and sometimes on other versions, too). Also adds:
+<LI>Now built on 10.3 and Xcode. Also adds:
 	<UL>
 		<LI>Xcode project files</LI>
 		<LI>Initial floppy and serial port locating code</LI>
@@ -81,6 +80,18 @@ Versions of MacOS X port of Basilisk II:
 			(some users didn't understand what the triangle button meant)</LI>
 		<LI>Signal handling for crash protection
 			(thanks to Mike Sliczniak's hard work)</LI>
+	</UL>
+</LI>
+<LI>Now distributed as two applications; the usual one (which should be faster),
+	and one for emulating a Mac Classic (which may also help the 10.2/10.3 users
+	who are having problems with a black screen at startup). The difference is
+	that the "classic" version uses virtual or "banks" memory addressing.
+	Fixed:
+	<UL>
+		<LI>Loading of ROM or disk images from directories or filenames which
+			contain non-ASCII characters</LI>
+		<LI>Floppy locating code. It can't actually access a floppy, but at
+			least it now won't add the cdrom multiple times</LI>
 	</UL>
 </LI>
 </OL>
