@@ -1,3 +1,7 @@
+V0.8 (release 0.8-1) - 30.Jan.2000
+	- extfs: extended size of finf helper files to 32 bytes to eventually
+	  allow storing the complete FInfo/FXInfo in it
+
 V0.8 (snapshot) - 22.Dec.1999
 	- imported UAE CPU 0.8.10 changes
 	- new utility functions Mac_memset, Mac2Host_memcpy, Host2Mac_memcpu
