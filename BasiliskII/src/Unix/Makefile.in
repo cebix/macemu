@@ -11,6 +11,8 @@ datadir = @datadir@
 mandir = @mandir@
 man1dir = $(mandir)/man1
 
+KEYCODES = @KEYCODES@
+
 DESTDIR =
 
 CC = @CC@
@@ -70,7 +72,7 @@ modules:
 install: $(APP) installdirs
 	$(INSTALL_PROGRAM) $(APP) $(DESTDIR)$(bindir)/$(APP)
 	-$(INSTALL_DATA) $(APP).1 $(DESTDIR)$(man1dir)/$(APP).1
-	$(INSTALL_DATA) keycodes $(DESTDIR)$(datadir)/$(APP)/keycodes
+	$(INSTALL_DATA) $(KEYCODES) $(DESTDIR)$(datadir)/$(APP)/keycodes
 	$(INSTALL_DATA) fbdevices $(DESTDIR)$(datadir)/$(APP)/fbdevices
 	$(INSTALL_DATA) tunconfig $(DESTDIR)$(datadir)/$(APP)/tunconfig
 

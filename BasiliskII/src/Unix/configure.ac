@@ -420,8 +420,10 @@ fi
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   VIDEOSRCS="../SDL/video_sdl.cpp ../dummy/clip_dummy.cpp"
   AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support])
+  KEYCODES="../SDL/keycodes"
 else
   VIDEOSRCS="video_x.cpp clip_unix.cpp"
+  KEYCODES="keycodes"
 fi
 
 dnl Use 68k CPU natively?
@@ -1235,6 +1237,7 @@ AC_SUBST(SYSSRCS)
 AC_SUBST(CPUINCLUDES)
 AC_SUBST(CPUSRCS)
 AC_SUBST(BLESS)
+AC_SUBST(KEYCODES)
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
 
