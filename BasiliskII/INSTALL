@@ -38,6 +38,10 @@ Windows:
   somewhat reduced set of features. Basilisk II supports DirectX version 5 or
   later, but version 3 may also work, depending on your graphics card.
 
+Mac OS X:
+  Versions 10.0 thru 10.2 can be used, and 10.3 will probably be no problem.
+  (OS X public beta is not supported by the current executable or source code,
+   but if you really need to use it, I can provide versions that will work)
 
 Installation
 ------------
@@ -143,6 +147,12 @@ Windows NT:
   to the "\Windows\System" directory. To recompile Basilisk II, you need
   MS Visual V++ 5.0 or later. Symantec C++ should work, too, with some
   modifications. See the "sysdeps.h" file in the "Windows" directory.
+
+Mac OS X:
+  If you have the prebuilt application, there is nothing to do.
+  If you have the developer tools installed, and want to built it yourself,
+  look in the file src/MacOSX/0_HOW_TO_BUILD.txt
+
 
 The ROM file has to be named "ROM" and put in the same directory as the
 Basilisk II executable but you can specify a different location for the ROM
