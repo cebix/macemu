@@ -453,6 +453,7 @@ void *powerpc_cpu::compile_chain_block(block_info *sbi)
 
 void powerpc_cpu::execute(uint32 entry)
 {
+	bool invalidated_cache = false;
 	pc() = entry;
 #if PPC_EXECUTE_DUMP_STATE
 	const bool dump_state = true;
@@ -477,6 +478,7 @@ void powerpc_cpu::execute(uint32 entry)
 						// Force redecoding if cache was invalidated
 						if (spcflags().test(SPCFLAG_JIT_EXEC_RETURN)) {
 							spcflags().clear(SPCFLAG_JIT_EXEC_RETURN);
+							invalidated_cache = true;
 							break;
 						}
 					}
@@ -585,6 +587,7 @@ void powerpc_cpu::execute(uint32 entry)
 					// Force redecoding if cache was invalidated
 					if (spcflags().test(SPCFLAG_JIT_EXEC_RETURN)) {
 						spcflags().clear(SPCFLAG_JIT_EXEC_RETURN);
+						invalidated_cache = true;
 						break;
 					}
 				}
@@ -620,6 +623,9 @@ void powerpc_cpu::execute(uint32 entry)
 			goto return_site;
 	}
   return_site:
+	// Tell upper level we invalidated cache?
+	if (invalidated_cache)
+		spcflags().set(SPCFLAG_JIT_EXEC_RETURN);
 	--execute_depth;
 }
 
@@ -705,6 +711,7 @@ void powerpc_cpu::invalidate_cache_range(uintptr start, uintptr end)
 		D(bug("    at page boundaries [%08x - %08x]\n", start, end));
 	}
 #endif
+	spcflags().set(SPCFLAG_JIT_EXEC_RETURN);
 	block_cache.clear_range(start, end);
 #endif
 }
