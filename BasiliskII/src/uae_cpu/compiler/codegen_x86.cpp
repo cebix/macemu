@@ -3933,23 +3933,54 @@ static __inline__ void tos_make(int r)
     emit_byte(0xd8+(live.tos+1)-live.spos[r]);  /* store top of stack in reg, 
 					 and pop it*/
 }
-    
-	
+
+/* FP helper functions */
+#if USE_NEW_RTASM
+#define DEFINE_OP(NAME, GEN)			\
+static inline void raw_##NAME(uint32 m)		\
+{						\
+    GEN(m, X86_NOREG, X86_NOREG, 1);		\
+}
+DEFINE_OP(fstl,  FSTLm);
+DEFINE_OP(fstpl, FSTPLm);
+DEFINE_OP(fldl,  FLDLm);
+DEFINE_OP(fildl, FILDLm);
+DEFINE_OP(fistl, FISTLm);
+DEFINE_OP(flds,  FLDSm);
+DEFINE_OP(fsts,  FSTSm);
+DEFINE_OP(fstpt, FSTPTm);
+DEFINE_OP(fldt,  FLDTm);
+#else
+#define DEFINE_OP(NAME, OP1, OP2)		\
+static inline void raw_##NAME(uint32 m)		\
+{						\
+    emit_byte(OP1);				\
+    emit_byte(OP2);				\
+    emit_long(m);				\
+}
+DEFINE_OP(fstl,  0xdd, 0x15);
+DEFINE_OP(fstpl, 0xdd, 0x1d);
+DEFINE_OP(fldl,  0xdd, 0x05);
+DEFINE_OP(fildl, 0xdb, 0x05);
+DEFINE_OP(fistl, 0xdb, 0x15);
+DEFINE_OP(flds,  0xd9, 0x05);
+DEFINE_OP(fsts,  0xd9, 0x15);
+DEFINE_OP(fstpt, 0xdb, 0x3d);
+DEFINE_OP(fldt,  0xdb, 0x2d);
+#endif
+#undef DEFINE_OP
+
 LOWFUNC(NONE,WRITE,2,raw_fmov_mr,(MEMW m, FR r))
 {
     make_tos(r);
-    emit_byte(0xdd);
-    emit_byte(0x15);
-    emit_long(m);
+    raw_fstl(m);
 }
 LENDFUNC(NONE,WRITE,2,raw_fmov_mr,(MEMW m, FR r))
 
 LOWFUNC(NONE,WRITE,2,raw_fmov_mr_drop,(MEMW m, FR r))
 {
     make_tos(r);
-    emit_byte(0xdd);
-    emit_byte(0x1d);
-    emit_long(m);
+    raw_fstpl(m);
     live.onstack[live.tos]=-1;
     live.tos--;
     live.spos[r]=-2;
@@ -3958,18 +3989,14 @@ LENDFUNC(NONE,WRITE,2,raw_fmov_mr,(MEMW m, FR r))
 
 LOWFUNC(NONE,READ,2,raw_fmov_rm,(FW r, MEMR m))
 {
-    emit_byte(0xdd);
-    emit_byte(0x05);
-    emit_long(m);
+    raw_fldl(m);
     tos_make(r);
 }
 LENDFUNC(NONE,READ,2,raw_fmov_rm,(FW r, MEMR m))
 
 LOWFUNC(NONE,READ,2,raw_fmovi_rm,(FW r, MEMR m))
 {
-    emit_byte(0xdb);
-    emit_byte(0x05);
-    emit_long(m);
+    raw_fildl(m);
     tos_make(r);
 }
 LENDFUNC(NONE,READ,2,raw_fmovi_rm,(FW r, MEMR m))
@@ -3977,17 +4004,13 @@ LENDFUNC(NONE,READ,2,raw_fmovi_rm,(FW r, MEMR m))
 LOWFUNC(NONE,WRITE,2,raw_fmovi_mr,(MEMW m, FR r))
 {
     make_tos(r);
-    emit_byte(0xdb);
-    emit_byte(0x15);
-    emit_long(m);
+    raw_fistl(m);
 }
 LENDFUNC(NONE,WRITE,2,raw_fmovi_mr,(MEMW m, FR r))
 
 LOWFUNC(NONE,READ,2,raw_fmovs_rm,(FW r, MEMR m))
 {
-    emit_byte(0xd9);
-    emit_byte(0x05);
-    emit_long(m);
+    raw_flds(m);
     tos_make(r);
 }
 LENDFUNC(NONE,READ,2,raw_fmovs_rm,(FW r, MEMR m))
@@ -3995,9 +4018,7 @@ LENDFUNC(NONE,READ,2,raw_fmovs_rm,(FW r, MEMR m))
 LOWFUNC(NONE,WRITE,2,raw_fmovs_mr,(MEMW m, FR r))
 {
     make_tos(r);
-    emit_byte(0xd9);
-    emit_byte(0x15);
-    emit_long(m);
+    raw_fsts(m);
 }
 LENDFUNC(NONE,WRITE,2,raw_fmovs_mr,(MEMW m, FR r))
 
@@ -4012,9 +4033,7 @@ LOWFUNC(NONE,WRITE,2,raw_fmov_ext_mr,(MEMW m, FR r))
     emit_byte(0xd9);     /* Get a copy to the top of stack */
     emit_byte(0xc0+rs);
 
-    emit_byte(0xdb);  /* store and pop it */
-    emit_byte(0x3d);
-    emit_long(m);
+    raw_fstpt(m);	/* store and pop it */
 }
 LENDFUNC(NONE,WRITE,2,raw_fmov_ext_mr,(MEMW m, FR r))
 
@@ -4023,9 +4042,7 @@ LOWFUNC(NONE,WRITE,2,raw_fmov_ext_mr_drop,(MEMW m, FR r))
     int rs;
 
     make_tos(r);
-    emit_byte(0xdb);  /* store and pop it */
-    emit_byte(0x3d);
-    emit_long(m);
+    raw_fstpt(m);	/* store and pop it */
     live.onstack[live.tos]=-1;
     live.tos--;
     live.spos[r]=-2;
@@ -4034,9 +4051,7 @@ LENDFUNC(NONE,WRITE,2,raw_fmov_ext_mr,(MEMW m, FR r))
 
 LOWFUNC(NONE,READ,2,raw_fmov_ext_rm,(FW r, MEMR m))
 {
-    emit_byte(0xdb);
-    emit_byte(0x2d);
-    emit_long(m);
+    raw_fldt(m);
     tos_make(r);
 }
 LENDFUNC(NONE,READ,2,raw_fmov_ext_rm,(FW r, MEMR m))

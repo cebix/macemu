@@ -92,7 +92,7 @@ static void fpuop_illg(uae_u32 opcode, uae_u32 extra)
 	op_illg(opcode);
 }   
 
-uae_s32 temp_fp[3];  /* To convert between FP/integer */
+uae_s32 temp_fp[4];  /* To convert between FP/integer */
 
 /* return register number, or -1 for failure */
 STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra)
