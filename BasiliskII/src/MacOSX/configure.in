@@ -11,6 +11,14 @@ AC_INIT(main_macosx.mm)
 AC_PREREQ(2.12)
 AC_CONFIG_HEADER(config.h)
 
+dnl Aliases for PACKAGE and VERSION macros.
+AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE_NAME", [Define this program name.])
+AC_DEFINE_UNQUOTED(VERSION, "$PACKAGE_VERSION", [Define this program version.])
+
+dnl Some systems do not put corefiles in the currect directory, avoid saving
+dnl cores for the configure tests since some are intended to dump core.
+ulimit -c 0
+
 dnl Video options.
 AC_ARG_ENABLE(multiwin,
 [  --enable-multiwin	allow multiple emulator windows [default=no]], [ENABLE_MULTIPLE=$enableval], [ENABLE_MULTIPLE=no])
@@ -137,7 +145,7 @@ AC_SYS_LARGEFILE
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(unistd.h fcntl.h sys/time.h sys/mman.h)
+AC_CHECK_HEADERS(unistd.h fcntl.h sys/types.h sys/time.h sys/mman.h mach/mach.h)
 AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -153,11 +161,12 @@ AC_CHECK_SIZEOF(double, 8)
 AC_CHECK_SIZEOF(long double, 12)
 AC_CHECK_SIZEOF(void *, 4)
 AC_TYPE_OFF_T
-dnl These two symbols are not defined in 10.1's autoconf files:
+dnl These two symbols are not defined in 10.1's autoconf:
 dnl AC_CHECK_TYPE(loff_t, off_t)
 dnl AC_CHECK_TYPE(caddr_t, [char *])
-dnl which causes problems for autoheader.
 dnl We define loff_t as a typedef of off_t in sysdeps.h if we don't have LOFF_T
+dnl OS X does have caddr_t, but the above check doesn't work, so we have to do:
+AC_DEFINE(HAVE_CADDR_T, 1, [The type "caddr_t" does exist on MacOS X.])
 AC_TYPE_SIZE_T
 AC_TYPE_SIGNAL
 AC_HEADER_TIME
@@ -191,7 +200,8 @@ dnl Darwin seems to define mach_task_self() instead of task_self().
 AC_CHECK_FUNCS(mach_task_self task_self)
 
 dnl Select system-dependant source files.
-DEFINES="$DEFINES -DBSD_COMP"
+  DEFINES="$DEFINES -DBSD_COMP"
+  CXXFLAGS="$CXXFLAGS -fpermissive"
   dnl Check for the CAM library
   AC_CHECK_LIB(cam, cam_open_btl, HAVE_LIBCAM=yes, HAVE_LIBCAM=no) 
   if [[ "x$HAVE_LIBCAM" = "xno" ]]; then
@@ -476,8 +486,8 @@ AC_CACHE_CHECK([whether your system supports Mach exceptions],
   AC_TRY_RUN([
     #define HAVE_MACH_EXCEPTIONS 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "vm_alloc.cpp"
-    #include "sigsegv.cpp"
+    #include "../Unix/vm_alloc.cpp"
+    #include "../Unix/sigsegv.cpp"
   ], [
   sigsegv_recovery=mach
   ac_cv_have_mach_exceptions=yes
@@ -518,31 +528,30 @@ if [[ -z "$sigsegv_recovery" ]]; then
     [Define if your system support extended signals.])
 fi
 
-dnl This program never returns (exits) on OS X
 dnl Otherwise, check for subterfuges.
-dnl if [[ "x$ac_cv_have_extended_signals" = "xno" ]]; then
-dnl   AC_CACHE_CHECK([whether we then have a subterfuge for your system],
-dnl   ac_cv_have_sigcontext_hack, [
-dnl     AC_LANG_SAVE
-dnl     AC_LANG_CPLUSPLUS
-dnl     AC_TRY_RUN([
-dnl       #define HAVE_SIGCONTEXT_SUBTERFUGE 1
-dnl       #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-dnl       #include "../Unix/vm_alloc.cpp"
-dnl       #include "../Unix/sigsegv.cpp"
-dnl     ], [
-dnl     sigsegv_recovery=sigcontext
-dnl     ac_cv_have_sigcontext_hack=yes
-dnl     ],
-dnl     ac_cv_have_sigcontext_hack=no,
-dnl     dnl When cross-compiling, do not assume anything.
-dnl     ac_cv_have_sigcontext_hack=no
-dnl     )
-dnl     AC_LANG_RESTORE
-dnl   ])
-dnl   AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack",
-dnl     [Define if we know a hack to replace siginfo_t->si_addr member.])
-dnl fi
+if [[ -z  "$sigsegv_recovery" ]]; then
+  AC_CACHE_CHECK([whether we then have a subterfuge for your system],
+  ac_cv_have_sigcontext_hack, [
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
+   AC_TRY_RUN([
+      #define HAVE_SIGCONTEXT_SUBTERFUGE 1
+      #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+      #include "../Unix/vm_alloc.cpp"
+      #include "../Unix/sigsegv.cpp"
+    ], [
+    sigsegv_recovery=sigcontext
+    ac_cv_have_sigcontext_hack=yes
+    ],
+    ac_cv_have_sigcontext_hack=no,
+    dnl When cross-compiling, do not assume anything.
+    ac_cv_have_sigcontext_hack=no
+    )
+    AC_LANG_RESTORE
+  ])
+  AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack",
+    [Define if we know a hack to replace siginfo_t->si_addr member.])
+fi
 
 dnl Check if we can ignore the fault (instruction skipping in SIGSEGV handler)
 AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
@@ -594,6 +603,7 @@ else
       ADDRESSING_MODE="real"
       WANT_VOSF=yes dnl we can use VOSF and we need it actually
       DEFINES="$DEFINES -DREAL_ADDRESSING"
+      AC_DEFINE(REAL_ADDRESSING, 1, [Emulated memory is memory mapped to actual address.])
       if [[ "x$ac_cv_pagezero_hack" = "xyes" ]]; then
         BLESS=Darwin/lowmem
         LDFLAGS="$LDFLAGS -pagezero_size 0x2000"
@@ -606,6 +616,7 @@ else
         ADDRESSING_MODE="direct"
         WANT_VOSF=yes dnl we can use VOSF and we need it actually
         DEFINES="$DEFINES -DDIRECT_ADDRESSING"
+        AC_DEFINE(DIRECT_ADDRESSING, 1, [Emulated memory is an offset from actual address.])
         break
       fi
       ;;
@@ -920,6 +931,7 @@ for fpe in $FPE_CORE_TEST_ORDER; do
     IEEE*)
       FPE_CORE="IEEE fpu core"
       DEFINES="$DEFINES -DFPU_IEEE"
+      AC_DEFINE(FPU_IEEE, 1, [Floating Point Core emulation method is IEEE.])
       FPUSRCS="../uae_cpu/fpu/fpu_ieee.cpp"
       dnl Math functions not mandated by C99 standard
       AC_CHECK_FUNCS(isnanl isinfl)
@@ -945,6 +957,7 @@ for fpe in $FPE_CORE_TEST_ORDER; do
   uae)
     FPE_CORE="uae fpu core"
     DEFINES="$DEFINES -DFPU_UAE"
+    AC_DEFINE(FPU_UAE, 1, [Floating Point Core emulation is standard UAE.])
     FPUSRCS="../uae_cpu/fpu/fpu_uae.cpp"
     break
     ;;
