@@ -1,6 +1,8 @@
 /* This should eventually end up in machdep/, but for now, x86 is the
    only target, and it's easier this way... */
 
+#include "flags_x86.h"
+
 /*************************************************************************
  * Some basic information about the the target CPU                       *
  *************************************************************************/
@@ -1719,6 +1721,15 @@ LOWFUNC(WRITE,NONE,2,raw_cmp_w,(R2 d, R2 s))
 }
 LENDFUNC(WRITE,NONE,2,raw_cmp_w,(R2 d, R2 s))
 
+LOWFUNC(WRITE,READ,2,raw_cmp_b_mi,(MEMR d, IMM s))
+{
+    emit_byte(0x80);
+    emit_byte(0x3d);
+    emit_long(d);
+    emit_byte(s);
+}
+LENDFUNC(WRITE,READ,2,raw_cmp_l_mi,(MEMR d, IMM s))
+
 LOWFUNC(WRITE,NONE,2,raw_cmp_b_ri,(R1 d, IMM i))
 {
   if (optimize_accum && isaccum(d))
@@ -1891,6 +1902,22 @@ static __inline__ void raw_call_r(R4 r)
 {
     emit_byte(0xff);
     emit_byte(0xd0+r);
+}
+
+static __inline__ void raw_call_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
+{
+    int mu;
+    switch(m) {
+     case 1: mu=0; break;
+     case 2: mu=1; break;
+     case 4: mu=2; break;
+     case 8: mu=3; break;
+     default: abort();
+    }
+    emit_byte(0xff);
+    emit_byte(0x14);
+    emit_byte(0x05+8*r+0x40*mu);
+    emit_long(base);
 }
 
 static __inline__ void raw_jmp_r(R4 r)
