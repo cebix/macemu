@@ -392,7 +392,7 @@ static NSPoint	mouse;			// Previous/current mouse location
 
 #if DEBUG
 	NSLog(@"In drawRect");
-	[self randomise];
+	//[self randomise];
 #endif
 
 #ifdef NSBITMAP
@@ -412,7 +412,7 @@ static NSPoint	mouse;			// Previous/current mouse location
 //
 
 #ifdef CGDRAWBITMAP
-extern "C" void CGDrawBitmap();
+extern "C" void CGDrawBitmap(...);
 
 - (void) CGDrawBitmap
 {
