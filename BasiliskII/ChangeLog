@@ -26,6 +26,12 @@ V0.9 (snapshot) - <date>
 	  FInfo/FXInfo, replaced get/set_finder_*() functions by get/set_finfo()
 	- AmigaOS/Unix: it's possible to specify preferences items on the
 	  command line
+	- BeOS: implemented the "powerrom_cpu" CPU engine for BeOS/PPC that
+	  uses the 680x0 emulator contained in an Apple PowerMac ROM to run
+	  Basilisk II (ca. 4x speed improvement); when running on a BeBox,
+	  a PCI PowerMac ROM image is needed to use this (the path name of the
+	  ROM file can be set with the preferences item "powerrom", default
+	  is "PowerROM")
 	- include/macos_util.h: defines FOURCC() macro to make MacOS-like
 	  four-character-codes, replaced most instances of multi-character
 	  constants in the sources by this macro to avoid compiler warnings

@@ -16,10 +16,7 @@ ROM files. No, I won't send you one.
 Depending on the platform you use, Basilisk II has additional requirements:
 
 BeOS:
-  You need BeOS R4 or better. On a PowerPC system you also need the
-  "sheep" driver that comes with SheepShaver. To use Ethernet, you need
-  the "sheep_net" add-on that also comes with SheepShaver (both items
-  are included in the SheepShaver Trial Versions). The PowerPC version of
+  You need BeOS R4 or better.
   Basilisk II cannot do Mac Classic emulation.
 
 Unix:
@@ -47,18 +44,25 @@ Installation
 
 BeOS:
   If you have a binary distribution of Basilisk II for BeOS, there are
-  executables for BeOS/PPC and/or BeOS/x86 included. If you have the source
-  distribution, do the following:
+  executables for BeOS/PPC and/or BeOS/x86 included. Basilisk II cannot run
+  concurrently with SheepShaver. Trying to do so will crash Basilisk II, or
+  SheepShaver, or both.
+
+  If you have the source distribution, do the following:
 
     cd src/BeOS
     make
 
   This will produce an executable "BasiliskII" in the "obj.ppc" or "obj.x86"
-  directory. Basilisk II cannot run concurrently with SheepShaver. Trying to
-  do so will crash Basilisk II, or SheepShaver, or both. On a PowerPC system
-  you must have installed the "sheep" driver that comes with SheepShaver. To
-  use Ethernet, you must have installed the "sheep_net" add-on that also comes
-  with SheepShaver 
+  directory. To use Ethernet, you also have to do:
+
+    cd SheepNet
+    make install
+
+  On a PowerPC system, you also have to do:
+
+    cd SheepDriver
+    make install
 
 Unix:
   To compile Basilisk II, do the following:
@@ -136,9 +140,10 @@ AmigaOS:
   following:
 
     cd src/AmigaOS
-    smake
+    make
 
-  To recompile Basilisk II, you need SAS/C 6.58. Earlier versions may not work.
+  To recompile Basilisk II, you need the GeekGadgets development suite and
+  PhxAss (which can be found on Aminet).
 
 Windows NT:
   If you have a binary distribution of Basilisk II for Windows, there is a
