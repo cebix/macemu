@@ -662,46 +662,126 @@ PRIVATE inline uae_u32 FFPU get_quotient_sign(fpu_register const & ra, fpu_regis
 /* -------------------------------------------------------------------------- */
 
 #if FPU_USE_ISO_C99 && USE_LONG_DOUBLE
-# define fp_log		logl
-# define fp_log10	log10l
-# define fp_exp		expl
-# define fp_pow		powl
-# define fp_fabs	fabsl
-# define fp_sqrt	sqrtl
-# define fp_sin		sinl
-# define fp_cos		cosl
-# define fp_tan		tanl
-# define fp_sinh	sinhl
-# define fp_cosh	coshl
-# define fp_tanh	tanhl
-# define fp_asin	asinl
-# define fp_acos	acosl
-# define fp_atan	atanl
-# define fp_asinh	asinhl
-# define fp_acosh	acoshl
-# define fp_atanh	atanhl
-# define fp_floor	floorl
-# define fp_ceil	ceill
-#else
+# ifdef HAVE_LOGL
+#  define fp_log	logl
+# endif
+# ifdef HAVE_LOG10L
+#  define fp_log10	log10l
+# endif
+# ifdef HAVE_EXPL
+#  define fp_exp	expl
+# endif
+# ifdef HAVE_POWL
+#  define fp_pow	powl
+# endif
+# ifdef HAVE_FABSL
+#  define fp_fabs	fabsl
+# endif
+# ifdef HAVE_SQRTL
+#  define fp_sqrt	sqrtl
+# endif
+# ifdef HAVE_SINL
+#  define fp_sin	sinl
+# endif
+# ifdef HAVE_COSL
+#  define fp_cos	cosl
+# endif
+# ifdef HAVE_TANL
+#  define fp_tan	tanl
+# endif
+# ifdef HAVE_SINHL
+#  define fp_sinh	sinhl
+# endif
+# ifdef HAVE_COSHL
+#  define fp_cosh	coshl
+# endif
+# ifdef HAVE_TANHL
+#  define fp_tanh	tanhl
+# endif
+# ifdef HAVE_ASINL
+#  define fp_asin	asinl
+# endif
+# ifdef HAVE_ACOSL
+#  define fp_acos	acosl
+# endif
+# ifdef HAVE_ATANL
+#  define fp_atan	atanl
+# endif
+# ifdef HAVE_ASINHL
+#  define fp_asinh	asinhl
+# endif
+# ifdef HAVE_ACOSHL
+#  define fp_acosh	acoshl
+# endif
+# ifdef HAVE_ATANHL
+#  define fp_atanh	atanhl
+# endif
+# ifdef HAVE_FLOORL
+#  define fp_floor	floorl
+# endif
+# ifdef HAVE_CEILL
+#  define fp_ceil	ceill
+# endif
+#endif
+
+#ifndef fp_log
 # define fp_log		log
+#endif
+#ifndef fp_log10
 # define fp_log10	log10
+#endif
+#ifndef fp_exp
 # define fp_exp		exp
+#endif
+#ifndef fp_pow
 # define fp_pow		pow
+#endif
+#ifndef fp_fabs
 # define fp_fabs	fabs
+#endif
+#ifndef fp_sqrt
 # define fp_sqrt	sqrt
+#endif
+#ifndef fp_sin
 # define fp_sin		sin
+#endif
+#ifndef fp_cos
 # define fp_cos		cos
+#endif
+#ifndef fp_tan
 # define fp_tan		tan
+#endif
+#ifndef fp_sinh
 # define fp_sinh	sinh
+#endif
+#ifndef fp_cosh
 # define fp_cosh	cosh
+#endif
+#ifndef fp_tanh
 # define fp_tanh	tanh
+#endif
+#ifndef fp_asin
 # define fp_asin	asin
+#endif
+#ifndef fp_acos
 # define fp_acos	acos
+#endif
+#ifndef fp_atan
 # define fp_atan	atan
+#endif
+#ifndef fp_asinh
 # define fp_asinh	asinh
+#endif
+#ifndef fp_acosh
 # define fp_acosh	acosh
+#endif
+#ifndef fp_atanh
 # define fp_atanh	atanh
+#endif
+#ifndef fp_floor
 # define fp_floor	floor
+#endif
+#ifndef fp_ceil
 # define fp_ceil	ceil
 #endif
 
