@@ -136,7 +136,6 @@ typedef uae_f96 fpu_register;
 #elif SIZEOF_LONG_DOUBLE == 16
 typedef long double uae_f128;
 typedef uae_f128 fpu_register;
-#define USE_LONG_DOUBLE 1
 #define USE_QUAD_DOUBLE 1
 #else
 typedef uae_f64 fpu_register;

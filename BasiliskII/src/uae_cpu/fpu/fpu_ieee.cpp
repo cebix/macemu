@@ -1591,7 +1591,7 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 				FPU registers[reg] = 1.0e256;
 				fpu_debug(("FP const: 1.0e256\n"));
 				break;
-#if USE_LONG_DOUBLE
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
 			case 0x3c:
 				FPU registers[reg] = 1.0e512;
 				fpu_debug(("FP const: 1.0e512\n"));
@@ -1967,7 +1967,10 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 				// an overflow or underflow always results.
 				// Here (int) cast is okay.
 				int scale_factor = (int)fp_round_to_zero(src);
-#ifndef USE_LONG_DOUBLE
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
+				fp_declare_init_shape(sxp, FPU registers[reg], extended);
+				sxp->ieee.exponent += scale_factor;
+#else
 				fp_declare_init_shape(sxp, FPU registers[reg], double);
 				uae_u32 exp = sxp->ieee.exponent + scale_factor;
 				if (exp < FP_EXTENDED_EXP_BIAS - FP_DOUBLE_EXP_BIAS)
@@ -1977,9 +1980,6 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 				else
 					exp += FP_DOUBLE_EXP_BIAS - FP_EXTENDED_EXP_BIAS;
 				sxp->ieee.exponent = exp;
-#else
-				fp_declare_init_shape(sxp, FPU registers[reg], extended);
-				sxp->ieee.exponent += scale_factor;
 #endif
 			}
 			else if (fl_source.infinity) {
