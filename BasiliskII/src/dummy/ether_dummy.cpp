@@ -52,6 +52,7 @@ static bool udp_tunnel_active = false;
 
 bool ether_init(void)
 {
+	return true;
 }
 
 
