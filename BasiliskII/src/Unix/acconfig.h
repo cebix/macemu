@@ -80,6 +80,17 @@
 /* Define if libgnomeui is available */
 #undef HAVE_GNOMEUI
 
+/* Additions from openssh-3.2.2p1, for sshpty.c */
+/* Define if you are on NEWS-OS */
+#undef HAVE_NEWS4
+
+/* Define if you have /dev/ptmx */
+#undef HAVE_DEV_PTMX
+
+/* Define if you have /dev/ptc */
+#undef HAVE_DEV_PTS_AND_PTC
+
+
 
 /* Leave that blank line there!!  Autoheader needs it.
    If you're adding to this file, keep in mind:

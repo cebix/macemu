@@ -61,6 +61,9 @@ struct sigstate {
 # include <X11/extensions/xf86dga.h>
 #endif
 
+#include <string>
+using std::string;
+
 #include "cpu_emulation.h"
 #include "sys.h"
 #include "rom_patches.h"
@@ -226,11 +229,15 @@ static void sigsegv_dump_state(sigsegv_address_t fault_address, sigsegv_address_
 
 static void usage(const char *prg_name)
 {
-	printf("Usage: %s [OPTION...]\n", prg_name);
-	printf("\nUnix options:\n");
-	printf("  --display STRING\n    X display to use\n");
-	printf("  --break ADDRESS\n    set ROM breakpoint\n");
-	printf("  --rominfo\n    dump ROM information\n");
+	printf(
+		"Usage: %s [OPTION...]\n"
+		"\nUnix options:\n"
+		"  --config FILE\n    read/write configuration from/to FILE\n"
+		"  --display STRING\n    X display to use\n"
+		"  --break ADDRESS\n    set ROM breakpoint\n"
+		"  --rominfo\n    dump ROM information\n", prg_name
+	);
+	LoadPrefs(); // read the prefs file so PrefsPrintUsage() will print the correct default values
 	PrefsPrintUsage();
 	exit(0);
 }
@@ -249,6 +256,47 @@ int main(int argc, char **argv)
 	printf(GetString(STR_ABOUT_TEXT1), VERSION_MAJOR, VERSION_MINOR);
 	printf(" %s\n", GetString(STR_ABOUT_TEXT2));
 
+	// Parse command line arguments
+	for (int i=1; i<argc; i++) {
+		if (strcmp(argv[i], "--help") == 0) {
+			usage(argv[0]);
+		} else if (strcmp(argv[i], "--display") == 0) {
+			i++; // don't remove the argument, gtk_init() needs it too
+			if (i < argc)
+				x_display_name = strdup(argv[i]);
+		} else if (strcmp(argv[i], "--break") == 0) {
+			argv[i++] = NULL;
+			if (i < argc) {
+				ROMBreakpoint = strtol(argv[i], NULL, 0);
+				argv[i] = NULL;
+			}
+		} else if (strcmp(argv[i], "--config") == 0) {
+			argv[i++] = NULL;
+			if (i < argc) {
+				extern string UserPrefsPath; // from prefs_unix.cpp
+				UserPrefsPath = argv[i];
+				argv[i] = NULL;
+			}
+		} else if (strcmp(argv[i], "--rominfo") == 0) {
+			argv[i] = NULL;
+			PrintROMInfo = true;
+		}
+	}
+
+	// Remove processed arguments
+	for (int i=1; i<argc; i++) {
+		int k;
+		for (k=i; k<argc; k++)
+			if (argv[k] != NULL)
+				break;
+		if (k > i) {
+			k -= i;
+			for (int j=i+k; j<argc; j++)
+				argv[j-k] = argv[j];
+			argc -= k;
+		}
+	}
+
 #ifdef ENABLE_GTK
 #ifdef HAVE_GNOMEUI
 	// Init GNOME/GTK
@@ -260,27 +308,14 @@ int main(int argc, char **argv)
 	gtk_set_locale();
 	gtk_init(&argc, &argv);
 #endif
-	x_display_name = gdk_get_display(); // gtk_init() handles and removes the "--display" argument
 #endif
 
 	// Read preferences
 	PrefsInit(argc, argv);
 
-	// Parse command line arguments
+	// Any command line arguments left?
 	for (int i=1; i<argc; i++) {
-		if (strcmp(argv[i], "--help") == 0) {
-			usage(argv[0]);
-		} else if (strcmp(argv[i], "--display") == 0) {
-			i++;
-			if (i < argc)
-				x_display_name = strdup(argv[i]);
-		} else if (strcmp(argv[i], "--break") == 0) {
-			i++;
-			if (i < argc)
-				ROMBreakpoint = strtol(argv[i], NULL, 0);
-		} else if (strcmp(argv[i], "--rominfo") == 0) {
-			PrintROMInfo = true;
-		} else if (argv[i][0] == '-') {
+		if (argv[i][0] == '-') {
 			fprintf(stderr, "Unrecognized option '%s'\n", argv[i]);
 			usage(argv[0]);
 		}

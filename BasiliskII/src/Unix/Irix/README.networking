@@ -1,0 +1,110 @@
+README file for networking under IRIX
+by Brian J. Johnson 7/23/2002
+version 1.0
+==================================================
+
+BasiliskII does not currently support networking natively on IRIX.
+That is, the emulated Ethernet card does not do anything.  There's no
+reason one couldn't use raw domain sockets and the snoop(7p) facility
+to do networking, but so far no one has written the required glue
+code.
+
+However, it is possible to do TCP/IP networking with BasiliskII on
+IRIX via PPP, by connecting an emulated serial port to the IRIX PPP
+daemon.  Here are the steps to set it up:
+
+
+Set up PPP on IRIX
+------------------
+
+You need root privileges to do this.
+
+First, make sure you have eoe.sw.ppp and eoe.sw.uucp installed:
+
+  IRIS# versions eoe.sw.ppp eoe.sw.uucp
+  I = Installed, R = Removed
+
+     Name                 Date        Description
+
+  I  eoe                  07/22/2002  IRIX Execution Environment, 6.5.17m
+  I  eoe.sw               07/22/2002  IRIX Execution Environment Software
+  I  eoe.sw.ppp           07/22/2002  Point-to-Point Protocol Software
+  I  eoe.sw.uucp          07/22/2002  UUCP Utilities
+
+If they aren't installed, install them from your distribution CDs.
+
+Next, pick IP addresses for the IRIX and MacOS sides of the PPP
+connection.  You may want to ask your local network administrator
+about this, but any two unused addresses on your local subnet should
+work.
+
+Edit /etc/ppp.conf and add these three lines:
+
+_NET_INCOMING
+	remotehost=<MacOS PPP IP address>
+	localhost=<IRIX PPP IP address>
+
+(Replace the angle brackets and the text in them with the appropriate
+IP addresses.)
+
+Next, make a script to set up the environment properly when invoking
+pppd from BasiliskII.  You can name this whatever you want; I chose
+/usr/etc/ppp-b2:
+
+IRIS# whoami
+root
+IRIS# cat < /usr/etc/ppp-b2
+#!/bin/sh
+export USER=_NET_INCOMING
+exec /usr/etc/ppp "$@"
+IRIS# chmod 4775 /usr/etc/ppp-b2
+
+Rewrite this in perl or python or C or whatever if you don't like
+setuid shell scripts.  The alternative is to run BasiliskII as root:
+pppd _must_ be run as root.
+
+
+Configure BasiliskII to start the PPP daemon
+--------------------------------------------
+
+Start up BasiliskII, and in the serial devices tab, enter:
+
+  |exec /usr/etc/ppp-b2
+
+Supply the name you used for the script you created.  Be sure to
+include the leading pipe symbol ("|").
+
+The "exec" causes your PPP startup script to replace the shell
+BasiliskII runs to interpret the command.  It's not strictly
+necessary, but cuts down on the number of extra processes hanging
+about.
+
+
+Install a PPP client on MacOS
+-----------------------------
+
+The details of this step will vary depending on your PPP client
+software.  Set it up for a "direct" connection, with no modem chatting
+or login scripting.  For instance, with FreePPP I set the "Connect:"
+item on the "Edit..." screen under the "Accounts" tab to "Directly".
+Be sure to select the correct serial port.  The serial port speed
+shouldn't matter (BasiliskII ignores it), but I set it to 115200 bps.
+
+Next, configure MacOS's TCP/IP stack.  If you're using Open Transport,
+Open the TCP/IP control panel and select "Using PPP Server" under the
+"Configure" item.  Copy IRIX's DNS client info. from /etc/resolv.conf
+to the control panel:  the addresses from the "nameserver" lines go in
+the "Name server addr.:"  box, and the domains from the "search" lines
+go in the "Search domains:" box.  The steps should be similar for
+MacTCP.
+
+Now fire up PPP.  Your PPP client should establish communication with
+the IRIX PPP daemon, and you're off and running.
+
+
+Disclaimer
+----------
+
+I haven't tried this procedure from scratch on a freshly installed
+system, so I might have missed a step somewhere.  But it should get
+you close....

@@ -22,9 +22,11 @@
 
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <termios.h>
+#include <errno.h>
 #ifdef __linux__
 #include <linux/lp.h>
 #include <linux/major.h>
@@ -37,6 +39,11 @@
 #include "prefs.h"
 #include "serial.h"
 #include "serial_defs.h"
+
+extern "C" {
+#include "sshpty.h"
+}
+
 
 #define DEBUG 0
 #include "debug.h"
@@ -64,8 +71,9 @@ public:
 	XSERDPort(const char *dev)
 	{
 		device_name = dev;
-		is_parallel = false;
+		protocol = serial;
 		fd = -1;
+		pid = 0;
 		input_thread_active = output_thread_active = false;
 
 		Set_pthread_attr(&thread_attr, 2);
@@ -101,14 +109,17 @@ public:
 	virtual int16 close(void);
 
 private:
+	bool open_pty(void);
 	bool configure(uint16 config);
 	void set_handshake(uint32 s, bool with_dtr);
 	static void *input_func(void *arg);
 	static void *output_func(void *arg);
 
 	const char *device_name;			// Device name
-	bool is_parallel;					// Flag: Port is parallel
+	enum {serial, parallel, pty, midi}
+		protocol;						// Type of device
 	int fd;								// FD of device
+	pid_t pid;							// PID of child process
 
 	bool io_killed;						// Flag: KillIO called, I/O threads must not call deferred tasks
 	bool quitting;						// Flag: Quit threads
@@ -168,27 +179,39 @@ int16 XSERDPort::open(uint16 config)
 	io_killed = false;
 	quitting = false;
 
-	// Open port
-	fd = ::open(device_name, O_RDWR);
-	if (fd < 0)
-		goto open_error;
+	// Open port, according to the syntax of the path
+	if (device_name[0] == '|') {
+		// Open a process via ptys
+		if (!open_pty())
+			goto open_error;
+	}
+	else if (!strcmp(device_name, "midi")) {
+		// MIDI:  not yet implemented
+		return openErr;
+	}
+	else {
+		// Device special file
+		fd = ::open(device_name, O_RDWR);
+		if (fd < 0)
+			goto open_error;
 
 #if defined(__linux__)
-	// Parallel port?
-	struct stat st;
-	if (fstat(fd, &st) == 0)
-		if (S_ISCHR(st.st_mode))
-			is_parallel = (MAJOR(st.st_rdev) == LP_MAJOR);
+		// Parallel port?
+		struct stat st;
+		if (fstat(fd, &st) == 0)
+			if (S_ISCHR(st.st_mode))
+				protocol = ((MAJOR(st.st_rdev) == LP_MAJOR) ? parallel : serial);
 #elif defined(__FreeBSD__) || defined(__NetBSD__)
-	// Parallel port?
-	struct stat st;
-	if (fstat(fd, &st) == 0)
-		if (S_ISCHR(st.st_mode))
-			is_parallel = ((st.st_rdev >> 16) == 16);
+		// Parallel port?
+		struct stat st;
+		if (fstat(fd, &st) == 0)
+			if (S_ISCHR(st.st_mode))
+				protocol = (((st.st_rdev >> 16) == 16) ? parallel : serial);
 #endif
+	}
 
 	// Configure port for raw mode
-	if (!is_parallel) {
+	if (protocol == serial) {
 		if (tcgetattr(fd, &mode) < 0)
 			goto open_error;
 		cfmakeraw(&mode);
@@ -280,7 +303,7 @@ int16 XSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 	switch (code) {
 		case 1:			// KillIO
 			io_killed = true;
-			if (!is_parallel)
+			if (protocol == serial)
 				tcflush(fd, TCIOFLUSH);
 			while (read_pending || write_pending)
 				usleep(10000);
@@ -301,7 +324,7 @@ int16 XSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 			return noErr;
 
 		case kSERDSetBreak:
-			if (!is_parallel)
+			if (protocol == serial)
 				tcsendbreak(fd, 0);
 			return noErr;
 
@@ -309,7 +332,7 @@ int16 XSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 			return noErr;
 
 		case kSERDBaudRate: {
-			if (is_parallel)
+			if (protocol != serial)
 				return noErr;
 			uint16 rate = ReadMacInt16(pb + csParam);
 			speed_t baud_rate;
@@ -350,8 +373,8 @@ int16 XSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 				rate = 57600; baud_rate = B57600;
 			}
 			WriteMacInt16(pb + csParam, rate);
-			cfsetispeed(&mode, B115200);
-			cfsetospeed(&mode, B115200);
+			cfsetispeed(&mode, baud_rate);
+			cfsetospeed(&mode, baud_rate);
 			tcsetattr(fd, TCSANOW, &mode);
 			return noErr;
 		}
@@ -362,7 +385,7 @@ int16 XSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 			return noErr;
 
 		case kSERDMiscOptions:
-			if (is_parallel)
+			if (protocol != serial)
 				return noErr;
 			if (ReadMacInt8(pb + csParam) & kOptionPreserveDTR)
 				mode.c_cflag &= ~HUPCL;
@@ -372,7 +395,7 @@ int16 XSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 			return noErr;
 
 		case kSERDAssertDTR: {
-			if (is_parallel)
+			if (protocol != serial)
 				return noErr;
 			unsigned int status = TIOCM_DTR;
 			ioctl(fd, TIOCMBIS, &status);
@@ -380,7 +403,7 @@ int16 XSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 		}
 
 		case kSERDNegateDTR: {
-			if (is_parallel)
+			if (protocol != serial)
 				return noErr;
 			unsigned int status = TIOCM_DTR;
 			ioctl(fd, TIOCMBIC, &status);
@@ -392,12 +415,12 @@ int16 XSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 			return noErr;	// Not supported under Unix
 
 		case kSERDResetChannel:
-			if (!is_parallel)
+			if (protocol == serial)
 				tcflush(fd, TCIOFLUSH);
 			return noErr;
 
 		case kSERDAssertRTS: {
-			if (is_parallel)
+			if (protocol != serial)
 				return noErr;
 			unsigned int status = TIOCM_RTS;
 			ioctl(fd, TIOCMBIS, &status);
@@ -405,7 +428,7 @@ int16 XSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 		}
 
 		case kSERDNegateRTS: {
-			if (is_parallel)
+			if (protocol != serial)
 				return noErr;
 			unsigned int status = TIOCM_RTS;
 			ioctl(fd, TIOCMBIC, &status);
@@ -413,7 +436,7 @@ int16 XSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 		}
 
 		case kSERD115KBaud:
-			if (is_parallel)
+			if (protocol != serial)
 				return noErr;
 			cfsetispeed(&mode, B115200);
 			cfsetospeed(&mode, B115200);
@@ -422,7 +445,7 @@ int16 XSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 
 		case kSERD230KBaud:
 		case kSERDSetHighSpeed:
-			if (is_parallel)
+			if (protocol != serial)
 				return noErr;
 			cfsetispeed(&mode, B230400);
 			cfsetospeed(&mode, B230400);
@@ -458,7 +481,7 @@ int16 XSERDPort::status(uint32 pb, uint32 dce, uint16 code)
 			WriteMacInt8(p + staXOffHold, 0);
 			WriteMacInt8(p + staRdPend, read_pending);
 			WriteMacInt8(p + staWrPend, write_pending);
-			if (is_parallel) {
+			if (protocol != serial) {
 				WriteMacInt8(p + staCtsHold, 0);
 				WriteMacInt8(p + staDsrHold, 0);
 				WriteMacInt8(p + staModemStatus, dsrEvent | dcdEvent | ctsEvent);
@@ -509,7 +532,63 @@ int16 XSERDPort::close()
 	if (fd > 0)
 		::close(fd);
 	fd = -1;
+
+	// Wait for the subprocess to exit
+	if (pid)
+		waitpid(pid, NULL, 0);
+	pid = 0;
+
 	return noErr;
+}
+
+
+/*
+ * Open a process via ptys
+ */
+
+bool XSERDPort::open_pty(void)
+{
+	// Talk to a process via a pty
+	char slave[128];
+	int slavefd;
+
+	protocol = pty;
+	if (!pty_allocate(&fd, &slavefd, slave, sizeof(slave)))
+		return false;
+		
+	fflush(stdout);
+	fflush(stderr);
+	switch (pid = fork()) {
+	case -1:				// error
+		return false;
+		break;
+	case 0:					// child
+		::close(fd);
+
+		/* Make the pseudo tty our controlling tty. */
+		pty_make_controlling_tty(&slavefd, slave);
+
+		::close(0); dup(slavefd); // Use the slave fd for stdin,
+		::close(1); dup(slavefd); // stdout,
+		::close(2); dup(slavefd); // and stderr.
+
+		// <should we be more paranoid about closing unused fds?>
+		// <should we drop privileges if running setuid?>
+
+		// Let the shell do the dirty work
+		execlp("/bin/sh", "/bin/sh", "-c", ++device_name, 0);
+
+		// exec failed!
+		printf("serial_open:  could not exec %s: %s\n",
+			   "/bin/sh", strerror(errno));
+		exit(1);
+		break;
+	default:				// parent
+		// Pid was stored above
+		break;
+	}
+
+	return true;
 }
 
 
@@ -520,7 +599,7 @@ int16 XSERDPort::close()
 bool XSERDPort::configure(uint16 config)
 {
 	D(bug(" configure %04x\n", config));
-	if (is_parallel)
+	if (protocol != serial)
 		return true;
 
 	// Set number of stop bits
@@ -604,7 +683,7 @@ void XSERDPort::set_handshake(uint32 s, bool with_dtr)
 	D(bug(" set_handshake %02x %02x %02x %02x %02x %02x %02x %02x\n",
 		ReadMacInt8(s + 0), ReadMacInt8(s + 1), ReadMacInt8(s + 2), ReadMacInt8(s + 3),
 		ReadMacInt8(s + 4), ReadMacInt8(s + 5), ReadMacInt8(s + 6), ReadMacInt8(s + 7)));
-	if (is_parallel)
+	if (protocol != serial)
 		return;
 
 	if (with_dtr) {
@@ -671,7 +750,7 @@ void *XSERDPort::input_func(void *arg)
 				WriteMacInt32(s->input_pb + ioActCount, 0);
 				WriteMacInt32(s->input_dt + serdtResult, uint16(readErr));
 			}
-	
+
 			// Trigger serial interrupt
 			D(bug(" triggering serial interrupt\n"));
 			s->read_done = true;

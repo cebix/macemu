@@ -42,5 +42,4 @@ Unix:
 - sys_unix.cpp: SysFormat(), SysIsFixedDisk(), SysIsDiskInserted(),
   prevent/allow for non-floppy/CDROM devices
 - ESD is also available on Solaris
-- serial_unix.cpp: provide a way to pipe input/output to programs
 - display progress bar during disk file creation in prefs editor
