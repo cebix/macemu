@@ -24,7 +24,8 @@ GENEMUS = cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp \
 
 # Symlinks to files in other directories
 GENLINK = README.txt install-sh \
-	  config.guess config.sub sys_unix.cpp user_strings_unix.h
+	  config.guess config.sub \
+	  sys_unix.cpp timer_unix.cpp user_strings_unix.h
 
 GEN  = $(GENEMUS) $(GENSRCS)
 
@@ -56,8 +57,8 @@ $(OBJ_DIR)::
 
 
 $(APP): $(OBJ_DIR) $(GEN) $(SRCS)
-	pbxbuild -buildstyle Deployment
-#	pbxbuild
+	pbxbuild -buildstyle Deployment	|| rm -fr $(APP)
+#	pbxbuild			|| rm -fr $(APP)
 
 BasiliskII.icns :
 	touch $@
