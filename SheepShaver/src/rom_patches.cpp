@@ -1857,7 +1857,7 @@ static bool patch_68k(void)
 		static const uint8 tm_task_dat[] = {0x30, 0x3c, 0x4e, 0x2b, 0xa9, 0xc9};
 		if ((base = find_rom_data(0x2a0, 0x2e0, tm_task_dat, sizeof(tm_task_dat))) == 0) return false;
 		D(bug("tm_task %08lx\n", base));
-		wp = (uint16 *)(ROM_BASE + base + 22);
+		wp = (uint16 *)(ROM_BASE + base + 28);
 		*wp++ = htons(M68K_NOP);
 		*wp++ = htons(M68K_NOP);
 		*wp++ = htons(M68K_NOP);
