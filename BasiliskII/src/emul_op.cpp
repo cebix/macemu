@@ -430,7 +430,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 					r->d[0] = 0;
 					break;
 				default:
-					printf("FATAL: MemoryDispatch(%d): unimplemented selector\n", sel);
+					printf("WARNING: MemoryDispatch(%d): unimplemented selector\n", sel);
 					r->d[0] = (uint32)-502;
 					break;
 			}

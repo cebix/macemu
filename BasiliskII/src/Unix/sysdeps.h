@@ -120,6 +120,8 @@ typedef struct timeval tm_time_t;
 #define uae_u16 uint16
 #define uae_s32 int32
 #define uae_u32 uint32
+#define uae_s64 int64
+#define uae_u64 uint64
 typedef uae_u32 uaecptr;
 
 /* Alignment restrictions */

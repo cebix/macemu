@@ -143,6 +143,8 @@ int main(int argc, char **argv)
 			x_display_name = argv[i];
 		else if (strcmp(argv[i], "-break") == 0 && ++i < argc)
 			ROMBreakpoint = strtol(argv[i], NULL, 0);
+		else if (strcmp(argv[i], "-rominfo") == 0)
+			PrintROMInfo = true;
 	}
 
 	// Open display

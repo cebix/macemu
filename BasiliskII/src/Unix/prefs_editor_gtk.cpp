@@ -291,7 +291,7 @@ bool PrefsEditor(void)
 	GtkWidget *notebook = gtk_notebook_new();
 	gtk_widget_show(notebook);
 	gtk_notebook_set_tab_pos(GTK_NOTEBOOK(notebook), GTK_POS_TOP);
-	gtk_notebook_set_scrollable(GTK_NOTEBOOK(notebook), TRUE);
+	gtk_notebook_set_scrollable(GTK_NOTEBOOK(notebook), FALSE);
 	gtk_box_pack_start(GTK_BOX(box), notebook, TRUE, TRUE, 0);
 
 	create_volumes_pane(notebook);
@@ -933,6 +933,12 @@ static GtkWidget *w_keycode_file;
 static void mn_modelid_5(...) {PrefsReplaceInt32("modelid", 5);}
 static void mn_modelid_14(...) {PrefsReplaceInt32("modelid", 14);}
 
+// "FPU Emulation" button toggled
+static void tb_fpu(GtkWidget *widget)
+{
+	PrefsReplaceBool("fpu", GTK_TOGGLE_BUTTON(widget)->active);
+}
+
 // "Use Raw Keycodes" button toggled
 static void tb_keycodes(GtkWidget *widget)
 {
@@ -1015,6 +1021,8 @@ static void create_memory_pane(GtkWidget *top)
 	menu = make_option_menu(box, STR_MODELID_CTRL, options, active);
 
 	w_rom_file = make_entry(box, STR_ROM_FILE_CTRL, "rom");
+
+	make_checkbox(box, STR_FPU_CTRL, "fpu", GTK_SIGNAL_FUNC(tb_fpu));
 
 	make_checkbox(box, STR_KEYCODES_CTRL, "keycodes", GTK_SIGNAL_FUNC(tb_keycodes));
 	w_keycode_file = make_entry(box, STR_KEYCODE_FILE_CTRL, "keycodefile");

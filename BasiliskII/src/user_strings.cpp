@@ -175,7 +175,6 @@ user_string_def common_strings[] = {
 	{STR_24_BIT_1280x1024_LAB, "1280x1024, 24 Bit"},
 	{STR_24_BIT_1600x1200_LAB, "1600x1200, 24 Bit"},
 	{STR_SOUND_CTRL, "Sound"},
-	{STR_AHI_MODE_CTRL, "AHI Mode"},
 	{STR_NOSOUND_CTRL, "Disable Sound Output"},
 
 	{STR_SERIAL_NETWORK_PANE_TITLE, "Serial/Network"},
@@ -192,8 +191,7 @@ user_string_def common_strings[] = {
 	{STR_MODELID_5_LAB, "Mac IIci (MacOS 7.x)"},
 	{STR_MODELID_14_LAB, "Quadra 900 (MacOS 8.x)"},
 	{STR_ROM_FILE_CTRL, "ROM File"},
-	{STR_KEYCODES_CTRL, "Use Raw Keycodes"},
-	{STR_KEYCODE_FILE_CTRL, "Keycode Translation File"},
+	{STR_FPU_CTRL, "FPU Emulation"},
 
 	{STR_WINDOW_TITLE, "Basilisk II"},
 	{STR_WINDOW_TITLE_FROZEN, "Basilisk II *** FROZEN ***"},

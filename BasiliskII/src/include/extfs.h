@@ -32,7 +32,7 @@ extern int16 ExtFSHFS(uint32 vcb, uint16 selectCode, uint32 paramBlock, uint32 g
 // System specific and internal functions/data
 extern void extfs_init(void);
 extern void extfs_exit(void);
-extern void add_path_component(char *path, const char *component, int max_len);
+extern void add_path_component(char *path, const char *component);
 extern void get_finder_type(const char *path, uint32 &type, uint32 &creator);
 extern void set_finder_type(const char *path, uint32 type, uint32 creator);
 extern void get_finder_flags(const char *path, uint16 &flags);
@@ -42,5 +42,8 @@ extern int open_rfork(const char *path, int flag);
 extern void close_rfork(const char *path, int fd);
 extern size_t extfs_read(int fd, void *buffer, size_t length);
 extern size_t extfs_write(int fd, void *buffer, size_t length);
+
+// Maximum length of full path name
+const int MAX_PATH_LENGTH = 1024;
 
 #endif

@@ -44,6 +44,7 @@ user_string_def platform_strings[] = {
 	{STR_NO_GTLAYOUT_LIB_WARN, "Cannot open gtlayout.library V39. The preferences editor GUI will not be available."},
 	{STR_NO_AHI_WARN, "Cannot open ahi.device V2. Audio output will be disabled."},
 	{STR_NO_AHI_CTRL_WARN, "Cannot open AHI control structure. Audio output will be disabled."},
+	{STR_AHI_MODE_CTRL, "AHI Mode"},
 
 	{-1, NULL}	// End marker
 };

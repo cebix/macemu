@@ -38,12 +38,11 @@
 #include "debug.h"
 
 
-// Breakpoint (offset into ROM)
-uint32 ROMBreakpoint = 0;	// 0 = disabled, 0x2310 = CritError
-
 // Global variables
-uint32 UniversalInfo;	// ROM offset of UniversalInfo
-uint32 PutScrapPatch;	// Mac address of PutScrap() patch
+uint32 UniversalInfo;		// ROM offset of UniversalInfo
+uint32 PutScrapPatch;		// Mac address of PutScrap() patch
+uint32 ROMBreakpoint = 0;	// ROM offset of breakpoint (0 = disabled, 0x2310 = CritError)
+bool PrintROMInfo = false;	// Flag: print ROM information in PatchROM()
 
 static uint32 sony_offset;				// ROM offset of .Sony driver
 static uint32 serd_offset;				// ROM offset of SERD resource (serial drivers)
@@ -137,6 +136,161 @@ again:
 	}
 	rom_trap = 0xa000;
 	goto again;
+}
+
+
+/*
+ *  Print ROM information to stream,
+ */
+
+static void list_rom_resources(void)
+{
+	printf("ROM Resources:\n");
+	printf("Offset\t Type\tID\tSize\tName\n");
+	printf("------------------------------------------------\n");
+
+	uint32 lp = ROMBaseMac + ReadMacInt32(ROMBaseMac + 0x1a);
+	uint32 rsrc_ptr = ReadMacInt32(lp);
+
+	for (;;) {
+		lp = ROMBaseMac + rsrc_ptr;
+		uint32 data = ReadMacInt32(lp + 12);
+
+		char name[32];
+		int name_len = ReadMacInt8(lp + 23), i;
+		for (i=0; i<name_len; i++)
+			name[i] = ReadMacInt8(lp + 24 + i);
+		name[i] = 0;
+
+		printf("%08x %c%c%c%c\t%d\t%d\t%s\n", data, ReadMacInt8(lp + 16), ReadMacInt8(lp + 17), ReadMacInt8(lp + 18), ReadMacInt8(lp + 19), ReadMacInt16(lp + 20), ReadMacInt32(ROMBaseMac + data - 8), name);
+
+		rsrc_ptr = ReadMacInt32(lp + 8);
+		if (!rsrc_ptr)
+			break;
+	}
+	printf("\n");
+}
+
+// Mapping of Model IDs to Model names
+struct mac_desc {
+	char *name;
+	int32 id;
+};
+
+static mac_desc MacDesc[] = {
+	{"Classic"				, 1},
+	{"Mac XL"				, 2},
+	{"Mac 512KE"			, 3},
+	{"Mac Plus"				, 4},
+	{"Mac SE"				, 5},
+	{"Mac II"				, 6},
+	{"Mac IIx"				, 7},
+	{"Mac IIcx"				, 8},
+	{"Mac SE/030"			, 9},
+	{"Mac Portable"			, 10},
+	{"Mac IIci"				, 11},
+	{"Mac IIfx"				, 13},
+	{"Mac Classic"			, 17},
+	{"Mac IIsi"				, 18},
+	{"Mac LC"				, 19},
+	{"Quadra 900"			, 20},
+	{"PowerBook 170"		, 21},
+	{"Quadra 700"			, 22},
+	{"Classic II"			, 23},
+	{"PowerBook 100"		, 24},
+	{"PowerBook 140"		, 25},
+	{"Quadra 950"			, 26},
+	{"Mac LCIII/Performa 450", 27},
+	{"PowerBook Duo 210"	, 29},
+	{"Centris 650"			, 30},
+	{"PowerBook Duo 230"	, 32},
+	{"PowerBook 180"		, 33},
+	{"PowerBook 160"		, 34},
+	{"Quadra 800"			, 35},
+	{"Quadra 650"			, 36},
+	{"Mac LCII"				, 37},
+	{"PowerBook Duo 250"	, 38},
+	{"Mac IIvi"				, 44},
+	{"Mac IIvm/Performa 600", 45},
+	{"Mac IIvx"				, 48},
+	{"Color Classic/Performa 250", 49},
+	{"PowerBook 165c"		, 50},
+	{"Centris 610"			, 52},
+	{"Quadra 610"			, 53},
+	{"PowerBook 145"		, 54},
+	{"Mac LC520"			, 56},
+	{"Quadra/Centris 660AV"	, 60},
+	{"Performa 46x"			, 62},
+	{"PowerBook 180c"		, 71},
+	{"PowerBook 520/520c/540/540c", 72},
+	{"PowerBook Duo 270c"	, 77},
+	{"Quadra 840AV"			, 78},
+	{"Performa 550"			, 80},
+	{"PowerBook 165"		, 84},
+	{"PowerBook 190"		, 85},
+	{"Mac TV"				, 88},
+	{"Mac LC475/Performa 47x", 89},
+	{"Mac LC575"			, 92},
+	{"Quadra 605"			, 94},
+	{"Quadra 630"			, 98},
+	{"Mac LC580"			, 99},
+	{"PowerBook Duo 280"	, 102},
+	{"PowerBook Duo 280c"	, 103},
+	{"PowerBook 150"		, 115},
+	{"unknown", -1}
+};
+
+static void print_universal_info(uint32 info)
+{
+	uint8 id = ReadMacInt8(info + 18);
+	uint16 hwcfg = ReadMacInt16(info + 16);
+	uint16 rom85 = ReadMacInt16(info + 20);
+
+	// Find model name
+	char *name = "unknown";
+	for (int i=0; MacDesc[i].id >= 0; i++)
+		if (MacDesc[i].id == id + 6) {
+			name = MacDesc[i].name;
+			break;
+		}
+
+	printf("%08x %02x\t%04x\t%04x\t%s\n", info - ROMBaseMac, id, hwcfg, rom85, name);
+}
+
+static void list_universal_infos(void)
+{
+	uint32 ofs = 0x3000;
+	for (int i=0; i<0x2000; i+=2, ofs+=2)
+		if (ReadMacInt32(ROMBaseMac + ofs) == 0xdc000505) {
+			ofs -= 16;
+			uint32 q;
+			for (q=ofs; q > 0 && ReadMacInt32(ROMBaseMac + q) != ofs - q; q-=4) ;
+			if (q > 0) {
+				printf("Universal Table at %08x:\n", q);
+				printf("Offset\t ID\tHWCfg\tROM85\tModel\n");
+				printf("------------------------------------------------\n");
+				while (ofs = ReadMacInt32(ROMBaseMac + q)) {
+					print_universal_info(ROMBaseMac + ofs + q);
+					q += 4;
+				}
+			}
+			break;
+		}
+	printf("\n");
+}
+
+static void print_rom_info(void)
+{
+	printf("\nROM Info:\n");
+	printf("Checksum    : %08x\n", ReadMacInt32(ROMBaseMac));
+	printf("Version     : %04x\n", ROMVersion);
+	printf("Sub Version : %04x\n", ReadMacInt16(ROMBaseMac + 18));
+	printf("Resource Map: %08x\n", ReadMacInt32(ROMBaseMac + 26));
+	printf("Trap Tables : %08x\n\n", ReadMacInt32(ROMBaseMac + 34));
+	if (ROMVersion == ROM_VERSION_32) {
+		list_rom_resources();
+		list_universal_infos();
+	}
 }
 
 
@@ -1442,11 +1596,9 @@ static bool patch_rom_32(void)
 
 bool PatchROM(void)
 {
-	// Print ROM info
-	D(bug("ROM Info:\n"));
-	D(bug("Checksum: %08lx\n", ReadMacInt32(ROMBaseMac)));
-	D(bug("Version: %04x\n", ROMVersion));
-	D(bug("Sub Version: %04x\n", ReadMacInt16(ROMBaseMac + 18)));
+	// Print some information about the ROM
+	if (PrintROMInfo)
+		print_rom_info();
 
 	// Patch ROM depending on version
 	switch (ROMVersion) {

@@ -56,6 +56,8 @@ user_string_def platform_strings[] = {
 	{STR_HELP_MENU_GTK, "/_Help"},
 	{STR_HELP_ITEM_ABOUT_GTK, "/Help/_About Basilisk II"},
 
+	{STR_KEYCODES_CTRL, "Use Raw Keycodes"},
+	{STR_KEYCODE_FILE_CTRL, "Keycode Translation File"},
 	{STR_FBDEV_NAME_CTRL, "Frame Buffer Name"},
 	{STR_FBDEVICE_FILE_CTRL, "Frame Buffer Spec File"},
 

@@ -72,7 +72,7 @@ enum {
 	fsAllocateVCB = 562,			// UTAllocateVCB(uint16 *sysVCBLength{a0}, uint32 *vcb{a1})
 	fsAddNewVCB = 578,				// UTAddNewVCB(int drive_number{d0}, int16 *vRefNum{a1}, uint32 vcb{a1})
 	fsDetermineVol = 594,			// UTDetermineVol(uint32 pb{a0}, int16 *status{a1}, int16 *more_matches{a2}, int16 *vRefNum{a3}, uint32 *vcb{a4})
-	fsResolveWDCB = 614,			// UTResolveWDCB(int16 vRefNum{d0}, uint32 *wdcb{a0})
+	fsResolveWDCB = 614,			// UTResolveWDCB(uint32 procID{d0}, int16 index{d1}, int16 vRefNum{d0}, uint32 *wdcb{a0})
 	fsGetDefaultVol = 632,			// UTGetDefaultVol(uint32 wdpb{a0})
 	fsGetPathComponentName = 644,	// UTGetPathComponentName(uint32 rec{a0})
 	fsParsePathname = 656,			// UTParsePathname(uint32 *start{a0}, uint32 name{a1})
@@ -201,12 +201,11 @@ static FSItem *find_fsitem(const char *name, FSItem *parent)
  *  Get full path (->full_path) for given FSItem
  */
 
-const int MAX_PATH_LENGTH = 1024;
 static char full_path[MAX_PATH_LENGTH];
 
 static void add_path_comp(const char *s)
 {
-	add_path_component(full_path, s, MAX_PATH_LENGTH);
+	add_path_component(full_path, s);
 }
 
 static void get_path_for_fsitem(FSItem *p)
@@ -463,9 +462,9 @@ void InstallExtFS(void)
 	if (p - fs_data != fsResolveWDCB)
 		goto fsdat_error;
 	WriteMacInt16(p, 0x4267); p+= 2;	// clr.w -(sp)
-	WriteMacInt16(p, 0x42a7); p+= 2;	// clr.l -(sp)
-	WriteMacInt16(p, 0x4267); p+= 2;	// clr.w -(sp)
-	WriteMacInt16(p, 0x3f00); p+= 2;	// move.w d0,-(sp)
+	WriteMacInt16(p, 0x2f00); p+= 2;	// move.l d0,-(sp)
+	WriteMacInt16(p, 0x3f01); p+= 2;	// move.w d1,-(sp)
+	WriteMacInt16(p, 0x3f02); p+= 2;	// move.w d2,-(sp)
 	WriteMacInt16(p, 0x2f08); p+= 2;	// move.l a0,-(sp)
 	WriteMacInt16(p, 0x700e); p+= 2;	// UTResolveWDCB
 	WriteMacInt16(p, 0xa824); p+= 2;	// FSMgr
@@ -733,7 +732,9 @@ static int16 get_current_dir(uint32 pb, uint32 dirID, uint32 &current_dir, bool 
 					current_dir = dirID;
 				else {
 					D(bug("  resolving WDCB\n"));
-					r.d[0] = ReadMacInt16(pb + ioVRefNum);
+					r.d[0] = 0;
+					r.d[1] = 0;
+					r.d[2] = ReadMacInt16(pb + ioVRefNum);
 					r.a[0] = fs_data + fsReturn;
 					Execute68k(fs_data + fsResolveWDCB, &r);
 					uint32 wdcb = ReadMacInt32(fs_data + fsReturn);
@@ -1153,7 +1154,7 @@ static int16 fs_get_file_info(uint32 pb, bool hfs, uint32 dirID)
 	D(bug(" fs_get_file_info(%08lx), vRefNum %d, name %.31s, idx %d, dirID %d\n", pb, ReadMacInt16(pb + ioVRefNum), Mac2HostAddr(ReadMacInt32(pb + ioNamePtr) + 1), ReadMacInt16(pb + ioFDirIndex), dirID));
 
 	FSItem *fs_item;
-	int16 dir_index = (int16)ReadMacInt16(pb + ioFDirIndex);
+	int16 dir_index = ReadMacInt16(pb + ioFDirIndex);
 	if (dir_index <= 0) {		// Query item specified by ioDirID and ioNamePtr
 
 		// Find FSItem for given file
@@ -1274,7 +1275,7 @@ static int16 fs_get_cat_info(uint32 pb)
 	D(bug(" fs_get_cat_info(%08lx), vRefNum %d, name %.31s, idx %d, dirID %d\n", pb, ReadMacInt16(pb + ioVRefNum), Mac2HostAddr(ReadMacInt32(pb + ioNamePtr) + 1), ReadMacInt16(pb + ioFDirIndex), ReadMacInt32(pb + ioDirID)));
 
 	FSItem *fs_item;
-	int16 dir_index = (int16)ReadMacInt16(pb + ioFDirIndex);
+	int16 dir_index = ReadMacInt16(pb + ioFDirIndex);
 	if (dir_index < 0) {			// Query directory specified by ioDirID
 
 		// Find FSItem for directory
@@ -2007,7 +2008,7 @@ static int16 fs_open_wd(uint32 pb)
 	D(bug("  allocating WDCB\n"));
 	r.a[0] = pb;
 	Execute68k(fs_data + fsAllocateWDCB, &r);
-	D(bug("  UTAllocateWDCB returned %d\n", r.d[0]));
+	D(bug("  UTAllocateWDCB returned %d, refNum is %d\n", r.d[0], ReadMacInt16(pb + ioVRefNum)));
 	return r.d[0];
 }
 

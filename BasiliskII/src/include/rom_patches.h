@@ -32,7 +32,7 @@ enum {
 
 extern uint16 ROMVersion;
 
-// ROM offset of breakpoint
+// ROM offset of breakpoint, used by PatchROM()
 extern uint32 ROMBreakpoint;
 
 // ROM offset of UniversalInfo, set by PatchROM()
@@ -40,6 +40,9 @@ extern uint32 UniversalInfo;
 
 // Mac address of PutScrap() patch
 extern uint32 PutScrapPatch;
+
+// Flag: print ROM information in PatchROM()
+extern bool PrintROMInfo;
 
 extern bool CheckROM(void);
 extern bool PatchROM(void);
