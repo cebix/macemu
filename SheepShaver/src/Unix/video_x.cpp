@@ -1810,7 +1810,7 @@ void NQD_fillrect(uint32 p)
 	int16 dest_Y = (int16)ReadMacInt16(p + acclDestRect + 0) - (int16)ReadMacInt16(p + acclDestBoundsRect + 0);
 	int16 width  = (int16)ReadMacInt16(p + acclDestRect + 6) - (int16)ReadMacInt16(p + acclDestRect + 2);
 	int16 height = (int16)ReadMacInt16(p + acclDestRect + 4) - (int16)ReadMacInt16(p + acclDestRect + 0);
-	uint32 color = ReadMacInt32(p + acclPenMode) == 8 ? ReadMacInt32(p + acclForePen) : ReadMacInt32(p + acclBackPen);
+	uint32 color = htonl(ReadMacInt32(p + acclPenMode) == 8 ? ReadMacInt32(p + acclForePen) : ReadMacInt32(p + acclBackPen));
 	D(bug(" dest X %d, dest Y %d\n", dest_X, dest_Y));
 	D(bug(" width %d, height %d\n", width, height));
 	D(bug(" bytes_per_row %d color %08x\n", (int32)ReadMacInt32(p + acclDestRowBytes), color));
@@ -1957,11 +1957,6 @@ bool NQD_sync_hook(uint32 arg)
 
 void VideoInstallAccel(void)
 {
-	// Temporary hack until it's fixed for e.g. little-endian & 64-bit platforms
-#ifndef __powerpc__
-	return;
-#endif
-
 	// Install acceleration hooks
 	if (PrefsFindBool("gfxaccel")) {
 		D(bug("Video: Installing acceleration hooks\n"));
