@@ -125,6 +125,7 @@ extern "C" void ExceptionHandlerAsm(void);
 extern "C" void IllInstrHandler(trap_regs *regs);
 extern "C" void PrivViolHandler(trap_regs *regs);
 extern "C" void quit_emulator(void);
+extern "C" void AsmTriggerNMI(void);
 uint16 EmulatedSR;					// Emulated SR (supervisor bit and interrupt mask)
 
 
