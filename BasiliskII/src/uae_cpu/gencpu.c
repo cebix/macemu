@@ -715,156 +715,10 @@ static void genflags_normal (flagtypes type, wordsizes size, char *value, char *
 
 static void genflags (flagtypes type, wordsizes size, char *value, char *src, char *dst)
 {
-#ifdef SPARC_V8_ASSEMBLY
-	switch(type)
-	{
-		case flag_add:
-			start_brace();
-			printf("\tuae_u32 %s;\n", value);
-			switch(size)
-			{
-				case sz_byte:
-					printf("\t%s = sparc_v8_flag_add_8(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
-					break;
-				case sz_word:
-					printf("\t%s = sparc_v8_flag_add_16(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
-					break;
-				case sz_long:
-					printf("\t%s = sparc_v8_flag_add_32(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
-					break;
-			}
-			return;
-		
-		case flag_sub:
-			start_brace();
-			printf("\tuae_u32 %s;\n", value);
-			switch(size)
-			{
-				case sz_byte:
-					printf("\t%s = sparc_v8_flag_sub_8(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
-					break;
-				case sz_word:
-					printf("\t%s = sparc_v8_flag_sub_16(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
-					break;
-				case sz_long:
-					printf("\t%s = sparc_v8_flag_sub_32(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
-					break;
-			}
-			return;
-		
-		case flag_cmp:
-			switch(size)
-			{
-				case sz_byte:
-//					printf("\tsparc_v8_flag_cmp_8(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", src, dst);
-					break;
-				case sz_word:
-//					printf("\tsparc_v8_flag_cmp_16(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", src, dst);
-					break;
-				case sz_long:
-#if 1
-					printf("\tsparc_v8_flag_cmp_32(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", src, dst);
-					return;
-#endif
-					break;
-			}
-//			return;
-			break;
-	}
-#elif defined(SPARC_V9_ASSEMBLY)
-	switch(type)
-	{
-		case flag_add:
-			start_brace();
-			printf("\tuae_u32 %s;\n", value);
-			switch(size)
-			{
-				case sz_byte:
-					printf("\t%s = sparc_v9_flag_add_8(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
-					break;
-				case sz_word:
-					printf("\t%s = sparc_v9_flag_add_16(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
-					break;
-				case sz_long:
-					printf("\t%s = sparc_v9_flag_add_32(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
-					break;
-			}
-			return;
-		
-		case flag_sub:
-			start_brace();
-			printf("\tuae_u32 %s;\n", value);
-			switch(size)
-			{
-				case sz_byte:
-					printf("\t%s = sparc_v9_flag_sub_8(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
-					break;
-				case sz_word:
-					printf("\t%s = sparc_v9_flag_sub_16(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
-					break;
-				case sz_long:
-					printf("\t%s = sparc_v9_flag_sub_32(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", value, src, dst);
-					break;
-			}
-			return;
-		
-		case flag_cmp:
-			switch(size)
-			{
-				case sz_byte:
-					printf("\tsparc_v9_flag_cmp_8(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", src, dst);
-					break;
-				case sz_word:
-					printf("\tsparc_v9_flag_cmp_16(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", src, dst);
-					break;
-				case sz_long:
-					printf("\tsparc_v9_flag_cmp_32(&regflags, (uae_u32)(%s), (uae_u32)(%s));\n", src, dst);
-					break;
-			}
-			return;
-		
-		case flag_logical:
-			if (strcmp(value, "0") == 0) {
-				printf("\tregflags.nzvc = 0x04;\n");
-			} else {
-				switch(size) {
-					case sz_byte:
-						printf("\tsparc_v9_flag_test_8(&regflags, (uae_u32)(%s));\n", value);
-						break;
-					case sz_word:
-						printf("\tsparc_v9_flag_test_16(&regflags, (uae_u32)(%s));\n", value);
-						break;
-					case sz_long:
-						printf("\tsparc_v9_flag_test_32(&regflags, (uae_u32)(%s));\n", value);
-						break;
-				}
-			}
-			return;
-		
-#if 0
-		case flag_logical_noclobber:
-			printf("\t{uae_u32 old_flags = regflags.nzvc & ~0x0C;\n");
-			if (strcmp(value, "0") == 0) {
-				printf("\tregflags.nzvc = old_flags | 0x04;\n");
-			} else {
-				switch(size) {
-					case sz_byte:
-						printf("\tsparc_v9_flag_test_8(&regflags, (uae_u32)(%s));\n", value);
-						break;
-					case sz_word:
-						printf("\tsparc_v9_flag_test_16(&regflags, (uae_u32)(%s));\n", value);
-						break;
-					case sz_long:
-						printf("\tsparc_v9_flag_test_32(&regflags, (uae_u32)(%s));\n", value);
-						break;
-				}
-				printf("\tregflags.nzvc |= old_flags;\n");
-			}
-			printf("\t}\n");
-			return;
-#endif
-	}
-#elif defined(X86_ASSEMBLY)
+    /* Temporarily deleted 68k/ARM flag optimizations.  I'd prefer to have
+       them in the appropriate m68k.h files and use just one copy of this
+       code here.  The API can be changed if necessary.  */
+#ifdef OPTIMIZED_FLAGS
     switch (type) {
      case flag_add:
      case flag_sub:
@@ -879,232 +733,60 @@ static void genflags (flagtypes type, wordsizes size, char *value, char *src, ch
     /* At least some of those casts are fairly important! */
     switch (type) {
      case flag_logical_noclobber:
-	printf ("\t{uae_u32 oldcznv = regflags.cznv & ~0xC0;\n");
+	printf ("\t{uae_u32 oldcznv = GET_CZNV & ~(FLAGVAL_Z | FLAGVAL_N);\n");
 	if (strcmp (value, "0") == 0) {
-	    printf ("\tregflags.cznv = olcznv | 64;\n");
+	    printf ("\tSET_CZNV (olcznv | FLAGVAL_Z);\n");
 	} else {
 	    switch (size) {
-	     case sz_byte: printf ("\tx86_flag_testb ((uae_s8)(%s));\n", value); break;
-	     case sz_word: printf ("\tx86_flag_testw ((uae_s16)(%s));\n", value); break;
-	     case sz_long: printf ("\tx86_flag_testl ((uae_s32)(%s));\n", value); break;
+	     case sz_byte: printf ("\toptflag_testb ((uae_s8)(%s));\n", value); break;
+	     case sz_word: printf ("\toptflag_testw ((uae_s16)(%s));\n", value); break;
+	     case sz_long: printf ("\toptflag_testl ((uae_s32)(%s));\n", value); break;
 	    }
-	    printf ("\tregflags.cznv |= oldcznv;\n");
+	    printf ("\tIOR_CZNV (oldcznv);\n");
 	}
 	printf ("\t}\n");
 	return;
      case flag_logical:
 	if (strcmp (value, "0") == 0) {
-	    printf ("\tregflags.cznv = 64;\n");
+	    printf ("\tSET_CZNV (FLAGVAL_Z);\n");
 	} else {
 	    switch (size) {
-	     case sz_byte: printf ("\tx86_flag_testb ((uae_s8)(%s));\n", value); break;
-	     case sz_word: printf ("\tx86_flag_testw ((uae_s16)(%s));\n", value); break;
-	     case sz_long: printf ("\tx86_flag_testl ((uae_s32)(%s));\n", value); break;
+	     case sz_byte: printf ("\toptflag_testb ((uae_s8)(%s));\n", value); break;
+	     case sz_word: printf ("\toptflag_testw ((uae_s16)(%s));\n", value); break;
+	     case sz_long: printf ("\toptflag_testl ((uae_s32)(%s));\n", value); break;
 	    }
 	}
 	return;
 
      case flag_add:
 	switch (size) {
-	 case sz_byte: printf ("\tx86_flag_addb (%s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
-	 case sz_word: printf ("\tx86_flag_addw (%s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
-	 case sz_long: printf ("\tx86_flag_addl (%s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
+	 case sz_byte: printf ("\toptflag_addb (%s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
+	 case sz_word: printf ("\toptflag_addw (%s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
+	 case sz_long: printf ("\toptflag_addl (%s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
 	}
 	return;
 
      case flag_sub:
 	switch (size) {
-	 case sz_byte: printf ("\tx86_flag_subb (%s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
-	 case sz_word: printf ("\tx86_flag_subw (%s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
-	 case sz_long: printf ("\tx86_flag_subl (%s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
+	 case sz_byte: printf ("\toptflag_subb (%s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
+	 case sz_word: printf ("\toptflag_subw (%s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
+	 case sz_long: printf ("\toptflag_subl (%s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
 	}
 	return;
 
      case flag_cmp:
 	switch (size) {
-	 case sz_byte: printf ("\tx86_flag_cmpb ((uae_s8)(%s), (uae_s8)(%s));\n", src, dst); break;
-	 case sz_word: printf ("\tx86_flag_cmpw ((uae_s16)(%s), (uae_s16)(%s));\n", src, dst); break;
-	 case sz_long: printf ("\tx86_flag_cmpl ((uae_s32)(%s), (uae_s32)(%s));\n", src, dst); break;
+	 case sz_byte: printf ("\toptflag_cmpb ((uae_s8)(%s), (uae_s8)(%s));\n", src, dst); break;
+	 case sz_word: printf ("\toptflag_cmpw ((uae_s16)(%s), (uae_s16)(%s));\n", src, dst); break;
+	 case sz_long: printf ("\toptflag_cmpl ((uae_s32)(%s), (uae_s32)(%s));\n", src, dst); break;
 	}
 	return;
 	
      default:
 	break;
     }
-#elif defined(M68K_FLAG_OPT)
-    /* sam: here I'm cloning what X86_ASSEMBLY does */
-#define EXT(size)  (size==sz_byte?"b":(size==sz_word?"w":"l"))
-#define CAST(size) (size==sz_byte?"uae_s8":(size==sz_word?"uae_s16":"uae_s32"))
-    switch (type) {
-     case flag_add:
-     case flag_sub:
-	start_brace ();
-	printf ("\tuae_u32 %s;\n", value);
-	break;
-
-     default:
-	break;
-    }
-
-    switch (type) {
-     case flag_logical:
-	if (strcmp (value, "0") == 0) {
-	    printf ("\t*(uae_u16 *)&regflags = 4;\n");	/* Z = 1 */
-	} else {
-	    printf ("\tm68k_flag_tst (%s, (%s)(%s));\n",
-		    EXT (size), CAST (size), value);
-	}
-	return;
-
-     case flag_add:
-	printf ("\t{uae_u16 ccr;\n");
-	printf ("\tm68k_flag_add (%s, (%s)%s, (%s)(%s), (%s)(%s));\n",
-		EXT (size), CAST (size), value, CAST (size), src, CAST (size), dst);
-	printf ("\t((uae_u16*)&regflags)[1]=((uae_u16*)&regflags)[0]=ccr;}\n");
-	return;
-
-     case flag_sub:
-	printf ("\t{uae_u16 ccr;\n");
-	printf ("\tm68k_flag_sub (%s, (%s)%s, (%s)(%s), (%s)(%s));\n",
-		EXT (size), CAST (size), value, CAST (size), src, CAST (size), dst);
-	printf ("\t((uae_u16*)&regflags)[1]=((uae_u16*)&regflags)[0]=ccr;}\n");
-	return;
-
-     case flag_cmp:
-	printf ("\tm68k_flag_cmp (%s, (%s)(%s), (%s)(%s));\n",
-		EXT (size), CAST (size), src, CAST (size), dst);
-	return;
-
-     default:
-	break;
-    }
-#elif defined(ACORN_FLAG_OPT) && defined(__GNUC_MINOR__)
-/*
- * This is new. Might be quite buggy.
- */
-    switch (type) {
-     case flag_av:
-     case flag_sv:
-     case flag_zn:
-     case flag_addx:
-     case flag_subx:
-	break;
-
-     case flag_logical:
-	if (strcmp (value, "0") == 0) {
-	    /* v=c=n=0 z=1 */
-	    printf ("\t*(ULONG*)&regflags = 0x40000000;\n");
-	    return;
-	} else {
-	    start_brace ();
-	    switch (size) {
-	     case sz_byte:
-		printf ("\tUBYTE ccr;\n");
-		printf ("\tULONG shift;\n");
-		printf ("\t__asm__(\"mov %%2,%%1,lsl#24\n\ttst %%2,%%2\n\tmov %%0,r15,lsr#24\n\tbic %%0,%%0,#0x30\"\n"
-			"\t: \"=r\" (ccr) : \"r\" (%s), \"r\" (shift) : \"cc\" );\n", value);
-		printf ("\t*((UBYTE*)&regflags+3) = ccr;\n");
-		return;
-	     case sz_word:
-		printf ("\tUBYTE ccr;\n");
-		printf ("\tULONG shift;\n");
-		printf ("\t__asm__(\"mov %%2,%%1,lsl#16\n\ttst %%2,%%2\n\tmov %%0,r15,lsr#24\n\tbic %%0,%%0,#0x30\"\n"
-			"\t: \"=r\" (ccr) : \"r\" ((WORD)%s), \"r\" (shift) : \"cc\" );\n", value);
-		printf ("\t*((UBYTE*)&regflags+3) = ccr;\n");
-		return;
-	     case sz_long:
-		printf ("\tUBYTE ccr;\n");
-		printf ("\t__asm__(\"tst %%1,%%1\n\tmov %%0,r15,lsr#24\n\tbic %%0,%%0,#0x30\"\n"
-			"\t: \"=r\" (ccr) : \"r\" ((LONG)%s) : \"cc\" );\n", value);
-		printf ("\t*((UBYTE*)&regflags+3) = ccr;\n");
-		return;
-	    }
-	}
-	break;
-     case flag_add:
-	if (strcmp (dst, "0") == 0) {
-	    printf ("/* Error! Hier muss Peter noch was machen !!! (ADD-Flags) */");
-	} else {
-	    start_brace ();
-	    switch (size) {
-	     case sz_byte:
-		printf ("\tULONG ccr, shift, %s;\n", value);
-		printf ("\t__asm__(\"mov %%4,%%3,lsl#24\n\tadds %%0,%%4,%%2,lsl#24\n\tmov %%0,%%0,asr#24\n\tmov %%1,r15\n\torr %%1,%%1,%%1,lsr#29\"\n"
-			"\t: \"=r\" (%s), \"=r\" (ccr) : \"r\" (%s), \"r\" (%s), \"r\" (shift) : \"cc\" );\n", value, src, dst);
-		printf ("\t*(ULONG*)&regflags = ccr;\n");
-		return;
-	     case sz_word:
-		printf ("\tULONG ccr, shift, %s;\n", value);
-		printf ("\t__asm__(\"mov %%4,%%3,lsl#16\n\tadds %%0,%%4,%%2,lsl#16\n\tmov %%0,%%0,asr#16\n\tmov %%1,r15\n\torr %%1,%%1,%%1,lsr#29\"\n"
-			"\t: \"=r\" (%s), \"=r\" (ccr) : \"r\" ((WORD)%s), \"r\" ((WORD)%s), \"r\" (shift) : \"cc\" );\n", value, src, dst);
-		printf ("\t*(ULONG*)&regflags = ccr;\n");
-		return;
-	     case sz_long:
-		printf ("\tULONG ccr, %s;\n", value);
-		printf ("\t__asm__(\"adds %%0,%%3,%%2\n\tmov %%1,r15\n\torr %%1,%%1,%%1,lsr#29\"\n"
-			"\t: \"=r\" (%s), \"=r\" (ccr) : \"r\" ((LONG)%s), \"r\" ((LONG)%s) : \"cc\" );\n", value, src, dst);
-		printf ("\t*(ULONG*)&regflags = ccr;\n");
-		return;
-	    }
-	}
-	break;
-     case flag_sub:
-	if (strcmp (dst, "0") == 0) {
-	    printf ("/* Error! Hier muss Peter noch was machen !!! (SUB-Flags) */");
-	} else {
-	    start_brace ();
-	    switch (size) {
-	     case sz_byte:
-		printf ("\tULONG ccr, shift, %s;\n", value);
-		printf ("\t__asm__(\"mov %%4,%%3,lsl#24\n\tsubs %%0,%%4,%%2,lsl#24\n\tmov %%0,%%0,asr#24\n\tmov %%1,r15\n\teor %%1,%%1,#0x20000000\n\torr %%1,%%1,%%1,lsr#29\"\n"
-			"\t: \"=r\" (%s), \"=r\" (ccr) : \"r\" (%s), \"r\" (%s), \"r\" (shift) : \"cc\" );\n", value, src, dst);
-		printf ("\t*(ULONG*)&regflags = ccr;\n");
-		return;
-	     case sz_word:
-		printf ("\tULONG ccr, shift, %s;\n", value);
-		printf ("\t__asm__(\"mov %%4,%%3,lsl#16\n\tsubs %%0,%%4,%%2,lsl#16\n\tmov %%0,%%0,asr#16\n\tmov %%1,r15\n\teor %%1,%%1,#0x20000000\n\torr %%1,%%1,%%1,lsr#29\"\n"
-			"\t: \"=r\" (%s), \"=r\" (ccr) : \"r\" ((WORD)%s), \"r\" ((WORD)%s), \"r\" (shift) : \"cc\" );\n", value, src, dst);
-		printf ("\t*(ULONG*)&regflags = ccr;\n");
-		return;
-	     case sz_long:
-		printf ("\tULONG ccr, %s;\n", value);
-		printf ("\t__asm__(\"subs %%0,%%3,%%2\n\tmov %%1,r15\n\teor %%1,%%1,#0x20000000\n\torr %%1,%%1,%%1,lsr#29\"\n"
-			"\t: \"=r\" (%s), \"=r\" (ccr) : \"r\" ((LONG)%s), \"r\" ((LONG)%s) : \"cc\" );\n", value, src, dst);
-		printf ("\t*(ULONG*)&regflags = ccr;\n");
-		return;
-	    }
-	}
-	break;
-     case flag_cmp:
-	if (strcmp (dst, "0") == 0) {
-	    printf ("/*Error! Hier muss Peter noch was machen !!! (CMP-Flags)*/");
-	} else {
-	    start_brace ();
-	    switch (size) {
-	     case sz_byte:
-		printf ("\tULONG shift, ccr;\n");
-		printf ("\t__asm__(\"mov %%3,%%2,lsl#24\n\tcmp %%3,%%1,lsl#24\n\tmov %%0,r15,lsr#24\n\teor %%0,%%0,#0x20\"\n"
-			"\t: \"=r\" (ccr) : \"r\" (%s), \"r\" (%s), \"r\" (shift) : \"cc\" );\n", src, dst);
-		printf ("\t*((UBYTE*)&regflags+3) = ccr;\n");
-		return;
-	     case sz_word:
-		printf ("\tULONG shift, ccr;\n");
-		printf ("\t__asm__(\"mov %%3,%%2,lsl#16\n\tcmp %%3,%%1,lsl#16\n\tmov %%0,r15,lsr#24\n\teor %%0,%%0,#0x20\"\n"
-			"\t: \"=r\" (ccr) : \"r\" ((WORD)%s), \"r\" ((WORD)%s), \"r\" (shift) : \"cc\" );\n", src, dst);
-		printf ("\t*((UBYTE*)&regflags+3) = ccr;\n");
-		return;
-	     case sz_long:
-		printf ("\tULONG ccr;\n");
-		printf ("\t__asm__(\"cmp %%2,%%1\n\tmov %%0,r15,lsr#24\n\teor %%0,%%0,#0x20\"\n"
-			"\t: \"=r\" (ccr) : \"r\" ((LONG)%s), \"r\" ((LONG)%s) : \"cc\" );\n", src, dst);
-		printf ("\t*((UBYTE*)&regflags+3) = ccr;\n");
-		/*printf ("\tprintf (\"%%08x %%08x %%08x\\n\", %s, %s, *((ULONG*)&regflags));\n", src, dst); */
-		return;
-	    }
-	}
-	break;
-    }
 #endif
+
     genflags_normal (type, size, value, src, dst);
 }
 
@@ -1238,7 +920,8 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tint cflg;\n");
 	printf ("\tif (newv_lo > 9) { newv_lo-=6; newv_hi-=0x10; }\n");
 	printf ("\tnewv = newv_hi + (newv_lo & 0xF);");
-	printf ("\tSET_CFLG (cflg = (newv_hi & 0x1F0) > 0x90);\n");
+	printf ("\tcflg = (newv_hi & 0x1F0) > 0x90;\n");
+	printf ("\tSET_CFLG (cflg);\n");
 	duplicate_carry ();
 	printf ("\tif (cflg) newv -= 0x60;\n");
 	genflags (flag_zn, curi->size, "newv", "", "");
@@ -1278,7 +961,8 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tint cflg;\n");
 	printf ("\tif (newv_lo > 9) { newv_lo +=6; }\n");
 	printf ("\tnewv = newv_hi + newv_lo;");
-	printf ("\tSET_CFLG (cflg = (newv & 0x1F0) > 0x90);\n");
+	printf ("\tcflg = (newv & 0x1F0) > 0x90;\n");
+	printf ("\tSET_CFLG (cflg);\n");
 	duplicate_carry ();
 	printf ("\tif (cflg) newv += 0x60;\n");
 	genflags (flag_zn, curi->size, "newv", "", "");
@@ -1308,7 +992,8 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tint cflg;\n");
 	printf ("\tif (newv_lo > 9) { newv_lo-=6; newv_hi-=0x10; }\n");
 	printf ("\tnewv = newv_hi + (newv_lo & 0xF);");
-	printf ("\tSET_CFLG (cflg = (newv_hi & 0x1F0) > 0x90);\n");
+	printf ("\tcflg = cflg = (newv_hi & 0x1F0) > 0x90;\n");
+	printf ("\tSET_CFLG (cflg);\n");
 	duplicate_carry();
 	printf ("\tif (cflg) newv -= 0x60;\n");
 	genflags (flag_zn, curi->size, "newv", "", "");
@@ -1347,7 +1032,7 @@ static void gen_opcode (unsigned long int opcode)
 	else
 	    printf ("\tsrc &= 31;\n");
 	printf ("\tdst ^= (1 << src);\n");
-	printf ("\tSET_ZFLG ((dst & (1 << src)) >> src);\n");
+	printf ("\tSET_ZFLG (((uae_u32)dst & (1 << src)) >> src);\n");
 	genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
 	break;
      case i_BCLR:
@@ -1686,7 +1371,10 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tuaecptr oldpc = m68k_getpc();\n");
 	genamode (curi->smode, "srcreg", sz_word, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0);
-	printf ("\tif(src == 0) { Exception(5,oldpc); goto %s; } else {\n", endlabelstr);
+	sync_m68k_pc ();
+	/* Clear V flag when dividing by zero - Alcatraz Odyssey demo depends
+	 * on this (actually, it's doing a DIVS).  */
+	printf ("\tif (src == 0) { SET_VFLG (0); Exception (5, oldpc); goto %s; } else {\n", endlabelstr);
 	printf ("\tuae_u32 newv = (uae_u32)dst / (uae_u32)(uae_u16)src;\n");
 	printf ("\tuae_u32 rem = (uae_u32)dst %% (uae_u32)(uae_u16)src;\n");
 	/* The N flag appears to be set each time there is an overflow.
@@ -1704,7 +1392,8 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tuaecptr oldpc = m68k_getpc();\n");
 	genamode (curi->smode, "srcreg", sz_word, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0);
-	printf ("\tif(src == 0) { Exception(5,oldpc); goto %s; } else {\n", endlabelstr);
+	sync_m68k_pc ();
+	printf ("\tif (src == 0) { SET_VFLG (0); Exception(5,oldpc); goto %s; } else {\n", endlabelstr);
 	printf ("\tuae_s32 newv = (uae_s32)dst / (uae_s32)(uae_s16)src;\n");
 	printf ("\tuae_u16 rem = (uae_s32)dst %% (uae_s32)(uae_s16)src;\n");
 	printf ("\tif ((newv & 0xffff8000) != 0 && (newv & 0xffff8000) != 0xffff8000) { SET_VFLG (1); SET_NFLG (1); SET_CFLG (0); } else\n\t{\n");
@@ -1964,12 +1653,12 @@ static void gen_opcode (unsigned long int opcode)
 	}
 	printf ("\tcnt &= 63;\n");
 	printf ("\tCLEAR_CZNV;\n");
-	if (! source_is_imm1_8 (curi))
-	    force_range_for_rox ("cnt", curi->size);
 	if (source_is_imm1_8 (curi))
 	    printf ("{");
-	else
+	else {
+	    force_range_for_rox ("cnt", curi->size);
 	    printf ("\tif (cnt > 0) {\n");
+	}
 	printf ("\tcnt--;\n");
 	printf ("\t{\n\tuae_u32 carry;\n");
 	printf ("\tuae_u32 loval = val >> (%d - cnt);\n", bit_size (curi->size) - 1);
@@ -1994,12 +1683,12 @@ static void gen_opcode (unsigned long int opcode)
 	}
 	printf ("\tcnt &= 63;\n");
 	printf ("\tCLEAR_CZNV;\n");
-	if (! source_is_imm1_8 (curi))
-	    force_range_for_rox ("cnt", curi->size);
 	if (source_is_imm1_8 (curi))
 	    printf ("{");
-	else
+	else {
+	    force_range_for_rox ("cnt", curi->size);
 	    printf ("\tif (cnt > 0) {\n");
+	}
 	printf ("\tcnt--;\n");
 	printf ("\t{\n\tuae_u32 carry;\n");
 	printf ("\tuae_u32 hival = (val << 1) | GET_XFLG;\n");
@@ -2155,14 +1844,14 @@ static void gen_opcode (unsigned long int opcode)
 	start_brace ();
 	printf ("\tint regno = (src >> 12) & 15;\n");
 	printf ("\tuae_u32 *regp = regs.regs + regno;\n");
-	printf ("\tm68k_movec2(src & 0xFFF, regp);\n");
+	printf ("\tif (! m68k_movec2(src & 0xFFF, regp)) goto %s;\n", endlabelstr);
 	break;
      case i_MOVE2C:
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	start_brace ();
 	printf ("\tint regno = (src >> 12) & 15;\n");
 	printf ("\tuae_u32 *regp = regs.regs + regno;\n");
-	printf ("\tm68k_move2c(src & 0xFFF, regp);\n");
+	printf ("\tif (! m68k_move2c(src & 0xFFF, regp)) goto %s;\n", endlabelstr);
 	break;
      case i_CAS:
 	{

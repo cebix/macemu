@@ -658,6 +658,7 @@ void MakeFromSR (void)
 
 void Exception(int nr, uaecptr oldpc)
 {
+    uae_u32 currpc = m68k_getpc ();
     MakeSR();
     if (!regs.s) {
 	regs.usp = m68k_areg(regs, 7);
@@ -686,7 +687,7 @@ void Exception(int nr, uaecptr oldpc)
 	    m68k_areg(regs, 7) -= 2;
 	    put_word (m68k_areg(regs, 7), nr * 4);
 	    m68k_areg(regs, 7) -= 4;
-	    put_long (m68k_areg(regs, 7), m68k_getpc ());
+	    put_long (m68k_areg(regs, 7), currpc);
 	    m68k_areg(regs, 7) -= 2;
 	    put_word (m68k_areg(regs, 7), regs.sr);
 	    regs.sr |= (1 << 13);
@@ -712,7 +713,7 @@ void Exception(int nr, uaecptr oldpc)
 	}
     }
     m68k_areg(regs, 7) -= 4;
-    put_long (m68k_areg(regs, 7), m68k_getpc ());
+    put_long (m68k_areg(regs, 7), currpc);
 kludge_me_do:
     m68k_areg(regs, 7) -= 2;
     put_word (m68k_areg(regs, 7), regs.sr);
@@ -735,15 +736,19 @@ static void Interrupt(int nr)
 
 static int caar, cacr, tc, itt0, itt1, dtt0, dtt1;
 
-void m68k_move2c (int regno, uae_u32 *regp)
+int m68k_move2c (int regno, uae_u32 *regp)
 {
-    if (CPUType == 1 && (regno & 0x7FF) > 1)
+  if ((CPUType == 1 && (regno & 0x7FF) > 1)
+  || (CPUType < 4 && (regno & 0x7FF) > 2)
+  || (CPUType == 4 && regno == 0x802))
+  {
 	op_illg (0x4E7B);
-    else
+	return 0;
+  } else {
 	switch (regno) {
 	 case 0: regs.sfc = *regp & 7; break;
 	 case 1: regs.dfc = *regp & 7; break;
-	 case 2: cacr = *regp & 0x3; break;	/* ignore C and CE */
+	 case 2: cacr = *regp & (CPUType < 4 ? 0x3 : 0x80008000); break;
 	 case 3: tc = *regp & 0xc000; break;
 	 case 4: itt0 = *regp & 0xffffe364; break;
 	 case 5: itt1 = *regp & 0xffffe364; break;
@@ -756,15 +761,21 @@ void m68k_move2c (int regno, uae_u32 *regp)
 	 case 0x804: regs.isp = *regp; if (regs.m == 0) m68k_areg(regs, 7) = regs.isp; break;
 	 default:
 	    op_illg (0x4E7B);
-	    break;
+	    return 0;
 	}
+  }
+  return 1;
 }
 
-void m68k_movec2 (int regno, uae_u32 *regp)
+int m68k_movec2 (int regno, uae_u32 *regp)
 {
-    if (CPUType == 1 && (regno & 0x7FF) > 1)
+    if ((CPUType == 1 && (regno & 0x7FF) > 1)
+	|| (CPUType < 4 && (regno & 0x7FF) > 2)
+	|| (CPUType == 4 && regno == 0x802))
+    {
 	op_illg (0x4E7A);
-    else
+	return 0;
+    } else {
 	switch (regno) {
 	 case 0: *regp = regs.sfc; break;
 	 case 1: *regp = regs.dfc; break;
@@ -781,8 +792,10 @@ void m68k_movec2 (int regno, uae_u32 *regp)
 	 case 0x804: *regp = regs.m == 0 ? m68k_areg(regs, 7) : regs.isp; break;
 	 default:
 	    op_illg (0x4E7A);
-	    break;
+	    return 0;
 	}
+	}
+	return 1;
 }
 
 static __inline__ int
@@ -1072,7 +1085,7 @@ void REGPARAM2 op_illg (uae_u32 opcode)
 		struct M68kRegisters r;
 		int i;
 
-		// Return from Execute68k()?
+		// Return from Exectue68k()?
 		if (opcode == M68K_EXEC_RETURN) {
 			regs.spcflags |= SPCFLAG_BRK;
 			quit_program = 1;
@@ -1131,7 +1144,7 @@ static uaecptr last_trace_ad = 0;
 
 static void do_trace (void)
 {
-    if (regs.t0) {
+    if (regs.t0 && CPUType >= 2) {
        uae_u16 opcode;
        /* should also include TRAP, CHK, SR modification FPcc */
        /* probably never used so why bother */
