@@ -182,7 +182,7 @@ void *FindLibSymbol(char *lib, char *sym)
 		r.a[2] = (uint32)&main_addr;
 		r.a[3] = (uint32)err;
 		Execute68k((uint32)proc1, &r);
-		D(bug(" GetSharedLibrary: ret %d, connection ID %ld, main %p\n", (int16)r.d[0], conn_id, main_addr));
+		D(bug(" GetSharedLibrary: ret %d, connection ID %ld, main %p\n", (int16)r.d[0], ntohl(conn_id), ntohl((uintptr)main_addr)));
 		if (r.d[0])
 			return NULL;
 	
@@ -198,17 +198,17 @@ void *FindLibSymbol(char *lib, char *sym)
 			0x30, 0x1f,					// move.w	(a7)+,d0
 			M68K_RTS >> 8, M68K_RTS & 0xff
 		};
-		r.d[0] = conn_id;
+		r.d[0] = ntohl(conn_id);
 		r.a[0] = (uint32)sym;
 		r.a[1] = (uint32)&sym_addr;
 		r.a[2] = (uint32)&sym_class;
 		Execute68k((uint32)proc2, &r);
-		D(bug(" FindSymbol: ret %d, sym_addr %p, sym_class %ld\n", (int16)r.d[0], sym_addr, sym_class));
+		D(bug(" FindSymbol1: ret %d, sym_addr %p, sym_class %ld\n", (int16)r.d[0], ntohl((uintptr)sym_addr), ntohl(sym_class)));
 //!! CloseConnection()?
 		if (r.d[0])
 			return NULL;
 		else
-			return sym_addr;
+			return (void *)ntohl((uintptr)sym_addr);
 
 	} else {
 
@@ -218,16 +218,16 @@ void *FindLibSymbol(char *lib, char *sym)
 		}
 		int16 res;
 		res = GetSharedLibrary(lib, FOURCC('p','w','p','c'), 1, &conn_id, &main_addr, err);
-		D(bug(" GetSharedLibrary: ret %d, connection ID %ld, main %p\n", res, conn_id, main_addr));
+		D(bug(" GetSharedLibrary: ret %d, connection ID %ld, main %p\n", res, ntohl(conn_id), ntohl((uintptr)main_addr)));
 		if (res)
 			return NULL;
-		res = FindSymbol(conn_id, sym, (void **)&sym_addr, &sym_class);
-		D(bug(" FindSymbol: ret %d, sym_addr %p, sym_class %ld\n", res, sym_addr, sym_class));
+		res = FindSymbol(ntohl(conn_id), sym, (void **)&sym_addr, &sym_class);
+		D(bug(" FindSymbol: ret %d, sym_addr %p, sym_class %ld\n", res, ntohl((uintptr)sym_addr), ntohl(sym_class)));
 //!!??		CloseConnection(&conn_id);
 		if (res)
 			return NULL;
 		else
-			return sym_addr;
+			return (void *)ntohl((uintptr)sym_addr);
 	}
 }
 
