@@ -95,14 +95,14 @@ void LoadPrefs(void)
 				&& strcmp(str, "/dev/ttys0") == 0 )
 	{
 		puts("Deleting invalid prefs item 'seriala /dev/ttys0'");
-		PrefsRemoveItem("seriala");
+		PrefsRemoveItem("seriala", 1);
 	}
 
 	if ( (str = PrefsFindString("serialb") ) != NULL
 				&& strcmp(str, "/dev/ttys1") == 0 )
 	{
 		puts("Deleting invalid prefs item 'serialb /dev/ttys1'");
-		PrefsRemoveItem("serialb");
+		PrefsRemoveItem("serialb", 1);
 	}
 }
 
