@@ -18,17 +18,22 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "sysdeps.h"
+
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <dirent.h>
 #include <errno.h>
 
 #include <fs_attr.h>
+#include <support/TypeConstants.h>
+#include <storage/Mime.h>
 
-#include "sysdeps.h"
 #include "extfs.h"
 #include "extfs_defs.h"
 

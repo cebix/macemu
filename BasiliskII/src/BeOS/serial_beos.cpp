@@ -169,7 +169,7 @@ int16 BeSERDPort::open(uint16 config)
 	if (is_parallel) {
 		char name[256];
 		sprintf(name, "/dev/parallel/%s", device_name);
-		fd = open(name, O_WRONLY);
+		fd = ::open(name, O_WRONLY);
 		if (fd < 0) {
 			release_sem(device_sem);
 			return openErr;
@@ -513,7 +513,7 @@ int16 BeSERDPort::close()
 	// Close port
 	while (acquire_sem(device_sem) == B_INTERRUPTED) ;
 	if (is_parallel) {
-		close(fd);
+		::close(fd);
 		fd = -1;
 	} else {
 		if (drop_dtr_on_close)

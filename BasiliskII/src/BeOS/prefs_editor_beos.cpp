@@ -172,7 +172,7 @@ public:
 // Path-entry BTextControl
 class PathControl : public BTextControl {
 public:
-	PathControl(BRect frame, const char *name, const char *label, const char *text, BMessage *message) : BTextControl(frame, name, label, text, message)
+	PathControl(bool dir_ctrl_, BRect frame, const char *name, const char *label, const char *text, BMessage *message) : BTextControl(frame, name, label, text, message), dir_ctrl(dir_ctrl_)
 	{
 		for (int c=0; c<' '; c++)
 			if (c != B_BACKSPACE && c != B_LEFT_ARROW && c != B_RIGHT_ARROW) 
@@ -187,7 +187,7 @@ public:
 
 			// Look for dropped refs
 			if (msg->FindRef("refs", &the_ref) == B_NO_ERROR) {
-				if (the_entry.SetTo(&the_ref) == B_NO_ERROR && the_entry.IsFile()) {
+				if (the_entry.SetTo(&the_ref) == B_NO_ERROR && (dir_ctrl&& the_entry.IsDirectory() || !dir_ctrl && the_entry.IsFile())) {
 					BPath the_path;
 					the_entry.GetPath(&the_path);
 					SetText(the_path.Path());
@@ -199,6 +199,9 @@ public:
 		} else
 			BTextControl::MessageReceived(msg);
 	}
+
+private:
+	bool dir_ctrl;
 };
 
 
@@ -210,6 +213,7 @@ public:
 	virtual void MessageReceived(BMessage *msg);
 
 private:
+	void read_volumes_prefs(void);
 	void hide_show_graphics_ctrls(void);
 	void read_graphics_prefs(void);
 	void add_serial_names(BPopUpMenu *menu, uint32 msg);
@@ -240,6 +244,7 @@ private:
 	BCheckBox *nosound_checkbox;
 	BCheckBox *ether_checkbox;
 	RAMSlider *ramsize_slider;
+	PathControl *extfs_control;
 	PathControl *rom_control;
 
 	BFilePanel *add_volume_panel;
@@ -379,6 +384,11 @@ PrefsWindow::~PrefsWindow()
  *  Create "Volumes" pane
  */
 
+void PrefsWindow::read_volumes_prefs(void)
+{
+	PrefsReplaceString("extfs", extfs_control->Text());
+}
+
 BView *PrefsWindow::create_volumes_pane(void)
 {
 	BView *pane = new BView(BRect(0, 0, top_frame.right-20, top_frame.bottom-80), GetString(STR_VOLUMES_PANE_TITLE), B_FOLLOW_NONE, B_WILL_DRAW);
@@ -398,9 +408,13 @@ BView *PrefsWindow::create_volumes_pane(void)
 	pane->AddChild(new BButton(BRect(pane->Bounds().right/3, 118, pane->Bounds().right*2/3, 138), "create_volume", GetString(STR_CREATE_VOLUME_BUTTON), new BMessage(MSG_CREATE_VOLUME)));
 	pane->AddChild(new BButton(BRect(pane->Bounds().right*2/3, 118, pane->Bounds().right-11, 138), "remove_volume", GetString(STR_REMOVE_VOLUME_BUTTON), new BMessage(MSG_REMOVE_VOLUME)));
 
+	extfs_control = new PathControl(true, BRect(10, 145, right, 160), "extfs", GetString(STR_EXTFS_CTRL), PrefsFindString("extfs"), NULL);
+	extfs_control->SetDivider(90);
+	pane->AddChild(extfs_control);
+
 	BMenuField *menu_field;
 	BPopUpMenu *menu = new BPopUpMenu("");
-	menu_field = new BMenuField(BRect(10, 145, right, 160), "bootdriver", GetString(STR_BOOTDRIVER_CTRL), menu);
+	menu_field = new BMenuField(BRect(10, 165, right, 180), "bootdriver", GetString(STR_BOOTDRIVER_CTRL), menu);
 	menu_field->SetDivider(90);
 	menu->AddItem(new BMenuItem(GetString(STR_BOOT_ANY_LAB), new BMessage(MSG_BOOT_ANY)));
 	menu->AddItem(new BMenuItem(GetString(STR_BOOT_CDROM_LAB), new BMessage(MSG_BOOT_CDROM)));
@@ -415,7 +429,7 @@ BView *PrefsWindow::create_volumes_pane(void)
 			item->SetMarked(true);
 	}
 
-	nocdrom_checkbox = new BCheckBox(BRect(10, 165, right, 180), "nocdrom", GetString(STR_NOCDROM_CTRL), new BMessage(MSG_NOCDROM));
+	nocdrom_checkbox = new BCheckBox(BRect(10, 185, right, 200), "nocdrom", GetString(STR_NOCDROM_CTRL), new BMessage(MSG_NOCDROM));
 	pane->AddChild(nocdrom_checkbox);
 	nocdrom_checkbox->SetValue(PrefsFindBool("nocdrom") ? B_CONTROL_ON : B_CONTROL_OFF);
 
@@ -692,7 +706,7 @@ BView *PrefsWindow::create_memory_pane(void)
 		item->SetMarked(true);
 	pane->AddChild(menu_field);
 
-	rom_control = new PathControl(BRect(10, 82, right, 97), "rom", GetString(STR_ROM_FILE_CTRL), PrefsFindString("rom"), NULL);
+	rom_control = new PathControl(false, BRect(10, 82, right, 97), "rom", GetString(STR_ROM_FILE_CTRL), PrefsFindString("rom"), NULL);
 	rom_control->SetDivider(117);
 	pane->AddChild(rom_control);
 
@@ -708,6 +722,7 @@ void PrefsWindow::MessageReceived(BMessage *msg)
 {
 	switch (msg->what) {
 		case MSG_OK: {				// "Start" button clicked
+			read_volumes_prefs();
 			read_memory_prefs();
 			read_graphics_prefs();
 			SavePrefs();
