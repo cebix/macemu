@@ -6,6 +6,9 @@
   * Copyright 1995 Bernd Schmidt
   */
 
+#ifndef NEWCPU_H
+#define NEWCPU_H
+
 #define SPCFLAG_STOP 2
 #define SPCFLAG_DISK 4
 #define SPCFLAG_INT  8
@@ -140,6 +143,7 @@ static __inline__ uae_u32 get_ilong_prefetch (uae_s32 o)
 
 static __inline__ void fill_prefetch_0 (void)
 {
+#if USE_PREFETCH_BUFFER
     uae_u32 r;
 #ifdef UNALIGNED_PROFITABLE
     r = *(uae_u32 *)regs.pc_p;
@@ -147,6 +151,7 @@ static __inline__ void fill_prefetch_0 (void)
 #else
     r = do_get_mem_long ((uae_u32 *)regs.pc_p);
     do_put_mem_long (&regs.prefetch, r);
+#endif
 #endif
 }
 
@@ -188,8 +193,12 @@ static __inline__ uae_u32 next_ilong (void)
 #if !defined USE_COMPILER
 static __inline__ void m68k_setpc (uaecptr newpc)
 {
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	regs.pc_p = get_real_address(newpc);
+#else
     regs.pc_p = regs.pc_oldp = get_real_address(newpc);
     regs.pc = newpc;
+#endif
 }
 #else
 extern void m68k_setpc (uaecptr newpc);
@@ -197,12 +206,11 @@ extern void m68k_setpc (uaecptr newpc);
 
 static __inline__ uaecptr m68k_getpc (void)
 {
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	return get_virtual_address(regs.pc_p);
+#else
     return regs.pc + ((char *)regs.pc_p - (char *)regs.pc_oldp);
-}
-
-static __inline__ uaecptr m68k_getpc_p (uae_u8 *p)
-{
-    return regs.pc + ((char *)p - (char *)regs.pc_oldp);
+#endif
 }
 
 #ifdef USE_COMPILER
@@ -280,3 +288,4 @@ extern struct cputbl op_smalltbl_4[];
 
 extern cpuop_func *cpufunctbl[65536] ASM_SYM_FOR_FUNC ("cpufunctbl");
 
+#endif /* NEWCPU_H */
