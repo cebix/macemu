@@ -65,6 +65,7 @@ const int GAD_CDROM_DEVICE = 0x0304;
 const int GAD_CDROM_UNIT = 0x0305;
 const int GAD_BOOTDRIVER = 0x0306;
 const int GAD_NOCDROM = 0x0307;
+const int GAD_EXTFS = 0x0308;
 
 const int GAD_VOLUME_READONLY = 0x0310;		// "Add/Edit Volume" window
 const int GAD_VOLUME_TYPE = 0x0311;
@@ -142,11 +143,7 @@ static void read_settings(struct LayoutHandle *h);
  *  Locale hook - returns string for given ID
  */
 
-#ifdef __GNUC__
 static __saveds __attribute__((regparm(3))) const char *locale_hook_func(struct Hook *hook /*a0*/, void *id /*a1*/, struct LayoutHandle *h /*a2*/)
-#else
-static __saveds __regargs const char *locale_hook_func(struct Hook *hook /*a0*/, void *id /*a1*/, struct LayoutHandle *h /*a2*/)
-#endif
 {
 	return GetString((uint32)id);
 }
@@ -528,7 +525,7 @@ quit:
  */
 
 static struct List disk_list;
-static char cdrom_name[256];
+static char cdrom_name[256], extfs_name[256];
 static ULONG cdrom_unit, cdrom_flags, cdrom_start, cdrom_size, cdrom_bsize;
 static BYTE bootdriver_num, nocdrom;
 
@@ -563,6 +560,11 @@ static void parse_volumes_prefs(void)
 	}
 
 	nocdrom = PrefsFindBool("nocdrom");
+
+	extfs_name[0] = 0;
+	str = PrefsFindString("extfs");
+	if (str)
+		strncpy(extfs_name, str, sizeof(extfs_name) - 1);
 }
 
 // Ghost/unghost "Edit" and "Remove" buttons
@@ -954,6 +956,9 @@ static void read_volumes_settings(void)
 		PrefsRemoveItem("cdrom");
 
 	PrefsReplaceBool("nocdrom", nocdrom);
+
+	if (strlen(extfs_name))
+		PrefsReplaceString("extfs", extfs_name);
 }
 
 // Create "Volumes" pane
@@ -969,6 +974,7 @@ static void create_volumes_pane(struct LayoutHandle *h)
 			VGROUP;
 				LT_New(h, LA_Type, LISTVIEW_KIND,
 					LA_ID, GAD_DISK_LIST,
+					LA_Chars, 20,
 					GTLV_Labels, (ULONG)&disk_list,
 					LALV_Lines, 6,
 					LALV_Link, (ULONG)NIL_LINK,
@@ -1033,6 +1039,16 @@ static void create_volumes_pane(struct LayoutHandle *h)
 				LA_LabelID, STR_NOCDROM_CTRL,
 				LA_ID, GAD_NOCDROM,
 				LA_BYTE, (ULONG)&nocdrom,
+				TAG_END
+			);
+		ENDGROUP;
+		VGROUP;
+			LT_New(h, LA_Type, STRING_KIND,
+				LA_LabelID, STR_EXTFS_CTRL,
+				LA_ID, GAD_EXTFS,
+				LA_Chars, 20,
+				LA_STRPTR, (ULONG)extfs_name,
+				GTST_MaxChars, sizeof(extfs_name) - 1,
 				TAG_END
 			);
 		ENDGROUP;

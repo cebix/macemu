@@ -61,7 +61,7 @@ void LoadXPRAM(void)
 void SaveXPRAM(void)
 {
 	int fd;
-	if ((fd = open(xpram_path, O_WRONLY | O_CREAT, 0644)) >= 0) {
+	if ((fd = open(xpram_path, O_WRONLY | O_CREAT, 0666)) >= 0) {
 		write(fd, XPRAM, 256);
 		close(fd);
 	}

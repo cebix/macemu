@@ -30,11 +30,6 @@
 #include "debug.h"
 
 
-// Assembly functions
-extern "C" ULONG TimevalTo64(struct timeval *, ULONG *);
-extern "C" LONG TimevalToMacTime(struct timeval *);
-
-
 /*
  *  Return microseconds since boot (64 bit)
  */
@@ -44,7 +39,9 @@ void Microseconds(uint32 &hi, uint32 &lo)
 	D(bug("Microseconds\n"));
 	struct timeval tv;
 	GetSysTime(&tv);
-	lo = TimevalTo64(&tv, &hi);
+	uint64 tl = (uint64)tv.tv_secs * 1000000 + tv.tv_micro;
+	hi = tl >> 32;
+	lo = tl;
 }
 
 
@@ -129,6 +126,11 @@ int32 timer_host2mac_time(tm_time_t hosttime)
 {
 	if (hosttime.tv_secs < 0)
 		return 0;
-	else
-		return TimevalToMacTime(&hosttime);
+	else {
+		uint64 t = (uint64)hosttime.tv_secs * 1000000 + hosttime.tv_micro;
+		if (t > 0x7fffffff)
+			return t / 1000;	// Time in milliseconds
+		else
+			return -t;			// Time in negative microseconds
+	}
 }

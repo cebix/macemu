@@ -283,7 +283,7 @@ int open_rfork(const char *path, int flag)
 	// Open temporary file for resource fork
 	char rname[L_tmpnam];
 	tmpnam(rname);
-	int rfd = open(rname, O_RDWR | O_CREAT | O_TRUNC, 0664);
+	int rfd = open(rname, O_RDWR | O_CREAT | O_TRUNC, 0666);
 	if (rfd < 0) {
 		close(fd);
 		return -1;

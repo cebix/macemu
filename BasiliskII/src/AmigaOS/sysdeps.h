@@ -52,17 +52,10 @@ typedef unsigned short uint16;
 typedef signed short int16;
 typedef unsigned long uint32;
 typedef signed long int32;
+typedef unsigned long long uint64;
+typedef signed long long int64;
 
-#ifdef __GNUC__
 typedef unsigned long long loff_t;
-#endif
-
-#ifdef __SASC
-typedef char bool;
-#define true 1
-#define false 0
-typedef LONG loff_t;
-#endif
 
 // Time data type for Time Manager emulation
 typedef struct timeval tm_time_t;
@@ -76,7 +69,7 @@ typedef struct timeval tm_time_t;
 #define htons(x) (x)
 #define htonl(x) (x)
 
-// Some systems don't define this
+// Some systems don't define this (ExecBase->AttnFlags)
 #ifndef AFF_68060
 #define AFF_68060 (1L<<7)
 #endif

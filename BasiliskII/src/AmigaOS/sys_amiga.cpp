@@ -298,6 +298,28 @@ void Sys_close(void *arg)
 
 
 /*
+ *  Send one I/O request, using 64-bit addressing if the device supports it
+ */
+
+static loff_t send_io_request(file_handle *fh, bool writing, ULONG length, loff_t offset, APTR data)
+{
+	if (fh->does_64bit) {
+		fh->io->io_Command = writing ? NSCMD_TD_WRITE64 : NSCMD_TD_READ64;
+		fh->io->io_Actual = offset >> 32;
+	} else {
+		fh->io->io_Command = writing ? CMD_WRITE : CMD_READ;
+		fh->io->io_Actual = 0;
+	}
+	fh->io->io_Length = length;
+	fh->io->io_Offset = offset;
+	fh->io->io_Data = data;
+	if (DoIO((struct IORequest *)fh->io) || fh->io->io_Actual != length)
+		return 0;
+	return fh->io->io_Actual;
+}
+
+
+/*
  *  Read "length" bytes from file/device, starting at "offset", to "buffer",
  *  returns number of bytes read (or 0)
  */
@@ -324,18 +346,14 @@ size_t Sys_read(void *arg, void *buffer, loff_t offset, size_t length)
 
 	} else {
 
-		// Device, pre-read (partial read of first block) neccessary?
+		// Device, pre-read (partial read of first block) necessary?
 		loff_t pos = offset + fh->start_byte;
 		size_t actual = 0;
 		uint32 pre_offset = pos % fh->block_size;
 		if (pre_offset) {
 
 			// Yes, read one block
-			fh->io->io_Command = CMD_READ;
-			fh->io->io_Length = fh->block_size;
-			fh->io->io_Offset = pos - pre_offset;
-			fh->io->io_Data = tmp_buf;
-			if (DoIO((struct IORequest *)fh->io) || fh->io->io_Actual != fh->block_size)
+			if (send_io_request(fh, false, fh->block_size, pos - pre_offset, tmp_buf) == 0)
 				return 0;
 
 			// Copy data to destination buffer
@@ -356,11 +374,7 @@ size_t Sys_read(void *arg, void *buffer, loff_t offset, size_t length)
 
 			// Yes, read blocks
 			size_t main_length = length & ~(fh->block_size - 1);
-			fh->io->io_Command = CMD_READ;
-			fh->io->io_Length = main_length;
-			fh->io->io_Offset = pos;
-			fh->io->io_Data = buffer;
-			if (DoIO((struct IORequest *)fh->io) || fh->io->io_Actual != main_length)
+			if (send_io_request(fh, false, main_length, pos, buffer) == 0)
 				return 0;
 
 			// Adjust data pointers
@@ -370,15 +384,11 @@ size_t Sys_read(void *arg, void *buffer, loff_t offset, size_t length)
 			actual += main_length;
 		}
 
-		// Post-read (partial read of last block) neccessary?
+		// Post-read (partial read of last block) necessary?
 		if (length) {
 
 			// Yes, read one block
-			fh->io->io_Command = CMD_READ;
-			fh->io->io_Length = fh->block_size;
-			fh->io->io_Offset = pos;
-			fh->io->io_Data = tmp_buf;
-			if (DoIO((struct IORequest *)fh->io) || fh->io->io_Actual != fh->block_size)
+			if (send_io_request(fh, false, fh->block_size, pos, tmp_buf) == 0)
 				return 0;
 
 			// Copy data to destination buffer
@@ -405,7 +415,7 @@ size_t Sys_write(void *arg, void *buffer, loff_t offset, size_t length)
 	// File or device?
 	if (fh->is_file) {
 
-		// File, seek to position if neccessary
+		// File, seek to position if necessary
 		if (Seek(fh->f, offset + fh->start_byte, OFFSET_BEGINNING) == -1)
 			return 0;
 
@@ -418,15 +428,65 @@ size_t Sys_write(void *arg, void *buffer, loff_t offset, size_t length)
 
 	} else {
 
-		// Device, write data
-		fh->io->io_Command = CMD_WRITE;
-		fh->io->io_Length = length;
-		fh->io->io_Offset = offset + fh->start_byte;
-		fh->io->io_Data = buffer;
-		if (DoIO((struct IORequest *)fh->io))
-			return 0;
-		else
-			return fh->io->io_Actual;
+		// Device, pre-write (partial write of first block) necessary
+		loff_t pos = offset + fh->start_byte;
+		size_t actual = 0;
+		uint32 pre_offset = pos % fh->block_size;
+		if (pre_offset) {
+
+			// Yes, read one block
+			if (send_io_request(fh, false, fh->block_size, pos - pre_offset, tmp_buf) == 0)
+				return 0;
+
+			// Copy data from source buffer
+			size_t pre_length = fh->block_size - pre_offset;
+			if (pre_length > length)
+				pre_length = length;
+			memcpy(tmp_buf + pre_offset, buffer, pre_length);
+
+			// Write block back
+			if (send_io_request(fh, true, fh->block_size, pos - pre_offset, tmp_buf) == 0)
+				return 0;
+
+			// Adjust data pointers
+			buffer = (uint8 *)buffer + pre_length;
+			pos += pre_length;
+			length -= pre_length;
+			actual += pre_length;
+		}
+
+		// Main write (complete writes of middle blocks) possible?
+		if (length >= fh->block_size) {
+
+			// Yes, write blocks
+			size_t main_length = length & ~(fh->block_size - 1);
+			if (send_io_request(fh, true, main_length, pos, buffer) == 0)
+				return 0;
+
+			// Adjust data pointers
+			buffer = (uint8 *)buffer + main_length;
+			pos += main_length;
+			length -= main_length;
+			actual += main_length;
+		}
+
+		// Post-write (partial write of last block) necessary?
+		if (length) {
+
+			// Yes, read one block
+			if (send_io_request(fh, false, fh->block_size, pos, tmp_buf) == 0)
+				return 0;
+
+			// Copy data from source buffer
+			memcpy(buffer, tmp_buf, length);
+
+			// Write block back
+			if (send_io_request(fh, true, fh->block_size, pos, tmp_buf) == 0)
+				return 0;
+			actual += length;
+		}
+
+		return actual;
 	}
 }
 

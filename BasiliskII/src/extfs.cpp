@@ -1852,7 +1852,7 @@ static int16 fs_create(uint32 pb, uint32 dirID)
 		return dupFNErr;
 
 	// Create file
-	int fd = creat(full_path, 0664);
+	int fd = creat(full_path, 0666);
 	if (fd < 0)
 		return errno2oserr();
 	else {
@@ -1877,7 +1877,7 @@ static int16 fs_dir_create(uint32 pb)
 		return dupFNErr;
 
 	// Create directory
-	if (mkdir(full_path, 0775) < 0)
+	if (mkdir(full_path, 0777) < 0)
 		return errno2oserr();
 	else {
 		WriteMacInt32(pb + ioDirID, fs_item->id);

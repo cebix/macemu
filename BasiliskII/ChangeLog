@@ -33,6 +33,9 @@ V0.8 -
 	  value (0 instead of 0x80) [Alexander R. Pruss]
 	- Unix/video_x.cpp: added mouse wheel support [Alexander R. Pruss]
 	- Unix/sys_unix.cpp: device size is read correctly under Linux
+	- AmigaOS: removed support for SAS/C
+	- AmigaOS/sys_amiga.cpp: supports 64-bit device I/O (NSD)
+	- AmigaOS/sys_amiga.cpp: device block size is respected on writes
 
 V0.8 (snapshot) - 21.Oct.1999
 	- sony.cpp/disk.cpp/cdrom.cpp: disk insertions are now checked for

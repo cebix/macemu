@@ -1,5 +1,5 @@
 /*
- *  extfs_unix.cpp - MacOS file system for access native file system access, Unix specific stuff
+ *  extfs_amiga.cpp - MacOS file system for access native file system access, AmigaOS specific stuff
  *
  *  Basilisk II (C) 1997-1999 Christian Bauer
  *
@@ -18,11 +18,15 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <exec/types.h>
+#include <proto/dos.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <dirent.h>
 #include <errno.h>
 
@@ -62,12 +66,7 @@ void extfs_exit(void)
 
 void add_path_component(char *path, const char *component)
 {
-	int l = strlen(path);
-	if (l < MAX_PATH_LENGTH-1 && path[l-1] != '/') {
-		path[l] = '/';
-		path[l+1] = 0;
-	}
-	strncat(path, component, MAX_PATH_LENGTH-1);
+	AddPart(path, (char *)component, MAX_PATH_LENGTH);
 }
 
 
@@ -93,22 +92,18 @@ static void make_helper_path(const char *src, char *dest, const char *add, bool 
 	dest[0] = 0;
 
 	// Get pointer to last component of path
-	const char *last_part = strrchr(src, '/');
-	if (last_part)
-		last_part++;
-	else
-		last_part = src;
+	const char *last_part = FilePart((char *)src);
 
 	// Copy everything before
 	strncpy(dest, src, last_part-src);
 	dest[last_part-src] = 0;
 
 	// Add additional component
-	strncat(dest, add, MAX_PATH_LENGTH-1);
+	AddPart(dest, (char *)add, MAX_PATH_LENGTH);
 
 	// Add last component
 	if (!only_dir)
-		strncat(dest, last_part, MAX_PATH_LENGTH-1);
+		AddPart(dest, (char *)last_part, MAX_PATH_LENGTH);
 }
 
 static int create_helper_dir(const char *path, const char *add)
@@ -367,4 +362,19 @@ size_t extfs_write(int fd, void *buffer, size_t length)
 {
 	errno = 0;
 	return write(fd, buffer, length);
+}
+
+
+/*
+ *  ftruncate() is missing from libnix
+ */
+
+extern unsigned long *__stdfiledes;
+
+int ftruncate(int fd, off_t size)
+{
+	if (SetFileSize(__stdfiledes[fd], size, OFFSET_BEGINNING) < 0)
+		return -1;
+	else
+		return 0;
 }

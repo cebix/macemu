@@ -57,11 +57,7 @@ static int audio_block_fetched = 0;				// Number of audio blocks fetched by inte
 
 
 // Prototypes
-#ifdef __GNUC__
 static __saveds __attribute__((regparm(3))) ULONG audio_callback(struct Hook *hook /*a0*/, struct AHISoundMessage *msg /*a1*/, struct AHIAudioCtrl *ahi_ctrl /*a2*/);
-#else
-static __saveds __regargs ULONG audio_callback(struct Hook *hook /*a0*/, struct AHISoundMessage *msg /*a1*/, struct AHIAudioCtrl *ahi_ctrl /*a2*/);
-#endif
 
 
 /*
@@ -178,11 +174,7 @@ void audio_exit_stream()
  *  AHI sound callback, request next buffer
  */
 
-#ifdef __GNUC__
 static __saveds __attribute__((regparm(3))) ULONG audio_callback(struct Hook *hook /*a0*/, struct AHISoundMessage *msg /*a1*/, struct AHIAudioCtrl *ahi_ctrl /*a2*/)
-#else
-static __saveds __regargs ULONG audio_callback(struct Hook *hook /*a0*/, struct AHISoundMessage *msg /*a1*/, struct AHIAudioCtrl *ahi_ctrl /*a2*/)
-#endif
 {
 	play_buf ^= 1;
 

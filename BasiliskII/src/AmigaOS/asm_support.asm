@@ -28,8 +28,6 @@
 		XDEF	_AtomicAnd
 		XDEF	_AtomicOr
 		XDEF	_MoveVBR
-		XDEF	_TimevalTo64
-		XDEF	_TimevalToMacTime
 		XDEF	_Execute68k
 		XDEF	_Execute68kTrap
 		XDEF	_TrapHandlerAsm
@@ -106,53 +104,6 @@ getvbr		movec	vbr,d0
 
 setvbr		movec	d0,vbr
 		rte
-
-*
-* Convert timeval to 64 bit microseconds
-*
-
-_TimevalTo64	move.l	4(sp),a0		;Pointer to timeval
-		move.l	8(sp),a1		;Pointer to high longword of result, low longword is returned in d0
-
-		move.l	d2,-(sp)
-
-		move.l	TV_SECS(a0),d0		;Convert to 64 bit microseconds
-		mulu.l	#1000000,d1:d0
-		add.l	TV_MICRO(a0),d0
-		moveq	#0,d2
-		addx.l	d2,d1
-		move.l	d1,(a1)
-
-		move.l	(sp)+,d2
-		rts
-
-*
-* Convert timeval to Mac time value (>0: milliseconds, <0: microseconds)
-*
-
-_TimevalToMacTime
-		move.l	4(sp),a0		;Pointer to timeval
-
-		move.l	d2,-(sp)
-
-		move.l	TV_SECS(a0),d0		;Convert to 64 bit microseconds
-		mulu.l	#1000000,d1:d0
-		add.l	TV_MICRO(a0),d0
-		moveq	#0,d2
-		addx.l	d2,d1
-
-		tst.l	d1			;Too large for 32 bit microseconds?
-		bne.s	1$
-		cmp.l	#$7fffffff,d0
-		bhi.s	1$
-
-		neg.l	d0			;No, return negative microseconds
-		bra.s	2$
-
-1$		divu.l	#1000,d1:d0		;Yes, return milliseconds
-
-2$		move.l	(sp)+,d2
-		rts
 
 *
 * Execute 68k subroutine (must be ended with rts)

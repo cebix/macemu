@@ -58,7 +58,7 @@ void SaveXPRAM(void)
 	if (xpram_path.InitCheck() != B_NO_ERROR)
 		return;
 	int fd;
-	if ((fd = open(xpram_path.Path(), O_WRONLY | O_CREAT, 0664)) >= 0) {
+	if ((fd = open(xpram_path.Path(), O_WRONLY | O_CREAT, 0666)) >= 0) {
 		write(fd, XPRAM, 256);
 		close(fd);
 	}
