@@ -433,23 +433,23 @@ void OPPROTO op_record_nego_T0(void)
 
 #define im PARAM1
 
-#if DYNGEN_ASM_OPTS && defined(__powerpc__) && 0
+#if DYNGEN_ASM_OPTS && defined(__powerpc__)
 
 #define DEFINE_OP(NAME, COMP, LHS, RHST, RHS)												\
 void OPPROTO op_##NAME##_##LHS##_##RHS(void)												\
 {																							\
-	uint32 cr = powerpc_dyngen_helper::xer().get_so();										\
+	RC = powerpc_dyngen_helper::xer().get_so();												\
 	uint32 v;																				\
 	asm volatile (COMP " 7,%1,%2 ; mfcr %0" : "=r" (v) : "r" (LHS), RHST (RHS) : "cr7");	\
-	T0 = cr | (v & 0xe);																	\
+	RC |= (v & 0xe);																		\
 }
 
-DEFINE_OP(do_compare,"cmpw",T0,"r",T1);
-DEFINE_OP(do_compare,"cmpw",T0,"r",im);
-DEFINE_OP(do_compare,"cmpwi",T0,"i",0);
-DEFINE_OP(do_compare_logical,"cmplw",T0,"r",T1);
-DEFINE_OP(do_compare_logical,"cmplw",T0,"r",im);
-DEFINE_OP(do_compare_logical,"cmplwi",T0,"i",0);
+DEFINE_OP(compare,"cmpw",T0,"r",T1);
+DEFINE_OP(compare,"cmpw",T0,"r",im);
+DEFINE_OP(compare,"cmpwi",T0,"i",0);
+DEFINE_OP(compare_logical,"cmplw",T0,"r",T1);
+DEFINE_OP(compare_logical,"cmplw",T0,"r",im);
+DEFINE_OP(compare_logical,"cmplwi",T0,"i",0);
 
 #else
 
