@@ -245,7 +245,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, struct sigcontext scs
 #define SIGSEGV_FAULT_ADDRESS			scs.cr2
 #define SIGSEGV_FAULT_INSTRUCTION		scs.eip
-#define SIGSEGV_REGISTER_FILE			(unsigned long *)(&scs)
+#define SIGSEGV_REGISTER_FILE			(unsigned int *)(&scs)
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(sparc) || defined(__sparc__))
