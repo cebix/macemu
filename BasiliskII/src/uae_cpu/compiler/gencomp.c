@@ -1601,8 +1601,6 @@ gen_opcode (unsigned long int opcode)
 	gen_update_next_handler();
 	break;
      case i_BSR:
-	if (curi->size==sz_long)
-	    failure;
 	is_const_jump;
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	start_brace();
