@@ -1,7 +1,7 @@
 /*
  *	$Id$
  *
- *  prefs_macosx.cpp - Preferences handling, Unix specific.
+ *  prefs_macosx.cpp - Preferences handling, Mac OS X specific.
  *					   Based on prefs_unix.cpp
  *
  *  Basilisk II (C) 1997-2004 Christian Bauer
@@ -77,19 +77,10 @@ void LoadPrefs(void)
 		SavePrefs();
 	}
 
-	// Remove Nigel's bad old floppy and serial prefs
+	// Remove Nigel's bad old serial prefs
 
 	const char	*str;
 	int			tmp = 0;
-
-	while ( (str = PrefsFindString("floppy", tmp) ) != NULL )
-		if ( strncmp(str, "/dev/fd/", 8) == 0 )
-		{
-			printf("Deleting invalid prefs item 'floppy %s'\n", str);
-			PrefsRemoveItem("floppy", tmp);
-		}
-		else
-			++tmp;
 
 	if ( (str = PrefsFindString("seriala") ) != NULL
 				&& strcmp(str, "/dev/ttys0") == 0 )
@@ -104,6 +95,15 @@ void LoadPrefs(void)
 		puts("Deleting invalid prefs item 'serialb /dev/ttys1'");
 		PrefsRemoveItem("serialb", 1);
 	}
+
+	// Floppy & cdrom prefs are always removed -
+	// we search for them each time the emulator is started
+
+	while ( (str = PrefsFindString("floppy", tmp) ) != NULL )
+		PrefsRemoveItem("floppy", tmp);
+
+	while ( (str = PrefsFindString("cdrom", tmp) ) != NULL )
+		PrefsRemoveItem("cdrom", tmp);
 }
 
 
