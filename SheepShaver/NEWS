@@ -3,6 +3,7 @@ Copyright (C) 1997-2005 Christian Bauer and Marc Hellwig
 
 Version 2.2 (snapshot) - <date>
 * Implement high-precision timings on POSIX systems
+* Add some SSE2 optimizations to the AltiVec emulation core
 * Add port to FreeBSD 5.3 and NetBSD 2.0 systems (x86 tested)
 * Add initial port to Windows with SDL graphics
 * Fix interrupt handling, registers are now fully preserved
