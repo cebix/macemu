@@ -281,6 +281,11 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #undef  SIGSEGV_FAULT_ADDRESS
 #define SIGSEGV_FAULT_ADDRESS			sip->si_ptr
 #endif
+#if (defined(arm) || defined(__arm__))
+#include <asm/ucontext.h> /* use kernel structure, glibc may not be in sync */
+#define SIGSEGV_CONTEXT_REGS			(((struct ucontext *)scp)->uc_mcontext)
+#define SIGSEGV_FAULT_INSTRUCTION		(SIGSEGV_CONTEXT_REGS.arm_pc)
+#endif
 #endif
 #endif
 
@@ -319,6 +324,13 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp
 #define SIGSEGV_FAULT_ADDRESS			get_fault_address(scp)
 #define SIGSEGV_FAULT_INSTRUCTION		scp->sc_pc
+#endif
+#if (defined(arm) || defined(__arm__))
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int r1, int r2, int r3, struct sigcontext sc
+#define SIGSEGV_FAULT_HANDLER_ARGLIST_1	struct sigcontext *scp
+#define SIGSEGV_FAULT_HANDLER_ARGS		&sc
+#define SIGSEGV_FAULT_ADDRESS			scp->fault_address
+#define SIGSEGV_FAULT_INSTRUCTION		scp->arm_pc
 #endif
 #endif
 
