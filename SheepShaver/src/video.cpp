@@ -517,6 +517,21 @@ static uint32 max_depth(uint32 id)
 	return max;
 }
 
+// Get X/Y size of specified resolution
+static void get_size_of_resolution(int id, uint32 &x, uint32 &y)
+{
+	VideoInfo *p = VModes;
+	while (p->viType != DIS_INVALID) {
+		if (p->viAppleID == id) {
+			x = p->viXsize;
+			y = p->viYsize;
+			return;
+		}
+		p++;
+	}
+	x = y = 0;
+}
+
 static int16 VideoStatus(uint32 pb, VidLocals *csSave)
 {
 	int16 code = ReadMacInt16(pb + csCode);
@@ -708,6 +723,14 @@ static int16 VideoStatus(uint32 pb, VidLocals *csSave)
 					WriteMacInt32(param + csVerticalLines, 1200);
 					WriteMacInt32(param + csRefreshRate, 75<<16);
 					break;
+				case APPLE_CUSTOM: {
+					uint32 x, y;
+					get_size_of_resolution(work_id, x, y);
+					WriteMacInt32(param + csHorizontalPixels, x);
+					WriteMacInt32(param + csVerticalLines, y);
+					WriteMacInt32(param + csRefreshRate, 75<<16);
+					break;
+				}
 			}
 			return noErr;
 		}

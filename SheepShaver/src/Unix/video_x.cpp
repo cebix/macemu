@@ -970,47 +970,56 @@ static int find_mode(int apple_mode, int apple_id, int type)
 	return -1;
 }
 
+// Add custom video mode
+static void add_custom_mode(VideoInfo *&p, int type, uint32 x, uint32 y, int apple_mode, int apple_id)
+{
+	p->viType = type;
+	p->viXsize = x;
+	p->viYsize = y;
+	p->viRowBytes = TrivialBytesPerRow(p->viXsize, apple_mode);
+	p->viAppleMode = apple_mode;
+	p->viAppleID = apple_id;
+	p++;
+}
+
 // Add mode to list of supported modes
 static void add_mode(VideoInfo *&p, uint32 allow, uint32 test, int apple_mode, int apple_id, int type)
 {
 	if (allow & test) {
-		p->viType = type;
+		uint32 x = 0, y = 0;
 		switch (apple_id) {
 			case APPLE_W_640x480:
 			case APPLE_640x480:
-				p->viXsize = 640;
-				p->viYsize = 480;
+				x = 640;
+				y = 480;
 				break;
 			case APPLE_W_800x600:
 			case APPLE_800x600:
-				p->viXsize = 800;
-				p->viYsize = 600;
+				x = 800;
+				y = 600;
 				break;
 			case APPLE_1024x768:
-				p->viXsize = 1024;
-				p->viYsize = 768;
+				x = 1024;
+				y = 768;
 				break;
 			case APPLE_1152x768:
-				p->viXsize = 1152;
-				p->viYsize = 768;
+				x = 1152;
+				y = 768;
 				break;
 			case APPLE_1152x900:
-				p->viXsize = 1152;
-				p->viYsize = 900;
+				x = 1152;
+				y = 900;
 				break;
 			case APPLE_1280x1024:
-				p->viXsize = 1280;
-				p->viYsize = 1024;
+				x = 1280;
+				y = 1024;
 				break;
 			case APPLE_1600x1200:
-				p->viXsize = 1600;
-				p->viYsize = 1200;
+				x = 1600;
+				y = 1200;
 				break;
 		}
-		p->viRowBytes = TrivialBytesPerRow(p->viXsize, apple_mode);
-		p->viAppleMode = apple_mode;
-		p->viAppleID = apple_id;
-		p++;
+		add_custom_mode(p, type, x, y, apple_mode, apple_id);
 	}
 }
 
