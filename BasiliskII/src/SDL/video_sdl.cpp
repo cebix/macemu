@@ -787,8 +787,8 @@ static void keycode_init(void)
 
 			if (video_driver_found) {
 				// Skip aliases
-				static const char alias_str[] = "alias";
-				if (strncmp(line, alias_str, sizeof(alias_str) - 1) == 0)
+				static const char sdl_str[] = "sdl";
+				if (strncmp(line, sdl_str, sizeof(sdl_str) - 1) == 0)
 					continue;
 
 				// Read keycode
@@ -799,9 +799,9 @@ static void keycode_init(void)
 					break;
 			} else {
 				// Search for SDL video driver string
-				static const char alias_sdl_str[] = "alias SDL";
-				if (strncmp(line, alias_sdl_str, sizeof(alias_sdl_str) - 1) == 0) {
-					char *p = line + sizeof(alias_sdl_str);
+				static const char sdl_str[] = "sdl";
+				if (strncmp(line, sdl_str, sizeof(sdl_str) - 1) == 0) {
+					char *p = line + sizeof(sdl_str);
 					if (strstr(video_driver, p) == video_driver)
 						video_driver_found = true;
 				}
@@ -1629,14 +1629,42 @@ void VideoInstallAccel(void)
 
 
 /*
- *  Translate key event to Mac keycode, returns -1 if no keycode was found
- *  and -2 if the key was recognized as a hotkey
+ *  Keyboard-related utilify functions
  */
+
+static bool is_modifier_key(SDL_KeyboardEvent const & e)
+{
+	switch (e.keysym.sym) {
+	case SDLK_NUMLOCK:
+	case SDLK_CAPSLOCK:
+	case SDLK_SCROLLOCK:
+	case SDLK_RSHIFT:
+	case SDLK_LSHIFT:
+	case SDLK_RCTRL:
+	case SDLK_LCTRL:
+	case SDLK_RALT:
+	case SDLK_LALT:
+	case SDLK_RMETA:
+	case SDLK_LMETA:
+	case SDLK_LSUPER:
+	case SDLK_RSUPER:
+	case SDLK_MODE:
+	case SDLK_COMPOSE:
+		return true;
+	}
+	return false;
+}
 
 static bool is_ctrl_down(SDL_keysym const & ks)
 {
 	return ctrl_down || (ks.mod & KMOD_CTRL);
 }
+
+
+/*
+ *  Translate key event to Mac keycode, returns -1 if no keycode was found
+ *  and -2 if the key was recognized as a hotkey
+ */
 
 static int kc_decode(SDL_keysym const & ks, bool key_down)
 {
@@ -1707,10 +1735,17 @@ static int kc_decode(SDL_keysym const & ks, bool key_down)
 	case SDLK_RCTRL: return 0x36;
 	case SDLK_LSHIFT: return 0x38;
 	case SDLK_RSHIFT: return 0x38;
+#if (defined(__APPLE__) && defined(__MACH__))
+	case SDLK_LALT: return 0x3a;
+	case SDLK_RALT: return 0x3a;
+	case SDLK_LMETA: return 0x37;
+	case SDLK_RMETA: return 0x37;
+#else
 	case SDLK_LALT: return 0x37;
 	case SDLK_RALT: return 0x37;
 	case SDLK_LMETA: return 0x3a;
 	case SDLK_RMETA: return 0x3a;
+#endif
 	case SDLK_MENU: return 0x32;
 	case SDLK_CAPSLOCK: return 0x39;
 	case SDLK_NUMLOCK: return 0x47;
@@ -1817,7 +1852,7 @@ static void handle_events(void)
 			// Keyboard
 			case SDL_KEYDOWN: {
 				int code = -1;
-				if (use_keycodes) {
+				if (use_keycodes && !is_modifier_key(event.key)) {
 					if (event2keycode(event.key, true) != -2)	// This is called to process the hotkeys
 						code = keycode_table[event.key.keysym.scancode & 0xff];
 				} else
@@ -1845,13 +1880,22 @@ static void handle_events(void)
 			}
 			case SDL_KEYUP: {
 				int code = -1;
-				if (use_keycodes) {
+				if (use_keycodes && !is_modifier_key(event.key)) {
 					if (event2keycode(event.key, false) != -2)	// This is called to process the hotkeys
 						code = keycode_table[event.key.keysym.scancode & 0xff];
 				} else
 					code = event2keycode(event.key, false);
-				if (code >= 0 && code != 0x39) {	// Don't propagate Caps Lock releases
-					ADBKeyUp(code);
+				if (code >= 0) {
+					if (code == 0x39) {	// Caps Lock released
+						if (caps_on) {
+							ADBKeyUp(code);
+							caps_on = false;
+						} else {
+							ADBKeyDown(code);
+							caps_on = true;
+						}
+					} else
+						ADBKeyUp(code);
 					if (code == 0x36)
 						ctrl_down = false;
 				}
