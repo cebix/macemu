@@ -642,6 +642,14 @@ dnl Can we do Video on SEGV Signals ?
 CAN_VOSF=no
 if [[ -n "$sigsegv_recovery" ]]; then
   CAN_VOSF=yes
+  case $target_os in
+  darwin*)
+    dnl Signal handlers in darwin are way too slow since the whole
+    dnl machine state (GPRs, FPRs, VRs) is forcibly saved.
+    dnl In other words, VOSF is slower than static window refreshes.
+    CAN_VOSF=no
+    ;;
+  esac
 fi
 
 dnl Enable VOSF screen updates with this feature is requested and feasible
