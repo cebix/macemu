@@ -52,11 +52,13 @@
 #include "debug.h"
 
 // Emulation time statistics
-#define EMUL_TIME_STATS 1
+#ifndef EMUL_TIME_STATS
+#define EMUL_TIME_STATS 0
+#endif
 
 #if EMUL_TIME_STATS
 static clock_t emul_start_time;
-static uint32 interrupt_count = 0;
+static uint32 interrupt_count = 0, ppc_interrupt_count = 0;
 static clock_t interrupt_time = 0;
 static uint32 exec68k_count = 0;
 static clock_t exec68k_time = 0;
@@ -596,7 +598,7 @@ sheepshaver_cpu::interrupt_context::~interrupt_context()
 void sheepshaver_cpu::interrupt(uint32 entry)
 {
 #if EMUL_TIME_STATS
-	interrupt_count++;
+	ppc_interrupt_count++;
 	const clock_t interrupt_start = clock();
 #endif
 
@@ -988,6 +990,8 @@ void exit_emul_ppc(void)
 	printf("Total emulation time : %.1f sec\n", double(emul_time) / double(CLOCKS_PER_SEC));
 	printf("Total interrupt count: %d (%2.1f Hz)\n", interrupt_count,
 		   (double(interrupt_count) * CLOCKS_PER_SEC) / double(emul_time));
+	printf("Total ppc interrupt count: %d (%2.1f %%)\n", ppc_interrupt_count,
+		   (double(ppc_interrupt_count) * 100.0) / double(interrupt_count));
 
 #define PRINT_STATS(LABEL, VAR_PREFIX) do {								\
 		printf("Total " LABEL " count : %d\n", VAR_PREFIX##_count);		\
@@ -1074,6 +1078,9 @@ void sheepshaver_cpu::handle_interrupt(void)
 	// Current interrupt nest level
 	static int interrupt_depth = 0;
 	++interrupt_depth;
+#if EMUL_TIME_STATS
+	interrupt_count++;
+#endif
 
 	// Disable MacOS stack sniffer
 	WriteMacInt32(0x110, 0);
@@ -1113,6 +1120,9 @@ void sheepshaver_cpu::handle_interrupt(void)
 		// 68k emulator active, within EMUL_OP routine, execute 68k interrupt routine directly when interrupt level is 0
 		if ((ReadMacInt32(XLM_68K_R25) & 7) == 0) {
 			interrupt_context ctx(this, "68k mode");
+#if EMUL_TIME_STATS
+			const clock_t interrupt_start = clock();
+#endif
 #if 1
 			// Execute full 68k interrupt routine
 			M68kRegisters r;
@@ -1137,6 +1147,9 @@ void sheepshaver_cpu::handle_interrupt(void)
 					ExecuteNative(NATIVE_VIDEO_VBL);
 				}
 			}
+#endif
+#if EMUL_TIME_STATS
+			interrupt_time += (clock() - interrupt_start);
 #endif
 		}
 		break;
