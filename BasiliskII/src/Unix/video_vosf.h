@@ -186,6 +186,37 @@ static uint32 page_extend(uint32 size)
 
 
 /*
+ *  Check if VOSF acceleration is profitable on this platform
+ */
+
+const int VOSF_PROFITABLE_THRESHOLD = 8000; // 8 ms, aka (60 Hz / 2) for work processing
+
+static bool video_vosf_profitable(void)
+{
+	uint64 start = GetTicks_usec();
+
+	for (int i = 0; i < mainBuffer.pageCount; i++) {
+		uint8 *addr = (uint8 *)(mainBuffer.memStart + (i * mainBuffer.pageSize));
+		memset(addr, 0, mainBuffer.pageSize); // Trigger Screen_fault_handler()
+	}
+
+	uint64 end = GetTicks_usec();
+	const int diff = end - start;
+	D(bug("Triggered %d screen faults in %ld usec\n", mainBuffer.pageCount, diff));
+
+	if (diff > (VOSF_PROFITABLE_THRESHOLD * (frame_skip + 1)))
+		return false;
+
+	// Reset VOSF variables to initial state
+	PFLAG_CLEAR_ALL;
+	if (vm_protect((char *)mainBuffer.memStart, mainBuffer.memLength, VM_PAGE_READ) != 0)
+		return false;
+	mainBuffer.dirty = false;
+	return true;
+}
+
+
+/*
  *  Initialize the VOSF system (mainBuffer structure, SIGSEGV handler)
  */
 

@@ -99,7 +99,7 @@ static volatile bool redraw_thread_cancel;			// Flag: Cancel Redraw thread
 static SDL_Thread *redraw_thread = NULL;			// Redraw thread
 
 #ifdef ENABLE_VOSF
-static bool use_vosf = true;						// Flag: VOSF enabled
+static bool use_vosf = false;						// Flag: VOSF enabled
 #else
 static const bool use_vosf = false;					// VOSF not possible
 #endif
@@ -259,6 +259,12 @@ static int match_apple_resolution(int &xsize, int &ysize)
 static void ErrorAlert(int error)
 {
 	ErrorAlert(GetString(error));
+}
+
+// Display warning alert
+static void WarningAlert(int warning)
+{
+	WarningAlert(GetString(warning));
 }
 #endif
 
@@ -624,14 +630,32 @@ driver_window::driver_window(SDL_monitor_desc &m)
 	the_buffer = (uint8 *)vm_acquire(the_buffer_size);
 	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
-#else
-	// Allocate memory for frame buffer
-	the_buffer_size = (aligned_height + 2) * s->pitch;
-	the_buffer_copy = (uint8 *)calloc(1, the_buffer_size);
-	the_buffer = (uint8 *)calloc(1, the_buffer_size);
-	D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
-#endif
 
+	// Check whether we can initialize the VOSF subsystem and it's profitable
+	if (!video_vosf_init(m)) {
+		WarningAlert(STR_VOSF_INIT_ERR);
+		use_vosf = false;
+	}
+	else if (!video_vosf_profitable()) {
+		video_vosf_exit();
+		// WarningAlert(STR_VOSF_NOT_PROFITABLE_WARN);
+		printf("VOSF acceleration is not profitable on this platform\n");
+		use_vosf = false;
+	}
+	if (!use_vosf) {
+		free(the_buffer_copy);
+		vm_release(the_buffer, the_buffer_size);
+		the_host_buffer = NULL;
+	}
+#endif
+	if (!use_vosf) {
+		// Allocate memory for frame buffer
+		the_buffer_size = (aligned_height + 2) * s->pitch;
+		the_buffer_copy = (uint8 *)calloc(1, the_buffer_size);
+		the_buffer = (uint8 *)calloc(1, the_buffer_size);
+		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
+	}
+	
 #ifdef SHEEPSHAVER
 	// Create cursor
 	if ((sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, 0, 0)) != NULL) {
@@ -823,16 +847,6 @@ bool SDL_monitor_desc::video_open(void)
 		return false;
 	}
 
-#ifdef ENABLE_VOSF
-	if (use_vosf) {
-		// Initialize the VOSF system
-		if (!video_vosf_init(*this)) {
-			ErrorAlert(STR_VOSF_INIT_ERR);
-        	return false;
-		}
-	}
-#endif
-	
 	// Initialize VideoRefresh function
 	VideoRefreshInit();
 
@@ -1159,11 +1173,13 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 		}
 
 #ifdef ENABLE_VOSF
-		// We have to redraw everything because the interpretation of pixel values changed
-		LOCK_VOSF;
-		PFLAG_SET_ALL;
-		UNLOCK_VOSF;
-		memset(the_buffer_copy, 0, VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y);
+		if (use_vosf) {
+			// We have to redraw everything because the interpretation of pixel values changed
+			LOCK_VOSF;
+			PFLAG_SET_ALL;
+			UNLOCK_VOSF;
+			memset(the_buffer_copy, 0, VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y);
+		}
 #endif
 	}
 
