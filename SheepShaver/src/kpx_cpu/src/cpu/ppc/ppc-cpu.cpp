@@ -34,14 +34,6 @@
 // Define to gather some compile time statistics
 #define PROFILE_COMPILE_TIME 1
 
-#if PROFILE_COMPILE_TIME
-#include <time.h>
-static uint32 compile_count		= 0;
-static clock_t compile_time		= 0;
-static clock_t emul_start_time	= 0;
-static clock_t emul_end_time	= 0;
-#endif
-
 void powerpc_cpu::set_register(int id, any_register const & value)
 {
 	if (id >= powerpc_registers::GPR(0) && id <= powerpc_registers::GPR(31)) {
@@ -244,6 +236,8 @@ void powerpc_cpu::initialize()
 #endif
 
 #if PROFILE_COMPILE_TIME
+	compile_count = 0;
+	compile_time = 0;
 	emul_start_time = clock();
 #endif
 }
@@ -251,7 +245,7 @@ void powerpc_cpu::initialize()
 powerpc_cpu::~powerpc_cpu()
 {
 #if PROFILE_COMPILE_TIME
-	emul_end_time = clock();
+	clock_t emul_end_time = clock();
 
 	const char *type = NULL;
 #ifndef PPC_NO_DECODE_CACHE

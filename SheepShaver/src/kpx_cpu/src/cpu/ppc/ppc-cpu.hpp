@@ -162,6 +162,11 @@ protected:
 
 private:
 
+	// Compile time statistics
+	uint32 compile_count;
+	clock_t compile_time;
+	clock_t emul_start_time;
+
 	// Flight recorder data
 	static const int LOG_SIZE = 32768;
 #if PPC_FLIGHT_RECORDER
