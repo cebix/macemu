@@ -71,19 +71,8 @@ static void enter_mon(void)
 // Interrupts in native mode?
 #define INTERRUPTS_IN_NATIVE_MODE 1
 
-// 68k Emulator Data
-struct EmulatorData {
-	uint32	v[0x400];	
-};
-
-// Kernel Data
-struct KernelData {
-	uint32	v[0x400];
-	EmulatorData ed;
-};
-
 // Pointer to Kernel Data
-static KernelData * const kernel_data = (KernelData *)0x68ffe000;
+static KernelData * const kernel_data = (KernelData *)KERNEL_DATA_BASE;
 
 
 /**
@@ -124,7 +113,7 @@ public:
 	void get_resource(uint32 old_get_resource);
 
 	// Handle MacOS interrupt
-	void interrupt(uint32 entry, sheepshaver_cpu *cpu);
+	void interrupt(uint32 entry);
 
 	// spcflags for interrupts handling
 	static uint32 spcflags;
@@ -232,10 +221,9 @@ struct execute_nothing {
 	static inline void execute(powerpc_cpu *) { }
 };
 
-static void HandleInterrupt(void);
-
 struct execute_spcflags_check {
 	static inline void execute(powerpc_cpu *cpu) {
+#if !ASYNC_IRQ
 		if (SPCFLAGS_TEST(SPCFLAG_ALL_BUT_EXEC_RETURN)) {
 			if (SPCFLAGS_TEST( SPCFLAG_ENTER_MON )) {
 				SPCFLAGS_CLEAR( SPCFLAG_ENTER_MON );
@@ -250,6 +238,7 @@ struct execute_spcflags_check {
 				SPCFLAGS_SET( SPCFLAG_DOINT );
 			}
 		}
+#endif
 	}
 };
 
@@ -270,20 +259,18 @@ void sheepshaver_cpu::execute(uint32 entry)
 }
 
 // Handle MacOS interrupt
-void sheepshaver_cpu::interrupt(uint32 entry, sheepshaver_cpu *cpu)
+void sheepshaver_cpu::interrupt(uint32 entry)
 {
-#if MULTICORE_CPU
-	// Initialize stack pointer from previous CPU running
-	gpr(1) = cpu->gpr(1);
-#else
+#if !MULTICORE_CPU
 	// Save program counters and branch registers
 	uint32 saved_pc = pc();
 	uint32 saved_lr = lr();
 	uint32 saved_ctr= ctr();
+	uint32 saved_sp = gpr(1);
 #endif
 
-	// Create stack frame
-	gpr(1) -= 64;
+	// Initialize stack pointer to SheepShaver alternate stack base
+	gpr(1) = SheepStack1Base - 64;
 
 	// Build trampoline to return from interrupt
 	uint32 trampoline[] = { POWERPC_EMUL_OP | 1 };
@@ -320,14 +307,12 @@ void sheepshaver_cpu::interrupt(uint32 entry, sheepshaver_cpu *cpu)
 	// Enter nanokernel
 	execute(entry);
 
-	// Cleanup stack
-	gpr(1) += 64;
-
 #if !MULTICORE_CPU
 	// Restore program counters and branch registers
 	pc() = saved_pc;
 	lr() = saved_lr;
 	ctr()= saved_ctr;
+	gpr(1) = saved_sp;
 #endif
 }
 
@@ -585,7 +570,7 @@ void init_emul_ppc(void)
 
 	// Install the handler for SIGSEGV
 	sigsegv_install_handler(sigsegv_handler);
-	
+
 #if ENABLE_MON
 	// Install "regs" command in cxmon
 	mon_add_command("regs", dump_registers, "regs                     Dump PowerPC registers\n");
@@ -613,6 +598,7 @@ extern int atomic_add(int *var, int v);
 extern int atomic_and(int *var, int v);
 extern int atomic_or(int *var, int v);
 
+#if !ASYNC_IRQ
 void TriggerInterrupt(void)
 {
 #if 0
@@ -621,8 +607,9 @@ void TriggerInterrupt(void)
   SPCFLAGS_SET( SPCFLAG_INT );
 #endif
 }
+#endif
 
-static void HandleInterrupt(void)
+void HandleInterrupt(void)
 {
 	// Do nothing if interrupts are disabled
 	if (int32(ReadMacInt32(XLM_IRQ_NEST)) > 0)
@@ -659,9 +646,9 @@ static void HandleInterrupt(void)
 			DisableInterrupt();
 			cpu_push(interrupt_cpu);
 			if (ROMType == ROMTYPE_NEWWORLD)
-				current_cpu->interrupt(ROM_BASE + 0x312b1c, main_cpu);
+				current_cpu->interrupt(ROM_BASE + 0x312b1c);
 			else
-				current_cpu->interrupt(ROM_BASE + 0x312a3c, main_cpu);
+				current_cpu->interrupt(ROM_BASE + 0x312a3c);
 			cpu_pop();
 		}
 		break;

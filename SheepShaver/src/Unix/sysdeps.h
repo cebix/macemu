@@ -68,6 +68,8 @@
 #define POWERPC_ROM 1
 
 #if EMULATED_PPC
+// Handle interrupts asynchronously?
+#define ASYNC_IRQ 0
 // Mac ROM is write protected when banked memory is used
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 # define ROM_IS_WRITE_PROTECTED 0

@@ -145,27 +145,8 @@
 const char ROM_FILE_NAME[] = "ROM";
 const char ROM_FILE_NAME2[] = "Mac OS ROM";
 
-const uint32 ROM_AREA_SIZE = 0x500000;		// Size of ROM area
-const uint32 ROM_END = ROM_BASE + ROM_SIZE;	// End of ROM
-
-const uint32 KERNEL_DATA_BASE = 0x68ffe000;	// Address of Kernel Data
-const uint32 KERNEL_DATA2_BASE = 0x5fffe000;	// Alternate address of Kernel Data
-const uint32 KERNEL_AREA_SIZE = 0x2000;		// Size of Kernel Data area
-
+const uint32 RAM_BASE = 0x20000000;			// Base address of RAM
 const uint32 SIG_STACK_SIZE = 0x10000;		// Size of signal stack
-
-
-// 68k Emulator Data
-struct EmulatorData {
-	uint32	v[0x400];	
-};
-
-
-// Kernel Data
-struct KernelData {
-	uint32	v[0x400];
-	EmulatorData ed;
-};
 
 
 #if !EMULATED_PPC
@@ -191,6 +172,9 @@ void *TOC;				// Small data pointer (r13)
 #endif
 uint32 RAMBase;			// Base address of Mac RAM
 uint32 RAMSize;			// Size of Mac RAM
+uint32 SheepStack1Base;	// SheepShaver first alternate stack base
+uint32 SheepStack2Base;	// SheepShaver second alternate stack base
+uint32 SheepThunksBase;	// SheepShaver thunks base
 uint32 KernelDataAddr;	// Address of Kernel Data
 uint32 BootGlobsAddr;	// Address of BootGlobs structure at top of Mac RAM
 uint32 PVR;				// Theoretical PVR
@@ -203,11 +187,11 @@ static char *x_display_name = NULL;			// X11 display name
 Display *x_display = NULL;					// X11 display handle
 
 static int zero_fd = 0;						// FD of /dev/zero
+static bool sheep_area_mapped = false;		// Flag: SheepShaver data area mmap()ed
 static bool lm_area_mapped = false;			// Flag: Low Memory area mmap()ped
 static int kernel_area = -1;				// SHM ID of Kernel Data area
 static bool rom_area_mapped = false;		// Flag: Mac ROM mmap()ped
 static bool ram_area_mapped = false;		// Flag: Mac RAM mmap()ped
-static void *mmap_RAMBase = NULL;			// Base address of mmap()ed RAM area
 static KernelData *kernel_data;				// Pointer to Kernel Data
 static EmulatorData *emulator_data;
 
@@ -238,7 +222,9 @@ static void Quit(void);
 static void *emul_func(void *arg);
 static void *nvram_func(void *arg);
 static void *tick_func(void *arg);
-#if !EMULATED_PPC
+#if EMULATED_PPC
+static void sigusr2_handler(int sig);
+#else
 static void sigusr2_handler(int sig, sigcontext_struct *sc);
 static void sigsegv_handler(int sig, sigcontext_struct *sc);
 static void sigill_handler(int sig, sigcontext_struct *sc);
@@ -293,7 +279,6 @@ int main(int argc, char **argv)
 
 	// Initialize variables
 	RAMBase = 0;
-	mmap_RAMBase = NULL;
 	tzset();
 
 	// Print some info
@@ -451,6 +436,17 @@ int main(int argc, char **argv)
 	KernelDataAddr = (uint32)kernel_data;
 	D(bug("Kernel Data at %p, Emulator Data at %p\n", kernel_data, emulator_data));
 
+	// Create area for SheepShaver data
+	if (vm_acquire_fixed((char *)SHEEP_BASE, SHEEP_SIZE) < 0) {
+		sprintf(str, GetString(STR_SHEEP_MEM_MMAP_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+	SheepStack1Base = SHEEP_BASE + 0x10000;
+	SheepStack2Base = SheepStack1Base + 0x10000;
+	SheepThunksBase = SheepStack2Base + 0x1000;
+	sheep_area_mapped = true;
+
 	// Create area for Mac ROM
 	if (vm_acquire_fixed((char *)ROM_BASE, ROM_AREA_SIZE) < 0) {
 		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
@@ -474,20 +470,19 @@ int main(int argc, char **argv)
 		RAMSize = 8*1024*1024;
 	}
 
-	mmap_RAMBase = (void *)0x20000000;
-	if (vm_acquire_fixed(mmap_RAMBase, RAMSize) < 0) {
+	if (vm_acquire_fixed((char *)RAM_BASE, RAMSize) < 0) {
 		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
 #if !EMULATED_PPC
-	if (vm_protect(mmap_RAMBase, RAMSize, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
+	if (vm_protect((char *)RAM_BASE, RAMSize, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
 		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
 #endif
-	RAMBase = (uint32)mmap_RAMBase;
+	RAMBase = RAM_BASE;
 	ram_area_mapped = true;
 	D(bug("RAM area at %08x\n", RAMBase));
 
@@ -717,18 +712,19 @@ int main(int argc, char **argv)
 	}
 #endif
 
-#if !EMULATED_PPC
 	// Install interrupt signal handler
 	sigemptyset(&sigusr2_action.sa_mask);
 	sigusr2_action.sa_handler = (__sighandler_t)sigusr2_handler;
+	sigusr2_action.sa_flags = 0;
+#if !EMULATED_PPC
 	sigusr2_action.sa_flags = SA_ONSTACK | SA_RESTART;
+#endif
 	sigusr2_action.sa_restorer = NULL;
 	if (sigaction(SIGUSR2, &sigusr2_action, NULL) < 0) {
 		sprintf(str, GetString(STR_SIGUSR2_INSTALL_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
-#endif
 
 	// Get my thread ID and execute MacOS thread function
 	emul_thread = pthread_self();
@@ -805,7 +801,7 @@ static void Quit(void)
 
 	// Delete RAM area
 	if (ram_area_mapped)
-		vm_release(mmap_RAMBase, RAMSize);
+		vm_release((char *)RAM_BASE, RAMSize);
 
 	// Delete ROM area
 	if (rom_area_mapped)
@@ -1199,7 +1195,7 @@ void B2_delete_mutex(B2_mutex *mutex)
  *  Trigger signal USR2 from another thread
  */
 
-#if !EMULATED_PPC
+#if !EMULATED_PPC || ASYNC_IRQ
 void TriggerInterrupt(void)
 {
 	if (ready_for_signals)
@@ -1245,11 +1241,19 @@ void EnableInterrupt(void)
 }
 
 
-#if !EMULATED_PPC
 /*
  *  USR2 handler
  */
 
+#if EMULATED_PPC
+static void sigusr2_handler(int sig)
+{
+#if ASYNC_IRQ
+	extern void HandleInterrupt(void);
+	HandleInterrupt();
+#endif
+}
+#else
 static void sigusr2_handler(int sig, sigcontext_struct *sc)
 {
 	pt_regs *r = sc->regs;
@@ -1331,15 +1335,16 @@ static void sigusr2_handler(int sig, sigcontext_struct *sc)
 			}
 			break;
 #endif
-
 	}
 }
+#endif
 
 
 /*
  *  SIGSEGV handler
  */
 
+#if !EMULATED_PPC
 static void sigsegv_handler(int sig, sigcontext_struct *sc)
 {
 	pt_regs *r = sc->regs;

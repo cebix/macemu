@@ -38,6 +38,7 @@ user_string_def platform_strings[] = {
 	{STR_KD2_SHMAT_ERR, "Cannot map second Kernel Data area: %s."},
 	{STR_ROM_MMAP_ERR, "Cannot map ROM: %s."},
 	{STR_RAM_MMAP_ERR, "Cannot map RAM: %s."},
+	{STR_SHEEP_MEM_MMAP_ERR, "Cannot map SheepShaver Data area: %s."},
 	{STR_SIGALTSTACK_ERR, "Cannot install alternate signal stack (%s). It seems that you need a newer kernel."},
 	{STR_SIGSEGV_INSTALL_ERR, "Cannot install SIGSEGV handler: %s."},
 	{STR_SIGILL_INSTALL_ERR, "Cannot install SIGILL handler: %s."},

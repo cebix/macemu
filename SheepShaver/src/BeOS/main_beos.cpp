@@ -117,28 +117,9 @@ const char RAM_AREA_NAME[] = "Macintosh RAM";
 const char ROM_AREA_NAME[] = "Macintosh ROM";
 const char DR_CACHE_AREA_NAME[] = "Macintosh DR Cache";
 
-const uint32 ROM_AREA_SIZE = 0x500000;		// Size of ROM area
-
-const uint32 KERNEL_DATA_BASE = 0x68ffe000;	// Address of Kernel Data
-const uint32 KERNEL_DATA2_BASE = 0x5fffe000;// Alternate address of Kernel Data
-const uint32 KERNEL_AREA_SIZE = 0x2000;		// Size of Kernel Data area
-
 const uint32 SIG_STACK_SIZE = 8192;			// Size of signal stack
 
 const uint32 MSG_START = 'strt';			// Emulator start message
-
-
-// Emulator Data
-struct EmulatorData {
-	uint32 v[0x400];	
-};
-
-
-// Kernel Data
-struct KernelData {
-	uint32 v[0x400];
-	EmulatorData ed;
-};
 
 
 // Application object
