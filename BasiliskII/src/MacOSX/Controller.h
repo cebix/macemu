@@ -23,8 +23,8 @@
 #import <Cocoa/Cocoa.h>
 #import "PrefsEditor.h"
 
-// If the application supports multiple windows, define this:
-// #define ENABLE_MULTIPLE
+// If the application supports multiple windows,
+// ENABLE_MULTIPLE can be defined in config.h
 
 @interface Controller : NSApplication
 {
