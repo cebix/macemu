@@ -29,6 +29,8 @@
 #include <errno.h>
 #include <pthread.h>
 
+#include <algorithm>
+
 #ifdef ENABLE_XF86_DGA
 #include <X11/extensions/xf86dga.h>
 #endif
@@ -47,6 +49,10 @@
 
 #define DEBUG 0
 #include "debug.h"
+
+#ifndef NO_STD_NAMESPACE
+using std::sort;
+#endif
 
 
 // Constants
@@ -89,14 +95,20 @@ static int screen;							// Screen number
 static int xdepth;							// Depth of X screen
 static int depth;							// Depth of Mac frame buffer
 static Window rootwin, the_win;				// Root window and our window
+static int num_depths = 0;					// Number of available X depths
+static int *avail_depths = NULL;			// List of available X depths
 static XVisualInfo visualInfo;
 static Visual *vis;
+static int color_class;
+static int rshift, rloss, gshift, gloss, bshift, bloss;	// Pixel format of DirectColor/TrueColor modes
 static Colormap cmap[2];					// Two colormaps (DGA) for 8-bit mode
+static XColor x_palette[256];				// Color palette to be used as CLUT and gamma table
+
 static XColor black, white;
 static unsigned long black_pixel, white_pixel;
 static int eventmask;
-static const int win_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | EnterWindowMask | ExposureMask;
-static const int dga_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
+static const int win_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | EnterWindowMask | ExposureMask | StructureNotifyMask;
+static const int dga_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | StructureNotifyMask;
 
 // Variables for window mode
 static GC the_gc;
@@ -123,6 +135,20 @@ static XF86VidModeModeInfo **x_video_modes;		// Array of all available modes
 static int num_x_video_modes;
 #endif
 
+// Mutex to protect palette
+#ifdef HAVE_SPINLOCKS
+static spinlock_t x_palette_lock = SPIN_LOCK_UNLOCKED;
+#define LOCK_PALETTE spin_lock(&x_palette_lock)
+#define UNLOCK_PALETTE spin_unlock(&x_palette_lock)
+#elif defined(HAVE_PTHREADS)
+static pthread_mutex_t x_palette_lock = PTHREAD_MUTEX_INITIALIZER;
+#define LOCK_PALETTE pthread_mutex_lock(&x_palette_lock)
+#define UNLOCK_PALETTE pthread_mutex_unlock(&x_palette_lock)
+#else
+#define LOCK_PALETTE
+#define UNLOCK_PALETTE
+#endif
+
 
 // Prototypes
 static void *redraw_func(void *arg);
@@ -147,8 +173,189 @@ extern void ClipboardSelectionRequest(XSelectionRequestEvent *);
 
 
 /*
+ *  Utility functions
+ */
+
+// Get current video mode
+static inline int get_current_mode(void)
+{
+	return VModes[cur_mode].viAppleMode;
+}
+
+// Find palette size for given color depth
+static int palette_size(int mode)
+{
+	switch (mode) {
+	case APPLE_1_BIT: return 2;
+	case APPLE_2_BIT: return 4;
+	case APPLE_4_BIT: return 16;
+	case APPLE_8_BIT: return 256;
+	case APPLE_16_BIT: return 32;
+	case APPLE_32_BIT: return 256;
+	default: return 0;
+	}
+}
+
+// Map video_mode depth ID to numerical depth value
+static inline int depth_of_video_mode(int mode)
+{
+	int depth = -1;
+	switch (mode) {
+	case APPLE_1_BIT:
+		depth = 1;
+		break;
+	case APPLE_2_BIT:
+		depth = 2;
+		break;
+	case APPLE_4_BIT:
+		depth = 4;
+		break;
+	case APPLE_8_BIT:
+		depth = 8;
+		break;
+	case APPLE_16_BIT:
+		depth = 16;
+		break;
+	case APPLE_32_BIT:
+		depth = 32;
+		break;
+	default:
+		abort();
+	}
+	return depth;
+}
+
+// Map RGB color to pixel value (this only works in TrueColor/DirectColor visuals)
+static inline uint32 map_rgb(uint8 red, uint8 green, uint8 blue)
+{
+	return ((red >> rloss) << rshift) | ((green >> gloss) << gshift) | ((blue >> bloss) << bshift);
+}
+
+
+// Do we have a visual for handling the specified Mac depth? If so, set the
+// global variables "xdepth", "visualInfo", "vis" and "color_class".
+static bool find_visual_for_depth(int depth)
+{
+	D(bug("have_visual_for_depth(%d)\n", depth_of_video_mode(depth)));
+
+	// 1-bit works always and uses default visual
+	if (depth == APPLE_1_BIT) {
+		vis = DefaultVisual(x_display, screen);
+		visualInfo.visualid = XVisualIDFromVisual(vis);
+		int num = 0;
+		XVisualInfo *vi = XGetVisualInfo(x_display, VisualIDMask, &visualInfo, &num);
+		visualInfo = vi[0];
+		XFree(vi);
+		xdepth = visualInfo.depth;
+		color_class = visualInfo.c_class;
+		D(bug(" found visual ID 0x%02x, depth %d\n", visualInfo.visualid, xdepth));
+		return true;
+	}
+
+	// Calculate minimum and maximum supported X depth
+	int min_depth = 1, max_depth = 32;
+	switch (depth) {
+#ifdef ENABLE_VOSF
+		case APPLE_2_BIT:
+		case APPLE_4_BIT:	// VOSF blitters can convert 2/4/8-bit -> 8/16/32-bit
+		case APPLE_8_BIT:
+			min_depth = 8;
+			max_depth = 32;
+			break;
+#else
+		case APPLE_2_BIT:
+		case APPLE_4_BIT:	// 2/4-bit requires VOSF blitters
+			return false;
+		case APPLE_8_BIT:	// 8-bit without VOSF requires an 8-bit visual
+			min_depth = 8;
+			max_depth = 8;
+			break;
+#endif
+		case APPLE_16_BIT:	// 16-bit requires a 15/16-bit visual
+			min_depth = 15;
+			max_depth = 16;
+			break;
+		case APPLE_32_BIT:	// 32-bit requires a 24/32-bit visual
+			min_depth = 24;
+			max_depth = 32;
+			break;
+	}
+	D(bug(" minimum required X depth is %d, maximum supported X depth is %d\n", min_depth, max_depth));
+
+	// Try to find a visual for one of the color depths
+	bool visual_found = false;
+	for (int i=0; i<num_depths && !visual_found; i++) {
+
+		xdepth = avail_depths[i];
+		D(bug(" trying to find visual for depth %d\n", xdepth));
+		if (xdepth < min_depth || xdepth > max_depth)
+			continue;
+
+		// Determine best color class for this depth
+		switch (xdepth) {
+			case 1:	// Try StaticGray or StaticColor
+				if (XMatchVisualInfo(x_display, screen, xdepth, StaticGray, &visualInfo)
+				 || XMatchVisualInfo(x_display, screen, xdepth, StaticColor, &visualInfo))
+					visual_found = true;
+				break;
+			case 8:	// Need PseudoColor
+				if (XMatchVisualInfo(x_display, screen, xdepth, PseudoColor, &visualInfo))
+					visual_found = true;
+				break;
+			case 15:
+			case 16:
+			case 24:
+			case 32: // Try DirectColor first, as this will allow gamma correction
+				if (XMatchVisualInfo(x_display, screen, xdepth, DirectColor, &visualInfo)
+				 || XMatchVisualInfo(x_display, screen, xdepth, TrueColor, &visualInfo))
+					visual_found = true;
+				break;
+			default:
+				D(bug("  not a supported depth\n"));
+				break;
+		}
+	}
+	if (!visual_found)
+		return false;
+
+	// Visual was found
+	vis = visualInfo.visual;
+	color_class = visualInfo.c_class;
+	D(bug(" found visual ID 0x%02x, depth %d, class ", visualInfo.visualid, xdepth));
+#if DEBUG
+	switch (color_class) {
+		case StaticGray: D(bug("StaticGray\n")); break;
+		case GrayScale: D(bug("GrayScale\n")); break;
+		case StaticColor: D(bug("StaticColor\n")); break;
+		case PseudoColor: D(bug("PseudoColor\n")); break;
+		case TrueColor: D(bug("TrueColor\n")); break;
+		case DirectColor: D(bug("DirectColor\n")); break;
+	}
+#endif
+	return true;
+}
+
+
+/*
  *  Open display (window or fullscreen)
  */
+
+// Wait until window is mapped/unmapped
+void wait_mapped(Window w)
+{
+	XEvent e;
+	do {
+		XMaskEvent(x_display, StructureNotifyMask, &e);
+	} while ((e.type != MapNotify) || (e.xmap.event != w));
+}
+
+void wait_unmapped(Window w)
+{
+	XEvent e;
+	do {
+		XMaskEvent(x_display, StructureNotifyMask, &e);
+	} while ((e.type != UnmapNotify) || (e.xmap.event != w));
+}
 
 // Trap SHM errors
 static bool shm_error = false;
@@ -175,23 +382,15 @@ static bool open_window(int width, int height)
 	// Create window
 	XSetWindowAttributes wattr;
 	wattr.event_mask = eventmask = win_eventmask;
-	wattr.background_pixel = black_pixel;
-	wattr.border_pixel = black_pixel;
+	wattr.background_pixel = (vis == DefaultVisual(x_display, screen) ? black_pixel : 0);
+	wattr.border_pixel = 0;
 	wattr.backing_store = NotUseful;
-
-	XSync(x_display, false);
+	wattr.colormap = (depth == 1 ? DefaultColormap(x_display, screen) : cmap[0]);
 	the_win = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
-		InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel | CWBackingStore, &wattr);
-	XSync(x_display, false);
-	XStoreName(x_display, the_win, GetString(STR_WINDOW_TITLE));
-	XMapRaised(x_display, the_win);
-	XSync(x_display, false);
+		InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel | CWBackingStore | CWColormap, &wattr);
 
-	// Set colormap
-	if (depth == 8) {
-		XSetWindowColormap(x_display, the_win, cmap[0]);
-		XSetWMColormapWindows(x_display, the_win, &the_win, 1);
-	}
+	// Set window name
+	XStoreName(x_display, the_win, GetString(STR_WINDOW_TITLE));
 
 	// Make window unresizable
 	XSizeHints *hints;
@@ -205,6 +404,10 @@ static bool open_window(int width, int height)
 		XFree((char *)hints);
 	}
 
+	// Show window
+	XMapWindow(x_display, the_win);
+	wait_mapped(the_win);
+
 	// 1-bit mode is big-endian; if the X server is little-endian, we can't
 	// use SHM because that doesn't allow changing the image byte order
 	bool need_msb_image = (depth == 1 && XImageByteOrder(x_display) == LSBFirst);
@@ -215,7 +418,8 @@ static bool open_window(int width, int height)
 
 		// Create SHM image ("height + 2" for safety)
 		img = XShmCreateImage(x_display, vis, depth == 1 ? 1 : xdepth, depth == 1 ? XYBitmap : ZPixmap, 0, &shminfo, width, height);
-		shminfo.shmid = shmget(IPC_PRIVATE, (height + 2) * img->bytes_per_line, IPC_CREAT | 0777);
+		shminfo.shmid = shmget(IPC_PRIVATE, (aligned_height + 2) * img->bytes_per_line, IPC_CREAT | 0777);
+		D(bug(" shm image created\n"));
 		the_buffer_copy = (uint8 *)shmat(shminfo.shmid, 0, 0);
 		shminfo.shmaddr = img->data = (char *)the_buffer_copy;
 		shminfo.readOnly = False;
@@ -234,30 +438,19 @@ static bool open_window(int width, int height)
 			have_shm = true;
 			shmctl(shminfo.shmid, IPC_RMID, 0);
 		}
+		D(bug(" shm image attached\n"));
 	}
 
 	// Create normal X image if SHM doesn't work ("height + 2" for safety)
 	if (!have_shm) {
-		int bytes_per_row = aligned_width;
-		switch (depth) {
-			case 1:
-				bytes_per_row /= 8;
-				break;
-			case 15:
-			case 16:
-				bytes_per_row *= 2;
-				break;
-			case 24:
-			case 32:
-				bytes_per_row *= 4;
-				break;
-		}
+		int bytes_per_row = depth == 1 ? aligned_width/8 : TrivialBytesPerRow(aligned_width, DepthModeForPixelDepth(xdepth));
 		the_buffer_copy = (uint8 *)malloc((aligned_height + 2) * bytes_per_row);
 		img = XCreateImage(x_display, vis, depth == 1 ? 1 : xdepth, depth == 1 ? XYBitmap : ZPixmap, 0, (char *)the_buffer_copy, aligned_width, aligned_height, 32, bytes_per_row);
+		D(bug(" X image created\n"));
 	}
 
 	// 1-Bit mode is big-endian
-    if (depth == 1) {
+    if (need_msb_image) {
         img->byte_order = MSBFirst;
         img->bitmap_bit_order = MSBFirst;
     }
@@ -279,7 +472,7 @@ static bool open_window(int width, int height)
 
 	// Create GC
 	the_gc = XCreateGC(x_display, the_win, 0, 0);
-	XSetForeground(x_display, the_gc, black_pixel);
+	XSetState(x_display, the_gc, black_pixel, white_pixel, GXcopy, AllPlanes);
 
 	// Create cursor
 	cursor_image = XCreateImage(x_display, vis, 1, XYPixmap, 0, (char *)MacCursor + 4, 16, 16, 16, 2);
@@ -307,7 +500,6 @@ static bool open_window(int width, int height)
 #endif
 
 	// Set bytes per row
-	VModes[cur_mode].viRowBytes = img->bytes_per_line;
 	XSync(x_display, false);
 	return true;
 }
@@ -346,17 +538,7 @@ static bool open_dga(int width, int height)
 		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
 
 	// Set bytes per row
-	int bytes_per_row = (dga_fb_width + 7) & ~7;
-	switch (depth) {
-		case 15:
-		case 16:
-			bytes_per_row *= 2;
-			break;
-		case 24:
-		case 32:
-			bytes_per_row *= 4;
-			break;
-	}
+	int bytes_per_row = TrivialBytesPerRow((dga_fb_width + 7) & ~7, DepthModeForPixelDepth(depth));
 
 #if ENABLE_VOSF
 	bool native_byte_order;
@@ -395,27 +577,81 @@ static bool open_dga(int width, int height)
 
 static bool open_display(void)
 {
-	display_type = VModes[cur_mode].viType;
-	switch (VModes[cur_mode].viAppleMode) {
-		case APPLE_1_BIT:
-			depth = 1;
-			break;
-		case APPLE_2_BIT:
-			depth = 2;
-			break;
-		case APPLE_4_BIT:
-			depth = 4;
-			break;
-		case APPLE_8_BIT:
-			depth = 8;
-			break;
-		case APPLE_16_BIT:
-			depth = xdepth == 15 ? 15 : 16;
-			break;
-		case APPLE_32_BIT:
-			depth = 32;
-			break;
+	D(bug("open_display()\n"));
+	const VideoInfo &mode = VModes[cur_mode];
+
+	// Find best available X visual
+	if (!find_visual_for_depth(mode.viAppleMode)) {
+		ErrorAlert(GetString(STR_NO_XVISUAL_ERR));
+		return false;
 	}
+
+	// Create color maps
+	if (color_class == PseudoColor || color_class == DirectColor) {
+		cmap[0] = XCreateColormap(x_display, rootwin, vis, AllocAll);
+		cmap[1] = XCreateColormap(x_display, rootwin, vis, AllocAll);
+	} else {
+		cmap[0] = XCreateColormap(x_display, rootwin, vis, AllocNone);
+		cmap[1] = XCreateColormap(x_display, rootwin, vis, AllocNone);
+	}
+
+	// Find pixel format of direct modes
+	if (color_class == DirectColor || color_class == TrueColor) {
+		rshift = gshift = bshift = 0;
+		rloss = gloss = bloss = 8;
+		uint32 mask;
+		for (mask=vis->red_mask; !(mask&1); mask>>=1)
+			++rshift;
+		for (; mask&1; mask>>=1)
+			--rloss;
+		for (mask=vis->green_mask; !(mask&1); mask>>=1)
+			++gshift;
+		for (; mask&1; mask>>=1)
+			--gloss;
+		for (mask=vis->blue_mask; !(mask&1); mask>>=1)
+			++bshift;
+		for (; mask&1; mask>>=1)
+			--bloss;
+	}
+
+	// Preset palette pixel values for CLUT or gamma table
+	if (color_class == DirectColor) {
+		int num = vis->map_entries;
+		for (int i=0; i<num; i++) {
+			int c = (i * 256) / num;
+			x_palette[i].pixel = map_rgb(c, c, c);
+			x_palette[i].flags = DoRed | DoGreen | DoBlue;
+		}
+	} else if (color_class == PseudoColor) {
+		for (int i=0; i<256; i++) {
+			x_palette[i].pixel = i;
+			x_palette[i].flags = DoRed | DoGreen | DoBlue;
+		}
+	}
+
+	// Load gray ramp to color map
+	int num = (color_class == DirectColor ? vis->map_entries : 256);
+	for (int i=0; i<num; i++) {
+		int c = (i * 256) / num;
+		x_palette[i].red = c * 0x0101;
+		x_palette[i].green = c * 0x0101;
+		x_palette[i].blue = c * 0x0101;
+	}
+	if (color_class == PseudoColor || color_class == DirectColor) {
+		XStoreColors(x_display, cmap[0], x_palette, num);
+		XStoreColors(x_display, cmap[1], x_palette, num);
+	}
+
+#ifdef ENABLE_VOSF
+	// Load gray ramp to 8->16/32 expand map
+	if (!IsDirectMode(get_current_mode()) && xdepth > 8)
+		for (int i=0; i<256; i++)
+			ExpandMap[i] = map_rgb(i, i, i);
+#endif
+
+	// Create display of requested type
+	display_type = mode.viType;
+	depth = depth_of_video_mode(mode.viAppleMode);
 
 	bool display_open = false;
 	if (display_type == DIS_SCREEN)
@@ -465,7 +701,14 @@ static void close_window(void)
 		XFreeGC(x_display, the_gc);
 
 	// Close window
-	XDestroyWindow(x_display, the_win);
+	if (the_win) {
+		XUnmapWindow(x_display, the_win);
+		wait_unmapped(the_win);
+		XDestroyWindow(x_display, the_win);
+	}
+
+	XFlush(x_display);
+	XSync(x_display, false);
 }
 
 // Close DGA mode
@@ -500,6 +743,16 @@ static void close_display(void)
 		close_dga();
 	else if (display_type == DIS_WINDOW)
 		close_window();
+
+	// Free colormaps
+	if (cmap[0]) {
+		XFreeColormap(x_display, cmap[0]);
+		cmap[0] = 0;
+	}
+	if (cmap[1]) {
+		XFreeColormap(x_display, cmap[1]);
+		cmap[1] = 0;
+	}
 
 #ifdef ENABLE_VOSF
 	if (use_vosf) {
@@ -607,7 +860,8 @@ static void keycode_init(void)
 	}
 }
 
-static void add_mode(VideoInfo *&p, uint32 allow, uint32 test, long apple_mode, long apple_id, int type)
+// Add mode to list of supported modes
+static void add_mode(VideoInfo *&p, uint32 allow, uint32 test, int apple_mode, int apple_id, int type)
 {
 	if (allow & test) {
 		p->viType = type;
@@ -639,21 +893,18 @@ static void add_mode(VideoInfo *&p, uint32 allow, uint32 test, long apple_mode, 
 				p->viYsize = 1200;
 				break;
 		}
-		switch (apple_mode) {
-			case APPLE_8_BIT:
-				p->viRowBytes = p->viXsize;
-				break;
-			case APPLE_16_BIT:
-				p->viRowBytes = p->viXsize * 2;
-				break;
-			case APPLE_32_BIT:
-				p->viRowBytes = p->viXsize * 4;
-				break;
-		}
+		p->viRowBytes = TrivialBytesPerRow(p->viXsize, apple_mode);
 		p->viAppleMode = apple_mode;
 		p->viAppleID = apple_id;
 		p++;
 	}
+}
+
+// Add standard list of windowed modes for given color depth
+static void add_window_modes(VideoInfo *&p, int window_modes, int mode)
+{
+	add_mode(p, window_modes, 1, mode, APPLE_W_640x480, DIS_WINDOW);
+	add_mode(p, window_modes, 2, mode, APPLE_W_800x600, DIS_WINDOW);
 }
 
 static bool has_mode(int x, int y)
@@ -694,13 +945,20 @@ bool VideoInit(void)
 
 	// Init variables
 	private_data = NULL;
-	cur_mode = 0;	// Window 640x480
 	video_activated = true;
 
 	// Find screen and root window
 	screen = XDefaultScreen(x_display);
 	rootwin = XRootWindow(x_display, screen);
 
+	// Get sorted list of available depths
+	avail_depths = XListDepths(x_display, screen, &num_depths);
+	if (avail_depths == NULL) {
+		ErrorAlert(GetString(STR_UNSUPP_DEPTH_ERR));
+		return false;
+	}
+	sort(avail_depths, avail_depths + num_depths);
+	
 	// Get screen depth
 	xdepth = DefaultDepth(x_display, screen);
 
@@ -731,72 +989,24 @@ bool VideoInit(void)
 	black_pixel = BlackPixel(x_display, screen);
 	white_pixel = WhitePixel(x_display, screen);
 
-	// Get appropriate visual
-	int color_class;
-	switch (xdepth) {
-#if 0
-		case 1:
-			color_class = StaticGray;
-			break;
-#endif
-		case 8:
-			color_class = PseudoColor;
-			break;
-		case 15:
-		case 16:
-		case 24:
-		case 32:
-			color_class = TrueColor;
-			break;
-		default:
-			ErrorAlert(GetString(STR_UNSUPP_DEPTH_ERR));
-			return false;
-	}
-	if (!XMatchVisualInfo(x_display, screen, xdepth, color_class, &visualInfo)) {
-		ErrorAlert(GetString(STR_NO_XVISUAL_ERR));
-		return false;
-	}
-	if (visualInfo.depth != xdepth) {
-		ErrorAlert(GetString(STR_NO_XVISUAL_ERR));
-		return false;
-	}
-	vis = visualInfo.visual;
-
 	// Mac screen depth follows X depth (for now)
-	depth = xdepth;
-
-	// Create color maps for 8 bit mode
-	if (depth == 8) {
-		cmap[0] = XCreateColormap(x_display, rootwin, vis, AllocAll);
-		cmap[1] = XCreateColormap(x_display, rootwin, vis, AllocAll);
-		XInstallColormap(x_display, cmap[0]);
-		XInstallColormap(x_display, cmap[1]);
+	int default_mode = APPLE_8_BIT;
+	switch (DefaultDepth(x_display, screen)) {
+	case 1:
+		default_mode = APPLE_1_BIT;
+		break;
+	case 8:
+		default_mode = APPLE_8_BIT;
+		break;
+	case 15: case 16:
+		default_mode = APPLE_16_BIT;
+		break;
+	case 24: case 32:
+		default_mode = APPLE_32_BIT;
+		break;
 	}
 
 	// Construct video mode table
-	int mode = APPLE_8_BIT;
-	int bpr_mult = 8;
-	switch (depth) {
-		case 1:
-			mode = APPLE_1_BIT;
-			bpr_mult = 1;
-			break;
-		case 8:
-			mode = APPLE_8_BIT;
-			bpr_mult = 8;
-			break;
-		case 15:
-		case 16:
-			mode = APPLE_16_BIT;
-			bpr_mult = 16;
-			break;
-		case 24:
-		case 32:
-			mode = APPLE_32_BIT;
-			bpr_mult = 32;
-			break;
-	}
-
 	uint32 window_modes = PrefsFindInt32("windowmodes");
 	uint32 screen_modes = PrefsFindInt32("screenmodes");
 	if (!has_dga)
@@ -805,21 +1015,23 @@ bool VideoInit(void)
 		window_modes |= 3;	// Allow at least 640x480 and 800x600 window modes
 
 	VideoInfo *p = VModes;
-	add_mode(p, window_modes, 1, mode, APPLE_W_640x480, DIS_WINDOW);
-	add_mode(p, window_modes, 2, mode, APPLE_W_800x600, DIS_WINDOW);
+	for (unsigned int d = APPLE_1_BIT; d <= APPLE_32_BIT; d++)
+		if (find_visual_for_depth(d))
+			add_window_modes(p, window_modes, d);
+
 	if (has_vidmode) {
 		if (has_mode(640, 480))
-			add_mode(p, screen_modes, 1, mode, APPLE_640x480, DIS_SCREEN);
+			add_mode(p, screen_modes, 1, default_mode, APPLE_640x480, DIS_SCREEN);
 		if (has_mode(800, 600))
-			add_mode(p, screen_modes, 2, mode, APPLE_800x600, DIS_SCREEN);
+			add_mode(p, screen_modes, 2, default_mode, APPLE_800x600, DIS_SCREEN);
 		if (has_mode(1024, 768))
-			add_mode(p, screen_modes, 4, mode, APPLE_1024x768, DIS_SCREEN);
+			add_mode(p, screen_modes, 4, default_mode, APPLE_1024x768, DIS_SCREEN);
 		if (has_mode(1152, 900))
-			add_mode(p, screen_modes, 8, mode, APPLE_1152x900, DIS_SCREEN);
+			add_mode(p, screen_modes, 8, default_mode, APPLE_1152x900, DIS_SCREEN);
 		if (has_mode(1280, 1024))
-			add_mode(p, screen_modes, 16, mode, APPLE_1280x1024, DIS_SCREEN);
+			add_mode(p, screen_modes, 16, default_mode, APPLE_1280x1024, DIS_SCREEN);
 		if (has_mode(1600, 1200))
-			add_mode(p, screen_modes, 32, mode, APPLE_1600x1200, DIS_SCREEN);
+			add_mode(p, screen_modes, 32, default_mode, APPLE_1600x1200, DIS_SCREEN);
 	} else if (screen_modes) {
 		int xsize = DisplayWidth(x_display, screen);
 		int ysize = DisplayHeight(x_display, screen);
@@ -840,7 +1052,7 @@ bool VideoInit(void)
 		p->viRowBytes = 0;
 		p->viXsize = xsize;
 		p->viYsize = ysize;
-		p->viAppleMode = mode;
+		p->viAppleMode = default_mode;
 		p->viAppleID = apple_id;
 		p++;
 	}
@@ -849,6 +1061,26 @@ bool VideoInit(void)
 	p->viXsize = p->viYsize = 0;
 	p->viAppleMode = 0;
 	p->viAppleID = 0;
+
+	// Find default mode (window 640x480)
+	cur_mode = -1;
+	for (p = VModes; p->viType != DIS_INVALID; p++) {
+		if (p->viType == DIS_WINDOW
+			&& p->viAppleID == APPLE_W_640x480
+			&& p->viAppleMode == default_mode) {
+			cur_mode = p - VModes;
+			break;
+		}
+	}
+	assert(cur_mode != -1);
+
+#if DEBUG
+	D(bug("Available video modes:\n"));
+	for (p = VModes; p->viType != DIS_INVALID; p++) {
+		int bits = depth_of_video_mode(p->viAppleMode);
+		D(bug(" %dx%d (ID %02x), %d colors\n", p->viXsize, p->viYsize, p->viAppleID, 1 << bits));
+	}
+#endif
 
 #ifdef ENABLE_XF86_DGA
 	if (has_dga && screen_modes) {
@@ -901,10 +1133,6 @@ void VideoExit(void)
 		close_display();
 		XFlush(x_display);
 		XSync(x_display, false);
-		if (depth == 8) {
-			XFreeColormap(x_display, cmap[0]);
-			XFreeColormap(x_display, cmap[1]);
-		}
 	}
 }
 
@@ -1498,7 +1726,47 @@ int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr)
 
 void video_set_palette(void)
 {
+	LOCK_PALETTE;
+
+	// Convert colors to XColor array
+	int mode = get_current_mode();
+	int num_in = palette_size(mode);
+	int num_out = 256;
+	bool stretch = false;
+	if (IsDirectMode(mode)) {
+		// If X is in 565 mode we have to stretch the gamma table from 32 to 64 entries
+		num_out = vis->map_entries;
+		stretch = true;
+	}
+	XColor *p = x_palette;
+	for (int i=0; i<num_out; i++) {
+		int c = (stretch ? (i * num_in) / num_out : i);
+		p->red = mac_pal[c].red * 0x0101;
+		p->green = mac_pal[c].green * 0x0101;
+		p->blue = mac_pal[c].blue * 0x0101;
+		p++;
+	}
+
+#ifdef ENABLE_VOSF
+	// Recalculate pixel color expansion map
+	if (!IsDirectMode(mode) && xdepth > 8) {
+		for (int i=0; i<256; i++) {
+			int c = i & (num_in-1); // If there are less than 256 colors, we repeat the first entries (this makes color expansion easier)
+			ExpandMap[i] = map_rgb(mac_pal[c].red, mac_pal[c].green, mac_pal[c].blue);
+		}
+
+		// We have to redraw everything because the interpretation of pixel values changed
+		LOCK_VOSF;
+		PFLAG_SET_ALL;
+		UNLOCK_VOSF;
+		memset(the_buffer_copy, 0, VModes[cur_mode].viRowBytes * VModes[cur_mode].viYsize);
+	}
+#endif
+
+	// Tell redraw thread to change palette
 	palette_changed = true;
+
+	UNLOCK_PALETTE;
 }
 
 
@@ -1637,6 +1905,43 @@ static void update_display(void)
 const int VIDEO_REFRESH_HZ = 60;
 const int VIDEO_REFRESH_DELAY = 1000000 / VIDEO_REFRESH_HZ;
 
+static void handle_palette_changes(void)
+{
+	LOCK_PALETTE;
+
+	if (palette_changed && !emul_suspended) {
+		palette_changed = false;
+
+		int mode = get_current_mode();
+		if (color_class == PseudoColor || color_class == DirectColor) {
+			int num = vis->map_entries;
+			bool set_clut = true;
+			if (!IsDirectMode(mode) && color_class == DirectColor) {
+				if (display_type == DIS_WINDOW)
+					set_clut = false; // Indexed mode on true color screen, don't set CLUT
+			}
+
+			if (set_clut) {
+				XDisplayLock();
+				XStoreColors(x_display, cmap[0], x_palette, num);
+				XStoreColors(x_display, cmap[1], x_palette, num);
+				XSync(x_display, false);
+				XDisplayUnlock();
+			}
+		}
+
+#ifdef ENABLE_XF86_DGA
+		if (display_type == DIS_SCREEN) {
+			current_dga_cmap ^= 1;
+			if (!IsDirectMode(mode) && cmap[current_dga_cmap])
+				XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
+		}
+#endif
+	}
+
+	UNLOCK_PALETTE;
+}
+
 static void *redraw_func(void *arg)
 {
 	int fd = ConnectionNumber(x_display);
@@ -1736,29 +2041,7 @@ static void *redraw_func(void *arg)
 #endif
 
 			// Set new palette if it was changed
-			if (palette_changed && !emul_suspended) {
-				palette_changed = false;
-				XColor c[256];
-				for (int i=0; i<256; i++) {
-					c[i].pixel = i;
-					c[i].red = mac_pal[i].red * 0x0101;
-					c[i].green = mac_pal[i].green * 0x0101;
-					c[i].blue = mac_pal[i].blue * 0x0101;
-					c[i].flags = DoRed | DoGreen | DoBlue;
-				}
-				if (depth == 8) {
-					XDisplayLock();
-					XStoreColors(x_display, cmap[0], c, 256);
-					XStoreColors(x_display, cmap[1], c, 256);
-#ifdef ENABLE_XF86_DGA
-					if (display_type == DIS_SCREEN) {
-						current_dga_cmap ^= 1;
-						XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
-					}
-#endif
-					XDisplayUnlock();
-				}
-			}
+			handle_palette_changes();
 
 		} else {
 

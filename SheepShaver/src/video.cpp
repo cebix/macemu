@@ -287,10 +287,10 @@ static int16 VideoControl(uint32 pb, VidLocals *csSave)
 		case cscSetEntries: {							// SetEntries
 			D(bug("SetEntries\n"));					
 			if (VModes[cur_mode].viAppleMode > APPLE_8_BIT) return controlErr;
-			ColorSpec *s_pal = (ColorSpec *)Mac2HostAddr(ReadMacInt32(param + csTable));
-			int16 start = ReadMacInt16(param + csStart);
-			int16 count = ReadMacInt16(param + csCount);
-			if (s_pal == NULL || count > 256) return controlErr;
+			uint32 s_pal = ReadMacInt32(param + csTable);
+			uint16 start = ReadMacInt16(param + csStart);
+			uint16 count = ReadMacInt16(param + csCount);
+			if (s_pal == 0 || count > 256) return controlErr;
 
 			// Preparations for gamma correction
 			bool do_gamma = false;
@@ -313,12 +313,12 @@ static int16 VideoControl(uint32 pb, VidLocals *csSave)
 
 			// Set palette
 			rgb_color *d_pal;
-			if (start == -1) {			// Indexed
+			if (start == 0xffff) {			// Indexed
 				for (int i=0; i<=count; i++) {
-					d_pal = &(mac_pal[(*s_pal).value]);
-					uint8 red = (*s_pal).red >> 8;
-					uint8 green = (*s_pal).green >> 8;
-					uint8 blue = (*s_pal).blue >> 8;
+					d_pal = mac_pal + (ReadMacInt16(s_pal + csValue) & 0xff);
+					uint8 red = (uint16)ReadMacInt16(s_pal + csRed) >> 8;
+					uint8 green = (uint16)ReadMacInt16(s_pal + csGreen) >> 8;
+					uint8 blue = (uint16)ReadMacInt16(s_pal + csBlue) >> 8;
 					if (csSave->luminanceMapping)
 						red = green = blue = (red * 0x4ccc + green * 0x970a + blue * 0x1c29) >> 16;
 					if (do_gamma) {
@@ -329,14 +329,14 @@ static int16 VideoControl(uint32 pb, VidLocals *csSave)
 					(*d_pal).red = red;
 					(*d_pal).green = green;
 					(*d_pal).blue = blue;
-					s_pal++;
+					s_pal += 8;
 				}
-			} else {								// Sequential
-				d_pal = &(mac_pal[start]);
+			} else {						// Sequential
+				d_pal = mac_pal + start;
 				for (int i=0; i<=count; i++) {
-					uint8 red = (*s_pal).red >> 8;
-					uint8 green = (*s_pal).green >> 8;
-					uint8 blue = (*s_pal).blue >> 8;
+					uint8 red = (uint16)ReadMacInt16(s_pal + csRed) >> 8;
+					uint8 green = (uint16)ReadMacInt16(s_pal + csGreen) >> 8;
+					uint8 blue = (uint16)ReadMacInt16(s_pal + csBlue) >> 8;
 					if (csSave->luminanceMapping)
 						red = green = blue = (red * 0x4ccc + green * 0x970a + blue * 0x1c29) >> 16;
 					if (do_gamma) {
@@ -347,7 +347,8 @@ static int16 VideoControl(uint32 pb, VidLocals *csSave)
 					(*d_pal).red = red;
 					(*d_pal).green = green;
 					(*d_pal).blue = blue;
-					d_pal++; s_pal++;
+					d_pal++;
+					s_pal += 8;
 				}
 			}
 			video_set_palette();
@@ -359,39 +360,29 @@ static int16 VideoControl(uint32 pb, VidLocals *csSave)
 			return set_gamma(csSave, ReadMacInt32(param));
 
 		case cscGrayPage: {							// GrayPage
-			D(bug("GrayPage\n"));
-			uint32 *screen = (uint32 *)csSave->saveBaseAddr;
-			uint32 pattern;
-			uint32 row_bytes = VModes[cur_mode].viRowBytes;	
-			switch (VModes[cur_mode].viAppleMode) {
-				case APPLE_8_BIT:
-					pattern=0xff00ff00;
-					for (int i=0;i<VModes[cur_mode].viYsize;i++) {
-						for (int j=0;j<(VModes[cur_mode].viXsize>>2);j++)
-							screen[j] = pattern;
-						pattern = ~pattern;
-						screen = (uint32 *)((uint32)screen + row_bytes);
-					}
-					break;
-				case APPLE_16_BIT:
-					pattern=0xffff0000;
-					for (int i=0;i<VModes[cur_mode].viYsize;i++) {
-						for (int j=0;j<(VModes[cur_mode].viXsize>>1);j++)
-							screen[j]=pattern;
-						pattern = ~pattern;
-						screen = (uint32 *)((uint32)screen + row_bytes);
-					}
-					break;
-				case APPLE_32_BIT:
-					pattern=0xffffffff;
-					for (int i=0;i<VModes[cur_mode].viYsize;i++) {
-						for (int j=0;j<VModes[cur_mode].viXsize;j++) {
-							screen[j]=pattern;
-							pattern = ~pattern;
-						}
-						screen = (uint32 *)((uint32)screen + row_bytes);
-					}
-					break;
+			D(bug("GrayPage %d\n", ReadMacInt16(param + csPage)));
+			if (ReadMacInt16(param + csPage))
+				return paramErr;
+
+			uint32 pattern[6] = {
+				0xaaaaaaaa,		// 1 bpp
+				0xcccccccc,		// 2 bpp
+				0xf0f0f0f0,		// 4 bpp
+				0xff00ff00,		// 8 bpp
+				0xffff0000,		// 16 bpp
+				0xffffffff		// 32 bpp
+			};
+			uint32 p = csSave->saveBaseAddr;
+			uint32 pat = pattern[VModes[cur_mode].viAppleMode - APPLE_1_BIT];
+			bool invert = (VModes[cur_mode].viAppleMode == APPLE_32_BIT);
+			for (uint32 y=0; y<VModes[cur_mode].viYsize; y++) {
+				for (uint32 x=0; x<VModes[cur_mode].viRowBytes; x+=4) {
+					WriteMacInt32(p + x, pat);
+					if (invert)
+						pat = ~pat;
+				}
+				p += VModes[cur_mode].viRowBytes;
+				pat = ~pat;
 			}
 			return noErr;
 		}
@@ -547,30 +538,40 @@ static int16 VideoStatus(uint32 pb, VidLocals *csSave)
 
 		case cscGetEntries: {						// GetEntries
 			D(bug("GetEntries\n"));	
-			ColorSpec *d_pal = (ColorSpec *)Mac2HostAddr(ReadMacInt32(param + csTable));
-			int16 start = ReadMacInt16(param + csStart);
-			int16 count = ReadMacInt16(param + csCount);
+			uint32 d_pal = ReadMacInt32(param + csTable);
+			uint16 start = ReadMacInt16(param + csStart);
+			uint16 count = ReadMacInt16(param + csCount);
 			rgb_color *s_pal;
 			if ((VModes[cur_mode].viAppleMode == APPLE_32_BIT)||
 				(VModes[cur_mode].viAppleMode == APPLE_16_BIT)) {
 				D(bug("ERROR: GetEntries in direct mode \n"));
 				return statusErr;
 			}
-			if (start >= 0) {	// indexed get
-				s_pal = &(mac_pal[start]);
+
+			if (start == 0xffff) {		// Indexed
 				for (uint16 i=0;i<count;i++) {
-					(*d_pal).red=(uint16)((*s_pal).red)*0x101;
-					(*d_pal).green=(uint16)((*s_pal).green)*0x101;
-					(*d_pal).blue=(uint16)((*s_pal).blue)*0x101;
-					d_pal++; s_pal++;
+					s_pal = mac_pal + (ReadMacInt16(d_pal + csValue) & 0xff);
+					uint8 red = (*s_pal).red;
+					uint8 green = (*s_pal).green;
+					uint8 blue = (*s_pal).blue;
+					WriteMacInt16(d_pal + csRed, red * 0x0101);
+					WriteMacInt16(d_pal + csGreen, green * 0x0101);
+					WriteMacInt16(d_pal + csBlue, blue * 0x0101);
+					d_pal += 8;
 				}
-			} else {								// selected set
+			} else {					// Sequential
+				if (start + count > 255)
+					return paramErr;
+				s_pal = mac_pal + start;
 				for (uint16 i=0;i<count;i++) {
-					s_pal = &(mac_pal[(*d_pal).value]);
-					(*d_pal).red=(uint16)((*s_pal).red)*0x101;
-					(*d_pal).green=(uint16)((*s_pal).green)*0x101;
-					(*d_pal).blue=(uint16)((*s_pal).blue)*0x101;
-					d_pal++;
+					uint8 red = (*s_pal).red;
+					uint8 green = (*s_pal).green;
+					uint8 blue = (*s_pal).blue;
+					s_pal++;
+					WriteMacInt16(d_pal + csRed, red * 0x0101);
+					WriteMacInt16(d_pal + csGreen, green * 0x0101);
+					WriteMacInt16(d_pal + csBlue, blue * 0x0101);
+					d_pal += 8;
 				}
 			};
 			return noErr;

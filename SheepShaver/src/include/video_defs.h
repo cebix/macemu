@@ -215,11 +215,11 @@ enum {	// VDSetEntry struct
 	csCount = 6
 };
 
-struct ColorSpec {
-	uint16	value;
-	uint16	red;
-	uint16	green;
-	uint16	blue;
+enum {	// ColorSpec table entry
+	csValue = 0,
+	csRed = 2,
+	csGreen = 4,
+	csBlue = 6
 };
 
 enum {	// VDVideoParametersInfo struct

@@ -46,6 +46,40 @@ enum {	// viAppleMode
 	APPLE_32_BIT
 };
 
+// 1, 2, 4 and 8 bit depths use a color palette
+inline bool IsDirectMode(int mode)
+{
+	return mode == APPLE_16_BIT || mode == APPLE_32_BIT;
+}
+
+// Return the depth code that corresponds to the specified bits-per-pixel value
+inline int DepthModeForPixelDepth(int depth)
+{
+	switch (depth) {
+	case 1: return APPLE_1_BIT;
+	case 2: return APPLE_2_BIT;
+	case 4: return APPLE_4_BIT;
+	case 8: return APPLE_8_BIT;
+	case 15: case 16: return APPLE_16_BIT;
+	case 24: case 32: return APPLE_32_BIT;
+	default: return APPLE_1_BIT;
+	}
+}
+
+// Return a bytes-per-row value (assuming no padding) for the specified depth and pixel width
+inline uint32 TrivialBytesPerRow(uint32 width, int mode)
+{
+	switch (mode) {
+	case APPLE_1_BIT: return width / 8;
+	case APPLE_2_BIT: return width / 4;
+	case APPLE_4_BIT: return width / 2;
+	case APPLE_8_BIT: return width;
+	case APPLE_16_BIT: return width * 2;
+	case APPLE_32_BIT: return width * 4;
+	default: return width;
+	}
+}
+
 enum {	// viAppleID
 	APPLE_640x480 = 0x81,
 	APPLE_W_640x480,
