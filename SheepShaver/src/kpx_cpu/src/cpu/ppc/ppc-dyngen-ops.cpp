@@ -38,17 +38,20 @@ register struct powerpc_cpu *CPU asm(REG_CPU);
 #else
 #define REG32(X) X
 #endif
-#define FPREG64(X) (*((double *)(X)))
+#define FPREG(X) ((powerpc_fpr *)(X))
 #define A0 REG32(reg_A0)
 register uintptr reg_A0 asm(REG_A0);
 #define T0 REG32(reg_T0)
-#define F0 FPREG64(reg_T0)
+#define F0 FPREG(reg_T0)->d
+#define F0_dw FPREG(reg_T0)->j
 register uintptr reg_T0 asm(REG_T0);
 #define T1 REG32(reg_T1)
-#define F1 FPREG64(reg_T1)
+#define F1 FPREG(reg_T1)->d
+#define F1_dw FPREG(reg_T1)->j
 register uintptr reg_T1 asm(REG_T1);
 #define T2 REG32(reg_T2)
-#define F2 FPREG64(reg_T2)
+#define F2 FPREG(reg_T2)->d
+#define F2_dw FPREG(reg_T2)->j
 register uintptr reg_T2 asm(REG_T2);
 #define FD powerpc_dyngen_helper::fp_result()
 #define FD_dw powerpc_dyngen_helper::fp_result_dw()
@@ -205,27 +208,60 @@ DEFINE_REG(31);
  *		Load/Store floating-point data
  **/
 
+#if defined(__i386__)
+#define do_load_double(REG, EA) do {			\
+	uint32 *w = (uint32 *)&REG;					\
+	w[1] = vm_read_memory_4(EA + 0);			\
+	w[0] = vm_read_memory_4(EA + 4);			\
+} while (0)
+#define do_store_double(REG, EA) do {			\
+	uint32 *w = (uint32 *)&REG;					\
+	vm_write_memory_4(EA + 0, w[1]);			\
+	vm_write_memory_4(EA + 4, w[0]);			\
+} while (0)
+#endif
+
+#ifndef do_load_single
+#define do_load_single(REG, EA) do {			\
+	any_register *x = (any_register *)&FD;		\
+	x->i = vm_read_memory_4(EA);				\
+	REG = (double)x->f;							\
+} while (0)
+#endif
+
+#ifndef do_store_single
+#define do_store_single(REG, EA) do {			\
+	any_register *x = (any_register *)&FD;		\
+	x->f = (float)REG;							\
+	vm_write_memory_4(EA, x->i);				\
+} while (0)
+#endif
+
+#ifndef do_load_double
+#define do_load_double(REG, EA) REG##_dw = vm_read_memory_8(EA)
+#endif
+
+#ifndef do_store_double
+#define do_store_double(REG, EA) vm_write_memory_8(EA, REG##_dw)
+#endif
+
 #define im PARAM1
-#define DEFINE_OP(OFFSET)								\
-void OPPROTO op_load_double_FD_A0_##OFFSET(void)		\
-{														\
-	FD_dw = vm_read_memory_8(A0 + OFFSET);				\
-}														\
-void OPPROTO op_load_single_FD_A0_##OFFSET(void)		\
-{														\
-	any_register *x = (any_register *)&FD;				\
-	x->i = vm_read_memory_4(A0 + OFFSET);				\
-	FD = (double)x->f;									\
-}														\
-void OPPROTO op_store_double_F0_A0_##OFFSET(void)		\
-{														\
-	vm_write_memory_8(A0 + OFFSET, *(uint64 *)reg_T0);	\
-}														\
-void OPPROTO op_store_single_F0_A0_##OFFSET(void)		\
-{														\
-	any_register *x = (any_register *)&FD;				\
-	x->f = (float)F0;									\
-	vm_write_memory_4(A0 + OFFSET, x->i);				\
+#define DEFINE_OP(OFFSET)							\
+void OPPROTO op_load_double_FD_A0_##OFFSET(void)	\
+{													\
+	do_load_double(FD, A0 + OFFSET);				\
+}													\
+void OPPROTO op_load_single_FD_A0_##OFFSET(void)	\
+{													\
+	do_load_single(FD, A0 + OFFSET);				\
+}													\
+void OPPROTO op_store_double_F0_A0_##OFFSET(void)	\
+{													\
+	do_store_double(F0, A0 + OFFSET);				\
+}													\
+void OPPROTO op_store_single_F0_A0_##OFFSET(void)	\
+{													\
+	do_store_single(F0, A0 + OFFSET);				\
 }
 
 DEFINE_OP(0);
