@@ -37,6 +37,7 @@
 #include "video_macosx.h"
 
 #define DEBUG 0
+#define VERBOSE 0
 #include "debug.h"
 
 #ifdef NSBITMAP
@@ -180,7 +181,7 @@ static void add_standard_modes(const video_depth depth)
 // Helper function to get a 32bit int from a dictionary
 static int32 getCFint32 (CFDictionaryRef dict, CFStringRef key)
 {
-	CFNumberRef	ref = CFDictionaryGetValue(dict, key);
+	CFNumberRef	ref = (CFNumberRef) CFDictionaryGetValue(dict, key);
 
 	if ( ref )
 	{
@@ -197,7 +198,7 @@ static int32 getCFint32 (CFDictionaryRef dict, CFStringRef key)
 	return 0;
 }
 
-// Nasty hack. CGDisplayAvailableModes() does not provide bytes per row,
+// Nasty hack. Under 10.1, CGDisplayAvailableModes() does not provide bytes per row,
 // and the emulator doesn't like setting the bytes per row after the screen,
 // so we use a lot of magic numbers here.
 // This will probably fail on some video hardware.
@@ -258,11 +259,17 @@ static bool add_CGDirectDisplay_modes()
 
 			for ( CFIndex mc = 0; mc < nModes; ++mc )
 			{
-				CFDictionaryRef modeSpec = CFArrayGetValueAtIndex(m, mc);
+				CFDictionaryRef modeSpec = (CFDictionaryRef)
+											CFArrayGetValueAtIndex(m, mc);
 
 				int32	bpp    = getCFint32(modeSpec, kCGDisplayBitsPerPixel);
 				int32	height = getCFint32(modeSpec, kCGDisplayHeight);
 				int32	width  = getCFint32(modeSpec, kCGDisplayWidth);
+#ifdef MAC_OS_X_VERSION_10_2
+				int32	bytes  = getCFint32(modeSpec, kCGDisplayBytesPerRow);
+#else
+				int32	bytes = 0;
+#endif
 				video_depth	depth = DepthModeForPixelDepth(bpp);
 
 				if ( ! bpp || ! height || ! width )
@@ -276,6 +283,12 @@ static bool add_CGDirectDisplay_modes()
 					NSLog(@"Display %ld, spec = %@", d, modeSpec);
 #endif
 
+				if ( ! bytes )
+				{
+					NSLog(@"Could not get bytes per row, guessing");
+					bytes = CGBytesPerRow(width, depth);
+				}
+
 				if ( ! oldRes )
 					oldRes = width * height;
 				else
@@ -285,8 +298,7 @@ static bool add_CGDirectDisplay_modes()
 						++res_id;
 					}
 
-				add_mode(width, height, res_id,
-						 CGBytesPerRow(width, depth), (const uint32) d, depth);
+				add_mode(width, height, res_id, bytes, (const uint32) d, depth);
 			}
 		}
 	}
@@ -294,6 +306,40 @@ static bool add_CGDirectDisplay_modes()
 	return true;
 }
 
+#ifdef CG_USE_ALPHA
+// memset() by long instead of byte
+
+static void memsetl (long *buffer, long	pattern, size_t length)
+{
+	long	*buf = (long *) buffer,
+			*end = buf + length/4;
+
+	while ( ++buf < end )
+		*buf = pattern;
+}
+
+// Sets the alpha channel in a image to full on, except for the corners
+
+static void mask_buffer (void *buffer, size_t width, size_t size)
+{
+	long	*bufl = (long *) buffer;
+	char	*bufc = (char *) buffer;
+
+
+	memsetl(bufl, 0xFF000000, size);
+
+
+	// Round upper-left corner
+				   *bufl = 0, *bufc+4 = 0;					// XXXXX
+	bufc += width, *bufc++ = 0, *bufc++ = 0, *bufc++ = 0;	// XXX
+	bufc += width, *bufc++ = 0, *bufc = 0;					// XX
+	bufc += width, *bufc = 0;								// X
+	bufc += width, *bufc = 0;								// X
+
+
+	NSLog(@"Masked buffer");
+}
+#endif
 
 // monitor_desc subclass for Mac OS X displays
 
@@ -369,11 +415,11 @@ OSX_monitor::set_mac_frame_buffer(const video_mode mode)
 	set_mac_frame_base(MacFrameBaseMac);
 
 	// Set variables used by UAE memory banking
-	MacFrameBaseHost = the_buffer;
+	MacFrameBaseHost = (uint8 *) the_buffer;
 	MacFrameSize = mode.bytes_per_row * mode.y;
 	InitFrameBufferMapping();
 #else
-	set_mac_frame_base(Host2MacAddr(the_buffer));
+	set_mac_frame_base((unsigned int)Host2MacAddr((uint8 *)the_buffer));
 #endif
 	D(bug("mac_frame_base = %08x\n", get_mac_frame_base()));
 }
@@ -484,10 +530,14 @@ OSX_monitor::init_window(const video_mode &mode)
 							 bits_from_depth(mode.depth),
 							 mode.bytes_per_row,
 							 colourSpace,
+  #ifdef CG_USE_ALPHA
+							 kCGImageAlphaPremultipliedFirst,
+  #else
 							 kCGImageAlphaNoneSkipFirst,
+  #endif
 							 provider,
-							 NULL, 	// colourMap
-							 NO,	// shouldInterpolate
+							 NULL, 	// colourMap translation table
+							 NO,	// shouldInterpolate colours?
 							 kCGRenderingIntentDefault);
 	if ( ! imageRef )
 	{
@@ -500,8 +550,12 @@ OSX_monitor::init_window(const video_mode &mode)
 	[output readyToDraw: imageRef
 			 imageWidth: mode.x
 			imageHeight: mode.y];
+
+  #ifdef CG_USE_ALPHA
+	mask_buffer(the_buffer, mode.x, the_buffer_size);
+  #endif
 #else
-	unsigned char *offsetBuffer = the_buffer;
+	unsigned char *offsetBuffer = (unsigned char *) the_buffer;
 	offsetBuffer += 1;	// OS X NSBitmaps are RGBA, but Basilisk generates ARGB
 #endif
 
@@ -607,8 +661,10 @@ OSX_monitor::init_screen(video_mode &mode)
 		ErrorSheet(@"Could not get base address of screen", the_win);
 		return false;
 	}
-NSLog(@"Starting full screen mode, height = %d",
-					CGDisplayPixelsHigh(theDisplay));
+
+	D(NSLog(@"Starting full screen mode, height = %d",
+						CGDisplayPixelsHigh(theDisplay)));
+
 	[output startedFullScreen: theDisplay];		// For mouse event processing
 
 	if ( mode.bytes_per_row != CGDisplayBytesPerRow(theDisplay) )
