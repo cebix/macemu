@@ -11,22 +11,25 @@
 
 #ifdef OPTIMIZED_FLAGS
 
-#if defined(__i386__) && defined(X86_ASSEMBLY)
+#if (defined(__i386__) && defined(X86_ASSEMBLY)) || (defined(__x86_64__) && defined(X86_64_ASSEMBLY))
 
 #ifndef SAHF_SETO_PROFITABLE
 
+/* PUSH/POP instructions are naturally 64-bit sized on x86-64, thus
+   unsigned long hereunder is either 64-bit or 32-bit wide depending
+   on the target.  */
 struct flag_struct {
-    uae_u32 cznv;
-    uae_u32 x;
+    unsigned long cznv;
+    unsigned long x;
 };
 
 #define FLAGVAL_Z	0x40
 #define FLAGVAL_N	0x80
 
-#define SET_ZFLG(y)	(regflags.cznv = (regflags.cznv & ~0x40) | (((y) & 1) << 6))
-#define SET_CFLG(y)	(regflags.cznv = (regflags.cznv & ~1) | ((y) & 1))
-#define SET_VFLG(y)	(regflags.cznv = (regflags.cznv & ~0x800) | (((y) & 1) << 11))
-#define SET_NFLG(y)	(regflags.cznv = (regflags.cznv & ~0x80) | (((y) & 1) << 7))
+#define SET_ZFLG(y)	(regflags.cznv = (((uae_u32)regflags.cznv) & ~0x40) | (((y) & 1) << 6))
+#define SET_CFLG(y)	(regflags.cznv = (((uae_u32)regflags.cznv) & ~1) | ((y) & 1))
+#define SET_VFLG(y)	(regflags.cznv = (((uae_u32)regflags.cznv) & ~0x800) | (((y) & 1) << 11))
+#define SET_NFLG(y)	(regflags.cznv = (((uae_u32)regflags.cznv) & ~0x80) | (((y) & 1) << 7))
 #define SET_XFLG(y)	(regflags.x = (y))
 
 #define GET_ZFLG	((regflags.cznv >> 6) & 1)
@@ -74,86 +77,86 @@ static __inline__ int cctrue(int cc)
 
 #define optflag_testl(v) \
   __asm__ __volatile__ ("andl %1,%1\n\t" \
-			"pushfl\n\t" \
-			"popl %0\n\t" \
+			"pushf\n\t" \
+			"pop %0\n\t" \
 			: "=r" (regflags.cznv) : "r" (v) : "cc")
 
 #define optflag_testw(v) \
   __asm__ __volatile__ ("andw %w1,%w1\n\t" \
-			"pushfl\n\t" \
-			"popl %0\n\t" \
+			"pushf\n\t" \
+			"pop %0\n\t" \
 			: "=r" (regflags.cznv) : "r" (v) : "cc")
 
 #define optflag_testb(v) \
   __asm__ __volatile__ ("andb %b1,%b1\n\t" \
-			"pushfl\n\t" \
-			"popl %0\n\t" \
+			"pushf\n\t" \
+			"pop %0\n\t" \
 			: "=r" (regflags.cznv) : "q" (v) : "cc")
 
 #define optflag_addl(v, s, d) do { \
   __asm__ __volatile__ ("addl %k2,%k1\n\t" \
-			"pushfl\n\t" \
-			"popl %0\n\t" \
+			"pushf\n\t" \
+			"pop %0\n\t" \
 			: "=r" (regflags.cznv), "=r" (v) : "rmi" (s), "1" (d) : "cc"); \
     COPY_CARRY; \
     } while (0)
 
 #define optflag_addw(v, s, d) do { \
   __asm__ __volatile__ ("addw %w2,%w1\n\t" \
-			"pushfl\n\t" \
-			"popl %0\n\t" \
+			"pushf\n\t" \
+			"pop %0\n\t" \
 			: "=r" (regflags.cznv), "=r" (v) : "rmi" (s), "1" (d) : "cc"); \
     COPY_CARRY; \
     } while (0)
 
 #define optflag_addb(v, s, d) do { \
   __asm__ __volatile__ ("addb %b2,%b1\n\t" \
-			"pushfl\n\t" \
-			"popl %0\n\t" \
+			"pushf\n\t" \
+			"pop %0\n\t" \
 			: "=r" (regflags.cznv), "=q" (v) : "qmi" (s), "1" (d) : "cc"); \
     COPY_CARRY; \
     } while (0)
 
 #define optflag_subl(v, s, d) do { \
   __asm__ __volatile__ ("subl %k2,%k1\n\t" \
-			"pushfl\n\t" \
-			"popl %0\n\t" \
+			"pushf\n\t" \
+			"pop %0\n\t" \
 			: "=r" (regflags.cznv), "=r" (v) : "rmi" (s), "1" (d) : "cc"); \
     COPY_CARRY; \
     } while (0)
 
 #define optflag_subw(v, s, d) do { \
   __asm__ __volatile__ ("subw %w2,%w1\n\t" \
-			"pushfl\n\t" \
-			"popl %0\n\t" \
+			"pushf\n\t" \
+			"pop %0\n\t" \
 			: "=r" (regflags.cznv), "=r" (v) : "rmi" (s), "1" (d) : "cc"); \
     COPY_CARRY; \
     } while (0)
 
 #define optflag_subb(v, s, d) do { \
   __asm__ __volatile__ ("subb %b2,%b1\n\t" \
-			"pushfl\n\t" \
-			"popl %0\n\t" \
+			"pushf\n\t" \
+			"pop %0\n\t" \
 			: "=r" (regflags.cznv), "=q" (v) : "qmi" (s), "1" (d) : "cc"); \
     COPY_CARRY; \
     } while (0)
 
 #define optflag_cmpl(s, d) \
   __asm__ __volatile__ ("cmpl %k1,%k2\n\t" \
-			"pushfl\n\t" \
-			"popl %0\n\t" \
+			"pushf\n\t" \
+			"pop %0\n\t" \
 			: "=r" (regflags.cznv) : "rmi" (s), "r" (d) : "cc")
 
 #define optflag_cmpw(s, d) \
   __asm__ __volatile__ ("cmpw %w1,%w2\n\t" \
-			"pushfl\n\t" \
-			"popl %0\n\t" \
+			"pushf\n\t" \
+			"pop %0\n\t" \
 			: "=r" (regflags.cznv) : "rmi" (s), "r" (d) : "cc")
 
 #define optflag_cmpb(s, d) \
   __asm__ __volatile__ ("cmpb %b1,%b2\n\t" \
-			"pushfl\n\t" \
-			"popl %0\n\t" \
+			"pushf\n\t" \
+			"pop %0\n\t" \
 			: "=r" (regflags.cznv) : "qmi" (s), "q" (d) : "cc")
 
 #else
