@@ -124,7 +124,7 @@ void decode_parcels(const uint8 *src, uint8 *dest, int size)
 	D(bug("Offset   Type Name\n"));
 	while (parcel_offset != 0) {
 		const uint32 *parcel_data = (uint32 *)(src + parcel_offset);
-		parcel_offset = ntohl(parcel_data[0]);
+		uint32 next_offset = ntohl(parcel_data[0]);
 		uint32 parcel_type = ntohl(parcel_data[1]);
 		D(bug("%08x %c%c%c%c %s\n", parcel_offset,
 			  (parcel_type >> 24) & 0xff, (parcel_type >> 16) & 0xff,
@@ -134,6 +134,7 @@ void decode_parcels(const uint8 *src, uint8 *dest, int size)
 			uint32 lzss_size = ((uint32)src + parcel_offset) - ((uint32)parcel_data + lzss_offset);
 			decode_lzss((uint8 *)parcel_data + lzss_offset, dest, lzss_size);
 		}
+		parcel_offset = next_offset;
 	}
 }
 
