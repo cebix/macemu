@@ -1161,6 +1161,15 @@ bool VideoInit(void)
 		if (apple_id != -1)
 			cur_mode = find_mode(default_mode, apple_id, DIS_SCREEN);
 	}
+	if (cur_mode == -1) {
+		// pick up first windowed mode available
+		for (VideoInfo *p = VModes; p->viType != DIS_INVALID; p++) {
+			if (p->viType == DIS_WINDOW && p->viAppleMode == default_mode) {
+				cur_mode = p - VModes;
+				break;
+			}
+		}
+	}
 	if (cur_mode == -1)
 		cur_mode = find_mode(default_mode, APPLE_W_640x480, DIS_WINDOW);
 	assert(cur_mode != -1);
