@@ -1670,8 +1670,10 @@ static void handle_events(void)
 
 			// Window "close" widget clicked
 			case ClientMessage:
-				if (event.xclient.format == 32 && event.xclient.data.l[0] == WM_DELETE_WINDOW)
-					XBell(x_display, 0);
+				if (event.xclient.format == 32 && event.xclient.data.l[0] == WM_DELETE_WINDOW) {
+					ADBKeyDown(0x7f);	// Power key
+					ADBKeyUp(0x7f);
+				}
 				break;
 		}
 	}
