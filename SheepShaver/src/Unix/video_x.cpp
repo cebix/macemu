@@ -577,7 +577,7 @@ static bool open_window(int width, int height)
 	use_vosf = true;
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	the_host_buffer = the_buffer_copy;
-	the_buffer_size = page_extend((aligned_height + 2) * img->bytes_per_line);
+	the_buffer_size = page_extend((aligned_height + 2) * (the_host_buffer_row_bytes = img->bytes_per_line));
 	the_buffer = (uint8 *)vm_acquire(the_buffer_size);
 	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
@@ -643,6 +643,7 @@ static bool open_fbdev(int width, int height)
 	}
 	D(bug("[fbdev] Device ID: %s\n", fb_finfo.id));
 	D(bug("[fbdev] smem_start: %p [%d bytes]\n", fb_finfo.smem_start, fb_finfo.smem_len));
+
 	int fb_type = fb_finfo.type;
 	const char *fb_type_str = NULL;
 	switch (fb_type) {
@@ -654,6 +655,12 @@ static bool open_fbdev(int width, int height)
 	default:							fb_type_str = "<unknown>";				break;
 	}
 	D(bug("[fbdev] type: %s\n", fb_type_str));
+
+	if (fb_type != FB_TYPE_PACKED_PIXELS) {
+		D(bug("[fbdev] type '%s' not supported\n", fb_type_str));
+		return false;
+	}
+
 	int fb_visual = fb_finfo.visual;
 	const char *fb_visual_str;
 	switch (fb_visual) {
@@ -667,8 +674,8 @@ static bool open_fbdev(int width, int height)
 	}
 	D(bug("[fbdev] visual: %s\n", fb_visual_str));
 
-	if (fb_type != FB_TYPE_PACKED_PIXELS) {
-		D(bug("[fbdev] type %s not supported\n", fb_type_str));
+	if (fb_visual != FB_VISUAL_TRUECOLOR) {
+		D(bug("[fbdev] visual '%s' not supported\n", fb_visual_str));
 		return false;
 	}
 	
@@ -686,10 +693,9 @@ static bool open_fbdev(int width, int height)
 	XSetWindowAttributes wattr;
 	wattr.event_mask = eventmask = dga_eventmask;
 	wattr.override_redirect = True;
-	wattr.colormap = (depth == 1 ? DefaultColormap(x_display, screen) : cmap[0]);
 	the_win = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
-							InputOutput, vis, CWEventMask | CWOverrideRedirect |
-							(color_class == DirectColor ? CWColormap : 0), &wattr);
+							InputOutput, DefaultVisual(x_display, screen),
+							CWEventMask | CWOverrideRedirect, &wattr);
 
 	// Show window
 	XMapRaised(x_display, the_win);
@@ -711,36 +717,42 @@ static bool open_fbdev(int width, int height)
 	XDefineCursor(x_display, the_win, mac_cursor);
 
 	// Init blitting routines
-	int bytes_per_row = TrivialBytesPerRow((width + 7) & ~7, DepthModeForPixelDepth(depth));
 #if ENABLE_VOSF
-	bool native_byte_order;
-#ifdef WORDS_BIGENDIAN
-	native_byte_order = (XImageByteOrder(x_display) == MSBFirst);
-#else
-	native_byte_order = (XImageByteOrder(x_display) == LSBFirst);
-#endif
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	// Extract current screen color masks (we are in True Color mode)
+	VisualFormat visualFormat;
+	visualFormat.depth = xdepth = DefaultDepth(x_display, screen);
+	XMatchVisualInfo(x_display, screen, xdepth, TrueColor, &visualInfo);
+	assert(visualFormat.depth == visualInfo.depth);
+	visualFormat.Rmask = visualInfo.red_mask;
+	visualFormat.Gmask = visualInfo.green_mask;
+	visualFormat.Bmask = visualInfo.blue_mask;
+	D(bug("[fbdev] %d bpp, (%08x,%08x,%08x)\n", 
+		  visualFormat.depth,
+		  visualFormat.Rmask, visualFormat.Gmask, visualFormat.Bmask));
+	D(bug("[fbdev] Mac depth %d bpp\n", depth));
+
 	// Screen_blitter_init() returns TRUE if VOSF is mandatory
 	// i.e. the framebuffer update function is not Blit_Copy_Raw
-	use_vosf = Screen_blitter_init(visualFormat, native_byte_order, depth);
-	
-	if (use_vosf) {
-	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
-	  the_host_buffer = the_buffer;
-	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
-	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
-	  the_buffer = (uint8 *)vm_acquire(the_buffer_size);
-	  D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
-	}
+#ifdef WORDS_BIGENDIAN
+	const bool native_byte_order = (XImageByteOrder(x_display) == MSBFirst);
 #else
-	use_vosf = false;
+	const bool native_byte_order = (XImageByteOrder(x_display) == LSBFirst);
 #endif
+	Screen_blitter_init(visualFormat, native_byte_order, depth);
+	
+	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
+	the_host_buffer = the_buffer;
+	the_host_buffer_row_bytes = TrivialBytesPerRow((width + 7) & ~7, DepthModeForPixelDepth(visualFormat.depth));
+	the_buffer_size = page_extend((height + 2) * the_host_buffer_row_bytes);
+	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
+	the_buffer = (uint8 *)vm_acquire(the_buffer_size);
+	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
 #endif
 
 	// Set frame buffer base
 	D(bug("the_buffer = %p, use_vosf = %d\n", the_buffer, use_vosf));
 	screen_base = Host2MacAddr(the_buffer);
-	VModes[cur_mode].viRowBytes = bytes_per_row;
+	VModes[cur_mode].viRowBytes = TrivialBytesPerRow((width + 7) & ~7, DepthModeForPixelDepth(depth));
 	return true;
 #else
 	ErrorAlert("SheepShaver has been compiled with DGA support disabled.");
@@ -822,7 +834,7 @@ static bool open_dga(int width, int height)
 	if (use_vosf) {
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	  the_host_buffer = the_buffer;
-	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
+	  the_buffer_size = page_extend((height + 2) * (the_host_buffer_row_bytes = bytes_per_row));
 	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	  the_buffer = (uint8 *)vm_acquire(the_buffer_size);
 	  D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
@@ -858,6 +870,7 @@ static bool open_display(void)
 	}
 
 	// Build up visualFormat structure
+	visualFormat.fullscreen = (display_type == DIS_SCREEN);
 	visualFormat.depth = visualInfo.depth;
 	visualFormat.Rmask = visualInfo.red_mask;
 	visualFormat.Gmask = visualInfo.green_mask;
@@ -1458,6 +1471,12 @@ bool VideoInit(void)
 					add_custom_mode(p, display_type, default_width, default_height, d, APPLE_CUSTOM);
 				}
 			}
+#ifdef ENABLE_VOSF
+		} else if (display_type == DIS_SCREEN && is_fbdev_dga_mode) {
+			for (unsigned int d = APPLE_1_BIT; d <= default_mode; d++)
+				if (find_visual_for_depth(d))
+					add_custom_mode(p, display_type, default_width, default_height, d, APPLE_CUSTOM);
+#endif
 		} else
 			add_custom_mode(p, display_type, default_width, default_height, default_mode, APPLE_CUSTOM);
 	} else if (window_modes) {
