@@ -5,6 +5,7 @@ V0.7 (alpha)
 	- Unix: "basilisk_ii_keycodes" renamed to "keycodes", default
 	  location of keycodes file is now /usr/local/share/BasiliskII/keycodes
 	- Unix: improved the install target, added uninstall target
+	- Unix/Windows: fixed bugs in protocol removal [Lauri Pesonen]
 	- Unix/Linux/NetDriver: removed MAKEDEV, functionality now included
 	  in Makefile ("make dev")
 	- Unix/sys_unix.cpp: Sys_open() checks whether an HFS volume is currently
