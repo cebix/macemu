@@ -29,6 +29,10 @@
 #include <ctype.h>
 #include <math.h>
 
+#if defined(__powerpc__) || defined(__ppc__)
+#define NATIVE_POWERPC
+#endif
+
 #ifndef USE_JIT
 #define USE_JIT 0
 #endif
@@ -98,6 +102,7 @@ typedef uintptr_t uintptr;
 #define TEST_VMX_ARITH	1
 
 // Partial PowerPC runtime assembler from GNU lightning
+#undef  _I
 #define _I(X)			((uint32)(X))
 #define _UL(X)			((uint32)(X))
 #define _MASK(N)		((uint32)((1<<(N)))-1)
@@ -112,6 +117,7 @@ typedef uintptr_t uintptr;
 #define _u11(I)			_ck_u(11,I)
 #define _s16(I)         _ck_s(16,I)
 
+#undef  _D
 #define _D(   OP,RD,RA,         DD )  	_I((_u6(OP)<<26)|(_u5(RD)<<21)|(_u5(RA)<<16)|                _s16(DD)                          )
 #undef  _X
 #define _X(   OP,RD,RA,RB,   XO,RC )  	_I((_u6(OP)<<26)|(_u5(RD)<<21)|(_u5(RA)<<16)|( _u5(RB)<<11)|              (_u10(XO)<<1)|_u1(RC))
@@ -135,7 +141,7 @@ const uint32 POWERPC_ILLEGAL = 0x00000000;
 const uint32 POWERPC_EMUL_OP = 0x18000000;
 
 // Invalidate test cache
-#if defined(__powerpc__)
+#ifdef NATIVE_POWERPC
 static void inline ppc_flush_icache_range(uint32 *start_p, uint32 length)
 {
 	const int MIN_CACHE_LINE_SIZE = 8; /* conservative value */
@@ -174,9 +180,11 @@ uint64 GetTicks_usec(void)
 	return clock();
 }
 
+#if PPC_ENABLE_JIT && PPC_REENTRANT_JIT
 void init_emul_op_trampolines(basic_dyngen & dg)
 {
 }
+#endif
 
 #define ENABLE_JIT_P (USE_JIT && 1)
 #else
@@ -620,7 +628,7 @@ static bool vector_all_eq(char type, vector_t const & b)
 class powerpc_test_cpu
 	: public powerpc_cpu_base
 {
-#if defined(__powerpc__)
+#ifdef NATIVE_POWERPC
 	uint32 native_get_xer() const
 		{ uint32 xer; asm volatile ("mfxer %0" : "=r" (xer)); return xer; }
 
@@ -795,7 +803,7 @@ void powerpc_test_cpu::execute(uint32 *code_p)
 	code[0] = htonl(POWERPC_BLRL);
 	code[1] = htonl(POWERPC_EMUL_OP);
 
-#if !defined(__powerpc__)
+#ifndef NATIVE_POWERPC
 	const int n_func_words = 1024;
 	static uint32 func[n_func_words];
 	static int old_i;
@@ -887,7 +895,7 @@ void powerpc_test_cpu::test_one(uint32 *code, const char *insn, uint32 a1, uint3
 
 void powerpc_test_cpu::test_one_1(uint32 *code, const char *insn, uint32 a1, uint32 a2, uint32 a3, uint32 a0)
 {
-#if defined(__powerpc__)
+#ifdef NATIVE_POWERPC
 	// Invoke native code
 	const uint32 save_xer = native_get_xer();
 	const uint32 save_cr = native_get_cr();
@@ -1562,7 +1570,7 @@ void powerpc_test_cpu::test_one_vector(uint32 *code, vector_test_t const & vt, u
 	if (!rAp) rAp = dummy_vector;
 	if (!rBp) rBp = dummy_vector;
 	if (!rCp) rCp = dummy_vector;
-#if defined(__powerpc__)
+#ifdef NATIVE_POWERPC
 	// Invoke native code
 	const uint32 save_cr = native_get_cr();
 	native_set_cr(init_cr);
@@ -1993,7 +2001,7 @@ void powerpc_test_cpu::test_vector_arith(void)
 }
 
 // Illegal handler to catch out AltiVec instruction
-#if defined(__powerpc__)
+#ifdef NATIVE_POWERPC
 static sigjmp_buf env;
 
 static void sigill_handler(int sig)
@@ -2037,11 +2045,11 @@ bool powerpc_test_cpu::test(void)
 int main(int argc, char *argv[])
 {
 	FILE *fp = NULL;
-	powerpc_test_cpu ppc;
+	powerpc_test_cpu *ppc = new powerpc_test_cpu;
 
 	if (argc > 1) {
 		const char *file = argv[1];
-#if defined(__powerpc__)
+#ifdef NATIVE_POWERPC
 		if ((fp = fopen(file, "wb")) == NULL) {
 			fprintf(stderr, "ERROR: can't open %s for writing\n", file);
 			return EXIT_FAILURE;
@@ -2052,7 +2060,7 @@ int main(int argc, char *argv[])
 			return EXIT_FAILURE;
 		}
 #endif
-		ppc.set_results_file(fp);
+		ppc->set_results_file(fp);
 
 		// Use a large enough buffer
 		static char buffer[4096];
@@ -2060,7 +2068,7 @@ int main(int argc, char *argv[])
 	}
 
 	// We need a results file on non PowerPC platforms
-#if !defined(__powerpc__)
+#ifndef NATIVE_POWERPC
 	if (fp == NULL) {
 		fprintf(stderr, "ERROR: a results file for reference is required\n");
 		return EXIT_FAILURE;
@@ -2069,14 +2077,15 @@ int main(int argc, char *argv[])
 
 	// Check if host CPU supports AltiVec instructions
 	has_altivec = true;
-#if defined(__powerpc__)
+#ifdef NATIVE_POWERPC
 	signal(SIGILL, sigill_handler);
 	if (!sigsetjmp(env, 1))
 		asm volatile(".long 0x10000484"); // vor v0,v0,v0
 	signal(SIGILL, SIG_DFL);
 #endif
 
-	bool ok = ppc.test();
+	bool ok = ppc->test();
 	if (fp) fclose(fp);
+	delete ppc;
 	return !ok;
 }
