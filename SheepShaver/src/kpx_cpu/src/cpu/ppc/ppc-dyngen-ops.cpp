@@ -1222,4 +1222,5 @@ void OPPROTO op_jump_next_A0(void)
 		if (bi->pc == pc || (bi = powerpc_dyngen_helper::find_block(pc)) != NULL)
 			goto *(bi->entry_point);
 	}
+	dyngen_barrier();
 }
