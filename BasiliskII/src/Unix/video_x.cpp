@@ -1353,6 +1353,10 @@ static void keycode_init(void)
 
 		// Search for server vendor string, then read keycodes
 		const char *vendor = ServerVendor(x_display);
+		// Force use of MacX mappings on MacOS X with Apple's X server
+		int dummy;
+		if (XQueryExtension(x_display, "Apple-DRI", &dummy, &dummy, &dummy))
+			vendor = "MacX";
 		bool vendor_found = false;
 		char line[256];
 		while (fgets(line, 255, f)) {
