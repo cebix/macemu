@@ -247,6 +247,7 @@ struct powerpc_registers
 
 	static inline int GPR(int r) { return GPR_BASE + r; }
 	static inline int FPR(int r) { return FPR_BASE + r; }
+	static void interrupt_copy(powerpc_registers &oregs, powerpc_registers const &iregs);
 	
 	uint32	gpr[32];			// General-Purpose Registers
 	powerpc_fpr fpr[32];		// Floating-Point Registers

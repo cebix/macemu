@@ -265,7 +265,6 @@ public:
 
 	// Interrupts handling
 	void trigger_interrupt();
-	virtual void handle_interrupt() { }
 	
 	// Set VALUE to register ID
 	void set_register(int id, any_register const & value);
@@ -477,5 +476,9 @@ inline void powerpc_cpu::trigger_interrupt()
 	spcflags().set(SPCFLAG_CPU_TRIGGER_INTERRUPT);
 #endif
 }
+
+#ifdef SHEEPSHAVER
+extern void HandleInterrupt(powerpc_registers *r);
+#endif
 
 #endif /* PPC_CPU_H */

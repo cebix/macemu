@@ -93,9 +93,6 @@ extern "C" void check_load_invoc(uint32 type, int16 id, uint32 h);
 // PowerPC EmulOp to exit from emulation looop
 const uint32 POWERPC_EXEC_RETURN = POWERPC_EMUL_OP | 1;
 
-// Enable interrupt routine safety checks?
-#define SAFE_INTERRUPT_PPC 1
-
 // Enable Execute68k() safety checks?
 #define SAFE_EXEC_68K 1
 
@@ -142,23 +139,6 @@ class sheepshaver_cpu
 	void init_decoder();
 	void execute_sheep(uint32 opcode);
 
-	// CPU context to preserve on interrupt
-	class interrupt_context {
-		uint32 gpr[32];
-		double fpr[32];
-		uint32 pc;
-		uint32 lr;
-		uint32 ctr;
-		uint32 cr;
-		uint32 xer;
-		uint32 fpscr;
-		sheepshaver_cpu *cpu;
-		const char *where;
-	public:
-		interrupt_context(sheepshaver_cpu *_cpu, const char *_where);
-		~interrupt_context();
-	};
-
 public:
 
 	// Constructor
@@ -194,7 +174,6 @@ public:
 
 	// Handle MacOS interrupt
 	void interrupt(uint32 entry);
-	void handle_interrupt();
 
 	// Make sure the SIGSEGV handler can access CPU registers
 	friend sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
@@ -479,69 +458,12 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 }
 #endif
 
-// CPU context to preserve on interrupt
-sheepshaver_cpu::interrupt_context::interrupt_context(sheepshaver_cpu *_cpu, const char *_where)
-{
-#if SAFE_INTERRUPT_PPC >= 2
-	cpu = _cpu;
-	where = _where;
-
-	// Save interrupt context
-	memcpy(&gpr[0], &cpu->gpr(0), sizeof(gpr));
-	memcpy(&fpr[0], &cpu->fpr(0), sizeof(fpr));
-	pc = cpu->pc();
-	lr = cpu->lr();
-	ctr = cpu->ctr();
-	cr = cpu->get_cr();
-	xer = cpu->get_xer();
-	fpscr = cpu->fpscr();
-#endif
-}
-
-sheepshaver_cpu::interrupt_context::~interrupt_context()
-{
-#if SAFE_INTERRUPT_PPC >= 2
-	// Check whether CPU context was preserved by interrupt
-	if (memcmp(&gpr[0], &cpu->gpr(0), sizeof(gpr)) != 0) {
-		printf("FATAL: %s: interrupt clobbers registers\n", where);
-		for (int i = 0; i < 32; i++)
-			if (gpr[i] != cpu->gpr(i))
-				printf(" r%d: %08x -> %08x\n", i, gpr[i], cpu->gpr(i));
-	}
-	if (memcmp(&fpr[0], &cpu->fpr(0), sizeof(fpr)) != 0) {
-		printf("FATAL: %s: interrupt clobbers registers\n", where);
-		for (int i = 0; i < 32; i++)
-			if (fpr[i] != cpu->fpr(i))
-				printf(" r%d: %f -> %f\n", i, fpr[i], cpu->fpr(i));
-	}
-	if (pc != cpu->pc())
-		printf("FATAL: %s: interrupt clobbers PC\n", where);
-	if (lr != cpu->lr())
-		printf("FATAL: %s: interrupt clobbers LR\n", where);
-	if (ctr != cpu->ctr())
-		printf("FATAL: %s: interrupt clobbers CTR\n", where);
-	if (cr != cpu->get_cr())
-		printf("FATAL: %s: interrupt clobbers CR\n", where);
-	if (xer != cpu->get_xer())
-		printf("FATAL: %s: interrupt clobbers XER\n", where);
-	if (fpscr != cpu->fpscr())
-		printf("FATAL: %s: interrupt clobbers FPSCR\n", where);
-#endif
-}
-
 // Handle MacOS interrupt
 void sheepshaver_cpu::interrupt(uint32 entry)
 {
 #if EMUL_TIME_STATS
 	ppc_interrupt_count++;
 	const clock_t interrupt_start = clock();
-#endif
-
-#if SAFE_INTERRUPT_PPC
-	static int depth = 0;
-	if (depth != 0)
-		printf("FATAL: sheepshaver_cpu::interrupt() called more than once: %d\n", depth);
-	depth++;
 #endif
 
 	// Save program counters and branch registers
@@ -596,10 +518,6 @@ void sheepshaver_cpu::interrupt(uint32 entry)
 
 #if EMUL_TIME_STATS
 	interrupt_time += (clock() - interrupt_start);
-#endif
-
-#if SAFE_INTERRUPT_PPC
-	depth--;
 #endif
 }
 
@@ -1000,7 +918,7 @@ void TriggerInterrupt(void)
 #endif
 }
 
-void sheepshaver_cpu::handle_interrupt(void)
+void HandleInterrupt(powerpc_registers *r)
 {
 #ifdef USE_SDL_VIDEO
 	// We must fill in the events queue in the same thread that did call SDL_SetVideoMode()
@@ -1011,29 +929,23 @@ void sheepshaver_cpu::handle_interrupt(void)
 	if (int32(ReadMacInt32(XLM_IRQ_NEST)) > 0)
 		return;
 
-	// Current interrupt nest level
-	static int interrupt_depth = 0;
-	++interrupt_depth;
+	// Increment interrupt counter
 #if EMUL_TIME_STATS
 	interrupt_count++;
 #endif
-
-	// Disable MacOS stack sniffer
-	WriteMacInt32(0x110, 0);
 
 	// Interrupt action depends on current run mode
 	switch (ReadMacInt32(XLM_RUN_MODE)) {
 	case MODE_68K:
 		// 68k emulator active, trigger 68k interrupt level 1
 		WriteMacInt16(tswap32(kernel_data->v[0x67c >> 2]), 1);
-		set_cr(get_cr() | tswap32(kernel_data->v[0x674 >> 2]));
+		r->cr.set(r->cr.get() | tswap32(kernel_data->v[0x674 >> 2]));
 		break;
     
 #if INTERRUPTS_IN_NATIVE_MODE
 	case MODE_NATIVE:
 		// 68k emulator inactive, in nanokernel?
-		if (gpr(1) != KernelDataAddr && interrupt_depth == 1) {
-			interrupt_context ctx(this, "PowerPC mode");
+		if (r->gpr[1] != KernelDataAddr) {
 
 			// Prepare for 68k interrupt level 1
 			WriteMacInt16(tswap32(kernel_data->v[0x67c >> 2]), 1);
@@ -1055,7 +967,6 @@ void sheepshaver_cpu::handle_interrupt(void)
 	case MODE_EMUL_OP:
 		// 68k emulator active, within EMUL_OP routine, execute 68k interrupt routine directly when interrupt level is 0
 		if ((ReadMacInt32(XLM_68K_R25) & 7) == 0) {
-			interrupt_context ctx(this, "68k mode");
 #if EMUL_TIME_STATS
 			const clock_t interrupt_start = clock();
 #endif
@@ -1092,9 +1003,6 @@ void sheepshaver_cpu::handle_interrupt(void)
 		break;
 #endif
 	}
-
-	// We are done with this interrupt
-	--interrupt_depth;
 }
 
 static void get_resource(void);

@@ -391,12 +391,39 @@ void powerpc_cpu::fake_dump_registers(uint32)
 	dump_registers();
 }
 
+void powerpc_registers::interrupt_copy(powerpc_registers &oregs, powerpc_registers const &iregs)
+{
+	for (int i = 0; i < 32; i++) {
+		oregs.gpr[i] = iregs.gpr[i];
+		oregs.fpr[i] = iregs.fpr[i];
+	}
+	oregs.cr	= iregs.cr;
+	oregs.fpscr	= iregs.fpscr;
+	oregs.xer	= iregs.xer;
+	oregs.lr	= iregs.lr;
+	oregs.ctr	= iregs.ctr;
+	oregs.pc	= iregs.pc;
+
+	uint32 vrsave = iregs.vrsave;
+	oregs.vrsave  = vrsave;
+	if (vrsave) {
+		for (int i = 31; i >= 0; i--) {
+			if (vrsave & 1)
+				oregs.vr[i] = iregs.vr[i];
+			vrsave >>= 1;
+		}
+	}
+}
+
 bool powerpc_cpu::check_spcflags()
 {
-#if PPC_CHECK_INTERRUPTS
+#ifdef SHEEPSHAVER
 	if (spcflags().test(SPCFLAG_CPU_HANDLE_INTERRUPT)) {
 		spcflags().clear(SPCFLAG_CPU_HANDLE_INTERRUPT);
-		handle_interrupt();
+		powerpc_registers r;
+		powerpc_registers::interrupt_copy(r, regs);
+		HandleInterrupt(&r);
+		powerpc_registers::interrupt_copy(regs, r);
 	}
 	if (spcflags().test(SPCFLAG_CPU_TRIGGER_INTERRUPT)) {
 		spcflags().clear(SPCFLAG_CPU_TRIGGER_INTERRUPT);
