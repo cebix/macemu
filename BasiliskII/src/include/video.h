@@ -23,6 +23,10 @@
 
 #include <vector>
 
+#ifndef NO_STD_NAMESPACE
+using std::vector;
+#endif
+
 /*
    Some of the terminology here is completely frelled. In Basilisk II, a
    "video mode" refers to a combination of resolution and color depth, and
@@ -95,6 +99,7 @@ inline uint32 TrivialBytesPerRow(uint32 width, video_depth depth)
 		case VDEPTH_8BIT: return width;
 		case VDEPTH_16BIT: return width * 2;
 		case VDEPTH_32BIT: return width * 4;
+		default: return width;
 	}
 }
 
@@ -141,7 +146,7 @@ inline bool IsDirectMode(const video_mode &mode)
 }
 
 // List of all supported video modes
-extern std::vector<video_mode> VideoModes;
+extern vector<video_mode> VideoModes;
 
 // Description for one (possibly virtual) monitor
 struct monitor_desc {

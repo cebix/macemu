@@ -21,6 +21,10 @@
 #ifndef SYSDEPS_H
 #define SYSDEPS_H
 
+#ifdef __POWERPC__
+#define NO_STD_NAMESPACE
+#endif
+
 #include <assert.h>
 #include <support/SupportDefs.h>
 #include <support/ByteOrder.h>
@@ -69,6 +73,8 @@ typedef off_t loff_t;
 typedef uae_u32 uaecptr;
 #define VAL64(a) (a ## LL)
 #define UVAL64(a) (a ## uLL)
+typedef uint32 uintptr;
+typedef int32 intptr;
 
 // UAE CPU defines
 #ifdef __i386__

@@ -939,13 +939,13 @@ void MacScreen::ScreenConnected(bool active)
 
 		// Copy from backup store to frame buffer
 		if (frame_backup != NULL) {
-			memcpy(info->frame_buffer, frame_backup, VideoMonitor.bytes_per_row * VideoMonitor.mode.y);
+			memcpy(info->frame_buffer, frame_backup, VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y);
 			delete[] frame_backup;			
 			frame_backup = NULL;
 		}
 
 		// Restore palette
-		if (VideoMonitor.depth == VDEPTH_8BIT)
+		if (VideoMonitor.mode.depth == VDEPTH_8BIT)
 			SetColorList(palette);
 
 		// Restart/signal emulator thread
