@@ -98,6 +98,7 @@ if [[ "x$WANT_GTK" = "xyes" ]]; then
   ], [
     AC_MSG_WARN([Could not find GTK+, disabling user interface.])
     WANT_GTK=no
+    DEFINES="$DEFINES -DENABLE_GTK=0"
   ])
 fi
 
@@ -111,6 +112,7 @@ if [[ "x$WANT_ESD" = "xyes" ]]; then
   ], [
     AC_MSG_WARN([Could not find ESD, disabling ESD support.])
     WANT_ESD=no
+    DEFINES="$DEFINES -DENABLE_ESD=0"
   ])
 fi
 

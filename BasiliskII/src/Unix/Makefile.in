@@ -36,7 +36,7 @@ SRCS = ../main.cpp main_unix.cpp ../prefs.cpp prefs_unix.cpp sys_unix.cpp \
 APP = BasiliskII
 
 ## Rules
-.PHONY: modules install uninstall clean distclean depend
+.PHONY: modules install uninstall clean distclean depend dep
 .SUFFIXES:
 .SUFFIXES: .c .cpp .s .o .h
 

@@ -48,7 +48,7 @@
 #include <gtk/gtk.h>
 #endif
 
-#if ENABLE_DGA
+#if ENABLE_XF86_DGA
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/xf86dga.h>
@@ -154,7 +154,7 @@ int main(int argc, char **argv)
 		QuitEmulator();
 	}
 
-#if ENABLE_DGA
+#if ENABLE_XF86_DGA
 	// Fork out, so we can return from fullscreen mode when things get ugly
 	XF86DGAForkApp(DefaultScreen(x_display));
 #endif
