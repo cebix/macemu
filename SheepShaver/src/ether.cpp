@@ -180,7 +180,7 @@ typedef mblk_t *(*allocb_ptr)(size_t size, int pri);
 static uint32 allocb_tvect = 0;
 mblk_t *allocb(size_t arg1, int arg2)
 {
-	return (mblk_t *)CallMacOS2(allocb_ptr, allocb_tvect, arg1, arg2);
+	return (mblk_t *)Mac2HostAddr(CallMacOS2(allocb_ptr, allocb_tvect, arg1, arg2));
 }
 typedef void (*freeb_ptr)(mblk_t *);
 static uint32 freeb_tvect = 0;
@@ -198,19 +198,19 @@ typedef mblk_t *(*copyb_ptr)(mblk_t *);
 static uint32 copyb_tvect = 0;
 static inline mblk_t *copyb(mblk_t *arg1)
 {
-	return (mblk_t *)CallMacOS1(copyb_ptr, copyb_tvect, arg1);
+	return (mblk_t *)Mac2HostAddr(CallMacOS1(copyb_ptr, copyb_tvect, arg1));
 }
 typedef mblk_t *(*dupmsg_ptr)(mblk_t *);
 static uint32 dupmsg_tvect = 0;
 static inline mblk_t *dupmsg(mblk_t *arg1)
 {
-	return (mblk_t *)CallMacOS1(dupmsg_ptr, dupmsg_tvect, arg1);
+	return (mblk_t *)Mac2HostAddr(CallMacOS1(dupmsg_ptr, dupmsg_tvect, arg1));
 }
 typedef mblk_t *(*getq_ptr)(queue_t *);
 static uint32 getq_tvect = 0;
 static inline mblk_t *getq(queue_t *arg1)
 {
-	return (mblk_t *)CallMacOS1(getq_ptr, getq_tvect, arg1);
+	return (mblk_t *)Mac2HostAddr(CallMacOS1(getq_ptr, getq_tvect, arg1));
 }
 typedef int (*putq_ptr)(queue_t *, mblk_t *);
 static uint32 putq_tvect = 0;
@@ -282,7 +282,7 @@ typedef DLPIStream *(*mi_next_ptr_ptr)(DLPIStream *);
 static uint32 mi_next_ptr_tvect = 0;
 static inline DLPIStream *mi_next_ptr(DLPIStream *arg1)
 {
-	return (DLPIStream *)CallMacOS1(mi_next_ptr_ptr, mi_next_ptr_tvect, arg1);
+	return (DLPIStream *)Mac2HostAddr(CallMacOS1(mi_next_ptr_ptr, mi_next_ptr_tvect, arg1));
 }
 
 
