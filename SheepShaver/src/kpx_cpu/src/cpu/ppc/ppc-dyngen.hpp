@@ -126,27 +126,23 @@ public:
 	// Special purpose registers
 	DEFINE_ALIAS(load_T0_PC,0);
 	DEFINE_ALIAS(store_T0_PC,0);
-	DEFINE_ALIAS(set_PC_T1,0);
 	DEFINE_ALIAS(set_PC_im,1);
+	DEFINE_ALIAS(set_PC_A0,0);
 	DEFINE_ALIAS(inc_PC,1);
 	DEFINE_ALIAS(load_T0_LR,0);
 	DEFINE_ALIAS(store_T0_LR,0);
 	DEFINE_ALIAS(load_T0_CTR,0);
-	DEFINE_ALIAS(load_T1_CTR,0);
+	DEFINE_ALIAS(load_A0_CTR,0);
 	DEFINE_ALIAS(store_T0_CTR,0);
 	DEFINE_ALIAS(store_T1_CTR,0);
 	DEFINE_ALIAS(load_T1_PC,0);
-	DEFINE_ALIAS(load_T1_LR,0);
+	DEFINE_ALIAS(load_A0_LR,0);
 	DEFINE_ALIAS(store_im_LR,1);
 
 	// Control Flow
-	DEFINE_ALIAS(decrement_ctr_T1,0);
-	DEFINE_ALIAS(branch_if_T0,2);
-	DEFINE_ALIAS(branch_if_T1,2);
-	DEFINE_ALIAS(branch_if_not_T0,2);
-	DEFINE_ALIAS(branch_if_not_T1,2);
-	DEFINE_ALIAS(branch_if_T0_T1,2);
-	DEFINE_ALIAS(branch_T1_if_T0,1);
+	DEFINE_ALIAS(decrement_ctr_T0,0);
+	DEFINE_ALIAS(branch_A0_if_T0,1);
+	DEFINE_ALIAS(branch_A0_if_not_T0,1);
 
 	// Compare & Record instructions
 	DEFINE_ALIAS_CLOBBER_SO(record_nego_T0,0);
@@ -203,10 +199,10 @@ public:
 	DEFINE_ALIAS_CLOBBER_SO(subfzeo_T0,0);
 
 	// Branch instructions
-	void gen_bc(int bo, int bi, uint32 tpc, uint32 npc);
+	void gen_bc_A0(int bo, int bi, uint32 npc);
 #define DEFINE_ALIAS_GRP_1(CR,CTR)				\
-	DEFINE_ALIAS(b##CR##_##CTR,2);				\
-	DEFINE_ALIAS(bn##CR##_##CTR,2);
+	DEFINE_ALIAS(b##CR##_##CTR,1);				\
+	DEFINE_ALIAS(bn##CR##_##CTR,1);
 #define DEFINE_ALIAS_GRP_2(CR)					\
 	DEFINE_ALIAS_GRP_1(CR,0x);					\
 	DEFINE_ALIAS_GRP_1(CR,10);					\

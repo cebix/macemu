@@ -206,7 +206,7 @@ void powerpc_dyngen::gen_record_cr0_T0(void)
 	gen_compare_T0_im(0, 0);
 }
 
-void powerpc_dyngen::gen_bc(int bo, int bi, uint32 tpc, uint32 npc)
+void powerpc_dyngen::gen_bc_A0(int bo, int bi, uint32 npc)
 {
 	gen_commit_cr();
 	if (BO_CONDITIONAL_BRANCH(bo)) {
@@ -216,22 +216,22 @@ void powerpc_dyngen::gen_bc(int bo, int bi, uint32 tpc, uint32 npc)
 #define _(CR,DCTR,CTR0) (((CR) << 2) | ((DCTR) ? 0 : 2) | ((CTR0) ? 1 : 0))
 		if (BO_BRANCH_IF_TRUE(bo)) {
 			switch (n) {
-#define C(CR)													\
-			case _(CR,0,0): gen_b##CR##_0x(tpc, npc); break;	\
-			case _(CR,0,1): gen_b##CR##_0x(tpc, npc); break;	\
-			case _(CR,1,0): gen_b##CR##_10(tpc, npc); break;	\
-			case _(CR,1,1): gen_b##CR##_11(tpc, npc); break;
+#define C(CR)											\
+			case _(CR,0,0): gen_b##CR##_0x(npc); break;	\
+			case _(CR,0,1): gen_b##CR##_0x(npc); break;	\
+			case _(CR,1,0): gen_b##CR##_10(npc); break;	\
+			case _(CR,1,1): gen_b##CR##_11(npc); break;
 			C(lt); C(gt); C(eq); C(so);
 #undef C
 			}
 		}
 		else {
 			switch (n) {
-#define C(CR)													\
-			case _(CR,0,0): gen_bn##CR##_0x(tpc, npc); break;	\
-			case _(CR,0,1): gen_bn##CR##_0x(tpc, npc); break;	\
-			case _(CR,1,0): gen_bn##CR##_10(tpc, npc); break;	\
-			case _(CR,1,1): gen_bn##CR##_11(tpc, npc); break;
+#define C(CR)												\
+			case _(CR,0,0): gen_bn##CR##_0x(npc); break;	\
+			case _(CR,0,1): gen_bn##CR##_0x(npc); break;	\
+			case _(CR,1,0): gen_bn##CR##_10(npc); break;	\
+			case _(CR,1,1): gen_bn##CR##_11(npc); break;
 			C(lt); C(gt); C(eq); C(so);
 #undef C
 			}
@@ -240,15 +240,15 @@ void powerpc_dyngen::gen_bc(int bo, int bi, uint32 tpc, uint32 npc)
 	}
 	else {
 		if (BO_DECREMENT_CTR(bo)) {
-			gen_decrement_ctr_T1();
+			gen_decrement_ctr_T0();
 			if (BO_BRANCH_IF_CTR_ZERO(bo))
-				gen_branch_if_not_T1(tpc, npc);
+				gen_branch_A0_if_not_T0(npc);
 			else
-				gen_branch_if_T1(tpc, npc);
+				gen_branch_A0_if_T0(npc);
 		}
 		else {
 			// Branch always
-			gen_set_PC_im(tpc);
+			gen_set_PC_A0();
 		}
 	}
 }

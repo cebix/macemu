@@ -299,9 +299,9 @@ void OPPROTO op_set_PC_im(void)
 	powerpc_dyngen_helper::set_pc(PARAM1);
 }
 
-void OPPROTO op_set_PC_T1(void)
+void OPPROTO op_set_PC_A0(void)
 {
-	powerpc_dyngen_helper::set_pc(T1);
+	powerpc_dyngen_helper::set_pc(A0);
 }
 
 void OPPROTO op_inc_PC(void)
@@ -324,11 +324,6 @@ void OPPROTO op_load_T0_CTR(void)
 	T0 = powerpc_dyngen_helper::get_ctr();
 }
 
-void OPPROTO op_load_T1_CTR(void)
-{
-	T1 = powerpc_dyngen_helper::get_ctr();
-}
-
 void OPPROTO op_store_T0_CTR(void)
 {
 	powerpc_dyngen_helper::set_ctr(T0);
@@ -344,14 +339,19 @@ void OPPROTO op_load_T1_PC(void)
 	T1 = powerpc_dyngen_helper::get_pc();
 }
 
-void OPPROTO op_load_T1_LR(void)
-{
-	T1 = powerpc_dyngen_helper::get_lr();
-}
-
 void OPPROTO op_store_im_LR(void)
 {
 	powerpc_dyngen_helper::set_lr(PARAM1);
+}
+
+void OPPROTO op_load_A0_CTR(void)
+{
+	A0 = powerpc_dyngen_helper::get_ctr() & -4;
+}
+
+void OPPROTO op_load_A0_LR(void)
+{
+	A0 = powerpc_dyngen_helper::get_lr() & -4;
 }
 
 
@@ -359,61 +359,25 @@ void OPPROTO op_store_im_LR(void)
  *		Branch instructions
  **/
 
-void OPPROTO op_decrement_ctr_T1(void)
+void OPPROTO op_decrement_ctr_T0(void)
 {
-	T1 = powerpc_dyngen_helper::get_ctr() - 1;
-	powerpc_dyngen_helper::set_ctr(T1);
+	T0 = powerpc_dyngen_helper::get_ctr() - 1;
+	powerpc_dyngen_helper::set_ctr(T0);
 }
 
-void OPPROTO op_branch_if_T0(void)
+void OPPROTO op_branch_A0_if_T0(void)
 {
 	if (T0)
-		powerpc_dyngen_helper::set_pc(PARAM1);
+		powerpc_dyngen_helper::set_pc(A0);
 	else
-		powerpc_dyngen_helper::set_pc(PARAM2);
+		powerpc_dyngen_helper::set_pc(PARAM1);
 	dyngen_barrier();
 }
 
-void OPPROTO op_branch_if_not_T0(void)
+void OPPROTO op_branch_A0_if_not_T0(void)
 {
 	if (!T0)
-		powerpc_dyngen_helper::set_pc(PARAM1);
-	else
-		powerpc_dyngen_helper::set_pc(PARAM2);
-	dyngen_barrier();
-}
-
-void OPPROTO op_branch_if_T1(void)
-{
-	if (T1)
-		powerpc_dyngen_helper::set_pc(PARAM1);
-	else
-		powerpc_dyngen_helper::set_pc(PARAM2);
-	dyngen_barrier();
-}
-
-void OPPROTO op_branch_if_not_T1(void)
-{
-	if (!T1)
-		powerpc_dyngen_helper::set_pc(PARAM1);
-	else
-		powerpc_dyngen_helper::set_pc(PARAM2);
-	dyngen_barrier();
-}
-
-void OPPROTO op_branch_if_T0_T1(void)
-{
-	if (T0 && T1)
-		powerpc_dyngen_helper::set_pc(PARAM1);
-	else
-		powerpc_dyngen_helper::set_pc(PARAM2);
-	dyngen_barrier();
-}
-
-void OPPROTO op_branch_T1_if_T0(void)
-{
-	if (T0)
-		powerpc_dyngen_helper::set_pc(T1);
+		powerpc_dyngen_helper::set_pc(A0);
 	else
 		powerpc_dyngen_helper::set_pc(PARAM1);
 	dyngen_barrier();
@@ -423,23 +387,30 @@ template< class branch_cond, class ctr_cond >
 static inline void do_execute_branch(uint32 tpc, uint32 npc)
 {
 	if (branch_cond::test() && ctr_cond::test())
-		powerpc_dyngen_helper::set_pc(PARAM1);
+		powerpc_dyngen_helper::set_pc(tpc);
 	else
-		powerpc_dyngen_helper::set_pc(PARAM2);
+		powerpc_dyngen_helper::set_pc(npc);
 	dyngen_barrier();
 }
 
-struct LT_comparator { static inline bool test() { return T0 < 0; } };
-struct GT_comparator { static inline bool test() { return T0 > 0; } };
-struct EQ_comparator { static inline bool test() { return T0 == 0; } };
-
 template< int crb >
-struct CR_comparator { static inline bool test() { return (T0 & crb); } };
+struct CR_comparator {
+	static inline bool test() {
+		return (T0 & crb);
+	}
+};
 
 template< bool br_true, class comparator >
 struct bool_condition {
 	static inline bool test() {
-		return br_true ? comparator::test() : !comparator::test();
+		return comparator::test();
+	}
+};
+
+template< class comparator >
+struct bool_condition< false, comparator > {
+	static inline bool test() {
+		return !comparator::test();
 	}
 };
 
@@ -474,10 +445,10 @@ struct ctr_11_condition {
 	}
 };
 
-#define DEFINE_OP_CTR(COND,CTR)													\
-void OPPROTO op_##COND##_##CTR(void)											\
-{																				\
-	do_execute_branch<COND##_condition, ctr_##CTR##_condition>(PARAM1, PARAM2);	\
+#define DEFINE_OP_CTR(COND,CTR)												\
+void OPPROTO op_##COND##_##CTR(void)										\
+{																			\
+	do_execute_branch<COND##_condition, ctr_##CTR##_condition>(A0, PARAM1);	\
 }
 #define DEFINE_OP(COND)							\
 DEFINE_OP_CTR(COND,0x);							\

@@ -396,99 +396,42 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			break;
 		}
 		case PPC_I(BC):			// Branch Conditional
+			dg.gen_mov_32_A0_im(((AA_field::test(opcode) ? 0 : dpc) + operand_BD::get(this, opcode)) & -4);
+			goto do_branch;
+		case PPC_I(BCCTR):		// Branch Conditional to Count Register
+			dg.gen_load_A0_CTR();
+			goto do_branch;
+		case PPC_I(BCLR):		// Branch Conditional to Link Register
+			dg.gen_load_A0_LR();
+			goto do_branch;
 		{
+		  do_branch:
+			// FIXME: something is wrong with the conditions!
+			if (BO_CONDITIONAL_BRANCH(BO_field::extract(opcode)))
+				goto do_generic;
+
+			const uint32 npc = dpc + 4;
+			if (LK_field::test(opcode))
+				dg.gen_store_im_LR(npc);
+
 			const int bo = BO_field::extract(opcode);
 			const int bi = BI_field::extract(opcode);
-
-			const uint32 npc = dpc + 4;
-			if (LK_field::test(opcode))
-				dg.gen_store_im_LR(npc);
-
-			uint32 tpc = ((AA_field::test(opcode) ? 0 : dpc) + operand_BD::get(this, opcode)) & -4;
-			dg.gen_bc(bo, bi, tpc, npc);
-//			disasm = true;
-			break;
-		}
-		case PPC_I(BCCTR):		// Branch Conditional to Count Register
-		case PPC_I(BCLR):		// Branch Conditional to Link Register
-//		case PPC_I(BC):			// Branch Conditional
-		{
-			dg.gen_commit_cr();
-
-			bool ctr_cond = false;
-			bool branch_cond = false;
-
-			const int bo = BO_field::extract(opcode);
-			if (BO_DECREMENT_CTR(bo)) {
-				ctr_cond = true;
-				dg.gen_load_T1_CTR();
-				dg.gen_sub_32_T1_im(1);
-				dg.gen_store_T1_CTR();
-				if (BO_BRANCH_IF_CTR_ZERO(bo))
-					dg.gen_not_32_T1();
-			}
-
-			if (BO_CONDITIONAL_BRANCH(bo)) {
-				branch_cond = true;
-				dg.gen_load_T0_crb(BI_field::extract(opcode));
-				if (!BO_BRANCH_IF_TRUE(bo))
-					dg.gen_not_32_T0();
-			}
-
-			const uint32 npc = dpc + 4;
-			if (ii->mnemo == PPC_I(BC) && AA_field::test(opcode)) {
-				const uint32 tpc = (dpc + operand_BD::get(this, opcode)) & -4;
-				if (ctr_cond && branch_cond) {
-					dg.gen_and_logical_T0_T1();
-					dg.gen_branch_if_T0(tpc, npc);
-				}
-				else if (ctr_cond)
-					dg.gen_branch_if_T1(tpc, npc);
-				else if (branch_cond)
-					dg.gen_branch_if_T0(tpc, npc);
-				else
-					dg.gen_set_PC_im(tpc);
-			}
-			else {
-				if (ctr_cond && branch_cond)
-					dg.gen_and_logical_T0_T1();
-				else if (ctr_cond)
-					dg.gen_mov_32_T0_T1();
-				switch (ii->mnemo) {
-				case PPC_I(BCCTR):
-					dg.gen_load_T1_CTR();
-					break;
-				case PPC_I(BCLR):
-					dg.gen_load_T1_LR();
-					break;
-				case PPC_I(BC): {
-					const uint32 tpc = (dpc + operand_BD::get(this, opcode)) & -4;
-					dg.gen_mov_32_T1_im(tpc);
-					break;
-				}
-				}
-				if (ctr_cond && branch_cond)
-					dg.gen_branch_T1_if_T0(npc);
-				else if (ctr_cond)
-					dg.gen_branch_T1_if_T0(npc);
-				else if (branch_cond)
-					dg.gen_branch_T1_if_T0(npc);
-				else
-					dg.gen_set_PC_T1();
-			}
-
-			if (LK_field::test(opcode))
-				dg.gen_store_im_LR(npc);
+			dg.gen_bc_A0(bo, bi, npc);
 			break;
 		}
 		case PPC_I(B):			// Branch
 		{
-			dg.gen_commit_cr();
+			// TODO: follow constant branches
+			const uint32 npc = dpc + 4;
+			if (LK_field::test(opcode))
+				dg.gen_store_im_LR(npc);
+
 			uint32 tpc = AA_field::test(opcode) ? 0 : dpc;
 			tpc = (tpc + operand_LI::get(this, opcode)) & -4;
-			if (LK_field::test(opcode))
-				dg.gen_store_im_LR(dpc + 4);
-			dg.gen_set_PC_im(tpc);
+			dg.gen_mov_32_A0_im(tpc);
+
+			// BO field is built so that we always branch to A0
+			dg.gen_bc_A0(BO_MAKE(0,0,0,0), 0, 0);
 			break;
 		}
 		case PPC_I(CMP):		// Compare
@@ -1002,16 +945,15 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			}
 		}
 		}
-		assert(!dg.full_translation_cache());
+		if (dg.full_translation_cache()) {
+			// Invalidate cache and start again
+			invalidate_cache();
+			goto again;
+		}
 	} while ((ii->cflow & CFLOW_END_BLOCK) == 0);
 	dg.gen_commit_cr();
 	dg.gen_exec_return();
-	if (!dg.gen_end()) {
-		// Invalidate cache and start again
-		D(bug("Translation cache full. Invalidate and retranslate\n"));
-		invalidate_cache();
-		goto again;
-	}
+	dg.gen_end();
 	bi->end_pc = dpc;
 	bi->size = dg.code_ptr() - bi->entry_point;
 #if defined(__powerpc__) && 0
