@@ -24,10 +24,11 @@
 // Note: this file must be #include'd only in video_x.cpp
 #ifdef ENABLE_VOSF
 
-#include <fcntl.h>
-#include <sys/mman.h>
 #include "sigsegv.h"
 #include "vm_alloc.h"
+#ifdef _WIN32
+#include "util_windows.h"
+#endif
 
 // Glue for SDL and X11 support
 #ifdef USE_SDL_VIDEO
@@ -156,6 +157,10 @@ static inline int find_next_page_clear(int page)
 static spinlock_t vosf_lock = SPIN_LOCK_UNLOCKED;				// Mutex to protect frame buffer (dirtyPages in fact)
 #define LOCK_VOSF spin_lock(&vosf_lock)
 #define UNLOCK_VOSF spin_unlock(&vosf_lock)
+#elif defined(_WIN32)
+static mutex_t vosf_lock;										// Mutex to protect frame buffer (dirtyPages in fact)
+#define LOCK_VOSF vosf_lock.lock();
+#define UNLOCK_VOSF vosf_lock.unlock();
 #elif defined(HAVE_PTHREADS)
 static pthread_mutex_t vosf_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer (dirtyPages in fact)
 #define LOCK_VOSF pthread_mutex_lock(&vosf_lock);
@@ -179,7 +184,7 @@ static int log_base_2(uint32 x)
 // Extend size to page boundary
 static uint32 page_extend(uint32 size)
 {
-	const uint32 page_size = getpagesize();
+	const uint32 page_size = vm_page_size();
 	const uint32 page_mask = page_size - 1;
 	return (size + page_mask) & ~page_mask;
 }
@@ -227,7 +232,7 @@ static bool video_vosf_init(MONITOR_INIT)
 {
 	VIDEO_MODE_INIT_MONITOR;
 
-	const uintptr page_size = getpagesize();
+	const uintptr page_size = vm_page_size();
 	const uintptr page_mask = page_size - 1;
 	
 	// Round up frame buffer base to page boundary
