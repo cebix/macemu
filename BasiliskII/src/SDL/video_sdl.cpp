@@ -82,7 +82,11 @@ static int display_type = DISPLAY_WINDOW;			// See enum above
 #endif
 
 // Constants
+#ifdef WIN32
+const char KEYCODE_FILE_NAME[] = "BasiliskII_keycodes";
+#else
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
+#endif
 
 
 // Global variables
