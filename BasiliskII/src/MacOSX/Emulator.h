@@ -61,6 +61,7 @@
 - (IBAction) Suspend:		(id)sender;
 - (IBAction) PowerKey:		(id)sender;
 - (IBAction) Restart:		(id)sender;
+- (IBAction) ScreenHideShow:(NSButton *)sender;
 - (IBAction) Snapshot:		(id)sender;
 - (IBAction) SpeedChange:	(NSSlider *)sender;
 - (IBAction) Resume:		(id)sender;

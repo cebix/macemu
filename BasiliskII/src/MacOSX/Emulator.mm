@@ -204,6 +204,13 @@
 	[xPRAM	resume];
 }
 
+- (IBAction) ScreenHideShow: (NSButton *)sender;
+{
+	WarningSheet(@"Nigel doesn't know how to shrink or grow this window",
+				 @"Maybe you can grab the source code and have a go yourself?",
+				 nil, win);
+}
+
 - (IBAction) Snapshot: (id) sender
 {
 	if ( screen == nil || uaeCreated == NO  )
