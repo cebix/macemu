@@ -230,7 +230,7 @@ static void mn_about(...)
 	char str[512];
 	sprintf(str,
 		"Basilisk II\nVersion %d.%d\n\n"
-		"Copyright (C) 1997-2001 Christian Bauer et al.\n"
+		"Copyright (C) 1997-2002 Christian Bauer et al.\n"
 		"E-mail: Christian.Bauer@uni-mainz.de\n"
 		"http://www.uni-mainz.de/~bauec002/B2Main.html\n\n"
 		"Basilisk II comes with ABSOLUTELY NO\n"
