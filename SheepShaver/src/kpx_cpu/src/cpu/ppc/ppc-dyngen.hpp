@@ -103,6 +103,9 @@ public:
 #define DEFINE_ALIAS_CLOBBER_SO(NAME,N)	DEFINE_ALIAS_##N(NAME,gen_commit_so(),)
 #endif
 
+	// Misc instructions
+	DEFINE_ALIAS(inc_32_mem,1);
+
 	// Condition registers
 private:
 	void gen_commit_so_cache_cr(int crf);

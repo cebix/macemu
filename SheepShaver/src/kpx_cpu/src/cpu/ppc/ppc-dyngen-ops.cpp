@@ -831,3 +831,13 @@ void OPPROTO op_subfzeo_T0(void)
 {
 	T0 = do_execute_subtract_extended<true>(T0, 0);
 }
+
+/**
+ *		Misc synthetic instructions
+ **/
+
+void OPPROTO op_inc_32_mem(void)
+{
+	uint32 *m = (uint32 *)PARAM1;
+	*m += 1;
+}

@@ -992,6 +992,13 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			func = (func_t)nv_mem_fun(&powerpc_cpu::execute_illegal).ptr();
 			goto do_invoke;	
 		  do_invoke:
+#if PPC_PROFILE_GENERIC_CALLS
+			if (ii->mnemo <= PPC_I(MAX)) {
+				uintptr mem = (uintptr)&generic_calls_count[ii->mnemo];
+				if (mem <= 0xffffffff)
+					dg.gen_inc_32_mem(mem);
+			}
+#endif
 			cg_context.pc = dpc;
 			cg_context.opcode = opcode;
 			cg_context.instr_info = ii;

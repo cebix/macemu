@@ -127,6 +127,17 @@
 
 
 /**
+ *	PPC_PROFILE_GENERIC_CALLS
+ *
+ *		Define to enable some generic handler invocation statistics.
+ **/
+
+#ifndef PPC_PROFILE_GENERIC_CALLS
+#define PPC_PROFILE_GENERIC_CALLS 0
+#endif
+
+
+/**
  *		Sanity checks and features enforcements
  **/
 

@@ -30,6 +30,7 @@
 #include "cpu/ppc/ppc-blockinfo.hpp"
 #include "cpu/ppc/ppc-registers.hpp"
 #include "cpu/ppc/ppc-dyngen.hpp"
+#include "cpu/ppc/ppc-instructions.hpp"
 #include <vector>
 
 class powerpc_cpu
@@ -153,9 +154,17 @@ protected:
 private:
 
 	// Compile time statistics
+#if PPC_PROFILE_COMPILE_TIME
 	uint32 compile_count;
 	clock_t compile_time;
 	clock_t emul_start_time;
+#endif
+
+	// Compile blocks statistics
+#if PPC_PROFILE_GENERIC_CALLS
+	friend int generic_calls_compare(const void *, const void *);
+	static uint32 generic_calls_count[PPC_I(MAX)];
+#endif
 
 	// Flight recorder data
 	static const int LOG_SIZE = 32768;
@@ -206,20 +215,8 @@ private:
 public:
 
 	// Initialization & finalization
-#ifdef SHEEPSHAVER
-	powerpc_cpu()
-#if PPC_ENABLE_JIT
-		: codegen(this)
-#endif
-#else
-	powerpc_cpu(task_struct *parent_task)
-		: basic_cpu(parent_task)
-#if PPC_ENABLE_JIT
-		  , codegen(this)
-#endif
-#endif
-		{ initialize(); }
 	void initialize();
+	powerpc_cpu();
 	~powerpc_cpu();
 
 	// Handle flight recorder

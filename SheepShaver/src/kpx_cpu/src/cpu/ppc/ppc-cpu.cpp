@@ -38,6 +38,22 @@
 #define DEBUG 0
 #include "debug.h"
 
+#if PPC_PROFILE_GENERIC_CALLS
+uint32 powerpc_cpu::generic_calls_count[PPC_I(MAX)];
+static int generic_calls_ids[PPC_I(MAX)];
+const int generic_calls_top_ten = 20;
+
+#include <stdlib.h>
+int generic_calls_compare(const void *e1, const void *e2)
+{
+	const int id1 = *(const int *)e1;
+	const int id2 = *(const int *)e2;
+	return powerpc_cpu::generic_calls_count[id1] < powerpc_cpu::generic_calls_count[id2];
+}
+#endif
+
+static int ppc_refcount = 0;
+
 void powerpc_cpu::set_register(int id, any_register const & value)
 {
 	if (id >= powerpc_registers::GPR(0) && id <= powerpc_registers::GPR(31)) {
@@ -261,8 +277,26 @@ void powerpc_cpu::initialize()
 #endif
 }
 
+#ifdef SHEEPSHAVER
+powerpc_cpu::powerpc_cpu()
+#if PPC_ENABLE_JIT
+	: codegen(this)
+#endif
+#else
+powerpc_cpu::powerpc_cpu(task_struct *parent_task)
+	: basic_cpu(parent_task)
+#if PPC_ENABLE_JIT
+	  , codegen(this)
+#endif
+#endif
+{
+	++ppc_refcount;
+	initialize();
+}
+
 powerpc_cpu::~powerpc_cpu()
 {
+	--ppc_refcount;
 #if PPC_PROFILE_COMPILE_TIME
 	clock_t emul_end_time = clock();
 
@@ -283,6 +317,26 @@ powerpc_cpu::~powerpc_cpu()
 			   double(compile_time) / double(CLOCKS_PER_SEC),
 			   100.0 * double(compile_time) / double(emul_time));
 		printf("\n");
+	}
+#endif
+
+#if PPC_PROFILE_GENERIC_CALLS
+	if (ppc_refcount == 0) {
+		uint64 total_generic_calls_count = 0;
+		for (int i = 0; i < PPC_I(MAX); i++) {
+			generic_calls_ids[i] = i;
+			total_generic_calls_count += generic_calls_count[i];
+		}
+		qsort(generic_calls_ids, PPC_I(MAX), sizeof(int), generic_calls_compare);
+		printf("Rank      Count Ratio Name\n");
+		for (int i = 0; i < generic_calls_top_ten; i++) {
+			uint32 mnemo = generic_calls_ids[i];
+			uint32 count = generic_calls_count[mnemo];
+			const instr_info_t *ii = powerpc_ii_table;
+			while (ii->mnemo != mnemo)
+				ii++;
+			printf("%03d: %10lu %2.1f%% %s\n", i, count, 100.0*double(count)/double(total_generic_calls_count), ii->name);
+		}
 	}
 #endif
 
