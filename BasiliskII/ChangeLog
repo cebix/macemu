@@ -1,4 +1,4 @@
-V1.0 (snapshot) - <date>
+V1.0 (snapshot) - 15.Jan.2002
 	- added support for on-the-fly video resolution and depth switching,
 	  and gamma tables
 	- fsave/frestore emulation under AmigaOS and NetBSD/m68k always behaves

@@ -2,7 +2,7 @@
   Basilisk II
   A 68k Macintosh emulator
 
-  Copyright (C) 1997-2001 Christian Bauer et al.
+  Copyright (C) 1997-2002 Christian Bauer et al.
 
 
 License
@@ -787,20 +787,39 @@ versions of Basilisk II and MacOS being used, relevant hardware information,
 the exact steps to reproduce the bug, etc.):
   http://sourceforge.net/tracker/?group_id=2123&atid=102123
 
+I also strongly suggest reading this before posting a bug report:
+  http://www.chiark.greenend.org.uk/~sgtatham/bugs.html
+
 
 Author
 ------
 
-You can contact me at <Christian.Bauer@uni-mainz.de>. Don't send bug
-reports, send fixes. Ports to other platforms are also very welcome.
-Please contact me before you intend to make major changes to the source.
-You might be working on something that I have already done, or I may have
-different ideas about the Right Way to do it.
+You can contact me at <Christian.Bauer@uni-mainz.de>, but please don't do
+so unless absolutely necessary. I'm maintaining Basilisk II in my spare
+time and am not able to provide technical support for everyone. If you have
+questions, consider posting them to one of the support forums mentioned
+below.
 
-Questions about ROM files will not be answered. There is also no point in
-sending me questions etc. that are specific to the Windows port of
-Basilisk II. I don't have Windows and can't say anything about that.
-Ask Lauri Pesonen instead.
+You are encouraged to contact me personally when
+ - you have bug fixes or small enhancements for the code
+ - you want to port Basilisk II to another platform
+ - you want to discuss technical issues
+ - you intend to make major changes to the source; you might be working on
+   something that I have already done, or I may have different ideas about
+   the Right Way to do it
+
+There is no point in sending me questions about
+ - ROM files and how/where to get them
+ - versions of Basilisk II that run on operating systems other than Unix,
+   BeOS and AmigaOS. If you are using any other operating system, there's
+   no point in asking me how to to X or why Y doesn't work because I won't
+   know either. Instead, you should look in the "Acknowledgements" section
+   of this manual to find the person responsible. For example, if your
+   question is specific to the Windows operating system, ask Lauri Pesonen.
+   I don't have Windows and can't answer your questions and I'm too lazy to
+   forward mail to Lauri myself. In any case, it would probably be better
+   to post your questions to a public forum as it will get a much wider
+   audience there.
 
 
 Support
@@ -820,6 +839,12 @@ There is also a mailing list for Basilisk II users:
 
 And another mailing list for Basilisk II developers:
   http://lists.sourceforge.net/lists/listinfo/basilisk-devel
+
+Some general advice about asking technical support questions can be found at
+  http://www.tuxedo.org/~esr/faqs/smart-questions.html
+
+Keeping this in mind will greatly increase your chances of getting a useful
+answer.
 
 
 History

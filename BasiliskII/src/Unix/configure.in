@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-dnl Written in 1999 by Christian Bauer et al.
+dnl Written in 2002 by Christian Bauer et al.
 
 AC_INIT(main_unix.cpp)
 AC_PREREQ(2.12)

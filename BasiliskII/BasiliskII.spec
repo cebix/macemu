@@ -1,5 +1,5 @@
 %define name BasiliskII
-%define version 0.9
+%define version 1.0
 %define release 1
 
 Summary: 68k Macintosh emulator
@@ -8,7 +8,7 @@ Version: %{version}
 Release: %{release}
 Copyright: GPL
 Group: Applications/Emulators
-Source: %{name}_src_31052001.tar.gz
+Source: %{name}_src_15012002.tar.gz
 URL: http://www.uni-mainz.de/~bauec002/B2Main.html
 BuildRoot: %{_tmppath}/%{name}-root
 

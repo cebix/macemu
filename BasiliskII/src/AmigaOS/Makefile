@@ -1,4 +1,4 @@
-# AmigaOS makefile for Basilisk II (GeekGadgets)
+# AmigaOS makefile for Basilisk II (GeekGadgets tool chain)
 
 ## System specific configuration
 CC = gcc
