@@ -10,6 +10,8 @@ Bugs:
 	Disturbing, but not damaging.</LI>
 <LI>Ejecting a CD only works in 10.2 or higher, and it freezes the emulation
 	for about 5 seconds.</LI>
+<LI>Status of 'dd' command is not always correct. (If it runs out of space,
+	an error about file not found is printed?)</LI>
 </UL>
 Untested:
 <UL>
@@ -27,11 +29,6 @@ Unimplemented:
 <LI>'nogui' to disable GUI alerts (and maybe preferences, but I need to split
 	MainMenu.nib to do that)</LI>
 </UL>
-Other:
-<UL>
-<LI>Verify that ExtFS works under 7.5.3 (reported by Kentaro Nakatani),
-    update doco</LI>
-</UL>
 Possible Enhancements:
 <UL>
 <LI>Use NSFileManager's movePath:toPath:handler to rename all a file's forks
@@ -47,4 +44,6 @@ Possible Enhancements:
 <LI>Use automake instead of the current 1_prepare_files.sh ?</LI>
 <LI>Add JIT options to preferences?</LI>
 <LI>Use internal windows to display Help doco?</LI>
+<LI>Provide feedback during external commands (<I>e.g.</I> ejecting a CD or
+	creating a disk volume)
 </UL>
