@@ -219,7 +219,7 @@ static inline uint64 tswap64(uint64 x) { return bswap_64(x); }
 
 #ifdef __powerpc__
 #define HAVE_TEST_AND_SET 1
-static inline int testandset(int *p)
+static inline int testandset(volatile int *p)
 {
 	int ret;
 	__asm__ __volatile__("0:    lwarx %0,0,%1 ;"
@@ -237,14 +237,14 @@ static inline int testandset(int *p)
 
 #ifdef __i386__
 #define HAVE_TEST_AND_SET 1
-static inline int testandset(int *p)
+static inline int testandset(volatile int *p)
 {
-	char ret;
+	int ret;
 	long int readval;
-	
-	__asm__ __volatile__("lock; cmpxchgl %3, %1; sete %0"
-						 : "=q" (ret), "=m" (*p), "=a" (readval)
-						 : "r" (1), "m" (*p), "a" (0)
+	/* Note: the "xchg" instruction does not need a "lock" prefix */
+	__asm__ __volatile__("xchgl %0, %1"
+						 : "=r" (ret), "=m" (*p), "=a" (readval)
+						 : "0" (1), "m" (*p)
 						 : "memory");
 	return ret;
 }
@@ -252,7 +252,7 @@ static inline int testandset(int *p)
 
 #ifdef __s390__
 #define HAVE_TEST_AND_SET 1
-static inline int testandset(int *p)
+static inline int testandset(volatile int *p)
 {
 	int ret;
 
@@ -267,7 +267,7 @@ static inline int testandset(int *p)
 
 #ifdef __alpha__
 #define HAVE_TEST_AND_SET 1
-static inline int testandset(int *p)
+static inline int testandset(volatile int *p)
 {
 	int ret;
 	unsigned long one;
@@ -287,7 +287,7 @@ static inline int testandset(int *p)
 
 #ifdef __sparc__
 #define HAVE_TEST_AND_SET 1
-static inline int testandset(int *p)
+static inline int testandset(volatile int *p)
 {
 	int ret;
 
@@ -302,7 +302,7 @@ static inline int testandset(int *p)
 
 #ifdef __arm__
 #define HAVE_TEST_AND_SET 1
-static inline int testandset(int *p)
+static inline int testandset(volatile int *p)
 {
 	register unsigned int ret;
 	__asm__ __volatile__("swp %0, %1, [%2]"
@@ -317,7 +317,7 @@ static inline int testandset(int *p)
 
 #if HAVE_TEST_AND_SET
 #define HAVE_SPINLOCKS 1
-typedef int spinlock_t;
+typedef volatile int spinlock_t;
 
 static const spinlock_t SPIN_LOCK_UNLOCKED = 0;
 
