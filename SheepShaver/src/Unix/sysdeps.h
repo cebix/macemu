@@ -360,7 +360,7 @@ typedef struct timeval tm_time_t;
 extern uint64 GetTicks_usec(void);
 extern void Delay_usec(uint32 usec);
 
-#ifdef HAVE_PTHREADS
+#if defined(HAVE_PTHREADS) || (defined(__linux__) && defined(__powerpc__))
 // Setup pthread attributes
 extern void Set_pthread_attr(pthread_attr_t *attr, int priority);
 #endif
