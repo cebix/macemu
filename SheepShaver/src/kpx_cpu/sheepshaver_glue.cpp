@@ -273,13 +273,13 @@ void sheepshaver_cpu::interrupt(uint32 entry)
 	gpr(1) = SheepStack1Base - 64;
 
 	// Build trampoline to return from interrupt
-	uint32 trampoline[] = { POWERPC_EMUL_OP | 1 };
+	uint32 trampoline[] = { htonl(POWERPC_EMUL_OP | 1) };
 
 	// Prepare registers for nanokernel interrupt routine
-	kernel_data->v[0x004 >> 2] = gpr(1);
-	kernel_data->v[0x018 >> 2] = gpr(6);
+	kernel_data->v[0x004 >> 2] = htonl(gpr(1));
+	kernel_data->v[0x018 >> 2] = htonl(gpr(6));
 
-	gpr(6) = kernel_data->v[0x65c >> 2];
+	gpr(6) = ntohl(kernel_data->v[0x65c >> 2]);
 	assert(gpr(6) != 0);
 	WriteMacInt32(gpr(6) + 0x13c, gpr(7));
 	WriteMacInt32(gpr(6) + 0x144, gpr(8));
@@ -290,7 +290,7 @@ void sheepshaver_cpu::interrupt(uint32 entry)
 	WriteMacInt32(gpr(6) + 0x16c, gpr(13));
 
 	gpr(1)  = KernelDataAddr;
-	gpr(7)  = kernel_data->v[0x660 >> 2];
+	gpr(7)  = ntohl(kernel_data->v[0x660 >> 2]);
 	gpr(8)  = 0;
 	gpr(10) = (uint32)trampoline;
 	gpr(12) = (uint32)trampoline;
@@ -335,7 +335,8 @@ void sheepshaver_cpu::execute_68k(uint32 entry, M68kRegisters *r)
 	WriteMacInt32(gpr(1), sp);
 
 	// Save PowerPC registers
-	memcpy(Mac2HostAddr(gpr(1)+56), &gpr(13), sizeof(uint32)*(32-13));
+	for (int i = 13; i < 32; i++)
+		WriteMacInt32(gpr(1) + 56 + i*4, gpr(i));
 #if SAVE_FP_EXEC_68K
 	memcpy(Mac2HostAddr(gpr(1)+56+19*4), &fpr(14), sizeof(double)*(32-14));
 #endif
@@ -351,8 +352,8 @@ void sheepshaver_cpu::execute_68k(uint32 entry, M68kRegisters *r)
 	gpr(25) = ReadMacInt32(XLM_68K_R25);		// MSB of SR
 	gpr(26) = 0;
 	gpr(28) = 0;								// VBR
-	gpr(29) = kernel_data->ed.v[0x74 >> 2];		// Pointer to opcode table
-	gpr(30) = kernel_data->ed.v[0x78 >> 2];		// Address of emulator
+	gpr(29) = ntohl(kernel_data->ed.v[0x74 >> 2]);		// Pointer to opcode table
+	gpr(30) = ntohl(kernel_data->ed.v[0x78 >> 2]);		// Address of emulator
 	gpr(31) = KernelDataAddr + 0x1000;
 
 	// Push return address (points to EXEC_RETURN opcode) on stack
@@ -384,7 +385,8 @@ void sheepshaver_cpu::execute_68k(uint32 entry, M68kRegisters *r)
 	  r->a[i] = gpr(16 + i);
 
 	// Restore PowerPC registers
-	memcpy(&gpr(13), Mac2HostAddr(gpr(1)+56), sizeof(uint32)*(32-13));
+	for (int i = 13; i < 32; i++)
+		gpr(i) = ReadMacInt32(gpr(1) + 56 + i*4);
 #if SAVE_FP_EXEC_68K
 	memcpy(&fpr(14), Mac2HostAddr(gpr(1)+56+19*4), sizeof(double)*(32-14));
 #endif
@@ -407,7 +409,7 @@ uint32 sheepshaver_cpu::execute_macos_code(uint32 tvect, int nargs, uint32 const
 	uint32 saved_ctr= ctr();
 
 	// Build trampoline with EXEC_RETURN
-	uint32 trampoline[] = { POWERPC_EMUL_OP | 1 };
+	uint32 trampoline[] = { htonl(POWERPC_EMUL_OP | 1) };
 	lr() = (uint32)trampoline;
 
 	gpr(1) -= 64;								// Create stack frame
@@ -449,7 +451,7 @@ inline void sheepshaver_cpu::execute_ppc(uint32 entry)
 	uint32 saved_lr = lr();
 	uint32 saved_ctr= ctr();
 
-	const uint32 trampoline[] = { POWERPC_EMUL_OP | 1 };
+	const uint32 trampoline[] = { htonl(POWERPC_EMUL_OP | 1) };
 
 	lr() = (uint32)trampoline;
 	ctr()= entry;
@@ -461,7 +463,7 @@ inline void sheepshaver_cpu::execute_ppc(uint32 entry)
 }
 
 // Resource Manager thunk
-extern "C" void check_load_invoc(uint32 type, int16 id, uint16 **h);
+extern "C" void check_load_invoc(uint32 type, int16 id, uint32 h);
 
 inline void sheepshaver_cpu::get_resource(uint32 old_get_resource)
 {
@@ -473,11 +475,11 @@ inline void sheepshaver_cpu::get_resource(uint32 old_get_resource)
 
 	// Call old routine
 	execute_ppc(old_get_resource);
-	uint16 **handle = (uint16 **)gpr(3);
 
 	// Call CheckLoad()
+	uint32 handle = gpr(3);
 	check_load_invoc(type, id, handle);
-	gpr(3) = (uint32)handle;
+	gpr(3) = handle;
 
 	// Cleanup stack
 	gpr(1) += 56;
@@ -829,7 +831,9 @@ void Execute68k(uint32 pc, M68kRegisters *r)
 
 void Execute68kTrap(uint16 trap, M68kRegisters *r)
 {
-	uint16 proc[2] = {trap, M68K_RTS};
+	uint16 proc[2];
+	proc[0] = htons(trap);
+	proc[1] = htons(M68K_RTS);
 	Execute68k((uint32)proc, r);
 }
 
