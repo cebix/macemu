@@ -1410,6 +1410,7 @@ bool VideoInit(bool classic)
 		}
 	} else
 		add_mode(default_width, default_height, 0x80, TrivialBytesPerRow(default_width, default_depth), default_depth);
+	video_init_depth_list();
 
 	// Find requested default mode and open display
 	if (VideoModes.size() == 1)

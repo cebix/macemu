@@ -129,6 +129,7 @@ static void set_video_monitor(uint32 width, uint32 height, uint32 bytes_per_row,
 	}
 
 	VideoModes.push_back(mode);
+	video_init_depth_list();
 	VideoMonitor.mode = mode;
 }
 

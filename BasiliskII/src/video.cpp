@@ -45,12 +45,16 @@ vector<video_mode> VideoModes;
 // Description of the main monitor
 monitor_desc VideoMonitor;
 
+// Depth code -> Apple mode mapping
+uint16 apple_mode_for_depth[6];
+
 // Local variables (per monitor)
 struct {
 	monitor_desc *desc;			// Pointer to description of monitor handled by this instance of the driver
 	uint8 palette[256 * 3];		// Color palette, 256 entries, RGB
 	bool luminance_mapping;		// Luminance mapping on/off
 	bool interrupts_enabled;	// VBL interrupts on/off
+	bool dm_present;			// We received a GetVideoParameters call, so the Display Manager seems to be present
 	uint32 gamma_table;			// Mac address of gamma table
 	int alloc_gamma_table_size;	// Allocated size of gamma table
 	uint16 current_mode;		// Currently selected depth/resolution
@@ -59,6 +63,38 @@ struct {
 	uint32 preferred_id;
 	uint32 slot_param;			// Mac address of Slot Manager parameter block
 } VidLocal;
+
+
+/*
+ *  Initialize apple_mode_for_depth[] array from VideoModes list
+ */
+
+void video_init_depth_list(void)
+{
+	uint16 mode = 0x80;
+	for (int depth = VDEPTH_1BIT; depth <= VDEPTH_32BIT; depth++) {
+		if (video_has_depth(video_depth(depth)))
+			apple_mode_for_depth[depth] = mode++;
+		else
+			apple_mode_for_depth[depth] = 0;
+	}
+}
+
+
+/*
+ *  Check whether a mode with the specified depth exists
+ */
+
+bool video_has_depth(video_depth depth)
+{
+	vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
+	while (i != end) {
+		if (i->depth == depth)
+			return true;
+		++i;
+	}
+	return false;
+}
 
 
 /*
@@ -121,6 +157,24 @@ static void get_size_of_resolution(uint32 id, uint32 &x, uint32 &y)
 			return;
 		}
 	}
+	x = y = 0;
+}
+
+
+/*
+ *  Get bytes-per-row value for specified resolution/depth
+ */
+
+uint32 video_bytes_per_row(video_depth depth, uint32 id)
+{
+	vector<video_mode>::const_iterator i, end = VideoModes.end();
+	for (i = VideoModes.begin(); i != end; ++i) {
+		if (i->depth == depth && i->resolution_id == id)
+			return i->bytes_per_row;
+	}
+	uint32 x, y;
+	get_size_of_resolution(id, x, y);
+	return TrivialBytesPerRow(x, depth);
 }
 
 
@@ -279,7 +333,7 @@ static bool set_gamma_table(uint32 user_table)
 		Mac2Mac_memcpy(table, user_table, size);
 	}
 
-	if (IsDirectMode(VidLocal.current_mode))
+	if (IsDirectMode(VidLocal.desc->mode))
 		load_ramp_palette();
 
 	return true;
@@ -351,6 +405,16 @@ static void switch_mode(const video_mode &mode, uint32 param, uint32 dce)
 	// Update frame buffer base in DCE and param block
 	WriteMacInt32(dce + dCtlDevBase, frame_base);
 	WriteMacInt32(param + csBaseAddr, frame_base);
+
+	// Patch frame buffer base address for MacOS versions <7.6
+	if (!VidLocal.dm_present) { // Only do this when no Display Manager seems to be present; otherwise, the screen will not get redrawn
+		WriteMacInt32(0x824, frame_base);			// ScrnBase
+		uint32 gdev = ReadMacInt32(0x8a4);			// MainDevice
+		gdev = ReadMacInt32(gdev);
+		uint32 pmap = ReadMacInt32(gdev + 0x16);	// gdPMap
+		pmap = ReadMacInt32(pmap);
+		WriteMacInt32(pmap, frame_base);			// baseAddr
+	}
 }
 
 
@@ -374,6 +438,7 @@ int16 VideoDriverOpen(uint32 pb, uint32 dce)
 	VidLocal.current_id = VidLocal.desc->mode.resolution_id;
 	VidLocal.preferred_mode = VidLocal.current_mode;
 	VidLocal.preferred_id = VidLocal.current_id;
+	VidLocal.dm_present = false;
 
 	// Allocate Slot Manager parameter block in Mac RAM
 	M68kRegisters r;
@@ -429,7 +494,7 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 		case cscSetEntries:		// Set palette
 		case cscDirectSetEntries: {
 			D(bug(" (Direct)SetEntries table %08x, count %d, start %d\n", ReadMacInt32(param + csTable), ReadMacInt16(param + csCount), ReadMacInt16(param + csStart)));
-			bool is_direct = IsDirectMode(VidLocal.current_mode);
+			bool is_direct = IsDirectMode(VidLocal.desc->mode);
 			if (code == cscSetEntries && is_direct)
 				return controlErr;
 			if (code == cscDirectSetEntries && !is_direct)
@@ -524,20 +589,20 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 				0xffff0000,		// 16 bpp
 				0xffffffff		// 32 bpp
 			};
-			uint32 p = VidLocal.desc->mac_frame_base;
+			uint32 frame_base = VidLocal.desc->mac_frame_base;
 			uint32 pat = pattern[VidLocal.desc->mode.depth];
 			bool invert = (VidLocal.desc->mode.depth == VDEPTH_32BIT);
 			for (uint32 y=0; y<VidLocal.desc->mode.y; y++) {
 				for (uint32 x=0; x<VidLocal.desc->mode.bytes_per_row; x+=4) {
-					WriteMacInt32(p + x, pat);
+					WriteMacInt32(frame_base + x, pat);
 					if (invert)
 						pat = ~pat;
 				}
-				p += VidLocal.desc->mode.bytes_per_row;
+				frame_base += VidLocal.desc->mode.bytes_per_row;
 				pat = ~pat;
 			}
 
-			if (IsDirectMode(VidLocal.current_mode))
+			if (IsDirectMode(VidLocal.desc->mode))
 				load_ramp_palette();
 
 			return noErr;
@@ -774,6 +839,7 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 			uint32 id = ReadMacInt32(param + csDisplayModeID);
 			uint16 mode = ReadMacInt16(param + csDepthMode);
 			D(bug(" GetVideoParameters %04x/%08x\n", mode, id));
+			VidLocal.dm_present = true;	// Display Manager seems to be present
 
 			vector<video_mode>::const_iterator i, end = VideoModes.end();
 			for (i = VideoModes.begin(); i != end; ++i) {

@@ -55,24 +55,22 @@ enum video_depth {
 	VDEPTH_32BIT  // "Millions"
 };
 
+// For compatibility reasons with older (pre-Display Manager) versions of
+// MacOS, the Apple modes must start at 0x80 and be contiguous. Therefore
+// we construct an array to map the depth codes to the corresponding Apple
+// mode. This array is initialized by video_init_depth_list() which must
+// be called by the platform-dependant VideoInit() routine after filling
+// the VideoModes array.
+extern uint16 apple_mode_for_depth[6];
+
 inline uint16 DepthToAppleMode(video_depth depth)
 {
-	return depth + 0x80;
-}
-
-inline video_depth AppleModeToDepth(uint16 mode)
-{
-	return video_depth(mode - 0x80);
+	return apple_mode_for_depth[depth];
 }
 
 inline bool IsDirectMode(video_depth depth)
 {
 	return depth == VDEPTH_16BIT || depth == VDEPTH_32BIT;
-}
-
-inline bool IsDirectMode(uint16 mode)
-{
-	return IsDirectMode(AppleModeToDepth(mode));
 }
 
 // Return the depth code that corresponds to the specified bits-per-pixel value
@@ -176,5 +174,14 @@ extern void video_switch_to_mode(const video_mode &mode);
 // Called by the video driver to set the color palette (in indexed modes)
 // or gamma table (in direct modes)
 extern void video_set_palette(uint8 *pal, int num);
+
+// Check whether a mode with the specified depth exists
+extern bool video_has_depth(video_depth depth);
+
+// Get bytes-per-row value for specified resolution/depth
+extern uint32 video_bytes_per_row(video_depth depth, uint32 id);
+
+// Initialize apple_mode_for_depth[] array from VideoModes list
+extern void video_init_depth_list(void);
 
 #endif

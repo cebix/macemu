@@ -46,19 +46,6 @@ static uint32 p;
 static int slot_rom_size = 0;
 
 
-// Check whether a mode with the specified depth exists
-static bool has_depth(video_depth depth)
-{
-	vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
-	while (i != end) {
-		if (i->depth == depth)
-			return true;
-		++i;
-	}
-	return false;
-}
-
-
 /*
  *  Construct slot declaration ROM and copy it into the Mac ROM (must be called after VideoInit())
  */
@@ -118,16 +105,16 @@ static void PString(char *str)
 		srom[p++] = 0;
 }
 
-static uint32 VModeParms(uint32 width, uint32 height, uint32 bytes_per_row, video_depth depth)
+static uint32 VModeParms(const video_mode &mode, video_depth depth)
 {
 	uint32 ret = p;
 	Long(50);					// Length
 	Long(0);					// Base offset
-	Word(bytes_per_row);		// Row bytes
+	Word(video_bytes_per_row(depth, mode.resolution_id));
 	Word(0);					// Bounds
 	Word(0);
-	Word(height);
-	Word(width);
+	Word(mode.y);
+	Word(mode.x);
 	Word(0);					// Version
 	Word(0);					// Pack type
 	Long(0);					// Pack size
@@ -315,12 +302,12 @@ bool InstallSlotROM(void)
 	Offs(0x80, defaultGamma);
 	EndOfList();
 
-	vidModeParms1 = VModeParms(VideoMonitor.mode.x, VideoMonitor.mode.y, VideoMonitor.mode.bytes_per_row, VDEPTH_1BIT);
-	vidModeParms2 = VModeParms(VideoMonitor.mode.x, VideoMonitor.mode.y, VideoMonitor.mode.bytes_per_row, VDEPTH_2BIT);
-	vidModeParms4 = VModeParms(VideoMonitor.mode.x, VideoMonitor.mode.y, VideoMonitor.mode.bytes_per_row, VDEPTH_4BIT);
-	vidModeParms8 = VModeParms(VideoMonitor.mode.x, VideoMonitor.mode.y, VideoMonitor.mode.bytes_per_row, VDEPTH_8BIT);
-	vidModeParms16 = VModeParms(VideoMonitor.mode.x, VideoMonitor.mode.y, VideoMonitor.mode.bytes_per_row, VDEPTH_16BIT);
-	vidModeParms32 = VModeParms(VideoMonitor.mode.x, VideoMonitor.mode.y, VideoMonitor.mode.bytes_per_row, VDEPTH_32BIT);
+	vidModeParms1 = VModeParms(VideoMonitor.mode, VDEPTH_1BIT);
+	vidModeParms2 = VModeParms(VideoMonitor.mode, VDEPTH_2BIT);
+	vidModeParms4 = VModeParms(VideoMonitor.mode, VDEPTH_4BIT);
+	vidModeParms8 = VModeParms(VideoMonitor.mode, VDEPTH_8BIT);
+	vidModeParms16 = VModeParms(VideoMonitor.mode, VDEPTH_16BIT);
+	vidModeParms32 = VModeParms(VideoMonitor.mode, VDEPTH_32BIT);
 
 	vidMode1 = VModeDesc(vidModeParms1, false);
 	vidMode2 = VModeDesc(vidModeParms2, false);
@@ -338,18 +325,18 @@ bool InstallSlotROM(void)
 	Offs(0x0b, minorLength);			// Frame buffer length
 	Offs(0x40, gammaDir);				// Gamma directory
 	Rsrc(0x7d, 6);						// Video attributes: Default to color, built-in
-	if (has_depth(VDEPTH_1BIT))
-		Offs(0x80, vidMode1);			// Video mode parameters for 1 bit
-	if (has_depth(VDEPTH_2BIT))
-		Offs(0x81, vidMode2);			// Video mode parameters for 2 bit
-	if (has_depth(VDEPTH_4BIT))
-		Offs(0x82, vidMode4);			// Video mode parameters for 4 bit
-	if (has_depth(VDEPTH_8BIT))
-		Offs(0x83, vidMode8);			// Video mode parameters for 8 bit
-	if (has_depth(VDEPTH_16BIT))
-		Offs(0x84, vidMode16);			// Video mode parameters for 16 bit
-	if (has_depth(VDEPTH_32BIT))
-		Offs(0x85, vidMode32);			// Video mode parameters for 32 bit
+	if (video_has_depth(VDEPTH_1BIT))
+		Offs(DepthToAppleMode(VDEPTH_1BIT), vidMode1);		// Video mode parameters for 1 bit
+	if (video_has_depth(VDEPTH_2BIT))
+		Offs(DepthToAppleMode(VDEPTH_2BIT), vidMode2);		// Video mode parameters for 2 bit
+	if (video_has_depth(VDEPTH_4BIT))
+		Offs(DepthToAppleMode(VDEPTH_4BIT), vidMode4);		// Video mode parameters for 4 bit
+	if (video_has_depth(VDEPTH_8BIT))
+		Offs(DepthToAppleMode(VDEPTH_8BIT), vidMode8);		// Video mode parameters for 8 bit
+	if (video_has_depth(VDEPTH_16BIT))
+		Offs(DepthToAppleMode(VDEPTH_16BIT), vidMode16);	// Video mode parameters for 16 bit
+	if (video_has_depth(VDEPTH_32BIT))
+		Offs(DepthToAppleMode(VDEPTH_32BIT), vidMode32);	// Video mode parameters for 32 bit
 	EndOfList();
 
 	// CPU sResource
