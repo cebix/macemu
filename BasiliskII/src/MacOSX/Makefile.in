@@ -24,7 +24,7 @@ GENEMUS = cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp \
 	  cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp
 
 # Symlinks to files in other directories
-GENLINK = README.txt install-sh \
+GENLINK = README.txt INSTALL.txt install-sh \
 	  config.guess config.sub \
 	  sys_unix.cpp timer_unix.cpp user_strings_unix.h
 
