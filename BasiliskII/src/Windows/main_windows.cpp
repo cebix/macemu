@@ -48,6 +48,7 @@ using std::string;
 #include "main.h"
 #include "vm_alloc.h"
 #include "sigsegv.h"
+#include "kernel_windows.h"
 
 #if USE_JIT
 extern void flush_icache_range(uint32 start, uint32 size); // from compemu_support.cpp
@@ -88,6 +89,9 @@ static SDL_Thread *tick_thread;						// 60Hz thread
 static SDL_mutex *intflag_lock = NULL;				// Mutex to protect InterruptFlags
 #define LOCK_INTFLAGS SDL_LockMutex(intflag_lock)
 #define UNLOCK_INTFLAGS SDL_UnlockMutex(intflag_lock)
+
+DWORD win_os;										// Windows OS id
+DWORD win_os_major;									// Windows OS version major
 
 #if USE_SCRATCHMEM_SUBTERFUGE
 uint8 *ScratchMem = NULL;			// Scratch memory for Mac ROM writes
@@ -282,10 +286,19 @@ int main(int argc, char **argv)
 	OSVERSIONINFO osvi;
 	ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
 	osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-	if (!GetVersionEx(&osvi) || osvi.dwPlatformId != VER_PLATFORM_WIN32_NT || osvi.dwMajorVersion < 4) {
+	if (!GetVersionEx(&osvi)) {
+		ErrorAlert("Could not determine OS type");
+		QuitEmulator();
+	}
+	win_os = osvi.dwPlatformId;
+	win_os_major = osvi.dwMajorVersion;
+	if (win_os != VER_PLATFORM_WIN32_NT || win_os_major < 4) {
 		ErrorAlert(STR_NO_WIN32_NT_4);
 		QuitEmulator();
 	}
+
+	// Load win32 libraries
+	KernelInit();
 
 	// Initialize SDL system
 	int sdl_flags = 0;
@@ -474,6 +487,9 @@ void QuitEmulator(void)
 
 	// Exit preferences
 	PrefsExit();
+
+	// Release win32 libraries
+	KernelExit();
 
 	exit(0);
 }
