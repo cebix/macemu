@@ -28,7 +28,6 @@
 #include "memory.h"
 #include "readcpu.h"
 #include "newcpu.h"
-#include "compiler.h"
 
 
 // RAM and ROM pointers
@@ -88,9 +87,6 @@ bool Init680x0(void)
 #endif
 
 	init_m68k();
-#ifdef USE_COMPILER
-	compiler_init();
-#endif
 	return true;
 }
 

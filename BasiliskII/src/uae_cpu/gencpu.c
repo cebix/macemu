@@ -1536,7 +1536,6 @@ static void gen_opcode (unsigned long int opcode)
 	m68k_pc_offset = 0;
 	break;
      case i_RTD:
-	printf ("\tcompiler_flush_jsr_stack();\n");
 	genamode (Aipi, "7", sz_long, "pc", 1, 0);
 	genamode (curi->smode, "srcreg", curi->size, "offs", 1, 0);
 	printf ("\tm68k_areg(regs, 7) += offs;\n");
@@ -1570,7 +1569,6 @@ static void gen_opcode (unsigned long int opcode)
 	need_endlabel = 1;
 	break;
      case i_RTR:
-	printf ("\tcompiler_flush_jsr_stack();\n");
 	printf ("\tMakeSR();\n");
 	genamode (Aipi, "7", sz_word, "sr", 1, 0);
 	genamode (Aipi, "7", sz_long, "pc", 1, 0);
@@ -2503,7 +2501,6 @@ static void generate_includes (FILE * f)
     fprintf (f, "#include \"memory.h\"\n");
     fprintf (f, "#include \"readcpu.h\"\n");
     fprintf (f, "#include \"newcpu.h\"\n");
-    fprintf (f, "#include \"compiler.h\"\n");
     fprintf (f, "#include \"cputbl.h\"\n");
 }
 

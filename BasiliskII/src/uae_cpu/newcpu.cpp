@@ -22,7 +22,6 @@ extern int intlev(void);	// From baisilisk_glue.cpp
 #include "memory.h"
 #include "readcpu.h"
 #include "newcpu.h"
-#include "compiler.h"
 
 int quit_program = 0;
 int debugging = 0;
@@ -659,7 +658,6 @@ void MakeFromSR (void)
 
 void Exception(int nr, uaecptr oldpc)
 {
-    compiler_flush_jsr_stack();
     MakeSR();
     if (!regs.s) {
 	regs.usp = m68k_areg(regs, 7);
@@ -1070,8 +1068,6 @@ void REGPARAM2 op_illg (uae_u32 opcode)
 {
     uaecptr pc = m68k_getpc ();
 
-    compiler_flush_jsr_stack ();
-
 	if ((opcode & 0xFF00) == 0x7100) {
 		struct M68kRegisters r;
 		int i;
@@ -1172,7 +1168,6 @@ static void do_trace (void)
 static int do_specialties (void)
 {
     /*n_spcinsns++;*/
-    run_compiled_code();
     if (regs.spcflags & SPCFLAG_DOTRACE) {
 	Exception (9,last_trace_ad);
     }
