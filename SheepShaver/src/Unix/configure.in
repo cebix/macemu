@@ -89,6 +89,9 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
     ])
   ])
   AC_CHECK_FUNCS(pthread_cancel)
+  if [[ "x$HAVE_PTHREADS" = "xyes" ]]; then
+    AC_DEFINE(HAVE_PTHREADS, 1, [Define if pthreads are available.])
+  fi
 fi
 
 dnl If POSIX.4 semaphores are not available, we emulate them with pthread mutexes.
