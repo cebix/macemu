@@ -211,7 +211,7 @@ static void init_addon()
 	D(bug("init sheep-net\n"));
 
 	// Create packet buffer
-	if ((buffer_area = create_area("packet buffer", &net_buffer_ptr, B_ANY_ADDRESS, buffer_size, B_FULL_LOCK, B_READ_AREA | B_WRITE_AREA)) < B_NO_ERROR) {
+	if ((buffer_area = create_area("packet buffer", (void **)&net_buffer_ptr, B_ANY_ADDRESS, buffer_size, B_FULL_LOCK, B_READ_AREA | B_WRITE_AREA)) < B_NO_ERROR) {
 		D(bug("FATAL ERROR: can't create shared area\n"));
 		return;
 	}	
