@@ -37,12 +37,6 @@
 #include "mon_disass.h"
 #endif
 
-// Disable dynamic translation for floating-point load/store of doubles?
-// XXX: could this due to some rounding while processing these?
-#ifdef _WIN32
-#define DISABLE_FP_DOUBLE_LOAD_STORE 1
-#endif
-
 // Define to enable const branches optimization
 #define FOLLOW_CONST_JUMPS 1
 
@@ -1109,7 +1103,6 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			dg.gen_store_T0_crf(crfD_field::extract(opcode));
 			break;
 		}
-#ifndef DISABLE_FP_DOUBLE_LOAD_STORE
 		case PPC_I(LFD):		// Load Floating-Point Double
 			op.mem.size = 8;
 			op.mem.do_update = 0;
@@ -1130,7 +1123,6 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			op.mem.do_update = 0;
 			op.mem.do_indexed = 1;
 			goto do_fp_load;
-#endif
 		case PPC_I(LFS):		// Load Floating-Point Single
 			op.mem.size = 4;
 			op.mem.do_update = 0;
@@ -1191,7 +1183,6 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			}
 			break;
 		}
-#ifndef DISABLE_FP_DOUBLE_LOAD_STORE
 		case PPC_I(STFD):		// Store Floating-Point Double
 			op.mem.size = 8;
 			op.mem.do_update = 0;
@@ -1212,7 +1203,6 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			op.mem.do_update = 0;
 			op.mem.do_indexed = 1;
 			goto do_fp_store;
-#endif
 		case PPC_I(STFS):		// Store Floating-Point Single
 			op.mem.size = 4;
 			op.mem.do_update = 0;

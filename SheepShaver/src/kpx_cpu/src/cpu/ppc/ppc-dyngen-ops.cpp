@@ -171,7 +171,7 @@ void OPPROTO op_load_F##REG##_FPR##N(void)		\
 }												\
 void OPPROTO op_store_F##REG##_FPR##N(void)		\
 {												\
-	CPU->fpr(N) = F##REG;						\
+	CPU->fpr_dw(N) = F##REG##_dw;				\
 }
 #define DEFINE_REG(N)							\
 DEFINE_OP(0,N);									\
@@ -179,7 +179,7 @@ DEFINE_OP(1,N);									\
 DEFINE_OP(2,N);									\
 void OPPROTO op_store_FD_FPR##N(void)			\
 {												\
-	CPU->fpr(N) = FD;							\
+	CPU->fpr_dw(N) = FD_dw;						\
 }
 
 DEFINE_REG(0);
@@ -423,9 +423,6 @@ void OPPROTO op_mtcrf_T0_im(void)
 #ifndef do_fsub
 #define do_fsub(x, y)			(x) - (y)
 #endif
-#ifndef do_fmov
-#define do_fmov(x)				(x)
-#endif
 
 
 /**
@@ -438,15 +435,15 @@ void OPPROTO op_##NAME(void)					\
 	CODE;										\
 }
 
-DEFINE_OP(fmov_F0_F1, F0 = F1);
-DEFINE_OP(fmov_F0_F2, F0 = F2);
-DEFINE_OP(fmov_F1_F0, F1 = F0);
-DEFINE_OP(fmov_F1_F2, F1 = F2);
-DEFINE_OP(fmov_F2_F0, F2 = F0);
-DEFINE_OP(fmov_F2_F1, F2 = F1);
-DEFINE_OP(fmov_FD_F0, FD = F0);
-DEFINE_OP(fmov_FD_F1, FD = F1);
-DEFINE_OP(fmov_FD_F2, FD = F2);
+DEFINE_OP(fmov_F0_F1, F0_dw = F1_dw);
+DEFINE_OP(fmov_F0_F2, F0_dw = F2_dw);
+DEFINE_OP(fmov_F1_F0, F1_dw = F0_dw);
+DEFINE_OP(fmov_F1_F2, F1_dw = F2_dw);
+DEFINE_OP(fmov_F2_F0, F2_dw = F0_dw);
+DEFINE_OP(fmov_F2_F1, F2_dw = F1_dw);
+DEFINE_OP(fmov_FD_F0, FD_dw = F0_dw);
+DEFINE_OP(fmov_FD_F1, FD_dw = F1_dw);
+DEFINE_OP(fmov_FD_F2, FD_dw = F2_dw);
 
 DEFINE_OP(fabs_FD_F0, FD = do_fabs(F0));
 DEFINE_OP(fneg_FD_F0, FD = do_fneg(F0));
