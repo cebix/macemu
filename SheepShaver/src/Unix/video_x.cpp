@@ -340,6 +340,14 @@ static bool find_visual_for_depth(int depth)
  *  Open display (window or fullscreen)
  */
 
+// Set WM_DELETE_WINDOW protocol on window (preventing it from being destroyed by the WM when clicking on the "close" widget)
+static Atom WM_DELETE_WINDOW = (Atom)0;
+static void set_window_delete_protocol(Window w)
+{
+	WM_DELETE_WINDOW = XInternAtom(x_display, "WM_DELETE_WINDOW", false);
+	XSetWMProtocols(x_display, w, &WM_DELETE_WINDOW, 1);
+}
+
 // Wait until window is mapped/unmapped
 void wait_mapped(Window w)
 {
@@ -391,6 +399,9 @@ static bool open_window(int width, int height)
 
 	// Set window name
 	XStoreName(x_display, the_win, GetString(STR_WINDOW_TITLE));
+
+	// Set delete protocol property
+	set_window_delete_protocol(the_win);
 
 	// Make window unresizable
 	XSizeHints *hints;
@@ -1422,6 +1433,14 @@ static void handle_events(void)
 				ClipboardSelectionRequest(&event.xselectionrequest);
 			else if (XCheckTypedEvent(x_display, SelectionClear, &event))
 				ClipboardSelectionClear(&event.xselectionclear);
+
+			// Window "close" widget clicked
+			else if (XCheckTypedEvent(x_display, ClientMessage, &event)) {
+				if (event.xclient.format == 32 && event.xclient.data.l[0] == WM_DELETE_WINDOW) {
+					ADBKeyDown(0x7f);	// Power key
+					ADBKeyUp(0x7f);
+				}
+			}
 
 			XDisplayUnlock();
 			break;
