@@ -44,7 +44,7 @@
 #include "mon_disass.h"
 #endif
 
-#define DEBUG 1
+#define DEBUG 0
 #include "debug.h"
 
 static void enter_mon(void)
@@ -89,16 +89,15 @@ class sheepshaver_cpu
 
 public:
 
-	sheepshaver_cpu()
-		: powerpc_cpu()
-		{ init_decoder(); }
+	// Constructor
+	sheepshaver_cpu();
 
 	// Condition Register accessors
 	uint32 get_cr() const		{ return cr().get(); }
 	void set_cr(uint32 v)		{ cr().set(v); }
 
 	// Execution loop
-	void execute(uint32 pc);
+	void execute(uint32 entry, bool enable_cache = false);
 
 	// Execute 68k routine
 	void execute_68k(uint32 entry, M68kRegisters *r);
@@ -114,6 +113,7 @@ public:
 
 	// Handle MacOS interrupt
 	void interrupt(uint32 entry);
+	void handle_interrupt();
 
 	// spcflags for interrupts handling
 	static uint32 spcflags;
@@ -130,6 +130,12 @@ public:
 
 uint32 sheepshaver_cpu::spcflags = 0;
 lazy_allocator< sheepshaver_cpu > allocator_helper< sheepshaver_cpu, lazy_allocator >::allocator;
+
+sheepshaver_cpu::sheepshaver_cpu()
+	: powerpc_cpu()
+{
+	init_decoder();
+}
 
 void sheepshaver_cpu::init_decoder()
 {
@@ -216,38 +222,11 @@ void sheepshaver_cpu::execute_sheep(uint32 opcode)
 	}
 }
 
-// Checks for pending interrupts
-struct execute_nothing {
-	static inline void execute(powerpc_cpu *) { }
-};
-
-struct execute_spcflags_check {
-	static inline void execute(powerpc_cpu *cpu) {
-#if !ASYNC_IRQ
-		if (SPCFLAGS_TEST(SPCFLAG_ALL_BUT_EXEC_RETURN)) {
-			if (SPCFLAGS_TEST( SPCFLAG_ENTER_MON )) {
-				SPCFLAGS_CLEAR( SPCFLAG_ENTER_MON );
-				enter_mon();
-			}
-			if (SPCFLAGS_TEST( SPCFLAG_DOINT )) {
-				SPCFLAGS_CLEAR( SPCFLAG_DOINT );
-				HandleInterrupt();
-			}
-			if (SPCFLAGS_TEST( SPCFLAG_INT )) {
-				SPCFLAGS_CLEAR( SPCFLAG_INT );
-				SPCFLAGS_SET( SPCFLAG_DOINT );
-			}
-		}
-#endif
-	}
-};
-
 // Execution loop
-void sheepshaver_cpu::execute(uint32 entry)
+void sheepshaver_cpu::execute(uint32 entry, bool enable_cache)
 {
 	try {
-		pc() = entry;
-		powerpc_cpu::do_execute<execute_nothing, execute_spcflags_check>();
+		powerpc_cpu::execute(entry, enable_cache);
 	}
 	catch (sheepshaver_exec_return const &) {
 		// Nothing, simply return
@@ -596,8 +575,11 @@ void init_emul_ppc(void)
 void emul_ppc(uint32 entry)
 {
 	current_cpu = main_cpu;
+#if DEBUG
 	current_cpu->start_log();
-	current_cpu->execute(entry);
+#endif
+	// start emulation loop and enable code translation or caching
+	current_cpu->execute(entry, true);
 }
 
 /*
@@ -610,12 +592,14 @@ void TriggerInterrupt(void)
 #if 0
   WriteMacInt32(0x16a, ReadMacInt32(0x16a) + 1);
 #else
-  SPCFLAGS_SET( SPCFLAG_INT );
+  // Trigger interrupt to main cpu only
+  if (main_cpu)
+	  main_cpu->trigger_interrupt();
 #endif
 }
 #endif
 
-void HandleInterrupt(void)
+void sheepshaver_cpu::handle_interrupt(void)
 {
 	// Do nothing if interrupts are disabled
 	if (int32(ReadMacInt32(XLM_IRQ_NEST)) > 0)
@@ -634,14 +618,14 @@ void HandleInterrupt(void)
 		// 68k emulator active, trigger 68k interrupt level 1
 		assert(current_cpu == main_cpu);
 		WriteMacInt16(tswap32(kernel_data->v[0x67c >> 2]), 1);
-		main_cpu->set_cr(main_cpu->get_cr() | tswap32(kernel_data->v[0x674 >> 2]));
+		set_cr(get_cr() | tswap32(kernel_data->v[0x674 >> 2]));
 		break;
     
 #if INTERRUPTS_IN_NATIVE_MODE
 	case MODE_NATIVE:
 		// 68k emulator inactive, in nanokernel?
 		assert(current_cpu == main_cpu);
-		if (main_cpu->gpr(1) != KernelDataAddr) {
+		if (gpr(1) != KernelDataAddr) {
 			// Prepare for 68k interrupt level 1
 			WriteMacInt16(tswap32(kernel_data->v[0x67c >> 2]), 1);
 			WriteMacInt32(tswap32(kernel_data->v[0x658 >> 2]) + 0xdc,

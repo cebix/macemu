@@ -22,6 +22,22 @@
 #define PPC_CONFIG_H
 
 /**
+ *	PPC_CHECK_INTERRUPTS
+ *
+ *		Define if interrupts need to be check after each instruction,
+ *		in interpreted mode, or at the end of each block, in compiled
+ *		mode.
+ *
+ *		NOTE: this only checks for user defined interrupts that are
+ *		triggered by the program. This is not about OEA interrupts.
+ */
+
+#ifndef PPC_CHECK_INTERRUPTS
+#define PPC_CHECK_INTERRUPTS 0
+#endif
+
+
+/**
  *	PPC_NO_BASIC_CPU_BASE
  *
  *		Define to not inherit from basic_cpu, thus removing two

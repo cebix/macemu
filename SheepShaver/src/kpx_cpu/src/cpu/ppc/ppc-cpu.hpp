@@ -223,9 +223,25 @@ public:
 	void fake_dump_registers(uint32);
 
 	// Start emulation loop
-	template< class prologue, class epilogue >
-	void do_execute();
+	void execute(uint32 entry, bool enable_cache = true);
 	void execute();
+
+	// Interrupts handling
+protected:
+	enum {
+		INTERRUPT_NONE		= 0,
+		INTERRUPT_TRIGGER	= 1,
+		INTERRUPT_HANDLE	= 2
+	};
+#if PPC_CHECK_INTERRUPTS
+	int pending_interrupts;
+#else
+	static const int pending_interrupts = 0;
+#endif
+public:
+	void check_pending_interrupts();
+	void trigger_interrupt();
+	virtual void handle_interrupt() { }
 	
 	// Set VALUE to register ID
 	void set_register(int id, any_register const & value);
@@ -241,6 +257,7 @@ public:
 	void invalidate_cache_range(uintptr start, uintptr end);
 private:
 	struct { uintptr start, end; } cache_range;
+	bool invalidated_cache;
 
 protected:
 
@@ -340,119 +357,30 @@ private:
 	void execute_dcbz(uint32 opcode);
 };
 
-template< class prologue, class epilogue >
-inline void powerpc_cpu::do_execute()
+
+/**
+ *	Interrupts handling
+ **/
+
+inline void powerpc_cpu::trigger_interrupt()
 {
-#ifdef PPC_EXECUTE_DUMP_STATE
-	const bool dump_state = true;
+#if PPC_CHECK_INTERRUPTS
+	pending_interrupts |= INTERRUPT_TRIGGER;
 #endif
-#ifdef PPC_NO_DECODE_CACHE
-	for (;;) {
-		prologue::execute(this);
-		uint32 opcode = vm_read_memory_4(pc());
-		const instr_info_t *ii = decode(opcode);
-#ifdef PPC_EXECUTE_DUMP_STATE
-		if (dump_state)
-			dump_instruction(opcode);
-#endif
-#if PPC_FLIGHT_RECORDER
-		if (is_logging())
-			record_step(opcode);
-#endif
-		assert(ii->execute != 0);
-		(this->*(ii->execute))(opcode);
-#ifdef PPC_EXECUTE_DUMP_STATE
-		if (dump_state)
-			dump_registers();
-#endif
-		epilogue::execute(this);
-	}
-#else
-	for (;;) {
-		block_info *bi = block_cache.new_blockinfo();
-		bi->init(pc());
+}
 
-		// Predecode a new block
-		block_info::decode_info *di = bi->di = decode_cache_p;
-		const instr_info_t *ii;
-		uint32 dpc = pc() - 4;
-		do {
-			uint32 opcode = vm_read_memory_4(dpc += 4);
-			ii = decode(opcode);
-#ifdef PPC_EXECUTE_DUMP_STATE
-			if (dump_state) {
-				di->opcode = opcode;
-				di->execute = &powerpc_cpu::dump_instruction;
-			}
-#endif
-#if PPC_FLIGHT_RECORDER
-			if (is_logging()) {
-				di->opcode = opcode;
-				di->execute = &powerpc_cpu::record_step;
-				di++;
-			}
-#endif
-			di->opcode = opcode;
-			di->execute = ii->execute;
-			di++;
-#ifdef PPC_EXECUTE_DUMP_STATE
-			if (dump_state) {
-				di->opcode = 0;
-				di->execute = &powerpc_cpu::fake_dump_registers;
-				di++;
-			}
-#endif
-			if (di >= decode_cache_end_p) {
-				// Invalidate cache and move current code to start
-				invalidate_cache();
-				const int blocklen = di - bi->di;
-				memmove(decode_cache_p, bi->di, blocklen * sizeof(*di));
-				bi->di = decode_cache_p;
-				di = bi->di + blocklen;
-			}
-		} while ((ii->cflow & CFLOW_END_BLOCK) == 0);
-#ifdef PPC_LAZY_PC_UPDATE
-		bi->end_pc = dpc;
-#endif
-		bi->size = di - bi->di;
-		block_cache.add_to_cl_list(bi);
-		block_cache.add_to_active_list(bi);
-		decode_cache_p += bi->size;
-
-		// Execute all cached blocks
-		for (;;) {
-			prologue::execute(this);
-#ifdef PPC_LAZY_PC_UPDATE
-			pc() = bi->end_pc;
-#endif
-			di = bi->di;
-#ifdef PPC_NO_DECODE_CACHE_UNROLL_EXECUTE
-			for (int i = 0; i < bi->size; i++)
-				(this->*(di[i].execute))(di[i].opcode);
-#else
-			const int r = bi->size % 4;
-			switch (r) {
-			case 3: (this->*(di->execute))(di->opcode); di++;
-			case 2: (this->*(di->execute))(di->opcode); di++;
-			case 1: (this->*(di->execute))(di->opcode); di++;
-			case 0: break;
-			}
-			const int n = bi->size / 4;
-			for (int i = 0; i < n; i++) {
-				(this->*(di[0].execute))(di[0].opcode);
-				(this->*(di[1].execute))(di[1].opcode);
-				(this->*(di[2].execute))(di[2].opcode);
-				(this->*(di[3].execute))(di[3].opcode);
-				di += 4;
-			}
-#endif
-			epilogue::execute(this);
-
-			if ((bi->pc != pc()) && ((bi = block_cache.find(pc())) == NULL))
-				break;
+inline void powerpc_cpu::check_pending_interrupts()
+{
+	if (pending_interrupts) {
+		if (pending_interrupts & INTERRUPT_HANDLE) {
+			pending_interrupts &= ~INTERRUPT_HANDLE;
+			handle_interrupt();
+		}
+		if (pending_interrupts & INTERRUPT_TRIGGER) {
+			pending_interrupts &= ~INTERRUPT_TRIGGER;
+			pending_interrupts |= INTERRUPT_HANDLE;
 		}
 	}
-#endif
 }
 
 #endif /* PPC_CPU_H */
