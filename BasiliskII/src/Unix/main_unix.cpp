@@ -301,9 +301,13 @@ int main(int argc, char **argv)
     for (int i=0; i<0x80000; i+=4096)
         mmap(good_address_map + i + 0x00400000, 4096, PROT_READ, MAP_FIXED | MAP_PRIVATE, good_address_fd, 0);
 #else
-	RAMBaseHost = new uint8[RAMSize];
-	ROMBaseHost = new uint8[0x100000];
+	RAMBaseHost = (uint8 *)malloc(RAMSize);
+	ROMBaseHost = (uint8 *)malloc(0x100000);
 #endif
+	if (RAMBaseHost == NULL || ROMBaseHost == NULL) {
+		ErrorAlert(GetString(STR_NO_MEM_ERR));
+		QuitEmulator();
+	}
 #if REAL_ADDRESSING && !EMULATED_68K
 	RAMBaseMac = (uint32)RAMBaseHost;
 	ROMBaseMac = (uint32)ROMBaseHost;
@@ -561,15 +565,23 @@ void QuitEmulator(void)
 	ExitAll();
 
 	// Delete ROM area
-	delete[] ROMBaseHost;
+	if (ROMBaseHost) {
+		free(ROMBaseHost);
+		ROMBaseHost = NULL;
+	}
 
 	// Delete RAM area
-	delete[] RAMBaseHost;
+	if (RAMBaseHost) {
+		free(RAMBaseHost);
+		RAMBaseHost = NULL;
+	}
 
 #if !EMULATED_68K
 	// Delete scratch memory area
-	if (ScratchMem)
+	if (ScratchMem) {
 		free((void *)(ScratchMem - SCRATCH_MEM_SIZE/2));
+		ScratchMem = NULL;
+	}
 #endif
 
 #if REAL_ADDRESSING
