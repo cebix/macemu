@@ -1,7 +1,7 @@
 /*
  *  ether_beos.cpp - Ethernet device driver, BeOS specific stuff
  *
- *  Basilisk II (C) 1997-2000 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *  Portions (C) 1997-1999 Marc Hellwig
  *
  *  This program is free software; you can redistribute it and/or modify

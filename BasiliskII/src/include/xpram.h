@@ -1,7 +1,7 @@
 /*
  *  xpram.h - XPRAM handling
  *
- *  Basilisk II (C) 1997-2000 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef _XPRAM_H_
-#define _XPRAM_H_
+#ifndef XPRAM_H
+#define XPRAM_H
 
 extern uint8 XPRAM[256];
 

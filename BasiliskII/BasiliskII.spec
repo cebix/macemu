@@ -1,5 +1,5 @@
 %define name BasiliskII
-%define version 0.8
+%define version 0.9
 %define release 1
 
 Summary: 68k Macintosh emulator

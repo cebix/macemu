@@ -1,4 +1,4 @@
-# Linux makefile for SheepShaver
+# Linux makefile for sheep_net driver
 
 ## System specific configuration
 CC = cc

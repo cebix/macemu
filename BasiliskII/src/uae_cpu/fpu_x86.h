@@ -1,7 +1,7 @@
 /*
  *  fpu_x86.h - 68881/68040 fpu code for x86/Windows and Linux/x86.
  *
- *  Basilisk II (C) 1997-1999 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  MC68881 emulation
  *

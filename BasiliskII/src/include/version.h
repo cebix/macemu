@@ -1,7 +1,7 @@
 /*
  *  version.h - Version information
  *
- *  Basilisk II (C) 1997-2000 Christian Bauer
+ *  Basilisk II (C) 1997-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 #define VERSION_H
 
 const int VERSION_MAJOR = 0;
-const int VERSION_MINOR = 8;
+const int VERSION_MINOR = 9;
 
-#define VERSION_STRING "Basilisk II V0.8"
+#define VERSION_STRING "Basilisk II V0.9"
 
 #endif

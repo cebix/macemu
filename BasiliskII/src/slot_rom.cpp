@@ -1,7 +1,7 @@
 /*
  *  slot_rom.cpp - Slot declaration ROM
  *
- *  Basilisk II (C) 1996-2000 Christian Bauer
+ *  Basilisk II (C) 1996-2001 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
