@@ -166,9 +166,8 @@ scsi0 <SCSI target> ... scsi6 <SCSI target>
     "scsi.device/2").
 
   Windows:
-    Ignored. Basilisk II scans for all SCSI devices and the first 6 found
-    devices are made visible to the MacOS. You cannot explicitly enable a
-    device, but you can disable a device (see the "disablescsi" command).
+    The "SCSI target" has the format <"Vendor"> <"Model"> (e.g.
+    scsi0 "HP" "CD-Writer+ 7100"). Note the use of quotes.
 
 screen <video mode>
 
@@ -470,15 +469,42 @@ Windows:
   
     Note the use of quotes.
 
-  disablescsi <"Vendor"> <"Model">
+  rightmouse <0/1>
 
-    Disables this vendor/model combination. You may need this simply because
-    you have more than 6 SCSI devices, or the particular device has problems
-    under BasiliskII. E.g.
+    Defines what the right mouse button is used for. The default values of 0
+    means that it is used to move windowed mode BasiliskII screen.
+    Value 1 sends a combination Control and mouse click to the MacOS.
+    This may be useful under OS versions 8 and above.
 
-      disablescsi "HP" "CD-Writer+ 7100"
-  
-    Again, note the use of quotes.
+  keyboardfile <path>
+
+    Defines the path of the customized keyboard code file.
+
+  pollmedia <"true" or "false">
+
+    If true (default), tries to automatically detect new media.
+    Applies to all "floppy", "cd" or "disk" removable media except
+    1.44 MB floppies. May cause modest slow down. If unchecked, 
+    use Ctrl-Shift-F11 to manually mount new media.
+    If you have auto-insert notification (AIN) enabled, you may turn this
+    option off. Note that some CD related software require AIN,
+    and some other need it to be turned off. Consult the documentation
+    of your CD software to learn which one is optimal for you.
+
+  framesleepticks <milliseconds>    
+
+    The amount of time between video frames.
+
+  showfps <true/false>
+
+    If true, the real frame rate is displayed.
+
+  stickymenu <true/false>
+
+    If true, the main menu bar is kept open even after the mouse button is released,
+    under all OS versions (OS 8 has this feature already). There are extensions to do 
+    the same thing, but it's faster to handle this in native code.
+    Default is "true".
 
   ntdx5hack <"true" or "false">
 

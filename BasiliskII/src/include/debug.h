@@ -32,17 +32,17 @@
 
 static void inline _cdecl winbug( char *s, ...)
 {
-  va_list vargs;
+	va_list vargs;
 	char msg[1024], date[50], hours[50];
-  struct _timeb tstruct;
+	struct _timeb tstruct;
 
 	_ftime( &tstruct );
 	_strtime( hours );
 	_strdate( date );
-	wsprintf( msg, "B2: %s %s:%03u ", date, hours, tstruct.millitm );
+	sprintf( msg, "B2: %s %s:%03u ", date, hours, tstruct.millitm );
 	
 	va_start( vargs, s );
-	wvsprintf( &msg[strlen(msg)], s, vargs );
+	vsprintf( &msg[strlen(msg)], s, vargs );
 	va_end( vargs );
 
 	OutputDebugString(msg);
