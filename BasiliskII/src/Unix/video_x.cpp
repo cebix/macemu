@@ -197,27 +197,82 @@ struct ScreenInfo {
     int pageBits;				// Shift count to get the page number
     uint32 pageCount;			// Number of pages allocated to the screen
     
-    uint8 * dirtyPages;			// Table of flags set if page was altered
+    char * dirtyPages;			// Table of flags set if page was altered
     ScreenPageInfo * pageInfo;	// Table of mappings page -> Mac scanlines
 };
 
 static ScreenInfo mainBuffer;
 
-#define PFLAG_SET(page)			mainBuffer.dirtyPages[page] = 1
-#define PFLAG_CLEAR(page)		mainBuffer.dirtyPages[page] = 0
-#define PFLAG_ISSET(page)		mainBuffer.dirtyPages[page]
-#define PFLAG_ISCLEAR(page)		(mainBuffer.dirtyPages[page] == 0)
+#define PFLAG_SET_VALUE			0x00
+#define PFLAG_CLEAR_VALUE		0x01
+#define PFLAG_SET_VALUE_4		0x00000000
+#define PFLAG_CLEAR_VALUE_4		0x01010101
+#define PFLAG_SET(page)			mainBuffer.dirtyPages[page] = PFLAG_SET_VALUE
+#define PFLAG_CLEAR(page)		mainBuffer.dirtyPages[page] = PFLAG_CLEAR_VALUE
+#define PFLAG_ISSET(page)		(mainBuffer.dirtyPages[page] == PFLAG_SET_VALUE)
+#define PFLAG_ISCLEAR(page)		(mainBuffer.dirtyPages[page] != PFLAG_SET_VALUE)
+
 #ifdef UNALIGNED_PROFITABLE
-# define PFLAG_ISCLEAR_4(page)	(*((uint32 *)(mainBuffer.dirtyPages + page)) == 0)
+# define PFLAG_ISSET_4(page)	(*((uint32 *)(mainBuffer.dirtyPages + (page))) == PFLAG_SET_VALUE_4)
+# define PFLAG_ISCLEAR_4(page)	(*((uint32 *)(mainBuffer.dirtyPages + (page))) == PFLAG_CLEAR_VALUE_4)
 #else
-# define PFLAG_ISCLEAR_4(page)	\
-		(mainBuffer.dirtyPages[page  ] == 0) \
-	&&	(mainBuffer.dirtyPages[page+1] == 0) \
-	&&	(mainBuffer.dirtyPages[page+2] == 0) \
-	&&	(mainBuffer.dirtyPages[page+3] == 0)
+# define PFLAG_ISSET_4(page) \
+		PFLAG_ISSET(page  ) && PFLAG_ISSET(page+1) \
+	&&	PFLAG_ISSET(page+2) && PFLAG_ISSET(page+3)
+# define PFLAG_ISCLEAR_4(page) \
+		PFLAG_ISCLEAR(page  ) && PFLAG_ISCLEAR(page+1) \
+	&&	PFLAG_ISCLEAR(page+2) && PFLAG_ISCLEAR(page+3)
 #endif
-#define PFLAG_CLEAR_ALL			memset(mainBuffer.dirtyPages, 0, mainBuffer.pageCount)
-#define PFLAG_SET_ALL			memset(mainBuffer.dirtyPages, 1, mainBuffer.pageCount)
+
+// Set the selected page range [ first_page, last_page [ into the SET state
+#define PFLAG_SET_RANGE(first_page, last_page) \
+	memset(mainBuffer.dirtyPages + (first_page), PFLAG_SET_VALUE, \
+		(last_page) - (first_page))
+
+// Set the selected page range [ first_page, last_page [ into the CLEAR state
+#define PFLAG_CLEAR_RANGE(first_page, last_page) \
+	memset(mainBuffer.dirtyPages + (first_page), PFLAG_CLEAR_VALUE, \
+		(last_page) - (first_page))
+
+#define PFLAG_SET_ALL \
+	PFLAG_SET_RANGE(0, mainBuffer.pageCount)
+
+#define PFLAG_CLEAR_ALL \
+	PFLAG_CLEAR_RANGE(0, mainBuffer.pageCount)
+
+// Set the following macro definition to 1 if your system
+// provides a really fast strchr() implementation
+//#define HAVE_FAST_STRCHR 0
+
+static inline int find_next_page_set(int page)
+{
+#if HAVE_FAST_STRCHR
+	char *match = strchr(mainBuffer.dirtyPages + page, PFLAG_SET_VALUE);
+	return match ? match - mainBuffer.dirtyPages : mainBuffer.pageCount;
+#else
+	while (PFLAG_ISCLEAR_4(page))
+		page += 4;
+	while (PFLAG_ISCLEAR(page))
+		page++;
+	return page;
+#endif
+}
+
+static inline int find_next_page_clear(int page)
+{
+#if HAVE_FAST_STRCHR
+	char *match = strchr(mainBuffer.dirtyPages + page, PFLAG_CLEAR_VALUE);
+	return match ? match - mainBuffer.dirtyPages : mainBuffer.pageCount;
+#else
+	// NOTE: the loop is bound to terminate because the last
+	// page in mainBuffer.dirtyPages[] shall be set to CLEAR
+	while (PFLAG_ISSET_4(page))
+		page += 4;
+	while (PFLAG_ISSET(page))
+		page++;
+	return page;
+#endif
+}
 
 static int zero_fd = -1;
 static bool Screen_fault_handler_init();
@@ -242,8 +297,7 @@ static int log_base_2(uint32 x)
 	}
 	return l;
 }
-
-#endif
+#endif /* ENABLE_VOSF */
 
 // VideoRefresh function
 void VideoRefreshInit(void);
@@ -891,7 +945,7 @@ bool VideoInitBuffer()
 		if (mainBuffer.dirtyPages != 0)
 			free(mainBuffer.dirtyPages);
 
-		mainBuffer.dirtyPages = (uint8 *) malloc(mainBuffer.pageCount);
+		mainBuffer.dirtyPages = (char *) malloc(mainBuffer.pageCount + 1);
 
 		if (mainBuffer.pageInfo != 0)
 			free(mainBuffer.pageInfo);
@@ -902,6 +956,12 @@ bool VideoInitBuffer()
 			return false;
 
 		PFLAG_CLEAR_ALL;
+		
+		// Make sure there is at least one page marked, so the
+		// loops in the update routine will terminate
+		// gb-- Set the last page as cleared because the update
+		// routine finally searches for a page that was not touched
+		PFLAG_CLEAR(mainBuffer.pageCount);
 
 		uint32 a = 0;
 		for (int i = 0; i < mainBuffer.pageCount; i++) {
@@ -1893,24 +1953,11 @@ static void update_display_static(void)
  *	Screen refresh functions
  */
 
-// The specialisations hereunder are meant to enable VOSF with DGA in direct
-// addressing mode in case the address spaces (RAM, ROM, FrameBuffer) could
-// not get mapped correctly with respect to the predetermined host frame
-// buffer base address.
-//
-// Hmm, in other words, when in direct addressing mode and DGA is requested,
-// we first try to "triple allocate" the address spaces according to the real
-// host frame buffer address. Then, if it fails, we will use a temporary
-// frame buffer thus making the real host frame buffer updated when pages
-// of the temp frame buffer are altered.
-//
-// As a side effect, a little speed gain in screen updates could be noticed
-// for other modes than DGA.
-//
-// The following two functions below are inline so that a clever compiler
-// could specialise the code according to the current screen depth and
-// display type. A more clever compiler would the job by itself though...
-// (update_display_vosf is inlined as well)
+// We suggest the compiler to inline the next two functions so that it
+// may specialise the code according to the current screen depth and
+// display type. A clever compiler would that job by itself though...
+
+// NOTE: update_display_vosf is inlined too
 
 static inline void possibly_quit_dga_mode()
 {
@@ -2092,7 +2139,7 @@ static void *redraw_func(void *arg)
 		ticks++;
 	}
 	uint64 end = GetTicks_usec();
-	printf("%Ld ticks in %Ld usec = %Ld ticks/sec\n", ticks, end - start, (end - start) / ticks);
+	printf("%Ld ticks in %Ld usec = %Ld ticks/sec\n", ticks, end - start, ticks * 1000000 / (end - start));
 	return NULL;
 }
 #endif
