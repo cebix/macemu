@@ -279,6 +279,16 @@ irix*)
   dnl IRIX headers work fine, but somehow don't define or use "STDC_HEADERS"
   DEFINES="$DEFINES -DCRTSCTS=CNEW_RTSCTS -DB230400=B115200 -DSTDC_HEADERS"
   LIBS="$LIBS -laudio"
+
+  dnl Check if our compiler supports -Ofast (MIPSPro)
+  HAVE_OFAST=no
+  ocflags="$CFLAGS"
+  CFLAGS=`echo $CFLAGS | sed -e 's/ -g / -Ofast /;s/^-g /-Ofast /;s/-g$/ -Ofast/;s/^-g$/-Ofast/'`
+  AC_MSG_CHECKING(if "-Ofast" works)
+  dnl Do a test compile of an empty function
+  AC_TRY_COMPILE(,, [AC_MSG_RESULT(yes); HAVE_OFAST=yes], AC_MSG_RESULT(no))
+  CFLAGS="$ocflags"
+
   ;;
 esac
 
@@ -664,6 +674,14 @@ if [[ "x$HAVE_GCC27" = "xyes" ]]; then
   dnl gb-- Probably not the cleanest way to take
   CFLAGS=`echo $CFLAGS | sed -e 's/ -g / /;s/^-g / /;s/ -g$/ /;s/^-g$//'`
   CXXFLAGS=`echo $CXXFLAGS | sed -e 's/ -g / /;s/^-g / /;s/ -g$/ /;s/^-g$//'`
+fi
+
+dnl Or if we have -Ofast
+if [[ "x$HAVE_OFAST" = "xyes" ]]; then
+  CFLAGS=`echo $CFLAGS | sed -e 's/ -g / -Ofast /;s/^-g /-Ofast /;s/-g$/ -Ofast/;s/^-g$/-Ofast/'`
+  CXXFLAGS=`echo $CXXFLAGS | sed -e 's/ -g / -Ofast /;s/^-g /-Ofast/;s/ -g$/ -Ofast/;s/^-g$/-Ofast/'`
+  CXXFLAGS="-LANG:std $CXXFLAGS"
+  LDFLAGS="$LDFLAGS -Ofast"
 fi
 
 dnl Generate Makefile.

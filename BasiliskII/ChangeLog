@@ -1,6 +1,9 @@
 V0.9 - <insert date here>
 	- Unix: some performance improvements to VOSF screen update code
 	  [Brian J. Johnson]
+	- Unix: -Ofast option is supplied to MIPSPro compiler [Brian J. Johnson]
+	- Unix: workaround for IRIX pthreads bug in Delay_usec()
+	  [Brian J. Johnson]
 
 V0.9 (snapshot) - 17.Feb.2001
 	- adapted for mon V3.0 which is now the required minimum
