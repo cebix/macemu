@@ -15,9 +15,11 @@ dnl FPU emulation core.
 AC_ARG_ENABLE(fpe,
 [  --enable-fpe=which      specify which fpu emulator to use [default=opt]],
 [ case "$enableval" in
-    default)	FPE_CORE="default";; dnl fpu_x86.cpp if i386 architecture, fpu_uae.cpp otherwise
+    dnl default is fpu_x86.cpp if i386 architecture, fpu_uae.cpp otherwise
+    default)	FPE_CORE="default";;
+    ieee)		FPE_CORE="ieee";;
 	uae)		FPE_CORE="uae";;
-	*)			AC_MSG_ERROR([--enable-fpe takes only one of the following values: default, uae]);;
+	*)			AC_MSG_ERROR([--enable-fpe takes only one of the following values: default, uae, ieee]);;
   esac
 ],
 [ FPE_CORE="default"
@@ -221,6 +223,9 @@ AC_CHECK_SIZEOF(short, 2)
 AC_CHECK_SIZEOF(int, 4)
 AC_CHECK_SIZEOF(long, 4)
 AC_CHECK_SIZEOF(long long, 8)
+AC_CHECK_SIZEOF(float, 4)
+AC_CHECK_SIZEOF(double, 8)
+AC_CHECK_SIZEOF(long double, 12)
 AC_CHECK_SIZEOF(void *, 4)
 AC_TYPE_OFF_T
 AC_CHECK_TYPE(loff_t, off_t)
@@ -830,7 +835,7 @@ elif [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
 fi
 
 dnl Select appropriate FPU source.
-dnl 1. Optimized X86 assembly core if target is i386 architecture
+dnl 1. Optimized X86 assembly core if target is i386 architecture.
 SAVED_DEFINES=$DEFINES
 if [[ "x$FPE_CORE" = "xdefault" ]]; then
   if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" -a "x$HAVE_GAS" = "xyes" ]]; then
@@ -851,7 +856,7 @@ if [[ "x$WANT_JIT_FPU" = "xyes" -a "x$FPE_CORE" != "xieee" ]]; then
   DEFINES=$SAVED_DEFINES
 fi
 
-dnl 3. Choose either IEEE-based implementation or the old UAE core
+dnl 3. Choose either IEEE-based implementation or the old UAE core.
 if [[ "x$FPE_CORE" = "xieee" ]]; then
   AC_CHECK_HEADERS(fenv.h)
   AC_CHECK_FUNCS(feclearexcept fegetexceptflag feraiseexcept fesetexceptflag fetestexcept)
@@ -901,16 +906,16 @@ dnl Print summary.
 echo
 echo Basilisk II configuration summary:
 echo
-echo XFree86 DGA support .............. : $WANT_XF86_DGA
-echo XFree86 VidMode support .......... : $WANT_XF86_VIDMODE
-echo fbdev DGA support ................ : $WANT_FBDEV_DGA
-echo Enable video on SEGV signals ..... : $WANT_VOSF
-echo ESD sound support ................ : $WANT_ESD
-echo GTK user interface ............... : $WANT_GTK
-echo mon debugger support ............. : $WANT_MON
-echo Running m68k code natively ....... : $WANT_NATIVE_M68K
-echo Floating-Point emulation core .... : $FPE_CORE_STR
-echo Assembly optimizations ........... : $ASM_OPTIMIZATIONS
-echo Addressing mode .................. : $ADDRESSING_MODE
+echo XFree86 DGA support .................... : $WANT_XF86_DGA
+echo XFree86 VidMode support ................ : $WANT_XF86_VIDMODE
+echo fbdev DGA support ...................... : $WANT_FBDEV_DGA
+echo Enable video on SEGV signals ........... : $WANT_VOSF
+echo ESD sound support ...................... : $WANT_ESD
+echo GTK user interface ..................... : $WANT_GTK
+echo mon debugger support ................... : $WANT_MON
+echo Running m68k code natively ............. : $WANT_NATIVE_M68K
+echo Floating-Point emulation core .......... : $FPE_CORE_STR
+echo Assembly optimizations ................. : $ASM_OPTIMIZATIONS
+echo Addressing mode ........................ : $ADDRESSING_MODE
 echo
 echo "Configuration done. Now type \"make\" (or \"gmake\")."
