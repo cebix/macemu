@@ -52,6 +52,7 @@ static int32 frame_skip;
 static bool redraw_thread_active = false;	// Flag: Redraw thread installed
 static pthread_t redraw_thread;				// Redraw thread
 
+static bool local_X11;						// Flag: X server running on local machine?
 static volatile bool thread_stop_req = false;
 static volatile bool thread_stop_ack = false;	// Acknowledge for thread_stop_req
 
@@ -118,7 +119,8 @@ static int num_x_video_modes;
 static void *redraw_func(void *arg);
 
 
-// From main_linux.cpp
+// From main_unix.cpp
+extern char *x_display_name;
 extern Display *x_display;
 
 // From sys_unix.cpp
@@ -197,7 +199,7 @@ static bool open_window(int width, int height)
 
 	// Try to create and attach SHM image
 	have_shm = false;
-	if (depth != 1 && XShmQueryExtension(x_display)) {
+	if (local_X11 && depth != 1 && XShmQueryExtension(x_display)) {
 
 		// Create SHM image ("height + 2" for safety)
 		img = XShmCreateImage(x_display, vis, depth, depth == 1 ? XYBitmap : ZPixmap, 0, &shminfo, width, height);
@@ -597,6 +599,10 @@ bool VideoInit(void)
 	mainBuffer.pageInfo = NULL;
 #endif
 	
+	// Check if X server runs on local machine
+	local_X11 = (strncmp(XDisplayName(x_display_name), ":", 1) == 0)
+	         || (strncmp(XDisplayName(x_display_name), "unix:", 5) == 0);
+    
 	// Init variables
 	private_data = NULL;
 	cur_mode = 0;	// Window 640x480
@@ -612,7 +618,7 @@ bool VideoInit(void)
 #ifdef ENABLE_XF86_DGA
 	// DGA available?
     int event_base, error_base;
-    if (XF86DGAQueryExtension(x_display, &event_base, &error_base)) {
+    if (local_X11 && XF86DGAQueryExtension(x_display, &event_base, &error_base)) {
 		int dga_flags = 0;
 		XF86DGAQueryDirectVideo(x_display, screen, &dga_flags);
 		has_dga = dga_flags & XF86DGADirectPresent;
