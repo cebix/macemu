@@ -109,7 +109,7 @@ void * vm_acquire(size_t size)
 	return addr;
 #endif
 #endif
-	
+
 	// Explicitely protect the newly mapped region here because on some systems,
 	// say MacOS X, mmap() doesn't honour the requested protection flags.
 	if (vm_protect(addr, size, VM_PAGE_DEFAULT) != 0)

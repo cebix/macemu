@@ -67,7 +67,7 @@ using std::sort;
 #include "user_strings.h"
 #include "video.h"
 
-#define DEBUG 1
+#define DEBUG 0
 #include "debug.h"
 
 
@@ -340,7 +340,6 @@ static void set_mac_frame_buffer(video_depth depth, bool native_byte_order)
 	InitFrameBufferMapping();
 #else
 	VideoMonitor.mac_frame_base = Host2MacAddr(the_buffer);
-	D(bug("Host frame buffer = %p, ", the_buffer));
 #endif
 	D(bug("VideoMonitor.mac_frame_base = %08x\n", VideoMonitor.mac_frame_base));
 }
@@ -506,6 +505,10 @@ driver_base::~driver_base()
 	}
 #ifdef ENABLE_VOSF
 	else {
+		if (the_host_buffer) {
+			free(the_host_buffer);
+			the_host_buffer = NULL;
+		}
 		if (the_buffer != (uint8 *)VM_MAP_FAILED) {
 			vm_release(the_buffer, the_buffer_size);
 			the_buffer = NULL;
@@ -605,6 +608,7 @@ driver_window::driver_window(const video_mode &mode)
 		if (shm_error) {
 			shmdt(shminfo.shmaddr);
 			XDestroyImage(img);
+			img = NULL;
 			shminfo.shmid = -1;
 		} else {
 			have_shm = true;
@@ -630,9 +634,11 @@ driver_window::driver_window(const video_mode &mode)
 	the_buffer_size = page_extend((aligned_height + 2) * img->bytes_per_line);
 	the_buffer_copy = (uint8 *)vm_acquire(the_buffer_size);
 	the_buffer = (uint8 *)vm_acquire(the_buffer_size);
+	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
 #else
 	// Allocate memory for frame buffer
 	the_buffer = (uint8 *)malloc((aligned_height + 2) * img->bytes_per_line);
+	D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
 #endif
 
 	// Create GC
@@ -668,11 +674,19 @@ driver_window::driver_window(const video_mode &mode)
 // Close display
 driver_window::~driver_window()
 {
+	if (have_shm) {
+		XShmDetach(x_display, &shminfo);
+#ifdef ENABLE_VOSF
+		the_host_buffer = NULL;	// don't free() in driver_base dtor
+#else
+		the_buffer_copy = NULL; // don't free() in driver_base dtor
+#endif
+	}
 	if (img)
 		XDestroyImage(img);
 	if (have_shm) {
-		XShmDetach(x_display, &shminfo);
-		the_buffer_copy = NULL; // don't free() in driver_base dtor
+		shmdt(shminfo.shmaddr);
+		shmctl(shminfo.shmid, IPC_RMID, 0);
 	}
 	if (gc)
 		XFreeGC(x_display, gc);
