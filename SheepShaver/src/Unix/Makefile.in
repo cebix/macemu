@@ -38,7 +38,7 @@ SRCS = main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp sys_unix.cpp
     ../macos_util.cpp ../timer.cpp timer_unix.cpp ../xpram.cpp xpram_unix.cpp \
     ../adb.cpp ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp \
     ../gfxaccel.cpp ../video.cpp video_blit.cpp ../audio.cpp ../ether.cpp ../thunks.cpp \
-    ../serial.cpp ../extfs.cpp extfs_unix.cpp \
+    ../serial.cpp ../extfs.cpp \
     about_window_unix.cpp ../user_strings.cpp user_strings_unix.cpp \
     vm_alloc.cpp sigsegv.cpp \
     sshpty.c strlcpy.c $(SYSSRCS) $(CPUSRCS)
@@ -123,6 +123,8 @@ depend dep:
 $(OBJ_DIR)/%.o : %.c
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o : %.mm
 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.S
 	$(CPP) $(CPPFLAGS) -D__ASSEMBLY__ $< -o $*.s

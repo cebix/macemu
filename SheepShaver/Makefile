@@ -65,7 +65,9 @@ links:
 	       Unix/Darwin/lowmem.c Unix/Darwin/pagezero.c Unix/Darwin/testlmem.sh \
 	       dummy/audio_dummy.cpp dummy/clip_dummy.cpp \
 	       dummy/prefs_editor_dummy.cpp dummy/scsi_dummy.cpp SDL \
-	       MacOSX/sys_darwin.cpp MacOSX/clip_macosx.cpp'; \
+	       MacOSX/sys_darwin.cpp MacOSX/clip_macosx.cpp \
+	       MacOSX/macos_util_macosx.h MacOSX/extfs_macosx.h \
+	       MacOSX/extfs_macosx.mm'; \
 	PREFIX="`pwd`/"; case $(B2_TOPDIR) in /*) PREFIX="";; esac; \
 	for i in $$list; do \
 	  echo $$i; \
