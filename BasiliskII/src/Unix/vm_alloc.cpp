@@ -461,6 +461,14 @@ int vm_get_page_size(void)
 }
 
 #ifdef CONFIGURE_TEST_VM_MAP
+#include <stdlib.h>
+#include <signal.h>
+
+static void fault_handler(int sig)
+{
+	exit(1);
+}
+
 /* Tests covered here:
    - TEST_VM_PROT_* program slices actually succeeds when a crash occurs
    - TEST_VM_MAP_ANON* program slices succeeds when it could be compiled
@@ -468,6 +476,11 @@ int vm_get_page_size(void)
 int main(void)
 {
 	vm_init();
+
+	signal(SIGSEGV, fault_handler);
+#ifdef SIGBUS
+	signal(SIGBUS,  fault_handler);
+#endif
 	
 #define page_align(address) ((char *)((unsigned long)(address) & -page_size))
 	unsigned long page_size = vm_get_page_size();
