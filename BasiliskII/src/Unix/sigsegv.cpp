@@ -754,6 +754,10 @@ static bool ix86_skip_instruction(unsigned long * regs)
 
 	if (eip == 0)
 		return false;
+#ifdef _WIN32
+	if (IsBadCodePtr((FARPROC)eip))
+		return false;
+#endif
 	
 	transfer_type_t transfer_type = SIGSEGV_TRANSFER_UNKNOWN;
 	transfer_size_t transfer_size = SIZE_LONG;
@@ -1514,12 +1518,11 @@ static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 		break;
 #endif
 	case SIGSEGV_RETURN_FAILURE:
-		return false;
+		// We can't do anything with the fault_address, dump state?
+		if (sigsegv_state_dumper != 0)
+			sigsegv_state_dumper(fault_address, fault_instruction);
+		break;
 	}
-        
-        // We can't do anything with the fault_address, dump state?
-	if (sigsegv_state_dumper != 0)
-		sigsegv_state_dumper(fault_address, fault_instruction);
 
 	return false;
 }
