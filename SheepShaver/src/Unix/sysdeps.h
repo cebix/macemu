@@ -249,15 +249,14 @@ static inline int testandset(volatile int *p)
 }
 #endif
 
-#ifdef __i386__
+#if defined(__i386__) || defined(__x86_64__)
 #define HAVE_TEST_AND_SET 1
 static inline int testandset(volatile int *p)
 {
-	int ret;
-	long int readval;
+	long int ret;
 	/* Note: the "xchg" instruction does not need a "lock" prefix */
-	__asm__ __volatile__("xchgl %0, %1"
-						 : "=r" (ret), "=m" (*p), "=a" (readval)
+	__asm__ __volatile__("xchgl %k0, %1"
+						 : "=r" (ret), "=m" (*p)
 						 : "0" (1), "m" (*p)
 						 : "memory");
 	return ret;
