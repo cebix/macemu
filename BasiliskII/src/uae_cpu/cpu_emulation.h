@@ -44,8 +44,8 @@ extern uint32 ROMSize;			// Size of ROM
 const uint32 MacFrameBaseMac = 0xa0000000;
 extern uint8 *MacFrameBaseHost;	// Frame buffer base (host address space)
 extern uint32 MacFrameSize;		// Size of frame buffer
-extern int MacFrameLayout;		// Frame buffer layout (see defines below)
 #endif
+extern int MacFrameLayout;		// Frame buffer layout (see defines below)
 
 // Possible frame buffer layouts
 enum {
@@ -57,15 +57,6 @@ enum {
 };
 
 // Mac memory access functions
-#if REAL_ADDRESSING
-static inline uint32 ReadMacInt32(uint32 addr) {return ntohl(*(uint32 *)addr);}
-static inline uint32 ReadMacInt16(uint32 addr) {return ntohs(*(uint16 *)addr);}
-static inline uint32 ReadMacInt8(uint32 addr) {return *(uint8 *)addr;}
-static inline void WriteMacInt32(uint32 addr, uint32 l) {*(uint32 *)addr = htonl(l);}
-static inline void WriteMacInt16(uint32 addr, uint32 w) {*(uint16 *)addr = htons(w);}
-static inline void WriteMacInt8(uint32 addr, uint32 b) {*(uint8 *)addr = b;}
-static inline uint8 *Mac2HostAddr(uint32 addr) {return (uint8 *)addr;}
-#else
 #include "memory.h"
 static inline uint32 ReadMacInt32(uint32 addr) {return get_long(addr);}
 static inline uint32 ReadMacInt16(uint32 addr) {return get_word(addr);}
@@ -74,7 +65,8 @@ static inline void WriteMacInt32(uint32 addr, uint32 l) {put_long(addr, l);}
 static inline void WriteMacInt16(uint32 addr, uint32 w) {put_word(addr, w);}
 static inline void WriteMacInt8(uint32 addr, uint32 b) {put_byte(addr, b);}
 static inline uint8 *Mac2HostAddr(uint32 addr) {return get_real_address(addr);}
-#endif
+static inline uint32 Host2MacAddr(uint8 *addr) {return get_virtual_address(addr);}
+
 static inline void *Mac_memset(uint32 addr, int c, size_t n) {return memset(Mac2HostAddr(addr), c, n);}
 static inline void *Mac2Host_memcpy(void *dest, uint32 src, size_t n) {return memcpy(dest, Mac2HostAddr(src), n);}
 static inline void *Host2Mac_memcpy(uint32 dest, const void *src, size_t n) {return memcpy(Mac2HostAddr(dest), src, n);}
