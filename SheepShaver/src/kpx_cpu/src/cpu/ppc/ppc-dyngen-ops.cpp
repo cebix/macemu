@@ -384,6 +384,11 @@ void OPPROTO op_mtcrf_T0_im(void)
  *		Native FP operations optimization
  **/
 
+#if defined(__i386__)
+#define do_fabs(x)				({ double y; asm volatile ("fabs" : "=t" (y) : "0" (x)); y; })
+#define do_fneg(x)				({ double y; asm volatile ("fchs" : "=t" (y) : "0" (x)); y; })
+#endif
+
 #ifndef do_fabs
 #define do_fabs(x)				fabs(x)
 #endif
@@ -402,17 +407,17 @@ void OPPROTO op_mtcrf_T0_im(void)
 #ifndef do_fmul
 #define do_fmul(x, y)			(x * y)
 #endif
-#ifndef do_fnabs
-#define do_fnabs(x)				-fabs(x)
-#endif
 #ifndef do_fneg
 #define do_fneg(x)				-x
 #endif
+#ifndef do_fnabs
+#define do_fnabs(x)				do_fneg(do_fabs(x))
+#endif
 #ifndef do_fnmadd
-#define do_fnmadd(x, y, z)		-((x * y) + z)
+#define do_fnmadd(x, y, z)		do_fneg((x * y) + z)
 #endif
 #ifndef do_fnmsub
-#define do_fnmsub(x, y, z)		-((x * y) - z)
+#define do_fnmsub(x, y, z)		do_fneg((x * y) - z)
 #endif
 #ifndef do_fsub
 #define do_fsub(x, y)			x - y
@@ -446,10 +451,10 @@ DEFINE_OP(fabs_FD_F0, FD = do_fabs(F0));
 DEFINE_OP(fneg_FD_F0, FD = do_fneg(F0));
 DEFINE_OP(fnabs_FD_F0, FD = do_fnabs(F0));
 
-DEFINE_OP(fadd_FD_F0_F1, FD = F0 + F1);
-DEFINE_OP(fsub_FD_F0_F1, FD = F0 - F1);
-DEFINE_OP(fmul_FD_F0_F1, FD = F0 * F1);
-DEFINE_OP(fdiv_FD_F0_F1, FD = F0 / F1);
+DEFINE_OP(fadd_FD_F0_F1, FD = do_fadd(F0, F1));
+DEFINE_OP(fsub_FD_F0_F1, FD = do_fsub(F0, F1));
+DEFINE_OP(fmul_FD_F0_F1, FD = do_fmul(F0, F1));
+DEFINE_OP(fdiv_FD_F0_F1, FD = do_fdiv(F0, F1));
 DEFINE_OP(fmadd_FD_F0_F1_F2, FD = do_fmadd(F0, F1, F2));
 DEFINE_OP(fmsub_FD_F0_F1_F2, FD = do_fmsub(F0, F1, F2));
 DEFINE_OP(fnmadd_FD_F0_F1_F2, FD = do_fnmadd(F0, F1, F2));
@@ -469,10 +474,10 @@ void OPPROTO op_##NAME(void)					\
 	REG = x;									\
 }
 
-DEFINE_OP(fadds_FD_F0_F1, FD, F0 + F1);
-DEFINE_OP(fsubs_FD_F0_F1, FD, F0 - F1);
-DEFINE_OP(fmuls_FD_F0_F1, FD, F0 * F1);
-DEFINE_OP(fdivs_FD_F0_F1, FD, F0 / F1);
+DEFINE_OP(fadds_FD_F0_F1, FD, do_fadd(F0, F1));
+DEFINE_OP(fsubs_FD_F0_F1, FD, do_fsub(F0, F1));
+DEFINE_OP(fmuls_FD_F0_F1, FD, do_fmul(F0, F1));
+DEFINE_OP(fdivs_FD_F0_F1, FD, do_fdiv(F0, F1));
 DEFINE_OP(fmadds_FD_F0_F1_F2, FD, do_fmadd(F0, F1, F2));
 DEFINE_OP(fmsubs_FD_F0_F1_F2, FD, do_fmsub(F0, F1, F2));
 DEFINE_OP(fnmadds_FD_F0_F1_F2, FD, do_fnmadd(F0, F1, F2));
