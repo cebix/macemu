@@ -52,6 +52,7 @@ extern "C" {
 #define VM_MAP_PRIVATE			0x02
 #define VM_MAP_FIXED			0x04
 #define VM_MAP_32BIT			0x08
+#define VM_MAP_33BIT			0x10
 
 /* Default mapping options.  */
 #define VM_MAP_DEFAULT			(VM_MAP_PRIVATE)

@@ -192,6 +192,7 @@ static void *redraw_func(void *arg);
 // From main_unix.cpp
 extern char *x_display_name;
 extern Display *x_display;
+extern void *vm_acquire_mac(size_t size);
 
 // From sys_unix.cpp
 extern void SysMountFirstFloppy(void);
@@ -730,7 +731,7 @@ driver_window::driver_window(X11_monitor_desc &m)
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	the_host_buffer = the_buffer_copy;
 	the_buffer_size = page_extend((aligned_height + 2) * img->bytes_per_line);
-	the_buffer = (uint8 *)vm_acquire(the_buffer_size);
+	the_buffer = (uint8 *)vm_acquire_mac(the_buffer_size);
 	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
 #else
@@ -1126,7 +1127,7 @@ driver_fbdev::driver_fbdev(X11_monitor_desc &m) : driver_dga(m)
 	  the_host_buffer = the_buffer;
 	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
 	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
-	  the_buffer = (uint8 *)vm_acquire(the_buffer_size);
+	  the_buffer = (uint8 *)vm_acquire_mac(the_buffer_size);
 	}
 #else
 	use_vosf = false;
@@ -1266,7 +1267,7 @@ driver_xf86dga::driver_xf86dga(X11_monitor_desc &m)
 	  the_host_buffer = the_buffer;
 	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
 	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
-	  the_buffer = (uint8 *)vm_acquire(the_buffer_size);
+	  the_buffer = (uint8 *)vm_acquire_mac(the_buffer_size);
 	}
 #else
 	use_vosf = false;
