@@ -388,7 +388,7 @@ void ADBInterrupt(void)
 			r.a[0] = ReadMacInt32(mouse_base + 4);
 			r.d[0] = mx;
 			r.d[1] = my;
-			Execute68k((uint32)proc, &r);
+			Execute68k(Host2MacAddr((uint8 *)proc), &r);
 #else
 			WriteMacInt16(0x82a, mx);
 			WriteMacInt16(0x828, my);

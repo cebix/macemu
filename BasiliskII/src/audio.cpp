@@ -633,7 +633,7 @@ int16 SoundInStatus(uint32 pb, uint32 dce)
 				0x70, 0x01,							//	moveq	#1,d0
 				M68K_RTS >> 8, M68K_RTS & 0xff
 			};
-			Execute68k((uint32)proc, &r);
+			Execute68k(Host2MacAddr((uint8 *)proc), &r);
 			if (r.d[0]) {
 				param[0] = 4;		// Length of returned data
 				param[1] = r.a[2];	// Handle to icon suite
