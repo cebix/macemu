@@ -36,11 +36,12 @@ enum {
 class basic_spcflags
 {
 	uint32 mask;
+	spinlock_t lock;
 
 public:
 
 	basic_spcflags()
-		: mask(0)
+		: mask(0), lock(SPIN_LOCK_UNLOCKED)
 		{ }
 
 	bool empty() const
@@ -50,16 +51,16 @@ public:
 		{ return (mask & v); }
 
 	void init(uint32 v)
-		{ mask = v; }
+		{ spin_lock(&lock); mask = v; spin_unlock(&lock); }
 
 	uint32 get() const
 		{ return mask; }
 
 	void set(uint32 v)
-		{ mask |= v; }
+		{ spin_lock(&lock); mask |= v; spin_unlock(&lock); }
 
 	void clear(uint32 v)
-		{ mask &= ~v; }
+		{ spin_lock(&lock); mask &= ~v; spin_unlock(&lock); }
 };
 
 #endif /* SPCFLAGS_H */
