@@ -1,6 +1,8 @@
 V0.9 - <insert date here>
 	- added help for command line arguments, PrefsInit() now removes
 	  all processed options
+	- serial_unix.cpp: input/output_thread_cancel weren't initialized
+	  [Kolja Waschk]
 	- Unix: some performance improvements to VOSF screen update code
 	  [Brian J. Johnson]
 	- Unix: -Ofast option is supplied to MIPSPro compiler [Brian J. Johnson]

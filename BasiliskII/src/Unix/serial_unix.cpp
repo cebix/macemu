@@ -208,6 +208,8 @@ int16 XSERDPort::open(uint16 config)
 	configure(config);
 
 	// Start input/output threads
+	input_thread_cancel = false;
+	output_thread_cancel = false;
 	if (sem_init(&input_signal, 0, 0) < 0)
 		goto open_error;
 	if (sem_init(&output_signal, 0, 0) < 0)
