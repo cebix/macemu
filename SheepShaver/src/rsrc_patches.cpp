@@ -490,6 +490,8 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 
 #ifdef __BEOS__
 static
+#else
+extern "C"
 #endif
 void check_load_invoc(uint32 type, int16 id, uint16 **h)
 {

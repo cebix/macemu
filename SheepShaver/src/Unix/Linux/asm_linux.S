@@ -400,7 +400,7 @@ jump_to_rom:
 	lwz	r13,XLM_TOC(r0)
 	addi	r3,r1,8
 	mr	r4,r24
-	bl	EmulOp__FP13M68kRegistersUii
+	bl	EmulOp
 
 	// Restore 68k registers (M68kRegisters)
 	lwz	r8,8+0*4(r1)	// d[0]..d[7]
@@ -705,7 +705,7 @@ get_resource:
 	lwz	r3,56(r1)
 	lwz	r4,56+4(r1)
 	lwz	r5,56+8(r1)
-	bl	check_load_invoc__FUisPPUs
+	bl	check_load_invoc
 	lwz	r3,56+8(r1)		// Restore handle
 
 	// Return to caller
@@ -736,7 +736,7 @@ get_1_resource:
 	lwz	r3,56(r1)
 	lwz	r4,56+4(r1)
 	lwz	r5,56+8(r1)
-	bl	check_load_invoc__FUisPPUs
+	bl	check_load_invoc
 	lwz	r3,56+8(r1)		// Restore handle
 
 	// Return to caller
@@ -767,7 +767,7 @@ get_ind_resource:
 	lwz	r3,56(r1)
 	lwz	r4,56+4(r1)
 	lwz	r5,56+8(r1)
-	bl	check_load_invoc__FUisPPUs
+	bl	check_load_invoc
 	lwz	r3,56+8(r1)		// Restore handle
 
 	// Return to caller
@@ -798,7 +798,7 @@ get_1_ind_resource:
 	lwz	r3,56(r1)
 	lwz	r4,56+4(r1)
 	lwz	r5,56+8(r1)
-	bl	check_load_invoc__FUisPPUs
+	bl	check_load_invoc
 	lwz	r3,56+8(r1)		// Restore handle
 
 	// Return to caller
@@ -829,7 +829,7 @@ r_get_resource:
 	lwz	r3,56(r1)
 	lwz	r4,56+4(r1)
 	lwz	r5,56+8(r1)
-	bl	check_load_invoc__FUisPPUs
+	bl	check_load_invoc
 	lwz	r3,56+8(r1)		// Restore handle
 
 	// Return to caller

@@ -103,6 +103,6 @@ const uint16 M68K_EMUL_OP_EXTFS_COMM = M68K_EMUL_BREAK + OP_EXTFS_COMM;
 const uint16 M68K_EMUL_OP_EXTFS_HFS = M68K_EMUL_BREAK + OP_EXTFS_HFS;
 const uint16 M68K_EMUL_OP_IDLE_TIME = M68K_EMUL_BREAK + OP_IDLE_TIME;
 
-extern void EmulOp(M68kRegisters *r, uint32 pc, int selector);
+extern "C" void EmulOp(M68kRegisters *r, uint32 pc, int selector);
 
 #endif
