@@ -122,13 +122,19 @@ static Colormap cmap[2];							// Two colormaps (DGA) for 8-bit mode
 static XColor black, white;
 static unsigned long black_pixel, white_pixel;
 static int eventmask;
-static const int win_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | EnterWindowMask | FocusChangeMask | ExposureMask;
-static const int dga_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
+static const int win_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | EnterWindowMask | ExposureMask | StructureNotifyMask;
+static const int dga_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | StructureNotifyMask;
+static Atom WM_DELETE_WINDOW = (Atom)0;
 
 static XColor palette[256];							// Color palette for 8-bit mode
 static bool palette_changed = false;				// Flag: Palette changed, redraw thread must set new colors
 #ifdef HAVE_PTHREADS
 static pthread_mutex_t palette_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect palette
+#define LOCK_PALETTE pthread_mutex_lock(&palette_lock)
+#define UNLOCK_PALETTE pthread_mutex_unlock(&palette_lock)
+#else
+#define LOCK_PALETTE
+#define UNLOCK_PALETTE
 #endif
 
 // Variables for window mode
@@ -149,6 +155,11 @@ static Window suspend_win;							// "Suspend" window
 static void *fb_save = NULL;						// Saved frame buffer for suspend
 #ifdef HAVE_PTHREADS
 static pthread_mutex_t frame_buffer_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer
+#define LOCK_FRAME_BUFFER pthread_mutex_lock(&frame_buffer_lock);
+#define UNLOCK_FRAME_BUFFER pthread_mutex_unlock(&frame_buffer_lock);
+#else
+#define LOCK_FRAME_BUFFER
+#define UNLOCK_FRAME_BUFFER
 #endif
 
 // Variables for fbdev DGA mode
@@ -168,12 +179,10 @@ static const bool use_vosf = false;					// Flag: VOSF enabled
 #endif
 
 #ifdef ENABLE_VOSF
-static uint8 * the_host_buffer;						// Host frame buffer in VOSF mode
-static uint32 the_buffer_size;						// Size of allocated the_buffer
-#endif
-
-#ifdef ENABLE_VOSF
 // Variables for Video on SEGV support (taken from the Win32 port)
+static uint8 *the_host_buffer;						// Host frame buffer in VOSF mode
+static uint32 the_buffer_size;						// Size of allocated the_buffer
+
 struct ScreenPageInfo {
     int top, bottom;			// Mapping between this virtual page and Mac scanlines
 };
@@ -215,7 +224,12 @@ static bool Screen_fault_handler_init();
 static struct sigaction vosf_sa;
 
 #ifdef HAVE_PTHREADS
-static pthread_mutex_t Screen_draw_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer (dirtyPages in fact)
+static pthread_mutex_t vosf_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer (dirtyPages in fact)
+#define LOCK_VOSF pthread_mutex_lock(&vosf_lock);
+#define UNLOCK_VOSF pthread_mutex_unlock(&vosf_lock);
+#else
+#define LOCK_VOSF
+#define UNLOCK_VOSF
 #endif
 
 static int log_base_2(uint32 x)
@@ -237,7 +251,7 @@ static void (*video_refresh)(void);
 
 // Prototypes
 static void *redraw_func(void *arg);
-static int event2keycode(XKeyEvent *ev);
+static int event2keycode(XKeyEvent &ev);
 
 
 // From main_unix.cpp
@@ -307,6 +321,60 @@ void set_video_monitor(int width, int height, int bytes_per_row, bool native_byt
 	VideoMonitor.bytes_per_row = bytes_per_row;
 }
 
+// Set window name and class
+static void set_window_name(Window w, int name)
+{
+	const char *str = GetString(name);
+	XStoreName(x_display, w, str);
+	XSetIconName(x_display, w, str);
+
+	XClassHint *hints;
+	hints = XAllocClassHint();
+	if (hints) {
+		hints->res_name = "BasiliskII";
+		hints->res_class = "BasiliskII";
+		XSetClassHint(x_display, w, hints);
+		XFree((char *)hints);
+	}
+}
+
+// Set window input focus flag
+static void set_window_focus(Window w)
+{
+	XWMHints *hints = XAllocWMHints();
+	if (hints) {
+		hints->input = True;
+		hints->initial_state = NormalState;
+		hints->flags = InputHint | StateHint;
+		XSetWMHints(x_display, w, hints);
+		XFree((char *)hints);
+	}
+}
+
+// Set WM_DELETE_WINDOW protocol on window (preventing it from being destroyed by the WM when clicking on the "close" widget)
+static void set_window_delete_protocol(Window w)
+{
+	WM_DELETE_WINDOW = XInternAtom(x_display, "WM_DELETE_WINDOW", false);
+	XSetWMProtocols(x_display, w, &WM_DELETE_WINDOW, 1);
+}
+
+// Wait until window is mapped/unmapped
+void wait_mapped(Window w)
+{
+	XEvent e;
+	do {
+		XMaskEvent(x_display, StructureNotifyMask, &e);
+	} while ((e.type != MapNotify) || (e.xmap.event != w));
+}
+
+void wait_unmapped(Window w)
+{
+	XEvent e;
+	do {
+		XMaskEvent(x_display, StructureNotifyMask, &e);
+	} while ((e.type != UnmapNotify) || (e.xmap.event != w));
+}
+
 // Trap SHM errors
 static bool shm_error = false;
 static int (*old_error_handler)(Display *, XErrorEvent *);
@@ -336,21 +404,19 @@ static bool init_window(int width, int height)
 	XSetWindowAttributes wattr;
 	wattr.event_mask = eventmask = win_eventmask;
 	wattr.background_pixel = black_pixel;
+	wattr.colormap = cmap[0];
 
-	XSync(x_display, false);
 	the_win = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
-		InputOutput, vis, CWEventMask | CWBackPixel, &wattr);
+		InputOutput, vis, CWEventMask | CWBackPixel | (depth == 8 ? CWColormap : 0), &wattr);
+
+	// Set window name/class
+	set_window_name(the_win, STR_WINDOW_TITLE);
 
 	// Indicate that we want keyboard input
-	{
-		XWMHints *hints = XAllocWMHints();
-		if (hints) {
-			hints->input = True;
-			hints->flags = InputHint;
-			XSetWMHints(x_display, the_win, hints);
-			XFree((char *)hints);
-		}
-	}
+	set_window_focus(the_win);
+
+	// Set delete protocol property
+	set_window_delete_protocol(the_win);
 
 	// Make window unresizable
 	{
@@ -366,29 +432,9 @@ static bool init_window(int width, int height)
 		}
 	}
 	
-	// Set window title
-	XStoreName(x_display, the_win, GetString(STR_WINDOW_TITLE));
-
-	// Set window class
-	{
-		XClassHint *hints;
-		hints = XAllocClassHint();
-		if (hints) {
-			hints->res_name = "BasiliskII";
-			hints->res_class = "BasiliskII";
-			XSetClassHint(x_display, the_win, hints);
-			XFree((char *)hints);
-		}
-	}
-
 	// Show window
-	XSync(x_display, false);
-	XMapRaised(x_display, the_win);
-	XFlush(x_display);
-
-	// Set colormap
-	if (depth == 8)
-		XSetWindowColormap(x_display, the_win, cmap[0]);
+	XMapWindow(x_display, the_win);
+	wait_mapped(the_win);
 
 	// Try to create and attach SHM image
 	have_shm = false;
@@ -561,19 +607,26 @@ static bool init_fbdev_dga(char *in_fb_name)
 	
 	// Create window
 	XSetWindowAttributes wattr;
-	wattr.event_mask		= eventmask = dga_eventmask;
-	wattr.background_pixel	= white_pixel;
-	wattr.override_redirect	= True;
+	wattr.event_mask = eventmask = dga_eventmask;
+	wattr.background_pixel = white_pixel;
+	wattr.override_redirect = True;
+	wattr.colormap = cmap[0];
 	
-	XSync(x_display, false);
 	the_win = XCreateWindow(x_display, rootwin,
 		0, 0, width, height,
 		0, xdepth, InputOutput, vis,
-		CWEventMask | CWBackPixel | CWOverrideRedirect,
+		CWEventMask | CWBackPixel | CWOverrideRedirect | (depth == 8 ? CWColormap : 0),
 		&wattr);
-	XSync(x_display, false);
+
+	// Set window name/class
+	set_window_name(the_win, STR_WINDOW_TITLE);
+
+	// Indicate that we want keyboard input
+	set_window_focus(the_win);
+
+	// Show window
 	XMapRaised(x_display, the_win);
-	XSync(x_display, false);
+	wait_mapped(the_win);
 	
 	// Grab mouse and keyboard
 	XGrabKeyboard(x_display, the_win, True,
@@ -581,10 +634,6 @@ static bool init_fbdev_dga(char *in_fb_name)
 	XGrabPointer(x_display, the_win, True,
 		PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
 		GrabModeAsync, GrabModeAsync, the_win, None, CurrentTime);
-	
-	// Set colormap
-	if (depth == 8)
-		XSetWindowColormap(x_display, the_win, cmap[0]);
 	
 	// Set VideoMonitor
 	int bytes_per_row = width;
@@ -665,6 +714,7 @@ static bool init_xf86_dga(int width, int height)
 		}
 		XF86VidModeSwitchToMode(x_display, screen, x_video_modes[best]);
 		XF86VidModeSetViewPort(x_display, screen, 0, 0);
+		XSync(x_display, false);
 	}
 #endif
 
@@ -673,13 +723,18 @@ static bool init_xf86_dga(int width, int height)
 	wattr.event_mask = eventmask = dga_eventmask;
 	wattr.override_redirect = True;
 
-	XSync(x_display, false);
 	the_win = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
 		InputOutput, vis, CWEventMask | CWOverrideRedirect, &wattr);
-	XSync(x_display, false);
-	XStoreName(x_display, the_win, GetString(STR_WINDOW_TITLE));
+
+	// Set window name/class
+	set_window_name(the_win, STR_WINDOW_TITLE);
+
+	// Indicate that we want keyboard input
+	set_window_focus(the_win);
+
+	// Show window
 	XMapRaised(x_display, the_win);
-	XSync(x_display, false);
+	wait_mapped(the_win);
 
 	// Establish direct screen connection
 	XMoveResizeWindow(x_display, the_win, 0, 0, width, height);
@@ -698,6 +753,7 @@ static bool init_xf86_dga(int width, int height)
 		XSetWindowColormap(x_display, the_win, cmap[current_dga_cmap = 0]);
 		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
 	}
+	XSync(x_display, false);
 
 	// Set VideoMonitor
 	int bytes_per_row = (v_width + 7) & ~7;
@@ -1036,10 +1092,8 @@ bool VideoInit(bool classic)
 			break;
 	}
 
-#ifdef HAVE_PTHREADS
 	// Lock down frame buffer
-	pthread_mutex_lock(&frame_buffer_lock);
-#endif
+	LOCK_FRAME_BUFFER;
 
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 	// Set variables for UAE memory mapping
@@ -1104,10 +1158,8 @@ void VideoExit(void)
 	}
 #endif
 
-#ifdef HAVE_PTHREADS
 	// Unlock frame buffer
-	pthread_mutex_unlock(&frame_buffer_lock);
-#endif
+	UNLOCK_FRAME_BUFFER;
 
 	// Close window and server connection
 	if (x_display != NULL) {
@@ -1210,12 +1262,10 @@ void VideoInterrupt(void)
 	if (emerg_quit)
 		QuitEmulator();
 
-#ifdef HAVE_PTHREADS
 	// Temporarily give up frame buffer lock (this is the point where
 	// we are suspended when the user presses Ctrl-Tab)
-	pthread_mutex_unlock(&frame_buffer_lock);
-	pthread_mutex_lock(&frame_buffer_lock);
-#endif
+	UNLOCK_FRAME_BUFFER;
+	LOCK_FRAME_BUFFER;
 }
 
 
@@ -1225,9 +1275,7 @@ void VideoInterrupt(void)
 
 void video_set_palette(uint8 *pal)
 {
-#ifdef HAVE_PTHREADS
-	pthread_mutex_lock(&palette_lock);
-#endif
+	LOCK_PALETTE;
 
 	// Convert colors to XColor array
 	for (int i=0; i<256; i++) {
@@ -1241,9 +1289,7 @@ void video_set_palette(uint8 *pal)
 	// Tell redraw thread to change palette
 	palette_changed = true;
 
-#ifdef HAVE_PTHREADS
-	pthread_mutex_unlock(&palette_lock);
-#endif
+	UNLOCK_PALETTE;
 }
 
 
@@ -1259,10 +1305,8 @@ static void suspend_emul(void)
 		ADBKeyUp(0x36);
 		ctrl_down = false;
 
-#ifdef HAVE_PTHREADS
 		// Lock frame buffer (this will stop the MacOS thread)
-		pthread_mutex_lock(&frame_buffer_lock);
-#endif
+		LOCK_FRAME_BUFFER;
 
 		// Save frame buffer
 		fb_save = malloc(VideoMonitor.y * VideoMonitor.bytes_per_row);
@@ -1276,24 +1320,18 @@ static void suspend_emul(void)
 		XUngrabPointer(x_display, CurrentTime);
 		XUngrabKeyboard(x_display, CurrentTime);
 		XUnmapWindow(x_display, the_win);
-		XSync(x_display, false);
+		wait_unmapped(the_win);
 
 		// Open "suspend" window
 		XSetWindowAttributes wattr;
 		wattr.event_mask = KeyPressMask;
 		wattr.background_pixel = black_pixel;
-		wattr.backing_store = WhenMapped;
-		wattr.backing_planes = xdepth;
-		wattr.colormap = DefaultColormap(x_display, screen);
 		
-		XSync(x_display, false);
 		suspend_win = XCreateWindow(x_display, rootwin, 0, 0, 512, 1, 0, xdepth,
-			InputOutput, vis, CWEventMask | CWBackPixel | CWBackingStore |
-			CWBackingPlanes | (xdepth == 8 ? CWColormap : 0), &wattr);
-		XSync(x_display, false);
-		XStoreName(x_display, suspend_win, GetString(STR_SUSPEND_WINDOW_TITLE));
-		XMapRaised(x_display, suspend_win);
-		XSync(x_display, false);
+			InputOutput, vis, CWEventMask | CWBackPixel, &wattr);
+		set_window_name(suspend_win, STR_SUSPEND_WINDOW_TITLE);
+		set_window_focus(suspend_win);
+		XMapWindow(x_display, suspend_win);
 		emul_suspended = true;
 	}
 }
@@ -1306,8 +1344,8 @@ static void resume_emul(void)
 
 	// Reopen full screen display
 	XMapRaised(x_display, the_win);
+	wait_mapped(the_win);
 	XWarpPointer(x_display, None, rootwin, 0, 0, 0, 0, 0, 0);
-	XSync(x_display, false);
 	XGrabKeyboard(x_display, rootwin, 1, GrabModeAsync, GrabModeAsync, CurrentTime);
 	XGrabPointer(x_display, rootwin, 1, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
 #ifdef ENABLE_XF86_DGA
@@ -1321,13 +1359,9 @@ static void resume_emul(void)
 	// not necessary.
 #ifdef ENABLE_VOSF
 	if (use_vosf) {
-#ifdef HAVE_PTHREADS
-		pthread_mutex_lock(&Screen_draw_lock);
-#endif
+		LOCK_VOSF;
 		PFLAG_SET_ALL;
-#ifdef HAVE_PTHREADS
-		pthread_mutex_unlock(&Screen_draw_lock);
-#endif
+		UNLOCK_VOSF;
 		memset(the_buffer_copy, 0, VideoMonitor.bytes_per_row * VideoMonitor.y);
 	}
 #endif
@@ -1348,11 +1382,9 @@ static void resume_emul(void)
 		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
 #endif
 
-#ifdef HAVE_PTHREADS
 	// Unlock frame buffer (and continue MacOS thread)
-	pthread_mutex_unlock(&frame_buffer_lock);
+	UNLOCK_FRAME_BUFFER;
 	emul_suspended = false;
-#endif
 }
 #endif
 
@@ -1506,14 +1538,14 @@ static int kc_decode(KeySym ks)
 	return -1;
 }
 
-static int event2keycode(XKeyEvent *ev)
+static int event2keycode(XKeyEvent &ev)
 {
 	KeySym ks;
 	int as;
 	int i = 0;
 
 	do {
-		ks = XLookupKeysym(ev, i++);
+		ks = XLookupKeysym(&ev, i++);
 		as = kc_decode(ks);
 		if (as != -1)
 			return as;
@@ -1529,15 +1561,14 @@ static int event2keycode(XKeyEvent *ev)
 
 static void handle_events(void)
 {
-	XEvent event;
-	for (;;) {
-		if (!XCheckMaskEvent(x_display, eventmask, &event))
-			break;
+	while (XPending(x_display)) {
+		XEvent event;
+		XNextEvent(x_display, &event);
 
 		switch (event.type) {
 			// Mouse button
 			case ButtonPress: {
-				unsigned int button = ((XButtonEvent *)&event)->button;
+				unsigned int button = event.xbutton.button;
 				if (button < 4)
 					ADBMouseDown(button - 1);
 				else if (button < 6) {	// Wheel mouse
@@ -1556,7 +1587,7 @@ static void handle_events(void)
 				break;
 			}
 			case ButtonRelease: {
-				unsigned int button = ((XButtonEvent *)&event)->button;
+				unsigned int button = event.xbutton.button;
 				if (button < 4)
 					ADBMouseUp(button - 1);
 				break;
@@ -1564,20 +1595,18 @@ static void handle_events(void)
 
 			// Mouse moved
 			case EnterNotify:
-				ADBMouseMoved(((XMotionEvent *)&event)->x, ((XMotionEvent *)&event)->y);
-				break;
 			case MotionNotify:
-				ADBMouseMoved(((XMotionEvent *)&event)->x, ((XMotionEvent *)&event)->y);
+				ADBMouseMoved(event.xmotion.x, event.xmotion.y);
 				break;
 
 			// Keyboard
 			case KeyPress: {
 				int code;
 				if (use_keycodes) {
-					event2keycode((XKeyEvent *)&event);	// This is called to process the hotkeys
-					code = keycode_table[((XKeyEvent *)&event)->keycode & 0xff];
+					event2keycode(event.xkey);	// This is called to process the hotkeys
+					code = keycode_table[event.xkey.keycode & 0xff];
 				} else
-					code = event2keycode((XKeyEvent *)&event);
+					code = event2keycode(event.xkey);
 				if (code != -1) {
 					if (!emul_suspended) {
 						if (code == 0x39) {	// Caps Lock pressed
@@ -1604,10 +1633,10 @@ static void handle_events(void)
 			case KeyRelease: {
 				int code;
 				if (use_keycodes) {
-					event2keycode((XKeyEvent *)&event);	// This is called to process the hotkeys
-					code = keycode_table[((XKeyEvent *)&event)->keycode & 0xff];
+					event2keycode(event.xkey);	// This is called to process the hotkeys
+					code = keycode_table[event.xkey.keycode & 0xff];
 				} else
-					code = event2keycode((XKeyEvent *)&event);
+					code = event2keycode(event.xkey);
 				if (code != -1 && code != 0x39) {	// Don't propagate Caps Lock releases
 					ADBKeyUp(code);
 					if (code == 0x36)
@@ -1621,13 +1650,9 @@ static void handle_events(void)
 				if (display_type == DISPLAY_WINDOW) {
 #ifdef ENABLE_VOSF
 					if (use_vosf) {			// VOSF refresh
-#ifdef HAVE_PTHREADS
-						pthread_mutex_lock(&Screen_draw_lock);
-#endif
+						LOCK_VOSF;
 						PFLAG_SET_ALL;
-#ifdef HAVE_PTHREADS
-						pthread_mutex_unlock(&Screen_draw_lock);
-#endif
+						UNLOCK_VOSF;
 						memset(the_buffer_copy, 0, VideoMonitor.bytes_per_row * VideoMonitor.y);
 					}
 					else
@@ -1643,8 +1668,10 @@ static void handle_events(void)
 				}
 				break;
 
-			case FocusIn:
-			case FocusOut:
+			// Window "close" widget clicked
+			case ClientMessage:
+				if (event.xclient.format == 32 && event.xclient.data.l[0] == WM_DELETE_WINDOW)
+					XBell(x_display, 0);
 				break;
 		}
 	}
@@ -1902,14 +1929,14 @@ static inline void possibly_quit_dga_mode()
 
 static inline void handle_palette_changes(int depth, int display_type)
 {
-#ifdef HAVE_PTHREADS
-	pthread_mutex_lock(&palette_lock);
-#endif
+	LOCK_PALETTE;
+
 	if (palette_changed) {
 		palette_changed = false;
 		if (depth == 8) {
 			XStoreColors(x_display, cmap[0], palette, 256);
 			XStoreColors(x_display, cmap[1], palette, 256);
+			XSync(x_display, false);
 				
 #ifdef ENABLE_XF86_DGA
 			if (display_type == DISPLAY_DGA) {
@@ -1919,9 +1946,8 @@ static inline void handle_palette_changes(int depth, int display_type)
 #endif
 		}
 	}
-#ifdef HAVE_PTHREADS
-	pthread_mutex_unlock(&palette_lock);
-#endif
+
+	UNLOCK_PALETTE;
 }
 
 static void video_refresh_dga(void)
@@ -1953,13 +1979,9 @@ static void video_refresh_dga_vosf(void)
 	static int tick_counter = 0;
 	if (++tick_counter >= frame_skip) {
 		tick_counter = 0;
-#ifdef HAVE_PTHREADS
-		pthread_mutex_lock(&Screen_draw_lock);
-#endif
+		LOCK_VOSF;
 		update_display_dga_vosf();
-#ifdef HAVE_PTHREADS
-		pthread_mutex_unlock(&Screen_draw_lock);
-#endif
+		UNLOCK_VOSF;
 	}
 }
 #endif
@@ -1979,13 +2001,9 @@ static void video_refresh_window_vosf(void)
 	static int tick_counter = 0;
 	if (++tick_counter >= frame_skip) {
 		tick_counter = 0;
-#ifdef HAVE_PTHREADS
-		pthread_mutex_lock(&Screen_draw_lock);
-#endif
+		LOCK_VOSF;
 		update_display_window_vosf();
-#ifdef HAVE_PTHREADS
-		pthread_mutex_unlock(&Screen_draw_lock);
-#endif
+		UNLOCK_VOSF;
 	}
 }
 #endif // def ENABLE_VOSF
@@ -2055,64 +2073,6 @@ void VideoRefresh(void)
 	video_refresh();
 }
 
-#if 0
-void VideoRefresh(void)
-{
-#if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
-	// Quit DGA mode if requested
-	if (quit_full_screen) {
-		quit_full_screen = false;
-		if (display_type == DISPLAY_DGA) {
-#ifdef ENABLE_XF86_DGA
-			XF86DGADirectVideo(x_display, screen, 0);
-#endif
-			XUngrabPointer(x_display, CurrentTime);
-			XUngrabKeyboard(x_display, CurrentTime);
-			XUnmapWindow(x_display, the_win);
-			XSync(x_display, false);
-		}
-	}
-#endif
-
-	// Handle X events
-	handle_events();
-
-	// Handle palette changes
-#ifdef HAVE_PTHREADS
-	pthread_mutex_lock(&palette_lock);
-#endif
-	if (palette_changed) {
-		palette_changed = false;
-		if (depth == 8) {
-			XStoreColors(x_display, cmap[0], palette, 256);
-			XStoreColors(x_display, cmap[1], palette, 256);
-				
-#ifdef ENABLE_XF86_DGA
-			if (display_type == DISPLAY_DGA) {
-				current_dga_cmap ^= 1;
-				XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
-			}
-#endif
-		}
-	}
-#ifdef HAVE_PTHREADS
-	pthread_mutex_unlock(&palette_lock);
-#endif
-
-	// In window mode, update display
-	static int tick_counter = 0;
-	if (display_type == DISPLAY_WINDOW) {
-		tick_counter++;
-		if (frame_skip == 0)
-			update_display_dynamic(tick_counter);
-		else if (tick_counter >= frame_skip) {
-			tick_counter = 0;
-			update_display_static();
-		}
-	}
-}
-#endif
-
 #ifdef HAVE_PTHREADS
 static void *redraw_func(void *arg)
 {
@@ -2120,7 +2080,6 @@ static void *redraw_func(void *arg)
 	int64 ticks = 0;
 	uint64 next = GetTicks_usec();
 	while (!redraw_thread_cancel) {
-//		VideoRefresh();
 		video_refresh();
 		next += 16667;
 		int64 delay = next - GetTicks_usec();

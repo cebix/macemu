@@ -249,14 +249,10 @@ static inline void do_handle_screen_fault(uintptr addr)
 	
 	const int page  = (addr - mainBuffer.memStart) >> mainBuffer.pageBits;
 	caddr_t page_ad = (caddr_t)(addr & ~(mainBuffer.pageSize - 1));
-#ifdef HAVE_PTHREADS
-	pthread_mutex_lock(&Screen_draw_lock);
-#endif
+	LOCK_VOSF;
 	PFLAG_SET(page);
 	mprotect(page_ad, mainBuffer.pageSize, PROT_READ | PROT_WRITE);
-#ifdef HAVE_PTHREADS
-	pthread_mutex_unlock(&Screen_draw_lock);
-#endif
+	UNLOCK_VOSF;
 }
 
 #if defined(HAVE_SIGINFO_T)
