@@ -1085,7 +1085,7 @@ static bool patch_68k_emul(void)
 	*lp++ = htonl(0x48000000 + 0x36fb00 - base - 8);	// b 0x36fb00 (Reset/FC1E opcode)
 	*lp++ = htonl(0x48000000 + 0x36fc00 - base - 12);	// FE0A opcode
 	*lp++ = htonl(POWERPC_ILLEGAL);						// Interrupt
-	*lp++ = htonl(POWERPC_ILLEGAL);						// ?
+	*lp++ = htonl(0x48000000 + 0x36fd00 - base - 20);	// FE0F opcode
 	*lp++ = htonl(POWERPC_ILLEGAL);
 	*lp++ = htonl(POWERPC_ILLEGAL);
 	*lp++ = htonl(POWERPC_ILLEGAL);
@@ -1254,6 +1254,36 @@ static bool patch_68k_emul(void)
 	*lp++ = htonl(0x50e7deb4);					// rlwimi	r7,r7,27,$00000020
 	*lp = htonl(0x4e800020);					// blr
 
+	// Extra routine for FE0F opcode (power management)
+	lp = (uint32 *)(ROMBaseHost + 0x36fd00);
+	*lp++ = htonl(0x7c2903a6);					// mtctr	r1
+	*lp++ = htonl(0x80200000 + XLM_IRQ_NEST);	// lwz		r1,XLM_IRQ_NEST
+	*lp++ = htonl(0x38210001);					// addi		r1,r1,1
+	*lp++ = htonl(0x90200000 + XLM_IRQ_NEST);	// stw		r1,XLM_IRQ_NEST
+	*lp++ = htonl(0x80200000 + XLM_KERNEL_DATA);// lwz		r1,XLM_KERNEL_DATA
+	*lp++ = htonl(0x90c10018);					// stw		r6,0x18(r1)
+	*lp++ = htonl(0x7cc902a6);					// mfctr	r6
+	*lp++ = htonl(0x90c10004);					// stw		r6,$0004(r1)
+	*lp++ = htonl(0x80c1065c);					// lwz		r6,$065c(r1)
+	*lp++ = htonl(0x90e6013c);					// stw		r7,$013c(r6)
+	*lp++ = htonl(0x91060144);					// stw		r8,$0144(r6)
+	*lp++ = htonl(0x9126014c);					// stw		r9,$014c(r6)
+	*lp++ = htonl(0x91460154);					// stw		r10,$0154(r6)
+	*lp++ = htonl(0x9166015c);					// stw		r11,$015c(r6)
+	*lp++ = htonl(0x91860164);					// stw		r12,$0164(r6)
+	*lp++ = htonl(0x91a6016c);					// stw		r13,$016c(r6)
+	*lp++ = htonl(0x7da00026);					// mfcr		r13
+	*lp++ = htonl(0x80e10660);					// lwz		r7,$0660(r1)
+	*lp++ = htonl(0x7d8802a6);					// mflr		r12
+	*lp++ = htonl(0x50e74001);					// rlwimi.	r7,r7,8,$80000000
+	*lp++ = htonl(0x81410604);					// lwz		r10,0x0604(r1)
+	*lp++ = htonl(0x7d4803a6);					// mtlr		r10
+	*lp++ = htonl(0x7d8a6378);					// mr		r10,r12
+	*lp++ = htonl(0x3d600002);					// lis		r11,0x0002
+	*lp++ = htonl(0x616bf072);					// ori		r11,r11,0xf072 (MSR)
+	*lp++ = htonl(0x50e7deb4);					// rlwimi	r7,r7,27,$00000020
+	*lp = htonl(0x4e800020);					// blr
+
 	// Patch DR emulator to jump to right address when an interrupt occurs
 	lp = (uint32 *)(ROMBaseHost + 0x370000);
 	while (lp < (uint32 *)(ROMBaseHost + 0x380000)) {
@@ -1381,6 +1411,14 @@ static bool patch_nanokernel(void)
 	*lp++ = htonl(POWERPC_NOP);
 	*lp++ = htonl(POWERPC_NOP);
 	*lp = htonl(POWERPC_NOP);
+
+	// Disable suspend (FE0F opcode)
+	// TODO: really suspend SheepShaver
+	static const uint8 suspend_dat[] = {0x7c, 0x88, 0x68, 0x39, 0x41, 0x9d};
+	if ((base = find_rom_data(0x315000, 0x316000, suspend_dat, sizeof(suspend_dat))) == 0) return false;
+	D(bug("suspend %08lx\n", base));
+	lp = (uint32 *)(ROMBaseHost + base + 8);
+	*lp = htonl((ntohl(*lp) & 0xffff) | 0x48000000);	// bgt -> b
 
 	// Patch trap return routine
 	static const uint8 trap_return_dat[] = {0x80, 0xc1, 0x00, 0x18, 0x80, 0x21, 0x00, 0x04, 0x4c, 0x00, 0x00, 0x64};
