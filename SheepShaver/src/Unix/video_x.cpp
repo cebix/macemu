@@ -82,6 +82,7 @@ static const bool use_vosf = false;			// VOSF not possible
 
 static bool palette_changed = false;		// Flag: Palette changed, redraw thread must update palette
 static bool ctrl_down = false;				// Flag: Ctrl key pressed
+static bool caps_on = false;				// Flag: Caps Lock on
 static bool quit_full_screen = false;		// Flag: DGA close requested from redraw thread
 static volatile bool quit_full_screen_ack = false;	// Acknowledge for quit_full_screen
 static bool emerg_quit = false;				// Flag: Ctrl-Esc pressed, emergency quit requested from MacOS thread
@@ -1484,16 +1485,17 @@ static int kc_decode(KeySym ks)
 	return -1;
 }
 
-static int event2keycode(XKeyEvent &ev)
+static int event2keycode(XKeyEvent &ev, bool key_down)
 {
 	KeySym ks;
-	int as;
 	int i = 0;
 
 	do {
 		ks = XLookupKeysym(&ev, i++);
-		as = kc_decode(ks);
-		if (as != -1)
+		int as = kc_decode(ks);
+		if (as >= 0)
+			return as;
+		if (as == -2)
 			return as;
 	} while (ks != NoSymbol);
 
@@ -1568,12 +1570,24 @@ static void handle_events(void)
 
 			// Keyboard
 			case KeyPress: {
-				int code = event2keycode(event.xkey);
-				if (use_keycodes && code != -1)
-					code = keycode_table[event.xkey.keycode & 0xff];
-				if (code != -1) {
+				int code = -1;
+				if (use_keycodes) {
+					if (event2keycode(event.xkey, true) != -2)	// This is called to process the hotkeys
+						code = keycode_table[event.xkey.keycode & 0xff];
+				} else
+					code = event2keycode(event.xkey, true);
+				if (code >= 0) {
 					if (!emul_suspended) {
-						ADBKeyDown(code);
+						if (code == 0x39) {	// Caps Lock pressed
+							if (caps_on) {
+								ADBKeyUp(code);
+								caps_on = false;
+							} else {
+								ADBKeyDown(code);
+								caps_on = true;
+							}
+						} else
+							ADBKeyDown(code);
 						if (code == 0x36)
 							ctrl_down = true;
 					} else {
@@ -1584,10 +1598,13 @@ static void handle_events(void)
 				break;
 			}
 			case KeyRelease: {
-				int code = event2keycode(event.xkey);
-				if (use_keycodes && code != 1)
-					code = keycode_table[event.xkey.keycode & 0xff];
-				if (code != -1) {
+				int code = -1;
+				if (use_keycodes) {
+					if (event2keycode(event.xkey, false) != -2)	// This is called to process the hotkeys
+						code = keycode_table[event.xkey.keycode & 0xff];
+				} else
+					code = event2keycode(event.xkey, false);
+				if (code >= 0 && code != 0x39) {	// Don't propagate Caps Lock releases
 					ADBKeyUp(code);
 					if (code == 0x36)
 						ctrl_down = false;
