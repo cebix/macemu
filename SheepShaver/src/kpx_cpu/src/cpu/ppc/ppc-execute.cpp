@@ -1101,7 +1101,6 @@ void powerpc_cpu::execute_mftbr(uint32 opcode)
 void powerpc_cpu::execute_invalidate_cache_range()
 {
 	if (cache_range.start != cache_range.end) {
-		D(bug("Invalidate Cache Block [%08x - %08x]\n", cache_range.start, cache_range.end));
 		invalidate_cache_range(cache_range.start, cache_range.end);
 		cache_range.start = cache_range.end = 0;
 	}

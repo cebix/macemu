@@ -35,6 +35,7 @@ struct basic_block_info
 	};
 
 	uintptr				pc;
+	uintptr				end_pc;
 	int32				count;
 	uint32				size;
 	uint32				c1;

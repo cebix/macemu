@@ -45,7 +45,7 @@ private:
 	entry *						active;
 	entry *						dormant;
 
-	uint32 cacheline(uint32 addr) const {
+	uint32 cacheline(uintptr addr) const {
 		return (addr >> 2) & HASH_MASK;
 	}
 
@@ -59,6 +59,7 @@ public:
 
 	void initialize();
 	void clear();
+	void clear_range(uintptr start, uintptr end);
 	block_info *find(uintptr pc);
 	entry *first_active() const;
 	entry *first_dormant() const;
@@ -114,6 +115,26 @@ void block_cache< block_info, block_allocator >::clear()
 		delete_blockinfo(d);
 	}
 	dormant = NULL;
+}
+
+template< class block_info, template<class T> class block_allocator >
+inline void block_cache< block_info, block_allocator >::clear_range(uintptr start, uintptr end)
+{
+	if (!active)
+		return;
+
+	entry *q;
+	entry *p = active;
+	while (p) {
+		q = p;
+		p = p->next;
+		if (((q->pc >= start) && (q->pc < end)) ||
+			((q->end_pc >= start) && (q->end_pc < end))) {
+			remove_from_cl_list(q);
+			remove_from_list(q);
+			delete_blockinfo(q);
+		}
+	}
 }
 
 template< class block_info, template<class T> class block_allocator >

@@ -37,7 +37,6 @@ struct powerpc_block_info
 		uint32			opcode;
 	};
 
-	uint32				end_pc;
 	decode_info *		di;
 };
 

@@ -31,6 +31,17 @@
 #define DEBUG 0
 #include "debug.h"
 
+// Define to gather some compile time statistics
+#define PROFILE_COMPILE_TIME 1
+
+#if PROFILE_COMPILE_TIME
+#include <time.h>
+static uint32 compile_count		= 0;
+static clock_t compile_time		= 0;
+static clock_t emul_start_time	= 0;
+static clock_t emul_end_time	= 0;
+#endif
+
 void powerpc_cpu::set_register(int id, any_register const & value)
 {
 	if (id >= powerpc_registers::GPR(0) && id <= powerpc_registers::GPR(31)) {
@@ -231,10 +242,34 @@ void powerpc_cpu::initialize()
 #if ENABLE_MON
 	mon_init();
 #endif
+
+#if PROFILE_COMPILE_TIME
+	emul_start_time = clock();
+#endif
 }
 
 powerpc_cpu::~powerpc_cpu()
 {
+#if PROFILE_COMPILE_TIME
+	emul_end_time = clock();
+
+	const char *type = NULL;
+#ifndef PPC_NO_DECODE_CACHE
+	type = "predecode";
+#endif
+	if (type) {
+		printf("### Statistics for block %s\n", type);
+		printf("Total block %s count : %d\n", type, compile_count);
+		uint32 emul_time = emul_end_time - emul_start_time;
+		printf("Total emulation time : %.1f sec\n",
+			   double(emul_time) / double(CLOCKS_PER_SEC));
+		printf("Total %s time : %.1f sec (%.1f%%)\n", type,
+			   double(compile_time) / double(CLOCKS_PER_SEC),
+			   100.0 * double(compile_time) / double(emul_time));
+		printf("\n");
+	}
+#endif
+
 	kill_decode_cache();
 
 #if ENABLE_MON
@@ -318,6 +353,10 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 #ifndef PPC_NO_DECODE_CACHE
 	if (enable_cache) {
 		for (;;) {
+#if PROFILE_COMPILE_TIME
+			compile_count++;
+			clock_t start_time = clock();
+#endif
 			block_info *bi = block_cache.new_blockinfo();
 			bi->init(pc());
 
@@ -360,13 +399,14 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 					di = bi->di + blocklen;
 				}
 			} while ((ii->cflow & CFLOW_END_BLOCK) == 0);
-#ifdef PPC_LAZY_PC_UPDATE
 			bi->end_pc = dpc;
-#endif
 			bi->size = di - bi->di;
 			block_cache.add_to_cl_list(bi);
 			block_cache.add_to_active_list(bi);
 			decode_cache_p += bi->size;
+#if PROFILE_COMPILE_TIME
+			compile_time += (clock() - start_time);
+#endif
 
 			// Execute all cached blocks
 			for (;;) {
@@ -379,21 +419,19 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 					di[i].execute(this, di[i].opcode);
 #else
 				const int r = bi->size % 4;
+				di += r;
+				int n = (bi->size + 3) / 4;
 				switch (r) {
-				case 3: di->execute(this, di->opcode); di++;
-				case 2: di->execute(this, di->opcode); di++;
-				case 1: di->execute(this, di->opcode); di++;
-				case 0: break;
-				}
-				const int n = bi->size / 4;
-				for (int i = 0; i < n; i++) {
-					di[0].execute(this, di[0].opcode);
-					di[1].execute(this, di[1].opcode);
-					di[2].execute(this, di[2].opcode);
-					di[3].execute(this, di[3].opcode);
-					di += 4;
+				case 0: do {
+						di += 4;
+						di[-4].execute(this, di[-4].opcode);
+				case 3: di[-3].execute(this, di[-3].opcode);
+				case 2: di[-2].execute(this, di[-2].opcode);
+				case 1: di[-1].execute(this, di[-1].opcode);
+					} while (--n > 0);
 				}
 #endif
+
 				if (!spcflags().empty()) {
 					if (!check_spcflags())
 						return;
@@ -483,8 +521,8 @@ void powerpc_cpu::invalidate_cache()
 
 void powerpc_cpu::invalidate_cache_range(uintptr start, uintptr end)
 {
+	D(bug("Invalidate cache block [%08x - %08x]\n", start, end));
 #ifndef PPC_NO_DECODE_CACHE
-	// TODO: partial translation cache invalidatation
-	invalidate_cache();
+	block_cache.clear_range(start, end);
 #endif
 }

@@ -224,6 +224,9 @@ static void *nvram_func(void *arg);
 static void *tick_func(void *arg);
 #if EMULATED_PPC
 static void sigusr2_handler(int sig);
+extern void emul_ppc(uint32 start);
+extern void init_emul_ppc(void);
+extern void exit_emul_ppc(void);
 #else
 static void sigusr2_handler(int sig, sigcontext_struct *sc);
 static void sigsegv_handler(int sig, sigcontext_struct *sc);
@@ -779,6 +782,11 @@ quit:
 
 static void Quit(void)
 {
+#if EMULATED_PPC
+	// Exit PowerPC emulation
+	exit_emul_ppc();
+#endif
+
 	// Stop 60Hz thread
 	if (tick_thread_active) {
 		pthread_cancel(tick_thread);
@@ -882,8 +890,6 @@ static void Quit(void)
  */
 
 #if EMULATED_PPC
-extern void emul_ppc(uint32 start);
-extern void init_emul_ppc(void);
 void jump_to_rom(uint32 entry)
 {
 	init_emul_ppc();

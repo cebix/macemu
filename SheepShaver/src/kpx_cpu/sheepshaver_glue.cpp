@@ -553,6 +553,18 @@ void init_emul_ppc(void)
 }
 
 /*
+ *  Deinitialize emulation
+ */
+
+void exit_emul_ppc(void)
+{
+	delete main_cpu;
+#if MULTICORE_CPU
+	delete interrupt_cpu;
+#endif
+}
+
+/*
  *  Emulation loop
  */
 
