@@ -61,7 +61,7 @@ enum {
 
 
 // Constants
-const char KEYCODE_FILE_NAME[] = SHAREDIR "/keycodes";
+const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
 
 
 // Global variables

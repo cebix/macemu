@@ -37,28 +37,34 @@
 /* The number of bytes in a long.  */
 #undef SIZEOF_LONG
 
-/* The number of bytes in a short.  */
-#undef SIZEOF_SHORT
-
 /* The number of bytes in a long long.  */
 #undef SIZEOF_LONG_LONG
 
-/* Define if you have the strdup function.  */
-#undef HAVE_STRDUP
+/* The number of bytes in a short.  */
+#undef SIZEOF_SHORT
 
 /* Define if you have the cfmakeraw function.  */
 #undef HAVE_CFMAKERAW
 
-/* Define if you have the pthread_cancel function. */
-#undef HAVE_PTHREAD_CANCEL
-
-/* Define if you have the nanosleep function. */
-#undef HAVE_NANOSLEEP
-
-/* Define if you have the clock_gettime function. */
+/* Define if you have the clock_gettime function.  */
 #undef HAVE_CLOCK_GETTIME
 
-/* Define if you have the timer_create function. */
+/* Define if you have the nanosleep function.  */
+#undef HAVE_NANOSLEEP
+
+/* Define if you have the pthread_cancel function.  */
+#undef HAVE_PTHREAD_CANCEL
+
+/* Define if you have the sem_init function.  */
+#undef HAVE_SEM_INIT
+
+/* Define if you have the semget function.  */
+#undef HAVE_SEMGET
+
+/* Define if you have the strdup function.  */
+#undef HAVE_STRDUP
+
+/* Define if you have the timer_create function.  */
 #undef HAVE_TIMER_CREATE
 
 /* Define if you have the <fcntl.h> header file.  */
@@ -69,6 +75,3 @@
 
 /* Define if you have the <unistd.h> header file.  */
 #undef HAVE_UNISTD_H
-
-/* Define if you have the posix4 library (-lposix4).  */
-#undef HAVE_LIBPOSIX4

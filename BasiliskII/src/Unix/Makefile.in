@@ -3,18 +3,19 @@
 ## System specific configuration
 @SET_MAKE@
 
-prefix=@prefix@
-exec_prefix=@exec_prefix@
-bindir=$(exec_prefix)/bin
-sharedir=$(prefix)/share/BasiliskII
-mandir=$(prefix)/man
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+datadir = @datadir@
+mandir = @mandir@
+man1dir = $(mandir)/man1
 
 CC = @CC@
 CXX = @CXX@
 CFLAGS = @CFLAGS@
 CXXFLAGS = @CXXFLAGS@
 CPPFLAGS = @CPPFLAGS@ -I../include -I. @CPUINCLUDES@
-DEFS = @DEFS@ @DEFINES@ -D_REENTRANT -DSHAREDIR=\"$(sharedir)\"
+DEFS = @DEFS@ @DEFINES@ -D_REENTRANT -DDATADIR=\"$(datadir)/$(APP)\"
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
 SYSSRCS = @SYSSRCS@
@@ -33,7 +34,7 @@ SRCS=../prefs.cpp ../rom_patches.cpp ../slot_rom.cpp ../rsrc_patches.cpp ../emul
 APP = BasiliskII
 
 ## Rules
-.PHONY: clean distclean realclean depend
+.PHONY: modules install uninstall clean distclean depend
 
 default: $(APP)
 
@@ -58,27 +59,24 @@ modules:
 	cd Linux/NetDriver; make
 
 install: $(APP)
-	$(INSTALL_PROGRAM) BasiliskII $(bindir)/
-	$(INSTALL_DATA) BasiliskII.1 $(mandir)/man1/
-	$(INSTALL) -d $(sharedir)
-	$(INSTALL_DATA) keycodes $(sharedir)
+	$(INSTALL_PROGRAM) $(APP) $(bindir)
+	$(INSTALL_DATA) $(APP).1 $(man1dir)
+	$(INSTALL) -d $(datadir)/$(APP)
+	$(INSTALL_DATA) keycodes $(datadir)/$(APP)
 
 uninstall:
-	-rm -f $(bindir)/BasiliskII
-	-rm -f $(mandir)/man1/BasiliskII.1
-	-rm -rf $(sharedir)
+	-rm -f $(bindir)/$(APP)
+	-rm -f $(man1dir)/$(APP).1
+	-rm -rf $(datadir)/$(APP)
 
 clean:
-	-rm -f $(OBJ_DIR)/* core* *.core *~ *.bak
+	-rm -f $(APP) $(OBJ_DIR)/* core* *.core *~ *.bak
 	-rm -f cpuemu.cpp cpudefs.cpp cputmp.s cpufast*.s cpustbl.cpp cputbl.h
 
 distclean: clean
+	-rm -rf $(OBJ_DIR)
 	-rm -f Makefile
 	-rm -f config.cache config.log config.status config.h
-	-strip $(APP)
-
-realclean: distclean
-	-rm -f $(APP)
 
 depend dep:
 	makedepend $(CPPFLAGS) -Y ../*.cpp ../*.c *.cpp

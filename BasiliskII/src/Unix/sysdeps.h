@@ -31,17 +31,17 @@
 #error "You don't have ANSI C header files."
 #endif
 
-#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+# include <sys/types.h>
+# include <unistd.h>
+#endif
+
 #include <netinet/in.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-
-#ifdef HAVE_UNISTD_H
-# include <unistd.h>
-#endif
 
 #ifdef HAVE_FCNTL_H
 # include <fcntl.h>
