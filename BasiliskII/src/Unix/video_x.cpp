@@ -99,6 +99,7 @@ static bool redraw_thread_active = false;			// Flag: Redraw thread installed
 #ifdef HAVE_PTHREADS
 static pthread_attr_t redraw_thread_attr;			// Redraw thread attributes
 static volatile bool redraw_thread_cancel;			// Flag: Cancel Redraw thread
+static volatile bool redraw_thread_cancel_ack;		// Flag: Acknowledge for redraw thread cancellation
 static pthread_t redraw_thread;						// Redraw thread
 #endif
 
@@ -1720,10 +1721,9 @@ void X11_monitor_desc::video_close(void)
 #ifdef HAVE_PTHREADS
 	if (redraw_thread_active) {
 		redraw_thread_cancel = true;
-#ifdef HAVE_PTHREAD_CANCEL
-		pthread_cancel(redraw_thread);
-#endif
+		redraw_thread_cancel_ack = false;
 		pthread_join(redraw_thread, NULL);
+		while (!redraw_thread_cancel_ack) ;
 	}
 #endif
 	redraw_thread_active = false;
@@ -2611,6 +2611,8 @@ static void *redraw_func(void *arg)
 
 	uint64 end = GetTicks_usec();
 	D(bug("%Ld refreshes in %Ld usec = %f refreshes/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
+
+	redraw_thread_cancel_ack = true;
 	return NULL;
 }
 #endif
