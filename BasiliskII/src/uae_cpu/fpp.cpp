@@ -2253,3 +2253,28 @@ void fpp_opp(uae_u32 opcode, uae_u16 extra)
   op_illg (opcode);
 	dump_fp_regs( "END  ");
 }
+
+/* -------------------------- Initialization -------------------------- */
+
+void fpu_set_integral_fpu (bool is_integral)
+{
+	D(bug("fpu_set_integral_fpu : %s\n", (is_integral ? "yes" : "no")));
+}
+
+void fpu_init (void)
+{
+	D(bug("fpu_init\n"));
+    regs.fpcr = regs.fpsr = regs.fpiar = 0;
+}
+
+void fpu_exit (void)
+{
+	D(bug("fpu_exit\n"));
+}
+
+void fpu_reset (void)
+{
+	D(bug("fpu_reset\n"));
+	fpu_exit();
+	fpu_init();
+}
