@@ -707,7 +707,7 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  D_form, 24, 0, CFLOW_NORMAL
 	},
 	{ "oris",
-	  EXECUTE_GENERIC_ARITH(or, RA, RS, UIMM_shifted, NONE, OE_BIT_0, RC_BIT_G),
+	  EXECUTE_GENERIC_ARITH(or, RA, RS, UIMM_shifted, NONE, OE_BIT_0, RC_BIT_0),
 	  NULL,
 	  D_form, 25, 0, CFLOW_NORMAL
 	},
