@@ -65,7 +65,7 @@ bool Init680x0(void)
 	ROMBaseMac = (uint32)ROMBaseHost;
 #elif DIRECT_ADDRESSING
 	// Mac address space = host address space minus constant offset (MEMBaseDiff)
-	// NOTE: MEMBaseDiff is set in main_unix.cpp/main()
+	// NOTE: MEMBaseDiff is set up in main_unix.cpp/main()
 	RAMBaseMac = 0;
 	ROMBaseMac = Host2MacAddr(ROMBaseHost);
 #else
@@ -122,7 +122,7 @@ void InitFrameBufferMapping(void)
 void Start680x0(void)
 {
 	m68k_reset();
-	m68k_go(true);
+	m68k_execute();
 }
 
 
@@ -132,7 +132,7 @@ void Start680x0(void)
 
 void TriggerInterrupt(void)
 {
-	regs.spcflags |= SPCFLAG_INT;
+	SPCFLAGS_SET( SPCFLAG_INT );
 }
 
 void TriggerNMI(void)
@@ -179,7 +179,7 @@ void Execute68kTrap(uint16 trap, struct M68kRegisters *r)
 	m68k_setpc(m68k_areg(regs, 7));
 	fill_prefetch_0();
 	quit_program = 0;
-	m68k_go(true);
+	m68k_execute();
 
 	// Clean up stack
 	m68k_areg(regs, 7) += 4;
@@ -226,7 +226,7 @@ void Execute68k(uint32 addr, struct M68kRegisters *r)
 	m68k_setpc(addr);
 	fill_prefetch_0();
 	quit_program = 0;
-	m68k_go(true);
+	m68k_execute();
 
 	// Clean up stack
 	m68k_areg(regs, 7) += 2;

@@ -9,18 +9,10 @@
 #ifndef NEWCPU_H
 #define NEWCPU_H
 
-#define SPCFLAG_STOP 2
-#define SPCFLAG_DISK 4
-#define SPCFLAG_INT  8
-#define SPCFLAG_BRK  16
-#define SPCFLAG_EXTRA_CYCLES 32
-#define SPCFLAG_TRACE 64
-#define SPCFLAG_DOTRACE 128
-#define SPCFLAG_DOINT 256
-#define SPCFLAG_BLTNASTY 512
-#define SPCFLAG_EXEC 1024
-#define SPCFLAG_MODE_CHANGE 8192
-
+#include "m68k.h"
+#include "readcpu.h"
+#include "spcflags.h"
+ 
 extern int areg_byteinc[];
 extern int imm8_table[];
 
@@ -34,50 +26,77 @@ extern int fpp_movem_next[256];
 
 extern int broken_in;
 
-typedef void REGPARAM2 cpuop_func (uae_u32) REGPARAM;
+/* Control flow information */
+#define CFLOW_NORMAL		0
+#define CFLOW_BRANCH		1
+#define CFLOW_JUMP			2
+#define CFLOW_TRAP			CFLOW_JUMP
+#define CFLOW_RETURN		3
+#define CFLOW_SPCFLAGS		32	/* some spcflags are set */
+#define CFLOW_EXEC_RETURN	64	/* must exit from the execution loop */
 
+#define cpuop_rettype		void
+#define cpuop_return(v)		do { (v); return; } while (0)
+
+#ifdef X86_ASSEMBLY
+/* This hack seems to force all register saves (pushl %reg) to be moved to the
+   begining of the function, thus making it possible to cpuopti to remove them
+   since m68k_run_1 will save those registers before calling the instruction
+   handler */
+# define cpuop_tag(tag)		__asm__ __volatile__ ( "#cpuop_" tag )
+#else
+# define cpuop_tag(tag)		;
+#endif
+
+#define cpuop_begin()		do { cpuop_tag("begin"); } while (0)
+#define cpuop_end(cflow)	do { cpuop_tag("end"); cpuop_return(cflow); } while (0)
+
+typedef cpuop_rettype REGPARAM2 cpuop_func (uae_u32) REGPARAM;
+ 
 struct cputbl {
     cpuop_func *handler;
-    int specific;
+    uae_u16 specific;
     uae_u16 opcode;
 };
 
-extern void REGPARAM2 op_illg (uae_u32) REGPARAM;
+extern cpuop_rettype REGPARAM2 op_illg (uae_u32) REGPARAM;
 
 typedef char flagtype;
 
-extern struct regstruct
-{
-    uae_u32 regs[16];
-    uaecptr  usp,isp,msp;
-    uae_u16 sr;
-    flagtype t1;
-    flagtype t0;
-    flagtype s;
-    flagtype m;
-    flagtype x;
-    flagtype stopped;
-    int intmask;
+struct regstruct {
+    uae_u32		regs[16];
 
-    uae_u32 pc;
-    uae_u8 *pc_p;
-    uae_u8 *pc_oldp;
+    uae_u32		pc;
+    uae_u8 *	pc_p;
+    uae_u8 *	pc_oldp;
 
-    uae_u32 vbr,sfc,dfc;
+	spcflags_t	spcflags;
+    int			intmask;
 
-    double fp[8];
-    uae_u32 fpcr,fpsr,fpiar;
+    uae_u32		vbr, sfc, dfc;
+    uaecptr		usp, isp, msp;
+    uae_u16		sr;
+    flagtype	t1;
+    flagtype	t0;
+    flagtype	s;
+    flagtype	m;
+    flagtype	x;
+    flagtype	stopped;
 
-    uae_u32 spcflags;
-    uae_u32 kick_mask;
+    double		fp[8];
+    uae_u32		fpcr,fpsr,fpiar;
 
+#if USE_PREFETCH_BUFFER
     /* Fellow sources say this is 4 longwords. That's impossible. It needs
      * to be at least a longword. The HRM has some cryptic comment about two
      * instructions being on the same longword boundary.
      * The way this is implemented now seems like a good compromise.
      */
     uae_u32 prefetch;
-} regs, lastint_regs;
+#endif
+};
+
+extern regstruct regs, lastint_regs;
 
 #define m68k_dreg(r,num) ((r).regs[(num)])
 #define m68k_areg(r,num) (((r).regs + 8)[(num)])
@@ -92,6 +111,7 @@ extern struct regstruct
 #define GET_OPCODE (get_iword (0))
 #endif
 
+#if USE_PREFETCH_BUFFER
 static __inline__ uae_u32 get_ibyte_prefetch (uae_s32 o)
 {
     if (o > 3 || o < 0)
@@ -114,6 +134,7 @@ static __inline__ uae_u32 get_ilong_prefetch (uae_s32 o)
 	return do_get_mem_long(&regs.prefetch);
     return (do_get_mem_word (((uae_u16 *)&regs.prefetch) + 1) << 16) | do_get_mem_word ((uae_u16 *)(regs.pc_p + 4));
 }
+#endif
 
 #define m68k_incpc(o) (regs.pc_p += (o))
 
@@ -166,7 +187,6 @@ static __inline__ uae_u32 next_ilong (void)
     return r;
 }
 
-#if !defined USE_COMPILER
 static __inline__ void m68k_setpc (uaecptr newpc)
 {
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
@@ -176,9 +196,6 @@ static __inline__ void m68k_setpc (uaecptr newpc)
     regs.pc = newpc;
 #endif
 }
-#else
-extern void m68k_setpc (uaecptr newpc);
-#endif
 
 static __inline__ uaecptr m68k_getpc (void)
 {
@@ -189,15 +206,9 @@ static __inline__ uaecptr m68k_getpc (void)
 #endif
 }
 
-#ifdef USE_COMPILER
-extern void m68k_setpc_fast (uaecptr newpc);
-extern void m68k_setpc_bcc (uaecptr newpc);
-extern void m68k_setpc_rte (uaecptr newpc);
-#else
 #define m68k_setpc_fast m68k_setpc
 #define m68k_setpc_bcc  m68k_setpc
 #define m68k_setpc_rte  m68k_setpc
-#endif
 
 static __inline__ void m68k_do_rts(void)
 {
@@ -225,7 +236,7 @@ static __inline__ void m68k_setstopped (int stop)
     /* A traced STOP instruction drops through immediately without
        actually stopping.  */
     if (stop && (regs.spcflags & SPCFLAG_DOTRACE) == 0)
-	regs.spcflags |= SPCFLAG_STOP;
+    SPCFLAGS_SET( SPCFLAG_STOP );
 }
 
 extern uae_u32 get_disp_ea_020 (uae_u32 base, uae_u32 dp);
@@ -241,13 +252,15 @@ extern int m68k_move2c (int, uae_u32 *);
 extern int m68k_movec2 (int, uae_u32 *);
 extern void m68k_divl (uae_u32, uae_u32, uae_u16, uaecptr);
 extern void m68k_mull (uae_u32, uae_u32, uae_u16);
+extern void m68k_emulop (uae_u32);
+extern void m68k_emulop_return (void);
 extern void init_m68k (void);
 extern void exit_m68k (void);
-extern void m68k_go (int);
 extern void m68k_dumpstate (uaecptr *);
 extern void m68k_disasm (uaecptr, uaecptr *, int);
 extern void m68k_reset (void);
 extern void m68k_enter_debugger(void);
+extern int m68k_do_specialties(void);
 
 extern void mmu_op (uae_u32, uae_u16);
 
@@ -274,16 +287,17 @@ extern uaecptr last_fault_for_exception_3;
 #define CPU_OP_NAME(a) op ## a
 
 /* 68020 + 68881 */
-extern struct cputbl op_smalltbl_0[];
+extern struct cputbl op_smalltbl_0_ff[];
 /* 68020 */
-extern struct cputbl op_smalltbl_1[];
+extern struct cputbl op_smalltbl_1_ff[];
 /* 68010 */
-extern struct cputbl op_smalltbl_2[];
+extern struct cputbl op_smalltbl_2_ff[];
 /* 68000 */
-extern struct cputbl op_smalltbl_3[];
+extern struct cputbl op_smalltbl_3_ff[];
 /* 68000 slow but compatible.  */
-extern struct cputbl op_smalltbl_4[];
+extern struct cputbl op_smalltbl_4_ff[];
 
-extern cpuop_func *cpufunctbl[65536] ASM_SYM_FOR_FUNC ("cpufunctbl");
-
+extern void m68k_do_execute(void);
+extern void m68k_execute(void);
+ 
 #endif /* NEWCPU_H */

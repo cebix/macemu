@@ -58,8 +58,8 @@ int main(int argc, char **argv)
     printf ("#include \"sysdeps.h\"\n");
     printf ("#include \"readcpu.h\"\n");
     printf ("struct instr_def defs68k[] = {\n");
-#if 0
-    tablef = fopen("table68k","r");
+#ifdef WIN32
+    tablef = fopen(argc > 1 ? argv[1] : "table68k","r");
     if (tablef == NULL) {
 	fprintf(stderr, "table68k not found\n");
 	exit(1);
@@ -76,6 +76,7 @@ int main(int argc, char **argv)
 	char opcstr[256];
 	int bitpos[16];
 	int flagset[5], flaguse[5];
+	char cflow;
 
 	unsigned int bitmask,bitpattern;
 	int n_variable;
@@ -107,6 +108,7 @@ int main(int argc, char **argv)
 	     case 'r': currbit = bitr; break;
 	     case 'R': currbit = bitR; break;
 	     case 'z': currbit = bitz; break;
+		 case 'E': currbit = bitE; break;
 		 case 'p': currbit = bitp; break;
 	     default: abort();
 	    }
@@ -156,7 +158,6 @@ int main(int argc, char **argv)
 	    getnextch();
 	    switch(nextch){
 	     case '-': flagset[i] = fa_unset; break;
-	     case '/': flagset[i] = fa_isjmp; break;
 	     case '0': flagset[i] = fa_zero; break;
 	     case '1': flagset[i] = fa_one; break;
 	     case 'x': flagset[i] = fa_dontcare; break;
@@ -176,13 +177,31 @@ int main(int argc, char **argv)
 	    getnextch();
 	    switch(nextch){
 	     case '-': flaguse[i] = fu_unused; break;
-	     case '/': flaguse[i] = fu_isjmp; break;
-	     case '+': flaguse[i] = fu_maybecc; break;
 	     case '?': flaguse[i] = fu_unknown; break;
 	     default: flaguse[i] = fu_used; break;
 	    }
 	}
 
+	getnextch();
+	while (isspace(nextch))
+	    getnextch();
+
+	if (nextch != ':')                        /* Get control flow information */
+	    abort();
+	
+	cflow = 0;
+	for(i = 0; i < 2; i++) {
+		getnextch();
+		switch(nextch){
+		 case '-': break;
+		 case 'R': cflow |= fl_return; break;
+		 case 'B': cflow |= fl_branch; break;
+		 case 'J': cflow |= fl_jump; break;
+		 case 'T': cflow |= fl_trap; break;
+		 default: abort();
+		}
+	}
+	
 	getnextch();
 	while (isspace(nextch))
 	    getnextch();
@@ -234,7 +253,7 @@ int main(int argc, char **argv)
 	    for(i = 0; i < 5; i++) {
 		printf("{ %d, %d }%c ", flaguse[i], flagset[i], i == 4 ? ' ' : ',');
 	    }
-	    printf("}, %d, \"%s\"}", sduse, opstrp);
+	    printf("}, %d, %d, \"%s\"}", cflow, sduse, opstrp);
 	}
     }
     printf("};\nint n_defs68k = %d;\n", no_insns);
