@@ -29,7 +29,7 @@
  */
 
 // Align on page boundaries
-static uint32 align_on_page_boundary(uint32 size)
+static uintptr align_on_page_boundary(uintptr size)
 {
 	const uint32 page_size = getpagesize();
 	const uint32 page_mask = page_size - 1;
@@ -182,7 +182,7 @@ static void do_fbcopy_raw(uint8 * dest, const uint8 * source, uint32 length)
 	(dst = (src))
 
 #define FB_BLIT_2(dst, src) \
-	(dst = (((src) >> 24) & 0xff) | (((src) >> 16) & 0xff00) | (((src) & 0xff00) << 16) | (((src) & 0xff) << 24))
+	(dst = (((src) >> 24) & 0xff) | (((src) >> 8) & 0xff00) | (((src) & 0xff00) << 8) | (((src) & 0xff) << 24))
 
 #define FB_DEPTH 24
 #include "video_blit.h"
@@ -240,7 +240,7 @@ static fbcopy_func fbcopy_funcs[ID_DEPTH_COUNT][2][2] = {
  *	Screen fault handler
  */
 
-static inline void do_handle_screen_fault(unsigned long addr)
+static inline void do_handle_screen_fault(uintptr addr)
 {
 	if ((addr < mainBuffer.memStart) || (addr >= mainBuffer.memEnd)) {
 		fprintf(stderr, "Segmentation fault at 0x%08X\n", addr);
@@ -263,14 +263,14 @@ static inline void do_handle_screen_fault(unsigned long addr)
 static void Screen_fault_handler(int, siginfo_t * sip, void *)
 {
 	D(bug("Screen_fault_handler: ADDR=0x%08X\n", sip->si_addr));
-	do_handle_screen_fault((unsigned long)sip->si_addr);
+	do_handle_screen_fault((uintptr)sip->si_addr);
 }
 #elif defined(HAVE_SIGCONTEXT_SUBTERFUGE)
 # if defined(__i386__) && defined(__linux__)
 static void Screen_fault_handler(int, struct sigcontext scs)
 {
 	D(bug("Screen_fault_handler: ADDR=0x%08X from IP=0x%08X\n", scs.cr2, scs.eip));
-	do_handle_screen_fault((unsigned long)scs.cr2);
+	do_handle_screen_fault((uintptr)scs.cr2);
 }
 # else
 #  error "No suitable subterfuge for Video on SEGV signals"
@@ -323,9 +323,10 @@ static inline void update_display_window_vosf(void)
 			break;
 		
 		const int first_page = page;
-		PFLAG_CLEAR(first_page);
-		while ((++page < mainBuffer.pageCount) && PFLAG_ISSET(page))
+		while ((page < mainBuffer.pageCount) && PFLAG_ISSET(page)) {
 			PFLAG_CLEAR(page);
+			++page;
+		}
 		
 		// Make the dirty pages read-only again
 		const int32 offset  = first_page << mainBuffer.pageBits;
@@ -407,9 +408,10 @@ static inline void update_display_dga_vosf(void)
 			break;
 		
 		const int first_page = page;
-		PFLAG_CLEAR(first_page);
-		while ((++page < mainBuffer.pageCount) && PFLAG_ISSET(page))
+		while ((page < mainBuffer.pageCount) && PFLAG_ISSET(page)) {
 			PFLAG_CLEAR(page);
+			++page;
+		}
 		
 		// Make the dirty pages read-only again
 		const int32 offset  = first_page << mainBuffer.pageBits;
