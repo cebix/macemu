@@ -248,22 +248,6 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 				WriteMacInt8(asc_regs + 0x800, 0x0f);	// Set ASC version number
 				WriteMacInt32(0xcc0, asc_regs);			// Set ASCBase
 			}
-			
-#if (REAL_ADDRESSING || DIRECT_ADDRESSING) && defined(USE_SCRATCHMEM_SUBTERFUGE)
-			extern uint8 *ScratchMem;
-			
-			// Set VIA base address to scratch memory area
-			D(bug("Patch VIA base address [0x%x] to ScratchMem\n", ReadMacInt32(0x1d4)));
-			WriteMacInt32(0x1d4, Host2MacAddr(ScratchMem));
-			
-			// Set SCCRd base address to scratch memory area
-			D(bug("Patch SCCRd base address [0x%x] to ScratchMem\n", ReadMacInt32(0x1d8)));
-			WriteMacInt32(0x1d8, Host2MacAddr(ScratchMem));
-			
-			// Set SCCWr base address to scratch memory area
-			D(bug("Patch SCCWr base address [0x%x] to ScratchMem\n", ReadMacInt32(0x1dc)));
-			WriteMacInt32(0x1dc, Host2MacAddr(ScratchMem));
-#endif
 			break;
 		}
 

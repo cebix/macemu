@@ -43,6 +43,7 @@ uint32 UniversalInfo;		// ROM offset of UniversalInfo
 uint32 PutScrapPatch;		// Mac address of PutScrap() patch
 uint32 ROMBreakpoint = 0;	// ROM offset of breakpoint (0 = disabled, 0x2310 = CritError)
 bool PrintROMInfo = false;	// Flag: print ROM information in PatchROM()
+bool PatchHWBases = true;	// Flag: patch hardware base addresses
 
 static uint32 sony_offset;		// ROM offset of .Sony driver
 static uint32 serd_offset;		// ROM offset of SERD resource (serial drivers)
@@ -52,12 +53,8 @@ static uint32 debugutil_offset;		// ROM offset of DebugUtil() replacement routin
 // Prototypes
 uint16 ROMVersion;
 
-
 /*
- *	Convenience functions for retrieving a particular 16-bit word from
- *	a 32-bit word value.
- *	
- *	gb-- probably put those elsewhere...
+ *  Macros used to extract one of the 16-bit words from a 32-bit word value
  */
 
 #define HiWord(X) (((X) >> 16) & 0xffff)
@@ -1031,6 +1028,31 @@ static bool patch_rom_32(void)
 	// Set model ID from preferences
 	bp = ROMBaseHost + UniversalInfo + 18;		// productKind
 	*bp = PrefsFindInt32("modelid");
+
+#if !ROM_IS_WRITE_PROTECTED
+#if defined(USE_SCRATCHMEM_SUBTERFUGE)
+	// Set hardware base addresses to scratch memory area
+	if (PatchHWBases) {
+		extern uint8 *ScratchMem;
+		const uint32 ScratchMemBase = Host2MacAddr(ScratchMem);
+		
+		D(bug("LMGlob\tOfs/4\tBase\n"));
+		base = ROMBaseMac + UniversalInfo + ReadMacInt32(ROMBaseMac + UniversalInfo); // decoderInfoPtr
+		wp = (uint16 *)(ROMBaseHost + 0x94a);
+		while (*wp != 0xffff) {
+			int16 ofs = ntohs(*wp++);			// offset in decoderInfo (/4)
+			int16 lmg = ntohs(*wp++);			// address of LowMem global
+			D(bug("0x%04x\t%d\t0x%08x\n", lmg, ofs, ReadMacInt32(base + ofs*4)));
+			
+			// Fake address only if this is not the ASC base
+			if (lmg != 0xcc0)
+				WriteMacInt32(base + ofs*4, ScratchMemBase);
+		}
+	}
+#else
+#error System specific handling for writable ROM is required here
+#endif
+#endif
 
 	// Make FPU optional
 	if (FPUType == 0) {
