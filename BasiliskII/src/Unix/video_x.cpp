@@ -2053,6 +2053,7 @@ static void video_refresh_window_vosf(void)
 			LOCK_VOSF;
 			update_display_window_vosf();
 			UNLOCK_VOSF;
+			XSync(x_display, false); // Let the server catch up
 		}
 	}
 }
@@ -2140,7 +2141,7 @@ static void *redraw_func(void *arg)
 		ticks++;
 	}
 	uint64 end = GetTicks_usec();
-	printf("%Ld ticks in %Ld usec = %Ld ticks/sec\n", ticks, end - start, ticks * 1000000 / (end - start));
+	// printf("%Ld ticks in %Ld usec = %Ld ticks/sec\n", ticks, end - start, ticks * 1000000 / (end - start));
 	return NULL;
 }
 #endif

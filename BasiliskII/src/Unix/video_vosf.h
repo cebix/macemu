@@ -227,89 +227,31 @@ static inline void update_display_window_vosf(void)
 		
 		const int bytes_per_row = VideoMonitor.bytes_per_row;
 		const int bytes_per_pixel = VideoMonitor.bytes_per_row / VideoMonitor.x;
-		int i, j;
+		int i = y1 * bytes_per_row, j;
 		
-		// Check for first column from left and first column
-		// from right that have changed
-		int x1, x2, width;
 		if (depth == 1) {
 
-			x1 = VideoMonitor.x - 1;
-			for (j = y1; j <= y2; j++) {
-				uint8 * const p1 = &the_buffer[j * bytes_per_row];
-				uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
-				for (i = 0; i < (x1>>3); i++) {
-					if (p1[i] != p2[i]) {
-						x1 = i << 3;
-						break;
-					}
-				}
-			}
-
-			x2 = x1;
-			for (j = y2; j >= y1; j--) {
-				uint8 * const p1 = &the_buffer[j * bytes_per_row];
-				uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
-				for (i = (VideoMonitor.x>>3) - 1; i > (x2>>3); i--) {
-					if (p1[i] != p2[i]) {
-						x2 = (i << 3) + 7;
-						break;
-					}
-				}
-			}
-			width = x2 - x1 + 1;
-
 			// Update the_host_buffer and copy of the_buffer
-			i = y1 * bytes_per_row + (x1 >> 3);
 			for (j = y1; j <= y2; j++) {
-				Screen_blit(the_host_buffer + i, the_buffer + i, width >> 3);
-				memcpy(the_buffer_copy + i, the_buffer + i, width >> 3);
+				Screen_blit(the_host_buffer + i, the_buffer + i, VideoMonitor.x >> 3);
 				i += bytes_per_row;
 			}
 
 		} else {
 
-			x1 = VideoMonitor.x * bytes_per_pixel - 1;
-			for (j = y1; j <= y2; j++) {
-				uint8 * const p1 = &the_buffer[j * bytes_per_row];
-				uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
-				for (i = 0; i < x1; i++) {
-					if (p1[i] != p2[i]) {
-						x1 = i;
-						break;
-					}
-				}
-			}
-			x1 /= bytes_per_pixel;
-		
-			x2 = x1 * bytes_per_pixel;
-			for (j = y2; j >= y1; j--) {
-				uint8 * const p1 = &the_buffer[j * bytes_per_row];
-				uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
-				for (i = VideoMonitor.x * bytes_per_pixel - 1; i > x2; i--) {
-					if (p1[i] != p2[i]) {
-						x2 = i;
-						break;
-					}
-				}
-			}
-			x2 /= bytes_per_pixel;
-			width = x2 - x1 + 1;
-
 			// Update the_host_buffer and copy of the_buffer
-			i = y1 * bytes_per_row + x1 * bytes_per_pixel;
 			for (j = y1; j <= y2; j++) {
-				Screen_blit(the_host_buffer + i, the_buffer + i, bytes_per_pixel * width);
-				memcpy(the_buffer_copy + i, the_buffer + i, bytes_per_pixel * width);
+				Screen_blit(the_host_buffer + i, the_buffer + i, bytes_per_pixel * VideoMonitor.x);
 				i += bytes_per_row;
 			}
 		}
-		
+
 		if (have_shm)
-			XShmPutImage(x_display, the_win, the_gc, img, x1, y1, x1, y1, width, height, 0);
+			XShmPutImage(x_display, the_win, the_gc, img, 0, y1, 0, y1, VideoMonitor.x, height, 0);
 		else
-			XPutImage(x_display, the_win, the_gc, img, x1, y1, x1, y1, width, height);
+			XPutImage(x_display, the_win, the_gc, img, 0, y1, 0, y1, VideoMonitor.x, height);
 	}
+
 	mainBuffer.dirty = false;
 }
 

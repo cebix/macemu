@@ -1,3 +1,7 @@
+V0.9 - <date>
+	- Unix: some performance improvements to VOSF screen update code
+	  [Brian J. Johnson]
+
 V0.9 (snapshot) - 17.Feb.2001
 	- adapted for mon V3.0 which is now the required minimum
 	- UAE cpu: fixed a bug in the memory handlers preventing from
