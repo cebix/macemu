@@ -823,25 +823,6 @@ static int source_is_imm1_8 (struct instr *i)
     return i->stype == 3;
 }
 
-static const char * cflow_string_of(uae_u32 opcode)
-{
-	const char * cflow_type_str;
-	
-	int cflow_type = table68k[opcode].cflow & ~fl_trap;
-	switch (cflow_type) {
-		case fl_branch:		cflow_type_str = "CFLOW_BRANCH";		break;
-		case fl_jump:		cflow_type_str = "CFLOW_JUMP";			break;
-		case fl_return:		cflow_type_str = "CFLOW_RETURN";		break;
-		default:			cflow_type_str = "CFLOW_NORMAL";
-	}
-	
-	/* Patch M68K_EXEC_RETURN instruction */
-	if (table68k[opcode].mnemo == i_EMULOP_RETURN)
-		cflow_type_str = "CFLOW_EXEC_RETURN";
-	
-	return cflow_type_str;
-}
-
 static void gen_opcode (unsigned long int opcode)
 {
     struct instr *curi = table68k + opcode;
@@ -1345,7 +1326,7 @@ static void gen_opcode (unsigned long int opcode)
 	}
 	printf ("\tm68k_incpc ((uae_s32)src + 2);\n");
 	fill_prefetch_0 ();
-	printf ("cpuop_return(%s);\n", cflow_string_of(opcode));
+	printf ("return;\n");
 	printf ("didnt_jump:;\n");
 	need_endlabel = 1;
 	}
@@ -1378,7 +1359,7 @@ static void gen_opcode (unsigned long int opcode)
 	}
 	printf ("\t\t\tm68k_incpc((uae_s32)offs + 2);\n");
 	fill_prefetch_0 ();
-	printf ("cpuop_return(%s);\n", cflow_string_of(opcode));
+	printf ("return;\n");
 	printf ("\t\t}\n");
 	printf ("\t}\n");
 	need_endlabel = 1;
@@ -2283,7 +2264,7 @@ static void generate_one_opcode (int rp)
 
     fprintf (headerfile, "extern cpuop_func op_%lx_%d_nf;\n", opcode, postfix);
     fprintf (headerfile, "extern cpuop_func op_%lx_%d_ff;\n", opcode, postfix);
-    printf ("cpuop_rettype REGPARAM2 CPUFUNC(op_%lx_%d)(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, lookuptab[i].name);
+    printf ("void REGPARAM2 CPUFUNC(op_%lx_%d)(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, lookuptab[i].name);
 	printf ("\tcpuop_begin();\n");
 	
 	/* gb-- The "nf" variant for an instruction that doesn't set the condition
@@ -2414,7 +2395,7 @@ static void generate_one_opcode (int rp)
 	printf ("%s: ;\n", endlabelstr);
 	if (table68k[opcode].flagdead == 0)
 	printf ("\n#endif\n");
-	printf ("\tcpuop_end(%s);\n", cflow_string_of(opcode));
+	printf ("\tcpuop_end();\n");
     printf ("}\n");
     opcode_next_clev[rp] = next_cpu_level;
     opcode_last_postfix[rp] = postfix;

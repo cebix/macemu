@@ -26,18 +26,6 @@ extern int movem_next[256];
 
 extern int broken_in;
 
-/* Control flow information */
-#define CFLOW_NORMAL		0
-#define CFLOW_BRANCH		1
-#define CFLOW_JUMP			2
-#define CFLOW_RETURN		3
-#define CFLOW_TRAP			4
-#define CFLOW_SPCFLAGS		32	/* some spcflags are set */
-#define CFLOW_EXEC_RETURN	64	/* must exit from the execution loop */
-
-#define cpuop_rettype		void
-#define cpuop_return(v)		do { (v); return; } while (0)
-
 #ifdef X86_ASSEMBLY
 /* This hack seems to force all register saves (pushl %reg) to be moved to the
    begining of the function, thus making it possible to cpuopti to remove them
@@ -49,9 +37,9 @@ extern int broken_in;
 #endif
 
 #define cpuop_begin()		do { cpuop_tag("begin"); } while (0)
-#define cpuop_end(cflow)	do { cpuop_tag("end"); cpuop_return(cflow); } while (0)
+#define cpuop_end()			do { cpuop_tag("end"); } while (0)
 
-typedef cpuop_rettype REGPARAM2 cpuop_func (uae_u32) REGPARAM;
+typedef void REGPARAM2 cpuop_func (uae_u32) REGPARAM;
  
 struct cputbl {
     cpuop_func *handler;
@@ -71,7 +59,7 @@ struct comptbl {
 };
 #endif
 
-extern cpuop_rettype REGPARAM2 op_illg (uae_u32) REGPARAM;
+extern void REGPARAM2 op_illg (uae_u32) REGPARAM;
 
 typedef char flagtype;
 

@@ -163,11 +163,11 @@ static __inline__ unsigned int cft_map (unsigned int f)
 #endif
 }
 
-cpuop_rettype REGPARAM2 op_illg_1 (uae_u32 opcode) REGPARAM;
+void REGPARAM2 op_illg_1 (uae_u32 opcode) REGPARAM;
 
-cpuop_rettype REGPARAM2 op_illg_1 (uae_u32 opcode)
+void REGPARAM2 op_illg_1 (uae_u32 opcode)
 {
-    cpuop_return( op_illg (cft_map (opcode)) );
+    op_illg (cft_map (opcode));
 }
 
 static void build_cpufunctbl (void)
@@ -1189,18 +1189,18 @@ void m68k_emulop(uae_u32 opcode)
 		MakeFromSR();
 }
 
-cpuop_rettype REGPARAM2 op_illg (uae_u32 opcode)
+void REGPARAM2 op_illg (uae_u32 opcode)
 {
 	uaecptr pc = m68k_getpc ();
 
     if ((opcode & 0xF000) == 0xA000) {
 	Exception(0xA,0);
-	cpuop_return(CFLOW_TRAP);
+	return;
     }
 
     if ((opcode & 0xF000) == 0xF000) {
 	Exception(0xB,0);
-	cpuop_return(CFLOW_TRAP);
+	return;
     }
 
     write_log ("Illegal instruction: %04x at %08lx\n", opcode, pc);
@@ -1209,7 +1209,7 @@ cpuop_rettype REGPARAM2 op_illg (uae_u32 opcode)
 #endif
 
     Exception (4,0);
-	cpuop_return(CFLOW_TRAP);
+	return;
 }
 
 void mmu_op(uae_u32 opcode, uae_u16 extra)
@@ -1307,7 +1307,7 @@ int m68k_do_specialties (void)
     }
     if (SPCFLAGS_TEST( SPCFLAG_BRK )) {
 	SPCFLAGS_CLEAR( SPCFLAG_BRK );
-	return CFLOW_EXEC_RETURN;
+	return 1;
     }
     return 0;
 }
