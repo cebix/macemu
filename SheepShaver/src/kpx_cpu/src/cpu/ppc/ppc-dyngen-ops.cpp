@@ -34,27 +34,31 @@ register struct powerpc_cpu *CPU asm(REG_CPU);
 #define CPU ((powerpc_cpu *)CPUPARAM)
 #endif
 #if SIZEOF_VOID_P == 8
-#define REG32(X) ((uint32)X)
+#define DYNGEN_DEFINE_GLOBAL_REGISTER(REG) \
+register uintptr reg_##REG asm(REG_##REG); \
+register uint32 REG asm(REG_##REG)
 #else
-#define REG32(X) X
+#define DYNGEN_DEFINE_GLOBAL_REGISTER(REG) \
+register uint32 REG asm(REG_##REG)
 #endif
-#define FPREG(X) ((powerpc_fpr *)(X))
-#define A0 REG32(reg_A0)
-register uintptr reg_A0 asm(REG_A0);
-#define T0 REG32(reg_T0)
-#define F0 FPREG(reg_T0)->d
-#define F0_dw FPREG(reg_T0)->j
-register uintptr reg_T0 asm(REG_T0);
-#define T1 REG32(reg_T1)
-#define F1 FPREG(reg_T1)->d
-#define F1_dw FPREG(reg_T1)->j
-register uintptr reg_T1 asm(REG_T1);
-#define T2 REG32(reg_T2)
-#define F2 FPREG(reg_T2)->d
-#define F2_dw FPREG(reg_T2)->j
-register uintptr reg_T2 asm(REG_T2);
-#define FD powerpc_dyngen_helper::fp_result()
-#define FD_dw powerpc_dyngen_helper::fp_result_dw()
+DYNGEN_DEFINE_GLOBAL_REGISTER(A0);
+DYNGEN_DEFINE_GLOBAL_REGISTER(T0);
+DYNGEN_DEFINE_GLOBAL_REGISTER(T1);
+DYNGEN_DEFINE_GLOBAL_REGISTER(T2);
+#ifdef REG_T3
+DYNGEN_DEFINE_GLOBAL_REGISTER(T3);
+#endif
+
+// Floating-point registers
+#define FPREG(X)		((powerpc_fpr *)(X))
+#define F0				FPREG(reg_T0)->d
+#define F0_dw			FPREG(reg_T0)->j
+#define F1				FPREG(reg_T1)->d
+#define F1_dw			FPREG(reg_T1)->j
+#define F2				FPREG(reg_T2)->d
+#define F2_dw			FPREG(reg_T2)->j
+#define FD				powerpc_dyngen_helper::fp_result()
+#define FD_dw			powerpc_dyngen_helper::fp_result_dw()
 
 // Vector registers
 #define VREG(X)			((powerpc_vr *)(X))[0]

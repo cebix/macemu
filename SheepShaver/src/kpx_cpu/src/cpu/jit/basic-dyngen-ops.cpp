@@ -32,21 +32,19 @@ register basic_cpu *CPU asm(REG_CPU);
 #define CPU ((basic_cpu *)CPUPARAM)
 #endif
 #if SIZEOF_VOID_P == 8
-#define REG32(X) ((uint32)X)
+#define DYNGEN_DEFINE_GLOBAL_REGISTER(REG) \
+register uintptr reg_##REG asm(REG_##REG); \
+register uint32 REG asm(REG_##REG)
 #else
-#define REG32(X) X
+#define DYNGEN_DEFINE_GLOBAL_REGISTER(REG) \
+register uint32 REG asm(REG_##REG)
 #endif
-#define A0 REG32(reg_A0)
-register uintptr reg_A0 asm(REG_A0);
-#define T0 REG32(reg_T0)
-register uintptr reg_T0 asm(REG_T0);
-#define T1 REG32(reg_T1)
-register uintptr reg_T1 asm(REG_T1);
-#define T2 REG32(reg_T2)
-register uintptr reg_T2 asm(REG_T2);
+DYNGEN_DEFINE_GLOBAL_REGISTER(A0);
+DYNGEN_DEFINE_GLOBAL_REGISTER(T0);
+DYNGEN_DEFINE_GLOBAL_REGISTER(T1);
+DYNGEN_DEFINE_GLOBAL_REGISTER(T2);
 #ifdef REG_T3
-#define T3 REG32(reg_T3)
-register uintptr reg_T3 asm(REG_T3);
+DYNGEN_DEFINE_GLOBAL_REGISTER(T3);
 #endif
 
 
@@ -348,7 +346,8 @@ void OPPROTO op_jmp_A0(void)
 // Register calling conventions based arches don't need a stack frame
 #if defined(__powerpc__) || defined(__x86_64__)
 #define DEFINE_OP(NAME, CODE)											\
-static void OPPROTO impl_##NAME(void)									\
+static void OPPROTO impl_##NAME(void) __attribute__((used));			\
+void OPPROTO impl_##NAME(void)											\
 {																		\
 	asm volatile (#NAME ":");											\
 	CODE;																\
