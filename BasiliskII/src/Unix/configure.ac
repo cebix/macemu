@@ -10,6 +10,10 @@ dnl Aliases for PACKAGE and VERSION macros.
 AC_DEFINE(PACKAGE, PACKAGE_NAME, [Alias to PACKAGE for i18n.])
 AC_DEFINE(VERSION, PACKAGE_VERSION, [Alias to VERSION for i18n.])
 
+dnl Some systems do not put corefiles in the currect directory, avoid saving
+dnl cores for the configure tests since some are intended to dump core.
+ulimit -c 0
+
 dnl Video options.
 AC_ARG_ENABLE(xf86-dga,      [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(xf86-vidmode,  [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
@@ -223,7 +227,7 @@ AC_SYS_LARGEFILE
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(unistd.h fcntl.h sys/time.h sys/mman.h)
+AC_CHECK_HEADERS(unistd.h fcntl.h sys/time.h sys/mman.h mach/mach.h)
 AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -638,28 +642,58 @@ AC_CACHE_CHECK([whether sigaction handlers need to be reinstalled],
 AC_TRANSLATE_DEFINE(SIGACTION_NEED_REINSTALL, "$ac_cv_sigaction_need_reinstall",
   [Define if your system requires sigactions to be reinstalled.])
 
-dnl Check if extended signals are supported.
-AC_CACHE_CHECK([whether your system supports extended signal handlers],
-  ac_cv_have_extended_signals, [
+dnl Check if Mach exceptions supported.
+AC_CACHE_CHECK([whether your system supports Mach exceptions],
+  ac_cv_have_mach_exceptions, [
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
   AC_TRY_RUN([
-    #define HAVE_SIGINFO_T 1
+    #define HAVE_MACH_EXCEPTIONS 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
     #include "vm_alloc.cpp"
     #include "sigsegv.cpp"
-  ], ac_cv_have_extended_signals=yes, ac_cv_have_extended_signals=no,
+  ], [
+  sigsegv_recovery=mach
+  ac_cv_have_mach_exceptions=yes
+  ],
+  ac_cv_have_mach_exceptions=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_have_extended_signals=no
+  ac_cv_have_mach_exceptions=no
   )
   AC_LANG_RESTORE
   ]
 )
-AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_extended_signals",
-  [Define if your system support extended signals.])
+AC_TRANSLATE_DEFINE(HAVE_MACH_EXCEPTIONS, "$ac_cv_have_mach_exceptions",
+  [Define if your system supports Mach exceptions.])
+
+dnl Otherwise, check if extended signals are supported.
+if [[ -z "$sigsegv_recovery" ]]; then
+  AC_CACHE_CHECK([whether your system supports extended signal handlers],
+    ac_cv_have_extended_signals, [
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
+    AC_TRY_RUN([
+      #define HAVE_SIGINFO_T 1
+      #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+      #include "vm_alloc.cpp"
+      #include "sigsegv.cpp"
+    ], [
+    sigsegv_recovery=siginfo
+    ac_cv_have_extended_signals=yes
+    ],
+    ac_cv_have_extended_signals=no,
+    dnl When cross-compiling, do not assume anything.
+    ac_cv_have_extended_signals=no
+    )
+    AC_LANG_RESTORE
+    ]
+  )
+  AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_extended_signals",
+    [Define if your system support extended signals.])
+fi
 
 dnl Otherwise, check for subterfuges.
-if [[ "x$ac_cv_have_extended_signals" = "xno" ]]; then
+if [[ -z "$sigsegv_recovery" ]]; then
   AC_CACHE_CHECK([whether we then have a subterfuge for your system],
   ac_cv_have_sigcontext_hack, [
     AC_LANG_SAVE
@@ -669,7 +703,11 @@ if [[ "x$ac_cv_have_extended_signals" = "xno" ]]; then
       #define CONFIGURE_TEST_SIGSEGV_RECOVERY
       #include "vm_alloc.cpp"
       #include "sigsegv.cpp"
-    ], ac_cv_have_sigcontext_hack=yes, ac_cv_have_sigcontext_hack=no,
+    ], [
+    sigsegv_recovery=sigcontext
+    ac_cv_have_sigcontext_hack=yes
+    ],
+    ac_cv_have_sigcontext_hack=no,
     dnl When cross-compiling, do not assume anything.
     ac_cv_have_sigcontext_hack=no
     )
@@ -701,7 +739,7 @@ AC_TRANSLATE_DEFINE(HAVE_SIGSEGV_SKIP_INSTRUCTION, "$ac_cv_have_skip_instruction
 
 dnl Can we do Video on SEGV Signals ?
 CAN_VOSF=no
-if [[ "$ac_cv_have_extended_signals" = "yes" -o "$ac_cv_have_sigcontext_hack" = "yes" ]]; then
+if [[ -n "$sigsegv_recovery" ]]; then
   CAN_VOSF=yes
 fi
 
@@ -1134,5 +1172,6 @@ echo JIT debug mode ......................... : $WANT_JIT_DEBUG
 echo Floating-Point emulation core .......... : $FPE_CORE
 echo Assembly optimizations ................. : $ASM_OPTIMIZATIONS
 echo Addressing mode ........................ : $ADDRESSING_MODE
+echo Bad memory access recovery type ........ : $sigsegv_recovery
 echo
 echo "Configuration done. Now type \"make\" (or \"gmake\")."
