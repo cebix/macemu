@@ -180,6 +180,10 @@ uint64 GetTicks_usec(void)
 	return clock();
 }
 
+void HandleInterrupt(powerpc_registers *)
+{
+}
+
 #if PPC_ENABLE_JIT && PPC_REENTRANT_JIT
 void init_emul_op_trampolines(basic_dyngen & dg)
 {
