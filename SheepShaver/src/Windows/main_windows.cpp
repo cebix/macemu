@@ -73,6 +73,8 @@ int64 BusClockSpeed;	// Bus clock speed (Hz)
 int64 TimebaseSpeed;	// Timebase clock speed (Hz)
 uint8 *RAMBaseHost;		// Base address of Mac RAM (host address space)
 uint8 *ROMBaseHost;		// Base address of Mac ROM (host address space)
+DWORD win_os;			// Windows OS id
+DWORD win_os_major;		// Windows OS version major
 
 
 // Global variables
@@ -183,6 +185,25 @@ int main(int argc, char **argv)
 			usage(argv[0]);
 		}
 	}
+
+	// Check we are using a Windows NT kernel >= 4.0
+	OSVERSIONINFO osvi;
+	ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
+	osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+	if (!GetVersionEx(&osvi)) {
+		ErrorAlert("Could not determine OS type");
+		QuitEmulator();
+	}
+	win_os = osvi.dwPlatformId;
+	win_os_major = osvi.dwMajorVersion;
+	if (win_os != VER_PLATFORM_WIN32_NT || win_os_major < 4) {
+		ErrorAlert(GetString(STR_NO_WIN32_NT_4));
+		QuitEmulator();
+	}
+
+	// Check that drivers are installed
+	if (!check_drivers())
+		QuitEmulator();
 
 	// Initialize SDL system
 	int sdl_flags = 0;
