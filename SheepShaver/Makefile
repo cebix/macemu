@@ -14,6 +14,9 @@ SRCS := src
 # Where Basilisk II directory can be found
 B2_TOPDIR := ../BasiliskII
 
+# Where Kheperix directory can be found
+KPX_TOPDIR := ../kheperix
+
 default: help
 
 help:
@@ -21,6 +24,7 @@ help:
 	@echo "The following targets are available:"
 	@echo "  tarball  source tarball ($(SRCARCHIVE))"
 	@echo "  links    create links to Basilisk II sources"
+	@echo "  kpx_cpu  synchronize with Kheperix CPU emulator"
 
 clean:
 	-rm -f $(SRCARCHIVE)
@@ -65,4 +69,33 @@ links:
 	for i in $$list; do \
 	  echo $$i; \
 	  ln -sf $${PREFIX}$(B2_TOPDIR)/src/$$i src/$$i; \
+	done;
+
+#
+# Synchronize with Kheperix CPU emulator"
+#
+kpx_cpu:
+	@list='include/basic-blockinfo.hpp \
+	       include/basic-cpu.hpp \
+	       include/basic-plugin.hpp \
+	       include/task-plugin.hpp \
+	       include/block-alloc.hpp \
+	       src/cpu/block-cache.hpp \
+	       src/cpu/vm.hpp \
+	       src/cpu/ppc/ppc-cpu.hpp \
+	       src/cpu/ppc/ppc-cpu.cpp \
+	       src/cpu/ppc/ppc-decode.cpp \
+	       src/cpu/ppc/ppc-execute.cpp \
+	       src/cpu/ppc/genexec.pl \
+	       src/cpu/ppc/ppc-bitfields.hpp \
+	       src/cpu/ppc/ppc-blockinfo.hpp \
+	       src/cpu/ppc/ppc-config.hpp \
+	       src/cpu/ppc/ppc-operands.hpp \
+	       src/cpu/ppc/ppc-operations.hpp \
+	       src/cpu/ppc/ppc-registers.hpp'; \
+	for i in $$list; do \
+	  echo $$i; \
+	  mkdir -p src/kpx_cpu/`dirname $$i`; \
+	  cp -f  $(KPX_TOPDIR)/$$i src/kpx_cpu/$$i; \
+	  /bin/true ln -sf $$i src/kpx_cpu/`basename $$i`; \
 	done;
