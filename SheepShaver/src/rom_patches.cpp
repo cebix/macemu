@@ -1751,7 +1751,7 @@ static bool patch_68k(void)
 	*wp++ = htons(M68K_NOP);
 	*wp = htons(M68K_NOP);
 
-	// Gestalt PowerPC page size, RAM size (InitGestalt, via 0x25c)
+	// Gestalt PowerPC page size, CPU type, RAM size (InitGestalt, via 0x25c)
 	static const uint8 page_size2_dat[] = {0x26, 0x79, 0x5f, 0xff, 0xef, 0xd8, 0x25, 0x6b, 0x00, 0x10, 0x00, 0x1e};
 	if ((base = find_rom_data(0x50000, 0x70000, page_size2_dat, sizeof(page_size2_dat))) == 0) return false;
 	D(bug("page_size2 %08lx\n", base));
@@ -1761,7 +1761,13 @@ static bool patch_68k(void)
 	*wp++ = htons(0x1000);
 	*wp++ = htons(0x001e);
 	*wp++ = htons(0x157c);			// move.b	#PVR,$1d(a2)
-	*wp++ = htons(((PVR & 0x80000000) ? 0x10 : 0) | ((PVR >> 16) & 0xff));
+	uint32 cput = (PVR >> 16);
+	if (cput == 0x7000)
+		cput |= 0x20;
+	else if (cput >= 0x8000 && cput <= 0x8002)
+		cput |= 0x10;
+	cput &= 0xff;
+	*wp++ = htons(cput);
 	*wp++ = htons(0x001d);
 	*wp++ = htons(0x263c);			// move.l	#RAMSize,d3
 	*wp++ = htons(RAMSize >> 16);
