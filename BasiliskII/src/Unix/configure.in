@@ -71,6 +71,7 @@ if [[ "x$WANT_XF86_DGA" = "xyes" ]]; then
     fi
   ], [
     AC_MSG_WARN([Could not find XFree86 DGA extension, ignoring --enable-xf86-dga.])
+    WANT_XF86_DGA=no
     DEFINES="$DEFINES -DENABLE_XF86_DGA=0"
   ])
 else
