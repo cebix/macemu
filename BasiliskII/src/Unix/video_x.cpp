@@ -60,7 +60,7 @@
 #include "user_strings.h"
 #include "video.h"
 
-#define DEBUG 1
+#define DEBUG 0
 #include "debug.h"
 
 
@@ -81,6 +81,7 @@ static int16 mouse_wheel_mode = 1;
 static int16 mouse_wheel_lines = 3;
 
 static int display_type = DISPLAY_WINDOW;			// See enum above
+static bool local_X11;								// Flag: X server running on local machine?
 static uint8 *the_buffer;							// Mac frame buffer
 
 #ifdef HAVE_PTHREADS
@@ -164,6 +165,7 @@ static int event2keycode(XKeyEvent *ev);
 
 
 // From main_unix.cpp
+extern char *x_display_name;
 extern Display *x_display;
 
 // From sys_unix.cpp
@@ -249,8 +251,6 @@ static bool init_window(int width, int height)
 
 	// Read frame skip prefs
 	frame_skip = PrefsFindInt32("frameskip");
-	if (frame_skip == 0)
-		frame_skip = 1;
 
 	// Create window
 	XSetWindowAttributes wattr;
@@ -290,7 +290,7 @@ static bool init_window(int width, int height)
 	
 	// Try to create and attach SHM image
 	have_shm = false;
-	if (depth != 1 && XShmQueryExtension(x_display)) {
+	if (depth != 1 && local_X11 && XShmQueryExtension(x_display)) {
 
 		// Create SHM image ("height + 2" for safety)
 		img = XShmCreateImage(x_display, vis, depth, depth == 1 ? XYBitmap : ZPixmap, 0, &shminfo, width, height);
@@ -341,7 +341,7 @@ static bool init_window(int width, int height)
 		img->bitmap_bit_order = MSBFirst;
 	}
 
-	// Allocate memory for frame buffer copy
+	// Allocate memory for frame buffer
 	the_buffer = (uint8 *)malloc((aligned_height + 2) * img->bytes_per_line);
 
 	// Create GC
@@ -349,11 +349,11 @@ static bool init_window(int width, int height)
 	XSetState(x_display, the_gc, black_pixel, white_pixel, GXcopy, AllPlanes);
 
 	// Create no_cursor
-	mac_cursor = XCreatePixmapCursor (x_display,
-					   XCreatePixmap (x_display, the_win, 1, 1, 1),
-					   XCreatePixmap (x_display, the_win, 1, 1, 1),
-					   &black, &white, 0, 0);
-	XDefineCursor (x_display, the_win, mac_cursor);
+	mac_cursor = XCreatePixmapCursor(x_display,
+	   XCreatePixmap(x_display, the_win, 1, 1, 1),
+	   XCreatePixmap(x_display, the_win, 1, 1, 1),
+	   &black, &white, 0, 0);
+	XDefineCursor(x_display, the_win, mac_cursor);
 
 	// Set VideoMonitor
 #ifdef WORDS_BIGENDIAN
@@ -660,6 +660,10 @@ static void keycode_init(void)
 
 bool VideoInit(bool classic)
 {
+	// Check if X server runs on local machine
+	local_X11 = (strncmp(XDisplayName(x_display_name), ":", 1) == 0)
+	         || (strncmp(XDisplayName(x_display_name), "unix:", 5) == 0);
+    
 	// Init keycode translation
 	keycode_init();
 
@@ -688,7 +692,7 @@ bool VideoInit(bool classic)
 #ifdef ENABLE_XF86_DGA
 	// DGA available?
 	int dga_event_base, dga_error_base;
-	if (XF86DGAQueryExtension(x_display, &dga_event_base, &dga_error_base)) {
+	if (local_X11 && XF86DGAQueryExtension(x_display, &dga_event_base, &dga_error_base)) {
 		int dga_flags = 0;
 		XF86DGAQueryDirectVideo(x_display, screen, &dga_flags);
 		has_dga = dga_flags & XF86DGADirectPresent;
@@ -1311,11 +1315,14 @@ static void handle_events(void)
 			// Hidden parts exposed, force complete refresh of window
 			case Expose:
 				if (display_type == DISPLAY_WINDOW) {
-					int x1, y1;
-					for (y1=0; y1<16; y1++)
-					for (x1=0; x1<16; x1++)
-						updt_box[x1][y1] = true;
-					nr_boxes = 16 * 16;
+					if (frame_skip == 0) {	// Dynamic refresh
+						int x1, y1;
+						for (y1=0; y1<16; y1++)
+						for (x1=0; x1<16; x1++)
+							updt_box[x1][y1] = true;
+						nr_boxes = 16 * 16;
+					} else
+						memset(the_buffer_copy, 0, VideoMonitor.bytes_per_row * VideoMonitor.y);
 				}
 				break;
 		}
@@ -1327,7 +1334,8 @@ static void handle_events(void)
  *  Window display update
  */
 
-static void update_display(int ticker)
+// Dynamic display update (variable frame rate for each box)
+static void update_display_dynamic(int ticker)
 {
 	int y1, y2, y2s, y2a, i, x1, xm, xmo, ymo, yo, yi, yil, xic, xicl, xi;
 	int xil = 0;
@@ -1416,6 +1424,123 @@ static void update_display(int ticker)
 	}
 }
 
+// Static display update (fixed frame rate, but incremental)
+static void update_display_static(void)
+{
+	// Incremental update code
+	int wide = 0, high = 0, x1, x2, y1, y2, i, j;
+	int bytes_per_row = VideoMonitor.bytes_per_row;
+	int bytes_per_pixel = VideoMonitor.bytes_per_row / VideoMonitor.x;
+	uint8 *p, *p2;
+
+	// Check for first line from top and first line from bottom that have changed
+	y1 = 0;
+	for (j=0; j<VideoMonitor.y; j++) {
+		if (memcmp(&the_buffer[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
+			y1 = j;
+			break;
+		}
+	}
+	y2 = y1 - 1;
+	for (j=VideoMonitor.y-1; j>=y1; j--) {
+		if (memcmp(&the_buffer[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
+			y2 = j;
+			break;
+		}
+	}
+	high = y2 - y1 + 1;
+
+	// Check for first column from left and first column from right that have changed
+	if (high) {
+		if (depth == 1) {
+			x1 = VideoMonitor.x;
+			for (j=y1; j<=y2; j++) {
+				p = &the_buffer[j * bytes_per_row];
+				p2 = &the_buffer_copy[j * bytes_per_row];
+				for (i=0; i<(x1>>3); i++) {
+					if (*p != *p2) {
+						x1 = i << 3;
+						break;
+					}
+					p++;
+					p2++;
+				}
+			}
+			x2 = x1;
+			for (j=y1; j<=y2; j++) {
+				p = &the_buffer[j * bytes_per_row];
+				p2 = &the_buffer_copy[j * bytes_per_row];
+				p += bytes_per_row;
+				p2 += bytes_per_row;
+				for (i=(VideoMonitor.x>>3); i>(x2>>3); i--) {
+					p--;
+					p2--;
+					if (*p != *p2) {
+						x2 = i << 3;
+						break;
+					}
+				}
+			}
+			wide = x2 - x1;
+
+			// Update copy of the_buffer
+			if (high && wide) {
+				for (j=y1; j<=y2; j++) {
+					i = j * bytes_per_row + (x1 >> 3);
+					memcpy(the_buffer_copy + i, the_buffer + i, wide >> 3);
+				}
+			}
+
+		} else {
+			x1 = VideoMonitor.x;
+			for (j=y1; j<=y2; j++) {
+				p = &the_buffer[j * bytes_per_row];
+				p2 = &the_buffer_copy[j * bytes_per_row];
+				for (i=0; i<x1; i++) {
+					if (memcmp(p, p2, bytes_per_pixel)) {
+						x1 = i;
+						break;
+					}
+					p += bytes_per_pixel;
+					p2 += bytes_per_pixel;
+				}
+			}
+			x2 = x1;
+			for (j=y1; j<=y2; j++) {
+				p = &the_buffer[j * bytes_per_row];
+				p2 = &the_buffer_copy[j * bytes_per_row];
+				p += bytes_per_row;
+				p2 += bytes_per_row;
+				for (i=VideoMonitor.x; i>x2; i--) {
+					p -= bytes_per_pixel;
+					p2 -= bytes_per_pixel;
+					if (memcmp(p, p2, bytes_per_pixel)) {
+						x2 = i;
+						break;
+					}
+				}
+			}
+			wide = x2 - x1;
+
+			// Update copy of the_buffer
+			if (high && wide) {
+				for (j=y1; j<=y2; j++) {
+					i = j * bytes_per_row + x1 * bytes_per_pixel;
+					memcpy(the_buffer_copy + i, the_buffer + i, bytes_per_pixel * wide);
+				}
+			}
+		}
+	}
+
+	// Refresh display
+	if (high && wide) {
+		if (have_shm)
+			XShmPutImage(x_display, the_win, the_gc, img, x1, y1, x1, y1, wide, high, 0);
+		else
+			XPutImage(x_display, the_win, the_gc, img, x1, y1, x1, y1, wide, high);
+	}
+}
+
 
 /*
  *  Thread for screen refresh, input handling etc.
@@ -1468,7 +1593,12 @@ void VideoRefresh(void)
 	static int tick_counter = 0;
 	if (display_type == DISPLAY_WINDOW) {
 		tick_counter++;
-		update_display(tick_counter);
+		if (frame_skip == 0)
+			update_display_dynamic(tick_counter);
+		else if (tick_counter >= frame_skip) {
+			tick_counter = 0;
+			update_display_static();
+		}
 	}
 }
 

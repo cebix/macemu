@@ -575,6 +575,7 @@ static void mn_10hz(...) {PrefsReplaceInt32("frameskip", 6);}
 static void mn_15hz(...) {PrefsReplaceInt32("frameskip", 4);}
 static void mn_30hz(...) {PrefsReplaceInt32("frameskip", 2);}
 static void mn_60hz(...) {PrefsReplaceInt32("frameskip", 1);}
+static void mn_dynamic(...) {PrefsReplaceInt32("frameskip", 0);}
 
 // "Disable Sound Output" button toggled
 static void tb_nosound(GtkWidget *widget)
@@ -680,27 +681,20 @@ static void create_graphics_pane(GtkWidget *top)
 	add_menu_item(menu, STR_REF_15HZ_LAB, GTK_SIGNAL_FUNC(mn_15hz));
 	add_menu_item(menu, STR_REF_30HZ_LAB, GTK_SIGNAL_FUNC(mn_30hz));
 	add_menu_item(menu, STR_REF_60HZ_LAB, GTK_SIGNAL_FUNC(mn_60hz));
+	add_menu_item(menu, STR_REF_DYNAMIC_LAB, GTK_SIGNAL_FUNC(mn_dynamic));
 	int frameskip = PrefsFindInt32("frameskip");
+	int item = -1;
 	switch (frameskip) {
-		case 12:
-			gtk_menu_set_active(GTK_MENU(menu), 0);
-			break;
-		case 8:
-			gtk_menu_set_active(GTK_MENU(menu), 1);
-			break;
-		case 6:
-			gtk_menu_set_active(GTK_MENU(menu), 2);
-			break;
-		case 4:
-			gtk_menu_set_active(GTK_MENU(menu), 3);
-			break;
-		case 2:
-			gtk_menu_set_active(GTK_MENU(menu), 4);
-			break;
-		case 1:
-			gtk_menu_set_active(GTK_MENU(menu), 5);
-			break;
+		case 12: item = 0; break;
+		case 8: item = 1; break;
+		case 6: item = 2; break;
+		case 4: item = 3; break;
+		case 2: item = 4; break;
+		case 1: item = 5; break;
+		case 0: item = 6; break;
 	}
+	if (item >= 0)
+		gtk_menu_set_active(GTK_MENU(menu), item);
 	gtk_option_menu_set_menu(GTK_OPTION_MENU(w_frameskip), menu);
 	gtk_table_attach(GTK_TABLE(table), w_frameskip, 1, 2, 1, 2, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 

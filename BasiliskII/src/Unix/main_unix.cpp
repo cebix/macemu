@@ -75,7 +75,7 @@ struct sigstate {
 # include "mon.h"
 #endif
 
-#define DEBUG 1
+#define DEBUG 0
 #include "debug.h"
 
 
@@ -104,7 +104,7 @@ bool TwentyFourBitAddressing;
 
 
 // Global variables
-static char *x_display_name = NULL;					// X11 display name
+char *x_display_name = NULL;						// X11 display name
 Display *x_display = NULL;							// X11 display handle
 
 static int zero_fd = -1;							// FD of /dev/zero
