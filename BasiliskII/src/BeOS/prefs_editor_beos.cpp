@@ -84,7 +84,11 @@ const uint32 MSG_ETHER = 'ethr';
 const uint32 MSG_RAMSIZE = 'rmsz';			// "Memory/Misc" pane
 const uint32 MSG_MODELID_5 = 'mi05';
 const uint32 MSG_MODELID_14 = 'mi14';
-const uint32 MSG_FPU = 'fpu ';
+const uint32 MSG_CPU_68020 = 'cpu2';
+const uint32 MSG_CPU_68020_FPU = 'cpf2';
+const uint32 MSG_CPU_68030 = 'cpu3';
+const uint32 MSG_CPU_68030_FPU = 'cpf3';
+const uint32 MSG_CPU_68040 = 'cpu4';
 
 
 // RAM size slider class
@@ -708,13 +712,31 @@ BView *PrefsWindow::create_memory_pane(void)
 		item->SetMarked(true);
 	pane->AddChild(menu_field);
 
-	rom_control = new PathControl(false, BRect(10, 82, right, 97), "rom", GetString(STR_ROM_FILE_CTRL), PrefsFindString("rom"), NULL);
+	int cpu = PrefsFindInt32("cpu");
+	bool fpu = PrefsFindBool("fpu");
+	menu = new BPopUpMenu("");
+	menu_field = new BMenuField(BRect(10, 82, right, 97), "cpu", GetString(STR_CPU_CTRL), menu);
+	menu_field->SetDivider(120);
+	menu->AddItem(item = new BMenuItem(GetString(STR_CPU_68020_LAB), new BMessage(MSG_CPU_68020)));
+	if (cpu == 2 && !fpu)
+		item->SetMarked(true);
+	menu->AddItem(item = new BMenuItem(GetString(STR_CPU_68020_FPU_LAB), new BMessage(MSG_CPU_68020_FPU)));
+	if (cpu == 2 && fpu)
+		item->SetMarked(true);
+	menu->AddItem(item = new BMenuItem(GetString(STR_CPU_68030_LAB), new BMessage(MSG_CPU_68030)));
+	if (cpu == 3 && !fpu)
+		item->SetMarked(true);
+	menu->AddItem(item = new BMenuItem(GetString(STR_CPU_68030_FPU_LAB), new BMessage(MSG_CPU_68030_FPU)));
+	if (cpu == 3 && fpu)
+		item->SetMarked(true);
+	menu->AddItem(item = new BMenuItem(GetString(STR_CPU_68040_LAB), new BMessage(MSG_CPU_68040)));
+	if (cpu == 4)
+		item->SetMarked(true);
+	pane->AddChild(menu_field);
+
+	rom_control = new PathControl(false, BRect(10, 104, right, 119), "rom", GetString(STR_ROM_FILE_CTRL), PrefsFindString("rom"), NULL);
 	rom_control->SetDivider(117);
 	pane->AddChild(rom_control);
-
-	fpu_checkbox = new BCheckBox(BRect(10, 100, right, 115), "fpu", GetString(STR_FPU_CTRL), new BMessage(MSG_FPU));
-	pane->AddChild(fpu_checkbox);
-	fpu_checkbox->SetValue(PrefsFindBool("fpu") ? B_CONTROL_ON : B_CONTROL_OFF);
 
 	return pane;
 }
@@ -933,8 +955,29 @@ void PrefsWindow::MessageReceived(BMessage *msg)
 			PrefsReplaceInt32("modelid", 14);
 			break;
 
-		case MSG_FPU:
-			PrefsReplaceBool("fpu", fpu_checkbox->Value() == B_CONTROL_ON);
+		case MSG_CPU_68020:
+			PrefsReplaceInt32("cpu", 2);
+			PrefsReplaceBool("fpu", false);
+			break;
+
+		case MSG_CPU_68020_FPU:
+			PrefsReplaceInt32("cpu", 2);
+			PrefsReplaceBool("fpu", true);
+			break;
+
+		case MSG_CPU_68030:
+			PrefsReplaceInt32("cpu", 3);
+			PrefsReplaceBool("fpu", false);
+			break;
+
+		case MSG_CPU_68030_FPU:
+			PrefsReplaceInt32("cpu", 3);
+			PrefsReplaceBool("fpu", true);
+			break;
+
+		case MSG_CPU_68040:
+			PrefsReplaceInt32("cpu", 4);
+			PrefsReplaceBool("fpu", true);
 			break;
 
 		default: {
