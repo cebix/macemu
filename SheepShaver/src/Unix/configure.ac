@@ -260,6 +260,7 @@ AC_CHECK_HEADERS(linux/if.h, [], [], [
 #endif
 ])
 AC_CHECK_HEADERS(linux/if_tun.h net/if.h net/if_tun.h)
+AC_CHECK_HEADERS(fenv.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
