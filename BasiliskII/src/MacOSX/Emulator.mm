@@ -94,10 +94,7 @@
 	//[win setHasShadow: NO];		// This causes view & window to now be drawn correctly
 	[win useOptimizedDrawing: YES];			
 
-//	[win center];
 	[win makeKeyAndOrderFront:self];
-
-//	[self resizeWinToWidth:x Height:y];
 
 	if ( redrawDelay )
 		[speed setFloatValue: 1.0 / redrawDelay];
@@ -147,6 +144,30 @@
 		[self Resume: self];
 }
 
+#ifdef NIGEL
+- (IBAction) EjectCD: (id)sender;
+{
+	NSString	*path;
+	const char	*cdrom = PrefsFindString("cdrom");
+
+	if ( cdrom )
+	{
+	#include <sys/param.h>
+	#define KERNEL
+	#include <sys/mount.h>
+
+		struct statfs buf;
+		if ( fsstat(path, &buf) < 0 )
+			return;
+
+		path = [NSString stringWithCString: cdrom];
+
+		[[NSWorkspace sharedWorkspace] unmountAndEjectDeviceAtPath: path];
+//		[path release];
+	}
+}
+#endif
+
 - (IBAction) Interrupt:	(id)sender;
 {
 	WarningSheet (@"Interrupt action not yet supported", win);
@@ -177,10 +198,19 @@
 		NSLog (@"%s - uae_cpu reset not yet supported, will try to fake it",
 				__PRETTY_FUNCTION__);
 
-//		[screen blacken];
-		[screen setNeedsDisplay: YES];
+		[screen clear];
+		[screen display];
 
 		[emul terminate]; QuitEmuNoExit();
+
+
+		// OK. We have killed & cleaned up. Now, start afresh:
+	#include <sys.h>
+		int	argc = 0;
+		char **argv;
+
+		PrefsInit(argc, argv);
+		SysInit();
 
 		emul = [NNThread new];
 		[emul perform:@selector(emulThread) of:self];
@@ -188,7 +218,6 @@
 
 		if ( display_type != DISPLAY_SCREEN )
 			[redraw resume];
-		uaeCreated = YES;
 	}
 }
 
@@ -351,8 +380,6 @@ uint8 lastXPRAM[XPRAM_SIZE];		// Copy of PRAM
 	[redraw	invalidate]; [redraw release]; redraw = nil;
 	[RTC	invalidate]; [RTC	 release]; RTC    = nil;
 	[xPRAM	invalidate]; [xPRAM	 release]; xPRAM  = nil;
-	if ( uaeCreated )
-		QuitEmuNoExit();
 }
 
 - (void) emulThread
@@ -395,13 +422,13 @@ uint8 lastXPRAM[XPRAM_SIZE];		// Copy of PRAM
 {
 	if ( display_type == DISPLAY_SCREEN )
 	{
-		NSLog(@"Why was redrawScreen() called?");
+		NSLog(@"We are in fullscreen mode - why was redrawScreen() called?");
 		return;
 	}
 	[barberPole animate:self];			// wobble the pole
 	[screen setNeedsDisplay: YES];		// redisplay next time through runLoop
 	// Or, use a direct method. e.g.
-	//	[screen cgDrawInto: ...];
+	//	[screen display] or [screen cgDrawInto: ...];
 }
 
 #include <main.h>				// For #define INTFLAG_60HZ
