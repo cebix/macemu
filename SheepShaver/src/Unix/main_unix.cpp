@@ -648,6 +648,8 @@ int main(int argc, char **argv)
 					PVR = 0x80010000;
 				else if (strcmp(value, "7457") == 0)
 					PVR = 0x80020000;
+				else if (strcmp(value, "PPC970") == 0)
+					PVR = 0x00390000;
 				else
 					printf("WARNING: Unknown CPU type '%s', assuming 604\n", value);
 			}
