@@ -33,8 +33,36 @@
 #include "sysdeps.h"
 #include "cxxdemangle.h"
 
+/* object file format defs */
+#ifndef CONFIG_WIN32
+#if defined(__CYGWIN__) || defined(_WIN32)
+#define CONFIG_WIN32 1
+#endif
+#endif
+
+/* host cpu defs */
+#if CONFIG_WIN32
+#define HOST_I386 1
+#elif defined(__i386__)
+#define HOST_I386 1
+#elif defined(__powerpc__)
+#define HOST_PPC 1
+#elif defined(__s390__)
+#define HOST_S390 1
+#elif defined(__alpha__)
+#define HOST_ALPHA 1
+#elif defined(__ia64__)
+#define HOST_IA64 1
+#elif defined(__sparc__)
+#define HOST_SPARC 1
+#elif defined(__x86_64__)
+#define HOST_AMD64 1
+#elif defined(__m68k__)
+#define HOST_M68K 1
+#endif
+
 /* Debug generated code */
-#if ENABLE_MON && (defined(__i386__) || defined(__x86_64__)) && 0
+#if ENABLE_MON && (defined(HOST_I386) || defined(HOST_AMD64)) && 0
 #define DYNGEN_PRETTY_PRINT 1
 
 #include "disass/dis-asm.h"
@@ -89,7 +117,7 @@ static int dyngen_sprintf(struct SFILE *f, const char *format, ...)
   return n;
 }
 
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(HOST_I386) || defined(HOST_AMD64)
 static int pretty_print(char *buf, uintptr_t addr, uintptr_t base)
 {
   disassemble_info info;
@@ -97,37 +125,13 @@ static int pretty_print(char *buf, uintptr_t addr, uintptr_t base)
   sfile.buffer = buf;
   sfile.current = buf;
   INIT_DISASSEMBLE_INFO(info, (FILE *)&sfile, (fprintf_ftype)dyngen_sprintf);
-#if defined(__x86_64__)
+#if defined(HOST_AMD64)
   info.mach = bfd_mach_x86_64;
 #endif
   print_address_base = base;
   return print_insn_i386_att(addr, &info);
 }
 #endif
-#endif
-
-/* host cpu defs */
-#if defined(__i386__)
-#define HOST_I386 1
-#elif defined(__powerpc__)
-#define HOST_PPC 1
-#elif defined(__s390__)
-#define HOST_S390 1
-#elif defined(__alpha__)
-#define HOST_ALPHA 1
-#elif defined(__ia64__)
-#define HOST_IA64 1
-#elif defined(__sparc__)
-#define HOST_SPARC 1
-#elif defined(__x86_64__)
-#define HOST_AMD64 1
-#elif defined(__m68k__)
-#define HOST_M68K 1
-#endif
-
-/* object file format defs */
-#if defined(__CYGWIN__) || defined(_WIN32)
-#define CONFIG_WIN32 1
 #endif
 
 /* NOTE: we test CONFIG_WIN32 instead of _WIN32 to enabled cross
