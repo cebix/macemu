@@ -27,7 +27,8 @@
 4) make ide
 
    This should generate the uae_cpu emulator core's source,
-   and then open the IDE with the file in BasiliskII.pbproj
+   and then open the project in the Project Builder or Xcode IDE.
+
 
 5) From the Build menu, choose 'Build' or 'Build & Run'
 
@@ -45,6 +46,13 @@ Notes:
 2) For some reason, compiling on 10.2 with DIRECT_ADDRESSING 1
    results in an executable that cannot write to the screen.
 
-3) If you want to change the REAL_ADDRESSING or DIRECT_ADDRESSING
+3) If you want to change REAL_ADDRESSING or DIRECT_ADDRESSING,
+   you need to reconfigure. Safest way is to "make distclean",
+   and then to change the --enable flag in 1_prepare_files.sh
+
+4) A few times I have had link errors on 10.1 like:
+   Undefined symbol: _assign__t18string_char_traits1ZcRcRCc
+   A web search reveals that this is a problem in Apple's AppKit
+   framework, and that adding the lib stdc++ should help.
    defaults in sysdeps.h, you will need to reconfigure.
    (i.e. make distclean; sh 1_prepare_files.sh)
