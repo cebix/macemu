@@ -39,6 +39,8 @@ class powerpc_cpu
 
 protected:
 
+	powerpc_spcflags & spcflags() { return regs.spcflags; }
+	powerpc_spcflags const & spcflags() const { return regs.spcflags; }
 	powerpc_cr_register & cr() { return regs.cr; }
 	powerpc_cr_register const & cr() const { return regs.cr; }
 	powerpc_xer_register & xer() { return regs.xer; }
@@ -143,7 +145,7 @@ protected:
 	struct instr_info_t {
 		char			name[8];		// Mnemonic
 		execute_fn		execute;		// Semantic routine for this instruction
-		execute_fn		execute_rc;		// variant to record computed value
+		execute_fn		decode;			// Specialized instruction decoder
 		uint16			format;			// Instruction format (XO-form, D-form, etc.)
 		uint16			opcode;			// Primary opcode
 		uint16			xo;				// Extended opcode
@@ -191,6 +193,9 @@ private:
 	// Convert 8-bit field mask (e.g. mtcrf) to bit mask
 	uint32 field2mask[256];
 
+	// Check special CPU flags
+	bool check_spcflags();
+
 public:
 
 	// Initialization & finalization
@@ -227,17 +232,6 @@ public:
 	void execute();
 
 	// Interrupts handling
-protected:
-	enum {
-		INTERRUPT_NONE		= 0,
-		INTERRUPT_TRIGGER	= 1,
-		INTERRUPT_HANDLE	= 2
-	};
-#if PPC_CHECK_INTERRUPTS
-	int pending_interrupts;
-#endif
-public:
-	void check_pending_interrupts();
 	void trigger_interrupt();
 	virtual void handle_interrupt() { }
 	
@@ -255,7 +249,6 @@ public:
 	void invalidate_cache_range(uintptr start, uintptr end);
 private:
 	struct { uintptr start, end; } cache_range;
-	bool invalidated_cache;
 
 protected:
 
@@ -363,23 +356,7 @@ private:
 inline void powerpc_cpu::trigger_interrupt()
 {
 #if PPC_CHECK_INTERRUPTS
-	pending_interrupts |= INTERRUPT_TRIGGER;
-#endif
-}
-
-inline void powerpc_cpu::check_pending_interrupts()
-{
-#if PPC_CHECK_INTERRUPTS
-	if (pending_interrupts) {
-		if (pending_interrupts & INTERRUPT_HANDLE) {
-			pending_interrupts &= ~INTERRUPT_HANDLE;
-			handle_interrupt();
-		}
-		if (pending_interrupts & INTERRUPT_TRIGGER) {
-			pending_interrupts &= ~INTERRUPT_TRIGGER;
-			pending_interrupts |= INTERRUPT_HANDLE;
-		}
-	}
+	spcflags().set(SPCFLAG_CPU_TRIGGER_INTERRUPT);
 #endif
 }
 

@@ -337,6 +337,14 @@ powerpc_xer_register::set(uint32 xer)
 
 
 /**
+ *		Special CPU flags
+ **/
+
+#include "cpu/spcflags.hpp"
+typedef basic_spcflags powerpc_spcflags;
+
+
+/**
  *		VEA Register Set
  **/
 
@@ -366,6 +374,7 @@ struct powerpc_registers
 	uint32	ctr;				// Count Register (SPR 9)
 	uint32	pc;					// Program Counter
 	uint32	tbl, tbu;			// Time Base
+	powerpc_spcflags spcflags;	// Special CPU flags
 	static uint32 reserve_valid;
 	static uint32 reserve_addr;
 	static uint32 reserve_data;

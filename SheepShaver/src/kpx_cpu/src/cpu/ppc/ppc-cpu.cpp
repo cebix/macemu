@@ -208,14 +208,8 @@ void powerpc_cpu::initialize()
 	init_registers();
 	init_decode_cache();
 
-	// Init interrupts state
-#if PPC_CHECK_INTERRUPTS
-	pending_interrupts = INTERRUPT_NONE;
-#endif
-
 	// Init cache range invalidate recorder
 	cache_range.start = cache_range.end = 0;
-	invalidated_cache = false;
 
 	// Init syscalls handler
 	execute_do_syscall = NULL;
@@ -281,6 +275,40 @@ void powerpc_cpu::fake_dump_registers(uint32)
 	dump_registers();
 }
 
+bool powerpc_cpu::check_spcflags()
+{
+#if PPC_CHECK_INTERRUPTS
+	if (spcflags().test(SPCFLAG_CPU_HANDLE_INTERRUPT)) {
+		spcflags().clear(SPCFLAG_CPU_HANDLE_INTERRUPT);
+		handle_interrupt();
+	}
+	if (spcflags().test(SPCFLAG_CPU_TRIGGER_INTERRUPT)) {
+		spcflags().clear(SPCFLAG_CPU_TRIGGER_INTERRUPT);
+		spcflags().set(SPCFLAG_CPU_HANDLE_INTERRUPT);
+	}
+#endif
+	if (spcflags().test(SPCFLAG_CPU_EXEC_RETURN)) {
+		spcflags().clear(SPCFLAG_CPU_EXEC_RETURN);
+		return false;
+	}
+	if (spcflags().test(SPCFLAG_CPU_ENTER_MON)) {
+		spcflags().clear(SPCFLAG_CPU_ENTER_MON);
+#if ENABLE_MON
+		// Start up mon in real-mode
+		char *arg[] = {
+			"mon",
+#ifdef SHEEPSHAVER
+			"-m",
+#endif
+			"-r",
+			NULL
+		};
+		mon(sizeof(arg)/sizeof(arg[0]) - 1, arg);
+#endif
+	}
+	return true;
+}
+
 void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 {
 	pc() = entry;
@@ -341,7 +369,6 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 			decode_cache_p += bi->size;
 
 			// Execute all cached blocks
-			invalidated_cache = false;
 			for (;;) {
 #ifdef PPC_LAZY_PC_UPDATE
 				pc() = bi->end_pc;
@@ -367,9 +394,18 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 					di += 4;
 				}
 #endif
-				check_pending_interrupts();
+				if (!spcflags().empty()) {
+					if (!check_spcflags())
+						return;
 
-				if (invalidated_cache || ((bi->pc != pc()) && ((bi = block_cache.find(pc())) == NULL)))
+					// Force redecoding if cache was invalidated
+					if (spcflags().test(SPCFLAG_JIT_EXEC_RETURN)) {
+						spcflags().clear(SPCFLAG_JIT_EXEC_RETURN);
+						break;
+					}
+				}
+
+				if ((bi->pc != pc()) && ((bi = block_cache.find(pc())) == NULL))
 					break;
 			}
 		}
@@ -393,7 +429,8 @@ void powerpc_cpu::execute(uint32 entry, bool enable_cache)
 		if (dump_state)
 			dump_registers();
 #endif
-		check_pending_interrupts();
+		if (!spcflags().empty() && !check_spcflags())
+			return;
 	}
 }
 
@@ -440,7 +477,7 @@ void powerpc_cpu::invalidate_cache()
 	block_cache.clear();
 	block_cache.initialize();
 	decode_cache_p = decode_cache;
-	invalidated_cache = true;
+	spcflags().set(SPCFLAG_JIT_EXEC_RETURN);
 #endif
 }
 

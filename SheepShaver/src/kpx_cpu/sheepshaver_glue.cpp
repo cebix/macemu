@@ -28,7 +28,6 @@
 #include "macos_util.h"
 #include "block-alloc.hpp"
 #include "sigsegv.h"
-#include "spcflags.h"
 #include "cpu/ppc/ppc-cpu.hpp"
 #include "cpu/ppc/ppc-operations.hpp"
 
@@ -79,8 +78,6 @@ static KernelData * const kernel_data = (KernelData *)KERNEL_DATA_BASE;
  *		PowerPC emulator glue with special 'sheep' opcodes
  **/
 
-struct sheepshaver_exec_return { };
-
 class sheepshaver_cpu
 	: public powerpc_cpu
 {
@@ -115,9 +112,6 @@ public:
 	void interrupt(uint32 entry);
 	void handle_interrupt();
 
-	// spcflags for interrupts handling
-	static uint32 spcflags;
-
 	// Lazy memory allocator (one item at a time)
 	void *operator new(size_t size)
 		{ return allocator_helper< sheepshaver_cpu, lazy_allocator >::allocate(); }
@@ -128,7 +122,6 @@ public:
 	void operator delete[](void *p);
 };
 
-uint32 sheepshaver_cpu::spcflags = 0;
 lazy_allocator< sheepshaver_cpu > allocator_helper< sheepshaver_cpu, lazy_allocator >::allocator;
 
 sheepshaver_cpu::sheepshaver_cpu()
@@ -189,7 +182,7 @@ void sheepshaver_cpu::execute_sheep(uint32 opcode)
 		break;
 
 	case 1:		// EXEC_RETURN
-		throw sheepshaver_exec_return();
+		spcflags().set(SPCFLAG_CPU_EXEC_RETURN);
 		break;
 
 	case 2:		// EXEC_NATIVE
@@ -225,16 +218,7 @@ void sheepshaver_cpu::execute_sheep(uint32 opcode)
 // Execution loop
 void sheepshaver_cpu::execute(uint32 entry, bool enable_cache)
 {
-	try {
-		powerpc_cpu::execute(entry, enable_cache);
-	}
-	catch (sheepshaver_exec_return const &) {
-		// Nothing, simply return
-	}
-	catch (...) {
-		printf("ERROR: execute() received an unknown exception!\n");
-		QuitEmulator();
-	}
+	powerpc_cpu::execute(entry, enable_cache);
 }
 
 // Handle MacOS interrupt
