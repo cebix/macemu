@@ -91,6 +91,8 @@ static void disasm_translation(uint32 src_addr, uint32 src_len,
  *		DynGen dynamic code translation
  **/
 
+#define FOLLOW_CONST_JUMPS 1
+
 #if PPC_ENABLE_JIT
 powerpc_cpu::block_info *
 powerpc_cpu::compile_block(uint32 entry_point)
@@ -115,7 +117,10 @@ powerpc_cpu::compile_block(uint32 entry_point)
 	bi->entry_point = dg.gen_start();
 
 	uint32 dpc = entry_point - 4;
-	int pc_offset = 0;
+	uint32 min_pc, max_pc;
+	min_pc = max_pc = entry_point;
+	uint32 sync_pc = dpc;
+	uint32 sync_pc_offset = 0;
 	bool done_compile = false;
 	while (!done_compile) {
 		uint32 opcode = vm_read_memory_4(dpc += 4);
@@ -134,10 +139,12 @@ powerpc_cpu::compile_block(uint32 entry_point)
 				int do_update;
 				int do_indexed;
 			} mem;
+			struct {
+				uint32 target;
+			} jmp;
 		};
 		operands_t op;
 
-		pc_offset += 4;
 		switch (ii->mnemo) {
 		case PPC_I(LBZ):		// Load Byte and Zero
 			op.mem.size = 1;
@@ -402,6 +409,17 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			break;
 		}
 		case PPC_I(BC):			// Branch Conditional
+#if FOLLOW_CONST_JUMPS
+			if (!LK_field::test(opcode)) {
+				const int bo = BO_field::extract(opcode);
+				if (!BO_CONDITIONAL_BRANCH(bo) && !BO_DECREMENT_CTR(bo)) {
+					if (AA_field::test(opcode))
+						dpc = 0;
+					op.jmp.target = ((dpc + operand_BD::get(this, opcode)) & -4);
+					goto do_const_jump;
+				}
+			}
+#endif
 			dg.gen_mov_32_A0_im(((AA_field::test(opcode) ? 0 : dpc) + operand_BD::get(this, opcode)) & -4);
 			goto do_branch;
 		case PPC_I(BCCTR):		// Branch Conditional to Count Register
@@ -433,14 +451,33 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			break;
 		}
 		case PPC_I(B):			// Branch
+			goto do_call;
 		{
-			// TODO: follow constant branches
+#if FOLLOW_CONST_JUMPS
+		  do_const_jump:
+			sync_pc = dpc = op.jmp.target - 4;
+			sync_pc_offset = 0;
+			if (dpc < min_pc)
+				min_pc = dpc;
+			else if (dpc > max_pc)
+				max_pc = dpc;
+			done_compile = false;
+			break;
+#endif
+		  do_call:
+			uint32 tpc = AA_field::test(opcode) ? 0 : dpc;
+			tpc = (tpc + operand_LI::get(this, opcode)) & -4;
+
 			const uint32 npc = dpc + 4;
 			if (LK_field::test(opcode))
 				dg.gen_store_im_LR(npc);
+#if FOLLOW_CONST_JUMPS
+			else {
+				op.jmp.target = tpc;
+				goto do_const_jump;
+			}
+#endif
 
-			uint32 tpc = AA_field::test(opcode) ? 0 : dpc;
-			tpc = (tpc + operand_LI::get(this, opcode)) & -4;
 			dg.gen_mov_32_A0_im(tpc);
 
 			// BO field is built so that we always branch to A0
@@ -937,7 +974,6 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			typedef void (*func_t)(dyngen_cpu_base, uint32);
 			func_t func;
 		  do_generic:
-//			printf("UNHANDLED: %s\n", ii->name);
 			func = (func_t)ii->execute.ptr();
 			goto do_invoke;
 		  do_illegal:
@@ -948,11 +984,12 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			cg_context.opcode = opcode;
 			cg_context.instr_info = ii;
 			if (!compile1(cg_context)) {
-				pc_offset -= 4;
-				if (pc_offset) {
-					dg.gen_inc_PC(pc_offset);
-					pc_offset = 0;
+				if ((dpc - sync_pc) > sync_pc_offset) {
+					sync_pc = dpc;
+					sync_pc_offset = 0;
+					dg.gen_set_PC_im(dpc);
 				}
+				sync_pc_offset += 4;
 				dg.gen_commit_cr();
 				dg.gen_invoke_CPU_im(func, opcode);
 			}
@@ -968,12 +1005,13 @@ powerpc_cpu::compile_block(uint32 entry_point)
 	dg.gen_exec_return();
 	dg.gen_end();
 	bi->end_pc = dpc;
+	if (dpc < min_pc)
+		min_pc = dpc;
+	else if (dpc > max_pc)
+		max_pc = dpc;
+	bi->min_pc = min_pc;
+	bi->max_pc = max_pc;
 	bi->size = dg.code_ptr() - bi->entry_point;
-#if defined(__powerpc__) && 0
-	double ratio = double(bi->size) / double(dpc - entry_point + 4);
-	if (ratio >= 10)
-		disasm = true;
-#endif
 	if (disasm)
 		disasm_translation(entry_point, dpc - entry_point + 4, bi->entry_point, bi->size);
 	block_cache.add_to_cl_list(bi);

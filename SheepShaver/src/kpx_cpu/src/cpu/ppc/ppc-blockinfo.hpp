@@ -42,7 +42,16 @@ struct powerpc_block_info
 #endif
 #if PPC_ENABLE_JIT
 	uint8 *				entry_point;
+	uintptr				min_pc, max_pc;
 #endif
+
+	bool intersect(uintptr start, uintptr end);
 };
+
+inline bool
+powerpc_block_info::intersect(uintptr start, uintptr end)
+{
+	return (min_pc >= start && min_pc < end) || (max_pc >= start && max_pc < end);
+}
 
 #endif /* PPC_BLOCKINFO_H */

@@ -126,8 +126,7 @@ inline void block_cache< block_info, block_allocator >::clear_range(uintptr star
 	while (p) {
 		q = p;
 		p = p->next;
-		if (((q->pc >= start) && (q->pc < end)) ||
-			((q->end_pc >= start) && (q->end_pc < end))) {
+		if (q->intersect(start, end)) {
 			remove_from_cl_list(q);
 			remove_from_list(q);
 			delete_blockinfo(q);

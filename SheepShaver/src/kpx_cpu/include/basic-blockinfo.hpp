@@ -52,6 +52,7 @@ struct basic_block_info
 	void remove_deps();
 	void create_jmpdep(block_info *tbi, int i);
 	void maybe_create_jmpdep(block_info *tbi);
+	bool intersect(uintptr start, uintptr end);
 };
 
 inline void
@@ -106,6 +107,12 @@ basic_block_info::maybe_create_jmpdep(block_info *tbi)
 			break;
 		}
 	}
+}
+
+inline bool
+basic_block_info::intersect(uintptr start, uintptr end)
+{
+	return (pc >= start && pc < end) || (end_pc >= start && end_pc < end);
 }
 
 #endif /* BASIC_BLOCKINFO_H */
