@@ -41,6 +41,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include <signal.h>
 
@@ -61,6 +62,17 @@
 # else
 #  include <time.h>
 # endif
+#endif
+
+// Fix offsetof() on FreeBSD and GCC >= 3.4
+#if defined(__FreeBSD__) && defined(__cplusplus)
+#undef offsetof
+/* The cast to "char &" below avoids problems with user-defined
+   "operator &", which can appear in a POD type.  */
+#define offsetof(TYPE, MEMBER)                          \
+  (__offsetof__ (reinterpret_cast <size_t>              \
+                 (&reinterpret_cast <char &>            \
+                  (static_cast<TYPE *> (0)->MEMBER))))
 #endif
 
 // Define for external components
