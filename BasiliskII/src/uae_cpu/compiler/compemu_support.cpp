@@ -5114,7 +5114,7 @@ void init_comp(void)
 	    live.fate[i].status=INMEM;
 	}
 	else
-	    live.fate[i].mem=(uae_u32*)(scratch.fregs+i);
+	    live.fate[i].mem=(uae_u32*)(&scratch.fregs[i]);
     }
 
 
@@ -5652,7 +5652,7 @@ void alloc_cache(void)
 			cache_size /= 2;
 		}
 	}
-	vm_protect(compiled_code, cache_size, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE);
+	vm_protect(compiled_code, cache_size * 1024, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE);
 	
 	if (compiled_code) {
 		write_log("<JIT compiler> : actual translation cache size : %d KB at 0x%08X\n", cache_size, compiled_code);
