@@ -80,6 +80,9 @@ typedef uae_u32 uaecptr;
 typedef uint32 uintptr;
 typedef int32 intptr;
 
+/* Timing functions */
+extern void Delay_usec(uint32 usec);
+
 // UAE CPU defines
 #ifdef __i386__
 

@@ -120,3 +120,13 @@ int32 timer_host2mac_time(tm_time_t hosttime)
 	else
 		return -hosttime;		// Time in negative microseconds
 }
+
+
+/*
+ *  Delay by specified number of microseconds (<1 second)
+ */
+
+void Delay_usec(uint32 usec)
+{
+	snooze(usec);
+}
