@@ -1124,6 +1124,14 @@ static void create_serial_pane(GtkWidget *top)
 static GtkObject *w_ramsize_adj;
 static GtkWidget *w_rom_file;
 
+// "Ignore SEGV" button toggled
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+static void tb_ignoresegv(GtkWidget *widget)
+{
+	PrefsReplaceBool("ignoresegv", GTK_TOGGLE_BUTTON(widget)->active);
+}
+#endif
+
 // Model ID selected
 static void mn_modelid_5(...) {PrefsReplaceInt32("modelid", 5);}
 static void mn_modelid_14(...) {PrefsReplaceInt32("modelid", 14);}
@@ -1226,6 +1234,10 @@ static void create_memory_pane(GtkWidget *top)
 #endif
 
 	w_rom_file = make_file_entry(box, STR_ROM_FILE_CTRL, "rom");
+
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+	make_checkbox(box, STR_IGNORESEGV_CTRL, "ignoresegv", GTK_SIGNAL_FUNC(tb_ignoresegv));
+#endif
 }
 
 

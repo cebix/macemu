@@ -40,8 +40,14 @@
 // Type of the system signal handler
 typedef RETSIGTYPE (*signal_handler)(int);
 
+// Is the fault to be ignored?
+static bool sigsegv_ignore_fault = false;
+
 // User's SIGSEGV handler
 static sigsegv_handler_t sigsegv_user_handler = 0;
+
+// Function called to dump state if we can't handle the fault
+static sigsegv_handler_t sigsegv_dump_state = 0;
 
 // Actual SIGSEGV handler installer
 static bool sigsegv_do_install_handler(int sig);
@@ -64,6 +70,8 @@ static bool sigsegv_do_install_handler(int sig);
 #if (defined(i386) || defined(__i386__))
 #include <sys/ucontext.h>
 #define SIGSEGV_FAULT_INSTRUCTION		(((ucontext_t *)scp)->uc_mcontext.gregs[14]) /* should use REG_EIP instead */
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)(((ucontext_t *)scp)->uc_mcontext.gregs)
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(ia64) || defined(__ia64__))
 #define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_ip & ~0x3ULL) /* slot number is in bits 0 and 1 */
@@ -84,6 +92,8 @@ static bool sigsegv_do_install_handler(int sig);
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, struct sigcontext scs
 #define SIGSEGV_FAULT_ADDRESS			scs.cr2
 #define SIGSEGV_FAULT_INSTRUCTION		scs.eip
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)(&scs)
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(sparc) || defined(__sparc__))
 #include <asm/sigcontext.h>
@@ -274,6 +284,178 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 #endif
 #endif
 
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+// Decode and skip X86 instruction
+#if (defined(i386) || defined(__i386__))
+#if defined(__linux__)
+enum {
+	X86_REG_EIP = 14,
+	X86_REG_EAX = 11,
+	X86_REG_ECX = 10,
+	X86_REG_EDX = 9,
+	X86_REG_EBX = 8,
+	X86_REG_ESP = 7,
+	X86_REG_EBP = 6,
+	X86_REG_ESI = 5,
+	X86_REG_EDI = 4
+};
+#endif
+// FIXME: this is partly redundant with the instruction decoding phase
+// to discover transfer type and register number
+static inline int ix86_step_over_modrm(unsigned char * p)
+{
+	int mod = (p[0] >> 6) & 3;
+	int rm = p[0] & 7;
+	int offset = 0;
+
+	// ModR/M Byte
+	switch (mod) {
+	case 0: // [reg]
+		if (rm == 5) return 4; // disp32
+		break;
+	case 1: // disp8[reg]
+		offset = 1;
+		break;
+	case 2: // disp32[reg]
+		offset = 4;
+		break;
+	case 3: // register
+		return 0;
+	}
+	
+	// SIB Byte
+	if (rm == 4) {
+		if (mod == 0 && (p[1] & 7) == 5)
+			offset = 5; // disp32[index]
+		else
+			offset++;
+	}
+
+	return offset;
+}
+
+static bool ix86_skip_instruction(sigsegv_address_t fault_instruction, unsigned long * regs)
+{
+	unsigned char * eip = (unsigned char *)fault_instruction;
+
+	if (eip == 0)
+		return false;
+	
+	// Transfer type
+	enum {
+		TYPE_UNKNOWN,
+		TYPE_LOAD,
+		TYPE_STORE
+	} transfer_type = TYPE_UNKNOWN;
+	
+	// Transfer size
+	enum {
+		SIZE_BYTE,
+		SIZE_WORD,
+		SIZE_LONG
+	} transfer_size = SIZE_LONG;
+	
+	int reg = -1;
+	int len = 0;
+	
+	// Operand size prefix
+	if (*eip == 0x66) {
+		eip++;
+		len++;
+		transfer_size = SIZE_WORD;
+	}
+
+	// Decode instruction
+	switch (eip[0]) {
+	case 0x8a: // MOV r8, r/m8
+		transfer_size = SIZE_BYTE;
+	case 0x8b: // MOV r32, r/m32 (or 16-bit operation)
+		switch (eip[1] & 0xc0) {
+		case 0x80:
+			reg = (eip[1] >> 3) & 7;
+			transfer_type = TYPE_LOAD;
+			break;
+		case 0x40:
+			reg = (eip[1] >> 3) & 7;
+			transfer_type = TYPE_LOAD;
+			break;
+		case 0x00:
+			reg = (eip[1] >> 3) & 7;
+			transfer_type = TYPE_LOAD;
+			break;
+		}
+		len += 2 + ix86_step_over_modrm(eip + 1);
+		break;
+	case 0x88: // MOV r/m8, r8
+		transfer_size = SIZE_BYTE;
+	case 0x89: // MOV r/m32, r32 (or 16-bit operation)
+		switch (eip[1] & 0xc0) {
+		case 0x80:
+			reg = (eip[1] >> 3) & 7;
+			transfer_type = TYPE_STORE;
+			break;
+		case 0x40:
+			reg = (eip[1] >> 3) & 7;
+			transfer_type = TYPE_STORE;
+			break;
+		case 0x00:
+			reg = (eip[1] >> 3) & 7;
+			transfer_type = TYPE_STORE;
+			break;
+		}
+		len += 2 + ix86_step_over_modrm(eip + 1);
+		break;
+	}
+
+	if (transfer_type == TYPE_UNKNOWN) {
+		// Unknown machine code, let it crash. Then patch the decoder
+		return false;
+	}
+
+	if (transfer_type == TYPE_LOAD && reg != -1) {
+		static const int x86_reg_map[8] = {
+			X86_REG_EAX, X86_REG_ECX, X86_REG_EDX, X86_REG_EBX,
+			X86_REG_ESP, X86_REG_EBP, X86_REG_ESI, X86_REG_EDI
+		};
+		
+		if (reg < 0 || reg >= 8)
+			return false;
+
+		int rloc = x86_reg_map[reg];
+		switch (transfer_size) {
+		case SIZE_BYTE:
+			regs[rloc] = (regs[rloc] & ~0xff);
+			break;
+		case SIZE_WORD:
+			regs[rloc] = (regs[rloc] & ~0xffff);
+			break;
+		case SIZE_LONG:
+			regs[rloc] = 0;
+			break;
+		}
+	}
+
+#if DEBUG
+	printf("%08x: %s %s access", regs[X86_REG_EIP],
+		   transfer_size == SIZE_BYTE ? "byte" : transfer_size == SIZE_WORD ? "word" : "long",
+		   transfer_type == TYPE_LOAD ? "read" : "write");
+	
+	if (reg != -1) {
+		static const char * x86_reg_str_map[8] = {
+			"eax", "ecx", "edx", "ebx",
+			"esp", "ebp", "esi", "edi"
+		};
+		printf(" %s register %%%s", transfer_type == TYPE_LOAD ? "to" : "from", x86_reg_str_map[reg]);
+	}
+	printf(", %d bytes instruction\n", len);
+#endif
+	
+	regs[X86_REG_EIP] += len;
+	return true;
+}
+#endif
+#endif
+
 // Fallbacks
 #ifndef SIGSEGV_FAULT_INSTRUCTION
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_INVALID_PC
@@ -292,17 +474,34 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 #ifdef HAVE_SIGSEGV_RECOVERY
 static void sigsegv_handler(SIGSEGV_FAULT_HANDLER_ARGLIST)
 {
+	sigsegv_address_t fault_address = (sigsegv_address_t)SIGSEGV_FAULT_ADDRESS;
+	sigsegv_address_t fault_instruction = (sigsegv_address_t)SIGSEGV_FAULT_INSTRUCTION;
+	bool fault_recovered = false;
+	
 	// Call user's handler and reinstall the global handler, if required
-	if (sigsegv_user_handler((sigsegv_address_t)SIGSEGV_FAULT_ADDRESS, (sigsegv_address_t)SIGSEGV_FAULT_INSTRUCTION)) {
+	if (sigsegv_user_handler(fault_address, fault_instruction)) {
 #if (defined(HAVE_SIGACTION) ? defined(SIGACTION_NEED_REINSTALL) : defined(SIGNAL_NEED_REINSTALL))
 		sigsegv_do_install_handler(sig);
 #endif
+		fault_recovered = true;
 	}
-	else {
+#if HAVE_SIGSEGV_SKIP_INSTRUCTION
+	else if (sigsegv_ignore_fault) {
+		// Call the instruction skipper with the register file available
+		if (SIGSEGV_SKIP_INSTRUCTION(fault_instruction, SIGSEGV_REGISTER_FILE))
+			fault_recovered = true;
+	}
+#endif
+
+	if (!fault_recovered) {
 		// FAIL: reinstall default handler for "safe" crash
 #define FAULT_HANDLER(sig) signal(sig, SIG_DFL);
 		SIGSEGV_ALL_SIGNALS
 #undef FAULT_HANDLER
+		
+		// We can't do anything with the fault_address, dump state?
+		if (sigsegv_dump_state != 0)
+			sigsegv_dump_state(fault_address, fault_instruction);
 	}
 }
 #endif
@@ -379,6 +578,27 @@ void sigsegv_deinstall_handler(void)
 #endif
 }
 
+
+/*
+ *  SIGSEGV ignore state modifier
+ */
+
+void sigsegv_set_ignore_state(bool ignore_fault)
+{
+	sigsegv_ignore_fault = ignore_fault;
+}
+
+
+/*
+ *  Set callback function when we cannot handle the fault
+ */
+
+void sigsegv_set_dump_state(sigsegv_handler_t handler)
+{
+	sigsegv_dump_state = handler;
+}
+
+
 /*
  *  Test program used for configure/test
  */
@@ -404,6 +624,13 @@ static bool sigsegv_test_handler(sigsegv_address_t fault_address, sigsegv_addres
 	return true;
 }
 
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+static bool sigsegv_insn_handler(sigsegv_address_t fault_address, sigsegv_address_t instruction_address)
+{
+	return false;
+}
+#endif
+
 int main(void)
 {
 	if (vm_init() < 0)
@@ -424,6 +651,34 @@ int main(void)
 	
 	if (handler_called != 1)
 		return 1;
+
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+	if (!sigsegv_install_handler(sigsegv_insn_handler))
+		return 1;
+	
+	if (vm_protect((char *)page, page_size, VM_PAGE_WRITE) < 0)
+		return 1;
+	
+	for (int i = 0; i < page_size; i++)
+		page[i] = (i + 1) % page_size;
+	
+	if (vm_protect((char *)page, page_size, VM_PAGE_NOACCESS) < 0)
+		return 1;
+	
+	sigsegv_set_ignore_state(true);
+
+#define TEST_SKIP_INSTRUCTION(TYPE) do {				\
+		const unsigned int TAG = 0x12345678;			\
+		TYPE data = *((TYPE *)(page + sizeof(TYPE)));	\
+		volatile unsigned int effect = data + TAG;		\
+		if (effect != TAG)								\
+			return 1;									\
+	} while (0)
+	
+	TEST_SKIP_INSTRUCTION(unsigned char);
+	TEST_SKIP_INSTRUCTION(unsigned short);
+	TEST_SKIP_INSTRUCTION(unsigned int);
+#endif
 
 	vm_exit();
 	return 0;

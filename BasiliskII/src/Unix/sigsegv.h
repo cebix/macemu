@@ -36,6 +36,12 @@ extern bool sigsegv_install_handler(sigsegv_handler_t handler);
 // Remove the user SIGSEGV handler, revert to default behavior
 extern void sigsegv_uninstall_handler(void);
 
+// Set SIGSEGV ignore state
+extern void sigsegv_set_ignore_state(bool ignore_fault);
+
+// Set callback function when we cannot handle the fault
+extern void sigsegv_set_dump_state(sigsegv_handler_t handler);
+
 // Define an address that is bound to be invalid for a program counter
 const sigsegv_address_t SIGSEGV_INVALID_PC = (sigsegv_address_t)(-1);
 

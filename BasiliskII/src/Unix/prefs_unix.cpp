@@ -33,6 +33,9 @@ prefs_desc platform_prefs_items[] = {
 	{"fbdevicefile", TYPE_STRING, false,   "path of frame buffer device specification file"},
 	{"mousewheelmode", TYPE_INT32, false,  "mouse wheel support mode (0=page up/down, 1=cursor up/down)"},
 	{"mousewheellines", TYPE_INT32, false, "number of lines to scroll in mouse wheel mode 1"},
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+	{"ignoresegv", TYPE_BOOLEAN, false,    "ignore illegal memory accesses"},
+#endif
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
@@ -98,4 +101,7 @@ void AddPlatformPrefsDefaults(void)
 	PrefsReplaceString("extfs", "/");
 	PrefsReplaceInt32("mousewheelmode", 1);
 	PrefsReplaceInt32("mousewheellines", 3);
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+	PrefsAddBool("ignoresegv", false);
+#endif
 }

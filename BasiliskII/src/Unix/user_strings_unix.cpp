@@ -75,6 +75,8 @@ user_string_def platform_strings[] = {
 	{STR_MOUSEWHEELMODE_CURSOR_LAB, "Cursor Up/Down"},
 	{STR_MOUSEWHEELLINES_CTRL, "Lines To Scroll"},
 
+	{STR_IGNORESEGV_CTRL, "Ignore Illegal Memory Accesses"},
+
 	{STR_WINDOW_TITLE_GRABBED, "Basilisk II (mouse grabbed, press Ctrl-F5 to release)"},
 
 	{-1, NULL}	// End marker

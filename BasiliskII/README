@@ -574,6 +574,12 @@ Unix:
     the number of key events sent to MacOS for each wheel movement (the
     number of lines to scroll).
 
+  ignoresegv <"true" or "false">
+
+    Set this to "true" to ignore illegal memory accesses. The default
+    is "false". This feature is only implemented on the following
+    platforms: Linux/x86.
+
 AmigaOS:
 
   sound <sound output description>

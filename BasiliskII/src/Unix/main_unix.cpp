@@ -75,6 +75,7 @@ struct sigstate {
 #include "version.h"
 #include "main.h"
 #include "vm_alloc.h"
+#include "sigsegv.h"
 
 #ifdef ENABLE_MON
 # include "mon.h"
@@ -282,6 +283,12 @@ int main(int argc, char **argv)
 	if (!PrefsFindBool("nogui"))
 		if (!PrefsEditor())
 			QuitEmulator();
+
+	// Register request to ignore segmentation faults
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+	if (PrefsFindBool("ignoresegv"))
+	  sigsegv_set_ignore_state(true);
+#endif
 
 	// Read RAM size
 	RAMSize = PrefsFindInt32("ramsize") & 0xfff00000;	// Round down to 1MB boundary

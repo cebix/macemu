@@ -62,6 +62,9 @@
 /* Define if we know a hack to replace siginfo_t::si_addr member */
 #undef HAVE_SIGCONTEXT_SUBTERFUGE
 
+/* Define if we can ignore the fault (instruction skipping in SIGSEGV handler */
+#undef HAVE_SIGSEGV_SKIP_INSTRUCTION
+
 /* Define if your system has a working vm_allocate()-based memory allocator */
 #undef HAVE_MACH_VM
 
