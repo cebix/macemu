@@ -67,7 +67,11 @@ links:
 	       dummy/prefs_editor_dummy.cpp dummy/scsi_dummy.cpp SDL \
 	       MacOSX/sys_darwin.cpp MacOSX/clip_macosx.cpp \
 	       MacOSX/macos_util_macosx.h MacOSX/extfs_macosx.h \
-	       MacOSX/extfs_macosx.mm Windows/clip_windows.cpp'; \
+	       MacOSX/extfs_macosx.mm Windows/clip_windows.cpp \
+	       Windows/cd_defs.h Windows/cdenable Windows/extfs_windows.cpp \
+	       Windows/posix_emu.cpp Windows/posix_emu.h Windows/sys_windows.cpp \
+	       Windows/timer_windows.cpp Windows/util_windows.cpp \
+	       Windows/util_windows.h Windows/xpram_windows.cpp'; \
 	PREFIX="`pwd`/"; case $(B2_TOPDIR) in /*) PREFIX="";; esac; \
 	for i in $$list; do \
 	  echo $$i; \
