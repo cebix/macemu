@@ -37,6 +37,7 @@
 #define USE_NORMAL_CALLING_CONVENTION 0
 
 #ifndef WIN32
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #endif
@@ -5530,6 +5531,62 @@ uae_u32 get_jitted_size(void)
     return 0;
 }
 
+const int CODE_ALLOC_MAX_ATTEMPTS = 10;
+const int CODE_ALLOC_BOUNDARIES   = 128 * 1024; // 128 KB
+
+static uint8 *do_alloc_code(uint32 size, int depth)
+{
+#if defined(__linux__) && 0
+	/*
+	  This is a really awful hack that is known to work on Linux at
+	  least.
+	  
+	  The trick here is to make sure the allocated cache is nearby
+	  code segment, and more precisely in the positive half of a
+	  32-bit address space. i.e. addr < 0x80000000. Actually, it
+	  turned out that a 32-bit binary run on AMD64 yields a cache
+	  allocated around 0xa0000000, thus causing some troubles when
+	  translating addresses from m68k to x86.
+	*/
+	static uint8 * code_base = NULL;
+	if (code_base == NULL) {
+		uintptr page_size = getpagesize();
+		uintptr boundaries = CODE_ALLOC_BOUNDARIES;
+		if (boundaries < page_size)
+			boundaries = page_size;
+		code_base = (uint8 *)sbrk(0);
+		for (int attempts = 0; attempts < CODE_ALLOC_MAX_ATTEMPTS; attempts++) {
+			if (vm_acquire_fixed(code_base, size) == 0) {
+				uint8 *code = code_base;
+				code_base += size;
+				return code;
+			}
+			code_base += boundaries;
+		}
+		return NULL;
+	}
+
+	if (vm_acquire_fixed(code_base, size) == 0) {
+		uint8 *code = code_base;
+		code_base += size;
+		return code;
+	}
+
+	if (depth >= CODE_ALLOC_MAX_ATTEMPTS)
+		return NULL;
+
+	return do_alloc_code(size, depth + 1);
+#else
+	uint8 *code = (uint8 *)vm_acquire(size);
+	return code == VM_MAP_FAILED ? NULL : code;
+#endif
+}
+
+static inline uint8 *alloc_code(uint32 size)
+{
+	return do_alloc_code(size, 0);
+}
+
 void alloc_cache(void)
 {
 	if (compiled_code) {
@@ -5542,7 +5599,7 @@ void alloc_cache(void)
 		return;
 	
 	while (!compiled_code && cache_size) {
-		if ((compiled_code = (uae_u8 *)vm_acquire(cache_size * 1024)) == VM_MAP_FAILED) {
+		if ((compiled_code = alloc_code(cache_size * 1024)) == NULL) {
 			compiled_code = 0;
 			cache_size /= 2;
 		}

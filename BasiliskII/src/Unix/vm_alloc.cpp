@@ -38,20 +38,38 @@
 #endif
 #endif
 
+/* We want MAP_32BIT, if available, for SheepShaver and BasiliskII
+   because the emulated target is 32-bit and this helps to allocate
+   memory so that branches could be resolved more easily (32-bit
+   displacement to code in .text), on AMD64 for example.  */
+#ifndef MAP_32BIT
+#define MAP_32BIT 0
+#endif
+
+#define MAP_EXTRA_FLAGS (MAP_32BIT)
+
 #ifdef HAVE_MMAP_VM
-static char * next_address = 0;
+#if defined(__linux__) && defined(__i386__)
+/* Force a reasonnable address below 0x80000000 on x86 so that we
+   don't get addresses above when the program is run on AMD64.
+   NOTE: this is empirically determined on Linux/x86.  */
+#define MAP_BASE	0x10000000
+#else
+#define MAP_BASE	0x00000000
+#endif
+static char * next_address = (char *)MAP_BASE;
 #ifdef HAVE_MMAP_ANON
-#define map_flags	(MAP_PRIVATE | MAP_ANON)
+#define map_flags	(MAP_PRIVATE | MAP_ANON | MAP_EXTRA_FLAGS)
 #define zero_fd		-1
 #else
 #ifdef HAVE_MMAP_ANONYMOUS
-#define map_flags	(MAP_PRIVATE | MAP_ANONYMOUS)
+#define map_flags	(MAP_PRIVATE | MAP_ANONYMOUS | MAP_EXTRA_FLAGS)
 #define zero_fd		-1
 #else
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#define map_flags	(MAP_PRIVATE)
+#define map_flags	(MAP_PRIVATE | MAP_EXTRA_FLAGS)
 static int zero_fd	= -1;
 #endif
 #endif
