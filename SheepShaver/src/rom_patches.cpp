@@ -1413,11 +1413,11 @@ static bool patch_nanokernel(void)
 	*lp = htonl(POWERPC_NOP);
 
 	// Disable suspend (FE0F opcode)
-	// TODO: really suspend SheepShaver
+	// TODO: really suspend SheepShaver?
 	static const uint8 suspend_dat[] = {0x7c, 0x88, 0x68, 0x39, 0x41, 0x9d};
 	if ((base = find_rom_data(0x315000, 0x316000, suspend_dat, sizeof(suspend_dat))) == 0) return false;
 	D(bug("suspend %08lx\n", base));
-	lp = (uint32 *)(ROMBaseHost + base + 8);
+	lp = (uint32 *)(ROMBaseHost + base + 4);
 	*lp = htonl((ntohl(*lp) & 0xffff) | 0x48000000);	// bgt -> b
 
 	// Patch trap return routine
