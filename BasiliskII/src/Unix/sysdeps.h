@@ -155,9 +155,6 @@ typedef struct timespec tm_time_t;
 typedef struct timeval tm_time_t;
 #endif
 
-/* Offset Mac->Unix time in seconds */
-#define TIME_OFFSET 0x7c25b080
-
 /* UAE CPU data types */
 #define uae_s8 int8
 #define uae_u8 uint8

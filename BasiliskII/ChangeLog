@@ -5,6 +5,8 @@ V1.0 (snapshot) - <date>
 	  like a 68882/68040 FPU, eliminating the need for 68060 FPU patches
 	- added support for platform-independant mutexes, used by adb.cpp for
 	  thread-safe mouse handling
+	- the TIME_OFFSET constant has been replaced by a (portable) function
+	  TimeToMacTime(); file dates in ExtFS should now be correct
 	- Unix: windowed display mode supports different resolutions and color
 	  depth, which can be switched on-the-fly
 	- Unix: Ctrl-F5 grabs mouse in windowed mode (enhanced compatibility

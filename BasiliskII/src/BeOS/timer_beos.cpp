@@ -21,6 +21,7 @@
 #include <KernelKit.h>
 
 #include "sysdeps.h"
+#include "macos_util.h"
 #include "timer.h"
 
 #define DEBUG 0
@@ -46,12 +47,7 @@ void Microseconds(uint32 &hi, uint32 &lo)
 
 uint32 TimerDateTime(void)
 {
-	time_t utc_now = time(NULL);
-	long tz = timezone;
-	time_t local_now = utc_now - tz;
-	if (daylight)
-		local_now += 3600;
-	return (uint32)local_now + TIME_OFFSET;
+	return TimeToMacTime(time(NULL));
 }
 
 

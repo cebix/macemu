@@ -19,6 +19,7 @@
  */
 
 #include "sysdeps.h"
+#include "macos_util.h"
 #include "timer.h"
 
 #define DEBUG 0
@@ -57,15 +58,7 @@ void Microseconds(uint32 &hi, uint32 &lo)
 
 uint32 TimerDateTime(void)
 {
-	time_t utc_now = time(NULL);
-#if defined(__linux__) || defined(__SVR4)
-	time_t local_now = utc_now - timezone;
-#elif defined(__FreeBSD__) || defined(__NetBSD__)
-	time_t local_now = utc_now + localtime(&utc_now)->tm_gmtoff;
-#else
-	time_t local_now = utc_now;
-#endif
-	return (uint32)local_now + TIME_OFFSET;
+	return TimeToMacTime(time(NULL));
 }
 
 

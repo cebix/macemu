@@ -51,10 +51,9 @@ void Microseconds(uint32 &hi, uint32 &lo)
 
 uint32 TimerDateTime(void)
 {
-	ULONG secs;
-	ULONG mics;
+	ULONG secs, mics;
 	CurrentTime(&secs, &mics);
-	return secs + TIME_OFFSET;
+	return secs + 0x8b31ef80;
 }
 
 

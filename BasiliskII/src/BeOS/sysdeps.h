@@ -55,9 +55,6 @@
 // Time data type for Time Manager emulation
 typedef bigtime_t tm_time_t;
 
-// Offset Mac->BeOS time in seconds
-#define TIME_OFFSET 0x7c25b080
-
 // 64 bit file offsets
 typedef off_t loff_t;
 

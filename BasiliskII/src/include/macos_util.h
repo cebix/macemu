@@ -263,7 +263,8 @@ extern void EnqueueMac(uint32 elem, uint32 list);	// Enqueue QElem in list
 extern int FindFreeDriveNumber(int num);			// Find first free drive number, starting at "num"
 extern void MountVolume(void *fh);					// Mount volume with given file handle (see sys.h)
 extern void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_size);	// Calculate disk image file layout given file size and first 256 data bytes
-extern uint32 DebugUtil(uint32 Selector);	// DebugUtil() Replacement
+extern uint32 DebugUtil(uint32 Selector);			// DebugUtil() Replacement
+extern uint32 TimeToMacTime(time_t t);				// Convert time_t value to MacOS time
 
 // Construct four-character-code
 #define FOURCC(a,b,c,d) (((uint32)(a) << 24) | ((uint32)(b) << 16) | ((uint32)(c) << 8) | (uint32)(d))
