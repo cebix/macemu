@@ -33,7 +33,7 @@
 #include "mon_disass.h"
 #endif
 
-#define DEBUG 1
+#define DEBUG 0
 #include "debug.h"
 
 /**
@@ -390,13 +390,11 @@ void powerpc_cpu::execute_divide(uint32 opcode)
 	if (b == 0 || (SB && a == 0x80000000 && b == 0xffffffff)) {
 		// Reference manual says rD is undefined
 		d = 0;
-#if 1
-		if (SB && b == 0) {
+		if (SB) {
 			// However, checking against a real PowerPC (7410) yields
 			// that rD gets all bits set to rA MSB
-			d -= (a >> 31);
+			d = -(a >> 31);
 		}
-#endif
 		if (OE::test(opcode))
 			xer().set_ov(1);
 	}
@@ -434,8 +432,8 @@ void powerpc_cpu::execute_multiply(uint32 opcode)
 
 	// Overflow if the product cannot be represented in 32 bits
 	if (OE::test(opcode)) {
-		const uint32 upper = d >> 32;
-		xer().set_ov(upper != 0 && upper != 0xffffffff);
+		xer().set_ov((d & UVAL64(0xffffffff80000000)) != 0 &&
+					 (d & UVAL64(0xffffffff80000000)) != UVAL64(0xffffffff80000000));
 	}
 
 	// Only keep high word if multiply high instruction
