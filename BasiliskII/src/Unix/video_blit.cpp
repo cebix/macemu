@@ -64,6 +64,10 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 #define FB_BLIT_2(dst, src) \
 	(dst = (((src) >> 8) & 0x00ff00ff) | (((src) & 0x00ff00ff) << 8))
 
+#define FB_BLIT_4(dst, src) \
+	(dst =	(((src) >> 8) & UVAL64(0x00ff00ff00ff00ff)) | \
+			(((src) & UVAL64(0x00ff00ff00ff00ff)) << 8))
+
 #define	FB_DEPTH 15
 #include "video_blit.h"
 
@@ -81,6 +85,11 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 #define FB_BLIT_2(dst, src) \
 	(dst = (((src) >> 10) & 0x001f001f) | ((src) & 0x03e003e0) | (((src) << 10) & 0x7c007c00))
 
+#define FB_BLIT_4(dst, src) \
+	(dst =	(((src) >> 10) & UVAL64(0x001f001f001f001f)) | \
+			( (src)        & UVAL64(0x03e003e003e003e0)) | \
+			(((src) << 10) & UVAL64(0x7c007c007c007c00)))
+
 #define FB_DEPTH 15
 #define FB_FUNC_NAME Blit_BGR555_NBO
 #include "video_blit.h"
@@ -92,6 +101,12 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 
 #define FB_BLIT_2(dst, src) \
 	(dst = (((src) >> 2) & 0x1f001f00) | (((src) >> 8) & 0x30003) | (((src) << 8) & 0xe000e000) | (((src) << 2) & 0x7c007c))
+
+#define FB_BLIT_4(dst, src) \
+	(dst =	(((src) >> 2) & UVAL64(0x1f001f001f001f00)) | \
+			(((src) >> 8) & UVAL64(0x0003000300030003)) | \
+			(((src) << 8) & UVAL64(0xe000e000e000e000)) | \
+			(((src) << 2) & UVAL64(0x007c007c007c007c)))
 
 #define FB_DEPTH 15
 #define FB_FUNC_NAME Blit_BGR555_OBO
@@ -107,6 +122,12 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 #define FB_BLIT_2(dst, src) \
 	(dst = (((src) >> 2) & 0x1f001f) | (((src) >> 8) & 0xe000e0) | (((src) << 8) & 0x03000300) | (((src) << 2) & 0x7c007c00))
 
+#define FB_BLIT_4(dst, src) \
+	(dst =	(((src) >> 2) & UVAL64(0x001f001f001f001f)) | \
+			(((src) >> 8) & UVAL64(0x00e000e000e000e0)) | \
+			(((src) << 8) & UVAL64(0x0300030003000300)) | \
+			(((src) << 2) & UVAL64(0x7c007c007c007c00)))
+
 #define FB_DEPTH 15
 #define FB_FUNC_NAME Blit_BGR555_NBO
 #include "video_blit.h"
@@ -118,6 +139,11 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 
 #define FB_BLIT_2(dst, src) \
 	(dst = (((src) << 6) & 0x1f001f00) | ((src) & 0xe003e003) | (((src) >> 6) & 0x7c007c))
+
+#define FB_BLIT_4(dst, src) \
+	(dst =	(((src) << 6) & UVAL64(0x1f001f001f001f00)) | \
+			( (src)       & UVAL64(0xe003e003e003e003)) | \
+			(((src) >> 6) & UVAL64(0x007c007c007c007c)))
 
 #define FB_DEPTH 15
 #define FB_FUNC_NAME Blit_BGR555_OBO
@@ -139,6 +165,10 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 #define FB_BLIT_2(dst, src) \
 	(dst = (((src) & 0x001f001f) | (((src) << 1) & 0xffc0ffc0)))
 
+#define FB_BLIT_4(dst, src) \
+	(dst =	(((src)       & UVAL64(0x001f001f001f001f)) | \
+			(((src) << 1) & UVAL64(0xffc0ffc0ffc0ffc0))))
+
 #define FB_DEPTH 16
 #define FB_FUNC_NAME Blit_RGB565_NBO
 #include "video_blit.h"
@@ -151,6 +181,11 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 #define FB_BLIT_2(dst, src) \
 	(dst = ((((src) >> 7) & 0x00ff00ff) | (((src) << 9) & 0xc000c000) | (((src) << 8) & 0x1f001f00)))
 
+#define FB_BLIT_4(dst, src) \
+	(dst =	(((src) >> 7) & UVAL64(0x00ff00ff00ff00ff)) | \
+			(((src) << 9) & UVAL64(0xc000c000c000c000)) | \
+			(((src) << 8) & UVAL64(0x1f001f001f001f00)))
+
 #define FB_DEPTH 16
 #define FB_FUNC_NAME Blit_RGB565_OBO
 #include "video_blit.h"
@@ -162,28 +197,13 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 #define FB_BLIT_1(dst, src) \
 	(dst = (((src) >> 8) & 0x001f) | (((src) << 9) & 0xfe00) | (((src) >> 7) & 0x01c0))
 	
-// gb-- Disabled because I don't see any improvement
-#if 0 && defined(__i386__) && defined(X86_ASSEMBLY)
-
-#define FB_BLIT_2(dst, src) \
-	__asm__ (	"movl %0,%%ebx\n\t" \
-				"movl %0,%%ebp\n\t" \
-				"andl $0x1f001f00,%%ebx\n\t" \
-				"andl $0x007f007f,%0\n\t" \
-				"andl $0xe000e000,%%ebp\n\t" \
-				"shrl $8,%%ebx\n\t" \
-				"shrl $7,%%ebp\n\t" \
-				"shll $9,%0\n\t" \
-				"orl %%ebx,%%ebp\n\t" \
-				"orl %%ebp,%0\n\t" \
-			: "=r" (dst) : "0" (src) : "ebx", "ebp", "cc" )
-
-#else
-
 #define FB_BLIT_2(dst, src) \
 	(dst = (((src) >> 8) & 0x001f001f) | (((src) << 9) & 0xfe00fe00) | (((src) >> 7) & 0x01c001c0))
 
-#endif
+#define FB_BLIT_4(dst, src) \
+	(dst =	(((src) >> 8) & UVAL64(0x001f001f001f001f)) | \
+			(((src) << 9) & UVAL64(0xfe00fe00fe00fe00)) | \
+			(((src) >> 7) & UVAL64(0x01c001c001c001c0)))
 
 #define FB_DEPTH 16
 #define FB_FUNC_NAME Blit_RGB565_NBO
@@ -196,6 +216,11 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 
 #define FB_BLIT_2(dst, src) \
 	(dst = (((src) & 0x1f001f00) | (((src) << 1) & 0xe0fee0fe) | (((src) >> 15) & 0x10001)))
+
+#define FB_BLIT_4(dst, src) \
+	(dst =	(((src)        & UVAL64(0x1f001f001f001f00)) | \
+			(((src) <<  1) & UVAL64(0xe0fee0fee0fee0fe)) | \
+			(((src) >> 15) & UVAL64(0x0001000100010001))))
 
 #define FB_DEPTH 16
 #define FB_FUNC_NAME Blit_RGB565_OBO
@@ -216,6 +241,12 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 #define FB_BLIT_2(dst, src) \
 	(dst = (((src) >> 24) & 0xff) | (((src) >> 8) & 0xff00) | (((src) & 0xff00) << 8) | (((src) & 0xff) << 24))
 
+#define FB_BLIT_4(dst, src) \
+	(dst =	(((src) >> 24) & UVAL64(0x000000ff000000ff)) | \
+			(((src) >>  8) & UVAL64(0x0000ff000000ff00)) | \
+			(((src) & UVAL64(0x0000ff000000ff00)) <<  8) | \
+			(((src) & UVAL64(0x000000ff000000ff)) << 24))
+
 #define FB_DEPTH 24
 #include "video_blit.h"
 
@@ -230,6 +261,11 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 #define FB_BLIT_2(dst, src) \
 	(dst = (((src) >> 16) & 0xff) | ((src) & 0xff00) | (((src) & 0xff) << 16))
 
+#define FB_BLIT_4(dst, src) \
+	(dst =	(((src) >> 16) & UVAL64(0x000000ff000000ff)) | \
+			( (src)        & UVAL64(0x0000ff000000ff00)) | \
+			(((src) & UVAL64(0x000000ff000000ff)) << 16))
+
 #define FB_FUNC_NAME Blit_BGR888_NBO
 #define FB_DEPTH 24
 #include "video_blit.h"
@@ -240,6 +276,11 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 
 #define FB_BLIT_2(dst, src) \
 	(dst = (((src) >> 16) & 0xff) | ((src) & 0xff0000) | (((src) & 0xff) << 16))
+
+#define FB_BLIT_4(dst, src) \
+	(dst =	(((src) >> 16) & UVAL64(0x000000ff000000ff)) | \
+			( (src)        & UVAL64(0x00ff000000ff0000)) | \
+			(((src) & UVAL64(0x000000ff000000ff)) << 16))
 
 #define FB_FUNC_NAME Blit_BGR888_OBO
 #define FB_DEPTH 24
@@ -257,6 +298,9 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 
 #define FB_BLIT_2(dst, src) \
 	(dst = ((src) & 0xff00ff) | (((src) & 0xff00) << 16))
+
+#define FB_BLIT_4(dst, src) \
+	(dst = ((src) & UVAL64(0x00ff00ff00ff00ff)) | (((src) & UVAL64(0x0000ff000000ff00)) << 16))
 
 #define FB_DEPTH 24
 #include "video_blit.h"

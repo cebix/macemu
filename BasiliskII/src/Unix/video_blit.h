@@ -30,10 +30,15 @@
 # error "Undefined 32-bit word blit function"
 #endif
 
+#if !defined(FB_BLIT_4)
+# error "Undefined 64-bit word blit function"
+#endif
+
 static void FB_FUNC_NAME(uint8 * dest, const uint8 * source, uint32 length)
 {
-#define DEREF_LONG_PTR(ptr, ofs) (((uint32 *)(ptr))[(ofs)])
 #define DEREF_WORD_PTR(ptr, ofs) (((uint16 *)(ptr))[(ofs)])
+#define DEREF_LONG_PTR(ptr, ofs) (((uint32 *)(ptr))[(ofs)])
+#define DEREF_QUAD_PTR(ptr, ofs) (((uint64 *)(ptr))[(ofs)])
 	
 #ifndef UNALIGNED_PROFITABLE
 #if FB_DEPTH <= 8
@@ -54,26 +59,35 @@ static void FB_FUNC_NAME(uint8 * dest, const uint8 * source, uint32 length)
 #endif
 #endif
 	
-	// Blit 4-byte words
-	if (length >= 4) {
-		const int remainder = (length / 4) % 8;
-		source += remainder * 4;
-		dest += remainder * 4;
+	// Blit 8-byte words
+	if (length >= 8) {
+		const int remainder = (length / 8) % 8;
+		source += remainder * 8;
+		dest += remainder * 8;
 		
-		int n = ((length / 4) + 7) / 8;
+		int n = ((length / 8) + 7) / 8;
 		switch (remainder) {
 		case 0:	do {
-				dest += 32; source += 32;
-				FB_BLIT_2(DEREF_LONG_PTR(dest, -8), DEREF_LONG_PTR(source, -8));
-		case 7: FB_BLIT_2(DEREF_LONG_PTR(dest, -7), DEREF_LONG_PTR(source, -7));
-		case 6: FB_BLIT_2(DEREF_LONG_PTR(dest, -6), DEREF_LONG_PTR(source, -6));
-		case 5: FB_BLIT_2(DEREF_LONG_PTR(dest, -5), DEREF_LONG_PTR(source, -5));
-		case 4: FB_BLIT_2(DEREF_LONG_PTR(dest, -4), DEREF_LONG_PTR(source, -4));
-		case 3: FB_BLIT_2(DEREF_LONG_PTR(dest, -3), DEREF_LONG_PTR(source, -3));
-		case 2: FB_BLIT_2(DEREF_LONG_PTR(dest, -2), DEREF_LONG_PTR(source, -2));
-		case 1: FB_BLIT_2(DEREF_LONG_PTR(dest, -1), DEREF_LONG_PTR(source, -1));
+				dest += 64; source += 64;
+				FB_BLIT_4(DEREF_QUAD_PTR(dest, -8), DEREF_QUAD_PTR(source, -8));
+		case 7: FB_BLIT_4(DEREF_QUAD_PTR(dest, -7), DEREF_QUAD_PTR(source, -7));
+		case 6: FB_BLIT_4(DEREF_QUAD_PTR(dest, -6), DEREF_QUAD_PTR(source, -6));
+		case 5: FB_BLIT_4(DEREF_QUAD_PTR(dest, -5), DEREF_QUAD_PTR(source, -5));
+		case 4: FB_BLIT_4(DEREF_QUAD_PTR(dest, -4), DEREF_QUAD_PTR(source, -4));
+		case 3: FB_BLIT_4(DEREF_QUAD_PTR(dest, -3), DEREF_QUAD_PTR(source, -3));
+		case 2: FB_BLIT_4(DEREF_QUAD_PTR(dest, -2), DEREF_QUAD_PTR(source, -2));
+		case 1: FB_BLIT_4(DEREF_QUAD_PTR(dest, -1), DEREF_QUAD_PTR(source, -1));
 				} while (--n > 0);
 		}
+	}
+	
+	// There could be one long left to blit
+	if (length & 4) {
+		FB_BLIT_2(DEREF_LONG_PTR(dest, 0), DEREF_LONG_PTR(source, 0));
+#if FB_DEPTH <= 16
+		dest += 4;
+		source += 4;
+#endif
 	}
 	
 #if FB_DEPTH <= 16
@@ -105,6 +119,10 @@ static void FB_FUNC_NAME(uint8 * dest, const uint8 * source, uint32 length)
 
 #ifdef FB_BLIT_2
 #undef FB_BLIT_2
+#endif
+
+#ifdef FB_BLIT_4
+#undef FB_BLIT_4
 #endif
 
 #ifdef FB_DEPTH
