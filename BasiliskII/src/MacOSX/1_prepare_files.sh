@@ -24,6 +24,7 @@ else
 	ln -sf /usr/share/libtool/config.sub .
 fi
 
+ln -sf ../Unix/sys_unix.cpp .
 ln -sf ../Unix/user_strings_unix.h .
 ln -sf ../Unix/install-sh .
 ln -sf ../../README README.txt

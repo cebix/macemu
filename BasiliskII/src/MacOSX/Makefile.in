@@ -24,7 +24,7 @@ GENEMUS = cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp \
 
 # Symlinks to files in other directories
 GENLINK = README.txt install-sh \
-	  config.guess config.sub user_strings_unix.h
+	  config.guess config.sub sys_unix.cpp user_strings_unix.h
 
 GEN  = $(GENEMUS) $(GENSRCS)
 

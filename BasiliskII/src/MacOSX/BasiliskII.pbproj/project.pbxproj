@@ -1075,8 +1075,7 @@
 		};
 		0193367EFFD1BA0395877872 = {
 			isa = PBXFileReference;
-			name = sys_unix.cpp;
-			path = ../Unix/sys_unix.cpp;
+			path = sys_unix.cpp;
 			refType = 2;
 		};
 		0193367FFFD1BA0395877872 = {
