@@ -3,7 +3,7 @@
 
 1) Install the OS X Development tools
 
-   Source should build on either 10.0 or 10.1
+   Source should build on 10.0 thru 10.2
    (If anyone wants a version that will compile on Public Beta, email me)
 
 2) If grabbing this source from a tarball, put this MacOSX directory in
