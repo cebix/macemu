@@ -435,7 +435,7 @@ int main(int argc, char **argv)
 
 	// POSIX.4 timers and real-time signals available, start 60Hz timer
 	sigemptyset(&timer_sa.sa_mask);
-	timer_sa.sa_sigaction = one_tick;
+	timer_sa.sa_sigaction = (void (*)(int, siginfo_t *, void *))one_tick;
 	timer_sa.sa_flags = SA_SIGINFO | SA_RESTART;
 	if (sigaction(SIG_TIMER, &timer_sa, NULL) < 0) {
 		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIG_TIMER", strerror(errno));
