@@ -36,6 +36,7 @@ extern void EtherInterrupt(void);
 
 extern bool ether_init(void);
 extern void ether_exit(void);
+extern void ether_reset(void);
 extern int16 ether_add_multicast(uint32 pb);
 extern int16 ether_del_multicast(uint32 pb);
 extern int16 ether_attach_ph(uint16 type, uint32 handler);

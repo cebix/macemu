@@ -60,7 +60,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 {
 	uint16 *p16;
 	uint32 base;
-	D(bug("vCheckLoad %c%c%c%c (%08x) ID %d, data %08x, size %d\n", (char)(type >> 24), (char)((type >> 16) & 0xff), (char )((type >> 8) & 0xff), (char )(type & 0xff), type, id, p, size));
+	D(bug("vCheckLoad %c%c%c%c (%08x) ID %d, data %p, size %d\n", (char)(type >> 24), (char)((type >> 16) & 0xff), (char )((type >> 8) & 0xff), (char )(type & 0xff), type, id, p, size));
 	
 	if (type == FOURCC('b','o','o','t') && id == 3) {
 		D(bug(" boot 3 found\n"));
@@ -76,7 +76,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 		}
 
 #if !ROM_IS_WRITE_PROTECTED
-		// Set fake handle at 0x0000 to some safe place (so broken Mac programs won't write into Mac ROM) (7.5, 8.0)
+		// Set fake handle at 0x0000 to some safe place (so broken Mac programs won't write into Mac ROM) (7.1, 7.5, 8.0)
 		static const uint8 dat2[] = {0x20, 0x78, 0x02, 0xae, 0xd1, 0xfc, 0x00, 0x01, 0x00, 0x00, 0x21, 0xc8, 0x00, 0x00};
 		base = find_rsrc_data(p, size, dat2, sizeof(dat2));
 		if (base) {
@@ -101,13 +101,13 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 	} else if (type == FOURCC('b','o','o','t') && id == 2) {
 		D(bug(" boot 2 found\n"));
 
-		// Set fake handle at 0x0000 to some safe place (so broken Mac programs won't write into Mac ROM) (7.5, 8.0)
+		// Set fake handle at 0x0000 to some safe place (so broken Mac programs won't write into Mac ROM) (7.1, 7.5, 8.0)
 		static const uint8 dat[] = {0x20, 0x78, 0x02, 0xae, 0xd1, 0xfc, 0x00, 0x01, 0x00, 0x00, 0x21, 0xc8, 0x00, 0x00};
 		base = find_rsrc_data(p, size, dat, sizeof(dat));
 		if (base) {
 			p16 = (uint16 *)(p + base);
 
-#if defined(AMIGA) || defined(__NetBSD__) || defined(USE_SCRATCHMEM_SUBTERFUGE)
+#if defined(USE_SCRATCHMEM_SUBTERFUGE)
 			// Set 0x0000 to scratch memory area
 			extern uint8 *ScratchMem;
 			const uint32 ScratchMemBase = Host2MacAddr(ScratchMem);
@@ -154,7 +154,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 	} else if (type == FOURCC('p','t','c','h') && id == 26) {
 		D(bug(" ptch 26 found\n"));
 
-		// Trap ABC4 is initialized with absolute ROM address (7.5, 7.6, 7.6.1, 8.0)
+		// Trap ABC4 is initialized with absolute ROM address (7.1, 7.5, 7.6, 7.6.1, 8.0)
 		static const uint8 dat[] = {0x40, 0x83, 0x36, 0x10};
 		base = find_rsrc_data(p, size, dat, sizeof(dat));
 		if (base) {

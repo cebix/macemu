@@ -188,7 +188,7 @@ void ether_exit(void)
  *  Reset
  */
 
-void EtherReset(void)
+void ether_reset(void)
 {
 	// Remove all protocols
 	if (net_proc)

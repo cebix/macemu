@@ -37,7 +37,7 @@
  *  Initialization
  */
 
-void EtherInit(void)
+bool ether_init(void)
 {
 }
 
@@ -46,7 +46,7 @@ void EtherInit(void)
  *  Deinitialization
  */
 
-void EtherExit(void)
+void ether_exit(void)
 {
 }
 
@@ -55,7 +55,7 @@ void EtherExit(void)
  *  Reset
  */
 
-void EtherReset(void)
+void ether_reset(void)
 {
 }
 

@@ -27,15 +27,6 @@
 #include "debug.h"
 
 
-// Supported sample rates, sizes and channels
-int audio_num_sample_rates = 1;
-uint32 audio_sample_rates[] = {44100 << 16};
-int audio_num_sample_sizes = 1;
-uint16 audio_sample_sizes[] = {16};
-int audio_num_channel_counts = 1;
-uint16 audio_channel_counts[] = {2};
-
-
 /*
  *  Initialization
  */
@@ -43,12 +34,17 @@ uint16 audio_channel_counts[] = {2};
 void AudioInit(void)
 {
 	// Init audio status and feature flags
-	AudioStatus.sample_rate = audio_sample_rates[0];
-	AudioStatus.sample_size = audio_sample_sizes[0];
-	AudioStatus.channels = audio_channel_counts[0];
+	AudioStatus.sample_rate = 44100 << 16;
+	AudioStatus.sample_size = 16;
+	AudioStatus.channels = 2;
 	AudioStatus.mixer = 0;
 	AudioStatus.num_sources = 0;
 	audio_component_flags = cmpWantsRegisterMessage | kStereoOut | k16BitOut;
+
+	// Only one sample format is supported
+	audio_sample_rates.push_back(44100 << 16);
+	audio_sample_sized.push_back(16);
+	audio_channel_counts.push_back(2);
 
 	// Sound disabled in prefs? Then do nothing
 	if (PrefsFindBool("nosound"))
@@ -98,19 +94,19 @@ void AudioInterrupt(void)
 
 /*
  *  Set sampling parameters
- *  "index" is an index into the audio_sample_rates[] etc. arrays
+ *  "index" is an index into the audio_sample_rates[] etc. vectors
  *  It is guaranteed that AudioStatus.num_sources == 0
  */
 
-void audio_set_sample_rate(int index)
+bool audio_set_sample_rate(int index)
 {
 }
 
-void audio_set_sample_size(int index)
+bool audio_set_sample_size(int index)
 {
 }
 
-void audio_set_channels(int index)
+bool audio_set_channels(int index)
 {
 }
 

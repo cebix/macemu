@@ -338,6 +338,10 @@ static void close_audio(void)
 
 void AudioExit(void)
 {
+	// Close audio device
+	close_audio();
+
+	// Delete semaphore
 	if (sem_inited) {
 		sem_destroy(&audio_irq_done_sem);
 		sem_inited = false;

@@ -25,16 +25,10 @@
  *    Inside AppleTalk, chapter 3 "Ethernet and TokenTalk Link Access Protocols"
  */
 
-#include <string.h>
-
 #include "sysdeps.h"
-#include "cpu_emulation.h"
-#include "main.h"
-#include "macos_util.h"
-#include "emul_op.h"
-#include "prefs.h"
-#include "ether.h"
-#include "ether_defs.h"
+
+#include <string.h>
+#include <map>
 
 #if SUPPORTS_UDP_TUNNEL
 #include <netinet/in.h>
@@ -44,7 +38,13 @@
 #include <errno.h>
 #endif
 
-#include <map>
+#include "cpu_emulation.h"
+#include "main.h"
+#include "macos_util.h"
+#include "emul_op.h"
+#include "prefs.h"
+#include "ether.h"
+#include "ether_defs.h"
 
 #ifndef NO_STD_NAMESPACE
 using std::map;
@@ -167,6 +167,17 @@ void EtherExit(void)
 			ether_exit();
 		net_open = false;
 	}
+}
+
+
+/*
+ *  Reset
+ */
+
+void EtherReset(void)
+{
+	udp_protocols.clear();
+	ether_reset();
 }
 
 

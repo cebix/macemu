@@ -223,13 +223,16 @@ Basilisk II only uses level 1 and does it's own interrupt dispatching. The
 currently defined interrupt sources (see main.h):
 
   INTFLAG_60HZ    - MacOS 60Hz interrupt (unlike a real Mac, we also handle
-                    VBL interrupts, ADB events and the Time Manager here)
+                    VBL interrupts and the Time Manager here)
+  INTFLAG_1HZ     - MacOS 1Hz interrupt (updates system time)
   INTFLAG_SERIAL  - Interrupt for serial driver I/O completion
   INTFLAG_ETHER   - Interrupt for Ethernet driver I/O completion and packet
                     reception
   INTFLAG_AUDIO   - Interrupt for audio "next block" requests
   INTFLAG_TIMER   - Reserved for a future implementation of a more precise
                     Time Manager (currently not used)
+  INTFLAG_ADB     - Interrupt for mouse/keyboard input
+  INTFLAG_NMI     - NMI for debugging (not supported on all platforms)
 
 An interrupt is triggered by calling SetInterruptFlag() with the desired
 interrupt flag constant and then TriggerInterrupt(). When the UAE 68k
@@ -292,128 +295,138 @@ As described above, instead of emulating custom Mac hardware, Basilisk II
 provides replacements for certain parts of MacOS to redirect input, output
 and system control functions of the Mac hardware to the underlying operating
 systems. This is done by applying patches to the Mac ROM ("ROM patches") and
-the MacOS system file ("resource patches", because nearly all system software
-is contained in MacOS resources). Unless resources are written back to disk,
-the system file patches are not permanent (it would cause many problems if
-they were permanent, because some of the patches vary with different
-versions of Basilisk II or even every time the emulator is launched).
+the MacOS system file ("resource patches", because nearly all system
+software is contained in MacOS resources). Unless resources are written back
+to disk, the system file patches are not permanent (it would cause many
+problems if they were permanent, because some of the patches vary with
+different versions of Basilisk II or even every time the emulator is
+launched).
 
 ROM patches are contained in "rom_patches.cpp" and resource patches are
-contained in "rsrc_patches.cpp". The ROM patches are far more numerous because
-nearly all the software needed to run MacOS is contained in the Mac ROM (the
-system file itself consists mainly of ROM patches, in addition to pictures and
-text). One part of the ROM patches involves the construction of a NuBus slot
-declaration ROM (in "slot_rom.cpp") which is used to add the video and Ethernet
-drivers. Apart from the CPU emulation, the ROM and resource patches contain
-most of the "logic" of the emulator.
+contained in "rsrc_patches.cpp". The ROM patches are far more numerous
+because nearly all the software needed to run MacOS is contained in the Mac
+ROM (the system file itself consists mainly of ROM patches, in addition to
+pictures and text). One part of the ROM patches involves the construction of
+a NuBus slot declaration ROM (in "slot_rom.cpp") which is used to add the
+video and Ethernet drivers. Apart from the CPU emulation, the ROM and
+resource patches contain most of the "logic" of the emulator.
 
 6.3. PRAM Utilities
 -------------------
 
 MacOS stores certain nonvolatile system parameters in a 256 byte battery
-backed-up CMOS RAM area called "Parameter RAM", "PRAM" or "XPRAM" (which refers
-to "Extended PRAM" because the earliest Mac models only had 20 bytes of PRAM).
-Basilisk II patches the ClkNoMem() MacOS trap which is used to access the XPRAM
-(apart from some routines which are only used early during system startup)
-and the real-time clock. The XPRAM is emulated in a 256 byte array which is
-saved to disk to preserve the contents for the next time Basilisk is launched.
+backed-up CMOS RAM area called "Parameter RAM", "PRAM" or "XPRAM" (which
+refers to "Extended PRAM" because the earliest Mac models only had 20 bytes
+of PRAM). Basilisk II patches the ClkNoMem() MacOS trap which is used to
+access the XPRAM (apart from some routines which are only used early during
+system startup) and the real-time clock. The XPRAM is emulated in a 256 byte
+array which is saved to disk to preserve the contents for the next time
+Basilisk is launched.
 
 6.4. ADB Manager
 ----------------
 
 For emulating a mouse and a keyboard, Basilisk II patches the ADBOp() MacOS
 trap. Platform-dependant code reports mouse and keyboard events with the
-ADBMouseDown() etc. functions which are queued and sent to MacOS inside the
-ADBInterrupt() function (which is called as a part of the 60Hz interrupt
-handler) by calling the ADB mouse and keyboard handlers with Execute68k().
+ADBMouseDown() etc. functions where they are queued, and the INTFLAG_ADB
+interrupt is triggered. The ADBInterrupt() handler function sends the input
+events to MacOS by calling the ADB mouse and keyboard handlers with
+Execute68k().
 
 6.5. Time Manager
 -----------------
 
 Basilisk II completely replaces the Time Manager (InsTime(), RmvTime(),
-PrimeTime() and Microseconds() traps). A "TMDesc" structure is associated with
-each Time Manager task, that contains additional data. The tasks are executed
-in the TimerInterrupt() function which is currently called inside the 60Hz
-interrupt handler, thus limiting the resolution of the Time Manager to 16.6ms.
+PrimeTime() and Microseconds() traps). A "TMDesc" structure is associated
+with each Time Manager task, that contains additional data. The tasks are
+executed in the TimerInterrupt() function which is currently called inside
+the 60Hz interrupt handler, thus limiting the resolution of the Time Manager
+to 16.6ms.
 
 6.6. SCSI Manager
 -----------------
 
 The (old-style) SCSI Manager is also completely replaced and the MacOS
-SCSIDispatch() trap redirected to the routines in "scsi.cpp". Under the MacOS,
-programs have to issue multiple calls for all the different phases of a
-SCSI bus interaction (arbitration, selection, command transfer etc.).
+SCSIDispatch() trap redirected to the routines in "scsi.cpp". Under the
+MacOS, programs have to issue multiple calls for all the different phases of
+a SCSI bus interaction (arbitration, selection, command transfer etc.).
 Basilisk II maps this API to an atomic API which is used by most modern
 operating systems. All action is deferred until the call to SCSIComplete().
 The TIB (Transfer Instruction Block) mini-programs used by the MacOS are
 translated into a scatter/gather list of data blocks. Operating systems that
-don't support scatter/gather SCSI I/O will have to use buffering if more than
-one data block is being transmitted. Some more advanced (but rarely used)
-aspects of the SCSI Manager (like messaging and compare operations) are not
-emulated.
+don't support scatter/gather SCSI I/O will have to use buffering if more
+than one data block is being transmitted. Some more advanced (but rarely
+used) aspects of the SCSI Manager (like messaging and compare operations)
+are not emulated.
 
 6.7. Video driver
 -----------------
 
-The NuBus slot declaration ROM constructed in "slot_rom.cpp" contains a driver
-definition for a video driver. The Control and Status calls of this driver are
-implemented in "video.cpp". Run-time video mode and depth switching are
-currently not supported.
+The NuBus slot declaration ROM constructed in "slot_rom.cpp" contains a
+driver definition for a video driver. The Control and Status calls of this
+driver are implemented in "video.cpp".
 
 The host-side initialization of the video system is done in VideoInit().
-This function must provide access to a frame buffer for MacOS and supply
-its address, resolution and color depth in a video_desc structure (there
-is currently only one video_desc structure, called VideoMonitor; this is
-going to change once multiple displays are supported). In real addressing
-mode, this frame buffer must be in a MacOS compatible layout (big-endian
-and 1, 2, 4 or 8 bits paletted chunky pixels, RGB 5:5:5 or xRGB 8:8:8:8).
-In virtual addressing mode, the frame buffer is located at address
-0xa0000000 on the Mac side and you have to supply the host address, size
-and layout (BasiliskII will do an automatic pixel format conversion in
-virtual addressing mode) in the variables MacFrameBaseHost, MacFrameSize
-and MacFrameLayout.
+This function must fill the VideoModes vector with a list of supported video
+modes (combinations of color depth and resolution). It must then call
+video_init_depth_list() and setup the VideoMonitor structure with the
+default mode information and the address of a frame buffer for MacOS. In
+real addressing mode, this frame buffer must be in a MacOS compatible layout
+(big-endian and 1, 2, 4 or 8 bits paletted chunky pixels, RGB 5:5:5 or xRGB
+8:8:8:8). In virtual addressing mode, the frame buffer is located at address
+0xa0000000 on the Mac side and you have to supply the host address, size and
+layout (BasiliskII will do an automatic pixel format conversion in virtual
+addressing mode) in the variables MacFrameBaseHost, MacFrameSize and
+MacFrameLayout.
+
+There are two functions of the platform-dependant video driver code that get
+called during runtime: video_set_palette() to update the CLUT (for indexed
+modes) or gamma table (for direct color modes), and video_switch_to_mode()
+to switch to a different color depth and/or resolution (in this case the
+frame buffer base in VideoMonitor must be updated).
 
 6.8. Audio component
 --------------------
 
 Basilisk II provides a Sound Manager 3.x audio component for sound output.
-Earlier Sound Manager versions that don't use components but 'snth' resources
-are not supported. Nearly all component functions are implemented in
-"audio.cpp". The system-dependant modules ("audio_*.cpp") handle the
+Earlier Sound Manager versions that don't use components but 'snth'
+resources are not supported. Nearly all component functions are implemented
+in "audio.cpp". The system-dependant modules ("audio_*.cpp") handle the
 initialization of the audio hardware/driver, volume controls, and the actual
 sound output.
 
 The mechanism of sound output varies depending on the platform but usually
-there will be one "streaming thread" (either a thread that continuously writes
-data buffers to the audio device or a callback function that provides the
-next data buffer) that reads blocks of sound data from the MacOS Sound Manager
-and writes them to the audio device. To request the next data buffer, the
-streaming thread triggers the INTFLAG_AUDIO interrupt which will cause the
-MacOS thread to eventually call AudioInterrupt(). Inside AudioInterrupt(),
-the next data block will be read and the streaming thread is signalled that
-new audio data is available.
+there will be one "streaming thread" (either a thread that continuously
+writes data buffers to the audio device or a callback function that provides
+the next data buffer) that reads blocks of sound data from the MacOS Sound
+Manager and writes them to the audio device. To request the next data
+buffer, the streaming thread triggers the INTFLAG_AUDIO interrupt which will
+cause the MacOS thread to eventually call AudioInterrupt(). Inside
+AudioInterrupt(), the next data block will be read and the streaming thread
+is signalled that new audio data is available.
 
 6.9. Floppy, disk and CD-ROM drivers
 ------------------------------------
 
-Basilisk II contains three MacOS drivers that implement floppy, disk and CD-ROM
-access ("sony.cpp", "disk.cpp" and "cdrom.cpp"). They rely heavily on the
-functionality provided by the "sys_*.cpp" module. BTW, the name ".Sony" of the
-MacOS floppy driver comes from the fact that the 3.5" floppy drive in the first
-Mac models was custom-built for Apple by Sony (this was one of the first
-applications of the 3.5" floppy format which was also invented by Sony).
+Basilisk II contains three MacOS drivers that implement floppy, disk and
+CD-ROM access ("sony.cpp", "disk.cpp" and "cdrom.cpp"). They rely heavily on
+the functionality provided by the "sys_*.cpp" module. BTW, the name ".Sony"
+of the MacOS floppy driver comes from the fact that the 3.5" floppy drive in
+the first Mac models was custom-built for Apple by Sony (this was one of the
+first applications of the 3.5" floppy format which was also invented by
+Sony).
 
 6.10. External file system
 --------------------------
 
 Basilisk II also provides a method for accessing files and direcories on the
-host OS from the MacOS side by means of an "external" file system (henceforth
-called "ExtFS"). The ExtFS is built upon the File System Manager 1.2 interface
-that is built into MacOS 7.6 (and later) and available as a system extension
-for earlier MacOS versions. Unlike other parts of Basilisk II, extfs.cpp
-requires POSIX file I/O and this is not going to change any time soon, so if
-you are porting Basilisk II to a system without POSIX file functions, you
-should emulate them.
+host OS from the MacOS side by means of an "external" file system
+(henceforth called "ExtFS"). The ExtFS is built upon the File System Manager
+1.2 interface that is built into MacOS 7.6 (and later) and available as a
+system extension for earlier MacOS versions. Unlike other parts of Basilisk
+II, extfs.cpp requires POSIX file I/O and this is not going to change any
+time soon, so if you are porting Basilisk II to a system without POSIX file
+functions, you should emulate them.
 
 6.11. Serial drivers
 --------------------
@@ -426,18 +439,19 @@ All the real work is done by the "SERDPort" class which is subclassed by the
 platform-dependant code. There are two instances (for port A and B) of the
 subclasses.
 
-Unlike the disk drivers, the serial driver must be able to handle asynchronous
-operations. Calls to SerialPrime() will usually not actually transmit or receive
-data but delegate the action to an independant thread. SerialPrime() then
-returns "1" to indicate that the I/O operation is not yet completed. The
-completion of the I/O request is signalled by calling the MacOS trap "IODone".
-However, this can't be done by the I/O thread because it's not in the right
-run-time environment to call MacOS functions. Therefore it will trigger the
-INTFLAG_SERIAL interrupt which causes the MacOS thread to eventually call
-SerialInterrupt(). SerialInterrupt(), in turn, will not call IODone either but
-install a Deferred Task to do the job. The Deferred Task will be called by
-MacOS when it returns to interrupt level 0. This mechanism sounds complicated
-but is necessary to ensure stable operation of the serial driver.
+Unlike the disk drivers, the serial driver must be able to handle
+asynchronous operations. Calls to SerialPrime() will usually not actually
+transmit or receive data but delegate the action to an independant thread.
+SerialPrime() then returns "1" to indicate that the I/O operation is not yet
+completed. The completion of the I/O request is signalled by calling the
+MacOS trap "IODone". However, this can't be done by the I/O thread because
+it's not in the right run-time environment to call MacOS functions.
+Therefore it will trigger the INTFLAG_SERIAL interrupt which causes the
+MacOS thread to eventually call SerialInterrupt(). SerialInterrupt(), in
+turn, will not call IODone either but install a Deferred Task to do the job.
+The Deferred Task will be called by MacOS when it returns to interrupt level
+0. This mechanism sounds complicated but is necessary to ensure stable
+operation of the serial driver.
 
 6.12. Ethernet driver
 ---------------------
@@ -450,44 +464,53 @@ but not including the 4-byte CRC. This may not be possible on all platforms
 or it may require writing special net drivers or add-ons or running with
 superuser priviledges to get access to the raw packets.
 
-Writing packets works as in the serial drivers. The ether_write() routine may
-choose to send the packet immediately (e.g. under BeOS) and return noErr or to
-delegate the sending to a separate thread (e.g. under AmigaOS) and return "1" to
-indicate that the operation is still in progress. For the latter case, a
-Deferred Task structure is provided in the ether_data area to call IODone from
-EtherInterrupt() when the packet write is complete (see above for a description
-of the mechanism).
+For situations in which access to raw Ethernet packets is not possible,
+Basilisk II implements a special "tunneling" mode in which it sends and
+receives packets via UDP, using BSD socket functions. It simply wraps the
+Ethernet packets into UDP packets, using dummy Ethernet addresses that are
+made up of the IP address of the host. Ethernet broadcast and AppleTalk
+multicast packets are sent to the IP broadcast address. Because of this
+non-standard way of tunneling, it is only possible to set up a "virtual"
+network amongst machines running Basilisk II in this way.
+
+Writing packets works as in the serial drivers. The ether_write() routine
+may choose to send the packet immediately (e.g. under BeOS) and return noErr
+or to delegate the sending to a separate thread (e.g. under AmigaOS) and
+return "1" to indicate that the operation is still in progress. For the
+latter case, a Deferred Task structure is provided in the ether_data area to
+call IODone from EtherInterrupt() when the packet write is complete (see
+above for a description of the mechanism).
 
 Packet reception is a different story. First of all, there are two methods
-provided by the MacOS Ethernet driver API to read packets, one of which (ERead/
-ERdCancel) is not supported by Basilisk II. Basilisk II only supports reading
-packets by attaching protocol handlers. This shouldn't be a problem because
-the only network code I've seen so far that uses ERead is some Apple sample
-code. AppleTalk, MacTCP, MacIPX, OpenTransport etc. all use protocol handlers.
-By attaching a protocol handler, the user of the Ethernet driver supplies a
-handler routine that should be called by the driver upon reception of Ethernet
-packets of a certain type. 802.2 packets (type/length field of 0..1500 in the
-packet header) are a bit special: there can be only one protocol handler attached
-for 802.2 packets (by specifying a packet type of "0"). The MacOS LAP Manager
-will attach a 802.2 handler upon startup and handle the distribution of 802.2
-packets to sub-protocol handlers, but the Basilisk II Ethernet driver is not
-concerned with this.
+provided by the MacOS Ethernet driver API to read packets, one of which
+(ERead/ ERdCancel) is not supported by Basilisk II. Basilisk II only
+supports reading packets by attaching protocol handlers. This shouldn't be a
+problem because the only network code I've seen so far that uses ERead is
+some Apple sample code. AppleTalk, MacTCP, MacIPX, OpenTransport etc. all
+use protocol handlers. By attaching a protocol handler, the user of the
+Ethernet driver supplies a handler routine that should be called by the
+driver upon reception of Ethernet packets of a certain type. 802.2 packets
+(type/length field of 0..1500 in the packet header) are a bit special: there
+can be only one protocol handler attached for 802.2 packets (by specifying a
+packet type of "0"). The MacOS LAP Manager will attach a 802.2 handler upon
+startup and handle the distribution of 802.2 packets to sub-protocol
+handlers, but the Basilisk II Ethernet driver is not concerned with this.
 
 When the driver receives a packet, it has to look up the protocol handler
 installed for the respective packet type (if any has been installed at all)
-and call the packet handler routine. This must be done with Execute68k() from
-the MacOS thread, so an interrupt (INTFLAG_ETHER) is triggered upon reception
-of a packet so the EtherInterrupt() routine can call the protocol handler.
-Before calling the handler, the Ethernet packet header has to be copied to
-MacOS RAM (the "ed_RHA" field of the ether_data structure is provided for this).
-The protocol handler will read the packet data by means of the ReadPacket/ReadRest
-routines supplied by the Ethernet driver. Both routines will eventually end up
-in EtherReadPacket() which copies the data to Mac address space. EtherReadPacket()
-requires the host address and length of the packet to be loaded to a0 and d1
-before calling the protocol handler.
+and call the packet handler routine. This must be done with Execute68k()
+from the MacOS thread, so an interrupt (INTFLAG_ETHER) is triggered upon
+reception of a packet so the EtherInterrupt() routine can call the protocol
+handler. Before calling the handler, the Ethernet packet header has to be
+copied to MacOS RAM (the "ed_RHA" field of the ether_data structure is
+provided for this). The protocol handler will read the packet data by means
+of the ReadPacket/ReadRest routines supplied by the Ethernet driver. Both
+routines will eventually end up in EtherReadPacket() which copies the data
+to Mac address space. EtherReadPacket() requires the host address and length
+of the packet to be loaded to a0 and d1 before calling the protocol handler.
 
-Does this sound complicated? You are probably right. Here is another description
-of what happens upon reception of a packet:
+Does this sound complicated? You are probably right. Here is another
+description of what happens upon reception of a packet:
   1. Ethernet card receives packet and notifies some platform-dependant entity
      inside Basilisk II
   2. This entity will store the packet in some safe place and trigger the
@@ -507,7 +530,8 @@ of what happens upon reception of a packet:
      part of the packet data to Mac RAM using the pointer and length which are
      still in a0/d1
 
-For a more detailed description of the Ethernet driver, see "Inside AppleTalk".
+For a more detailed description of the Ethernet driver, see the book "Inside
+AppleTalk".
 
 6.13. System-dependant device access
 ------------------------------------
@@ -521,10 +545,11 @@ standard, Unix-like interface to all kinds of devices.
 6.14. User interface strings
 ----------------------------
 
-To aid in localization, all user interface strings of Basilisk II are collected
-in "user_strings.cpp" (for common strings) and "user_strings_*.cpp" (for
-platform-specific strings), and accessed via the GetString() function. This
-way, Basilisk II may be easily translated to different languages.
+To aid in localization, all user interface strings of Basilisk II are
+collected in "user_strings.cpp" (for common strings) and
+"user_strings_*.cpp" (for platform-specific strings), and accessed via the
+GetString() function. This way, Basilisk II may be easily translated to
+different languages.
 
 6.15. Preferences management
 ----------------------------
@@ -533,9 +558,10 @@ The module "prefs.cpp" handles user preferences in a system-independant way.
 Preferences items are accessed with the PrefsAdd*(), PrefsReplace*() and
 PrefsFind*() functions and stored in human-readable and editable text files
 on disk. There are two lists of available preferences items. The first one,
-common_prefs_items, defines the items which are available on all systems.
-The second one, platform_prefs_items, is defined in prefs_*.cpp and lists
-the prefs items which are specific to a certain platform.
+common_prefs_items, is defined in "prefs_items.cpp" and lists items which
+are available on all systems. The second one, platform_prefs_items, is
+defined in "prefs_*.cpp" and lists the prefs items which are specific to a
+certain platform.
 
 The "prefs_editor_*.cpp" module provides a graphical user interface for
 setting the preferences so users won't have to edit the preferences file
@@ -544,8 +570,8 @@ manually.
 7. Porting Basilisk II
 ----------------------
 
-Porting Basilisk II to a new platform should not be hard. These are the steps
-involved in the process:
+Porting Basilisk II to a new platform should not be hard. These are the
+steps involved in the process:
 
 1. Create a new directory inside the "src" directory for your platform. If
    your platform comes in several "flavours" that require adapted files, you

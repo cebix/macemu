@@ -266,7 +266,7 @@ void ether_exit(void)
  *  Reset
  */
 
-void EtherReset(void)
+void ether_reset(void)
 {
 	remove_all_protocols();
 }
