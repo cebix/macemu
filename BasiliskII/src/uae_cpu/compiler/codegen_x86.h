@@ -121,11 +121,11 @@ enum {
 enum {
   X86_AL  = X86_Reg8L_Base,
   X86_CL,   X86_DL,   X86_BL,
-  X86_AH,   X86_CH,   X86_DH,   X86_BH,
+  X86_SPL,  X86_BPL,  X86_SIL,  X86_DIL,
   X86_R8B,  X86_R9B,  X86_R10B, X86_R11B,
   X86_R12B, X86_R13B, X86_R14B, X86_R15B,
-  X86_SPL = X86_Reg8H_Base + 4,
-  X86_BPL,  X86_SIL,  X86_DIL
+  X86_AH  = X86_Reg8H_Base + 4,
+  X86_CH,   X86_DH,   X86_BH
 };
 
 enum {
@@ -214,6 +214,7 @@ enum {
 #endif
 
 #define _rSP()		(X86_TARGET_64BIT ? (int)X86_RSP : (int)X86_ESP)
+#define _r1e8lP(R)	(int(R) >= X86_SPL && int(R) <= X86_DIL)
 #define _rbpP(R)	(_rR(R) == _rR(X86_RBP))
 #define _rspP(R)	(_rR(R) == _rR(X86_RSP))
 #define _rbp13P(R)	(_rN(R) == _rN(X86_RBP))
@@ -474,10 +475,11 @@ typedef unsigned int	_ul;
 #define __REX_mem(MB,MI)	(__REXwrxb(0,0,0,_BIT(_rXP(MI)),MB))
 
 // FIXME: can't mix new (SPL,BPL,SIL,DIL) with (AH,BH,CH,DH)
-#define _REXBrr(RR,MR)		_m64(__REXw_x_(((RR)|(MR))>=X86_SPL,0,RR,0,MR))
-#define _REXBmr(MB,MI,RD)	_m64(__REXw_x_(((RD)|(MB))>=X86_SPL,0,RD,_BIT(_rXP(MI)),MB))
+#define _REXBrr(RR,MR)		_m64(__REXw_x_(_r1e8lP(RR)||_r1e8lP(MR),0,RR,0,MR))
+#define _REXBmr(MB,MI,RD)	_m64(__REXw_x_(_r1e8lP(RD)||_r1e8lP(MB),0,RD,_BIT(_rXP(MI)),MB))
 #define _REXBrm(RS,MB,MI)	_REXBmr(MB,MI,RS)
 
+#define _REXBLrr(RR,MR)		_m64(__REXw_x_(_r1e8lP(MR),0,RR,0,MR))
 #define _REXLrr(RR,MR)		_m64(__REXw_x_(0,0,RR,0,MR))
 #define _REXLmr(MB,MI,RD)	_m64(__REXw_x_(0,0,RD,_BIT(_rXP(MI)),MB))
 #define _REXLrm(RS,MB,MI)	_REXLmr(MB,MI,RS)
@@ -1544,9 +1546,9 @@ enum {
 #define MOVZBWrr(RS, RD)		(_d16(), _REXLrr(RD, RS),	_OO_Mrm		(0x0fb6		,_b11,_r2(RD),_r1(RS)				))
 #define MOVZBWmr(MD, MB, MI, MS, RD)	(_d16(), _REXLmr(MB, MI, RD),	_OO_r_X		(0x0fb6		     ,_r2(RD)		,MD,MB,MI,MS		))
 
-#define MOVSBLrr(RS, RD)		(_REXLrr(RD, RS),		_OO_Mrm		(0x0fbe		,_b11,_r4(RD),_r1(RS)				))
+#define MOVSBLrr(RS, RD)		(_REXBLrr(RD, RS),		_OO_Mrm		(0x0fbe		,_b11,_r4(RD),_r1(RS)				))
 #define MOVSBLmr(MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_OO_r_X		(0x0fbe		     ,_r4(RD)		,MD,MB,MI,MS		))
-#define MOVZBLrr(RS, RD)		(_REXLrr(RD, RS),		_OO_Mrm		(0x0fb6		,_b11,_r4(RD),_r1(RS)				))
+#define MOVZBLrr(RS, RD)		(_REXBLrr(RD, RS),		_OO_Mrm		(0x0fb6		,_b11,_r4(RD),_r1(RS)				))
 #define MOVZBLmr(MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_OO_r_X		(0x0fb6		     ,_r4(RD)		,MD,MB,MI,MS		))
 
 #define MOVSBQrr(RS, RD)		(_REXQrr(RD, RS),		_OO_Mrm		(0x0fbe		,_b11,_r8(RD),_r1(RS)				))
