@@ -80,24 +80,6 @@
 fpu_t fpu;
 
 /* -------------------------------------------------------------------------- */
-/* --- Endianness                                                         --- */
-/* -------------------------------------------------------------------------- */
-
-// Taken from glibc 2.1.x: endian.h
-#define	UAE_LITTLE_ENDIAN		1234
-#define	UAE_BIG_ENDIAN			4321
-
-#if WORDS_BIGENDIAN
-#define UAE_BYTE_ORDER			UAE_BIG_ENDIAN
-#else
-#define UAE_BYTE_ORDER			UAE_LITTLE_ENDIAN
-#endif
-
-// Some machines may need to use a different endianness for floating point values
-// e.g. ARM in which case it is big endian
-#define UAE_FLOAT_WORD_ORDER	UAE_BYTE_ORDER
-
-/* -------------------------------------------------------------------------- */
 /* --- Scopes Definition                                                  --- */
 /* -------------------------------------------------------------------------- */
 
@@ -394,6 +376,7 @@ PRIVATE inline void FFPU extract_extended(fpu_register const & src,
 	*wrd3 = srp->ieee.mantissa1 << 11;
 #else
 	// FIXME: USE_QUAD_DOUBLE
+	uae_u32 *p = (uae_u32 *)&src;
 #ifdef WORDS_BIGENDIAN
 	*wrd1 = p[0];
 	*wrd2 = p[1];

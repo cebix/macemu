@@ -106,6 +106,10 @@ typedef uae_f32		fpu_single;
 
 #elif defined(FPU_IEEE)
 
+#if HOST_FLOAT_FORMAT != IEEE_FLOAT_FORMAT
+#error "No IEEE float format, you lose."
+#endif
+
 /* 4-byte floats */
 #if SIZEOF_FLOAT == 4
 typedef float uae_f32;

@@ -103,32 +103,30 @@ union fpu_single_shape {
 
 	/* This is the IEEE 754 single-precision format.  */
 	struct {
-#if UAE_BYTE_ORDER == UAE_BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
 		unsigned int negative:1;
 		unsigned int exponent:8;
 		unsigned int mantissa:23;
-#endif				/* Big endian.  */
-#if UAE_BYTE_ORDER == UAE_LITTLE_ENDIAN
+#else
 		unsigned int mantissa:23;
 		unsigned int exponent:8;
 		unsigned int negative:1;
-#endif				/* Little endian.  */
+#endif
 	} ieee;
 
 	/* This format makes it easier to see if a NaN is a signalling NaN.  */
 	struct {
-#if UAE_BYTE_ORDER == UAE_BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
 		unsigned int negative:1;
 		unsigned int exponent:8;
 		unsigned int quiet_nan:1;
 		unsigned int mantissa:22;
-#endif				/* Big endian.  */
-#if UAE_BYTE_ORDER == UAE_LITTLE_ENDIAN
+#else
 		unsigned int mantissa:22;
 		unsigned int quiet_nan:1;
 		unsigned int exponent:8;
 		unsigned int negative:1;
-#endif				/* Little endian.  */
+#endif
 	} ieee_nan;
 };
 
@@ -138,15 +136,14 @@ union fpu_double_shape {
 	
 	/* This is the IEEE 754 double-precision format.  */
 	struct {
-#if UAE_BYTE_ORDER == UAE_BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
 		unsigned int negative:1;
 		unsigned int exponent:11;
 		/* Together these comprise the mantissa.  */
 		unsigned int mantissa0:20;
 		unsigned int mantissa1:32;
-#endif				/* Big endian.  */
-#if UAE_BYTE_ORDER == UAE_LITTLE_ENDIAN
-#	if UAE_FLOAT_WORD_ORDER == UAE_BIG_ENDIAN
+#else
+#	if HOST_FLOAT_WORDS_BIG_ENDIAN
 		unsigned int mantissa0:20;
 		unsigned int exponent:11;
 		unsigned int negative:1;
@@ -158,12 +155,12 @@ union fpu_double_shape {
 		unsigned int exponent:11;
 		unsigned int negative:1;
 #	endif
-#endif				/* Little endian.  */
+#endif
 	} ieee;
 
 	/* This format makes it easier to see if a NaN is a signalling NaN.  */
 	struct {
-#if UAE_BYTE_ORDER == UAE_BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
 		unsigned int negative:1;
 		unsigned int exponent:11;
 		unsigned int quiet_nan:1;
@@ -171,7 +168,7 @@ union fpu_double_shape {
 		unsigned int mantissa0:19;
 		unsigned int mantissa1:32;
 #else
-# if UAE_FLOAT_WORD_ORDER == UAE_BIG_ENDIAN
+#	if HOST_FLOAT_WORDS_BIG_ENDIAN
 		unsigned int mantissa0:19;
 		unsigned int quiet_nan:1;
 		unsigned int exponent:11;
@@ -190,7 +187,7 @@ union fpu_double_shape {
 
 	/* This format is used to extract the sign_exponent and mantissa parts only */
 	struct {
-#if UAE_FLOAT_WORD_ORDER == UAE_BIG_ENDIAN
+#if HOST_FLOAT_WORDS_BIG_ENDIAN
 		unsigned int msw:32;
 		unsigned int lsw:32;
 #else
@@ -207,15 +204,14 @@ union fpu_extended_shape {
 	
 	/* This is the IEEE 854 double-extended-precision format.  */
 	struct {
-#if UAE_BYTE_ORDER == UAE_BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
 		unsigned int negative:1;
 		unsigned int exponent:15;
 		unsigned int empty:16;
 		unsigned int mantissa0:32;
 		unsigned int mantissa1:32;
-#endif
-#if UAE_BYTE_ORDER == UAE_LITTLE_ENDIAN
-#	if UAE_FLOAT_WORD_ORDER == UAE_BIG_ENDIAN
+#else
+#	if HOST_FLOAT_WORDS_BIG_ENDIAN
 		unsigned int exponent:15;
 		unsigned int negative:1;
 		unsigned int empty:16;
@@ -233,7 +229,7 @@ union fpu_extended_shape {
 
 	/* This is for NaNs in the IEEE 854 double-extended-precision format.  */
 	struct {
-#if UAE_BYTE_ORDER == UAE_BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
 		unsigned int negative:1;
 		unsigned int exponent:15;
 		unsigned int empty:16;
@@ -241,9 +237,8 @@ union fpu_extended_shape {
 		unsigned int quiet_nan:1;
 		unsigned int mantissa0:30;
 		unsigned int mantissa1:32;
-#endif
-#if UAE_BYTE_ORDER == UAE_LITTLE_ENDIAN
-#	if UAE_FLOAT_WORD_ORDER == UAE_BIG_ENDIAN
+#else
+#	if HOST_FLOAT_WORDS_BIG_ENDIAN
 		unsigned int exponent:15;
 		unsigned int negative:1;
 		unsigned int empty:16;
@@ -265,7 +260,7 @@ union fpu_extended_shape {
 	
 	/* This format is used to extract the sign_exponent and mantissa parts only */
 	struct {
-#if UAE_FLOAT_WORD_ORDER == UAE_BIG_ENDIAN
+#if HOST_FLOAT_WORDS_BIG_ENDIAN
 		unsigned int sign_exponent:16;
 		unsigned int empty:16;
 		unsigned int msw:32;
@@ -287,7 +282,7 @@ union fpu_extended_shape {
 	
 	/* This is the IEEE 854 quad-precision format.  */
 	struct {
-#if UAE_BYTE_ORDER == UAE_BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
 		unsigned int negative:1;
 		unsigned int exponent:15;
 		unsigned int mantissa0:16;
@@ -306,7 +301,7 @@ union fpu_extended_shape {
 
 	/* This is for NaNs in the IEEE 854 quad-precision format.  */
 	struct {
-#if UAE_BYTE_ORDER == UAE_BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
 		unsigned int negative:1;
 		unsigned int exponent:15;
 		unsigned int quiet_nan:1;
@@ -326,7 +321,7 @@ union fpu_extended_shape {
 	} ieee_nan;
 
 	/* This format is used to extract the sign_exponent and mantissa parts only */
-#if UAE_FLOAT_WORD_ORDER == UAE_BIG_ENDIAN
+#if HOST_FLOAT_WORDS_BIG_ENDIAN
 	struct {
 		uae_u64 msw;
 		uae_u64 lsw;
