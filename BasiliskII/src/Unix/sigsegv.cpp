@@ -68,6 +68,10 @@ static bool sigsegv_do_install_handler(int sig);
 #if (defined(ia64) || defined(__ia64__))
 #define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_ip & ~0x3ULL) /* slot number is in bits 0 and 1 */
 #endif
+#if (defined(powerpc) || defined(__powerpc__))
+#include <sys/ucontext.h>
+#define SIGSEGV_FAULT_INSTRUCTION		(((ucontext_t *)scp)->uc_mcontext.regs->nip)
+#endif
 #endif
 #endif
 
