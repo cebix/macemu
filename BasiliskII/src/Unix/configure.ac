@@ -481,7 +481,14 @@ if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp"
   else
-    EXTRASYSSRCS="$EXTRASYSSRCS ../dummy/clip_dummy.cpp"
+    case "$target_os" in
+    cygwin*)
+      EXTRASYSSRCS="$EXTRASYSSRCS ../Windows/clip_windows.cpp"
+      ;;
+    *)
+      EXTRASYSSRCS="$EXTRASYSSRCS ../dummy/clip_dummy.cpp"
+      ;;
+    esac
   fi
 else
   VIDEOSRCS="video_x.cpp"
