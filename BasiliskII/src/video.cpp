@@ -39,7 +39,7 @@
 
 
 // List of supported video modes
-vector<video_mode> VideoModes;
+std::vector<video_mode> VideoModes;
 
 // Description of the main monitor
 monitor_desc VideoMonitor;
@@ -98,7 +98,7 @@ static std::vector<video_mode>::const_iterator find_mode(uint16 mode, uint32 id)
 static video_depth max_depth_of_resolution(uint32 id)
 {
 	video_depth m = VDEPTH_1BIT;
-	vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
+	std::vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
 	while (i != end) {
 		if (i->depth > m)
 			m = i->depth;
@@ -114,7 +114,7 @@ static video_depth max_depth_of_resolution(uint32 id)
 
 static void get_size_of_resolution(uint32 id, uint32 &x, uint32 &y)
 {
-	vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
+	std::vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
 	while (i != end) {
 		if (i->resolution_id == id) {
 			x = i->x;
@@ -581,7 +581,7 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 			uint16 mode = ReadMacInt16(param + csDepthMode);
 			D(bug(" GetVideoParameters %04x/%08x\n", mode, id));
 
-			vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
+			std::vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
 			while (i != end) {
 				if (DepthToAppleMode(i->depth) == mode && i->resolution_id == id) {
 					uint32 vp = ReadMacInt32(param + csVPBlockPtr);

@@ -46,7 +46,7 @@ static uint32 p;
 // Check whether a mode with the specified depth exists
 static bool has_depth(video_depth depth)
 {
-	vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
+	std::vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
 	while (i != end) {
 		if (i->depth == depth)
 			return true;
