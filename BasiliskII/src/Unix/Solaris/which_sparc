@@ -1,12 +1,17 @@
 #!/bin/sh
 
-# WHICH_SPARC
+# which_sparc
 #
 # This script generates a program that tests for a SPARC processor class
 # Program returns:
-# 0		unknown SPARC processor
-# 8		SPARC V8 `compliant' processor	(umul instruction is legal)
-# 9		SPARC V9 `compliant' processor	(popc instruction is legal)
+#  0 unknown SPARC processor
+#  8 SPARC V8 `compliant' processor	(umul instruction is legal)
+#  9 SPARC V9 `compliant' processor	(popc instruction is legal)
+#
+# The script prints:
+#  "unknown SPARC architecture"
+#  SPARC_V8
+#  SPARC_V9
 #
 # I hope this works for other machines and OS. Tested machines are:
 # Sun Ultra 10 (Solaris 7), SPARC Station 5 (Solaris 2.5.1)
@@ -19,7 +24,6 @@ PROG=./conftest
 SOURCE=./conftest.c
 
 if [ ! -x $PROG ]; then
-echo "Compiling the test program"
 cat > $SOURCE << EOF
 #include <stdio.h>
 #include <signal.h>
@@ -107,8 +111,8 @@ fi
 $PROG
 case $? in
 	0) echo "unknown SPARC architecture";;
-	8) echo "SPARC V8 compliant processor";;
-	9) echo "SPARC V9 compliant processor";;
+	8) echo "SPARC_V8";;
+	9) echo "SPARC_V9";;
 esac
 
 rm -f $PROG
