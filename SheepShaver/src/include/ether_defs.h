@@ -248,13 +248,13 @@ class nw_scalar_member_helper {
 	uint8 _pad[sizeof(type)];
 public:
 	operator public_type () const {
-		return (public_type)nw_memory_helper<sizeof(type)>::load((void *)this);
+		return (public_type)(uintptr)nw_memory_helper<sizeof(type)>::load((void *)this);
 	}
 	public_type operator -> () const {
 		return this->operator public_type ();
 	}
 	nw_scalar_member_helper<type, public_type> & operator = (public_type val) {
-		nw_memory_helper<sizeof(type)>::store((void *)this, (type)val);
+		nw_memory_helper<sizeof(type)>::store((void *)this, (type)(uintptr)val);
 		return *this;
 	}
 	nw_scalar_member_helper<type, public_type> & operator += (int val) {
