@@ -21,6 +21,7 @@
 #include "sysdeps.h"
 
 #include "clip.h"
+#include "macos_util.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -45,6 +46,16 @@ void ClipExit(void)
 
 
 /*
+ *  Mac application reads clipboard
+ */
+
+void GetScrap(void **handle, uint32 type, int32 offset)
+{
+	D(bug("GetScrap handle %p, type %08x, offset %d\n", handle, type, offset));
+}
+
+
+/*
  *  Mac application wrote to clipboard
  */
 
@@ -55,7 +66,7 @@ void PutScrap(uint32 type, void *scrap, int32 length)
 		return;
 
 	switch (type) {
-		case 'TEXT':
+		case FOURCC('T','E','X','T'):
 			D(bug(" clipping TEXT\n"));
 			break;
 	}
