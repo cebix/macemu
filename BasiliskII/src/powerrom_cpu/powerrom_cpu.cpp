@@ -808,13 +808,13 @@ bool Init680x0(void)
 	try {
 		load_rom();
 	} catch (file_open_error) {
-		ErrorAlert(GetString(STR_NO_ROM_FILE_ERR));
+		ErrorAlert(STR_NO_ROM_FILE_ERR);
 		return false;
 	} catch (file_read_error) {
-		ErrorAlert(GetString(STR_ROM_FILE_READ_ERR));
+		ErrorAlert(STR_ROM_FILE_READ_ERR);
 		return false;
 	} catch (rom_size_error) {
-		ErrorAlert(GetString(STR_ROM_SIZE_ERR));
+		ErrorAlert(STR_ROM_SIZE_ERR);
 		return false;
 	}
 

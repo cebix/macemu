@@ -12,7 +12,7 @@ General:
   ReadISRC/ReadAudio/ReadAllSubcodes
 - Sound output rate/bits/channels switching
 - Sound in
-- Video: gamma tables, multiple monitor support
+- Video: multiple monitor support
 - More accurate Time Manager
 - Serial driver: XOn/XOff handshaking
 - Classic ROM: mouse button/movement is broken with ROM mouse handler

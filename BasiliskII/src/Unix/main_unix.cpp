@@ -317,7 +317,7 @@ int main(int argc, char **argv)
 	// Allocate scratch memory
 	ScratchMem = (uint8 *)vm_acquire(SCRATCH_MEM_SIZE);
 	if (ScratchMem == VM_MAP_FAILED) {
-		ErrorAlert(GetString(STR_NO_MEM_ERR));
+		ErrorAlert(STR_NO_MEM_ERR);
 		QuitEmulator();
 	}
 	ScratchMem += SCRATCH_MEM_SIZE/2;	// ScratchMem points to middle of block
@@ -335,7 +335,7 @@ int main(int argc, char **argv)
 		RAMBaseHost = (uint8 *)vm_acquire(RAMSize);
 		ROMBaseHost = (uint8 *)vm_acquire(0x100000);
 		if (RAMBaseHost == VM_MAP_FAILED || ROMBaseHost == VM_MAP_FAILED) {
-			ErrorAlert(GetString(STR_NO_MEM_ERR));
+			ErrorAlert(STR_NO_MEM_ERR);
 			QuitEmulator();
 		}
 	}
@@ -359,19 +359,19 @@ int main(int argc, char **argv)
 	// Load Mac ROM
 	int rom_fd = open(rom_path ? rom_path : ROM_FILE_NAME, O_RDONLY);
 	if (rom_fd < 0) {
-		ErrorAlert(GetString(STR_NO_ROM_FILE_ERR));
+		ErrorAlert(STR_NO_ROM_FILE_ERR);
 		QuitEmulator();
 	}
 	printf(GetString(STR_READING_ROM_FILE));
 	ROMSize = lseek(rom_fd, 0, SEEK_END);
 	if (ROMSize != 64*1024 && ROMSize != 128*1024 && ROMSize != 256*1024 && ROMSize != 512*1024 && ROMSize != 1024*1024) {
-		ErrorAlert(GetString(STR_ROM_SIZE_ERR));
+		ErrorAlert(STR_ROM_SIZE_ERR);
 		close(rom_fd);
 		QuitEmulator();
 	}
 	lseek(rom_fd, 0, SEEK_SET);
 	if (read(rom_fd, ROMBaseHost, ROMSize) != (ssize_t)ROMSize) {
-		ErrorAlert(GetString(STR_ROM_FILE_READ_ERR));
+		ErrorAlert(STR_ROM_FILE_READ_ERR);
 		close(rom_fd);
 		QuitEmulator();
 	}
@@ -423,7 +423,7 @@ int main(int argc, char **argv)
 	sig_stack = malloc(SIG_STACK_SIZE);
 	D(bug("Signal stack at %p\n", sig_stack));
 	if (sig_stack == NULL) {
-		ErrorAlert(GetString(STR_NOT_ENOUGH_MEMORY_ERR));
+		ErrorAlert(STR_NOT_ENOUGH_MEMORY_ERR);
 		QuitEmulator();
 	}
 	stack_t new_stack;

@@ -78,7 +78,7 @@ void SysInit(void)
 	the_port = CreateMsgPort();
 	tmp_buf = (UBYTE *)AllocMem(TMP_BUF_SIZE, MEMF_CHIP | MEMF_PUBLIC);
 	if (the_port == NULL || tmp_buf == NULL) {
-		ErrorAlert(GetString(STR_NO_MEM_ERR));
+		ErrorAlert(STR_NO_MEM_ERR);
 		QuitEmulator();
 	}
 }

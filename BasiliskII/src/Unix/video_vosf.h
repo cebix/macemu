@@ -194,7 +194,7 @@ static bool video_init_buffer(void)
 
 		mainBuffer.pageInfo = (ScreenPageInfo *) malloc(mainBuffer.pageCount * sizeof(ScreenPageInfo));
 
-		if ((mainBuffer.dirtyPages == 0) || (mainBuffer.pageInfo == 0))
+		if ((mainBuffer.dirtyPages == NULL) || (mainBuffer.pageInfo == NULL))
 			return false;
 		
 		mainBuffer.dirty = false;
@@ -315,7 +315,7 @@ There are two cases to check:
 	than pageCount.
 */
 
-static inline void update_display_window_vosf(void)
+static inline void update_display_window_vosf(driver_window *drv)
 {
 	int page = 0;
 	for (;;) {
@@ -357,10 +357,10 @@ static inline void update_display_window_vosf(void)
 			}
 		}
 
-		if (have_shm)
-			XShmPutImage(x_display, the_win, the_gc, img, 0, y1, 0, y1, VideoMonitor.mode.x, height, 0);
+		if (drv->have_shm)
+			XShmPutImage(x_display, drv->w, drv->gc, drv->img, 0, y1, 0, y1, VideoMonitor.mode.x, height, 0);
 		else
-			XPutImage(x_display, the_win, the_gc, img, 0, y1, 0, y1, VideoMonitor.mode.x, height);
+			XPutImage(x_display, drv->w, drv->gc, drv->img, 0, y1, 0, y1, VideoMonitor.mode.x, height);
 	}
 	mainBuffer.dirty = false;
 }

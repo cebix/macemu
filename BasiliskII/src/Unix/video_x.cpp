@@ -72,17 +72,20 @@ enum {
 
 // Constants
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
-const char FBDEVICES_FILE_NAME[] = DATADIR "/fbdevices";
+
+static const int win_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | EnterWindowMask | ExposureMask | StructureNotifyMask;
+static const int dga_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | StructureNotifyMask;
 
 
 // Global variables
 static int32 frame_skip;							// Prefs items
-static int16 mouse_wheel_mode = 1;
-static int16 mouse_wheel_lines = 3;
+static int16 mouse_wheel_mode;
+static int16 mouse_wheel_lines;
 
 static int display_type = DISPLAY_WINDOW;			// See enum above
 static bool local_X11;								// Flag: X server running on local machine?
-static uint8 *the_buffer;							// Mac frame buffer
+static uint8 *the_buffer = NULL;					// Mac frame buffer (where MacOS draws into)
+static uint8 *the_buffer_copy = NULL;				// Copy of Mac frame buffer (for refreshed modes)
 
 #ifdef HAVE_PTHREADS
 static bool redraw_thread_active = false;			// Flag: Redraw thread installed
@@ -92,6 +95,12 @@ static pthread_t redraw_thread;						// Redraw thread
 
 static bool has_dga = false;						// Flag: Video DGA capable
 static bool has_vidmode = false;					// Flag: VidMode extension available
+
+#ifdef ENABLE_VOSF
+static bool use_vosf = true;						// Flag: VOSF enabled
+#else
+static const bool use_vosf = false;					// VOSF not possible
+#endif
 
 static bool ctrl_down = false;						// Flag: Ctrl key pressed
 static bool caps_on = false;						// Flag: Caps Lock on
@@ -107,22 +116,29 @@ static int keycode_table[256];						// X keycode -> Mac keycode translation tabl
 // X11 variables
 static int screen;									// Screen number
 static int xdepth;									// Depth of X screen
-static Window rootwin, the_win;						// Root window and our window
+static Window rootwin;								// Root window and our window
 static XVisualInfo visualInfo;
 static Visual *vis;
-static Colormap cmap[2];							// Two colormaps (DGA) for 8-bit mode
-static bool cmap_allocated = false;
+static Colormap cmap[2] = {0, 0};					// Colormaps for indexed modes (DGA needs two of them)
 static XColor black, white;
 static unsigned long black_pixel, white_pixel;
 static int eventmask;
-static const int win_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | EnterWindowMask | ExposureMask | StructureNotifyMask;
-static const int dga_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | StructureNotifyMask;
-static Atom WM_DELETE_WINDOW = (Atom)0;
 
-static XColor palette[256];							// Color palette for 8-bit mode
+static XColor palette[256];							// Color palette for indexed modes
 static bool palette_changed = false;				// Flag: Palette changed, redraw thread must set new colors
+
+#ifdef ENABLE_FBDEV_DGA
+static int fbdev_fd = -1;
+#endif
+
+#ifdef ENABLE_XF86_VIDMODE
+static XF86VidModeModeInfo **x_video_modes = NULL;	// Array of all available modes
+static int num_x_video_modes;
+#endif
+
+// Mutex to protect palette
 #ifdef HAVE_PTHREADS
-static pthread_mutex_t palette_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect palette
+static pthread_mutex_t palette_lock = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK_PALETTE pthread_mutex_lock(&palette_lock)
 #define UNLOCK_PALETTE pthread_mutex_unlock(&palette_lock)
 #else
@@ -130,24 +146,9 @@ static pthread_mutex_t palette_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to pro
 #define UNLOCK_PALETTE
 #endif
 
-// Variables for window mode
-static GC the_gc;
-static XImage *img = NULL;
-static XShmSegmentInfo shminfo;
-static Cursor mac_cursor;
-static uint8 *the_buffer_copy = NULL;				// Copy of Mac frame buffer
-static bool have_shm = false;						// Flag: SHM extensions available
-static bool updt_box[17][17];						// Flag for Update
-static int nr_boxes;
-static const int sm_uptd[] = {4,1,6,3,0,5,2,7};
-static int sm_no_boxes[] = {1,8,32,64,128,300};
-
-// Variables for XF86 DGA mode
-static int current_dga_cmap;						// Number (0 or 1) of currently installed DGA colormap
-static Window suspend_win;							// "Suspend" window
-static void *fb_save = NULL;						// Saved frame buffer for suspend
+// Mutex to protect frame buffer
 #ifdef HAVE_PTHREADS
-static pthread_mutex_t frame_buffer_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer
+static pthread_mutex_t frame_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK_FRAME_BUFFER pthread_mutex_lock(&frame_buffer_lock);
 #define UNLOCK_FRAME_BUFFER pthread_mutex_unlock(&frame_buffer_lock);
 #else
@@ -155,25 +156,16 @@ static pthread_mutex_t frame_buffer_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex t
 #define UNLOCK_FRAME_BUFFER
 #endif
 
-// Variables for fbdev DGA mode
-const char FBDEVICE_FILE_NAME[] = "/dev/fb";
-static int fbdev_fd;
+// Variables for non-VOSF incremental refresh
+static const int sm_uptd[] = {4,1,6,3,0,5,2,7};
+static int sm_no_boxes[] = {1,8,32,64,128,300};
+static bool updt_box[17][17];
+static int nr_boxes;
 
-#ifdef ENABLE_XF86_VIDMODE
-// Variables for XF86 VidMode support
-static XF86VidModeModeInfo **x_video_modes;			// Array of all available modes
-static int num_x_video_modes;
-#endif
-
-#ifdef ENABLE_VOSF
-static bool use_vosf = true;						// Flag: VOSF enabled
-#else
-static const bool use_vosf = false;					// Flag: VOSF enabled
-#endif
-
-// VideoRefresh function
+// Video refresh function
 static void VideoRefreshInit(void);
 static void (*video_refresh)(void);
+
 
 // Prototypes
 static void *redraw_func(void *arg);
@@ -187,13 +179,8 @@ extern Display *x_display;
 extern void SysMountFirstFloppy(void);
 
 
-#ifdef ENABLE_VOSF
-# include "video_vosf.h"
-#endif
-
-
 /*
- *  Initialization
+ *  Utility functions
  */
 
 // Add mode to list of supported modes
@@ -222,6 +209,11 @@ static void set_mac_frame_buffer(video_depth depth, bool native_byte_order)
 	else
 		MacFrameLayout = FLAYOUT_DIRECT;
 	VideoMonitor.mac_frame_base = MacFrameBaseMac;
+
+	// Set variables used by UAE memory banking
+	MacFrameBaseHost = the_buffer;
+	MacFrameSize = VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y;
+	InitFrameBufferMapping();
 #else
 	VideoMonitor.mac_frame_base = Host2MacAddr(the_buffer);
 	D(bug("Host frame buffer = %p, ", the_buffer));
@@ -260,6 +252,7 @@ static void set_window_focus(Window w)
 }
 
 // Set WM_DELETE_WINDOW protocol on window (preventing it from being destroyed by the WM when clicking on the "close" widget)
+static Atom WM_DELETE_WINDOW = (Atom)0;
 static void set_window_delete_protocol(Window w)
 {
 	WM_DELETE_WINDOW = XInternAtom(x_display, "WM_DELETE_WINDOW", false);
@@ -296,8 +289,119 @@ static int error_handler(Display *d, XErrorEvent *e)
 		return old_error_handler(d, e);
 }
 
-// Init window mode
-static bool init_window(const video_mode &mode)
+
+/*
+ *  Display "driver" classes
+ */
+
+class driver_base {
+public:
+	driver_base();
+	virtual ~driver_base();
+
+	virtual void update_palette(void);
+	virtual void suspend(void) {}
+	virtual void resume(void) {}
+
+public:
+	bool init_ok;	// Initialization succeeded (we can't use exceptions because of -fomit-frame-pointer)
+	Window w;		// The window we draw into
+};
+
+class driver_window;
+static void update_display_window_vosf(driver_window *drv);
+static void update_display_dynamic(int ticker, driver_window *drv);
+static void update_display_static(driver_window *drv);
+
+class driver_window : public driver_base {
+	friend void update_display_window_vosf(driver_window *drv);
+	friend void update_display_dynamic(int ticker, driver_window *drv);
+	friend void update_display_static(driver_window *drv);
+
+public:
+	driver_window(const video_mode &mode);
+	~driver_window();
+
+private:
+	GC gc;
+	XImage *img;
+	bool have_shm;				// Flag: SHM extensions available
+	XShmSegmentInfo shminfo;
+	Cursor mac_cursor;
+};
+
+static driver_base *drv = NULL;	// Pointer to currently used driver object
+
+#ifdef ENABLE_VOSF
+# include "video_vosf.h"
+#endif
+
+driver_base::driver_base()
+ : init_ok(false), w(0)
+{
+	the_buffer = NULL;
+	the_buffer_copy = NULL;
+}
+
+driver_base::~driver_base()
+{
+	XFlush(x_display);
+	XSync(x_display, false);
+
+	if (w) {
+		XUnmapWindow(x_display, w);
+		wait_unmapped(w);
+		XDestroyWindow(x_display, w);
+	}
+
+	// Free frame buffer(s)
+	if (!use_vosf) {
+		if (the_buffer) {
+			free(the_buffer);
+			the_buffer = NULL;
+		}
+		if (the_buffer_copy) {
+			free(the_buffer_copy);
+			the_buffer_copy = NULL;
+		}
+	}
+#ifdef ENABLE_VOSF
+	else {
+		if (the_buffer != (uint8 *)VM_MAP_FAILED) {
+			vm_release(the_buffer, the_buffer_size);
+			the_buffer = NULL;
+		}
+		if (the_buffer_copy != (uint8 *)VM_MAP_FAILED) {
+			vm_release(the_buffer_copy, the_buffer_size);
+			the_buffer_copy = NULL;
+		}
+	}
+#endif
+}
+
+// Palette has changed
+void driver_base::update_palette(void)
+{
+	if (cmap[0] && cmap[1]) {
+		int num = 256;
+		if (xdepth == 15)
+			num = 32;
+		else if (xdepth == 16)
+			num = 64;
+		XStoreColors(x_display, cmap[0], palette, num);
+		XStoreColors(x_display, cmap[1], palette, num);
+	}
+	XSync(x_display, false);
+}
+
+
+/*
+ *  Windowed display driver
+ */
+
+// Open display
+driver_window::driver_window(const video_mode &mode)
+ : gc(0), img(NULL), have_shm(false), mac_cursor(0)
 {
 	int width = mode.x, height = mode.y;
 	int aligned_width = (width + 15) & ~15;
@@ -306,26 +410,22 @@ static bool init_window(const video_mode &mode)
 	// Set absolute mouse mode
 	ADBSetRelMouseMode(false);
 
-	// Read frame skip prefs
-	frame_skip = PrefsFindInt32("frameskip");
-
 	// Create window
 	XSetWindowAttributes wattr;
 	wattr.event_mask = eventmask = win_eventmask;
 	wattr.background_pixel = black_pixel;
 	wattr.colormap = cmap[0];
-
-	the_win = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
-		InputOutput, vis, CWEventMask | CWBackPixel | ((IsDirectMode(mode) || mode.depth == VDEPTH_1BIT) ? 0 : CWColormap), &wattr);
+	w = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
+		InputOutput, vis, CWEventMask | CWBackPixel | ((mode.depth == VDEPTH_1BIT || cmap[0] == 0) ? 0 : CWColormap), &wattr);
 
 	// Set window name/class
-	set_window_name(the_win, STR_WINDOW_TITLE);
+	set_window_name(w, STR_WINDOW_TITLE);
 
 	// Indicate that we want keyboard input
-	set_window_focus(the_win);
+	set_window_focus(w);
 
 	// Set delete protocol property
-	set_window_delete_protocol(the_win);
+	set_window_delete_protocol(w);
 
 	// Make window unresizable
 	{
@@ -336,18 +436,17 @@ static bool init_window(const video_mode &mode)
 			hints->min_height = height;
 			hints->max_height = height;
 			hints->flags = PMinSize | PMaxSize;
-			XSetWMNormalHints(x_display, the_win, hints);
+			XSetWMNormalHints(x_display, w, hints);
 			XFree(hints);
 		}
 	}
 	
 	// Show window
-	XMapWindow(x_display, the_win);
-	wait_mapped(the_win);
+	XMapWindow(x_display, w);
+	wait_mapped(w);
 
 	// Try to create and attach SHM image
-	have_shm = false;
-	if (mode.depth != VDEPTH_1BIT && local_X11 && XShmQueryExtension(x_display)) {
+	if (local_X11 && mode.depth != VDEPTH_1BIT && XShmQueryExtension(x_display)) {
 
 		// Create SHM image ("height + 2" for safety)
 		img = XShmCreateImage(x_display, vis, mode.depth == VDEPTH_1BIT ? 1 : xdepth, mode.depth == VDEPTH_1BIT ? XYBitmap : ZPixmap, 0, &shminfo, width, height);
@@ -397,17 +496,17 @@ static bool init_window(const video_mode &mode)
 #endif
 
 	// Create GC
-	the_gc = XCreateGC(x_display, the_win, 0, 0);
-	XSetState(x_display, the_gc, black_pixel, white_pixel, GXcopy, AllPlanes);
+	gc = XCreateGC(x_display, w, 0, 0);
+	XSetState(x_display, gc, black_pixel, white_pixel, GXcopy, AllPlanes);
 
 	// Create no_cursor
 	mac_cursor = XCreatePixmapCursor(x_display,
-	   XCreatePixmap(x_display, the_win, 1, 1, 1),
-	   XCreatePixmap(x_display, the_win, 1, 1, 1),
+	   XCreatePixmap(x_display, w, 1, 1, 1),
+	   XCreatePixmap(x_display, w, 1, 1, 1),
 	   &black, &white, 0, 0);
-	XDefineCursor(x_display, the_win, mac_cursor);
+	XDefineCursor(x_display, w, mac_cursor);
 
-	// Add resolution and set VideoMonitor
+	// Init blitting routines
 	bool native_byte_order;
 #ifdef WORDS_BIGENDIAN
 	native_byte_order = (XImageByteOrder(x_display) == MSBFirst);
@@ -417,23 +516,173 @@ static bool init_window(const video_mode &mode)
 #ifdef ENABLE_VOSF
 	Screen_blitter_init(&visualInfo, native_byte_order);
 #endif
+
+	// Set VideoMonitor
 	VideoMonitor.mode = mode;
 	set_mac_frame_buffer(mode.depth, native_byte_order);
-	return true;
+
+	// Everything went well
+	init_ok = true;
 }
 
-// Init fbdev DGA display
-static bool init_fbdev_dga(const video_mode &mode)
+// Close display
+driver_window::~driver_window()
 {
+	if (img)
+		XDestroyImage(img);
+	if (have_shm) {
+		XShmDetach(x_display, &shminfo);
+		the_buffer_copy = NULL; // don't free() in driver_base dtor
+	}
+	if (gc)
+		XFreeGC(x_display, gc);
+}
+
+
+#if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
+/*
+ *  DGA display driver base class
+ */
+
+class driver_dga : public driver_base {
+public:
+	driver_dga();
+	~driver_dga();
+
+	void suspend(void);
+	void resume(void);
+
+private:
+	Window suspend_win;		// "Suspend" information window
+	void *fb_save;			// Saved frame buffer for suspend/resume
+};
+
+driver_dga::driver_dga()
+ : suspend_win(0), fb_save(NULL)
+{
+}
+
+driver_dga::~driver_dga()
+{
+	XUngrabPointer(x_display, CurrentTime);
+	XUngrabKeyboard(x_display, CurrentTime);
+}
+
+// Suspend emulation
+void driver_dga::suspend(void)
+{
+	// Release ctrl key
+	ADBKeyUp(0x36);
+	ctrl_down = false;
+
+	// Lock frame buffer (this will stop the MacOS thread)
+	LOCK_FRAME_BUFFER;
+
+	// Save frame buffer
+	fb_save = malloc(VideoMonitor.mode.y * VideoMonitor.mode.bytes_per_row);
+	if (fb_save)
+		memcpy(fb_save, the_buffer, VideoMonitor.mode.y * VideoMonitor.mode.bytes_per_row);
+
+	// Close full screen display
+#ifdef ENABLE_XF86_DGA
+	XF86DGADirectVideo(x_display, screen, 0);
+#endif
+	XUngrabPointer(x_display, CurrentTime);
+	XUngrabKeyboard(x_display, CurrentTime);
+	XUnmapWindow(x_display, w);
+	wait_unmapped(w);
+
+	// Open "suspend" window
+	XSetWindowAttributes wattr;
+	wattr.event_mask = KeyPressMask;
+	wattr.background_pixel = black_pixel;
+		
+	suspend_win = XCreateWindow(x_display, rootwin, 0, 0, 512, 1, 0, xdepth,
+		InputOutput, vis, CWEventMask | CWBackPixel, &wattr);
+	set_window_name(suspend_win, STR_SUSPEND_WINDOW_TITLE);
+	set_window_focus(suspend_win);
+	XMapWindow(x_display, suspend_win);
+	emul_suspended = true;
+}
+
+// Resume emulation
+void driver_dga::resume(void)
+{
+	// Close "suspend" window
+	XDestroyWindow(x_display, suspend_win);
+	XSync(x_display, false);
+
+	// Reopen full screen display
+	XMapRaised(x_display, w);
+	wait_mapped(w);
+	XWarpPointer(x_display, None, rootwin, 0, 0, 0, 0, 0, 0);
+	XGrabKeyboard(x_display, rootwin, 1, GrabModeAsync, GrabModeAsync, CurrentTime);
+	XGrabPointer(x_display, rootwin, 1, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+#ifdef ENABLE_XF86_DGA
+	XF86DGADirectVideo(x_display, screen, XF86DGADirectGraphics | XF86DGADirectKeyb | XF86DGADirectMouse);
+	XF86DGASetViewPort(x_display, screen, 0, 0);
+#endif
+	XSync(x_display, false);
+	
+	// the_buffer already contains the data to restore. i.e. since a temporary
+	// frame buffer is used when VOSF is actually used, fb_save is therefore
+	// not necessary.
+#ifdef ENABLE_VOSF
+	if (use_vosf) {
+		LOCK_VOSF;
+		PFLAG_SET_ALL;
+		UNLOCK_VOSF;
+		memset(the_buffer_copy, 0, VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y);
+	}
+#endif
+	
+	// Restore frame buffer
+	if (fb_save) {
+#ifdef ENABLE_VOSF
+		// Don't copy fb_save to the temporary frame buffer in VOSF mode
+		if (!use_vosf)
+#endif
+		memcpy(the_buffer, fb_save, VideoMonitor.mode.y * VideoMonitor.mode.bytes_per_row);
+		free(fb_save);
+		fb_save = NULL;
+	}
+	
+	// Unlock frame buffer (and continue MacOS thread)
+	UNLOCK_FRAME_BUFFER;
+	emul_suspended = false;
+}
+#endif
+
+
 #ifdef ENABLE_FBDEV_DGA
+/*
+ *  fbdev DGA display driver
+ */
+
+class driver_fbdev : public driver_dga {
+public:
+	driver_fbdev(const video_mode &mode);
+	~driver_fbdev();
+
+private:
+	const char FBDEVICES_FILE_NAME[] = DATADIR "/fbdevices";
+	const char FBDEVICE_FILE_NAME[] = "/dev/fb";
+};
+
+// Open display
+driver_fbdev::driver_fbdev(const video_mode &mode)
+{
 	int width = mode.x, height = mode.y;
 
+	// Set absolute mouse mode
+	ADBSetRelMouseMode(false);
+	
 	// Find the maximum depth available
 	int ndepths, max_depth(0);
 	int *depths = XListDepths(x_display, screen, &ndepths);
 	if (depths == NULL) {
 		printf("FATAL: Could not determine the maximal depth available\n");
-		return false;
+		return;
 	} else {
 		while (ndepths-- > 0) {
 			if (depths[ndepths] > max_depth)
@@ -450,7 +699,7 @@ static bool init_fbdev_dga(const video_mode &mode)
 		char str[256];
 		sprintf(str, GetString(STR_NO_FBDEVICE_FILE_ERR), fbd_path ? fbd_path : FBDEVICES_FILE_NAME, strerror(errno));
 		ErrorAlert(str);
-		return false;
+		return;
 	}
 	
 	int fb_depth;		// supported depth
@@ -470,7 +719,7 @@ static bool init_fbdev_dga(const video_mode &mode)
 			continue;
 		
 		if ((sscanf(line, "%19s %d %x", &fb_name, &fb_depth, &fb_offset) == 3)
-		&& (strcmp(fb_name, fb_name) == 0) && (fb_depth == max_depth)) {
+		 && (strcmp(fb_name, fb_name) == 0) && (fb_depth == max_depth)) {
 			device_found = true;
 			break;
 		}
@@ -484,13 +733,8 @@ static bool init_fbdev_dga(const video_mode &mode)
 		char str[256];
 		sprintf(str, GetString(STR_FBDEV_NAME_ERR), fb_name, max_depth);
 		ErrorAlert(str);
-		return false;
+		return;
 	}
-	
-	depth = fb_depth;
-	
-	// Set relative mouse mode
-	ADBSetRelMouseMode(false);
 	
 	// Create window
 	XSetWindowAttributes wattr;
@@ -499,28 +743,28 @@ static bool init_fbdev_dga(const video_mode &mode)
 	wattr.override_redirect = True;
 	wattr.colormap = cmap[0];
 	
-	the_win = XCreateWindow(x_display, rootwin,
+	w = XCreateWindow(x_display, rootwin,
 		0, 0, width, height,
 		0, xdepth, InputOutput, vis,
-		CWEventMask | CWBackPixel | CWOverrideRedirect | (depth == 8 ? CWColormap : 0),
+		CWEventMask | CWBackPixel | CWOverrideRedirect | (fb_depth <= 8 ? CWColormap : 0),
 		&wattr);
 
 	// Set window name/class
-	set_window_name(the_win, STR_WINDOW_TITLE);
+	set_window_name(w, STR_WINDOW_TITLE);
 
 	// Indicate that we want keyboard input
-	set_window_focus(the_win);
+	set_window_focus(w);
 
 	// Show window
-	XMapRaised(x_display, the_win);
-	wait_mapped(the_win);
+	XMapRaised(x_display, w);
+	wait_mapped(w);
 	
 	// Grab mouse and keyboard
-	XGrabKeyboard(x_display, the_win, True,
+	XGrabKeyboard(x_display, w, True,
 		GrabModeAsync, GrabModeAsync, CurrentTime);
-	XGrabPointer(x_display, the_win, True,
+	XGrabPointer(x_display, w, True,
 		PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
-		GrabModeAsync, GrabModeAsync, the_win, None, CurrentTime);
+		GrabModeAsync, GrabModeAsync, w, None, CurrentTime);
 	
 	// Calculate bytes per row
 	int bytes_per_row = TrivialBytesPerRow(mode.x, mode.depth);
@@ -531,7 +775,7 @@ static bool init_fbdev_dga(const video_mode &mode)
 			char str[256];
 			sprintf(str, GetString(STR_FBDEV_MMAP_ERR), strerror(errno));
 			ErrorAlert(str);
-			return false;
+			return;
 		}
 	}
 	
@@ -554,21 +798,45 @@ static bool init_fbdev_dga(const video_mode &mode)
 #endif
 	
 	// Set VideoMonitor
+	VideoModes[0].bytes_per_row = bytes_per_row;
+	VideoModes[0].depth = DepthModeForPixelDepth();
 	VideoMonitor.mode = mode;
 	set_mac_frame_buffer(mode.depth, true);
-	return true;
-#else
-	ErrorAlert("Basilisk II has been compiled with fbdev DGA support disabled.");
-	return false;
-#endif
+
+	// Everything went well
+	init_ok = true;
 }
 
-// Init XF86 DGA display
-static bool init_xf86_dga(const video_mode &mode)
+// Close display
+driver_fbdev::~driver_fbdev()
+{
+}
+#endif
+
+
+#ifdef ENABLE_XF86_DGA
+/*
+ *  XFree86 DGA display driver
+ */
+
+class driver_xf86dga : public driver_dga {
+public:
+	driver_xf86dga(const video_mode &mode);
+	~driver_xf86dga();
+
+	void update_palette(void);
+	void resume(void);
+
+private:
+	int current_dga_cmap;					// Number (0 or 1) of currently installed DGA colormap
+};
+
+// Open display
+driver_xf86dga::driver_xf86dga(const video_mode &mode)
+ : current_dga_cmap(0)
 {
 	int width = mode.x, height = mode.y;
 
-#ifdef ENABLE_XF86_DGA
 	// Set relative mouse mode
 	ADBSetRelMouseMode(true);
 
@@ -593,21 +861,21 @@ static bool init_xf86_dga(const video_mode &mode)
 	wattr.event_mask = eventmask = dga_eventmask;
 	wattr.override_redirect = True;
 
-	the_win = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
+	w = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
 		InputOutput, vis, CWEventMask | CWOverrideRedirect, &wattr);
 
 	// Set window name/class
-	set_window_name(the_win, STR_WINDOW_TITLE);
+	set_window_name(w, STR_WINDOW_TITLE);
 
 	// Indicate that we want keyboard input
-	set_window_focus(the_win);
+	set_window_focus(w);
 
 	// Show window
-	XMapRaised(x_display, the_win);
-	wait_mapped(the_win);
+	XMapRaised(x_display, w);
+	wait_mapped(w);
 
 	// Establish direct screen connection
-	XMoveResizeWindow(x_display, the_win, 0, 0, width, height);
+	XMoveResizeWindow(x_display, w, 0, 0, width, height);
 	XWarpPointer(x_display, None, rootwin, 0, 0, 0, 0, 0, 0);
 	XGrabKeyboard(x_display, rootwin, True, GrabModeAsync, GrabModeAsync, CurrentTime);
 	XGrabPointer(x_display, rootwin, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
@@ -620,14 +888,13 @@ static bool init_xf86_dga(const video_mode &mode)
 
 	// Set colormap
 	if (!IsDirectMode(mode)) {
-		XSetWindowColormap(x_display, the_win, cmap[current_dga_cmap = 0]);
+		XSetWindowColormap(x_display, w, cmap[current_dga_cmap = 0]);
 		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
 	}
 	XSync(x_display, false);
 
-	// Set VideoMonitor
+	// Init blitting routines
 	int bytes_per_row = TrivialBytesPerRow((v_width + 7) & ~7, mode.depth);
-
 #ifdef VIDEO_VOSF
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 	// Screen_blitter_init() returns TRUE if VOSF is mandatory
@@ -646,15 +913,47 @@ static bool init_xf86_dga(const video_mode &mode)
 #endif
 #endif
 	
+	// Set VideoMonitor
 	const_cast<video_mode *>(&mode)->bytes_per_row = bytes_per_row;
 	VideoMonitor.mode = mode;
 	set_mac_frame_buffer(mode.depth, true);
-	return true;
-#else
-	ErrorAlert("Basilisk II has been compiled with XF86 DGA support disabled.");
-	return false;
+
+	// Everything went well
+	init_ok = true;
+}
+
+// Close display
+driver_xf86dga::~driver_xf86dga()
+{
+	XF86DGADirectVideo(x_display, screen, 0);
+#ifdef ENABLE_XF86_VIDMODE
+	if (has_vidmode)
+		XF86VidModeSwitchToMode(x_display, screen, x_video_modes[0]);
 #endif
 }
+
+// Palette has changed
+void driver_xf86dga::update_palette(void)
+{
+	driver_dga::update_palette();
+	current_dga_cmap ^= 1;
+	if (!IsDirectMode(VideoMonitor.mode) && cmap[current_dga_cmap])
+		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
+}
+
+// Resume emulation
+void driver_xf86dga::resume(void)
+{
+	driver_dga::resume();
+	if (!IsDirectMode(VideoMonitor.mode))
+		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
+}
+#endif
+
+
+/*
+ *  Initialization
+ */
 
 // Init keycode translation table
 static void keycode_init(void)
@@ -724,51 +1023,35 @@ static void keycode_init(void)
 // Open display for specified mode
 static bool video_open(const video_mode &mode)
 {
-	// Create color maps for 8 bit mode
-	if (!IsDirectMode(mode)) {
-		cmap[0] = XCreateColormap(x_display, rootwin, vis, AllocAll);
-		cmap[1] = XCreateColormap(x_display, rootwin, vis, AllocAll);
-		cmap_allocated = true;
-		XInstallColormap(x_display, cmap[0]);
-		XInstallColormap(x_display, cmap[1]);
-	}
-
-	// Initialize according to display type
+	// Create display driver object of requested type
 	switch (display_type) {
 		case DISPLAY_WINDOW:
-			if (!init_window(mode))
-				return false;
+			drv = new driver_window(mode);
 			break;
-		case DISPLAY_DGA:
 #ifdef ENABLE_FBDEV_DGA
-			if (!init_fbdev_dga(mode))
-#else
-			if (!init_xf86_dga(mode))
-#endif
-				return false;
+		case DISPLAY_DGA:
+			drv = new driver_fbdev(mode);
 			break;
-	}
-
-	// Lock down frame buffer
-	LOCK_FRAME_BUFFER;
-
-#if !REAL_ADDRESSING && !DIRECT_ADDRESSING
-	// Set variables for UAE memory mapping
-	MacFrameBaseHost = the_buffer;
-	MacFrameSize = VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y;
-
-	// No special frame buffer in Classic mode (frame buffer is in Mac RAM)
-	if (classic)
-		MacFrameLayout = FLAYOUT_NONE;
 #endif
-
-	InitFrameBufferMapping();
+#ifdef ENABLE_XF86_DGA
+		case DISPLAY_DGA:
+			drv = new driver_xf86dga(mode);
+			break;
+#endif
+	}
+	if (drv == NULL)
+		return false;
+	if (!drv->init_ok) {
+		delete drv;
+		drv = NULL;
+		return false;
+	}
 
 #ifdef ENABLE_VOSF
 	if (use_vosf) {
 		// Initialize the mainBuffer structure
 		if (!video_init_buffer()) {
-			ErrorAlert(GetString(STR_VOSF_INIT_ERR));
+			ErrorAlert(STR_VOSF_INIT_ERR);
         	return false;
 		}
 
@@ -782,8 +1065,10 @@ static bool video_open(const video_mode &mode)
 	
 	// Initialize VideoRefresh function
 	VideoRefreshInit();
-	
+
+	// Lock down frame buffer
 	XSync(x_display, false);
+	LOCK_FRAME_BUFFER;
 
 #ifdef HAVE_PTHREADS
 	// Start redraw/input thread
@@ -804,8 +1089,8 @@ bool VideoInit(bool classic)
 
 #ifdef ENABLE_VOSF
 	// Zero the mainBuffer structure
-	mainBuffer.dirtyPages = 0;
-	mainBuffer.pageInfo = 0;
+	mainBuffer.dirtyPages = NULL;
+	mainBuffer.pageInfo = NULL;
 #endif
 	
 	// Check if X server runs on local machine
@@ -816,6 +1101,7 @@ bool VideoInit(bool classic)
 	keycode_init();
 
 	// Read prefs
+	frame_skip = PrefsFindInt32("frameskip");
 	mouse_wheel_mode = PrefsFindInt32("mousewheelmode");
 	mouse_wheel_lines = PrefsFindInt32("mousewheellines");
 
@@ -830,7 +1116,7 @@ bool VideoInit(bool classic)
 	// Frame buffer name
 	char fb_name[20];
 	
-	// Could do fbdev dga ?
+	// Could do fbdev DGA?
 	if ((fbdev_fd = open(FBDEVICE_FILE_NAME, O_RDWR)) != -1)
 		has_dga = true;
 	else
@@ -876,22 +1162,29 @@ bool VideoInit(bool classic)
 		case 15:
 		case 16:
 		case 24:
-		case 32:
-			color_class = TrueColor;
+		case 32: // Try DirectColor first, as this will allow gamma correction
+			if (!XMatchVisualInfo(x_display, screen, xdepth, DirectColor, &visualInfo))
+				color_class = TrueColor;
 			break;
 		default:
-			ErrorAlert(GetString(STR_UNSUPP_DEPTH_ERR));
+			ErrorAlert(STR_UNSUPP_DEPTH_ERR);
 			return false;
 	}
 	if (!XMatchVisualInfo(x_display, screen, xdepth, color_class, &visualInfo)) {
-		ErrorAlert(GetString(STR_NO_XVISUAL_ERR));
+		ErrorAlert(STR_NO_XVISUAL_ERR);
 		return false;
 	}
 	if (visualInfo.depth != xdepth) {
-		ErrorAlert(GetString(STR_NO_XVISUAL_ERR));
+		ErrorAlert(STR_NO_XVISUAL_ERR);
 		return false;
 	}
 	vis = visualInfo.visual;
+
+	// Create color maps
+	if (color_class == PseudoColor || color_class == DirectColor) {
+		cmap[0] = XCreateColormap(x_display, rootwin, vis, AllocAll);
+		cmap[1] = XCreateColormap(x_display, rootwin, vis, AllocAll);
+	}
 
 	// Get screen mode from preferences
 	const char *mode_str;
@@ -909,8 +1202,9 @@ bool VideoInit(bool classic)
 #ifdef ENABLE_FBDEV_DGA
 		} else if (has_dga && sscanf(mode_str, "dga/%19s", fb_name) == 1) {
 			display_type = DISPLAY_DGA;
-			default_width = -1; default_height = -1;
-#else
+			default_width = -1; default_height = -1; // use entire screen
+#endif
+#ifdef ENABLE_XF86_DGA
 		} else if (has_dga && sscanf(mode_str, "dga/%d/%d", &default_width, &default_height) == 2) {
 			display_type = DISPLAY_DGA;
 #endif
@@ -980,100 +1274,57 @@ static void video_close(void)
 
 	// Unlock frame buffer
 	UNLOCK_FRAME_BUFFER;
+	XSync(x_display, false);
 
-	// Close window and server connection
-	if (x_display != NULL) {
-		XSync(x_display, false);
-
-#ifdef ENABLE_XF86_DGA
-		if (display_type == DISPLAY_DGA) {
-			XF86DGADirectVideo(x_display, screen, 0);
-			XUngrabPointer(x_display, CurrentTime);
-			XUngrabKeyboard(x_display, CurrentTime);
-		}
-#endif
-
-#ifdef ENABLE_XF86_VIDMODE
-		if (has_vidmode && display_type == DISPLAY_DGA)
-			XF86VidModeSwitchToMode(x_display, screen, x_video_modes[0]);
-#endif
-
-#ifdef ENABLE_FBDEV_DGA
-		if (display_type == DISPLAY_DGA) {
-			XUngrabPointer(x_display, CurrentTime);
-			XUngrabKeyboard(x_display, CurrentTime);
-			close(fbdev_fd);
-		}
-#endif
-
-		XFlush(x_display);
-		XSync(x_display, false);
-		XUnmapWindow(x_display, the_win);
-		wait_unmapped(the_win);
-		XDestroyWindow(x_display, the_win);
-
-		if (have_shm) {
-			XDestroyImage(img);
-			XShmDetach(x_display, &shminfo);
-			have_shm = false;
-		} else {
-			//!! free img
-		}
-		//!! free the_gc
-
-		if (cmap_allocated) {
-			XFreeColormap(x_display, cmap[0]);
-			XFreeColormap(x_display, cmap[1]);
-			cmap_allocated = false;
-		}
-		
-		if (!use_vosf) {
-			if (the_buffer) {
-				free(the_buffer);
-				the_buffer = NULL;
-			}
-
-			if (!have_shm && the_buffer_copy) {
-				free(the_buffer_copy);
-				the_buffer_copy = NULL;
-			}
-		}
 #ifdef ENABLE_VOSF
-		else {
-			//!! uninstall SEGV handler?
-
-			if (the_buffer != (uint8 *)VM_MAP_FAILED) {
-				vm_release(the_buffer, the_buffer_size);
-				the_buffer = 0;
-			}
-			
-			if (the_buffer_copy != (uint8 *)VM_MAP_FAILED) {
-				vm_release(the_buffer_copy, the_buffer_size);
-				the_buffer_copy = 0;
-			}
-		}
-#endif
-	}
-	
-#ifdef ENABLE_VOSF
+	// Deinitialize VOSF
 	if (use_vosf) {
-		// Clear mainBuffer data
 		if (mainBuffer.pageInfo) {
 			free(mainBuffer.pageInfo);
-			mainBuffer.pageInfo = 0;
+			mainBuffer.pageInfo = NULL;
 		}
-
 		if (mainBuffer.dirtyPages) {
 			free(mainBuffer.dirtyPages);
-			mainBuffer.dirtyPages = 0;
+			mainBuffer.dirtyPages = NULL;
 		}
 	}
 #endif
+
+	// Close display
+	delete drv;
+	drv = NULL;
 }
 
 void VideoExit(void)
 {
+	// Close display
 	video_close();
+
+	// Free colormaps
+	if (cmap[0]) {
+		XFreeColormap(x_display, cmap[0]);
+		cmap[0] = 0;
+	}
+	if (cmap[1]) {
+		XFreeColormap(x_display, cmap[1]);
+		cmap[1] = 0;
+	}
+
+#ifdef ENABLE_XF86_VIDMODE
+	// Free video mode list
+	if (x_video_modes) {
+		XFree(x_video_modes);
+		x_video_modes = NULL;
+	}
+#endif
+
+#ifdef ENABLE_FBDEV_DGA
+	// Close framebuffer device
+	if (fbdev_fd >= 0) {
+		close(fbdev_fd);
+		fbdev_fd = -1;
+	}
+#endif
 }
 
 
@@ -1084,8 +1335,7 @@ void VideoExit(void)
 void VideoQuitFullScreen(void)
 {
 	D(bug("VideoQuitFullScreen()\n"));
-	if (display_type == DISPLAY_DGA)
-		quit_full_screen = true;
+	quit_full_screen = true;
 }
 
 
@@ -1116,10 +1366,10 @@ void video_set_palette(uint8 *pal)
 
 	// Convert colors to XColor array
 	for (int i=0; i<256; i++) {
-		palette[i].pixel = i;
 		palette[i].red = pal[i*3] * 0x0101;
 		palette[i].green = pal[i*3+1] * 0x0101;
 		palette[i].blue = pal[i*3+2] * 0x0101;
+		palette[i].pixel = i;
 		palette[i].flags = DoRed | DoGreen | DoBlue;
 	}
 
@@ -1136,105 +1386,15 @@ void video_set_palette(uint8 *pal)
 
 void video_switch_to_mode(const video_mode &mode)
 {
+	// Close and reopen display
 	video_close();
 	video_open(mode);
-}
 
-
-/*
- *  Suspend/resume emulator
- */
-
-#if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
-static void suspend_emul(void)
-{
-	if (display_type == DISPLAY_DGA) {
-		// Release ctrl key
-		ADBKeyUp(0x36);
-		ctrl_down = false;
-
-		// Lock frame buffer (this will stop the MacOS thread)
-		LOCK_FRAME_BUFFER;
-
-		// Save frame buffer
-		fb_save = malloc(VideoMonitor.mode.y * VideoMonitor.mode.bytes_per_row);
-		if (fb_save)
-			memcpy(fb_save, the_buffer, VideoMonitor.mode.y * VideoMonitor.mode.bytes_per_row);
-
-		// Close full screen display
-#ifdef ENABLE_XF86_DGA
-		XF86DGADirectVideo(x_display, screen, 0);
-#endif
-		XUngrabPointer(x_display, CurrentTime);
-		XUngrabKeyboard(x_display, CurrentTime);
-		XUnmapWindow(x_display, the_win);
-		wait_unmapped(the_win);
-
-		// Open "suspend" window
-		XSetWindowAttributes wattr;
-		wattr.event_mask = KeyPressMask;
-		wattr.background_pixel = black_pixel;
-		
-		suspend_win = XCreateWindow(x_display, rootwin, 0, 0, 512, 1, 0, xdepth,
-			InputOutput, vis, CWEventMask | CWBackPixel, &wattr);
-		set_window_name(suspend_win, STR_SUSPEND_WINDOW_TITLE);
-		set_window_focus(suspend_win);
-		XMapWindow(x_display, suspend_win);
-		emul_suspended = true;
+	if (drv == NULL) {
+		ErrorAlert(STR_OPEN_WINDOW_ERR);
+		QuitEmulator();
 	}
 }
-
-static void resume_emul(void)
-{
-	// Close "suspend" window
-	XDestroyWindow(x_display, suspend_win);
-	XSync(x_display, false);
-
-	// Reopen full screen display
-	XMapRaised(x_display, the_win);
-	wait_mapped(the_win);
-	XWarpPointer(x_display, None, rootwin, 0, 0, 0, 0, 0, 0);
-	XGrabKeyboard(x_display, rootwin, 1, GrabModeAsync, GrabModeAsync, CurrentTime);
-	XGrabPointer(x_display, rootwin, 1, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
-#ifdef ENABLE_XF86_DGA
-	XF86DGADirectVideo(x_display, screen, XF86DGADirectGraphics | XF86DGADirectKeyb | XF86DGADirectMouse);
-	XF86DGASetViewPort(x_display, screen, 0, 0);
-#endif
-	XSync(x_display, false);
-	
-	// the_buffer already contains the data to restore. i.e. since a temporary
-	// frame buffer is used when VOSF is actually used, fb_save is therefore
-	// not necessary.
-#ifdef ENABLE_VOSF
-	if (use_vosf) {
-		LOCK_VOSF;
-		PFLAG_SET_ALL;
-		UNLOCK_VOSF;
-		memset(the_buffer_copy, 0, VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y);
-	}
-#endif
-	
-	// Restore frame buffer
-	if (fb_save) {
-#ifdef ENABLE_VOSF
-		// Don't copy fb_save to the temporary frame buffer in VOSF mode
-		if (!use_vosf)
-#endif
-		memcpy(the_buffer, fb_save, VideoMonitor.mode.y * VideoMonitor.mode.bytes_per_row);
-		free(fb_save);
-		fb_save = NULL;
-	}
-	
-#ifdef ENABLE_XF86_DGA
-	if (!IsDirectMode(VideoMonitor.mode))
-		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
-#endif
-
-	// Unlock frame buffer (and continue MacOS thread)
-	UNLOCK_FRAME_BUFFER;
-	emul_suspended = false;
-}
-#endif
 
 
 /*
@@ -1295,7 +1455,7 @@ static int kc_decode(KeySym ks)
 		case XK_slash: case XK_question: return 0x2c;
 
 #if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
-		case XK_Tab: if (ctrl_down) {suspend_emul(); return -1;} else return 0x30;
+		case XK_Tab: if (ctrl_down) {drv->suspend(); return -1;} else return 0x30;
 #else
 		case XK_Tab: return 0x30;
 #endif
@@ -1470,10 +1630,8 @@ static void handle_events(void)
 						if (code == 0x36)
 							ctrl_down = true;
 					} else {
-#if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
 						if (code == 0x31)
-							resume_emul();	// Space wakes us up
-#endif
+							drv->resume();	// Space wakes us up
 					}
 				}
 				break;
@@ -1533,7 +1691,7 @@ static void handle_events(void)
  */
 
 // Dynamic display update (variable frame rate for each box)
-static void update_display_dynamic(int ticker)
+static void update_display_dynamic(int ticker, driver_window *drv)
 {
 	int y1, y2, y2s, y2a, i, x1, xm, xmo, ymo, yo, yi, yil, xi;
 	int xil = 0;
@@ -1596,15 +1754,15 @@ static void update_display_dynamic(int ticker)
 					for (y2=0; y2 < yil; y2++, i += bytes_per_row)
 						memcpy(&the_buffer_copy[i], &the_buffer[i], xil);
 					if (VideoMonitor.mode.depth == VDEPTH_1BIT) {
-						if (have_shm)
-							XShmPutImage(x_display, the_win, the_gc, img, xi * 8, yi, xi * 8, yi, xil * 8, yil, 0);
+						if (drv->have_shm)
+							XShmPutImage(x_display, drv->w, drv->gc, drv->img, xi * 8, yi, xi * 8, yi, xil * 8, yil, 0);
 						else
-							XPutImage(x_display, the_win, the_gc, img, xi * 8, yi, xi * 8, yi, xil * 8, yil);
+							XPutImage(x_display, drv->w, drv->gc, drv->img, xi * 8, yi, xi * 8, yi, xil * 8, yil);
 					} else {
-						if (have_shm)
-							XShmPutImage(x_display, the_win, the_gc, img, xi / bytes_per_pixel, yi, xi / bytes_per_pixel, yi, xil / bytes_per_pixel, yil, 0);
+						if (drv->have_shm)
+							XShmPutImage(x_display, drv->w, drv->gc, drv->img, xi / bytes_per_pixel, yi, xi / bytes_per_pixel, yi, xil / bytes_per_pixel, yil, 0);
 						else
-							XPutImage(x_display, the_win, the_gc, img, xi / bytes_per_pixel, yi, xi / bytes_per_pixel, yi, xil / bytes_per_pixel, yil);
+							XPutImage(x_display, drv->w, drv->gc, drv->img, xi / bytes_per_pixel, yi, xi / bytes_per_pixel, yi, xil / bytes_per_pixel, yil);
 					}
 					xil = 0;
 				}
@@ -1623,7 +1781,7 @@ static void update_display_dynamic(int ticker)
 }
 
 // Static display update (fixed frame rate, but incremental)
-static void update_display_static(void)
+static void update_display_static(driver_window *drv)
 {
 	// Incremental update code
 	int wide = 0, high = 0, x1, x2, y1, y2, i, j;
@@ -1729,10 +1887,10 @@ static void update_display_static(void)
 
 	// Refresh display
 	if (high && wide) {
-		if (have_shm)
-			XShmPutImage(x_display, the_win, the_gc, img, x1, y1, x1, y1, wide, high, 0);
+		if (drv->have_shm)
+			XShmPutImage(x_display, drv->w, drv->gc, drv->img, x1, y1, x1, y1, wide, high, 0);
 		else
-			XPutImage(x_display, the_win, the_gc, img, x1, y1, x1, y1, wide, high);
+			XPutImage(x_display, drv->w, drv->gc, drv->img, x1, y1, x1, y1, wide, high);
 	}
 }
 
@@ -1749,39 +1907,21 @@ static void update_display_static(void)
 
 static inline void possibly_quit_dga_mode()
 {
-#if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
 	// Quit DGA mode if requested
 	if (quit_full_screen) {
 		quit_full_screen = false;
-#ifdef ENABLE_XF86_DGA
-		XF86DGADirectVideo(x_display, screen, 0);
-#endif
-		XUngrabPointer(x_display, CurrentTime);
-		XUngrabKeyboard(x_display, CurrentTime);
-		XUnmapWindow(x_display, the_win);
-		wait_unmapped(the_win);
+		delete drv;
+		drv = NULL;
 	}
-#endif
 }
 
-static inline void handle_palette_changes(int display_type)
+static inline void handle_palette_changes(void)
 {
 	LOCK_PALETTE;
 
 	if (palette_changed) {
 		palette_changed = false;
-		if (!IsDirectMode(VideoMonitor.mode)) {
-			XStoreColors(x_display, cmap[0], palette, 256);
-			XStoreColors(x_display, cmap[1], palette, 256);
-			XSync(x_display, false);
-				
-#ifdef ENABLE_XF86_DGA
-			if (display_type == DISPLAY_DGA) {
-				current_dga_cmap ^= 1;
-				XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
-			}
-#endif
-		}
+		drv->update_palette();
 	}
 
 	UNLOCK_PALETTE;
@@ -1796,7 +1936,7 @@ static void video_refresh_dga(void)
 	handle_events();
 	
 	// Handle palette changes
-	handle_palette_changes(DISPLAY_DGA);
+	handle_palette_changes();
 }
 
 #ifdef ENABLE_VOSF
@@ -1810,7 +1950,7 @@ static void video_refresh_dga_vosf(void)
 	handle_events();
 	
 	// Handle palette changes
-	handle_palette_changes(DISPLAY_DGA);
+	handle_palette_changes();
 	
 	// Update display (VOSF variant)
 	static int tick_counter = 0;
@@ -1834,7 +1974,7 @@ static void video_refresh_window_vosf(void)
 	handle_events();
 	
 	// Handle palette changes
-	handle_palette_changes(DISPLAY_WINDOW);
+	handle_palette_changes();
 	
 	// Update display (VOSF variant)
 	static int tick_counter = 0;
@@ -1842,7 +1982,7 @@ static void video_refresh_window_vosf(void)
 		tick_counter = 0;
 		if (mainBuffer.dirty) {
 			LOCK_VOSF;
-			update_display_window_vosf();
+			update_display_window_vosf(static_cast<driver_window *>(drv));
 			UNLOCK_VOSF;
 			XSync(x_display, false); // Let the server catch up
 		}
@@ -1856,13 +1996,13 @@ static void video_refresh_window_static(void)
 	handle_events();
 	
 	// Handle_palette changes
-	handle_palette_changes(DISPLAY_WINDOW);
+	handle_palette_changes();
 	
 	// Update display (static variant)
 	static int tick_counter = 0;
 	if (++tick_counter >= frame_skip) {
 		tick_counter = 0;
-		update_display_static();
+		update_display_static(static_cast<driver_window *>(drv));
 	}
 }
 
@@ -1872,12 +2012,12 @@ static void video_refresh_window_dynamic(void)
 	handle_events();
 	
 	// Handle_palette changes
-	handle_palette_changes(DISPLAY_WINDOW);
+	handle_palette_changes();
 	
 	// Update display (dynamic variant)
 	static int tick_counter = 0;
 	tick_counter++;
-	update_display_dynamic(tick_counter);
+	update_display_dynamic(tick_counter, static_cast<driver_window *>(drv));
 }
 
 

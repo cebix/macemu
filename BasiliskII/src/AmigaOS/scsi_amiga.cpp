@@ -78,7 +78,7 @@ void SCSIInit(void)
 	buffer = (UBYTE *)AllocMem(buffer_size = 0x10000, buffer_memf);
 	sense_buffer = (UBYTE *)AllocMem(SENSE_LENGTH, MEMF_CHIP | MEMF_PUBLIC);
 	if (the_port == NULL || buffer == NULL || sense_buffer == NULL) {
-		ErrorAlert(GetString(STR_NO_MEM_ERR));
+		ErrorAlert(STR_NO_MEM_ERR);
 		QuitEmulator();
 	}
 

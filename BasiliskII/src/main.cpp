@@ -64,7 +64,7 @@ bool InitAll(void)
 {
 	// Check ROM version
 	if (!CheckROM()) {
-		ErrorAlert(GetString(STR_UNSUPPORTED_ROM_TYPE_ERR));
+		ErrorAlert(STR_UNSUPPORTED_ROM_TYPE_ERR);
 		return false;
 	}
 
@@ -153,7 +153,7 @@ bool InitAll(void)
 
 	// Install ROM patches
 	if (!PatchROM()) {
-		ErrorAlert(GetString(STR_UNSUPPORTED_ROM_TYPE_ERR));
+		ErrorAlert(STR_UNSUPPORTED_ROM_TYPE_ERR);
 		return false;
 	}
 
@@ -210,4 +210,19 @@ void ExitAll(void)
 	CDROMExit();
 	DiskExit();
 	SonyExit();
+}
+
+
+/*
+ *  Display error/warning alert given the message string ID
+ */
+
+void ErrorAlert(int string_id)
+{
+	ErrorAlert(GetString(string_id));
+}
+
+void WarningAlert(int string_id)
+{
+	WarningAlert(GetString(string_id));
 }

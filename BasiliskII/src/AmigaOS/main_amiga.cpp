@@ -174,17 +174,17 @@ int main(int argc, char **argv)
 		QuitEmulator();
 	GadToolsBase = OpenLibrary((UBYTE *)"gadtools.library", 39);
 	if (GadToolsBase == NULL) {
-		ErrorAlert(GetString(STR_NO_GADTOOLS_LIB_ERR));
+		ErrorAlert(STR_NO_GADTOOLS_LIB_ERR);
 		QuitEmulator();
 	}
 	IFFParseBase = OpenLibrary((UBYTE *)"iffparse.library", 39);
 	if (IFFParseBase == NULL) {
-		ErrorAlert(GetString(STR_NO_IFFPARSE_LIB_ERR));
+		ErrorAlert(STR_NO_IFFPARSE_LIB_ERR);
 		QuitEmulator();
 	}
 	AslBase = OpenLibrary((UBYTE *)"asl.library", 36);
 	if (AslBase == NULL) {
-		ErrorAlert(GetString(STR_NO_ASL_LIB_ERR));
+		ErrorAlert(STR_NO_ASL_LIB_ERR);
 		QuitEmulator();
 	}
 
@@ -217,18 +217,18 @@ int main(int argc, char **argv)
 
 	// Check start of Chip memory (because we need access to 0x0000..0x2000)
 	if ((uint32)FindName(&SysBase->MemList, (UBYTE *)"chip memory") < 0x2000) {
-		ErrorAlert(GetString(STR_NO_PREPARE_EMUL_ERR));
+		ErrorAlert(STR_NO_PREPARE_EMUL_ERR);
 		QuitEmulator();
 	}
 
 	// Open timer.device
 	timereq = (struct timerequest *)AllocVec(sizeof(timerequest), MEMF_PUBLIC | MEMF_CLEAR);
 	if (timereq == NULL) {
-		ErrorAlert(GetString(STR_NO_MEM_ERR));
+		ErrorAlert(STR_NO_MEM_ERR);
 		QuitEmulator();
 	}
 	if (OpenDevice((UBYTE *)TIMERNAME, UNIT_MICROHZ, (struct IORequest *)timereq, 0)) {
-		ErrorAlert(GetString(STR_NO_TIMER_DEV_ERR));
+		ErrorAlert(STR_NO_TIMER_DEV_ERR);
 		QuitEmulator();
 	}
 	TimerBase = (struct Library *)timereq->tr_node.io_Device;
@@ -236,7 +236,7 @@ int main(int argc, char **argv)
 	// Allocate scratch memory
 	ScratchMem = (uint8 *)AllocMem(SCRATCH_MEM_SIZE, MEMF_PUBLIC);
 	if (ScratchMem == NULL) {
-		ErrorAlert(GetString(STR_NO_MEM_ERR));
+		ErrorAlert(STR_NO_MEM_ERR);
 		QuitEmulator();
 	}
 	ScratchMem += SCRATCH_MEM_SIZE/2;	// ScratchMem points to middle of block
@@ -261,7 +261,7 @@ int main(int argc, char **argv)
 		RAMSize = newRAMSize;
 		RAMBaseHost = (uint8 *)AllocVec(RAMSize + 0x100000, MEMF_PUBLIC);
 		if (RAMBaseHost == NULL) {
-			ErrorAlert(GetString(STR_NO_MEM_ERR));
+			ErrorAlert(STR_NO_MEM_ERR);
 			QuitEmulator();
 		}
 	}
@@ -277,20 +277,20 @@ int main(int argc, char **argv)
 	// Load Mac ROM
 	BPTR rom_fh = Open(rom_path ? (char *)rom_path : (char *)ROM_FILE_NAME, MODE_OLDFILE);
 	if (rom_fh == 0) {
-		ErrorAlert(GetString(STR_NO_ROM_FILE_ERR));
+		ErrorAlert(STR_NO_ROM_FILE_ERR);
 		QuitEmulator();
 	}
 	printf(GetString(STR_READING_ROM_FILE));
 	Seek(rom_fh, 0, OFFSET_END);
 	ROMSize = Seek(rom_fh, 0, OFFSET_CURRENT);
 	if (ROMSize != 512*1024 && ROMSize != 1024*1024) {
-		ErrorAlert(GetString(STR_ROM_SIZE_ERR));
+		ErrorAlert(STR_ROM_SIZE_ERR);
 		Close(rom_fh);
 		QuitEmulator();
 	}
 	Seek(rom_fh, 0, OFFSET_BEGINNING);
 	if (Read(rom_fh, ROMBaseHost, ROMSize) != ROMSize) {
-		ErrorAlert(GetString(STR_ROM_FILE_READ_ERR));
+		ErrorAlert(STR_ROM_FILE_READ_ERR);
 		Close(rom_fh);
 		QuitEmulator();
 	}

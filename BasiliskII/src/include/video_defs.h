@@ -88,6 +88,10 @@ enum {	// VDSetEntry struct
 	csCount = 6
 };
 
+enum {	// VDGammaRecord
+	csGTable = 0
+};
+
 enum {	// VDDisplayConnectInfo struct
 	csDisplayType = 0,
 	csConnectTaggedType = 2,
@@ -164,6 +168,17 @@ enum {	// SPBlock struct
 	spFlags = 54,
 	spKey = 55,
 	SIZEOF_SPBlock = 56
+};
+
+enum {	// struct GammaTbl
+	gVersion = 0,
+	gType = 2,
+	gFormulaSize = 4,
+	gChanCnt = 6,
+	gDataCnt = 8,
+	gDataWidth = 10,
+	gFormulaData = 12, // variable size
+	SIZEOF_GammaTbl = 12
 };
 
 #endif

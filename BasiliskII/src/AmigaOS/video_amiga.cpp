@@ -154,14 +154,14 @@ static bool init_window(int width, int height)
 		TAG_END
 	);
 	if (the_win == NULL) {
-		ErrorAlert(GetString(STR_OPEN_WINDOW_ERR));
+		ErrorAlert(STR_OPEN_WINDOW_ERR);
 		return false;
 	}
 
 	// Create bitmap ("height + 2" for safety)
 	the_bitmap = AllocBitMap(width, height + 2, 1, BMF_CLEAR, NULL);
 	if (the_bitmap == NULL) {
-		ErrorAlert(GetString(STR_NO_MEM_ERR));
+		ErrorAlert(STR_NO_MEM_ERR);
 		return false;
 	}
 
@@ -206,7 +206,7 @@ static bool init_pip(int width, int height)
 		TAG_END
 	);
 	if (the_win == NULL || error) {
-		ErrorAlert(GetString(STR_OPEN_WINDOW_ERR));
+		ErrorAlert(STR_OPEN_WINDOW_ERR);
 		return false;
 	}
 
@@ -235,19 +235,19 @@ static bool init_screen_p96(ULONG mode_id)
 		case 15:
 		case 16:
 			if (format != RGBFB_R5G5B5) {
-				ErrorAlert(GetString(STR_WRONG_SCREEN_FORMAT_ERR));
+				ErrorAlert(STR_WRONG_SCREEN_FORMAT_ERR);
 				return false;
 			}
 			break;
 		case 24:
 		case 32:
 			if (format != RGBFB_A8R8G8B8) {
-				ErrorAlert(GetString(STR_WRONG_SCREEN_FORMAT_ERR));
+				ErrorAlert(STR_WRONG_SCREEN_FORMAT_ERR);
 				return false;
 			}
 			break;
 		default:
-			ErrorAlert(GetString(STR_WRONG_SCREEN_DEPTH_ERR));
+			ErrorAlert(STR_WRONG_SCREEN_DEPTH_ERR);
 			return false;
 	}
 
@@ -266,7 +266,7 @@ static bool init_screen_p96(ULONG mode_id)
 		TAG_END
 	);
 	if (the_screen == NULL) {
-		ErrorAlert(GetString(STR_OPEN_SCREEN_ERR));
+		ErrorAlert(STR_OPEN_SCREEN_ERR);
 		return false;
 	}
 
@@ -283,7 +283,7 @@ static bool init_screen_p96(ULONG mode_id)
 		TAG_END
 	);
 	if (the_win == NULL) {
-		ErrorAlert(GetString(STR_OPEN_WINDOW_ERR));
+		ErrorAlert(STR_OPEN_WINDOW_ERR);
 		return false;
 	}
 
@@ -312,19 +312,19 @@ static bool init_screen_cgfx(ULONG mode_id)
 		case 16:
 			// !!! PIXFMT_RGB15 is correct !!!
 			if (format != PIXFMT_RGB15) {
-				ErrorAlert(GetString(STR_WRONG_SCREEN_FORMAT_ERR));
+				ErrorAlert(STR_WRONG_SCREEN_FORMAT_ERR);
 				return false;
 			}
 			break;
 		case 24:
 		case 32:
 			if (format != PIXFMT_ARGB32) {
-				ErrorAlert(GetString(STR_WRONG_SCREEN_FORMAT_ERR));
+				ErrorAlert(STR_WRONG_SCREEN_FORMAT_ERR);
 				return false;
 			}
 			break;
 		default:
-			ErrorAlert(GetString(STR_WRONG_SCREEN_DEPTH_ERR));
+			ErrorAlert(STR_WRONG_SCREEN_DEPTH_ERR);
 			return false;
 	}
 
@@ -341,7 +341,7 @@ static bool init_screen_cgfx(ULONG mode_id)
 		TAG_END
 	);
 	if (the_screen == NULL) {
-		ErrorAlert(GetString(STR_OPEN_SCREEN_ERR));
+		ErrorAlert(STR_OPEN_SCREEN_ERR);
 		return false;
 	}
 
@@ -358,7 +358,7 @@ static bool init_screen_cgfx(ULONG mode_id)
 		TAG_END
 	);
 	if (the_win == NULL) {
-		ErrorAlert(GetString(STR_OPEN_WINDOW_ERR));
+		ErrorAlert(STR_OPEN_WINDOW_ERR);
 		return false;
 	}
 
@@ -383,7 +383,7 @@ bool VideoInit(bool classic)
 	// Allocate blank mouse pointer data
 	null_pointer = (UWORD *)AllocMem(12, MEMF_PUBLIC | MEMF_CHIP | MEMF_CLEAR);
 	if (null_pointer == NULL) {
-		ErrorAlert(GetString(STR_NO_MEM_ERR));
+		ErrorAlert(STR_NO_MEM_ERR);
 		return false;
 	}
 
@@ -414,7 +414,7 @@ bool VideoInit(bool classic)
 			else if (CyberGfxBase && IsCyberModeID(mode_id))
 				display_type = DISPLAY_SCREEN_CGFX;
 			else {
-				ErrorAlert(GetString(STR_NO_P96_MODE_ERR));
+				ErrorAlert(STR_NO_P96_MODE_ERR);
 				return false;
 			}
 		}
@@ -451,7 +451,7 @@ bool VideoInit(bool classic)
 		TAG_END
 	);
 	if (periodic_proc == NULL) {
-		ErrorAlert(GetString(STR_NO_MEM_ERR));
+		ErrorAlert(STR_NO_MEM_ERR);
 		return false;
 	}
 	return true;

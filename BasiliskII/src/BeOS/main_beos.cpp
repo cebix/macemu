@@ -243,7 +243,7 @@ void BasiliskII::StartEmulator(void)
 	RAMBaseHost = (uint8 *)0x10000000;
 	ram_area = create_area(RAM_AREA_NAME, (void **)&RAMBaseHost, B_BASE_ADDRESS, RAMSize, B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
 	if (ram_area < 0) {
-		ErrorAlert(GetString(STR_NO_RAM_AREA_ERR));
+		ErrorAlert(STR_NO_RAM_AREA_ERR);
 		PostMessage(B_QUIT_REQUESTED);
 		return;
 	}
@@ -253,19 +253,19 @@ void BasiliskII::StartEmulator(void)
 	try {
 		init_rom();
 	} catch (area_error) {
-		ErrorAlert(GetString(STR_NO_ROM_AREA_ERR));
+		ErrorAlert(STR_NO_ROM_AREA_ERR);
 		PostMessage(B_QUIT_REQUESTED);
 		return;
 	} catch (file_open_error) {
-		ErrorAlert(GetString(STR_NO_ROM_FILE_ERR));
+		ErrorAlert(STR_NO_ROM_FILE_ERR);
 		PostMessage(B_QUIT_REQUESTED);
 		return;
 	} catch (file_read_error) {
-		ErrorAlert(GetString(STR_ROM_FILE_READ_ERR));
+		ErrorAlert(STR_ROM_FILE_READ_ERR);
 		PostMessage(B_QUIT_REQUESTED);
 		return;
 	} catch (rom_size_error) {
-		ErrorAlert(GetString(STR_ROM_SIZE_ERR));
+		ErrorAlert(STR_ROM_SIZE_ERR);
 		PostMessage(B_QUIT_REQUESTED);
 		return;
 	}

@@ -241,7 +241,7 @@ bool VideoInit(bool classic)
 				the_screen->PostMessage(B_QUIT_REQUESTED);
 				while (the_screen)
 					snooze(200000);
-				ErrorAlert(GetString(STR_OPEN_SCREEN_ERR));
+				ErrorAlert(STR_OPEN_SCREEN_ERR);
 				return false;
 			} else {
 				the_screen->Show();

@@ -52,6 +52,7 @@ struct {
 	bool luminance_mapping;		// Luminance mapping on/off
 	bool interrupts_enabled;	// VBL interrupts on/off
 	uint32 gamma_table;			// Mac address of gamma table
+	int alloc_gamma_table_size;	// Allocated size of gamma table
 	uint16 current_mode;		// Currently selected depth/resolution
 	uint32 current_id;
 	uint16 preferred_mode;		// Preferred depth/resolution
@@ -133,14 +134,143 @@ static void get_size_of_resolution(uint32 id, uint32 &x, uint32 &y)
 
 static void set_gray_palette(void)
 {
-	if (!IsDirectMode(VidLocal.current_mode)) {
-		for (int i=0; i<256; i++) {
-			VidLocal.palette[i * 3 + 0] = 127;
-			VidLocal.palette[i * 3 + 1] = 127;
-			VidLocal.palette[i * 3 + 2] = 127;
-		}
-		video_set_palette(VidLocal.palette);
+	for (int i=0; i<256; i++) {
+		VidLocal.palette[i * 3 + 0] = 127;
+		VidLocal.palette[i * 3 + 1] = 127;
+		VidLocal.palette[i * 3 + 2] = 127;
 	}
+	video_set_palette(VidLocal.palette);
+}
+
+
+/*
+ *  Load gamma-corrected black-to-white ramp to palette for direct-color mode
+ */
+
+static void load_ramp_palette(void)
+{
+	// Find tables for gamma correction
+	uint8 *red_gamma, *green_gamma, *blue_gamma;
+	bool have_gamma = false;
+	int data_width = 0;
+	if (VidLocal.gamma_table) {
+		uint32 table = VidLocal.gamma_table;
+		red_gamma = Mac2HostAddr(table + gFormulaData + ReadMacInt16(table + gFormulaSize));
+		int chan_cnt = ReadMacInt16(table + gChanCnt);
+		if (chan_cnt == 1)
+			green_gamma = blue_gamma = red_gamma;
+		else {
+			int ofs = ReadMacInt16(table + gDataCnt);
+			green_gamma = red_gamma + ofs;
+			blue_gamma = green_gamma + ofs;
+		}
+		data_width = ReadMacInt16(table + gDataWidth);
+		have_gamma = true;
+	}
+
+	int num = (VidLocal.desc->mode.depth == VDEPTH_16BIT ? 32 : 256);
+	int inc = 256 / num, value = 0;
+	uint8 *p = VidLocal.palette;
+	for (int i=0; i<num; i++) {
+		uint8 red = value, green = value, blue = value;
+		if (have_gamma) {
+			red = red_gamma[red >> (8 - data_width)];
+			green = green_gamma[green >> (8 - data_width)];
+			blue = blue_gamma[blue >> (8 - data_width)];
+		}
+		*p++ = red;
+		*p++ = green;
+		*p++ = blue;
+		value += inc;
+	}
+
+	video_set_palette(VidLocal.palette);
+}
+
+
+/*
+ *  Allocate gamma table of specified size
+ */
+
+static bool allocate_gamma_table(int size)
+{
+	M68kRegisters r;
+
+	if (size > VidLocal.alloc_gamma_table_size) {
+		if (VidLocal.gamma_table) {
+			r.a[0] = VidLocal.gamma_table;
+			Execute68kTrap(0xa01f, &r);	// DisposePtr()
+			VidLocal.gamma_table = 0;
+			VidLocal.alloc_gamma_table_size = 0;
+		}
+		r.d[0] = size;
+		Execute68kTrap(0xa71e, &r);	// NewPtrSysClear()
+		if (r.a[0] == 0)
+			return false;
+		VidLocal.gamma_table = r.a[0];
+		VidLocal.alloc_gamma_table_size = size;
+	}
+	return true;
+}
+
+
+/*
+ *  Set gamma table (0 = build linear ramp)
+ */
+
+static bool set_gamma_table(uint32 user_table)
+{
+	if (user_table == 0) { // Build linear ramp, 256 entries
+
+		// Allocate new table, if necessary
+		if (!allocate_gamma_table(SIZEOF_GammaTbl + 256))
+			return memFullErr;
+		uint32 table = VidLocal.gamma_table;
+
+		// Initialize header
+		WriteMacInt16(table + gVersion, 0);
+		WriteMacInt16(table + gType, 0);
+		WriteMacInt16(table + gFormulaSize, 0);
+		WriteMacInt16(table + gChanCnt, 1);
+		WriteMacInt16(table + gDataCnt, 256);
+		WriteMacInt16(table + gDataWidth, 8);
+
+		// Build ramp
+		uint32 p = table + gFormulaData;
+		for (int i=0; i<256; i++)
+			WriteMacInt8(p + i, i);
+
+	} else { // User-supplied gamma table
+
+		// Validate header
+		if (ReadMacInt16(user_table + gVersion))
+			return paramErr;
+		if (ReadMacInt16(user_table + gType))
+			return paramErr;
+		int chan_cnt = ReadMacInt16(user_table + gChanCnt);
+		if (chan_cnt != 1 && chan_cnt != 3)
+			return paramErr;
+		int data_width = ReadMacInt16(user_table + gDataWidth);
+		if (data_width > 8)
+			return paramErr;
+		int data_cnt = ReadMacInt16(user_table + gDataCnt);
+		if (data_cnt != (1 << data_width))
+			return paramErr;
+
+		// Allocate new table, if necessary
+		int size = SIZEOF_GammaTbl + ReadMacInt16(user_table + gFormulaSize) + chan_cnt * data_cnt;
+		if (!allocate_gamma_table(size))
+			return memFullErr;
+		uint32 table = VidLocal.gamma_table;
+
+		// Copy table
+		Mac2Mac_memcpy(table, user_table, size);
+	}
+
+	if (IsDirectMode(VidLocal.current_mode))
+		load_ramp_palette();
+
+	return true;
 }
 
 
@@ -175,7 +305,9 @@ int16 VideoDriverOpen(uint32 pb, uint32 dce)
 	D(bug("SPBlock at %08x\n", VidLocal.sp));
 
 	// Find and set default gamma table
-	VidLocal.gamma_table = 0; //!!
+	VidLocal.gamma_table = 0;
+	VidLocal.alloc_gamma_table_size = 0;
+	set_gamma_table(0);
 
 	// Init color palette (solid gray)
 	set_gray_palette();
@@ -218,9 +350,13 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 			return noErr;
 		}
 
-		case cscSetEntries: {	// Set palette
-			D(bug(" SetEntries table %08x, count %d, start %d\n", ReadMacInt32(param + csTable), ReadMacInt16(param + csCount), ReadMacInt16(param + csStart)));
-			if (IsDirectMode(VidLocal.current_mode))
+		case cscSetEntries:		// Set palette
+		case cscDirectSetEntries: {
+			D(bug(" (Direct)SetEntries table %08x, count %d, start %d\n", ReadMacInt32(param + csTable), ReadMacInt16(param + csCount), ReadMacInt16(param + csStart)));
+			bool is_direct = IsDirectMode(VidLocal.current_mode);
+			if (code == cscSetEntries && is_direct)
+				return controlErr;
+			if (code == cscDirectSetEntries && !is_direct)
 				return controlErr;
 
 			uint32 s_pal = ReadMacInt32(param + csTable);	// Source palette
@@ -230,15 +366,39 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 			if (s_pal == 0 || count > 255)
 				return paramErr;
 
+			// Find tables for gamma correction
+			uint8 *red_gamma, *green_gamma, *blue_gamma;
+			bool have_gamma = false;
+			int data_width = 0;
+			if (VidLocal.gamma_table) {
+				uint32 table = VidLocal.gamma_table;
+				red_gamma = Mac2HostAddr(table + gFormulaData + ReadMacInt16(table + gFormulaSize));
+				int chan_cnt = ReadMacInt16(table + gChanCnt);
+				if (chan_cnt == 1)
+					green_gamma = blue_gamma = red_gamma;
+				else {
+					int ofs = ReadMacInt16(table + gDataCnt);
+					green_gamma = red_gamma + ofs;
+					blue_gamma = green_gamma + ofs;
+				}
+				data_width = ReadMacInt16(table + gDataWidth);
+				have_gamma = true;
+			}
+
+			// Convert palette
 			if (start == 0xffff) {	// Indexed
 				for (uint32 i=0; i<=count; i++) {
 					d_pal = VidLocal.palette + (ReadMacInt16(s_pal) & 0xff) * 3;
 					uint8 red = (uint16)ReadMacInt16(s_pal + 2) >> 8;
 					uint8 green = (uint16)ReadMacInt16(s_pal + 4) >> 8;
 					uint8 blue = (uint16)ReadMacInt16(s_pal + 6) >> 8;
-					if (VidLocal.luminance_mapping)
+					if (VidLocal.luminance_mapping && !is_direct)
 						red = green = blue = (red * 0x4ccc + green * 0x970a + blue * 0x1c29) >> 16;
-					//!! gamma correction
+					if (have_gamma) {
+						red = red_gamma[red >> (8 - data_width)];
+						green = green_gamma[green >> (8 - data_width)];
+						blue = blue_gamma[blue >> (8 - data_width)];
+					}
 					*d_pal++ = red;
 					*d_pal++ = green;
 					*d_pal++ = blue;
@@ -252,9 +412,13 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 					uint8 red = (uint16)ReadMacInt16(s_pal + 2) >> 8;
 					uint8 green = (uint16)ReadMacInt16(s_pal + 4) >> 8;
 					uint8 blue = (uint16)ReadMacInt16(s_pal + 6) >> 8;
-					if (VidLocal.luminance_mapping)
+					if (VidLocal.luminance_mapping && !is_direct)
 						red = green = blue = (red * 0x4ccc + green * 0x970a + blue * 0x1c29) >> 16;
-					//!! gamma correction
+					if (have_gamma) {
+						red = red_gamma[red >> (8 - data_width)];
+						green = green_gamma[green >> (8 - data_width)];
+						blue = blue_gamma[blue >> (8 - data_width)];
+					}
 					*d_pal++ = red;
 					*d_pal++ = green;
 					*d_pal++ = blue;
@@ -265,10 +429,11 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 			return noErr;
 		}
 
-		case cscSetGamma:		// Set gamma table
-			D(bug(" SetGamma\n"));
-			//!!
-			return controlErr;
+		case cscSetGamma: {		// Set gamma table
+			uint32 user_table = ReadMacInt32(param + csGTable);
+			D(bug(" SetGamma %08x\n", user_table));
+			return set_gamma_table(user_table) ? noErr : memFullErr;
+		}
 
 		case cscGrayPage: {		// Fill page with dithered gray pattern
 			D(bug(" GrayPage %d\n", ReadMacInt16(param + csPage)));
@@ -295,7 +460,10 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 				p += VidLocal.desc->mode.bytes_per_row;
 				pat = ~pat;
 			}
-			//!! if direct mode, load gamma table to CLUT
+
+			if (IsDirectMode(VidLocal.current_mode))
+				load_ramp_palette();
+
 			return noErr;
 		}
 
@@ -487,9 +655,9 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 			return noErr;
 
 		case cscGetGamma:
-			D(bug(" GetGamma -> \n"));
-			//!!
-			return statusErr;
+			D(bug(" GetGamma -> %08x\n", VidLocal.gamma_table));
+			WriteMacInt32(param + csGTable, VidLocal.gamma_table);
+			return noErr;
 
 		case cscGetDefaultMode:		// Get default color depth
 			D(bug(" GetDefaultMode -> %04x\n", VidLocal.preferred_mode));
