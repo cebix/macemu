@@ -336,15 +336,10 @@ static bool init_window(int width, int height)
 	XSetWindowAttributes wattr;
 	wattr.event_mask = eventmask = win_eventmask;
 	wattr.background_pixel = black_pixel;
-	wattr.border_pixel = black_pixel;
-	wattr.backing_store = NotUseful;
-	wattr.save_under = false;
-	wattr.backing_planes = xdepth;
 
 	XSync(x_display, false);
 	the_win = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
-		InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel |
-		CWBackingStore | CWBackingPlanes, &wattr);
+		InputOutput, vis, CWEventMask | CWBackPixel, &wattr);
 
 	// Indicate that we want keyboard input
 	{
@@ -372,13 +367,7 @@ static bool init_window(int width, int height)
 	}
 	
 	// Set window title
-	{
-		XTextProperty title_prop;
-		const char *title = GetString(STR_WINDOW_TITLE);
-		XStringListToTextProperty((char **)&title, 1, &title_prop);
-		XSetWMName(x_display, the_win, &title_prop);
-		XFree(title_prop.value);
-	}
+	XStoreName(x_display, the_win, GetString(STR_WINDOW_TITLE));
 
 	// Set window class
 	{
@@ -572,17 +561,15 @@ static bool init_fbdev_dga(char *in_fb_name)
 	
 	// Create window
 	XSetWindowAttributes wattr;
-	wattr.override_redirect	= True;
-	wattr.backing_store		= NotUseful;
-	wattr.background_pixel	= white_pixel;
-	wattr.border_pixel		= black_pixel;
 	wattr.event_mask		= eventmask = dga_eventmask;
+	wattr.background_pixel	= white_pixel;
+	wattr.override_redirect	= True;
 	
 	XSync(x_display, false);
 	the_win = XCreateWindow(x_display, rootwin,
 		0, 0, width, height,
 		0, xdepth, InputOutput, vis,
-		CWEventMask|CWBackPixel|CWBorderPixel|CWOverrideRedirect|CWBackingStore,
+		CWEventMask | CWBackPixel | CWOverrideRedirect,
 		&wattr);
 	XSync(x_display, false);
 	XMapRaised(x_display, the_win);
@@ -684,12 +671,11 @@ static bool init_xf86_dga(int width, int height)
 	// Create window
 	XSetWindowAttributes wattr;
 	wattr.event_mask = eventmask = dga_eventmask;
-	wattr.border_pixel = black_pixel;
 	wattr.override_redirect = True;
 
 	XSync(x_display, false);
 	the_win = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
-		InputOutput, vis, CWEventMask | CWBorderPixel | CWOverrideRedirect, &wattr);
+		InputOutput, vis, CWEventMask | CWOverrideRedirect, &wattr);
 	XSync(x_display, false);
 	XStoreName(x_display, the_win, GetString(STR_WINDOW_TITLE));
 	XMapRaised(x_display, the_win);
@@ -1296,15 +1282,14 @@ static void suspend_emul(void)
 		XSetWindowAttributes wattr;
 		wattr.event_mask = KeyPressMask;
 		wattr.background_pixel = black_pixel;
-		wattr.border_pixel = black_pixel;
-		wattr.backing_store = Always;
+		wattr.backing_store = WhenMapped;
 		wattr.backing_planes = xdepth;
 		wattr.colormap = DefaultColormap(x_display, screen);
 		
 		XSync(x_display, false);
 		suspend_win = XCreateWindow(x_display, rootwin, 0, 0, 512, 1, 0, xdepth,
-			InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel |
-			CWBackingStore | CWBackingPlanes | (xdepth == 8 ? CWColormap : 0), &wattr);
+			InputOutput, vis, CWEventMask | CWBackPixel | CWBackingStore |
+			CWBackingPlanes | (xdepth == 8 ? CWColormap : 0), &wattr);
 		XSync(x_display, false);
 		XStoreName(x_display, suspend_win, GetString(STR_SUSPEND_WINDOW_TITLE));
 		XMapRaised(x_display, suspend_win);
