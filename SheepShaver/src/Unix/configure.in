@@ -5,7 +5,12 @@ AC_INIT(main_unix.cpp)
 AC_PREREQ(2.12)
 AC_CONFIG_HEADER(config.h)
 
+dnl Canonical system information.
+AC_CANONICAL_HOST
+AC_CANONICAL_TARGET
+
 dnl Options.
+AC_ARG_ENABLE(jit,          [  --enable-jit            enable JIT compiler [default=yes]], [WANT_JIT=$enableval], [WANT_JIT=yes])
 AC_ARG_ENABLE(ppc-emulator, [  --enable-ppc-emulator   use the selected PowerPC emulator [default=auto]], [WANT_EMULATED_PPC=$enableval], [WANT_EMULATED_PPC=auto])
 AC_ARG_ENABLE(xf86-dga,     [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(xf86-vidmode, [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
@@ -187,12 +192,6 @@ AC_CHECK_FUNCS(vm_allocate vm_deallocate vm_protect)
 dnl Select system-dependant sources.
 if [[ "x$EMULATED_PPC" = "xno" ]]; then
   SYSSRCS="Linux/paranoia.cpp Linux/sheepthreads.c Linux/asm_linux.S"
-else
-  SYSSRCS="../kpx_cpu/sheepshaver_glue.cpp \
-	../kpx_cpu/src/cpu/ppc/ppc-cpu.cpp \
-	../kpx_cpu/src/cpu/ppc/ppc-decode.cpp \
-	../kpx_cpu/src/cpu/ppc/ppc-execute.cpp"
-  CPPFLAGS="$CPPFLAGS -I../kpx_cpu/include -I../kpx_cpu/src"
 fi
 SYSSRCS="$SYSSRCS $SEMSRCS $UISRCS $MONSRCS"
 
@@ -511,8 +510,108 @@ else
     WANT_VOSF=no
 fi
 
+dnl Check for GCC 2.7 or higher.
+HAVE_GCC27=no
+AC_MSG_CHECKING(for GCC 2.7 or higher)
+AC_EGREP_CPP(xyes,
+[#if __GNUC__ - 1 > 1 || __GNUC_MINOR__ - 1 > 5
+  xyes
+#endif
+], [AC_MSG_RESULT(yes); HAVE_GCC27=yes], AC_MSG_RESULT(no))
+
+dnl Check for GCC 3.0 or higher.
+HAVE_GCC30=no
+AC_MSG_CHECKING(for GCC 3.0 or higher)
+AC_EGREP_CPP(xyes,
+[#if __GNUC__ >= 3
+  xyes
+#endif
+], [AC_MSG_RESULT(yes); HAVE_GCC30=yes], AC_MSG_RESULT(no))
+
+# Test if the compiler can generate ELF objects
+AC_CACHE_CHECK([whether the compiler can generate ELF objects],
+  ac_cv_elf_objects, [
+  echo 'int i;' > conftest.$ac_ext
+  ac_cv_elf_objects=no
+  if AC_TRY_EVAL(ac_compile); then
+    case `/usr/bin/file conftest.$ac_objext` in
+    *"ELF"*)
+      ac_cv_elf_objects=yes
+      ;;
+    esac
+  fi
+  rm -rf conftest*
+])
+ELF_OBJECTS=$ac_cv_elf_objects
+
+dnl FIXME: forcibly disable JIT for now
+WANT_JIT=no
+
+dnl CPU emulator sources
+if [[ "x$EMULATED_PPC" = "xyes" ]]; then
+  CPUSRCS="\
+    ../kpx_cpu/src/cpu/ppc/ppc-cpu.cpp \
+    ../kpx_cpu/src/cpu/ppc/ppc-decode.cpp \
+    ../kpx_cpu/src/cpu/ppc/ppc-execute.cpp \
+    ../kpx_cpu/src/cpu/ppc/ppc-translate.cpp"
+  CPPFLAGS="$CPPFLAGS -I../kpx_cpu/include -I../kpx_cpu/src"
+
+  dnl Enable JIT compiler, if possible
+  if [[ "x$WANT_JIT" = "xyes" ]]; then
+    AC_CACHE_CHECK([whether dyngen can be used],
+      ac_cv_use_dyngen, [
+      case $host_cpu:$ELF_OBJECTS in
+      powerpc:yes)
+        ac_cv_use_dyngen=yes
+        ;;
+      x86_64:yes)
+        ac_cv_use_dyngen=yes
+        ;;
+      i?86:yes)
+        ac_cv_use_dyngen=yes
+        ;;
+      *:*)
+        ac_cv_use_dyngen=no
+        ;;
+      esac
+    ])
+    if [[ "x$ac_cv_use_dyngen" = "xyes" ]]; then
+      case $host_cpu in
+      i?86:yes)
+        DYNGEN_OP_FLAGS="-fomit-frame-pointer -mpreferred-stack-boundary=2"
+        if [[ "x$HAVE_GCC30" = "xyes" ]]; then
+          DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -falign-functions=0"
+        else
+          DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -malign-functions=0"
+        fi
+        ;;
+      esac
+      DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -finline-limit=2000"
+      if [[ "x$HAVE_GCC30" = "xyes" ]]; then
+        DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -fno-reorder-blocks -fno-optimize-sibling-calls"
+      fi
+    else
+      WANT_JIT=no
+    fi
+    AC_TRANSLATE_DEFINE(ENABLE_DYNGEN, $ac_cv_use_dyngen, [Define to enable dyngen engine])
+    if [[ "x$WANT_JIT" = "xyes" ]]; then
+      DYNGENSRCS="\
+        ../kpx_cpu/src/cpu/jit/dyngen.c \
+        ../kpx_cpu/src/cpu/jit/cxxdemangle.cpp"
+      CPUSRCS="\
+        ../kpx_cpu/src/cpu/jit/jit-cache.cpp \
+        ../kpx_cpu/src/cpu/jit/basic-dyngen.cpp \
+        ../kpx_cpu/src/cpu/ppc/ppc-dyngen.cpp $CPUSRCS"
+    fi
+  fi
+  CPUSRCS="$CPUSRCS ../kpx_cpu/sheepshaver_glue.cpp"
+fi
+
 dnl Generate Makefile.
+AC_SUBST(DYNGENSRCS)
+AC_SUBST(DYNGEN_OP_FLAGS)
 AC_SUBST(SYSSRCS)
+AC_SUBST(CPUSRCS)
 AC_OUTPUT(Makefile)
 
 dnl Print summary.
@@ -522,6 +621,7 @@ echo
 echo XFree86 DGA support .............. : $WANT_XF86_DGA
 echo XFree86 VidMode support .......... : $WANT_XF86_VIDMODE
 echo Using PowerPC emulator ........... : $EMULATED_PPC
+echo Enable JIT compiler .............. : $WANT_JIT
 echo Enable video on SEGV signals ..... : $WANT_VOSF
 echo ESD sound support ................ : $WANT_ESD
 echo GTK user interface ............... : $WANT_GTK

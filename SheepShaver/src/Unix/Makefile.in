@@ -20,6 +20,9 @@ DEFS = @DEFS@ -D_REENTRANT -DDATADIR=\"$(datadir)/$(APP)\"
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
 SYSSRCS = @SYSSRCS@
+CPUSRCS = @CPUSRCS@
+DYNGENSRCS = @DYNGENSRCS@
+DYNGEN_OP_FLAGS = @DYNGEN_OP_FLAGS@
 INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@ -s
 INSTALL_DATA = @INSTALL_DATA@
@@ -34,7 +37,7 @@ SRCS = main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp sys_unix.cpp
     Linux/ether_linux.cpp ../serial.cpp serial_unix.cpp ../extfs.cpp extfs_unix.cpp \
     about_window_unix.cpp ../user_strings.cpp user_strings_unix.cpp \
     vm_alloc.cpp sigsegv.cpp \
-    sshpty.c strlcpy.c $(SYSSRCS)
+    sshpty.c strlcpy.c $(SYSSRCS) $(CPUSRCS)
 APP = SheepShaver
 
 ## Rules
@@ -53,6 +56,12 @@ define SRCS_LIST_TO_OBJS
 	$(basename $(notdir $(file))))))
 endef
 OBJS = $(SRCS_LIST_TO_OBJS)
+
+define DYNGENSRCS_LIST_TO_OBJS
+	$(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(foreach file, $(DYNGENSRCS), \
+	$(basename $(notdir $(file))))))
+endef
+DYNGENOBJS = $(DYNGENSRCS_LIST_TO_OBJS)
 
 SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
 VPATH :=
@@ -77,6 +86,7 @@ uninstall:
 
 clean:
 	rm -f $(APP) $(OBJ_DIR)/* core* *.core *~ *.bak ppc-execute-impl.cpp
+	rm -f dyngen basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 
 distclean: clean
 	rm -rf $(OBJ_DIR)
@@ -101,6 +111,21 @@ GENEXEC = ../kpx_cpu/src/cpu/ppc/genexec.pl
 $(OBJ_DIR)/ppc-execute.o: ppc-execute-impl.cpp
 ppc-execute-impl.cpp: ../kpx_cpu/src/cpu/ppc/ppc-decode.cpp $(GENEXEC)
 	$(CPP) $(CPPFLAGS) -DGENEXEC $< | $(GENEXEC) > $@
+
+dyngen: $(DYNGENOBJS)
+	$(CXX) -o $@ $(LDFLAGS) $(DYNGENOBJS)
+
+$(OBJ_DIR)/basic-dyngen.o: basic-dyngen-ops.hpp
+$(OBJ_DIR)/basic-dyngen-ops.o: ../kpx_cpu/src/cpu/jit/basic-dyngen-ops.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
+basic-dyngen-ops.hpp: $(OBJ_DIR)/basic-dyngen-ops.o dyngen
+	./dyngen -o $@ $<
+
+$(OBJ_DIR)/ppc-dyngen.o: ppc-dyngen-ops.hpp
+$(OBJ_DIR)/ppc-dyngen-ops.o: ../kpx_cpu/src/cpu/ppc/ppc-dyngen-ops.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
+ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o dyngen
+	./dyngen -o $@ $<
 
 #-------------------------------------------------------------------------
 # DO NOT DELETE THIS LINE -- make depend depends on it.
