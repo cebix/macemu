@@ -84,6 +84,7 @@ const uint32 MSG_ETHER = 'ethr';
 const uint32 MSG_RAMSIZE = 'rmsz';			// "Memory/Misc" pane
 const uint32 MSG_MODELID_5 = 'mi05';
 const uint32 MSG_MODELID_14 = 'mi14';
+const uint32 MSG_FPU = 'fpu ';
 
 
 // RAM size slider class
@@ -246,6 +247,7 @@ private:
 	RAMSlider *ramsize_slider;
 	PathControl *extfs_control;
 	PathControl *rom_control;
+	BCheckBox *fpu_checkbox;
 
 	BFilePanel *add_volume_panel;
 	BFilePanel *create_volume_panel;
@@ -710,6 +712,10 @@ BView *PrefsWindow::create_memory_pane(void)
 	rom_control->SetDivider(117);
 	pane->AddChild(rom_control);
 
+	fpu_checkbox = new BCheckBox(BRect(10, 100, right, 115), "fpu", GetString(STR_FPU_CTRL), new BMessage(MSG_FPU));
+	pane->AddChild(fpu_checkbox);
+	fpu_checkbox->SetValue(PrefsFindBool("fpu") ? B_CONTROL_ON : B_CONTROL_OFF);
+
 	return pane;
 }
 
@@ -925,6 +931,10 @@ void PrefsWindow::MessageReceived(BMessage *msg)
 
 		case MSG_MODELID_14:
 			PrefsReplaceInt32("modelid", 14);
+			break;
+
+		case MSG_FPU:
+			PrefsReplaceBool("fpu", fpu_checkbox->Value() == B_CONTROL_ON);
 			break;
 
 		default: {

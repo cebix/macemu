@@ -30,8 +30,10 @@
 // Are the Mac and the host address space the same?
 #ifdef __i386__
 #define REAL_ADDRESSING 0
+#undef WORDS_BIGENDIAN
 #else
 #define REAL_ADDRESSING 1
+#define WORDS_BIGENDIAN 1
 #endif
 
 // Are we using a 68k emulator or the real thing?

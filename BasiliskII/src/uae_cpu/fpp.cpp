@@ -79,6 +79,14 @@
 // Only define if you have IEEE 64 bit doubles.
 #define HAVE_IEEE_DOUBLE 1
 
+#ifdef WORDS_BIGENDIAN
+#define FLO 1
+#define FHI 0
+#else
+#define FLO 0
+#define FHI 1
+#endif
+
 // fpcr rounding modes
 #define ROUND_TO_NEAREST			0
 #define ROUND_TO_ZERO				0x10
@@ -173,9 +181,9 @@ double_flags fl_dest, fl_source;
 
 static __inline__ uae_u32 IS_NAN(uae_u32 *p)
 {
-	if( (p[1] & 0x7FF00000) == 0x7FF00000 ) {
+	if( (p[FHI] & 0x7FF00000) == 0x7FF00000 ) {
 		// logical or is faster here.
-		if( (p[1] & 0x000FFFFF) || p[0] ) {
+		if( (p[FHI] & 0x000FFFFF) || p[FLO] ) {
 			return(1);
 		}
 	}
@@ -184,7 +192,7 @@ static __inline__ uae_u32 IS_NAN(uae_u32 *p)
 
 static __inline__ uae_u32 IS_INFINITY(uae_u32 *p)
 {
-	if( ((p[1] & 0x7FF00000) == 0x7FF00000) && p[0] == 0 ) {
+	if( ((p[FHI] & 0x7FF00000) == 0x7FF00000) && p[FLO] == 0 ) {
 		return(1);
 	}
 	return(0);
@@ -192,12 +200,12 @@ static __inline__ uae_u32 IS_INFINITY(uae_u32 *p)
 
 static __inline__ uae_u32 IS_NEGATIVE(uae_u32 *p)
 {
-	return( (p[1] & 0x80000000) != 0 );
+	return( (p[FHI] & 0x80000000) != 0 );
 }
 
 static __inline__ uae_u32 IS_ZERO(uae_u32 *p)
 {
-	return( ((p[1] & 0x7FF00000) == 0) && p[0] == 0 );
+	return( ((p[FHI] & 0x7FF00000) == 0) && p[FLO] == 0 );
 }
 
 // This should not touch the quotient.
@@ -236,67 +244,67 @@ static __inline__ void GET_SOURCE_FLAGS(uae_u32 *p)
 
 static __inline__ void MAKE_NAN(uae_u32 *p)
 {
-	p[0] = 0xFFFFFFFF;
-	p[1] = 0x7FFFFFFF;
+	p[FLO] = 0xFFFFFFFF;
+	p[FHI] = 0x7FFFFFFF;
 }
 
 static __inline__ void MAKE_ZERO_POSITIVE(uae_u32 *p)
 {
-	p[0] = p[1] = 0;
+	p[FLO] = p[FHI] = 0;
 }
 
 static __inline__ void MAKE_ZERO_NEGATIVE(uae_u32 *p)
 {
-	p[0] = 0;
-	p[1] = 0x80000000;
+	p[FLO] = 0;
+	p[FHI] = 0x80000000;
 }
 
 static __inline__ void MAKE_INF_POSITIVE(uae_u32 *p)
 {
-	p[0] = 0;
-	p[1] = 0x7FF00000;
+	p[FLO] = 0;
+	p[FHI] = 0x7FF00000;
 }
 
 static __inline__ void MAKE_INF_NEGATIVE(uae_u32 *p)
 {
-	p[0] = 0;
-	p[1] = 0xFFF00000;
+	p[FLO] = 0;
+	p[FHI] = 0xFFF00000;
 }
 
 static __inline__ void FAST_SCALE(uae_u32 *p, int add)
 {
 	int exp;
 
-	exp = (p[1] & 0x7FF00000) >> 20;
+	exp = (p[FHI] & 0x7FF00000) >> 20;
 	// TODO: overflow flags
 	exp += add;
 	if(exp >= 2047) {
 		MAKE_INF_POSITIVE(p);
 	} else if(exp < 0) {
 		// keep sign (+/- 0)
-		p[1] &= 0x80000000;
+		p[FHI] &= 0x80000000;
 	} else {
-		p[1] = (p[1] & 0x800FFFFF) | ((uae_u32)exp << 20);
+		p[FHI] = (p[FHI] & 0x800FFFFF) | ((uae_u32)exp << 20);
 	}
 }
 
 static __inline__ double FAST_FGETEXP(uae_u32 *p)
 {
-	int exp = (p[1] & 0x7FF00000) >> 20;
+	int exp = (p[FHI] & 0x7FF00000) >> 20;
 	return( exp - 1023 );
 }
 
 // Normalize to range 1..2
 static __inline__ void FAST_REMOVE_EXPONENT(uae_u32 *p)
 {
-	p[1] = (p[1] & 0x800FFFFF) | 0x3FF00000;
+	p[FHI] = (p[FHI] & 0x800FFFFF) | 0x3FF00000;
 }
 
 // The sign of the quotient is the exclusive-OR of the sign bits
 // of the source and destination operands.
 static __inline__ uae_u32 GET_QUOTIENT_SIGN(uae_u32 *a, uae_u32 *b)
 {
-	return( ((a[1] ^ b[1]) & 0x80000000) ? 0x800000 : 0);
+	return( ((a[FHI] ^ b[FHI]) & 0x80000000) ? 0x800000 : 0);
 }
 
 // Quotient Byte is loaded with the sign and least significant
@@ -319,8 +327,8 @@ static __inline__ double to_single (uae_u32 value)
 	uae_u32 sign = (value & 0x80000000);
 	uae_u32 exp  = ((value & 0x7F800000) >> 23) + 1023 - 127;
 
-	p[0] = value << 29;
-	p[1] = sign | (exp << 20) | ((value & 0x007FFFFF) >> 3);
+	p[FLO] = value << 29;
+	p[FHI] = sign | (exp << 20) | ((value & 0x007FFFFF) >> 3);
 
 	D(bug("to_single (%X) = %.04f\r\n",value,(float)result));
 
@@ -334,8 +342,8 @@ static __inline__ uae_u32 from_single (double src)
 
   if (src == 0.0) return 0;
 
-	uae_u32 sign = (p[1] & 0x80000000);
-	uae_u32 exp  = (p[1] & 0x7FF00000) >> 20;
+	uae_u32 sign = (p[FHI] & 0x80000000);
+	uae_u32 exp  = (p[FHI] & 0x7FF00000) >> 20;
 
 	if(exp + 127 < 1023) {
 		exp = 0;
@@ -345,7 +353,7 @@ static __inline__ uae_u32 from_single (double src)
 		exp = exp + 127 - 1023;
 	}
 
-	result = sign | (exp << 23) | ((p[1] & 0x000FFFFF) << 3) | (p[0] >> 29);
+	result = sign | (exp << 23) | ((p[FHI] & 0x000FFFFF) << 3) | (p[FLO] >> 29);
 
 	D(bug("from_single (%.04f) = %X\r\n",(float)src,result));
 
@@ -395,8 +403,8 @@ static __inline__ double to_exten(uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 	}
 
 	// drop the explicit integer bit.
-	p[0] = (wrd2 << 21) | (wrd3 >> 11);
-	p[1] = sign | (exp << 20) | ((wrd2 & 0x7FFFFFFF) >> 11);
+	p[FLO] = (wrd2 << 21) | (wrd3 >> 11);
+	p[FHI] = sign | (exp << 20) | ((wrd2 & 0x7FFFFFFF) >> 11);
 
 	D(bug("to_exten (%X,%X,%X) = %.04f\r\n",wrd1,wrd2,wrd3,(float)result));
 
@@ -412,11 +420,11 @@ static __inline__ void from_exten(double src, uae_u32 * wrd1, uae_u32 * wrd2, ua
 		return;
   }
 
-	D(bug("from_exten (%X,%X)\r\n",p[0],p[1]));
+	D(bug("from_exten (%X,%X)\r\n",p[FLO],p[FHI]));
 
-	uae_u32 sign =  p[1] & 0x80000000;
+	uae_u32 sign =  p[FHI] & 0x80000000;
 
-	uae_u32 exp  = ((p[1] >> 20) & 0x7ff);
+	uae_u32 exp  = ((p[FHI] >> 20) & 0x7ff);
 	// Check for maximum
 	if(exp == 0x7FF) {
 		exp = 0x7FFF;
@@ -426,8 +434,8 @@ static __inline__ void from_exten(double src, uae_u32 * wrd1, uae_u32 * wrd2, ua
 
 	*wrd1 = sign | (exp << 16);
 	// always set the explicit integer bit.
-	*wrd2 = 0x80000000 | ((p[1] & 0x000FFFFF) << 11) | ((p[0] & 0xFFE00000) >> 21);
-	*wrd3 = p[0] << 11;
+	*wrd2 = 0x80000000 | ((p[FHI] & 0x000FFFFF) << 11) | ((p[FLO] & 0xFFE00000) >> 21);
+	*wrd3 = p[FLO] << 11;
 
 	D(bug("from_exten (%.04f) = %X,%X,%X\r\n",(float)src,*wrd1,*wrd2,*wrd3));
 }
@@ -440,8 +448,8 @@ static __inline__ double to_double(uae_u32 wrd1, uae_u32 wrd2)
   if ((wrd1 & 0x7fffffff) == 0 && wrd2 == 0) return 0.0;
 
 	p = (uae_u32 *)&result;
-	p[0] = wrd2;
-	p[1] = wrd1;
+	p[FLO] = wrd2;
+	p[FHI] = wrd1;
 
 	D(bug("to_double (%X,%X) = %.04f\r\n",wrd1,wrd2,(float)result));
 
@@ -455,8 +463,8 @@ static __inline__ void from_double(double src, uae_u32 * wrd1, uae_u32 * wrd2)
 		return;
   }
 	uae_u32 *p = (uae_u32 *)&src;
-	*wrd2 = p[0];
-	*wrd1 = p[1];
+	*wrd2 = p[FLO];
+	*wrd1 = p[FHI];
 
 	D(bug("from_double (%.04f) = %X,%X\r\n",(float)src,*wrd1,*wrd2));
 }
