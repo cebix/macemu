@@ -108,7 +108,6 @@ if [[ "x$WANT_MON" = "xyes" ]]; then
             AC_CHECK_LIB(Hcurses, tgetent, ,
               AC_CHECK_LIB(curses, tgetent))))))
     AC_CHECK_LIB(readline, readline)
-    AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
   else
     AC_MSG_RESULT(no)
     AC_MSG_WARN([Could not find mon, ignoring --with-mon.])
@@ -225,6 +224,7 @@ AC_SYS_LARGEFILE
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS(unistd.h fcntl.h sys/time.h sys/mman.h)
+AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
