@@ -32,7 +32,7 @@
 
 
 // RAM and ROM pointers
-uint32 RAMBaseMac;			// RAM base (Mac address space)
+uint32 RAMBaseMac = 0;		// RAM base (Mac address space) gb-- init is important
 uint8 *RAMBaseHost;			// RAM base (host address space)
 uint32 RAMSize;				// Size of RAM
 uint32 ROMBaseMac;			// ROM base (Mac address space)
@@ -44,6 +44,10 @@ uint32 ROMSize;				// Size of ROM
 uint8 *MacFrameBaseHost;	// Frame buffer base (host address space)
 uint32 MacFrameSize;		// Size of frame buffer
 int MacFrameLayout;			// Frame buffer layout
+#endif
+
+#if DIRECT_ADDRESSING
+uintptr MEMBaseDiff;		// Global offset between a Mac address and its Host equivalent
 #endif
 
 // From newcpu.cpp
@@ -60,6 +64,8 @@ bool Init680x0(void)
 	// Mac address space = host address space
 	RAMBaseMac = (uint32)RAMBaseHost;
 	ROMBaseMac = (uint32)ROMBaseHost;
+#elif DIRECT_ADDRESSING
+	InitMEMBaseDiff(RAMBaseHost, RAMBaseMac);
 #else
 	// Initialize UAE memory banks
 	RAMBaseMac = 0;
