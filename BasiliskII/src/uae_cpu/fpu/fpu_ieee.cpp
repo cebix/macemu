@@ -264,66 +264,61 @@ PRIVATE inline uae_u32 FFPU extract_single(fpu_register const & src)
 // to_exten
 PRIVATE inline fpu_register FFPU make_extended(uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 {
-#if 1
-	// FIXME: USE_QUAD_DOUBLE
-	fpu_extended result;
+	// is it zero?
+	if ((wrd1 & 0x7fff0000) == 0 && wrd2 == 0 && wrd3 == 0)
+		return 0.0;
+
+	fpu_register result;
+#ifndef USE_LONG_DOUBLE
+	uae_u32 sgn = (wrd1 >> 31) & 1;
+	uae_u32 exp = (wrd1 >> 16) & 0x7fff;
+
+	// the explicit integer bit is not set, must normalize
+	if ((wrd2 & 0x80000000) == 0) {
+		fpu_debug(("make_extended denormalized mantissa (%X,%X,%X)\n",wrd1,wrd2,wrd3));
+		if (wrd2 | wrd3) {
+			// mantissa, not fraction.
+			uae_u64 man = ((uae_u64)wrd2 << 32) | wrd3;
+			while (exp > 0 && (man & UVAL64(0x8000000000000000)) == 0) {
+				man <<= 1;
+				exp--;
+			}
+			wrd2 = (uae_u32)(man >> 32);
+			wrd3 = (uae_u32)(man & 0xFFFFFFFF);
+		}
+		else if (exp != 0x7fff) // zero
+			exp = FP_EXTENDED_EXP_BIAS - FP_DOUBLE_EXP_BIAS;
+	}
+
+	if (exp < FP_EXTENDED_EXP_BIAS - FP_DOUBLE_EXP_BIAS)
+		exp = 0;
+	else if (exp > FP_EXTENDED_EXP_BIAS + FP_DOUBLE_EXP_BIAS)
+		exp = FP_DOUBLE_EXP_MAX;
+	else
+		exp += FP_DOUBLE_EXP_BIAS - FP_EXTENDED_EXP_BIAS;
+	
+	fp_declare_init_shape(srp, result, double);
+	srp->ieee.negative  = sgn;
+	srp->ieee.exponent  = exp;
+	// drop the explicit integer bit
+	srp->ieee.mantissa0 = (wrd2 & 0x7fffffff) >> 11;
+	srp->ieee.mantissa1 = (wrd2 << 21) | (wrd3 >> 11);
+#elif USE_QUAD_DOUBLE
+	fp_declare_init_shape(srp, result, extended);
+	srp->ieee.negative  = (wrd1 >> 31) & 1;
+	srp->ieee.exponent  = (wrd1 >> 16) & FP_EXTENDED_EXP_MAX;
+	srp->ieee.mantissa0 = (wrd2 >> 16) & 0xffff;
+	srp->ieee.mantissa1 = ((wrd2 & 0xffff) << 16) | ((wrd3 >> 16) & 0xffff);
+	srp->ieee.mantissa2 = (wrd3 & 0xffff) << 16;
+#else
 	fp_declare_init_shape(srp, result, extended);
 	srp->ieee.negative	= (wrd1 >> 31) & 1;
 	srp->ieee.exponent	= (wrd1 >> 16) & FP_EXTENDED_EXP_MAX;
 	srp->ieee.mantissa0	= wrd2;
 	srp->ieee.mantissa1	= wrd3;
+#endif
 	fpu_debug(("make_extended (%X,%X,%X) = %.04f\n",wrd1,wrd2,wrd3,(double)result));
 	return result;
-#elif 0 /* original code */
-	if ((wrd1 & 0x7fff0000) == 0 && wrd2 == 0 && wrd3 == 0)
-		return 0.0;
-	
-	fpu_register result;
-	uae_u32 *p = (uae_u32 *)&result;
-	
-	uae_u32 sign =  wrd1 & 0x80000000;
-	uae_u32 exp  = (wrd1 >> 16) & 0x7fff;
-
-	// The explicit integer bit is not set, must normalize.
-	if((wrd2 & 0x80000000) == 0) {
-		fpu_debug(("make_extended denormalized mantissa (%X,%X,%X)\n",wrd1,wrd2,wrd3));
-		if( wrd2 | wrd3 ) {
-			// mantissa, not fraction.
-			uae_u64 man = ((uae_u64)wrd2 << 32) | wrd3;
-			while( exp > 0 && (man & UVAL64(0x8000000000000000)) == 0 ) {
-				man <<= 1;
-				exp--;
-			}
-			wrd2 = (uae_u32)( man >> 32 );
-			wrd3 = (uae_u32)( man & 0xFFFFFFFF );
-		} else {
-			if(exp == 0x7FFF) {
-				// Infinity.
-			} else {
-				// Zero
-				exp = 16383 - 1023;
-			}
-		}
-	}
-
-	if(exp < 16383 - 1023) {
-		// should set underflow.
-		exp = 0;
-	} else if(exp > 16383 + 1023) {
-		// should set overflow.
-		exp = 2047;
-	} else {
-		exp = exp + 1023 - 16383;
-	}
-
-	// drop the explicit integer bit.
-	p[FLO] = (wrd2 << 21) | (wrd3 >> 11);
-	p[FHI] = sign | (exp << 20) | ((wrd2 & 0x7FFFFFFF) >> 11);
-
-	fpu_debug(("make_extended (%X,%X,%X) = %.04f\n",wrd1,wrd2,wrd3,(double)result));
-
-	return(result);
-#endif
 }
 
 /*
@@ -335,48 +330,40 @@ PRIVATE inline void FFPU make_extended_no_normalize(
 	uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3, fpu_register & result
 )
 {
-#if 1
+	// is it zero?
+	if ((wrd1 && 0x7fff0000) == 0 && wrd2 == 0 && wrd3 == 0) {
+		make_zero_positive(result);
+		return;
+	}
+	// is it NaN?
+	if ((wrd1 & 0x7fff0000) == 0x7fff0000 && wrd2 != 0 && wrd3 != 0) {
+		make_nan(result);
+		return;
+	}
+#ifndef USE_LONG_DOUBLE
+	uae_u32 exp = (wrd1 >> 16) & 0x7fff;
+	if (exp < FP_EXTENDED_EXP_BIAS - FP_DOUBLE_EXP_BIAS)
+		exp = 0;
+	else if (exp > FP_EXTENDED_EXP_BIAS + FP_DOUBLE_EXP_BIAS)
+		exp = FP_DOUBLE_EXP_MAX;
+	else
+		exp += FP_DOUBLE_EXP_BIAS - FP_EXTENDED_EXP_BIAS;
+	
+	fp_declare_init_shape(srp, result, double);
+	srp->ieee.negative  = (wrd1 >> 31) & 1;
+	srp->ieee.exponent  = exp;
+	// drop the explicit integer bit
+	srp->ieee.mantissa0 = (wrd2 & 0x7fffffff) >> 11;
+	srp->ieee.mantissa1 = (wrd2 << 21) | (wrd3 >> 11);
+#else
 	// FIXME: USE_QUAD_DOUBLE
 	fp_declare_init_shape(srp, result, extended);
 	srp->ieee.negative	= (wrd1 & 0x80000000) != 0;
 	srp->ieee.exponent	= (wrd1 >> 16) & 0x7fff;
 	srp->ieee.mantissa0	= wrd2;
 	srp->ieee.mantissa1	= wrd3;
-#elif 0 /* original code */
-	// Is it zero?
-	if ((wrd1 & 0x7fff0000) == 0 && wrd2 == 0 && wrd3 == 0) {
-		make_zero_positive(result);
-		return;
-	}
-
-	// Is it NaN?
-	if( (wrd1 & 0x7FFF0000) == 0x7FFF0000 ) {
-		if( (wrd1 & 0x0000FFFF) || wrd2 || wrd3 ) {
-			make_nan(result);
-			return;
-		}
-	}
-	
-	uae_u32 sign =  wrd1 & 0x80000000;
-	uae_u32 exp  = (wrd1 >> 16) & 0x7fff;
-
-	if(exp < 16383 - 1023) {
-		// should set underflow.
-		exp = 0;
-	} else if(exp > 16383 + 1023) {
-		// should set overflow.
-		exp = 2047;
-	} else {
-		exp = exp + 1023 - 16383;
-	}
-
-	// drop the explicit integer bit.
-	uae_u32 *p = (uae_u32 *)&result;
-	p[FLO] = (wrd2 << 21) | (wrd3 >> 11);
-	p[FHI] = sign | (exp << 20) | ((wrd2 & 0x7FFFFFFF) >> 11);
-
-	fpu_debug(("make_extended (%X,%X,%X) = %.04f\n",wrd1,wrd2,wrd3,(float)(*(double *)p)));
 #endif
+	fpu_debug(("make_extended (%X,%X,%X) = %.04f\n",wrd1,wrd2,wrd3,(double)result));
 }
 
 // from_exten
@@ -384,40 +371,40 @@ PRIVATE inline void FFPU extract_extended(fpu_register const & src,
 	uae_u32 * wrd1, uae_u32 * wrd2, uae_u32 * wrd3
 )
 {
-#if 1
-	// FIXME: USE_QUAD_DOUBLE and non little-endian specificities
-	uae_u32 *p = (uae_u32 *)&src;
-	*wrd3 = p[0];
-	*wrd2 = p[1];
-	*wrd1 = ( (uae_u32)*((uae_u16 *)&p[2]) ) << 16;
-	fpu_debug(("extract_extended (%.04f) = %X,%X,%X\n",(double)src,*wrd1,*wrd2,*wrd3));
-#elif 0 /* original code */
 	if (src == 0.0) {
 		*wrd1 = *wrd2 = *wrd3 = 0;
 		return;
 	}
-	
-	uae_u32 *p = (uae_u32 *)&src;
-	
-	fpu_debug(("extract_extended (%X,%X)\n",p[FLO],p[FHI]));
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(srp, src, double);
+	fpu_debug(("extract_extended (%d,%d,%X,%X)\n",
+			   srp->ieee.negative , srp->ieee.exponent,
+			   srp->ieee.mantissa0, srp->ieee.mantissa1));
 
-	uae_u32 sign =  p[FHI] & 0x80000000;
+	uae_u32 exp = srp->ieee.exponent;
 
-	uae_u32 exp  = ((p[FHI] >> 20) & 0x7ff);
-	// Check for maximum
-	if(exp == 0x7FF) {
-		exp = 0x7FFF;
-	} else {
-		exp  += 16383 - 1023;
-	}
+	if (exp == FP_DOUBLE_EXP_MAX)
+		exp = FP_EXTENDED_EXP_MAX;
+	else
+		exp += FP_EXTENDED_EXP_BIAS - FP_DOUBLE_EXP_BIAS;
 
-	*wrd1 = sign | (exp << 16);
+	*wrd1 = (srp->ieee.negative << 31) | (exp << 16);
 	// always set the explicit integer bit.
-	*wrd2 = 0x80000000 | ((p[FHI] & 0x000FFFFF) << 11) | ((p[FLO] & 0xFFE00000) >> 21);
-	*wrd3 = p[FLO] << 11;
-
-	fpu_debug(("extract_extended (%.04f) = %X,%X,%X\n",(double)src,*wrd1,*wrd2,*wrd3));
+	*wrd2 = 0x80000000 | (srp->ieee.mantissa0 << 11) | ((srp->ieee.mantissa1 & 0xffe00000) >> 21);
+	*wrd3 = srp->ieee.mantissa1 << 11;
+#else
+	// FIXME: USE_QUAD_DOUBLE
+#ifdef WORDS_BIGENDIAN
+	*wrd1 = p[0];
+	*wrd2 = p[1];
+	*wrd3 = p[2];
+#else
+	*wrd3 = p[0];
+	*wrd2 = p[1];
+	*wrd1 = ( (uae_u32)*((uae_u16 *)&p[2]) ) << 16;
 #endif
+#endif
+	fpu_debug(("extract_extended (%.04f) = %X,%X,%X\n",(double)src,*wrd1,*wrd2,*wrd3));
 }
 
 // to_double
@@ -425,7 +412,7 @@ PRIVATE inline fpu_register FFPU make_double(uae_u32 wrd1, uae_u32 wrd2)
 {
 	union {
 		fpu_double value;
-		uae_u32   parts[2];
+		uae_u32    parts[2];
 	} dest;
 #ifdef WORDS_BIGENDIAN
 	dest.parts[0] = wrd1;
@@ -445,7 +432,7 @@ PRIVATE inline void FFPU extract_double(fpu_register const & src,
 {
 	union {
 		fpu_double value;
-		uae_u32   parts[2];
+		uae_u32    parts[2];
 	} dest;
 	dest.value = (fpu_double)src;
 #ifdef WORDS_BIGENDIAN
@@ -1989,18 +1976,32 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 
 		case 0x26:		/* FSCALE */
 			fpu_debug(("FSCALE %.04f\n",(double)src));
-
-			// TODO:
-			// Overflow, underflow
-
-			if( isinf(FPU registers[reg]) ) {
-				make_nan( FPU registers[reg] );
-			}
-			else {
+			// TODO: overflow flags
+			get_dest_flags(FPU registers[reg]);
+			get_source_flags(src);
+			if (fl_source.in_range && fl_dest.in_range) {
 				// When the absolute value of the source operand is >= 2^14,
 				// an overflow or underflow always results.
 				// Here (int) cast is okay.
-				fast_scale( FPU registers[reg], (int)fp_round_to_zero(src) );
+				int scale_factor = (int)fp_round_to_zero(src);
+#ifndef USE_LONG_DOUBLE
+				fp_declare_init_shape(sxp, FPU registers[reg], double);
+				uae_u32 exp = sxp->ieee.exponent + scale_factor;
+				if (exp < FP_EXTENDED_EXP_BIAS - FP_DOUBLE_EXP_BIAS)
+					exp = 0;
+				else if (exp > FP_EXTENDED_EXP_BIAS + FP_DOUBLE_EXP_BIAS)
+					exp = FP_DOUBLE_EXP_MAX;
+				else
+					exp += FP_DOUBLE_EXP_BIAS - FP_EXTENDED_EXP_BIAS;
+				sxp->ieee.exponent = exp;
+#else
+				fp_declare_init_shape(sxp, FPU registers[reg], extended);
+				sxp->ieee.exponent += scale_factor;
+#endif
+			}
+			else if (fl_source.infinity) {
+				// Returns NaN for any Infinity source
+				make_nan( FPU registers[reg] );
 			}
 			make_fpsr(FPU registers[reg]);
 			break;

@@ -187,17 +187,20 @@ union fpu_double_shape {
 #	endif
 #endif
 	} ieee_nan;
+
+	/* This format is used to extract the sign_exponent and mantissa parts only */
+	struct {
+#if UAE_FLOAT_WORD_ORDER == UAE_BIG_ENDIAN
+		unsigned int msw:32;
+		unsigned int lsw:32;
+#else
+		unsigned int lsw:32;
+		unsigned int msw:32;
+#endif
+	} parts;
 };
 
-#if SIZEOF_LONG_DOUBLE == 12
-# undef USE_QUAD_DOUBLE
-#elif SIZEOF_LONG_DOUBLE == 16
-# define USE_QUAD_DOUBLE
-#else
-# error "unsupported long double format"
-#endif
-
-#ifndef USE_QUAD_DOUBLE
+#ifdef USE_LONG_DOUBLE
 // IEEE-854 long double format
 union fpu_extended_shape {
 	fpu_extended value;
@@ -275,7 +278,9 @@ union fpu_extended_shape {
 #endif
 	} parts;
 };
-#else
+#endif
+
+#ifdef USE_QUAD_DOUBLE
 // IEEE-854 quad double format
 union fpu_extended_shape {
 	fpu_extended value;
@@ -345,7 +350,7 @@ union fpu_extended_shape {
 	} parts32;
 #endif
 };
-#endif // !USE_QUAD_DOUBLE
+#endif
 
 // Declare and initialize a pointer to a shape of the requested FP type
 #define fp_declare_init_shape(psvar, rfvar, ftype) \
@@ -365,9 +370,17 @@ union fpu_extended_shape {
 
 PRIVATE inline bool FFPU fp_do_isnan(fpu_register const & r)
 {
-	fp_declare_init_shape(sxp, r, extended);
 #ifdef BRANCHES_ARE_EXPENSIVE
-#ifdef USE_QUAD_DOUBLE
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sxp, r, double);
+	uae_s32 hx = sxp->parts.msw;
+	uae_s32 lx = sxp->parts.lsw;
+	hx &= 0x7fffffff;
+	hx |= (uae_u32)(lx | (-lx)) >> 31;
+	hx = 0x7ff00000 - hx;
+	return (int)(((uae_u32)hx) >> 31);
+#elif USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, r, extended);
 	uae_s64 hx = sxp->parts64.msw;
 	uae_s64 lx = sxp->parts64.lsw;
 	hx &= 0x7fffffffffffffffLL;
@@ -375,6 +388,7 @@ PRIVATE inline bool FFPU fp_do_isnan(fpu_register const & r)
 	hx = 0x7fff000000000000LL - hx;
 	return (int)((uae_u64)hx >> 63);
 #else
+	fp_declare_init_shape(sxp, r, extended);
 	uae_s32 se = sxp->parts.sign_exponent;
 	uae_s32 hx = sxp->parts.msw;
 	uae_s32 lx = sxp->parts.lsw;
@@ -386,7 +400,13 @@ PRIVATE inline bool FFPU fp_do_isnan(fpu_register const & r)
 	return (int)(((uae_u32)(se)) >> 16);
 #endif
 #else
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sxp, r, double);
+	return	(sxp->ieee_nan.exponent == FP_DOUBLE_EXP_MAX)
+#else
+	fp_declare_init_shape(sxp, r, extended);
 	return	(sxp->ieee_nan.exponent == FP_EXTENDED_EXP_MAX)
+#endif
 		&&	(sxp->ieee_nan.mantissa0 != 0)
 		&&	(sxp->ieee_nan.mantissa1 != 0)
 #ifdef USE_QUAD_DOUBLE
@@ -406,15 +426,23 @@ PRIVATE inline bool FFPU fp_do_isnan(fpu_register const & r)
 
 PRIVATE inline bool FFPU fp_do_isinf(fpu_register const & r)
 {
-	fp_declare_init_shape(sxp, r, extended);
 #ifdef BRANCHES_ARE_EXPENSIVE
-#ifdef USE_QUAD_DOUBLE
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sxp, r, double);
+	uae_s32 hx = sxp->parts.msw;
+	uae_s32 lx = sxp->parts.lsw;
+	lx |= (hx & 0x7fffffff) ^ 0x7ff00000;
+	lx |= -lx;
+	return ~(lx >> 31) & (hx >> 30);
+#elif USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, r, extended);
 	uae_s64 hx = sxp->parts64.msw;
 	uae_s64 lx = sxp->parts64.lsw;
 	lx |= (hx & 0x7fffffffffffffffLL) ^ 0x7fff000000000000LL;
 	lx |= -lx;
 	return ~(lx >> 63) & (hx >> 62);
 #else
+	fp_declare_init_shape(sxp, r, extended);
 	uae_s32 se = sxp->parts.sign_exponent;
 	uae_s32 hx = sxp->parts.msw;
 	uae_s32 lx = sxp->parts.lsw;
@@ -431,7 +459,13 @@ PRIVATE inline bool FFPU fp_do_isinf(fpu_register const & r)
 	return ~(lx >> 31) & (1 - (se >> 14));
 #endif
 #else
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sxp, r, double);
+	return	(sxp->ieee_nan.exponent == FP_DOUBLE_EXP_MAX)
+#else
+	fp_declare_init_shape(sxp, r, extended);
 	return	(sxp->ieee_nan.exponent == FP_EXTENDED_EXP_MAX)
+#endif
 		&&	(sxp->ieee_nan.mantissa0 == 0)
 		&&	(sxp->ieee_nan.mantissa1 == 0)
 #ifdef USE_QUAD_DOUBLE
@@ -447,9 +481,12 @@ PRIVATE inline bool FFPU fp_do_isinf(fpu_register const & r)
 
 PRIVATE inline bool FFPU fp_do_isneg(fpu_register const & r)
 {
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sxp, r, double);
+#else
 	fp_declare_init_shape(sxp, r, extended);
-	return	(sxp->ieee.negative)
-		;
+#endif
+	return sxp->ieee.negative;
 }
 
 #undef iszero
@@ -458,7 +495,11 @@ PRIVATE inline bool FFPU fp_do_isneg(fpu_register const & r)
 PRIVATE inline bool FFPU fp_do_iszero(fpu_register const & r)
 {
 	// TODO: BRANCHES_ARE_EXPENSIVE
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sxp, r, double);
+#else
 	fp_declare_init_shape(sxp, r, extended);
+#endif
 	return	(sxp->ieee.exponent == 0)
 		&&	(sxp->ieee.mantissa0 == 0)
 		&&	(sxp->ieee.mantissa1 == 0)
@@ -490,9 +531,15 @@ PRIVATE inline void FFPU get_source_flags(fpu_register const & r)
 PRIVATE inline void FFPU make_nan(fpu_register & r)
 {
 	// FIXME: is that correct ?
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sxp, r, double);
+	sxp->ieee.exponent	= FP_DOUBLE_EXP_MAX;
+	sxp->ieee.mantissa0	= 0xfffff;
+#else
 	fp_declare_init_shape(sxp, r, extended);
 	sxp->ieee.exponent	= FP_EXTENDED_EXP_MAX;
 	sxp->ieee.mantissa0	= 0xffffffff;
+#endif
 	sxp->ieee.mantissa1	= 0xffffffff;
 #ifdef USE_QUAD_DOUBLE
 	sxp->ieee.mantissa2	= 0xffffffff;
@@ -505,7 +552,11 @@ PRIVATE inline void FFPU make_zero_positive(fpu_register & r)
 #if 1
 	r = +0.0;
 #else
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sxp, r, double);
+#else
 	fp_declare_init_shape(sxp, r, extended);
+#endif
 	sxp->ieee.negative	= 0;
 	sxp->ieee.exponent	= 0;
 	sxp->ieee.mantissa0	= 0;
@@ -522,7 +573,11 @@ PRIVATE inline void FFPU make_zero_negative(fpu_register & r)
 #if 1
 	r = -0.0;
 #else
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sxp, r, double);
+#else
 	fp_declare_init_shape(sxp, r, extended);
+#endif
 	sxp->ieee.negative	= 1;
 	sxp->ieee.exponent	= 0;
 	sxp->ieee.mantissa0	= 0;
@@ -536,9 +591,14 @@ PRIVATE inline void FFPU make_zero_negative(fpu_register & r)
 
 PRIVATE inline void FFPU make_inf_positive(fpu_register & r)
 {
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sxp, r, double);
+	sxp->ieee_nan.exponent	= FP_DOUBLE_EXP_MAX;
+#else
 	fp_declare_init_shape(sxp, r, extended);
-	sxp->ieee_nan.negative	= 0;
 	sxp->ieee_nan.exponent	= FP_EXTENDED_EXP_MAX;
+#endif
+	sxp->ieee_nan.negative	= 0;
 	sxp->ieee_nan.mantissa0	= 0;
 	sxp->ieee_nan.mantissa1	= 0;
 #ifdef USE_QUAD_DOUBLE
@@ -549,9 +609,14 @@ PRIVATE inline void FFPU make_inf_positive(fpu_register & r)
 
 PRIVATE inline void FFPU make_inf_negative(fpu_register & r)
 {
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sxp, r, double);
+	sxp->ieee_nan.exponent	= FP_DOUBLE_EXP_MAX;
+#else
 	fp_declare_init_shape(sxp, r, extended);
-	sxp->ieee_nan.negative	= 1;
 	sxp->ieee_nan.exponent	= FP_EXTENDED_EXP_MAX;
+#endif
+	sxp->ieee_nan.negative	= 1;
 	sxp->ieee_nan.mantissa0	= 0;
 	sxp->ieee_nan.mantissa1	= 0;
 #ifdef USE_QUAD_DOUBLE
@@ -560,54 +625,48 @@ PRIVATE inline void FFPU make_inf_negative(fpu_register & r)
 #endif
 }
 
-PRIVATE inline void FFPU fast_scale(fpu_register & r, int add)
-{
-	fp_declare_init_shape(sxp, r, extended);
-	// TODO: overflow flags
-	int exp = sxp->ieee.exponent + add;
-	// FIXME: this test is not correct: see fpuop_fscale()
-	if (exp > FP_EXTENDED_EXP_BIAS) {
-		make_inf_positive(r);
-	} else if (exp < 0) {
-		// keep sign (+/- 0)
-		if (isneg(r))
-			make_inf_negative(r);
-		else
-			make_inf_positive(r);
-//		p[FHI] &= 0x80000000;
-	} else {
-		sxp->ieee.exponent = exp;
-//		p[FHI] = (p[FHI] & 0x800FFFFF) | ((uae_u32)exp << 20);
-	}
-}
-
 PRIVATE inline fpu_register FFPU fast_fgetexp(fpu_register const & r)
 {
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sxp, r, double);
+	return (sxp->ieee.exponent - FP_DOUBLE_EXP_BIAS);
+#else
 	fp_declare_init_shape(sxp, r, extended);
 	return (sxp->ieee.exponent - FP_EXTENDED_EXP_BIAS);
+#endif
 }
 
 // Normalize to range 1..2
 PRIVATE inline void FFPU fast_remove_exponent(fpu_register & r)
 {
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sxp, r, double);
+	sxp->ieee.exponent = FP_DOUBLE_EXP_BIAS;
+#else
 	fp_declare_init_shape(sxp, r, extended);
 	sxp->ieee.exponent = FP_EXTENDED_EXP_BIAS;
+#endif
 }
 
 // The sign of the quotient is the exclusive-OR of the sign bits
 // of the source and destination operands.
 PRIVATE inline uae_u32 FFPU get_quotient_sign(fpu_register const & ra, fpu_register const & rb)
 {
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sap, ra, double);
+	fp_declare_init_shape(sbp, rb, double);
+#else
 	fp_declare_init_shape(sap, ra, extended);
 	fp_declare_init_shape(sbp, rb, extended);
-	return (((sap->ieee.mantissa0 ^ sbp->ieee.mantissa0) & 0x80000000) ? 0x800000 : 0);
+#endif
+	return ((sap->ieee.negative ^ sbp->ieee.negative) ? FPSR_QUOTIENT_SIGN : 0);
 }
 
 /* -------------------------------------------------------------------------- */
 /* --- Math functions                                                     --- */
 /* -------------------------------------------------------------------------- */
 
-#if FPU_USE_ISO_C99
+#if FPU_USE_ISO_C99 && USE_LONG_DOUBLE
 # define fp_log		logl
 # define fp_log10	log10l
 # define fp_exp		expl
