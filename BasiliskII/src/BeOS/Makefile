@@ -37,7 +37,7 @@ ifeq ($(MACHINE), BePC)
 else
 #	CPUSRCS = ../powerrom_cpu/powerrom_cpu.cpp
 	CPUSRCS = ../uae_cpu/basilisk_glue.cpp ../uae_cpu/newcpu.cpp \
-	    ../uae_cpu/readcpu.cpp ../uae_cpu/fpp.cpp cpustbl.cpp cpudefs.cpp cpuemu.cpp
+	    ../uae_cpu/readcpu.cpp ../uae_cpu/fpu/fpu_uae.cpp cpustbl.cpp cpudefs.cpp cpuemu.cpp
 endif
 SRCS = ../main.cpp main_beos.cpp ../prefs.cpp ../prefs_items.cpp prefs_beos.cpp \
     prefs_editor_beos.cpp sys_beos.cpp ../rom_patches.cpp ../slot_rom.cpp \
