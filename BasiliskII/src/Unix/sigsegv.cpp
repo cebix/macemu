@@ -139,11 +139,17 @@ static bool sigsegv_do_install_handler(int sig);
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_INVALID_PC
 #endif
 
+// SIGSEGV recovery supported ?
+#if defined(SIGSEGV_ALL_SIGNALS) && defined(SIGSEGV_FAULT_HANDLER_ARGLIST) && defined(SIGSEGV_FAULT_ADDRESS)
+#define HAVE_SIGSEGV_RECOVERY
+#endif
+
 
 /*
  *  SIGSEGV global handler
  */
 
+#ifdef HAVE_SIGSEGV_RECOVERY
 static void sigsegv_handler(SIGSEGV_FAULT_HANDLER_ARGLIST)
 {
 	// Call user's handler and reinstall the global handler, if required
@@ -159,6 +165,7 @@ static void sigsegv_handler(SIGSEGV_FAULT_HANDLER_ARGLIST)
 #undef FAULT_HANDLER
 	}
 }
+#endif
 
 
 /*
@@ -179,7 +186,9 @@ static bool sigsegv_do_install_handler(int sig)
 	return (signal(sig, (signal_handler)sigsegv_handler) != SIG_ERR);
 #endif
 }
-#elif defined(HAVE_SIGCONTEXT_SUBTERFUGE)
+#endif
+
+#if defined(HAVE_SIGCONTEXT_SUBTERFUGE)
 static bool sigsegv_do_install_handler(int sig)
 {
 	// Setup SIGSEGV handler to process writes to frame buffer
@@ -202,7 +211,7 @@ static bool sigsegv_do_install_handler(int sig)
 
 bool sigsegv_install_handler(sigsegv_handler_t handler)
 {
-#if defined(HAVE_SIGINFO_T) || defined(HAVE_SIGCONTEXT_SUBTERFUGE)
+#ifdef HAVE_SIGSEGV_RECOVERY
 	sigsegv_user_handler = handler;
 	bool success = true;
 #define FAULT_HANDLER(sig) success = success && sigsegv_do_install_handler(sig);
@@ -222,10 +231,12 @@ bool sigsegv_install_handler(sigsegv_handler_t handler)
 
 void sigsegv_deinstall_handler(void)
 {
+#ifdef HAVE_SIGSEGV_RECOVERY
 	sigsegv_user_handler = 0;
 #define FAULT_HANDLER(sig) signal(sig, SIG_DFL);
 	SIGSEGV_ALL_SIGNALS
 #undef FAULT_HANDLER
+#endif
 }
 
 /*
