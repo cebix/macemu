@@ -231,6 +231,9 @@ static bool open_esd(void)
 	// Sound buffer size = 4096 frames
 	audio_frames_per_block = 4096;
 	return true;
+#else
+	// ESD is not enabled, shut up the compiler
+	return false;
 #endif
 }
 
