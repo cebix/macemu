@@ -985,12 +985,14 @@ AC_CHECK_HEADERS(ieee754.h ieeefp.h floatingpoint.h nan.h)
 for fpe in $FPE_CORE_TEST_ORDER; do
   case $fpe in
   ieee)
-    if echo "$ac_cv_c_float_format" | grep -q IEEE; then
+    case $ac_cv_c_float_format in
+    IEEE*)
       FPE_CORE="IEEE fpu core"
       DEFINES="$DEFINES -DFPU_IEEE"
       FPUSRCS="../uae_cpu/fpu/fpu_ieee.cpp"
       break
-    fi
+      ;;
+    esac
     ;;
   x86)
     if [[ ":$HAVE_GCC27:$HAVE_I386:$HAVE_GAS:" = ":yes:yes:yes:" ]]; then
