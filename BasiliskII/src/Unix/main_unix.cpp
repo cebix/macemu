@@ -479,7 +479,7 @@ int main(int argc, char **argv)
 #ifdef ENABLE_MON
 	// Setup SIGINT handler to enter mon
 	sigemptyset(&sigint_sa.sa_mask);
-	sigint_sa.sa_handler = sigint_handler;
+	sigint_sa.sa_handler = (void (*)(int))sigint_handler;
 	sigint_sa.sa_flags = 0;
 	sigaction(SIGINT, &sigint_sa, NULL);
 #endif
@@ -701,8 +701,8 @@ static void sigint_handler(...)
 	extern void m68k_dumpstate(uaecptr *nextpc);
 	m68k_dumpstate(&nextpc);
 #else
-	char *arg[2] = {"rmon", NULL};
-	mon(1, arg);
+	char *arg[4] = {"mon", "-m", "-r", NULL};
+	mon(3, arg);
 	QuitEmulator();
 #endif
 }
@@ -1161,8 +1161,8 @@ ill:		printf("SIGILL num %d, code %d\n", sig, code);
 				printf("  a%d %08x\n", i, state->ss_frame.f_regs[i+8]);
 
 #ifdef ENABLE_MON
-			char *arg[2] = {"rmon", NULL};
-			mon(1, arg);
+			char *arg[4] = {"mon", "-m", "-r", NULL};
+			mon(3, arg);
 #endif
 			QuitEmulator();
 			break;

@@ -663,7 +663,7 @@ void *XSERDPort::input_func(void *arg)
 		// KillIO called? Then simply return
 		if (s->io_killed) {
 
-			WriteMacInt16(s->input_pb + ioResult, abortErr);
+			WriteMacInt16(s->input_pb + ioResult, uint16(abortErr));
 			WriteMacInt32(s->input_pb + ioActCount, 0);
 			s->read_pending = s->read_done = false;
 
@@ -675,7 +675,7 @@ void *XSERDPort::input_func(void *arg)
 				WriteMacInt32(s->input_dt + serdtResult, noErr);
 			} else {
 				WriteMacInt32(s->input_pb + ioActCount, 0);
-				WriteMacInt32(s->input_dt + serdtResult, readErr);
+				WriteMacInt32(s->input_dt + serdtResult, uint16(readErr));
 			}
 	
 			// Trigger serial interrupt
@@ -723,7 +723,7 @@ void *XSERDPort::output_func(void *arg)
 		// KillIO called? Then simply return
 		if (s->io_killed) {
 
-			WriteMacInt16(s->output_pb + ioResult, abortErr);
+			WriteMacInt16(s->output_pb + ioResult, uint16(abortErr));
 			WriteMacInt32(s->output_pb + ioActCount, 0);
 			s->write_pending = s->write_done = false;
 
@@ -735,7 +735,7 @@ void *XSERDPort::output_func(void *arg)
 				WriteMacInt32(s->output_dt + serdtResult, noErr);
 			} else {
 				WriteMacInt32(s->output_pb + ioActCount, 0);
-				WriteMacInt32(s->output_dt + serdtResult, writErr);
+				WriteMacInt32(s->output_dt + serdtResult, uint16(writErr));
 			}
 	
 			// Trigger serial interrupt

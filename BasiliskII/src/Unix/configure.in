@@ -14,12 +14,12 @@ AC_ARG_ENABLE(16bit-vidmode, [  --enable-16bit-vidmode  enable 16-bit video if p
 AC_ARG_ENABLE(addressing,
 [  --enable-addressing=mode specify the addressing mode to use [default=fastest]], 
 [ case "$enableval" in
-    real) 		ADDRESSING_TEST_ORDER="real";;
-	direct)		ADDRESSING_TEST_ORDER="direct";;
-	banks)		ADDRESSING_TEST_ORDER="banks";;
-dnl	fastest)	ADDRESSING_TEST_ORDER="real direct banks";; gb-- will enable later...
-	fastest)	ADDRESSING_TEST_ORDER="direct banks";;
-	*)			AC_MSG_ERROR([--enable-mem-addressing takes only one of the following values: fastest, real, direct, banks]);;
+    real) 	ADDRESSING_TEST_ORDER="real";;
+    direct)	ADDRESSING_TEST_ORDER="direct";;
+    banks)	ADDRESSING_TEST_ORDER="banks";;
+dnl fastest)	ADDRESSING_TEST_ORDER="real direct banks";; gb-- will enable later...
+    fastest)	ADDRESSING_TEST_ORDER="direct banks";;
+    *)		AC_MSG_ERROR([--enable-mem-addressing takes only one of the following values: fastest, real, direct, banks]);;
   esac
 ],
 dnl [ ADDRESSING_TEST_ORDER="real direct banks" gb-- will probably reactivate later
@@ -67,11 +67,12 @@ dnl We use mon if possible.
 MONSRCS=
 if [[ "x$WANT_MON" = "xyes" ]]; then
   AC_MSG_CHECKING(for mon)
-  if grep mon_init ../../../mon/src/mon.h >/dev/null 2>/dev/null; then
+  mon_srcdir=../../../mon/src
+  if grep mon_init $mon_srcdir/mon.h >/dev/null 2>/dev/null; then
     AC_MSG_RESULT(yes)
     AC_DEFINE(ENABLE_MON)
-    MONSRCS="../../../mon/src/mon.cpp ../../../mon/src/mon_6502.cpp ../../../mon/src/mon_68k.cpp ../../../mon/src/mon_8080.cpp ../../../mon/src/mon_cmd.cpp ../../../mon/src/mon_ppc.cpp ../../../mon/src/mon_x86.cpp"
-    CXXFLAGS="$CXXFLAGS -I../../../mon/src"
+    MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_8080.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c"
+    CXXFLAGS="$CXXFLAGS -I$mon_srcdir -I$mon_srcdir/disass"
     AC_CHECK_LIB(readline, readline)
     AC_CHECK_LIB(termcap, tputs)
     AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
