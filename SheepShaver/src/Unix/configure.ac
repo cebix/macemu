@@ -10,6 +10,10 @@ dnl Canonical system information.
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 
+dnl Some systems do not put corefiles in the currect directory, avoid saving
+dnl cores for the configure tests since some are intended to dump core.
+ulimit -c 0
+
 dnl Options.
 AC_ARG_ENABLE(jit,          [  --enable-jit            enable JIT compiler [default=yes]], [WANT_JIT=$enableval], [WANT_JIT=yes])
 AC_ARG_ENABLE(ppc-emulator, [  --enable-ppc-emulator   use the selected PowerPC emulator [default=auto]], [WANT_EMULATED_PPC=$enableval], [WANT_EMULATED_PPC=auto])
@@ -210,6 +214,9 @@ if [[ "x$WANT_ESD" = "xyes" ]]; then
     WANT_ESD=no
   ])
 fi
+
+dnl We use 64-bit file size support if possible.
+AC_SYS_LARGEFILE
 
 dnl Checks for header files.
 AC_HEADER_STDC
