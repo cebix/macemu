@@ -23,6 +23,7 @@ LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
 SYSSRCS = @SYSSRCS@
 CPUSRCS = @CPUSRCS@
+BLESS = @BLESS@
 INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@ -s
 INSTALL_DATA = @INSTALL_DATA@
@@ -61,6 +62,7 @@ VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(S
 
 $(APP): $(OBJ_DIR) $(OBJS)
 	$(CXX) -o $(APP) $(LDFLAGS) $(OBJS) $(LIBS)
+	$(BLESS) $(APP)
 
 modules:
 	cd Linux/NetDriver; make

@@ -558,6 +558,19 @@ AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, $have_mmap_vm,
 
 fi dnl HAVE_MMAP_VM
 
+dnl Check if we can modify the __PAGEZERO segment for use as Low Memory
+AC_CACHE_CHECK([whether __PAGEZERO can be Low Memory area 0x0000-0x2000],
+  ac_cv_pagezero_hack, [
+  ac_cv_pagezero_hack=no 
+  if AC_TRY_COMMAND([Darwin/testlmem.sh 0x2000]); then
+    ac_cv_pagezero_hack=yes
+    dnl might as well skip the test for mmap-able low memory
+    ac_cv_can_map_lm=no
+  fi
+])
+AC_TRANSLATE_DEFINE(PAGEZERO_HACK, "$ac_cv_pagezero_hack",
+  [Define if the __PAGEZERO Mach-O Low Memory Globals hack works on this system.])
+
 dnl Check if we can mmap 0x2000 bytes from 0x0000
 AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x2000],
   ac_cv_can_map_lm, [
@@ -743,6 +756,9 @@ if [[ -n "$sigsegv_recovery" ]]; then
   CAN_VOSF=yes
 fi
 
+dnl A dummy program that returns always true
+BLESS=/bin/true
+
 dnl Determine the addressing mode to use
 if [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
   ADDRESSING_MODE="real"
@@ -753,10 +769,10 @@ else
     case $am in
     real)
       dnl Requires ability to mmap() Low Memory globals
-      if [[ "x$ac_cv_can_map_lm" = "xno" ]]; then
+      if [[ "x$ac_cv_can_map_lm$ac_cv_pagezero_hack" = "xnono" ]]; then
         continue
       fi
-	  dnl Requires VOSF screen updates
+      dnl Requires VOSF screen updates
       if [[ "x$CAN_VOSF" = "xno" ]]; then
         continue
       fi
@@ -764,6 +780,10 @@ else
       ADDRESSING_MODE="real"
       WANT_VOSF=yes dnl we can use VOSF and we need it actually
       DEFINES="$DEFINES -DREAL_ADDRESSING"
+      if [[ "x$ac_cv_pagezero_hack" = "xyes" ]]; then
+        BLESS=Darwin/lowmem
+        LDFLAGS="$LDFLAGS -pagezero_size 0x2000"
+      fi
       break
       ;;
     direct)
@@ -1152,6 +1172,7 @@ AC_SUBST(DEFINES)
 AC_SUBST(SYSSRCS)
 AC_SUBST(CPUINCLUDES)
 AC_SUBST(CPUSRCS)
+AC_SUBST(BLESS)
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
 

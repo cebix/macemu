@@ -413,7 +413,7 @@ int main(int argc, char **argv)
 	
 	// Under Solaris/SPARC and NetBSD/m68k, Basilisk II is known to crash
 	// when trying to map a too big chunk of memory starting at address 0
-#if defined(OS_solaris) || defined(OS_netbsd)
+#if defined(OS_solaris) || defined(OS_netbsd) || defined(PAGEZERO_HACK)
 	const bool can_map_all_memory = false;
 #else
 	const bool can_map_all_memory = true;
@@ -425,6 +425,7 @@ int main(int argc, char **argv)
 		memory_mapped_from_zero = true;
 	}
 	
+#ifndef PAGEZERO_HACK
 	// Otherwise, just create the Low Memory area (0x0000..0x2000)
 	else if (vm_acquire_fixed(0, 0x2000) == 0) {
 		D(bug("Could allocate the Low Memory globals\n"));
@@ -438,6 +439,7 @@ int main(int argc, char **argv)
 		QuitEmulator();
 	}
 #endif
+#endif /* REAL_ADDRESSING */
 
 	// Create areas for Mac RAM and ROM
 #if REAL_ADDRESSING
