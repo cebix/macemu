@@ -18,12 +18,40 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/*
+ *  NOTES:
+ *
+ *  We must have (fast) X11 display locking routines. Otherwise, we
+ *  can corrupt the X11 event queue from the emulator thread whereas
+ *  the redraw thread is expected to handle them.
+ *
+ *  Two functions are exported to video_x.cpp:
+ *    - ClipboardSelectionClear()
+ *      called when we lose the selection ownership
+ *    - ClipboardSelectionRequest()
+ *      called when another client wants our clipboard data
+ *  The display is locked by the redraw thread during their execution.
+ *
+ *  On PutScrap (Mac application wrote to clipboard), we always cache
+ *  the Mac clipboard to a local structure (clip_data). Then, the
+ *  selection ownership is grabbed until ClipboardSelectionClear()
+ *  occurs. In that case, contents in cache becomes invalid.
+ *
+ *  On GetScrap (Mac application reads clipboard), we always fetch
+ *  data from the X11 clipboard and immediately put it back to Mac
+ *  side. Local cache does not need to be updated. If the selection
+ *  owner supports the TIMESTAMP target, we can avoid useless copies.
+ *
+ *  For safety purposes, we lock the X11 display in the emulator
+ *  thread during the whole GetScrap/PutScrap execution. Of course, we
+ *  temporarily release the lock when waiting for SelectioNotify.
+ */
+
 #include "sysdeps.h"
 
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <pthread.h>
-#include <set>
 #include <vector>
 
 #include "macos_util.h"
@@ -37,7 +65,6 @@
 #include "debug.h"
 
 #ifndef NO_STD_NAMESPACE
-using std::set;
 using std::vector;
 #endif
 
@@ -122,27 +149,17 @@ struct ByteArray : public vector<uint8> {
 	uint8 *data() { return &at(0); }
 };
 
-// Clipboard locks
-#ifdef HAVE_PTHREADS
-static pthread_mutex_t clip_lock = PTHREAD_MUTEX_INITIALIZER;
-#define LOCK_CLIPBOARD pthread_mutex_lock(&clip_lock);
-#define UNLOCK_CLIPBOARD pthread_mutex_unlock(&clip_lock);
-#elif defined(HAVE_SPINLOCKS)
-static spinlock_t clip_lock = SPIN_LOCK_UNLOCKED;
-#define LOCK_CLIPBOARD spin_lock(&clip_lock)
-#define UNLOCK_CLIPBOARD spin_unlock(&clip_lock)
-#else
-#define LOCK_CLIPBOARD
-#define UNLOCK_CLIPBOARD
-#endif
-
-// Clipboard data
+// Clipboard data for requestors
 struct ClipboardData {
 	Time time;
-	uint32 type;
+	Atom type;
 	ByteArray data;
 };
 static ClipboardData clip_data;
+
+// Prototypes
+static void do_putscrap(uint32 type, void *scrap, int32 length);
+static void do_getscrap(void **handle, uint32 type, int32 offset);
 
 
 /*
@@ -231,34 +248,19 @@ static bool read_property(Display *dpy, Window win,
  */
 
 static const uint64 SELECTION_MAX_WAIT = 500000; // 500 ms
-static volatile bool xselection_event_avail;
-static XSelectionEvent xselection_event;
 
-static bool wait_for_selection_notify_event(Display *dpy, Window win, int timeout)
+static bool wait_for_selection_notify_event(Display *dpy, Window win, XEvent *event, int timeout)
 {
 	uint64 start = GetTicks_usec();
 
-	LOCK_CLIPBOARD;
-	xselection_event_avail = false;
-	UNLOCK_CLIPBOARD;
-
-	// First wait a very short period of time < the VideoRefresh() resolution
-	struct timespec req = {0, 5000000};
-	nanosleep(&req, NULL);
-
-	// FIXME: Since handle_events() is in a separate thread, wait for
-	// a SelectionNotify event to occur and reported here. The
-	// resolution of this wait action should match that of VideoRefresh()
-	if (xselection_event_avail)
-		return true;
-
 	do {
 		// Wait
-		struct timespec req = {0, 16666667};
-		nanosleep(&req, NULL);
+		XDisplayUnlock();
+		Delay_usec(5000);
+		XDisplayLock();
 
-		// Return immediately if the event is now available
-		if (xselection_event_avail)
+		// Check for SelectionNotify event
+		if (XCheckTypedWindowEvent(dpy, win, SelectionNotify, event))
 			return true;
 
 	} while ((GetTicks_usec() - start) < timeout);
@@ -352,31 +354,37 @@ void PutScrap(uint32 type, void *scrap, int32 length)
 	if (length <= 0)
 		return;
 
-	bool did_putscrap = false;
-	switch (type) {
-		case FOURCC('T','E','X','T'):
-			D(bug(" clipping TEXT\n"));
-			clip_data.type = type;
-			clip_data.data.clear();
-			clip_data.data.reserve(length);
+	XDisplayLock();
+	do_putscrap(type, scrap, length);
+	XDisplayUnlock();
+}
 
-			// Convert text from Mac charset to ISO-Latin1
-			uint8 *p = (uint8 *)scrap;
-			for (int i=0; i<length; i++) {
-				uint8 c = *p++;
-				if (c < 0x80) {
-					if (c == 13)	// CR -> LF
-						c = 10;
-				} else if (!no_clip_conversion)
-					c = mac2iso[c & 0x7f];
-				clip_data.data.push_back(c);
-			}
-			did_putscrap = true;
-			break;
+static void do_putscrap(uint32 type, void *scrap, int32 length)
+{
+	clip_data.type = None;
+	switch (type) {
+	case FOURCC('T','E','X','T'):
+		D(bug(" clipping TEXT\n"));
+		clip_data.type = XA_STRING;
+		clip_data.data.clear();
+		clip_data.data.reserve(length);
+
+		// Convert text from Mac charset to ISO-Latin1
+		uint8 *p = (uint8 *)scrap;
+		for (int i=0; i<length; i++) {
+			uint8 c = *p++;
+			if (c < 0x80) {
+				if (c == 13)	// CR -> LF
+					c = 10;
+			} else if (!no_clip_conversion)
+				c = mac2iso[c & 0x7f];
+			clip_data.data.push_back(c);
+		}
+		break;
 	}
 
 	// Acquire selection ownership
-	if (did_putscrap) {
+	if (clip_data.type != None) {
 		clip_data.time = CurrentTime;
 		while (XGetSelectionOwner(x_display, xa_clipboard) != clip_win)
 			XSetSelectionOwner(x_display, xa_clipboard, clip_win, clip_data.time);
@@ -394,33 +402,43 @@ void GetScrap(void **handle, uint32 type, int32 offset)
 	if (!REPLACE_GETSCRAP)
 		return;
 
+	XDisplayLock();
+	do_getscrap(handle, type, offset);
+	XDisplayUnlock();
+}
+
+static void do_getscrap(void **handle, uint32 type, int32 offset)
+{
+	ByteArray data;
+	XEvent event;
+
+	// If we own the selection, the data is already available on MacOS side
+	if (XGetSelectionOwner(x_display, xa_clipboard) == clip_win)
+		return;
+
 	// Check TIMESTAMP
 #if GETSCRAP_REQUESTS_TIMESTAMP
 	static Time last_timestamp = 0;
 	XConvertSelection(x_display, xa_clipboard, xa_timestamp, xa_clipboard, clip_win, CurrentTime);
-	if (wait_for_selection_notify_event(x_display, clip_win, SELECTION_MAX_WAIT) &&
-		xselection_event.property != None) {
-		ByteArray data;
-		if (read_property(x_display,
-						  xselection_event.requestor, xselection_event.property,
-						  true, data, 0, 0, 0, false)) {
-			Time timestamp = ((long *)data.data())[0];
-			if (timestamp == last_timestamp)
-				return;
-		}
+	if (wait_for_selection_notify_event(x_display, clip_win, &event, SELECTION_MAX_WAIT) &&
+		event.xselection.property != None &&
+		read_property(x_display,
+					  event.xselection.requestor, event.xselection.property,
+					  true, data, 0, 0, 0, false)) {
+		Time timestamp = ((long *)data.data())[0];
+		if (timestamp <= last_timestamp)
+			return;
 	}
+	last_timestamp = CurrentTime;
 #endif
 
 	// Get TARGETS available
 #if GETSCRAP_REQUESTS_TARGETS
 	XConvertSelection(x_display, xa_clipboard, xa_targets, xa_clipboard, clip_win, CurrentTime);
-	if (!wait_for_selection_notify_event(x_display, clip_win, SELECTION_MAX_WAIT) ||
-		xselection_event.property == None)
-		return;
-
-	ByteArray data;
-	if (!read_property(x_display,
-					   xselection_event.requestor, xselection_event.property,
+	if (!wait_for_selection_notify_event(x_display, clip_win, &event, SELECTION_MAX_WAIT) ||
+		event.xselection.property == None ||
+		!read_property(x_display,
+					   event.xselection.requestor, event.xselection.property,
 					   true, data, 0, 0, 0, false))
 		return;
 #endif
@@ -457,19 +475,16 @@ void GetScrap(void **handle, uint32 type, int32 offset)
 
 	// Get the native clipboard data
 	XConvertSelection(x_display, xa_clipboard, format, xa_clipboard, clip_win, CurrentTime);
-	if (!wait_for_selection_notify_event(x_display, clip_win, SELECTION_MAX_WAIT) ||
-		xselection_event.property == None ||
+	if (!wait_for_selection_notify_event(x_display, clip_win, &event, SELECTION_MAX_WAIT) ||
+		event.xselection.property == None ||
 		!read_property(x_display,
-					   xselection_event.requestor, xselection_event.property,
-					   false, clip_data.data, 0, 0, 0, format == XA_STRING))
+					   event.xselection.requestor, event.xselection.property,
+					   false, data, 0, 0, 0, format == XA_STRING))
 		return;
-
-	clip_data.type = type;
-	clip_data.time = xselection_event.time;
 
 	// Allocate space for new scrap in MacOS side
 	M68kRegisters r;
-	r.d[0] = clip_data.data.size();
+	r.d[0] = data.size();
 	Execute68kTrap(0xa71e, &r);			// NewPtrSysClear()
 	uint32 scrap_area = r.a[0];
 
@@ -478,8 +493,8 @@ void GetScrap(void **handle, uint32 type, int32 offset)
 		case FOURCC('T','E','X','T'):
 			// Convert text from ISO-Latin1 to Mac charset
 			uint8 *p = Mac2HostAddr(scrap_area);
-			for (int i = 0; i < clip_data.data.size(); i++) {
-				uint8 c = clip_data.data[i];
+			for (int i = 0; i < data.size(); i++) {
+				uint8 c = data[i];
 				if (c < 0x80) {
 					if (c == 10)	// LF -> CR
 						c = 13;
@@ -502,7 +517,7 @@ void GetScrap(void **handle, uint32 type, int32 offset)
 			M68K_RTS >> 8, M68K_RTS
 		};
 		uint32 proc_area = (uint32)proc; // FIXME: make sure 32-bit relocs are used
-		WriteMacInt32(proc_area +  6, clip_data.data.size());
+		WriteMacInt32(proc_area +  6, data.size());
 		WriteMacInt32(proc_area + 12, type);
 		WriteMacInt32(proc_area + 18, scrap_area);
 		we_put_this_data = true;
@@ -525,7 +540,7 @@ void ClipboardSelectionClear(XSelectionClearEvent *xev)
 		return;
 
 	D(bug("Selection cleared, lost clipboard ownership\n"));
-	clip_data.type = 0;
+	clip_data.type = None;
 	clip_data.data.clear();
 }
 
@@ -554,13 +569,8 @@ static bool handle_selection_TARGETS(XSelectionRequestEvent *req)
 	targets.push_back(xa_timestamp);
 
 	// Extra targets matchin current clipboard data
-	switch (clip_data.type) {
-	case FOURCC('T','E','X','T'):
-		targets.push_back(XA_STRING);
-		break;
-	case FOURCC('P','I','C','T'):
-		break;
-	}
+	if (clip_data.type != None)
+		targets.push_back(clip_data.type);
 
 	// Change requestor property
 	XChangeProperty(x_display, req->requestor, req->property,
@@ -575,7 +585,7 @@ static bool handle_selection_STRING(XSelectionRequestEvent *req)
 	// Make sure we have valid data to send though ICCCM compliant
 	// clients should have first requested TARGETS to identify
 	// this possibility.
-	if (clip_data.type != FOURCC('T','E','X','T'))
+	if (clip_data.type != XA_STRING)
 		return false;
 
 	// Send the string, it's already encoded as ISO-8859-1
@@ -680,16 +690,4 @@ void ClipboardSelectionRequest(XSelectionRequestEvent *req)
 		  XGetAtomName(req->display, req->target)));
 
 	handle_selection(req, false);
-}
-
-void ClipboardSelectionNotify(XSelectionEvent *req)
-{
-	if (req->requestor != clip_win || req->selection != xa_clipboard)
-		return;
-
-	D(bug("Selection is now available\n"));
-	memcpy(&xselection_event, req, sizeof(xselection_event));
-	LOCK_CLIPBOARD;
-	xselection_event_avail = true;
-	UNLOCK_CLIPBOARD;
 }

@@ -359,6 +359,25 @@ typedef struct rgb_color {
 	uint8		alpha;
 } rgb_color;
 
+// X11 display fast locks
+#ifdef HAVE_SPINLOCKS
+#define X11_LOCK_TYPE spinlock_t
+#define X11_LOCK_INIT SPIN_LOCK_UNLOCKED
+#define XDisplayLock() spin_lock(&x_display_lock)
+#define XDisplayUnlock() spin_unlock(&x_display_lock)
+#elif defined(HAVE_PTHREADS)
+#define X11_LOCK_TYPE pthread_mutex_t
+#define X11_LOCK_INIT PTHREAD_MUTEX_INITIALIZER
+#define XDisplayLock() pthread_mutex_lock(&x_display_lock);
+#define XDisplayUnlock() pthread_mutex_unlock(&x_display_lock);
+#else
+#define XDisplayLock()
+#define XDisplayUnlock()
+#endif
+#ifdef X11_LOCK_TYPE
+extern X11_LOCK_TYPE x_display_lock;
+#endif
+
 // Macro for calling MacOS routines
 #define CallMacOS(type, tvect) call_macos((uint32)tvect)
 #define CallMacOS1(type, tvect, arg1) call_macos1((uint32)tvect, (uint32)arg1)

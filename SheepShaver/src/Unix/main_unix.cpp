@@ -183,6 +183,9 @@ int64 BusClockSpeed;	// Bus clock speed (Hz)
 // Global variables
 char *x_display_name = NULL;				// X11 display name
 Display *x_display = NULL;					// X11 display handle
+#ifdef X11_LOCK_TYPE
+X11_LOCK_TYPE x_display_lock = X11_LOCK_INIT; // X11 display lock
+#endif
 
 static int zero_fd = 0;						// FD of /dev/zero
 static bool lm_area_mapped = false;			// Flag: Low Memory area mmap()ped

@@ -138,7 +138,6 @@ extern void SysMountFirstFloppy(void);
 // From clip_unix.cpp
 extern void ClipboardSelectionClear(XSelectionClearEvent *);
 extern void ClipboardSelectionRequest(XSelectionRequestEvent *);
-extern void ClipboardSelectionNotify(XSelectionEvent *req);
 
 
 // Video acceleration through SIGSEGV
@@ -1186,16 +1185,18 @@ static void handle_events(void)
 	for (;;) {
 		XEvent event;
 
+		XDisplayLock();
 		if (!XCheckMaskEvent(x_display, eventmask, &event)) {
 			// Handle clipboard events
 			if (XCheckTypedEvent(x_display, SelectionRequest, &event))
 				ClipboardSelectionRequest(&event.xselectionrequest);
 			else if (XCheckTypedEvent(x_display, SelectionClear, &event))
 				ClipboardSelectionClear(&event.xselectionclear);
-			else if (XCheckTypedEvent(x_display, SelectionNotify, &event))
-				ClipboardSelectionNotify(&event.xselection);
+
+			XDisplayUnlock();
 			break;
 		}
+		XDisplayUnlock();
 
 		switch (event.type) {
 			// Mouse button
@@ -1622,114 +1623,152 @@ static void update_display(void)
 
 	// Refresh display
 	if (high && wide) {
+		XDisplayLock();
 		if (have_shm)
 			XShmPutImage(x_display, the_win, the_gc, img, x1, y1, x1, y1, wide, high, 0);
 		else
 			XPutImage(x_display, the_win, the_gc, img, x1, y1, x1, y1, wide, high);
+		XDisplayUnlock();
 	}
 }
 
+const int VIDEO_REFRESH_HZ = 60;
+const int VIDEO_REFRESH_DELAY = 1000000 / VIDEO_REFRESH_HZ;
+
 static void *redraw_func(void *arg)
 {
-	int tick_counter = 0;
-	struct timespec req = {0, 16666667};
+	int fd = ConnectionNumber(x_display);
+
+	uint64 start = GetTicks_usec();
+	int64 ticks = 0;
+	uint64 next = GetTicks_usec() + VIDEO_REFRESH_DELAY;
 
 	for (;;) {
-
-		// Wait
-		nanosleep(&req, NULL);
 
 		// Pause if requested (during video mode switches)
 		while (thread_stop_req)
 			thread_stop_ack = true;
 
-		// Handle X11 events
-		handle_events();
+		int64 delay = next - GetTicks_usec();
+		if (delay < -VIDEO_REFRESH_DELAY) {
 
-		// Quit DGA mode if requested
-		if (quit_full_screen) {
-			quit_full_screen = false;
-			if (display_type == DIS_SCREEN) {
+			// We are lagging far behind, so we reset the delay mechanism
+			next = GetTicks_usec();
+
+		} else if (delay <= 0) {
+
+			// Delay expired, refresh display
+			next += VIDEO_REFRESH_DELAY;
+			ticks++;
+
+			// Handle X11 events
+			handle_events();
+
+			// Quit DGA mode if requested
+			if (quit_full_screen) {
+				quit_full_screen = false;
+				if (display_type == DIS_SCREEN) {
+					XDisplayLock();
 #ifdef ENABLE_XF86_DGA
-				XF86DGADirectVideo(x_display, screen, 0);
-				XUngrabPointer(x_display, CurrentTime);
-				XUngrabKeyboard(x_display, CurrentTime);
+					XF86DGADirectVideo(x_display, screen, 0);
+					XUngrabPointer(x_display, CurrentTime);
+					XUngrabKeyboard(x_display, CurrentTime);
 #endif
-				XSync(x_display, false);
-				quit_full_screen_ack = true;
-				return NULL;
+					XSync(x_display, false);
+					XDisplayUnlock();
+					quit_full_screen_ack = true;
+					return NULL;
+				}
 			}
-		}
 
-		// Refresh display and set cursor image in window mode
-		if (display_type == DIS_WINDOW) {
-			tick_counter++;
-			if (tick_counter >= frame_skip) {
-				tick_counter = 0;
+			// Refresh display and set cursor image in window mode
+			static int tick_counter = 0;
+			if (display_type == DIS_WINDOW) {
+				tick_counter++;
+				if (tick_counter >= frame_skip) {
+					tick_counter = 0;
 
-				// Update display
+					// Update display
 #ifdef ENABLE_VOSF
-				if (use_vosf) {
-					if (mainBuffer.dirty) {
-						LOCK_VOSF;
-						update_display_window_vosf();
-						UNLOCK_VOSF;
-						XSync(x_display, false); // Let the server catch up
+					if (use_vosf) {
+						XDisplayLock();
+						if (mainBuffer.dirty) {
+							LOCK_VOSF;
+							update_display_window_vosf();
+							UNLOCK_VOSF;
+							XSync(x_display, false); // Let the server catch up
+						}
+						XDisplayUnlock();
+					}
+					else
+#endif
+						update_display();
+
+					// Set new cursor image if it was changed
+					if (cursor_changed) {
+						cursor_changed = false;
+						memcpy(cursor_image->data, MacCursor + 4, 32);
+						memcpy(cursor_mask_image->data, MacCursor + 36, 32);
+						XDisplayLock();
+						XFreeCursor(x_display, mac_cursor);
+						XPutImage(x_display, cursor_map, cursor_gc, cursor_image, 0, 0, 0, 0, 16, 16);
+						XPutImage(x_display, cursor_mask_map, cursor_mask_gc, cursor_mask_image, 0, 0, 0, 0, 16, 16);
+						mac_cursor = XCreatePixmapCursor(x_display, cursor_map, cursor_mask_map, &black, &white, MacCursor[2], MacCursor[3]);
+						XDefineCursor(x_display, the_win, mac_cursor);
+						XDisplayUnlock();
 					}
 				}
-				else
-#endif
-					update_display();
-
-				// Set new cursor image if it was changed
-				if (cursor_changed) {
-					cursor_changed = false;
-					memcpy(cursor_image->data, MacCursor + 4, 32);
-					memcpy(cursor_mask_image->data, MacCursor + 36, 32);
-					XFreeCursor(x_display, mac_cursor);
-					XPutImage(x_display, cursor_map, cursor_gc, cursor_image, 0, 0, 0, 0, 16, 16);
-					XPutImage(x_display, cursor_mask_map, cursor_mask_gc, cursor_mask_image, 0, 0, 0, 0, 16, 16);
-					mac_cursor = XCreatePixmapCursor(x_display, cursor_map, cursor_mask_map, &black, &white, MacCursor[2], MacCursor[3]);
-					XDefineCursor(x_display, the_win, mac_cursor);
-				}
 			}
-		}
 #ifdef ENABLE_VOSF
-		else if (use_vosf) {
-			// Update display (VOSF variant)
-			static int tick_counter = 0;
-			if (++tick_counter >= frame_skip) {
-				tick_counter = 0;
-				if (mainBuffer.dirty) {
-					LOCK_VOSF;
-					update_display_dga_vosf();
-					UNLOCK_VOSF;
+			else if (use_vosf) {
+				// Update display (VOSF variant)
+				if (++tick_counter >= frame_skip) {
+					tick_counter = 0;
+					if (mainBuffer.dirty) {
+						LOCK_VOSF;
+						update_display_dga_vosf();
+						UNLOCK_VOSF;
+					}
 				}
 			}
-		}
 #endif
 
-		// Set new palette if it was changed
-		if (palette_changed && !emul_suspended) {
-			palette_changed = false;
-			XColor c[256];
-			for (int i=0; i<256; i++) {
-				c[i].pixel = i;
-				c[i].red = mac_pal[i].red * 0x0101;
-				c[i].green = mac_pal[i].green * 0x0101;
-				c[i].blue = mac_pal[i].blue * 0x0101;
-				c[i].flags = DoRed | DoGreen | DoBlue;
-			}
-			if (depth == 8) {
-				XStoreColors(x_display, cmap[0], c, 256);
-				XStoreColors(x_display, cmap[1], c, 256);
-#ifdef ENABLE_XF86_DGA
-				if (display_type == DIS_SCREEN) {
-					current_dga_cmap ^= 1;
-					XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
+			// Set new palette if it was changed
+			if (palette_changed && !emul_suspended) {
+				palette_changed = false;
+				XColor c[256];
+				for (int i=0; i<256; i++) {
+					c[i].pixel = i;
+					c[i].red = mac_pal[i].red * 0x0101;
+					c[i].green = mac_pal[i].green * 0x0101;
+					c[i].blue = mac_pal[i].blue * 0x0101;
+					c[i].flags = DoRed | DoGreen | DoBlue;
 				}
+				if (depth == 8) {
+					XDisplayLock();
+					XStoreColors(x_display, cmap[0], c, 256);
+					XStoreColors(x_display, cmap[1], c, 256);
+#ifdef ENABLE_XF86_DGA
+					if (display_type == DIS_SCREEN) {
+						current_dga_cmap ^= 1;
+						XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
+					}
 #endif
+					XDisplayUnlock();
+				}
 			}
+
+		} else {
+
+			// No display refresh pending, check for X events
+			fd_set readfds;
+			FD_ZERO(&readfds);
+			FD_SET(fd, &readfds);
+			struct timeval timeout;
+			timeout.tv_sec = 0;
+			timeout.tv_usec = delay;
+			if (select(fd+1, &readfds, NULL, NULL, &timeout) > 0)
+				handle_events();
 		}
 	}
 	return NULL;
