@@ -838,6 +838,7 @@ Contributions by (in alphabetical order):
  - Nigel Pearson <nigel@ind.tansu.com.au>: Mac OS X port
  - Lauri Pesonen <lpesonen@nic.fi>: Windows NT port
  - Bernd Schmidt <crux@pool.informatik.rwth-aachen.de>: UAE 68k emulation
+ - Michael Z. Sliczniak <msliczniak@comcast.net>: Mach memory fault recovery
  - and others...
 
 Special thanks to:
