@@ -29,11 +29,21 @@
  *    3 - .BOut
  */
 
+#ifdef POWERPC_ROM
+extern int16 SerialOpen(uint32 pb, uint32 dce);
+extern int16 SerialPrimeIn(uint32 pb, uint32 dce);
+extern int16 SerialPrimeOut(uint32 pb, uint32 dce);
+extern int16 SerialControl(uint32 pb, uint32 dce);
+extern int16 SerialStatus(uint32 pb, uint32 dce);
+extern int16 SerialClose(uint32 pb, uint32 dce);
+extern int16 SerialNothing(uint32 pb, uint32 dce);
+#else
 extern int16 SerialOpen(uint32 pb, uint32 dce, int port);
 extern int16 SerialPrime(uint32 pb, uint32 dce, int port);
 extern int16 SerialControl(uint32 pb, uint32 dce, int port);
 extern int16 SerialStatus(uint32 pb, uint32 dce, int port);
 extern int16 SerialClose(uint32 pb, uint32 dce, int port);
+#endif
 
 extern void SerialInterrupt(void);
 
@@ -76,6 +86,10 @@ public:
 	bool write_pending;	// Write operation pending
 	bool write_done;	// Write operation complete
 	uint32 output_dt;	// Mac address of Deferred Task for writing
+
+#ifdef POWERPC_ROM
+	uint8 dt_store[SIZEOF_serdt * 2];
+#endif
 };
 
 extern SERDPort *the_serd_port[2];

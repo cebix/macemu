@@ -658,20 +658,21 @@ Please see the included file "TECH" for a technical overview of the emulator.
 Acknowledgements
 ----------------
 
-Contributions by:
- - Bernd Schmidt <crux@pool.informatik.rwth-aachen.de>: UAE 68k emulation
- - Marc Hellwig <Marc.Hellwig@uni-mainz.de>: audio output, BeOS video code
-   and networking
- - Lauri Pesonen <lpesonen@nic.fi>: Windows NT port
+Contributions by (in alphabetical order):
  - Orlando Bassotto <future@powercube.mediabit.net>: FreeBSD support
- - Brian J. Johnson <bjohnson@sgi.com>: IRIX support
- - Marc Chabanas <Marc.Chabanas@france.sun.com>: Solaris sound support
- - Bill Huey <billh@mag.ucsd.edu>: 15/16 bit DGA and 15/16/32 bit X11
-   window support
- - David Lawrence <davidl@jlab.org>: incremental window refresh code
- - Samuel Lander <blair_sp@hotmail.com>: tile-based window refresh code
  - Gwenole Beauchesne <gb@dial.oleane.com>: SPARC assembly optimizations and
    fbdev video code
+ - Marc Chabanas <Marc.Chabanas@france.sun.com>: Solaris sound support
+ - Marc Hellwig <Marc.Hellwig@uni-mainz.de>: audio output, BeOS video code
+   and networking
+ - Bill Huey <billh@mag.ucsd.edu>: 15/16 bit DGA and 15/16/32 bit X11
+   window support
+ - Brian J. Johnson <bjohnson@sgi.com>: IRIX support
+ - Jürgen Lachmann <juergen_lachmann@t-online.de>: AmigaOS CyberGraphX support
+ - Samuel Lander <blair_sp@hotmail.com>: tile-based window refresh code
+ - David Lawrence <davidl@jlab.org>: incremental window refresh code
+ - Lauri Pesonen <lpesonen@nic.fi>: Windows NT port
+ - Bernd Schmidt <crux@pool.informatik.rwth-aachen.de>: UAE 68k emulation
  - and others...
 
 Special thanks to:

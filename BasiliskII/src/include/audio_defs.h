@@ -94,7 +94,12 @@ enum {	// ComponentResource struct
 	componentIconID = 42,
 	componentVersion = 44,
 	componentRegisterFlags = 48,
-	componentIconFamily = 52
+	componentIconFamily = 52,
+	componentPFCount = 54,
+	componentPFFlags = 58,
+	componentPFResType = 62,
+	componentPFResID = 66,
+	componentPFPlatform = 68
 };
 
 // Component feature flags

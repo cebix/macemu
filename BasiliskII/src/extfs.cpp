@@ -107,8 +107,8 @@ static bool ready = false;
 static struct stat root_stat;
 
 // File system ID/media type
-const int16 MY_FSID = 0x6261;	// 'ba'
-const uint32 MY_MEDIA_TYPE = FOURCC('b','a','s','i');
+const int16 MY_FSID = EMULATOR_ID_2;
+const uint32 MY_MEDIA_TYPE = EMULATOR_ID_4;
 
 // CNID of root and root's parent
 const uint32 ROOT_ID = 2;

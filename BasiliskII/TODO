@@ -1,6 +1,5 @@
 Bugs:
 - System 7.1 with Quadra900 ModelID (1MB ROM): 0x108 gets strange value
-- Strange things happen when the Mac ROM is lower in memory than the RAM
 - Something still seems to be wrong with the UAE FPU (Calculator and scroll
   bars in MacOS 8 don't work properly), Lauri has fixed this and it has to
   be integrated into the main sources
@@ -13,8 +12,6 @@ General:
 - Sound output rate/bits/channels switching
 - Sound in
 - Video: gamma tables, resolution/depth switching, multiple monitor support
-- Double mouse pointer in window mode (should be fixed by blanking the
-  Mac mouse pointer because the host mouse position is more accurate)
 - More accurate Time Manager
 - Serial driver: XOn/XOff handshaking
 - regs.spcflags in UAE CPU should be handled atomically
@@ -24,14 +21,12 @@ General:
 
 AmigaOS:
 - "Create Hardfile..." button
-- Mouse pointer in window mode
 - Support for ShapeShifter External Video Drivers
 - Direct SCSI transfers, i.e. no buffering for contiguous transfers (can't check if the device
   supports that); buffer is always in Chip memory now
 - Preemptive threads don't work?
 - clip_amiga.cpp: clip AmigaOS->Basilisk
 - sys_amiga.cpp: MaxTransfer/BufMemType/TransferMask, SysAddCDROMPrefs(), SysFormat()
-- sony.cpp: DISK_INSERT_CHECK: disks are not ejected and automatically remounted on eject
 - Patch 512K ROM for 68040/060 caches
 - Input handler instead of IDCMP?
 - Last sound buffer is not played

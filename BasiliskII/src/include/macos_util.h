@@ -254,6 +254,10 @@ extern void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t 
 // Construct four-character-code from string
 #define FOURCC(a,b,c,d) (((uint32)(a) << 24) | ((uint32)(b) << 16) | ((uint32)(c) << 8) | (uint32)(d))
 
+// Emulator identification codes (4 and 2 characters)
+const uint32 EMULATOR_ID_4 = 0x62617369;			// 'basi'
+const uint16 EMULATOR_ID_2 = 0x6261;				// 'ba'
+
 // Test if basic MacOS initializations (of the ROM) are done
 static inline bool HasMacStarted(void)
 {

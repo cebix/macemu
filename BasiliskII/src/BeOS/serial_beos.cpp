@@ -76,14 +76,14 @@ public:
 			suspend_thread(input_thread);	// Unblock thread
 			snooze(1000);
 			resume_thread(input_thread);
-			wait_for_thread(input_thread, &l);
+			while (wait_for_thread(input_thread, &l) == B_INTERRUPTED) ;
 		}
 		if (output_thread > 0) {
 			send_data(output_thread, CMD_QUIT, NULL, 0);
 			suspend_thread(output_thread);	// Unblock thread
 			snooze(1000);
 			resume_thread(output_thread);
-			wait_for_thread(output_thread, &l);
+			while (wait_for_thread(output_thread, &l) == B_INTERRUPTED) ;
 		}
 		acquire_sem(device_sem);
 		delete_sem(device_sem);

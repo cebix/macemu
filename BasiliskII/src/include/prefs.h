@@ -26,6 +26,7 @@
 extern void PrefsInit(void);
 extern void PrefsExit(void);
 
+extern void AddPrefsDefaults(void);
 extern void AddPlatformPrefsDefaults(void);
 
 // Preferences loading/saving

@@ -12,8 +12,8 @@ AS = PhxAss
 ASFLAGS = OPT ! INCPATH GG:os-include MACHINE=68020 FPU=1
 
 ## Files
-SRCS = ../main.cpp main_amiga.cpp ../prefs.cpp prefs_amiga.cpp \
-    prefs_editor_amiga.cpp sys_amiga.cpp ../rom_patches.cpp \
+SRCS = ../main.cpp main_amiga.cpp ../prefs.cpp ../prefs_items.cpp \
+    prefs_amiga.cpp prefs_editor_amiga.cpp sys_amiga.cpp ../rom_patches.cpp \
     ../slot_rom.cpp ../rsrc_patches.cpp ../emul_op.cpp \
     ../macos_util.cpp ../xpram.cpp xpram_amiga.cpp ../timer.cpp \
     timer_amiga.cpp clip_amiga.cpp ../adb.cpp ../serial.cpp \

@@ -874,7 +874,7 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 					WriteMacInt32(pb + csParam + 4, FOURCC('c','d','r','m'));
 					break;
 				case FOURCC('i','n','t','f'):	// Interface type
-					WriteMacInt32(pb + csParam + 4, FOURCC('b','a','s','i'));
+					WriteMacInt32(pb + csParam + 4, EMULATOR_ID_4);
 					break;
 				case FOURCC('s','y','n','c'):	// Only synchronous operation?
 					WriteMacInt32(pb + csParam + 4, 0x01000000);
