@@ -62,6 +62,8 @@ static UWORD *null_pointer = NULL;				// Blank mouse pointer data
 static UWORD *current_pointer = (UWORD *)-1;	// Currently visible mouse pointer data
 static LONG black_pen = -1, white_pen = -1;
 static struct Process *periodic_proc = NULL;	// Periodic process
+static int window_width, window_height;		// width and height for window display
+static ULONG screen_mode_id;			// mode ID for screen display
 
 extern struct Task *MainTask;					// Pointer to main task (from main_amiga.cpp)
 
@@ -88,50 +90,19 @@ static const uint8 keycode2mac[0x80] = {
 
 
 // Prototypes
+static bool video_open(const video_mode &mode);
+static void video_close();
 static void periodic_func(void);
+static void add_mode(uint32 width, uint32 height, uint32 resolution_id, uint32 bytes_per_row, video_depth depth);
+static void add_modes(uint32 width, uint32 height, video_depth depth);
+static ULONG find_mode_for_depth(uint32 width, uint32 height, uint32 depth);
+static ULONG bits_from_depth(video_depth depth);
 
 
 /*
  *  Initialization
  */
 
-// Add resolution to list of supported modes and set VideoMonitor
-static void set_video_monitor(uint32 width, uint32 height, uint32 bytes_per_row, int depth)
-{
-	video_mode mode;
-
-	mode.x = width;
-	mode.y = height;
-	mode.resolution_id = 0x80;
-	mode.bytes_per_row = bytes_per_row;
-
-	switch (depth) {
-		case 1:
-			mode.depth = VDEPTH_1BIT;
-			break;
-		case 2:
-			mode.depth = VDEPTH_2BIT;
-			break;
-		case 4:
-			mode.depth = VDEPTH_4BIT;
-			break;
-		case 8:
-			mode.depth = VDEPTH_8BIT;
-			break;
-		case 15:
-		case 16:
-			mode.depth = VDEPTH_16BIT;
-			break;
-		case 24:
-		case 32:
-			mode.depth = VDEPTH_32BIT;
-			break;
-	}
-
-	VideoModes.push_back(mode);
-	video_init_depth_list();
-	VideoMonitor.mode = mode;
-}
 
 // Open window
 static bool init_window(int width, int height)
@@ -167,7 +138,6 @@ static bool init_window(int width, int height)
 	}
 
 	// Add resolution and set VideoMonitor
-	set_video_monitor(width, height, the_bitmap->BytesPerRow, 1);
 	VideoMonitor.mac_frame_base = (uint32)the_bitmap->Planes[0];
 
 	// Set FgPen and BgPen
@@ -216,7 +186,7 @@ static bool init_pip(int width, int height)
 
 	// Add resolution and set VideoMonitor
 	VideoMonitor.mac_frame_base = p96GetBitMapAttr(the_bitmap, P96BMA_MEMORY);
-	set_video_monitor(width, height, p96GetBitMapAttr(the_bitmap, P96BMA_BYTESPERROW), 16);
+
 	return true;
 }
 
@@ -275,6 +245,7 @@ static bool init_screen_p96(ULONG mode_id)
 	the_win = OpenWindowTags(NULL,
 		WA_Left, 0, WA_Top, 0,
 		WA_Width, width, WA_Height, height,
+		WA_SimpleRefresh, TRUE,
 		WA_NoCareRefresh, TRUE,
 		WA_Borderless, TRUE,
 		WA_Activate, TRUE,
@@ -291,8 +262,8 @@ static bool init_screen_p96(ULONG mode_id)
 	ScreenToFront(the_screen);
 
 	// Add resolution and set VideoMonitor
-	set_video_monitor(width, height, p96GetBitMapAttr(the_screen->RastPort.BitMap, P96BMA_BYTESPERROW), depth);
 	VideoMonitor.mac_frame_base = p96GetBitMapAttr(the_screen->RastPort.BitMap, P96BMA_MEMORY);
+
 	return true;
 }
 
@@ -350,6 +321,7 @@ static bool init_screen_cgfx(ULONG mode_id)
 	the_win = OpenWindowTags(NULL,
 		WA_Left, 0, WA_Top, 0,
 		WA_Width, width, WA_Height, height,
+		WA_SimpleRefresh, TRUE,
 		WA_NoCareRefresh, TRUE,
 		WA_Borderless, TRUE,
 		WA_Activate, TRUE,
@@ -374,13 +346,16 @@ static bool init_screen_cgfx(ULONG mode_id)
 		TAG_END
 	);
 	UnLockBitMap(handle);
-	set_video_monitor(width, height, GetCyberMapAttr(the_screen->RastPort.BitMap, CYBRMATTR_XMOD), depth);
+
 	VideoMonitor.mac_frame_base = frame_base;
+
 	return true;
 }
 
 bool VideoInit(bool classic)
 {
+	int default_width, default_height, default_depth;
+
 	// Allocate blank mouse pointer data
 	null_pointer = (UWORD *)AllocMem(12, MEMF_PUBLIC | MEMF_CHIP | MEMF_CLEAR);
 	if (null_pointer == NULL) {
@@ -402,17 +377,19 @@ bool VideoInit(bool classic)
 
 	// Determine type and mode
 	display_type = DISPLAY_WINDOW;
-	int width = 512, height = 384;
-	ULONG mode_id = 0;
+
+	default_width = window_width = 512;
+	default_height = window_height = 384;
+
 	if (mode_str) {
-		if (sscanf(mode_str, "win/%d/%d", &width, &height) == 2)
+		if (sscanf(mode_str, "win/%d/%d", &window_width, &window_height) == 2)
 			display_type = DISPLAY_WINDOW;
-		else if (sscanf(mode_str, "pip/%d/%d", &width, &height) == 2 && P96Base)
+		else if (sscanf(mode_str, "pip/%d/%d", &window_width, &window_height) == 2 && P96Base)
 			display_type = DISPLAY_PIP;
-		else if (sscanf(mode_str, "scr/%08lx", &mode_id) == 1 && (CyberGfxBase || P96Base)) {
-			if (P96Base && p96GetModeIDAttr(mode_id, P96IDA_ISP96))
+		else if (sscanf(mode_str, "scr/%08lx", &screen_mode_id) == 1 && (CyberGfxBase || P96Base)) {
+			if (P96Base && p96GetModeIDAttr(screen_mode_id, P96IDA_ISP96))
 				display_type = DISPLAY_SCREEN_P96;
-			else if (CyberGfxBase && IsCyberModeID(mode_id))
+			else if (CyberGfxBase && IsCyberModeID(screen_mode_id))
 				display_type = DISPLAY_SCREEN_CGFX;
 			else {
 				ErrorAlert(STR_NO_P96_MODE_ERR);
@@ -421,25 +398,113 @@ bool VideoInit(bool classic)
 		}
 	}
 
+	// Construct list of supported modes
+	switch (display_type) {
+		case DISPLAY_WINDOW:
+			default_width = window_width;
+			default_height = window_height;
+			default_depth = 1;
+			add_modes(window_width, window_height, VDEPTH_1BIT);
+			break;
+
+		case DISPLAY_PIP:
+			default_depth = 16;
+			default_width = window_width;
+			default_height = window_height;
+			add_modes(window_width, window_height, VDEPTH_16BIT);
+			break;
+
+		case DISPLAY_SCREEN_P96:
+		case DISPLAY_SCREEN_CGFX:
+			struct DimensionInfo dimInfo;
+			DisplayInfoHandle handle = FindDisplayInfo(screen_mode_id);
+
+			if (NULL == handle)
+				return false;
+
+			if (GetDisplayInfoData(handle, (UBYTE *) &dimInfo, sizeof(dimInfo), DTAG_DIMS, 0) <= 0)
+				return false;
+
+			default_width = 1 + dimInfo.Nominal.MaxX - dimInfo.Nominal.MinX;
+			default_height = 1 + dimInfo.Nominal.MaxY - dimInfo.Nominal.MinY;
+			default_depth = dimInfo.MaxDepth;
+
+			for (unsigned d=VDEPTH_1BIT; d<=VDEPTH_32BIT; d++)
+				{
+				if (INVALID_ID != find_mode_for_depth(default_width, default_height, bits_from_depth(video_depth(d))))
+					{
+					add_modes(default_width, default_height, video_depth(d));
+					}
+				}
+			break;
+	}
+
+	video_init_depth_list();
+
+#if DEBUG
+	bug("Available video modes:\n");
+	vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
+	while (i != end) {
+		bug(" %dx%d (ID %02x), %d colors\n", i->x, i->y, i->resolution_id, 1 << bits_from_depth(i->depth));
+		++i;
+	}
+#endif
+
+	D(bug("VideoInit: def_width=%ld  def_height=%ld  def_depth=%ld\n", default_width, default_height, default_depth));
+
+	// Find requested default mode and open display
+	if (VideoModes.size() == 1)
+		return video_open(VideoModes[0]);
+	else {
+		// Find mode with specified dimensions
+		std::vector<video_mode>::const_iterator i, end = VideoModes.end();
+		for (i = VideoModes.begin(); i != end; ++i)
+			{
+			D(bug("VideoInit: w=%ld  h=%ld  d=%ld\n", i->x, i->y, bits_from_depth(i->depth)));
+			if (i->x == default_width && i->y == default_height && bits_from_depth(i->depth) == default_depth)
+				return video_open(*i);
+			}
+		return video_open(VideoModes[0]);
+	}
+
+	return true;
+}
+
+
+static bool video_open(const video_mode &mode)
+{
+	ULONG depth_bits = bits_from_depth(mode.depth);
+	ULONG ID = find_mode_for_depth(mode.x, mode.y, depth_bits);
+
+	D(bug("video_open: width=%ld  height=%ld  depth=%ld  ID=%08lx\n", mode.x, mode.y, depth_bits, ID));
+
+	if (INVALID_ID == ID)
+		{
+		ErrorAlert(STR_NO_VIDEO_MODE_ERR);
+		return false;
+		}
+
+	VideoMonitor.mode = mode;
+
 	// Open display
 	switch (display_type) {
 		case DISPLAY_WINDOW:
-			if (!init_window(width, height))
+			if (!init_window(mode.x, mode.y))
 				return false;
 			break;
 
 		case DISPLAY_PIP:
-			if (!init_pip(width, height))
+			if (!init_pip(mode.x, mode.y))
 				return false;
 			break;
 
 		case DISPLAY_SCREEN_P96:
-			if (!init_screen_p96(mode_id))
+			if (!init_screen_p96(ID))
 				return false;
 			break;
 
 		case DISPLAY_SCREEN_CGFX:
-			if (!init_screen_cgfx(mode_id))
+			if (!init_screen_cgfx(ID))
 				return false;
 			break;
 	}
@@ -455,15 +520,12 @@ bool VideoInit(bool classic)
 		ErrorAlert(STR_NO_MEM_ERR);
 		return false;
 	}
+
 	return true;
 }
 
 
-/*
- *  Deinitialization
- */
-
-void VideoExit(void)
+static void video_close()
 {
 	// Stop periodic process
 	if (periodic_proc) {
@@ -488,6 +550,7 @@ void VideoExit(void)
 				ReleasePen(the_win->WScreen->ViewPort.ColorMap, white_pen);
 
 				CloseWindow(the_win);
+				the_win = NULL;
 			}
 			break;
 
@@ -502,7 +565,10 @@ void VideoExit(void)
 
 			// Close window
 			if (the_win)
+				{
 				CloseWindow(the_win);
+				the_win = NULL;
+				}
 
 			// Close screen
 			if (the_screen) {
@@ -515,7 +581,10 @@ void VideoExit(void)
 
 			// Close window
 			if (the_win)
+				{
 				CloseWindow(the_win);
+				the_win = NULL;
+				}
 
 			// Close screen
 			if (the_screen) {
@@ -530,6 +599,16 @@ void VideoExit(void)
 		FreeMem(null_pointer, 12);
 		null_pointer = NULL;
 	}
+}
+
+
+/*
+ *  Deinitialization
+ */
+
+void VideoExit(void)
+{
+	video_close();
 }
 
 
@@ -564,6 +643,13 @@ void video_set_palette(uint8 *pal, int num)
 
 void video_switch_to_mode(const video_mode &mode)
 {
+	// Close and reopen display
+	video_close();
+	if (!video_open(mode))
+		{
+		ErrorAlert(STR_OPEN_WINDOW_ERR);
+		QuitEmulator();
+		}
 }
 
 
@@ -747,3 +833,64 @@ static __saveds void periodic_func(void)
 	Forbid();
 	Signal(MainTask, SIGF_SINGLE);
 }
+
+
+// Add mode to list of supported modes
+static void add_mode(uint32 width, uint32 height, uint32 resolution_id, uint32 bytes_per_row, video_depth depth)
+{
+	video_mode mode;
+	mode.x = width;
+	mode.y = height;
+	mode.resolution_id = resolution_id;
+	mode.bytes_per_row = bytes_per_row;
+	mode.depth = depth;
+
+	D(bug("Added video mode: w=%ld  h=%ld  d=%ld\n", width, height, depth));
+
+	VideoModes.push_back(mode);
+}
+
+// Add standard list of windowed modes for given color depth
+static void add_modes(uint32 width, uint32 height, video_depth depth)
+{
+	D(bug("add_modes: w=%ld  h=%ld  d=%ld\n", width, height, depth));
+
+	if (width >= 512 && height >= 384)
+		add_mode(512, 384, 0x80, TrivialBytesPerRow(512, depth), depth);
+	if (width >= 640 && height >= 480)
+		add_mode(640, 480, 0x81, TrivialBytesPerRow(640, depth), depth);
+	if (width >= 800 && height >= 600)
+		add_mode(800, 600, 0x82, TrivialBytesPerRow(800, depth), depth);
+	if (width >= 1024 && height >= 768)
+		add_mode(1024, 768, 0x83, TrivialBytesPerRow(1024, depth), depth);
+	if (width >= 1152 && height >= 870)
+		add_mode(1152, 870, 0x84, TrivialBytesPerRow(1152, depth), depth);
+	if (width >= 1280 && height >= 1024)
+		add_mode(1280, 1024, 0x85, TrivialBytesPerRow(1280, depth), depth);
+	if (width >= 1600 && height >= 1200)
+		add_mode(1600, 1200, 0x86, TrivialBytesPerRow(1600, depth), depth);
+}
+
+
+static ULONG find_mode_for_depth(uint32 width, uint32 height, uint32 depth)
+{
+	ULONG ID = BestModeID(BIDTAG_NominalWidth, width,
+		BIDTAG_NominalHeight, height,
+		BIDTAG_Depth, depth,
+		TAG_END);
+
+	return ID;
+}
+
+
+static ULONG bits_from_depth(video_depth depth)
+{
+	int bits = 1 << depth;
+	if (bits == 16)
+		bits = 15;
+	else if (bits == 32)
+		bits = 24;
+
+	return bits;
+}
+

@@ -316,6 +316,8 @@ doaline		move.l	a0,(sp)			;Save a0
 		addq.l	#8,sp			;Remove exception frame from supervisor stack
 		andi	#$d8ff,sr		;Switch to user mode, enable interrupts
 
+		and.w	#$d8ff,_EmulatedSR	;enable interrupts in EmulatedSR
+
 		move.l	$28.w,-(sp)		;Jump to MacOS exception handler
 		rts
 

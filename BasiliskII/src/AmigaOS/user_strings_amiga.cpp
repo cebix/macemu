@@ -37,6 +37,7 @@ user_string_def platform_strings[] = {
 	{STR_NO_ASL_LIB_ERR, "Cannot open asl.library V36."},
 	{STR_NO_TIMER_DEV_ERR, "Cannot open timer.device."},
 	{STR_NO_P96_MODE_ERR, "The selected screen mode is not a Picasso96 or CyberGraphX mode."},
+	{STR_NO_VIDEO_MODE_ERR, "Cannot obtain selected video mode."},
 	{STR_WRONG_SCREEN_DEPTH_ERR, "Basilisk II only supports 8, 16 or 24 bit screens."},
 	{STR_WRONG_SCREEN_FORMAT_ERR, "Basilisk II only supports big-endian chunky ARGB screen modes."},
 	{STR_NOT_ETHERNET_WARN, "The selected network device is not an Ethernet device. Networking will be disabled."},
