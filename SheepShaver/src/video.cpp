@@ -690,6 +690,11 @@ static int16 VideoStatus(uint32 pb, VidLocals *csSave)
 					WriteMacInt32(param + csVerticalLines, 768);
 					WriteMacInt32(param + csRefreshRate, 75<<16);
 					break;
+				case APPLE_1152x768:
+					WriteMacInt32(param + csHorizontalPixels, 1152);
+					WriteMacInt32(param + csVerticalLines, 768);
+					WriteMacInt32(param + csRefreshRate, 75<<16);
+					break;
 				case APPLE_1152x900:
 					WriteMacInt32(param + csHorizontalPixels, 1152);
 					WriteMacInt32(param + csVerticalLines, 900);
@@ -807,6 +812,9 @@ static int16 VideoStatus(uint32 pb, VidLocals *csSave)
 							break;
 						case APPLE_1024x768:
 							timing = timingVESA_1024x768_75hz;
+							break;
+						case APPLE_1152x768:
+							timing = timingApple_1152x870_75hz; // FIXME
 							break;
 						case APPLE_1152x900:
 							timing = timingApple_1152x870_75hz;

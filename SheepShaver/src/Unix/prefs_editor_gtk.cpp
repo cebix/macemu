@@ -597,6 +597,14 @@ static void tb_fs1024x768(GtkWidget *widget)
 		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") & ~4);
 }
 
+static void tb_fs1152x768(GtkWidget *widget)
+{
+	if (GTK_TOGGLE_BUTTON(widget)->active)
+		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") | 64);
+	else
+		PrefsReplaceInt32("screenmodes", PrefsFindInt32("screenmodes") & ~64);
+}
+
 static void tb_fs1152x900(GtkWidget *widget)
 {
 	if (GTK_TOGGLE_BUTTON(widget)->active)
@@ -684,6 +692,7 @@ static void create_graphics_pane(GtkWidget *top)
 	make_checkbox(vbox, STR_640x480_CTRL, PrefsFindInt32("screenmodes") & 1, GTK_SIGNAL_FUNC(tb_fs640x480));
 	make_checkbox(vbox, STR_800x600_CTRL, PrefsFindInt32("screenmodes") & 2, GTK_SIGNAL_FUNC(tb_fs800x600));
 	make_checkbox(vbox, STR_1024x768_CTRL, PrefsFindInt32("screenmodes") & 4, GTK_SIGNAL_FUNC(tb_fs1024x768));
+	make_checkbox(vbox, STR_1152x768_CTRL, PrefsFindInt32("screenmodes") & 64, GTK_SIGNAL_FUNC(tb_fs1152x768));
 	make_checkbox(vbox, STR_1152x900_CTRL, PrefsFindInt32("screenmodes") & 8, GTK_SIGNAL_FUNC(tb_fs1152x900));
 	make_checkbox(vbox, STR_1280x1024_CTRL, PrefsFindInt32("screenmodes") & 16, GTK_SIGNAL_FUNC(tb_fs1280x1024));
 	make_checkbox(vbox, STR_1600x1200_CTRL, PrefsFindInt32("screenmodes") & 32, GTK_SIGNAL_FUNC(tb_fs1600x1200));

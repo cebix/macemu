@@ -32,7 +32,7 @@
 #include <algorithm>
 
 #ifdef ENABLE_XF86_DGA
-#include <X11/extensions/xf86dga.h>
+# include <X11/extensions/xf86dga.h>
 #endif
 
 #ifdef ENABLE_XF86_VIDMODE
@@ -63,6 +63,7 @@ static int32 frame_skip;
 static int16 mouse_wheel_mode;
 static int16 mouse_wheel_lines;
 static bool redraw_thread_active = false;	// Flag: Redraw thread installed
+static pthread_attr_t redraw_thread_attr;	// Redraw thread attributes
 static pthread_t redraw_thread;				// Redraw thread
 
 static bool local_X11;						// Flag: X server running on local machine?
@@ -125,8 +126,6 @@ static uint8 *the_buffer_copy = NULL;		// Copy of Mac frame buffer
 static uint32 the_buffer_size;				// Size of allocated the_buffer
 
 // Variables for DGA mode
-static char *dga_screen_base;
-static int dga_fb_width;
 static int current_dga_cmap;
 
 #ifdef ENABLE_XF86_VIDMODE
@@ -349,7 +348,7 @@ static void set_window_delete_protocol(Window w)
 }
 
 // Wait until window is mapped/unmapped
-void wait_mapped(Window w)
+static void wait_mapped(Window w)
 {
 	XEvent e;
 	do {
@@ -357,7 +356,7 @@ void wait_mapped(Window w)
 	} while ((e.type != MapNotify) || (e.xmap.event != w));
 }
 
-void wait_unmapped(Window w)
+static void wait_unmapped(Window w)
 {
 	XEvent e;
 	do {
@@ -522,6 +521,19 @@ static bool open_dga(int width, int height)
 	// Set relative mouse mode
 	ADBSetRelMouseMode(true);
 
+	// Create window
+	XSetWindowAttributes wattr;
+	wattr.event_mask = eventmask = dga_eventmask;
+	wattr.override_redirect = True;
+	wattr.colormap = (depth == 1 ? DefaultColormap(x_display, screen) : cmap[0]);
+	the_win = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
+		InputOutput, vis, CWEventMask | CWOverrideRedirect |
+		(color_class == DirectColor ? CWColormap : 0), &wattr);
+
+	// Show window
+	XMapRaised(x_display, the_win);
+	wait_mapped(the_win);
+
 #ifdef ENABLE_XF86_VIDMODE
 	// Switch to best mode
 	if (has_vidmode) {
@@ -538,19 +550,26 @@ static bool open_dga(int width, int height)
 #endif
 
 	// Establish direct screen connection
+	XMoveResizeWindow(x_display, the_win, 0, 0, width, height);
+	XWarpPointer(x_display, None, rootwin, 0, 0, 0, 0, 0, 0);
 	XGrabKeyboard(x_display, rootwin, True, GrabModeAsync, GrabModeAsync, CurrentTime);
 	XGrabPointer(x_display, rootwin, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+
+	int v_width, v_bank, v_size;
+	XF86DGAGetVideo(x_display, screen, (char **)&the_buffer, &v_width, &v_bank, &v_size);
 	XF86DGADirectVideo(x_display, screen, XF86DGADirectGraphics | XF86DGADirectKeyb | XF86DGADirectMouse);
 	XF86DGASetViewPort(x_display, screen, 0, 0);
 	XF86DGASetVidPage(x_display, screen, 0);
 
 	// Set colormap
-	if (depth == 8)
+	if (!IsDirectMode(get_current_mode())) {
+		XSetWindowColormap(x_display, the_win, cmap[current_dga_cmap = 0]);
 		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
+	}
+	XSync(x_display, false);
 
-	// Set bytes per row
-	int bytes_per_row = TrivialBytesPerRow((dga_fb_width + 7) & ~7, DepthModeForPixelDepth(depth));
-
+	// Init blitting routines
+	int bytes_per_row = TrivialBytesPerRow((v_width + 7) & ~7, DepthModeForPixelDepth(depth));
 #if ENABLE_VOSF
 	bool native_byte_order;
 #ifdef WORDS_BIGENDIAN
@@ -569,16 +588,17 @@ static bool open_dga(int width, int height)
 	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
 	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	  the_buffer = (uint8 *)vm_acquire(the_buffer_size);
+	  D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
 	}
 #else
 	use_vosf = false;
-	the_buffer = dga_screen_base;
 #endif
 #endif
-	screen_base = (uint32)the_buffer;
 
+	// Set frame buffer base
+	D(bug("the_buffer = %p, use_vosf = %d\n", the_buffer, use_vosf));
+	screen_base = (uint32)the_buffer;
 	VModes[cur_mode].viRowBytes = bytes_per_row;
-	XSync(x_display, false);
 	return true;
 #else
 	ErrorAlert("SheepShaver has been compiled with DGA support disabled.");
@@ -711,13 +731,6 @@ static void close_window(void)
 	if (the_gc)
 		XFreeGC(x_display, the_gc);
 
-	// Close window
-	if (the_win) {
-		XUnmapWindow(x_display, the_win);
-		wait_unmapped(the_win);
-		XDestroyWindow(x_display, the_win);
-	}
-
 	XFlush(x_display);
 	XSync(x_display, false);
 }
@@ -754,6 +767,13 @@ static void close_display(void)
 		close_dga();
 	else if (display_type == DIS_WINDOW)
 		close_window();
+
+	// Close window
+	if (the_win) {
+		XUnmapWindow(x_display, the_win);
+		wait_unmapped(the_win);
+		XDestroyWindow(x_display, the_win);
+	}
 
 	// Free colormaps
 	if (cmap[0]) {
@@ -871,6 +891,39 @@ static void keycode_init(void)
 	}
 }
 
+// Find Apple mode matching best specified dimensions
+static int find_apple_resolution(int xsize, int ysize)
+{
+	int apple_id;
+	if (xsize < 800)
+		apple_id = APPLE_640x480;
+	else if (xsize < 1024)
+		apple_id = APPLE_800x600;
+	else if (xsize < 1152)
+		apple_id = APPLE_1024x768;
+	else if (xsize < 1280) {
+		if (ysize < 900)
+			apple_id = APPLE_1152x768;
+		else
+			apple_id = APPLE_1152x900;
+	}
+	else if (xsize < 1600)
+		apple_id = APPLE_1280x1024;
+	else
+		apple_id = APPLE_1600x1200;
+	return apple_id;
+}
+
+// Find mode in list of supported modes
+static int find_mode(int apple_mode, int apple_id, int type)
+{
+	for (VideoInfo *p = VModes; p->viType != DIS_INVALID; p++) {
+		if (p->viType == type && p->viAppleID == apple_id && p->viAppleMode == apple_mode)
+			return p - VModes;
+	}
+	return -1;
+}
+
 // Add mode to list of supported modes
 static void add_mode(VideoInfo *&p, uint32 allow, uint32 test, int apple_mode, int apple_id, int type)
 {
@@ -889,6 +942,10 @@ static void add_mode(VideoInfo *&p, uint32 allow, uint32 test, int apple_mode, i
 				break;
 			case APPLE_1024x768:
 				p->viXsize = 1024;
+				p->viYsize = 768;
+				break;
+			case APPLE_1152x768:
+				p->viXsize = 1152;
 				p->viYsize = 768;
 				break;
 			case APPLE_1152x900:
@@ -1037,6 +1094,8 @@ bool VideoInit(void)
 			add_mode(p, screen_modes, 2, default_mode, APPLE_800x600, DIS_SCREEN);
 		if (has_mode(1024, 768))
 			add_mode(p, screen_modes, 4, default_mode, APPLE_1024x768, DIS_SCREEN);
+		if (has_mode(1152, 768))
+			add_mode(p, screen_modes, 64, default_mode, APPLE_1152x768, DIS_SCREEN);
 		if (has_mode(1152, 900))
 			add_mode(p, screen_modes, 8, default_mode, APPLE_1152x900, DIS_SCREEN);
 		if (has_mode(1280, 1024))
@@ -1046,19 +1105,7 @@ bool VideoInit(void)
 	} else if (screen_modes) {
 		int xsize = DisplayWidth(x_display, screen);
 		int ysize = DisplayHeight(x_display, screen);
-		int apple_id;
-		if (xsize < 800)
-			apple_id = APPLE_640x480;
-		else if (xsize < 1024)
-			apple_id = APPLE_800x600;
-		else if (xsize < 1152)
-			apple_id = APPLE_1024x768;
-		else if (xsize < 1280)
-			apple_id = APPLE_1152x900;
-		else if (xsize < 1600)
-			apple_id = APPLE_1280x1024;
-		else
-			apple_id = APPLE_1600x1200;
+		int apple_id = find_apple_resolution(xsize, ysize);
 		p->viType = DIS_SCREEN;
 		p->viRowBytes = 0;
 		p->viXsize = xsize;
@@ -1075,14 +1122,15 @@ bool VideoInit(void)
 
 	// Find default mode (window 640x480)
 	cur_mode = -1;
-	for (p = VModes; p->viType != DIS_INVALID; p++) {
-		if (p->viType == DIS_WINDOW
-			&& p->viAppleID == APPLE_W_640x480
-			&& p->viAppleMode == default_mode) {
-			cur_mode = p - VModes;
-			break;
-		}
+	if (has_dga && screen_modes) {
+		int screen_width = DisplayWidth(x_display, screen);
+		int screen_height = DisplayHeight(x_display, screen);
+		int apple_id = find_apple_resolution(screen_width, screen_height);
+		if (apple_id != -1)
+			cur_mode = find_mode(default_mode, apple_id, DIS_SCREEN);
 	}
+	if (cur_mode == -1)
+		cur_mode = find_mode(default_mode, APPLE_W_640x480, DIS_WINDOW);
 	assert(cur_mode != -1);
 
 #if DEBUG
@@ -1090,14 +1138,6 @@ bool VideoInit(void)
 	for (p = VModes; p->viType != DIS_INVALID; p++) {
 		int bits = depth_of_video_mode(p->viAppleMode);
 		D(bug(" %dx%d (ID %02x), %d colors\n", p->viXsize, p->viYsize, p->viAppleID, 1 << bits));
-	}
-#endif
-
-#ifdef ENABLE_XF86_DGA
-	if (has_dga && screen_modes) {
-		int v_bank, v_size;
-		XF86DGAGetVideo(x_display, screen, &dga_screen_base, &dga_fb_width, &v_bank, &v_size);
-		D(bug("DGA screen_base %p, v_width %d\n", dga_screen_base, dga_fb_width));
 	}
 #endif
 
@@ -1112,7 +1152,8 @@ bool VideoInit(void)
 
 	// Start periodic thread
 	XSync(x_display, false);
-	redraw_thread_active = (pthread_create(&redraw_thread, NULL, redraw_func, NULL) == 0);
+	Set_pthread_attr(&redraw_thread_attr, 0);
+	redraw_thread_active = (pthread_create(&redraw_thread, &redraw_thread_attr, redraw_func, NULL) == 0);
 	D(bug("Redraw thread installed (%ld)\n", redraw_thread));
 	return true;
 }
@@ -1475,12 +1516,15 @@ static void handle_events(void)
 				break;
 			}
 
-			// Mouse moved
+			// Mouse entered window
 			case EnterNotify:
-				ADBMouseMoved(((XMotionEvent *)&event)->x, ((XMotionEvent *)&event)->y);
+				if (event.xcrossing.mode != NotifyGrab && event.xcrossing.mode != NotifyUngrab)
+					ADBMouseMoved(event.xmotion.x, event.xmotion.y);
 				break;
+
+			// Mouse moved
 			case MotionNotify:
-				ADBMouseMoved(((XMotionEvent *)&event)->x, ((XMotionEvent *)&event)->y);
+				ADBMouseMoved(event.xmotion.x, event.xmotion.y);
 				break;
 
 			// Keyboard
@@ -1999,6 +2043,9 @@ static void *redraw_func(void *arg)
 					XF86DGADirectVideo(x_display, screen, 0);
 					XUngrabPointer(x_display, CurrentTime);
 					XUngrabKeyboard(x_display, CurrentTime);
+					XUnmapWindow(x_display, the_win);
+					wait_unmapped(the_win);
+					XDestroyWindow(x_display, the_win);
 #endif
 					XSync(x_display, false);
 					XDisplayUnlock();
