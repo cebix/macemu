@@ -256,6 +256,13 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_REGISTER_FILE			((unsigned long *)SIGSEGV_CONTEXT_REGS), SIGSEGV_SPARC_GWINDOWS, SIGSEGV_SPARC_RWINDOW
 #define SIGSEGV_SKIP_INSTRUCTION		sparc_skip_instruction
 #endif
+#if defined(__i386__)
+#include <sys/regset.h>
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[EIP]
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#endif
 #endif
 #if defined(__FreeBSD__)
 #if (defined(i386) || defined(__i386__))
@@ -727,6 +734,22 @@ enum {
 	X86_REG_EBP = 2,
 	X86_REG_ESI = 1,
 	X86_REG_EDI = 0
+#endif
+};
+#endif
+#if defined(__sun__)
+// Same as for Linux, need to check for x86-64
+enum {
+#if defined(__i386__)
+	X86_REG_EIP = EIP,
+	X86_REG_EAX = EAX,
+	X86_REG_ECX = ECX,
+	X86_REG_EDX = EDX,
+	X86_REG_EBX = EBX,
+	X86_REG_ESP = ESP,
+	X86_REG_EBP = EBP,
+	X86_REG_ESI = ESI,
+	X86_REG_EDI = EDI
 #endif
 };
 #endif
@@ -2125,11 +2148,7 @@ int main(void)
 	if (vm_init() < 0)
 		return 1;
 
-#ifdef _WIN32
-	page_size = 4096;
-#else
-	page_size = getpagesize();
-#endif
+	page_size = vm_get_page_size();
 	if ((page = (char *)vm_acquire(page_size)) == VM_MAP_FAILED)
 		return 2;
 	
