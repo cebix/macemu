@@ -53,7 +53,11 @@ static bool sigsegv_do_install_handler(int sig);
 
 #if HAVE_SIGINFO_T
 // Generic extended signal handler
+#if defined(__NetBSD__) || defined(__FreeBSD__)
+#define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGBUS)
+#else
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
+#endif
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, siginfo_t *sip, void *scp
 #define SIGSEGV_FAULT_ADDRESS			sip->si_addr
 #if defined(__linux__)
