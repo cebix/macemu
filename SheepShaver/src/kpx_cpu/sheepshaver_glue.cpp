@@ -42,6 +42,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef HAVE_MALLOC_H
+#include <malloc.h>
+#endif
 
 #ifdef USE_SDL_VIDEO
 #include <SDL_events.h>
@@ -180,9 +183,10 @@ public:
 	// Execute MacOS/PPC code
 	uint32 execute_macos_code(uint32 tvect, int nargs, uint32 const *args);
 
+#if PPC_ENABLE_JIT
 	// Compile one instruction
 	virtual int compile1(codegen_context_t & cg_context);
-
+#endif
 	// Resource manager thunk
 	void get_resource(uint32 old_get_resource);
 
@@ -318,9 +322,9 @@ void sheepshaver_cpu::execute_sheep(uint32 opcode)
 }
 
 // Compile one instruction
+#if PPC_ENABLE_JIT
 int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 {
-#if PPC_ENABLE_JIT
 	const instr_info_t *ii = cg_context.instr_info;
 	if (ii->mnemo != PPC_I(SHEEP))
 		return COMPILE_FAILURE;
@@ -466,9 +470,8 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 	}
 	}
 	return status;
-#endif
-	return COMPILE_FAILURE;
 }
+#endif
 
 // CPU context to preserve on interrupt
 sheepshaver_cpu::interrupt_context::interrupt_context(sheepshaver_cpu *_cpu, const char *_where)
@@ -1045,7 +1048,7 @@ void sheepshaver_cpu::handle_interrupt(void)
 			M68kRegisters r;
 			uint32 old_r25 = ReadMacInt32(XLM_68K_R25);	// Save interrupt level
 			WriteMacInt32(XLM_68K_R25, 0x21);			// Execute with interrupt level 1
-			static const uint8 proc[] = {
+			static const uint8 proc_template[] = {
 				0x3f, 0x3c, 0x00, 0x00,			// move.w	#$0000,-(sp)	(fake format word)
 				0x48, 0x7a, 0x00, 0x0a,			// pea		@1(pc)			(return address)
 				0x40, 0xe7,						// move		sr,-(sp)		(saved SR)
@@ -1053,7 +1056,8 @@ void sheepshaver_cpu::handle_interrupt(void)
 				0x4e, 0xd0,						// jmp		(a0)
 				M68K_RTS >> 8, M68K_RTS & 0xff	// @1
 			};
-			Execute68k(Host2MacAddr((uint8 *)proc), &r);
+			BUILD_SHEEPSHAVER_PROCEDURE(proc);
+			Execute68k(proc, &r);
 			WriteMacInt32(XLM_68K_R25, old_r25);		// Restore interrupt level
 #else
 			// Only update cursor

@@ -166,6 +166,11 @@ static inline uint32 SheepProc(const uint8 *proc, uint32 proc_size)
 	return mac_proc;
 }
 
+#define BUILD_SHEEPSHAVER_PROCEDURE(PROC)							\
+	static uint32 PROC = 0;											\
+	if (PROC == 0)													\
+		PROC = SheepProc(PROC##_template, sizeof(PROC##_template))
+
 class SheepVar
 {
 	uint32 m_base;
