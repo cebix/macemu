@@ -1665,7 +1665,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>Basilisk II 1.0, Mac OS X port 9</string>
+	<string>Basilisk II 1.0, Mac OS X port 10</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>NSHelpFile</key>
