@@ -268,7 +268,7 @@ static bool add_CGDirectDisplay_modes()
 #ifdef MAC_OS_X_VERSION_10_2
 				int32	bytes  = getCFint32(modeSpec, kCGDisplayBytesPerRow);
 #else
-				int32	bytes = 0;
+				int32	bytes  = 0;
 #endif
 				video_depth	depth = DepthModeForPixelDepth(bpp);
 
@@ -649,9 +649,6 @@ OSX_monitor::init_screen(video_mode &mode)
 		return false;
 	}
 
-	// For mouse event processing: update screen height
-	[output startedFullScreen: theDisplay];
-
 	the_buffer = CGDisplayBaseAddress(theDisplay);
 	if ( ! the_buffer )
 	{
@@ -661,11 +658,6 @@ OSX_monitor::init_screen(video_mode &mode)
 		ErrorSheet(@"Could not get base address of screen", the_win);
 		return false;
 	}
-
-	D(NSLog(@"Starting full screen mode, height = %d",
-						CGDisplayPixelsHigh(theDisplay)));
-
-	[output startedFullScreen: theDisplay];		// For mouse event processing
 
 	if ( mode.bytes_per_row != CGDisplayBytesPerRow(theDisplay) )
 	{
@@ -680,24 +672,10 @@ OSX_monitor::init_screen(video_mode &mode)
 	{
 		CGDisplayHideCursor(theDisplay);
 
-		// Send real mouse to emulated location
-		if ( CGDisplayMoveCursorToPoint(theDisplay, CGPointMake(15,15))
-														!= CGDisplayNoErr )
-		{
-			video_close();
-			ErrorSheet(@"Could move (jump) cursor on screen", the_win);
-			return false;
-		}
+		[output startedFullScreen: theDisplay];
 
 		// Send emulated mouse to current location
-//		[output performSelector: @selector(processMouseMove:)
-//					 withObject: nil
-//					 afterDelay: 7.0];
-//		NNTimer	*moveMouse = [[NNTimer new] retain];
-//		[moveMouse perform: @selector(processMouseMove:)
-//						of: output
-//					 after: 3
-//					 units: NNseconds];
+		[output fullscreenMouseMove];
 	}
 	else
 	{
@@ -771,9 +749,11 @@ bool VideoInit(bool classic)
 			case DISPLAY_OPENGL:
 				// Same as window depths and sizes?
 			case DISPLAY_WINDOW:
-				//add_standard_modes(VDEPTH_1BIT);
-				//add_standard_modes(VDEPTH_8BIT);
-				//add_standard_modes(VDEPTH_16BIT);
+#ifdef MAC_OS_X_VERSION_SUPPORTS_LOWER_DEPTHS
+				add_standard_modes(VDEPTH_1BIT);
+				add_standard_modes(VDEPTH_8BIT);
+				add_standard_modes(VDEPTH_16BIT);
+#endif
 				add_standard_modes(VDEPTH_32BIT);
 				break;
 		}
@@ -955,12 +935,24 @@ OSX_monitor::switch_to_current_mode(void)
 		if ( ! failure &&
 			 ! ( the_buffer = CGDisplayBaseAddress(theDisplay) ) )
 			failure = "Could not get base address of screen";
-		else
-			// Send emulated mouse to current location
-			[output processMouseMove: nil];
+
 	}
 	else if ( ! video_open(mode) )
 		failure = "Could not video_open() requested mode";
+
+	if ( ! failure && display_type == DISPLAY_SCREEN )
+	{
+		// Whenever we change screen resolution, the MacOS mouse starts
+		// up in the top left corner. Send real mouse to that location
+//		if ( CGDisplayMoveCursorToPoint(theDisplay, CGPointMake(15,15))
+//														== CGDisplayNoErr )
+//		{
+			// 
+			[output fullscreenMouseMove];
+//		}
+//		else
+//			failure = "Could move (jump) cursor on screen";
+	}
 
 	if ( failure )
 	{
