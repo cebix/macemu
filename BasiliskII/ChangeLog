@@ -19,6 +19,10 @@ V1.0 (snapshot) - <date>
    configure script used can be overriden with "etherconfig"
  - Unix: SDL audio and video output are now available in option
  - Unix: port JIT compiler to Linux/x86_64 (AMD64 and EM64T platforms)
+ - Unix: sheep_net driver ported to kernel 2.6 (patches from Mac-On-Linux)
+ - Unix: fix network code to work correctly on 64-bit platforms
+ - Unix: implement X11 to MacOS exchange of text through the clipboard
+ - Windows: a new port derived from Lauri's work is now available
 
 V1.0 (snapshot) - 15.Jan.2002
  - added support for on-the-fly video resolution and depth switching, and
