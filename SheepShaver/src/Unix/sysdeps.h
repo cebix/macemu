@@ -217,16 +217,16 @@ static inline uint64 tswap64(uint64 x) { return bswap_64(x); }
 // spin locks
 #ifdef __GNUC__
 
-#ifdef __powerpc__
+#if defined(__powerpc__) || defined(__ppc__)
 #define HAVE_TEST_AND_SET 1
 static inline int testandset(volatile int *p)
 {
 	int ret;
-	__asm__ __volatile__("0:    lwarx %0,0,%1 ;"
-						 "      xor. %0,%3,%0;"
-						 "      bne 1f;"
-						 "      stwcx. %2,0,%1;"
-						 "      bne- 0b;"
+	__asm__ __volatile__("0:    lwarx	%0,0,%1\n"
+						 "      xor.	%0,%3,%0\n"
+						 "      bne		1f\n"
+						 "      stwcx.	%2,0,%1\n"
+						 "      bne-	0b\n"
 						 "1:    "
 						 : "=&r" (ret)
 						 : "r" (p), "r" (1), "r" (0)
