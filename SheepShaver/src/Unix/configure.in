@@ -102,6 +102,9 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
     ])
   ])
   AC_CHECK_FUNCS(pthread_cancel)
+  AC_CHECK_FUNCS(pthread_mutexattr_setprotocol)
+  AC_CHECK_FUNCS(pthread_mutexattr_settype)
+  AC_CHECK_FUNCS(pthread_mutexattr_setpshared)
   if [[ "x$HAVE_PTHREADS" = "xyes" ]]; then
     AC_DEFINE(HAVE_PTHREADS, 1, [Define if pthreads are available.])
   fi
@@ -195,10 +198,16 @@ AC_STRUCT_TM
 
 dnl Checks for library functions.
 AC_CHECK_FUNCS(strdup cfmakeraw)
-AC_CHECK_FUNCS(nanosleep clock_gettime timer_create)
+AC_CHECK_FUNCS(nanosleep)
 AC_CHECK_FUNCS(sigaction signal)
 AC_CHECK_FUNCS(mmap mprotect munmap)
 AC_CHECK_FUNCS(vm_allocate vm_deallocate vm_protect)
+dnl We need clock_gettime() for better performance but it may drag
+dnl libpthread in, which we don't want for native ppc mode
+if [[ "x$EMULATED_PPC" = "xyes" ]]; then
+  AC_SEARCH_LIBS(clock_gettime, [rt posix4])
+  AC_CHECK_FUNCS(clock_gettime)
+fi
 
 dnl Select system-dependant sources.
 if [[ "x$EMULATED_PPC" = "xno" ]]; then
