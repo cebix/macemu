@@ -219,12 +219,12 @@ if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
   DEFINES="$DEFINES -DREGPARAM=\"__attribute__((regparm(3)))\""
   if [[ "x$HAVE_GAS" = "xyes" ]]; then
     DEFINES="$DEFINES -DX86_ASSEMBLY"
-    CPUSRCS="$CPUSRCS cpufast.s"
+    CPUSRCS="$CPUSRCS cpufast1.s cpufast2.s cpufast3.s cpufast4.s cpufast5.s cpufast6.s cpufast7.s cpufast8.s"
   else
-    CPUSRCS="$CPUSRCS cpuemu.cpp"
+    CPUSRCS="$CPUSRCS cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
   fi
 else
-  CPUSRCS="$CPUSRCS cpuemu.cpp"
+  CPUSRCS="$CPUSRCS cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
 fi
 
 dnl Generate Makefile.
