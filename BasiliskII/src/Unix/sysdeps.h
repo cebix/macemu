@@ -43,6 +43,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef HAVE_PTHREADS
+# include <pthread.h>
+#endif
+
 #ifdef HAVE_FCNTL_H
 # include <fcntl.h>
 #endif
