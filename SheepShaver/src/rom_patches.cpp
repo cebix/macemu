@@ -718,6 +718,8 @@ bool PatchROM(void)
 		ROMType = ROMTYPE_ZANZIBAR;
 	else if (!memcmp((void *)(ROM_BASE + 0x30d064), "Boot Gazelle", 12))
 		ROMType = ROMTYPE_GAZELLE;
+	else if (!memcmp((void *)(ROM_BASE + 0x30d064), "Boot Gossamer", 13))
+		ROMType = ROMTYPE_GOSSAMER;
 	else if (!memcmp((void *)(ROM_BASE + 0x30d064), "NewWorld", 8))
 		ROMType = ROMTYPE_NEWWORLD;
 	else
@@ -767,12 +769,12 @@ static bool patch_nanokernel_boot(void)
 	lp[0xfd8 >> 2] = htonl(ROM_BASE + 0x2a);		// 68k reset vector
 
 	// Skip SR/BAT/SDR init
-	if (ROMType == ROMTYPE_GAZELLE || ROMType == ROMTYPE_NEWWORLD) {
+	if (ROMType == ROMTYPE_GAZELLE || ROMType == ROMTYPE_GOSSAMER || ROMType == ROMTYPE_NEWWORLD) {
 		lp = (uint32 *)(ROM_BASE + 0x310000);
 		*lp++ = htonl(POWERPC_NOP);
 		*lp = htonl(0x38000000);
 	}
-	static const uint32 sr_init_loc[] = {0x3101b0, 0x3101b0, 0x3101b0, 0x3101ec, 0x310200};
+	static const uint32 sr_init_loc[] = {0x3101b0, 0x3101b0, 0x3101b0, 0x3101ec, 0x3101fc, 0x310200};
 	lp = (uint32 *)(ROM_BASE + 0x310008);
 	*lp = htonl(0x48000000 | (sr_init_loc[ROMType] - 8) & 0xffff);	// b		ROM_BASE+0x3101b0
 	lp = (uint32 *)(ROM_BASE + sr_init_loc[ROMType]);
@@ -782,7 +784,7 @@ static bool patch_nanokernel_boot(void)
 	*lp = htonl(0x3de00010);		// lis	r15,0x0010	(size of kernel memory)
 
 	// Don't read PVR
-	static const uint32 pvr_loc[] = {0x3103b0, 0x3103b4, 0x3103b4, 0x310400, 0x310438};
+	static const uint32 pvr_loc[] = {0x3103b0, 0x3103b4, 0x3103b4, 0x310400, 0x310430, 0x310438};
 	lp = (uint32 *)(ROM_BASE + pvr_loc[ROMType]);
 	*lp = htonl(0x81800000 + XLM_PVR);	// lwz	r12,(theoretical PVR)
 
@@ -930,11 +932,11 @@ static bool patch_nanokernel_boot(void)
 	*lp = htonl(POWERPC_NOP);
 
 	// Don't read PVR
-	static const uint32 pvr_ofs[] = {0x138, 0x138, 0x138, 0x140, 0x148};
+	static const uint32 pvr_ofs[] = {0x138, 0x138, 0x138, 0x140, 0x148, 0x148};
 	lp = (uint32 *)(ROM_BASE + loc + pvr_ofs[ROMType]);
 	*lp = htonl(0x82e00000 + XLM_PVR);		// lwz	r23,(theoretical PVR)
 	lp = (uint32 *)(ROM_BASE + loc + 0x170);
-	if (ntohl(*lp) == 0x7eff42a6)	// NewWorld ROM
+	if (ntohl(*lp) == 0x7eff42a6)	// NewWorld or Gossamer ROM
 		*lp = htonl(0x82e00000 + XLM_PVR);	// lwz	r23,(theoretical PVR)
 	lp = (uint32 *)(ROM_BASE + 0x313134);
 	if (ntohl(*lp) == 0x7e5f42a6)
@@ -947,39 +949,39 @@ static bool patch_nanokernel_boot(void)
 		*lp = htonl(0x81200000 + XLM_PVR);	// lzw  r9,(theoritical PVR)
 
 	// Don't read SDR1
-	static const uint32 sdr1_ofs[] = {0x174, 0x174, 0x174, 0x17c, 0x19c};
+	static const uint32 sdr1_ofs[] = {0x174, 0x174, 0x174, 0x17c, 0x19c, 0x19c};
 	lp = (uint32 *)(ROM_BASE + loc + sdr1_ofs[ROMType]);
 	*lp++ = htonl(0x3d00dead);		// lis	r8,0xdead		(pointer to page table)
 	*lp++ = htonl(0x3ec0001f);		// lis	r22,0x001f	(size of page table)
 	*lp = htonl(POWERPC_NOP);
 
 	// Don't clear page table
-	static const uint32 pgtb_ofs[] = {0x198, 0x198, 0x198, 0x1a0, 0x1c4};
+	static const uint32 pgtb_ofs[] = {0x198, 0x198, 0x198, 0x1a0, 0x1c0, 0x1c4};
 	lp = (uint32 *)(ROM_BASE + loc + pgtb_ofs[ROMType]);
 	*lp = htonl(POWERPC_NOP);
 
 	// Don't invalidate TLB
-	static const uint32 tlb_ofs[] = {0x1a0, 0x1a0, 0x1a0, 0x1a8, 0x1cc};
+	static const uint32 tlb_ofs[] = {0x1a0, 0x1a0, 0x1a0, 0x1a8, 0x1c8, 0x1cc};
 	lp = (uint32 *)(ROM_BASE + loc + tlb_ofs[ROMType]);
 	*lp = htonl(POWERPC_NOP);
 
 	// Don't create RAM descriptor table
-	static const uint32 desc_ofs[] = {0x350, 0x350, 0x350, 0x358, 0x37c};
+	static const uint32 desc_ofs[] = {0x350, 0x350, 0x350, 0x358, 0x378, 0x37c};
 	lp = (uint32 *)(ROM_BASE + loc + desc_ofs[ROMType]);
 	*lp = htonl(POWERPC_NOP);
 
 	// Don't load SRs and BATs
-	static const uint32 sr_ofs[] = {0x3d8, 0x3d8, 0x3d8, 0x3e0, 0x404};
+	static const uint32 sr_ofs[] = {0x3d8, 0x3d8, 0x3d8, 0x3e0, 0x400, 0x404};
 	lp = (uint32 *)(ROM_BASE + loc + sr_ofs[ROMType]);
 	*lp = htonl(POWERPC_NOP);
 
 	// Don't mess with SRs
-	static const uint32 sr2_ofs[] = {0x312118, 0x312118, 0x312118, 0x312118, 0x3121b4};
+	static const uint32 sr2_ofs[] = {0x312118, 0x312118, 0x312118, 0x312118, 0x312118, 0x3121b4};
 	lp = (uint32 *)(ROM_BASE + sr2_ofs[ROMType]);
 	*lp = htonl(POWERPC_BLR);
 
 	// Don't check performance monitor
-	static const uint32 pm_ofs[] = {0x313148, 0x313148, 0x313148, 0x313148, 0x313218};
+	static const uint32 pm_ofs[] = {0x313148, 0x313148, 0x313148, 0x313148, 0x313158, 0x313218};
 	lp = (uint32 *)(ROM_BASE + pm_ofs[ROMType]);
 	while (ntohl(*lp) != 0x7e58eba6) lp++;
 	*lp++ = htonl(POWERPC_NOP);
@@ -1015,7 +1017,7 @@ static bool patch_nanokernel_boot(void)
 	*lp++ = htonl(POWERPC_NOP);
 
 	// Jump to 68k emulator
-	static const uint32 jump68k_ofs[] = {0x40c, 0x40c, 0x40c, 0x414, 0x438};
+	static const uint32 jump68k_ofs[] = {0x40c, 0x40c, 0x40c, 0x414, 0x434, 0x438};
 	lp = (uint32 *)(ROM_BASE + loc + jump68k_ofs[ROMType]);
 	*lp++ = htonl(0x80610634);		// lwz	r3,0x0634(r1)	(pointer to Emulator Data)
 	*lp++ = htonl(0x8081119c);		// lwz	r4,0x119c(r1)	(pointer to opcode table)
@@ -1036,7 +1038,7 @@ static bool patch_68k_emul(void)
 	uint32 base;
 
 	// Overwrite twi instructions
-	static const uint32 twi_loc[] = {0x36e680, 0x36e6c0, 0x36e6c0, 0x36e6c0, 0x36e740};
+	static const uint32 twi_loc[] = {0x36e680, 0x36e6c0, 0x36e6c0, 0x36e6c0, 0x36e740, 0x36e740};
 	base = twi_loc[ROMType];
 	lp = (uint32 *)(ROM_BASE + base);
 	*lp++ = htonl(0x48000000 + 0x36f900 - base);		// b 0x36f900 (Emulator start)
@@ -1418,10 +1420,22 @@ static bool patch_68k(void)
 		lp[0x28 >> 2] = htonl(0x00000861);
 		lp[0x58 >> 2] = htonl(0x30200000);
 		lp[0x60 >> 2] = htonl(0x0000003d);
+	} else if (ROMType == ROMTYPE_GOSSAMER) {
+		base = 0x12d20;
+		lp = (uint32 *)(ROM_BASE + base - 0x14);
+		lp[0x00 >> 2] = htonl(ADDR_MAP_PATCH_SPACE - (base - 0x14));
+		lp[0x10 >> 2] = htonl(0xcc003d11);		// Make it like the PowerMac 9500 UniversalInfo
+		lp[0x14 >> 2] = htonl(0x3fff0401);
+		lp[0x18 >> 2] = htonl(0x0300001c);
+		lp[0x1c >> 2] = htonl(0x000108c4);
+		lp[0x24 >> 2] = htonl(0xc301bf26);
+		lp[0x28 >> 2] = htonl(0x00000861);
+		lp[0x58 >> 2] = htonl(0x30410000);
+		lp[0x60 >> 2] = htonl(0x0000003d);
 	}
 
 	// Construct AddrMap for NewWorld ROM
-	if (ROMType == ROMTYPE_NEWWORLD || ROMType == ROMTYPE_ZANZIBAR) {
+	if (ROMType == ROMTYPE_NEWWORLD || ROMType == ROMTYPE_ZANZIBAR || ROMType == ROMTYPE_GOSSAMER) {
 		lp = (uint32 *)(ROM_BASE + ADDR_MAP_PATCH_SPACE);
 		memset(lp - 10, 0, 0x128);
 		lp[-10] = htonl(0x0300001c);
@@ -1547,8 +1561,15 @@ static bool patch_68k(void)
 		*wp++ = htons(M68K_EMUL_OP_XPRAM2);
 		*wp = htons(0x4ed3);			// jmp	(a3)
 
-		static const uint32 nvram3_loc[] = {0x582f0, 0xa0a0, 0x7e50, 0xa1d0, 0};
-		wp = (uint16 *)(ROM_BASE + nvram3_loc[ROMType]);
+		static const uint8 nvram3_dat[] = {0x4e, 0xd3, 0x06, 0x41, 0x13, 0x00};
+		if ((base = find_rom_data(0x7000, 0xb000, nvram3_dat, sizeof(nvram3_dat))) == 0) return false;
+		D(bug("nvram3 %08lx\n", base));
+		wp = (uint16 *)(ROM_BASE + base + 2);
+		*wp++ = htons(M68K_EMUL_OP_XPRAM3);
+		*wp = htons(0x4ed3);			// jmp	(a3)
+
+		static const uint32 nvram4_loc[] = {0x582f0, 0xa0a0, 0x7e50, 0xa1d0, 0x538d0, 0};
+		wp = (uint16 *)(ROM_BASE + nvram4_loc[ROMType]);
 		*wp++ = htons(0x202f);			// move.l	4(sp),d0
 		*wp++ = htons(0x0004);
 		*wp++ = htons(M68K_EMUL_OP_NVRAM1);
@@ -1561,8 +1582,8 @@ static bool patch_68k(void)
 			*wp = htons(0x0004);
 		}
 
-		static const uint32 nvram4_loc[] = {0x58460, 0xa0f0, 0x7f40, 0xa220, 0};
-		wp = (uint16 *)(ROM_BASE + nvram4_loc[ROMType]);
+		static const uint32 nvram5_loc[] = {0x58460, 0xa0f0, 0x7f40, 0xa220, 0x53a20, 0};
+		wp = (uint16 *)(ROM_BASE + nvram5_loc[ROMType]);
 		if (ROMType == ROMTYPE_ZANZIBAR || ROMType == ROMTYPE_GAZELLE) {
 			*wp++ = htons(0x202f);			// move.l	4(sp),d0
 			*wp++ = htons(0x0004);
@@ -1739,6 +1760,8 @@ static bool patch_68k(void)
 		if ((base = find_rom_data(0x13000, 0x20000, gc_mask2_dat, sizeof(gc_mask2_dat))) == 0) return false;
 		D(bug("gc_mask2 %08lx\n", base));
 		wp = (uint16 *)(ROM_BASE + base);
+		if (ROMType == ROMTYPE_GOSSAMER)
+			*wp++ = htons(M68K_NOP);
 		for (int i=0; i<5; i++) {
 			*wp++ = htons(M68K_NOP);
 			*wp++ = htons(M68K_NOP);
@@ -1746,7 +1769,7 @@ static bool patch_68k(void)
 			*wp++ = htons(M68K_NOP);
 			wp += 2;
 		}
-		if (ROMType == ROMTYPE_ZANZIBAR) {
+		if (ROMType == ROMTYPE_ZANZIBAR || ROMType == ROMTYPE_GOSSAMER) {
 			for (int i=0; i<6; i++) {
 				*wp++ = htons(M68K_NOP);
 				*wp++ = htons(M68K_NOP);
@@ -1823,13 +1846,21 @@ static bool patch_68k(void)
 		static const uint8 tm_task_dat[] = {0x30, 0x3c, 0x4e, 0x2b, 0xa9, 0xc9};
 		if ((base = find_rom_data(0x2e0, 0x320, tm_task_dat, sizeof(tm_task_dat))) == 0) return false;
 		D(bug("tm_task %08lx\n", base));
-		wp = (uint16 *)(ROM_BASE + base + 28);
+		wp = (uint16 *)(ROM_BASE + base + 28); // FIXME: this is not right for all nw ROMs
 		*wp++ = htons(M68K_NOP);
 		*wp++ = htons(M68K_NOP);
 		*wp++ = htons(M68K_NOP);
 		*wp++ = htons(M68K_NOP);
 		*wp++ = htons(M68K_NOP);
 		*wp = htons(M68K_NOP);
+	} else if (ROMType == ROMTYPE_GOSSAMER) {
+		static const uint8 tm_task_dat[] = {0x30, 0x3c, 0x4e, 0x2b, 0xa9, 0xc9};
+		if ((base = find_rom_data(0x2a0, 0x2e0, tm_task_dat, sizeof(tm_task_dat))) == 0) return false;
+		D(bug("tm_task %08lx\n", base));
+		wp = (uint16 *)(ROM_BASE + base + 22);
+		*wp++ = htons(M68K_NOP);
+		*wp++ = htons(M68K_NOP);
+		*wp++ = htons(M68K_NOP);
 	} else {
 		static const uint8 tm_task_dat[] = {0x20, 0x3c, 0x73, 0x79, 0x73, 0x61};
 		if ((base = find_rom_data(0x280, 0x300, tm_task_dat, sizeof(tm_task_dat))) == 0) return false;
@@ -1841,7 +1872,7 @@ static bool patch_68k(void)
 	}
 
 	// Don't read PVR from 0x5fffef80 in DriverServicesLib (via 0x316)
-	if (ROMType != ROMTYPE_NEWWORLD) {
+	if (ROMType != ROMTYPE_NEWWORLD && ROMType != ROMTYPE_GOSSAMER) {
 		uint32 dsl_offset = find_rom_resource(FOURCC('n','l','i','b'), -16401);
 		if (ROMType == ROMTYPE_ZANZIBAR) {
 			static const uint8 dsl_pvr_dat[] = {0x40, 0x82, 0x00, 0x40, 0x38, 0x60, 0xef, 0x80, 0x3c, 0x63, 0x60, 0x00, 0x80, 0x83, 0x00, 0x00, 0x54, 0x84, 0x84, 0x3e};
@@ -1927,7 +1958,23 @@ static bool patch_68k(void)
 			D(bug("scsi_var2 %08lx\n", base));
 			wp = (uint16 *)(ROM_BASE + base);
 			*wp++ = htons(0x7000);	// moveq #0,d0
-			*wp = htons(M68K_RTS);	// bra
+			*wp = htons(M68K_RTS);
+		}
+	}
+	else if (ROMType == ROMTYPE_GOSSAMER) {
+		static const uint8 scsi_var_dat[] = {0x70, 0x01, 0xa0, 0x89, 0x4a, 0x6e, 0xfe, 0xac, 0x4f, 0xef, 0x00, 0x10, 0x66, 0x00};
+		if ((base = find_rom_data(0x1d700, 0x1d800, scsi_var_dat, sizeof(scsi_var_dat))) != 0) {
+			D(bug("scsi_var %08lx\n", base));
+			wp = (uint16 *)(ROM_BASE + base + 12);
+			*wp = htons(0x6000);	// bra
+		}
+
+		static const uint8 scsi_var2_dat[] = {0x4e, 0x56, 0xfc, 0x5a, 0x48, 0xe7, 0x1f, 0x38};
+		if ((base = find_rom_data(0x1d900, 0x1da00, scsi_var2_dat, sizeof(scsi_var2_dat))) != 0) {
+			D(bug("scsi_var2 %08lx\n", base));
+			wp = (uint16 *)(ROM_BASE + base);
+			*wp++ = htons(0x7000);	// moveq #0,d0
+			*wp = htons(M68K_RTS);
 		}
 	}
 #endif
@@ -2007,7 +2054,7 @@ static bool patch_68k(void)
 	*wp = htons(M68K_RTS);
 
 	// Don't install serial drivers from ROM
-	if (ROMType == ROMTYPE_ZANZIBAR || ROMType == ROMTYPE_NEWWORLD) {
+	if (ROMType == ROMTYPE_ZANZIBAR || ROMType == ROMTYPE_NEWWORLD || ROMType == ROMTYPE_GOSSAMER) {
 		wp = (uint16 *)(ROM_BASE + find_rom_resource(FOURCC('S','E','R','D'), 0));
 		*wp = htons(M68K_RTS);
 	} else {
