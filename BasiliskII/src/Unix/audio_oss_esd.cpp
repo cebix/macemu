@@ -49,7 +49,7 @@
 #include "debug.h"
 
 
-// Supported sample rates, sizes and channels
+// Supported sample rates, sizes and channels (defaults)
 int audio_num_sample_rates = 1;
 uint32 audio_sample_rates[] = {44100 << 16};
 int audio_num_sample_sizes = 1;
@@ -67,6 +67,7 @@ static sem_t audio_irq_done_sem;					// Signal from interrupt to streaming threa
 static bool sem_inited = false;						// Flag: audio_irq_done_sem initialized
 static int sound_buffer_size;						// Size of sound buffer in bytes
 static bool little_endian = false;					// Flag: DSP accepts only little-endian 16-bit sound data
+static uint8 silence_byte;							// Byte value to use to fill sound buffers with silence
 static pthread_t stream_thread;						// Audio streaming thread
 static pthread_attr_t stream_thread_attr;			// Streaming thread attributes
 static bool stream_thread_active = false;			// Flag: streaming thread installed
@@ -79,6 +80,14 @@ static void *stream_func(void *arg);
 /*
  *  Initialization
  */
+
+// Set AudioStatus to reflect current audio stream format
+static void set_audio_status_format(void)
+{
+	AudioStatus.sample_rate = audio_sample_rates[0];
+	AudioStatus.sample_size = audio_sample_sizes[0];
+	AudioStatus.channels = audio_channel_counts[0];
+}
 
 // Init using /dev/dsp, returns false on error
 bool audio_init_dsp(void)
@@ -94,22 +103,30 @@ bool audio_init_dsp(void)
 		audio_fd = -1;
 		return false;
 	}
-	if (format & (AFMT_S16_BE | AFMT_S16_LE))
+	if (format & (AFMT_S16_BE | AFMT_S16_LE)) {
 		audio_sample_sizes[0] = 16;
-	else
+		silence_byte = 0;
+	} else {
 		audio_sample_sizes[0] = 8;
+		silence_byte = 0x80;
+	}
 	if (!(format & AFMT_S16_BE))
 		little_endian = true;
 
 	// Set DSP parameters
-	format = AudioStatus.sample_size == 8 ? AFMT_U8 : (little_endian ? AFMT_S16_LE : AFMT_S16_BE);
+	format = audio_sample_sizes[0] == 8 ? AFMT_U8 : (little_endian ? AFMT_S16_LE : AFMT_S16_BE);
 	ioctl(audio_fd, SNDCTL_DSP_SETFMT, &format);
 	int frag = 0x0004000c;		// Block size: 4096 frames
 	ioctl(audio_fd, SNDCTL_DSP_SETFRAGMENT, &frag);
-	int stereo = (AudioStatus.channels == 2);
+	int stereo = (audio_channel_counts[0] == 2);
 	ioctl(audio_fd, SNDCTL_DSP_STEREO, &stereo);
-	int rate = AudioStatus.sample_rate >> 16;
+	int rate = audio_sample_rates[0] >> 16;
 	ioctl(audio_fd, SNDCTL_DSP_SPEED, &rate);
+	audio_sample_rates[0] = rate << 16;
+
+	// Set AudioStatus again because we now know more about the sound
+	// system's capabilities
+	set_audio_status_format();
 
 	// Get sound buffer size
 	ioctl(audio_fd, SNDCTL_DSP_GETBLKSIZE, &audio_frames_per_block);
@@ -140,6 +157,7 @@ bool audio_init_esd(void)
 #else
 	little_endian = true;
 #endif
+	silence_byte = 0;	// Is this correct for 8-bit mode?
 
 	// Open connection to ESD server
 	audio_fd = esd_play_stream(format, AudioStatus.sample_rate >> 16, NULL, NULL);
@@ -165,9 +183,7 @@ void AudioInit(void)
 	char str[256];
 
 	// Init audio status (defaults) and feature flags
-	AudioStatus.sample_rate = audio_sample_rates[0];
-	AudioStatus.sample_size = audio_sample_sizes[0];
-	AudioStatus.channels = audio_channel_counts[0];
+	set_audio_status_format();
 	AudioStatus.mixer = 0;
 	AudioStatus.num_sources = 0;
 	audio_component_flags = cmpWantsRegisterMessage | kStereoOut | k16BitOut;
@@ -277,7 +293,7 @@ static void *stream_func(void *arg)
 {
 	int16 *silent_buffer = new int16[sound_buffer_size / 2];
 	int16 *last_buffer = new int16[sound_buffer_size / 2];
-	memset(silent_buffer, 0, sound_buffer_size);
+	memset(silent_buffer, silence_byte, sound_buffer_size);
 
 	while (!stream_thread_cancel) {
 		if (AudioStatus.num_sources) {
@@ -311,7 +327,7 @@ static void *stream_func(void *arg)
 							last_buffer[i] = ntohs(p[i]);
 					} else
 						memcpy(last_buffer, Mac2HostAddr(ReadMacInt32(apple_stream_info + scd_buffer)), work_size);
-					memset((uint8 *)last_buffer + work_size, 0, sound_buffer_size - work_size);
+					memset((uint8 *)last_buffer + work_size, silence_byte, sound_buffer_size - work_size);
 					write(audio_fd, last_buffer, sound_buffer_size);
 				}
 				D(bug("stream: data written\n"));

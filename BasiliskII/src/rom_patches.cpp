@@ -34,7 +34,7 @@
 #include "prefs.h"
 #include "rom_patches.h"
 
-#define DEBUG 1
+#define DEBUG 0
 #include "debug.h"
 
 

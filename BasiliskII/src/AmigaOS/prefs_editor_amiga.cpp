@@ -1071,7 +1071,7 @@ static void read_scsi_settings(void)
 
 		if (strlen(scsi_dev[i])) {
 			char str[256];
-			sprintf("%s/%ld", scsi_dev[i], scsi_unit[i]);
+			sprintf(str, "%s/%ld", scsi_dev[i], scsi_unit[i]);
 			PrefsReplaceString(prefs_name, str);
 		} else
 			PrefsRemoveItem(prefs_name);

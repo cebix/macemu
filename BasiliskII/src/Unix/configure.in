@@ -6,14 +6,10 @@ AC_PREREQ(2.12)
 AC_CONFIG_HEADER(config.h)
 
 dnl Options.
-WANT_XF86_DGA=yes
-WANT_FBDEV_DGA=yes
-WANT_ESD=yes
-WANT_UI=yes
-AC_ARG_ENABLE(xf86-dga, [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [])
-AC_ARG_ENABLE(fbdev-dga, [  --enable-fbdev-dga      use direct frame buffer access via /dev/fb [default=yes]], [WANT_FBDEV_DGA=$enableval], [])
-AC_ARG_ENABLE(esd, [  --enable-esd            Enlightened Sound Daemon support [default=yes]], [WANT_ESD=$enableval], [])
-AC_ARG_ENABLE(ui,  [  --enable-ui             use GTK user interface [default=yes]], [WANT_UI=$enableval], [])
+AC_ARG_ENABLE(xf86-dga,  [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
+AC_ARG_ENABLE(fbdev-dga, [  --enable-fbdev-dga      use direct frame buffer access via /dev/fb [default=yes]], [WANT_FBDEV_DGA=$enableval], [WANT_FBDEV_DGA=yes])
+AC_ARG_ENABLE(esd,       [  --enable-esd            Enlightened Sound Daemon support [default=yes]], [WANT_ESD=$enableval], [WANT_ESD=yes])
+AC_ARG_ENABLE(ui,        [  --enable-ui             use GTK user interface [default=yes]], [WANT_UI=$enableval], [WANT_UI=yes])
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -27,11 +23,13 @@ MONSRCS=
 AC_MSG_CHECKING(for mon)
 if grep mon_init ../../../mon/src/mon.h >/dev/null 2>/dev/null; then
   AC_MSG_RESULT(yes)
+  WANT_MON=yes
   DEFINES="$DEFINES -DENABLE_MON=1"
   MONSRCS="../../../mon/src/mon.cpp ../../../mon/src/mon_6502.cpp ../../../mon/src/mon_68k.cpp ../../../mon/src/mon_8080.cpp ../../../mon/src/mon_cmd.cpp ../../../mon/src/mon_ppc.cpp ../../../mon/src/mon_x86.cpp"
   CXXFLAGS="$CXXFLAGS -I../../../mon/src"
 else
   AC_MSG_RESULT(no)
+  WANT_MON=no
   DEFINES="$DEFINES -DENABLE_MON=0"
 fi
 
@@ -237,11 +235,15 @@ if [[ "x$HAVE_GCC27" = "xyes" ]]; then
 fi
 
 dnl Select appropriate CPU source and REGPARAM define.
+WANT_X86_ASSEMBLY=no
+WANT_SPARC_V8_ASSEMBLY=no
+WANT_SPARC_V9_ASSEMBLY=no
 CPUSRCS="cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
 if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
   dnl i386 CPU
   DEFINES="$DEFINES -DREGPARAM=\"__attribute__((regparm(3)))\""
   if [[ "x$HAVE_GAS" = "xyes" ]]; then
+    WANT_X86_ASSEMBLY=yes
     DEFINES="$DEFINES -DX86_ASSEMBLY"
     CPUSRCS="cpufast1.s cpufast2.s cpufast3.s cpufast4.s cpufast5.s cpufast6.s cpufast7.s cpufast8.s"
   fi
@@ -254,11 +256,13 @@ elif [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xy
     AC_MSG_RESULT($SPARC_TYPE)
     case "$SPARC_TYPE" in
     SPARC_V8)
+      WANT_SPARC_V8_ASSEMBLY=yes
       DEFINES="$DEFINES -DSPARC_V8_ASSEMBLY"
       CFLAGS="$CFLAGS -Wa,-Av8"
       CXXFLAGS="$CXXFLAGS -Wa,-Av8"
       ;;
     SPARC_V9)
+      WANT_SPARC_V9_ASSEMBLY=yes
       DEFINES="$DEFINES -DSPARC_V9_ASSEMBLY"
       CFLAGS="$CFLAGS -Wa,-Av9"
       CXXFLAGS="$CXXFLAGS -Wa,-Av9"
@@ -278,4 +282,18 @@ AC_SUBST(SYSSRCS)
 AC_SUBST(CPUINCLUDES)
 AC_SUBST(CPUSRCS)
 AC_OUTPUT(Makefile)
+
+dnl Print summary.
+echo
+echo Basilisk II configuration summary:
+echo
+echo XFree86 DGA support .............. : $WANT_XF86_DGA
+echo fbdev DGA support ................ : $WANT_FBDEV_DGA
+echo ESD sound support ................ : $WANT_ESD
+echo GTK user interface ............... : $WANT_UI
+echo mon debugger support ............. : $WANT_MON
+echo i386 assembly optimizations ...... : $WANT_X86_ASSEMBLY
+echo SPARC V8 assembly optimizations .. : $WANT_SPARC_V8_ASSEMBLY
+echo SPARC V9 assembly optimizations .. : $WANT_SPARC_V9_ASSEMBLY
+echo
 echo "Configuration done. Now type \"make\"."

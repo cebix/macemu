@@ -39,7 +39,7 @@
 #include "prefs.h"
 #include "sony.h"
 
-#define DEBUG 1
+#define DEBUG 0
 #include "debug.h"
 
 #ifdef AMIGA

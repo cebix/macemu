@@ -1,10 +1,19 @@
 V0.8 -
+	- added replacement for BlockMove() trap
+	- removed Windows sources from the source archive; a version of
+	  these that actually compiles and works can be downloaded from
+	  Lauri Pesonen's site
 	- medium removal is allowed in CDROMExit()
 	- Unix: added support for ESD audio output; merged with OSS audio
 	  and put in a new "audio_oss_esd.cpp" file which is also used under
 	  FreeBSD 3.x
 	- Unix: added mkinstalldirs to "make install" target
 	- Unix: cleaned up the configure script
+	- Unix/audio_oss_esd.cpp: AudioStatus is re-set after determining
+	  audio device capabilities (actual sample rate is also determined)
+	  [Alexander R. Pruss]
+	- Unix/audio_oss_esd.cpp: "silence" in 8-bit mode used wrong fill
+	  value (0 instead of 0x80) [Alexander R. Pruss]
 
 V0.8 (snapshot) - 21.Oct.1999
 	- sony.cpp/disk.cpp/cdrom.cpp: disk insertions are now checked for
