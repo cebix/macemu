@@ -222,6 +222,11 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_FAULT_HANDLER_ARGLIST_1	siginfo_t *sip, void *scp
 #define SIGSEGV_FAULT_HANDLER_ARGS		sip, scp
 #define SIGSEGV_FAULT_ADDRESS			sip->si_addr
+#if (defined(sgi) || defined(__sgi))
+#include <ucontext.h>
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
+#define SIGSEGV_FAULT_INSTRUCTION		(unsigned long)SIGSEGV_CONTEXT_REGS[CTX_EPC]
+#endif
 #if defined(__sun__)
 #if (defined(sparc) || defined(__sparc__))
 #include <sys/ucontext.h>
@@ -303,11 +308,12 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #endif
 
 // Irix 5 or 6 on MIPS
-#if (defined(sgi) || defined(__sgi)) && (defined(SYSTYPE_SVR4) || defined(__SYSTYPE_SVR4))
+#if (defined(sgi) || defined(__sgi)) && (defined(SYSTYPE_SVR4) || defined(_SYSTYPE_SVR4))
 #include <ucontext.h>
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
 #define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp
-#define SIGSEGV_FAULT_ADDRESS			scp->sc_badvaddr
+#define SIGSEGV_FAULT_ADDRESS			(unsigned long)scp->sc_badvaddr
+#define SIGSEGV_FAULT_INSTRUCTION		(unsigned long)scp->sc_pc
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
 #endif
 
