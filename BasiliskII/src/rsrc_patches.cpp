@@ -89,7 +89,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 		if (base) {
 			p16 = (uint16 *)(p + base);
 
-#if defined(AMIGA)
+#if defined(AMIGA) || defined(__NetBSD__)
 			// Set 0x0000 to scratch memory area
 			extern uint32 ScratchMem;
 			*p16++ = htons(0x207c);			// move.l	#ScratchMem,a0
@@ -113,7 +113,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 		if (base) {
 			p16 = (uint16 *)(p + base);
 
-#if defined(AMIGA)
+#if defined(AMIGA) || defined(__NetBSD__)
 			// Set 0x0000 to scratch memory area
 			extern uint32 ScratchMem;
 			*p16++ = htons(0x207c);			// move.l	#ScratchMem,a0

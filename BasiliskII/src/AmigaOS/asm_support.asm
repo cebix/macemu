@@ -183,7 +183,7 @@ _ExceptionHandlerAsm
 		pea	1$
 		move.w	_EmulatedSR,d0
 		move.w	d0,-(sp)
-		or.w	#$0100,d0		;Set interrupt level in SR
+		or.w	#$2100,d0		;Set interrupt level in SR
 		move.w	d0,_EmulatedSR
 		move.l	$64.w,a0		;Jump to MacOS interrupt handler
 		jmp	(a0)

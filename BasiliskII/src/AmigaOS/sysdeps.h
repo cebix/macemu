@@ -30,20 +30,20 @@
 
 #include "user_strings_amiga.h"
 
-// Are the Mac and the host address space the same?
+// Mac and host address space are the same
 #define REAL_ADDRESSING 1
 
-// Are we using a 68k emulator or the real thing?
+// Using 68k natively
 #define EMULATED_68K 0
 
-// Is the Mac ROM write protected?
+// Mac ROM is not write protected
 #define ROM_IS_WRITE_PROTECTED 0
 
 // ExtFS is supported
 #define SUPPORTS_EXTFS 1
 
 // mon is not supported
-#define ENABLE_MON 0
+#undef ENABLE_MON
 
 // Data types
 typedef unsigned char uint8;

@@ -693,7 +693,7 @@ static const uint8 adbop_patch[] = {	// Call ADBOp() completion procedure
 
 void InstallDrivers(uint32 pb)
 {
-	D(bug("InstallDrivers\n"));
+	D(bug("InstallDrivers, pb %08x\n", pb));
 	M68kRegisters r;
 
 	// Install Microseconds() replacement routine
@@ -1215,7 +1215,7 @@ static bool patch_rom_32(void)
 #endif
 
 #if !ROM_IS_WRITE_PROTECTED
-#if defined(AMIGA)
+#if defined(AMIGA) || defined(__NetBSD__)
 	// Set fake handle at 0x0000 to scratch memory area (so broken Mac programs won't write into Mac ROM)
 	extern uint32 ScratchMem;
 	wp = (uint16 *)(ROMBaseHost + 0xccaa);

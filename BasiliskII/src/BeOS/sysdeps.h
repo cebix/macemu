@@ -36,17 +36,17 @@
 #define WORDS_BIGENDIAN 1
 #endif
 
-// Are we using a 68k emulator or the real thing?
+// Using 68k emulator
 #define EMULATED_68K 1
 
-// Is the Mac ROM write protected?
+// Mac ROM is write protected
 #define ROM_IS_WRITE_PROTECTED 1
 
 // ExtFS is supported
 #define SUPPORTS_EXTFS 1
 
 // mon is not supported
-#define ENABLE_MON 0
+#undef ENABLE_MON
 
 // Time data type for Time Manager emulation
 typedef bigtime_t tm_time_t;

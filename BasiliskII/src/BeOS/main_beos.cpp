@@ -214,7 +214,7 @@ void BasiliskII::StartEmulator(void)
 	char str[256];
 
 #if REAL_ADDRESSING
-	// Open memory mess driver and remap low memory
+	// Open sheep driver and remap low memory
 	sheep_fd = open("/dev/sheep", 0);
 	if (sheep_fd < 0) {
 		sprintf(str, GetString(STR_NO_SHEEP_DRIVER_ERR), strerror(sheep_fd), sheep_fd);

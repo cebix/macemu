@@ -610,7 +610,7 @@ void __saveds IllInstrHandler(trap_regs *r)
 		EmulatedSR |= 0x0700;
 
 		// Call opcode routine
-		EmulOp(*(uint16 *)(r->pc), (M68kRegisters *)r);
+		EmulOp(opcode, (M68kRegisters *)r);
 		r->pc += 2;
 
 		// Restore interrupts

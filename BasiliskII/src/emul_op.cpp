@@ -42,7 +42,7 @@
 #include "extfs.h"
 #include "emul_op.h"
 
-#if ENABLE_MON
+#ifdef ENABLE_MON
 #include "mon.h"
 #endif
 
@@ -68,7 +68,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 				   r->d[0], r->d[1], r->d[2], r->d[3], r->d[4], r->d[5], r->d[6], r->d[7],
 				   r->a[0], r->a[1], r->a[2], r->a[3], r->a[4], r->a[5], r->a[6], r->a[7],
 				   r->sr);
-#if ENABLE_MON
+#ifdef ENABLE_MON
 			char *arg[2] = {"rmon", NULL};
 			mon(1, arg);
 #endif
@@ -196,8 +196,8 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			break;
 
 		case M68K_EMUL_OP_FIX_BOOTSTACK:	// Set boot stack to 3/4 of RAM (7.5)
-			D(bug("Fix boot stack\n"));
 			r->a[1] = RAMBaseMac + RAMSize * 3 / 4;
+			D(bug("Fix boot stack %08x\n", r->a[1]));
 			break;
 
 		case M68K_EMUL_OP_FIX_MEMSIZE: {	// Set correct logical and physical memory size
@@ -510,7 +510,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 				   r->d[0], r->d[1], r->d[2], r->d[3], r->d[4], r->d[5], r->d[6], r->d[7],
 				   r->a[0], r->a[1], r->a[2], r->a[3], r->a[4], r->a[5], r->a[6], r->a[7],
 				   r->sr);
-#if ENABLE_MON
+#ifdef ENABLE_MON
 			char *arg[2] = {"rmon", NULL};
 			mon(1, arg);
 #endif

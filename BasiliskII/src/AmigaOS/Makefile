@@ -4,7 +4,7 @@
 CC = gcc
 CXX = c++
 CXXFLAGS = -g -O1 -noixemul -m68020 -msmall-code -Wno-multichar
-CPPFLAGS = -I../include -I.
+CPPFLAGS = -I../include -I../native_cpu -I.
 DEFS =
 LDFLAGS = -noixemul
 LIBS = /gg/lib/libnix/swapstack.o
