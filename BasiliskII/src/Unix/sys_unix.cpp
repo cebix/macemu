@@ -146,7 +146,7 @@ void SysAddDiskPrefs(void)
 		while(fgets(line, 255, f)) {
 			// Read line
 			int len = strlen(line);
-			if (len == 0)
+			if (len == 0 || line[0] == '#')
 				continue;
 			line[len-1] = 0;
 
