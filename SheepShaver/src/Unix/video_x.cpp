@@ -741,6 +741,7 @@ static bool open_fbdev(int width, int height)
 	Screen_blitter_init(visualFormat, native_byte_order, depth);
 	
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
+	use_vosf = true;
 	the_host_buffer = the_buffer;
 	the_host_buffer_row_bytes = TrivialBytesPerRow((width + 7) & ~7, DepthModeForPixelDepth(visualFormat.depth));
 	the_buffer_size = page_extend((height + 2) * the_host_buffer_row_bytes);
@@ -961,13 +962,19 @@ static bool open_display(void)
 #ifdef ENABLE_VOSF
 	if (use_vosf) {
 		// Initialize the VOSF system
+		LOCK_VOSF;
 		if (!video_vosf_init()) {
 			ErrorAlert(GetString(STR_VOSF_INIT_ERR));
+			UNLOCK_VOSF;
 			return false;
 		}
+		UNLOCK_VOSF;
 	}
 #endif
-	
+
+	// Zero screen buffers, viRowBytes is initialized at this stage
+	memset(the_buffer, 0, VModes[cur_mode].viRowBytes * VModes[cur_mode].viYsize);
+	memset(the_buffer_copy, 0, VModes[cur_mode].viRowBytes * VModes[cur_mode].viYsize);
 	return display_open;
 }
 
@@ -1691,8 +1698,8 @@ static void resume_emul(void)
 	if (use_vosf) {
 		LOCK_VOSF;
 		PFLAG_SET_ALL;
-		UNLOCK_VOSF;
 		memset(the_buffer_copy, 0, VModes[cur_mode].viRowBytes * VModes[cur_mode].viYsize);
+		UNLOCK_VOSF;
 	}
 #endif
 	
@@ -2006,10 +2013,12 @@ static void handle_events(void)
 				if (use_vosf) {			// VOSF refresh
 					LOCK_VOSF;
 					PFLAG_SET_ALL;
+					memset(the_buffer_copy, 0, VModes[cur_mode].viRowBytes * VModes[cur_mode].viYsize);
 					UNLOCK_VOSF;
 				}
+				else
 #endif
-				memset(the_buffer_copy, 0, VModes[cur_mode].viRowBytes * VModes[cur_mode].viYsize);
+					memset(the_buffer_copy, 0, VModes[cur_mode].viRowBytes * VModes[cur_mode].viYsize);
 				break;
 		}
 	}
@@ -2126,8 +2135,9 @@ void video_set_palette(void)
 		// We have to redraw everything because the interpretation of pixel values changed
 		LOCK_VOSF;
 		PFLAG_SET_ALL;
+		if (display_type == DIS_SCREEN)
+			PFLAG_SET_VERY_DIRTY;
 		UNLOCK_VOSF;
-		memset(the_buffer_copy, 0, VModes[cur_mode].viRowBytes * VModes[cur_mode].viYsize);
 	}
 #endif
 
