@@ -110,7 +110,7 @@ include /boot/develop/etc/makefile-engine
 
 install: $(TARGET)
 	cp $(TARGET) /boot/home/config/add-ons/kernel/drivers/bin
-	ln -s /boot/home/config/add-ons/kernel/drivers/bin/$(NAME) /boot/home/config/add-ons/kernel/drivers/dev/$(NAME)
+	ln -sf /boot/home/config/add-ons/kernel/drivers/bin/$(NAME) /boot/home/config/add-ons/kernel/drivers/dev/$(NAME)
 
 uninstall:
 	rm /boot/home/config/add-ons/kernel/drivers/bin/$(NAME)
