@@ -62,8 +62,8 @@ void GetScrap(void **handle, uint32 type, int32 offset)
 	ScrapRef theScrap;
 
 	if (GetCurrentScrap(&theScrap) != noErr) {
-	  D(bug(" could not open scrap\n"));
-	  return;
+		D(bug(" could not open scrap\n"));
+		return;
 	}
 
 	Size byteCount;
@@ -108,8 +108,8 @@ void PutScrap(uint32 type, void *scrap, int32 length)
 	ScrapRef theScrap;
 
 	if (we_put_this_data) {
-	  we_put_this_data = false;
-	  return;
+		we_put_this_data = false;
+		return;
 	}
 	if (length <= 0)
 		return;
