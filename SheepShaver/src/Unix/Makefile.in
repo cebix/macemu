@@ -138,10 +138,6 @@ kpxsrcdir = ../kpx_cpu/src
 GENEXEC   = $(kpxsrcdir)/cpu/ppc/genexec.pl
 DYNGEN    = dyngen$(EXEEXT)
 
-$(OBJ_DIR)/ppc-execute.o: ppc-execute-impl.cpp
-ppc-execute-impl.cpp: $(kpxsrcdir)/cpu/ppc/ppc-decode.cpp $(GENEXEC) $(DYNGENDEPS)
-	$(CPP) $(CPPFLAGS) -DGENEXEC $< | $(GENEXEC) > $@
-
 ifneq ($(DYNGENSRCS),)
 DYNGENDEPS = basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 
@@ -162,6 +158,10 @@ ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o $(DYNGEN)
 
 $(OBJ_DIR)/sheepshaver_glue.o $(OBJ_DIR)/ppc-cpu.o $(OBJ_DIR)/ppc-decode.o $(OBJ_DIR)/ppc-translate.o: basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 endif
+
+$(OBJ_DIR)/ppc-execute.o: ppc-execute-impl.cpp
+ppc-execute-impl.cpp: $(kpxsrcdir)/cpu/ppc/ppc-decode.cpp $(GENEXEC) $(DYNGENDEPS)
+	$(CPP) $(CPPFLAGS) -DGENEXEC $< | $(GENEXEC) > $@
 
 #-------------------------------------------------------------------------
 # DO NOT DELETE THIS LINE -- make depend depends on it.
