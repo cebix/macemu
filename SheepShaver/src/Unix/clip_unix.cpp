@@ -142,7 +142,7 @@ static Atom xa_atom_pair;
 // Define a byte array (rewrite if it's a bottleneck)
 struct ByteArray : public vector<uint8> {
 	void resize(int size) { reserve(size); vector<uint8>::resize(size); }
-	uint8 *data() { return &at(0); }
+	uint8 *data() { return &(*this)[0]; }
 };
 
 // Clipboard data for requestors
@@ -556,7 +556,7 @@ static bool handle_selection_TARGETS(XSelectionRequestEvent *req)
 	// Change requestor property
 	XChangeProperty(x_display, req->requestor, req->property,
 					xa_targets, 32,
-					PropModeReplace, (uint8 *)&targets.at(0), targets.size());
+					PropModeReplace, (uint8 *)&targets[0], targets.size());
 
 	return true;
 }
