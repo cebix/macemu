@@ -2,7 +2,7 @@
 
 #  testlmem.sh - test whether the Mach-O hack works
 #
-#  Basilisk II (C) 1997-2003 Christian Bauer
+#  Basilisk II (C) 1997-2004 Christian Bauer
 #
 #  testlmem.sh Copyright (C) 2003 Michael Z. Sliczniak
 #

@@ -1,7 +1,7 @@
 /*
  *  ether_linux.cpp - SheepShaver Ethernet Device Driver (DLPI), Linux specific stuff
  *
- *  SheepShaver (C) 1997-2002 Marc Hellwig and Christian Bauer
+ *  SheepShaver (C) 1997-2004 Marc Hellwig and Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

@@ -4,7 +4,7 @@
  *        (old SCSI version): gcc -o scsidump scsidump.cpp -lscsi
  *  Copyright (C) 1999 Orlando Bassotto
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2004 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

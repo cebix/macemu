@@ -1,7 +1,7 @@
 /*
  *  sheep_net.c - Linux driver for SheepShaver/Basilisk II networking (access to raw Ethernet packets)
  *
- *  sheep_net (C) 1999-2002 Mar"c" Hellwig and Christian Bauer
+ *  sheep_net (C) 1999-2004 Mar"c" Hellwig and Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
