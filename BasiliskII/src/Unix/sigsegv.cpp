@@ -234,9 +234,15 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #endif
 #if defined(__sun__)
 #if (defined(sparc) || defined(__sparc__))
+#include <sys/stack.h>
+#include <sys/regset.h>
 #include <sys/ucontext.h>
 #define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[REG_PC]
+#define SIGSEGV_SPARC_GWINDOWS			(((ucontext_t *)scp)->uc_mcontext.gwins)
+#define SIGSEGV_SPARC_RWINDOW			(struct rwindow *)((char *)SIGSEGV_CONTEXT_REGS[REG_SP] + STACK_BIAS)
+#define SIGSEGV_REGISTER_FILE			((unsigned long *)SIGSEGV_CONTEXT_REGS), SIGSEGV_SPARC_GWINDOWS, SIGSEGV_SPARC_RWINDOW
+#define SIGSEGV_SKIP_INSTRUCTION		sparc_skip_instruction
 #endif
 #endif
 #if defined(__FreeBSD__)
@@ -1100,6 +1106,135 @@ static bool mips_skip_instruction(greg_t * regs)
 #endif
 
   regs[MIPS_REG_EPC] += 4;
+  return true;
+}
+#endif
+
+// Decode and skip SPARC instruction
+#if (defined(sparc) || defined(__sparc__))
+enum {
+#if (defined(__sun__))
+  SPARC_REG_G1 = REG_G1,
+  SPARC_REG_O0 = REG_O0,
+  SPARC_REG_PC = REG_PC,
+#endif
+};
+static bool sparc_skip_instruction(unsigned long * regs, gwindows_t * gwins, struct rwindow * rwin)
+{
+  unsigned int * pc = (unsigned int *)regs[SPARC_REG_PC];
+
+  if (pc == 0)
+	return false;
+
+#if DEBUG
+  printf("IP: %p [%08x]\n", pc, pc[0]);
+#endif
+
+  transfer_type_t transfer_type = SIGSEGV_TRANSFER_UNKNOWN;
+  transfer_size_t transfer_size = SIZE_LONG;
+  bool register_pair = false;
+
+  const unsigned int opcode = pc[0];
+  if ((opcode >> 30) != 3)
+	return false;
+  switch ((opcode >> 19) & 0x3f) {
+  case 9: // Load Signed Byte
+  case 1: // Load Unsigned Byte
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+	transfer_size = SIZE_BYTE;
+	break;
+  case 10:// Load Signed Halfword
+  case 2: // Load Unsigned Word
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+	transfer_size = SIZE_WORD;
+	break;
+  case 8: // Load Word
+  case 0: // Load Unsigned Word
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+	transfer_size = SIZE_LONG;
+	break;
+  case 11:// Load Extended Word
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+	transfer_size = SIZE_QUAD;
+	break;
+  case 3: // Load Doubleword
+	transfer_type = SIGSEGV_TRANSFER_LOAD;
+	transfer_size = SIZE_LONG;
+	register_pair = true;
+	break;
+  case 5: // Store Byte
+	transfer_type = SIGSEGV_TRANSFER_STORE;
+	transfer_size = SIZE_BYTE;
+	break;
+  case 6: // Store Halfword
+	transfer_type = SIGSEGV_TRANSFER_STORE;
+	transfer_size = SIZE_WORD;
+	break;
+  case 4: // Store Word
+	transfer_type = SIGSEGV_TRANSFER_STORE;
+	transfer_size = SIZE_LONG;
+	break;
+  case 14:// Store Extended Word
+	transfer_type = SIGSEGV_TRANSFER_STORE;
+	transfer_size = SIZE_QUAD;
+	break;
+  case 7: // Store Doubleword
+	transfer_type = SIGSEGV_TRANSFER_STORE;
+	transfer_size = SIZE_WORD;
+	register_pair = true;
+	break;
+  }
+
+  if (transfer_type == SIGSEGV_TRANSFER_UNKNOWN) {
+	// Unknown machine code, let it crash. Then patch the decoder
+	return false;
+  }
+
+  // Zero target register in case of a load operation
+  const int reg = (opcode >> 25) & 0x1f;
+  if (transfer_type == SIGSEGV_TRANSFER_LOAD && reg != 0) {
+	// FIXME: code to handle local & input registers is not tested
+	if (reg >= 1 && reg <= 7) {
+	  // global registers
+	  regs[reg - 1 + SPARC_REG_G1] = 0;
+	}
+	else if (reg >= 8 && reg <= 15) {
+	  // output registers
+	  regs[reg - 8 + SPARC_REG_O0] = 0;
+	}
+	else if (reg >= 16 && reg <= 23) {
+	  // local registers (in register windows)
+	  if (gwins)
+		gwins->wbuf->rw_local[reg - 16] = 0;
+	  else
+		rwin->rw_local[reg - 16] = 0;
+	}
+	else {
+	  // input registers (in register windows)
+	  if (gwins)
+		gwins->wbuf->rw_in[reg - 24] = 0;
+	  else
+		rwin->rw_in[reg - 24] = 0;
+	}
+  }
+
+#if DEBUG
+  static const char * reg_names[] = {
+	"g0", "g1", "g2", "g3", "g4", "g5", "g6", "g7",
+	"o0", "o1", "o2", "o3", "o4", "o5", "sp", "o7",
+	"l0", "l1", "l2", "l3", "l4", "l5", "l6", "l7",
+	"i0", "i1", "i2", "i3", "i4", "i5", "fp", "i7"
+  };
+  printf("%s %s register %s\n",
+		 transfer_size == SIZE_BYTE ? "byte" :
+		 transfer_size == SIZE_WORD ? "word" :
+		 transfer_size == SIZE_LONG ? "long" :
+		 transfer_size == SIZE_QUAD ? "quad" : "unknown",
+		 transfer_type == SIGSEGV_TRANSFER_LOAD ? "load to" : "store from",
+		 reg_names[reg]);
+#endif
+
+  regs[SPARC_REG_PC] += 4;
   return true;
 }
 #endif
