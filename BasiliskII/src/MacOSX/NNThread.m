@@ -24,7 +24,7 @@
 		thread_suspend (machThread);						// Suspend myself
 
 	if ( allocPool )
-		pool = [[NSAutoreleasePool alloc] init];
+		pool = [NSAutoreleasePool new];
 
 	// [object sel] caused "cannot find method" warnings, so I do it a non-obvious way:
 	objc_msgSend (object, sel);
@@ -43,7 +43,7 @@ pthreadWrapper (void *arg)
 	struct pthreadArgs	*args = arg;
 
 	if ( args -> allocPool )
-		args -> pool = [[NSAutoreleasePool alloc] init];
+		args -> pool = [NSAutoreleasePool new];
 
 	objc_msgSend (*(args->object), *(args->sel));
 
