@@ -76,8 +76,7 @@
 # ifdef MAC_OS_X_VERSION_10_2
 /* For some reason, compiling on 10.2 with DIRECT_ADDRESSING enabled gives an   */
 /* app that never writes to its screen! (i.e. it never calls most of video.cpp) */
-#  define DIRECT_ADDRESSING 1
-//#  define DIRECT_ADDRESSING 0
+#  define DIRECT_ADDRESSING 0
 # else
 #  define DIRECT_ADDRESSING 1
 # endif
@@ -144,6 +143,10 @@ typedef uint64 uintptr;
 typedef int64 intptr;
 #else
 #error "Unsupported size of pointer"
+#endif
+
+#ifndef HAVE_LOFF_T
+   typedef off_t loff_t;
 #endif
 
 /* Time data type for Time Manager emulation */
