@@ -21,6 +21,7 @@
 #include <vector>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <netinet/in.h> // ntohl(), htonl()
 
 #if EMU_KHEPERIX
@@ -38,6 +39,17 @@ typedef unsigned long uintptr;
 #undef RB
 #undef FB
 #undef FE
+#endif
+
+#if EMU_MODEL3PPC
+extern "C" {
+#include "ppc.h"
+}
+typedef unsigned int uint32;
+typedef unsigned long uintptr;
+typedef uint32_t UINT32;
+typedef char CHAR;
+typedef int BOOL;
 #endif
 
 // Disassemblers needed for debugging purposes
@@ -87,6 +99,7 @@ typedef unsigned long uintptr;
 // PowerPC opcodes
 static inline uint32 POWERPC_MR(int RD, int RA) { return _X(31,RA,RD,RA,444,0); }
 static inline uint32 POWERPC_MFCR(int RD) { return _X(31,RD,00,00,19,0); }
+const uint32 POWERPC_NOP = 0x60000000;
 const uint32 POWERPC_BLR = 0x4e800020;
 const uint32 POWERPC_BLRL = 0x4e800021;
 const uint32 POWERPC_ILLEGAL = 0x00000000;
@@ -121,8 +134,6 @@ static void inline flush_icache_range(uint32 *start_p, uint32 length)
 }
 #endif
 
-struct exec_return { };
-
 #if EMU_KHEPERIX
 struct powerpc_cpu_base
 	: public powerpc_cpu
@@ -131,17 +142,14 @@ struct powerpc_cpu_base
 	void init_decoder();
 	void execute_return(uint32 opcode);
 
-	uint32 emul_get_xer() const
-		{ return xer().get(); }
-
-	void emul_set_xer(uint32 value)
-		{ xer().set(value); }
-
-	uint32 emul_get_cr() const
-		{ return cr().get(); }
-
-	void emul_set_cr(uint32 value)
-		{ cr().set(value); }
+	uint32 emul_get_xer() const			{ return xer().get(); }
+	void emul_set_xer(uint32 value)		{ xer().set(value); }
+	uint32 emul_get_cr() const			{ return cr().get(); }
+	void emul_set_cr(uint32 value)		{ cr().set(value); }
+	uint32 get_lr() const				{ return lr(); }
+	void set_lr(uint32 value)			{ lr() = value; }
+	uint32 get_gpr(int i) const			{ return gpr(i); }
+	void set_gpr(int i, uint32 value)	{ gpr(i) = value; }
 };
 
 powerpc_cpu_base::powerpc_cpu_base()
@@ -190,15 +198,15 @@ struct powerpc_cpu_base
 	powerpc_cpu_base();
 	void execute(uintptr);
 
-	void invalidate_cache()			{ }
-	uint32 emul_get_xer() const		{ return XER; }
-	void emul_set_xer(uint32 value)	{ XER = value; }
-	uint32 emul_get_cr() const		{ return CR; }
-	void emul_set_cr(uint32 value)	{ CR = value; }
-	uint32 lr() const				{ return LR; }
-	uint32 & lr()					{ return LR; }
-	uint32 gpr(int i) const			{ return GPR(i); }
-	uint32 & gpr(int i)				{ return GPR(i); }
+	void invalidate_cache()				{ }
+	uint32 emul_get_xer() const			{ return XER; }
+	void emul_set_xer(uint32 value)		{ XER = value; }
+	uint32 emul_get_cr() const			{ return CR; }
+	void emul_set_cr(uint32 value)		{ CR = value; }
+	uint32 get_lr() const				{ return LR; }
+	void set_lr(uint32 value)			{ LR = value; }
+	uint32 get_gpr(int i) const			{ return GPR(i); }
+	void set_gpr(int i, uint32 value)	{ GPR(i) = value; }
 };
 
 void sheep_impl(ppc_inst_t inst)
@@ -225,6 +233,60 @@ void powerpc_cpu_base::execute(uintptr entry_point)
 		ppc_inst_t inst = ppc_code_fetch(PC);
 		ppc_execute(inst);
 	}
+}
+#endif
+
+#if EMU_MODEL3PPC
+extern "C" BOOL DisassemblePowerPC(UINT32, UINT32, CHAR *, CHAR *, BOOL);
+BOOL DisassemblePowerPC(UINT32, UINT32, CHAR *, CHAR *, BOOL) { }
+
+static volatile bool ppc_running = false;
+
+struct powerpc_cpu_base
+{
+	powerpc_cpu_base();
+	void execute(uintptr);
+
+	void invalidate_cache()				{ }
+	uint32 emul_get_xer() const			{ return ppc_get_reg(PPC_REG_XER); }
+	void emul_set_xer(uint32 value)		{ ppc_set_reg(PPC_REG_XER, value); }
+	uint32 emul_get_cr() const			{ return ppc_get_reg(PPC_REG_CR); }
+	void emul_set_cr(uint32 value)		{ ppc_set_reg(PPC_REG_CR, value); }
+	uint32 get_lr() const				{ return ppc_get_reg(PPC_REG_LR); }
+	void set_lr(uint32 value)			{ ppc_set_reg(PPC_REG_LR, value); }
+	uint32 get_gpr(int i) const			{ return ppc_get_r(i); }
+	void set_gpr(int i, uint32 value)	{ ppc_set_r(i, value); }
+};
+
+static uint32 read_32(uint32 a)
+{
+	return ntohl(*((uint32 *)a));
+}
+
+static uint32 read_op(uint32 a)
+{
+	uint32 opcode = read_32(a);
+	if (opcode == POWERPC_EMUL_OP) {
+		ppc_running = false;
+		return POWERPC_NOP;
+	}
+	return opcode;
+}
+
+powerpc_cpu_base::powerpc_cpu_base()
+{
+	ppc_init(NULL);
+	ppc_set_read_32_handler((void *)&read_32);
+	ppc_set_read_op_handler((void *)&read_op);
+}
+
+void powerpc_cpu_base::execute(uintptr entry_point)
+{
+	ppc_set_reg(PPC_REG_PC, entry_point);
+
+	ppc_running = true;
+	while (ppc_running)
+		ppc_run(1);
 }
 #endif
 
@@ -386,7 +448,6 @@ private:
 	void test_logical(void);
 	void test_compare(void);
 	void test_cr_logical(void);
-	void test_load_multiple(void);
 };
 
 powerpc_test_cpu::powerpc_test_cpu()
@@ -451,7 +512,7 @@ void powerpc_test_cpu::execute(uint32 *code_p)
 #endif
 
 	assert((uintptr)code_p <= UINT_MAX);
-	lr() = (uintptr)code_p;
+	set_lr((uintptr)code_p);
 
 	assert((uintptr)code <= UINT_MAX);
 	powerpc_cpu_base::execute((uintptr)code);
@@ -548,11 +609,11 @@ void powerpc_test_cpu::test_one_1(uint32 *code, const char *insn, uint32 a1, uin
 	// Invoke emulated code
 	emul_set_xer(init_xer);
 	emul_set_cr(init_cr);
-	gpr(RD) = a0;
-	gpr(RA) = a1;
-	gpr(RB) = a2;
+	set_gpr(RD, a0);
+	set_gpr(RA, a1);
+	set_gpr(RB, a2);
 	execute(code);
-	const uint32 emul_rd = gpr(RD);
+	const uint32 emul_rd = get_gpr(RD);
 	const uint32 emul_xer = emul_get_xer();
 	const uint32 emul_cr = emul_get_cr();
 	
@@ -1130,18 +1191,6 @@ void powerpc_test_cpu::test_cr_logical(void)
 #endif
 }
 
-void powerpc_test_cpu::test_load_multiple(void)
-{
-#if TEST_LOAD_MULTIPLE && 0
-	uint16 tab[] = { 0x1234, 0x5678, 0x9abc, 0xdef0 };
-	uint32 opcode = _X(31,RD,RA,RB,790,0);
-	gpr(RA) = (uintptr)&tab[0];
-	gpr(RB) = 0;
-	execute(opcode);
-	printf("%08x\n", gpr(RD));
-#endif
-}
-
 bool powerpc_test_cpu::test(void)
 {
 	// Tests initialization
@@ -1158,7 +1207,6 @@ bool powerpc_test_cpu::test(void)
 	test_logical();
 	test_compare();
 	test_cr_logical();
-	test_load_multiple();
 
 	printf("%u errors out of %u tests\n", errors, tests);
 	return errors != 0;
