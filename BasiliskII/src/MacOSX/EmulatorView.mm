@@ -49,19 +49,7 @@
 	drawView = NO;		// Disable drawing until later
 	fullScreen = NO;
 
-#ifdef SAVE_GSTATE
-	[self allocateGState];
-#endif
-
 	return self;
-}
-
-- (void) dealloc
-{
-#ifdef SAVE_GSTATE
-	[self releaseGState];
-#endif
-	[super dealloc];
 }
 
 // Mouse click in this window. If window is not active,
@@ -163,7 +151,7 @@ static int prevFlags;
 		[bitmap draw];
 #endif
 #ifdef CGIMAGEREF
-		cgDrawInto([self bounds], bitmap);
+		cgDrawInto([self bounds], cgImgRep);
 #endif
 #ifdef CGDRAWBITMAP
 		[self CGDrawBitmap];
@@ -196,13 +184,15 @@ static int prevFlags;
 		 imageHeight: (short) height
 {
 	bitmap = theBitmap;
+	numBytes = [theBitmap bytesPerRow] * height;
 #endif
 #ifdef CGIMAGEREF
 - (void) readyToDraw: (CGImageRef) image
 		  imageWidth: (short) width
 		 imageHeight: (short) height
 {
-	bitmap = image;
+	cgImgRep = image;
+	numBytes = CGImageGetBytesPerRow(image);
 #endif
 #ifdef CGDRAWBITMAP
 - (void) readyToDraw: (void *) theBitmap
@@ -222,6 +212,7 @@ static int prevFlags;
 	bytesPerRow = bpr;
 	isPlanar = planar;
 	hasAlpha = alpha;
+	numBytes = bpr * height;
 #endif
 	x = width, y = height;
 	drawView = YES;
@@ -370,16 +361,22 @@ static NSPoint	mouse;			// Previous/current mouse location
 	ADBMouseUp(0);
 }
 
-#if DEBUG
+#if DEBUG && ! defined(CGIMAGEREF)
 - (void) randomise		// Draw some coloured snow in the bitmap
 {
-	unsigned char    *pixel;
+	unsigned char	*data,
+					*pixel;
+
+  #ifdef CGDRAWBITMAP
+	data = bitmap;
+  #endif
+  #ifdef NSBITMAP
+	data = [bitmap bitmapData];
+  #endif
 
 	for ( int i = 0; i < 1000; ++i )
 	{
-		pixel = [bitmap bitmapData]
-				+ (int) (1.0 * [bitmap bytesPerRow] * 342	//[bitmap height]
-							 * rand() / RAND_MAX);
+		pixel  = data + (int) (numBytes * rand() / RAND_MAX);
 		*pixel = (unsigned char) (256.0 * rand() / RAND_MAX);
 	}
 }
@@ -392,7 +389,9 @@ static NSPoint	mouse;			// Previous/current mouse location
 
 #if DEBUG
 	NSLog(@"In drawRect");
-	//[self randomise];
+# ifndef CGIMAGEREF
+	[self randomise];
+# endif
 #endif
 
 #ifdef NSBITMAP
@@ -400,7 +399,7 @@ static NSPoint	mouse;			// Previous/current mouse location
 	[bitmap draw];
 #endif
 #ifdef CGIMAGEREF
-	cgDrawInto(rect, bitmap);
+	cgDrawInto(rect, cgImgRep);
 #endif
 #ifdef CGDRAWBITMAP
 	[self CGDrawBitmap];
@@ -416,8 +415,8 @@ extern "C" void CGDrawBitmap(...);
 
 - (void) CGDrawBitmap
 {
-	CGContextRef	cgContext = [[NSGraphicsContext currentContext]
-														graphicsPort];
+	CGContextRef	cgContext = (CGContextRef) [[NSGraphicsContext currentContext]
+												graphicsPort];
 	NSRect			rect = [self bounds];
 	CGRect			cgRect = {
 								{rect.origin.x, rect.origin.y},
@@ -427,7 +426,7 @@ extern "C" void CGDrawBitmap(...);
 	CGColorSpaceRef	colourSpace = CGColorSpaceCreateDeviceRGB();
 
 
-	CGContextSetShouldAntialias(cgContext, NO);		// Seems to have no effect?
+//	CGContextSetShouldAntialias(cgContext, NO);		// Seems to have no effect?
 
 	CGDrawBitmap(cgContext, cgRect, x, y, bps, spp, bpp,
 					bytesPerRow, isPlanar, hasAlpha, colourSpace, &bitmap);
@@ -436,18 +435,18 @@ extern "C" void CGDrawBitmap(...);
 
 #ifdef CGIMAGEREF
 void
-cgDrawInto(NSRect rect, CGImageRef bitmap)
+cgDrawInto(NSRect rect, CGImageRef cgImgRep)
 {
-	CGContextRef	cgContext = [[NSGraphicsContext currentContext]
-														graphicsPort];
+	CGContextRef	cgContext = (CGContextRef) [[NSGraphicsContext currentContext]
+												graphicsPort];
 	CGRect			cgRect = {
 								{rect.origin.x, rect.origin.y},
 								{rect.size.width, rect.size.height}
 							 };
 
-	CGContextSetShouldAntialias(cgContext, NO);		// Seems to have no effect?
+//	CGContextSetShouldAntialias(cgContext, NO);		// Seems to have no effect?
 
-	CGContextDrawImage(cgContext, cgRect, bitmap);
+	CGContextDrawImage(cgContext, cgRect, cgImgRep);
 }
 #endif
 

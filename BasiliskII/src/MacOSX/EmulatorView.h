@@ -30,18 +30,19 @@
 @interface EmulatorView : NSView
 {
 #ifdef CGIMAGEREF
-	CGImageRef			bitmap;
+	CGImageRef			cgImgRep;
 #endif
 #ifdef NSBITMAP
 	NSBitmapImageRep	*bitmap;
 #endif
-
 #ifdef CGDRAWBITMAP
 	void				*bitmap;
 	short				bps, spp, bpp;
 	int					bytesPerRow;
 	BOOL				isPlanar, hasAlpha;
 #endif
+	float				numBytes;
+
 	short				x, y;
 
 	BOOL				drawView,	// Set when the bitmap is all set up
