@@ -421,7 +421,7 @@ int main(int argc, char **argv)
 		printf("WARNING: Cannot detect CPU type, assuming 68020\n");
 		CPUType = 2;
 	}
-	FPUType = 0;	//!!
+	FPUType = 1;	// NetBSD has an FPU emulation, so the FPU ought to be available at all times
 	TwentyFourBitAddressing = false;
 #endif
 
@@ -946,7 +946,7 @@ static void sigill_handler(int sig, int code, struct sigcontext *scp)
 
 #define STORE_SR(v) \
 	scp->sc_ps = (v) & 0xff; \
-	EmulatedSR = (v) & 0x2700; \
+	EmulatedSR = (v) & 0xe700; \
 	if (((v) & 0x0700) == 0 && InterruptFlags) \
 		TriggerInterrupt();
 
@@ -1009,7 +1009,7 @@ static void sigill_handler(int sig, int code, struct sigcontext *scp)
 		case 0x007c: {	// ori #xxxx,sr
 			uint16 sr = GET_SR | pc[1];
 			scp->sc_ps = sr & 0xff;		// oring bits into the sr can't enable interrupts, so we don't need to call STORE_SR
-			EmulatedSR = sr & 0x2700;
+			EmulatedSR = sr & 0xe700;
 			INC_PC(4);
 			break;
 		}
@@ -1086,31 +1086,49 @@ static void sigill_handler(int sig, int code, struct sigcontext *scp)
 		}
 
 		case 0xf327:	// fsave -(sp)
-			goto ill;	//!!
+			if (CPUIs68060) {
+				regs->a[7] -= 4;
+				WriteMacInt32(regs->a[7], 0x60000000);	// Idle frame
+				regs->a[7] -= 4;
+				WriteMacInt32(regs->a[7], 0);
+				regs->a[7] -= 4;
+				WriteMacInt32(regs->a[7], 0);
+			} else {
+				regs->a[7] -= 4;
+				WriteMacInt32(regs->a[7], 0x41000000);	// Idle frame
+			}
+			scp->sc_sp = regs->a[7];
+			INC_PC(2);
+			break;
 
 		case 0xf35f:	// frestore (sp)+
-			goto ill;	//!!
+			if (CPUIs68060)
+				regs->a[7] += 12;
+			else
+				regs->a[7] += 4;
+			scp->sc_sp = regs->a[7];
+			INC_PC(2);
+			break;
 
-		case 0x4e73: {	// rte (only handles format 0)
+		case 0x4e73: {	// rte
 			uint32 a7 = regs->a[7];
 			uint16 sr = ReadMacInt16(a7);
 			a7 += 2;
 			scp->sc_ps = sr & 0xff;
-			EmulatedSR = sr & 0x2700;
+			EmulatedSR = sr & 0xe700;
 			scp->sc_pc = ReadMacInt32(a7);
-			a7 += 6;
-			scp->sc_sp = regs->a[7] = a7;
+			a7 += 4;
+			uint16 format = ReadMacInt16(a7) >> 12;
+			a7 += 2;
+			static const int frame_adj[16] = {
+				0, 0, 4, 4, 8, 0, 0, 52, 50, 12, 24, 84, 16, 0, 0, 0
+			};
+			scp->sc_sp = regs->a[7] = a7 + frame_adj[format];
 			break;
 		}
 
 		case 0x4e7a:	// movec cr,x
 			switch (pc[1]) {
-				case 0x8801:	// movec vbr,a0
-					regs->a[0] = 0;
-					break;
-				case 0x9801:	// movec vbr,a1
-					regs->a[1] = 0;
-					break;
 				case 0x0002:	// movec cacr,d0
 					regs->d[0] = 0x3111;
 					break;
@@ -1118,10 +1136,25 @@ static void sigill_handler(int sig, int code, struct sigcontext *scp)
 					regs->d[1] = 0x3111;
 					break;
 				case 0x0003:	// movec tc,d0
+				case 0x0004:	// movec itt0,d0
+				case 0x0005:	// movec itt1,d0
+				case 0x0006:	// movec dtt0,d0
+				case 0x0007:	// movec dtt1,d0
+				case 0x0806:	// movec urp,d0
+				case 0x0807:	// movec srp,d0
 					regs->d[0] = 0;
 					break;
+				case 0x1000:	// movec sfc,d1
+				case 0x1001:	// movec dfc,d1
 				case 0x1003:	// movec tc,d1
+				case 0x1801:	// movec vbr,d1
 					regs->d[1] = 0;
+					break;
+				case 0x8801:	// movec vbr,a0
+					regs->a[0] = 0;
+					break;
+				case 0x9801:	// movec vbr,a1
+					regs->a[1] = 0;
 					break;
 				default:
 					goto ill;
@@ -1131,7 +1164,10 @@ static void sigill_handler(int sig, int code, struct sigcontext *scp)
 
 		case 0x4e7b:	// movec x,cr
 			switch (pc[1]) {
+				case 0x1000:	// movec d1,sfc
+				case 0x1001:	// movec d1,dfc
 				case 0x0801:	// movec d0,vbr
+				case 0x1801:	// movec d1,vbr
 					break;
 				case 0x0002:	// movec d0,cacr
 				case 0x1002:	// movec d1,cacr

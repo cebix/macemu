@@ -47,7 +47,6 @@
 		XREF	_MainTask
 		XREF	_SysBase
 		XREF	_quit_emulator
-		XREF	_kprintf
 
 		SECTION	text,CODE
 
@@ -296,14 +295,14 @@ _TrapHandlerAsm:
 		cmp.l	#47,(sp)
 		ble	doTrapXX		; Vector 32-47 : TRAP #0 - 15 Instruction Vectors
 
-1$:		move.l	_OldTrapHandler,-(sp)	;No, jump to old trap handler
+1$		move.l	_OldTrapHandler,-(sp)	;No, jump to old trap handler
 		rts
 
 *
 * TRAP #0 - 15 Instruction Vectors
 *
 
-doTrapXX:	move.l	a0,(sp)			;Save a0
+doTrapXX	move.l	a0,(sp)			;Save a0
 		move.l	usp,a0			;Get user stack pointer
 		move.l	2*4(sp),-(a0)		;Copy 4-word stack frame to user stack
 		move.l	1*4(sp),-(a0)
@@ -321,7 +320,7 @@ doTrapXX:	move.l	a0,(sp)			;Save a0
 * trace Vector
 *
 
-dotrace:	move.l	a0,(sp)			;Save a0
+dotrace		move.l	a0,(sp)			;Save a0
 
 		move.l	usp,a0			;Get user stack pointer
 		move.l	3*4(sp),-(a0)		;Copy 6-word stack frame to user stack
@@ -351,32 +350,14 @@ doaline		move.l	a0,(sp)			;Save a0
 		addq.l	#8,sp			;Remove exception frame from supervisor stack
 		andi	#$d8ff,sr		;Switch to user mode, enable interrupts
 
-	IFNE	0
-
-;		move.w	([2,sp]),($3800)
-
-		cmp.w	#$a9c3,([2,sp])
-		bne	1$
-
-		move.l	d0,-(sp)
-		move.l	a0,-(sp)
-		pea	afmt(pc)
-		jsr	_kprintf
-		lea	3*4(sp),sp
-1$:
-	ENDC
-
 		move.l	$28.w,-(sp)		;Jump to MacOS exception handler
 		rts
-
-afmt:		dc.b	'a0=%08lx  d0=%08lx\n',0
-		cnop	0,4
 
 *
 * Illegal address handler
 *
 
-doilladdr:	move.l	a0,(sp)			;Save a0
+doilladdr	move.l	a0,(sp)			;Save a0
 
 		move.l	usp,a0			;Get user stack pointer
 		move.l	3*4(sp),-(a0)		;Copy 6-word stack frame to user stack
@@ -397,8 +378,7 @@ doilladdr:	move.l	a0,(sp)			;Save a0
 *   to execute extended opcodes (see emul_op.h)
 *
 
-doillinstr
-		movem.l	a0/d0,-(sp)
+doillinstr	movem.l	a0/d0,-(sp)
 		move.w	([6+2*4,sp]),d0
 		and.w	#$ff00,d0
 		cmp.w	#$7100,d0
@@ -418,8 +398,7 @@ doillinstr
 		move.l	$10.w,-(sp)		;Jump to MacOS exception handler
 		rts
 
-1$:
-		move.l	a6,(sp)			;Save a6
+1$		move.l	a6,(sp)			;Save a6
 		move.l	usp,a6			;Get user stack pointer
 
 		move.l	a6,-10(a6)		;Push USP (a7)
@@ -717,7 +696,7 @@ frestorea5	move.l	(sp),d0			;Restore d0
 		rte
 
 ; fsave xxx(a5) +jl+
-fsavea5:	move.l	(sp),d0			;Restore d0
+fsavea5		move.l	(sp),d0			;Restore d0
 		move.l	a0,(sp)			;Save a0
 		move.l	a5,a0			;Get base register
 		add.w	([6,sp],2),a0		;Add offset to base register
@@ -746,8 +725,8 @@ pvrte		movem.l	a0/a1,-(sp)		;Save a0 and a1
 		lea	16+4(sp),a1		; destination address (in supervisor stack)
 		bra	1$
 
-2$:		move.w	(a0)+,(a1)+		; copy additional stack words back to supervisor stack
-1$:		dbf	d0,2$
+2$		move.w	(a0)+,(a1)+		; copy additional stack words back to supervisor stack
+1$		dbf	d0,2$
 
 		move.l	a0,usp			;Update USP
 		movem.l	(sp)+,a0/a1		;Restore a0 and a1
@@ -951,23 +930,23 @@ movectcd1	move.l	(sp)+,d0		;Restore d0
 		rte
 
 ; movec sfc,d1	+jl+
-movecsfcd1:	move.l	(sp)+,d0		;Restore d0
+movecsfcd1	move.l	(sp)+,d0		;Restore d0
 		moveq	#0,d1
 		addq.l	#4,2(sp)
 		rte
 
 ; movec dfc,d1	+jl+
-movecdfcd1:	move.l	(sp)+,d0		;Restore d0
+movecdfcd1	move.l	(sp)+,d0		;Restore d0
 		moveq	#0,d1
 		addq.l	#4,2(sp)
 		rte
 
-movecurpd0:		; movec urp,d0	+jl+
-movecsrpd0:		; movec srp,d0
-movecitt0d0:		; movec itt0,d0
-movecitt1d0:		; movec itt1,d0
-movecdtt0d0:		; movec dtt0,d0
-movecdtt1d0:		; movec dtt1,d0
+movecurpd0		; movec urp,d0	+jl+
+movecsrpd0		; movec srp,d0
+movecitt0d0		; movec itt0,d0
+movecitt1d0		; movec itt1,d0
+movecdtt0d0		; movec dtt0,d0
+movecdtt1d0		; movec dtt1,d0
 		addq.l	#4,sp
 		moveq.l	#0,d0			;MMU is always off
 		addq.l	#4,2(sp)		;skip instruction
@@ -1022,19 +1001,19 @@ cpushadcic	movem.l	d1/a0-a1/a6,-(sp)	;Clear caches
 		rte
 
 ; move usp,a1	+jl+
-moveuspa1:	move.l	(sp)+,d0
+moveuspa1	move.l	(sp)+,d0
 		move	usp,a1
 		addq.l	#2,2(sp)
 		rte
 
 ; move usp,a0	+jl+
-moveuspa0:	move.l	(sp)+,d0
+moveuspa0	move.l	(sp)+,d0
 		move	usp,a0
 		addq.l	#2,2(sp)
 		rte
 
 ; move a1,usp	+jl+
-moved1usp:	move.l	(sp)+,d0
+moved1usp	move.l	(sp)+,d0
 		move	a1,usp
 		addq.l	#2,2(sp)
 		rte
@@ -1043,8 +1022,7 @@ moved1usp:	move.l	(sp)+,d0
 ; Trigger NMI (Pop up debugger)
 ;
 
-_AsmTriggerNMI:
-		move.l	d0,-(sp)		;Save d0
+_AsmTriggerNMI	move.l	d0,-(sp)		;Save d0
 		move.w	#$007c,-(sp)		;Yes, fake NMI stack frame
 		pea	1$
 		move.w	_EmulatedSR,d0
