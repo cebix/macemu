@@ -2470,9 +2470,9 @@ int main (int argc, char **argv)
      * cputbl.h that way), but cpuopti can't cope.  That could be fixed, but
      * I don't dare to touch the 68k version.  */
 
-    headerfile = fopen ("cputbl.h", "wb");
-    stblfile = fopen ("cpustbl.cpp", "wb");
-    freopen ("cpuemu.cpp", "wb", stdout);
+    headerfile = fopen ("cputbl.h", "w");
+    stblfile = fopen ("cpustbl.cpp", "w");
+    FILE *out = freopen ("cpuemu.cpp", "w", stdout);
 
     generate_includes (stdout);
     generate_includes (stblfile);
@@ -2480,5 +2480,8 @@ int main (int argc, char **argv)
     generate_func ();
 
     free (table68k);
+    fclose (headerfile);
+    fclose (stblfile);
+    fflush (out);
     return 0;
 }

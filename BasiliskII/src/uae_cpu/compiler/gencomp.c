@@ -3069,5 +3069,6 @@ main (int argc, char **argv)
     free (table68k);
 	fclose (stblfile);
 	fclose (headerfile);
+    fflush (stdout);
     return 0;
 }
