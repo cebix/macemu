@@ -2113,19 +2113,19 @@ static void gen_opcode (unsigned long int opcode)
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0);
 	sync_m68k_pc ();
 	swap_opcode ();
-	printf ("\tfpp_opp(opcode,extra);\n");
+	printf ("\tfpuop_arithmetic(opcode, extra);\n");
 	break;
      case i_FDBcc:
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0);
 	sync_m68k_pc ();
 	swap_opcode ();
-	printf ("\tfdbcc_opp(opcode,extra);\n");
+	printf ("\tfpuop_dbcc(opcode, extra);\n");
 	break;
      case i_FScc:
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0);
 	sync_m68k_pc ();
 	swap_opcode ();
-	printf ("\tfscc_opp(opcode,extra);\n");
+	printf ("\tfpuop_scc(opcode,extra);\n");
 	break;
      case i_FTRAPcc:
 	sync_m68k_pc ();
@@ -2135,7 +2135,7 @@ static void gen_opcode (unsigned long int opcode)
 	    genamode (curi->smode, "srcreg", curi->size, "dummy", 1, 0);
 	sync_m68k_pc ();
 	swap_opcode ();
-	printf ("\tftrapcc_opp(opcode,oldpc);\n");
+	printf ("\tfpuop_trapcc(opcode,oldpc);\n");
 	break;
      case i_FBcc:
 	sync_m68k_pc ();
@@ -2144,17 +2144,17 @@ static void gen_opcode (unsigned long int opcode)
 	genamode (curi->dmode, "srcreg", curi->size, "extra", 1, 0);
 	sync_m68k_pc ();
 	swap_opcode ();
-	printf ("\tfbcc_opp(opcode,pc,extra);\n");
+	printf ("\tfpuop_bcc(opcode,pc,extra);\n");
 	break;
      case i_FSAVE:
 	sync_m68k_pc ();
 	swap_opcode ();
-	printf ("\tfsave_opp(opcode);\n");
+	printf ("\tfpuop_save(opcode);\n");
 	break;
      case i_FRESTORE:
 	sync_m68k_pc ();
 	swap_opcode ();
-	printf ("\tfrestore_opp(opcode);\n");
+	printf ("\tfpuop_restore(opcode);\n");
 	break;
      case i_CINVL:
      case i_CINVP:
@@ -2227,6 +2227,7 @@ static void generate_includes (FILE * f)
     fprintf (f, "#include \"memory.h\"\n");
     fprintf (f, "#include \"readcpu.h\"\n");
     fprintf (f, "#include \"newcpu.h\"\n");
+    fprintf (f, "#include \"fpu/fpu.h\"\n");
     fprintf (f, "#include \"cputbl.h\"\n");
 	
 	fprintf (f, "#define SET_CFLG_ALWAYS(x) SET_CFLG(x)\n");
