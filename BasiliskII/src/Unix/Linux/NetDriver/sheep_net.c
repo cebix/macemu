@@ -29,8 +29,21 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/init.h>
+#include <linux/in.h>
+#include <linux/wait.h>
 #include <net/sock.h>
+#include <net/arp.h>
+#include <net/ip.h>
 #include <asm/uaccess.h>
+
+/* Compatibility glue */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
+#define LINUX_24
+#else
+#define net_device device
+typedef struct wait_queue *wait_queue_head_t;
+#define init_waitqueue_head(x) *(x)=NULL
+#endif
 
 #define DEBUG 0
 
@@ -42,19 +55,24 @@
 #endif
 
 
-// Constants
-#define SHEEP_NET_MINOR 198		// Driver minor number
-#define MAX_QUEUE 32			// Maximum number of packets in queue
-#define PROT_MAGIC 1520			// Our "magic" protocol type
+/* Constants */
+#define SHEEP_NET_MINOR 198		/* Driver minor number */
+#define MAX_QUEUE 32			/* Maximum number of packets in queue */
+#define PROT_MAGIC 1520			/* Our "magic" protocol type */
 
-// Prototypes
+#define ETH_ADDR_MULTICAST 0x1
+
+#define SIOC_MOL_GET_IPFILTER SIOCDEVPRIVATE
+#define SIOC_MOL_SET_IPFILTER (SIOCDEVPRIVATE + 1)
+
+/* Prototypes */
 static int sheep_net_open(struct inode *inode, struct file *f);
 static int sheep_net_release(struct inode *inode, struct file *f);
 static ssize_t sheep_net_read(struct file *f, char *buf, size_t count, loff_t *off);
 static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, loff_t *off);
 static unsigned int sheep_net_poll(struct file *f, struct poll_table_struct *wait);
 static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int code, unsigned long arg);
-static int sheep_net_receiver(struct sk_buff *skb, struct device *dev, struct packet_type *pt);
+static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt);
 
 
 /*
@@ -62,11 +80,14 @@ static int sheep_net_receiver(struct sk_buff *skb, struct device *dev, struct pa
  */
 
 struct SheepVars {
-	struct device *ether;		// The Ethernet device we're attached to
-	struct sock *skt;			// Socket for communication with Ethernet card
-	struct sk_buff_head queue;	// Receiver packet queue
-	struct packet_type pt;		// Receiver packet type
-	struct wait_queue *wait;	// Wait queue for blocking read operations
+	struct net_device *ether;	/* The Ethernet device we're attached to */
+	struct sock *skt;			/* Socket for communication with Ethernet card */
+	struct sk_buff_head queue;	/* Receiver packet queue */
+	struct packet_type pt;		/* Receiver packet type */
+	wait_queue_head_t wait;		/* Wait queue for blocking read operations */
+	u32 ipfilter;				/* Only receive IP packets destined for this address (host byte order) */
+	char eth_addr[6];			/* Hardware address of the Ethernet card */
+	char fake_addr[6];			/* Local faked hardware address (what SheepShaver sees) */
 };
 
 
@@ -76,21 +97,12 @@ struct SheepVars {
  */
 
 static struct file_operations sheep_net_fops = {
-	NULL,	// llseek
-	sheep_net_read,
-	sheep_net_write,
-	NULL,	// readdir
-	sheep_net_poll,
-	sheep_net_ioctl,
-	NULL,	// mmap
-	sheep_net_open,
-	NULL,	// flush
-	sheep_net_release,
-	NULL,	// fsync
-	NULL,	// fasync
-	NULL,	// check_media_change
-	NULL,	// revalidate
-	NULL	// lock
+	read:		sheep_net_read,
+	write:		sheep_net_write,
+	poll:		sheep_net_poll,
+	ioctl:		sheep_net_ioctl,
+	open:		sheep_net_open,
+	release:	sheep_net_release,
 };
 
 
@@ -99,8 +111,8 @@ static struct file_operations sheep_net_fops = {
  */
 
 static struct miscdevice sheep_net_device = {
-	SHEEP_NET_MINOR,	// minor number
-	"sheep_net",		// name
+	SHEEP_NET_MINOR,	/* minor number */
+	"sheep_net",		/* name */
 	&sheep_net_fops,
 	NULL,
 	NULL
@@ -115,7 +127,7 @@ int init_module(void)
 {
 	int ret;
 
-	// Register driver
+	/* Register driver */
 	ret = misc_register(&sheep_net_device);
 	D(bug("Sheep net driver installed\n"));
 	return ret;
@@ -130,7 +142,7 @@ int cleanup_module(void)
 {
 	int ret;
 
-	// Unregister driver
+	/* Unregister driver */
 	ret = misc_deregister(&sheep_net_device);
 	D(bug("Sheep net driver removed\n"));
 	return ret;
@@ -146,18 +158,25 @@ static int sheep_net_open(struct inode *inode, struct file *f)
 	struct SheepVars *v;
 	D(bug("sheep_net: open\n"));
 
-	// Must be opened with read permissions
+	/* Must be opened with read permissions */
 	if ((f->f_flags & O_ACCMODE) == O_WRONLY)
 		return -EPERM;
 
-	// Allocate private variables
+	/* Allocate private variables */
 	v = (struct SheepVars *)f->private_data = kmalloc(sizeof(struct SheepVars), GFP_USER);
 	if (v == NULL)
 		return -ENOMEM;
 	memset(v, 0, sizeof(struct SheepVars));
 	skb_queue_head_init(&v->queue);
+	init_waitqueue_head(&v->wait);
+	v->fake_addr[0] = 0xfe;
+	v->fake_addr[1] = 0xfd;
+	v->fake_addr[2] = 0xde;
+	v->fake_addr[3] = 0xad;
+	v->fake_addr[4] = 0xbe;
+	v->fake_addr[5] = 0xef;
 
-	// Yes, we're open
+	/* Yes, we're open */
 	MOD_INC_USE_COUNT;
 	return 0;
 }
@@ -173,24 +192,93 @@ static int sheep_net_release(struct inode *inode, struct file *f)
 	struct sk_buff *skb;
 	D(bug("sheep_net: close\n"));
 
-	// Detach from Ethernet card
+	/* Detach from Ethernet card */
 	if (v->ether) {
 		dev_remove_pack(&v->pt);
 		sk_free(v->skt);
 		v->skt = NULL;
+#ifdef LINUX_24
+		dev_put( v->ether );
+#endif
 		v->ether = NULL;
 	}
 
-	// Empty packet queue
+	/* Empty packet queue */
 	while ((skb = skb_dequeue(&v->queue)) != NULL)
 		dev_kfree_skb(skb);
 
-	// Free private variables
+	/* Free private variables */
 	kfree(v);
 
-	// Sorry, we're closed
+	/* Sorry, we're closed */
 	MOD_DEC_USE_COUNT;
 	return 0;
+}
+
+
+/*
+ *  Check whether an Ethernet address is the local (attached) one or
+ *  the fake one
+ */
+
+static inline int is_local_addr(struct SheepVars *v, void *a)
+{
+	return memcmp(a, v->eth_addr, 6) == 0;
+}
+
+static inline int is_fake_addr(struct SheepVars *v, void *a)
+{
+	return memcmp(a, v->fake_addr, 6) == 0;
+}
+
+
+/* 
+ * Outgoing packet. Replace the fake enet addr with the real local one.
+ */
+
+static inline void do_demasq(struct SheepVars *v, u8 *p)
+{
+	memcpy(p, v->eth_addr, 6);
+}
+
+static void demasquerade(struct SheepVars *v, struct sk_buff *skb)
+{
+	u8 *p = skb->mac.raw;
+	int proto = (p[12] << 8) | p[13];
+	
+	do_demasq(v, p + 6); /* source address */
+
+	/* Need to fix ARP packets */
+	if (proto == ETH_P_ARP) {
+		if (is_fake_addr(v, p + 14 + 8)) /* sender HW-addr */
+			do_demasq(v, p + 14 + 8);
+	}
+
+	/* ...and AARPs (snap code: 0x00,0x00,0x00,0x80,0xF3) */
+	if (p[17] == 0 && p[18] == 0 && p[19] == 0 && p[20] == 0x80 && p[21] == 0xf3) {
+		/* XXX: we should perhaps look for the 802 frame too */
+		if (is_fake_addr(v, p + 30))
+			do_demasq(v, p + 30); /* sender HW-addr */
+	}
+}
+
+
+/*
+ * Incoming packet. Replace the local enet addr with the fake one.
+ */
+
+static inline void do_masq(struct SheepVars *v, u8 *p)
+{
+	memcpy(p, v->fake_addr, 6);
+}
+
+static void masquerade(struct SheepVars *v, struct sk_buff *skb)
+{
+	u8 *p = skb->mac.raw;
+	if (!(p[0] & ETH_ADDR_MULTICAST))
+		do_masq(v, p); /* destination address */
+
+	/* XXX: reverse ARP might need to be fixed */
 }
 
 
@@ -202,33 +290,27 @@ static ssize_t sheep_net_read(struct file *f, char *buf, size_t count, loff_t *o
 {
 	struct SheepVars *v = (struct SheepVars *)f->private_data;
 	struct sk_buff *skb;
-	sigset_t sigs;
-	int i;
+
 	D(bug("sheep_net: read\n"));
 
 	for (;;) {
 
-		// Get next packet from queue
-		start_bh_atomic();
+		/* Get next packet from queue */
 		skb = skb_dequeue(&v->queue);
-		end_bh_atomic();
 		if (skb != NULL || (f->f_flags & O_NONBLOCK))
 			break;
 
-		// No packet in queue and in blocking mode, so block
+		/* No packet in queue and in blocking mode, so block */
 		interruptible_sleep_on(&v->wait);
 
-		// Signal received? Then bail out
-		signandsets(&sigs, &current->signal, &current->blocked);
-		for (i=0; i<_NSIG_WORDS; i++) {
-			if (sigs.sig[i])
-				return -EINTR;
-		}
+		/* Signal received? Then bail out */
+		if (signal_pending(current))
+			return -EINTR;
 	}
 	if (skb == NULL)
 		return -EAGAIN;
 
-	// Pass packet to caller
+	/* Pass packet to caller */
 	if (count > skb->len)
 		count = skb->len;
 	if (copy_to_user(buf, skb->data, count))
@@ -249,37 +331,65 @@ static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, lo
 	char *p;
 	D(bug("sheep_net: write\n"));
 
-	// Check packet size
+	/* Check packet size */
 	if (count < sizeof(struct ethhdr))
 		return -EINVAL;
 	if (count > 1514)
 		count = 1514;
 
-	// Interface active?
+	/* Interface active? */
 	if (v->ether == NULL)
 		return count;
 
-	// Allocate buffer for packet
+	/* Allocate buffer for packet */
 	skb = dev_alloc_skb(count);
 	if (skb == NULL)
 		return -ENOBUFS;
 
-	// Stuff packet in buffer
+	/* Stuff packet in buffer */
 	p = skb_put(skb, count);
 	if (copy_from_user(p, buf, count)) {
 		kfree_skb(skb);
 		return -EFAULT;
 	}
 
-	// Transmit packet
-	dev_lock_list();
+	/* Transmit packet */
 	atomic_add(skb->truesize, &v->skt->wmem_alloc);
 	skb->sk = v->skt;
 	skb->dev = v->ether;
 	skb->priority = 0;
-	skb->protocol = PROT_MAGIC;	// "Magic" protocol value to recognize our packets in sheep_net_receiver()
 	skb->nh.raw = skb->h.raw = skb->data + v->ether->hard_header_len;
-	dev_unlock_list();
+	skb->mac.raw = skb->data;
+
+	/* Base the IP-filtering on the IP address in any outgoing ARP packets */
+	if (skb->mac.ethernet->h_proto == htons(ETH_P_ARP)) {
+		u8 *p = &skb->data[14+14];	/* source IP address */
+		u32 ip = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+		if (ip != v->ipfilter) {
+			v->ipfilter = ip;
+			printk("sheep_net: ipfilter set to %d.%d.%d.%d\n", (ip >> 24) & 0xff, (ip >> 16) & 0xff, (ip >> 8) & 0xff, ip & 0xff);
+		}
+	}
+
+	/* Is this packet addressed solely to the local host? */
+	if (is_local_addr(v, skb->data) && !(skb->data[0] & ETH_ADDR_MULTICAST)) {
+		skb->protocol = eth_type_trans(skb, v->ether);
+		netif_rx(skb);
+		return count;
+	}
+	if (skb->data[0] & ETH_ADDR_MULTICAST) {
+		/* We can't clone the skb since we will manipulate the data below */
+		struct sk_buff *lskb = skb_copy(skb, GFP_ATOMIC);
+		if (lskb) {
+			lskb->protocol = eth_type_trans(lskb, v->ether);
+			netif_rx(lskb);
+		}
+	}
+
+	/* Outgoing packet (will be on the net) */
+	demasquerade(v, skb);
+
+	skb->protocol = PROT_MAGIC;	/* Magic value (we can recognize the packet in sheep_net_receiver) */
 	dev_queue_xmit(skb);
 	return count;
 }
@@ -294,22 +404,16 @@ static unsigned int sheep_net_poll(struct file *f, struct poll_table_struct *wai
 	struct SheepVars *v = (struct SheepVars *)f->private_data;
 	D(bug("sheep_net: poll\n"));
 
-	// Packets in queue? Then return
-	start_bh_atomic();
-	if (!skb_queue_empty(&v->queue)) {
-		end_bh_atomic();
+	/* Packets in queue? Then return */
+	if (!skb_queue_empty(&v->queue))
 		return POLLIN | POLLRDNORM;
-	}
 
-	// Otherwise wait for packet
+	/* Otherwise wait for packet */
 	poll_wait(f, &v->wait, wait);
-	if (!skb_queue_empty(&v->queue)) {
-		end_bh_atomic();
+	if (!skb_queue_empty(&v->queue))
 		return POLLIN | POLLRDNORM;
-	} else {
-		end_bh_atomic();
+	else
 		return 0;
-	}
 }
 
 
@@ -324,65 +428,88 @@ static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int cod
 
 	switch (code) {
 
-		// Attach to Ethernet card
-		// arg: pointer to name of Ethernet device (char[8])
+		/* Attach to Ethernet card
+		   arg: pointer to name of Ethernet device (char[8]) */
 		case SIOCSIFLINK: {
 			char name[8];
+			int err;
 
-			// Already attached?
+			/* Already attached? */
 			if (v->ether)
 				return -EBUSY;
 
-			// Get Ethernet card name
+			/* Get Ethernet card name */
 			if (copy_from_user(name, (void *)arg, 8))
 				return -EFAULT;
 			name[7] = 0;
 
-			// Find card
+			/* Find card */
+#ifdef LINUX_24
+			v->ether = dev_get_by_name(name);
+#else
 			dev_lock_list();
 			v->ether = dev_get(name);
+#endif
 			if (v->ether == NULL) {
-				dev_unlock_list();
-				return -ENODEV;
+				err = -ENODEV;
+				goto error;
 			}
 
-			// Is it Ethernet?
+			/* Is it Ethernet? */
 			if (v->ether->type != ARPHRD_ETHER) {
-				v->ether = NULL;
-				dev_unlock_list();
-				return -EINVAL;
+				err = -EINVAL;
+				goto error;
 			}
 
-			// Allocate socket
+			/* Remember the card's hardware address */
+			memcpy(v->eth_addr, v->ether->dev_addr, 6);
+
+			/* Allocate socket */
 			v->skt = sk_alloc(0, GFP_USER, 1);
 			if (v->skt == NULL) {
-				v->ether = NULL;
-				dev_unlock_list();
-				return -ENOMEM;
+				err = -ENOMEM;
+				goto error;
 			}
 			v->skt->dead = 1;
 
-			// Attach packet handler
+			/* Attach packet handler */
 			v->pt.type = htons(ETH_P_ALL);
 			v->pt.dev = v->ether;
 			v->pt.func = sheep_net_receiver;
 			v->pt.data = v;
 			dev_add_pack(&v->pt);
+#ifndef LINUX_24
 			dev_unlock_list();
+#endif
 			return 0;
+
+error:
+#ifdef LINUX_24
+			if (v->ether)
+				dev_put(v->ether);
+#else
+			dev_unlock_list();
+#endif
+			v->ether = NULL;
+			return err;
 		}
 
-		// Get hardware address of Ethernet card
-		// arg: pointer to buffer (6 bytes) to store address
+		/* Get hardware address of the sheep_net module
+		   arg: pointer to buffer (6 bytes) to store address */
 		case SIOCGIFADDR:
-			if (v->ether == NULL)
-				return -ENODEV;
-			if (copy_to_user((void *)arg, v->ether->dev_addr, 6))
+			if (copy_to_user((void *)arg, v->fake_addr, 6))
 				return -EFAULT;
 			return 0;
 
-		// Add multicast address
-		// arg: pointer to address (6 bytes)
+		/* Set the hardware address of the sheep_net module
+		   arg: pointer to new address (6 bytes) */
+		case SIOCSIFADDR:
+			if (copy_from_user(v->fake_addr, (void*)arg, 6))
+				return -EFAULT;
+			return 0;
+
+		/* Add multicast address
+		   arg: pointer to address (6 bytes) */
 		case SIOCADDMULTI: {
 			char addr[6];
 			if (v->ether == NULL)
@@ -392,8 +519,8 @@ static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int cod
 			return dev_mc_add(v->ether, addr, 6, 0);
 		}
 
-		// Remove multicast address
-		// arg: pointer to address (6 bytes)
+		/* Remove multicast address
+		   arg: pointer to address (6 bytes) */
 		case SIOCDELMULTI: {
 			char addr[6];
 			if (v->ether == NULL)
@@ -403,17 +530,33 @@ static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int cod
 			return dev_mc_delete(v->ether, addr, 6, 0);
 		}
 
-		// Return size of first packet in queue
+		/* Return size of first packet in queue */
 		case FIONREAD: {
 			int count = 0;
 			struct sk_buff *skb;
-			start_bh_atomic();
+#ifdef LINUX_24
+			long flags;
+			spin_lock_irqsave(&v->queue.lock, flags);
+#else
+			cli();
+#endif
 			skb = skb_peek(&v->queue);
 			if (skb)
 				count = skb->len;
-			end_bh_atomic();
+#ifdef LINUX_24
+			spin_unlock_irqrestore(&v->queue.lock, flags);
+#else
+			sti();
+#endif
 			return put_user(count, (int *)arg);
 		}
+
+		case SIOC_MOL_GET_IPFILTER:
+			return put_user(v->ipfilter, (int *)arg);
+
+		case SIOC_MOL_SET_IPFILTER:
+			v->ipfilter = arg;
+			return 0;
 
 		default:
 			return -ENOIOCTLCMD;
@@ -425,32 +568,55 @@ static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int cod
  *  Packet receiver function
  */
 
-static int sheep_net_receiver(struct sk_buff *skb, struct device *dev, struct packet_type *pt)
+static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
 {
 	struct SheepVars *v = (struct SheepVars *)pt->data;
+	struct sk_buff *skb2;
+	int fake;
+	int multicast;
 	D(bug("sheep_net: packet received\n"));
 
-	// Packet sent by us? Then discard
-	if (skb->protocol == PROT_MAGIC) {
-		kfree_skb(skb);
-		return 0;
+	multicast = (skb->mac.ethernet->h_dest[0] & ETH_ADDR_MULTICAST);
+	fake = is_fake_addr(v, &skb->mac.ethernet->h_dest);
+
+	/* Packet sent by us? Then discard */
+	if (is_fake_addr(v, &skb->mac.ethernet->h_source) || skb->protocol == PROT_MAGIC)
+		goto drop;
+
+	/* If the packet is not meant for this host, discard it */
+	if (!is_local_addr(v, &skb->mac.ethernet->h_dest) && !multicast && !fake)
+		goto drop;
+
+	/* Discard packets if queue gets too full */
+	if (skb_queue_len(&v->queue) > MAX_QUEUE)
+		goto drop;
+
+	/* Apply any filters here (if fake is true, then we *know* we want this packet) */
+	if (!fake) {
+		if ((skb->protocol == htons(ETH_P_IP))
+		 && (!v->ipfilter || (ntohl(skb->h.ipiph->daddr) != v->ipfilter && !multicast)))
+			goto drop;
 	}
 
-	// Discard packets if queue gets too full
-	if (skb_queue_len(&v->queue) > MAX_QUEUE) {
-		kfree_skb(skb);
-		return 0;
-	}
+	/* Masquerade (we are typically a clone - best to make a real copy) */
+	skb2 = skb_copy(skb, GFP_ATOMIC);
+	if (!skb2)
+		goto drop;
+	kfree_skb(skb);
+	skb = skb2;
+	masquerade(v, skb);
 
-	// We also want the Ethernet header
+	/* We also want the Ethernet header */
 	skb_push(skb, skb->data - skb->mac.raw);
 
-	// Enqueue packet
-	start_bh_atomic();
+	/* Enqueue packet */
 	skb_queue_tail(&v->queue, skb);
-	end_bh_atomic();
 
-	// Unblock blocked read
+	/* Unblock blocked read */
 	wake_up(&v->wait);
+	return 0;
+
+drop:
+	kfree_skb(skb);
 	return 0;
 }
