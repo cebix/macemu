@@ -265,6 +265,7 @@ static bool screen_fault_handler(sigsegv_address_t fault_address, sigsegv_addres
 	extern void m68k_dumpstate(uaecptr *nextpc);
 	m68k_dumpstate(&nextpc);
 #endif
+	VideoQuitFullScreen();
 #ifdef ENABLE_MON
 	char *arg[4] = {"mon", "-m", "-r", NULL};
 	mon(3, arg);

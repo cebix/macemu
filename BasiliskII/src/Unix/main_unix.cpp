@@ -123,9 +123,15 @@ static volatile bool tick_thread_cancel = false;	// Flag: Cancel 60Hz thread
 static pthread_t tick_thread;						// 60Hz thread
 static pthread_attr_t tick_thread_attr;				// 60Hz thread attributes
 
-#if EMULATED_68K
 static pthread_mutex_t intflag_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect InterruptFlags
-#endif
+#define LOCK_INTFLAGS pthread_mutex_lock(&intflag_lock)
+#define UNLOCK_INTFLAGS pthread_mutex_unlock(&intflag_lock)
+
+#else
+
+#define LOCK_INTFLAGS
+#define UNLOCK_INTFLAGS
+
 #endif
 
 #if !EMULATED_68K
@@ -668,10 +674,70 @@ static void sigint_handler(...)
 	extern void m68k_dumpstate(uaecptr *nextpc);
 	m68k_dumpstate(&nextpc);
 #endif
+	VideoQuitFullScreen();
 	char *arg[4] = {"mon", "-m", "-r", NULL};
 	mon(3, arg);
 	QuitEmulator();
 }
+#endif
+
+
+/*
+ *  Mutexes
+ */
+
+#ifdef HAVE_PTHREADS
+
+struct B2_mutex {
+	B2_mutex() { pthread_mutex_init(&m, NULL); }
+	~B2_mutex() { pthread_mutex_unlock(&m); pthread_mutex_destroy(&m); }
+	pthread_mutex_t m;
+};
+
+B2_mutex *B2_create_mutex(void)
+{
+	return new B2_mutex;
+}
+
+void B2_lock_mutex(B2_mutex *mutex)
+{
+	pthread_mutex_lock(&mutex->m);
+}
+
+void B2_unlock_mutex(B2_mutex *mutex)
+{
+	pthread_mutex_unlock(&mutex->m);
+}
+
+void B2_delete_mutex(B2_mutex *mutex)
+{
+	delete mutex;
+}
+
+#else
+
+struct B2_mutex {
+	int dummy;
+};
+
+B2_mutex *B2_create_mutex(void)
+{
+	return new B2_mutex;
+}
+
+void B2_lock_mutex(B2_mutex *mutex)
+{
+}
+
+void B2_unlock_mutex(B2_mutex *mutex)
+{
+}
+
+void B2_delete_mutex(B2_mutex *mutex)
+{
+	delete mutex;
+}
+
 #endif
 
 
@@ -684,24 +750,16 @@ uint32 InterruptFlags = 0;
 #if EMULATED_68K
 void SetInterruptFlag(uint32 flag)
 {
-#ifdef HAVE_PTHREADS
-	pthread_mutex_lock(&intflag_lock);
+	LOCK_INTFLAGS;
 	InterruptFlags |= flag;
-	pthread_mutex_unlock(&intflag_lock);
-#else
-	InterruptFlags |= flag;		// Pray that this is an atomic operation...
-#endif
+	UNLOCK_INTFLAGS;
 }
 
 void ClearInterruptFlag(uint32 flag)
 {
-#ifdef HAVE_PTHREADS
-	pthread_mutex_lock(&intflag_lock);
+	LOCK_INTFLAGS;
 	InterruptFlags &= ~flag;
-	pthread_mutex_unlock(&intflag_lock);
-#else
-	InterruptFlags &= ~flag;
-#endif
+	UNLOCK_INTFLAGS;
 }
 #endif
 
@@ -1197,6 +1255,7 @@ ill:		printf("SIGILL num %d, code %d\n", sig, code);
 			for (int i=0; i<8; i++)
 				printf("  a%d %08x\n", i, state->ss_frame.f_regs[i+8]);
 
+			VideoQuitFullScreen();
 #ifdef ENABLE_MON
 			char *arg[4] = {"mon", "-m", "-r", NULL};
 			mon(3, arg);

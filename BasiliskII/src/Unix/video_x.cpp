@@ -24,6 +24,7 @@
  *      Ctrl-Tab = suspend DGA mode
  *      Ctrl-Esc = emergency quit
  *      Ctrl-F1 = mount floppy
+ *      Ctrl-F5 = grab mouse (in windowed mode)
  */
 
 #include "sysdeps.h"
@@ -73,7 +74,7 @@ enum {
 // Constants
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
 
-static const int win_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | EnterWindowMask | ExposureMask | StructureNotifyMask;
+static const int win_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | ExposureMask | StructureNotifyMask;
 static const int dga_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | StructureNotifyMask;
 
 
@@ -322,6 +323,11 @@ public:
 	virtual void update_palette(void);
 	virtual void suspend(void) {}
 	virtual void resume(void) {}
+	virtual void toggle_mouse_grab(void) {}
+	virtual void mouse_moved(int x, int y) { ADBMouseMoved(x, y); }
+
+	virtual void grab_mouse(void) {}
+	virtual void ungrab_mouse(void) {}
 
 public:
 	bool init_ok;	// Initialization succeeded (we can't use exceptions because of -fomit-frame-pointer)
@@ -342,12 +348,20 @@ public:
 	driver_window(const video_mode &mode);
 	~driver_window();
 
+	void toggle_mouse_grab(void);
+	void mouse_moved(int x, int y);
+
+	void grab_mouse(void);
+	void ungrab_mouse(void);
+
 private:
 	GC gc;
 	XImage *img;
-	bool have_shm;				// Flag: SHM extensions available
+	bool have_shm;					// Flag: SHM extensions available
 	XShmSegmentInfo shminfo;
 	Cursor mac_cursor;
+	bool mouse_grabbed;				// Flag: mouse pointer grabbed, using relative mouse mode
+	int mouse_last_x, mouse_last_y;	// Last mouse position (for relative mode)
 };
 
 static driver_base *drv = NULL;	// Pointer to currently used driver object
@@ -365,6 +379,8 @@ driver_base::driver_base()
 
 driver_base::~driver_base()
 {
+	ungrab_mouse();
+
 	if (w) {
 		XUnmapWindow(x_display, w);
 		wait_unmapped(w);
@@ -421,14 +437,14 @@ void driver_base::update_palette(void)
 
 // Open display
 driver_window::driver_window(const video_mode &mode)
- : gc(0), img(NULL), have_shm(false), mac_cursor(0)
+ : gc(0), img(NULL), have_shm(false), mouse_grabbed(false), mac_cursor(0)
 {
 	int width = mode.x, height = mode.y;
 	int aligned_width = (width + 15) & ~15;
 	int aligned_height = (height + 15) & ~15;
 
 	// Set absolute mouse mode
-	ADBSetRelMouseMode(false);
+	ADBSetRelMouseMode(mouse_grabbed);
 
 	// Create window
 	XSetWindowAttributes wattr;
@@ -561,6 +577,84 @@ driver_window::~driver_window()
 		XFreeGC(x_display, gc);
 }
 
+// Toggle mouse grab
+void driver_window::toggle_mouse_grab(void)
+{
+	if (mouse_grabbed)
+		ungrab_mouse();
+	else
+		grab_mouse();
+}
+
+// Grab mouse, switch to relative mouse mode
+void driver_window::grab_mouse(void)
+{
+	int result;
+	for (int i=0; i<10; i++) {
+		result = XGrabPointer(x_display, w, True, 0,
+			GrabModeAsync, GrabModeAsync, w, None, CurrentTime);
+		if (result != AlreadyGrabbed)
+			break;
+		Delay_usec(100000);
+	}
+	if (result == GrabSuccess) {
+		ADBSetRelMouseMode(mouse_grabbed = true);
+		XStoreName(x_display, w, GetString(STR_WINDOW_TITLE_GRABBED));
+		XSync(x_display, false);
+	}
+}
+
+// Ungrab mouse, switch to absolute mouse mode
+void driver_window::ungrab_mouse(void)
+{
+	if (mouse_grabbed) {
+		XUngrabPointer(x_display, CurrentTime);
+		XStoreName(x_display, w, GetString(STR_WINDOW_TITLE));
+		ADBSetRelMouseMode(mouse_grabbed = false);
+	}
+}
+
+// Mouse moved
+void driver_window::mouse_moved(int x, int y)
+{
+	if (!mouse_grabbed) {
+		mouse_last_x = x; mouse_last_y = y;
+		ADBMouseMoved(x, y);
+		return;
+	}
+
+	// Warped mouse motion (this code is taken from SDL)
+
+	// Post first mouse event
+	int width = VideoMonitor.mode.x, height = VideoMonitor.mode.y;
+	int delta_x = x - mouse_last_x, delta_y = y - mouse_last_y;
+	mouse_last_x = x; mouse_last_y = y;
+	ADBMouseMoved(delta_x, delta_y);
+
+	// Only warp the pointer when it has reached the edge
+	const int MOUSE_FUDGE_FACTOR = 8;
+	if (x < MOUSE_FUDGE_FACTOR || x > (width - MOUSE_FUDGE_FACTOR)
+	 || y < MOUSE_FUDGE_FACTOR || y > (height - MOUSE_FUDGE_FACTOR)) {
+		XEvent event;
+		while (XCheckTypedEvent(x_display, MotionNotify, &event)) {
+			delta_x = x - mouse_last_x; delta_y = y - mouse_last_y;
+			mouse_last_x = x; mouse_last_y = y;
+			ADBMouseMoved(delta_x, delta_y);
+		}
+		mouse_last_x = width/2;
+		mouse_last_y = height/2;
+		XWarpPointer(x_display, None, w, 0, 0, 0, 0, mouse_last_x, mouse_last_y);
+		for (int i=0; i<10; i++) {
+			XMaskEvent(x_display, PointerMotionMask, &event);
+			if (event.xmotion.x > (mouse_last_x - MOUSE_FUDGE_FACTOR)
+			 && event.xmotion.x < (mouse_last_x + MOUSE_FUDGE_FACTOR)
+			 && event.xmotion.y > (mouse_last_y - MOUSE_FUDGE_FACTOR)
+			 && event.xmotion.y < (mouse_last_y + MOUSE_FUDGE_FACTOR))
+				break;
+		}
+	}
+}
+
 
 #if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
 /*
@@ -639,8 +733,8 @@ void driver_dga::resume(void)
 	XMapRaised(x_display, w);
 	wait_mapped(w);
 	XWarpPointer(x_display, None, rootwin, 0, 0, 0, 0, 0, 0);
-	XGrabKeyboard(x_display, rootwin, 1, GrabModeAsync, GrabModeAsync, CurrentTime);
-	XGrabPointer(x_display, rootwin, 1, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+	XGrabKeyboard(x_display, rootwin, True, GrabModeAsync, GrabModeAsync, CurrentTime);
+	XGrabPointer(x_display, rootwin, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
 #ifdef ENABLE_XF86_DGA
 	XF86DGADirectVideo(x_display, screen, XF86DGADirectGraphics | XF86DGADirectKeyb | XF86DGADirectMouse);
 	XF86DGASetViewPort(x_display, screen, 0, 0);
@@ -1465,7 +1559,7 @@ void video_set_palette(uint8 *pal, int num_in)
 	// Recalculate pixel color expansion map
 	if (!IsDirectMode(VideoMonitor.mode) && (vis->c_class == TrueColor || vis->c_class == DirectColor)) {
 		for (int i=0; i<256; i++) {
-			int c = i % num_in; // If there are less than 256 colors, we repeat the first entries (this makes color expansion easier)
+			int c = i & (num_in-1); // If there are less than 256 colors, we repeat the first entries (this makes color expansion easier)
 			ExpandMap[i] = map_rgb(pal[c*3+0], pal[c*3+1], pal[c*3+2]);
 		}
 
@@ -1502,10 +1596,11 @@ void video_switch_to_mode(const video_mode &mode)
 
 
 /*
- *  Translate key event to Mac keycode
+ *  Translate key event to Mac keycode, returns -1 if no keycode was found
+ *  and -2 if the key was recognized as a hotkey
  */
 
-static int kc_decode(KeySym ks)
+static int kc_decode(KeySym ks, bool key_down)
 {
 	switch (ks) {
 		case XK_A: case XK_a: return 0x00;
@@ -1558,11 +1653,7 @@ static int kc_decode(KeySym ks)
 		case XK_period: case XK_greater: return 0x2f;
 		case XK_slash: case XK_question: return 0x2c;
 
-#if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
-		case XK_Tab: if (ctrl_down) {drv->suspend(); return -1;} else return 0x30;
-#else
-		case XK_Tab: return 0x30;
-#endif
+		case XK_Tab: if (ctrl_down) {if (key_down) drv->suspend(); return -2;} else return 0x30;
 		case XK_Return: return 0x24;
 		case XK_space: return 0x31;
 		case XK_BackSpace: return 0x33;
@@ -1596,13 +1687,13 @@ static int kc_decode(KeySym ks)
 		case XK_Left: return 0x3b;
 		case XK_Right: return 0x3c;
 
-		case XK_Escape: if (ctrl_down) {quit_full_screen = true; emerg_quit = true; return -1;} else return 0x35;
+		case XK_Escape: if (ctrl_down) {if (key_down) { quit_full_screen = true; emerg_quit = true; } return -2;} else return 0x35;
 
-		case XK_F1: if (ctrl_down) {SysMountFirstFloppy(); return -1;} else return 0x7a;
+		case XK_F1: if (ctrl_down) {if (key_down) SysMountFirstFloppy(); return -2;} else return 0x7a;
 		case XK_F2: return 0x78;
 		case XK_F3: return 0x63;
 		case XK_F4: return 0x76;
-		case XK_F5: return 0x60;
+		case XK_F5: if (ctrl_down) {if (key_down) drv->toggle_mouse_grab(); return -2;} else return 0x60;
 		case XK_F6: return 0x61;
 		case XK_F7: return 0x62;
 		case XK_F8: return 0x64;
@@ -1650,16 +1741,17 @@ static int kc_decode(KeySym ks)
 	return -1;
 }
 
-static int event2keycode(XKeyEvent &ev)
+static int event2keycode(XKeyEvent &ev, bool key_down)
 {
 	KeySym ks;
-	int as;
 	int i = 0;
 
 	do {
 		ks = XLookupKeysym(&ev, i++);
-		as = kc_decode(ks);
-		if (as != -1)
+		int as = kc_decode(ks, key_down);
+		if (as >= 0)
+			return as;
+		if (as == -2)
 			return as;
 	} while (ks != NoSymbol);
 
@@ -1706,20 +1798,19 @@ static void handle_events(void)
 			}
 
 			// Mouse moved
-			case EnterNotify:
 			case MotionNotify:
-				ADBMouseMoved(event.xmotion.x, event.xmotion.y);
+				drv->mouse_moved(event.xmotion.x, event.xmotion.y);
 				break;
 
 			// Keyboard
 			case KeyPress: {
-				int code;
+				int code = -1;
 				if (use_keycodes) {
-					event2keycode(event.xkey);	// This is called to process the hotkeys
-					code = keycode_table[event.xkey.keycode & 0xff];
+					if (event2keycode(event.xkey, true) != -2)	// This is called to process the hotkeys
+						code = keycode_table[event.xkey.keycode & 0xff];
 				} else
-					code = event2keycode(event.xkey);
-				if (code != -1) {
+					code = event2keycode(event.xkey, true);
+				if (code >= 0) {
 					if (!emul_suspended) {
 						if (code == 0x39) {	// Caps Lock pressed
 							if (caps_on) {
@@ -1741,13 +1832,13 @@ static void handle_events(void)
 				break;
 			}
 			case KeyRelease: {
-				int code;
+				int code = -1;
 				if (use_keycodes) {
-					event2keycode(event.xkey);	// This is called to process the hotkeys
-					code = keycode_table[event.xkey.keycode & 0xff];
+					if (event2keycode(event.xkey, false) != -2)	// This is called to process the hotkeys
+						code = keycode_table[event.xkey.keycode & 0xff];
 				} else
-					code = event2keycode(event.xkey);
-				if (code != -1 && code != 0x39) {	// Don't propagate Caps Lock releases
+					code = event2keycode(event.xkey, false);
+				if (code >= 0 && code != 0x39) {	// Don't propagate Caps Lock releases
 					ADBKeyUp(code);
 					if (code == 0x36)
 						ctrl_down = false;
@@ -2011,11 +2102,23 @@ static void update_display_static(driver_window *drv)
 
 static inline void possibly_quit_dga_mode()
 {
-	// Quit DGA mode if requested
+	// Quit DGA mode if requested (something terrible has happened and we
+	// want to give control back to the user)
 	if (quit_full_screen) {
 		quit_full_screen = false;
 		delete drv;
 		drv = NULL;
+	}
+}
+
+static inline void possibly_ungrab_mouse()
+{
+	// Ungrab mouse if requested (something terrible has happened and we
+	// want to give control back to the user)
+	if (quit_full_screen) {
+		quit_full_screen = false;
+		if (drv)
+			drv->ungrab_mouse();
 	}
 }
 
@@ -2071,8 +2174,8 @@ static void video_refresh_dga_vosf(void)
 
 static void video_refresh_window_vosf(void)
 {
-	// Quit DGA mode if requested
-	possibly_quit_dga_mode();
+	// Ungrab mouse if requested
+	possibly_ungrab_mouse();
 	
 	// Handle X events
 	handle_events();
@@ -2096,6 +2199,9 @@ static void video_refresh_window_vosf(void)
 
 static void video_refresh_window_static(void)
 {
+	// Ungrab mouse if requested
+	possibly_ungrab_mouse();
+
 	// Handle X events
 	handle_events();
 	
@@ -2112,6 +2218,9 @@ static void video_refresh_window_static(void)
 
 static void video_refresh_window_dynamic(void)
 {
+	// Ungrab mouse if requested
+	possibly_ungrab_mouse();
+
 	// Handle X events
 	handle_events();
 	

@@ -68,6 +68,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 				   r->d[0], r->d[1], r->d[2], r->d[3], r->d[4], r->d[5], r->d[6], r->d[7],
 				   r->a[0], r->a[1], r->a[2], r->a[3], r->a[4], r->a[5], r->a[6], r->a[7],
 				   r->sr);
+			VideoQuitFullScreen();
 #ifdef ENABLE_MON
 			char *arg[4] = {"mon", "-m", "-r", NULL};
 			mon(3, arg);

@@ -51,6 +51,13 @@ extern void WarningAlert(const char *text);				// Display warning alert
 extern void WarningAlert(int string_id);
 extern bool ChoiceAlert(const char *text, const char *pos, const char *neg);	// Display choice alert
 
+// Mutexes (non-recursive)
+struct B2_mutex;
+extern B2_mutex *B2_create_mutex(void);
+extern void B2_lock_mutex(B2_mutex *mutex);
+extern void B2_unlock_mutex(B2_mutex *mutex);
+extern void B2_delete_mutex(B2_mutex *mutex);
+
 // Interrupt flags
 enum {
 	INTFLAG_60HZ = 1,	// 60.15Hz VBL

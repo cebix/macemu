@@ -33,6 +33,7 @@
 #include "serial.h"
 #include "ether.h"
 #include "clip.h"
+#include "adb.h"
 #include "rom_patches.h"
 #include "user_strings.h"
 #include "prefs.h"
@@ -132,6 +133,9 @@ bool InitAll(void)
 	// Init clipboard
 	ClipInit();
 
+	// Init ADB
+	ADBInit();
+
 	// Init audio
 	AudioInit();
 
@@ -187,6 +191,9 @@ void ExitAll(void)
 
 	// Exit audio
 	AudioExit();
+
+	// Exit ADB
+	ADBExit();
 
 	// Exit clipboard
 	ClipExit();

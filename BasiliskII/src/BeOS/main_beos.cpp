@@ -469,6 +469,33 @@ void FlushCodeCache(void *start, uint32 size)
 
 
 /*
+ *  Mutexes
+ */
+
+struct B2_mutex {
+	int dummy;	//!!
+};
+
+B2_mutex *B2_create_mutex(void)
+{
+	return new B2_mutex;
+}
+
+void B2_lock_mutex(B2_mutex *mutex)
+{
+}
+
+void B2_unlock_mutex(B2_mutex *mutex)
+{
+}
+
+void B2_delete_mutex(B2_mutex *mutex)
+{
+	delete mutex;
+}
+
+
+/*
  *  Interrupt flags (must be handled atomically!)
  */
 

@@ -288,8 +288,6 @@ static inline uae_u32 do_byteswap_16(uae_u32 v)
 #define ENUMDECL typedef enum
 #define ENUMNAME(name) name
 #define write_log printf
-#undef USE_MAPPED_MEMORY
-#undef CAN_MAP_MEMORY
 
 #ifdef X86_ASSEMBLY
 #define ASM_SYM_FOR_FUNC(a) __asm__(a)

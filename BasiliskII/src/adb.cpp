@@ -57,6 +57,32 @@ static uint8 mouse_reg_3[2] = {0x63, 0x01};	// Mouse ADB register 3
 static uint8 key_reg_2[2] = {0xff, 0xff};	// Keyboard ADB register 2
 static uint8 key_reg_3[2] = {0x62, 0x05};	// Keyboard ADB register 3
 
+// ADB mouse input state lock (for platforms that use separate input thread)
+static B2_mutex *mouse_lock;
+
+
+/*
+ *  Initialize ADB emulation
+ */
+
+void ADBInit(void)
+{
+	mouse_lock = B2_create_mutex();
+}
+
+
+/*
+ *  Exit ADB emulation
+ */
+
+void ADBExit(void)
+{
+	if (mouse_lock) {
+		B2_delete_mutex(mouse_lock);
+		mouse_lock = NULL;
+	}
+}
+
 
 /*
  *  ADBOp() replacement
@@ -198,11 +224,13 @@ void ADBOp(uint8 op, uint8 *data)
 
 void ADBMouseMoved(int x, int y)
 {
+	B2_lock_mutex(mouse_lock);
 	if (relative_mouse) {
 		mouse_x += x; mouse_y += y;
 	} else {
 		mouse_x = x; mouse_y = y;
 	}
+	B2_unlock_mutex(mouse_lock);
 }
 
 
@@ -212,7 +240,9 @@ void ADBMouseMoved(int x, int y)
 
 void ADBMouseDown(int button)
 {
+	B2_lock_mutex(mouse_lock);
 	mouse_button[button] = true;
+	B2_unlock_mutex(mouse_lock);
 }
 
 
@@ -222,7 +252,9 @@ void ADBMouseDown(int button)
 
 void ADBMouseUp(int button)
 {
+	B2_lock_mutex(mouse_lock);
 	mouse_button[button] = false;
+	B2_unlock_mutex(mouse_lock);
 }
 
 
@@ -280,9 +312,14 @@ void ADBInterrupt(void)
 		return;
 	uint32 tmp_data = adb_base + 0x163;	// Temporary storage for faked ADB data
 
-	// Get position so that it won't change during processing
+	// Get mouse state
+	B2_lock_mutex(mouse_lock);
 	int mx = mouse_x;
 	int my = mouse_y;
+	if (relative_mouse)
+		mouse_x = mouse_y = 0;
+	int mb[3] = {mouse_button[0], mouse_button[1], mouse_button[2]};
+	B2_unlock_mutex(mouse_lock);
 
 	uint32 key_base = adb_base + 4;
 	uint32 mouse_base = adb_base + 16;
@@ -290,20 +327,20 @@ void ADBInterrupt(void)
 	if (relative_mouse) {
 
 		// Mouse movement (relative) and buttons
-		if (mx != 0 || my != 0 || mouse_button[0] != old_mouse_button[0] || mouse_button[1] != old_mouse_button[1] || mouse_button[2] != old_mouse_button[2]) {
+		if (mx != 0 || my != 0 || mb[0] != old_mouse_button[0] || mb[1] != old_mouse_button[1] || mb[2] != old_mouse_button[2]) {
 
 			// Call mouse ADB handler
 			if (mouse_reg_3[1] == 4) {
 				// Extended mouse protocol
 				WriteMacInt8(tmp_data, 3);
-				WriteMacInt8(tmp_data + 1, (my & 0x7f) | (mouse_button[0] ? 0 : 0x80));
-				WriteMacInt8(tmp_data + 2, (mx & 0x7f) | (mouse_button[1] ? 0 : 0x80));
-				WriteMacInt8(tmp_data + 3, ((my >> 3) & 0x70) | ((mx >> 7) & 0x07) | (mouse_button[2] ? 0x08 : 0x88));
+				WriteMacInt8(tmp_data + 1, (my & 0x7f) | (mb[0] ? 0 : 0x80));
+				WriteMacInt8(tmp_data + 2, (mx & 0x7f) | (mb[1] ? 0 : 0x80));
+				WriteMacInt8(tmp_data + 3, ((my >> 3) & 0x70) | ((mx >> 7) & 0x07) | (mb[2] ? 0x08 : 0x88));
 			} else {
 				// 100/200 dpi mode
 				WriteMacInt8(tmp_data, 2);
-				WriteMacInt8(tmp_data + 1, (my & 0x7f) | (mouse_button[0] ? 0 : 0x80));
-				WriteMacInt8(tmp_data + 2, (mx & 0x7f) | (mouse_button[1] ? 0 : 0x80));
+				WriteMacInt8(tmp_data + 1, (my & 0x7f) | (mb[0] ? 0 : 0x80));
+				WriteMacInt8(tmp_data + 2, (mx & 0x7f) | (mb[1] ? 0 : 0x80));
 			}	
 			r.a[0] = tmp_data;
 			r.a[1] = ReadMacInt32(mouse_base);
@@ -312,10 +349,9 @@ void ADBInterrupt(void)
 			r.d[0] = (mouse_reg_3[0] << 4) | 0x0c;	// Talk 0
 			Execute68k(r.a[1], &r);
 
-			mouse_x = mouse_y = 0;
-			old_mouse_button[0] = mouse_button[0];
-			old_mouse_button[1] = mouse_button[1];
-			old_mouse_button[2] = mouse_button[2];
+			old_mouse_button[0] = mb[0];
+			old_mouse_button[1] = mb[1];
+			old_mouse_button[2] = mb[2];
 		}
 
 	} else {
@@ -347,21 +383,21 @@ void ADBInterrupt(void)
 		}
 
 		// Send mouse button events
-		if (mouse_button[0] != old_mouse_button[0]) {
+		if (mb[0] != old_mouse_button[0] || mb[1] != old_mouse_button[1] || mb[2] != old_mouse_button[2]) {
 			uint32 mouse_base = adb_base + 16;
 
 			// Call mouse ADB handler
 			if (mouse_reg_3[1] == 4) {
 				// Extended mouse protocol
 				WriteMacInt8(tmp_data, 3);
-				WriteMacInt8(tmp_data + 1, mouse_button[0] ? 0 : 0x80);
-				WriteMacInt8(tmp_data + 2, mouse_button[1] ? 0 : 0x80);
-				WriteMacInt8(tmp_data + 3, mouse_button[2] ? 0x08 : 0x88);
+				WriteMacInt8(tmp_data + 1, mb[0] ? 0 : 0x80);
+				WriteMacInt8(tmp_data + 2, mb[1] ? 0 : 0x80);
+				WriteMacInt8(tmp_data + 3, mb[2] ? 0x08 : 0x88);
 			} else {
 				// 100/200 dpi mode
 				WriteMacInt8(tmp_data, 2);
-				WriteMacInt8(tmp_data + 1, mouse_button[0] ? 0 : 0x80);
-				WriteMacInt8(tmp_data + 2, mouse_button[1] ? 0 : 0x80);
+				WriteMacInt8(tmp_data + 1, mb[0] ? 0 : 0x80);
+				WriteMacInt8(tmp_data + 2, mb[1] ? 0 : 0x80);
 			}
 			r.a[0] = tmp_data;
 			r.a[1] = ReadMacInt32(mouse_base);
@@ -370,9 +406,9 @@ void ADBInterrupt(void)
 			r.d[0] = (mouse_reg_3[0] << 4) | 0x0c;	// Talk 0
 			Execute68k(r.a[1], &r);
 
-			old_mouse_button[0] = mouse_button[0];
-			old_mouse_button[1] = mouse_button[1];
-			old_mouse_button[2] = mouse_button[2];
+			old_mouse_button[0] = mb[0];
+			old_mouse_button[1] = mb[1];
+			old_mouse_button[2] = mb[2];
 		}
 	}
 
