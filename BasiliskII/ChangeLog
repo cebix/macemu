@@ -1,3 +1,6 @@
+V0.8 (snapshot) - 5.Sep.2000
+    - Ported Lauri Pesonen's FPU core to GCC/i386 [Gwenole Beauchesne]
+
 V0.8 (snapshot) -
 	- AmigaOS: added MacsBug support (tested with MacsBug6.6.1),
 	  fixed <move sr,(sp)> bug [Jürgen Lachmann]
