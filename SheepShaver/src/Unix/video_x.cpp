@@ -18,6 +18,15 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/*
+ *  NOTES:
+ *    The Ctrl key works like a qualifier for special actions:
+ *      Ctrl-Tab = suspend DGA mode
+ *      Ctrl-Esc = emergency quit
+ *      Ctrl-F1 = mount floppy
+ *      Ctrl-F5 = grab mouse (in windowed mode)
+ */
+
 #include "sysdeps.h"
 
 #include <X11/Xlib.h>
@@ -30,6 +39,11 @@
 #include <pthread.h>
 
 #include <algorithm>
+
+#ifdef ENABLE_FBDEV_DGA
+# include <linux/fb.h>
+# include <sys/ioctl.h>
+#endif
 
 #ifdef ENABLE_XF86_DGA
 # include <X11/extensions/xf86dga.h>
@@ -109,6 +123,7 @@ static int color_class;
 static int rshift, rloss, gshift, gloss, bshift, bloss;	// Pixel format of DirectColor/TrueColor modes
 static Colormap cmap[2];					// Two colormaps (DGA) for 8-bit mode
 static XColor x_palette[256];				// Color palette to be used as CLUT and gamma table
+static int orig_accel_numer, orig_accel_denom, orig_threshold;	// Original mouse acceleration
 
 static XColor black, white;
 static unsigned long black_pixel, white_pixel;
@@ -131,7 +146,16 @@ static uint8 *the_buffer_copy = NULL;		// Copy of Mac frame buffer
 static uint32 the_buffer_size;				// Size of allocated the_buffer
 
 // Variables for DGA mode
+static bool is_fbdev_dga_mode = false;		// Flag: Use FBDev DGA mode?
 static int current_dga_cmap;
+
+#ifdef ENABLE_FBDEV_DGA
+static int fb_dev_fd = -1;						// Handle to fb device name
+static struct fb_fix_screeninfo fb_finfo;		// Fixed info
+static struct fb_var_screeninfo fb_vinfo;		// Variable info
+static struct fb_var_screeninfo fb_orig_vinfo;	// Variable info to restore later
+static struct fb_cmap fb_oldcmap;				// Colormap to restore later
+#endif
 
 #ifdef ENABLE_XF86_VIDMODE
 // Variables for XF86 VidMode support
@@ -151,6 +175,20 @@ static pthread_mutex_t x_palette_lock = PTHREAD_MUTEX_INITIALIZER;
 #else
 #define LOCK_PALETTE
 #define UNLOCK_PALETTE
+#endif
+
+// Mutex to protect frame buffer
+#ifdef HAVE_SPINLOCKS
+static spinlock_t frame_buffer_lock = SPIN_LOCK_UNLOCKED;
+#define LOCK_FRAME_BUFFER spin_lock(&frame_buffer_lock)
+#define UNLOCK_FRAME_BUFFER spin_unlock(&frame_buffer_lock)
+#elif defined(HAVE_PTHREADS)
+static pthread_mutex_t frame_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
+#define LOCK_FRAME_BUFFER pthread_mutex_lock(&frame_buffer_lock);
+#define UNLOCK_FRAME_BUFFER pthread_mutex_unlock(&frame_buffer_lock);
+#else
+#define LOCK_FRAME_BUFFER
+#define UNLOCK_FRAME_BUFFER
 #endif
 
 
@@ -364,6 +402,36 @@ static bool find_visual_for_depth(int depth)
  *  Open display (window or fullscreen)
  */
 
+// Set window name and class
+static void set_window_name(Window w, int name)
+{
+	const char *str = GetString(name);
+	XStoreName(x_display, w, str);
+	XSetIconName(x_display, w, str);
+
+	XClassHint *hints;
+	hints = XAllocClassHint();
+	if (hints) {
+		hints->res_name = "SheepShaver";
+		hints->res_class = "SheepShaver";
+		XSetClassHint(x_display, w, hints);
+		XFree(hints);
+	}
+}
+
+// Set window input focus flag
+static void set_window_focus(Window w)
+{
+	XWMHints *hints = XAllocWMHints();
+	if (hints) {
+		hints->input = True;
+		hints->initial_state = NormalState;
+		hints->flags = InputHint | StateHint;
+		XSetWMHints(x_display, w, hints);
+		XFree(hints);
+	}
+}
+
 // Set WM_DELETE_WINDOW protocol on window (preventing it from being destroyed by the WM when clicking on the "close" widget)
 static Atom WM_DELETE_WINDOW = (Atom)0;
 static void set_window_delete_protocol(Window w)
@@ -387,6 +455,18 @@ static void wait_unmapped(Window w)
 	do {
 		XMaskEvent(x_display, StructureNotifyMask, &e);
 	} while ((e.type != UnmapNotify) || (e.xmap.event != w));
+}
+
+// Disable mouse acceleration
+static void disable_mouse_accel(void)
+{
+	XChangePointerControl(x_display, True, False, 1, 1, 0);
+}
+
+// Restore mouse acceleration to original value
+static void restore_mouse_accel(void)
+{
+	XChangePointerControl(x_display, True, True, orig_accel_numer, orig_accel_denom, orig_threshold);
 }
 
 // Trap SHM errors
@@ -421,8 +501,11 @@ static bool open_window(int width, int height)
 	the_win = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
 		InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel | CWBackingStore | CWColormap, &wattr);
 
-	// Set window name
-	XStoreName(x_display, the_win, GetString(STR_WINDOW_TITLE));
+	// Set window name/class
+	set_window_name(the_win, STR_WINDOW_TITLE);
+
+	// Indicate that we want keyboard input
+	set_window_focus(the_win);
 
 	// Set delete protocol property
 	set_window_delete_protocol(the_win);
@@ -550,9 +633,127 @@ static bool open_window(int width, int height)
 	return true;
 }
 
+// Open FBDev display
+static bool open_fbdev(int width, int height)
+{
+#ifdef ENABLE_FBDEV_DGA
+	if (ioctl(fb_dev_fd, FBIOGET_FSCREENINFO, &fb_finfo) != 0) {
+		D(bug("[fbdev] Can't get FSCREENINFO: %s\n", strerror(errno)));
+		return false;
+	}
+	D(bug("[fbdev] Device ID: %s\n", fb_finfo.id));
+	D(bug("[fbdev] smem_start: %p [%d bytes]\n", fb_finfo.smem_start, fb_finfo.smem_len));
+	int fb_type = fb_finfo.type;
+	const char *fb_type_str = NULL;
+	switch (fb_type) {
+	case FB_TYPE_PACKED_PIXELS:			fb_type_str = "Packed Pixels";			break;
+	case FB_TYPE_PLANES:				fb_type_str = "Non interleaved planes";	break;
+	case FB_TYPE_INTERLEAVED_PLANES:	fb_type_str = "Interleaved planes";		break;
+	case FB_TYPE_TEXT:					fb_type_str = "Text/attributes";		break;
+	case FB_TYPE_VGA_PLANES:			fb_type_str = "EGA/VGA planes";			break;
+	default:							fb_type_str = "<unknown>";				break;
+	}
+	D(bug("[fbdev] type: %s\n", fb_type_str));
+	int fb_visual = fb_finfo.visual;
+	const char *fb_visual_str;
+	switch (fb_visual) {
+	case FB_VISUAL_MONO01:				fb_visual_str = "Monochrome 1=Black 0=White";	break;
+	case FB_VISUAL_MONO10:				fb_visual_str = "Monochrome 1=While 0=Black";	break;
+	case FB_VISUAL_TRUECOLOR:			fb_visual_str = "True color";					break;
+	case FB_VISUAL_PSEUDOCOLOR:			fb_visual_str = "Pseudo color (like atari)";	break;
+	case FB_VISUAL_DIRECTCOLOR:			fb_visual_str = "Direct color";					break;
+	case FB_VISUAL_STATIC_PSEUDOCOLOR:	fb_visual_str = "Pseudo color readonly";		break;
+	default:							fb_visual_str = "<unknown>";					break;
+	}
+	D(bug("[fbdev] visual: %s\n", fb_visual_str));
+
+	if (fb_type != FB_TYPE_PACKED_PIXELS) {
+		D(bug("[fbdev] type %s not supported\n", fb_type_str));
+		return false;
+	}
+	
+	// Map frame buffer
+	the_buffer = (uint8 *)mmap(NULL, fb_finfo.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, fb_dev_fd, 0);
+	if (the_buffer == MAP_FAILED) {
+		D(bug("[fbdev] Can't mmap /dev/fb0: %s\n", strerror(errno)));
+		return false;
+	}
+
+	// Set absolute mouse mode
+	ADBSetRelMouseMode(false);
+
+	// Create window
+	XSetWindowAttributes wattr;
+	wattr.event_mask = eventmask = dga_eventmask;
+	wattr.override_redirect = True;
+	wattr.colormap = (depth == 1 ? DefaultColormap(x_display, screen) : cmap[0]);
+	the_win = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
+							InputOutput, vis, CWEventMask | CWOverrideRedirect |
+							(color_class == DirectColor ? CWColormap : 0), &wattr);
+
+	// Show window
+	XMapRaised(x_display, the_win);
+	wait_mapped(the_win);
+
+	// Grab mouse and keyboard
+	XGrabKeyboard(x_display, the_win, True,
+				  GrabModeAsync, GrabModeAsync, CurrentTime);
+	XGrabPointer(x_display, the_win, True,
+				 PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
+				 GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+	disable_mouse_accel();
+
+	// Create no_cursor
+	mac_cursor = XCreatePixmapCursor(x_display,
+									 XCreatePixmap(x_display, the_win, 1, 1, 1),
+									 XCreatePixmap(x_display, the_win, 1, 1, 1),
+									 &black, &white, 0, 0);
+	XDefineCursor(x_display, the_win, mac_cursor);
+
+	// Init blitting routines
+	int bytes_per_row = TrivialBytesPerRow((width + 7) & ~7, DepthModeForPixelDepth(depth));
+#if ENABLE_VOSF
+	bool native_byte_order;
+#ifdef WORDS_BIGENDIAN
+	native_byte_order = (XImageByteOrder(x_display) == MSBFirst);
+#else
+	native_byte_order = (XImageByteOrder(x_display) == LSBFirst);
+#endif
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	// Screen_blitter_init() returns TRUE if VOSF is mandatory
+	// i.e. the framebuffer update function is not Blit_Copy_Raw
+	use_vosf = Screen_blitter_init(visualFormat, native_byte_order, depth);
+	
+	if (use_vosf) {
+	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
+	  the_host_buffer = the_buffer;
+	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
+	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
+	  the_buffer = (uint8 *)vm_acquire(the_buffer_size);
+	  D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
+	}
+#else
+	use_vosf = false;
+#endif
+#endif
+
+	// Set frame buffer base
+	D(bug("the_buffer = %p, use_vosf = %d\n", the_buffer, use_vosf));
+	screen_base = Host2MacAddr(the_buffer);
+	VModes[cur_mode].viRowBytes = bytes_per_row;
+	return true;
+#else
+	ErrorAlert("SheepShaver has been compiled with DGA support disabled.");
+	return false;
+#endif
+}
+
 // Open DGA display (!! should use X11 VidMode extensions to set mode)
 static bool open_dga(int width, int height)
 {
+	if (is_fbdev_dga_mode)
+		return false;
+
 #ifdef ENABLE_XF86_DGA
 	// Set relative mouse mode
 	ADBSetRelMouseMode(true);
@@ -647,6 +848,9 @@ static bool open_display(void)
 	D(bug("open_display()\n"));
 	const VideoInfo &mode = VModes[cur_mode];
 
+	// Get original mouse acceleration
+	XGetPointerControl(x_display, &orig_accel_numer, &orig_accel_denom, &orig_threshold);
+
 	// Find best available X visual
 	if (!find_visual_for_depth(mode.viAppleMode)) {
 		ErrorAlert(GetString(STR_NO_XVISUAL_ERR));
@@ -727,8 +931,17 @@ static bool open_display(void)
 	depth = depth_of_video_mode(mode.viAppleMode);
 
 	bool display_open = false;
-	if (display_type == DIS_SCREEN)
+	if (display_type == DIS_SCREEN) {
 		display_open = open_dga(VModes[cur_mode].viXsize, VModes[cur_mode].viYsize);
+#ifdef ENABLE_FBDEV_DGA
+		// Try to fallback to FBDev DGA mode
+		if (!display_open) {
+			is_fbdev_dga_mode = true;
+			display_open = open_fbdev(VModes[cur_mode].viXsize, VModes[cur_mode].viYsize);
+		}
+#endif
+		
+	}
 	else if (display_type == DIS_WINDOW)
 		display_open = open_window(VModes[cur_mode].viXsize, VModes[cur_mode].viYsize);
 
@@ -777,9 +990,36 @@ static void close_window(void)
 	XSync(x_display, false);
 }
 
+// Close FBDev mode
+static void close_fbdev(void)
+{
+#ifdef ENABLE_FBDEV_DGA
+	XUngrabPointer(x_display, CurrentTime);
+	XUngrabKeyboard(x_display, CurrentTime);
+
+	uint8 *fb_base;
+	if (!use_vosf) {
+		// don't free() the screen buffer in driver_base dtor
+		fb_base = the_buffer;
+		the_buffer = NULL;
+	}
+#ifdef ENABLE_VOSF
+	else {
+		// don't free() the screen buffer in driver_base dtor
+		fb_base = the_host_buffer;
+		the_host_buffer = NULL;
+	}
+#endif
+	munmap(fb_base, fb_finfo.smem_len);
+#endif
+}
+
 // Close DGA mode
 static void close_dga(void)
 {
+	if (is_fbdev_dga_mode)
+		return;
+
 #ifdef ENABLE_XF86_DGA
 	XF86DGADirectVideo(x_display, screen, 0);
 	XUngrabPointer(x_display, CurrentTime);
@@ -805,8 +1045,12 @@ static void close_dga(void)
 
 static void close_display(void)
 {
-	if (display_type == DIS_SCREEN)
-		close_dga();
+	if (display_type == DIS_SCREEN) {
+		if (is_fbdev_dga_mode)
+			close_fbdev();
+		else
+			close_dga();
+	}
 	else if (display_type == DIS_WINDOW)
 		close_window();
 
@@ -861,6 +1105,9 @@ static void close_display(void)
 		}
 	}
 #endif
+
+	// Restore mouse acceleration
+	restore_mouse_accel();
 }
 
 
@@ -1088,10 +1335,16 @@ bool VideoInit(void)
 #ifdef ENABLE_XF86_DGA
 	// DGA available?
     int event_base, error_base;
+    is_fbdev_dga_mode = false;
     if (local_X11 && XF86DGAQueryExtension(x_display, &event_base, &error_base)) {
 		int dga_flags = 0;
 		XF86DGAQueryDirectVideo(x_display, screen, &dga_flags);
 		has_dga = dga_flags & XF86DGADirectPresent;
+#if defined(__linux__)
+		// Check r/w permission on /dev/mem for DGA mode to work
+		if (has_dga && access("/dev/mem", R_OK | W_OK) != 0)
+			has_dga = false;
+#endif
 	} else
 		has_dga = false;
 #endif
@@ -1102,6 +1355,22 @@ bool VideoInit(void)
 	has_vidmode = XF86VidModeQueryExtension(x_display, &vm_event_base, &vm_error_base);
 	if (has_vidmode)
 		XF86VidModeGetAllModeLines(x_display, screen, &num_x_video_modes, &x_video_modes);
+#endif
+
+#ifdef ENABLE_FBDEV_DGA
+	// FBDev available?
+	if (!has_dga && local_X11) {
+		if ((fb_dev_fd = open("/dev/fb0", O_RDWR)) > 0) {
+			if (ioctl(fb_dev_fd, FBIOGET_VSCREENINFO, &fb_vinfo) != 0)
+				close(fb_dev_fd);
+			else {
+				has_dga = true;
+				is_fbdev_dga_mode = true;
+				fb_orig_vinfo = fb_vinfo;
+				D(bug("Frame buffer device initial resolution: %dx%dx%d\n", fb_vinfo.xres, fb_vinfo.yres, fb_vinfo.bits_per_pixel));
+			}
+		}
+	}
 #endif
 
 	// Find black and white colors
@@ -1256,6 +1525,10 @@ bool VideoInit(void)
 	XSetErrorHandler(ignore_errors);
 #endif
 
+	// Lock down frame buffer
+	XSync(x_display, false);
+	LOCK_FRAME_BUFFER;
+
 	// Start periodic thread
 	XSync(x_display, false);
 	Set_pthread_attr(&redraw_thread_attr, 0);
@@ -1280,6 +1553,11 @@ void VideoExit(void)
 		redraw_thread_active = false;
 	}
 
+	// Unlock frame buffer
+	UNLOCK_FRAME_BUFFER;
+	XSync(x_display, false);
+	D(bug(" frame buffer unlocked\n"));
+
 #ifdef ENABLE_VOSF
 	if (use_vosf) {
 		// Deinitialize VOSF
@@ -1294,15 +1572,20 @@ void VideoExit(void)
 		XFlush(x_display);
 		XSync(x_display, false);
 	}
+
+#ifdef ENABLE_FBDEV_DGA
+	// Close framebuffer device
+	if (fb_dev_fd >= 0) {
+		close(fb_dev_fd);
+		fb_dev_fd = -1;
+	}
+#endif
 }
 
 
 /*
  *  Suspend/resume emulator
  */
-
-extern void PauseEmulator(void);
-extern void ResumeEmulator(void);
 
 static void suspend_emul(void)
 {
@@ -1311,9 +1594,8 @@ static void suspend_emul(void)
 		ADBKeyUp(0x36);
 		ctrl_down = false;
 
-		// Pause MacOS thread
-		PauseEmulator();
-		emul_suspended = true;
+		// Lock frame buffer (this will stop the MacOS thread)
+		LOCK_FRAME_BUFFER;
 
 		// Save frame buffer
 		fb_save = malloc(VModes[cur_mode].viYsize * VModes[cur_mode].viRowBytes);
@@ -1321,29 +1603,32 @@ static void suspend_emul(void)
 			Mac2Host_memcpy(fb_save, screen_base, VModes[cur_mode].viYsize * VModes[cur_mode].viRowBytes);
 
 		// Close full screen display
+#if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
 #ifdef ENABLE_XF86_DGA
-		XF86DGADirectVideo(x_display, screen, 0);
+		if (!is_fbdev_dga_mode)
+			XF86DGADirectVideo(x_display, screen, 0);
+#endif
 		XUngrabPointer(x_display, CurrentTime);
 		XUngrabKeyboard(x_display, CurrentTime);
 #endif
+		restore_mouse_accel();
+		XUnmapWindow(x_display, the_win);
+		wait_unmapped(the_win);
 		XSync(x_display, false);
 
 		// Open "suspend" window
 		XSetWindowAttributes wattr;
 		wattr.event_mask = KeyPressMask;
-		wattr.background_pixel = black_pixel;
-		wattr.border_pixel = black_pixel;
+		wattr.background_pixel = (vis == DefaultVisual(x_display, screen) ? black_pixel : 0);
 		wattr.backing_store = Always;
-		wattr.backing_planes = xdepth;
-		wattr.colormap = DefaultColormap(x_display, screen);
-		XSync(x_display, false);
+		wattr.colormap = (depth == 1 ? DefaultColormap(x_display, screen) : cmap[0]);
+
 		suspend_win = XCreateWindow(x_display, rootwin, 0, 0, 512, 1, 0, xdepth,
-			InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel |
-			CWBackingStore | CWBackingPlanes | (xdepth == 8 ? CWColormap : 0), &wattr);
-		XSync(x_display, false);
-		XStoreName(x_display, suspend_win, GetString(STR_SUSPEND_WINDOW_TITLE));
-		XMapRaised(x_display, suspend_win);
-		XSync(x_display, false);
+									InputOutput, vis, CWEventMask | CWBackPixel | CWBackingStore | CWColormap, &wattr);
+		set_window_name(suspend_win, STR_SUSPEND_WINDOW_TITLE);
+		set_window_focus(suspend_win);
+		XMapWindow(x_display, suspend_win);
+		emul_suspended = true;
 	}
 }
 
@@ -1354,11 +1639,18 @@ static void resume_emul(void)
 	XSync(x_display, false);
 
 	// Reopen full screen display
-	XGrabKeyboard(x_display, rootwin, 1, GrabModeAsync, GrabModeAsync, CurrentTime);
-	XGrabPointer(x_display, rootwin, 1, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+	XMapRaised(x_display, the_win);
+	wait_mapped(the_win);
+	XWarpPointer(x_display, None, rootwin, 0, 0, 0, 0, 0, 0);
+	Window w = is_fbdev_dga_mode ? the_win : rootwin;
+	XGrabKeyboard(x_display, w, True, GrabModeAsync, GrabModeAsync, CurrentTime);
+	XGrabPointer(x_display, w, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+	disable_mouse_accel();
 #ifdef ENABLE_XF86_DGA
-	XF86DGADirectVideo(x_display, screen, XF86DGADirectGraphics | XF86DGADirectKeyb | XF86DGADirectMouse);
-	XF86DGASetViewPort(x_display, screen, 0, 0);
+	if (!is_fbdev_dga_mode) {
+		XF86DGADirectVideo(x_display, screen, XF86DGADirectGraphics | XF86DGADirectKeyb | XF86DGADirectMouse);
+		XF86DGASetViewPort(x_display, screen, 0, 0);
+	}
 #endif
 	XSync(x_display, false);
 
@@ -1387,9 +1679,9 @@ static void resume_emul(void)
 	if (depth == 8)
 		palette_changed = true;
 
-	// Resume MacOS thread
+	// Unlock frame buffer (and continue MacOS thread)
+	UNLOCK_FRAME_BUFFER;
 	emul_suspended = false;
-	ResumeEmulator();
 }
 
 
@@ -1705,6 +1997,11 @@ void VideoVBL(void)
 	if (emerg_quit)
 		QuitEmulator();
 
+	// Temporarily give up frame buffer lock (this is the point where
+	// we are suspended when the user presses Ctrl-Tab)
+	UNLOCK_FRAME_BUFFER;
+	LOCK_FRAME_BUFFER;
+
 	// Execute video VBL
 	if (private_data != NULL && private_data->interruptsEnabled)
 		VSLDoInterruptService(private_data->vslServiceID);
@@ -1984,7 +2281,7 @@ static void handle_palette_changes(void)
 		}
 
 #ifdef ENABLE_XF86_DGA
-		if (display_type == DIS_SCREEN) {
+		if (display_type == DIS_SCREEN && !is_fbdev_dga_mode) {
 			current_dga_cmap ^= 1;
 			if (!IsDirectMode(mode) && cmap[current_dga_cmap])
 				XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
@@ -2029,8 +2326,11 @@ static void *redraw_func(void *arg)
 				quit_full_screen = false;
 				if (display_type == DIS_SCREEN) {
 					XDisplayLock();
+#if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
 #ifdef ENABLE_XF86_DGA
-					XF86DGADirectVideo(x_display, screen, 0);
+					if (is_fbdev_dga_mode)
+						XF86DGADirectVideo(x_display, screen, 0);
+#endif
 					XUngrabPointer(x_display, CurrentTime);
 					XUngrabKeyboard(x_display, CurrentTime);
 					XUnmapWindow(x_display, the_win);

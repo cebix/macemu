@@ -1269,21 +1269,6 @@ void QuitEmulator(void)
 
 
 /*
- *  Pause/resume emulator
- */
-
-void PauseEmulator(void)
-{
-	pthread_kill(emul_thread, SIGSTOP);
-}
-
-void ResumeEmulator(void)
-{
-	pthread_kill(emul_thread, SIGCONT);
-}
-
-
-/*
  *  Dump 68k registers
  */
 

@@ -17,6 +17,7 @@ ulimit -c 0
 dnl Options.
 AC_ARG_ENABLE(jit,          [  --enable-jit            enable JIT compiler [default=yes]], [WANT_JIT=$enableval], [WANT_JIT=yes])
 AC_ARG_ENABLE(ppc-emulator, [  --enable-ppc-emulator   use the selected PowerPC emulator [default=auto]], [WANT_EMULATED_PPC=$enableval], [WANT_EMULATED_PPC=auto])
+AC_ARG_ENABLE(fbdev-dga,    [  --enable-fbdev-dga      use direct frame buffer access via /dev/fb0 [default=yes]], [WANT_FBDEV_DGA=$enableval], [WANT_FBDEV_DGA=yes])
 AC_ARG_ENABLE(xf86-dga,     [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(xf86-vidmode, [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=no]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=no])
 AC_ARG_ENABLE(vosf,         [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=yes])
@@ -122,6 +123,7 @@ dnl Do we need SDL?
 WANT_SDL=no
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   WANT_SDL=yes
+  WANT_FBDEV_DGA=no
   WANT_XF86_DGA=no
   WANT_XF86_VIDMODE=no
   WANT_FBDEV_DGA=no
@@ -204,6 +206,16 @@ no:linux*|no:netbsd*)
   ])
   ;;
 esac
+
+dnl We use FBDev DGA if possible.
+if [[ "x$WANT_FBDEV_DGA" = "xyes" ]]; then
+  AC_CHECK_HEADER(linux/fb.h, [
+    AC_DEFINE(ENABLE_FBDEV_DGA, 1, [Define if using Linux fbdev extension.])
+  ], [
+    AC_MSG_WARN([Could not find Linux FBDev extension, ignoring --enable-fbdev-dga.])
+    WANT_FBDEV_DGA=no
+  ])
+fi
 
 dnl We use XFree86 DGA if possible.
 if [[ "x$WANT_XF86_DGA" = "xyes" ]]; then
@@ -1167,6 +1179,7 @@ echo
 echo SheepShaver configuration summary:
 echo
 echo SDL support ...................... : $SDL_SUPPORT
+echo FBDev DGA support ................ : $WANT_FBDEV_DGA
 echo XFree86 DGA support .............. : $WANT_XF86_DGA
 echo XFree86 VidMode support .......... : $WANT_XF86_VIDMODE
 echo Using PowerPC emulator ........... : $EMULATED_PPC
