@@ -34,7 +34,6 @@
 // Helper time functions
 #define MSECS2TICKS(MSECS) (((uint64)(MSECS) * frequency) / 1000)
 #define USECS2TICKS(USECS) (((uint64)(USECS) * frequency) / 1000000)
-#define TICKS2MSECS(TICKS) (((uint64)(TICKS) * 1000) / frequency)
 #define TICKS2USECS(TICKS) (((uint64)(TICKS) * 1000000) / frequency)
 
 // Global variables
@@ -165,7 +164,7 @@ int32 timer_host2mac_time(tm_time_t hosttime)
 	if (hosttime < 0)
 		return 0;
 	else {
-		uint64 t = TICKS2MSECS(hosttime);
+		uint64 t = TICKS2USECS(hosttime);
 		if (t > 0x7fffffff)
 			return t / 1000;	// Time in milliseconds
 		else
