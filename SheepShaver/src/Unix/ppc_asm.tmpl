@@ -1,4 +1,15 @@
+#if (defined(__APPLE__) && defined(__MACH__))
+#define C_SYMBOL_NAME(X) _ ## X
+#endif
+#ifndef C_SYMBOL_NAME
+#define C_SYMBOL_NAME(X) X
+#endif
+#ifndef ASM_GLOBAL_DIRECTIVE
+#define ASM_GLOBAL_DIRECTIVE .globl
+#endif
+
 /* Register names */
+#if defined(__linux__)
 #define	r0	0
 #define	r1	1
 #define	r2	2
@@ -31,7 +42,9 @@
 #define	r29	29
 #define	r30	30
 #define	r31	31
+#endif
 
+#if defined(__linux__)
 #define	f0	0
 #define	f1	1
 #define	f2	2
@@ -64,3 +77,4 @@
 #define	f29	29
 #define	f30	30
 #define	f31	31
+#endif

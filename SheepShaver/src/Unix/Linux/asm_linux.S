@@ -28,8 +28,8 @@
  *  void *get_toc(void) - Get TOC pointer (small data pointer r13 under Linux)
  */
 
-	.globl	get_toc
-get_toc:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_toc)
+C_SYMBOL_NAME(get_toc):
 	mr	r3,r13
 	blr
 
@@ -38,8 +38,8 @@ get_toc:
  *  void *get_sp(void) - Get stack pointer
  */
 
-	.globl	get_sp
-get_sp:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_sp)
+C_SYMBOL_NAME(get_sp):
 	mr	r3,r1
 	blr
 
@@ -48,8 +48,8 @@ get_sp:
  *  void set_r2(uint32 val {r3}) - Set r2
  */
 
-	.globl	set_r2
-set_r2:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(set_r2)
+C_SYMBOL_NAME(set_r2):
 	mr	r2,r3
 	blr
 
@@ -61,8 +61,8 @@ set_r2:
 CACHE_LINE_SIZE = 32
 LG_CACHE_LINE_SIZE = 5
 
-	.globl	flush_icache_range
-flush_icache_range:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(flush_icache_range)
+C_SYMBOL_NAME(flush_icache_range):
 	li	r5,CACHE_LINE_SIZE-1
 	andc	r3,r3,r5
 	subf	r4,r3,r4
@@ -91,9 +91,9 @@ flush_icache_range:
  *  int test_and_set(int *var{r3}, int val{r4}) - Atomic test-and-set
  */
 
-	.globl	atomic_add
-atomic_add:
-10:	dcbf	r0,r3
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(atomic_add)
+C_SYMBOL_NAME(atomic_add):
+0:	dcbf	0,r3
 	sync
 	ori	r0,r0,1
 	ori	r0,r0,1
@@ -102,17 +102,17 @@ atomic_add:
 	ori	r0,r0,1
 	ori	r0,r0,1
 	isync
-	lwarx	r5,r0,r3
+	lwarx	r5,0,r3
 	add	r0,r4,r5
-	stwcx.	r0,r0,r3
-	bne-	10b
+	stwcx.	r0,0,r3
+	bne-	0b
 	mr	r3,r5
 	isync
 	blr
 
-	.globl	atomic_and
-atomic_and:
-10:	dcbf	r0,r3
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(atomic_and)
+C_SYMBOL_NAME(atomic_and):
+0:	dcbf	0,r3
 	sync
 	ori	r0,r0,1
 	ori	r0,r0,1
@@ -121,17 +121,17 @@ atomic_and:
 	ori	r0,r0,1
 	ori	r0,r0,1
 	isync
-	lwarx	r5,r0,r3
+	lwarx	r5,0,r3
 	and	r0,r4,r5
-	stwcx.	r0,r0,r3
-	bne-	10b
+	stwcx.	r0,0,r3
+	bne-	0b
 	mr	r3,r5
 	isync
 	blr
 
-	.globl	atomic_or
-atomic_or:
-10:	dcbf	r0,r3
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(atomic_or)
+C_SYMBOL_NAME(atomic_or):
+0:	dcbf	0,r3
 	sync
 	ori	r0,r0,1
 	ori	r0,r0,1
@@ -140,17 +140,17 @@ atomic_or:
 	ori	r0,r0,1
 	ori	r0,r0,1
 	isync
-	lwarx	r5,r0,r3
+	lwarx	r5,0,r3
 	or	r0,r4,r5
-	stwcx.	r0,r0,r3
-	bne-	10b
+	stwcx.	r0,0,r3
+	bne-	0b
 	mr	r3,r5
 	isync
 	blr
 
-	.globl	test_and_set
-test_and_set:
-10:	dcbf	r0,r3
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(test_and_set)
+C_SYMBOL_NAME(test_and_set):
+0:	dcbf	0,r3
 	sync
 	ori	r0,r0,1
 	ori	r0,r0,1
@@ -159,11 +159,11 @@ test_and_set:
 	ori	r0,r0,1
 	ori	r0,r0,1
 	isync
-	lwarx	r5,r0,r3
+	lwarx	r5,0,r3
 	cmpi	0,r5,0x0000
 	beq	1f
-	stwcx.	r4,r0,r3
-	bne-	10b
+	stwcx.	r4,0,r3
+	bne-	0b
 1:	isync     
 	mr	r3,r5
 	blr
@@ -173,9 +173,9 @@ test_and_set:
  *  void quit_emulator(void) - Jump to XLM_EMUL_RETURN_PROC
  */
 
-	.globl	quit_emulator
-quit_emulator:
-	lwz	r0,XLM_EMUL_RETURN_PROC(r0)
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(quit_emulator)
+C_SYMBOL_NAME(quit_emulator):
+	lwz	r0,XLM_EMUL_RETURN_PROC(0)
 	mtlr	r0
 	blr
 
@@ -184,8 +184,8 @@ quit_emulator:
  *  void jump_to_rom(uint32 entry {r3}, uint32 emulator_data {r4}) - Jump to Mac ROM
  */
 
-	.globl	jump_to_rom
-jump_to_rom:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(jump_to_rom)
+C_SYMBOL_NAME(jump_to_rom):
 	// Create stack frame
 	mflr	r0
 	stw	r0,4(r1)
@@ -224,7 +224,7 @@ jump_to_rom:
 	 */
 
 	// Restore PowerPC registers
-	lwz	r1,XLM_EMUL_RETURN_STACK(r0)
+	lwz	r1,XLM_EMUL_RETURN_STACK(0)
 	lmw	r13,20(r1)
 	lfd	f14,20+19*4+0*8(r1)
 	lfd	f15,20+19*4+1*8(r1)
@@ -247,9 +247,9 @@ jump_to_rom:
 
 	// Exiting from 68k emulator
 	li	r0,1
-	stw	r0,XLM_IRQ_NEST(r0)
+	stw	r0,XLM_IRQ_NEST(0)
 	li	r0,MODE_NATIVE
-	stw	r0,XLM_RUN_MODE(r0)
+	stw	r0,XLM_RUN_MODE(0)
 
 	// Return to caller of jump_to_rom()
 	lwz	r0,20+19*4+18*8+4(r1)
@@ -260,7 +260,7 @@ jump_to_rom:
 
 	// Save address of EMUL_RETURN routine for 68k emulator patch
 1:	mflr	r0
-	stw	r0,XLM_EMUL_RETURN_PROC(r0)
+	stw	r0,XLM_EMUL_RETURN_PROC(0)
 
 	// Skip over EXEC_RETURN routine and get its address
 	bl	2f
@@ -271,11 +271,11 @@ jump_to_rom:
 	 */
 
 	// Save r25 (contains current 68k interrupt level)
-	stw	r25,XLM_68K_R25(r0)
+	stw	r25,XLM_68K_R25(0)
 
 	// Reentering EMUL_OP mode
 	li	r0,MODE_EMUL_OP
-	stw	r0,XLM_RUN_MODE(r0)
+	stw	r0,XLM_RUN_MODE(0)
 
 	// Save 68k registers
 	lwz	r4,48(r1)	// Pointer to M68kRegisters
@@ -329,7 +329,7 @@ jump_to_rom:
 
 	// Save address of EXEC_RETURN routine for 68k emulator patch
 2:	mflr	r0
-	stw	r0,XLM_EXEC_RETURN_PROC(r0)
+	stw	r0,XLM_EXEC_RETURN_PROC(0)
 
 	// Skip over EMUL_BREAK/EMUL_OP routine and get its address
 	bl	3f
@@ -343,11 +343,11 @@ jump_to_rom:
 	 */
 
 	// Save r25 (contains current 68k interrupt level)
-	stw	r25,XLM_68K_R25(r0)
+	stw	r25,XLM_68K_R25(0)
 
 	// Entering EMUL_OP mode within 68k emulator
 	li	r0,MODE_EMUL_OP
-	stw	r0,XLM_RUN_MODE(r0)
+	stw	r0,XLM_RUN_MODE(0)
 
 	// Create PowerPC stack frame, reserve space for M68kRegisters
 	mr	r3,r1
@@ -360,93 +360,93 @@ jump_to_rom:
 	mfxer	r0
 	stw	r0,16(r1)
 	stw	r2,12(r1)
-	stwu	r1,-(8+16*4+15*8)(r1)
+	stwu	r1,-(24+16*4+15*8)(r1)
 
 	// Save 68k registers (M68kRegisters)
-	stw	r8,8+0*4(r1)	// d[0]..d[7]
-	stw	r9,8+1*4(r1)
-	stw	r10,8+2*4(r1)
-	stw	r11,8+3*4(r1)
-	stw	r12,8+4*4(r1)
-	stw	r13,8+5*4(r1)
-	stw	r14,8+6*4(r1)
-	stw	r15,8+7*4(r1)
-	stw	r16,8+8*4(r1)	// a[0]..a[7]
-	stw	r17,8+9*4(r1)
-	stw	r18,8+10*4(r1)
-	stw	r19,8+11*4(r1)
-	stw	r20,8+12*4(r1)
-	stw	r21,8+13*4(r1)
-	stw	r22,8+14*4(r1)
-	stw	r3,8+15*4(r1)
-	stfd	f0,8+16*4+0*8(r1)
-	stfd	f1,8+16*4+1*8(r1)
-	stfd	f2,8+16*4+2*8(r1)
-	stfd	f3,8+16*4+3*8(r1)
-	stfd	f4,8+16*4+4*8(r1)
-	stfd	f5,8+16*4+5*8(r1)
-	stfd	f6,8+16*4+6*8(r1)
-	stfd	f7,8+16*4+7*8(r1)
+	stw	r8,24+0*4(r1)	// d[0]..d[7]
+	stw	r9,24+1*4(r1)
+	stw	r10,24+2*4(r1)
+	stw	r11,24+3*4(r1)
+	stw	r12,24+4*4(r1)
+	stw	r13,24+5*4(r1)
+	stw	r14,24+6*4(r1)
+	stw	r15,24+7*4(r1)
+	stw	r16,24+8*4(r1)	// a[0]..a[7]
+	stw	r17,24+9*4(r1)
+	stw	r18,24+10*4(r1)
+	stw	r19,24+11*4(r1)
+	stw	r20,24+12*4(r1)
+	stw	r21,24+13*4(r1)
+	stw	r22,24+14*4(r1)
+	stw	r3,24+15*4(r1)
+	stfd	f0,24+16*4+0*8(r1)
+	stfd	f1,24+16*4+1*8(r1)
+	stfd	f2,24+16*4+2*8(r1)
+	stfd	f3,24+16*4+3*8(r1)
+	stfd	f4,24+16*4+4*8(r1)
+	stfd	f5,24+16*4+5*8(r1)
+	stfd	f6,24+16*4+6*8(r1)
+	stfd	f7,24+16*4+7*8(r1)
 	mffs	f0
-	stfd	f8,8+16*4+8*8(r1)
-	stfd	f9,8+16*4+9*8(r1)
-	stfd	f10,8+16*4+10*8(r1)
-	stfd	f11,8+16*4+11*8(r1)
-	stfd	f12,8+16*4+12*8(r1)
-	stfd	f13,8+16*4+13*8(r1)
-	stfd	f0,8+16*4+14*8(r1)
+	stfd	f8,24+16*4+8*8(r1)
+	stfd	f9,24+16*4+9*8(r1)
+	stfd	f10,24+16*4+10*8(r1)
+	stfd	f11,24+16*4+11*8(r1)
+	stfd	f12,24+16*4+12*8(r1)
+	stfd	f13,24+16*4+13*8(r1)
+	stfd	f0,24+16*4+14*8(r1)
 
 	// Execute native routine
-	lwz	r13,XLM_TOC(r0)
-	addi	r3,r1,8
+	lwz	r13,XLM_TOC(0)
+	addi	r3,r1,24
 	mr	r4,r24
-	bl	EmulOp
+	bl	C_SYMBOL_NAME(EmulOp)
 
 	// Restore 68k registers (M68kRegisters)
-	lwz	r8,8+0*4(r1)	// d[0]..d[7]
-	lwz	r9,8+1*4(r1)
-	lwz	r10,8+2*4(r1)
-	lwz	r11,8+3*4(r1)
-	lwz	r12,8+4*4(r1)
-	lwz	r13,8+5*4(r1)
-	lwz	r14,8+6*4(r1)
-	lwz	r15,8+7*4(r1)
-	lwz	r16,8+8*4(r1)	// a[0]..a[7]
-	lwz	r17,8+9*4(r1)
-	lwz	r18,8+10*4(r1)
-	lwz	r19,8+11*4(r1)
-	lwz	r20,8+12*4(r1)
-	lwz	r21,8+13*4(r1)
-	lwz	r22,8+14*4(r1)
-	lwz	r3,8+15*4(r1)
-	lfd	f13,8+16*4+14*8(r1)
-	lfd	f0,8+16*4+0*8(r1)
-	lfd	f1,8+16*4+1*8(r1)
-	lfd	f2,8+16*4+2*8(r1)
-	lfd	f3,8+16*4+3*8(r1)
-	lfd	f4,8+16*4+4*8(r1)
-	lfd	f5,8+16*4+5*8(r1)
-	lfd	f6,8+16*4+6*8(r1)
-	lfd	f7,8+16*4+7*8(r1)
+	lwz	r8,24+0*4(r1)	// d[0]..d[7]
+	lwz	r9,24+1*4(r1)
+	lwz	r10,24+2*4(r1)
+	lwz	r11,24+3*4(r1)
+	lwz	r12,24+4*4(r1)
+	lwz	r13,24+5*4(r1)
+	lwz	r14,24+6*4(r1)
+	lwz	r15,24+7*4(r1)
+	lwz	r16,24+8*4(r1)	// a[0]..a[7]
+	lwz	r17,24+9*4(r1)
+	lwz	r18,24+10*4(r1)
+	lwz	r19,24+11*4(r1)
+	lwz	r20,24+12*4(r1)
+	lwz	r21,24+13*4(r1)
+	lwz	r22,24+14*4(r1)
+	lwz	r3,24+15*4(r1)
+	lfd	f13,24+16*4+14*8(r1)
+	lfd	f0,24+16*4+0*8(r1)
+	lfd	f1,24+16*4+1*8(r1)
+	lfd	f2,24+16*4+2*8(r1)
+	lfd	f3,24+16*4+3*8(r1)
+	lfd	f4,24+16*4+4*8(r1)
+	lfd	f5,24+16*4+5*8(r1)
+	lfd	f6,24+16*4+6*8(r1)
+	lfd	f7,24+16*4+7*8(r1)
 	mtfsf	0xff,f13
-	lfd	f8,8+16*4+8*8(r1)
-	lfd	f9,8+16*4+9*8(r1)
-	lfd	f10,8+16*4+10*8(r1)
-	lfd	f11,8+16*4+11*8(r1)
-	lfd	f12,8+16*4+12*8(r1)
-	lfd	f13,8+16*4+13*8(r1)
+	lfd	f8,24+16*4+8*8(r1)
+	lfd	f9,24+16*4+9*8(r1)
+	lfd	f10,24+16*4+10*8(r1)
+	lfd	f11,24+16*4+11*8(r1)
+	lfd	f12,24+16*4+12*8(r1)
+	lfd	f13,24+16*4+13*8(r1)
 
 	// Delete PowerPC stack frame
-	lwz	r2,8+16*4+15*8+12(r1)
-	lwz	r0,8+16*4+15*8+16(r1)
+	lwz	r2,24+16*4+15*8+12(r1)
+	lwz	r0,24+16*4+15*8+16(r1)
 	mtxer	r0
-	lwz	r0,8+16*4+15*8+4(r1)
+	lwz	r0,24+16*4+15*8+4(r1)
 	mtcrf	0xff,r0
 	mr	r1,r3
 
 	// Reentering 68k emulator
 	li	r0,MODE_68K
-	stw	r0,XLM_RUN_MODE(r0)
+	stw	r0,XLM_RUN_MODE(0)
 
 	// Set r0 to 0 for 68k emulator
 	li	r0,0
@@ -460,10 +460,10 @@ jump_to_rom:
 
 	// Save address of EMUL_BREAK/EMUL_OP routine for 68k emulator patch
 3:	mflr	r0
-	stw	r0,XLM_EMUL_OP_PROC(r0)
+	stw	r0,XLM_EMUL_OP_PROC(0)
 
 	// Save stack pointer for EMUL_RETURN
-	stw	r1,XLM_EMUL_RETURN_STACK(r0)
+	stw	r1,XLM_EMUL_RETURN_STACK(0)
 
 	// Preset registers for ROM boot routine
 	lis	r3,0x40b0		// Pointer to ROM boot structure
@@ -471,7 +471,7 @@ jump_to_rom:
 
 	// 68k emulator is now active
 	li	r0,MODE_68K
-	stw	r0,XLM_RUN_MODE(r0)
+	stw	r0,XLM_RUN_MODE(0)
 
 	// Jump to ROM
 	bctr
@@ -481,8 +481,8 @@ jump_to_rom:
  *  void execute_68k(uint32 pc {r3}, M68kRegisters *r {r4}) - Execute 68k routine
  */
 
-	.globl	execute_68k
-execute_68k:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(execute_68k)
+C_SYMBOL_NAME(execute_68k):
 	// Create MacOS stack frame
 	mflr	r0
 	stw	r0,4(r1)
@@ -515,7 +515,7 @@ execute_68k:
 #endif
 
 	// Set up registers for 68k emulator
-	lwz	r31,XLM_KERNEL_DATA(r0)	// Pointer to Kernel Data
+	lwz	r31,XLM_KERNEL_DATA(0)	// Pointer to Kernel Data
 	addi	r31,r31,0x1000
 	li	r0,0
 	mtcrf	0xff,r0
@@ -537,7 +537,7 @@ execute_68k:
 	lwz	r22,14*4(r4)
 	li	r23,0
 	mr	r24,r3
-	lwz	r25,XLM_68K_R25(r0)		// MSB of SR
+	lwz	r25,XLM_68K_R25(0)		// MSB of SR
 	li	r26,0
 	li	r28,0				// VBR
 	lwz	r29,0x74(r31)		// Pointer to opcode table
@@ -549,7 +549,7 @@ execute_68k:
 
 	// Reentering 68k emulator
 	li	r0,MODE_68K
-	stw	r0,XLM_RUN_MODE(r0)
+	stw	r0,XLM_RUN_MODE(0)
 
 	// Set r0 to 0 for 68k emulator
 	li	r0,0
@@ -566,20 +566,22 @@ execute_68k:
  *  uint32 call_macos1(uint32 tvect{r3}, uint32 arg1{r4}) ... - Call MacOS routines
  */
 
-#define prolog \
-	mflr	r0;		\
-	stw	r0,4(r1);	\
+.macro	prolog
+	mflr	r0
+	stw	r0,4(r1)
 	stwu	r1,-64(r1)
+.endm
 
-#define epilog \
-	lwz	r13,XLM_TOC(r0);\
-	lwz	r0,64+4(r1);	\
-	mtlr	r0;		\
-	addi	r1,r1,64;	\
+.macro	epilog
+	lwz	r13,XLM_TOC(0)
+	lwz	r0,64+4(r1)
+	mtlr	r0
+	addi	r1,r1,64
 	blr
+.endm
 
-	.globl	call_macos
-call_macos:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(call_macos)
+C_SYMBOL_NAME(call_macos):
 	prolog
 	lwz	r0,0(r3)	// Get routine address
 	lwz	r2,4(r3)	// Load TOC pointer
@@ -587,8 +589,8 @@ call_macos:
 	bctrl
 	epilog
 
-	.globl	call_macos1
-call_macos1:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(call_macos1)
+C_SYMBOL_NAME(call_macos1):
 	prolog
 	lwz	r0,0(r3)	// Get routine address
 	lwz	r2,4(r3)	// Load TOC pointer
@@ -597,8 +599,8 @@ call_macos1:
 	bctrl
 	epilog
 
-	.globl	call_macos2
-call_macos2:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(call_macos2)
+C_SYMBOL_NAME(call_macos2):
 	prolog
 	lwz	r0,0(r3)	// Get routine address
 	lwz	r2,4(r3)	// Load TOC pointer
@@ -608,8 +610,8 @@ call_macos2:
 	bctrl
 	epilog
 
-	.globl	call_macos3
-call_macos3:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(call_macos3)
+C_SYMBOL_NAME(call_macos3):
 	prolog
 	lwz	r0,0(r3)	// Get routine address
 	lwz	r2,4(r3)	// Load TOC pointer
@@ -620,8 +622,8 @@ call_macos3:
 	bctrl
 	epilog
 
-	.globl	call_macos4
-call_macos4:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(call_macos4)
+C_SYMBOL_NAME(call_macos4):
 	prolog
 	lwz	r0,0(r3)	// Get routine address
 	lwz	r2,4(r3)	// Load TOC pointer
@@ -633,8 +635,8 @@ call_macos4:
 	bctrl
 	epilog
 
-	.globl	call_macos5
-call_macos5:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(call_macos5)
+C_SYMBOL_NAME(call_macos5):
 	prolog
 	lwz	r0,0(r3)	// Get routine address
 	lwz	r2,4(r3)	// Load TOC pointer
@@ -647,8 +649,8 @@ call_macos5:
 	bctrl
 	epilog
 
-	.globl	call_macos6
-call_macos6:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(call_macos6)
+C_SYMBOL_NAME(call_macos6):
 	prolog
 	lwz	r0,0(r3)	// Get routine address
 	lwz	r2,4(r3)	// Load TOC pointer
@@ -662,8 +664,8 @@ call_macos6:
 	bctrl
 	epilog
 
-	.globl	call_macos7
-call_macos7:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(call_macos7)
+C_SYMBOL_NAME(call_macos7):
 	prolog
 	lwz	r0,0(r3)	// Get routine address
 	lwz	r2,4(r3)	// Load TOC pointer
@@ -683,8 +685,8 @@ call_macos7:
  *  Native resource manager patches
  */
 
-	.globl	get_resource
-get_resource:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_resource)
+C_SYMBOL_NAME(get_resource):
 	// Create stack frame
 	mflr	r0
 	stw	r0,8(r1)
@@ -695,8 +697,8 @@ get_resource:
 	stw	r4,56+4(r1)
 
 	// Call old routine
-	lwz	r0,XLM_GET_RESOURCE(r0)
-	lwz	r2,XLM_RES_LIB_TOC(r0)
+	lwz	r0,XLM_GET_RESOURCE(0)
+	lwz	r2,XLM_RES_LIB_TOC(0)
 	mtctr	r0
 	bctrl
 	stw	r3,56+8(r1)		// Save handle
@@ -705,7 +707,7 @@ get_resource:
 	lwz	r3,56(r1)
 	lha	r4,56+6(r1)
 	lwz	r5,56+8(r1)
-	bl	check_load_invoc
+	bl	C_SYMBOL_NAME(check_load_invoc)
 	lwz	r3,56+8(r1)		// Restore handle
 
 	// Return to caller
@@ -714,8 +716,8 @@ get_resource:
 	addi	r1,r1,56+12
 	blr
 
-	.globl	get_1_resource
-get_1_resource:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_1_resource)
+C_SYMBOL_NAME(get_1_resource):
 	// Create stack frame
 	mflr	r0
 	stw	r0,8(r1)
@@ -726,8 +728,8 @@ get_1_resource:
 	stw	r4,56+4(r1)
 
 	// Call old routine
-	lwz	r0,XLM_GET_1_RESOURCE(r0)
-	lwz	r2,XLM_RES_LIB_TOC(r0)
+	lwz	r0,XLM_GET_1_RESOURCE(0)
+	lwz	r2,XLM_RES_LIB_TOC(0)
 	mtctr	r0
 	bctrl
 	stw	r3,56+8(r1)		// Save handle
@@ -736,7 +738,7 @@ get_1_resource:
 	lwz	r3,56(r1)
 	lha	r4,56+6(r1)
 	lwz	r5,56+8(r1)
-	bl	check_load_invoc
+	bl	C_SYMBOL_NAME(check_load_invoc)
 	lwz	r3,56+8(r1)		// Restore handle
 
 	// Return to caller
@@ -745,8 +747,8 @@ get_1_resource:
 	addi	r1,r1,56+12
 	blr
 
-	.globl	get_ind_resource
-get_ind_resource:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_ind_resource)
+C_SYMBOL_NAME(get_ind_resource):
 	// Create stack frame
 	mflr	r0
 	stw	r0,8(r1)
@@ -757,8 +759,8 @@ get_ind_resource:
 	stw	r4,56+4(r1)
 
 	// Call old routine
-	lwz	r0,XLM_GET_IND_RESOURCE(r0)
-	lwz	r2,XLM_RES_LIB_TOC(r0)
+	lwz	r0,XLM_GET_IND_RESOURCE(0)
+	lwz	r2,XLM_RES_LIB_TOC(0)
 	mtctr	r0
 	bctrl
 	stw	r3,56+8(r1)		// Save handle
@@ -767,7 +769,7 @@ get_ind_resource:
 	lwz	r3,56(r1)
 	lha	r4,56+6(r1)
 	lwz	r5,56+8(r1)
-	bl	check_load_invoc
+	bl	C_SYMBOL_NAME(check_load_invoc)
 	lwz	r3,56+8(r1)		// Restore handle
 
 	// Return to caller
@@ -776,8 +778,8 @@ get_ind_resource:
 	addi	r1,r1,56+12
 	blr
 
-	.globl	get_1_ind_resource
-get_1_ind_resource:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_1_ind_resource)
+C_SYMBOL_NAME(get_1_ind_resource):
 	// Create stack frame
 	mflr	r0
 	stw	r0,8(r1)
@@ -788,8 +790,8 @@ get_1_ind_resource:
 	stw	r4,56+4(r1)
 
 	// Call old routine
-	lwz	r0,XLM_GET_1_IND_RESOURCE(r0)
-	lwz	r2,XLM_RES_LIB_TOC(r0)
+	lwz	r0,XLM_GET_1_IND_RESOURCE(0)
+	lwz	r2,XLM_RES_LIB_TOC(0)
 	mtctr	r0
 	bctrl
 	stw	r3,56+8(r1)		// Save handle
@@ -798,7 +800,7 @@ get_1_ind_resource:
 	lwz	r3,56(r1)
 	lha	r4,56+6(r1)
 	lwz	r5,56+8(r1)
-	bl	check_load_invoc
+	bl	C_SYMBOL_NAME(check_load_invoc)
 	lwz	r3,56+8(r1)		// Restore handle
 
 	// Return to caller
@@ -807,8 +809,8 @@ get_1_ind_resource:
 	addi	r1,r1,56+12
 	blr
 
-	.globl	r_get_resource
-r_get_resource:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(r_get_resource)
+C_SYMBOL_NAME(r_get_resource):
 	// Create stack frame
 	mflr	r0
 	stw	r0,8(r1)
@@ -819,8 +821,8 @@ r_get_resource:
 	stw	r4,56+4(r1)
 
 	// Call old routine
-	lwz	r0,XLM_R_GET_RESOURCE(r0)
-	lwz	r2,XLM_RES_LIB_TOC(r0)
+	lwz	r0,XLM_R_GET_RESOURCE(0)
+	lwz	r2,XLM_RES_LIB_TOC(0)
 	mtctr	r0
 	bctrl
 	stw	r3,56+8(r1)		// Save handle
@@ -829,7 +831,7 @@ r_get_resource:
 	lwz	r3,56(r1)
 	lha	r4,56+6(r1)
 	lwz	r5,56+8(r1)
-	bl	check_load_invoc
+	bl	C_SYMBOL_NAME(check_load_invoc)
 	lwz	r3,56+8(r1)		// Restore handle
 
 	// Return to caller
@@ -843,8 +845,8 @@ r_get_resource:
  *  void ppc_interrupt(uint32 entry{r3}, uint32 kernel_data{r4}) - Execute PPC interrupt
  */
 
-	.globl	ppc_interrupt
-ppc_interrupt:
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(ppc_interrupt)
+C_SYMBOL_NAME(ppc_interrupt):
 	mflr	r0
 	stw	r0,4(r1)
 	stwu	r1,-64(r1)
