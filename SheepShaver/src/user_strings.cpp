@@ -138,6 +138,9 @@ user_string_def common_strings[] = {
 	{STR_IDLEWAIT_CTRL, "Don't Use CPU When Idle"},
 	{STR_ROM_FILE_CTRL, "ROM File"},
 
+	{STR_JIT_PANE_TITLE, "JIT Compiler"},
+	{STR_JIT_CTRL, "Enable JIT Compiler"},
+
 	{STR_WINDOW_TITLE, "SheepShaver"},
 	{STR_WINDOW_TITLE_FROZEN, "SheepShaver *** FROZEN ***"},
 	{STR_WINDOW_MENU, "SheepShaver"},

@@ -145,8 +145,4 @@
 #undef PPC_NO_STATIC_II_INDEX_TABLE
 #endif
 
-#if PPC_ENABLE_JIT
-#undef PPC_DECODE_CACHE
-#endif
-
 #endif /* PPC_CONFIG_H */

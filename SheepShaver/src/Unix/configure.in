@@ -583,7 +583,7 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
         fi
         ;;
       esac
-      DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -finline-limit=2000"
+      DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -finline-limit=10000"
       if [[ "x$HAVE_GCC30" = "xyes" ]]; then
         DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -fno-reorder-blocks -fno-optimize-sibling-calls"
       fi
@@ -626,6 +626,10 @@ if [[ "x$ac_cv_use_dyngen" = "xyes" ]]; then
 fi
 AC_TRANSLATE_DEFINE(HAVE_STATIC_DATA_EXEC, "$ac_cv_have_static_data_exec",
   [Define if your system marks static data pages as executable.])
+
+if [[ "x$WANT_JIT" = "xyes" ]]; then
+  CPPFLAGS="$CPPFLAGS -DUSE_JIT"
+fi
 
 dnl Generate Makefile.
 AC_SUBST(DYNGENSRCS)

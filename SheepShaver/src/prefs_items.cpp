@@ -52,6 +52,7 @@ prefs_desc common_prefs_items[] = {
 	{"nosound", TYPE_BOOLEAN, false,    "don't enable sound output"},
 	{"nogui", TYPE_BOOLEAN, false,      "disable GUI"},
 	{"ignoresegv", TYPE_BOOLEAN, false, "ignore illegal memory accesses"},
+	{"jit", TYPE_BOOLEAN, false,        "enable JIT compiler"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
@@ -72,4 +73,11 @@ void AddPrefsDefaults(void)
 	PrefsAddBool("nosound", false);
 	PrefsAddBool("nogui", false);
 	PrefsAddBool("ignoresegv", true);
+
+#if USE_JIT
+	// JIT compiler specific options
+	PrefsAddBool("jit", true);
+#else
+	PrefsAddBool("jit", false);
+#endif
 }

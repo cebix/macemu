@@ -47,6 +47,7 @@ static void create_graphics_pane(GtkWidget *top);
 static void create_input_pane(GtkWidget *top);
 static void create_serial_pane(GtkWidget *top);
 static void create_memory_pane(GtkWidget *top);
+static void create_jit_pane(GtkWidget *top);
 static void read_settings(void);
 
 
@@ -322,6 +323,7 @@ bool PrefsEditor(void)
 	create_input_pane(notebook);
 	create_serial_pane(notebook);
 	create_memory_pane(notebook);
+	create_jit_pane(notebook);
 
 	static const opt_desc buttons[] = {
 		{STR_START_BUTTON, GTK_SIGNAL_FUNC(cb_start)},
@@ -495,6 +497,46 @@ static void create_volumes_pane(GtkWidget *top)
 	menu = make_option_menu(box, STR_BOOTDRIVER_CTRL, options, active);
 
 	make_checkbox(box, STR_NOCDROM_CTRL, "nocdrom", GTK_SIGNAL_FUNC(tb_nocdrom));
+}
+
+
+/*
+ *  "JIT Compiler" pane
+ */
+
+// Set sensitivity of widgets
+static void set_jit_sensitive(void)
+{
+	const bool jit_enabled = PrefsFindBool("jit");
+}
+
+// "Use JIT Compiler" button toggled
+static void tb_jit(GtkWidget *widget)
+{
+	PrefsReplaceBool("jit", GTK_TOGGLE_BUTTON(widget)->active);
+	set_jit_sensitive();
+}
+
+// Read settings from widgets and set preferences
+static void read_jit_settings(void)
+{
+#if USE_JIT
+	bool jit_enabled = PrefsFindBool("jit");
+#endif
+}
+
+// Create "JIT Compiler" pane
+static void create_jit_pane(GtkWidget *top)
+{
+#if USE_JIT
+	GtkWidget *box, *table, *label, *menu;
+	char str[32];
+	
+	box = make_pane(top, STR_JIT_PANE_TITLE);
+	make_checkbox(box, STR_JIT_CTRL, "jit", GTK_SIGNAL_FUNC(tb_jit));
+	
+	set_jit_sensitive();
+#endif
 }
 
 
@@ -907,4 +949,5 @@ static void read_settings(void)
 	read_graphics_settings();
 	read_serial_settings();
 	read_memory_settings();
+	read_jit_settings();
 }

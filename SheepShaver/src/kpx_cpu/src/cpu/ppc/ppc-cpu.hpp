@@ -212,12 +212,15 @@ private:
 	// Current execute() nested level
 	int execute_depth;
 
+	// Do we enable the JIT compiler?
+	bool use_jit;
+
 public:
 
 	// Initialization & finalization
 	void initialize();
 #ifdef SHEEPSHAVER
-	powerpc_cpu();
+	powerpc_cpu(bool do_use_jit = true);
 #else
 	powerpc_cpu(task_struct *parent_task);
 #endif
@@ -299,15 +302,18 @@ private:
 		return &ii_table[ii_index_table[get_ii_index(opcode)]];
 	}
 
-	// Decode Cache
+	// Block lookup table
 	typedef powerpc_block_info block_info;
 	block_cache< block_info, lazy_allocator > block_cache;
 
+#if PPC_DECODE_CACHE
+	// Decode Cache
 	static const uint32 DECODE_CACHE_MAX_ENTRIES = 32768;
 	static const uint32 DECODE_CACHE_SIZE = DECODE_CACHE_MAX_ENTRIES * sizeof(block_info::decode_info);
 	block_info::decode_info * decode_cache;
 	block_info::decode_info * decode_cache_p;
 	block_info::decode_info * decode_cache_end_p;
+#endif
 
 #if PPC_ENABLE_JIT
 	// Dynamic translation engine

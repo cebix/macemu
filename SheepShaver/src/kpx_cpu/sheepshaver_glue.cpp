@@ -93,6 +93,12 @@ static KernelData * const kernel_data = (KernelData *)KERNEL_DATA_BASE;
 // SIGSEGV handler
 static sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
 
+// JIT Compiler enabled?
+static inline bool enable_jit_p()
+{
+	return PrefsFindBool("jit");
+}
+
 
 /**
  *		PowerPC emulator glue with special 'sheep' opcodes
@@ -150,7 +156,7 @@ public:
 lazy_allocator< sheepshaver_cpu > allocator_helper< sheepshaver_cpu, lazy_allocator >::allocator;
 
 sheepshaver_cpu::sheepshaver_cpu()
-	: powerpc_cpu()
+	: powerpc_cpu(enable_jit_p())
 {
 	init_decoder();
 }

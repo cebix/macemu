@@ -42,8 +42,8 @@ struct powerpc_block_info
 #endif
 #if PPC_ENABLE_JIT
 	uint8 *				entry_point;
-	uintptr				min_pc, max_pc;
 #endif
+	uintptr				min_pc, max_pc;
 
 	bool intersect(uintptr start, uintptr end);
 };

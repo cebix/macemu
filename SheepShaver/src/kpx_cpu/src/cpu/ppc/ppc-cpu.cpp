@@ -243,6 +243,11 @@ void powerpc_cpu::initialize()
 	init_decode_cache();
 	execute_depth = 0;
 
+	// Initialize block lookup table
+#if PPC_DECODE_CACHE || PPC_ENABLE_JIT
+	block_cache.initialize();
+#endif
+
 	// Init cache range invalidate recorder
 	cache_range.start = cache_range.end = 0;
 
@@ -278,18 +283,22 @@ void powerpc_cpu::initialize()
 }
 
 #ifdef SHEEPSHAVER
-powerpc_cpu::powerpc_cpu()
+powerpc_cpu::powerpc_cpu(bool do_use_jit)
+	: use_jit(do_use_jit)
 #if PPC_ENABLE_JIT
-	: codegen(this)
+	, codegen(this)
 #endif
 #else
 powerpc_cpu::powerpc_cpu(task_struct *parent_task)
-	: basic_cpu(parent_task)
+	: basic_cpu(parent_task), use_jit(true)
 #if PPC_ENABLE_JIT
-	  , codegen(this)
+	, codegen(this)
 #endif
 #endif
 {
+#if !PPC_ENABLE_JIT
+	use_jit = false;
+#endif
 	++ppc_refcount;
 	initialize();
 }
@@ -302,7 +311,8 @@ powerpc_cpu::~powerpc_cpu()
 
 	const char *type = NULL;
 #if PPC_ENABLE_JIT
-	type = "compile";
+	if (use_jit)
+		type = "compile";
 #endif
 #if PPC_DECODE_CACHE
 	type = "predecode";
@@ -428,35 +438,36 @@ void powerpc_cpu::execute(uint32 entry)
 	const bool dump_state = true;
 #endif
 	execute_depth++;
-#if PPC_ENABLE_JIT
+#if PPC_DECODE_CACHE || PPC_ENABLE_JIT
 	if (execute_depth == 1) {
-		for (;;) {
-			block_info *bi = compile_block(pc());
-
-			// Execute all cached blocks
+#if PPC_ENABLE_JIT
+		if (use_jit) {
 			for (;;) {
-				codegen.execute(bi->entry_point);
+				block_info *bi = compile_block(pc());
 
-				if (!spcflags().empty()) {
-					if (!check_spcflags())
-						goto return_site;
+				// Execute all cached blocks
+				for (;;) {
+					codegen.execute(bi->entry_point);
 
-					// Force redecoding if cache was invalidated
-					if (spcflags().test(SPCFLAG_JIT_EXEC_RETURN)) {
-						spcflags().clear(SPCFLAG_JIT_EXEC_RETURN);
-						break;
+					if (!spcflags().empty()) {
+						if (!check_spcflags())
+							goto return_site;
+
+						// Force redecoding if cache was invalidated
+						if (spcflags().test(SPCFLAG_JIT_EXEC_RETURN)) {
+							spcflags().clear(SPCFLAG_JIT_EXEC_RETURN);
+							break;
+						}
 					}
-				}
 
-				if ((bi->pc != pc()) && ((bi = block_cache.find(pc())) == NULL))
-					break;
+					if ((bi->pc != pc()) && ((bi = block_cache.find(pc())) == NULL))
+						break;
+				}
 			}
+			goto return_site;
 		}
-		goto return_site;
-	}
 #endif
 #if PPC_DECODE_CACHE
-	if (execute_depth == 1) {
 		for (;;) {
 #if PPC_PROFILE_COMPILE_TIME
 			compile_count++;
@@ -506,6 +517,8 @@ void powerpc_cpu::execute(uint32 entry)
 				}
 			} while ((ii->cflow & CFLOW_END_BLOCK) == 0);
 			bi->end_pc = dpc;
+			bi->min_pc = dpc;
+			bi->max_pc = entry;
 			bi->size = di - bi->di;
 			block_cache.add_to_cl_list(bi);
 			block_cache.add_to_active_list(bi);
@@ -544,6 +557,7 @@ void powerpc_cpu::execute(uint32 entry)
 					break;
 			}
 		}
+#endif
 		goto return_site;
 	}
 #endif
@@ -596,10 +610,6 @@ void powerpc_cpu::init_decode_cache()
 	// Leave enough room to last calls to dump state functions
 	decode_cache_end_p -= 2;
 #endif
-#endif
-
-#if PPC_DECODE_CACHE || PPC_ENABLE_JIT
-	block_cache.initialize();
 #endif
 }
 
