@@ -272,6 +272,13 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_REGISTER_FILE			(unsigned long *)SIGSEGV_CONTEXT_REGS
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
+#if (defined(powerpc) || defined(__powerpc__))
+#include <sys/ucontext.h>
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.__gregs)
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[_REG_PC]
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)&SIGSEGV_CONTEXT_REGS[_REG_PC], (unsigned long *)&SIGSEGV_CONTEXT_REGS[_REG_R0]
+#define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
+#endif
 #endif
 #if defined(__linux__)
 #if (defined(i386) || defined(__i386__))
