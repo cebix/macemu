@@ -1,8 +1,9 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl Written in 2002 by Christian Bauer
 
-AC_INIT(main_unix.cpp)
-AC_PREREQ(2.12)
+AC_INIT([SheepShaver], 2.2, [Christian.Bauer@uni-mainz.de], SheepShaver)
+AC_CONFIG_SRCDIR(main_unix.cpp)
+AC_PREREQ(2.52)
 AC_CONFIG_HEADER(config.h)
 
 dnl Canonical system information.
@@ -51,7 +52,7 @@ case $WANT_EMULATED_PPC in
   no)   EMULATED_PPC=no;;
 esac
 if [[ "x$EMULATED_PPC" = "xyes" ]]; then
-  AC_DEFINE(EMULATED_PPC)
+  AC_DEFINE(EMULATED_PPC, 1, [Define if using a PowerPC CPU emulator.])
 fi
 
 dnl We use mon if possible.
@@ -69,7 +70,7 @@ if [[ "x$WANT_MON" = "xyes" ]]; then
   AC_MSG_CHECKING(for mon)
   if grep mon_init $mon_srcdir/mon.h >/dev/null 2>/dev/null; then
     AC_MSG_RESULT(yes)
-    AC_DEFINE(ENABLE_MON)
+    AC_DEFINE(ENABLE_MON, 1, [Define if using "mon".])
     MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_z80.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_lowmem.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c"
     CXXFLAGS="$CXXFLAGS -I$mon_srcdir -I$mon_srcdir/disass"
     AC_CHECK_LIB(ncurses, tgetent, ,
@@ -163,7 +164,7 @@ esac
 dnl We use XFree86 DGA if possible.
 if [[ "x$WANT_XF86_DGA" = "xyes" ]]; then
   AC_CHECK_LIB(Xxf86dga, XF86DGAQueryExtension, [
-    AC_DEFINE(ENABLE_XF86_DGA)
+    AC_DEFINE(ENABLE_XF86_DGA, 1, [Define if using XFree86 DGA extension.])
     LIBS="$LIBS -lXxf86dga"
   ], [
     AC_MSG_WARN([Could not find XFree86 DGA extension, ignoring --enable-xf86-dga.])
@@ -174,7 +175,7 @@ fi
 dnl We use XFree86 VidMode if possible.
 if [[ "x$WANT_XF86_VIDMODE" = "xyes" ]]; then
   AC_CHECK_LIB(Xxf86vm, XF86VidModeQueryExtension, [
-    AC_DEFINE(ENABLE_XF86_VIDMODE)
+    AC_DEFINE(ENABLE_XF86_VIDMODE, 1, [Define if using XFree86 DGA extension.])
     LIBS="$LIBS -lXxf86vm"
   ], [
     AC_MSG_WARN([Could not find XFree86 VidMode extension, ignoring --enable-xf86-vidmode.])
@@ -186,7 +187,7 @@ dnl We use GTK+ if possible.
 UISRCS=../dummy/prefs_editor_dummy.cpp
 if [[ "x$WANT_GTK" = "xyes" ]]; then
   AM_PATH_GTK(1.2.0, [
-    AC_DEFINE(ENABLE_GTK)
+    AC_DEFINE(ENABLE_GTK, 1, [Define if using GTK.])
     CFLAGS="$CFLAGS $GTK_CFLAGS"
     CXXFLAGS="$CXXFLAGS $GTK_CFLAGS"
     LIBS="$LIBS $GTK_LIBS"
@@ -200,7 +201,7 @@ fi
 dnl We use ESD if possible.
 if [[ "x$WANT_ESD" = "xyes" ]]; then
   AM_PATH_ESD(0.2.8, [
-    AC_DEFINE(ENABLE_ESD)
+    AC_DEFINE(ENABLE_ESD, 1, [Define is using ESD.])
     CFLAGS="$CFLAGS $ESD_CFLAGS"
     CXXFLAGS="$CXXFLAGS $ESD_CFLAGS"
     LIBS="$LIBS $ESD_LIBS"
@@ -214,9 +215,14 @@ dnl Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(mach/vm_map.h mach/mach_init.h sys/mman.h)
-AC_CHECK_HEADERS(sys/time.h sys/times.h)
+AC_CHECK_HEADERS(sys/time.h sys/times.h sys/socket.h)
 AC_CHECK_HEADERS(unistd.h fcntl.h byteswap.h)
-AC_CHECK_HEADERS(linux/if.h linux/if_tun.h net/if.h net/if_tun.h)
+AC_CHECK_HEADERS(linux/if.h, [], [], [
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+])
+AC_CHECK_HEADERS(linux/if_tun.h net/if.h net/if_tun.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
@@ -248,7 +254,7 @@ AC_CACHE_CHECK([whether struct sigaction has sa_restorer],
   )
 ])
 if [[ "x$ac_cv_signal_sa_restorer" = "xyes" ]]; then
-  AC_DEFINE(HAVE_SIGNAL_SA_RESTORER)
+  AC_DEFINE(HAVE_SIGNAL_SA_RESTORER, 1, [Define if sa_restorer is available in struct sigaction.])
 fi
 
 dnl Checks for library functions.
@@ -322,11 +328,11 @@ esac
 
 dnl SDL overrides
 if [[ "x$WANT_SDL" = "xyes" ]]; then
-  AC_DEFINE(USE_SDL, 1, [Define to enble SDL support])
+  AC_DEFINE(USE_SDL, 1, [Define to enble SDL support.])
 fi
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   VIDEOSRCS="../SDL/video_sdl.cpp"
-  AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support])
+  AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support.])
   KEYCODES="../SDL/keycodes"
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp"
