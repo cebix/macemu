@@ -292,12 +292,12 @@ void OPPROTO op_execute(uint8 *entry_point, basic_cpu *this_cpu)
 #endif
 	SLOW_DISPATCH(entry_point);
 	func(); // NOTE: never called, fake to make compiler save return point
-	asm volatile (".section \".data\"");
-	asm volatile (".global op_exec_return_offset");
-	asm volatile ("op_exec_return_offset:");
-	asm volatile (".long 1f-op_execute");
-	asm volatile (".size op_exec_return_offset,.-op_exec_return_offset");
-	asm volatile (".previous");
+	asm volatile (ASM_DATA_SECTION);
+	asm volatile (".global " ASM_NAME(op_exec_return_offset));
+	asm volatile (ASM_NAME(op_exec_return_offset) ":");
+	asm volatile (".long 1f-" ASM_NAME(op_execute));
+	asm volatile (ASM_SIZE(op_exec_return_offset));
+	asm volatile (ASM_PREVIOUS_SECTION);
 	asm volatile ("1:");
 #ifdef REG_T3
 	reg_T3 = saved_T3;
@@ -348,7 +348,7 @@ void OPPROTO impl_##NAME(void)											\
 	CODE;																\
 	FORCE_RET();														\
 	asm volatile ("." #NAME ":");										\
-	asm volatile (".size " #NAME ",." #NAME "-" #NAME);					\
+	asm volatile (ASM_SIZE(NAME));										\
 }																		\
 void OPPROTO helper_##NAME(void) __attribute__((weak, alias(#NAME)));
 #else
