@@ -1536,7 +1536,11 @@ void ClearInterruptFlag(uint32 flag)
 
 void DisableInterrupt(void)
 {
+#if EMULATED_PPC
+	WriteMacInt32(XLM_IRQ_NEST, int32(ReadMacInt32(XLM_IRQ_NEST)) + 1);
+#else
 	atomic_add((int *)XLM_IRQ_NEST, 1);
+#endif
 }
 
 
@@ -1546,7 +1550,11 @@ void DisableInterrupt(void)
 
 void EnableInterrupt(void)
 {
+#if EMULATED_PPC
+	WriteMacInt32(XLM_IRQ_NEST, int32(ReadMacInt32(XLM_IRQ_NEST)) - 1);
+#else
 	atomic_add((int *)XLM_IRQ_NEST, -1);
+#endif
 }
 
 

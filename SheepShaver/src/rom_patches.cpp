@@ -1122,13 +1122,9 @@ static bool patch_68k_emul(void)
 	// Extra routine for 68k emulator start
 	lp = (uint32 *)(ROM_BASE + 0x36f900);
 	*lp++ = htonl(0x7c2903a6);					// mtctr	r1
-#if EMULATED_PPC
-	*lp++ = htonl(NativeOpcode(NATIVE_DISABLE_INTERRUPT));
-#else
 	*lp++ = htonl(0x80200000 + XLM_IRQ_NEST);	// lwz		r1,XLM_IRQ_NEST
 	*lp++ = htonl(0x38210001);					// addi		r1,r1,1
 	*lp++ = htonl(0x90200000 + XLM_IRQ_NEST);	// stw		r1,XLM_IRQ_NEST
-#endif
 	*lp++ = htonl(0x80200000 + XLM_KERNEL_DATA);// lwz		r1,XLM_KERNEL_DATA
 	*lp++ = htonl(0x90c10018);					// stw		r6,0x18(r1)
 	*lp++ = htonl(0x7cc902a6);					// mfctr	r6
@@ -1156,13 +1152,9 @@ static bool patch_68k_emul(void)
 	// Extra routine for Mixed Mode
 	lp = (uint32 *)(ROM_BASE + 0x36fa00);
 	*lp++ = htonl(0x7c2903a6);					// mtctr	r1
-#if EMULATED_PPC
-	*lp++ = htonl(NativeOpcode(NATIVE_DISABLE_INTERRUPT));
-#else
 	*lp++ = htonl(0x80200000 + XLM_IRQ_NEST);	// lwz		r1,XLM_IRQ_NEST
 	*lp++ = htonl(0x38210001);					// addi		r1,r1,1
 	*lp++ = htonl(0x90200000 + XLM_IRQ_NEST);	// stw		r1,XLM_IRQ_NEST
-#endif
 	*lp++ = htonl(0x80200000 + XLM_KERNEL_DATA);// lwz		r1,XLM_KERNEL_DATA
 	*lp++ = htonl(0x90c10018);					// stw		r6,0x18(r1)
 	*lp++ = htonl(0x7cc902a6);					// mfctr	r6
@@ -1190,13 +1182,9 @@ static bool patch_68k_emul(void)
 	// Extra routine for Reset/FC1E opcode
 	lp = (uint32 *)(ROM_BASE + 0x36fb00);
 	*lp++ = htonl(0x7c2903a6);					// mtctr	r1
-#if EMULATED_PPC
-	*lp++ = htonl(NativeOpcode(NATIVE_DISABLE_INTERRUPT));
-#else
 	*lp++ = htonl(0x80200000 + XLM_IRQ_NEST);	// lwz		r1,XLM_IRQ_NEST
 	*lp++ = htonl(0x38210001);					// addi		r1,r1,1
 	*lp++ = htonl(0x90200000 + XLM_IRQ_NEST);	// stw		r1,XLM_IRQ_NEST
-#endif
 	*lp++ = htonl(0x80200000 + XLM_KERNEL_DATA);// lwz		r1,XLM_KERNEL_DATA
 	*lp++ = htonl(0x90c10018);					// stw		r6,0x18(r1)
 	*lp++ = htonl(0x7cc902a6);					// mfctr	r6
@@ -1224,13 +1212,9 @@ static bool patch_68k_emul(void)
 	// Extra routine for FE0A opcode (QuickDraw 3D needs this)
 	lp = (uint32 *)(ROM_BASE + 0x36fc00);
 	*lp++ = htonl(0x7c2903a6);					// mtctr	r1
-#if EMULATED_PPC
-	*lp++ = htonl(NativeOpcode(NATIVE_DISABLE_INTERRUPT));
-#else
 	*lp++ = htonl(0x80200000 + XLM_IRQ_NEST);	// lwz		r1,XLM_IRQ_NEST
 	*lp++ = htonl(0x38210001);					// addi		r1,r1,1
 	*lp++ = htonl(0x90200000 + XLM_IRQ_NEST);	// stw		r1,XLM_IRQ_NEST
-#endif
 	*lp++ = htonl(0x80200000 + XLM_KERNEL_DATA);// lwz		r1,XLM_KERNEL_DATA
 	*lp++ = htonl(0x90c10018);					// stw		r6,0x18(r1)
 	*lp++ = htonl(0x7cc902a6);					// mfctr	r6
@@ -1397,15 +1381,10 @@ static bool patch_nanokernel(void)
 	uint32 npc = (uint32)(lp + 1) - ROM_BASE;
 
 	lp = (uint32 *)(ROM_BASE + 0x318000);
-#if EMULATED_PPC
-	*lp++ = htonl(NativeOpcode(NATIVE_ENABLE_INTERRUPT));
-	*lp = htonl(0x48000000 + ((npc - 0x318004) & 0x03fffffc));	// b		ROM_BASE+0x312c2c
-#else
 	*lp++ = htonl(0x81400000 + XLM_IRQ_NEST);	// lwz	r10,XLM_IRQ_NEST
 	*lp++ = htonl(0x394affff);					// subi	r10,r10,1
 	*lp++ = htonl(0x91400000 + XLM_IRQ_NEST);	// stw	r10,XLM_IRQ_NEST
 	*lp = htonl(0x48000000 + ((npc - 0x31800c) & 0x03fffffc));	// b		ROM_BASE+0x312c2c
-#endif
 
 /*
 	// Disable FE0A/FE06 opcodes

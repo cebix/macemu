@@ -55,8 +55,6 @@ uint32 NativeOpcode(int selector)
 {
 	uint32 opcode;
 	switch (selector) {
-	case NATIVE_DISABLE_INTERRUPT:
-	case NATIVE_ENABLE_INTERRUPT:
 	case NATIVE_CHECK_LOAD_INVOC:
 		opcode = POWERPC_NATIVE_OP(0, selector);
 		break;

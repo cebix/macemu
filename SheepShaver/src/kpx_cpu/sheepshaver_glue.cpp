@@ -446,14 +446,6 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 			status = COMPILE_CODE_OK;
 			break;
 #endif
-		case NATIVE_DISABLE_INTERRUPT:
-			dg.gen_invoke(DisableInterrupt);
-			status = COMPILE_CODE_OK;
-			break;
-		case NATIVE_ENABLE_INTERRUPT:
-			dg.gen_invoke(EnableInterrupt);
-			status = COMPILE_CODE_OK;
-			break;
 		case NATIVE_BITBLT:
 			dg.gen_load_T0_GPR(3);
 			dg.gen_invoke_T0((void (*)(uint32))NQD_bitblt);
@@ -1068,7 +1060,7 @@ void TriggerInterrupt(void)
 void sheepshaver_cpu::handle_interrupt(void)
 {
 	// Do nothing if interrupts are disabled
-	if (*(int32 *)XLM_IRQ_NEST > 0)
+	if (int32(ReadMacInt32(XLM_IRQ_NEST)) > 0)
 		return;
 
 	// Current interrupt nest level
@@ -1266,12 +1258,6 @@ void sheepshaver_cpu::execute_native_op(uint32 selector)
 		get_resource_callbacks[selector - NATIVE_GET_RESOURCE]();
 		break;
 	}
-	case NATIVE_DISABLE_INTERRUPT:
-		DisableInterrupt();
-		break;
-	case NATIVE_ENABLE_INTERRUPT:
-		EnableInterrupt();
-		break;
 	case NATIVE_MAKE_EXECUTABLE:
 		MakeExecutable(0, (void *)gpr(4), gpr(5));
 		break;
