@@ -63,8 +63,15 @@ dnl Canonical system information.
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 
-dnl Target OS type
-OS_TYPE=darwin
+dnl Target OS type (target is host if not cross-compiling).
+case "$target_os" in
+  linux*)	OS_TYPE=linux;;
+  netbsd*)	OS_TYPE=netbsd;;
+  freebsd*)	OS_TYPE=freebsd;;
+  solaris*)	OS_TYPE=solaris;;
+  darwin*)	OS_TYPE=darwin;;
+  *)		OS_TYPE=`echo $target_os | sed -e 's/-/_/g' | sed -e 's/\./_/g'`;;
+esac
 DEFINES="$DEFINES -DOS_$OS_TYPE"
 
 dnl Target CPU type.
@@ -88,12 +95,6 @@ AC_PROG_CPP
 AC_PROG_CXX
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
-
-dnl MacOS 10.2 (and later?) have a particular header for defining the OS version
-AC_CHECK_HEADER(AvailabilityMacros.h)
-if [[ "x$ac_cv_header_AvailabilityMacros_h" = "xyes" ]]; then
-  AC_DEFINE(AVAILABILITYMACROS, 1, [Header specific to 10.2 and later.])
-fi
 
 dnl We use mon if possible.
 MONSRCS=
@@ -119,8 +120,20 @@ if [[ "x$WANT_MON" = "xyes" ]]; then
   fi
 fi
 
-dnl We want pthreads.
+dnl We want pthreads. Try libpthread first, then libc_r (FreeBSD), then PTL.
 HAVE_PTHREADS=yes
+AC_CHECK_LIB(pthread, pthread_create, , [
+  AC_CHECK_LIB(c_r, pthread_create, , [
+    AC_CHECK_LIB(PTL, pthread_create, , [
+      HAVE_PTHREADS=no
+    ])
+  ])
+])
+dnl OS X does have pthreads, but not in any of the above locations:
+HAVE_PTHREADS=yes
+if [[ "x$HAVE_PTHREADS" = "xyes" ]]; then
+  AC_DEFINE(HAVE_PTHREADS, 1, [Define if pthreads are available.])
+fi
 AC_CHECK_FUNCS(pthread_cancel)
 AC_CHECK_FUNCS(pthread_mutexattr_setprotocol)
 AC_CHECK_FUNCS(pthread_mutexattr_settype)
@@ -529,12 +542,12 @@ if [[ -z "$sigsegv_recovery" ]]; then
 fi
 
 dnl Otherwise, check for subterfuges.
-if [[ -z  "$sigsegv_recovery" ]]; then
+if [[ -z "$sigsegv_recovery" ]]; then
   AC_CACHE_CHECK([whether we then have a subterfuge for your system],
   ac_cv_have_sigcontext_hack, [
     AC_LANG_SAVE
     AC_LANG_CPLUSPLUS
-   AC_TRY_RUN([
+    AC_TRY_RUN([
       #define HAVE_SIGCONTEXT_SUBTERFUGE 1
       #define CONFIGURE_TEST_SIGSEGV_RECOVERY
       #include "../Unix/vm_alloc.cpp"
@@ -580,7 +593,7 @@ if [[ -n "$sigsegv_recovery" ]]; then
 fi
 
 dnl A dummy program that returns always true
-BLESS=/bin/true
+BLESS=/usr/bin/touch
 
 dnl Determine the addressing mode to use
 if [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
@@ -994,12 +1007,36 @@ if [[ "x$HAVE_IPA" = "xyes" ]]; then
   LDFLAGS="$LDFLAGS -O3 -OPT:Olimit=0 -IPA"
 fi
 
+dnl
+dnl Some Mac OS X specific stuff:
+dnl
+
+dnl MacOS 10.2 (and later?) have a particular header for defining the OS version
+AC_CHECK_HEADER(AvailabilityMacros.h)
+if [[ "x$ac_cv_header_AvailabilityMacros_h" = "xyes" ]]; then
+  AC_DEFINE(AVAILABILITYMACROS, 1, [Header specific to 10.2 and later.])
+fi
+
+dnl Which IDE do we use?
+if test -d "Developer/Applications/Xcode.app"; then
+  IDE=xcodebuild
+  PROJECT=BasiliskII.xcode
+  IDEARGS="-project BasiliskII.xcode"
+else
+  IDE=pbxbuild
+  PROJECT=BasiliskII.pbproj
+  IDEARGS=""
+fi
+
 dnl Generate Makefile.
 AC_SUBST(DEFINES)
 AC_SUBST(SYSSRCS)
 AC_SUBST(CPUINCLUDES)
 AC_SUBST(CPUSRCS)
 AC_SUBST(BLESS)
+AC_SUBST(IDE)
+AC_SUBST(PROJECT)
+AC_SUBST(IDEARGS)
 dnl autoconf on 10.1 doesn't understand these
 dnl AC_CONFIG_FILES([Makefile])
 dnl AC_OUTPUT
