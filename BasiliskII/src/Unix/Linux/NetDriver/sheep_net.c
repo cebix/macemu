@@ -65,6 +65,9 @@ MODULE_DESCRIPTION("Pseudo ethernet device for emulators");
 typedef struct wait_queue *wait_queue_head_t;
 #define init_waitqueue_head(x) *(x)=NULL
 #endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
+#define eth_hdr(skb) (skb)->mac.ethernet
+#endif
 
 #ifdef LINUX_26
 #define compat_sk_alloc(a,b,c)	sk_alloc( (a), (b), (c), NULL )
@@ -398,7 +401,7 @@ static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, lo
 	skb->mac.raw = skb->data;
 
 	/* Base the IP-filtering on the IP address in any outgoing ARP packets */
-	if (skb->mac.ethernet->h_proto == htons(ETH_P_ARP)) {
+	if (eth_hdr(skb)->h_proto == htons(ETH_P_ARP)) {
 		u8 *p = &skb->data[14+14];	/* source IP address */
 		u32 ip = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
 		if (ip != v->ipfilter) {
@@ -611,15 +614,15 @@ static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struc
 	int multicast;
 	D(bug("sheep_net: packet received\n"));
 
-	multicast = (skb->mac.ethernet->h_dest[0] & ETH_ADDR_MULTICAST);
-	fake = is_fake_addr(v, &skb->mac.ethernet->h_dest);
+	multicast = (eth_hdr(skb)->h_dest[0] & ETH_ADDR_MULTICAST);
+	fake = is_fake_addr(v, &eth_hdr(skb)->h_dest);
 
 	/* Packet sent by us? Then discard */
-	if (is_fake_addr(v, &skb->mac.ethernet->h_source) || skb->protocol == PROT_MAGIC)
+	if (is_fake_addr(v, &eth_hdr(skb)->h_source) || skb->protocol == PROT_MAGIC)
 		goto drop;
 
 	/* If the packet is not meant for this host, discard it */
-	if (!is_local_addr(v, &skb->mac.ethernet->h_dest) && !multicast && !fake)
+	if (!is_local_addr(v, &eth_hdr(skb)->h_dest) && !multicast && !fake)
 		goto drop;
 
 	/* Discard packets if queue gets too full */
