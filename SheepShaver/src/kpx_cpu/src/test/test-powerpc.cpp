@@ -131,7 +131,7 @@ const uint32 POWERPC_EMUL_OP = 0x18000000;
 
 // Invalidate test cache
 #if defined(__powerpc__)
-static void inline flush_icache_range(uint32 *start_p, uint32 length)
+static void inline ppc_flush_icache_range(uint32 *start_p, uint32 length)
 {
 	const int MIN_CACHE_LINE_SIZE = 8; /* conservative value */
 
@@ -153,7 +153,7 @@ static void inline flush_icache_range(uint32 *start_p, uint32 length)
     asm volatile ("isync" : : : "memory");
 }
 #else
-static void inline flush_icache_range(uint32 *start_p, uint32 length)
+static void inline ppc_flush_icache_range(uint32 *start_p, uint32 length)
 {
 }
 #endif
@@ -165,6 +165,8 @@ struct powerpc_cpu_base
 	powerpc_cpu_base();
 	void init_decoder();
 	void execute_return(uint32 opcode);
+	void invalidate_cache_range(uint32 *start, uint32 size)
+		{ powerpc_cpu::invalidate_cache_range((uintptr)start, ((uintptr)start) + size); }
 
 	uint32 emul_get_xer() const			{ return xer().get(); }
 	void emul_set_xer(uint32 value)		{ xer().set(value); }
@@ -214,8 +216,9 @@ struct powerpc_cpu_base
 {
 	powerpc_cpu_base();
 	void execute(uintptr);
+	void invalidate_cache() { }
+	void invalidate_cache_range(uint32 *start, uint32 size) { }
 
-	void invalidate_cache()				{ }
 	uint32 emul_get_xer() const			{ return XER; }
 	void emul_set_xer(uint32 value)		{ XER = value; }
 	uint32 emul_get_cr() const			{ return CR; }
@@ -263,8 +266,9 @@ struct powerpc_cpu_base
 {
 	powerpc_cpu_base();
 	void execute(uintptr);
+	void invalidate_cache() { }
+	void invalidate_cache_range(uint32 *start, uint32 size) { }
 
-	void invalidate_cache()				{ }
 	uint32 emul_get_xer() const			{ return ppc_get_reg(PPC_REG_XER); }
 	void emul_set_xer(uint32 value)		{ ppc_set_reg(PPC_REG_XER, value); }
 	uint32 emul_get_cr() const			{ return ppc_get_reg(PPC_REG_CR); }
@@ -315,8 +319,9 @@ public:
 	powerpc_cpu_base();
 	~powerpc_cpu_base();
 	void execute(uintptr);
+	void invalidate_cache() { tb_flush(); }
+	void invalidate_cache_range(uint32 *start, uint32 size) { invalidate_cache(); }
 
-	void invalidate_cache()				{ tb_flush(); }
 	uint32 emul_get_xer() const;
 	void emul_set_xer(uint32 value);
 	uint32 emul_get_cr() const;
@@ -606,7 +611,7 @@ class powerpc_test_cpu
 #endif
 
 	void flush_icache_range(uint32 *start, uint32 size)
-		{ invalidate_cache(); ::flush_icache_range(start, size); }
+		{ invalidate_cache_range(start, size); ppc_flush_icache_range(start, size); }
 
 	void print_xer_flags(uint32 xer) const;
 	void print_flags(uint32 cr, uint32 xer, int crf = 0) const;
@@ -2001,7 +2006,7 @@ bool powerpc_test_cpu::test(void)
 #endif
 
 	printf("%u errors out of %u tests\n", errors, tests);
-	return errors != 0;
+	return errors == 0;
 }
 
 int main(int argc, char *argv[])
@@ -2046,7 +2051,7 @@ int main(int argc, char *argv[])
 	signal(SIGILL, SIG_DFL);
 #endif
 
-	int ret = ppc.test();
+	bool ok = ppc.test();
 	if (fp) fclose(fp);
-	return !ret;
+	return !ok;
 }
