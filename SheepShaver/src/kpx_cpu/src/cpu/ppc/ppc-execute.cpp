@@ -1098,15 +1098,38 @@ void powerpc_cpu::execute_mftbr(uint32 opcode)
  *		Instruction cache management
  **/
 
+void powerpc_cpu::execute_invalidate_cache_range()
+{
+	if (cache_range.start != cache_range.end) {
+		D(bug("Invalidate Cache Block [%08x - %08x]\n", cache_range.start, cache_range.end));
+		invalidate_cache_range(cache_range.start, cache_range.end);
+		cache_range.start = cache_range.end = 0;
+	}
+}
+
+template< class RA, class RB >
 void powerpc_cpu::execute_icbi(uint32 opcode)
 {
-	// TODO: record address range of code to invalidate
+	const uint32 ea = RA::get(this, opcode) + RB::get(this, opcode);
+	const uint32 block_start = ea - (ea % 32);
+
+	if (block_start == cache_range.end) {
+		// Extend region to invalidate
+		cache_range.end += 32;
+	}
+	else {
+		// New region to invalidate
+		execute_invalidate_cache_range();
+		cache_range.start = block_start;
+		cache_range.end = cache_range.start + 32;
+	}
+
 	increment_pc(4);
 }
 
 void powerpc_cpu::execute_isync(uint32 opcode)
 {
-	invalidate_cache();
+	execute_invalidate_cache_range();
 	increment_pc(4);
 }
 

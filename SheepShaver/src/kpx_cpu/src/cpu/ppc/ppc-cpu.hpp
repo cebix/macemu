@@ -234,6 +234,8 @@ public:
 	// Caches invalidation
 	void invalidate_cache();
 	void invalidate_cache_range(uintptr start, uintptr end);
+private:
+	struct { uintptr start, end; } cache_range;
 
 protected:
 
@@ -325,8 +327,10 @@ private:
 	void execute_fp_int_convert(uint32 opcode);
 	template< class Rc >
 	void execute_fp_round(uint32 opcode);
+	template< class RA, class RB >
 	void execute_icbi(uint32 opcode);
 	void execute_isync(uint32 opcode);
+	void execute_invalidate_cache_range();
 	template< class RA, class RB >
 	void execute_dcbz(uint32 opcode);
 };
@@ -364,6 +368,7 @@ inline void powerpc_cpu::do_execute()
 		uint32 dpc = pc() - 4;
 		do {
 			uint32 opcode = vm_read_memory_4(dpc += 4);
+			ii = decode(opcode);
 #if PPC_FLIGHT_RECORDER
 			if (is_logging()) {
 				di->opcode = opcode;

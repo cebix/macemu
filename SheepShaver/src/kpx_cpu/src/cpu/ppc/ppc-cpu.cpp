@@ -207,6 +207,9 @@ void powerpc_cpu::initialize()
 	init_registers();
 	init_decode_cache();
 
+	// Init cache range invalidate recorder
+	cache_range.start = cache_range.end = 0;
+
 	// Init syscalls handler
 	execute_do_syscall = NULL;
 

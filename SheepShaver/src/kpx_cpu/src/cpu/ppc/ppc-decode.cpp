@@ -437,7 +437,7 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  A_form, 59, 20, CFLOW_NORMAL
 	},
 	{ "icbi",
-	  EXECUTE_0(icbi),
+	  EXECUTE_2(icbi, operand_RA_or_0, operand_RB),
 	  NULL,
 	  X_form, 31, 982, CFLOW_NORMAL
 	},
