@@ -301,22 +301,22 @@ DEFINE_OP(fsubs_F0_F1, fsub, (F0, F1));
 
 
 /**
- *		Load/Store instructions
+ *		Load/Store instructions on 32-bit EA
  **/
 
 #define im PARAM1
-#define DEFINE_OP(BITS,REG,SIZE,OFFSET)								\
-void OPPROTO op_load_u##BITS##_##REG##_A0_##OFFSET(void)			\
-{																	\
-	REG = (uint32)(uint##BITS)vm_read_memory_##SIZE(A0 + OFFSET);	\
-}																	\
-void OPPROTO op_load_s##BITS##_##REG##_A0_##OFFSET(void)			\
-{																	\
-	REG = (int32)(int##BITS)vm_read_memory_##SIZE(A0 + OFFSET);		\
-}																	\
-void OPPROTO op_store_##BITS##_##REG##_A0_##OFFSET(void)			\
-{																	\
-	vm_write_memory_##SIZE(A0 + OFFSET, REG);						\
+#define DEFINE_OP(BITS,REG,SIZE,OFFSET)										\
+void OPPROTO op_load_u##BITS##_##REG##_A0_##OFFSET(void)					\
+{																			\
+	REG = (uint32)(uint##BITS)vm_read_memory_##SIZE((uint32)(A0 + OFFSET));	\
+}																			\
+void OPPROTO op_load_s##BITS##_##REG##_A0_##OFFSET(void)					\
+{																			\
+	REG = (int32)(int##BITS)vm_read_memory_##SIZE((uint32)(A0 + OFFSET));	\
+}																			\
+void OPPROTO op_store_##BITS##_##REG##_A0_##OFFSET(void)					\
+{																			\
+	vm_write_memory_##SIZE((uint32)(A0 + OFFSET), REG);						\
 }
 
 DEFINE_OP(32,T0,4,0);
