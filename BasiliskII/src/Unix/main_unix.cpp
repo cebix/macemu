@@ -401,6 +401,7 @@ int main(int argc, char **argv)
 		ErrorAlert(str);
 		QuitEmulator();
 	}
+	atexit(SDL_Quit);
 #endif
 
 	// Init system routines
@@ -784,11 +785,8 @@ void QuitEmulator(void)
 	// Exit preferences
 	PrefsExit();
 
-#ifdef USE_SDL
-	// Exit SDL system
-	SDL_Quit();
-#else
 	// Close X11 server connection
+#ifndef USE_SDL_VIDEO
 	if (x_display)
 		XCloseDisplay(x_display);
 #endif
