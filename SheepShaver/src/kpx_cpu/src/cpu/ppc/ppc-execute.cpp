@@ -1559,7 +1559,7 @@ void powerpc_cpu::execute_vector_shift_octet(uint32 opcode)
 			if (i + sh < 16)
 				VD::set_element(vD, i, VA::get_element(vA, i + sh));
 			else
-				VD::set_element(vD, i, VB::get_element(vB, 16 - (i + sh)));
+				VD::set_element(vD, i, VB::get_element(vB, i - (16 - sh)));
 		}
 	}
 	else if (SD > 0) {
