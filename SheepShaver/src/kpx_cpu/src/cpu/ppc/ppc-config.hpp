@@ -86,7 +86,7 @@
  **/
 
 #ifndef PPC_NO_FPSCR_UPDATE
-#define PPC_NO_FPSCR_UPDATE
+#undef  PPC_NO_FPSCR_UPDATE
 #endif
 
 

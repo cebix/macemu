@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <time.h>
 
 #include "sysdeps.h"
 #include "cpu/vm.hpp"
@@ -965,9 +966,7 @@ void powerpc_cpu::execute_mtcrf(uint32 opcode)
 template< class FM, class RB, class Rc >
 void powerpc_cpu::execute_mtfsf(uint32 opcode)
 {
-	any_register x;
-	x.d = RB::get(this, opcode);
-
+	const uint64 fsf = RB::get(this, opcode);
 	const uint32 f = FM::get(this, opcode);
 	uint32 m = field2mask[f];
 
@@ -977,7 +976,7 @@ void powerpc_cpu::execute_mtfsf(uint32 opcode)
 
 #ifndef PPC_NO_FPSCR_UPDATE
 	// Move frB bits to FPSCR according to field mask
-	fpscr() = (x.i & m) | (fpscr() & ~m);
+	fpscr() = (fsf & m) | (fpscr() & ~m);
 #endif
 
 	// Set CR1 (FX, FEX, VX, VOX) if instruction has Rc set
@@ -1027,9 +1026,7 @@ template< class Rc >
 void powerpc_cpu::execute_mffs(uint32 opcode)
 {
 	// Move FPSCR to FPR(FRD)
-	any_register x;
-	x.j = fpscr();
-	operand_fp_RD::set(this, opcode, x.d);
+	operand_fp_dw_RD::set(this, opcode, fpscr());
 
 	// Set CR1 (FX, FEX, VX, VOX) if instruction has Rc set
 	if (Rc::test(opcode))
@@ -1053,7 +1050,19 @@ void powerpc_cpu::execute_mfspr(uint32 opcode)
 	case 1: d = xer().get(); break;
 	case 8: d = lr(); break;
 	case 9: d = ctr(); break;
+#ifdef SHEEPSHAVER
+	case 25: // SDR1
+		d = 0xdead001f;
+		break;
+	case 287: { // PVR
+		extern uint32 PVR;
+		d = PVR;
+		break;
+	}
+	default: d = 0;
+#else
 	default: execute_illegal(opcode);
+#endif
 	}
 	operand_RD::set(this, opcode, d);
 	increment_pc(4);
@@ -1069,7 +1078,9 @@ void powerpc_cpu::execute_mtspr(uint32 opcode)
 	case 1: xer().set(s); break;
 	case 8: lr() = s; break;
 	case 9: ctr() = s; break;
+#ifndef SHEEPSHAVER
 	default: execute_illegal(opcode);
+#endif
 	}
 
 	increment_pc(4);
@@ -1081,7 +1092,7 @@ void powerpc_cpu::execute_mftbr(uint32 opcode)
 	uint32 tbr = TBR::get(this, opcode);
 	uint32 d;
 	switch (tbr) {
-	case 268: d = tbl(); break;
+	case 268: d = clock(); break;
 	case 269: d = tbu(); break;
 	default: execute_illegal(opcode);
 	}

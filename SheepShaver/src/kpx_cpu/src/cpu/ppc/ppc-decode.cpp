@@ -663,7 +663,7 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  X_form, 63, 38, CFLOW_NORMAL
 	},
 	{ "mtfsf",
-	  EXECUTE_3(mtfsf, operand_FM, operand_RB, RC_BIT_G),
+	  EXECUTE_3(mtfsf, operand_FM, operand_fp_dw_RB, RC_BIT_G),
 	  NULL,
 	  XFL_form, 63, 711, CFLOW_NORMAL
 	},
