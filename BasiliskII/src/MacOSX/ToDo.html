@@ -9,6 +9,8 @@ Bugs:
 <LI>In full screen mode after a restart, when the mouse is first moved,
 	the emulated pointer jumps to the location that it was before the restart.
 	Disturbing, but not damaging.</LI>
+<LI>Ejecting a CD only works in 10.2, and it freezes the emulation for about 5
+	seconds.</LI>
 </UL>
 Untested:
 <UL>
@@ -18,15 +20,10 @@ Untested:
 </UL>
 Unimplemented:
 <UL>
-<LI>CD-ROM stuff. Should be the same as any other BSD, but Apple has stupidly
-    created different ioctls. I am still trying to get this to work</LI>
+<LI>CD audio stuff. I am still trying to get this to work</LI>
 <LI>Ethernet</LI>
 <LI>Reset and Interrupt functions for emulator</LI>
 <LI>Sound</LI>
-<LI>Window depth. It is currently stuck at 32bits, which Quartz dithers down
-	to whatever the user's display is set to. This is mainly due to the fact
-	that NSBitmapImageRep does not support any 16bit modes. The Core Graphics
-	primitives may allow a workaround though</LI>
 <LI>'nogui' to disable GUI alerts (and maybe preferences, but I need to split
 	MainMenu.nib to do that)</LI>
 <LI>Better documentation. There are README, ToDo and Versions in the help menu,
@@ -49,8 +46,7 @@ Possible Enhancements:
 <LI>Real addressing mode for the emulator.
 	At the moment, OS X's mmap() call does not support anything useful</LI>
 <LI>Get VOSF (Video on Seg Fault) working, to speed up screen redrawing</LI>
-<LI>Implement OpenGL windowing mode (to speed up emulator screen redrawing)</LI>
-<LI>Improve Objective-C object allocation. e.g. <A HREF="http://www.mulle-kybernetik.com/artikel/Optimisation/opti-5.html"> here</A>. </LI>
+<LI>Improve Objective-C object allocation. e.g. http://www.mulle-kybernetik.com/artikel/Optimisation/opti-5.html</LI>
 <LI>Use automake instead of the current 1_prepare_files.sh ?</LI>
 <LI>Add JIT options to preferences.</LI>
 <LI>"Publish" at mac.emuscene.com http://www.emulation.net</LI>
