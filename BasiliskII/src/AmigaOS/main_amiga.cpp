@@ -75,6 +75,8 @@ uint32 ROMBaseMac;		// ROM base (Mac address space)
 uint8 *ROMBaseHost;		// ROM base (host address space)
 uint32 ROMSize;			// Size of ROM
 
+uint32 MacsBugFlags = 0xbff;
+
 
 // CPU and FPU type, addressing mode
 int CPUType;
@@ -242,11 +244,28 @@ int main(void)
 		WarningAlert(GetString(STR_SMALL_RAM_WARN));
 		RAMSize = 1024*1024;
 	}
-	RAMBaseHost = (uint8 *)AllocMem(RAMSize + 0x100000, MEMF_PUBLIC);
-	if (RAMBaseHost == NULL) {
-		ErrorAlert(GetString(STR_NO_MEM_ERR));
-		QuitEmulator();
-	}
+	RAMBaseHost = (uint8 *)AllocVec(RAMSize + 0x100000, MEMF_PUBLIC);
+//	if (RAMBaseHost == NULL) {
+//		ErrorAlert(GetString(STR_NO_MEM_ERR));
+//		QuitEmulator();
+//	}
+	if (RAMBaseHost == NULL)
+		{
+		uint32 newRAMSize = AvailMem(MEMF_LARGEST) - 0x100000;
+		char xText[120];
+
+		sprintf(xText, GetString(STR_NOT_ENOUGH_MEM_WARN), RAMSize, newRAMSize);
+
+		if (1 != ChoiceAlert(xText, "Use", "Quit"))
+			QuitEmulator();
+
+		RAMSize = newRAMSize;
+		RAMBaseHost = (uint8 *)AllocVec(RAMSize + 0x100000, MEMF_PUBLIC);
+		if (RAMBaseHost == NULL) {
+			ErrorAlert(GetString(STR_NO_MEM_ERR));
+			QuitEmulator();
+		}
+		}
 	RAMBaseMac = (uint32)RAMBaseHost;
 	D(bug("Mac RAM starts at %08lx\n", RAMBaseHost));
 	ROMBaseHost = RAMBaseHost + RAMSize;
@@ -313,6 +332,8 @@ int main(void)
 	// Set task priority to -1 so we don't use all processing time
 	SetTaskPri(MainTask, -1);
 
+	WriteMacInt32(MacsBugFlags, 0);
+
 	// Swap stack to Mac RAM area
 	stack_swap.stk_Lower = RAMBaseHost;
 	stack_swap.stk_Upper = (ULONG)RAMBaseHost + RAMSize;
@@ -375,7 +396,7 @@ void QuitEmulator(void)
 
 	// Delete RAM/ROM area
 	if (RAMBaseHost)
-		FreeMem(RAMBaseHost, RAMSize + 0x100000);
+		FreeVec(RAMBaseHost);
 
 	// Delete scratch memory area
 	if (ScratchMem)
@@ -451,6 +472,11 @@ void ClearInterruptFlag(uint32 flag)
 void TriggerInterrupt(void)
 {
 	Signal(MainTask, IRQSigMask);
+}
+
+void TriggerNMI(void)
+{
+	AsmTriggerNMI();
 }
 
 

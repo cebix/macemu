@@ -1,7 +1,7 @@
 /*
  *  prefs_editor_amiga.cpp - Preferences editor, AmigaOS implementation (using gtlayout.library)
  *
- *  Basilisk II (C) 1997-2000 Christian Bauer
+ *  Basilisk II (C) 1997-1999 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include <libraries/asl.h>
 #include <libraries/gtlayout.h>
 #include <libraries/Picasso96.h>
-#include <cybergraphics/cybergraphics.h>
+#include <cybergraphx/cybergraphics.h>	// jl
 #include <graphics/displayinfo.h>
 #include <devices/ahi.h>
 #include <proto/exec.h>
@@ -38,7 +38,7 @@
 #include <proto/graphics.h>
 #include <proto/asl.h>
 #include <proto/Picasso96.h>
-#include <proto/cybergraphics.h>
+#include <proto/cybergraphics.h>	// jl
 #include <proto/ahi.h>
 
 #include "sysdeps.h"
@@ -428,10 +428,30 @@ bool PrefsEditor(void)
 						case GAD_SCSI6_DEVICE:
 						case GAD_SERIALA_DEVICE:
 						case GAD_SERIALB_DEVICE:
+							if (dev_request) {
+								LT_LockWindow(win);
+								BOOL result = AslRequestTags(dev_request,
+									ASLFR_Window, (ULONG)win, 
+									ASLFR_InitialDrawer, (ULONG) "Devs:",
+									TAG_END);
+								LT_UnlockWindow(win);
+								if (result) {
+									char *str;
+									GT_GetGadgetAttrs(gad, win, NULL, GTST_String, (ULONG)&str, TAG_END);
+									strncpy(str, dev_request->rf_File, 255);	// Don't copy the directory part. This is usually "DEVS:" and we don't need that.
+									str[255] = 0;
+									LT_SetAttributes(h, gad->GadgetID, GTST_String, (ULONG)str, TAG_END);
+								}
+							}
+							break;
+
 						case GAD_ETHER_DEVICE:
 							if (dev_request) {
 								LT_LockWindow(win);
-								BOOL result = AslRequestTags(dev_request, ASLFR_Window, (ULONG)win, TAG_END);
+								BOOL result = AslRequestTags(dev_request,
+									ASLFR_Window, (ULONG)win, 
+									ASLFR_InitialDrawer, (ULONG) "Devs:Networks",
+									TAG_END);
 								LT_UnlockWindow(win);
 								if (result) {
 									char *str;
@@ -513,7 +533,7 @@ quit:
 	FreeAslRequest(dev_request);
 	FreeAslRequest(file_request);
 
-	// Delete menus
+	// Delete Menus jl
 	LT_DisposeMenu(menu);
 
 	// Delete handle
@@ -1251,20 +1271,24 @@ static void screen_mode_req(struct Window *win, struct LayoutHandle *h)
 
 	ULONG id;
 
-	if (P96Base) {
+	if (CyberGfxBase)
+		{
+		UWORD ModelArray[] = { PIXFMT_LUT8, PIXFMT_RGB15, PIXFMT_ARGB32, 0, ~0 };
+
+		id = (ULONG) CModeRequestTags(NULL,
+			CYBRMREQ_MinDepth, 8,
+			CYBRMREQ_CModelArray, (ULONG) ModelArray,
+			TAG_END
+			);
+		}
+	else
+		{
 		id = p96RequestModeIDTags(
 			P96MA_MinDepth, 8,
 			P96MA_FormatsAllowed, RGBFF_CLUT | RGBFF_R5G5B5 | RGBFF_A8R8G8B8,
 			TAG_END
 		);
-	} else {
-		UWORD model_array[] = {PIXFMT_LUT8, PIXFMT_RGB16, PIXFMT_ARGB32, 0, ~0};
-		id = (ULONG) CModeRequestTags(NULL,
-			CYBRMREQ_MinDepth, 8,
-			CYBRMREQ_CModelArray, (ULONG)model_array,
-			TAG_END
-		);
-	}
+		}
 	LT_UnlockWindow(win);
 
 	if (id != INVALID_ID) {
@@ -1446,7 +1470,29 @@ static void parse_serial_prefs(void)
 
 	const char *str = PrefsFindString("ether");
 	if (str)
-		sscanf(str, "%[^/]/%ld", ether_dev, &ether_unit);
+		{
+		const char *FirstSlash = strchr(str, '/');
+		const char *LastSlash = strrchr(str, '/');
+
+		if (FirstSlash && FirstSlash && FirstSlash != LastSlash)
+			{
+			// Device name contains path, i.e. "Networks/xyzzy.device"
+			const char *lp = str;
+			char *dp = ether_dev;
+
+			while (lp != LastSlash)
+				*dp++ = *lp++;
+			*dp = '\0';
+
+			sscanf(LastSlash, "/%ld", &ether_unit);
+
+//			printf("dev=<%s> unit=%d\n", ether_dev, ether_unit);
+			}
+		else
+			{
+			sscanf(str, "%[^/]/%ld", ether_dev, &ether_unit);
+			}
+		}
 }
 
 // Set serial preference item
@@ -1468,6 +1514,7 @@ static void read_serial_settings(void)
 
 	if (strlen(ether_dev)) {
 		char str[256];
+
 		sprintf(str, "%s/%ld", ether_dev, ether_unit);
 		PrefsReplaceString("ether", str);
 	} else

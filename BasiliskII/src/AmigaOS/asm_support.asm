@@ -35,6 +35,7 @@
 		XDEF	_Scod060Patch1
 		XDEF	_Scod060Patch2
 		XDEF	_ThInitFPUPatch
+		XDEF	_AsmTriggerNMI
 
 		XREF	_OldTrapHandler
 		XREF	_OldExceptionHandler
@@ -46,6 +47,7 @@
 		XREF	_MainTask
 		XREF	_SysBase
 		XREF	_quit_emulator
+		XREF	_kprintf
 
 		SECTION	text,CODE
 
@@ -183,10 +185,10 @@ _ExceptionHandlerAsm
 		pea	1$
 		move.w	_EmulatedSR,d0
 		move.w	d0,-(sp)
-		or.w	#$2100,d0		;Set interrupt level in SR
+		or.w	#$0100,d0		;Set interrupt level in SR
 		move.w	d0,_EmulatedSR
-		move.l	$64.w,a0		;Jump to MacOS interrupt handler
-		jmp	(a0)
+		move.l	$64.w,-(sp)		;Jump to MacOS interrupt handler
+		rts
 
 1$		move.l	(sp)+,d0		;Restore d0
 		rts
@@ -277,15 +279,63 @@ _ThInitFPUPatch	tst.b	$40(a4)
 * Trap handler of main task
 *
 
-_TrapHandlerAsm	cmp.l	#4,(sp)			;Illegal instruction?
+_TrapHandlerAsm:
+		cmp.l	#4,(sp)			;Illegal instruction?
 		beq.s	doillinstr
 		cmp.l	#10,(sp)		;A-Line exception?
 		beq.s	doaline
 		cmp.l	#8,(sp)			;Privilege violation?
 		beq.s	doprivviol
+		cmp.l	#9,(sp)			;Trace?
+		beq	dotrace
+		cmp.l	#3,(sp)			;Illegal Address?
+		beq.s	doilladdr
 
-		move.l	_OldTrapHandler,-(sp)	;No, jump to old trap handler
+		cmp.l	#32,(sp)
+		blt	1$
+		cmp.l	#47,(sp)
+		ble	doTrapXX		; Vector 32-47 : TRAP #0 - 15 Instruction Vectors
+
+1$:		move.l	_OldTrapHandler,-(sp)	;No, jump to old trap handler
 		rts
+
+*
+* TRAP #0 - 15 Instruction Vectors
+*
+
+doTrapXX:	move.l	a0,(sp)			;Save a0
+		move.l	usp,a0			;Get user stack pointer
+		move.l	2*4(sp),-(a0)		;Copy 4-word stack frame to user stack
+		move.l	1*4(sp),-(a0)
+		move.l	a0,usp			;Update USP
+		move.l	(sp)+,a0		;Restore a0
+
+		addq.l	#4*2,sp			;Remove exception frame from supervisor stack
+		andi	#$d8ff,sr		;Switch to user mode, enable interrupts
+
+		move.l	$2d*4.w,-(sp)		;Jump to MacOS exception handler
+		rts
+
+
+*
+* trace Vector
+*
+
+dotrace:	move.l	a0,(sp)			;Save a0
+
+		move.l	usp,a0			;Get user stack pointer
+		move.l	3*4(sp),-(a0)		;Copy 6-word stack frame to user stack
+		move.l	2*4(sp),-(a0)
+		move.l	1*4(sp),-(a0)
+		move.l	a0,usp			;Update USP
+		move.l	(sp)+,a0		;Restore a0
+
+		lea	6*2(sp),sp		;Remove exception frame from supervisor stack
+		andi	#$18ff,sr		;Switch to user mode, enable interrupts, disable trace
+
+		move.l	$24.w,-(sp)		;Jump to MacOS exception handler
+		rts
+
 
 *
 * A-Line handler: call MacOS A-Line handler
@@ -301,15 +351,75 @@ doaline		move.l	a0,(sp)			;Save a0
 		addq.l	#8,sp			;Remove exception frame from supervisor stack
 		andi	#$d8ff,sr		;Switch to user mode, enable interrupts
 
+	IFNE	0
+
+;		move.w	([2,sp]),($3800)
+
+		cmp.w	#$a9c3,([2,sp])
+		bne	1$
+
+		move.l	d0,-(sp)
+		move.l	a0,-(sp)
+		pea	afmt(pc)
+		jsr	_kprintf
+		lea	3*4(sp),sp
+1$:
+	ENDC
+
 		move.l	$28.w,-(sp)		;Jump to MacOS exception handler
 		rts
+
+afmt:		dc.b	'a0=%08lx  d0=%08lx\n',0
+		cnop	0,4
+
+*
+* Illegal address handler
+*
+
+doilladdr:	move.l	a0,(sp)			;Save a0
+
+		move.l	usp,a0			;Get user stack pointer
+		move.l	3*4(sp),-(a0)		;Copy 6-word stack frame to user stack
+		move.l	2*4(sp),-(a0)
+		move.l	1*4(sp),-(a0)
+		move.l	a0,usp			;Update USP
+		move.l	(sp)+,a0		;Restore a0
+
+		lea	6*2(sp),sp		;Remove exception frame from supervisor stack
+		andi	#$d8ff,sr		;Switch to user mode, enable interrupts
+
+		move.l	$0c.w,-(sp)		;Jump to MacOS exception handler
+		rts
+
 
 *
 * Illegal instruction handler: call IllInstrHandler() (which calls EmulOp())
 *   to execute extended opcodes (see emul_op.h)
 *
 
-doillinstr	move.l	a6,(sp)			;Save a6
+doillinstr
+		movem.l	a0/d0,-(sp)
+		move.w	([6+2*4,sp]),d0
+		and.w	#$ff00,d0
+		cmp.w	#$7100,d0
+		movem.l	(sp)+,a0/d0
+		beq	1$
+
+		move.l	a0,(sp)			;Save a0
+		move.l	usp,a0			;Get user stack pointer
+		move.l	8(sp),-(a0)		;Copy stack frame to user stack
+		move.l	4(sp),-(a0)
+		move.l	a0,usp			;Update USP
+		move.l	(sp)+,a0		;Restore a0
+
+		add.w	#3*4,sp			;Remove exception frame from supervisor stack
+		andi	#$d8ff,sr		;Switch to user mode, enable interrupts
+
+		move.l	$10.w,-(sp)		;Jump to MacOS exception handler
+		rts
+
+1$:
+		move.l	a6,(sp)			;Save a6
 		move.l	usp,a6			;Get user stack pointer
 
 		move.l	a6,-10(a6)		;Push USP (a7)
@@ -364,12 +474,16 @@ doprivviol	move.l	d0,(sp)			;Save d0
 		cmp.w	#$40d0,d0		;move sr,(a0)?
 		beq	movefromsra0
 		cmp.w	#$40d7,d0		;move sr,(sp)?
-		beq	movefromsra0
+		beq	movefromsrsp	;+++jl+++
 
 		cmp.w	#$f327,d0		;fsave -(sp)?
 		beq	fsavepush
 		cmp.w	#$f35f,d0		;frestore (sp)+?
 		beq	frestorepop
+		cmp.w	#$f32d,d0		;fsave xxx(a5) ?
+		beq	fsavea5
+		cmp.w	#$f36d,d0		;frestore xxx(a5) ?
+		beq	frestorea5
 
 		cmp.w	#$4e73,d0		;rte?
 		beq	pvrte
@@ -418,6 +532,14 @@ doprivviol	move.l	d0,(sp)			;Save d0
 		cmp.w	#$f4f8,d0		;cpusha dc/ic?
 		beq	cpushadcic
 
+		cmp.w	#$4e69,d0		;move usp,a1
+		beq	moveuspa1
+		cmp.w	#$4e68,d0		;move usp,a0
+		beq	moveuspa0
+
+		cmp.w	#$4e61,d0		;move a1,usp
+		beq	moved1usp
+
 pv_unhandled	move.l	(sp),d0			;Unhandled instruction, jump to handler in main.cpp
 		move.l	a6,(sp)			;Save a6
 		move.l	usp,a6			;Get user stack pointer
@@ -459,7 +581,7 @@ popsr		move.l	a0,-(sp)		;Save a0
 		move.w	(a0)+,d0		;Get SR from user stack
 		move.w	d0,8(sp)		;Store into CCR on exception stack frame
 		and.w	#$00ff,8(sp)
-		and.w	#$2700,d0		;Extract supervisor bits
+		and.w	#$e700,d0		;Extract supervisor bits
 		move.w	d0,_EmulatedSR		;And save them
 
 		and.w	#$0700,d0		;Rethrow exception if interrupts are pending and reenabled
@@ -485,7 +607,7 @@ orisr		move.w	4(sp),d0		;Get CCR from stack
 		or.w	([6,sp],2),d0		;Or with immediate value
 		move.w	d0,4(sp)		;Store into CCR on stack
 		and.w	#$00ff,4(sp)
-		and.w	#$2700,d0		;Extract supervisor bits
+		and.w	#$e700,d0		;Extract supervisor bits
 		move.w	d0,_EmulatedSR		;And save them
 		move.l	(sp)+,d0		;Restore d0
 		addq.l	#4,2(sp)		;Skip instruction
@@ -497,7 +619,7 @@ andisr		move.w	4(sp),d0		;Get CCR from stack
 		and.w	([6,sp],2),d0		;And with immediate value
 storesr4	move.w	d0,4(sp)		;Store into CCR on stack
 		and.w	#$00ff,4(sp)
-		and.w	#$2700,d0		;Extract supervisor bits
+		and.w	#$e700,d0		;Extract supervisor bits
 		move.w	d0,_EmulatedSR		;And save them
 
 		and.w	#$0700,d0		;Rethrow exception if interrupts are pending and reenabled
@@ -584,20 +706,72 @@ frestorepop	move.l	(sp),d0			;Restore d0
 		addq.l	#2,2(sp)		;Skip instruction
 		rte
 
-; rte (only handles format 0)
-pvrte		move.l	a0,-(sp)		;Save a0
-		move.l	usp,a0			;Get user stack pointer
-		move.w	(a0)+,d0		;Get SR from user stack
-		move.w	d0,8(sp)		;Store into CCR on exception stack frame
-		and.w	#$00ff,8(sp)
-		and.w	#$2700,d0		;Extract supervisor bits
-		move.w	d0,_EmulatedSR		;And save them
-		move.l	(a0)+,10(sp)		;Store return address in exception stack frame
-		addq.l	#2,a0			;Skip format word
-		move.l	a0,usp			;Update USP
+; frestore xxx(a5) +jl+
+frestorea5	move.l	(sp),d0			;Restore d0
+		move.l	a0,(sp)			;Save a0
+		move.l	a5,a0			;Get base register
+		add.w	([6,sp],2),a0		;Add offset to base register
+		frestore (a0)			;Restore FP state from (a0)
 		move.l	(sp)+,a0		;Restore a0
+		addq.l	#4,2(sp)		;Skip instruction
+		rte
+
+; fsave xxx(a5) +jl+
+fsavea5:	move.l	(sp),d0			;Restore d0
+		move.l	a0,(sp)			;Save a0
+		move.l	a5,a0			;Get base register
+		add.w	([6,sp],2),a0		;Add offset to base register
+		fsave	(a0)			;Push FP state to (a0)
+		move.l	(sp)+,a0		;Restore a0
+		addq.l	#4,2(sp)		;Skip instruction
+		rte
+
+; rte
+pvrte		movem.l	a0/a1,-(sp)		;Save a0 and a1
+		move.l	usp,a0			;Get user stack pointer
+
+		move.w	(a0)+,d0		;Get SR from user stack
+		move.w	d0,8+4(sp)		;Store into CCR on exception stack frame
+		and.w	#$c0ff,8+4(sp)
+		and.w	#$e700,d0		;Extract supervisor bits
+		move.w	d0,_EmulatedSR		;And save them
+		move.l	(a0)+,10+4(sp)		;Store return address in exception stack frame
+
+		move.w	(a0)+,d0		;get format word
+		lsr.w	#7,d0			;get stack frame Id 
+		lsr.w	#4,d0
+		and.w	#$001e,d0
+		move.w	(StackFormatTable,pc,d0.w),d0	; get total stack frame length
+		subq.w	#4,d0			; count only extra words
+		lea	16+4(sp),a1		; destination address (in supervisor stack)
+		bra	1$
+
+2$:		move.w	(a0)+,(a1)+		; copy additional stack words back to supervisor stack
+1$:		dbf	d0,2$
+
+		move.l	a0,usp			;Update USP
+		movem.l	(sp)+,a0/a1		;Restore a0 and a1
 		move.l	(sp)+,d0		;Restore d0
 		rte
+
+; sizes of exceptions stack frames
+StackFormatTable:
+		dc.w	4			; Four-word stack frame, format $0
+		dc.w	4			; Throwaway four-word stack frame, format $1
+		dc.w	6			; Six-word stack frame, format $2
+		dc.w	6			; MC68040 floating-point post-instruction stack frame, format $3
+		dc.w	8			; MC68EC040 and MC68LC040 floating-point unimplemented stack frame, format $4
+		dc.w	4			; Format $5
+		dc.w	4			; Format $6
+		dc.w	30			; MC68040 access error stack frame, Format $7
+		dc.w	29			; MC68010 bus and address error stack frame, format $8
+		dc.w	10			; MC68020 and MC68030 coprocessor mid-instruction stack frame, format $9
+		dc.w	16			; MC68020 and MC68030 short bus cycle stack frame, format $a
+		dc.w	46			; MC68020 and MC68030 long bus cycle stack frame, format $b
+		dc.w	12			; CPU32 bus error for prefetches and operands stack frame, format $c
+		dc.w	4			; Format $d
+		dc.w	4			; Format $e
+		dc.w	4			; Format $f
 
 ; move sr,dx
 movefromsrd0	addq.l	#4,sp			;Skip saved d0
@@ -660,7 +834,7 @@ movefromsrd7	move.l	(sp)+,d0
 movetosrd0	move.l	(sp),d0
 storesr2	move.w	d0,4(sp)
 		and.w	#$00ff,4(sp)
-		and.w	#$2700,d0
+		and.w	#$e700,d0
 		move.w	d0,_EmulatedSR
 
 		and.w	#$0700,d0		;Rethrow exception if interrupts are pending and reenabled
@@ -705,6 +879,8 @@ movecfromcr	move.w	([6,sp],2),d0		;Get next instruction word
 		beq.s	movecvbra0
 		cmp.w	#$9801,d0		;movec vbr,a1?
 		beq.s	movecvbra1
+		cmp.w	#$1801,d0		;movec vbr,d1?
+		beq	movecvbrd1
 		cmp.w	#$0002,d0		;movec cacr,d0?
 		beq.s	moveccacrd0
 		cmp.w	#$1002,d0		;movec cacr,d1?
@@ -713,6 +889,22 @@ movecfromcr	move.w	([6,sp],2),d0		;Get next instruction word
 		beq.s	movectcd0
 		cmp.w	#$1003,d0		;movec tc,d1?
 		beq.s	movectcd1
+		cmp.w	#$1000,d0		;movec SFC,d1?
+		beq	movecsfcd1
+		cmp.w	#$1001,d0		;movec DFC,d1?
+		beq	movecdfcd1
+		cmp.w	#$0806,d0		;movec URP,d0?
+		beq	movecurpd0
+		cmp.w	#$0807,d0		;movec SRP,d0?
+		beq.s	movecsrpd0
+		cmp.w	#$0004,d0		;movec ITT0,d0
+		beq.s	movecitt0d0
+		cmp.w	#$0005,d0		;movec ITT1,d0
+		beq.s	movecitt1d0
+		cmp.w	#$0006,d0		;movec DTT0,d0
+		beq.s	movecdtt0d0
+		cmp.w	#$0007,d0		;movec DTT1,d0
+		beq.s	movecdtt1d0
 
 		bra	pv_unhandled
 
@@ -740,16 +932,45 @@ movecvbra1	move.l	(sp)+,d0
 		addq.l	#4,2(sp)
 		rte
 
+; movec vbr,d1
+movecvbrd1	move.l	(sp)+,d0
+		moveq.l	#0,d1			;VBR always appears to be at 0
+		addq.l	#4,2(sp)
+		rte
+
 ; movec tc,d0
 movectcd0	addq.l	#4,sp
 		moveq	#0,d0			;MMU is always off
 		addq.l	#4,2(sp)
 		rte
 
-; movec tc,d1
-movectcd1	addq.l	#4,sp
+; movec tc,d1	+jl+
+movectcd1	move.l	(sp)+,d0		;Restore d0
 		moveq	#0,d1			;MMU is always off
 		addq.l	#4,2(sp)
+		rte
+
+; movec SFC,d1	+jl+
+movecsfcd1:	move.l	(sp)+,d0		;Restore d0
+		moveq	#0,d1			;MMU is always off
+		addq.l	#4,2(sp)
+		rte
+
+; movec DFC,d1	+jl+
+movecdfcd1:	move.l	(sp)+,d0		;Restore d0
+		moveq	#0,d1			;MMU is always off
+		addq.l	#4,2(sp)
+		rte
+
+movecurpd0:		; movec URP,d0	+jl+
+movecsrpd0:		; movec SRP,d0
+movecitt0d0:		; movec ITT0,d0
+movecitt1d0:		; movec ITT1,d0
+movecdtt0d0:		; movec DTT0,d0
+movecdtt1d0:		; movec DTT1,d0
+		addq.l	#4,sp
+		moveq.l	#0,d0			;MMU is always off
+		addq.l	#4,2(sp)		;skip instruction
 		rte
 
 ; movec x,cr
@@ -757,10 +978,16 @@ movectocr	move.w	([6,sp],2),d0		;Get next instruction word
 
 		cmp.w	#$0801,d0		;movec d0,vbr?
 		beq.s	movectovbr
+		cmp.w	#$1801,d0		;movec d1,vbr?
+		beq.s	movectovbr
 		cmp.w	#$0002,d0		;movec d0,cacr?
 		beq.s	movectocacr
 		cmp.w	#$1002,d0		;movec d1,cacr?
 		beq.s	movectocacr
+		cmp.w	#$1000,d0		;movec d1,SFC?
+		beq.s	movectoxfc
+		cmp.w	#$1001,d0		;movec d1,DFC?
+		beq.s	movectoxfc
 
 		bra	pv_unhandled
 
@@ -778,6 +1005,12 @@ movectocacr	movem.l	d1/a0-a1/a6,-(sp)	;Move to CACR, clear caches
 		addq.l	#4,2(sp)
 		rte
 
+; movec x,SFC
+; movec x,DFC
+movectoxfc	move.l	(sp)+,d0		;Ignore moves to SFC, DFC
+		addq.l	#4,2(sp)
+		rte
+
 ; cpusha
 cpushadc
 cpushadcic	movem.l	d1/a0-a1/a6,-(sp)	;Clear caches
@@ -787,5 +1020,43 @@ cpushadcic	movem.l	d1/a0-a1/a6,-(sp)	;Clear caches
 		move.l	(sp)+,d0
 		addq.l	#2,2(sp)
 		rte
+
+; move usp,a1	+jl+
+moveuspa1:	move.l	(sp)+,d0
+		move	usp,a1
+		addq.l	#2,2(sp)
+		rte
+
+; move usp,a0	+jl+
+moveuspa0:	move.l	(sp)+,d0
+		move	usp,a0
+		addq.l	#2,2(sp)
+		rte
+
+; move a1,usp	+jl+
+moved1usp:	move.l	(sp)+,d0
+		move	a1,usp
+		addq.l	#2,2(sp)
+		rte
+
+;
+; Trigger NMI (Pop up debugger)
+;
+
+_AsmTriggerNMI:
+		move.l	d0,-(sp)		;Save d0
+		move.w	#$007c,-(sp)		;Yes, fake NMI stack frame
+		pea	1$
+		move.w	_EmulatedSR,d0
+		and.w	#$f8ff,d0		;Set interrupt level in SR
+		move.w	d0,-(sp)
+		move.w	d0,_EmulatedSR
+
+		move.l	$7c.w,-(sp)		;Jump to MacOS NMI handler
+		rts
+
+1$		move.l	(sp)+,d0		;Restore d0
+		rts
+
 
 		END

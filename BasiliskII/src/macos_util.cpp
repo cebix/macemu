@@ -20,6 +20,7 @@
 
 #include "sysdeps.h"
 #include "cpu_emulation.h"
+#include "adb.h"
 #include "main.h"
 #include "sony.h"
 #include "disk.h"
@@ -101,3 +102,23 @@ void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_s
 		real_size = size - start_byte;
 	}
 }
+
+
+uint32 DebugUtil(uint32 Selector)
+{
+	switch (Selector)
+		{
+	case duDebuggerGetMax:
+		return 3;
+	case duDebuggerEnter:
+		return 0;
+	case duDebuggerExit:
+		return 0;
+	case duDebuggerPoll:
+		ADBInterrupt();
+		return 0;
+	default:
+		return (uint32) paramErr;
+		}
+}
+

@@ -1,7 +1,7 @@
 /*
  *  user_strings_amiga.h - AmigaOS-specific localizable strings
  *
- *  Basilisk II (C) 1997-2000 Christian Bauer
+ *  Basilisk II (C) 1997-1999 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -37,7 +37,8 @@ enum {
 	STR_NO_AHI_WARN,
 	STR_NO_AHI_CTRL_WARN,
 
-	STR_AHI_MODE_CTRL
+	STR_AHI_MODE_CTRL,
+	STR_NOT_ENOUGH_MEM_WARN,
 };
 
 #endif

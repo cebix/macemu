@@ -56,11 +56,13 @@ enum {
 	INTFLAG_SERIAL = 4,	// Serial driver
 	INTFLAG_ETHER = 8,	// Ethernet driver
 	INTFLAG_AUDIO = 16,	// Audio block read
-	INTFLAG_TIMER = 32	// Time Manager
+	INTFLAG_TIMER = 32,	// Time Manager
+	INTFLAG_NMI = 64	// NMI
 };
 
 extern uint32 InterruptFlags;									// Currently pending interrupts
 extern void SetInterruptFlag(uint32 flag);						// Set/clear interrupt flags
 extern void ClearInterruptFlag(uint32 flag);
+extern void TriggerNMI(void);
 
 #endif

@@ -1,7 +1,7 @@
 /*
  *  ether_amiga.cpp - Ethernet device driver, AmigaOS specific stuff
  *
- *  Basilisk II (C) 1997-2000 Christian Bauer
+ *  Basilisk II (C) 1997-1999 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -346,6 +346,8 @@ static __saveds __regargs LONG copy_from_buff(uint8 *to /*a0*/, char *wds /*a1*/
 
 static __saveds void net_func(void)
 {
+	const char *str;
+	BYTE od_error;
 	struct MsgPort *write_port = NULL, *control_port = NULL;
 	struct IOSana2Req *write_io = NULL, *control_io = NULL;
 	bool opened = false;
@@ -388,13 +390,48 @@ static __saveds void net_func(void)
 	// Parse device name
 	char dev_name[256];
 	ULONG dev_unit;
-	if (sscanf(PrefsFindString("ether"), "%[^/]/%ld", dev_name, &dev_unit) < 2)
+
+	str = PrefsFindString("ether");
+	if (str)
+		{
+		const char *FirstSlash = strchr(str, '/');
+		const char *LastSlash = strrchr(str, '/');
+
+		if (FirstSlash && FirstSlash && FirstSlash != LastSlash)
+			{
+			// Device name contains path, i.e. "Networks/xyzzy.device"
+			const char *lp = str;
+			char *dp = dev_name;
+
+			while (lp != LastSlash)
+				*dp++ = *lp++;
+			*dp = '\0';
+
+			if (strlen(dev_name) < 1)
+				goto quit;
+
+			if (1 != sscanf(LastSlash, "/%ld", &dev_unit))
+				goto quit;
+
+//			printf("dev=<%s> unit=%d\n", dev_name, dev_unit);
+			}
+		else
+			{
+			if (2 != sscanf(str, "%[^/]/%ld", dev_name, &dev_unit))
+				goto quit;
+			}
+		}
+	else
 		goto quit;
 
 	// Open device
 	control_io->ios2_BufferManagement = buffer_tags;
-	if (OpenDevice((UBYTE *)dev_name, dev_unit, (struct IORequest *)control_io, 0) || control_io->ios2_Req.io_Device == 0)
+	od_error = OpenDevice((UBYTE *)dev_name, dev_unit, (struct IORequest *)control_io, 0);
+	if (0 != od_error || control_io->ios2_Req.io_Device == 0)
+		{
+		printf("WARNING: OpenDevice(<%s>, unit=%d) returned error %d)\n", (UBYTE *)dev_name, dev_unit, od_error);
 		goto quit;
+		}
 	opened = true;
 
 	// Is it Ethernet?

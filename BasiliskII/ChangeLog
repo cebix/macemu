@@ -1,4 +1,8 @@
 V0.8 (snapshot) -
+	- AmigaOS: added MacsBug support (tested with MacsBug6.6.1),
+	  fixed <move sr,(sp)> bug [Jürgen Lachmann]
+
+V0.8 (snapshot) -
 	- AmigaOS: enabled floppy support, fixed floppy bugs [Jürgen Lachmann]
 	- AmigaOS: Amiga mouse pointer is hidden inside windowed Mac displays
 	- AmigaOS/sys_amiga.cpp: workaround for 2060scsi.device bug when

@@ -46,6 +46,8 @@ user_string_def platform_strings[] = {
 	{STR_NO_AHI_CTRL_WARN, "Cannot open AHI control structure. Audio output will be disabled."},
 	{STR_AHI_MODE_CTRL, "AHI Mode"},
 
+	{STR_NOT_ENOUGH_MEM_WARN, "Could not get %lu MBytes of memory.\nShould I use the largest Block (%lu MBytes) instead ?"},
+
 	{-1, NULL}	// End marker
 };
 

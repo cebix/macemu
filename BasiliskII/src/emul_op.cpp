@@ -60,10 +60,10 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 	switch (opcode) {
 		case M68K_EMUL_BREAK: {				// Breakpoint
 			printf("*** Breakpoint\n");
-			printf("d0 %08x d1 %08x d2 %08x d3 %08x\n"
-				   "d4 %08x d5 %08x d6 %08x d7 %08x\n"
-				   "a0 %08x a1 %08x a2 %08x a3 %08x\n"
-				   "a4 %08x a5 %08x a6 %08x a7 %08x\n"
+			printf("d0 %08lx d1 %08lx d2 %08lx d3 %08lx\n"
+				   "d4 %08lx d5 %08lx d6 %08lx d7 %08lx\n"
+				   "a0 %08lx a1 %08lx a2 %08lx a3 %08lx\n"
+				   "a4 %08lx a5 %08lx a6 %08lx a7 %08lx\n"
 				   "sr %04x\n",
 				   r->d[0], r->d[1], r->d[2], r->d[3], r->d[4], r->d[5], r->d[6], r->d[7],
 				   r->a[0], r->a[1], r->a[2], r->a[3], r->a[4], r->a[5], r->a[6], r->a[7],
@@ -478,6 +478,13 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 				ClearInterruptFlag(INTFLAG_AUDIO);
 				AudioInterrupt();
 			}
+
+			if (InterruptFlags & INTFLAG_NMI) {
+				ClearInterruptFlag(INTFLAG_NMI);
+				if (HasMacStarted()) {
+					TriggerNMI();
+				}
+			}
 			break;
 
 		case M68K_EMUL_OP_PUT_SCRAP: {		// PutScrap() patch
@@ -520,12 +527,17 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			memmove(Mac2HostAddr(r->a[1]), Mac2HostAddr(r->a[0]), r->d[0]);
 			break;
 
+		case M68K_EMUL_OP_DEBUGUTIL:
+		//	printf("DebugUtil d0=%08lx  a5=%08lx\n", r->d[0], r->a[5]);
+			r->d[0] = DebugUtil(r->d[0]);
+			break;
+
 		default:
-			printf("FATAL: EMUL_OP called with bogus opcode %04x\n", opcode);
-			printf("d0 %08x d1 %08x d2 %08x d3 %08x\n"
-				   "d4 %08x d5 %08x d6 %08x d7 %08x\n"
-				   "a0 %08x a1 %08x a2 %08x a3 %08x\n"
-				   "a4 %08x a5 %08x a6 %08x a7 %08x\n"
+			printf("FATAL: EMUL_OP called with bogus opcode %08x\n", opcode);
+			printf("d0 %08lx d1 %08lx d2 %08lx d3 %08lx\n"
+				   "d4 %08lx d5 %08lx d6 %08lx d7 %08lx\n"
+				   "a0 %08lx a1 %08lx a2 %08lx a3 %08lx\n"
+				   "a4 %08lx a5 %08lx a6 %08lx a7 %08lx\n"
 				   "sr %04x\n",
 				   r->d[0], r->d[1], r->d[2], r->d[3], r->d[4], r->d[5], r->d[6], r->d[7],
 				   r->a[0], r->a[1], r->a[2], r->a[3], r->a[4], r->a[5], r->a[6], r->a[7],

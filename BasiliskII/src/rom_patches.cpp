@@ -44,9 +44,10 @@ uint32 PutScrapPatch;		// Mac address of PutScrap() patch
 uint32 ROMBreakpoint = 0;	// ROM offset of breakpoint (0 = disabled, 0x2310 = CritError)
 bool PrintROMInfo = false;	// Flag: print ROM information in PatchROM()
 
-static uint32 sony_offset;				// ROM offset of .Sony driver
-static uint32 serd_offset;				// ROM offset of SERD resource (serial drivers)
-static uint32 microseconds_offset;		// ROM offset of Microseconds() replacement routine
+static uint32 sony_offset;		// ROM offset of .Sony driver
+static uint32 serd_offset;		// ROM offset of SERD resource (serial drivers)
+static uint32 microseconds_offset;	// ROM offset of Microseconds() replacement routine
+static uint32 debugutil_offset;		// ROM offset of DebugUtil() replacement routine
 
 // Prototypes
 uint16 ROMVersion;
@@ -701,6 +702,11 @@ void InstallDrivers(uint32 pb)
 	r.d[0] = 0xa093;
 	Execute68kTrap(0xa247, &r);		// SetOSTrapAddress()
 
+	// Install DebugUtil() replacement routine
+	r.a[0] = ROMBaseMac + debugutil_offset;
+	r.d[0] = 0xa08d;
+	Execute68kTrap(0xa247, &r);		// SetOSTrapAddress()
+
 	// Install disk driver
 	r.a[0] = ROMBaseMac + sony_offset + 0x100;
 	r.d[0] = (uint32)DiskRefNum;
@@ -930,6 +936,11 @@ static bool patch_rom_classic(void)
 	*wp++ = htons(M68K_RTS);
 	microseconds_offset = (uint8 *)wp - ROMBaseHost;
 	*wp++ = htons(M68K_EMUL_OP_MICROSECONDS);
+	*wp++ = htons(M68K_RTS);
+
+	// Replace DebugUtil
+	debugutil_offset = (uint8 *)wp - ROMBaseHost;
+	*wp++ = htons(M68K_EMUL_OP_DEBUGUTIL);
 	*wp = htons(M68K_RTS);
 
 	// Replace SCSIDispatch()
@@ -1192,18 +1203,19 @@ static bool patch_rom_32(void)
 	*wp = htons(M68K_RTS);
 
 	// Fake CPU speed test (SetupTimeK)
+	// *** increased jl : MacsBug uses TimeDBRA for kbd repeat timing
 	wp = (uint16 *)(ROMBaseHost + 0x800);
 	*wp++ = htons(0x31fc);			// move.w	#xxx,TimeDBRA
-	*wp++ = htons(100);
+	*wp++ = htons(10000);
 	*wp++ = htons(0x0d00);
 	*wp++ = htons(0x31fc);			// move.w	#xxx,TimeSCCDBRA
-	*wp++ = htons(100);
+	*wp++ = htons(10000);
 	*wp++ = htons(0x0d02);
 	*wp++ = htons(0x31fc);			// move.w	#xxx,TimeSCSIDBRA
-	*wp++ = htons(100);
+	*wp++ = htons(10000);
 	*wp++ = htons(0x0b24);
 	*wp++ = htons(0x31fc);			// move.w	#xxx,TimeRAMDBRA
-	*wp++ = htons(100);
+	*wp++ = htons(10000);
 	*wp++ = htons(0x0cea);
 	*wp = htons(M68K_RTS);
 
@@ -1215,7 +1227,7 @@ static bool patch_rom_32(void)
 #endif
 
 #if !ROM_IS_WRITE_PROTECTED
-#if defined(AMIGA) || defined(__NetBSD__)
+#if defined(AMIGA)
 	// Set fake handle at 0x0000 to scratch memory area (so broken Mac programs won't write into Mac ROM)
 	extern uint32 ScratchMem;
 	wp = (uint16 *)(ROMBaseHost + 0xccaa);
@@ -1526,6 +1538,11 @@ static bool patch_rom_32(void)
 	*wp++ = htons(M68K_RTS);
 	microseconds_offset = (uint8 *)wp - ROMBaseHost;
 	*wp++ = htons(M68K_EMUL_OP_MICROSECONDS);
+	*wp++ = htons(M68K_RTS);
+
+	// Replace DebugUtil
+	debugutil_offset = (uint8 *)wp - ROMBaseHost;
+	*wp++ = htons(M68K_EMUL_OP_DEBUGUTIL);
 	*wp = htons(M68K_RTS);
 
 	// Replace SCSIDispatch()

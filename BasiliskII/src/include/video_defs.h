@@ -108,4 +108,12 @@ enum {	// VDTimingInfo struct
 	csTimingFlags = 16
 };
 
+enum {	// VDPageInfo struct
+	csPageMode = 0,
+	csPageData = 2,
+	csPagePage = 6,
+	csPageBaseAddr = 8
+
+};
+
 #endif

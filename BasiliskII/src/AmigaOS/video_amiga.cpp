@@ -33,6 +33,7 @@
 #include <proto/cybergraphics.h>
 
 #include "sysdeps.h"
+#include "cpu_emulation.h"
 #include "main.h"
 #include "adb.h"
 #include "prefs.h"
@@ -284,7 +285,8 @@ static bool init_screen_cgfx(ULONG mode_id)
 			break;
 		case 15:
 		case 16:
-			if (format != PIXFMT_RGB16) {
+			// !!! PIXFMT_RGB15 is correct !!!
+			if (format != PIXFMT_RGB15) {
 				ErrorAlert(GetString(STR_WRONG_SCREEN_FORMAT_ERR));
 				return false;
 			}
@@ -653,6 +655,15 @@ static __saveds void periodic_func(void)
 					case IDCMP_RAWKEY:
 						if (qualifier & IEQUALIFIER_REPEAT)	// Keyboard repeat is done by MacOS
 							break;
+						if ((IEQUALIFIER_LALT | IEQUALIFIER_LSHIFT | IEQUALIFIER_CONTROL) == 
+								(qualifier & (IEQUALIFIER_LALT | IEQUALIFIER_LSHIFT | IEQUALIFIER_CONTROL))
+							&& 0x5f == code)
+							{
+							SetInterruptFlag(INTFLAG_NMI);
+							TriggerInterrupt();
+							break;
+							}
+
 						if (code & IECODE_UP_PREFIX)
 							ADBKeyUp(keycode2mac[code & 0x7f]);
 						else
