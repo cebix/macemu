@@ -44,6 +44,8 @@ prefs_desc platform_prefs_items[] = {
 	{"enableextfs", TYPE_BOOLEAN, false,   "enable extfs system"},
 	{"debugextfs", TYPE_BOOLEAN, false,    "debug extfs system"},
 	{"extdrives", TYPE_STRING, false,      "define allowed extfs drives"},
+	{"pollmedia", TYPE_BOOLEAN, false,     "poll for new media (e.g. cd, floppy)"},
+
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
@@ -109,6 +111,7 @@ void SavePrefs(void)
 void AddPlatformPrefsDefaults(void)
 {
 	PrefsAddBool("keycodes", false);
+	PrefsReplaceBool("pollmedia", true);
 	PrefsReplaceBool("enableextfs", false);
 	PrefsReplaceString("extfs", "");
 	PrefsReplaceString("extdrives", "CDEFGHIJKLMNOPQRSTUVWXYZ");
