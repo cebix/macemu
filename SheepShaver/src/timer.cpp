@@ -70,7 +70,8 @@ static int32 timer_func(void *arg);
 #endif
 #ifdef PRECISE_TIMING_POSIX
 static pthread_t timer_thread;
-static volatile bool thread_active = false;
+static bool timer_thread_active = false;
+static volatile bool timer_thread_cancel = false;
 static tm_time_t wakeup_time_max = { 0x7fffffff, 999999999 };
 static tm_time_t wakeup_time = wakeup_time_max;
 static sem_t wakeup_time_sem;
@@ -165,16 +166,13 @@ static struct sigaction sigresume_action;
 static int suspend_count = 0;
 static pthread_mutex_t suspend_count_lock = PTHREAD_MUTEX_INITIALIZER;
 static sem_t suspend_ack_sem;
+static sigset_t suspend_handler_mask;
 
 // Signal handler for suspended thread
 static void sigsuspend_handler(int sig)
 {
 	sem_post(&suspend_ack_sem);
-
-	sigset_t mask;
-	sigfillset(&mask);
-	sigdelset(&mask, SIGRESUME);
-	sigsuspend(&mask);
+	sigsuspend(&suspend_handler_mask);
 }
 
 // Signal handler for resumed thread
@@ -210,6 +208,12 @@ static bool timer_thread_init(void)
 	if (sem_init(&suspend_ack_sem, 0, 0) < 0)
 		return false;
 
+	// Initialize suspend_handler_mask, it excludes SIGRESUME
+	if (sigfillset(&suspend_handler_mask) != 0)
+		return false;
+	if (sigdelset(&suspend_handler_mask, SIGRESUME) != 0)
+		return false;
+
 	// Create thread in running state
 	suspend_count = 0;
 	return (pthread_create(&timer_thread, NULL, timer_func, NULL) == 0);
@@ -218,6 +222,7 @@ static bool timer_thread_init(void)
 // Kill timer thread
 static void timer_thread_kill(void)
 {
+	timer_thread_cancel = true;
 #ifdef HAVE_PTHREAD_CANCEL
 	pthread_cancel(timer_thread);
 #endif
@@ -269,7 +274,7 @@ void TimerInit(void)
 #endif
 #ifdef PRECISE_TIMING_POSIX
 	sem_init(&wakeup_time_sem, 0, 1);
-	thread_active = timer_thread_init();
+	timer_thread_active = timer_thread_init();
 #endif
 #endif
 }
@@ -293,7 +298,6 @@ void TimerExit(void)
 		delete_sem(wakeup_time_sem);
 #endif
 #ifdef PRECISE_TIMING_POSIX
-		thread_active = false;
 		timer_thread_kill();
 		sem_destroy(&wakeup_time_sem);
 #endif
@@ -522,7 +526,7 @@ static int32 timer_func(void *arg)
 #ifdef PRECISE_TIMING_POSIX
 static void *timer_func(void *arg)
 {
-	while (thread_active) {
+	while (!timer_thread_cancel) {
 
 		// Wait until time specified by wakeup_time
 		clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &wakeup_time, NULL);
