@@ -908,7 +908,7 @@ void EnableInterrupt(void)
 bool SheepMem::Init(void)
 {
 	// Size of a native page
-	page_size = vm_page_size();
+	page_size = vm_get_page_size();
 
 	// Allocate SheepShaver globals
 	proc = base;
