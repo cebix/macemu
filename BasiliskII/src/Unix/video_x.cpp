@@ -1178,9 +1178,11 @@ driver_xf86dga::driver_xf86dga(X11_monitor_desc &m)
 	XSetWindowAttributes wattr;
 	wattr.event_mask = eventmask = dga_eventmask;
 	wattr.override_redirect = True;
+	wattr.colormap = (mode.depth == VDEPTH_1BIT ? DefaultColormap(x_display, screen) : cmap[0]);
 
 	w = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
-		InputOutput, vis, CWEventMask | CWOverrideRedirect, &wattr);
+		InputOutput, vis, CWEventMask | CWOverrideRedirect |
+		(color_class == DirectColor ? CWColormap : 0), &wattr);
 
 	// Set window name/class
 	set_window_name(w, STR_WINDOW_TITLE);
@@ -1214,11 +1216,17 @@ driver_xf86dga::driver_xf86dga(X11_monitor_desc &m)
 
 	// Init blitting routines
 	int bytes_per_row = TrivialBytesPerRow((v_width + 7) & ~7, mode.depth);
-#if VIDEO_VOSF
+#if ENABLE_VOSF
+	bool native_byte_order;
+#ifdef WORDS_BIGENDIAN
+	native_byte_order = (XImageByteOrder(x_display) == MSBFirst);
+#else
+	native_byte_order = (XImageByteOrder(x_display) == LSBFirst);
+#endif
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 	// Screen_blitter_init() returns TRUE if VOSF is mandatory
 	// i.e. the framebuffer update function is not Blit_Copy_Raw
-	use_vosf = Screen_blitter_init(&visualInfo, true, mode.depth);
+	use_vosf = Screen_blitter_init(&visualInfo, native_byte_order, mode.depth);
 	
 	if (use_vosf) {
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
