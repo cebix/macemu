@@ -193,6 +193,7 @@
 				  type: (NSEventType)type				
 {
 	EmulatorView	*view;
+	BOOL			fullScreen;
 
 #ifdef ENABLE_MULTIPLE
 	// We need to work out what window's Emulator should receive these messages
@@ -204,21 +205,23 @@
 	{
 		theEmulator = [emulators objectAtIndex: tmp];
 		view = [theEmulator screen];
+		fullScreen = [view isFullScreen];
 
 		if ( [theEmulator isRunning] &&
-				( [[theEmulator window] isMainWindow] || [view isFullScreen] ) )
+				( fullScreen || [[theEmulator window] isMainWindow] ) )
 			break;
 	}
 	
 	if ( tmp < [emulators count] )		// i.e. if we exited the for loop
 #else
 	view = [theEmulator screen];
+	fullScreen = [view isFullScreen];
 
 	if ( [theEmulator isRunning] &&
-				( [[theEmulator window] isMainWindow] || [view isFullScreen] ) )
+				( fullScreen || [[theEmulator window] isMainWindow] ) )
 #endif
 	{
-		if ( [view mouseInView: event] )
+		if ( fullScreen || [view mouseInView: event] )
 		{
 			switch ( type )
 			{
@@ -230,7 +233,10 @@
 					break;
 				case NSLeftMouseDragged:
 				case NSMouseMoved:
-					[view processMouseMove: event];
+					if ( fullScreen )
+						[view fullscreenMouseMove];
+					else
+						[view processMouseMove: event];
 					break;
 				default:
 					[super sendEvent: event];		// NSApplication default
