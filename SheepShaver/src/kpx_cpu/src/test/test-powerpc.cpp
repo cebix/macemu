@@ -22,17 +22,20 @@
 #include "sysdeps.h"
 #include "cpu/ppc/ppc-cpu.hpp"
 
-#define TEST_RA_IS_0	0
-#define TEST_ADD		0
-#define TEST_SUB		0
-#define TEST_MUL		0
-#define TEST_DIV		0
-#define TEST_SHIFT		0
-#define TEST_ROTATE		0
-#define TEST_MISC		0
-#define TEST_LOGICAL	0
-#define TEST_COMPARE	0
-#define TEST_CR_LOGICAL	0
+// Disassemblers needed for debugging purposes
+#include "mon.h"
+#include "mon_disass.h"
+
+#define TEST_ADD		1
+#define TEST_SUB		1
+#define TEST_MUL		1
+#define TEST_DIV		1
+#define TEST_SHIFT		1
+#define TEST_ROTATE		1
+#define TEST_MISC		1
+#define TEST_LOGICAL	1
+#define TEST_COMPARE	1
+#define TEST_CR_LOGICAL	1
 
 // Partial PowerPC runtime assembler from GNU lightning
 #define _I(X)			((uint32)(X))
@@ -53,6 +56,37 @@
 #define _XO(  OP,RD,RA,RB,OE,XO,RC )  	_I((_u6(OP)<<26)|(_u5(RD)<<21)|(_u5(RA)<<16)|( _u5(RB)<<11)|(_u1(OE)<<10)|( _u9(XO)<<1)|_u1(RC))
 #define _M(   OP,RS,RA,SH,MB,ME,RC )  	_I((_u6(OP)<<26)|(_u5(RS)<<21)|(_u5(RA)<<16)|( _u5(SH)<<11)|(_u5(MB)<< 6)|( _u5(ME)<<1)|_u1(RC))
 
+// PowerPC opcodes
+static inline uint32 POWERPC_MR(int RD, int RA) { return _X(31,RA,RD,RA,444,0); }
+static inline uint32 POWERPC_MFCR(int RD) { return _X(31,RD,00,00,19,0); }
+const uint32 POWERPC_BLR = 0x4e800020;
+const uint32 POWERPC_ILLEGAL = 0x00000000;
+const uint32 POWERPC_EMUL_OP = 0x18000000;
+
+// Invalidate test cache
+#if defined(__powerpc__)
+static void inline flush_icache_range(uint32 *start_p, uint32 length)
+{
+	const int MIN_CACHE_LINE_SIZE = 8; /* conservative value */
+
+	unsigned long start = (unsigned long)start_p;
+	unsigned long stop  = start + length;
+    unsigned long p;
+
+    p = start & ~(MIN_CACHE_LINE_SIZE - 1);
+    stop = (stop + MIN_CACHE_LINE_SIZE - 1) & ~(MIN_CACHE_LINE_SIZE - 1);
+    
+    for (p = start; p < stop; p += MIN_CACHE_LINE_SIZE) {
+        asm volatile ("dcbst 0,%0" : : "r"(p) : "memory");
+    }
+    asm volatile ("sync" : : : "memory");
+    for (p = start; p < stop; p += MIN_CACHE_LINE_SIZE) {
+        asm volatile ("icbi 0,%0" : : "r"(p) : "memory");
+    }
+    asm volatile ("sync" : : : "memory");
+    asm volatile ("isync" : : : "memory");
+}
+#endif
 
 struct exec_return { };
 
@@ -86,13 +120,16 @@ class powerpc_test_cpu
 	void init_decoder();
 	void print_flags(uint32 cr, uint32 xer, int crf = 0) const;
 	void execute_return(uint32 opcode);
-	void execute(uint32 opcode);
+	void execute(uint32 *code);
 
 public:
 
 	powerpc_test_cpu()
 		: powerpc_cpu(NULL)
-		{ init_decoder(); }
+		{ mon_init(); init_decoder(); }
+
+	~powerpc_test_cpu()
+		{ mon_exit(); }
 
 	bool test(void);
 
@@ -108,14 +145,27 @@ private:
 	// Emulated registers IDs
 	enum {
 		R_ = -1,
-		RD = 10,
-#if TEST_RA_IS_0
-		RA = 0,
-#else
-		RA = 11,
-#endif
-		RB = 12
+		RD = 3,
+		RA = 4,
+		RB = 5
 	};
+
+	static const uint32 reg_values[];
+	static const uint32 imm_values[];
+	static const uint32 msk_values[];
+
+	void test_one(uint32 *code, const char *insn, uint32 a1, uint32 a2, uint32 a3, uint32 a0 = 0);
+	void test_instruction_RR___(const char *insn, uint32 opcode);
+	void test_instruction_RRI__(const char *insn, uint32 opcode);
+#define  test_instruction_RRK__ test_instruction_RRI__
+	void test_instruction_RRS__(const char *insn, uint32 opcode);
+	void test_instruction_RRR__(const char *insn, uint32 opcode);
+	void test_instruction_RRIII(const char *insn, uint32 opcode);
+	void test_instruction_RRRII(const char *insn, uint32 opcode);
+	void test_instruction_CRR__(const char *insn, uint32 opcode);
+	void test_instruction_CRI__(const char *insn, uint32 opcode);
+#define  test_instruction_CRK__ test_instruction_CRI__
+	void test_instruction_CCC__(const char *insn, uint32 opcode);
 
 	void test_add(void);
 	void test_sub(void);
@@ -145,7 +195,7 @@ void powerpc_test_cpu::init_decoder()
 
 	static const instr_info_t return_ii_table[] = {
 		{ "return",
-		  (execute_fn)&powerpc_test_cpu::execute_return,
+		  (execute_pmf)&powerpc_test_cpu::execute_return,
 		  NULL,
 		  D_form, 6, 0, CFLOW_TRAP
 		}
@@ -159,9 +209,10 @@ void powerpc_test_cpu::init_decoder()
 	}
 }
 
-void powerpc_test_cpu::execute(uint32 opcode)
+void powerpc_test_cpu::execute(uint32 *code_p)
 {
-	uint32 code[] = { opcode, 0x18000000 };
+	static uint32 code[] = { POWERPC_BLR | 1, POWERPC_EMUL_OP };
+	lr() = (uint32)code_p;
 
 	try {
 		invalidate_cache();
@@ -185,371 +236,357 @@ void powerpc_test_cpu::print_flags(uint32 cr, uint32 xer, int crf) const
 		   (xer & XER_CA_field::mask()  ? "CA" : "__"));
 }
 
-#if TEST_RA_IS_0
-#define ASM_RA_REG asm("r0")
-#else
-#define ASM_RA_REG /**/
-#endif
-
-#define TEST_ASM______(OP,D0,A0,A1,A2,A3) asm volatile (OP : : : "cc")
-#define TEST_ASM_R____(OP,RD,A0,A1,A2,A3) asm volatile (OP " %0" : "=r" (RD) : : "cc")
-#define TEST_ASM_RA_OR_0(RA, ASM_EXPR)    do { register uint32 _RA ASM_RA_REG = RA; asm volatile ASM_EXPR; } while (0)
-#define TEST_ASM_RR___(OP,RD,RA,A1,A2,A3) TEST_ASM_RA_OR_0(RA, (OP " %0,%1" : "=r" (RD) : "r" (_RA) : "cc"))
-#define TEST_ASM_RRS__(OP,RD,RA,IM,A2,A3) TEST_ASM_RA_OR_0(RA, (OP " %0,%1,%2" : "=r" (RD) : "r" (_RA), "i" (IM) : "cc"))
-#define TEST_ASM_RRI__(OP,RD,RA,IM,A2,A3) TEST_ASM_RA_OR_0(RA, (OP " %0,%1,%2" : "=r" (RD) : "r" (_RA), "I" (int16(IM)) : "cc"))
-#define TEST_ASM_RRK__(OP,RD,RA,IM,A2,A3) TEST_ASM_RA_OR_0(RA, (OP " %0,%1,%2" : "=r" (RD) : "r" (_RA), "K" (IM) : "cc"))
-#define TEST_ASM_RRR__(OP,RD,RA,RB,A2,A3) TEST_ASM_RA_OR_0(RA, (OP " %0,%1,%2" : "=r" (RD) : "r" (_RA), "r" (RB) : "cc"))
-#define TEST_ASM_RRIII(OP,RD,RA,SH,MB,ME) TEST_ASM_RA_OR_0(RA, (OP " %0,%1,%2,%3,%4" : "+r" (RD) : "r" (_RA), "i" (SH), "i" (MB), "i" (ME)))
-#define TEST_ASM_RRRII(OP,RD,RA,RB,MB,ME) TEST_ASM_RA_OR_0(RA, (OP " %0,%1,%2,%3,%4" : "+r" (RD) : "r" (_RA), "r" (RB), "i" (MB), "i" (ME)))
-#define TEST_ASM_CRR__(OP,RD,CR,RA,RB,A3) asm volatile (OP " %0,%1,%2" : : "i" (CR), "r" (RA), "r" (RB) : "cc")
-#define TEST_ASM_CRI__(OP,RD,CR,RA,IM,A3) asm volatile (OP " %0,%1,%2" : : "i" (CR), "r" (RA), "I" (int16(IM)) : "cc")
-#define TEST_ASM_CRK__(OP,RD,CR,RA,IM,A3) asm volatile (OP " %0,%1,%2" : : "i" (CR), "r" (RA), "K" (IM) : "cc")
-#define TEST_ASM_CCC__(OP,RD,RA,RB,RC,A3) asm volatile (OP " %0,%1,%2" : : "i" (RA), "i" (RB), "i" (RC) : "cc")
-
-#define TEST_ASM(FORMAT, OP, RD, CR, XER, A0, A1, A2, A3) do {	\
-		native_set_xer(init_xer);								\
-		native_set_cr(init_cr);									\
-		TEST_ASM_##FORMAT(OP, RD, A0, A1, A2, A3);				\
-		XER = native_get_xer();									\
-		CR = native_get_cr();									\
-	} while (0)
-
-#define TEST_EMU_R0(OP,PRE,POST) do { PRE; execute(OP); POST; } while (0)
-#define TEST_EMU_RD(OP,RD,VD,PRE) TEST_EMU_R0(OP,PRE,VD=gpr(RD))
-#define TEST_EMU______(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_R0(OP,/**/,/**/)
-#define TEST_EMU_R____(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_RD(OP,RD,VD,/**/)
-#define TEST_EMU_RR___(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_RD(OP,RD,VD,gpr(RD)=VD;gpr(R0)=A0)
-#define TEST_EMU_RRS__(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_RD(OP,RD,VD,gpr(RD)=VD;gpr(R0)=A0)
-#define TEST_EMU_RRI__(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_RD(OP,RD,VD,gpr(RD)=VD;gpr(R0)=A0)
-#define TEST_EMU_RRK__(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_RD(OP,RD,VD,gpr(RD)=VD;gpr(R0)=A0)
-#define TEST_EMU_CRR__(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_RD(OP,RD,VD,gpr(RD)=VD;gpr(R1)=A1;gpr(R2)=A2)
-#define TEST_EMU_CRI__(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_RD(OP,RD,VD,gpr(RD)=VD;gpr(R1)=A1)
-#define TEST_EMU_CRK__(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_RD(OP,RD,VD,gpr(RD)=VD;gpr(R1)=A1)
-#define TEST_EMU_RRR__(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_RD(OP,RD,VD,gpr(RD)=VD;gpr(R0)=A0;gpr(R1)=A1)
-#define TEST_EMU_RRIII(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_RD(OP,RD,VD,gpr(RD)=VD;gpr(R0)=A0)
-#define TEST_EMU_RRRII(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_RD(OP,RD,VD,gpr(RD)=VD;gpr(R0)=A0;gpr(R1)=A1)
-#define TEST_EMU_CCC__(OP,RD,VD,R0,A0,R1,A1,R2,A2) TEST_EMU_R0(OP,/**/,/**/)
-
-#define TEST_EMU(FORMAT, OP, RD, VD, CR, XER, R0, A0, R1, A1, R2, A2) do {	\
-		emul_set_xer(init_xer);												\
-		emul_set_cr(init_cr);												\
-		TEST_EMU_##FORMAT(OP, RD, VD, R0, A0, R1, A1, R2, A2);				\
-		XER = emul_get_xer();												\
-		CR = emul_get_cr();													\
-	} while (0)
-
-#define PRINT_INPUTS_RRS__() printf("%08x, %04x", ra, im)
-#define PRINT_INPUTS_RRI__() printf("%08x, %04x", ra, im)
-#define PRINT_INPUTS_RRK__() printf("%08x, %04x", ra, im)
-#define PRINT_INPUTS_RRR__() printf("%08x, %08x", ra, rb)
-#define PRINT_INPUTS_RR___() printf("%08x", ra)
-#define PRINT_INPUTS_CRR__() printf("%d, %08x, %08x", cr, ra, rb)
-#define PRINT_INPUTS_CRI__() printf("%d, %08x, %04x", cr, ra, im)
-#define PRINT_INPUTS_CRK__() printf("%d, %08x, %04x", cr, ra, im)
-#define PRINT_INPUTS_RRIII() printf("%08x, %02d, %02d, %02d", ra, sh, mb, me)
-#define PRINT_INPUTS_RRRII() printf("%08x, %02d, %02d, %02d", ra, rb, mb, me)
-#define PRINT_INPUTS_CCC__() printf("%02d, %02d", crbA, crbB)
-
-#define PRINT_OPERANDS(FORMAT, PREFIX) do {		\
-	printf(" ");								\
-	PRINT_INPUTS_##FORMAT();					\
-	printf(" => %08x [", PREFIX##_rd);			\
-	print_flags(PREFIX##_cr, PREFIX##_xer);		\
-	printf("]\n");								\
-} while (0)
-
-#define TEST_ONE(FORMAT, NATIVE_OP, EMUL_OP, RD, R0, A0, R1, A1, R2, A2, A3) do {		\
-	uint32 native_rd = 0, native_xer, native_cr;										\
-	TEST_ASM(FORMAT, NATIVE_OP, native_rd, native_cr, native_xer, A0, A1, A2, A3);		\
-	uint32 emul_rd = 0, emul_xer, emul_cr;												\
-	TEST_EMU(FORMAT, EMUL_OP, RD, emul_rd, emul_cr, emul_xer, R0, A0, R1, A1, R2, A2);	\
-	++tests;																			\
-																						\
-	bool ok = native_rd == emul_rd														\
-		&& native_xer == emul_xer														\
-		&& native_cr == emul_cr;														\
-																						\
-	if (!ok) {																			\
-		printf("FAIL: " NATIVE_OP " [%08x]\n", EMUL_OP);								\
-		errors++;																		\
-	}																					\
-	else if (verbose) {																	\
-		printf("PASS: " NATIVE_OP " [%08x]\n", EMUL_OP);								\
-	}																					\
-																						\
-	if (!ok || verbose) {																\
-		PRINT_OPERANDS(FORMAT, native);													\
-		PRINT_OPERANDS(FORMAT, emul);													\
-	}																					\
-} while (0)
-
-#define TEST_INSTRUCTION_RRR__(FORMAT, NATIVE_OP, EMUL_OP) do {					\
-	const uint32 opcode = EMUL_OP;												\
-	for (uint32 i = 0; i < 8; i++) {											\
-		const uint32 ra = i << 29;												\
-		for (uint32 j = 0; j < 8; j++) {										\
-			const uint32 rb = j << 29;											\
-			TEST_ONE(FORMAT, NATIVE_OP, opcode, RD, RA, ra, RB, rb, R_, 0, 0);	\
-		}																		\
-	}																			\
-	for (int32 i = -2; i <= 2; i++) {											\
-		const uint32 ra = i;													\
-		for (int32 j = -2; j <= 2; j++) {										\
-			const uint32 rb = j;												\
-			TEST_ONE(FORMAT, NATIVE_OP, opcode, RD, RA, ra, RB, rb, R_, 0, 0);	\
-		}																		\
-	}																			\
-} while (0)
-
-#define TEST_INSTRUCTION_RR___(FORMAT, NATIVE_OP, EMUL_OP) do {				\
-	const uint32 opcode = EMUL_OP;											\
-	for (uint32 i = 0; i < 8; i++) {										\
-		const uint32 ra = i << 29;											\
-		TEST_ONE(FORMAT, NATIVE_OP, opcode, RD, RA, ra, R_, 0, R_, 0, 0);	\
-	}																		\
-	for (int32 i = -2; i <= 2; i++) {										\
-		const uint32 ra = i;												\
-		TEST_ONE(FORMAT, NATIVE_OP, opcode, RD, RA, ra, R_, 0, R_, 0, 0);	\
-	}																		\
-} while (0)
-
-#define TEST_ONE_IM(FORMAT, NATIVE_OP, IM, SH) do {										\
-	const uint32 im = IM;																\
-	TEST_ONE(FORMAT, NATIVE_OP, opcode|((IM) << (SH)), RD, RA, ra, R_, (IM), R_, 0, 0);	\
-} while (0)
-
-#define TEST_INSTRUCTION_IM(FORMAT, NATIVE_OP, EMUL_OP) do {	\
-	const uint32 opcode = (EMUL_OP) & ~0xffff;					\
-	for (uint32 i = 0; i < 8; i++) {							\
-		const uint32 ra = i << 29;								\
-		TEST_ONE_IM(FORMAT, NATIVE_OP, 0x0000, 0);				\
-		TEST_ONE_IM(FORMAT, NATIVE_OP, 0x2000, 0);				\
-		TEST_ONE_IM(FORMAT, NATIVE_OP, 0x4000, 0);				\
-		TEST_ONE_IM(FORMAT, NATIVE_OP, 0x6000, 0);				\
-		TEST_ONE_IM(FORMAT, NATIVE_OP, 0x8000, 0);				\
-		TEST_ONE_IM(FORMAT, NATIVE_OP, 0xa000, 0);				\
-		TEST_ONE_IM(FORMAT, NATIVE_OP, 0xc000, 0);				\
-		TEST_ONE_IM(FORMAT, NATIVE_OP, 0xe000, 0);				\
-		TEST_ONE_IM(FORMAT, NATIVE_OP, 0xfffe, 0);				\
-		TEST_ONE_IM(FORMAT, NATIVE_OP, 0xffff, 0);				\
-		TEST_ONE_IM(FORMAT, NATIVE_OP, 0x0001, 0);				\
-		TEST_ONE_IM(FORMAT, NATIVE_OP, 0x0002, 0);				\
-	}															\
-} while (0)
-
-#define TEST_INSTRUCTION_RRI__(FORMAT, NATIVE_OP, EMUL_OP)	\
-	TEST_INSTRUCTION_IM(FORMAT, NATIVE_OP, EMUL_OP)
-
-#define TEST_INSTRUCTION_RRK__(FORMAT, NATIVE_OP, EMUL_OP)	\
-	TEST_INSTRUCTION_IM(FORMAT, NATIVE_OP, EMUL_OP)
-
-#define TEST_INSTRUCTION_SH(FORMAT, NATIVE_OP) do {	\
-	TEST_ONE_IM(FORMAT, NATIVE_OP,  0, 11);			\
-	TEST_ONE_IM(FORMAT, NATIVE_OP,  1, 11);			\
-	TEST_ONE_IM(FORMAT, NATIVE_OP,  2, 11);			\
-	TEST_ONE_IM(FORMAT, NATIVE_OP,  3, 11);			\
-	TEST_ONE_IM(FORMAT, NATIVE_OP, 28, 11);			\
-	TEST_ONE_IM(FORMAT, NATIVE_OP, 29, 11);			\
-	TEST_ONE_IM(FORMAT, NATIVE_OP, 30, 11);			\
-	TEST_ONE_IM(FORMAT, NATIVE_OP, 31, 11);			\
-} while (0)
-
-#define TEST_INSTRUCTION_RRS__(FORMAT, NATIVE_OP, EMUL_OP) do {	\
-	const uint32 opcode = (EMUL_OP) & ~SH_field::mask();		\
-	for (uint32 i = 0; i < 8; i++) {							\
-		const uint32 ra = i << 29;								\
-		TEST_INSTRUCTION_SH(FORMAT, NATIVE_OP);					\
-	}															\
-} while (0)
-
-#define TEST_INSTRUCTION_RT_3(FORMAT, NATIVE_OP, SH, MB, ME) do {			\
-	const uint32 me = ME;													\
-	const uint32 opcode3 = opcode2 | (me << 1);								\
-	TEST_ONE(FORMAT, NATIVE_OP, opcode3, RD, RA, ra, RB, SH, R_, MB, ME);	\
-} while (0)
-
-#define TEST_INSTRUCTION_RT_2(FORMAT, NATIVE_OP, SH, MB) do {	\
-	const uint32 mb = MB;										\
-	const uint32 opcode2 = opcode1 | (mb << 6);					\
-	TEST_INSTRUCTION_RT_3(FORMAT, NATIVE_OP, SH, MB,  0);		\
-	TEST_INSTRUCTION_RT_3(FORMAT, NATIVE_OP, SH, MB,  1);		\
-	TEST_INSTRUCTION_RT_3(FORMAT, NATIVE_OP, SH, MB, 30);		\
-	TEST_INSTRUCTION_RT_3(FORMAT, NATIVE_OP, SH, MB, 31);		\
-} while (0)
-
-#define TEST_INSTRUCTION_RT_1(FORMAT, NATIVE_OP, SH) do {	\
-	const uint32 sh = SH;									\
-	const uint32 opcode1 = opcode  | (sh << 11);			\
-	TEST_INSTRUCTION_RT_2(FORMAT, NATIVE_OP, SH,  0);		\
-	TEST_INSTRUCTION_RT_2(FORMAT, NATIVE_OP, SH,  1);		\
-	TEST_INSTRUCTION_RT_2(FORMAT, NATIVE_OP, SH, 30);		\
-	TEST_INSTRUCTION_RT_2(FORMAT, NATIVE_OP, SH, 31);		\
-} while (0)
-
-#define TEST_INSTRUCTION_RRIII(FORMAT, NATIVE_OP, EMUL_OP) do {					\
-	const uint32 opcode = (EMUL_OP) & (OPCD_field::mask() | rS_field::mask() |	\
-									   rA_field::mask() | Rc_field::mask());	\
-	for (uint32 i = 0; i < 8; i++) {											\
-		const uint32 ra = i << 29;												\
-		TEST_INSTRUCTION_RT_1(FORMAT, NATIVE_OP,  0);							\
-		TEST_INSTRUCTION_RT_1(FORMAT, NATIVE_OP,  1);							\
-		TEST_INSTRUCTION_RT_1(FORMAT, NATIVE_OP, 30);							\
-		TEST_INSTRUCTION_RT_1(FORMAT, NATIVE_OP, 31);							\
-	}																			\
-} while (0)
-
-#define TEST_INSTRUCTION_RRRII(FORMAT, NATIVE_OP, EMUL_OP) do {					\
-	const uint32 opcode = (EMUL_OP) & ~(MB_field::mask() | ME_field::mask());	\
-	for (uint32 i = 0; i < 8; i++) {											\
-		const uint32 ra = i << 29;												\
-		for (uint32 j = 0; j < 32; j++) {										\
-			const uint32 rb = j;												\
-			const uint32 opcode1 = opcode;										\
-			TEST_INSTRUCTION_RT_2(FORMAT, NATIVE_OP, rb,  0);					\
-			TEST_INSTRUCTION_RT_2(FORMAT, NATIVE_OP, rb,  1);					\
-			TEST_INSTRUCTION_RT_2(FORMAT, NATIVE_OP, rb, 30);					\
-			TEST_INSTRUCTION_RT_2(FORMAT, NATIVE_OP, rb, 31);					\
-		}																		\
-	}																			\
-} while (0)
-
-#define TEST_INSTRUCTION_CR(FORMAT, NATIVE_OP, CRFD) do {							\
-	const int cr = CRFD;															\
-	TEST_ONE(FORMAT, NATIVE_OP, opcode|(cr<<23), RD, R_, CRFD, RA, ra, RB, rb, 0);	\
-} while (0)
-
-#define TEST_INSTRUCTION_CRR__(FORMAT, NATIVE_OP, EMUL_OP) do {	\
-	const uint32 opcode = (EMUL_OP) & ~crfD_field::mask();		\
-	for (int32 i = -1; i <= 1; i++) {							\
-		const uint32 ra = i;									\
-		for (int32 j = -1; j <= 1; j++) {						\
-			const uint32 rb = j;								\
-			TEST_INSTRUCTION_CR(FORMAT, NATIVE_OP, 0);			\
-			TEST_INSTRUCTION_CR(FORMAT, NATIVE_OP, 1);			\
-			TEST_INSTRUCTION_CR(FORMAT, NATIVE_OP, 2);			\
-			TEST_INSTRUCTION_CR(FORMAT, NATIVE_OP, 3);			\
-			TEST_INSTRUCTION_CR(FORMAT, NATIVE_OP, 4);			\
-			TEST_INSTRUCTION_CR(FORMAT, NATIVE_OP, 5);			\
-			TEST_INSTRUCTION_CR(FORMAT, NATIVE_OP, 6);			\
-			TEST_INSTRUCTION_CR(FORMAT, NATIVE_OP, 7);			\
-		}														\
-	}															\
-} while (0)
-
-#define TEST_INSTRUCTION_CR_IM_2(FORMAT, NATIVE_OP, CRFD, IMM) do {				\
-	const uint32 im = (uint32)IMM;												\
-	const uint32 opcode2 = opcode1 | (im & 0xffff);								\
-	TEST_ONE(FORMAT, NATIVE_OP, opcode2, RD, R_, CRFD, RA, ra, R_, IMM, 0);	\
-} while (0);
-
-#define TEST_INSTRUCTION_CR_IM_1(FORMAT, NATIVE_OP, CRFD) do {	\
-	const uint32 cr = CRFD;										\
-	const uint32 opcode1 = opcode | (cr << 23);					\
-	TEST_INSTRUCTION_CR_IM_2(FORMAT, NATIVE_OP, CRFD, 0x0000);	\
-	TEST_INSTRUCTION_CR_IM_2(FORMAT, NATIVE_OP, CRFD, 0x4000);	\
-	TEST_INSTRUCTION_CR_IM_2(FORMAT, NATIVE_OP, CRFD, 0x8000);	\
-	TEST_INSTRUCTION_CR_IM_2(FORMAT, NATIVE_OP, CRFD, 0xc000);	\
-} while (0)
-
-#define TEST_INSTRUCTION_CRI__(FORMAT, NATIVE_OP, EMUL_OP) do {						\
-	const uint32 opcode = (EMUL_OP) & ~(crfD_field::mask() | SIMM_field::mask());	\
-	for (int32 i = -1; i <= 1; i++) {												\
-		const uint32 ra = i;														\
-		TEST_INSTRUCTION_CR_IM_1(FORMAT, NATIVE_OP, 0);								\
-		TEST_INSTRUCTION_CR_IM_1(FORMAT, NATIVE_OP, 1);								\
-		TEST_INSTRUCTION_CR_IM_1(FORMAT, NATIVE_OP, 2);								\
-		TEST_INSTRUCTION_CR_IM_1(FORMAT, NATIVE_OP, 3);								\
-		TEST_INSTRUCTION_CR_IM_1(FORMAT, NATIVE_OP, 4);								\
-		TEST_INSTRUCTION_CR_IM_1(FORMAT, NATIVE_OP, 5);								\
-		TEST_INSTRUCTION_CR_IM_1(FORMAT, NATIVE_OP, 6);								\
-		TEST_INSTRUCTION_CR_IM_1(FORMAT, NATIVE_OP, 7);								\
-	}																				\
-} while (0)
-
-#define TEST_INSTRUCTION_CRK__(FORMAT, NATIVE_OP, EMUL_OP)	\
-	TEST_INSTRUCTION_CRI__(CRK__, NATIVE_OP, EMUL_OP)
-
-#define PRINT_CR_OPERANDS(PREFIX) do {				\
-	printf(" [");									\
-	print_flags(PREFIX##_cr, PREFIX##_xer, crbA);	\
-	printf("], [");									\
-	print_flags(PREFIX##_cr, PREFIX##_xer, crbB);	\
-	printf("] => [");								\
-	print_flags(PREFIX##_cr, PREFIX##_xer, crbD);	\
-	printf("]\n");									\
-} while (0)
-
-#define TEST_ONE_CR_OP(NATIVE_OP, EMUL_OP, RD, RA, RB, CR) do {						\
-	const uint32 orig_init_cr = init_cr;											\
-	uint32 native_rd = 0, native_xer, native_cr; init_cr = CR;						\
-	TEST_ASM(CCC__, NATIVE_OP, native_rd, native_cr, native_xer, RD, RA, RB, 0);	\
-	uint32 emul_rd = 0, emul_xer, emul_cr; init_cr = CR;							\
-	TEST_EMU(CCC__, EMUL_OP, RD, emul_rd, emul_cr, emul_xer, RD, 0, RA, 0, RB, 0);	\
-	init_cr = orig_init_cr;															\
-	++tests;																		\
-																					\
-	bool ok = native_cr == emul_cr;													\
-																					\
-	if (!ok) {																		\
-		printf("FAIL: " NATIVE_OP " [%08x]\n", EMUL_OP);							\
-		errors++;																	\
-	}																				\
-	else if (verbose) {																\
-		printf("PASS: " NATIVE_OP " [%08x]\n", EMUL_OP);							\
-	}																				\
-																					\
-	if (!ok || verbose) {															\
-		PRINT_CR_OPERANDS(native);													\
-		PRINT_CR_OPERANDS(emul);													\
-	}																				\
-} while (0)
-
-#define TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, CRBD, CRBA, CRBB, CR) do {	\
-	const uint32 crbD = (CRBD), crbA = (CRBA), crbB = (CRBB);					\
-	const uint32 opcode1 = opcode | (crbD << 21) | (crbA << 16) | (crbB << 11);	\
-	TEST_ONE_CR_OP(NATIVE_OP, opcode1, CRBD, CRBA, CRBB, CR);					\
-} while (0)
-
-#define TEST_INSTRUCTION_CCC__(FORMAT, NATIVE_OP, EMUL_OP) do {		\
-	const uint32 opcode = (EMUL_OP) & ~(crbD_field::mask() |		\
-										crbA_field::mask() |		\
-										crbB_field::mask());		\
-																	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0xdeadbeef);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x01200000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x02100000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x1c200000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x81200000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x41200000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x21200000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x11200000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x81200000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x42200000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x24200000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x18200000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x83200000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x45200000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x27200000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x19200000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x1c200000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x81c00000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x41c00000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x21c00000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x11c00000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x81c00000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x42c00000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x24c00000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x18c00000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x83c00000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x45c00000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x27c00000);	\
-	TEST_INSTRUCTION_CCC_1(FORMAT, NATIVE_OP, 0, 1, 2, 0x19c00000);	\
-} while (0);
-
 #define TEST_INSTRUCTION(FORMAT, NATIVE_OP, EMUL_OP) do {	\
 	printf("Testing " NATIVE_OP "\n");						\
-	TEST_INSTRUCTION_##FORMAT(FORMAT, NATIVE_OP, EMUL_OP);	\
+	test_instruction_##FORMAT(NATIVE_OP, EMUL_OP);			\
 } while (0)
+
+void powerpc_test_cpu::test_one(uint32 *code, const char *insn, uint32 a1, uint32 a2, uint32 a3, uint32 a0)
+{
+	// Invoke native code
+	const uint32 save_xer = native_get_xer();
+	const uint32 save_cr = native_get_cr();
+	native_set_xer(init_xer);
+	native_set_cr(init_cr);
+	typedef uint32 (*func_t)(uint32, uint32, uint32);
+	func_t func = (func_t)code;
+	const uint32 native_rd = func(a0, a1, a2);
+	const uint32 native_xer = native_get_xer();
+	const uint32 native_cr = native_get_cr();
+	native_set_xer(save_xer);
+	native_set_cr(save_cr);
+
+	// Invoke emulated code
+	emul_set_xer(init_xer);
+	emul_set_cr(init_cr);
+	gpr(RD) = a0;
+	gpr(RA) = a1;
+	gpr(RB) = a2;
+	execute(code);
+	const uint32 emul_rd = gpr(RD);
+	const uint32 emul_xer = emul_get_xer();
+	const uint32 emul_cr = emul_get_cr();
+	
+	++tests;
+
+	bool ok = native_rd == emul_rd
+		&& native_xer == emul_xer
+		&& native_cr == emul_cr;
+
+	if (code[0] == POWERPC_MR(0, RA))
+		code++;
+
+	if (!ok) {
+		printf("FAIL: %s [%08x]\n", insn, code[0]);
+		errors++;
+	}
+	else if (verbose) {
+		printf("PASS: %s [%08x]\n", insn, code[0]);
+	}
+
+	if (!ok || verbose) {
+		disass_ppc(stdout, (uintptr)code, code[0]);
+#define PRINT_OPERANDS(PREFIX) do {						\
+			printf(" %08x, %08x, %08x, %08x => %08x [",	\
+				   a0, a1, a2, a3, PREFIX##_rd);		\
+			print_flags(PREFIX##_cr, PREFIX##_xer);		\
+			printf("]\n");								\
+		} while (0)
+		PRINT_OPERANDS(native);
+		PRINT_OPERANDS(emul);
+#undef  PRINT_OPERANDS
+	}
+}
+
+const uint32 powerpc_test_cpu::reg_values[] = {
+	0x00000000, 0x10000000, 0x20000000,
+	0x30000000, 0x40000000, 0x50000000,
+	0x60000000, 0x70000000, 0x80000000,
+	0x90000000, 0xa0000000, 0xb0000000,
+	0xc0000000, 0xd0000000, 0xe0000000,
+	0xf0000000, 0xfffffffd, 0xfffffffe,
+	0xffffffff, 0x00000001, 0x00000002,
+	0x00000003, 0x11111111, 0x22222222,
+	0x33333333, 0x44444444, 0x55555555,
+	0x66666666, 0x77777777, 0x88888888,
+	0x99999999, 0xaaaaaaaa, 0xbbbbbbbb,
+	0xcccccccc, 0xdddddddd, 0xeeeeeeee
+};
+
+const uint32 powerpc_test_cpu::imm_values[] = {
+	0x0000, 0x1000, 0x2000,
+	0x3000, 0x4000, 0x5000,
+	0x6000, 0x7000, 0x8000,
+	0x9000, 0xa000, 0xb000,
+	0xc000, 0xd000, 0xe000,
+	0xf000, 0xfffd, 0xfffe,
+	0xffff, 0x0001, 0x0002,
+	0x0003, 0x1111, 0x2222,
+	0x3333, 0x4444, 0x5555,
+	0x6666, 0x7777, 0x8888,
+	0x9999, 0xaaaa, 0xbbbb,
+	0xcccc, 0xdddd, 0xeeee
+};
+
+const uint32 powerpc_test_cpu::msk_values[] = {
+	0, 1,
+//	15, 16, 17,
+	30, 31
+};
+
+void powerpc_test_cpu::test_instruction_RR___(const char *insn, uint32 opcode)
+{
+	// Test code
+	static uint32 code[] = {
+		POWERPC_ILLEGAL, POWERPC_BLR,
+		POWERPC_MR(0, RA), POWERPC_ILLEGAL, POWERPC_BLR
+	};
+
+	// Input values
+	const int n_values = sizeof(reg_values)/sizeof(reg_values[0]);
+
+	code[0] = code[3] = opcode;			// <op> RD,RA,RB
+	rA_field::insert(code[3], 0);		// <op> RD,R0,RB
+	flush_icache_range(code, sizeof(code));
+
+	for (int i = 0; i < n_values; i++) {
+		uint32 ra = reg_values[i];
+		test_one(&code[0], insn, ra, 0, 0);
+		test_one(&code[2], insn, ra, 0, 0);
+	}
+}
+
+void powerpc_test_cpu::test_instruction_RRI__(const char *insn, uint32 opcode)
+{
+	// Test code
+	static uint32 code[] = {
+		POWERPC_ILLEGAL, POWERPC_BLR,
+		POWERPC_MR(0, RA), POWERPC_ILLEGAL, POWERPC_BLR
+	};
+
+	// Input values
+	const int n_reg_values = sizeof(reg_values)/sizeof(reg_values[0]);
+	const int n_imm_values = sizeof(imm_values)/sizeof(imm_values[0]);
+
+	for (int j = 0; j < n_imm_values; j++) {
+		const uint32 im = imm_values[j];
+		uint32 op = opcode;
+		UIMM_field::insert(op, im);
+		code[0] = code[3] = op;				// <op> RD,RA,IM
+		rA_field::insert(code[3], 0);		// <op> RD,R0,IM
+		flush_icache_range(code, sizeof(code));
+		for (int i = 0; i < n_reg_values; i++) {
+			const uint32 ra = reg_values[i];
+			test_one(&code[0], insn, ra, im, 0);
+			test_one(&code[2], insn, ra, im, 0);
+		}
+	}
+}
+
+void powerpc_test_cpu::test_instruction_RRS__(const char *insn, uint32 opcode)
+{
+	// Test code
+	static uint32 code[] = {
+		POWERPC_ILLEGAL, POWERPC_BLR,
+		POWERPC_MR(0, RA), POWERPC_ILLEGAL, POWERPC_BLR
+	};
+
+	// Input values
+	const int n_values = sizeof(reg_values)/sizeof(reg_values[0]);
+
+	for (int j = 0; j < 32; j++) {
+		const uint32 sh = j;
+		SH_field::insert(opcode, sh);
+		code[0] = code[3] = opcode;
+		rA_field::insert(code[3], 0);
+		flush_icache_range(code, sizeof(code));
+		for (int i = 0; i < n_values; i++) {
+			const uint32 ra = reg_values[i];
+			test_one(&code[0], insn, ra, sh, 0);
+		}
+	}
+}
+
+void powerpc_test_cpu::test_instruction_RRR__(const char *insn, uint32 opcode)
+{
+	// Test code
+	static uint32 code[] = {
+		POWERPC_ILLEGAL, POWERPC_BLR,
+		POWERPC_MR(0, RA), POWERPC_ILLEGAL, POWERPC_BLR
+	};
+
+	// Input values
+	const int n_values = sizeof(reg_values)/sizeof(reg_values[0]);
+
+	code[0] = code[3] = opcode;			// <op> RD,RA,RB
+	rA_field::insert(code[3], 0);		// <op> RD,R0,RB
+	flush_icache_range(code, sizeof(code));
+
+	for (int i = 0; i < n_values; i++) {
+		const uint32 ra = reg_values[i];
+		for (int j = 0; j < n_values; j++) {
+			const uint32 rb = reg_values[j];
+			test_one(&code[0], insn, ra, rb, 0);
+			test_one(&code[2], insn, ra, rb, 0);
+		}
+	}
+}
+
+void powerpc_test_cpu::test_instruction_RRIII(const char *insn, uint32 opcode)
+{
+	// Test code
+	static uint32 code[] = {
+		POWERPC_ILLEGAL, POWERPC_BLR,
+		POWERPC_MR(0, RA), POWERPC_ILLEGAL, POWERPC_BLR
+	};
+
+	// Input values
+	const int n_reg_values = sizeof(reg_values)/sizeof(reg_values[0]);
+	const int n_msk_values = sizeof(msk_values)/sizeof(msk_values[0]);
+
+	for (int sh = 0; sh < 32; sh++) {
+		for (int i_mb = 0; i_mb < n_msk_values; i_mb++) {
+			const uint32 mb = msk_values[i_mb];
+			for (int i_me = 0; i_me < n_msk_values; i_me++) {
+				const uint32 me = msk_values[i_me];
+				SH_field::insert(opcode, sh);
+				MB_field::insert(opcode, mb);
+				ME_field::insert(opcode, me);
+				code[0] = opcode;
+				code[3] = opcode;
+				rA_field::insert(code[3], 0);
+				flush_icache_range(code, sizeof(code));
+				for (int i = 0; i < n_reg_values; i++) {
+					const uint32 ra = reg_values[i];
+					test_one(&code[0], insn, ra, sh, 0, 0);
+					test_one(&code[2], insn, ra, sh, 0, 0);
+				}
+			}
+		}
+	}
+}
+
+void powerpc_test_cpu::test_instruction_RRRII(const char *insn, uint32 opcode)
+{
+	// Test code
+	static uint32 code[] = {
+		POWERPC_ILLEGAL, POWERPC_BLR,
+		POWERPC_MR(0, RA), POWERPC_ILLEGAL, POWERPC_BLR
+	};
+
+	// Input values
+	const int n_reg_values = sizeof(reg_values)/sizeof(reg_values[0]);
+	const int n_msk_values = sizeof(msk_values)/sizeof(msk_values[0]);
+
+	for (int i_mb = 0; i_mb < n_msk_values; i_mb++) {
+		const uint32 mb = msk_values[i_mb];
+		for (int i_me = 0; i_me < n_msk_values; i_me++) {
+			const uint32 me = msk_values[i_me];
+			MB_field::insert(opcode, mb);
+			ME_field::insert(opcode, me);
+			code[0] = opcode;
+			code[3] = opcode;
+			rA_field::insert(code[3], 0);
+			flush_icache_range(code, sizeof(code));
+			for (int i = 0; i < n_reg_values; i++) {
+				const uint32 ra = reg_values[i];
+				for (int j = -1; j <= 33; j++) {
+					const uint32 rb = j;
+					test_one(&code[0], insn, ra, rb, 0, 0);
+					test_one(&code[2], insn, ra, rb, 0, 0);
+				}
+			}
+		}
+	}
+}
+
+void powerpc_test_cpu::test_instruction_CRR__(const char *insn, uint32 opcode)
+{
+	// Test code
+	static uint32 code[] = {
+		POWERPC_ILLEGAL, POWERPC_BLR,
+		POWERPC_MR(0, RA), POWERPC_ILLEGAL, POWERPC_BLR
+	};
+
+	// Input values
+	const int n_values = sizeof(reg_values)/sizeof(reg_values[0]);
+
+	for (int k = 0; k < 8; k++) {
+		crfD_field::insert(opcode, k);
+		code[0] = code[3] = opcode;			// <op> crfD,RA,RB
+		rA_field::insert(code[3], 0);		// <op> crfD,R0,RB
+		flush_icache_range(code, sizeof(code));
+		for (int i = 0; i < n_values; i++) {
+			const uint32 ra = reg_values[i];
+			for (int j = 0; j < n_values; j++) {
+			const uint32 rb = reg_values[j];
+			test_one(&code[0], insn, ra, rb, 0);
+			test_one(&code[2], insn, ra, rb, 0);
+			}
+		}
+	}
+}
+
+void powerpc_test_cpu::test_instruction_CRI__(const char *insn, uint32 opcode)
+{
+	// Test code
+	static uint32 code[] = {
+		POWERPC_ILLEGAL, POWERPC_BLR,
+		POWERPC_MR(0, RA), POWERPC_ILLEGAL, POWERPC_BLR
+	};
+
+	// Input values
+	const int n_reg_values = sizeof(reg_values)/sizeof(reg_values[0]);
+	const int n_imm_values = sizeof(imm_values)/sizeof(imm_values[0]);
+
+	for (int k = 0; k < 8; k++) {
+		crfD_field::insert(opcode, k);
+		for (int j = 0; j < n_imm_values; j++) {
+			const uint32 im = imm_values[j];
+			UIMM_field::insert(opcode, im);
+			code[0] = code[3] = opcode;			// <op> crfD,RA,SIMM
+			rA_field::insert(code[3], 0);		// <op> crfD,R0,SIMM
+			flush_icache_range(code, sizeof(code));
+			for (int i = 0; i < n_reg_values; i++) {
+				const uint32 ra = reg_values[i];
+				test_one(&code[0], insn, ra, im, 0);
+				test_one(&code[2], insn, ra, im, 0);
+			}
+		}
+	}
+}
+
+void powerpc_test_cpu::test_instruction_CCC__(const char *insn, uint32 opcode)
+{
+	// Test code
+	static uint32 code[] = {
+		POWERPC_ILLEGAL, POWERPC_MFCR(RD), POWERPC_BLR,
+	};
+
+	const uint32 saved_cr = init_cr;
+	crbD_field::insert(opcode, 0);
+
+	// Loop over crbA=[4-7] (crf1), crbB=[28-31] (crf7)
+	for (int crbA = 4; crbA <= 7; crbA++) {
+		crbA_field::insert(opcode, crbA);
+		for (int crbB = 28; crbB <= 31; crbB++) {
+			crbB_field::insert(opcode, crbB);
+			code[0] = opcode;
+			flush_icache_range(code, sizeof(code));
+			// Generate CR values for (crf1, crf7)
+			uint32 cr = 0;
+			for (int i = 0; i < 16; i++) {
+				CR_field<1>::insert(cr, i);
+				for (int j = 0; j < 16; j++) {
+					CR_field<7>::insert(cr, j);
+					init_cr = cr;
+					test_one(&code[0], insn, init_cr, 0, 0);
+				}
+			}
+		}
+	}
+	init_cr = saved_cr;
+}
 
 void powerpc_test_cpu::test_add(void)
 {
