@@ -7,7 +7,7 @@
 	<key>CFBundleExecutable</key>
 	<string>BasiliskII</string>
 	<key>CFBundleGetInfoString</key>
-	<string>Basilisk II version 1.0, Copyright © 1997-2004 Christian Bauer et al. Mac OS X port 16-classic</string>
+	<string>Basilisk II version 1.0, Copyright © 1997-2005 Christian Bauer et al. Mac OS X port 16-classic</string>
 	<key>CFBundleIconFile</key>
 	<string>BasiliskII.icns</string>
 	<key>CFBundleIdentifier</key>

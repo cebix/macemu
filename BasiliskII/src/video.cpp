@@ -1,7 +1,7 @@
 /*
  *  video.cpp - Video/graphics emulation
  *
- *  Basilisk II (C) 1997-2004 Christian Bauer
+ *  Basilisk II (C) 1997-2005 Christian Bauer
  *  Portions written by Marc Hellwig
  *
  *  This program is free software; you can redistribute it and/or modify

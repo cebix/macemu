@@ -1,7 +1,7 @@
 /*
  *  fpu/fpu_x86.h - Extra Definitions for the X86 assembly FPU core
  *
- *  Basilisk II (C) 1997-2004 Christian Bauer
+ *  Basilisk II (C) 1997-2005 Christian Bauer
  *
  *  MC68881/68040 fpu emulation
  *  

@@ -1,6 +1,6 @@
 # /usr/share/BasiliskII/keycodes
 #
-# Basilisk II (C) 1997-2004 Christian Bauer
+# Basilisk II (C) 1997-2005 Christian Bauer
 #
 # This file is used to translate the (server-specific) scancodes to
 # Mac keycodes depending on the window server being used.

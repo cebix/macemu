@@ -1,7 +1,7 @@
 /*
  *  audio_oss_esd.cpp - Audio support, implementation for OSS and ESD (Linux and FreeBSD)
  *
- *  Basilisk II (C) 1997-2004 Christian Bauer
+ *  Basilisk II (C) 1997-2005 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

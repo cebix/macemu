@@ -1,7 +1,7 @@
 /*
  *  arp.cpp - ip router
  *
- *  Basilisk II (C) 1997-2004 Christian Bauer
+ *  Basilisk II (C) 1997-2005 Christian Bauer
  *
  *  Windows platform specific code copyright (C) Lauri Pesonen
  *
