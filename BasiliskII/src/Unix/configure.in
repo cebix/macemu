@@ -22,19 +22,21 @@ AC_PROG_INSTALL
 
 dnl We use mon if possible.
 MONSRCS=
-AC_MSG_CHECKING(for mon)
-if grep mon_init ../../../mon/src/mon.h >/dev/null 2>/dev/null; then
-  AC_MSG_RESULT(yes)
-  WANT_MON=yes
-  DEFINES="$DEFINES -DENABLE_MON=1"
-  MONSRCS="../../../mon/src/mon.cpp ../../../mon/src/mon_6502.cpp ../../../mon/src/mon_68k.cpp ../../../mon/src/mon_8080.cpp ../../../mon/src/mon_cmd.cpp ../../../mon/src/mon_ppc.cpp ../../../mon/src/mon_x86.cpp"
-  CXXFLAGS="$CXXFLAGS -I../../../mon/src"
-  AC_CHECK_LIB(readline, readline)
-  AC_CHECK_HEADERS(readline/readline.h readline/history.h)
-else
-  AC_MSG_RESULT(no)
-  WANT_MON=no
-  DEFINES="$DEFINES -DENABLE_MON=0"
+if [[ "x$WANT_MON" = "xyes" ]]; then
+  AC_MSG_CHECKING(for mon)
+  if grep mon_init ../../../mon/src/mon.h >/dev/null 2>/dev/null; then
+    AC_MSG_RESULT(yes)
+    DEFINES="$DEFINES -DENABLE_MON=1"
+    MONSRCS="../../../mon/src/mon.cpp ../../../mon/src/mon_6502.cpp ../../../mon/src/mon_68k.cpp ../../../mon/src/mon_8080.cpp ../../../mon/src/mon_cmd.cpp ../../../mon/src/mon_ppc.cpp ../../../mon/src/mon_x86.cpp"
+    CXXFLAGS="$CXXFLAGS -I../../../mon/src"
+    AC_CHECK_LIB(readline, readline)
+    AC_CHECK_HEADERS(readline/readline.h readline/history.h)
+  else
+    AC_MSG_RESULT(no)
+    AC_MSG_WARN([Could not find mon, ignoring --with-mon.])
+    WANT_MON=no
+    DEFINES="$DEFINES -DENABLE_MON=0"
+  fi
 fi
 
 dnl Checks for libraries.
