@@ -97,7 +97,7 @@ $(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/SheepShaver.icns
 	cp -f ../MacOSX/SheepShaver.icns $(APP_APP)/Contents/Resources/
 
 modules:
-	cd NetDriver; make
+	cd Linux/NetDriver; make
 
 install: $(APP_EXE) installdirs
 	$(INSTALL_PROGRAM) $(APP_EXE) $(DESTDIR)$(bindir)/$(APP_EXE)
