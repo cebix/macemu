@@ -195,10 +195,30 @@ static int palette_size(int mode)
 	}
 }
 
+// Return bits per pixel for requested depth
+static inline int bytes_per_pixel(int depth)
+{
+	int bpp;
+	switch (depth) {
+	case 8:
+		bpp = 1;
+		break;
+	case 15: case 16:
+		bpp = 2;
+		break;
+	case 24: case 32:
+		bpp = 4;
+		break;
+	default:
+		abort();
+	}
+	return bpp;
+}
+
 // Map video_mode depth ID to numerical depth value
 static inline int depth_of_video_mode(int mode)
 {
-	int depth = -1;
+	int depth;
 	switch (mode) {
 	case APPLE_1_BIT:
 		depth = 1;
@@ -1592,44 +1612,6 @@ void VideoVBL(void)
  */
 
 #if 0
-// Rectangle blitting
-static void accl_bitblt(accl_params *p)
-{
-	D(bug("accl_bitblt\n"));
-
-	// Get blitting parameters
-	int16 src_X = p->src_rect[1] - p->src_bounds[1];
-	int16 src_Y = p->src_rect[0] - p->src_bounds[0];
-	int16 dest_X = p->dest_rect[1] - p->dest_bounds[1];
-	int16 dest_Y = p->dest_rect[0] - p->dest_bounds[0];
-	int16 width = p->dest_rect[3] - p->dest_rect[1] - 1;
-	int16 height = p->dest_rect[2] - p->dest_rect[0] - 1;
-	D(bug(" src X %d, src Y %d, dest X %d, dest Y %d\n", src_X, src_Y, dest_X, dest_Y));
-	D(bug(" width %d, height %d\n", width, height));
-
-	// And perform the blit
-	bitblt_hook(src_X, src_Y, dest_X, dest_Y, width, height);
-}
-
-static bool accl_bitblt_hook(accl_params *p)
-{
-	D(bug("accl_draw_hook %p\n", p));
-
-	// Check if we can accelerate this bitblt
-	if (p->src_base_addr == screen_base && p->dest_base_addr == screen_base &&
-		display_type == DIS_SCREEN && bitblt_hook != NULL &&
-		((uint32 *)p)[0x18 >> 2] + ((uint32 *)p)[0x128 >> 2] == 0 &&
-		((uint32 *)p)[0x130 >> 2] == 0 &&
-		p->transfer_mode == 0 &&
-		p->src_row_bytes > 0 && ((uint32 *)p)[0x15c >> 2] > 0) {
-
-		// Yes, set function pointer
-		p->draw_proc = accl_bitblt;
-		return true;
-	}
-	return false;
-}
-
 // Rectangle filling/inversion
 static void accl_fillrect8(accl_params *p)
 {
@@ -1707,25 +1689,95 @@ static bool accl_fillrect_hook(accl_params *p)
 	return false;
 }
 
-// Wait for graphics operation to finish
-static bool accl_sync_hook(void *arg)
-{
-	D(bug("accl_sync_hook %p\n", arg));
-	if (sync_hook != NULL)
-		sync_hook();
-	return true;
-}
-
-static struct accl_hook_info bitblt_hook_info = {accl_bitblt_hook, accl_sync_hook, ACCL_BITBLT};
 static struct accl_hook_info fillrect_hook_info = {accl_fillrect_hook, accl_sync_hook, ACCL_FILLRECT};
 #endif
+
+// Rectangle blitting
+// TODO: optimize for VOSF and target pixmap == screen
+void NQD_bitblt(uint32 arg)
+{
+	D(bug("accl_bitblt %08x\n", arg));
+	accl_params *p = (accl_params *)arg;
+
+	// Get blitting parameters
+	int16 src_X = p->src_rect[1] - p->src_bounds[1];
+	int16 src_Y = p->src_rect[0] - p->src_bounds[0];
+	int16 dest_X = p->dest_rect[1] - p->dest_bounds[1];
+	int16 dest_Y = p->dest_rect[0] - p->dest_bounds[0];
+	int16 width = p->dest_rect[3] - p->dest_rect[1];
+	int16 height = p->dest_rect[2] - p->dest_rect[0];
+	D(bug(" src addr %08x, dest addr %08x\n", p->src_base_addr, p->dest_base_addr));
+	D(bug(" src X %d, src Y %d, dest X %d, dest Y %d\n", src_X, src_Y, dest_X, dest_Y));
+	D(bug(" width %d, height %d\n", width, height));
+
+	// And perform the blit
+	const int bpp = bytes_per_pixel(p->src_pixel_size);
+	width *= bpp;
+	if (p->src_row_bytes > 0) {
+		const int src_row_bytes = p->src_row_bytes;
+		const int dst_row_bytes = p->dest_row_bytes;
+		uint8 *src = (uint8 *)p->src_base_addr + (src_Y * src_row_bytes) + (src_X * bpp);
+		uint8 *dst = (uint8 *)p->dest_base_addr + (dest_Y * dst_row_bytes) + (dest_X * bpp);
+		for (int i = 0; i < height; i++) {
+			memcpy(dst, src, width);
+			src += src_row_bytes;
+			dst += dst_row_bytes;
+		}
+	}
+	else {
+		const int src_row_bytes = -p->src_row_bytes;
+		const int dst_row_bytes = -p->dest_row_bytes;
+		uint8 *src = (uint8 *)p->src_base_addr + ((src_Y + height - 1) * src_row_bytes) + (src_X * bpp);
+		uint8 *dst = (uint8 *)p->dest_base_addr + ((dest_Y + height - 1) * dst_row_bytes) + (dest_X * bpp);
+		for (int i = height - 1; i >= 0; i--) {
+			memcpy(dst, src, width);
+			src -= src_row_bytes;
+			dst -= dst_row_bytes;
+		}
+	}
+}
+
+bool NQD_bitblt_hook(uint32 arg)
+{
+	D(bug("accl_draw_hook %08x\n", arg));
+	accl_params *p = (accl_params *)arg;
+
+	// Check if we can accelerate this bitblt
+	if (((uint32 *)p)[0x18 >> 2] + ((uint32 *)p)[0x128 >> 2] == 0 &&
+		((uint32 *)p)[0x130 >> 2] == 0 &&
+		p->src_pixel_size >= 8 && p->src_pixel_size == p->dest_pixel_size &&
+		((p->src_row_bytes ^ p->dest_row_bytes) >> 31) == 0 &&
+		p->transfer_mode == 0 &&
+		((uint32 *)p)[0x15c >> 2] > 0) {
+
+		// Yes, set function pointer
+		p->draw_proc = NativeTVECT(NATIVE_BITBLT);
+		return true;
+	}
+	return false;
+}
+
+// Wait for graphics operation to finish
+bool NQD_sync_hook(uint32 arg)
+{
+	D(bug("accl_sync_hook %08x\n", arg));
+	return true;
+}
 
 void VideoInstallAccel(void)
 {
 	// Install acceleration hooks
 	if (PrefsFindBool("gfxaccel")) {
 		D(bug("Video: Installing acceleration hooks\n"));
-//!!	NQDMisc(6, &bitblt_hook_info);
+		uint32 base;
+
+		SheepVar bitblt_hook_info(sizeof(accl_hook_info));
+		base = bitblt_hook_info.addr();
+		WriteMacInt32(base + 0, NativeTVECT(NATIVE_BITBLT_HOOK));
+		WriteMacInt32(base + 4, NativeTVECT(NATIVE_SYNC_HOOK));
+		WriteMacInt32(base + 8, ACCL_BITBLT);
+		NQDMisc(6, bitblt_hook_info.ptr());
+
 //		NQDMisc(6, &fillrect_hook_info);
 	}
 }

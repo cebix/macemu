@@ -143,6 +143,15 @@ extern int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr);
 extern int16 VSLDoInterruptService(uint32 arg1);
 extern void NQDMisc(uint32 arg1, void *arg2);
 
+// Native QuickDraw acceleration callbacks
+extern bool NQD_sync_hook(uint32);
+extern bool NQD_bitblt_hook(uint32);
+//extern bool NQD_fillrect_hook(uint32);
+extern void NQD_bitblt(uint32);
+//extern void NQD_invrect(uint32);
+//extern void NQD_fillrect8(uint32);
+//extern void NQD_fillrect32(uint32);
+
 extern bool keyfile_valid;
 
 #endif

@@ -561,7 +561,7 @@ static bool accl_bitblt_hook(accl_params *p)
 		p->src_row_bytes > 0 && ((uint32 *)p)[0x15c >> 2] > 0) {
 
 		// Yes, set function pointer
-		p->draw_proc = accl_bitblt;
+		p->draw_proc = (uint32)accl_bitblt;
 		return true;
 	}
 	return false;
@@ -629,15 +629,15 @@ static bool accl_fillrect_hook(accl_params *p)
 		if (p->transfer_mode == 8) {
 			// Fill
 			if (p->dest_pixel_size == 8 && fillrect8_hook != NULL) {
-				p->draw_proc = accl_fillrect8;
+				p->draw_proc = (uint32)accl_fillrect8;
 				return true;
 			} else if (p->dest_pixel_size == 32 && fillrect32_hook != NULL) {
-				p->draw_proc = accl_fillrect32;
+				p->draw_proc = (uint32)accl_fillrect32;
 				return true;
 			}
 		} else if (p->transfer_mode == 10 && invrect_hook != NULL) {
 			// Invert
-			p->draw_proc = accl_invrect;
+			p->draw_proc = (uint32)accl_invrect;
 			return true;
 		}
 	}
@@ -664,10 +664,10 @@ static bool accl_foobar_hook(accl_params *p)
 	printf(" val5 %08x\n", ((uint32 *)p)[0x160 >> 2]);
 	printf(" val6 %08x\n", ((uint32 *)p)[0x1b4 >> 2]);
 	printf(" val7 %08x\n", ((uint32 *)p)[0x284 >> 2]);
-	p->draw_proc = do_nothing;
+	p->draw_proc = (uint32)do_nothing;
 	return true;
 }
-static struct accl_hook_info foobar_hook_info = {accl_foobar_hook, accl_sync_hook, 6};
+static struct accl_hook_info foobar_hook_info = {(uint32)accl_foobar_hook, (uint32)accl_sync_hook, 6};
 */
 
 // Wait for graphics operation to finish
@@ -679,8 +679,8 @@ static bool accl_sync_hook(void *arg)
 	return true;
 }
 
-static struct accl_hook_info bitblt_hook_info = {accl_bitblt_hook, accl_sync_hook, ACCL_BITBLT};
-static struct accl_hook_info fillrect_hook_info = {accl_fillrect_hook, accl_sync_hook, ACCL_FILLRECT};
+static struct accl_hook_info bitblt_hook_info = {(uint32)accl_bitblt_hook, (uint32)accl_sync_hook, ACCL_BITBLT};
+static struct accl_hook_info fillrect_hook_info = {(uint32)accl_fillrect_hook, (uint32)accl_sync_hook, ACCL_FILLRECT};
 
 void VideoInstallAccel(void)
 {

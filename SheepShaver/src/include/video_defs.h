@@ -307,7 +307,7 @@ enum {	// CursorImage struct
  *  Structures for graphics acceleration
  */
 
-typedef void *CTabHandle;
+typedef uint32 CTabHandle;
 
 // Parameter block passed to acceleration hooks
 struct accl_params {
@@ -324,7 +324,7 @@ struct accl_params {
 	uint32 unknown2[3];
 
 	uint32 src_base_addr;
-	uint32 src_row_bytes;
+	int32 src_row_bytes;
 	int16 src_bounds[4];
 	uint32 src_unknown1;
 	uint32 src_pixel_type;
@@ -337,7 +337,7 @@ struct accl_params {
 	uint32 src_unknown4;
 
 	uint32 dest_base_addr;
-	uint32 dest_row_bytes;
+	int32 dest_row_bytes;
 	int16 dest_bounds[4];
 	uint32 dest_unknown1;
 	uint32 dest_pixel_type;
@@ -356,14 +356,14 @@ struct accl_params {
 
 	uint32 unknown4[38];
 
-	void (*draw_proc)(accl_params *);
+	uint32 draw_proc;
 	// Argument for accl_sync_hook at offset 0x4f8
 };
 
 // Hook info for NQDMisc
 struct accl_hook_info {
-	bool (*draw_func)(accl_params *);
-	bool (*sync_func)(void *);
+	uint32 draw_func;
+	uint32 sync_func;
 	uint32 code;
 };
 
