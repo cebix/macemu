@@ -666,12 +666,16 @@ void OPPROTO op_mullwo_T0_T1(void)
 
 void OPPROTO op_slw_T0_T1(void)
 {
-	T0 = T0 << (T1 & 0x3f);
+	T1 &= 0x3f;
+	T0 = (T1 & 0x20) ? 0 : (T0 << T1);
+	dyngen_barrier();
 }
 
 void OPPROTO op_srw_T0_T1(void)
 {
-	T0 = T0 >> (T1 & 0x3f);
+	T1 &= 0x3f;
+	T0 = (T1 & 0x20) ? 0 : (T0 >> T1);
+	dyngen_barrier();
 }
 
 void OPPROTO op_sraw_T0_T1(void)
