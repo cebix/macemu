@@ -68,6 +68,7 @@ RCSID("$OpenBSD: sshpty.c,v 1.4 2001/12/19 07:18:56 deraadt Exp $");
 #include "log.h"
 #include "misc.h"
 #else /* stubs for BasiliskII */
+#define log printf
 #define error printf
 #define fatal(x) {printf("Fatal error: %s", x); return 0}
 #endif /* not in BasiliskII */
