@@ -725,6 +725,17 @@ bool PatchROM(void)
 	else
 		return false;
 
+	// Check that other ROM addresses point to really free regions
+	printf("%08x\n", ntohl(*(uint32 *)(ROM_BASE + CHECK_LOAD_PATCH_SPACE)));
+	if (ntohl(*(uint32 *)(ROM_BASE + CHECK_LOAD_PATCH_SPACE)) != 0x6b636b63)
+		return false;
+	if (ntohl(*(uint32 *)(ROM_BASE + PUT_SCRAP_PATCH_SPACE)) != 0x6b636b63)
+		return false;
+	if (ntohl(*(uint32 *)(ROM_BASE + GET_SCRAP_PATCH_SPACE)) != 0x6b636b63)
+		return false;
+	if (ntohl(*(uint32 *)(ROM_BASE + ADDR_MAP_PATCH_SPACE)) != 0x6b636b63)
+		return false;
+
 	// Apply patches
 	if (!patch_nanokernel_boot()) return false;
 	if (!patch_68k_emul()) return false;
@@ -2230,9 +2241,9 @@ void InstallDrivers(void)
 	uint8 pb[SIZEOF_IOParam];
 
 	// Install floppy driver
-	if (ROMType == ROMTYPE_NEWWORLD) {
+	if (ROMType == ROMTYPE_NEWWORLD || ROMType == ROMTYPE_GOSSAMER) {
 
-		// Force installation of floppy driver with NewWorld ROMs
+		// Force installation of floppy driver with NewWorld and Gossamer ROMs
 		r.a[0] = ROM_BASE + sony_offset;
 		r.d[0] = (uint32)SonyRefNum;
 		Execute68kTrap(0xa43d, &r);		// DrvrInstallRsrvMem()
