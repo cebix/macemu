@@ -1,3 +1,6 @@
+V0.8 -
+	- Unix/video_x.cpp: new window refresh code [Samuel Lander]
+
 V0.8 (release 0.8-1) - 30.Jan.2000
 	- extfs: extended size of finf helper files to 32 bytes to eventually
 	  allow storing the complete FInfo/FXInfo in it

@@ -653,6 +653,7 @@ Contributions by:
  - Bill Huey <billh@mag.ucsd.edu>: 15/16 bit DGA and 15/16/32 bit X11
    window support
  - David Lawrence <davidl@jlab.org>: incremental window refresh code
+ - Samuel Lander <blair_sp@hotmail.com>: tile-based window refresh code
  - Gwenole Beauchesne <gb@dial.oleane.com>: SPARC assembly optimizations and
    fbdev video code
  - and others...
