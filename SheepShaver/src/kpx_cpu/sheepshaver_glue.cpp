@@ -1100,6 +1100,10 @@ void sheepshaver_cpu::handle_interrupt(void)
 	if (InterruptFlags == 0)
 		return;
 
+	// Current interrupt nest level
+	static int interrupt_depth = 0;
+	++interrupt_depth;
+
 	// Disable MacOS stack sniffer
 	WriteMacInt32(0x110, 0);
 
@@ -1116,7 +1120,7 @@ void sheepshaver_cpu::handle_interrupt(void)
 	case MODE_NATIVE:
 		// 68k emulator inactive, in nanokernel?
 		assert(current_cpu == main_cpu);
-		if (gpr(1) != KernelDataAddr) {
+		if (gpr(1) != KernelDataAddr && interrupt_depth == 1) {
 			interrupt_context ctx(this, "PowerPC mode");
 
 			// Prepare for 68k interrupt level 1
@@ -1171,6 +1175,9 @@ void sheepshaver_cpu::handle_interrupt(void)
 		break;
 #endif
 	}
+
+	// We are done with this interrupt
+	--interrupt_depth;
 }
 
 static void get_resource(void);
