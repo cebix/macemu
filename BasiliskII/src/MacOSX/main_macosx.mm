@@ -21,7 +21,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#define PTHREADS
+#define PTHREADS	// Why is this here?
 #include "sysdeps.h"
 
 #ifdef HAVE_PTHREADS
@@ -108,6 +108,34 @@ static bool lm_area_mapped = false;	// Flag: Low Memory area mmap()ped
 
 
 /*
+ *  SIGSEGV handler
+ */
+
+static sigsegv_return_t sigsegv_handler(sigsegv_address_t fault_address,
+										sigsegv_address_t fault_instruction)
+{
+#if ENABLE_VOSF
+	// Handle screen fault
+	extern bool Screen_fault_handler(sigsegv_address_t, sigsegv_address_t);
+	if (Screen_fault_handler(fault_address, fault_instruction))
+		return SIGSEGV_RETURN_SUCCESS;
+#endif
+
+#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
+	// Ignore writes to ROM
+	if (((uintptr)fault_address - (uintptr)ROMBaseHost) < ROMSize)
+		return SIGSEGV_RETURN_SKIP_INSTRUCTION;
+
+	// Ignore all other faults, if requested
+	if (PrefsFindBool("ignoresegv"))
+		return SIGSEGV_RETURN_SKIP_INSTRUCTION;
+#endif
+
+	return SIGSEGV_RETURN_FAILURE;
+}
+
+
+/*
  *  Dump state when everything went wrong after a SEGV
  */
 
@@ -162,9 +190,6 @@ int main(int argc, char **argv)
 	printf(GetString(STR_ABOUT_TEXT1), VERSION_MAJOR, VERSION_MINOR);
 	printf(" %s\n", GetString(STR_ABOUT_TEXT2));
 
-	// Read preferences
-	PrefsInit(argc, argv);
-
 	// Parse command line arguments
 	for (int i=1; i<argc; i++) {
 		if (strcmp(argv[i], "--help") == 0) {
@@ -190,6 +215,9 @@ int main(int argc, char **argv)
 		}
 	}
 
+	// Read preferences
+	PrefsInit(argc, argv);
+
 	// Init system routines
 	SysInit();
 
@@ -214,11 +242,12 @@ bool InitEmulator (void)
 	char str[256];
 
 
-	// Register request to ignore all segmentation faults
-#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
-	if (PrefsFindBool("ignoresegv"))
-		sigsegv_set_ignore_state(0, ~(0UL), SIGSEGV_TRANSFER_LOAD | SIGSEGV_TRANSFER_STORE);
-#endif
+	// Install the handler for SIGSEGV
+	if (!sigsegv_install_handler(sigsegv_handler)) {
+		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGSEGV", strerror(errno));
+		ErrorAlert(str);
+		QuitEmulator();
+	}
 
 	// Register dump state function when we got mad after a segfault
 	sigsegv_set_dump_state(sigsegv_dump_state);
@@ -243,7 +272,7 @@ bool InitEmulator (void)
 	
 	// Under Solaris/SPARC and NetBSD/m68k, Basilisk II is known to crash
 	// when trying to map a too big chunk of memory starting at address 0
-#if defined(OS_solaris) || defined(OS_netbsd)
+#if defined(OS_solaris) || defined(OS_netbsd) || defined(PAGEZERO_HACK)
 	const bool can_map_all_memory = false;
 #else
 	const bool can_map_all_memory = true;
@@ -254,7 +283,8 @@ bool InitEmulator (void)
 		D(bug("Could allocate RAM and ROM from 0x0000\n"));
 		memory_mapped_from_zero = true;
 	}
-	
+
+#ifndef PAGEZERO_HACK
 	// Otherwise, just create the Low Memory area (0x0000..0x2000)
 	else if (vm_acquire_fixed(0, 0x2000) == 0) {
 		D(bug("Could allocate the Low Memory globals\n"));
@@ -267,9 +297,10 @@ bool InitEmulator (void)
 		ErrorAlert(str);
 		QuitEmulator();
 	}
+#endif
 #else
 	*str = 0;		// Eliminate unused variable warning
-#endif
+#endif /* REAL_ADDRESSING */
 
 	// Create areas for Mac RAM and ROM
 #if REAL_ADDRESSING
@@ -459,8 +490,28 @@ static void sigint_handler(...)
 #ifdef HAVE_PTHREADS
 
 struct B2_mutex {
-	B2_mutex() { pthread_mutex_init(&m, NULL); }
-	~B2_mutex() { pthread_mutex_unlock(&m); pthread_mutex_destroy(&m); }
+	B2_mutex() {
+		pthread_mutexattr_t attr;
+		pthread_mutexattr_init(&attr);
+		// Initialize the mutex for priority inheritance --
+		// required for accurate timing.
+#ifdef HAVE_PTHREAD_MUTEXATTR_SETPROTOCOL
+		pthread_mutexattr_setprotocol(&attr, PTHREAD_PRIO_INHERIT);
+#endif
+#if defined(HAVE_PTHREAD_MUTEXATTR_SETTYPE) && defined(PTHREAD_MUTEX_NORMAL)
+		pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);
+#endif
+#ifdef HAVE_PTHREAD_MUTEXATTR_SETPSHARED
+		pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_PRIVATE);
+#endif
+		pthread_mutex_init(&m, &attr);
+		pthread_mutexattr_destroy(&attr);
+	}
+	~B2_mutex() {
+		pthread_mutex_trylock(&m);	// Make sure it's locked before
+		pthread_mutex_unlock(&m);	// unlocking it.
+		pthread_mutex_destroy(&m);
+	}
 	pthread_mutex_t m;
 };
 
@@ -543,9 +594,10 @@ void ErrorAlert(const char *text)
 	NSString *error  = [NSString stringWithCString: text];
 	NSString *button = [NSString stringWithCString: GetString(STR_QUIT_BUTTON) ];
 
-//	If we have a full screen mode, quit it here?
-
 	NSLog(error);
+	if ( PrefsFindBool("nogui") )
+		return;
+	VideoQuitFullScreen();
 	NSRunCriticalAlertPanel(title, error, button, nil, nil);
 }
 
@@ -562,6 +614,9 @@ void WarningAlert(const char *text)
 	NSString *button  = [NSString stringWithCString: GetString(STR_OK_BUTTON) ];
 
 	NSLog(warning);
+	if ( PrefsFindBool("nogui") )
+		return;
+	VideoQuitFullScreen();
 	NSRunAlertPanel(title, warning, button, nil, nil);
 }
 
@@ -578,6 +633,5 @@ bool ChoiceAlert(const char *text, const char *pos, const char *neg)
 	NSString *yes	  = [NSString stringWithCString: pos];
 	NSString *no	  = [NSString stringWithCString: neg];
 
-	NSLog(warning);
 	return NSRunInformationalAlertPanel(title, warning, yes, no, nil);
 }
