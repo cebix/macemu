@@ -413,7 +413,7 @@ static void add_mode(int type, int width, int height, int resolution_id, int byt
 	VIDEO_MODE_Y = height;
 	VIDEO_MODE_RESOLUTION = resolution_id;
 	VIDEO_MODE_ROW_BYTES = bytes_per_row;
-	VIDEO_MODE_DEPTH = depth;
+	VIDEO_MODE_DEPTH = (video_depth)depth;
 	VideoModes.push_back(mode);
 }
 
@@ -587,7 +587,7 @@ void driver_base::update_palette(void)
 {
 	const VIDEO_MODE &mode = monitor.get_current_mode();
 
-	if (VIDEO_MODE_DEPTH <= VIDEO_DEPTH_8BIT)
+	if ((int)VIDEO_MODE_DEPTH <= VIDEO_DEPTH_8BIT)
 		SDL_SetPalette(s, SDL_PHYSPAL, sdl_palette, 0, 256);
 }
 
@@ -618,7 +618,7 @@ driver_window::driver_window(SDL_monitor_desc &m)
 	ADBSetRelMouseMode(mouse_grabbed);
 
 	// Create surface
-	int depth = (VIDEO_MODE_DEPTH <= VIDEO_DEPTH_8BIT ? 8 : screen_depth);
+	int depth = ((int)VIDEO_MODE_DEPTH <= VIDEO_DEPTH_8BIT ? 8 : screen_depth);
 	if ((s = SDL_SetVideoMode(width, height, depth, SDL_HWSURFACE)) == NULL)
 		return;
 
@@ -1147,7 +1147,7 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 	const VIDEO_MODE &mode = get_current_mode();
 
 	// FIXME: how can we handle the gamma ramp?
-	if (VIDEO_MODE_DEPTH > VIDEO_DEPTH_8BIT)
+	if ((int)VIDEO_MODE_DEPTH > VIDEO_DEPTH_8BIT)
 		return;
 
 	LOCK_PALETTE;
@@ -1962,7 +1962,7 @@ static void update_display_static(driver_window *drv)
 
 	// Check for first column from left and first column from right that have changed
 	if (high) {
-		if (VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
+		if ((int)VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
 			const int src_bytes_per_row = bytes_per_row;
 			const int dst_bytes_per_row = drv->s->pitch;
 			const int pixels_per_byte = VIDEO_MODE_X / src_bytes_per_row;

@@ -69,7 +69,7 @@ enum {
 #define VIDEO_MODE_X			mode.x
 #define VIDEO_MODE_Y			mode.y
 #define VIDEO_MODE_RESOLUTION	mode.resolution_id
-#define VIDEO_MODE_DEPTH		(int)mode.depth
+#define VIDEO_MODE_DEPTH		mode.depth
 #endif
 
 #endif /* VIDEO_BLIT_H */

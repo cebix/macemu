@@ -390,7 +390,7 @@ static inline void update_display_window_vosf(VIDEO_DRV_INIT)
 
 		VIDEO_DRV_LOCK_PIXELS;
 
-		if (VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
+		if ((int)VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
 
 			// Update the_host_buffer and copy of the_buffer
 			const int src_bytes_per_row = VIDEO_MODE_ROW_BYTES;
