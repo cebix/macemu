@@ -27,6 +27,7 @@
 #include "macos_util.h"
 #include "block-alloc.hpp"
 #include "sigsegv.h"
+#include "spcflags.h"
 #include "cpu/ppc/ppc-cpu.hpp"
 #include "cpu/ppc/ppc-operations.hpp"
 
@@ -53,6 +54,9 @@ static void enter_mon(void)
 	mon(3, arg);
 #endif
 }
+
+// Enable multicore (main/interrupts) cpu emulation?
+#define MULTICORE_CPU 0
 
 // Enable Execute68k() safety checks?
 #define SAFE_EXEC_68K 1
@@ -99,10 +103,6 @@ public:
 		: powerpc_cpu()
 		{ init_decoder(); }
 
-	// Stack pointer accessors
-	uint32 get_sp() const		{ return gpr(1); }
-	void set_sp(uint32 v)		{ gpr(1) = v; }
-
 	// Condition Register accessors
 	uint32 get_cr() const		{ return cr().get(); }
 	void set_cr(uint32 v)		{ cr().set(v); }
@@ -113,6 +113,9 @@ public:
 	// Execute 68k routine
 	void execute_68k(uint32 entry, M68kRegisters *r);
 
+	// Execute ppc routine
+	void execute_ppc(uint32 entry);
+
 	// Execute MacOS/PPC code
 	uint32 execute_macos_code(uint32 tvect, int nargs, uint32 const *args);
 
@@ -120,7 +123,10 @@ public:
 	void get_resource(uint32 old_get_resource);
 
 	// Handle MacOS interrupt
-	void interrupt(uint32 entry, uint32 sp);
+	void interrupt(uint32 entry, sheepshaver_cpu *cpu);
+
+	// spcflags for interrupts handling
+	static uint32 spcflags;
 
 	// Lazy memory allocator (one item at a time)
 	void *operator new(size_t size)
@@ -132,6 +138,7 @@ public:
 	void operator delete[](void *p);
 };
 
+uint32 sheepshaver_cpu::spcflags = 0;
 lazy_allocator< sheepshaver_cpu > allocator_helper< sheepshaver_cpu, lazy_allocator >::allocator;
 
 void sheepshaver_cpu::init_decoder()
@@ -163,6 +170,17 @@ void sheepshaver_cpu::init_decoder()
 // Forward declaration for native opcode handler
 static void NativeOp(int selector);
 
+/*		NativeOp instruction format:
+		+------------+--------------------------+--+----------+------------+
+		|      6     |                          |FN|    OP    |      2     |
+		+------------+--------------------------+--+----------+------------+
+		 0         5 |6                       19 20 21      25 26        31
+*/
+
+typedef bit_field< 20, 20 > FN_field;
+typedef bit_field< 21, 25 > NATIVE_OP_field;
+typedef bit_field< 26, 31 > EMUL_OP_field;
+
 // Execute SheepShaver instruction
 void sheepshaver_cpu::execute_sheep(uint32 opcode)
 {
@@ -179,8 +197,11 @@ void sheepshaver_cpu::execute_sheep(uint32 opcode)
 		break;
 
 	case 2:		// EXEC_NATIVE
-		NativeOp((opcode >> 6) & 0x1f);
-		pc() = lr();
+		NativeOp(NATIVE_OP_field::extract(opcode));
+		if (FN_field::test(opcode))
+			pc() = lr();
+		else
+			pc() += 4;
 		break;
 
 	default: {	// EMUL_OP
@@ -192,7 +213,7 @@ void sheepshaver_cpu::execute_sheep(uint32 opcode)
 		for (int i = 0; i < 7; i++)
 			r68.a[i] = gpr(16 + i);
 		r68.a[7] = gpr(1);
-		EmulOp(&r68, gpr(24), (opcode & 0x3f) - 3);
+		EmulOp(&r68, gpr(24), EMUL_OP_field::extract(opcode) - 3);
 		for (int i = 0; i < 8; i++)
 			gpr(8 + i) = r68.d[i];
 		for (int i = 0; i < 7; i++)
@@ -205,12 +226,38 @@ void sheepshaver_cpu::execute_sheep(uint32 opcode)
 	}
 }
 
+// Checks for pending interrupts
+struct execute_nothing {
+	static inline void execute(powerpc_cpu *) { }
+};
+
+static void HandleInterrupt(void);
+
+struct execute_spcflags_check {
+	static inline void execute(powerpc_cpu *cpu) {
+		if (SPCFLAGS_TEST(SPCFLAG_ALL_BUT_EXEC_RETURN)) {
+			if (SPCFLAGS_TEST( SPCFLAG_ENTER_MON )) {
+				SPCFLAGS_CLEAR( SPCFLAG_ENTER_MON );
+				enter_mon();
+			}
+			if (SPCFLAGS_TEST( SPCFLAG_DOINT )) {
+				SPCFLAGS_CLEAR( SPCFLAG_DOINT );
+				HandleInterrupt();
+			}
+			if (SPCFLAGS_TEST( SPCFLAG_INT )) {
+				SPCFLAGS_CLEAR( SPCFLAG_INT );
+				SPCFLAGS_SET( SPCFLAG_DOINT );
+			}
+		}
+	}
+};
+
 // Execution loop
 void sheepshaver_cpu::execute(uint32 entry)
 {
 	try {
 		pc() = entry;
-		powerpc_cpu::execute();
+		powerpc_cpu::do_execute<execute_nothing, execute_spcflags_check>();
 	}
 	catch (sheepshaver_exec_return const &) {
 		// Nothing, simply return
@@ -222,10 +269,20 @@ void sheepshaver_cpu::execute(uint32 entry)
 }
 
 // Handle MacOS interrupt
-void sheepshaver_cpu::interrupt(uint32 entry, uint32 sp)
+void sheepshaver_cpu::interrupt(uint32 entry, sheepshaver_cpu *cpu)
 {
+#if MULTICORE_CPU
+	// Initialize stack pointer from previous CPU running
+	gpr(1) = cpu->gpr(1);
+#else
+	// Save program counters and branch registers
+	uint32 saved_pc = pc();
+	uint32 saved_lr = lr();
+	uint32 saved_ctr= ctr();
+#endif
+
 	// Create stack frame
-	gpr(1) = sp - 64;
+	gpr(1) -= 64;
 
 	// Build trampoline to return from interrupt
 	uint32 trampoline[] = { POWERPC_EMUL_OP | 1 };
@@ -235,6 +292,7 @@ void sheepshaver_cpu::interrupt(uint32 entry, uint32 sp)
 	kernel_data->v[0x018 >> 2] = gpr(6);
 
 	gpr(6) = kernel_data->v[0x65c >> 2];
+	assert(gpr(6) != 0);
 	WriteMacInt32(gpr(6) + 0x13c, gpr(7));
 	WriteMacInt32(gpr(6) + 0x144, gpr(8));
 	WriteMacInt32(gpr(6) + 0x14c, gpr(9));
@@ -263,6 +321,13 @@ void sheepshaver_cpu::interrupt(uint32 entry, uint32 sp)
 
 	// Cleanup stack
 	gpr(1) += 64;
+
+#if !MULTICORE_CPU
+	// Restore program counters and branch registers
+	pc() = saved_pc;
+	lr() = saved_lr;
+	ctr()= saved_ctr;
+#endif
 }
 
 // Execute 68k routine
@@ -290,8 +355,7 @@ void sheepshaver_cpu::execute_68k(uint32 entry, M68kRegisters *r)
 #endif
 
 	// Setup registers for 68k emulator
-	cr().set(0);
-	cr().set(2, 1);								// Supervisor mode
+	cr().set(CR_SO_field<2>::mask());			// Supervisor mode
 	for (int i = 0; i < 8; i++)					// d[0]..d[7]
 	  gpr(8 + i) = r->d[i];
 	for (int i = 0; i < 7; i++)					// a[0]..a[6]
@@ -392,11 +456,45 @@ uint32 sheepshaver_cpu::execute_macos_code(uint32 tvect, int nargs, uint32 const
 	return retval;
 }
 
+// Execute ppc routine
+inline void sheepshaver_cpu::execute_ppc(uint32 entry)
+{
+	// Save branch registers
+	uint32 saved_lr = lr();
+	uint32 saved_ctr= ctr();
+
+	const uint32 trampoline[] = { POWERPC_EMUL_OP | 1 };
+
+	lr() = (uint32)trampoline;
+	ctr()= entry;
+	execute(entry);
+
+	// Restore branch registers
+	lr() = saved_lr;
+	ctr()= saved_ctr;
+}
+
 // Resource Manager thunk
+extern "C" void check_load_invoc(uint32 type, int16 id, uint16 **h);
+
 inline void sheepshaver_cpu::get_resource(uint32 old_get_resource)
 {
-	printf("ERROR: get_resource() unimplemented\n");
-	QuitEmulator();
+	uint32 type = gpr(3);
+	int16 id = gpr(4);
+
+	// Create stack frame
+	gpr(1) -= 56;
+
+	// Call old routine
+	execute_ppc(old_get_resource);
+	uint16 **handle = (uint16 **)gpr(3);
+
+	// Call CheckLoad()
+	check_load_invoc(type, id, handle);
+	gpr(3) = (uint32)handle;
+
+	// Cleanup stack
+	gpr(1) += 56;
 }
 
 
@@ -407,6 +505,20 @@ inline void sheepshaver_cpu::get_resource(uint32 old_get_resource)
 static sheepshaver_cpu *main_cpu = NULL;		// CPU emulator to handle usual control flow
 static sheepshaver_cpu *interrupt_cpu = NULL;	// CPU emulator to handle interrupts
 static sheepshaver_cpu *current_cpu = NULL;		// Current CPU emulator context
+
+static inline void cpu_push(sheepshaver_cpu *new_cpu)
+{
+#if MULTICORE_CPU
+	current_cpu = new_cpu;
+#endif
+}
+
+static inline void cpu_pop()
+{
+#if MULTICORE_CPU
+	current_cpu = main_cpu;
+#endif
+}
 
 // Dump PPC registers
 static void dump_registers(void)
@@ -463,7 +575,6 @@ static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 	interrupt_cpu->dump_registers();
 #endif
 	current_cpu->dump_log();
-	WriteMacInt32(XLM_IRQ_NEST, 1);
 	enter_mon();
 	QuitEmulator();
 }
@@ -475,8 +586,10 @@ void init_emul_ppc(void)
 	main_cpu->set_register(powerpc_registers::GPR(3), any_register((uint32)ROM_BASE + 0x30d000));
 	WriteMacInt32(XLM_RUN_MODE, MODE_68K);
 
+#if MULTICORE_CPU
 	// Initialize alternate CPU emulator to handle interrupts
 	interrupt_cpu = new sheepshaver_cpu();
+#endif
 
 	// Install SIGSEGV handler
 	sigemptyset(&sigsegv_action.sa_mask);
@@ -512,14 +625,23 @@ extern int atomic_add(int *var, int v);
 extern int atomic_and(int *var, int v);
 extern int atomic_or(int *var, int v);
 
-void HandleInterrupt(void)
+void TriggerInterrupt(void)
+{
+#if 0
+  WriteMacInt32(0x16a, ReadMacInt32(0x16a) + 1);
+#else
+  SPCFLAGS_SET( SPCFLAG_INT );
+#endif
+}
+
+static void HandleInterrupt(void)
 {
 	// Do nothing if interrupts are disabled
-	if (ReadMacInt32(XLM_IRQ_NEST) > 0 || InterruptFlags == 0)
+	if (int32(ReadMacInt32(XLM_IRQ_NEST)) > 0)
 		return;
 
-	// Do nothing if CPU objects are not initialized yet
-	if (current_cpu == NULL)
+	// Do nothing if there is no interrupt pending
+	if (InterruptFlags == 0)
 		return;
 
 	// Disable MacOS stack sniffer
@@ -546,13 +668,13 @@ void HandleInterrupt(void)
 						  | tswap32(kernel_data->v[0x674 >> 2]));
       
 			// Execute nanokernel interrupt routine (this will activate the 68k emulator)
-			atomic_add((int32 *)XLM_IRQ_NEST, htonl(1));
-			current_cpu = interrupt_cpu;
+			DisableInterrupt();
+			cpu_push(interrupt_cpu);
 			if (ROMType == ROMTYPE_NEWWORLD)
-				current_cpu->interrupt(ROM_BASE + 0x312b1c, main_cpu->get_sp());
+				current_cpu->interrupt(ROM_BASE + 0x312b1c, main_cpu);
 			else
-				current_cpu->interrupt(ROM_BASE + 0x312a3c, main_cpu->get_sp());
-			current_cpu = main_cpu;
+				current_cpu->interrupt(ROM_BASE + 0x312a3c, main_cpu);
+			cpu_pop();
 		}
 		break;
 #endif
@@ -566,13 +688,13 @@ void HandleInterrupt(void)
 			M68kRegisters r;
 			uint32 old_r25 = ReadMacInt32(XLM_68K_R25);	// Save interrupt level
 			WriteMacInt32(XLM_68K_R25, 0x21);			// Execute with interrupt level 1
-			static const uint16 proc[] = {
-				0x3f3c, 0x0000,		// move.w	#$0000,-(sp)	(fake format word)
-				0x487a, 0x000a,		// pea		@1(pc)			(return address)
-				0x40e7,				// move		sr,-(sp)		(saved SR)
-				0x2078, 0x0064,		// move.l	$64,a0
-				0x4ed0,				// jmp		(a0)
-				M68K_RTS			// @1
+			static const uint8 proc[] = {
+				0x3f, 0x3c, 0x00, 0x00,			// move.w	#$0000,-(sp)	(fake format word)
+				0x48, 0x7a, 0x00, 0x0a,			// pea		@1(pc)			(return address)
+				0x40, 0xe7,						// move		sr,-(sp)		(saved SR)
+				0x20, 0x78, 0x00, 0x064,		// move.l	$64,a0
+				0x4e, 0xd0,						// jmp		(a0)
+				M68K_RTS >> 8, M68K_RTS & 0xff	// @1
 			};
 			Execute68k((uint32)proc, &r);
 			WriteMacInt32(XLM_68K_R25, old_r25);		// Restore interrupt level
@@ -596,34 +718,36 @@ void HandleInterrupt(void)
  *  Execute NATIVE_OP opcode (called by PowerPC emulator)
  */
 
-#define POWERPC_NATIVE_OP(selector) \
-		{ tswap32(POWERPC_EMUL_OP | 2 | (((uint32)selector) << 6)) }
+#define POWERPC_NATIVE_OP_INIT(LR, OP) \
+		tswap32(POWERPC_EMUL_OP | ((LR) << 11) | (((uint32)OP) << 6) | 2)
 
 // FIXME: Make sure 32-bit relocations are used
 const uint32 NativeOpTable[NATIVE_OP_MAX] = {
-	POWERPC_NATIVE_OP(NATIVE_PATCH_NAME_REGISTRY),
-	POWERPC_NATIVE_OP(NATIVE_VIDEO_INSTALL_ACCEL),
-	POWERPC_NATIVE_OP(NATIVE_VIDEO_VBL),
-	POWERPC_NATIVE_OP(NATIVE_VIDEO_DO_DRIVER_IO),
-	POWERPC_NATIVE_OP(NATIVE_ETHER_IRQ),
-	POWERPC_NATIVE_OP(NATIVE_ETHER_INIT),
-	POWERPC_NATIVE_OP(NATIVE_ETHER_TERM),
-	POWERPC_NATIVE_OP(NATIVE_ETHER_OPEN),
-	POWERPC_NATIVE_OP(NATIVE_ETHER_CLOSE),
-	POWERPC_NATIVE_OP(NATIVE_ETHER_WPUT),
-	POWERPC_NATIVE_OP(NATIVE_ETHER_RSRV),
-	POWERPC_NATIVE_OP(NATIVE_SERIAL_NOTHING),
-	POWERPC_NATIVE_OP(NATIVE_SERIAL_OPEN),
-	POWERPC_NATIVE_OP(NATIVE_SERIAL_PRIME_IN),
-	POWERPC_NATIVE_OP(NATIVE_SERIAL_PRIME_OUT),
-	POWERPC_NATIVE_OP(NATIVE_SERIAL_CONTROL),
-	POWERPC_NATIVE_OP(NATIVE_SERIAL_STATUS),
-	POWERPC_NATIVE_OP(NATIVE_SERIAL_CLOSE),
-	POWERPC_NATIVE_OP(NATIVE_GET_RESOURCE),
-	POWERPC_NATIVE_OP(NATIVE_GET_1_RESOURCE),
-	POWERPC_NATIVE_OP(NATIVE_GET_IND_RESOURCE),
-	POWERPC_NATIVE_OP(NATIVE_GET_1_IND_RESOURCE),
-	POWERPC_NATIVE_OP(NATIVE_R_GET_RESOURCE),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_PATCH_NAME_REGISTRY),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_VIDEO_INSTALL_ACCEL),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_VIDEO_VBL),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_VIDEO_DO_DRIVER_IO),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_ETHER_IRQ),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_ETHER_INIT),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_ETHER_TERM),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_ETHER_OPEN),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_ETHER_CLOSE),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_ETHER_WPUT),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_ETHER_RSRV),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_SERIAL_NOTHING),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_SERIAL_OPEN),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_SERIAL_PRIME_IN),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_SERIAL_PRIME_OUT),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_SERIAL_CONTROL),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_SERIAL_STATUS),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_SERIAL_CLOSE),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_GET_RESOURCE),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_GET_1_RESOURCE),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_GET_IND_RESOURCE),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_GET_1_IND_RESOURCE),
+	POWERPC_NATIVE_OP_INIT(1, NATIVE_R_GET_RESOURCE),
+	POWERPC_NATIVE_OP_INIT(0, NATIVE_DISABLE_INTERRUPT),
+	POWERPC_NATIVE_OP_INIT(0, NATIVE_ENABLE_INTERRUPT),
 };
 
 static void get_resource(void);
@@ -685,6 +809,12 @@ static void NativeOp(int selector)
 		GPR(3) = serial_callbacks[selector - NATIVE_SERIAL_NOTHING](GPR(3), GPR(4));
 		break;
 	}
+	case NATIVE_DISABLE_INTERRUPT:
+		DisableInterrupt();
+		break;
+	case NATIVE_ENABLE_INTERRUPT:
+		EnableInterrupt();
+		break;
 	default:
 		printf("FATAL: NATIVE_OP called with bogus selector %d\n", selector);
 		QuitEmulator();
@@ -807,8 +937,6 @@ int atomic_or(int *var, int v)
 /*
  *  Resource Manager thunks
  */
-
-extern "C" void check_load_invoc(uint32 type, int16 id, uint16 **h);
 
 void get_resource(void)
 {

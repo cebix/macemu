@@ -1079,9 +1079,13 @@ static bool patch_68k_emul(void)
 	// Extra routine for 68k emulator start
 	lp = (uint32 *)(ROM_BASE + 0x36f900);
 	*lp++ = htonl(0x7c2903a6);					// mtctr	r1
+#if EMULATED_PPC
+	*lp++ = POWERPC_NATIVE_OP(NATIVE_DISABLE_INTERRUPT);
+#else
 	*lp++ = htonl(0x80200000 + XLM_IRQ_NEST);	// lwz		r1,XLM_IRQ_NEST
 	*lp++ = htonl(0x38210001);					// addi		r1,r1,1
 	*lp++ = htonl(0x90200000 + XLM_IRQ_NEST);	// stw		r1,XLM_IRQ_NEST
+#endif
 	*lp++ = htonl(0x80200000 + XLM_KERNEL_DATA);// lwz		r1,XLM_KERNEL_DATA
 	*lp++ = htonl(0x90c10018);					// stw		r6,0x18(r1)
 	*lp++ = htonl(0x7cc902a6);					// mfctr	r6
@@ -1109,9 +1113,13 @@ static bool patch_68k_emul(void)
 	// Extra routine for Mixed Mode
 	lp = (uint32 *)(ROM_BASE + 0x36fa00);
 	*lp++ = htonl(0x7c2903a6);					// mtctr	r1
+#if EMULATED_PPC
+	*lp++ = POWERPC_NATIVE_OP(NATIVE_DISABLE_INTERRUPT);
+#else
 	*lp++ = htonl(0x80200000 + XLM_IRQ_NEST);	// lwz		r1,XLM_IRQ_NEST
 	*lp++ = htonl(0x38210001);					// addi		r1,r1,1
 	*lp++ = htonl(0x90200000 + XLM_IRQ_NEST);	// stw		r1,XLM_IRQ_NEST
+#endif
 	*lp++ = htonl(0x80200000 + XLM_KERNEL_DATA);// lwz		r1,XLM_KERNEL_DATA
 	*lp++ = htonl(0x90c10018);					// stw		r6,0x18(r1)
 	*lp++ = htonl(0x7cc902a6);					// mfctr	r6
@@ -1139,9 +1147,13 @@ static bool patch_68k_emul(void)
 	// Extra routine for Reset/FC1E opcode
 	lp = (uint32 *)(ROM_BASE + 0x36fb00);
 	*lp++ = htonl(0x7c2903a6);					// mtctr	r1
+#if EMULATED_PPC
+	*lp++ = POWERPC_NATIVE_OP(NATIVE_DISABLE_INTERRUPT);
+#else
 	*lp++ = htonl(0x80200000 + XLM_IRQ_NEST);	// lwz		r1,XLM_IRQ_NEST
 	*lp++ = htonl(0x38210001);					// addi		r1,r1,1
 	*lp++ = htonl(0x90200000 + XLM_IRQ_NEST);	// stw		r1,XLM_IRQ_NEST
+#endif
 	*lp++ = htonl(0x80200000 + XLM_KERNEL_DATA);// lwz		r1,XLM_KERNEL_DATA
 	*lp++ = htonl(0x90c10018);					// stw		r6,0x18(r1)
 	*lp++ = htonl(0x7cc902a6);					// mfctr	r6
@@ -1169,9 +1181,13 @@ static bool patch_68k_emul(void)
 	// Extra routine for FE0A opcode (QuickDraw 3D needs this)
 	lp = (uint32 *)(ROM_BASE + 0x36fc00);
 	*lp++ = htonl(0x7c2903a6);					// mtctr	r1
+#if EMULATED_PPC
+	*lp++ = POWERPC_NATIVE_OP(NATIVE_DISABLE_INTERRUPT);
+#else
 	*lp++ = htonl(0x80200000 + XLM_IRQ_NEST);	// lwz		r1,XLM_IRQ_NEST
 	*lp++ = htonl(0x38210001);					// addi		r1,r1,1
 	*lp++ = htonl(0x90200000 + XLM_IRQ_NEST);	// stw		r1,XLM_IRQ_NEST
+#endif
 	*lp++ = htonl(0x80200000 + XLM_KERNEL_DATA);// lwz		r1,XLM_KERNEL_DATA
 	*lp++ = htonl(0x90c10018);					// stw		r6,0x18(r1)
 	*lp++ = htonl(0x7cc902a6);					// mfctr	r6
@@ -1306,10 +1322,16 @@ static bool patch_nanokernel(void)
 	*lp = htonl(POWERPC_BCTR);
 
 	lp = (uint32 *)(ROM_BASE + 0x318000);
+#if EMULATED_PPC
+	*lp++ = POWERPC_NATIVE_OP(NATIVE_ENABLE_INTERRUPT);
+	*lp = htonl(0x48000000 + ((xlp - 0x8004) & 0x03fffffc));	// b		ROM_BASE+0x312c2c
+#else
 	*lp++ = htonl(0x81400000 + XLM_IRQ_NEST);	// lwz	r10,XLM_IRQ_NEST
 	*lp++ = htonl(0x394affff);					// subi	r10,r10,1
 	*lp++ = htonl(0x91400000 + XLM_IRQ_NEST);	// stw	r10,XLM_IRQ_NEST
 	*lp = htonl(0x48000000 + ((xlp - 0x800c) & 0x03fffffc));	// b		ROM_BASE+0x312c2c
+#endif
+
 /*
 	// Disable FE0A/FE06 opcodes
 	lp = (uint32 *)(ROM_BASE + 0x3144ac);
@@ -2151,12 +2173,6 @@ void InstallDrivers(void)
 	M68kRegisters r;
 	uint8 pb[SIZEOF_IOParam];
 
-#if DISABLE_SCSI && 0
-	// Fake SCSIGlobals
-	static const uint8 fake_scsi_globals[32] = {0,};
-	WriteMacInt32(0xc0c, (uint32)fake_scsi_globals);
-#endif
-
 	// Install floppy driver
 	if (ROMType == ROMTYPE_NEWWORLD) {
 
@@ -2170,6 +2186,12 @@ void InstallDrivers(void)
 		WriteMacInt32(dce + dCtlDriver, ROM_BASE + sony_offset);
 		WriteMacInt16(dce + dCtlFlags, SonyDriverFlags);
 	}
+
+#if DISABLE_SCSI && 0
+	// Fake SCSIGlobals
+	static const uint8 fake_scsi_globals[32] = {0,};
+	WriteMacInt32(0xc0c, (uint32)fake_scsi_globals);
+#endif
 
 	// Open .Sony driver
 	WriteMacInt8((uint32)pb + ioPermssn, 0);
