@@ -51,13 +51,6 @@
 #include "debug.h"
 
 
-#if __BEOS__
-#define PRECISE_TIMING 1
-#else
-#define PRECISE_TIMING 0
-#endif
-
-
 // TVector of MakeExecutable
 static uint32 MakeExecutableTvec;
 

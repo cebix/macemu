@@ -318,7 +318,7 @@ no:linux*)
   ;;
 *:*)
   AC_SEARCH_LIBS(clock_gettime, [rt posix4])
-  AC_CHECK_FUNCS(clock_gettime)
+  AC_CHECK_FUNCS(clock_gettime clock_nanosleep)
   ;;
 esac
 

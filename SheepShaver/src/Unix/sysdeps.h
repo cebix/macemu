@@ -410,6 +410,12 @@ typedef struct timespec tm_time_t;
 typedef struct timeval tm_time_t;
 #endif
 
+// High-precision timing
+#if defined(HAVE_PTHREADS) && defined(HAVE_CLOCK_NANOSLEEP)
+#define PRECISE_TIMING 1
+#define PRECISE_TIMING_POSIX 1
+#endif
+
 // Timing functions
 extern uint64 GetTicks_usec(void);
 extern void Delay_usec(uint32 usec);

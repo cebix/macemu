@@ -42,6 +42,10 @@
 #undef  WORDS_BIGENDIAN
 #endif
 
+// High precision timing
+#define PRECISE_TIMING 1
+#define PRECISE_TIMING_BEOS 1
+
 #define POWERPC_ROM 1
 
 // Time data type for Time Manager emulation
