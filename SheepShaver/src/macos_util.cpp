@@ -169,18 +169,18 @@ void *FindLibSymbol(char *lib_str, char *sym_str)
 		M68kRegisters r;
 	
 		// Find shared library
-		static const uint8 proc1[] = {
-			0x55, 0x8f,							// subq.l	#2,a7
-			0x2f, 0x08,							// move.l	a0,-(a7)
-			0x2f, 0x3c, 0x70, 0x77, 0x70, 0x63,	// move.l	#'pwpc',-(a7)
-			0x2f, 0x3c, 0x00, 0x00, 0x00, 0x01,	// move.l	#kReferenceCFrag,-(a7)
-			0x2f, 0x09,							// move.l	a1,-(a7)
-			0x2f, 0x0a,							// move.l	a2,-(a7)
-			0x2f, 0x0b,							// move.l	a3,-(a7)
-			0x3f, 0x3c, 0x00, 0x01,				// (GetSharedLibrary)
-			0xaa, 0x5a,							// CFMDispatch
-			0x30, 0x1f,							// move.w	(a7)+,d0
-			M68K_RTS >> 8, M68K_RTS & 0xff
+		static const uint16 proc1[] = {
+			PW(0x558f),							// subq.l	#2,a7
+			PW(0x2f08),							// move.l	a0,-(a7)
+			PW(0x2f3c), PW(0x7077), PW(0x7063),	// move.l	#'pwpc',-(a7)
+			PW(0x2f3c), PW(0x0000), PW(0x0001),	// move.l	#kReferenceCFrag,-(a7)
+			PW(0x2f09),							// move.l	a1,-(a7)
+			PW(0x2f0a),							// move.l	a2,-(a7)
+			PW(0x2f0b),							// move.l	a3,-(a7)
+			PW(0x3f3c), PW(0x0001),				// (GetSharedLibrary)
+			PW(0xaa5a),							// CFMDispatch
+			PW(0x301f),							// move.w	(a7)+,d0
+			PW(M68K_RTS)
 		};
 		r.a[0] = lib.addr();
 		r.a[1] = conn_id.addr();
@@ -192,16 +192,16 @@ void *FindLibSymbol(char *lib_str, char *sym_str)
 			return NULL;
 	
 		// Find symbol
-		static const uint8 proc2[] = {
-			0x55, 0x8f,					// subq.l	#2,a7
-			0x2f, 0x00,					// move.l	d0,-(a7)
-			0x2f, 0x08,					// move.l	a0,-(a7)
-			0x2f, 0x09,					// move.l	a1,-(a7)
-			0x2f, 0x0a,					// move.l	a2,-(a7)
-			0x3f, 0x3c, 0x00, 0x05,		// (FindSymbol)
-			0xaa, 0x5a,					// CFMDispatch
-			0x30, 0x1f,					// move.w	(a7)+,d0
-			M68K_RTS >> 8, M68K_RTS & 0xff
+		static const uint16 proc2[] = {
+			PW(0x558f),					// subq.l	#2,a7
+			PW(0x2f00),					// move.l	d0,-(a7)
+			PW(0x2f08),					// move.l	a0,-(a7)
+			PW(0x2f09),					// move.l	a1,-(a7)
+			PW(0x2f0a),					// move.l	a2,-(a7)
+			PW(0x3f3c), PW(0x0005),		// (FindSymbol)
+			PW(0xaa5a),					// CFMDispatch
+			PW(0x301f),					// move.w	(a7)+,d0
+			PW(M68K_RTS)
 		};
 		r.d[0] = conn_id.value();
 		r.a[0] = sym.addr();

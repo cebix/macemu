@@ -487,17 +487,17 @@ static void do_getscrap(void **handle, uint32 type, int32 offset)
 		}
 
 		// Add new data to clipboard
-		static uint8 proc[] = {
-			0x59, 0x8f,					// subq.l	#4,sp
-			0xa9, 0xfc,					// ZeroScrap()
-			0x2f, 0x3c, 0, 0, 0, 0,		// move.l	#length,-(sp)
-			0x2f, 0x3c, 0, 0, 0, 0,		// move.l	#type,-(sp)
-			0x2f, 0x3c, 0, 0, 0, 0,		// move.l	#outbuf,-(sp)
-			0xa9, 0xfe,					// PutScrap()
-			0x58, 0x8f,					// addq.l	#4,sp
-			M68K_RTS >> 8, M68K_RTS
+		static uint16 proc[] = {
+			PW(0x598f),					// subq.l	#4,sp
+			PW(0xa9fc),					// ZeroScrap()
+			PW(0x2f3c), 0, 0,			// move.l	#length,-(sp)
+			PW(0x2f3c), 0, 0,			// move.l	#type,-(sp)
+			PW(0x2f3c), 0, 0,			// move.l	#outbuf,-(sp)
+			PW(0xa9fe),					// PutScrap()
+			PW(0x588f),					// addq.l	#4,sp
+			PW(M68K_RTS)
 		};
-		uint32 proc_area = (uint32)proc; // FIXME: make sure 32-bit relocs are used
+		uint32 proc_area = (uint32)proc;
 		WriteMacInt32(proc_area +  6, data.size());
 		WriteMacInt32(proc_area + 12, type);
 		WriteMacInt32(proc_area + 18, scrap_area);

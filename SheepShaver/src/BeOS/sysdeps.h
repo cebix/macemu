@@ -35,8 +35,10 @@
 // Are we using a PPC emulator or the real thing?
 #ifdef __POWERPC__
 #define EMULATED_PPC 0
+#define WORDS_BIGENDIAN 1
 #else
 #define EMULATED_PPC 1
+#undef  WORDS_BIGENDIAN
 #endif
 
 #define POWERPC_ROM 1

@@ -267,10 +267,10 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 #endif
 
 			// Patch DebugStr()
-			static const uint8 proc[] = {
-				M68K_EMUL_OP_DEBUG_STR >> 8, M68K_EMUL_OP_DEBUG_STR & 0xff,
-				0x4e, 0x74,			// rtd	#4
-				0x00, 0x04
+			static const uint16 proc[] = {
+				PW(M68K_EMUL_OP_DEBUG_STR),
+				PW(0x4e74),			// rtd	#4
+				PW(0x0004)
 			};
 			WriteMacInt32(0x1dfc, (uint32)proc);
 			break;

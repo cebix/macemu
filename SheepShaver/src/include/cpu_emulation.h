@@ -90,6 +90,13 @@ static inline void *Mac2Mac_memcpy(uint32 dest, uint32 src, size_t n) {return me
  *  680x0 and PPC emulation
  */
 
+// 68k procedure helper to write a big endian 16-bit word
+#ifdef WORDS_BIGENDIAN
+#define PW(W) W
+#else
+#define PW(X) ((((X) >> 8) & 0xff) | (((X) & 0xff) << 8))
+#endif
+
 struct M68kRegisters;
 extern void Execute68k(uint32, M68kRegisters *r);			// Execute 68k subroutine from EMUL_OP routine, must be ended with RTS
 extern void Execute68kTrap(uint16 trap, M68kRegisters *r);	// Execute 68k A-Trap from EMUL_OP routine
