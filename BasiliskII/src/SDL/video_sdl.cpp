@@ -43,6 +43,7 @@
 #include <SDL_mutex.h>
 #include <SDL_thread.h>
 #include <errno.h>
+#include <vector>
 
 #include "cpu_emulation.h"
 #include "main.h"
@@ -51,6 +52,7 @@
 #include "prefs.h"
 #include "user_strings.h"
 #include "video.h"
+#include "video_defs.h"
 #include "video_blit.h"
 
 #define DEBUG 0
@@ -58,13 +60,23 @@
 
 
 // Supported video modes
-static vector<video_mode> VideoModes;
+using std::vector;
+static vector<VIDEO_MODE> VideoModes;
 
 // Display types
+#ifdef SHEEPSHAVER
 enum {
-	DISPLAY_WINDOW,	// windowed display
-	DISPLAY_SCREEN	// fullscreen display
+	DISPLAY_WINDOW = DIS_WINDOW,					// windowed display
+	DISPLAY_SCREEN = DIS_SCREEN						// fullscreen display
 };
+extern int display_type;							// See enum above
+#else
+enum {
+	DISPLAY_WINDOW,									// windowed display
+	DISPLAY_SCREEN									// fullscreen display
+};
+static int display_type = DISPLAY_WINDOW;			// See enum above
+#endif
 
 // Constants
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
@@ -75,7 +87,6 @@ static int32 frame_skip;							// Prefs items
 static int16 mouse_wheel_mode;
 static int16 mouse_wheel_lines;
 
-static int display_type = DISPLAY_WINDOW;			// See enum above
 static uint8 *the_buffer = NULL;					// Mac frame buffer (where MacOS draws into)
 static uint8 *the_buffer_copy = NULL;				// Copy of Mac frame buffer (for refreshed modes)
 static uint32 the_buffer_size;						// Size of allocated the_buffer
@@ -130,12 +141,130 @@ extern void SysMountFirstFloppy(void);
 
 
 /*
+ *  SheepShaver glue
+ */
+
+#ifdef SHEEPSHAVER
+// Color depth modes type
+typedef int video_depth;
+
+// 1, 2, 4 and 8 bit depths use a color palette
+static inline bool IsDirectMode(VIDEO_MODE const & mode)
+{
+	return IsDirectMode(mode.viAppleMode);
+}
+
+// Abstract base class representing one (possibly virtual) monitor
+// ("monitor" = rectangular display with a contiguous frame buffer)
+class monitor_desc {
+public:
+	monitor_desc(const vector<VIDEO_MODE> &available_modes, video_depth default_depth, uint32 default_id) {}
+	virtual ~monitor_desc() {}
+
+	// Get current Mac frame buffer base address
+	uint32 get_mac_frame_base(void) const {return screen_base;}
+
+	// Set Mac frame buffer base address (called from switch_to_mode())
+	void set_mac_frame_base(uint32 base) {screen_base = base;}
+
+	// Get current video mode
+	const VIDEO_MODE &get_current_mode(void) const {return VModes[cur_mode];}
+
+	// Called by the video driver to switch the video mode on this display
+	// (must call set_mac_frame_base())
+	virtual void switch_to_current_mode(void) = 0;
+
+	// Called by the video driver to set the color palette (in indexed modes)
+	// or the gamma table (in direct modes)
+	virtual void set_palette(uint8 *pal, int num) = 0;
+};
+
+// Vector of pointers to available monitor descriptions, filled by VideoInit()
+static vector<monitor_desc *> VideoMonitors;
+
+// Find Apple mode matching best specified dimensions
+static int find_apple_resolution(int xsize, int ysize)
+{
+	int apple_id;
+	if (xsize < 800)
+		apple_id = APPLE_640x480;
+	else if (xsize < 1024)
+		apple_id = APPLE_800x600;
+	else if (xsize < 1152)
+		apple_id = APPLE_1024x768;
+	else if (xsize < 1280) {
+		if (ysize < 900)
+			apple_id = APPLE_1152x768;
+		else
+			apple_id = APPLE_1152x900;
+	}
+	else if (xsize < 1600)
+		apple_id = APPLE_1280x1024;
+	else
+		apple_id = APPLE_1600x1200;
+	return apple_id;
+}
+
+// Set parameters to specified Apple mode
+static void set_apple_resolution(int apple_id, int &xsize, int &ysize)
+{
+	switch (apple_id) {
+	case APPLE_640x480:
+		xsize = 640;
+		ysize = 480;
+		break;
+	case APPLE_800x600:
+		xsize = 800;
+		ysize = 600;
+		break;
+	case APPLE_1024x768:
+		xsize = 1024;
+		ysize = 768;
+		break;
+	case APPLE_1152x768:
+		xsize = 1152;
+		ysize = 768;
+		break;
+	case APPLE_1152x900:
+		xsize = 1152;
+		ysize = 900;
+		break;
+	case APPLE_1280x1024:
+		xsize = 1280;
+		ysize = 1024;
+		break;
+	case APPLE_1600x1200:
+		xsize = 1600;
+		ysize = 1200;
+		break;
+	default:
+		abort();
+	}
+}
+
+// Match Apple mode matching best specified dimensions
+static int match_apple_resolution(int &xsize, int &ysize)
+{
+	int apple_id = find_apple_resolution(xsize, ysize);
+	set_apple_resolution(apple_id, xsize, ysize);
+	return apple_id;
+}
+
+// Display error alert
+static void ErrorAlert(int error)
+{
+	ErrorAlert(GetString(error));
+}
+#endif
+
+
+/*
  *  monitor_desc subclass for SDL display
  */
 
 class SDL_monitor_desc : public monitor_desc {
 public:
-	SDL_monitor_desc(const vector<video_mode> &available_modes, video_depth default_depth, uint32 default_id) : monitor_desc(available_modes, default_depth, default_id) {}
+	SDL_monitor_desc(const vector<VIDEO_MODE> &available_modes, video_depth default_depth, uint32 default_id) : monitor_desc(available_modes, default_depth, default_id) {}
 	~SDL_monitor_desc() {}
 
 	virtual void switch_to_current_mode(void);
@@ -150,27 +279,61 @@ public:
  *  Utility functions
  */
 
+// Find palette size for given color depth
+static int palette_size(int mode)
+{
+	switch (mode) {
+	case VIDEO_DEPTH_1BIT: return 2;
+	case VIDEO_DEPTH_2BIT: return 4;
+	case VIDEO_DEPTH_4BIT: return 16;
+	case VIDEO_DEPTH_8BIT: return 256;
+	case VIDEO_DEPTH_16BIT: return 32;
+	case VIDEO_DEPTH_32BIT: return 256;
+	default: return 0;
+	}
+}
+
+// Return bytes per pixel for requested depth
+static inline int bytes_per_pixel(int depth)
+{
+	int bpp;
+	switch (depth) {
+	case 8:
+		bpp = 1;
+		break;
+	case 15: case 16:
+		bpp = 2;
+		break;
+	case 24: case 32:
+		bpp = 4;
+		break;
+	default:
+		abort();
+	}
+	return bpp;
+}
+
 // Map video_mode depth ID to numerical depth value
 static int sdl_depth_of_video_depth(int video_depth)
 {
 	int depth = -1;
 	switch (video_depth) {
-	case VDEPTH_1BIT:
+	case VIDEO_DEPTH_1BIT:
 		depth = 1;
 		break;
-	case VDEPTH_2BIT:
+	case VIDEO_DEPTH_2BIT:
 		depth = 2;
 		break;
-	case VDEPTH_4BIT:
+	case VIDEO_DEPTH_4BIT:
 		depth = 4;
 		break;
-	case VDEPTH_8BIT:
+	case VIDEO_DEPTH_8BIT:
 		depth = 8;
 		break;
-	case VDEPTH_16BIT:
+	case VIDEO_DEPTH_16BIT:
 		depth = 16;
 		break;
-	case VDEPTH_32BIT:
+	case VIDEO_DEPTH_32BIT:
 		depth = 32;
 		break;
 	default:
@@ -180,37 +343,47 @@ static int sdl_depth_of_video_depth(int video_depth)
 }
 
 // Add mode to list of supported modes
-static void add_mode(uint32 width, uint32 height, uint32 resolution_id, uint32 bytes_per_row, video_depth depth)
+static void add_mode(int type, int width, int height, int resolution_id, int bytes_per_row, int depth)
 {
-	video_mode mode;
-	mode.x = width;
-	mode.y = height;
-	mode.resolution_id = resolution_id;
-	mode.bytes_per_row = bytes_per_row;
-	mode.depth = depth;
+	VIDEO_MODE mode;
+#ifdef SHEEPSHAVER
+	// Don't add 512x384 modes
+	if (width == 512 && height == 384)
+		return;
+
+	// Recalculate dimensions to fit Apple modes
+	resolution_id = match_apple_resolution(width, height);
+	mode.viType = type;
+#endif
+	VIDEO_MODE_X = width;
+	VIDEO_MODE_Y = height;
+	VIDEO_MODE_RESOLUTION = resolution_id;
+	VIDEO_MODE_ROW_BYTES = bytes_per_row;
+	VIDEO_MODE_DEPTH = depth;
 	VideoModes.push_back(mode);
 }
 
 // Add standard list of windowed modes for given color depth
-static void add_window_modes(video_depth depth)
+static void add_window_modes(int depth)
 {
-	add_mode(512, 384, 0x80, TrivialBytesPerRow(512, depth), depth);
-	add_mode(640, 480, 0x81, TrivialBytesPerRow(640, depth), depth);
-	add_mode(800, 600, 0x82, TrivialBytesPerRow(800, depth), depth);
-	add_mode(1024, 768, 0x83, TrivialBytesPerRow(1024, depth), depth);
-	add_mode(1152, 870, 0x84, TrivialBytesPerRow(1152, depth), depth);
-	add_mode(1280, 1024, 0x85, TrivialBytesPerRow(1280, depth), depth);
-	add_mode(1600, 1200, 0x86, TrivialBytesPerRow(1600, depth), depth);
+	video_depth vdepth = (video_depth)depth;
+	add_mode(DISPLAY_WINDOW, 512, 384, 0x80, TrivialBytesPerRow(512, vdepth), depth);
+	add_mode(DISPLAY_WINDOW, 640, 480, 0x81, TrivialBytesPerRow(640, vdepth), depth);
+	add_mode(DISPLAY_WINDOW, 800, 600, 0x82, TrivialBytesPerRow(800, vdepth), depth);
+	add_mode(DISPLAY_WINDOW, 1024, 768, 0x83, TrivialBytesPerRow(1024, vdepth), depth);
+	add_mode(DISPLAY_WINDOW, 1152, 870, 0x84, TrivialBytesPerRow(1152, vdepth), depth);
+	add_mode(DISPLAY_WINDOW, 1280, 1024, 0x85, TrivialBytesPerRow(1280, vdepth), depth);
+	add_mode(DISPLAY_WINDOW, 1600, 1200, 0x86, TrivialBytesPerRow(1600, vdepth), depth);
 }
 
 // Set Mac frame layout and base address (uses the_buffer/MacFrameBaseMac)
-static void set_mac_frame_buffer(SDL_monitor_desc &monitor, video_depth depth, bool native_byte_order)
+static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth, bool native_byte_order)
 {
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 	int layout = FLAYOUT_DIRECT;
-	if (depth == VDEPTH_16BIT)
+	if (depth == VIDEO_DEPTH_16BIT)
 		layout = (screen_depth == 15) ? FLAYOUT_HOST_555 : FLAYOUT_HOST_565;
-	else if (depth == VDEPTH_32BIT)
+	else if (depth == VIDEO_DEPTH_32BIT)
 		layout = (screen_depth == 24) ? FLAYOUT_HOST_888 : FLAYOUT_DIRECT;
 	if (native_byte_order)
 		MacFrameLayout = layout;
@@ -219,9 +392,9 @@ static void set_mac_frame_buffer(SDL_monitor_desc &monitor, video_depth depth, b
 	monitor.set_mac_frame_base(MacFrameBaseMac);
 
 	// Set variables used by UAE memory banking
-	const video_mode &mode = monitor.get_current_mode();
+	const VIDEO_MODE &mode = monitor.get_current_mode();
 	MacFrameBaseHost = the_buffer;
-	MacFrameSize = mode.bytes_per_row * mode.y;
+	MacFrameSize = VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y;
 	InitFrameBufferMapping();
 #else
 	monitor.set_mac_frame_base(Host2MacAddr(the_buffer));
@@ -270,7 +443,7 @@ public:
 
 public:
 	SDL_monitor_desc &monitor; // Associated video monitor
-	const video_mode &mode;    // Video mode handled by the driver
+	const VIDEO_MODE &mode;    // Video mode handled by the driver
 
 	bool init_ok;	// Initialization succeeded (we can't use exceptions because of -fomit-frame-pointer)
 	SDL_Surface *s;	// The surface we draw into
@@ -358,9 +531,9 @@ driver_base::~driver_base()
 // Palette has changed
 void driver_base::update_palette(void)
 {
-	const video_mode &mode = monitor.get_current_mode();
+	const VIDEO_MODE &mode = monitor.get_current_mode();
 
-	if (mode.depth <= VDEPTH_8BIT)
+	if (VIDEO_MODE_DEPTH <= VIDEO_DEPTH_8BIT)
 		SDL_SetPalette(s, SDL_PHYSPAL, sdl_palette, 0, 256);
 }
 
@@ -383,7 +556,7 @@ void driver_base::restore_mouse_accel(void)
 driver_window::driver_window(SDL_monitor_desc &m)
 	: driver_base(m), mouse_grabbed(false)
 {
-	int width = mode.x, height = mode.y;
+	int width = VIDEO_MODE_X, height = VIDEO_MODE_Y;
 	int aligned_width = (width + 15) & ~15;
 	int aligned_height = (height + 15) & ~15;
 
@@ -391,7 +564,7 @@ driver_window::driver_window(SDL_monitor_desc &m)
 	ADBSetRelMouseMode(mouse_grabbed);
 
 	// Create surface
-	int depth = (mode.depth <= VDEPTH_8BIT ? 8 : screen_depth);
+	int depth = (VIDEO_MODE_DEPTH <= VIDEO_DEPTH_8BIT ? 8 : screen_depth);
 	if ((s = SDL_SetVideoMode(width, height, depth, SDL_HWSURFACE)) == NULL)
 		return;
 
@@ -424,7 +597,7 @@ driver_window::driver_window(SDL_monitor_desc &m)
 	visualFormat.Rmask = f->Rmask;
 	visualFormat.Gmask = f->Gmask;
 	visualFormat.Bmask = f->Bmask;
-	Screen_blitter_init(visualFormat, true, sdl_depth_of_video_depth(mode.depth));
+	Screen_blitter_init(visualFormat, true, sdl_depth_of_video_depth(VIDEO_MODE_DEPTH));
 
 	// Load gray ramp to 8->16/32 expand map
 	if (!IsDirectMode(mode))
@@ -432,7 +605,7 @@ driver_window::driver_window(SDL_monitor_desc &m)
 			ExpandMap[i] = SDL_MapRGB(f, i, i, i);
 
 	// Set frame buffer base
-	set_mac_frame_buffer(monitor, mode.depth, true);
+	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
 
 	// Everything went well
 	init_ok = true;
@@ -574,7 +747,7 @@ static void keycode_init(void)
 bool SDL_monitor_desc::video_open(void)
 {
 	D(bug("video_open()\n"));
-	const video_mode &mode = get_current_mode();
+	const VIDEO_MODE &mode = get_current_mode();
 
 	// Create display driver object of requested type
 	switch (display_type) {
@@ -616,8 +789,14 @@ bool SDL_monitor_desc::video_open(void)
 	return true;
 }
 
+#ifdef SHEEPSHAVER
+bool VideoInit(void)
+{
+	const bool classic = false;
+#else
 bool VideoInit(bool classic)
 {
+#endif
 	classic_mode = classic;
 
 #ifdef ENABLE_VOSF
@@ -648,7 +827,15 @@ bool VideoInit(bool classic)
 		mode_str = PrefsFindString("screen");
 
 	// Determine display type and default dimensions
-	int default_width = 512, default_height = 384;
+	int default_width, default_height;
+	if (classic) {
+		default_width = 512;
+		default_height = 384;
+	}
+	else {
+		default_width = 640;
+		default_height = 480;
+	}
 	display_type = DISPLAY_WINDOW;
 	if (mode_str) {
 		if (sscanf(mode_str, "win/%d/%d", &default_width, &default_height) == 2)
@@ -669,35 +856,35 @@ bool VideoInit(bool classic)
 
 	// Mac screen depth follows X depth
 	screen_depth = SDL_GetVideoInfo()->vfmt->BitsPerPixel;
-	video_depth default_depth;
+	int default_depth;
 	switch (screen_depth) {
 	case 8:
-		default_depth = VDEPTH_8BIT;
+		default_depth = VIDEO_DEPTH_8BIT;
 		break;
 	case 15: case 16:
-		default_depth = VDEPTH_16BIT;
+		default_depth = VIDEO_DEPTH_16BIT;
 		break;
 	case 24: case 32:
-		default_depth = VDEPTH_32BIT;
+		default_depth = VIDEO_DEPTH_32BIT;
 		break;
 	default:
-		default_depth =  VDEPTH_1BIT;
+		default_depth =  VIDEO_DEPTH_1BIT;
 		break;
 	}
 
 	// Construct list of supported modes
 	if (display_type == DISPLAY_WINDOW) {
 		if (classic)
-			add_mode(512, 342, 0x80, 64, VDEPTH_1BIT);
+			add_mode(display_type, 512, 342, 0x80, 64, VIDEO_DEPTH_1BIT);
 		else {
-			for (int d = VDEPTH_1BIT; d <= default_depth; d++) {
-				int bpp = (d <= VDEPTH_8BIT ? 8 : sdl_depth_of_video_depth(d));
+			for (int d = VIDEO_DEPTH_1BIT; d <= default_depth; d++) {
+				int bpp = (d <= VIDEO_DEPTH_8BIT ? 8 : sdl_depth_of_video_depth(d));
 				if (SDL_VideoModeOK(max_width, max_height, bpp, SDL_HWSURFACE))
 					add_window_modes(video_depth(d));
 			}
 		}
 	} else
-		add_mode(default_width, default_height, 0x80, TrivialBytesPerRow(default_width, default_depth), default_depth);
+		add_mode(display_type, default_width, default_height, 0x80, TrivialBytesPerRow(default_width, (video_depth)default_depth), default_depth);
 	if (VideoModes.empty()) {
 		ErrorAlert(STR_NO_XVISUAL_ERR);
 		return false;
@@ -705,32 +892,51 @@ bool VideoInit(bool classic)
 
 	// Find requested default mode with specified dimensions
 	uint32 default_id;
-	std::vector<video_mode>::const_iterator i, end = VideoModes.end();
+	std::vector<VIDEO_MODE>::const_iterator i, end = VideoModes.end();
 	for (i = VideoModes.begin(); i != end; ++i) {
-		if (i->x == default_width && i->y == default_height && i->depth == default_depth) {
-			default_id = i->resolution_id;
+		const VIDEO_MODE & mode = (*i);
+		if (VIDEO_MODE_X == default_width && VIDEO_MODE_Y == default_height && VIDEO_MODE_DEPTH == default_depth) {
+			default_id = VIDEO_MODE_RESOLUTION;
+#ifdef SHEEPSHAVER
+			std::vector<VIDEO_MODE>::const_iterator begin = VideoModes.begin();
+			cur_mode = distance(begin, i);
+#endif
 			break;
 		}
 	}
 	if (i == end) { // not found, use first available mode
-		default_depth = VideoModes[0].depth;
-		default_id = VideoModes[0].resolution_id;
+		const VIDEO_MODE & mode = VideoModes[0];
+		default_depth = VIDEO_MODE_DEPTH;
+		default_id = VIDEO_MODE_RESOLUTION;
+#ifdef SHEEPSHAVER
+		cur_mode = 0;
+#endif
 	}
+
+#ifdef SHEEPSHAVER
+	for (int i = 0; i < VideoModes.size(); ++i)
+		VModes[i] = VideoModes[i];
+
+	const VIDEO_MODE & mode = VideoModes[cur_mode];
+	D(bug("Current video mode\n"));
+	D(bug(" %dx%d (ID %02x), %d bpp\n", VIDEO_MODE_X, VIDEO_MODE_Y, VIDEO_MODE_RESOLUTION, 1 << (VIDEO_MODE_DEPTH - 0x80)));
+#endif
 
 #if DEBUG
 	D(bug("Available video modes:\n"));
 	for (i = VideoModes.begin(); i != end; ++i) {
-		int bits = 1 << i->depth;
+		const VIDEO_MODE & mode = (*i);
+		int bits = 1 << VIDEO_MODE_DEPTH;
 		if (bits == 16)
 			bits = 15;
 		else if (bits == 32)
 			bits = 24;
-		D(bug(" %dx%d (ID %02x), %d colors\n", i->x, i->y, i->resolution_id, 1 << bits));
+		D(bug(" %dx%d (ID %02x), %d colors\n", VIDEO_MODE_X, VIDEO_MODE_Y, VIDEO_MODE_RESOLUTION, 1 << bits));
 	}
 #endif
 
 	// Create SDL_monitor_desc for this (the only) display
-	SDL_monitor_desc *monitor = new SDL_monitor_desc(VideoModes, default_depth, default_id);
+	SDL_monitor_desc *monitor = new SDL_monitor_desc(VideoModes, (video_depth)default_depth, default_id);
 	VideoMonitors.push_back(monitor);
 
 	// Open display
@@ -800,6 +1006,27 @@ void VideoQuitFullScreen(void)
  *  Mac VBL interrupt
  */
 
+/*
+ *  Execute video VBL routine
+ */
+
+#ifdef SHEEPSHAVER
+void VideoVBL(void)
+{
+	// Emergency quit requested? Then quit
+	if (emerg_quit)
+		QuitEmulator();
+
+	// Temporarily give up frame buffer lock (this is the point where
+	// we are suspended when the user presses Ctrl-Tab)
+	UNLOCK_FRAME_BUFFER;
+	LOCK_FRAME_BUFFER;
+
+	// Execute video VBL
+	if (private_data != NULL && private_data->interruptsEnabled)
+		VSLDoInterruptService(private_data->vslServiceID);
+}
+#else
 void VideoInterrupt(void)
 {
 	// We must fill in the events queue in the same thread that did call SDL_SetVideoMode()
@@ -814,18 +1041,34 @@ void VideoInterrupt(void)
 	UNLOCK_FRAME_BUFFER;
 	LOCK_FRAME_BUFFER;
 }
+#endif
 
 
 /*
  *  Set palette
  */
 
+#ifdef SHEEPSHAVER
+void video_set_palette(void)
+{
+	monitor_desc * monitor = VideoMonitors[0];
+	int n_colors = palette_size(monitor->get_current_mode().viAppleMode);
+	uint8 pal[256 * 3];
+	for (int c = 0; c < n_colors; c++) {
+		pal[c*3 + 0] = mac_pal[c].red;
+		pal[c*3 + 1] = mac_pal[c].green;
+		pal[c*3 + 2] = mac_pal[c].blue;
+	}
+	monitor->set_palette(pal, n_colors);
+}
+#endif
+
 void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 {
-	const video_mode &mode = get_current_mode();
+	const VIDEO_MODE &mode = get_current_mode();
 
 	// FIXME: how can we handle the gamma ramp?
-	if (mode.depth > VDEPTH_8BIT)
+	if (VIDEO_MODE_DEPTH > VIDEO_DEPTH_8BIT)
 		return;
 
 	LOCK_PALETTE;
@@ -854,7 +1097,7 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 		LOCK_VOSF;
 		PFLAG_SET_ALL;
 		UNLOCK_VOSF;
-		memset(the_buffer_copy, 0, mode.bytes_per_row * mode.y);
+		memset(the_buffer_copy, 0, VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y);
 #endif
 	}
 
@@ -869,6 +1112,42 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
  *  Switch video mode
  */
 
+#ifdef SHEEPSHAVER
+int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr)
+{
+	/* return if no mode change */
+	if ((csSave->saveData == ReadMacInt32(ParamPtr + csData)) &&
+	    (csSave->saveMode == ReadMacInt16(ParamPtr + csMode))) return noErr;
+
+	/* first find video mode in table */
+	for (int i=0; VModes[i].viType != DIS_INVALID; i++) {
+		if ((ReadMacInt16(ParamPtr + csMode) == VModes[i].viAppleMode) &&
+		    (ReadMacInt32(ParamPtr + csData) == VModes[i].viAppleID)) {
+			csSave->saveMode = ReadMacInt16(ParamPtr + csMode);
+			csSave->saveData = ReadMacInt32(ParamPtr + csData);
+			csSave->savePage = ReadMacInt16(ParamPtr + csPage);
+
+			// Disable interrupts
+			DisableInterrupt();
+
+			cur_mode = i;
+			monitor_desc *monitor = VideoMonitors[0];
+			monitor->switch_to_current_mode();
+
+			WriteMacInt32(ParamPtr + csBaseAddr, screen_base);
+			csSave->saveBaseAddr=screen_base;
+			csSave->saveData=VModes[cur_mode].viAppleID;/* First mode ... */
+			csSave->saveMode=VModes[cur_mode].viAppleMode;
+
+			// Enable interrupts
+			EnableInterrupt();
+			return noErr;
+		}
+	}
+	return paramErr;
+}
+#endif
+
 void SDL_monitor_desc::switch_to_current_mode(void)
 {
 	// Close and reopen display
@@ -880,6 +1159,393 @@ void SDL_monitor_desc::switch_to_current_mode(void)
 		QuitEmulator();
 	}
 }
+
+
+/*
+ *  Can we set the MacOS cursor image into the window?
+ */
+
+#ifdef SHEEPSHAVER
+bool video_can_change_cursor(void)
+{
+//	return hw_mac_cursor_accl && (display_type != DISPLAY_SCREEN);
+	return false;
+}
+#endif
+
+
+/*
+ *  Set cursor image for window
+ */
+
+#ifdef SHEEPSHAVER
+void video_set_cursor(void)
+{
+//	cursor_changed = true;
+}
+#endif
+
+
+/*
+ *  Install graphics acceleration
+ */
+
+#ifdef SHEEPSHAVER
+// Rectangle inversion
+template< int bpp >
+static inline void do_invrect(uint8 *dest, uint32 length)
+{
+#define INVERT_1(PTR, OFS) ((uint8  *)(PTR))[OFS] = ~((uint8  *)(PTR))[OFS]
+#define INVERT_2(PTR, OFS) ((uint16 *)(PTR))[OFS] = ~((uint16 *)(PTR))[OFS]
+#define INVERT_4(PTR, OFS) ((uint32 *)(PTR))[OFS] = ~((uint32 *)(PTR))[OFS]
+#define INVERT_8(PTR, OFS) ((uint64 *)(PTR))[OFS] = ~((uint64 *)(PTR))[OFS]
+
+#ifndef UNALIGNED_PROFITABLE
+	// Align on 16-bit boundaries
+	if (bpp < 16 && (((uintptr)dest) & 1)) {
+		INVERT_1(dest, 0);
+		dest += 1; length -= 1;
+	}
+
+	// Align on 32-bit boundaries
+	if (bpp < 32 && (((uintptr)dest) & 2)) {
+		INVERT_2(dest, 0);
+		dest += 2; length -= 2;
+	}
+#endif
+
+	// Invert 8-byte words
+	if (length >= 8) {
+		const int r = (length / 8) % 8;
+		dest += r * 8;
+
+		int n = ((length / 8) + 7) / 8;
+		switch (r) {
+		case 0: do {
+				dest += 64;
+				INVERT_8(dest, -8);
+		case 7: INVERT_8(dest, -7);
+		case 6: INVERT_8(dest, -6);
+		case 5: INVERT_8(dest, -5);
+		case 4: INVERT_8(dest, -4);
+		case 3: INVERT_8(dest, -3);
+		case 2: INVERT_8(dest, -2);
+		case 1: INVERT_8(dest, -1);
+				} while (--n > 0);
+		}
+	}
+
+	// 32-bit cell to invert?
+	if (length & 4) {
+		INVERT_4(dest, 0);
+		if (bpp <= 16)
+			dest += 4;
+	}
+
+	// 16-bit cell to invert?
+	if (bpp <= 16 && (length & 2)) {
+		INVERT_2(dest, 0);
+		if (bpp <= 8)
+			dest += 2;
+	}
+
+	// 8-bit cell to invert?
+	if (bpp <= 8 && (length & 1))
+		INVERT_1(dest, 0);
+
+#undef INVERT_1
+#undef INVERT_2
+#undef INVERT_4
+#undef INVERT_8
+}
+
+void NQD_invrect(uint32 p)
+{
+	D(bug("accl_invrect %08x\n", p));
+
+	// Get inversion parameters
+	int16 dest_X = (int16)ReadMacInt16(p + acclDestRect + 2) - (int16)ReadMacInt16(p + acclDestBoundsRect + 2);
+	int16 dest_Y = (int16)ReadMacInt16(p + acclDestRect + 0) - (int16)ReadMacInt16(p + acclDestBoundsRect + 0);
+	int16 width  = (int16)ReadMacInt16(p + acclDestRect + 6) - (int16)ReadMacInt16(p + acclDestRect + 2);
+	int16 height = (int16)ReadMacInt16(p + acclDestRect + 4) - (int16)ReadMacInt16(p + acclDestRect + 0);
+	D(bug(" dest X %d, dest Y %d\n", dest_X, dest_Y));
+	D(bug(" width %d, height %d, bytes_per_row %d\n", width, height, (int32)ReadMacInt32(p + acclDestRowBytes)));
+
+	//!!?? pen_mode == 14
+
+	// And perform the inversion
+	const int bpp = bytes_per_pixel(ReadMacInt32(p + acclDestPixelSize));
+	const int dest_row_bytes = (int32)ReadMacInt32(p + acclDestRowBytes);
+	uint8 *dest = Mac2HostAddr(ReadMacInt32(p + acclDestBaseAddr) + (dest_Y * dest_row_bytes) + (dest_X * bpp));
+	width *= bpp;
+	switch (bpp) {
+	case 1:
+		for (int i = 0; i < height; i++) {
+			do_invrect<8>(dest, width);
+			dest += dest_row_bytes;
+		}
+		break;
+	case 2:
+		for (int i = 0; i < height; i++) {
+			do_invrect<16>(dest, width);
+			dest += dest_row_bytes;
+		}
+		break;
+	case 4:
+		for (int i = 0; i < height; i++) {
+			do_invrect<32>(dest, width);
+			dest += dest_row_bytes;
+		}
+		break;
+	}
+}
+
+// Rectangle filling
+template< int bpp >
+static inline void do_fillrect(uint8 *dest, uint32 color, uint32 length)
+{
+#define FILL_1(PTR, OFS, VAL) ((uint8  *)(PTR))[OFS] = (VAL)
+#define FILL_2(PTR, OFS, VAL) ((uint16 *)(PTR))[OFS] = (VAL)
+#define FILL_4(PTR, OFS, VAL) ((uint32 *)(PTR))[OFS] = (VAL)
+#define FILL_8(PTR, OFS, VAL) ((uint64 *)(PTR))[OFS] = (VAL)
+
+#ifndef UNALIGNED_PROFITABLE
+	// Align on 16-bit boundaries
+	if (bpp < 16 && (((uintptr)dest) & 1)) {
+		FILL_1(dest, 0, color);
+		dest += 1; length -= 1;
+	}
+
+	// Align on 32-bit boundaries
+	if (bpp < 32 && (((uintptr)dest) & 2)) {
+		FILL_2(dest, 0, color);
+		dest += 2; length -= 2;
+	}
+#endif
+
+	// Fill 8-byte words
+	if (length >= 8) {
+		const uint64 c = (((uint64)color) << 32) | color;
+		const int r = (length / 8) % 8;
+		dest += r * 8;
+
+		int n = ((length / 8) + 7) / 8;
+		switch (r) {
+		case 0: do {
+				dest += 64;
+				FILL_8(dest, -8, c);
+		case 7: FILL_8(dest, -7, c);
+		case 6: FILL_8(dest, -6, c);
+		case 5: FILL_8(dest, -5, c);
+		case 4: FILL_8(dest, -4, c);
+		case 3: FILL_8(dest, -3, c);
+		case 2: FILL_8(dest, -2, c);
+		case 1: FILL_8(dest, -1, c);
+				} while (--n > 0);
+		}
+	}
+
+	// 32-bit cell to fill?
+	if (length & 4) {
+		FILL_4(dest, 0, color);
+		if (bpp <= 16)
+			dest += 4;
+	}
+
+	// 16-bit cell to fill?
+	if (bpp <= 16 && (length & 2)) {
+		FILL_2(dest, 0, color);
+		if (bpp <= 8)
+			dest += 2;
+	}
+
+	// 8-bit cell to fill?
+	if (bpp <= 8 && (length & 1))
+		FILL_1(dest, 0, color);
+
+#undef FILL_1
+#undef FILL_2
+#undef FILL_4
+#undef FILL_8
+}
+
+void NQD_fillrect(uint32 p)
+{
+	D(bug("accl_fillrect %08x\n", p));
+
+	// Get filling parameters
+	int16 dest_X = (int16)ReadMacInt16(p + acclDestRect + 2) - (int16)ReadMacInt16(p + acclDestBoundsRect + 2);
+	int16 dest_Y = (int16)ReadMacInt16(p + acclDestRect + 0) - (int16)ReadMacInt16(p + acclDestBoundsRect + 0);
+	int16 width  = (int16)ReadMacInt16(p + acclDestRect + 6) - (int16)ReadMacInt16(p + acclDestRect + 2);
+	int16 height = (int16)ReadMacInt16(p + acclDestRect + 4) - (int16)ReadMacInt16(p + acclDestRect + 0);
+	uint32 color = htonl(ReadMacInt32(p + acclPenMode) == 8 ? ReadMacInt32(p + acclForePen) : ReadMacInt32(p + acclBackPen));
+	D(bug(" dest X %d, dest Y %d\n", dest_X, dest_Y));
+	D(bug(" width %d, height %d\n", width, height));
+	D(bug(" bytes_per_row %d color %08x\n", (int32)ReadMacInt32(p + acclDestRowBytes), color));
+
+	// And perform the fill
+	const int bpp = bytes_per_pixel(ReadMacInt32(p + acclDestPixelSize));
+	const int dest_row_bytes = (int32)ReadMacInt32(p + acclDestRowBytes);
+	uint8 *dest = Mac2HostAddr(ReadMacInt32(p + acclDestBaseAddr) + (dest_Y * dest_row_bytes) + (dest_X * bpp));
+	width *= bpp;
+	switch (bpp) {
+	case 1:
+		for (int i = 0; i < height; i++) {
+			memset(dest, color, width);
+			dest += dest_row_bytes;
+		}
+		break;
+	case 2:
+		for (int i = 0; i < height; i++) {
+			do_fillrect<16>(dest, color, width);
+			dest += dest_row_bytes;
+		}
+		break;
+	case 4:
+		for (int i = 0; i < height; i++) {
+			do_fillrect<32>(dest, color, width);
+			dest += dest_row_bytes;
+		}
+		break;
+	}
+}
+
+bool NQD_fillrect_hook(uint32 p)
+{
+	D(bug("accl_fillrect_hook %08x\n", p));
+
+	// Check if we can accelerate this fillrect
+	if (ReadMacInt32(p + 0x284) != 0 && ReadMacInt32(p + acclDestPixelSize) >= 8) {
+		const int transfer_mode = ReadMacInt32(p + acclTransferMode);
+		if (transfer_mode == 8) {
+			// Fill
+			WriteMacInt32(p + acclDrawProc, NativeTVECT(NATIVE_FILLRECT));
+			return true;
+		}
+		else if (transfer_mode == 10) {
+			// Invert
+			WriteMacInt32(p + acclDrawProc, NativeTVECT(NATIVE_INVRECT));
+			return true;
+		}
+	}
+	return false;
+}
+
+// Rectangle blitting
+// TODO: optimize for VOSF and target pixmap == screen
+void NQD_bitblt(uint32 p)
+{
+	D(bug("accl_bitblt %08x\n", p));
+
+	// Get blitting parameters
+	int16 src_X  = (int16)ReadMacInt16(p + acclSrcRect + 2) - (int16)ReadMacInt16(p + acclSrcBoundsRect + 2);
+	int16 src_Y  = (int16)ReadMacInt16(p + acclSrcRect + 0) - (int16)ReadMacInt16(p + acclSrcBoundsRect + 0);
+	int16 dest_X = (int16)ReadMacInt16(p + acclDestRect + 2) - (int16)ReadMacInt16(p + acclDestBoundsRect + 2);
+	int16 dest_Y = (int16)ReadMacInt16(p + acclDestRect + 0) - (int16)ReadMacInt16(p + acclDestBoundsRect + 0);
+	int16 width  = (int16)ReadMacInt16(p + acclDestRect + 6) - (int16)ReadMacInt16(p + acclDestRect + 2);
+	int16 height = (int16)ReadMacInt16(p + acclDestRect + 4) - (int16)ReadMacInt16(p + acclDestRect + 0);
+	D(bug(" src addr %08x, dest addr %08x\n", ReadMacInt32(p + acclSrcBaseAddr), ReadMacInt32(p + acclDestBaseAddr)));
+	D(bug(" src X %d, src Y %d, dest X %d, dest Y %d\n", src_X, src_Y, dest_X, dest_Y));
+	D(bug(" width %d, height %d\n", width, height));
+
+	// And perform the blit
+	const int bpp = bytes_per_pixel(ReadMacInt32(p + acclSrcPixelSize));
+	width *= bpp;
+	if ((int32)ReadMacInt32(p + acclSrcRowBytes) > 0) {
+		const int src_row_bytes = (int32)ReadMacInt32(p + acclSrcRowBytes);
+		const int dst_row_bytes = (int32)ReadMacInt32(p + acclDestRowBytes);
+		uint8 *src = Mac2HostAddr(ReadMacInt32(p + acclSrcBaseAddr) + (src_Y * src_row_bytes) + (src_X * bpp));
+		uint8 *dst = Mac2HostAddr(ReadMacInt32(p + acclDestBaseAddr) + (dest_Y * dst_row_bytes) + (dest_X * bpp));
+		for (int i = 0; i < height; i++) {
+			memmove(dst, src, width);
+			src += src_row_bytes;
+			dst += dst_row_bytes;
+		}
+	}
+	else {
+		const int src_row_bytes = -(int32)ReadMacInt32(p + acclSrcRowBytes);
+		const int dst_row_bytes = -(int32)ReadMacInt32(p + acclDestRowBytes);
+		uint8 *src = Mac2HostAddr(ReadMacInt32(p + acclSrcBaseAddr) + ((src_Y + height - 1) * src_row_bytes) + (src_X * bpp));
+		uint8 *dst = Mac2HostAddr(ReadMacInt32(p + acclDestBaseAddr) + ((dest_Y + height - 1) * dst_row_bytes) + (dest_X * bpp));
+		for (int i = height - 1; i >= 0; i--) {
+			memmove(dst, src, width);
+			src -= src_row_bytes;
+			dst -= dst_row_bytes;
+		}
+	}
+}
+
+/*
+  BitBlt transfer modes:
+  0 : srcCopy
+  1 : srcOr
+  2 : srcXor
+  3 : srcBic
+  4 : notSrcCopy
+  5 : notSrcOr
+  6 : notSrcXor
+  7 : notSrcBic
+  32 : blend
+  33 : addPin
+  34 : addOver
+  35 : subPin
+  36 : transparent
+  37 : adMax
+  38 : subOver
+  39 : adMin
+  50 : hilite
+*/
+
+bool NQD_bitblt_hook(uint32 p)
+{
+	D(bug("accl_draw_hook %08x\n", p));
+
+	// Check if we can accelerate this bitblt
+	if (ReadMacInt32(p + 0x018) + ReadMacInt32(p + 0x128) == 0 &&
+		ReadMacInt32(p + 0x130) == 0 &&
+		ReadMacInt32(p + acclSrcPixelSize) >= 8 &&
+		ReadMacInt32(p + acclSrcPixelSize) == ReadMacInt32(p + acclDestPixelSize) &&
+		(ReadMacInt32(p + acclSrcRowBytes) ^ ReadMacInt32(p + acclDestRowBytes)) >= 0 && // same sign?
+		ReadMacInt32(p + acclTransferMode) == 0 &&										 // srcCopy?
+		ReadMacInt32(p + 0x15c) > 0) {
+
+		// Yes, set function pointer
+		WriteMacInt32(p + acclDrawProc, NativeTVECT(NATIVE_BITBLT));
+		return true;
+	}
+	return false;
+}
+
+// Wait for graphics operation to finish
+bool NQD_sync_hook(uint32 arg)
+{
+	D(bug("accl_sync_hook %08x\n", arg));
+	return true;
+}
+
+void VideoInstallAccel(void)
+{
+	// Install acceleration hooks
+	if (PrefsFindBool("gfxaccel")) {
+		D(bug("Video: Installing acceleration hooks\n"));
+		uint32 base;
+
+		SheepVar bitblt_hook_info(sizeof(accl_hook_info));
+		base = bitblt_hook_info.addr();
+		WriteMacInt32(base + 0, NativeTVECT(NATIVE_BITBLT_HOOK));
+		WriteMacInt32(base + 4, NativeTVECT(NATIVE_SYNC_HOOK));
+		WriteMacInt32(base + 8, ACCL_BITBLT);
+		NQDMisc(6, bitblt_hook_info.ptr());
+
+		SheepVar fillrect_hook_info(sizeof(accl_hook_info));
+		base = fillrect_hook_info.addr();
+		WriteMacInt32(base + 0, NativeTVECT(NATIVE_FILLRECT_HOOK));
+		WriteMacInt32(base + 4, NativeTVECT(NATIVE_SYNC_HOOK));
+		WriteMacInt32(base + 8, ACCL_FILLRECT);
+		NQDMisc(6, fillrect_hook_info.ptr());
+	}
+}
+#endif
 
 
 /*
@@ -1115,17 +1781,17 @@ static void handle_events(void)
 			// Hidden parts exposed, force complete refresh of window
 			case SDL_VIDEOEXPOSE:
 				if (display_type == DISPLAY_WINDOW) {
-					const video_mode &mode = VideoMonitors[0]->get_current_mode();
+					const VIDEO_MODE &mode = VideoMonitors[0]->get_current_mode();
 #ifdef ENABLE_VOSF
 					if (use_vosf) {			// VOSF refresh
 						LOCK_VOSF;
 						PFLAG_SET_ALL;
 						UNLOCK_VOSF;
-						memset(the_buffer_copy, 0, mode.bytes_per_row * mode.y);
+						memset(the_buffer_copy, 0, VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y);
 					}
 					else
 #endif
-						memset(the_buffer_copy, 0, mode.bytes_per_row * mode.y);
+						memset(the_buffer_copy, 0, VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y);
 				}
 				break;
 
@@ -1149,20 +1815,20 @@ static void update_display_static(driver_window *drv)
 {
 	// Incremental update code
 	int wide = 0, high = 0, x1, x2, y1, y2, i, j;
-	const video_mode &mode = drv->mode;
-	int bytes_per_row = mode.bytes_per_row;
+	const VIDEO_MODE &mode = drv->mode;
+	int bytes_per_row = VIDEO_MODE_ROW_BYTES;
 	uint8 *p, *p2;
 
 	// Check for first line from top and first line from bottom that have changed
 	y1 = 0;
-	for (j=0; j<mode.y; j++) {
+	for (j=0; j<VIDEO_MODE_Y; j++) {
 		if (memcmp(&the_buffer[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
 			y1 = j;
 			break;
 		}
 	}
 	y2 = y1 - 1;
-	for (j=mode.y-1; j>=y1; j--) {
+	for (j=VIDEO_MODE_Y-1; j>=y1; j--) {
 		if (memcmp(&the_buffer[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
 			y2 = j;
 			break;
@@ -1172,12 +1838,12 @@ static void update_display_static(driver_window *drv)
 
 	// Check for first column from left and first column from right that have changed
 	if (high) {
-		if (mode.depth < VDEPTH_8BIT) {
+		if (VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
 			const int src_bytes_per_row = bytes_per_row;
 			const int dst_bytes_per_row = drv->s->pitch;
-			const int pixels_per_byte = mode.x / src_bytes_per_row;
+			const int pixels_per_byte = VIDEO_MODE_X / src_bytes_per_row;
 
-			x1 = mode.x / pixels_per_byte;
+			x1 = VIDEO_MODE_X / pixels_per_byte;
 			for (j = y1; j <= y2; j++) {
 				p = &the_buffer[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
@@ -1195,7 +1861,7 @@ static void update_display_static(driver_window *drv)
 				p2 = &the_buffer_copy[j * bytes_per_row];
 				p += bytes_per_row;
 				p2 += bytes_per_row;
-				for (i = (mode.x / pixels_per_byte); i > x2; i--) {
+				for (i = (VIDEO_MODE_X / pixels_per_byte); i > x2; i--) {
 					p--; p2--;
 					if (*p != *p2) {
 						x2 = i;
@@ -1233,9 +1899,9 @@ static void update_display_static(driver_window *drv)
 			}
 
 		} else {
-			const int bytes_per_pixel = mode.bytes_per_row / mode.x;
+			const int bytes_per_pixel = VIDEO_MODE_ROW_BYTES / VIDEO_MODE_X;
 
-			x1 = mode.x;
+			x1 = VIDEO_MODE_X;
 			for (j=y1; j<=y2; j++) {
 				p = &the_buffer[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
@@ -1253,7 +1919,7 @@ static void update_display_static(driver_window *drv)
 				p2 = &the_buffer_copy[j * bytes_per_row];
 				p += bytes_per_row;
 				p2 += bytes_per_row;
-				for (i=mode.x*bytes_per_pixel; i>x2*bytes_per_pixel; i--) {
+				for (i=VIDEO_MODE_X*bytes_per_pixel; i>x2*bytes_per_pixel; i--) {
 					p--;
 					p2--;
 					if (*p != *p2) {
@@ -1413,22 +2079,31 @@ static void VideoRefreshInit(void)
 	}
 }
 
+const int VIDEO_REFRESH_HZ = 60;
+const int VIDEO_REFRESH_DELAY = 1000000 / VIDEO_REFRESH_HZ;
+
 static int redraw_func(void *arg)
 {
 	uint64 start = GetTicks_usec();
 	int64 ticks = 0;
+	uint64 next = GetTicks_usec() + VIDEO_REFRESH_DELAY;
 
 	while (!redraw_thread_cancel) {
 
 		// Wait
-		Delay_usec(16667);
+		next += VIDEO_REFRESH_DELAY;
+		int64 delay = next - GetTicks_usec();
+		if (delay > 0)
+			Delay_usec(delay);
+		else if (delay < -VIDEO_REFRESH_DELAY)
+			next = GetTicks_usec();
+		ticks++;
 
 		// Handle SDL events
 		handle_events();
 
 		// Refresh display
 		video_refresh();
-		ticks++;
 
 		// Set new palette if it was changed
 		handle_palette_changes();
