@@ -53,7 +53,6 @@
 #endif
 
 #ifdef ENABLE_VOSF
-# include <math.h> // log()
 # include <unistd.h>
 # include <signal.h>
 # include <fcntl.h>
@@ -218,6 +217,17 @@ static struct sigaction vosf_sa;
 #ifdef HAVE_PTHREADS
 static pthread_mutex_t Screen_draw_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer (dirtyPages in fact)
 #endif
+
+static int log_base_2(uint32 x)
+{
+	uint32 mask = 0x80000000;
+	int l = 31;
+	while (l >= 0 && (x & mask) == 0) {
+		mask >>= 1;
+		l--;
+	}
+	return l;
+}
 
 #endif
 
@@ -804,7 +814,7 @@ bool VideoInitBuffer()
 
 		mainBuffer.pageSize     = page_size;
 		mainBuffer.pageCount	= (mainBuffer.memLength + page_mask)/mainBuffer.pageSize;
-		mainBuffer.pageBits     = int( log(mainBuffer.pageSize) / log(2.0) );
+		mainBuffer.pageBits     = log_base_2(mainBuffer.pageSize);
 
 		if (mainBuffer.dirtyPages != 0)
 			free(mainBuffer.dirtyPages);
@@ -1766,12 +1776,12 @@ static void update_display_static(void)
 				for (i=(VideoMonitor.x>>3); i>(x2>>3); i--) {
 					p--; p2--;
 					if (*p != *p2) {
-						x2 = i << 3;
+						x2 = (i << 3) + 7;
 						break;
 					}
 				}
 			}
-			wide = x2 - x1;
+			wide = x2 - x1 + 1;
 
 			// Update copy of the_buffer
 			if (high && wide) {

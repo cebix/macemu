@@ -327,7 +327,12 @@ static bool Screen_fault_handler_init()
 	// Setup SIGSEGV handler to process writes to frame buffer
 	sigemptyset(&vosf_sa.sa_mask);
 	vosf_sa.sa_handler = (void (*)(int)) Screen_fault_handler;
+#if !EMULATED_68K && defined(__NetBSD__)
+	sigaddset(&vosf_sa.sa_mask, SIGALRM);
+	vosf_sa.sa_flags = SA_ONSTACK;
+#else
 	vosf_sa.sa_flags = 0;
+#endif
 	return (sigaction(SIGSEGV, &vosf_sa, NULL) == 0);
 }
 #endif
@@ -355,7 +360,7 @@ static inline void update_display_window_vosf(void)
 			PFLAG_CLEAR(page);
 			++page;
 		}
-		
+
 		// Make the dirty pages read-only again
 		const int32 offset  = first_page << mainBuffer.pageBits;
 		const uint32 length = (page - first_page) << mainBuffer.pageBits;
@@ -393,7 +398,7 @@ static inline void update_display_window_vosf(void)
 				uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
 				for (i = (VideoMonitor.x>>3) - 1; i > (x2>>3); i--) {
 					if (p1[i] != p2[i]) {
-						x2 = i << 3;
+						x2 = (i << 3) + 7;
 						break;
 					}
 				}
