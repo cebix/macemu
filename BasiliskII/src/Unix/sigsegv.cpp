@@ -250,16 +250,16 @@ void sigsegv_deinstall_handler(void)
 #include <fcntl.h>
 #include <sys/mman.h>
 
-static caddr_t page = 0;
 static int page_size;
-static int handler_called = 0;
+static volatile char * page = 0;
+static volatile int handler_called = 0;
 
 static bool sigsegv_test_handler(sigsegv_address_t fault_address, sigsegv_address_t instruction_address)
 {
 	handler_called++;
 	if ((fault_address - 123) != page)
 		exit(1);
-	if (mprotect((caddr_t)((unsigned long)fault_address & -page_size), page_size, PROT_READ | PROT_WRITE) != 0)
+	if (mprotect((char *)((unsigned long)fault_address & -page_size), page_size, PROT_READ | PROT_WRITE) != 0)
 		exit(1);
 	return true;
 }
@@ -271,7 +271,7 @@ int main(void)
 		return 1;
 
 	page_size = getpagesize();
-   	page = (caddr_t)mmap(0, page_size, PROT_READ, MAP_PRIVATE, zero_fd, 0);
+   	page = (char *)mmap(0, page_size, PROT_READ, MAP_PRIVATE, zero_fd, 0);
 	if (page == MAP_FAILED)
 		return 1;
 	
