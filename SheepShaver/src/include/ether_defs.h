@@ -192,6 +192,34 @@ enum EAddrType {
  *  Data member wrappers
  */
 
+// Forward declarations
+struct datab;
+struct msgb;
+struct queue;
+struct multicast_node;
+struct DLPIStream;
+
+// Optimize for 32-bit big endian targets
+#if defined(WORDS_BIGENDIAN) && (SIZEOF_VOID_P == 4)
+
+// Predefined member types
+typedef int8			nw_int8;
+typedef int16			nw_int16;
+typedef int32			nw_int32;
+typedef uint8			nw_uint8;
+typedef uint16			nw_uint16;
+typedef uint32			nw_uint32;
+typedef bool			nw_bool;
+typedef uint8 *			nw_uint8_p;
+typedef void *			nw_void_p;
+typedef datab *			nw_datab_p;
+typedef msgb *			nw_msgb_p;
+typedef queue *			nw_queue_p;
+typedef multicast_node *nw_multicast_node_p;
+typedef DLPIStream *	nw_DLPIStream_p;
+
+#else
+
 // Big-endian memory accessor
 template< int nbytes >
 struct nw_memory_helper;
@@ -257,21 +285,13 @@ typedef nw_scalar_member_helper<uint32, uint32>			nw_uint32;
 typedef nw_scalar_member_helper<int, bool>				nw_bool;
 typedef nw_scalar_member_helper<uint32, uint8 *>		nw_uint8_p;
 typedef nw_scalar_member_helper<uint32, void *>			nw_void_p;
-
-struct datab;
 typedef nw_scalar_member_helper<uint32, datab *>		nw_datab_p;
-
-struct msgb;
 typedef nw_scalar_member_helper<uint32, msgb *>			nw_msgb_p;
-
-struct queue;
 typedef nw_scalar_member_helper<uint32, queue *>		nw_queue_p;
-
-struct multicast_node;
 typedef nw_scalar_member_helper<uint32, multicast_node *> nw_multicast_node_p;
-
-struct DLPIStream;
 typedef nw_scalar_member_helper<uint32, DLPIStream *>	nw_DLPIStream_p;
+
+#endif
 
 
 /*
