@@ -189,8 +189,10 @@ typedef uintptr vm_addr_t;
 
 #if REAL_ADDRESSING
 const uintptr VMBaseDiff = 0;
-#elif DIRECT_ADDRESSING && defined(NATMEM_OFFSET)
+#elif DIRECT_ADDRESSING
+#ifdef NATMEM_OFFSET
 const uintptr VMBaseDiff = NATMEM_OFFSET;
+#endif
 // Wrap address to 32-bit if we are not using 33-bit addressing space
 #if defined(SHEEPSHAVER) && SIZEOF_VOID_P == 8
 #define vm_wrap_address(ADDR) (uintptr)(uint32)(ADDR)
@@ -203,11 +205,19 @@ const uintptr VMBaseDiff = NATMEM_OFFSET;
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 static inline uint8 * vm_do_get_real_address(vm_addr_t addr)
 {
+#if DIRECT_ADDRESSING_HACK
+	return (uint8 *)vm_wrap_address(DIRECT_ADDRESSING_VIRT2PHYS(addr));
+#else
 	return (uint8 *)vm_wrap_address(VMBaseDiff + addr);
+#endif
 }
 static inline vm_addr_t vm_do_get_virtual_address(uint8 *addr)
 {
+#if DIRECT_ADDRESSING_HACK
+	return vm_wrap_address(DIRECT_ADDRESSING_PHYS2VIRT((uintptr)addr));
+#else
 	return vm_wrap_address((uintptr)addr - VMBaseDiff);
+#endif
 }
 static inline uint32 vm_read_memory_1(vm_addr_t addr)
 {

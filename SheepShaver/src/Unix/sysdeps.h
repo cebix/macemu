@@ -68,10 +68,26 @@
 
 // Always use Real Addressing mode on native architectures
 // Otherwise, use Direct Addressing mode if NATMEM_OFFSET is set
-#if NATMEM_OFFSET == 0 || EMULATED_PPC == 0
+#if !defined(EMULATED_PPC)
 #define REAL_ADDRESSING 1
-#else
+#elif defined(__CYGWIN__)
 #define DIRECT_ADDRESSING 1
+#define DIRECT_ADDRESSING_HACK 1
+/*
+  The following address translation functions were empirically
+  determined on a Windows XP system running Cygwin 1.5.12-1 so
+  that RAM size can be maximized (up to 960 MB) and avoiding
+  the use of a TLB. This also takes into account reduced address
+  space available when the Cygwin runtime is used.
+*/
+#define DIRECT_ADDRESSING_VIRT2PHYS(ADDR) \
+	((ADDR) + (((ADDR)  < 0x41000000) ? 0x39000000 : 0xcf800000))
+#define DIRECT_ADDRESSING_PHYS2VIRT(ADDR) \
+	((ADDR) - (((ADDR) >= 0x39000000) ? 0x39000000 : 0xcf800000))
+#elif defined(NATMEM_OFFSET)
+#define DIRECT_ADDRESSING 1
+#else
+#define REAL_ADDRESSING 1
 #endif
 
 #define POWERPC_ROM 1
