@@ -62,6 +62,7 @@ user_string_def platform_strings[] = {
 	{STR_HELP_MENU_GTK, "/_Help"},
 	{STR_HELP_ITEM_ABOUT_GTK, "/Help/_About SheepShaver"},
 	{STR_SUSPEND_WINDOW_TITLE, "SheepShaver suspended. Press Space to reactivate."},
+	{STR_VOSF_INIT_ERR, "Cannot initialize Video on SEGV signals."},
 
 	{-1, NULL}	// End marker
 };

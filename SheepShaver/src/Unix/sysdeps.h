@@ -59,6 +59,9 @@
 # endif
 #endif
 
+// Mac and host address space are the same
+#define REAL_ADDRESSING 1
+
 // Are we using a PPC emulator or the real thing?
 #ifdef __powerpc__
 #define EMULATED_PPC 0

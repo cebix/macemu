@@ -58,6 +58,12 @@ static volatile bool thread_stop_ack = false;	// Acknowledge for thread_stop_req
 static bool has_dga = false;				// Flag: Video DGA capable
 static bool has_vidmode = false;			// Flag: VidMode extension available
 
+#ifdef ENABLE_VOSF
+static bool use_vosf = true;				// Flag: VOSF enabled
+#else
+static const bool use_vosf = false;			// VOSF not possible
+#endif
+
 static bool palette_changed = false;		// Flag: Palette changed, redraw thread must update palette
 static bool ctrl_down = false;				// Flag: Ctrl key pressed
 static bool quit_full_screen = false;		// Flag: DGA close requested from redraw thread
@@ -92,8 +98,9 @@ static Cursor mac_cursor;
 static GC cursor_gc, cursor_mask_gc;
 static bool cursor_changed = false;			// Flag: Cursor changed, window_func must update cursor
 static bool have_shm = false;				// Flag: SHM present and usable
-static uint8 *the_buffer;					// Pointer to Mac frame buffer
+static uint8 *the_buffer = NULL;			// Pointer to Mac frame buffer
 static uint8 *the_buffer_copy = NULL;		// Copy of Mac frame buffer
+static uint32 the_buffer_size;				// Size of allocated the_buffer
 
 // Variables for DGA mode
 static char *dga_screen_base;
@@ -118,6 +125,12 @@ extern Display *x_display;
 extern void SysMountFirstFloppy(void);
 
 
+// Video acceleration through SIGSEGV
+#ifdef ENABLE_VOSF
+# include "video_vosf.h"
+#endif
+
+
 /*
  *  Open display (window or fullscreen)
  */
@@ -138,6 +151,9 @@ static int error_handler(Display *d, XErrorEvent *e)
 // Open window
 static bool open_window(int width, int height)
 {
+	int aligned_width = (width + 15) & ~15;
+	int aligned_height = (height + 15) & ~15;
+
 	// Set absolute mouse mode
 	ADBSetRelMouseMode(false);
 
@@ -186,9 +202,8 @@ static bool open_window(int width, int height)
 		// Create SHM image ("height + 2" for safety)
 		img = XShmCreateImage(x_display, vis, depth, depth == 1 ? XYBitmap : ZPixmap, 0, &shminfo, width, height);
 		shminfo.shmid = shmget(IPC_PRIVATE, (height + 2) * img->bytes_per_line, IPC_CREAT | 0777);
-		screen_base = (uint32)shmat(shminfo.shmid, 0, 0);
-		the_buffer = (uint8 *)screen_base;
-		shminfo.shmaddr = img->data = (char *)screen_base;
+		the_buffer_copy = (uint8 *)shmat(shminfo.shmid, 0, 0);
+		shminfo.shmaddr = img->data = (char *)the_buffer_copy;
 		shminfo.readOnly = False;
 
 		// Try to attach SHM image, catching errors
@@ -209,7 +224,7 @@ static bool open_window(int width, int height)
 
 	// Create normal X image if SHM doesn't work ("height + 2" for safety)
 	if (!have_shm) {
-		int bytes_per_row = width;
+		int bytes_per_row = aligned_width;
 		switch (depth) {
 			case 1:
 				bytes_per_row /= 8;
@@ -223,9 +238,8 @@ static bool open_window(int width, int height)
 				bytes_per_row *= 4;
 				break;
 		}
-		screen_base = (uint32)malloc((height + 2) * bytes_per_row);
-		the_buffer = (uint8 *)screen_base;
-		img = XCreateImage(x_display, vis, depth, depth == 1 ? XYBitmap : ZPixmap, 0, (char *)screen_base, width, height, 32, bytes_per_row);
+		the_buffer_copy = (uint8 *)malloc((aligned_height + 2) * bytes_per_row);
+		img = XCreateImage(x_display, vis, depth == 1 ? 1 : xdepth, depth == 1 ? XYBitmap : ZPixmap, 0, (char *)the_buffer_copy, aligned_width, aligned_height, 32, bytes_per_row);
 	}
 
 	// 1-Bit mode is big-endian
@@ -234,8 +248,20 @@ static bool open_window(int width, int height)
         img->bitmap_bit_order = MSBFirst;
     }
 
-	// Allocate memory for frame buffer copy
-	the_buffer_copy = (uint8 *)malloc((height + 2) * img->bytes_per_line);
+#ifdef ENABLE_VOSF
+	use_vosf = true;
+	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
+	the_host_buffer = the_buffer_copy;
+	the_buffer_size = page_extend((aligned_height + 2) * img->bytes_per_line);
+	the_buffer = (uint8 *)vm_acquire(the_buffer_size);
+	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
+	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
+#else
+	// Allocate memory for frame buffer
+	the_buffer = (uint8 *)malloc((aligned_height + 2) * img->bytes_per_line);
+	D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
+#endif
+	screen_base = (uint32)the_buffer;
 
 	// Create GC
 	the_gc = XCreateGC(x_display, the_win, 0, 0);
@@ -254,6 +280,17 @@ static bool open_window(int width, int height)
 	cursor_mask_gc = XCreateGC(x_display, cursor_mask_map, 0, 0);
 	mac_cursor = XCreatePixmapCursor(x_display, cursor_map, cursor_mask_map, &black, &white, 0, 0);
 	cursor_changed = false;
+
+	// Init blitting routines
+	bool native_byte_order;
+#ifdef WORDS_BIGENDIAN
+	native_byte_order = (XImageByteOrder(x_display) == MSBFirst);
+#else
+	native_byte_order = (XImageByteOrder(x_display) == LSBFirst);
+#endif
+#ifdef ENABLE_VOSF
+	Screen_blitter_init(&visualInfo, native_byte_order, depth);
+#endif
 
 	// Set bytes per row
 	VModes[cur_mode].viRowBytes = img->bytes_per_line;
@@ -289,7 +326,6 @@ static bool open_dga(int width, int height)
 	XF86DGADirectVideo(x_display, screen, XF86DGADirectGraphics | XF86DGADirectKeyb | XF86DGADirectMouse);
 	XF86DGASetViewPort(x_display, screen, 0, 0);
 	XF86DGASetVidPage(x_display, screen, 0);
-	screen_base = (uint32)dga_screen_base;
 
 	// Set colormap
 	if (depth == 8)
@@ -307,6 +343,33 @@ static bool open_dga(int width, int height)
 			bytes_per_row *= 4;
 			break;
 	}
+
+#if ENABLE_VOSF
+	bool native_byte_order;
+#ifdef WORDS_BIGENDIAN
+	native_byte_order = (XImageByteOrder(x_display) == MSBFirst);
+#else
+	native_byte_order = (XImageByteOrder(x_display) == LSBFirst);
+#endif
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	// Screen_blitter_init() returns TRUE if VOSF is mandatory
+	// i.e. the framebuffer update function is not Blit_Copy_Raw
+	use_vosf = Screen_blitter_init(&visualInfo, native_byte_order, depth);
+	
+	if (use_vosf) {
+	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
+	  the_host_buffer = the_buffer;
+	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
+	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
+	  the_buffer = (uint8 *)vm_acquire(the_buffer_size);
+	}
+#else
+	use_vosf = false;
+	the_buffer = dga_screen_base;
+#endif
+#endif
+	screen_base = (uint32)the_buffer;
+
 	VModes[cur_mode].viRowBytes = bytes_per_row;
 	XSync(x_display, false);
 	return true;
@@ -339,12 +402,24 @@ static bool open_display(void)
 			depth = 32;
 			break;
 	}
+
+	bool display_open = false;
 	if (display_type == DIS_SCREEN)
-		return open_dga(VModes[cur_mode].viXsize, VModes[cur_mode].viYsize);
+		display_open = open_dga(VModes[cur_mode].viXsize, VModes[cur_mode].viYsize);
 	else if (display_type == DIS_WINDOW)
-		return open_window(VModes[cur_mode].viXsize, VModes[cur_mode].viYsize);
-	else
-		return false;
+		display_open = open_window(VModes[cur_mode].viXsize, VModes[cur_mode].viYsize);
+
+#ifdef ENABLE_VOSF
+	if (use_vosf) {
+		// Initialize the VOSF system
+		if (!video_vosf_init()) {
+			ErrorAlert(GetString(STR_VOSF_INIT_ERR));
+			return false;
+		}
+	}
+#endif
+	
+	return display_open;
 }
 
 
@@ -355,14 +430,28 @@ static bool open_display(void)
 // Close window
 static void close_window(void)
 {
+	if (have_shm) {
+		XShmDetach(x_display, &shminfo);
+#ifdef ENABLE_VOSF
+		the_host_buffer = NULL;	// don't free() in driver_base dtor
+#else
+		the_buffer_copy = NULL; // don't free() in driver_base dtor
+#endif
+	}
+	if (img) {
+		if (!have_shm)
+			img->data = NULL;
+		XDestroyImage(img);
+	}
+	if (have_shm) {
+		shmdt(shminfo.shmaddr);
+		shmctl(shminfo.shmid, IPC_RMID, 0);
+	}
+	if (the_gc)
+		XFreeGC(x_display, the_gc);
+
 	// Close window
 	XDestroyWindow(x_display, the_win);
-
-	// Close frame buffer copy
-	if (the_buffer_copy) {
-		free(the_buffer_copy);
-		the_buffer_copy = NULL;
-	}
 }
 
 // Close DGA mode
@@ -378,6 +467,17 @@ static void close_dga(void)
 	if (has_vidmode)
 		XF86VidModeSwitchToMode(x_display, screen, x_video_modes[0]);
 #endif
+
+	if (!use_vosf) {
+		// don't free() the screen buffer in driver_base dtor
+		the_buffer = NULL;
+	}
+#ifdef ENABLE_VOSF
+	else {
+		// don't free() the screen buffer in driver_base dtor
+		the_host_buffer = NULL;
+	}
+#endif
 }
 
 static void close_display(void)
@@ -386,6 +486,41 @@ static void close_display(void)
 		close_dga();
 	else if (display_type == DIS_WINDOW)
 		close_window();
+
+#ifdef ENABLE_VOSF
+	if (use_vosf) {
+		// Deinitialize VOSF
+		video_vosf_exit();
+	}
+#endif
+
+	// Free frame buffer(s)
+	if (!use_vosf) {
+		if (the_buffer_copy) {
+			free(the_buffer_copy);
+			the_buffer_copy = NULL;
+		}
+	}
+#ifdef ENABLE_VOSF
+	else {
+		// the_buffer shall always be mapped through vm_acquire() so that we can vm_protect() it at will
+		if (the_buffer != VM_MAP_FAILED) {
+			D(bug(" releasing the_buffer at %p (%d bytes)\n", the_buffer, the_buffer_size));
+			vm_release(the_buffer, the_buffer_size);
+			the_buffer = NULL;
+		}
+		if (the_host_buffer) {
+			D(bug(" freeing the_host_buffer at %p\n", the_host_buffer));
+			free(the_host_buffer);
+			the_host_buffer = NULL;
+		}
+		if (the_buffer_copy) {
+			D(bug(" freeing the_buffer_copy at %p\n", the_buffer_copy));
+			free(the_buffer_copy);
+			the_buffer_copy = NULL;
+		}
+	}
+#endif
 }
 
 
@@ -456,6 +591,12 @@ static bool has_mode(int x, int y)
 
 bool VideoInit(void)
 {
+#ifdef ENABLE_VOSF
+	// Zero the mainBuffer structure
+	mainBuffer.dirtyPages = NULL;
+	mainBuffer.pageInfo = NULL;
+#endif
+	
 	// Init variables
 	private_data = NULL;
 	cur_mode = 0;	// Window 640x480
@@ -652,6 +793,13 @@ void VideoExit(void)
 		redraw_thread_active = false;
 	}
 
+#ifdef ENABLE_VOSF
+	if (use_vosf) {
+		// Deinitialize VOSF
+		video_vosf_exit();
+	}
+#endif
+
 	// Close window and server connection
 	if (x_display != NULL) {
 		XSync(x_display, false);
@@ -729,8 +877,24 @@ static void resume_emul(void)
 	XF86DGASetViewPort(x_display, screen, 0, 0);
 	XSync(x_display, false);
 
+	// the_buffer already contains the data to restore. i.e. since a temporary
+	// frame buffer is used when VOSF is actually used, fb_save is therefore
+	// not necessary.
+#ifdef ENABLE_VOSF
+	if (use_vosf) {
+		LOCK_VOSF;
+		PFLAG_SET_ALL;
+		UNLOCK_VOSF;
+		memset(the_buffer_copy, 0, VModes[cur_mode].viRowBytes * VModes[cur_mode].viYsize);
+	}
+#endif
+	
 	// Restore frame buffer
 	if (fb_save) {
+#ifdef ENABLE_VOSF
+		// Don't copy fb_save to the temporary frame buffer in VOSF mode
+		if (!use_vosf)
+#endif
 		memcpy((void *)screen_base, fb_save, VModes[cur_mode].viYsize * VModes[cur_mode].viRowBytes);
 		free(fb_save);
 		fb_save = NULL;
@@ -979,6 +1143,13 @@ static void handle_events(void)
 
 			// Hidden parts exposed, force complete refresh
 			case Expose:
+#ifdef ENABLE_VOSF
+				if (use_vosf) {			// VOSF refresh
+					LOCK_VOSF;
+					PFLAG_SET_ALL;
+					UNLOCK_VOSF;
+				}
+#endif
 				memset(the_buffer_copy, 0, VModes[cur_mode].viRowBytes * VModes[cur_mode].viYsize);
 				break;
 		}
@@ -1376,7 +1547,18 @@ static void *redraw_func(void *arg)
 				tick_counter = 0;
 
 				// Update display
-				update_display();
+#ifdef ENABLE_VOSF
+				if (use_vosf) {
+					if (mainBuffer.dirty) {
+						LOCK_VOSF;
+						update_display_window_vosf();
+						UNLOCK_VOSF;
+						XSync(x_display, false); // Let the server catch up
+					}
+				}
+				else
+#endif
+					update_display();
 
 				// Set new cursor image if it was changed
 				if (cursor_changed) {
@@ -1391,6 +1573,20 @@ static void *redraw_func(void *arg)
 				}
 			}
 		}
+#ifdef ENABLE_VOSF
+		else if (use_vosf) {
+			// Update display (VOSF variant)
+			static int tick_counter = 0;
+			if (++tick_counter >= frame_skip) {
+				tick_counter = 0;
+				if (mainBuffer.dirty) {
+					LOCK_VOSF;
+					update_display_dga_vosf();
+					UNLOCK_VOSF;
+				}
+			}
+		}
+#endif
 
 		// Set new palette if it was changed
 		if (palette_changed && !emul_suspended) {

@@ -108,6 +108,7 @@
 #include "rom_patches.h"
 #include "user_strings.h"
 #include "vm_alloc.h"
+#include "sigsegv.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -1282,20 +1283,22 @@ static void sigusr2_handler(int sig, sigcontext_struct *sc)
 static void sigsegv_handler(int sig, sigcontext_struct *sc)
 {
 	pt_regs *r = sc->regs;
+
+	// Get effective address
+	uint32 addr = r->dar;
+	
+#if ENABLE_VOSF
+	// Handle screen fault.
+	extern bool Screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction);
+	if (Screen_fault_handler((sigsegv_address_t)addr, (sigsegv_address_t)r->nip))
+		return;
+#endif
+
 	num_segv++;
 
 	// Fault in Mac ROM or RAM?
 	bool mac_fault = (r->nip >= ROM_BASE) && (r->nip < (ROM_BASE + ROM_AREA_SIZE)) || (r->nip >= RAMBase) && (r->nip < (RAMBase + RAMSize));
 	if (mac_fault) {
-
-		// Get opcode and divide into fields
-		uint32 opcode = *((uint32 *)r->nip);
-		uint32 primop = opcode >> 26;
-		uint32 exop = (opcode >> 1) & 0x3ff;
-		uint32 ra = (opcode >> 16) & 0x1f;
-		uint32 rb = (opcode >> 11) & 0x1f;
-		uint32 rd = (opcode >> 21) & 0x1f;
-		int32 imm = (int16)(opcode & 0xffff);
 
 		// "VM settings" during MacOS 8 installation
 		if (r->nip == ROM_BASE + 0x488160 && r->gpr[20] == 0xf8000000) {
@@ -1323,6 +1326,15 @@ static void sigsegv_handler(int sig, sigcontext_struct *sc)
 			r->nip += 4;
 			return;
 		}
+
+		// Get opcode and divide into fields
+		uint32 opcode = *((uint32 *)r->nip);
+		uint32 primop = opcode >> 26;
+		uint32 exop = (opcode >> 1) & 0x3ff;
+		uint32 ra = (opcode >> 16) & 0x1f;
+		uint32 rb = (opcode >> 11) & 0x1f;
+		uint32 rd = (opcode >> 21) & 0x1f;
+		int32 imm = (int16)(opcode & 0xffff);
 
 		// Analyze opcode
 		enum {
@@ -1407,27 +1419,6 @@ static void sigsegv_handler(int sig, sigcontext_struct *sc)
 				transfer_type = TYPE_STORE; transfer_size = SIZE_HALFWORD; addr_mode = MODE_U; break;
 		}
 	
-		// Calculate effective address
-		uint32 addr = 0;
-		switch (addr_mode) {
-			case MODE_X:
-			case MODE_UX:
-				if (ra == 0)
-					addr = r->gpr[rb];
-				else
-					addr = r->gpr[ra] + r->gpr[rb];
-				break;
-			case MODE_NORM:
-			case MODE_U:
-				if (ra == 0)
-					addr = (int32)(int16)imm;
-				else
-					addr = r->gpr[ra] + (int32)(int16)imm;
-				break;
-			default:
-				break;
-		}
-
 		// Ignore ROM writes
 		if (transfer_type == TYPE_STORE && addr >= ROM_BASE && addr < ROM_BASE + ROM_SIZE) {
 //			D(bug("WARNING: %s write access to ROM at %08lx, pc %08lx\n", transfer_size == SIZE_BYTE ? "Byte" : transfer_size == SIZE_HALFWORD ? "Halfword" : "Word", addr, r->nip));

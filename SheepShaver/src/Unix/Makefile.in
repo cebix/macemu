@@ -29,7 +29,8 @@ SRCS = main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp sys_unix.cpp
     ../rom_patches.cpp ../rsrc_patches.cpp ../emul_op.cpp ../name_registry.cpp \
     ../macos_util.cpp ../timer.cpp timer_unix.cpp ../xpram.cpp xpram_unix.cpp \
     ../adb.cpp clip_unix.cpp ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp \
-    Linux/scsi_linux.cpp ../video.cpp video_x.cpp ../audio.cpp audio_oss_esd.cpp ../ether.cpp \
+    Linux/scsi_linux.cpp ../video.cpp video_blit.cpp video_x.cpp \
+    ../audio.cpp audio_oss_esd.cpp ../ether.cpp \
     Linux/ether_linux.cpp ../serial.cpp serial_unix.cpp ../extfs.cpp extfs_unix.cpp \
     about_window_unix.cpp ../user_strings.cpp user_strings_unix.cpp \
     vm_alloc.cpp sigsegv.cpp \
