@@ -335,6 +335,7 @@ static void *tick_func(void *arg);
 extern void emul_ppc(uint32 start);
 extern void init_emul_ppc(void);
 extern void exit_emul_ppc(void);
+sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
 #else
 static void sigusr2_handler(int sig, siginfo_t *sip, void *scp);
 static void sigsegv_handler(int sig, siginfo_t *sip, void *scp);
@@ -508,6 +509,37 @@ int main(int argc, char **argv)
 	// Initialize mon
 	mon_init();
 #endif
+
+#if !EMULATED_PPC
+	// Install SIGSEGV and SIGBUS handlers
+	sigemptyset(&sigsegv_action.sa_mask);	// Block interrupts during SEGV handling
+	sigaddset(&sigsegv_action.sa_mask, SIGUSR2);
+	sigsegv_action.sa_sigaction = sigsegv_handler;
+	sigsegv_action.sa_flags = SA_ONSTACK | SA_SIGINFO;
+#ifdef HAVE_SIGNAL_SA_RESTORER
+	sigsegv_action.sa_restorer = NULL;
+#endif
+	if (sigaction(SIGSEGV, &sigsegv_action, NULL) < 0) {
+		sprintf(str, GetString(STR_SIGSEGV_INSTALL_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+	if (sigaction(SIGBUS, &sigsegv_action, NULL) < 0) {
+		sprintf(str, GetString(STR_SIGSEGV_INSTALL_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+#else
+	// Install SIGSEGV handler for CPU emulator
+	if (!sigsegv_install_handler(sigsegv_handler)) {
+		sprintf(str, GetString(STR_SIGSEGV_INSTALL_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+#endif
+
+	// Initialize VM system
+	vm_init();
 
 	// Get system info
 	PVR = 0x00040000;			// Default: 604
@@ -962,25 +994,6 @@ int main(int argc, char **argv)
 #endif
 
 #if !EMULATED_PPC
-	// Install SIGSEGV and SIGBUS handlers
-	sigemptyset(&sigsegv_action.sa_mask);	// Block interrupts during SEGV handling
-	sigaddset(&sigsegv_action.sa_mask, SIGUSR2);
-	sigsegv_action.sa_sigaction = sigsegv_handler;
-	sigsegv_action.sa_flags = SA_ONSTACK | SA_SIGINFO;
-#ifdef HAVE_SIGNAL_SA_RESTORER
-	sigsegv_action.sa_restorer = NULL;
-#endif
-	if (sigaction(SIGSEGV, &sigsegv_action, NULL) < 0) {
-		sprintf(str, GetString(STR_SIGSEGV_INSTALL_ERR), strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-	if (sigaction(SIGBUS, &sigsegv_action, NULL) < 0) {
-		sprintf(str, GetString(STR_SIGSEGV_INSTALL_ERR), strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-
 	// Install SIGILL handler
 	sigemptyset(&sigill_action.sa_mask);	// Block interrupts during ILL handling
 	sigaddset(&sigill_action.sa_mask, SIGUSR2);

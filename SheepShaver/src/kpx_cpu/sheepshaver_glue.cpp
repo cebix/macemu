@@ -112,7 +112,7 @@ const uint32 POWERPC_EXEC_RETURN = POWERPC_EMUL_OP | 1;
 static KernelData * const kernel_data = (KernelData *)KERNEL_DATA_BASE;
 
 // SIGSEGV handler
-static sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
+sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
 
 #if PPC_ENABLE_JIT && PPC_REENTRANT_JIT
 // Special trampolines for EmulOp and NativeOp
@@ -880,7 +880,7 @@ static void dump_log(void)
  *  Initialize CPU emulation
  */
 
-static sigsegv_return_t sigsegv_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction)
+sigsegv_return_t sigsegv_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction)
 {
 #if ENABLE_VOSF
 	// Handle screen fault
@@ -957,9 +957,6 @@ void init_emul_ppc(void)
 	ppc_cpu->set_register(powerpc_registers::GPR(3), any_register((uint32)ROM_BASE + 0x30d000));
 	ppc_cpu->set_register(powerpc_registers::GPR(4), any_register(KernelDataAddr + 0x1000));
 	WriteMacInt32(XLM_RUN_MODE, MODE_68K);
-
-	// Install the handler for SIGSEGV
-	sigsegv_install_handler(sigsegv_handler);
 
 #if ENABLE_MON
 	// Install "regs" command in cxmon
