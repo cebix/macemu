@@ -1,7 +1,7 @@
 /*
  *  sys_unix.cpp - System dependent routines, Unix implementation
  *
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  Basilisk II (C) 1997-2003 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -77,6 +77,9 @@ struct file_handle {
 	int cdrom_cap;		// CD-ROM capability flags (only valid if is_cdrom is true)
 #elif defined(__FreeBSD__)
 	struct ioc_capability cdrom_cap;
+#elif defined(__APPLE__) && defined(__MACH__)
+	char	*ioctl_name;	// For CDs on OS X - a device for special ioctls
+	int		ioctl_fd;
 #endif
 };
 
@@ -141,6 +144,9 @@ void SysAddFloppyPrefs(void)
 #elif defined(__NetBSD__)
 	PrefsAddString("floppy", "/dev/fd0a");
 	PrefsAddString("floppy", "/dev/fd1a");
+#elif defined(__APPLE__) && defined(__MACH__)
+	PrefsAddString("floppy", "/dev/fd/0");
+	PrefsAddString("floppy", "/dev/fd/1");
 #else
 	PrefsAddString("floppy", "/dev/fd0");
 	PrefsAddString("floppy", "/dev/fd1");
@@ -151,6 +157,9 @@ void SysAddFloppyPrefs(void)
 /*
  *  This gets called when no "disk" prefs items are found
  *  It scans for available HFS volumes and adds appropriate prefs items
+ *	On OS X, we could do the same, but on an OS X machine I think it is
+ *	very unlikely that any mounted volumes would contain a system which
+ *	is old enough to boot a 68k Mac, so we just do nothing here for now.
  */
 
 void SysAddDiskPrefs(void)
@@ -208,6 +217,10 @@ void SysAddCDROMPrefs(void)
 			closedir(cd_dir);
 		}
 	}
+#elif defined(__APPLE__) && defined(__MACH__)
+	extern	void DarwinAddCDROMPrefs(void);
+
+	DarwinAddCDROMPrefs();
 #elif defined(__FreeBSD__) || defined(__NetBSD__)
 	PrefsAddString("cdrom", "/dev/cd0c");
 #endif
@@ -234,6 +247,11 @@ void SysAddSerialPrefs(void)
 #elif defined(__NetBSD__)
 	PrefsAddString("seriala", "/dev/tty00");
 	PrefsAddString("serialb", "/dev/tty01");
+#elif defined(__APPLE__) && defined(__MACH__)
+	PrefsAddString("seriala", "/dev/ttys0");
+	PrefsAddString("serialb", "/dev/ttys1");
+//	PrefsAddString("seriala", "/dev/cu.modem");
+//	PrefsAddString("serialb", "/dev/cu.IrDA-IrCOMMch-b");
 #endif
 }
 
@@ -284,6 +302,26 @@ void *Sys_open(const char *name, bool read_only)
 	bool is_cdrom = strncmp(name, "/dev/cd", 7) == 0 || strncmp(name, "/dev/acd", 8) == 0;
 #else
 	bool is_cdrom = strncmp(name, "/dev/cd", 7) == 0;
+#endif
+
+#if defined(__APPLE__) && defined(__MACH__)
+	//
+	// There is no set filename in /dev which is the cdrom,
+	// so we have to see if it is any of the devices that we found earlier
+	//
+	const char	*cdrom;
+	int			tmp = 0;
+
+	while ( (cdrom = PrefsFindString("cdrom", tmp) ) != NULL )
+	{
+		if ( strcmp(name, cdrom) == 0 )
+		{
+			is_cdrom = 1;
+			read_only = 1;
+			break;
+		}
+		++tmp;
+	}
 #endif
 
 	D(bug("Sys_open(%s, %s)\n", name, read_only ? "read-only" : "read/write"));
@@ -368,6 +406,35 @@ void *Sys_open(const char *name, bool read_only)
 					fh->is_floppy = ((st.st_rdev >> 16) == 2);
 #endif
 				}
+#if defined(__APPLE__) && defined(__MACH__)
+
+				// In OS X, the device name is OK for sending ioctls to,
+				// but not for reading raw CDROM data from.
+				// (it seems to have extra data padded in)
+				//
+				// So, we keep the already opened fiole handle,
+				// and open a slightly different file for CDROM data 
+				//
+				if ( is_cdrom )
+				{
+					fh->ioctl_name	= fh->name;
+					fh->ioctl_fd	= fh->fd;
+
+					fh->name = (char *) malloc(strlen(name) + 2);
+					if ( fh->name )
+					{
+						*fh->name = '\0';
+						strcat(fh->name, name);
+						strcat(fh->name, "s1");
+						fh->fd = open(fh->name, (read_only ? O_RDONLY : O_RDWR));
+						if ( fh->fd < 0 ) {
+							printf("WARNING: Cannot open %s (%s)\n",
+											fh->name, strerror(errno));
+							return NULL;
+						}
+					}
+				}
+#endif
 			}
 		}
 		if (fh->is_floppy && first_floppy == NULL)
@@ -504,6 +571,33 @@ void SysEject(void *arg)
 		ioctl(fh->fd, CDIOCEJECT);
 		close(fh->fd);	// Close and reopen so the driver will see the media change
 		fh->fd = open(fh->name, O_RDONLY | O_NONBLOCK);
+	}
+#elif defined(__APPLE__) && defined(__MACH__)
+	if ( fh->is_cdrom ) {
+
+		// Stolen from IOKit/storage/IOMediaBSDClient.h
+		#define DKIOCEJECT _IO('d', 21)
+
+		close(fh->fd);
+		if ( ioctl(fh->ioctl_fd, DKIOCEJECT) < 0 )
+		{
+			printf("ioctl(DKIOCEJECT) failed on file %s: %s\n",
+								fh->ioctl_name, strerror(errno));
+
+			// If we are running OSX, the device may be is busy
+			// due to the Finder having the disk mounted and open,
+			// so we have to use another method.
+
+			// The only problem is that this takes about 5 seconds:
+
+			char	*cmd = (char *) malloc(30+sizeof(fh->name));
+
+			if ( ! cmd )
+				return;
+			close(fh->ioctl_fd);
+			sprintf(cmd, "diskutil eject %s 2>&1 >/dev/null", fh->name);
+			system(cmd);
+		}
 	}
 #endif
 }
@@ -711,6 +805,10 @@ bool SysCDReadTOC(void *arg, uint8 *toc)
 		*toc++ = toc_size >> 8;
 		*toc++ = toc_size & 0xff;
 		return true;
+#elif defined(__APPLE__) && defined(__MACH__) && defined(MAC_OS_X_VERSION_10_2)
+		extern	bool	DarwinCDReadTOC(char *name, uint8 *toc);
+
+		return	DarwinCDReadTOC(fh->name, toc);
 #elif defined(__FreeBSD__)
 		uint8 *p = toc + 2;
 
