@@ -85,7 +85,7 @@ struct finf_struct {
 	uint32 type;
 	uint32 creator;
 	uint16 flags;
-	uint16 pad0;
+	uint8 pad0[22];	// total size: 32 bytes to match the size of FInfo+FXInfo
 };
 
 static void make_helper_path(const char *src, char *dest, const char *add, bool only_dir = false)
@@ -226,7 +226,7 @@ void get_finder_type(const char *path, uint32 &type, uint32 &creator)
 
 		// Read file
 		finf_struct finf;
-		if (read(fd, &finf, sizeof(finf_struct)) == sizeof(finf_struct)) {
+		if (read(fd, &finf, sizeof(finf_struct)) >= 8) {
 
 			// Type/creator are in Finder info file, return them
 			type = ntohl(finf.type);
@@ -259,7 +259,9 @@ void set_finder_type(const char *path, uint32 type, uint32 creator)
 		return;
 
 	// Read file
-	finf_struct finf = {0, 0, DEFAULT_FINDER_FLAGS, 0};
+	finf_struct finf;
+	finf.flags = DEFAULT_FINDER_FLAGS;
+	memset(&finf, 0, sizeof(finf_struct));
 	read(fd, &finf, sizeof(finf_struct));
 
 	// Set Finder flags
@@ -288,7 +290,7 @@ void get_finder_flags(const char *path, uint16 &flags)
 
 	// Read Finder flags
 	finf_struct finf;
-	if (read(fd, &finf, sizeof(finf_struct)) == sizeof(finf_struct))
+	if (read(fd, &finf, sizeof(finf_struct)) >= 10)
 		flags = ntohs(finf.flags);
 
 	// Close file
@@ -303,7 +305,9 @@ void set_finder_flags(const char *path, uint16 flags)
 		return;
 
 	// Read file
-	finf_struct finf = {0, 0, DEFAULT_FINDER_FLAGS, 0};
+	finf_struct finf;
+	memset(&finf, 0, sizeof(finf_struct));
+	finf.flags = DEFAULT_FINDER_FLAGS;
 	read(fd, &finf, sizeof(finf_struct));
 
 	// Set Finder flags

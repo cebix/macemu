@@ -268,7 +268,7 @@ int main(int argc, char **argv)
 	req.it_value.tv_nsec = 16625000;
 	req.it_interval.tv_sec = 0;
 	req.it_interval.tv_nsec = 16625000;
-	if (timer_settime(timer, TIMER_RELTIME, &req, NULL) < 0) {
+	if (timer_settime(timer, 0, &req, NULL) < 0) {
 		printf("FATAL: cannot start timer\n");
 		QuitEmulator();
 	}
