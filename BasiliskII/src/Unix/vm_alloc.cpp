@@ -136,7 +136,7 @@ int vm_acquire_fixed(void * addr, size_t size)
 		return -1;
 	
 	// Since I don't know the standard behavior of mmap(), zero-fill here
-	if (memset(0, 0, size) != 0)
+	if (memset(addr, 0, size) != 0)
 		return -1;
 #else
 	// Unsupported
@@ -146,7 +146,7 @@ int vm_acquire_fixed(void * addr, size_t size)
 	
 	// Explicitely protect the newly mapped region here because on some systems,
 	// say MacOS X, mmap() doesn't honour the requested protection flags.
-	if (vm_protect(0, size, VM_PAGE_DEFAULT) != 0)
+	if (vm_protect(addr, size, VM_PAGE_DEFAULT) != 0)
 		return -1;
 	
 	return 0;
