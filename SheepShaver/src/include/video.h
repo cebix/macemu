@@ -123,7 +123,7 @@ struct VidLocals{
 	uint32	cursorSet;
 	uint32	vslServiceID;		// VSL interrupt service ID
 	bool	interruptsEnabled;	// VBL interrupts on/off
-	uint32	regEntryID[4];
+	uint32	regEntryID;			// Mac address of the service owner
 };
 
 extern VidLocals *private_data;	// Pointer to driver local variables (there is only one display, so this is ok)

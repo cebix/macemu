@@ -169,7 +169,7 @@ static int16 VideoOpen(uint32 pb, VidLocals *csSave)
 
 	// Install and activate interrupt service
 	SheepVar32 theServiceID = 0;
-	VSLNewInterruptService(Host2MacAddr((uint8 *)csSave->regEntryID), FOURCC('v','b','l',' '), theServiceID.addr());
+	VSLNewInterruptService(csSave->regEntryID, FOURCC('v','b','l',' '), theServiceID.addr());
 	csSave->vslServiceID = theServiceID.value();
 	D(bug(" Interrupt ServiceID %08lx\n", csSave->vslServiceID));
 	csSave->interruptsEnabled = true;
@@ -885,6 +885,8 @@ int16 VideoDoDriverIO(uint32 spaceID, uint32 commandID, uint32 commandContents, 
 			if (private_data != NULL) {	// Might be left over from a reboot
 				if (private_data->gammaTable)
 					Mac_sysfree(private_data->gammaTable);
+				if (private_data->regEntryID)
+					Mac_sysfree(private_data->regEntryID);
 			}
 			delete private_data;
 
@@ -926,14 +928,24 @@ int16 VideoDoDriverIO(uint32 spaceID, uint32 commandID, uint32 commandContents, 
 
 			private_data = new VidLocals;
 			private_data->gammaTable = 0;
-			Mac2Host_memcpy(&private_data->regEntryID, commandContents + 2, 16);	// DriverInitInfo.deviceEntry
+			private_data->regEntryID = Mac_sysalloc(sizeof(RegEntryID));
+			if (private_data->regEntryID == 0) {
+				printf("FATAL: VideoDoDriverIO(): Can't allocate service owner\n");
+				err = -1;
+				break;
+			}
+			Mac2Mac_memcpy(private_data->regEntryID, commandContents + 2, 16);	// DriverInitInfo.deviceEntry
 			private_data->interruptsEnabled = false;	// Disable interrupts
 			break;
 
 		case kFinalizeCommand:
 		case kSupersededCommand:
-			if (private_data != NULL && private_data->gammaTable)
-				Mac_sysfree(private_data->gammaTable);
+			if (private_data != NULL) {
+				if (private_data->gammaTable)
+					Mac_sysfree(private_data->gammaTable);
+				if (private_data->regEntryID)
+					Mac_sysfree(private_data->regEntryID);
+			}
 			delete private_data;
 			private_data = NULL;
 			break;
