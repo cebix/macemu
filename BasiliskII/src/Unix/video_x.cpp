@@ -93,6 +93,7 @@ static int display_type = DISPLAY_WINDOW;			// See enum above
 static bool local_X11;								// Flag: X server running on local machine?
 static uint8 *the_buffer = NULL;					// Mac frame buffer (where MacOS draws into)
 static uint8 *the_buffer_copy = NULL;				// Copy of Mac frame buffer (for refreshed modes)
+static uint32 the_buffer_size;						// Size of allocated the_buffer
 
 static bool redraw_thread_active = false;			// Flag: Redraw thread installed
 #ifdef HAVE_PTHREADS
@@ -509,12 +510,12 @@ driver_base::~driver_base()
 			free(the_host_buffer);
 			the_host_buffer = NULL;
 		}
-		if (the_buffer != (uint8 *)VM_MAP_FAILED) {
-			vm_release(the_buffer, the_buffer_size);
+		if (the_buffer) {
+			free(the_buffer);
 			the_buffer = NULL;
 		}
-		if (the_buffer_copy != (uint8 *)VM_MAP_FAILED) {
-			vm_release(the_buffer_copy, the_buffer_size);
+		if (the_buffer_copy) {
+			free(the_buffer_copy);
 			the_buffer_copy = NULL;
 		}
 	}
@@ -629,6 +630,7 @@ driver_window::driver_window(const video_mode &mode)
 	}
 
 #ifdef ENABLE_VOSF
+	use_vosf = true;
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	the_host_buffer = the_buffer_copy;
 	the_buffer_size = page_extend((aligned_height + 2) * img->bytes_per_line);
@@ -682,6 +684,19 @@ driver_window::~driver_window()
 		the_buffer_copy = NULL; // don't free() in driver_base dtor
 #endif
 	}
+#ifdef ENABLE_VOSF
+	if (use_vosf) {
+		// don't free() memory mapped buffers in driver_base dtor
+		if (the_buffer != VM_MAP_FAILED) {
+			vm_release(the_buffer, the_buffer_size);
+			the_buffer = NULL;
+		}
+		if (the_buffer_copy != VM_MAP_FAILED) {
+			vm_release(the_buffer_copy, the_buffer_size);
+			the_buffer_copy = NULL;
+		}
+	}
+#endif
 	if (img)
 		XDestroyImage(img);
 	if (have_shm) {
@@ -1001,8 +1016,9 @@ driver_fbdev::driver_fbdev(const video_mode &mode)
 	int bytes_per_row = TrivialBytesPerRow(mode.x, mode.depth);
 	
 	// Map frame buffer
-	if ((the_buffer = (uint8 *) mmap(NULL, height * bytes_per_row, PROT_READ | PROT_WRITE, MAP_PRIVATE, fbdev_fd, fb_offset)) == MAP_FAILED) {
-		if ((the_buffer = (uint8 *) mmap(NULL, height * bytes_per_row, PROT_READ | PROT_WRITE, MAP_SHARED, fbdev_fd, fb_offset)) == MAP_FAILED) {
+	the_buffer_size = height * bytes_per_row;
+	if ((the_buffer = (uint8 *) mmap(NULL, the_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fbdev_fd, fb_offset)) == MAP_FAILED) {
+		if ((the_buffer = (uint8 *) mmap(NULL, the_buffer_size, PROT_READ | PROT_WRITE, MAP_SHARED, fbdev_fd, fb_offset)) == MAP_FAILED) {
 			char str[256];
 			sprintf(str, GetString(STR_FBDEV_MMAP_ERR), strerror(errno));
 			ErrorAlert(str);
@@ -1041,6 +1057,30 @@ driver_fbdev::driver_fbdev(const video_mode &mode)
 // Close display
 driver_fbdev::~driver_fbdev()
 {
+	if (!use_vosf) {
+		if (the_buffer != MAP_FAILED) {
+			// don't free() the screen buffer in driver_base dtor
+			munmap(the_buffer, the_buffer_size);
+			the_buffer = NULL;
+		}
+	}
+#ifdef ENABLE_VOSF
+	else {
+		if (the_host_buffer != MAP_FAILED) {
+			// don't free() the screen buffer in driver_base dtor
+			munmap(the_host_buffer, the_buffer_size);
+			the_host_buffer = NULL;
+		}
+		if (the_buffer_copy != VM_MAP_FAILED) {
+			vm_release(the_buffer_copy, the_buffer_size);
+			the_buffer_copy = NULL;
+		}
+		if (the_buffer != VM_MAP_FAILED) {
+			vm_release(the_buffer, the_buffer_size);
+			the_buffer = NULL;
+		}
+	}
+#endif
 }
 #endif
 
@@ -1126,7 +1166,7 @@ driver_xf86dga::driver_xf86dga(const video_mode &mode)
 
 	// Init blitting routines
 	int bytes_per_row = TrivialBytesPerRow((v_width + 7) & ~7, mode.depth);
-#ifdef VIDEO_VOSF
+#if VIDEO_VOSF
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 	// Screen_blitter_init() returns TRUE if VOSF is mandatory
 	// i.e. the framebuffer update function is not Blit_Copy_Raw
@@ -1157,6 +1197,25 @@ driver_xf86dga::driver_xf86dga(const video_mode &mode)
 driver_xf86dga::~driver_xf86dga()
 {
 	XF86DGADirectVideo(x_display, screen, 0);
+	if (!use_vosf) {
+		// don't free() the screen buffer in driver_base dtor
+		the_buffer = NULL;
+	}
+#ifdef ENABLE_VOSF
+	else {
+		// don't free() the screen buffer in driver_base dtor
+		the_host_buffer = NULL;
+		
+		if (the_buffer_copy != VM_MAP_FAILED) {
+			vm_release(the_buffer_copy, the_buffer_size);
+			the_buffer_copy = NULL;
+		}
+		if (the_buffer != VM_MAP_FAILED) {
+			vm_release(the_buffer, the_buffer_size);
+			the_buffer = NULL;
+		}
+	}
+#endif
 #ifdef ENABLE_XF86_VIDMODE
 	if (has_vidmode)
 		XF86VidModeSwitchToMode(x_display, screen, x_video_modes[0]);
@@ -1343,16 +1402,10 @@ static bool video_open(const video_mode &mode)
 
 #ifdef ENABLE_VOSF
 	if (use_vosf) {
-		// Initialize the mainBuffer structure
-		if (!video_init_buffer()) {
+		// Initialize the VOSF system
+		if (!video_vosf_init()) {
 			ErrorAlert(STR_VOSF_INIT_ERR);
         	return false;
-		}
-
-		// Initialize the handler for SIGSEGV
-		if (!sigsegv_install_handler(screen_fault_handler)) {
-			ErrorAlert("Could not initialize Video on SEGV signals");
-			return false;
 		}
 	}
 #endif
@@ -1569,16 +1622,9 @@ static void video_close(void)
 	XSync(x_display, false);
 
 #ifdef ENABLE_VOSF
-	// Deinitialize VOSF
 	if (use_vosf) {
-		if (mainBuffer.pageInfo) {
-			free(mainBuffer.pageInfo);
-			mainBuffer.pageInfo = NULL;
-		}
-		if (mainBuffer.dirtyPages) {
-			free(mainBuffer.dirtyPages);
-			mainBuffer.dirtyPages = NULL;
-		}
+		// Deinitialize VOSF
+		video_vosf_exit();
 	}
 #endif
 

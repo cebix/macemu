@@ -35,19 +35,16 @@
 
 // Variables for Video on SEGV support
 static uint8 *the_host_buffer;	// Host frame buffer in VOSF mode
-static uint32 the_buffer_size;	// Size of allocated the_buffer
 
 struct ScreenPageInfo {
     int top, bottom;			// Mapping between this virtual page and Mac scanlines
 };
 
 struct ScreenInfo {
-    uintptr memBase;			// Real start address 
     uintptr memStart;			// Start address aligned to page boundary
-    uintptr memEnd;				// Address of one-past-the-end of the screen
     uint32 memLength;			// Length of the memory addressed by the screen pages
     
-    uint32 pageSize;			// Size of a page
+    uintptr pageSize;			// Size of a page
     int pageBits;				// Shift count to get the page number
     uint32 pageCount;			// Number of pages allocated to the screen
     
@@ -161,73 +158,88 @@ static uint32 page_extend(uint32 size)
 
 
 /*
- *  Initialize mainBuffer structure
+ *  Initialize the VOSF system (mainBuffer structure, SIGSEGV handler)
  */
 
-static bool video_init_buffer(void)
+static bool screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction);
+
+static bool video_vosf_init(void)
 {
-	if (use_vosf) {
-		const uint32 page_size	= getpagesize();
-		const uint32 page_mask	= page_size - 1;
+	const uintptr page_size = getpagesize();
+	const uintptr page_mask = page_size - 1;
+	
+	// Round up frame buffer base to page boundary
+	mainBuffer.memStart = (((uintptr) the_buffer) + page_mask) & ~page_mask;
+	
+	// The frame buffer size shall already be aligned to page boundary (use page_extend)
+	mainBuffer.memLength = the_buffer_size;
+	
+	mainBuffer.pageSize = page_size;
+	mainBuffer.pageBits = log_base_2(mainBuffer.pageSize);
+	mainBuffer.pageCount =  (mainBuffer.memLength + page_mask)/mainBuffer.pageSize;
+	
+	// The "2" more bytes requested are a safety net to insure the
+	// loops in the update routines will terminate.
+	// See "How can we deal with array overrun conditions ?" hereunder for further details.
+	mainBuffer.dirtyPages = (char *) vm_acquire(mainBuffer.pageCount + 2);
+	if (mainBuffer.dirtyPages == VM_MAP_FAILED)
+		return false;
 		
-		mainBuffer.memBase      = (uintptr) the_buffer;
-		// Round up frame buffer base to page boundary
-		mainBuffer.memStart		= (uintptr)((((unsigned long) the_buffer) + page_mask) & ~page_mask);
-		mainBuffer.memLength	= the_buffer_size;
-		mainBuffer.memEnd       = mainBuffer.memStart + mainBuffer.memLength;
+	PFLAG_CLEAR_ALL;
+	PFLAG_CLEAR(mainBuffer.pageCount);
+	PFLAG_SET(mainBuffer.pageCount+1);
+	
+	// Allocate and fill in pageInfo with start and end (inclusive) row in number of bytes
+	mainBuffer.pageInfo = (ScreenPageInfo *) vm_acquire(mainBuffer.pageCount * sizeof(ScreenPageInfo));
+	if (mainBuffer.pageInfo == VM_MAP_FAILED)
+		return false;
+	
+	uint32 a = 0;
+	for (int i = 0; i < mainBuffer.pageCount; i++) {
+		int y1 = a / VideoMonitor.mode.bytes_per_row;
+		if (y1 >= VideoMonitor.mode.y)
+			y1 = VideoMonitor.mode.y - 1;
 
-		mainBuffer.pageSize     = page_size;
-		mainBuffer.pageCount	= (mainBuffer.memLength + page_mask)/mainBuffer.pageSize;
-		mainBuffer.pageBits     = log_base_2(mainBuffer.pageSize);
+		int y2 = (a + mainBuffer.pageSize) / VideoMonitor.mode.bytes_per_row;
+		if (y2 >= VideoMonitor.mode.y)
+			y2 = VideoMonitor.mode.y - 1;
 
-		if (mainBuffer.dirtyPages) {
-			free(mainBuffer.dirtyPages);
-			mainBuffer.dirtyPages = NULL;
-		}
+		mainBuffer.pageInfo[i].top = y1;
+		mainBuffer.pageInfo[i].bottom = y2;
 
-		mainBuffer.dirtyPages = (char *) malloc(mainBuffer.pageCount + 2);
-
-		if (mainBuffer.pageInfo) {
-			free(mainBuffer.pageInfo);
-			mainBuffer.pageInfo = NULL;
-		}
-
-		mainBuffer.pageInfo = (ScreenPageInfo *) malloc(mainBuffer.pageCount * sizeof(ScreenPageInfo));
-
-		if ((mainBuffer.dirtyPages == NULL) || (mainBuffer.pageInfo == NULL))
-			return false;
-		
-		mainBuffer.dirty = false;
-
-		PFLAG_CLEAR_ALL;
-		// Safety net to insure the loops in the update routines will terminate
-		// See "How can we deal with array overrun conditions ?" hereunder for further details
-		PFLAG_CLEAR(mainBuffer.pageCount);
-		PFLAG_SET(mainBuffer.pageCount+1);
-
-		uint32 a = 0;
-		for (int i = 0; i < mainBuffer.pageCount; i++) {
-			int y1 = a / VideoMonitor.mode.bytes_per_row;
-			if (y1 >= VideoMonitor.mode.y)
-				y1 = VideoMonitor.mode.y - 1;
-
-			int y2 = (a + mainBuffer.pageSize) / VideoMonitor.mode.bytes_per_row;
-			if (y2 >= VideoMonitor.mode.y)
-				y2 = VideoMonitor.mode.y - 1;
-
-			mainBuffer.pageInfo[i].top = y1;
-			mainBuffer.pageInfo[i].bottom = y2;
-
-			a += mainBuffer.pageSize;
-			if (a > mainBuffer.memLength)
-				a = mainBuffer.memLength;
-		}
-		
-		// We can now write-protect the frame buffer
-		if (vm_protect((char *)mainBuffer.memStart, mainBuffer.memLength, VM_PAGE_READ) != 0)
-			return false;
+		a += mainBuffer.pageSize;
+		if (a > mainBuffer.memLength)
+			a = mainBuffer.memLength;
 	}
+	
+	// We can now write-protect the frame buffer
+	if (vm_protect((char *)mainBuffer.memStart, mainBuffer.memLength, VM_PAGE_READ) != 0)
+		return false;
+	
+	// Initialize the handler for SIGSEGV
+	if (!sigsegv_install_handler(screen_fault_handler))
+		return false;
+	
+	// The frame buffer is sane, i.e. there is no write to it yet
+	mainBuffer.dirty = false;
 	return true;
+}
+
+
+/*
+ * Deinitialize VOSF system
+ */
+
+static void video_vosf_exit(void)
+{
+	if (mainBuffer.pageInfo != VM_MAP_FAILED) {
+		vm_release(mainBuffer.pageInfo, mainBuffer.pageCount * sizeof(ScreenPageInfo));
+		mainBuffer.pageInfo = (ScreenPageInfo *) VM_MAP_FAILED;
+	}
+	if (mainBuffer.dirtyPages != VM_MAP_FAILED) {
+		vm_release(mainBuffer.dirtyPages, mainBuffer.pageCount + 2);
+		mainBuffer.dirtyPages = (char *) VM_MAP_FAILED;
+	}
 }
 
 
@@ -237,28 +249,27 @@ static bool video_init_buffer(void)
 
 static bool screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction)
 {
-//	D(bug("screen_fault_handler: ADDR=0x%08X from IP=0x%08X\n", fault_address, fault_instruction));
+//	D(bug("screen_fault_handler: ADDR=%p from IP=%p\n", fault_address, fault_instruction));
 	const uintptr addr = (uintptr)fault_address;
 	
 	/* Someone attempted to write to the frame buffer. Make it writeable
 	 * now so that the data could actually be written to. It will be made
 	 * read-only back in one of the screen update_*() functions.
 	 */
-	if ((addr >= mainBuffer.memStart) && (addr < mainBuffer.memEnd)) {
-		const int page  = (addr - mainBuffer.memStart) >> mainBuffer.pageBits;
-		caddr_t page_ad = (caddr_t)(addr & -mainBuffer.pageSize);
+	if (((uintptr)addr - mainBuffer.memStart) < mainBuffer.memLength) {
+		const int page  = ((uintptr)addr - mainBuffer.memStart) >> mainBuffer.pageBits;
 		LOCK_VOSF;
 		PFLAG_SET(page);
-		vm_protect((char *)page_ad, mainBuffer.pageSize, VM_PAGE_READ | VM_PAGE_WRITE);
+		vm_protect((char *)(addr & -mainBuffer.pageSize), mainBuffer.pageSize, VM_PAGE_READ | VM_PAGE_WRITE);
 		mainBuffer.dirty = true;
 		UNLOCK_VOSF;
 		return true;
 	}
 	
 	/* Otherwise, we don't know how to handle the fault, let it crash */
-	fprintf(stderr, "do_handle_screen_fault: unhandled address 0x%08X", addr);
+	fprintf(stderr, "do_handle_screen_fault: unhandled address %p", fault_address);
 	if (fault_instruction != SIGSEGV_INVALID_PC)
-		fprintf(stderr, " [IP=0x%08X]", fault_instruction);
+		fprintf(stderr, " [IP=%p]", fault_instruction);
 	fprintf(stderr, "\n");
 #if EMULATED_68K
 	uaecptr nextpc;
