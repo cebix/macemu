@@ -95,6 +95,45 @@ static void periodic_func(void);
  *  Initialization
  */
 
+// Add resolution to list of supported modes and set VideoMonitor
+static void set_video_monitor(uint32 width, uint32 height, uint32 bytes_per_row, int depth)
+{
+	video_mode mode;
+
+	mode.x = width;
+	mode.y = height;
+	mode.resolution_id = 0x80;
+	mode.bytes_per_row = bytes_per_row;
+
+	switch (depth) {
+		case 1:
+			mode.depth = VDEPTH_1BIT;
+			break;
+		case 2:
+			mode.depth = VDEPTH_2BIT;
+			break;
+		case 4:
+			mode.depth = VDEPTH_4BIT;
+			break;
+		case 8:
+			mode.depth = VDEPTH_8BIT;
+			break;
+		case 15:
+			mode.depth = VDEPTH_16BIT;
+			break;
+		case 16:
+			mode.depth = VDEPTH_16BIT;
+			break;
+		case 24:
+		case 32:
+			mode.depth = VDEPTH_32BIT;
+			break;
+	}
+
+	VideoModes.push_back(mode);
+	VideoMonitor.mode = mode;
+}
+
 // Open window
 static bool init_window(int width, int height)
 {
@@ -128,12 +167,9 @@ static bool init_window(int width, int height)
 		return false;
 	}
 
-	// Set VideoMonitor
+	// Add resolution and set VideoMonitor
+	set_video_monitor(width, height, the_bitmap->BytesPerRow, 1);
 	VideoMonitor.mac_frame_base = (uint32)the_bitmap->Planes[0];
-	VideoMonitor.bytes_per_row = the_bitmap->BytesPerRow;
-	VideoMonitor.x = width;
-	VideoMonitor.y = height;
-	VideoMonitor.mode = VMODE_1BIT;
 
 	// Set FgPen and BgPen
 	black_pen = ObtainBestPenA(the_win->WScreen->ViewPort.ColorMap, 0, 0, 0, NULL);
@@ -179,12 +215,9 @@ static bool init_pip(int width, int height)
 	// Find bitmap
 	p96PIP_GetTags(the_win, P96PIP_SourceBitMap, (ULONG)&the_bitmap, TAG_END);
 
-	// Set VideoMonitor
+	// Add resolution and set VideoMonitor
+	set_video_monitor(width, height, p96GetBitMapAttr(the_bitmap, P96BMA_BYTESPERROW), 16);
 	VideoMonitor.mac_frame_base = p96GetBitMapAttr(the_bitmap, P96BMA_MEMORY);
-	VideoMonitor.bytes_per_row = p96GetBitMapAttr(the_bitmap, P96BMA_BYTESPERROW);
-	VideoMonitor.x = width;
-	VideoMonitor.y = height;
-	VideoMonitor.mode = VMODE_16BIT;
 	return true;
 }
 
@@ -200,7 +233,6 @@ static bool init_screen_p96(ULONG mode_id)
 
 	switch (depth) {
 		case 8:
-			VideoMonitor.mode = VMODE_8BIT;
 			break;
 		case 15:
 		case 16:
@@ -208,7 +240,6 @@ static bool init_screen_p96(ULONG mode_id)
 				ErrorAlert(GetString(STR_WRONG_SCREEN_FORMAT_ERR));
 				return false;
 			}
-			VideoMonitor.mode = VMODE_16BIT;
 			break;
 		case 24:
 		case 32:
@@ -216,7 +247,6 @@ static bool init_screen_p96(ULONG mode_id)
 				ErrorAlert(GetString(STR_WRONG_SCREEN_FORMAT_ERR));
 				return false;
 			}
-			VideoMonitor.mode = VMODE_32BIT;
 			break;
 		default:
 			ErrorAlert(GetString(STR_WRONG_SCREEN_DEPTH_ERR));
@@ -226,9 +256,6 @@ static bool init_screen_p96(ULONG mode_id)
 	// Yes, get width and height
 	uint32 width = p96GetModeIDAttr(mode_id, P96IDA_WIDTH);
 	uint32 height = p96GetModeIDAttr(mode_id, P96IDA_HEIGHT);
-
-	VideoMonitor.x = width;
-	VideoMonitor.y = height;
 
 	// Open screen
 	the_screen = p96OpenScreenTags(
@@ -262,10 +289,11 @@ static bool init_screen_p96(ULONG mode_id)
 		return false;
 	}
 
-	// Set VideoMonitor
 	ScreenToFront(the_screen);
+
+	// Add resolution and set VideoMonitor
+	set_video_monitor(width, height, p96GetBitMapAttr(the_screen->RastPort.BitMap, P96BMA_BYTESPERROW), depth);
 	VideoMonitor.mac_frame_base = p96GetBitMapAttr(the_screen->RastPort.BitMap, P96BMA_MEMORY);
-	VideoMonitor.bytes_per_row = p96GetBitMapAttr(the_screen->RastPort.BitMap, P96BMA_BYTESPERROW);
 	return true;
 }
 
@@ -281,7 +309,6 @@ static bool init_screen_cgfx(ULONG mode_id)
 
 	switch (depth) {
 		case 8:
-			VideoMonitor.mode = VMODE_8BIT;
 			break;
 		case 15:
 		case 16:
@@ -290,7 +317,6 @@ static bool init_screen_cgfx(ULONG mode_id)
 				ErrorAlert(GetString(STR_WRONG_SCREEN_FORMAT_ERR));
 				return false;
 			}
-			VideoMonitor.mode = VMODE_16BIT;
 			break;
 		case 24:
 		case 32:
@@ -298,7 +324,6 @@ static bool init_screen_cgfx(ULONG mode_id)
 				ErrorAlert(GetString(STR_WRONG_SCREEN_FORMAT_ERR));
 				return false;
 			}
-			VideoMonitor.mode = VMODE_32BIT;
 			break;
 		default:
 			ErrorAlert(GetString(STR_WRONG_SCREEN_DEPTH_ERR));
@@ -308,9 +333,6 @@ static bool init_screen_cgfx(ULONG mode_id)
 	// Yes, get width and height
 	uint32 width = GetCyberIDAttr(CYBRIDATTR_WIDTH, mode_id);
 	uint32 height = GetCyberIDAttr(CYBRIDATTR_HEIGHT, mode_id);
-
-	VideoMonitor.x = width;
-	VideoMonitor.y = height;
 
 	// Open screen
 	the_screen = OpenScreenTags(NULL,
@@ -342,15 +364,19 @@ static bool init_screen_cgfx(ULONG mode_id)
 		return false;
 	}
 
-	// Set VideoMonitor
 	ScreenToFront(the_screen);
 	static UWORD ptr[] = { 0, 0, 0, 0 };
 	SetPointer(the_win, ptr, 0, 0, 0, 0);	// Hide mouse pointer
+
+	// Set VideoMonitor
+	ULONG frame_base;
 	APTR handle = LockBitMapTags(the_screen->RastPort.BitMap, 
-			LBMI_BASEADDRESS, (ULONG)&VideoMonitor.mac_frame_base,
-			TAG_END);
+		LBMI_BASEADDRESS, (ULONG)&frame_base,
+		TAG_END
+	);
 	UnLockBitMap(handle);
-	VideoMonitor.bytes_per_row = GetCyberMapAttr(the_screen->RastPort.BitMap, CYBRMATTR_XMOD);
+	set_video_monitor(width, height, GetCyberMapAttr(the_screen->RastPort.BitMap, CYBRMATTR_XMOD), depth);
+	VideoMonitor.mac_frame_base = frame_base;
 	return true;
 }
 
@@ -590,7 +616,7 @@ static __saveds void periodic_func(void)
 
 			// Timer tick, update display
 			BltTemplate(the_bitmap->Planes[0], 0, the_bitmap->BytesPerRow, the_win->RPort,
-				the_win->BorderLeft, the_win->BorderTop, VideoMonitor.x, VideoMonitor.y);
+				the_win->BorderLeft, the_win->BorderTop, VideoMonitor.mode.x, VideoMonitor.mode.y);
 
 			// Restart timer
 			timer_io->tr_node.io_Command = TR_ADDREQUEST;
@@ -621,8 +647,8 @@ static __saveds void periodic_func(void)
 							ADBMouseMoved(mx - the_win->BorderLeft, my - the_win->BorderTop);
 							if (mx < the_win->BorderLeft
 							 || my < the_win->BorderTop
-							 || mx >= the_win->BorderLeft + VideoMonitor.x
-							 || my >= the_win->BorderTop + VideoMonitor.y) {
+							 || mx >= the_win->BorderLeft + VideoMonitor.mode.x
+							 || my >= the_win->BorderTop + VideoMonitor.mode.y) {
 								if (current_pointer) {
 									ClearPointer(the_win);
 									current_pointer = NULL;

@@ -21,27 +21,57 @@
 #ifndef VIDEO_H
 #define VIDEO_H
 
-// Description for one (possibly virtual) monitor
-enum {
-	VMODE_1BIT,
-	VMODE_2BIT,
-	VMODE_4BIT,
-	VMODE_8BIT,
-	VMODE_16BIT,
-	VMODE_32BIT
+#include <vector>
+
+// Color depth codes
+enum video_depth {
+	VDEPTH_1BIT,  // 2 colors
+	VDEPTH_2BIT,  // 4 colors
+	VDEPTH_4BIT,  // 16 colors
+	VDEPTH_8BIT,  // 256 colors
+	VDEPTH_16BIT, // "Thousands"
+	VDEPTH_32BIT  // "Millions"
 };
 
-#define IsDirectMode(x) ((x) == VMODE_16BIT || (x) == VMODE_32BIT)
+inline bool IsDirectMode(video_depth depth)
+{
+	return depth == VDEPTH_16BIT || depth == VDEPTH_32BIT;
+}
 
-struct video_desc {
-	uint32 mac_frame_base;	// Mac frame buffer address
-	uint32 bytes_per_row;	// Bytes per row
+inline uint16 DepthToAppleMode(video_depth depth)
+{
+	return depth + 0x80;
+}
+
+inline video_depth AppleModeToDepth(uint16 mode)
+{
+	return video_depth(mode - 0x80);
+}
+
+// Description of one video mode
+struct video_mode {
 	uint32 x;				// X size of screen (pixels)
 	uint32 y;				// Y size of screen (pixels)
-	int mode;				// Video mode
+	uint32 resolution_id;	// Resolution ID (should be >= 0x80 and uniquely identify the sets of modes with the same X/Y size)
+	uint32 bytes_per_row;	// Bytes per row of frame buffer
+	video_depth depth;		// Color depth (see definitions above)
 };
 
-extern struct video_desc VideoMonitor;	// Description of the main monitor, set by VideoInit()
+inline bool IsDirectMode(const video_mode &mode)
+{
+	return IsDirectMode(mode.depth);
+}
+
+// List of all supported video modes
+extern vector<video_mode> VideoModes;
+
+// Description for one (possibly virtual) monitor
+struct monitor_desc {
+	uint32 mac_frame_base;	// Mac frame buffer address
+	video_mode mode;		// Currently selected video mode description
+};
+
+extern monitor_desc VideoMonitor;	// Description of the main monitor, set by VideoInit()
 
 extern int16 VideoDriverOpen(uint32 pb, uint32 dce);
 extern int16 VideoDriverControl(uint32 pb, uint32 dce);

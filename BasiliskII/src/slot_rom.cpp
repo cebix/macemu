@@ -102,13 +102,83 @@ static void PString(char *str)
 		srom[p++] = 0;
 }
 
+static uint32 VModeParms(uint32 width, uint32 height, uint32 bytes_per_row, video_depth depth)
+{
+	uint32 ret = p;
+	Long(50);							// Length
+	Long(0);							// Base offset
+	Word(bytes_per_row);			// Row bytes
+	Word(0);							// Bounds
+	Word(0);
+	Word(height);
+	Word(width);
+	Word(0);							// Version
+	Word(0);							// Pack type
+	Long(0);							// Pack size
+	Long(0x00480000);					// HRes
+	Long(0x00480000);					// VRes
+	switch (depth) {
+		case VDEPTH_1BIT:
+			Word(0);					// Pixel type (indirect)
+			Word(1);					// Pixel size
+			Word(1);					// CmpCount
+			Word(1);					// CmpSize
+			break;
+		case VDEPTH_2BIT:
+			Word(0);					// Pixel type (indirect)
+			Word(2);					// Pixel size
+			Word(1);					// CmpCount
+			Word(2);					// CmpSize
+			break;
+		case VDEPTH_4BIT:
+			Word(0);					// Pixel type (indirect)
+			Word(4);					// Pixel size
+			Word(1);					// CmpCount
+			Word(4);					// CmpSize
+			break;
+		case VDEPTH_8BIT:
+			Word(0);					// Pixel type (indirect)
+			Word(8);					// Pixel size
+			Word(1);					// CmpCount
+			Word(8);					// CmpSize
+			break;
+		case VDEPTH_16BIT:
+			Word(16);					// Pixel type (direct)
+			Word(16);					// Pixel size
+			Word(3);					// CmpCount
+			Word(5);					// CmpSize
+			break;
+		case VDEPTH_32BIT:
+			Word(16);					// Pixel type (direct)
+			Word(32);					// Pixel size
+			Word(3);					// CmpCount
+			Word(8);					// CmpSize
+			break;
+	}
+	Long(0);							// Plane size
+	Long(0);							// Reserved
+	return ret;
+}
+
+static uint32 VModeDesc(uint32 params, bool direct)
+{
+	uint32 ret = p;
+	Offs(0x01, params);			// Video parameters
+	Rsrc(0x03, 1);				// Page count
+	Rsrc(0x04, direct ? 2 : 0);	// Device type
+	EndOfList();
+	return ret;
+}
+
 bool InstallSlotROM(void)
 {
 	uint32 boardType, boardName, vendorID, revLevel, partNum, date;
 	uint32 vendorInfo, sRsrcBoard;
 
 	uint32 videoType, videoName, minorBase, minorLength, videoDrvr, vidDrvrDir;
-	uint32 defaultGamma, gammaDir, vidModeParms, vidMode, sRsrcVideo;
+	uint32 defaultGamma, gammaDir, sRsrcVideo;
+	uint32 vidModeParms1, vidModeParms2, vidModeParms4, vidModeParms8, vidModeParms16, vidModeParms32;
+	uint32 vidMode1, vidMode2, vidMode4, vidMode8, vidMode16, vidMode32;
 
 	uint32 cpuType, cpuName, cpuMajor, cpuMinor, sRsrcCPU;
 
@@ -148,7 +218,7 @@ bool InstallSlotROM(void)
 	Offs(0x24, vendorInfo);				// Vendor Info
 	EndOfList();
 
-	// Video sResource
+	// Video sResource for default mode
 	videoType = p;						// Literals
 	Word(3); Word(1); Word(1); Word(0x4232);			// Display Video Apple 'B2'
 	videoName = p;
@@ -156,7 +226,7 @@ bool InstallSlotROM(void)
 	minorBase = p;
 	Long(VideoMonitor.mac_frame_base);					// Frame buffer base
 	minorLength = p;
-	Long(VideoMonitor.bytes_per_row * VideoMonitor.y);	// Frame buffer size
+	Long(VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y);	// Frame buffer size
 
 	videoDrvr = p;						// Video driver
 	Long(0x72);							// Length
@@ -229,65 +299,19 @@ bool InstallSlotROM(void)
 	Offs(0x80, defaultGamma);
 	EndOfList();
 
-	vidModeParms = p;					// Video mode parameters
-	Long(50);							// Length
-	Long(0);							// Base offset
-	Word(VideoMonitor.bytes_per_row);	// Row bytes
-	Word(0);							// Bounds
-	Word(0);
-	Word(VideoMonitor.y);
-	Word(VideoMonitor.x);
-	Word(0);							// Version
-	Word(0);							// Pack type
-	Long(0);							// Pack size
-	Long(0x00480000);					// HRes
-	Long(0x00480000);					// VRes
-	switch (VideoMonitor.mode) {
-		case VMODE_1BIT:
-			Word(0);					// Pixel type (indirect)
-			Word(1);					// Pixel size
-			Word(1);					// CmpCount
-			Word(1);					// CmpSize
-			break;
-		case VMODE_2BIT:
-			Word(0);					// Pixel type (indirect)
-			Word(2);					// Pixel size
-			Word(1);					// CmpCount
-			Word(2);					// CmpSize
-			break;
-		case VMODE_4BIT:
-			Word(0);					// Pixel type (indirect)
-			Word(4);					// Pixel size
-			Word(1);					// CmpCount
-			Word(4);					// CmpSize
-			break;
-		case VMODE_8BIT:
-			Word(0);					// Pixel type (indirect)
-			Word(8);					// Pixel size
-			Word(1);					// CmpCount
-			Word(8);					// CmpSize
-			break;
-		case VMODE_16BIT:
-			Word(16);					// Pixel type (direct)
-			Word(16);					// Pixel size
-			Word(3);					// CmpCount
-			Word(5);					// CmpSize
-			break;
-		case VMODE_32BIT:
-			Word(16);					// Pixel type (direct)
-			Word(32);					// Pixel size
-			Word(3);					// CmpCount
-			Word(8);					// CmpSize
-			break;
-	}
-	Long(0);							// Plane size
-	Long(0);							// Reserved
+	vidModeParms1 = VModeParms(VideoMonitor.mode.x, VideoMonitor.mode.y, VideoMonitor.mode.bytes_per_row, VDEPTH_1BIT);
+	vidModeParms2 = VModeParms(VideoMonitor.mode.x, VideoMonitor.mode.y, VideoMonitor.mode.bytes_per_row, VDEPTH_2BIT);
+	vidModeParms4 = VModeParms(VideoMonitor.mode.x, VideoMonitor.mode.y, VideoMonitor.mode.bytes_per_row, VDEPTH_4BIT);
+	vidModeParms8 = VModeParms(VideoMonitor.mode.x, VideoMonitor.mode.y, VideoMonitor.mode.bytes_per_row, VDEPTH_8BIT);
+	vidModeParms16 = VModeParms(VideoMonitor.mode.x, VideoMonitor.mode.y, VideoMonitor.mode.bytes_per_row, VDEPTH_16BIT);
+	vidModeParms32 = VModeParms(VideoMonitor.mode.x, VideoMonitor.mode.y, VideoMonitor.mode.bytes_per_row, VDEPTH_32BIT);
 
-	vidMode = p;						// Video mode description
-	Offs(0x01, vidModeParms);			// Video parameters
-	Rsrc(0x03, 1);						// Page count
-	Rsrc(0x04, IsDirectMode(VideoMonitor.mode) ? 2 :0);	// Device type
-	EndOfList();
+	vidMode1 = VModeDesc(vidModeParms1, false);
+	vidMode2 = VModeDesc(vidModeParms2, false);
+	vidMode4 = VModeDesc(vidModeParms4, false);
+	vidMode8 = VModeDesc(vidModeParms8, false);
+	vidMode16 = VModeDesc(vidModeParms16, true);
+	vidMode32 = VModeDesc(vidModeParms32, true);
 
 	sRsrcVideo = p;
 	Offs(0x01, videoType);				// Video type descriptor
@@ -298,7 +322,35 @@ bool InstallSlotROM(void)
 	Offs(0x0b, minorLength);			// Frame buffer length
 	Offs(0x40, gammaDir);				// Gamma directory
 	Rsrc(0x7d, 6);						// Video attributes: Default to color, built-in
-	Offs(0x80, vidMode);				// Video mode parameters
+#if 0
+	Offs(0x80, vidMode1);				// Video mode parameters for 1 bit
+	Offs(0x81, vidMode2);				// Video mode parameters for 2 bit
+	Offs(0x82, vidMode4);				// Video mode parameters for 4 bit
+	Offs(0x83, vidMode8);				// Video mode parameters for 8 bit
+	Offs(0x84, vidMode16);				// Video mode parameters for 16 bit
+	Offs(0x85, vidMode32);				// Video mode parameters for 32 bit
+#else
+	switch (VideoMonitor.mode.depth) {
+		case VDEPTH_1BIT:
+			Offs(0x80, vidMode1);		// Video mode parameters
+			break;
+		case VDEPTH_2BIT:
+			Offs(0x80, vidMode2);		// Video mode parameters
+			break;
+		case VDEPTH_4BIT:
+			Offs(0x80, vidMode4);		// Video mode parameters
+			break;
+		case VDEPTH_8BIT:
+			Offs(0x80, vidMode8);		// Video mode parameters
+			break;
+		case VDEPTH_16BIT:
+			Offs(0x80, vidMode16);		// Video mode parameters
+			break;
+		case VDEPTH_32BIT:
+			Offs(0x80, vidMode32);		// Video mode parameters
+			break;
+	}
+#endif
 	EndOfList();
 
 	// CPU sResource

@@ -108,12 +108,38 @@ enum {	// VDTimingInfo struct
 	csTimingFlags = 16
 };
 
-enum {	// VDPageInfo struct
-	csPageMode = 0,
-	csPageData = 2,
-	csPagePage = 6,
-	csPageBaseAddr = 8
+enum {	// VDResolutionInfo struct
+	csPreviousDisplayModeID = 0,
+	csRIDisplayModeID = 4,
+	csHorizontalPixels = 8,
+	csVerticalLines = 12,
+	csRefreshRate = 16,
+	csMaxDepthMode = 20,
+	csResolutionFlags = 22
+};
 
+enum {	// VDVideoParametersInfo struct
+	csDisplayModeID = 0,
+	csDepthMode = 4,
+	csVPBlockPtr = 6,
+	csPageCount = 10,
+	csDeviceType = 14
+};
+
+enum {	// VPBlock struct
+	vpBaseOffset = 0,
+	vpRowBytes = 4,
+	vpBounds = 6,
+	vpVersion = 14,
+	vpPackType = 16,
+	vpPackSize = 18,
+	vpHRes = 22,
+	vpVRes = 26,
+	vpPixelType = 30,
+	vpPixelSize = 32,
+	vpCmpCount = 34,
+	vpCmpSize = 36,
+	vpPlaneBytes = 38
 };
 
 #endif

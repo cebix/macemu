@@ -127,15 +127,15 @@ static inline void update_display_window_vosf(void)
 		const int y2 = mainBuffer.pageInfo[page - 1].bottom;
 		const int height = y2 - y1 + 1;
 		
-		const int bytes_per_row = VideoMonitor.bytes_per_row;
-		const int bytes_per_pixel = VideoMonitor.bytes_per_row / VideoMonitor.x;
+		const int bytes_per_row = VideoMonitor.mode.bytes_per_row;
+		const int bytes_per_pixel = VideoMonitor.mode.bytes_per_row / VideoMonitor.mode.x;
 		int i = y1 * bytes_per_row, j;
 		
 		if (depth == 1) {
 
 			// Update the_host_buffer and copy of the_buffer
 			for (j = y1; j <= y2; j++) {
-				Screen_blit(the_host_buffer + i, the_buffer + i, VideoMonitor.x >> 3);
+				Screen_blit(the_host_buffer + i, the_buffer + i, VideoMonitor.mode.x >> 3);
 				i += bytes_per_row;
 			}
 
@@ -143,15 +143,15 @@ static inline void update_display_window_vosf(void)
 
 			// Update the_host_buffer and copy of the_buffer
 			for (j = y1; j <= y2; j++) {
-				Screen_blit(the_host_buffer + i, the_buffer + i, bytes_per_pixel * VideoMonitor.x);
+				Screen_blit(the_host_buffer + i, the_buffer + i, bytes_per_pixel * VideoMonitor.mode.x);
 				i += bytes_per_row;
 			}
 		}
 
 		if (have_shm)
-			XShmPutImage(x_display, the_win, the_gc, img, 0, y1, 0, y1, VideoMonitor.x, height, 0);
+			XShmPutImage(x_display, the_win, the_gc, img, 0, y1, 0, y1, VideoMonitor.mode.x, height, 0);
 		else
-			XPutImage(x_display, the_win, the_gc, img, 0, y1, 0, y1, VideoMonitor.x, height);
+			XPutImage(x_display, the_win, the_gc, img, 0, y1, 0, y1, VideoMonitor.mode.x, height);
 	}
 
 	mainBuffer.dirty = false;
@@ -184,13 +184,13 @@ static inline void update_display_dga_vosf(void)
 		const int y1 = mainBuffer.pageInfo[first_page].top;
 		const int y2 = mainBuffer.pageInfo[page - 1].bottom;
 		
-		const int bytes_per_row = VideoMonitor.bytes_per_row;
-		const int bytes_per_pixel = VideoMonitor.bytes_per_row / VideoMonitor.x;
+		const int bytes_per_row = VideoMonitor.mode.bytes_per_row;
+		const int bytes_per_pixel = VideoMonitor.mode.bytes_per_row / VideoMonitor.mode.x;
 		int i, j;
 		
 		// Check for first column from left and first column
 		// from right that have changed
-		int x1 = VideoMonitor.x * bytes_per_pixel - 1;
+		int x1 = VideoMonitor.mode.x * bytes_per_pixel - 1;
 		for (j = y1; j <= y2; j++) {
 			uint8 * const p1 = &the_buffer[j * bytes_per_row];
 			uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
@@ -207,7 +207,7 @@ static inline void update_display_dga_vosf(void)
 		for (j = y2; j >= y1; j--) {
 			uint8 * const p1 = &the_buffer[j * bytes_per_row];
 			uint8 * const p2 = &the_buffer_copy[j * bytes_per_row];
-			for (i = VideoMonitor.x * bytes_per_pixel - 1; i > x2; i--) {
+			for (i = VideoMonitor.mode.x * bytes_per_pixel - 1; i > x2; i--) {
 				if (p1[i] != p2[i]) {
 					x2 = i;
 					break;

@@ -154,6 +154,7 @@ private:
 	uint8 *frame_backup;		// Frame buffer backup when switching from/to different workspace
 	bool quitting;				// Flag for ScreenConnected: We are quitting, don't pause emulator thread
 	bool screen_active;
+	bool first_time;
 };
 
 
@@ -168,6 +169,46 @@ static uint8 MacCursor[68] = {16, 1};		// Mac cursor image
 /*
  *  Initialization
  */
+
+// Add resolution to list of supported modes and set VideoMonitor
+static void set_video_monitor(uint32 width, uint32 height, uint32 bytes_per_row, int depth)
+{
+	video_mode mode;
+
+	mode.x = width;
+	mode.y = height;
+	mode.resolution_id = 0x80;
+	mode.bytes_per_row = bytes_per_row;
+
+	switch (depth) {
+		case 1:
+			mode.depth = VDEPTH_1BIT;
+			break;
+		case 2:
+			mode.depth = VDEPTH_2BIT;
+			break;
+		case 4:
+			mode.depth = VDEPTH_4BIT;
+			break;
+		case 8:
+			mode.depth = VDEPTH_8BIT;
+			break;
+		case 15:
+			mode.depth = VDEPTH_16BIT;
+			break;
+		case 16:
+			mode.depth = VDEPTH_16BIT;
+			break;
+		case 24:
+		case 32:
+			mode.depth = VDEPTH_32BIT;
+			break;
+	}
+
+	VideoModes.push_back(mode);
+	VideoMonitor.mode = mode;
+}
+
 
 bool VideoInit(bool classic)
 {
@@ -424,21 +465,18 @@ MacWindow::MacWindow(BRect frame) : BDirectWindow(frame, GetString(STR_WINDOW_TI
 	the_bitmap = new BBitmap(frame, B_COLOR_8_BIT);
 	the_buffer = new uint8[x * (y + 2)];	// "y + 2" for safety
 
-	// Set VideoMonitor
+	// Add resolution and set VideoMonitor
+	set_video_monitor(x, y, x, 8);
 #if REAL_ADDRESSING
 	VideoMonitor.mac_frame_base = (uint32)the_buffer;
 #else
 	VideoMonitor.mac_frame_base = MacFrameBaseMac;
 #endif
-	VideoMonitor.bytes_per_row = x;
-	VideoMonitor.x = x;
-	VideoMonitor.y = y;
-	VideoMonitor.mode = VMODE_8BIT;
 
 #if !REAL_ADDRESSING
 	// Set variables for UAE memory mapping
 	MacFrameBaseHost = the_buffer;
-	MacFrameSize = VideoMonitor.bytes_per_row * VideoMonitor.y;
+	MacFrameSize = x * y;
 	MacFrameLayout = FLAYOUT_DIRECT;
 #endif
 
@@ -610,10 +648,10 @@ void MacWindow::MessageReceived(BMessage *msg)
 			// Convert Mac screen buffer to BeOS palette and blit
 			uint8 *source = the_buffer - 1;
 			uint8 *dest = (uint8 *)the_bitmap->Bits() - 1;
-			uint32 length = VideoMonitor.bytes_per_row * VideoMonitor.y;
+			uint32 length = VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y;
 			for (int i=0; i<length; i++)
 				*++dest = remap_mac_be[*++source];
-			BRect update_rect = BRect(0, 0, VideoMonitor.x-1, VideoMonitor.y-1);
+			BRect update_rect = BRect(0, 0, VideoMonitor.mode.x-1, VideoMonitor.mode.y-1);
 			main_view->DrawBitmapAsync(the_bitmap, update_rect, update_rect);
 			break;
 		}
@@ -733,8 +771,8 @@ status_t MacWindow::tick_func(void *arg)
 						uint8 *source = obj->the_buffer - 1;
 						uint8 *dest = (uint8 *)obj->bits;
 						uint32 bytes_per_row = obj->bytes_per_row;
-						int xsize = VideoMonitor.x;
-						int ysize = VideoMonitor.y;
+						int xsize = VideoMonitor.mode.x;
+						int ysize = VideoMonitor.mode.y;
 						for (int y=0; y<ysize; y++) {
 							uint32 *p = (uint32 *)dest - 1;
 							for (int x=0; x<xsize/4; x++) {
@@ -795,6 +833,7 @@ MacScreen::MacScreen(const char *name, int mode_bit, status_t *error) : BWindowS
 	frame_backup = NULL;
 	palette_changed = false;
 	screen_active = false;
+	first_time = true;
 	quitting = false;
 
 	// Set relative mouse mode
@@ -856,35 +895,23 @@ void MacScreen::ScreenConnected(bool active)
 
 	if (active == true) {
 
+		// Add resolution and set VideoMonitor
+		if (first_time) {
+			set_video_monitor(info->width, info->height, info->bytes_per_row, info->bits_per_pixel);
+			first_time = false;
+		}
+
 		// Set VideoMonitor
 #if REAL_ADDRESSING
 		VideoMonitor.mac_frame_base = (uint32)info->frame_buffer;
 #else
 		VideoMonitor.mac_frame_base = MacFrameBaseMac;
 #endif
-		VideoMonitor.bytes_per_row = info->bytes_per_row;
-		VideoMonitor.x = info->width;
-		VideoMonitor.y = info->height;
-		switch (info->bits_per_pixel) {
-			case 8:
-				VideoMonitor.mode = VMODE_8BIT;
-				break;
-			case 15:
-			case 16:
-				VideoMonitor.mode = VMODE_16BIT;
-				break;
-			case 32:
-				VideoMonitor.mode = VMODE_32BIT;
-				break;
-			default:
-				VideoMonitor.mode = VMODE_8BIT;
-				break;
-		}
 
 #if !REAL_ADDRESSING
 		// Set variables for UAE memory mapping
 		MacFrameBaseHost = (uint8 *)info->frame_buffer;
-		MacFrameSize = VideoMonitor.bytes_per_row * VideoMonitor.y;
+		MacFrameSize = VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y;
 		switch (info->bits_per_pixel) {
 			case 15:
 				MacFrameLayout = FLAYOUT_HOST_555;
@@ -903,13 +930,13 @@ void MacScreen::ScreenConnected(bool active)
 
 		// Copy from backup store to frame buffer
 		if (frame_backup != NULL) {
-			memcpy(info->frame_buffer, frame_backup, VideoMonitor.bytes_per_row * VideoMonitor.y);
+			memcpy(info->frame_buffer, frame_backup, VideoMonitor.bytes_per_row * VideoMonitor.mode.y);
 			delete[] frame_backup;			
 			frame_backup = NULL;
 		}
 
 		// Restore palette
-		if (VideoMonitor.mode == VMODE_8BIT)
+		if (VideoMonitor.depth == VDEPTH_8BIT)
 			SetColorList(palette);
 
 		// Restart/signal emulator thread
@@ -923,8 +950,8 @@ void MacScreen::ScreenConnected(bool active)
 			acquire_sem(mac_os_lock);
 
 			// Create backup store and save frame buffer
-			frame_backup = new uint8[VideoMonitor.bytes_per_row * VideoMonitor.y];
-			memcpy(frame_backup, info->frame_buffer, VideoMonitor.bytes_per_row * VideoMonitor.y);
+			frame_backup = new uint8[VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y];
+			memcpy(frame_backup, info->frame_buffer, VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y);
 		}
 	}
 }

@@ -325,9 +325,10 @@ extern void SysMountFirstFloppy(void);
  *  Initialization
  */
 
-// Set VideoMonitor according to video mode
-void set_video_monitor(int width, int height, int bytes_per_row, bool native_byte_order)
+// Add resolution to list of supported modes and set VideoMonitor
+static void set_video_monitor(uint32 width, uint32 height, uint32 bytes_per_row, bool native_byte_order)
 {
+	video_mode mode;
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 	int layout = FLAYOUT_DIRECT;
 	switch (depth) {
@@ -353,27 +354,39 @@ void set_video_monitor(int width, int height, int bytes_per_row, bool native_byt
 	else
 		MacFrameLayout = FLAYOUT_DIRECT;
 #endif
+
+	mode.x = width;
+	mode.y = height;
+	mode.resolution_id = 0x80;
+	mode.bytes_per_row = bytes_per_row;
+
 	switch (depth) {
 		case 1:
-			VideoMonitor.mode = VMODE_1BIT;
+			mode.depth = VDEPTH_1BIT;
+			break;
+		case 2:
+			mode.depth = VDEPTH_2BIT;
+			break;
+		case 4:
+			mode.depth = VDEPTH_4BIT;
 			break;
 		case 8:
-			VideoMonitor.mode = VMODE_8BIT;
+			mode.depth = VDEPTH_8BIT;
 			break;
 		case 15:
-			VideoMonitor.mode = VMODE_16BIT;
+			mode.depth = VDEPTH_16BIT;
 			break;
 		case 16:
-			VideoMonitor.mode = VMODE_16BIT;
+			mode.depth = VDEPTH_16BIT;
 			break;
 		case 24:
 		case 32:
-			VideoMonitor.mode = VMODE_32BIT;
+			mode.depth = VDEPTH_32BIT;
 			break;
 	}
-	VideoMonitor.x = width;
-	VideoMonitor.y = height;
-	VideoMonitor.bytes_per_row = bytes_per_row;
+
+	VideoModes.push_back(mode);
+	VideoMonitor.mode = mode;
 }
 
 // Set window name and class
@@ -566,7 +579,7 @@ static bool init_window(int width, int height)
 	   &black, &white, 0, 0);
 	XDefineCursor(x_display, the_win, mac_cursor);
 
-	// Set VideoMonitor
+	// Add resolution and set VideoMonitor
 	bool native_byte_order;
 #ifdef WORDS_BIGENDIAN
 	native_byte_order = (XImageByteOrder(x_display) == MSBFirst);
@@ -955,13 +968,13 @@ bool VideoInitBuffer()
 
 		uint32 a = 0;
 		for (int i = 0; i < mainBuffer.pageCount; i++) {
-			int y1 = a / VideoMonitor.bytes_per_row;
-			if (y1 >= VideoMonitor.y)
-				y1 = VideoMonitor.y - 1;
+			int y1 = a / VideoMonitor.mode.bytes_per_row;
+			if (y1 >= VideoMonitor.mode.y)
+				y1 = VideoMonitor.mode.y - 1;
 
-			int y2 = (a + mainBuffer.pageSize) / VideoMonitor.bytes_per_row;
-			if (y2 >= VideoMonitor.y)
-				y2 = VideoMonitor.y - 1;
+			int y2 = (a + mainBuffer.pageSize) / VideoMonitor.mode.bytes_per_row;
+			if (y2 >= VideoMonitor.mode.y)
+				y2 = VideoMonitor.mode.y - 1;
 
 			mainBuffer.pageInfo[i].top = y1;
 			mainBuffer.pageInfo[i].bottom = y2;
@@ -1148,7 +1161,7 @@ bool VideoInit(bool classic)
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 	// Set variables for UAE memory mapping
 	MacFrameBaseHost = the_buffer;
-	MacFrameSize = VideoMonitor.bytes_per_row * VideoMonitor.y;
+	MacFrameSize = VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y;
 
 	// No special frame buffer in Classic mode (frame buffer is in Mac RAM)
 	if (classic)
@@ -1359,9 +1372,9 @@ static void suspend_emul(void)
 		LOCK_FRAME_BUFFER;
 
 		// Save frame buffer
-		fb_save = malloc(VideoMonitor.y * VideoMonitor.bytes_per_row);
+		fb_save = malloc(VideoMonitor.mode.y * VideoMonitor.mode.bytes_per_row);
 		if (fb_save)
-			memcpy(fb_save, the_buffer, VideoMonitor.y * VideoMonitor.bytes_per_row);
+			memcpy(fb_save, the_buffer, VideoMonitor.mode.y * VideoMonitor.mode.bytes_per_row);
 
 		// Close full screen display
 #ifdef ENABLE_XF86_DGA
@@ -1412,7 +1425,7 @@ static void resume_emul(void)
 		LOCK_VOSF;
 		PFLAG_SET_ALL;
 		UNLOCK_VOSF;
-		memset(the_buffer_copy, 0, VideoMonitor.bytes_per_row * VideoMonitor.y);
+		memset(the_buffer_copy, 0, VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y);
 	}
 #endif
 	
@@ -1422,7 +1435,7 @@ static void resume_emul(void)
 		// Don't copy fb_save to the temporary frame buffer in VOSF mode
 		if (!use_vosf)
 #endif
-		memcpy(the_buffer, fb_save, VideoMonitor.y * VideoMonitor.bytes_per_row);
+		memcpy(the_buffer, fb_save, VideoMonitor.mode.y * VideoMonitor.mode.bytes_per_row);
 		free(fb_save);
 		fb_save = NULL;
 	}
@@ -1703,7 +1716,7 @@ static void handle_events(void)
 						LOCK_VOSF;
 						PFLAG_SET_ALL;
 						UNLOCK_VOSF;
-						memset(the_buffer_copy, 0, VideoMonitor.bytes_per_row * VideoMonitor.y);
+						memset(the_buffer_copy, 0, VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y);
 					}
 					else
 #endif
@@ -1714,7 +1727,7 @@ static void handle_events(void)
 							updt_box[x1][y1] = true;
 						nr_boxes = 16 * 16;
 					} else					// Static refresh
-						memset(the_buffer_copy, 0, VideoMonitor.bytes_per_row * VideoMonitor.y);
+						memset(the_buffer_copy, 0, VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y);
 				}
 				break;
 
@@ -1740,10 +1753,10 @@ static void update_display_dynamic(int ticker)
 	int y1, y2, y2s, y2a, i, x1, xm, xmo, ymo, yo, yi, yil, xi;
 	int xil = 0;
 	int rxm = 0, rxmo = 0;
-	int bytes_per_row = VideoMonitor.bytes_per_row;
-	int bytes_per_pixel = VideoMonitor.bytes_per_row / VideoMonitor.x;
-	int rx = VideoMonitor.bytes_per_row / 16;
-	int ry = VideoMonitor.y / 16;
+	int bytes_per_row = VideoMonitor.mode.bytes_per_row;
+	int bytes_per_pixel = VideoMonitor.mode.bytes_per_row / VideoMonitor.mode.x;
+	int rx = VideoMonitor.mode.bytes_per_row / 16;
+	int ry = VideoMonitor.mode.y / 16;
 	int max_box;
 
 	y2s = sm_uptd[ticker % 8];
@@ -1829,20 +1842,20 @@ static void update_display_static(void)
 {
 	// Incremental update code
 	int wide = 0, high = 0, x1, x2, y1, y2, i, j;
-	int bytes_per_row = VideoMonitor.bytes_per_row;
-	int bytes_per_pixel = VideoMonitor.bytes_per_row / VideoMonitor.x;
+	int bytes_per_row = VideoMonitor.mode.bytes_per_row;
+	int bytes_per_pixel = VideoMonitor.mode.bytes_per_row / VideoMonitor.mode.x;
 	uint8 *p, *p2;
 
 	// Check for first line from top and first line from bottom that have changed
 	y1 = 0;
-	for (j=0; j<VideoMonitor.y; j++) {
+	for (j=0; j<VideoMonitor.mode.y; j++) {
 		if (memcmp(&the_buffer[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
 			y1 = j;
 			break;
 		}
 	}
 	y2 = y1 - 1;
-	for (j=VideoMonitor.y-1; j>=y1; j--) {
+	for (j=VideoMonitor.mode.y-1; j>=y1; j--) {
 		if (memcmp(&the_buffer[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
 			y2 = j;
 			break;
@@ -1853,7 +1866,7 @@ static void update_display_static(void)
 	// Check for first column from left and first column from right that have changed
 	if (high) {
 		if (depth == 1) {
-			x1 = VideoMonitor.x - 1;
+			x1 = VideoMonitor.mode.x - 1;
 			for (j=y1; j<=y2; j++) {
 				p = &the_buffer[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
@@ -1871,7 +1884,7 @@ static void update_display_static(void)
 				p2 = &the_buffer_copy[j * bytes_per_row];
 				p += bytes_per_row;
 				p2 += bytes_per_row;
-				for (i=(VideoMonitor.x>>3); i>(x2>>3); i--) {
+				for (i=(VideoMonitor.mode.x>>3); i>(x2>>3); i--) {
 					p--; p2--;
 					if (*p != *p2) {
 						x2 = (i << 3) + 7;
@@ -1890,7 +1903,7 @@ static void update_display_static(void)
 			}
 
 		} else {
-			x1 = VideoMonitor.x;
+			x1 = VideoMonitor.mode.x;
 			for (j=y1; j<=y2; j++) {
 				p = &the_buffer[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
@@ -1908,7 +1921,7 @@ static void update_display_static(void)
 				p2 = &the_buffer_copy[j * bytes_per_row];
 				p += bytes_per_row;
 				p2 += bytes_per_row;
-				for (i=VideoMonitor.x*bytes_per_pixel; i>x2*bytes_per_pixel; i--) {
+				for (i=VideoMonitor.mode.x*bytes_per_pixel; i>x2*bytes_per_pixel; i--) {
 					p--;
 					p2--;
 					if (*p != *p2) {
