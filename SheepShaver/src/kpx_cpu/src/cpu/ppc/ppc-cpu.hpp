@@ -301,7 +301,14 @@ protected:
 			: codegen(codegen_init)
 			{ }
 	};
-	virtual bool compile1(codegen_context_t & cg_context) { return false; }
+
+	// Compile one opcode, returns any of the following status
+	enum {
+		COMPILE_FAILURE,		// no translation available, call interpreter
+		COMPILE_CODE_OK,		// generated code, control flow fall through
+		COMPILE_EPILOGUE_OK		// generated code, including basic block epilogue
+	};
+	virtual int compile1(codegen_context_t & cg_context) { return COMPILE_FAILURE; }
 #endif
 
 private:

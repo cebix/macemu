@@ -35,6 +35,14 @@ basic_dyngen::basic_dyngen(dyngen_cpu_base cpu, int cache_size)
 	gen_op_execute();
 	gen_end();
 	set_code_start(code_ptr());
+
+#if PPC_REENTRANT_JIT
+#ifdef SHEEPSHAVER
+	extern void init_emul_op_trampolines(basic_dyngen & dg);
+	init_emul_op_trampolines(*this);
+	set_code_start(code_ptr());
+#endif
+#endif
 }
 
 void

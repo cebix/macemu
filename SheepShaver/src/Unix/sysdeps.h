@@ -82,6 +82,7 @@
 # define ROM_IS_WRITE_PROTECTED 1
 #endif
 // Configure PowerPC emulator
+#define PPC_REENTRANT_JIT 1
 #define PPC_CHECK_INTERRUPTS (ASYNC_IRQ ? 0 : 1)
 #define PPC_DECODE_CACHE 1
 #define PPC_FLIGHT_RECORDER 1

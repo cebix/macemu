@@ -75,6 +75,20 @@
 
 
 /**
+ *	PPC_REENTRANT_JIT
+ *
+ *		Define to 1 if we are guaranteed to be able to invoke the JIT
+ *		compiler, and the generated code, recursively. Enable this
+ *		only if you have necessary provisions to recover from possible
+ *		cache invalidatation within inner calls.
+ **/
+
+#ifndef PPC_REENTRANT_JIT
+#define PPC_REENTRANT_JIT 0
+#endif
+
+
+/**
  *	PPC_EXECUTE_DUMP_STATE
  *
  *		Define to dump state after each instruction. This also

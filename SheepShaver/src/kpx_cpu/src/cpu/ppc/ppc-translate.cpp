@@ -136,6 +136,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 	// Direct block chaining support variables
 	bool use_direct_block_chaining = false;
 
+	int compile_status;
 	uint32 dpc = entry_point - 4;
 	uint32 min_pc, max_pc;
 	min_pc = max_pc = entry_point;
@@ -147,6 +148,9 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		const instr_info_t *ii = decode(opcode);
 		if (ii->cflow & CFLOW_END_BLOCK)
 			done_compile = true;
+
+		// Assume we can compile this opcode;
+		compile_status = COMPILE_CODE_OK;
 
 #if PPC_FLIGHT_RECORDER
 		if (is_logging()) {
@@ -1410,14 +1414,21 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			cg_context.opcode = opcode;
 			cg_context.instr_info = ii;
 			cg_context.done_compile = done_compile;
-			if (!compile1(cg_context)) {
+			compile_status = compile1(cg_context);
+			switch (compile_status) {
+			case COMPILE_FAILURE:
+			case COMPILE_EPILOGUE_OK:
 				if ((dpc - sync_pc) > sync_pc_offset) {
 					sync_pc = dpc;
 					sync_pc_offset = 0;
+					if (compile_status == COMPILE_EPILOGUE_OK)
+						break;
 					dg.gen_set_PC_im(dpc);
 				}
 				sync_pc_offset += 4;
 				dg.gen_invoke_CPU_im(func, opcode);
+				compile_status = COMPILE_CODE_OK; // could generate code, though a call to handler
+				break;
 			}
 			done_compile = cg_context.done_compile;
 		}
@@ -1428,14 +1439,18 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			goto again;
 		}
 	}
-	// In direct block chaining mode, this code is reached only if
-	// there are pending spcflags, i.e. get out of this block
-	if (!use_direct_block_chaining) {
-		// TODO: optimize this to a direct jump to pregenerated code?
-		dg.gen_mov_ad_A0_im((uintptr)bi);
-		dg.gen_jump_next_A0();
+	// Do nothing if block has special epilogue code generated already
+	assert(compile_status != COMPILE_FAILURE);
+	if (compile_status != COMPILE_EPILOGUE_OK) {
+		// In direct block chaining mode, this code is reached only if
+		// there are pending spcflags, i.e. get out of this block
+		if (!use_direct_block_chaining) {
+			// TODO: optimize this to a direct jump to pregenerated code?
+			dg.gen_mov_ad_A0_im((uintptr)bi);
+			dg.gen_jump_next_A0();
+		}
+		dg.gen_exec_return();
 	}
-	dg.gen_exec_return();
 	dg.gen_end();
 	bi->end_pc = dpc;
 	if (dpc < min_pc)

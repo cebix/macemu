@@ -459,7 +459,7 @@ void powerpc_cpu::execute(uint32 entry)
 #endif
 	execute_depth++;
 #if PPC_DECODE_CACHE || PPC_ENABLE_JIT
-	if (execute_depth == 1) {
+	if (execute_depth == 1 || PPC_REENTRANT_JIT) {
 #if PPC_ENABLE_JIT
 		if (use_jit) {
 			for (;;) {

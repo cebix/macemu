@@ -111,6 +111,12 @@ static KernelData * const kernel_data = (KernelData *)KERNEL_DATA_BASE;
 // SIGSEGV handler
 static sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
 
+#if PPC_ENABLE_JIT && PPC_REENTRANT_JIT
+// Special trampolines for EmulOp and NativeOp
+static uint8 *emul_op_trampoline;
+static uint8 *native_op_trampoline;
+#endif
+
 // JIT Compiler enabled?
 static inline bool enable_jit_p()
 {
@@ -152,6 +158,9 @@ public:
 	uint32 get_xer() const		{ return xer().get(); }
 	void set_xer(uint32 v)		{ xer().set(v); }
 
+	// Execute NATIVE_OP routine
+	void execute_native_op(uint32 native_op);
+
 	// Execute EMUL_OP routine
 	void execute_emul_op(uint32 emul_op);
 
@@ -165,7 +174,7 @@ public:
 	uint32 execute_macos_code(uint32 tvect, int nargs, uint32 const *args);
 
 	// Compile one instruction
-	virtual bool compile1(codegen_context_t & cg_context);
+	virtual int compile1(codegen_context_t & cg_context);
 
 	// Resource manager thunk
 	void get_resource(uint32 old_get_resource);
@@ -235,9 +244,6 @@ void sheepshaver_cpu::init_decoder()
 		init_decoder_entry(ii);
 	}
 }
-
-// Forward declaration for native opcode handler
-static void NativeOp(int selector);
 
 /*		NativeOp instruction format:
 		+------------+-------------------------+--+-----------+------------+
@@ -338,7 +344,7 @@ void sheepshaver_cpu::execute_sheep(uint32 opcode)
 		break;
 
 	case 2:		// EXEC_NATIVE
-		NativeOp(NATIVE_OP_field::extract(opcode));
+		execute_native_op(NATIVE_OP_field::extract(opcode));
 		if (FN_field::test(opcode))
 			pc() = lr();
 		else
@@ -353,42 +359,50 @@ void sheepshaver_cpu::execute_sheep(uint32 opcode)
 }
 
 // Compile one instruction
-bool sheepshaver_cpu::compile1(codegen_context_t & cg_context)
+int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 {
 #if PPC_ENABLE_JIT
 	const instr_info_t *ii = cg_context.instr_info;
 	if (ii->mnemo != PPC_I(SHEEP))
-		return false;
+		return COMPILE_FAILURE;
 
-	bool compiled = false;
+	int status = COMPILE_FAILURE;
 	powerpc_dyngen & dg = cg_context.codegen;
 	uint32 opcode = cg_context.opcode;
 
 	switch (opcode & 0x3f) {
 	case 0:		// EMUL_RETURN
 		dg.gen_invoke(QuitEmulator);
-		compiled = true;
+		status = COMPILE_CODE_OK;
 		break;
 
 	case 1:		// EXEC_RETURN
 		dg.gen_spcflags_set(SPCFLAG_CPU_EXEC_RETURN);
-		compiled = true;
+		// Don't check for pending interrupts, we do know we have to
+		// get out of this block ASAP
+		dg.gen_exec_return();
+		status = COMPILE_EPILOGUE_OK;
 		break;
 
 	case 2: {	// EXEC_NATIVE
 		uint32 selector = NATIVE_OP_field::extract(opcode);
 		switch (selector) {
+#if !PPC_REENTRANT_JIT
+		// Filter out functions that may invoke Execute68k() or
+		// CallMacOS(), this would break reentrancy as they could
+		// invalidate the translation cache and even overwrite
+		// continuation code when we are done with them.
 		case NATIVE_PATCH_NAME_REGISTRY:
 			dg.gen_invoke(DoPatchNameRegistry);
-			compiled = true;
+			status = COMPILE_CODE_OK;
 			break;
 		case NATIVE_VIDEO_INSTALL_ACCEL:
 			dg.gen_invoke(VideoInstallAccel);
-			compiled = true;
+			status = COMPILE_CODE_OK;
 			break;
 		case NATIVE_VIDEO_VBL:
 			dg.gen_invoke(VideoVBL);
-			compiled = true;
+			status = COMPILE_CODE_OK;
 			break;
 		case NATIVE_GET_RESOURCE:
 		case NATIVE_GET_1_RESOURCE:
@@ -406,50 +420,70 @@ bool sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 			typedef void (*func_t)(dyngen_cpu_base, uint32);
 			func_t func = (func_t)nv_mem_fun(&sheepshaver_cpu::get_resource).ptr();
 			dg.gen_invoke_CPU_im(func, old_get_resource);
-			compiled = true;
+			status = COMPILE_CODE_OK;
 			break;
 		}
-		case NATIVE_DISABLE_INTERRUPT:
-			dg.gen_invoke(DisableInterrupt);
-			compiled = true;
-			break;
-		case NATIVE_ENABLE_INTERRUPT:
-			dg.gen_invoke(EnableInterrupt);
-			compiled = true;
-			break;
 		case NATIVE_CHECK_LOAD_INVOC:
 			dg.gen_load_T0_GPR(3);
 			dg.gen_load_T1_GPR(4);
 			dg.gen_se_16_32_T1();
 			dg.gen_load_T2_GPR(5);
 			dg.gen_invoke_T0_T1_T2((void (*)(uint32, uint32, uint32))check_load_invoc);
-			compiled = true;
+			status = COMPILE_CODE_OK;
+			break;
+#endif
+		case NATIVE_DISABLE_INTERRUPT:
+			dg.gen_invoke(DisableInterrupt);
+			status = COMPILE_CODE_OK;
+			break;
+		case NATIVE_ENABLE_INTERRUPT:
+			dg.gen_invoke(EnableInterrupt);
+			status = COMPILE_CODE_OK;
 			break;
 		case NATIVE_BITBLT:
 			dg.gen_load_T0_GPR(3);
 			dg.gen_invoke_T0((void (*)(uint32))NQD_bitblt);
-			compiled = true;
+			status = COMPILE_CODE_OK;
 			break;
 		case NATIVE_INVRECT:
 			dg.gen_load_T0_GPR(3);
 			dg.gen_invoke_T0((void (*)(uint32))NQD_invrect);
-			compiled = true;
+			status = COMPILE_CODE_OK;
 			break;
 		case NATIVE_FILLRECT:
 			dg.gen_load_T0_GPR(3);
 			dg.gen_invoke_T0((void (*)(uint32))NQD_fillrect);
-			compiled = true;
+			status = COMPILE_CODE_OK;
 			break;
 		}
+		// Could we fully translate this NativeOp?
 		if (FN_field::test(opcode)) {
-			if (compiled) {
+			if (status != COMPILE_FAILURE) {
 				dg.gen_load_A0_LR();
 				dg.gen_set_PC_A0();
 			}
 			cg_context.done_compile = true;
+			break;
 		}
-		else
+		else if (status != COMPILE_FAILURE) {
 			cg_context.done_compile = false;
+			break;
+		}
+#if PPC_REENTRANT_JIT
+		// Try to execute NativeOp trampoline
+		dg.gen_set_PC_im(cg_context.pc + 4);
+		dg.gen_mov_32_T0_im(selector);
+		dg.gen_jmp(native_op_trampoline);
+		cg_context.done_compile = true;
+		status = COMPILE_EPILOGUE_OK;
+		break;
+#endif
+		// Invoke NativeOp handler
+		typedef void (*func_t)(dyngen_cpu_base, uint32);
+		func_t func = (func_t)nv_mem_fun(&sheepshaver_cpu::execute_native_op).ptr();
+		dg.gen_invoke_CPU_im(func, selector);
+		cg_context.done_compile = false;
+		status = COMPILE_CODE_OK;
 		break;
 	}
 
@@ -472,21 +506,31 @@ bool sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 		if (emul_op_func) {
 			dg.gen_invoke_CPU(emul_op_func);
 			cg_context.done_compile = false;
-			compiled = true;
+			status = COMPILE_CODE_OK;
 			break;
 		}
 #endif
+#if PPC_REENTRANT_JIT
+		// Try to execute EmulOp trampoline
+		dg.gen_set_PC_im(cg_context.pc + 4);
+		dg.gen_mov_32_T0_im(emul_op);
+		dg.gen_jmp(emul_op_trampoline);
+		cg_context.done_compile = true;
+		status = COMPILE_EPILOGUE_OK;
+		break;
+#endif
+		// Invoke EmulOp handler
 		typedef void (*func_t)(dyngen_cpu_base, uint32);
 		func_t func = (func_t)nv_mem_fun(&sheepshaver_cpu::execute_emul_op).ptr();
 		dg.gen_invoke_CPU_im(func, emul_op);
 		cg_context.done_compile = false;
-		compiled = true;
+		status = COMPILE_CODE_OK;
 		break;
 	}
 	}
-	return compiled;
+	return status;
 #endif
-	return false;
+	return COMPILE_FAILURE;
 }
 
 // Handle MacOS interrupt
@@ -937,6 +981,32 @@ void exit_emul_ppc(void)
 #endif
 }
 
+#if PPC_ENABLE_JIT && PPC_REENTRANT_JIT
+// Initialize EmulOp trampolines
+void init_emul_op_trampolines(basic_dyngen & dg)
+{
+	typedef void (*func_t)(dyngen_cpu_base, uint32);
+	func_t func;
+
+	// EmulOp
+	emul_op_trampoline = dg.gen_start();
+	func = (func_t)nv_mem_fun(&sheepshaver_cpu::execute_emul_op).ptr();
+	dg.gen_invoke_CPU_T0(func);
+	dg.gen_exec_return();
+	dg.gen_end();
+
+	// NativeOp
+	native_op_trampoline = dg.gen_start();
+	func = (func_t)nv_mem_fun(&sheepshaver_cpu::execute_native_op).ptr();
+	dg.gen_invoke_CPU_T0(func);	
+	dg.gen_exec_return();
+	dg.gen_end();
+
+	D(bug("EmulOp trampoline:   %p\n", emul_op_trampoline));
+	D(bug("NativeOp trampoline: %p\n", native_op_trampoline));
+}
+#endif
+
 /*
  *  Emulation loop
  */
@@ -1059,9 +1129,8 @@ static void get_ind_resource(void);
 static void get_1_ind_resource(void);
 static void r_get_resource(void);
 
-#define GPR(REG) current_cpu->gpr(REG)
-
-static void NativeOp(int selector)
+// Execute NATIVE_OP routine
+void sheepshaver_cpu::execute_native_op(uint32 selector)
 {
 #if EMUL_TIME_STATS
 	native_exec_count++;
@@ -1079,54 +1148,54 @@ static void NativeOp(int selector)
 		VideoVBL();
 		break;
 	case NATIVE_VIDEO_DO_DRIVER_IO:
-		GPR(3) = (int32)(int16)VideoDoDriverIO((void *)GPR(3), (void *)GPR(4),
-											   (void *)GPR(5), GPR(6), GPR(7));
+		gpr(3) = (int32)(int16)VideoDoDriverIO((void *)gpr(3), (void *)gpr(4),
+											   (void *)gpr(5), gpr(6), gpr(7));
 		break;
 #ifdef WORDS_BIGENDIAN
 	case NATIVE_ETHER_IRQ:
 		EtherIRQ();
 		break;
 	case NATIVE_ETHER_INIT:
-		GPR(3) = InitStreamModule((void *)GPR(3));
+		gpr(3) = InitStreamModule((void *)gpr(3));
 		break;
 	case NATIVE_ETHER_TERM:
 		TerminateStreamModule();
 		break;
 	case NATIVE_ETHER_OPEN:
-		GPR(3) = ether_open((queue_t *)GPR(3), (void *)GPR(4), GPR(5), GPR(6), (void*)GPR(7));
+		gpr(3) = ether_open((queue_t *)gpr(3), (void *)gpr(4), gpr(5), gpr(6), (void*)gpr(7));
 		break;
 	case NATIVE_ETHER_CLOSE:
-		GPR(3) = ether_close((queue_t *)GPR(3), GPR(4), (void *)GPR(5));
+		gpr(3) = ether_close((queue_t *)gpr(3), gpr(4), (void *)gpr(5));
 		break;
 	case NATIVE_ETHER_WPUT:
-		GPR(3) = ether_wput((queue_t *)GPR(3), (mblk_t *)GPR(4));
+		gpr(3) = ether_wput((queue_t *)gpr(3), (mblk_t *)gpr(4));
 		break;
 	case NATIVE_ETHER_RSRV:
-		GPR(3) = ether_rsrv((queue_t *)GPR(3));
+		gpr(3) = ether_rsrv((queue_t *)gpr(3));
 		break;
 #else
 	case NATIVE_ETHER_INIT:
 		// FIXME: needs more complicated thunks
-		GPR(3) = false;
+		gpr(3) = false;
 		break;
 #endif
 	case NATIVE_SYNC_HOOK:
-		GPR(3) = NQD_sync_hook(GPR(3));
+		gpr(3) = NQD_sync_hook(gpr(3));
 		break;
 	case NATIVE_BITBLT_HOOK:
-		GPR(3) = NQD_bitblt_hook(GPR(3));
+		gpr(3) = NQD_bitblt_hook(gpr(3));
 		break;
 	case NATIVE_BITBLT:
-		NQD_bitblt(GPR(3));
+		NQD_bitblt(gpr(3));
 		break;
 	case NATIVE_FILLRECT_HOOK:
-		GPR(3) = NQD_fillrect_hook(GPR(3));
+		gpr(3) = NQD_fillrect_hook(gpr(3));
 		break;
 	case NATIVE_INVRECT:
-		NQD_invrect(GPR(3));
+		NQD_invrect(gpr(3));
 		break;
 	case NATIVE_FILLRECT:
-		NQD_fillrect(GPR(3));
+		NQD_fillrect(gpr(3));
 		break;
 	case NATIVE_SERIAL_NOTHING:
 	case NATIVE_SERIAL_OPEN:
@@ -1145,7 +1214,7 @@ static void NativeOp(int selector)
 			SerialStatus,
 			SerialClose
 		};
-		GPR(3) = serial_callbacks[selector - NATIVE_SERIAL_NOTHING](GPR(3), GPR(4));
+		gpr(3) = serial_callbacks[selector - NATIVE_SERIAL_NOTHING](gpr(3), gpr(4));
 		break;
 	}
 	case NATIVE_GET_RESOURCE:
@@ -1155,11 +1224,11 @@ static void NativeOp(int selector)
 	case NATIVE_R_GET_RESOURCE: {
 		typedef void (*GetResourceCallback)(void);
 		static const GetResourceCallback get_resource_callbacks[] = {
-			get_resource,
-			get_1_resource,
-			get_ind_resource,
-			get_1_ind_resource,
-			r_get_resource
+			::get_resource,
+			::get_1_resource,
+			::get_ind_resource,
+			::get_1_ind_resource,
+			::r_get_resource
 		};
 		get_resource_callbacks[selector - NATIVE_GET_RESOURCE]();
 		break;
@@ -1171,10 +1240,10 @@ static void NativeOp(int selector)
 		EnableInterrupt();
 		break;
 	case NATIVE_MAKE_EXECUTABLE:
-		MakeExecutable(0, (void *)GPR(4), GPR(5));
+		MakeExecutable(0, (void *)gpr(4), gpr(5));
 		break;
 	case NATIVE_CHECK_LOAD_INVOC:
-		check_load_invoc(GPR(3), GPR(4), GPR(5));
+		check_load_invoc(gpr(3), gpr(4), gpr(5));
 		break;
 	default:
 		printf("FATAL: NATIVE_OP called with bogus selector %d\n", selector);
