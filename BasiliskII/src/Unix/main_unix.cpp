@@ -667,11 +667,10 @@ static void sigint_handler(...)
 	uaecptr nextpc;
 	extern void m68k_dumpstate(uaecptr *nextpc);
 	m68k_dumpstate(&nextpc);
-#else
+#endif
 	char *arg[4] = {"mon", "-m", "-r", NULL};
 	mon(3, arg);
 	QuitEmulator();
-#endif
 }
 #endif
 

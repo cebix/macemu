@@ -556,21 +556,18 @@ addrbank frame_host_888_bank = {
     frame_xlate, frame_check
 };
 
+void InitFrameBufferMapping(void)
+{
+
+}
+
 void memory_init(void)
 {
-	char buffer[4096];
-	char *nam;
-	int i, fd;
-
-	for(i=0; i<65536; i++)
+	for(long i=0; i<65536; i++)
 		put_mem_bank(i<<16, &dummy_bank);
 
 	// Limit RAM size to not overlap ROM
-#if REAL_ADDRESSING
-	uint32 ram_size = RAMSize;
-#else
 	uint32 ram_size = RAMSize > ROMBaseMac ? ROMBaseMac : RAMSize;
-#endif
 
 	RAMBaseDiff = (uae_u32)RAMBaseHost - (uae_u32)RAMBaseMac;
 	ROMBaseDiff = (uae_u32)ROMBaseHost - (uae_u32)ROMBaseMac;

@@ -105,6 +105,17 @@ void Exit680x0(void)
 
 
 /*
+ *  Initialize memory mapping of frame buffer (called upon video mode change)
+ */
+
+void InitFrameBufferMapping(void)
+{
+#if !REAL_ADDRESSING && !DIRECT_ADDRESSING
+	memory_init();
+#endif
+}
+
+/*
  *  Reset and start 680x0 emulation (doesn't return)
  */
 

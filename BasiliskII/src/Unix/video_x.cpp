@@ -52,13 +52,6 @@
 # include <sys/mman.h>
 #endif
 
-#ifdef ENABLE_VOSF
-# include <fcntl.h>
-# include <sys/mman.h>
-# include "sigsegv.h"
-# include "vm_alloc.h"
-#endif
-
 #include "cpu_emulation.h"
 #include "main.h"
 #include "adb.h"
@@ -93,7 +86,7 @@ static uint8 *the_buffer;							// Mac frame buffer
 
 #ifdef HAVE_PTHREADS
 static bool redraw_thread_active = false;			// Flag: Redraw thread installed
-static volatile bool redraw_thread_cancel = false;	// Flag: Cancel Redraw thread
+static volatile bool redraw_thread_cancel;			// Flag: Cancel Redraw thread
 static pthread_t redraw_thread;						// Redraw thread
 #endif
 
@@ -114,11 +107,11 @@ static int keycode_table[256];						// X keycode -> Mac keycode translation tabl
 // X11 variables
 static int screen;									// Screen number
 static int xdepth;									// Depth of X screen
-static int depth;									// Depth of Mac frame buffer
 static Window rootwin, the_win;						// Root window and our window
 static XVisualInfo visualInfo;
 static Visual *vis;
 static Colormap cmap[2];							// Two colormaps (DGA) for 8-bit mode
+static bool cmap_allocated = false;
 static XColor black, white;
 static unsigned long black_pixel, white_pixel;
 static int eventmask;
@@ -178,136 +171,13 @@ static bool use_vosf = true;						// Flag: VOSF enabled
 static const bool use_vosf = false;					// Flag: VOSF enabled
 #endif
 
-#ifdef ENABLE_VOSF
-// Variables for Video on SEGV support (taken from the Win32 port)
-static uint8 *the_host_buffer;						// Host frame buffer in VOSF mode
-static uint32 the_buffer_size;						// Size of allocated the_buffer
-
-struct ScreenPageInfo {
-    int top, bottom;			// Mapping between this virtual page and Mac scanlines
-};
-
-struct ScreenInfo {
-    uintptr memBase;			// Real start address 
-    uintptr memStart;			// Start address aligned to page boundary
-    uintptr memEnd;				// Address of one-past-the-end of the screen
-    uint32 memLength;			// Length of the memory addressed by the screen pages
-    
-    uint32 pageSize;			// Size of a page
-    int pageBits;				// Shift count to get the page number
-    uint32 pageCount;			// Number of pages allocated to the screen
-    
-	bool dirty;					// Flag: set if the frame buffer was touched
-    char * dirtyPages;			// Table of flags set if page was altered
-    ScreenPageInfo * pageInfo;	// Table of mappings page -> Mac scanlines
-};
-
-static ScreenInfo mainBuffer;
-
-#define PFLAG_SET_VALUE			0x00
-#define PFLAG_CLEAR_VALUE		0x01
-#define PFLAG_SET_VALUE_4		0x00000000
-#define PFLAG_CLEAR_VALUE_4		0x01010101
-#define PFLAG_SET(page)			mainBuffer.dirtyPages[page] = PFLAG_SET_VALUE
-#define PFLAG_CLEAR(page)		mainBuffer.dirtyPages[page] = PFLAG_CLEAR_VALUE
-#define PFLAG_ISSET(page)		(mainBuffer.dirtyPages[page] == PFLAG_SET_VALUE)
-#define PFLAG_ISCLEAR(page)		(mainBuffer.dirtyPages[page] != PFLAG_SET_VALUE)
-
-#ifdef UNALIGNED_PROFITABLE
-# define PFLAG_ISSET_4(page)	(*((uint32 *)(mainBuffer.dirtyPages + (page))) == PFLAG_SET_VALUE_4)
-# define PFLAG_ISCLEAR_4(page)	(*((uint32 *)(mainBuffer.dirtyPages + (page))) == PFLAG_CLEAR_VALUE_4)
-#else
-# define PFLAG_ISSET_4(page) \
-		PFLAG_ISSET(page  ) && PFLAG_ISSET(page+1) \
-	&&	PFLAG_ISSET(page+2) && PFLAG_ISSET(page+3)
-# define PFLAG_ISCLEAR_4(page) \
-		PFLAG_ISCLEAR(page  ) && PFLAG_ISCLEAR(page+1) \
-	&&	PFLAG_ISCLEAR(page+2) && PFLAG_ISCLEAR(page+3)
-#endif
-
-// Set the selected page range [ first_page, last_page [ into the SET state
-#define PFLAG_SET_RANGE(first_page, last_page) \
-	memset(mainBuffer.dirtyPages + (first_page), PFLAG_SET_VALUE, \
-		(last_page) - (first_page))
-
-// Set the selected page range [ first_page, last_page [ into the CLEAR state
-#define PFLAG_CLEAR_RANGE(first_page, last_page) \
-	memset(mainBuffer.dirtyPages + (first_page), PFLAG_CLEAR_VALUE, \
-		(last_page) - (first_page))
-
-#define PFLAG_SET_ALL do { \
-	PFLAG_SET_RANGE(0, mainBuffer.pageCount); \
-	mainBuffer.dirty = true; \
-} while (0)
-
-#define PFLAG_CLEAR_ALL do { \
-	PFLAG_CLEAR_RANGE(0, mainBuffer.pageCount); \
-	mainBuffer.dirty = false; \
-} while (0)
-
-// Set the following macro definition to 1 if your system
-// provides a really fast strchr() implementation
-//#define HAVE_FAST_STRCHR 0
-
-static inline int find_next_page_set(int page)
-{
-#if HAVE_FAST_STRCHR
-	char *match = strchr(mainBuffer.dirtyPages + page, PFLAG_SET_VALUE);
-	return match ? match - mainBuffer.dirtyPages : mainBuffer.pageCount;
-#else
-	while (PFLAG_ISCLEAR_4(page))
-		page += 4;
-	while (PFLAG_ISCLEAR(page))
-		page++;
-	return page;
-#endif
-}
-
-static inline int find_next_page_clear(int page)
-{
-#if HAVE_FAST_STRCHR
-	char *match = strchr(mainBuffer.dirtyPages + page, PFLAG_CLEAR_VALUE);
-	return match ? match - mainBuffer.dirtyPages : mainBuffer.pageCount;
-#else
-	while (PFLAG_ISSET_4(page))
-		page += 4;
-	while (PFLAG_ISSET(page))
-		page++;
-	return page;
-#endif
-}
-
-static int zero_fd = -1;
-
-#ifdef HAVE_PTHREADS
-static pthread_mutex_t vosf_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer (dirtyPages in fact)
-#define LOCK_VOSF pthread_mutex_lock(&vosf_lock);
-#define UNLOCK_VOSF pthread_mutex_unlock(&vosf_lock);
-#else
-#define LOCK_VOSF
-#define UNLOCK_VOSF
-#endif
-
-static int log_base_2(uint32 x)
-{
-	uint32 mask = 0x80000000;
-	int l = 31;
-	while (l >= 0 && (x & mask) == 0) {
-		mask >>= 1;
-		l--;
-	}
-	return l;
-}
-#endif /* ENABLE_VOSF */
-
 // VideoRefresh function
-void VideoRefreshInit(void);
+static void VideoRefreshInit(void);
 static void (*video_refresh)(void);
 
 // Prototypes
 static void *redraw_func(void *arg);
 static int event2keycode(XKeyEvent &ev);
-
 
 // From main_unix.cpp
 extern char *x_display_name;
@@ -315,6 +185,7 @@ extern Display *x_display;
 
 // From sys_unix.cpp
 extern void SysMountFirstFloppy(void);
+
 
 #ifdef ENABLE_VOSF
 # include "video_vosf.h"
@@ -325,68 +196,37 @@ extern void SysMountFirstFloppy(void);
  *  Initialization
  */
 
-// Add resolution to list of supported modes and set VideoMonitor
-static void set_video_monitor(uint32 width, uint32 height, uint32 bytes_per_row, bool native_byte_order)
+// Add mode to list of supported modes
+static void add_mode(uint32 width, uint32 height, uint32 resolution_id, uint32 bytes_per_row, video_depth depth)
 {
 	video_mode mode;
+	mode.x = width;
+	mode.y = height;
+	mode.resolution_id = resolution_id;
+	mode.bytes_per_row = bytes_per_row;
+	mode.depth = depth;
+	VideoModes.push_back(mode);
+}
+
+// Set Mac frame layout and base address (uses the_buffer/MacFrameBaseMac)
+static void set_mac_frame_buffer(video_depth depth, bool native_byte_order)
+{
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 	int layout = FLAYOUT_DIRECT;
-	switch (depth) {
-		case 1:
-			layout = FLAYOUT_DIRECT;
-			break;
-		case 8:
-			layout = FLAYOUT_DIRECT;
-			break;
-		case 15:
-			layout = FLAYOUT_HOST_555;
-			break;
-		case 16:
-			layout = FLAYOUT_HOST_565;
-			break;
-		case 24:
-		case 32:
-			layout = FLAYOUT_HOST_888;
-			break;
-	}
+	if (depth == VDEPTH_16BIT)
+		layout = (xdepth == 15) ? FLAYOUT_HOST_555 : FLAYOUT_HOST_565;
+	else if (depth == VDEPTH_32BIT)
+		layour = (xdepth == 24) ? FLAYOUT_HOST_888 : FLAYOUT_DIRECT;
 	if (native_byte_order)
 		MacFrameLayout = layout;
 	else
 		MacFrameLayout = FLAYOUT_DIRECT;
+	VideoMonitor.mac_frame_base = MacFrameBaseMac;
+#else
+	VideoMonitor.mac_frame_base = Host2MacAddr(the_buffer);
+	D(bug("Host frame buffer = %p, ", the_buffer));
 #endif
-
-	mode.x = width;
-	mode.y = height;
-	mode.resolution_id = 0x80;
-	mode.bytes_per_row = bytes_per_row;
-
-	switch (depth) {
-		case 1:
-			mode.depth = VDEPTH_1BIT;
-			break;
-		case 2:
-			mode.depth = VDEPTH_2BIT;
-			break;
-		case 4:
-			mode.depth = VDEPTH_4BIT;
-			break;
-		case 8:
-			mode.depth = VDEPTH_8BIT;
-			break;
-		case 15:
-			mode.depth = VDEPTH_16BIT;
-			break;
-		case 16:
-			mode.depth = VDEPTH_16BIT;
-			break;
-		case 24:
-		case 32:
-			mode.depth = VDEPTH_32BIT;
-			break;
-	}
-
-	VideoModes.push_back(mode);
-	VideoMonitor.mode = mode;
+	D(bug("VideoMonitor.mac_frame_base = %08x\n", VideoMonitor.mac_frame_base));
 }
 
 // Set window name and class
@@ -457,8 +297,9 @@ static int error_handler(Display *d, XErrorEvent *e)
 }
 
 // Init window mode
-static bool init_window(int width, int height)
+static bool init_window(const video_mode &mode)
 {
+	int width = mode.x, height = mode.y;
 	int aligned_width = (width + 15) & ~15;
 	int aligned_height = (height + 15) & ~15;
 
@@ -475,7 +316,7 @@ static bool init_window(int width, int height)
 	wattr.colormap = cmap[0];
 
 	the_win = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
-		InputOutput, vis, CWEventMask | CWBackPixel | (depth == 8 ? CWColormap : 0), &wattr);
+		InputOutput, vis, CWEventMask | CWBackPixel | ((IsDirectMode(mode) || mode.depth == VDEPTH_1BIT) ? 0 : CWColormap), &wattr);
 
 	// Set window name/class
 	set_window_name(the_win, STR_WINDOW_TITLE);
@@ -506,10 +347,10 @@ static bool init_window(int width, int height)
 
 	// Try to create and attach SHM image
 	have_shm = false;
-	if (depth != 1 && local_X11 && XShmQueryExtension(x_display)) {
+	if (mode.depth != VDEPTH_1BIT && local_X11 && XShmQueryExtension(x_display)) {
 
 		// Create SHM image ("height + 2" for safety)
-		img = XShmCreateImage(x_display, vis, depth, depth == 1 ? XYBitmap : ZPixmap, 0, &shminfo, width, height);
+		img = XShmCreateImage(x_display, vis, mode.depth == VDEPTH_1BIT ? 1 : xdepth, mode.depth == VDEPTH_1BIT ? XYBitmap : ZPixmap, 0, &shminfo, width, height);
 		shminfo.shmid = shmget(IPC_PRIVATE, (aligned_height + 2) * img->bytes_per_line, IPC_CREAT | 0777);
 		the_buffer_copy = (uint8 *)shmat(shminfo.shmid, 0, 0);
 		shminfo.shmaddr = img->data = (char *)the_buffer_copy;
@@ -533,26 +374,13 @@ static bool init_window(int width, int height)
 	
 	// Create normal X image if SHM doesn't work ("height + 2" for safety)
 	if (!have_shm) {
-		int bytes_per_row = aligned_width;
-		switch (depth) {
-			case 1:
-				bytes_per_row /= 8;
-				break;
-			case 15:
-			case 16:
-				bytes_per_row *= 2;
-				break;
-			case 24:
-			case 32:
-				bytes_per_row *= 4;
-				break;
-		}
+		int bytes_per_row = TrivialBytesPerRow(aligned_width, mode.depth);
 		the_buffer_copy = (uint8 *)malloc((aligned_height + 2) * bytes_per_row);
-		img = XCreateImage(x_display, vis, depth, depth == 1 ? XYBitmap : ZPixmap, 0, (char *)the_buffer_copy, aligned_width, aligned_height, 32, bytes_per_row);
+		img = XCreateImage(x_display, vis, mode.depth == VDEPTH_1BIT ? 1 : xdepth, mode.depth == VDEPTH_1BIT ? XYBitmap : ZPixmap, 0, (char *)the_buffer_copy, aligned_width, aligned_height, 32, bytes_per_row);
 	}
 
 	// 1-Bit mode is big-endian
-	if (depth == 1) {
+	if (mode.depth == VDEPTH_1BIT) {
 		img->byte_order = MSBFirst;
 		img->bitmap_bit_order = MSBFirst;
 	}
@@ -589,20 +417,17 @@ static bool init_window(int width, int height)
 #ifdef ENABLE_VOSF
 	Screen_blitter_init(&visualInfo, native_byte_order);
 #endif
-	set_video_monitor(width, height, img->bytes_per_line, native_byte_order);
-	
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
-	VideoMonitor.mac_frame_base = Host2MacAddr(the_buffer);
-#else
-	VideoMonitor.mac_frame_base = MacFrameBaseMac;
-#endif
+	VideoMonitor.mode = mode;
+	set_mac_frame_buffer(mode.depth, native_byte_order);
 	return true;
 }
 
 // Init fbdev DGA display
-static bool init_fbdev_dga(char *in_fb_name)
+static bool init_fbdev_dga(const video_mode &mode)
 {
 #ifdef ENABLE_FBDEV_DGA
+	int width = mode.x, height = mode.y;
+
 	// Find the maximum depth available
 	int ndepths, max_depth(0);
 	int *depths = XListDepths(x_display, screen, &ndepths);
@@ -645,7 +470,7 @@ static bool init_fbdev_dga(char *in_fb_name)
 			continue;
 		
 		if ((sscanf(line, "%19s %d %x", &fb_name, &fb_depth, &fb_offset) == 3)
-		&& (strcmp(fb_name, in_fb_name) == 0) && (fb_depth == max_depth)) {
+		&& (strcmp(fb_name, fb_name) == 0) && (fb_depth == max_depth)) {
 			device_found = true;
 			break;
 		}
@@ -657,14 +482,12 @@ static bool init_fbdev_dga(char *in_fb_name)
 	// Frame buffer name not found ? Then, display warning
 	if (!device_found) {
 		char str[256];
-		sprintf(str, GetString(STR_FBDEV_NAME_ERR), in_fb_name, max_depth);
+		sprintf(str, GetString(STR_FBDEV_NAME_ERR), fb_name, max_depth);
 		ErrorAlert(str);
 		return false;
 	}
 	
-	int width = DisplayWidth(x_display, screen);
-	int height = DisplayHeight(x_display, screen);
-	depth = fb_depth; // max_depth
+	depth = fb_depth;
 	
 	// Set relative mouse mode
 	ADBSetRelMouseMode(false);
@@ -699,22 +522,10 @@ static bool init_fbdev_dga(char *in_fb_name)
 		PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
 		GrabModeAsync, GrabModeAsync, the_win, None, CurrentTime);
 	
-	// Set VideoMonitor
-	int bytes_per_row = width;
-	switch (depth) {
-		case 1:
-			bytes_per_row = ((width | 7) & ~7) >> 3;
-			break;
-		case 15:
-		case 16:
-			bytes_per_row *= 2;
-			break;
-		case 24:
-		case 32:
-			bytes_per_row *= 4;
-			break;
-	}
+	// Calculate bytes per row
+	int bytes_per_row = TrivialBytesPerRow(mode.x, mode.depth);
 	
+	// Map frame buffer
 	if ((the_buffer = (uint8 *) mmap(NULL, height * bytes_per_row, PROT_READ | PROT_WRITE, MAP_PRIVATE, fbdev_fd, fb_offset)) == MAP_FAILED) {
 		if ((the_buffer = (uint8 *) mmap(NULL, height * bytes_per_row, PROT_READ | PROT_WRITE, MAP_SHARED, fbdev_fd, fb_offset)) == MAP_FAILED) {
 			char str[256];
@@ -742,12 +553,9 @@ static bool init_fbdev_dga(char *in_fb_name)
 #endif
 #endif
 	
-	set_video_monitor(width, height, bytes_per_row, true);
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
-	VideoMonitor.mac_frame_base = Host2MacAddr(the_buffer);
-#else
-	VideoMonitor.mac_frame_base = MacFrameBaseMac;
-#endif
+	// Set VideoMonitor
+	VideoMonitor.mode = mode;
+	set_mac_frame_buffer(mode.depth, true);
 	return true;
 #else
 	ErrorAlert("Basilisk II has been compiled with fbdev DGA support disabled.");
@@ -756,8 +564,10 @@ static bool init_fbdev_dga(char *in_fb_name)
 }
 
 // Init XF86 DGA display
-static bool init_xf86_dga(int width, int height)
+static bool init_xf86_dga(const video_mode &mode)
 {
+	int width = mode.x, height = mode.y;
+
 #ifdef ENABLE_XF86_DGA
 	// Set relative mouse mode
 	ADBSetRelMouseMode(true);
@@ -809,27 +619,14 @@ static bool init_xf86_dga(int width, int height)
 	XF86DGASetVidPage(x_display, screen, 0);
 
 	// Set colormap
-	if (depth == 8) {
+	if (!IsDirectMode(mode)) {
 		XSetWindowColormap(x_display, the_win, cmap[current_dga_cmap = 0]);
 		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
 	}
 	XSync(x_display, false);
 
 	// Set VideoMonitor
-	int bytes_per_row = (v_width + 7) & ~7;
-	switch (depth) {
-		case 1:
-			bytes_per_row /= 8;
-			break;
-		case 15:
-		case 16:
-			bytes_per_row *= 2;
-			break;
-		case 24:
-		case 32:
-			bytes_per_row *= 4;
-			break;
-	}
+	int bytes_per_row = TrivialBytesPerRow((v_width + 7) & ~7, mode.depth);
 
 #ifdef VIDEO_VOSF
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
@@ -849,13 +646,9 @@ static bool init_xf86_dga(int width, int height)
 #endif
 #endif
 	
-	set_video_monitor(width, height, bytes_per_row, true);
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
-	VideoMonitor.mac_frame_base = Host2MacAddr(the_buffer);
-//	MacFrameLayout = FLAYOUT_DIRECT;
-#else
-	VideoMonitor.mac_frame_base = MacFrameBaseMac;
-#endif
+	const_cast<video_mode *>(&mode)->bytes_per_row = bytes_per_row;
+	VideoMonitor.mode = mode;
+	set_mac_frame_buffer(mode.depth, true);
 	return true;
 #else
 	ErrorAlert("Basilisk II has been compiled with XF86 DGA support disabled.");
@@ -928,72 +721,87 @@ static void keycode_init(void)
 	}
 }
 
-bool VideoInitBuffer()
+// Open display for specified mode
+static bool video_open(const video_mode &mode)
 {
+	// Create color maps for 8 bit mode
+	if (!IsDirectMode(mode)) {
+		cmap[0] = XCreateColormap(x_display, rootwin, vis, AllocAll);
+		cmap[1] = XCreateColormap(x_display, rootwin, vis, AllocAll);
+		cmap_allocated = true;
+		XInstallColormap(x_display, cmap[0]);
+		XInstallColormap(x_display, cmap[1]);
+	}
+
+	// Initialize according to display type
+	switch (display_type) {
+		case DISPLAY_WINDOW:
+			if (!init_window(mode))
+				return false;
+			break;
+		case DISPLAY_DGA:
+#ifdef ENABLE_FBDEV_DGA
+			if (!init_fbdev_dga(mode))
+#else
+			if (!init_xf86_dga(mode))
+#endif
+				return false;
+			break;
+	}
+
+	// Lock down frame buffer
+	LOCK_FRAME_BUFFER;
+
+#if !REAL_ADDRESSING && !DIRECT_ADDRESSING
+	// Set variables for UAE memory mapping
+	MacFrameBaseHost = the_buffer;
+	MacFrameSize = VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y;
+
+	// No special frame buffer in Classic mode (frame buffer is in Mac RAM)
+	if (classic)
+		MacFrameLayout = FLAYOUT_NONE;
+#endif
+
+	InitFrameBufferMapping();
+
 #ifdef ENABLE_VOSF
 	if (use_vosf) {
-		const uint32 page_size	= getpagesize();
-		const uint32 page_mask	= page_size - 1;
-		
-		mainBuffer.memBase      = (uintptr) the_buffer;
-		// Align the frame buffer on page boundary
-		mainBuffer.memStart		= (uintptr)((((unsigned long) the_buffer) + page_mask) & ~page_mask);
-		mainBuffer.memLength	= the_buffer_size;
-		mainBuffer.memEnd       = mainBuffer.memStart + mainBuffer.memLength;
-
-		mainBuffer.pageSize     = page_size;
-		mainBuffer.pageCount	= (mainBuffer.memLength + page_mask)/mainBuffer.pageSize;
-		mainBuffer.pageBits     = log_base_2(mainBuffer.pageSize);
-
-		if (mainBuffer.dirtyPages != 0)
-			free(mainBuffer.dirtyPages);
-
-		mainBuffer.dirtyPages = (char *) malloc(mainBuffer.pageCount + 2);
-
-		if (mainBuffer.pageInfo != 0)
-			free(mainBuffer.pageInfo);
-
-		mainBuffer.pageInfo = (ScreenPageInfo *) malloc(mainBuffer.pageCount * sizeof(ScreenPageInfo));
-
-		if ((mainBuffer.dirtyPages == 0) || (mainBuffer.pageInfo == 0))
-			return false;
-		
-		mainBuffer.dirty = false;
-
-		PFLAG_CLEAR_ALL;
-		// Safety net to insure the loops in the update routines will terminate
-		// See a discussion in <video_vosf.h> for further details
-		PFLAG_CLEAR(mainBuffer.pageCount);
-		PFLAG_SET(mainBuffer.pageCount+1);
-
-		uint32 a = 0;
-		for (int i = 0; i < mainBuffer.pageCount; i++) {
-			int y1 = a / VideoMonitor.mode.bytes_per_row;
-			if (y1 >= VideoMonitor.mode.y)
-				y1 = VideoMonitor.mode.y - 1;
-
-			int y2 = (a + mainBuffer.pageSize) / VideoMonitor.mode.bytes_per_row;
-			if (y2 >= VideoMonitor.mode.y)
-				y2 = VideoMonitor.mode.y - 1;
-
-			mainBuffer.pageInfo[i].top = y1;
-			mainBuffer.pageInfo[i].bottom = y2;
-
-			a += mainBuffer.pageSize;
-			if (a > mainBuffer.memLength)
-				a = mainBuffer.memLength;
+		// Initialize the mainBuffer structure
+		if (!video_init_buffer()) {
+			ErrorAlert(GetString(STR_VOSF_INIT_ERR));
+        	return false;
 		}
-		
-		// We can now write-protect the frame buffer
-		if (vm_protect((char *)mainBuffer.memStart, mainBuffer.memLength, VM_PAGE_READ) != 0)
+
+		// Initialize the handler for SIGSEGV
+		if (!sigsegv_install_handler(screen_fault_handler)) {
+			ErrorAlert("Could not initialize Video on SEGV signals");
 			return false;
+		}
 	}
 #endif
+	
+	// Initialize VideoRefresh function
+	VideoRefreshInit();
+	
+	XSync(x_display, false);
+
+#ifdef HAVE_PTHREADS
+	// Start redraw/input thread
+	redraw_thread_cancel = false;
+	redraw_thread_active = (pthread_create(&redraw_thread, NULL, redraw_func, NULL) == 0);
+	if (!redraw_thread_active) {
+		printf("FATAL: cannot create redraw thread\n");
+		return false;
+	}
+#endif
+
 	return true;
 }
 
 bool VideoInit(bool classic)
 {
+	classic_mode = classic;
+
 #ifdef ENABLE_VOSF
 	// Open /dev/zero
 	zero_fd = open("/dev/zero", O_RDWR);
@@ -1094,112 +902,69 @@ bool VideoInit(bool classic)
 	}
 	vis = visualInfo.visual;
 
-	// Mac screen depth is always 1 bit in Classic mode, but follows X depth otherwise
-	classic_mode = classic;
-	if (classic)
-		depth = 1;
-	else
-		depth = xdepth;
-
-	// Create color maps for 8 bit mode
-	if (depth == 8) {
-		cmap[0] = XCreateColormap(x_display, rootwin, vis, AllocAll);
-		cmap[1] = XCreateColormap(x_display, rootwin, vis, AllocAll);
-		XInstallColormap(x_display, cmap[0]);
-		XInstallColormap(x_display, cmap[1]);
-	}
-
 	// Get screen mode from preferences
 	const char *mode_str;
-	if (classic)
+	if (classic_mode)
 		mode_str = "win/512/342";
 	else
 		mode_str = PrefsFindString("screen");
 
-	// Determine type and mode
-	int width = 512, height = 384;
+	// Determine display type and default dimensions
+	int default_width = 512, default_height = 384;
 	display_type = DISPLAY_WINDOW;
 	if (mode_str) {
-		if (sscanf(mode_str, "win/%d/%d", &width, &height) == 2)
+		if (sscanf(mode_str, "win/%d/%d", &default_width, &default_height) == 2) {
 			display_type = DISPLAY_WINDOW;
 #ifdef ENABLE_FBDEV_DGA
-		else if (has_dga && sscanf(mode_str, "dga/%19s", fb_name) == 1) {
-#else
-		else if (has_dga && sscanf(mode_str, "dga/%d/%d", &width, &height) == 2) {
-#endif
+		} else if (has_dga && sscanf(mode_str, "dga/%19s", fb_name) == 1) {
 			display_type = DISPLAY_DGA;
-			if (width > DisplayWidth(x_display, screen))
-				width = DisplayWidth(x_display, screen);
-			if (height > DisplayHeight(x_display, screen))
-				height = DisplayHeight(x_display, screen);
-		}
-		if (width <= 0)
-			width = DisplayWidth(x_display, screen);
-		if (height <= 0)
-			height = DisplayHeight(x_display, screen);
-	}
-
-	// Initialize according to display type
-	switch (display_type) {
-		case DISPLAY_WINDOW:
-			if (!init_window(width, height))
-				return false;
-			break;
-		case DISPLAY_DGA:
-#ifdef ENABLE_FBDEV_DGA
-			if (!init_fbdev_dga(fb_name))
+			default_width = -1; default_height = -1;
 #else
-			if (!init_xf86_dga(width, height))
+		} else if (has_dga && sscanf(mode_str, "dga/%d/%d", &default_width, &default_height) == 2) {
+			display_type = DISPLAY_DGA;
 #endif
-				return false;
-			break;
-	}
-
-	// Lock down frame buffer
-	LOCK_FRAME_BUFFER;
-
-#if !REAL_ADDRESSING && !DIRECT_ADDRESSING
-	// Set variables for UAE memory mapping
-	MacFrameBaseHost = the_buffer;
-	MacFrameSize = VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y;
-
-	// No special frame buffer in Classic mode (frame buffer is in Mac RAM)
-	if (classic)
-		MacFrameLayout = FLAYOUT_NONE;
-#endif
-
-#ifdef ENABLE_VOSF
-	if (use_vosf) {
-		// Initialize the mainBuffer structure
-		if (!VideoInitBuffer()) {
-			// TODO: STR_VOSF_INIT_ERR ?
-			ErrorAlert("Could not initialize Video on SEGV signals");
-        	return false;
-		}
-
-		// Initialize the handler for SIGSEGV
-		if (!sigsegv_install_handler(screen_fault_handler)) {
-			// TODO: STR_VOSF_INIT_ERR ?
-			ErrorAlert("Could not initialize Video on SEGV signals");
-			return false;
 		}
 	}
-#endif
-	
-	// Initialize VideoRefresh function
-	VideoRefreshInit();
-	
-	XSync(x_display, false);
+	if (default_width <= 0)
+		default_width = DisplayWidth(x_display, screen);
+	else if (default_width > DisplayWidth(x_display, screen))
+		default_width = DisplayWidth(x_display, screen);
+	if (default_height <= 0)
+		default_height = DisplayHeight(x_display, screen);
+	else if (default_height > DisplayHeight(x_display, screen))
+		default_height = DisplayHeight(x_display, screen);
 
-#ifdef HAVE_PTHREADS
-	// Start redraw/input thread
-	redraw_thread_active = (pthread_create(&redraw_thread, NULL, redraw_func, NULL) == 0);
-	if (!redraw_thread_active) {
-		printf("FATAL: cannot create redraw thread\n");
-		return false;
+	// Mac screen depth is always 1 bit in Classic mode, but follows X depth otherwise
+	int depth = (classic_mode ? 1 : xdepth);
+	video_depth depth_mode = DepthModeForPixelDepth(depth);
+
+	// Construct list of supported modes
+	if (display_type == DISPLAY_WINDOW) {
+		if (classic)
+			add_mode(512, 342, 0x80, 64, depth_mode);
+		else {
+			add_mode(512, 384, 0x80, TrivialBytesPerRow(512, depth_mode), depth_mode);
+			add_mode(640, 480, 0x81, TrivialBytesPerRow(640, depth_mode), depth_mode);
+			add_mode(800, 600, 0x82, TrivialBytesPerRow(800, depth_mode), depth_mode);
+			add_mode(1024, 768, 0x83, TrivialBytesPerRow(1024, depth_mode), depth_mode);
+			add_mode(1280, 1024, 0x84, TrivialBytesPerRow(1280, depth_mode), depth_mode);
+		}
+	} else
+		add_mode(default_width, default_height, 0x80, TrivialBytesPerRow(default_width, depth_mode), depth_mode);
+
+	// Find requested default mode and open display
+	if (VideoModes.size() == 1)
+		return video_open(VideoModes[0]);
+	else {
+		// Find mode with specified dimensions
+		std::vector<video_mode>::const_iterator i = VideoModes.begin(), end = VideoModes.end();
+		while (i != end) {
+			if (i->x == default_width && i->y == default_height)
+				return video_open(*i);
+			++i;
+		}
+		return video_open(VideoModes[0]);
 	}
-#endif
-	return true;
 }
 
 
@@ -1207,7 +972,8 @@ bool VideoInit(bool classic)
  *  Deinitialization
  */
 
-void VideoExit(void)
+// Close display
+static void video_close(void)
 {
 #ifdef HAVE_PTHREADS
 	// Stop redraw thread
@@ -1251,9 +1017,23 @@ void VideoExit(void)
 
 		XFlush(x_display);
 		XSync(x_display, false);
-		if (depth == 8) {
+		XUnmapWindow(x_display, the_win);
+		wait_unmapped(the_win);
+		XDestroyWindow(x_display, the_win);
+
+		if (have_shm) {
+			XDestroyImage(img);
+			XShmDetach(x_display, &shminfo);
+			have_shm = false;
+		} else {
+			//!! free img
+		}
+		//!! free the_gc
+
+		if (cmap_allocated) {
 			XFreeColormap(x_display, cmap[0]);
 			XFreeColormap(x_display, cmap[1]);
+			cmap_allocated = false;
 		}
 		
 		if (!use_vosf) {
@@ -1269,6 +1049,8 @@ void VideoExit(void)
 		}
 #ifdef ENABLE_VOSF
 		else {
+			//!! uninstall SEGV handler?
+
 			if (the_buffer != (uint8 *)VM_MAP_FAILED) {
 				vm_release(the_buffer, the_buffer_size);
 				the_buffer = 0;
@@ -1295,7 +1077,14 @@ void VideoExit(void)
 			mainBuffer.dirtyPages = 0;
 		}
 	}
+#endif
+}
 
+void VideoExit(void)
+{
+	video_close();
+
+#ifdef ENABLE_VOSF
 	// Close /dev/zero
 	if (zero_fd > 0)
 		close(zero_fd);
@@ -1362,6 +1151,8 @@ void video_set_palette(uint8 *pal)
 
 void video_switch_to_mode(const video_mode &mode)
 {
+	video_close();
+	video_open(mode);
 }
 
 
@@ -1450,7 +1241,7 @@ static void resume_emul(void)
 	}
 	
 #ifdef ENABLE_XF86_DGA
-	if (depth == 8)
+	if (!IsDirectMode(VideoMonitor.mode))
 		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
 #endif
 
@@ -1819,7 +1610,7 @@ static void update_display_dynamic(int ticker)
 					i = (yi * bytes_per_row) + xi;
 					for (y2=0; y2 < yil; y2++, i += bytes_per_row)
 						memcpy(&the_buffer_copy[i], &the_buffer[i], xil);
-					if (depth == 1) {
+					if (VideoMonitor.mode.depth == VDEPTH_1BIT) {
 						if (have_shm)
 							XShmPutImage(x_display, the_win, the_gc, img, xi * 8, yi, xi * 8, yi, xil * 8, yil, 0);
 						else
@@ -1874,7 +1665,7 @@ static void update_display_static(void)
 
 	// Check for first column from left and first column from right that have changed
 	if (high) {
-		if (depth == 1) {
+		if (VideoMonitor.mode.depth == VDEPTH_1BIT) {
 			x1 = VideoMonitor.mode.x - 1;
 			for (j=y1; j<=y2; j++) {
 				p = &the_buffer[j * bytes_per_row];
@@ -1983,18 +1774,18 @@ static inline void possibly_quit_dga_mode()
 		XUngrabPointer(x_display, CurrentTime);
 		XUngrabKeyboard(x_display, CurrentTime);
 		XUnmapWindow(x_display, the_win);
-		XSync(x_display, false);
+		wait_unmapped(the_win);
 	}
 #endif
 }
 
-static inline void handle_palette_changes(int depth, int display_type)
+static inline void handle_palette_changes(int display_type)
 {
 	LOCK_PALETTE;
 
 	if (palette_changed) {
 		palette_changed = false;
-		if (depth == 8) {
+		if (!IsDirectMode(VideoMonitor.mode)) {
 			XStoreColors(x_display, cmap[0], palette, 256);
 			XStoreColors(x_display, cmap[1], palette, 256);
 			XSync(x_display, false);
@@ -2020,7 +1811,7 @@ static void video_refresh_dga(void)
 	handle_events();
 	
 	// Handle palette changes
-	handle_palette_changes(depth, DISPLAY_DGA);
+	handle_palette_changes(DISPLAY_DGA);
 }
 
 #ifdef ENABLE_VOSF
@@ -2034,7 +1825,7 @@ static void video_refresh_dga_vosf(void)
 	handle_events();
 	
 	// Handle palette changes
-	handle_palette_changes(depth, DISPLAY_DGA);
+	handle_palette_changes(DISPLAY_DGA);
 	
 	// Update display (VOSF variant)
 	static int tick_counter = 0;
@@ -2058,7 +1849,7 @@ static void video_refresh_window_vosf(void)
 	handle_events();
 	
 	// Handle palette changes
-	handle_palette_changes(depth, DISPLAY_WINDOW);
+	handle_palette_changes(DISPLAY_WINDOW);
 	
 	// Update display (VOSF variant)
 	static int tick_counter = 0;
@@ -2080,7 +1871,7 @@ static void video_refresh_window_static(void)
 	handle_events();
 	
 	// Handle_palette changes
-	handle_palette_changes(depth, DISPLAY_WINDOW);
+	handle_palette_changes(DISPLAY_WINDOW);
 	
 	// Update display (static variant)
 	static int tick_counter = 0;
@@ -2096,7 +1887,7 @@ static void video_refresh_window_dynamic(void)
 	handle_events();
 	
 	// Handle_palette changes
-	handle_palette_changes(depth, DISPLAY_WINDOW);
+	handle_palette_changes(DISPLAY_WINDOW);
 	
 	// Update display (dynamic variant)
 	static int tick_counter = 0;
@@ -2109,7 +1900,7 @@ static void video_refresh_window_dynamic(void)
  *  Thread for screen refresh, input handling etc.
  */
 
-void VideoRefreshInit(void)
+static void VideoRefreshInit(void)
 {
 	// TODO: set up specialised 8bpp VideoRefresh handlers ?
 	if (display_type == DISPLAY_DGA) {

@@ -118,58 +118,58 @@ static void PString(char *str)
 static uint32 VModeParms(uint32 width, uint32 height, uint32 bytes_per_row, video_depth depth)
 {
 	uint32 ret = p;
-	Long(50);							// Length
-	Long(0);							// Base offset
-	Word(bytes_per_row);			// Row bytes
-	Word(0);							// Bounds
+	Long(50);					// Length
+	Long(0);					// Base offset
+	Word(bytes_per_row);		// Row bytes
+	Word(0);					// Bounds
 	Word(0);
 	Word(height);
 	Word(width);
-	Word(0);							// Version
-	Word(0);							// Pack type
-	Long(0);							// Pack size
-	Long(0x00480000);					// HRes
-	Long(0x00480000);					// VRes
+	Word(0);					// Version
+	Word(0);					// Pack type
+	Long(0);					// Pack size
+	Long(0x00480000);			// HRes
+	Long(0x00480000);			// VRes
 	switch (depth) {
 		case VDEPTH_1BIT:
-			Word(0);					// Pixel type (indirect)
-			Word(1);					// Pixel size
-			Word(1);					// CmpCount
-			Word(1);					// CmpSize
+			Word(0);			// Pixel type (indirect)
+			Word(1);			// Pixel size
+			Word(1);			// CmpCount
+			Word(1);			// CmpSize
 			break;
 		case VDEPTH_2BIT:
-			Word(0);					// Pixel type (indirect)
-			Word(2);					// Pixel size
-			Word(1);					// CmpCount
-			Word(2);					// CmpSize
+			Word(0);			// Pixel type (indirect)
+			Word(2);			// Pixel size
+			Word(1);			// CmpCount
+			Word(2);			// CmpSize
 			break;
 		case VDEPTH_4BIT:
-			Word(0);					// Pixel type (indirect)
-			Word(4);					// Pixel size
-			Word(1);					// CmpCount
-			Word(4);					// CmpSize
+			Word(0);			// Pixel type (indirect)
+			Word(4);			// Pixel size
+			Word(1);			// CmpCount
+			Word(4);			// CmpSize
 			break;
 		case VDEPTH_8BIT:
-			Word(0);					// Pixel type (indirect)
-			Word(8);					// Pixel size
-			Word(1);					// CmpCount
-			Word(8);					// CmpSize
+			Word(0);			// Pixel type (indirect)
+			Word(8);			// Pixel size
+			Word(1);			// CmpCount
+			Word(8);			// CmpSize
 			break;
 		case VDEPTH_16BIT:
-			Word(16);					// Pixel type (direct)
-			Word(16);					// Pixel size
-			Word(3);					// CmpCount
-			Word(5);					// CmpSize
+			Word(16);			// Pixel type (direct)
+			Word(16);			// Pixel size
+			Word(3);			// CmpCount
+			Word(5);			// CmpSize
 			break;
 		case VDEPTH_32BIT:
-			Word(16);					// Pixel type (direct)
-			Word(32);					// Pixel size
-			Word(3);					// CmpCount
-			Word(8);					// CmpSize
+			Word(16);			// Pixel type (direct)
+			Word(32);			// Pixel size
+			Word(3);			// CmpCount
+			Word(8);			// CmpSize
 			break;
 	}
-	Long(0);							// Plane size
-	Long(0);							// Reserved
+	Long(0);					// Plane size
+	Long(0);					// Reserved
 	return ret;
 }
 
@@ -233,13 +233,13 @@ bool InstallSlotROM(void)
 
 	// Video sResource for default mode
 	videoType = p;						// Literals
-	Word(3); Word(1); Word(1); Word(0x4232);			// Display Video Apple 'B2'
+	Word(3); Word(1); Word(1); Word(0x4232);	// Display Video Apple 'B2'
 	videoName = p;
 	String("Display_Video_Apple_Basilisk");
 	minorBase = p;
-	Long(VideoMonitor.mac_frame_base);					// Frame buffer base
+	Long(VideoMonitor.mac_frame_base);	// Frame buffer base
 	minorLength = p;
-	Long(VideoMonitor.mode.bytes_per_row * VideoMonitor.mode.y);	// Frame buffer size
+	Long(0);							// Frame buffer size (unspecified)
 
 	videoDrvr = p;						// Video driver
 	Long(0x72);							// Length

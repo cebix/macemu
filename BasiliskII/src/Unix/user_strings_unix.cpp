@@ -37,6 +37,7 @@ user_string_def platform_strings[] = {
 	{STR_NO_FBDEVICE_FILE_ERR, "Cannot open frame buffer device specification file %s (%s)."},
 	{STR_FBDEV_NAME_ERR, "The %s frame buffer is not supported in %d bit mode."},
 	{STR_FBDEV_MMAP_ERR, "Cannot mmap() the frame buffer memory (%s)."},
+	{STR_VOSF_INIT_ERR, "Cannot initialize Video on SEGV signals."},
 	{STR_NO_DEV_ZERO_ERR, "Cannot open /dev/zero (%s)."},
 	{STR_LOW_MEM_MMAP_ERR, "Cannot map Low Memory Globals (%s)."},
 	{STR_SIGALTSTACK_ERR, "Cannot install alternate signal stack (%s)."},

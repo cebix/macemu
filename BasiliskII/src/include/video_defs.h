@@ -23,8 +23,6 @@
 
 // Video driver control codes
 enum {
-	cscReset						= 0,
-	cscKillIO						= 1,
 	cscSetMode						= 2,
 	cscSetEntries					= 3,
 	cscSetGamma						= 4,
@@ -42,21 +40,20 @@ enum {
 	cscSetPowerState				= 25,
 	cscPrivateControlCall			= 26,
 	cscSetMultiConnect				= 27,
-	cscSetClutBehavior				= 28,
-	cscUnusedCall = 127
+	cscSetClutBehavior				= 28
 };
 
 // Video driver status codes
 enum {
 	cscGetMode						= 2,
 	cscGetEntries					= 3,
-	cscGetPageCnt					= 4,
-	cscGetPageBase					= 5,
+	cscGetPages						= 4,
+	cscGetBaseAddress				= 5,
 	cscGetGray						= 6,
 	cscGetInterrupt					= 7,
 	cscGetGamma						= 8,
 	cscGetDefaultMode				= 9,
-	cscGetCurMode					= 10,
+	cscGetCurrentMode				= 10,
 	cscGetSync						= 11,
 	cscGetConnection				= 12,
 	cscGetModeTiming				= 13,
@@ -140,6 +137,33 @@ enum {	// VPBlock struct
 	vpCmpCount = 34,
 	vpCmpSize = 36,
 	vpPlaneBytes = 38
+};
+
+enum {	// SPBlock struct
+	spResult = 0,
+	spPointer = 4,
+	spSize = 8,
+	spOffsetData = 12,
+	spIOFileName = 16,
+	spExecPBlk = 20,
+	spParamData = 24,
+	spMisc = 28,
+	spReserved = 32,
+	spIOReserved = 36,
+	spRefNum = 38,
+	spCategory = 40,
+	spCType = 42,
+	spDrvrSW = 44,
+	spDrvrHW = 46,
+	spTBMask = 48,
+	spSlot = 49,
+	spID = 50,
+	spExtDev = 51,
+	spHwDev = 52,
+	spByteLanes = 53,
+	spFlags = 54,
+	spKey = 55,
+	SIZEOF_SPBlock = 56
 };
 
 #endif

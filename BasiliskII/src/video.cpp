@@ -34,7 +34,7 @@
 #include "video.h"
 #include "video_defs.h"
 
-#define DEBUG 1
+#define DEBUG 0
 #include "debug.h"
 
 
@@ -50,10 +50,12 @@ struct {
 	uint8 palette[256 * 3];		// Color palette, 256 entries, RGB
 	bool luminance_mapping;		// Luminance mapping on/off
 	bool interrupts_enabled;	// VBL interrupts on/off
+	uint32 gamma_table;			// Mac address of gamma table
 	uint16 current_mode;		// Currently selected depth/resolution
 	uint32 current_id;
 	uint16 preferred_mode;		// Preferred depth/resolution
 	uint32 preferred_id;
+	uint32 sp;					// Mac address of Slot Manager parameter block
 } VidLocal;
 
 
@@ -125,6 +127,23 @@ static void get_size_of_resolution(uint32 id, uint32 &x, uint32 &y)
 
 
 /*
+ *  Set palette to 50% gray
+ */
+
+static void set_gray_palette(void)
+{
+	if (!IsDirectMode(VidLocal.current_mode)) {
+		for (int i=0; i<256; i++) {
+			VidLocal.palette[i * 3 + 0] = 127;
+			VidLocal.palette[i * 3 + 1] = 127;
+			VidLocal.palette[i * 3 + 2] = 127;
+		}
+		video_set_palette(VidLocal.palette);
+	}
+}
+
+
+/*
  *  Driver Open() routine
  */
 
@@ -145,15 +164,20 @@ int16 VideoDriverOpen(uint32 pb, uint32 dce)
 	VidLocal.preferred_mode = VidLocal.current_mode;
 	VidLocal.preferred_id = VidLocal.current_id;
 
+	// Allocate Slot Manager parameter block in Mac RAM
+	M68kRegisters r;
+	r.d[0] = SIZEOF_SPBlock;
+	Execute68kTrap(0xa71e, &r);	// NewPtrSysClear()
+	if (r.a[0] == 0)
+		return memFullErr;
+	VidLocal.sp = r.a[0];
+	D(bug("SPBlock at %08x\n", VidLocal.sp));
+
+	// Find and set default gamma table
+	VidLocal.gamma_table = 0; //!!
+
 	// Init color palette (solid gray)
-	if (!IsDirectMode(VidLocal.desc->mode)) {
-		for (int i=0; i<256; i++) {
-			VidLocal.palette[i * 3 + 0] = 127;
-			VidLocal.palette[i * 3 + 1] = 127;
-			VidLocal.palette[i * 3 + 2] = 127;
-		}
-		video_set_palette(VidLocal.palette);
-	}
+	set_gray_palette();
 	return noErr;
 }
 
@@ -173,51 +197,63 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 			uint16 mode = ReadMacInt16(param + csMode);
 			D(bug(" SetMode %04x\n", mode));
 
+			// Set old base address in case the switch fails
+			WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);
+
+			if (ReadMacInt16(param + csPage))
+				return paramErr;
+
 			if (mode != VidLocal.current_mode) {
 				std::vector<video_mode>::const_iterator i = find_mode(mode, VidLocal.current_id);
-				if (i == VideoModes.end()) {
-					WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);
+				if (i == VideoModes.end())
 					return paramErr;
-				}
+				set_gray_palette();
 				video_switch_to_mode(*i);
 				VidLocal.current_mode = mode;
+				WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);
+				WriteMacInt32(dce + dCtlDevBase, VidLocal.desc->mac_frame_base);
 			}
-			WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);
+			D(bug("  base %08x\n", VidLocal.desc->mac_frame_base));
 			return noErr;
 		}
 
 		case cscSetEntries: {	// Set palette
-			D(bug(" SetEntries table %08lx, count %d, start %d\n", ReadMacInt32(param + csTable), ReadMacInt16(param + csCount), ReadMacInt16(param + csStart)));
-			if (IsDirectMode(VidLocal.desc->mode))
+			D(bug(" SetEntries table %08x, count %d, start %d\n", ReadMacInt32(param + csTable), ReadMacInt16(param + csCount), ReadMacInt16(param + csStart)));
+			if (IsDirectMode(VidLocal.current_mode))
 				return controlErr;
 
 			uint32 s_pal = ReadMacInt32(param + csTable);	// Source palette
 			uint8 *d_pal;									// Destination palette
+			uint16 start = ReadMacInt16(param + csStart);
 			uint16 count = ReadMacInt16(param + csCount);
-			if (!s_pal || count > 255)
+			if (s_pal == 0 || count > 255)
 				return paramErr;
 
-			if (ReadMacInt16(param + csStart) == 0xffff) {	// Indexed
+			if (start == 0xffff) {	// Indexed
 				for (uint32 i=0; i<=count; i++) {
-					d_pal = VidLocal.palette + ReadMacInt16(s_pal) * 3;
+					d_pal = VidLocal.palette + (ReadMacInt16(s_pal) & 0xff) * 3;
 					uint8 red = (uint16)ReadMacInt16(s_pal + 2) >> 8;
 					uint8 green = (uint16)ReadMacInt16(s_pal + 4) >> 8;
 					uint8 blue = (uint16)ReadMacInt16(s_pal + 6) >> 8;
 					if (VidLocal.luminance_mapping)
 						red = green = blue = (red * 0x4ccc + green * 0x970a + blue * 0x1c29) >> 16;
+					//!! gamma correction
 					*d_pal++ = red;
 					*d_pal++ = green;
 					*d_pal++ = blue;
 					s_pal += 8;
 				}
-			} else {										// Sequential
-				d_pal = VidLocal.palette + ReadMacInt16(param + csStart) * 3;
+			} else {				// Sequential
+				if (start + count > 255)
+					return paramErr;
+				d_pal = VidLocal.palette + start * 3;
 				for (uint32 i=0; i<=count; i++) {
 					uint8 red = (uint16)ReadMacInt16(s_pal + 2) >> 8;
 					uint8 green = (uint16)ReadMacInt16(s_pal + 4) >> 8;
 					uint8 blue = (uint16)ReadMacInt16(s_pal + 6) >> 8;
 					if (VidLocal.luminance_mapping)
 						red = green = blue = (red * 0x4ccc + green * 0x970a + blue * 0x1c29) >> 16;
+					//!! gamma correction
 					*d_pal++ = red;
 					*d_pal++ = green;
 					*d_pal++ = blue;
@@ -231,7 +267,7 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 		case cscSetGamma:		// Set gamma table
 			D(bug(" SetGamma\n"));
 			//!!
-			return noErr;
+			return controlErr;
 
 		case cscGrayPage: {		// Fill page with dithered gray pattern
 			D(bug(" GrayPage %d\n", ReadMacInt16(param + csPage)));
@@ -248,15 +284,17 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 			};
 			uint32 p = VidLocal.desc->mac_frame_base;
 			uint32 pat = pattern[VidLocal.desc->mode.depth];
+			bool invert = (VidLocal.desc->mode.depth == VDEPTH_32BIT);
 			for (uint32 y=0; y<VidLocal.desc->mode.y; y++) {
 				for (uint32 x=0; x<VidLocal.desc->mode.bytes_per_row; x+=4) {
 					WriteMacInt32(p + x, pat);
-					if (VidLocal.desc->mode.depth == VDEPTH_32BIT)
+					if (invert)
 						pat = ~pat;
 				}
 				p += VidLocal.desc->mode.bytes_per_row;
 				pat = ~pat;
 			}
+			//!! if direct mode, load gamma table to CLUT
 			return noErr;
 		}
 
@@ -270,8 +308,6 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 			VidLocal.interrupts_enabled = (ReadMacInt8(param + csMode) == 0);
 			return noErr;
 
-		// case cscDirectSetEntries:
-
 		case cscSetDefaultMode: { // Set default color depth
 			uint16 mode = ReadMacInt16(param + csMode);
 			D(bug(" SetDefaultMode %04x\n", mode));
@@ -284,17 +320,70 @@ int16 VideoDriverControl(uint32 pb, uint32 dce)
 			uint32 id = ReadMacInt32(param + csData);
 			D(bug(" SwitchMode %04x, %08x\n", mode, id));
 
+			// Set old base address in case the switch fails
+			WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);
+
+			if (ReadMacInt16(param + csPage))
+				return paramErr;
+
 			if (mode != VidLocal.current_mode || id != VidLocal.current_id) {
 				std::vector<video_mode>::const_iterator i = find_mode(mode, id);
-				if (i == VideoModes.end()) {
-					WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);
+				if (i == VideoModes.end())
 					return paramErr;
-				}
+				set_gray_palette();
 				video_switch_to_mode(*i);
 				VidLocal.current_mode = mode;
 				VidLocal.current_id = id;
+				uint32 frame_base = VidLocal.desc->mac_frame_base;
+				WriteMacInt32(param + csBaseAddr, frame_base);
+
+				M68kRegisters r;
+				uint32 sp = VidLocal.sp;
+				r.a[0] = sp;
+
+				// Find functional sResource for this display
+				WriteMacInt8(sp + spSlot, ReadMacInt8(dce + dCtlSlot));
+				WriteMacInt8(sp + spID, ReadMacInt8(dce + dCtlSlotId));
+				WriteMacInt8(sp + spExtDev, 0);
+				r.d[0] = 0x0016;
+				Execute68kTrap(0xa06e, &r);	// SRsrcInfo()
+				uint32 rsrc = ReadMacInt32(sp + spPointer);
+
+				// Patch minorBase
+				WriteMacInt8(sp + spID, 0x0a); // minorBase
+				r.d[0] = 0x0006;
+				Execute68kTrap(0xa06e, &r); // SFindStruct()
+				uint32 minor_base = ReadMacInt32(sp + spPointer) - ROMBaseMac;
+				ROMBaseHost[minor_base + 0] = frame_base >> 24;
+				ROMBaseHost[minor_base + 1] = frame_base >> 16;
+				ROMBaseHost[minor_base + 2] = frame_base >> 8;
+				ROMBaseHost[minor_base + 3] = frame_base;
+
+				// Patch video mode parameter table
+				WriteMacInt32(sp + spPointer, rsrc);
+				WriteMacInt8(sp + spID, mode);
+				r.d[0] = 0x0006;
+				Execute68kTrap(0xa06e, &r); // SFindStruct()
+				WriteMacInt8(sp + spID, 0x01);
+				r.d[0] = 0x0006;
+				Execute68kTrap(0xa06e, &r); // SFindStruct()
+				uint32 p = ReadMacInt32(sp + spPointer) - ROMBaseMac;
+				ROMBaseHost[p +  8] = i->bytes_per_row >> 8;
+				ROMBaseHost[p +  9] = i->bytes_per_row;
+				ROMBaseHost[p + 14] = i->y >> 8;
+				ROMBaseHost[p + 15] = i->y;
+				ROMBaseHost[p + 16] = i->x >> 8;
+				ROMBaseHost[p + 17] = i->x;
+
+				// Update sResource
+				WriteMacInt8(sp + spID, ReadMacInt8(dce + dCtlSlotId));
+				r.d[0] = 0x002b;
+				Execute68kTrap(0xa06e, &r); // SUpdateSRT()
+
+				// Update frame buffer base in DCE
+				WriteMacInt32(dce + dCtlDevBase, frame_base);
 			}
-			WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);
+			D(bug("  base %08x\n", VidLocal.desc->mac_frame_base));
 			return noErr;
 		}
 
@@ -332,37 +421,79 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 			WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);
 			return noErr;
 
-		// case cscGetEntries:
+		case cscGetEntries: {		// Read palette
+			D(bug(" GetEntries table %08x, count %d, start %d\n", ReadMacInt32(param + csTable), ReadMacInt16(param + csCount), ReadMacInt16(param + csStart)));
 
-		case cscGetPageCnt:			// Get number of pages
-			D(bug(" GetPageCnt -> 1\n"));
+			uint8 *s_pal;									// Source palette
+			uint32 d_pal = ReadMacInt32(param + csTable);	// Destination palette
+			uint16 start = ReadMacInt16(param + csStart);
+			uint16 count = ReadMacInt16(param + csCount);
+			if (d_pal == 0 || count > 255)
+				return paramErr;
+
+			if (start == 0xffff) {	// Indexed
+				for (uint32 i=0; i<=count; i++) {
+					s_pal = VidLocal.palette + (ReadMacInt16(d_pal) & 0xff) * 3;
+					uint8 red = *s_pal++;
+					uint8 green = *s_pal++;
+					uint8 blue = *s_pal++;
+					WriteMacInt16(d_pal + 2, red * 0x0101);
+					WriteMacInt16(d_pal + 4, green * 0x0101);
+					WriteMacInt16(d_pal + 6, blue * 0x0101);
+					d_pal += 8;
+				}
+			} else {				// Sequential
+				if (start + count > 255)
+					return paramErr;
+				s_pal = VidLocal.palette + start * 3;
+				for (uint32 i=0; i<=count; i++) {
+					uint8 red = *s_pal++;
+					uint8 green = *s_pal++;
+					uint8 blue = *s_pal++;
+					WriteMacInt16(d_pal + 2, red * 0x0101);
+					WriteMacInt16(d_pal + 4, green * 0x0101);
+					WriteMacInt16(d_pal + 6, blue * 0x0101);
+					d_pal += 8;
+				}
+			}
+			return noErr;
+		}
+
+		case cscGetPages:			// Get number of pages
+			D(bug(" GetPages -> 1\n"));
 			WriteMacInt16(param + csPage, 1);
 			return noErr;
 
-		case cscGetPageBase:		// Get page base address
-			D(bug(" GetPageBase -> %08x\n", VidLocal.desc->mac_frame_base));
+		case cscGetBaseAddress:		// Get page base address
+			D(bug(" GetBaseAddress -> %08x\n", VidLocal.desc->mac_frame_base));
 			WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);
-			return noErr;
+			if (ReadMacInt16(param + csPage))
+				return paramErr;
+			else
+				return noErr;
 
 		case cscGetGray:			// Get luminance mapping flag
 			D(bug(" GetGray -> %d\n", VidLocal.luminance_mapping));
-			WriteMacInt8(param, VidLocal.luminance_mapping ? 1 : 0);
+			WriteMacInt16(param, VidLocal.luminance_mapping ? 0x0100 : 0);
 			return noErr;
 
 		case cscGetInterrupt:		// Get interrupt disable flag
 			D(bug(" GetInterrupt -> %d\n", VidLocal.interrupts_enabled));
-			WriteMacInt8(param, VidLocal.interrupts_enabled ? 0 : 1);
+			WriteMacInt16(param, VidLocal.interrupts_enabled ? 0 : 0x0100);
 			return noErr;
 
-		// case cscGetGamma:
+		case cscGetGamma:
+			D(bug(" GetGamma -> \n"));
+			//!!
+			return statusErr;
 
 		case cscGetDefaultMode:		// Get default color depth
 			D(bug(" GetDefaultMode -> %04x\n", VidLocal.preferred_mode));
 			WriteMacInt16(param + csMode, VidLocal.preferred_mode);
 			return noErr;
 
-		case cscGetCurMode:			// Get current video mode (depth and resolution)
-			D(bug(" GetCurMode -> %04x/%08x\n", VidLocal.current_mode, VidLocal.current_id));
+		case cscGetCurrentMode:		// Get current video mode (depth and resolution)
+			D(bug(" GetCurMode -> %04x/%08x, base %08x\n", VidLocal.current_mode, VidLocal.current_id, VidLocal.desc->mac_frame_base));
 			WriteMacInt16(param + csMode, VidLocal.current_mode);
 			WriteMacInt32(param + csData, VidLocal.current_id);
 			WriteMacInt16(param + csPage, 0);
@@ -371,16 +502,31 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 
 		case cscGetConnection:		// Get monitor information
 			D(bug(" GetConnection\n"));
-			WriteMacInt16(param + csDisplayType, 6);		// 21" Multiscan
-			WriteMacInt8(param + csConnectTaggedType, 6);
-			WriteMacInt8(param + csConnectTaggedData, 0x23);
-			WriteMacInt32(param + csConnectFlags, 0x03);	// All modes valid and safe
+			WriteMacInt16(param + csDisplayType, 8);		// Modeless connection
+			WriteMacInt8(param + csConnectTaggedType, 0);
+			WriteMacInt8(param + csConnectTaggedData, 0);
+			WriteMacInt32(param + csConnectFlags, 0x43);	// All modes valid and safe, non-standard tagging
 			WriteMacInt32(param + csDisplayComponent, 0);
 			return noErr;
 
+		case cscGetModeTiming: {	// Get video timing for specified resolution
+			uint32 id = ReadMacInt32(param + csTimingMode);
+			D(bug(" GetModeTiming %08x\n", id));
+			if (!has_resolution(id))
+				return paramErr;
+
+			WriteMacInt32(param + csTimingFormat, FOURCC('d', 'e', 'c', 'l'));
+			WriteMacInt32(param + csTimingData, 0);	// unknown
+			uint32 flags = 0xb; // mode valid, safe and shown in Monitors panel
+			if (id == VidLocal.preferred_id)
+				flags |= 4; // default mode
+			WriteMacInt32(param + csTimingFlags, flags);
+			return noErr;
+		}
+
 		case cscGetModeBaseAddress:	// Get frame buffer base address
-			D(bug(" GetModeBaseAddress -> %08x\n", VidLocal.desc->mac_frame_base));
-			WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);	// Base address of video RAM for the current DisplayModeID and relative bit depth
+			D(bug(" GetModeBaseAddress -> base %08x\n", VidLocal.desc->mac_frame_base));
+			WriteMacInt32(param + csBaseAddr, VidLocal.desc->mac_frame_base);
 			return noErr;
 
 		case cscGetPreferredConfiguration: // Get default video mode (depth and resolution)
@@ -427,10 +573,6 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 			WriteMacInt32(param + csVerticalLines, y);
 			WriteMacInt32(param + csRefreshRate, 75 << 16);
 			WriteMacInt16(param + csMaxDepthMode, DepthToAppleMode(max_depth_of_resolution(id)));
-			uint32 flags = 0xb; // mode valid, safe and shown in Monitors panel
-			if (id == VidLocal.preferred_id)
-				flags |= 4; // default mode
-			WriteMacInt32(param + csResolutionFlags, flags);
 			return noErr;
 		}
 
@@ -452,7 +594,7 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 					WriteMacInt16(vp + vpVersion, 0);
 					WriteMacInt16(vp + vpPackType, 0);
 					WriteMacInt32(vp + vpPackSize, 0);
-					WriteMacInt32(vp + vpHRes, 0x00480000);
+					WriteMacInt32(vp + vpHRes, 0x00480000);	// 72 dpi
 					WriteMacInt32(vp + vpVRes, 0x00480000);
 					uint32 pix_type, pix_size, cmp_count, cmp_size, dev_type;
 					switch (i->depth) {
@@ -498,21 +640,6 @@ int16 VideoDriverStatus(uint32 pb, uint32 dce)
 				++i;
 			}
 			return paramErr; // specified resolution/depth not supported
-		}
-
-		case cscGetModeTiming: {	// Get video timing for specified resolution
-			uint32 id = ReadMacInt32(param + csTimingMode);
-			D(bug(" GetModeTiming %08x\n", id));
-			if (!has_resolution(id))
-				return paramErr;
-
-			WriteMacInt32(param + csTimingFormat, FOURCC('d', 'e', 'c', 'l'));
-			WriteMacInt32(param + csTimingData, 0);	// unknown
-			uint32 flags = 0xb; // mode valid, safe and shown in Monitors panel
-			if (id == VidLocal.preferred_id)
-				flags |= 4; // default mode
-			WriteMacInt32(param + csTimingFlags, flags);
-			return noErr;
 		}
 
 		default:

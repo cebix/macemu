@@ -33,11 +33,6 @@ enum video_depth {
 	VDEPTH_32BIT  // "Millions"
 };
 
-inline bool IsDirectMode(video_depth depth)
-{
-	return depth == VDEPTH_16BIT || depth == VDEPTH_32BIT;
-}
-
 inline uint16 DepthToAppleMode(video_depth depth)
 {
 	return depth + 0x80;
@@ -46,6 +41,42 @@ inline uint16 DepthToAppleMode(video_depth depth)
 inline video_depth AppleModeToDepth(uint16 mode)
 {
 	return video_depth(mode - 0x80);
+}
+
+inline bool IsDirectMode(video_depth depth)
+{
+	return depth == VDEPTH_16BIT || depth == VDEPTH_32BIT;
+}
+
+inline bool IsDirectMode(uint16 mode)
+{
+	return IsDirectMode(AppleModeToDepth(mode));
+}
+
+inline video_depth DepthModeForPixelDepth(int depth)
+{
+	switch (depth) {
+		case 1: return VDEPTH_1BIT;
+		case 2: return VDEPTH_2BIT;
+		case 4: return VDEPTH_4BIT;
+		case 8: return VDEPTH_8BIT;
+		case 15: case 16: return VDEPTH_16BIT;
+		case 24: case 32: return VDEPTH_32BIT;
+		default: return VDEPTH_1BIT;
+	}
+}
+
+// Return a bytes-per-row value that assumes no padding for specified depth and pixel width
+inline uint32 TrivialBytesPerRow(uint32 width, video_depth depth)
+{
+	switch (depth) {
+		case VDEPTH_1BIT: return width / 8;
+		case VDEPTH_2BIT: return width / 4;
+		case VDEPTH_4BIT: return width / 2;
+		case VDEPTH_8BIT: return width;
+		case VDEPTH_16BIT: return width * 2;
+		case VDEPTH_32BIT: return width * 4;
+	}
 }
 
 // Description of one video mode
@@ -63,7 +94,7 @@ inline bool IsDirectMode(const video_mode &mode)
 }
 
 // List of all supported video modes
-extern vector<video_mode> VideoModes;
+extern std::vector<video_mode> VideoModes;
 
 // Description for one (possibly virtual) monitor
 struct monitor_desc {

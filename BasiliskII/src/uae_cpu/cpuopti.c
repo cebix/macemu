@@ -27,7 +27,7 @@ struct func {
 static void oops(void)
 {
     fprintf(stderr, "Don't know how to optimize this file.\n");
-    abort();
+	exit(1);
 }
 
 static char * match(struct line *l, const char *m)
@@ -46,7 +46,7 @@ static int insn_references_reg (struct line *l, char *reg)
 {
     if (reg[0] != 'e') {
 	fprintf(stderr, "Unknown register?!?\n");
-	abort();
+	exit(1);
     }
     if (strstr (l->data, reg) != 0)
 	return 1;
@@ -121,7 +121,7 @@ static void do_function(struct func *f)
 	    l3 = l3->prev;
 	}
 	if (l3 == l2)
-	    abort();
+	    exit(1);
 	for (l4 = l2; l4 != l3; l4 = l4->prev) {
 	    /* The register may not be referenced by any of the insns that we
 	     * move the popl past */

@@ -24,6 +24,207 @@
 // Note: this file is #include'd in video_x.cpp
 #ifdef ENABLE_VOSF
 
+#include <fcntl.h>
+#include <sys/mman.h>
+#include "sigsegv.h"
+#include "vm_alloc.h"
+
+#ifdef ENABLE_MON
+# include "mon.h"
+#endif
+
+// Variables for Video on SEGV support
+static uint8 *the_host_buffer;						// Host frame buffer in VOSF mode
+static uint32 the_buffer_size;						// Size of allocated the_buffer
+
+struct ScreenPageInfo {
+    int top, bottom;			// Mapping between this virtual page and Mac scanlines
+};
+
+struct ScreenInfo {
+    uintptr memBase;			// Real start address 
+    uintptr memStart;			// Start address aligned to page boundary
+    uintptr memEnd;				// Address of one-past-the-end of the screen
+    uint32 memLength;			// Length of the memory addressed by the screen pages
+    
+    uint32 pageSize;			// Size of a page
+    int pageBits;				// Shift count to get the page number
+    uint32 pageCount;			// Number of pages allocated to the screen
+    
+	bool dirty;					// Flag: set if the frame buffer was touched
+    char * dirtyPages;			// Table of flags set if page was altered
+    ScreenPageInfo * pageInfo;	// Table of mappings page -> Mac scanlines
+};
+
+static ScreenInfo mainBuffer;
+
+#define PFLAG_SET_VALUE			0x00
+#define PFLAG_CLEAR_VALUE		0x01
+#define PFLAG_SET_VALUE_4		0x00000000
+#define PFLAG_CLEAR_VALUE_4		0x01010101
+#define PFLAG_SET(page)			mainBuffer.dirtyPages[page] = PFLAG_SET_VALUE
+#define PFLAG_CLEAR(page)		mainBuffer.dirtyPages[page] = PFLAG_CLEAR_VALUE
+#define PFLAG_ISSET(page)		(mainBuffer.dirtyPages[page] == PFLAG_SET_VALUE)
+#define PFLAG_ISCLEAR(page)		(mainBuffer.dirtyPages[page] != PFLAG_SET_VALUE)
+
+#ifdef UNALIGNED_PROFITABLE
+# define PFLAG_ISSET_4(page)	(*((uint32 *)(mainBuffer.dirtyPages + (page))) == PFLAG_SET_VALUE_4)
+# define PFLAG_ISCLEAR_4(page)	(*((uint32 *)(mainBuffer.dirtyPages + (page))) == PFLAG_CLEAR_VALUE_4)
+#else
+# define PFLAG_ISSET_4(page) \
+		PFLAG_ISSET(page  ) && PFLAG_ISSET(page+1) \
+	&&	PFLAG_ISSET(page+2) && PFLAG_ISSET(page+3)
+# define PFLAG_ISCLEAR_4(page) \
+		PFLAG_ISCLEAR(page  ) && PFLAG_ISCLEAR(page+1) \
+	&&	PFLAG_ISCLEAR(page+2) && PFLAG_ISCLEAR(page+3)
+#endif
+
+// Set the selected page range [ first_page, last_page [ into the SET state
+#define PFLAG_SET_RANGE(first_page, last_page) \
+	memset(mainBuffer.dirtyPages + (first_page), PFLAG_SET_VALUE, \
+		(last_page) - (first_page))
+
+// Set the selected page range [ first_page, last_page [ into the CLEAR state
+#define PFLAG_CLEAR_RANGE(first_page, last_page) \
+	memset(mainBuffer.dirtyPages + (first_page), PFLAG_CLEAR_VALUE, \
+		(last_page) - (first_page))
+
+#define PFLAG_SET_ALL do { \
+	PFLAG_SET_RANGE(0, mainBuffer.pageCount); \
+	mainBuffer.dirty = true; \
+} while (0)
+
+#define PFLAG_CLEAR_ALL do { \
+	PFLAG_CLEAR_RANGE(0, mainBuffer.pageCount); \
+	mainBuffer.dirty = false; \
+} while (0)
+
+// Set the following macro definition to 1 if your system
+// provides a really fast strchr() implementation
+//#define HAVE_FAST_STRCHR 0
+
+static inline int find_next_page_set(int page)
+{
+#if HAVE_FAST_STRCHR
+	char *match = strchr(mainBuffer.dirtyPages + page, PFLAG_SET_VALUE);
+	return match ? match - mainBuffer.dirtyPages : mainBuffer.pageCount;
+#else
+	while (PFLAG_ISCLEAR_4(page))
+		page += 4;
+	while (PFLAG_ISCLEAR(page))
+		page++;
+	return page;
+#endif
+}
+
+static inline int find_next_page_clear(int page)
+{
+#if HAVE_FAST_STRCHR
+	char *match = strchr(mainBuffer.dirtyPages + page, PFLAG_CLEAR_VALUE);
+	return match ? match - mainBuffer.dirtyPages : mainBuffer.pageCount;
+#else
+	while (PFLAG_ISSET_4(page))
+		page += 4;
+	while (PFLAG_ISSET(page))
+		page++;
+	return page;
+#endif
+}
+
+static int zero_fd = -1;
+
+#ifdef HAVE_PTHREADS
+static pthread_mutex_t vosf_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer (dirtyPages in fact)
+#define LOCK_VOSF pthread_mutex_lock(&vosf_lock);
+#define UNLOCK_VOSF pthread_mutex_unlock(&vosf_lock);
+#else
+#define LOCK_VOSF
+#define UNLOCK_VOSF
+#endif
+
+static int log_base_2(uint32 x)
+{
+	uint32 mask = 0x80000000;
+	int l = 31;
+	while (l >= 0 && (x & mask) == 0) {
+		mask >>= 1;
+		l--;
+	}
+	return l;
+}
+
+
+/*
+ *  Initialize mainBuffer structure
+ */
+
+static bool video_init_buffer(void)
+{
+	if (use_vosf) {
+		const uint32 page_size	= getpagesize();
+		const uint32 page_mask	= page_size - 1;
+		
+		mainBuffer.memBase      = (uintptr) the_buffer;
+		// Align the frame buffer on page boundary
+		mainBuffer.memStart		= (uintptr)((((unsigned long) the_buffer) + page_mask) & ~page_mask);
+		mainBuffer.memLength	= the_buffer_size;
+		mainBuffer.memEnd       = mainBuffer.memStart + mainBuffer.memLength;
+
+		mainBuffer.pageSize     = page_size;
+		mainBuffer.pageCount	= (mainBuffer.memLength + page_mask)/mainBuffer.pageSize;
+		mainBuffer.pageBits     = log_base_2(mainBuffer.pageSize);
+
+		if (mainBuffer.dirtyPages) {
+			free(mainBuffer.dirtyPages);
+			mainBuffer.dirtyPages = NULL;
+		}
+
+		mainBuffer.dirtyPages = (char *) malloc(mainBuffer.pageCount + 2);
+
+		if (mainBuffer.pageInfo) {
+			free(mainBuffer.pageInfo);
+			mainBuffer.pageInfo = NULL;
+		}
+
+		mainBuffer.pageInfo = (ScreenPageInfo *) malloc(mainBuffer.pageCount * sizeof(ScreenPageInfo));
+
+		if ((mainBuffer.dirtyPages == 0) || (mainBuffer.pageInfo == 0))
+			return false;
+		
+		mainBuffer.dirty = false;
+
+		PFLAG_CLEAR_ALL;
+		// Safety net to insure the loops in the update routines will terminate
+		// See a discussion in <video_vosf.h> for further details
+		PFLAG_CLEAR(mainBuffer.pageCount);
+		PFLAG_SET(mainBuffer.pageCount+1);
+
+		uint32 a = 0;
+		for (int i = 0; i < mainBuffer.pageCount; i++) {
+			int y1 = a / VideoMonitor.mode.bytes_per_row;
+			if (y1 >= VideoMonitor.mode.y)
+				y1 = VideoMonitor.mode.y - 1;
+
+			int y2 = (a + mainBuffer.pageSize) / VideoMonitor.mode.bytes_per_row;
+			if (y2 >= VideoMonitor.mode.y)
+				y2 = VideoMonitor.mode.y - 1;
+
+			mainBuffer.pageInfo[i].top = y1;
+			mainBuffer.pageInfo[i].bottom = y2;
+
+			a += mainBuffer.pageSize;
+			if (a > mainBuffer.memLength)
+				a = mainBuffer.memLength;
+		}
+		
+		// We can now write-protect the frame buffer
+		if (vm_protect((char *)mainBuffer.memStart, mainBuffer.memLength, VM_PAGE_READ) != 0)
+			return false;
+	}
+	return true;
+}
+
+
 /*
  *  Page-aligned memory allocation
  */
@@ -62,6 +263,16 @@ static bool screen_fault_handler(sigsegv_address_t fault_address, sigsegv_addres
 	if (fault_instruction != SIGSEGV_INVALID_PC)
 		fprintf(stderr, " [IP=0x%08X]", fault_instruction);
 	fprintf(stderr, "\n");
+#if EMULATED_68K
+	uaecptr nextpc;
+	extern void m68k_dumpstate(uaecptr *nextpc);
+	m68k_dumpstate(&nextpc);
+#endif
+#ifdef ENABLE_MON
+	char *arg[4] = {"mon", "-m", "-r", NULL};
+	mon(3, arg);
+	QuitEmulator();
+#endif
 	return false;
 }
 
@@ -131,7 +342,7 @@ static inline void update_display_window_vosf(void)
 		const int bytes_per_pixel = VideoMonitor.mode.bytes_per_row / VideoMonitor.mode.x;
 		int i = y1 * bytes_per_row, j;
 		
-		if (depth == 1) {
+		if (VideoMonitor.mode.depth == VDEPTH_1BIT) {
 
 			// Update the_host_buffer and copy of the_buffer
 			for (j = y1; j <= y2; j++) {

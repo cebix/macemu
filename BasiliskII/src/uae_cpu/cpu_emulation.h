@@ -37,10 +37,10 @@ extern uint32 ROMBaseMac;		// ROM base (Mac address space)
 extern uint8 *ROMBaseHost;		// ROM base (host address space)
 extern uint32 ROMSize;			// Size of ROM
 
-#if !REAL_ADDRESSING
-// If we are not using real addressing, the Mac frame buffer gets mapped to this location
-// The memory must be allocated by VideoInit(). If multiple monitors are used, they must
-// share the frame buffer
+#if !REAL_ADDRESSING && !DIRECT_ADDRESSING
+// If we are not using real or direct addressing, the Mac frame buffer gets
+// mapped to this location. The memory must be allocated by VideoInit().
+// If multiple monitors are used, they must share the frame buffer
 const uint32 MacFrameBaseMac = 0xa0000000;
 extern uint8 *MacFrameBaseHost;	// Frame buffer base (host address space)
 extern uint32 MacFrameSize;		// Size of frame buffer
@@ -80,6 +80,7 @@ static inline void *Mac2Mac_memcpy(uint32 dest, uint32 src, size_t n) {return me
 // Initialization
 extern bool Init680x0(void);	// This routine may want to look at CPUType/FPUType to set up the apropriate emulation
 extern void Exit680x0(void);
+extern void InitFrameBufferMapping(void);
 
 // 680x0 emulation functions
 struct M68kRegisters;
