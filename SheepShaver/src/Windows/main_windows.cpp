@@ -57,7 +57,7 @@
 const char ROM_FILE_NAME[] = "ROM";
 const char ROM_FILE_NAME2[] = "Mac OS ROM";
 
-const uintptr RAM_BASE = 0x10000000;		// Base address of RAM
+const uintptr RAM_BASE = 0x20000000;		// Base address of RAM
 const uint32 SIG_STACK_SIZE = 0x10000;		// Size of signal stack
 
 
@@ -166,7 +166,6 @@ int main(int argc, char **argv)
 
 	// Initialize variables
 	RAMBase = 0;
-	tzset();
 
 	// Print some info
 	printf(GetString(STR_ABOUT_TEXT1), VERSION_MAJOR, VERSION_MINOR);
@@ -338,6 +337,9 @@ int main(int argc, char **argv)
 		}
 	}
 	delete[] rom_tmp;
+	
+	// Initialize native timers
+	timer_init();
 
 	// Initialize everything
 	if (!InitAll())
