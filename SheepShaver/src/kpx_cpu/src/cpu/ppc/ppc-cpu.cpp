@@ -315,7 +315,8 @@ powerpc_cpu::~powerpc_cpu()
 		type = "compile";
 #endif
 #if PPC_DECODE_CACHE
-	type = "predecode";
+	if (!type)
+		type = "predecode";
 #endif
 	if (type) {
 		printf("### Statistics for block %s\n", type);
@@ -331,7 +332,7 @@ powerpc_cpu::~powerpc_cpu()
 #endif
 
 #if PPC_PROFILE_GENERIC_CALLS
-	if (ppc_refcount == 0) {
+	if (use_jit && ppc_refcount == 0) {
 		uint64 total_generic_calls_count = 0;
 		for (int i = 0; i < PPC_I(MAX); i++) {
 			generic_calls_ids[i] = i;
