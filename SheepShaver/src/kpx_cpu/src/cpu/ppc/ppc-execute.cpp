@@ -18,12 +18,13 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "sysdeps.h"
+
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
-#include <fenv.h>
 
-#include "sysdeps.h"
+#include "mathlib/ieeefp.hpp"
 #include "cpu/vm.hpp"
 #include "cpu/ppc/ppc-cpu.hpp"
 #include "cpu/ppc/ppc-bitfields.hpp"
