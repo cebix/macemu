@@ -1,0 +1,49 @@
+SheepShaver NEWS -- history of user-visible changes.  2005-03-08
+Copyright (C) 1997-2005 Christian Bauer and Marc Hellwig
+
+Version 2.2 (snapshot) - <date>
+* Implement high-precision timings on POSIX systems
+* Add port to FreeBSD 5.3 and NetBSD 2.0 systems (x86 tested)
+* Add initial port to Windows with SDL graphics
+* Fix interrupt handling, registers are now fully preserved
+* Fix support for native execution on recent Linux/PPC systems
+* Fix support for Gossamer ROMs (PowerMac G3 Beige)
+* Fix crash in Apple Personal Diagnostics on MacOS 9
+* Fix crash in Power Management on MacOS 9
+
+Version 2.2 (snapshot) - 07.Jul.2004
+* Add support for MacOS 9.0.4
+* Add native port to MacOS X with SDL graphics
+* Fix timebase emulation. UpTime() is now more accurate
+* Fix hardware cursor acceleration in X11
+* Fix 'r' and <ctrl> key mappings for Apple X11 servers
+* Fix video thread cancellation on MacOS X
+* Fix detection of PowerPC 750FX and 970 processors
+
+Version 2.2 (snapshot) - 09.Jun.2004
+* Improve generic JIT engine to reach around 1/8-th of native speeds
+* Improve 68k audio processing with "reentrant" JIT generated code
+* Add Native QuickDraw acceleration for BitBlt (srcCopy) and FillRect
+* Add TUN/TAP device support on Linux systems
+* Add run-time depth switching. Support at least 1-bpp screens
+* Add "idlewait" option to pause SheepShaver when MacOS is idle
+* Fix ethernet support on little endian and 64-bit systems
+* Fix initialization of NVRAM on first-time use
+
+Version 2.2 (snapshot) - 25.Feb.2004
+* Improved generic JIT, FPU instructions are now translated
+* Add AltiVec emulation, emulated CPU is now a PowerPC 7400 (G4)
+* Add initial port to MacOS X with an X11 server
+
+Version 2.2 (snapshot) - 14.Jan.2004
+* Fix several CPU emulation bugs, extended testsuite
+* Fix FPU emulation, "scrollbar" & Graphing Calculator bugs are gone
+* Add support for 64-bit platforms, more precisely AMD64 with JIT
+* Add support for copy-paste of text on Unix/X11 systems
+* Add support for wheel mice
+* Better support for PowerMac PCI ROMs with more generic patches
+* Better support for audio output (with pre-G3 PowerMac PCI ROMs)
+* Improve native Linux/PPC port
+
+Version 2.2 (snapshot) - 25.Nov.2003
+* Initial public release with PowerPC CPU emulator for testing
