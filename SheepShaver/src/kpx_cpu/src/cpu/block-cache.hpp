@@ -61,8 +61,6 @@ public:
 	void clear();
 	void clear_range(uintptr start, uintptr end);
 	block_info *find(uintptr pc);
-	entry *first_active() const;
-	entry *first_dormant() const;
 
 	void remove_from_cl_list(block_info *bi);
 	void remove_from_list(block_info *bi);
@@ -170,20 +168,6 @@ block_info *block_cache< block_info, block_allocator >::find(uintptr pc)
 
 	// Found none, will have to create a new block
 	return NULL;
-}
-
-template< class block_info, template<class T> class block_allocator >
-inline typename block_cache< block_info, block_allocator >::entry *
-block_cache< block_info, block_allocator >::first_active() const
-{
-	return active;
-}
-
-template< class block_info, template<class T> class block_allocator >
-inline typename block_cache< block_info, block_allocator >::entry *
-block_cache< block_info, block_allocator >::first_dormant() const
-{
-	return dormant;
 }
 
 template< class block_info, template<class T> class block_allocator >
