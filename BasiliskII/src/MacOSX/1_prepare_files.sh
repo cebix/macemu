@@ -6,10 +6,11 @@
 
 ln -sf ../Unix/config.guess .
 ln -sf ../Unix/config.sub   .
-ln -sf ../Unix/sys_unix.cpp .
-ln -sf ../Unix/timer_unix.cpp .
+cp -pf ../Unix/sys_unix.cpp .
+cp -pf ../Unix/timer_unix.cpp .
 ln -sf ../Unix/user_strings_unix.h .
 ln -sf ../Unix/install-sh .
+ln -sf ../Unix/Darwin .
 cp -pr ../../INSTALL INSTALL.txt
 cp -pr ../../README  README.txt
 
@@ -33,6 +34,11 @@ autoconf
 #
 autoheader
 
+#
+# Build app which configure uses:
+#
+
+
 if test -z "$*"; then
    echo "*************************************************"
    echo "I am going to run ./configure with no arguments -"
@@ -41,4 +47,5 @@ if test -z "$*"; then
    echo "*************************************************"
 fi
 
+#./configure "$@" --enable-addressing=real
 ./configure "$@"
