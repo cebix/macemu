@@ -24,7 +24,14 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <errno.h>
-#include <X11/Xlib.h>
+
+#ifdef USE_SDL
+# include <SDL.h>
+#endif
+
+#ifndef USE_SDL_VIDEO
+# include <X11/Xlib.h>
+#endif
 
 #ifdef HAVE_PTHREADS
 # include <pthread.h>
@@ -119,8 +126,10 @@ bool TwentyFourBitAddressing;
 
 
 // Global variables
-char *x_display_name = NULL;						// X11 display name
-Display *x_display = NULL;							// X11 display handle
+#ifndef USE_SDL_VIDEO
+extern char *x_display_name;						// X11 display name
+extern Display *x_display;							// X11 display handle
+#endif
 
 static uint8 last_xpram[XPRAM_SIZE];				// Buffer for monitoring XPRAM changes
 
@@ -300,10 +309,12 @@ int main(int argc, char **argv)
 	for (int i=1; i<argc; i++) {
 		if (strcmp(argv[i], "--help") == 0) {
 			usage(argv[0]);
+#ifndef USE_SDL_VIDEO
 		} else if (strcmp(argv[i], "--display") == 0) {
 			i++; // don't remove the argument, gtk_init() needs it too
 			if (i < argc)
 				x_display_name = strdup(argv[i]);
+#endif
 		} else if (strcmp(argv[i], "--break") == 0) {
 			argv[i++] = NULL;
 			if (i < argc) {
@@ -361,6 +372,7 @@ int main(int argc, char **argv)
 		}
 	}
 
+#ifndef USE_SDL_VIDEO
 	// Open display
 	x_display = XOpenDisplay(x_display_name);
 	if (x_display == NULL) {
@@ -373,6 +385,22 @@ int main(int argc, char **argv)
 #if defined(ENABLE_XF86_DGA) && !defined(ENABLE_MON)
 	// Fork out, so we can return from fullscreen mode when things get ugly
 	XF86DGAForkApp(DefaultScreen(x_display));
+#endif
+#endif
+
+#ifdef USE_SDL
+	// Initialize SDL system
+	int sdl_flags = 0;
+#ifdef USE_SDL_VIDEO
+	sdl_flags |= SDL_INIT_VIDEO;
+#endif
+	assert(sdl_flags != 0);
+	if (SDL_Init(sdl_flags) == -1) {
+		char str[256];
+		sprintf(str, "Could not initialize SDL: %s.\n", SDL_GetError());
+		ErrorAlert(str);
+		QuitEmulator();
+	}
 #endif
 
 	// Init system routines
@@ -756,9 +784,14 @@ void QuitEmulator(void)
 	// Exit preferences
 	PrefsExit();
 
+#ifdef USE_SDL
+	// Exit SDL system
+	SDL_Quit();
+#else
 	// Close X11 server connection
 	if (x_display)
 		XCloseDisplay(x_display);
+#endif
 
 	exit(0);
 }
@@ -1006,7 +1039,7 @@ static void one_tick(...)
 		one_second();
 	}
 
-#ifndef HAVE_PTHREADS
+#if !defined(HAVE_PTHREADS) && !defined(USE_SDL_VIDEO)
 	// No threads available, perform video refresh and networking from here
 	VideoRefresh();
 	SetInterruptFlag(INTFLAG_ETHER);
@@ -1396,7 +1429,7 @@ void display_alert(int title_id, int prefix_id, int button_id, const char *text)
 
 void ErrorAlert(const char *text)
 {
-#ifdef ENABLE_GTK
+#if defined(ENABLE_GTK) && !defined(USE_SDL_VIDEO)
 	if (PrefsFindBool("nogui") || x_display == NULL) {
 		printf(GetString(STR_SHELL_ERROR_PREFIX), text);
 		return;
@@ -1415,7 +1448,7 @@ void ErrorAlert(const char *text)
 
 void WarningAlert(const char *text)
 {
-#ifdef ENABLE_GTK
+#if defined(ENABLE_GTK) && !defined(USE_SDL_VIDEO)
 	if (PrefsFindBool("nogui") || x_display == NULL) {
 		printf(GetString(STR_SHELL_WARNING_PREFIX), text);
 		return;

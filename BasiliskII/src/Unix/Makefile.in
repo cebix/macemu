@@ -34,7 +34,7 @@ SRCS = ../main.cpp main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp 
     ../emul_op.cpp ../macos_util.cpp ../xpram.cpp xpram_unix.cpp ../timer.cpp \
     timer_unix.cpp clip_unix.cpp ../adb.cpp ../serial.cpp ../ether.cpp \
     ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp ../video.cpp video_blit.cpp \
-    video_x.cpp vm_alloc.cpp sigsegv.cpp ../audio.cpp ../extfs.cpp extfs_unix.cpp \
+    vm_alloc.cpp sigsegv.cpp ../audio.cpp ../extfs.cpp extfs_unix.cpp \
 	../user_strings.cpp user_strings_unix.cpp sshpty.c strlcpy.c \
     $(SYSSRCS) $(CPUSRCS)
 APP = BasiliskII

@@ -62,6 +62,7 @@
 #include "prefs.h"
 #include "user_strings.h"
 #include "video.h"
+#include "video_blit.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -122,6 +123,8 @@ static bool use_keycodes = false;					// Flag: Use keycodes rather than keysyms
 static int keycode_table[256];						// X keycode -> Mac keycode translation table
 
 // X11 variables
+char *x_display_name = NULL;						// X11 display name
+Display *x_display = NULL;							// X11 display handle
 static int screen;									// Screen number
 static Window rootwin;								// Root window and our window
 static int num_depths = 0;							// Number of available X depths
@@ -131,6 +134,7 @@ static unsigned long black_pixel, white_pixel;
 static int eventmask;
 
 static int xdepth;									// Depth of X screen
+static VisualFormat visualFormat;
 static XVisualInfo visualInfo;
 static Visual *vis;
 static int color_class;
@@ -754,7 +758,7 @@ driver_window::driver_window(X11_monitor_desc &m)
 	native_byte_order = (XImageByteOrder(x_display) == LSBFirst);
 #endif
 #ifdef ENABLE_VOSF
-	Screen_blitter_init(&visualInfo, native_byte_order, depth_of_video_mode(mode));
+	Screen_blitter_init(visualFormat, native_byte_order, depth_of_video_mode(mode));
 #endif
 
 	// Set frame buffer base
@@ -1115,7 +1119,7 @@ driver_fbdev::driver_fbdev(X11_monitor_desc &m) : driver_dga(m)
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 	// Screen_blitter_init() returns TRUE if VOSF is mandatory
 	// i.e. the framebuffer update function is not Blit_Copy_Raw
-	use_vosf = Screen_blitter_init(&visualInfo, true, mode.depth);
+	use_vosf = Screen_blitter_init(visualFormat, true, mode.depth);
 	
 	if (use_vosf) {
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
@@ -1255,7 +1259,7 @@ driver_xf86dga::driver_xf86dga(X11_monitor_desc &m)
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 	// Screen_blitter_init() returns TRUE if VOSF is mandatory
 	// i.e. the framebuffer update function is not Blit_Copy_Raw
-	use_vosf = Screen_blitter_init(&visualInfo, native_byte_order, depth_of_video_mode(mode));
+	use_vosf = Screen_blitter_init(visualFormat, native_byte_order, depth_of_video_mode(mode));
 	
 	if (use_vosf) {
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
@@ -1396,6 +1400,12 @@ bool X11_monitor_desc::video_open(void)
 		ErrorAlert(STR_NO_XVISUAL_ERR);
 		return false;
 	}
+
+	// Build up visualFormat structure
+	visualFormat.depth = visualInfo.depth;
+	visualFormat.Rmask = visualInfo.red_mask;
+	visualFormat.Gmask = visualInfo.green_mask;
+	visualFormat.Bmask = visualInfo.blue_mask;
 
 	// Create color maps
 	if (color_class == PseudoColor || color_class == DirectColor) {

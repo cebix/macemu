@@ -31,7 +31,38 @@
 
 // Glue for SheepShaver and BasiliskII
 #if POWERPC_ROM
-#define X11_MONITOR_INIT		/* nothing */
+enum {
+  VIDEO_DEPTH_1BIT = APPLE_1_BIT,
+  VIDEO_DEPTH_2BIT = APPLE_2_BIT,
+  VIDEO_DEPTH_4BIT = APPLE_4_BIT,
+  VIDEO_DEPTH_8BIT = APPLE_8_BIT,
+  VIDEO_DEPTH_16BIT = APPLE_16_BIT,
+  VIDEO_DEPTH_32BIT = APPLE_32_BIT
+};
+#else
+enum {
+  VIDEO_DEPTH_1BIT = VDEPTH_1BIT,
+  VIDEO_DEPTH_2BIT = VDEPTH_2BIT,
+  VIDEO_DEPTH_4BIT = VDEPTH_4BIT,
+  VIDEO_DEPTH_8BIT = VDEPTH_8BIT,
+  VIDEO_DEPTH_16BIT = VDEPTH_16BIT,
+  VIDEO_DEPTH_32BIT = VDEPTH_32BIT
+};
+#endif
+#ifdef USE_SDL_VIDEO
+#define MONITOR_INIT			SDL_monitor_desc &monitor
+#define VIDEO_DRV_INIT			driver_window *drv
+#define VIDEO_DRV_ROW_BYTES		drv->s->pitch
+#define VIDEO_DRV_LOCK_PIXELS	if (SDL_MUSTLOCK(drv->s)) SDL_LockSurface(drv->s)
+#define VIDEO_DRV_UNLOCK_PIXELS	if (SDL_MUSTLOCK(drv->s)) SDL_UnlockSurface(drv->s)
+#define VIDEO_MODE_INIT			video_mode const & mode = drv->mode
+#define VIDEO_MODE_ROW_BYTES	mode.bytes_per_row
+#define VIDEO_MODE_X			mode.x
+#define VIDEO_MODE_Y			mode.y
+#define VIDEO_MODE_DEPTH		(int)mode.depth
+#else
+#if POWERPC_ROM
+#define MONITOR_INIT			/* nothing */
 #define VIDEO_DRV_INIT			/* nothing */
 #define VIDEO_DRV_WINDOW		the_win
 #define VIDEO_DRV_GC			the_gc
@@ -42,34 +73,22 @@
 #define VIDEO_MODE_X			mode.viXsize
 #define VIDEO_MODE_Y			mode.viYsize
 #define VIDEO_MODE_DEPTH		mode.viAppleMode
-enum {
-  VIDEO_DEPTH_1BIT = APPLE_1_BIT,
-  VIDEO_DEPTH_2BIT = APPLE_2_BIT,
-  VIDEO_DEPTH_4BIT = APPLE_4_BIT,
-  VIDEO_DEPTH_8BIT = APPLE_8_BIT,
-  VIDEO_DEPTH_16BIT = APPLE_16_BIT,
-  VIDEO_DEPTH_32BIT = APPLE_32_BIT
-};
 #else
-#define X11_MONITOR_INIT		X11_monitor_desc &monitor
+#define MONITOR_INIT			X11_monitor_desc &monitor
 #define VIDEO_DRV_INIT			driver_window *drv
 #define VIDEO_DRV_WINDOW		drv->w
 #define VIDEO_DRV_GC			drv->gc
 #define VIDEO_DRV_IMAGE			drv->img
 #define VIDEO_DRV_HAVE_SHM		drv->have_shm
-#define VIDEO_MODE_INIT			video_mode const & mode = drv->monitor.get_current_mode();
+#define VIDEO_MODE_INIT			video_mode const & mode = drv->mode
 #define VIDEO_MODE_ROW_BYTES	mode.bytes_per_row
 #define VIDEO_MODE_X			mode.x
 #define VIDEO_MODE_Y			mode.y
 #define VIDEO_MODE_DEPTH		(int)mode.depth
-enum {
-  VIDEO_DEPTH_1BIT = VDEPTH_1BIT,
-  VIDEO_DEPTH_2BIT = VDEPTH_2BIT,
-  VIDEO_DEPTH_4BIT = VDEPTH_4BIT,
-  VIDEO_DEPTH_8BIT = VDEPTH_8BIT,
-  VIDEO_DEPTH_16BIT = VDEPTH_16BIT,
-  VIDEO_DEPTH_32BIT = VDEPTH_32BIT
-};
+#endif
+#define VIDEO_DRV_LOCK_PIXELS	/* nothing */
+#define VIDEO_DRV_UNLOCK_PIXELS	/* nothing */
+#define VIDEO_DRV_ROW_BYTES		VIDEO_DRV_IMAGE->bytes_per_line
 #endif
 
 // Variables for Video on SEGV support
@@ -204,7 +223,7 @@ static uint32 page_extend(uint32 size)
  *  Initialize the VOSF system (mainBuffer structure, SIGSEGV handler)
  */
 
-static bool video_vosf_init(X11_MONITOR_INIT)
+static bool video_vosf_init(MONITOR_INIT)
 {
 	VIDEO_MODE_INIT;
 
@@ -313,11 +332,6 @@ bool Screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fau
  *	Update display for Windowed mode and VOSF
  */
 
-// From video_blit.cpp
-extern void (*Screen_blit)(uint8 * dest, const uint8 * source, uint32 length);
-extern bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, int mac_depth);
-extern uint32 ExpandMap[256];
-
 /*	How can we deal with array overrun conditions ?
 	
 	The state of the framebuffer pages that have been touched are maintained
@@ -373,12 +387,14 @@ static inline void update_display_window_vosf(VIDEO_DRV_INIT)
 		const int y1 = mainBuffer.pageInfo[first_page].top;
 		const int y2 = mainBuffer.pageInfo[page - 1].bottom;
 		const int height = y2 - y1 + 1;
-		
+
+		VIDEO_DRV_LOCK_PIXELS;
+
 		if (VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
 
 			// Update the_host_buffer and copy of the_buffer
 			const int src_bytes_per_row = VIDEO_MODE_ROW_BYTES;
-			const int dst_bytes_per_row = VIDEO_DRV_IMAGE->bytes_per_line;
+			const int dst_bytes_per_row = VIDEO_DRV_ROW_BYTES;
 			const int pixels_per_byte = VIDEO_MODE_X / src_bytes_per_row;
 			int i1 = y1 * src_bytes_per_row, i2 = y1 * dst_bytes_per_row, j;
 			for (j = y1; j <= y2; j++) {
@@ -391,7 +407,7 @@ static inline void update_display_window_vosf(VIDEO_DRV_INIT)
 
 			// Update the_host_buffer and copy of the_buffer
 			const int src_bytes_per_row = VIDEO_MODE_ROW_BYTES;
-			const int dst_bytes_per_row = VIDEO_DRV_IMAGE->bytes_per_line;
+			const int dst_bytes_per_row = VIDEO_DRV_ROW_BYTES;
 			const int bytes_per_pixel = src_bytes_per_row / VIDEO_MODE_X;
 			int i1 = y1 * src_bytes_per_row, i2 = y1 * dst_bytes_per_row, j;
 			for (j = y1; j <= y2; j++) {
@@ -401,10 +417,16 @@ static inline void update_display_window_vosf(VIDEO_DRV_INIT)
 			}
 		}
 
+		VIDEO_DRV_UNLOCK_PIXELS;
+
+#ifdef USE_SDL_VIDEO
+		SDL_UpdateRect(drv->s, 0, y1, VIDEO_MODE_X, height);
+#else
 		if (VIDEO_DRV_HAVE_SHM)
 			XShmPutImage(x_display, VIDEO_DRV_WINDOW, VIDEO_DRV_GC, VIDEO_DRV_IMAGE, 0, y1, 0, y1, VIDEO_MODE_X, height, 0);
 		else
 			XPutImage(x_display, VIDEO_DRV_WINDOW, VIDEO_DRV_GC, VIDEO_DRV_IMAGE, 0, y1, 0, y1, VIDEO_MODE_X, height);
+#endif
 	}
 	mainBuffer.dirty = false;
 }
@@ -472,6 +494,7 @@ static inline void update_display_dga_vosf(void)
 		
 		// Update the_host_buffer and copy of the_buffer
 		// There should be at least one pixel to copy
+		VIDEO_DRV_LOCK_PIXELS;
 		const int width = x2 - x1 + 1;
 		i = y1 * bytes_per_row + x1 * bytes_per_pixel;
 		for (j = y1; j <= y2; j++) {
@@ -479,6 +502,7 @@ static inline void update_display_dga_vosf(void)
 			memcpy(the_buffer_copy + i, the_buffer + i, bytes_per_pixel * width);
 			i += bytes_per_row;
 		}
+		VIDEO_DRV_UNLOCK_PIXELS;
 	}
 	mainBuffer.dirty = false;
 }

@@ -18,6 +18,26 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef DEFINE_VIDEO_BLITTERS
+
+#ifndef VIDEO_BLIT_H
+#define VIDEO_BLIT_H
+
+// Format of the target visual
+struct VisualFormat {
+	int		depth;					// Screen depth
+	uint32	Rmask, Gmask, Bmask;	// RGB mask values
+	uint32	Rshift, Gshift, Bshift;	// RGB shift values
+};
+
+extern void (*Screen_blit)(uint8 * dest, const uint8 * source, uint32 length);
+extern bool Screen_blitter_init(VisualFormat const & visual_format, bool native_byte_order, int mac_depth);
+extern uint32 ExpandMap[256];
+
+#endif /* VIDEO_BLIT_H */
+
+#else
+
 #ifndef FB_DEPTH
 # error "Undefined screen depth"
 #endif
@@ -128,3 +148,5 @@ static void FB_FUNC_NAME(uint8 * dest, const uint8 * source, uint32 length)
 #ifdef FB_DEPTH
 #undef FB_DEPTH
 #endif
+
+#endif /* DEFINE_VIDEO_BLITTERS */

@@ -20,23 +20,19 @@
 
 #include "sysdeps.h"
 #include "video.h"
+#include "video_blit.h"
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
 
-#ifdef ENABLE_VOSF
 // Format of the target visual
-struct VisualFormat {
-	int		depth;					// Screen depth
-	uint32	Rmask, Gmask, Bmask;	// RGB mask values
-	uint32	Rshift, Gshift, Bshift;	// RGB shift values
-};
 static VisualFormat visualFormat;
 
 // This holds the pixels values of the palette colors for 8->16/32-bit expansion
 uint32 ExpandMap[256];
+
+// Mark video_blit.h for specialization
+#define DEFINE_VIDEO_BLITTERS 1
 
 /* -------------------------------------------------------------------------- */
 /* --- Raw Copy / No conversion required                                  --- */
@@ -306,8 +302,24 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 #include "video_blit.h"
 
 /* -------------------------------------------------------------------------- */
-/* --- 2/4-bit indexed to 8-bit mode conversion                           --- */
+/* --- 1/2/4-bit indexed to 8-bit mode conversion                           --- */
 /* -------------------------------------------------------------------------- */
+
+static void Blit_Expand_1_To_8(uint8 * dest, const uint8 * p, uint32 length)
+{
+	uint8 *q = (uint8 *)dest;
+	for (uint32 i=0; i<length; i++) {
+		uint8 c = *p++;
+		*q++ = c >> 7;
+		*q++ = (c >> 6) & 1;
+		*q++ = (c >> 5) & 1;
+		*q++ = (c >> 4) & 1;
+		*q++ = (c >> 3) & 1;
+		*q++ = (c >> 2) & 1;
+		*q++ = (c >> 1) & 1;
+		*q++ = c & 1;
+	}
+}
 
 static void Blit_Expand_2_To_8(uint8 * dest, const uint8 * p, uint32 length)
 {
@@ -444,22 +456,23 @@ static Screen_blit_func_info Screen_blitters[] = {
 // Initialize the framebuffer update function
 // Returns FALSE, if the function was to be reduced to a simple memcpy()
 // --> In that case, VOSF is not necessary
-bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, int mac_depth)
+bool Screen_blitter_init(VisualFormat const & visual_format, bool native_byte_order, int mac_depth)
 {
+#if USE_SDL_VIDEO
+	const bool use_sdl_video = true;
+#else
+	const bool use_sdl_video = false;
+#endif
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
-	if (mac_depth == 1) {
+	if (!use_sdl_video && mac_depth == 1) {
 
 		// 1-bit mode uses a 1-bit X image, so there's no need for special blitting routines
 		Screen_blit = Blit_Copy_Raw;
 
 	} else {
 
-		visualFormat.depth = visual_info->depth;
-		visualFormat.Rmask = visual_info->red_mask;
-		visualFormat.Gmask = visual_info->green_mask;
-		visualFormat.Bmask = visual_info->blue_mask;
-
 		// Compute RGB shift values
+		visualFormat = visual_format;
 		visualFormat.Rshift = 0;
 		for (uint32 Rmask = visualFormat.Rmask; Rmask && ((Rmask & 1) != 1); Rmask >>= 1)
 			++visualFormat.Rshift;
@@ -470,40 +483,34 @@ bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, int 
 		for (uint32 Bmask = visualFormat.Bmask; Bmask && ((Bmask & 1) != 1); Bmask >>= 1)
 			++visualFormat.Bshift;
 
-		bool blitter_found = false;
-	
-		// 2/4/8-bit mode on 8/16/32-bit screen?
-		if (visualFormat.depth == 8) {
-			if (mac_depth == 2) {
-				Screen_blit = Blit_Expand_2_To_8;
-				blitter_found = true;
-			} else if (mac_depth == 4) {
-				Screen_blit = Blit_Expand_4_To_8;
-				blitter_found = true;
+		// 1/2/4/8-bit mode on 8/16/32-bit screen?
+		Screen_blit = NULL;
+		switch (visualFormat.depth) {
+		case 8:
+			switch (mac_depth) {
+			case 1: Screen_blit = Blit_Expand_1_To_8; break;
+			case 2: Screen_blit = Blit_Expand_2_To_8; break;
+			case 4: Screen_blit = Blit_Expand_4_To_8; break;
 			}
-		} else if (visualFormat.depth == 15 || visualFormat.depth == 16) {
-			if (mac_depth == 2) {
-				Screen_blit = Blit_Expand_2_To_16;
-				blitter_found = true;
-			} else if (mac_depth == 4) {
-				Screen_blit = Blit_Expand_4_To_16;
-				blitter_found = true;
-			} else if (mac_depth == 8) {
-				Screen_blit = Blit_Expand_8_To_16;
-				blitter_found = true;
+			break;
+		case 15:
+		case 16:
+			switch (mac_depth) {
+			case 2: Screen_blit = Blit_Expand_2_To_16; break;
+			case 4: Screen_blit = Blit_Expand_4_To_16; break;
+			case 8: Screen_blit = Blit_Expand_8_To_16; break;
 			}
-		} else if (visualFormat.depth == 24 || visualFormat.depth == 32) {
-			if (mac_depth == 2) {
-				Screen_blit = Blit_Expand_2_To_32;
-				blitter_found = true;
-			} else if (mac_depth == 4) {
-				Screen_blit = Blit_Expand_4_To_32;
-				blitter_found = true;
-			} else if (mac_depth == 8) {
-				Screen_blit = Blit_Expand_8_To_32;
-				blitter_found = true;
+			break;
+		case 24:
+		case 32:
+			switch (mac_depth) {
+			case 2: Screen_blit = Blit_Expand_2_To_32; break;
+			case 4: Screen_blit = Blit_Expand_4_To_32; break;
+			case 8: Screen_blit = Blit_Expand_8_To_32; break;
 			}
+			break;
 		}
+		bool blitter_found = (Screen_blit != NULL);
 	
 		// Search for an adequate blit function
 		const int blitters_count = sizeof(Screen_blitters)/sizeof(Screen_blitters[0]);
@@ -542,4 +549,3 @@ bool Screen_blitter_init(XVisualInfo * visual_info, bool native_byte_order, int 
 	// --> In that case, we return FALSE
 	return (Screen_blit != Blit_Copy_Raw);
 }
-#endif /* ENABLE_VOSF */

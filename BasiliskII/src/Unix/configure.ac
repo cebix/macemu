@@ -20,6 +20,9 @@ AC_ARG_ENABLE(xf86-vidmode,  [  --enable-xf86-vidmode   use the XFree86 VidMode 
 AC_ARG_ENABLE(fbdev-dga,     [  --enable-fbdev-dga      use direct frame buffer access via /dev/fb [default=yes]], [WANT_FBDEV_DGA=$enableval], [WANT_FBDEV_DGA=yes])
 AC_ARG_ENABLE(vosf,          [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=yes])
 
+dnl SDL options.
+AC_ARG_ENABLE(sdl-video,     [  --enable-sdl-video      use SDL for video graphics [default=no]], [WANT_SDL_VIDEO=$enableval], [WANT_SDL_VIDEO=no])
+
 dnl JIT compiler options.
 AC_ARG_ENABLE(jit-compiler,  [  --enable-jit-compiler   enable JIT compiler [default=no]], [WANT_JIT=$enableval], [WANT_JIT=no])
 AC_ARG_ENABLE(jit-debug,     [  --enable-jit-debug      activate native code disassemblers [default=no]], [WANT_JIT_DEBUG=$enableval], [WANT_JIT_DEBUG=no])
@@ -123,14 +126,39 @@ dnl Checks for libraries.
 AC_CHECK_LIB(posix4, sem_init)
 AC_CHECK_LIB(rt, timer_create)
 
-dnl We need X11.
-AC_PATH_XTRA
-if [[ "x$no_x" = "xyes" ]]; then
-  AC_MSG_ERROR([You need X11 to run Basilisk II.])
+dnl Do we need SDL?
+WANT_SDL=no
+SDL_SUPPORT="none"
+if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
+  WANT_SDL=yes
+  WANT_XF86_DGA=no
+  WANT_XF86_VIDMODE=no
+  WANT_FBDEV_DGA=no
+  SDL_SUPPORT="video"
 fi
-CFLAGS="$CFLAGS $X_CFLAGS"
-CXXFLAGS="$CXXFLAGS $X_CFLAGS"
-LIBS="$LIBS $X_PRE_LIBS $X_LIBS -lX11 -lXext $X_EXTRA_LIBS"
+if [[ "x$WANT_SDL" = "xyes" ]]; then
+  AC_PATH_PROG(sdl_config, "sdl-config")
+  if [[ -n "$sdl_config" ]]; then
+    sdl_cflags=`$sdl_config --cflags`
+    sdl_libs=`$sdl_config --libs`
+    CFLAGS="$CFLAGS $sdl_cflags"
+    CXXFLAGS="$CXXFLAGS $sdl_cflags"
+    LIBS="$LIBS $sdl_libs"
+  else
+    WANT_SDL=no
+  fi
+fi
+
+dnl We need X11, if not using SDL.
+if [[ "x$WANT_SDL" = "xno" ]]; then
+  AC_PATH_XTRA
+  if [[ "x$no_x" = "xyes" ]]; then
+    AC_MSG_ERROR([You need X11 to run Basilisk II.])
+  fi
+  CFLAGS="$CFLAGS $X_CFLAGS"
+  CXXFLAGS="$CXXFLAGS $X_CFLAGS"
+  LIBS="$LIBS $X_PRE_LIBS $X_LIBS -lX11 -lXext $X_EXTRA_LIBS"
+fi
 
 dnl We want pthreads. Try libpthread first, then libc_r (FreeBSD), then PTL.
 HAVE_PTHREADS=yes
@@ -385,6 +413,16 @@ irix*)
 
   ;;
 esac
+dnl SDL overrides
+if [[ "x$WANT_SDL" = "xyes" ]]; then
+  AC_DEFINE(USE_SDL, 1, [Define to enble SDL support])
+fi
+if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
+  VIDEOSRC="../SDL/video_sdl.cpp"
+  AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support])
+else
+  VIDEOSRC="video_x.cpp"
+fi
 
 dnl Use 68k CPU natively?
 WANT_NATIVE_M68K=no
@@ -400,7 +438,7 @@ if [[ "x$HAVE_PTHREADS" = "xno" ]]; then
   ETHERSRC=../dummy/ether_dummy.cpp
   AUDIOSRC=../dummy/audio_dummy.cpp
 fi
-SYSSRCS="$SERIALSRC $ETHERSRC $SCSISRC $AUDIOSRC $SEMSRC $UISRCS $MONSRCS $EXTRASYSSRCS"
+SYSSRCS="$VIDEOSRC $SERIALSRC $ETHERSRC $SCSISRC $AUDIOSRC $SEMSRC $UISRCS $MONSRCS $EXTRASYSSRCS"
 
 dnl Define a macro that translates a yesno-variable into a C macro definition
 dnl to be put into the config.h file
@@ -1204,6 +1242,7 @@ dnl Print summary.
 echo
 echo Basilisk II configuration summary:
 echo
+echo SDL support ............................ : $SDL_SUPPORT
 echo XFree86 DGA support .................... : $WANT_XF86_DGA
 echo XFree86 VidMode support ................ : $WANT_XF86_VIDMODE
 echo fbdev DGA support ...................... : $WANT_FBDEV_DGA
