@@ -64,8 +64,13 @@ static unsigned int x86_cpuid(void)
 	   CPUID(0).  Preserve %ebx and %ecx; cpuid insn clobbers these, we
 	   don't need their CPUID values here, and %ebx may be the PIC
 	   register.  */
+#ifdef __x86_64__
+	__asm__ ("pushq %%rcx; pushq %%rbx; cpuid; popq %%rbx; popq %%rcx"
+			 : "=a" (fl1) : "0" (0) : "rdx", "cc");
+#else
 	__asm__ ("push %%ecx ; push %%ebx ; cpuid ; pop %%ebx ; pop %%ecx"
 			 : "=a" (fl1) : "0" (0) : "edx", "cc");
+#endif
 	if (fl1 == 0)
 		return (0);
 
@@ -86,6 +91,18 @@ powerpc_dyngen::powerpc_dyngen(dyngen_cpu_base cpu, int cache_size)
 {
 #if defined(__i386__) || defined(__x86_64__)
 	cpu_features = x86_cpuid();
+#ifdef SHEEPSHAVER
+	if (cpu_features & (HWCAP_I386_MMX | HWCAP_I386_SSE | HWCAP_I386_SSE2)) {
+		printf("Detected CPU features:");
+		if (cpu_features & HWCAP_I386_MMX)
+			printf(" MMX");
+		if (cpu_features & HWCAP_I386_SSE)
+			printf(" SSE");
+		if (cpu_features & HWCAP_I386_SSE2)
+			printf(" SSE2");
+		printf("\n");
+	}
+#endif
 #endif
 }
 
