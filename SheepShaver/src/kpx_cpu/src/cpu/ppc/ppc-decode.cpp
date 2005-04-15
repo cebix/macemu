@@ -754,6 +754,18 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  PPC_I(LVEWX),
 	  X_form, 31, 71, CFLOW_NORMAL
 	},
+	{ "lvsl",
+	  EXECUTE_1(vector_load_for_shift, 1),
+	  NULL,
+	  PPC_I(LVSL),
+	  X_form, 31, 6, CFLOW_NORMAL
+	},
+	{ "lvsr",
+	  EXECUTE_1(vector_load_for_shift, 0),
+	  NULL,
+	  PPC_I(LVSR),
+	  X_form, 31, 38, CFLOW_NORMAL
+	},
 	{ "lvx",
 	  EXECUTE_VECTOR_LOADSTORE(load, V2DI, RA_or_0, RB),
 	  NULL,

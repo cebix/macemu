@@ -131,6 +131,8 @@ enum powerpc_instruction {
 	PPC_I(LVEBX),
 	PPC_I(LVEHX),
 	PPC_I(LVEWX),
+	PPC_I(LVSL),
+	PPC_I(LVSR),
 	PPC_I(LVX),
 	PPC_I(LVXL),
 	PPC_I(LWARX),

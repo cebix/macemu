@@ -1231,6 +1231,19 @@ void powerpc_cpu::execute_dcbz(uint32 opcode)
  *		Vector load/store instructions
  **/
 
+template< bool SL >
+void powerpc_cpu::execute_vector_load_for_shift(uint32 opcode)
+{
+	const uint32 ra = operand_RA_or_0::get(this, opcode);
+	const uint32 rb = operand_RB::get(this, opcode);
+	const uint32 ea = ra + rb;
+	powerpc_vr & vD = vr(vD_field::extract(opcode));
+	int j = SL ? (ea & 0xf) : (0x10 - (ea & 0xf));
+	for (int i = 0; i < 16; i++)
+		vD.b[ev_mixed::byte_element(i)] = j++;
+	increment_pc(4);
+}
+
 template< class VD, class RA, class RB >
 void powerpc_cpu::execute_vector_load(uint32 opcode)
 {

@@ -427,6 +427,8 @@ private:
 	void execute_invalidate_cache_range();
 	template< class RA, class RB >
 	void execute_dcbz(uint32 opcode);
+	template< bool SL >
+	void execute_vector_load_for_shift(uint32 opcode);
 	template< class VD, class RA, class RB >
 	void execute_vector_load(uint32 opcode);
 	template< class VS, class RA, class RB >

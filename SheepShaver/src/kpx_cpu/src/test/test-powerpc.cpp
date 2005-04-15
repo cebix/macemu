@@ -98,6 +98,7 @@ typedef uintptr_t uintptr;
 #define TEST_LOGICAL	1
 #define TEST_COMPARE	1
 #define TEST_CR_LOGICAL	1
+#define TEST_VMX_LOADSH	1
 #define TEST_VMX_LOAD	1
 #define TEST_VMX_ARITH	1
 
@@ -128,6 +129,7 @@ typedef uintptr_t uintptr;
 #define _VA(  OP,VD,VA,VB,VC,XO    )	_I((_u6(OP)<<26)|(_u5(VD)<<21)|(_u5(VA)<<16)|( _u5(VB)<<11)|(_u5(VC)<< 6)|  _u6(XO)            )
 
 // PowerPC opcodes
+static inline uint32 POWERPC_LI(int RD, uint32 v) { return _D(14,RD,00,(v&0xffff)); }
 static inline uint32 POWERPC_MR(int RD, int RA) { return _X(31,RA,RD,RA,444,0); }
 static inline uint32 POWERPC_MFCR(int RD) { return _X(31,RD,00,00,19,0); }
 static inline uint32 POWERPC_LVX(int vD, int rA, int rB) { return _X(31,vD,rA,rB,103,0); }
@@ -748,6 +750,7 @@ private:
 	void test_one_vector(uint32 *code, vector_test_t const & vt, vector_t const *vA = 0, vector_t const *vB = 0, vector_t const *vC = 0)
 		{ test_one_vector(code, vt, (uint8 *)vA, (uint8 *)vB, (uint8 *)vC); }
 	void test_vector_load(void);
+	void test_vector_load_for_shift(void);
 	void test_vector_arith(void);
 };
 
@@ -1671,6 +1674,55 @@ void powerpc_test_cpu::test_one_vector(uint32 *code, vector_test_t const & vt, u
 #endif
 }
 
+void powerpc_test_cpu::test_vector_load_for_shift(void)
+{
+#if TEST_VMX_LOADSH
+	// Tested instructions
+	static const vector_test_t tests[] = {
+		{ "lvsl",  'b', 0, _X (31,00,00,00,  6,0), { vD, rA, rB } },
+		{ "lvsr",  'b', 0, _X (31,00,00,00, 38,0), { vD, rA, rB } },
+	};
+
+	// Code template
+	static uint32 code[] = {
+		POWERPC_MFSPR(12, 256),			// mfvrsave r12
+		_D(15,0,0,0x1000),				// lis r0,0x1000 ([v3])
+		POWERPC_MTSPR(0, 256),			// mtvrsave r0
+		POWERPC_LI(RA, 0),				// li rB,<val>
+		0,								// <insn>
+		POWERPC_STVX(RD, 0, RD),		// stvx v3,r3(0)
+		POWERPC_MTSPR(12, 256),			// mtvrsave r12
+		POWERPC_BLR						// blr
+	};
+
+	int i_opcode = -1;
+	const int n_instructions = sizeof(code) / sizeof(code[0]);
+	for (int i = 0; i < n_instructions; i++) {
+		if (code[i] == 0) {
+			i_opcode = i;
+			break;
+		}
+	}
+	assert(i_opcode != -1);
+
+	const int n_elements = sizeof(tests) / sizeof(tests[0]);
+	for (int i = 0; i < n_elements; i++) {
+		vector_test_t const & vt = tests[i];
+		code[i_opcode] = vt.opcode;
+		vD_field::insert(code[i_opcode], RD);
+		rA_field::insert(code[i_opcode], 00);
+		rB_field::insert(code[i_opcode], RA);
+
+		printf("Testing %s\n", vt.name);
+		for (int j = 0; j < 32; j++) {
+			UIMM_field::insert(code[i_opcode - 1], j);
+			flush_icache_range(code, sizeof(code));
+			test_one_vector(code, vt, (uint8 *)NULL);
+		}
+	}
+#endif
+}
+
 void powerpc_test_cpu::test_vector_load(void)
 {
 #if TEST_VMX_LOAD
@@ -2038,6 +2090,7 @@ bool powerpc_test_cpu::test(void)
 	// Execute VMX tests
 #if TEST_VMX_OPS
 	if (has_altivec) {
+		test_vector_load_for_shift();
 		test_vector_load();
 		test_vector_arith();
 	}
