@@ -3607,7 +3607,7 @@ enum {
   X86_PROCESSOR_K6,
   X86_PROCESSOR_ATHLON,
   X86_PROCESSOR_PENTIUM4,
-  X86_PROCESSOR_K8,
+  X86_PROCESSOR_X86_64,
   X86_PROCESSOR_max
 };
 
@@ -3619,7 +3619,7 @@ static const char * x86_processor_string_table[X86_PROCESSOR_max] = {
   "K6",
   "Athlon",
   "Pentium4",
-  "K8"
+  "x86-64"
 };
 
 static struct ptt {
@@ -3755,12 +3755,14 @@ raw_init_cpu(void)
   cpuid(0x80000000, &xlvl, NULL, NULL, NULL);
   if ( (xlvl & 0xffff0000) == 0x80000000 ) {
 	if ( xlvl >= 0x80000001 ) {
-	  uae_u32 features;
-	  cpuid(0x80000001, NULL, NULL, NULL, &features);
+	  uae_u32 features, extra_features;
+	  cpuid(0x80000001, NULL, NULL, &extra_features, &features);
 	  if (features & (1 << 29)) {
 		/* Assume x86-64 if long mode is supported */
-		c->x86_processor = X86_PROCESSOR_K8;
+		c->x86_processor = X86_PROCESSOR_X86_64;
 	  }
+	  if (extra_features & (1 << 0))
+		  have_lahf_lm = true;
 	}
   }
 	  

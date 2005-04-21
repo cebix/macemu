@@ -156,6 +156,7 @@ static uae_u32	current_cache_size	= 0;		// Cache grows upwards: how much has bee
 static bool		lazy_flush			= true;		// Flag: lazy translation cache invalidation
 static bool		avoid_fpu			= true;		// Flag: compile FPU instructions ?
 static bool		have_cmov			= false;	// target has CMOV instructions ?
+static bool		have_lahf_lm		= true;		// target has LAHF supported in long mode ?
 static bool		have_rat_stall		= true;		// target has partial register stalls ?
 const bool		tune_alignment		= true;		// Tune code alignments for running CPU ?
 const bool		tune_nop_fillers	= true;		// Tune no-op fillers for architecture
