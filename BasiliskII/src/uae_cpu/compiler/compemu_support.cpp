@@ -5704,7 +5704,10 @@ static uint8 *do_alloc_code(uint32 size, int depth)
 
 static inline uint8 *alloc_code(uint32 size)
 {
-	return do_alloc_code(size, 0);
+	uint8 *ptr = do_alloc_code(size, 0);
+	/* allocated code must fit in 32-bit boundaries */
+	assert((uintptr)ptr <= 0xffffffff);
+	return ptr;
 }
 
 void alloc_cache(void)
