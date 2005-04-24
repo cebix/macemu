@@ -92,7 +92,7 @@ static void fpuop_illg(uae_u32 opcode, uae_u32 extra)
 	op_illg(opcode);
 }   
 
-uae_s32 temp_fp[4];  /* To convert between FP/integer */
+static uae_s32 temp_fp[4];  /* To convert between FP/integer */
 
 /* return register number, or -1 for failure */
 STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra)
@@ -119,25 +119,25 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra)
 	switch (size) {
 	 case 6:
 	    sign_extend_8_rr(S1,reg);
-	    mov_l_mr((uae_u32)temp_fp,S1);
+	    mov_l_mr((uintptr)temp_fp,S1);
 	    delay2;
-	    fmovi_rm(FS1,(uae_u32)temp_fp);
+	    fmovi_rm(FS1,(uintptr)temp_fp);
 	    return FS1;
 	 case 4:
 	    sign_extend_16_rr(S1,reg);
-	    mov_l_mr((uae_u32)temp_fp,S1);
+	    mov_l_mr((uintptr)temp_fp,S1);
 	    delay2;
-	    fmovi_rm(FS1,(uae_u32)temp_fp);
+	    fmovi_rm(FS1,(uintptr)temp_fp);
 	    return FS1;
 	 case 0:
-	    mov_l_mr((uae_u32)temp_fp,reg);
+	    mov_l_mr((uintptr)temp_fp,reg);
 	    delay2;
-	    fmovi_rm(FS1,(uae_u32)temp_fp);
+	    fmovi_rm(FS1,(uintptr)temp_fp);
 	    return FS1;
 	 case 1:
-	    mov_l_mr((uae_u32)temp_fp,reg);
+	    mov_l_mr((uintptr)temp_fp,reg);
 	    delay2;
-	    fmovs_rm(FS1,(uae_u32)temp_fp);
+	    fmovs_rm(FS1,(uintptr)temp_fp);
 	    return FS1;
 	 default:
 	    return -1;
@@ -248,52 +248,52 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra)
     switch (size) {
      case 0:
 	readlong(ad,S2,S3);
-	mov_l_mr((uae_u32)temp_fp,S2);
+	mov_l_mr((uintptr)temp_fp,S2);
 	delay2;
-	fmovi_rm(FS1,(uae_u32)temp_fp);
+	fmovi_rm(FS1,(uintptr)temp_fp);
 	break;
      case 1:
 	readlong(ad,S2,S3);
-	mov_l_mr((uae_u32)temp_fp,S2);
+	mov_l_mr((uintptr)temp_fp,S2);
 	delay2;
-	fmovs_rm(FS1,(uae_u32)temp_fp);
+	fmovs_rm(FS1,(uintptr)temp_fp);
 	break;
      case 2:
 	readword(ad,S2,S3);
-	mov_w_mr(((uae_u32)temp_fp)+8,S2);
+	mov_w_mr(((uintptr)temp_fp)+8,S2);
 	add_l_ri(ad,4);
 	readlong(ad,S2,S3);
-	mov_l_mr((uae_u32)(temp_fp)+4,S2);
+	mov_l_mr((uintptr)(temp_fp)+4,S2);
 	add_l_ri(ad,4);
 	readlong(ad,S2,S3);
-	mov_l_mr((uae_u32)(temp_fp),S2);
+	mov_l_mr((uintptr)(temp_fp),S2);
 	delay2;
-	fmov_ext_rm(FS1,(uae_u32)(temp_fp));
+	fmov_ext_rm(FS1,(uintptr)(temp_fp));
 	break;
      case 3:
 	return -1; /* Some silly "packed" stuff */
      case 4:
 	readword(ad,S2,S3);
 	sign_extend_16_rr(S2,S2);
-	mov_l_mr((uae_u32)temp_fp,S2);
+	mov_l_mr((uintptr)temp_fp,S2);
 	delay2;
-	fmovi_rm(FS1,(uae_u32)temp_fp);
+	fmovi_rm(FS1,(uintptr)temp_fp);
 	break;
      case 5:
 	readlong(ad,S2,S3);
-	mov_l_mr(((uae_u32)temp_fp)+4,S2);
+	mov_l_mr(((uintptr)temp_fp)+4,S2);
 	add_l_ri(ad,4);
 	readlong(ad,S2,S3);
-	mov_l_mr((uae_u32)(temp_fp),S2);
+	mov_l_mr((uintptr)(temp_fp),S2);
 	delay2;
-	fmov_rm(FS1,(uae_u32)(temp_fp));
+	fmov_rm(FS1,(uintptr)(temp_fp));
 	break;
      case 6:
 	readbyte(ad,S2,S3);
 	sign_extend_8_rr(S2,S2);
-	mov_l_mr((uae_u32)temp_fp,S2);
+	mov_l_mr((uintptr)temp_fp,S2);
 	delay2;
-	fmovi_rm(FS1,(uae_u32)temp_fp);
+	fmovi_rm(FS1,(uintptr)temp_fp);
 	break;
      default:
 	return -1;
@@ -329,24 +329,24 @@ STATIC_INLINE int put_fp_value (int val, uae_u32 opcode, uae_u16 extra)
      case 0:
 	switch (size) {
 	 case 6:
-	    fmovi_mr((uae_u32)temp_fp,val);
+	    fmovi_mr((uintptr)temp_fp,val);
 	    delay;
-	    mov_b_rm(reg,(uae_u32)temp_fp);
+	    mov_b_rm(reg,(uintptr)temp_fp);
 	    return 0;
 	 case 4:
-	    fmovi_mr((uae_u32)temp_fp,val);
+	    fmovi_mr((uintptr)temp_fp,val);
 	    delay;
-	    mov_w_rm(reg,(uae_u32)temp_fp);
+	    mov_w_rm(reg,(uintptr)temp_fp);
 	    return 0;
 	 case 0:
-	    fmovi_mr((uae_u32)temp_fp,val);
+	    fmovi_mr((uintptr)temp_fp,val);
 	    delay;
-	    mov_l_rm(reg,(uae_u32)temp_fp);
+	    mov_l_rm(reg,(uintptr)temp_fp);
 	    return 0;
 	 case 1:
-	    fmovs_mr((uae_u32)temp_fp,val);
+	    fmovs_mr((uintptr)temp_fp,val);
 	    delay;
-	    mov_l_rm(reg,(uae_u32)temp_fp);
+	    mov_l_rm(reg,(uintptr)temp_fp);
 	    return 0;
 	 default:
 	    return -1;
@@ -447,50 +447,50 @@ STATIC_INLINE int put_fp_value (int val, uae_u32 opcode, uae_u16 extra)
     }
     switch (size) {
      case 0:
-	fmovi_mr((uae_u32)temp_fp,val);
+	fmovi_mr((uintptr)temp_fp,val);
 	delay;
-	mov_l_rm(S2,(uae_u32)temp_fp);
+	mov_l_rm(S2,(uintptr)temp_fp);
 	writelong_clobber(ad,S2,S3);
 	break;
      case 1:
-	fmovs_mr((uae_u32)temp_fp,val);
+	fmovs_mr((uintptr)temp_fp,val);
 	delay;
-	mov_l_rm(S2,(uae_u32)temp_fp);
+	mov_l_rm(S2,(uintptr)temp_fp);
 	writelong_clobber(ad,S2,S3);
 	break;
      case 2:
-	fmov_ext_mr((uae_u32)temp_fp,val);
+	fmov_ext_mr((uintptr)temp_fp,val);
 	delay;
-	mov_w_rm(S2,(uae_u32)temp_fp+8);
+	mov_w_rm(S2,(uintptr)temp_fp+8);
 	writeword_clobber(ad,S2,S3);
 	add_l_ri(ad,4);
-	mov_l_rm(S2,(uae_u32)temp_fp+4);
+	mov_l_rm(S2,(uintptr)temp_fp+4);
 	writelong_clobber(ad,S2,S3);
 	add_l_ri(ad,4);
-	mov_l_rm(S2,(uae_u32)temp_fp);
+	mov_l_rm(S2,(uintptr)temp_fp);
 	writelong_clobber(ad,S2,S3);
 	break;
      case 3: return -1; /* Packed */
 
      case 4:
-	fmovi_mr((uae_u32)temp_fp,val);
+	fmovi_mr((uintptr)temp_fp,val);
 	delay;
-	mov_l_rm(S2,(uae_u32)temp_fp);
+	mov_l_rm(S2,(uintptr)temp_fp);
 	writeword_clobber(ad,S2,S3);
 	break;
      case 5:
-	fmov_mr((uae_u32)temp_fp,val);
+	fmov_mr((uintptr)temp_fp,val);
 	delay;
-	mov_l_rm(S2,(uae_u32)temp_fp+4);
+	mov_l_rm(S2,(uintptr)temp_fp+4);
 	writelong_clobber(ad,S2,S3);
 	add_l_ri(ad,4);
-	mov_l_rm(S2,(uae_u32)temp_fp);
+	mov_l_rm(S2,(uintptr)temp_fp);
 	writelong_clobber(ad,S2,S3);
 	break;
      case 6:
-	fmovi_mr((uae_u32)temp_fp,val);
+	fmovi_mr((uintptr)temp_fp,val);
 	delay;
-	mov_l_rm(S2,(uae_u32)temp_fp);
+	mov_l_rm(S2,(uintptr)temp_fp);
 	writebyte(ad,S2,S3);
 	break;
      default:
@@ -648,6 +648,9 @@ void comp_fbcc_opp (uae_u32 opcode)
     uae_u32 nh;
     int cc;
 
+	// comp_pc_p is expected to be bound to 32-bit addresses
+	assert((uintptr)comp_pc_p <= 0xffffffffUL);
+
     if (opcode&0x20) {  /* only cc from 00 to 1f are defined */
 	FAIL(1);
 	return;
@@ -658,9 +661,9 @@ void comp_fbcc_opp (uae_u32 opcode)
     else {
 	off=comp_get_ilong((m68k_pc_offset+=4)-4);
     }
-    mov_l_ri(S1,(uae_u32)
+    mov_l_ri(S1,(uintptr)
 	     (comp_pc_p+off-(m68k_pc_offset-start_68k_offset)));
-    mov_l_ri(PC_P,(uae_u32)comp_pc_p);
+    mov_l_ri(PC_P,(uintptr)comp_pc_p);
 
     /* Now they are both constant. Might as well fold in m68k_pc_offset */
     add_l_ri(S1,m68k_pc_offset);
@@ -1004,16 +1007,16 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		if (incr < 0) { /* Predecrement */
 			for (reg = 7; reg >= 0; reg--) {
 				if (list & 0x80) {
-					fmov_ext_mr((uae_u32)temp_fp,reg);
+					fmov_ext_mr((uintptr)temp_fp,reg);
 					delay;
 					sub_l_ri(ad,4); 
-					mov_l_rm(S2,(uae_u32)temp_fp);
+					mov_l_rm(S2,(uintptr)temp_fp);
 					writelong_clobber(ad,S2,S3);
 					sub_l_ri(ad,4); 
-					mov_l_rm(S2,(uae_u32)temp_fp+4);
+					mov_l_rm(S2,(uintptr)temp_fp+4);
 					writelong_clobber(ad,S2,S3);
 					sub_l_ri(ad,4); 
-					mov_w_rm(S2,(uae_u32)temp_fp+8);
+					mov_w_rm(S2,(uintptr)temp_fp+8);
 					writeword_clobber(ad,S2,S3);
 				}
 				list <<= 1;
@@ -1022,15 +1025,15 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		else { /* Postincrement */
 			for (reg = 0; reg < 8; reg++) {
 				if (list & 0x80) {
-					fmov_ext_mr((uae_u32)temp_fp,reg);
+					fmov_ext_mr((uintptr)temp_fp,reg);
 					delay;
-					mov_w_rm(S2,(uae_u32)temp_fp+8);
+					mov_w_rm(S2,(uintptr)temp_fp+8);
 					writeword_clobber(ad,S2,S3);
 					add_l_ri(ad,4);
-					mov_l_rm(S2,(uae_u32)temp_fp+4);
+					mov_l_rm(S2,(uintptr)temp_fp+4);
 					writelong_clobber(ad,S2,S3);
 					add_l_ri(ad,4);
-					mov_l_rm(S2,(uae_u32)temp_fp);
+					mov_l_rm(S2,(uintptr)temp_fp);
 					writelong_clobber(ad,S2,S3);
 					add_l_ri(ad,4);
 				}
@@ -1083,15 +1086,15 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 				if (list & 0x80) {
 					sub_l_ri(ad,4);
 					readlong(ad,S2,S3);
-					mov_l_mr((uae_u32)(temp_fp),S2);
+					mov_l_mr((uintptr)(temp_fp),S2);
 					sub_l_ri(ad,4);
 					readlong(ad,S2,S3);
-					mov_l_mr((uae_u32)(temp_fp)+4,S2);
+					mov_l_mr((uintptr)(temp_fp)+4,S2);
 					sub_l_ri(ad,4);
 					readword(ad,S2,S3);
-					mov_w_mr(((uae_u32)temp_fp)+8,S2);
+					mov_w_mr(((uintptr)temp_fp)+8,S2);
 					delay2;
-					fmov_ext_rm(reg,(uae_u32)(temp_fp));
+					fmov_ext_rm(reg,(uintptr)(temp_fp));
 				}
 				list <<= 1;
 			}
@@ -1101,16 +1104,16 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 				uae_u32 wrd1, wrd2, wrd3;
 				if (list & 0x80) {
 					readword(ad,S2,S3);
-					mov_w_mr(((uae_u32)temp_fp)+8,S2);
+					mov_w_mr(((uintptr)temp_fp)+8,S2);
 					add_l_ri(ad,4);
 					readlong(ad,S2,S3);
-					mov_l_mr((uae_u32)(temp_fp)+4,S2);
+					mov_l_mr((uintptr)(temp_fp)+4,S2);
 					add_l_ri(ad,4);
 					readlong(ad,S2,S3);
-					mov_l_mr((uae_u32)(temp_fp),S2);
+					mov_l_mr((uintptr)(temp_fp),S2);
 					add_l_ri(ad,4);
 					delay2;
-					fmov_ext_rm(reg,(uae_u32)(temp_fp));
+					fmov_ext_rm(reg,(uintptr)(temp_fp));
 				}
 				list <<= 1;
 			}
@@ -1129,8 +1132,8 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    if (extra & 0x2000) {
 		if (extra & 0x1000) {
 #if HANDLE_FPCR
-			mov_l_rm(opcode & 15, (uae_u32)&fpu.fpcr.rounding_mode);
-			or_l_rm(opcode & 15, (uae_u32)&fpu.fpcr.rounding_precision);
+			mov_l_rm(opcode & 15, (uintptr)&fpu.fpcr.rounding_mode);
+			or_l_rm(opcode & 15, (uintptr)&fpu.fpcr.rounding_precision);
 #else
 			FAIL(1);
 			return;
@@ -1141,7 +1144,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		    return;
 		}
 		if (extra & 0x0400) {
-		    mov_l_rm(opcode & 15,(uae_u32)&fpu.instruction_address);
+		    mov_l_rm(opcode & 15,(uintptr)&fpu.instruction_address);
 			return;
 		}
 	    } else {
@@ -1161,8 +1164,8 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 			mov_l_rr(S2,opcode & 15);
 			and_l_ri(S1,FPCR_ROUNDING_PRECISION);
 			and_l_ri(S2,FPCR_ROUNDING_MODE);
-			mov_l_mr((uae_u32)&fpu.fpcr.rounding_precision,S1);
-			mov_l_mr((uae_u32)&fpu.fpcr.rounding_mode,S2);
+			mov_l_mr((uintptr)&fpu.fpcr.rounding_precision,S1);
+			mov_l_mr((uintptr)&fpu.fpcr.rounding_mode,S2);
 #else
 			FAIL(1);
 			return;
@@ -1170,7 +1173,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 //		    return; gb-- FMOVEM could also operate on fpiar
 		}
 		if (extra & 0x0400) {
-		    mov_l_mr((uae_u32)&fpu.instruction_address,opcode & 15);
+		    mov_l_mr((uintptr)&fpu.instruction_address,opcode & 15);
 //			return; gb-- we have to process all FMOVEM bits before returning
 		}
 		return;
@@ -1189,13 +1192,13 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 			FAIL(1);
 			return;
 #endif
-//		    mov_l_mi((uae_u32)&regs.fpcr,val);
+//		    mov_l_mi((uintptr)&regs.fpcr,val);
 			mov_l_ri(S1,val);
 			mov_l_ri(S2,val);
 			and_l_ri(S1,FPCR_ROUNDING_PRECISION);
 			and_l_ri(S2,FPCR_ROUNDING_MODE);
-			mov_l_mr((uae_u32)&fpu.fpcr.rounding_precision,S1);
-			mov_l_mr((uae_u32)&fpu.fpcr.rounding_mode,S2);
+			mov_l_mr((uintptr)&fpu.fpcr.rounding_precision,S1);
+			mov_l_mr((uintptr)&fpu.fpcr.rounding_mode,S2);
 #else
 			FAIL(1);
 			return;
@@ -1204,7 +1207,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		}
 		if (extra & 0x0400) {
 		    uae_u32 val=comp_get_ilong((m68k_pc_offset+=4)-4);
-		    mov_l_mi((uae_u32)&fpu.instruction_address,val);
+		    mov_l_mi((uintptr)&fpu.instruction_address,val);
 //		    return; gb-- we have to process all FMOVEM bits before returning
 		}
 		return;
@@ -1234,9 +1237,9 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 				break;
 			case 0x0c:
 #if USE_LONG_DOUBLE
-				fmov_ext_rm(reg,(uae_u32)&const_e);
+				fmov_ext_rm(reg,(uintptr)&const_e);
 #else
-				fmov_rm(reg,(uae_u32)&const_e);
+				fmov_rm(reg,(uintptr)&const_e);
 #endif
 				break;
 			case 0x0d:
@@ -1244,9 +1247,9 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 				break;
 			case 0x0e:
 #if USE_LONG_DOUBLE
-				fmov_ext_rm(reg,(uae_u32)&const_log10_e);
+				fmov_ext_rm(reg,(uintptr)&const_log10_e);
 #else
-				fmov_rm(reg,(uae_u32)&const_log10_e);
+				fmov_rm(reg,(uintptr)&const_log10_e);
 #endif
 				break;
 			case 0x0f:
@@ -1257,9 +1260,9 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 				break;
 			case 0x31:
 #if USE_LONG_DOUBLE
-				fmov_ext_rm(reg,(uae_u32)&const_loge_10);
+				fmov_ext_rm(reg,(uintptr)&const_loge_10);
 #else
-				fmov_rm(reg,(uae_u32)&const_loge_10);
+				fmov_rm(reg,(uintptr)&const_loge_10);
 #endif
 				break;
 			case 0x32:
@@ -1279,9 +1282,9 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 			case 0x3d:
 			case 0x3e:
 			case 0x3f:
-				fmov_ext_rm(reg,(uae_u32)(power10+(extra & 0x7f)-0x32));
+				fmov_ext_rm(reg,(uintptr)(power10+(extra & 0x7f)-0x32));
 #else
-				fmov_rm(reg,(uae_u32)(power10+(extra & 0x7f)-0x32));
+				fmov_rm(reg,(uintptr)(power10+(extra & 0x7f)-0x32));
 #endif
 				break;
 			default:
@@ -1330,9 +1333,9 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 			frndint_rr(reg,src);
 
 			/* restore control word */
-			mov_l_rm(S1,(uae_u32)&regs.fpcr); 
+			mov_l_rm(S1,(uintptr)&regs.fpcr); 
 			and_l_ri(S1,0x000000f0);
-			fldcw_m_indexed(S1,(uae_u32)x86_fpucw);
+			fldcw_m_indexed(S1,(uintptr)x86_fpucw);
 
 			MAKE_FPSR (reg);
 			break;

@@ -1549,9 +1549,9 @@ gen_opcode (unsigned long int opcode)
 	start_brace();
 	comprintf("\tint newad=scratchie++;\n"
 		  "\treadlong(15,newad,scratchie);\n"
-		  "\tmov_l_mr((uae_u32)&regs.pc,newad);\n"
+		  "\tmov_l_mr((uintptr)&regs.pc,newad);\n"
 		  "\tget_n_addr_jmp(newad,PC_P,scratchie);\n"
-		  "\tmov_l_mr((uae_u32)&regs.pc_oldp,PC_P);\n"
+		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
 		  "\tm68k_pc_offset=0;\n"
 		  "\tadd_l(15,offs);\n");
 	gen_update_next_handler();
@@ -1580,9 +1580,9 @@ gen_opcode (unsigned long int opcode)
      case i_RTS:
 	comprintf("\tint newad=scratchie++;\n"
 		  "\treadlong(15,newad,scratchie);\n"
-		  "\tmov_l_mr((uae_u32)&regs.pc,newad);\n"
+		  "\tmov_l_mr((uintptr)&regs.pc,newad);\n"
 		  "\tget_n_addr_jmp(newad,PC_P,scratchie);\n"
-		  "\tmov_l_mr((uae_u32)&regs.pc_oldp,PC_P);\n"
+		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
 		  "\tm68k_pc_offset=0;\n"
 		  "\tlea_l_brr(15,15,4);\n");
 	gen_update_next_handler();
@@ -1605,18 +1605,18 @@ gen_opcode (unsigned long int opcode)
 		  "\tmov_l_ri(ret,retadd);\n"
 		  "\tsub_l_ri(15,4);\n"
 		  "\twritelong_clobber(15,ret,scratchie);\n");
-	comprintf("\tmov_l_mr((uae_u32)&regs.pc,srca);\n"
+	comprintf("\tmov_l_mr((uintptr)&regs.pc,srca);\n"
 		  "\tget_n_addr_jmp(srca,PC_P,scratchie);\n"
-		  "\tmov_l_mr((uae_u32)&regs.pc_oldp,PC_P);\n"
+		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
 		  "\tm68k_pc_offset=0;\n");
 	gen_update_next_handler();
 	break;
      case i_JMP:
 	isjump;
 	genamode (curi->smode, "srcreg", curi->size, "src", 0, 0);
-	comprintf("\tmov_l_mr((uae_u32)&regs.pc,srca);\n"
+	comprintf("\tmov_l_mr((uintptr)&regs.pc,srca);\n"
 		  "\tget_n_addr_jmp(srca,PC_P,scratchie);\n"
-		  "\tmov_l_mr((uae_u32)&regs.pc_oldp,PC_P);\n"
+		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
 		  "\tm68k_pc_offset=0;\n");
 	gen_update_next_handler();
 	break;
@@ -1647,8 +1647,8 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tsub_l_ri(src,m68k_pc_offset-m68k_pc_offset_thisinst-2);\n");
 	/* Leave the following as "add" --- it will allow it to be optimized
 	   away due to src being a constant ;-) */
-	comprintf("\tadd_l_ri(src,(uae_u32)comp_pc_p);\n");  
-	comprintf("\tmov_l_ri(PC_P,(uae_u32)comp_pc_p);\n");
+	comprintf("\tadd_l_ri(src,(uintptr)comp_pc_p);\n");  
+	comprintf("\tmov_l_ri(PC_P,(uintptr)comp_pc_p);\n");
 	/* Now they are both constant. Might as well fold in m68k_pc_offset */
 	comprintf("\tadd_l_ri(src,m68k_pc_offset);\n");
 	comprintf("\tadd_l_ri(PC_P,m68k_pc_offset);\n");
@@ -1721,7 +1721,7 @@ gen_opcode (unsigned long int opcode)
 	 default: abort();  /* Seems this only comes in word flavour */
 	}
 	comprintf("\tsub_l_ri(offs,m68k_pc_offset-m68k_pc_offset_thisinst-2);\n"); 
-	comprintf("\tadd_l_ri(offs,(uae_u32)comp_pc_p);\n"); /* New PC, 
+	comprintf("\tadd_l_ri(offs,(uintptr)comp_pc_p);\n"); /* New PC, 
 								once the 
 								offset_68k is
 								* also added */
