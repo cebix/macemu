@@ -601,7 +601,7 @@ void OPPROTO op_spcflags_clear(void)
 #ifdef DYNGEN_FAST_DISPATCH
 #if defined(__x86_64__)
 #define FAST_COMPARE_SPECFLAGS_DISPATCH(SPCFLAGS, TARGET) \
-		asm volatile ("test %0,%0 ; jz " #TARGET : "+r" (SPCFLAGS))
+		asm volatile ("test %0,%0 ; jz " #TARGET : : "r" (SPCFLAGS))
 #endif
 #ifndef FAST_COMPARE_SPECFLAGS_DISPATCH
 #define FAST_COMPARE_SPECFLAGS_DISPATCH(SPCFLAGS, TARGET) \
