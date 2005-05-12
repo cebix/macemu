@@ -472,6 +472,7 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 	// Setup partial blitter (use 64-pixel wide chunks)
 	const int n_pixels = 64;
 	const int n_chunks = VIDEO_MODE_X / n_pixels;
+	const int n_pixels_left = VIDEO_MODE_X - (n_chunks * n_pixels);
 	const int src_chunk_size = src_bytes_per_row / n_chunks;
 	const int dst_chunk_size = dst_bytes_per_row / n_chunks;
 	const int src_chunk_size_left = src_bytes_per_row - (n_chunks * src_chunk_size);
@@ -503,6 +504,14 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 		// Update the_host_buffer and copy of the_buffer, one line at a time
 		int i1 = y1 * src_bytes_per_row;
 		int i2 = y1 * scr_bytes_per_row;
+#ifdef USE_SDL_VIDEO
+		int bbi = 0;
+		SDL_Rect bb[3] = {
+			{ VIDEO_MODE_X, y1, 0, 0 },
+			{ VIDEO_MODE_X, -1, 0, 0 },
+			{ VIDEO_MODE_X, -1, 0, 0 }
+		};
+#endif
 		VIDEO_DRV_LOCK_PIXELS;
 		for (int j = y1; j <= y2; j++) {
 			for (int i = 0; i < n_chunks; i++) {
@@ -510,7 +519,16 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 					memcpy(the_buffer_copy + i1, the_buffer + i1, src_chunk_size);
 					Screen_blit(the_host_buffer + i2, the_buffer + i1, src_chunk_size);
 #ifdef USE_SDL_VIDEO
-					SDL_UpdateRect(drv->s, i * n_pixels, j, n_pixels, 1);
+					const int x = i * n_pixels;
+					if (x < bb[bbi].x) {
+						if (bb[bbi].w)
+							bb[bbi].w += bb[bbi].x - x;
+						else
+							bb[bbi].w = n_pixels;
+						bb[bbi].x = x;
+					}
+					else if (x >= bb[bbi].x + bb[bbi].w)
+						bb[bbi].w = x + n_pixels - bb[bbi].x;
 #endif
 				}
 				i1 += src_chunk_size;
@@ -523,9 +541,33 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 				}
 				i1 += src_chunk_size_left;
 				i2 += dst_chunk_size_left;
+#ifdef USE_SDL_VIDEO
+				const int x = n_chunks * n_pixels;
+				if (x < bb[bbi].x) {
+					if (bb[bbi].w)
+						bb[bbi].w += bb[bbi].x - x;
+					else
+						bb[bbi].w = n_pixels_left;
+					bb[bbi].x = x;
+				}
+				else if (x >= bb[bbi].x + bb[bbi].w)
+					bb[bbi].w  = x + n_pixels_left - bb[bbi].x;
+#endif
 			}
 			i2 += scr_bytes_left;
+#ifdef USE_SDL_VIDEO
+			bb[bbi].h++;
+			if (bb[bbi].w && (j == y1 || j == y2 - 1 || j == y2)) {
+				bbi++;
+				assert(bbi <= 3);
+				if (j != y2)
+					bb[bbi].y = j + 1;
+			}
+#endif
 		}
+#ifdef USE_SDL_VIDEO
+		SDL_UpdateRects(drv->s, bbi, bb);
+#endif
 		VIDEO_DRV_UNLOCK_PIXELS;
 	}
 	mainBuffer.dirty = false;
