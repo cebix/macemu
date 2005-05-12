@@ -33,21 +33,26 @@
 // Glue for SDL and X11 support
 #ifdef USE_SDL_VIDEO
 #define MONITOR_INIT			SDL_monitor_desc &monitor
-#define VIDEO_DRV_INIT			driver_window *drv
-#define VIDEO_DRV_ROW_BYTES		drv->s->pitch
+#define VIDEO_DRV_WIN_INIT		driver_window *drv
 #define VIDEO_DRV_LOCK_PIXELS	if (SDL_MUSTLOCK(drv->s)) SDL_LockSurface(drv->s)
 #define VIDEO_DRV_UNLOCK_PIXELS	if (SDL_MUSTLOCK(drv->s)) SDL_UnlockSurface(drv->s)
+#define VIDEO_DRV_DEPTH			drv->s->format->BitsPerPixel
+#define VIDEO_DRV_WIDTH			drv->s->w
+#define VIDEO_DRV_HEIGHT		drv->s->h
+#define VIDEO_DRV_ROW_BYTES		drv->s->pitch
 #else
 #ifdef SHEEPSHAVER
 #define MONITOR_INIT			/* nothing */
-#define VIDEO_DRV_INIT			/* nothing */
+#define VIDEO_DRV_WIN_INIT		/* nothing */
+#define VIDEO_DRV_DGA_INIT		/* nothing */
 #define VIDEO_DRV_WINDOW		the_win
 #define VIDEO_DRV_GC			the_gc
 #define VIDEO_DRV_IMAGE			img
 #define VIDEO_DRV_HAVE_SHM		have_shm
 #else
 #define MONITOR_INIT			X11_monitor_desc &monitor
-#define VIDEO_DRV_INIT			driver_window *drv
+#define VIDEO_DRV_WIN_INIT		driver_window *drv
+#define VIDEO_DRV_DGA_INIT		driver_dga *drv
 #define VIDEO_DRV_WINDOW		drv->w
 #define VIDEO_DRV_GC			drv->gc
 #define VIDEO_DRV_IMAGE			drv->img
@@ -55,12 +60,14 @@
 #endif
 #define VIDEO_DRV_LOCK_PIXELS	/* nothing */
 #define VIDEO_DRV_UNLOCK_PIXELS	/* nothing */
+#define VIDEO_DRV_DEPTH			VIDEO_DRV_IMAGE->depth
+#define VIDEO_DRV_WIDTH			VIDEO_DRV_IMAGE->width
+#define VIDEO_DRV_HEIGHT		VIDEO_DRV_IMAGE->height
 #define VIDEO_DRV_ROW_BYTES		VIDEO_DRV_IMAGE->bytes_per_line
 #endif
 
 // Variables for Video on SEGV support
 static uint8 *the_host_buffer;	// Host frame buffer in VOSF mode
-static uint32 the_host_buffer_row_bytes; // Host frame buffer number of bytes per row
 
 struct ScreenPageInfo {
     int top, bottom;			// Mapping between this virtual page and Mac scanlines
@@ -377,7 +384,7 @@ There are two cases to check:
 	than pageCount.
 */
 
-static inline void update_display_window_vosf(VIDEO_DRV_INIT)
+static inline void update_display_window_vosf(VIDEO_DRV_WIN_INIT)
 {
 	VIDEO_MODE_INIT;
 
@@ -431,19 +438,43 @@ static inline void update_display_window_vosf(VIDEO_DRV_INIT)
  */
 
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
-static inline void update_display_dga_vosf(void)
+static inline void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 {
 	VIDEO_MODE_INIT;
 
+	// Compute number of bytes per row, take care to virtual screens
+	const int src_bytes_per_row = VIDEO_MODE_ROW_BYTES;
+	const int dst_bytes_per_row = TrivialBytesPerRow(VIDEO_MODE_X, DepthModeForPixelDepth(VIDEO_DRV_DEPTH));
+	const int scr_bytes_per_row = VIDEO_DRV_ROW_BYTES;
+	assert(dst_bytes_per_row <= scr_bytes_per_row);
+	const int scr_bytes_left = scr_bytes_per_row - dst_bytes_per_row;
+
+	// Full screen update requested?
 	if (mainBuffer.very_dirty) {
 		PFLAG_CLEAR_ALL;
 		vm_protect((char *)mainBuffer.memStart, mainBuffer.memLength, VM_PAGE_READ);
-		VIDEO_DRV_LOCK_PIXELS;
 		memcpy(the_buffer_copy, the_buffer, VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y);
-		Screen_blit(the_host_buffer, the_buffer, VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y);
+		VIDEO_DRV_LOCK_PIXELS;
+		int i1 = 0, i2 = 0;
+		for (int j = 0;  j < VIDEO_MODE_Y; j++) {
+			Screen_blit(the_host_buffer + i2, the_buffer + i1, src_bytes_per_row);
+			i1 += src_bytes_per_row;
+			i2 += scr_bytes_per_row;
+		}
+#ifdef USE_SDL_VIDEO
+		SDL_UpdateRect(drv->s, 0, 0, VIDEO_MODE_X, VIDEO_MODE_Y);
+#endif
 		VIDEO_DRV_UNLOCK_PIXELS;
 		return;
 	}
+
+	// Setup partial blitter (use 64-pixel wide chunks)
+	const int n_pixels = 64;
+	const int n_chunks = VIDEO_MODE_X / n_pixels;
+	const int src_chunk_size = src_bytes_per_row / n_chunks;
+	const int dst_chunk_size = dst_bytes_per_row / n_chunks;
+	const int src_chunk_size_left = src_bytes_per_row - (n_chunks * src_chunk_size);
+	const int dst_chunk_size_left = dst_bytes_per_row - (n_chunks * dst_chunk_size);
 
 	int page = 0;
 	for (;;) {
@@ -463,24 +494,18 @@ static inline void update_display_dga_vosf(void)
 		const int y1 = mainBuffer.pageInfo[first_page].top;
 		const int y2 = mainBuffer.pageInfo[page - 1].bottom;
 
-#ifndef USE_SDL_VIDEO
-		// Update the_host_buffer and copy of the_buffer (use 64 bytes chunks)
-		const int src_bytes_per_row = VIDEO_MODE_ROW_BYTES;
-		const int dst_bytes_per_row = the_host_buffer_row_bytes;
-		const int n_pixels = 64;
-		const int n_chunks = VIDEO_MODE_X / n_pixels;
-		const int src_chunk_size = src_bytes_per_row / n_chunks;
-		const int dst_chunk_size = dst_bytes_per_row / n_chunks;
-		const int src_chunk_size_left = src_bytes_per_row - (n_chunks * src_chunk_size);
-		const int dst_chunk_size_left = dst_bytes_per_row - (n_chunks * dst_chunk_size);
+		// Update the_host_buffer and copy of the_buffer
 		int i1 = y1 * src_bytes_per_row;
-		int i2 = y1 * dst_bytes_per_row;
+		int i2 = y1 * scr_bytes_per_row;
 		VIDEO_DRV_LOCK_PIXELS;
 		for (int j = y1; j <= y2; j++) {
 			for (int i = 0; i < n_chunks; i++) {
 				if (memcmp(the_buffer_copy + i1, the_buffer + i1, src_chunk_size) != 0) {
 					memcpy(the_buffer_copy + i1, the_buffer + i1, src_chunk_size);
 					Screen_blit(the_host_buffer + i2, the_buffer + i1, src_chunk_size);
+#ifdef USE_SDL_VIDEO
+					SDL_UpdateRect(drv->s, i * n_pixels, j, n_pixels, 1);
+#endif
 				}
 				i1 += src_chunk_size;
 				i2 += dst_chunk_size;
@@ -493,75 +518,9 @@ static inline void update_display_dga_vosf(void)
 				i1 += src_chunk_size_left;
 				i2 += dst_chunk_size_left;
 			}
+			i2 += scr_bytes_left;
 		}
 		VIDEO_DRV_UNLOCK_PIXELS;
-#else
-		// Check for first chunk from left and first chunk from right that have changed
-		typedef uint64 chunk_t;
-		const int chunk_size = sizeof(chunk_t);
-		const int bytes_per_row = VIDEO_MODE_ROW_BYTES;
-
-		int i, j;
-		int b1 = bytes_per_row / chunk_size;
-		int b2 = 0;
-		for (j = y1; j <= y2; j++) {
-			chunk_t * const p1 = (chunk_t *)(the_buffer + (j * bytes_per_row));
-			chunk_t * const p2 = (chunk_t *)(the_buffer_copy + (j * bytes_per_row));
-			for (i = 0; i < b1; i++) {
-				if (p1[i] != p2[i]) {
-					b1 = i;
-					break;
-				}
-			}
-			if (b1 > b2)
-				b2 = b1;
-			for (i = (bytes_per_row / chunk_size) - 1; i > b2; i--) {
-				if (p1[i] != p2[i]) {
-					b2 = i;
-					break;
-				}
-			}
-		}
-		b2++;
-
-		// Convert to pixel information
-		int x1, x2;
-		switch (VIDEO_MODE_DEPTH) {
-		case VIDEO_DEPTH_1BIT:	x1 = (b1 * chunk_size) << 3; x2 = (b2 * chunk_size) << 3;	break;
-		case VIDEO_DEPTH_2BIT:	x1 = (b1 * chunk_size) << 2; x2 = (b2 * chunk_size) << 2;	break;
-		case VIDEO_DEPTH_4BIT:	x1 = (b1 * chunk_size) << 1; x2 = (b2 * chunk_size) << 1;	break;
-		case VIDEO_DEPTH_8BIT:	x1 = b1 * chunk_size; x2 = b2 * chunk_size;					break;
-		case VIDEO_DEPTH_16BIT:	x1 = (b1 * chunk_size) >> 1; x2 = (b2 * chunk_size) >> 1;	break;
-		case VIDEO_DEPTH_32BIT:	x1 = (b1 * chunk_size) >> 2; x2 = (b2 * chunk_size) >> 2;	break;
-		}
-		const int width = x2 - x1;
-
-		// Normalize bounds for for the next blit
-		const int src_bytes_per_row = VIDEO_MODE_ROW_BYTES;
-		const int dst_bytes_per_row = the_host_buffer_row_bytes;
-		const int dst_bytes_per_pixel = dst_bytes_per_row / VIDEO_MODE_X;
-		int i2 = y1 * dst_bytes_per_row + x1 * dst_bytes_per_pixel;
-		int i1, n_bytes;
-		if ((int)VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
-			const int src_pixels_per_byte = VIDEO_MODE_X / src_bytes_per_row;
-			i1 = y1 * src_bytes_per_row + x1 / src_pixels_per_byte;
-			n_bytes = width / src_pixels_per_byte;
-		} else {
-			const int src_bytes_per_pixel = src_bytes_per_row / VIDEO_MODE_X;
-			i1 = y1 * src_bytes_per_row + x1 * src_bytes_per_pixel;
-			n_bytes = width * src_bytes_per_pixel;
-		}
-
-		// Update the_host_buffer and copy of the_buffer
-		VIDEO_DRV_LOCK_PIXELS;
-		for (j = y1; j <= y2; j++) {
-			Screen_blit(the_host_buffer + i2, the_buffer + i1, n_bytes);
-			memcpy(the_buffer_copy + i1, the_buffer + i1, n_bytes);
-			i1 += src_bytes_per_row;
-			i2 += dst_bytes_per_row;
-		}
-		VIDEO_DRV_UNLOCK_PIXELS;
-#endif
 	}
 	mainBuffer.dirty = false;
 }

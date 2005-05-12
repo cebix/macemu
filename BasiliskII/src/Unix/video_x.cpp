@@ -542,6 +542,36 @@ private:
 	int mouse_last_x, mouse_last_y;	// Last mouse position (for relative mode)
 };
 
+class driver_dga;
+static void update_display_dga_vosf(driver_dga *drv);
+
+class driver_dga : public driver_base {
+	friend void update_display_dga_vosf(driver_dga *drv);
+
+public:
+	driver_dga(X11_monitor_desc &monitor);
+	~driver_dga();
+
+	void suspend(void);
+	void resume(void);
+
+protected:
+	struct FakeXImage {
+		int width, height;		// size of image
+		int depth;				// depth of image
+		int bytes_per_line;		// accelerator to next line
+
+		FakeXImage(int w, int h, int d)
+			: width(w), height(h), depth(d)
+			{ bytes_per_line = TrivialBytesPerRow(width, DepthModeForPixelDepth(depth)); }
+	};
+	FakeXImage *img;
+
+private:
+	Window suspend_win;		// "Suspend" information window
+	void *fb_save;			// Saved frame buffer for suspend/resume
+};
+
 static driver_base *drv = NULL;	// Pointer to currently used driver object
 
 #ifdef ENABLE_VOSF
@@ -735,8 +765,7 @@ driver_window::driver_window(X11_monitor_desc &m)
 	use_vosf = true;
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	the_host_buffer = the_buffer_copy;
-	the_host_buffer_row_bytes = img->bytes_per_line;
-	the_buffer_size = page_extend((aligned_height + 2) * the_host_buffer_row_bytes);
+	the_buffer_size = page_extend((aligned_height + 2) * img->bytes_per_line);
 	the_buffer = (uint8 *)vm_acquire_mac(the_buffer_size);
 	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
@@ -884,21 +913,8 @@ void driver_window::mouse_moved(int x, int y)
  *  DGA display driver base class
  */
 
-class driver_dga : public driver_base {
-public:
-	driver_dga(X11_monitor_desc &monitor);
-	~driver_dga();
-
-	void suspend(void);
-	void resume(void);
-
-private:
-	Window suspend_win;		// "Suspend" information window
-	void *fb_save;			// Saved frame buffer for suspend/resume
-};
-
 driver_dga::driver_dga(X11_monitor_desc &m)
- : driver_base(m), suspend_win(0), fb_save(NULL)
+	: driver_base(m), suspend_win(0), fb_save(NULL), img(NULL)
 {
 }
 
@@ -906,6 +922,9 @@ driver_dga::~driver_dga()
 {
 	XUngrabPointer(x_display, CurrentTime);
 	XUngrabKeyboard(x_display, CurrentTime);
+
+	if (img)
+		delete img;
 }
 
 // Suspend emulation
@@ -1131,10 +1150,12 @@ driver_fbdev::driver_fbdev(X11_monitor_desc &m) : driver_dga(m)
 	if (use_vosf) {
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	  the_host_buffer = the_buffer;
-	  the_host_buffer_row_bytes = bytes_per_row;
-	  the_buffer_size = page_extend((height + 2) * the_host_buffer_row_bytes);
+	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
 	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	  the_buffer = (uint8 *)vm_acquire_mac(the_buffer_size);
+
+	  // Fake image for DGA/VOSF mode to know about display bounds
+	  img = new FakeXImage(width, height, depth_of_video_mode(mode));
 	}
 #else
 	use_vosf = false;
@@ -1272,10 +1293,12 @@ driver_xf86dga::driver_xf86dga(X11_monitor_desc &m)
 	if (use_vosf) {
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	  the_host_buffer = the_buffer;
-	  the_host_buffer_row_bytes = bytes_per_row;
-	  the_buffer_size = page_extend((height + 2) * the_host_buffer_row_bytes);
+	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
 	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	  the_buffer = (uint8 *)vm_acquire_mac(the_buffer_size);
+
+	  // Fake image for DGA/VOSF mode to know about display bounds
+	  img = new FakeXImage((v_width + 7) & ~7, height, depth_of_video_mode(mode));
 	}
 #else
 	use_vosf = false;
@@ -2471,7 +2494,7 @@ static void video_refresh_dga_vosf(void)
 		tick_counter = 0;
 		if (mainBuffer.dirty) {
 			LOCK_VOSF;
-			update_display_dga_vosf();
+			update_display_dga_vosf(static_cast<driver_dga *>(drv));
 			UNLOCK_VOSF;
 		}
 	}
