@@ -577,7 +577,7 @@ static bool open_window(int width, int height)
 	use_vosf = true;
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	the_host_buffer = the_buffer_copy;
-	the_buffer_size = page_extend((aligned_height + 2) * (the_host_buffer_row_bytes = img->bytes_per_line));
+	the_buffer_size = page_extend((aligned_height + 2) * img->bytes_per_line);
 	the_buffer = (uint8 *)vm_acquire(the_buffer_size);
 	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
@@ -633,10 +633,29 @@ static bool open_window(int width, int height)
 	return true;
 }
 
-// Open FBDev display
-static bool open_fbdev(int width, int height)
+// Open FBDev DGA display
+static bool open_fbdev_dga(int width, int height)
 {
 #ifdef ENABLE_FBDEV_DGA
+#ifdef ENABLE_XF86_VIDMODE
+	// Switch to best mode
+	if (has_vidmode) {
+		int best = -1;
+		for (int i = 0; i < num_x_video_modes; i++) {
+			if (x_video_modes[i]->hdisplay == width && x_video_modes[i]->vdisplay == height) {
+				best = i;
+				break;
+			}
+		};
+		assert(best != -1);
+		XF86VidModeSwitchToMode(x_display, screen, x_video_modes[best]);
+		XF86VidModeSetViewPort(x_display, screen, 0, 0);
+		D(bug("[fbdev] VideoMode %d: %d x %d @ %d\n", best,
+			  x_video_modes[best]->hdisplay, x_video_modes[best]->vdisplay,
+			  1000 * x_video_modes[best]->dotclock / (x_video_modes[best]->htotal * x_video_modes[best]->vtotal)));
+	}
+#endif
+
 	if (ioctl(fb_dev_fd, FBIOGET_FSCREENINFO, &fb_finfo) != 0) {
 		D(bug("[fbdev] Can't get FSCREENINFO: %s\n", strerror(errno)));
 		return false;
@@ -706,7 +725,7 @@ static bool open_fbdev(int width, int height)
 				  GrabModeAsync, GrabModeAsync, CurrentTime);
 	XGrabPointer(x_display, the_win, True,
 				 PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
-				 GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+				 GrabModeAsync, GrabModeAsync, the_win, None, CurrentTime);
 	disable_mouse_accel();
 
 	// Create no_cursor
@@ -717,6 +736,7 @@ static bool open_fbdev(int width, int height)
 	XDefineCursor(x_display, the_win, mac_cursor);
 
 	// Init blitting routines
+	int bytes_per_row = TrivialBytesPerRow((width + 7) & ~7, DepthModeForPixelDepth(depth));
 #if ENABLE_VOSF
 	// Extract current screen color masks (we are in True Color mode)
 	VisualFormat visualFormat;
@@ -743,8 +763,7 @@ static bool open_fbdev(int width, int height)
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	use_vosf = true;
 	the_host_buffer = the_buffer;
-	the_host_buffer_row_bytes = TrivialBytesPerRow((width + 7) & ~7, DepthModeForPixelDepth(visualFormat.depth));
-	the_buffer_size = page_extend((height + 2) * the_host_buffer_row_bytes);
+	the_buffer_size = page_extend((height + 2) * bytes_per_row);
 	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	the_buffer = (uint8 *)vm_acquire(the_buffer_size);
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
@@ -753,7 +772,7 @@ static bool open_fbdev(int width, int height)
 	// Set frame buffer base
 	D(bug("the_buffer = %p, use_vosf = %d\n", the_buffer, use_vosf));
 	screen_base = Host2MacAddr(the_buffer);
-	VModes[cur_mode].viRowBytes = TrivialBytesPerRow((width + 7) & ~7, DepthModeForPixelDepth(depth));
+	VModes[cur_mode].viRowBytes = bytes_per_row;
 	return true;
 #else
 	ErrorAlert("SheepShaver has been compiled with DGA support disabled.");
@@ -761,8 +780,8 @@ static bool open_fbdev(int width, int height)
 #endif
 }
 
-// Open DGA display (!! should use X11 VidMode extensions to set mode)
-static bool open_dga(int width, int height)
+// Open XF86 DGA display (!! should use X11 VidMode extensions to set mode)
+static bool open_xf86_dga(int width, int height)
 {
 	if (is_fbdev_dga_mode)
 		return false;
@@ -835,7 +854,7 @@ static bool open_dga(int width, int height)
 	if (use_vosf) {
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	  the_host_buffer = the_buffer;
-	  the_buffer_size = page_extend((height + 2) * (the_host_buffer_row_bytes = bytes_per_row));
+	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
 	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	  the_buffer = (uint8 *)vm_acquire(the_buffer_size);
 	  D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
@@ -854,6 +873,35 @@ static bool open_dga(int width, int height)
 	ErrorAlert("SheepShaver has been compiled with DGA support disabled.");
 	return false;
 #endif
+}
+
+// Open DGA display
+static bool open_dga(int width, int height)
+{
+	bool display_open;
+
+	display_open = open_xf86_dga(width, height);
+#ifdef ENABLE_FBDEV_DGA
+	// Try to fallback to FBDev DGA mode
+	if (!display_open) {
+		is_fbdev_dga_mode = true;
+		display_open = open_fbdev_dga(width, height);
+	}
+#endif
+
+	// Common DGA display initialization
+	if (display_open) {
+
+		// Fake image to get display bounds in the refresh function
+		if ((img = (XImage *)malloc(sizeof(*img))) == NULL)
+			return false;
+		img->width = DisplayWidth(x_display, screen);
+		img->height = DisplayHeight(x_display, screen);
+		img->depth = is_fbdev_dga_mode ? xdepth : depth;
+		img->bytes_per_line = TrivialBytesPerRow(img->width, DepthModeForPixelDepth(img->depth));
+	}
+
+	return display_open;
 }
 
 static bool open_display(void)
@@ -944,20 +992,18 @@ static bool open_display(void)
 	display_type = mode.viType;
 	depth = depth_of_video_mode(mode.viAppleMode);
 
-	bool display_open = false;
-	if (display_type == DIS_SCREEN) {
+	bool display_open;
+	switch (display_type) {
+	case DIS_SCREEN:
 		display_open = open_dga(VModes[cur_mode].viXsize, VModes[cur_mode].viYsize);
-#ifdef ENABLE_FBDEV_DGA
-		// Try to fallback to FBDev DGA mode
-		if (!display_open) {
-			is_fbdev_dga_mode = true;
-			display_open = open_fbdev(VModes[cur_mode].viXsize, VModes[cur_mode].viYsize);
-		}
-#endif
-		
-	}
-	else if (display_type == DIS_WINDOW)
+		break;
+	case DIS_WINDOW:
 		display_open = open_window(VModes[cur_mode].viXsize, VModes[cur_mode].viYsize);
+		break;
+	default:
+		display_open = false;
+		break;
+	}
 
 #ifdef ENABLE_VOSF
 	if (use_vosf) {
@@ -1011,26 +1057,25 @@ static void close_window(void)
 }
 
 // Close FBDev mode
-static void close_fbdev(void)
+static void close_fbdev_dga(void)
 {
 #ifdef ENABLE_FBDEV_DGA
-	XUngrabPointer(x_display, CurrentTime);
-	XUngrabKeyboard(x_display, CurrentTime);
-
 	uint8 *fb_base;
-	if (!use_vosf) {
-		// don't free() the screen buffer in driver_base dtor
+	if (!use_vosf)
 		fb_base = the_buffer;
-		the_buffer = NULL;
-	}
 #ifdef ENABLE_VOSF
-	else {
-		// don't free() the screen buffer in driver_base dtor
+	else
 		fb_base = the_host_buffer;
-		the_host_buffer = NULL;
-	}
 #endif
 	munmap(fb_base, fb_finfo.smem_len);
+#endif
+}
+
+// Close XF86 DGA mode
+static void close_xf86_dga(void)
+{
+#ifdef ENABLE_XF86_DGA
+	XF86DGADirectVideo(x_display, screen, 0);
 #endif
 }
 
@@ -1038,18 +1083,21 @@ static void close_fbdev(void)
 static void close_dga(void)
 {
 	if (is_fbdev_dga_mode)
-		return;
+		close_fbdev_dga();
+	else
+		close_xf86_dga();
 
-#ifdef ENABLE_XF86_DGA
-	XF86DGADirectVideo(x_display, screen, 0);
 	XUngrabPointer(x_display, CurrentTime);
 	XUngrabKeyboard(x_display, CurrentTime);
-#endif
 
 #ifdef ENABLE_XF86_VIDMODE
 	if (has_vidmode)
 		XF86VidModeSwitchToMode(x_display, screen, x_video_modes[0]);
 #endif
+
+	// Release fake image (it's not a normal XImage!)
+	free(img);
+	img = NULL;
 
 	if (!use_vosf) {
 		// don't free() the screen buffer in driver_base dtor
@@ -1065,12 +1113,8 @@ static void close_dga(void)
 
 static void close_display(void)
 {
-	if (display_type == DIS_SCREEN) {
-		if (is_fbdev_dga_mode)
-			close_fbdev();
-		else
-			close_dga();
-	}
+	if (display_type == DIS_SCREEN)
+		close_dga();
 	else if (display_type == DIS_WINDOW)
 		close_window();
 
@@ -1300,13 +1344,14 @@ static void add_window_modes(VideoInfo *&p, int window_modes, int mode)
 static bool has_mode(int x, int y)
 {
 #ifdef ENABLE_XF86_VIDMODE
-	for (int i=0; i<num_x_video_modes; i++)
-		if (x_video_modes[i]->hdisplay >= x && x_video_modes[i]->vdisplay >= y)
-			return true;
-	return false;
-#else
-	return DisplayWidth(x_display, screen) >= x && DisplayHeight(x_display, screen) >= y;
+	if (has_vidmode) {
+		for (int i=0; i<num_x_video_modes; i++)
+			if (x_video_modes[i]->hdisplay == x && x_video_modes[i]->vdisplay == y)
+				return true;
+		return false;
+	}
 #endif
+	return DisplayWidth(x_display, screen) >= x && DisplayHeight(x_display, screen) >= y;
 }
 
 bool VideoInit(void)
@@ -1373,8 +1418,12 @@ bool VideoInit(void)
 	// VidMode available?
 	int vm_event_base, vm_error_base;
 	has_vidmode = XF86VidModeQueryExtension(x_display, &vm_event_base, &vm_error_base);
-	if (has_vidmode)
+	if (has_vidmode) {
+		int vm_major_version, vm_minor_version;
+		XF86VidModeQueryVersion(x_display, &vm_major_version, &vm_minor_version);
+		D(bug("VidMode extension %d.%d available\n", vm_major_version, vm_minor_version));
 		XF86VidModeGetAllModeLines(x_display, screen, &num_x_video_modes, &x_video_modes);
+	}
 #endif
 
 #ifdef ENABLE_FBDEV_DGA
@@ -1486,6 +1535,42 @@ bool VideoInit(void)
 #endif
 		} else
 			add_custom_mode(p, display_type, default_width, default_height, default_mode, APPLE_CUSTOM);
+
+		// Add extra VidMode capable modes
+		if (display_type == DIS_SCREEN) {
+			struct {
+				int w;
+				int h;
+				int apple_id;
+			}
+			video_modes[] = {
+				{  640,  480, APPLE_640x480   },
+				{  800,  600, APPLE_800x600   },
+				{ 1024,  768, APPLE_1024x768  },
+				{ 1152,  768, APPLE_1152x768  },
+				{ 1152,  900, APPLE_1152x900  },
+				{ 1280, 1024, APPLE_1280x1024 },
+				{ 1600, 1200, APPLE_1600x1200 },
+				{ 0, }
+			};
+
+			for (int i = 0; video_modes[i].w != 0; i++) {
+				const int w = video_modes[i].w;
+				const int h = video_modes[i].h;
+				if (w >= default_width || h >= default_height)
+					continue;
+				if (has_mode(w, h)) {
+#ifdef ENABLE_VOSF
+					if (is_fbdev_dga_mode) {
+						for (unsigned int d = APPLE_1_BIT; d <= default_mode; d++)
+							if (find_visual_for_depth(d))
+								add_custom_mode(p, display_type, w, h, d, video_modes[i].apple_id);
+					} else
+#endif
+						add_custom_mode(p, display_type, w, h, default_mode, video_modes[i].apple_id);
+				}
+			}
+		}
 	} else if (window_modes) {
 		for (unsigned int d = APPLE_1_BIT; d <= APPLE_32_BIT; d++)
 			if (find_visual_for_depth(d))
@@ -1681,7 +1766,7 @@ static void resume_emul(void)
 	XWarpPointer(x_display, None, rootwin, 0, 0, 0, 0, 0, 0);
 	Window w = is_fbdev_dga_mode ? the_win : rootwin;
 	XGrabKeyboard(x_display, w, True, GrabModeAsync, GrabModeAsync, CurrentTime);
-	XGrabPointer(x_display, w, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+	XGrabPointer(x_display, w, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, is_fbdev_dga_mode ? w : None, None, CurrentTime);
 	disable_mouse_accel();
 #ifdef ENABLE_XF86_DGA
 	if (!is_fbdev_dga_mode) {
@@ -2366,7 +2451,7 @@ static void *redraw_func(void *arg)
 					XDisplayLock();
 #if defined(ENABLE_XF86_DGA) || defined(ENABLE_FBDEV_DGA)
 #ifdef ENABLE_XF86_DGA
-					if (is_fbdev_dga_mode)
+					if (!is_fbdev_dga_mode)
 						XF86DGADirectVideo(x_display, screen, 0);
 #endif
 					XUngrabPointer(x_display, CurrentTime);
