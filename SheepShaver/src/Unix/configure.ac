@@ -19,7 +19,7 @@ AC_ARG_ENABLE(jit,          [  --enable-jit            enable JIT compiler [defa
 AC_ARG_ENABLE(ppc-emulator, [  --enable-ppc-emulator   use the selected PowerPC emulator [default=auto]], [WANT_EMULATED_PPC=$enableval], [WANT_EMULATED_PPC=auto])
 AC_ARG_ENABLE(fbdev-dga,    [  --enable-fbdev-dga      use direct frame buffer access via /dev/fb0 [default=yes]], [WANT_FBDEV_DGA=$enableval], [WANT_FBDEV_DGA=yes])
 AC_ARG_ENABLE(xf86-dga,     [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
-AC_ARG_ENABLE(xf86-vidmode, [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=no]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=no])
+AC_ARG_ENABLE(xf86-vidmode, [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
 AC_ARG_ENABLE(vosf,         [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=yes])
 AC_ARG_WITH(esd,            [  --with-esd              support ESD for sound under Linux/FreeBSD [default=yes]], [WANT_ESD=$withval], [WANT_ESD=yes])
 AC_ARG_WITH(gtk,            [  --with-gtk              use GTK user interface [default=yes]],
