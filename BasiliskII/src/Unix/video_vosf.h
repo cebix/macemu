@@ -34,6 +34,7 @@
 #ifdef USE_SDL_VIDEO
 #define MONITOR_INIT			SDL_monitor_desc &monitor
 #define VIDEO_DRV_WIN_INIT		driver_window *drv
+#define VIDEO_DRV_DGA_INIT		driver_fullscreen *drv
 #define VIDEO_DRV_LOCK_PIXELS	if (SDL_MUSTLOCK(drv->s)) SDL_LockSurface(drv->s)
 #define VIDEO_DRV_UNLOCK_PIXELS	if (SDL_MUSTLOCK(drv->s)) SDL_UnlockSurface(drv->s)
 #define VIDEO_DRV_DEPTH			drv->s->format->BitsPerPixel
@@ -384,7 +385,7 @@ There are two cases to check:
 	than pageCount.
 */
 
-static inline void update_display_window_vosf(VIDEO_DRV_WIN_INIT)
+static void update_display_window_vosf(VIDEO_DRV_WIN_INIT)
 {
 	VIDEO_MODE_INIT;
 
@@ -438,7 +439,7 @@ static inline void update_display_window_vosf(VIDEO_DRV_WIN_INIT)
  */
 
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
-static inline void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
+static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 {
 	VIDEO_MODE_INIT;
 
@@ -476,7 +477,7 @@ static inline void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 	const int src_chunk_size_left = src_bytes_per_row - (n_chunks * src_chunk_size);
 	const int dst_chunk_size_left = dst_bytes_per_row - (n_chunks * dst_chunk_size);
 
-	int page = 0;
+	int page = 0, last_scanline = -1;
 	for (;;) {
 		const unsigned first_page = find_next_page_set(page);
 		if (first_page >= mainBuffer.pageCount)
@@ -489,12 +490,17 @@ static inline void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 		const int32 offset  = first_page << mainBuffer.pageBits;
 		const uint32 length = (page - first_page) << mainBuffer.pageBits;
 		vm_protect((char *)mainBuffer.memStart + offset, length, VM_PAGE_READ);
-		
-		// There is at least one line to update
-		const int y1 = mainBuffer.pageInfo[first_page].top;
-		const int y2 = mainBuffer.pageInfo[page - 1].bottom;
 
-		// Update the_host_buffer and copy of the_buffer
+		// Optimized for scanlines, don't process overlapping lines again
+		int y1 = mainBuffer.pageInfo[first_page].top;
+		int y2 = mainBuffer.pageInfo[page - 1].bottom;
+		if (y1 <= last_scanline && ++y1 >= VIDEO_MODE_Y)
+			continue;
+		if (y2 <= last_scanline && ++y2 >= VIDEO_MODE_Y)
+			continue;
+		last_scanline = y2;
+
+		// Update the_host_buffer and copy of the_buffer, one line at a time
 		int i1 = y1 * src_bytes_per_row;
 		int i2 = y1 * scr_bytes_per_row;
 		VIDEO_DRV_LOCK_PIXELS;
