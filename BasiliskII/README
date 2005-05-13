@@ -362,7 +362,7 @@ ether <ethernet card description>
 
   Linux:
     The "ethernet card description" is the name of an Ethernet interface.
-    There are three approaches to networking with Basilisk II:
+    There are four approaches to networking with Basilisk II:
 
       1. Direct access to an Ethernet card via the "sheep_net" kernel module.
          The "ethernet card description" must be the name of a real Ethernet
@@ -454,6 +454,37 @@ ether <ethernet card description>
 
            #!/bin/sh
            exec /usr/bin/kdesu -c /path/to/tunconfig $1 $2
+
+      4. Access the network through the user mode network stack.
+         (the code and this documentation come from QEMU)
+
+         By setting the "ethernet card description" to "slirp",
+         Basilisk II uses a completely user mode network stack (you
+         don't need root priviledges to use the virtual network). The
+         virtual network configuration is the following:
+
+           Basilisk II <------> Firewall/DHCP server <-----> Internet
+           (10.0.2.x)      |         (10.0.2.2)
+                           |
+                           ----> DNS server (10.0.2.3)
+                           |
+                           ----> SMB server (10.0.2.4)
+
+         Basilisk II behaves as if it was behind a firewall which
+         blocks all incoming connections. You can use a DHCP client to
+         automatically configure the network in Basilisk II.
+
+         In order to check that the user mode network is working, you
+         can ping the address 10.0.2.2 and verify that you got an
+         address in the range 10.0.2.x from the Basilisk II virtual
+         DHCP server.
+
+         Note that ping is not supported reliably to the internet as
+         it would require root priviledges. It means you can only ping
+         the local router (10.0.2.2).
+
+         When using the built-in TFTP server, the router is also the
+         TFTP server.
 
   FreeBSD:
     The "ethertap" method described above also works under FreeBSD, but since
