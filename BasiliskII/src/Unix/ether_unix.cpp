@@ -20,8 +20,10 @@
 
 #include "sysdeps.h"
 
-#include <sys/ioctl.h>
+#ifdef HAVE_SYS_POLL_H
 #include <sys/poll.h>
+#endif
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
@@ -31,7 +33,7 @@
 #include <stdio.h>
 #include <map>
 
-#if defined(__FreeBSD__) || defined(sgi)
+#if defined(__FreeBSD__) || defined(sgi) || (defined(__APPLE__) && defined(__MACH__))
 #include <net/if.h>
 #endif
 
@@ -98,6 +100,7 @@ static map<uint16, uint32> net_protocols;
 // Prototypes
 static void *receive_func(void *arg);
 static void *slirp_receive_func(void *arg);
+static int poll_fd(int fd);
 
 
 /*
@@ -559,6 +562,24 @@ void slirp_output(const uint8 *packet, int len)
 
 
 /*
+ *  Wait for data to arrive
+ */
+
+static inline int poll_fd(int fd)
+{
+#ifdef HAVE_POLL
+	struct pollfd pf = {fd, POLLIN, 0};
+	return poll(&pf, 1, -1);
+#else
+	fd_set rfds;
+	FD_ZERO(&rfds);
+	FD_SET(fd, &rfds);
+	return select(1, &rfds, NULL, NULL, NULL);
+#endif
+}
+
+
+/*
  *  Packet reception thread
  */
 
@@ -567,8 +588,7 @@ static void *receive_func(void *arg)
 	for (;;) {
 
 		// Wait for packets to arrive
-		struct pollfd pf = {fd, POLLIN, 0};
-		int res = poll(&pf, 1, -1);
+		int res = poll_fd(fd);
 		if (res <= 0)
 			break;
 
