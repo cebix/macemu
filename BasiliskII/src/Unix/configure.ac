@@ -275,7 +275,8 @@ dnl Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS(unistd.h fcntl.h sys/types.h sys/time.h sys/mman.h mach/mach.h)
 AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
-AC_CHECK_HEADERS(sys/socket.h)
+AC_CHECK_HEADERS(sys/socket.h sys/ioctl.h sys/filio.h sys/bitypes.h sys/wait.h sys/select.h)
+AC_CHECK_HEADERS(arpa/inet.h)
 AC_CHECK_HEADERS(linux/if.h linux/if_tun.h net/if.h net/if_tun.h, [], [], [
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -321,11 +322,12 @@ if [[ "x$ac_cv_type_socklen_t" != "xyes" ]]; then
 fi
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(strdup cfmakeraw)
+AC_CHECK_FUNCS(strdup strerror cfmakeraw)
 AC_CHECK_FUNCS(clock_gettime timer_create)
 AC_CHECK_FUNCS(sigaction signal)
 AC_CHECK_FUNCS(mmap mprotect munmap)
 AC_CHECK_FUNCS(vm_allocate vm_deallocate vm_protect)
+AC_CHECK_FUNCS(inet_aton)
 
 dnl Darwin seems to define mach_task_self() instead of task_self().
 AC_CHECK_FUNCS(mach_task_self task_self)
@@ -1063,6 +1065,14 @@ AC_EGREP_CPP(xyes,
 #endif
 ], [AC_MSG_RESULT(yes); HAVE_GCC30=yes], AC_MSG_RESULT(no))
 
+dnl Check for ICC.
+AC_MSG_CHECKING(for ICC)
+HAVE_ICC=no
+if $CXX -V -v 2>&1 | grep -q "Intel(R) C++ Compiler"; then
+  HAVE_ICC=yes
+fi
+AC_MSG_RESULT($HAVE_ICC)
+
 dnl Set "-fomit-frame-pointer" on i386 GCC 2.7 or higher.
 dnl Also set "-fno-exceptions" for C++ because exception handling requires
 dnl the frame pointer.
@@ -1076,7 +1086,7 @@ dnl As of 2001/08/02, this affects the following compilers:
 dnl Official: probably gcc-3.1 (mainline CVS)
 dnl Mandrake: gcc-2.96 >= 0.59mdk, gcc-3.0.1 >= 0.1mdk
 dnl Red Hat : gcc-2.96 >= 89, gcc-3.0 >= 1
-if [[ "x$HAVE_GCC27" = "xyes" ]]; then
+if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_ICC" = "xno" ]]; then
   SAVED_CXXFLAGS="$CXXFLAGS"
   CXXFLAGS="$CXXFLAGS -fno-merge-constants"
   AC_CACHE_CHECK([whether GCC supports constants merging], ac_cv_gcc_constants_merging, [
@@ -1092,7 +1102,7 @@ fi
 
 dnl Store motion was introduced in 3.3-hammer branch and any gcc >= 3.4
 dnl However, there are some corner cases exposed on x86-64
-if [[ "x$HAVE_GCC27" = "xyes" ]]; then
+if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_ICC" = "xno" ]]; then
   SAVED_CXXFLAGS="$CXXFLAGS"
   CXXFLAGS="$CXXFLAGS -fno-gcse-sm"
   AC_CACHE_CHECK([whether GCC supports store motion], ac_cv_gcc_store_motion, [
@@ -1104,6 +1114,19 @@ if [[ "x$HAVE_GCC27" = "xyes" ]]; then
   if [[ "x$ac_cv_gcc_store_motion" != "xyes" ]]; then
     CXXFLAGS="$SAVED_CXXFLAGS"
   fi
+fi
+
+dnl Add -fno-strict-aliasing for slirp sources
+if [[ "x$HAVE_GCC30" = "xyes" ]]; then
+  SAVED_CXXFLAGS="$CXXFLAGS"
+  CFLAGS="$CFLAGS -fno-strict-aliasing"
+  AC_CACHE_CHECK([whether the compiler supports -fno-strict-aliasing],
+    ac_cv_gcc_no_strict_aliasing, [
+    AC_TRY_COMPILE([],[],
+      [ac_cv_gcc_no_strict_aliasing=yes; AC_SUBST(SLIRP_CFLAGS, "$CFLAGS")],
+      [ac_cv_gcc_no_strict_aliasing=no])
+  ])
+  CFLAGS="$SAVED_CFLAGS"
 fi
 
 dnl Select appropriate CPU source and REGPARAM define.

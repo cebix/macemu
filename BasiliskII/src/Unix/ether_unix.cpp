@@ -45,6 +45,11 @@
 #include <net/if_tun.h>
 #endif
 
+// XXX: slirp is currently not 64-bit clean
+#if SIZEOF_VOID_P == 4
+#define HAVE_SLIRP 1
+#endif
+
 #include "cpu_emulation.h"
 #include "main.h"
 #include "macos_util.h"
@@ -52,6 +57,7 @@
 #include "user_strings.h"
 #include "ether.h"
 #include "ether_defs.h"
+#include "libslirp.h"
 
 #ifndef NO_STD_NAMESPACE
 using std::map;
@@ -68,6 +74,7 @@ enum {
 	NET_IF_SHEEPNET,
 	NET_IF_ETHERTAP,
 	NET_IF_TUNTAP,
+	NET_IF_SLIRP
 };
 
 // Constants
@@ -83,12 +90,16 @@ static bool udp_tunnel;						// Flag: UDP tunnelling active, fd is the socket de
 static int net_if_type = -1;				// Ethernet device type
 static char *net_if_name = NULL;			// TUN/TAP device name
 static const char *net_if_script = NULL;	// Network config script
+static pthread_t slirp_thread;				// Slirp reception thread
+static bool slirp_thread_active = false;	// Flag: Slirp reception threadinstalled
+static int slirp_output_fd = -1;			// fd of slirp output pipe
 
 // Attached network protocols, maps protocol type to MacOS handler address
 static map<uint16, uint32> net_protocols;
 
 // Prototypes
 static void *receive_func(void *arg);
+static void *slirp_receive_func(void *arg);
 
 
 /*
@@ -109,6 +120,16 @@ static bool start_thread(void)
 		return false;
 	}
 
+#ifdef HAVE_SLIRP
+	if (net_if_type == NET_IF_SLIRP) {
+		slirp_thread_active = (pthread_create(&slirp_thread, NULL, slirp_receive_func, NULL) == 0);
+		if (!slirp_thread_active) {
+			printf("WARNING: Cannot start slirp reception thread\n");
+			return false;
+		}
+	}
+#endif
+
 	return true;
 }
 
@@ -119,6 +140,14 @@ static bool start_thread(void)
 
 static void stop_thread(void)
 {
+#ifdef HAVE_SLIRP
+	if (slirp_thread_active) {
+		pthread_cancel(slirp_thread);
+		pthread_join(slirp_thread, NULL);
+		slirp_thread_active = false;
+	}
+#endif
+
 	if (thread_active) {
 		pthread_cancel(ether_thread);
 		pthread_join(ether_thread, NULL);
@@ -179,8 +208,26 @@ bool ether_init(void)
 	else if (strcmp(name, "tun") == 0)
 		net_if_type = NET_IF_TUNTAP;
 #endif
+#ifdef HAVE_SLIRP
+	else if (strcmp(name, "slirp") == 0)
+		net_if_type = NET_IF_SLIRP;
+#endif
 	else
 		net_if_type = NET_IF_SHEEPNET;
+
+#ifdef HAVE_SLIRP
+	// Initialize slirp library
+	if (net_if_type == NET_IF_SLIRP) {
+		slirp_init();
+
+		// Open slirp output pipe
+		int fds[2];
+		if (pipe(fds) < 0)
+			return false;
+		fd = fds[0];
+		slirp_output_fd = fds[1];
+	}
+#endif
 
 	// Open sheep_net or ethertap or TUN/TAP device
 	char dev_name[16];
@@ -195,11 +242,13 @@ bool ether_init(void)
 		strcpy(dev_name, "/dev/sheep_net");
 		break;
 	}
-	fd = open(dev_name, O_RDWR);
-	if (fd < 0) {
-		sprintf(str, GetString(STR_NO_SHEEP_NET_DRIVER_WARN), dev_name, strerror(errno));
-		WarningAlert(str);
-		goto open_error;
+	if (net_if_type != NET_IF_SLIRP) {
+		fd = open(dev_name, O_RDWR);
+		if (fd < 0) {
+			sprintf(str, GetString(STR_NO_SHEEP_NET_DRIVER_WARN), dev_name, strerror(errno));
+			WarningAlert(str);
+			goto open_error;
+		}
 	}
 
 #if ENABLE_TUNTAP
@@ -257,6 +306,15 @@ bool ether_init(void)
 		ether_addr[3] = p >> 16;
 		ether_addr[4] = p >> 8;
 		ether_addr[5] = p;
+#ifdef HAVE_SLIRP
+	} else if (net_if_type == NET_IF_SLIRP) {
+		ether_addr[0] = 0x52;
+		ether_addr[1] = 0x54;
+		ether_addr[2] = 0x00;
+		ether_addr[3] = 0x12;
+		ether_addr[4] = 0x34;
+		ether_addr[5] = 0x56;
+#endif
 	} else
 		ioctl(fd, SIOCGIFADDR, ether_addr);
 	D(bug("Ethernet address %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
@@ -274,6 +332,10 @@ open_error:
 	if (fd > 0) {
 		close(fd);
 		fd = -1;
+	}
+	if (slirp_output_fd >= 0) {
+		close(slirp_output_fd);
+		slirp_output_fd = -1;
 	}
 	return false;
 }
@@ -304,6 +366,10 @@ void ether_exit(void)
 	// Close sheep_net device
 	if (fd > 0)
 		close(fd);
+
+	// Close slirp output buffer
+	if (slirp_output_fd > 0)
+		close(slirp_output_fd);
 }
 
 
@@ -323,14 +389,19 @@ void ether_reset(void)
 
 int16 ether_add_multicast(uint32 pb)
 {
-	if (net_if_type != NET_IF_TUNTAP && ioctl(fd, SIOCADDMULTI, Mac2HostAddr(pb + eMultiAddr)) < 0) {
-		D(bug("WARNING: Couldn't enable multicast address\n"));
-		if (net_if_type == NET_IF_ETHERTAP)
-			return noErr;
-		else
-			return eMultiErr;
-	} else
+	switch (net_if_type) {
+	case NET_IF_ETHERTAP:
+	case NET_IF_SHEEPNET:
+		if (ioctl(fd, SIOCADDMULTI, Mac2HostAddr(pb + eMultiAddr)) < 0) {
+			D(bug("WARNING: Couldn't enable multicast address\n"));
+			if (net_if_type == NET_IF_ETHERTAP)
+				return noErr;
+			else
+				return eMultiErr;
+		}
+	default:
 		return noErr;
+	}
 }
 
 
@@ -340,11 +411,16 @@ int16 ether_add_multicast(uint32 pb)
 
 int16 ether_del_multicast(uint32 pb)
 {
-	if (net_if_type != NET_IF_TUNTAP && ioctl(fd, SIOCDELMULTI, Mac2HostAddr(pb + eMultiAddr)) < 0) {
-		D(bug("WARNING: Couldn't disable multicast address\n"));
-		return eMultiErr;
-	} else
+	switch (net_if_type) {
+	case NET_IF_ETHERTAP:
+	case NET_IF_SHEEPNET:
+		if (ioctl(fd, SIOCDELMULTI, Mac2HostAddr(pb + eMultiAddr)) < 0) {
+			D(bug("WARNING: Couldn't disable multicast address\n"));
+			return eMultiErr;
+		}
+	default:
 		return noErr;
+	}
 }
 
 
@@ -400,6 +476,12 @@ int16 ether_write(uint32 wds)
 #endif
 
 	// Transmit packet
+#ifdef HAVE_SLIRP
+	if (net_if_type == NET_IF_SLIRP) {
+		slirp_input(packet, len);
+		return noErr;
+	} else
+#endif
 	if (write(fd, packet, len) < 0) {
 		D(bug("WARNING: Couldn't transmit packet\n"));
 		return excessCollsns;
@@ -429,6 +511,53 @@ void ether_stop_udp_thread(void)
 	stop_thread();
 	fd = -1;
 }
+
+
+/*
+ *  SLIRP output buffer glue
+ */
+
+#ifdef HAVE_SLIRP
+int slirp_can_output(void)
+{
+	return 1;
+}
+
+void slirp_output(const uint8 *packet, int len)
+{
+	write(slirp_output_fd, packet, len);
+}
+
+void *slirp_receive_func(void *arg)
+{
+	for (;;) {
+		// Wait for packets to arrive
+		fd_set rfds, wfds, xfds;
+		int nfds;
+		struct timeval tv;
+
+		nfds = -1;
+		FD_ZERO(&rfds);
+		FD_ZERO(&wfds);
+		FD_ZERO(&xfds);
+		slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
+		tv.tv_sec = 0;
+		tv.tv_usec = 16667;
+		if (select(nfds + 1, &rfds, &wfds, &xfds, &tv) >= 0)
+			slirp_select_poll(&rfds, &wfds, &xfds);
+	}
+	return NULL;
+}
+#else
+int slirp_can_output(void)
+{
+	return 0;
+}
+
+void slirp_output(const uint8 *packet, int len)
+{
+}
+#endif
 
 
 /*
