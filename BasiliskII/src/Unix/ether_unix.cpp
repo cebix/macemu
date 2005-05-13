@@ -45,10 +45,9 @@
 #include <net/if_tun.h>
 #endif
 
-// XXX: slirp is currently not 64-bit clean
-#if SIZEOF_VOID_P == 4
+// XXX: slirp works on 64-bit platforms, sometimes
 #define HAVE_SLIRP 1
-#endif
+#include "libslirp.h"
 
 #include "cpu_emulation.h"
 #include "main.h"
@@ -57,7 +56,6 @@
 #include "user_strings.h"
 #include "ether.h"
 #include "ether_defs.h"
-#include "libslirp.h"
 
 #ifndef NO_STD_NAMESPACE
 using std::map;
