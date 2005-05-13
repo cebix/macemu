@@ -132,7 +132,7 @@ static void REGPARAM2 ram_bput(uaecptr, uae_u32) REGPARAM;
 static int REGPARAM2 ram_check(uaecptr addr, uae_u32 size) REGPARAM;
 static uae_u8 *REGPARAM2 ram_xlate(uaecptr addr) REGPARAM;
 
-static uae_u32 RAMBaseDiff;	// RAMBaseHost - RAMBaseMac
+static uintptr RAMBaseDiff;	// RAMBaseHost - RAMBaseMac
 
 uae_u32 REGPARAM2 ram_lget(uaecptr addr)
 {
@@ -252,7 +252,7 @@ static void REGPARAM2 rom_bput(uaecptr, uae_u32) REGPARAM;
 static int REGPARAM2 rom_check(uaecptr addr, uae_u32 size) REGPARAM;
 static uae_u8 *REGPARAM2 rom_xlate(uaecptr addr) REGPARAM;
 
-static uae_u32 ROMBaseDiff;	// ROMBaseHost - ROMBaseMac
+static uintptr ROMBaseDiff;	// ROMBaseHost - ROMBaseMac
 
 uae_u32 REGPARAM2 rom_lget(uaecptr addr)
 {
@@ -363,7 +363,7 @@ static void REGPARAM2 frame_host_888_lput(uaecptr, uae_u32) REGPARAM;
 static int REGPARAM2 frame_check(uaecptr addr, uae_u32 size) REGPARAM;
 static uae_u8 *REGPARAM2 frame_xlate(uaecptr addr) REGPARAM;
 
-static uae_u32 FrameBaseDiff;	// MacFrameBaseHost - MacFrameBaseMac
+static uintptr FrameBaseDiff;	// MacFrameBaseHost - MacFrameBaseMac
 
 uae_u32 REGPARAM2 frame_direct_lget(uaecptr addr)
 {
@@ -565,9 +565,9 @@ void memory_init(void)
 	// Limit RAM size to not overlap ROM
 	uint32 ram_size = RAMSize > ROMBaseMac ? ROMBaseMac : RAMSize;
 
-	RAMBaseDiff = (uae_u32)RAMBaseHost - (uae_u32)RAMBaseMac;
-	ROMBaseDiff = (uae_u32)ROMBaseHost - (uae_u32)ROMBaseMac;
-	FrameBaseDiff = (uae_u32)MacFrameBaseHost - (uae_u32)MacFrameBaseMac;
+	RAMBaseDiff = (uintptr)RAMBaseHost - (uintptr)RAMBaseMac;
+	ROMBaseDiff = (uintptr)ROMBaseHost - (uintptr)ROMBaseMac;
+	FrameBaseDiff = (uintptr)MacFrameBaseHost - (uintptr)MacFrameBaseMac;
 
 	// Map RAM and ROM
 	if (TwentyFourBitAddressing) {
