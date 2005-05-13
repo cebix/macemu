@@ -1118,7 +1118,7 @@ fi
 
 dnl Add -fno-strict-aliasing for slirp sources
 if [[ "x$HAVE_GCC30" = "xyes" ]]; then
-  SAVED_CXXFLAGS="$CXXFLAGS"
+  SAVED_CFLAGS="$CFLAGS"
   CFLAGS="$CFLAGS -fno-strict-aliasing"
   AC_CACHE_CHECK([whether the compiler supports -fno-strict-aliasing],
     ac_cv_gcc_no_strict_aliasing, [
