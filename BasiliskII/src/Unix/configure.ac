@@ -21,6 +21,7 @@ AC_ARG_ENABLE(fbdev-dga,     [  --enable-fbdev-dga      use direct frame buffer 
 AC_ARG_ENABLE(vosf,          [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=yes])
 
 dnl SDL options.
+AC_ARG_ENABLE(sdl-static,    [  --enable-sdl-static     use SDL static libraries for linking [default=no]], [WANT_SDL_STATIC=$enableval], [WANT_SDL_STATIC=no])
 AC_ARG_ENABLE(sdl-video,     [  --enable-sdl-video      use SDL for video graphics [default=no]], [WANT_SDL_VIDEO=$enableval], [WANT_SDL_VIDEO=no])
 AC_ARG_ENABLE(sdl-audio,     [  --enable-sdl-audio      use SDL for audio [default=no]], [WANT_SDL_AUDIO=$enableval], [WANT_SDL_AUDIO=no])
 
@@ -153,7 +154,11 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
       ;;
     *)
       sdl_cflags=`$sdl_config --cflags`
-      sdl_libs=`$sdl_config --libs`
+      if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
+        sdl_libs=`$sdl_config --static-libs`
+      else
+        sdl_libs=`$sdl_config --libs`
+      fi
       ;;
     esac
     CFLAGS="$CFLAGS $sdl_cflags"
@@ -406,6 +411,7 @@ SERIALSRC=serial_unix.cpp
 ETHERSRC=../dummy/ether_dummy.cpp
 SCSISRC=../dummy/scsi_dummy.cpp
 AUDIOSRC=../dummy/audio_dummy.cpp
+EXTFSSRC=extfs_unix.cpp
 EXTRASYSSRCS=
 CAN_NATIVE_M68K=no
 case "$target_os" in
@@ -466,6 +472,9 @@ darwin*)
   if [[ "x$ac_cv_framework_IOKit" = "xyes" ]]; then
     EXTRASYSSRCS="../MacOSX/sys_darwin.cpp"
   fi
+  if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
+    EXTFSSRC=../MacOSX/extfs_macosx.mm
+  fi
   ;;
 cygwin*)
   SERIALSRC="../dummy/serial_dummy.cpp"
@@ -516,7 +525,7 @@ if [[ "x$HAVE_PTHREADS" = "xno" ]]; then
   ETHERSRC=../dummy/ether_dummy.cpp
   AUDIOSRC=../dummy/audio_dummy.cpp
 fi
-SYSSRCS="$VIDEOSRCS $SERIALSRC $ETHERSRC $SCSISRC $AUDIOSRC $SEMSRC $UISRCS $MONSRCS $EXTRASYSSRCS"
+SYSSRCS="$VIDEOSRCS $EXTFSSRC $SERIALSRC $ETHERSRC $SCSISRC $AUDIOSRC $SEMSRC $UISRCS $MONSRCS $EXTRASYSSRCS"
 
 dnl Define a macro that translates a yesno-variable into a C macro definition
 dnl to be put into the config.h file
