@@ -37,6 +37,10 @@ typedef char *caddr_t;
 # define O_BINARY 0
 #endif
 
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
+
 #include <sys/types.h>
 #ifdef HAVE_SYS_BITYPES_H
 # include <sys/bitypes.h>

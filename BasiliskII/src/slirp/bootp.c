@@ -40,13 +40,6 @@ BOOTPClient bootp_clients[NB_ADDR];
 
 static const uint8_t rfc1533_cookie[] = { RFC1533_COOKIE };
 
-#ifdef DEBUG
-#define dprintf(fmt, args...) \
-if (slirp_debug & DBG_CALL) { fprintf(dfd, fmt, ## args); fflush(dfd); }
-#else
-#define dprintf(fmt, args...)
-#endif
-
 static BOOTPClient *get_new_addr(struct in_addr *paddr)
 {
     BOOTPClient *bc;
@@ -107,7 +100,6 @@ static void dhcp_decode(const uint8_t *buf, int size,
             if (p >= p_end)
                 break;
             len = *p++;
-            dprintf("dhcp: tag=0x%02x len=%d\n", tag, len);
 
             switch(tag) {
             case RFC2132_MSG_TYPE:
@@ -134,7 +126,6 @@ static void bootp_reply(struct bootp_t *bp)
 
     /* extract exact DHCP msg type */
     dhcp_decode(bp->bp_vend, DHCP_OPT_LEN, &dhcp_msg_type);
-    dprintf("bootp packet op=%d msgtype=%d\n", bp->bp_op, dhcp_msg_type);
     
     if (dhcp_msg_type == 0)
         dhcp_msg_type = DHCPREQUEST; /* Force reply for old BOOTP clients */
@@ -155,10 +146,8 @@ static void bootp_reply(struct bootp_t *bp)
     if (dhcp_msg_type == DHCPDISCOVER) {
     new_addr:
         bc = get_new_addr(&daddr.sin_addr);
-        if (!bc) {
-            dprintf("no address left\n");
+        if (!bc)
             return;
-        }
         memcpy(bc->macaddr, client_ethaddr, 6);
     } else {
         bc = find_addr(&daddr.sin_addr, bp->bp_hwaddr);
@@ -168,7 +157,6 @@ static void bootp_reply(struct bootp_t *bp)
             goto new_addr;
         }
     }
-    dprintf("offered addr=%08x\n", ntohl(daddr.sin_addr.s_addr));
 
     saddr.sin_addr.s_addr = htonl(ntohl(special_addr.s_addr) | CTL_ALIAS);
     saddr.sin_port = htons(BOOTP_SERVER);
