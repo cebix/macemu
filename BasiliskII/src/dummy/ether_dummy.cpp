@@ -163,14 +163,15 @@ void EtherInterrupt(void)
 {
 #if SUPPORTS_UDP_TUNNEL
 	if (udp_tunnel_active) {
-		uint8 packet[1514];
+		EthernetPacket ether_packet;
+		uint32 packet = ether_packet.addr();
 		ssize_t length;
 
 		// Read packets from socket and hand to ether_udp_read() for processing
 		while (true) {
 			struct sockaddr_in from;
 			socklen_t from_len = sizeof(from);
-			length = recvfrom(fd, packet, 1514, 0, (struct sockaddr *)&from, &from_len);
+			length = recvfrom(fd, Mac2HostAddr(packet), 1514, 0, (struct sockaddr *)&from, &from_len);
 			if (length < 14)
 				break;
 			ether_udp_read(packet, length, &from);
