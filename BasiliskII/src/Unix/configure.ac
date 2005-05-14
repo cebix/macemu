@@ -449,6 +449,7 @@ freebsd*)
   ;;
 netbsd*)
   CAN_NATIVE_M68K=yes
+  ETHERSRC=ether_unix.cpp
   ;;
 solaris*)
   AUDIOSRC=Solaris/audio_solaris.cpp
