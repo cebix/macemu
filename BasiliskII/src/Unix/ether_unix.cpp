@@ -574,7 +574,7 @@ static inline int poll_fd(int fd)
 	fd_set rfds;
 	FD_ZERO(&rfds);
 	FD_SET(fd, &rfds);
-	return select(1, &rfds, NULL, NULL, NULL);
+	return select(fd + 1, &rfds, NULL, NULL, NULL);
 #endif
 }
 
