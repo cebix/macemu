@@ -485,6 +485,20 @@ cygwin*)
   EXTRASYSSRCS="../Windows/BasiliskII.rc"
   ;;
 esac
+
+dnl Is the slirp library supported?
+if [[ "x$ETHERSRC" = "xether_unix.cpp" ]]; then
+  AC_DEFINE(HAVE_SLIRP, 1, [Define if slirp library is supported])
+  SLIRP_SRCS="\
+    ../slirp/bootp.c     ../slirp/ip_output.c  ../slirp/tcp_input.c  \
+    ../slirp/cksum.c     ../slirp/mbuf.c       ../slirp/tcp_output.c \
+    ../slirp/debug.c     ../slirp/misc.c       ../slirp/tcp_subr.c   \
+    ../slirp/if.c        ../slirp/sbuf.c       ../slirp/tcp_timer.c  \
+    ../slirp/ip_icmp.c   ../slirp/slirp.c      ../slirp/tftp.c       \
+    ../slirp/ip_input.c  ../slirp/socket.c     ../slirp/udp.c"
+fi
+AC_SUBST(SLIRP_SRCS)
+
 dnl SDL overrides
 if [[ "x$WANT_SDL" = "xyes" ]]; then
   AC_DEFINE(USE_SDL, 1, [Define to enble SDL support])

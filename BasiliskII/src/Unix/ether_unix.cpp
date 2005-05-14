@@ -47,9 +47,9 @@
 #include <net/if_tun.h>
 #endif
 
-// XXX: slirp works on 64-bit platforms, sometimes
-#define HAVE_SLIRP 1
+#ifdef HAVE_SLIRP
 #include "libslirp.h"
+#endif
 
 #include "cpu_emulation.h"
 #include "main.h"
