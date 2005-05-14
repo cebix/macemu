@@ -442,6 +442,12 @@ ether <ethernet card description>
          instead of sending packets via physical media writes them to
          the user space program.
 
+         Prerequesties:
+         - Make sure the "tun" kernel module is loaded
+           # modprobe tun
+         - Make sure IP Fordwarding is enabled on your system
+           # echo 1 >/proc/sys/net/ipv4/ip_forward
+
          A virtual network configuration script is required and the
          default is /usr/local/BasiliskII/tunconfig unless you specify
          a different file with the "etherconfig" item.

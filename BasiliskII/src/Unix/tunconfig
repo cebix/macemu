@@ -11,12 +11,22 @@
 # If the linux box is configured as a firewall, the rules below might
 # need some adjustments.
 #
+# The IP Tunnel driver requires IP forwarding to be enabled. Run as root:
+#
+#       echo 1 >/proc/sys/net/ipv4/ip_forward
+#
 ###########################################################################
 
 SUDO=/usr/bin/sudo
+IFCONFIG=/sbin/ifconfig
 IPTABLES=/sbin/iptables
 
 #########################################################
+
+[[ "x$1" = "x-n" ]] && {
+    DONT_EXECUTE=yes
+    shift 1
+}
 
 TUN_DEV=$1
 ACTION=$2
@@ -31,21 +41,34 @@ TUN_HOST=172.20.$NET_NUM.1
 #########################################################
 
 [[ $# = 2 ]] || {
-	echo "Usage: tunconfig iface up|down"
+	echo "Usage: tunconfig [-n] iface up|down"
     exit 2
 }
 
 [[ "`id -u`" = "0" ]] && {
-	echo "---> $SUDO not necessary." 1>&2
-	SUDO=""
+    echo "---> $SUDO not necessary." 1>&2
+    SUDO=""
 }
 
-[[ -x $IPTABLES ]] && {
-	IPTABLES="$SUDO $IPTABLES"
-} || {
+[[ -x $IPTABLES ]] || {
     echo "---> $IPTABLES not found." 1>&2
-	IPTABLES=/bin/true
+    exit 1
 }
+
+if [ -n "$SUDO" ]; then
+    $SUDO -l | grep -q "NOPASSWD: $IFCONFIG" || {
+        echo "---> Missing sudo NOPASSWD: $IFCONFIG." 1>&2
+        exit 1
+    }
+    $SUDO -l | grep -q "NOPASSWD: $IPTABLES" || {
+        echo "---> Missing sudo NOPASSWD: $IPTABLES." 1>&2
+        exit 1
+    }
+    IFCONFIG="$SUDO $IFCONFIG"
+    IPTABLES="$SUDO $IPTABLES"
+fi
+
+[[ "x$DONT_EXECUTE" = "xyes" ]] && exit 0
 
 $IPTABLES -L -n -t nat > /dev/null || exit 1
 
@@ -62,7 +85,7 @@ $IPTABLES -L -n -t nat > /dev/null || exit 1
 #########################################################
 
 [[ "$ACTION" = down ]] && {
-    $SUDO /sbin/ifconfig $TUN_DEV down
+    $IFCONFIG $TUN_DEV down
 }
 
 #########################################################
@@ -70,7 +93,7 @@ $IPTABLES -L -n -t nat > /dev/null || exit 1
 #########################################################
 
 [[ "$ACTION" = up ]] && {
-    $SUDO /sbin/ifconfig $TUN_DEV $TUN_HOST
+    $IFCONFIG $TUN_DEV $TUN_HOST
 
     # masquerade the tun network
     $IPTABLES -t nat -A POSTROUTING -s $TUN_NET -d ! $TUN_NET -j MASQUERADE
