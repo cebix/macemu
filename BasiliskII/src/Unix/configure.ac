@@ -474,6 +474,7 @@ irix*)
   CFLAGS="$ocflags"
   ;;
 darwin*)
+  ETHERSRC=ether_unix.cpp
   if [[ "x$ac_cv_framework_IOKit" = "xyes" ]]; then
     EXTRASYSSRCS="../MacOSX/sys_darwin.cpp"
   fi
