@@ -143,14 +143,18 @@ static void stop_thread(void)
 {
 #ifdef HAVE_SLIRP
 	if (slirp_thread_active) {
+#ifdef HAVE_PTHREAD_CANCEL
 		pthread_cancel(slirp_thread);
+#endif
 		pthread_join(slirp_thread, NULL);
 		slirp_thread_active = false;
 	}
 #endif
 
 	if (thread_active) {
+#ifdef HAVE_PTHREAD_CANCEL
 		pthread_cancel(ether_thread);
+#endif
 		pthread_join(ether_thread, NULL);
 		sem_destroy(&int_ack);
 		thread_active = false;
@@ -348,13 +352,8 @@ open_error:
 
 void ether_exit(void)
 {
-	// Stop reception thread
-	if (thread_active) {
-		pthread_cancel(ether_thread);
-		pthread_join(ether_thread, NULL);
-		sem_destroy(&int_ack);
-		thread_active = false;
-	}
+	// Stop reception threads
+	stop_thread();
 
 	// Shut down TUN/TAP interface
 	if (net_if_type == NET_IF_TUNTAP)
@@ -546,6 +545,12 @@ void *slirp_receive_func(void *arg)
 		tv.tv_usec = 16667;
 		if (select(nfds + 1, &rfds, &wfds, &xfds, &tv) >= 0)
 			slirp_select_poll(&rfds, &wfds, &xfds);
+
+#ifdef HAVE_PTHREAD_TESTCANCEL
+		// Explicit cancellation point if select() was not covered
+		// This seems to be the case on MacOS X 10.2
+		pthread_testcancel();
+#endif
 	}
 	return NULL;
 }
@@ -562,24 +567,6 @@ void slirp_output(const uint8 *packet, int len)
 
 
 /*
- *  Wait for data to arrive
- */
-
-static inline int poll_fd(int fd)
-{
-#ifdef HAVE_POLL
-	struct pollfd pf = {fd, POLLIN, 0};
-	return poll(&pf, 1, -1);
-#else
-	fd_set rfds;
-	FD_ZERO(&rfds);
-	FD_SET(fd, &rfds);
-	return select(fd + 1, &rfds, NULL, NULL, NULL);
-#endif
-}
-
-
-/*
  *  Packet reception thread
  */
 
@@ -588,7 +575,23 @@ static void *receive_func(void *arg)
 	for (;;) {
 
 		// Wait for packets to arrive
-		int res = poll_fd(fd);
+#if HAVE_POLL
+		struct pollfd pf = {fd, POLLIN, 0};
+		int res = poll(&pf, 1, -1);
+#else
+		fd_set rfds;
+		FD_ZERO(&rfds);
+		FD_SET(fd, &rfds);
+		// A NULL timeout could cause select() to block indefinitely,
+		// even if it is supposed to be a cancellation point [MacOS X]
+		struct timeval tv = { 0, 20000 };
+		int res = select(fd + 1, &rfds, NULL, NULL, &tv);
+#ifdef HAVE_PTHREAD_TESTCANCEL
+		pthread_testcancel();
+#endif
+		if (res == 0 || (res == -1 && errno == EINTR))
+			continue;
+#endif
 		if (res <= 0)
 			break;
 

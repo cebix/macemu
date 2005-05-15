@@ -195,7 +195,7 @@ AC_CHECK_LIB(pthread, pthread_create, , [
 if [[ "x$HAVE_PTHREADS" = "xyes" ]]; then
   AC_DEFINE(HAVE_PTHREADS, 1, [Define if pthreads are available.])
 fi
-AC_CHECK_FUNCS(pthread_cancel)
+AC_CHECK_FUNCS(pthread_cancel pthread_testcancel)
 AC_CHECK_FUNCS(pthread_mutexattr_setprotocol)
 AC_CHECK_FUNCS(pthread_mutexattr_settype)
 AC_CHECK_FUNCS(pthread_mutexattr_setpshared)
