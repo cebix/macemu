@@ -93,6 +93,7 @@ static const char *net_if_script = NULL;	// Network config script
 static pthread_t slirp_thread;				// Slirp reception thread
 static bool slirp_thread_active = false;	// Flag: Slirp reception threadinstalled
 static int slirp_output_fd = -1;			// fd of slirp output pipe
+static int slirp_input_fds[2] = { -1, -1 };	// fds of slirp input pipe
 
 // Attached network protocols, maps protocol type to MacOS handler address
 static map<uint16, uint32> net_protocols;
@@ -231,6 +232,10 @@ bool ether_init(void)
 			return false;
 		fd = fds[0];
 		slirp_output_fd = fds[1];
+
+		// Open slirp input pipe
+		if (pipe(slirp_input_fds) < 0)
+			return false;
 	}
 #endif
 
@@ -338,6 +343,14 @@ open_error:
 		close(fd);
 		fd = -1;
 	}
+	if (slirp_input_fds[0] >= 0) {
+		close(slirp_input_fds[0]);
+		slirp_input_fds[0] = -1;
+	}
+	if (slirp_input_fds[1] >= 0) {
+		close(slirp_input_fds[1]);
+		slirp_input_fds[1] = -1;
+	}
 	if (slirp_output_fd >= 0) {
 		close(slirp_output_fd);
 		slirp_output_fd = -1;
@@ -366,6 +379,12 @@ void ether_exit(void)
 	// Close sheep_net device
 	if (fd > 0)
 		close(fd);
+
+	// Close slirp input buffer
+	if (slirp_input_fds[0] >= 0)
+		close(slirp_input_fds[0]);
+	if (slirp_input_fds[1] >= 0)
+		close(slirp_input_fds[1]);
 
 	// Close slirp output buffer
 	if (slirp_output_fd > 0)
@@ -478,7 +497,9 @@ int16 ether_write(uint32 wds)
 	// Transmit packet
 #ifdef HAVE_SLIRP
 	if (net_if_type == NET_IF_SLIRP) {
-		slirp_input(packet, len);
+		const int slirp_input_fd = slirp_input_fds[1];
+		write(slirp_input_fd, &len, sizeof(len));
+		write(slirp_input_fd, packet, len);
 		return noErr;
 	} else
 #endif
@@ -530,19 +551,36 @@ void slirp_output(const uint8 *packet, int len)
 
 void *slirp_receive_func(void *arg)
 {
+	const int slirp_input_fd = slirp_input_fds[0];
+
 	for (;;) {
 		// Wait for packets to arrive
 		fd_set rfds, wfds, xfds;
 		int nfds;
 		struct timeval tv;
 
+		// ... in the input queue
+		FD_ZERO(&rfds);
+		FD_SET(slirp_input_fd, &rfds);
+		tv.tv_sec = 0;
+		tv.tv_usec = 0;
+		if (select(slirp_input_fd + 1, &rfds, NULL, NULL, &tv) > 0) {
+			int len;
+			read(slirp_input_fd, &len, sizeof(len));
+			uint8 packet[1516];
+			assert(len <= sizeof(packet));
+			read(slirp_input_fd, packet, len);
+			slirp_input(packet, len);
+		}
+
+		// ... in the output queue
 		nfds = -1;
 		FD_ZERO(&rfds);
 		FD_ZERO(&wfds);
 		FD_ZERO(&xfds);
 		slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
 		tv.tv_sec = 0;
-		tv.tv_usec = 16667;
+		tv.tv_usec = 10000;
 		if (select(nfds + 1, &rfds, &wfds, &xfds, &tv) >= 0)
 			slirp_select_poll(&rfds, &wfds, &xfds);
 
