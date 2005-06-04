@@ -55,12 +55,14 @@ cpuop_func *cpufunctbl[65536];
 
 #if FLIGHT_RECORDER
 struct rec_step {
+	uae_u32 pc;
+#if FLIGHT_RECORDER >= 2
 	uae_u32 d[8];
 	uae_u32 a[8];
-	uae_u32 pc;
+#endif
 };
 
-const int LOG_SIZE = 8192;
+const int LOG_SIZE = 32768;
 static rec_step log[LOG_SIZE];
 static int log_ptr = -1; // First time initialization
 
@@ -72,10 +74,16 @@ static const char *log_filename(void)
 
 void m68k_record_step(uaecptr pc)
 {
-	for (int i = 0; i < 8; i++) {
-		log[log_ptr].d[i] = m68k_dreg(regs, i);
-		log[log_ptr].a[i] = m68k_areg(regs, i);
+#if FLIGHT_RECORDER >= 2
+	/* XXX: if LSB is set, we are recording from generated code and we
+	   don't support registers recording yet.  */
+	if ((pc & 1) == 0) {
+		for (int i = 0; i < 8; i++) {
+			log[log_ptr].d[i] = m68k_dreg(regs, i);
+			log[log_ptr].a[i] = m68k_areg(regs, i);
+		}
 	}
+#endif
 	log[log_ptr].pc = pc;
 	log_ptr = (log_ptr + 1) % LOG_SIZE;
 }
@@ -87,16 +95,31 @@ static void dump_log(void)
 		return;
 	for (int i = 0; i < LOG_SIZE; i++) {
 		int j = (i + log_ptr) % LOG_SIZE;
-		fprintf(f, "pc %08x\n", log[j].pc);
-		fprintf(f, "d0 %08x d1 %08x d2 %08x d3 %08x\n", log[j].d[0], log[j].d[1], log[j].d[2], log[j].d[3]);
-		fprintf(f, "d4 %08x d5 %08x d6 %08x d7 %08x\n", log[j].d[4], log[j].d[5], log[j].d[6], log[j].d[7]);
-		fprintf(f, "a0 %08x a1 %08x a2 %08x a3 %08x\n", log[j].a[0], log[j].a[1], log[j].a[2], log[j].a[3]);
-		fprintf(f, "a4 %08x a5 %08x a6 %08x a7 %08x\n", log[j].a[4], log[j].a[5], log[j].a[6], log[j].a[7]);
+		uae_u32 pc = log[j].pc & ~1;
+		fprintf(f, "pc %08x", pc);
+#if FLIGHT_RECORDER >= 2
+		fprintf(f, "\n");
+		if ((log[j].pc & 1) == 0) {
+			fprintf(f, "d0 %08x d1 %08x d2 %08x d3 %08x\n", log[j].d[0], log[j].d[1], log[j].d[2], log[j].d[3]);
+			fprintf(f, "d4 %08x d5 %08x d6 %08x d7 %08x\n", log[j].d[4], log[j].d[5], log[j].d[6], log[j].d[7]);
+			fprintf(f, "a0 %08x a1 %08x a2 %08x a3 %08x\n", log[j].a[0], log[j].a[1], log[j].a[2], log[j].a[3]);
+			fprintf(f, "a4 %08x a5 %08x a6 %08x a7 %08x\n", log[j].a[4], log[j].a[5], log[j].a[6], log[j].a[7]);
+		}
+#else
+		fprintf(f, " | ");
+#endif
 #if ENABLE_MON
-		disass_68k(f, log[j].pc);
+		disass_68k(f, pc);
 #endif
 	}
 	fclose(f);
+}
+#endif
+
+#if ENABLE_MON
+static void dump_regs(void)
+{
+	m68k_dumpstate(NULL);
 }
 #endif
 
@@ -1152,14 +1175,20 @@ void m68k_reset (void)
     fpu_reset();
 	
 #if FLIGHT_RECORDER
-#if ENABLE_MON
-	if (log_ptr == -1) {
-		// Install "log" command in mon
-		mon_add_command("log", dump_log, "log                      Dump m68k emulation log\n");
-	}
-#endif
 	log_ptr = 0;
 	memset(log, 0, sizeof(log));
+#endif
+
+#if ENABLE_MON
+	static bool first_time = true;
+	if (first_time) {
+		first_time = false;
+		mon_add_command("regs", dump_regs, "regs                    Dump m68k emulator registers\n");
+#if FLIGHT_RECORDER
+		// Install "log" command in mon
+		mon_add_command("log", dump_log, "log                      Dump m68k emulation log\n");
+#endif
+	}
 #endif
 }
 

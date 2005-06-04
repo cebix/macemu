@@ -6738,6 +6738,19 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 		    cputbl=cpufunctbl;
 		    comptbl=compfunctbl;
 		}
+
+#if FLIGHT_RECORDER
+		{
+		    mov_l_ri(S1, get_virtual_address((uae_u8 *)(pc_hist[i].location)) | 1);
+		    clobber_flags();
+		    remove_all_offsets();
+		    int arg = readreg_specific(S1,4,REG_PAR1);
+		    prepare_for_call_1();
+		    unlock2(arg);
+		    prepare_for_call_2();
+		    raw_call((uintptr)m68k_record_step);
+		}
+#endif
 		
 		failure = 1; // gb-- defaults to failure state
 		if (comptbl[opcode] && optlev>1) { 
@@ -7025,6 +7038,9 @@ void exec_nostats(void)
 {
 	for (;;)  { 
 		uae_u32 opcode = GET_OPCODE;
+#if FLIGHT_RECORDER
+		m68k_record_step(m68k_getpc());
+#endif
 		(*cpufunctbl[opcode])(opcode);
 		if (end_block(opcode) || SPCFLAGS_TEST(SPCFLAG_ALL)) {
 			return; /* We will deal with the spcflags in the caller */

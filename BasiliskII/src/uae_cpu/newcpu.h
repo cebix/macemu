@@ -282,7 +282,7 @@ extern struct cputbl op_smalltbl_3_ff[];
 extern struct cputbl op_smalltbl_4_ff[];
 
 #if FLIGHT_RECORDER
-extern void m68k_record_step(uaecptr);
+extern void m68k_record_step(uaecptr) REGPARAM;
 #endif
 extern void m68k_do_execute(void);
 extern void m68k_execute(void);
