@@ -37,27 +37,27 @@ addrbank mem_banks[65536];
 #endif
 
 #ifdef NO_INLINE_MEMORY_ACCESS
-__inline__ uae_u32 longget (uaecptr addr)
+uae_u32 longget (uaecptr addr)
 {
     return call_mem_get_func (get_mem_bank (addr).lget, addr);
 }
-__inline__ uae_u32 wordget (uaecptr addr)
+uae_u32 wordget (uaecptr addr)
 {
     return call_mem_get_func (get_mem_bank (addr).wget, addr);
 }
-__inline__ uae_u32 byteget (uaecptr addr)
+uae_u32 byteget (uaecptr addr)
 {
     return call_mem_get_func (get_mem_bank (addr).bget, addr);
 }
-__inline__ void longput (uaecptr addr, uae_u32 l)
+void longput (uaecptr addr, uae_u32 l)
 {
     call_mem_put_func (get_mem_bank (addr).lput, addr, l);
 }
-__inline__ void wordput (uaecptr addr, uae_u32 w)
+void wordput (uaecptr addr, uae_u32 w)
 {
     call_mem_put_func (get_mem_bank (addr).wput, addr, w);
 }
-__inline__ void byteput (uaecptr addr, uae_u32 b)
+void byteput (uaecptr addr, uae_u32 b)
 {
     call_mem_put_func (get_mem_bank (addr).bput, addr, b);
 }

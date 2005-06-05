@@ -88,8 +88,6 @@ extern void map_banks(addrbank *bank, int first, int count);
 
 #else
 
-extern uae_u32 alongget(uaecptr addr);
-extern uae_u32 awordget(uaecptr addr);
 extern uae_u32 longget(uaecptr addr);
 extern uae_u32 wordget(uaecptr addr);
 extern uae_u32 byteget(uaecptr addr);
