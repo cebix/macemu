@@ -589,6 +589,7 @@ static GtkWidget *w_jit_fpu;
 static GtkWidget *w_jit_atraps;
 static GtkWidget *w_jit_cache_size;
 static GtkWidget *w_jit_lazy_flush;
+static GtkWidget *w_jit_follow_const_jumps;
 
 // Set sensitivity of widgets
 static void set_jit_sensitive(void)
@@ -597,6 +598,7 @@ static void set_jit_sensitive(void)
 	gtk_widget_set_sensitive(w_jit_fpu, jit_enabled);
 	gtk_widget_set_sensitive(w_jit_cache_size, jit_enabled);
 	gtk_widget_set_sensitive(w_jit_lazy_flush, jit_enabled);
+	gtk_widget_set_sensitive(w_jit_follow_const_jumps, jit_enabled);
 }
 
 // "Use JIT Compiler" button toggled
@@ -616,6 +618,12 @@ static void tb_jit_fpu(GtkWidget *widget)
 static void tb_jit_lazy_flush(GtkWidget *widget)
 {
 	PrefsReplaceBool("jitlazyflush", GTK_TOGGLE_BUTTON(widget)->active);
+}
+
+// "Translate through constant jumps (inline blocks)" button toggled
+static void tb_jit_follow_const_jumps(GtkWidget *widget)
+{
+	PrefsReplaceBool("jitinline", GTK_TOGGLE_BUTTON(widget)->active);
 }
 
 // Read settings from widgets and set preferences
@@ -654,7 +662,10 @@ static void create_jit_pane(GtkWidget *top)
 	
 	// Lazy translation cache invalidation
 	w_jit_lazy_flush = make_checkbox(box, STR_JIT_LAZY_CINV_CTRL, "jitlazyflush", GTK_SIGNAL_FUNC(tb_jit_lazy_flush));
-	
+
+	// Follow constant jumps (inline basic blocks)
+	w_jit_follow_const_jumps = make_checkbox(box, STR_JIT_FOLLOW_CONST_JUMPS, "jitinline", GTK_SIGNAL_FUNC(tb_jit_follow_const_jumps));
+
 	set_jit_sensitive();
 #endif
 }
@@ -1163,6 +1174,10 @@ static GList *add_ether_names(void)
 		}
 		close(s);
 	}
+#ifdef HAVE_SLIRP
+	static char s_slirp[] = "slirp";
+	glist = g_list_append(glist, s_slirp);
+#endif
 	if (glist)
 		g_list_sort(glist, gl_str_cmp);
 	else

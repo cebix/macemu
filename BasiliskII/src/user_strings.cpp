@@ -210,6 +210,7 @@ user_string_def common_strings[] = {
 	{STR_JIT_CACHE_SIZE_8MB_LAB, "8192"},
 	{STR_JIT_CACHE_SIZE_16MB_LAB, "16384"},
 	{STR_JIT_LAZY_CINV_CTRL, "Enable lazy invalidation of translation cache"},
+	{STR_JIT_FOLLOW_CONST_JUMPS, "Translate through constant jumps (inline blocks)"},
 
 	{STR_WINDOW_TITLE, "Basilisk II"},
 	{STR_WINDOW_TITLE_FROZEN, "Basilisk II *** FROZEN ***"},
