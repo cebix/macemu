@@ -754,6 +754,34 @@ static void build_insn (int insn)
 	}
 #endif
 	
+	// Fix flags used information for Scc, Bcc, TRAPcc, DBcc instructions
+	if	(	table68k[opc].mnemo == i_Scc
+		||	table68k[opc].mnemo == i_Bcc
+		||	table68k[opc].mnemo == i_DBcc
+		||	table68k[opc].mnemo == i_TRAPcc
+		)	{
+		switch (table68k[opc].cc) {
+		// CC mask:	XNZVC
+		// 			 8421
+		case 0: flags_used = 0x00; break;	/*  T */
+		case 1: flags_used = 0x00; break;	/*  F */
+		case 2: flags_used = 0x05; break;	/* HI */
+		case 3: flags_used = 0x05; break;	/* LS */
+		case 4: flags_used = 0x01; break;	/* CC */
+		case 5: flags_used = 0x01; break;	/* CS */
+		case 6: flags_used = 0x04; break;	/* NE */
+		case 7: flags_used = 0x04; break;	/* EQ */
+		case 8: flags_used = 0x02; break;	/* VC */
+		case 9: flags_used = 0x02; break;	/* VS */
+		case 10:flags_used = 0x08; break;	/* PL */
+		case 11:flags_used = 0x08; break;	/* MI */
+		case 12:flags_used = 0x0A; break;	/* GE */
+		case 13:flags_used = 0x0A; break;	/* LT */
+		case 14:flags_used = 0x0E; break;	/* GT */
+		case 15:flags_used = 0x0E; break;	/* LE */
+		}
+	}
+		
 #if 1
 	/* gb-- flagdead and flaglive would not have correct information */
 	table68k[opc].flagdead = flags_set;
@@ -781,57 +809,6 @@ void read_table68k (void)
     for (i = 0; i < n_defs68k; i++) {
 	build_insn (i);
     }
-	
-	/* Extra fixes in table68k for control flow information and flag usage */
-	for (i = 0; i < 65536; i++) {
-		instrmnem mnemo = (instrmnem)(table68k[i].mnemo);
-		
-#define IS_CONST_JUMP(opc) \
-		(	((table68k[opc].mnemo == i_Bcc) && (table68k[opc].cc < 2)) \
-		||	(table68k[opc].mnemo == i_BSR) \
-		)
-
-		// Precise const jumps as such. The JIT compiler will take
-		// care to actually enable that optimization or not
-		if (IS_CONST_JUMP(i))
-			table68k[i].cflow |= fl_const_jump;
-
-		// Fix flags used information for Scc, Bcc, TRAPcc, DBcc instructions
-		int flags_used = table68k[i].flaglive;
-		if	(	(mnemo == i_Scc)
-			||	(mnemo == i_Bcc)
-			||	(mnemo == i_DBcc)
-			||	(mnemo == i_TRAPcc)
-			)	{
-			switch (table68k[i].cc) {
-			// CC mask:	XNZVC
-			// 			 8421
-			case 0: flags_used = 0x00; break;	/*  T */
-			case 1: flags_used = 0x00; break;	/*  F */
-			case 2: flags_used = 0x05; break;	/* HI */
-			case 3: flags_used = 0x05; break;	/* LS */
-			case 4: flags_used = 0x01; break;	/* CC */
-			case 5: flags_used = 0x01; break;	/* CS */
-			case 6: flags_used = 0x04; break;	/* NE */
-			case 7: flags_used = 0x04; break;	/* EQ */
-			case 8: flags_used = 0x02; break;	/* VC */
-			case 9: flags_used = 0x02; break;	/* VS */
-			case 10:flags_used = 0x08; break;	/* PL */
-			case 11:flags_used = 0x08; break;	/* MI */
-			case 12:flags_used = 0x0A; break;	/* GE */
-			case 13:flags_used = 0x0A; break;	/* LT */
-			case 14:flags_used = 0x0E; break;	/* GT */
-			case 15:flags_used = 0x0E; break;	/* LE */
-			}
-		}
-		
-		/* Unconditional jumps don't evaluate condition codes, so they
-		   don't actually use any flags themselves */
-		if (IS_CONST_JUMP(i))
-			flags_used = 0;
-		
-		table68k[i].flaglive = flags_used;
-	}
 }
 
 static int mismatch;

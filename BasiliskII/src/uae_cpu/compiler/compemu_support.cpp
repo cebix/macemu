@@ -149,6 +149,11 @@ static bool		JITDebug			= false;	// Enable runtime disassemblers through mon?
 #else
 const bool		JITDebug			= false;	// Don't use JIT debug mode at all
 #endif
+#if USE_INLINING
+static bool		follow_const_jumps	= true;		// Flag: translation through constant jumps	
+#else
+const bool		follow_const_jumps	= false;
+#endif
 
 const uae_u32	MIN_CACHE_SIZE		= 1024;		// Minimal translation cache size (1 MB)
 static uae_u32	cache_size			= 0;		// Size of total cache allocated for compiled blocks
@@ -5016,7 +5021,10 @@ void compiler_init(void)
 	write_log("<JIT compiler> : register aliasing : %s\n", str_on_off(1));
 	write_log("<JIT compiler> : FP register aliasing : %s\n", str_on_off(USE_F_ALIAS));
 	write_log("<JIT compiler> : lazy constant offsetting : %s\n", str_on_off(USE_OFFSET));
-	write_log("<JIT compiler> : block inlining : %s\n", str_on_off(USE_INLINING));
+#if USE_INLINING
+	follow_const_jumps = PrefsFindBool("jitinline");
+#endif
+	write_log("<JIT compiler> : translate through constant jumps : %s\n", str_on_off(follow_const_jumps));
 	write_log("<JIT compiler> : separate blockinfo allocation : %s\n", str_on_off(USE_SEPARATE_BIA));
 	
 	// Build compiler tables
@@ -6249,7 +6257,7 @@ void build_comp(void)
 	
 	for (i = 0; tbl[i].opcode < 65536; i++) {
 		int cflow = table68k[tbl[i].opcode].cflow;
-		if (USE_INLINING && ((cflow & fl_const_jump) != 0))
+		if (follow_const_jumps && (tbl[i].specific & 16))
 			cflow = fl_const_jump;
 		else
 			cflow &= ~fl_const_jump;
@@ -6301,6 +6309,10 @@ void build_comp(void)
 		}
 		prop[cft_map(opcode)].set_flags = table68k[opcode].flagdead;
 		prop[cft_map(opcode)].use_flags = table68k[opcode].flaglive;
+		/* Unconditional jumps don't evaluate condition codes, so they
+		 * don't actually use any flags themselves */
+		if (prop[cft_map(opcode)].cflow & fl_const_jump)
+			prop[cft_map(opcode)].use_flags = 0;
     }
 	for (i = 0; nfctbl[i].handler != NULL; i++) {
 		if (nfctbl[i].specific)
@@ -6652,8 +6664,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 
 #if USE_CHECKSUM_INFO
 		trace_in_rom = trace_in_rom && isinrom((uintptr)currpcp);
-#if USE_INLINING
-		if (is_const_jump(op)) {
+		if (follow_const_jumps && is_const_jump(op)) {
 			checksum_info *csi = alloc_checksum_info();
 			csi->start_p = (uae_u8 *)min_pcp;
 			csi->length = max_pcp - min_pcp + LONGEST_68K_INST;
@@ -6661,7 +6672,6 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 			bi->csi = csi;
 			max_pcp = (uintptr)currpcp;
 		}
-#endif
 		min_pcp = (uintptr)currpcp;
 #else
 	    if ((uintptr)currpcp<min_pcp)
