@@ -21,12 +21,13 @@
 /*
  *  NOTES:
  *    The Ctrl key works like a qualifier for special actions:
- *      Ctrl-Tab = suspend DGA mode
+ *      Ctrl-Tab = suspend DGA mode (TODO)
  *      Ctrl-Esc = emergency quit
  *      Ctrl-F1 = mount floppy
  *      Ctrl-F5 = grab mouse (in windowed mode)
  *
  *  FIXMEs and TODOs:
+ *  - Ctr-Tab for suspend/resume but how? SDL does not support that for non-Linux
  *  - Ctrl-Fn doesn't generate SDL_KEYDOWN events (SDL bug?)
  *  - Mouse acceleration, there is no API in SDL yet for that
  *  - Force relative mode in Grab mode even if SDL provides absolute coordinates?
@@ -37,6 +38,7 @@
  *    Besides, there can't seem to be a way to call SetVideoMode() from a child thread.
  *  - Refresh performance is still slow. Use SDL_CreateRGBSurface()?
  *  - Backport hw cursor acceleration to Basilisk II?
+ *  - Factor out code
  */
 
 #include "sysdeps.h"
@@ -392,16 +394,16 @@ static int sdl_depth_of_video_depth(int video_depth)
 // Check wether specified mode is available
 static bool has_mode(int type, int width, int height)
 {
-	// FIXME: no fullscreen support yet
-	if (type == DISPLAY_SCREEN)
-		return false;
-
 #ifdef SHEEPSHAVER
 	// Filter out Classic resolutiosn
 	if (width == 512 && height == 384)
 		return false;
 
-	// Read window modes prefs
+	// "screen" prefs items always succeeds
+	if (PrefsFindString("screen"))
+		return true;
+
+	// Read window & screen modes prefs
 	static uint32 window_modes = 0;
 	static uint32 screen_modes = 0;
 	if (window_modes == 0 || screen_modes == 0) {
@@ -411,24 +413,33 @@ static bool has_mode(int type, int width, int height)
 			window_modes |= 3;			// Allow at least 640x480 and 800x600 window modes
 	}
 
-	if (type == DISPLAY_WINDOW) {
-		int apple_mask, apple_id = find_apple_resolution(width, height);
-		switch (apple_id) {
-		case APPLE_640x480:		apple_mask = 0x01; break;
-		case APPLE_800x600:		apple_mask = 0x02; break;
-		case APPLE_1024x768:	apple_mask = 0x04; break;
-		case APPLE_1152x768:	apple_mask = 0x40; break;
-		case APPLE_1152x900:	apple_mask = 0x08; break;
-		case APPLE_1280x1024:	apple_mask = 0x10; break;
-		case APPLE_1600x1200:	apple_mask = 0x20; break;
-		default:				apple_mask = 0x00; break;
-		}
-		return (window_modes & apple_mask);
+	int test_modes;
+	switch (type) {
+	case DISPLAY_WINDOW:
+		test_modes = window_modes;
+		break;
+	case DISPLAY_SCREEN:
+		test_modes = screen_modes;
+		break;
+	default:
+		test_modes = 0;
+		break;
 	}
-#else
-	return true;
+
+	int apple_mask;
+	switch (find_apple_resolution(width, height)) {
+	case APPLE_640x480:		apple_mask = 0x01; break;
+	case APPLE_800x600:		apple_mask = 0x02; break;
+	case APPLE_1024x768:	apple_mask = 0x04; break;
+	case APPLE_1152x768:	apple_mask = 0x40; break;
+	case APPLE_1152x900:	apple_mask = 0x08; break;
+	case APPLE_1280x1024:	apple_mask = 0x10; break;
+	case APPLE_1600x1200:	apple_mask = 0x20; break;
+	default:				apple_mask = 0x00; break;
+	}
+	return (test_modes & apple_mask);
 #endif
-	return false;
+	return true;
 }
 
 // Add mode to list of supported modes
@@ -505,7 +516,7 @@ static void set_window_name(int name)
 // Set mouse grab mode
 static SDL_GrabMode set_grab_mode(SDL_GrabMode mode)
 {
-	const SDL_VideoInfo *vi =SDL_GetVideoInfo();
+	const SDL_VideoInfo *vi = SDL_GetVideoInfo();
 	return (vi && vi->wm_available ? SDL_WM_GrabInput(mode) : SDL_GRAB_OFF);
 }
 
@@ -562,6 +573,12 @@ public:
 private:
 	bool mouse_grabbed;				// Flag: mouse pointer grabbed, using relative mouse mode
 	int mouse_last_x, mouse_last_y;	// Last mouse position (for relative mode)
+};
+
+class driver_fullscreen : public driver_base {
+public:
+	driver_fullscreen(SDL_monitor_desc &monitor);
+	~driver_fullscreen();
 };
 
 static driver_base *drv = NULL;	// Pointer to currently used driver object
@@ -779,6 +796,99 @@ void driver_window::mouse_moved(int x, int y)
 	ADBMouseMoved(x, y);
 }
 
+
+/*
+ *  Full-screen display driver
+ */
+
+// Open display
+driver_fullscreen::driver_fullscreen(SDL_monitor_desc &m)
+	: driver_base(m)
+{
+	int width = VIDEO_MODE_X, height = VIDEO_MODE_Y;
+	int aligned_width = (width + 15) & ~15;
+	int aligned_height = (height + 15) & ~15;
+
+	// Set absolute mouse mode
+	ADBSetRelMouseMode(false);
+
+	// Create surface
+	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
+	if ((s = SDL_SetVideoMode(width, height, depth, SDL_HWSURFACE | SDL_FULLSCREEN)) == NULL)
+		return;
+
+#ifdef ENABLE_VOSF
+	use_vosf = true;
+	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
+	the_host_buffer = (uint8 *)s->pixels;
+	the_buffer_size = page_extend((aligned_height + 2) * s->pitch);
+	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
+	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
+	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
+
+	// Check whether we can initialize the VOSF subsystem and it's profitable
+	if (!video_vosf_init(m)) {
+		WarningAlert(STR_VOSF_INIT_ERR);
+		use_vosf = false;
+	}
+	else if (!video_vosf_profitable()) {
+		video_vosf_exit();
+		printf("VOSF acceleration is not profitable on this platform, disabling it\n");
+		use_vosf = false;
+	}
+	if (!use_vosf) {
+		free(the_buffer_copy);
+		vm_release(the_buffer, the_buffer_size);
+		the_host_buffer = NULL;
+	}
+#endif
+	if (!use_vosf) {
+		// Allocate memory for frame buffer
+		the_buffer_size = (aligned_height + 2) * s->pitch;
+		the_buffer_copy = (uint8 *)calloc(1, the_buffer_size);
+		the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
+		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
+	}
+	
+	// Hide cursor
+	SDL_ShowCursor(0);
+
+	// Init blitting routines
+	SDL_PixelFormat *f = s->format;
+	VisualFormat visualFormat;
+	visualFormat.depth = depth;
+	visualFormat.Rmask = f->Rmask;
+	visualFormat.Gmask = f->Gmask;
+	visualFormat.Bmask = f->Bmask;
+	Screen_blitter_init(visualFormat, true, mac_depth_of_video_depth(VIDEO_MODE_DEPTH));
+
+	// Load gray ramp to 8->16/32 expand map
+	if (!IsDirectMode(mode))
+		for (int i=0; i<256; i++)
+			ExpandMap[i] = SDL_MapRGB(f, i, i, i);
+
+	// Set frame buffer base
+	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
+
+	// Everything went well
+	init_ok = true;
+}
+
+// Close display
+driver_fullscreen::~driver_fullscreen()
+{
+#ifdef ENABLE_VOSF
+	if (use_vosf)
+		the_host_buffer = NULL;	// don't free() in driver_base dtor
+#endif
+	if (s)
+		SDL_FreeSurface(s);
+
+	// Show cursor
+	SDL_ShowCursor(1);
+}
+
+
 /*
  *  Initialization
  */
@@ -877,6 +987,9 @@ bool SDL_monitor_desc::video_open(void)
 	case DISPLAY_WINDOW:
 		drv = new(std::nothrow) driver_window(*this);
 		break;
+	case DISPLAY_SCREEN:
+		drv = new(std::nothrow) driver_fullscreen(*this);
+		break;
 	}
 	if (drv == NULL)
 		return false;
@@ -934,12 +1047,10 @@ bool VideoInit(bool classic)
 
 	// Get screen mode from preferences
 	const char *mode_str = NULL;
-#ifndef SHEEPSHAVER
 	if (classic_mode)
 		mode_str = "win/512/342";
 	else
 		mode_str = PrefsFindString("screen");
-#endif
 
 	// Determine display type and default dimensions
 	int default_width, default_height;
@@ -955,6 +1066,8 @@ bool VideoInit(bool classic)
 	if (mode_str) {
 		if (sscanf(mode_str, "win/%d/%d", &default_width, &default_height) == 2)
 			display_type = DISPLAY_WINDOW;
+		else if (sscanf(mode_str, "dga/%d/%d", &default_width, &default_height) == 2)
+			display_type = DISPLAY_SCREEN;
 	}
 	int max_width = 640, max_height = 480;
 	SDL_Rect **modes = SDL_ListModes(NULL, SDL_FULLSCREEN | SDL_HWSURFACE);
@@ -1008,8 +1121,42 @@ bool VideoInit(bool classic)
 					add_window_modes(video_depth(d));
 			}
 		}
-	} else
-		add_mode(display_type, default_width, default_height, 0x80, TrivialBytesPerRow(default_width, (video_depth)default_depth), default_depth);
+	} else if (display_type == DISPLAY_SCREEN) {
+		struct {
+			int w;
+			int h;
+			int resolution_id;
+		}
+		video_modes[] = {
+			{   -1,   -1, 0x80 },
+			{  640,  480, 0x81 },
+			{  800,  600, 0x82 },
+			{ 1024,  768, 0x83 },
+			{ 1152,  870, 0x84 },
+			{ 1280, 1024, 0x85 },
+			{ 1600, 1200, 0x86 },
+			{ 0, }
+		};
+		video_modes[0].w = default_width;
+		video_modes[0].h = default_height;
+
+		for (int i = 0; video_modes[i].w != 0; i++) {
+			const int w = video_modes[i].w;
+			const int h = video_modes[i].h;
+			if (i > 0 && (w >= default_width || h >= default_height))
+				continue;
+#ifdef ENABLE_VOSF
+			for (int d = VIDEO_DEPTH_1BIT; d <= default_depth; d++) {
+				int bpp = sdl_depth_of_video_depth(d);
+				if (SDL_VideoModeOK(w, h, bpp, SDL_HWSURFACE | SDL_FULLSCREEN))
+					add_mode(display_type, w, h, video_modes[i].resolution_id, TrivialBytesPerRow(w, (video_depth)d), d);
+			}
+#else
+			add_mode(display_type, w, h, video_modes[i].resolution_id, TrivialBytesPerRow(w, (video_depth)default_depth), default_depth);
+#endif
+		}
+	}
+
 	if (VideoModes.empty()) {
 		ErrorAlert(STR_NO_XVISUAL_ERR);
 		return false;
@@ -1429,6 +1576,8 @@ static int kc_decode(SDL_keysym const & ks, bool key_down)
 	case SDLK_LMETA: return 0x3a;
 	case SDLK_RMETA: return 0x3a;
 #endif
+	case SDLK_LSUPER: return 0x3a; // "Windows" key
+	case SDLK_RSUPER: return 0x3a;
 	case SDLK_MENU: return 0x32;
 	case SDLK_CAPSLOCK: return 0x39;
 	case SDLK_NUMLOCK: return 0x47;
@@ -1822,7 +1971,7 @@ static void video_refresh_dga_vosf(void)
 		tick_counter = 0;
 		if (mainBuffer.dirty) {
 			LOCK_VOSF;
-			update_display_dga_vosf();
+			update_display_dga_vosf(static_cast<driver_fullscreen *>(drv));
 			UNLOCK_VOSF;
 		}
 	}
