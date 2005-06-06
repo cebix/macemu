@@ -109,7 +109,7 @@ depend dep:
 	makedepend $(CPPFLAGS) -Y. $(SRCS) 2>/dev/null
 
 $(OBJ_DIR)/%.o : ../slirp/%.c
-	$(CC) $(CPPFLAGS) $(DEFS) $(SLIRP_CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(SLIRP_CFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.c
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.cpp
