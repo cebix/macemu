@@ -286,8 +286,8 @@ static void sigsegv_dump_state(sigsegv_address_t fault_address, sigsegv_address_
 #ifdef ENABLE_MON
 	char *arg[4] = {"mon", "-m", "-r", NULL};
 	mon(3, arg);
-	QuitEmulator();
 #endif
+	QuitEmulator();
 }
 
 
