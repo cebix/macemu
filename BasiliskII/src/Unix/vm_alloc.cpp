@@ -231,7 +231,10 @@ void vm_exit(void)
 {
 #ifdef HAVE_MMAP_VM
 #ifndef zero_fd
-	close(zero_fd);
+	if (zero_fd != -1) {
+		close(zero_fd);
+		zero_fd = -1;
+	}
 #endif
 #endif
 }
