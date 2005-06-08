@@ -705,6 +705,7 @@ int main(int argc, char **argv)
 			{ 0xffff0000, 0x00370000, "S-star" },
 			{ 0xffff0000, 0x00350000, "Power4" },
 			{ 0xffff0000, 0x00390000, "PPC970" },
+			{ 0xffff0000, 0x003a0000, "POWER5" },
 			{ 0, 0, 0 }
 		};
 
