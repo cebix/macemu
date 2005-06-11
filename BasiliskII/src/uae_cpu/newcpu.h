@@ -295,5 +295,18 @@ extern void m68k_do_compile_execute(void);
 extern void m68k_compile_execute(void);
 #endif
 #endif
+#ifdef USE_CPU_EMUL_SERVICES
+extern int32 emulated_ticks;
+extern void cpu_do_check_ticks(void);
+
+static inline void cpu_check_ticks(void)
+{
+	if (--emulated_ticks <= 0)
+		cpu_do_check_ticks();
+}
+#else
+#define cpu_check_ticks()
+#define cpu_do_check_ticks()
+#endif
  
 #endif /* NEWCPU_H */

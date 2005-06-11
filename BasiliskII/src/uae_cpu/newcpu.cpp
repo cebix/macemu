@@ -1349,6 +1349,7 @@ void m68k_do_execute (void)
 		m68k_record_step(m68k_getpc());
 #endif
 		(*cpufunctbl[opcode])(opcode);
+		cpu_check_ticks();
 		if (SPCFLAGS_TEST(SPCFLAG_ALL_BUT_EXEC_RETURN)) {
 			if (m68k_do_specialties())
 				return;

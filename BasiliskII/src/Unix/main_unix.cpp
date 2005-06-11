@@ -292,6 +292,68 @@ static void sigsegv_dump_state(sigsegv_address_t fault_address, sigsegv_address_
 
 
 /*
+ *  Update virtual clock and trigger interrupts if necessary
+ */
+
+#ifdef USE_CPU_EMUL_SERVICES
+static uint64 n_check_ticks = 0;
+static uint64 emulated_ticks_start = 0;
+static uint64 emulated_ticks_count = 0;
+static int64 emulated_ticks_current = 0;
+static int32 emulated_ticks_quantum = 1000;
+int32 emulated_ticks = emulated_ticks_quantum;
+
+void cpu_do_check_ticks(void)
+{
+#if DEBUG
+	n_check_ticks++;
+#endif
+
+	uint64 now;
+	static uint64 next = 0;
+	if (next == 0)
+		next = emulated_ticks_start = GetTicks_usec();
+
+	// Update total instructions count
+	if (emulated_ticks <= 0) {
+		emulated_ticks_current += (emulated_ticks_quantum - emulated_ticks);
+		// XXX: can you really have a machine fast enough to overflow
+		// a 63-bit m68k instruction counter within 16 ms?
+		if (emulated_ticks_current < 0) {
+			printf("WARNING: Overflowed 63-bit m68k instruction counter in less than 16 ms!\n");
+			goto recalibrate_quantum;
+		}
+	}
+
+	// Check for interrupt opportunity
+	now = GetTicks_usec();
+	if (next < now) {
+		one_tick();
+		do {
+			next += 16625;
+		} while (next < now);
+		emulated_ticks_count++;
+
+		// Recalibrate 1000 Hz quantum every 10 ticks
+		static uint64 last = 0;
+		if (last == 0)
+			last = now;
+		else if (now - last > 166250) {
+		  recalibrate_quantum:
+			emulated_ticks_quantum = ((uint64)emulated_ticks_current * 1000) / (now - last);
+			emulated_ticks_current = 0;
+			last = now;
+		}
+	}
+
+	// Update countdown
+	if (emulated_ticks <= 0)
+		emulated_ticks += emulated_ticks_quantum;
+}
+#endif
+
+
+/*
  *  Main program
  */
 
@@ -652,6 +714,7 @@ int main(int argc, char **argv)
 	sigaction(SIGINT, &sigint_sa, NULL);
 #endif
 
+#ifndef USE_CPU_EMUL_SERVICES
 #if defined(HAVE_PTHREADS)
 
 	// POSIX threads available, start 60Hz thread
@@ -715,8 +778,9 @@ int main(int argc, char **argv)
 	setitimer(ITIMER_REAL, &req, NULL);
 
 #endif
+#endif
 
-#ifdef HAVE_PTHREADS
+#ifdef USE_PTHREADS_SERVICES
 	// Start XPRAM watchdog thread
 	memcpy(last_xpram, XPRAM, XPRAM_SIZE);
 	xpram_thread_active = (pthread_create(&xpram_thread, NULL, xpram_func, NULL) == 0);
@@ -745,7 +809,13 @@ void QuitEmulator(void)
 	Exit680x0();
 #endif
 
-#if defined(HAVE_PTHREADS)
+#if defined(USE_CPU_EMUL_SERVICES)
+	// Show statistics
+	uint64 emulated_ticks_end = GetTicks_usec();
+	D(bug("%ld ticks in %ld usec = %f ticks/sec [%ld tick checks]\n",
+		  (long)emulated_ticks_count, (long)(emulated_ticks_end - emulated_ticks_start),
+		  emulated_ticks_count * 1000000.0 / (emulated_ticks_end - emulated_ticks_start), (long)n_check_ticks));
+#elif defined(USE_PTHREADS_SERVICES)
 	// Stop 60Hz thread
 	if (tick_thread_active) {
 		tick_thread_cancel = true;
@@ -764,7 +834,7 @@ void QuitEmulator(void)
 	setitimer(ITIMER_REAL, &req, NULL);
 #endif
 
-#ifdef HAVE_PTHREADS
+#ifdef USE_PTHREADS_SERVICES
 	// Stop XPRAM watchdog thread
 	if (xpram_thread_active) {
 		xpram_thread_cancel = true;
@@ -1021,7 +1091,7 @@ static void xpram_watchdog(void)
 	}
 }
 
-#ifdef HAVE_PTHREADS
+#ifdef USE_PTHREADS_SERVICES
 static void *xpram_func(void *arg)
 {
 	while (!xpram_thread_cancel) {
@@ -1046,7 +1116,7 @@ static void one_second(void)
 	SetInterruptFlag(INTFLAG_1HZ);
 	TriggerInterrupt();
 
-#ifndef HAVE_PTHREADS
+#ifndef USE_PTHREADS_SERVICES
 	static int second_counter = 0;
 	if (++second_counter > 60) {
 		second_counter = 0;
@@ -1063,7 +1133,7 @@ static void one_tick(...)
 		one_second();
 	}
 
-#if !defined(HAVE_PTHREADS) && !defined(USE_SDL_VIDEO)
+#if !defined(USE_PTHREADS_SERVICES) && !defined(USE_SDL_VIDEO)
 	// No threads available, perform video refresh and networking from here
 	VideoRefresh();
 	SetInterruptFlag(INTFLAG_ETHER);
@@ -1076,7 +1146,7 @@ static void one_tick(...)
 	}
 }
 
-#ifdef HAVE_PTHREADS
+#ifdef USE_PTHREADS_SERVICES
 static void *tick_func(void *arg)
 {
 	uint64 start = GetTicks_usec();

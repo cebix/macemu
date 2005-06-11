@@ -6727,6 +6727,15 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 	    init_comp();
 	    was_comp=1;
 
+#ifdef USE_CPU_EMUL_SERVICES
+	    raw_sub_l_mi((uintptr)&emulated_ticks,blocklen);
+	    raw_jcc_b_oponly(NATIVE_CC_GT);
+	    uae_s8 *branchadd=(uae_s8*)get_target();
+	    emit_byte(0);
+	    raw_call((uintptr)cpu_do_check_ticks);
+	    *branchadd=(uintptr)get_target()-((uintptr)branchadd+1);
+#endif
+
 #if JIT_DEBUG
 		if (JITDebug) {
 			raw_mov_l_mi((uintptr)&last_regs_pc_p,(uintptr)pc_hist[0].location);
@@ -7037,6 +7046,9 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 	compile_time += (clock() - start_time);
 #endif
     }
+
+    /* Account for compilation time */
+    cpu_do_check_ticks();
 }
 
 void do_nothing(void)
@@ -7052,6 +7064,7 @@ void exec_nostats(void)
 		m68k_record_step(m68k_getpc());
 #endif
 		(*cpufunctbl[opcode])(opcode);
+		cpu_check_ticks();
 		if (end_block(opcode) || SPCFLAGS_TEST(SPCFLAG_ALL)) {
 			return; /* We will deal with the spcflags in the caller */
 		}
@@ -7077,6 +7090,7 @@ void execute_normal(void)
 			m68k_record_step(m68k_getpc());
 #endif
 			(*cpufunctbl[opcode])(opcode);
+			cpu_check_ticks();
 			if (end_block(opcode) || SPCFLAGS_TEST(SPCFLAG_ALL) || blocklen>=MAXRUN) {
 				compile_block(pc_hist, blocklen);
 				return; /* We will deal with the spcflags in the caller */

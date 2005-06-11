@@ -1549,7 +1549,7 @@ bool X11_monitor_desc::video_open(void)
 	LOCK_FRAME_BUFFER;
 
 	// Start redraw/input thread
-#ifdef HAVE_PTHREADS
+#ifdef USE_PTHREADS_SERVICES
 	redraw_thread_cancel = false;
 	Set_pthread_attr(&redraw_thread_attr, 0);
 	redraw_thread_active = (pthread_create(&redraw_thread, &redraw_thread_attr, redraw_func, NULL) == 0);
@@ -1745,7 +1745,7 @@ void X11_monitor_desc::video_close(void)
 	D(bug("video_close()\n"));
 
 	// Stop redraw thread
-#ifdef HAVE_PTHREADS
+#ifdef USE_PTHREADS_SERVICES
 	if (redraw_thread_active) {
 		redraw_thread_cancel = true;
 		redraw_thread_cancel_ack = false;
@@ -2596,7 +2596,7 @@ void VideoRefresh(void)
 const int VIDEO_REFRESH_HZ = 60;
 const int VIDEO_REFRESH_DELAY = 1000000 / VIDEO_REFRESH_HZ;
 
-#ifdef HAVE_PTHREADS
+#ifdef USE_PTHREADS_SERVICES
 static void *redraw_func(void *arg)
 {
 	int fd = ConnectionNumber(x_display);

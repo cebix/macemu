@@ -110,6 +110,19 @@
 /* BSD socket API supported */
 #define SUPPORTS_UDP_TUNNEL 1
 
+/* Use the CPU emulator to check for periodic tasks? */
+#ifdef HAVE_PTHREADS
+#define USE_PTHREADS_SERVICES
+#endif
+#if EMULATED_68K
+#if defined(__NetBSD__)
+#define USE_CPU_EMUL_SERVICES
+#endif
+#endif
+#ifdef USE_CPU_EMUL_SERVICES
+#undef USE_PTHREADS_SERVICES
+#endif
+
 
 /* Data types */
 typedef unsigned char uint8;
