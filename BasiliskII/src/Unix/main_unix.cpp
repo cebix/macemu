@@ -1163,7 +1163,7 @@ static void *tick_func(void *arg)
 		ticks++;
 	}
 	uint64 end = GetTicks_usec();
-	D(bug("%Ld ticks in %Ld usec = %f ticks/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
+	D(bug("%lld ticks in %lld usec = %f ticks/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
 	return NULL;
 }
 #endif

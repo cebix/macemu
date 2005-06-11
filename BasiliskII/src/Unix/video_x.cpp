@@ -2637,7 +2637,7 @@ static void *redraw_func(void *arg)
 	}
 
 	uint64 end = GetTicks_usec();
-	D(bug("%Ld refreshes in %Ld usec = %f refreshes/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
+	D(bug("%lld refreshes in %lld usec = %f refreshes/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
 
 	redraw_thread_cancel_ack = true;
 	return NULL;
