@@ -123,7 +123,6 @@ dnl Do we need SDL?
 WANT_SDL=no
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   WANT_SDL=yes
-  WANT_FBDEV_DGA=no
   WANT_XF86_DGA=no
   WANT_XF86_VIDMODE=no
   WANT_FBDEV_DGA=no
