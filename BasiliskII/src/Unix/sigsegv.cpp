@@ -590,34 +590,26 @@ if (ret != KERN_SUCCESS) { \
 	exit (1); \
 }
 
-#define SIGSEGV_FAULT_ADDRESS			code[1]
-#define	SIGSEGV_FAULT_INSTRUCTION		get_fault_instruction(thread, state)
-#define SIGSEGV_FAULT_HANDLER_INVOKE(ADDR, IP)	((code[0] == KERN_PROTECTION_FAILURE) ? sigsegv_fault_handler(ADDR, IP) : SIGSEGV_RETURN_FAILURE)
-#define SIGSEGV_FAULT_HANDLER_ARGLIST	mach_port_t thread, exception_data_t code, ppc_thread_state_t *state
-#define SIGSEGV_FAULT_HANDLER_ARGS		thread, code, &state
+#ifdef __ppc__
+#define SIGSEGV_THREAD_STATE_TYPE		ppc_thread_state_t
+#define SIGSEGV_THREAD_STATE_FLAVOR		PPC_THREAD_STATE
+#define SIGSEGV_THREAD_STATE_COUNT		PPC_THREAD_STATE_COUNT
+#define SIGSEGV_FAULT_INSTRUCTION		state->srr0
 #define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
-#define SIGSEGV_REGISTER_FILE			&state->srr0, &state->r0
-
-// Given a suspended thread, stuff the current instruction and
-// registers into state.
-//
-// It would have been nice to have this be ppc/x86 independant which
-// could have been done easily with a thread_state_t instead of
-// ppc_thread_state_t, but because of the way this is called it is
-// easier to do it this way.
-#if (defined(ppc) || defined(__ppc__))
-static inline sigsegv_address_t get_fault_instruction(mach_port_t thread, ppc_thread_state_t *state)
-{
-	kern_return_t krc;
-	mach_msg_type_number_t count;
-
-	count = MACHINE_THREAD_STATE_COUNT;
-	krc = thread_get_state(thread, MACHINE_THREAD_STATE, (thread_state_t)state, &count);
-	MACH_CHECK_ERROR (thread_get_state, krc);
-
-	return (sigsegv_address_t)state->srr0;
-}
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)&state->srr0, (unsigned long *)&state->r0
 #endif
+#ifdef __i386__
+#define SIGSEGV_THREAD_STATE_TYPE		struct i386_saved_state
+#define SIGSEGV_THREAD_STATE_FLAVOR		i386_SAVED_STATE
+#define SIGSEGV_THREAD_STATE_COUNT		i386_SAVED_STATE_COUNT
+#define SIGSEGV_FAULT_INSTRUCTION		state->eip
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#define SIGSEGV_REGISTER_FILE			((unsigned long *)&state->edi) /* EDI is the first GPR we consider */
+#endif
+#define SIGSEGV_FAULT_ADDRESS			code[1]
+#define SIGSEGV_FAULT_HANDLER_INVOKE(ADDR, IP)	((code[0] == KERN_PROTECTION_FAILURE) ? sigsegv_fault_handler(ADDR, IP) : SIGSEGV_RETURN_FAILURE)
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	mach_port_t thread, exception_data_t code, SIGSEGV_THREAD_STATE_TYPE *state
+#define SIGSEGV_FAULT_HANDLER_ARGS		thread, code, &state
 
 // Since there can only be one exception thread running at any time
 // this is not a problem.
@@ -771,6 +763,20 @@ enum {
 	X86_REG_ESI = ESI,
 	X86_REG_EDI = EDI
 #endif
+};
+#endif
+#if defined(__APPLE__) && defined(__MACH__)
+// expected to be the same as FreeBSD
+enum {
+	X86_REG_EIP = 10,
+	X86_REG_EAX = 7,
+	X86_REG_ECX = 6,
+	X86_REG_EDX = 5,
+	X86_REG_EBX = 4,
+	X86_REG_ESP = 13,
+	X86_REG_EBP = 2,
+	X86_REG_ESI = 1,
+	X86_REG_EDI = 0
 };
 #endif
 #if defined(_WIN32)
@@ -1562,6 +1568,16 @@ static bool arm_skip_instruction(unsigned long * regs)
 // It is called from the signal handler or the exception handler.
 static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 {
+#ifdef HAVE_MACH_EXCEPTIONS
+	// We must match the initial count when writing back the CPU state registers
+	kern_return_t krc;
+	mach_msg_type_number_t count;
+
+	count = SIGSEGV_THREAD_STATE_COUNT;
+	krc = thread_get_state(thread, SIGSEGV_THREAD_STATE_FLAVOR, (thread_state_t)state, &count);
+	MACH_CHECK_ERROR (thread_get_state, krc);
+#endif
+
 	sigsegv_address_t fault_address = (sigsegv_address_t)SIGSEGV_FAULT_ADDRESS;
 	sigsegv_address_t fault_instruction = (sigsegv_address_t)SIGSEGV_FAULT_INSTRUCTION;
 	
@@ -1580,12 +1596,10 @@ static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 			// is modified off of the stack, in Mach we
 			// need to actually call thread_set_state to
 			// have the register values updated.
-			kern_return_t krc;
-
 			krc = thread_set_state(thread,
-								   MACHINE_THREAD_STATE, (thread_state_t)state,
-								   MACHINE_THREAD_STATE_COUNT);
-			MACH_CHECK_ERROR (thread_get_state, krc);
+								   SIGSEGV_THREAD_STATE_FLAVOR, (thread_state_t)state,
+								   count);
+			MACH_CHECK_ERROR (thread_set_state, krc);
 #endif
 			return true;
 		}
@@ -1731,7 +1745,7 @@ catch_exception_raise(mach_port_t exception_port,
 					  exception_data_t code,
 					  mach_msg_type_number_t codeCount)
 {
-	ppc_thread_state_t state;
+	SIGSEGV_THREAD_STATE_TYPE state;
 	kern_return_t krc;
 
 	if ((exception == EXC_BAD_ACCESS)  && (codeCount >= 2)) {
@@ -1870,7 +1884,7 @@ static bool sigsegv_do_install_handler(sigsegv_fault_handler_t handler)
 	// addressing modes) used in PPC instructions, you will need the
 	// GPR state anyway.
 	krc = thread_set_exception_ports(mach_thread_self(), EXC_MASK_BAD_ACCESS, _exceptionPort,
-				EXCEPTION_DEFAULT, MACHINE_THREAD_STATE);
+				EXCEPTION_DEFAULT, SIGSEGV_THREAD_STATE_FLAVOR);
 	if (krc != KERN_SUCCESS) {
 		mach_error("thread_set_exception_ports", krc);
 		return false;
