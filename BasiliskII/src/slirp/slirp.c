@@ -123,7 +123,7 @@ void slirp_cleanup(void)
 }
 #endif
 
-void slirp_init(void)
+int slirp_init(void)
 {
     //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
     
@@ -147,12 +147,11 @@ void slirp_init(void)
     getouraddr();
     inet_aton("127.0.0.1", &loopback_addr);
 
-    if (get_dns_addr(&dns_addr) < 0) {
-        fprintf(stderr, "Could not get DNS address\n");
-        exit(1);
-    }
+    if (get_dns_addr(&dns_addr) < 0)
+        return -1;
 
     inet_aton(CTL_SPECIAL, &special_addr);
+    return 0;
 }
 
 #define CONN_CANFSEND(so) (((so)->so_state & (SS_FCANTSENDMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)

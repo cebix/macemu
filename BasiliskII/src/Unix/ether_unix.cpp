@@ -224,7 +224,11 @@ bool ether_init(void)
 #ifdef HAVE_SLIRP
 	// Initialize slirp library
 	if (net_if_type == NET_IF_SLIRP) {
-		slirp_init();
+		if (slirp_init() < 0) {
+			sprintf(str, GetString(STR_SLIRP_NO_DNS_FOUND_WARN));
+			WarningAlert(str);
+			return false;
+		}
 
 		// Open slirp output pipe
 		int fds[2];
