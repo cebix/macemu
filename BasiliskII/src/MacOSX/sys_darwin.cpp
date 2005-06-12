@@ -31,7 +31,7 @@
 #import <IOKit/serial/IOSerialKeys.h>
 #import <IOKit/storage/IOMedia.h>
 #import <IOKit/storage/IOMediaBSDClient.h>
-#ifdef MAC_OS_X_VERSION_10_2
+#ifdef HAVE_IOKIT_STORAGE_IOBLOCKSTORAGEDEVICE_H
 	#import <IOKit/storage/IOBlockStorageDevice.h>
 #endif
 #import <IOKit/storage/IOCDMedia.h>

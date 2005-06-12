@@ -292,6 +292,7 @@ AC_CHECK_HEADERS(linux/if.h linux/if_tun.h net/if.h net/if_tun.h, [], [], [
 #endif
 ])
 AC_CHECK_HEADERS(AvailabilityMacros.h)
+AC_CHECK_HEADERS(IOKit/storage/IOBlockStorageDevice.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
@@ -409,6 +410,7 @@ AC_DEFUN(AC_CHECK_FRAMEWORK, [
 dnl Check for some MacOS X frameworks
 AC_CHECK_FRAMEWORK(Carbon, [#include <Carbon/Carbon.h>])
 AC_CHECK_FRAMEWORK(IOKit, [#include <IOKit/IOKitLib.h>])
+AC_CHECK_FRAMEWORK(CoreFoundation, [#include <CoreFoundation/CoreFoundation.h>])
 
 dnl Select system-dependant source files.
 SERIALSRC=serial_unix.cpp
@@ -475,7 +477,7 @@ irix*)
   ;;
 darwin*)
   ETHERSRC=ether_unix.cpp
-  if [[ "x$ac_cv_framework_IOKit" = "xyes" ]]; then
+  if [[ "x$ac_cv_framework_IOKit" = "xyes" -a "x$ac_cv_framework_CoreFoundation" = "xyes" ]]; then
     EXTRASYSSRCS="../MacOSX/sys_darwin.cpp"
   fi
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
