@@ -1143,7 +1143,7 @@ if [[ "x$ac_cv_use_dyngen" = "xyes" ]]; then
   AC_CACHE_CHECK([whether static data regions are executable],
     ac_cv_have_static_data_exec, [
     AC_TRY_RUN([int main(void) {
-#if defined(__powerpc__)
+#if defined(__powerpc__) || defined(__ppc__)
       static unsigned int p[8] = {0x4e800020,};
       asm volatile("dcbst 0,%0" : : "r" (p) : "memory");
       asm volatile("sync" : : : "memory");
