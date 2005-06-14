@@ -101,10 +101,14 @@ static uint8 *the_buffer_copy = NULL;				// Copy of Mac frame buffer (for refres
 static uint32 the_buffer_size;						// Size of allocated the_buffer
 
 static bool redraw_thread_active = false;			// Flag: Redraw thread installed
+#ifndef USE_CPU_EMUL_SERVICES
 static volatile bool redraw_thread_cancel;			// Flag: Cancel Redraw thread
 static SDL_Thread *redraw_thread = NULL;			// Redraw thread
+#ifdef SHEEPSHAVER
 static volatile bool thread_stop_req = false;
 static volatile bool thread_stop_ack = false;		// Acknowledge for thread_stop_req
+#endif
+#endif
 
 #ifdef ENABLE_VOSF
 static bool use_vosf = false;						// Flag: VOSF enabled
@@ -1006,12 +1010,16 @@ bool SDL_monitor_desc::video_open(void)
 	LOCK_FRAME_BUFFER;
 
 	// Start redraw/input thread
+#ifndef USE_CPU_EMUL_SERVICES
 	redraw_thread_cancel = false;
 	redraw_thread_active = ((redraw_thread = SDL_CreateThread(redraw_func, NULL)) != NULL);
 	if (!redraw_thread_active) {
 		printf("FATAL: cannot create redraw thread\n");
 		return false;
 	}
+#else
+	redraw_thread_active = true;
+#endif
 	return true;
 }
 
@@ -1228,10 +1236,12 @@ void SDL_monitor_desc::video_close(void)
 	D(bug("video_close()\n"));
 
 	// Stop redraw thread
+#ifndef USE_CPU_EMUL_SERVICES
 	if (redraw_thread_active) {
 		redraw_thread_cancel = true;
 		SDL_WaitThread(redraw_thread, NULL);
 	}
+#endif
 	redraw_thread_active = false;
 
 	// Unlock frame buffer
@@ -2035,9 +2045,45 @@ static void VideoRefreshInit(void)
 	}
 }
 
+static inline void do_video_refresh(void)
+{
+	// Handle SDL events
+	handle_events();
+
+	// Update display
+	video_refresh();
+
+#ifdef SHEEPSHAVER
+	// Set new cursor image if it was changed
+	if (cursor_changed && sdl_cursor) {
+		cursor_changed = false;
+		SDL_FreeCursor(sdl_cursor);
+		sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, MacCursor[2], MacCursor[3]);
+		if (sdl_cursor)
+			SDL_SetCursor(sdl_cursor);
+	}
+#endif
+
+	// Set new palette if it was changed
+	handle_palette_changes();
+}
+
+// This function is called on non-threaded platforms from a timer interrupt
+void VideoRefresh(void)
+{
+	// We need to check redraw_thread_active to inhibit refreshed during
+	// mode changes on non-threaded platforms
+	if (!redraw_thread_active)
+		return;
+
+	// Process pending events and update display
+	do_video_refresh();
+}
+
 const int VIDEO_REFRESH_HZ = 60;
 const int VIDEO_REFRESH_DELAY = 1000000 / VIDEO_REFRESH_HZ;
 
+#ifndef USE_CPU_EMUL_SERVICES
 static int redraw_func(void *arg)
 {
 	uint64 start = GetTicks_usec();
@@ -2063,28 +2109,12 @@ static int redraw_func(void *arg)
 		}
 #endif
 
-		// Handle SDL events
-		handle_events();
-
-		// Refresh display
-		video_refresh();
-
-#ifdef SHEEPSHAVER
-		// Set new cursor image if it was changed
-		if (cursor_changed && sdl_cursor) {
-			cursor_changed = false;
-			SDL_FreeCursor(sdl_cursor);
-			sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, MacCursor[2], MacCursor[3]);
-			if (sdl_cursor)
-				SDL_SetCursor(sdl_cursor);
-		}
-#endif
-
-		// Set new palette if it was changed
-		handle_palette_changes();
+		// Process pending events and update display
+		do_video_refresh();
 	}
 
 	uint64 end = GetTicks_usec();
 	D(bug("%lld refreshes in %lld usec = %f refreshes/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
 	return 0;
 }
+#endif

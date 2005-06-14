@@ -1131,9 +1131,13 @@ static void one_tick(...)
 		one_second();
 	}
 
-#if !defined(USE_PTHREADS_SERVICES) && !defined(USE_SDL_VIDEO)
-	// No threads available, perform video refresh and networking from here
+#ifndef USE_PTHREADS_SERVICES
+	// Threads not used to trigger interrupts, perform video refresh from here
 	VideoRefresh();
+#endif
+
+#ifndef HAVE_PTHREADS
+	// No threads available, perform networking from here
 	SetInterruptFlag(INTFLAG_ETHER);
 #endif
 
