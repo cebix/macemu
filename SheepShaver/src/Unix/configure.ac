@@ -1033,7 +1033,7 @@ fi
 AC_MSG_RESULT($HAVE_ICC)
 
 dnl Determine the generated object format
-AC_CACHE_CHECK([whether the compiler can generate ELF objects],
+AC_CACHE_CHECK([the format of compiler generated objects],
   ac_cv_object_format, [
   echo 'int i;' > conftest.$ac_ext
   ac_cv_object_format=no
@@ -1041,6 +1041,9 @@ AC_CACHE_CHECK([whether the compiler can generate ELF objects],
     case `/usr/bin/file conftest.$ac_objext` in
     *"ELF"*)
       ac_cv_object_format=elf
+      ;;
+    *"Mach-O"*)
+      ac_cv_object_format=mach
       ;;
     *)
       ac_cv_object_format=unknown
@@ -1074,6 +1077,9 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
       i?86:elf)
         ac_cv_use_dyngen=yes
         ;;
+      powerpc:mach)
+        ac_cv_use_dyngen=yes
+        ;;
       *:*)
         ac_cv_use_dyngen=no
         ;;
@@ -1099,14 +1105,19 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
       case $host_cpu in
       i?86)
         DYNGEN_OP_FLAGS="-fomit-frame-pointer -mpreferred-stack-boundary=2"
-        if [[ "x$HAVE_GCC30" = "xyes" ]]; then
-          DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -falign-functions=0"
-        else
-          DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -malign-functions=0"
+        ;;
+      powerpc)
+        if [[ "x$ac_cv_object_format" = "xmach" ]]; then
+          DYNGEN_OP_FLAGS="-mdynamic-no-pic"
         fi
         ;;
       esac
-      DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -finline-limit=10000 -g0"
+      if [[ "x$HAVE_GCC30" = "xyes" ]]; then
+        DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -falign-functions=0"
+      else
+        DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -malign-functions=0"
+      fi
+      DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -finline-limit=10000 -fno-exceptions -g0"
       if [[ "x$HAVE_GCC30" = "xyes" ]]; then
         DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -fno-reorder-blocks -fno-optimize-sibling-calls"
       fi

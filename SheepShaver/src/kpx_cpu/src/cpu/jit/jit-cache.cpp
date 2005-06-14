@@ -32,7 +32,7 @@
 // Default cache size
 #if defined(__alpha__)
 const int JIT_CACHE_SIZE = 2 * 1024 * 1024;
-#elif defined(__powerpc__)
+#elif defined(__powerpc__) || defined(__ppc__)
 const int JIT_CACHE_SIZE = 4 * 1024 * 1024;
 #else
 const int JIT_CACHE_SIZE = 8 * 1024 * 1024;

@@ -85,7 +85,11 @@ extern int __op_param1 __hidden;
 extern int __op_param2 __hidden;
 extern int __op_param3 __hidden;
 #else
+#if defined(__APPLE__) && defined(__MACH__)
+static int __op_param1, __op_param2, __op_param3;
+#else
 extern int __op_param1, __op_param2, __op_param3;
+#endif
 #define PARAM1 ((long)(&__op_param1))
 #define PARAM2 ((long)(&__op_param2))
 #define PARAM3 ((long)(&__op_param3))
@@ -97,7 +101,7 @@ extern int __op_cpuparam;
 #endif
 
 // Direct block chaining support
-#if defined(__powerpc__)
+#if defined(__powerpc__) || defined(__ppc__)
 #define DYNGEN_FAST_DISPATCH(TARGET) asm volatile ("b " ASM_NAME(TARGET))
 #endif
 #if defined(__i386__) || defined(__x86_64__)
@@ -108,15 +112,26 @@ extern int __op_jmp0, __op_jmp1;
 
 // Sections handling
 #if defined(__CYGWIN__) || defined(_WIN32)
-#define ASM_DATA_SECTION ".section .data\n"
-#define ASM_PREVIOUS_SECTION ".section .text\n"
-#define ASM_NAME(NAME) "_" #NAME
-#define ASM_SIZE(NAME) ""
+#define ASM_DATA_SECTION		".section .data\n"
+#define ASM_PREVIOUS_SECTION	".section .text\n"
+#define ASM_GLOBAL				".global"
+#define ASM_NAME(NAME)			"_" #NAME
+#define ASM_SIZE				""
+#elif defined(__APPLE__) && defined(__MACH__)
+#define ASM_DATA_SECTION		".data\n"
+#define ASM_PREVIOUS_SECTION	".text\n"
+#define ASM_GLOBAL				".globl"
+#define ASM_NAME(NAME)			"_" #NAME
+#define ASM_SIZE				""
+#if defined(__ppc__)
+#define ASM_OP_EXEC_RETURN_INSN	"0x18,0xde,0xad,0xff"
+#endif
 #else
-#define ASM_DATA_SECTION ".section \".data\"\n"
-#define ASM_PREVIOUS_SECTION ".previous\n"
-#define ASM_NAME(NAME) #NAME
-#define ASM_SIZE(NAME) ".size " ASM_NAME(NAME) ",.-" ASM_NAME(NAME)
+#define ASM_DATA_SECTION		".section \".data\"\n"
+#define ASM_PREVIOUS_SECTION	".previous\n"
+#define ASM_GLOBAL				".global"
+#define ASM_NAME(NAME)			#NAME
+#define ASM_SIZE(NAME)			".size " ASM_NAME(NAME) ",.-" ASM_NAME(NAME)
 #endif
 
 #endif /* DYNGEN_EXEC_H */

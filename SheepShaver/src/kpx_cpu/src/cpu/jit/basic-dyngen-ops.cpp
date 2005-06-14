@@ -237,6 +237,9 @@ DEFINE_OP(8,T0,1,T1);
 #ifdef __powerpc__
 #define FORCE_RET() asm volatile ("blr")
 #endif
+#ifdef __ppc__
+#define FORCE_RET() asm volatile ("blr")
+#endif
 #ifdef __s390__
 #define FORCE_RET() asm volatile ("br %r14")
 #endif
@@ -292,13 +295,17 @@ void OPPROTO op_execute(uint8 *entry_point, basic_cpu *this_cpu)
 #endif
 	SLOW_DISPATCH(entry_point);
 	func(); // NOTE: never called, fake to make compiler save return point
+#ifdef  ASM_OP_EXEC_RETURN_INSN
+	asm volatile ("1: .byte " ASM_OP_EXEC_RETURN_INSN);
+#else
 	asm volatile (ASM_DATA_SECTION);
-	asm volatile (".global " ASM_NAME(op_exec_return_offset));
+	asm volatile (ASM_GLOBAL " " ASM_NAME(op_exec_return_offset));
 	asm volatile (ASM_NAME(op_exec_return_offset) ":");
 	asm volatile (".long 1f-" ASM_NAME(op_execute));
 	asm volatile (ASM_SIZE(op_exec_return_offset));
 	asm volatile (ASM_PREVIOUS_SECTION);
 	asm volatile ("1:");
+#endif
 #ifdef REG_T3
 	reg_T3 = saved_T3;
 #endif

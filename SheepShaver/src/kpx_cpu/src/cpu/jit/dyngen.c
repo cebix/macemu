@@ -39,13 +39,18 @@
 #define CONFIG_WIN32 1
 #endif
 #endif
+#ifndef CONFIG_DARWIN
+#if defined(__APPLE__) && defined(__MACH__)
+#define CONFIG_DARWIN 1
+#endif
+#endif
 
 /* host cpu defs */
 #if CONFIG_WIN32
 #define HOST_I386 1
 #elif defined(__i386__)
 #define HOST_I386 1
-#elif defined(__powerpc__)
+#elif defined(__powerpc__) || defined(__ppc__)
 #define HOST_PPC 1
 #elif defined(__s390__)
 #define HOST_S390 1
@@ -1083,6 +1088,7 @@ struct symtab_command 	*symtabcmd = 0;
 /* section */
 struct section 	*section_hdr;
 struct section *text_sec_hdr;
+struct section *data_sec_hdr;
 uint8_t 	**sdata;
 
 /* relocs */
@@ -1265,11 +1271,11 @@ static const char * get_reloc_name(EXE_RELOC * rel, int * sslide)
 
 	switch(rel->r_type)
 	{
-		case PPC_RELOC_LO16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (sectoffset & 0xffff);
+		case PPC_RELOC_LO16: fetch_next_pair_value(rel+1, &other_half); sectoffset |= (other_half << 16);
 			break;
-		case PPC_RELOC_HI16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (other_half & 0xffff);
+		case PPC_RELOC_HI16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (sectoffset << 16) | (uint16_t)(other_half & 0xffff);
 			break;
-		case PPC_RELOC_HA16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (other_half & 0xffff);
+		case PPC_RELOC_HA16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (sectoffset << 16) + (int16_t)(other_half & 0xffff);
 			break;
 		case PPC_RELOC_BR24:
 			sectoffset = ( *(uint32_t *)(text + rel->r_address) & 0x03fffffc );
@@ -1384,10 +1390,16 @@ int load_object(const char *filename, FILE *outfile)
     sdata = (uint8_t **)malloc(sizeof(void *) * segment->nsects);
     memset(sdata, 0, sizeof(void *) * segment->nsects);
     
-	/* Load the data in section data */
-	for(i = 0; i < segment->nsects; i++) {
+    /* Load the data in section data */
+    for(i = 0; i < segment->nsects; i++)
         sdata[i] = load_data(fd, section_hdr[i].offset, section_hdr[i].size);
-    }
+
+    /* data section */
+    data_sec_hdr = find_mach_sec_hdr(section_hdr, segment->nsects, SEG_DATA, SECT_DATA);
+    i = find_mach_sec_index(section_hdr, segment->nsects, SEG_DATA, SECT_DATA);
+    if (i == -1 || !data_sec_hdr)
+        error("could not find __DATA,__data section");
+    data = sdata[i];
 	
     /* text section */
 	text_sec_hdr = find_mach_sec_hdr(section_hdr, segment->nsects, SEG_TEXT, SECT_TEXT);
@@ -1415,13 +1427,11 @@ int load_object(const char *filename, FILE *outfile)
 	
 	/* Now transform the symtab, to an extended version, with the sym size, and the C name */
 	for(i = 0, sym = symtab, syment = symtab_std; i < nb_syms; i++, sym++, syment++) {
-        const char *name;
         struct nlist *sym_follow, *sym_next = 0;
         unsigned int j;
-        name = find_str_by_index(sym->n_un.n_strx);
 		memset(sym, 0, sizeof(*sym));
 		
-		if ( sym->n_type & N_STAB ) /* Debug symbols are skipped */
+		if ( syment->n_type & N_STAB ) /* Debug symbols are skipped */
             continue;
 			
 		memcpy(sym, syment, sizeof(*syment));
@@ -1581,8 +1591,16 @@ void gen_code(const char *name, const char *demangled_name,
     p_start = text + offset;
     p_end = p_start + size;
     start_offset = offset;
-    if (op_execute)
-      copy_size = p_end - p_start;
+    if (op_execute) {
+        uint8_t *p;
+        copy_size = p_end - p_start;
+#if defined(HOST_PPC)
+        for (p = p_start; p < p_end; p += 4) {
+            if (get32((uint32_t *)p) == 0x18deadff)
+                fprintf(outfile, "DEFINE_CST(op_exec_return_offset,0x%xL)\n\n", (p + 4) - p_start);
+        }
+#endif
+    }
     else
 #if defined(HOST_I386) || defined(HOST_AMD64)
 #ifdef CONFIG_FORMAT_COFF
@@ -2130,11 +2148,16 @@ void gen_code(const char *name, const char *demangled_name,
 			
 					switch(type) {
 					case PPC_RELOC_BR24:
+                                          if (!strstart(sym_name, "__op_param", &p)) {
 						fprintf(outfile, "{\n");
 						fprintf(outfile, "    uint32_t imm = *(uint32_t *)(code_ptr() + %d) & 0x3fffffc;\n", slide);
 						fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = (*(uint32_t *)(code_ptr() + %d) & ~0x03fffffc) | ((imm + ((long)%s - (long)code_ptr()) + %d) & 0x03fffffc);\n", 
 											slide, slide, name, sslide );
 						fprintf(outfile, "}\n");
+                                          } else {
+                                              fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = (*(uint32_t *)(code_ptr() + %d) & ~0x03fffffc) | (((long)%s - (long)code_ptr() - %d) & 0x03fffffc);\n",
+                                                      slide, slide, final_sym_name, slide);
+                                          }
 						break;
 					case PPC_RELOC_HI16:
 						fprintf(outfile, "    *(uint16_t *)(code_ptr() + %d + 2) = (%s + %d) >> 16;\n", 

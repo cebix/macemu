@@ -28,7 +28,7 @@
 // Set jump target address
 static inline void dg_set_jmp_target(uint8 *jmp_addr, uint8 *addr)
 {
-#if defined(__powerpc__)
+#if defined(__powerpc__) || defined(__ppc__)
 	// patch the branch destination
 	uint32 *ptr = (uint32 *)jmp_addr;
 	uint32 val  = *ptr;
@@ -241,7 +241,7 @@ public:
 inline bool
 basic_dyngen::direct_jump_possible(uintptr target) const
 {
-#if defined(__powerpc__)
+#if defined(__powerpc__) || defined(__ppc__)
 	const uintptr LI_OFFSET_MAX = 1 << 26;
 	return (((target - (uintptr)code_ptr()) < LI_OFFSET_MAX) ||
 			(((uintptr)code_ptr() - target) < LI_OFFSET_MAX));
@@ -283,7 +283,7 @@ basic_dyngen::gen_exec_return()
 inline bool
 basic_dyngen::direct_call_possible(uintptr target) const
 {
-#if defined(__powerpc__)
+#if defined(__powerpc__) || defined(__ppc__)
 	const uintptr LI_OFFSET_MAX = 1 << 26;
 	return (((target - (uintptr)code_ptr()) < LI_OFFSET_MAX) ||
 			(((uintptr)code_ptr() - target) < LI_OFFSET_MAX));

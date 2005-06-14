@@ -25,7 +25,7 @@
 ///		Optimized memory accessors
 ///
 
-#if defined(__i386__) || defined(__powerpc__) || defined(__m68k__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__powerpc__) || defined(__ppc__) || defined(__m68k__) || defined(__x86_64__)
 # define VM_CAN_ACCESS_UNALIGNED
 #endif
 
