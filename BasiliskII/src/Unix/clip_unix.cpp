@@ -296,7 +296,8 @@ void ClipInit(void)
 void ClipExit(void)
 {
 	// Close window
-	XDestroyWindow(x_display, clip_win);
+	if (clip_win)
+		XDestroyWindow(x_display, clip_win);
 }
 
 
