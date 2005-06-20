@@ -51,6 +51,8 @@ prefs_desc platform_prefs_items[] = {
 	{"routerenabled", TYPE_BOOLEAN, false,          "enable NAT/Router module"},
 	{"ftp_port_list", TYPE_STRING, false,           "FTP ports list"},
 	{"tcp_port", TYPE_STRING, false,                "TCP ports list"},
+	{"portfile0", TYPE_STRING, false,               "output file for serial port 0"},
+	{"portfile1", TYPE_STRING, false,               "output file for serial port 1"},
 
 	{NULL, TYPE_END, false, NULL} // End of list
 };
@@ -130,4 +132,6 @@ void AddPlatformPrefsDefaults(void)
 	PrefsReplaceInt32("ethermulticastmode", 0);
 	PrefsReplaceBool("routerenabled", false);
 	PrefsReplaceString("ftp_port_list", "21");
+	PrefsReplaceString("portfile0", "C:\\B2TEMP0.OUT");
+	PrefsReplaceString("portfile1", "C:\\B2TEMP1.OUT");
 }

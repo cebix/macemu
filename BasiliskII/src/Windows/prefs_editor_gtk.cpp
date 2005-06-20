@@ -978,7 +978,7 @@ static void create_input_pane(GtkWidget *top)
 
 
 /*
- *  "Ports" pane
+ *  "Serial" pane
  */
 
 static GtkWidget *w_seriala, *w_portfile0, *w_portfile0_browse;
@@ -1044,7 +1044,7 @@ static GList *add_serial_names(void)
 	return glist;
 }
 
-// Create "Ports" pane
+// Create "Serial" pane
 static void create_serial_pane(GtkWidget *top)
 {
 	GtkWidget *box, *hbox, *table, *label, *combo, *sep, *entry;
