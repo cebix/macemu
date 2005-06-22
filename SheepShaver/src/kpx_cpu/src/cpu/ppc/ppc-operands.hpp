@@ -21,7 +21,34 @@
 #ifndef PPC_OPERANDS_H
 #define PPC_OPERANDS_H
 
-#include <limits>
+/**
+ *		Numerical limits of vector registers components
+ **/
+
+template< class type >
+struct vector_numeric_limits {
+	static type min() throw();
+	static type max() throw();
+};
+
+#define DEFINE_NUMERIC_LIMITS(TYPE, SMAX, USFX)							\
+template<>																\
+struct vector_numeric_limits<TYPE> {									\
+	static inline TYPE min() throw() { return -(SMAX) - 1; }			\
+	static inline TYPE max() throw() { return SMAX; }					\
+};																		\
+template<>																\
+struct vector_numeric_limits<u##TYPE> {									\
+	static inline u##TYPE min() throw() { return 0##USFX; }				\
+	static inline u##TYPE max() throw() { return SMAX * 2##USFX + 1; }	\
+}
+
+DEFINE_NUMERIC_LIMITS( int8, 127, U);
+DEFINE_NUMERIC_LIMITS(int16, 32767, U);
+DEFINE_NUMERIC_LIMITS(int32, 2147483647L, UL);
+DEFINE_NUMERIC_LIMITS(int64, 9223372036854775807LL, ULL);
+
+#undef DEFINE_NUMERIC_LIMITS
 
 /**
  *		Compile time checks
@@ -196,12 +223,12 @@ struct vector_saturate_operand : input_vr< field >, output_vr< field > {
 	static const uint32	element_size = sizeof(value_type);
 	static inline bool saturate(element_type & v) {
 		bool sat = false;
-		if (v > std::numeric_limits<value_type>::max()) {
-			v = std::numeric_limits<value_type>::max();
+		if (v > vector_numeric_limits<value_type>::max()) {
+			v = vector_numeric_limits<value_type>::max();
 			sat = true;
 		}
-		else if (v < std::numeric_limits<value_type>::min()) {
-			v = std::numeric_limits<value_type>::min();
+		else if (v < vector_numeric_limits<value_type>::min()) {
+			v = vector_numeric_limits<value_type>::min();
 			sat = true;
 		}
 		return sat;
