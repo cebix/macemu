@@ -240,7 +240,7 @@ static bool read_property(Display *dpy, Window win,
 
 
 /*
- *  Timed wait for an SelectionNotify event
+ *  Timed wait for a SelectionNotify event
  */
 
 static const uint64 SELECTION_MAX_WAIT = 500000; // 500 ms
@@ -662,6 +662,8 @@ static bool handle_selection(XSelectionRequestEvent *req, bool is_multiple)
 		out_event.xselection.time      = req->time;
 		XSendEvent(x_display, req->requestor, False, 0, &out_event);
 	}
+
+	return handled;
 }
 
 void ClipboardSelectionRequest(XSelectionRequestEvent *req)
