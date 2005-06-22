@@ -183,36 +183,42 @@ public:
 	void operator delete(void *p);
 };
 
-// Memory allocator returning areas aligned on 16-byte boundaries
+// Memory allocator returning sheepshaver_cpu objects aligned on 16-byte boundaries
+// FORMAT: [ alignment ] magic identifier, offset to malloc'ed data, sheepshaver_cpu data
 void *sheepshaver_cpu::operator new(size_t size)
 {
-	void *p;
+	const int ALIGN = 16;
 
-#if defined(HAVE_POSIX_MEMALIGN)
-	if (posix_memalign(&p, 16, size) != 0)
+	// Allocate enough space for sheepshaver_cpu data + signature + align pad
+	uint8 *ptr = (uint8 *)malloc(size + ALIGN * 2);
+	if (ptr == NULL)
 		throw std::bad_alloc();
-#elif defined(HAVE_MEMALIGN)
-	p = memalign(16, size);
-#elif defined(HAVE_VALLOC)
-	p = valloc(size); // page-aligned!
-#else
-	/* XXX: handle padding ourselves */
-	p = malloc(size);
-#endif
 
-	return p;
+	// Align memory
+	int ofs = 0;
+	while ((((uintptr)ptr) % ALIGN) != 0)
+		ofs++, ptr++;
+
+	// Insert signature and offset
+	struct aligned_block_t {
+		uint32 pad[(ALIGN - 8) / 4];
+		uint32 signature;
+		uint32 offset;
+		uint8  data[sizeof(sheepshaver_cpu)];
+	};
+	aligned_block_t *blk = (aligned_block_t *)ptr;
+	blk->signature = FOURCC('S','C','P','U');
+	blk->offset = ofs + (&blk->data[0] - (uint8 *)blk);
+	assert((((uintptr)&blk->data) % ALIGN) == 0);
+	return &blk->data[0];
 }
 
 void sheepshaver_cpu::operator delete(void *p)
 {
-#if defined(HAVE_MEMALIGN) || defined(HAVE_VALLOC)
-#if defined(__GLIBC__)
-	// this is known to work only with GNU libc
-	free(p);
-#endif
-#else
-	free(p);
-#endif
+	uint32 *blk = (uint32 *)p;
+	assert(blk[-2] == FOURCC('S','C','P','U'));
+	void *ptr = (void *)(((uintptr)p) - blk[-1]);
+	free(ptr);
 }
 
 sheepshaver_cpu::sheepshaver_cpu()

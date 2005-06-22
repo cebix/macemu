@@ -346,7 +346,6 @@ AC_CHECK_FUNCS(nanosleep)
 AC_CHECK_FUNCS(sigaction signal)
 AC_CHECK_FUNCS(mmap mprotect munmap)
 AC_CHECK_FUNCS(vm_allocate vm_deallocate vm_protect)
-AC_CHECK_FUNCS(posix_memalign memalign valloc)
 AC_CHECK_FUNCS(exp2f log2f exp2 log2)
 AC_CHECK_FUNCS(floorf roundf ceilf truncf floor round ceil trunc)
 
