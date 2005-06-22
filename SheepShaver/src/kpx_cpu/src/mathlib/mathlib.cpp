@@ -25,7 +25,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#if defined(HOST_FLOAT_WORDS_BIG_ENDIAN) || defined(WORDS_BIGENDIAN)
+// HOST_FLOAT_WORDS_BIG_ENDIAN is a tristate:
+//   yes (1) / no (0) / default (undefined)
+#if HOST_FLOAT_WORDS_BIG_ENDIAN
+#define FLOAT_WORD_ORDER_BIG_ENDIAN
+#elif defined(WORDS_BIGENDIAN)
 #define FLOAT_WORD_ORDER_BIG_ENDIAN
 #endif
 
