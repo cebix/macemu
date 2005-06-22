@@ -1239,7 +1239,7 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
           done
         fi
       fi
-      if [[ -z "$DYNGEN_CC" ]] || ! { echo '#include <limits>' | $DYNGEN_CC -xc++ -c -o /dev/null - >& /dev/null; }; then
+      if [[ -z "$DYNGEN_CC" ]]; then
         ac_cv_use_dyngen=no
       fi
     ])
