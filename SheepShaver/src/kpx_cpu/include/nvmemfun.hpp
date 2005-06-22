@@ -27,8 +27,8 @@
 
 template< class PMF, class PF >
 inline PF nv_mem_fun_of(PMF pmf) {
-	if (pmf == NULL)
-		return NULL;
+	if (pmf == 0)
+		return 0;
 	union { PMF pmf; uintptr p[2]; } x;
 	x.pmf = pmf;
 #if defined(__GXX_ABI_VERSION) /* GCC >= 3.0 */
