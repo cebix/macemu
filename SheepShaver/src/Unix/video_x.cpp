@@ -1023,8 +1023,10 @@ static bool open_display(void)
 #endif
 
 	// Zero screen buffers, viRowBytes is initialized at this stage
-	memset(the_buffer, 0, VModes[cur_mode].viRowBytes * VModes[cur_mode].viYsize);
-	memset(the_buffer_copy, 0, VModes[cur_mode].viRowBytes * VModes[cur_mode].viYsize);
+	if (display_open) {
+		memset(the_buffer, 0, VModes[cur_mode].viRowBytes * VModes[cur_mode].viYsize);
+		memset(the_buffer_copy, 0, VModes[cur_mode].viRowBytes * VModes[cur_mode].viYsize);
+	}
 	return display_open;
 }
 
@@ -1643,8 +1645,10 @@ bool VideoInit(void)
 #endif
 
 	// Open window/screen
-	if (!open_display())
+	if (!open_display()) {
+		ErrorAlert(GetString(STR_OPEN_WINDOW_ERR));
 		return false;
+	}
 
 #if 0
 	// Ignore errors from now on
