@@ -361,6 +361,7 @@ asm(".weak " #NAME);											\
 asm(".set  helper_" #NAME "," #NAME);
 #else
 #define DEFINE_OP(NAME, CODE)					\
+extern "C" void OPPROTO NAME(void);				\
 void OPPROTO NAME(void)							\
 {												\
 	CODE;										\
