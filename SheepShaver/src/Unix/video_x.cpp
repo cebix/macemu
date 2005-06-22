@@ -53,6 +53,10 @@
 # include <X11/extensions/xf86vmode.h>
 #endif
 
+#ifdef ENABLE_FBDEV_DGA
+# include <sys/mman.h>
+#endif
+
 #include "main.h"
 #include "adb.h"
 #include "prefs.h"
