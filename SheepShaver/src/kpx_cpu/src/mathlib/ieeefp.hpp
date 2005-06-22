@@ -36,17 +36,4 @@ extern "C" int fesetround(int);
 
 #endif /* FENV_H */
 
-// Rounding
-#ifndef HAVE_TRUNC
-extern "C" double trunc(double);
-#endif
-
-// Comparison macros
-#ifndef isless
-#define isless(x, y) ((x) < (y))
-#endif
-#ifndef isgreater
-#define isgreater(x, y) ((x) > (y))
-#endif
-
 #endif /* IEEEFP_H */

@@ -55,23 +55,4 @@ enum {
 
 #endif
 
-// 7.12.14  Comparison macros
-#if defined(__GNUC__)
-#ifndef isless
-#define isless(x, y)														\
-({ register char __result;													\
-   __asm__ ("fucompp; fnstsw; testb $0x45, %%ah; setz %%al"					\
-			: "=a" (__result) : "u" (x), "t" (y) : "cc", "st", "st(1)");	\
-   __result; })
-#endif
-
-#ifndef isgreater
-#define isgreater(x, y)														\
-({ register char __result;													\
-   __asm__ ("fucompp; fnstsw; testb $0x45, %%ah; setz %%al"					\
-			: "=a" (__result) : "u" (y), "t" (x) : "cc", "st", "st(1)");	\
-   __result; })
-#endif
-#endif
-
 #endif /* IEEEFP_I386_H */
