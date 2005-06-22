@@ -2457,6 +2457,7 @@ static void generate_func (void)
 
 int main (int argc, char **argv)
 {
+    FILE *out;
     read_table68k ();
     do_merges ();
 
@@ -2472,7 +2473,7 @@ int main (int argc, char **argv)
 
     headerfile = fopen ("cputbl.h", "w");
     stblfile = fopen ("cpustbl.cpp", "w");
-    FILE *out = freopen ("cpuemu.cpp", "w", stdout);
+    out = freopen ("cpuemu.cpp", "w", stdout);
 
     generate_includes (stdout);
     generate_includes (stblfile);
