@@ -54,7 +54,7 @@ private:
 	register_info *reginfo;
 	void log_reg(int r) const { reginfo[r].count++; }
 #else
-	void log_reg(int r) { }
+	void log_reg(int r) const { }
 #endif
 
 protected:
