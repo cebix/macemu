@@ -136,4 +136,15 @@
 #define PPC_PROFILE_GENERIC_CALLS 0
 #endif
 
+
+/**
+ *	PPC_PROFILE_REGS_USE
+ *
+ *		Define to enable some statistics about registers use.
+ **/
+
+#ifndef PPC_PROFILE_REGS_USE
+#define PPC_PROFILE_REGS_USE 0
+#endif
+
 #endif /* PPC_CONFIG_H */

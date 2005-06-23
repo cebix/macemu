@@ -40,6 +40,23 @@ class powerpc_cpu
 {
 	powerpc_registers regs;
 
+#if PPC_PROFILE_REGS_USE
+	// Registers use statistics
+	// NOTE: the emulator is designed to access registers only through
+	// the gpr() accessors. The number of calls to gpr() matches exactly
+	// the number of register operands for an instruction.
+public:
+	struct register_info {
+		int id;
+		uint64 count;
+	};
+private:
+	register_info *reginfo;
+	void log_reg(int r) const { reginfo[r].count++; }
+#else
+	void log_reg(int r) { }
+#endif
+
 protected:
 
 	powerpc_spcflags & spcflags() { return regs.spcflags; }
@@ -77,8 +94,8 @@ protected:
 
 public:
 
-	uint32 & gpr(int i)			{ return regs.gpr[i]; }
-	uint32 gpr(int i) const		{ return regs.gpr[i]; }
+	uint32 & gpr(int i)			{ log_reg(i); return regs.gpr[i]; }
+	uint32 gpr(int i) const		{ log_reg(i); return regs.gpr[i]; }
 	double & fpr(int i)			{ return regs.fpr[i].d; }
 	double fpr(int i) const		{ return regs.fpr[i].d; }
 	uint64 & fpr_dw(int i)		{ return regs.fpr[i].j; }

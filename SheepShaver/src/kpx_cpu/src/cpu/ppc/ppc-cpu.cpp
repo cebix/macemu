@@ -19,6 +19,7 @@
  */
 
 #include "sysdeps.h"
+#include <stdlib.h>
 #include "vm_alloc.h"
 #include "cpu/vm.hpp"
 #include "cpu/ppc/ppc-cpu.hpp"
@@ -43,12 +44,20 @@ uint32 powerpc_cpu::generic_calls_count[PPC_I(MAX)];
 static int generic_calls_ids[PPC_I(MAX)];
 const int generic_calls_top_ten = 20;
 
-#include <stdlib.h>
 int generic_calls_compare(const void *e1, const void *e2)
 {
 	const int id1 = *(const int *)e1;
 	const int id2 = *(const int *)e2;
 	return powerpc_cpu::generic_calls_count[id1] < powerpc_cpu::generic_calls_count[id2];
+}
+#endif
+
+#if PPC_PROFILE_REGS_USE
+int register_info_compare(const void *e1, const void *e2)
+{
+	const powerpc_cpu::register_info *ri1 = (powerpc_cpu::register_info *)e1;
+	const powerpc_cpu::register_info *ri2 = (powerpc_cpu::register_info *)e2;
+	return ri1->count < ri2->count;
 }
 #endif
 
@@ -280,6 +289,14 @@ void powerpc_cpu::initialize()
 	compile_time = 0;
 	emul_start_time = clock();
 #endif
+
+#if PPC_PROFILE_REGS_USE
+	reginfo = new register_info[32];
+	for (int i = 0; i < 32; i++) {
+		reginfo[i].id = i;
+		reginfo[i].count = 0;
+	}
+#endif
 }
 
 #ifdef SHEEPSHAVER
@@ -349,6 +366,23 @@ powerpc_cpu::~powerpc_cpu()
 			printf("%03d: %10lu %2.1f%% %s\n", i, count, 100.0*double(count)/double(total_generic_calls_count), ii->name);
 		}
 	}
+#endif
+
+#if PPC_PROFILE_REGS_USE
+	printf("\n### Statistics for register usage\n");
+	uint64 tot_reg_count = 0;
+	for (int i = 0; i < 32; i++)
+		tot_reg_count += reginfo[i].count;
+	qsort(reginfo, 32, sizeof(register_info), register_info_compare);
+	uint64 cum_reg_count = 0;
+	for (int i = 0; i < 32; i++) {
+		cum_reg_count += reginfo[i].count;
+	    printf("r%-2d : %16lld %2.1f%% [%3.1f%%]\n",
+			   reginfo[i].id, reginfo[i].count,
+			   100.0*double(reginfo[i].count)/double(tot_reg_count),
+			   100.0*double(cum_reg_count)/double(tot_reg_count));
+	}
+	delete reginfo;
 #endif
 
 	kill_decode_cache();
