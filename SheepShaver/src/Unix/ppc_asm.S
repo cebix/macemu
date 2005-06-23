@@ -381,7 +381,6 @@ C_SYMBOL_NAME(jump_to_rom):
 	stw	r0,16(r1)
 	stw	r2,12(r1)
 	stwu	r1,-(24+16*4+15*8)(r1)
-	RESTORE_SYSTEM_R2
 
 	// Save 68k registers (M68kRegisters)
 	stw	r8,24+0*4(r1)	// d[0]..d[7]
@@ -916,57 +915,3 @@ C_SYMBOL_NAME(ppc_interrupt):
 	// Enter nanokernel
 	mtlr	r3
 	blr
-
-
-/*
- *  Glue for glibc with TLS support which clobbers r2
- *
- *  The following is derived from dietlibc and only provides
- *  pass-through to kernel syscalls. You also lose asynchronous
- *  cancellation support.
- */
-
-#if defined(__linux__)
-#define __NR_getpid		20
-#define __NR__newselect		142
-
-#define syscall_weak(name,wsym,sym) \
-.text; \
-.type wsym,@function; \
-.weak wsym; \
-wsym: ; \
-.type sym,@function; \
-.global sym; \
-sym: \
-	li	0,__NR_##name; \
-	b	__unified_syscall
-
-#define syscall(name,sym) \
-.text; \
-.type sym,@function; \
-.global sym; \
-sym: \
-	li	0,__NR_##name; \
-	b	__unified_syscall
-
-
-	.type __unified_syscall,@function
-__unified_syscall:
-	sc
-	bnslr+
-	stwu	1,-16(1)
-	mflr	0
-	stw	0,20(1)
-	stw	3,12(1)
-	bl	__errno_location
-	lwz	0,12(1)
-	stw	0,0(3)
-	lwz	0,20(1)
-	mtlr	0
-	addi	1,1,16
-	blr
-
-/*		name		weak symbol	symbol		*/
-syscall(	getpid,		getpid)
-syscall_weak(	_newselect,	select,		__select)
-#endif

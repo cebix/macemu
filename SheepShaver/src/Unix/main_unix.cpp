@@ -286,8 +286,8 @@ static inline int sig_stack_release(void)
 
 // Global variables (exported)
 #if !EMULATED_PPC
-void *TOC;				// Pointer to Thread Local Storage (r2)
-void *R13;				// Pointer to .sdata section (r13 under Linux)
+void *TOC = NULL;			// Pointer to Thread Local Storage (r2)
+void *R13 = NULL;			// Pointer to .sdata section (r13 under Linux)
 #endif
 uint32 RAMBase;			// Base address of Mac RAM
 uint32 RAMSize;			// Size of Mac RAM

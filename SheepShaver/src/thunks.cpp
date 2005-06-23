@@ -219,7 +219,7 @@ bool ThunksInit(void)
 #define DEFINE_NATIVE_OP(ID, FUNC) do {				\
 		uintptr base = SheepMem::Reserve(8);		\
 		WriteMacInt32(base + 0, (uint32)FUNC);		\
-		WriteMacInt32(base + 4, 0); /*Fake TVECT*/	\
+		WriteMacInt32(base + 4, (uint32)TOC);		\
 		native_op[ID].tvect = base;					\
 		native_op[ID].func  = (uint32)FUNC;			\
 	} while (0)
