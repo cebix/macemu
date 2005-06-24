@@ -245,6 +245,7 @@ C_SYMBOL_NAME(jump_to_rom):
 	// Restore PowerPC registers
 	lwz	r1,XLM_EMUL_RETURN_STACK(0)
 	RESTORE_SYSTEM_R2
+	RESTORE_SYSTEM_R13
 	lmw	r13,20(r1)
 	lfd	f14,20+19*4+0*8(r1)
 	lfd	f15,20+19*4+1*8(r1)
@@ -344,6 +345,8 @@ C_SYMBOL_NAME(jump_to_rom):
 	lwz	r0,56+19*4+18*8+4(r1)
 	mtlr	r0
 	addi	r1,r1,56+19*4+18*8
+	RESTORE_SYSTEM_R2
+	RESTORE_SYSTEM_R13
 	blr
 
 
@@ -380,88 +383,88 @@ C_SYMBOL_NAME(jump_to_rom):
 	mfxer	r0
 	stw	r0,16(r1)
 	stw	r2,12(r1)
-	stwu	r1,-(24+16*4+15*8)(r1)
+	stwu	r1,-(56+16*4+15*8)(r1)
 
 	// Save 68k registers (M68kRegisters)
-	stw	r8,24+0*4(r1)	// d[0]..d[7]
-	stw	r9,24+1*4(r1)
-	stw	r10,24+2*4(r1)
-	stw	r11,24+3*4(r1)
-	stw	r12,24+4*4(r1)
-	stw	r13,24+5*4(r1)
-	stw	r14,24+6*4(r1)
-	stw	r15,24+7*4(r1)
-	stw	r16,24+8*4(r1)	// a[0]..a[7]
-	stw	r17,24+9*4(r1)
-	stw	r18,24+10*4(r1)
-	stw	r19,24+11*4(r1)
-	stw	r20,24+12*4(r1)
-	stw	r21,24+13*4(r1)
-	stw	r22,24+14*4(r1)
-	stw	r3,24+15*4(r1)
-	stfd	f0,24+16*4+0*8(r1)
-	stfd	f1,24+16*4+1*8(r1)
-	stfd	f2,24+16*4+2*8(r1)
-	stfd	f3,24+16*4+3*8(r1)
-	stfd	f4,24+16*4+4*8(r1)
-	stfd	f5,24+16*4+5*8(r1)
-	stfd	f6,24+16*4+6*8(r1)
-	stfd	f7,24+16*4+7*8(r1)
+	stw	r8,56+0*4(r1)	// d[0]..d[7]
+	stw	r9,56+1*4(r1)
+	stw	r10,56+2*4(r1)
+	stw	r11,56+3*4(r1)
+	stw	r12,56+4*4(r1)
+	stw	r13,56+5*4(r1)
+	stw	r14,56+6*4(r1)
+	stw	r15,56+7*4(r1)
+	stw	r16,56+8*4(r1)	// a[0]..a[7]
+	stw	r17,56+9*4(r1)
+	stw	r18,56+10*4(r1)
+	stw	r19,56+11*4(r1)
+	stw	r20,56+12*4(r1)
+	stw	r21,56+13*4(r1)
+	stw	r22,56+14*4(r1)
+	stw	r3,56+15*4(r1)
+	stfd	f0,56+16*4+0*8(r1)
+	stfd	f1,56+16*4+1*8(r1)
+	stfd	f2,56+16*4+2*8(r1)
+	stfd	f3,56+16*4+3*8(r1)
+	stfd	f4,56+16*4+4*8(r1)
+	stfd	f5,56+16*4+5*8(r1)
+	stfd	f6,56+16*4+6*8(r1)
+	stfd	f7,56+16*4+7*8(r1)
 	mffs	f0
-	stfd	f8,24+16*4+8*8(r1)
-	stfd	f9,24+16*4+9*8(r1)
-	stfd	f10,24+16*4+10*8(r1)
-	stfd	f11,24+16*4+11*8(r1)
-	stfd	f12,24+16*4+12*8(r1)
-	stfd	f13,24+16*4+13*8(r1)
-	stfd	f0,24+16*4+14*8(r1)
+	stfd	f8,56+16*4+8*8(r1)
+	stfd	f9,56+16*4+9*8(r1)
+	stfd	f10,56+16*4+10*8(r1)
+	stfd	f11,56+16*4+11*8(r1)
+	stfd	f12,56+16*4+12*8(r1)
+	stfd	f13,56+16*4+13*8(r1)
+	stfd	f0,56+16*4+14*8(r1)
 
 	// Execute native routine
 	RESTORE_SYSTEM_R2
 	RESTORE_SYSTEM_R13
-	addi	r3,r1,24
+	addi	r3,r1,56
 	mr	r4,r24
 	bl	C_SYMBOL_NAME(EmulOp)
 
 	// Restore 68k registers (M68kRegisters)
-	lwz	r8,24+0*4(r1)	// d[0]..d[7]
-	lwz	r9,24+1*4(r1)
-	lwz	r10,24+2*4(r1)
-	lwz	r11,24+3*4(r1)
-	lwz	r12,24+4*4(r1)
-	lwz	r13,24+5*4(r1)
-	lwz	r14,24+6*4(r1)
-	lwz	r15,24+7*4(r1)
-	lwz	r16,24+8*4(r1)	// a[0]..a[7]
-	lwz	r17,24+9*4(r1)
-	lwz	r18,24+10*4(r1)
-	lwz	r19,24+11*4(r1)
-	lwz	r20,24+12*4(r1)
-	lwz	r21,24+13*4(r1)
-	lwz	r22,24+14*4(r1)
-	lwz	r3,24+15*4(r1)
-	lfd	f13,24+16*4+14*8(r1)
-	lfd	f0,24+16*4+0*8(r1)
-	lfd	f1,24+16*4+1*8(r1)
-	lfd	f2,24+16*4+2*8(r1)
-	lfd	f3,24+16*4+3*8(r1)
-	lfd	f4,24+16*4+4*8(r1)
-	lfd	f5,24+16*4+5*8(r1)
-	lfd	f6,24+16*4+6*8(r1)
-	lfd	f7,24+16*4+7*8(r1)
+	lwz	r8,56+0*4(r1)	// d[0]..d[7]
+	lwz	r9,56+1*4(r1)
+	lwz	r10,56+2*4(r1)
+	lwz	r11,56+3*4(r1)
+	lwz	r12,56+4*4(r1)
+	lwz	r13,56+5*4(r1)
+	lwz	r14,56+6*4(r1)
+	lwz	r15,56+7*4(r1)
+	lwz	r16,56+8*4(r1)	// a[0]..a[7]
+	lwz	r17,56+9*4(r1)
+	lwz	r18,56+10*4(r1)
+	lwz	r19,56+11*4(r1)
+	lwz	r20,56+12*4(r1)
+	lwz	r21,56+13*4(r1)
+	lwz	r22,56+14*4(r1)
+	lwz	r3,56+15*4(r1)
+	lfd	f13,56+16*4+14*8(r1)
+	lfd	f0,56+16*4+0*8(r1)
+	lfd	f1,56+16*4+1*8(r1)
+	lfd	f2,56+16*4+2*8(r1)
+	lfd	f3,56+16*4+3*8(r1)
+	lfd	f4,56+16*4+4*8(r1)
+	lfd	f5,56+16*4+5*8(r1)
+	lfd	f6,56+16*4+6*8(r1)
+	lfd	f7,56+16*4+7*8(r1)
 	mtfsf	0xff,f13
-	lfd	f8,24+16*4+8*8(r1)
-	lfd	f9,24+16*4+9*8(r1)
-	lfd	f10,24+16*4+10*8(r1)
-	lfd	f11,24+16*4+11*8(r1)
-	lfd	f12,24+16*4+12*8(r1)
-	lfd	f13,24+16*4+13*8(r1)
+	lfd	f8,56+16*4+8*8(r1)
+	lfd	f9,56+16*4+9*8(r1)
+	lfd	f10,56+16*4+10*8(r1)
+	lfd	f11,56+16*4+11*8(r1)
+	lfd	f12,56+16*4+12*8(r1)
+	lfd	f13,56+16*4+13*8(r1)
 
 	// Delete PowerPC stack frame
-	lwz	r2,24+16*4+15*8+12(r1)
-	lwz	r0,24+16*4+15*8+16(r1)
+	lwz	r2,56+16*4+15*8+12(r1)
+	lwz	r0,56+16*4+15*8+16(r1)
 	mtxer	r0
-	lwz	r0,24+16*4+15*8+4(r1)
+	lwz	r0,56+16*4+15*8+4(r1)
 	mtcrf	0xff,r0
 	mr	r1,r3
 
@@ -594,11 +597,11 @@ ASM_MACRO_START	prolog
 ASM_MACRO_END
 
 ASM_MACRO_START	epilog
-	RESTORE_SYSTEM_R2
-	RESTORE_SYSTEM_R13
 	lwz	r0,64+4(r1)
 	mtlr	r0
 	addi	r1,r1,64
+	RESTORE_SYSTEM_R2
+	RESTORE_SYSTEM_R13
 	blr
 ASM_MACRO_END
 
@@ -707,8 +710,7 @@ C_SYMBOL_NAME(call_macos7):
  *  Native resource manager patches
  */
 
-	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_resource)
-C_SYMBOL_NAME(get_resource):
+ASM_MACRO_START	do_get_resource XLM_OLD_GET_RESOURCE
 	// Create stack frame
 	mflr	r0
 	stw	r0,8(r1)
@@ -719,14 +721,15 @@ C_SYMBOL_NAME(get_resource):
 	stw	r4,56+4(r1)
 
 	// Call old routine
-	lwz	r0,XLM_GET_RESOURCE(0)
+	lwz	r0,\XLM_OLD_GET_RESOURCE(0)
 	lwz	r2,XLM_RES_LIB_TOC(0)
 	mtctr	r0
 	bctrl
-	RESTORE_SYSTEM_R2
 	stw	r3,56+8(r1)		// Save handle
 
 	// Call CheckLoad
+	RESTORE_SYSTEM_R2
+	RESTORE_SYSTEM_R13
 	lwz	r3,56(r1)
 	lha	r4,56+6(r1)
 	lwz	r5,56+8(r1)
@@ -738,134 +741,27 @@ C_SYMBOL_NAME(get_resource):
 	mtlr	r0
 	addi	r1,r1,56+12
 	blr
+ASM_MACRO_END
+
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_resource)
+C_SYMBOL_NAME(get_resource):
+	do_get_resource XLM_GET_RESOURCE
 
 	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_1_resource)
 C_SYMBOL_NAME(get_1_resource):
-	// Create stack frame
-	mflr	r0
-	stw	r0,8(r1)
-	stwu	r1,-(56+12)(r1)
-
-	// Save type/ID
-	stw	r3,56(r1)
-	stw	r4,56+4(r1)
-
-	// Call old routine
-	lwz	r0,XLM_GET_1_RESOURCE(0)
-	lwz	r2,XLM_RES_LIB_TOC(0)
-	mtctr	r0
-	bctrl
-	RESTORE_SYSTEM_R2
-	stw	r3,56+8(r1)		// Save handle
-
-	// Call CheckLoad
-	lwz	r3,56(r1)
-	lha	r4,56+6(r1)
-	lwz	r5,56+8(r1)
-	bl	C_SYMBOL_NAME(check_load_invoc)
-	lwz	r3,56+8(r1)		// Restore handle
-
-	// Return to caller
-	lwz	r0,56+12+8(r1)
-	mtlr	r0
-	addi	r1,r1,56+12
-	blr
+	do_get_resource XLM_GET_1_RESOURCE
 
 	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_ind_resource)
 C_SYMBOL_NAME(get_ind_resource):
-	// Create stack frame
-	mflr	r0
-	stw	r0,8(r1)
-	stwu	r1,-(56+12)(r1)
-
-	// Save type/index
-	stw	r3,56(r1)
-	stw	r4,56+4(r1)
-
-	// Call old routine
-	lwz	r0,XLM_GET_IND_RESOURCE(0)
-	lwz	r2,XLM_RES_LIB_TOC(0)
-	mtctr	r0
-	bctrl
-	RESTORE_SYSTEM_R2
-	stw	r3,56+8(r1)		// Save handle
-
-	// Call CheckLoad
-	lwz	r3,56(r1)
-	lha	r4,56+6(r1)
-	lwz	r5,56+8(r1)
-	bl	C_SYMBOL_NAME(check_load_invoc)
-	lwz	r3,56+8(r1)		// Restore handle
-
-	// Return to caller
-	lwz	r0,56+12+8(r1)
-	mtlr	r0
-	addi	r1,r1,56+12
-	blr
+	do_get_resource XLM_GET_IND_RESOURCE
 
 	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_1_ind_resource)
 C_SYMBOL_NAME(get_1_ind_resource):
-	// Create stack frame
-	mflr	r0
-	stw	r0,8(r1)
-	stwu	r1,-(56+12)(r1)
-
-	// Save type/index
-	stw	r3,56(r1)
-	stw	r4,56+4(r1)
-
-	// Call old routine
-	lwz	r0,XLM_GET_1_IND_RESOURCE(0)
-	lwz	r2,XLM_RES_LIB_TOC(0)
-	mtctr	r0
-	bctrl
-	RESTORE_SYSTEM_R2
-	stw	r3,56+8(r1)		// Save handle
-
-	// Call CheckLoad
-	lwz	r3,56(r1)
-	lha	r4,56+6(r1)
-	lwz	r5,56+8(r1)
-	bl	C_SYMBOL_NAME(check_load_invoc)
-	lwz	r3,56+8(r1)		// Restore handle
-
-	// Return to caller
-	lwz	r0,56+12+8(r1)
-	mtlr	r0
-	addi	r1,r1,56+12
-	blr
+	do_get_resource XLM_GET_1_IND_RESOURCE
 
 	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(r_get_resource)
 C_SYMBOL_NAME(r_get_resource):
-	// Create stack frame
-	mflr	r0
-	stw	r0,8(r1)
-	stwu	r1,-(56+12)(r1)
-
-	// Save type/ID
-	stw	r3,56(r1)
-	stw	r4,56+4(r1)
-
-	// Call old routine
-	lwz	r0,XLM_R_GET_RESOURCE(0)
-	lwz	r2,XLM_RES_LIB_TOC(0)
-	mtctr	r0
-	bctrl
-	RESTORE_SYSTEM_R2
-	stw	r3,56+8(r1)		// Save handle
-
-	// Call CheckLoad
-	lwz	r3,56(r1)
-	lha	r4,56+6(r1)
-	lwz	r5,56+8(r1)
-	bl	C_SYMBOL_NAME(check_load_invoc)
-	lwz	r3,56+8(r1)		// Restore handle
-
-	// Return to caller
-	lwz	r0,56+12+8(r1)
-	mtlr	r0
-	addi	r1,r1,56+12
-	blr
+	do_get_resource XLM_R_GET_RESOURCE
 
 
 /*
