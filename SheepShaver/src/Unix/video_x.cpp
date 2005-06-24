@@ -697,7 +697,7 @@ static bool open_fbdev_dga(int width, int height)
 	}
 	D(bug("[fbdev] visual: %s\n", fb_visual_str));
 
-	if (fb_visual != FB_VISUAL_TRUECOLOR) {
+	if (fb_visual != FB_VISUAL_TRUECOLOR && fb_visual != FB_VISUAL_DIRECTCOLOR) {
 		D(bug("[fbdev] visual '%s' not supported\n", fb_visual_str));
 		return false;
 	}
