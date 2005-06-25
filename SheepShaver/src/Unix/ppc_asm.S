@@ -180,7 +180,7 @@ C_SYMBOL_NAME(test_and_set):
 	isync
 	lwarx	r5,0,r3
 	cmpi	0,r5,0x0000
-	beq	1f
+	bne	1f
 	stwcx.	r4,0,r3
 	bne-	0b
 1:	isync     
