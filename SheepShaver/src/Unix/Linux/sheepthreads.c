@@ -358,9 +358,6 @@ int sem_destroy(sem_t *sem)
 
 int sem_wait(sem_t *sem)
 {
-	int cnt = 0;
-	struct timespec tm;
-
 	if (sem == NULL) {
 		errno = EINVAL;
 		return -1;
