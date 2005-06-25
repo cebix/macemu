@@ -372,7 +372,8 @@ typedef volatile int spinlock_t;
 
 static const spinlock_t SPIN_LOCK_UNLOCKED = 0;
 
-#if HAVE_TEST_AND_SET
+#if defined(HAVE_TEST_AND_SET) && defined(HAVE_PTHREADS)
+// There is nothing to lock if we are not in an multithreaded environment
 #define HAVE_SPINLOCKS 1
 static inline void spin_lock(spinlock_t *lock)
 {
@@ -442,16 +443,16 @@ typedef struct rgb_color {
 } rgb_color;
 
 // X11 display fast locks
-#ifdef HAVE_SPINLOCKS
-#define X11_LOCK_TYPE spinlock_t
-#define X11_LOCK_INIT SPIN_LOCK_UNLOCKED
-#define XDisplayLock() spin_lock(&x_display_lock)
-#define XDisplayUnlock() spin_unlock(&x_display_lock)
-#elif defined(HAVE_PTHREADS)
+#if defined(HAVE_PTHREADS)
 #define X11_LOCK_TYPE pthread_mutex_t
 #define X11_LOCK_INIT PTHREAD_MUTEX_INITIALIZER
 #define XDisplayLock() pthread_mutex_lock(&x_display_lock);
 #define XDisplayUnlock() pthread_mutex_unlock(&x_display_lock);
+#elif defined(HAVE_SPINLOCKS)
+#define X11_LOCK_TYPE spinlock_t
+#define X11_LOCK_INIT SPIN_LOCK_UNLOCKED
+#define XDisplayLock() spin_lock(&x_display_lock)
+#define XDisplayUnlock() spin_unlock(&x_display_lock)
 #else
 #define XDisplayLock()
 #define XDisplayUnlock()

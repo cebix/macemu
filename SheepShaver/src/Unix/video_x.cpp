@@ -168,28 +168,28 @@ static int num_x_video_modes;
 #endif
 
 // Mutex to protect palette
-#ifdef HAVE_SPINLOCKS
-static spinlock_t x_palette_lock = SPIN_LOCK_UNLOCKED;
-#define LOCK_PALETTE spin_lock(&x_palette_lock)
-#define UNLOCK_PALETTE spin_unlock(&x_palette_lock)
-#elif defined(HAVE_PTHREADS)
+#if defined(HAVE_PTHREADS)
 static pthread_mutex_t x_palette_lock = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK_PALETTE pthread_mutex_lock(&x_palette_lock)
 #define UNLOCK_PALETTE pthread_mutex_unlock(&x_palette_lock)
+#elif defined(HAVE_SPINLOCKS)
+static spinlock_t x_palette_lock = SPIN_LOCK_UNLOCKED;
+#define LOCK_PALETTE spin_lock(&x_palette_lock)
+#define UNLOCK_PALETTE spin_unlock(&x_palette_lock)
 #else
 #define LOCK_PALETTE
 #define UNLOCK_PALETTE
 #endif
 
 // Mutex to protect frame buffer
-#ifdef HAVE_SPINLOCKS
-static spinlock_t frame_buffer_lock = SPIN_LOCK_UNLOCKED;
-#define LOCK_FRAME_BUFFER spin_lock(&frame_buffer_lock)
-#define UNLOCK_FRAME_BUFFER spin_unlock(&frame_buffer_lock)
-#elif defined(HAVE_PTHREADS)
+#if defined(HAVE_PTHREADS)
 static pthread_mutex_t frame_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK_FRAME_BUFFER pthread_mutex_lock(&frame_buffer_lock);
 #define UNLOCK_FRAME_BUFFER pthread_mutex_unlock(&frame_buffer_lock);
+#elif defined(HAVE_SPINLOCKS)
+static spinlock_t frame_buffer_lock = SPIN_LOCK_UNLOCKED;
+#define LOCK_FRAME_BUFFER spin_lock(&frame_buffer_lock)
+#define UNLOCK_FRAME_BUFFER spin_unlock(&frame_buffer_lock)
 #else
 #define LOCK_FRAME_BUFFER
 #define UNLOCK_FRAME_BUFFER
