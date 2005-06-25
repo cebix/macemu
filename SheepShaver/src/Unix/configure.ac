@@ -185,7 +185,9 @@ no:linux*|no:netbsd*)
   AC_CHECK_LIB(pthread, pthread_create, , [
     AC_CHECK_LIB(c_r, pthread_create, , [
       AC_CHECK_LIB(PTL, pthread_create, , [
-        AC_MSG_ERROR([You need pthreads to run Basilisk II.])
+        dnl XXX remove when no pthreads case is merged
+        AC_MSG_ERROR([You need pthreads to run SheepShaver.])
+        HAVE_PTHREADS=no
       ])
     ])
   ])
@@ -193,9 +195,6 @@ no:linux*|no:netbsd*)
   AC_CHECK_FUNCS(pthread_mutexattr_setprotocol)
   AC_CHECK_FUNCS(pthread_mutexattr_settype)
   AC_CHECK_FUNCS(pthread_mutexattr_setpshared)
-  if [[ "x$HAVE_PTHREADS" = "xyes" ]]; then
-    AC_DEFINE(HAVE_PTHREADS, 1, [Define if pthreads are available.])
-  fi
   dnl If POSIX.4 semaphores are not available, we emulate them with pthread mutexes.
   SEMSRC=
   AC_CHECK_FUNCS(sem_init, , [
@@ -205,6 +204,9 @@ no:linux*|no:netbsd*)
   ])
   ;;
 esac
+if [[ "x$HAVE_PTHREADS" = "xyes" ]]; then
+  AC_DEFINE(HAVE_PTHREADS, 1, [Define if pthreads are available.])
+fi
 
 dnl We use FBDev DGA if possible.
 if [[ "x$WANT_FBDEV_DGA" = "xyes" ]]; then

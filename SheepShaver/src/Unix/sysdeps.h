@@ -428,7 +428,7 @@ typedef struct timeval tm_time_t;
 extern uint64 GetTicks_usec(void);
 extern void Delay_usec(uint32 usec);
 
-#if defined(HAVE_PTHREADS) || ((defined(__linux__) || defined(__NetBSD__)) && defined(__powerpc__))
+#ifdef HAVE_PTHREADS
 // Setup pthread attributes
 extern void Set_pthread_attr(pthread_attr_t *attr, int priority);
 #endif
