@@ -33,7 +33,6 @@
 #include <errno.h>
 #include <unistd.h>
 #include <signal.h>
-#include <sched.h>
 #include <pthread.h>
 #include <semaphore.h>
 
@@ -175,21 +174,43 @@ void pthread_testcancel(void)
  *  Spinlocks
  */
 
-static int try_acquire_spinlock(int *lock)
+/* For multiprocessor systems, we want to ensure all memory accesses
+   are completed before we reset a lock.  On other systems, we still
+   need to make sure that the compiler has flushed everything to memory.  */
+#define MEMORY_BARRIER() __asm__ __volatile__ ("sync" : : : "memory")
+
+static void fastlock_init(struct _pthread_fastlock *lock)
 {
-	return test_and_set(lock, 1) == 0;
+	lock->status = 0;
+	lock->spinlock = 0;
 }
 
-static void acquire_spinlock(volatile int *lock)
+static int fastlock_try_acquire(struct _pthread_fastlock *lock)
 {
-	do {
-		while (*lock) ;
-	} while (test_and_set((int *)lock, 1) != 0);
+	int res = EBUSY;
+	if (test_and_set(&lock->spinlock, 1) == 0) {
+		if (lock->status == 0) {
+			lock->status = 1;
+			MEMORY_BARRIER();
+			res = 0;
+		}
+		lock->spinlock = 0;
+	}
+	return res;
 }
 
-static void release_spinlock(int *lock)
+static void fastlock_acquire(struct _pthread_fastlock *lock)
 {
-	*lock = 0;
+	MEMORY_BARRIER();
+	while (test_and_set(&lock->spinlock, 1))
+		usleep(0);
+}
+
+static void fastlock_release(struct _pthread_fastlock *lock)
+{
+	MEMORY_BARRIER();
+	lock->spinlock = 0;
+	__asm__ __volatile__ ("" : "=m" (lock->spinlock) : "m" (lock->spinlock));
 }
 
 
@@ -199,10 +220,7 @@ static void release_spinlock(int *lock)
 
 int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *mutex_attr)
 {
-	// pthread_init_lock
-	mutex->__m_lock.__status = 0;
-	mutex->__m_lock.__spinlock = 0;
-
+	fastlock_init(&mutex->__m_lock);
 	mutex->__m_kind = mutex_attr ? mutex_attr->__mutexkind : PTHREAD_MUTEX_TIMED_NP;
 	mutex->__m_count = 0;
 	mutex->__m_owner = NULL;
@@ -233,7 +251,7 @@ int pthread_mutex_lock(pthread_mutex_t *mutex)
 {
 	switch (mutex->__m_kind) {
 	case PTHREAD_MUTEX_TIMED_NP:
-		acquire_spinlock(&mutex->__m_lock.__spinlock);
+		fastlock_acquire(&mutex->__m_lock);
 		return 0;
 	default:
 		return EINVAL;
@@ -249,9 +267,7 @@ int pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
 	switch (mutex->__m_kind) {
 	case PTHREAD_MUTEX_TIMED_NP:
-		if (!try_acquire_spinlock(&mutex->__m_lock.__spinlock))
-			return EBUSY;
-		return 0;
+		return fastlock_try_acquire(&mutex->__m_lock);
 	default:
 		return EINVAL;
 	}
@@ -266,7 +282,7 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex)
 {
 	switch (mutex->__m_kind) {
 	case PTHREAD_MUTEX_TIMED_NP:
-		release_spinlock(&mutex->__m_lock.__spinlock);
+		fastlock_release(&mutex->__m_lock);
 		return 0;
 	default:
 		return EINVAL;
@@ -301,8 +317,15 @@ int pthread_mutexattr_destroy(pthread_mutexattr_t *attr)
 
 int sem_init(sem_t *sem, int pshared, unsigned int value)
 {
-	sem->sem_lock.status = 0;
-	sem->sem_lock.spinlock = 0;
+	if (sem == NULL || value > SEM_VALUE_MAX) {
+		errno = EINVAL;
+		return -1;
+	}
+	if (pshared) {
+		errno = ENOSYS;
+		return -1;
+	}
+	fastlock_init(&sem->sem_lock);
 	sem->sem_value = value;
 	sem->sem_waiting = NULL;
 	return 0;
@@ -315,6 +338,16 @@ int sem_init(sem_t *sem, int pshared, unsigned int value)
 
 int sem_destroy(sem_t *sem)
 {
+	if (sem == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+	if (sem->sem_waiting) {
+		errno = EBUSY;
+		return -1;
+	}
+	sem->sem_value = 0;
+	sem->sem_waiting = NULL;
 	return 0;
 }
 
@@ -323,31 +356,29 @@ int sem_destroy(sem_t *sem)
  *  Wait on semaphore
  */
 
-void null_handler(int sig)
-{
-}
-
 int sem_wait(sem_t *sem)
 {
-	acquire_spinlock(&sem->sem_lock.spinlock);
-	if (sem->sem_value > 0)
-		atomic_add((int *)&sem->sem_value, -1);
-	else {
-		sigset_t mask;
-		if (!sem->sem_lock.status) {
-			struct sigaction sa;
-			sem->sem_lock.status = SIGUSR2;
-			sa.sa_handler = null_handler;
-			sa.sa_flags = SA_RESTART;
-			sigemptyset(&sa.sa_mask);
-			sigaction(sem->sem_lock.status, &sa, NULL);
-		}
-		sem->sem_waiting = (struct _pthread_descr_struct *)getpid();
-		sigemptyset(&mask);
-		sigsuspend(&mask);
-		sem->sem_waiting = NULL;
+	int cnt = 0;
+	struct timespec tm;
+
+	if (sem == NULL) {
+		errno = EINVAL;
+		return -1;
 	}
-	release_spinlock(&sem->sem_lock.spinlock);
+	fastlock_acquire(&sem->sem_lock);
+	if (sem->sem_value > 0) {
+		sem->sem_value--;
+		fastlock_release(&sem->sem_lock);
+		return 0;
+	}
+	sem->sem_waiting = (struct _pthread_descr_struct *)((long)sem->sem_waiting + 1);
+	while (sem->sem_value == 0) {
+		fastlock_release(&sem->sem_lock);
+		usleep(0);
+		fastlock_acquire(&sem->sem_lock);
+	}
+	sem->sem_value--;
+	fastlock_release(&sem->sem_lock);
 	return 0;
 }
 
@@ -358,12 +389,22 @@ int sem_wait(sem_t *sem)
 
 int sem_post(sem_t *sem)
 {
-	acquire_spinlock(&sem->sem_lock.spinlock);
-	if (sem->sem_waiting == NULL)
-		atomic_add((int *)&sem->sem_value, 1);
-	else
-		kill((pid_t)sem->sem_waiting, sem->sem_lock.status);
-	release_spinlock(&sem->sem_lock.spinlock);
+	if (sem == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+	fastlock_acquire(&sem->sem_lock);
+	if (sem->sem_waiting)
+		sem->sem_waiting = (struct _pthread_descr_struct *)((long)sem->sem_waiting - 1);
+	else {
+		if (sem->sem_value >= SEM_VALUE_MAX) {
+			errno = ERANGE;
+			fastlock_release(&sem->sem_lock);
+			return -1;
+		}
+	}
+	sem->sem_value++;
+	fastlock_release(&sem->sem_lock);
 	return 0;
 }
 
