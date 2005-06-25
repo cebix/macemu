@@ -710,7 +710,7 @@ C_SYMBOL_NAME(call_macos7):
  *  Native resource manager patches
  */
 
-ASM_MACRO_START	do_get_resource XLM_OLD_GET_RESOURCE
+ASM_MACRO_START	do_get_resource ASM_MACRO_ARG0_DEF
 	// Create stack frame
 	mflr	r0
 	stw	r0,8(r1)
@@ -721,7 +721,7 @@ ASM_MACRO_START	do_get_resource XLM_OLD_GET_RESOURCE
 	stw	r4,56+4(r1)
 
 	// Call old routine
-	lwz	r0,\XLM_OLD_GET_RESOURCE(0)
+	lwz	r0,ASM_MACRO_ARG0(0)
 	lwz	r2,XLM_RES_LIB_TOC(0)
 	mtctr	r0
 	bctrl

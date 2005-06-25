@@ -25,6 +25,10 @@
 #if (defined(__APPLE__) && defined(__MACH__))
 #define C_SYMBOL_NAME(NAME)	_ ## NAME
 #define ASM_MACRO_END		.endmacro
+#define ASM_MACRO_ARG0_DEF	/* nothing! */
+#define ASM_MACRO_ARG0		$0
+#define ASM_MACRO_ARG0_DEF	/* nothing! */
+#define ASM_MACRO_ARG1		$1
 #endif
 
 /* Defaults for GNU assembler */
@@ -33,6 +37,12 @@
 #endif
 #ifndef ASM_MACRO_END
 #define ASM_MACRO_END		.endm
+#endif
+#ifndef ASM_MACRO_ARG0_DEF
+#define ASM_MACRO_ARG0_DEF	__asm_macro_arg0
+#define ASM_MACRO_ARG0		\__asm_macro_arg0
+#define ASM_MACRO_ARG1_DEF	, __asm_macro_arg1
+#define ASM_MACRO_ARG1		\__asm_macro_arg1
 #endif
 #ifndef C_SYMBOL_NAME
 #define C_SYMBOL_NAME(NAME)	NAME
