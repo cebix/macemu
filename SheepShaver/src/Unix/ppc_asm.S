@@ -245,7 +245,6 @@ C_SYMBOL_NAME(jump_to_rom):
 	// Restore PowerPC registers
 	lwz	r1,XLM_EMUL_RETURN_STACK(0)
 	RESTORE_SYSTEM_R2
-	RESTORE_SYSTEM_R13
 	lmw	r13,20(r1)
 	lfd	f14,20+19*4+0*8(r1)
 	lfd	f15,20+19*4+1*8(r1)

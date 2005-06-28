@@ -257,8 +257,8 @@ static void build_sigregs(sigregs *srp, machine_regs *mrp)
 
 // Global variables (exported)
 #if !EMULATED_PPC
-void *TOC = NULL;			// Pointer to Thread Local Storage (r2)
-void *R13 = NULL;			// Pointer to .sdata section (r13 under Linux)
+void *TOC = NULL;		// Pointer to Thread Local Storage (r2)
+void *R13 = NULL;		// Pointer to .sdata section (r13 under Linux)
 #endif
 uint32 RAMBase;			// Base address of Mac RAM
 uint32 RAMSize;			// Size of Mac RAM
@@ -1389,7 +1389,7 @@ static void *tick_func(void *arg)
 	}
 
 	uint64 end = GetTicks_usec();
-	D(bug("%Ld ticks in %Ld usec = %f ticks/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
+	D(bug("%lld ticks in %lld usec = %f ticks/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
 	return NULL;
 }
 
