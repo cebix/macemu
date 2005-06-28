@@ -811,3 +811,80 @@ C_SYMBOL_NAME(ppc_interrupt):
 	// Enter nanokernel
 	mtlr	r3
 	blr
+
+
+/*
+ *  Define signal handlers with alternate stack initialization magic
+ */
+
+#define SIG_STACK_SIZE 0x10000
+
+ASM_MACRO_START do_define_signal_handler	\
+	ASM_MACRO_ARG0_DEF /* name */		\
+	ASM_MACRO_ARG1_DEF /* stack */		\
+	ASM_MACRO_ARG2_DEF /* stack id */	\
+	ASM_MACRO_ARG3_DEF /* signal handler */
+
+	// Alternate stack lower base for this signal handler
+	.lcomm ASM_MACRO_ARG1,SIG_STACK_SIZE,ASM_ALIGN_2(4)
+	ASM_TYPE(ASM_MACRO_ARG1,@object)
+
+	// Represents the current nest level for this signal handler
+	// Note that in SheepShaver, SIGUSR2 signals are blocked while
+	// handling other signals so, it's unlikely we ever get a nest
+	// level greater than 1
+	.lcomm ASM_MACRO_ARG2,4,ASM_ALIGN_2(2)
+	ASM_TYPE(ASM_MACRO_ARG2,@object)
+
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(ASM_MACRO_ARG0)
+C_SYMBOL_NAME(ASM_MACRO_ARG0):
+	// Preserve args in scratch registers
+	mflr	r14
+	mr	r15,r3
+	mr	r16,r4
+	mr	r17,r5
+	mr	r18,r1
+
+	// Atomically increase stack_id
+	lis	r19,ASM_HA16(ASM_MACRO_ARG2)
+	la	r19,ASM_LO16(ASM_MACRO_ARG2,r19)
+	li	r4,1
+	mr	r3,r19
+	bl	C_SYMBOL_NAME(atomic_add)
+	cmpwi	r3,0
+	bne-	1f
+
+	// ID was 0, we can use the local stack
+	lis	r9,ASM_HA16(ASM_MACRO_ARG1)
+	lis	r3,(SIG_STACK_SIZE>>16)
+	la	r9,ASM_LO16(ASM_MACRO_ARG1,r9)
+	addi	r3,r3,((SIG_STACK_SIZE&0xffff)-64)
+	add	r1,r9,r3
+
+1:	// Invoke signal handler
+	stwu	r1,-16(r1)
+	mr	r3,r15
+	mr	r4,r16
+	mr	r5,r17
+	bl	C_SYMBOL_NAME(ASM_MACRO_ARG3)
+	addi	r1,r1,16
+
+	// Atomically decrease stack id
+	mr	r3,r19
+	li	r4,-1
+	bl	C_SYMBOL_NAME(atomic_add)
+
+	// Restore kernel stack and return
+	mtlr	r14
+	mr	r1,r18
+	blr
+ASM_MACRO_END
+
+#define DEFINE_SIGNAL_HANDLER(NAME)		  \
+	do_define_signal_handler		  \
+	NAME##_handler_init	ASM_MACRO_ARG_SEP \
+	NAME##_stack		ASM_MACRO_ARG_SEP \
+	NAME##_stack_id		ASM_MACRO_ARG_SEP \
+	NAME##_handler
+
+DEFINE_SIGNAL_HANDLER(sigusr2)

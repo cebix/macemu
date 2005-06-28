@@ -21,28 +21,60 @@
 #define SAVE_SYSTEM_R13
 #endif
 
+/* Helper macros */
+#define xglue(x, y)		x ## y
+#define glue(x, y)		xglue(x, y)
+
 /* Apple assembler perticularities */
 #if (defined(__APPLE__) && defined(__MACH__))
-#define C_SYMBOL_NAME(NAME)	_ ## NAME
+#define C_SYMBOL_NAME(NAME)	glue(_, NAME)
+#define ASM_TYPE(NAME, TYPE)	/* nothing */
+#define ASM_ALIGN_2(EXP)	EXP
+#define ASM_HA16(VAR)		ha16(VAR)
+#define ASM_LO16(VAR, REG)	lo16(VAR)(REG)
 #define ASM_MACRO_END		.endmacro
+#define ASM_MACRO_ARG_SEP	,
 #define ASM_MACRO_ARG0_DEF	/* nothing! */
 #define ASM_MACRO_ARG0		$0
-#define ASM_MACRO_ARG0_DEF	/* nothing! */
+#define ASM_MACRO_ARG1_DEF	/* nothing! */
 #define ASM_MACRO_ARG1		$1
+#define ASM_MACRO_ARG2_DEF	/* nothing! */
+#define ASM_MACRO_ARG2		$2
+#define ASM_MACRO_ARG3_DEF	/* nothing! */
+#define ASM_MACRO_ARG3		$3
 #endif
 
 /* Defaults for GNU assembler */
+#ifndef ASM_TYPE
+#define ASM_TYPE(NAME, TYPE)	.type NAME, TYPE
+#endif
+#ifndef ASM_ALIGN_2
+#define ASM_ALIGN_2(EXP)	(1 << (EXP))
+#endif
+#ifndef ASM_HA16
+#define ASM_HA16(VAR)		VAR@ha
+#endif
+#ifndef ASM_LO16
+#define ASM_LO16(VAR, REG)	VAR@l(REG)
+#endif
 #ifndef ASM_MACRO_START
 #define ASM_MACRO_START		.macro
 #endif
 #ifndef ASM_MACRO_END
 #define ASM_MACRO_END		.endm
 #endif
+#ifndef ASM_MACRO_ARG_SEP
+#define ASM_MACRO_ARG_SEP
+#endif
 #ifndef ASM_MACRO_ARG0_DEF
 #define ASM_MACRO_ARG0_DEF	__asm_macro_arg0
 #define ASM_MACRO_ARG0		\__asm_macro_arg0
 #define ASM_MACRO_ARG1_DEF	, __asm_macro_arg1
 #define ASM_MACRO_ARG1		\__asm_macro_arg1
+#define ASM_MACRO_ARG2_DEF	, __asm_macro_arg2
+#define ASM_MACRO_ARG2		\__asm_macro_arg2
+#define ASM_MACRO_ARG3_DEF	, __asm_macro_arg3
+#define ASM_MACRO_ARG3		\__asm_macro_arg3
 #endif
 #ifndef C_SYMBOL_NAME
 #define C_SYMBOL_NAME(NAME)	NAME
