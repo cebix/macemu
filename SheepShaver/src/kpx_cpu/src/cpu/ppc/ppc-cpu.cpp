@@ -451,6 +451,16 @@ void powerpc_registers::interrupt_copy(powerpc_registers &oregs, powerpc_registe
 
 bool powerpc_cpu::check_spcflags()
 {
+	if (spcflags().test(SPCFLAG_CPU_EXEC_RETURN)) {
+		spcflags().clear(SPCFLAG_CPU_EXEC_RETURN);
+#ifndef SHEEPSHAVER
+		// FIXME: add unwind info to the translation cache? Otherwise
+		// we have to manually handle the exit syscall here
+		if (syscall_exit_code >= 0)
+			throw kernel_syscall_exit(syscall_exit_code);
+#endif
+		return false;
+	}
 #ifdef SHEEPSHAVER
 	if (spcflags().test(SPCFLAG_CPU_HANDLE_INTERRUPT)) {
 		spcflags().clear(SPCFLAG_CPU_HANDLE_INTERRUPT);
@@ -469,16 +479,6 @@ bool powerpc_cpu::check_spcflags()
 		spcflags().set(SPCFLAG_CPU_HANDLE_INTERRUPT);
 	}
 #endif
-	if (spcflags().test(SPCFLAG_CPU_EXEC_RETURN)) {
-		spcflags().clear(SPCFLAG_CPU_EXEC_RETURN);
-#ifndef SHEEPSHAVER
-		// FIXME: add unwind info to the translation cache? Otherwise
-		// we have to manually handle the exit syscall here
-		if (syscall_exit_code >= 0)
-			throw kernel_syscall_exit(syscall_exit_code);
-#endif
-		return false;
-	}
 	if (spcflags().test(SPCFLAG_CPU_ENTER_MON)) {
 		spcflags().clear(SPCFLAG_CPU_ENTER_MON);
 #if ENABLE_MON
