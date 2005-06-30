@@ -328,7 +328,9 @@ static int idle_sem_ok = -1;
 void idle_wait(void)
 {
 #ifdef IDLE_USES_COND_WAIT
+	pthread_mutex_lock(&idle_lock);
 	pthread_cond_wait(&idle_cond, &idle_lock);
+	pthread_mutex_unlock(&idle_lock);
 #else
 #ifdef IDLE_USES_SEMAPHORE
 	if (idle_sem_ok < 0)
