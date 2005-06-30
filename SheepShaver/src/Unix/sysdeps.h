@@ -288,8 +288,7 @@ static inline int testandset(volatile int *p)
 }
 #endif
 
-/* FIXME: SheepShaver occasionnally hangs with those locks */
-#if 0 && (defined(__i386__) || defined(__x86_64__))
+#if defined(__i386__) || defined(__x86_64__)
 #define HAVE_TEST_AND_SET 1
 static inline int testandset(volatile int *p)
 {
