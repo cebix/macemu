@@ -269,7 +269,7 @@ void sheepshaver_cpu::execute_emul_op(uint32 emul_op)
 	for (int i = 0; i < 7; i++)
 		r68.a[i] = gpr(16 + i);
 	r68.a[7] = gpr(1);
-	uint32 saved_cr = get_cr() & CR_field<2>::mask();
+	uint32 saved_cr = get_cr() & 0xff9fffff; // mask_operand::compute(11, 8)
 	uint32 saved_xer = get_xer();
 	EmulOp(&r68, gpr(24), emul_op);
 	set_cr(saved_cr);
