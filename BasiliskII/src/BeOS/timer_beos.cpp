@@ -130,3 +130,22 @@ void Delay_usec(uint32 usec)
 {
 	snooze(usec);
 }
+
+
+/*
+ *  Suspend emulator thread, virtual CPU in idle mode
+ */
+
+void idle_wait(void)
+{
+	sleep(16667);
+}
+
+
+/*
+ *  Resume execution of emulator thread, events just arrived
+ */
+
+void idle_resume(void)
+{
+}

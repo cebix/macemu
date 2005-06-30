@@ -297,3 +297,72 @@ void Delay_usec(uint32 usec)
 #endif
 	} while (was_error && (errno == EINTR));
 }
+
+
+/*
+ *  Suspend emulator thread, virtual CPU in idle mode
+ */
+
+#ifdef HAVE_PTHREADS
+#if defined(HAVE_PTHREAD_COND_INIT)
+#define IDLE_USES_COND_WAIT 1
+static pthread_mutex_t idle_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t idle_cond = PTHREAD_COND_INITIALIZER;
+#elif defined(HAVE_SEM_INIT)
+#define IDLE_USES_SEMAPHORE 1
+#include <semaphore.h>
+#ifdef HAVE_SPINLOCKS
+static spinlock_t idle_lock = SPIN_LOCK_UNLOCKED;
+#define LOCK_IDLE spin_lock(&idle_lock)
+#define UNLOCK_IDLE spin_unlock(&idle_lock)
+#else
+static pthread_mutex_t idle_lock = PTHREAD_MUTEX_INITIALIZER;
+#define LOCK_IDLE pthread_mutex_lock(&idle_lock)
+#define UNLOCK_IDLE pthread_mutex_unlock(&idle_lock)
+#endif
+static sem_t idle_sem;
+static int idle_sem_ok = -1;
+#endif
+#endif
+
+void idle_wait(void)
+{
+#ifdef IDLE_USES_COND_WAIT
+	pthread_cond_wait(&idle_cond, &idle_lock);
+#else
+#ifdef IDLE_USES_SEMAPHORE
+	if (idle_sem_ok < 0)
+		idle_sem_ok = (sem_init(&idle_sem, 0, 0) == 0);
+	if (idle_sem_ok > 0) {
+		LOCK_IDLE;
+		idle_sem_ok++;
+		UNLOCK_IDLE;
+		sem_wait(&idle_sem);
+		return;
+	}
+#endif
+	Delay_usec(10000);
+#endif
+}
+
+
+/*
+ *  Resume execution of emulator thread, events just arrived
+ */
+
+void idle_resume(void)
+{
+#ifdef IDLE_USES_COND_WAIT
+	pthread_cond_signal(&idle_cond);
+#else
+#ifdef IDLE_USES_SEMAPHORE
+	if (idle_sem_ok > 1) {
+		LOCK_IDLE;
+		idle_sem_ok--;
+		UNLOCK_IDLE;
+		sem_post(&idle_sem);
+		return;
+	}
+#endif
+#endif
+}

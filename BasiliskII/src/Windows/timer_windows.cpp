@@ -195,3 +195,22 @@ void Delay_usec(uint32 usec)
 	// millisecond resolution anyway
 	Sleep(usec / 1000);
 }
+
+
+/*
+ *  Suspend emulator thread, virtual CPU in idle mode
+ */
+
+void idle_wait(void)
+{
+	Delay_usec(10000);
+}
+
+
+/*
+ *  Resume execution of emulator thread, events just arrived
+ */
+
+void idle_resume(void)
+{
+}
