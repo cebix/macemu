@@ -935,13 +935,7 @@ void HandleInterrupt(powerpc_registers *r)
 	if (int32(ReadMacInt32(XLM_IRQ_NEST)) > 0)
 		return;
 
-	// Do nothing if there is no pending interrupt
-	if (InterruptFlags == 0)
-		return;
-
-	// Current interrupt nest level
-	static int interrupt_depth = 0;
-	++interrupt_depth;
+	// Update interrupt count
 #if EMUL_TIME_STATS
 	interrupt_count++;
 #endif
@@ -957,7 +951,7 @@ void HandleInterrupt(powerpc_registers *r)
 #if INTERRUPTS_IN_NATIVE_MODE
 	case MODE_NATIVE:
 		// 68k emulator inactive, in nanokernel?
-		if (r->gpr[1] != KernelDataAddr && interrupt_depth == 1) {
+		if (r->gpr[1] != KernelDataAddr) {
 
 			// Prepare for 68k interrupt level 1
 			WriteMacInt16(tswap32(kernel_data->v[0x67c >> 2]), 1);
@@ -1015,9 +1009,6 @@ void HandleInterrupt(powerpc_registers *r)
 		break;
 #endif
 	}
-
-	// We are done with this interrupt
-	--interrupt_depth;
 }
 
 static void get_resource(void);

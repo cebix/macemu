@@ -454,10 +454,15 @@ bool powerpc_cpu::check_spcflags()
 #ifdef SHEEPSHAVER
 	if (spcflags().test(SPCFLAG_CPU_HANDLE_INTERRUPT)) {
 		spcflags().clear(SPCFLAG_CPU_HANDLE_INTERRUPT);
-		powerpc_registers r;
-		powerpc_registers::interrupt_copy(r, regs);
-		HandleInterrupt(&r);
-		powerpc_registers::interrupt_copy(regs, r);
+		static bool processing_interrupt = false;
+		if (!processing_interrupt) {
+			processing_interrupt = true;
+			powerpc_registers r;
+			powerpc_registers::interrupt_copy(r, regs);
+			HandleInterrupt(&r);
+			powerpc_registers::interrupt_copy(regs, r);
+			processing_interrupt = false;
+		}
 	}
 	if (spcflags().test(SPCFLAG_CPU_TRIGGER_INTERRUPT)) {
 		spcflags().clear(SPCFLAG_CPU_TRIGGER_INTERRUPT);
