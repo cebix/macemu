@@ -915,6 +915,7 @@ void emul_ppc(uint32 entry)
 
 void TriggerInterrupt(void)
 {
+	idle_resume();
 #if 0
   WriteMacInt32(0x16a, ReadMacInt32(0x16a) + 1);
 #else

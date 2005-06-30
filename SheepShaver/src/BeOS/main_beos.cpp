@@ -1248,6 +1248,7 @@ status_t SheepShaver::tick_func(void *arg)
 
 void TriggerInterrupt(void)
 {
+	idle_resume();
 #if 0
 	WriteMacInt32(0x16a, ReadMacInt32(0x16a) + 1);
 #else

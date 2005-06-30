@@ -1513,8 +1513,10 @@ void B2_delete_mutex(B2_mutex *mutex)
 #if !EMULATED_PPC
 void TriggerInterrupt(void)
 {
-	if (ready_for_signals)
+	if (ready_for_signals) {
+		idle_resume();
 		pthread_kill(emul_thread, SIGUSR2);
+	}
 }
 #endif
 

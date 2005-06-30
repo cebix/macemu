@@ -463,14 +463,14 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 		case OP_IDLE_TIME:
 			// Sleep if no events pending
 			if (ReadMacInt32(0x14c) == 0)
-				Delay_usec(16667);
+				idle_wait();
 			r->a[0] = ReadMacInt32(0x2b6);
 			break;
 
 		case OP_IDLE_TIME_2:
 			// Sleep if no events pending
 			if (ReadMacInt32(0x14c) == 0)
-				Delay_usec(16667);
+				idle_wait();
 			r->d[0] = (uint32)-2;
 			break;
 
