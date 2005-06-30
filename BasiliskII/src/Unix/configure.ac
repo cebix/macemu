@@ -309,7 +309,7 @@ AC_SYS_LARGEFILE
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(unistd.h fcntl.h sys/types.h sys/time.h sys/mman.h mach/mach.h)
+AC_CHECK_HEADERS(unistd.h stdlib.h fcntl.h sys/types.h sys/time.h sys/mman.h mach/mach.h)
 AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
 AC_CHECK_HEADERS(sys/socket.h sys/ioctl.h sys/filio.h sys/bitypes.h sys/wait.h)
 AC_CHECK_HEADERS(sys/poll.h sys/select.h)
@@ -421,7 +421,7 @@ dnl (end of code from openssh-3.2.2p1 configure.ac)
 
 
 dnl AC_CHECK_FRAMEWORK($1=NAME, $2=INCLUDES)
-AC_DEFUN(AC_CHECK_FRAMEWORK, [
+AC_DEFUN([AC_CHECK_FRAMEWORK], [
   AS_VAR_PUSHDEF([ac_Framework], [ac_cv_framework_$1])dnl
   AC_CACHE_CHECK([whether compiler supports framework $1],
     ac_Framework, [
@@ -585,7 +585,7 @@ dnl to be put into the config.h file
 dnl $1 -- the macro to define
 dnl $2 -- the value to translate
 dnl $3 -- template name
-AC_DEFUN(AC_TRANSLATE_DEFINE, [
+AC_DEFUN([AC_TRANSLATE_DEFINE], [
     if [[ "x$2" = "xyes" -o "x$2" = "xguessing yes" ]]; then
         AC_DEFINE($1, 1, $3)
     fi

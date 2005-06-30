@@ -4,7 +4,7 @@ dnl Additional macros for Basilisk II
 dnl Check for libgnomeui
 dnl B2_PATH_GNOMEUI([ACTION-IF-FOUND [, ACTION-IF-NOT-FOUND]])
 dnl Test to see if libgnomeui is installed, and define GNOMEUI_CFLAGS, LIBS
-AC_DEFUN(B2_PATH_GNOMEUI,
+AC_DEFUN([B2_PATH_GNOMEUI],
 [dnl
 dnl Get the cflags and libraries from the gnome-config script
 dnl

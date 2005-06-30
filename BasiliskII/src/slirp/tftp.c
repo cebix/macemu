@@ -26,7 +26,7 @@
 
 struct tftp_session {
     int in_use;
-    unsigned char filename[TFTP_FILENAME_MAX];
+    char filename[TFTP_FILENAME_MAX];
     
     struct in_addr client_ip;
     u_int16_t client_port;
@@ -239,7 +239,7 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
   spt = &tftp_sessions[s];
 
   src = tp->x.tp_buf;
-  dst = spt->filename;
+  dst = (u_int8_t *)spt->filename;
   n = pktlen - ((uint8_t *)&tp->x.tp_buf[0] - (uint8_t *)tp);
 
   /* get name */
@@ -292,7 +292,7 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
 
   /* check if the file exists */
   
-  if (tftp_read_data(spt, 0, spt->filename, 0) < 0) {
+  if (tftp_read_data(spt, 0, (u_int8_t *)spt->filename, 0) < 0) {
       tftp_send_error(spt, 1, "File not found", tp);
       return;
   }
