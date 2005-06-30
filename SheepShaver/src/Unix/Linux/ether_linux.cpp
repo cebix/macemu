@@ -497,6 +497,7 @@ void EtherIRQ(void)
 				ether_packet_received(mp);
 			} else {
 				D(bug("WARNING: Cannot allocate mblk for received packet\n"));
+				read(fd, packet, size); // consume this packet
 				num_rx_no_mem++;
 			}
 		}
