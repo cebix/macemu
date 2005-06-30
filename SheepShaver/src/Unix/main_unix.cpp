@@ -1575,15 +1575,6 @@ void sigusr2_handler(int sig, siginfo_t *sip, void *scp)
 {
 	machine_regs *r = MACHINE_REGISTERS(scp);
 
-#ifdef USE_SDL_VIDEO
-	// We must fill in the events queue in the same thread that did call SDL_SetVideoMode()
-	SDL_PumpEvents();
-#endif
-
-	// Do nothing if interrupts are disabled
-	if (*(int32 *)XLM_IRQ_NEST > 0)
-		return;
-
 #ifdef SYSTEM_CLOBBERS_R2
 	// Restore pointer to Thread Local Storage
 	set_r2(TOC);
@@ -1592,6 +1583,15 @@ void sigusr2_handler(int sig, siginfo_t *sip, void *scp)
 	// Restore pointer to .sdata section
 	set_r13(R13);
 #endif
+
+#ifdef USE_SDL_VIDEO
+	// We must fill in the events queue in the same thread that did call SDL_SetVideoMode()
+	SDL_PumpEvents();
+#endif
+
+	// Do nothing if interrupts are disabled
+	if (*(int32 *)XLM_IRQ_NEST > 0)
+		return;
 
 	// Disable MacOS stack sniffer
 	WriteMacInt32(0x110, 0);
