@@ -419,7 +419,7 @@ typedef struct timeval tm_time_t;
 #define C4X_FLOAT_FORMAT 4
 
 // High-precision timing
-#if defined(HAVE_PTHREADS) && defined(HAVE_CLOCK_NANOSLEEP) && 0
+#if defined(HAVE_PTHREADS) && defined(HAVE_CLOCK_NANOSLEEP)
 #define PRECISE_TIMING 1
 #define PRECISE_TIMING_POSIX 1
 #endif

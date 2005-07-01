@@ -532,15 +532,15 @@ static void *timer_func(void *arg)
 
 		tm_time_t system_time;
 		timer_current_time(system_time);
-		pthread_mutex_lock(&wakeup_time_lock);
 		if (timer_cmp_time(wakeup_time, system_time) < 0) {
 
 			// Timer expired, trigger interrupt
+			pthread_mutex_lock(&wakeup_time_lock);
 			wakeup_time = wakeup_time_max;
+			pthread_mutex_unlock(&wakeup_time_lock);
 			SetInterruptFlag(INTFLAG_TIMER);
 			TriggerInterrupt();
 		}
-		pthread_mutex_unlock(&wakeup_time_lock);
 	}
 	return NULL;
 }
