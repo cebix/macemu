@@ -298,7 +298,7 @@ AC_SYS_LARGEFILE
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(malloc.h)
+AC_CHECK_HEADERS(malloc.h stdint.h)
 AC_CHECK_HEADERS(mach/vm_map.h mach/mach_init.h sys/mman.h)
 AC_CHECK_HEADERS(sys/time.h sys/times.h sys/socket.h)
 AC_CHECK_HEADERS(unistd.h fcntl.h byteswap.h dirent.h)
@@ -1195,6 +1195,21 @@ AC_CACHE_CHECK([the format of compiler generated objects],
   fi
   rm -rf conftest*
 ])
+
+dnl Add -mdynamic-no-pic for MacOS X
+if [[ "x$HAVE_GCC30" = "xyes" ]]; then
+  SAVED_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS -mdynamic-no-pic"
+  AC_CACHE_CHECK([whether the compiler supports -mdynamic-no-pic],
+    ac_cv_gcc_mdynamic_no_pic, [
+    AC_TRY_COMPILE([],[],[ac_cv_gcc_mdynamic_no_pic=yes],[ac_cv_gcc_mdynamic_no_pic=no])
+  ])
+  if [[ "x$ac_cv_gcc_mdynamic_no_pic" = "xyes" ]]; then
+    CXXFLAGS="$CXXFLAGS -mdynamic-no-pic"
+  else
+    CFLAGS="$SAVED_CFLAGS"
+  fi
+fi
 
 dnl CPU emulator sources
 if [[ "x$EMULATED_PPC" = "xyes" ]]; then
