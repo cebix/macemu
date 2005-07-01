@@ -309,7 +309,8 @@ AC_SYS_LARGEFILE
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(unistd.h stdlib.h fcntl.h sys/types.h sys/time.h sys/mman.h mach/mach.h)
+AC_CHECK_HEADERS(stdlib.h stdint.h)
+AC_CHECK_HEADERS(unistd.h fcntl.h sys/types.h sys/time.h sys/mman.h mach/mach.h)
 AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
 AC_CHECK_HEADERS(sys/socket.h sys/ioctl.h sys/filio.h sys/bitypes.h sys/wait.h)
 AC_CHECK_HEADERS(sys/poll.h sys/select.h)
@@ -1189,6 +1190,21 @@ if [[ "x$HAVE_GCC30" = "xyes" ]]; then
       [ac_cv_gcc_no_strict_aliasing=no])
   ])
   CFLAGS="$SAVED_CFLAGS"
+fi
+
+dnl Add -mdynamic-no-pic for MacOS X
+if [[ "x$HAVE_GCC30" = "xyes" ]]; then
+  SAVED_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS -mdynamic-no-pic"
+  AC_CACHE_CHECK([whether the compiler supports -mdynamic-no-pic],
+    ac_cv_gcc_mdynamic_no_pic, [
+    AC_TRY_COMPILE([],[],[ac_cv_gcc_mdynamic_no_pic=yes],[ac_cv_gcc_mdynamic_no_pic=no])
+  ])
+  if [[ "x$ac_cv_gcc_mdynamic_no_pic" = "xyes" ]]; then
+    CXXFLAGS="$CXXFLAGS -mdynamic-no-pic"
+  else
+    CFLAGS="$SAVED_CFLAGS"
+  fi
 fi
 
 dnl Select appropriate CPU source and REGPARAM define.
