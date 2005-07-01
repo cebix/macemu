@@ -61,7 +61,7 @@ links:
 	       Unix/posix_sem.cpp Unix/video_vosf.h Unix/video_blit.h \
 	       Unix/video_blit.cpp Unix/config.sub Unix/config.guess \
 	       Unix/keycodes Unix/tunconfig Unix/clip_unix.cpp \
-	       Unix/Linux/scsi_linux.cpp Unix/Linux/NetDriver \
+	       Unix/m4 Unix/Linux/scsi_linux.cpp Unix/Linux/NetDriver \
 	       Unix/Darwin/lowmem.c Unix/Darwin/pagezero.c Unix/Darwin/testlmem.sh \
 	       dummy/audio_dummy.cpp dummy/clip_dummy.cpp dummy/serial_dummy.cpp \
 	       dummy/prefs_editor_dummy.cpp dummy/scsi_dummy.cpp SDL \
