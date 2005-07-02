@@ -22,7 +22,7 @@
 #define ETHER_DEFS_H
 
 
-#if __BEOS__ && __POWERPC__
+#if __MWERKS__ && __POWERPC__
 #define PRAGMA_ALIGN_SUPPORTED 1
 #define PACKED__
 #else
@@ -209,7 +209,7 @@ typedef int32			nw_int32;
 typedef uint8			nw_uint8;
 typedef uint16			nw_uint16;
 typedef uint32			nw_uint32;
-typedef bool			nw_bool;
+typedef int				nw_bool;
 typedef uint8 *			nw_uint8_p;
 typedef void *			nw_void_p;
 typedef datab *			nw_datab_p;

@@ -19,6 +19,7 @@
  */
 
 #include "sysdeps.h"
+#include <stddef.h>
 #include "xlowmem.h"
 #include "ether_defs.h"
 
