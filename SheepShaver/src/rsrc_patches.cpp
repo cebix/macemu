@@ -168,6 +168,12 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 					p[5] = htons(0x6010);	// bra
 					D(bug(" patch 7 applied\n"));
 				}
+			} else if (PM(0,0x2f3c) && PM(1,0x7665) && PM(2,0x7273) && PM(3,0x3f3c) && PM(4,0x0001) && PM(10,0x2041) && PM(11,0x2248) && PM(12,0x2050) && PM(20,0x7066) && PM(21,0xa9c9)) {
+				// Check when vers 1 is installed (for safe abort if MacOS < 8.1 is used with a NewWorld ROM)
+				p[10] = htons(M68K_EMUL_OP_CHECK_SYSV);
+				p[11] = htons(0x4a81);	// tst.l	d1
+				p[12] = htons(0x670e);	// beq.s	<SysError #dsOldSystem>
+				D(bug(" patch 9 applied\n"));
 			}
 			p++;
 		}

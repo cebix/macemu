@@ -409,6 +409,16 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 			r->d[0] = (uint32)-7887;
 			break;
 
+		case OP_CHECK_SYSV: {		// Check we are not using MacOS < 8.1 with a NewWorld ROM
+			r->a[1] = r->d[1];
+			r->a[0] = ReadMacInt32(r->d[1]);
+			uint32 sysv = ReadMacInt16(r->a[0]);
+			D(bug("Detected MacOS version %d.%d.%d\n", (sysv >> 8) & 0xf, (sysv >> 4) & 0xf, sysv & 0xf));
+			if (ROMType == ROMTYPE_NEWWORLD && sysv < 0x0801)
+				r->d[1] = 0;
+			break;
+		}
+
 		case OP_NTRB_17_PATCH:
 			r->a[2] = ReadMacInt32(r->a[7]);
 			r->a[7] += 4;
