@@ -14,6 +14,13 @@ dnl Some systems do not put corefiles in the currect directory, avoid saving
 dnl cores for the configure tests since some are intended to dump core.
 ulimit -c 0
 
+dnl Invite Cygwin users to build within the Windows/ directory
+case $target_os in
+*cygwin* | *mingw32*)
+  AC_MSG_ERROR([You can only build the Windows version from its directory, Cygwin/X11 is not supported.])
+  ;;
+esac
+
 dnl Options.
 AC_ARG_ENABLE(jit,          [  --enable-jit            enable JIT compiler [default=yes]], [WANT_JIT=$enableval], [WANT_JIT=yes])
 AC_ARG_ENABLE(ppc-emulator, [  --enable-ppc-emulator   use the selected PowerPC emulator [default=auto]], [WANT_EMULATED_PPC=$enableval], [WANT_EMULATED_PPC=auto])
@@ -135,21 +142,12 @@ fi
 if [[ "x$WANT_SDL" = "xyes" ]]; then
   AC_PATH_PROG(sdl_config, "sdl-config")
   if [[ -n "$sdl_config" ]]; then
-    case $target_os in
-    # Special treatment for Cygwin so that we can still use the POSIX layer
-    *cygwin*)
-      sdl_cflags="-I`$sdl_config --prefix`/include/SDL"
-      sdl_libs="-L`$sdl_config --exec-prefix`/lib -lSDL"
-      ;;
-    *)
-      sdl_cflags=`$sdl_config --cflags`
-      if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
-        sdl_libs=`$sdl_config --static-libs`
-      else
-        sdl_libs=`$sdl_config --libs`
-      fi
-      ;;
-    esac
+    sdl_cflags=`$sdl_config --cflags`
+    if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
+      sdl_libs=`$sdl_config --static-libs`
+    else
+      sdl_libs=`$sdl_config --libs`
+    fi
     CFLAGS="$CFLAGS $sdl_cflags"
     CXXFLAGS="$CXXFLAGS $sdl_cflags"
     LIBS="$LIBS $sdl_libs"
@@ -475,9 +473,6 @@ darwin*)
     EXTFSSRC=../MacOSX/extfs_macosx.mm
   fi
   ;;
-cygwin*)
-  SERIALSRC="../dummy/serial_dummy.cpp"
-  ;;
 esac
 
 dnl Is the slirp library supported?
@@ -504,14 +499,7 @@ if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp"
   else
-    case "$target_os" in
-    cygwin*)
-      EXTRASYSSRCS="$EXTRASYSSRCS ../Windows/clip_windows.cpp"
-      ;;
-    *)
-      EXTRASYSSRCS="$EXTRASYSSRCS ../dummy/clip_dummy.cpp"
-      ;;
-    esac
+    EXTRASYSSRCS="$EXTRASYSSRCS ../dummy/clip_dummy.cpp"
   fi
 else
   VIDEOSRCS="video_x.cpp"
@@ -939,12 +927,6 @@ fi
 
 dnl Check addressing mode to use
 AC_MSG_CHECKING([for addressing mode to use])
-case "$os_target" in
-cygwin*)
-  WANT_ADDRESSING_MODE="direct,cygwin-hack"
-  NATMEM_OFFSET=
-  ;;
-esac
 if [[ "$EMULATED_PPC" != "yes" ]]; then
   if [[ "$WANT_ADDRESSING_MODE" != "real" ]]; then
     AC_MSG_WARN([Running in native PowerPC mode, force use of Real Addressing.])

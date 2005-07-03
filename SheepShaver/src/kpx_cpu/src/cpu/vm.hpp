@@ -205,19 +205,11 @@ const uintptr VMBaseDiff = NATMEM_OFFSET;
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 static inline uint8 * vm_do_get_real_address(vm_addr_t addr)
 {
-#if DIRECT_ADDRESSING_HACK
-	return (uint8 *)vm_wrap_address(DIRECT_ADDRESSING_VIRT2PHYS(addr));
-#else
 	return (uint8 *)vm_wrap_address(VMBaseDiff + addr);
-#endif
 }
 static inline vm_addr_t vm_do_get_virtual_address(uint8 *addr)
 {
-#if DIRECT_ADDRESSING_HACK
-	return vm_wrap_address(DIRECT_ADDRESSING_PHYS2VIRT((uintptr)addr));
-#else
 	return vm_wrap_address((uintptr)addr - VMBaseDiff);
-#endif
 }
 static inline uint32 vm_read_memory_1(vm_addr_t addr)
 {
