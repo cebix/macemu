@@ -34,7 +34,6 @@
 #include <unistd.h>
 #include <signal.h>
 #include <pthread.h>
-#include <semaphore.h>
 
 
 /* Thread stack size */
@@ -50,6 +49,13 @@ extern int test_and_set(int *var, int val);
 extern int __clone(int (*fn)(void *), void *, int, void *);
 
 /* struct sem_t */
+typedef struct {
+	struct _pthread_fastlock __sem_lock;
+	int __sem_value;
+	_pthread_descr __sem_waiting;
+} sem_t;
+
+#define SEM_VALUE_MAX 64
 #define status __status
 #define spinlock __spinlock
 #define sem_lock __sem_lock
