@@ -190,7 +190,7 @@ no:linux*|no:netbsd*)
     ])
   ])
   AC_CHECK_FUNCS(pthread_cancel)
-  AC_CHECK_FUNCS(pthread_cond_init)
+  AC_CHECK_FUNCS(pthread_cond_init pthread_testcancel)
   AC_CHECK_FUNCS(pthread_mutexattr_setprotocol)
   AC_CHECK_FUNCS(pthread_mutexattr_settype)
   AC_CHECK_FUNCS(pthread_mutexattr_setpshared)
@@ -330,6 +330,23 @@ AC_TYPE_SIZE_T
 AC_TYPE_SIGNAL
 AC_HEADER_TIME
 AC_STRUCT_TM
+
+dnl Check whether sys/socket.h defines type socklen_t.
+dnl (extracted from ac-archive/Miscellaneous)
+AC_CACHE_CHECK([for socklen_t],
+  ac_cv_type_socklen_t, [
+  AC_TRY_COMPILE([
+    #include <sys/types.h>
+    #include <sys/socket.h>
+  ], [socklen_t len = 42; return 0;],
+  ac_cv_type_socklen_t=yes, ac_cv_type_socklen_t=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_type_socklen_t="guessing no"
+  )
+])
+if [[ "x$ac_cv_type_socklen_t" != "xyes" ]]; then
+  AC_DEFINE(socklen_t, int, [Define to 'int' if <sys/types.h> doesn't define.])
+fi
 
 dnl Check whether struct sigaction has sa_restorer member.
 AC_CACHE_CHECK([whether struct sigaction has sa_restorer],
