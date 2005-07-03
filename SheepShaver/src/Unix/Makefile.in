@@ -17,7 +17,7 @@ CC = @CC@
 CXX = @CXX@
 CFLAGS = @CFLAGS@
 CXXFLAGS = @CXXFLAGS@
-CPPFLAGS = @CPPFLAGS@ -I../include -I.
+CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../slirp
 DEFS = @DEFS@ -D_REENTRANT -DDATADIR=\"$(datadir)/$(APP)\"
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
@@ -36,6 +36,10 @@ INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@ -s
 INSTALL_DATA = @INSTALL_DATA@
 
+SLIRP_CFLAGS = @SLIRP_CFLAGS@
+SLIRP_SRCS = @SLIRP_SRCS@
+SLIRP_OBJS = $(SLIRP_SRCS:../slirp/%.c=obj/%.o)
+
 # Append disassembler to dyngen, if available
 ifneq (:no,$(MONSRCS):$(USE_DYNGEN))
 DYNGENSRCS += $(filter %i386-dis.c,$(MONSRCS))
@@ -50,7 +54,7 @@ SRCS = ../main.cpp main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp 
     ../serial.cpp ../extfs.cpp \
     about_window_unix.cpp ../user_strings.cpp user_strings_unix.cpp \
     vm_alloc.cpp sigsegv.cpp \
-    sshpty.c strlcpy.c $(SYSSRCS) $(CPUSRCS) $(MONSRCS)
+    sshpty.c strlcpy.c $(SYSSRCS) $(CPUSRCS) $(MONSRCS) $(SLIRP_SRCS)
 APP = SheepShaver
 APP_EXE = $(APP)$(EXEEXT)
 APP_APP = $(APP).app
@@ -130,6 +134,8 @@ distclean: clean
 depend dep:
 	makedepend $(CPPFLAGS) -Y. $(SRCS) 2>/dev/null
 
+$(OBJ_DIR)/%.o : ../slirp/%.c
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(SLIRP_CFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.c
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.cpp

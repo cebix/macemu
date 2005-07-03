@@ -300,14 +300,19 @@ AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(malloc.h stdint.h)
 AC_CHECK_HEADERS(mach/vm_map.h mach/mach_init.h sys/mman.h)
-AC_CHECK_HEADERS(sys/time.h sys/times.h sys/socket.h)
 AC_CHECK_HEADERS(unistd.h fcntl.h byteswap.h dirent.h)
-AC_CHECK_HEADERS(linux/if.h, [], [], [
-#if HAVE_SYS_SOCKET_H
-# include <sys/socket.h>
+AC_CHECK_HEADERS(sys/socket.h sys/ioctl.h sys/filio.h sys/bitypes.h sys/wait.h)
+AC_CHECK_HEADERS(sys/time.h sys/poll.h sys/select.h arpa/inet.h)
+AC_CHECK_HEADERS(linux/if.h linux/if_tun.h net/if.h net/if_tun.h, [], [], [
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
 #endif
 ])
-AC_CHECK_HEADERS(linux/if_tun.h net/if.h net/if_tun.h)
+AC_CHECK_HEADERS(AvailabilityMacros.h)
+AC_CHECK_HEADERS(IOKit/storage/IOBlockStorageDevice.h)
 AC_CHECK_HEADERS(fenv.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -344,13 +349,14 @@ if [[ "x$ac_cv_signal_sa_restorer" = "xyes" ]]; then
 fi
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(strdup strlcpy cfmakeraw)
+AC_CHECK_FUNCS(strdup strerror strlcpy cfmakeraw)
 AC_CHECK_FUNCS(nanosleep)
 AC_CHECK_FUNCS(sigaction signal)
 AC_CHECK_FUNCS(mmap mprotect munmap)
 AC_CHECK_FUNCS(vm_allocate vm_deallocate vm_protect)
 AC_CHECK_FUNCS(exp2f log2f exp2 log2)
 AC_CHECK_FUNCS(floorf roundf ceilf truncf floor round ceil trunc)
+AC_CHECK_FUNCS(poll inet_aton)
 
 dnl Darwin seems to define mach_task_self() instead of task_self().
 AC_CHECK_FUNCS(mach_task_self task_self)
@@ -441,19 +447,24 @@ EXTFSSRC=extfs_unix.cpp
 EXTRASYSSRCS=
 case "$target_os" in
 linux*)
-  ETHERSRC=Linux/ether_linux.cpp
+  ETHERSRC=ether_unix.cpp
   AUDIOSRC=audio_oss_esd.cpp
   SCSISRC=Linux/scsi_linux.cpp
   if [[ "x$EMULATED_PPC" = "xno" ]]; then
     EXTRASYSSRCS="Linux/paranoia.cpp Linux/sheepthreads.c ppc_asm.S"
   fi
   ;;
+freebsd*)
+  ETHERSRC=ether_unix.cpp
+  ;;
 netbsd*)
+  ETHERSRC=ether_unix.cpp
   if [[ "x$EMULATED_PPC" = "xno" ]]; then
     EXTRASYSSRCS="NetBSD/paranoia.cpp NetBSD/sheepthreads.c ppc_asm.S"
   fi
   ;;
 darwin*)
+  ETHERSRC=ether_unix.cpp
   if [[ "x$EMULATED_PPC" = "xno" ]]; then
     EXTRASYSSRCS="Darwin/paranoia.cpp ppc_asm.S"
   fi
@@ -468,6 +479,19 @@ cygwin*)
   SERIALSRC="../dummy/serial_dummy.cpp"
   ;;
 esac
+
+dnl Is the slirp library supported?
+if [[ "x$ETHERSRC" = "xether_unix.cpp" ]]; then
+  AC_DEFINE(HAVE_SLIRP, 1, [Define if slirp library is supported])
+  SLIRP_SRCS="\
+    ../slirp/bootp.c     ../slirp/ip_output.c  ../slirp/tcp_input.c  \
+    ../slirp/cksum.c     ../slirp/mbuf.c       ../slirp/tcp_output.c \
+    ../slirp/debug.c     ../slirp/misc.c       ../slirp/tcp_subr.c   \
+    ../slirp/if.c        ../slirp/sbuf.c       ../slirp/tcp_timer.c  \
+    ../slirp/ip_icmp.c   ../slirp/slirp.c      ../slirp/tftp.c       \
+    ../slirp/ip_input.c  ../slirp/socket.c     ../slirp/udp.c"
+fi
+AC_SUBST(SLIRP_SRCS)
 
 dnl SDL overrides
 if [[ "x$WANT_SDL" = "xyes" ]]; then
@@ -1195,6 +1219,19 @@ AC_CACHE_CHECK([the format of compiler generated objects],
   fi
   rm -rf conftest*
 ])
+
+dnl Add -fno-strict-aliasing for slirp sources
+if [[ "x$HAVE_GCC30" = "xyes" ]]; then
+  SAVED_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS -fno-strict-aliasing"
+  AC_CACHE_CHECK([whether the compiler supports -fno-strict-aliasing],
+    ac_cv_gcc_no_strict_aliasing, [
+    AC_TRY_COMPILE([],[],
+      [ac_cv_gcc_no_strict_aliasing=yes; AC_SUBST(SLIRP_CFLAGS, "-fno-strict-aliasing")],
+      [ac_cv_gcc_no_strict_aliasing=no])
+  ])
+  CFLAGS="$SAVED_CFLAGS"
+fi
 
 dnl Add -mdynamic-no-pic for MacOS X
 if [[ "x$HAVE_GCC30" = "xyes" ]]; then
