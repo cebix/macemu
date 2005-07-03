@@ -27,10 +27,10 @@
 #include <string.h>
 
 #include "sysdeps.h"
+#include "cpu_emulation.h"
 #include "ether.h"
 #include "ether_defs.h"
 #include "macos_util.h"
-#include "cpu_emulation.h"
 #include "emul_op.h"
 #include "main.h"
 
@@ -398,7 +398,7 @@ uint8 InitStreamModule(void *theID)
 	dlpi_stream_list = NULL;
 
 	// Ask add-on for ethernet hardware address
-	AO_get_ethernet_address(hardware_address);
+	AO_get_ethernet_address(Host2MacAddr(hardware_address));
 
 	// Yes, we're open
 	ether_driver_opened = true;
@@ -479,7 +479,7 @@ int ether_close(queue_t *rdq, int flag, void *creds)
 
 	// Disable all registered multicast addresses
 	while (the_stream->multicast_list) {
-		AO_disable_multicast(the_stream->multicast_list->addr);
+		AO_disable_multicast(Host2MacAddr(the_stream->multicast_list->addr));
 		the_stream->RemoveMulticast(the_stream->multicast_list->addr);
 	}
 	the_stream->multicast_list = NULL;
@@ -929,7 +929,7 @@ static void transmit_packet(mblk_t *mp)
 	OTCopy48BitAddress(hardware_address, enetHeader->fSourceAddr); 
 
 	// Tell add-on to transmit packet
-	AO_transmit_packet(mp);
+	AO_transmit_packet(Host2MacAddr((uint8 *)mp));
 	freemsg(mp);
 }
 
@@ -1098,6 +1098,22 @@ type_found:
 	else {
 		freemsg(mp);	// Nobody wants it *snief*
 		num_rx_dropped++;
+	}
+}
+
+void ether_dispatch_packet(uint32 p, uint32 size)
+{
+	// Wrap packet in message block
+	num_rx_packets++;
+	mblk_t *mp;
+	if ((mp = allocb(size, 0)) != NULL) {
+		D(bug(" packet data at %p\n", (void *)mp->b_rptr));
+		Mac2Host_memcpy(mp->b_rptr, p, size);
+		mp->b_wptr += size;
+		ether_packet_received(mp);
+	} else {
+		D(bug("WARNING: Cannot allocate mblk for received packet\n"));
+		num_rx_no_mem++;
 	}
 }
 
@@ -1542,7 +1558,7 @@ static void DLPI_enable_multi(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 	}
 
 	// Tell add-on to enable multicast address
-	AO_enable_multicast(reqaddr);
+	AO_enable_multicast(Host2MacAddr((uint8 *)reqaddr));
 
 	// Add new address to multicast list
 	uint8 *addr = Mac2HostAddr(Mac_sysalloc(kEnetPhysicalAddressLength));
@@ -1586,7 +1602,7 @@ static void DLPI_disable_multi(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 	Mac_sysfree(Host2MacAddr(addr));
 
 	// Tell add-on to disable multicast address
-	AO_disable_multicast(reqaddr);
+	AO_disable_multicast(Host2MacAddr((uint8 *)reqaddr));
 	
 	// No longer check multicast packets if no multicast addresses are registered
 	if (the_stream->multicast_list == NULL)
@@ -1639,3 +1655,37 @@ static void DLPI_unit_data(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 	if ((mp = build_tx_packet_header(the_stream, mp, false)) != NULL)
 		transmit_packet(mp);
 }
+
+
+/*
+ *  Ethernet packet allocator
+ */
+
+#if SIZEOF_VOID_P != 4 || REAL_ADDRESSING == 0
+static uint32 ether_packet = 0;			// Ethernet packet (cached allocation)
+static uint32 n_ether_packets = 0;		// Number of ethernet packets allocated so far (should be at most 1)
+
+EthernetPacket::EthernetPacket()
+{
+	++n_ether_packets;
+	if (ether_packet && n_ether_packets == 1)
+		packet = ether_packet;
+	else {
+		packet = Mac_sysalloc(1516);
+		assert(packet != 0);
+		Mac_memset(packet, 0, 1516);
+		if (ether_packet == 0)
+			ether_packet = packet;
+	}
+}
+
+EthernetPacket::~EthernetPacket()
+{
+	--n_ether_packets;
+	if (packet != ether_packet)
+		Mac_sysfree(packet);
+	if (n_ether_packets > 0) {
+		bug("WARNING: Nested allocation of ethernet packets!\n");
+	}
+}
+#endif

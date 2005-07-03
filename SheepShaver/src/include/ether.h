@@ -39,18 +39,49 @@ extern void EtherExit(void);
 
 extern void EtherIRQ(void);
 
-extern void AO_get_ethernet_address(uint8 *addr);
-extern void AO_enable_multicast(uint8 *addr);
-extern void AO_disable_multicast(uint8 *addr);
-extern void AO_transmit_packet(mblk_t *mp);
+extern void AO_get_ethernet_address(uint32 addr);
+extern void AO_enable_multicast(uint32 addr);
+extern void AO_disable_multicast(uint32 addr);
+extern void AO_transmit_packet(uint32 mp);
 
 extern mblk_t *allocb(size_t size, int pri);
 extern void OTEnterInterrupt(void);
 extern void OTLeaveInterrupt(void);
 
+extern void ether_dispatch_packet(uint32 p, uint32 length);
 extern void ether_packet_received(mblk_t *mp);
 
 extern bool ether_driver_opened;
+
+// Ethernet packet allocator (optimized for 32-bit platforms in real addressing mode)
+class EthernetPacket {
+#if SIZEOF_VOID_P == 4 && REAL_ADDRESSING
+	uint8 packet[1516];
+ public:
+	uint32 addr(void) const { return (uint32)packet; }
+#else
+	uint32 packet;
+ public:
+	EthernetPacket();
+	~EthernetPacket();
+	uint32 addr(void) const { return packet; }
+#endif
+};
+
+// Copy packet data from message block to linear buffer (must hold at
+// least 1514 bytes), returns packet length
+static inline int ether_msgb_to_buffer(uint32 mp, uint8 *p)
+{
+	int len = 0;
+	while (mp) {
+		uint32 size = ReadMacInt32(mp + 16) - ReadMacInt32(mp + 12);
+		Mac2Host_memcpy(p, ReadMacInt32(mp + 12), size);
+		len += size;
+		p += size;
+		mp = ReadMacInt32(mp + 8);
+	}
+	return len;
+}
 
 extern int32 num_wput;
 extern int32 num_error_acks;

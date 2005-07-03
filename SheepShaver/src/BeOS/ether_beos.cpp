@@ -226,8 +226,9 @@ void EtherExit(void)
  *  Ask add-on for ethernet hardware address
  */
 
-void AO_get_ethernet_address(uint8 *addr)
+void AO_get_ethernet_address(uint32 arg)
 {
+	uint8 *addr = Mac2HostAddr(arg);
 	if (net_open) {
 		OTCopy48BitAddress(net_buffer_ptr->ether_addr, addr);
 	} else {
@@ -246,7 +247,7 @@ void AO_get_ethernet_address(uint8 *addr)
  *  Tell add-on to enable multicast address
  */
 
-void AO_enable_multicast(uint8 *addr)
+void AO_enable_multicast(uint32 addr)
 {
 	D(bug("AO_enable_multicast\n"));
 	if (net_open) {
@@ -254,7 +255,7 @@ void AO_enable_multicast(uint8 *addr)
 		if (p->cmd & IN_USE) {
 			D(bug("WARNING: couldn't enable multicast address\n"));
 		} else {
-			memcpy(p->data, addr, 6);
+			Mac2host_memcpy(p->data, addr, 6);
 			p->length = 6;
 			p->cmd = IN_USE | (ADD_MULTICAST << 8);
 			wr_pos = (wr_pos + 1) % WRITE_PACKET_COUNT;
@@ -268,7 +269,7 @@ void AO_enable_multicast(uint8 *addr)
  *  Tell add-on to disable multicast address
  */
 
-void AO_disable_multicast(uint8 *addr)
+void AO_disable_multicast(uint32 addr)
 {
 	D(bug("AO_disable_multicast\n"));
 	if (net_open) {
@@ -276,7 +277,7 @@ void AO_disable_multicast(uint8 *addr)
 		if (p->cmd & IN_USE) {
 			D(bug("WARNING: couldn't enable multicast address\n"));
 		} else {
-			memcpy(p->data, addr, 6);
+			Mac2host_memcpy(p->data, addr, 6);
 			p->length = 6;
 			p->cmd = IN_USE | (REMOVE_MULTICAST << 8);
 			wr_pos = (wr_pos + 1) % WRITE_PACKET_COUNT;
@@ -291,7 +292,7 @@ void AO_disable_multicast(uint8 *addr)
  *  Tell add-on to transmit one packet
  */
 
-void AO_transmit_packet(mblk_t *mp)
+void AO_transmit_packet(uint32 mp_arg)
 {
 	D(bug("AO_transmit_packet\n"));
 	if (net_open) {
@@ -306,6 +307,7 @@ void AO_transmit_packet(mblk_t *mp)
 			// Copy packet to buffer
 			uint8 *start;
 			uint8 *bp = start = p->data;
+			mblk_t *mp = Mac2HostAddr(mp_arg);
 			while (mp) {
 				uint32 size = mp->b_wptr - mp->b_rptr;
 				memcpy(bp, mp->b_rptr, size);
