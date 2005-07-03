@@ -60,7 +60,11 @@ static const uint8 video_driver[] = {
 
 // Ethernet driver stub
 static const uint8 ethernet_driver[] = {
+#ifdef USE_ETHER_FULL_DRIVER
+#include "EthernetDriverFull.i"
+#else
 #include "EthernetDriverStub.i"
+#endif
 };
 
 // Helper for RegEntryID
@@ -333,8 +337,6 @@ void DoPatchNameRegistry(void)
 		}
 
 		// Create "ethernet"
-		// XXX the current ethernet driver is not direct addressing clean
-#if REAL_ADDRESSING
 		SheepRegEntryID ethernet;
 		if (!RegistryCStrEntryCreate(device_tree.addr(), "ethernet", ethernet.addr())) {
 			RegistryPropertyCreateStr(ethernet.addr(), "AAPL,connector", "ethernet");
@@ -345,7 +347,6 @@ void DoPatchNameRegistry(void)
 			// local-mac-address
 			// max-frame-size 2048
 		}
-#endif
 	}
 	D(bug("done.\n"));
 }

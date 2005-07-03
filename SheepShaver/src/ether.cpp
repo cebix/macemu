@@ -31,15 +31,9 @@
 #include "ether.h"
 #include "ether_defs.h"
 #include "macos_util.h"
-#include "emul_op.h"
-#include "main.h"
 
 #define DEBUG 0
 #include "debug.h"
-
-#if DIRECT_ADDRESSING
-#warning "This code is not direct addressing clean"
-#endif
 
 // Packet types
 enum {
@@ -183,7 +177,7 @@ typedef mblk_t *(*allocb_ptr)(size_t size, int pri);
 static uint32 allocb_tvect = 0;
 mblk_t *allocb(size_t arg1, int arg2)
 {
-	return (mblk_t *)Mac2HostAddr(CallMacOS2(allocb_ptr, allocb_tvect, arg1, arg2));
+	return (mblk_t *)Mac2HostAddr((uint32)CallMacOS2(allocb_ptr, allocb_tvect, arg1, arg2));
 }
 typedef void (*freeb_ptr)(mblk_t *);
 static uint32 freeb_tvect = 0;
@@ -201,19 +195,19 @@ typedef mblk_t *(*copyb_ptr)(mblk_t *);
 static uint32 copyb_tvect = 0;
 static inline mblk_t *copyb(mblk_t *arg1)
 {
-	return (mblk_t *)Mac2HostAddr(CallMacOS1(copyb_ptr, copyb_tvect, arg1));
+	return (mblk_t *)Mac2HostAddr((uint32)CallMacOS1(copyb_ptr, copyb_tvect, arg1));
 }
 typedef mblk_t *(*dupmsg_ptr)(mblk_t *);
 static uint32 dupmsg_tvect = 0;
 static inline mblk_t *dupmsg(mblk_t *arg1)
 {
-	return (mblk_t *)Mac2HostAddr(CallMacOS1(dupmsg_ptr, dupmsg_tvect, arg1));
+	return (mblk_t *)Mac2HostAddr((uint32)CallMacOS1(dupmsg_ptr, dupmsg_tvect, arg1));
 }
 typedef mblk_t *(*getq_ptr)(queue_t *);
 static uint32 getq_tvect = 0;
 static inline mblk_t *getq(queue_t *arg1)
 {
-	return (mblk_t *)Mac2HostAddr(CallMacOS1(getq_ptr, getq_tvect, arg1));
+	return (mblk_t *)Mac2HostAddr((uint32)CallMacOS1(getq_ptr, getq_tvect, arg1));
 }
 typedef int (*putq_ptr)(queue_t *, mblk_t *);
 static uint32 putq_tvect = 0;
@@ -285,9 +279,12 @@ typedef DLPIStream *(*mi_next_ptr_ptr)(DLPIStream *);
 static uint32 mi_next_ptr_tvect = 0;
 static inline DLPIStream *mi_next_ptr(DLPIStream *arg1)
 {
-	return (DLPIStream *)Mac2HostAddr(CallMacOS1(mi_next_ptr_ptr, mi_next_ptr_tvect, arg1));
+	return (DLPIStream *)Mac2HostAddr((uint32)CallMacOS1(mi_next_ptr_ptr, mi_next_ptr_tvect, arg1));
 }
-
+#ifdef USE_ETHER_FULL_DRIVER
+typedef void (*ether_dispatch_packet_ptr)(uint32 p, uint32 size);
+static uint32 ether_dispatch_packet_tvect = 0;
+#endif
 
 // Prototypes
 static void ether_ioctl(DLPIStream *the_stream, queue_t* q, mblk_t* mp);
@@ -311,7 +308,7 @@ static void DLPI_unit_data(DLPIStream *the_stream, queue_t *q, mblk_t *mp);
  *  Initialize ethernet stream module
  */
 
-uint8 InitStreamModule(void *theID)
+static uint8 InitStreamModuleImpl(void *theID)
 {
 	D(bug("InitStreamModule\n"));
 
@@ -394,15 +391,40 @@ uint8 InitStreamModule(void *theID)
 	if (mi_next_ptr_tvect == 0)
 		return false;
 
+#ifndef USE_ETHER_FULL_DRIVER
 	// Initialize stream list (which might be leftover)
 	dlpi_stream_list = NULL;
 
 	// Ask add-on for ethernet hardware address
 	AO_get_ethernet_address(Host2MacAddr(hardware_address));
+#endif
 
 	// Yes, we're open
 	ether_driver_opened = true;
 	return true;
+}
+
+uint8 InitStreamModule(void *theID)
+{
+	// Common initialization code
+	bool net_open = InitStreamModuleImpl(theID);
+
+	// Call InitStreamModule() in native side
+#ifdef BUILD_ETHER_FULL_DRIVER
+	extern bool NativeInitStreamModule(void *);
+	if (!NativeInitStreamModule((void *)ether_dispatch_packet))
+		net_open = false;
+#endif
+
+	// Import functions from the Ethernet driver
+#ifdef USE_ETHER_FULL_DRIVER
+	ether_dispatch_packet_tvect = (uintptr)theID;
+	D(bug("ether_dispatch_packet TVECT at %08lx\n", ether_dispatch_packet_tvect));
+	if (ether_dispatch_packet_tvect == 0)
+		net_open = false;
+#endif
+
+	return net_open;
 }
 
 
@@ -410,16 +432,30 @@ uint8 InitStreamModule(void *theID)
  *  Terminate ethernet stream module
  */
 
-void TerminateStreamModule(void)
+static void TerminateStreamModuleImpl(void)
 {
 	D(bug("TerminateStreamModule\n"));
 
+#ifndef USE_ETHER_FULL_DRIVER
 	// This happens sometimes. I don't know why.
 	if (dlpi_stream_list != NULL)
 		printf("FATAL: TerminateStreamModule() called, but streams still open\n");
+#endif
 
 	// Sorry, we're closed
 	ether_driver_opened = false;
+}
+
+void TerminateStreamModule(void)
+{
+	// Common termination code
+	TerminateStreamModuleImpl();
+
+	// Call TerminateStreamModule() in native side
+#ifdef BUILD_ETHER_FULL_DRIVER
+	extern void NativeTerminateStreamModule(void);
+	NativeTerminateStreamModule();
+#endif
 }
 
 
@@ -1103,6 +1139,12 @@ type_found:
 
 void ether_dispatch_packet(uint32 p, uint32 size)
 {
+#ifdef USE_ETHER_FULL_DRIVER
+	// Call handler from the Ethernet driver
+	D(bug("ether_dispatch_packet\n"));
+	D(bug(" packet data at %p, %d bytes\n", p, size));
+	CallMacOS2(ether_dispatch_packet_ptr, ether_dispatch_packet_tvect, p, size);
+#else
 	// Wrap packet in message block
 	num_rx_packets++;
 	mblk_t *mp;
@@ -1115,6 +1157,7 @@ void ether_dispatch_packet(uint32 p, uint32 size)
 		D(bug("WARNING: Cannot allocate mblk for received packet\n"));
 		num_rx_no_mem++;
 	}
+#endif
 }
 
 

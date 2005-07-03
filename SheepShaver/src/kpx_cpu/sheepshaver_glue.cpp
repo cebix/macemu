@@ -1039,6 +1039,18 @@ void sheepshaver_cpu::execute_native_op(uint32 selector)
 	case NATIVE_VIDEO_DO_DRIVER_IO:
 		gpr(3) = (int32)(int16)VideoDoDriverIO(gpr(3), gpr(4), gpr(5), gpr(6), gpr(7));
 		break;
+	case NATIVE_ETHER_AO_GET_HWADDR:
+		AO_get_ethernet_address(gpr(3));
+		break;
+	case NATIVE_ETHER_AO_ADD_MULTI:
+		AO_enable_multicast(gpr(3));
+		break;
+	case NATIVE_ETHER_AO_DEL_MULTI:
+		AO_disable_multicast(gpr(3));
+		break;
+	case NATIVE_ETHER_AO_SEND_PACKET:
+		AO_transmit_packet(gpr(3));
+		break;
 	case NATIVE_ETHER_IRQ:
 		EtherIRQ();
 		break;

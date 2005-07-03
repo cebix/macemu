@@ -239,6 +239,12 @@ bool InitAll(void)
 	WriteMacInt32(XLM_R13, (uint32)R13);							// TLS register
 #endif
 #endif
+
+	WriteMacInt32(XLM_ETHER_AO_GET_HWADDR, NativeFunction(NATIVE_ETHER_AO_GET_HWADDR));	// Low level ethernet driver functions
+	WriteMacInt32(XLM_ETHER_AO_ADD_MULTI, NativeFunction(NATIVE_ETHER_AO_ADD_MULTI));
+	WriteMacInt32(XLM_ETHER_AO_DEL_MULTI, NativeFunction(NATIVE_ETHER_AO_DEL_MULTI));
+	WriteMacInt32(XLM_ETHER_AO_SEND_PACKET, NativeFunction(NATIVE_ETHER_AO_SEND_PACKET));
+
 	WriteMacInt32(XLM_ETHER_INIT, NativeFunction(NATIVE_ETHER_INIT));	// DLPI ethernet driver functions
 	WriteMacInt32(XLM_ETHER_TERM, NativeFunction(NATIVE_ETHER_TERM));
 	WriteMacInt32(XLM_ETHER_OPEN, NativeFunction(NATIVE_ETHER_OPEN));

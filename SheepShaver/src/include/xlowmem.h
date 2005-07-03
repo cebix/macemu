@@ -49,6 +49,10 @@
 #define XLM_ZERO_PAGE 0x2850			// Pointer to read-only page with all bits set to 0
 #define XLM_R13 0x2854					// Pointer to .sdata section (Linux)
 
+#define XLM_ETHER_AO_GET_HWADDR 0x28b0	// Pointer to ethernet A0_get_ethernet_address() function
+#define XLM_ETHER_AO_ADD_MULTI 0x28b4	// Pointer to ethernet A0_enable_multicast() function
+#define XLM_ETHER_AO_DEL_MULTI 0x28b8	// Pointer to ethernet A0_disable_multicast() function
+#define XLM_ETHER_AO_SEND_PACKET 0x28bc	// Pointer to ethernet A0_transmit_packet() function
 #define XLM_ETHER_INIT 0x28c0			// Pointer to ethernet InitStreamModule() function
 #define XLM_ETHER_TERM 0x28c4			// Pointer to ethernet TerminateStreamModule() function
 #define XLM_ETHER_OPEN 0x28c8			// Pointer to ethernet ether_open() function
