@@ -66,6 +66,7 @@ using std::map;
 #define DEBUG 0
 #include "debug.h"
 
+#define STATISTICS 0
 #define MONITOR 0
 
 
@@ -94,6 +95,12 @@ static pthread_t slirp_thread;				// Slirp reception thread
 static bool slirp_thread_active = false;	// Flag: Slirp reception threadinstalled
 static int slirp_output_fd = -1;			// fd of slirp output pipe
 static int slirp_input_fds[2] = { -1, -1 };	// fds of slirp input pipe
+#ifdef SHEEPSHAVER
+static bool net_open = false;				// Flag: initialization succeeded, network device open
+static uint8 ether_addr[6];					// Our Ethernet address
+#else
+const bool ether_driver_opened = true;		// Flag: is the MacOS driver opened?
+#endif
 
 // Attached network protocols, maps protocol type to MacOS handler address
 static map<uint16, uint32> net_protocols;
@@ -102,6 +109,10 @@ static map<uint16, uint32> net_protocols;
 static void *receive_func(void *arg);
 static void *slirp_receive_func(void *arg);
 static int poll_fd(int fd);
+static int16 ether_do_add_multicast(uint8 *addr);
+static int16 ether_do_del_multicast(uint8 *addr);
+static int16 ether_do_write(uint32 arg);
+static void ether_do_interrupt(void);
 
 
 /*
@@ -393,7 +404,189 @@ void ether_exit(void)
 	// Close slirp output buffer
 	if (slirp_output_fd > 0)
 		close(slirp_output_fd);
+
+#if STATISTICS
+	// Show statistics
+	printf("%ld messages put on write queue\n", num_wput);
+	printf("%ld error acks\n", num_error_acks);
+	printf("%ld packets transmitted (%ld raw, %ld normal)\n", num_tx_packets, num_tx_raw_packets, num_tx_normal_packets);
+	printf("%ld tx packets dropped because buffer full\n", num_tx_buffer_full);
+	printf("%ld packets received\n", num_rx_packets);
+	printf("%ld packets passed upstream (%ld Fast Path, %ld normal)\n", num_rx_fastpath + num_unitdata_ind, num_rx_fastpath, num_unitdata_ind);
+	printf("EtherIRQ called %ld times\n", num_ether_irq);
+	printf("%ld rx packets dropped due to low memory\n", num_rx_no_mem);
+	printf("%ld rx packets dropped because no stream found\n", num_rx_dropped);
+	printf("%ld rx packets dropped because stream not ready\n", num_rx_stream_not_ready);
+	printf("%ld rx packets dropped because no memory for unitdata_ind\n", num_rx_no_unitdata_mem);
+#endif
 }
+
+
+/*
+ *  Glue around low-level implementation
+ */
+
+#ifdef SHEEPSHAVER
+// Error codes
+enum {
+	eMultiErr		= -91,
+	eLenErr			= -92,
+	lapProtErr		= -94,
+	excessCollsns	= -95
+};
+
+// Initialize ethernet
+void EtherInit(void)
+{
+	net_open = false;
+
+	// Do nothing if the user disabled the network
+	if (PrefsFindBool("nonet"))
+		return;
+
+	net_open = ether_init();
+}
+
+// Exit ethernet
+void EtherExit(void)
+{
+	ether_exit();
+	net_open = false;
+}
+
+// Get ethernet hardware address
+void AO_get_ethernet_address(uint32 arg)
+{
+	uint8 *addr = Mac2HostAddr(arg);
+	if (net_open)
+		OTCopy48BitAddress(ether_addr, addr);
+	else {
+		addr[0] = 0x12;
+		addr[1] = 0x34;
+		addr[2] = 0x56;
+		addr[3] = 0x78;
+		addr[4] = 0x9a;
+		addr[5] = 0xbc;
+	}
+	D(bug("AO_get_ethernet_address: got address %02x%02x%02x%02x%02x%02x\n", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]));
+}
+
+// Add multicast address
+void AO_enable_multicast(uint32 addr)
+{
+	if (net_open)
+		ether_do_add_multicast(Mac2HostAddr(addr));
+}
+
+// Disable multicast address
+void AO_disable_multicast(uint32 addr)
+{
+	if (net_open)
+		ether_do_del_multicast(Mac2HostAddr(addr));
+}
+
+// Transmit one packet
+void AO_transmit_packet(uint32 mp)
+{
+	if (net_open) {
+		switch (ether_do_write(mp)) {
+		case noErr:
+			num_tx_packets++;
+			break;
+		case excessCollsns:
+			num_tx_buffer_full++;
+			break;
+		}
+	}
+}
+
+// Copy packet data from message block to linear buffer
+static inline int ether_arg_to_buffer(uint32 mp, uint8 *p)
+{
+	return ether_msgb_to_buffer(mp, p);
+}
+
+// Ethernet interrupt
+void EtherIRQ(void)
+{
+	D(bug("EtherIRQ\n"));
+	num_ether_irq++;
+
+	OTEnterInterrupt();
+	ether_do_interrupt();
+	OTLeaveInterrupt();
+
+	// Acknowledge interrupt to reception thread
+	D(bug(" EtherIRQ done\n"));
+	sem_post(&int_ack);
+}
+#else
+// Add multicast address
+int16 ether_add_multicast(uint32 pb)
+{
+	return ether_do_add_multicast(Mac2HostAddr(pb + eMultiAddr));
+}
+
+// Disable multicast address
+int16 ether_del_multicast(uint32 pb)
+{
+	return ether_do_del_multicast(Mac2HostAddr(pb + eMultiAddr));
+}
+
+// Transmit one packet
+int16 ether_write(uint32 wds)
+{
+	return ether_do_write(wds);
+}
+
+// Copy packet data from WDS to linear buffer
+static inline int ether_arg_to_buffer(uint32 wds, uint8 *p)
+{
+	return ether_wds_to_buffer(wds, p);
+}
+
+// Dispatch packet to protocol handler
+static void ether_dispatch_packet(uint32 p, uint32 length)
+{
+	// Get packet type
+	uint16 type = ReadMacInt16(p + 12);
+
+	// Look for protocol
+	uint16 search_type = (type <= 1500 ? 0 : type);
+	if (net_protocols.find(search_type) == net_protocols.end())
+		return;
+	uint32 handler = net_protocols[search_type];
+
+	// No default handler
+	if (handler == 0)
+		return;
+
+	// Copy header to RHA
+	Mac2Mac_memcpy(ether_data + ed_RHA, p, 14);
+	D(bug(" header %08x%04x %08x%04x %04x\n", ReadMacInt32(ether_data + ed_RHA), ReadMacInt16(ether_data + ed_RHA + 4), ReadMacInt32(ether_data + ed_RHA + 6), ReadMacInt16(ether_data + ed_RHA + 10), ReadMacInt16(ether_data + ed_RHA + 12)));
+
+	// Call protocol handler
+	M68kRegisters r;
+	r.d[0] = type;									// Packet type
+	r.d[1] = length - 14;							// Remaining packet length (without header, for ReadPacket)
+	r.a[0] = p + 14;								// Pointer to packet (Mac address, for ReadPacket)
+	r.a[3] = ether_data + ed_RHA + 14;				// Pointer behind header in RHA
+	r.a[4] = ether_data + ed_ReadPacket;			// Pointer to ReadPacket/ReadRest routines
+	D(bug(" calling protocol handler %08x, type %08x, length %08x, data %08x, rha %08x, read_packet %08x\n", handler, r.d[0], r.d[1], r.a[0], r.a[3], r.a[4]));
+	Execute68k(handler, &r);
+}
+
+// Ethernet interrupt
+void EtherInterrupt(void)
+{
+	D(bug("EtherIRQ\n"));
+	ether_do_interrupt();
+
+	// Acknowledge interrupt to reception thread
+	D(bug(" EtherIRQ done\n"));
+	sem_post(&int_ack);
+}
+#endif
 
 
 /*
@@ -410,12 +603,12 @@ void ether_reset(void)
  *  Add multicast address
  */
 
-int16 ether_add_multicast(uint32 pb)
+static int16 ether_do_add_multicast(uint8 *addr)
 {
 	switch (net_if_type) {
 	case NET_IF_ETHERTAP:
 	case NET_IF_SHEEPNET:
-		if (ioctl(fd, SIOCADDMULTI, Mac2HostAddr(pb + eMultiAddr)) < 0) {
+		if (ioctl(fd, SIOCADDMULTI, addr) < 0) {
 			D(bug("WARNING: Couldn't enable multicast address\n"));
 			if (net_if_type == NET_IF_ETHERTAP)
 				return noErr;
@@ -432,12 +625,12 @@ int16 ether_add_multicast(uint32 pb)
  *  Delete multicast address
  */
 
-int16 ether_del_multicast(uint32 pb)
+static int16 ether_do_del_multicast(uint8 *addr)
 {
 	switch (net_if_type) {
 	case NET_IF_ETHERTAP:
 	case NET_IF_SHEEPNET:
-		if (ioctl(fd, SIOCDELMULTI, Mac2HostAddr(pb + eMultiAddr)) < 0) {
+		if (ioctl(fd, SIOCDELMULTI, addr) < 0) {
 			D(bug("WARNING: Couldn't disable multicast address\n"));
 			return eMultiErr;
 		}
@@ -476,7 +669,7 @@ int16 ether_detach_ph(uint16 type)
  *  Transmit raw ethernet packet
  */
 
-int16 ether_write(uint32 wds)
+static int16 ether_do_write(uint32 arg)
 {
 	// Copy packet to buffer
 	uint8 packet[1516], *p = packet;
@@ -488,7 +681,7 @@ int16 ether_write(uint32 wds)
 		len += 2;
 	}
 #endif
-	len += ether_wds_to_buffer(wds, p);
+	len += ether_arg_to_buffer(arg, p);
 
 #if MONITOR
 	bug("Sending Ethernet packet:\n");
@@ -637,13 +830,16 @@ static void *receive_func(void *arg)
 		if (res <= 0)
 			break;
 
-		// Trigger Ethernet interrupt
-		D(bug(" packet received, triggering Ethernet interrupt\n"));
-		SetInterruptFlag(INTFLAG_ETHER);
-		TriggerInterrupt();
+		if (ether_driver_opened) {
+			// Trigger Ethernet interrupt
+			D(bug(" packet received, triggering Ethernet interrupt\n"));
+			SetInterruptFlag(INTFLAG_ETHER);
+			TriggerInterrupt();
 
-		// Wait for interrupt acknowledge by EtherInterrupt()
-		sem_wait(&int_ack);
+			// Wait for interrupt acknowledge by EtherInterrupt()
+			sem_wait(&int_ack);
+		} else
+			usleep(20000);
 	}
 	return NULL;
 }
@@ -653,16 +849,15 @@ static void *receive_func(void *arg)
  *  Ethernet interrupt - activate deferred tasks to call IODone or protocol handlers
  */
 
-void EtherInterrupt(void)
+void ether_do_interrupt(void)
 {
-	D(bug("EtherIRQ\n"));
-
 	// Call protocol handler for received packets
 	EthernetPacket ether_packet;
 	uint32 packet = ether_packet.addr();
 	ssize_t length;
 	for (;;) {
 
+#ifndef SHEEPSHAVER
 		if (udp_tunnel) {
 
 			// Read packet from socket
@@ -673,7 +868,9 @@ void EtherInterrupt(void)
 				break;
 			ether_udp_read(packet, length, &from);
 
-		} else {
+		} else
+#endif
+		{
 
 			// Read packet from sheep_net device
 #if defined(__linux__)
@@ -701,36 +898,8 @@ void EtherInterrupt(void)
 			}
 #endif
 
-			// Get packet type
-			uint16 type = ReadMacInt16(p + 12);
-
-			// Look for protocol
-			uint16 search_type = (type <= 1500 ? 0 : type);
-			if (net_protocols.find(search_type) == net_protocols.end())
-				continue;
-			uint32 handler = net_protocols[search_type];
-
-			// No default handler
-			if (handler == 0)
-				continue;
-
-			// Copy header to RHA
-			Mac2Mac_memcpy(ether_data + ed_RHA, p, 14);
-			D(bug(" header %08x%04x %08x%04x %04x\n", ReadMacInt32(ether_data + ed_RHA), ReadMacInt16(ether_data + ed_RHA + 4), ReadMacInt32(ether_data + ed_RHA + 6), ReadMacInt16(ether_data + ed_RHA + 10), ReadMacInt16(ether_data + ed_RHA + 12)));
-
-			// Call protocol handler
-			M68kRegisters r;
-			r.d[0] = type;									// Packet type
-			r.d[1] = length - 14;							// Remaining packet length (without header, for ReadPacket)
-			r.a[0] = p + 14;								// Pointer to packet (Mac address, for ReadPacket)
-			r.a[3] = ether_data + ed_RHA + 14;				// Pointer behind header in RHA
-			r.a[4] = ether_data + ed_ReadPacket;			// Pointer to ReadPacket/ReadRest routines
-			D(bug(" calling protocol handler %08x, type %08x, length %08x, data %08x, rha %08x, read_packet %08x\n", handler, r.d[0], r.d[1], r.a[0], r.a[3], r.a[4]));
-			Execute68k(handler, &r);
+			// Dispatch packet
+			ether_dispatch_packet(p, length);
 		}
 	}
-
-	// Acknowledge interrupt to reception thread
-	D(bug(" EtherIRQ done\n"));
-	sem_post(&int_ack);
 }
