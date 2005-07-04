@@ -51,8 +51,7 @@ extern "C" void set_r2(void *);
 extern "C" void *get_r13(void);
 extern "C" void set_r13(void *);
 extern void paranoia_check(void);
-extern "C" void sigusr2_handler_init(int sig, siginfo_t *sip, void *scp);
-extern "C" void sigusr2_handler(int sig, siginfo_t *sip, void *scp);
+static void sigusr2_handler(int sig, siginfo_t *sip, void *scp);
 static void *tick_func(void *);
 static void *emul_func(void *);
 
