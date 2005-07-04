@@ -466,7 +466,7 @@ linux*)
   AUDIOSRC=audio_oss_esd.cpp
   SCSISRC=Linux/scsi_linux.cpp
   if [[ "x$EMULATED_PPC" = "xno" ]]; then
-    EXTRASYSSRCS="Linux/paranoia.cpp Linux/sheepthreads.c ppc_asm.S"
+    EXTRASYSSRCS="paranoia.cpp Linux/sheepthreads.c ppc_asm.S"
   fi
   ;;
 freebsd*)
@@ -475,13 +475,13 @@ freebsd*)
 netbsd*)
   ETHERSRC=ether_unix.cpp
   if [[ "x$EMULATED_PPC" = "xno" ]]; then
-    EXTRASYSSRCS="NetBSD/paranoia.cpp NetBSD/sheepthreads.c ppc_asm.S"
+    EXTRASYSSRCS="paranoia.cpp NetBSD/sheepthreads.c ppc_asm.S"
   fi
   ;;
 darwin*)
   ETHERSRC=ether_unix.cpp
   if [[ "x$EMULATED_PPC" = "xno" ]]; then
-    EXTRASYSSRCS="Darwin/paranoia.cpp ppc_asm.S"
+    EXTRASYSSRCS="paranoia.cpp ppc_asm.S"
   fi
   if [[ "x$ac_cv_framework_IOKit" = "xyes" ]]; then
     EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/sys_darwin.cpp"
