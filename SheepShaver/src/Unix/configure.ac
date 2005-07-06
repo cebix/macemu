@@ -1175,20 +1175,22 @@ fi
 dnl Check for GCC 2.7 or higher.
 HAVE_GCC27=no
 AC_MSG_CHECKING(for GCC 2.7 or higher)
-AC_EGREP_CPP(xyes,
-[#if __GNUC__ - 1 > 1 || __GNUC_MINOR__ - 1 > 5
-  xyes
-#endif
-], [AC_MSG_RESULT(yes); HAVE_GCC27=yes], AC_MSG_RESULT(no))
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#if ! (__GNUC__ - 1 > 1 || __GNUC_MINOR__ - 1 > 5)
+                                     # error gcc < 2.7
+                                     #endif
+                                   ]])],
+                  [AC_MSG_RESULT(yes); HAVE_GCC27=yes],
+                  [AC_MSG_RESULT(no)])
 
 dnl Check for GCC 3.0 or higher.
 HAVE_GCC30=no
 AC_MSG_CHECKING(for GCC 3.0 or higher)
-AC_EGREP_CPP(xyes,
-[#if __GNUC__ >= 3
-  xyes
-#endif
-], [AC_MSG_RESULT(yes); HAVE_GCC30=yes], AC_MSG_RESULT(no))
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#if ! (__GNUC__ >= 3)
+                                     # error gcc < 3
+                                     #endif
+                                   ]])],
+                  [AC_MSG_RESULT(yes); HAVE_GCC30=yes],
+                  [AC_MSG_RESULT(no)])
 
 dnl Check for ICC.
 AC_MSG_CHECKING(for ICC)
