@@ -589,6 +589,7 @@ int main(int argc, char **argv)
 			{ 0xffff0000, 0x80010000, "7455" },
 			{ 0xffff0000, 0x80020000, "7457" },
 			{ 0xffff0000, 0x80030000, "7447A" },
+			{ 0xffff0000, 0x80040000, "7448" },
 			{ 0x7fff0000, 0x00810000, "82xx" },
 			{ 0x7fff0000, 0x00820000, "8280" },
 			{ 0xffff0000, 0x00400000, "Power3 (630)" },
@@ -597,6 +598,7 @@ int main(int argc, char **argv)
 			{ 0xffff0000, 0x00370000, "S-star" },
 			{ 0xffff0000, 0x00350000, "Power4" },
 			{ 0xffff0000, 0x00390000, "PPC970" },
+			{ 0xffff0000, 0x003c0000, "PPC970FX" },
 			{ 0xffff0000, 0x003a0000, "POWER5" },
 			{ 0, 0, 0 }
 		};
@@ -672,7 +674,9 @@ int main(int argc, char **argv)
 	case 0x8001:				// 7455
 	case 0x8002:				// 7457
 	case 0x8003:				// 7447A
+	case 0x8004:				// 7448
 	case 0x0039:				//  970
+	case 0x003c:				//  970FX
 		PVR = 0x000c0000;		// 7400
 		break;
 	}
