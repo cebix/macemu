@@ -671,6 +671,7 @@ int main(int argc, char **argv)
 	case 0x8000:				// 7450
 	case 0x8001:				// 7455
 	case 0x8002:				// 7457
+	case 0x8003:				// 7447A
 	case 0x0039:				//  970
 		PVR = 0x000c0000;		// 7400
 		break;
