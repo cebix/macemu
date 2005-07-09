@@ -1592,14 +1592,27 @@ void op_mtvscr_V0(void)
 #undef V1
 #undef V2
 
+/* We are using GCC, so we can use its extensions */
+#ifdef  __MMX__
+#define __mmx_clobbers(reglist...) reglist
+#else
+#define __mmx_clobbers(reglist...)
+#endif
+#ifdef  __SSE__
+#define __sse_clobbers(reglist...) reglist
+#else
+#define __sse_clobbers(reglist...)
+#endif
+
 // SSE2 instructions
-#define DEFINE_OP(NAME, OP, VA, VB)												\
-void op_sse2_##NAME(void)														\
-{																				\
-	asm volatile ("movdqa (%1),%%xmm0\n"										\
-				  #OP   " (%2),%%xmm0\n"										\
-				  "movaps %%xmm0,(%0)\n"										\
-				  : : "r" (reg_VD), "r" (reg_##VA), "r" (reg_##VB) : "xmm0");	\
+#define DEFINE_OP(NAME, OP, VA, VB)									\
+void op_sse2_##NAME(void)											\
+{																	\
+	asm volatile ("movdqa (%1),%%xmm0\n"							\
+				  #OP   " (%2),%%xmm0\n"							\
+				  "movaps %%xmm0,(%0)\n"							\
+				  : : "r" (reg_VD), "r" (reg_##VA), "r" (reg_##VB)	\
+				  : __sse_clobbers("xmm0"));						\
 }
 
 DEFINE_OP(vcmpequb, pcmpeqb, V0, V1);
@@ -1638,7 +1651,7 @@ void op_sse2_vsldoi_##SH(void)								\
 				  : :										\
 				  "r" (reg_VD), "r" (reg_V0), "r" (reg_V1),	\
 				  "i" (0x1b), "i" (SH), "i" (16 - SH)		\
-				  : "xmm0", "xmm1");						\
+				  : __sse_clobbers("xmm0", "xmm1"));		\
 }
 
 DEFINE_OP(1);
@@ -1660,13 +1673,14 @@ DEFINE_OP(15);
 #undef DEFINE_OP
 
 // SSE instructions
-#define DEFINE_OP(NAME, OP, VA, VB)												\
-void op_sse_##NAME(void)														\
-{																				\
-	asm volatile ("movaps (%1),%%xmm0\n"										\
-				  #OP   " (%2),%%xmm0\n"										\
-				  "movaps %%xmm0,(%0)\n"										\
-				  : : "r" (reg_VD), "r" (reg_##VA), "r" (reg_##VB) : "xmm0");	\
+#define DEFINE_OP(NAME, OP, VA, VB)									\
+void op_sse_##NAME(void)											\
+{																	\
+	asm volatile ("movaps (%1),%%xmm0\n"							\
+				  #OP   " (%2),%%xmm0\n"							\
+				  "movaps %%xmm0,(%0)\n"							\
+				  : : "r" (reg_VD), "r" (reg_##VA), "r" (reg_##VB)	\
+				  : __sse_clobbers("xmm0"));						\
 }
 
 DEFINE_OP(vcmpeqfp, cmpeqps, V0, V1);
@@ -1693,7 +1707,8 @@ void op_sse_vmaddfp(void)
 				  "mulps  (%3),%%xmm0\n"
 				  "addps  (%2),%%xmm0\n"
 				  "movaps %%xmm0,(%0)\n"
-				  : : "r" (reg_VD), "r" (reg_V0), "r" (reg_V1), "r" (reg_V2) : "xmm0");
+				  : : "r" (reg_VD), "r" (reg_V0), "r" (reg_V1), "r" (reg_V2)
+				  : __sse_clobbers("xmm0"));
 }
 
 void op_sse_vnmsubfp(void)
@@ -1704,15 +1719,17 @@ void op_sse_vnmsubfp(void)
 				  "subps  (%2),%%xmm0\n"
 				  "subps  %%xmm0,%%xmm1\n"
 				  "movaps %%xmm1,(%0)\n"
-				  : : "r" (reg_VD), "r" (reg_V0), "r" (reg_V1), "r" (reg_V2) : "xmm0", "xmm1");
+				  : : "r" (reg_VD), "r" (reg_V0), "r" (reg_V1), "r" (reg_V2)
+				  : __sse_clobbers("xmm0", "xmm1"));
 }
 
-#define DEFINE_OP(VD, VS)										\
-void op_sse_mov_##VD##_##VS(void)								\
-{																\
-	asm volatile ("movaps (%1),%%xmm0\n"						\
-				  "movaps %%xmm0,(%0)\n"						\
-				  : : "r" (reg_##VD), "r" (reg_##VS) : "xmm0");	\
+#define DEFINE_OP(VD, VS)								\
+void op_sse_mov_##VD##_##VS(void)						\
+{														\
+	asm volatile ("movaps (%1),%%xmm0\n"				\
+				  "movaps %%xmm0,(%0)\n"				\
+				  : : "r" (reg_##VD), "r" (reg_##VS)	\
+				  : __sse_clobbers("xmm0"));			\
 }
 
 DEFINE_OP(VD, V0);
@@ -1727,16 +1744,17 @@ void op_emms(void)
 	asm volatile ("emms");
 }
 
-#define DEFINE_OP(NAME, OP, VA, VB)													\
-void op_mmx_##NAME(void)															\
-{																					\
-	asm volatile ("movq (%1),%%mm0\n"												\
-				  "movq 8(%1),%%mm1\n"												\
-				  #OP " (%2),%%mm0\n"												\
-				  #OP " 8(%2),%%mm1\n"												\
-				  "movq %%mm0,(%0)\n"												\
-				  "movq %%mm1,8(%0)\n"												\
-				  : : "r" (reg_VD), "r" (reg_##VA), "r" (reg_##VB) : "mm0", "mm1");	\
+#define DEFINE_OP(NAME, OP, VA, VB)									\
+void op_mmx_##NAME(void)											\
+{																	\
+	asm volatile ("movq (%1),%%mm0\n"								\
+				  "movq 8(%1),%%mm1\n"								\
+				  #OP " (%2),%%mm0\n"								\
+				  #OP " 8(%2),%%mm1\n"								\
+				  "movq %%mm0,(%0)\n"								\
+				  "movq %%mm1,8(%0)\n"								\
+				  : : "r" (reg_VD), "r" (reg_##VA), "r" (reg_##VB)	\
+				  : __mmx_clobbers("mm0", "mm1"));					\
 }
 
 DEFINE_OP(vcmpequb, pcmpeqb, V0, V1);
