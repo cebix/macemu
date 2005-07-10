@@ -149,7 +149,7 @@ void SysAddFloppyPrefs(void)
 	PrefsAddString("floppy", "/dev/fd0a");
 	PrefsAddString("floppy", "/dev/fd1a");
 #elif defined(__APPLE__) && defined(__MACH__)
-  #if defined(AQUA) || defined(HAVE_FRAMEWORK_IOKIT)
+  #if defined(AQUA) || defined(HAVE_FRAMEWORK_COREFOUNDATION)
 	extern	void DarwinAddFloppyPrefs(void);
 
 	DarwinAddFloppyPrefs();
@@ -229,7 +229,7 @@ void SysAddCDROMPrefs(void)
 		}
 	}
 #elif defined(__APPLE__) && defined(__MACH__)
-  #if defined(AQUA) || defined(HAVE_FRAMEWORK_IOKIT)
+  #if defined(AQUA) || defined(HAVE_FRAMEWORK_COREFOUNDATION)
 	extern	void DarwinAddCDROMPrefs(void);
 
 	DarwinAddCDROMPrefs();
@@ -264,7 +264,7 @@ void SysAddSerialPrefs(void)
 	PrefsAddString("seriala", "/dev/tty00");
 	PrefsAddString("serialb", "/dev/tty01");
 #elif defined(__APPLE__) && defined(__MACH__)
-  #if defined(AQUA) || defined(HAVE_FRAMEWORK_IOKIT)
+  #if defined(AQUA) || defined(HAVE_FRAMEWORK_COREFOUNDATION)
 	extern	void DarwinAddSerialPrefs(void);
 
 	DarwinAddSerialPrefs();
@@ -827,7 +827,7 @@ bool SysCDReadTOC(void *arg, uint8 *toc)
 		*toc++ = toc_size >> 8;
 		*toc++ = toc_size & 0xff;
 		return true;
-#elif defined(__APPLE__) && defined(__MACH__) && defined(MAC_OS_X_VERSION_10_2)
+#elif defined(__APPLE__) && defined(__MACH__) && defined(MAC_OS_X_VERSION_10_2) && defined(HAVE_FRAMEWORK_COREFOUNDATION)
 		extern	bool	DarwinCDReadTOC(char *name, uint8 *toc);
 
 		return	DarwinCDReadTOC(fh->name, toc);
