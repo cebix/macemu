@@ -452,6 +452,7 @@ AC_DEFUN(AC_CHECK_FRAMEWORK, [
 dnl Check for some MacOS X frameworks
 AC_CHECK_FRAMEWORK(Carbon, [#include <Carbon/Carbon.h>])
 AC_CHECK_FRAMEWORK(IOKit, [#include <IOKit/IOKitLib.h>])
+AC_CHECK_FRAMEWORK(CoreFoundation, [#include <CoreFoundation/CoreFoundation.h>])
 
 dnl Select system-dependant sources.
 SERIALSRC=serial_unix.cpp
@@ -483,7 +484,7 @@ darwin*)
   if [[ "x$EMULATED_PPC" = "xno" ]]; then
     EXTRASYSSRCS="paranoia.cpp ppc_asm.S"
   fi
-  if [[ "x$ac_cv_framework_IOKit" = "xyes" ]]; then
+  if [[ "x$ac_cv_framework_IOKit" = "xyes" -a "x$ac_cv_framework_CoreFoundation" = "xyes" ]]; then
     EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/sys_darwin.cpp"
   fi
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
