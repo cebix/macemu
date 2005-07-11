@@ -96,7 +96,11 @@ extern int __op_param1, __op_param2, __op_param3;
 #endif
 
 #ifndef REG_CPU
+#if defined(__APPLE__) && defined(__MACH__)
+static int __op_cpuparam;
+#else
 extern int __op_cpuparam;
+#endif
 #define CPUPARAM ((long)(&__op_cpuparam))
 #endif
 
@@ -125,6 +129,9 @@ extern int __op_jmp0, __op_jmp1;
 #define ASM_SIZE				""
 #if defined(__ppc__)
 #define ASM_OP_EXEC_RETURN_INSN	"0x18,0xde,0xad,0xff"
+#endif
+#if defined(__i386__)
+#define ASM_OP_EXEC_RETURN_INSN "0x0f,0xa6,0xf0"
 #endif
 #else
 #define ASM_DATA_SECTION		".section \".data\"\n"
