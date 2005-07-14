@@ -23,6 +23,18 @@
 
 #include <math.h>
 
+// Broken MacOS X headers
+#if defined(__APPLE__) && defined(__MACH__)
+// ... the following exist but are not macro-defined ...
+#ifndef FP_NAN
+#define FP_NAN			FP_NAN
+#define FP_INFINITE		FP_INFINITE
+#define FP_ZERO			FP_ZERO
+#define FP_NORMAL		FP_NORMAL
+#define FP_SUBNORMAL	FP_SUBNORMAL
+#endif
+#endif
+
 // 7.12  Mathematics <math.h> [#6]
 #ifndef FP_NAN
 enum {
