@@ -326,7 +326,7 @@ int16 DiskPrime(uint32 pb, uint32 dce)
 	size_t length = ReadMacInt32(pb + ioReqCount);
 	loff_t position = ReadMacInt32(dce + dCtlPosition);
 	if (ReadMacInt16(pb + ioPosMode) & 0x100)	// 64 bit positioning
-		position = ((loff_t)ReadMacInt32(pb + ioWPosOffset) << 32) || ReadMacInt32(pb + ioWPosOffset + 4);
+		position = ((loff_t)ReadMacInt32(pb + ioWPosOffset) << 32) | ReadMacInt32(pb + ioWPosOffset + 4);
 	if ((length & 0x1ff) || (position & 0x1ff))
 		return paramErr;
 
