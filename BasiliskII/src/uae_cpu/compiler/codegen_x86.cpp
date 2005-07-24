@@ -3736,14 +3736,12 @@ raw_init_cpu(void)
 	uae_u32 tfms, brand_id;
 	cpuid(0x00000001, &tfms, &brand_id, NULL, &c->x86_hwcap);
 	c->x86 = (tfms >> 8) & 15;
+	if (c->x86 == 0xf)
+		c->x86 += (tfms >> 20) & 0xff; /* extended family */
 	c->x86_model = (tfms >> 4) & 15;
+	if (c->x86_model == 0xf)
+		c->x86_model |= (tfms >> 12) & 0xf0; /* extended model */
 	c->x86_brand_id = brand_id & 0xff;
-	if ( (c->x86_vendor == X86_VENDOR_AMD) &&
-		 (c->x86 == 0xf)) {
-	  /* AMD Extended Family and Model Values */
-	  c->x86 += (tfms >> 20) & 0xff;
-	  c->x86_model += (tfms >> 12) & 0xf0;
-	}
 	c->x86_mask = tfms & 15;
   } else {
 	/* Have CPUID level 0 only - unheard of */
@@ -3787,18 +3785,18 @@ raw_init_cpu(void)
 	  c->x86_processor = X86_PROCESSOR_PENTIUMPRO;
 	break;
   case 15:
-	if (c->x86_vendor == X86_VENDOR_INTEL) {
-	  /* Assume any BrandID >= 8 and family == 15 yields a Pentium 4 */
-	  if (c->x86_brand_id >= 8)
-		c->x86_processor = X86_PROCESSOR_PENTIUM4;
-	}
-	if (c->x86_vendor == X86_VENDOR_AMD) {
-	  /* Assume an Athlon processor if family == 15 and it was not
-	     detected as an x86-64 so far */
-	  if (c->x86_processor == X86_PROCESSOR_max)
-		c->x86_processor = X86_PROCESSOR_ATHLON;
-	}
-	break;
+	  if (c->x86_processor == X86_PROCESSOR_max) {
+		  switch (c->x86_vendor) {
+		  case X86_VENDOR_INTEL:
+			  c->x86_processor = X86_PROCESSOR_PENTIUM4;
+			  break;
+		  case X86_VENDOR_AMD:
+			  /* Assume a 32-bit Athlon processor if not in long mode */
+			  c->x86_processor = X86_PROCESSOR_ATHLON;
+			  break;
+		  }
+	  }
+	  break;
   }
   if (c->x86_processor == X86_PROCESSOR_max) {
 	fprintf(stderr, "Error: unknown processor type\n");
