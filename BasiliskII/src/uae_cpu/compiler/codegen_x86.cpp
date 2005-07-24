@@ -3799,14 +3799,14 @@ raw_init_cpu(void)
 	  break;
   }
   if (c->x86_processor == X86_PROCESSOR_max) {
-	fprintf(stderr, "Error: unknown processor type\n");
+	c->x86_processor = X86_PROCESSOR_I386;
+	fprintf(stderr, "Error: unknown processor type, assuming i386\n");
 	fprintf(stderr, "  Family  : %d\n", c->x86);
 	fprintf(stderr, "  Model   : %d\n", c->x86_model);
 	fprintf(stderr, "  Mask    : %d\n", c->x86_mask);
 	fprintf(stderr, "  Vendor  : %s [%d]\n", c->x86_vendor_id, c->x86_vendor);
 	if (c->x86_brand_id)
 	  fprintf(stderr, "  BrandID : %02x\n", c->x86_brand_id);
-	abort();
   }
 
   /* Have CMOV support? */
