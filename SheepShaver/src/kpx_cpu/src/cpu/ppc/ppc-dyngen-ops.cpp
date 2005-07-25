@@ -1598,7 +1598,7 @@ void op_mtvscr_V0(void)
 #else
 #define __mmx_clobbers(reglist...)
 #endif
-#if defined  __SSE__ || __GNUC___ < 4
+#if defined  __SSE__ || __GNUC__ < 4
 #define __sse_clobbers(reglist...) reglist
 #else
 #define __sse_clobbers(reglist...)
