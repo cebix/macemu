@@ -1593,12 +1593,12 @@ void op_mtvscr_V0(void)
 #undef V2
 
 /* We are using GCC, so we can use its extensions */
-#ifdef  __MMX__
+#if defined  __MMX__ || __GNUC__ < 4
 #define __mmx_clobbers(reglist...) reglist
 #else
 #define __mmx_clobbers(reglist...)
 #endif
-#ifdef  __SSE__
+#if defined  __SSE__ || __GNUC___ < 4
 #define __sse_clobbers(reglist...) reglist
 #else
 #define __sse_clobbers(reglist...)
