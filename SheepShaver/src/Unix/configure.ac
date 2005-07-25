@@ -1315,7 +1315,7 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
       else
         DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -malign-functions=0"
       fi
-      DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -finline-limit=10000 -fno-exceptions -g0"
+      DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -finline-functions -finline-limit=10000 -fno-exceptions -g0"
       if [[ "x$HAVE_GCC30" = "xyes" ]]; then
         DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -fno-reorder-blocks -fno-optimize-sibling-calls"
       fi
