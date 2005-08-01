@@ -34,22 +34,7 @@
 #include <linux/fd.h>
 #include <linux/major.h>
 #include <linux/kdev_t.h>
-#include <linux/unistd.h>
 #include <dirent.h>
-
-#ifdef __NR__llseek
-_syscall5(int, _llseek, unsigned int, fd, unsigned long, hi, unsigned long, lo, loff_t *, res, unsigned int, wh);
-#else
-static int _llseek(unsigned int fd, unsigned long hi, unsigned long lo, loff_t *res, unsigned int wh)
-{
-	if (hi)
-		return -1;
-	*res = lseek(fd, lo, wh);
-	if (*res == -1)
-		return -1;
-	return 0;
-}
-#endif
 #endif
 
 #if defined(__FreeBSD__) || defined(__NetBSD__)
@@ -389,11 +374,7 @@ void *Sys_open(const char *name, bool read_only)
 		if (fh->is_file) {
 			// Detect disk image file layout
 			loff_t size = 0;
-#if defined(__linux__)
-			_llseek(fh->fd, 0, 0, &size, SEEK_END);
-#else
 			size = lseek(fd, 0, SEEK_END);
-#endif
 			uint8 data[256];
 			lseek(fd, 0, SEEK_SET);
 			read(fd, data, 256);
@@ -498,14 +479,8 @@ size_t Sys_read(void *arg, void *buffer, loff_t offset, size_t length)
 		return 0;
 
 	// Seek to position
-#if defined(__linux__)
-	loff_t pos = offset + fh->start_byte, res;
-	if (_llseek(fh->fd, pos >> 32, pos, &res, SEEK_SET) < 0)
-		return 0;
-#else
 	if (lseek(fh->fd, offset + fh->start_byte, SEEK_SET) < 0)
 		return 0;
-#endif
 
 	// Read data
 	return read(fh->fd, buffer, length);
@@ -524,14 +499,8 @@ size_t Sys_write(void *arg, void *buffer, loff_t offset, size_t length)
 		return 0;
 
 	// Seek to position
-#if defined(__linux__)
-	loff_t pos = offset + fh->start_byte, res;
-	if (_llseek(fh->fd, pos >> 32, pos, &res, SEEK_SET) < 0)
-		return 0;
-#else
 	if (lseek(fh->fd, offset + fh->start_byte, SEEK_SET) < 0)
 		return 0;
-#endif
 
 	// Write data
 	return write(fh->fd, buffer, length);
