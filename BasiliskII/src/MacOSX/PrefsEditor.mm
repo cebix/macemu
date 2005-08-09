@@ -105,8 +105,6 @@
 
 @end
 
-@implementation PrefsEditor
-
 #import <AppKit/NSImage.h>		// For [NSBundle pathForImageResource:] proto
 
 #include <string>
@@ -116,11 +114,15 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 #import "sysdeps.h"				// Types used in Basilisk C++ code
 #import "video_macosx.h"		// some items that we edit here
 #import "misc_macosx.h"			// WarningSheet() prototype
+#import "main_macosx.h"			// ChoiceAlert() prototype
+
 
 #import <prefs.h>
 
 #define DEBUG 0
 #import <debug.h>
+
+@implementation PrefsEditor
 
 - (PrefsEditor *) init
 {
@@ -259,7 +261,7 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 
 - (IBAction) ChangeBootFrom: (NSMatrix *)sender
 {
-	if ( [sender selectedCell] == bootFromCD )
+	if ( [sender selectedCell] == (id)bootFromCD )
 		PrefsReplaceInt32("bootdriver", CDROMRefNum);
 	else
 		PrefsReplaceInt32("bootdriver", 0);
@@ -439,6 +441,7 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 					size = [newVolumeSize intValue];
 
 		sprintf(cmd, "dd if=/dev/zero \"of=%s\" bs=1024k count=%d", filename, size);
+
 		retVal = system(cmd);
 		if (retVal != 0)
 		{
@@ -472,6 +475,9 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 - (IBAction) DeleteVolume: (id)sender
 {
 	NSString	*Path = [self RemoveVolumeEntry];
+
+	if ( ! Path )
+		return;
 
 	if ( ! [[NSFileManager defaultManager] removeFileAtPath: Path
 													handler: self] )
@@ -582,7 +588,6 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 	PrefsRemoveItem(pref, 1);
 }
 
-//- (const char *) RemoveVolumeEntry
 - (NSString *) RemoveVolumeEntry
 {
 	int		row = [diskImages selectedRow];
@@ -593,6 +598,13 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 		const char	*path = [Path UTF8String],
 					*str;
 		int			tmp = 0;
+
+		NSString	*prompt = [NSString stringWithFormat: @"%s\n%s",
+							   "Are you sure you want to delete the file",
+							   path];
+
+		if ( ! ChoiceAlert([prompt cString], "Delete", "Cancel") )
+			return NULL;
 
 		while ( (str = PrefsFindString("disk", tmp) ) != NULL )
 		{
