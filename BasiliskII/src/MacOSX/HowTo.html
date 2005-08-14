@@ -6,8 +6,9 @@
 
 <UL>
 <LI> <A HREF="#minreq">	Minimum Requirements</A> </LI>
-<LI> <A HREF="#rom">	Macintosh ROM image	</A> </LI>
-<LI> <A HREF="#b-disk">	Creating a boot disk</A> </LI>
+<LI> <A HREF="#rom">	Macintosh ROM image</A> </LI>
+<LI> <A HREF="#b-disk">	Finding a boot disk</A> </LI>
+<LI> <A HREF="#install">Installing the MacOS</A> </LI>
 <LI> <A HREF="#mount">	Mounting Unix Files</A> </LI>
 <LI> <A HREF="#import">	Importing Mac Files</A> </LI>
 </UL>
@@ -53,9 +54,9 @@ Note that this probably contravenes several copyright laws. </P>
 <LI> Open the Basilisk II application </LI>
 <LI> Go to the 'BasiliskII' menu, then the Preferences...' menu item </LI>
 <LI> On the Emulation tab, there is a field 'ROM file:'. Either type in the
-	path to the ROM file, or click the Browse button and Open the ROM file </LI>
+path to the ROM file, or click the Browse button and Open the ROM file </LI>
 <LI> Click the Save button, so that Basilisk II will be able to find the ROM
-	each time you boot it </LI>
+each time you boot it </LI>
 </OL>
 </P>
 
@@ -67,28 +68,37 @@ a disk to boot from. </P>
 
 <HR>
 
-<H2> <A NAME="b-disk"> Creating a boot disk </A> </H2>
+<H2> <A NAME="b-disk"> Finding a boot disk </A> </H2>
 
 <P> Basilisk II needs a copy of the MacOS to boot from. Anything from System 7
 through to MacOS 8.1 should be usable.
 <BR> (Felix Eng and I have only tested System 7.0.1, 7.1, 7.5.3 and 7.6,
 although Felix also got System 6.0.8 to work with SE/30 Roms) </P>
 
-<P> It is possible to use Basilisk II with a CD-ROM, but because most bootable
-CDs have a minimal System Folder, it is better if you use a disk image with the
-MacOS installed on it. </P>
+Basilisk II can currently boot from:
+<DL>
+<DT> CD-ROM </DT>
+<DD> Most (not all) MacOS Install CDs will also boot your Mac. I also think
+     that some old Norton Utilities install CDs might have booted 68k Macs </DD>
+<DT> Floppy disk image </DT>
+<DD> Jonathan C. Silverstein reports that
+     <A HREF="http://download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/English-North_American/Macintosh/Utilities/Network_Access_Disk_7.5.sea.bin">this</A></P> Apple floppy disk image will boot Basilisk II </DD>
+<DT> Preinstalled Basilisk II disk image </DT>
+<DD> Another Basilisk II user might be willing to loan you the disk image
+that they are using </DD>
+</DL>
 
-<P> There are two options: either grab an image that someone else has made,
-or create one yourself. If you have some time, and access to a MacOS install CD,
-then these instructions will help you do the latter. </P>
+<P> It is possible to use Basilisk II with a CD-ROM or floppy image, but
+because most bootable CDs have a minimal System Folder, it is better if you
+use a disk image with a more complete MacOS installed on it. The next section
+tells you how to do this. </P>
 
-<P> Note that there is currently no Install CD image on Apple's Web site -
-they only seem to have MacOS 7.5.3 floppy disk images (all 19 of them).
-If you do not have a friend with an install CD, you can possibly make one
-by copying the System Folder from a bootable OS 7 or 8 CD, and burning that
-onto a CD with the floppy disk images.
+<P> Note that there is currently no Install CD image on Apple's Web site, but
+they do seem to have MacOS 7.5.3 floppy disk images (all 19 of them). Burning
+those images onto a CD (not in the extended format) should allow you to install
 <BR>Thanks to Attilio Farina for this tip! </P>
 
+<H2> <A NAME="install"> Installing the MacOS </A> </H2>
 
 <H3> Create a new BasiliskII disk </H3>
 
@@ -107,11 +117,10 @@ you need to create a disk to install onto: </P>
 <P> If you want to have more than one hard disk available to Basilisk II,
 you could create additional volumes here. </P>
 
-
 <H3> Installing the MacOS </H3>
 
-<P> Insert your MacOS install CD-ROM, and wait a few moments for
-the Finder to mount the disk. While still in your preferences: </P>
+<P> Insert your MacOS install CD-ROM, and wait a few moments for the
+OS X Finder to mount the disk. While still in your preferences: </P>
 
 <OL>
 <LI> Go to the Emulation tab and check that your emulation is appropriate
@@ -156,7 +165,7 @@ sub-folder instead (like '/Applications (Mac OS 9)'). </P>
 <P> If you are not running MacOS 7.5.3 or newer, the above trick won't work.
 This makes getting files into Basilisk II harder. Luckily, older versions of
 Apple's "Disk Copy" utility can create a disk image file that is compatible
-with Basilisk II (<I>i.e.<.I> you can add it as a disk volume).
+with Basilisk II (<I>i.e.</I> you can add it as a disk volume).
 
 <P>Open 10.1's Disk Copy program, and create a "Mac Standard" image, or
 use Disk Copy 6.??? in Classic.
