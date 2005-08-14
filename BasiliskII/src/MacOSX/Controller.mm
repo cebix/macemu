@@ -23,8 +23,6 @@
 #import "Controller.h"
 #import "Emulator.h"
 
-@implementation Controller
-
 #import "sysdeps.h"				// Types used in Basilisk C++ code
 
 #import <main.h>
@@ -35,6 +33,8 @@
 
 #import "misc_macosx.h"
 #import "video_macosx.h"
+
+@implementation Controller
 
 //
 // Standard NSApplication methods that we override
