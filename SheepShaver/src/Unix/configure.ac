@@ -1235,8 +1235,8 @@ if [[ "x$HAVE_GCC30" = "xyes" ]]; then
   CFLAGS="$SAVED_CFLAGS"
 fi
 
-dnl Add -mdynamic-no-pic for MacOS X
-if [[ "x$HAVE_GCC30" = "xyes" ]]; then
+dnl Add -mdynamic-no-pic for MacOS X (XXX icc10 will support MacOS X)
+if [[ "x$HAVE_GCC30" = "xyes" -a "x$HAVE_ICC" = "xno" ]]; then
   SAVED_CFLAGS="$CFLAGS"
   CFLAGS="$CFLAGS -mdynamic-no-pic"
   AC_CACHE_CHECK([whether the compiler supports -mdynamic-no-pic],
