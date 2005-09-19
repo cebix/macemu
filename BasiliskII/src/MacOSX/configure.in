@@ -3,6 +3,8 @@ dnl $Id$
 dnl Process this file with autoconf to produce a configure script.
 dnl Based on Unix/configure.in
 dnl Written in 1999 by Christian Bauer et al.
+dnl Occasionally re-synchronised (merged?) with latest version
+dnl Written in 2002 by Christian Bauer et al.
 
 dnl autoconf on 10.1 doesn't understand these
 dnl AC_INIT([Basilisk II], 1.0, [Christian.Bauer@uni-mainz.de], BasiliskII)
@@ -95,6 +97,7 @@ AC_PROG_CPP
 AC_PROG_CXX
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
+AC_PROG_EGREP
 
 dnl We use mon if possible.
 MONSRCS=
@@ -134,7 +137,8 @@ HAVE_PTHREADS=yes
 if [[ "x$HAVE_PTHREADS" = "xyes" ]]; then
   AC_DEFINE(HAVE_PTHREADS, 1, [Define if pthreads are available.])
 fi
-AC_CHECK_FUNCS(pthread_cancel)
+AC_CHECK_FUNCS(pthread_cond_init)
+AC_CHECK_FUNCS(pthread_cancel pthread_testcancel)
 AC_CHECK_FUNCS(pthread_mutexattr_setprotocol)
 AC_CHECK_FUNCS(pthread_mutexattr_settype)
 AC_CHECK_FUNCS(pthread_mutexattr_setpshared)
@@ -158,8 +162,21 @@ AC_SYS_LARGEFILE
 
 dnl Checks for header files.
 AC_HEADER_STDC
+AC_CHECK_HEADERS(stdlib.h stdint.h)
 AC_CHECK_HEADERS(unistd.h fcntl.h sys/types.h sys/time.h sys/mman.h mach/mach.h)
 AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
+AC_CHECK_HEADERS(sys/socket.h sys/ioctl.h sys/filio.h sys/bitypes.h sys/wait.h)
+AC_CHECK_HEADERS(sys/poll.h sys/select.h)
+AC_CHECK_HEADERS(arpa/inet.h)
+AC_CHECK_HEADERS(linux/if.h linux/if_tun.h net/if.h net/if_tun.h, [], [], [
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+])
+AC_CHECK_HEADERS(AvailabilityMacros.h)
 AC_CHECK_HEADERS(IOKit/storage/IOBlockStorageDevice.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -204,16 +221,66 @@ if [[ "x$ac_cv_type_socklen_t" != "xyes" ]]; then
 fi
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(strdup cfmakeraw)
+AC_CHECK_FUNCS(strdup strerror cfmakeraw)
 AC_CHECK_FUNCS(clock_gettime timer_create)
 AC_CHECK_FUNCS(sigaction signal)
 AC_CHECK_FUNCS(mmap mprotect munmap)
 AC_CHECK_FUNCS(vm_allocate vm_deallocate vm_protect)
+AC_CHECK_FUNCS(poll inet_aton)
 
 dnl Darwin seems to define mach_task_self() instead of task_self().
 AC_CHECK_FUNCS(mach_task_self task_self)
 
+dnl Check for headers and functions related to pty support (sshpty.c)
+dnl From openssh-3.2.2p1 configure.ac
+
+AC_CHECK_HEADERS(strings.h login.h sys/bsdtty.h sys/stat.h util.h pty.h)
+AC_CHECK_FUNCS(_getpty vhangup strlcpy)
+if test -z "$no_dev_ptmx" ; then
+	if test "x$disable_ptmx_check" != "xyes" ; then
+		AC_CHECK_FILE([/dev/ptmx],
+			[
+				AC_DEFINE_UNQUOTED(HAVE_DEV_PTMX, 1, [Define if you have /dev/ptmx.])
+				have_dev_ptmx=1
+			]
+		)
+	fi
+fi
+AC_CHECK_FILE([/dev/ptc],
+	[
+		AC_DEFINE_UNQUOTED(HAVE_DEV_PTS_AND_PTC, 1, [Define if you have /dev/ptc.])
+		have_dev_ptc=1
+	]
+)
+
+dnl (end of code from openssh-3.2.2p1 configure.ac)
+
+
+dnl AC_CHECK_FRAMEWORK($1=NAME, $2=INCLUDES)
+AC_DEFUN([AC_CHECK_FRAMEWORK], [
+  AS_VAR_PUSHDEF([ac_Framework], [ac_cv_framework_$1])dnl
+  AC_CACHE_CHECK([whether compiler supports framework $1],
+    ac_Framework, [
+    saved_LIBS="$LIBS"
+    LIBS="$LIBS -framework $1"
+    AC_TRY_LINK(
+      [$2], [int main(void) { return 0; }], 
+      [AS_VAR_SET(ac_Framework, yes)], [AS_VAR_SET(ac_Framework, no); LIBS="$saved_LIBS"]
+    )
+  ])
+  AS_IF([test AS_VAR_GET(ac_Framework) = yes],
+    [AC_DEFINE(AS_TR_CPP(HAVE_FRAMEWORK_$1), 1, [Define if framework $1 is available.])]
+  )
+  AS_VAR_POPDEF([ac_Framework])dnl
+])
+
+dnl Check for some MacOS X frameworks
+AC_CHECK_FRAMEWORK(Carbon, [#include <Carbon/Carbon.h>])
+AC_CHECK_FRAMEWORK(IOKit, [#include <IOKit/IOKitLib.h>])
+AC_CHECK_FRAMEWORK(CoreFoundation, [#include <CoreFoundation/CoreFoundation.h>])
+
 dnl Select system-dependant source files.
+  ETHERSRC=ether_unix.cpp
   DEFINES="$DEFINES -DBSD_COMP"
   CXXFLAGS="$CXXFLAGS -fpermissive"
   dnl Check for the CAM library
@@ -234,6 +301,19 @@ dnl Select system-dependant source files.
     fi
   fi
 
+dnl Is the slirp library supported?
+if [[ "x$ETHERSRC" = "xether_unix.cpp" ]]; then
+  AC_DEFINE(HAVE_SLIRP, 1, [Define if slirp library is supported])
+  SLIRP_SRCS="\
+    ../slirp/bootp.c     ../slirp/ip_output.c  ../slirp/tcp_input.c  \
+    ../slirp/cksum.c     ../slirp/mbuf.c       ../slirp/tcp_output.c \
+    ../slirp/debug.c     ../slirp/misc.c       ../slirp/tcp_subr.c   \
+    ../slirp/if.c        ../slirp/sbuf.c       ../slirp/tcp_timer.c  \
+    ../slirp/ip_icmp.c   ../slirp/slirp.c      ../slirp/tftp.c       \
+    ../slirp/ip_input.c  ../slirp/socket.c     ../slirp/udp.c"
+fi
+AC_SUBST(SLIRP_SRCS)
+
 dnl Use 68k CPU natively?
 WANT_NATIVE_M68K=no
 
@@ -243,11 +323,34 @@ dnl to be put into the config.h file
 dnl $1 -- the macro to define
 dnl $2 -- the value to translate
 dnl $3 -- template name
-AC_DEFUN(AC_TRANSLATE_DEFINE, [
+AC_DEFUN([AC_TRANSLATE_DEFINE], [
     if [[ "x$2" = "xyes" -o "x$2" = "xguessing yes" ]]; then
         AC_DEFINE($1, 1, $3)
     fi
 ])
+
+dnl Check that the host supports TUN/TAP devices
+AC_CACHE_CHECK([whether TUN/TAP is supported],
+  ac_cv_tun_tap_support, [
+  AC_TRY_COMPILE([
+    #if defined(HAVE_LINUX_IF_H) && defined(HAVE_LINUX_IF_TUN_H)
+    #include <linux/if.h>
+    #include <linux/if_tun.h>
+    #endif
+    #if defined(HAVE_NET_IF_H) && defined(HAVE_NET_IF_TUN_H)
+    #include <net/if.h>
+    #include <net/if_tun.h>
+    #endif
+  ], [
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
+  ],
+  ac_cv_tun_tap_support=yes, ac_cv_tun_tap_support=no
+  )
+])
+AC_TRANSLATE_DEFINE(ENABLE_TUNTAP, "$ac_cv_tun_tap_support",
+  [Define if your system supports TUN/TAP devices.])
 
 dnl Various checks if the system supports vm_allocate() and the like functions.
 have_mach_vm=no
@@ -431,6 +534,56 @@ AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x2000],
   ]
 )
 
+dnl Check if we have POSIX shared memory support
+AC_CACHE_CHECK([whether POSIX shared memory is working],
+  ac_cv_have_posix_shm, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #define HAVE_POSIX_SHM
+    #include "vm_alloc.cpp"
+    int main(void) { /* returns 0 if we have working POSIX shm */
+      if (vm_init() < 0) exit(2);
+      char *m1 = (char *)vm_acquire(32768, VM_MAP_DEFAULT | VM_MAP_33BIT);
+      if (m1 == VM_MAP_FAILED) exit(3);
+      vm_exit(); exit(0);
+    }
+  ], ac_cv_have_posix_shm=yes, ac_cv_have_posix_shm=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_have_posix_shm="guessing no"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(HAVE_POSIX_SHM, "$ac_cv_have_posix_shm",
+  [Define if your system supports POSIX shared memory.])
+
+dnl Check if we have working 33-bit memory addressing
+AC_CACHE_CHECK([whether 33-bit memory addressing is working],
+  ac_cv_have_33bit_addressing, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #define USE_33BIT_ADDRESSING 1
+    #include "vm_alloc.cpp"
+    int main(void) { /* returns 0 if we have working 33-bit addressing */
+      if (sizeof(void *) < 8) exit(1);
+      if (vm_init() < 0) exit(2);
+      char *m1 = (char *)vm_acquire(32768, VM_MAP_DEFAULT | VM_MAP_33BIT);
+      if (m1 == VM_MAP_FAILED) exit(3);
+      char *m2 = m1 + (1L << 32);
+      m1[0] = 0x12; if (m2[0] != 0x12) exit(4);
+      m2[0] = 0x34; if (m1[0] != 0x34) exit(5);
+      vm_exit(); exit(0);
+    }
+  ], ac_cv_have_33bit_addressing=yes, ac_cv_have_33bit_addressing=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_have_33bit_addressing="guessing no"
+  )
+  AC_LANG_RESTORE
+  ]
+)
+
 dnl Check signal handlers need to be reinstalled
 AC_CACHE_CHECK([whether signal handlers need to be reinstalled],
   ac_cv_signal_need_reinstall, [
@@ -594,7 +747,7 @@ if [[ -n "$sigsegv_recovery" ]]; then
 fi
 
 dnl A dummy program that returns always true
-BLESS=/usr/bin/touch
+AC_PATH_PROG([BLESS], "true")
 
 dnl Determine the addressing mode to use
 if [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
@@ -675,20 +828,30 @@ AC_MSG_RESULT($HAVE_GAS)
 dnl Check for GCC 2.7 or higher.
 HAVE_GCC27=no
 AC_MSG_CHECKING(for GCC 2.7 or higher)
-AC_EGREP_CPP(xyes,
-[#if __GNUC__ - 1 > 1 || __GNUC_MINOR__ - 1 > 5
-  xyes
-#endif
-], [AC_MSG_RESULT(yes); HAVE_GCC27=yes], AC_MSG_RESULT(no))
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#if ! (__GNUC__ - 1 > 1 || __GNUC_MINOR__ - 1 > 5)
+                                     # error gcc < 2.7
+                                     #endif
+                                   ]])],
+                  [AC_MSG_RESULT(yes); HAVE_GCC27=yes],
+                  [AC_MSG_RESULT(no)])
 
 dnl Check for GCC 3.0 or higher.
 HAVE_GCC30=no
 AC_MSG_CHECKING(for GCC 3.0 or higher)
-AC_EGREP_CPP(xyes,
-[#if __GNUC__ >= 3
-  xyes
-#endif
-], [AC_MSG_RESULT(yes); HAVE_GCC30=yes], AC_MSG_RESULT(no))
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#if ! (__GNUC__ >= 3)
+                                     # error gcc < 3
+                                     #endif
+                                   ]])],
+                  [AC_MSG_RESULT(yes); HAVE_GCC30=yes],
+                  [AC_MSG_RESULT(no)])
+
+dnl Check for ICC.
+AC_MSG_CHECKING(for ICC)
+HAVE_ICC=no
+if $CXX -V -v 2>&1 | grep -q "Intel(R) C++ Compiler"; then
+  HAVE_ICC=yes
+fi
+AC_MSG_RESULT($HAVE_ICC)
 
 dnl Set "-fomit-frame-pointer" on i386 GCC 2.7 or higher.
 dnl Also set "-fno-exceptions" for C++ because exception handling requires
@@ -703,7 +866,7 @@ dnl As of 2001/08/02, this affects the following compilers:
 dnl Official: probably gcc-3.1 (mainline CVS)
 dnl Mandrake: gcc-2.96 >= 0.59mdk, gcc-3.0.1 >= 0.1mdk
 dnl Red Hat : gcc-2.96 >= 89, gcc-3.0 >= 1
-if [[ "x$HAVE_GCC27" = "xyes" ]]; then
+if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_ICC" = "xno" ]]; then
   SAVED_CXXFLAGS="$CXXFLAGS"
   CXXFLAGS="$CXXFLAGS -fno-merge-constants"
   AC_CACHE_CHECK([whether GCC supports constants merging], ac_cv_gcc_constants_merging, [
@@ -714,6 +877,50 @@ if [[ "x$HAVE_GCC27" = "xyes" ]]; then
   ])
   if [[ "x$ac_cv_gcc_constants_merging" != "xyes" ]]; then
     CXXFLAGS="$SAVED_CXXFLAGS"
+  fi
+fi
+
+dnl Store motion was introduced in 3.3-hammer branch and any gcc >= 3.4
+dnl However, there are some corner cases exposed on x86-64
+if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_ICC" = "xno" ]]; then
+  SAVED_CXXFLAGS="$CXXFLAGS"
+  CXXFLAGS="$CXXFLAGS -fno-gcse-sm"
+  AC_CACHE_CHECK([whether GCC supports store motion], ac_cv_gcc_store_motion, [
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
+    AC_TRY_COMPILE([],[],[ac_cv_gcc_store_motion=yes],[ac_cv_gcc_store_motion=no])
+    AC_LANG_RESTORE
+  ])
+  if [[ "x$ac_cv_gcc_store_motion" != "xyes" ]]; then
+    CXXFLAGS="$SAVED_CXXFLAGS"
+  fi
+fi
+
+dnl Add -fno-strict-aliasing for slirp sources
+if [[ "x$HAVE_GCC30" = "xyes" ]]; then
+  SAVED_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS -fno-strict-aliasing"
+  AC_CACHE_CHECK([whether the compiler supports -fno-strict-aliasing],
+    ac_cv_gcc_no_strict_aliasing, [
+    AC_TRY_COMPILE([],[],
+      [ac_cv_gcc_no_strict_aliasing=yes; AC_SUBST(SLIRP_CFLAGS, "-fno-strict-aliasing")],
+      [ac_cv_gcc_no_strict_aliasing=no])
+  ])
+  CFLAGS="$SAVED_CFLAGS"
+fi
+
+dnl Add -mdynamic-no-pic for MacOS X
+if [[ "x$HAVE_GCC30" = "xyes" ]]; then
+  SAVED_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS -mdynamic-no-pic"
+  AC_CACHE_CHECK([whether the compiler supports -mdynamic-no-pic],
+    ac_cv_gcc_mdynamic_no_pic, [
+    AC_TRY_COMPILE([],[],[ac_cv_gcc_mdynamic_no_pic=yes],[ac_cv_gcc_mdynamic_no_pic=no])
+  ])
+  if [[ "x$ac_cv_gcc_mdynamic_no_pic" = "xyes" ]]; then
+    CXXFLAGS="$CXXFLAGS -mdynamic-no-pic"
+  else
+    CFLAGS="$SAVED_CFLAGS"
   fi
 fi
 
@@ -741,6 +948,9 @@ elif [[ "x$HAVE_GCC30" = "xyes" -a "x$HAVE_X86_64" = "xyes" ]]; then
   if [[ "x$HAVE_GAS" = "xyes" ]]; then
     ASM_OPTIMIZATIONS="x86-64"
     DEFINES="$DEFINES -DX86_64_ASSEMBLY -DOPTIMIZED_FLAGS"
+    JITSRCS="cpuemu1_nf.cpp cpuemu2_nf.cpp cpuemu3_nf.cpp cpuemu4_nf.cpp cpuemu5_nf.cpp cpuemu6_nf.cpp cpuemu7_nf.cpp cpuemu8_nf.cpp $JITSRCS"
+    CAN_JIT=yes
+    WANT_32BIT_ADDRESSING=yes
   fi
 elif [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xyes" ]]; then
   dnl SPARC CPU
@@ -996,8 +1206,8 @@ fi
 
 dnl Remove the "-g" option if set for GCC.
 if [[ "x$HAVE_GCC27" = "xyes" ]]; then
-  CFLAGS=`echo $CFLAGS | sed -e 's/-g//g'`
-  CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-g//g'`
+  CFLAGS=`echo $CFLAGS | sed -e 's/-g\b//g'`
+  CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-g\b//g'`
 fi
 
 dnl Or if we have -IPA (MIPSPro compilers)
@@ -1013,7 +1223,6 @@ dnl Some Mac OS X specific stuff:
 dnl
 
 dnl MacOS 10.2 (and later?) have a particular header for defining the OS version
-AC_CHECK_HEADER(AvailabilityMacros.h)
 if [[ "x$ac_cv_header_AvailabilityMacros_h" = "xyes" ]]; then
   AC_DEFINE(AVAILABILITYMACROS, 1, [Header specific to 10.2 and later.])
 fi
@@ -1029,6 +1238,9 @@ else
   IDEARGS=""
 fi
 
+AC_DEFINE(HAVE_SLIRP, 1, [Try to compile network emulation library!])
+AC_DEFINE(DATADIR, "~", [unix_ether needs this!])
+
 dnl Generate Makefile.
 AC_SUBST(DEFINES)
 AC_SUBST(SYSSRCS)
@@ -1038,6 +1250,7 @@ AC_SUBST(BLESS)
 AC_SUBST(IDE)
 AC_SUBST(PROJECT)
 AC_SUBST(IDEARGS)
+AC_SUBST(SLIRP_SRCS)
 dnl autoconf on 10.1 doesn't understand these
 dnl AC_CONFIG_FILES([Makefile])
 dnl AC_OUTPUT
@@ -1050,6 +1263,7 @@ echo
 echo Multiple emulator windows .............. : $ENABLE_MULTIPLE
 echo Enable video on SEGV signals ........... : $WANT_VOSF
 echo mon debugger support ................... : $WANT_MON
+echo Running m68k code natively ............. : $WANT_NATIVE_M68K
 echo Use JIT compiler ....................... : $WANT_JIT
 echo JIT debug mode ......................... : $WANT_JIT_DEBUG
 echo Floating-Point emulation core .......... : $FPE_CORE
