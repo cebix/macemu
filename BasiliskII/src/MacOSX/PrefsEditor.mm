@@ -131,7 +131,7 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 	edited = NO;
 
 	devs = @"/dev";
-	home = NSHomeDirectory();
+	home = [NSHomeDirectory() retain];
 	volsDS = [TableDS new];
 	SCSIds = [TableDS new];
 
@@ -140,10 +140,9 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 		NSLog (@"%s - Can't create NSImageCell?", __PRETTY_FUNCTION__);
 
 	blank  = [NSImage new];
-	locked = [NSImage alloc];
-	if ( [locked initWithContentsOfFile:
-				 [[NSBundle mainBundle]
-						pathForImageResource: @"nowrite.icns"]] == nil )
+	locked = [[NSImage alloc] initWithContentsOfFile:
+				[[NSBundle mainBundle] pathForImageResource: @"nowrite.icns"]];
+	if (locked == nil )
 		NSLog(@"%s - Couldn't open write protection image", __PRETTY_FUNCTION__);
 
 	return self;
@@ -151,11 +150,11 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 
 - (void) dealloc
 {
-	[volsDS   dealloc];
-	[SCSIds   dealloc];
-	[lockCell dealloc];
-	[locked   dealloc];
-	[blank    dealloc];
+	[volsDS   release];
+	[SCSIds   release];
+	[lockCell release];
+	[blank    release];
+	[locked   release];
 	[super    dealloc];
 }
 
