@@ -21,6 +21,10 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+
+#import <AppKit/AppKit.h>
+#undef check
+
 #define PTHREADS	// Why is this here?
 #include "sysdeps.h"
 
@@ -61,8 +65,6 @@ extern void flush_icache_range(uint32 start, uint32 size);  // from compemu_supp
 #include "debug.h"
 
 
-#import <AppKit/AppKit.h>
-
 #include "main_macosx.h"		// To bridge between main() and misc. classes
 
 
@@ -76,6 +78,7 @@ int CPUType;
 bool CPUIs68060;
 int FPUType;
 bool TwentyFourBitAddressing;
+bool ThirtyThreeBitAddressing = false;
 
 
 // Global variables
@@ -105,6 +108,21 @@ static void sigint_handler(...);
 #if REAL_ADDRESSING
 static bool lm_area_mapped = false;	// Flag: Low Memory area mmap()ped
 #endif
+
+
+/*
+ *  Map memory that can be accessed from the Mac side
+ */
+
+void *vm_acquire_mac(size_t size)
+{
+	void *m = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_33BIT);
+	if (m == NULL) {
+		ThirtyThreeBitAddressing = false;
+		m = vm_acquire(size);
+	}
+	return m;
+}
 
 
 /*
@@ -311,12 +329,17 @@ bool InitEmulator (void)
 	else
 #endif
 	{
-		RAMBaseHost = (uint8 *)vm_acquire(RAMSize);
-		ROMBaseHost = (uint8 *)vm_acquire(0x100000);
-		if (RAMBaseHost == VM_MAP_FAILED || ROMBaseHost == VM_MAP_FAILED) {
+#ifdef USE_33BIT_ADDRESSING
+		// Speculatively enables 33-bit addressing
+		ThirtyThreeBitAddressing = true;
+#endif
+		uint8 *ram_rom_area = (uint8 *)vm_acquire_mac(RAMSize + 0x100000);
+		if (ram_rom_area == VM_MAP_FAILED) { 
 			ErrorAlert(STR_NO_MEM_ERR);
 			QuitEmulator();
 		}
+		RAMBaseHost = ram_rom_area;
+		ROMBaseHost = RAMBaseHost + RAMSize;
 	}
 
 #if USE_SCRATCHMEM_SUBTERFUGE
@@ -405,12 +428,8 @@ void QuitEmuNoExit()
 
 	// Free ROM/RAM areas
 	if (RAMBaseHost != VM_MAP_FAILED) {
-		vm_release(RAMBaseHost, RAMSize);
+		vm_release(RAMBaseHost, RAMSize + 0x100000);
 		RAMBaseHost = NULL;
-	}
-	if (ROMBaseHost != VM_MAP_FAILED) {
-		vm_release(ROMBaseHost, 0x100000);
-		ROMBaseHost = NULL;
 	}
 
 #if USE_SCRATCHMEM_SUBTERFUGE
@@ -439,9 +458,6 @@ void QuitEmuNoExit()
 
 void QuitEmulator(void)
 {
-	extern	NSApplication *NSApp;
-
-
 	QuitEmuNoExit();
 
 	// Stop run loop?
@@ -481,6 +497,39 @@ static void sigint_handler(...)
 	QuitEmulator();
 }
 #endif
+
+
+#ifdef HAVE_PTHREADS
+/*
+ *  Pthread configuration
+ */
+
+void Set_pthread_attr(pthread_attr_t *attr, int priority)
+{
+	pthread_attr_init(attr);
+#if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)
+	// Some of these only work for superuser
+	if (geteuid() == 0) {
+		pthread_attr_setinheritsched(attr, PTHREAD_EXPLICIT_SCHED);
+		pthread_attr_setschedpolicy(attr, SCHED_FIFO);
+		struct sched_param fifo_param;
+		fifo_param.sched_priority = ((sched_get_priority_min(SCHED_FIFO)
+									 + sched_get_priority_max(SCHED_FIFO))
+									 / 2 + priority);
+		pthread_attr_setschedparam(attr, &fifo_param);
+	}
+	if (pthread_attr_setscope(attr, PTHREAD_SCOPE_SYSTEM) != 0) {
+#ifdef PTHREAD_SCOPE_BOUND_NP
+	    // If system scope is not available (eg. we're not running
+	    // with CAP_SCHED_MGT capability on an SGI box), try bound
+	    // scope.  It exposes pthread scheduling to the kernel,
+	    // without setting realtime priority.
+	    pthread_attr_setscope(attr, PTHREAD_SCOPE_BOUND_NP);
+#endif
+	}
+#endif
+}
+#endif // HAVE_PTHREADS
 
 
 /*
