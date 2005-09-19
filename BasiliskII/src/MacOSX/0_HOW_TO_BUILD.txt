@@ -42,15 +42,10 @@ Notes:
    takes 68 seconds on the same machine. If you have less RAM,
    it may be faster to compile it as separate files.
 
-2) For some reason, compiling on 10.2 with DIRECT_ADDRESSING 1
-   results in an executable that cannot write to the screen.
-   Building in XCode on 10.3 fixed this for me, but not for
-   other users.
-
-3) If you want to change the addressing default
+2) If you want to change the addressing default
    (which is currently direct), you have to reconfigure.
    (i.e. make clean; ./configure --enable-addressing=banks)
 
-4) To emulate a Mac Classic, or any Mac with 24bit addressing,
+3) To emulate a Mac Classic, or any Mac with 24bit addressing,
    the app needs to be built with the above (bank) style addressing.
    This is how I build the "classic" version of the app.
