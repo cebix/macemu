@@ -150,6 +150,7 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 
 - (void) dealloc
 {
+	[home     release];
 	[volsDS   release];
 	[SCSIds   release];
 	[lockCell release];
@@ -261,7 +262,11 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 - (IBAction) ChangeBootFrom: (NSMatrix *)sender
 {
 	if ( [sender selectedCell] == (id)bootFromCD )
+	{
+		[disableCD setState: NSOffState];
+
 		PrefsReplaceInt32("bootdriver", CDROMRefNum);
+	}
 	else
 		PrefsReplaceInt32("bootdriver", 0);
 	edited = YES;
@@ -275,7 +280,14 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 
 - (IBAction) ChangeDisableCD: (NSButton *)sender
 {
-	PrefsReplaceBool("nocdrom", [disableCD state]);
+	int disabled = [disableCD state];
+
+	PrefsReplaceBool("nocdrom", disabled);
+	if ( disabled )
+	{
+		[bootFromAny setState: NSOnState];
+		[bootFromCD setState: ![disableCD state]];
+	}
 	edited = YES;
 }
 
