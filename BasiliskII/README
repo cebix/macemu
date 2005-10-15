@@ -26,7 +26,7 @@ Basilisk II has currently been ported to the following systems:
     IRIX 6.5)
   - AmigaOS 3.x
   - Windows NT 4.0 (mostly works under Windows 95/98, too)
-  - Mac OS X 10.1, 10.2
+  - Mac OS X 10.1, 10.2, 10.3 (native windowing port has UI bugs with 10.4)
 
 Some features of Basilisk II:
   - Emulates either a Mac Classic (which runs MacOS 0.x thru 7.5)
@@ -503,6 +503,9 @@ ether <ethernet card description>
     device is not a SANA-II device, Basilisk II will crash. If the device is
     not an Ethernet device, Basilisk II will display a warning message and
     disable Ethernet networking.
+
+  Mac OS X:
+    The "slirp" method described above nearly works.
 
   See the next item for an alternative way to do networking with Basilisk II.
 
