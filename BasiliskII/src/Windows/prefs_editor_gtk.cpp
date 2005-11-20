@@ -20,9 +20,10 @@
 
 #include "sysdeps.h"
 
+#include <stdlib.h>
+#include <string.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <stdlib.h>
 #include <gtk/gtk.h>
 
 #include "user_strings.h"
@@ -463,7 +464,7 @@ bool PrefsEditor(void)
 	gtk_box_pack_start(GTK_BOX(box), notebook, TRUE, TRUE, 0);
 
 	create_volumes_pane(notebook);
-	create_scsi_pane(notebook);
+//	create_scsi_pane(notebook); XXX not ready yet (merge scsi_windows.cpp from original B2/Win)
 	create_graphics_pane(notebook);
 	create_input_pane(notebook);
 	create_serial_pane(notebook);
@@ -1158,7 +1159,6 @@ static void read_serial_settings(void)
 // Port changed in combo
 static void cb_serial_port_changed(...)
 {
-	printf("serial port changed\n");
 	set_serial_sensitive();
 }
 
@@ -1216,21 +1216,43 @@ static void create_serial_pane(GtkWidget *top)
  *  "Ethernet" pane
  */
 
-static GtkWidget *w_ether, *w_udp_port;
+static GtkWidget *w_ether;
+static GtkWidget *w_ftp_port_list, *w_tcp_port_list;
+static const char s_nat_router[] = "NAT/Router module";
 
 // Set sensitivity of widgets
 static void set_ethernet_sensitive(void)
 {
+	const char *str = gtk_entry_get_text(GTK_ENTRY(w_ether));
+
+	bool is_nat_router = strcmp(str, s_nat_router) == 0;
+	gtk_widget_set_sensitive(w_ftp_port_list, is_nat_router);
+	gtk_widget_set_sensitive(w_tcp_port_list, is_nat_router);
 }
 
 // Read settings from widgets and set preferences
 static void read_ethernet_settings(void)
 {
 	const char *str = gtk_entry_get_text(GTK_ENTRY(w_ether));
-	if (str && strlen(str))
-		PrefsReplaceString("ether", str);
+	if (str && strlen(str) > 6 && strncmp(str, "NDIS: ", 6) == 0)
+		PrefsReplaceString("ether", &str[6]);
 	else
 		PrefsRemoveItem("ether");
+
+	const bool router_enabled = str && strcmp(str, s_nat_router) == 0;
+	PrefsReplaceBool("routerenabled", router_enabled);
+	if (router_enabled) {
+		str = gtk_entry_get_text(GTK_ENTRY(w_ftp_port_list));
+		PrefsReplaceString("ftp_port_list", str);
+		str = gtk_entry_get_text(GTK_ENTRY(w_tcp_port_list));
+		PrefsReplaceString("tcp_port", str);
+	}
+}
+
+// Ethernet emulation type changed in menulist
+static void cb_ether_changed(...)
+{
+	set_ethernet_sensitive();
 }
 
 // Add names of ethernet interfaces
@@ -1240,15 +1262,11 @@ static GList *add_ether_names(void)
 
 	// TODO: Get list of all Ethernet interfaces
 #ifdef HAVE_SLIRP
-	static char s_slirp[] = "slirp";
-	glist = g_list_append(glist, s_slirp);
+	static const char s_slirp[] = "slirp";
+	glist = g_list_append(glist, (void *)s_slirp);
 #endif
-#if 0
-	if (glist)
-		g_list_sort(glist, gl_str_cmp);
-	else
-#endif
-		glist = g_list_append(glist, (void *)GetString(STR_NONE_LAB));
+	glist = g_list_append(glist, (void *)s_nat_router);
+	glist = g_list_append(glist, (void *)GetString(STR_NONE_LAB));
 	return glist;
 }
 
@@ -1270,11 +1288,46 @@ static void create_ethernet_pane(GtkWidget *top)
 	gtk_widget_show(combo);
 	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
 	const char *str = PrefsFindString("ether");
-	if (str == NULL)
-		str = "";
+	if (str == NULL || str[0] == '\0') {
+		if (PrefsFindBool("routerenabled"))
+			str = s_nat_router;
+		else
+			str = GetString(STR_NONE_LAB);
+	}
 	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
 	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 0, 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
 	w_ether = GTK_COMBO(combo)->entry;
+	gtk_signal_connect(GTK_OBJECT(w_ether), "changed", GTK_SIGNAL_FUNC(cb_ether_changed), NULL);
+
+	sep = gtk_hseparator_new();
+	gtk_widget_show(sep);
+	gtk_table_attach(GTK_TABLE(table), sep, 0, 2, 1, 2, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+
+	label = gtk_label_new(GetString(STR_ETHER_FTP_PORT_LIST_CTRL));
+	gtk_widget_show(label);
+	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 2, 3, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+
+	entry = gtk_entry_new();
+	str = PrefsFindString("ftp_port_list");
+	if (str == NULL)
+		str = "";
+	gtk_entry_set_text(GTK_ENTRY(entry), str);
+	gtk_widget_show(entry);
+	gtk_table_attach(GTK_TABLE(table), entry, 1, 2, 2, 3, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
+	w_ftp_port_list = entry;
+
+	label = gtk_label_new(GetString(STR_ETHER_TCP_PORT_LIST_CTRL));
+	gtk_widget_show(label);
+	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 3, 4, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+
+	entry = gtk_entry_new();
+	str = PrefsFindString("tcp_port");
+	if (str == NULL)
+		str = "";
+	gtk_entry_set_text(GTK_ENTRY(entry), str);
+	gtk_widget_show(entry);
+	gtk_table_attach(GTK_TABLE(table), entry, 1, 2, 3, 4, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
+	w_tcp_port_list = entry;
 
 	set_ethernet_sensitive();
 }
@@ -1424,6 +1477,21 @@ void SysAddSerialPrefs(void)
 
 
 /*
+ *  Display alerts
+ */
+
+static void display_alert(int title_id, const char *text, int flags)
+{
+	MessageBox(NULL, text, GetString(title_id), MB_OK | flags);
+}
+
+static void ErrorAlert(const char *text)
+{
+	display_alert(STR_ERROR_ALERT_TITLE, text, MB_ICONSTOP);
+}
+
+
+/*
  *  Start standalone GUI
  */
 
@@ -1444,7 +1512,24 @@ int main(int argc, char *argv[])
 
 	// Transfer control to the Basilisk II executable
 	if (start) {
-		printf("Start Basilisk II\n");
+		char path[_MAX_PATH];
+		bool ok = GetModuleFileName(NULL, path, sizeof(path)) != 0;
+		if (ok) {
+			char b2_path[_MAX_PATH];
+			char *p = strrchr(path, '\\');
+			*++p = '\0';
+			SetCurrentDirectory(path);
+			strcpy(b2_path, path);
+			strcat(b2_path, "BasiliskII.exe");
+			HINSTANCE h = ShellExecute(GetDesktopWindow(), "open",
+									   b2_path, "", path, SW_SHOWNORMAL);
+			if ((int)h <= 32)
+				ok = false;
+		}
+		if (!ok) {
+			ErrorAlert("Coult not start BasiliskII executable");
+			return 1;
+		}
 	}
 
 	return 0;

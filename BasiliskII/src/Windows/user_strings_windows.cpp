@@ -66,6 +66,8 @@ user_string_def platform_strings[] = {
 	{STR_POLLMEDIA_CTRL, "Enable polling"},
 	{STR_EXTFS_ENABLE_CTRL, "Enable external file system"},
 	{STR_EXTFS_DRIVES_CTRL, "Mount drives"},
+	{STR_ETHER_FTP_PORT_LIST_CTRL, "FTP ports"},
+	{STR_ETHER_TCP_PORT_LIST_CTRL, "Server ports"},
 
 	{STR_IGNORESEGV_CTRL, "Ignore Illegal Memory Accesses"},
 
