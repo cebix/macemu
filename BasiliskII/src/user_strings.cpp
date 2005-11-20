@@ -215,7 +215,7 @@ user_string_def common_strings[] = {
 	{STR_JIT_PANE_TITLE, "JIT Compiler"},
 	{STR_JIT_CTRL, "Enable JIT Compiler"},
 	{STR_JIT_FPU_CTRL, "Compile FPU Instructions"},
-	{STR_JIT_CACHE_SIZE_CTRL, "Translation Cache Size"},
+	{STR_JIT_CACHE_SIZE_CTRL, "Translation Cache Size (KB)"},
 	{STR_JIT_CACHE_SIZE_2MB_LAB, "2048"},
 	{STR_JIT_CACHE_SIZE_4MB_LAB, "4096"},
 	{STR_JIT_CACHE_SIZE_8MB_LAB, "8192"},
