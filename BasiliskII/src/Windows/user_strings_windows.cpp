@@ -63,6 +63,9 @@ user_string_def platform_strings[] = {
 	{STR_MOUSEWHEELMODE_PAGE_LAB, "Page Up/Down"},
 	{STR_MOUSEWHEELMODE_CURSOR_LAB, "Cursor Up/Down"},
 	{STR_MOUSEWHEELLINES_CTRL, "Lines To Scroll"},
+	{STR_POLLMEDIA_CTRL, "Enable polling"},
+	{STR_EXTFS_ENABLE_CTRL, "Enable external file system"},
+	{STR_EXTFS_DRIVES_CTRL, "Mount drives"},
 
 	{STR_IGNORESEGV_CTRL, "Ignore Illegal Memory Accesses"},
 

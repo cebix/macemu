@@ -20,8 +20,10 @@
 
 #include "sysdeps.h"
 
-#include <gtk/gtk.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <stdlib.h>
+#include <gtk/gtk.h>
 
 #include "user_strings.h"
 #include "version.h"
@@ -489,8 +491,16 @@ bool PrefsEditor(void)
  *  "Volumes" pane
  */
 
+static GtkWidget *w_enableextfs, *w_extdrives;
 static GtkWidget *volume_list;
 static int selected_volume;
+
+// Set sensitivity of widgets
+static void set_volumes_sensitive(void)
+{
+	const bool enable_extfs = PrefsFindBool("enableextfs");
+	gtk_widget_set_sensitive(w_extdrives, enable_extfs);
+}
 
 // Volume in list selected
 static void cl_selected(GtkWidget *list, int row, int column)
@@ -513,13 +523,14 @@ static void create_volume_ok(GtkWidget *button, file_req_assoc *assoc)
 	gchar *file = (gchar *)gtk_file_selection_get_filename(GTK_FILE_SELECTION(assoc->req));
 
 	const gchar *str = gtk_entry_get_text(GTK_ENTRY(assoc->entry));
-	int size = atoi(str);
+	size_t size = atoi(str) << 20;
 
-	char cmd[1024];
-	sprintf(cmd, "dd if=/dev/zero \"of=%s\" bs=1024k count=%d", file, size);
-	int ret = system(cmd);
-	if (ret == 0)
+	int fd = _open(file, _O_WRONLY | _O_CREAT | _O_BINARY | _O_TRUNC, _S_IREAD | _S_IWRITE);
+	if (fd >= 0) {
+	  if (_chsize(fd, size) == 0)
 		gtk_clist_append(GTK_CLIST(volume_list), &file);
+	  _close(fd);
+	}
 	gtk_widget_destroy(GTK_WIDGET(assoc->req));
 	delete assoc;
 }
@@ -568,10 +579,23 @@ static void cb_remove_volume(...)
 static void mn_boot_any(...) {PrefsReplaceInt32("bootdriver", 0);}
 static void mn_boot_cdrom(...) {PrefsReplaceInt32("bootdriver", CDROMRefNum);}
 
+// "Enable external file system" button toggled
+static void tb_enableextfs(GtkWidget *widget)
+{
+	PrefsReplaceBool("enableextfs", GTK_TOGGLE_BUTTON(widget)->active);
+	set_volumes_sensitive();
+}
+
 // "No CD-ROM Driver" button toggled
 static void tb_nocdrom(GtkWidget *widget)
 {
 	PrefsReplaceBool("nocdrom", GTK_TOGGLE_BUTTON(widget)->active);
+}
+
+// "Enable polling" button toggled
+static void tb_pollmedia(GtkWidget *widget)
+{
+	PrefsReplaceBool("pollmedia", GTK_TOGGLE_BUTTON(widget)->active);
 }
 
 // Read settings from widgets and set preferences
@@ -585,6 +609,8 @@ static void read_volumes_settings(void)
 		gtk_clist_get_text(GTK_CLIST(volume_list), i, 0, &str);
 		PrefsAddString("disk", str);
 	}
+
+	PrefsReplaceString("extdrives", get_file_entry_path(w_extdrives));
 }
 
 // Create "Volumes" pane
@@ -633,6 +659,14 @@ static void create_volumes_pane(GtkWidget *top)
 	menu = make_option_menu(box, STR_BOOTDRIVER_CTRL, options, active);
 
 	make_checkbox(box, STR_NOCDROM_CTRL, "nocdrom", GTK_SIGNAL_FUNC(tb_nocdrom));
+
+	make_checkbox(box, STR_POLLMEDIA_CTRL, "pollmedia", GTK_SIGNAL_FUNC(tb_pollmedia));
+
+	make_separator(box);
+	w_enableextfs = make_checkbox(box, STR_EXTFS_ENABLE_CTRL, "enableextfs", GTK_SIGNAL_FUNC(tb_enableextfs));
+	w_extdrives = make_file_entry(box, STR_EXTFS_DRIVES_CTRL, "extdrives", true);
+
+	set_volumes_sensitive();
 }
 
 
@@ -988,7 +1022,9 @@ static GtkWidget *w_mouse_wheel_lines;
 // Set sensitivity of widgets
 static void set_input_sensitive(void)
 {
-	gtk_widget_set_sensitive(w_keycode_file, PrefsFindBool("keycodes"));
+	const bool use_keycodes = PrefsFindBool("keycodes");
+	gtk_widget_set_sensitive(w_keycode_file, use_keycodes);
+	gtk_widget_set_sensitive(GTK_WIDGET(g_object_get_data(G_OBJECT(w_keycode_file), "chooser_button")), use_keycodes);
 	gtk_widget_set_sensitive(w_mouse_wheel_lines, PrefsFindInt32("mousewheelmode") == 1);
 }
 
@@ -1018,13 +1054,33 @@ static void read_input_settings(void)
 // Create "Input" pane
 static void create_input_pane(GtkWidget *top)
 {
-	GtkWidget *box, *hbox, *menu, *label;
+	GtkWidget *box, *hbox, *menu, *label, *button;
 	GtkObject *adj;
 
 	box = make_pane(top, STR_INPUT_PANE_TITLE);
 
 	make_checkbox(box, STR_KEYCODES_CTRL, "keycodes", GTK_SIGNAL_FUNC(tb_keycodes));
-	w_keycode_file = make_file_entry(box, STR_KEYCODE_FILE_CTRL, "keycodefile");
+
+	hbox = gtk_hbox_new(FALSE, 4);
+	gtk_widget_show(hbox);
+	gtk_box_pack_start(GTK_BOX(box), hbox, FALSE, FALSE, 0);
+
+	label = gtk_label_new(GetString(STR_KEYCODES_CTRL));
+	gtk_widget_show(label);
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+	const char *str = PrefsFindString("keycodefile");
+	if (str == NULL)
+		str = "";
+
+	w_keycode_file = gtk_entry_new();
+	gtk_entry_set_text(GTK_ENTRY(w_keycode_file), str); 
+	gtk_widget_show(w_keycode_file);
+	gtk_box_pack_start(GTK_BOX(hbox), w_keycode_file, TRUE, TRUE, 0);
+
+	button = make_browse_button(w_keycode_file);
+	gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
+	g_object_set_data(G_OBJECT(w_keycode_file), "chooser_button", button);
 
 	make_separator(box);
 
