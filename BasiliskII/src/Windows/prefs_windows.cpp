@@ -132,6 +132,8 @@ void AddPlatformPrefsDefaults(void)
 	PrefsReplaceInt32("ethermulticastmode", 0);
 	PrefsReplaceBool("routerenabled", false);
 	PrefsReplaceString("ftp_port_list", "21");
+	PrefsReplaceString("seriala", "COM1");
+	PrefsReplaceString("serialb", "COM2");
 	PrefsReplaceString("portfile0", "C:\\B2TEMP0.OUT");
 	PrefsReplaceString("portfile1", "C:\\B2TEMP1.OUT");
 }

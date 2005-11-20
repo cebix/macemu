@@ -157,6 +157,86 @@ static GtkWidget *make_table(GtkWidget *top, int x, int y)
 	return table;
 }
 
+static GtkWidget *table_make_option_menu(GtkWidget *table, int row, int label_id, const opt_desc *options, int active)
+{
+	GtkWidget *label, *opt, *menu;
+
+	label = gtk_label_new(GetString(label_id));
+	gtk_widget_show(label);
+	gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row + 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+
+	opt = gtk_option_menu_new();
+	gtk_widget_show(opt);
+	menu = gtk_menu_new();
+
+	while (options->label_id) {
+		add_menu_item(menu, options->label_id, options->func);
+		options++;
+	}
+	gtk_menu_set_active(GTK_MENU(menu), active);
+
+	gtk_option_menu_set_menu(GTK_OPTION_MENU(opt), menu);
+	gtk_table_attach(GTK_TABLE(table), opt, 1, 2, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
+	return menu;
+}
+
+static GtkWidget *table_make_combobox(GtkWidget *table, int row, int label_id, const char *default_value, GList *glist)
+{
+	GtkWidget *label, *combo;
+	char str[32];
+
+	label = gtk_label_new(GetString(label_id));
+	gtk_widget_show(label);
+	gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row + 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+	
+	combo = gtk_combo_new();
+	gtk_widget_show(combo);
+	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
+
+	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), default_value);
+	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
+	
+	return combo;
+}
+
+static GtkWidget *table_make_combobox(GtkWidget *table, int row, int label_id, const char *default_value, const combo_desc *options)
+{
+	GList *glist = NULL;
+	while (options->label_id) {
+		glist = g_list_append(glist, (void *)GetString(options->label_id));
+		options++;
+	}
+
+	return table_make_combobox(table, row, label_id, default_value, glist);
+}
+
+static GtkWidget *table_make_file_entry(GtkWidget *table, int row, int label_id, const char *prefs_item, bool only_dirs = false)
+{
+	GtkWidget *box, *label, *entry, *button;
+
+	label = gtk_label_new(GetString(label_id));
+	gtk_widget_show(label);
+	gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row + 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+
+	const char *str = PrefsFindString(prefs_item);
+	if (str == NULL)
+		str = "";
+
+	box = gtk_hbox_new(FALSE, 4);
+	gtk_widget_show(box);
+	gtk_table_attach(GTK_TABLE(table), box, 1, 2, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
+
+	entry = gtk_entry_new();
+	gtk_entry_set_text(GTK_ENTRY(entry), str); 
+	gtk_widget_show(entry);
+	gtk_box_pack_start(GTK_BOX(box), entry, TRUE, TRUE, 0);
+
+	button = make_browse_button(entry);
+	gtk_box_pack_start(GTK_BOX(box), button, FALSE, FALSE, 0);
+	g_object_set_data(G_OBJECT(entry), "chooser_button", button);
+	return entry;
+}
+
 static GtkWidget *make_option_menu(GtkWidget *top, int label_id, const opt_desc *options, int active)
 {
 	GtkWidget *box, *label, *opt, *menu;
@@ -981,8 +1061,8 @@ static void create_input_pane(GtkWidget *top)
  *  "Serial" pane
  */
 
-static GtkWidget *w_seriala, *w_portfile0, *w_portfile0_browse;
-static GtkWidget *w_serialb, *w_portfile1, *w_portfile1_browse;
+static GtkWidget *w_seriala, *w_portfile0;
+static GtkWidget *w_serialb, *w_portfile1;
 
 // Set sensitivity of widgets
 static void set_serial_sensitive(void)
@@ -993,12 +1073,12 @@ static void set_serial_sensitive(void)
 	str = gtk_entry_get_text(GTK_ENTRY(w_seriala));
 	is_file = strcmp(str, "FILE") == 0;
 	gtk_widget_set_sensitive(w_portfile0, is_file);
-	gtk_widget_set_sensitive(w_portfile0_browse, is_file);
+	gtk_widget_set_sensitive(GTK_WIDGET(g_object_get_data(G_OBJECT(w_portfile0), "chooser_button")), is_file);
 
 	str = gtk_entry_get_text(GTK_ENTRY(w_serialb));
 	is_file = strcmp(str, "FILE") == 0;
 	gtk_widget_set_sensitive(w_portfile1, is_file);
-	gtk_widget_set_sensitive(w_portfile1_browse, is_file);
+	gtk_widget_set_sensitive(GTK_WIDGET(g_object_get_data(G_OBJECT(w_portfile1), "chooser_button")), is_file);
 }
 
 // Read settings from widgets and set preferences
@@ -1053,78 +1133,24 @@ static void create_serial_pane(GtkWidget *top)
 	box = make_pane(top, STR_SERIAL_PANE_TITLE);
 	table = make_table(box, 2, 5);
 
-	label = gtk_label_new(GetString(STR_SERIALA_CTRL));
-	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
-
 	GList *glist = add_serial_names();
-	combo = gtk_combo_new();
-	gtk_widget_show(combo);
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
 	const char *str = PrefsFindString("seriala");
-	if (str == NULL)
-		str = "";
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
-	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 0, 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
+	combo = table_make_combobox(table, 0, STR_SERIALA_CTRL, str, glist);
 	w_seriala = GTK_COMBO(combo)->entry;
 	gtk_signal_connect(GTK_OBJECT(w_seriala), "changed", GTK_SIGNAL_FUNC(cb_serial_port_changed), NULL);
 
-	label = gtk_label_new(GetString(STR_FILE_CTRL));
-	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 1, 2, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
-
-	hbox = gtk_hbox_new(FALSE, 4);
-	gtk_widget_show(hbox);
-	gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 1, 2, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
-
-	w_portfile0 = gtk_entry_new();
-	str = PrefsFindString("portfile0");
-	if (str == NULL)
-		str = "C:\\B2TEMP0.OUT";
-	gtk_entry_set_text(GTK_ENTRY(w_portfile0), str);
-	gtk_widget_show(w_portfile0);
-	gtk_box_pack_start(GTK_BOX(hbox), w_portfile0, TRUE, TRUE, 0);
-
-	w_portfile0_browse = make_browse_button(w_portfile0);
-	gtk_box_pack_start(GTK_BOX(hbox), w_portfile0_browse, FALSE, FALSE, 0);
+	w_portfile0 = table_make_file_entry(table, 1, STR_FILE_CTRL, "portfile0");
 
 	sep = gtk_hseparator_new();
 	gtk_widget_show(sep);
 	gtk_table_attach(GTK_TABLE(table), sep, 0, 2, 2, 3, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
-	label = gtk_label_new(GetString(STR_SERIALB_CTRL));
-	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 3, 4, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
-
-	combo = gtk_combo_new();
-	gtk_widget_show(combo);
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
 	str = PrefsFindString("serialb");
-	if (str == NULL)
-		str = "";
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
-	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 3, 4, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
+	combo = table_make_combobox(table, 3, STR_SERIALB_CTRL, str, glist);
 	w_serialb = GTK_COMBO(combo)->entry;
 	gtk_signal_connect(GTK_OBJECT(w_serialb), "changed", GTK_SIGNAL_FUNC(cb_serial_port_changed), NULL);
 
-	label = gtk_label_new(GetString(STR_FILE_CTRL));
-	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 4, 5, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
-
-	hbox = gtk_hbox_new(FALSE, 4);
-	gtk_widget_show(hbox);
-	gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 4, 5, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
-
-	w_portfile1 = gtk_entry_new();
-	str = PrefsFindString("portfile1");
-	if (str == NULL)
-		str = "C:\\B2TEMP1.OUT";
-	gtk_entry_set_text(GTK_ENTRY(w_portfile1), str);
-	gtk_widget_show(w_portfile1);
-	gtk_box_pack_start(GTK_BOX(hbox), w_portfile1, TRUE, TRUE, 0);
-
-	w_portfile1_browse = make_browse_button(w_portfile1);
-	gtk_box_pack_start(GTK_BOX(hbox), w_portfile1_browse, FALSE, FALSE, 0);
+	w_portfile1 = table_make_file_entry(table, 4, STR_FILE_CTRL, "portfile1");
 
 	set_serial_sensitive();
 }
@@ -1202,7 +1228,7 @@ static void create_ethernet_pane(GtkWidget *top)
  *  "Memory/Misc" pane
  */
 
-static GtkObject *w_ramsize_adj;
+static GtkWidget *w_ramsize;
 static GtkWidget *w_rom_file;
 
 // "Ignore SEGV" button toggled
@@ -1227,9 +1253,10 @@ static void mn_cpu_68040(...) {PrefsReplaceInt32("cpu", 4); PrefsReplaceBool("fp
 // Read settings from widgets and set preferences
 static void read_memory_settings(void)
 {
-	PrefsReplaceInt32("ramsize", int(GTK_ADJUSTMENT(w_ramsize_adj)->value) << 20);
+	const char *str = gtk_entry_get_text(GTK_ENTRY(GTK_COMBO(w_ramsize)->entry));
+	PrefsReplaceInt32("ramsize", atoi(str) << 20);
 
-	const char *str = get_file_entry_path(w_rom_file);
+	str = get_file_entry_path(w_rom_file);
 	if (str && strlen(str))
 		PrefsReplaceString("rom", str);
 	else
@@ -1240,47 +1267,27 @@ static void read_memory_settings(void)
 // Create "Memory/Misc" pane
 static void create_memory_pane(GtkWidget *top)
 {
-	GtkWidget *box, *hbox, *vbox, *hbox2, *label, *scale;
+	GtkWidget *box, *hbox, *table, *label, *scale, *menu;
 
 	box = make_pane(top, STR_MEMORY_MISC_PANE_TITLE);
+	table = make_table(box, 2, 5);
 
-	hbox = gtk_hbox_new(FALSE, 4);
-	gtk_widget_show(hbox);
-
-	label = gtk_label_new(GetString(STR_RAMSIZE_SLIDER));
-	gtk_widget_show(label);
-	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-
-	vbox = gtk_vbox_new(FALSE, 4);
-	gtk_widget_show(vbox);
-
-	gfloat min, max;
-	min = 1;
-	max = 1024;
-	w_ramsize_adj = gtk_adjustment_new(min, min, max, 1, 16, 0);
-	gtk_adjustment_set_value(GTK_ADJUSTMENT(w_ramsize_adj), PrefsFindInt32("ramsize") >> 20);
-
-	scale = gtk_hscale_new(GTK_ADJUSTMENT(w_ramsize_adj));
-	gtk_widget_show(scale);
-	gtk_scale_set_digits(GTK_SCALE(scale), 0);
-	gtk_box_pack_start(GTK_BOX(vbox), scale, TRUE, TRUE, 0);
-
-	hbox2 = gtk_hbox_new(FALSE, 4);
-	gtk_widget_show(hbox2);
-
-	char val[32];
-	sprintf(val, GetString(STR_RAMSIZE_FMT), int(min));
-	label = gtk_label_new(val);
-	gtk_widget_show(label);
-	gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
-
-	sprintf(val, GetString(STR_RAMSIZE_FMT), int(max));
-	label = gtk_label_new(val);
-	gtk_widget_show(label);
-	gtk_box_pack_end(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(vbox), hbox2, TRUE, TRUE, 0);
-	gtk_box_pack_start(GTK_BOX(hbox), vbox, TRUE, TRUE, 0);
-	gtk_box_pack_start(GTK_BOX(box), hbox, FALSE, FALSE, 0);
+	static const combo_desc options[] = {
+		STR_RAMSIZE_2MB_LAB,
+		STR_RAMSIZE_4MB_LAB,
+		STR_RAMSIZE_8MB_LAB,
+		STR_RAMSIZE_16MB_LAB,
+		STR_RAMSIZE_32MB_LAB,
+		STR_RAMSIZE_64MB_LAB,
+		STR_RAMSIZE_128MB_LAB,
+		STR_RAMSIZE_256MB_LAB,
+		STR_RAMSIZE_512MB_LAB,
+		STR_RAMSIZE_1024MB_LAB,
+		0
+	};
+	char default_ramsize[10];
+	sprintf(default_ramsize, "%d", PrefsFindInt32("ramsize") >> 20);
+	w_ramsize = table_make_combobox(table, 0, STR_RAMSIZE_CTRL, default_ramsize, options);
 
 	static const opt_desc model_options[] = {
 		{STR_MODELID_5_LAB, GTK_SIGNAL_FUNC(mn_modelid_5)},
@@ -1292,7 +1299,7 @@ static void create_memory_pane(GtkWidget *top)
 		case 5: active = 0; break;
 		case 14: active = 1; break;
 	}
-	make_option_menu(box, STR_MODELID_CTRL, model_options, active);
+	table_make_option_menu(table, 2, STR_MODELID_CTRL, model_options, active);
 
 #if EMULATED_68K
 	static const opt_desc cpu_options[] = {
@@ -1311,10 +1318,10 @@ static void create_memory_pane(GtkWidget *top)
 		case 3: active = fpu ? 3 : 2; break;
 		case 4: active = 4;
 	}
-	make_option_menu(box, STR_CPU_CTRL, cpu_options, active);
+	table_make_option_menu(table, 3, STR_CPU_CTRL, cpu_options, active);
 #endif
 
-	w_rom_file = make_file_entry(box, STR_ROM_FILE_CTRL, "rom");
+	w_rom_file = table_make_file_entry(table, 4, STR_ROM_FILE_CTRL, "rom");
 
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 	make_checkbox(box, STR_IGNORESEGV_CTRL, "ignoresegv", GTK_SIGNAL_FUNC(tb_ignoresegv));
