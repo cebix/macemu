@@ -424,12 +424,12 @@ static void cb_about(...)
 // Menu item descriptions
 static GtkItemFactoryEntry menu_items[] = {
 	{(gchar *)GetString(STR_PREFS_MENU_FILE_GTK),		NULL,			NULL,							0, "<Branch>"},
-	{(gchar *)GetString(STR_PREFS_ITEM_START_GTK),		NULL,			GTK_SIGNAL_FUNC(cb_start),		0, NULL},
+	{(gchar *)GetString(STR_PREFS_ITEM_START_GTK),		"<control>S",	GTK_SIGNAL_FUNC(cb_start),		0, NULL},
 	{(gchar *)GetString(STR_PREFS_ITEM_ZAP_PRAM_GTK),	NULL,			GTK_SIGNAL_FUNC(cb_zap_pram),	0, NULL},
 	{(gchar *)GetString(STR_PREFS_ITEM_SEPL_GTK),		NULL,			NULL,							0, "<Separator>"},
 	{(gchar *)GetString(STR_PREFS_ITEM_QUIT_GTK),		"<control>Q",	GTK_SIGNAL_FUNC(cb_quit),		0, NULL},
 	{(gchar *)GetString(STR_HELP_MENU_GTK),				NULL,			NULL,							0, "<LastBranch>"},
-	{(gchar *)GetString(STR_HELP_ITEM_ABOUT_GTK),		NULL,			GTK_SIGNAL_FUNC(cb_about),		0, NULL}
+	{(gchar *)GetString(STR_HELP_ITEM_ABOUT_GTK),		"<control>H",	GTK_SIGNAL_FUNC(cb_about),		0, NULL}
 };
 
 bool PrefsEditor(void)
@@ -474,8 +474,6 @@ bool PrefsEditor(void)
 
 	static const opt_desc buttons[] = {
 		{STR_START_BUTTON, GTK_SIGNAL_FUNC(cb_start)},
-		{STR_PREFS_ITEM_ZAP_PRAM, GTK_SIGNAL_FUNC(cb_zap_pram)},
-		{STR_ABOUT_BUTTON, GTK_SIGNAL_FUNC(cb_about)},
 		{STR_QUIT_BUTTON, GTK_SIGNAL_FUNC(cb_quit)},
 		{0, NULL}
 	};
