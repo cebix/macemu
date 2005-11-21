@@ -174,6 +174,26 @@ else
   AC_MSG_ERROR([Sorry, Windows exceptions don't work as expected on your system.])
 fi
 
+dnl Check if we can ignore the fault (instruction skipping in SIGSEGV handler)
+AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
+  ac_cv_have_skip_instruction, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #define HAVE_SIGSEGV_SKIP_INSTRUCTION 1
+    #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+    #include "../Unix/vm_alloc.cpp"
+    #include "../Unix/sigsegv.cpp"
+  ], ac_cv_have_skip_instruction=yes, ac_cv_have_skip_instruction=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_have_skip_instruction=no
+  )
+  AC_LANG_RESTORE
+  ]
+)
+AC_TRANSLATE_DEFINE(HAVE_SIGSEGV_SKIP_INSTRUCTION, "$ac_cv_have_skip_instruction",
+  [Define if we can ignore the fault (instruction skipping in SIGSEGV handler).])
+
 dnl We really want VOSF (Video on SEGV Signals) screen updates acceleration
 AC_DEFINE(ENABLE_VOSF, 1, [Define if using video enabled on SEGV signals.])
 
