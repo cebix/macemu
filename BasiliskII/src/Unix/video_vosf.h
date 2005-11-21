@@ -35,8 +35,8 @@
 #define MONITOR_INIT			SDL_monitor_desc &monitor
 #define VIDEO_DRV_WIN_INIT		driver_window *drv
 #define VIDEO_DRV_DGA_INIT		driver_fullscreen *drv
-#define VIDEO_DRV_LOCK_PIXELS	if (SDL_MUSTLOCK(drv->s)) SDL_LockSurface(drv->s)
-#define VIDEO_DRV_UNLOCK_PIXELS	if (SDL_MUSTLOCK(drv->s)) SDL_UnlockSurface(drv->s)
+#define VIDEO_DRV_LOCK_PIXELS	SDL_VIDEO_LOCK_SURFACE(drv->s)
+#define VIDEO_DRV_UNLOCK_PIXELS	SDL_VIDEO_UNLOCK_SURFACE(drv->s)
 #define VIDEO_DRV_DEPTH			drv->s->format->BitsPerPixel
 #define VIDEO_DRV_WIDTH			drv->s->w
 #define VIDEO_DRV_HEIGHT		drv->s->h

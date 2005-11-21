@@ -158,20 +158,37 @@ extern void SysMountFirstFloppy(void);
 
 
 /*
+ *  SDL surface locking glue
+ */
+
+#ifdef ENABLE_VOSF
+#define SDL_VIDEO_LOCK_VOSF_SURFACE(SURFACE) do {				\
+	if ((SURFACE)->flags & (SDL_HWSURFACE | SDL_FULLSCREEN))	\
+		the_host_buffer = (uint8 *)(SURFACE)->pixels;			\
+} while (0)
+#else
+#define SDL_VIDEO_LOCK_VOSF_SURFACE(SURFACE)
+#endif
+
+#define SDL_VIDEO_LOCK_SURFACE(SURFACE) do {	\
+	if (SDL_MUSTLOCK(SURFACE)) {				\
+		SDL_LockSurface(SURFACE);				\
+		SDL_VIDEO_LOCK_VOSF_SURFACE(SURFACE);	\
+	}											\
+} while (0)
+
+#define SDL_VIDEO_UNLOCK_SURFACE(SURFACE) do {	\
+	if (SDL_MUSTLOCK(SURFACE))					\
+		SDL_UnlockSurface(SURFACE);				\
+} while (0)
+
+
+/*
  *  Framebuffer allocation routines
  */
 
 static void *vm_acquire_framebuffer(uint32 size)
 {
-#ifdef SHEEPSHAVER
-#ifdef DIRECT_ADDRESSING_HACK
-	const uint32 FRAME_BUFFER_BASE = 0x61000000;
-	uint8 *fb = Mac2HostAddr(FRAME_BUFFER_BASE);
-	if (vm_acquire_fixed(fb, size) < 0)
-		fb = VM_MAP_FAILED;
-	return fb;
-#endif
-#endif
 	return vm_acquire(size);
 }
 
