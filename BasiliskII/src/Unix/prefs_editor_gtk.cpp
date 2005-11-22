@@ -60,6 +60,12 @@ static void read_settings(void);
  *  Utility functions
  */
 
+#if ! GLIB_CHECK_VERSION(2,0,0)
+#define G_OBJECT(obj)							GTK_OBJECT(obj)
+#define g_object_get_data(obj, key)				gtk_object_get_data((obj), (key))
+#define g_object_set_data(obj, key, data)		gtk_object_set_data((obj), (key), (data))
+#endif
+
 struct opt_desc {
 	int label_id;
 	GtkSignalFunc func;

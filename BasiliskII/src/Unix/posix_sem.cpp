@@ -136,8 +136,8 @@ int sem_post(sem_t* sem)
 
 int sem_getvalue(sem_t* sem, int* sval)
 {
-	errno = ENOSYS;
-	return -1;
+	*sval = sem->sem_value;
+	return 0;
 }
 
 }
