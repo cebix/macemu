@@ -97,7 +97,7 @@ void AddPrefsDefaults(void)
 	PrefsAddBool("jitfpu", true);
 	PrefsAddBool("jitdebug", false);
 	PrefsAddInt32("jitcachesize", 8192);
-	PrefsAddInt32("jitlazyflush", true);
+	PrefsAddBool("jitlazyflush", true);
 	PrefsAddBool("jitinline", true);
 #else
 	PrefsAddBool("jit", false);
