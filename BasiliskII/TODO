@@ -50,4 +50,3 @@ Windows
 - video_windows.cpp: implement with DirectX
 - audio_windows.cpp, scsi_windows.cpp: merge from original Windows version
 - GUI: handle NDIS interfaces
-- GUI: make switch to "Fullscreen" mode set "frameskip" to 0

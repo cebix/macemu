@@ -833,6 +833,7 @@ static void mn_fullscreen(...)
 {
 	display_type = DISPLAY_SCREEN;
 	hide_show_graphics_widgets();
+	PrefsReplaceInt32("frameskip", 1);
 }
 
 // "5 Hz".."60Hz" selected
