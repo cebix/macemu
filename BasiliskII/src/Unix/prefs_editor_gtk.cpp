@@ -419,7 +419,7 @@ static void mn_about(...)
 	dialog = gnome_about_new(
 		"Basilisk II",
 		version,
-		"Copyright (C) 1997-2004 Christian Bauer",
+		"Copyright (C) 1997-2005 Christian Bauer",
 		authors,
 		"Basilisk II comes with ABSOLUTELY NO WARRANTY."
 		"This is free software, and you are welcome to redistribute it"
@@ -435,7 +435,7 @@ static void mn_about(...)
 	char str[512];
 	sprintf(str,
 		"Basilisk II\nVersion %d.%d\n\n"
-		"Copyright (C) 1997-2004 Christian Bauer et al.\n"
+		"Copyright (C) 1997-2005 Christian Bauer et al.\n"
 		"E-mail: Christian.Bauer@uni-mainz.de\n"
 		"http://www.uni-mainz.de/~bauec002/B2Main.html\n\n"
 		"Basilisk II comes with ABSOLUTELY NO\n"
