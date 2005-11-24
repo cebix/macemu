@@ -107,12 +107,15 @@ void AddPlatformPrefsDefaults(void)
 	PrefsReplaceInt32("mousewheelmode", 1);
 	PrefsReplaceInt32("mousewheellines", 3);
 #ifdef __linux__
-	if (access("/dev/.devfsd", F_OK) < 0) {
-		PrefsReplaceString("dsp", "/dev/dsp");
-		PrefsReplaceString("mixer", "/dev/mixer");
-	} else {
+	if (access("/dev/sound/dsp", F_OK) == 0) {
 		PrefsReplaceString("dsp", "/dev/sound/dsp");
+	} else {
+		PrefsReplaceString("dsp", "/dev/dsp");
+	}
+	if (access("/dev/sound/mixer", F_OK) == 0) {
 		PrefsReplaceString("mixer", "/dev/sound/mixer");
+	} else {
+		PrefsReplaceString("mixer", "/dev/mixer");
 	}
 #else
 	PrefsReplaceString("dsp", "/dev/dsp");
