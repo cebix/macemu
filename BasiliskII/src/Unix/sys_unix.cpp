@@ -113,22 +113,20 @@ void SysMountFirstFloppy(void)
 void SysAddFloppyPrefs(void)
 {
 #if defined(__linux__)
-	if (access("/dev/.devfsd", F_OK) < 0) {
-		PrefsAddString("floppy", "/dev/fd0u1440");
-		PrefsAddString("floppy", "/dev/fd1u1440");
-	} else {
-		DIR *fd_dir = opendir("/dev/floppy");
-		if (fd_dir) {
-			struct dirent *floppy_dev;
-			while ((floppy_dev = readdir(fd_dir)) != NULL) {
-				if (strstr(floppy_dev->d_name, "u1440") != NULL) {
-					char fd_dev[20];
-					sprintf(fd_dev, "/dev/floppy/%s", floppy_dev->d_name);
-					PrefsAddString("floppy", fd_dev);
-				}
+	DIR *fd_dir = opendir("/dev/floppy");
+	if (fd_dir) {
+		struct dirent *floppy_dev;
+		while ((floppy_dev = readdir(fd_dir)) != NULL) {
+			if (strstr(floppy_dev->d_name, "u1440") != NULL) {
+				char fd_dev[20];
+				sprintf(fd_dev, "/dev/floppy/%s", floppy_dev->d_name);
+				PrefsAddString("floppy", fd_dev);
 			}
-			closedir(fd_dir);
 		}
+		closedir(fd_dir);
+	} else {
+		PrefsAddString("floppy", "/dev/fd0");
+		PrefsAddString("floppy", "/dev/fd1");
 	}
 #elif defined(__NetBSD__)
 	PrefsAddString("floppy", "/dev/fd0a");
