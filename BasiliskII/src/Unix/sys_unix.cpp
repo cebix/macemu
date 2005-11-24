@@ -53,7 +53,7 @@
 
 // File handles are pointers to these structures
 struct file_handle {
-	char *name;		// Copy of device/file name
+	char *name;			// Copy of device/file name
 	int fd;
 	bool is_file;		// Flag: plain file or /dev/something?
 	bool is_floppy;		// Flag: floppy device
@@ -308,6 +308,7 @@ void *Sys_open(const char *name, bool read_only)
 #else
 	bool is_cdrom = strncmp(name, "/dev/cd", 7) == 0;
 #endif
+	bool is_floppy = strncmp(name, "/dev/fd", 7) == 0;
 
 #if defined(__APPLE__) && defined(__MACH__)
 	//
@@ -360,15 +361,15 @@ void *Sys_open(const char *name, bool read_only)
 		read_only = true;
 		fd = open(name, O_RDONLY);
 	}
-	if (fd >= 0) {
+	if (fd >= 0 || is_floppy) { // Floppy open fails if there's no disk inserted
 		file_handle *fh = new file_handle;
 		fh->name = strdup(name);
 		fh->fd = fd;
 		fh->is_file = is_file;
 		fh->read_only = read_only;
 		fh->start_byte = 0;
-		fh->is_floppy = false;
-		fh->is_cdrom = false;
+		fh->is_floppy = is_floppy;
+		fh->is_cdrom = is_cdrom;
 		if (fh->is_file) {
 			// Detect disk image file layout
 			loff_t size = 0;
@@ -458,7 +459,8 @@ void Sys_close(void *arg)
 	if (!fh)
 		return;
 
-	close(fh->fd);
+	if (fh->fd >= 0)
+		close(fh->fd);
 	if (fh->name)
 		free(fh->name);
 	delete fh;
@@ -543,10 +545,12 @@ void SysEject(void *arg)
 
 #if defined(__linux__)
 	if (fh->is_floppy) {
-		fsync(fh->fd);
-		ioctl(fh->fd, FDFLUSH);
-		ioctl(fh->fd, FDEJECT);
-		close(fh->fd);	// Close and reopen so the driver will see the media change
+		if (fh->fd >= 0) {
+			fsync(fh->fd);
+			ioctl(fh->fd, FDFLUSH);
+			ioctl(fh->fd, FDEJECT);
+			close(fh->fd);	// Close and reopen so the driver will see the media change
+		}
 		fh->fd = open(fh->name, fh->read_only ? O_RDONLY : O_RDWR);
 	} else if (fh->is_cdrom) {
 		ioctl(fh->fd, CDROMEJECT);
@@ -619,9 +623,12 @@ bool SysIsReadOnly(void *arg)
 
 #if defined(__linux__)
 	if (fh->is_floppy) {
-		struct floppy_drive_struct stat;
-		ioctl(fh->fd, FDGETDRVSTAT, &stat);
-		return !(stat.flags & FD_DISK_WRITABLE);
+		if (fh->fd >= 0) {
+			struct floppy_drive_struct stat;
+			ioctl(fh->fd, FDGETDRVSTAT, &stat);
+			return !(stat.flags & FD_DISK_WRITABLE);
+		} else
+			return true;
 	} else
 #endif
 		return fh->read_only;
