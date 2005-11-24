@@ -69,6 +69,8 @@ public:
 		input_dt = output_dt = 0;
 	}
 
+	virtual ~SERDPort() {}
+
 	virtual int16 open(uint16 config) = 0;
 	virtual int16 prime_in(uint32 pb, uint32 dce) = 0;
 	virtual int16 prime_out(uint32 pb, uint32 dce) = 0;
