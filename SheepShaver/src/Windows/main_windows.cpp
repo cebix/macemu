@@ -205,6 +205,10 @@ int main(int argc, char **argv)
 	if (!check_drivers())
 		QuitEmulator();
 
+	// FIXME: default to DIB driver
+	if (getenv("SDL_VIDEODRIVER") == NULL)
+	    putenv("SDL_VIDEODRIVER=windib");
+
 	// Initialize SDL system
 	int sdl_flags = 0;
 #ifdef USE_SDL_VIDEO
