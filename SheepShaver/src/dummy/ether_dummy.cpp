@@ -20,6 +20,7 @@
 
 #include "sysdeps.h"
 
+#include "cpu_emulation.h"
 #include "main.h"
 #include "ether.h"
 #include "ether_defs.h"
