@@ -64,7 +64,9 @@ extern "C" float exp2f(float x);
 extern "C" double exp2(double x);
 #define exp2f(x) (float)exp2(x)
 #else
+#ifndef exp2f
 #define exp2f(x) powf(2.0, (x))
+#endif
 #endif
 #endif
 
@@ -79,7 +81,9 @@ extern "C" double log2(double x);
 #ifndef M_LN2
 #define M_LN2 logf(2.0)
 #endif
+#ifndef log2f
 #define log2f(x) logf(x) / M_LN2
+#endif
 #endif
 #endif
 
