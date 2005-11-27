@@ -70,9 +70,7 @@
 #define PPC_PROFILE_GENERIC_CALLS 0
 #define KPX_MAX_CPUS 1
 #if ENABLE_DYNGEN
-// Don't bother with predecode cache when using JIT
 #define PPC_ENABLE_JIT 1
-#undef  PPC_DECODE_CACHE
 #endif
 #if defined(__i386__)
 #define DYNGEN_ASM_OPTS 1
