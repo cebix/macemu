@@ -69,6 +69,8 @@ UI_APP = SheepShaverGUI.exe
 
 APP = SheepShaver.exe
 
+PROGS = $(APP)
+
 ifeq ($(WANT_GTK),yes)
 PROGS += $(UI_APP)
 endif
