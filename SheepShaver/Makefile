@@ -71,7 +71,11 @@ links:
 	       Windows/cd_defs.h Windows/cdenable Windows/extfs_windows.cpp \
 	       Windows/posix_emu.cpp Windows/posix_emu.h Windows/sys_windows.cpp \
 	       Windows/timer_windows.cpp Windows/util_windows.cpp \
-	       Windows/util_windows.h Windows/xpram_windows.cpp'; \
+	       Windows/util_windows.h Windows/xpram_windows.cpp \
+	       Windows/kernel_windows.h Windows/kernel_windows.cpp \
+	       Windows/serial_windows.cpp Windows/router Windows/b2ether \
+	       Windows/ether_windows.h Windows/ether_windows.cpp \
+	       Windows/serial_windows.cpp'; \
 	PREFIX="`pwd`/"; case $(B2_TOPDIR) in /*) PREFIX="";; esac; \
 	for i in $$list; do \
 	  echo $$i; \

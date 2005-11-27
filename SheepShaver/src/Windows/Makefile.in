@@ -40,17 +40,21 @@ HOST_LDFLAGS =
 ## Files
 UNIXSRCS = vm_alloc.cpp vm_alloc.h sigsegv.cpp sigsegv.h video_vosf.h video_blit.cpp video_blit.h
 
+ROUTERSRCS =  router/arp.cpp router/dump.cpp router/dynsockets.cpp router/ftp.cpp \
+	router/icmp.cpp router/mib/interfaces.cpp router/iphelp.cpp router/ipsocket.cpp \
+	router/mib/mibaccess.cpp router/router.cpp router/tcp.cpp router/udp.cpp b2ether/packet32.cpp
+
 SRCS = ../main.cpp main_windows.cpp ../prefs.cpp ../prefs_items.cpp prefs_windows.cpp \
 	sys_windows.cpp cdenable/cache.cpp cdenable/eject_nt.cpp cdenable/ntcd.cpp \
     ../rom_patches.cpp ../rsrc_patches.cpp ../emul_op.cpp ../name_registry.cpp \
     ../macos_util.cpp ../timer.cpp timer_windows.cpp ../xpram.cpp xpram_windows.cpp \
     ../adb.cpp ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp ../dummy/scsi_dummy.cpp \
     ../gfxaccel.cpp ../video.cpp ../SDL/video_sdl.cpp video_blit.cpp \
-    ../audio.cpp ../SDL/audio_sdl.cpp ../ether.cpp ../dummy/ether_dummy.cpp \
-    ../thunks.cpp ../serial.cpp ../dummy/serial_dummy.cpp ../extfs.cpp extfs_windows.cpp \
+    ../audio.cpp ../SDL/audio_sdl.cpp ../ether.cpp ether_windows.cpp \
+    ../thunks.cpp ../serial.cpp serial_windows.cpp ../extfs.cpp extfs_windows.cpp \
     about_window_windows.cpp ../user_strings.cpp user_strings_windows.cpp \
-    ../dummy/prefs_editor_dummy.cpp clip_windows.cpp util_windows.cpp \
-    vm_alloc.cpp sigsegv.cpp posix_emu.cpp SheepShaver.rc $(CPUSRCS)
+    ../dummy/prefs_editor_dummy.cpp clip_windows.cpp util_windows.cpp kernel_windows.cpp \
+    vm_alloc.cpp sigsegv.cpp posix_emu.cpp SheepShaver.rc $(CPUSRCS) $(ROUTERSRCS)
 APP = SheepShaver.exe
 
 ## Rules

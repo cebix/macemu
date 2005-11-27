@@ -48,6 +48,14 @@ prefs_desc platform_prefs_items[] = {
 	{"debugextfs", TYPE_BOOLEAN, false,    "debug extfs system"},
 	{"extdrives", TYPE_STRING, false,      "define allowed extfs drives"},
 	{"pollmedia", TYPE_BOOLEAN, false,     "poll for new media (e.g. cd, floppy)"},
+	{"etherpermanentaddress", TYPE_BOOLEAN, false,  "use permanent NIC address to identify itself"},
+	{"ethermulticastmode", TYPE_INT32, false,       "how to multicast packets"},
+	{"etherfakeaddress", TYPE_STRING, false,        "optional fake hardware address"},
+	{"routerenabled", TYPE_BOOLEAN, false,          "enable NAT/Router module"},
+	{"ftp_port_list", TYPE_STRING, false,           "FTP ports list"},
+	{"tcp_port", TYPE_STRING, false,                "TCP ports list"},
+	{"portfile0", TYPE_STRING, false,               "output file for serial port 0"},
+	{"portfile1", TYPE_STRING, false,               "output file for serial port 1"},
 
 	{NULL, TYPE_END, false, NULL} // End of list
 };
@@ -126,4 +134,12 @@ void AddPlatformPrefsDefaults(void)
 	PrefsAddBool("ignoresegv", false);
 #endif
 	PrefsAddBool("idlewait", true);
+	PrefsReplaceBool("etherpermanentaddress", true);
+	PrefsReplaceInt32("ethermulticastmode", 0);
+	PrefsReplaceBool("routerenabled", false);
+	PrefsReplaceString("ftp_port_list", "21");
+	PrefsReplaceString("seriala", "COM1");
+	PrefsReplaceString("serialb", "COM2");
+	PrefsReplaceString("portfile0", "C:\\B2TEMP0.OUT");
+	PrefsReplaceString("portfile1", "C:\\B2TEMP1.OUT");
 }
