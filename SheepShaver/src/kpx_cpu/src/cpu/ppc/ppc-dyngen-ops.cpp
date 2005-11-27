@@ -283,6 +283,7 @@ DEFINE_OP(0);
 DEFINE_OP(im);
 DEFINE_OP(T1);
 
+#undef im
 #undef DEFINE_OP
 
 
