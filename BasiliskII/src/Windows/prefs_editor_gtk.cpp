@@ -52,6 +52,24 @@ static void read_settings(void);
 
 
 /*
+ *  SheepShaver glue
+ */
+
+#ifdef SHEEPSHAVER
+#define DISABLE_SCSI 1
+#define PROGRAM_NAME "SheepShaver"
+enum {
+	STR_WINDOW_LAB = STR_WINDOW_CTRL,
+	STR_FULLSCREEN_LAB = STR_FULLSCREEN_CTRL,
+	STR_SERIALA_CTRL = STR_SERPORTA_CTRL,
+	STR_SERIALB_CTRL = STR_SERPORTB_CTRL,
+};
+#else
+#define PROGRAM_NAME "BasiliskII"
+#endif
+
+
+/*
  *  Utility functions
  */
 
@@ -390,11 +408,15 @@ static void cb_about(...)
 
 	char str[512];
 	sprintf(str,
-		"Basilisk II\nVersion %d.%d\n\n"
+		PROGRAM_NAME "\nVersion %d.%d\n\n"
 		"Copyright (C) 1997-2005 Christian Bauer et al.\n"
-		"E-mail: Christian.Bauer@uni-mainz.de\n"
-		"http://www.uni-mainz.de/~bauec002/B2Main.html\n\n"
-		"Basilisk II comes with ABSOLUTELY NO\n"
+		"E-mail: cb@cebix.net\n"
+#ifdef SHEEPSHAVER
+		"http://sheepshaver.cebix.net/\n\n"
+#else
+		"http://basilisk.cebix.net/\n\n"
+#endif
+		PROGRAM_NAME " comes with ABSOLUTELY NO\n"
 		"WARRANTY. This is free software, and\n"
 		"you are welcome to redistribute it\n"
 		"under the terms of the GNU General\n"
@@ -673,20 +695,24 @@ static void create_volumes_pane(GtkWidget *top)
  *  "JIT Compiler" pane
  */
 
+#ifndef SHEEPSHAVER
 static GtkWidget *w_jit_fpu;
 static GtkWidget *w_jit_atraps;
 static GtkWidget *w_jit_cache_size;
 static GtkWidget *w_jit_lazy_flush;
 static GtkWidget *w_jit_follow_const_jumps;
+#endif
 
 // Set sensitivity of widgets
 static void set_jit_sensitive(void)
 {
+#ifndef SHEEPSHAVER
 	const bool jit_enabled = PrefsFindBool("jit");
 	gtk_widget_set_sensitive(w_jit_fpu, jit_enabled);
 	gtk_widget_set_sensitive(w_jit_cache_size, jit_enabled);
 	gtk_widget_set_sensitive(w_jit_lazy_flush, jit_enabled);
 	gtk_widget_set_sensitive(w_jit_follow_const_jumps, jit_enabled);
+#endif
 }
 
 // "Use JIT Compiler" button toggled
@@ -697,22 +723,28 @@ static void tb_jit(GtkWidget *widget)
 }
 
 // "Compile FPU Instructions" button toggled
+#ifndef SHEEPSHAVER
 static void tb_jit_fpu(GtkWidget *widget)
 {
 	PrefsReplaceBool("jitfpu", GTK_TOGGLE_BUTTON(widget)->active);
 }
+#endif
 
 // "Lazy translation cache invalidation" button toggled
+#ifndef SHEEPSHAVER
 static void tb_jit_lazy_flush(GtkWidget *widget)
 {
 	PrefsReplaceBool("jitlazyflush", GTK_TOGGLE_BUTTON(widget)->active);
 }
+#endif
 
 // "Translate through constant jumps (inline blocks)" button toggled
+#ifndef SHEEPSHAVER
 static void tb_jit_follow_const_jumps(GtkWidget *widget)
 {
 	PrefsReplaceBool("jitinline", GTK_TOGGLE_BUTTON(widget)->active);
 }
+#endif
 
 // Read settings from widgets and set preferences
 static void read_jit_settings(void)
@@ -720,11 +752,21 @@ static void read_jit_settings(void)
 #if USE_JIT
 	bool jit_enabled = PrefsFindBool("jit");
 	if (jit_enabled) {
+#ifndef SHEEPSHAVER
 		const char *str = gtk_entry_get_text(GTK_ENTRY(GTK_COMBO(w_jit_cache_size)->entry));
 		PrefsReplaceInt32("jitcachesize", atoi(str));
+#endif
 	}
 #endif
 }
+
+// "Use built-in 68k DR emulator" button toggled
+#ifdef SHEEPSHAVER
+static void tb_jit_68k(GtkWidget *widget)
+{
+	PrefsReplaceBool("jit68k", GTK_TOGGLE_BUTTON(widget)->active);
+}
+#endif
 
 // Create "JIT Compiler" pane
 static void create_jit_pane(GtkWidget *top)
@@ -736,6 +778,7 @@ static void create_jit_pane(GtkWidget *top)
 	box = make_pane(top, STR_JIT_PANE_TITLE);
 	make_checkbox(box, STR_JIT_CTRL, "jit", GTK_SIGNAL_FUNC(tb_jit));
 	
+#ifndef SHEEPSHAVER
 	w_jit_fpu = make_checkbox(box, STR_JIT_FPU_CTRL, "jitfpu", GTK_SIGNAL_FUNC(tb_jit_fpu));
 	
 	// Translation cache size
@@ -753,8 +796,13 @@ static void create_jit_pane(GtkWidget *top)
 
 	// Follow constant jumps (inline basic blocks)
 	w_jit_follow_const_jumps = make_checkbox(box, STR_JIT_FOLLOW_CONST_JUMPS, "jitinline", GTK_SIGNAL_FUNC(tb_jit_follow_const_jumps));
+#endif
 
 	set_jit_sensitive();
+#endif
+
+#ifdef SHEEPSHAVER
+	make_checkbox(box, STR_JIT_68K_CTRL, "jit68k", GTK_SIGNAL_FUNC(tb_jit_68k));
 #endif
 }
 
@@ -767,6 +815,7 @@ static GtkWidget *w_scsi[7];
 // Read settings from widgets and set preferences
 static void read_scsi_settings(void)
 {
+#ifndef DISABLE_SCSI
 	for (int id=0; id<7; id++) {
 		char prefs_name[32];
 		sprintf(prefs_name, "scsi%d", id);
@@ -776,11 +825,13 @@ static void read_scsi_settings(void)
 		else
 			PrefsRemoveItem(prefs_name);
 	}
+#endif
 }
 
 // Create "SCSI" pane
 static void create_scsi_pane(GtkWidget *top)
 {
+#ifndef DISABLE_SCSI
 	GtkWidget *box;
 
 	box = make_pane(top, STR_SCSI_PANE_TITLE);
@@ -790,6 +841,7 @@ static void create_scsi_pane(GtkWidget *top)
 		sprintf(prefs_name, "scsi%d", id);
 		w_scsi[id] = make_file_entry(box, STR_SCSI_ID_0 + id, prefs_name);
 	}
+#endif
 }
 
 
@@ -845,6 +897,14 @@ static void mn_30hz(...) {PrefsReplaceInt32("frameskip", 2);}
 static void mn_60hz(...) {PrefsReplaceInt32("frameskip", 1);}
 static void mn_dynamic(...) {PrefsReplaceInt32("frameskip", 0);}
 
+// QuickDraw acceleration
+#ifdef SHEEPSHAVER
+static void tb_gfxaccel(GtkWidget *widget)
+{
+	PrefsReplaceBool("gfxaccel", GTK_TOGGLE_BUTTON(widget)->active);
+}
+#endif
+
 // Set sensitivity of widgets
 static void set_graphics_sensitive(void)
 {
@@ -862,8 +922,13 @@ static void tb_nosound(GtkWidget *widget)
 static void parse_graphics_prefs(void)
 {
 	display_type = DISPLAY_WINDOW;
+#ifdef SHEEPSHAVER
+	dis_width = 640;
+	dis_height = 480;
+#else
 	dis_width = 512;
 	dis_height = 384;
+#endif
 
 	const char *str = PrefsFindString("screen");
 	if (str) {
@@ -1002,6 +1067,10 @@ static void create_graphics_pane(GtkWidget *top)
 	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
 	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 3, 4, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 	w_display_y = GTK_COMBO(combo)->entry;
+
+#ifdef SHEEPSHAVER
+	make_checkbox(box, STR_GFXACCEL_CTRL, "gfxaccel", GTK_SIGNAL_FUNC(tb_gfxaccel));
+#endif
 
 	make_separator(box);
 	make_checkbox(box, STR_NOSOUND_CTRL, "nosound", GTK_SIGNAL_FUNC(tb_nosound));
@@ -1260,10 +1329,6 @@ static GList *add_ether_names(void)
 	GList *glist = NULL;
 
 	// TODO: Get list of all Ethernet interfaces
-#ifdef HAVE_SLIRP
-	static const char s_slirp[] = "slirp";
-	glist = g_list_append(glist, (void *)s_slirp);
-#endif
 	glist = g_list_append(glist, (void *)s_nat_router);
 	glist = g_list_append(glist, (void *)GetString(STR_NONE_LAB));
 	return glist;
@@ -1339,6 +1404,14 @@ static void create_ethernet_pane(GtkWidget *top)
 static GtkWidget *w_ramsize;
 static GtkWidget *w_rom_file;
 
+// Don't use CPU when idle?
+#ifdef SHEEPSHAVER
+static void tb_idlewait(GtkWidget *widget)
+{
+	PrefsReplaceBool("idlewait", GTK_TOGGLE_BUTTON(widget)->active);
+}
+#endif
+
 // "Ignore SEGV" button toggled
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 static void tb_ignoresegv(GtkWidget *widget)
@@ -1381,7 +1454,9 @@ static void create_memory_pane(GtkWidget *top)
 	table = make_table(box, 2, 5);
 
 	static const combo_desc options[] = {
+#ifndef SHEEPSHAVER
 		STR_RAMSIZE_2MB_LAB,
+#endif
 		STR_RAMSIZE_4MB_LAB,
 		STR_RAMSIZE_8MB_LAB,
 		STR_RAMSIZE_16MB_LAB,
@@ -1390,13 +1465,16 @@ static void create_memory_pane(GtkWidget *top)
 		STR_RAMSIZE_128MB_LAB,
 		STR_RAMSIZE_256MB_LAB,
 		STR_RAMSIZE_512MB_LAB,
+#ifndef SHEEPSHAVER
 		STR_RAMSIZE_1024MB_LAB,
+#endif
 		0
 	};
 	char default_ramsize[10];
 	sprintf(default_ramsize, "%d", PrefsFindInt32("ramsize") >> 20);
 	w_ramsize = table_make_combobox(table, 0, STR_RAMSIZE_CTRL, default_ramsize, options);
 
+#ifndef SHEEPSHAVER
 	static const opt_desc model_options[] = {
 		{STR_MODELID_5_LAB, GTK_SIGNAL_FUNC(mn_modelid_5)},
 		{STR_MODELID_14_LAB, GTK_SIGNAL_FUNC(mn_modelid_14)},
@@ -1408,6 +1486,7 @@ static void create_memory_pane(GtkWidget *top)
 		case 14: active = 1; break;
 	}
 	table_make_option_menu(table, 2, STR_MODELID_CTRL, model_options, active);
+#endif
 
 #if EMULATED_68K
 	static const opt_desc cpu_options[] = {
@@ -1433,6 +1512,10 @@ static void create_memory_pane(GtkWidget *top)
 
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 	make_checkbox(box, STR_IGNORESEGV_CTRL, "ignoresegv", GTK_SIGNAL_FUNC(tb_ignoresegv));
+#endif
+
+#ifdef SHEEPSHAVER
+	make_checkbox(box, STR_IDLEWAIT_CTRL, "idlewait", GTK_SIGNAL_FUNC(tb_idlewait));
 #endif
 }
 
@@ -1509,7 +1592,7 @@ int main(int argc, char *argv[])
 	// Exit preferences
 	PrefsExit();
 
-	// Transfer control to the Basilisk II executable
+	// Transfer control to the executable
 	if (start) {
 		char path[_MAX_PATH];
 		bool ok = GetModuleFileName(NULL, path, sizeof(path)) != 0;
@@ -1519,14 +1602,15 @@ int main(int argc, char *argv[])
 			*++p = '\0';
 			SetCurrentDirectory(path);
 			strcpy(b2_path, path);
-			strcat(b2_path, "BasiliskII.exe");
+			strcat(b2_path, PROGRAM_NAME);
+			strcat(b2_path, ".exe");
 			HINSTANCE h = ShellExecute(GetDesktopWindow(), "open",
 									   b2_path, "", path, SW_SHOWNORMAL);
 			if ((int)h <= 32)
 				ok = false;
 		}
 		if (!ok) {
-			ErrorAlert("Coult not start BasiliskII executable");
+			ErrorAlert("Coult not start " PROGRAM_NAME " executable");
 			return 1;
 		}
 	}
