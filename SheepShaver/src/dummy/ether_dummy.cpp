@@ -51,7 +51,7 @@ void EtherExit(void)
  *  Get ethernet hardware address
  */
 
-void AO_get_ethernet_address(uint8 *addr)
+void AO_get_ethernet_address(uint32 addr)
 {
 }
 
@@ -60,7 +60,7 @@ void AO_get_ethernet_address(uint8 *addr)
  *  Enable multicast address
  */
 
-void AO_enable_multicast(uint8 *addr)
+void AO_enable_multicast(uint32 addr)
 {
 }
 
@@ -69,7 +69,7 @@ void AO_enable_multicast(uint8 *addr)
  *  Disable multicast address
  */
 
-void AO_disable_multicast(uint8 *addr)
+void AO_disable_multicast(uint32 addr)
 {
 }
 
@@ -78,7 +78,7 @@ void AO_disable_multicast(uint8 *addr)
  *  Transmit one packet
  */
 
-void AO_transmit_packet(mblk_t *mp)
+void AO_transmit_packet(uint32 mp)
 {
 }
 
