@@ -120,13 +120,13 @@ extern int __op_jmp0, __op_jmp1;
 #define ASM_PREVIOUS_SECTION	".section .text\n"
 #define ASM_GLOBAL				".global"
 #define ASM_NAME(NAME)			"_" #NAME
-#define ASM_SIZE				""
+#define ASM_SIZE(NAME)			""
 #elif defined(__APPLE__) && defined(__MACH__)
 #define ASM_DATA_SECTION		".data\n"
 #define ASM_PREVIOUS_SECTION	".text\n"
 #define ASM_GLOBAL				".globl"
 #define ASM_NAME(NAME)			"_" #NAME
-#define ASM_SIZE				""
+#define ASM_SIZE(NAME)			""
 #if defined(__ppc__)
 #define ASM_OP_EXEC_RETURN_INSN	"0x18,0xde,0xad,0xff"
 #endif
