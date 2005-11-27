@@ -54,6 +54,11 @@
 #define DIRECT_ADDRESSING 1
 #define NATMEM_OFFSET 0x02000000
 
+// Always use the complete (non-stubs based) Ethernet driver
+#if DIRECT_ADDRESSING
+#define USE_ETHER_FULL_DRIVER 1
+#endif
+
 // Mac ROM is write protected when banked memory is used
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 # define ROM_IS_WRITE_PROTECTED 0
