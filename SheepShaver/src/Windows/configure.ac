@@ -13,6 +13,7 @@ AC_CANONICAL_TARGET
 
 dnl Options.
 AC_ARG_ENABLE(jit,          [  --enable-jit            enable JIT compiler [default=yes]], [WANT_JIT=$enableval], [WANT_JIT=yes])
+AC_ARG_WITH(gtk,          [  --with-gtk              use GTK user interface [default=yes]], [WANT_GTK=$withval], [WANT_GTK=yes])
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -23,6 +24,15 @@ AC_PROG_EGREP
 AC_PROG_LN_S
 AC_PATH_PROG(PERL, [perl])
 AC_CHECK_TOOL(WINDRES, windres)
+
+dnl We use GTK+ if possible.
+if [[ "x$WANT_GTK" = "xyes" ]]; then
+  AM_PATH_GTK_2_0(1.3.15, [], [
+    AC_MSG_WARN([Could not find GTK+ 2.0, disabling user interface.])
+    WANT_GTK=no
+  ])
+fi
+AC_SUBST(WANT_GTK)
 
 dnl We use 64-bit file size support if possible.
 AC_SYS_LARGEFILE
@@ -202,11 +212,10 @@ CPUSRCS="$CPUSRCS ../kpx_cpu/sheepshaver_glue.cpp"
 
 dnl We really want SDL for now
 AC_CHECK_TOOL(sdl_config, sdl-config, [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
-sdl_cflags=`$sdl_config --cflags`
-sdl_libs=`$sdl_config --libs`
-CFLAGS="$CFLAGS $sdl_cflags"
-CXXFLAGS="$CXXFLAGS $sdl_cflags"
-LIBS="$LIBS $sdl_libs"
+SDL_CFLAGS=`$sdl_config --cflags`
+AC_SUBST(SDL_CFLAGS)
+SDL_LIBS=`$sdl_config --libs`
+AC_SUBST(SDL_LIBS)
 AC_DEFINE(USE_SDL, 1, [Define to enble SDL support])
 AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support])
 AC_DEFINE(USE_SDL_AUDIO, 1, [Define to enable SDL audio support])
@@ -230,5 +239,6 @@ echo
 echo SheepShaver configuration summary:
 echo
 echo Enable JIT compiler .............. : $WANT_JIT
+echo GTK user interface ............... : $WANT_GTK
 echo
 echo "Configuration done. Now type \"make\"."

@@ -87,6 +87,8 @@ user_string_def common_strings[] = {
 	{STR_PREFS_ITEM_ZAP_PRAM, "Zap PRAM File"},
 	{STR_PREFS_ITEM_QUIT, "Quit SheepShaver"},
 
+	{STR_NONE_LAB, "<none>"},
+
 	{STR_VOLUMES_PANE_TITLE, "Volumes"},
 	{STR_ADD_VOLUME_BUTTON, "Add" ELLIPSIS},
 	{STR_CREATE_VOLUME_BUTTON, "Create" ELLIPSIS},
@@ -109,6 +111,7 @@ user_string_def common_strings[] = {
 	{STR_REF_15HZ_LAB, "15 Hz"},
 	{STR_REF_30HZ_LAB, "30 Hz"},
 	{STR_REF_60HZ_LAB, "60 Hz"},
+	{STR_REF_DYNAMIC_LAB, "Dynamic"},
 	{STR_GFXACCEL_CTRL, "QuickDraw Acceleration"},
 	{STR_8_BIT_CTRL, "8 Bit"},
 	{STR_16_BIT_CTRL, "15 Bit"},

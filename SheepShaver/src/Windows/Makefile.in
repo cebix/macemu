@@ -13,12 +13,18 @@ man1dir = $(mandir)/man1
 
 DESTDIR =
 
+SDL_CFLAGS = @SDL_CFLAGS@
+SDL_LIBS = @SDL_LIBS@
+WANT_GTK = @WANT_GTK@
+GTK_CFLAGS = @GTK_CFLAGS@
+GTK_LIBS = @GTK_LIBS@
+
 LN_S = @LN_S@
 WINDRES = @WINDRES@
 CC = @CC@
 CXX = @CXX@
-CFLAGS = @CFLAGS@
-CXXFLAGS = @CXXFLAGS@
+CFLAGS = @CFLAGS@ $(SDL_CFLAGS)
+CXXFLAGS = @CXXFLAGS@ $(SDL_CFLAGS)
 CPPFLAGS = @CPPFLAGS@ -I../include -I.
 DEFS = @DEFS@
 LDFLAGS = @LDFLAGS@
@@ -55,14 +61,24 @@ SRCS = ../main.cpp main_windows.cpp ../prefs.cpp ../prefs_items.cpp prefs_window
     about_window_windows.cpp ../user_strings.cpp user_strings_windows.cpp \
     ../dummy/prefs_editor_dummy.cpp clip_windows.cpp util_windows.cpp kernel_windows.cpp \
     vm_alloc.cpp sigsegv.cpp posix_emu.cpp SheepShaver.rc $(CPUSRCS) $(ROUTERSRCS)
+
+UI_SRCS = ../prefs.cpp prefs_windows.cpp prefs_editor_gtk.cpp xpram_windows.cpp \
+	../prefs_items.cpp ../user_strings.cpp user_strings_windows.cpp SheepShaverGUI.rc
+
+UI_APP = SheepShaverGUI.exe
+
 APP = SheepShaver.exe
+
+ifeq ($(WANT_GTK),yes)
+PROGS += $(UI_APP)
+endif
 
 ## Rules
 .PHONY: clean distclean
 .SUFFIXES:
 .SUFFIXES: .c .cpp .S .o .h
 
-all: $(APP)
+all: $(PROGS)
 
 $(UNIXSRCS): %: ../Unix/%
 	$(LN_S) $< $@
@@ -77,6 +93,12 @@ define SRCS_LIST_TO_OBJS
 endef
 OBJS = $(SRCS_LIST_TO_OBJS)
 
+define UI_SRCS_LIST_TO_OBJS
+	$(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(foreach file, $(UI_SRCS), \
+	$(basename $(notdir $(file))))))
+endef
+UI_OBJS = $(UI_SRCS_LIST_TO_OBJS)
+
 define DYNGENSRCS_LIST_TO_OBJS
 	$(addprefix $(OBJ_DIR)/, $(addsuffix .ho, $(foreach file, $(DYNGENSRCS), \
 	$(basename $(notdir $(file))))))
@@ -88,15 +110,21 @@ VPATH :=
 VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
 
 $(APP): $(UNIXSRCS) $(OBJ_DIR) $(OBJS)
-	$(CXX) -o $(APP) $(LDFLAGS) $(OBJS) $(LIBS)
+	$(CXX) -o $(APP) $(LDFLAGS) $(OBJS) $(LIBS) $(SDL_LIBS)
 
-clean:
+$(UI_APP): $(UNIXSRCS) $(OBJ_DIR) $(UI_OBJS)
+	$(CXX) -o $@ $(LDFLAGS) $(UI_OBJS) $(LIBS) $(GTK_LIBS) -mwindows -mno-cygwin
+
+mostlyclean:
+	rm -f $(APP) $(UI_APP) $(OBJ_DIR)/* core* *.core *~ *.bak
+
+clean: mostlyclean
 	rm -f $(UNIXSRCS)
-	rm -f $(APP) $(OBJ_DIR)/* core* *.core *~ *.bak ppc-execute-impl.cpp
-	rm -f dyngen basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
+	rm -f dyngen basic-dyngen-ops.hpp ppc-dyngen-ops.hpp ppc-execute-impl.cpp
 
 distclean: clean
 	rm -rf $(OBJ_DIR)
+	rm -rf autom4te.cache
 	rm -f Makefile
 	rm -f config.cache config.log config.status config.h
 
@@ -117,6 +145,8 @@ $(OBJ_DIR)/%.o : %.S
 	$(CPP) $(CPPFLAGS) -D__ASSEMBLY__ $< -o $*.out.s
 	$(AS) $(ASFLAGS) -o $@ $*.out.s
 	rm $*.out.s
+$(OBJ_DIR)/prefs_editor_gtk.o: prefs_editor_gtk.cpp
+	$(CXX) -O2 -mno-cygwin -mms-bitfields $(CPPFLAGS) $(DEFS) $(GTK_CFLAGS) -c $< -o $@
 
 # Windows resources
 $(OBJ_DIR)/%.o: %.rc

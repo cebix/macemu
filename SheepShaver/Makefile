@@ -75,7 +75,7 @@ links:
 	       Windows/kernel_windows.h Windows/kernel_windows.cpp \
 	       Windows/serial_windows.cpp Windows/router Windows/b2ether \
 	       Windows/ether_windows.h Windows/ether_windows.cpp \
-	       Windows/serial_windows.cpp'; \
+	       Windows/serial_windows.cpp Windows/prefs_editor_gtk.cpp'; \
 	PREFIX="`pwd`/"; case $(B2_TOPDIR) in /*) PREFIX="";; esac; \
 	for i in $$list; do \
 	  echo $$i; \

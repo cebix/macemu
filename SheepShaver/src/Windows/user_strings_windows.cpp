@@ -47,6 +47,32 @@ user_string_def platform_strings[] = {
 	{STR_WINDOW_TITLE_GRABBED, "SheepShaver (mouse grabbed, press Ctrl-F5 to release)"},
 	{STR_NO_WIN32_NT_4, "SheepShaver does not run on Windows NT versions less than 4.0"},
 
+	{STR_PREFS_MENU_FILE_GTK, "/_File"},
+	{STR_PREFS_ITEM_START_GTK, "/File/_Start SheepShaver"},
+	{STR_PREFS_ITEM_ZAP_PRAM_GTK, "/File/_Zap PRAM File"},
+	{STR_PREFS_ITEM_SEPL_GTK, "/File/sepl"},
+	{STR_PREFS_ITEM_QUIT_GTK, "/File/_Quit SheepShaver"},
+	{STR_HELP_MENU_GTK, "/_Help"},
+	{STR_HELP_ITEM_ABOUT_GTK, "/Help/_About SheepShaver"},
+
+	{STR_FILE_CTRL, "File"},
+	{STR_BROWSE_TITLE, "Browse file"},
+	{STR_BROWSE_CTRL, "Browse..."},
+	{STR_SERIAL_PANE_TITLE, "Serial"},
+	{STR_NETWORK_PANE_TITLE, "Network"},
+	{STR_INPUT_PANE_TITLE, "Keyboard/Mouse"},
+	{STR_KEYCODES_CTRL, "Use Raw Keycodes"},
+	{STR_KEYCODE_FILE_CTRL, "Keycode Translation File"},
+	{STR_MOUSEWHEELMODE_CTRL, "Mouse Wheel Function"},
+	{STR_MOUSEWHEELMODE_PAGE_LAB, "Page Up/Down"},
+	{STR_MOUSEWHEELMODE_CURSOR_LAB, "Cursor Up/Down"},
+	{STR_MOUSEWHEELLINES_CTRL, "Lines To Scroll"},
+	{STR_POLLMEDIA_CTRL, "Try to automatically detect new removable media (enable polling)"},
+	{STR_EXTFS_ENABLE_CTRL, "Enable \"My Computer\" icon on your Mac desktop (external file system)"},
+	{STR_EXTFS_DRIVES_CTRL, "Mount drives"},
+	{STR_ETHER_FTP_PORT_LIST_CTRL, "FTP ports"},
+	{STR_ETHER_TCP_PORT_LIST_CTRL, "Server ports"},
+
 	{-1, NULL}	// End marker
 };
 
