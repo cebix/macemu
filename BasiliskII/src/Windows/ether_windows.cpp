@@ -58,6 +58,10 @@ HANDLE ether_th;
 unsigned int ether_tid;
 HANDLE ether_th1;
 HANDLE ether_th2;
+#ifdef SHEEPSHAVER
+static bool net_open = false;				// Flag: initialization succeeded, network device open
+uint8 ether_addr[6];						// Our Ethernet address
+#endif
 
 
 // Need to fake a NIC if there is none but the router module is activated.
@@ -66,12 +70,12 @@ bool ether_fake = false;
 // These are protected by queue_csection
 // Controls transfer for read thread to feed thread
 static CRITICAL_SECTION queue_csection;
-typedef struct _queue_t {
+typedef struct _win_queue_t {
 	uint8 *buf;
 	int sz;
-} queue_t;
+} win_queue_t;
 #define MAX_QUEUE_ITEMS 1024
-static queue_t queue[MAX_QUEUE_ITEMS];
+static win_queue_t queue[MAX_QUEUE_ITEMS];
 static int queue_head = 0;
 static int queue_inx = 0;
 static bool wait_request = true;
@@ -141,6 +145,10 @@ static void final_queue(void);
 static bool allocate_read_packets(void);
 static void free_read_packets(void);
 static void free_write_packets(void);
+static int16 ether_do_add_multicast(uint8 *addr);
+static int16 ether_do_del_multicast(uint8 *addr);
+static int16 ether_do_write(uint32 arg);
+static void ether_do_interrupt(void);
 
 
 /*
@@ -446,6 +454,172 @@ void ether_exit(void)
 
 
 /*
+ *  Glue around low-level implementation
+ */
+
+#ifdef SHEEPSHAVER
+// Error codes
+enum {
+	eMultiErr		= -91,
+	eLenErr			= -92,
+	lapProtErr		= -94,
+	excessCollsns	= -95
+};
+
+// Initialize ethernet
+void EtherInit(void)
+{
+	net_open = false;
+
+	// Do nothing if the user disabled the network
+	if (PrefsFindBool("nonet"))
+		return;
+
+	net_open = ether_init();
+}
+
+// Exit ethernet
+void EtherExit(void)
+{
+	ether_exit();
+	net_open = false;
+}
+
+// Get ethernet hardware address
+void AO_get_ethernet_address(uint32 arg)
+{
+	uint8 *addr = Mac2HostAddr(arg);
+	if (net_open)
+		OTCopy48BitAddress(ether_addr, addr);
+	else {
+		addr[0] = 0x12;
+		addr[1] = 0x34;
+		addr[2] = 0x56;
+		addr[3] = 0x78;
+		addr[4] = 0x9a;
+		addr[5] = 0xbc;
+	}
+	D(bug("AO_get_ethernet_address: got address %02x%02x%02x%02x%02x%02x\n", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]));
+}
+
+// Add multicast address
+void AO_enable_multicast(uint32 addr)
+{
+	if (net_open)
+		ether_do_add_multicast(Mac2HostAddr(addr));
+}
+
+// Disable multicast address
+void AO_disable_multicast(uint32 addr)
+{
+	if (net_open)
+		ether_do_del_multicast(Mac2HostAddr(addr));
+}
+
+// Transmit one packet
+void AO_transmit_packet(uint32 mp)
+{
+	if (net_open) {
+		switch (ether_do_write(mp)) {
+		case noErr:
+			num_tx_packets++;
+			break;
+		case excessCollsns:
+			num_tx_buffer_full++;
+			break;
+		}
+	}
+}
+
+// Copy packet data from message block to linear buffer
+static inline int ether_arg_to_buffer(uint32 mp, uint8 *p)
+{
+	return ether_msgb_to_buffer(mp, p);
+}
+
+// Ethernet interrupt
+void EtherIRQ(void)
+{
+	D(bug("EtherIRQ\n"));
+	num_ether_irq++;
+
+	OTEnterInterrupt();
+	ether_do_interrupt();
+	OTLeaveInterrupt();
+
+	// Acknowledge interrupt to reception thread
+	D(bug(" EtherIRQ done\r\n"));
+	ReleaseSemaphore(int_ack,1,NULL);
+}
+#else
+// Add multicast address
+int16 ether_add_multicast(uint32 pb)
+{
+	return ether_do_add_multicast(Mac2HostAddr(pb + eMultiAddr));
+}
+
+// Disable multicast address
+int16 ether_del_multicast(uint32 pb)
+{
+	return ether_do_del_multicast(Mac2HostAddr(pb + eMultiAddr));
+}
+
+// Transmit one packet
+int16 ether_write(uint32 wds)
+{
+	return ether_do_write(wds);
+}
+
+// Copy packet data from WDS to linear buffer
+static inline int ether_arg_to_buffer(uint32 wds, uint8 *p)
+{
+	return ether_wds_to_buffer(wds, p);
+}
+
+// Dispatch packet to protocol handler
+static void ether_dispatch_packet(uint32 packet, uint32 length)
+{
+	// Get packet type
+	uint16 type = ReadMacInt16(packet + 12);
+
+	// Look for protocol
+	NetProtocol *prot = find_protocol(type);
+	if (prot == NULL)
+		return;
+
+	// No default handler
+	if (prot->handler == 0)
+		return;
+
+	// Copy header to RHA
+	Mac2Mac_memcpy(ether_data + ed_RHA, packet, 14);
+	D(bug(" header %08lx%04lx %08lx%04lx %04lx\r\n", ReadMacInt32(ether_data + ed_RHA), ReadMacInt16(ether_data + ed_RHA + 4), ReadMacInt32(ether_data + ed_RHA + 6), ReadMacInt16(ether_data + ed_RHA + 10), ReadMacInt16(ether_data + ed_RHA + 12)));
+
+	// Call protocol handler
+	M68kRegisters r;
+	r.d[0] = type;								// Packet type
+	r.d[1] = length - 14;						// Remaining packet length (without header, for ReadPacket)
+	r.a[0] = packet + 14;						// Pointer to packet (Mac address, for ReadPacket)
+	r.a[3] = ether_data + ed_RHA + 14;			// Pointer behind header in RHA
+	r.a[4] = ether_data + ed_ReadPacket;		// Pointer to ReadPacket/ReadRest routines
+	D(bug(" calling protocol handler %08lx, type %08lx, length %08lx, data %08lx, rha %08lx, read_packet %08lx\r\n", prot->handler, r.d[0], r.d[1], r.a[0], r.a[3], r.a[4]));
+	Execute68k(prot->handler, &r);
+}
+
+// Ethernet interrupt
+void EtherInterrupt(void)
+{
+	D(bug("EtherIRQ\n"));
+	ether_do_interrupt();
+
+	// Acknowledge interrupt to reception thread
+	D(bug(" EtherIRQ done\r\n"));
+	ReleaseSemaphore(int_ack,1,NULL);
+}
+#endif
+
+
+/*
  *  Reset
  */
 
@@ -468,14 +642,14 @@ void ether_reset(void)
  *  Add multicast address
  */
 
-int16 ether_add_multicast(uint32 pb)
+static int16 ether_do_add_multicast(uint8 *addr)
 {
 	D(bug("ether_add_multicast\r\n"));
 
 	// We wouldn't need to do this
 	// if(ether_multi_mode != ETHER_MULTICAST_MAC) return noErr;
 
-	if (!ether_fake && !PacketAddMulticast( fd, Mac2HostAddr(pb + eMultiAddr))) {
+	if (!ether_fake && !PacketAddMulticast( fd, addr)) {
 		D(bug("WARNING: couldn't enable multicast address\r\n"));
 		return eMultiErr;
 	} else {
@@ -489,14 +663,14 @@ int16 ether_add_multicast(uint32 pb)
  *  Delete multicast address
  */
 
-int16 ether_del_multicast(uint32 pb)
+int16 ether_do_del_multicast(uint8 *addr)
 {
 	D(bug("ether_del_multicast\r\n"));
 
 	// We wouldn't need to do this
 	// if(ether_multi_mode != ETHER_MULTICAST_MAC) return noErr;
 
-	if (!ether_fake && !PacketDelMulticast( fd, Mac2HostAddr(pb + eMultiAddr))) {
+	if (!ether_fake && !PacketDelMulticast( fd, addr)) {
 		D(bug("WARNING: couldn't disable multicast address\r\n"));
 		return eMultiErr;
 	} else
@@ -569,7 +743,7 @@ static void dump_packet( uint8 *packet, int length )
 	if(length > 256) length = 256;
 
 	for (int i=0; i<length; i++) {
-		sprintf(sm,"%02x", (int)packet[i]);
+		sprintf(sm," %02x", (int)packet[i]);
 		strcat( buf, sm );
 	}
 	strcat( buf, "\r\n" );
@@ -728,26 +902,13 @@ static BOOL write_packet( uint8 *packet, int len )
 	}
 }
 
-int16 ether_write(uint32 wds)
+static int16 ether_do_write(uint32 arg)
 {
 	D(bug("ether_write\r\n"));
 
-	// Set source address
-	uint32 hdr = ReadMacInt32(wds + 2);
-	memcpy(Mac2HostAddr(hdr + 6), ether_addr, 6);
-
 	// Copy packet to buffer
 	uint8 packet[1514], *p = packet;
-	int len = 0;
-	for (;;) {
-		uint16 w = (uint16)ReadMacInt16(wds);
-		if (w == 0)
-			break;
-		memcpy(p, Mac2HostAddr(ReadMacInt32(wds + 2)), w);
-		len += w;
-		p += w;
-		wds += 6;
-	}
+	int len = ether_arg_to_buffer(arg, p);
 
 	if(len > 1514) {
 		D(bug("illegal packet length: %d\r\n",len));
@@ -1034,58 +1195,27 @@ static unsigned int ether_thread_feed_int(void *arg)
  *  Ethernet interrupt - activate deferred tasks to call IODone or protocol handlers
  */
 
-void EtherInterrupt(void)
+static void ether_do_interrupt(void)
 {
-	int length;
+	// Call protocol handler for received packets
 	EthernetPacket ether_packet;
 	uint32 packet = ether_packet.addr();
+	ssize_t length;
+	for (;;) {
 
-	D(bug("EtherIRQ\r\n"));
-
-	// Call protocol handler for received packets
-	while( (length = dequeue_packet(Mac2HostAddr(packet))) > 0 ) {
-
+		// Read packet from Ethernet device
+		length = dequeue_packet(Mac2HostAddr(packet));
 		if (length < 14)
-			continue;
+			break;
 
 #if MONITOR
 		bug("Receiving Ethernet packet (%d bytes):\n",(int)length);
 		dump_packet( Mac2HostAddr(packet), length );
 #endif
 
-		// Get packet type
-		uint16 type = ReadMacInt16(packet + 12);
-
-		// Look for protocol
-		NetProtocol *prot = find_protocol(type);
-		if (prot == NULL)
-			continue;
-		// break;
-
-		// No default handler
-		if (prot->handler == 0)
-			continue;
-		// break;
-
-		// Copy header to RHA
-		Mac2Mac_memcpy(ether_data + ed_RHA, packet, 14);
-		D(bug(" header %08lx%04lx %08lx%04lx %04lx\r\n", ReadMacInt32(ether_data + ed_RHA), ReadMacInt16(ether_data + ed_RHA + 4), ReadMacInt32(ether_data + ed_RHA + 6), ReadMacInt16(ether_data + ed_RHA + 10), ReadMacInt16(ether_data + ed_RHA + 12)));
-
-		// Call protocol handler
-		M68kRegisters r;
-		r.d[0] = type;                  // Packet type
-		r.d[1] = length - 14;             // Remaining packet length (without header, for ReadPacket)
-
-		r.a[0] = packet + 14;                     // Pointer to packet (Mac address, for ReadPacket)
-		r.a[3] = ether_data + ed_RHA + 14;        // Pointer behind header in RHA
-		r.a[4] = ether_data + ed_ReadPacket;      // Pointer to ReadPacket/ReadRest routines
-		D(bug(" calling protocol handler %08lx, type %08lx, length %08lx, data %08lx, rha %08lx, read_packet %08lx\r\n", prot->handler, r.d[0], r.d[1], r.a[0], r.a[3], r.a[4]));
-		Execute68k(prot->handler, &r);
+		// Dispatch packet
+		ether_dispatch_packet(packet, length);
 	}
-
-	// Acknowledge interrupt to reception thread
-	D(bug(" EtherIRQ done\r\n"));
-	ReleaseSemaphore(int_ack,1,NULL);
 }
 
 #if DEBUG
