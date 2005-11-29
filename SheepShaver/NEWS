@@ -1,12 +1,15 @@
-SheepShaver NEWS -- history of user-visible changes.  2005-03-21
+SheepShaver NEWS -- history of user-visible changes.  2005-11-30
 Copyright (C) 1997-2005 Christian Bauer and Marc Hellwig
 
-Version 2.2 (snapshot) - XX.Jul.2005
+Version 2.3 (snapshot) - 30.Nov.2005
 * Add fullscreen DGA via fbdev on Linux
 * Add "screen" prefs item a-la Basilisk II
 * Add missing lvsl/lvsr instructions in AltiVec emulation
 * Add support for old toolchain (gcc "2.96", glibc 2.2)
 * Add user-space network emulation ("ether slirp" in prefs file)
+* Add support for Ethernet & Serial to Windows
+* Add Windows GUI with GTK+2
+* Add initial support for Darwin/x86 with JIT
 * Improve portability of FPU emulation code to non C99 capable systems
 * Improve interrupt processing in emulated mode
 * Improve idle wait on Linux platforms
@@ -16,8 +19,11 @@ Version 2.2 (snapshot) - XX.Jul.2005
 * Fix Ethernet support on Linux, avoid hangs
 * Fix occasional hangs during interrupt processing
 * Fix High Resolution Timing code for Linux
+* Fix support for 4+ GB hard disk images
+* Fix SDL/x11 native cursor acceleration
+* Fix sheep_net driver to properly work with Linux kernels up to 2.6.11
 
-Version 2.2 (snapshot) - 21.Mar.2005
+Version 2.3 (snapshot) - 21.Mar.2005
 * Implement high-precision timings on POSIX systems
 * Add other SDL keysym translations
 * Add some SSE2 optimizations to the AltiVec emulation core
@@ -29,7 +35,7 @@ Version 2.2 (snapshot) - 21.Mar.2005
 * Fix crash in Apple Personal Diagnostics on MacOS 9
 * Fix crash in Power Management on MacOS 9
 
-Version 2.2 (snapshot) - 07.Jul.2004
+Version 2.3 (snapshot) - 07.Jul.2004
 * Add support for MacOS 9.0.4
 * Add native port to MacOS X with SDL graphics
 * Fix timebase emulation. UpTime() is now more accurate
@@ -38,7 +44,7 @@ Version 2.2 (snapshot) - 07.Jul.2004
 * Fix video thread cancellation on MacOS X
 * Fix detection of PowerPC 750FX and 970 processors
 
-Version 2.2 (snapshot) - 09.Jun.2004
+Version 2.3 (snapshot) - 09.Jun.2004
 * Improve generic JIT engine to reach around 1/8-th of native speeds
 * Improve 68k audio processing with "reentrant" JIT generated code
 * Add Native QuickDraw acceleration for BitBlt (srcCopy) and FillRect
@@ -48,12 +54,12 @@ Version 2.2 (snapshot) - 09.Jun.2004
 * Fix ethernet support on little endian and 64-bit systems
 * Fix initialization of NVRAM on first-time use
 
-Version 2.2 (snapshot) - 25.Feb.2004
+Version 2.3 (snapshot) - 25.Feb.2004
 * Improved generic JIT, FPU instructions are now translated
 * Add AltiVec emulation, emulated CPU is now a PowerPC 7400 (G4)
 * Add initial port to MacOS X with an X11 server
 
-Version 2.2 (snapshot) - 14.Jan.2004
+Version 2.3 (snapshot) - 14.Jan.2004
 * Fix several CPU emulation bugs, extended testsuite
 * Fix FPU emulation, "scrollbar" & Graphing Calculator bugs are gone
 * Add support for 64-bit platforms, more precisely AMD64 with JIT
@@ -63,5 +69,9 @@ Version 2.2 (snapshot) - 14.Jan.2004
 * Better support for audio output (with pre-G3 PowerMac PCI ROMs)
 * Improve native Linux/PPC port
 
-Version 2.2 (snapshot) - 25.Nov.2003
+Version 2.3 (snapshot) - 25.Nov.2003
 * Initial public release with PowerPC CPU emulator for testing
+
+Version 2.2 (release) - 04.Feb.2002
+* Source released under GPL
+* Integrated code from Basilisk II
