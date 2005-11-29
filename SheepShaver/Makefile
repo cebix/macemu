@@ -2,7 +2,7 @@
 # Written in 1999 by Christian Bauer <Christian.Bauer@uni-mainz.de>
 
 VERSION := 2
-RELEASE := 2
+RELEASE := 3
 VERNAME := SheepShaver-$(VERSION)
 
 SRCARCHIVE := $(shell date +SheepShaver_src_%d%m%Y.tar.gz)
