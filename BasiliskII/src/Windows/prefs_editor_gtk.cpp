@@ -32,6 +32,7 @@
 #include "xpram.h"
 #include "prefs.h"
 #include "prefs_editor.h"
+#include "b2ether/inc/b2ether_hl.h"
 
 
 // Global variables
@@ -1321,6 +1322,7 @@ static void create_serial_pane(GtkWidget *top)
 static GtkWidget *w_ether;
 static GtkWidget *w_ftp_port_list, *w_tcp_port_list;
 static const char s_nat_router[] = "NAT/Router module";
+static const char s_ndis_tag[] = "NDIS ";
 
 // Set sensitivity of widgets
 static void set_ethernet_sensitive(void)
@@ -1336,8 +1338,8 @@ static void set_ethernet_sensitive(void)
 static void read_ethernet_settings(void)
 {
 	const char *str = gtk_entry_get_text(GTK_ENTRY(w_ether));
-	if (str && strlen(str) > 6 && strncmp(str, "NDIS: ", 6) == 0)
-		PrefsReplaceString("ether", &str[6]);
+	if (str && strlen(str) > sizeof(s_ndis_tag) && strncmp(str, s_ndis_tag, sizeof(s_ndis_tag) - 1) == 0)
+		PrefsReplaceString("ether", &str[sizeof(s_ndis_tag) - 1]);
 	else
 		PrefsRemoveItem("ether");
 
@@ -1358,13 +1360,39 @@ static void cb_ether_changed(...)
 }
 
 // Add names of ethernet interfaces
+// XXX use radio buttons instead (None/NDIS/NAT)
 static GList *add_ether_names(void)
 {
 	GList *glist = NULL;
 
-	// TODO: Get list of all Ethernet interfaces
-	glist = g_list_append(glist, (void *)s_nat_router);
 	glist = g_list_append(glist, (void *)GetString(STR_NONE_LAB));
+	glist = g_list_append(glist, (void *)s_nat_router);
+
+	{	// Get NDIS ethernet adapters (XXX handle "ethermulticastmode")
+		PacketOpenAdapter("", 0);
+		{
+			ULONG sz;
+			char names[1024];
+			sz = sizeof(names);
+			if (PacketGetAdapterNames(NULL, names, &sz) == ERROR_SUCCESS) {
+				char *p = names;
+				while (*p) {
+					const char DEVICE_HEADER[] = "\\Device\\B2ether_";
+					if (strnicmp(p, DEVICE_HEADER, sizeof(DEVICE_HEADER) - 1) == 0) {
+						LPADAPTER fd = PacketOpenAdapter(p + sizeof(DEVICE_HEADER) - 1, 0);
+						if (fd) {
+							char str[256];
+							sprintf(str, "%s%s", s_ndis_tag, p + sizeof(DEVICE_HEADER) - 1);
+							glist = g_list_append(glist, strdup(str));
+							PacketCloseAdapter(fd);
+						}
+					}
+					p += strlen(p) + 1;
+				}
+			}
+		}
+		PacketCloseAdapter(NULL);
+	}
 	return glist;
 }
 
@@ -1391,6 +1419,11 @@ static void create_ethernet_pane(GtkWidget *top)
 			str = s_nat_router;
 		else
 			str = GetString(STR_NONE_LAB);
+	}
+	else if (str[0] == '{') {
+		static char s_device[256];
+		sprintf(s_device, "%s%s", s_ndis_tag, str);
+		str = s_device;
 	}
 	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
 	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 0, 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
@@ -1579,6 +1612,8 @@ uint8 XPRAM[XPRAM_SIZE];
 void MountVolume(void *fh) { }
 void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_size) { }
 void WarningAlert(const char *text) { }
+void recycle_write_packet(LPPACKET) { }
+VOID CALLBACK packet_read_completion(DWORD, DWORD, LPOVERLAPPED) { }
 
 
 /*
