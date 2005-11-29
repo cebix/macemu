@@ -95,6 +95,7 @@ user_string_def common_strings[] = {
 	{STR_REMOVE_VOLUME_BUTTON, "Remove"},
 	{STR_ADD_VOLUME_PANEL_BUTTON, "Add"},
 	{STR_CREATE_VOLUME_PANEL_BUTTON, "Create"},
+	{STR_CDROM_DRIVE_CTRL, "CD-ROM Drive"},
 	{STR_BOOTDRIVER_CTRL, "Boot From"},
 	{STR_BOOT_ANY_LAB, "Any"},
 	{STR_BOOT_CDROM_LAB, "CD-ROM"},
