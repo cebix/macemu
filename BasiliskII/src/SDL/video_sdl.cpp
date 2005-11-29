@@ -135,6 +135,11 @@ static SDL_Color sdl_palette[256];					// Color palette to be used as CLUT and g
 static bool sdl_palette_changed = false;			// Flag: Palette changed, redraw thread must set new colors
 static const int sdl_eventmask = SDL_MOUSEBUTTONDOWNMASK | SDL_MOUSEBUTTONUPMASK | SDL_MOUSEMOTIONMASK | SDL_KEYUPMASK | SDL_KEYDOWNMASK | SDL_VIDEOEXPOSEMASK | SDL_QUITMASK;
 
+// Mutex to protect SDL events
+static SDL_mutex *sdl_events_lock = NULL;
+#define LOCK_EVENTS SDL_LockMutex(sdl_events_lock)
+#define UNLOCK_EVENTS SDL_UnlockMutex(sdl_events_lock)
+
 // Mutex to protect palette
 static SDL_mutex *sdl_palette_lock = NULL;
 #define LOCK_PALETTE SDL_LockMutex(sdl_palette_lock)
@@ -1057,6 +1062,8 @@ bool VideoInit(bool classic)
 #endif
 
 	// Create Mutexes
+	if ((sdl_events_lock = SDL_CreateMutex()) == NULL)
+		return false;
 	if ((sdl_palette_lock = SDL_CreateMutex()) == NULL)
 		return false;
 	if ((frame_buffer_lock = SDL_CreateMutex()) == NULL)
@@ -1282,6 +1289,8 @@ void VideoExit(void)
 		SDL_DestroyMutex(frame_buffer_lock);
 	if (sdl_palette_lock)
 		SDL_DestroyMutex(sdl_palette_lock);
+	if (sdl_events_lock)
+		SDL_DestroyMutex(sdl_events_lock);
 }
 
 
@@ -1451,8 +1460,10 @@ int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr)
 void SDL_monitor_desc::switch_to_current_mode(void)
 {
 	// Close and reopen display
+	LOCK_EVENTS;
 	video_close();
 	video_open();
+	UNLOCK_EVENTS;
 
 	if (drv == NULL) {
 		ErrorAlert(STR_OPEN_WINDOW_ERR);
@@ -2074,10 +2085,12 @@ static inline void do_video_refresh(void)
 	// Set new cursor image if it was changed
 	if (cursor_changed && sdl_cursor) {
 		cursor_changed = false;
+		LOCK_EVENTS;
 		SDL_FreeCursor(sdl_cursor);
 		sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, MacCursor[2], MacCursor[3]);
 		if (sdl_cursor)
 			SDL_SetCursor(sdl_cursor);
+		UNLOCK_EVENTS;
 	}
 #endif
 
