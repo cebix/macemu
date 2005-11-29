@@ -2,21 +2,21 @@ SheepShaver NEWS -- history of user-visible changes.  2005-11-30
 Copyright (C) 1997-2005 Christian Bauer and Marc Hellwig
 
 Version 2.3 (snapshot) - 30.Nov.2005
-* Add fullscreen DGA via fbdev on Linux
+* Add fullscreen DGA mode via fbdev in Linux
 * Add "screen" prefs item a-la Basilisk II
-* Add missing lvsl/lvsr instructions in AltiVec emulation
+* Add missing lvsl/lvsr instructions in AltiVec emulation (Adobe FrameMaker)
 * Add support for old toolchain (gcc "2.96", glibc 2.2)
 * Add user-space network emulation ("ether slirp" in prefs file)
-* Add support for Ethernet & Serial to Windows
-* Add Windows GUI with GTK+2
-* Add initial support for Darwin/x86 with JIT
+* Add Ethernet and Serial support to Windows
+* Add GTK+2 based GUI to Windows
+* Add initial port to Darwin/x86 with JIT
 * Improve portability of FPU emulation code to non C99 capable systems
 * Improve interrupt processing in emulated mode
 * Improve idle wait on Linux platforms
 * Properly fail to load MacOS < 8.1 with NewWorld ROMs
-* Fix native execution on Linux/PowerPC
+* Fix native execution in Linux/PowerPC
 * Fix PowerPC test-and-set implementation (fix clipboard)
-* Fix Ethernet support on Linux, avoid hangs
+* Fix Ethernet support in Linux, avoid hangs
 * Fix occasional hangs during interrupt processing
 * Fix High Resolution Timing code for Linux
 * Fix support for 4+ GB hard disk images
