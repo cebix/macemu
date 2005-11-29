@@ -369,9 +369,9 @@ static void mn_about(...)
 	char str[512];
 	sprintf(str,
 		"SheepShaver\nVersion %d.%d\n\n"
-		"Copyright (C) 1997-2004 Christian Bauer and Marc Hellwig\n"
-		"E-mail: Christian.Bauer@uni-mainz.de\n"
-		"http://www.uni-mainz.de/~bauec002/\n\n"
+		"Copyright (C) 1997-2005 Christian Bauer and Marc Hellwig\n"
+		"E-mail: cb@cebix.net\n"
+		"http://sheepshaver.cebix.net/\n\n"
 		"SheepShaver comes with ABSOLUTELY NO\n"
 		"WARRANTY. This is free software, and\n"
 		"you are welcome to redistribute it\n"
