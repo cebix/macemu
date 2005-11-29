@@ -323,10 +323,9 @@ static GtkWidget *make_checkbox(GtkWidget *top, int label_id, const char *prefs_
 	return button;
 }
 
-static GtkWidget *make_combobox(GtkWidget *top, int label_id, const char *prefs_item, const combo_desc *options)
+static GtkWidget *make_combobox(GtkWidget *top, int label_id, const char *default_value, GList *glist)
 {
 	GtkWidget *box, *label, *combo;
-	char str[32];
 
 	box = gtk_hbox_new(FALSE, 4);
 	gtk_widget_show(box);
@@ -335,22 +334,26 @@ static GtkWidget *make_combobox(GtkWidget *top, int label_id, const char *prefs_
 	label = gtk_label_new(GetString(label_id));
 	gtk_widget_show(label);
 	gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
-
-	GList *glist = NULL;
-	while (options->label_id) {
-		glist = g_list_append(glist, (void *)GetString(options->label_id));
-		options++;
-	}
 	
 	combo = gtk_combo_new();
 	gtk_widget_show(combo);
 	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
 	
-	sprintf(str, "%d", PrefsFindInt32(prefs_item));
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str);
+	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), default_value);
 	gtk_box_pack_start(GTK_BOX(box), combo, TRUE, TRUE, 0);
 	
 	return combo;
+}
+
+static GtkWidget *make_combobox(GtkWidget *top, int label_id, const char *default_value, const combo_desc *options)
+{
+	GList *glist = NULL;
+	while (options->label_id) {
+		glist = g_list_append(glist, (void *)GetString(options->label_id));
+		options++;
+	}
+
+	return make_combobox(top, label_id, default_value, glist);
 }
 
  
@@ -512,7 +515,7 @@ bool PrefsEditor(void)
  *  "Volumes" pane
  */
 
-static GtkWidget *w_enableextfs, *w_extdrives;
+static GtkWidget *w_enableextfs, *w_extdrives, *w_cdrom_drive;
 static GtkWidget *volume_list;
 static int selected_volume;
 
@@ -521,6 +524,8 @@ static void set_volumes_sensitive(void)
 {
 	const bool enable_extfs = PrefsFindBool("enableextfs");
 	gtk_widget_set_sensitive(w_extdrives, enable_extfs);
+	const bool no_cdrom = PrefsFindBool("nocdrom");
+	gtk_widget_set_sensitive(w_cdrom_drive, !no_cdrom);
 }
 
 // Volume in list selected
@@ -611,6 +616,22 @@ static void tb_enableextfs(GtkWidget *widget)
 static void tb_nocdrom(GtkWidget *widget)
 {
 	PrefsReplaceBool("nocdrom", GTK_TOGGLE_BUTTON(widget)->active);
+	set_volumes_sensitive();
+}
+
+// Add names of CD-ROM devices
+static GList *add_cdrom_names(void)
+{
+	GList *glist = NULL;
+
+	char rootdir[4] = "X:\\";
+	for (char letter = 'C'; letter <= 'Z'; letter++) {
+		rootdir[0] = letter;
+		if (GetDriveType(rootdir) == DRIVE_CDROM)
+			glist = g_list_append(glist, strdup(rootdir));
+	}
+
+	return glist;
 }
 
 // "Enable polling" button toggled
@@ -630,6 +651,12 @@ static void read_volumes_settings(void)
 		gtk_clist_get_text(GTK_CLIST(volume_list), i, 0, &str);
 		PrefsAddString("disk", str);
 	}
+
+	const char *str = gtk_entry_get_text(GTK_ENTRY(GTK_COMBO(w_cdrom_drive)->entry));
+	if (str && strlen(str))
+		PrefsReplaceString("cdrom", str);
+	else
+		PrefsRemoveItem("cdrom");
 
 	PrefsReplaceString("extdrives", get_file_entry_path(w_extdrives));
 }
@@ -680,6 +707,12 @@ static void create_volumes_pane(GtkWidget *top)
 	menu = make_option_menu(box, STR_BOOTDRIVER_CTRL, options, active);
 
 	make_checkbox(box, STR_NOCDROM_CTRL, "nocdrom", GTK_SIGNAL_FUNC(tb_nocdrom));
+
+	GList *glist = add_cdrom_names();
+	str = const_cast<char *>(PrefsFindString("cdrom"));
+	if (str == NULL)
+		str = "";
+	w_cdrom_drive = make_combobox(box, STR_CDROM_DRIVE_CTRL, str, glist);
 
 	make_checkbox(box, STR_POLLMEDIA_CTRL, "pollmedia", GTK_SIGNAL_FUNC(tb_pollmedia));
 
@@ -789,7 +822,8 @@ static void create_jit_pane(GtkWidget *top)
 		STR_JIT_CACHE_SIZE_16MB_LAB,
 		0
 	};
-	w_jit_cache_size = make_combobox(box, STR_JIT_CACHE_SIZE_CTRL, "jitcachesize", options);
+	sprintf(str, "%d", PrefsFindInt32("jitcachesize"));
+	w_jit_cache_size = make_combobox(box, STR_JIT_CACHE_SIZE_CTRL, str, options);
 	
 	// Lazy translation cache invalidation
 	w_jit_lazy_flush = make_checkbox(box, STR_JIT_LAZY_CINV_CTRL, "jitlazyflush", GTK_SIGNAL_FUNC(tb_jit_lazy_flush));
