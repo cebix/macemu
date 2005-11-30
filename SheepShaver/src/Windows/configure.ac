@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl Written in 2002 by Christian Bauer
 
-AC_INIT([SheepShaver], 2.2, [Christian.Bauer@uni-mainz.de], SheepShaver)
+AC_INIT([SheepShaver], 2.3, [Christian.Bauer@uni-mainz.de], SheepShaver)
 AC_CONFIG_SRCDIR(main_windows.cpp)
 AC_CONFIG_AUX_DIR(../Unix)
 AC_PREREQ(2.52)
