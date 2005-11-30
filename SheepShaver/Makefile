@@ -1,14 +1,14 @@
 # Makefile for creating SheepShaver distributions
 # Written in 1999 by Christian Bauer <Christian.Bauer@uni-mainz.de>
 
-VERSION := 2
-RELEASE := 3
+VERSION := 2.3
 VERNAME := SheepShaver-$(VERSION)
 
 SRCARCHIVE := $(shell date +SheepShaver_src_%d%m%Y.tar.gz)
 
 TMPDIR := $(shell date +/tmp/build%m%s)
-DOCS := HISTORY LOG TODO
+ISODATE := $(shell date "+%Y-%m-%d %H:%M")
+DOCS := NEWS
 SRCS := src
 
 # Where Basilisk II directory can be found
@@ -33,9 +33,13 @@ tarball: $(SRCARCHIVE)
 $(SRCARCHIVE): $(SRCS) $(DOCS)
 	-rm -rf $(TMPDIR)
 	mkdir $(TMPDIR)
-	cd $(TMPDIR); cvs export -D "$(ISODATE)" SheepShaver
+	cd $(TMPDIR); cvs export -D "$(ISODATE)" BasiliskII SheepShaver
+	cd $(TMPDIR)/SheepShaver/src/Unix && mkdir Darwin
+	cd $(TMPDIR)/SheepShaver && make links
+	cd $(TMPDIR)/SheepShaver/src/Unix && NO_CONFIGURE=1 ./autogen.sh
+	cd $(TMPDIR)/SheepShaver/src/Windows && NO_CONFIGURE=1 ../Unix/autogen.sh
 	rm $(TMPDIR)/SheepShaver/Makefile
-	mv $(TMPDIR)/SheepShaver $(TMPDIR)/$(VERNAME)
+	cp -aL $(TMPDIR)/SheepShaver $(TMPDIR)/$(VERNAME)
 	cd $(TMPDIR); tar cfz $@ $(VERNAME)
 	mv $(TMPDIR)/$@ .
 	rm -rf $(TMPDIR)
