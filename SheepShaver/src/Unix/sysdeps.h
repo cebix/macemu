@@ -90,9 +90,7 @@
 #endif
 
 // Always use the complete non-stubs Ethernet driver
-#if DIRECT_ADDRESSING
 #define USE_ETHER_FULL_DRIVER 1
-#endif
 
 #define POWERPC_ROM 1
 
