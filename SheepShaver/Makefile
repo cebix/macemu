@@ -3,8 +3,9 @@
 
 VERSION := 2.3
 VERNAME := SheepShaver-$(VERSION)
+CVSDATE := $(shell date "+%Y%m%d")
 
-SRCARCHIVE := $(shell date +SheepShaver_src_%d%m%Y.tar.gz)
+SRCARCHIVE := $(VERNAME)-$(CVSDATE).tar.gz
 
 TMPDIR := $(shell date +/tmp/build%m%s)
 ISODATE := $(shell date "+%Y-%m-%d %H:%M")
