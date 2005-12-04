@@ -125,6 +125,7 @@ AC_SUBST(MONSRCS)
 
 dnl Checks for libraries.
 AC_CHECK_LIB(posix4, sem_init)
+AC_CHECK_LIB(m, cos)
 
 dnl Do we need SDL?
 WANT_SDL=no
@@ -490,6 +491,12 @@ darwin*)
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     EXTFSSRC=../MacOSX/extfs_macosx.mm
   fi
+  ;;
+irix*)
+  ETHERSRC=ether_unix.cpp
+  AUDIOSRC=Irix/audio_irix.cpp
+  LIBS="$LIBS -laudio"
+  WANT_ESD=no
   ;;
 esac
 

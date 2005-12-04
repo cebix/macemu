@@ -64,8 +64,8 @@ links:
 	       Unix/sys_unix.cpp Unix/timer_unix.cpp Unix/xpram_unix.cpp \
 	       Unix/sigsegv.h Unix/sigsegv.cpp Unix/vm_alloc.h Unix/vm_alloc.cpp \
 	       Unix/semaphore.h Unix/posix_sem.cpp Unix/video_vosf.h Unix/video_blit.h \
-	       Unix/video_blit.cpp Unix/config.sub Unix/config.guess \
-	       Unix/keycodes Unix/tunconfig Unix/clip_unix.cpp Unix/m4 \
+	       Unix/video_blit.cpp Unix/config.sub Unix/config.guess Unix/m4 \
+	       Unix/keycodes Unix/tunconfig Unix/clip_unix.cpp Unix/Irix/audio_irix.cpp \
 	       Unix/Linux/scsi_linux.cpp Unix/Linux/NetDriver Unix/ether_unix.cpp \
 	       Unix/Darwin/lowmem.c Unix/Darwin/pagezero.c Unix/Darwin/testlmem.sh \
 	       dummy/audio_dummy.cpp dummy/clip_dummy.cpp dummy/serial_dummy.cpp \
