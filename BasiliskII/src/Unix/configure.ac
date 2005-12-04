@@ -136,6 +136,7 @@ dnl Checks for libraries.
 AC_CHECK_LIB(posix4, sem_init)
 AC_CHECK_LIB(rt, timer_create)
 AC_CHECK_LIB(rt, shm_open)
+AC_CHECK_LIB(m, cos)
 
 dnl Do we need SDL?
 WANT_SDL=no
@@ -502,7 +503,9 @@ irix*)
   CFLAGS=`echo "$CFLAGS -IPA" | sed -e "s/-g//g"`
   AC_MSG_CHECKING(if "-IPA" works)
   dnl Do a test compile of an empty function
-  AC_TRY_COMPILE(,, [AC_MSG_RESULT(yes); HAVE_IPA=yes], AC_MSG_RESULT(no))
+  AC_TRY_COMPILE([#if defined __GNUC__
+                  # error GCC does not support IPA yet
+                  #endif],, [AC_MSG_RESULT(yes); HAVE_IPA=yes], AC_MSG_RESULT(no))
   CFLAGS="$ocflags"
   ;;
 darwin*)
