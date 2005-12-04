@@ -1,3 +1,4 @@
+
 /*
  *  mathlib.hpp - Math library wrapper
  *
@@ -33,6 +34,25 @@
 #define FP_NORMAL		FP_NORMAL
 #define FP_SUBNORMAL	FP_SUBNORMAL
 #endif
+#endif
+
+// GCC fixes for IRIX/mips
+#if defined __GNUC__ && defined __sgi__ && defined __mips__
+#define mathlib_generic_1(func, x) \
+		(sizeof(x) == sizeof(float) ? _##func##f(x) : _##func(x))
+
+#define fpclassify(x)		mathlib_generic_1(fpclassify, x)
+#define isnormal(x)		mathlib_generic_1(isnormal, x)
+#define isfinite(x)		mathlib_generic_1(isfinite, x)
+#define isnan(x)		mathlib_generic_1(isnan, x)
+#define isinf(x)		mathlib_generic_1(isinf, x)
+#define signbit(x)		mathlib_generic_1(signbit, x)
+
+#define mathlib_generic_2(func, x, y) \
+		((sizeof(x) == sizeof(float) && sizeof(x) == sizeof(y)) ? _##func##f(x, y) : _##func(x, y))
+
+#define isless(x,y)		mathlib_generic_2(isless, x, y)
+#define isgreater(x,y)	mathlib_generic_2(isgreater, x, y)
 #endif
 
 // 7.12  Mathematics <math.h> [#6]
