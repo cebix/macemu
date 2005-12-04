@@ -137,7 +137,7 @@ struct quehead {
 	struct quehead *qh_rlink;
 };
 
-inline void
+void
 insque(a, b)
 	void *a, *b;
 {
@@ -150,7 +150,7 @@ insque(a, b)
 	= (struct quehead *)element;
 }
 
-inline void
+void
 remque(a)
      void *a;
 {
