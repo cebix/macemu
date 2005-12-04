@@ -39,6 +39,7 @@
 
 #if EMU_KHEPERIX
 #include "sysdeps.h"
+#include "vm_alloc.h"
 #include "cpu/ppc/ppc-cpu.hpp"
 #include "cpu/ppc/ppc-instructions.hpp"
 #endif
@@ -101,6 +102,15 @@ typedef uintptr_t uintptr;
 #define TEST_VMX_LOADSH	1
 #define TEST_VMX_LOAD	1
 #define TEST_VMX_ARITH	1
+
+
+#if defined __GNUC__
+#define ALIGNED(N) __attribute__((aligned(N)))
+#else
+#if TEST_VMX_OPS
+#error "AltiVec testing requires the align attribute"
+#endif
+#endif
 
 // Partial PowerPC runtime assembler from GNU lightning
 #undef  _I
@@ -194,7 +204,7 @@ void init_emul_op_trampolines(basic_dyngen & dg)
 
 #define ENABLE_JIT_P (USE_JIT && 1)
 #else
-#define ENABLE_JIT_P NULL
+#define ENABLE_JIT_P 0
 #endif
 
 struct powerpc_cpu_base
@@ -496,7 +506,7 @@ typedef bit_field<  2,  2 > XER_CA_field;
 static bool has_altivec = true;
 
 // A 128-bit AltiVec register
-typedef uint8 vector_t[16] __attribute__((aligned(16)));
+typedef uint8 vector_t[16] ALIGNED(16);
 
 union vector_helper_t {
 	vector_t v;
@@ -711,7 +721,7 @@ private:
 
 	struct vector_value_t {
 		char type;
-		vector_t v __attribute__((aligned(16)));
+		vector_t v ALIGNED(16);
 	};
 
 	static const uint32 reg_values[];
@@ -2102,6 +2112,11 @@ bool powerpc_test_cpu::test(void)
 
 int main(int argc, char *argv[])
 {
+#ifdef EMU_KHEPERIX
+	// Initialize VM system (predecode cache uses vm_acquire())
+	vm_init();
+#endif
+
 	FILE *fp = NULL;
 	powerpc_test_cpu *ppc = new powerpc_test_cpu;
 
