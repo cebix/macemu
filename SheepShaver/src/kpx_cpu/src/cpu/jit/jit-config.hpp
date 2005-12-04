@@ -63,6 +63,7 @@
  *	Helpers to reach JIT backends headers
  **/
 
+#if ENABLE_DYNGEN
 #if defined(__powerpc__) || defined(__ppc__)
 #define JIT_TARGET ppc
 #endif
@@ -91,11 +92,12 @@
 #define JIT_TARGET m68k
 #endif
 #ifndef JIT_TARGET
-#error "Unsupport architecture for JIT1"
+#error "Unsupported architecture for JIT1"
 #endif
 
 #define JIT_PATH_CONCAT(X, Y)			X/Y
 #define JIT_MAKE_HEADER(PATH, HEADER)	<JIT_PATH_CONCAT(PATH,HEADER)>
 #define JIT_TARGET_INCLUDE(HEADER)		JIT_MAKE_HEADER(JIT_PATH_CONCAT(cpu/jit,JIT_TARGET),HEADER)
+#endif
 
 #endif /* JIT_CONFIG_H */
