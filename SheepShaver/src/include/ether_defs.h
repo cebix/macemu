@@ -25,8 +25,13 @@
 #if __MWERKS__ && __POWERPC__
 #define PRAGMA_ALIGN_SUPPORTED 1
 #define PACKED__
-#else
+#elif defined __GNUC__
 #define PACKED__ __attribute__ ((packed))
+#elif defined __sgi
+#define PRAGMA_PACK_SUPPORTED 1
+#define PACKED__
+#else
+#error "Packed attribute or pragma shall be supported"
 #endif
 
 
@@ -512,6 +517,10 @@ union DL_primitives {
 #pragma options align=mac68k
 #endif
 
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(1)
+#endif
+
 // Packet headers
 struct EnetPacketHeader {
 	uint8 fDestAddr[6];
@@ -542,6 +551,10 @@ struct T8022AddressStruct {
 	nw_uint16 fSAP;
 	uint8 fSNAP[k8022SNAPLength];
 } PACKED__;
+
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(0)
+#endif
 
 #ifdef PRAGMA_ALIGN_SUPPORTED
 #pragma options align=reset
