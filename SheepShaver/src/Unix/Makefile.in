@@ -178,7 +178,7 @@ ppc-execute-impl.cpp: $(kpxsrcdir)/cpu/ppc/ppc-decode.cpp $(GENEXECPL) $(DYNGEND
 	$(CPP) $(CPPFLAGS) -DGENEXEC $< | $(PERL) $(GENEXECPL) > $@
 
 # PowerPC CPU tester
-TESTSRCS_ = mathlib/ieeefp.cpp cpu/ppc/ppc-cpu.cpp cpu/ppc/ppc-decode.cpp cpu/ppc/ppc-execute.cpp cpu/ppc/ppc-translate.cpp test/test-powerpc.cpp $(MONSRCS) vm_alloc.cpp
+TESTSRCS_ = mathlib/ieeefp.cpp mathlib/mathlib.cpp cpu/ppc/ppc-cpu.cpp cpu/ppc/ppc-decode.cpp cpu/ppc/ppc-execute.cpp cpu/ppc/ppc-translate.cpp test/test-powerpc.cpp $(MONSRCS) vm_alloc.cpp
 ifeq ($(USE_DYNGEN),yes)
 TESTSRCS_ += cpu/jit/jit-cache.cpp cpu/jit/basic-dyngen.cpp cpu/ppc/ppc-dyngen.cpp
 endif
