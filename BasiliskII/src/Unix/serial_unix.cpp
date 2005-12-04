@@ -51,6 +51,17 @@ extern "C" {
 #define MONITOR 0
 
 
+// IRIX missing or unsupported defines
+#ifdef sgi
+#ifndef CRTSCTS
+#define CRTSCTS CNEW_RTSCTS
+#endif
+#ifndef B230400
+#define B230400 B115200
+#endif
+#endif
+
+
 // Missing functions
 #ifndef HAVE_CFMAKERAW
 static int cfmakeraw(struct termios *termios_p)

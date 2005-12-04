@@ -493,8 +493,6 @@ irix*)
   ETHERSRC=ether_unix.cpp
   AUDIOSRC=Irix/audio_irix.cpp
   EXTRASYSSRCS=Irix/unaligned.c
-  dnl IRIX headers work fine, but somehow don't define or use "STDC_HEADERS"
-  DEFINES="$DEFINES -DCRTSCTS=CNEW_RTSCTS -DB230400=B115200 -DSTDC_HEADERS"
   LIBS="$LIBS -laudio"
   WANT_ESD=no
 
