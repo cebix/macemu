@@ -175,4 +175,15 @@ extern int mathlib_signbitl(long double x);
 #define isless(x, y) ((x) < (y))
 #endif
 
+// 7.12.3.3  The isinf macro
+#ifndef isinf
+#if defined __sgi && defined __mips
+// specialized implementation for IRIX mips compilers
+extern "C" int _isinf(double);
+extern "C" int _isinff(float);
+static inline int isinf(double x) { return _isinf(x); }
+static inline int isinf(float x) { return _isinff(x); }
+#endif
+#endif
+
 #endif /* MATHLIB_H */

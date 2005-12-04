@@ -21,12 +21,22 @@
 #ifndef IEEEFP_H
 #define IEEEFP_H
 
+// Can we use C99 extensions in C++ mode?
+#ifdef HAVE_FENV_H
+#if defined __GNUC__
+#define USE_FENV_H 1
+#endif
+#endif
+
 // Arch-dependent definitions
 #if defined(__i386__)
 #include "mathlib/ieeefp-i386.hpp"
 #endif
+#if defined(__mips__) || (defined(sgi) && defined(mips))
+#include "mathlib/ieeefp-mips.hpp"
+#endif
 
-#ifdef HAVE_FENV_H
+#ifdef USE_FENV_H
 #include <fenv.h>
 #else
 
