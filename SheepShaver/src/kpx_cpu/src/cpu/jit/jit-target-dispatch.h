@@ -37,7 +37,7 @@
 #if defined(__x86_64__)
 #include _JIT_MAKE_HEADER(amd64,_JIT_HEADER)
 #elif defined(__i386__)
-#include _JIT_MAKE_HEADER(i386,_JIT_HEADER)
+#include _JIT_MAKE_HEADER(x86,_JIT_HEADER)
 #elif defined(__powerpc__)
 #include _JIT_MAKE_HEADER(ppc,_JIT_HEADER)
 #elif defined(__mips__)
