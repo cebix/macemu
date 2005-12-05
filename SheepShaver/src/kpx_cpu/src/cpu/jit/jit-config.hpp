@@ -59,45 +59,4 @@
 #endif
 #endif
 
-/**
- *	Helpers to reach JIT backends headers
- **/
-
-#if ENABLE_DYNGEN
-#if defined(__powerpc__) || defined(__ppc__)
-#define JIT_TARGET ppc
-#endif
-#if defined(__i386__)
-#define JIT_TARGET x86
-#endif
-#if defined(__x86_64__)
-#define JIT_TARGET amd64
-#endif
-#if defined(__s390__)
-#define JIT_TARGET s390
-#endif
-#if defined(__alpha__)
-#define JIT_TARGET alpha
-#endif
-#if defined(__ia64__)
-#define JIT_TARGET ia64
-#endif
-#if defined(__sparc__)
-#define JIT_TARGET sparc
-#endif
-#if defined(__arm__)
-#define JIT_TARGET arm
-#endif
-#if defined(__mc68000)
-#define JIT_TARGET m68k
-#endif
-#ifndef JIT_TARGET
-#error "Unsupported architecture for JIT1"
-#endif
-
-#define JIT_PATH_CONCAT(X, Y)			X/Y
-#define JIT_MAKE_HEADER(PATH, HEADER)	<JIT_PATH_CONCAT(PATH,HEADER)>
-#define JIT_TARGET_INCLUDE(HEADER)		JIT_MAKE_HEADER(JIT_PATH_CONCAT(cpu/jit,JIT_TARGET),HEADER)
-#endif
-
 #endif /* JIT_CONFIG_H */

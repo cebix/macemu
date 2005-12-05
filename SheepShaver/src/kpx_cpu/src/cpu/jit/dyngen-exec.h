@@ -22,7 +22,9 @@
 #define DYNGEN_EXEC_H
 
 #include "cpu/jit/jit-config.hpp"
-#include JIT_TARGET_INCLUDE(dyngen-target-exec.h)
+
+#define _JIT_HEADER dyngen-target-exec.h
+#include "cpu/jit/jit-target-dispatch.h"
 
 /* define virtual register set */
 #define REG_A0			AREG0

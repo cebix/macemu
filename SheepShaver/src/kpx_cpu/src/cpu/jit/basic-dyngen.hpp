@@ -23,7 +23,6 @@
 
 #include "cpu/jit/jit-config.hpp"
 #include "cpu/jit/jit-cache.hpp"
-#include JIT_TARGET_INCLUDE(jit-target-cache.hpp)
 
 // Set jump target address
 static inline void dg_set_jmp_target(uint8 *jmp_addr, uint8 *addr)

@@ -21,6 +21,9 @@
 #ifndef JIT_CACHE_H
 #define JIT_CACHE_H
 
+#define _JIT_HEADER jit-target-cache.hpp
+#include "cpu/jit/jit-target-dispatch.h"
+
 /**
  *		Basic translation cache
  **/
