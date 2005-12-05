@@ -86,6 +86,16 @@
 extern int __op_param1 __hidden;
 extern int __op_param2 __hidden;
 extern int __op_param3 __hidden;
+#elif defined __mips__
+/* On MIPS, parameters to a C expression are passed via the global pointer.
+ * We don't want that. */
+#define PARAMN(index) ({ register int _r; \
+		asm("lui %0,%%hi(__op_param" #index ")\n\t" \
+		    "ori %0,%0,%%lo(__op_param" #index ")" \
+		    : "=r"(_r)); _r; })
+#define PARAM1 PARAMN(1)
+#define PARAM2 PARAMN(2)
+#define PARAM3 PARAMN(3)
 #else
 #if defined(__APPLE__) && defined(__MACH__)
 static int __op_param1, __op_param2, __op_param3;
@@ -135,12 +145,22 @@ extern int __op_jmp0, __op_jmp1;
 #if defined(__i386__)
 #define ASM_OP_EXEC_RETURN_INSN "0x0f,0xa6,0xf0"
 #endif
+#elif defined __sgi && defined __mips
+#define ASM_DATA_SECTION		".data\n"
+#define ASM_PREVIOUS_SECTION	".text\n"
+#define ASM_GLOBAL				".globl"
+#define ASM_NAME(NAME)			#NAME
+#define ASM_SIZE(NAME)			""
+#define ASM_LONG				".word"
 #else
 #define ASM_DATA_SECTION		".section \".data\"\n"
 #define ASM_PREVIOUS_SECTION	".previous\n"
 #define ASM_GLOBAL				".global"
 #define ASM_NAME(NAME)			#NAME
 #define ASM_SIZE(NAME)			".size " ASM_NAME(NAME) ",.-" ASM_NAME(NAME)
+#endif
+#ifndef ASM_LONG
+#define ASM_LONG				".long"
 #endif
 
 #endif /* DYNGEN_EXEC_H */

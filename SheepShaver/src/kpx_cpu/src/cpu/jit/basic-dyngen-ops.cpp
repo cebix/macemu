@@ -301,7 +301,7 @@ void OPPROTO op_execute(uint8 *entry_point, basic_cpu *this_cpu)
 	asm volatile (ASM_DATA_SECTION);
 	asm volatile (ASM_GLOBAL " " ASM_NAME(op_exec_return_offset));
 	asm volatile (ASM_NAME(op_exec_return_offset) ":");
-	asm volatile (".long 1f-" ASM_NAME(op_execute));
+	asm volatile (ASM_LONG " 1f-" ASM_NAME(op_execute));
 	asm volatile (ASM_SIZE(op_exec_return_offset));
 	asm volatile (ASM_PREVIOUS_SECTION);
 	asm volatile ("1:");

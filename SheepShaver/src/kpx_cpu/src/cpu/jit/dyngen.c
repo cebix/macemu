@@ -64,6 +64,8 @@
 #define HOST_AMD64 1
 #elif defined(__m68k__)
 #define HOST_M68K 1
+#elif defined(__mips__)
+#define HOST_MIPS 1
 #endif
 
 /* Debug generated code */
@@ -223,6 +225,14 @@ static int pretty_print(char *buf, uintptr_t addr, uintptr_t base)
 #define ELF_ARCH	EM_68K
 #define elf_check_arch(x) ((x) == EM_68K)
 #define ELF_USES_RELOCA
+
+#elif defined(HOST_MIPS)
+
+#define ELF_CLASS	ELFCLASS32
+#define ELF_ARCH	EM_MIPS
+#define elf_check_arch(x) ((x) == EM_MIPS)
+#define ELF_USES_RELOCA
+#define ELF_USES_ALSO_RELOC
 
 #else
 #error unsupported CPU - please update the code
@@ -641,17 +651,22 @@ elf_shdr *find_elf_section(elf_shdr *shdr, int shnum, const char *shstr,
     return NULL;
 }
 
-int find_reloc(int sh_index)
+static int do_find_reloc(int sh_index, ElfW(Word) type)
 {
     elf_shdr *sec;
     int i;
 
     for(i = 0; i < ehdr.e_shnum; i++) {
         sec = &shdr[i];
-        if (sec->sh_type == SHT_RELOC && sec->sh_info == sh_index) 
+        if (sec->sh_type == type && sec->sh_info == sh_index) 
             return i;
     }
     return 0;
+}
+
+static int find_reloc(int sh_index)
+{
+    return do_find_reloc(sh_index, SHT_RELOC);
 }
 
 static host_ulong get_rel_offset(EXE_RELOC *rel)
@@ -742,7 +757,7 @@ int load_object(const char *filename, FILE *outfile)
     /* swap relocations */
     for(i = 0; i < ehdr.e_shnum; i++) {
         sec = &shdr[i];
-        if (sec->sh_type == SHT_RELOC) {
+        if (sec->sh_type == SHT_REL || sec->sh_type == SHT_RELA) {
             nb_relocs = sec->sh_size / sec->sh_entsize;
             if (do_swap) {
                 for(j = 0, rel = (ELF_RELOC *)sdata[i]; j < nb_relocs; j++, rel++)
@@ -753,10 +768,14 @@ int load_object(const char *filename, FILE *outfile)
 
     /* data section */
     data_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".data");
-    if (!data_sec)
-      error("could not find .data section");
-    data_shndx = data_sec - shdr;
-    data = sdata[data_shndx];
+    if (data_sec) {
+        data_shndx = data_sec - shdr;
+        data = sdata[data_shndx];
+    }
+    else {
+        data_shndx = -1;
+        data = NULL;
+    }
 
     /* rodata sections */
     rodata_cst4_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".rodata.cst4");
@@ -790,6 +809,24 @@ int load_object(const char *filename, FILE *outfile)
         relocs = (ELF_RELOC *)sdata[i];
         nb_relocs = shdr[i].sh_size / shdr[i].sh_entsize;
     }
+#ifdef ELF_USES_ALSO_RELOC
+    i = do_find_reloc(text_shndx, SHT_REL);
+    if (i != 0) {
+        if (relocs) {
+            int j, nb_rels = shdr[i].sh_size / shdr[i].sh_entsize;
+            ElfW(Rel) *rels = (ElfW(Rel) *)sdata[i];
+            ELF_RELOC *new_relocs = (ELF_RELOC *)malloc(sizeof(ELF_RELOC) * (nb_relocs + nb_rels));
+            memcpy(new_relocs, relocs, sizeof(ELF_RELOC) * nb_relocs);
+            for (j = 0; j < nb_rels; j++) {
+                new_relocs[j + nb_relocs].r_offset = rels[j].r_offset;
+                new_relocs[j + nb_relocs].r_info = rels[j].r_info;
+                new_relocs[j + nb_relocs].r_addend = 0;
+            }
+            nb_relocs += nb_rels;
+            relocs = new_relocs;
+        }
+    }
+#endif
 
     symtab_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".symtab");
     if (!symtab_sec)
@@ -1811,6 +1848,18 @@ void gen_code(const char *name, const char *demangled_name,
             error("rts expected at the end of %s", name);
         copy_size = p - p_start;
     }
+#elif defined(HOST_MIPS)
+    {
+        uint8_t *p;
+        p = (void *)(p_end - 4);
+        if (p == p_start)
+            error("empty code for %s", name);
+        while (p > p_start && get32((uint32_t *)p) != 0x03e00008)
+            p -= 4;
+        if (get32((uint32_t *)p) != 0x03e00008)
+            error("jr ra expected at the end of %s", name);
+        copy_size = p - p_start;
+    }
 #else
 #error unsupported CPU
 #endif
@@ -2621,6 +2670,53 @@ void gen_code(const char *name, const char *demangled_name,
                 }
                 }
             }
+#elif defined(HOST_MIPS)
+            {
+                char name[256];
+                int type;
+                int addend;
+                for (i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
+                    if (rel->r_offset >= start_offset &&
+                        rel->r_offset < start_offset + copy_size) {
+                        sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                        if (strstart(sym_name, "__op_jmp", &p)) {
+                            int n;
+                            n = strtol(p, NULL, 10);
+                            /* __op_jmp relocations are done at
+                               runtime to do translated block
+                               chaining: the offset of the instruction
+                               needs to be stored */
+                            fprintf(outfile, "    jmp_addr[%d] = code_ptr() + %d;\n",
+                                    n, rel->r_offset - start_offset);
+                            continue;
+                        }
+
+                        if (strstart(sym_name, "__op_param", &p)) {
+                            snprintf(name, sizeof(name), "param%s", p);
+                        } else {
+                            snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
+                        }
+                        type = ELFW(R_TYPE)(rel->r_info);
+                        addend = rel->r_addend;
+                        if (addend)
+                            error("non zero addend (%d), deal with this", addend);
+                        switch (type) {
+                        case R_MIPS_HI16:
+                            fprintf(outfile, "    /* R_MIPS_HI16 reloc, offset %x */\n", rel->r_offset);
+                            fprintf(outfile, "    *(uint16_t *)(code_ptr() + %d) = (uint16_t)((uint32_t)(%s)>>16);\n",
+                                    rel->r_offset - start_offset + 2, name);
+                            break;
+                        case R_MIPS_LO16:
+                            fprintf(outfile, "    /* R_MIPS_LO16 reloc, offset %x */\n", rel->r_offset);
+                            fprintf(outfile, "    *(uint16_t *)(code_ptr() + %d) = (uint16_t)((uint32_t)(%s)&0xffff);\n",
+                                    rel->r_offset - start_offset + 2, name);
+                            break;
+                        default:
+                            error("unsupported MIPS relocation (%d)", type);
+                        }
+                    }
+                }
+            }
 #else
 #error unsupported CPU
 #endif
@@ -2666,6 +2762,8 @@ int gen_file(FILE *outfile, int out_type)
                 if (sym->st_shndx != data_shndx)
                     error("invalid section for data (0x%x)", sym->st_shndx);
 #endif
+                if (data == NULL)
+                    error("no .data section found");
                 fprintf(outfile, "DEFINE_CST(%s,0x%xL)\n\n", name, *((host_ulong *)(data + sym->st_value)));
             }
             else if (strstart(name, OP_PREFIX "invoke", NULL)) {
