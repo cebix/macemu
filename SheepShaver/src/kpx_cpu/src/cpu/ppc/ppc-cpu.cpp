@@ -20,6 +20,7 @@
 
 #include "sysdeps.h"
 #include <stdlib.h>
+#include <assert.h>
 #include "vm_alloc.h"
 #include "cpu/vm.hpp"
 #include "cpu/ppc/ppc-cpu.hpp"
@@ -119,6 +120,7 @@ uint32 powerpc_registers::reserve_data = 0;
 
 void powerpc_cpu::init_registers()
 {
+	assert((((uintptr)&vr(0)) % 16) == 0);
 	for (int i = 0; i < 32; i++) {
 		gpr(i) = 0;
 		fpr(i) = 0;
@@ -299,6 +301,44 @@ void powerpc_cpu::initialize()
 #endif
 }
 
+// Memory allocator returning powerpc_cpu objects aligned on 16-byte boundaries
+// FORMAT: [ alignment ] magic identifier, offset to malloc'ed data, powerpc_cpu data
+void *powerpc_cpu::operator new(size_t size)
+{
+	const int ALIGN = 16;
+
+	// Allocate enough space for powerpc_cpu data + signature + align pad
+	uint8 *ptr = (uint8 *)malloc(size + ALIGN * 2);
+	if (ptr == NULL)
+		throw std::bad_alloc();
+
+	// Align memory
+	int ofs = 0;
+	while ((((uintptr)ptr) % ALIGN) != 0)
+		ofs++, ptr++;
+
+	// Insert signature and offset
+	struct aligned_block_t {
+		uint32 pad[(ALIGN - 8) / 4];
+		uint32 signature;
+		uint32 offset;
+		uint8  data[sizeof(powerpc_cpu)];
+	};
+	aligned_block_t *blk = (aligned_block_t *)ptr;
+	blk->signature = 0x53435055;		/* 'SCPU' */
+	blk->offset = ofs + (&blk->data[0] - (uint8 *)blk);
+	assert((((uintptr)&blk->data) % ALIGN) == 0);
+	return &blk->data[0];
+}
+
+void powerpc_cpu::operator delete(void *p)
+{
+	uint32 *blk = (uint32 *)p;
+	assert(blk[-2] == 0x53435055);		/* 'SCPU' */
+	void *ptr = (void *)(((uintptr)p) - blk[-1]);
+	free(ptr);
+}
+
 #ifdef SHEEPSHAVER
 powerpc_cpu::powerpc_cpu(bool do_use_jit)
 	: use_jit(do_use_jit)
@@ -468,9 +508,9 @@ bool powerpc_cpu::check_spcflags()
 		if (!processing_interrupt) {
 			processing_interrupt = true;
 			powerpc_registers r;
-			powerpc_registers::interrupt_copy(r, regs);
+			powerpc_registers::interrupt_copy(r, regs());
 			HandleInterrupt(&r);
-			powerpc_registers::interrupt_copy(regs, r);
+			powerpc_registers::interrupt_copy(regs(), r);
 			processing_interrupt = false;
 		}
 	}

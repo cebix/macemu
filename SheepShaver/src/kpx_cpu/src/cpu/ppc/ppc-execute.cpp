@@ -735,10 +735,10 @@ template< class RA >
 void powerpc_cpu::execute_lwarx(uint32 opcode)
 {
 	const uint32 ea = RA::get(this, opcode) + operand_RB::get(this, opcode);
-	regs.reserve_valid = 1;
-	regs.reserve_addr = ea;
-	regs.reserve_data = vm_read_memory_4(ea);
-	operand_RD::set(this, opcode, regs.reserve_data);
+	regs().reserve_valid = 1;
+	regs().reserve_addr = ea;
+	regs().reserve_data = vm_read_memory_4(ea);
+	operand_RD::set(this, opcode, regs().reserve_data);
 	increment_pc(4);
 }
 
@@ -747,13 +747,13 @@ void powerpc_cpu::execute_stwcx(uint32 opcode)
 {
 	const uint32 ea = RA::get(this, opcode) + operand_RB::get(this, opcode);
 	cr().clear(0);
-	if (regs.reserve_valid) {
-		if (regs.reserve_addr == ea /* physical_addr(EA) */
-			&& /* HACK */ regs.reserve_data == vm_read_memory_4(ea)) {
+	if (regs().reserve_valid) {
+		if (regs().reserve_addr == ea /* physical_addr(EA) */
+			&& /* HACK */ regs().reserve_data == vm_read_memory_4(ea)) {
 			vm_write_memory_4(ea, operand_RS::get(this, opcode));
 			cr().set(0, standalone_CR_EQ_field::mask());
 		}
-		regs.reserve_valid = 0;
+		regs().reserve_valid = 0;
 	}
 	cr().set_so(0, xer().get_so());
 	increment_pc(4);

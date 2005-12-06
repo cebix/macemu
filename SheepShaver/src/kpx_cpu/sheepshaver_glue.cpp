@@ -177,49 +177,7 @@ public:
 
 	// Make sure the SIGSEGV handler can access CPU registers
 	friend sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
-
-	// Memory allocator returning areas aligned on 16-byte boundaries
-	void *operator new(size_t size);
-	void operator delete(void *p);
 };
-
-// Memory allocator returning sheepshaver_cpu objects aligned on 16-byte boundaries
-// FORMAT: [ alignment ] magic identifier, offset to malloc'ed data, sheepshaver_cpu data
-void *sheepshaver_cpu::operator new(size_t size)
-{
-	const int ALIGN = 16;
-
-	// Allocate enough space for sheepshaver_cpu data + signature + align pad
-	uint8 *ptr = (uint8 *)malloc(size + ALIGN * 2);
-	if (ptr == NULL)
-		throw std::bad_alloc();
-
-	// Align memory
-	int ofs = 0;
-	while ((((uintptr)ptr) % ALIGN) != 0)
-		ofs++, ptr++;
-
-	// Insert signature and offset
-	struct aligned_block_t {
-		uint32 pad[(ALIGN - 8) / 4];
-		uint32 signature;
-		uint32 offset;
-		uint8  data[sizeof(sheepshaver_cpu)];
-	};
-	aligned_block_t *blk = (aligned_block_t *)ptr;
-	blk->signature = FOURCC('S','C','P','U');
-	blk->offset = ofs + (&blk->data[0] - (uint8 *)blk);
-	assert((((uintptr)&blk->data) % ALIGN) == 0);
-	return &blk->data[0];
-}
-
-void sheepshaver_cpu::operator delete(void *p)
-{
-	uint32 *blk = (uint32 *)p;
-	assert(blk[-2] == FOURCC('S','C','P','U'));
-	void *ptr = (void *)(((uintptr)p) - blk[-1]);
-	free(ptr);
-}
 
 sheepshaver_cpu::sheepshaver_cpu()
 	: powerpc_cpu(enable_jit_p())

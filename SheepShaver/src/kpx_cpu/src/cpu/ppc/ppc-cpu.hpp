@@ -38,7 +38,22 @@ class powerpc_cpu
 	: public basic_cpu
 #endif
 {
-	powerpc_registers regs;
+	// NOTE: PowerPC registers structure shall be aligned on 16-byte
+	// boundaries for the AltiVec registers to be used in native code
+	// with aligned load/stores.
+	//
+	// We can't assume (offsetof(powerpc_cpu, regs) % 16) == 0 since
+	// extra data could be inserted prior regs, e.g. pointer to vtable
+	struct {
+		powerpc_registers regs;
+		uint8 pad[16];
+	} _regs;
+
+	// Make sure the calculation of the current offset makes use of
+	// 'this' as this could make it simplified at compile-time
+	powerpc_registers *regs_ptr() const			{ return (powerpc_registers *)((char *)&_regs.regs + (16 - (((char *)&_regs.regs - (char *)this) % 16))); }
+	powerpc_registers const & regs() const		{ return *regs_ptr(); }
+	powerpc_registers & regs()					{ return *regs_ptr(); }
 
 #if PPC_PROFILE_REGS_USE
 	// Registers use statistics
@@ -59,30 +74,30 @@ private:
 
 protected:
 
-	powerpc_spcflags & spcflags() { return regs.spcflags; }
-	powerpc_spcflags const & spcflags() const { return regs.spcflags; }
-	powerpc_cr_register & cr() { return regs.cr; }
-	powerpc_cr_register const & cr() const { return regs.cr; }
-	powerpc_xer_register & xer() { return regs.xer; }
-	powerpc_xer_register const & xer() const { return regs.xer; }
-	powerpc_vscr & vscr() { return regs.vscr; }
-	powerpc_vscr const & vscr() const { return regs.vscr; }
+	powerpc_spcflags & spcflags() { return regs().spcflags; }
+	powerpc_spcflags const & spcflags() const { return regs().spcflags; }
+	powerpc_cr_register & cr() { return regs().cr; }
+	powerpc_cr_register const & cr() const { return regs().cr; }
+	powerpc_xer_register & xer() { return regs().xer; }
+	powerpc_xer_register const & xer() const { return regs().xer; }
+	powerpc_vscr & vscr() { return regs().vscr; }
+	powerpc_vscr const & vscr() const { return regs().vscr; }
 
-	uint32 vrsave() const		{ return regs.vrsave; }
-	uint32 & vrsave()			{ return regs.vrsave; }
-	double fp_result() const	{ return regs.fp_result.d; }
-	double & fp_result()		{ return regs.fp_result.d; }
-	uint64 fp_result_dw() const	{ return regs.fp_result.j; }
-	uint64 & fp_result_dw()		{ return regs.fp_result.j; }
+	uint32 vrsave() const		{ return regs().vrsave; }
+	uint32 & vrsave()			{ return regs().vrsave; }
+	double fp_result() const	{ return regs().fp_result.d; }
+	double & fp_result()		{ return regs().fp_result.d; }
+	uint64 fp_result_dw() const	{ return regs().fp_result.j; }
+	uint64 & fp_result_dw()		{ return regs().fp_result.j; }
 
-	uint32 & fpscr()			{ return regs.fpscr; }
-	uint32 fpscr() const		{ return regs.fpscr; }
-	uint32 & lr()				{ return regs.lr; }
-	uint32 lr() const			{ return regs.lr; }
-	uint32 & ctr()				{ return regs.ctr; }
-	uint32 ctr() const			{ return regs.ctr; }
-	uint32 & pc()				{ return regs.pc; }
-	uint32 pc() const			{ return regs.pc; }
+	uint32 & fpscr()			{ return regs().fpscr; }
+	uint32 fpscr() const		{ return regs().fpscr; }
+	uint32 & lr()				{ return regs().lr; }
+	uint32 lr() const			{ return regs().lr; }
+	uint32 & ctr()				{ return regs().ctr; }
+	uint32 ctr() const			{ return regs().ctr; }
+	uint32 & pc()				{ return regs().pc; }
+	uint32 pc() const			{ return regs().pc; }
 	void increment_pc(int o)	{ pc() += o; }
 
 	friend class pc_operand;
@@ -94,14 +109,14 @@ protected:
 
 public:
 
-	uint32 & gpr(int i)			{ log_reg(i); return regs.gpr[i]; }
-	uint32 gpr(int i) const		{ log_reg(i); return regs.gpr[i]; }
-	double & fpr(int i)			{ return regs.fpr[i].d; }
-	double fpr(int i) const		{ return regs.fpr[i].d; }
-	uint64 & fpr_dw(int i)		{ return regs.fpr[i].j; }
-	uint64 fpr_dw(int i) const	{ return regs.fpr[i].j; }
-	powerpc_vr & vr(int i)		{ return regs.vr[i]; }
-	powerpc_vr const & vr(int i) const { return regs.vr[i]; }
+	uint32 & gpr(int i)			{ log_reg(i); return regs().gpr[i]; }
+	uint32 gpr(int i) const		{ log_reg(i); return regs().gpr[i]; }
+	double & fpr(int i)			{ return regs().fpr[i].d; }
+	double fpr(int i) const		{ return regs().fpr[i].d; }
+	uint64 & fpr_dw(int i)		{ return regs().fpr[i].j; }
+	uint64 fpr_dw(int i) const	{ return regs().fpr[i].j; }
+	powerpc_vr & vr(int i)		{ return regs().vr[i]; }
+	powerpc_vr const & vr(int i) const { return regs().vr[i]; }
 
 protected:
 
@@ -257,6 +272,10 @@ public:
 	powerpc_cpu(task_struct *parent_task);
 #endif
 	~powerpc_cpu();
+
+	// Specialised memory allocation (needs to be 16-byte aligned)
+	void *operator new(size_t size);
+	void operator delete(void *p);
 
 	// Handle flight recorder
 #if PPC_FLIGHT_RECORDER

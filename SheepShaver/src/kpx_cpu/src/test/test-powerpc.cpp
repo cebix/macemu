@@ -104,14 +104,6 @@ typedef uintptr_t uintptr;
 #define TEST_VMX_ARITH	1
 
 
-#if defined __GNUC__
-#define ALIGNED(N) __attribute__((aligned(N)))
-#else
-#if TEST_VMX_OPS
-#error "AltiVec testing requires the align attribute"
-#endif
-#endif
-
 // Partial PowerPC runtime assembler from GNU lightning
 #undef  _I
 #define _I(X)			((uint32)(X))
@@ -506,7 +498,25 @@ typedef bit_field<  2,  2 > XER_CA_field;
 static bool has_altivec = true;
 
 // A 128-bit AltiVec register
-typedef uint8 vector_t[16] ALIGNED(16);
+typedef uint8 vector_t[16];
+
+class aligned_vector_t {
+	struct {
+		vector_t v;
+		uint8 pad[16];
+	} vs;
+public:
+	aligned_vector_t()
+		{ memset(addr(), 0, sizeof(vector_t)); }
+	aligned_vector_t(vector_t const & vi)
+		{ memcpy(addr(), &vi, sizeof(vector_t)); }
+	vector_t *addr() const
+		{ return (vector_t *)((char *)&vs.v + (16 - (((char *)&vs.v - (char *)this) % 16))); }
+	vector_t const & value() const
+		{ return *addr(); }
+	vector_t & value()
+		{ return *addr(); }
+};
 
 union vector_helper_t {
 	vector_t v;
@@ -721,7 +731,7 @@ private:
 
 	struct vector_value_t {
 		char type;
-		vector_t v ALIGNED(16);
+		vector_t v;
 	};
 
 	static const uint32 reg_values[];
@@ -1611,24 +1621,25 @@ void powerpc_test_cpu::test_one_vector(uint32 *code, vector_test_t const & vt, u
 #endif
 
 	// Invoke emulated code
-	static vector_t emul_vD;
-	memset(&emul_vD, 0, sizeof(emul_vD));
-	static vector_helper_t emul_vSCR;
-	memset(&emul_vSCR, 0, sizeof(emul_vSCR));
-	emul_vSCR.w[3] = 0;
+	static aligned_vector_t emul_vD;
+	memset(emul_vD.addr(), 0, sizeof(vector_t));
+	static aligned_vector_t emul_vSCR;
+	memset(emul_vSCR.addr(), 0, sizeof(vector_t));
 	emul_set_cr(init_cr);
-	set_gpr(RD, (uintptr)&emul_vD);
+	set_gpr(RD, (uintptr)emul_vD.addr());
 	set_gpr(RA, (uintptr)rAp);
 	set_gpr(RB, (uintptr)rBp);
 	set_gpr(RC, (uintptr)rCp);
-	set_gpr(VSCR, (uintptr)emul_vSCR.b);
+	set_gpr(VSCR, (uintptr)emul_vSCR.addr());
 	execute(code);
+	vector_helper_t emul_vSCR_helper;
+	memcpy(&emul_vSCR_helper, emul_vSCR.addr(), sizeof(vector_t));
 	const uint32 emul_cr = emul_get_cr();
-	const uint32 emul_vscr = ntohl(emul_vSCR.w[3]);
+	const uint32 emul_vscr = ntohl(emul_vSCR_helper.w[3]);
 
 	++tests;
 
-	bool ok = vector_equals(vt.type, native_vD, emul_vD)
+	bool ok = vector_equals(vt.type, native_vD, emul_vD.value())
 		&& native_cr == emul_cr
 		&& native_vscr == emul_vscr;
 
@@ -1676,7 +1687,7 @@ void powerpc_test_cpu::test_one_vector(uint32 *code, vector_test_t const & vt, u
 		print_vector(native_vD, vt.type);
 		printf("\n");
 		printf("vD.E = ");
-		print_vector(emul_vD, vt.type);
+		print_vector(emul_vD.value(), vt.type);
 		printf("\n");
 		printf("CR.N = %08x ; VSCR.N = %08x\n", native_cr, native_vscr);
 		printf("CR.E = %08x ; VSCR.E = %08x\n", emul_cr, emul_vscr);
@@ -1764,7 +1775,6 @@ void powerpc_test_cpu::test_vector_load(void)
 		}
 	}
 	assert(i_opcode != -1);
-	assert(((uintptr)&vector_values[0].v) % 16 == 0);
 
 	const int n_elements = sizeof(tests) / sizeof(tests[0]);
 	for (int i = 0; i < n_elements; i++) {
@@ -1778,18 +1788,19 @@ void powerpc_test_cpu::test_vector_load(void)
 		printf("Testing %s\n", vt.name);
 		const int n_vector_values = sizeof(vector_values)/sizeof(vector_values[0]);
 		for (int j = 0; j < n_vector_values; j++) {
+			aligned_vector_t av(vector_values[j].v);
 			switch (vt.type) {
 			case 'b':
 				for (int k = 0; k < 16; k++)
-					test_one_vector(code, vt, ((uint8 *)&vector_values[j].v) + 1 * k);
+					test_one_vector(code, vt, ((uint8 *)av.addr()) + 1 * k);
 				break;
 			case 'h':
 				for (int k = 0; k < 8; k++)
-					test_one_vector(code, vt, ((uint8 *)&vector_values[j].v) + 2 * k);
+					test_one_vector(code, vt, ((uint8 *)av.addr()) + 2 * k);
 				break;
 			case 'w':
 				for (int k = 0; k < 4; k++)
-					test_one_vector(code, vt, ((uint8 *)&vector_values[j].v) + 4 * k);
+					test_one_vector(code, vt, ((uint8 *)av.addr()) + 4 * k);
 				break;
 			}
 		}
@@ -2012,29 +2023,40 @@ void powerpc_test_cpu::test_vector_arith(void)
 
 		printf("Testing %s\n", vt.name);
 		if (vt.operands[1] == vA && vt.operands[2] == vB && vt.operands[3] == vC) {
-			for (int i = 0; i < n_vector_values; i++)
-				for (int j = 0; j < n_vector_values; j++)
-					for (int k = 0; k < n_vector_values; k++)
-						test_one_vector(code, vt, &vvp[i].v, &vvp[j].v, &vvp[k].v);
+			for (int i = 0; i < n_vector_values; i++) {
+				aligned_vector_t avi(vvp[i].v);
+				for (int j = 0; j < n_vector_values; j++) {
+					aligned_vector_t avj(vvp[j].v);
+					for (int k = 0; k < n_vector_values; k++) {
+						aligned_vector_t avk(vvp[k].v);
+						test_one_vector(code, vt, avi.addr(), avj.addr(), avk.addr());
+					}
+				}
+			}
 		}
 		else if (vt.operands[1] == vA && vt.operands[2] == vB && vt.operands[3] == vN) {
 			for (int i = 0; i < 16; i++) {
 				vSH_field::insert(vt.opcode, i);
 				code[i_opcode] = vt.opcode;
 				flush_icache_range(code, sizeof(code));
-				for (int j = 0; j < n_vector_values; j++)
+				aligned_vector_t avi(vvp[i].v);
+				for (int j = 0; j < n_vector_values; j++) {
+					aligned_vector_t avj(vvp[j].v);
 					for (int k = 0; k < n_vector_values; k++)
-						test_one_vector(code, vt, &vvp[i].v, &vvp[j].v);
+						test_one_vector(code, vt, avi.addr(), avj.addr());
+				}
 			}
 		}
 		else if (vt.operands[1] == vA && vt.operands[2] == vB) {
 			for (int i = 0; i < n_vector_values; i++) {
+				aligned_vector_t avi(vvp[i].v);
 				for (int j = 0; j < n_vector_values; j++) {
 					if (op_type == 'B') {
 						if (!vector_all_eq('b', vvp[j].v))
 							continue;
 					}
-					test_one_vector(code, vt, &vvp[i].v, &vvp[j].v);
+					aligned_vector_t avj(vvp[j].v);
+					test_one_vector(code, vt, avi.addr(), avj.addr());
 				}
 			}
 		}
@@ -2043,8 +2065,10 @@ void powerpc_test_cpu::test_vector_arith(void)
 				rA_field::insert(vt.opcode, i);
 				code[i_opcode] = vt.opcode;
 				flush_icache_range(code, sizeof(code));
-				for (int j = 0; j < n_vector_values; j++)
-					test_one_vector(code, vt, NULL, &vvp[j].v);
+				for (int j = 0; j < n_vector_values; j++) {
+					aligned_vector_t avj(vvp[j].v);
+					test_one_vector(code, vt, NULL, avj.addr());
+				}
 			}
 		}
 		else if (vt.operands[1] == vI) {
@@ -2056,8 +2080,10 @@ void powerpc_test_cpu::test_vector_arith(void)
 			}
 		}
 		else if (vt.operands[1] == __ && vt.operands[2] == vB) {
-			for (int i = 0; i < n_vector_values; i++)
-				test_one_vector(code, vt, NULL, &vvp[i].v);
+			for (int i = 0; i < n_vector_values; i++) {
+				aligned_vector_t avi(vvp[i].v);
+				test_one_vector(code, vt, NULL, avi.addr());
+			}
 		}
 		else {
 			printf("ERROR: unhandled test case\n");

@@ -210,13 +210,7 @@ union powerpc_vr
 	uint32	w[4];
 	uint64	j[2];
 	float	f[4];
-}
-#if defined(__GNUC__)
-// 16-byte alignment is required for SIMD optimizations operating on
-// 128-bit aligned registers (e.g. SSE).
-__attribute__((aligned(16)))
-#endif
-;
+};
 
 
 /**
@@ -253,8 +247,8 @@ struct powerpc_registers
 	powerpc_fpr fpr[32];		// Floating-Point Registers
 	powerpc_fpr	fp_result;		// Floating-Point result
 	powerpc_cr_register cr;		// Condition Register
-	uint32	fpscr;				// Floating-Point Status and Control Register
 	powerpc_xer_register xer;	// XER Register (SPR 1)
+	uint32	fpscr;				// Floating-Point Status and Control Register
 	uint32	lr;					// Link Register (SPR 8)
 	uint32	ctr;				// Count Register (SPR 9)
 	uint32	pc;					// Program Counter
@@ -262,6 +256,9 @@ struct powerpc_registers
 	static uint32 reserve_valid;
 	static uint32 reserve_addr;
 	static uint32 reserve_data;
+#define PPC_SZ(T) sizeof(powerpc_##T)
+	uint8 _pad[16 - ((PPC_SZ(fpr) + PPC_SZ(cr_register) + PPC_SZ(xer_register) + PPC_SZ(spcflags)) % 16)];
+#undef  PPC_SZ
 	powerpc_vr vr[32];			// Vector Registers
 	powerpc_vscr vscr;			// Vector Status and Control Register
 	uint32 vrsave;				// AltiVec Save Register
