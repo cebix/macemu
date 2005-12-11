@@ -88,6 +88,11 @@ typedef uintptr_t uintptr;
 #define TEST_VMX_OPS	1
 #endif
 
+// Define units to skip during testing
+#define SKIP_ALU_OPS	0
+#define SKIP_FPU_OPS	0
+#define SKIP_VMX_OPS	0
+
 // Define instructions to test
 #define TEST_ADD		1
 #define TEST_SUB		1
@@ -511,7 +516,7 @@ public:
 	aligned_vector_t(vector_t const & vi)
 		{ memcpy(addr(), &vi, sizeof(vector_t)); }
 	vector_t *addr() const
-		{ return (vector_t *)((char *)&vs.v + (16 - (((char *)&vs.v - (char *)this) % 16))); }
+		{ return (vector_t *)(((char *)&vs.v) + (16 - (((uintptr)&vs.v) % 16))); }
 	vector_t const & value() const
 		{ return *addr(); }
 	vector_t & value()
@@ -945,6 +950,9 @@ void powerpc_test_cpu::test_one_1(uint32 *code, const char *insn, uint32 a1, uin
 	const uint32 native_xer = get32();
 	const uint32 native_cr = get32();
 #endif
+
+	if (SKIP_ALU_OPS)
+		return;
 
 	// Invoke emulated code
 	emul_set_xer(init_xer);
@@ -1594,10 +1602,10 @@ void powerpc_test_cpu::test_one_vector(uint32 *code, vector_test_t const & vt, u
 	memset(&native_vD, 0, sizeof(native_vD));
 	static vector_helper_t native_vSCR;
 	memset(&native_vSCR, 0, sizeof(native_vSCR));
-	static vector_t dummy_vector;
-	if (!rAp) rAp = dummy_vector;
-	if (!rBp) rBp = dummy_vector;
-	if (!rCp) rCp = dummy_vector;
+	static aligned_vector_t dummy_vector;
+	if (!rAp) rAp = (uint8 *)dummy_vector.addr();
+	if (!rBp) rBp = (uint8 *)dummy_vector.addr();
+	if (!rCp) rCp = (uint8 *)dummy_vector.addr();
 #ifdef NATIVE_POWERPC
 	// Invoke native code
 	const uint32 save_cr = native_get_cr();
@@ -1619,6 +1627,9 @@ void powerpc_test_cpu::test_one_vector(uint32 *code, vector_test_t const & vt, u
 	const uint32 native_cr = get32();
 	const uint32 native_vscr = get32();
 #endif
+
+	if (SKIP_VMX_OPS)
+		return;
 
 	// Invoke emulated code
 	static aligned_vector_t emul_vD;
