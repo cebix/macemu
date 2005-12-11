@@ -28,6 +28,8 @@ PERL = @PERL@
 USE_DYNGEN = @USE_DYNGEN@
 DYNGENSRCS = @DYNGENSRCS@
 DYNGEN_CC = @DYNGEN_CC@
+DYNGEN_CFLAGS = @DYNGEN_CFLAGS@
+DYNGEN_CXXFLAGS = @DYNGEN_CXXFLAGS@
 DYNGEN_OP_FLAGS = @DYNGEN_OP_FLAGS@
 BLESS = @BLESS@
 EXEEXT = @EXEEXT@
@@ -77,7 +79,7 @@ endef
 OBJS = $(SRCS_LIST_TO_OBJS)
 
 define DYNGENSRCS_LIST_TO_OBJS
-	$(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(foreach file, $(DYNGENSRCS), \
+	$(addprefix $(OBJ_DIR)/, $(addsuffix .dgo, $(foreach file, $(DYNGENSRCS), \
 	$(basename $(notdir $(file))))))
 endef
 DYNGENOBJS = $(DYNGENSRCS_LIST_TO_OBJS)
@@ -155,18 +157,24 @@ DYNGEN    = dyngen$(EXEEXT)
 ifeq ($(USE_DYNGEN),yes)
 DYNGENDEPS = basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 
+# Only GCC is supported for generating synthetic opcodes
 $(DYNGEN): $(DYNGENOBJS)
-	$(CXX) -o $@ $(LDFLAGS) $(DYNGENOBJS)
+	$(DYNGEN_CC) -o $@ $(LDFLAGS) $(DYNGENOBJS)
+
+$(OBJ_DIR)/%.dgo : %.c
+	$(DYNGEN_CC) -xc $(CPPFLAGS) $(DEFS) $(DYNGEN_CFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.dgo : %.cpp
+	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(DYNGEN_CXXFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/basic-dyngen.o: basic-dyngen-ops.hpp
 $(OBJ_DIR)/basic-dyngen-ops.o: $(kpxsrcdir)/cpu/jit/basic-dyngen-ops.cpp
-	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
+	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(DYNGEN_CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
 basic-dyngen-ops.hpp: $(OBJ_DIR)/basic-dyngen-ops.o $(DYNGEN)
 	./$(DYNGEN) -o $@ $<
 
 $(OBJ_DIR)/ppc-dyngen.o: ppc-dyngen-ops.hpp
 $(OBJ_DIR)/ppc-dyngen-ops.o: $(kpxsrcdir)/cpu/ppc/ppc-dyngen-ops.cpp basic-dyngen-ops.hpp
-	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
+	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(DYNGEN_CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
 ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o $(DYNGEN)
 	./$(DYNGEN) -o $@ $<
 
