@@ -18,6 +18,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+// NOTE: Results file md5sum: 3e29432abb6e21e625a2eef8cf2f0840 ($Revision$)
+
 #include <vector>
 #include <limits>
 #include <stdio.h>
@@ -512,9 +514,11 @@ class aligned_vector_t {
 	} vs;
 public:
 	aligned_vector_t()
+		{ clear(); }
+	void clear()
 		{ memset(addr(), 0, sizeof(vector_t)); }
-	aligned_vector_t(vector_t const & vi)
-		{ memcpy(addr(), &vi, sizeof(vector_t)); }
+	void copy(vector_t const & vi, int n = sizeof(vector_t))
+		{ clear(); memcpy(addr(), &vi, n); }
 	vector_t *addr() const
 		{ return (vector_t *)(((char *)&vs.v) + (16 - (((uintptr)&vs.v) % 16))); }
 	vector_t const & value() const
@@ -1603,6 +1607,7 @@ void powerpc_test_cpu::test_one_vector(uint32 *code, vector_test_t const & vt, u
 	static vector_helper_t native_vSCR;
 	memset(&native_vSCR, 0, sizeof(native_vSCR));
 	static aligned_vector_t dummy_vector;
+	dummy_vector.clear();
 	if (!rAp) rAp = (uint8 *)dummy_vector.addr();
 	if (!rBp) rBp = (uint8 *)dummy_vector.addr();
 	if (!rCp) rCp = (uint8 *)dummy_vector.addr();
@@ -1633,9 +1638,9 @@ void powerpc_test_cpu::test_one_vector(uint32 *code, vector_test_t const & vt, u
 
 	// Invoke emulated code
 	static aligned_vector_t emul_vD;
-	memset(emul_vD.addr(), 0, sizeof(vector_t));
+	emul_vD.clear();
 	static aligned_vector_t emul_vSCR;
-	memset(emul_vSCR.addr(), 0, sizeof(vector_t));
+	emul_vSCR.clear();
 	emul_set_cr(init_cr);
 	set_gpr(RD, (uintptr)emul_vD.addr());
 	set_gpr(RA, (uintptr)rAp);
@@ -1799,19 +1804,25 @@ void powerpc_test_cpu::test_vector_load(void)
 		printf("Testing %s\n", vt.name);
 		const int n_vector_values = sizeof(vector_values)/sizeof(vector_values[0]);
 		for (int j = 0; j < n_vector_values; j++) {
-			aligned_vector_t av(vector_values[j].v);
+			static aligned_vector_t av;
 			switch (vt.type) {
 			case 'b':
-				for (int k = 0; k < 16; k++)
-					test_one_vector(code, vt, ((uint8 *)av.addr()) + 1 * k);
+				for (int k = 0; k < 16; k++) {
+					av.copy(*(vector_t *)((uint8 *)(&vector_values[j].v) + 1 * k), 16 - 1 * k);
+					test_one_vector(code, vt, av.addr());
+				}
 				break;
 			case 'h':
-				for (int k = 0; k < 8; k++)
-					test_one_vector(code, vt, ((uint8 *)av.addr()) + 2 * k);
+				for (int k = 0; k < 8; k++) {
+					av.copy(*(vector_t *)((uint8 *)(&vector_values[j].v) + 2 * k), 16 - 2 * k);
+					test_one_vector(code, vt, av.addr());
+				}
 				break;
 			case 'w':
-				for (int k = 0; k < 4; k++)
-					test_one_vector(code, vt, ((uint8 *)av.addr()) + 4 * k);
+				for (int k = 0; k < 4; k++) {
+					av.copy(*(vector_t *)((uint8 *)(&vector_values[j].v) + 4 * k), 16 - 4 * k);
+					test_one_vector(code, vt, av.addr());
+				}
 				break;
 			}
 		}
@@ -2033,13 +2044,14 @@ void powerpc_test_cpu::test_vector_arith(void)
 		}
 
 		printf("Testing %s\n", vt.name);
+		static aligned_vector_t avi, avj, avk;
 		if (vt.operands[1] == vA && vt.operands[2] == vB && vt.operands[3] == vC) {
 			for (int i = 0; i < n_vector_values; i++) {
-				aligned_vector_t avi(vvp[i].v);
+				avi.copy(vvp[i].v);
 				for (int j = 0; j < n_vector_values; j++) {
-					aligned_vector_t avj(vvp[j].v);
+					avj.copy(vvp[j].v);
 					for (int k = 0; k < n_vector_values; k++) {
-						aligned_vector_t avk(vvp[k].v);
+						avk.copy(vvp[k].v);
 						test_one_vector(code, vt, avi.addr(), avj.addr(), avk.addr());
 					}
 				}
@@ -2050,9 +2062,9 @@ void powerpc_test_cpu::test_vector_arith(void)
 				vSH_field::insert(vt.opcode, i);
 				code[i_opcode] = vt.opcode;
 				flush_icache_range(code, sizeof(code));
-				aligned_vector_t avi(vvp[i].v);
+				avi.copy(vvp[i].v);
 				for (int j = 0; j < n_vector_values; j++) {
-					aligned_vector_t avj(vvp[j].v);
+					avj.copy(vvp[j].v);
 					for (int k = 0; k < n_vector_values; k++)
 						test_one_vector(code, vt, avi.addr(), avj.addr());
 				}
@@ -2060,13 +2072,13 @@ void powerpc_test_cpu::test_vector_arith(void)
 		}
 		else if (vt.operands[1] == vA && vt.operands[2] == vB) {
 			for (int i = 0; i < n_vector_values; i++) {
-				aligned_vector_t avi(vvp[i].v);
+				avi.copy(vvp[i].v);
 				for (int j = 0; j < n_vector_values; j++) {
 					if (op_type == 'B') {
 						if (!vector_all_eq('b', vvp[j].v))
 							continue;
 					}
-					aligned_vector_t avj(vvp[j].v);
+					avj.copy(vvp[j].v);
 					test_one_vector(code, vt, avi.addr(), avj.addr());
 				}
 			}
@@ -2077,7 +2089,7 @@ void powerpc_test_cpu::test_vector_arith(void)
 				code[i_opcode] = vt.opcode;
 				flush_icache_range(code, sizeof(code));
 				for (int j = 0; j < n_vector_values; j++) {
-					aligned_vector_t avj(vvp[j].v);
+					avj.copy(vvp[j].v);
 					test_one_vector(code, vt, NULL, avj.addr());
 				}
 			}
@@ -2092,7 +2104,7 @@ void powerpc_test_cpu::test_vector_arith(void)
 		}
 		else if (vt.operands[1] == __ && vt.operands[2] == vB) {
 			for (int i = 0; i < n_vector_values; i++) {
-				aligned_vector_t avi(vvp[i].v);
+				avi.copy(vvp[i].v);
 				test_one_vector(code, vt, NULL, avi.addr());
 			}
 		}
