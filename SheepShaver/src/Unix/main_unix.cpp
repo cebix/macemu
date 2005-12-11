@@ -993,65 +993,29 @@ static void Quit(void)
  *  Initialize Kernel Data segments
  */
 
-#if defined(__CYGWIN__)
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
-static HANDLE kernel_handle;				// Shared memory handle for Kernel Data
-static DWORD allocation_granule;			// Minimum size of allocateable are (64K)
-static DWORD kernel_area_size;				// Size of Kernel Data area
-#endif
-
 static bool kernel_data_init(void)
 {
 	char str[256];
-#ifdef _WIN32
-	SYSTEM_INFO si;
-	GetSystemInfo(&si);
-	allocation_granule = si.dwAllocationGranularity;
-	kernel_area_size = (KERNEL_AREA_SIZE + allocation_granule - 1) & -allocation_granule;
+	uint32 kernel_area_size = (KERNEL_AREA_SIZE + SHMLBA - 1) & -SHMLBA;
 
-	char rcs[10];
-	LPVOID kernel_addr;
-	kernel_handle = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, kernel_area_size, NULL);
-	if (kernel_handle == NULL) {
-		sprintf(rcs, "%d", GetLastError());
-		sprintf(str, GetString(STR_KD_SHMGET_ERR), rcs);
-		ErrorAlert(str);
-		return false;
-	}
-	kernel_addr = (LPVOID)Mac2HostAddr(KERNEL_DATA_BASE & -allocation_granule);
-	if (MapViewOfFileEx(kernel_handle, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, kernel_area_size, kernel_addr) != kernel_addr) {
-		sprintf(rcs, "%d", GetLastError());
-		sprintf(str, GetString(STR_KD_SHMAT_ERR), rcs);
-		ErrorAlert(str);
-		return false;
-	}
-	kernel_addr = (LPVOID)Mac2HostAddr(KERNEL_DATA2_BASE & -allocation_granule);
-	if (MapViewOfFileEx(kernel_handle, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, kernel_area_size, kernel_addr) != kernel_addr) {
-		sprintf(rcs, "%d", GetLastError());
-		sprintf(str, GetString(STR_KD2_SHMAT_ERR), rcs);
-		ErrorAlert(str);
-		return false;
-	}
-#else
-	kernel_area = shmget(IPC_PRIVATE, KERNEL_AREA_SIZE, 0600);
+	kernel_area = shmget(IPC_PRIVATE, kernel_area_size, 0600);
 	if (kernel_area == -1) {
 		sprintf(str, GetString(STR_KD_SHMGET_ERR), strerror(errno));
 		ErrorAlert(str);
 		return false;
 	}
-	if (shmat(kernel_area, Mac2HostAddr(KERNEL_DATA_BASE), 0) < 0) {
+	void *kernel_addr = Mac2HostAddr(KERNEL_DATA_BASE & -SHMLBA);
+	if (shmat(kernel_area, kernel_addr, 0) != kernel_addr) {
 		sprintf(str, GetString(STR_KD_SHMAT_ERR), strerror(errno));
 		ErrorAlert(str);
 		return false;
 	}
-	if (shmat(kernel_area, Mac2HostAddr(KERNEL_DATA2_BASE), 0) < 0) {
+	kernel_addr = Mac2HostAddr(KERNEL_DATA2_BASE & -SHMLBA);
+	if (shmat(kernel_area, kernel_addr, 0) != kernel_addr) {
 		sprintf(str, GetString(STR_KD2_SHMAT_ERR), strerror(errno));
 		ErrorAlert(str);
 		return false;
 	}
-#endif
 	return true;
 }
 
@@ -1062,19 +1026,11 @@ static bool kernel_data_init(void)
 
 static void kernel_data_exit(void)
 {
-#ifdef _WIN32
-	if (kernel_handle) {
-		UnmapViewOfFile(Mac2HostAddr(KERNEL_DATA_BASE & -allocation_granule));
-		UnmapViewOfFile(Mac2HostAddr(KERNEL_DATA2_BASE & -allocation_granule));
-		CloseHandle(kernel_handle);
-	}
-#else
 	if (kernel_area >= 0) {
-		shmdt(Mac2HostAddr(KERNEL_DATA_BASE));
-		shmdt(Mac2HostAddr(KERNEL_DATA2_BASE));
+		shmdt(Mac2HostAddr(KERNEL_DATA_BASE & -SHMLBA));
+		shmdt(Mac2HostAddr(KERNEL_DATA2_BASE & -SHMLBA));
 		shmctl(kernel_area, IPC_RMID, NULL);
 	}
-#endif
 }
 
 
