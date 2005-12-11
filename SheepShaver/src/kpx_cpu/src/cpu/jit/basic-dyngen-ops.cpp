@@ -368,126 +368,114 @@ void OPPROTO NAME(void)							\
 }
 #endif
 
-#define CALL(CALL_CODE) CALL_CODE
+#if defined __mips__
+#define CALL(FUNC, ARGS) ({										\
+		register uintptr func asm("t9");						\
+		asm volatile ("move %0,%1" : "=r" (func) : "r" (FUNC));	\
+		((func_t)func) ARGS;									\
+})
+#else
+#define CALL(FUNC, ARGS) ((func_t)FUNC) ARGS
+#endif
 
 DEFINE_OP(op_invoke, {
 	typedef void (*func_t)(void);
-	func_t func = (func_t)reg_A0;
-	CALL(func());
+	CALL(reg_A0,());
 });
 
 DEFINE_OP(op_invoke_T0, {
 	typedef void (*func_t)(uint32);
-	func_t func = (func_t)reg_A0;
-	CALL(func(T0));
+	CALL(reg_A0,(T0));
 });
 
 DEFINE_OP(op_invoke_T0_T1, {
 	typedef void (*func_t)(uint32, uint32);
-	func_t func = (func_t)reg_A0;
-	CALL(func(T0, T1));
+	CALL(reg_A0,(T0, T1));
 });
 
 DEFINE_OP(op_invoke_T0_T1_T2, {
 	typedef void (*func_t)(uint32, uint32, uint32);
-	func_t func = (func_t)reg_A0;
-	CALL(func(T0, T1, T2));
+	CALL(reg_A0,(T0, T1, T2));
 });
 
 DEFINE_OP(op_invoke_im, {
 	typedef void (*func_t)(uint32);
-	func_t func = (func_t)reg_A0;
-	CALL(func(PARAM1));
+	CALL(reg_A0,(PARAM1));
 });
 
 DEFINE_OP(op_invoke_CPU, {
 	typedef void (*func_t)(void *);
-	func_t func = (func_t)reg_A0;
-	CALL(func(CPU));
+	CALL(reg_A0,(CPU));
 });
 
 DEFINE_OP(op_invoke_CPU_T0, {
 	typedef void (*func_t)(void *, uint32);
-	func_t func = (func_t)reg_A0;
-	CALL(func(CPU, T0));
+	CALL(reg_A0,(CPU, T0));
 });
 
 DEFINE_OP(op_invoke_CPU_im, {
 	typedef void (*func_t)(void *, uint32);
-	func_t func = (func_t)reg_A0;
-	CALL(func(CPU, PARAM1));
+	CALL(reg_A0,(CPU, PARAM1));
 });
 
 DEFINE_OP(op_invoke_CPU_im_im, {
 	typedef void (*func_t)(void *, uint32, uint32);
-	func_t func = (func_t)reg_A0;
-	CALL(func(CPU, PARAM1, PARAM2));
+	CALL(reg_A0,(CPU, PARAM1, PARAM2));
 });
 
 DEFINE_OP(op_invoke_direct, {
 	typedef void (*func_t)(void);
-	func_t func = (func_t)PARAM1;
-	CALL(func());
+	CALL(PARAM1,());
 });
 
 DEFINE_OP(op_invoke_direct_T0, {
 	typedef void (*func_t)(uint32);
-	func_t func = (func_t)PARAM1;
-	CALL(func(T0));
+	CALL(PARAM1,(T0));
 });
 
 DEFINE_OP(op_invoke_direct_T0_T1, {
 	typedef void (*func_t)(uint32, uint32);
-	func_t func = (func_t)PARAM1;
-	CALL(func(T0, T1));
+	CALL(PARAM1,(T0, T1));
 });
 
 DEFINE_OP(op_invoke_direct_T0_T1_T2, {
 	typedef void (*func_t)(uint32, uint32, uint32);
-	func_t func = (func_t)PARAM1;
-	CALL(func(T0, T1, T2));
+	CALL(PARAM1,(T0, T1, T2));
 });
 
 DEFINE_OP(op_invoke_direct_im, {
 	typedef void (*func_t)(uint32);
-	func_t func = (func_t)PARAM1;
-	CALL(func(PARAM2));
+	CALL(PARAM1,(PARAM2));
 });
 
 DEFINE_OP(op_invoke_direct_CPU, {
 	typedef void (*func_t)(void *);
-	func_t func = (func_t)PARAM1;
-	CALL(func(CPU));
+	CALL(PARAM1,(CPU));
 });
 
 DEFINE_OP(op_invoke_direct_CPU_T0, {
 	typedef void (*func_t)(void *, uint32);
-	func_t func = (func_t)PARAM1;
-	CALL(func(CPU, T0));
+	CALL(PARAM1,(CPU, T0));
 });
 
 DEFINE_OP(op_invoke_direct_CPU_im, {
 	typedef void (*func_t)(void *, uint32);
-	func_t func = (func_t)PARAM1;
-	CALL(func(CPU, PARAM2));
+	CALL(PARAM1,(CPU, PARAM2));
 });
 
 DEFINE_OP(op_invoke_direct_CPU_im_im, {
 	typedef void (*func_t)(void *, uint32, uint32);
-	func_t func = (func_t)PARAM1;
-	CALL(func(CPU, PARAM2, PARAM3));
+	CALL(PARAM1,(CPU, PARAM2, PARAM3));
 });
 
 DEFINE_OP(op_invoke_CPU_T0_ret_A0, {
 	typedef void *(*func_t)(void *, uintptr);
-	func_t func = (func_t)reg_A0;
-	reg_A0 = (uintptr)CALL(func(CPU, reg_T0));
+	reg_A0 = (uintptr)CALL(reg_A0,(CPU, reg_T0));
 });
 
 DEFINE_OP(op_invoke_direct_CPU_T0_ret_A0, {
 	typedef void *(*func_t)(void *, uintptr);
-	func_t func = (func_t)PARAM1;
-	reg_A0 = (uintptr)CALL(func(CPU, reg_T0));
+	reg_A0 = (uintptr)CALL(PARAM1,(CPU, reg_T0));
 });
 
 #undef DEFINE_OP
