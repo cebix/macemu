@@ -497,6 +497,17 @@ irix*)
   AUDIOSRC=Irix/audio_irix.cpp
   LIBS="$LIBS -laudio"
   WANT_ESD=no
+
+  dnl Check if our compiler supports -IPA (MIPSPro)
+  HAVE_IPA=no
+  ocflags="$CFLAGS"
+  CFLAGS=`echo " $CFLAGS -IPA" | sed -e "s/ -g //g"`
+  AC_MSG_CHECKING(if "-IPA" works)
+  dnl Do a test compile of an empty function
+  AC_TRY_COMPILE([#if defined __GNUC__
+                  # error GCC does not support IPA yet
+                  #endif],, [AC_MSG_RESULT(yes); HAVE_IPA=yes], AC_MSG_RESULT(no))
+  CFLAGS="$ocflags"
   ;;
 esac
 
@@ -1282,6 +1293,9 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
       i?86:elf)
         ac_cv_use_dyngen=yes
         ;;
+      mips:elf)
+        ac_cv_use_dyngen=yes
+        ;;
       powerpc:mach)
         ac_cv_use_dyngen=yes
         ;;
@@ -1314,6 +1328,9 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
       i?86)
         DYNGEN_OP_FLAGS="-fomit-frame-pointer -mpreferred-stack-boundary=2"
         ;;
+      mips)
+        DYNGEN_OP_FLAGS="-fno-delayed-branch -mno-abicalls"
+        ;;
       powerpc)
         if [[ "x$ac_cv_object_format" = "xmach" ]]; then
           DYNGEN_OP_FLAGS="-mdynamic-no-pic"
@@ -1328,6 +1345,13 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
       DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -finline-functions -finline-limit=10000 -fno-exceptions -g0"
       if [[ "x$HAVE_GCC30" = "xyes" ]]; then
         DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -fno-reorder-blocks -fno-optimize-sibling-calls"
+      fi
+      if [[ "x$DYNGEN_CC" != "x$CXX" ]]; then
+        DYNGEN_CFLAGS="-O2 $CFLAGS"
+        DYNGEN_CXXFLAGS="-O2 $CXXFLAGS"
+      else
+        DYNGEN_CFLAGS="\$(CFLAGS)"
+        DYNGEN_CXXFLAGS="\$(CXXFLAGS)"
       fi
     else
       WANT_JIT=no
@@ -1377,11 +1401,21 @@ if [[ "x$WANT_JIT" = "xyes" ]]; then
   CPPFLAGS="$CPPFLAGS -DUSE_JIT"
 fi
 
+dnl Higher level optimizations with MIPSPro compilers are possible
+if [[ "x$HAVE_IPA" = "xyes" ]]; then
+  CFLAGS="`echo $CFLAGS | sed -e 's/-g//g'` -O3 -OPT:Olimit=0 -IPA"
+  CXXFLAGS="`echo $CXXFLAGS | sed -e 's/-g//g'` -O3 -OPT:Olimit=0 -IPA"
+  CXXFLAGS="-LANG:std $CXXFLAGS"
+  LDFLAGS="$LDFLAGS -O3 -OPT:Olimit=0 -IPA"
+fi
+
 dnl Generate Makefile.
 AC_SUBST(PERL)
 AC_SUBST(USE_DYNGEN, [$ac_cv_use_dyngen])
 AC_SUBST(DYNGENSRCS)
 AC_SUBST(DYNGEN_CC)
+AC_SUBST(DYNGEN_CFLAGS)
+AC_SUBST(DYNGEN_CXXFLAGS)
 AC_SUBST(DYNGEN_OP_FLAGS)
 AC_SUBST(SYSSRCS)
 AC_SUBST(CPUSRCS)
