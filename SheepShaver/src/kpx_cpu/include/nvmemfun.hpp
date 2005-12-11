@@ -23,20 +23,37 @@
 
 #include <functional>
 
-#if (defined(__GNUC__) || defined(__ICC))
+#if defined __GNUC__
+#define HAVE_FAST_NV_MEM_FUN 1
+#define MEM_FUN_WORDS  2
+#if defined __GXX_ABI_VERSION /* GCC >= 3.0 */
+#define MEM_FUN_OFFSET 0
+#else
+#define MEM_FUN_OFFSET 1
+#endif
+#endif
+
+#if defined __ICC
+#define HAVE_FAST_NV_MEM_FUN 1
+#define MEM_FUN_WORDS  2
+#define MEM_FUN_OFFSET 0 /* GNU C++ ABI v3 */
+#endif
+
+#if defined __EDG__  && defined __sgi
+#define HAVE_FAST_NV_MEM_FUN 1
+#define MEM_FUN_WORDS  3
+#define MEM_FUN_OFFSET 2
+#endif
+
+#if HAVE_FAST_NV_MEM_FUN
 
 template< class PMF, class PF >
 inline PF nv_mem_fun_of(PMF pmf) {
 	if (pmf == 0)
 		return 0;
-	union { PMF pmf; uintptr p[2]; } x;
+	union { PMF pmf; uintptr p[MEM_FUN_WORDS]; } x;
 	x.pmf = pmf;
-#if defined(__GXX_ABI_VERSION) /* GCC >= 3.0 */
-	const int N = 0;
-#else
-	const int N = 1;
-#endif
-	return (PF)x.p[N];
+	return (PF)x.p[MEM_FUN_OFFSET];
 }
 
 template< class R, class T >
