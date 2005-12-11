@@ -1,3 +1,4 @@
+
 /*
  *  jit-target-dispatch.h - JIT headers dispatcher
  *
@@ -40,7 +41,7 @@
 #include _JIT_MAKE_HEADER(x86,_JIT_HEADER)
 #elif defined(__powerpc__)
 #include _JIT_MAKE_HEADER(ppc,_JIT_HEADER)
-#elif defined(__mips__)
+#elif defined(__mips__) || (defined __sgi && defined __mips)
 #include _JIT_MAKE_HEADER(mips,_JIT_HEADER)
 #else
 #error "Unknown architecture, please submit bug report"
