@@ -1196,6 +1196,7 @@ HAVE_GCC27=no
 AC_MSG_CHECKING(for GCC 2.7 or higher)
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#if ! (__GNUC__ - 1 > 1 || __GNUC_MINOR__ - 1 > 5)
                                      # error gcc < 2.7
+                                     typedef syntax error;
                                      #endif
                                    ]])],
                   [AC_MSG_RESULT(yes); HAVE_GCC27=yes],
@@ -1206,6 +1207,7 @@ HAVE_GCC30=no
 AC_MSG_CHECKING(for GCC 3.0 or higher)
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#if ! (__GNUC__ >= 3)
                                      # error gcc < 3
+                                     typedef syntax error;
                                      #endif
                                    ]])],
                   [AC_MSG_RESULT(yes); HAVE_GCC30=yes],
@@ -1311,7 +1313,7 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
         if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_ICC" = "xno" ]]; then
           DYNGEN_CC=$CXX
         else
-          for p in /usr/bin /usr/local/bin; do
+          for p in /usr/bin /usr/local/bin /usr/freeware/bin; do
             gxx="$p/g++"
             if [[ -x "$gxx" ]]; then
               DYNGEN_CC="$gxx"
@@ -1337,13 +1339,18 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
         fi
         ;;
       esac
-      if [[ "x$HAVE_GCC30" = "xyes" ]]; then
+      have_dyngen_gcc3=no
+      case "x`$DYNGEN_CC -dumpversion`" in
+      x[12].*) ;;
+      x*) have_dyngen_gcc3=yes ;;
+      esac
+      if [[ "x$have_dyngen_gcc3" = "xyes" ]]; then
         DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -falign-functions=0"
       else
         DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -malign-functions=0"
       fi
       DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -finline-functions -finline-limit=10000 -fno-exceptions -g0"
-      if [[ "x$HAVE_GCC30" = "xyes" ]]; then
+      if [[ "x$have_dyngen_gcc3" = "xyes" ]]; then
         DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -fno-reorder-blocks -fno-optimize-sibling-calls"
       fi
       if [[ "x$DYNGEN_CC" != "x$CXX" ]]; then
