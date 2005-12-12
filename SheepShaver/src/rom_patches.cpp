@@ -224,10 +224,9 @@ static uint32 rsrc_ptr = 0;
 // id = 4711 means "find any ID"
 static uint32 find_rom_resource(uint32 s_type, int16 s_id = 4711, bool cont = false)
 {
-	uint32 *lp = (uint32 *)(ROMBaseHost + 0x1a);
-	uint32 x = ntohl(*lp);
-	uint8 *bp = (uint8 *)(ROMBaseHost + x + 5);
-	uint32 header_size = *bp;
+	uint32 lp = ROM_BASE + 0x1a;
+	uint32 x = ReadMacInt32(lp);
+	uint32 header_size = ReadMacInt8(ROM_BASE + x + 5);
 
 	if (!cont)
 		rsrc_ptr = x;
@@ -235,17 +234,17 @@ static uint32 find_rom_resource(uint32 s_type, int16 s_id = 4711, bool cont = fa
 		return 0;
 
 	for (;;) {
-		lp = (uint32 *)(ROMBaseHost + rsrc_ptr);
-		rsrc_ptr = ntohl(*lp);
+		lp = ROM_BASE + rsrc_ptr;
+		rsrc_ptr = ReadMacInt32(lp);
 		if (rsrc_ptr == 0)
 			break;
 
 		rsrc_ptr += header_size;
 
-		lp = (uint32 *)(ROMBaseHost + rsrc_ptr + 4);
-		uint32 data = ntohl(*lp); lp++;
-		uint32 type = ntohl(*lp); lp++;
-		int16 id = ntohs(*(int16 *)lp);
+		lp = ROM_BASE + rsrc_ptr + 4;
+		uint32 data = ReadMacInt32(lp);
+		uint32 type = ReadMacInt32(lp + 4);
+		int16 id = ReadMacInt16(lp + 8);
 		if (type == s_type && (id == s_id || s_id == 4711))
 			return data;
 	}
@@ -259,13 +258,12 @@ static uint32 find_rom_resource(uint32 s_type, int16 s_id = 4711, bool cont = fa
 
 static uint32 find_rom_trap(uint16 trap)
 {
-	uint32 *lp = (uint32 *)(ROMBaseHost + 0x22);
-	lp = (uint32 *)(ROMBaseHost + ntohl(*lp));
+	uint32 lp = ROM_BASE + ReadMacInt32(ROM_BASE + 0x22);
 
 	if (trap > 0xa800)
-		return ntohl(lp[trap & 0x3ff]);
+		return ReadMacInt32(lp + 4 * (trap & 0x3ff));
 	else
-		return ntohl(lp[(trap & 0xff) + 0x400]);
+		return ReadMacInt32(lp + 4 * ((trap & 0xff) + 0x400));
 }
 
 
@@ -1715,11 +1713,11 @@ static bool patch_68k(void)
 	static const uint8 ext_cache_dat[] = {0x4e, 0x7b, 0x00, 0x02};
 	if ((base = find_rom_data(0x1d0, 0x230, ext_cache_dat, sizeof(ext_cache_dat))) == 0) return false;
 	D(bug("ext_cache %08lx\n", base));
-	lp = (uint32 *)(ROMBaseHost + base + 6);
-	wp = (uint16 *)(ROMBaseHost + ntohl(*lp) + base + 6);
+	loc = ReadMacInt32(ROM_BASE + base + 6);
+	wp = (uint16 *)(ROMBaseHost + loc + base + 6);
 	*wp = htons(M68K_RTS);
-	lp = (uint32 *)(ROMBaseHost + base + 12);
-	wp = (uint16 *)(ROMBaseHost + ntohl(*lp) + base + 12);
+	loc = ReadMacInt32(ROM_BASE + base + 12);
+	wp = (uint16 *)(ROMBaseHost + loc + base + 12);
 	*wp = htons(M68K_RTS);
 
 	// Fake CPU speed test (SetupTimeK)
@@ -2264,9 +2262,8 @@ static bool patch_68k(void)
 	*wp++ = htons(M68K_JMP);
 	*wp++ = htons((ROM_BASE + put_scrap) >> 16);
 	*wp++ = htons((ROM_BASE + put_scrap) & 0xffff);
-	lp = (uint32 *)(ROMBaseHost + 0x22);
-	lp = (uint32 *)(ROMBaseHost + ntohl(*lp));
-	lp[0xa9fe & 0x3ff] = htonl(PUT_SCRAP_PATCH_SPACE);
+	base = ROM_BASE + ReadMacInt32(ROM_BASE + 0x22);
+	WriteMacInt32(base + 4 * (0xa9fe & 0x3ff), PUT_SCRAP_PATCH_SPACE);
 
 	// Patch GetScrap() for clipboard exchange with host OS
 	uint32 get_scrap = find_rom_trap(0xa9fd);	// GetScrap()
@@ -2275,9 +2272,8 @@ static bool patch_68k(void)
 	*wp++ = htons(M68K_JMP);
 	*wp++ = htons((ROM_BASE + get_scrap) >> 16);
 	*wp++ = htons((ROM_BASE + get_scrap) & 0xffff);
-	lp = (uint32 *)(ROMBaseHost + 0x22);
-	lp = (uint32 *)(ROMBaseHost + ntohl(*lp));
-	lp[0xa9fd & 0x3ff] = htonl(GET_SCRAP_PATCH_SPACE);
+	base = ROM_BASE + ReadMacInt32(ROM_BASE + 0x22);
+	WriteMacInt32(base + 4 * (0xa9fd & 0x3ff), GET_SCRAP_PATCH_SPACE);
 
 	// Patch SynchIdleTime()
 	if (PrefsFindBool("idlewait")) {
