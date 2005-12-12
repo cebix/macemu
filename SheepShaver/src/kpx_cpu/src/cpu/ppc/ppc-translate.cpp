@@ -51,8 +51,12 @@ static inline bool is_read_only_memory(uintptr addr)
 }
 
 // Returns TRUE if we can directly generate a jump to the target block
+// XXX mixing front-end and back-end conditions is not a very good idea...
 static inline bool direct_chaining_possible(uint32 bpc, uint32 tpc)
 {
+#ifndef DYNGEN_FAST_DISPATCH
+	return false;
+#endif
 	return ((bpc ^ tpc) >> 12) == 0 || is_read_only_memory(tpc);
 }
 
