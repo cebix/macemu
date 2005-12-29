@@ -505,7 +505,7 @@ ether <ethernet card description>
     disable Ethernet networking.
 
   Mac OS X:
-    The "slirp" method described above nearly works.
+    The "slirp" method described above now seems to work.
 
   See the next item for an alternative way to do networking with Basilisk II.
 

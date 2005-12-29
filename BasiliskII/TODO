@@ -45,6 +45,11 @@ Unix:
 - ESD is also available on Solaris
 - display progress bar during disk file creation in prefs editor
 
+Mac OS X:
+- Sound
+- Cut and paste
+- Lots of other stuff. See src/MacOSX/ToDo.html
+
 Windows
 - main_windows.cpp: undo the SDL/DIB driver trick
 - video_windows.cpp: implement with DirectX

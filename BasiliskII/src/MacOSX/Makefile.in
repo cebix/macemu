@@ -18,6 +18,7 @@ BLESS = @BLESS@
 IDE = @IDE@
 PROJECT = @PROJECT@
 IDEARGS = @IDEARGS@
+SLIRP_SRCS = @SLIRP_SRCS@
 
 ## Files
 OBJ_DIR = build
@@ -29,7 +30,7 @@ GENEMUS = cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp \
 
 # Symlinks to, or copies of, files in other directories
 GENLINK = README.txt INSTALL.txt install-sh \
-	  Darwin config.guess config.sub \
+	  Darwin config.guess config.sub semaphore.h \
 	  sys_unix.cpp timer_unix.cpp user_strings_unix.h
 
 GEN  = $(GENEMUS) $(GENSRCS)
@@ -39,9 +40,15 @@ SRCS =  BasiliskII.icns Controller.h Controller.mm Credits.html \
 	NNThread.h NNThread.m PrefsEditor.h PrefsEditor.mm \
 	ToDo.html Versions.html \
 	audio_macosx.mm extfs_macosx.mm macos_util_macosx.h main_macosx.h \
-	main_macosx.mm misc_macosx.h misc_macosx.mm nowrite.icns prefs_macosx.cpp \
-	sysdeps.h video_macosx.mm video_macosx.h
+	main_macosx.mm misc_macosx.h misc_macosx.mm nowrite.icns \
+	prefs_macosx.cpp sysdeps.h video_macosx.mm video_macosx.h
+
+SLIRP_OBJ = $(patsubst ../slirp/%.c, build/%.o, $(SLIRP_SRCS))
+SLIRP_LIB = libslirp.a
+
 APP = $(OBJ_DIR)/BasiliskII.app
+
+DEPS = $(OBJ_DIR) $(GEN) $(SLIRP_LIB) $(SRCS)
 
 ## Rules
 
@@ -51,7 +58,7 @@ APP = $(OBJ_DIR)/BasiliskII.app
 
 all: $(APP)
 
-ide: $(OBJ_DIR) $(GEN) $(SRCS)
+ide: $(DEPS)
 	open $(PROJECT)
 
 test: $(APP)
@@ -61,7 +68,7 @@ $(OBJ_DIR)::
 	@[ -d $(OBJ_DIR) ] || mkdir $(OBJ_DIR) > /dev/null 2>&1
 
 
-$(APP): $(OBJ_DIR) $(GEN) $(SRCS)
+$(APP): $(DEPS)
 	$(IDE) -buildstyle Deployment $(IDEARGS) \
 		&& $(BLESS) $(APP)/Contents/MacOS/BasiliskII \
 		|| rm -fr $(APP)
@@ -77,6 +84,7 @@ mostlyclean:
 	rm -fr English.lproj/*~* $(OBJ_DIR)/* core* *.core *~ *.bak
 
 clean: mostlyclean
+	rm -f $(SLIRP_LIB)
 	rm -f $(GEN)
 	rm -f cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp
 
@@ -123,6 +131,13 @@ cpufast.s: cpuemu.s $(OBJ_DIR)/cpuopti
 
 cpuemu.s: cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -S $(CXXFLAGS) $< -o $@
+
+
+$(SLIRP_OBJ) : build/%.o : ../slirp/%.c
+	$(CC) -I../slirp $(CPPFLAGS) $(DEFS) $(CFLAGS) $(LDFLAGS) -c $< -o $@
+
+$(SLIRP_LIB) : $(SLIRP_OBJ)
+	libtool -static -o libslirp.a build/*.o
 
 #-------------------------------------------------------------------------
 # DO NOT DELETE THIS LINE -- make depend depends on it.

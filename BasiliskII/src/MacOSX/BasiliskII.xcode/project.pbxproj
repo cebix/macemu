@@ -142,6 +142,7 @@
 		};
 		29B97323FDCFA39411CA2CEA = {
 			children = (
+				A63638A10964120600BE2F74,
 				29B97324FDCFA39411CA2CEA,
 				A685FF0D05C4E89D00DDBA94,
 				A685FE6A05C4E87D00DDBA94,
@@ -235,13 +236,14 @@
 				GCC_ENABLE_TRIGRAPHS = NO;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_OPTIMIZATION_LEVEL = s;
-				GCC_PREPROCESSOR_DEFINITIONS = "HAVE_CONFIG_H _REENTRANT";
+				GCC_PREPROCESSOR_DEFINITIONS = "AQUA HAVE_CONFIG_H HAVE_SLIRP _REENTRANT DATADIR=\"\"";
 				GCC_WARN_ABOUT_MISSING_PROTOTYPES = NO;
 				GCC_WARN_FOUR_CHARACTER_CONSTANTS = NO;
 				GCC_WARN_UNKNOWN_PRAGMAS = NO;
-				HEADER_SEARCH_PATHS = "../include ../uae_cpu";
+				HEADER_SEARCH_PATHS = "../include ../uae_cpu ../Unix ../slirp";
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
+				LIBRARY_SEARCH_PATHS = ". /Volumes/Users/nigel/Programming/BasiliskII/BasiliskII/src/MacOSX";
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = BasiliskII;
@@ -351,7 +353,6 @@
 				A685020C05C4EF6700DDBA94,
 				A685021305C4EFDC00DDBA94,
 				A685021405C4EFDC00DDBA94,
-				A685021505C4EFDC00DDBA94,
 				A685021605C4EFDC00DDBA94,
 				A685021705C4EFDC00DDBA94,
 				A685022D05C4F04700DDBA94,
@@ -375,6 +376,7 @@
 				A685023F05C4F04700DDBA94,
 				A685024005C4F04700DDBA94,
 				A685024105C4F04700DDBA94,
+				A6C4EFBF09641353006D945B,
 			);
 			isa = PBXSourcesBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
@@ -387,6 +389,7 @@
 				A685FF0E05C4E89D00DDBA94,
 				A685FFCE05C4E8CC00DDBA94,
 				A68500CC05C4E8DE00DDBA94,
+				A63638A20964120600BE2F74,
 			);
 			isa = PBXFrameworksBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
@@ -423,6 +426,19 @@
 //A62
 //A63
 //A64
+		A63638A10964120600BE2F74 = {
+			isa = PBXFileReference;
+			lastKnownFileType = archive.ar;
+			path = libslirp.a;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
+		};
+		A63638A20964120600BE2F74 = {
+			fileRef = A63638A10964120600BE2F74;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
 		A68500CB05C4E8DE00DDBA94 = {
 			isa = PBXFileReference;
 			lastKnownFileType = wrapper.framework;
@@ -995,7 +1011,6 @@
 			children = (
 				A685020E05C4EFDC00DDBA94,
 				A685020F05C4EFDC00DDBA94,
-				A685021005C4EFDC00DDBA94,
 				A685021105C4EFDC00DDBA94,
 				A685021205C4EFDC00DDBA94,
 			);
@@ -1411,15 +1426,6 @@
 			refType = 2;
 			sourceTree = SOURCE_ROOT;
 		};
-		A685021005C4EFDC00DDBA94 = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.cpp;
-			name = ether_dummy.cpp;
-			path = ../dummy/ether_dummy.cpp;
-			refType = 2;
-			sourceTree = SOURCE_ROOT;
-		};
 		A685021105C4EFDC00DDBA94 = {
 			fileEncoding = 30;
 			isa = PBXFileReference;
@@ -1446,12 +1452,6 @@
 		};
 		A685021405C4EFDC00DDBA94 = {
 			fileRef = A685020F05C4EFDC00DDBA94;
-			isa = PBXBuildFile;
-			settings = {
-			};
-		};
-		A685021505C4EFDC00DDBA94 = {
-			fileRef = A685021005C4EFDC00DDBA94;
 			isa = PBXBuildFile;
 			settings = {
 			};
@@ -1785,6 +1785,7 @@
 		};
 		A685FDBA05C4E7D700DDBA94 = {
 			children = (
+				A6C4EFBE09641353006D945B,
 				A68501BA05C4ECDB00DDBA94,
 				A68501D905C4EE5100DDBA94,
 				A68501B305C4EC9500DDBA94,
@@ -1862,6 +1863,21 @@
 		};
 		A685FFCE05C4E8CC00DDBA94 = {
 			fileRef = A685FFCD05C4E8CC00DDBA94;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		A6C4EFBE09641353006D945B = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.cpp;
+			name = ether_unix.cpp;
+			path = ../Unix/ether_unix.cpp;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
+		};
+		A6C4EFBF09641353006D945B = {
+			fileRef = A6C4EFBE09641353006D945B;
 			isa = PBXBuildFile;
 			settings = {
 			};

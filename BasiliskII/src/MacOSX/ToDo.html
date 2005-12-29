@@ -15,6 +15,9 @@ Bugs:
 <LI>Status of 'dd' command is not always correct. (If it runs out of space,
 	an error about file not found is printed?)</LI>
 <LI>The Snapshot function is currently broken.</LI>
+<LI>The EtherNet thread doesn't seem to terminate, which means that the
+	emulation doesn't shutdown cleanly. Not sure if this is just a
+	10.3 thing, or if it is something about my NSThread classes.</LI>
 </UL>
 Untested:
 <UL>
@@ -24,7 +27,7 @@ Untested:
 Unimplemented:
 <UL>
 <LI>CD audio stuff. I am still trying to get this to work</LI>
-<LI>Ethernet</LI>
+<LI>Cut and paste between emulator and OS X</LI>
 <LI>Floppy stuff. If a floppy is mounted by the OS X Finder,
 	it is busy and cannot be opened by the emulator</LI>
 <LI>Interrupt function for emulator</LI>

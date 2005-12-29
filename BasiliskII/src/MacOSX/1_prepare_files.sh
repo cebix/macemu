@@ -6,6 +6,7 @@
 
 ln -sf ../Unix/config.guess .
 ln -sf ../Unix/config.sub   .
+ln -sf ../Unix/semaphore.h  .
 cp -pf ../Unix/sys_unix.cpp .
 cp -pf ../Unix/timer_unix.cpp .
 ln -sf ../Unix/user_strings_unix.h .
