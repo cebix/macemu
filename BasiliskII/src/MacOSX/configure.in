@@ -909,8 +909,8 @@ if [[ "x$HAVE_GCC30" = "xyes" ]]; then
   CFLAGS="$SAVED_CFLAGS"
 fi
 
-dnl Add -mdynamic-no-pic for MacOS X
-if [[ "x$HAVE_GCC30" = "xyes" ]]; then
+dnl Add -mdynamic-no-pic for MacOS X (XXX icc10 will support MacOS X)
+if [[ "x$HAVE_GCC30" = "xyes" -a "x$HAVE_ICC" = "xno" ]]; then
   SAVED_CFLAGS="$CFLAGS"
   CFLAGS="$CFLAGS -mdynamic-no-pic"
   AC_CACHE_CHECK([whether the compiler supports -mdynamic-no-pic],
@@ -1006,6 +1006,13 @@ else
   WANT_JIT_DEBUG=no
   JITSRCS=""
 fi
+
+dnl Use 33-bit memory addressing?
+if [[ "$ac_cv_have_33bit_addressing:$WANT_33BIT_ADDRESSING" = "yes:yes" ]]; then
+  use_33bit_addressing=yes
+fi
+AC_TRANSLATE_DEFINE(USE_33BIT_ADDRESSING, "$use_33bit_addressing",
+  [Define to use 33-bit memory addressing on 64-bit JIT capable systems.])
 
 dnl Utility macro used by next two tests.
 dnl AC_EXAMINE_OBJECT(C source code,
@@ -1251,6 +1258,7 @@ AC_SUBST(IDE)
 AC_SUBST(PROJECT)
 AC_SUBST(IDEARGS)
 AC_SUBST(SLIRP_SRCS)
+AC_SUBST(KEYCODES)
 dnl autoconf on 10.1 doesn't understand these
 dnl AC_CONFIG_FILES([Makefile])
 dnl AC_OUTPUT
