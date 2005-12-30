@@ -41,6 +41,9 @@ typedef char *caddr_t;
 #ifdef HAVE_SYS_BITYPES_H
 # include <sys/bitypes.h>
 #endif
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
 
 #include <sys/time.h>
 
