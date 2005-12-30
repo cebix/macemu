@@ -1071,8 +1071,8 @@
 		};
 		0193367BFFD1B98495877872 = {
 			isa = PBXFileReference;
-			name = extfs_unix.cpp;
-			path = ../Unix/extfs_unix.cpp;
+			name = ether_unix.cpp;
+			path = ../Unix/ether_unix.cpp;
 			refType = 2;
 		};
 		0193367EFFD1BA0395877872 = {
@@ -1404,9 +1404,8 @@
 //134
 		13A81DD900421B6A95877872 = {
 			isa = PBXFileReference;
-			name = nowrite.icns;
-			path = /System/Library/CoreServices/Finder.app/Contents/Resources/nowrite.icns;
-			refType = 0;
+			path = nowrite.icns;
+			refType = 2;
 		};
 		13A81DDA00421B6A95877872 = {
 			fileRef = 13A81DD900421B6A95877872;
@@ -1632,9 +1631,9 @@
 			buildSettings = {
 				DEBUGGING_SYMBOLS = NO;
 				FRAMEWORK_SEARCH_PATHS = "\"$(SYSTEM_LIBRARY_DIR)/PrivateFrameworks\" \"$(SYSTEM_LIBRARY_DIR)/Frameworks/CoreServices.framework/Versions/A/Frameworks\"";
-				HEADER_SEARCH_PATHS = "../uae_cpu ../include";
+				HEADER_SEARCH_PATHS = "../include ../uae_cpu ../Unix ../slirp";
 				INSTALL_PATH = "$(HOME)/Applications";
-				LIBRARY_SEARCH_PATHS = "";
+				LIBRARY_SEARCH_PATHS = .;
 				OTHER_CFLAGS = "-DHAVE_CONFIG_H -D_REENTRANT";
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = BasiliskII;
