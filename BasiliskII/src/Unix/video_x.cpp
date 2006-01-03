@@ -140,11 +140,12 @@ static XVisualInfo visualInfo;
 static Visual *vis;
 static int color_class;
 
+static bool x_native_byte_order;						// XImage has native byte order?
 static int rshift, rloss, gshift, gloss, bshift, bloss;	// Pixel format of DirectColor/TrueColor modes
 
 static Colormap cmap[2] = {0, 0};					// Colormaps for indexed modes (DGA needs two of them)
 
-static XColor x_palette[256];							// Color palette to be used as CLUT and gamma table
+static XColor x_palette[256];						// Color palette to be used as CLUT and gamma table
 static bool x_palette_changed = false;				// Flag: Palette changed, redraw thread must set new colors
 
 #ifdef ENABLE_FBDEV_DGA
@@ -254,9 +255,24 @@ static inline int depth_of_video_mode(video_mode const & mode)
 }
 
 // Map RGB color to pixel value (this only works in TrueColor/DirectColor visuals)
-static inline uint32 map_rgb(uint8 red, uint8 green, uint8 blue)
+static inline uint32 map_rgb(uint8 red, uint8 green, uint8 blue, bool fix_byte_order = false)
 {
-	return ((red >> rloss) << rshift) | ((green >> gloss) << gshift) | ((blue >> bloss) << bshift);
+	uint32 val = ((red >> rloss) << rshift) | ((green >> gloss) << gshift) | ((blue >> bloss) << bshift);
+	if (fix_byte_order && !x_native_byte_order) {
+		// We have to fix byte order in the ExpandMap[]
+		// NOTE: this is only an optimization since Screen_blitter_init()
+		// could be arranged to choose an NBO or OBO (with
+		// byteswapping) Blit_Expand_X_To_Y() function
+		switch (visualFormat.depth) {
+		case 15: case 16:
+			val = do_byteswap_16(val);
+			break;
+		case 24: case 32:
+			val = do_byteswap_32(val);
+			break;
+		}
+	}
+	return val;
 }
 
 // Do we have a visual for handling the specified Mac depth? If so, set the
@@ -787,18 +803,12 @@ driver_window::driver_window(X11_monitor_desc &m)
 	XDefineCursor(x_display, w, mac_cursor);
 
 	// Init blitting routines
-	bool native_byte_order;
-#ifdef WORDS_BIGENDIAN
-	native_byte_order = (XImageByteOrder(x_display) == MSBFirst);
-#else
-	native_byte_order = (XImageByteOrder(x_display) == LSBFirst);
-#endif
 #ifdef ENABLE_VOSF
-	Screen_blitter_init(visualFormat, native_byte_order, depth_of_video_mode(mode));
+	Screen_blitter_init(visualFormat, x_native_byte_order, depth_of_video_mode(mode));
 #endif
 
 	// Set frame buffer base
-	set_mac_frame_buffer(monitor, mode.depth, native_byte_order);
+	set_mac_frame_buffer(monitor, mode.depth, x_native_byte_order);
 
 	// Everything went well
 	init_ok = true;
@@ -1279,16 +1289,10 @@ driver_xf86dga::driver_xf86dga(X11_monitor_desc &m)
 	// Init blitting routines
 	int bytes_per_row = TrivialBytesPerRow((v_width + 7) & ~7, mode.depth);
 #if ENABLE_VOSF
-	bool native_byte_order;
-#ifdef WORDS_BIGENDIAN
-	native_byte_order = (XImageByteOrder(x_display) == MSBFirst);
-#else
-	native_byte_order = (XImageByteOrder(x_display) == LSBFirst);
-#endif
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 	// Screen_blitter_init() returns TRUE if VOSF is mandatory
 	// i.e. the framebuffer update function is not Blit_Copy_Raw
-	use_vosf = Screen_blitter_init(visualFormat, native_byte_order, depth_of_video_mode(mode));
+	use_vosf = Screen_blitter_init(visualFormat, x_native_byte_order, depth_of_video_mode(mode));
 	
 	if (use_vosf) {
 	  // Allocate memory for frame buffer (SIZE is extended to page-boundary)
@@ -1437,6 +1441,13 @@ bool X11_monitor_desc::video_open(void)
 		return false;
 	}
 
+	// Determine the byte order of an XImage content
+#ifdef WORDS_BIGENDIAN
+	x_native_byte_order = (XImageByteOrder(x_display) == MSBFirst);
+#else
+	x_native_byte_order = (XImageByteOrder(x_display) == LSBFirst);
+#endif
+
 	// Build up visualFormat structure
 	visualFormat.fullscreen = (display_type == DISPLAY_DGA);
 	visualFormat.depth = visualInfo.depth;
@@ -1504,7 +1515,7 @@ bool X11_monitor_desc::video_open(void)
 	// Load gray ramp to 8->16/32 expand map
 	if (!IsDirectMode(mode) && xdepth > 8)
 		for (int i=0; i<256; i++)
-			ExpandMap[i] = map_rgb(i, i, i);
+			ExpandMap[i] = map_rgb(i, i, i, true);
 #endif
 
 	// Create display driver object of requested type
@@ -1873,7 +1884,7 @@ void X11_monitor_desc::set_palette(uint8 *pal, int num_in)
 	if (!IsDirectMode(mode) && xdepth > 8) {
 		for (int i=0; i<256; i++) {
 			int c = i & (num_in-1); // If there are less than 256 colors, we repeat the first entries (this makes color expansion easier)
-			ExpandMap[i] = map_rgb(pal[c*3+0], pal[c*3+1], pal[c*3+2]);
+			ExpandMap[i] = map_rgb(pal[c*3+0], pal[c*3+1], pal[c*3+2], true);
 		}
 
 		// We have to redraw everything because the interpretation of pixel values changed
