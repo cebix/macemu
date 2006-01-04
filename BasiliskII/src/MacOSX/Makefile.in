@@ -82,6 +82,7 @@ nowrite.icns :
 
 mostlyclean:
 	rm -fr English.lproj/*~* $(OBJ_DIR)/* core* *.core *~ *.bak
+	rm -fr autom4te.cache
 
 clean: mostlyclean
 	rm -f $(SLIRP_LIB)
