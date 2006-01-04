@@ -15,9 +15,6 @@ Bugs:
 <LI>Status of 'dd' command is not always correct. (If it runs out of space,
 	an error about file not found is printed?)</LI>
 <LI>The Snapshot function is currently broken.</LI>
-<LI>The EtherNet thread doesn't seem to terminate, which means that the
-	emulation doesn't shutdown cleanly. Not sure if this is just a
-	10.3 thing, or if it is something about my NSThread classes.</LI>
 </UL>
 Untested:
 <UL>
@@ -52,4 +49,7 @@ Possible Enhancements:
 <LI>Use internal windows to display Help doco?</LI>
 <LI>Provide feedback during external commands (<I>e.g.</I> ejecting a CD or
 	creating a disk volume)
+<LI>Implement a better fix for ether_unix.cpp's EtherNet thread not terminating.
+	Not sure if this is just a 10.3 thing,
+	or if it is something about my NSThread classes</LI>
 </UL>
