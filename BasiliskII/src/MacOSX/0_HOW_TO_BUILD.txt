@@ -5,8 +5,8 @@
 
    Source now only builds on 10.2 and 10.3. On 10.1, there are a few
    compile and link errors that I just can't be bothered to fix.
-   On 10.4, there are problems with thhe way I have built libslirp.a
-   (local relocation entries in non-writable section (__TEXT,__text)).
+   On 10.4 when doing Xcode builds, there are problems with the way that
+   I have built libslirp.a. For now, do "make" instead of "make ide".
 
 
 2) Open a Terminal, and cd to BasiliskII-1.0/src/MacOSX
