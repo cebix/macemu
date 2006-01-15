@@ -440,7 +440,7 @@ AC_DEFUN(AC_CHECK_FRAMEWORK, [
     saved_LIBS="$LIBS"
     LIBS="$LIBS -framework $1"
     AC_TRY_LINK(
-      [$2], [int main(void) { return 0; }],
+      [$2], [],
       [AS_VAR_SET(ac_Framework, yes)], [AS_VAR_SET(ac_Framework, no); LIBS="$saved_LIBS"]
     )
   ])
