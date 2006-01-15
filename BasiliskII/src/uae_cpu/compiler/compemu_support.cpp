@@ -132,6 +132,10 @@ static int untranslated_compfn(const void *e1, const void *e2)
 }
 #endif
 
+#if ! USE_PUSH_POP
+static void (*m68k_do_compile_execute)(void) = NULL;
+#endif
+
 static compop_func *compfunctbl[65536];
 static compop_func *nfcompfunctbl[65536];
 static cpuop_func *nfcpufunctbl[65536];
@@ -5996,6 +6000,15 @@ static __inline__ void create_popalls(void)
   }
   vm_protect(popallspace, POPALLSPACE_SIZE, VM_PAGE_READ | VM_PAGE_WRITE);
 
+  int stack_space = STACK_OFFSET;
+  for (i=0;i<N_REGS;i++) {
+	  if (need_to_preserve[i])
+		  stack_space += sizeof(void *);
+  }
+  stack_space %= STACK_ALIGN;
+  if (stack_space)
+	  stack_space = STACK_ALIGN - stack_space;
+
   current_compile_p=popallspace;
   set_target(current_compile_p);
 #if USE_PUSH_POP
@@ -6005,6 +6018,7 @@ static __inline__ void create_popalls(void)
   */
   align_target(align_jumps);
   popall_do_nothing=get_target();
+  raw_inc_sp(stack_space);
   for (i=0;i<N_REGS;i++) {
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
@@ -6013,6 +6027,7 @@ static __inline__ void create_popalls(void)
   
   align_target(align_jumps);
   popall_execute_normal=get_target();
+  raw_inc_sp(stack_space);
   for (i=0;i<N_REGS;i++) {
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
@@ -6021,6 +6036,7 @@ static __inline__ void create_popalls(void)
 
   align_target(align_jumps);
   popall_cache_miss=get_target();
+  raw_inc_sp(stack_space);
   for (i=0;i<N_REGS;i++) {
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
@@ -6029,6 +6045,7 @@ static __inline__ void create_popalls(void)
 
   align_target(align_jumps);
   popall_recompile_block=get_target();
+  raw_inc_sp(stack_space);
   for (i=0;i<N_REGS;i++) {
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
@@ -6037,6 +6054,7 @@ static __inline__ void create_popalls(void)
 
   align_target(align_jumps);
   popall_exec_nostats=get_target();
+  raw_inc_sp(stack_space);
   for (i=0;i<N_REGS;i++) {
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
@@ -6045,6 +6063,7 @@ static __inline__ void create_popalls(void)
 
   align_target(align_jumps);
   popall_check_checksum=get_target();
+  raw_inc_sp(stack_space);
   for (i=0;i<N_REGS;i++) {
       if (need_to_preserve[i])
 	  raw_pop_l_r(i);
@@ -6071,18 +6090,20 @@ static __inline__ void create_popalls(void)
 	  raw_push_l_r(i);
   }
 #endif
+  raw_dec_sp(stack_space);
   r=REG_PC_TMP;
   raw_mov_l_rm(r,(uintptr)&regs.pc_p);
   raw_and_l_ri(r,TAGMASK);
   raw_jmp_m_indexed((uintptr)cache_tags,r,SIZEOF_VOID_P);
 
-#if defined(X86_ASSEMBLY) || defined(X86_64_ASSEMBLY)
+#if ! USE_PUSH_POP
   align_target(align_jumps);
-  m68k_compile_execute = (void (*)(void))get_target();
+  m68k_do_compile_execute = (void (*)(void))get_target();
   for (i=N_REGS;i--;) {
 	  if (need_to_preserve[i])
 		  raw_push_l_r(i);
   }
+  raw_dec_sp(stack_space);
   align_target(align_loops);
   uae_u32 dispatch_loop = (uintptr)get_target();
   r=REG_PC_TMP;
@@ -6099,6 +6120,7 @@ static __inline__ void create_popalls(void)
   raw_cmp_b_mi((uintptr)&quit_program,0);
   raw_jcc_b_oponly(NATIVE_CC_EQ);
   emit_byte(dispatch_loop-((uintptr)get_target()+1));
+  raw_inc_sp(stack_space);
   for (i=0;i<N_REGS;i++) {
 	  if (need_to_preserve[i])
 		  raw_pop_l_r(i);
@@ -7103,9 +7125,7 @@ void execute_normal(void)
 
 typedef void (*compiled_handler)(void);
 
-#if defined(X86_ASSEMBLY) || defined(X86_64_ASSEMBLY)
-void (*m68k_compile_execute)(void) = NULL;
-#else
+#if USE_PUSH_POP
 void m68k_do_compile_execute(void)
 {
 	for (;;) {
@@ -7118,3 +7138,12 @@ void m68k_do_compile_execute(void)
 	}
 }
 #endif
+
+void m68k_compile_execute (void)
+{
+    for (;;) {
+	  if (quit_program)
+		break;
+	  m68k_do_compile_execute();
+    }
+}

@@ -1357,17 +1357,6 @@ void m68k_do_execute (void)
 	}
 }
 
-#if USE_JIT && !(defined(X86_ASSEMBLY) || defined(X86_64_ASSEMBLY))
-void m68k_compile_execute (void)
-{
-    for (;;) {
-	  if (quit_program)
-		break;
-	  m68k_do_compile_execute();
-    }
-}
-#endif
-
 void m68k_execute (void)
 {
 #if USE_JIT
