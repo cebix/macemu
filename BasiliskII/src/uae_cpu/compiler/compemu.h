@@ -124,13 +124,6 @@ union cacheline {
 
 #define KILLTHERAT 1  /* Set to 1 to avoid some partial_rat_stalls */
 
-/* Whether to preserve registers across calls to JIT compiled routines */
-#if defined(X86_ASSEMBLY) || defined(X86_64_ASSEMBLY)
-#define USE_PUSH_POP 0
-#else
-#define USE_PUSH_POP 1
-#endif
-
 #if defined(__x86_64__)
 #define N_REGS 16 /* really only 15, but they are numbered 0-3,5-15 */
 #else
