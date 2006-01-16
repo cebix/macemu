@@ -11,6 +11,7 @@
 <LI> <A HREF="#install">Installing the MacOS</A> </LI>
 <LI> <A HREF="#mount">	Mounting Unix Files</A> </LI>
 <LI> <A HREF="#import">	Importing Mac Files</A> </LI>
+<LI> <A HREF="#net">	Networking</A> </LI>
 </UL>
 
 <HR>
@@ -76,17 +77,23 @@ through to MacOS 8.1 should be usable.
 although Felix also got System 6.0.8 to work with SE/30 Roms) </P>
 
 Basilisk II can currently boot from:
-<DL>
-<DT> CD-ROM </DT>
-<DD> Most (not all) MacOS Install CDs will also boot your Mac. I also think
-     that some old Norton Utilities install CDs might have booted 68k Macs </DD>
-<DT> Floppy disk image </DT>
-<DD> Jonathan C. Silverstein reports that
-     <A HREF="http://download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/English-North_American/Macintosh/Utilities/Network_Access_Disk_7.5.sea.bin">this</A></P> Apple floppy disk image will boot Basilisk II </DD>
-<DT> Preinstalled Basilisk II disk image </DT>
-<DD> Another Basilisk II user might be willing to loan you the disk image
-that they are using </DD>
-</DL>
+<TABLE BORDER=1>
+<TR>
+<TD> CD-ROM </TD>
+<TD> Most (not all) MacOS Install CDs will also boot your Mac. I also think
+     that some old Norton Utilities install CDs might have booted 68k Macs </TD>
+</TR>
+<TR>
+<TD> Floppy disk image </TD>
+<TD> Jonathan C. Silverstein reports that
+     <A HREF="http://download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/English-North_American/Macintosh/Utilities/Network_Access_Disk_7.5.sea.bin">this</A> Apple floppy disk image will boot Basilisk II </TD>
+</TR>
+<TR>
+<TD> Preinstalled Basilisk II disk image </TD>
+<TD> Another Basilisk II user might be willing to loan you the disk image
+that they are using </TD>
+</TR>
+</TABLE>
 
 <P> It is possible to use Basilisk II with a CD-ROM or floppy image, but
 because most bootable CDs have a minimal System Folder, it is better if you
@@ -95,7 +102,7 @@ tells you how to do this. </P>
 
 <P> Note that there is currently no Install CD image on Apple's Web site, but
 they do seem to have MacOS 7.5.3 floppy disk images (all 19 of them). Burning
-those images onto a CD (not in the extended format) should allow you to install
+those images onto a CD (not in the extended format) should allow you to install.
 <BR>Thanks to Attilio Farina for this tip! </P>
 
 <H2> <A NAME="install"> Installing the MacOS </A> </H2>
@@ -163,12 +170,50 @@ sub-folder instead (like '/Applications (Mac OS 9)'). </P>
 <H2> <A NAME="import">Importing Mac Files</A> </H2>
 
 <P> If you are not running MacOS 7.5.3 or newer, the above trick won't work.
-This makes getting files into Basilisk II harder. Luckily, older versions of
-Apple's "Disk Copy" utility can create a disk image file that is compatible
-with Basilisk II (<I>i.e.</I> you can add it as a disk volume).
+This makes getting files into Basilisk II harder. Luckily, Apple's 'Disk Copy'
+or 'Disk Utility' can create a disk image file that is compatible
+with Basilisk II (<I>i.e.</I> you can add it as a disk volume). </P>
 
-<P>Open 10.1's Disk Copy program, and create a "Mac Standard" image, or
-use Disk Copy 6.??? in Classic.
+<OL>
+<LI> Open 10.1's 'Disk Copy' program, and create a 'Mac Standard' image,
+<BR> or 10.3's 'Disk Utility', and create a 'read/write disk image',
+<BR> or Disk Copy 6.??? in Classic, and create new image </LI>
+<LI> If the image is not mounted, mount it </LI>
+<LI> Copy any files that you want to access in the emulator to the mounted
+     image </LI>
+<LI> Unmount the image </LI>
+<LI> In Basilisk II's preferences, go to the 'Disk Volumes' tab,
+     add your new image, and start the emulation </LI>
+</OL>
+
+A new disk should appear on the emulation's desktop which contains the files
+that you wanted to access. If the emulator complains about a disk needing to
+be formatted, you may have chosen the wrong type of image type in 'Disk Copy'
+or 'Disk Utility.'
+
+<HR>
+<H2> <A NAME="net">Networking</A> </H2>
+
+<P> If your Mac is networked, then your emulated MacOS can also access that
+network:
+<OL>
+<LI> Open Basilisk II, go to the Preferences, then the Hardware tab,
+and set the emulator's EtherNet interface to slirp </LI>
+<LI> Start the Emulator </LI>
+<LI> In the emulated MacOS, open the TCP/IP Control Panel and set:
+    <UL>
+    <LI> 'Connect via:' to EtherNet, and </LI>
+    <LI> 'Configure:' to 'Using DHCP Server' </LI>
+    </UL>
+<LI> Restart the emulation. </LI>
+</OL>
+You should now be able to surf the web, or FTP download software,
+in the emulated Mac. Not sure about AppleTalk networking, though. </P>
+
+<P> Note that this does not require the OS X Mac to be using EtherNet,
+any working TCP/IP networking should be fine. I have tested it over
+DHCP EtherNet (ADSL modem/router at home), and with a static IP
+address at work (which also has an external web proxy/firewall). </P>
 
 <HR>
 
