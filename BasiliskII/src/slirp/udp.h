@@ -46,12 +46,20 @@ extern struct socket *udp_last_so;
  * Udp protocol header.
  * Per RFC 768, September, 1981.
  */
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(1)
+#endif
+
 struct udphdr {
 	u_int16_t	uh_sport;		/* source port */
 	u_int16_t	uh_dport;		/* destination port */
 	int16_t	uh_ulen;		/* udp length */
 	u_int16_t	uh_sum;			/* udp checksum */
-};
+} PACKED__;
+
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(0)
+#endif
 
 /*
  * UDP kernel structures and variables.

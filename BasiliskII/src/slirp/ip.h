@@ -80,6 +80,10 @@ typedef u_int32_t n_long;                 /* long as received from the net */
  * pragmatically since otherwise unsigned comparisons can result
  * against negative integers quite easily, and fail in subtle ways.
  */
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(1)
+#endif
+
 struct ip {
 #ifdef WORDS_BIGENDIAN
 	u_int ip_v:4,			/* version */
@@ -99,7 +103,11 @@ struct ip {
 	u_int8_t ip_p;			/* protocol */
 	u_int16_t	ip_sum;			/* checksum */
 	struct	in_addr ip_src,ip_dst;	/* source and dest address */
-};
+} PACKED__;
+
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(0)
+#endif
 
 #define	IP_MAXPACKET	65535		/* maximum packet size */
 
@@ -143,6 +151,10 @@ struct ip {
 /*
  * Time stamp option structure.
  */
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(1)
+#endif
+
 struct	ip_timestamp {
 	u_int8_t	ipt_code;		/* IPOPT_TS */
 	u_int8_t	ipt_len;		/* size of structure (variable) */
@@ -161,7 +173,11 @@ struct	ip_timestamp {
 			n_long ipt_time;
 		} ipt_ta[1];
 	} ipt_timestamp;
-};
+} PACKED__;
+
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(0)
+#endif
 
 /* flag bits for ipt_flg */
 #define	IPOPT_TS_TSONLY		0		/* timestamps only */
@@ -208,6 +224,10 @@ typedef caddr32_t ipasfragp_32;
 /*
  * Overlay for ip header used by other protocols (tcp, udp).
  */
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(1)
+#endif
+
 struct ipovly {
 	caddr32_t	ih_next, ih_prev;	/* for protocol sequence q's */
 	u_int8_t	ih_x1;			/* (unused) */
@@ -215,7 +235,11 @@ struct ipovly {
 	int16_t	ih_len;			/* protocol length */
 	struct	in_addr ih_src;		/* source internet address */
 	struct	in_addr ih_dst;		/* destination internet address */
-};
+} PACKED__;
+
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(0)
+#endif
 
 /*
  * Ip reassembly queue structure.  Each fragment

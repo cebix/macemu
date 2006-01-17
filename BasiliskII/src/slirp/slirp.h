@@ -195,6 +195,15 @@ int inet_aton _P((const char *cp, struct in_addr *ia));
 
 #include "debug.h"
 
+#if defined __GNUC__
+#define PACKED__ __attribute__ ((packed))
+#elif defined __sgi
+#define PRAGMA_PACK_SUPPORTED 1
+#define PACKED__
+#else
+#error "Packed attribute or pragma shall be supported"
+#endif
+
 #include "ip.h"
 #include "tcp.h"
 #include "tcp_timer.h"

@@ -12,6 +12,10 @@
 
 #define TFTP_FILENAME_MAX 512
 
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(1)
+#endif
+
 struct tftp_t {
   struct ip ip;
   struct udphdr udp;
@@ -27,6 +31,10 @@ struct tftp_t {
     } tp_error;
     u_int8_t tp_buf[512 + 2];
   } x;
-};
+} PACKED__;
+
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(0)
+#endif
 
 void tftp_input(struct mbuf *m);

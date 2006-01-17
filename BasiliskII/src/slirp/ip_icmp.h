@@ -47,6 +47,10 @@ typedef u_int32_t n_time;
 /*
  * Structure of an icmp header.
  */
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(1)
+#endif
+
 struct icmp {
 	u_char	icmp_type;		/* type of message, see below */
 	u_char	icmp_code;		/* type sub code */
@@ -92,7 +96,11 @@ struct icmp {
 #define	icmp_ip		icmp_dun.id_ip.idi_ip
 #define	icmp_mask	icmp_dun.id_mask
 #define	icmp_data	icmp_dun.id_data
-};
+} PACKED__;
+
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(0)
+#endif
 
 /*
  * Lower bounds on packet lengths for various types.

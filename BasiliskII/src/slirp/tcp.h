@@ -53,6 +53,10 @@ extern struct socket *tcp_last_so;
  * TCP header.
  * Per RFC 793, September, 1981.
  */
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(1)
+#endif
+
 struct tcphdr {
 	u_int16_t	th_sport;		/* source port */
 	u_int16_t	th_dport;		/* destination port */
@@ -75,7 +79,11 @@ struct tcphdr {
 	u_int16_t	th_win;			/* window */
 	u_int16_t	th_sum;			/* checksum */
 	u_int16_t	th_urp;			/* urgent pointer */
-};
+} PACKED__;
+
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(0)
+#endif
 
 #include "tcp_var.h"
 
