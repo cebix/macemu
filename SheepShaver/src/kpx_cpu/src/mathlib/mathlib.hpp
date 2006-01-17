@@ -134,6 +134,9 @@ extern "C" float roundf(float x);
 #ifdef HAVE_ROUND
 extern "C" double round(double x);
 #define roundf(x) (float)round(x)
+#else
+extern float mathlib_roundf(float);
+#define roundf(x) mathlib_roundf(x)
 #endif
 #endif
 

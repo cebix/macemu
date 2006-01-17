@@ -51,6 +51,14 @@ do {											\
 	(i) = gf_u.word;							\
 } while (0)
 
+// Set a float from a 32 bit int
+#define SET_FLOAT_WORD(d,i)						\
+do {											\
+  ieee_float_shape_type sf_u;					\
+  sf_u.word = (i);								\
+  (d) = sf_u.value;								\
+} while (0)
+
 
 /**
  *		Representation of an IEEE 754 double
@@ -183,4 +191,48 @@ int mathlib_signbit (double x)
 int mathlib_signbitl(long double x)
 {
 	unimplemented("signbitl");
+}
+
+
+/**
+ *		7.12.9.6  The round functions
+ **/
+
+float mathlib_roundf(float x)
+{
+	int32 i0, j0;
+	static const float huge = 1.0e30;
+
+	GET_FLOAT_WORD (i0, x);
+	j0 = ((i0 >> 23) & 0xff) - 0x7f;
+	if (j0 < 23) {
+		if (j0 < 0) {
+			if (huge + x > 0.0F) {
+				i0 &= 0x80000000;
+				if (j0 == -1)
+					i0 |= 0x3f800000;
+			}
+		}
+		else {
+			u_int32_t i = 0x007fffff >> j0;
+			if ((i0 & i) == 0)
+				/* X is integral.  */
+				return x;
+			if (huge + x > 0.0F) {
+				/* Raise inexact if x != 0.  */
+				i0 += 0x00400000 >> j0;
+				i0 &= ~i;
+			}
+		}
+    }
+	else {
+		if (j0 == 0x80)
+			/* Inf or NaN.  */
+			return x + x;
+		else
+			return x;
+    }
+
+	SET_FLOAT_WORD (x, i0);
+	return x;
 }
