@@ -23,6 +23,10 @@
 #include "cpu/ppc/ppc-instructions.hpp"
 #include "cpu/ppc/ppc-operands.hpp"
 
+#if PPC_ENABLE_JIT
+#include "cpu/jit/dyngen-exec.h"
+#endif
+
 #ifdef SHEEPSHAVER
 #include "cpu_emulation.h"
 #endif
