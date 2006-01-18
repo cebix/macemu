@@ -599,7 +599,8 @@ int main(int argc, char **argv)
 			{ 0xffff0000, 0x00350000, "Power4" },
 			{ 0xffff0000, 0x00390000, "PPC970" },
 			{ 0xffff0000, 0x003c0000, "PPC970FX" },
-			{ 0xffff0000, 0x003a0000, "POWER5" },
+			{ 0xffff0000, 0x003a0000, "POWER5 (gr)" },
+			{ 0xffff0000, 0x003b0000, "POWER5 (gs)" },
 			{ 0, 0, 0 }
 		};
 
