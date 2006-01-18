@@ -34,7 +34,12 @@
 #endif
 
 /* Dispatch arch dependent header */
+#define _JIT_CONCAT4(a,b,c,d) a##b##c##d
+#if defined(__GNUC__)
 #define _JIT_MAKE_HEADER(arch,header) <cpu/jit/arch/header>
+#else
+#define _JIT_MAKE_HEADER(arch,header) _JIT_CONCAT4(<cpu/jit/,arch,/,header>)
+#endif
 #if defined(__x86_64__)
 #include _JIT_MAKE_HEADER(amd64,_JIT_HEADER)
 #elif defined(__i386__)
@@ -46,6 +51,7 @@
 #else
 #error "Unknown architecture, please submit bug report"
 #endif
+#undef _JIT_CONCAT4
 #undef _JIT_MAKE_HEADER
 #undef _JIT_HEADER
 
