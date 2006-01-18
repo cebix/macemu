@@ -39,7 +39,7 @@
 #include _JIT_MAKE_HEADER(amd64,_JIT_HEADER)
 #elif defined(__i386__)
 #include _JIT_MAKE_HEADER(x86,_JIT_HEADER)
-#elif defined(__powerpc__)
+#elif defined(__powerpc__) || defined(__ppc__)
 #include _JIT_MAKE_HEADER(ppc,_JIT_HEADER)
 #elif defined(__mips__) || (defined __sgi && defined __mips)
 #include _JIT_MAKE_HEADER(mips,_JIT_HEADER)
