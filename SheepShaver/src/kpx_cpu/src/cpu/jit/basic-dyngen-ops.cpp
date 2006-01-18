@@ -346,7 +346,20 @@ void OPPROTO op_jmp_A0(void)
 }
 
 // Register calling conventions based arches don't need a stack frame
-#if defined(__powerpc__) || defined(__x86_64__)
+#if (defined __APPLE__ && defined __MACH__) && defined __ppc__
+#define DEFINE_OP(NAME, CODE)									\
+static void OPPROTO impl_##NAME(void) __attribute__((used));	\
+void OPPROTO impl_##NAME(void)									\
+{																\
+	asm volatile (#NAME ":");									\
+	CODE;														\
+	FORCE_RET();												\
+	asm volatile ("." #NAME ":");								\
+	asm volatile (ASM_SIZE(NAME));								\
+}																\
+extern void OPPROTO NAME(void) __attribute__((weak_import));	\
+asm(".set  helper_" #NAME "," #NAME);
+#elif defined(__powerpc__) || defined(__x86_64__)
 #define DEFINE_OP(NAME, CODE)									\
 static void OPPROTO impl_##NAME(void) __attribute__((used));	\
 void OPPROTO impl_##NAME(void)									\
