@@ -45,6 +45,7 @@ SRCS = ../main.cpp main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp 
 	../user_strings.cpp user_strings_unix.cpp sshpty.c strlcpy.c \
     $(SYSSRCS) $(CPUSRCS) $(SLIRP_SRCS)
 APP = BasiliskII
+APP_APP = $(APP).app
 
 ## Rules
 .PHONY: modules install installdirs uninstall mostlyclean clean distclean depend dep
@@ -70,6 +71,16 @@ VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(S
 $(APP)$(EXEEXT): $(OBJ_DIR) $(OBJS)
 	$(CXX) -o $(APP)$(EXEEXT) $(LDFLAGS) $(OBJS) $(LIBS)
 	$(BLESS) $(APP)$(EXEEXT)
+
+$(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
+	mkdir -p $(APP_APP)/Contents
+	cp -f ../MacOSX/Info.plist $(APP_APP)/Contents/
+	echo -n 'APPL????' > $(APP_APP)/Contents/PkgInfo
+	mkdir -p $(APP_APP)/Contents/MacOS
+	cp -f $(APP) $(APP_APP)/Contents/MacOS/
+	strip $(APP_APP)/Contents/MacOS/$(APP)
+	mkdir -p $(APP_APP)/Contents/Resources
+	cp -f ../MacOSX/$(APP).icns $(APP_APP)/Contents/Resources/
 
 modules:
 	cd Linux/NetDriver; make
