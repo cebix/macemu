@@ -20,6 +20,19 @@
 
 #include "sysdeps.h"
 
+/*
+ *  NOTES concerning MacOS X issues:
+ *  - poll() does not exist in 10.2.8, but is available in 10.4.4
+ *  - select(), and very likely poll(), are not cancellation points. So
+ *    the ethernet thread doesn't stop on exit. An explicit check is
+ *    performed to workaround this problem.
+ */
+#if (defined __APPLE__ && defined __MACH__) || ! defined HAVE_POLL
+#define USE_POLL 0
+#else
+#define USE_POLL 1
+#endif
+
 #ifdef HAVE_SYS_POLL_H
 #include <sys/poll.h>
 #endif
@@ -815,7 +828,7 @@ static void *receive_func(void *arg)
 	for (;;) {
 
 		// Wait for packets to arrive
-#if HAVE_POLL
+#if USE_POLL
 		struct pollfd pf = {fd, POLLIN, 0};
 		int res = poll(&pf, 1, -1);
 #else
