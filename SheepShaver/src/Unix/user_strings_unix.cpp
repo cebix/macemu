@@ -26,9 +26,9 @@
 user_string_def platform_strings[] = {
 	// Common strings that have a platform-specific variant
 	{STR_VOLUME_IS_MOUNTED_WARN, "The volume '%s' is mounted under Linux. Basilisk II will try to unmount it."},
-	{STR_EXTFS_CTRL, "Linux Root"},
-	{STR_EXTFS_NAME, "Linux Directory Tree"},
-	{STR_EXTFS_VOLUME_NAME, "Linux"},
+	{STR_EXTFS_CTRL, "Unix Root"},
+	{STR_EXTFS_NAME, "Unix Directory Tree"},
+	{STR_EXTFS_VOLUME_NAME, "Unix"},
 
 	// Purely platform-specific strings
 	{STR_NO_DEV_ZERO_ERR, "Cannot open /dev/zero: %s."},
