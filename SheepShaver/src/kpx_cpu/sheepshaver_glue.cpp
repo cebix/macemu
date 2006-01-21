@@ -826,6 +826,7 @@ void exit_emul_ppc(void)
 #endif
 
 	delete ppc_cpu;
+	ppc_cpu = NULL;
 }
 
 #if PPC_ENABLE_JIT && PPC_REENTRANT_JIT
