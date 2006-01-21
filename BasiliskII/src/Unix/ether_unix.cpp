@@ -180,12 +180,7 @@ static void stop_thread(void)
 #ifdef HAVE_PTHREAD_CANCEL
 		pthread_cancel(ether_thread);
 #endif
-#ifdef AQUA
-		// This call, which waits for ether_thread to terminate,
-		// never returns when used in Nigel's OS X port.
-#else
 		pthread_join(ether_thread, NULL);
-#endif
 		sem_destroy(&int_ack);
 		thread_active = false;
 	}
