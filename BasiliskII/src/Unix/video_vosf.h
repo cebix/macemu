@@ -31,6 +31,9 @@
 #endif
 
 // Glue for SDL and X11 support
+#ifdef TEST_VOSF_PERFORMANCE
+#define MONITOR_INIT			/* nothing */
+#else
 #ifdef USE_SDL_VIDEO
 #define MONITOR_INIT			SDL_monitor_desc &monitor
 #define VIDEO_DRV_WIN_INIT		driver_window *drv
@@ -65,6 +68,7 @@
 #define VIDEO_DRV_WIDTH			VIDEO_DRV_IMAGE->width
 #define VIDEO_DRV_HEIGHT		VIDEO_DRV_IMAGE->height
 #define VIDEO_DRV_ROW_BYTES		VIDEO_DRV_IMAGE->bytes_per_line
+#endif
 #endif
 
 // Variables for Video on SEGV support
@@ -385,6 +389,7 @@ There are two cases to check:
 	than pageCount.
 */
 
+#ifndef TEST_VOSF_PERFORMANCE
 static void update_display_window_vosf(VIDEO_DRV_WIN_INIT)
 {
 	VIDEO_MODE_INIT;
@@ -431,6 +436,7 @@ static void update_display_window_vosf(VIDEO_DRV_WIN_INIT)
 	}
 	mainBuffer.dirty = false;
 }
+#endif
 
 
 /*
@@ -438,6 +444,7 @@ static void update_display_window_vosf(VIDEO_DRV_WIN_INIT)
  *	(only in Real or Direct Addressing mode)
  */
 
+#ifndef TEST_VOSF_PERFORMANCE
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 {
@@ -572,6 +579,7 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 	}
 	mainBuffer.dirty = false;
 }
+#endif
 #endif
 
 #endif /* ENABLE_VOSF */
