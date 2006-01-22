@@ -599,12 +599,19 @@ if (ret != KERN_SUCCESS) { \
 #define SIGSEGV_REGISTER_FILE			(unsigned long *)&state->srr0, (unsigned long *)&state->r0
 #endif
 #ifdef __i386__
+#ifdef i386_SAVED_STATE
 #define SIGSEGV_THREAD_STATE_TYPE		struct i386_saved_state
 #define SIGSEGV_THREAD_STATE_FLAVOR		i386_SAVED_STATE
 #define SIGSEGV_THREAD_STATE_COUNT		i386_SAVED_STATE_COUNT
+#define SIGSEGV_REGISTER_FILE			((unsigned long *)&state->edi) /* EDI is the first GPR we consider */
+#else
+#define SIGSEGV_THREAD_STATE_TYPE		struct i386_thread_state
+#define SIGSEGV_THREAD_STATE_FLAVOR		i386_THREAD_STATE
+#define SIGSEGV_THREAD_STATE_COUNT		i386_THREAD_STATE_COUNT
+#define SIGSEGV_REGISTER_FILE			((unsigned long *)&state->eax) /* EAX is the first GPR we consider */
+#endif
 #define SIGSEGV_FAULT_INSTRUCTION		state->eip
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
-#define SIGSEGV_REGISTER_FILE			((unsigned long *)&state->edi) /* EDI is the first GPR we consider */
 #endif
 #define SIGSEGV_FAULT_ADDRESS			code[1]
 #define SIGSEGV_FAULT_HANDLER_INVOKE(ADDR, IP)	((code[0] == KERN_PROTECTION_FAILURE) ? sigsegv_fault_handler(ADDR, IP) : SIGSEGV_RETURN_FAILURE)
@@ -766,8 +773,9 @@ enum {
 };
 #endif
 #if defined(__APPLE__) && defined(__MACH__)
-// expected to be the same as FreeBSD
 enum {
+#ifdef i386_SAVED_STATE
+	// same as FreeBSD (in Open Darwin 8.0.1)
 	X86_REG_EIP = 10,
 	X86_REG_EAX = 7,
 	X86_REG_ECX = 6,
@@ -777,6 +785,18 @@ enum {
 	X86_REG_EBP = 2,
 	X86_REG_ESI = 1,
 	X86_REG_EDI = 0
+#else
+	// new layout (MacOS X 10.4.4 for x86)
+	X86_REG_EIP = 10,
+	X86_REG_EAX = 0,
+	X86_REG_ECX = 2,
+	X86_REG_EDX = 4,
+	X86_REG_EBX = 1,
+	X86_REG_ESP = 7,
+	X86_REG_EBP = 6,
+	X86_REG_ESI = 5,
+	X86_REG_EDI = 4
+#endif
 };
 #endif
 #if defined(_WIN32)
@@ -1650,7 +1670,7 @@ forward_exception(mach_port_t thread_port,
 	mach_port_t port;
 	exception_behavior_t behavior;
 	thread_state_flavor_t flavor;
-	thread_state_t thread_state;
+	thread_state_data_t thread_state;
 	mach_msg_type_number_t thread_state_count;
 
 	for (portIndex = 0; portIndex < oldExceptionPorts->maskCount; portIndex++) {
