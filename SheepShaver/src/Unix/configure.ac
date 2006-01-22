@@ -1328,7 +1328,7 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
     if [[ "x$ac_cv_use_dyngen" = "xyes" ]]; then
       case $host_cpu in
       i?86)
-        DYNGEN_OP_FLAGS="-fomit-frame-pointer -mpreferred-stack-boundary=2"
+        DYNGEN_OP_FLAGS="-fomit-frame-pointer"
         ;;
       mips)
         DYNGEN_OP_FLAGS="-fno-delayed-branch -mno-abicalls"
