@@ -274,24 +274,26 @@ void OPPROTO op_execute(uint8 *entry_point, basic_cpu *this_cpu)
 {
 	typedef void (*func_t)(void);
 	func_t func = (func_t)entry_point;
+	const int n_slots = 16 + 6; /* 16 stack slots + 6 VCPU registers */
+	volatile uintptr stk[n_slots];
 #ifdef REG_CPU
-	volatile uintptr saved_CPU = (uintptr)CPU;
+	stk[n_slots - 1] = (uintptr)CPU;
 	CPU = this_cpu;
 #endif
 #ifdef REG_A0
-	volatile uintptr saved_A0 = reg_A0;
+	stk[n_slots - 2] = reg_A0;
 #endif
 #ifdef REG_T0
-	volatile uintptr saved_T0 = reg_T0;
+	stk[n_slots - 3] = reg_T0;
 #endif
 #ifdef REG_T1
-	volatile uintptr saved_T1 = reg_T1;
+	stk[n_slots - 4] = reg_T1;
 #endif
 #ifdef REG_T2
-	volatile uintptr saved_T2 = reg_T2;
+	stk[n_slots - 5] = reg_T2;
 #endif
 #ifdef REG_T3
-	volatile uintptr saved_T3 = reg_T3;
+	stk[n_slots - 6] = reg_T3;
 #endif
 	SLOW_DISPATCH(entry_point);
 	func(); // NOTE: never called, fake to make compiler save return point
@@ -307,22 +309,22 @@ void OPPROTO op_execute(uint8 *entry_point, basic_cpu *this_cpu)
 	asm volatile ("1:");
 #endif
 #ifdef REG_T3
-	reg_T3 = saved_T3;
+	reg_T3 = stk[n_slots - 6];
 #endif
 #ifdef REG_T2
-	reg_T2 = saved_T2;
+	reg_T2 = stk[n_slots - 5];
 #endif
 #ifdef REG_T1
-	reg_T1 = saved_T1;
+	reg_T1 = stk[n_slots - 4];
 #endif
 #ifdef REG_T0
-	reg_T0 = saved_T0;
+	reg_T0 = stk[n_slots - 3];
 #endif
 #ifdef REG_A0
-	reg_A0 = saved_A0;
+	reg_A0 = stk[n_slots - 2];
 #endif
 #ifdef REG_CPU
-	CPU = (basic_cpu *)saved_CPU;
+	CPU = (basic_cpu *)stk[n_slots - 1];
 #endif
 }
 
@@ -346,7 +348,8 @@ void OPPROTO op_jmp_A0(void)
 }
 
 // Register calling conventions based arches don't need a stack frame
-#if (defined __APPLE__ && defined __MACH__) && defined __ppc__
+// XXX enable on x86 too because we allocated a frame in op_execute()
+#if (defined __APPLE__ && defined __MACH__)
 #define DEFINE_OP(NAME, CODE)									\
 static void OPPROTO impl_##NAME(void) __attribute__((used));	\
 void OPPROTO impl_##NAME(void)									\
