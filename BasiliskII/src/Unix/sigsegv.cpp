@@ -1354,7 +1354,7 @@ static bool sparc_skip_instruction(unsigned long * regs, gwindows_t * gwins, str
 	break;
   case 7: // Store Doubleword
 	transfer_type = SIGSEGV_TRANSFER_STORE;
-	transfer_size = SIZE_WORD;
+	transfer_size = SIZE_LONG;
 	register_pair = true;
 	break;
   }
@@ -1364,33 +1364,7 @@ static bool sparc_skip_instruction(unsigned long * regs, gwindows_t * gwins, str
 	return false;
   }
 
-  // Zero target register in case of a load operation
   const int reg = (opcode >> 25) & 0x1f;
-  if (transfer_type == SIGSEGV_TRANSFER_LOAD && reg != 0) {
-	// FIXME: code to handle local & input registers is not tested
-	if (reg >= 1 && reg <= 7) {
-	  // global registers
-	  regs[reg - 1 + SPARC_REG_G1] = 0;
-	}
-	else if (reg >= 8 && reg <= 15) {
-	  // output registers
-	  regs[reg - 8 + SPARC_REG_O0] = 0;
-	}
-	else if (reg >= 16 && reg <= 23) {
-	  // local registers (in register windows)
-	  if (gwins)
-		gwins->wbuf->rw_local[reg - 16] = 0;
-	  else
-		rwin->rw_local[reg - 16] = 0;
-	}
-	else {
-	  // input registers (in register windows)
-	  if (gwins)
-		gwins->wbuf->rw_in[reg - 24] = 0;
-	  else
-		rwin->rw_in[reg - 24] = 0;
-	}
-  }
 
 #if DEBUG
   static const char * reg_names[] = {
@@ -1407,6 +1381,52 @@ static bool sparc_skip_instruction(unsigned long * regs, gwindows_t * gwins, str
 		 transfer_type == SIGSEGV_TRANSFER_LOAD ? "load to" : "store from",
 		 reg_names[reg]);
 #endif
+
+  // Zero target register in case of a load operation
+  if (transfer_type == SIGSEGV_TRANSFER_LOAD && reg != 0) {
+#if defined(__sun__)
+	/*
+	 *  NOTE: special trampoline code to zero out the target register
+	 *  - The code is not reentrant
+	 *  - The ABI specifies that data below %sp is undefined, can we
+	 *    really write to it in that case?
+	 */
+	static unsigned int code[4];
+	if (sizeof(void *) == 8)
+	  code[0] = 0xc05bbff8|(reg << 25);	// ldx	[%sp - 8], %reg
+	else
+	  code[0] = 0xc003bff8|(reg << 25);	// ld	[%sp - 8], %reg
+	code[1] = 0x81c00000|(reg << 14);	// jmpl	%reg
+	code[2] = 0x80102000|(reg << 25);	// clr	%reg
+	*((unsigned long *)regs[SPARC_REG_O0 + 6]) = regs[SPARC_REG_PC] + 4;
+	regs[SPARC_REG_PC] = (unsigned long)code;
+	return true;
+#else
+	// FIXME: code to handle local & input registers is not tested
+	if (reg >= 1 && reg < 8) {
+	  // global registers
+	  regs[reg - 1 + SPARC_REG_G1] = 0;
+	}
+	else if (reg >= 8 && reg < 16) {
+	  // output registers
+	  regs[reg - 8 + SPARC_REG_O0] = 0;
+	}
+	else if (reg >= 16 && reg < 24) {
+	  // local registers (in register windows)
+	  if (gwins)
+		gwins->wbuf->rw_local[reg - 16] = 0;
+	  else
+		rwin->rw_local[reg - 16] = 0;
+	}
+	else {
+	  // input registers (in register windows)
+	  if (gwins)
+		gwins->wbuf->rw_in[reg - 24] = 0;
+	  else
+		rwin->rw_in[reg - 24] = 0;
+	}
+#endif
+  }
 
   regs[SPARC_REG_PC] += 4;
   return true;
