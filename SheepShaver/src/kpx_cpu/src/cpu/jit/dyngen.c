@@ -1475,8 +1475,9 @@ int load_object(const char *filename, FILE *outfile)
     data_sec_hdr = find_mach_sec_hdr(section_hdr, segment->nsects, SEG_DATA, SECT_DATA);
     i = find_mach_sec_index(section_hdr, segment->nsects, SEG_DATA, SECT_DATA);
     if (i == -1 || !data_sec_hdr)
-        error("could not find __DATA,__data section");
-    data = sdata[i];
+        data = NULL;
+    else
+        data = sdata[i];
 	
     /* text section */
 	text_sec_hdr = find_mach_sec_hdr(section_hdr, segment->nsects, SEG_TEXT, SECT_TEXT);
