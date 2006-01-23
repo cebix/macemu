@@ -1291,6 +1291,7 @@ enum {
   SPARC_REG_G1 = REG_G1,
   SPARC_REG_O0 = REG_O0,
   SPARC_REG_PC = REG_PC,
+  SPARC_REG_nPC = REG_nPC
 #endif
 };
 static bool sparc_skip_instruction(unsigned long * regs, gwindows_t * gwins, struct rwindow * rwin)
@@ -1384,24 +1385,6 @@ static bool sparc_skip_instruction(unsigned long * regs, gwindows_t * gwins, str
 
   // Zero target register in case of a load operation
   if (transfer_type == SIGSEGV_TRANSFER_LOAD && reg != 0) {
-#if defined(__sun__)
-	/*
-	 *  NOTE: special trampoline code to zero out the target register
-	 *  - The code is not reentrant
-	 *  - The ABI specifies that data below %sp is undefined, can we
-	 *    really write to it in that case?
-	 */
-	static unsigned int code[4];
-	if (sizeof(void *) == 8)
-	  code[0] = 0xc05bbff8|(reg << 25);	// ldx	[%sp - 8], %reg
-	else
-	  code[0] = 0xc003bff8|(reg << 25);	// ld	[%sp - 8], %reg
-	code[1] = 0x81c00000|(reg << 14);	// jmpl	%reg
-	code[2] = 0x80102000|(reg << 25);	// clr	%reg
-	*((unsigned long *)regs[SPARC_REG_O0 + 6]) = regs[SPARC_REG_PC] + 4;
-	regs[SPARC_REG_PC] = (unsigned long)code;
-	return true;
-#else
 	// FIXME: code to handle local & input registers is not tested
 	if (reg >= 1 && reg < 8) {
 	  // global registers
@@ -1425,10 +1408,10 @@ static bool sparc_skip_instruction(unsigned long * regs, gwindows_t * gwins, str
 	  else
 		rwin->rw_in[reg - 24] = 0;
 	}
-#endif
   }
 
   regs[SPARC_REG_PC] += 4;
+  regs[SPARC_REG_nPC] += 4;
   return true;
 }
 #endif
