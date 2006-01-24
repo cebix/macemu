@@ -432,6 +432,30 @@ AC_CHECK_FILE([/dev/ptc],
 )
 dnl (end of code from openssh-3.2.2p1 configure.ac)
 
+dnl Check for systems where POSIX-style non-blocking I/O (O_NONBLOCK)
+dnl doesn't work or is unimplemented. On these systems (mostly older
+dnl ones), use the old BSD-style FIONBIO approach instead. [tcl.m4]
+AC_CACHE_CHECK([FIONBIO vs. O_NONBLOCK for non-blocking I/O],
+  ac_cv_nonblocking_io, [
+  case "$host" in
+  *-*-osf*)
+    ac_cv_nonblocking_io=FIONBIO
+    ;;
+  *-*-sunos4*)
+    ac_cv_nonblocking_io=FIONBIO
+    ;;
+  *-*-ultrix*)
+    ac_cv_nonblocking_io=FIONBIO
+    ;;
+  *)
+    ac_cv_nonblocking_io=O_NONBLOCK
+    ;;
+  esac
+])
+if [[ "$ac_cv_nonblocking_io" = "FIONBIO" ]]; then
+  AC_DEFINE(USE_FIONBIO, 1, [Define if BSD-style non-blocking I/O is to be used])
+fi
+
 dnl AC_CHECK_FRAMEWORK($1=NAME, $2=INCLUDES)
 AC_DEFUN(AC_CHECK_FRAMEWORK, [
   AS_VAR_PUSHDEF([ac_Framework], [ac_cv_framework_$1])dnl
