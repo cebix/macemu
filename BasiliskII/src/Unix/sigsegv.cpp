@@ -1698,7 +1698,7 @@ forward_exception(mach_port_t thread_port,
 
 	if (behavior != EXCEPTION_DEFAULT) {
 		thread_state_count = THREAD_STATE_MAX;
-		kret = thread_get_state (thread_port, flavor, thread_state,
+		kret = thread_get_state (thread_port, flavor, (natural_t *)&thread_state,
 								 &thread_state_count);
 		MACH_CHECK_ERROR (thread_get_state, kret);
 	}
@@ -1714,8 +1714,8 @@ forward_exception(mach_port_t thread_port,
 	  // fprintf(stderr, "forwarding to exception_raise_state\n");
 	  kret = exception_raise_state(port, exception_type, exception_data,
 								   data_count, &flavor,
-								   thread_state, thread_state_count,
-								   thread_state, &thread_state_count);
+								   (natural_t *)&thread_state, thread_state_count,
+								   (natural_t *)&thread_state, &thread_state_count);
 	  MACH_CHECK_ERROR (exception_raise_state, kret);
 	  break;
 	case EXCEPTION_STATE_IDENTITY:
@@ -1723,8 +1723,8 @@ forward_exception(mach_port_t thread_port,
 	  kret = exception_raise_state_identity(port, thread_port, task_port,
 											exception_type, exception_data,
 											data_count, &flavor,
-											thread_state, thread_state_count,
-											thread_state, &thread_state_count);
+											(natural_t *)&thread_state, thread_state_count,
+											(natural_t *)&thread_state, &thread_state_count);
 	  MACH_CHECK_ERROR (exception_raise_state_identity, kret);
 	  break;
 	default:
@@ -1733,7 +1733,7 @@ forward_exception(mach_port_t thread_port,
 	}
 
 	if (behavior != EXCEPTION_DEFAULT) {
-		kret = thread_set_state (thread_port, flavor, thread_state,
+		kret = thread_set_state (thread_port, flavor, (natural_t *)&thread_state,
 								 thread_state_count);
 		MACH_CHECK_ERROR (thread_set_state, kret);
 	}
