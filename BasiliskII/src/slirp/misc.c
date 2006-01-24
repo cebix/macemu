@@ -821,7 +821,7 @@ void
 fd_nonblock(fd)
 	int fd;
 {
-#ifdef FIONBIO
+#if defined USE_FIONBIO && defined FIONBIO
 	int opt = 1;
 	
 	ioctlsocket(fd, FIONBIO, &opt);
@@ -838,7 +838,7 @@ void
 fd_block(fd)
 	int fd;
 {
-#ifdef FIONBIO
+#if defined USE_FIONBIO && defined FIONBIO
 	int opt = 0;
 	
 	ioctlsocket(fd, FIONBIO, &opt);

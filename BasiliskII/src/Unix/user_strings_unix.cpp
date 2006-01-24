@@ -46,6 +46,7 @@ user_string_def platform_strings[] = {
 	{STR_TIMER_SETTIME_ERR, "Cannot start timer (%s)."},
 	{STR_TICK_THREAD_ERR, "Cannot create 60Hz thread (%s)."},
 
+	{STR_BLOCKING_NET_SOCKET_WARN, "Cannot set non-blocking I/O to net socket (%s). Ethernet will not be available."},
 	{STR_NO_SHEEP_NET_DRIVER_WARN, "Cannot open %s (%s). Ethernet will not be available."},
 	{STR_SHEEP_NET_ATTACH_WARN, "Cannot attach to Ethernet card (%s). Ethernet will not be available."},
 	{STR_TUN_TAP_CONFIG_WARN, "Cannot configure TUN/TAP device (%s). Ethernet will not be available."},

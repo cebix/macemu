@@ -333,7 +333,20 @@ bool ether_init(void)
 #endif
 
 	// Set nonblocking I/O
-	ioctl(fd, FIONBIO, &nonblock);
+#ifdef USE_FIONBIO
+	if (ioctl(fd, FIONBIO, &nonblock) < 0) {
+		sprintf(str, GetString(STR_BLOCKING_NET_SOCKET_WARN), strerror(errno));
+		WarningAlert(str);
+		goto open_error;
+	}
+#else
+	int val = fcntl(fd, F_GETFL, 0);
+	if (val < 0 || fcntl(fd, F_SETFL, val | O_NONBLOCK) < 0) {
+		sprintf(str, GetString(STR_BLOCKING_NET_SOCKET_WARN), strerror(errno));
+		WarningAlert(str);
+		goto open_error;
+	}
+#endif
 
 	// Get Ethernet address
 	if (net_if_type == NET_IF_ETHERTAP) {
