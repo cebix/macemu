@@ -49,6 +49,7 @@ user_string_def platform_strings[] = {
 	{STR_NO_XVISUAL_ERR, "Cannot obtain appropriate X visual."},
 	{STR_UNSUPP_DEPTH_ERR, "Unsupported color depth of screen."},
 	{STR_PROC_CPUINFO_WARN, "Cannot open /proc/cpuinfo (%s). Assuming 100MHz PowerPC 604."},
+	{STR_BLOCKING_NET_SOCKET_WARN, "Cannot set non-blocking I/O to net socket (%s). Ethernet will not be available."},
 	{STR_NO_SHEEP_NET_DRIVER_WARN, "Cannot open %s (%s). Ethernet will not be available."},
 	{STR_SHEEP_NET_ATTACH_WARN, "Cannot attach to Ethernet card (%s). Ethernet will not be available."},
 	{STR_TUN_TAP_CONFIG_WARN, "Cannot configure TUN/TAP device (%s). Ethernet will not be available."},
