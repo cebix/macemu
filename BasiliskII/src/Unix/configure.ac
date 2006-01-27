@@ -446,6 +446,35 @@ if [[ "$ac_cv_nonblocking_io" = "FIONBIO" ]]; then
   AC_DEFINE(USE_FIONBIO, 1, [Define if BSD-style non-blocking I/O is to be used])
 fi
 
+dnl Check whether compiler supports byte bit-fields
+AC_CACHE_CHECK([whether compiler supports byte bit-fields],
+  ac_cv_have_byte_bitfields, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    struct A {
+      unsigned char b1:4;
+      unsigned char b2:4;
+      unsigned char c;
+      unsigned short s;
+      unsigned char a[4];
+    };
+
+    int main(void) {
+      A a;
+      return ! (sizeof(A) == 8 && &a.c == ((unsigned char *)&a + 1));
+    }],
+    [ac_cv_have_byte_bitfields=yes],
+    [ac_cv_have_byte_bitfields=no],
+    dnl When cross-compiling, assume only GCC supports this
+    [if [[ "$GCC" = "yes" ]]; then
+      ac_cv_have_byte_bitfields="guessing yes"
+    else
+      ac_cv_have_byte_bitfields="guessing no"
+    fi]
+    )
+  AC_LANG_RESTORE
+])
 
 dnl AC_CHECK_FRAMEWORK($1=NAME, $2=INCLUDES)
 AC_DEFUN([AC_CHECK_FRAMEWORK], [
@@ -516,7 +545,6 @@ solaris*)
   DEFINES="$DEFINES -DBSD_COMP -D_POSIX_PTHREAD_SEMANTICS"
   ;;
 irix*)
-  ETHERSRC=ether_unix.cpp
   AUDIOSRC=Irix/audio_irix.cpp
   EXTRASYSSRCS=Irix/unaligned.c
   LIBS="$LIBS -laudio"
@@ -549,6 +577,11 @@ cygwin*)
 esac
 
 dnl Is the slirp library supported?
+case "$ac_cv_have_byte_bitfields" in
+yes|"guessing yes")
+  ETHERSRC=ether_unix.cpp
+  ;;
+esac
 if [[ "x$ETHERSRC" = "xether_unix.cpp" ]]; then
   AC_DEFINE(HAVE_SLIRP, 1, [Define if slirp library is supported])
   SLIRP_SRCS="\
