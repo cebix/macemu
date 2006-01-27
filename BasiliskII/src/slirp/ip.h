@@ -86,10 +86,10 @@ typedef u_int32_t n_long;                 /* long as received from the net */
 
 struct ip {
 #ifdef WORDS_BIGENDIAN
-	u_int ip_v:4,			/* version */
+	u_char ip_v:4,			/* version */
 		ip_hl:4;		/* header length */
 #else
-	u_int ip_hl:4,		/* header length */
+	u_char ip_hl:4,		/* header length */
 		ip_v:4;			/* version */
 #endif
 	u_int8_t ip_tos;			/* type of service */
@@ -160,10 +160,10 @@ struct	ip_timestamp {
 	u_int8_t	ipt_len;		/* size of structure (variable) */
 	u_int8_t	ipt_ptr;		/* index of current entry */
 #ifdef WORDS_BIGENDIAN
-	u_int	ipt_oflw:4,		/* overflow counter */
+	u_char	ipt_oflw:4,		/* overflow counter */
 		ipt_flg:4;		/* flags, see below */
 #else
-	u_int	ipt_flg:4,		/* flags, see below */
+	u_char	ipt_flg:4,		/* flags, see below */
 		ipt_oflw:4;		/* overflow counter */
 #endif
 	union ipt_timestamp {
@@ -265,10 +265,10 @@ struct ipq {
  */
 struct	ipasfrag {
 #ifdef WORDS_BIGENDIAN
-	u_int	ip_v:4,
+	u_char	ip_v:4,
  		ip_hl:4;
 #else
-	u_int	ip_hl:4,
+	u_char	ip_hl:4,
 		ip_v:4;
 #endif
                                         /* BUG : u_int changed to u_int8_t.

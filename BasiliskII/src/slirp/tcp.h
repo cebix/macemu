@@ -63,10 +63,10 @@ struct tcphdr {
 	tcp_seq	th_seq;			/* sequence number */
 	tcp_seq	th_ack;			/* acknowledgement number */
 #ifdef WORDS_BIGENDIAN
-	u_int	th_off:4,		/* data offset */
+	u_char	th_off:4,		/* data offset */
 		th_x2:4;		/* (unused) */
 #else
-	u_int	th_x2:4,		/* (unused) */
+	u_char	th_x2:4,		/* (unused) */
 		th_off:4;		/* data offset */
 #endif
 	u_int8_t	th_flags;
