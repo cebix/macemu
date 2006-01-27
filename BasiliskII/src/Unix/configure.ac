@@ -579,10 +579,11 @@ esac
 dnl Is the slirp library supported?
 case "$ac_cv_have_byte_bitfields" in
 yes|"guessing yes")
+  CAN_SLIRP=yes
   ETHERSRC=ether_unix.cpp
   ;;
 esac
-if [[ "x$ETHERSRC" = "xether_unix.cpp" ]]; then
+if [[ -n "$CAN_SLIRP" ]]; then
   AC_DEFINE(HAVE_SLIRP, 1, [Define if slirp library is supported])
   SLIRP_SRCS="\
     ../slirp/bootp.c     ../slirp/ip_output.c  ../slirp/tcp_input.c  \
