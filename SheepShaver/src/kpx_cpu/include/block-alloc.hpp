@@ -32,7 +32,7 @@ template< class data >
 struct slow_allocator
 {
 	data * acquire() const { return new data; }
-	void release(data * const x) const { free(x); }
+	void release(data * const x) const { delete x; }
 };
 
 /**
@@ -77,7 +77,7 @@ lazy_allocator<data>::~lazy_allocator()
 	while (p) {
 		pool * d = p;
 		p = p->next;
-		free(d);
+		delete d;
 	}
 }
 
@@ -87,7 +87,7 @@ data * lazy_allocator<data>::acquire()
 	if (!chunks) {
 		// There is no chunk left, allocate a new pool and link the
 		// chunks into the free list
-		pool * p = (pool *)malloc(sizeof(pool));
+		pool * p = new pool;
 		for (chunk * c = &p->chunks[0]; c < &p->chunks[pool_count]; c++) {
 			c->next = chunks;
 			chunks = c;
