@@ -34,7 +34,7 @@ class powerpc_dyngen
 {
 	// Code generators for PowerPC synthetic instructions
 #ifndef NO_DEFINE_ALIAS
-#	define DEFINE_GEN(NAME,ARGS) void NAME ARGS;
+#	define DEFINE_GEN(NAME,RET,ARGS) RET NAME ARGS;
 #	include "ppc-dyngen-ops.hpp"
 #endif
 

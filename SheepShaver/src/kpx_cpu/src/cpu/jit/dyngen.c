@@ -546,7 +546,7 @@ static char *gen_dot_prefix(const char *sym_name)
 {
   static char name[256];
   assert(sym_name[0] == '.');
-  snprintf(name, sizeof(name), "dg_dot_%s", sym_name + 1);
+  snprintf(name, sizeof(name), "dot_%s", sym_name + 1);
   return name;
 }
 
@@ -861,23 +861,25 @@ int load_object(const char *filename, FILE *outfile)
             name = get_sym_name(sym);
             /* emit local symbols */
             if (strstart(name, ".LC", NULL)) {
-                if (sym->st_shndx == (rodata_cst16_sec - shdr)) {
-                    fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
-                    print_data(outfile, gen_dot_prefix(name), rodata_cst16 + sym->st_value, 16);
-                    fprintf(outfile, "#endif\n");
-                }
-                else if (sym->st_shndx == (rodata_cst8_sec - shdr)) {
-                    fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
-                    print_data(outfile, gen_dot_prefix(name), rodata_cst8 + sym->st_value, 8);
-                    fprintf(outfile, "#endif\n");
-                }
-                else if (sym->st_shndx == (rodata_cst4_sec - shdr)) {
-                    fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
-                    print_data(outfile, gen_dot_prefix(name), rodata_cst4 + sym->st_value, 4);
-                    fprintf(outfile, "#endif\n");
-                }
+                const char *dot_name = gen_dot_prefix(name);
+                fprintf(outfile, "DEFINE_GEN(gen_const_%s,uint8 *,(void))\n", dot_name);
+                fprintf(outfile, "#ifdef DYNGEN_IMPL\n");
+                fprintf(outfile, "{\n");
+                int dot_size = 0;
+                if (sym->st_shndx == (rodata_cst16_sec - shdr))
+                    print_data(outfile, dot_name, rodata_cst16 + sym->st_value, (dot_size = 16));
+                else if (sym->st_shndx == (rodata_cst8_sec - shdr))
+                    print_data(outfile, dot_name, rodata_cst8 + sym->st_value,  (dot_size = 8));
+                else if (sym->st_shndx == (rodata_cst4_sec - shdr))
+                    print_data(outfile, dot_name, rodata_cst4 + sym->st_value,  (dot_size = 4));
                 else
                     error("invalid section for local data %s (%x)\n", name, sym->st_shndx);
+                fprintf(outfile, "    static uint8 *data_p = NULL;\n");
+                fprintf(outfile, "    if (data_p == NULL)\n");
+                fprintf(outfile, "        data_p = copy_data(%s, %d);\n", dot_name, dot_size);
+                fprintf(outfile, "    return data_p;\n");
+                fprintf(outfile, "}\n");
+                fprintf(outfile, "#endif\n");
             }
         }
     }
@@ -1899,7 +1901,7 @@ void gen_code(const char *name, const char *demangled_name,
         if (prefix && strstr(func_name, prefix) == func_name)
           func_name += strlen(prefix);
 
-        fprintf(outfile, "DEFINE_GEN(gen_%s,(", func_name);
+        fprintf(outfile, "DEFINE_GEN(gen_%s,void,(", func_name);
         if (nb_args == 0) {
             fprintf(outfile, "void");
         } else {
@@ -2181,7 +2183,7 @@ void gen_code(const char *name, const char *demangled_name,
                     if (strstart(sym_name, "__op_param", &p))
                         snprintf(name, sizeof(name), "param%s", p);
                     else if (strstart(sym_name, ".LC", NULL))
-                        snprintf(name, sizeof(name), "(long)(%s)", gen_dot_prefix(sym_name));
+                        snprintf(name, sizeof(name), "(long)(gen_const_%s())", gen_dot_prefix(sym_name));
                     else
                         snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
                     type = ELF32_R_TYPE(rel->r_info);

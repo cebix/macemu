@@ -69,7 +69,7 @@ class basic_dyngen
 
 	// Generic code generators
 #	define DEFINE_CST(NAME,VALUE) static const unsigned long NAME = VALUE;
-#	define DEFINE_GEN(NAME,ARGS) void NAME ARGS;
+#	define DEFINE_GEN(NAME,RET,ARGS) RET NAME ARGS;
 #	include "basic-dyngen-ops.hpp"
 
 public:

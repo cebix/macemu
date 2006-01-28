@@ -47,7 +47,7 @@ static uint8 *g_translation_cache_end_p;
 #endif
 
 basic_jit_cache::basic_jit_cache(int init_cache_size)
-	: tcode_start(NULL), code_start(NULL), code_p(NULL), code_end(NULL)
+	: tcode_start(NULL), code_start(NULL), code_p(NULL), code_end(NULL), data(NULL)
 {
 	init_translation_cache(init_cache_size);
 }
@@ -55,6 +55,15 @@ basic_jit_cache::basic_jit_cache(int init_cache_size)
 basic_jit_cache::~basic_jit_cache()
 {
 	kill_translation_cache();
+
+	// Release data pool
+	data_chunk_t *p = data;
+	while (p) {
+		data_chunk_t *d = p;
+		p = p->next;
+		D(bug("basic_jit_cache: Release data pool %p (%d KB)\n", d, d->size / 1024));
+		vm_release(d, d->size);
+	}
 }
 
 bool
@@ -120,4 +129,40 @@ basic_jit_cache::kill_translation_cache()
 		D(bug("basic_jit_cache: Release translation cache\n"));
 		vm_release(tcode_start, cache_size);
 	}
+}
+
+uint8 *
+basic_jit_cache::copy_data(const uint8 *block, uint32 size)
+{
+	const int ALIGN = 16;
+	uint8 *ptr;
+
+	if (data && (data->offs + size) < data->size)
+		ptr = (uint8 *)data + data->offs;
+	else {
+		// No free space left, allocate a new chunk
+		uint32 to_alloc = sizeof(*data) + size + ALIGN;
+		uint32 page_size = vm_get_page_size();
+		to_alloc = (to_alloc + page_size - 1) & -page_size;
+
+		D(bug("basic_jit_cache: Allocate data pool (%d KB)\n", to_alloc / 1024));
+		ptr = (uint8 *)vm_acquire(to_alloc, VM_MAP_PRIVATE | VM_MAP_32BIT);
+		if (ptr == VM_MAP_FAILED) {
+			fprintf(stderr, "FATAL: Could not allocate data pool!\n");
+			abort();
+		}
+
+		data_chunk_t *dcp = (data_chunk_t *)ptr;
+		dcp->size = to_alloc;
+		dcp->offs = (sizeof(*data) + ALIGN - 1) & -ALIGN;
+		dcp->next = data;
+		data = dcp;
+
+		ptr += dcp->offs;
+	}
+
+	memcpy(ptr, block, size);
+	data->offs += (size + ALIGN - 1) & -ALIGN;
+	D(bug("basic_jit_cache: DATA %p, %d bytes [data=%p, offs=%u]\n", ptr, size, data, data->offs));
+	return ptr;
 }

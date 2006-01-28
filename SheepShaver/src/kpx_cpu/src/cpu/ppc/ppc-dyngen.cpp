@@ -27,7 +27,7 @@
 #include <stdlib.h>
 
 #define DYNGEN_IMPL 1
-#define DEFINE_GEN(NAME,ARGS) void powerpc_dyngen::NAME ARGS
+#define DEFINE_GEN(NAME,RET,ARGS) RET powerpc_dyngen::NAME ARGS
 #include "ppc-dyngen-ops.hpp"
 
 

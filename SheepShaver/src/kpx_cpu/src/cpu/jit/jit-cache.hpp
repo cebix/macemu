@@ -37,6 +37,14 @@ class basic_jit_cache
 	uint8 *code_p;
 	uint8 *code_end;
 
+	// Data pool (32-bit addressable)
+	struct data_chunk_t {
+		uint32 size;
+		uint32 offs;
+		data_chunk_t *next;
+	};
+	data_chunk_t *data;
+
 protected:
 
 	// Initialize translation cache
@@ -72,6 +80,9 @@ public:
 	void emit_ptr(uintptr v)	{ emit_generic<uintptr>(v); }
 	void copy_block(const uint8 *block, uint32 size);
 	void emit_block(const uint8 *block, uint32 size);
+
+	// Emit data to constant pool
+	uint8 *copy_data(const uint8 *block, uint32 size);
 };
 
 inline void

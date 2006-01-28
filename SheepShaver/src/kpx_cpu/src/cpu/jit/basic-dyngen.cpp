@@ -25,7 +25,7 @@ int __op_param1, __op_param2, __op_param3;
 int __op_jmp0, __op_jmp1;
 
 #define DYNGEN_IMPL 1
-#define DEFINE_GEN(NAME,ARGS) void basic_dyngen::NAME ARGS
+#define DEFINE_GEN(NAME,RET,ARGS) RET basic_dyngen::NAME ARGS
 #include "basic-dyngen-ops.hpp"
 
 basic_dyngen::basic_dyngen(dyngen_cpu_base cpu, int cache_size)
