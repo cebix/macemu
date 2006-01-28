@@ -22,6 +22,7 @@
 #define BASIC_CPU_H
 
 #include "sysdeps.h"
+#include <setjmp.h>
 #include "task-plugin.hpp"
 
 /**
@@ -61,9 +62,10 @@ struct basic_cpu
 	};
 
 	// Constructor & destructor
-	basic_cpu(task_struct * parent_task) : task_plugin(parent_task) { }
+	basic_cpu(task_struct * parent_task);
+	virtual ~basic_cpu();
 
-	// Start emulation loop
+	// Execute code at current address
 	virtual void execute() = 0;
 
 	// Set VALUE to register ID
@@ -71,6 +73,16 @@ struct basic_cpu
 
 	// Get register ID
 	virtual any_register get_register(int id) = 0;
+
+	// Start emulation, returns exit status
+	int run();
+
+	// Stop emulation
+	void exit(int status);
+
+private:
+	jmp_buf env;
+	int exit_status;
 };
 
 // Alias basic register set
