@@ -903,20 +903,11 @@ void powerpc_cpu::execute_fp_round(uint32 opcode)
 void powerpc_cpu::execute_syscall(uint32 opcode)
 {
 #ifdef SHEEPSHAVER
-	D(bug("syscall\n"));
-	increment_pc(4);
+	execute_illegal(opcode);
 #else
-	try {
-		cr().set_so(0, execute_do_syscall && !execute_do_syscall(this));
-		increment_pc(4);
-	}
-	catch (kernel_syscall_exit & sc_exit) {
-		// FIXME: add unwind info to the translation cache? Otherwise
-		// we have to manually forward the exception to execution loop
-		syscall_exit_code = sc_exit.status;
-		spcflags().set(SPCFLAG_CPU_EXEC_RETURN);
-	}
+	cr().set_so(0, execute_do_syscall && !execute_do_syscall(this));
 #endif
+	increment_pc(4);
 }
 
 /**

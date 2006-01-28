@@ -47,4 +47,7 @@ public:
 	program_info * program() const;
 };
 
+// Get out of specified task
+extern void task_exit(task_plugin *task, int status);
+
 #endif /* TASK_PLUGIN_H */

@@ -264,7 +264,6 @@ void powerpc_cpu::initialize()
 
 	// Init syscalls handler
 	execute_do_syscall = NULL;
-	syscall_exit_code = -1;
 
 	// Init field2mask
 	for (int i = 0; i < 256; i++) {
@@ -493,12 +492,6 @@ bool powerpc_cpu::check_spcflags()
 {
 	if (spcflags().test(SPCFLAG_CPU_EXEC_RETURN)) {
 		spcflags().clear(SPCFLAG_CPU_EXEC_RETURN);
-#ifndef SHEEPSHAVER
-		// FIXME: add unwind info to the translation cache? Otherwise
-		// we have to manually handle the exit syscall here
-		if (syscall_exit_code >= 0)
-			throw kernel_syscall_exit(syscall_exit_code);
-#endif
 		return false;
 	}
 #ifdef SHEEPSHAVER

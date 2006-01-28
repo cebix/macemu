@@ -238,7 +238,6 @@ private:
 	// Syscall callback must return TRUE if no error occurred
 	typedef bool (*syscall_fn)(powerpc_cpu *cpu);
 	syscall_fn execute_do_syscall;
-	int syscall_exit_code;
 
 	static const instr_info_t powerpc_ii_table[];
 	std::vector<instr_info_t> ii_table;
