@@ -52,6 +52,11 @@
 #define R14_INDEX 14
 #define R15_INDEX 15
 #endif
+/* XXX this has to match X86_Reg8H_Base + 4 */
+#define AH_INDEX (0x10+4+EAX_INDEX)
+#define CH_INDEX (0x10+4+ECX_INDEX)
+#define DH_INDEX (0x10+4+EDX_INDEX)
+#define BH_INDEX (0x10+4+EBX_INDEX)
 
 /* The register in which subroutines return an integer return value */
 #define REG_RESULT EAX_INDEX
@@ -2414,7 +2419,7 @@ LENDFUNC(NONE,READ,2,raw_mov_w_rm,(W2 d, IMM s))
 LOWFUNC(NONE,WRITE,2,raw_mov_b_mr,(IMM d, R1 s))
 {
     emit_byte(0x88);
-    emit_byte(0x05+8*s);
+    emit_byte(0x05+8*(s&0xf)); /* XXX this handles %ah case (defined as 0x10+4) and others */
     emit_long(d);
 }
 LENDFUNC(NONE,WRITE,2,raw_mov_b_mr,(IMM d, R1 s))
@@ -3221,7 +3226,6 @@ static __inline__ void raw_emit_nop_filler(int nbytes)
 #ifdef SAHF_SETO_PROFITABLE
 
 #define FLAG_NREG1 0  /* Set to -1 if any register will do */
-
 static __inline__ void raw_flags_to_reg(int r)
 {
   raw_lahf(0);  /* Most flags in AH */
@@ -3230,7 +3234,7 @@ static __inline__ void raw_flags_to_reg(int r)
   
 #if 1   /* Let's avoid those nasty partial register stalls */
   //raw_mov_b_mr((uintptr)live.state[FLAGTMP].mem,r);
-  raw_mov_b_mr(((uintptr)live.state[FLAGTMP].mem)+1,r+4);
+  raw_mov_b_mr(((uintptr)live.state[FLAGTMP].mem)+1,AH_INDEX);
   //live.state[FLAGTMP].status=CLEAN;
   live.state[FLAGTMP].status=INMEM;
   live.state[FLAGTMP].realreg=-1;
