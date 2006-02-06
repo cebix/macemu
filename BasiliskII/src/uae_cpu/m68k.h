@@ -219,11 +219,18 @@ static __inline__ int cctrue(int cc)
     return 0;
 }
 
+/* Manually emit LAHF instruction so that 64-bit assemblers can grok it */
+#if defined __x86_64__ && defined __GNUC__
+#define ASM_LAHF ".byte 0x9f"
+#else
+#define ASM_LAHF "lahf"
+#endif
+
 /* Is there any way to do this without declaring *all* memory clobbered?
    I.e. any way to tell gcc that some byte-sized value is in %al? */
 #define optflag_testl(v) \
   __asm__ __volatile__ ("andl %0,%0\n\t" \
-			"lahf\n\t" \
+			ASM_LAHF "\n\t" \
 			"seto %%al\n\t" \
 			"movb %%al,regflags\n\t" \
 			"movb %%ah,regflags+1\n\t" \
@@ -231,7 +238,7 @@ static __inline__ int cctrue(int cc)
 
 #define optflag_testw(v) \
   __asm__ __volatile__ ("andw %w0,%w0\n\t" \
-			"lahf\n\t" \
+			ASM_LAHF "\n\t" \
 			"seto %%al\n\t" \
 			"movb %%al,regflags\n\t" \
 			"movb %%ah,regflags+1\n\t" \
@@ -239,7 +246,7 @@ static __inline__ int cctrue(int cc)
 
 #define optflag_testb(v) \
   __asm__ __volatile__ ("andb %b0,%b0\n\t" \
-			"lahf\n\t" \
+			ASM_LAHF "\n\t" \
 			"seto %%al\n\t" \
 			"movb %%al,regflags\n\t" \
 			"movb %%ah,regflags+1\n\t" \
@@ -247,7 +254,7 @@ static __inline__ int cctrue(int cc)
 
 #define optflag_addl(v, s, d) do { \
   __asm__ __volatile__ ("addl %k1,%k0\n\t" \
-			"lahf\n\t" \
+			ASM_LAHF "\n\t" \
 			"seto %%al\n\t" \
 			"movb %%al,regflags\n\t" \
 			"movb %%ah,regflags+1\n\t" \
@@ -257,7 +264,7 @@ static __inline__ int cctrue(int cc)
 
 #define optflag_addw(v, s, d) do { \
   __asm__ __volatile__ ("addw %w1,%w0\n\t" \
-			"lahf\n\t" \
+			ASM_LAHF "\n\t" \
 			"seto %%al\n\t" \
 			"movb %%al,regflags\n\t" \
 			"movb %%ah,regflags+1\n\t" \
@@ -267,7 +274,7 @@ static __inline__ int cctrue(int cc)
 
 #define optflag_addb(v, s, d) do { \
   __asm__ __volatile__ ("addb %b1,%b0\n\t" \
-			"lahf\n\t" \
+			ASM_LAHF "\n\t" \
 			"seto %%al\n\t" \
 			"movb %%al,regflags\n\t" \
 			"movb %%ah,regflags+1\n\t" \
@@ -277,7 +284,7 @@ static __inline__ int cctrue(int cc)
 
 #define optflag_subl(v, s, d) do { \
   __asm__ __volatile__ ("subl %k1,%k0\n\t" \
-			"lahf\n\t" \
+			ASM_LAHF "\n\t" \
 			"seto %%al\n\t" \
 			"movb %%al,regflags\n\t" \
 			"movb %%ah,regflags+1\n\t" \
@@ -287,7 +294,7 @@ static __inline__ int cctrue(int cc)
 
 #define optflag_subw(v, s, d) do { \
   __asm__ __volatile__ ("subw %w1,%w0\n\t" \
-			"lahf\n\t" \
+			ASM_LAHF "\n\t" \
 			"seto %%al\n\t" \
 			"movb %%al,regflags\n\t" \
 			"movb %%ah,regflags+1\n\t" \
@@ -297,7 +304,7 @@ static __inline__ int cctrue(int cc)
 
 #define optflag_subb(v, s, d) do { \
    __asm__ __volatile__ ("subb %b1,%b0\n\t" \
-			"lahf\n\t" \
+			ASM_LAHF "\n\t" \
 			"seto %%al\n\t" \
 			"movb %%al,regflags\n\t" \
 			"movb %%ah,regflags+1\n\t" \
@@ -307,7 +314,7 @@ static __inline__ int cctrue(int cc)
 
 #define optflag_cmpl(s, d) \
   __asm__ __volatile__ ("cmpl %k0,%k1\n\t" \
-			"lahf\n\t" \
+			ASM_LAHF "\n\t" \
 			"seto %%al\n\t" \
 			"movb %%al,regflags\n\t" \
 			"movb %%ah,regflags+1\n\t" \
@@ -315,7 +322,7 @@ static __inline__ int cctrue(int cc)
 
 #define optflag_cmpw(s, d) \
   __asm__ __volatile__ ("cmpw %w0,%w1\n\t" \
-			"lahf\n\t" \
+			ASM_LAHF "\n\t" \
 			"seto %%al\n\t" \
 			"movb %%al,regflags\n\t" \
 			"movb %%ah,regflags+1\n\t" \
@@ -323,7 +330,7 @@ static __inline__ int cctrue(int cc)
 
 #define optflag_cmpb(s, d) \
   __asm__ __volatile__ ("cmpb %b0,%b1\n\t" \
-			"lahf\n\t" \
+			ASM_LAHF "\n\t" \
 			"seto %%al\n\t" \
 			"movb %%al,regflags\n\t" \
 			"movb %%ah,regflags+1\n\t" \
