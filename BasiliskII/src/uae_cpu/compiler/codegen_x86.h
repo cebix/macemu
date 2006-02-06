@@ -201,7 +201,7 @@ enum {
 #else
 #define _rN(R)		((R) & 0x07)
 #define _rR(R)		(int(R))
-#define _rXP(R)		(int(R) > 7)
+#define _rXP(R)		(_rR(R) > 7 && _rR(R) < 16)
 #endif
 
 #if !defined(_ASM_SAFETY) || ! X86_FLAT_REGISTERS
@@ -248,10 +248,10 @@ typedef unsigned int	_ul;
 #define _SL(X)		((_sl  )(unsigned long)(X))
 #define _UL(X)		((_ul  )(unsigned long)(X))
 
-# define _PUC(X)	((_uc *)(X))
-# define _PUS(X)	((_us *)(X))
-# define _PSL(X)	((_sl *)(X))
-# define _PUL(X)	((_ul *)(X))
+#define _PUC(X)		((_uc *)(X))
+#define _PUS(X)		((_us *)(X))
+#define _PSL(X)		((_sl *)(X))
+#define _PUL(X)		((_ul *)(X))
 
 #define _B(B)		x86_emit_byte((B))
 #define _W(W)		x86_emit_word((W))
@@ -1617,8 +1617,8 @@ enum {
 #define CDQ				CLTD
 #define CQO				CQTO
 
-#define LAHF()				_m32only(			_O		(0x9f								))
-#define SAHF()				_m32only(			_O		(0x9e								))
+#define LAHF()								_O		(0x9f								)
+#define SAHF()								_O		(0x9e								)
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
