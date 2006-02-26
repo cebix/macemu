@@ -274,8 +274,6 @@ void * vm_acquire(size_t size, int options)
 
 		if (ftruncate(fd, size) < 0)
 			return VM_MAP_FAILED;
-
-		the_map_flags |= MAP_SHARED;
 	}
 #endif
 
@@ -344,14 +342,44 @@ int vm_acquire_fixed(void * addr, size_t size, int options)
 		return -1;
 #else
 #ifdef HAVE_MMAP_VM
-	const int extra_map_flags = translate_map_flags(options);
+	int fd = zero_fd;
+	int the_map_flags = translate_map_flags(options) | map_flags | MAP_FIXED;
 
-	if (mmap((caddr_t)addr, size, VM_PAGE_DEFAULT, extra_map_flags | map_flags | MAP_FIXED, zero_fd, 0) == (void *)MAP_FAILED)
+#ifdef USE_33BIT_ADDRESSING
+	const char *shm_file = NULL;
+	if (sizeof(void *) == 8 && (options & VM_MAP_33BIT)) {
+		the_map_flags &= ~(MAP_PRIVATE | MAP_ANON | MAP_ANONYMOUS);
+		the_map_flags |= MAP_SHARED;
+
+		if ((shm_file = build_shm_filename()) == NULL)
+			return -1;
+
+		if ((fd = shm_open(shm_file, O_RDWR | O_CREAT | O_EXCL, 0644)) < 0)
+			return -1;
+
+		if (ftruncate(fd, size) < 0)
+			return -1;
+	}
+#endif
+
+	if (mmap((caddr_t)addr, size, VM_PAGE_DEFAULT, the_map_flags, fd, 0) == (void *)MAP_FAILED)
 		return -1;
 	
 	// Since I don't know the standard behavior of mmap(), zero-fill here
 	if (memset(addr, 0, size) != addr)
 		return -1;
+
+	// Remap to 33-bit space
+#ifdef USE_33BIT_ADDRESSING
+	if (sizeof(void *) == 8 && (options & VM_MAP_33BIT)) {
+		if (!add_shm_range(strdup(shm_file), addr, size))
+			return -1;
+
+		if (mmap((char *)addr + (1L << 32), size, VM_PAGE_DEFAULT, the_map_flags, fd, 0) == (void *)MAP_FAILED)
+			return -1;
+		close(fd);
+	}
+#endif
 #else
 #ifdef HAVE_WIN32_VM
 	// Windows cannot allocate Low Memory
