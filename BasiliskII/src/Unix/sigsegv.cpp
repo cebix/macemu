@@ -2091,6 +2091,13 @@ static int page_size;
 static volatile char * page = 0;
 static volatile int handler_called = 0;
 
+/* Barriers */
+#ifdef __GNUC__
+#define BARRIER() asm volatile ("" : : : "memory")
+#else
+#define BARRIER() /* nothing */
+#endif
+
 #ifdef __GNUC__
 // Code range where we expect the fault to come from
 static void *b_region, *e_region;
@@ -2225,6 +2232,7 @@ int main(void)
 	if (page[REF_INDEX] != REF_VALUE)
 	  exit(20);
 	page[REF_INDEX] = REF_VALUE;
+	BARRIER();
  L_e_region1:
 
 	if (handler_called != 1)
@@ -2265,6 +2273,7 @@ int main(void)
 	TEST_SKIP_INSTRUCTION(signed short);
 	TEST_SKIP_INSTRUCTION(signed int);
 	TEST_SKIP_INSTRUCTION(signed long);
+	BARRIER();
  L_e_region2:
 
 	if (!arch_insn_skipper_tests())
