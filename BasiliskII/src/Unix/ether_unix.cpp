@@ -222,7 +222,7 @@ static bool execute_network_script(const char *action)
 
 bool ether_init(void)
 {
-	int nonblock = 1;
+	int val, nonblock = 1;
 	char str[256];
 
 	// Do nothing if no Ethernet device specified
@@ -340,7 +340,7 @@ bool ether_init(void)
 		goto open_error;
 	}
 #else
-	int val = fcntl(fd, F_GETFL, 0);
+	val = fcntl(fd, F_GETFL, 0);
 	if (val < 0 || fcntl(fd, F_SETFL, val | O_NONBLOCK) < 0) {
 		sprintf(str, GetString(STR_BLOCKING_NET_SOCKET_WARN), strerror(errno));
 		WarningAlert(str);
