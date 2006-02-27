@@ -229,11 +229,23 @@ char *strdup(const char *s)
 void *vm_acquire_mac(size_t size)
 {
 	void *m = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_33BIT);
-	if (m == NULL) {
+	if (m == VM_MAP_FAILED) {
+		printf("WARNING: Cannot acquire memory in 33-bit address space (%s)\n", strerror(errno));
 		ThirtyThreeBitAddressing = false;
 		m = vm_acquire(size);
 	}
 	return m;
+}
+
+static int vm_acquire_mac_fixed(void *addr, size_t size)
+{
+	int ret = vm_acquire_fixed(addr, size, VM_MAP_DEFAULT | VM_MAP_33BIT);
+	if (ret < 0) {
+		printf("WARNING: Cannot acquire fixed memory in 33-bit address space (%s)\n", strerror(errno));
+		ThirtyThreeBitAddressing = false;
+		ret = vm_acquire_fixed(addr, size);
+	}
+	return ret;
 }
 
 
@@ -520,27 +532,33 @@ int main(int argc, char **argv)
 	// Initialize VM system
 	vm_init();
 
+#ifdef USE_33BIT_ADDRESSING
+	// Speculatively enables 33-bit addressing
+	ThirtyThreeBitAddressing = true;
+#endif
+
 #if REAL_ADDRESSING
 	// Flag: RAM and ROM are contigously allocated from address 0
 	bool memory_mapped_from_zero = false;
-	
-	// Under Solaris/SPARC and NetBSD/m68k, Basilisk II is known to crash
-	// when trying to map a too big chunk of memory starting at address 0
-#if defined(OS_solaris) || defined(OS_netbsd) || defined(PAGEZERO_HACK)
-	const bool can_map_all_memory = false;
-#else
+
+	// Make sure to map RAM & ROM at address 0 only on platforms that
+	// supports linker scripts to relocate the Basilisk II executable
+	// above 0x70000000
+#if HAVE_LINKER_SCRIPT
 	const bool can_map_all_memory = true;
+#else
+	const bool can_map_all_memory = false;
 #endif
 	
 	// Try to allocate all memory from 0x0000, if it is not known to crash
-	if (can_map_all_memory && (vm_acquire_fixed(0, RAMSize + 0x100000) == 0)) {
+	if (can_map_all_memory && (vm_acquire_mac_fixed(0, RAMSize + 0x100000) == 0)) {
 		D(bug("Could allocate RAM and ROM from 0x0000\n"));
 		memory_mapped_from_zero = true;
 	}
 	
 #ifndef PAGEZERO_HACK
 	// Otherwise, just create the Low Memory area (0x0000..0x2000)
-	else if (vm_acquire_fixed(0, 0x2000) == 0) {
+	else if (vm_acquire_mac_fixed(0, 0x2000) == 0) {
 		D(bug("Could allocate the Low Memory globals\n"));
 		lm_area_mapped = true;
 	}
@@ -563,10 +581,6 @@ int main(int argc, char **argv)
 	else
 #endif
 	{
-#ifdef USE_33BIT_ADDRESSING
-		// Speculatively enables 33-bit addressing
-		ThirtyThreeBitAddressing = true;
-#endif
 		uint8 *ram_rom_area = (uint8 *)vm_acquire_mac(RAMSize + 0x100000);
 		if (ram_rom_area == VM_MAP_FAILED) {	
 			ErrorAlert(STR_NO_MEM_ERR);
@@ -593,8 +607,8 @@ int main(int argc, char **argv)
 	ROMBaseMac = Host2MacAddr(ROMBaseHost);
 #endif
 #if REAL_ADDRESSING
-	RAMBaseMac = (uint32)RAMBaseHost;
-	ROMBaseMac = (uint32)ROMBaseHost;
+	RAMBaseMac = Host2MacAddr(RAMBaseHost);
+	ROMBaseMac = Host2MacAddr(ROMBaseHost);
 #endif
 	D(bug("Mac RAM starts at %p (%08x)\n", RAMBaseHost, RAMBaseMac));
 	D(bug("Mac ROM starts at %p (%08x)\n", ROMBaseHost, ROMBaseMac));
