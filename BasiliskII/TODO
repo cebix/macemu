@@ -1,9 +1,6 @@
 Bugs:
 - System 7.1 with Quadra900 ModelID (1MB ROM): 0x108 gets strange value
-- Real memory addressing: something is still wrong in the Unix part, though
-  it works under Linux/i386
-- VOSF does not work with Darwin/X11. Probably due to a combination of
-  select()/signals/sigsegv handling/vm_protect()
+- Apple Personal Diagnostics doesn't work with more than 1023 MB
 
 General:
 - Add support for 2MB ROMs (Quadra 840AV)
