@@ -65,7 +65,7 @@
 #define MAP_EXTRA_FLAGS (MAP_32BIT)
 
 #ifdef HAVE_MMAP_VM
-#if defined(__linux__) && defined(__i386__)
+#if (defined(__linux__) && defined(__i386__)) || HAVE_LINKER_SCRIPT
 /* Force a reasonnable address below 0x80000000 on x86 so that we
    don't get addresses above when the program is run on AMD64.
    NOTE: this is empirically determined on Linux/x86.  */
