@@ -223,28 +223,33 @@ char *strdup(const char *s)
 
 
 /*
- *  Map memory that can be accessed from the Mac side
+ *  Helpers to map memory that can be accessed from the Mac side
  */
 
+// NOTE: VM_MAP_33BIT is only used when compiling a 64-bit JIT on specific platforms
 void *vm_acquire_mac(size_t size)
 {
 	void *m = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_33BIT);
+#ifdef USE_33BIT_ADDRESSING
 	if (m == VM_MAP_FAILED) {
 		printf("WARNING: Cannot acquire memory in 33-bit address space (%s)\n", strerror(errno));
 		ThirtyThreeBitAddressing = false;
 		m = vm_acquire(size);
 	}
+#endif
 	return m;
 }
 
 static int vm_acquire_mac_fixed(void *addr, size_t size)
 {
 	int ret = vm_acquire_fixed(addr, size, VM_MAP_DEFAULT | VM_MAP_33BIT);
+#ifdef USE_33BIT_ADDRESSING
 	if (ret < 0) {
 		printf("WARNING: Cannot acquire fixed memory in 33-bit address space (%s)\n", strerror(errno));
 		ThirtyThreeBitAddressing = false;
 		ret = vm_acquire_fixed(addr, size);
 	}
+#endif
 	return ret;
 }
 
@@ -524,6 +529,8 @@ int main(int argc, char **argv)
 		WarningAlert(GetString(STR_SMALL_RAM_WARN));
 		RAMSize = 1024*1024;
 	}
+	if (RAMSize > 1023*1024*1024)						// Cap to 1023MB (APD crashes at 1GB)
+		RAMSize = 1023*1024*1024;
 
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 	RAMSize = RAMSize & -getpagesize();					// Round down to page boundary
@@ -592,7 +599,7 @@ int main(int argc, char **argv)
 
 #if USE_SCRATCHMEM_SUBTERFUGE
 	// Allocate scratch memory
-	ScratchMem = (uint8 *)vm_acquire(SCRATCH_MEM_SIZE);
+	ScratchMem = (uint8 *)vm_acquire_mac(SCRATCH_MEM_SIZE);
 	if (ScratchMem == VM_MAP_FAILED) {
 		ErrorAlert(STR_NO_MEM_ERR);
 		QuitEmulator();
