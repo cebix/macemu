@@ -1096,6 +1096,35 @@ fi
 dnl A dummy program that returns always true
 AC_PATH_PROG([BLESS], "true")
 
+dnl Check for linker script support
+case $target_os:$target_cpu in
+linux*:i?86)    LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-i386.ld";;
+linux*:x86_64)  LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-x86_64.ld";;
+esac
+if [[ -n "$LINKER_SCRIPT_FLAGS" ]]; then
+  AC_CACHE_CHECK([whether linker script is usable],
+    ac_cv_linker_script_works, [
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
+    saved_LDFLAGS="$LDFLAGS"
+    LDFLAGS="$LDFLAGS $LINKER_SCRIPT_FLAGS"
+    AC_TRY_RUN(
+      [int main() {if ((char *)&main < (char *)0x70000000) return 1;}],
+      [ac_cv_linker_script_works=yes],
+      [ac_cv_linker_script_works=no],
+      dnl When cross-compiling, assume it works
+      [ac_cv_linker_script_works="guessing yes"]
+    )
+    AC_LANG_RESTORE
+    if [[ "$ac_cv_linker_script_works" = "no" ]]; then
+      LDFLAGS="$saved_LDFLAGS"
+      LINKER_SCRIPT_FLAGS=""
+    fi
+  ])
+fi
+AC_TRANSLATE_DEFINE(HAVE_LINKER_SCRIPT, "$ac_cv_linker_script_works",
+  [Define if there is a linker script to relocate the executable above 0x70000000.])
+
 dnl Determine the addressing mode to use
 if [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
   ADDRESSING_MODE="real"
