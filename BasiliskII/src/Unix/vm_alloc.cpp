@@ -285,10 +285,6 @@ void * vm_acquire(size_t size, int options)
 		return VM_MAP_FAILED;
 
 	next_address = (char *)addr + size;
-	
-	// Since I don't know the standard behavior of mmap(), zero-fill here
-	if (memset(addr, 0, size) != addr)
-		return VM_MAP_FAILED;
 
 	// Remap to 33-bit space
 #ifdef USE_33BIT_ADDRESSING
@@ -304,10 +300,6 @@ void * vm_acquire(size_t size, int options)
 #else
 #ifdef HAVE_WIN32_VM
 	if ((addr = VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE)) == NULL)
-		return VM_MAP_FAILED;
-
-	// Zero newly allocated memory
-	if (memset(addr, 0, size) != addr)
 		return VM_MAP_FAILED;
 #else
 	if ((addr = calloc(size, 1)) == 0)
@@ -364,10 +356,6 @@ int vm_acquire_fixed(void * addr, size_t size, int options)
 
 	if (mmap((caddr_t)addr, size, VM_PAGE_DEFAULT, the_map_flags, fd, 0) == (void *)MAP_FAILED)
 		return -1;
-	
-	// Since I don't know the standard behavior of mmap(), zero-fill here
-	if (memset(addr, 0, size) != addr)
-		return -1;
 
 	// Remap to 33-bit space
 #ifdef USE_33BIT_ADDRESSING
@@ -392,9 +380,6 @@ int vm_acquire_fixed(void * addr, size_t size, int options)
 	LPVOID ret_addr = VirtualAlloc(req_addr, req_size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 	if (ret_addr != req_addr)
 		return -1;
-
-	// Zero newly allocated memory
-	if (memset(addr, 0, size) != addr)
 		return -1;
 #else
 	// Unsupported
