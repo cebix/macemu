@@ -3,7 +3,7 @@
  *
  *	$Id$
  *
- *  Basilisk II (C) 1997-2005 Christian Bauer
+ *  Basilisk II (C) 1997-2006 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -67,9 +67,19 @@
 
 - (void) sendEvent: (NSEvent *)event;
 {
+	// We can either process the event ourselves,
+	// or pass it to our superclass for the other UI objects to process
+	bool	passToSuper = false;
+
 	if ( [self isAnyEmulatorDisplayingSheets] ||
 			[[thePrefsEditor window] isVisible] || ! [self isAnyEmulatorRunning] )
-		[super sendEvent: event];
+		passToSuper = true;
+
+	if ( [[theEmulator screen] isFullScreen] )
+		passToSuper = false;
+
+	if ( passToSuper )
+		[super sendEvent: event];		// NSApplication default
 	else
 	{
 		NSEventType	type = [event type];
