@@ -256,6 +256,60 @@ AC_CHECK_FILE([/dev/ptc],
 dnl (end of code from openssh-3.2.2p1 configure.ac)
 
 
+dnl Check for systems where POSIX-style non-blocking I/O (O_NONBLOCK)
+dnl doesn't work or is unimplemented. On these systems (mostly older
+dnl ones), use the old BSD-style FIONBIO approach instead. [tcl.m4]
+AC_CACHE_CHECK([FIONBIO vs. O_NONBLOCK for non-blocking I/O],
+  ac_cv_nonblocking_io, [
+  case "$host" in
+  *-*-osf*)
+    ac_cv_nonblocking_io=FIONBIO
+    ;;
+  *-*-sunos4*)
+    ac_cv_nonblocking_io=FIONBIO
+    ;;
+  *-*-ultrix*)
+    ac_cv_nonblocking_io=FIONBIO
+    ;;
+  *)
+    ac_cv_nonblocking_io=O_NONBLOCK
+    ;;
+  esac
+])
+if [[ "$ac_cv_nonblocking_io" = "FIONBIO" ]]; then
+  AC_DEFINE(USE_FIONBIO, 1, [Define if BSD-style non-blocking I/O is to be used])
+fi
+
+dnl Check whether compiler supports byte bit-fields
+AC_CACHE_CHECK([whether compiler supports byte bit-fields],
+  ac_cv_have_byte_bitfields, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    struct A {
+      unsigned char b1:4;
+      unsigned char b2:4;
+      unsigned char c;
+      unsigned short s;
+      unsigned char a[4];
+    };
+
+    int main(void) {
+      A a;
+      return ! (sizeof(A) == 8 && &a.c == ((unsigned char *)&a + 1));
+    }],
+    [ac_cv_have_byte_bitfields=yes],
+    [ac_cv_have_byte_bitfields=no],
+    dnl When cross-compiling, assume only GCC supports this
+    [if [[ "$GCC" = "yes" ]]; then
+      ac_cv_have_byte_bitfields="guessing yes"
+    else
+      ac_cv_have_byte_bitfields="guessing no"
+    fi]
+    )
+  AC_LANG_RESTORE
+])
+
 dnl AC_CHECK_FRAMEWORK($1=NAME, $2=INCLUDES)
 AC_DEFUN([AC_CHECK_FRAMEWORK], [
   AS_VAR_PUSHDEF([ac_Framework], [ac_cv_framework_$1])dnl
@@ -302,7 +356,13 @@ dnl Select system-dependant source files.
   fi
 
 dnl Is the slirp library supported?
-if [[ "x$ETHERSRC" = "xether_unix.cpp" ]]; then
+case "$ac_cv_have_byte_bitfields" in
+yes|"guessing yes")
+  CAN_SLIRP=yes
+  ETHERSRC=ether_unix.cpp
+  ;;
+esac
+if [[ -n "$CAN_SLIRP" ]]; then
   AC_DEFINE(HAVE_SLIRP, 1, [Define if slirp library is supported])
   SLIRP_SRCS="\
     ../slirp/bootp.c     ../slirp/ip_output.c  ../slirp/tcp_input.c  \
@@ -749,6 +809,35 @@ fi
 dnl A dummy program that returns always true
 AC_PATH_PROG([BLESS], "true")
 
+dnl Check for linker script support
+case $target_os:$target_cpu in
+linux*:i?86)    LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-i386.ld";;
+linux*:x86_64)  LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-x86_64.ld";;
+esac
+if [[ -n "$LINKER_SCRIPT_FLAGS" ]]; then
+  AC_CACHE_CHECK([whether linker script is usable],
+    ac_cv_linker_script_works, [
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
+    saved_LDFLAGS="$LDFLAGS"
+    LDFLAGS="$LDFLAGS $LINKER_SCRIPT_FLAGS"
+    AC_TRY_RUN(
+      [int main() {if ((char *)&main < (char *)0x70000000) return 1;}],
+      [ac_cv_linker_script_works=yes],
+      [ac_cv_linker_script_works=no],
+      dnl When cross-compiling, assume it works
+      [ac_cv_linker_script_works="guessing yes"]
+    )
+    AC_LANG_RESTORE
+    if [[ "$ac_cv_linker_script_works" = "no" ]]; then
+      LDFLAGS="$saved_LDFLAGS"
+      LINKER_SCRIPT_FLAGS=""
+    fi
+  ])
+fi
+AC_TRANSLATE_DEFINE(HAVE_LINKER_SCRIPT, "$ac_cv_linker_script_works",
+  [Define if there is a linker script to relocate the executable above 0x70000000.])
+
 dnl Determine the addressing mode to use
 if [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
   ADDRESSING_MODE="real"
@@ -950,7 +1039,7 @@ elif [[ "x$HAVE_GCC30" = "xyes" -a "x$HAVE_X86_64" = "xyes" ]]; then
     DEFINES="$DEFINES -DX86_64_ASSEMBLY -DOPTIMIZED_FLAGS"
     JITSRCS="cpuemu1_nf.cpp cpuemu2_nf.cpp cpuemu3_nf.cpp cpuemu4_nf.cpp cpuemu5_nf.cpp cpuemu6_nf.cpp cpuemu7_nf.cpp cpuemu8_nf.cpp $JITSRCS"
     CAN_JIT=yes
-    WANT_32BIT_ADDRESSING=yes
+    WANT_33BIT_ADDRESSING=yes
   fi
 elif [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xyes" ]]; then
   dnl SPARC CPU
