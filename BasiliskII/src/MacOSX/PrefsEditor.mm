@@ -4,7 +4,7 @@
  *
  *	$Id$
  *
- *  Basilisk II (C) 1997-2005 Christian Bauer
+ *  Basilisk II (C) 1997-2006 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -336,7 +336,7 @@ extern string UserPrefsPath;	// from prefs_unix.cpp
 #else
 	if ( newbpp != 32 )
 		WarningSheet(@"Sorry - In windowed mode, depth must be 32", panel);
-	return 32
+	return 32;
 #endif
 }
 
