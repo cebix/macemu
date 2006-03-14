@@ -495,6 +495,7 @@ AC_DEFUN([AC_CHECK_FRAMEWORK], [
 ])
 
 dnl Check for some MacOS X frameworks
+AC_CHECK_FRAMEWORK(AppKit, [])
 AC_CHECK_FRAMEWORK(Carbon, [#include <Carbon/Carbon.h>])
 AC_CHECK_FRAMEWORK(IOKit, [#include <IOKit/IOKitLib.h>])
 AC_CHECK_FRAMEWORK(CoreFoundation, [#include <CoreFoundation/CoreFoundation.h>])
