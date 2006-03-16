@@ -14,7 +14,10 @@ Bugs:
     doesn't currently remount the disk.</LI>
 <LI>Status of 'dd' command is not always correct. (If it runs out of space,
 	an error about file not found is printed?)</LI>
-<LI>The Snapshot function is currently broken.</LI>
+<LI>The Snapshot function is currently broken in some situations
+	(if the emulation changes its own screen settings, and the program
+	 is compiled with the default window drawing mode of CGIMAGEREF).
+	Setting the depth to millions (in the emulator) is a workaround for now</LI>
 </UL>
 Untested:
 <UL>
