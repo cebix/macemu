@@ -69,31 +69,48 @@ void GetScrap(void **handle, uint32 type, int32 offset)
 	Size byteCount;
 	if (GetScrapFlavorSize(theScrap, type, &byteCount) == noErr) {
 
-	  // Get the native clipboard data
-	  uint8 *data = new uint8[byteCount];
-	  if (GetScrapFlavorData(theScrap, type, &byteCount, data) == noErr) {
-		  M68kRegisters r;
+		// Allocate space for new scrap in MacOS side
+		M68kRegisters r;
+		r.d[0] = byteCount;
+		Execute68kTrap(0xa71e, &r);				// NewPtrSysClear()
+		uint32 scrap_area = r.a[0];
 
-		  // Add new data to clipboard
-		  static uint16 proc[] = {
-			  0x598f,				// subq.l		#4,sp
-			  0xa9fc,				// ZeroScrap()
-			  0x2f3c, 0, 0,			// move.l		#length,-(sp)
-			  0x2f3c, 0, 0,			// move.l		#type,-(sp)
-			  0x2f3c, 0, 0,			// move.l		#outbuf,-(sp)
-			  0xa9fe,				// PutScrap()
-			  0x588f,				// addq.l		#4,sp
-			  M68K_RTS
-		  };
-		  uint32 proc_area = (uint32)proc;
-		  WriteMacInt32(proc_area +  6, byteCount);
-		  WriteMacInt32(proc_area + 12, type);
-		  WriteMacInt32(proc_area + 18, (uint32)data);
-		  we_put_this_data = true;
-		  Execute68k(proc_area, &r);
-	  }
+		// Get the native clipboard data
+		if (scrap_area) {
+			uint8 * const data = Mac2HostAddr(scrap_area);
+			if (GetScrapFlavorData(theScrap, type, &byteCount, data) == noErr) {
 
-	  delete[] data;
+				// Add new data to clipboard
+				static uint8 proc[] = {
+					0x59, 0x8f,					// subq.l	#4,sp
+					0xa9, 0xfc,					// ZeroScrap()
+					0x2f, 0x3c, 0, 0, 0, 0,		// move.l	#length,-(sp)
+					0x2f, 0x3c, 0, 0, 0, 0,		// move.l	#type,-(sp)
+					0x2f, 0x3c, 0, 0, 0, 0,		// move.l	#outbuf,-(sp)
+					0xa9, 0xfe,					// PutScrap()
+					0x58, 0x8f,					// addq.l	#4,sp
+					M68K_RTS >> 8, M68K_RTS
+				};
+				r.d[0] = sizeof(proc);
+				Execute68kTrap(0xa71e, &r);		// NewPtrSysClear()
+				uint32 proc_area = r.a[0];
+
+				if (proc_area) {
+					Host2Mac_memcpy(proc_area, proc, sizeof(proc));
+					WriteMacInt32(proc_area +  6, byteCount);
+					WriteMacInt32(proc_area + 12, type);
+					WriteMacInt32(proc_area + 18, scrap_area);
+					we_put_this_data = true;
+					Execute68k(proc_area, &r);
+
+					r.a[0] = proc_area;
+					Execute68kTrap(0xa01f, &r);	// DisposePtr
+				}
+			}
+
+			r.a[0] = scrap_area;
+			Execute68kTrap(0xa01f, &r);			// DisposePtr
+		}
 	}
 }
 
