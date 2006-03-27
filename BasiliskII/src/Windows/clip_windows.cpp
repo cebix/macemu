@@ -99,9 +99,7 @@ static void do_getscrap(void **handle, uint32 type, int32 offset);
 static HWND GetMainWindowHandle(void)
 {
 	SDL_SysWMinfo wmInfo;
-	wmInfo.version.major = SDL_MAJOR_VERSION;
-	wmInfo.version.minor = SDL_MINOR_VERSION;
-	wmInfo.version.patch = SDL_PATCHLEVEL;
+	SDL_VERSION(&wmInfo.version);
 	return SDL_GetWMInfo(&wmInfo) ? wmInfo.window : NULL;
 }
 #endif
