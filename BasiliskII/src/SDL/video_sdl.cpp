@@ -204,6 +204,44 @@ static inline void vm_release_framebuffer(void *fb, uint32 size)
 
 
 /*
+ *  Windows message handler
+ */
+
+#ifdef WIN32
+#include <dbt.h>
+static WNDPROC sdl_window_proc = NULL;				// Window proc used by SDL
+
+extern void SysMediaArrived(void);
+extern void SysMediaRemoved(void);
+extern HWND GetMainWindowHandle(void);
+
+static LRESULT CALLBACK windows_message_handler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	switch (msg) {
+	case WM_DEVICECHANGE:
+		if (wParam == DBT_DEVICEREMOVECOMPLETE) {
+			DEV_BROADCAST_HDR *p = (DEV_BROADCAST_HDR *)lParam;
+			if (p->dbch_devicetype == DBT_DEVTYP_VOLUME)
+				SysMediaRemoved();
+		}
+		else if (wParam == DBT_DEVICEARRIVAL) {
+			DEV_BROADCAST_HDR *p = (DEV_BROADCAST_HDR *)lParam;
+			if (p->dbch_devicetype == DBT_DEVTYP_VOLUME)
+				SysMediaArrived();
+		}
+		return 0;
+
+	default:
+		if (sdl_window_proc)
+			return CallWindowProc(sdl_window_proc, hwnd, msg, wParam, lParam);
+	}
+
+	return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+#endif
+
+
+/*
  *  SheepShaver glue
  */
 
@@ -1025,6 +1063,13 @@ bool SDL_monitor_desc::video_open(void)
 		return false;
 	}
 
+#ifdef WIN32
+	// Chain in a new message handler for WM_DEVICECHANGE
+	HWND the_window = GetMainWindowHandle();
+	sdl_window_proc = (WNDPROC)GetWindowLongPtr(the_window, GWLP_WNDPROC);
+	SetWindowLongPtr(the_window, GWLP_WNDPROC, (LONG_PTR)windows_message_handler);
+#endif
+
 	// Initialize VideoRefresh function
 	VideoRefreshInit();
 
@@ -1258,6 +1303,12 @@ bool VideoInit(bool classic)
 void SDL_monitor_desc::video_close(void)
 {
 	D(bug("video_close()\n"));
+
+#ifdef WIN32
+	// Remove message handler for WM_DEVICECHANGE
+	HWND the_window = GetMainWindowHandle();
+	SetWindowLongPtr(the_window, GWLP_WNDPROC, (LONG_PTR)sdl_window_proc);
+#endif
 
 	// Stop redraw thread
 #ifndef USE_CPU_EMUL_SERVICES

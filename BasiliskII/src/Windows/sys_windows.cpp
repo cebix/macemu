@@ -45,6 +45,14 @@ using std::min;
 #include "debug.h"
 
 
+// Supported media types
+enum {
+	MEDIA_FLOPPY		= 1,
+	MEDIA_CD			= 2,
+	MEDIA_HD			= 4,
+	MEDIA_REMOVABLE		= MEDIA_FLOPPY | MEDIA_CD
+};
+
 // File handles are pointers to these structures
 struct file_handle {
 	char *name;			// Copy of device/file name
@@ -59,12 +67,22 @@ struct file_handle {
 	bool is_media_present;
 };
 
+// Open file handles
+struct open_file_handle {
+	file_handle *fh;
+	open_file_handle *next;
+};
+static open_file_handle *open_file_handles = NULL;
+
 // File handle of first floppy drive (for SysMountFirstFloppy())
 static file_handle *first_floppy = NULL;
 
 // CD-ROM variables
 static const int CD_READ_AHEAD_SECTORS = 16;
 static char *sector_buffer = NULL;
+
+// Prototypes
+static bool is_cdrom_readable(file_handle *fh);
 
 
 /*
@@ -89,6 +107,94 @@ void SysExit(void)
 		VirtualFree(sector_buffer, 0, MEM_RELEASE );
 		sector_buffer = NULL;
 	}
+}
+
+
+/*
+ *  Manage open file handles
+ */
+
+static void sys_add_file_handle(file_handle *fh)
+{
+	open_file_handle *p = new open_file_handle;
+	p->fh = fh;
+	p->next = open_file_handles;
+	open_file_handles = p;
+}
+
+static void sys_remove_file_handle(file_handle *fh)
+{
+	open_file_handle *p = open_file_handles;
+	open_file_handle *q = NULL;
+
+	while (p) {
+		if (p->fh == fh) {
+			if (q)
+				q->next = p->next;
+			else
+				open_file_handles = p->next;
+			delete p;
+			break;
+		}
+		q = p;
+		p = p->next;
+	}
+}
+
+
+/*
+ *  Mount removable media now
+ */
+
+void mount_removable_media(int media)
+{
+	for (open_file_handle *p = open_file_handles; p != NULL; p = p->next) {
+		file_handle * const fh = p->fh;
+
+		if (fh->is_cdrom && (media & MEDIA_CD)) {
+			cache_clear(&fh->cache);
+			fh->start_byte = 0;
+
+			if (fh->fh && fh->fh != INVALID_HANDLE_VALUE)
+				CloseHandle(fh->fh);
+
+			// Re-open device
+			char device_name[MAX_PATH];
+			sprintf(device_name, "\\\\.\\%c:", fh->name[0]);
+			fh->fh = CreateFile(
+				device_name,
+				GENERIC_READ,
+				FILE_SHARE_READ | FILE_SHARE_WRITE,
+				NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+			if (fh->fh != INVALID_HANDLE_VALUE) {
+				fh->is_media_present = is_cdrom_readable(fh);
+				if (fh->is_media_present)
+					MountVolume(fh);
+			} else {
+				fh->is_media_present = false;
+			}
+		}
+	}
+}
+
+
+/*
+ *  Account for media that has just arrived
+ */
+
+void SysMediaArrived(void)
+{
+	mount_removable_media(MEDIA_REMOVABLE);
+}
+
+
+/*
+ *  Account for media that has just been removed
+ */
+
+void SysMediaRemoved(void)
+{
 }
 
 
@@ -350,6 +456,9 @@ void *Sys_open(const char *path_name, bool read_only)
 				fh->start_byte = 0;
 				fh->is_floppy = false;
 				fh->is_cdrom = true;
+				memset(&fh->cache, 0, sizeof(cachetype));
+				cache_init(&fh->cache);
+				cache_clear(&fh->cache);
 				if (!PrefsFindBool("nocdrom"))
 					fh->is_media_present = is_cdrom_readable(fh);
 			}
@@ -399,6 +508,9 @@ void *Sys_open(const char *path_name, bool read_only)
 	if (fh->is_floppy && first_floppy == NULL)
 		first_floppy = fh;
 
+	if (fh)
+		sys_add_file_handle(fh);
+
 	return fh;
 }
 
@@ -412,6 +524,8 @@ void Sys_close(void *arg)
 	file_handle *fh = (file_handle *)arg;
 	if (!fh)
 		return;
+
+	sys_remove_file_handle(fh);
 
 	if (fh->is_cdrom) {
 		cache_final(&fh->cache);
