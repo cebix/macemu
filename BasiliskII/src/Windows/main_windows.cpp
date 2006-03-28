@@ -650,12 +650,10 @@ static int tick_func(void *arg)
 
 #ifdef USE_SDL_VIDEO
 #include <SDL_syswm.h>
-static HWND GetMainWindowHandle(void)
+HWND GetMainWindowHandle(void)
 {
 	SDL_SysWMinfo wmInfo;
-	wmInfo.version.major = SDL_MAJOR_VERSION;
-	wmInfo.version.minor = SDL_MINOR_VERSION;
-	wmInfo.version.patch = SDL_PATCHLEVEL;
+	SDL_VERSION(&wmInfo.version);
 	return SDL_GetWMInfo(&wmInfo) ? wmInfo.window : NULL;
 }
 #endif

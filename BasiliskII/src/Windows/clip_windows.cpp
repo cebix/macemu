@@ -93,16 +93,8 @@ struct ByteArray : public vector<uint8> {
 static void do_putscrap(uint32 type, void *scrap, int32 length);
 static void do_getscrap(void **handle, uint32 type, int32 offset);
 
-// The main window handle
-#ifdef USE_SDL_VIDEO
-#include <SDL_syswm.h>
-static HWND GetMainWindowHandle(void)
-{
-	SDL_SysWMinfo wmInfo;
-	SDL_VERSION(&wmInfo.version);
-	return SDL_GetWMInfo(&wmInfo) ? wmInfo.window : NULL;
-}
-#endif
+// From main_windows.cpp
+extern HWND GetMainWindowHandle(void);
 
 
 /*
