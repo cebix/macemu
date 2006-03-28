@@ -152,11 +152,6 @@ typedef int64 tm_time_t;
 #define uae_u64 uint64
 typedef uae_u32 uaecptr;
 
-/* Alignment restrictions */
-#if defined(__i386__) || defined(__powerpc__) || defined(__m68k__) || defined(__x86_64__)
-# define CPU_CAN_ACCESS_UNALIGNED
-#endif
-
 /* Timing functions */
 extern void timer_init(void);
 extern uint64 GetTicks_usec(void);
@@ -164,26 +159,6 @@ extern void Delay_usec(uint32 usec);
 
 /* Spinlocks */
 #ifdef __GNUC__
-
-#if defined(__powerpc__) || defined(__ppc__)
-#define HAVE_TEST_AND_SET 1
-static inline int testandset(volatile int *p)
-{
-	int ret;
-	__asm__ __volatile__("0:    lwarx	%0,0,%1\n"
-						 "      xor.	%0,%3,%0\n"
-						 "      bne		1f\n"
-						 "      stwcx.	%2,0,%1\n"
-						 "      bne-	0b\n"
-						 "1:    "
-						 : "=&r" (ret)
-						 : "r" (p), "r" (1), "r" (0)
-						 : "cr0", "memory");
-	return ret;
-}
-#endif
-
-#if defined(__i386__) || defined(__x86_64__)
 #define HAVE_TEST_AND_SET 1
 static inline int testandset(volatile int *p)
 {
@@ -195,28 +170,6 @@ static inline int testandset(volatile int *p)
 						 : "memory");
 	return ret;
 }
-#endif
-
-#ifdef __alpha__
-#define HAVE_TEST_AND_SET 1
-static inline int testandset(volatile int *p)
-{
-	int ret;
-	unsigned long one;
-
-	__asm__ __volatile__("0:	mov 1,%2\n"
-						 "	ldl_l %0,%1\n"
-						 "	stl_c %2,%1\n"
-						 "	beq %2,1f\n"
-						 ".subsection 2\n"
-						 "1:	br 0b\n"
-						 ".previous"
-						 : "=r" (ret), "=m" (*p), "=r" (one)
-						 : "m" (*p));
-	return ret;
-}
-#endif
-
 #endif /* __GNUC__ */
 
 typedef volatile int spinlock_t;
@@ -254,31 +207,6 @@ static inline int spin_trylock(spinlock_t *lock)
 }
 #endif
 
-/* UAE CPU defines */
-#ifdef WORDS_BIGENDIAN
-
-#ifdef CPU_CAN_ACCESS_UNALIGNED
-
-/* Big-endian CPUs which can do unaligned accesses */
-static inline uae_u32 do_get_mem_long(uae_u32 *a) {return *a;}
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {return *a;}
-static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {*a = v;}
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {*a = v;}
-
-#else /* CPU_CAN_ACCESS_UNALIGNED */
-
-/* Big-endian CPUs which can not do unaligned accesses (this is not the most efficient way to do this...) */
-static inline uae_u32 do_get_mem_long(uae_u32 *a) {uint8 *b = (uint8 *)a; return (b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3];}
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint8 *b = (uint8 *)a; return (b[0] << 8) | b[1];}
-static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {uint8 *b = (uint8 *)a; b[0] = v >> 24; b[1] = v >> 16; b[2] = v >> 8; b[3] = v;}
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {uint8 *b = (uint8 *)a; b[0] = v >> 8; b[1] = v;}
-
-#endif /* CPU_CAN_ACCESS_UNALIGNED */
-
-#else /* WORDS_BIGENDIAN */
-
-#if defined(__i386__) || defined(__x86_64__)
-
 /* Intel x86 */
 #define X86_PPRO_OPT
 static inline uae_u32 do_get_mem_long(uae_u32 *a) {uint32 retval; __asm__ ("bswap %0" : "=r" (retval) : "0" (*a) : "cc"); return retval;}
@@ -304,26 +232,6 @@ static inline uae_u32 do_byteswap_16_g(uae_u32 v) {__asm__ ("bswapl %0" : "=&r" 
 #else
 static inline uae_u32 do_byteswap_16_g(uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v) : "0" (v) : "cc"); return v;}
 #endif
-
-#elif defined(CPU_CAN_ACCESS_UNALIGNED)
-
-/* Other little-endian CPUs which can do unaligned accesses */
-static inline uae_u32 do_get_mem_long(uae_u32 *a) {uint32 x = *a; return (x >> 24) | (x >> 8) & 0xff00 | (x << 8) & 0xff0000 | (x << 24);}
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint16 x = *a; return (x >> 8) | (x << 8);}
-static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {*a = (v >> 24) | (v >> 8) & 0xff00 | (v << 8) & 0xff0000 | (v << 24);}
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {*a = (v >> 8) | (v << 8);}
-
-#else /* CPU_CAN_ACCESS_UNALIGNED */
-
-/* Other little-endian CPUs which can not do unaligned accesses (this needs optimization) */
-static inline uae_u32 do_get_mem_long(uae_u32 *a) {uint8 *b = (uint8 *)a; return (b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3];}
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint8 *b = (uint8 *)a; return (b[0] << 8) | b[1];}
-static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {uint8 *b = (uint8 *)a; b[0] = v >> 24; b[1] = v >> 16; b[2] = v >> 8; b[3] = v;}
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {uint8 *b = (uint8 *)a; b[0] = v >> 8; b[1] = v;}
-
-#endif /* CPU_CAN_ACCESS_UNALIGNED */
-
-#endif /* WORDS_BIGENDIAN */
 
 #ifndef HAVE_OPTIMIZED_BYTESWAP_32
 static inline uae_u32 do_byteswap_32_g(uae_u32 v)
