@@ -943,6 +943,33 @@ static bool ix86_skip_instruction(unsigned long * regs)
 			break;
 	    }
 	  break;
+#if defined(__x86_64__)
+	case 0x63: // MOVSXD r64, r/m32
+		if (has_rex && rex.W) {
+			transfer_size = SIZE_LONG;
+			target_size = SIZE_QUAD;
+		}
+		else if (transfer_size != SIZE_WORD) {
+			transfer_size = SIZE_LONG;
+			target_size = SIZE_QUAD;
+		}
+		switch (eip[1] & 0xc0) {
+		case 0x80:
+			reg = (eip[1] >> 3) & 7;
+			transfer_type = SIGSEGV_TRANSFER_LOAD;
+			break;
+		case 0x40:
+			reg = (eip[1] >> 3) & 7;
+			transfer_type = SIGSEGV_TRANSFER_LOAD;
+			break;
+		case 0x00:
+			reg = (eip[1] >> 3) & 7;
+			transfer_type = SIGSEGV_TRANSFER_LOAD;
+			break;
+		}
+		len += 2 + ix86_step_over_modrm(eip + 1);
+		break;
+#endif
 	case 0x8a: // MOV r8, r/m8
 		transfer_size = SIZE_BYTE;
 	case 0x8b: // MOV r32, r/m32 (or 16-bit operation)
@@ -2189,6 +2216,8 @@ static bool arch_insn_skipper_tests()
 		0x4c, 0x89, 0x18,              // mov    %r11,(%rax)
 		0x4a, 0x89, 0x0c, 0x10,        // mov    %rcx,(%rax,%r10,1)
 		0x4e, 0x89, 0x1c, 0x10,        // mov    %r11,(%rax,%r10,1)
+		0x63, 0x47, 0x04,              // movslq 4(%rdi),%eax
+		0x48, 0x63, 0x47, 0x04,        // movslq 4(%rdi),%rax
 #endif
 		0                              // end
 	};
