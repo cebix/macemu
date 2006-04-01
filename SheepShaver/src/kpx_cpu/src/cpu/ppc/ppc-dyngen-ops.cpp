@@ -1246,10 +1246,10 @@ void OPPROTO op_dcbz_T0(void)
 void OPPROTO op_jump_next_A0(void)
 {
 	// Make sure there is no pending interrupt request
-	if (powerpc_dyngen_helper::spcflags().empty()) {
+	if (likely(powerpc_dyngen_helper::spcflags().empty())) {
 		powerpc_block_info *bi = (powerpc_block_info *)reg_A0;
 		uint32 pc = powerpc_dyngen_helper::get_pc();
-		if (bi->pc == pc || (bi = powerpc_dyngen_helper::find_block(pc)) != NULL)
+		if (likely(bi->pc == pc) || likely((bi = powerpc_dyngen_helper::find_block(pc)) != NULL))
 			goto *(bi->entry_point);
 	}
 	dyngen_barrier();
