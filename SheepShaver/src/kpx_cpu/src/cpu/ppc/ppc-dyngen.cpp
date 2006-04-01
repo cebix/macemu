@@ -40,13 +40,17 @@
 static uint32 cpu_features = 0;
 
 enum {
-	HWCAP_I386_CMOV		= 1 << 15,
-	HWCAP_I386_MMX		= 1 << 23,
-	HWCAP_I386_SSE		= 1 << 25,
-	HWCAP_I386_SSE2		= 1 << 26,
+	HWCAP_I386_CMOV			= 1 << 15,
+	HWCAP_I386_MMX			= 1 << 23,
+	HWCAP_I386_SSE			= 1 << 25,
+	HWCAP_I386_SSE2			= 1 << 26,
+	HWCAP_I386_EDX_FLAGS	= (HWCAP_I386_CMOV|HWCAP_I386_MMX|HWCAP_I386_SSE|HWCAP_I386_SSE2),
+	HWCAP_I386_SSE3			= 1 << 0,
+	HWCAP_I386_SSE4			= 1 << 9,
+	HWCAP_I386_ECX_FLAGS	= (HWCAP_I386_SSE3|HWCAP_I386_SSE4),
 };
 
-static unsigned int x86_cpuid(void)
+static uint32 x86_cpuid(void)
 {
 	int fl1, fl2;
 
@@ -77,12 +81,12 @@ static unsigned int x86_cpuid(void)
 	/* Invoke CPUID(1), return %edx; caller can examine bits to
 	   determine what's supported.  */
 #ifdef __x86_64__
-	__asm__ ("push %%rcx ; push %%rbx ; cpuid ; pop %%rbx ; pop %%rcx" : "=d" (fl2) : "a" (1) : "cc");
+	__asm__ ("push %%rbx ; cpuid ; pop %%rbx" : "=c" (fl1), "=d" (fl2) : "a" (1) : "cc");
 #else
-	__asm__ ("push %%ecx ; push %%ebx ; cpuid ; pop %%ebx ; pop %%ecx" : "=d" (fl2) : "a" (1) : "cc");
+	__asm__ ("push %%ebx ; cpuid ; pop %%ebx" : "=c" (fl1), "=d" (fl2) : "a" (1) : "cc");
 #endif
 
-	return fl2;
+	return (fl1 & HWCAP_I386_ECX_FLAGS) | (fl2 & HWCAP_I386_EDX_FLAGS);
 }
 #endif
 
@@ -100,6 +104,10 @@ powerpc_dyngen::powerpc_dyngen(dyngen_cpu_base cpu, int cache_size)
 			printf(" SSE");
 		if (cpu_features & HWCAP_I386_SSE2)
 			printf(" SSE2");
+		if (cpu_features & HWCAP_I386_SSE3)
+			printf(" SSE3");
+		if (cpu_features & HWCAP_I386_SSE4)
+			printf(" SSE4");
 		printf("\n");
 	}
 #endif
