@@ -33,6 +33,9 @@
 #define USE_POLL 1
 #endif
 
+// Define to let the slirp library determine the right timeout for select()
+#define USE_SLIRP_TIMEOUT 1
+
 #ifdef HAVE_SYS_POLL_H
 #include <sys/poll.h>
 #endif
@@ -801,9 +804,12 @@ void *slirp_receive_func(void *arg)
 		FD_ZERO(&rfds);
 		FD_ZERO(&wfds);
 		FD_ZERO(&xfds);
-		slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
+		int timeout = slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
+#if ! USE_SLIRP_TIMEOUT
+		timeout = 10000;
+#endif
 		tv.tv_sec = 0;
-		tv.tv_usec = 10000;
+		tv.tv_usec = timeout;
 		if (select(nfds + 1, &rfds, &wfds, &xfds, &tv) >= 0)
 			slirp_select_poll(&rfds, &wfds, &xfds);
 
@@ -865,7 +871,7 @@ static void *receive_func(void *arg)
 			// Wait for interrupt acknowledge by EtherInterrupt()
 			sem_wait(&int_ack);
 		} else
-			usleep(20000);
+			Delay_usec(20000);
 	}
 	return NULL;
 }

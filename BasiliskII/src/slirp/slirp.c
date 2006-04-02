@@ -183,13 +183,12 @@ static void updtime(void)
 }
 #endif
 
-void slirp_select_fill(int *pnfds, 
-                       fd_set *readfds, fd_set *writefds, fd_set *xfds)
+int slirp_select_fill(int *pnfds, 
+					  fd_set *readfds, fd_set *writefds, fd_set *xfds)
 {
     struct socket *so, *so_next;
-    struct timeval timeout;
     int nfds;
-    int tmp_time;
+    int timeout, tmp_time;
 
     /* fail safe */
     global_readfds = NULL;
@@ -300,37 +299,44 @@ void slirp_select_fill(int *pnfds,
 	/*
 	 * Setup timeout to use minimum CPU usage, especially when idle
 	 */
-	
-	/* 
-	 * First, see the timeout needed by *timo
-	 */
-	timeout.tv_sec = 0;
-	timeout.tv_usec = -1;
+
+	timeout = -1;
+
 	/*
-	 * If a slowtimo is needed, set timeout to 500ms from the last
+	 * If a slowtimo is needed, set timeout to 5ms from the last
 	 * slow timeout. If a fast timeout is needed, set timeout within
-	 * 200ms of when it was requested.
+	 * 2ms of when it was requested.
 	 */
+#	define SLOW_TIMO 5
+#	define FAST_TIMO 2
 	if (do_slowtimo) {
-		/* XXX + 10000 because some select()'s aren't that accurate */
-		timeout.tv_usec = ((500 - (curtime - last_slowtimo)) * 1000) + 10000;
-		if (timeout.tv_usec < 0)
-		   timeout.tv_usec = 0;
-		else if (timeout.tv_usec > 510000)
-		   timeout.tv_usec = 510000;
+		timeout = (SLOW_TIMO - (curtime - last_slowtimo)) * 1000;
+		if (timeout < 0)
+		   timeout = 0;
+		else if (timeout > (SLOW_TIMO * 1000))
+		   timeout = SLOW_TIMO * 1000;
 		
 		/* Can only fasttimo if we also slowtimo */
 		if (time_fasttimo) {
-			tmp_time = (200 - (curtime - time_fasttimo)) * 1000;
+			tmp_time = (FAST_TIMO - (curtime - time_fasttimo)) * 1000;
 			if (tmp_time < 0)
-			   tmp_time = 0;
+				tmp_time = 0;
 			
 			/* Choose the smallest of the 2 */
-			if (tmp_time < timeout.tv_usec)
-			   timeout.tv_usec = (u_int)tmp_time;
+			if (tmp_time < timeout)
+			   timeout = tmp_time;
 		}
 	}
-        *pnfds = nfds;
+	*pnfds = nfds;
+
+	/*
+	 * Adjust the timeout to make the minimum timeout
+	 * 2ms (XXX?) to lessen the CPU load
+	 */
+	if (timeout < FAST_TIMO)
+		timeout = FAST_TIMO;
+
+	return timeout;
 }	
 
 void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
@@ -349,11 +355,11 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 	 * See if anything has timed out 
 	 */
 	if (link_up) {
-		if (time_fasttimo && ((curtime - time_fasttimo) >= 2)) {
+		if (time_fasttimo && ((curtime - time_fasttimo) >= FAST_TIMO)) {
 			tcp_fasttimo();
 			time_fasttimo = 0;
 		}
-		if (do_slowtimo && ((curtime - last_slowtimo) >= 499)) {
+		if (do_slowtimo && ((curtime - last_slowtimo) >= SLOW_TIMO)) {
 			ip_slowtimo();
 			tcp_slowtimo();
 			last_slowtimo = curtime;
