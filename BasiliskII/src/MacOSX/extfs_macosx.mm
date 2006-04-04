@@ -103,7 +103,7 @@ void add_rsrc(const char *path, char *dest)
  * Resource forks on Mac OS X are kept on a UFS volume as /path/file/rsrc
  *
  * On HFS volumes, there is of course the data and rsrc fork, but the Darwin
- * filesystem layer presents the resource fork using the above psuedo path
+ * filesystem layer presents the resource fork using the above pseudo path
  */
 
 static int open_rsrc(const char *path, int flag)
@@ -232,15 +232,18 @@ void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 	if ( status == noErr )
 	{
 		FSCatalogInfo	cInfo;
-		uint32			AllFinderInfo = kFSCatInfoFinderInfo + kFSCatInfoFinderXInfo;
+		uint32			AllFinderInfo = kFSCatInfoFinderInfo;
+
+		if (fxinfo)
+			AllFinderInfo |= kFSCatInfoFinderXInfo;
 
 		status = FSGetCatalogInfo(&fsRef, AllFinderInfo, &cInfo, NULL, NULL, NULL);
 		if ( status == noErr )
 		{
 			D(printf("get_finfo(%s,...) - Got info of '%16.16s'\n", path, cInfo.finderInfo));
-			Host2Mac_memcpy(finfo, cInfo.finderInfo, SIZEOF_FInfo);
+			Host2Mac_memcpy(finfo, &cInfo.finderInfo, SIZEOF_FInfo);
 			if (fxinfo)
-				Host2Mac_memcpy(fxinfo, cInfo.extFinderInfo, SIZEOF_FXInfo);
+				Host2Mac_memcpy(fxinfo, &cInfo.extFinderInfo, SIZEOF_FXInfo);
 			return;
 		}
 		else
@@ -286,9 +289,16 @@ void set_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 		status = FSGetCatalogInfo(&fsRef, kFSCatInfoFinderInfo, &cInfo, NULL, NULL, NULL);
 		if ( status == noErr )
 		{
-			Mac2Host_memcpy(cInfo.finderInfo,    finfo,  SIZEOF_FInfo);
-			Mac2Host_memcpy(cInfo.extFinderInfo, fxinfo, SIZEOF_FXInfo);
-			FSSetCatalogInfo(&fsRef, kFSCatInfoFinderInfo, &cInfo);
+			FSCatalogInfoBitmap whichInfo = kFSCatInfoNone;
+			if (finfo) {
+				whichInfo |= kFSCatInfoFinderInfo;
+				Mac2Host_memcpy(&cInfo.finderInfo,    finfo,  SIZEOF_FInfo);
+			}
+			if (fxinfo) {
+				whichInfo |= kFSCatInfoFinderXInfo;
+				Mac2Host_memcpy(&cInfo.extFinderInfo, fxinfo, SIZEOF_FXInfo);
+			}
+			FSSetCatalogInfo(&fsRef, whichInfo, &cInfo);
 		}
     }
 }
