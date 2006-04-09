@@ -133,7 +133,7 @@ typedef long double uae_f64;
 typedef long double uae_f96;
 typedef uae_f96 fpu_register;
 #define USE_LONG_DOUBLE 1
-#elif SIZEOF_LONG_DOUBLE == 16 && defined(__x86_64__)
+#elif SIZEOF_LONG_DOUBLE == 16 && (defined(__i386__) || defined(__x86_64__))
 /* Long doubles on x86-64 are really held in old x87 FPU stack.  */
 typedef long double uae_f128;
 typedef uae_f128 fpu_register;
