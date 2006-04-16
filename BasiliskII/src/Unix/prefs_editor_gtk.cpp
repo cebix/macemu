@@ -39,6 +39,9 @@
 #include "prefs.h"
 #include "prefs_editor.h"
 
+#define DEBUG 0
+#include "debug.h"
+
 
 // Global variables
 static GtkWidget *win;				// Preferences window
@@ -1525,6 +1528,8 @@ static void read_settings(void)
 
 #ifdef STANDALONE_GUI
 #include <errno.h>
+#include <sys/wait.h>
+#include "rpc.h"
 
 /*
  *  Fake unused data and functions
@@ -1533,7 +1538,6 @@ static void read_settings(void)
 uint8 XPRAM[XPRAM_SIZE];
 void MountVolume(void *fh) { }
 void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_size) { }
-void WarningAlert(const char *text) { }
 
 
 /*
@@ -1576,9 +1580,59 @@ static void display_alert(int title_id, int prefix_id, int button_id, const char
  *  Display error alert
  */
 
-static void ErrorAlert(const char *text)
+void ErrorAlert(const char *text)
 {
 	display_alert(STR_ERROR_ALERT_TITLE, STR_GUI_ERROR_PREFIX, STR_QUIT_BUTTON, text);
+}
+
+
+/*
+ *  Display warning alert
+ */
+
+void WarningAlert(const char *text)
+{
+	display_alert(STR_WARNING_ALERT_TITLE, STR_GUI_WARNING_PREFIX, STR_OK_BUTTON, text);
+}
+
+
+/*
+ *  RPC handlers
+ */
+
+static int handle_ErrorAlert(rpc_connection_t *connection)
+{
+	D(bug("handle_ErrorAlert\n"));
+
+	int error;
+	char *str;
+	if ((error = rpc_method_get_args(connection, RPC_TYPE_STRING, &str, RPC_TYPE_INVALID)) < 0)
+		return error;
+
+	ErrorAlert(str);
+	free(str);
+	return RPC_ERROR_NO_ERROR;
+}
+
+static int handle_WarningAlert(rpc_connection_t *connection)
+{
+	D(bug("handle_WarningAlert\n"));
+
+	int error;
+	char *str;
+	if ((error = rpc_method_get_args(connection, RPC_TYPE_STRING, &str, RPC_TYPE_INVALID)) < 0)
+		return error;
+
+	WarningAlert(str);
+	free(str);
+	return RPC_ERROR_NO_ERROR;
+}
+
+static int handle_Exit(rpc_connection_t *connection)
+{
+	D(bug("handle_Exit\n"));
+
+	return RPC_ERROR_NO_ERROR;
 }
 
 
@@ -1610,19 +1664,55 @@ int main(int argc, char *argv[])
 
 	// Transfer control to the executable
 	if (start) {
-		char b2_path[PATH_MAX];
-		strcpy(b2_path, argv[0]);
-		char *p = strrchr(b2_path, '/');
-		p = p ? p + 1 : b2_path;
-		*p = '\0';
-		strcat(b2_path, "BasiliskII");
-		argv[0] = b2_path;
-		execv(b2_path, argv);
+		char gui_connection_path[64];
+		sprintf(gui_connection_path, "/org/BasiliskII/GUI/%d", getpid());
+		
+		int pid = fork();
+		if (pid == 0) {			// Child
+			char b2_path[PATH_MAX];
+			strcpy(b2_path, argv[0]);
+			char *p = strrchr(b2_path, '/');
+			p = p ? p + 1 : b2_path;
+			*p = '\0';
+			strcat(b2_path, "BasiliskII");
+			execl(b2_path, b2_path, "--gui-connection", gui_connection_path, (char *)NULL);
 
-		char str[256];
-		sprintf(str, GetString(STR_NO_B2_EXE_FOUND), b2_path, strerror(errno));
-		ErrorAlert(str);
-		return 1;
+			char str[256];
+			sprintf(str, GetString(STR_NO_B2_EXE_FOUND), b2_path, strerror(errno));
+			ErrorAlert(str);
+			return 1;
+		}
+		else {					// Parent
+			rpc_connection_t *connection;
+			if ((connection = rpc_init_server(gui_connection_path)) == NULL) {
+			printf("ERROR: failed to initialize GUI-side RPC server connection\n");
+			return 1;
+			}
+
+			static const rpc_method_descriptor_t vtable[] = {
+				{ RPC_METHOD_ERROR_ALERT,			handle_ErrorAlert },
+				{ RPC_METHOD_WARNING_ALERT,			handle_WarningAlert },
+				{ RPC_METHOD_EXIT,					handle_Exit }
+			};
+			if (rpc_method_add_callbacks(connection, vtable, sizeof(vtable) / sizeof(vtable[0])) < 0) {
+				printf("ERROR: failed to setup GUI method callbacks\n");
+				return 1;
+			}
+
+			if (rpc_listen(connection) < 0) {
+				printf("ERROR: failed to initialize RPC server thread\n");
+				return 1;
+			}
+
+			int status, ret = -1;
+			while (waitpid(pid, &status, 0) != pid)
+				;
+			if (WIFEXITED(status))
+				ret = WEXITSTATUS(status);
+
+			rpc_exit(connection);
+			return ret;
+		}
 	}
 
 	return 0;

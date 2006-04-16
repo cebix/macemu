@@ -254,9 +254,8 @@ case "x$WANT_GTK" in
 xgtk2*)
   AM_PATH_GTK_2_0(1.3.15, [
     AC_DEFINE(ENABLE_GTK, 1, [Define if using GTK.])
-    CFLAGS="$CFLAGS $GTK_CFLAGS"
-    CXXFLAGS="$CXXFLAGS $GTK_CFLAGS"
-    LIBS="$LIBS $GTK_LIBS"
+    GUI_CFLAGS="$GTK_CFLAGS"
+    GUI_LIBS="$GTK_LIBS"
     UISRCS=prefs_editor_gtk.cpp
     WANT_GTK=gtk2
   ], [
@@ -276,8 +275,8 @@ esac
 if [[ "x$WANT_GTK" = "xgtk" ]]; then
   AM_PATH_GTK(1.2.0, [
     AC_DEFINE(ENABLE_GTK, 1, [Define if using GTK.])
-    CXXFLAGS="$CXXFLAGS $GTK_CFLAGS"
-    LIBS="$LIBS $GTK_LIBS"
+    GUI_CFLAGS="$GTK_CFLAGS"
+    GUI_LIBS="$GTK_LIBS"
     UISRCS=prefs_editor_gtk.cpp
     dnl somehow, <gnome-i18n.h> would redefine gettext() to nothing if
     dnl ENABLE_NLS is not set, thusly conflicting with C++ <string> which
@@ -285,14 +284,16 @@ if [[ "x$WANT_GTK" = "xgtk" ]]; then
     AM_GNU_GETTEXT
     B2_PATH_GNOMEUI([
       AC_DEFINE(HAVE_GNOMEUI, 1, [Define if libgnomeui is available.])
-      CXXFLAGS="$CXXFLAGS $GNOMEUI_CFLAGS"
-      LIBS="$LIBS $GNOMEUI_LIBS"
+      GUI_CFLAGS="$GUI_CFLAGS $GNOMEUI_CFLAGS"
+      GUI_LIBS="$GUI_LIBS $GNOMEUI_LIBS"
     ], [])
   ], [
     AC_MSG_WARN([Could not find GTK+, disabling user interface.])
     WANT_GTK=no
   ])
 fi
+AC_SUBST(GUI_CFLAGS)
+AC_SUBST(GUI_LIBS)
 
 dnl Enable standalone GUI?
 if [[ "$WANT_STANDALONE_GUI" != "yes" ]]; then

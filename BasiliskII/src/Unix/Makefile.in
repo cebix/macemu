@@ -36,8 +36,10 @@ SLIRP_SRCS = @SLIRP_SRCS@
 SLIRP_OBJS = $(SLIRP_SRCS:../slirp/%.c=obj/%.o)
 
 STANDALONE_GUI = @STANDALONE_GUI@
+GUI_CFLAGS = @GUI_CFLAGS@
+GUI_LIBS = @GUI_LIBS@
 GUI_SRCS = ../prefs.cpp prefs_unix.cpp prefs_editor_gtk.cpp ../prefs_items.cpp \
-	../user_strings.cpp user_strings_unix.cpp xpram_unix.cpp sys_unix.cpp
+	../user_strings.cpp user_strings_unix.cpp xpram_unix.cpp sys_unix.cpp rpc_unix.cpp
 
 ## Files
 SRCS = ../main.cpp main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp \
@@ -46,7 +48,7 @@ SRCS = ../main.cpp main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp 
     timer_unix.cpp ../adb.cpp ../serial.cpp ../ether.cpp \
     ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp ../video.cpp video_blit.cpp \
     vm_alloc.cpp sigsegv.cpp ../audio.cpp ../extfs.cpp \
-	../user_strings.cpp user_strings_unix.cpp sshpty.c strlcpy.c \
+	../user_strings.cpp user_strings_unix.cpp sshpty.c strlcpy.c rpc_unix.cpp \
     $(SYSSRCS) $(CPUSRCS) $(SLIRP_SRCS)
 APP = BasiliskII
 APP_APP = $(APP).app
@@ -55,6 +57,9 @@ PROGS = $(APP)$(EXEEXT)
 ifeq ($(STANDALONE_GUI),yes)
 GUI_APP = BasiliskIIGUI
 PROGS += $(GUI_APP)$(EXEEXT)
+else
+CXXFLAGS += $(GUI_CFLAGS)
+LIBS += $(GUI_LIBS)
 endif
 
 ## Rules
@@ -75,7 +80,7 @@ endef
 OBJS = $(SRCS_LIST_TO_OBJS)
 
 define GUI_SRCS_LIST_TO_OBJS
-	$(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(foreach file, $(GUI_SRCS), \
+	$(addprefix $(OBJ_DIR)/, $(addsuffix .go, $(foreach file, $(GUI_SRCS), \
 	$(basename $(notdir $(file))))))
 endef
 GUI_OBJS = $(GUI_SRCS_LIST_TO_OBJS)
@@ -89,7 +94,7 @@ $(APP)$(EXEEXT): $(OBJ_DIR) $(OBJS)
 	$(BLESS) $(APP)$(EXEEXT)
 
 $(GUI_APP)$(EXEEXT): $(OBJ_DIR) $(GUI_OBJS)
-	$(CXX) -o $@ $(LDFLAGS) $(GUI_OBJS) $(LIBS)
+	$(CXX) -o $@ $(LDFLAGS) $(GUI_OBJS) $(LIBS) $(GUI_LIBS)
 
 $(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	mkdir -p $(APP_APP)/Contents
@@ -152,6 +157,8 @@ $(OBJ_DIR)/%.o : %.mm
 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.s
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.go : %.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 # Windows resources
 $(OBJ_DIR)/%.o: %.rc
