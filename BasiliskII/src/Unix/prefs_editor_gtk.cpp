@@ -1521,3 +1521,110 @@ static void read_settings(void)
 	read_memory_settings();
 	read_jit_settings();
 }
+
+
+#ifdef STANDALONE_GUI
+#include <errno.h>
+
+/*
+ *  Fake unused data and functions
+ */
+
+uint8 XPRAM[XPRAM_SIZE];
+void MountVolume(void *fh) { }
+void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_size) { }
+void WarningAlert(const char *text) { }
+
+
+/*
+ *  Display alert
+ */
+
+static void dl_destroyed(void)
+{
+	gtk_main_quit();
+}
+
+static void display_alert(int title_id, int prefix_id, int button_id, const char *text)
+{
+	char str[256];
+	sprintf(str, GetString(prefix_id), text);
+
+	GtkWidget *dialog = gtk_dialog_new();
+	gtk_window_set_title(GTK_WINDOW(dialog), GetString(title_id));
+	gtk_container_border_width(GTK_CONTAINER(dialog), 5);
+	gtk_widget_set_uposition(GTK_WIDGET(dialog), 100, 150);
+	gtk_signal_connect(GTK_OBJECT(dialog), "destroy", GTK_SIGNAL_FUNC(dl_destroyed), NULL);
+
+	GtkWidget *label = gtk_label_new(str);
+	gtk_widget_show(label);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
+
+	GtkWidget *button = gtk_button_new_with_label(GetString(button_id));
+	gtk_widget_show(button);
+	gtk_signal_connect_object(GTK_OBJECT(button), "clicked", GTK_SIGNAL_FUNC(dl_quit), GTK_OBJECT(dialog));
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, FALSE, FALSE, 0);
+	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+	gtk_widget_grab_default(button);
+	gtk_widget_show(dialog);
+
+	gtk_main();
+}
+
+
+/*
+ *  Display error alert
+ */
+
+static void ErrorAlert(const char *text)
+{
+	display_alert(STR_ERROR_ALERT_TITLE, STR_GUI_ERROR_PREFIX, STR_QUIT_BUTTON, text);
+}
+
+
+/*
+ *  Start standalone GUI
+ */
+
+int main(int argc, char *argv[])
+{
+#ifdef HAVE_GNOMEUI
+	// Init GNOME/GTK
+	char version[16];
+	sprintf(version, "%d.%d", VERSION_MAJOR, VERSION_MINOR);
+	gnome_init("Basilisk II", version, argc, argv);
+#else
+	// Init GTK
+	gtk_set_locale();
+	gtk_init(&argc, &argv);
+#endif
+
+	// Read preferences
+	PrefsInit(argc, argv);
+
+	// Show preferences editor
+	bool start = PrefsEditor();
+
+	// Exit preferences
+	PrefsExit();
+
+	// Transfer control to the executable
+	if (start) {
+		char b2_path[PATH_MAX];
+		strcpy(b2_path, argv[0]);
+		char *p = strrchr(b2_path, '/');
+		p = p ? p + 1 : b2_path;
+		*p = '\0';
+		strcat(b2_path, "BasiliskII");
+		argv[0] = b2_path;
+		execv(b2_path, argv);
+
+		char str[256];
+		sprintf(str, GetString(STR_NO_B2_EXE_FOUND), b2_path, strerror(errno));
+		ErrorAlert(str);
+		return 1;
+	}
+
+	return 0;
+}
+#endif

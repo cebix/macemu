@@ -35,6 +35,10 @@ SLIRP_CFLAGS = @SLIRP_CFLAGS@
 SLIRP_SRCS = @SLIRP_SRCS@
 SLIRP_OBJS = $(SLIRP_SRCS:../slirp/%.c=obj/%.o)
 
+STANDALONE_GUI = @STANDALONE_GUI@
+GUI_SRCS = ../prefs.cpp prefs_unix.cpp prefs_editor_gtk.cpp ../prefs_items.cpp \
+	../user_strings.cpp user_strings_unix.cpp xpram_unix.cpp sys_unix.cpp
+
 ## Files
 SRCS = ../main.cpp main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp \
     sys_unix.cpp ../rom_patches.cpp ../slot_rom.cpp ../rsrc_patches.cpp \
@@ -47,12 +51,18 @@ SRCS = ../main.cpp main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp 
 APP = BasiliskII
 APP_APP = $(APP).app
 
+PROGS = $(APP)$(EXEEXT)
+ifeq ($(STANDALONE_GUI),yes)
+GUI_APP = BasiliskIIGUI
+PROGS += $(GUI_APP)$(EXEEXT)
+endif
+
 ## Rules
 .PHONY: modules install installdirs uninstall mostlyclean clean distclean depend dep
 .SUFFIXES:
 .SUFFIXES: .c .cpp .s .o .h
 
-all: $(APP)$(EXEEXT)
+all: $(PROGS)
 
 OBJ_DIR = obj
 $(OBJ_DIR)::
@@ -64,13 +74,22 @@ define SRCS_LIST_TO_OBJS
 endef
 OBJS = $(SRCS_LIST_TO_OBJS)
 
+define GUI_SRCS_LIST_TO_OBJS
+	$(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(foreach file, $(GUI_SRCS), \
+	$(basename $(notdir $(file))))))
+endef
+GUI_OBJS = $(GUI_SRCS_LIST_TO_OBJS)
+
 SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
 VPATH :=
 VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
 
 $(APP)$(EXEEXT): $(OBJ_DIR) $(OBJS)
-	$(CXX) -o $(APP)$(EXEEXT) $(LDFLAGS) $(OBJS) $(LIBS)
+	$(CXX) -o $@ $(LDFLAGS) $(OBJS) $(LIBS)
 	$(BLESS) $(APP)$(EXEEXT)
+
+$(GUI_APP)$(EXEEXT): $(OBJ_DIR) $(GUI_OBJS)
+	$(CXX) -o $@ $(LDFLAGS) $(GUI_OBJS) $(LIBS)
 
 $(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	mkdir -p $(APP_APP)/Contents
@@ -85,8 +104,11 @@ $(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 modules:
 	cd Linux/NetDriver; make
 
-install: $(APP)$(EXEEXT) installdirs
+install: $(PROGS) installdirs
 	$(INSTALL_PROGRAM) $(APP)$(EXEEXT) $(DESTDIR)$(bindir)/$(APP)$(EXEEXT)
+	if test -f "$(GUI_APP)$(EXEEXT)"; then \
+	  $(INSTALL_PROGRAM) $(GUI_APP)$(EXEEXT) $(DESTDIR)$(bindir)/$(GUI_APP)$(EXEEXT); \
+	fi
 	-$(INSTALL_DATA) $(APP).1 $(DESTDIR)$(man1dir)/$(APP).1
 	$(INSTALL_DATA) $(KEYCODES) $(DESTDIR)$(datadir)/$(APP)/keycodes
 	$(INSTALL_DATA) fbdevices $(DESTDIR)$(datadir)/$(APP)/fbdevices
@@ -97,6 +119,7 @@ installdirs:
 
 uninstall:
 	rm -f $(DESTDIR)$(bindir)/$(APP)$(EXEEXT)
+	rm -f $(DESTDIR)$(bindir)/$(GUI_APP)$(EXEEXT)
 	rm -f $(DESTDIR)$(man1dir)/$(APP).1
 	rm -f $(DESTDIR)$(datadir)/$(APP)/keycodes
 	rm -f $(DESTDIR)$(datadir)/$(APP)/fbdevices
@@ -104,7 +127,7 @@ uninstall:
 	rmdir $(DESTDIR)$(datadir)/$(APP)
 
 mostlyclean:
-	rm -f $(APP)$(EXEEXT) $(OBJ_DIR)/* core* *.core *~ *.bak
+	rm -f $(PROGS) $(OBJ_DIR)/* core* *.core *~ *.bak
 
 clean: mostlyclean
 	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h compemu.cpp compstbl.cpp comptbl.h

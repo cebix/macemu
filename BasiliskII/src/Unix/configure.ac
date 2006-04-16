@@ -14,6 +14,8 @@ dnl Some systems do not put corefiles in the currect directory, avoid saving
 dnl cores for the configure tests since some are intended to dump core.
 ulimit -c 0
 
+AC_ARG_ENABLE(standalone-gui,[  --enable-standalone-gui enable a standalone GUI prefs editor [default=no]], [WANT_STANDALONE_GUI=$enableval], [WANT_STANDALONE_GUI=no])
+
 dnl Video options.
 AC_ARG_ENABLE(xf86-dga,      [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(xf86-vidmode,  [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
@@ -291,6 +293,19 @@ if [[ "x$WANT_GTK" = "xgtk" ]]; then
     WANT_GTK=no
   ])
 fi
+
+dnl Enable standalone GUI?
+if [[ "$WANT_STANDALONE_GUI" != "yes" ]]; then
+  WANT_STANDALONE_GUI=no
+fi
+if [[ "$WANT_GTK" = "no" ]]; then
+  WANT_STANDALONE_GUI=no
+fi
+if [[ "$WANT_STANDALONE_GUI" = "yes" ]]; then
+  UISRCS=""
+  AC_DEFINE(STANDALONE_GUI, 1, [Define to use build a standalone GUI prefs editor.])
+fi
+AC_SUBST(STANDALONE_GUI, [$WANT_STANDALONE_GUI])
 
 dnl We use ESD if possible.
 if [[ "x$WANT_ESD" = "xyes" ]]; then

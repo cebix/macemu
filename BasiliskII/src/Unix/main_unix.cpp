@@ -508,10 +508,12 @@ int main(int argc, char **argv)
 	// Init system routines
 	SysInit();
 
+#ifndef STANDALONE_GUI
 	// Show preferences editor
 	if (!PrefsFindBool("nogui"))
 		if (!PrefsEditor())
 			QuitEmulator();
+#endif
 
 	// Install the handler for SIGSEGV
 	if (!sigsegv_install_handler(sigsegv_handler)) {
