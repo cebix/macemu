@@ -124,16 +124,16 @@ static GtkWidget *make_pane(GtkWidget *notebook, int title_id)
 	GtkWidget *frame, *label, *box;
 
 	frame = gtk_frame_new(NULL);
-	gtk_widget_show(frame);
-	gtk_container_border_width(GTK_CONTAINER(frame), 4);
+	gtk_container_set_border_width(GTK_CONTAINER(frame), 4);
+
+	box = gtk_vbox_new(FALSE, 4);
+	gtk_container_set_border_width(GTK_CONTAINER(box), 4);
+	gtk_container_add(GTK_CONTAINER(frame), box);
+
+	gtk_widget_show_all(frame);
 
 	label = gtk_label_new(GetString(title_id));
 	gtk_notebook_append_page(GTK_NOTEBOOK(notebook), frame, label);
-
-	box = gtk_vbox_new(FALSE, 4);
-	gtk_widget_show(box);
-	gtk_container_set_border_width(GTK_CONTAINER(box), 4);
-	gtk_container_add(GTK_CONTAINER(frame), box);
 	return box;
 }
 
@@ -519,10 +519,10 @@ bool PrefsEditor(void)
 	gtk_box_pack_start(GTK_BOX(box), menu_bar, FALSE, TRUE, 0);
 
 	GtkWidget *notebook = gtk_notebook_new();
-	gtk_widget_show(notebook);
 	gtk_notebook_set_tab_pos(GTK_NOTEBOOK(notebook), GTK_POS_TOP);
 	gtk_notebook_set_scrollable(GTK_NOTEBOOK(notebook), FALSE);
 	gtk_box_pack_start(GTK_BOX(box), notebook, TRUE, TRUE, 0);
+	gtk_widget_realize(notebook);
 
 	create_volumes_pane(notebook);
 	create_scsi_pane(notebook);
@@ -531,6 +531,7 @@ bool PrefsEditor(void)
 	create_serial_pane(notebook);
 	create_memory_pane(notebook);
 	create_jit_pane(notebook);
+	gtk_widget_show(notebook);
 
 	static const opt_desc buttons[] = {
 		{STR_START_BUTTON, GTK_SIGNAL_FUNC(cb_start)},
@@ -1685,8 +1686,8 @@ int main(int argc, char *argv[])
 		else {					// Parent
 			rpc_connection_t *connection;
 			if ((connection = rpc_init_server(gui_connection_path)) == NULL) {
-			printf("ERROR: failed to initialize GUI-side RPC server connection\n");
-			return 1;
+				printf("ERROR: failed to initialize GUI-side RPC server connection\n");
+				return 1;
 			}
 
 			static const rpc_method_descriptor_t vtable[] = {
