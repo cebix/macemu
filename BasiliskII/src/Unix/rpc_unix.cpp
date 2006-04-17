@@ -38,7 +38,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <sys/poll.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -49,6 +48,10 @@
 #include "debug.h"
 
 #define NON_BLOCKING_IO 0
+
+#if defined __linux__
+#define USE_ABSTRACT_NAMESPACES 1
+#endif
 
 
 /* ====================================================================== */
@@ -72,6 +75,7 @@ struct rpc_connection_t {
   int type;
   int status;
   int socket;
+  char *socket_path;
   int server_socket;
   int server_thread_active;
   pthread_t server_thread;
@@ -95,6 +99,42 @@ int rpc_connection_busy(rpc_connection_t *connection)
   return connection && connection->status == RPC_STATUS_BUSY;
 }
 
+// Prepare socket path for addr.sun_path[]
+static int _rpc_socket_path(char **pathp, const char *ident)
+{
+  int i, len;
+  len = strlen(ident);
+
+  if (pathp == NULL)
+	return 0;
+
+  char *path;
+#if USE_ABSTRACT_NAMESPACES
+  const int len_bias = 1;
+  if ((path = (char *)malloc(len + len_bias + 1)) == NULL)
+	return 0;
+  path[0] = 0;
+  strcpy(&path[len_bias], ident);
+#else
+  const int len_bias = 5;
+  if ((path = (char *)malloc(len + len_bias + 1)) == NULL)
+	return 0;
+  strcpy(path, "/tmp/");
+  for (i = 0; i < len; i++) {
+    char ch = ident[i];
+    if (ch == '/')
+      ch = '_';
+    path[len_bias + i] = ch;
+  }
+#endif
+  len += len_bias;
+  path[len] = '\0';
+  if (*pathp)
+	free(*pathp);
+  *pathp = path;
+  return len;
+}
+
 // Initialize server-side RPC system
 rpc_connection_t *rpc_init_server(const char *ident)
 {
@@ -102,6 +142,7 @@ rpc_connection_t *rpc_init_server(const char *ident)
 
   rpc_connection_t *connection;
   struct sockaddr_un addr;
+  socklen_t addr_len;
 
   if (ident == NULL)
 	return NULL;
@@ -124,9 +165,12 @@ rpc_connection_t *rpc_init_server(const char *ident)
 
   memset(&addr, 0, sizeof(addr));
   addr.sun_family = AF_UNIX;
-  addr.sun_path[0] = 0;
-  strncpy(&addr.sun_path[1], ident, sizeof(addr.sun_path) - 2);
-  if (bind(connection->server_socket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+  connection->socket_path = NULL;
+  addr_len = _rpc_socket_path(&connection->socket_path, ident);
+  memcpy(&addr.sun_path[0], connection->socket_path, addr_len);
+  addr_len += sizeof(struct sockaddr_un) - sizeof(addr.sun_path);
+
+  if (bind(connection->server_socket, (struct sockaddr *)&addr, addr_len) < 0) {
 	perror("server bind");
 	free(connection);
 	return NULL;
@@ -148,6 +192,7 @@ rpc_connection_t *rpc_init_client(const char *ident)
 
   rpc_connection_t *connection;
   struct sockaddr_un addr;
+  socklen_t addr_len;
 
   if (ident == NULL)
 	return NULL;
@@ -169,17 +214,20 @@ rpc_connection_t *rpc_init_client(const char *ident)
 
   memset(&addr, 0, sizeof(addr));
   addr.sun_family = AF_UNIX;
-  addr.sun_path[0] = 0;
-  strncpy(&addr.sun_path[1], ident, sizeof(addr.sun_path) - 2);
+  connection->socket_path = NULL;
+  addr_len = _rpc_socket_path(&connection->socket_path, ident);
+  memcpy(&addr.sun_path[0], connection->socket_path, addr_len);
+  addr_len += sizeof(struct sockaddr_un) - sizeof(addr.sun_path);
+
   // Wait at most 5 seconds for server to initialize
   const int N_CONNECT_WAIT_DELAY = 10;
   int n_connect_attempts = 5000 / N_CONNECT_WAIT_DELAY;
   if (n_connect_attempts == 0)
 	n_connect_attempts = 1;
   while (n_connect_attempts > 0) {
-	if (connect(connection->socket, (struct sockaddr *)&addr, sizeof(addr)) == 0)
+	if (connect(connection->socket, (struct sockaddr *)&addr, addr_len) == 0)
 	  break;
-	if (errno != ECONNREFUSED) {
+	if (n_connect_attempts > 1 && errno != ECONNREFUSED && errno != ENOENT) {
 	  perror("client_connect");
 	  free(connection);
 	  return NULL;
@@ -202,6 +250,12 @@ int rpc_exit(rpc_connection_t *connection)
 
   if (connection == NULL)
 	return RPC_ERROR_CONNECTION_NULL;
+
+  if (connection->socket_path) {
+	if (connection->socket_path[0])
+	  unlink(connection->socket_path);
+	free(connection->socket_path);
+  }
 
   if (connection->type == RPC_CONNECTION_SERVER) {
 	if (connection->server_thread_active) {
@@ -236,12 +290,22 @@ static void *rpc_server_func(void *arg)
 
   connection->server_thread_active = 1;
   for (;;) {
-#if NON_BLOCKING_IO
-	struct pollfd pf = { connection->socket, POLLIN, 0 };
-	int res = poll(&pf, 1, -1);
-	if (res <= 0)
+	// XXX broken MacOS X doesn't implement cancellation points correctly
+	pthread_testcancel();
+
+	// wait for data to arrive
+	fd_set rfds;
+	FD_ZERO(&rfds);
+	FD_SET(connection->socket, &rfds);
+	struct timeval tv;
+	tv.tv_sec = 0;
+	tv.tv_usec = 50000;
+	int ret = select(connection->socket + 1, &rfds, NULL, NULL, &tv);
+	if (ret == 0)
+	  continue;
+	if (ret < 0)
 	  break;
-#endif
+
 	rpc_dispatch(connection);
   }
   connection->server_thread_active = 0;
@@ -608,9 +672,11 @@ static inline int _rpc_message_recv_bytes(rpc_message_t *message, unsigned char 
 #if NON_BLOCKING_IO
 	  if (errno == EAGAIN || errno == EWOULDBLOCK) {
 		// wait for data to arrive
-		struct pollfd pf = { message->socket, POLLIN, 0 };
-		int res = poll(&pf, 1, -1);
-		if (res > 0)
+		fd_set rfds;
+		FD_ZERO(&rfds);
+		FD_SET(message->socket, &rfds);
+		int ret = select(message->socket + 1, &rfds, NULL, NULL, NULL);
+		if (ret > 0)
 		  continue;
 	  }
 #endif
