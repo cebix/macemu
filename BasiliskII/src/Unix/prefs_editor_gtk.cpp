@@ -45,7 +45,7 @@
 
 // Global variables
 static GtkWidget *win;				// Preferences window
-static bool start_clicked = true;	// Return value of PrefsEditor() function
+static bool start_clicked = false;	// Return value of PrefsEditor() function
 
 
 // Prototypes
@@ -712,6 +712,27 @@ static GtkWidget *w_jit_cache_size;
 static GtkWidget *w_jit_lazy_flush;
 static GtkWidget *w_jit_follow_const_jumps;
 
+// Are we running a JIT capable CPU?
+static bool is_jit_capable(void)
+{
+#if USE_JIT && (defined __i386__ || defined __x86_64__)
+	return true;
+#elif defined __APPLE__ && defined __MACH__
+	// XXX run-time detect so that we can use a PPC GUI prefs editor
+	static char cpu[10];
+	if (cpu[0] == 0) {
+		FILE *fp = popen("uname -p", "r");
+		if (fp == NULL)
+			return false;
+		fgets(cpu, sizeof(cpu) - 1, fp);
+		fclose(fp);
+	}
+	if (cpu[0] == 'i' && cpu[2] == '8' && cpu[3] == '6') // XXX assuming i?86
+		return true;
+#endif
+	return false;
+}
+
 // Set sensitivity of widgets
 static void set_jit_sensitive(void)
 {
@@ -750,19 +771,19 @@ static void tb_jit_follow_const_jumps(GtkWidget *widget)
 // Read settings from widgets and set preferences
 static void read_jit_settings(void)
 {
-#if USE_JIT
-	bool jit_enabled = PrefsFindBool("jit");
+	bool jit_enabled = is_jit_capable() && PrefsFindBool("jit");
 	if (jit_enabled) {
 		const char *str = gtk_entry_get_text(GTK_ENTRY(GTK_COMBO(w_jit_cache_size)->entry));
 		PrefsReplaceInt32("jitcachesize", atoi(str));
 	}
-#endif
 }
 
 // Create "JIT Compiler" pane
 static void create_jit_pane(GtkWidget *top)
 {
-#if USE_JIT
+	if (!is_jit_capable())
+		return;
+
 	GtkWidget *box, *table, *label, *menu;
 	char str[32];
 	
@@ -788,7 +809,6 @@ static void create_jit_pane(GtkWidget *top)
 	w_jit_follow_const_jumps = make_checkbox(box, STR_JIT_FOLLOW_CONST_JUMPS, "jitinline", GTK_SIGNAL_FUNC(tb_jit_follow_const_jumps));
 
 	set_jit_sensitive();
-#endif
 }
 
 /*
@@ -1540,6 +1560,13 @@ uint8 XPRAM[XPRAM_SIZE];
 void MountVolume(void *fh) { }
 void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_size) { }
 
+#if defined __APPLE__ && defined __MACH__
+void DarwinAddCDROMPrefs(void) { }
+void DarwinAddFloppyPrefs(void) { }
+void DarwinAddSerialPrefs(void) { }
+bool DarwinCDReadTOC(char *, uint8 *) { }
+#endif
+
 
 /*
  *  Display alert
@@ -1667,53 +1694,93 @@ int main(int argc, char *argv[])
 	if (start) {
 		char gui_connection_path[64];
 		sprintf(gui_connection_path, "/org/BasiliskII/GUI/%d", getpid());
-		
-		int pid = fork();
-		if (pid == 0) {			// Child
-			char b2_path[PATH_MAX];
-			strcpy(b2_path, argv[0]);
-			char *p = strrchr(b2_path, '/');
-			p = p ? p + 1 : b2_path;
-			*p = '\0';
-			strcat(b2_path, "BasiliskII");
-			execl(b2_path, b2_path, "--gui-connection", gui_connection_path, (char *)NULL);
 
+		// Search and run the BasiliskII executable
+		// XXX it can be in a bundle on MacOS X
+		char b2_path[PATH_MAX];
+		strcpy(b2_path, argv[0]);
+		char *p = strrchr(b2_path, '/');
+		p = p ? p + 1 : b2_path;
+		*p = '\0';
+		strcat(b2_path, "BasiliskII");
+
+		int pid = fork();
+		if (pid == 0) {
+			execl(b2_path, b2_path, "--gui-connection", gui_connection_path, (char *)NULL);
+			return -errno;
+		}
+
+		// Establish a connection to Basilisk II
+		rpc_connection_t *connection;
+		if ((connection = rpc_init_server(gui_connection_path)) == NULL) {
+			printf("ERROR: failed to initialize GUI-side RPC server connection\n");
+			return 1;
+		}
+		static const rpc_method_descriptor_t vtable[] = {
+			{ RPC_METHOD_ERROR_ALERT,			handle_ErrorAlert },
+			{ RPC_METHOD_WARNING_ALERT,			handle_WarningAlert },
+			{ RPC_METHOD_EXIT,					handle_Exit }
+		};
+		if (rpc_method_add_callbacks(connection, vtable, sizeof(vtable) / sizeof(vtable[0])) < 0) {
+			printf("ERROR: failed to setup GUI method callbacks\n");
+			return 1;
+		}
+		int socket;
+		if ((socket = rpc_listen_socket(connection)) < 0) {
+			printf("ERROR: failed to initialize RPC server thread\n");
+			return 1;
+		}
+
+		int child_status = 1;
+		GMainLoop *loop = g_main_new(TRUE);
+		while (g_main_is_running(loop)) {
+
+			// Process a few events pending
+			const int N_EVENTS_DISPATCH = 10;
+			for (int i = 0; i < N_EVENTS_DISPATCH; i++) {
+				if (!g_main_iteration(FALSE))
+					break;
+			}
+
+			// Check if the child has terminated
+			int status = 1;
+			int ret = waitpid(pid, &status, WNOHANG);
+			if (ret == pid || (ret < 0 && errno == ECHILD)) {
+				if (WIFEXITED(status)) {
+					child_status = WEXITSTATUS(status);
+					if (child_status & 0x80)
+						child_status |= -1 ^0xff;
+				}
+				break;
+			}
+
+			// Check for RPC events
+			// XXX implement an rpc_try_dispatch(connection, timeout)
+			fd_set rfds;
+			FD_ZERO(&rfds);
+			FD_SET(socket, &rfds);
+			struct timeval tv;
+			tv.tv_sec = 1;
+			tv.tv_usec = 0;
+			ret = select(socket + 1, &rfds, NULL, NULL, &tv);
+			if (ret < 0)
+				break;
+			if (ret == 0)
+				continue;
+			rpc_dispatch(connection);
+		}
+
+		rpc_exit(connection);
+
+		// Report failure to execute the BasiliskII binary
+		if (child_status < 0) {
 			char str[256];
-			sprintf(str, GetString(STR_NO_B2_EXE_FOUND), b2_path, strerror(errno));
+			sprintf(str, GetString(STR_NO_B2_EXE_FOUND), b2_path, strerror(-child_status));
 			ErrorAlert(str);
 			return 1;
 		}
-		else {					// Parent
-			rpc_connection_t *connection;
-			if ((connection = rpc_init_server(gui_connection_path)) == NULL) {
-				printf("ERROR: failed to initialize GUI-side RPC server connection\n");
-				return 1;
-			}
 
-			static const rpc_method_descriptor_t vtable[] = {
-				{ RPC_METHOD_ERROR_ALERT,			handle_ErrorAlert },
-				{ RPC_METHOD_WARNING_ALERT,			handle_WarningAlert },
-				{ RPC_METHOD_EXIT,					handle_Exit }
-			};
-			if (rpc_method_add_callbacks(connection, vtable, sizeof(vtable) / sizeof(vtable[0])) < 0) {
-				printf("ERROR: failed to setup GUI method callbacks\n");
-				return 1;
-			}
-
-			if (rpc_listen(connection) < 0) {
-				printf("ERROR: failed to initialize RPC server thread\n");
-				return 1;
-			}
-
-			int status, ret = -1;
-			while (waitpid(pid, &status, 0) != pid)
-				;
-			if (WIFEXITED(status))
-				ret = WEXITSTATUS(status);
-
-			rpc_exit(connection);
-			return ret;
-		}
+		return child_status;
 	}
 
 	return 0;
