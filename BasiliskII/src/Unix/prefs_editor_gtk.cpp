@@ -1678,7 +1678,14 @@ static void sigchld_handler(int sig, siginfo_t *sip, void *)
 {
 	D(bug("Child %d exitted with status = %x\n", sip->si_pid, sip->si_status));
 
-	int status = sip->si_status;
+	// XXX perform a new wait because sip->si_status is sometimes not
+	// the exit _value_ on MacOS X but rather the usual status field
+	// from waitpid() -- we could arrange this code in some other way...
+	int status;
+	if (waitpid(sip->si_pid, &status, 0) < 0)
+		status = sip->si_status;
+	if (WIFEXITED(status))
+		status = WEXITSTATUS(status);
 	if (status & 0x80)
 		status |= -1 ^0xff;
 
@@ -1741,15 +1748,25 @@ int main(int argc, char *argv[])
 		}
 
 		// Search and run the BasiliskII executable
-		// XXX it can be in a bundle on MacOS X
+		char *p;
 		strcpy(g_app_path, argv[0]);
-		char *p = strrchr(g_app_path, '/');
-		p = p ? p + 1 : g_app_path;
-		*p = '\0';
-		strcat(g_app_path, "BasiliskII");
+		if ((p = strstr(g_app_path, "BasiliskIIGUI.app/Contents/MacOS")) != NULL) {
+		    strcpy(p, "BasiliskII.app/Contents/MacOS/BasiliskII");
+			if (access(g_app_path, X_OK) < 0) {
+				char str[256];
+				sprintf(str, GetString(STR_NO_B2_EXE_FOUND), g_app_path, strerror(errno));
+				WarningAlert(str);
+				strcpy(g_app_path, "/Applications/BasiliskII.app/Contents/MacOS/BasiliskII");
+			}
+		} else {
+			p = strrchr(g_app_path, '/');
+			p = p ? p + 1 : g_app_path;
+			strcpy(p, "BasiliskII");
+		}
 
 		int pid = fork();
 		if (pid == 0) {
+			D(bug("Trying to execute %s\n", g_app_path));
 			execlp(g_app_path, g_app_path, "--gui-connection", gui_connection_path, (char *)NULL);
 #ifdef _POSIX_PRIORITY_SCHEDULING
 			// XXX get a chance to run the parent process so that to not confuse/upset GTK...
