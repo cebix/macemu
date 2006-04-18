@@ -1628,6 +1628,8 @@ void WarningAlert(const char *text)
  *  RPC handlers
  */
 
+static GMainLoop *g_gui_loop;
+
 static int handle_ErrorAlert(rpc_connection_t *connection)
 {
 	D(bug("handle_ErrorAlert\n"));
@@ -1660,7 +1662,38 @@ static int handle_Exit(rpc_connection_t *connection)
 {
 	D(bug("handle_Exit\n"));
 
+	g_main_quit(g_gui_loop);
 	return RPC_ERROR_NO_ERROR;
+}
+
+
+/*
+ *  SIGCHLD handler
+ */
+
+static char g_app_path[PATH_MAX];
+static rpc_connection_t *g_gui_connection = NULL;
+
+static void sigchld_handler(int sig, siginfo_t *sip, void *)
+{
+	D(bug("Child %d exitted with status = %x\n", sip->si_pid, sip->si_status));
+
+	int status = sip->si_status;
+	if (status & 0x80)
+		status |= -1 ^0xff;
+
+	if (status < 0) {	// negative -> execlp/-errno
+		char str[256];
+		sprintf(str, GetString(STR_NO_B2_EXE_FOUND), g_app_path, strerror(-status));
+		ErrorAlert(str);
+		status = 1;
+	}
+
+	if (status != 0) {
+		if (g_gui_connection)
+			rpc_exit(g_gui_connection);
+		exit(status);
+	}
 }
 
 
@@ -1695,24 +1728,38 @@ int main(int argc, char *argv[])
 		char gui_connection_path[64];
 		sprintf(gui_connection_path, "/org/BasiliskII/GUI/%d", getpid());
 
+		// Catch exits from the child process
+		struct sigaction sigchld_sa, old_sigchld_sa;
+		sigemptyset(&sigchld_sa.sa_mask);
+		sigchld_sa.sa_sigaction = sigchld_handler;
+		sigchld_sa.sa_flags = SA_NOCLDSTOP | SA_SIGINFO;
+		if (sigaction(SIGCHLD, &sigchld_sa, &old_sigchld_sa) < 0) {
+			char str[256];
+			sprintf(str, GetString(STR_SIG_INSTALL_ERR), SIGCHLD, strerror(errno));
+			ErrorAlert(str);
+			return 1;
+		}
+
 		// Search and run the BasiliskII executable
 		// XXX it can be in a bundle on MacOS X
-		char b2_path[PATH_MAX];
-		strcpy(b2_path, argv[0]);
-		char *p = strrchr(b2_path, '/');
-		p = p ? p + 1 : b2_path;
+		strcpy(g_app_path, argv[0]);
+		char *p = strrchr(g_app_path, '/');
+		p = p ? p + 1 : g_app_path;
 		*p = '\0';
-		strcat(b2_path, "BasiliskII");
+		strcat(g_app_path, "BasiliskII");
 
 		int pid = fork();
 		if (pid == 0) {
-			execl(b2_path, b2_path, "--gui-connection", gui_connection_path, (char *)NULL);
-			return -errno;
+			execlp(g_app_path, g_app_path, "--gui-connection", gui_connection_path, (char *)NULL);
+#ifdef _POSIX_PRIORITY_SCHEDULING
+			// XXX get a chance to run the parent process so that to not confuse/upset GTK...
+			sched_yield();
+#endif
+			_exit(-errno);
 		}
 
 		// Establish a connection to Basilisk II
-		rpc_connection_t *connection;
-		if ((connection = rpc_init_server(gui_connection_path)) == NULL) {
+		if ((g_gui_connection = rpc_init_server(gui_connection_path)) == NULL) {
 			printf("ERROR: failed to initialize GUI-side RPC server connection\n");
 			return 1;
 		}
@@ -1721,19 +1768,18 @@ int main(int argc, char *argv[])
 			{ RPC_METHOD_WARNING_ALERT,			handle_WarningAlert },
 			{ RPC_METHOD_EXIT,					handle_Exit }
 		};
-		if (rpc_method_add_callbacks(connection, vtable, sizeof(vtable) / sizeof(vtable[0])) < 0) {
+		if (rpc_method_add_callbacks(g_gui_connection, vtable, sizeof(vtable) / sizeof(vtable[0])) < 0) {
 			printf("ERROR: failed to setup GUI method callbacks\n");
 			return 1;
 		}
 		int socket;
-		if ((socket = rpc_listen_socket(connection)) < 0) {
+		if ((socket = rpc_listen_socket(g_gui_connection)) < 0) {
 			printf("ERROR: failed to initialize RPC server thread\n");
 			return 1;
 		}
 
-		int child_status = 1;
-		GMainLoop *loop = g_main_new(TRUE);
-		while (g_main_is_running(loop)) {
+		g_gui_loop = g_main_new(TRUE);
+		while (g_main_is_running(g_gui_loop)) {
 
 			// Process a few events pending
 			const int N_EVENTS_DISPATCH = 10;
@@ -1742,45 +1788,17 @@ int main(int argc, char *argv[])
 					break;
 			}
 
-			// Check if the child has terminated
-			int status = 1;
-			int ret = waitpid(pid, &status, WNOHANG);
-			if (ret == pid || (ret < 0 && errno == ECHILD)) {
-				if (WIFEXITED(status)) {
-					child_status = WEXITSTATUS(status);
-					if (child_status & 0x80)
-						child_status |= -1 ^0xff;
-				}
-				break;
-			}
-
-			// Check for RPC events
-			// XXX implement an rpc_try_dispatch(connection, timeout)
-			fd_set rfds;
-			FD_ZERO(&rfds);
-			FD_SET(socket, &rfds);
-			struct timeval tv;
-			tv.tv_sec = 1;
-			tv.tv_usec = 0;
-			ret = select(socket + 1, &rfds, NULL, NULL, &tv);
-			if (ret < 0)
-				break;
+			// Check for RPC events (100 ms timeout)
+			int ret = rpc_wait_dispatch(g_gui_connection, 100000);
 			if (ret == 0)
 				continue;
-			rpc_dispatch(connection);
+			if (ret < 0)
+				break;
+			rpc_dispatch(g_gui_connection);
 		}
 
-		rpc_exit(connection);
-
-		// Report failure to execute the BasiliskII binary
-		if (child_status < 0) {
-			char str[256];
-			sprintf(str, GetString(STR_NO_B2_EXE_FOUND), b2_path, strerror(-child_status));
-			ErrorAlert(str);
-			return 1;
-		}
-
-		return child_status;
+		rpc_exit(g_gui_connection);
+		return 0;
 	}
 
 	return 0;
