@@ -279,7 +279,30 @@ int rpc_exit(rpc_connection_t *connection)
   return RPC_ERROR_NO_ERROR;
 }
 
-// Wait for messages to arrive on the connection port
+// Wait for a message to arrive on the connection port
+static inline int _rpc_wait_dispatch(rpc_connection_t *connection, int timeout)
+{
+	struct timeval tv;
+	tv.tv_sec  = timeout / 1000000;
+	tv.tv_usec = timeout % 1000000;
+
+	fd_set rfds;
+	FD_ZERO(&rfds);
+	FD_SET(connection->socket, &rfds);
+	return select(connection->socket + 1, &rfds, NULL, NULL, &tv);
+}
+
+int rpc_wait_dispatch(rpc_connection_t *connection, int timeout)
+{
+	if (connection == NULL)
+		return RPC_ERROR_CONNECTION_NULL;
+	if (connection->type != RPC_CONNECTION_SERVER)
+		return RPC_ERROR_CONNECTION_TYPE_MISMATCH;
+
+	return _rpc_wait_dispatch(connection, timeout);
+}
+
+// Process incoming messages in the background
 static void *rpc_server_func(void *arg)
 {
   rpc_connection_t *connection = (rpc_connection_t *)arg;
@@ -294,13 +317,7 @@ static void *rpc_server_func(void *arg)
 	pthread_testcancel();
 
 	// wait for data to arrive
-	fd_set rfds;
-	FD_ZERO(&rfds);
-	FD_SET(connection->socket, &rfds);
-	struct timeval tv;
-	tv.tv_sec = 0;
-	tv.tv_usec = 50000;
-	int ret = select(connection->socket + 1, &rfds, NULL, NULL, &tv);
+	int ret = _rpc_wait_dispatch(connection, 50000);
 	if (ret == 0)
 	  continue;
 	if (ret < 0)

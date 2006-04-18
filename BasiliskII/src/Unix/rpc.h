@@ -43,6 +43,7 @@ extern int rpc_exit(rpc_connection_t *connection);
 extern int rpc_listen_socket(rpc_connection_t *connection);
 extern int rpc_listen(rpc_connection_t *connection);
 extern int rpc_dispatch(rpc_connection_t *connection);
+extern int rpc_wait_dispatch(rpc_connection_t *connection, int timeout);
 extern int rpc_connection_busy(rpc_connection_t *connection);
 
 // Message Passing
