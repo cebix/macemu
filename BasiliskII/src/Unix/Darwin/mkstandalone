@@ -1,0 +1,89 @@
+#!/bin/sh
+#
+#  mkstandalone - Make a standalone bundle with GTK runtime
+#
+#  Basilisk II (C) 1997-2006 Christian Bauer
+#
+#  mkstandalone Copyright (C) 2006 Gwenole Beauchesne
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+PROG="${1%.app}"
+
+[ -n "$PROG" ] || {
+    echo "Usage: ${0##*/} <program|bundle>"
+    exit 1
+}
+
+[ -d "$PROG.app" ] || {
+    echo "ERROR: $PROG.app bundle does not exist"
+    exit 1
+}
+
+[ -x "$PROG.app/Contents/MacOS/$PROG" ] || {
+    echo "ERROR: $PROG.app is not a properly formed bundle"
+    exit 1
+}
+
+echo "Processing bundle $PROG.app"
+
+FRAMEWORKS="GLib GDK GTK"
+
+rm -r -f $PROG.app/Contents/Frameworks
+mkdir -p $PROG.app/Contents/Frameworks
+
+int_args=""
+for fmk_path in `otool -L $PROG.app/Contents/MacOS/$PROG | \
+    sed -n '/ *\(\/.*\.framework\/.*\) ([^)]*)/s//\1/p'`
+do
+    fmk_spath="${fmk_path%/Versions/*}"
+    fmk="${fmk_spath%.framework}"
+    fmk="${fmk##*/}"
+
+    case " $FRAMEWORKS " in
+	(*" $fmk "*) ;;
+	(*) continue ;;
+    esac
+
+    echo "  Linking in framework $fmk"
+    fmk_dpath=$PROG.app/Contents/Frameworks/$fmk.framework
+    rm -rf $fmk_dpath
+    cp -Rf $fmk_spath $fmk_dpath
+    find $fmk_dpath -name "*Headers*" | xargs rm -rf
+    fmk_vpath="${fmk_path##*.framework/}"
+
+    # change library dependency
+    install_name_tool -change \
+	$fmk_spath/$fmk_vpath \
+	@executable_path/../Frameworks/$fmk.framework/$fmk_vpath \
+	$PROG.app/Contents/MacOS/$PROG
+
+    # change shared library id name
+    fmk_newid="@executable_path/../Frameworks/${fmk_path#*/Frameworks/}"
+    install_name_tool -id $fmk_newid $fmk_dpath/$fmk_vpath
+
+    # expand final install_name_tool args list
+    int_args="$int_args -change $fmk_path $fmk_newid"
+
+    # strip shared library
+    strip -x $fmk_dpath/$fmk_vpath
+done
+
+# change remaining dependency libs names
+for f in $FRAMEWORKS; do
+    install_name_tool $int_args $PROG.app/Contents/Frameworks/$f.framework/$f
+done
+
+exit 0
