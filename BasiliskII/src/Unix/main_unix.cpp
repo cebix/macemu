@@ -55,11 +55,6 @@ struct sigstate {
 # define SS_USERREGS 0x04
 #endif
 
-#ifdef STANDALONE_GUI
-# undef ENABLE_GTK
-# include "rpc.h"
-#endif
-
 #ifdef ENABLE_GTK
 # include <gtk/gtk.h>
 # include <gdk/gdk.h>
@@ -91,6 +86,7 @@ using std::string;
 #include "main.h"
 #include "vm_alloc.h"
 #include "sigsegv.h"
+#include "rpc.h"
 
 #if USE_JIT
 extern void flush_icache_range(uint32 start, uint32 size); // from compemu_support.cpp
@@ -197,10 +193,8 @@ static void sigint_handler(...);
 static bool lm_area_mapped = false;	// Flag: Low Memory area mmap()ped
 #endif
 
-#ifdef STANDALONE_GUI
-static rpc_connection_t *gui_connection;	// RPC connection to the GUI
-static const char *gui_connection_path;		// GUI connection identifier
-#endif
+static rpc_connection_t *gui_connection = NULL;	// RPC connection to the GUI
+static const char *gui_connection_path = NULL;	// GUI connection identifier
 
 
 // Prototypes
@@ -423,14 +417,12 @@ int main(int argc, char **argv)
 			if (i < argc)
 				x_display_name = strdup(argv[i]);
 #endif
-#ifdef STANDALONE_GUI
 		} else if (strcmp(argv[i], "--gui-connection") == 0) {
 			argv[i++] = NULL;
 			if (i < argc) {
 				gui_connection_path = argv[i];
 				argv[i] = NULL;
 			}
-#endif
 		} else if (strcmp(argv[i], "--break") == 0) {
 			argv[i++] = NULL;
 			if (i < argc) {
@@ -464,26 +456,27 @@ int main(int argc, char **argv)
 		}
 	}
 
-#ifdef STANDALONE_GUI
+	// Connect to the external GUI
 	if (gui_connection_path) {
 		if ((gui_connection = rpc_init_client(gui_connection_path)) == NULL) {
 			fprintf(stderr, "Failed to initialize RPC client connection to the GUI\n");
 			return 1;
 		}
 	}
-#endif
 
 #ifdef ENABLE_GTK
+	if (!gui_connection) {
 #ifdef HAVE_GNOMEUI
-	// Init GNOME/GTK
-	char version[16];
-	sprintf(version, "%d.%d", VERSION_MAJOR, VERSION_MINOR);
-	gnome_init("Basilisk II", version, argc, argv);
+		// Init GNOME/GTK
+		char version[16];
+		sprintf(version, "%d.%d", VERSION_MAJOR, VERSION_MINOR);
+		gnome_init("Basilisk II", version, argc, argv);
 #else
-	// Init GTK
-	gtk_set_locale();
-	gtk_init(&argc, &argv);
+		// Init GTK
+		gtk_set_locale();
+		gtk_init(&argc, &argv);
 #endif
+	}
 #endif
 
 	// Read preferences
@@ -535,12 +528,10 @@ int main(int argc, char **argv)
 	// Init system routines
 	SysInit();
 
-#ifndef STANDALONE_GUI
 	// Show preferences editor
-	if (!PrefsFindBool("nogui"))
+	if (!gui_connection && !PrefsFindBool("nogui"))
 		if (!PrefsEditor())
 			QuitEmulator();
-#endif
 
 	// Install the handler for SIGSEGV
 	if (!sigsegv_install_handler(sigsegv_handler)) {
@@ -935,13 +926,11 @@ void QuitEmulator(void)
 		XCloseDisplay(x_display);
 #endif
 
-#ifdef STANDALONE_GUI
 	// Notify GUI we are about to leave
 	if (gui_connection) {
 		if (rpc_method_invoke(gui_connection, RPC_METHOD_EXIT, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR)
 			rpc_method_wait_for_reply(gui_connection, RPC_TYPE_INVALID);
 	}
-#endif
 
 	exit(0);
 }
@@ -1583,13 +1572,11 @@ void display_alert(int title_id, int prefix_id, int button_id, const char *text)
 
 void ErrorAlert(const char *text)
 {
-#ifdef STANDALONE_GUI
 	if (gui_connection) {
 		if (rpc_method_invoke(gui_connection, RPC_METHOD_ERROR_ALERT, RPC_TYPE_STRING, text, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR &&
 			rpc_method_wait_for_reply(gui_connection, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR)
 			return;
 	}
-#endif
 #if defined(ENABLE_GTK) && !defined(USE_SDL_VIDEO)
 	if (PrefsFindBool("nogui") || x_display == NULL) {
 		printf(GetString(STR_SHELL_ERROR_PREFIX), text);
@@ -1609,13 +1596,11 @@ void ErrorAlert(const char *text)
 
 void WarningAlert(const char *text)
 {
-#ifdef STANDALONE_GUI
 	if (gui_connection) {
 		if (rpc_method_invoke(gui_connection, RPC_METHOD_WARNING_ALERT, RPC_TYPE_STRING, text, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR &&
 			rpc_method_wait_for_reply(gui_connection, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR)
 			return;
 	}
-#endif
 #if defined(ENABLE_GTK) && !defined(USE_SDL_VIDEO)
 	if (PrefsFindBool("nogui") || x_display == NULL) {
 		printf(GetString(STR_SHELL_WARNING_PREFIX), text);

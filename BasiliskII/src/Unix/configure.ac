@@ -295,16 +295,12 @@ fi
 AC_SUBST(GUI_CFLAGS)
 AC_SUBST(GUI_LIBS)
 
-dnl Enable standalone GUI?
+dnl Build external GUI if requested.
 if [[ "$WANT_STANDALONE_GUI" != "yes" ]]; then
   WANT_STANDALONE_GUI=no
 fi
 if [[ "$WANT_GTK" = "no" ]]; then
   WANT_STANDALONE_GUI=no
-fi
-if [[ "$WANT_STANDALONE_GUI" = "yes" ]]; then
-  UISRCS=""
-  AC_DEFINE(STANDALONE_GUI, 1, [Define to use build a standalone GUI prefs editor.])
 fi
 AC_SUBST(STANDALONE_GUI, [$WANT_STANDALONE_GUI])
 
