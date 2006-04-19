@@ -40,7 +40,6 @@
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
-#include <pthread.h>
 
 #include "rpc.h"
 
@@ -51,6 +50,31 @@
 
 #if defined __linux__
 #define USE_ABSTRACT_NAMESPACES 1
+#endif
+
+
+/* ====================================================================== */
+/* === PThreads Glue                                                  === */
+/* ====================================================================== */
+
+//#define USE_THREADS
+
+#ifndef USE_THREADS
+#define pthread_t void *
+#define pthread_cancel(th)
+#define pthread_join(th, ret)
+#define pthread_testcancel()
+#define pthread_create(th, attr, start, arg) dummy_thread_create()
+static inline int dummy_thread_create(void) { errno = ENOSYS; return -1; }
+
+#undef  pthread_mutex_t
+#define pthread_mutex_t volatile int
+#undef  pthread_mutex_lock
+#define pthread_mutex_lock(m) -1
+#undef  pthread_mutex_unlock
+#define pthread_mutex_unlock(m) -1
+#undef  PTHREAD_MUTEX_INITIALIZER
+#define PTHREAD_MUTEX_INITIALIZER 0
 #endif
 
 
@@ -362,6 +386,7 @@ int rpc_listen_socket(rpc_connection_t *connection)
 }
 
 // Listen for incoming messages on RPC connection
+#ifdef USE_THREADS
 int rpc_listen(rpc_connection_t *connection)
 {
   D(bug("rpc_listen\n"));
@@ -373,6 +398,7 @@ int rpc_listen(rpc_connection_t *connection)
 
   return RPC_ERROR_NO_ERROR;
 }
+#endif
 
 
 /* ====================================================================== */
