@@ -35,8 +35,6 @@ BeOS:
 - Video depth/resolution switching
 
 Unix:
-- clip_unix.cpp: clip Unix->Basilisk
-- clip_unix.cpp: use X selections instead of cut buffer
 - sys_unix.cpp: SysFormat(), SysIsFixedDisk(), SysIsDiskInserted(),
   prevent/allow for non-floppy/CDROM devices
 - ESD is also available on Solaris
@@ -51,4 +49,3 @@ Windows
 - main_windows.cpp: undo the SDL/DIB driver trick
 - video_windows.cpp: implement with DirectX
 - audio_windows.cpp, scsi_windows.cpp: merge from original Windows version
-- GUI: handle NDIS interfaces
