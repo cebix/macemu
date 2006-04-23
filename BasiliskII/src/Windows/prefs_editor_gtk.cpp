@@ -32,6 +32,7 @@
 #include "xpram.h"
 #include "prefs.h"
 #include "prefs_editor.h"
+#include "util_windows.h"
 #include "b2ether/inc/b2ether_hl.h"
 
 
@@ -66,6 +67,7 @@ enum {
 	STR_SERIALB_CTRL = STR_SERPORTB_CTRL,
 };
 #else
+#define DISABLE_SCSI 1 /* XXX merge code from original Basilisk II for Windows */
 #define PROGRAM_NAME "BasiliskII"
 #endif
 
@@ -116,12 +118,17 @@ static GtkWidget *make_browse_button(GtkWidget *entry)
 	return button;
 }
 
+static void add_menu_item(GtkWidget *menu, const char *label, GtkSignalFunc func, gpointer data = NULL)
+{
+	GtkWidget *item = gtk_menu_item_new_with_label(label);
+	gtk_widget_show(item);
+	gtk_signal_connect(GTK_OBJECT(item), "activate", func, data);
+	gtk_menu_append(GTK_MENU(menu), item);
+}
+
 static void add_menu_item(GtkWidget *menu, int label_id, GtkSignalFunc func)
 {
-	GtkWidget *item = gtk_menu_item_new_with_label(GetString(label_id));
-	gtk_widget_show(item);
-	gtk_signal_connect(GTK_OBJECT(item), "activate", func, NULL);
-	gtk_menu_append(GTK_MENU(menu), item);
+	add_menu_item(menu, GetString(label_id), func, NULL);
 }
 
 static GtkWidget *make_pane(GtkWidget *notebook, int title_id)
@@ -458,6 +465,20 @@ static GtkItemFactoryEntry menu_items[] = {
 	{(gchar *)GetString(STR_HELP_ITEM_ABOUT_GTK),		"<control>H",	GTK_SIGNAL_FUNC(cb_about),		0, NULL}
 };
 
+void PrefsMigrate(void)
+{
+	// Ethernet
+	const char *ether = PrefsFindString("ether");
+	if (ether && ether[0] == '{') {
+		PrefsReplaceString("etherguid", ether);
+		PrefsReplaceString("ether", "b2ether");
+	}
+	if (PrefsFindBool("routerenabled")) {
+		PrefsRemoveItem("etherguid");
+		PrefsReplaceString("ether", "router");
+	}
+}
+
 bool PrefsEditor(void)
 {
 	// Create window
@@ -490,7 +511,9 @@ bool PrefsEditor(void)
 	gtk_box_pack_start(GTK_BOX(box), notebook, TRUE, TRUE, 0);
 
 	create_volumes_pane(notebook);
-//	create_scsi_pane(notebook); XXX not ready yet (merge scsi_windows.cpp from original B2/Win)
+#ifndef DISABLE_SCSI
+	create_scsi_pane(notebook);
+#endif
 	create_graphics_pane(notebook);
 	create_input_pane(notebook);
 	create_serial_pane(notebook);
@@ -1319,33 +1342,25 @@ static void create_serial_pane(GtkWidget *top)
  *  "Ethernet" pane
  */
 
-static GtkWidget *w_ether;
 static GtkWidget *w_ftp_port_list, *w_tcp_port_list;
-static const char s_nat_router[] = "NAT/Router module";
-static const char s_ndis_tag[] = "NDIS ";
 
 // Set sensitivity of widgets
 static void set_ethernet_sensitive(void)
 {
-	const char *str = gtk_entry_get_text(GTK_ENTRY(w_ether));
+	const char *str = PrefsFindString("ether");
 
-	bool is_nat_router = strcmp(str, s_nat_router) == 0;
-	gtk_widget_set_sensitive(w_ftp_port_list, is_nat_router);
-	gtk_widget_set_sensitive(w_tcp_port_list, is_nat_router);
+	bool is_router = str && strcmp(str, "router") == 0;
+	gtk_widget_set_sensitive(w_ftp_port_list, is_router);
+	gtk_widget_set_sensitive(w_tcp_port_list, is_router);
 }
 
 // Read settings from widgets and set preferences
 static void read_ethernet_settings(void)
 {
-	const char *str = gtk_entry_get_text(GTK_ENTRY(w_ether));
-	if (str && strlen(str) > sizeof(s_ndis_tag) && strncmp(str, s_ndis_tag, sizeof(s_ndis_tag) - 1) == 0)
-		PrefsReplaceString("ether", &str[sizeof(s_ndis_tag) - 1]);
-	else
-		PrefsRemoveItem("ether");
+	const char *str = PrefsFindString("ether");
 
-	const bool router_enabled = str && strcmp(str, s_nat_router) == 0;
-	PrefsReplaceBool("routerenabled", router_enabled);
-	if (router_enabled) {
+	bool is_router = str && strcmp(str, "router") == 0;
+	if (is_router) {
 		str = gtk_entry_get_text(GTK_ENTRY(w_ftp_port_list));
 		PrefsReplaceString("ftp_port_list", str);
 		str = gtk_entry_get_text(GTK_ENTRY(w_tcp_port_list));
@@ -1359,48 +1374,83 @@ static void cb_ether_changed(...)
 	set_ethernet_sensitive();
 }
 
-// Add names of ethernet interfaces
-// XXX use radio buttons instead (None/NDIS/NAT)
-static GList *add_ether_names(void)
+// Ethernet option "None" selected
+static void mn_ether_none(void)
 {
-	GList *glist = NULL;
-
-	glist = g_list_append(glist, (void *)GetString(STR_NONE_LAB));
-	glist = g_list_append(glist, (void *)s_nat_router);
-
-	{	// Get NDIS ethernet adapters (XXX handle "ethermulticastmode")
-		PacketOpenAdapter("", 0);
-		{
-			ULONG sz;
-			char names[1024];
-			sz = sizeof(names);
-			if (PacketGetAdapterNames(NULL, names, &sz) == ERROR_SUCCESS) {
-				char *p = names;
-				while (*p) {
-					const char DEVICE_HEADER[] = "\\Device\\B2ether_";
-					if (strnicmp(p, DEVICE_HEADER, sizeof(DEVICE_HEADER) - 1) == 0) {
-						LPADAPTER fd = PacketOpenAdapter(p + sizeof(DEVICE_HEADER) - 1, 0);
-						if (fd) {
-							char str[256];
-							sprintf(str, "%s%s", s_ndis_tag, p + sizeof(DEVICE_HEADER) - 1);
-							glist = g_list_append(glist, strdup(str));
-							PacketCloseAdapter(fd);
-						}
-					}
-					p += strlen(p) + 1;
-				}
-			}
-		}
-		PacketCloseAdapter(NULL);
-	}
-	return glist;
+	PrefsRemoveItem("ether");
+	PrefsRemoveItem("etherguid");
 }
 
+// Ethernet option "Basilisk II Router" selected
+static void mn_ether_router(void)
+{
+	PrefsReplaceString("ether", "router");
+	PrefsRemoveItem("etherguid");
+}
+
+// Ethernet option for Basilisk II driver selected
+static void mn_ether_b2ether(GtkWidget *, const char *guid)
+{
+	PrefsReplaceString("ether", "b2ether");
+	PrefsReplaceString("etherguid", guid);
+}
+
+// Create ethernet interfaces menu
+static int create_ether_menu(GtkWidget *menu)
+{
+	int active = -1;
+	int n_items = 0;
+	const char *ether = PrefsFindString("ether");
+	const char *etherguid = PrefsFindString("etherguid");
+
+	add_menu_item(menu, STR_NONE_LAB, (GtkSignalFunc)mn_ether_none);
+	if (ether == NULL)
+		active = n_items;
+	n_items++;
+
+	add_menu_item(menu, "Basilisk II Router", (GtkSignalFunc)mn_ether_router);
+	if (ether && strcmp(ether, "router") == 0)
+		active = n_items;
+	n_items++;
+
+	PacketOpenAdapter("", 0);
+	{
+		ULONG sz;
+		char names[1024];
+		sz = sizeof(names);
+		if (PacketGetAdapterNames(NULL, names, &sz) == ERROR_SUCCESS) {
+			char *p = names;
+			while (*p) {
+				const char DEVICE_HEADER[] = "\\Device\\B2ether_";
+				if (strnicmp(p, DEVICE_HEADER, sizeof(DEVICE_HEADER) - 1) == 0) {
+					LPADAPTER fd = PacketOpenAdapter(p + sizeof(DEVICE_HEADER) - 1, 0);
+					if (fd) {
+						char guid[256];
+						sprintf(guid, "%s", p + sizeof(DEVICE_HEADER) - 1);
+						const char *name = ether_guid_to_name(guid);
+						if (name && (name = g_locale_to_utf8(name, -1, NULL, NULL, NULL))) {
+							add_menu_item(menu, name, (GtkSignalFunc)mn_ether_b2ether, strdup(guid));
+							if (etherguid && strcmp(guid, etherguid) == 0 &&
+								ether && strcmp(ether, "b2ether") == 0)
+								active = n_items;
+							n_items++;
+						}
+						PacketCloseAdapter(fd);
+					}
+				}
+				p += strlen(p) + 1;
+			}
+		}
+	}
+	PacketCloseAdapter(NULL);
+
+	return active;
+}
 
 // Create "Ethernet" pane
 static void create_ethernet_pane(GtkWidget *top)
 {
-	GtkWidget *box, *hbox, *table, *label, *combo, *sep, *entry;
+	GtkWidget *box, *hbox, *table, *label, *sep, *entry, *opt, *menu, *item;
 
 	box = make_pane(top, STR_NETWORK_PANE_TITLE);
 	table = make_table(box, 2, 5);
@@ -1409,26 +1459,15 @@ static void create_ethernet_pane(GtkWidget *top)
 	gtk_widget_show(label);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
-	GList *glist = add_ether_names();
-	combo = gtk_combo_new();
-	gtk_widget_show(combo);
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
-	const char *str = PrefsFindString("ether");
-	if (str == NULL || str[0] == '\0') {
-		if (PrefsFindBool("routerenabled"))
-			str = s_nat_router;
-		else
-			str = GetString(STR_NONE_LAB);
-	}
-	else if (str[0] == '{') {
-		static char s_device[256];
-		sprintf(s_device, "%s%s", s_ndis_tag, str);
-		str = s_device;
-	}
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
-	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 0, 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
-	w_ether = GTK_COMBO(combo)->entry;
-	gtk_signal_connect(GTK_OBJECT(w_ether), "changed", GTK_SIGNAL_FUNC(cb_ether_changed), NULL);
+	opt = gtk_option_menu_new();
+	gtk_widget_show(opt);
+	menu = gtk_menu_new();
+	int active = create_ether_menu(menu);
+	if (active >= 0)
+		gtk_menu_set_active(GTK_MENU(menu), active);
+	gtk_option_menu_set_menu(GTK_OPTION_MENU(opt), menu);
+	gtk_table_attach(GTK_TABLE(table), opt, 1, 2, 0, 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
+	gtk_signal_connect(GTK_OBJECT(opt), "changed", GTK_SIGNAL_FUNC(cb_ether_changed), NULL);
 
 	sep = gtk_hseparator_new();
 	gtk_widget_show(sep);
@@ -1439,7 +1478,7 @@ static void create_ethernet_pane(GtkWidget *top)
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 2, 3, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
 	entry = gtk_entry_new();
-	str = PrefsFindString("ftp_port_list");
+	const char *str = PrefsFindString("ftp_port_list");
 	if (str == NULL)
 		str = "";
 	gtk_entry_set_text(GTK_ENTRY(entry), str);
@@ -1611,7 +1650,6 @@ static void read_settings(void)
 uint8 XPRAM[XPRAM_SIZE];
 void MountVolume(void *fh) { }
 void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_size) { }
-void WarningAlert(const char *text) { }
 void recycle_write_packet(LPPACKET) { }
 VOID CALLBACK packet_read_completion(DWORD, DWORD, LPOVERLAPPED) { }
 
@@ -1636,9 +1674,14 @@ static void display_alert(int title_id, const char *text, int flags)
 	MessageBox(NULL, text, GetString(title_id), MB_OK | flags);
 }
 
-static void ErrorAlert(const char *text)
+void ErrorAlert(const char *text)
 {
 	display_alert(STR_ERROR_ALERT_TITLE, text, MB_ICONSTOP);
+}
+
+void WarningAlert(const char *text)
+{
+	display_alert(STR_WARNING_ALERT_TITLE, text, MB_ICONSTOP);
 }
 
 
@@ -1654,6 +1697,9 @@ int main(int argc, char *argv[])
 
 	// Read preferences
 	PrefsInit(argc, argv);
+
+	// Migrate preferences
+	PrefsMigrate();
 
 	// Show preferences editor
 	bool start = PrefsEditor();

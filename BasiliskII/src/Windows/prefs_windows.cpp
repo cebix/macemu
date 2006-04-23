@@ -45,6 +45,7 @@ prefs_desc platform_prefs_items[] = {
 	{"debugextfs", TYPE_BOOLEAN, false,    "debug extfs system"},
 	{"extdrives", TYPE_STRING, false,      "define allowed extfs drives"},
 	{"pollmedia", TYPE_BOOLEAN, false,     "poll for new media (e.g. cd, floppy)"},
+	{"etherguid", TYPE_STRING, false,      "GUID of the ethernet device to use"},
 	{"etherpermanentaddress", TYPE_BOOLEAN, false,  "use permanent NIC address to identify itself"},
 	{"ethermulticastmode", TYPE_INT32, false,       "how to multicast packets"},
 	{"etherfakeaddress", TYPE_STRING, false,        "optional fake hardware address"},
@@ -130,7 +131,6 @@ void AddPlatformPrefsDefaults(void)
 #endif
 	PrefsReplaceBool("etherpermanentaddress", true);
 	PrefsReplaceInt32("ethermulticastmode", 0);
-	PrefsReplaceBool("routerenabled", false);
 	PrefsReplaceString("ftp_port_list", "21");
 	PrefsReplaceString("seriala", "COM1");
 	PrefsReplaceString("serialb", "COM2");

@@ -61,7 +61,8 @@ SRCS = ../main.cpp main_windows.cpp ../prefs.cpp ../prefs_items.cpp prefs_window
     $(CDENABLESRCS) $(ROUTERSRCS) $(CPUSRCS)
 
 UI_SRCS = ../prefs.cpp prefs_windows.cpp prefs_editor_gtk.cpp xpram_windows.cpp \
-	../prefs_items.cpp ../user_strings.cpp user_strings_windows.cpp b2ether/Packet32.cpp BasiliskIIGUI.rc
+	../prefs_items.cpp ../user_strings.cpp user_strings_windows.cpp util_windows.cpp \
+	b2ether/Packet32.cpp BasiliskIIGUI.rc
 
 UI_APP = BasiliskIIGUI.exe
 
