@@ -43,4 +43,8 @@ class mutex_t {
     void unlock()	{ LeaveCriticalSection(&cs); }
 };
 
+// Network control panel helpers
+extern const char *ether_name_to_guid(const char *name);
+extern const char *ether_guid_to_name(const char *guid);
+
 #endif // _UTIL_WINDOWS_H
