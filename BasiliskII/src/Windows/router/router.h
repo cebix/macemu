@@ -44,8 +44,7 @@ extern bool raw_sockets_available;
 
 
 // Interface exposed to ether_windows module.
-extern bool m_router_enabled;
-void router_init(void);
+bool router_init(void);
 void router_final(void);
 
 // Both of these return true if the ethernet module should drop the packet.

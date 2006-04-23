@@ -49,6 +49,13 @@
 #include "debug.h"
 
 
+// Ethernet device types
+enum {
+	NET_IF_B2ETHER,
+	NET_IF_ROUTER,
+	NET_IF_FAKE,
+};
+
 // Options
 bool ether_use_permanent = true;
 static int16 ether_multi_mode = ETHER_MULTICAST_MAC;
@@ -58,14 +65,11 @@ HANDLE ether_th;
 unsigned int ether_tid;
 HANDLE ether_th1;
 HANDLE ether_th2;
+static int net_if_type = -1;				// Ethernet device type
 #ifdef SHEEPSHAVER
 static bool net_open = false;				// Flag: initialization succeeded, network device open
 uint8 ether_addr[6];						// Our Ethernet address
 #endif
-
-
-// Need to fake a NIC if there is none but the router module is activated.
-bool ether_fake = false;
 
 // These are protected by queue_csection
 // Controls transfer for read thread to feed thread
@@ -133,9 +137,6 @@ static HANDLE int_sig = 0;
 static HANDLE int_sig2 = 0;
 static HANDLE int_send_now = 0;
 
-static char edevice[512];
-
-
 // Prototypes
 static WINAPI unsigned int ether_thread_feed_int(void *arg);
 static WINAPI unsigned int ether_thread_get_packets_nt(void *arg);
@@ -181,47 +182,54 @@ bool ether_init(void)
 {
 	char str[256];
 
-	// Initialize NAT-Router
-	router_init();
-
 	// Do nothing if no Ethernet device specified
 	const char *name = PrefsFindString("ether");
-	if (name)
-		strcpy(edevice, name);
+	if (name == NULL)
+		return false;
 
-	bool there_is_a_router = PrefsFindBool("routerenabled");
+	ether_multi_mode = PrefsFindInt32("ethermulticastmode");
+	ether_use_permanent = PrefsFindBool("etherpermanentaddress");
 
-	if (!name || !*name) {
-		if( there_is_a_router ) {
-			strcpy( edevice, "None" );
-			ether_fake = true;
-		} else {
-			return false;
-		}
+	// Determine Ethernet device type
+	net_if_type = -1;
+	if (strcmp(name, "router") == 0)
+		net_if_type = NET_IF_ROUTER;
+	else
+		net_if_type = NET_IF_B2ETHER;
+
+	// Initialize NAT-Router
+	if (net_if_type == NET_IF_ROUTER) {
+		if (!router_init())
+			net_if_type = NET_IF_FAKE;
 	}
 
-	ether_use_permanent = PrefsFindBool("etherpermanentaddress");
-	ether_multi_mode = PrefsFindInt32("ethermulticastmode");
-
 	// Open ethernet device
-	if(ether_fake) {
-		memcpy( ether_addr, router_mac_addr, 6 );
-		D(bug("Fake ethernet address (same as router) %02x %02x %02x %02x %02x %02x\r\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
-	} else {
-		fd = PacketOpenAdapter( name, ether_multi_mode );
+	const char *dev_name;
+	switch (net_if_type) {
+	case NET_IF_B2ETHER:
+		dev_name = PrefsFindString("etherguid");
+		break;
+	}
+	if (net_if_type == NET_IF_B2ETHER) {
+		if (dev_name == NULL) {
+			WarningAlert("No ethernet device GUID specified. Ethernet is not available.");
+			goto open_error;
+		}
+
+		fd = PacketOpenAdapter( dev_name, ether_multi_mode );
 		if (!fd) {
-			sprintf(str, "Could not open ethernet adapter %s.", name);
+			sprintf(str, "Could not open ethernet adapter %s.", dev_name);
 			WarningAlert(str);
 			goto open_error;
 		}
 
 		// Get Ethernet address
 		if(!PacketGetMAC(fd,ether_addr,ether_use_permanent)) {
-			sprintf(str, "Could not get hardware address of device %s. Ethernet is not available.", name);
+			sprintf(str, "Could not get hardware address of device %s. Ethernet is not available.", dev_name);
 			WarningAlert(str);
 			goto open_error;
 		}
-		D(bug("Real ethernet address %02x %02x %02x %02x %02x %02x\r\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
+		D(bug("Real ethernet address %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
 
 		const char *ether_fake_address;
 		ether_fake_address = PrefsFindString("etherfakeaddress");
@@ -233,8 +241,12 @@ bool ether_init(void)
 				sm[3] = ether_fake_address[i*2+1];
 				ether_addr[i] = (uint8)strtoul(sm,0,0);
 			}
-			D(bug("Fake ethernet address %02x %02x %02x %02x %02x %02x\r\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
+			D(bug("Fake ethernet address %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
 		}
+	}
+	else {
+		memcpy( ether_addr, router_mac_addr, 6 );
+		D(bug("Fake ethernet address (same as router) %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
 	}
 
 	// Start packet reception thread
@@ -293,27 +305,14 @@ bool ether_init(void)
 
 	ether_th = (HANDLE)_beginthreadex( 0, 0, ether_thread_feed_int, 0, 0, &ether_tid );
 	if (!ether_th) {
-		D(bug("Failed to create ethernet thread\r\n"));
+		D(bug("Failed to create ethernet thread\n"));
 		goto open_error;
 	}
 	thread_active = true;
-#if 0
-	SetThreadPriority( ether_th, threads[THREAD_ETHER].priority_running );
-	SetThreadAffinityMask( ether_th, threads[THREAD_ETHER].affinity_mask );
-#endif
 
 	unsigned int dummy;
 	ether_th2 = (HANDLE)_beginthreadex( 0, 0, ether_thread_get_packets_nt, 0, 0, &dummy );
-#if 0
-	SetThreadPriority( ether_th2, threads[THREAD_ETHER].priority_running );
-	SetThreadAffinityMask( ether_th2, threads[THREAD_ETHER].affinity_mask );
-#endif
-
 	ether_th1 = (HANDLE)_beginthreadex( 0, 0, ether_thread_write_packets, 0, 0, &dummy );
-#if 0
-	SetThreadPriority( ether_th1, threads[THREAD_ETHER].priority_running );
-	SetThreadAffinityMask( ether_th1, threads[THREAD_ETHER].affinity_mask );
-#endif
 
 	// Everything OK
 	return true;
@@ -336,7 +335,7 @@ bool ether_init(void)
 		int_send_now = 0;
 		thread_active = false;
 	}
-	if(!ether_fake) {
+	if(net_if_type == NET_IF_B2ETHER) {
 		PacketCloseAdapter(fd);
 	}
 	fd = 0;
@@ -350,45 +349,39 @@ bool ether_init(void)
 
 void ether_exit(void)
 {
-	D(bug("EtherExit\r\n"));
+	D(bug("EtherExit\n"));
 
-	// Take them down in a controlled way.
+	// Stop reception thread
 	thread_active = false;
-
-	// _asm int 3
-
-	D(bug("Closing ethernet device %s\r\n",edevice));
-
-	if(!*edevice) return;
 
 	if(int_ack) ReleaseSemaphore(int_ack,1,NULL);
 	if(int_sig) ReleaseSemaphore(int_sig,1,NULL);
 	if(int_sig2) ReleaseSemaphore(int_sig2,1,NULL);
 	if(int_send_now) ReleaseSemaphore(int_send_now,1,NULL);
 
-	D(bug("CancelIO if needed\r\n"));
+	D(bug("CancelIO if needed\n"));
 	if (fd && fd->hFile && pfnCancelIo)
 		pfnCancelIo(fd->hFile);
 
 	// Wait max 2 secs to shut down pending io. After that, kill them.
-	D(bug("Wait delay\r\n"));
+	D(bug("Wait delay\n"));
 	for( int i=0; i<10; i++ ) {
 		if(!thread_active_1 && !thread_active_2 && !thread_active_3) break;
 		Sleep(200);
 	}
 
 	if(thread_active_1) {
-		D(bug("Ether killing ether_th1\r\n"));
+		D(bug("Ether killing ether_th1\n"));
 		if(ether_th1) TerminateThread(ether_th1,0);
 		thread_active_1 = false;
 	}
 	if(thread_active_2) {
-		D(bug("Ether killing ether_th2\r\n"));
+		D(bug("Ether killing ether_th2\n"));
 		if(ether_th2) TerminateThread(ether_th2,0);
 		thread_active_2 = false;
 	}
 	if(thread_active_3) {
-		D(bug("Ether killing thread\r\n"));
+		D(bug("Ether killing thread\n"));
 		if(ether_th) TerminateThread(ether_th,0);
 		thread_active_3 = false;
 	}
@@ -397,7 +390,7 @@ void ether_exit(void)
 	ether_th2 = 0;
 	ether_th = 0;
 
-	D(bug("Closing semaphores\r\n"));
+	D(bug("Closing semaphores\n"));
 	if(int_ack) {
 		CloseHandle(int_ack);
 		int_ack = 0;
@@ -422,7 +415,7 @@ void ether_exit(void)
 	}
 
 	// Remove all protocols
-	D(bug("Removing protocols\r\n"));
+	D(bug("Removing protocols\n"));
 	NetProtocol *p = prot_list;
 	while (p) {
 		NetProtocol *next = p->next;
@@ -431,25 +424,27 @@ void ether_exit(void)
 	}
 	prot_list = 0;
 
-	D(bug("Deleting sections\r\n"));
+	D(bug("Deleting sections\n"));
 	DeleteCriticalSection( &fetch_csection );
 	DeleteCriticalSection( &queue_csection );
 	DeleteCriticalSection( &send_csection );
 	DeleteCriticalSection( &wpool_csection );
 
-	D(bug("Freeing read packets\r\n"));
+	D(bug("Freeing read packets\n"));
 	free_read_packets();
 
-	D(bug("Freeing write packets\r\n"));
+	D(bug("Freeing write packets\n"));
 	free_write_packets();
 
-	D(bug("Finalizing queue\r\n"));
+	D(bug("Finalizing queue\n"));
 	final_queue();
 
-	D(bug("Stopping router\r\n"));
-	router_final();
+	if (net_if_type == NET_IF_ROUTER) {
+		D(bug("Stopping router\n"));
+		router_final();
+	}
 
-	D(bug("EtherExit done\r\n"));
+	D(bug("EtherExit done\n"));
 }
 
 
@@ -548,7 +543,7 @@ void EtherIRQ(void)
 	OTLeaveInterrupt();
 
 	// Acknowledge interrupt to reception thread
-	D(bug(" EtherIRQ done\r\n"));
+	D(bug(" EtherIRQ done\n"));
 	ReleaseSemaphore(int_ack,1,NULL);
 }
 #else
@@ -593,7 +588,7 @@ static void ether_dispatch_packet(uint32 packet, uint32 length)
 
 	// Copy header to RHA
 	Mac2Mac_memcpy(ether_data + ed_RHA, packet, 14);
-	D(bug(" header %08lx%04lx %08lx%04lx %04lx\r\n", ReadMacInt32(ether_data + ed_RHA), ReadMacInt16(ether_data + ed_RHA + 4), ReadMacInt32(ether_data + ed_RHA + 6), ReadMacInt16(ether_data + ed_RHA + 10), ReadMacInt16(ether_data + ed_RHA + 12)));
+	D(bug(" header %08lx%04lx %08lx%04lx %04lx\n", ReadMacInt32(ether_data + ed_RHA), ReadMacInt16(ether_data + ed_RHA + 4), ReadMacInt32(ether_data + ed_RHA + 6), ReadMacInt16(ether_data + ed_RHA + 10), ReadMacInt16(ether_data + ed_RHA + 12)));
 
 	// Call protocol handler
 	M68kRegisters r;
@@ -602,7 +597,7 @@ static void ether_dispatch_packet(uint32 packet, uint32 length)
 	r.a[0] = packet + 14;						// Pointer to packet (Mac address, for ReadPacket)
 	r.a[3] = ether_data + ed_RHA + 14;			// Pointer behind header in RHA
 	r.a[4] = ether_data + ed_ReadPacket;		// Pointer to ReadPacket/ReadRest routines
-	D(bug(" calling protocol handler %08lx, type %08lx, length %08lx, data %08lx, rha %08lx, read_packet %08lx\r\n", prot->handler, r.d[0], r.d[1], r.a[0], r.a[3], r.a[4]));
+	D(bug(" calling protocol handler %08lx, type %08lx, length %08lx, data %08lx, rha %08lx, read_packet %08lx\n", prot->handler, r.d[0], r.d[1], r.a[0], r.a[3], r.a[4]));
 	Execute68k(prot->handler, &r);
 }
 
@@ -613,7 +608,7 @@ void EtherInterrupt(void)
 	ether_do_interrupt();
 
 	// Acknowledge interrupt to reception thread
-	D(bug(" EtherIRQ done\r\n"));
+	D(bug(" EtherIRQ done\n"));
 	ReleaseSemaphore(int_ack,1,NULL);
 }
 #endif
@@ -625,7 +620,7 @@ void EtherInterrupt(void)
 
 void ether_reset(void)
 {
-	D(bug("EtherReset\r\n"));
+	D(bug("EtherReset\n"));
 
 	// Remove all protocols
 	NetProtocol *p = prot_list;
@@ -644,16 +639,19 @@ void ether_reset(void)
 
 static int16 ether_do_add_multicast(uint8 *addr)
 {
-	D(bug("ether_add_multicast\r\n"));
+	D(bug("ether_add_multicast\n"));
 
 	// We wouldn't need to do this
 	// if(ether_multi_mode != ETHER_MULTICAST_MAC) return noErr;
 
-	if (!ether_fake && !PacketAddMulticast( fd, addr)) {
-		D(bug("WARNING: couldn't enable multicast address\r\n"));
-		return eMultiErr;
-	} else {
-		D(bug("ether_add_multicast: noErr\r\n"));
+	switch (net_if_type) {
+	case NET_IF_B2ETHER:
+		if (!PacketAddMulticast( fd, addr)) {
+			D(bug("WARNING: couldn't enable multicast address\n"));
+			return eMultiErr;
+		}
+	default:
+		D(bug("ether_add_multicast: noErr\n"));
 		return noErr;
 	}
 }
@@ -665,16 +663,20 @@ static int16 ether_do_add_multicast(uint8 *addr)
 
 int16 ether_do_del_multicast(uint8 *addr)
 {
-	D(bug("ether_del_multicast\r\n"));
+	D(bug("ether_del_multicast\n"));
 
 	// We wouldn't need to do this
 	// if(ether_multi_mode != ETHER_MULTICAST_MAC) return noErr;
 
-	if (!ether_fake && !PacketDelMulticast( fd, addr)) {
-		D(bug("WARNING: couldn't disable multicast address\r\n"));
-		return eMultiErr;
-	} else
+	switch (net_if_type) {
+	case NET_IF_B2ETHER:
+		if (!PacketDelMulticast( fd, addr)) {
+			D(bug("WARNING: couldn't disable multicast address\n"));
+			return eMultiErr;
+		}
+	default:
 		return noErr;
+	}
 }
 
 
@@ -684,12 +686,12 @@ int16 ether_do_del_multicast(uint8 *addr)
 
 int16 ether_attach_ph(uint16 type, uint32 handler)
 {
-	D(bug("ether_attach_ph type=0x%x, handler=0x%x\r\n",(int)type,handler));
+	D(bug("ether_attach_ph type=0x%x, handler=0x%x\n",(int)type,handler));
 
 	// Already attached?
 	NetProtocol *p = find_protocol(type);
 	if (p != NULL) {
-		D(bug("ether_attach_ph: lapProtErr\r\n"));
+		D(bug("ether_attach_ph: lapProtErr\n"));
 		return lapProtErr;
 	} else {
 		// No, create and attach
@@ -698,7 +700,7 @@ int16 ether_attach_ph(uint16 type, uint32 handler)
 		p->type = type;
 		p->handler = handler;
 		prot_list = p;
-		D(bug("ether_attach_ph: noErr\r\n"));
+		D(bug("ether_attach_ph: noErr\n"));
 		return noErr;
 	}
 }
@@ -710,7 +712,7 @@ int16 ether_attach_ph(uint16 type, uint32 handler)
 
 int16 ether_detach_ph(uint16 type)
 {
-	D(bug("ether_detach_ph type=%08lx\r\n",(int)type));
+	D(bug("ether_detach_ph type=%08lx\n",(int)type));
 
 	NetProtocol *p = find_protocol(type);
 	if (p != NULL) {
@@ -746,7 +748,7 @@ static void dump_packet( uint8 *packet, int length )
 		sprintf(sm," %02x", (int)packet[i]);
 		strcat( buf, sm );
 	}
-	strcat( buf, "\r\n" );
+	strcat( buf, "\n" );
 	bug(buf);
 }
 #endif
@@ -803,7 +805,7 @@ static void free_write_packets( void )
 	int i = 0;
 	while(write_packet_pool) {
 		next = write_packet_pool->next;
-		D(bug("Freeing write packet %ld\r\n",++i));
+		D(bug("Freeing write packet %ld\n",++i));
 		PacketFreePacket(write_packet_pool);
 		write_packet_pool = next;
 	}
@@ -814,7 +816,7 @@ void recycle_write_packet( LPPACKET Packet )
 	EnterCriticalSection( &wpool_csection );
 	Packet->next = write_packet_pool;
 	write_packet_pool = Packet;
-	D(bug("Pool size after recycling = %ld\r\n",get_write_packet_pool_sz()));
+	D(bug("Pool size after recycling = %ld\n",get_write_packet_pool_sz()));
 	LeaveCriticalSection( &wpool_csection );
 }
 
@@ -839,7 +841,7 @@ static LPPACKET get_write_packet( UINT len )
 		Packet = PacketAllocatePacket(fd,len);
 	}
 
-	D(bug("Pool size after get wr packet = %ld\r\n",get_write_packet_pool_sz()));
+	D(bug("Pool size after get wr packet = %ld\n",get_write_packet_pool_sz()));
 
 	LeaveCriticalSection( &wpool_csection );
 
@@ -852,25 +854,33 @@ static unsigned int ether_thread_write_packets(void *arg)
 
 	thread_active_1 = true;
 
-	D(bug("ether_thread_write_packets start\r\n"));
+	D(bug("ether_thread_write_packets start\n"));
 
 	while(thread_active) {
 		// must be alertable, otherwise write completion is never called
 		WaitForSingleObjectEx(int_send_now,INFINITE,TRUE);
 		while( thread_active && (Packet = get_send_head()) != 0 ) {
-			if(m_router_enabled && router_write_packet((uint8 *)Packet->Buffer, Packet->Length)) {
+			switch (net_if_type) {
+			case NET_IF_ROUTER:
+				if(router_write_packet((uint8 *)Packet->Buffer, Packet->Length)) {
+					Packet->bIoComplete = TRUE;
+					recycle_write_packet(Packet);
+				}
+				break;
+			case NET_IF_FAKE:
 				Packet->bIoComplete = TRUE;
 				recycle_write_packet(Packet);
-			} else if(ether_fake) {
-				Packet->bIoComplete = TRUE;
-				recycle_write_packet(Packet);
-			} else if(!PacketSendPacket( fd, Packet, FALSE, TRUE )) {
-				// already recycled if async
+				break;
+			case NET_IF_B2ETHER:
+				if(!PacketSendPacket( fd, Packet, FALSE, TRUE )) {
+					// already recycled if async
+				}
+				break;
 			}
 		}
 	}
 
-	D(bug("ether_thread_write_packets exit\r\n"));
+	D(bug("ether_thread_write_packets exit\n"));
 
 	thread_active_1 = false;
 
@@ -881,7 +891,7 @@ static BOOL write_packet( uint8 *packet, int len )
 {
 	LPPACKET Packet;
 
-	D(bug("write_packet\r\n"));
+	D(bug("write_packet\n"));
 
 	Packet = get_write_packet(len);
 	if(Packet) {
@@ -904,14 +914,14 @@ static BOOL write_packet( uint8 *packet, int len )
 
 static int16 ether_do_write(uint32 arg)
 {
-	D(bug("ether_write\r\n"));
+	D(bug("ether_write\n"));
 
 	// Copy packet to buffer
 	uint8 packet[1514], *p = packet;
 	int len = ether_arg_to_buffer(arg, p);
 
 	if(len > 1514) {
-		D(bug("illegal packet length: %d\r\n",len));
+		D(bug("illegal packet length: %d\n",len));
 		return eLenErr;
 	} else {
 #if MONITOR
@@ -922,7 +932,7 @@ static int16 ether_do_write(uint32 arg)
 
 	// Transmit packet
 	if (!write_packet(packet, len)) {
-		D(bug("WARNING: couldn't transmit packet\r\n"));
+		D(bug("WARNING: couldn't transmit packet\n"));
 		return excessCollsns;
 	} else {
 		// It's up to the protocol drivers to do the error checking. Even if the
@@ -956,7 +966,7 @@ void enqueue_packet( uint8 *buf, int sz )
 {
 	EnterCriticalSection( &queue_csection );
 	if(queue[queue_inx].sz > 0) {
-		D(bug("ethernet queue full, packet dropped\r\n"));
+		D(bug("ethernet queue full, packet dropped\n"));
 	} else {
 		if(sz > 1514) sz = 1514;
 		queue[queue_inx].sz = sz;
@@ -993,7 +1003,7 @@ static void trigger_queue(void)
 {
 	EnterCriticalSection( &queue_csection );
 	if( queue[queue_head].sz > 0 ) {
-		D(bug(" packet received, triggering Ethernet interrupt\r\n"));
+		D(bug(" packet received, triggering Ethernet interrupt\n"));
 		SetInterruptFlag(INTFLAG_ETHER);
 		TriggerInterrupt();
 		// of course can't wait here.
@@ -1042,19 +1052,19 @@ VOID CALLBACK packet_read_completion(
 				if(count == pending_packet_sz[j] &&
 				   memcmp(pending_packet[j],lpPacket->Buffer,count) == 0)
 				{
-					D(bug("packet_read_completion discarding own packet.\r\n"));
+					D(bug("packet_read_completion discarding own packet.\n"));
 					dwNumberOfBytesTransfered = 0;
 
 					j = (j+1) & (~(MAX_ECHO-1));
 					if(j != echo_count) {
-						D(bug("Wow, this fix made some good after all...\r\n"));
+						D(bug("Wow, this fix made some good after all...\n"));
 					}
 
 					break;
 				}
 			}
 			if(dwNumberOfBytesTransfered) {
-				if(!m_router_enabled || !router_read_packet((uint8 *)lpPacket->Buffer, dwNumberOfBytesTransfered)) {
+				if(net_if_type != NET_IF_ROUTER || !router_read_packet((uint8 *)lpPacket->Buffer, dwNumberOfBytesTransfered)) {
 					enqueue_packet( (LPBYTE)lpPacket->Buffer, dwNumberOfBytesTransfered );
 				}
 			}
@@ -1098,7 +1108,7 @@ static bool allocate_read_packets(void)
 	for( int i=0; i<PACKET_POOL_COUNT; i++ ) {
 		packets[i] = PacketAllocatePacket(fd,1514);
 		if(!packets[i]) {
-			D(bug("allocate_read_packets: out of memory\r\n"));
+			D(bug("allocate_read_packets: out of memory\n"));
 			return(false);
 		}
 	}
@@ -1119,20 +1129,20 @@ static unsigned int ether_thread_get_packets_nt(void *arg)
 
 	thread_active_2 = true;
 
-	D(bug("ether_thread_get_packets_nt start\r\n"));
+	D(bug("ether_thread_get_packets_nt start\n"));
 
 	// Wait for packets to arrive.
 	// Obey the golden rules; keep the reads pending.
 	while(thread_active) {
 
-		if(!ether_fake) {
-			D(bug("Pending reads\r\n"));
+		if(net_if_type == NET_IF_B2ETHER) {
+			D(bug("Pending reads\n"));
 			for( i=0; thread_active && i<PACKET_POOL_COUNT; i++ ) {
 				if(packets[i]->free) {
 					packets[i]->free = FALSE;
 					if(PacketReceivePacket(fd,packets[i],FALSE)) {
 						if(packets[i]->bIoComplete) {
-							D(bug("Early io completion...\r\n"));
+							D(bug("Early io completion...\n"));
 							packet_read_completion(
 								ERROR_SUCCESS,
 								packets[i]->BytesReceived,
@@ -1147,13 +1157,13 @@ static unsigned int ether_thread_get_packets_nt(void *arg)
 		}
 
 		if(thread_active && has_no_completed_io()) {
-			D(bug("Waiting for int_sig2\r\n"));
+			D(bug("Waiting for int_sig2\n"));
 			// "problem": awakens twice in a row. Fix if you increase the pool size.
 			WaitForSingleObjectEx(int_sig2,INFINITE,TRUE);
 		}
 	}
 
-	D(bug("ether_thread_get_packets_nt exit\r\n"));
+	D(bug("ether_thread_get_packets_nt exit\n"));
 
 	thread_active_2 = false;
 
@@ -1166,13 +1176,13 @@ static unsigned int ether_thread_feed_int(void *arg)
 
 	thread_active_3 = true;
 
-	D(bug("ether_thread_feed_int start\r\n"));
+	D(bug("ether_thread_feed_int start\n"));
 
 	while(thread_active) {
-		D(bug("Waiting for int_sig\r\n"));
+		D(bug("Waiting for int_sig\n"));
 		WaitForSingleObject(int_sig,INFINITE);
 		// Looping this way to avoid a race condition.
-		D(bug("Triggering\r\n"));
+		D(bug("Triggering\n"));
 		looping = true;
 		while(thread_active && looping) {
 			trigger_queue();
@@ -1180,10 +1190,10 @@ static unsigned int ether_thread_feed_int(void *arg)
 			WaitForSingleObject(int_ack,INFINITE);
 			if(thread_active) looping = set_wait_request();
 		}
-		D(bug("Queue empty.\r\n"));
+		D(bug("Queue empty.\n"));
 	}
 
-	D(bug("ether_thread_feed_int exit\r\n"));
+	D(bug("ether_thread_feed_int exit\n"));
 
 	thread_active_3 = false;
 

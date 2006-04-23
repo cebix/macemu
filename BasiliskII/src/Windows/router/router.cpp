@@ -62,7 +62,6 @@ uint32 macos_ip_address = 0;
 const uint8 router_mac_addr[6] = { '4', '2', '6', '7', '7', '9' };
 uint32 router_ip_address = 0;
 bool raw_sockets_available = false;
-bool m_router_enabled = true;
 
 
 
@@ -157,13 +156,11 @@ static WINAPI unsigned int router_expire_thread(void *arg)
 	return 0;
 }
 
-void router_init(void)
+bool router_init(void)
 {
 	InitializeCriticalSection( &router_section );
 
-	m_router_enabled = PrefsFindBool("routerenabled");
-	
-	if(m_router_enabled && dynsockets_init()) {
+	if(dynsockets_init()) {
 		char me[128];
 		if( _gethostname(me, sizeof(me)) == SOCKET_ERROR ) {
 			D(bug("gethostname() failed, error = %d\r\n", _WSAGetLastError()));
@@ -183,9 +180,10 @@ void router_init(void)
 		init_tcp();
 		init_udp();
 		init_ftp();
-	} else {
-		m_router_enabled = false;
+		return true;
 	}
+
+	return false;
 }
 
 void router_final(void)
