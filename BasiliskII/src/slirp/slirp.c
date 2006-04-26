@@ -333,8 +333,8 @@ int slirp_select_fill(int *pnfds,
 	 * Adjust the timeout to make the minimum timeout
 	 * 2ms (XXX?) to lessen the CPU load
 	 */
-	if (timeout < FAST_TIMO)
-		timeout = FAST_TIMO;
+	if (timeout < (FAST_TIMO * 1000))
+		timeout = FAST_TIMO * 1000;
 
 	return timeout;
 }	
