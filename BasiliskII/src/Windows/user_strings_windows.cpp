@@ -36,6 +36,7 @@ user_string_def platform_strings[] = {
 	{STR_VOSF_INIT_ERR, "Cannot initialize Video on SEGV signals."},
 	{STR_SIG_INSTALL_ERR, "Cannot install %s handler (%s)."},
 	{STR_TICK_THREAD_ERR, "Cannot create 60Hz thread (%s)."},
+	{STR_SLIRP_NO_DNS_FOUND_WARN, "Cannot get DNS address. Ethernet will not be available."},
 	{STR_NO_AUDIO_WARN, "No audio device found, audio output will be disabled."},
 	{STR_KEYCODE_FILE_WARN, "Cannot open keycode translation file %s (%s)."},
 	{STR_KEYCODE_VENDOR_WARN, "Cannot find vendor '%s' in keycode translation file %s."},

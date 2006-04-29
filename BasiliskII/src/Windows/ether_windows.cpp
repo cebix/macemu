@@ -37,6 +37,10 @@
 #include "ether_windows.h"
 #include "router/router.h"
 #include "kernel_windows.h"
+#include "libslirp.h"
+
+// Define to let the slirp library determine the right timeout for select()
+#define USE_SLIRP_TIMEOUT 1
 
 
 #define DEBUG 0
@@ -53,6 +57,7 @@
 enum {
 	NET_IF_B2ETHER,
 	NET_IF_ROUTER,
+	NET_IF_SLIRP,
 	NET_IF_FAKE,
 };
 
@@ -138,6 +143,7 @@ static HANDLE int_sig2 = 0;
 static HANDLE int_send_now = 0;
 
 // Prototypes
+static WINAPI unsigned int slirp_receive_func(void *arg);
 static WINAPI unsigned int ether_thread_feed_int(void *arg);
 static WINAPI unsigned int ether_thread_get_packets_nt(void *arg);
 static WINAPI unsigned int ether_thread_write_packets(void *arg);
@@ -194,6 +200,8 @@ bool ether_init(void)
 	net_if_type = -1;
 	if (strcmp(name, "router") == 0)
 		net_if_type = NET_IF_ROUTER;
+	else if (strcmp(name, "slirp") == 0)
+		net_if_type = NET_IF_SLIRP;
 	else
 		net_if_type = NET_IF_B2ETHER;
 
@@ -201,6 +209,15 @@ bool ether_init(void)
 	if (net_if_type == NET_IF_ROUTER) {
 		if (!router_init())
 			net_if_type = NET_IF_FAKE;
+	}
+
+	// Initialize slirp library
+	if (net_if_type == NET_IF_SLIRP) {
+		if (slirp_init() < 0) {
+			sprintf(str, GetString(STR_SLIRP_NO_DNS_FOUND_WARN));
+			WarningAlert(str);
+			return false;
+		}
 	}
 
 	// Open ethernet device
@@ -243,6 +260,15 @@ bool ether_init(void)
 			}
 			D(bug("Fake ethernet address %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
 		}
+	}
+	else if (net_if_type == NET_IF_SLIRP) {
+		ether_addr[0] = 0x52;
+		ether_addr[1] = 0x54;
+		ether_addr[2] = 0x00;
+		ether_addr[3] = 0x12;
+		ether_addr[4] = 0x34;
+		ether_addr[5] = 0x56;
+		D(bug("Ethernet address %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
 	}
 	else {
 		memcpy( ether_addr, router_mac_addr, 6 );
@@ -311,7 +337,9 @@ bool ether_init(void)
 	thread_active = true;
 
 	unsigned int dummy;
-	ether_th2 = (HANDLE)_beginthreadex( 0, 0, ether_thread_get_packets_nt, 0, 0, &dummy );
+	ether_th2 = (HANDLE)_beginthreadex( 0, 0,
+		net_if_type == NET_IF_SLIRP ? slirp_receive_func : ether_thread_get_packets_nt,
+		0, 0, &dummy );
 	ether_th1 = (HANDLE)_beginthreadex( 0, 0, ether_thread_write_packets, 0, 0, &dummy );
 
 	// Everything OK
@@ -876,6 +904,11 @@ static unsigned int ether_thread_write_packets(void *arg)
 					// already recycled if async
 				}
 				break;
+			case NET_IF_SLIRP:
+				slirp_input((uint8 *)Packet->Buffer, Packet->Length);
+				Packet->bIoComplete = TRUE;
+				recycle_write_packet(Packet);
+				break;
 			}
 		}
 	}
@@ -962,7 +995,7 @@ static void final_queue(void)
 	}
 }
 
-void enqueue_packet( uint8 *buf, int sz )
+void enqueue_packet( const uint8 *buf, int sz )
 {
 	EnterCriticalSection( &queue_csection );
 	if(queue[queue_inx].sz > 0) {
@@ -1023,6 +1056,61 @@ static bool set_wait_request(void)
 	}
 	LeaveCriticalSection( &queue_csection );
 	return(result);
+}
+
+
+/*
+ *  SLIRP output buffer glue
+ */
+
+int slirp_can_output(void)
+{
+	return 1;
+}
+
+void slirp_output(const uint8 *packet, int len)
+{
+	enqueue_packet(packet, len);
+}
+
+unsigned int slirp_receive_func(void *arg)
+{
+	D(bug("slirp_receive_func\n"));
+	thread_active_2 = true;
+
+	while (thread_active) {
+		// Wait for packets to arrive
+		fd_set rfds, wfds, xfds;
+		int nfds, ret, timeout;
+
+		// ... in the output queue
+		nfds = -1;
+		FD_ZERO(&rfds);
+		FD_ZERO(&wfds);
+		FD_ZERO(&xfds);
+		timeout = slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
+#if ! USE_SLIRP_TIMEOUT
+		timeout = 10000;
+#endif
+		if (nfds < 0) {
+			/* Windows does not honour the timeout if there is not
+			   descriptor to wait for */
+			Delay_usec(timeout);
+			ret = 0;
+		}
+		else {
+			struct timeval tv;
+			tv.tv_sec = 0;
+			tv.tv_usec = timeout;
+			ret = select(0, &rfds, &wfds, &xfds, &tv);
+		}
+		if (ret >= 0)
+			slirp_select_poll(&rfds, &wfds, &xfds);
+	}
+
+	D(bug("slirp_receive_func exit\n"));
+	thread_active_2 = false;
+	return 0;
 }
 
 
