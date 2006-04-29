@@ -86,6 +86,11 @@ typedef unsigned char u_int8_t;
 # endif
 #endif /* NEED_TYPEDEFS */
 
+/* Basilisk II types glue */
+typedef u_int8_t uint8;
+typedef u_int16_t uint16;
+typedef u_int32_t uint32;
+
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
