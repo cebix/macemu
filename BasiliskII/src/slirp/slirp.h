@@ -19,19 +19,29 @@ typedef uint16_t u_int16_t;
 typedef uint32_t u_int32_t;
 typedef uint64_t u_int64_t;
 typedef char *caddr_t;
+typedef int socklen_t;
+typedef unsigned long ioctlsockopt_t;
 
 # include <windows.h>
 # include <winsock2.h>
 # include <sys/timeb.h>
 # include <iphlpapi.h>
 
+# define USE_FIONBIO 1
 # define EWOULDBLOCK WSAEWOULDBLOCK
 # define EINPROGRESS WSAEINPROGRESS
 # define ENOTCONN WSAENOTCONN
 # define EHOSTUNREACH WSAEHOSTUNREACH
 # define ENETUNREACH WSAENETUNREACH
 # define ECONNREFUSED WSAECONNREFUSED
+
+/* Basilisk II Router defines those */
+# define udp_read_completion slirp_udp_read_completion
+# define write_udp slirp_write_udp
+# define init_udp slirp_init_udp
+# define final_udp slirp_final_udp
 #else
+typedef int ioctlsockopt_t;
 # define ioctlsocket ioctl
 # define closesocket(s) close(s)
 # define O_BINARY 0
