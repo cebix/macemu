@@ -1388,6 +1388,13 @@ static void mn_ether_router(void)
 	PrefsRemoveItem("etherguid");
 }
 
+// Ethernet option "Basilisk II Slirp" selected
+static void mn_ether_slirp(void)
+{
+	PrefsReplaceString("ether", "slirp");
+	PrefsRemoveItem("etherguid");
+}
+
 // Ethernet option for Basilisk II driver selected
 static void mn_ether_b2ether(GtkWidget *, const char *guid)
 {
@@ -1410,6 +1417,11 @@ static int create_ether_menu(GtkWidget *menu)
 
 	add_menu_item(menu, "Basilisk II Router", (GtkSignalFunc)mn_ether_router);
 	if (ether && strcmp(ether, "router") == 0)
+		active = n_items;
+	n_items++;
+
+	add_menu_item(menu, "Basilisk II Slirp", (GtkSignalFunc)mn_ether_router);
+	if (ether && strcmp(ether, "slirp") == 0)
 		active = n_items;
 	n_items++;
 
