@@ -136,3 +136,22 @@ int32 timer_host2mac_time(tm_time_t hosttime)
 			return -t;			// Time in negative microseconds
 	}
 }
+
+
+/*
+ *  Suspend emulator thread, virtual CPU in idle mode
+ */
+
+void idle_wait(void)
+{
+	// XXX if you implement this make sure to call idle_resume() from TriggerInterrupt()
+}
+
+
+/*
+ *  Resume execution of emulator thread, events just arrived
+ */
+
+void idle_resume(void)
+{
+}
