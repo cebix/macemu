@@ -41,6 +41,7 @@ prefs_desc platform_prefs_items[] = {
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 	{"ignoresegv", TYPE_BOOLEAN, false,    "ignore illegal memory accesses"},
 #endif
+	{"idlewait", TYPE_BOOLEAN, false,      "sleep when idle"},
 	{"enableextfs", TYPE_BOOLEAN, false,   "enable extfs system"},
 	{"debugextfs", TYPE_BOOLEAN, false,    "debug extfs system"},
 	{"extdrives", TYPE_STRING, false,      "define allowed extfs drives"},
@@ -129,6 +130,7 @@ void AddPlatformPrefsDefaults(void)
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 	PrefsAddBool("ignoresegv", false);
 #endif
+	PrefsAddBool("idlewait", true);
 	PrefsReplaceBool("etherpermanentaddress", true);
 	PrefsReplaceInt32("ethermulticastmode", 0);
 	PrefsReplaceString("ftp_port_list", "21");
