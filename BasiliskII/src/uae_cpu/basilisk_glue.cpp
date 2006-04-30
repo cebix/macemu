@@ -25,6 +25,7 @@
 #include "prefs.h"
 #include "emul_op.h"
 #include "rom_patches.h"
+#include "timer.h"
 #include "m68k.h"
 #include "memory.h"
 #include "readcpu.h"
@@ -152,6 +153,7 @@ void Start680x0(void)
 
 void TriggerInterrupt(void)
 {
+	idle_resume();
 	SPCFLAGS_SET( SPCFLAG_INT );
 }
 

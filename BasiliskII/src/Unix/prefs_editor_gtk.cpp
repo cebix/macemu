@@ -1433,6 +1433,12 @@ static void create_serial_pane(GtkWidget *top)
 static GtkWidget *w_ramsize;
 static GtkWidget *w_rom_file;
 
+// Don't use CPU when idle?
+static void tb_idlewait(GtkWidget *widget)
+{
+	PrefsReplaceBool("idlewait", GTK_TOGGLE_BUTTON(widget)->active);
+}
+
 // "Ignore SEGV" button toggled
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 static void tb_ignoresegv(GtkWidget *widget)
@@ -1525,6 +1531,7 @@ static void create_memory_pane(GtkWidget *top)
 
 	w_rom_file = table_make_file_entry(table, 4, STR_ROM_FILE_CTRL, "rom");
 
+	make_checkbox(box, STR_IDLEWAIT_CTRL, "idlewait", GTK_SIGNAL_FUNC(tb_idlewait));
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 	make_checkbox(box, STR_IGNORESEGV_CTRL, "ignoresegv", GTK_SIGNAL_FUNC(tb_ignoresegv));
 #endif

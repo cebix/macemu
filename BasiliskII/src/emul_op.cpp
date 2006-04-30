@@ -557,6 +557,13 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			r->d[0] = DebugUtil(r->d[0]);
 			break;
 
+		case M68K_EMUL_OP_IDLE_TIME:	// SynchIdleTime() patch
+			// Sleep if no events pending
+			if (ReadMacInt32(0x14c) == 0)
+				idle_wait();
+			r->a[0] = ReadMacInt32(0x2b6);
+			break;
+
 		default:
 			printf("FATAL: EMUL_OP called with bogus opcode %08x\n", opcode);
 			printf("d0 %08x d1 %08x d2 %08x d3 %08x\n"

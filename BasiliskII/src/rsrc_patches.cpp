@@ -24,6 +24,7 @@
 #include "cpu_emulation.h"
 #include "macos_util.h"
 #include "main.h"
+#include "prefs.h"
 #include "emul_op.h"
 #include "audio.h"
 #include "audio_defs.h"
@@ -49,6 +50,32 @@ static uint32 find_rsrc_data(const uint8 *rsrc, uint32 max, const uint8 *search,
 		ofs++;
 	}
 	return 0;
+}
+
+
+/*
+ *  Install SynchIdleTime() patch
+ */
+
+static void patch_idle_time(uint8 *p, uint32 size, int n = 1)
+{
+	if (!PrefsFindBool("idlewait"))
+		return;
+
+	static const uint8 dat[] = {0x70, 0x03, 0xa0, 0x9f};
+	uint32 base = find_rsrc_data(p, size, dat, sizeof(dat));
+	if (base) {
+		uint8 *pbase = p + base - 0x80;
+		static const uint8 dat2[] = {0x20, 0x78, 0x02, 0xb6, 0x41, 0xe8, 0x00, 0x80};
+		base = find_rsrc_data(pbase, 0x80, dat2, sizeof(dat2));
+		if (base) {
+			uint16 *p16 = (uint16 *)(pbase + base);
+			*p16++ = htons(M68K_EMUL_OP_IDLE_TIME);
+			*p16 = htons(M68K_NOP);
+			FlushCodeCache(pbase + base, 4);
+			D(bug("  patch %d applied\n", n));
+		}
+	}
 }
 
 
@@ -204,6 +231,9 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 			D(bug("  patch 1 applied\n"));
 		}
 
+		// Patch SynchIdleTime()
+		patch_idle_time(p, size, 2);
+
 	} else if (type == FOURCC('l','p','c','h') && id == 24) {
 		D(bug(" lpch 24 found\n"));
 
@@ -245,6 +275,9 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 			FlushCodeCache(p + base, 6);
 			D(bug("  patch 2 applied\n"));
 		}
+
+		// Patch SynchIdleTime()
+		patch_idle_time(p, size, 3);
 
 	} else if (type == FOURCC('t','h','n','g') && id == -16563) {
 		D(bug(" thng -16563 found\n"));

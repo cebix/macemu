@@ -211,6 +211,7 @@ user_string_def common_strings[] = {
 	{STR_CPU_68030_FPU_LAB, "68030 with FPU"},
 	{STR_CPU_68040_LAB, "68040"},
 	{STR_ROM_FILE_CTRL, "ROM File"},
+	{STR_IDLEWAIT_CTRL, "Don't Use CPU When Idle"},
 
 	{STR_JIT_PANE_TITLE, "JIT Compiler"},
 	{STR_JIT_CTRL, "Enable JIT Compiler"},
