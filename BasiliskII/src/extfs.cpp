@@ -48,6 +48,10 @@
 #include <dirent.h>
 #endif
 
+#if defined __APPLE__ && defined __MACH__
+#include <sys/attr.h>
+#endif
+
 #include "cpu_emulation.h"
 #include "emul_op.h"
 #include "main.h"
@@ -162,6 +166,44 @@ struct FSItem {
 static FSItem *first_fs_item, *last_fs_item;
 
 static uint32 next_cnid = fsUsrCNID;	// Next available CNID
+
+
+/*
+ *  Get object creation time
+ */
+
+#if defined __APPLE__ && defined __MACH__
+struct crtimebuf {
+	unsigned long length;
+	struct timespec crtime;
+};
+
+static uint32 do_get_creation_time(const char *path)
+{
+	struct attrlist attr;
+	memset(&attr, 0, sizeof(attr));
+	attr.bitmapcount = ATTR_BIT_MAP_COUNT;
+	attr.commonattr = ATTR_CMN_CRTIME;
+
+	crtimebuf buf;
+	if (getattrlist(path, &attr, &buf, sizeof(buf), FSOPT_NOFOLLOW) < 0)
+		return 0;
+	return TimeToMacTime(buf.crtime.tv_sec);
+}
+
+static uint32 get_creation_time(const char *path)
+{
+	if (path == NULL)
+		return 0;
+	if (path == RootPath) {
+		static uint32 root_crtime = UINT_MAX;
+		if (root_crtime == UINT_MAX)
+			root_crtime = do_get_creation_time(path);
+		return root_crtime;
+	}
+	return do_get_creation_time(path);
+}
+#endif
 
 
 /*
@@ -976,6 +1018,8 @@ static int16 fs_volume_mount(uint32 pb)
 	WriteMacInt16(vcb + vcbSigWord, 0x4244);
 #if defined(__BEOS__) || defined(WIN32)
 	WriteMacInt32(vcb + vcbCrDate, TimeToMacTime(root_stat.st_crtime));
+#elif defined __APPLE__ && defined __MACH__
+	WriteMacInt32(vcb + vcbCrDate, get_creation_time(RootPath));
 #else
 	WriteMacInt32(vcb + vcbCrDate, 0);
 #endif
@@ -1039,6 +1083,8 @@ static int16 fs_get_vol_info(uint32 pb, bool hfs)
 		pstrcpy((char *)Mac2HostAddr(ReadMacInt32(pb + ioNamePtr)), VOLUME_NAME);
 #if defined(__BEOS__) || defined(WIN32)
 	WriteMacInt32(pb + ioVCrDate, TimeToMacTime(root_stat.st_crtime));
+#elif defined __APPLE__ && defined __MACH__
+	WriteMacInt32(pb + ioVCrDate, get_creation_time(RootPath));
 #else
 	WriteMacInt32(pb + ioVCrDate, 0);
 #endif
@@ -1231,6 +1277,8 @@ read_next_de:
 
 #if defined(__BEOS__) || defined(WIN32)
 	WriteMacInt32(pb + ioFlCrDat, TimeToMacTime(st.st_crtime));
+#elif defined __APPLE__ && defined __MACH__
+	WriteMacInt32(pb + ioFlCrDat, get_creation_time(full_path));
 #else
 	WriteMacInt32(pb + ioFlCrDat, 0);
 #endif
@@ -1353,6 +1401,8 @@ read_next_de:
 	WriteMacInt32(pb + ioFlParID, fs_item->parent_id);
 #if defined(__BEOS__) || defined(WIN32)
 	WriteMacInt32(pb + ioFlCrDat, TimeToMacTime(st.st_crtime));
+#elif defined __APPLE__ && defined __MACH__
+	WriteMacInt32(pb + ioFlCrDat, get_creation_time(full_path));
 #else
 	WriteMacInt32(pb + ioFlCrDat, 0);
 #endif
