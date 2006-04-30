@@ -114,6 +114,7 @@ static int open_rsrc(const char *path, int flag)
 	return open(path_rsrc, flag);
 }
 
+
 /*
  * Finder info is a little bit harder. We need to use Carbon library calls to access them
  */
@@ -292,7 +293,25 @@ void set_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 			FSCatalogInfoBitmap whichInfo = kFSCatInfoNone;
 			if (finfo) {
 				whichInfo |= kFSCatInfoFinderInfo;
+				/*
+				  FIXME: Some users reported that directories could
+				  mysteriously disappear from a MacOS X 10.4 Finder
+				  point of view.
+
+				  An alternative is to use the ".finfo/" technique
+				  on MacOS X provided that attributes are first
+				  initialised from an FSGetCatalogInfo() call.
+				*/
+				uint8 oldFlags1, oldFlags2;
+				if (is_dir) {
+					oldFlags1 = cInfo.finderInfo[fdFlags];
+					oldFlags2 = cInfo.finderInfo[fdFlags + 1];
+				}
 				Mac2Host_memcpy(&cInfo.finderInfo,    finfo,  SIZEOF_FInfo);
+				if (is_dir) {
+					cInfo.finderInfo[fdFlags] = oldFlags1;
+					cInfo.finderInfo[fdFlags + 1] = oldFlags2;
+				}
 			}
 			if (fxinfo) {
 				whichInfo |= kFSCatInfoFinderXInfo;
