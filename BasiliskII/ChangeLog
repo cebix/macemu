@@ -2,6 +2,7 @@ V1.0 (snapshot) - <date>
  - fixed support for volumes larger than 4 GB
  - fixed the problem with Ticks getting incremented on every interrupt, not
    just 60Hz (e.g. moving the mouse made the caret blink faster)
+ - backport "idlewait" feature from SheepShaver
  - JIT: integrated dynamic translator for Linux/x86 and FreeBSD/x86
  - JIT: ported backend to support Linux/x86_64 (AMD64 and EM64T platforms)
  - JIT: fixed translation through constant jumps ("jitinline" config option)
