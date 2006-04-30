@@ -28,6 +28,10 @@
 #include "debug.h"
 
 
+// From main_beos.cpp
+extern thread_id emul_thread;
+
+
 /*
  *  Return microseconds since boot (64 bit)
  */
@@ -138,7 +142,15 @@ void Delay_usec(uint32 usec)
 
 void idle_wait(void)
 {
-	sleep(16667);
+#if 0
+	/*
+	  FIXME: add a semaphore (counter) to avoid a B_BAD_THREAD_STATE
+	  return if we call idle_resume() when thread is not suspended?
+
+	  Sorry, I can't test -- gb.
+	 */
+	suspend_thread(emul_thread);
+#endif
 }
 
 
@@ -148,4 +160,7 @@ void idle_wait(void)
 
 void idle_resume(void)
 {
+#if 0
+	resume_thread(emul_thread);
+#endif
 }

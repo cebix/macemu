@@ -31,6 +31,7 @@
 #include "main.h"
 #include "emul_op.h"
 #include "prefs.h"
+#include "timer.h"
 #include "user_strings.h"
 
 #include "sheep_driver.h"
@@ -1238,6 +1239,7 @@ void Start680x0(void)
 
 void TriggerInterrupt(void)
 {
+	idle_resume();
 	if (emul_thread > 0 && ReadyForSignals)
 		send_signal(emul_thread, SIGUSR1);
 }
