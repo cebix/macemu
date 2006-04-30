@@ -40,7 +40,7 @@
 
 // Global variables
 uint32 UniversalInfo;		// ROM offset of UniversalInfo
-uint32 PutScrapPatch;		// Mac address of PutScrap() patch
+uint32 PutScrapPatch = 0;	// Mac address of PutScrap() patch
 uint32 GetScrapPatch = 0;	// Mac address of GetScrap() patch
 uint32 ROMBreakpoint = 0;	// ROM offset of breakpoint (0 = disabled, 0x2310 = CritError)
 bool PrintROMInfo = false;	// Flag: print ROM information in PatchROM()

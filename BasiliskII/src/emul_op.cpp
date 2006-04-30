@@ -236,9 +236,11 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 
 			// Install PutScrap() patch
 			M68kRegisters r;
-			r.d[0] = 0xa9fe;
-			r.a[0] = PutScrapPatch;
-			Execute68kTrap(0xa647, &r);		// SetToolTrap()
+			if (PutScrapPatch) {
+				r.d[0] = 0xa9fe;
+				r.a[0] = PutScrapPatch;
+				Execute68kTrap(0xa647, &r);	// SetToolTrap()
+			}
 
 			// Install GetScrap() patch
 			if (GetScrapPatch) {
