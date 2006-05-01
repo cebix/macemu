@@ -20,11 +20,13 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "sysdeps.h"
+
 #include <process.h>
 #include <windowsx.h>
+#include <winioctl.h>
 #include <ctype.h>
 
-#include "sysdeps.h"
 #include "cpu_emulation.h"
 #include "main.h"
 #include "macos_util.h"
@@ -58,8 +60,31 @@ enum {
 	NET_IF_B2ETHER,
 	NET_IF_ROUTER,
 	NET_IF_SLIRP,
+	NET_IF_TAP,
 	NET_IF_FAKE,
 };
+
+// TAP-Win32 constants
+#define TAP_VERSION_MIN_MAJOR 7
+#define TAP_VERSION_MIN_MINOR 1
+
+#define TAP_CONTROL_CODE(request, method) \
+		CTL_CODE (FILE_DEVICE_UNKNOWN, request, method, FILE_ANY_ACCESS)
+
+#define TAP_IOCTL_GET_MAC				TAP_CONTROL_CODE (1, METHOD_BUFFERED)
+#define TAP_IOCTL_GET_VERSION			TAP_CONTROL_CODE (2, METHOD_BUFFERED)
+#define TAP_IOCTL_GET_MTU				TAP_CONTROL_CODE (3, METHOD_BUFFERED)
+#define TAP_IOCTL_GET_INFO				TAP_CONTROL_CODE (4, METHOD_BUFFERED)
+#define TAP_IOCTL_CONFIG_POINT_TO_POINT	TAP_CONTROL_CODE (5, METHOD_BUFFERED)
+#define TAP_IOCTL_SET_MEDIA_STATUS		TAP_CONTROL_CODE (6, METHOD_BUFFERED)
+#define TAP_IOCTL_CONFIG_DHCP_MASQ		TAP_CONTROL_CODE (7, METHOD_BUFFERED)
+#define TAP_IOCTL_GET_LOG_LINE			TAP_CONTROL_CODE (8, METHOD_BUFFERED)
+#define TAP_IOCTL_CONFIG_DHCP_SET_OPT	TAP_CONTROL_CODE (9, METHOD_BUFFERED)
+
+#define OLD_TAP_CONTROL_CODE(request, method) \
+		CTL_CODE (FILE_DEVICE_PHYSICAL_NETCARD | 8000, request, method, FILE_ANY_ACCESS)
+
+#define OLD_TAP_IOCTL_GET_VERSION		OLD_TAP_CONTROL_CODE (3, METHOD_BUFFERED)
 
 // Options
 bool ether_use_permanent = true;
@@ -70,10 +95,10 @@ HANDLE ether_th;
 unsigned int ether_tid;
 HANDLE ether_th1;
 HANDLE ether_th2;
-static int net_if_type = -1;				// Ethernet device type
+static int net_if_type = -1;	// Ethernet device type
 #ifdef SHEEPSHAVER
-static bool net_open = false;				// Flag: initialization succeeded, network device open
-uint8 ether_addr[6];						// Our Ethernet address
+static bool net_open = false;	// Flag: initialization succeeded, network device open
+uint8 ether_addr[6];			// Our Ethernet address
 #endif
 
 // These are protected by queue_csection
@@ -143,6 +168,13 @@ static HANDLE int_sig2 = 0;
 static HANDLE int_send_now = 0;
 
 // Prototypes
+static LPADAPTER tap_open_adapter(const char *dev_name);
+static void tap_close_adapter(LPADAPTER fd);
+static bool tap_check_version(LPADAPTER fd);
+static bool tap_set_status(LPADAPTER fd, ULONG status);
+static bool tap_get_mac(LPADAPTER fd, LPBYTE addr);
+static bool tap_receive_packet(LPADAPTER fd, LPPACKET lpPacket, BOOLEAN Sync);
+static bool tap_send_packet(LPADAPTER fd, LPPACKET lpPacket, BOOLEAN Sync, BOOLEAN recycle);
 static WINAPI unsigned int slirp_receive_func(void *arg);
 static WINAPI unsigned int ether_thread_feed_int(void *arg);
 static WINAPI unsigned int ether_thread_get_packets_nt(void *arg);
@@ -202,6 +234,8 @@ bool ether_init(void)
 		net_if_type = NET_IF_ROUTER;
 	else if (strcmp(name, "slirp") == 0)
 		net_if_type = NET_IF_SLIRP;
+	else if (strcmp(name, "tap") == 0)
+		net_if_type = NET_IF_TAP;
 	else
 		net_if_type = NET_IF_B2ETHER;
 
@@ -224,6 +258,9 @@ bool ether_init(void)
 	const char *dev_name;
 	switch (net_if_type) {
 	case NET_IF_B2ETHER:
+		dev_name = PrefsFindString("etherguid");
+		break;
+	case NET_IF_TAP:
 		dev_name = PrefsFindString("etherguid");
 		break;
 	}
@@ -260,6 +297,62 @@ bool ether_init(void)
 			}
 			D(bug("Fake ethernet address %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
 		}
+	}
+	else if (net_if_type == NET_IF_TAP) {
+		if (dev_name == NULL) {
+			WarningAlert("No ethernet device GUID specified. Ethernet is not available.");
+			goto open_error;
+		}
+
+		fd = tap_open_adapter(dev_name);
+		if (!fd) {
+			sprintf(str, "Could not open ethernet adapter %s.", dev_name);
+			WarningAlert(str);
+			goto open_error;
+		}
+
+		if (!tap_check_version(fd)) {
+			sprintf(str, "Minimal TAP-Win32 version supported is %d.%d.", TAP_VERSION_MIN_MAJOR, TAP_VERSION_MIN_MINOR);
+			WarningAlert(str);
+			goto open_error;
+		}
+
+		if (!tap_set_status(fd, true)) {
+			sprintf(str, "Could not set media status to connected.");
+			WarningAlert(str);
+			goto open_error;
+		}
+
+		if (!tap_get_mac(fd, ether_addr)) {
+			sprintf(str, "Could not get hardware address of device %s. Ethernet is not available.", dev_name);
+			WarningAlert(str);
+			goto open_error;
+		}
+		D(bug("Real ethernet address %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
+
+		const char *ether_fake_address;
+		ether_fake_address = PrefsFindString("etherfakeaddress");
+		if (ether_fake_address && strlen(ether_fake_address) == 12) {
+			char sm[10];
+			strcpy( sm, "0x00" );
+			for( int i=0; i<6; i++ ) {
+				sm[2] = ether_fake_address[i*2];
+				sm[3] = ether_fake_address[i*2+1];
+				ether_addr[i] = (uint8)strtoul(sm,0,0);
+			}
+		}
+#if 1
+		/*
+		  If we bridge the underlying ethernet connection and the TAP
+		  device altogether, we have to use a fake address.
+		 */
+		else {
+			ether_addr[0] = 0x52;
+			ether_addr[1] = 0x54;
+			ether_addr[2] = 0x00;
+		}
+#endif
+		D(bug("Fake ethernet address %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
 	}
 	else if (net_if_type == NET_IF_SLIRP) {
 		ether_addr[0] = 0x52;
@@ -337,9 +430,16 @@ bool ether_init(void)
 	thread_active = true;
 
 	unsigned int dummy;
-	ether_th2 = (HANDLE)_beginthreadex( 0, 0,
-		net_if_type == NET_IF_SLIRP ? slirp_receive_func : ether_thread_get_packets_nt,
-		0, 0, &dummy );
+	unsigned int (WINAPI *receive_func)(void *);
+	switch (net_if_type) {
+	case NET_IF_SLIRP:
+	  receive_func = slirp_receive_func;
+	  break;
+	default:
+	  receive_func = ether_thread_get_packets_nt;
+	  break;
+	}
+	ether_th2 = (HANDLE)_beginthreadex( 0, 0, receive_func, 0, 0, &dummy );
 	ether_th1 = (HANDLE)_beginthreadex( 0, 0, ether_thread_write_packets, 0, 0, &dummy );
 
 	// Everything OK
@@ -363,10 +463,17 @@ bool ether_init(void)
 		int_send_now = 0;
 		thread_active = false;
 	}
-	if(net_if_type == NET_IF_B2ETHER) {
-		PacketCloseAdapter(fd);
+	if (fd) {
+		switch (net_if_type) {
+		case NET_IF_B2ETHER:
+			PacketCloseAdapter(fd);
+			break;
+		case NET_IF_TAP:
+			tap_close_adapter(fd);
+			break;
+		}
+		fd = 0;
 	}
-	fd = 0;
 	return false;
 }
 
@@ -437,8 +544,15 @@ void ether_exit(void)
 	}
 
 	// Close ethernet device
-	if(fd) {
-		PacketCloseAdapter(fd);
+	if (fd) {
+		switch (net_if_type) {
+		case NET_IF_B2ETHER:
+			PacketCloseAdapter(fd);
+			break;
+		case NET_IF_TAP:
+			tap_close_adapter(fd);
+			break;
+		}
 		fd = 0;
 	}
 
@@ -904,6 +1018,11 @@ static unsigned int ether_thread_write_packets(void *arg)
 					// already recycled if async
 				}
 				break;
+			case NET_IF_TAP:
+				if (!tap_send_packet(fd, Packet, FALSE, TRUE)) {
+					// already recycled if async
+				}
+				break;
 			case NET_IF_SLIRP:
 				slirp_input((uint8 *)Packet->Buffer, Packet->Length);
 				Packet->bIoComplete = TRUE;
@@ -1060,6 +1179,178 @@ static bool set_wait_request(void)
 
 
 /*
+ *  TAP-Win32 glue
+ */
+
+static LPADAPTER tap_open_adapter(const char *dev_name)
+{
+	fd = (LPADAPTER)GlobalAllocPtr(GMEM_MOVEABLE | GMEM_ZEROINIT, sizeof(*fd));
+	if (fd == NULL)
+		return NULL;
+
+	char dev_path[MAX_PATH];
+	snprintf(dev_path, sizeof(dev_path),
+			 "\\\\.\\Global\\%s.tap", dev_name);
+
+	HANDLE handle = CreateFile(
+		dev_path,
+		GENERIC_READ | GENERIC_WRITE,
+		0,
+		NULL,
+		OPEN_EXISTING,
+		FILE_ATTRIBUTE_SYSTEM | FILE_FLAG_OVERLAPPED,
+		NULL);
+	if (handle == NULL || handle == INVALID_HANDLE_VALUE)
+		return NULL;
+
+	fd->hFile = handle;
+	return fd;
+}
+
+static void tap_close_adapter(LPADAPTER fd)
+{
+	if (fd) {
+		if (fd->hFile) {
+			tap_set_status(fd, false);
+			CloseHandle(fd->hFile);
+		}
+		GlobalFreePtr(fd);
+	}
+}
+
+static bool tap_check_version(LPADAPTER fd)
+{
+	ULONG len;
+	ULONG info[3] = { 0, };
+
+	if (!DeviceIoControl(fd->hFile, TAP_IOCTL_GET_VERSION,
+						 &info, sizeof(info),
+						 &info, sizeof(info), &len, NULL)
+		&& !DeviceIoControl(fd->hFile, OLD_TAP_IOCTL_GET_VERSION,
+							&info, sizeof(info),
+							&info, sizeof(info), &len, NULL))
+		return false;
+
+	if (info[0] > TAP_VERSION_MIN_MAJOR)
+		return true;
+	if (info[0] == TAP_VERSION_MIN_MAJOR && info[1] >= TAP_VERSION_MIN_MINOR)
+		return true;
+
+	return false;
+}
+
+static bool tap_set_status(LPADAPTER fd, ULONG status)
+{
+	DWORD len = 0;
+	return DeviceIoControl(fd->hFile, TAP_IOCTL_SET_MEDIA_STATUS,
+						   &status, sizeof (status),
+						   &status, sizeof (status), &len, NULL);
+}
+
+static bool tap_get_mac(LPADAPTER fd, LPBYTE addr)
+{
+	DWORD len = 0;
+	return DeviceIoControl(fd->hFile, TAP_IOCTL_GET_MAC,
+						   addr, 6,
+						   addr, 6, &len, NULL);
+						   
+}
+
+static VOID CALLBACK tap_write_completion(
+	DWORD dwErrorCode,
+	DWORD dwNumberOfBytesTransfered,
+	LPOVERLAPPED lpOverLapped
+	)
+{
+	LPPACKET lpPacket = CONTAINING_RECORD(lpOverLapped, PACKET, OverLapped);
+
+	lpPacket->bIoComplete = TRUE;
+	recycle_write_packet(lpPacket);
+}
+
+static bool tap_send_packet(
+	LPADAPTER fd,
+	LPPACKET lpPacket,
+	BOOLEAN Sync,
+	BOOLEAN RecyclingAllowed)
+{
+	BOOLEAN Result;
+
+	lpPacket->OverLapped.Offset = 0;
+	lpPacket->OverLapped.OffsetHigh = 0;
+	lpPacket->bIoComplete = FALSE;
+
+	if (Sync) {
+		Result = WriteFile(fd->hFile,
+						   lpPacket->Buffer,
+						   lpPacket->Length,
+						   &lpPacket->BytesReceived,
+						   &lpPacket->OverLapped);
+		if (Result) {
+			GetOverlappedResult(fd->hFile,
+								&lpPacket->OverLapped,
+								&lpPacket->BytesReceived,
+								TRUE);
+		}
+		lpPacket->bIoComplete = TRUE;
+		if (RecyclingAllowed)
+			PacketFreePacket(lpPacket);
+	}
+	else {
+		Result = WriteFileEx(fd->hFile,
+							 lpPacket->Buffer,
+							 lpPacket->Length,
+							 &lpPacket->OverLapped,
+							 tap_write_completion);
+
+		if (!Result && RecyclingAllowed)
+			recycle_write_packet(lpPacket);
+	}
+
+	return Result;
+}
+
+static bool tap_receive_packet(LPADAPTER fd, LPPACKET lpPacket, BOOLEAN Sync)
+{
+	BOOLEAN Result;
+
+	lpPacket->OverLapped.Offset = 0;
+	lpPacket->OverLapped.OffsetHigh = 0;
+	lpPacket->bIoComplete = FALSE;
+
+	if (Sync) {
+		Result = ReadFile(fd->hFile,
+						  lpPacket->Buffer,
+						  lpPacket->Length,
+						  &lpPacket->BytesReceived,
+						  &lpPacket->OverLapped);
+		if (Result) {
+			Result = GetOverlappedResult(fd->hFile,
+										 &lpPacket->OverLapped,
+										 &lpPacket->BytesReceived,
+										 TRUE);
+			if (Result)
+				lpPacket->bIoComplete = TRUE;
+			else
+				lpPacket->free = TRUE;
+		}
+	}
+	else {
+		Result = ReadFileEx(fd->hFile,
+							lpPacket->Buffer,
+							lpPacket->Length,
+							&lpPacket->OverLapped,
+							packet_read_completion);
+
+		if (!Result)
+			lpPacket->BytesReceived = 0;
+	}
+
+	return Result;
+}
+
+
+/*
  *  SLIRP output buffer glue
  */
 
@@ -1073,7 +1364,7 @@ void slirp_output(const uint8 *packet, int len)
 	enqueue_packet(packet, len);
 }
 
-unsigned int slirp_receive_func(void *arg)
+static unsigned int slirp_receive_func(void *arg)
 {
 	D(bug("slirp_receive_func\n"));
 	thread_active_2 = true;
@@ -1151,6 +1442,11 @@ VOID CALLBACK packet_read_completion(
 					break;
 				}
 			}
+			// XXX drop packets that are not for us
+			if (net_if_type == NET_IF_TAP) {
+				if (memcmp((LPBYTE)lpPacket->Buffer, ether_addr, 6) != 0)
+					dwNumberOfBytesTransfered = 0;
+			}
 			if(dwNumberOfBytesTransfered) {
 				if(net_if_type != NET_IF_ROUTER || !router_read_packet((uint8 *)lpPacket->Buffer, dwNumberOfBytesTransfered)) {
 					enqueue_packet( (LPBYTE)lpPacket->Buffer, dwNumberOfBytesTransfered );
@@ -1223,12 +1519,21 @@ static unsigned int ether_thread_get_packets_nt(void *arg)
 	// Obey the golden rules; keep the reads pending.
 	while(thread_active) {
 
-		if(net_if_type == NET_IF_B2ETHER) {
+		if(net_if_type == NET_IF_B2ETHER || net_if_type == NET_IF_TAP) {
 			D(bug("Pending reads\n"));
 			for( i=0; thread_active && i<PACKET_POOL_COUNT; i++ ) {
 				if(packets[i]->free) {
 					packets[i]->free = FALSE;
-					if(PacketReceivePacket(fd,packets[i],FALSE)) {
+					BOOLEAN Result;
+					switch (net_if_type) {
+					case NET_IF_B2ETHER:
+						Result = PacketReceivePacket(fd, packets[i], FALSE);
+						break;
+					case NET_IF_TAP:
+						Result = tap_receive_packet(fd, packets[i], FALSE);
+						break;
+					}
+					if (Result) {
 						if(packets[i]->bIoComplete) {
 							D(bug("Early io completion...\n"));
 							packet_read_completion(
