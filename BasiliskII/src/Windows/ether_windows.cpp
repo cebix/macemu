@@ -230,7 +230,7 @@ bool ether_init(void)
 
 	// Determine Ethernet device type
 	net_if_type = -1;
-	if (strcmp(name, "router") == 0)
+	if (PrefsFindBool("routerenabled") || strcmp(name, "router") == 0)
 		net_if_type = NET_IF_ROUTER;
 	else if (strcmp(name, "slirp") == 0)
 		net_if_type = NET_IF_SLIRP;
@@ -259,6 +259,8 @@ bool ether_init(void)
 	switch (net_if_type) {
 	case NET_IF_B2ETHER:
 		dev_name = PrefsFindString("etherguid");
+		if (dev_name == NULL || strcmp(name, "b2ether") != 0)
+			dev_name = name;
 		break;
 	case NET_IF_TAP:
 		dev_name = PrefsFindString("etherguid");
