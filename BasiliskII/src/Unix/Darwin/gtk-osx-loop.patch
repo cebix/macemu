@@ -1,0 +1,124 @@
+2006-04-17  Gwenole Beauchesne  <gb.public@free.fr>
+
+	* glib-1.2.10/gmain.c (g_main_run): Don't block in
+	RunApplicationEventLoop(), code inspired from Inside Mac
+	technote.
+
+	Patch to apply to raw GTK+OSX 0.7 distribution.
+
+--- ../gmain.c~	Sat Dec 27 22:23:06 2003
++++ ../gmain.c	Mon Apr 17 22:12:15 2006
+@@ -145,6 +145,7 @@
+ 					gpointer  user_data);
+           
+ #ifdef MAC_CARBON_EVENTS
++static void mac_run_application_event_loop     (GMainLoop *loop);
+ static void mac_handle_idle_action             (EventLoopTimerRef timer_ref, 
+                     EventLoopIdleTimerMessage state, 
+                     void* user_data);
+@@ -1116,7 +1117,7 @@
+   loop->is_running = TRUE;
+ 
+ #ifdef MAC_CARBON_EVENTS
+-  RunApplicationEventLoop ();
++  mac_run_application_event_loop (loop);
+ #else
+   while (loop->is_running)
+     g_main_iterate (TRUE, TRUE);
+@@ -1870,4 +1871,94 @@
+ #endif
+ }
+ 
+-#endif /* MAC_CARBON_EVENTS */
+\ No newline at end of file
++static EventHandlerUPP g_quit_event_handler_upp;
++
++static pascal OSStatus QuitEventHandler(EventHandlerCallRef inHandlerCallRef,
++					EventRef inEvent, void *inUserData)
++{
++  OSStatus err;
++
++  if ((err = CallNextEventHandler(inHandlerCallRef, inEvent)) == noErr)
++    *((Boolean *)inUserData) = TRUE;
++
++  return err;
++}
++
++static EventHandlerUPP g_event_loop_event_handler_upp;
++
++static pascal OSStatus EventLoopEventHandler(EventHandlerCallRef inHandlerCallRef,
++					     EventRef inEvent, void *inUserData)
++{
++  OSStatus        err;
++  OSStatus        junk;
++  EventHandlerRef installedHandler;
++  EventTargetRef  theTarget;
++  EventRef        theEvent;
++  EventTimeout    timeToWaitForEvent;
++  Boolean         quitNow;
++  GMainLoop *     loop = (GMainLoop *)inUserData;
++  static const EventTypeSpec eventSpec = {kEventClassApplication, kEventAppQuit};
++
++  quitNow = false;
++
++  err = InstallEventHandler(GetApplicationEventTarget(),
++			    g_quit_event_handler_upp,
++			    1, &eventSpec, &quitNow, &installedHandler);
++  if (err == noErr) {
++    theTarget = GetEventDispatcherTarget();
++    do {
++      timeToWaitForEvent = kEventDurationNoWait;
++      err = ReceiveNextEvent(0, NULL, timeToWaitForEvent,
++			     true, &theEvent);
++      if (err == noErr) {
++	SendEventToEventTarget(theEvent, theTarget);
++	ReleaseEvent(theEvent);
++      }
++      YieldToAnyThread();
++    } while ( loop->is_running && ! quitNow );
++    junk = RemoveEventHandler(installedHandler);
++  }
++
++  return err;
++}
++
++static void
++mac_run_application_event_loop (GMainLoop *loop)
++{
++  static const EventTypeSpec eventSpec = {'KWIN', 'KWIN' };
++  OSStatus        err;
++  OSStatus        junk;
++  EventHandlerRef installedHandler;
++  EventRef        dummyEvent;
++
++  dummyEvent = nil;
++
++  err = noErr;
++  if (g_event_loop_event_handler_upp == nil)
++    g_event_loop_event_handler_upp = NewEventHandlerUPP(EventLoopEventHandler);
++  if (g_quit_event_handler_upp == nil)
++    g_quit_event_handler_upp = NewEventHandlerUPP(QuitEventHandler);
++  if (g_event_loop_event_handler_upp == nil || g_quit_event_handler_upp == nil)
++    err = memFullErr;
++
++  if (err == noErr) {
++    err = InstallEventHandler(GetApplicationEventTarget(),
++			      g_event_loop_event_handler_upp,
++			      1, &eventSpec, loop, &installedHandler);
++    if (err == noErr) {
++      err = MacCreateEvent(nil, 'KWIN', 'KWIN', GetCurrentEventTime(),
++			   kEventAttributeNone, &dummyEvent);
++      if (err == noErr)
++	err = PostEventToQueue(GetMainEventQueue(), dummyEvent,
++			       kEventPriorityHigh);
++      if (err == noErr)
++	RunApplicationEventLoop();
++
++      junk = RemoveEventHandler(installedHandler);
++    }
++  }
++
++ if (dummyEvent != nil)
++   ReleaseEvent(dummyEvent);
++}
++#endif /* MAC_CARBON_EVENTS */
