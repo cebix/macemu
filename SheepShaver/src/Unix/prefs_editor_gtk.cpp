@@ -35,10 +35,13 @@
 #include "prefs.h"
 #include "prefs_editor.h"
 
+#define DEBUG 0
+#include "debug.h"
+
 
 // Global variables
 static GtkWidget *win;				// Preferences window
-static bool start_clicked = true;	// Return value of PrefsEditor() function
+static bool start_clicked = false;	// Return value of PrefsEditor() function
 static int screen_width, screen_height; // Screen dimensions
 
 
@@ -1291,7 +1294,277 @@ static void read_settings(void)
 {
 	read_volumes_settings();
 	read_graphics_settings();
+	read_input_settings();
 	read_serial_settings();
 	read_memory_settings();
 	read_jit_settings();
 }
+
+
+#ifdef STANDALONE_GUI
+#include <errno.h>
+#include <sys/wait.h>
+#include "rpc.h"
+
+/*
+ *  Fake unused data and functions
+ */
+
+uint8 XPRAM[XPRAM_SIZE];
+void MountVolume(void *fh) { }
+void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_size) { }
+
+#if defined __APPLE__ && defined __MACH__
+void DarwinAddCDROMPrefs(void) { }
+void DarwinAddFloppyPrefs(void) { }
+void DarwinAddSerialPrefs(void) { }
+bool DarwinCDReadTOC(char *, uint8 *) { }
+#endif
+
+
+/*
+ *  Display alert
+ */
+
+static void dl_destroyed(void)
+{
+	gtk_main_quit();
+}
+
+static void display_alert(int title_id, int prefix_id, int button_id, const char *text)
+{
+	char str[256];
+	sprintf(str, GetString(prefix_id), text);
+
+	GtkWidget *dialog = gtk_dialog_new();
+	gtk_window_set_title(GTK_WINDOW(dialog), GetString(title_id));
+	gtk_container_border_width(GTK_CONTAINER(dialog), 5);
+	gtk_widget_set_uposition(GTK_WIDGET(dialog), 100, 150);
+	gtk_signal_connect(GTK_OBJECT(dialog), "destroy", GTK_SIGNAL_FUNC(dl_destroyed), NULL);
+
+	GtkWidget *label = gtk_label_new(str);
+	gtk_widget_show(label);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
+
+	GtkWidget *button = gtk_button_new_with_label(GetString(button_id));
+	gtk_widget_show(button);
+	gtk_signal_connect_object(GTK_OBJECT(button), "clicked", GTK_SIGNAL_FUNC(dl_quit), GTK_OBJECT(dialog));
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, FALSE, FALSE, 0);
+	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+	gtk_widget_grab_default(button);
+	gtk_widget_show(dialog);
+
+	gtk_main();
+}
+
+
+/*
+ *  Display error alert
+ */
+
+void ErrorAlert(const char *text)
+{
+	display_alert(STR_ERROR_ALERT_TITLE, STR_GUI_ERROR_PREFIX, STR_QUIT_BUTTON, text);
+}
+
+
+/*
+ *  Display warning alert
+ */
+
+void WarningAlert(const char *text)
+{
+	display_alert(STR_WARNING_ALERT_TITLE, STR_GUI_WARNING_PREFIX, STR_OK_BUTTON, text);
+}
+
+
+/*
+ *  RPC handlers
+ */
+
+static GMainLoop *g_gui_loop;
+
+static int handle_ErrorAlert(rpc_connection_t *connection)
+{
+	D(bug("handle_ErrorAlert\n"));
+
+	int error;
+	char *str;
+	if ((error = rpc_method_get_args(connection, RPC_TYPE_STRING, &str, RPC_TYPE_INVALID)) < 0)
+		return error;
+
+	ErrorAlert(str);
+	free(str);
+	return RPC_ERROR_NO_ERROR;
+}
+
+static int handle_WarningAlert(rpc_connection_t *connection)
+{
+	D(bug("handle_WarningAlert\n"));
+
+	int error;
+	char *str;
+	if ((error = rpc_method_get_args(connection, RPC_TYPE_STRING, &str, RPC_TYPE_INVALID)) < 0)
+		return error;
+
+	WarningAlert(str);
+	free(str);
+	return RPC_ERROR_NO_ERROR;
+}
+
+static int handle_Exit(rpc_connection_t *connection)
+{
+	D(bug("handle_Exit\n"));
+
+	g_main_quit(g_gui_loop);
+	return RPC_ERROR_NO_ERROR;
+}
+
+
+/*
+ *  SIGCHLD handler
+ */
+
+static char g_app_path[PATH_MAX];
+static rpc_connection_t *g_gui_connection = NULL;
+
+static void sigchld_handler(int sig, siginfo_t *sip, void *)
+{
+	D(bug("Child %d exitted with status = %x\n", sip->si_pid, sip->si_status));
+
+	// XXX perform a new wait because sip->si_status is sometimes not
+	// the exit _value_ on MacOS X but rather the usual status field
+	// from waitpid() -- we could arrange this code in some other way...
+	int status;
+	if (waitpid(sip->si_pid, &status, 0) < 0)
+		status = sip->si_status;
+	if (WIFEXITED(status))
+		status = WEXITSTATUS(status);
+	if (status & 0x80)
+		status |= -1 ^0xff;
+
+	if (status < 0) {	// negative -> execlp/-errno
+		char str[256];
+		sprintf(str, GetString(STR_NO_B2_EXE_FOUND), g_app_path, strerror(-status));
+		ErrorAlert(str);
+		status = 1;
+	}
+
+	if (status != 0) {
+		if (g_gui_connection)
+			rpc_exit(g_gui_connection);
+		exit(status);
+	}
+}
+
+
+/*
+ *  Start standalone GUI
+ */
+
+int main(int argc, char *argv[])
+{
+	// Init GTK
+	gtk_set_locale();
+	gtk_init(&argc, &argv);
+
+	// Read preferences
+	PrefsInit(argc, argv);
+
+	// Show preferences editor
+	bool start = PrefsEditor();
+
+	// Exit preferences
+	PrefsExit();
+
+	// Transfer control to the executable
+	if (start) {
+		char gui_connection_path[64];
+		sprintf(gui_connection_path, "/org/SheepShaver/GUI/%d", getpid());
+
+		// Catch exits from the child process
+		struct sigaction sigchld_sa, old_sigchld_sa;
+		sigemptyset(&sigchld_sa.sa_mask);
+		sigchld_sa.sa_sigaction = sigchld_handler;
+		sigchld_sa.sa_flags = SA_NOCLDSTOP | SA_SIGINFO;
+		if (sigaction(SIGCHLD, &sigchld_sa, &old_sigchld_sa) < 0) {
+			char str[256];
+			sprintf(str, GetString(STR_SIG_INSTALL_ERR), SIGCHLD, strerror(errno));
+			ErrorAlert(str);
+			return 1;
+		}
+
+		// Search and run the SheepShaver executable
+		char *p;
+		strcpy(g_app_path, argv[0]);
+		if ((p = strstr(g_app_path, "SheepShaverGUI.app/Contents/MacOS")) != NULL) {
+		    strcpy(p, "SheepShaver.app/Contents/MacOS/SheepShaver");
+			if (access(g_app_path, X_OK) < 0) {
+				char str[256];
+				sprintf(str, GetString(STR_NO_B2_EXE_FOUND), g_app_path, strerror(errno));
+				WarningAlert(str);
+				strcpy(g_app_path, "/Applications/SheepShaver.app/Contents/MacOS/SheepShaver");
+			}
+		} else {
+			p = strrchr(g_app_path, '/');
+			p = p ? p + 1 : g_app_path;
+			strcpy(p, "SheepShaver");
+		}
+
+		int pid = fork();
+		if (pid == 0) {
+			D(bug("Trying to execute %s\n", g_app_path));
+			execlp(g_app_path, g_app_path, "--gui-connection", gui_connection_path, (char *)NULL);
+#ifdef _POSIX_PRIORITY_SCHEDULING
+			// XXX get a chance to run the parent process so that to not confuse/upset GTK...
+			sched_yield();
+#endif
+			_exit(-errno);
+		}
+
+		// Establish a connection to Basilisk II
+		if ((g_gui_connection = rpc_init_server(gui_connection_path)) == NULL) {
+			printf("ERROR: failed to initialize GUI-side RPC server connection\n");
+			return 1;
+		}
+		static const rpc_method_descriptor_t vtable[] = {
+			{ RPC_METHOD_ERROR_ALERT,			handle_ErrorAlert },
+			{ RPC_METHOD_WARNING_ALERT,			handle_WarningAlert },
+			{ RPC_METHOD_EXIT,					handle_Exit }
+		};
+		if (rpc_method_add_callbacks(g_gui_connection, vtable, sizeof(vtable) / sizeof(vtable[0])) < 0) {
+			printf("ERROR: failed to setup GUI method callbacks\n");
+			return 1;
+		}
+		int socket;
+		if ((socket = rpc_listen_socket(g_gui_connection)) < 0) {
+			printf("ERROR: failed to initialize RPC server thread\n");
+			return 1;
+		}
+
+		g_gui_loop = g_main_new(TRUE);
+		while (g_main_is_running(g_gui_loop)) {
+
+			// Process a few events pending
+			const int N_EVENTS_DISPATCH = 10;
+			for (int i = 0; i < N_EVENTS_DISPATCH; i++) {
+				if (!g_main_iteration(FALSE))
+					break;
+			}
+
+			// Check for RPC events (100 ms timeout)
+			int ret = rpc_wait_dispatch(g_gui_connection, 100000);
+			if (ret == 0)
+				continue;
+			if (ret < 0)
+				break;
+			rpc_dispatch(g_gui_connection);
+		}
+
+		rpc_exit(g_gui_connection);
+		return 0;
+	}
+
+	return 0;
+}
+#endif

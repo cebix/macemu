@@ -42,9 +42,7 @@ user_string_def platform_strings[] = {
 	{STR_DR_EMULATOR_MMAP_ERR, "Cannot map DR Emulator: %s."},
 	{STR_SHEEP_MEM_MMAP_ERR, "Cannot map SheepShaver Data area: %s."},
 	{STR_SIGALTSTACK_ERR, "Cannot install alternate signal stack (%s). It seems that you need a newer kernel."},
-	{STR_SIGSEGV_INSTALL_ERR, "Cannot install SIGSEGV handler: %s."},
-	{STR_SIGILL_INSTALL_ERR, "Cannot install SIGILL handler: %s."},
-	{STR_SIGUSR2_INSTALL_ERR, "Cannot install SIGUSR2 handler (%s). It seems that you need a newer libc."},
+	{STR_SIG_INSTALL_ERR, "Cannot install %s handler (%s)."},
 	{STR_NO_XSERVER_ERR, "Cannot connect to X server %s."},
 	{STR_NO_XVISUAL_ERR, "Cannot obtain appropriate X visual."},
 	{STR_UNSUPP_DEPTH_ERR, "Unsupported color depth of screen."},
@@ -85,6 +83,8 @@ user_string_def platform_strings[] = {
 
 	{STR_OPEN_WINDOW_ERR, "Cannot open Mac window."},
 	{STR_WINDOW_TITLE_GRABBED, "SheepShaver (mouse grabbed, press Ctrl-F5 to release)"},
+
+	{STR_NO_B2_EXE_FOUND, "Could not start %s (%s)."},
 
 	{-1, NULL}	// End marker
 };

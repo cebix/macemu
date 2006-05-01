@@ -42,6 +42,12 @@ SLIRP_CFLAGS = @SLIRP_CFLAGS@
 SLIRP_SRCS = @SLIRP_SRCS@
 SLIRP_OBJS = $(SLIRP_SRCS:../slirp/%.c=obj/%.o)
 
+STANDALONE_GUI = @STANDALONE_GUI@
+GUI_CFLAGS = @GUI_CFLAGS@
+GUI_LIBS = @GUI_LIBS@
+GUI_SRCS = ../prefs.cpp prefs_unix.cpp prefs_editor_gtk.cpp ../prefs_items.cpp \
+	../user_strings.cpp user_strings_unix.cpp xpram_unix.cpp sys_unix.cpp rpc_unix.cpp
+
 # Append disassembler to dyngen, if available
 ifneq (:no,$(MONSRCS):$(USE_DYNGEN))
 DYNGENSRCS += $(filter %i386-dis.c,$(MONSRCS))
@@ -55,18 +61,29 @@ SRCS = ../main.cpp main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp 
     ../gfxaccel.cpp ../video.cpp video_blit.cpp ../audio.cpp ../ether.cpp ../thunks.cpp \
     ../serial.cpp ../extfs.cpp \
     about_window_unix.cpp ../user_strings.cpp user_strings_unix.cpp \
-    vm_alloc.cpp sigsegv.cpp \
+    vm_alloc.cpp sigsegv.cpp rpc_unix.cpp \
     sshpty.c strlcpy.c $(SYSSRCS) $(CPUSRCS) $(MONSRCS) $(SLIRP_SRCS)
 APP = SheepShaver
 APP_EXE = $(APP)$(EXEEXT)
 APP_APP = $(APP).app
+
+PROGS = $(APP_EXE)
+ifeq ($(STANDALONE_GUI),yes)
+GUI_APP = SheepShaverGUI
+GUI_APP_EXE = $(GUI_APP)$(EXEEXT)
+GUI_APP_APP = $(GUI_APP).app
+PROGS += $(GUI_APP_EXE)
+endif
+
+CXXFLAGS += $(GUI_CFLAGS)
+LIBS += $(GUI_LIBS)
 
 ## Rules
 .PHONY: modules install uninstall clean distclean depend dep
 .SUFFIXES:
 .SUFFIXES: .c .cpp .S .o .h
 
-all: $(APP_EXE)
+all: $(PROGS)
 
 OBJ_DIR = obj
 $(OBJ_DIR)::
@@ -77,6 +94,12 @@ define SRCS_LIST_TO_OBJS
 	$(basename $(notdir $(file))))))
 endef
 OBJS = $(SRCS_LIST_TO_OBJS)
+
+define GUI_SRCS_LIST_TO_OBJS
+	$(addprefix $(OBJ_DIR)/, $(addsuffix .go, $(foreach file, $(GUI_SRCS), \
+	$(basename $(notdir $(file))))))
+endef
+GUI_OBJS = $(GUI_SRCS_LIST_TO_OBJS)
 
 define DYNGENSRCS_LIST_TO_OBJS
 	$(addprefix $(OBJ_DIR)/, $(addsuffix .dgo, $(foreach file, $(DYNGENSRCS), \
@@ -89,10 +112,13 @@ VPATH :=
 VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
 
 $(APP_EXE): $(OBJ_DIR) $(OBJS)
-	$(CXX) -o $(APP_EXE) $(LDFLAGS) $(OBJS) $(LIBS)
+	$(CXX) -o $@ $(LDFLAGS) $(OBJS) $(LIBS)
 	$(BLESS) $(APP_EXE)
 
-$(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/SheepShaver.icns
+$(GUI_APP_EXE): $(OBJ_DIR) $(GUI_OBJS)
+	$(CXX) -o $@ $(LDFLAGS) $(GUI_OBJS) $(GUI_LIBS)
+
+$(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	mkdir -p $(APP_APP)/Contents
 	cp -f ../MacOSX/Info.plist $(APP_APP)/Contents/
 	echo -n 'APPL????' > $(APP_APP)/Contents/PkgInfo
@@ -102,11 +128,24 @@ $(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/SheepShaver.icns
 	mkdir -p $(APP_APP)/Contents/Resources
 	cp -f ../MacOSX/SheepShaver.icns $(APP_APP)/Contents/Resources/
 
+$(GUI_APP)_app: $(GUI_APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
+	mkdir -p $(GUI_APP_APP)/Contents
+	sed -e "s/$(APP)/$(GUI_APP)/" < ../MacOSX/Info.plist > $(GUI_APP_APP)/Contents/Info.plist
+	echo -n 'APPL????' > $(GUI_APP_APP)/Contents/PkgInfo
+	mkdir -p $(GUI_APP_APP)/Contents/MacOS
+	cp -f $(GUI_APP) $(GUI_APP_APP)/Contents/MacOS/
+	strip $(GUI_APP_APP)/Contents/MacOS/$(GUI_APP)
+	mkdir -p $(GUI_APP_APP)/Contents/Resources
+	cp -f ../MacOSX/$(APP).icns $(GUI_APP_APP)/Contents/Resources/$(GUI_APP).icns
+
 modules:
 	cd Linux/NetDriver; make
 
-install: $(APP_EXE) installdirs
+install: $(PROGS) installdirs
 	$(INSTALL_PROGRAM) $(APP_EXE) $(DESTDIR)$(bindir)/$(APP_EXE)
+	if test -f "$(GUI_APP_EXE)"; then \
+	  $(INSTALL_PROGRAM) $(GUI_APP_EXE) $(DESTDIR)$(bindir)/$(GUI_APP_EXE); \
+	fi
 	-$(INSTALL_DATA) $(APP).1 $(DESTDIR)$(man1dir)/$(APP).1
 	$(INSTALL_DATA) $(KEYCODES) $(DESTDIR)$(datadir)/$(APP)/keycodes
 	$(INSTALL_DATA) tunconfig $(DESTDIR)$(datadir)/$(APP)/tunconfig
@@ -117,6 +156,7 @@ installdirs:
 
 uninstall:
 	rm -f $(DESTDIR)$(bindir)/$(APP_EXE)
+	rm -f $(DESTDIR)$(bindir)/$(GUI_APP_EXE)
 	rm -f $(DESTDIR)$(man1dir)/$(APP).1
 	rm -f $(DESTDIR)$(datadir)/$(APP)/keycodes
 	rm -f $(DESTDIR)$(datadir)/$(APP)/tunconfig
@@ -148,6 +188,8 @@ $(OBJ_DIR)/%.o : %.S
 	$(CPP) $(CPPFLAGS) -D__ASSEMBLY__ $< -o $*.out.s
 	$(AS) $(ASFLAGS) -o $@ $*.out.s
 	rm $*.out.s
+$(OBJ_DIR)/%.go : %.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(GUI_CFLAGS) -DSTANDALONE_GUI -c $< -o $@
 
 # Kheperix CPU emulator
 kpxsrcdir = ../kpx_cpu/src

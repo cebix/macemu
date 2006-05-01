@@ -28,6 +28,7 @@ AC_ARG_ENABLE(fbdev-dga,    [  --enable-fbdev-dga      use direct frame buffer a
 AC_ARG_ENABLE(xf86-dga,     [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(xf86-vidmode, [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
 AC_ARG_ENABLE(vosf,         [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=yes])
+AC_ARG_ENABLE(standalone-gui,[  --enable-standalone-gui enable a standalone GUI prefs editor [default=no]], [WANT_STANDALONE_GUI=$enableval], [WANT_STANDALONE_GUI=no])
 AC_ARG_WITH(esd,            [  --with-esd              support ESD for sound under Linux/FreeBSD [default=yes]], [WANT_ESD=$withval], [WANT_ESD=yes])
 AC_ARG_WITH(gtk,            [  --with-gtk              use GTK user interface [default=yes]],
   [case "$withval" in
@@ -246,9 +247,8 @@ case "x$WANT_GTK" in
 xgtk2*)
   AM_PATH_GTK_2_0(1.3.15, [
     AC_DEFINE(ENABLE_GTK, 1, [Define if using GTK.])
-    CFLAGS="$CFLAGS $GTK_CFLAGS"
-    CXXFLAGS="$CXXFLAGS $GTK_CFLAGS"
-    LIBS="$LIBS $GTK_LIBS"
+    GUI_CFLAGS="$GTK_CFLAGS"
+    GUI_LIBS="$GTK_LIBS"
     UISRCS=prefs_editor_gtk.cpp
     WANT_GTK=gtk2
   ], [
@@ -268,15 +268,25 @@ esac
 if [[ "x$WANT_GTK" = "xgtk" ]]; then
   AM_PATH_GTK(1.2.0, [
     AC_DEFINE(ENABLE_GTK, 1, [Define if using GTK.])
-    CFLAGS="$CFLAGS $GTK_CFLAGS"
-    CXXFLAGS="$CXXFLAGS $GTK_CFLAGS"
-    LIBS="$LIBS $GTK_LIBS"
+    GUI_CFLAGS="$GTK_CFLAGS"
+    GUI_LIBS="$GTK_LIBS"
     UISRCS=prefs_editor_gtk.cpp
   ], [
     AC_MSG_WARN([Could not find GTK+, disabling user interface.])
     WANT_GTK=no
   ])
 fi
+AC_SUBST(GUI_CFLAGS)
+AC_SUBST(GUI_LIBS)
+
+dnl Build external GUI if requested.
+if [[ "$WANT_STANDALONE_GUI" != "yes" ]]; then
+  WANT_STANDALONE_GUI=no
+fi
+if [[ "$WANT_GTK" = "no" ]]; then
+  WANT_STANDALONE_GUI=no
+fi
+AC_SUBST(STANDALONE_GUI, [$WANT_STANDALONE_GUI])
 
 dnl We use ESD if possible.
 if [[ "x$WANT_ESD" = "xyes" ]]; then

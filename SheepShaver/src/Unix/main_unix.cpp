@@ -110,6 +110,7 @@
 #include "vm_alloc.h"
 #include "sigsegv.h"
 #include "sigregs.h"
+#include "rpc.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -230,6 +231,9 @@ static bool emul_thread_fatal = false;		// Flag: MacOS thread crashed, tick thre
 static sigregs sigsegv_regs;				// Register dump when crashed
 static const char *crash_reason = NULL;		// Reason of the crash (SIGSEGV, SIGBUS, SIGILL)
 #endif
+
+static rpc_connection_t *gui_connection = NULL;	// RPC connection to the GUI
+static const char *gui_connection_path = NULL;	// GUI connection identifier
 
 uint32  SheepMem::page_size;				// Size of a native page
 uintptr SheepMem::zero_page = 0;			// Address of ro page filled in with zeros
@@ -385,15 +389,6 @@ int main(int argc, char **argv)
 #endif
 #endif
 
-#ifdef ENABLE_GTK
-	// Init GTK
-	gtk_set_locale();
-	gtk_init(&argc, &argv);
-#endif
-
-	// Read preferences
-	PrefsInit(argc, argv);
-
 	// Parse command line arguments
 	for (int i=1; i<argc; i++) {
 		if (strcmp(argv[i], "--help") == 0) {
@@ -404,7 +399,51 @@ int main(int argc, char **argv)
 			if (i < argc)
 				x_display_name = strdup(argv[i]);
 #endif
-		} else if (argv[i][0] == '-') {
+		} else if (strcmp(argv[i], "--gui-connection") == 0) {
+			argv[i++] = NULL;
+			if (i < argc) {
+				gui_connection_path = argv[i];
+				argv[i] = NULL;
+			}
+		}
+	}
+
+	// Remove processed arguments
+	for (int i=1; i<argc; i++) {
+		int k;
+		for (k=i; k<argc; k++)
+			if (argv[k] != NULL)
+				break;
+		if (k > i) {
+			k -= i;
+			for (int j=i+k; j<argc; j++)
+				argv[j-k] = argv[j];
+			argc -= k;
+		}
+	}
+
+	// Connect to the external GUI
+	if (gui_connection_path) {
+		if ((gui_connection = rpc_init_client(gui_connection_path)) == NULL) {
+			fprintf(stderr, "Failed to initialize RPC client connection to the GUI\n");
+			return 1;
+		}
+	}
+
+#ifdef ENABLE_GTK
+	if (!gui_connection) {
+		// Init GTK
+		gtk_set_locale();
+		gtk_init(&argc, &argv);
+	}
+#endif
+
+	// Read preferences
+	PrefsInit(argc, argv);
+
+	// Any command line arguments left?
+	for (int i=1; i<argc; i++) {
+		if (argv[i][0] == '-') {
 			fprintf(stderr, "Unrecognized option '%s'\n", argv[i]);
 			usage(argv[0]);
 		}
@@ -485,19 +524,19 @@ int main(int argc, char **argv)
 	sigsegv_action.sa_restorer = NULL;
 #endif
 	if (sigaction(SIGSEGV, &sigsegv_action, NULL) < 0) {
-		sprintf(str, GetString(STR_SIGSEGV_INSTALL_ERR), strerror(errno));
+		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGSEGV", strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
 	if (sigaction(SIGBUS, &sigsegv_action, NULL) < 0) {
-		sprintf(str, GetString(STR_SIGSEGV_INSTALL_ERR), strerror(errno));
+		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGBUS", strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
 #else
 	// Install SIGSEGV handler for CPU emulator
 	if (!sigsegv_install_handler(sigsegv_handler)) {
-		sprintf(str, GetString(STR_SIGSEGV_INSTALL_ERR), strerror(errno));
+		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGSEGV", strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
@@ -860,7 +899,7 @@ int main(int argc, char **argv)
 	sigill_action.sa_restorer = NULL;
 #endif
 	if (sigaction(SIGILL, &sigill_action, NULL) < 0) {
-		sprintf(str, GetString(STR_SIGILL_INSTALL_ERR), strerror(errno));
+		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGILL", strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
@@ -875,7 +914,7 @@ int main(int argc, char **argv)
 	sigusr2_action.sa_restorer = NULL;
 #endif
 	if (sigaction(SIGUSR2, &sigusr2_action, NULL) < 0) {
-		sprintf(str, GetString(STR_SIGUSR2_INSTALL_ERR), strerror(errno));
+		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGUSR2", strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
@@ -985,6 +1024,12 @@ static void Quit(void)
 	if (x_display)
 		XCloseDisplay(x_display);
 #endif
+
+	// Notify GUI we are about to leave
+	if (gui_connection) {
+		if (rpc_method_invoke(gui_connection, RPC_METHOD_EXIT, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR)
+			rpc_method_wait_for_reply(gui_connection, RPC_TYPE_INVALID);
+	}
 
 	exit(0);
 }
@@ -2078,6 +2123,11 @@ void display_alert(int title_id, int prefix_id, int button_id, const char *text)
 
 void ErrorAlert(const char *text)
 {
+	if (gui_connection) {
+		if (rpc_method_invoke(gui_connection, RPC_METHOD_ERROR_ALERT, RPC_TYPE_STRING, text, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR &&
+			rpc_method_wait_for_reply(gui_connection, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR)
+			return;
+	}
 #if defined(ENABLE_GTK) && !defined(USE_SDL_VIDEO)
 	if (PrefsFindBool("nogui") || x_display == NULL) {
 		printf(GetString(STR_SHELL_ERROR_PREFIX), text);
@@ -2097,6 +2147,11 @@ void ErrorAlert(const char *text)
 
 void WarningAlert(const char *text)
 {
+	if (gui_connection) {
+		if (rpc_method_invoke(gui_connection, RPC_METHOD_WARNING_ALERT, RPC_TYPE_STRING, text, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR &&
+			rpc_method_wait_for_reply(gui_connection, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR)
+			return;
+	}
 #if defined(ENABLE_GTK) && !defined(USE_SDL_VIDEO)
 	if (PrefsFindBool("nogui") || x_display == NULL) {
 		printf(GetString(STR_SHELL_WARNING_PREFIX), text);
