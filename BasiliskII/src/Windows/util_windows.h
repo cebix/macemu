@@ -47,4 +47,7 @@ class mutex_t {
 extern const char *ether_name_to_guid(const char *name);
 extern const char *ether_guid_to_name(const char *guid);
 
+// Get TAP-Win32 devices (caller free()s returned buffer)
+extern const char *ether_tap_devices(void);
+
 #endif // _UTIL_WINDOWS_H

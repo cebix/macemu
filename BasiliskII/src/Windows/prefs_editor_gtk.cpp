@@ -1402,6 +1402,13 @@ static void mn_ether_b2ether(GtkWidget *, const char *guid)
 	PrefsReplaceString("etherguid", guid);
 }
 
+// Ethernet option for Basilisk II driver selected
+static void mn_ether_tap(GtkWidget *, const char *guid)
+{
+	PrefsReplaceString("ether", "tap");
+	PrefsReplaceString("etherguid", guid);
+}
+
 // Create ethernet interfaces menu
 static int create_ether_menu(GtkWidget *menu)
 {
@@ -1410,21 +1417,25 @@ static int create_ether_menu(GtkWidget *menu)
 	const char *ether = PrefsFindString("ether");
 	const char *etherguid = PrefsFindString("etherguid");
 
+	// No Ethernet
 	add_menu_item(menu, STR_NONE_LAB, (GtkSignalFunc)mn_ether_none);
 	if (ether == NULL)
 		active = n_items;
 	n_items++;
 
+	// Basilisk II Router
 	add_menu_item(menu, "Basilisk II Router", (GtkSignalFunc)mn_ether_router);
 	if (ether && strcmp(ether, "router") == 0)
 		active = n_items;
 	n_items++;
 
-	add_menu_item(menu, "Basilisk II Slirp", (GtkSignalFunc)mn_ether_router);
+	// Basilisk II Slirp
+	add_menu_item(menu, "Basilisk II Slirp", (GtkSignalFunc)mn_ether_slirp);
 	if (ether && strcmp(ether, "slirp") == 0)
 		active = n_items;
 	n_items++;
 
+	// Basilisk II Ethernet Adapter
 	PacketOpenAdapter("", 0);
 	{
 		ULONG sz;
@@ -1455,6 +1466,24 @@ static int create_ether_menu(GtkWidget *menu)
 		}
 	}
 	PacketCloseAdapter(NULL);
+
+	// TAP-Win32
+	const char *tap_devices;
+	if ((tap_devices = ether_tap_devices()) != NULL) {
+		const char *guid = tap_devices;
+		while (*guid) {
+			const char *name = ether_guid_to_name(guid);
+			if (name && (name = g_locale_to_utf8(name, -1, NULL, NULL, NULL))) {
+				add_menu_item(menu, name, (GtkSignalFunc)mn_ether_tap, strdup(guid));
+				if (etherguid && strcmp(guid, etherguid) == 0 &&
+					ether && strcmp(ether, "tap") == 0)
+					active = n_items;
+				n_items++;
+			}
+			guid += strlen(guid) + 1;
+		}
+		free((char *)tap_devices);
+	}
 
 	return active;
 }

@@ -260,3 +260,119 @@ const char *ether_guid_to_name(const char *guid)
 
 	return NULL;
 }
+
+
+/*
+ *  Get TAP-Win32 adapters
+ */
+
+#define ADAPTER_KEY "SYSTEM\\CurrentControlSet\\Control\\Class\\{4D36E972-E325-11CE-BFC1-08002BE10318}"
+
+#define TAP_COMPONENT_ID "tap0801"
+
+const char *ether_tap_devices(void)
+{
+	HKEY adapter_key;
+	LONG status;
+	DWORD len;
+	int i = 0;
+
+	status = RegOpenKeyEx(
+		HKEY_LOCAL_MACHINE,
+		ADAPTER_KEY,
+		0,
+		KEY_READ,
+		&adapter_key);
+
+	if (status != ERROR_SUCCESS)
+		return NULL;
+
+	list<string> devices;
+
+	while (true) {
+		char enum_name[256];
+		char unit_string[256];
+		HKEY unit_key;
+		char component_id_string[] = "ComponentId";
+		char component_id[256];
+		char net_cfg_instance_id_string[] = "NetCfgInstanceId";
+		char net_cfg_instance_id[256];
+		DWORD data_type;
+
+		len = sizeof (enum_name);
+		status = RegEnumKeyEx(
+			adapter_key,
+			i,
+			enum_name,
+			&len,
+			NULL,
+			NULL,
+			NULL,
+			NULL);
+		if (status != ERROR_SUCCESS)
+			break;
+
+		snprintf (unit_string, sizeof(unit_string), "%s\\%s",
+				  ADAPTER_KEY, enum_name);
+
+		status = RegOpenKeyEx(
+			HKEY_LOCAL_MACHINE,
+			unit_string,
+			0,
+			KEY_READ,
+			&unit_key);
+
+		if (status == ERROR_SUCCESS) {
+			len = sizeof (component_id);
+			status = RegQueryValueEx(
+				unit_key,
+				component_id_string,
+				NULL,
+				&data_type,
+				(BYTE *)component_id,
+				&len);
+
+			if (status == ERROR_SUCCESS && data_type == REG_SZ) {
+				len = sizeof (net_cfg_instance_id);
+				status = RegQueryValueEx(
+					unit_key,
+					net_cfg_instance_id_string,
+					NULL,
+					&data_type,
+					(BYTE *)net_cfg_instance_id,
+					&len);
+
+				if (status == ERROR_SUCCESS && data_type == REG_SZ) {
+					if (!strcmp (component_id, TAP_COMPONENT_ID))
+						devices.push_back(net_cfg_instance_id);
+				}
+			}
+			RegCloseKey (unit_key);
+		}
+		++i;
+    }
+
+	RegCloseKey (adapter_key);
+
+	if (devices.empty())
+		return NULL;
+
+	// The result is a '\0' separated list of strings
+	list<string>::const_iterator it;
+	len = 0;
+	for (it = devices.begin(); it != devices.end(); it++)
+		len += (*it).length() + 1;
+
+	char *names = (char *)malloc(len);
+	if (names) {
+		char *p = names;
+		for (it = devices.begin(); it != devices.end(); it++) {
+			len = (*it).length();
+			strcpy(p, (*it).c_str());
+			p[len] = '\0';
+			p += len + 1;
+		}
+	}
+
+	return names;
+}
