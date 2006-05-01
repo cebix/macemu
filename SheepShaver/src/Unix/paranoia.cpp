@@ -103,7 +103,7 @@ void paranoia_check(void)
 	sigusr2_action.sa_sigaction = sigusr2_handler;
 	sigusr2_action.sa_flags = SA_SIGINFO | SA_ONSTACK | SA_RESTART;
 	if (sigaction(SIGUSR2, &sigusr2_action, &old_action) < 0) {
-		sprintf(str, GetString(STR_SIGUSR2_INSTALL_ERR), strerror(errno));
+		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGUSR2", strerror(errno));
 		ErrorAlert(str);
 		exit(1);
 	}

@@ -120,16 +120,16 @@ static GtkWidget *make_pane(GtkWidget *notebook, int title_id)
 	GtkWidget *frame, *label, *box;
 
 	frame = gtk_frame_new(NULL);
-	gtk_widget_show(frame);
 	gtk_container_border_width(GTK_CONTAINER(frame), 4);
+
+	box = gtk_vbox_new(FALSE, 4);
+	gtk_container_set_border_width(GTK_CONTAINER(box), 4);
+	gtk_container_add(GTK_CONTAINER(frame), box);
+
+	gtk_widget_show_all(frame);
 
 	label = gtk_label_new(GetString(title_id));
 	gtk_notebook_append_page(GTK_NOTEBOOK(notebook), frame, label);
-
-	box = gtk_vbox_new(FALSE, 4);
-	gtk_widget_show(box);
-	gtk_container_set_border_width(GTK_CONTAINER(box), 4);
-	gtk_container_add(GTK_CONTAINER(frame), box);
 	return box;
 }
 
@@ -448,10 +448,10 @@ bool PrefsEditor(void)
 	gtk_box_pack_start(GTK_BOX(box), menu_bar, FALSE, TRUE, 0);
 
 	GtkWidget *notebook = gtk_notebook_new();
-	gtk_widget_show(notebook);
 	gtk_notebook_set_tab_pos(GTK_NOTEBOOK(notebook), GTK_POS_TOP);
 	gtk_notebook_set_scrollable(GTK_NOTEBOOK(notebook), FALSE);
 	gtk_box_pack_start(GTK_BOX(box), notebook, TRUE, TRUE, 0);
+	gtk_widget_realize(notebook);
 
 	create_volumes_pane(notebook);
 	create_graphics_pane(notebook);
@@ -459,6 +459,7 @@ bool PrefsEditor(void)
 	create_serial_pane(notebook);
 	create_memory_pane(notebook);
 	create_jit_pane(notebook);
+	gtk_widget_show(notebook);
 
 	static const opt_desc buttons[] = {
 		{STR_START_BUTTON, GTK_SIGNAL_FUNC(cb_start)},
@@ -633,6 +634,27 @@ static void create_volumes_pane(GtkWidget *top)
  *  "JIT Compiler" pane
  */
 
+// Are we running a JIT capable CPU?
+static bool is_jit_capable(void)
+{
+#if USE_JIT
+	return true;
+#elif defined __APPLE__ && defined __MACH__
+	// XXX run-time detect so that we can use a PPC GUI prefs editor
+	static char cpu[10];
+	if (cpu[0] == 0) {
+		FILE *fp = popen("uname -p", "r");
+		if (fp == NULL)
+			return false;
+		fgets(cpu, sizeof(cpu) - 1, fp);
+		fclose(fp);
+	}
+	if (cpu[0] == 'i' && cpu[2] == '8' && cpu[3] == '6') // XXX assuming i?86
+		return true;
+#endif
+	return false;
+}
+
 // Set sensitivity of widgets
 static void set_jit_sensitive(void)
 {
@@ -649,9 +671,7 @@ static void tb_jit(GtkWidget *widget)
 // Read settings from widgets and set preferences
 static void read_jit_settings(void)
 {
-#if USE_JIT
-	bool jit_enabled = PrefsFindBool("jit");
-#endif
+	bool jit_enabled = is_jit_capable() && PrefsFindBool("jit");
 }
 
 // "Use built-in 68k DR emulator" button toggled
@@ -667,10 +687,12 @@ static void create_jit_pane(GtkWidget *top)
 	char str[32];
 	
 	box = make_pane(top, STR_JIT_PANE_TITLE);
-#if USE_JIT
-	make_checkbox(box, STR_JIT_CTRL, "jit", GTK_SIGNAL_FUNC(tb_jit));
-	set_jit_sensitive();
-#endif
+
+	if (is_jit_capable()) {
+		make_checkbox(box, STR_JIT_CTRL, "jit", GTK_SIGNAL_FUNC(tb_jit));
+		set_jit_sensitive();
+	}
+
 	make_checkbox(box, STR_JIT_68K_CTRL, "jit68k", GTK_SIGNAL_FUNC(tb_jit_68k));
 }
 
