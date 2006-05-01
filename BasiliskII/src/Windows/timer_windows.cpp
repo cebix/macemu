@@ -219,13 +219,11 @@ static HANDLE idle_lock = NULL;
 
 idle_sentinel::idle_sentinel()
 {
-	LOCK_IDLE;
 	idle_sem_ok = 1;
 	if ((idle_sem = CreateSemaphore(0, 0, 1, NULL)) == NULL)
 		idle_sem_ok = 0;
 	if ((idle_lock = CreateMutex(NULL, FALSE, NULL)) == NULL)
 		idle_sem_ok = 0;
-	UNLOCK_IDLE;
 }
 
 idle_sentinel::~idle_sentinel()
