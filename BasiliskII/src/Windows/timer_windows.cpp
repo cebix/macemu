@@ -36,6 +36,9 @@
 #define USECS2TICKS(USECS) (((uint64)(USECS) * frequency) / 1000000)
 #define TICKS2USECS(TICKS) (((uint64)(TICKS) * 1000000) / frequency)
 
+// From main_windows.cpp
+extern HANDLE emul_thread;
+
 // Global variables
 static uint32 frequency;				// CPU frequency in Hz (< 4 GHz)
 static tm_time_t mac_boot_ticks;
@@ -201,8 +204,54 @@ void Delay_usec(uint32 usec)
  *  Suspend emulator thread, virtual CPU in idle mode
  */
 
+struct idle_sentinel {
+	idle_sentinel();
+	~idle_sentinel();
+};
+static idle_sentinel idle_sentinel;
+
+static int idle_sem_ok = -1;
+static HANDLE idle_sem = NULL;
+
+static HANDLE idle_lock = NULL;
+#define LOCK_IDLE WaitForSingleObject(idle_lock, INFINITE)
+#define UNLOCK_IDLE ReleaseMutex(idle_lock)
+
+idle_sentinel::idle_sentinel()
+{
+	LOCK_IDLE;
+	idle_sem_ok = 1;
+	if ((idle_sem = CreateSemaphore(0, 0, 1, NULL)) == NULL)
+		idle_sem_ok = 0;
+	if ((idle_lock = CreateMutex(NULL, FALSE, NULL)) == NULL)
+		idle_sem_ok = 0;
+	UNLOCK_IDLE;
+}
+
+idle_sentinel::~idle_sentinel()
+{
+	if (idle_lock) {
+		ReleaseMutex(idle_lock);
+		CloseHandle(idle_lock);
+	}
+	if (idle_sem) {
+		ReleaseSemaphore(idle_sem, 1, NULL);
+		CloseHandle(idle_sem);
+	}
+}
+
 void idle_wait(void)
 {
+	LOCK_IDLE;
+	if (idle_sem_ok > 0) {
+		idle_sem_ok++;
+		UNLOCK_IDLE;
+		WaitForSingleObject(idle_sem, INFINITE);
+		return;
+	}
+	UNLOCK_IDLE;
+
+	// Fallback: sleep 10 ms (this should not happen though)
 	Delay_usec(10000);
 }
 
@@ -213,4 +262,12 @@ void idle_wait(void)
 
 void idle_resume(void)
 {
+	LOCK_IDLE;
+	if (idle_sem_ok > 1) {
+		idle_sem_ok--;
+		UNLOCK_IDLE;
+		ReleaseSemaphore(idle_sem, 1, NULL);
+		return;
+	}
+	UNLOCK_IDLE;
 }

@@ -77,8 +77,9 @@ bool ThirtyThreeBitAddressing = false;
 
 
 // Global variables
-static uint8 last_xpram[XPRAM_SIZE];				// Buffer for monitoring XPRAM changes
+HANDLE emul_thread = NULL;							// Handle of MacOS emulation thread (main thread)
 
+static uint8 last_xpram[XPRAM_SIZE];				// Buffer for monitoring XPRAM changes
 static bool xpram_thread_active = false;			// Flag: XPRAM watchdog installed
 static volatile bool xpram_thread_cancel = false;	// Flag: Cancel XPRAM thread
 static SDL_Thread *xpram_thread = NULL;				// XPRAM watchdog
@@ -420,6 +421,9 @@ int main(int argc, char **argv)
 	if (!InitAll())
 		QuitEmulator();
 	D(bug("Initialization complete\n"));
+
+	// Get handle of main thread
+	emul_thread = GetCurrentThread();
 
 	// SDL threads available, start 60Hz thread
 	tick_thread_active = ((tick_thread = SDL_CreateThread(tick_func, NULL)) != NULL);
