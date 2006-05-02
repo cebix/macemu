@@ -380,7 +380,6 @@ int vm_acquire_fixed(void * addr, size_t size, int options)
 	LPVOID ret_addr = VirtualAlloc(req_addr, req_size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 	if (ret_addr != req_addr)
 		return -1;
-		return -1;
 #else
 	// Unsupported
 	return -1;
