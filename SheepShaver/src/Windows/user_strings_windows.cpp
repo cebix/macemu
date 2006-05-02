@@ -38,6 +38,7 @@ user_string_def platform_strings[] = {
 	{STR_DR_EMULATOR_MMAP_ERR, "Cannot map DR Emulator: %s."},
 	{STR_SHEEP_MEM_MMAP_ERR, "Cannot map SheepShaver Data area: %s."},
 	{STR_NO_XVISUAL_ERR, "Cannot obtain appropriate X visual."},
+	{STR_SLIRP_NO_DNS_FOUND_WARN, "Cannot get DNS address. Ethernet will not be available."},
 	{STR_NO_AUDIO_WARN, "No audio device found, audio output will be disabled."},
 	{STR_KEYCODE_FILE_WARN, "Cannot open keycode translation file %s (%s)."},
 	{STR_KEYCODE_VENDOR_WARN, "Cannot find vendor '%s' in keycode translation file %s."},

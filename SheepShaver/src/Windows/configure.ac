@@ -56,7 +56,10 @@ AC_CHECK_TYPES(loff_t)
 AC_TYPE_SIZE_T
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(exp2f log2f exp2 log2 trunc)
+AC_CHECK_FUNCS(strdup strerror)
+AC_CHECK_FUNCS(exp2f log2f exp2 log2)
+AC_CHECK_FUNCS(floorf roundf ceilf truncf)
+AC_CHECK_FUNCS(floor round ceil trunc)
 
 dnl Define a macro that translates a yesno-variable into a C macro definition
 dnl to be put into the config.h file
@@ -170,6 +173,19 @@ AC_EGREP_CPP(xyes,
   xyes
 #endif
 ], [AC_MSG_RESULT(yes); HAVE_GCC30=yes], AC_MSG_RESULT(no))
+
+dnl Add -fno-strict-aliasing for slirp sources
+if [[ "x$HAVE_GCC30" = "xyes" ]]; then
+  SAVED_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS -fno-strict-aliasing"
+  AC_CACHE_CHECK([whether the compiler supports -fno-strict-aliasing],
+    ac_cv_gcc_no_strict_aliasing, [
+    AC_TRY_COMPILE([],[],
+      [ac_cv_gcc_no_strict_aliasing=yes; AC_SUBST(SLIRP_CFLAGS, "-fno-strict-aliasing")],
+      [ac_cv_gcc_no_strict_aliasing=no])
+  ])
+  CFLAGS="$SAVED_CFLAGS"
+fi
 
 dnl CPU emulator sources
 CPUSRCS="\
