@@ -58,10 +58,10 @@ ifeq ($(STANDALONE_GUI),yes)
 GUI_APP = BasiliskIIGUI
 GUI_APP_APP = $(GUI_APP).app
 PROGS += $(GUI_APP)$(EXEEXT)
-endif
-
+else
 CXXFLAGS += $(GUI_CFLAGS)
 LIBS += $(GUI_LIBS)
+endif
 
 ## Rules
 .PHONY: modules install installdirs uninstall mostlyclean clean distclean depend dep
