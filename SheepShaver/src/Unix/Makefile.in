@@ -73,10 +73,10 @@ GUI_APP = SheepShaverGUI
 GUI_APP_EXE = $(GUI_APP)$(EXEEXT)
 GUI_APP_APP = $(GUI_APP).app
 PROGS += $(GUI_APP_EXE)
-endif
-
+else
 CXXFLAGS += $(GUI_CFLAGS)
 LIBS += $(GUI_LIBS)
+endif
 
 ## Rules
 .PHONY: modules install uninstall clean distclean depend dep
