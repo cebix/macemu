@@ -167,21 +167,6 @@ typedef int64 intptr;
 #endif
 
 /**
- *		Helper macros to annotate likely branch directions
- **/
-
-#if __GNUC__ >= 3 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 96)
-#define likely(x)		__builtin_expect((x),1)
-#define unlikely(x)		__builtin_expect((x),0)
-#endif
-#ifndef likely
-#define likely(x)		(x)
-#endif
-#ifndef unlikely
-#define unlikely(x)		(x)
-#endif
-
-/**
  *		Helper functions to byteswap data
  **/
 

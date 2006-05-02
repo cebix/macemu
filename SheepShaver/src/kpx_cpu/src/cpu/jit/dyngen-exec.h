@@ -163,4 +163,20 @@ extern int __op_jmp0, __op_jmp1;
 #define ASM_LONG				".long"
 #endif
 
+// Helper macros to annotate likely branch directions
+#if __GNUC__ >= 3 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 96)
+#ifndef likely
+#define likely(x)		__builtin_expect((x),1)
+#endif
+#ifndef unlikely
+#define unlikely(x)		__builtin_expect((x),0)
+#endif
+#endif
+#ifndef likely
+#define likely(x)		(x)
+#endif
+#ifndef unlikely
+#define unlikely(x)		(x)
+#endif
+
 #endif /* DYNGEN_EXEC_H */
