@@ -593,6 +593,22 @@ void CheckLoad(uint32 type, const char *name, uint8 *p, uint32 size)
 	// Don't modify resources in ROM
 	if ((uintptr)p >= (uintptr)ROMBaseHost && (uintptr)p <= (uintptr)(ROMBaseHost + ROM_SIZE))
 		return;
+
+	if (type == FOURCC('D','R','V','R') && strncmp(&name[1], ".AFPTranslator", name[0]) == 0) {
+		D(bug(" DRVR .AFPTranslator found\n"));
+		
+		// Don't access ROM85 as it it was a pointer to a ROM version number (8.0, 8.1)
+		static const uint8 dat[] = {0x3a, 0x2e, 0x00, 0x0a, 0x55, 0x4f, 0x3e, 0xb8, 0x02, 0x8e, 0x30, 0x1f, 0x48, 0xc0, 0x24, 0x40, 0x20, 0x40};
+		base = find_rsrc_data(p, size, dat, sizeof(dat));
+		if (base) {
+			p16 = (uint16 *)(p + base + 4);
+			*p16++ = htons(0x303c);		// move.l	#ROM85,%d0
+			*p16++ = htons(0x028e);
+			*p16++ = htons(M68K_NOP);
+			*p16++ = htons(M68K_NOP);
+			D(bug("  patch 1 applied\n"));
+		}
+	}
 }
 
 
