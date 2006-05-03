@@ -22,6 +22,7 @@
 #define RSRC_PATCHES_H
 
 extern void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size);
+extern void CheckLoad(uint32 type, const char *name, uint16 *p, uint32 size);
 extern void PatchNativeResourceManager(void);
 
 #endif

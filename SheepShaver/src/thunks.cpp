@@ -56,6 +56,7 @@ uint32 NativeOpcode(int selector)
 	uint32 opcode;
 	switch (selector) {
 	case NATIVE_CHECK_LOAD_INVOC:
+	case NATIVE_NAMED_CHECK_LOAD_INVOC:
 		opcode = POWERPC_NATIVE_OP(0, selector);
 		break;
   	case NATIVE_PATCH_NAME_REGISTRY:
@@ -85,6 +86,8 @@ uint32 NativeOpcode(int selector)
   	case NATIVE_GET_IND_RESOURCE:
   	case NATIVE_GET_1_IND_RESOURCE:
   	case NATIVE_R_GET_RESOURCE:
+	case NATIVE_GET_NAMED_RESOURCE:
+	case NATIVE_GET_1_NAMED_RESOURCE:
   	case NATIVE_MAKE_EXECUTABLE:
 	case NATIVE_SYNC_HOOK:
 	case NATIVE_BITBLT_HOOK:
@@ -112,9 +115,15 @@ static uint32 get_1_resource_func;
 static uint32 get_ind_resource_func;
 static uint32 get_1_ind_resource_func;
 static uint32 r_get_resource_func;
+static uint32 get_named_resource_func;
+static uint32 get_1_named_resource_func;
 
 static void generate_powerpc_thunks(void)
 {
+	// check_load_invoc() thunk
+	uint32 check_load_invoc_opcode = NativeOpcode(NATIVE_CHECK_LOAD_INVOC);
+	uint32 base;
+
 	static uint32 get_resource_template[] = {
 		PL(0x7c0802a6),		// mflr    r0
 		PL(0x90010008),		// stw     r0,8(r1)
@@ -152,9 +161,6 @@ static void generate_powerpc_thunks(void)
 	}
 	assert(xlm_index != -1 && check_load_invoc_index != -1);
 
-	uint32 check_load_invoc_opcode = NativeOpcode(NATIVE_CHECK_LOAD_INVOC);
-	uint32 base;
-
 	// GetResource()
 	get_resource_func = base = SheepMem::Reserve(get_resource_template_size);
 	Host2Mac_memcpy(base, get_resource_template, get_resource_template_size);
@@ -183,6 +189,58 @@ static void generate_powerpc_thunks(void)
 	r_get_resource_func = base = SheepMem::Reserve(get_resource_template_size);
 	Host2Mac_memcpy(base, get_resource_template, get_resource_template_size);
 	WriteMacInt32(base + xlm_index * 4, 0x80000000 | XLM_R_GET_RESOURCE);
+	WriteMacInt32(base + check_load_invoc_index * 4, check_load_invoc_opcode);
+
+	// named_check_load_invoc() thunk
+	check_load_invoc_opcode = NativeOpcode(NATIVE_NAMED_CHECK_LOAD_INVOC);
+
+	static uint32 get_named_resource_template[] = {
+		PL(0x7c0802a6),		// mflr    r0
+		PL(0x90010008),		// stw     r0,8(r1)
+		PL(0x9421ffbc),		// stwu    r1,-68(r1)
+		PL(0x90610038),		// stw     r3,56(r1)
+		PL(0x9081003c),		// stw     r4,60(r1)
+		PL(0x00000000),		// lwz     r0,XLM_GET_NAMED_RESOURCE(r0)
+		PL(0x80402834),		// lwz     r2,XLM_RES_LIB_TOC(r0)
+		PL(0x7c0903a6),		// mtctr   r0
+		PL(0x4e800421),		// bctrl
+		PL(0x90610040),		// stw     r3,64(r1)
+		PL(0x80610038),		// lwz     r3,56(r1)
+		PL(0x8081003c),		// lwz     r4,60(r1)
+		PL(0x80a10040),		// lwz     r5,64(r1)
+		PL(0x00000001),		// <named_check_load_invoc>
+		PL(0x80610040),		// lwz     r3,64(r1)
+		PL(0x8001004c),		// lwz     r0,76(r1)
+		PL(0x7c0803a6),		// mtlr    r0
+		PL(0x38210044),		// addi    r1,r1,68
+		PL(0x4e800020)		// blr
+	};
+	const uint32 get_named_resource_template_size = sizeof(get_named_resource_template);
+
+	xlm_index = -1, check_load_invoc_index = -1;
+	for (int i = 0; i < get_resource_template_size/4; i++) {
+		uint32 opcode = ntohl(get_resource_template[i]);
+		switch (opcode) {
+		case 0x00000000:
+			xlm_index = i;
+			break;
+		case 0x00000001:
+			check_load_invoc_index = i;
+			break;
+		}
+	}
+	assert(xlm_index != -1 && check_load_invoc_index != -1);
+
+	// GetNamedResource()
+	get_named_resource_func = base = SheepMem::Reserve(get_named_resource_template_size);
+	Host2Mac_memcpy(base, get_named_resource_template, get_named_resource_template_size);
+	WriteMacInt32(base + xlm_index * 4, 0x80000000 | XLM_GET_NAMED_RESOURCE);
+	WriteMacInt32(base + check_load_invoc_index * 4, check_load_invoc_opcode);
+
+	// Get1NamedResource()
+	get_1_named_resource_func = base = SheepMem::Reserve(get_named_resource_template_size);
+	Host2Mac_memcpy(base, get_named_resource_template, get_named_resource_template_size);
+	WriteMacInt32(base + xlm_index * 4, 0x80000000 | XLM_GET_1_NAMED_RESOURCE);
 	WriteMacInt32(base + check_load_invoc_index * 4, check_load_invoc_opcode);
 }
 #endif
@@ -217,6 +275,8 @@ bool ThunksInit(void)
 	native_op[NATIVE_GET_IND_RESOURCE].func = get_ind_resource_func;
 	native_op[NATIVE_GET_1_IND_RESOURCE].func = get_1_ind_resource_func;
 	native_op[NATIVE_R_GET_RESOURCE].func = r_get_resource_func;
+	native_op[NATIVE_GET_NAMED_RESOURCE].func = get_named_resource_func;
+	native_op[NATIVE_GET_1_NAMED_RESOURCE].func = get_1_named_resource_func;
 #endif
 #else
 #if defined(__linux__) || defined(__NetBSD__) || (defined(__APPLE__) && defined(__MACH__))

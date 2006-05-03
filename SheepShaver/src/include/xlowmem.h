@@ -48,6 +48,8 @@
 #define XLM_EXEC_RETURN_OPCODE 0x284c	// EXEC_RETURN opcode for Execute68k()
 #define XLM_ZERO_PAGE 0x2850			// Pointer to read-only page with all bits set to 0
 #define XLM_R13 0x2854					// Pointer to .sdata section (Linux)
+#define XLM_GET_NAMED_RESOURCE 0x2858	// Pointer to native GetNamedResource() routine
+#define XLM_GET_1_NAMED_RESOURCE 0x285c	// Pointer to native Get1NamedResource() routine
 
 #define XLM_ETHER_AO_GET_HWADDR 0x28b0	// Pointer to ethernet A0_get_ethernet_address() function
 #define XLM_ETHER_AO_ADD_MULTI 0x28b4	// Pointer to ethernet A0_enable_multicast() function

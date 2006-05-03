@@ -89,6 +89,7 @@ extern uintptr SignalStackBase();
 
 // From rsrc_patches.cpp
 extern "C" void check_load_invoc(uint32 type, int16 id, uint32 h);
+extern "C" void named_check_load_invoc(uint32 type, uint32 name, uint32 h);
 
 // PowerPC EmulOp to exit from emulation looop
 const uint32 POWERPC_EXEC_RETURN = POWERPC_EMUL_OP | 1;
@@ -341,6 +342,13 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 			dg.gen_se_16_32_T1();
 			dg.gen_load_T2_GPR(5);
 			dg.gen_invoke_T0_T1_T2((void (*)(uint32, uint32, uint32))check_load_invoc);
+			status = COMPILE_CODE_OK;
+			break;
+		case NATIVE_NAMED_CHECK_LOAD_INVOC:
+			dg.gen_load_T0_GPR(3);
+			dg.gen_load_T1_GPR(4);
+			dg.gen_load_T2_GPR(5);
+			dg.gen_invoke_T0_T1_T2((void (*)(uint32, uint32, uint32))named_check_load_invoc);
 			status = COMPILE_CODE_OK;
 			break;
 #endif
@@ -971,12 +979,6 @@ void HandleInterrupt(powerpc_registers *r)
 	}
 }
 
-static void get_resource(void);
-static void get_1_resource(void);
-static void get_ind_resource(void);
-static void get_1_ind_resource(void);
-static void r_get_resource(void);
-
 // Execute NATIVE_OP routine
 void sheepshaver_cpu::execute_native_op(uint32 selector)
 {
@@ -1070,26 +1072,28 @@ void sheepshaver_cpu::execute_native_op(uint32 selector)
 		break;
 	}
 	case NATIVE_GET_RESOURCE:
-	case NATIVE_GET_1_RESOURCE:
-	case NATIVE_GET_IND_RESOURCE:
-	case NATIVE_GET_1_IND_RESOURCE:
-	case NATIVE_R_GET_RESOURCE: {
-		typedef void (*GetResourceCallback)(void);
-		static const GetResourceCallback get_resource_callbacks[] = {
-			::get_resource,
-			::get_1_resource,
-			::get_ind_resource,
-			::get_1_ind_resource,
-			::r_get_resource
-		};
-		get_resource_callbacks[selector - NATIVE_GET_RESOURCE]();
+		get_resource(ReadMacInt32(XLM_GET_RESOURCE));
 		break;
-	}
+	case NATIVE_GET_1_RESOURCE:
+		get_resource(ReadMacInt32(XLM_GET_1_RESOURCE));
+		break;
+	case NATIVE_GET_IND_RESOURCE:
+		get_resource(ReadMacInt32(XLM_GET_IND_RESOURCE));
+		break;
+	case NATIVE_GET_1_IND_RESOURCE:
+		get_resource(ReadMacInt32(XLM_GET_1_IND_RESOURCE));
+		break;
+	case NATIVE_R_GET_RESOURCE:
+		get_resource(ReadMacInt32(XLM_R_GET_RESOURCE));
+		break;
 	case NATIVE_MAKE_EXECUTABLE:
 		MakeExecutable(0, gpr(4), gpr(5));
 		break;
 	case NATIVE_CHECK_LOAD_INVOC:
 		check_load_invoc(gpr(3), gpr(4), gpr(5));
+		break;
+	case NATIVE_NAMED_CHECK_LOAD_INVOC:
+		named_check_load_invoc(gpr(3), gpr(4), gpr(5));
 		break;
 	default:
 		printf("FATAL: NATIVE_OP called with bogus selector %d\n", selector);
@@ -1176,33 +1180,4 @@ uint32 call_macos7(uint32 tvect, uint32 arg1, uint32 arg2, uint32 arg3, uint32 a
 {
 	const uint32 args[] = { arg1, arg2, arg3, arg4, arg5, arg6, arg7 };
 	return ppc_cpu->execute_macos_code(tvect, sizeof(args)/sizeof(args[0]), args);
-}
-
-/*
- *  Resource Manager thunks
- */
-
-void get_resource(void)
-{
-	ppc_cpu->get_resource(ReadMacInt32(XLM_GET_RESOURCE));
-}
-
-void get_1_resource(void)
-{
-	ppc_cpu->get_resource(ReadMacInt32(XLM_GET_1_RESOURCE));
-}
-
-void get_ind_resource(void)
-{
-	ppc_cpu->get_resource(ReadMacInt32(XLM_GET_IND_RESOURCE));
-}
-
-void get_1_ind_resource(void)
-{
-	ppc_cpu->get_resource(ReadMacInt32(XLM_GET_1_IND_RESOURCE));
-}
-
-void r_get_resource(void)
-{
-	ppc_cpu->get_resource(ReadMacInt32(XLM_R_GET_RESOURCE));
 }
