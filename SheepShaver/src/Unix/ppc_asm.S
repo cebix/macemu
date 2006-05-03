@@ -762,6 +762,47 @@ C_SYMBOL_NAME(get_1_ind_resource):
 C_SYMBOL_NAME(r_get_resource):
 	do_get_resource XLM_R_GET_RESOURCE
 
+ASM_MACRO_START	do_get_named_resource ASM_MACRO_ARG0_DEF
+	// Create stack frame
+	mflr	r0
+	stw	r0,8(r1)
+	stwu	r1,-(56+12)(r1)
+
+	// Save type/ID
+	stw	r3,56(r1)
+	stw	r4,56+4(r1)
+
+	// Call old routine
+	lwz	r0,ASM_MACRO_ARG0(0)
+	lwz	r2,XLM_RES_LIB_TOC(0)
+	mtctr	r0
+	bctrl
+	stw	r3,56+8(r1)		// Save handle
+
+	// Call CheckLoad
+	RESTORE_SYSTEM_R2
+	RESTORE_SYSTEM_R13
+	lwz	r3,56(r1)
+	lwz	r4,56+4(r1)
+	lwz	r5,56+8(r1)
+	bl	C_SYMBOL_NAME(named_check_load_invoc)
+	lwz	r3,56+8(r1)		// Restore handle
+
+	// Return to caller
+	lwz	r0,56+12+8(r1)
+	mtlr	r0
+	addi	r1,r1,56+12
+	blr
+ASM_MACRO_END
+
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_named_resource)
+C_SYMBOL_NAME(get_named_resource):
+	do_get_named_resource XLM_GET_NAMED_RESOURCE
+
+	ASM_GLOBAL_DIRECTIVE C_SYMBOL_NAME(get_1_named_resource)
+C_SYMBOL_NAME(get_1_named_resource):
+	do_get_named_resource XLM_GET_1_NAMED_RESOURCE
+
 
 /*
  *  void ppc_interrupt(uint32 entry{r3}, uint32 kernel_data{r4}) - Execute PPC interrupt
