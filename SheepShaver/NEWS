@@ -1,11 +1,15 @@
 SheepShaver NEWS -- history of user-visible changes.  2005-11-30
 Copyright (C) 1997-2005 Christian Bauer and Marc Hellwig
 
-Version 2.3 (snapshot) - DD.Feb.2006
-* Fix extfs volume name to "Unix" (Toshimitsu Tanaka)
-* Fix unaligned accesses in user network code (Brian J. Johnson)
+Version 2.3 (snapshot) - DD.May.2006
 * Port to IRIX/mips
 * Port to MacOS X for Intel
+* Improve SLiRP network emulation performance
+* Fix extfs volume name to "Unix" (Toshimitsu Tanaka)
+* Fix extfs to preserve native MacOS X folder attributes
+* Fix extfs on MacOS X to handle file/folder creation times
+* Fix unaligned accesses in user network code (Brian J. Johnson)a
+* Fix a crash in the AppleShare extension
 
 Version 2.3 (snapshot) - 30.Nov.2005
 * Add fullscreen DGA mode via fbdev in Linux
