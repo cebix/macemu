@@ -124,9 +124,9 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 		D(bug("boot 3 found\n"));
 		size >>= 1;
 		while (size--) {
-			if (PM(0,0x2e49)) {
-				// Set boot stack pointer (7.5.2, 7.5.3, 7.5.5, 7.6, 7.6.1, 8.0, 8.1, 8.5, 8.6)
-				p[0] = htons(M68K_EMUL_OP_FIX_BOOTSTACK);
+			if (PM(0,0x51c9) && PM(2,0x2e49)) {
+				// Set boot stack pointer (7.5.2, 7.5.3, 7.5.5, 7.6, 7.6.1, 8.0, 8.1, 8.5, 8.6, 9.0)
+				p[2] = htons(M68K_EMUL_OP_FIX_BOOTSTACK);
 				D(bug(" patch 1 applied\n"));
 			} else if (PM(0,0x4267) && PM(1,0x3f01) && PM(2,0x3f2a) && PM(3,0x0006) && PM(4,0x6100)) {
 				// Check when ntrb 17 is installed (for native Resource Manager patch) (7.5.3, 7.5.5)
@@ -144,29 +144,29 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 				// Check when ntrb 17 is installed (for native Resource Manager patch) (9.0)
 				p[7] = htons(M68K_EMUL_OP_NTRB_17_PATCH4);
 				p[8] = htons(ntohs(p[8]) & 0xf0ff); // bra
-				D(bug(" patch 8 applied\n"));
+				D(bug(" patch 5 applied\n"));
 			} else if (PM(0,0x0c39) && PM(1,0x0001) && PM(2,0xf800) && PM(3,0x0008) && PM(4,0x6f00)) {
-				// Don't read from 0xf8000008 (8.5 with Zanzibar ROM, 8.6)
+				// Don't read from 0xf8000008 (8.5 with Zanzibar ROM, 8.6, 9.0)
 				p[0] = htons(M68K_NOP);
 				p[1] = htons(M68K_NOP);
 				p[2] = htons(M68K_NOP);
 				p[3] = htons(M68K_NOP);
 				p[4] = htons(0x6000);	// bra
-				D(bug(" patch 5 applied\n"));
+				D(bug(" patch 6 applied\n"));
 			} else if (PM(0,0x2f3c) && PM(1,0x6b72) && PM(2,0x6e6c) && PM(3,0x4267) && PM(4,0xa9a0) && PM(5,0x265f) && PM(6,0x200b) && PM(7,0x6700)) {
-				// Don't replace nanokernel ("krnl" resource) (8.6)
+				// Don't replace nanokernel ("krnl" resource) (8.6, 9.0)
 				p[0] = htons(M68K_NOP);
 				p[1] = htons(M68K_NOP);
 				p[2] = htons(M68K_NOP);
 				p[3] = htons(M68K_NOP);
 				p[4] = htons(M68K_NOP);
 				p[7] = htons(0x6000);	// bra
-				D(bug(" patch 6 applied\n"));
+				D(bug(" patch 7 applied\n"));
 			} else if (PM(0,0xa8fe) && PM(1,0x3038) && PM(2,0x017a) && PM(3,0x0c40) && PM(4,0x8805) && PM(5,0x6710)) {
 				// No SCSI (calls via 0x205c jump vector which is not initialized in NewWorld ROM 1.6) (8.6)
 				if (ROMType == ROMTYPE_NEWWORLD) {
 					p[5] = htons(0x6010);	// bra
-					D(bug(" patch 7 applied\n"));
+					D(bug(" patch 8 applied\n"));
 				}
 			} else if (PM(0,0x2f3c) && PM(1,0x7665) && PM(2,0x7273) && PM(3,0x3f3c) && PM(4,0x0001) && PM(10,0x2041) && PM(11,0x2248) && PM(12,0x2050) && PM(20,0x7066) && PM(21,0xa9c9)) {
 				// Check when vers 1 is installed (for safe abort if MacOS < 8.1 is used with a NewWorld ROM)
@@ -230,7 +230,7 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 				D(bug(" patch 2 applied\n"));
 				break;
 			} else if (PM(0,0xa030) && PM(1,0x5240) && PM(2,0x7000) && PM(3,0x302e) && PM(4,0xfecc) && PM(5,0x323c) && PM(6,0x0100)) {
-				// Disable VM (8.5, 8.6)
+				// Disable VM (8.5, 8.6, 9.0)
 				p[8] = htons(M68K_NOP);
 				p[15] = htons(M68K_NOP);
 				D(bug(" patch 3 applied\n"));
@@ -273,7 +273,7 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 				p[0] = htons(0x606e);
 				D(bug(" patch 3 applied\n"));
 			} else if (PM(0,0x6400) && PM(1,0x011c) && PM(2,0x2278) && PM(3,0x0134)) {
-				// We don't have SonyVars (7.6.1, 8.0, 8.1, 8.5, 8.6)
+				// We don't have SonyVars (7.6.1, 8.0, 8.1, 8.5, 8.6, 9.0)
 				p[0] = htons(0x6000);
 				D(bug(" patch 4 applied\n"));
 			} else if (PM(0,0x6400) && PM(1,0x00e6) && PM(2,0x2278) && PM(3,0x0134)) {
@@ -346,17 +346,9 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 				p[2] = htons(M68K_NOP);
 				D(bug(" patch 2 applied\n"));
 			} else if (PM(0,0x700a) && PM(1,0xfe0a)) {
-				// Don't call FE0A opcode (7.6, 7.6.1, 8.0, 8.1, 8.5, 8.6)
-				p[1] = htons(0x7000);
+				// Don't call FE0A opcode (7.6, 7.6.1, 8.0, 8.1, 8.5, 8.6, 9.0)
+				p[1] = htons(0x2008);	// move.l a0,d0
 				D(bug(" patch 3 applied\n"));
-			} else if (PM(0,0x6c00) && PM(1,0x016a) && PM(2,0x2278) && PM(3,0x0134)) {
-				// We don't have SonyVars (8.6)
-				p[-4] = htons(0x21fc);	// move.l $40810000,($0000)
-				p[-3] = htons(0x4081);
-				p[-2] = htons(0x0000);
-				p[-1] = htons(0x0000);
-				p[0] = htons(0x6000);
-				D(bug(" patch 4 applied\n"));
 			}
 			p++;
 		}
@@ -469,7 +461,7 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 		size >>= 1;
 		while (size--) {
 			if (PM(0,0x203c) && PM(1,0x0100) && PM(2,0x0000) && PM(3,0xc0ae) && PM(4,0xfffc)) {
-				// Don't replace SCSI Manager (8.1, 8.5, 8.6)
+				// Don't replace SCSI Manager (8.1, 8.5, 8.6, 9.0)
 				p[5] = htons((ntohs(p[5]) & 0xff) | 0x6000);		// beq
 				D(bug(" patch 1 applied\n"));
 				break;
@@ -528,7 +520,7 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 	} else if (type == FOURCC('s','c','o','d') && id == -16465) {
 		D(bug("scod -16465 found\n"));
 
-		// Don't crash in Process Manager on reset/shutdown (8.6)
+		// Don't crash in Process Manager on reset/shutdown (8.6, 9.0)
 		static const uint8 dat[] = {0x4e, 0x56, 0x00, 0x00, 0x48, 0xe7, 0x03, 0x18, 0x2c, 0x2e, 0x00, 0x10};
 		base = find_rsrc_data((uint8 *)p, size, dat, sizeof(dat));
 		if (base) {
