@@ -3,6 +3,9 @@
 	* gtk/gtkaqua.c (gtk_aqua_draw_focus): Don't crash if "detail" is
 	NULL.
 
+	* gdk/MacCarbonEvents.c (mouse_motion_handler): Another NULL
+	pointer check.
+
 2006-04-17  Gwenole Beauchesne  <gb.public@free.fr>
 
 	* glib-1.2.10/gmain.c (g_main_run): Don't block in
@@ -16,6 +19,17 @@
 
 	* glib-1.2.10/glibconfig.h (G_VA_COPY): Don't redefine.
 
+--- gtk-osx-0.7/gdk/MacCarbonEvents.c	Sat May  8 16:59:12 2004
++++ gtk-osx-0.7/gdk/MacCarbonEvents.c	Fri May  5 07:48:45 2006
+@@ -227,7 +227,7 @@ mouse_motion_handler (EventHandlerCallRe
+     local_point.v = global_point.v;
+   }
+ 
+-  if (gdk_window != g_win_containing_mouse)
++  if (gdk_window && gdk_window != g_win_containing_mouse)
+   {
+ 
+     if(GDK_LEAVE_NOTIFY_MASK & ((GdkWindowPrivate*) g_win_containing_mouse)->event_mask) {
 --- gtk-osx-0.7/glib-1.2.10/glibconfig.h	Thu Jan  2 05:29:18 2003
 +++ gtk-osx-0.7/glib-1.2.10/glibconfig.h	Mon Apr 17 21:12:34 2006
 @@ -62,8 +62,9 @@ G_GNUC_EXTENSION typedef unsigned long l
