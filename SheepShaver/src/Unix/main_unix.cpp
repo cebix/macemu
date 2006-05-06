@@ -369,6 +369,7 @@ int main(int argc, char **argv)
 	uint32 rom_size, actual;
 	uint8 *rom_tmp;
 	time_t now, expire;
+	bool memory_mapped_from_zero;
 
 	// Initialize variables
 	RAMBase = 0;
@@ -743,16 +744,6 @@ int main(int argc, char **argv)
 		goto quit;
 	}
 
-#ifndef PAGEZERO_HACK
-	// Create Low Memory area (0x0000..0x3000)
-	if (vm_mac_acquire(0, 0x3000) < 0) {
-		sprintf(str, GetString(STR_LOW_MEM_MMAP_ERR), strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-	lm_area_mapped = true;
-#endif
-
 	// Create areas for Kernel Data
 	if (!kernel_data_init())
 		goto quit;
@@ -815,13 +806,32 @@ int main(int argc, char **argv)
 		WarningAlert(GetString(STR_SMALL_RAM_WARN));
 		RAMSize = 8*1024*1024;
 	}
-
-	if (vm_mac_acquire(RAM_BASE, RAMSize) < 0) {
-		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
-		ErrorAlert(str);
-		goto quit;
+	memory_mapped_from_zero = false;
+#if REAL_ADDRESSING && HAVE_LINKER_SCRIPT
+	if (vm_mac_acquire(0, RAMSize) == 0) {
+		D(bug("Could allocate RAM from 0x0000\n"));
+		RAMBase = 0;
+		memory_mapped_from_zero = true;
 	}
-	RAMBaseHost = Mac2HostAddr(RAM_BASE);
+#endif
+	if (!memory_mapped_from_zero) {
+#ifndef PAGEZERO_HACK
+		// Create Low Memory area (0x0000..0x3000)
+		if (vm_mac_acquire(0, 0x3000) < 0) {
+			sprintf(str, GetString(STR_LOW_MEM_MMAP_ERR), strerror(errno));
+			ErrorAlert(str);
+			goto quit;
+		}
+		lm_area_mapped = true;
+#endif
+		if (vm_mac_acquire(RAM_BASE, RAMSize) < 0) {
+			sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
+			ErrorAlert(str);
+			goto quit;
+		}
+		RAMBase = RAM_BASE;
+	}
+	RAMBaseHost = Mac2HostAddr(RAMBase);
 #if !EMULATED_PPC
 	if (vm_protect(RAMBaseHost, RAMSize, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
 		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
@@ -829,7 +839,6 @@ int main(int argc, char **argv)
 		goto quit;
 	}
 #endif
-	RAMBase = RAM_BASE;
 	ram_area_mapped = true;
 	D(bug("RAM area at %p (%08x)\n", RAMBaseHost, RAMBase));
 
@@ -985,7 +994,7 @@ static void Quit(void)
 
 	// Delete RAM area
 	if (ram_area_mapped)
-		vm_mac_release(RAM_BASE, RAMSize);
+		vm_mac_release(RAMBase, RAMSize);
 
 	// Delete ROM area
 	if (rom_area_mapped)
