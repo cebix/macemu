@@ -1437,6 +1437,47 @@ static bool patch_nanokernel(void)
 	*lp++ = htonl(0x91400000 + XLM_IRQ_NEST);	// stw	r10,XLM_IRQ_NEST
 	*lp = htonl(0x48000000 + ((npc - 0x31800c) & 0x03fffffc));	// b		ROM_BASE+0x312c2c
 
+	// Patch FEOA opcode, selector 0x0A (virtual->physical page index)
+	static const uint8 fe0a_0a_dat[] = {0x55, 0x23, 0xa3, 0x3e, 0x4b};
+	if ((base = find_rom_data(0x314000, 0x318000, fe0a_0a_dat, sizeof(fe0a_0a_dat))) == 0) return false;
+	loc = rom_powerpc_branch_target(base - 8);
+	static const uint8 fe0a_dat[] = {0x7e, 0x04, 0x48, 0x40, 0x81, 0xe1, 0x06, 0xb0, 0x54, 0x88, 0x10, 0x3a, 0x40, 0x90};
+	if (find_rom_data(loc, 0x318000, fe0a_dat, sizeof(fe0a_dat)) != loc) return false;
+	D(bug("fe0a_0a %08lx\n", base - 8));
+	lp = (uint32 *)(ROMBaseHost + base - 8);
+	*lp++ = htonl(0x7c832378);					// mr	r3,r4
+	*lp++ = htonl(POWERPC_NOP);
+	*lp = htonl(POWERPC_NOP);
+
+	// Disable FE0A opcode, selector 0x11 (init page tables?)
+	static const uint8 fe0a_11_dat[] = {0x56, 0x07, 0x06, 0x74, 0x2c, 0x07, 0x00, 0x60, 0x40};
+	if ((base = find_rom_data(0x314000, 0x318000, fe0a_11_dat, sizeof(fe0a_11_dat))) == 0) return false;
+	loc = rom_powerpc_branch_target(base - 4);
+	if (find_rom_data(0x314000, 0x318000, fe0a_dat, sizeof(fe0a_dat)) != loc) return false;
+	D(bug("fe0a_11 %08lx\n", base - 4));
+	lp = (uint32 *)(ROMBaseHost + base - 4);
+	*lp++ = htonl(POWERPC_NOP);
+	*lp++ = htonl(POWERPC_NOP);
+	*lp++ = htonl(POWERPC_NOP);
+	*lp = htonl(ntohl(*lp) | 0x02800000);		// bf => ba
+
+	// Patch FE0A opcode to fake a page table entry so that V=P for RAM and ROM
+	static const uint8 pg_lookup_dat[] = {0x7e, 0x0f, 0x40, 0x6e, 0x81, 0xc1, 0x06, 0xa4, 0x7e, 0x00, 0x71, 0x20};
+	if ((base = find_rom_data(0x310000, 0x320000, pg_lookup_dat, sizeof(pg_lookup_dat))) == 0) return false;
+	D(bug("fe0a_pgtb_lookup %08lx\n", base - 12));
+	lp = (uint32 *)(ROM_BASE + base - 12);
+	if (ntohl(lp[0]) != 0x81e106b0)				// lwz	r15,$06b0(r1)
+		return false;
+	lp[0] = htonl(0x54906026);					// slwi	r16,r4,12
+	lp[3] = htonl(0x62100121);					// ori	r16,r16,0x121
+
+	// Patch FE0A opcode to not write to kernel memory
+	static const uint8 krnl_write_dat[] = {0x38, 0xe0, 0x00, 0x01, 0x7e, 0x10, 0x38, 0x78, 0x92, 0x0f, 0x00, 0x00};
+	if ((base = find_rom_data(0x310000, 0x320000, krnl_write_dat, sizeof(krnl_write_dat))) == 0) return false;
+	D(bug("fe0a_krnl_write %08lx\n", base));
+	lp = (uint32 *)(ROM_BASE + base);
+	lp[2] = htonl(POWERPC_NOP);
+
 /*
 	// Disable FE0A/FE06 opcodes
 	lp = (uint32 *)(ROM_BASE + 0x3144ac);
@@ -1999,12 +2040,12 @@ static bool patch_68k(void)
 		*lp = htonl(0x38600000);		// li	r3,0
 	}
 
-	// FIXME: Fake reading from [HpChk]+4 (the callchain reports some function from DriverServicesLib)
+	// Don't read from MacPgm in WipeOutMACPGMINFOProcPtrs (StdCLib)
 	if (1) {
 		uint32 hpchk_offset = find_rom_resource(FOURCC('n','l','i','b'), 10);
 		static const uint8 hpchk_dat[] = {0x80, 0x80, 0x03, 0x16, 0x94, 0x21, 0xff, 0xb0, 0x83, 0xc4, 0x00, 0x04};
 		if ((base = find_rom_data(hpchk_offset, hpchk_offset + 0x3000, hpchk_dat, sizeof(hpchk_dat))) == 0) return false;
-		D(bug("hpchk %08lx\n", base));
+		D(bug("macpgm %08lx\n", base));
 		lp = (uint32 *)(ROMBaseHost + base);
 		*lp = htonl(0x80800000 + XLM_ZERO_PAGE);		// lwz	r4,(zero page)
 	}
