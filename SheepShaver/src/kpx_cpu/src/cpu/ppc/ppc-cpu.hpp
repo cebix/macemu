@@ -183,8 +183,7 @@ protected:
 		CFLOW_JUMP			= 2,
 		CFLOW_TRAP			= 4,
 		CFLOW_CONST_JUMP	= 8,
-		// Instructions that can trap don't mark the end of a block
-		CFLOW_END_BLOCK		= 3
+		CFLOW_END_BLOCK		= CFLOW_BRANCH | CFLOW_JUMP | CFLOW_TRAP
 	};
 
 	// Callbacks associated with each instruction
