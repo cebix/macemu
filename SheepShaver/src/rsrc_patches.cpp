@@ -266,20 +266,26 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 				p[-3] = htons(M68K_NOP);
 				p[0] = htons(0x6018);
 				D(bug(" patch 2 applied\n"));
+			} else if (PM(0,0x6660) && PM(1,0x2278) && PM(2,0x0134)) {
+				// We don't have SonyVars (7.5.3 Revision 2.2)
+				p[-6] = htons(M68K_NOP);
+				p[-3] = htons(M68K_NOP);
+				p[0] = htons(0x6060);
+				D(bug(" patch 3 applied\n"));
 			} else if (PM(0,0x666e) && PM(1,0x2278) && PM(2,0x0134)) {
 				// We don't have SonyVars (7.5.5)
 				p[-6] = htons(M68K_NOP);
 				p[-3] = htons(M68K_NOP);
 				p[0] = htons(0x606e);
-				D(bug(" patch 3 applied\n"));
+				D(bug(" patch 4 applied\n"));
 			} else if (PM(0,0x6400) && PM(1,0x011c) && PM(2,0x2278) && PM(3,0x0134)) {
 				// We don't have SonyVars (7.6.1, 8.0, 8.1, 8.5, 8.6, 9.0)
 				p[0] = htons(0x6000);
-				D(bug(" patch 4 applied\n"));
+				D(bug(" patch 5 applied\n"));
 			} else if (PM(0,0x6400) && PM(1,0x00e6) && PM(2,0x2278) && PM(3,0x0134)) {
 				// We don't have SonyVars (7.6)
 				p[0] = htons(0x6000);
-				D(bug(" patch 5 applied\n"));
+				D(bug(" patch 6 applied\n"));
 			}
 			p++;
 		}
@@ -439,21 +445,26 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 
 	} else if (type == FOURCC('n','s','r','d') && id == 1) {
 		D(bug("nsrd 1 found\n"));
-		if (p[(0x378 + 0x570) >> 1] == htons(0x7c08) && p[(0x37a + 0x570) >> 1] == htons(0x02a6)) {
+		if (p[(0x378 + 0x460) >> 1] == htons(0x7c08) && p[(0x37a + 0x460) >> 1] == htons(0x02a6)) {
+			// Don't overwrite our serial drivers (7.5.3 Revision 2.2)
+			p[(0x378 + 0x460) >> 1] = htons(0x4e80);		// blr
+			p[(0x37a + 0x460) >> 1] = htons(0x0020);
+			D(bug(" patch 1 applied\n"));
+		} else if (p[(0x378 + 0x570) >> 1] == htons(0x7c08) && p[(0x37a + 0x570) >> 1] == htons(0x02a6)) {
 			// Don't overwrite our serial drivers (8.0, 8.1)
 			p[(0x378 + 0x570) >> 1] = htons(0x4e80);		// blr
 			p[(0x37a + 0x570) >> 1] = htons(0x0020);
-			D(bug(" patch 1 applied\n"));
+			D(bug(" patch 2 applied\n"));
 		} else if (p[(0x378 + 0x6c0) >> 1] == htons(0x7c08) && p[(0x37a + 0x6c0) >> 1] == htons(0x02a6)) {
 			// Don't overwrite our serial drivers (8.5, 8.6)
 			p[(0x378 + 0x6c0) >> 1] = htons(0x4e80);		// blr
 			p[(0x37a + 0x6c0) >> 1] = htons(0x0020);
-			D(bug(" patch 2 applied\n"));
+			D(bug(" patch 3 applied\n"));
 		} else if (p[(0x374 + 0x510) >> 1] == htons(0x7c08) && p[(0x376 + 0x510) >> 1] == htons(0x02a6)) {
 			// Don't overwrite our serial drivers (9.0)
 			p[(0x374 + 0x510) >> 1] = htons(0x4e80);		// blr
 			p[(0x376 + 0x510) >> 1] = htons(0x0020);
-			D(bug(" patch 3 applied\n"));
+			D(bug(" patch 4 applied\n"));
 		}
 
 	} else if (type == FOURCC('c','i','t','t') && id == 45) {
