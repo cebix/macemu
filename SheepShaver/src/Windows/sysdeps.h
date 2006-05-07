@@ -125,6 +125,11 @@ typedef int64 intptr;
 #error "Unsupported size of pointer"
 #endif
 
+// Define if the host processor supports fast unaligned load/stores
+#if defined __i386__ || defined __x86_64__
+#define UNALIGNED_PROFITABLE 1
+#endif
+
 
 /**
  *		Helper functions to byteswap data
