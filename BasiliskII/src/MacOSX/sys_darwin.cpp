@@ -38,92 +38,169 @@
 #import <IOKit/storage/IOCDMediaBSDClient.h>
 #import <CoreFoundation/CoreFoundation.h>
 
-#import "sysdeps.h"
+#include "sysdeps.h"
 
-#import "prefs.h"
+#include "sys.h"
+#include "prefs.h"
 
 #define DEBUG 0
 #import "debug.h"
 
 
+// Global variables
+static CFRunLoopRef media_poll_loop = NULL;
+static bool media_thread_active = false;
+static pthread_t media_thread;
+
+// Prototypes
+static void *media_poll_func(void *);
+
+// From sys_unix.cpp
+extern void SysMediaArrived(const char *path, int type);
+extern void SysMediaRemoved(const char *path, int type);
+
 
 /*
- *  This gets called when no "cdrom" prefs items are found
- *  It scans for available CD-ROM drives and adds appropriate prefs items
+ *  Initialization
  */
 
-void DarwinAddCDROMPrefs(void)
+void DarwinSysInit(void)
 {
-	mach_port_t				masterPort;	// The way to talk to the kernel
-	io_iterator_t			allCDs;		// List of CD drives on the system
-	CFMutableDictionaryRef	classesToMatch;
-	io_object_t				nextCD;
+	media_thread_active = (pthread_create(&media_thread, NULL, media_poll_func, NULL) == 0);
+	D(bug("Media poll thread installed (%ld)\n", media_thread));
+}
 
 
-	// Don't scan for drives if nocdrom option given
-	if ( PrefsFindBool("nocdrom") )
-		return;
+/*
+ *  Deinitialization
+ */
+
+void DarwinSysExit(void)
+{
+	// Stop media poll thread
+	if (media_poll_loop)
+		CFRunLoopStop(media_poll_loop);
+	if (media_thread_active)
+		pthread_join(media_thread, NULL);
+}
 
 
-	// Let this task talk to the guts of the kernel:
-	if ( IOMasterPort(MACH_PORT_NULL, &masterPort) != KERN_SUCCESS )
-		bug("IOMasterPort failed. Won't be able to do anything with CD drives\n");
+/*
+ *  Get the BSD-style path of specified object
+ */
 
-
-	// CD media are instances of class kIOCDMediaClass
-	classesToMatch = IOServiceMatching(kIOCDMediaClass); 
-	if ( classesToMatch )
-	{
-		// Narrow the search a little further. Each IOMedia object
-		// has a property with key kIOMediaEjectable.  We limit
-		// the match only to those CDs that are actually ejectable
-		CFDictionarySetValue(classesToMatch,
-							 CFSTR(kIOMediaEjectableKey), kCFBooleanTrue); 
+static kern_return_t get_device_path(io_object_t obj, char *path, size_t maxPathLength)
+{
+	kern_return_t kernResult = KERN_FAILURE;
+	CFTypeRef pathAsCFString = IORegistryEntryCreateCFProperty(obj, CFSTR(kIOBSDNameKey),
+															   kCFAllocatorDefault, 0);
+	if (pathAsCFString) {
+		strcpy(path, "/dev/");
+		size_t pathLength = strlen(path);
+		if (CFStringGetCString((const __CFString *)pathAsCFString,
+							   path + pathLength,
+							   maxPathLength - pathLength,
+							   kCFStringEncodingASCII))
+			kernResult = KERN_SUCCESS;
+		CFRelease(pathAsCFString);
 	}
-
-	if ( IOServiceGetMatchingServices(masterPort,
-									  classesToMatch, &allCDs) != KERN_SUCCESS )
-	{
-		D(bug("IOServiceGetMatchingServices failed. No CD media drives found?\n"));
-		return;
-	}
+	return kernResult;
+}
 
 
-	// Iterate through each CD drive
-	while ( nextCD = IOIteratorNext(allCDs))
-	{
-		char		bsdPath[MAXPATHLEN];
-		CFTypeRef	bsdPathAsCFString =
-						IORegistryEntryCreateCFProperty(nextCD,
-														CFSTR(kIOBSDNameKey),
-														kCFAllocatorDefault, 0);
-		*bsdPath = '\0';
-		if ( bsdPathAsCFString )
-		{
-			size_t devPathLength;
+/*
+ *  kIOMatchedNotification handler
+ */
 
-			strcpy(bsdPath, "/dev/");
-			devPathLength = strlen(bsdPath);
-
-			if ( CFStringGetCString((const __CFString *)bsdPathAsCFString,
-									 bsdPath + devPathLength,
-									 MAXPATHLEN - devPathLength,
-									 kCFStringEncodingASCII) )
-			{
-				D(bug("CDROM BSD path: %s\n", bsdPath));
-				PrefsAddString("cdrom", bsdPath);
-			}
-			else
-				D(bug("Could not get BSD device path for CD\n"));
-
-			CFRelease(bsdPathAsCFString);
+static void media_arrived(int type, io_iterator_t iterator)
+{
+	io_object_t obj;
+	while ((obj = IOIteratorNext(iterator)) != NULL) {
+		char path[MAXPATHLEN];
+		kern_return_t kernResult = get_device_path(obj, path, sizeof(path));
+		if (kernResult == KERN_SUCCESS) {
+			D(bug("Media Arrived: %s\n", path));
+			SysMediaArrived(path, type);
 		}
-		else
-			D(bug("Cannot determine bsdPath for CD\n"));
+		kernResult = IOObjectRelease(obj);
+		if (kernResult != KERN_SUCCESS) {
+			fprintf(stderr, "IOObjectRelease() returned %d\n", kernResult);
+		}
+	}
+}
+
+
+/*
+ *  kIOTerminatedNotification handler
+ */
+
+static void media_removed(int type, io_iterator_t iterator)
+{
+	io_object_t obj;
+	while ((obj = IOIteratorNext(iterator)) != NULL) {
+		char path[MAXPATHLEN];
+		kern_return_t kernResult = get_device_path(obj, path, sizeof(path));
+		if (kernResult == KERN_SUCCESS) {
+			D(bug("Media Removed: %s\n", path));
+			SysMediaRemoved(path, type);
+		}
+		kernResult = IOObjectRelease(obj);
+		if (kernResult != KERN_SUCCESS) {
+			fprintf(stderr, "IOObjectRelease() returned %d\n", kernResult);
+		}
+	}
+}
+
+
+/*
+ *  Media poll function
+ */
+
+static void *media_poll_func(void *)
+{
+	media_poll_loop = CFRunLoopGetCurrent();
+
+	mach_port_t masterPort;
+	kern_return_t kernResult = IOMasterPort(bootstrap_port, &masterPort);
+	if (kernResult != KERN_SUCCESS) {
+		fprintf(stderr, "IOMasterPort() returned %d\n", kernResult);
+		return NULL;
 	}
 
-	IOObjectRelease(nextCD);
-	IOObjectRelease(allCDs);
+	CFMutableDictionaryRef matchingDictionary = IOServiceMatching(kIOCDMediaClass);
+	if (matchingDictionary == NULL) {
+		fprintf(stderr, "IOServiceMatching() returned a NULL dictionary\n");
+		return NULL;
+	}
+	matchingDictionary = (CFMutableDictionaryRef)CFRetain(matchingDictionary);
+
+	IONotificationPortRef notificationPort = IONotificationPortCreate(kIOMasterPortDefault);
+	CFRunLoopAddSource(media_poll_loop,
+					   IONotificationPortGetRunLoopSource(notificationPort),
+					   kCFRunLoopDefaultMode);
+
+	io_iterator_t mediaArrivedIterator;
+	kernResult = IOServiceAddMatchingNotification(notificationPort,
+												  kIOMatchedNotification,
+												  matchingDictionary,
+												  (IOServiceMatchingCallback)media_arrived,
+												  (void *)MEDIA_CD, &mediaArrivedIterator);
+	if (kernResult != KERN_SUCCESS)
+		fprintf(stderr, "IOServiceAddMatchingNotification() returned %d\n", kernResult);
+	media_arrived(MEDIA_CD, mediaArrivedIterator);
+
+	io_iterator_t mediaRemovedIterator;
+	kernResult = IOServiceAddMatchingNotification(notificationPort,
+												  kIOTerminatedNotification,
+												  matchingDictionary,
+												  (IOServiceMatchingCallback)media_removed,
+												  (void *)MEDIA_CD, &mediaRemovedIterator);
+	if (kernResult != KERN_SUCCESS)
+		fprintf(stderr, "IOServiceAddMatchingNotification() returned %d\n", kernResult);
+	media_removed(MEDIA_CD, mediaRemovedIterator);
+
+	CFRunLoopRun();
+	return NULL;
 }
 
 

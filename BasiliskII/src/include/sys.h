@@ -21,6 +21,14 @@
 #ifndef SYS_H
 #define SYS_H
 
+// Supported media types
+enum {
+	MEDIA_FLOPPY		= 1,
+	MEDIA_CD			= 2,
+	MEDIA_HD			= 4,
+	MEDIA_REMOVABLE		= MEDIA_FLOPPY | MEDIA_CD
+};
+
 extern void SysInit(void);
 extern void SysExit(void);
 

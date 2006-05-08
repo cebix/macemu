@@ -41,6 +41,15 @@
 #include <sys/cdio.h>
 #endif
 
+#if defined __APPLE__ && defined __MACH__
+#include <sys/disk.h>
+#if (defined AQUA || defined HAVE_FRAMEWORK_COREFOUNDATION)
+#ifndef __MACOSX__
+#define __MACOSX__ MAC_OS_X_VERSION_MIN_REQUIRED
+#endif
+#endif
+#endif
+
 #include "main.h"
 #include "macos_util.h"
 #include "prefs.h"
@@ -61,6 +70,7 @@ struct file_handle {
 	bool read_only;		// Copy of Sys_open() flag
 	loff_t start_byte;	// Size of file header (if any)
 	loff_t file_size;	// Size of file data (only valid if is_file is true)
+	bool is_media_present;		// Flag: media is inserted and available
 
 #if defined(__linux__)
 	int cdrom_cap;		// CD-ROM capability flags (only valid if is_cdrom is true)
@@ -72,8 +82,19 @@ struct file_handle {
 #endif
 };
 
+// Open file handles
+struct open_file_handle {
+	file_handle *fh;
+	open_file_handle *next;
+};
+static open_file_handle *open_file_handles = NULL;
+
 // File handle of first floppy drive (for SysMountFirstFloppy())
 static file_handle *first_floppy = NULL;
+
+// Prototypes
+static void cdrom_close(file_handle *fh);
+static bool cdrom_open(file_handle *fh, const char *path = NULL);
 
 
 /*
@@ -82,6 +103,10 @@ static file_handle *first_floppy = NULL;
 
 void SysInit(void)
 {
+#if defined __MACOSX__
+	extern void DarwinSysInit(void);
+	DarwinSysInit();
+#endif
 }
 
 
@@ -91,6 +116,113 @@ void SysInit(void)
 
 void SysExit(void)
 {
+#if defined __MACOSX__
+	extern void DarwinSysExit(void);
+	DarwinSysExit();
+#endif
+}
+
+
+/*
+ *  Manage open file handles
+ */
+
+static void sys_add_file_handle(file_handle *fh)
+{
+	open_file_handle *p = new open_file_handle;
+	p->fh = fh;
+	p->next = open_file_handles;
+	open_file_handles = p;
+}
+
+static void sys_remove_file_handle(file_handle *fh)
+{
+	open_file_handle *p = open_file_handles;
+	open_file_handle *q = NULL;
+
+	while (p) {
+		if (p->fh == fh) {
+			if (q)
+				q->next = p->next;
+			else
+				open_file_handles = p->next;
+			delete p;
+			break;
+		}
+		q = p;
+		p = p->next;
+	}
+}
+
+
+/*
+ *  Account for media that has just arrived
+ */
+
+void SysMediaArrived(const char *path, int type)
+{
+	// Replace the "cdrom" entry (we are polling, it's unique)
+	if (type == MEDIA_CD && !PrefsFindBool("nocdrom"))
+		PrefsReplaceString("cdrom", path);
+
+	// Wait for media to be available for reading
+	if (open_file_handles) {
+		const int MAX_WAIT = 5;
+		for (int i = 0; i < MAX_WAIT; i++) {
+			if (access(path, R_OK) == 0)
+				break;
+			switch (errno) {
+			case ENOENT: // Unlikely
+			case EACCES: // MacOS X is mounting the media
+				sleep(1);
+				continue;
+			}
+			printf("WARNING: Cannot access %s (%s)\n", path, strerror(errno));
+			return;
+		}
+	}
+
+	for (open_file_handle *p = open_file_handles; p != NULL; p = p->next) {
+		file_handle * const fh = p->fh;
+
+		// Re-open CD-ROM device
+		if (fh->is_cdrom && type == MEDIA_CD) {
+			cdrom_close(fh);
+			if (cdrom_open(fh, path)) {
+				fh->is_media_present = true;
+				MountVolume(fh);
+			}
+		}
+	}
+}
+
+
+/*
+ *  Account for media that has just been removed
+ */
+
+void SysMediaRemoved(const char *path, int type)
+{
+	if ((type & MEDIA_REMOVABLE) != MEDIA_CD)
+		return;
+
+	for (open_file_handle *p = open_file_handles; p != NULL; p = p->next) {
+		file_handle * const fh = p->fh;
+
+		// Mark media as not available
+		if (!fh->is_cdrom || !fh->is_media_present)
+			continue;
+		if (fh->name && strcmp(fh->name, path) == 0) {
+			fh->is_media_present = false;
+			break;
+		}
+#if defined __MACOSX__
+		if (fh->ioctl_name && strcmp(fh->ioctl_name, path) == 0) {
+			fh->is_media_present = false;
+			break;
+		}
+#endif
+	}
 }
 
 
@@ -211,15 +343,12 @@ void SysAddCDROMPrefs(void)
 			closedir(cd_dir);
 		}
 	}
-#elif defined(__APPLE__) && defined(__MACH__)
-  #if defined(AQUA) || defined(HAVE_FRAMEWORK_COREFOUNDATION)
-	extern	void DarwinAddCDROMPrefs(void);
-
-	DarwinAddCDROMPrefs();
-  #else
-	// Until I can convince the other guys that my Darwin code is useful,
-	// we just do nothing (it is safe to have no cdrom device)
-  #endif
+#elif defined __MACOSX__
+	// There is no predefined path for CD-ROMs on MacOS X. Rather, we
+	// define a single fake CD-ROM entry for the emulated MacOS.
+	// XXX this means we handle only CD-ROM drive at a time, wherever
+	// the disk is, the latest one is used.
+	PrefsAddString("cdrom", "/dev/poll/cdrom");
 #elif defined(__FreeBSD__) || defined(__NetBSD__)
 	PrefsAddString("cdrom", "/dev/cd0c");
 #endif
@@ -257,6 +386,74 @@ void SysAddSerialPrefs(void)
 	PrefsAddString("seriala", "/dev/null");
 	PrefsAddString("serialb", "/dev/null");
   #endif
+#endif
+}
+
+
+/*
+ *  Open CD-ROM device and initialize internal data
+ */
+
+static bool cdrom_open_1(file_handle *fh)
+{
+#if defined __MACOSX__
+	// In OS X, the device name is OK for sending ioctls to,
+	// but not for reading raw CDROM data from.
+	// (it seems to have extra data padded in)
+	//
+	// So, we keep the already opened file handle,
+	// and open a slightly different file for CDROM data 
+	//
+	fh->ioctl_fd = fh->fd;
+	fh->ioctl_name = fh->name;
+	fh->fd = -1;
+	fh->name = (char *)malloc(strlen(fh->ioctl_name) + 3);
+	if (fh->name) {
+		strcpy(fh->name, fh->ioctl_name);
+		strcat(fh->name, "s1");
+		fh->fd = open(fh->name, O_RDONLY, O_NONBLOCK);
+	}
+	if (fh->ioctl_fd < 0)
+		return false;
+#endif
+	return true;
+}
+
+bool cdrom_open(file_handle *fh, const char *path)
+{
+	if (path)
+		fh->name = strdup(path);
+	fh->fd = open(fh->name, O_RDONLY, O_NONBLOCK);
+	fh->start_byte = 0;
+	if (!cdrom_open_1(fh))
+		return false;
+	return fh->fd >= 0;
+}
+
+
+/*
+ *  Close a CD-ROM device
+ */
+
+void cdrom_close(file_handle *fh)
+{
+	if (fh->fd >= 0) {
+		close(fh->fd);
+		fh->fd = -1;
+	}
+	if (fh->name) {
+		free(fh->name);
+		fh->name = NULL;
+	}
+#if defined __MACOSX__
+	if (fh->ioctl_fd >= 0) {
+		close(fh->ioctl_fd);
+		fh->ioctl_fd = -1;
+	}
+	if (fh->ioctl_name) {
+		free(fh->ioctl_name);
+		fh->ioctl_name = NULL;
+	}
 #endif
 }
 
@@ -310,23 +507,23 @@ void *Sys_open(const char *name, bool read_only)
 #endif
 	bool is_floppy = strncmp(name, "/dev/fd", 7) == 0;
 
-#if defined(__APPLE__) && defined(__MACH__)
-	//
+	bool is_polled_media = strncmp(name, "/dev/poll/", 10) == 0;
+	if (is_floppy) // Floppy open fails if there's no disk inserted
+		is_polled_media = true;
+
+#if defined __MACOSX__
 	// There is no set filename in /dev which is the cdrom,
 	// so we have to see if it is any of the devices that we found earlier
-	//
-	const char	*cdrom;
-	int			tmp = 0;
-
-	while ( (cdrom = PrefsFindString("cdrom", tmp) ) != NULL )
 	{
-		if ( strcmp(name, cdrom) == 0 )
-		{
-			is_cdrom = 1;
-			read_only = 1;
-			break;
+		int index = 0;
+		const char *str;
+		while ((str = PrefsFindString("cdrom", index++)) != NULL) {
+			if (is_polled_media || strcmp(str, name) == 0) {
+				is_cdrom = true;
+				read_only = true;
+				break;
+			}
 		}
-		++tmp;
 	}
 #endif
 
@@ -351,7 +548,7 @@ void *Sys_open(const char *name, bool read_only)
 	}
 
 	// Open file/device
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__MACOSX__)
 	int fd = open(name, (read_only ? O_RDONLY : O_RDWR) | (is_cdrom ? O_NONBLOCK : 0));
 #else
 	int fd = open(name, read_only ? O_RDONLY : O_RDWR);
@@ -361,7 +558,7 @@ void *Sys_open(const char *name, bool read_only)
 		read_only = true;
 		fd = open(name, O_RDONLY);
 	}
-	if (fd >= 0 || is_floppy) { // Floppy open fails if there's no disk inserted
+	if (fd >= 0 || is_polled_media) {
 		file_handle *fh = new file_handle;
 		fh->name = strdup(name);
 		fh->fd = fd;
@@ -370,7 +567,13 @@ void *Sys_open(const char *name, bool read_only)
 		fh->start_byte = 0;
 		fh->is_floppy = is_floppy;
 		fh->is_cdrom = is_cdrom;
+		fh->is_media_present = false;
+#if defined __MACOSX__
+		fh->ioctl_fd = -1;
+		fh->ioctl_name = NULL;
+#endif
 		if (fh->is_file) {
+			fh->is_media_present = true;
 			// Detect disk image file layout
 			loff_t size = 0;
 			size = lseek(fd, 0, SEEK_END);
@@ -381,6 +584,7 @@ void *Sys_open(const char *name, bool read_only)
 		} else {
 			struct stat st;
 			if (fstat(fd, &st) == 0) {
+				fh->is_media_present = true;
 				if (S_ISBLK(st.st_mode)) {
 					fh->is_cdrom = is_cdrom;
 #if defined(__linux__)
@@ -408,39 +612,19 @@ void *Sys_open(const char *name, bool read_only)
 					fh->is_floppy = ((st.st_rdev >> 16) == 2);
 #endif
 				}
-#if defined(__APPLE__) && defined(__MACH__)
-
-				// In OS X, the device name is OK for sending ioctls to,
-				// but not for reading raw CDROM data from.
-				// (it seems to have extra data padded in)
-				//
-				// So, we keep the already opened fiole handle,
-				// and open a slightly different file for CDROM data 
-				//
-				if ( is_cdrom )
-				{
-					fh->ioctl_name	= fh->name;
-					fh->ioctl_fd	= fh->fd;
-
-					fh->name = (char *) malloc(strlen(name) + 2);
-					if ( fh->name )
-					{
-						*fh->name = '\0';
-						strcat(fh->name, name);
-						strcat(fh->name, "s1");
-						fh->fd = open(fh->name, (read_only ? O_RDONLY : O_RDWR));
-						if ( fh->fd < 0 ) {
-							printf("WARNING: Cannot open %s (%s)\n",
-											fh->name, strerror(errno));
-							return NULL;
-						}
-					}
+#if defined __MACOSX__
+				if (is_cdrom) {
+					fh->is_cdrom = true;
+					fh->is_floppy = false;
+					if (cdrom_open_1(fh))
+						fh->is_media_present = true;
 				}
 #endif
 			}
 		}
 		if (fh->is_floppy && first_floppy == NULL)
 			first_floppy = fh;
+		sys_add_file_handle(fh);
 		return fh;
 	} else {
 		printf("WARNING: Cannot open %s (%s)\n", name, strerror(errno));
@@ -459,6 +643,10 @@ void Sys_close(void *arg)
 	if (!fh)
 		return;
 
+	sys_remove_file_handle(fh);
+
+	if (fh->is_cdrom)
+		cdrom_close(fh);
 	if (fh->fd >= 0)
 		close(fh->fd);
 	if (fh->name)
@@ -526,6 +714,16 @@ loff_t SysGetFileSize(void *arg)
 			return 0;
 		D(bug(" BLKGETSIZE returns %d blocks\n", blocks));
 		return (loff_t)blocks * 512;
+#elif defined __MACOSX__
+		uint32 block_size;
+		if (ioctl(fh->ioctl_fd, DKIOCGETBLOCKSIZE, &block_size) < 0)
+			return 0;
+		D(bug(" DKIOCGETBLOCKSIZE returns %lu bytes\n", (unsigned long)block_size));
+		uint64 block_count;
+		if (ioctl(fh->ioctl_fd, DKIOCGETBLOCKCOUNT, &block_count) < 0)
+			return 0;
+		D(bug(" DKIOCGETBLOCKCOUNT returns %llu blocks\n", (unsigned long long)block_count));
+		return block_count * block_size;
 #else
 		return lseek(fh->fd, 0, SEEK_END) - fh->start_byte;
 #endif
@@ -566,31 +764,26 @@ void SysEject(void *arg)
 		fh->fd = open(fh->name, O_RDONLY | O_NONBLOCK);
 	}
 #elif defined(__APPLE__) && defined(__MACH__)
-	if ( fh->is_cdrom ) {
-
-		// Stolen from IOKit/storage/IOMediaBSDClient.h
-		#define DKIOCEJECT _IO('d', 21)
-
+	if (fh->is_cdrom && fh->is_media_present) {
 		close(fh->fd);
-		if ( ioctl(fh->ioctl_fd, DKIOCEJECT) < 0 )
-		{
-			printf("ioctl(DKIOCEJECT) failed on file %s: %s\n",
-								fh->ioctl_name, strerror(errno));
+		fh->fd = -1;
+		if (ioctl(fh->ioctl_fd, DKIOCEJECT) < 0) {
+			D(bug(" DKIOCEJECT failed on file %s: %s\n",
+				   fh->ioctl_name, strerror(errno)));
 
-			// If we are running OSX, the device may be is busy
-			// due to the Finder having the disk mounted and open,
-			// so we have to use another method.
-
-			// The only problem is that this takes about 5 seconds:
-
-			char	*cmd = (char *) malloc(30+sizeof(fh->name));
-
-			if ( ! cmd )
-				return;
+			// If we are running MacOS X, the device may be in busy
+			// state because the Finder has mounted the disk
 			close(fh->ioctl_fd);
-			sprintf(cmd, "diskutil eject %s 2>&1 >/dev/null", fh->name);
+			fh->ioctl_fd = -1;
+
+			// Try to use "diskutil eject" but it can take up to 5
+			// seconds to complete
+			static const char eject_cmd[] = "/usr/sbin/diskutil eject %s 2>&1 >/dev/null";
+			char *cmd = (char *)alloca(strlen(eject_cmd) + strlen(fh->ioctl_name) + 1);
+			sprintf(cmd, eject_cmd, fh->ioctl_name);
 			system(cmd);
 		}
+		fh->is_media_present = false;
 	}
 #endif
 }
@@ -703,6 +896,9 @@ bool SysIsDiskInserted(void *arg)
 	} else if (fh->is_cdrom) {
 		struct ioc_toc_header header;
 		return ioctl(fh->fd, CDIOREADTOCHEADER, &header) == 0;
+#elif defined __MACOSX__
+	} else if (fh->is_cdrom || fh->is_floppy) {
+		return fh->is_media_present;
 #endif
 
 	} else
@@ -801,10 +997,12 @@ bool SysCDReadTOC(void *arg, uint8 *toc)
 		*toc++ = toc_size >> 8;
 		*toc++ = toc_size & 0xff;
 		return true;
-#elif defined(__APPLE__) && defined(__MACH__) && defined(MAC_OS_X_VERSION_10_2) && defined(HAVE_FRAMEWORK_COREFOUNDATION)
-		extern	bool	DarwinCDReadTOC(char *name, uint8 *toc);
-
-		return	DarwinCDReadTOC(fh->name, toc);
+#elif defined __MACOSX__ && defined MAC_OS_X_VERSION_10_2
+		if (fh->is_media_present) {
+			extern bool DarwinCDReadTOC(char *name, uint8 *toc);
+			return DarwinCDReadTOC(fh->name, toc);
+		}
+		return false;
 #elif defined(__FreeBSD__)
 		uint8 *p = toc + 2;
 

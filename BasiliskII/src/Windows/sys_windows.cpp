@@ -45,14 +45,6 @@ using std::min;
 #include "debug.h"
 
 
-// Supported media types
-enum {
-	MEDIA_FLOPPY		= 1,
-	MEDIA_CD			= 2,
-	MEDIA_HD			= 4,
-	MEDIA_REMOVABLE		= MEDIA_FLOPPY | MEDIA_CD
-};
-
 // File handles are pointers to these structures
 struct file_handle {
 	char *name;			// Copy of device/file name
