@@ -1337,7 +1337,8 @@ void MountVolume(void *fh) { }
 void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_size) { }
 
 #if defined __APPLE__ && defined __MACH__
-void DarwinAddCDROMPrefs(void) { }
+void DarwinSysInit(void) { }
+void DarwinSysExit(void) { }
 void DarwinAddFloppyPrefs(void) { }
 void DarwinAddSerialPrefs(void) { }
 bool DarwinCDReadTOC(char *, uint8 *) { }
