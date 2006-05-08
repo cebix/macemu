@@ -579,6 +579,26 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 			p[(base + 0x1a) >> 1] = htons(0x6064);
 			D(bug(" patch1 applied\n"));
 		}
+
+	} else if (type == FOURCC('i','n','f','n') && (id == 129 || id == 200)) {
+		D(bug("infn %d found\n", id));
+		size >>= 1;
+		while (size--) {
+			if (PM(0,0x203c) && PM(1,0xf800) && PM(2,0x0000) && PM(4,0x2040) && PM(5,0x1028) && PM(6,0x0090)) {
+				// Don't read from 0xf8000090 during MacOS (8.5, 9.0) installation
+				p[0] = htons(M68K_NOP);
+				p[1] = htons(M68K_NOP);
+				p[2] = htons(M68K_NOP);
+				p[3] = htons(M68K_NOP);
+				p[4] = htons(M68K_NOP);
+				p[5] = htons(M68K_NOP);
+				p[6] = htons(0x7000);	// moveq #0,d0
+				D(bug(" patch 1 applied\n"));
+				break;
+			}
+			p++;
+		}
+
 	}
 }
 
