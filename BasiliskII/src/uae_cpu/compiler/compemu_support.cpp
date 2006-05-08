@@ -6420,33 +6420,48 @@ static inline void flush_icache_lazy(int n)
 	active=NULL;
 }
 
-void flush_icache_range(uae_u32 start, uae_u32 length)
+void flush_icache_range(uae_u8 *start_p, uae_u32 length)
 {
 	if (!active)
 		return;
 
 #if LAZY_FLUSH_ICACHE_RANGE
-	uae_u8 *start_p = get_real_address(start);
 	blockinfo *bi = active;
 	while (bi) {
 #if USE_CHECKSUM_INFO
-		bool invalidate = false;
-		for (checksum_info *csi = bi->csi; csi && !invalidate; csi = csi->next)
-			invalidate = (((start_p - csi->start_p) < csi->length) ||
-						  ((csi->start_p - start_p) < length));
+		bool candidate = false;
+		for (checksum_info *csi = bi->csi; csi; csi = csi->next) {
+			if (((start_p - csi->start_p) < csi->length) ||
+				((csi->start_p - start_p) < length)) {
+				candidate = true;
+				break;
+			}
+		}
 #else
 		// Assume system is consistent and would invalidate the right range
-		const bool invalidate = (bi->pc_p - start_p) < length;
+		const bool candidate = (bi->pc_p - start_p) < length;
 #endif
-		if (invalidate) {
-			uae_u32 cl = cacheline(bi->pc_p);
-			if (bi == cache_tags[cl + 1].bi)
-					cache_tags[cl].handler = (cpuop_func *)popall_execute_normal;
-			bi->handler_to_use = (cpuop_func *)popall_execute_normal;
-			set_dhtu(bi, bi->direct_pen);
-			bi->status = BI_NEED_RECOMP;
-		}
+		blockinfo *dbi = bi;
 		bi = bi->next;
+		if (candidate) {
+			uae_u32 cl = cacheline(dbi->pc_p);
+			if (dbi->status == BI_INVALID || dbi->status == BI_NEED_RECOMP) {
+				if (dbi == cache_tags[cl+1].bi) 
+					cache_tags[cl].handler = (cpuop_func *)popall_execute_normal;
+				dbi->handler_to_use = (cpuop_func *)popall_execute_normal;
+				set_dhtu(dbi, dbi->direct_pen);
+				dbi->status = BI_INVALID;
+			}
+			else {
+				if (dbi == cache_tags[cl+1].bi) 
+					cache_tags[cl].handler = (cpuop_func *)popall_check_checksum;
+				dbi->handler_to_use = (cpuop_func *)popall_check_checksum;
+				set_dhtu(dbi, dbi->direct_pcc);
+				dbi->status = BI_NEED_CHECK;
+			}
+			remove_from_list(dbi);
+			add_to_dormant(dbi);
+		}
 	}
 	return;
 #endif

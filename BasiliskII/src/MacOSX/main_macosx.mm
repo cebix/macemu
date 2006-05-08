@@ -54,7 +54,7 @@ using std::string;
 #include "xpram.h"
 
 #if USE_JIT
-extern void flush_icache_range(uint32 start, uint32 size);  // from compemu_support.cpp
+extern void flush_icache_range(uint8 *start, uint32 size);  // from compemu_support.cpp
 #endif
 
 #ifdef ENABLE_MON
@@ -498,7 +498,7 @@ void FlushCodeCache(void *start, uint32 size)
 {
 #if USE_JIT
     if (UseJIT)
-		flush_icache_range((uintptr)start, size);
+		flush_icache_range((uint8 *)start, size);
 #endif
 }
 
