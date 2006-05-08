@@ -163,9 +163,9 @@ uninstall:
 	rmdir $(DESTDIR)$(datadir)/$(APP)
 
 clean:
-	rm -f $(APP_EXE) $(OBJ_DIR)/* core* *.core *~ *.bak ppc-execute-impl.cpp
+	rm -f $(PROGS) $(OBJ_DIR)/* core* *.core *~ *.bak ppc-execute-impl.cpp
 	rm -f dyngen basic-dyngen-ops.hpp ppc-dyngen-ops.hpp ppc_asm.out.s
-	rm -rf $(APP_APP)
+	rm -rf $(APP_APP) $(GUI_APP_APP)
 
 distclean: clean
 	rm -rf $(OBJ_DIR)
