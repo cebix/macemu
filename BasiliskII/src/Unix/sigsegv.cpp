@@ -614,7 +614,7 @@ if (ret != KERN_SUCCESS) { \
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #define SIGSEGV_FAULT_ADDRESS			code[1]
-#define SIGSEGV_FAULT_HANDLER_INVOKE(ADDR, IP)	((code[0] == KERN_PROTECTION_FAILURE) ? sigsegv_fault_handler(ADDR, IP) : SIGSEGV_RETURN_FAILURE)
+#define SIGSEGV_FAULT_HANDLER_INVOKE(ADDR, IP)	((code[0] == KERN_PROTECTION_FAILURE || code[0] == KERN_INVALID_ADDRESS) ? sigsegv_fault_handler(ADDR, IP) : SIGSEGV_RETURN_FAILURE)
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	mach_port_t thread, exception_data_t code, SIGSEGV_THREAD_STATE_TYPE *state
 #define SIGSEGV_FAULT_HANDLER_ARGS		thread, code, &state
 
@@ -1719,6 +1719,11 @@ forward_exception(mach_port_t thread_port,
 	behavior = oldExceptionPorts->behaviors[portIndex];
 	flavor = oldExceptionPorts->flavors[portIndex];
 
+	if (!VALID_THREAD_STATE_FLAVOR(flavor)) {
+		fprintf(stderr, "Invalid thread_state flavor = %d. Not forwarding\n", flavor);
+		return KERN_FAILURE;
+	}
+
 	/*
 	 fprintf(stderr, "forwarding exception, port = 0x%x, behaviour = %d, flavor = %d\n", port, behavior, flavor);
 	 */
@@ -1756,6 +1761,7 @@ forward_exception(mach_port_t thread_port,
 	  break;
 	default:
 	  fprintf(stderr, "forward_exception got unknown behavior\n");
+	  kret = KERN_FAILURE;
 	  break;
 	}
 
@@ -1765,7 +1771,7 @@ forward_exception(mach_port_t thread_port,
 		MACH_CHECK_ERROR (thread_set_state, kret);
 	}
 
-	return KERN_SUCCESS;
+	return kret;
 }
 
 /*
