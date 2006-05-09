@@ -286,69 +286,21 @@ static vector<monitor_desc *> VideoMonitors;
 // Find Apple mode matching best specified dimensions
 static int find_apple_resolution(int xsize, int ysize)
 {
-	int apple_id;
-	if (xsize < 800)
-		apple_id = APPLE_640x480;
-	else if (xsize < 1024)
-		apple_id = APPLE_800x600;
-	else if (xsize < 1152)
-		apple_id = APPLE_1024x768;
-	else if (xsize < 1280) {
-		if (ysize < 900)
-			apple_id = APPLE_1152x768;
-		else
-			apple_id = APPLE_1152x900;
-	}
-	else if (xsize < 1600)
-		apple_id = APPLE_1280x1024;
-	else
-		apple_id = APPLE_1600x1200;
-	return apple_id;
-}
-
-// Set parameters to specified Apple mode
-static void set_apple_resolution(int apple_id, int &xsize, int &ysize)
-{
-	switch (apple_id) {
-	case APPLE_640x480:
-		xsize = 640;
-		ysize = 480;
-		break;
-	case APPLE_800x600:
-		xsize = 800;
-		ysize = 600;
-		break;
-	case APPLE_1024x768:
-		xsize = 1024;
-		ysize = 768;
-		break;
-	case APPLE_1152x768:
-		xsize = 1152;
-		ysize = 768;
-		break;
-	case APPLE_1152x900:
-		xsize = 1152;
-		ysize = 900;
-		break;
-	case APPLE_1280x1024:
-		xsize = 1280;
-		ysize = 1024;
-		break;
-	case APPLE_1600x1200:
-		xsize = 1600;
-		ysize = 1200;
-		break;
-	default:
-		abort();
-	}
-}
-
-// Match Apple mode matching best specified dimensions
-static int match_apple_resolution(int &xsize, int &ysize)
-{
-	int apple_id = find_apple_resolution(xsize, ysize);
-	set_apple_resolution(apple_id, xsize, ysize);
-	return apple_id;
+	if (xsize == 640 && ysize == 480)
+		return APPLE_640x480;
+	if (xsize == 800 && ysize == 600)
+		return APPLE_800x600;
+	if (xsize == 1024 && ysize == 768)
+		return APPLE_1024x768;
+	if (xsize == 1152 && ysize == 768)
+		return APPLE_1152x768;
+	if (xsize == 1152 && ysize == 900)
+		return APPLE_1152x900;
+	if (xsize == 1280 && ysize == 1024)
+		return APPLE_1280x1024;
+	if (xsize == 1600 && ysize == 1200)
+		return APPLE_1600x1200;
+	return APPLE_CUSTOM;
 }
 
 // Display error alert
@@ -455,69 +407,74 @@ static int sdl_depth_of_video_depth(int video_depth)
 	return (video_depth <= VIDEO_DEPTH_8BIT) ? 8 : mac_depth_of_video_depth(video_depth);
 }
 
+// Get screen dimensions
+static void sdl_display_dimensions(int &width, int &height)
+{
+	static int max_width, max_height;
+	if (max_width == 0 && max_height == 0) {
+		max_width = 640 ; max_height = 480;
+		SDL_Rect **modes = SDL_ListModes(NULL, SDL_FULLSCREEN | SDL_HWSURFACE);
+		if (modes && modes != (SDL_Rect **)-1) {
+			// It turns out that on some implementations, and contrary to the documentation,
+			// the returned list is not sorted from largest to smallest (e.g. Windows)
+			for (int i = 0; modes[i] != NULL; i++) {
+				const int w = modes[i]->w;
+				const int h = modes[i]->h;
+				if (w > max_width && h > max_height) {
+					max_width = w;
+					max_height = h;
+				}
+			}
+		}
+	}
+	width = max_width;
+	height = max_height;
+}
+
+static inline int sdl_display_width(void)
+{
+	int width, height;
+	sdl_display_dimensions(width, height);
+	return width;
+}
+
+static inline int sdl_display_height(void)
+{
+	int width, height;
+	sdl_display_dimensions(width, height);
+	return height;
+}
+
 // Check wether specified mode is available
-static bool has_mode(int type, int width, int height)
+static bool has_mode(int type, int width, int height, int depth)
 {
 #ifdef SHEEPSHAVER
-	// Filter out Classic resolutiosn
+	// Filter out Classic resolutions
 	if (width == 512 && height == 384)
 		return false;
-
-	// "screen" prefs items always succeeds
-	if (PrefsFindString("screen"))
-		return true;
-
-	// Read window & screen modes prefs
-	static uint32 window_modes = 0;
-	static uint32 screen_modes = 0;
-	if (window_modes == 0 || screen_modes == 0) {
-		window_modes = PrefsFindInt32("windowmodes");
-		screen_modes = PrefsFindInt32("screenmodes");
-		if (window_modes == 0 || screen_modes == 0)
-			window_modes |= 3;			// Allow at least 640x480 and 800x600 window modes
-	}
-
-	int test_modes;
-	switch (type) {
-	case DISPLAY_WINDOW:
-		test_modes = window_modes;
-		break;
-	case DISPLAY_SCREEN:
-		test_modes = screen_modes;
-		break;
-	default:
-		test_modes = 0;
-		break;
-	}
-
-	int apple_mask;
-	switch (find_apple_resolution(width, height)) {
-	case APPLE_640x480:		apple_mask = 0x01; break;
-	case APPLE_800x600:		apple_mask = 0x02; break;
-	case APPLE_1024x768:	apple_mask = 0x04; break;
-	case APPLE_1152x768:	apple_mask = 0x40; break;
-	case APPLE_1152x900:	apple_mask = 0x08; break;
-	case APPLE_1280x1024:	apple_mask = 0x10; break;
-	case APPLE_1600x1200:	apple_mask = 0x20; break;
-	default:				apple_mask = 0x00; break;
-	}
-	return (test_modes & apple_mask);
 #endif
-	return true;
+
+	// Filter out out-of-bounds resolutions
+	if (width > sdl_display_width() || height > sdl_display_height())
+		return false;
+
+	// Rely on SDL capabilities
+	return SDL_VideoModeOK(width, height,
+						   sdl_depth_of_video_depth(depth),
+						   SDL_HWSURFACE | (type == DISPLAY_SCREEN ? SDL_FULLSCREEN : 0));
 }
 
 // Add mode to list of supported modes
 static void add_mode(int type, int width, int height, int resolution_id, int bytes_per_row, int depth)
 {
 	// Filter out unsupported modes
-	if (!has_mode(type, width, height))
+	if (!has_mode(type, width, height, depth))
 		return;
 
 	// Fill in VideoMode entry
 	VIDEO_MODE mode;
 #ifdef SHEEPSHAVER
-	// Recalculate dimensions to fit Apple modes
-	resolution_id = match_apple_resolution(width, height);
+	resolution_id = find_apple_resolution(width, height);
 	mode.viType = type;
 #endif
 	VIDEO_MODE_X = width;
@@ -526,19 +483,6 @@ static void add_mode(int type, int width, int height, int resolution_id, int byt
 	VIDEO_MODE_ROW_BYTES = bytes_per_row;
 	VIDEO_MODE_DEPTH = (video_depth)depth;
 	VideoModes.push_back(mode);
-}
-
-// Add standard list of windowed modes for given color depth
-static void add_window_modes(int depth)
-{
-	video_depth vdepth = (video_depth)depth;
-	add_mode(DISPLAY_WINDOW, 512, 384, 0x80, TrivialBytesPerRow(512, vdepth), depth);
-	add_mode(DISPLAY_WINDOW, 640, 480, 0x81, TrivialBytesPerRow(640, vdepth), depth);
-	add_mode(DISPLAY_WINDOW, 800, 600, 0x82, TrivialBytesPerRow(800, vdepth), depth);
-	add_mode(DISPLAY_WINDOW, 1024, 768, 0x83, TrivialBytesPerRow(1024, vdepth), depth);
-	add_mode(DISPLAY_WINDOW, 1152, 870, 0x84, TrivialBytesPerRow(1152, vdepth), depth);
-	add_mode(DISPLAY_WINDOW, 1280, 1024, 0x85, TrivialBytesPerRow(1280, vdepth), depth);
-	add_mode(DISPLAY_WINDOW, 1600, 1200, 0x86, TrivialBytesPerRow(1600, vdepth), depth);
 }
 
 // Set Mac frame layout and base address (uses the_buffer/MacFrameBaseMac)
@@ -582,6 +526,55 @@ static SDL_GrabMode set_grab_mode(SDL_GrabMode mode)
 {
 	const SDL_VideoInfo *vi = SDL_GetVideoInfo();
 	return (vi && vi->wm_available ? SDL_WM_GrabInput(mode) : SDL_GRAB_OFF);
+}
+
+// Migrate preferences items (XXX to be handled in MigratePrefs())
+static void migrate_screen_prefs(void)
+{
+#ifdef SHEEPSHAVER
+	// Look-up priorities are: "screen", "screenmodes", "windowmodes".
+	if (PrefsFindString("screen"))
+		return;
+
+	uint32 window_modes = PrefsFindInt32("windowmodes");
+	uint32 screen_modes = PrefsFindInt32("screenmodes");
+	int width = 0, height = 0;
+	if (screen_modes) {
+		static const struct {
+			int id;
+			int width;
+			int height;
+		}
+		modes[] = {
+			{  1,	 640,	 480 },
+			{  2,	 800,	 600 },
+			{  4,	1024,	 768 },
+			{ 64,	1152,	 768 },
+			{  8,	1152,	 900 },
+			{ 16,	1280,	1024 },
+			{ 32,	1600,	1200 },
+			{ 0, }
+		};
+		for (int i = 0; modes[i].id != 0; i++) {
+			if (screen_modes & modes[i].id) {
+				if (width < modes[i].width && height < modes[i].height) {
+					width = modes[i].width;
+					height = modes[i].height;
+				}
+			}
+		}
+	} else {
+		if (window_modes & 1)
+			width = 640, height = 480;
+		if (window_modes & 2)
+			width = 800, height = 600;
+	}
+	if (width && height) {
+		char str[32];
+		sprintf(str, "%s/%d/%d", screen_modes ? "dga" : "win", width, height);
+		PrefsReplaceString("screen", str);
+	}
+#endif
 }
 
 
@@ -1123,6 +1116,7 @@ bool VideoInit(bool classic)
 	mouse_wheel_lines = PrefsFindInt32("mousewheellines");
 
 	// Get screen mode from preferences
+	migrate_screen_prefs();
 	const char *mode_str = NULL;
 	if (classic_mode)
 		mode_str = "win/512/342";
@@ -1146,28 +1140,14 @@ bool VideoInit(bool classic)
 		else if (sscanf(mode_str, "dga/%d/%d", &default_width, &default_height) == 2)
 			display_type = DISPLAY_SCREEN;
 	}
-	int max_width = 640, max_height = 480;
-	SDL_Rect **modes = SDL_ListModes(NULL, SDL_FULLSCREEN | SDL_HWSURFACE);
-	if (modes && modes != (SDL_Rect **)-1) {
-		// It turns out that on some implementations, and contrary to the documentation,
-		// the returned list is not sorted from largest to smallest (e.g. Windows)
-		for (int i = 0; modes[i] != NULL; i++) {
-			const int w = modes[i]->w;
-			const int h = modes[i]->h;
-			if (w > max_width && h > max_height) {
-				max_width = w;
-				max_height = h;
-			}
-		}
-		if (default_width > max_width)
-			default_width = max_width;
-		if (default_height > max_height)
-			default_height = max_height;
-	}
 	if (default_width <= 0)
-		default_width = max_width;
+		default_width = sdl_display_width();
+	else if (default_width > sdl_display_width())
+		default_width = sdl_display_width();
 	if (default_height <= 0)
-		default_height = max_height;
+		default_height = sdl_display_height();
+	else if (default_height > sdl_display_height())
+		default_height = sdl_display_height();
 
 	// Mac screen depth follows X depth
 	screen_depth = SDL_GetVideoInfo()->vfmt->BitsPerPixel;
@@ -1187,47 +1167,51 @@ bool VideoInit(bool classic)
 		break;
 	}
 
+	// Initialize list of video modes to try
+	struct {
+		int w;
+		int h;
+		int resolution_id;
+	}
+	video_modes[] = {
+		{   -1,   -1, 0x80 },
+		{  512,  384, 0x80 },
+		{  640,  480, 0x81 },
+		{  800,  600, 0x82 },
+		{ 1024,  768, 0x83 },
+		{ 1152,  870, 0x84 },
+		{ 1280, 1024, 0x85 },
+		{ 1600, 1200, 0x86 },
+		{ 0, }
+	};
+	video_modes[0].w = default_width;
+	video_modes[0].h = default_height;
+
 	// Construct list of supported modes
 	if (display_type == DISPLAY_WINDOW) {
 		if (classic)
 			add_mode(display_type, 512, 342, 0x80, 64, VIDEO_DEPTH_1BIT);
 		else {
-			for (int d = VIDEO_DEPTH_1BIT; d <= default_depth; d++) {
-				int bpp = sdl_depth_of_video_depth(d);
-				if (SDL_VideoModeOK(max_width, max_height, bpp, SDL_HWSURFACE))
-					add_window_modes(video_depth(d));
+			for (int i = 0; video_modes[i].w != 0; i++) {
+				const int w = video_modes[i].w;
+				const int h = video_modes[i].h;
+				if (i > 0 && (w >= default_width || h >= default_height))
+					continue;
+				for (int d = VIDEO_DEPTH_1BIT; d <= default_depth; d++)
+					add_mode(display_type, w, h, video_modes[i].resolution_id, TrivialBytesPerRow(w, (video_depth)d), d);
 			}
 		}
 	} else if (display_type == DISPLAY_SCREEN) {
-		struct {
-			int w;
-			int h;
-			int resolution_id;
-		}
-		video_modes[] = {
-			{   -1,   -1, 0x80 },
-			{  640,  480, 0x81 },
-			{  800,  600, 0x82 },
-			{ 1024,  768, 0x83 },
-			{ 1152,  870, 0x84 },
-			{ 1280, 1024, 0x85 },
-			{ 1600, 1200, 0x86 },
-			{ 0, }
-		};
-		video_modes[0].w = default_width;
-		video_modes[0].h = default_height;
-
 		for (int i = 0; video_modes[i].w != 0; i++) {
 			const int w = video_modes[i].w;
 			const int h = video_modes[i].h;
 			if (i > 0 && (w >= default_width || h >= default_height))
 				continue;
+			if (w == 512 && h == 384)
+				continue;
 #ifdef ENABLE_VOSF
-			for (int d = VIDEO_DEPTH_1BIT; d <= default_depth; d++) {
-				int bpp = sdl_depth_of_video_depth(d);
-				if (SDL_VideoModeOK(w, h, bpp, SDL_HWSURFACE | SDL_FULLSCREEN))
-					add_mode(display_type, w, h, video_modes[i].resolution_id, TrivialBytesPerRow(w, (video_depth)d), d);
-			}
+			for (int d = VIDEO_DEPTH_1BIT; d <= default_depth; d++)
+				add_mode(display_type, w, h, video_modes[i].resolution_id, TrivialBytesPerRow(w, (video_depth)d), d);
 #else
 			add_mode(display_type, w, h, video_modes[i].resolution_id, TrivialBytesPerRow(w, (video_depth)default_depth), default_depth);
 #endif
