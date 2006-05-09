@@ -467,6 +467,10 @@ int main(int argc, char **argv)
 		goto quit;
 	}
 	atexit(SDL_Quit);
+
+	// Don't let SDL catch SIGINT and SIGTERM signals
+	signal(SIGINT, SIG_DFL);
+	signal(SIGTERM, SIG_DFL);
 #endif
 
 #ifndef USE_SDL_VIDEO
