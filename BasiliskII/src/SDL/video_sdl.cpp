@@ -1984,6 +1984,65 @@ static void update_display_static(driver_window *drv)
 	}
 }
 
+// Static display update (fixed frame rate, bounding boxes based)
+// XXX use NQD bounding boxes to help detect dirty areas?
+static void update_display_static_bbox(driver_window *drv)
+{
+	const VIDEO_MODE &mode = drv->mode;
+
+	// Allocate bounding boxes for SDL_UpdateRects()
+	const int N_PIXELS = 64;
+	const int n_x_boxes = (VIDEO_MODE_X + N_PIXELS - 1) / N_PIXELS;
+	const int n_y_boxes = (VIDEO_MODE_Y + N_PIXELS - 1) / N_PIXELS;
+	SDL_Rect *boxes = (SDL_Rect *)alloca(sizeof(SDL_Rect) * n_x_boxes * n_y_boxes);
+	int nr_boxes = 0;
+
+	// Lock surface, if required
+	if (SDL_MUSTLOCK(drv->s))
+		SDL_LockSurface(drv->s);
+
+	// Update the surface from Mac screen
+	const int bytes_per_row = VIDEO_MODE_ROW_BYTES;
+	const int bytes_per_pixel = bytes_per_row / VIDEO_MODE_X;
+	int x, y;
+	for (y = 0; y < VIDEO_MODE_Y; y += N_PIXELS) {
+		int h = N_PIXELS;
+		if (h > VIDEO_MODE_Y - y)
+			h = VIDEO_MODE_Y - y;
+		for (x = 0; x < VIDEO_MODE_X; x += N_PIXELS) {
+			int w = N_PIXELS;
+			if (w > VIDEO_MODE_X - x)
+				w = VIDEO_MODE_X - x;
+			const int xs = w * bytes_per_pixel;
+			const int xb = x * bytes_per_pixel;
+			bool dirty = false;
+			for (int j = y; j < (y + h); j++) {
+				const int yb = j * bytes_per_row;
+				if (memcmp(&the_buffer[yb + xb], &the_buffer_copy[yb + xb], xs) != 0) {
+					memcpy(&the_buffer_copy[yb + xb], &the_buffer[yb + xb], xs);
+					Screen_blit((uint8 *)drv->s->pixels + yb + xb, the_buffer + yb + xb, xs);
+					dirty = true;
+				}
+			}
+			if (dirty) {
+				boxes[nr_boxes].x = x;
+				boxes[nr_boxes].y = y;
+				boxes[nr_boxes].w = w;
+				boxes[nr_boxes].h = h;
+				nr_boxes++;
+			}
+		}
+	}
+
+	// Unlock surface, if required
+	if (SDL_MUSTLOCK(drv->s))
+		SDL_UnlockSurface(drv->s);
+
+	// Refresh display
+	if (nr_boxes)
+		SDL_UpdateRects(drv->s, nr_boxes, boxes);
+}
+
 
 // We suggest the compiler to inline the next two functions so that it
 // may specialise the code according to the current screen depth and
@@ -2078,7 +2137,11 @@ static void video_refresh_window_static(void)
 	static int tick_counter = 0;
 	if (++tick_counter >= frame_skip) {
 		tick_counter = 0;
-		update_display_static(static_cast<driver_window *>(drv));
+		const VIDEO_MODE &mode = drv->mode;
+		if ((int)VIDEO_MODE_DEPTH >= VIDEO_DEPTH_8BIT)
+			update_display_static_bbox(static_cast<driver_window *>(drv));
+		else
+			update_display_static(static_cast<driver_window *>(drv));
 	}
 }
 
