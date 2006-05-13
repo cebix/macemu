@@ -139,6 +139,7 @@ extern void video_set_palette(void);
 extern void video_set_cursor(void);
 extern bool video_can_change_cursor(void);
 extern int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr);
+extern void video_set_dirty_area(int x, int y, int w, int h);
 
 extern int16 VSLDoInterruptService(uint32 arg1);
 extern void NQDMisc(uint32 arg1, uintptr arg2);
@@ -147,6 +148,7 @@ extern void NQDMisc(uint32 arg1, uintptr arg2);
 extern bool NQD_sync_hook(uint32);
 extern bool NQD_bitblt_hook(uint32);
 extern bool NQD_fillrect_hook(uint32);
+extern bool NQD_unknown_hook(uint32);
 extern void NQD_bitblt(uint32);
 extern void NQD_invrect(uint32);
 extern void NQD_fillrect(uint32);

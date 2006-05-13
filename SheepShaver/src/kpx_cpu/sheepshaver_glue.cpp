@@ -352,17 +352,17 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 			status = COMPILE_CODE_OK;
 			break;
 #endif
-		case NATIVE_BITBLT:
+		case NATIVE_NQD_BITBLT:
 			dg.gen_load_T0_GPR(3);
 			dg.gen_invoke_T0((void (*)(uint32))NQD_bitblt);
 			status = COMPILE_CODE_OK;
 			break;
-		case NATIVE_INVRECT:
+		case NATIVE_NQD_INVRECT:
 			dg.gen_load_T0_GPR(3);
 			dg.gen_invoke_T0((void (*)(uint32))NQD_invrect);
 			status = COMPILE_CODE_OK;
 			break;
-		case NATIVE_FILLRECT:
+		case NATIVE_NQD_FILLRECT:
 			dg.gen_load_T0_GPR(3);
 			dg.gen_invoke_T0((void (*)(uint32))NQD_fillrect);
 			status = COMPILE_CODE_OK;
@@ -1033,22 +1033,22 @@ void sheepshaver_cpu::execute_native_op(uint32 selector)
 	case NATIVE_ETHER_RSRV:
 		gpr(3) = ether_rsrv((queue_t *)gpr(3));
 		break;
-	case NATIVE_SYNC_HOOK:
+	case NATIVE_NQD_SYNC_HOOK:
 		gpr(3) = NQD_sync_hook(gpr(3));
 		break;
-	case NATIVE_BITBLT_HOOK:
+	case NATIVE_NQD_BITBLT_HOOK:
 		gpr(3) = NQD_bitblt_hook(gpr(3));
 		break;
-	case NATIVE_BITBLT:
+	case NATIVE_NQD_BITBLT:
 		NQD_bitblt(gpr(3));
 		break;
-	case NATIVE_FILLRECT_HOOK:
+	case NATIVE_NQD_FILLRECT_HOOK:
 		gpr(3) = NQD_fillrect_hook(gpr(3));
 		break;
-	case NATIVE_INVRECT:
+	case NATIVE_NQD_INVRECT:
 		NQD_invrect(gpr(3));
 		break;
-	case NATIVE_FILLRECT:
+	case NATIVE_NQD_FILLRECT:
 		NQD_fillrect(gpr(3));
 		break;
 	case NATIVE_SERIAL_NOTHING:

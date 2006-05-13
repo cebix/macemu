@@ -2549,3 +2549,13 @@ static void *redraw_func(void *arg)
 	}
 	return NULL;
 }
+
+
+/*
+ *  Record dirty area from NQD
+ */
+
+void video_set_dirty_area(int x, int y, int w, int h)
+{
+	// TBD
+}

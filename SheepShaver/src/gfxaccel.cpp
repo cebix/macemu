@@ -52,6 +52,18 @@ static inline int bytes_per_pixel(int depth)
 	return bpp;
 }
 
+// Pass-through dirty areas to redraw functions
+static inline void NQD_set_dirty_area(uint32 p)
+{
+	if (ReadMacInt32(p + acclDestBaseAddr) == screen_base) {
+		int16 x = (int16)ReadMacInt16(p + acclDestRect + 2) - (int16)ReadMacInt16(p + acclDestBoundsRect + 2);
+		int16 y = (int16)ReadMacInt16(p + acclDestRect + 0) - (int16)ReadMacInt16(p + acclDestBoundsRect + 0);
+		int16 w  = (int16)ReadMacInt16(p + acclDestRect + 6) - (int16)ReadMacInt16(p + acclDestRect + 2);
+		int16 h = (int16)ReadMacInt16(p + acclDestRect + 4) - (int16)ReadMacInt16(p + acclDestRect + 0);
+		video_set_dirty_area(x, y, w, h);
+	}
+}
+
 
 /*
  *	Rectangle inversion
@@ -282,18 +294,19 @@ void NQD_fillrect(uint32 p)
 bool NQD_fillrect_hook(uint32 p)
 {
 	D(bug("accl_fillrect_hook %08x\n", p));
+	NQD_set_dirty_area(p);
 
 	// Check if we can accelerate this fillrect
 	if (ReadMacInt32(p + 0x284) != 0 && ReadMacInt32(p + acclDestPixelSize) >= 8) {
 		const int transfer_mode = ReadMacInt32(p + acclTransferMode);
 		if (transfer_mode == 8) {
 			// Fill
-			WriteMacInt32(p + acclDrawProc, NativeTVECT(NATIVE_FILLRECT));
+			WriteMacInt32(p + acclDrawProc, NativeTVECT(NATIVE_NQD_FILLRECT));
 			return true;
 		}
 		else if (transfer_mode == 10) {
 			// Invert
-			WriteMacInt32(p + acclDrawProc, NativeTVECT(NATIVE_INVRECT));
+			WriteMacInt32(p + acclDrawProc, NativeTVECT(NATIVE_NQD_INVRECT));
 			return true;
 		}
 	}
@@ -305,7 +318,6 @@ bool NQD_fillrect_hook(uint32 p)
  *	Isomorphic rectangle blitting
  */
 
-// TODO: optimize for VOSF and target pixmap == screen
 void NQD_bitblt(uint32 p)
 {
 	D(bug("accl_bitblt %08x\n", p));
@@ -372,6 +384,7 @@ void NQD_bitblt(uint32 p)
 bool NQD_bitblt_hook(uint32 p)
 {
 	D(bug("accl_draw_hook %08x\n", p));
+	NQD_set_dirty_area(p);
 
 	// Check if we can accelerate this bitblt
 	if (ReadMacInt32(p + 0x018) + ReadMacInt32(p + 0x128) == 0 &&
@@ -383,9 +396,18 @@ bool NQD_bitblt_hook(uint32 p)
 		(int32)ReadMacInt32(p + 0x15c) > 0) {
 
 		// Yes, set function pointer
-		WriteMacInt32(p + acclDrawProc, NativeTVECT(NATIVE_BITBLT));
+		WriteMacInt32(p + acclDrawProc, NativeTVECT(NATIVE_NQD_BITBLT));
 		return true;
 	}
+	return false;
+}
+
+// Unknown hook
+bool NQD_unknown_hook(uint32 arg)
+{
+	D(bug("accl_unknown_hook %08x\n", arg));
+	NQD_set_dirty_area(arg);
+
 	return false;
 }
 
@@ -410,16 +432,30 @@ void VideoInstallAccel(void)
 
 		SheepVar bitblt_hook_info(sizeof(accl_hook_info));
 		base = bitblt_hook_info.addr();
-		WriteMacInt32(base + 0, NativeTVECT(NATIVE_BITBLT_HOOK));
-		WriteMacInt32(base + 4, NativeTVECT(NATIVE_SYNC_HOOK));
+		WriteMacInt32(base + 0, NativeTVECT(NATIVE_NQD_BITBLT_HOOK));
+		WriteMacInt32(base + 4, NativeTVECT(NATIVE_NQD_SYNC_HOOK));
 		WriteMacInt32(base + 8, ACCL_BITBLT);
 		NQDMisc(6, bitblt_hook_info.addr());
 
 		SheepVar fillrect_hook_info(sizeof(accl_hook_info));
 		base = fillrect_hook_info.addr();
-		WriteMacInt32(base + 0, NativeTVECT(NATIVE_FILLRECT_HOOK));
-		WriteMacInt32(base + 4, NativeTVECT(NATIVE_SYNC_HOOK));
+		WriteMacInt32(base + 0, NativeTVECT(NATIVE_NQD_FILLRECT_HOOK));
+		WriteMacInt32(base + 4, NativeTVECT(NATIVE_NQD_SYNC_HOOK));
 		WriteMacInt32(base + 8, ACCL_FILLRECT);
 		NQDMisc(6, fillrect_hook_info.addr());
+
+		for (int op = 0; op < 8; op++) {
+			switch (op) {
+			case ACCL_BITBLT:
+			case ACCL_FILLRECT:
+				continue;
+			}
+			SheepVar unknown_hook_info(sizeof(accl_hook_info));
+			base = unknown_hook_info.addr();
+			WriteMacInt32(base + 0, NativeTVECT(NATIVE_NQD_UNKNOWN_HOOK));
+			WriteMacInt32(base + 4, NativeTVECT(NATIVE_NQD_SYNC_HOOK));
+			WriteMacInt32(base + 8, op);
+			NQDMisc(6, unknown_hook_info.addr());
+		}
 	}
 }
