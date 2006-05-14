@@ -159,6 +159,7 @@ user_string_def common_strings[] = {
 	{STR_RAMSIZE_128MB_LAB, "128"},
 	{STR_RAMSIZE_256MB_LAB, "256"},
 	{STR_RAMSIZE_512MB_LAB, "512"},
+	{STR_RAMSIZE_1024MB_LAB, "1024"},
 	{STR_RAMSIZE_SLIDER, "MacOS RAM Size:"},
 	{STR_RAMSIZE_FMT, "%d MB"},
 	{STR_IGNORESEGV_CTRL, "Ignore Illegal Memory Accesses"},

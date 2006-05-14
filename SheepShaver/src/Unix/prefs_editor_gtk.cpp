@@ -1295,9 +1295,10 @@ static void create_memory_pane(GtkWidget *top)
 		STR_RAMSIZE_128MB_LAB,
 		STR_RAMSIZE_256MB_LAB,
 		STR_RAMSIZE_512MB_LAB,
+		STR_RAMSIZE_1024MB_LAB,
 		0
 	};
-	char default_ramsize[10];
+	char default_ramsize[16];
 	sprintf(default_ramsize, "%d", PrefsFindInt32("ramsize") >> 20);
 	w_ramsize = table_make_combobox(table, 0, STR_RAMSIZE_CTRL, default_ramsize, options);
 
