@@ -28,6 +28,13 @@ GENSRCS = cpudefs.cpp cpuemu.cpp cpustbl.cpp cputbl.h
 GENEMUS = cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp \
 	  cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp
 
+# We compile the emulator source outside of Project Builder/XCode
+# so that it always picks up appropriate FLAGS from configure.
+# This is necessary because that code doesn't use config.h
+EMU_OBJ = $(patsubst %.cpp, build/%.o, $(GENEMUS))
+EMU_LIB = libgenemu.a
+
+
 # Symlinks to, or copies of, files in other directories
 GENLINK = README.txt INSTALL.txt install-sh \
 	  Darwin config.guess config.sub semaphore.h \
@@ -48,7 +55,7 @@ SLIRP_LIB = libslirp.a
 
 APP = $(OBJ_DIR)/BasiliskII.app
 
-DEPS = $(OBJ_DIR) $(GEN) $(SLIRP_LIB) $(SRCS)
+DEPS = $(OBJ_DIR) $(GEN) $(EMU_LIB) $(SLIRP_LIB) $(SRCS)
 
 ## Rules
 
@@ -82,10 +89,10 @@ nowrite.icns :
 
 mostlyclean:
 	rm -fr English.lproj/*~* $(OBJ_DIR)/* core* *.core *~ *.bak
-	rm -fr autom4te.cache
+	rm -fr autom4te.cache config tests vhook
 
 clean: mostlyclean
-	rm -f $(SLIRP_LIB)
+	rm -f $(SLIRP_LIB) $(EMU_LIB)
 	rm -f $(GEN)
 	rm -f cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp
 
@@ -103,13 +110,13 @@ distclean: clean
 
 
 $(OBJ_DIR)/build68k: ../uae_cpu/build68k.c
-	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(LDFLAGS) $< -o $@
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $< -o $@
 
 $(OBJ_DIR)/cpuopti: ../uae_cpu/cpuopti.c
-	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(LDFLAGS) $< -o $@
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $< -o $@
 
 $(OBJ_DIR)/gencpu: cpudefs.cpp ../uae_cpu/gencpu.c ../uae_cpu/readcpu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(CXXFLAGS) $^ -o $@
 
 
 
@@ -133,12 +140,17 @@ cpufast.s: cpuemu.s $(OBJ_DIR)/cpuopti
 cpuemu.s: cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -S $(CXXFLAGS) $< -o $@
 
+$(EMU_OBJ) : build/%.o : %.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
+
+$(EMU_LIB) : $(EMU_OBJ)
+	libtool -static -o $@ $^
 
 $(SLIRP_OBJ) : build/%.o : ../slirp/%.c
-	$(CC) -I../slirp $(CPPFLAGS) $(DEFS) $(CFLAGS) $(LDFLAGS) -c $< -o $@
+	$(CC) -I../slirp $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
 
 $(SLIRP_LIB) : $(SLIRP_OBJ)
-	libtool -static -o libslirp.a build/*.o
+	libtool -static -o $@ $^
 
 #-------------------------------------------------------------------------
 # DO NOT DELETE THIS LINE -- make depend depends on it.

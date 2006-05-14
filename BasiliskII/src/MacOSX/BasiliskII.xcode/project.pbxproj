@@ -142,6 +142,7 @@
 		};
 		29B97323FDCFA39411CA2CEA = {
 			children = (
+				A60B5F480A174A4900D7F586,
 				A63638A10964120600BE2F74,
 				29B97324FDCFA39411CA2CEA,
 				A685FF0D05C4E89D00DDBA94,
@@ -243,7 +244,7 @@
 				HEADER_SEARCH_PATHS = "../include ../uae_cpu ../Unix ../slirp";
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
-				LIBRARY_SEARCH_PATHS = ". /Volumes/Users/nigel/Programming/BasiliskII/BasiliskII/src/MacOSX";
+				LIBRARY_SEARCH_PATHS = ".";
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = BasiliskII;
@@ -342,14 +343,6 @@
 				A68501EF05C4EEF200DDBA94,
 				A68501F305C4EF3300DDBA94,
 				A685020305C4EF6700DDBA94,
-				A685020405C4EF6700DDBA94,
-				A685020505C4EF6700DDBA94,
-				A685020605C4EF6700DDBA94,
-				A685020705C4EF6700DDBA94,
-				A685020805C4EF6700DDBA94,
-				A685020905C4EF6700DDBA94,
-				A685020A05C4EF6700DDBA94,
-				A685020B05C4EF6700DDBA94,
 				A685020C05C4EF6700DDBA94,
 				A685021305C4EFDC00DDBA94,
 				A685021405C4EFDC00DDBA94,
@@ -390,6 +383,7 @@
 				A685FFCE05C4E8CC00DDBA94,
 				A68500CC05C4E8DE00DDBA94,
 				A63638A20964120600BE2F74,
+				A60B5F490A174A4900D7F586,
 			);
 			isa = PBXFrameworksBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
@@ -426,6 +420,19 @@
 //A62
 //A63
 //A64
+		A60B5F480A174A4900D7F586 = {
+			isa = PBXFileReference;
+			lastKnownFileType = archive.ar;
+			path = libgenemu.a;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
+		};
+		A60B5F490A174A4900D7F586 = {
+			fileRef = A60B5F480A174A4900D7F586;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
 		A63638A10964120600BE2F74 = {
 			isa = PBXFileReference;
 			lastKnownFileType = archive.ar;
@@ -1238,14 +1245,6 @@
 		A68501F705C4EF3F00DDBA94 = {
 			children = (
 				A68501F805C4EF6700DDBA94,
-				A68501F905C4EF6700DDBA94,
-				A68501FA05C4EF6700DDBA94,
-				A68501FB05C4EF6700DDBA94,
-				A68501FC05C4EF6700DDBA94,
-				A68501FD05C4EF6700DDBA94,
-				A68501FE05C4EF6700DDBA94,
-				A68501FF05C4EF6700DDBA94,
-				A685020005C4EF6700DDBA94,
 				A685020105C4EF6700DDBA94,
 				A685020205C4EF6700DDBA94,
 			);
@@ -1259,70 +1258,6 @@
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.cpp.cpp;
 			path = cpudefs.cpp;
-			refType = 2;
-			sourceTree = SOURCE_ROOT;
-		};
-		A68501F905C4EF6700DDBA94 = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.cpp;
-			path = cpuemu1.cpp;
-			refType = 2;
-			sourceTree = SOURCE_ROOT;
-		};
-		A68501FA05C4EF6700DDBA94 = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.cpp;
-			path = cpuemu2.cpp;
-			refType = 2;
-			sourceTree = SOURCE_ROOT;
-		};
-		A68501FB05C4EF6700DDBA94 = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.cpp;
-			path = cpuemu3.cpp;
-			refType = 2;
-			sourceTree = SOURCE_ROOT;
-		};
-		A68501FC05C4EF6700DDBA94 = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.cpp;
-			path = cpuemu4.cpp;
-			refType = 2;
-			sourceTree = SOURCE_ROOT;
-		};
-		A68501FD05C4EF6700DDBA94 = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.cpp;
-			path = cpuemu5.cpp;
-			refType = 2;
-			sourceTree = SOURCE_ROOT;
-		};
-		A68501FE05C4EF6700DDBA94 = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.cpp;
-			path = cpuemu6.cpp;
-			refType = 2;
-			sourceTree = SOURCE_ROOT;
-		};
-		A68501FF05C4EF6700DDBA94 = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.cpp;
-			path = cpuemu7.cpp;
-			refType = 2;
-			sourceTree = SOURCE_ROOT;
-		};
-		A685020005C4EF6700DDBA94 = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.cpp;
-			path = cpuemu8.cpp;
 			refType = 2;
 			sourceTree = SOURCE_ROOT;
 		};
@@ -1344,54 +1279,6 @@
 		};
 		A685020305C4EF6700DDBA94 = {
 			fileRef = A68501F805C4EF6700DDBA94;
-			isa = PBXBuildFile;
-			settings = {
-			};
-		};
-		A685020405C4EF6700DDBA94 = {
-			fileRef = A68501F905C4EF6700DDBA94;
-			isa = PBXBuildFile;
-			settings = {
-			};
-		};
-		A685020505C4EF6700DDBA94 = {
-			fileRef = A68501FA05C4EF6700DDBA94;
-			isa = PBXBuildFile;
-			settings = {
-			};
-		};
-		A685020605C4EF6700DDBA94 = {
-			fileRef = A68501FB05C4EF6700DDBA94;
-			isa = PBXBuildFile;
-			settings = {
-			};
-		};
-		A685020705C4EF6700DDBA94 = {
-			fileRef = A68501FC05C4EF6700DDBA94;
-			isa = PBXBuildFile;
-			settings = {
-			};
-		};
-		A685020805C4EF6700DDBA94 = {
-			fileRef = A68501FD05C4EF6700DDBA94;
-			isa = PBXBuildFile;
-			settings = {
-			};
-		};
-		A685020905C4EF6700DDBA94 = {
-			fileRef = A68501FE05C4EF6700DDBA94;
-			isa = PBXBuildFile;
-			settings = {
-			};
-		};
-		A685020A05C4EF6700DDBA94 = {
-			fileRef = A68501FF05C4EF6700DDBA94;
-			isa = PBXBuildFile;
-			settings = {
-			};
-		};
-		A685020B05C4EF6700DDBA94 = {
-			fileRef = A685020005C4EF6700DDBA94;
 			isa = PBXBuildFile;
 			settings = {
 			};
