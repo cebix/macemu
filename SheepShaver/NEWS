@@ -1,15 +1,32 @@
-SheepShaver NEWS -- history of user-visible changes.  2005-11-30
-Copyright (C) 1997-2005 Christian Bauer and Marc Hellwig
+SheepShaver NEWS -- history of user-visible changes.  2006-05-14
+Copyright (C) 1997-2006 Christian Bauer and Marc Hellwig
 
-Version 2.3 (snapshot) - DD.May.2006
-* Port to IRIX/mips
-* Port to MacOS X for Intel
+Version 2.3 (snapshot) - 14.May.2006
+* Handle up to 1 GB of Mac memory
 * Improve SLiRP network emulation performance
-* Fix extfs volume name to "Unix" (Toshimitsu Tanaka)
-* Fix extfs to preserve native MacOS X folder attributes
-* Fix extfs on MacOS X to handle file/folder creation times
-* Fix unaligned accesses in user network code (Brian J. Johnson)a
+* Fix Native QuickDraw acceleration
+* Fix a crash during MacOS 9 installation
 * Fix a crash in the AppleShare extension
+* Fix support for MacOS 7.5.3 Revision 2.2
+* Fix gigantic window dimensions on first boot
+* Fix extfs volume name to "Unix" (Toshimitsu Tanaka)
+* Fix unaligned accesses in SLiRP network emulation (Brian J. Johnson)
+* Initial port to IRIX/mips
+* MacOS X:
+  o Port to MacOS X for Intel, including the JIT
+  o Add a primitive graphical preferences editor
+  o Add support for run-time CD-ROM auto-detection
+  o Fix clipboard (copy/paste of text from/to the host OS)
+  o Fix extfs to preserve native folder attributes
+  o Fix extfs to handle file/folder creation times
+  o Fix SLiRP network emulation (workaround MacOS X bugs)
+  o Improve overall performance on PowerPC (by a factor 2)
+* Windows:
+  o Add SLiRP network emulation ("ether slirp")
+  o Add TAP-Win32 network emulation ("ether tap")
+  o Fix CD-ROM auto-detection ("pollmedia" now works)
+  o Fix idle sleep ("idlewait" now works)
+  o Improve GUI for network configuration
 
 Version 2.3 (snapshot) - 30.Nov.2005
 * Add fullscreen DGA mode via fbdev in Linux
