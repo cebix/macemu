@@ -346,7 +346,7 @@ static void vosf_do_set_dirty_area(uintptr first, uintptr last)
 {
 	const int first_page = (first - mainBuffer.memStart) >> mainBuffer.pageBits;
 	const int last_page = (last - mainBuffer.memStart) >> mainBuffer.pageBits;
-	uint8 *addr = (uint8 *)first;
+	uint8 *addr = (uint8 *)(first & -mainBuffer.pageSize);
 	for (int i = first_page; i <= last_page; i++) {
 		if (PFLAG_ISCLEAR(i)) {
 			PFLAG_SET(i);
