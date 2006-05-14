@@ -105,6 +105,7 @@ public:
 	void gen_invoke_T0(void (*func)(uint32));
 	void gen_invoke_T0_T1(void (*func)(uint32, uint32));
 	void gen_invoke_T0_T1_T2(void (*func)(uint32, uint32, uint32));
+	void gen_invoke_T0_ret_T0(uint32 (*func)(uint32));
 	void gen_invoke_im(void (*func)(uint32), uint32 value);
 	void gen_invoke_CPU(void (*func)(dyngen_cpu_base));
 	void gen_invoke_CPU_T0(void (*func)(dyngen_cpu_base, uint32));

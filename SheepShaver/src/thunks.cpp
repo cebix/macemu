@@ -57,6 +57,13 @@ uint32 NativeOpcode(int selector)
 	switch (selector) {
 	case NATIVE_CHECK_LOAD_INVOC:
 	case NATIVE_NAMED_CHECK_LOAD_INVOC:
+	case NATIVE_NQD_SYNC_HOOK:
+	case NATIVE_NQD_BITBLT_HOOK:
+	case NATIVE_NQD_FILLRECT_HOOK:
+	case NATIVE_NQD_UNKNOWN_HOOK:
+	case NATIVE_NQD_BITBLT:
+	case NATIVE_NQD_INVRECT:
+	case NATIVE_NQD_FILLRECT:
 		opcode = POWERPC_NATIVE_OP(0, selector);
 		break;
   	case NATIVE_PATCH_NAME_REGISTRY:
@@ -89,13 +96,6 @@ uint32 NativeOpcode(int selector)
 	case NATIVE_GET_NAMED_RESOURCE:
 	case NATIVE_GET_1_NAMED_RESOURCE:
   	case NATIVE_MAKE_EXECUTABLE:
-	case NATIVE_NQD_SYNC_HOOK:
-	case NATIVE_NQD_BITBLT_HOOK:
-	case NATIVE_NQD_FILLRECT_HOOK:
-	case NATIVE_NQD_UNKNOWN_HOOK:
-	case NATIVE_NQD_BITBLT:
-	case NATIVE_NQD_INVRECT:
-	case NATIVE_NQD_FILLRECT:
 		opcode = POWERPC_NATIVE_OP(1, selector);
 		break;
 	default:
@@ -262,10 +262,11 @@ bool ThunksInit(void)
 {
 #if EMULATED_PPC
 	for (int i = 0; i < NATIVE_OP_MAX; i++) {
-		uintptr base = SheepMem::Reserve(12);
+		uintptr base = SheepMem::Reserve(16);
 		WriteMacInt32(base + 0, base + 8);
 		WriteMacInt32(base + 4, 0); // Fake TVECT
 		WriteMacInt32(base + 8, NativeOpcode(i));
+		WriteMacInt32(base + 12, POWERPC_BLR);
 		native_op[i].tvect = base;
 		native_op[i].func  = base + 8;
 	}

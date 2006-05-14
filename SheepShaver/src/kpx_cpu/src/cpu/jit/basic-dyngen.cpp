@@ -90,6 +90,17 @@ basic_dyngen::gen_invoke_T0_T1_T2(void (*func)(uint32, uint32, uint32))
 }
 
 void
+basic_dyngen::gen_invoke_T0_ret_T0(uint32 (*func)(uint32))
+{
+	if (direct_call_possible((uintptr)func))
+		gen_op_invoke_direct_T0_ret_T0((uintptr)func);
+	else {
+		gen_op_mov_ad_A0_im((uintptr)func);
+		gen_op_invoke_T0_ret_T0();
+	}
+}
+
+void
 basic_dyngen::gen_invoke_im(void (*func)(uint32), uint32 value)
 {
 	if (direct_call_possible((uintptr)func))

@@ -414,6 +414,11 @@ DEFINE_OP(op_invoke_T0_T1_T2, {
 	CALL(reg_A0,(T0, T1, T2));
 });
 
+DEFINE_OP(op_invoke_T0_ret_T0, {
+	typedef uint32 (*func_t)(uint32);
+	T0 = CALL(reg_A0,(T0));
+});
+
 DEFINE_OP(op_invoke_im, {
 	typedef void (*func_t)(uint32);
 	CALL(reg_A0,(PARAM1));
@@ -457,6 +462,11 @@ DEFINE_OP(op_invoke_direct_T0_T1, {
 DEFINE_OP(op_invoke_direct_T0_T1_T2, {
 	typedef void (*func_t)(uint32, uint32, uint32);
 	CALL(PARAM1,(T0, T1, T2));
+});
+
+DEFINE_OP(op_invoke_direct_T0_ret_T0, {
+	typedef uint32 (*func_t)(uint32);
+	T0 = CALL(PARAM1,(T0));
 });
 
 DEFINE_OP(op_invoke_direct_im, {

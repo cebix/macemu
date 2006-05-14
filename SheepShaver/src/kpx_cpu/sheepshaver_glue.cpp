@@ -336,6 +336,7 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 			status = COMPILE_CODE_OK;
 			break;
 		}
+#endif
 		case NATIVE_CHECK_LOAD_INVOC:
 			dg.gen_load_T0_GPR(3);
 			dg.gen_load_T1_GPR(4);
@@ -351,7 +352,30 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 			dg.gen_invoke_T0_T1_T2((void (*)(uint32, uint32, uint32))named_check_load_invoc);
 			status = COMPILE_CODE_OK;
 			break;
-#endif
+		case NATIVE_NQD_SYNC_HOOK:
+			dg.gen_load_T0_GPR(3);
+			dg.gen_invoke_T0_ret_T0((uint32 (*)(uint32))NQD_sync_hook);
+			dg.gen_store_T0_GPR(3);
+			status = COMPILE_CODE_OK;
+			break;
+		case NATIVE_NQD_BITBLT_HOOK:
+			dg.gen_load_T0_GPR(3);
+			dg.gen_invoke_T0_ret_T0((uint32 (*)(uint32))NQD_bitblt_hook);
+			dg.gen_store_T0_GPR(3);
+			status = COMPILE_CODE_OK;
+			break;
+		case NATIVE_NQD_FILLRECT_HOOK:
+			dg.gen_load_T0_GPR(3);
+			dg.gen_invoke_T0_ret_T0((uint32 (*)(uint32))NQD_fillrect_hook);
+			dg.gen_store_T0_GPR(3);
+			status = COMPILE_CODE_OK;
+			break;
+		case NATIVE_NQD_UNKNOWN_HOOK:
+			dg.gen_load_T0_GPR(3);
+			dg.gen_invoke_T0_ret_T0((uint32 (*)(uint32))NQD_unknown_hook);
+			dg.gen_store_T0_GPR(3);
+			status = COMPILE_CODE_OK;
+			break;
 		case NATIVE_NQD_BITBLT:
 			dg.gen_load_T0_GPR(3);
 			dg.gen_invoke_T0((void (*)(uint32))NQD_bitblt);
@@ -1035,6 +1059,9 @@ void sheepshaver_cpu::execute_native_op(uint32 selector)
 		break;
 	case NATIVE_NQD_SYNC_HOOK:
 		gpr(3) = NQD_sync_hook(gpr(3));
+		break;
+	case NATIVE_NQD_UNKNOWN_HOOK:
+		gpr(3) = NQD_unknown_hook(gpr(3));
 		break;
 	case NATIVE_NQD_BITBLT_HOOK:
 		gpr(3) = NQD_bitblt_hook(gpr(3));
