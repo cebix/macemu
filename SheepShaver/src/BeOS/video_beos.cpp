@@ -776,3 +776,12 @@ void video_set_cursor(void)
 {
 	the_window->cursor_changed = true;	// Inform window (don't set cursor directly because this may run at interrupt (i.e. signal handler) time)
 }
+
+
+/*
+ *  Record dirty area from NQD
+ */
+
+void video_set_dirty_area(int x, int y, int w, int h)
+{
+}
