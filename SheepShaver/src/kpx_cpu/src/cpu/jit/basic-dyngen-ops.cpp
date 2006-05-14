@@ -362,7 +362,10 @@ void OPPROTO impl_##NAME(void)									\
 }																\
 extern void OPPROTO NAME(void) __attribute__((weak_import));	\
 asm(".set  helper_" #NAME "," #NAME);
-#elif defined(__powerpc__) || defined(__x86_64__) || defined(__i386__)
+#elif defined(__powerpc__) || ((defined(__x86_64__) || defined(__i386__)) && !defined(_WIN32))
+// XXX there is a problem on Windows: coff_text_shndx != text_shndx
+// The latter is found by searching for ".text" in all symbols and
+// assigning its e_scnum.
 #define DEFINE_OP(NAME, CODE)									\
 static void OPPROTO impl_##NAME(void) __attribute__((used));	\
 void OPPROTO impl_##NAME(void)									\
