@@ -2557,5 +2557,17 @@ static void *redraw_func(void *arg)
 
 void video_set_dirty_area(int x, int y, int w, int h)
 {
-	// TBD
+	VideoInfo const & mode = VModes[cur_mode];
+	const int screen_width = VIDEO_MODE_X;
+	const int screen_height = VIDEO_MODE_Y;
+	const int bytes_per_row = VIDEO_MODE_ROW_BYTES;
+
+#ifdef ENABLE_VOSF
+	if (use_vosf) {
+		vosf_set_dirty_area(x, y, w, h, screen_width, screen_height, bytes_per_row);
+		return;
+	}
+#endif
+
+	// XXX handle dirty bounding boxes for non-VOSF modes
 }
