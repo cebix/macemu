@@ -26,6 +26,7 @@ Version 2.3 (snapshot) - 14.May.2006
   o Add TAP-Win32 network emulation ("ether tap")
   o Fix CD-ROM auto-detection ("pollmedia" now works)
   o Fix idle sleep ("idlewait" now works)
+  o Fix native cursor to be updated as soon as MacOS modified it
   o Improve GUI for network configuration
 
 Version 2.3 (snapshot) - 30.Nov.2005
