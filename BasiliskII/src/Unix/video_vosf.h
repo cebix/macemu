@@ -73,7 +73,7 @@
 
 // Prototypes
 static void vosf_do_set_dirty_area(uintptr first, uintptr last);
-static void vosf_set_dirty_area(int x, int y, int w, int h, int screen_width, int bytes_per_row);
+static void vosf_set_dirty_area(int x, int y, int w, int h, int screen_width, int screen_height, int bytes_per_row);
 
 // Variables for Video on SEGV support
 static uint8 *the_host_buffer;	// Host frame buffer in VOSF mode
@@ -356,7 +356,7 @@ static void vosf_do_set_dirty_area(uintptr first, uintptr last)
 	}
 }
 
-static void vosf_set_dirty_area(int x, int y, int w, int h, int screen_width, int bytes_per_row)
+static void vosf_set_dirty_area(int x, int y, int w, int h, int screen_width, int screen_height, int bytes_per_row)
 {
 	if (x < 0) {
 		w -= -x;
@@ -368,6 +368,10 @@ static void vosf_set_dirty_area(int x, int y, int w, int h, int screen_width, in
 	}
 	if (w <= 0 || h <= 0)
 		return;
+	if (x + w > screen_width)
+		w -= (x + w) - screen_width;
+	if (y + h > screen_height)
+		h -= (y + h) - screen_height;
 	LOCK_VOSF;
 	if (bytes_per_row >= screen_width) {
 		const int bytes_per_pixel = bytes_per_row / screen_width;

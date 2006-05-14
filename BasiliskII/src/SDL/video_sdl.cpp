@@ -2262,7 +2262,7 @@ void video_set_dirty_area(int x, int y, int w, int h)
 
 #ifdef ENABLE_VOSF
 	if (use_vosf) {
-		vosf_set_dirty_area(x, y, w, h, screen_width, bytes_per_row);
+		vosf_set_dirty_area(x, y, w, h, screen_width, screen_height, bytes_per_row);
 		return;
 	}
 #endif
