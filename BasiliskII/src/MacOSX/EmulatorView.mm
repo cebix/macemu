@@ -232,7 +232,7 @@ static int prevFlags;
 
     if ( ! b )
 	{
-		ErrorAlert("Could not allocate an NSBitmapImageRep for the TIFF");
+		ErrorAlert("Could not allocate an NSBitmapImageRep for the TIFF\nTry setting the emulation to millions of colours?");
 		return nil;
 	}
 
