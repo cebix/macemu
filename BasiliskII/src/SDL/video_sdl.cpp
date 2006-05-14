@@ -49,6 +49,10 @@
 #include <errno.h>
 #include <vector>
 
+#ifdef WIN32
+#include <malloc.h> /* alloca() */
+#endif
+
 #include "cpu_emulation.h"
 #include "main.h"
 #include "adb.h"
