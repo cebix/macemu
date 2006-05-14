@@ -58,7 +58,6 @@
 const char ROM_FILE_NAME[] = "ROM";
 const char ROM_FILE_NAME2[] = "Mac OS ROM";
 
-const uintptr RAM_BASE = 0x20000000;		// Base address of RAM
 const uint32 SIG_STACK_SIZE = 0x10000;		// Size of signal stack
 
 
@@ -79,7 +78,6 @@ DWORD win_os_major;		// Windows OS version major
 
 
 // Global variables
-static bool lm_area_mapped = false;			// Flag: Low Memory area mmap()ped
 static int kernel_area = -1;				// SHM ID of Kernel Data area
 static bool rom_area_mapped = false;		// Flag: Mac ROM mmap()ped
 static bool ram_area_mapped = false;		// Flag: Mac RAM mmap()ped
@@ -261,14 +259,6 @@ int main(int argc, char **argv)
 		if (!PrefsEditor())
 			goto quit;
 
-	// Create Low Memory area (0x0000..0x3000)
-	if (vm_mac_acquire(0, 0x3000) < 0) {
-		sprintf(str, GetString(STR_LOW_MEM_MMAP_ERR), strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-	lm_area_mapped = true;
-
 	// Create areas for Kernel Data
 	if (!kernel_data_init())
 		goto quit;
@@ -317,14 +307,13 @@ int main(int argc, char **argv)
 		WarningAlert(GetString(STR_SMALL_RAM_WARN));
 		RAMSize = 8*1024*1024;
 	}
-
-	if (vm_mac_acquire(RAM_BASE, RAMSize) < 0) {
+	RAMBase = 0;
+	if (vm_mac_acquire(RAMBase, RAMSize) < 0) {
 		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
-	RAMBaseHost = Mac2HostAddr(RAM_BASE);
-	RAMBase = RAM_BASE;
+	RAMBaseHost = Mac2HostAddr(RAMBase);
 	ram_area_mapped = true;
 	D(bug("RAM area at %p (%08x)\n", RAMBaseHost, RAMBase));
 
@@ -432,7 +421,7 @@ static void Quit(void)
 
 	// Delete RAM area
 	if (ram_area_mapped)
-		vm_mac_release(RAM_BASE, RAMSize);
+		vm_mac_release(RAMBase, RAMSize);
 
 	// Delete ROM area
 	if (rom_area_mapped)
@@ -446,10 +435,6 @@ static void Quit(void)
 
 	// Delete Kernel Data area
 	kernel_data_exit();
-
-	// Delete Low Memory area
-	if (lm_area_mapped)
-		vm_mac_release(0, 0x3000);
 
 	// Exit system routines
 	SysExit();
@@ -657,7 +642,7 @@ static DWORD tick_func(void *arg)
 	}
 
 	uint64 end = GetTicks_usec();
-	D(bug("%Ld ticks in %Ld usec = %f ticks/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
+	D(bug("%lu ticks in %lu usec = %f ticks/sec\n", (unsigned long)ticks, (unsigned long)(end - start), ticks * 1000000.0 / (end - start)));
 	return 0;
 }
 

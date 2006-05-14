@@ -52,7 +52,7 @@
 
 // Use Direct Addressing mode
 #define DIRECT_ADDRESSING 1
-#define NATMEM_OFFSET 0x02000000
+#define NATMEM_OFFSET 0x11000000
 
 // Always use the complete (non-stubs based) Ethernet driver
 #if DIRECT_ADDRESSING
