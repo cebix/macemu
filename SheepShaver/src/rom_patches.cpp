@@ -1465,7 +1465,7 @@ static bool patch_nanokernel(void)
 	static const uint8 pg_lookup_dat[] = {0x7e, 0x0f, 0x40, 0x6e, 0x81, 0xc1, 0x06, 0xa4, 0x7e, 0x00, 0x71, 0x20};
 	if ((base = find_rom_data(0x310000, 0x320000, pg_lookup_dat, sizeof(pg_lookup_dat))) == 0) return false;
 	D(bug("fe0a_pgtb_lookup %08lx\n", base - 12));
-	lp = (uint32 *)(ROM_BASE + base - 12);
+	lp = (uint32 *)(ROMBaseHost + base - 12);
 	if (ntohl(lp[0]) != 0x81e106b0)				// lwz	r15,$06b0(r1)
 		return false;
 	lp[0] = htonl(0x54906026);					// slwi	r16,r4,12
@@ -1475,7 +1475,7 @@ static bool patch_nanokernel(void)
 	static const uint8 krnl_write_dat[] = {0x38, 0xe0, 0x00, 0x01, 0x7e, 0x10, 0x38, 0x78, 0x92, 0x0f, 0x00, 0x00};
 	if ((base = find_rom_data(0x310000, 0x320000, krnl_write_dat, sizeof(krnl_write_dat))) == 0) return false;
 	D(bug("fe0a_krnl_write %08lx\n", base));
-	lp = (uint32 *)(ROM_BASE + base);
+	lp = (uint32 *)(ROMBaseHost + base);
 	lp[2] = htonl(POWERPC_NOP);
 
 /*
