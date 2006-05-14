@@ -27,16 +27,15 @@
  *      Ctrl-F5 = grab mouse (in windowed mode)
  *
  *  FIXMEs and TODOs:
+ *  - Windows requires an extra mouse event to update the actual cursor image?
  *  - Ctr-Tab for suspend/resume but how? SDL does not support that for non-Linux
  *  - Ctrl-Fn doesn't generate SDL_KEYDOWN events (SDL bug?)
  *  - Mouse acceleration, there is no API in SDL yet for that
  *  - Force relative mode in Grab mode even if SDL provides absolute coordinates?
- *  - Fullscreen mode
  *  - Gamma tables support is likely to be broken here
  *  - Events processing is bound to the general emulation thread as SDL requires
  *    to PumpEvents() within the same thread as the one that called SetVideoMode().
  *    Besides, there can't seem to be a way to call SetVideoMode() from a child thread.
- *  - Refresh performance is still slow. Use SDL_CreateRGBSurface()?
  *  - Backport hw cursor acceleration to Basilisk II?
  *  - Factor out code
  */
@@ -2190,8 +2189,19 @@ static inline void do_video_refresh(void)
 		LOCK_EVENTS;
 		SDL_FreeCursor(sdl_cursor);
 		sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, MacCursor[2], MacCursor[3]);
-		if (sdl_cursor)
+		if (sdl_cursor) {
 			SDL_SetCursor(sdl_cursor);
+#ifdef WIN32
+			// XXX Windows apparently needs an extra mouse event to
+			// make the new cursor image visible
+			int visible = SDL_ShowCursor(-1);
+			if (visible) {
+				int x, y;
+				SDL_GetMouseState(&x, &y);
+				SDL_WarpMouse(x, y);
+			}
+#endif
+		}
 		UNLOCK_EVENTS;
 	}
 #endif
