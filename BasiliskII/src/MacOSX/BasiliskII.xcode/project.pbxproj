@@ -244,7 +244,7 @@
 				HEADER_SEARCH_PATHS = "../include ../uae_cpu ../Unix ../slirp";
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
-				LIBRARY_SEARCH_PATHS = ".";
+				LIBRARY_SEARCH_PATHS = .;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = BasiliskII;
@@ -282,7 +282,6 @@
 				A68501E905C4EEF200DDBA94,
 				A68501EA05C4EEF200DDBA94,
 				A68501EC05C4EEF200DDBA94,
-				A68501EE05C4EEF200DDBA94,
 				A68501F005C4EEF200DDBA94,
 				A685020D05C4EF6700DDBA94,
 			);
@@ -339,7 +338,6 @@
 				A68501C205C4ED0700DDBA94,
 				A68501E805C4EEF200DDBA94,
 				A68501EB05C4EEF200DDBA94,
-				A68501ED05C4EEF200DDBA94,
 				A68501EF05C4EEF200DDBA94,
 				A68501F305C4EF3300DDBA94,
 				A685020305C4EF6700DDBA94,
@@ -1036,8 +1034,6 @@
 				A68501E105C4EEF200DDBA94,
 				A68501E205C4EEF200DDBA94,
 				A68501E305C4EEF200DDBA94,
-				A68501E405C4EEF200DDBA94,
-				A68501E505C4EEF200DDBA94,
 				A68501E605C4EEF200DDBA94,
 				A68501E705C4EEF200DDBA94,
 			);
@@ -1137,24 +1133,6 @@
 			refType = 2;
 			sourceTree = SOURCE_ROOT;
 		};
-		A68501E405C4EEF200DDBA94 = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.cpp;
-			name = newcpu.cpp;
-			path = ../uae_cpu/newcpu.cpp;
-			refType = 2;
-			sourceTree = SOURCE_ROOT;
-		};
-		A68501E505C4EEF200DDBA94 = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.c.h;
-			name = newcpu.h;
-			path = ../uae_cpu/newcpu.h;
-			refType = 2;
-			sourceTree = SOURCE_ROOT;
-		};
 		A68501E605C4EEF200DDBA94 = {
 			fileEncoding = 30;
 			isa = PBXFileReference;
@@ -1199,18 +1177,6 @@
 		};
 		A68501EC05C4EEF200DDBA94 = {
 			fileRef = A68501E305C4EEF200DDBA94;
-			isa = PBXBuildFile;
-			settings = {
-			};
-		};
-		A68501ED05C4EEF200DDBA94 = {
-			fileRef = A68501E405C4EEF200DDBA94;
-			isa = PBXBuildFile;
-			settings = {
-			};
-		};
-		A68501EE05C4EEF200DDBA94 = {
-			fileRef = A68501E505C4EEF200DDBA94;
 			isa = PBXBuildFile;
 			settings = {
 			};

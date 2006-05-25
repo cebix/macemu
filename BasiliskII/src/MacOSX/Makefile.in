@@ -143,7 +143,10 @@ cpuemu.s: cpuemu.cpp
 $(EMU_OBJ) : build/%.o : %.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
 
-$(EMU_LIB) : $(EMU_OBJ)
+build/newcpu.o : ../uae_cpu/newcpu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
+
+$(EMU_LIB) : $(EMU_OBJ) build/newcpu.o
 	libtool -static -o $@ $^
 
 $(SLIRP_OBJ) : build/%.o : ../slirp/%.c
