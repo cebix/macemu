@@ -1427,10 +1427,8 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		case PPC_I(VCMPGTSH):
 		case PPC_I(VCMPGTSW):
 		case PPC_I(VMADDFP):
-		case PPC_I(VMAXFP):
 		case PPC_I(VMAXSH):
 		case PPC_I(VMAXUB):
-		case PPC_I(VMINFP):
 		case PPC_I(VMINSH):
 		case PPC_I(VMINUB):
 		case PPC_I(VNMSUBFP):

@@ -222,10 +222,34 @@ struct op_max {
 	}
 };
 
+template<>
+struct op_max<float> {
+	static inline float apply(float a, float b) {
+		// XXX The maximum of any value and a NaN is a QNaN
+		if (mathlib_isnan(a))
+			return a;
+		if (mathlib_isnan(b))
+			return b;
+		return a > b ? a : b;
+	}
+};
+
 template< class TYPE >
 struct op_min {
 	static inline TYPE apply(TYPE a, TYPE b) {
 		return (a < b) ? a : b;
+	}
+};
+
+template<>
+struct op_min<float> {
+	static inline float apply(float a, float b) {
+		// XXX The minimum of any value and a NaN is a QNaN
+		if (mathlib_isnan(a))
+			return a;
+		if (mathlib_isnan(b))
+			return b;
+		return a < b ? a : b;
 	}
 };
 
