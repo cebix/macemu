@@ -442,28 +442,31 @@ void powerpc_cpu::execute_multiply(uint32 opcode)
  *		Update FP exception bits
  **/
 
-void powerpc_cpu::record_fpscr()
+void powerpc_cpu::record_fpscr(int exceptions)
 {
 #if PPC_ENABLE_FPU_EXCEPTIONS
+	// Reset non-sticky bits
+	fpscr() &= ~(FPSCR_VX_field::mask() | FPSCR_FEX_field::mask());
+
+	// Always update FX if exception bits changed
+	if (exceptions)
+		fpscr() |= FPSCR_FX_field::mask() | exceptions;
+
 	// Always update VX
-	if (fpscr() & (FPSCR_VXSNAN_field::mask() | FPSCR_VXISI_field::mask() | \
-				   FPSCR_VXISI_field::mask() | FPSCR_VXIDI_field::mask() | \
-				   FPSCR_VXZDZ_field::mask() | FPSCR_VXIMZ_field::mask() | \
-				   FPSCR_VXVC_field::mask() | FPSCR_VXSOFT_field::mask() | \
+	if (fpscr() & (FPSCR_VXSNAN_field::mask() | FPSCR_VXISI_field::mask() |
+				   FPSCR_VXISI_field::mask() | FPSCR_VXIDI_field::mask() |
+				   FPSCR_VXZDZ_field::mask() | FPSCR_VXIMZ_field::mask() |
+				   FPSCR_VXVC_field::mask() | FPSCR_VXSOFT_field::mask() |
 				   FPSCR_VXSQRT_field::mask() | FPSCR_VXCVI_field::mask()))
 		fpscr() |= FPSCR_VX_field::mask();
-	else
-		fpscr() &= ~FPSCR_VX_field::mask();
 
 	// Always update FEX
-	if (((fpscr() & FPSCR_VX_field::mask()) && (fpscr() & FPSCR_VE_field::mask())) \
-		|| ((fpscr() & FPSCR_OX_field::mask()) && (fpscr() & FPSCR_OE_field::mask())) \
-		|| ((fpscr() & FPSCR_UX_field::mask()) && (fpscr() & FPSCR_UE_field::mask())) \
-		|| ((fpscr() & FPSCR_ZX_field::mask()) && (fpscr() & FPSCR_ZE_field::mask())) \
-		|| ((fpscr() & FPSCR_XX_field::mask()) && (fpscr() & FPSCR_XE_field::mask())))
+	if (((fpscr() & FPSCR_VX_field::mask()) && (fpscr() & FPSCR_VE_field::mask())) ||
+		((fpscr() & FPSCR_OX_field::mask()) && (fpscr() & FPSCR_OE_field::mask())) ||
+		((fpscr() & FPSCR_UX_field::mask()) && (fpscr() & FPSCR_UE_field::mask())) ||
+		((fpscr() & FPSCR_ZX_field::mask()) && (fpscr() & FPSCR_ZE_field::mask())) ||
+		((fpscr() & FPSCR_XX_field::mask()) && (fpscr() & FPSCR_XE_field::mask())))
 		fpscr() |= FPSCR_FEX_field::mask();
-	else
-		fpscr() &= ~FPSCR_FEX_field::mask();
 #endif
 }
 
@@ -487,53 +490,38 @@ void powerpc_cpu::execute_fp_arith(uint32 opcode)
 	const double b = RB::get(this, opcode);
 	const double c = RC::get(this, opcode);
 
-	// Check for FP Exception Conditions
 #if PPC_ENABLE_FPU_EXCEPTIONS
-	int exceptions = 0;
+	int exceptions;
 	if (FPSCR) {
 		exceptions = op_apply<uint32, fp_exception_condition<OP>, RA, RB, RC>::apply(a, b, c);
 		feclearexcept(FE_ALL_EXCEPT);
+		febarrier();
 	}
 #endif
 
 	FP d = op_apply<double, OP, RA, RB, RC>::apply(a, b, c);
 
-#if PPC_ENABLE_FPU_EXCEPTIONS
 	if (FPSCR) {
 
-		// Check exceptions raised
-		int masked = 0xffffffff;
-		int raised = fetestexcept(FE_ALL_EXCEPT);
-		if (raised & FE_INEXACT) {
-			exceptions |= FPSCR_XX_field::mask();
-			exceptions |= FPSCR_FX_field::mask();
-		}
-		if (raised & FE_DIVBYZERO) {
-			exceptions |= FPSCR_ZX_field::mask();
-			exceptions |= FPSCR_FX_field::mask();
-		}
-		else masked &= ~FPSCR_ZX_field::mask();
-		if (raised & FE_UNDERFLOW) {
-			exceptions |= FPSCR_UX_field::mask();
-			exceptions |= FPSCR_FX_field::mask();
-		}
-		else masked &= ~FPSCR_UX_field::mask();
-		if (raised & FE_OVERFLOW) {
-			exceptions |= FPSCR_OX_field::mask();
-			exceptions |= FPSCR_FX_field::mask();
-		}
-		else masked &= ~FPSCR_OX_field::mask();
-		fpscr() &= masked;
-		fpscr() |= exceptions;
-
 		// Update FPSCR exception bits
-		record_fpscr();
+#if PPC_ENABLE_FPU_EXCEPTIONS
+		febarrier();
+		int raised = fetestexcept(FE_ALL_EXCEPT);
+		if (raised & FE_INEXACT)
+			exceptions |= FPSCR_XX_field::mask();
+		if (raised & FE_DIVBYZERO)
+			exceptions |= FPSCR_ZX_field::mask();
+		if (raised & FE_UNDERFLOW)
+			exceptions |= FPSCR_UX_field::mask();
+		if (raised & FE_OVERFLOW)
+			exceptions |= FPSCR_OX_field::mask();
+		record_fpscr(exceptions);
+#endif
 
 		// FPSCR[FPRF] is set to the class and sign of the result
-		if (!exceptions || !FPSCR_VE_field::test(fpscr()))
+		if (!FPSCR_VE_field::test(fpscr()))
 			fp_classify(d);
 	}
-#endif
 	
 	// Set CR1 (FX, FEX, VX, VOX) if instruction has Rc set
 	if (Rc::test(opcode))
@@ -806,24 +794,18 @@ void powerpc_cpu::execute_fp_compare(uint32 opcode)
 	FPSCR_FPCC_field::insert(fpscr(), c);
 	cr().set(crfd, c);
 
-	// Check for FP exception condition
-#if PPC_ENABLE_FPU_EXCEPTIONS
-	if (is_SNaN(a) || is_SNaN(b)) {
-		fpscr() |= FPSCR_VXSNAN_field::mask();
-		fpscr() |= FPSCR_FX_field::mask();
-		if (OC && !FPSCR_VE_field::test(fpscr())) {
-			fpscr() |= FPSCR_VXVC_field::mask();
-			fpscr() |= FPSCR_FX_field::mask();
-		}
-	}
-	else if (OC && (is_QNaN(a) || is_QNaN(b))) {
-		fpscr() |= FPSCR_VXVC_field::mask();
-		fpscr() |= FPSCR_FX_field::mask();
-	}
-#endif
-
 	// Update FPSCR exception bits
-	record_fpscr();
+#if PPC_ENABLE_FPU_EXCEPTIONS
+	int exceptions = 0;
+	if (is_SNaN(a) || is_SNaN(b)) {
+		exceptions |= FPSCR_VXSNAN_field::mask();
+		if (OC && !FPSCR_VE_field::test(fpscr()))
+			exceptions |= FPSCR_VXVC_field::mask();
+	}
+	else if (OC && (is_QNaN(a) || is_QNaN(b)))
+		exceptions |= FPSCR_VXVC_field::mask();
+	record_fpscr(exceptions);
+#endif
 
 	increment_pc(4);
 }
@@ -841,6 +823,20 @@ void powerpc_cpu::execute_fp_int_convert(uint32 opcode)
 	const double b = operand_fp_RB::get(this, opcode);
 	const uint32 r = RN::get(this, opcode);
 	any_register d;
+
+#if PPC_ENABLE_FPU_EXCEPTIONS
+	int exceptions = 0;
+	if (is_NaN(b)) {
+		exceptions |= FPSCR_VXCVI_field::mask();
+		if (is_SNaN(b))
+			exceptions |= FPSCR_VXSNAN_field::mask();
+	}
+	if (isinf(b))
+		exceptions |= FPSCR_VXCVI_field::mask();
+
+	feclearexcept(FE_ALL_EXCEPT);
+	febarrier();
+#endif
 
 	// Convert to integer word if operand fits bounds
 	if (b >= -(double)0x80000000 && b <= (double)0x7fffffff) {
@@ -866,7 +862,15 @@ void powerpc_cpu::execute_fp_int_convert(uint32 opcode)
 		d.j = 0x80000000;
 
 	// Update FPSCR exception bits
-	record_fpscr();
+#if PPC_ENABLE_FPU_EXCEPTIONS
+	febarrier();
+	int raised = fetestexcept(FE_ALL_EXCEPT);
+	if (raised & FE_UNDERFLOW)
+		exceptions |= FPSCR_UX_field::mask();
+	if (raised & FE_INEXACT)
+		exceptions |= FPSCR_XX_field::mask();
+	record_fpscr(exceptions);
+#endif
 
 	// Set CR1 (FX, FEX, VX, VOX) if instruction has Rc set
 	if (Rc::test(opcode))
@@ -918,10 +922,32 @@ template< class Rc >
 void powerpc_cpu::execute_fp_round(uint32 opcode)
 {
 	const double b = operand_fp_RB::get(this, opcode);
+
+#if PPC_ENABLE_FPU_EXCEPTIONS
+	int exceptions =
+		fp_invalid_operation_condition<double>::
+		apply(FPSCR_VXSNAN_field::mask(), b);
+
+	feclearexcept(FE_ALL_EXCEPT);
+	febarrier();
+#endif
+
 	float d = (float)b;
 
+	// Update FPSCR exception bits
+#if PPC_ENABLE_FPU_EXCEPTIONS
+	febarrier();
+	int raised = fetestexcept(FE_ALL_EXCEPT);
+	if (raised & FE_UNDERFLOW)
+		exceptions |= FPSCR_UX_field::mask();
+	if (raised & FE_INEXACT)
+		exceptions |= FPSCR_XX_field::mask();
+	record_fpscr(exceptions);
+#endif
+
 	// FPSCR[FPRF] is set to the class and sign of the result
-	fp_classify(d);
+	if (!FPSCR_VE_field::test(fpscr()))
+		fp_classify(d);
 
 	// Set CR1 (FX, FEX, VX, VOX) if instruction has Rc set
 	if (Rc::test(opcode))
@@ -1006,8 +1032,15 @@ void powerpc_cpu::execute_mtfsf(uint32 opcode)
 	if ((f & 0x80) == 0)
 		m &= ~FPSCR_FX_field::mask();
 
+	// The mtfsf instruction cannot alter FPSCR[FEX] nor FPSCR[VX] explicitly
+	int exceptions = fsf & m;
+	exceptions &= ~(FPSCR_FEX_field::mask() | FPSCR_VX_field::mask());
+
 	// Move frB bits to FPSCR according to field mask
-	fpscr() = (fsf & m) | (fpscr() & ~m);
+	fpscr() = (fpscr() & ~m) | exceptions;
+
+	// Update FPSCR exception bits (don't implicitly update FX)
+	record_fpscr(0);
 
 	// Update native FP control word
 	if (m & FPSCR_RN_field::mask())
@@ -1030,15 +1063,19 @@ void powerpc_cpu::execute_mtfsfi(uint32 opcode)
 	if (crfD == 0)
 		m &= ~FPSCR_FX_field::mask();
 
+	// The mtfsfi instruction cannot alter FPSCR[FEX] nor FPSCR[VX] explicitly
+	int exceptions = RB::get(this, opcode) & m;
+	exceptions &= ~(FPSCR_FEX_field::mask() | FPSCR_VX_field::mask());
+
 	// Move immediate to FPSCR according to field crfD
-	fpscr() = (RB::get(this, opcode) & m) | (fpscr() & ~m);
+	fpscr() = (fpscr() & ~m) | exceptions;
 
 	// Update native FP control word
 	if (m & FPSCR_RN_field::mask())
 		fesetround(ppc_to_native_rounding_mode(FPSCR_RN_field::extract(fpscr())));
 
-	// Update FPSCR exception bits
-	record_fpscr();
+	// Update FPSCR exception bits (don't implicitly update FX)
+	record_fpscr(0);
 
 	// Set CR1 (FX, FEX, VX, VOX) if instruction has Rc set
 	if (Rc::test(opcode))
@@ -1050,16 +1087,21 @@ void powerpc_cpu::execute_mtfsfi(uint32 opcode)
 template< class RB, class Rc >
 void powerpc_cpu::execute_mtfsb(uint32 opcode)
 {
-	// Bit crbD of the FPSCR is set or cleared
 	const uint32 crbD = crbD_field::extract(opcode);
-	fpscr() = (fpscr() & ~(1 << (31 - crbD))) | (RB::get(this, opcode) << (31 - crbD));
+
+	// The mtfsb0 and mtfsb1 instructions cannot alter FPSCR[FEX] nor FPSCR[VX] explicitly
+	int exceptions = RB::get(this, opcode) << (31 - crbD);
+	exceptions &= ~(FPSCR_FEX_field::mask() | FPSCR_VX_field::mask());
+
+	// Bit crbD of the FPSCR is set or cleared
+	fpscr() &= ~(1 << (31 - crbD));
 
 	// Update native FP control word
 	if (crbD & FPSCR_RN_field::mask())
 		fesetround(ppc_to_native_rounding_mode(FPSCR_RN_field::extract(fpscr())));
 
 	// Update FPSCR exception bits
-	record_fpscr();
+	record_fpscr(exceptions);
 
 	// Set CR1 (FX, FEX, VX, VOX) if instruction has Rc set
 	if (Rc::test(opcode))
@@ -1073,9 +1115,6 @@ void powerpc_cpu::execute_mffs(uint32 opcode)
 {
 	// Move FPSCR to FPR(FRD)
 	operand_fp_dw_RD::set(this, opcode, fpscr());
-
-	// Update FPSCR exception bits
-	record_fpscr();
 
 	// Set CR1 (FX, FEX, VX, VOX) if instruction has Rc set
 	if (Rc::test(opcode))

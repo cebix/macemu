@@ -127,7 +127,7 @@ protected:
 		{ record_cr(0, value); }
 	void record_cr1()
 		{ cr().set((cr().get() & ~CR_field<1>::mask()) | ((fpscr() >> 4) & 0x0f000000)); }
-	void record_fpscr();
+	void record_fpscr(int exceptions);
 	void record_cr6(powerpc_vr const & vS, bool check_one) {
 		if (check_one && (vS.j[0] == UVAL64(0xffffffffffffffff) &&
 						  vS.j[1] == UVAL64(0xffffffffffffffff)))

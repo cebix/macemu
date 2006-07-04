@@ -228,34 +228,40 @@ static inline uint32 fp_store_single_convert(uint64 v)
  *		FP classification
  **/
 
-static inline bool is_NaN(double v) {
+static inline bool is_NaN(double v)
+{
 	any_register x; x.d = v;
 	return (((x.j & UVAL64(0x7ff0000000000000)) == UVAL64(0x7ff0000000000000)) &&
 			((x.j & UVAL64(0x000fffffffffffff)) != 0));
 }
 
-static inline bool is_SNaN(double v) {
+static inline bool is_QNaN(double v)
+{
 	any_register x; x.d = v;
-	return is_NaN(v) && !(x.j & UVAL64(0x0008000000000000)) ? signbit(v) : false;
+	return is_NaN(v) && (x.j & UVAL64(0x0008000000000000));
 }
 
-static inline bool is_QNaN(double v) {
-	return is_NaN(v) && !is_SNaN(v);
+static inline bool is_SNaN(double v)
+{
+	return is_NaN(v) && !is_QNaN(v);
 }
 
-static inline bool is_NaN(float v) {
+static inline bool is_NaN(float v)
+{
 	any_register x; x.f = v;
 	return (((x.i & 0x7f800000) == 0x7f800000) &&
 			((x.i & 0x007fffff) != 0));
 }
 
-static inline bool is_SNaN(float v) {
+static inline bool is_QNaN(float v)
+{
 	any_register x; x.f = v;
-	return is_NaN(v) && !(x.i & 0x00400000) ? signbit(v) : false;
+	return is_NaN(v) && (x.i & 0x00400000);
 }
 
-static inline bool is_QNaN(float v) {
-	return is_NaN(v) && !is_SNaN(v);
+static inline bool is_SNaN(float v)
+{
+	return is_NaN(v) && !is_QNaN(v);
 }
 
 /**
@@ -277,43 +283,35 @@ struct fp_exception_condition {
 
 template< class FP >
 struct fp_invalid_operation_condition {
-	static inline uint32 apply(FP a, FP b, int check, bool negate = false) {
+	static inline uint32 apply(int flags) {
 		uint32 exceptions = 0;
-		if (FPSCR_VXSNAN_field::test(check) && (is_SNaN(a) || is_SNaN(b))) {
-			exceptions |= FPSCR_VXSNAN_field::mask();
-			exceptions |= FPSCR_FX_field::mask();
-		}
-		if (FPSCR_VXISI_field::test(check) && isinf(a) && isinf(b)) {
-			if ((negate && (signbit(a) == signbit(b))) ||
-				(!negate && (signbit(a) != signbit(b)))) {
-					exceptions |= FPSCR_VXISI_field::mask();
-					exceptions |= FPSCR_FX_field::mask();
-			}
-		}
-		if (FPSCR_VXIDI_field::test(check) && isinf(a) && isinf(b)) {
-			exceptions |= FPSCR_VXIDI_field::mask();
-			exceptions |= FPSCR_FX_field::mask();
-		}
-		if (FPSCR_VXZDZ_field::test(check) && a == 0 && b == 0) {
-			exceptions |= FPSCR_VXZDZ_field::mask();
-			exceptions |= FPSCR_FX_field::mask();
-		}
-		if (FPSCR_VXIMZ_field::test(check) && a == 0 && isinf(b)) {
-			exceptions |= FPSCR_VXIMZ_field::mask();
-			exceptions |= FPSCR_FX_field::mask();
-		}
-		if (FPSCR_VXVC_field::test(check) && (is_NaN(a) || is_NaN(b))) {
-			exceptions |= FPSCR_VXVC_field::mask();
-			exceptions |= FPSCR_FX_field::mask();
-		}
-		if (FPSCR_VXSOFT_field::test(check)) {
+		if (FPSCR_VXSOFT_field::test(flags))
 			exceptions |= FPSCR_VXSOFT_field::mask();
-			exceptions |= FPSCR_FX_field::mask();
-		}
-		if (FPSCR_VXSQRT_field::test(check) && signbit(a)) {
+		return 0;
+	}
+	static inline uint32 apply(int flags, FP a) {
+		uint32 exceptions = 0;
+		if (FPSCR_VXSNAN_field::test(flags) && is_SNaN(a))
+			exceptions |= FPSCR_VXSNAN_field::mask();
+		if (FPSCR_VXVC_field::test(flags) && is_NaN(a))
+			exceptions |= FPSCR_VXVC_field::mask();
+		if (FPSCR_VXSQRT_field::test(flags) && signbit(a))
 			exceptions |= FPSCR_VXSQRT_field::mask();
-			exceptions |= FPSCR_FX_field::mask();
+		return exceptions;
+	}
+	static inline uint32 apply(int flags, FP a, FP b, bool negate = false) {
+		uint32 exceptions = apply(flags) | apply(flags, a) | apply(flags, b);
+		if (FPSCR_VXISI_field::test(flags) && isinf(a) && isinf(b)) {
+			if (( negate && (signbit(a) == signbit(b))) ||
+				(!negate && (signbit(a) != signbit(b))))
+				exceptions |= FPSCR_VXISI_field::mask();
 		}
+		if (FPSCR_VXIDI_field::test(flags) && isinf(a) && isinf(b))
+			exceptions |= FPSCR_VXIDI_field::mask();
+		if (FPSCR_VXZDZ_field::test(flags) && a == 0 && b == 0)
+			exceptions |= FPSCR_VXZDZ_field::mask();
+		if (FPSCR_VXIMZ_field::test(flags) && ((a == 0 && isinf(b)) || (isinf(a) && b == 0)))
+			exceptions |= FPSCR_VXIMZ_field::mask();
 		return exceptions;
 	}
 };
@@ -322,7 +320,7 @@ struct fp_invalid_operation_condition {
 template<>																		\
 struct fp_exception_condition<OP> {												\
 	static inline uint32 apply(TYPE a, TYPE b) {								\
-		return fp_invalid_operation_condition<TYPE>::apply(a, b, EXCP, NEGATE);	\
+		return fp_invalid_operation_condition<TYPE>::apply(EXCP, a, b, NEGATE);	\
 	}																			\
 };
 
@@ -335,32 +333,31 @@ struct fp_divide_exception_condition {
 	static inline uint32 apply(FP a, FP b) {
 		int exceptions =
 			fp_invalid_operation_condition<FP>::
-			apply(a, b,
-				  FPSCR_VXSNAN_field::mask() | FPSCR_VXIDI_field::mask() | FPSCR_VXZDZ_field::mask());
-#if 0
-		if (!exceptions && b == 0)
-			exceptions = FPSCR_ZX_field::mask() | FPSCR_FX_field::mask();
-#endif
+			apply(FPSCR_VXSNAN_field::mask() | FPSCR_VXIDI_field::mask() | FPSCR_VXZDZ_field::mask(),
+				  a, b);
+		if (isfinite(a) && a != 0 && b == 0)
+			exceptions = FPSCR_ZX_field::mask();
 		return exceptions;
 	}
 };
 
 template<> struct fp_exception_condition<op_fdiv> : fp_divide_exception_condition<double> { };
 
-template< class FP, bool NG >
+template< class FP, bool negate >
 struct fp_fma_exception_condition {
 	static inline uint32 apply(FP a, FP b, FP c) {
-#if 1
-		return fp_invalid_operation_condition<FP>::
-			apply(a, b, FPSCR_VXSNAN_field::mask() | FPSCR_VXIMZ_field::mask());
-#else
-		// FIXME: we are losing precision
-		double p = a * b;
-		return (fp_invalid_operation_condition<FP>::
-				apply(a, b, FPSCR_VXSNAN_field::mask() | FPSCR_VXIMZ_field::mask(), false) |
-				fp_invalid_operation_condition<FP>::
-				apply(p, c, FPSCR_VXSNAN_field::mask() | FPSCR_VXISI_field::mask(), NG));
-#endif
+		return
+			fp_invalid_operation_condition<FP>::
+			apply(FPSCR_VXSNAN_field::mask(), a) |
+			fp_invalid_operation_condition<FP>::
+			apply(FPSCR_VXSNAN_field::mask(), b) |
+			fp_invalid_operation_condition<FP>::
+			apply(FPSCR_VXSNAN_field::mask(), c) |
+			fp_invalid_operation_condition<FP>::
+			apply(FPSCR_VXIMZ_field::mask(), a, b) |
+			fp_invalid_operation_condition<FP>::
+			apply(FPSCR_VXISI_field::mask(), a * b, c, negate)
+			;
 	}
 };
 

@@ -46,6 +46,16 @@ extern "C" int fesetround(int);
 
 #endif /* FENV_H */
 
+// Make sure previous instructions are executed first
+// XXX this is most really a hint to the compiler so that is doesn't
+// reorder calls to fe*() functions before the actual compuation...
+#if defined __GNUC__
+#define febarrier() __asm__ __volatile__ ("")
+#endif
+#ifndef febarrier
+#define febarrier()
+#endif
+
 // HOST_FLOAT_WORDS_BIG_ENDIAN is a tristate:
 //   yes (1) / no (0) / default (undefined)
 #if HOST_FLOAT_WORDS_BIG_ENDIAN
