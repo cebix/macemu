@@ -346,7 +346,7 @@ template<> struct fp_exception_condition<op_fdiv> : fp_divide_exception_conditio
 template< class FP, bool negate >
 struct fp_fma_exception_condition {
 	static inline uint32 apply(FP a, FP b, FP c) {
-		return
+		int exceptions =
 			fp_invalid_operation_condition<FP>::
 			apply(FPSCR_VXSNAN_field::mask(), a) |
 			fp_invalid_operation_condition<FP>::
@@ -354,10 +354,21 @@ struct fp_fma_exception_condition {
 			fp_invalid_operation_condition<FP>::
 			apply(FPSCR_VXSNAN_field::mask(), c) |
 			fp_invalid_operation_condition<FP>::
-			apply(FPSCR_VXIMZ_field::mask(), a, b) |
-			fp_invalid_operation_condition<FP>::
-			apply(FPSCR_VXISI_field::mask(), a * b, c, negate)
-			;
+			apply(FPSCR_VXIMZ_field::mask(), a, b);
+		// 2.1.5 -- The XER bit definitions are based on the
+		// operation of an instruction considered as a whole,
+		// not on intermediate results
+		if ((isinf(a) || isinf(b)) && isinf(c)) {
+			FP m = a * b;
+			if (isinf(m)) {
+				// make sure the intermediate result is an infinity and not a NaN
+				// FIXME: it could be faster to use (exceptions & IMZ) == 0 instead of isinf()
+				if (( negate && (signbit(m) == signbit(c))) ||
+					(!negate && (signbit(m) != signbit(c))))
+					exceptions |= FPSCR_VXISI_field::mask();
+			}
+		}
+		return exceptions;
 	}
 };
 
