@@ -84,6 +84,31 @@ enum {
 #endif
 
 // Floating-Point Multiply Add/Subtract functions
+#if (SIZEOF_LONG_DOUBLE > SIZEOF_DOUBLE) && (SIZEOF_DOUBLE > SIZEOF_FLOAT)
+// FIXME: this is wrong for underflow conditions
+#ifndef mathlib_fmadd
+static inline double mathlib_fmadd(double x, double y, double z)
+{
+	return ((long double)x * (long double)y) + z;
+}
+static inline float mathlib_fmadd(float x, float y, float z)
+{
+	return ((double)x * (double)y) + z;
+}
+#define mathlib_fmadd(x, y, z) (mathlib_fmadd)(x, y, z)
+#endif
+#ifndef mathlib_fmsub
+static inline double mathlib_fmsub(double x, double y, double z)
+{
+	return ((long double)x * (long double)y) - z;
+}
+static inline float mathlib_fmsub(float x, float y, float z)
+{
+	return ((double)x * (double)y) - z;
+}
+#define mathlib_fmsub(x, y, z) (mathlib_fmsub)(x, y, z)
+#endif
+#endif
 #ifndef mathlib_fmadd
 #define mathlib_fmadd(x, y, z) (((x) * (y)) + (z))
 #endif
