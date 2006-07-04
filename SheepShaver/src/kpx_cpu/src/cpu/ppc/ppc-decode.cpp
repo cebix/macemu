@@ -1823,19 +1823,19 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  VX_form, 4, 714, CFLOW_NORMAL
 	},
 	{ "vrfin",
-	  EXECUTE_VECTOR_ARITH(frin, V4SF, NONE, V4SF, NONE),
+	  EXECUTE_VECTOR_ARITH(frsin, V4SF, NONE, V4SF, NONE),
 	  NULL,
 	  PPC_I(VRFIN),
 	  VX_form, 4, 522, CFLOW_NORMAL
 	},
 	{ "vrfip",
-	  EXECUTE_VECTOR_ARITH(frip, V4SF, NONE, V4SF, NONE),
+	  EXECUTE_VECTOR_ARITH(frsip, V4SF, NONE, V4SF, NONE),
 	  NULL,
 	  PPC_I(VRFIP),
 	  VX_form, 4, 650, CFLOW_NORMAL
 	},
 	{ "vrfiz",
-	  EXECUTE_VECTOR_ARITH(friz, V4SF, NONE, V4SF, NONE),
+	  EXECUTE_VECTOR_ARITH(frsiz, V4SF, NONE, V4SF, NONE),
 	  NULL,
 	  PPC_I(VRFIZ),
 	  VX_form, 4, 586, CFLOW_NORMAL

@@ -141,6 +141,10 @@ DEFINE_OP3(fnmadd, double, -((x * y) + z));
 DEFINE_OP3(fnmsub, double, -((x * y) - z));
 DEFINE_OP2(fsub, double, x - y);
 DEFINE_OP3(fsel, double, (x >= 0.0) ? y : z);
+DEFINE_OP1(frim, double, floor(x));
+DEFINE_OP1(frin, double, round(x));
+DEFINE_OP1(frip, double, ceil(x));
+DEFINE_OP1(friz, double, trunc(x));
 
 DEFINE_OP1(fnops, float, x);
 DEFINE_OP1(fabss, float, fabs(x));
@@ -159,10 +163,10 @@ DEFINE_OP1(exp2, float, exp2f(x));
 DEFINE_OP1(log2, float, log2f(x));
 DEFINE_OP1(fres, float, 1 / x);
 DEFINE_OP1(frsqrt, float, 1 / sqrt(x));
-DEFINE_OP1(frim, float, floorf(x));
-DEFINE_OP1(frin, float, roundf(x));
-DEFINE_OP1(frip, float, ceilf(x));
-DEFINE_OP1(friz, float, truncf(x));
+DEFINE_OP1(frsim, float, floorf(x));
+DEFINE_OP1(frsin, float, roundf(x));
+DEFINE_OP1(frsip, float, ceilf(x));
+DEFINE_OP1(frsiz, float, truncf(x));
 
 // Misc operations used in AltiVec instructions
 

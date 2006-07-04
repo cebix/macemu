@@ -118,6 +118,73 @@ int mathlib_signbitl(long double x)
 
 
 /**
+ *		7.12.9.5  The lrint and llrint functions
+ **/
+
+#ifndef mathlib_lrint
+long mathlib_lrint(double x)
+{
+	int32 j0;
+	uint32 i0, i1;
+	volatile double w;
+	double t;
+	long int result;
+	int sx;
+
+	static const double two52[2] = {
+		 4.50359962737049600000e+15, /* 0x43300000, 0x00000000 */
+		-4.50359962737049600000e+15, /* 0xC3300000, 0x00000000 */
+	};
+
+	MATHLIB_EXTRACT_WORDS (i0, i1, x);
+	j0 = ((i0 >> 20) & 0x7ff) - 0x3ff;
+	sx = i0 >> 31;
+	i0 &= 0xfffff;
+	i0 |= 0x100000;
+
+	if (j0 < 20) {
+		if (j0 < -1)
+			return 0;
+		else {
+			w = two52[sx] + x;
+			t = w - two52[sx];
+			MATHLIB_EXTRACT_WORDS (i0, i1, t);
+			j0 = ((i0 >> 20) & 0x7ff) - 0x3ff;
+			i0 &= 0xfffff;
+			i0 |= 0x100000;
+
+			result = i0 >> (20 - j0);
+        }
+    }
+	else if (j0 < (int32_t) (8 * sizeof (long int)) - 1) {
+		if (j0 >= 52)
+			result = ((long int) i0 << (j0 - 20)) | (i1 << (j0 - 52));
+		else {
+			w = two52[sx] + x;
+			t = w - two52[sx];
+			MATHLIB_EXTRACT_WORDS (i0, i1, t);
+			j0 = ((i0 >> 20) & 0x7ff) - 0x3ff;
+			i0 &= 0xfffff;
+			i0 |= 0x100000;
+
+			if (j0 == 20)
+				result = (long int) i0;
+			else
+				result = ((long int) i0 << (j0 - 20)) | (i1 >> (52 - j0));
+        }
+    }
+	else {
+		/* The number is too large.  It is left implementation defined
+		   what happens.  */
+		return (long int) x;
+    }
+
+	return sx ? -result : result;
+}
+#endif
+
+
+/**
  *		7.12.9.6  The round functions
  **/
 
@@ -137,7 +204,7 @@ float mathlib_roundf(float x)
 			}
 		}
 		else {
-			u_int32_t i = 0x007fffff >> j0;
+			uint32 i = 0x007fffff >> j0;
 			if ((i0 & i) == 0)
 				/* X is integral.  */
 				return x;

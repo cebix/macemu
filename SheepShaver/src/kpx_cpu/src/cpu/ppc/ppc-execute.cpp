@@ -70,6 +70,30 @@ void powerpc_cpu::execute_nop(uint32 opcode)
 }
 
 /**
+ *  Floating-point rounding modes conversion
+ **/
+
+static inline int ppc_to_native_rounding_mode(int round)
+{
+	switch (round) {
+	case 0: return FE_TONEAREST;
+	case 1: return FE_TOWARDZERO;
+	case 2: return FE_UPWARD;
+	case 3: return FE_DOWNWARD;
+	}
+}
+
+static inline int native_to_ppc_rounding_mode(int round)
+{
+	switch (round) {
+	case FE_TONEAREST:	return 0;
+	case FE_TOWARDZERO:	return 1;
+	case FE_UPWARD:		return 2;
+	case FE_DOWNWARD:	return 3;
+	}
+}
+
+/**
  *	Helper class to compute the overflow/carry condition
  *
  *		OP		Operation to perform
@@ -818,13 +842,28 @@ void powerpc_cpu::execute_fp_int_convert(uint32 opcode)
 	const uint32 r = RN::get(this, opcode);
 	any_register d;
 
-	// Bounds checking and convert to integer word
-	if (b > (double)0x7fffffff)
+	// Convert to integer word if operand fits bounds
+	if (b >= -(double)0x80000000 && b <= (double)0x7fffffff) {
+#if defined mathlib_lrint
+		int old_round = fegetround();
+		fesetround(ppc_to_native_rounding_mode(r));
+		d.j = (int32)mathlib_lrint(b);
+		fesetround(old_round);
+#else
+		switch (r) {
+		case 0: d.j = (int32)op_frin::apply(b); break; // near
+		case 1: d.j = (int32)op_friz::apply(b); break; // zero
+		case 2: d.j = (int32)op_frip::apply(b); break; // +inf
+		case 3: d.j = (int32)op_frim::apply(b); break; // -inf
+		}
+#endif
+	}
+
+	// NOTE: this catches infinity and NaN operands
+	else if (b > 0)
 		d.j = 0x7fffffff;
-	else if (b < -(double)0x80000000)
-		d.j = 0x80000000;
 	else
-		d.j = (int32)b;
+		d.j = 0x80000000;
 
 	// Update FPSCR exception bits
 	record_fpscr();
@@ -956,25 +995,6 @@ void powerpc_cpu::execute_mtcrf(uint32 opcode)
 	increment_pc(4);
 }
 
-void powerpc_cpu::fp_setround(int round)
-{
-	// Set native rounding mode
-	switch (round) {
-	case 0:
-		fesetround(FE_TONEAREST);
-		break;
-	case 1:
-		fesetround(FE_TOWARDZERO);
-		break;
-	case 2:
-		fesetround(FE_UPWARD);
-		break;
-	case 3:
-		fesetround(FE_DOWNWARD);
-		break;
-	}
-}
-
 template< class FM, class RB, class Rc >
 void powerpc_cpu::execute_mtfsf(uint32 opcode)
 {
@@ -991,7 +1011,7 @@ void powerpc_cpu::execute_mtfsf(uint32 opcode)
 
 	// Update native FP control word
 	if (m & FPSCR_RN_field::mask())
-		fp_setround(FPSCR_RN_field::extract(fpscr()));
+		fesetround(ppc_to_native_rounding_mode(FPSCR_RN_field::extract(fpscr())));
 
 	// Set CR1 (FX, FEX, VX, VOX) if instruction has Rc set
 	if (Rc::test(opcode))
@@ -1015,7 +1035,7 @@ void powerpc_cpu::execute_mtfsfi(uint32 opcode)
 
 	// Update native FP control word
 	if (m & FPSCR_RN_field::mask())
-		fp_setround(FPSCR_RN_field::extract(fpscr()));
+		fesetround(ppc_to_native_rounding_mode(FPSCR_RN_field::extract(fpscr())));
 
 	// Update FPSCR exception bits
 	record_fpscr();
@@ -1036,7 +1056,7 @@ void powerpc_cpu::execute_mtfsb(uint32 opcode)
 
 	// Update native FP control word
 	if (crbD & FPSCR_RN_field::mask())
-		fp_setround(FPSCR_RN_field::extract(fpscr()));
+		fesetround(ppc_to_native_rounding_mode(FPSCR_RN_field::extract(fpscr())));
 
 	// Update FPSCR exception bits
 	record_fpscr();

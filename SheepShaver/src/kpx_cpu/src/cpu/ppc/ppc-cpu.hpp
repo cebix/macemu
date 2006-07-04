@@ -140,7 +140,6 @@ protected:
 
 	template< class FP >
 	void fp_classify(FP x);
-	void fp_setround(int round);
 
 protected:
 

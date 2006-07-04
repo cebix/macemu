@@ -76,6 +76,9 @@ enum {
 #if defined(__i386__)
 #include "mathlib/mathlib-i386.hpp"
 #endif
+#if defined(__x86_64__)
+#include "mathlib/mathlib-x86_64.hpp"
+#endif
 
 // 7.12.6.2  The exp2 functions
 #ifdef HAVE_EXP2F
@@ -126,6 +129,16 @@ extern "C" float floorf(float x);
 extern "C" double floor(double x);
 #define floorf(x) (float)floor(x)
 #endif
+#endif
+
+// 7.12.9.5  The lrint and llrint functions
+#ifdef HAVE_LRINT
+extern "C" long lrint(double x);
+#else
+#ifndef mathlib_lrint
+extern long mathlib_lrint(double);
+#endif
+#define lrint(x) mathlib_lrint(x)
 #endif
 
 // 7.12.9.6  The round functions

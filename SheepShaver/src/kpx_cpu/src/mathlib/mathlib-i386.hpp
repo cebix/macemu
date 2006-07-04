@@ -22,6 +22,14 @@
 #ifndef MATHLIB_I386_H
 #define MATHLIB_I386_H
 
+// 7.12.9.5  The lrint and llrint functions
+#if defined(__GNUC__)
+#define mathlib_lrint(x)													\
+({ long int __result;														\
+   __asm__ __volatile__ ("fistpl %0" : "=m" (__result) : "t" (x) : "st");	\
+  __result; })
+#endif
+
 // 7.12.14  Comparison macros
 #if defined(__GNUC__)
 #ifndef isless
