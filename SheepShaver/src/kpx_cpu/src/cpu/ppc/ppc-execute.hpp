@@ -192,6 +192,39 @@ DEFINE_HELPER(do_execute_divide, (uint32 RA, uint32 RB))
 }
 
 /**
+ *		FP load/store
+ **/
+
+// C.6 Floating-Point Load Instructions
+static inline uint64 fp_load_single_convert(uint32 v)
+{
+	// XXX we currently use the native floating-point capabilities
+	any_register x;
+	x.i = v;
+	x.d = (double)x.f;
+	return x.j;
+}
+
+// C.7 Floating-Point Store Instructions
+static inline uint32 fp_store_single_convert(uint64 v)
+{
+	int exp = (v >> 52) & 0x7ff;
+	if (exp < 874 || exp > 896) {
+		// No denormalization required (or "undefined" behaviour)
+		// WORD[0 - 1] = frS[0 - 1]
+		// WORD[2 - 31] = frS[5 - 34]
+		return (uint32)(((v >> 32) & 0xc0000000) | ((v >> 29) & 0x3fffffff));
+	}
+
+	// Handle denormalization (874 <= frS[1 - 11] <= 896
+	// XXX we currently use the native floating-point capabilities
+	any_register x;
+	x.j = v;
+	x.f = (float)x.d;
+	return x.i;
+}
+
+/**
  *		FP classification
  **/
 

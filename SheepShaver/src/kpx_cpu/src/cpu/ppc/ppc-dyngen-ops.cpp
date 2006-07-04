@@ -237,19 +237,11 @@ DEFINE_REG(31);
 #endif
 
 #ifndef do_load_single
-#define do_load_single(REG, EA) do {			\
-	any_register *x = (any_register *)&FD;		\
-	x->i = vm_read_memory_4(EA);				\
-	REG = (double)x->f;							\
-} while (0)
+#define do_load_single(REG, EA) REG##_dw = fp_load_single_convert(vm_read_memory_4(EA))
 #endif
 
 #ifndef do_store_single
-#define do_store_single(REG, EA) do {			\
-	any_register *x = (any_register *)&FD;		\
-	x->f = (float)REG;							\
-	vm_write_memory_4(EA, x->i);				\
-} while (0)
+#define do_store_single(REG, EA) vm_write_memory_4(EA, fp_store_single_convert(REG##_dw))
 #endif
 
 #ifndef do_load_double
