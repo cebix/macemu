@@ -141,6 +141,7 @@ DEFINE_OP1(fneg, double, -x);
 DEFINE_OP3(fnmadd, double, -((x * y) + z));
 DEFINE_OP3(fnmsub, double, -((x * y) - z));
 DEFINE_OP2(fsub, double, x - y);
+DEFINE_OP3(fsel, double, (x >= 0.0) ? y : z);
 
 DEFINE_OP1(fnops, float, x);
 DEFINE_OP1(fabss, float, fabs(x));

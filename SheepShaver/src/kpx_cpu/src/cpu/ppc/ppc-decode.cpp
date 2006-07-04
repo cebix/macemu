@@ -568,6 +568,12 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  PPC_I(FRSP),
 	  X_form, 63, 12, CFLOW_NORMAL
 	},
+	{ "fsel",
+	  EXECUTE_FP_ARITH(double, fsel, RD, RA, RC, RB, RC_BIT_G, false),
+	  NULL,
+	  PPC_I(FSEL),
+	  A_form, 63, 23, CFLOW_NORMAL
+	},
 	{ "fsub",
 	  EXECUTE_FP_ARITH(double, fsub, RD, RA, RB, NONE, RC_BIT_G, true),
 	  NULL,
