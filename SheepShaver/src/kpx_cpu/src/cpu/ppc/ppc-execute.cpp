@@ -940,6 +940,8 @@ void powerpc_cpu::execute_fp_round(uint32 opcode)
 	int raised = fetestexcept(FE_ALL_EXCEPT);
 	if (raised & FE_UNDERFLOW)
 		exceptions |= FPSCR_UX_field::mask();
+	if (raised & FE_OVERFLOW)
+		exceptions |= FPSCR_OX_field::mask();
 	if (raised & FE_INEXACT)
 		exceptions |= FPSCR_XX_field::mask();
 	record_fpscr(exceptions);
