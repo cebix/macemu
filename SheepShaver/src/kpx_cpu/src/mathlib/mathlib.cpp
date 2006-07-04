@@ -154,9 +154,9 @@ long mathlib_lrint(double x)
 			i0 |= 0x100000;
 
 			result = i0 >> (20 - j0);
-        }
-    }
-	else if (j0 < (int32_t) (8 * sizeof (long int)) - 1) {
+		}
+	}
+	else if (j0 < (int32) (8 * sizeof (long int)) - 1) {
 		if (j0 >= 52)
 			result = ((long int) i0 << (j0 - 20)) | (i1 << (j0 - 52));
 		else {
@@ -171,13 +171,13 @@ long mathlib_lrint(double x)
 				result = (long int) i0;
 			else
 				result = ((long int) i0 << (j0 - 20)) | (i1 >> (52 - j0));
-        }
-    }
+		}
+	}
 	else {
 		/* The number is too large.  It is left implementation defined
 		   what happens.  */
 		return (long int) x;
-    }
+	}
 
 	return sx ? -result : result;
 }
