@@ -149,7 +149,6 @@ DEFINE_OP1(frip, double, ceil(x));
 DEFINE_OP1(friz, double, trunc(x));
 
 DEFINE_OP2(fadds, float, x + y);
-DEFINE_OP2(fdivs, float, x / y);
 DEFINE_OP2(fsubs, float, x - y);
 DEFINE_OP1(exp2, float, exp2f(x));
 DEFINE_OP1(log2, float, log2f(x));
