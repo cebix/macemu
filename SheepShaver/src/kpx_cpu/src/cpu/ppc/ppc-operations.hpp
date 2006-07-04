@@ -22,7 +22,6 @@
 #define PPC_OPERATIONS_H
 
 #include <math.h>
-#include "mathlib/ieeefp.hpp"
 #include "mathlib/mathlib.hpp"
 
 /**
@@ -200,6 +199,11 @@ struct op_mhraddsh {
 
 struct op_cvt_fp2si {
 	static inline int64 apply(uint32 a, float b) {
+		// Delegate saturation to upper level
+		if (mathlib_isinf(b))
+			return ((int64)(b < 0 ? 0x80000000 : 0x7fffffff)) << 32;
+		if (mathlib_isnan(b))
+			return 0;
 		return (int64)(b * (1U << a));
 	}
 };

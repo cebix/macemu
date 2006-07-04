@@ -46,4 +46,68 @@ extern "C" int fesetround(int);
 
 #endif /* FENV_H */
 
+// HOST_FLOAT_WORDS_BIG_ENDIAN is a tristate:
+//   yes (1) / no (0) / default (undefined)
+#if HOST_FLOAT_WORDS_BIG_ENDIAN
+#define FLOAT_WORD_ORDER_BIG_ENDIAN
+#elif defined(WORDS_BIGENDIAN)
+#define FLOAT_WORD_ORDER_BIG_ENDIAN
+#endif
+
+// Representation of an IEEE 754 float
+union mathlib_ieee_float_shape_type {
+	float value;
+	uint32 word;
+};
+
+#define MATHLIB_GET_FLOAT_WORD(i,d)				\
+do {											\
+	mathlib_ieee_float_shape_type gf_u;			\
+	gf_u.value = (d);							\
+	(i) = gf_u.word;							\
+} while (0)
+
+#define MATHLIB_SET_FLOAT_WORD(d,i)				\
+do {											\
+	mathlib_ieee_float_shape_type sf_u;			\
+	sf_u.word = (i);							\
+	(d) = sf_u.value;							\
+} while (0)
+
+// Representation of an IEEE 754 double
+union mathlib_ieee_double_shape_type {
+	double value;
+	struct {
+#ifdef FLOAT_WORD_ORDER_BIG_ENDIAN
+		uint32 msw;
+		uint32 lsw;
+#else
+		uint32 lsw;
+		uint32 msw;
+#endif
+	} parts;
+};
+
+#define MATHLIB_EXTRACT_WORDS(ix0,ix1,d)		\
+do {											\
+	mathlib_ieee_double_shape_type ew_u;		\
+	ew_u.value = (d);							\
+	(ix0) = ew_u.parts.msw;						\
+	(ix1) = ew_u.parts.lsw;						\
+} while (0)
+
+#define MATHLIB_GET_HIGH_WORD(i,d)				\
+do {											\
+	mathlib_ieee_double_shape_type gh_u;		\
+	gh_u.value = (d);							\
+	(i) = gh_u.parts.msw;						\
+} while (0)
+
+#define MATHLIB_GET_LOW_WORD(i,d)				\
+do {											\
+	mathlib_ieee_double_shape_type gl_u;		\
+	gl_u.value = (d);							\
+	(i) = gl_u.parts.lsw;						\
+} while (0)
+
 #endif /* IEEEFP_H */

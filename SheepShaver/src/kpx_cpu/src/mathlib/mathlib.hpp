@@ -23,6 +23,7 @@
 #define MATHLIB_H
 
 #include <math.h>
+#include "mathlib/ieeefp.hpp"
 
 // Broken MacOS X headers
 #if defined(__APPLE__) && defined(__MACH__)
@@ -168,6 +169,87 @@ extern int mathlib_fpclassifyl(long double x);
 		 ? mathlib_fpclassify (x) : mathlib_fpclassifyl (x))
 #endif
 
+// 7.12.3.2  The isfinite macro
+static inline int mathlib_isfinite(float x)
+{
+	int32 ix;
+
+	MATHLIB_GET_FLOAT_WORD(ix, x);
+	return (int)((uint32)((ix & 0x7fffffff) - 0x7f800000) >> 31);
+}
+
+static inline int mathlib_isfinite(double x)
+{
+	int32 hx;
+
+	MATHLIB_GET_HIGH_WORD(hx, x);
+	return (int)((uint32)((hx & 0x7fffffff) - 0x7ff00000) >> 31);
+}
+
+#ifndef isfinite
+#define isfinite(x) mathlib_isfinite(x)
+#endif
+
+// 7.12.3.3  The isinf macro
+static inline int mathlib_isinf(float x)
+{
+	int32 ix, t;
+
+	MATHLIB_GET_FLOAT_WORD(ix, x);
+	t = ix & 0x7fffffff;
+	t ^= 0x7f800000;
+	t |= -t;
+	return ~(t >> 31) & (ix >> 30);
+}
+
+static inline int mathlib_isinf(double x)
+{
+	int32 hx, lx;
+
+	MATHLIB_EXTRACT_WORDS(hx, lx, x);
+	lx |= (hx & 0x7fffffff) ^ 0x7ff00000;
+	lx |= -lx;
+	return ~(lx >> 31) & (hx >> 30);
+}
+
+#ifndef isinf
+#if defined __sgi && defined __mips
+// specialized implementation for IRIX mips compilers
+extern "C" int _isinf(double);
+extern "C" int _isinff(float);
+static inline int isinf(double x) { return _isinf(x); }
+static inline int isinf(float x) { return _isinff(x); }
+#else
+#define isinf(x) mathlib_isinf(x)
+#endif
+#endif
+
+// 7.12.3.4  The isnan macro
+static inline int mathlib_isnan(float x)
+{
+	int32 ix;
+
+	MATHLIB_GET_FLOAT_WORD(ix, x);
+	ix &= 0x7fffffff;
+	ix = 0x7f800000 - ix;
+	return (int)(((uint32)ix) >> 31);
+}
+
+static inline int mathlib_isnan(double x)
+{
+	int32 hx, lx;
+
+	MATHLIB_EXTRACT_WORDS(hx, lx, x);
+	hx &= 0x7fffffff;
+	hx |= (uint32)(lx|(-lx)) >> 31;
+	hx = 0x7ff00000 - hx;
+	return (int)(((uint32)hx) >> 31);
+}
+
+#ifndef isnan
+#define isnan(x) mathlib_isnan(x)
+#endif
+
 // 7.12.3.6  The signbit macro
 #ifndef signbit
 #ifndef mathlib_signbitf
@@ -196,17 +278,6 @@ extern int mathlib_signbitl(long double x);
 // FIXME: this is wrong for unordered values
 #ifndef isless
 #define isless(x, y) ((x) < (y))
-#endif
-
-// 7.12.3.3  The isinf macro
-#ifndef isinf
-#if defined __sgi && defined __mips
-// specialized implementation for IRIX mips compilers
-extern "C" int _isinf(double);
-extern "C" int _isinff(float);
-static inline int isinf(double x) { return _isinf(x); }
-static inline int isinf(float x) { return _isinff(x); }
-#endif
 #endif
 
 #endif /* MATHLIB_H */
