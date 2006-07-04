@@ -79,6 +79,17 @@ enum {
 #if defined(__x86_64__)
 #include "mathlib/mathlib-x86_64.hpp"
 #endif
+#if defined(__powerpc__) || defined(__ppc__)
+#include "mathlib/mathlib-ppc.hpp"
+#endif
+
+// Floating-Point Multiply Add/Subtract functions
+#ifndef mathlib_fmadd
+#define mathlib_fmadd(x, y, z) (((x) * (y)) + (z))
+#endif
+#ifndef mathlib_fmsub
+#define mathlib_fmsub(x, y, z) (((x) * (y)) - (z))
+#endif
 
 // 7.12.6.2  The exp2 functions
 #ifdef HAVE_EXP2F

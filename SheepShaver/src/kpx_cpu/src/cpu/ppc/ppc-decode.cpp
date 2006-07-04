@@ -545,7 +545,7 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  A_form, 63, 31, CFLOW_NORMAL
 	},
 	{ "fnmadds",
-	  EXECUTE_FP_ARITH(float, fnmadd, RD, RA, RC, RB, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(double, fnmadds, RD, RA, RC, RB, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FNMADDS),
 	  A_form, 59, 31, CFLOW_NORMAL
@@ -557,7 +557,7 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  A_form, 63, 30, CFLOW_NORMAL
 	},
 	{ "fnmsubs",
-	  EXECUTE_FP_ARITH(float, fnmsub, RD, RA, RC, RB, RC_BIT_G, true),
+	  EXECUTE_FP_ARITH(double, fnmsubs, RD, RA, RC, RB, RC_BIT_G, true),
 	  NULL,
 	  PPC_I(FNMSUBS),
 	  A_form, 59, 30, CFLOW_NORMAL
