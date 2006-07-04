@@ -448,7 +448,7 @@ void powerpc_cpu::record_fpscr(int exceptions)
 	// Reset non-sticky bits
 	fpscr() &= ~(FPSCR_VX_field::mask() | FPSCR_FEX_field::mask());
 
-	// Always update FX if exception bits changed
+	// Always update FX if any exception bit was set
 	if (exceptions)
 		fpscr() |= FPSCR_FX_field::mask() | exceptions;
 
@@ -1087,21 +1087,21 @@ void powerpc_cpu::execute_mtfsfi(uint32 opcode)
 template< class RB, class Rc >
 void powerpc_cpu::execute_mtfsb(uint32 opcode)
 {
-	const uint32 crbD = crbD_field::extract(opcode);
+	const bool set_bit = RB::get(this, opcode);
 
 	// The mtfsb0 and mtfsb1 instructions cannot alter FPSCR[FEX] nor FPSCR[VX] explicitly
-	int exceptions = RB::get(this, opcode) << (31 - crbD);
-	exceptions &= ~(FPSCR_FEX_field::mask() | FPSCR_VX_field::mask());
+	uint32 m = 1 << (31 - crbD_field::extract(opcode));
+	m &= ~(FPSCR_FEX_field::mask() | FPSCR_VX_field::mask());
 
-	// Bit crbD of the FPSCR is set or cleared
-	fpscr() &= ~(1 << (31 - crbD));
-
-	// Update native FP control word
-	if (crbD & FPSCR_RN_field::mask())
-		fesetround(ppc_to_native_rounding_mode(FPSCR_RN_field::extract(fpscr())));
+	// Bit crbD of the FPSCR is set or clear
+	fpscr() &= ~m;
 
 	// Update FPSCR exception bits
-	record_fpscr(exceptions);
+	record_fpscr(set_bit ? m : 0);
+
+	// Update native FP control word if FPSCR[RN] changed
+	if (m & FPSCR_RN_field::mask())
+		fesetround(ppc_to_native_rounding_mode(FPSCR_RN_field::extract(fpscr())));
 
 	// Set CR1 (FX, FEX, VX, VOX) if instruction has Rc set
 	if (Rc::test(opcode))
