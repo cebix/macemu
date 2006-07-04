@@ -1817,7 +1817,7 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  VX_form, 4, 266, CFLOW_NORMAL
 	},
 	{ "vrfim",
-	  EXECUTE_VECTOR_ARITH(frim, V4SF, NONE, V4SF, NONE),
+	  EXECUTE_VECTOR_ARITH(frsim, V4SF, NONE, V4SF, NONE),
 	  NULL,
 	  PPC_I(VRFIM),
 	  VX_form, 4, 714, CFLOW_NORMAL
