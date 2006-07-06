@@ -857,11 +857,23 @@ void OPPROTO op_divwuo_T0_T1(void)
 
 void OPPROTO op_mulhw_T0_T1(void)
 {
+#if DYNGEN_ASM_OPTS
+#if defined(__i386__) || defined(__x86_64__)
+	asm volatile ("imul %0" : "+d" (T0) : "a" (T1));
+	return;
+#endif
+#endif
 	T0 = (((int64)(int32)T0) * ((int64)(int32)T1)) >> 32;
 }
 
 void OPPROTO op_mulhwu_T0_T1(void)
 {
+#if DYNGEN_ASM_OPTS
+#if defined(__i386__) || defined(__x86_64__)
+	asm volatile ("mul %0" : "+d" (T0) : "a" (T1));
+	return;
+#endif
+#endif
 	T0 = (((uint64)T0) * ((uint64)T1)) >> 32;
 }
 
@@ -892,6 +904,14 @@ void OPPROTO op_mullwo_T0_T1(void)
 
 void OPPROTO op_slw_T0_T1(void)
 {
+#if DYNGEN_ASM_OPTS
+#if defined(__i386__) || defined(__x86_64__)
+	T0 <<= T1; // the shift count is masked to 5 bits
+	if (T1 & 0x20)
+		T0 = 0;
+	return;
+#endif
+#endif
 	T1 &= 0x3f;
 	T0 = (T1 & 0x20) ? 0 : (T0 << T1);
 	dyngen_barrier();
@@ -899,6 +919,14 @@ void OPPROTO op_slw_T0_T1(void)
 
 void OPPROTO op_srw_T0_T1(void)
 {
+#if DYNGEN_ASM_OPTS
+#if defined(__i386__) || defined(__x86_64__)
+	T0 >>= T1; // the shift count is masked to 5 bits
+	if (T1 & 0x20)
+		T0 = 0;
+	return;
+#endif
+#endif
 	T1 &= 0x3f;
 	T0 = (T1 & 0x20) ? 0 : (T0 >> T1);
 	dyngen_barrier();
@@ -948,7 +976,15 @@ void OPPROTO op_rlwnm_T0_T1(void)
 
 void OPPROTO op_cntlzw_32_T0(void)
 {
-	uint32 n;
+	int n;
+#if DYNGEN_ASM_OPTS
+#if defined(__i386__) || defined(__x86_64__)
+	n = -1;
+	asm volatile ("bsr %1,%0" : "+r" (n) : "r" (T0));
+	T0 = 31 - n;
+	return;
+#endif
+#endif
 	uint32 m = 0x80000000;
 	for (n = 0; n < 32; n++, m >>= 1)
 		if (T0 & m)
@@ -971,7 +1007,7 @@ void OPPROTO op_addo_T0_T1(void)
 	powerpc_dyngen_helper::xer().set_ov(XER_OV_field::extract(xer));
 	return;
 #endif
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
 	uint32 ov;
 	asm volatile ("add %2,%0; seto %b1" : "=r" (T0), "=r" (ov) : "r" (T1) : "cc");
 	powerpc_dyngen_helper::xer().set_ov(ov);
@@ -995,7 +1031,7 @@ void OPPROTO op_addc_T0_T1(void)
 	powerpc_dyngen_helper::xer().set_ca(XER_CA_field::extract(xer));
 	return;
 #endif
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
 	uint32 ca;
 	asm volatile ("add %2,%0; setc %b1" : "=r" (T0), "=r" (ca) : "r" (T1) : "cc");
 	powerpc_dyngen_helper::xer().set_ca(ca);
@@ -1015,7 +1051,7 @@ void OPPROTO op_addco_T0_T1(void)
 	powerpc_dyngen_helper::xer().set_ov(XER_OV_field::extract(xer));
 	return;
 #endif
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
 	uint32 ca, ov;
 	asm volatile ("add %3,%0; setc %b1; seto %b2" : "=r" (T0), "=r" (ca), "=r" (ov) : "r" (T1) : "cc");
 	powerpc_dyngen_helper::xer().set_ca(ca);
@@ -1036,9 +1072,9 @@ void OPPROTO op_adde_T0_T1(void)
 	powerpc_dyngen_helper::xer().set_ca(XER_CA_field::extract(xer));
 	return;
 #endif
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
 	uint32 ca = powerpc_dyngen_helper::xer().get_ca();
-	asm volatile ("neg %1; adc %2,%0; setc %b1" : "=r" (T0), "+r" (ca) : "r" (T1) : "cc");
+	asm volatile ("bt $0,%1; adc %2,%0; setc %b1" : "=r" (T0), "+r" (ca) : "r" (T1) : "cc");
 	powerpc_dyngen_helper::xer().set_ca(ca);
 	return;
 #endif
@@ -1057,9 +1093,9 @@ void OPPROTO op_addeo_T0_T1(void)
 	powerpc_dyngen_helper::xer().set_ov(XER_OV_field::extract(xer));
 	return;
 #endif
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
 	uint32 ov, ca = powerpc_dyngen_helper::xer().get_ca();
-	asm volatile ("neg %1; adc %3,%0; setc %b1; seto %b2" : "=r" (T0), "+r" (ca), "=r" (ov) : "r" (T1) : "cc");
+	asm volatile ("bt $0,%1; adc %3,%0; setc %b1; seto %b2" : "=r" (T0), "+r" (ca), "=r" (ov) : "r" (T1) : "cc");
 	powerpc_dyngen_helper::xer().set_ca(ca);
 	powerpc_dyngen_helper::xer().set_ov(ov);
 	return;
@@ -1078,9 +1114,9 @@ void OPPROTO op_addme_T0(void)
 	powerpc_dyngen_helper::xer().set_ca(XER_CA_field::extract(xer));
 	return;
 #endif
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
 	uint32 ca = powerpc_dyngen_helper::xer().get_ca();
-	asm volatile ("neg %1; adc $-1,%0; setc %b1" : "=r" (T0), "+r" (ca) : : "cc");
+	asm volatile ("bt $0,%1; adc $-1,%0; setc %b1" : "=r" (T0), "+r" (ca) : : "cc");
 	powerpc_dyngen_helper::xer().set_ca(ca);
 	return;
 #endif
@@ -1099,9 +1135,9 @@ void OPPROTO op_addmeo_T0(void)
 	powerpc_dyngen_helper::xer().set_ov(XER_OV_field::extract(xer));
 	return;
 #endif
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
 	uint32 ov, ca = powerpc_dyngen_helper::xer().get_ca();
-	asm volatile ("neg %1; adc $-1,%0; setc %b1; seto %b2" : "=r" (T0), "+r" (ca), "=r" (ov) : : "cc");
+	asm volatile ("bt $0,%1; adc $-1,%0; setc %b1; seto %b2" : "=r" (T0), "+r" (ca), "=r" (ov) : : "cc");
 	powerpc_dyngen_helper::xer().set_ca(ca);
 	powerpc_dyngen_helper::xer().set_ov(ov);
 	return;
@@ -1120,9 +1156,9 @@ void OPPROTO op_addze_T0(void)
 	powerpc_dyngen_helper::xer().set_ca(XER_CA_field::extract(xer));
 	return;
 #endif
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
 	uint32 ca = powerpc_dyngen_helper::xer().get_ca();
-	asm volatile ("neg %1; adc $0,%0; setc %b1" : "=r" (T0), "+r" (ca) : : "cc");
+	asm volatile ("bt $0,%1; adc $0,%0; setc %b1" : "=r" (T0), "+r" (ca) : : "cc");
 	powerpc_dyngen_helper::xer().set_ca(ca);
 	return;
 #endif
@@ -1141,9 +1177,9 @@ void OPPROTO op_addzeo_T0(void)
 	powerpc_dyngen_helper::xer().set_ov(XER_OV_field::extract(xer));
 	return;
 #endif
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
 	uint32 ov, ca = powerpc_dyngen_helper::xer().get_ca();
-	asm volatile ("neg %1; adc $0,%0; setc %b1; seto %b2" : "=r" (T0), "+r" (ca), "=r" (ov) : : "cc");
+	asm volatile ("bt $0,%1; adc $0,%0; setc %b1; seto %b2" : "=r" (T0), "+r" (ca), "=r" (ov) : : "cc");
 	powerpc_dyngen_helper::xer().set_ca(ca);
 	powerpc_dyngen_helper::xer().set_ov(ov);
 	return;
@@ -1159,6 +1195,16 @@ void OPPROTO op_subf_T0_T1(void)
 
 void OPPROTO op_subfo_T0_T1(void)
 {
+#if DYNGEN_ASM_OPTS
+#if defined(__i386__) || defined(__x86_64__)
+	uint32 ov, TI;
+	TI = T1;
+	asm volatile ("sub %2,%0; seto %b1" : "+r" (TI), "=r" (ov) : "r" (T0) : "cc");
+	T0 = TI;
+	powerpc_dyngen_helper::xer().set_ov(ov);
+	return;
+#endif
+#endif
 	T0 = do_execute_subtract<false, true>(T0, T1);
 }
 
@@ -1169,41 +1215,127 @@ void OPPROTO op_subfc_T0_im(void)
 
 void OPPROTO op_subfc_T0_T1(void)
 {
+#if DYNGEN_ASM_OPTS
+#if defined(__i386__) || defined(__x86_64__)
+	uint32 ca, TI;
+	TI = T1;
+	asm volatile ("sub %2,%0; cmc; setc %b1" : "+r" (TI), "=r" (ca) : "r" (T0) : "cc");
+	T0 = TI;
+	powerpc_dyngen_helper::xer().set_ca(ca);
+	return;
+#endif
+#endif
 	T0 = do_execute_subtract<true, false>(T0, T1);
 }
 
 void OPPROTO op_subfco_T0_T1(void)
 {
+#if DYNGEN_ASM_OPTS
+#if defined(__i386__) || defined(__x86_64__)
+	uint32 ca, ov, TI;
+	TI = T1;
+	asm volatile ("sub %3,%0; cmc; setc %b1; seto %b2" : "+r" (TI), "=r" (ca), "=r" (ov) : "r" (T0) : "cc");
+	T0 = TI;
+	powerpc_dyngen_helper::xer().set_ca(ca);
+	powerpc_dyngen_helper::xer().set_ov(ov);
+	return;
+#endif
+#endif
 	T0 = do_execute_subtract<true, true>(T0, T1);
 }
 
 void OPPROTO op_subfe_T0_T1(void)
 {
+#if DYNGEN_ASM_OPTS
+#if defined(__i386__) || defined(__x86_64__)
+	uint32 ca = powerpc_dyngen_helper::xer().get_ca();
+	uint32 TI = T1;
+	asm volatile ("bt $0,%1; cmc; sbb %2,%0; cmc; setc %b1" : "+r" (TI), "+r" (ca) : "r" (T0) : "cc");
+	T0 = TI;
+	powerpc_dyngen_helper::xer().set_ca(ca);
+	return;
+#endif
+#endif
 	T0 = do_execute_subtract_extended<false>(T0, T1);
 }
 
 void OPPROTO op_subfeo_T0_T1(void)
 {
+#if DYNGEN_ASM_OPTS
+#if defined(__i386__) || defined(__x86_64__)
+	uint32 ov, ca = powerpc_dyngen_helper::xer().get_ca();
+	uint32 TI = T1;
+	asm volatile ("bt $0,%1; cmc; sbb %3,%0; cmc; setc %b1; seto %b2" : "+r" (TI), "+r" (ca), "=r" (ov) : "r" (T0) : "cc");
+	T0 = TI;
+	powerpc_dyngen_helper::xer().set_ca(ca);
+	powerpc_dyngen_helper::xer().set_ov(ov);
+	return;
+#endif
+#endif
 	T0 = do_execute_subtract_extended<true>(T0, T1);
 }
 
 void OPPROTO op_subfme_T0(void)
 {
+#if DYNGEN_ASM_OPTS
+#if defined(__i386__) || defined(__x86_64__)
+	uint32 ca = powerpc_dyngen_helper::xer().get_ca();
+	uint32 TI = (uint32)-1;
+	asm volatile ("bt $0,%1; cmc; sbb %2,%0; cmc; setc %b1" : "+r" (TI), "+r" (ca) : "r" (T0) : "cc");
+	T0 = TI;
+	powerpc_dyngen_helper::xer().set_ca(ca);
+	return;
+#endif
+#endif
 	T0 = do_execute_subtract_extended<false>(T0, 0xffffffff);
 }
 
 void OPPROTO op_subfmeo_T0(void)
 {
+#if DYNGEN_ASM_OPTS
+#if defined(__i386__) || defined(__x86_64__)
+	uint32 ov;
+	uint32 ca = powerpc_dyngen_helper::xer().get_ca();
+	uint32 TI = (uint32)-1;
+	asm volatile ("bt $0,%1; cmc; sbb %3,%0; cmc; setc %b1; seto %b2" : "+r" (TI), "+r" (ca), "=r" (ov) : "r" (T0) : "cc");
+	T0 = TI;
+	powerpc_dyngen_helper::xer().set_ca(ca);
+	powerpc_dyngen_helper::xer().set_ov(ov);
+	return;
+#endif
+#endif
 	T0 = do_execute_subtract_extended<true>(T0, 0xffffffff);
 }
 
 void OPPROTO op_subfze_T0(void)
 {
+#if DYNGEN_ASM_OPTS
+#if defined(__i386__) || defined(__x86_64__)
+	uint32 ca = powerpc_dyngen_helper::xer().get_ca();
+	uint32 TI = 0;
+	asm volatile ("bt $0,%1; cmc; sbb %2,%0; cmc; setc %b1" : "+r" (TI), "+r" (ca) : "r" (T0) : "cc");
+	T0 = TI;
+	powerpc_dyngen_helper::xer().set_ca(ca);
+	return;
+#endif
+#endif
 	T0 = do_execute_subtract_extended<false>(T0, 0);
 }
 
 void OPPROTO op_subfzeo_T0(void)
 {
+#if DYNGEN_ASM_OPTS
+#if defined(__i386__) || defined(__x86_64__)
+	uint32 ov;
+	uint32 ca = powerpc_dyngen_helper::xer().get_ca();
+	uint32 TI = 0;
+	asm volatile ("bt $0,%1; cmc; sbb %3,%0; cmc; setc %b1; seto %b2" : "+r" (TI), "+r" (ca), "=r" (ov) : "r" (T0) : "cc");
+	T0 = TI;
+	powerpc_dyngen_helper::xer().set_ca(ca);
+	powerpc_dyngen_helper::xer().set_ov(ov);
+	return;
+#endif
+#endif
 	T0 = do_execute_subtract_extended<true>(T0, 0);
 }
 

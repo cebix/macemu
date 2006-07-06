@@ -113,7 +113,7 @@
 #if ENABLE_DYNGEN
 #define PPC_ENABLE_JIT 1
 #endif
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
 #define DYNGEN_ASM_OPTS 1
 #endif
 #else
