@@ -1414,7 +1414,7 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
       x*) have_dyngen_gcc3=yes ;;
       esac
       if [[ "x$have_dyngen_gcc3" = "xyes" ]]; then
-        DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -falign-functions=0"
+        DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -fno-align-functions"
       else
         DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -malign-functions=0"
       fi
