@@ -388,8 +388,6 @@ powerpc_dyngen::vector_codegen(int insn)
 	case PPC_I(VSUBFP):		gen_op = GEN_OP(vsubfp_VD_V0_V1);	break;
 	case PPC_I(VMADDFP):	gen_op = GEN_OP(vmaddfp_VD_V0_V1_V2);	break;
 	case PPC_I(VNMSUBFP):	gen_op = GEN_OP(vnmsubfp_VD_V0_V1_V2);	break;
-	case PPC_I(VMAXFP):		gen_op = GEN_OP(vmaxfp_VD_V0_V1);	break;
-	case PPC_I(VMINFP):		gen_op = GEN_OP(vminfp_VD_V0_V1);	break;
 	case PPC_I(VAND):		gen_op = GEN_OP(vand_VD_V0_V1);		break;
 	case PPC_I(VANDC):		gen_op = GEN_OP(vandc_VD_V0_V1);	break;
 	case PPC_I(VNOR):		gen_op = GEN_OP(vnor_VD_V0_V1);		break;

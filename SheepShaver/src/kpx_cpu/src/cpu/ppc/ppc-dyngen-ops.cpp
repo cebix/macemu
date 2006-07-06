@@ -1640,16 +1640,6 @@ void op_vnmsubfp_VD_V0_V1_V2(void)
 	vector_execute<op_do_vnmsubfp, V4SF, V4SF, V4SF, V4SF>::apply();
 }
 
-void op_vmaxfp_VD_V0_V1(void)
-{
-	vector_execute<op_max<float>, V4SF, V4SF, V4SF>::apply();
-}
-
-void op_vminfp_VD_V0_V1(void)
-{
-	vector_execute<op_min<float>, V4SF, V4SF, V4SF>::apply();
-}
-
 void op_vand_VD_V0_V1(void)
 {
 	vector_execute<op_and_64, V2DI, V2DI, V2DI>::apply();
