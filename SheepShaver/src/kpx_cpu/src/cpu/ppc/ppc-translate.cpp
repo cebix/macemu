@@ -288,43 +288,43 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			// Extract RZ operand
 			const int rA = rA_field::extract(opcode);
 			if (rA == 0 && !op.mem.do_update)
-				dg.gen_mov_32_A0_im(0);
+				dg.gen_mov_32_T1_im(0);
 			else
-				dg.gen_load_A0_GPR(rA);
+				dg.gen_load_T1_GPR(rA);
 
 			// Extract index operand
 			if (op.mem.do_indexed)
-				dg.gen_load_T1_GPR(rB_field::extract(opcode));
+				dg.gen_load_T2_GPR(rB_field::extract(opcode));
 
 			switch (op.mem.size) {
 			case 1:
 				if (op.mem.do_indexed)
-					dg.gen_load_u8_T0_A0_T1();
+					dg.gen_load_u8_T0_T1_T2();
 				else
-					dg.gen_load_u8_T0_A0_im(operand_D::get(this, opcode));
+					dg.gen_load_u8_T0_T1_im(operand_D::get(this, opcode));
 				break;
 			case 2:
 				if (op.mem.do_indexed) {
 					if (op.mem.sign)
-						dg.gen_load_s16_T0_A0_T1();
+						dg.gen_load_s16_T0_T1_T2();
 					else
-						dg.gen_load_u16_T0_A0_T1();
+						dg.gen_load_u16_T0_T1_T2();
 				}
 				else {
 					const int32 offset = operand_D::get(this, opcode);
 					if (op.mem.sign)
-						dg.gen_load_s16_T0_A0_im(offset);
+						dg.gen_load_s16_T0_T1_im(offset);
 					else
-						dg.gen_load_u16_T0_A0_im(offset);
+						dg.gen_load_u16_T0_T1_im(offset);
 				}
 				break;
 			case 4:
 				if (op.mem.do_indexed) {
-					dg.gen_load_u32_T0_A0_T1();
+					dg.gen_load_u32_T0_T1_T2();
 				}
 				else {
 					const int32 offset = operand_D::get(this, opcode);
-					dg.gen_load_u32_T0_A0_im(offset);
+					dg.gen_load_u32_T0_T1_im(offset);
 				}
 				break;
 			}
@@ -335,10 +335,10 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			// Update RA
 			if (op.mem.do_update) {
 				if (op.mem.do_indexed)
-					dg.gen_add_32_A0_T1();
+					dg.gen_add_32_T1_T2();
 				else
-					dg.gen_add_32_A0_im(operand_D::get(this, opcode));
-				dg.gen_store_A0_GPR(rA);
+					dg.gen_add_32_T1_im(operand_D::get(this, opcode));
+				dg.gen_store_T1_GPR(rA);
 			}
 			break;
 		}
@@ -407,13 +407,13 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			// Extract RZ operand
 			const int rA = rA_field::extract(opcode);
 			if (rA == 0 && !op.mem.do_update)
-				dg.gen_mov_32_A0_im(0);
+				dg.gen_mov_32_T1_im(0);
 			else
-				dg.gen_load_A0_GPR(rA);
+				dg.gen_load_T1_GPR(rA);
 
 			// Extract index operand
 			if (op.mem.do_indexed)
-				dg.gen_load_T1_GPR(rB_field::extract(opcode));
+				dg.gen_load_T2_GPR(rB_field::extract(opcode));
 
 			// Load register to commit to memory
 			dg.gen_load_T0_GPR(rS_field::extract(opcode));
@@ -421,31 +421,31 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			switch (op.mem.size) {
 			case 1:
 				if (op.mem.do_indexed)
-					dg.gen_store_8_T0_A0_T1();
+					dg.gen_store_8_T0_T1_T2();
 				else
-					dg.gen_store_8_T0_A0_im(operand_D::get(this, opcode));
+					dg.gen_store_8_T0_T1_im(operand_D::get(this, opcode));
 				break;
 			case 2:
 				if (op.mem.do_indexed)
-					dg.gen_store_16_T0_A0_T1();
+					dg.gen_store_16_T0_T1_T2();
 				else
-					dg.gen_store_16_T0_A0_im(operand_D::get(this, opcode));
+					dg.gen_store_16_T0_T1_im(operand_D::get(this, opcode));
 				break;
 			case 4:
 				if (op.mem.do_indexed)
-					dg.gen_store_32_T0_A0_T1();
+					dg.gen_store_32_T0_T1_T2();
 				else
-					dg.gen_store_32_T0_A0_im(operand_D::get(this, opcode));
+					dg.gen_store_32_T0_T1_im(operand_D::get(this, opcode));
 				break;
 			}
 
 			// Update RA
 			if (op.mem.do_update) {
 				if (op.mem.do_indexed)
-					dg.gen_add_32_A0_T1();
+					dg.gen_add_32_T1_T2();
 				else
-					dg.gen_add_32_A0_im(operand_D::get(this, opcode));
-				dg.gen_store_A0_GPR(rA);
+					dg.gen_add_32_T1_im(operand_D::get(this, opcode));
+				dg.gen_store_T1_GPR(rA);
 			}
 			break;
 		}
@@ -500,10 +500,10 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			break;
 		}
 		case PPC_I(BCCTR):		// Branch Conditional to Count Register
-			dg.gen_load_A0_CTR();
+			dg.gen_load_T0_CTR_aligned();
 			goto do_branch;
 		case PPC_I(BCLR):		// Branch Conditional to Link Register
-			dg.gen_load_A0_LR();
+			dg.gen_load_T0_LR_aligned();
 			goto do_branch;
 		{
 		  do_branch:
@@ -1156,26 +1156,26 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			// Extract RZ operand
 			const int rA = rA_field::extract(opcode);
 			if (rA == 0 && !op.mem.do_update)
-				dg.gen_mov_32_A0_im(0);
+				dg.gen_mov_32_T1_im(0);
 			else
-				dg.gen_load_A0_GPR(rA);
+				dg.gen_load_T1_GPR(rA);
 
 			// Extract index operand
 			if (op.mem.do_indexed)
-				dg.gen_load_T1_GPR(rB_field::extract(opcode));
+				dg.gen_load_T2_GPR(rB_field::extract(opcode));
 
 			// Load floating point data
 			if (op.mem.size == 8) {
 				if (op.mem.do_indexed)
-					dg.gen_load_double_FD_A0_T1();
+					dg.gen_load_double_FD_T1_T2();
 				else
-					dg.gen_load_double_FD_A0_im(operand_D::get(this, opcode));
+					dg.gen_load_double_FD_T1_im(operand_D::get(this, opcode));
 			}
 			else {
 				if (op.mem.do_indexed)
-					dg.gen_load_single_FD_A0_T1();
+					dg.gen_load_single_FD_T1_T2();
 				else
-					dg.gen_load_single_FD_A0_im(operand_D::get(this, opcode));
+					dg.gen_load_single_FD_T1_im(operand_D::get(this, opcode));
 			}
 
 			// Commit result
@@ -1184,10 +1184,10 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			// Update RA
 			if (op.mem.do_update) {
 				if (op.mem.do_indexed)
-					dg.gen_add_32_A0_T1();
+					dg.gen_add_32_T1_T2();
 				else
-					dg.gen_add_32_A0_im(operand_D::get(this, opcode));
-				dg.gen_store_A0_GPR(rA);
+					dg.gen_add_32_T1_im(operand_D::get(this, opcode));
+				dg.gen_store_T1_GPR(rA);
 			}
 			break;
 		}
@@ -1236,13 +1236,13 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			// Extract RZ operand
 			const int rA = rA_field::extract(opcode);
 			if (rA == 0 && !op.mem.do_update)
-				dg.gen_mov_32_A0_im(0);
+				dg.gen_mov_32_T1_im(0);
 			else
-				dg.gen_load_A0_GPR(rA);
+				dg.gen_load_T1_GPR(rA);
 
 			// Extract index operand
 			if (op.mem.do_indexed)
-				dg.gen_load_T1_GPR(rB_field::extract(opcode));
+				dg.gen_load_T2_GPR(rB_field::extract(opcode));
 
 			// Load register to commit to memory
 			dg.gen_load_F0_FPR(frS_field::extract(opcode));
@@ -1250,24 +1250,24 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			// Store floating point data
 			if (op.mem.size == 8) {
 				if (op.mem.do_indexed)
-					dg.gen_store_double_F0_A0_T1();
+					dg.gen_store_double_F0_T1_T2();
 				else
-					dg.gen_store_double_F0_A0_im(operand_D::get(this, opcode));
+					dg.gen_store_double_F0_T1_im(operand_D::get(this, opcode));
 			}
 			else {
 				if (op.mem.do_indexed)
-					dg.gen_store_single_F0_A0_T1();
+					dg.gen_store_single_F0_T1_T2();
 				else
-					dg.gen_store_single_F0_A0_im(operand_D::get(this, opcode));
+					dg.gen_store_single_F0_T1_im(operand_D::get(this, opcode));
 			}
 
 			// Update RA
 			if (op.mem.do_update) {
 				if (op.mem.do_indexed)
-					dg.gen_add_32_A0_T1();
+					dg.gen_add_32_T1_T2();
 				else
-					dg.gen_add_32_A0_im(operand_D::get(this, opcode));
-				dg.gen_store_A0_GPR(rA);
+					dg.gen_add_32_T1_im(operand_D::get(this, opcode));
+				dg.gen_store_T1_GPR(rA);
 			}
 			break;
 		}
@@ -1555,8 +1555,8 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		for (int i = 0; i < block_info::MAX_TARGETS; i++) {
 			if (bi->li[i].jmp_pc != block_info::INVALID_PC) {
 				uint8 *p = dg.gen_align(16);
-				dg.gen_mov_ad_T0_im(((uintptr)bi) | i);
-				dg.gen_invoke_CPU_T0_ret_A0(func);
+				dg.gen_mov_ad_A0_im(((uintptr)bi) | i);
+				dg.gen_invoke_CPU_A0_ret_A0(func);
 				dg.gen_jmp_A0();
 				assert(dg.jmp_addr[i] != NULL);
 				bi->li[i].jmp_addr = dg.jmp_addr[i];

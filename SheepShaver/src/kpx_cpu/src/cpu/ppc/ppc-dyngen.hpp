@@ -38,6 +38,10 @@ class powerpc_dyngen
 #	include "ppc-dyngen-ops.hpp"
 #endif
 
+#ifndef REG_T3
+	uintptr reg_T3;
+#endif
+
 public:
 
 	// Make rc_cache accessible to codegen helper
@@ -50,11 +54,9 @@ public:
 	powerpc_dyngen(dyngen_cpu_base cpu, int cache_size = -1);
 
 	// Load/store registers
-	void gen_load_A0_GPR(int i);
 	void gen_load_T0_GPR(int i);
 	void gen_load_T1_GPR(int i);
 	void gen_load_T2_GPR(int i);
-	void gen_store_A0_GPR(int i);
 	void gen_store_T0_GPR(int i);
 	void gen_store_T1_GPR(int i);
 	void gen_store_T2_GPR(int i);
@@ -108,16 +110,14 @@ public:
 	DEFINE_ALIAS(load_T0_PC,0);
 	DEFINE_ALIAS(store_T0_PC,0);
 	DEFINE_ALIAS(set_PC_im,1);
-	DEFINE_ALIAS(set_PC_A0,0);
+	DEFINE_ALIAS(set_PC_T0,0);
 	DEFINE_ALIAS(inc_PC,1);
 	DEFINE_ALIAS(load_T0_LR,0);
 	DEFINE_ALIAS(store_T0_LR,0);
 	DEFINE_ALIAS(load_T0_CTR,0);
-	DEFINE_ALIAS(load_A0_CTR,0);
+	DEFINE_ALIAS(load_T0_CTR_aligned,0);
 	DEFINE_ALIAS(store_T0_CTR,0);
-	DEFINE_ALIAS(store_T1_CTR,0);
-	DEFINE_ALIAS(load_T1_PC,0);
-	DEFINE_ALIAS(load_A0_LR,0);
+	DEFINE_ALIAS(load_T0_LR_aligned,0);
 	DEFINE_ALIAS(store_im_LR,1);
 
 	DEFINE_ALIAS(spcflags_init,1);
@@ -211,14 +211,14 @@ public:
 	DEFINE_ALIAS(fnmsubs_FD_F0_F1_F2,0);
 
 	// Load/store floating point data
-	DEFINE_ALIAS(load_double_FD_A0_T1,0);
-	void gen_load_double_FD_A0_im(int32 offset);
-	DEFINE_ALIAS(load_single_FD_A0_T1,0);
-	void gen_load_single_FD_A0_im(int32 offset);
-	DEFINE_ALIAS(store_double_F0_A0_T1,0);
-	void gen_store_double_F0_A0_im(int32 offset);
-	DEFINE_ALIAS(store_single_F0_A0_T1,0);
-	void gen_store_single_F0_A0_im(int32 offset);
+	DEFINE_ALIAS(load_double_FD_T1_T2,0);
+	void gen_load_double_FD_T1_im(int32 offset);
+	DEFINE_ALIAS(load_single_FD_T1_T2,0);
+	void gen_load_single_FD_T1_im(int32 offset);
+	DEFINE_ALIAS(store_double_F0_T1_T2,0);
+	void gen_store_double_F0_T1_im(int32 offset);
+	DEFINE_ALIAS(store_single_F0_T1_T2,0);
+	void gen_store_single_F0_T1_im(int32 offset);
 
 	// Branch instructions
 	void gen_bc(int bo, int bi, uint32 tpc, uint32 npc, bool direct_chaining);

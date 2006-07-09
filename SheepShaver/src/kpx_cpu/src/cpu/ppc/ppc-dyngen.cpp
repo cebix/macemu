@@ -219,11 +219,9 @@ void powerpc_dyngen::gen_##OP##_##REG##_##REGT(int i)	\
 }
 
 // General purpose registers
-DEFINE_INSN(load, A0, GPR);
 DEFINE_INSN(load, T0, GPR);
 DEFINE_INSN(load, T1, GPR);
 DEFINE_INSN(load, T2, GPR);
-DEFINE_INSN(store, A0, GPR);
 DEFINE_INSN(store, T0, GPR);
 DEFINE_INSN(store, T1, GPR);
 DEFINE_INSN(store, T2, GPR);
@@ -249,12 +247,12 @@ DEFINE_INSN(store, T1, crb);
 
 // Floating point load store
 #define DEFINE_OP(NAME, REG, TYPE)										\
-void powerpc_dyngen::gen_##NAME##_##TYPE##_##REG##_A0_im(int32 offset)	\
+void powerpc_dyngen::gen_##NAME##_##TYPE##_##REG##_T1_im(int32 offset)	\
 {																		\
 	if (offset == 0)													\
-		gen_op_##NAME##_##TYPE##_##REG##_A0_0();						\
+		gen_op_##NAME##_##TYPE##_##REG##_T1_0();						\
 	else																\
-		gen_op_##NAME##_##TYPE##_##REG##_A0_im(offset);					\
+		gen_op_##NAME##_##TYPE##_##REG##_T1_im(offset);					\
 }
 
 DEFINE_OP(load, FD, double);
@@ -287,10 +285,8 @@ DEFINE_INSN(store, T0);
 
 void powerpc_dyngen::gen_bc(int bo, int bi, uint32 tpc, uint32 npc, bool direct_chaining)
 {
-	if (BO_CONDITIONAL_BRANCH(bo)) {
-		gen_load_T0_CR();
-		gen_and_32_T0_im(1 << (31 - bi));
-	}
+	if (BO_CONDITIONAL_BRANCH(bo))
+		gen_load_T1_crb(bi);
 
 	switch (bo >> 1) {
 #define _(A,B,C,D) (((A) << 3)| ((B) << 2) | ((C) << 1) | (D))
@@ -324,9 +320,9 @@ void powerpc_dyngen::gen_bc(int bo, int bi, uint32 tpc, uint32 npc, bool direct_
 		}
 		else {
 			if (direct_chaining)
-				gen_op_branch_chain_2_A0_im(npc);
+				gen_op_branch_chain_2_T0_im(npc);
 			else
-				gen_op_branch_2_A0_im(npc);
+				gen_op_branch_2_T0_im(npc);
 		}
 	}
 	else {
@@ -339,9 +335,9 @@ void powerpc_dyngen::gen_bc(int bo, int bi, uint32 tpc, uint32 npc, bool direct_
 		}
 		else {
 			if (direct_chaining)
-				gen_op_branch_chain_1_A0();
+				gen_op_branch_chain_1_T0();
 			else
-				gen_op_branch_1_A0();
+				gen_op_branch_1_T0();
 		}
 	}
 }

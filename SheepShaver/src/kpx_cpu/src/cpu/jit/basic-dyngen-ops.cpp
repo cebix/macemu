@@ -26,21 +26,13 @@
 
 // We need at least 5 general purpose registers
 struct basic_cpu;
-#ifdef REG_CPU
 register basic_cpu *CPU asm(REG_CPU);
-#else
-#define CPU ((basic_cpu *)CPUPARAM)
-#endif
 #define DYNGEN_DEFINE_GLOBAL_REGISTER(REG) \
-register uintptr reg_##REG asm(REG_##REG); \
-register uint32 REG asm(REG_##REG)
-DYNGEN_DEFINE_GLOBAL_REGISTER(A0);
-DYNGEN_DEFINE_GLOBAL_REGISTER(T0);
-DYNGEN_DEFINE_GLOBAL_REGISTER(T1);
-DYNGEN_DEFINE_GLOBAL_REGISTER(T2);
-#ifdef REG_T3
-DYNGEN_DEFINE_GLOBAL_REGISTER(T3);
-#endif
+register uintptr A##REG asm(REG_T##REG); \
+register uint32  T##REG asm(REG_T##REG)
+DYNGEN_DEFINE_GLOBAL_REGISTER(0);
+DYNGEN_DEFINE_GLOBAL_REGISTER(1);
+DYNGEN_DEFINE_GLOBAL_REGISTER(2);
 
 
 /**
@@ -65,6 +57,26 @@ DYNGEN_DEFINE_GLOBAL_REGISTER(T3);
  *		ALU operations
  **/
 
+// XXX update for new 64-bit arches
+#if defined __x86_64__
+#define DEFINE_REG(REG) asm volatile ("movabsq $__op_param1,%" REG_T##REG)
+#else
+#define DEFINE_REG(REG) A##REG = PARAM1
+#endif
+
+#define DEFINE_OP(REG)							\
+void OPPROTO op_mov_ad_A##REG##_im(void)		\
+{												\
+	DEFINE_REG(REG);							\
+}
+
+DEFINE_OP(0);
+DEFINE_OP(1);
+DEFINE_OP(2);
+
+#undef DEFINE_REG
+#undef DEFINE_OP
+
 #define DEFINE_OP(NAME, CODE)					\
 void OPPROTO op_##NAME(void)					\
 {												\
@@ -75,76 +87,45 @@ void OPPROTO op_##NAME(void)					\
 DEFINE_OP(mov_32_T0_im, T0 = PARAM1);
 DEFINE_OP(mov_32_T0_T1, T0 = T1);
 DEFINE_OP(mov_32_T0_T2, T0 = T2);
-DEFINE_OP(mov_32_T0_A0, T0 = A0);
 DEFINE_OP(mov_32_T1_im, T1 = PARAM1);
 DEFINE_OP(mov_32_T1_T0, T1 = T0);
 DEFINE_OP(mov_32_T1_T2, T1 = T2);
-DEFINE_OP(mov_32_T1_A0, T1 = A0);
 DEFINE_OP(mov_32_T2_im, T2 = PARAM1);
 DEFINE_OP(mov_32_T2_T1, T2 = T1);
 DEFINE_OP(mov_32_T2_T0, T2 = T0);
-DEFINE_OP(mov_32_T2_A0, T2 = A0);
-DEFINE_OP(mov_32_A0_im, A0 = PARAM1);
-DEFINE_OP(mov_32_A0_T0, A0 = T0);
-DEFINE_OP(mov_32_A0_T1, A0 = T1);
-DEFINE_OP(mov_32_A0_T2, A0 = T2);
 DEFINE_OP(mov_32_T0_0,  T0 = 0);
 DEFINE_OP(mov_32_T1_0,  T1 = 0);
 DEFINE_OP(mov_32_T2_0,  T2 = 0);
-DEFINE_OP(mov_32_A0_0,  A0 = 0);
-
-#if SIZEOF_VOID_P == 8
-#if defined(__x86_64__)
-#define DEFINE_MOV_AD(REG) asm volatile ("movabsq $__op_param1,%" REG_##REG)
-#else
-#error "unsupported 64-bit value move in"
-#endif
-#else
-#define DEFINE_MOV_AD(REG) REG = PARAM1
-#endif
-
-void OPPROTO op_mov_ad_T0_im(void) { DEFINE_MOV_AD(T0); }
-void OPPROTO op_mov_ad_T1_im(void) { DEFINE_MOV_AD(T1); }
-void OPPROTO op_mov_ad_T2_im(void) { DEFINE_MOV_AD(T2); }
-void OPPROTO op_mov_ad_A0_im(void) { DEFINE_MOV_AD(A0); }
 
 // Arithmetic operations
+DEFINE_OP(add_32_T0_T2, T0 += T2);
 DEFINE_OP(add_32_T0_T1, T0 += T1);
 DEFINE_OP(add_32_T0_im, T0 += PARAM1);
 DEFINE_OP(add_32_T0_1,  T0 += 1);
 DEFINE_OP(add_32_T0_2,  T0 += 2);
 DEFINE_OP(add_32_T0_4,  T0 += 4);
 DEFINE_OP(add_32_T0_8,  T0 += 8);
+DEFINE_OP(sub_32_T0_T2, T0 -= T2);
 DEFINE_OP(sub_32_T0_T1, T0 -= T1);
 DEFINE_OP(sub_32_T0_im, T0 -= PARAM1);
 DEFINE_OP(sub_32_T0_1,  T0 -= 1);
 DEFINE_OP(sub_32_T0_2,  T0 -= 2);
 DEFINE_OP(sub_32_T0_4,  T0 -= 4);
 DEFINE_OP(sub_32_T0_8,  T0 -= 8);
+DEFINE_OP(add_32_T1_T2, T1 += T2);
 DEFINE_OP(add_32_T1_T0, T1 += T0);
 DEFINE_OP(add_32_T1_im, T1 += PARAM1);
 DEFINE_OP(add_32_T1_1,  T1 += 1);
 DEFINE_OP(add_32_T1_2,  T1 += 2);
 DEFINE_OP(add_32_T1_4,  T1 += 4);
 DEFINE_OP(add_32_T1_8,  T1 += 8);
+DEFINE_OP(sub_32_T1_T2, T1 -= T2);
 DEFINE_OP(sub_32_T1_T0, T1 -= T0);
 DEFINE_OP(sub_32_T1_im, T1 -= PARAM1);
 DEFINE_OP(sub_32_T1_1,  T1 -= 1);
 DEFINE_OP(sub_32_T1_2,  T1 -= 2);
 DEFINE_OP(sub_32_T1_4,  T1 -= 4);
 DEFINE_OP(sub_32_T1_8,  T1 -= 8);
-DEFINE_OP(add_32_A0_T1, A0 += T1);
-DEFINE_OP(add_32_A0_im, A0 += PARAM1);
-DEFINE_OP(add_32_A0_1,  A0 += 1);
-DEFINE_OP(add_32_A0_2,  A0 += 2);
-DEFINE_OP(add_32_A0_4,  A0 += 4);
-DEFINE_OP(add_32_A0_8,  A0 += 8);
-DEFINE_OP(sub_32_A0_T1, A0 -= T1);
-DEFINE_OP(sub_32_A0_im, A0 -= PARAM1);
-DEFINE_OP(sub_32_A0_1,  A0 -= 1);
-DEFINE_OP(sub_32_A0_2,  A0 -= 2);
-DEFINE_OP(sub_32_A0_4,  A0 -= 4);
-DEFINE_OP(sub_32_A0_8,  A0 -= 8);
 DEFINE_OP(umul_32_T0_T1, T0 = (uint32)T0 * (uint32)T1);
 DEFINE_OP(smul_32_T0_T1, T0 = (int32)T0 * (int32)T1);
 DEFINE_OP(udiv_32_T0_T1, T0 = do_udiv_32(T0, T1));
@@ -197,28 +178,28 @@ DEFINE_OP(ze_8_32_T0, T0 = (uint32)(uint8)T0);
 
 #define im PARAM1
 #define DEFINE_OP(BITS,REG,SIZE,OFFSET)								\
-void OPPROTO op_load_u##BITS##_##REG##_A0_##OFFSET(void)			\
+void OPPROTO op_load_u##BITS##_##REG##_T1_##OFFSET(void)			\
 {																	\
-	REG = (uint32)(uint##BITS)vm_read_memory_##SIZE(A0 + OFFSET);	\
+	REG = (uint32)(uint##BITS)vm_read_memory_##SIZE(T1 + OFFSET);	\
 }																	\
-void OPPROTO op_load_s##BITS##_##REG##_A0_##OFFSET(void)			\
+void OPPROTO op_load_s##BITS##_##REG##_T1_##OFFSET(void)			\
 {																	\
-	REG = (int32)(int##BITS)vm_read_memory_##SIZE(A0 + OFFSET);		\
+	REG = (int32)(int##BITS)vm_read_memory_##SIZE(T1 + OFFSET);		\
 }																	\
-void OPPROTO op_store_##BITS##_##REG##_A0_##OFFSET(void)			\
+void OPPROTO op_store_##BITS##_##REG##_T1_##OFFSET(void)			\
 {																	\
-	vm_write_memory_##SIZE(A0 + OFFSET, REG);						\
+	vm_write_memory_##SIZE(T1 + OFFSET, REG);						\
 }
 
 DEFINE_OP(32,T0,4,0);
 DEFINE_OP(32,T0,4,im);
-DEFINE_OP(32,T0,4,T1);
+DEFINE_OP(32,T0,4,T2);
 DEFINE_OP(16,T0,2,0);
 DEFINE_OP(16,T0,2,im);
-DEFINE_OP(16,T0,2,T1);
+DEFINE_OP(16,T0,2,T2);
 DEFINE_OP(8,T0,1,0);
 DEFINE_OP(8,T0,1,im);
-DEFINE_OP(8,T0,1,T1);
+DEFINE_OP(8,T0,1,T2);
 
 #undef im
 #undef DEFINE_OP
@@ -274,27 +255,13 @@ void OPPROTO op_execute(uint8 *entry_point, basic_cpu *this_cpu)
 {
 	typedef void (*func_t)(void);
 	func_t func = (func_t)entry_point;
-	const int n_slots = 16 + 6; /* 16 stack slots + 6 VCPU registers */
+	const int n_slots = 16 + 4; /* 16 stack slots + 4 VCPU registers */
 	volatile uintptr stk[n_slots];
-#ifdef REG_CPU
 	stk[n_slots - 1] = (uintptr)CPU;
+	stk[n_slots - 2] = A0;
+	stk[n_slots - 3] = A1;
+	stk[n_slots - 4] = A2;
 	CPU = this_cpu;
-#endif
-#ifdef REG_A0
-	stk[n_slots - 2] = reg_A0;
-#endif
-#ifdef REG_T0
-	stk[n_slots - 3] = reg_T0;
-#endif
-#ifdef REG_T1
-	stk[n_slots - 4] = reg_T1;
-#endif
-#ifdef REG_T2
-	stk[n_slots - 5] = reg_T2;
-#endif
-#ifdef REG_T3
-	stk[n_slots - 6] = reg_T3;
-#endif
 	SLOW_DISPATCH(entry_point);
 	func(); // NOTE: never called, fake to make compiler save return point
 #ifdef  ASM_OP_EXEC_RETURN_INSN
@@ -308,24 +275,10 @@ void OPPROTO op_execute(uint8 *entry_point, basic_cpu *this_cpu)
 	asm volatile (ASM_PREVIOUS_SECTION);
 	asm volatile ("1:");
 #endif
-#ifdef REG_T3
-	reg_T3 = stk[n_slots - 6];
-#endif
-#ifdef REG_T2
-	reg_T2 = stk[n_slots - 5];
-#endif
-#ifdef REG_T1
-	reg_T1 = stk[n_slots - 4];
-#endif
-#ifdef REG_T0
-	reg_T0 = stk[n_slots - 3];
-#endif
-#ifdef REG_A0
-	reg_A0 = stk[n_slots - 2];
-#endif
-#ifdef REG_CPU
+	A2 = stk[n_slots - 4];
+	A1 = stk[n_slots - 3];
+	A0 = stk[n_slots - 2];
 	CPU = (basic_cpu *)stk[n_slots - 1];
-#endif
 }
 
 void OPPROTO op_jmp_slow(void)
@@ -344,7 +297,7 @@ void OPPROTO op_jmp_fast(void)
 
 void OPPROTO op_jmp_A0(void)
 {
-	SLOW_DISPATCH(reg_A0);
+	SLOW_DISPATCH(A0);
 }
 
 // Register calling conventions based arches don't need a stack frame
@@ -399,112 +352,123 @@ void OPPROTO NAME(void)							\
 
 DEFINE_OP(op_invoke, {
 	typedef void (*func_t)(void);
-	CALL(reg_A0,());
+	func_t func = (func_t)PARAM1;
+	CALL(func, ());
 });
 
 DEFINE_OP(op_invoke_T0, {
 	typedef void (*func_t)(uint32);
-	CALL(reg_A0,(T0));
+	func_t func = (func_t)PARAM1;
+	CALL(func, (T0));
 });
 
 DEFINE_OP(op_invoke_T0_T1, {
 	typedef void (*func_t)(uint32, uint32);
-	CALL(reg_A0,(T0, T1));
+	func_t func = (func_t)PARAM1;
+	CALL(func, (T0, T1));
 });
 
 DEFINE_OP(op_invoke_T0_T1_T2, {
 	typedef void (*func_t)(uint32, uint32, uint32);
-	CALL(reg_A0,(T0, T1, T2));
+	func_t func = (func_t)PARAM1;
+	CALL(func, (T0, T1, T2));
 });
 
 DEFINE_OP(op_invoke_T0_ret_T0, {
 	typedef uint32 (*func_t)(uint32);
-	T0 = CALL(reg_A0,(T0));
+	func_t func = (func_t)PARAM1;
+	T0 = CALL(func, (T0));
 });
 
 DEFINE_OP(op_invoke_im, {
 	typedef void (*func_t)(uint32);
-	CALL(reg_A0,(PARAM1));
+	func_t func = (func_t)PARAM1;
+	CALL(func, (PARAM2));
 });
 
 DEFINE_OP(op_invoke_CPU, {
 	typedef void (*func_t)(void *);
-	CALL(reg_A0,(CPU));
+	func_t func = (func_t)PARAM1;
+	CALL(func, (CPU));
 });
 
 DEFINE_OP(op_invoke_CPU_T0, {
 	typedef void (*func_t)(void *, uint32);
-	CALL(reg_A0,(CPU, T0));
+	func_t func = (func_t)PARAM1;
+	CALL(func, (CPU, T0));
 });
 
 DEFINE_OP(op_invoke_CPU_im, {
 	typedef void (*func_t)(void *, uint32);
-	CALL(reg_A0,(CPU, PARAM1));
+	func_t func = (func_t)PARAM1;
+	CALL(func, (CPU, PARAM2));
 });
 
 DEFINE_OP(op_invoke_CPU_im_im, {
 	typedef void (*func_t)(void *, uint32, uint32);
-	CALL(reg_A0,(CPU, PARAM1, PARAM2));
+	func_t func = (func_t)PARAM1;
+	CALL(func, (CPU, PARAM2, PARAM3));
+});
+
+DEFINE_OP(op_invoke_CPU_A0_ret_A0, {
+	typedef void *(*func_t)(void *, uintptr);
+	func_t func = (func_t)PARAM1;
+	A0 = (uintptr)CALL(func, (CPU, A0));
 });
 
 DEFINE_OP(op_invoke_direct, {
 	typedef void (*func_t)(void);
-	CALL(PARAM1,());
+	CALL(PARAM1, ());
 });
 
 DEFINE_OP(op_invoke_direct_T0, {
 	typedef void (*func_t)(uint32);
-	CALL(PARAM1,(T0));
+	CALL(PARAM1, (T0));
 });
 
 DEFINE_OP(op_invoke_direct_T0_T1, {
 	typedef void (*func_t)(uint32, uint32);
-	CALL(PARAM1,(T0, T1));
+	CALL(PARAM1, (T0, T1));
 });
 
 DEFINE_OP(op_invoke_direct_T0_T1_T2, {
 	typedef void (*func_t)(uint32, uint32, uint32);
-	CALL(PARAM1,(T0, T1, T2));
+	CALL(PARAM1, (T0, T1, T2));
 });
 
 DEFINE_OP(op_invoke_direct_T0_ret_T0, {
 	typedef uint32 (*func_t)(uint32);
-	T0 = CALL(PARAM1,(T0));
+	T0 = CALL(PARAM1, (T0));
 });
 
 DEFINE_OP(op_invoke_direct_im, {
 	typedef void (*func_t)(uint32);
-	CALL(PARAM1,(PARAM2));
+	CALL(PARAM1, (PARAM2));
 });
 
 DEFINE_OP(op_invoke_direct_CPU, {
 	typedef void (*func_t)(void *);
-	CALL(PARAM1,(CPU));
+	CALL(PARAM1, (CPU));
 });
 
 DEFINE_OP(op_invoke_direct_CPU_T0, {
 	typedef void (*func_t)(void *, uint32);
-	CALL(PARAM1,(CPU, T0));
+	CALL(PARAM1, (CPU, T0));
 });
 
 DEFINE_OP(op_invoke_direct_CPU_im, {
 	typedef void (*func_t)(void *, uint32);
-	CALL(PARAM1,(CPU, PARAM2));
+	CALL(PARAM1, (CPU, PARAM2));
 });
 
 DEFINE_OP(op_invoke_direct_CPU_im_im, {
 	typedef void (*func_t)(void *, uint32, uint32);
-	CALL(PARAM1,(CPU, PARAM2, PARAM3));
+	CALL(PARAM1, (CPU, PARAM2, PARAM3));
 });
 
-DEFINE_OP(op_invoke_CPU_T0_ret_A0, {
+DEFINE_OP(op_invoke_direct_CPU_A0_ret_A0, {
 	typedef void *(*func_t)(void *, uintptr);
-	reg_A0 = (uintptr)CALL(reg_A0,(CPU, reg_T0));
-});
-
-DEFINE_OP(op_invoke_direct_CPU_T0_ret_A0, {
-	typedef void *(*func_t)(void *, uintptr);
-	reg_A0 = (uintptr)CALL(PARAM1,(CPU, reg_T0));
+	A0 = (uintptr)CALL(PARAM1, (CPU, A0));
 });
 
 #undef DEFINE_OP

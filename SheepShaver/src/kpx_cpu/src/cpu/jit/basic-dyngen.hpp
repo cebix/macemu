@@ -111,7 +111,7 @@ public:
 	void gen_invoke_CPU_T0(void (*func)(dyngen_cpu_base, uint32));
 	void gen_invoke_CPU_im(void (*func)(dyngen_cpu_base, uint32), uint32 value);
 	void gen_invoke_CPU_im_im(void (*func)(dyngen_cpu_base, uint32, uint32), uint32 param1, uint32 param2);
-	void gen_invoke_CPU_T0_ret_A0(void *(*func)(dyngen_cpu_base));
+	void gen_invoke_CPU_A0_ret_A0(void *(*func)(dyngen_cpu_base));
 
 	// Raw aliases
 #define DEFINE_ALIAS_RAW(NAME, ARGLIST, ARGS) \
@@ -127,37 +127,29 @@ public:
 	void gen_mov_32_T0_im(int32 value);
 	DEFINE_ALIAS(mov_32_T0_T1,0);
 	DEFINE_ALIAS(mov_32_T0_T2,0);
-	DEFINE_ALIAS(mov_32_T0_A0,0);
 	void gen_mov_32_T1_im(int32 value);
 	DEFINE_ALIAS(mov_32_T1_T0,0);
 	DEFINE_ALIAS(mov_32_T1_T2,0);
-	DEFINE_ALIAS(mov_32_T1_A0,0);
 	void gen_mov_32_T2_im(int32 value);
 	DEFINE_ALIAS(mov_32_T2_T0,0);
 	DEFINE_ALIAS(mov_32_T2_T1,0);
-	DEFINE_ALIAS(mov_32_T2_A0,0);
-	void gen_mov_32_A0_im(int32 value);
-	DEFINE_ALIAS(mov_32_A0_T0,0);
-	DEFINE_ALIAS(mov_32_A0_T1,0);
-	DEFINE_ALIAS(mov_32_A0_T2,0);
-	DEFINE_ALIAS(mov_ad_T0_im,1);
-	DEFINE_ALIAS(mov_ad_T1_im,1);
-	DEFINE_ALIAS(mov_ad_T2_im,1);
 	DEFINE_ALIAS(mov_ad_A0_im,1);
+	DEFINE_ALIAS(mov_ad_A1_im,1);
+	DEFINE_ALIAS(mov_ad_A2_im,1);
 
 	// Arithmetic operations
 	DEFINE_ALIAS(add_32_T0_T1,0);
+	DEFINE_ALIAS(add_32_T0_T2,0);
 	void gen_add_32_T0_im(int32 value);
 	DEFINE_ALIAS(sub_32_T0_T1,0);
+	DEFINE_ALIAS(sub_32_T0_T2,0);
 	void gen_sub_32_T0_im(int32 value);
 	DEFINE_ALIAS(add_32_T1_T0,0);
+	DEFINE_ALIAS(add_32_T1_T2,0);
 	void gen_add_32_T1_im(int32 value);
 	DEFINE_ALIAS(sub_32_T1_T0,0);
+	DEFINE_ALIAS(sub_32_T1_T2,0);
 	void gen_sub_32_T1_im(int32 value);
-	DEFINE_ALIAS(add_32_A0_T1,0);
-	void gen_add_32_A0_im(int32 value);
-	DEFINE_ALIAS(sub_32_A0_T1,0);
-	void gen_sub_32_A0_im(int32 value);
 	DEFINE_ALIAS(umul_32_T0_T1,0);
 	DEFINE_ALIAS(smul_32_T0_T1,0);
 	DEFINE_ALIAS(udiv_32_T0_T1,0);
@@ -207,24 +199,24 @@ public:
 	DEFINE_ALIAS(jmp_A0,0);
 
 	// Load/Store instructions
-	DEFINE_ALIAS(load_u32_T0_A0_T1,0);
-	void gen_load_u32_T0_A0_im(int32 offset);
-	DEFINE_ALIAS(load_s32_T0_A0_T1,0);
-	void gen_load_s32_T0_A0_im(int32 offset);
-	DEFINE_ALIAS(load_u16_T0_A0_T1,0);
-	void gen_load_u16_T0_A0_im(int32 offset);
-	DEFINE_ALIAS(load_s16_T0_A0_T1,0);
-	void gen_load_s16_T0_A0_im(int32 offset);
-	DEFINE_ALIAS(load_u8_T0_A0_T1,0);
-	void gen_load_u8_T0_A0_im(int32 offset);
-	DEFINE_ALIAS(load_s8_T0_A0_T1,0);
-	void gen_load_s8_T0_A0_im(int32 offset);
-	DEFINE_ALIAS(store_32_T0_A0_T1,0);
-	void gen_store_32_T0_A0_im(int32 offset);
-	DEFINE_ALIAS(store_16_T0_A0_T1,0);
-	void gen_store_16_T0_A0_im(int32 offset);
-	DEFINE_ALIAS(store_8_T0_A0_T1,0);
-	void gen_store_8_T0_A0_im(int32 offset);
+	DEFINE_ALIAS(load_u32_T0_T1_T2,0);
+	void gen_load_u32_T0_T1_im(int32 offset);
+	DEFINE_ALIAS(load_s32_T0_T1_T2,0);
+	void gen_load_s32_T0_T1_im(int32 offset);
+	DEFINE_ALIAS(load_u16_T0_T1_T2,0);
+	void gen_load_u16_T0_T1_im(int32 offset);
+	DEFINE_ALIAS(load_s16_T0_T1_T2,0);
+	void gen_load_s16_T0_T1_im(int32 offset);
+	DEFINE_ALIAS(load_u8_T0_T1_T2,0);
+	void gen_load_u8_T0_T1_im(int32 offset);
+	DEFINE_ALIAS(load_s8_T0_T1_T2,0);
+	void gen_load_s8_T0_T1_im(int32 offset);
+	DEFINE_ALIAS(store_32_T0_T1_T2,0);
+	void gen_store_32_T0_T1_im(int32 offset);
+	DEFINE_ALIAS(store_16_T0_T1_T2,0);
+	void gen_store_16_T0_T1_im(int32 offset);
+	DEFINE_ALIAS(store_8_T0_T1_T2,0);
+	void gen_store_8_T0_T1_im(int32 offset);
 
 #undef DEFINE_ALIAS
 #undef DEFINE_ALIAS_0
@@ -335,13 +327,12 @@ basic_dyngen::gen_mov_32_##REG##_im(int32 value)	\
 DEFINE_OP(T0);
 DEFINE_OP(T1);
 DEFINE_OP(T2);
-DEFINE_OP(A0);
 
 #undef DEFINE_OP
 
 #define DEFINE_OP(OP,REG)										\
 inline void														\
-basic_dyngen::gen_##OP##_32_##REG##_im(int32 value)					\
+basic_dyngen::gen_##OP##_32_##REG##_im(int32 value)				\
 {																\
 	if (value == 0)			return;								\
 	else if (value == 1)	gen_op_##OP##_32_##REG##_1();		\
@@ -351,23 +342,21 @@ basic_dyngen::gen_##OP##_32_##REG##_im(int32 value)					\
 	else					gen_op_##OP##_32_##REG##_im(value);	\
 }
 
-DEFINE_OP(add,A0);
 DEFINE_OP(add,T0);
 DEFINE_OP(add,T1);
-DEFINE_OP(sub,A0);
 DEFINE_OP(sub,T0);
 DEFINE_OP(sub,T1);
 
 #undef DEFINE_OP
 
-#define DEFINE_OP(NAME,REG,SIZE)							\
-inline void													\
-basic_dyngen::gen_##NAME##_##SIZE##_##REG##_A0_im(int32 offset)	\
-{															\
-	if (offset == 0)										\
-		gen_op_##NAME##_##SIZE##_##REG##_A0_0();			\
-	else													\
-		gen_op_##NAME##_##SIZE##_##REG##_A0_im(offset);		\
+#define DEFINE_OP(NAME,REG,SIZE)								\
+inline void														\
+basic_dyngen::gen_##NAME##_##SIZE##_##REG##_T1_im(int32 offset)	\
+{																\
+	if (offset == 0)											\
+		gen_op_##NAME##_##SIZE##_##REG##_T1_0();				\
+	else														\
+		gen_op_##NAME##_##SIZE##_##REG##_T1_im(offset);			\
 }
 
 DEFINE_OP(load,T0,u32);

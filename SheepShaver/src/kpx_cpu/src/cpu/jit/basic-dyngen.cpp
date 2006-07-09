@@ -48,121 +48,33 @@ basic_dyngen::basic_dyngen(dyngen_cpu_base cpu, int cache_size)
 void
 basic_dyngen::gen_invoke(void (*func)())
 {
-	if (direct_call_possible((uintptr)func))
-		gen_op_invoke_direct((uintptr)func);
-	else {
-		gen_op_mov_ad_A0_im((uintptr)func);
-		gen_op_invoke();
-	}
+	uintptr funcptr = (uintptr)func;
+	if (direct_call_possible(funcptr))
+		gen_op_invoke_direct(funcptr);
+	else
+		gen_op_invoke(funcptr);
 }
 
-void
-basic_dyngen::gen_invoke_T0(void (*func)(uint32))
-{
-	if (direct_call_possible((uintptr)func))
-		gen_op_invoke_direct_T0((uintptr)func);
-	else {
-		gen_op_mov_ad_A0_im((uintptr)func);
-		gen_op_invoke_T0();
-	}
+#define DEFINE_INVOKE(NAME, ARGS, IARGS)		\
+void											\
+basic_dyngen::gen_invoke_##NAME ARGS			\
+{												\
+	uintptr funcptr = (uintptr)func;			\
+	if (direct_call_possible(funcptr))			\
+		gen_op_invoke_direct_##NAME IARGS;		\
+	else										\
+		gen_op_invoke_##NAME IARGS;				\
 }
 
-void
-basic_dyngen::gen_invoke_T0_T1(void (*func)(uint32, uint32))
-{
-	if (direct_call_possible((uintptr)func))
-		gen_op_invoke_direct_T0_T1((uintptr)func);
-	else {
-		gen_op_mov_ad_A0_im((uintptr)func);
-		gen_op_invoke_T0_T1();
-	}
-}
+DEFINE_INVOKE(T0, (void (*func)(uint32)), (funcptr));
+DEFINE_INVOKE(T0_T1, (void (*func)(uint32, uint32)), (funcptr));
+DEFINE_INVOKE(T0_T1_T2, (void (*func)(uint32, uint32, uint32)), (funcptr));
+DEFINE_INVOKE(T0_ret_T0, (uint32 (*func)(uint32)), (funcptr));
+DEFINE_INVOKE(im, (void (*func)(uint32), uint32 value), (funcptr, value));
+DEFINE_INVOKE(CPU, (void (*func)(dyngen_cpu_base)), (funcptr));
+DEFINE_INVOKE(CPU_T0, (void (*func)(dyngen_cpu_base, uint32)), (funcptr));
+DEFINE_INVOKE(CPU_im, (void (*func)(dyngen_cpu_base, uint32), uint32 value), (funcptr, value));
+DEFINE_INVOKE(CPU_im_im, (void (*func)(dyngen_cpu_base, uint32, uint32), uint32 param1, uint32 param2), (funcptr, param1, param2));
+DEFINE_INVOKE(CPU_A0_ret_A0, (void *(*func)(dyngen_cpu_base)), (funcptr));
 
-void
-basic_dyngen::gen_invoke_T0_T1_T2(void (*func)(uint32, uint32, uint32))
-{
-	if (direct_call_possible((uintptr)func))
-		gen_op_invoke_direct_T0_T1_T2((uintptr)func);
-	else {
-		gen_op_mov_ad_A0_im((uintptr)func);
-		gen_op_invoke_T0_T1_T2();
-	}
-}
-
-void
-basic_dyngen::gen_invoke_T0_ret_T0(uint32 (*func)(uint32))
-{
-	if (direct_call_possible((uintptr)func))
-		gen_op_invoke_direct_T0_ret_T0((uintptr)func);
-	else {
-		gen_op_mov_ad_A0_im((uintptr)func);
-		gen_op_invoke_T0_ret_T0();
-	}
-}
-
-void
-basic_dyngen::gen_invoke_im(void (*func)(uint32), uint32 value)
-{
-	if (direct_call_possible((uintptr)func))
-		gen_op_invoke_direct_im((uintptr)func, value);
-	else {
-		gen_op_mov_ad_A0_im((uintptr)func);
-		gen_op_invoke_im(value);
-	}
-}
-
-void
-basic_dyngen::gen_invoke_CPU(void (*func)(dyngen_cpu_base))
-{
-	if (direct_call_possible((uintptr)func))
-		gen_op_invoke_direct_CPU((uintptr)func);
-	else {
-		gen_op_mov_ad_A0_im((uintptr)func);
-		gen_op_invoke_CPU();
-	}
-}
-
-void
-basic_dyngen::gen_invoke_CPU_T0(void (*func)(dyngen_cpu_base, uint32))
-{
-	if (direct_call_possible((uintptr)func))
-		gen_op_invoke_direct_CPU_T0((uintptr)func);
-	else {
-		gen_op_mov_ad_A0_im((uintptr)func);
-		gen_op_invoke_CPU_T0();
-	}
-}
-
-void
-basic_dyngen::gen_invoke_CPU_im(void (*func)(dyngen_cpu_base, uint32), uint32 value)
-{
-	if (direct_call_possible((uintptr)func))
-		gen_op_invoke_direct_CPU_im((uintptr)func, value);
-	else {
-		gen_op_mov_ad_A0_im((uintptr)func);
-		gen_op_invoke_CPU_im(value);
-	}
-}
-
-void
-basic_dyngen::gen_invoke_CPU_im_im(void (*func)(dyngen_cpu_base, uint32, uint32), uint32 param1, uint32 param2)
-{
-	if (direct_call_possible((uintptr)func))
-		gen_op_invoke_direct_CPU_im_im((uintptr)func, param1, param2);
-	else {
-		gen_op_mov_ad_A0_im((uintptr)func);
-		gen_op_invoke_CPU_im_im(param1, param2);
-	}
-}
-
-void
-basic_dyngen::gen_invoke_CPU_T0_ret_A0(void *(*func)(dyngen_cpu_base))
-{
-	if (direct_call_possible((uintptr)func))
-		gen_op_invoke_direct_CPU_T0_ret_A0((uintptr)func);
-	else {
-		gen_op_mov_ad_A0_im((uintptr)func);
-		gen_op_invoke_CPU_T0_ret_A0();
-	}
-}
-
+#undef DEFINE_INVOKE

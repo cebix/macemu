@@ -27,8 +27,8 @@
 #include "cpu/jit/jit-target-dispatch.h"
 
 /* define virtual register set */
-#define REG_A0			AREG0
-#define REG_A0_ID		AREG0_ID
+#define REG_CPU			AREG0
+#define REG_CPU_ID		AREG0_ID
 #define REG_T0			AREG1
 #define REG_T0_ID		AREG1_ID
 #define REG_T1			AREG2
@@ -38,10 +38,6 @@
 #ifdef  AREG4
 #define REG_T3			AREG4
 #define REG_T3_ID		AREG4_ID
-#endif
-#ifdef  AREG5
-#define REG_CPU			AREG5
-#define REG_CPU_ID		AREG5_ID
 #endif
 #ifdef  FREG0
 #define REG_F0			FREG0

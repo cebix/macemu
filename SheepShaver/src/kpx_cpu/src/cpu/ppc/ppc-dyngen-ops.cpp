@@ -28,43 +28,41 @@
 #include "cpu/ppc/ppc-operations.hpp"
 
 // We need at least 4 general purpose registers
-#ifdef REG_CPU
 register struct powerpc_cpu *CPU asm(REG_CPU);
-#else
-#define CPU ((powerpc_cpu *)CPUPARAM)
-#endif
 #define DYNGEN_DEFINE_GLOBAL_REGISTER(REG) \
-register uintptr reg_##REG asm(REG_##REG); \
-register uint32 REG asm(REG_##REG)
-DYNGEN_DEFINE_GLOBAL_REGISTER(A0);
-DYNGEN_DEFINE_GLOBAL_REGISTER(T0);
-DYNGEN_DEFINE_GLOBAL_REGISTER(T1);
-DYNGEN_DEFINE_GLOBAL_REGISTER(T2);
+register uintptr A##REG asm(REG_T##REG); \
+register uint32  T##REG asm(REG_T##REG)
+DYNGEN_DEFINE_GLOBAL_REGISTER(0);
+DYNGEN_DEFINE_GLOBAL_REGISTER(1);
+DYNGEN_DEFINE_GLOBAL_REGISTER(2);
 #ifdef REG_T3
-DYNGEN_DEFINE_GLOBAL_REGISTER(T3);
+DYNGEN_DEFINE_GLOBAL_REGISTER(3);
+#else
+#define A3				powerpc_dyngen_helper::reg_T3()
+#define T3				powerpc_dyngen_helper::reg_T3()
 #endif
 
 // Floating-point registers
 #define FPREG(X)		((powerpc_fpr *)(X))
-#define F0				FPREG(reg_T0)->d
-#define F0_dw			FPREG(reg_T0)->j
-#define F1				FPREG(reg_T1)->d
-#define F1_dw			FPREG(reg_T1)->j
-#define F2				FPREG(reg_T2)->d
-#define F2_dw			FPREG(reg_T2)->j
+#define F0				FPREG(A0)->d
+#define F0_dw			FPREG(A0)->j
+#define F1				FPREG(A1)->d
+#define F1_dw			FPREG(A1)->j
+#define F2				FPREG(A2)->d
+#define F2_dw			FPREG(A2)->j
 #define FD				powerpc_dyngen_helper::fp_result()
 #define FD_dw			powerpc_dyngen_helper::fp_result_dw()
 
 // Vector registers
 #define VREG(X)			((powerpc_vr *)(X))[0]
-#define VD				VREG(reg_VD)
-#define reg_VD			reg_A0
 #define V0				VREG(reg_V0)
-#define reg_V0			reg_T0
+#define reg_V0			A0
 #define V1				VREG(reg_V1)
-#define reg_V1			reg_T1
+#define reg_V1			A1
 #define V2				VREG(reg_V2)
-#define reg_V2			reg_T2
+#define reg_V2			A2
+#define VD				VREG(reg_VD)
+#define reg_VD			A3
 
 /**
  *		Helper class to access protected CPU context
@@ -96,6 +94,10 @@ struct powerpc_dyngen_helper {
 	static uint64 & fp_result_dw()				{ return CPU->fp_result_dw(); }
 	static inline void set_cr(int crfd, int v)	{ CPU->cr().set(crfd, v); }
 
+#ifndef REG_T3
+	static inline uintptr & reg_T3()			{ return CPU->codegen.reg_T3; }
+#endif
+
 	static inline powerpc_block_info *find_block(uint32 pc) { return CPU->block_cache.fast_find(pc); }
 };
 
@@ -118,7 +120,6 @@ void OPPROTO op_store_##REG##_GPR##N(void)		\
 	CPU->gpr(N) = REG;							\
 }
 #define DEFINE_REG(N)							\
-DEFINE_OP(A0,N);								\
 DEFINE_OP(T0,N);								\
 DEFINE_OP(T1,N);								\
 DEFINE_OP(T2,N);
@@ -167,7 +168,7 @@ DEFINE_REG(31);
 #define DEFINE_OP(REG, N)						\
 void OPPROTO op_load_F##REG##_FPR##N(void)		\
 {												\
-	reg_T##REG = (uintptr)&CPU->fpr(N);			\
+	A##REG = (uintptr)&CPU->fpr(N);				\
 }												\
 void OPPROTO op_store_F##REG##_FPR##N(void)		\
 {												\
@@ -254,26 +255,26 @@ DEFINE_REG(31);
 
 #define im PARAM1
 #define DEFINE_OP(OFFSET)							\
-void OPPROTO op_load_double_FD_A0_##OFFSET(void)	\
+void OPPROTO op_load_double_FD_T1_##OFFSET(void)	\
 {													\
-	do_load_double(FD, A0 + OFFSET);				\
+	do_load_double(FD, T1 + OFFSET);				\
 }													\
-void OPPROTO op_load_single_FD_A0_##OFFSET(void)	\
+void OPPROTO op_load_single_FD_T1_##OFFSET(void)	\
 {													\
-	do_load_single(FD, A0 + OFFSET);				\
+	do_load_single(FD, T1 + OFFSET);				\
 }													\
-void OPPROTO op_store_double_F0_A0_##OFFSET(void)	\
+void OPPROTO op_store_double_F0_T1_##OFFSET(void)	\
 {													\
-	do_store_double(F0, A0 + OFFSET);				\
+	do_store_double(F0, T1 + OFFSET);				\
 }													\
-void OPPROTO op_store_single_F0_A0_##OFFSET(void)	\
+void OPPROTO op_store_single_F0_T1_##OFFSET(void)	\
 {													\
-	do_store_single(F0, A0 + OFFSET);				\
+	do_store_single(F0, T1 + OFFSET);				\
 }
 
 DEFINE_OP(0);
 DEFINE_OP(im);
-DEFINE_OP(T1);
+DEFINE_OP(T2);
 
 #undef im
 #undef DEFINE_OP
@@ -516,9 +517,9 @@ void OPPROTO op_set_PC_im(void)
 	powerpc_dyngen_helper::set_pc(PARAM1);
 }
 
-void OPPROTO op_set_PC_A0(void)
+void OPPROTO op_set_PC_T0(void)
 {
-	powerpc_dyngen_helper::set_pc(A0);
+	powerpc_dyngen_helper::set_pc(T0);
 }
 
 void OPPROTO op_inc_PC(void)
@@ -546,29 +547,19 @@ void OPPROTO op_store_T0_CTR(void)
 	powerpc_dyngen_helper::set_ctr(T0);
 }
 
-void OPPROTO op_store_T1_CTR(void)
-{
-	powerpc_dyngen_helper::set_ctr(T1);
-}
-
-void OPPROTO op_load_T1_PC(void)
-{
-	T1 = powerpc_dyngen_helper::get_pc();
-}
-
 void OPPROTO op_store_im_LR(void)
 {
 	powerpc_dyngen_helper::set_lr(PARAM1);
 }
 
-void OPPROTO op_load_A0_CTR(void)
+void OPPROTO op_load_T0_CTR_aligned(void)
 {
-	A0 = powerpc_dyngen_helper::get_ctr() & -4;
+	T0 = powerpc_dyngen_helper::get_ctr() & -4;
 }
 
-void OPPROTO op_load_A0_LR(void)
+void OPPROTO op_load_T0_LR_aligned(void)
 {
-	A0 = powerpc_dyngen_helper::get_lr() & -4;
+	T0 = powerpc_dyngen_helper::get_lr() & -4;
 }
 
 void OPPROTO op_spcflags_init(void)
@@ -610,21 +601,21 @@ static inline void do_prep_branch_bo(void)
 
 	if (BO_CONDITIONAL_BRANCH(bo)) {
 		if (BO_BRANCH_IF_TRUE(bo))
-			cond_ok = T0;
+			cond_ok = T1;
 		else
-			cond_ok = !T0;
+			cond_ok = !T1;
 	}
 
 	if (BO_DECREMENT_CTR(bo)) {
-		T1 = powerpc_dyngen_helper::get_ctr() - 1;
-		powerpc_dyngen_helper::set_ctr(T1);
+		T2 = powerpc_dyngen_helper::get_ctr() - 1;
+		powerpc_dyngen_helper::set_ctr(T2);
 		if (BO_BRANCH_IF_CTR_ZERO(bo))
-			ctr_ok = !T1;
+			ctr_ok = !T2;
 		else
-			ctr_ok = T1;
+			ctr_ok = T2;
 	}
 
-	T0 = ctr_ok && cond_ok;
+	T1 = ctr_ok && cond_ok;
 	dyngen_barrier();
 }
 
@@ -660,14 +651,14 @@ static inline void do_execute_branch_1(uint32 tpc)
 	dyngen_barrier();
 }
 
-void op_branch_1_A0(void)
+void op_branch_1_T0(void)
 {
-	do_execute_branch_1<0>(A0);
+	do_execute_branch_1<0>(T0);
 }
 
-void op_branch_chain_1_A0(void)
+void op_branch_chain_1_T0(void)
 {
-	do_execute_branch_1<1>(A0);
+	do_execute_branch_1<1>(T0);
 }
 
 void op_branch_1_im(void)
@@ -685,32 +676,32 @@ static inline void do_execute_branch_2(uint32 tpc, uint32 npc)
 {
 #ifdef DYNGEN_FAST_DISPATCH
 	if (chain) {
-		T1 = powerpc_dyngen_helper::spcflags().get();
-		if (T0) {
-			FAST_COMPARE_SPECFLAGS_DISPATCH(T1, __op_jmp0);
-			A0 = tpc;
+		T2 = powerpc_dyngen_helper::spcflags().get();
+		if (T1) {
+			FAST_COMPARE_SPECFLAGS_DISPATCH(T2, __op_jmp0);
+			T0 = tpc;
 		}
 		else {
-			FAST_COMPARE_SPECFLAGS_DISPATCH(T1, __op_jmp1);
-			A0 = npc;
+			FAST_COMPARE_SPECFLAGS_DISPATCH(T2, __op_jmp1);
+			T0 = npc;
 		}
 	}
 	else
 #endif
 
-	A0 = T0 ? tpc : npc;
-	powerpc_dyngen_helper::set_pc(A0);
+	T0 = T1 ? tpc : npc;
+	powerpc_dyngen_helper::set_pc(T0);
 	dyngen_barrier();
 }
 
-void op_branch_2_A0_im(void)
+void op_branch_2_T0_im(void)
 {
-	do_execute_branch_2<0>(A0, PARAM1);
+	do_execute_branch_2<0>(T0, PARAM1);
 }
 
-void op_branch_chain_2_A0_im(void)
+void op_branch_chain_2_T0_im(void)
 {
-	do_execute_branch_2<1>(A0, PARAM1);
+	do_execute_branch_2<1>(T0, PARAM1);
 }
 
 void op_branch_2_im_im(void)
@@ -1371,7 +1362,7 @@ void OPPROTO op_jump_next_A0(void)
 {
 	// Make sure there is no pending interrupt request
 	if (likely(powerpc_dyngen_helper::spcflags().empty())) {
-		powerpc_block_info *bi = (powerpc_block_info *)reg_A0;
+		powerpc_block_info *bi = (powerpc_block_info *)A0;
 		uint32 pc = powerpc_dyngen_helper::get_pc();
 		if (likely(bi->pc == pc) || likely((bi = powerpc_dyngen_helper::find_block(pc)) != NULL))
 			goto *(bi->entry_point);
@@ -1447,17 +1438,16 @@ DEFINE_OP(31);
  *		Load/store addresses to vector registers
  **/
 
-#define reg_TD reg_A0
 #define DEFINE_OP(REG, N)						\
 void OPPROTO op_load_ad_V##REG##_VR##N(void)	\
 {												\
-	reg_T##REG = (uintptr)&CPU->vr(N);			\
+	reg_V##REG = (uintptr)&CPU->vr(N);			\
 }												
 #define DEFINE_REG(N)							\
 DEFINE_OP(D,N);									\
 DEFINE_OP(0,N);									\
 DEFINE_OP(1,N);									\
-DEFINE_OP(2,N);									\
+DEFINE_OP(2,N)
 
 DEFINE_REG(0);
 DEFINE_REG(1);
@@ -1494,7 +1484,7 @@ DEFINE_REG(31);
 
 #undef DEFINE_REG
 #undef DEFINE_OP
-#undef reg_TD
+#undef AD
 
 void op_load_word_VD_T0(void)
 {

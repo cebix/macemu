@@ -397,8 +397,8 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 			if (!FN_field::test(opcode))
 				cg_context.done_compile = false;
 			else {
-				dg.gen_load_A0_LR();
-				dg.gen_set_PC_A0();
+				dg.gen_load_T0_LR_aligned();
+				dg.gen_set_PC_T0();
 				cg_context.done_compile = true;
 			}
 			break;
@@ -408,8 +408,8 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 		if (!FN_field::test(opcode))
 			dg.gen_set_PC_im(cg_context.pc + 4);
 		else {
-			dg.gen_load_A0_LR();
-			dg.gen_set_PC_A0();
+			dg.gen_load_T0_LR_aligned();
+			dg.gen_set_PC_T0();
 		}
 		dg.gen_mov_32_T0_im(selector);
 		dg.gen_jmp(native_op_trampoline);
