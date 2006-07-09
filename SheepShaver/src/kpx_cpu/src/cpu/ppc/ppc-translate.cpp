@@ -1543,9 +1543,6 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		max_pc = dpc;
 	bi->min_pc = min_pc;
 	bi->max_pc = max_pc;
-	bi->size = dg.code_ptr() - bi->entry_point;
-	if (disasm)
-		disasm_translation(entry_point, dpc - entry_point + 4, bi->entry_point, bi->size);
 
 #if DYNGEN_DIRECT_BLOCK_CHAINING
 	// Generate backpatch trampolines
@@ -1566,6 +1563,10 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		}
 	}
 #endif
+
+	bi->size = dg.code_ptr() - bi->entry_point;
+	if (disasm)
+		disasm_translation(entry_point, dpc - entry_point + 4, bi->entry_point, bi->size);
 
 	dg.gen_end();
 	block_cache.add_to_cl_list(bi);
