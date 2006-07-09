@@ -90,8 +90,8 @@ struct powerpc_dyngen_helper {
 	static inline powerpc_cr_register & cr()	{ return CPU->cr(); }
 	static inline powerpc_xer_register & xer()	{ return CPU->xer(); }
 	static inline powerpc_spcflags & spcflags()	{ return CPU->spcflags(); }
-	static double & fp_result()					{ return CPU->fp_result(); }
-	static uint64 & fp_result_dw()				{ return CPU->fp_result_dw(); }
+	static inline double & fp_result()			{ return CPU->fp_result(); }
+	static inline uint64 & fp_result_dw()		{ return CPU->fp_result_dw(); }
 	static inline void set_cr(int crfd, int v)	{ CPU->cr().set(crfd, v); }
 
 #ifndef REG_T3
@@ -1715,7 +1715,7 @@ void op_sse2_##NAME(void)											\
 {																	\
 	asm volatile ("movdqa (%1),%%xmm0\n"							\
 				  #OP   " (%2),%%xmm0\n"							\
-				  "movaps %%xmm0,(%0)\n"							\
+				  "movdqa %%xmm0,(%0)\n"							\
 				  : : "r" (reg_VD), "r" (reg_##VA), "r" (reg_##VB)	\
 				  : __sse_clobbers("xmm0"));						\
 }
@@ -1752,7 +1752,7 @@ void op_sse2_vsldoi_##SH(void)								\
 				  "psrldq %5,%%xmm1\n"						\
 				  "por    %%xmm1,%%xmm0\n"					\
 				  "pshufd %3,%%xmm0,%%xmm0\n"				\
-				  "movaps %%xmm0,(%0)\n"					\
+				  "movdqa %%xmm0,(%0)\n"					\
 				  : :										\
 				  "r" (reg_VD), "r" (reg_V0), "r" (reg_V1),	\
 				  "i" (0x1b), "i" (SH), "i" (16 - SH)		\

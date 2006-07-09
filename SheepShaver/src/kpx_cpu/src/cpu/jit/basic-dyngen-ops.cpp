@@ -39,6 +39,9 @@ DYNGEN_DEFINE_GLOBAL_REGISTER(2);
  *		Native ALU operations optimization
  **/
 
+#if defined(__i386__) || defined(__x86_64__)
+#define do_xchg_32(x, y)		asm volatile ("xchg %0,%1" : "+r" (x), "+r" (y))
+#endif
 #ifndef do_udiv_32
 #define do_udiv_32(x, y)		((uint32)x / (uint32)y)
 #endif
@@ -50,6 +53,9 @@ DYNGEN_DEFINE_GLOBAL_REGISTER(2);
 #endif
 #ifndef do_ror_32
 #define do_ror_32(x, y)			((x >> y) | (x << (32 - y)))
+#endif
+#ifndef do_xchg_32
+#define do_xchg_32(x, y)		do { uint32 t = x; x = y; y = t; } while (0)
 #endif
 
 
@@ -130,7 +136,7 @@ DEFINE_OP(umul_32_T0_T1, T0 = (uint32)T0 * (uint32)T1);
 DEFINE_OP(smul_32_T0_T1, T0 = (int32)T0 * (int32)T1);
 DEFINE_OP(udiv_32_T0_T1, T0 = do_udiv_32(T0, T1));
 DEFINE_OP(sdiv_32_T0_T1, T0 = do_sdiv_32(T0, T1));
-DEFINE_OP(xchg_32_T0_T1, { uint32 tmp = T0; T0 = T1; T1 = tmp; });
+DEFINE_OP(xchg_32_T0_T1, do_xchg_32(T0, T1));
 DEFINE_OP(bswap_16_T0, T0 = bswap_16(T0));
 DEFINE_OP(bswap_32_T0, T0 = bswap_32(T0));
 
