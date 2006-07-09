@@ -65,22 +65,21 @@ DYNGEN_DEFINE_GLOBAL_REGISTER(2);
 
 // XXX update for new 64-bit arches
 #if defined __x86_64__
-#define DEFINE_REG(REG) asm volatile ("movabsq $__op_param1,%" REG_T##REG)
+#define MOV_AD_REG(PARAM, REG) asm volatile ("movabsq $__op_" #PARAM ",%0" : "=r" (REG))
 #else
-#define DEFINE_REG(REG) A##REG = PARAM1
+#define MOV_AD_REG(PARAM, REG) REG = PARAM
 #endif
 
 #define DEFINE_OP(REG)							\
-void OPPROTO op_mov_ad_A##REG##_im(void)		\
+void OPPROTO op_mov_ad_##REG##_im(void)			\
 {												\
-	DEFINE_REG(REG);							\
+	MOV_AD_REG(PARAM1, REG);					\
 }
 
-DEFINE_OP(0);
-DEFINE_OP(1);
-DEFINE_OP(2);
+DEFINE_OP(A0);
+DEFINE_OP(A1);
+DEFINE_OP(A2);
 
-#undef DEFINE_REG
 #undef DEFINE_OP
 
 #define DEFINE_OP(NAME, CODE)					\
@@ -295,7 +294,7 @@ void OPPROTO op_jmp_slow(void)
 void OPPROTO op_jmp_fast(void)
 {
 #ifdef DYNGEN_FAST_DISPATCH
-	DYNGEN_FAST_DISPATCH(__op_param1);
+	DYNGEN_FAST_DISPATCH(__op_PARAM1);
 #else
 	SLOW_DISPATCH(PARAM1);
 #endif
@@ -358,67 +357,78 @@ void OPPROTO NAME(void)							\
 
 DEFINE_OP(op_invoke, {
 	typedef void (*func_t)(void);
-	func_t func = (func_t)PARAM1;
+	uintptr func;
+	MOV_AD_REG(PARAM1, func);
 	CALL(func, ());
 });
 
 DEFINE_OP(op_invoke_T0, {
 	typedef void (*func_t)(uint32);
-	func_t func = (func_t)PARAM1;
+	uintptr func;
+	MOV_AD_REG(PARAM1, func);
 	CALL(func, (T0));
 });
 
 DEFINE_OP(op_invoke_T0_T1, {
 	typedef void (*func_t)(uint32, uint32);
-	func_t func = (func_t)PARAM1;
+	uintptr func;
+	MOV_AD_REG(PARAM1, func);
 	CALL(func, (T0, T1));
 });
 
 DEFINE_OP(op_invoke_T0_T1_T2, {
 	typedef void (*func_t)(uint32, uint32, uint32);
-	func_t func = (func_t)PARAM1;
+	uintptr func;
+	MOV_AD_REG(PARAM1, func);
 	CALL(func, (T0, T1, T2));
 });
 
 DEFINE_OP(op_invoke_T0_ret_T0, {
 	typedef uint32 (*func_t)(uint32);
-	func_t func = (func_t)PARAM1;
+	uintptr func;
+	MOV_AD_REG(PARAM1, func);
 	T0 = CALL(func, (T0));
 });
 
 DEFINE_OP(op_invoke_im, {
 	typedef void (*func_t)(uint32);
-	func_t func = (func_t)PARAM1;
+	uintptr func;
+	MOV_AD_REG(PARAM1, func);
 	CALL(func, (PARAM2));
 });
 
 DEFINE_OP(op_invoke_CPU, {
 	typedef void (*func_t)(void *);
-	func_t func = (func_t)PARAM1;
+	uintptr func;
+	MOV_AD_REG(PARAM1, func);
 	CALL(func, (CPU));
 });
 
 DEFINE_OP(op_invoke_CPU_T0, {
 	typedef void (*func_t)(void *, uint32);
-	func_t func = (func_t)PARAM1;
+	uintptr func;
+	MOV_AD_REG(PARAM1, func);
 	CALL(func, (CPU, T0));
 });
 
 DEFINE_OP(op_invoke_CPU_im, {
 	typedef void (*func_t)(void *, uint32);
-	func_t func = (func_t)PARAM1;
+	uintptr func;
+	MOV_AD_REG(PARAM1, func);
 	CALL(func, (CPU, PARAM2));
 });
 
 DEFINE_OP(op_invoke_CPU_im_im, {
 	typedef void (*func_t)(void *, uint32, uint32);
-	func_t func = (func_t)PARAM1;
+	uintptr func;
+	MOV_AD_REG(PARAM1, func);
 	CALL(func, (CPU, PARAM2, PARAM3));
 });
 
 DEFINE_OP(op_invoke_CPU_A0_ret_A0, {
 	typedef void *(*func_t)(void *, uintptr);
-	func_t func = (func_t)PARAM1;
+	uintptr func;
+	MOV_AD_REG(PARAM1, func);
 	A0 = (uintptr)CALL(func, (CPU, A0));
 });
 

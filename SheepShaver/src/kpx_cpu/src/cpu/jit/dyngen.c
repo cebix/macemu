@@ -1603,7 +1603,7 @@ int arm_emit_ldr_info(const char *name, unsigned long start_offset,
                         if (rel->r_offset == (pc_offset + start_offset)) {
                             sym_name = get_rel_sym_name(rel);
                             /* the compiler leave some unnecessary references to the code */
-                            if (strstart(sym_name, "__op_param", &p)) {
+                            if (strstart(sym_name, "__op_PARAM", &p)) {
                                 snprintf(relname, sizeof(relname), "param%s", p);
                             } else {
                                 snprintf(relname, sizeof(relname), "(long)(&%s)", sym_name);
@@ -1878,7 +1878,7 @@ void gen_code(const char *name, const char *demangled_name,
             sym_name = get_rel_sym_name(rel);
             if(!sym_name)
                 continue;
-            if (strstart(sym_name, "__op_param", &p)) {
+            if (strstart(sym_name, "__op_PARAM", &p)) {
                 n = strtoul(p, NULL, 10);
                 if (n > MAX_ARGS)
                     error("too many arguments in %s", name);
@@ -1925,8 +1925,7 @@ void gen_code(const char *name, const char *demangled_name,
                 if(!sym_name)
                     continue;
                 if (*sym_name && 
-                    !strstart(sym_name, "__op_param", NULL) &&
-                    !strstart(sym_name, "__op_cpuparam", NULL) &&
+                    !strstart(sym_name, "__op_PARAM", NULL) &&
                     !strstart(sym_name, "__op_jmp", NULL) &&
                     !strstart(sym_name, ".LC", NULL))
                   error("unexpected external symbol %s", sym_name);
@@ -2058,10 +2057,8 @@ void gen_code(const char *name, const char *demangled_name,
 						continue; /* dunno how to handle without final_sym_name */
 					}
 													   
-					if (strstart(sym_name, "__op_param", &p))
+					if (strstart(sym_name, "__op_PARAM", &p))
 						snprintf(final_sym_name, sizeof(final_sym_name), "param%s", p);
-                    else if (strstart(sym_name, "__op_cpuparam", &p))
-                        snprintf(final_sym_name, sizeof(final_sym_name), "(long)(cpu())", p);
                     else
 						snprintf(final_sym_name, sizeof(final_sym_name), "(long)(&%s)", sym_name);
 
@@ -2103,10 +2100,8 @@ void gen_code(const char *name, const char *demangled_name,
                         continue;
                     }
                         
-                    if (strstart(sym_name, "__op_param", &p)) {
+                    if (strstart(sym_name, "__op_PARAM", &p)) {
                         snprintf(name, sizeof(name), "param%s", p);
-                    } else if (strstart(sym_name, "__op_cpuparam", &p)) {
-                        snprintf(name, sizeof(name), "(long)(cpu())", p);
                     } else {
                         snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
                     }
@@ -2180,7 +2175,7 @@ void gen_code(const char *name, const char *demangled_name,
                       continue;
                     }
 
-                    if (strstart(sym_name, "__op_param", &p))
+                    if (strstart(sym_name, "__op_PARAM", &p))
                         snprintf(name, sizeof(name), "param%s", p);
                     else if (strstart(sym_name, ".LC", NULL))
                         snprintf(name, sizeof(name), "(long)(gen_const_%s())", gen_dot_prefix(sym_name));
@@ -2233,7 +2228,7 @@ void gen_code(const char *name, const char *demangled_name,
                             continue;
                         }
                         
-                        if (strstart(sym_name, "__op_param", &p)) {
+                        if (strstart(sym_name, "__op_PARAM", &p)) {
                             snprintf(name, sizeof(name), "param%s", p);
                         } else {
                             snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
@@ -2322,7 +2317,7 @@ void gen_code(const char *name, const char *demangled_name,
 						continue; /* dunno how to handle without final_sym_name */
 					}
 													   
-					if (strstart(sym_name, "__op_param", &p)) {
+					if (strstart(sym_name, "__op_PARAM", &p)) {
 						snprintf(final_sym_name, sizeof(final_sym_name), "param%s", p);
 					} else {
 						snprintf(final_sym_name, sizeof(final_sym_name), "(long)(&%s)", sym_name);
@@ -2330,7 +2325,7 @@ void gen_code(const char *name, const char *demangled_name,
 			
 					switch(type) {
 					case PPC_RELOC_BR24:
-                                          if (!strstart(sym_name, "__op_param", &p)) {
+                                          if (!strstart(sym_name, "__op_PARAM", &p)) {
 						fprintf(outfile, "{\n");
 						fprintf(outfile, "    uint32_t imm = *(uint32_t *)(code_ptr() + %d) & 0x3fffffc;\n", slide);
 						fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = (*(uint32_t *)(code_ptr() + %d) & ~0x03fffffc) | ((imm + ((long)%s - (long)code_ptr()) + %d) & 0x03fffffc);\n", 
@@ -2370,7 +2365,7 @@ void gen_code(const char *name, const char *demangled_name,
                     if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
-                        if (strstart(sym_name, "__op_param", &p)) {
+                        if (strstart(sym_name, "__op_PARAM", &p)) {
                             snprintf(name, sizeof(name), "param%s", p);
                         } else {
                             snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
@@ -2426,15 +2421,15 @@ void gen_code(const char *name, const char *demangled_name,
 			       single gp, nothing is to be done.  */
 			    break;
 			case R_ALPHA_GPRELHIGH:
-			    /* Handle fake relocations against __op_param symbol.  Need to emit the
+			    /* Handle fake relocations against __op_PARAM symbol.  Need to emit the
 			       high part of the immediate value instead.  Other symbols need no
 			       special treatment.  */
-			    if (strstart(sym_name, "__op_param", &p))
+			    if (strstart(sym_name, "__op_PARAM", &p))
 				fprintf(outfile, "    immediate_ldah(code_ptr() + %ld, param%s);\n",
 					rel->r_offset - start_offset, p);
 			    break;
 			case R_ALPHA_GPRELLOW:
-			    if (strstart(sym_name, "__op_param", &p))
+			    if (strstart(sym_name, "__op_PARAM", &p))
 				fprintf(outfile, "    immediate_lda(code_ptr() + %ld, param%s);\n",
 					rel->r_offset - start_offset, p);
 			    break;
@@ -2458,7 +2453,7 @@ void gen_code(const char *name, const char *demangled_name,
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                     if (rel->r_offset >= start_offset && rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELF64_R_SYM(rel->r_info)].st_name;
-                        if (strstart(sym_name, "__op_param", &p)) {
+                        if (strstart(sym_name, "__op_PARAM", &p)) {
                             snprintf(name, sizeof(name), "param%s", p);
                         } else {
                             snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
@@ -2485,7 +2480,7 @@ void gen_code(const char *name, const char *demangled_name,
                     if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
-                        if (strstart(sym_name, "__op_param", &p)) {
+                        if (strstart(sym_name, "__op_PARAM", &p)) {
                             snprintf(name, sizeof(name), "param%s", p);
                         } else {
 				if (sym_name[0] == '.')
@@ -2550,7 +2545,7 @@ void gen_code(const char *name, const char *demangled_name,
                     if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELF64_R_SYM(rel->r_info)].st_name;
-                        if (strstart(sym_name, "__op_param", &p)) {
+                        if (strstart(sym_name, "__op_PARAM", &p)) {
                             snprintf(name, sizeof(name), "param%s", p);
                         } else {
                             snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
@@ -2616,7 +2611,7 @@ void gen_code(const char *name, const char *demangled_name,
                     /* the compiler leave some unnecessary references to the code */
                     if (sym_name[0] == '\0')
                         continue;
-                    if (strstart(sym_name, "__op_param", &p)) {
+                    if (strstart(sym_name, "__op_PARAM", &p)) {
                         snprintf(name, sizeof(name), "param%s", p);
                     } else {
                         snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
@@ -2649,7 +2644,7 @@ void gen_code(const char *name, const char *demangled_name,
 		    rel->r_offset < start_offset + copy_size) {
 		    sym = &(symtab[ELFW(R_SYM)(rel->r_info)]);
                     sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
-                    if (strstart(sym_name, "__op_param", &p)) {
+                    if (strstart(sym_name, "__op_PARAM", &p)) {
                         snprintf(name, sizeof(name), "param%s", p);
                     } else {
                         snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
@@ -2694,7 +2689,7 @@ void gen_code(const char *name, const char *demangled_name,
                             continue;
                         }
 
-                        if (strstart(sym_name, "__op_param", &p)) {
+                        if (strstart(sym_name, "__op_PARAM", &p)) {
                             snprintf(name, sizeof(name), "param%s", p);
                         } else {
                             snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
