@@ -291,14 +291,6 @@ basic_dyngen::direct_call_possible(uintptr target) const
 }
 
 inline uint8 *
-basic_dyngen::gen_align(int align)
-{
-	while ((uintptr)code_ptr() & (align - 1))
-		inc_code_ptr(1);
-	return code_ptr();
-}
-
-inline uint8 *
 basic_dyngen::gen_start()
 {
 	for (int i = 0; i < MAX_JUMPS; i++)
