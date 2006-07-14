@@ -191,7 +191,7 @@ enum {
  */
 
 #define _r0P(R)		((int)(R) == (int)X86_NOREG)
-#define _rIP(R)		((int)(R) == (int)X86_RIP)
+#define _rIP(R)		(X86_TARGET_64BIT ? ((int)(R) == (int)X86_RIP) : 0)
 
 #if X86_FLAT_REGISTERS
 #define _rC(R)		((R) & 0xf0)
@@ -449,6 +449,7 @@ typedef unsigned int	_ul;
 #define	  _O_B(	     OP			    ,B	)  (	    _O	    (  OP  )			      ,_B(B)	  )
 #define	  _O_W(	     OP			    ,W	)  (	    _O	    (  OP  )			      ,_W(W)	  )
 #define	  _O_L(	     OP			    ,L	)  (	    _O	    (  OP  )			      ,_L(L)	  )
+#define	  _OO_L(     OP			    ,L	)  (	   _OO	    (  OP  )			      ,_L(L)	  )
 #define	  _O_D8(     OP			    ,D	)  (	    _O	    (  OP  )			     ,_D8(D)	  )
 #define	  _O_D32(     OP		    ,D	)  (	    _O	    (  OP  )			     ,_D32(D)	  )
 #define	 _OO_D32(     OP		    ,D	)  (	   _OO	    (  OP  )			     ,_D32(D)	  )
@@ -543,8 +544,8 @@ enum {
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
 #define _ALUBrr(OP,RS, RD)		(_REXBrr(RS, RD),		_O_Mrm		(((OP) << 3)	,_b11,_r1(RS),_r1(RD)				))
-#define _ALUBmr(OP, MD, MB, MI, MS, RD)	(_REXBmr(MB, MI, RD),		_O_r_X		(((OP) << 3) + 2,_r1(RD)		,MD,MB,MI,MS		))
-#define _ALUBrm(OP, RS, MD, MB, MI, MS)	(_REXBrm(RS, MB, MI),		_O_r_X		(((OP) << 3)	,    ,_r1(RS)		,MD,MB,MI,MS		))
+#define _ALUBmr(OP, MD, MB, MI, MS, RD)	(_REXBmr(MB, MI, RD),		_O_r_X		(((OP) << 3) + 2     ,_r1(RD)		,MD,MB,MI,MS		))
+#define _ALUBrm(OP, RS, MD, MB, MI, MS)	(_REXBrm(RS, MB, MI),		_O_r_X		(((OP) << 3)	     ,_r1(RS)		,MD,MB,MI,MS		))
 #define _ALUBir(OP, IM, RD)		(X86_OPTIMIZE_ALU && ((RD) == X86_AL) ? \
 					(_REXBrr(0, RD),		_O_B		(((OP) << 3) + 4					,_su8(IM))) : \
 					(_REXBrr(0, RD),		_O_Mrm_B	(0x80		,_b11,OP     ,_r1(RD)			,_su8(IM))) )
@@ -1021,7 +1022,7 @@ enum {
 #define _BTQrm(OP, RS, MD, MB, MI, MS)	(_REXQrm(RS, MB, MI),		_OO_r_X		(0x0f83|((OP)<<3)     ,_r8(RS)		,MD,MB,MI,MS		))
 
 #define BTWir(IM, RD)			_BTWir(X86_BT, IM, RD)
-#define BTWim(IM, MD, MB, MI, MS)	_BTWim(X86_BT, IM, MD, MI, MS)
+#define BTWim(IM, MD, MB, MI, MS)	_BTWim(X86_BT, IM, MD, MB, MI, MS)
 #define BTWrr(RS, RD)			_BTWrr(X86_BT, RS, RD)
 #define BTWrm(RS, MD, MB, MI, MS)	_BTWrm(X86_BT, RS, MD, MB, MI, MS)
 
@@ -1036,7 +1037,7 @@ enum {
 #define BTQrm(RS, MD, MB, MI, MS)	_BTQrm(X86_BT, RS, MD, MB, MI, MS)
 
 #define BTCWir(IM, RD)			_BTWir(X86_BTC, IM, RD)
-#define BTCWim(IM, MD, MB, MI, MS)	_BTWim(X86_BTC, IM, MD, MI, MS)
+#define BTCWim(IM, MD, MB, MI, MS)	_BTWim(X86_BTC, IM, MD, MB, MI, MS)
 #define BTCWrr(RS, RD)			_BTWrr(X86_BTC, RS, RD)
 #define BTCWrm(RS, MD, MB, MI, MS)	_BTWrm(X86_BTC, RS, MD, MB, MI, MS)
 
@@ -1051,7 +1052,7 @@ enum {
 #define BTCQrm(RS, MD, MB, MI, MS)	_BTQrm(X86_BTC, RS, MD, MB, MI, MS)
 
 #define BTRWir(IM, RD)			_BTWir(X86_BTR, IM, RD)
-#define BTRWim(IM, MD, MB, MI, MS)	_BTWim(X86_BTR, IM, MD, MI, MS)
+#define BTRWim(IM, MD, MB, MI, MS)	_BTWim(X86_BTR, IM, MD, MB, MI, MS)
 #define BTRWrr(RS, RD)			_BTWrr(X86_BTR, RS, RD)
 #define BTRWrm(RS, MD, MB, MI, MS)	_BTWrm(X86_BTR, RS, MD, MB, MI, MS)
 
@@ -1066,7 +1067,7 @@ enum {
 #define BTRQrm(RS, MD, MB, MI, MS)	_BTQrm(X86_BTR, RS, MD, MB, MI, MS)
 
 #define BTSWir(IM, RD)			_BTWir(X86_BTS, IM, RD)
-#define BTSWim(IM, MD, MB, MI, MS)	_BTWim(X86_BTS, IM, MD, MI, MS)
+#define BTSWim(IM, MD, MB, MI, MS)	_BTWim(X86_BTS, IM, MD, MB, MI, MS)
 #define BTSWrr(RS, RD)			_BTWrr(X86_BTS, RS, RD)
 #define BTSWrm(RS, MD, MB, MI, MS)	_BTWrm(X86_BTS, RS, MD, MB, MI, MS)
 
@@ -1579,10 +1580,10 @@ enum {
 #define MOVZWLrr(RS, RD)		(_REXLrr(RD, RS),		_OO_Mrm		(0x0fb7		,_b11,_r4(RD),_r2(RS)				))
 #define MOVZWLmr(MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_OO_r_X		(0x0fb7		     ,_r4(RD)		,MD,MB,MI,MS		))
 
-#define MOVSWQrr(RS, RD)		(_REXQrr(RD, RS),		_OO_Mrm		(0x0fbf		,_b11,_r8(RD),_r2(RS)				))
-#define MOVSWQmr(MD, MB, MI, MS, RD)	(_REXQmr(MB, MI, RD),		_OO_r_X		(0x0fbf		     ,_r8(RD)		,MD,MB,MI,MS		))
-#define MOVZWQrr(RS, RD)		(_REXQrr(RD, RS),		_OO_Mrm		(0x0fb7		,_b11,_r8(RD),_r2(RS)				))
-#define MOVZWQmr(MD, MB, MI, MS, RD)	(_REXQmr(MB, MI, RD),		_OO_r_X		(0x0fb7		     ,_r8(RD)		,MD,MB,MI,MS		))
+#define MOVSWQrr(RS, RD)		_m64only((_REXQrr(RD, RS),	_OO_Mrm		(0x0fbf		,_b11,_r8(RD),_r2(RS)				)))
+#define MOVSWQmr(MD, MB, MI, MS, RD)	_m64only((_REXQmr(MB, MI, RD),	_OO_r_X		(0x0fbf		     ,_r8(RD)		,MD,MB,MI,MS		)))
+#define MOVZWQrr(RS, RD)		_m64only((_REXQrr(RD, RS),	_OO_Mrm		(0x0fb7		,_b11,_r8(RD),_r2(RS)				)))
+#define MOVZWQmr(MD, MB, MI, MS, RD)	_m64only((_REXQmr(MB, MI, RD),	_OO_r_X		(0x0fb7		     ,_r8(RD)		,MD,MB,MI,MS		)))
 
 #define MOVSLQrr(RS, RD)		_m64only((_REXQrr(RD, RS),	_O_Mrm		(0x63		,_b11,_r8(RD),_r4(RS)				)))
 #define MOVSLQmr(MD, MB, MI, MS, RD)	_m64only((_REXQmr(MB, MI, RD),	_O_r_X		(0x63		     ,_r8(RD)		,MD,MB,MI,MS		)))
@@ -1596,8 +1597,8 @@ enum {
 
 #define CLC()								_O		(0xf8								)
 #define STC()								_O		(0xf9								)
-
 #define CMC()								_O		(0xf5								)
+
 #define CLD()								_O		(0xfc								)
 #define STD()								_O		(0xfd								)
 
