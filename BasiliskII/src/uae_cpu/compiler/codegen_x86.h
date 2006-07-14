@@ -1661,9 +1661,13 @@ enum {
 
 /*									_format		Opcd		,Mod ,r	     ,m		,mem=dsp+sib	,imm... */
 
+#define __SSELir(OP,MO,IM,RD)		(_REXLrr(0, RD),		_OO_Mrm_B	(0x0f00|(OP)	,_b11,MO     ,_rX(RD)			,_u8(IM)))
+#define __SSELim(OP,MO,IM,MD,MB,MI,MS)	(_REXLrm(0, MB, MI),		_OO_r_X_B	(0x0f00|(OP)	     ,MO		,MD,MB,MI,MS	,_u8(IM)))
 #define __SSELrr(OP,RS,RSA,RD,RDA)	(_REXLrr(RD, RS),		_OO_Mrm		(0x0f00|(OP)	,_b11,RDA(RD),RSA(RS)				))
 #define __SSELmr(OP,MD,MB,MI,MS,RD,RDA)	(_REXLmr(MB, MI, RD),		_OO_r_X		(0x0f00|(OP)	     ,RDA(RD)		,MD,MB,MI,MS		))
 #define __SSELrm(OP,RS,RSA,MD,MB,MI,MS)	(_REXLrm(RS, MB, MI),		_OO_r_X		(0x0f00|(OP)	     ,RSA(RS)		,MD,MB,MI,MS		))
+#define __SSELirr(OP,IM,RS,RD)		(_REXLrr(RD, RS),		_OO_Mrm_B	(0x0f00|(OP)	,_b11,_rX(RD),_rX(RS)			,_u8(IM)))
+#define __SSELimr(OP,IM,MD,MB,MI,MS,RD)	(_REXLmr(MB, MI, RD),		_OO_r_X_B	(0x0f00|(OP)	     ,_rX(RD)		,MD,MB,MI,MS	,_u8(IM)))
 
 #define __SSEQrr(OP,RS,RSA,RD,RDA)	(_REXQrr(RD, RS),		_OO_Mrm		(0x0f00|(OP)	,_b11,RDA(RD),RSA(RS)				))
 #define __SSEQmr(OP,MD,MB,MI,MS,RD,RDA)	(_REXQmr(MB, MI, RD),		_OO_r_X		(0x0f00|(OP)	     ,RDA(RD)		,MD,MB,MI,MS		))
@@ -1672,6 +1676,10 @@ enum {
 #define _SSELrr(PX,OP,RS,RSA,RD,RDA)					(_B(PX), __SSELrr(OP, RS, RSA, RD, RDA))
 #define _SSELmr(PX,OP,MD,MB,MI,MS,RD,RDA)				(_B(PX), __SSELmr(OP, MD, MB, MI, MS, RD, RDA))
 #define _SSELrm(PX,OP,RS,RSA,MD,MB,MI,MS)				(_B(PX), __SSELrm(OP, RS, RSA, MD, MB, MI, MS))
+#define _SSELir(PX,OP,MO,IM,RD)						(_B(PX), __SSELir(OP, MO, IM, RD))
+#define _SSELim(PX,OP,MO,IM,MD,MB,MI,MS)				(_B(PX), __SSELim(OP, MO, IM, MD, MB, MI, MS))
+#define _SSELirr(PX,OP,IM,RS,RD)					(_B(PX), __SSELirr(OP, IM, RS, RD))
+#define _SSELimr(PX,OP,IM,MD,MB,MI,MS,RD)				(_B(PX), __SSELimr(OP, IM, MD, MB, MI, MS, RD))
 
 #define _SSEQrr(PX,OP,RS,RSA,RD,RDA)					(_B(PX), __SSEQrr(OP, RS, RSA, RD, RDA))
 #define _SSEQmr(PX,OP,MD,MB,MI,MS,RD,RDA)				(_B(PX), __SSEQmr(OP, MD, MB, MI, MS, RD, RDA))
