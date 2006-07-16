@@ -25,10 +25,6 @@
 #define DEBUG 0
 #include "debug.h"
 
-#if KPX_MAX_CPUS == 1 && HAVE_STATIC_DATA_EXEC
-#define STATIC_ICACHE_ALLOC 1
-#endif
-
 // Default cache size
 #if defined(__alpha__)
 const int JIT_CACHE_SIZE = 2 * 1024 * 1024;
@@ -38,13 +34,6 @@ const int JIT_CACHE_SIZE = 4 * 1024 * 1024;
 const int JIT_CACHE_SIZE = 8 * 1024 * 1024;
 #endif
 const int JIT_CACHE_SIZE_GUARD = 4096;
-
-#if STATIC_ICACHE_ALLOC
-const int G_TRANSLATION_CACHE_SIZE = 3 * 1024 * 1024; // 3 MB
-static uint8 g_translation_cache[G_TRANSLATION_CACHE_SIZE];
-static uint8 *g_translation_cache_p;
-static uint8 *g_translation_cache_end_p;
-#endif
 
 basic_jit_cache::basic_jit_cache(int init_cache_size)
 	: tcode_start(NULL), code_start(NULL), code_p(NULL), code_end(NULL), data(NULL)
@@ -69,13 +58,6 @@ basic_jit_cache::~basic_jit_cache()
 bool
 basic_jit_cache::init_translation_cache(int size)
 {
-#if STATIC_ICACHE_ALLOC
-	if (g_translation_cache_p == 0) {
-		g_translation_cache_p = g_translation_cache;
-		g_translation_cache_end_p = g_translation_cache_p + G_TRANSLATION_CACHE_SIZE;
-	}
-#endif
-
 	if (size == -1)
 		size = JIT_CACHE_SIZE;
 
@@ -84,13 +66,6 @@ basic_jit_cache::init_translation_cache(int size)
 	cache_size = (size + JIT_CACHE_SIZE_GUARD + roundup - 1) & -roundup;
 	assert(cache_size > 0);
 
-#if STATIC_ICACHE_ALLOC
-	if (cache_size <= (g_translation_cache_end_p - g_translation_cache_p)) {
-		tcode_start = g_translation_cache_p;
-		g_translation_cache_p += cache_size;
-		goto done;
-	}
-#endif
 	tcode_start = (uint8 *)vm_acquire(cache_size, VM_MAP_PRIVATE | VM_MAP_32BIT);
 	if (tcode_start == VM_MAP_FAILED) {
 		tcode_start = NULL;
@@ -116,16 +91,6 @@ void
 basic_jit_cache::kill_translation_cache()
 {
 	if (tcode_start) {
-#if STATIC_ICACHE_ALLOC
-		if ((tcode_start - g_translation_cache) <= G_TRANSLATION_CACHE_SIZE) {
-			if (tcode_start == g_translation_cache_p - cache_size) {
-				D(bug("basic_jit_cache: Merge back free translation cache: %d KB at %p\n",
-					  cache_size / 1024, tcode_start));
-				g_translation_cache_p -= cache_size;
-			}
-			return;
-		}
-#endif
 		D(bug("basic_jit_cache: Release translation cache\n"));
 		vm_release(tcode_start, cache_size);
 	}

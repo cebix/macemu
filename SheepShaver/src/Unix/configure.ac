@@ -1447,32 +1447,6 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
 else
   WANT_JIT=no
 fi
-if [[ "x$ac_cv_use_dyngen" = "xyes" ]]; then
-  AC_CACHE_CHECK([whether static data regions are executable],
-    ac_cv_have_static_data_exec, [
-    AC_TRY_RUN([int main(void) {
-#if defined(__powerpc__) || defined(__ppc__)
-      static unsigned int p[8] = {0x4e800020,};
-      asm volatile("dcbst 0,%0" : : "r" (p) : "memory");
-      asm volatile("sync" : : : "memory");
-      asm volatile("icbi 0,%0" : : "r" (p) : "memory");
-      asm volatile("sync" : : : "memory");
-      asm volatile("isync" : : : "memory");
-      ((void (*)(void))p)();
-      return 0;
-#endif
-      return 1;
-    }], ac_cv_have_static_data_exec=yes, ac_cv_have_static_data_exec=no,
-    dnl When cross-compiling, do not assume anything.
-    ac_cv_have_static_data_exec=no
-    )
-  ])
-else
-  ac_cv_use_dyngen=no
-fi
-AC_TRANSLATE_DEFINE(HAVE_STATIC_DATA_EXEC, "$ac_cv_have_static_data_exec",
-  [Define if your system marks static data pages as executable.])
-
 if [[ "x$WANT_JIT" = "xyes" ]]; then
   CPPFLAGS="$CPPFLAGS -DUSE_JIT"
 fi
