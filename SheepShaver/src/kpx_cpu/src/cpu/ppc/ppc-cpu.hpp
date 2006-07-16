@@ -29,7 +29,7 @@
 #include "cpu/ppc/ppc-bitfields.hpp"
 #include "cpu/ppc/ppc-blockinfo.hpp"
 #include "cpu/ppc/ppc-registers.hpp"
-#include "cpu/ppc/ppc-dyngen.hpp"
+#include "cpu/ppc/ppc-jit.hpp"
 #include "cpu/ppc/ppc-instructions.hpp"
 #include <vector>
 
@@ -374,7 +374,7 @@ private:
 	// Dynamic translation engine
 	friend class powerpc_dyngen_helper;
 	friend class powerpc_dyngen;
-	powerpc_dyngen codegen;
+	powerpc_jit codegen;
 	block_info *compile_block(uint32 entry);
 #if DYNGEN_DIRECT_BLOCK_CHAINING
 	void *compile_chain_block(block_info *sbi);

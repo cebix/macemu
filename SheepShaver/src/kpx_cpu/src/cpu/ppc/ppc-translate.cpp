@@ -139,7 +139,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 	clock_t start_time = clock();
 #endif
 
-	powerpc_dyngen & dg = codegen;
+	powerpc_jit & dg = codegen;
 	codegen_context_t cg_context(dg);
 	cg_context.entry_point = entry_point;
   again:
@@ -1397,26 +1397,16 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			dg.gen_mtvscr_V0();
 			break;
 		}
-#if defined(__i386__) || defined(__x86_64__)
 		case PPC_I(VSLDOI):
 		{
 			const int vD = vD_field::extract(opcode);
 			const int vA = vA_field::extract(opcode);
 			const int vB = vB_field::extract(opcode);
 			const int SH = vSH_field::extract(opcode);
-			if (dg.gen_vector_shift_octet(vD, vA, vB, SH))
-				break;
-			// fall through
+			if (!dg.gen_vector_3(ii->mnemo, vD, vA, vB, SH))
+				goto do_generic;
+			break;
 		}
-#endif
-		case PPC_I(VADDFP):
-		case PPC_I(VADDUBM):
-		case PPC_I(VADDUHM):
-		case PPC_I(VADDUWM):
-		case PPC_I(VAND):
-		case PPC_I(VANDC):
-		case PPC_I(VAVGUB):
-		case PPC_I(VAVGUH):
 		case PPC_I(VCMPEQFP):
 		case PPC_I(VCMPEQUB):
 		case PPC_I(VCMPEQUH):
@@ -1426,12 +1416,26 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		case PPC_I(VCMPGTSB):
 		case PPC_I(VCMPGTSH):
 		case PPC_I(VCMPGTSW):
-		case PPC_I(VMADDFP):
+		{
+			const int vD = vD_field::extract(opcode);
+			const int vA = vA_field::extract(opcode);
+			const int vB = vB_field::extract(opcode);
+			if (!dg.gen_vector_2(ii->mnemo, vD, vA, vB, vRc_field::test(opcode)))
+				goto do_generic;
+			break;
+		}
+		case PPC_I(VADDFP):
+		case PPC_I(VADDUBM):
+		case PPC_I(VADDUHM):
+		case PPC_I(VADDUWM):
+		case PPC_I(VAND):
+		case PPC_I(VANDC):
+		case PPC_I(VAVGUB):
+		case PPC_I(VAVGUH):
 		case PPC_I(VMAXSH):
 		case PPC_I(VMAXUB):
 		case PPC_I(VMINSH):
 		case PPC_I(VMINUB):
-		case PPC_I(VNMSUBFP):
 		case PPC_I(VNOR):
 		case PPC_I(VOR):
 		case PPC_I(VSUBFP):
@@ -1440,41 +1444,22 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		case PPC_I(VSUBUWM):
 		case PPC_I(VXOR):
 		{
-			powerpc_dyngen::gen_handler_t gen_op = 0;
-#if defined(__i386__) || defined(__x86_64__)
-			/* XXX: analyze the block function */
-			bool mmx_used = false;
-
-			if ((gen_op = dg.vector_codegen_sse2(ii->mnemo)).ptr()) {
-				/* SSE2 code generator available */
-			}
-			else if ((gen_op = dg.vector_codegen_sse(ii->mnemo)).ptr()) {
-				/* SSE code generator available */
-			}
-			else if ((gen_op = dg.vector_codegen_mmx(ii->mnemo)).ptr()) {
-				/* MMX code generator available */
-				mmx_used = true;
-			}
-			else
-#endif
-			gen_op = dg.vector_codegen(ii->mnemo);
-
-			if (!gen_op.ptr())
+			const int vD = vD_field::extract(opcode);
+			const int vA = vA_field::extract(opcode);
+			const int vB = vB_field::extract(opcode);
+			if (!dg.gen_vector_2(ii->mnemo, vD, vA, vB))
 				goto do_generic;
-
-			dg.gen_load_ad_VD_VR(vD_field::extract(opcode));
-			dg.gen_load_ad_V0_VR(vA_field::extract(opcode));
-			dg.gen_load_ad_V1_VR(vB_field::extract(opcode));
-			if (ii->format == VA_form)
-				dg.gen_load_ad_V2_VR(vC_field::extract(opcode));
-			gen_op(&dg);
-			if (ii->format == VXR_form && vRc_field::test(opcode))
-				dg.gen_record_cr6_VD();
-
-#if defined(__i386__) || defined(__x86_64__)
-			if (mmx_used)
-				dg.gen_mmx_clear();
-#endif
+			break;
+		}
+		case PPC_I(VMADDFP):
+		case PPC_I(VNMSUBFP):
+		{
+			const int vD = vD_field::extract(opcode);
+			const int vA = vA_field::extract(opcode);
+			const int vB = vB_field::extract(opcode);
+			const int vC = vC_field::extract(opcode);
+			if (!dg.gen_vector_3(ii->mnemo, vD, vA, vB, vC))
+				goto do_generic;
 			break;
 		}
 		default:				// Direct call to instruction handler

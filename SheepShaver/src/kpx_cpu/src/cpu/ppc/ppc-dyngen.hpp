@@ -1,5 +1,5 @@
 /*
- *  ppc-dyngen.hpp - PowerPC dynamic translation
+ *  ppc-dyngen.hpp - PowerPC dynamic translation (low-level)
  *
  *  Kheperix (C) 2003-2005 Gwenole Beauchesne
  *
@@ -32,19 +32,18 @@
 class powerpc_dyngen
 	: public basic_dyngen
 {
+#ifndef REG_T3
+	uintptr reg_T3;
+#endif
+
 	// Code generators for PowerPC synthetic instructions
 #ifndef NO_DEFINE_ALIAS
 #	define DEFINE_GEN(NAME,RET,ARGS) RET NAME ARGS;
 #	include "ppc-dyngen-ops.hpp"
 #endif
 
-#ifndef REG_T3
-	uintptr reg_T3;
-#endif
-
 public:
-
-	// Make rc_cache accessible to codegen helper
+	friend class powerpc_jit;
 	friend class powerpc_dyngen_helper;
 
 	// Code generators
@@ -235,16 +234,7 @@ public:
 	DEFINE_ALIAS(record_cr6_VD,0);
 	DEFINE_ALIAS(mfvscr_VD,0);
 	DEFINE_ALIAS(mtvscr_V0,0);
-
-	// Code generators for AltiVec instructions
-	gen_handler_t vector_codegen(int insn);
-#if defined(__i386__) || defined(__x86_64__)
-	gen_handler_t vector_codegen_mmx(int insn);
-	gen_handler_t vector_codegen_sse(int insn);
-	gen_handler_t vector_codegen_sse2(int insn);
-	void gen_mmx_clear(void);
-	bool gen_vector_shift_octet(int vD, int vA, int vB, int SH);
-#endif
+	void gen_sse2_vsldoi_VD_V0_V1(int SH);
 
 #undef DEFINE_ALIAS
 #undef DEFINE_ALIAS_0

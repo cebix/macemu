@@ -1,5 +1,5 @@
 /*
- *  ppc-dyngen.cpp - PowerPC dynamic translation
+ *  ppc-dyngen.cpp - PowerPC dynamic translation (low-level)
  *
  *  Kheperix (C) 2003-2005 Gwenole Beauchesne
  *
@@ -19,6 +19,7 @@
  */
 
 #include "sysdeps.h"
+#include "utils/utils-cpuinfo.hpp"
 #include "cpu/ppc/ppc-dyngen.hpp"
 #include "cpu/ppc/ppc-bitfields.hpp"
 #include "cpu/ppc/ppc-instructions.hpp"
@@ -30,87 +31,24 @@
 #define DEFINE_GEN(NAME,RET,ARGS) RET powerpc_dyngen::NAME ARGS
 #include "ppc-dyngen-ops.hpp"
 
-
-/**
- *		Determine x86 CPU features
- **/
-
-/* XXX: move that in CPU dependent bits */
-#if defined(__i386__) || defined(__x86_64__)
-static uint32 cpu_features = 0;
-
-enum {
-	HWCAP_I386_CMOV			= 1 << 15,
-	HWCAP_I386_MMX			= 1 << 23,
-	HWCAP_I386_SSE			= 1 << 25,
-	HWCAP_I386_SSE2			= 1 << 26,
-	HWCAP_I386_EDX_FLAGS	= (HWCAP_I386_CMOV|HWCAP_I386_MMX|HWCAP_I386_SSE|HWCAP_I386_SSE2),
-	HWCAP_I386_SSE3			= 1 << 0,
-	HWCAP_I386_SSE4			= 1 << 9,
-	HWCAP_I386_ECX_FLAGS	= (HWCAP_I386_SSE3|HWCAP_I386_SSE4),
-};
-
-static uint32 x86_cpuid(void)
-{
-	int fl1, fl2;
-
-#ifndef __x86_64__
-	/* See if we can use cpuid. On AMD64 we always can.  */
-	__asm__ ("pushfl; pushfl; popl %0; movl %0,%1; xorl %2,%0;"
-			 "pushl %0; popfl; pushfl; popl %0; popfl"
-			 : "=&r" (fl1), "=&r" (fl2)
-			 : "i" (0x00200000));
-	if (((fl1 ^ fl2) & 0x00200000) == 0)
-		return (0);
-#endif
-
-	/* Host supports cpuid.  See if cpuid gives capabilities, try
-	   CPUID(0).  Preserve %ebx and %ecx; cpuid insn clobbers these, we
-	   don't need their CPUID values here, and %ebx may be the PIC
-	   register.  */
-#ifdef __x86_64__
-	__asm__ ("pushq %%rcx; pushq %%rbx; cpuid; popq %%rbx; popq %%rcx"
-			 : "=a" (fl1) : "0" (0) : "rdx", "cc");
-#else
-	__asm__ ("push %%ecx ; push %%ebx ; cpuid ; pop %%ebx ; pop %%ecx"
-			 : "=a" (fl1) : "0" (0) : "edx", "cc");
-#endif
-	if (fl1 == 0)
-		return (0);
-
-	/* Invoke CPUID(1), return %edx; caller can examine bits to
-	   determine what's supported.  */
-#ifdef __x86_64__
-	__asm__ ("push %%rbx ; cpuid ; pop %%rbx" : "=c" (fl1), "=d" (fl2) : "a" (1) : "cc");
-#else
-	__asm__ ("push %%ebx ; cpuid ; pop %%ebx" : "=c" (fl1), "=d" (fl2) : "a" (1) : "cc");
-#endif
-
-	return (fl1 & HWCAP_I386_ECX_FLAGS) | (fl2 & HWCAP_I386_EDX_FLAGS);
-}
-#endif
-
 powerpc_dyngen::powerpc_dyngen(dyngen_cpu_base cpu, int cache_size)
 	: basic_dyngen(cpu, cache_size)
 {
-#if defined(__i386__) || defined(__x86_64__)
-	cpu_features = x86_cpuid();
 #ifdef SHEEPSHAVER
-	if (cpu_features & (HWCAP_I386_MMX | HWCAP_I386_SSE | HWCAP_I386_SSE2)) {
-		printf("Detected CPU features:");
-		if (cpu_features & HWCAP_I386_MMX)
-			printf(" MMX");
-		if (cpu_features & HWCAP_I386_SSE)
-			printf(" SSE");
-		if (cpu_features & HWCAP_I386_SSE2)
-			printf(" SSE2");
-		if (cpu_features & HWCAP_I386_SSE3)
-			printf(" SSE3");
-		if (cpu_features & HWCAP_I386_SSE4)
-			printf(" SSE4");
-		printf("\n");
-	}
-#endif
+	printf("Detected CPU features:");
+	if (cpuinfo_check_mmx())
+		printf(" MMX");
+	if (cpuinfo_check_sse())
+		printf(" SSE");
+	if (cpuinfo_check_sse2())
+		printf(" SSE2");
+	if (cpuinfo_check_sse3())
+		printf(" SSE3");
+	if (cpuinfo_check_sse4())
+		printf(" SSE4");
+	if (cpuinfo_check_altivec())
+		printf(" VMX");
+	printf("\n");
 #endif
 }
 
@@ -370,123 +308,10 @@ void powerpc_dyngen::gen_store_vect_VS_T0(int vS)
 	gen_op_store_vect_VD_T0();
 }
 
-/**
- *		Code generators for AltiVec instructions
- **/
-
-powerpc_dyngen::gen_handler_t
-powerpc_dyngen::vector_codegen(int insn)
+void powerpc_dyngen::gen_sse2_vsldoi_VD_V0_V1(int SH)
 {
-	gen_handler_t gen_op = 0;
-	switch (insn) {
-#define GEN_OP(NAME) nv_mem_fun(&powerpc_dyngen::gen_op_##NAME)
-	case PPC_I(VADDFP):		gen_op = GEN_OP(vaddfp_VD_V0_V1);	break;
-	case PPC_I(VSUBFP):		gen_op = GEN_OP(vsubfp_VD_V0_V1);	break;
-	case PPC_I(VMADDFP):	gen_op = GEN_OP(vmaddfp_VD_V0_V1_V2);	break;
-	case PPC_I(VNMSUBFP):	gen_op = GEN_OP(vnmsubfp_VD_V0_V1_V2);	break;
-	case PPC_I(VAND):		gen_op = GEN_OP(vand_VD_V0_V1);		break;
-	case PPC_I(VANDC):		gen_op = GEN_OP(vandc_VD_V0_V1);	break;
-	case PPC_I(VNOR):		gen_op = GEN_OP(vnor_VD_V0_V1);		break;
-	case PPC_I(VOR):		gen_op = GEN_OP(vor_VD_V0_V1);		break;
-	case PPC_I(VXOR):		gen_op = GEN_OP(vxor_VD_V0_V1);		break;
-#undef GEN_OP
-	}
-	return gen_op;
-}
-
 #if defined(__i386__) || defined(__x86_64__)
-powerpc_dyngen::gen_handler_t
-powerpc_dyngen::vector_codegen_mmx(int insn)
-{
-	if (!(cpu_features & HWCAP_I386_MMX))
-		return 0;
-
-	/* XXX: auto-generate the table with individual handlers */
-	gen_handler_t gen_op = 0;
-	switch (insn) {
-#define GEN_OP(NAME) nv_mem_fun(&powerpc_dyngen::gen_op_mmx_##NAME)
-	case PPC_I(VADDUBM):	gen_op = GEN_OP(vaddubm);	break;
-	case PPC_I(VADDUHM):	gen_op = GEN_OP(vadduhm);	break;
-	case PPC_I(VADDUWM):	gen_op = GEN_OP(vadduwm);	break;
-	case PPC_I(VAND):		gen_op = GEN_OP(vand);		break;
-	case PPC_I(VANDC):		gen_op = GEN_OP(vandc);		break;
-	case PPC_I(VCMPEQUB):	gen_op = GEN_OP(vcmpequb);	break;
-	case PPC_I(VCMPEQUH):	gen_op = GEN_OP(vcmpequh);	break;
-	case PPC_I(VCMPEQUW):	gen_op = GEN_OP(vcmpequw);	break;
-	case PPC_I(VCMPGTSB):	gen_op = GEN_OP(vcmpgtsb);	break;
-	case PPC_I(VCMPGTSH):	gen_op = GEN_OP(vcmpgtsh);	break;
-	case PPC_I(VCMPGTSW):	gen_op = GEN_OP(vcmpgtsw);	break;
-	case PPC_I(VOR):		gen_op = GEN_OP(vor);		break;
-	case PPC_I(VSUBUBM):	gen_op = GEN_OP(vsububm);	break;
-	case PPC_I(VSUBUHM):	gen_op = GEN_OP(vsubuhm);	break;
-	case PPC_I(VSUBUWM):	gen_op = GEN_OP(vsubuwm);	break;
-	case PPC_I(VXOR):		gen_op = GEN_OP(vxor);		break;
-#undef GEN_OP
-	}
-
-	if (gen_op.ptr())
-		return gen_op;
-
-	// new MMX instructions brought in SSE capable CPUs
-	// XXX: also available as AMD MMX extensions
-	if (!(cpu_features & HWCAP_I386_SSE))
-		return 0;
-
-	switch (insn) {
-#define GEN_OP(NAME) nv_mem_fun(&powerpc_dyngen::gen_op_mmx_##NAME)
-	case PPC_I(VMAXSH):		gen_op = GEN_OP(vmaxsh);	break;
-	case PPC_I(VMAXUB):		gen_op = GEN_OP(vmaxub);	break;
-	case PPC_I(VMINSH):		gen_op = GEN_OP(vminsh);	break;
-	case PPC_I(VMINUB):		gen_op = GEN_OP(vminub);	break;
-#undef GEN_OP
-	}
-	return gen_op;
-}
-
-powerpc_dyngen::gen_handler_t
-powerpc_dyngen::vector_codegen_sse(int insn)
-{
-	if (!(cpu_features & HWCAP_I386_SSE))
-		return 0;
-
-	/* XXX: auto-generate the table with individual handlers */
-	gen_handler_t gen_op = 0;
-	switch (insn) {
-#define GEN_OP(NAME) nv_mem_fun(&powerpc_dyngen::gen_op_sse_##NAME)
-	case PPC_I(VADDFP):		gen_op = GEN_OP(vaddfp);	break;
-	case PPC_I(VAND):		gen_op = GEN_OP(vand);		break;
-	case PPC_I(VANDC):		gen_op = GEN_OP(vandc);		break;
-	case PPC_I(VCMPEQFP):	gen_op = GEN_OP(vcmpeqfp);	break;
-	case PPC_I(VCMPGEFP):	gen_op = GEN_OP(vcmpgefp);	break;
-	case PPC_I(VCMPGTFP):	gen_op = GEN_OP(vcmpgtfp);	break;
-	case PPC_I(VMADDFP):	gen_op = GEN_OP(vmaddfp);	break;
-	case PPC_I(VMAXFP):		gen_op = GEN_OP(vmaxfp);	break;
-	case PPC_I(VMINFP):		gen_op = GEN_OP(vminfp);	break;
-	case PPC_I(VNMSUBFP):	gen_op = GEN_OP(vnmsubfp);	break;
-	case PPC_I(VOR):		gen_op = GEN_OP(vor);		break;
-	case PPC_I(VSUBFP):		gen_op = GEN_OP(vsubfp);	break;
-	case PPC_I(VXOR):		gen_op = GEN_OP(vxor);		break;
-	case PPC_I(VMINUB):		gen_op = GEN_OP(vminub);	break;
-	case PPC_I(VMAXUB):		gen_op = GEN_OP(vmaxub);	break;
-	case PPC_I(VMINSH):		gen_op = GEN_OP(vminsh);	break;
-	case PPC_I(VMAXSH):		gen_op = GEN_OP(vmaxsh);	break;
-#undef GEN_OP
-	}
-	return gen_op;
-}
-
-bool powerpc_dyngen::gen_vector_shift_octet(int vD, int vA, int vB, int SH)
-{
-	if (!(cpu_features & HWCAP_I386_SSE2))
-		return false;
-
-	gen_load_ad_VD_VR(vD);
-	gen_load_ad_V0_VR(vA);
-	if (SH == 0)
-		gen_op_sse_mov_VD_V0();
-	else {
-		gen_load_ad_V1_VR(vB);
-		switch (SH) {
+	switch (SH) {
 #define GEN_OP(SH) case SH: gen_op_sse2_vsldoi_##SH(); break
 		GEN_OP(1);
 		GEN_OP(2);
@@ -504,46 +329,7 @@ bool powerpc_dyngen::gen_vector_shift_octet(int vD, int vA, int vB, int SH)
 		GEN_OP(14);
 		GEN_OP(15);
 #undef GEN_OP
-		default: abort();
-		}
+	default: abort();
 	}
-	return true;
-}
-
-powerpc_dyngen::gen_handler_t
-powerpc_dyngen::vector_codegen_sse2(int insn)
-{
-	if (!(cpu_features & HWCAP_I386_SSE2))
-		return 0;
-
-	/* XXX: auto-generate the table with individual handlers */
-	gen_handler_t gen_op = 0;
-	switch (insn) {
-#define GEN_OP(NAME) nv_mem_fun(&powerpc_dyngen::gen_op_sse2_##NAME)
-	case PPC_I(VADDUBM):	gen_op = GEN_OP(vaddubm);	break;
-	case PPC_I(VADDUHM):	gen_op = GEN_OP(vadduhm);	break;
-	case PPC_I(VADDUWM):	gen_op = GEN_OP(vadduwm);	break;
-	case PPC_I(VSUBUBM):	gen_op = GEN_OP(vsububm);	break;
-	case PPC_I(VSUBUHM):	gen_op = GEN_OP(vsubuhm);	break;
-	case PPC_I(VSUBUWM):	gen_op = GEN_OP(vsubuwm);	break;
-	case PPC_I(VAND):		gen_op = GEN_OP(vand);		break;
-	case PPC_I(VANDC):		gen_op = GEN_OP(vandc);		break;
-	case PPC_I(VOR):		gen_op = GEN_OP(vor);		break;
-	case PPC_I(VXOR):		gen_op = GEN_OP(vxor);		break;
-	case PPC_I(VCMPEQUB):	gen_op = GEN_OP(vcmpequb);	break;
-	case PPC_I(VCMPEQUH):	gen_op = GEN_OP(vcmpequh);	break;
-	case PPC_I(VCMPEQUW):	gen_op = GEN_OP(vcmpequw);	break;
-	case PPC_I(VCMPGTSB):	gen_op = GEN_OP(vcmpgtsb);	break;
-	case PPC_I(VCMPGTSH):	gen_op = GEN_OP(vcmpgtsh);	break;
-	case PPC_I(VCMPGTSW):	gen_op = GEN_OP(vcmpgtsw);	break;
-#undef GEN_OP
-	}
-	return gen_op;
-}
-
-void powerpc_dyngen::gen_mmx_clear(void)
-{
-	if (cpu_features & HWCAP_I386_MMX)
-		gen_op_emms();
-}
 #endif
+}

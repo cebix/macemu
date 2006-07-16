@@ -1347,7 +1347,8 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
     ../kpx_cpu/src/cpu/ppc/ppc-cpu.cpp \
     ../kpx_cpu/src/cpu/ppc/ppc-decode.cpp \
     ../kpx_cpu/src/cpu/ppc/ppc-execute.cpp \
-    ../kpx_cpu/src/cpu/ppc/ppc-translate.cpp"
+    ../kpx_cpu/src/cpu/ppc/ppc-translate.cpp \
+    ../kpx_cpu/src/utils/utils-cpuinfo.cpp"
   CPPFLAGS="$CPPFLAGS -I../kpx_cpu/include -I../kpx_cpu/src"
 
   dnl Enable JIT compiler, if possible
@@ -1440,7 +1441,8 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
       CPUSRCS="\
         ../kpx_cpu/src/cpu/jit/jit-cache.cpp \
         ../kpx_cpu/src/cpu/jit/basic-dyngen.cpp \
-        ../kpx_cpu/src/cpu/ppc/ppc-dyngen.cpp $CPUSRCS"
+        ../kpx_cpu/src/cpu/ppc/ppc-dyngen.cpp \
+        ../kpx_cpu/src/cpu/ppc/ppc-jit.cpp $CPUSRCS"
     fi
   fi
   CPUSRCS="$CPUSRCS ../kpx_cpu/sheepshaver_glue.cpp"
