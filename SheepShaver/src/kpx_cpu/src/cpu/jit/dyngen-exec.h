@@ -72,44 +72,35 @@
 
 #ifdef __alpha__
 /* Suggested by Richard Henderson. This will result in code like
-        ldah $0,__op_param1($29)        !gprelhigh
-        lda $0,__op_param1($0)          !gprellow
+        ldah $0,__op_PARAM1($29)        !gprelhigh
+        lda $0,__op_PARAM1($0)          !gprellow
    We can then conveniently change $29 to $31 and adapt the offsets to
    emit the appropriate constant.  */
-#define PARAM1 ({ int _r; asm("" : "=r"(_r) : "0" (&__op_param1)); _r; })
-#define PARAM2 ({ int _r; asm("" : "=r"(_r) : "0" (&__op_param2)); _r; })
-#define PARAM3 ({ int _r; asm("" : "=r"(_r) : "0" (&__op_param3)); _r; })
-extern int __op_param1 __hidden;
-extern int __op_param2 __hidden;
-extern int __op_param3 __hidden;
+#define PARAM1 ({ int _r; asm("" : "=r"(_r) : "0" (&__op_PARAM1)); _r; })
+#define PARAM2 ({ int _r; asm("" : "=r"(_r) : "0" (&__op_PARAM2)); _r; })
+#define PARAM3 ({ int _r; asm("" : "=r"(_r) : "0" (&__op_PARAM3)); _r; })
+extern int __op_PARAM1 __hidden;
+extern int __op_PARAM2 __hidden;
+extern int __op_PARAM3 __hidden;
 #elif defined __mips__
 /* On MIPS, parameters to a C expression are passed via the global pointer.
  * We don't want that. */
 #define PARAMN(index) ({ register int _r; \
-		asm("lui %0,%%hi(__op_param" #index ")\n\t" \
-		    "ori %0,%0,%%lo(__op_param" #index ")" \
+		asm("lui %0,%%hi(__op_PARAM" #index ")\n\t" \
+		    "ori %0,%0,%%lo(__op_PARAM" #index ")" \
 		    : "=r"(_r)); _r; })
 #define PARAM1 PARAMN(1)
 #define PARAM2 PARAMN(2)
 #define PARAM3 PARAMN(3)
 #else
 #if defined(__APPLE__) && defined(__MACH__)
-static int __op_param1, __op_param2, __op_param3;
+static int __op_PARAM1, __op_PARAM2, __op_PARAM3;
 #else
-extern int __op_param1, __op_param2, __op_param3;
+extern int __op_PARAM1, __op_PARAM2, __op_PARAM3;
 #endif
-#define PARAM1 ((long)(&__op_param1))
-#define PARAM2 ((long)(&__op_param2))
-#define PARAM3 ((long)(&__op_param3))
-#endif
-
-#ifndef REG_CPU
-#if defined(__APPLE__) && defined(__MACH__)
-static int __op_cpuparam;
-#else
-extern int __op_cpuparam;
-#endif
-#define CPUPARAM ((long)(&__op_cpuparam))
+#define PARAM1 ((long)(&__op_PARAM1))
+#define PARAM2 ((long)(&__op_PARAM2))
+#define PARAM3 ((long)(&__op_PARAM3))
 #endif
 
 // Direct block chaining support
