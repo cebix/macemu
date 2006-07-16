@@ -114,27 +114,44 @@ typedef uintptr_t uintptr;
 // Partial PowerPC runtime assembler from GNU lightning
 #undef  _I
 #define _I(X)			((uint32)(X))
+#undef  _UL
 #define _UL(X)			((uint32)(X))
+#undef  _MASK
 #define _MASK(N)		((uint32)((1<<(N)))-1)
+#undef  _ck_s
 #define _ck_s(W,I)		(_UL(I) & _MASK(W))
+#undef  _ck_u
 #define _ck_u(W,I)    	(_UL(I) & _MASK(W))
+#undef  _ck_su
 #define _ck_su(W,I)    	(_UL(I) & _MASK(W))
+#undef  _u1
 #define _u1(I)          _ck_u( 1,I)
+#undef  _u5
 #define _u5(I)          _ck_u( 5,I)
+#undef  _u6
 #define _u6(I)          _ck_u( 6,I)
+#undef  _u9
 #define _u9(I)          _ck_u( 9,I)
+#undef  _u10
 #define _u10(I)         _ck_u(10,I)
+#undef  _u11
 #define _u11(I)			_ck_u(11,I)
+#undef  _s16
 #define _s16(I)         _ck_s(16,I)
 
 #undef  _D
 #define _D(   OP,RD,RA,         DD )  	_I((_u6(OP)<<26)|(_u5(RD)<<21)|(_u5(RA)<<16)|                _s16(DD)                          )
 #undef  _X
 #define _X(   OP,RD,RA,RB,   XO,RC )  	_I((_u6(OP)<<26)|(_u5(RD)<<21)|(_u5(RA)<<16)|( _u5(RB)<<11)|              (_u10(XO)<<1)|_u1(RC))
+#undef  _XO
 #define _XO(  OP,RD,RA,RB,OE,XO,RC )  	_I((_u6(OP)<<26)|(_u5(RD)<<21)|(_u5(RA)<<16)|( _u5(RB)<<11)|(_u1(OE)<<10)|( _u9(XO)<<1)|_u1(RC))
+#undef  _M
 #define _M(   OP,RS,RA,SH,MB,ME,RC )  	_I((_u6(OP)<<26)|(_u5(RS)<<21)|(_u5(RA)<<16)|( _u5(SH)<<11)|(_u5(MB)<< 6)|( _u5(ME)<<1)|_u1(RC))
+#undef  _VX
 #define _VX(  OP,VD,VA,VB,   XO    )	_I((_u6(OP)<<26)|(_u5(VD)<<21)|(_u5(VA)<<16)|( _u5(VB)<<11)|               _u11(XO)            )
+#undef  _VXR
 #define _VXR( OP,VD,VA,VB,   XO,RC )	_I((_u6(OP)<<26)|(_u5(VD)<<21)|(_u5(VA)<<16)|( _u5(VB)<<11)|              (_u1(RC)<<10)|_u10(XO))
+#undef  _VA
 #define _VA(  OP,VD,VA,VB,VC,XO    )	_I((_u6(OP)<<26)|(_u5(VD)<<21)|(_u5(VA)<<16)|( _u5(VB)<<11)|(_u5(VC)<< 6)|  _u6(XO)            )
 
 // PowerPC opcodes
