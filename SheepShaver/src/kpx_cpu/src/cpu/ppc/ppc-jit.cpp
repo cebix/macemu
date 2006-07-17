@@ -451,19 +451,21 @@ bool powerpc_jit::gen_mmx_arith_c(int mnemo, int vD, int vA, int vB, bool Rc)
 // Record CR6 (vD contains the result of the CMP instruction)
 void powerpc_jit::gen_sse_record_cr6(int vD)
 {
-	gen_xor_32(REG_T0_ID, REG_T0_ID);										// xor %t0,%t0
-	gen_xor_32(REG_T1_ID, REG_T1_ID);										// xor %t1,%t1
-	gen_insn(X86_INSN_SSE_PS, X86_SSE_MOVMSK, vD, REG_T2_ID);				// movmskps %v0,%t2
-	gen_cmp_32(x86_immediate_operand(0), REG_T2_ID);						// cmp $0,%t2
-	gen_setcc(X86_CC_Z, REG_T0_ID);											// sete %t0
-	gen_cmp_32(x86_immediate_operand(0xf), REG_T2_ID);						// cmp $0xf,%t1
-	gen_setcc(X86_CC_E, REG_T1_ID);											// sete %t1
-	gen_lea_32(x86_memory_operand(0, REG_T0_ID, REG_T1_ID, 4), REG_T2_ID);	// %t2 = %t0 + %t1*4
-	gen_mov_32(x86_memory_operand(xPPC_CR, REG_CPU_ID), REG_T0_ID);			// mov $xPPC_CR(%cpu),%t0
-	gen_shl_32(x86_immediate_operand(5), REG_T2_ID);						// %t2 holds new cr6
-	gen_and_32(x86_immediate_operand(0xffffff0f), REG_T0_ID);				// and $0xffffff0f,%t0
-	gen_or_32(REG_T2_ID, REG_T0_ID);										// or %t2,%t0
-	gen_mov_32(REG_T0_ID, x86_memory_operand(xPPC_CR, REG_CPU_ID));			// mov %t0,$xPPC_CR(%cpu)
+	// NOTE: %ecx & %edx are caller saved registers and not static allocated at this time
+	assert(REG_T2_ID != (int)X86_ECX && REG_T2_ID != (int)X86_EDX);
+	gen_xor_32(X86_ECX, X86_ECX);										// xor %t0,%t0
+	gen_xor_32(X86_EDX, X86_EDX);										// xor %t1,%t1
+	gen_insn(X86_INSN_SSE_PS, X86_SSE_MOVMSK, vD, REG_T2_ID);			// movmskps %v0,%t2
+	gen_cmp_32(x86_immediate_operand(0), REG_T2_ID);					// cmp $0,%t2
+	gen_setcc(X86_CC_Z, X86_CL);										// sete %t0
+	gen_cmp_32(x86_immediate_operand(0xf), REG_T2_ID);					// cmp $0xf,%t1
+	gen_setcc(X86_CC_E, X86_DL);										// sete %t1
+	gen_lea_32(x86_memory_operand(0, X86_ECX, X86_EDX, 4), REG_T2_ID);	// %t2 = %t0 + %t1*4
+	gen_mov_32(x86_memory_operand(xPPC_CR, REG_CPU_ID), X86_ECX);		// mov $xPPC_CR(%cpu),%t0
+	gen_shl_32(x86_immediate_operand(5), REG_T2_ID);					// %t2 holds new cr6
+	gen_and_32(x86_immediate_operand(0xffffff0f), X86_ECX);				// and $0xffffff0f,%t0
+	gen_or_32(X86_ECX, REG_T2_ID);										// or %t0,%t2
+	gen_mov_32(REG_T2_ID, x86_memory_operand(xPPC_CR, REG_CPU_ID));		// mov %t0,$xPPC_CR(%cpu)
 }
 
 // Generic SSE arith
@@ -523,19 +525,21 @@ bool powerpc_jit::gen_sse_vnmsubfp(int mnemo, int vD, int vA, int vB, int vC)
 // Record CR6 (vD contains the result of the CMP instruction)
 void powerpc_jit::gen_sse2_record_cr6(int vD)
 {
-	gen_xor_32(REG_T0_ID, REG_T0_ID);										// xor %t0,%t0
-	gen_xor_32(REG_T1_ID, REG_T1_ID);										// xor %t1,%t1
-	gen_pmovmskb(vD, REG_T2_ID);											// pmovmskb %v0,%t2
-	gen_cmp_32(x86_immediate_operand(0), REG_T2_ID);						// cmp $0,%t2
-	gen_setcc(X86_CC_Z, REG_T0_ID);											// sete %t0
-	gen_cmp_32(x86_immediate_operand(0xffff), REG_T2_ID);					// cmp $0xffff,%t1
-	gen_setcc(X86_CC_E, REG_T1_ID);											// sete %t1
-	gen_lea_32(x86_memory_operand(0, REG_T0_ID, REG_T1_ID, 4), REG_T2_ID);	// %t2 = %t0 + %t1*4
-	gen_mov_32(x86_memory_operand(xPPC_CR, REG_CPU_ID), REG_T0_ID);			// mov $xPPC_CR(%cpu),%t0
-	gen_shl_32(x86_immediate_operand(5), REG_T2_ID);						// %t2 holds new cr6
-	gen_and_32(x86_immediate_operand(0xffffff0f), REG_T0_ID);				// and $0xffffff0f,%t0
-	gen_or_32(REG_T2_ID, REG_T0_ID);										// or %t2,%t0
-	gen_mov_32(REG_T0_ID, x86_memory_operand(xPPC_CR, REG_CPU_ID));			// mov %t0,$xPPC_CR(%cpu)
+	// NOTE: %ecx & %edx are caller saved registers and not static allocated at this time
+	assert(REG_T2_ID != (int)X86_ECX && REG_T2_ID != (int)X86_EDX);
+	gen_xor_32(X86_ECX, X86_ECX);										// xor %t0,%t0
+	gen_xor_32(X86_EDX, X86_EDX);										// xor %t1,%t1
+	gen_pmovmskb(vD, REG_T2_ID);										// pmovmskb %v0,%t2
+	gen_cmp_32(x86_immediate_operand(0), REG_T2_ID);					// cmp $0,%t2
+	gen_setcc(X86_CC_Z, X86_CL);										// sete %t0
+	gen_cmp_32(x86_immediate_operand(0xffff), REG_T2_ID);				// cmp $0xffff,%t1
+	gen_setcc(X86_CC_E, X86_EDX);										// sete %t1
+	gen_lea_32(x86_memory_operand(0, X86_ECX, X86_EDX, 4), REG_T2_ID);	// %t2 = %t0 + %t1*4
+	gen_mov_32(x86_memory_operand(xPPC_CR, REG_CPU_ID), X86_ECX);		// mov $xPPC_CR(%cpu),%t0
+	gen_shl_32(x86_immediate_operand(5), REG_T2_ID);					// %t2 holds new cr6
+	gen_and_32(x86_immediate_operand(0xffffff0f), X86_ECX);				// and $0xffffff0f,%t0
+	gen_or_32(X86_ECX, REG_T2_ID);										// or %t0,%t2
+	gen_mov_32(REG_T2_ID, x86_memory_operand(xPPC_CR, REG_CPU_ID));		// mov %t0,$xPPC_CR(%cpu)
 }
 
 // Generic SSE2 arith
