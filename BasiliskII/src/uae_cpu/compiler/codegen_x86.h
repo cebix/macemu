@@ -1591,6 +1591,7 @@ enum {
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
 #define LEALmr(MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_O_r_X		(0x8d		     ,_r4(RD)		,MD,MB,MI,MS		))
+#define LEAQmr(MD, MB, MI, MS, RD)	(_REXQmr(MB, MI, RD),		_O_r_X		(0x8d		     ,_r4(RD)		,MD,MB,MI,MS		))
 
 #define BSWAPLr(R)			(_REXLrr(0, R),			_OOr		(0x0fc8,_r4(R)							))
 #define BSWAPQr(R)			(_REXQrr(0, R),			_OOr		(0x0fc8,_r8(R)							))
@@ -1635,13 +1636,34 @@ enum {
 #define NOP()								_O		(0x90								)
 
 
+/* --- Media 64-bit instructions ------------------------------------------- */
+
+#define EMMS()								_OO		(0x0f77								)
+
+
 /* --- Media 128-bit instructions ------------------------------------------ */
+
+enum {
+  X86_SSE_CC_EQ		= 0,
+  X86_SSE_CC_LT		= 1,
+  X86_SSE_CC_GT		= 1,
+  X86_SSE_CC_LE		= 2,
+  X86_SSE_CC_GE		= 2,
+  X86_SSE_CC_U		= 3,
+  X86_SSE_CC_NE		= 4,
+  X86_SSE_CC_NLT	= 5,
+  X86_SSE_CC_NGT	= 5,
+  X86_SSE_CC_NLE	= 6,
+  X86_SSE_CC_NGE	= 6,
+  X86_SSE_CC_O		= 7
+};
 
 enum {
   X86_SSE_CVTIS  = 0x2a,
   X86_SSE_CVTSI  = 0x2d,
   X86_SSE_UCOMI  = 0x2e,
   X86_SSE_COMI   = 0x2f,
+  X86_SSE_CMP		= 0xc2,
   X86_SSE_SQRT   = 0x51,
   X86_SSE_RSQRT  = 0x52,
   X86_SSE_RCP    = 0x53,
@@ -1657,6 +1679,65 @@ enum {
   X86_SSE_MIN    = 0x5d,
   X86_SSE_DIV    = 0x5e,
   X86_SSE_MAX    = 0x5f,
+  X86_SSE_MOVMSK	= 0x50,
+  X86_SSE_PACKSSDW	= 0x6b,
+  X86_SSE_PACKSSWB	= 0x63,
+  X86_SSE_PACKUSWB	= 0x67,
+  X86_SSE_PADDB		= 0xfc,
+  X86_SSE_PADDD		= 0xfe,
+  X86_SSE_PADDQ		= 0xd4,
+  X86_SSE_PADDSB	= 0xec,
+  X86_SSE_PADDSW	= 0xed,
+  X86_SSE_PADDUSB	= 0xdc,
+  X86_SSE_PADDUSW	= 0xdd,
+  X86_SSE_PADDW		= 0xfd,
+  X86_SSE_PAND		= 0xdb,
+  X86_SSE_PANDN		= 0xdf,
+  X86_SSE_PAVGB		= 0xe0,
+  X86_SSE_PAVGW		= 0xe3,
+  X86_SSE_PCMPEQB	= 0x74,
+  X86_SSE_PCMPEQD	= 0x76,
+  X86_SSE_PCMPEQW	= 0x75,
+  X86_SSE_PCMPGTB	= 0x64,
+  X86_SSE_PCMPGTD	= 0x66,
+  X86_SSE_PCMPGTW	= 0x65,
+  X86_SSE_PMADDWD	= 0xf5,
+  X86_SSE_PMAXSW	= 0xee,
+  X86_SSE_PMAXUB	= 0xde,
+  X86_SSE_PMINSW	= 0xea,
+  X86_SSE_PMINUB	= 0xda,
+  X86_SSE_PMOVMSKB	= 0xd7,
+  X86_SSE_PMULHUW	= 0xe4,
+  X86_SSE_PMULHW	= 0xe5,
+  X86_SSE_PMULLW	= 0xd5,
+  X86_SSE_PMULUDQ	= 0xf4,
+  X86_SSE_POR		= 0xeb,
+  X86_SSE_PSADBW	= 0xf6,
+  X86_SSE_PSLLD		= 0xf2,
+  X86_SSE_PSLLQ		= 0xf3,
+  X86_SSE_PSLLW		= 0xf1,
+  X86_SSE_PSRAD		= 0xe2,
+  X86_SSE_PSRAW		= 0xe1,
+  X86_SSE_PSRLD		= 0xd2,
+  X86_SSE_PSRLQ		= 0xd3,
+  X86_SSE_PSRLW		= 0xd1,
+  X86_SSE_PSUBB		= 0xf8,
+  X86_SSE_PSUBD		= 0xfa,
+  X86_SSE_PSUBQ		= 0xfb,
+  X86_SSE_PSUBSB	= 0xe8,
+  X86_SSE_PSUBSW	= 0xe9,
+  X86_SSE_PSUBUSB	= 0xd8,
+  X86_SSE_PSUBUSW	= 0xd9,
+  X86_SSE_PSUBW		= 0xf9,
+  X86_SSE_PUNPCKHBW	= 0x68,
+  X86_SSE_PUNPCKHDQ	= 0x6a,
+  X86_SSE_PUNPCKHQDQ	= 0x6d,
+  X86_SSE_PUNPCKHWD	= 0x69,
+  X86_SSE_PUNPCKLBW	= 0x60,
+  X86_SSE_PUNPCKLDQ	= 0x62,
+  X86_SSE_PUNPCKLQDQ	= 0x6c,
+  X86_SSE_PUNPCKLWD	= 0x61,
+  X86_SSE_PXOR		= 0xef,
 };
 
 /*									_format		Opcd		,Mod ,r	     ,m		,mem=dsp+sib	,imm... */
@@ -1688,18 +1769,26 @@ enum {
 #define _SSEPSrr(OP,RS,RD)		__SSELrr(      OP, RS,_rX, RD,_rX)
 #define _SSEPSmr(OP,MD,MB,MI,MS,RD)	__SSELmr(      OP, MD, MB, MI, MS, RD,_rX)
 #define _SSEPSrm(OP,RS,MD,MB,MI,MS)	__SSELrm(      OP, RS,_rX, MD, MB, MI, MS)
+#define _SSEPSirr(OP,IM,RS,RD)		__SSELirr(     OP, IM, RS, RD)
+#define _SSEPSimr(OP,IM,MD,MB,MI,MS,RD)	__SSELimr(     OP, IM, MD, MB, MI, MS, RD)
 
 #define _SSEPDrr(OP,RS,RD)		 _SSELrr(0x66, OP, RS,_rX, RD,_rX)
 #define _SSEPDmr(OP,MD,MB,MI,MS,RD)	 _SSELmr(0x66, OP, MD, MB, MI, MS, RD,_rX)
 #define _SSEPDrm(OP,RS,MD,MB,MI,MS)	 _SSELrm(0x66, OP, RS,_rX, MD, MB, MI, MS)
+#define _SSEPDirr(OP,IM,RS,RD)		 _SSELirr(0x66, OP, IM, RS, RD)
+#define _SSEPDimr(OP,IM,MD,MB,MI,MS,RD)	 _SSELimr(0x66, OP, IM, MD, MB, MI, MS, RD)
 
 #define _SSESSrr(OP,RS,RD)		 _SSELrr(0xf3, OP, RS,_rX, RD,_rX)
 #define _SSESSmr(OP,MD,MB,MI,MS,RD)	 _SSELmr(0xf3, OP, MD, MB, MI, MS, RD,_rX)
 #define _SSESSrm(OP,RS,MD,MB,MI,MS)	 _SSELrm(0xf3, OP, RS,_rX, MD, MB, MI, MS)
+#define _SSESSirr(OP,IM,RS,RD)		 _SSELirr(0xf3, OP, IM, RS, RD)
+#define _SSESSimr(OP,IM,MD,MB,MI,MS,RD)	 _SSELimr(0xf3, OP, IM, MD, MB, MI, MS, RD)
 
 #define _SSESDrr(OP,RS,RD)		 _SSELrr(0xf2, OP, RS,_rX, RD,_rX)
 #define _SSESDmr(OP,MD,MB,MI,MS,RD)	 _SSELmr(0xf2, OP, MD, MB, MI, MS, RD,_rX)
 #define _SSESDrm(OP,RS,MD,MB,MI,MS)	 _SSELrm(0xf2, OP, RS,_rX, MD, MB, MI, MS)
+#define _SSESDirr(OP,IM,RS,RD)		 _SSELirr(0xf2, IM, OP, RS, RD)
+#define _SSESDimr(OP,IM,MD,MB,MI,MS,RD)	 _SSELimr(0xf2, IM, OP, MD, MB, MI, MS, RD)
 
 #define ADDPSrr(RS, RD)			_SSEPSrr(X86_SSE_ADD, RS, RD)
 #define ADDPSmr(MD, MB, MI, MS, RD)	_SSEPSmr(X86_SSE_ADD, MD, MB, MI, MS, RD)
@@ -1720,6 +1809,16 @@ enum {
 #define ANDPSmr(MD, MB, MI, MS, RD)	_SSEPSmr(X86_SSE_AND, MD, MB, MI, MS, RD)
 #define ANDPDrr(RS, RD)			_SSEPDrr(X86_SSE_AND, RS, RD)
 #define ANDPDmr(MD, MB, MI, MS, RD)	_SSEPDmr(X86_SSE_AND, MD, MB, MI, MS, RD)
+
+#define CMPPSrr(IM, RS, RD)		_SSEPSirr(X86_SSE_CMP, IM, RS, RD)
+#define CMPPSmr(IM, MD, MB, MI, MS, RD)	_SSEPSimr(X86_SSE_CMP, IM, MD, MB, MI, MS, RD)
+#define CMPPDrr(IM, RS, RD)		_SSEPDirr(X86_SSE_CMP, IM, RS, RD)
+#define CMPPDmr(IM, MD, MB, MI, MS, RD)	_SSEPDimr(X86_SSE_CMP, IM, MD, MB, MI, MS, RD)
+
+#define CMPSSrr(IM, RS, RD)		_SSESSirr(X86_SSE_CMP, IM, RS, RD)
+#define CMPSSmr(IM, MD, MB, MI, MS, RD)	_SSESSimr(X86_SSE_CMP, IM, MD, MB, MI, MS, RD)
+#define CMPSDrr(IM, RS, RD)		_SSESDirr(X86_SSE_CMP, IM, RS, RD)
+#define CMPSDmr(IM, MD, MB, MI, MS, RD)	_SSESDimr(X86_SSE_CMP, IM, MD, MB, MI, MS, RD)
 
 #define DIVPSrr(RS, RD)			_SSEPSrr(X86_SSE_DIV, RS, RD)
 #define DIVPSmr(MD, MB, MI, MS, RD)	_SSEPSmr(X86_SSE_DIV, MD, MB, MI, MS, RD)
@@ -1880,6 +1979,9 @@ enum {
 #define MOVDMQrm(RS, MD, MB, MI, MS)	__SSEQrm(      0x7e, RS,_rM, MD, MB, MI, MS)
 
 #define MOVDQ2Qrr(RS, RD)		 _SSELrr(0xf2, 0xd6, RS,_rX, RD,_rM)
+#define MOVMSKPSrr(RS, RD)		__SSELrr(      0x50, RS,_rX, RD,_r4)
+#define MOVMSKPDrr(RS, RD)		 _SSELrr(0x66, 0x50, RS,_rX, RD,_r4)
+
 #define MOVHLPSrr(RS, RD)		__SSELrr(      0x12, RS,_rX, RD,_rX)
 #define MOVLHPSrr(RS, RD)		__SSELrr(      0x16, RS,_rX, RD,_rX)
 
