@@ -39,21 +39,25 @@
 #define REG_T3			AREG4
 #define REG_T3_ID		AREG4_ID
 #endif
-#ifdef  FREG0
+#ifdef  FREG3
 #define REG_F0			FREG0
 #define REG_F0_ID		FREG0_ID
-#endif
-#ifdef  FREG1
 #define REG_F1			FREG1
 #define REG_F1_ID		FREG1_ID
-#endif
-#ifdef  FREG2
 #define REG_F2			FREG2
 #define REG_F2_ID		FREG2_ID
-#endif
-#ifdef  FREG3
 #define REG_F3			FREG3
 #define REG_F3_ID		FREG3_ID
+#endif
+#ifdef  VREG3
+#define REG_V0			VREG0
+#define REG_V0_ID		VREG0_ID
+#define REG_V1			VREG1
+#define REG_V1_ID		VREG1_ID
+#define REG_V2			VREG2
+#define REG_V2_ID		VREG2_ID
+#define REG_V3			VREG3
+#define REG_V3_ID		VREG3_ID
 #endif
 
 // Force only one return point

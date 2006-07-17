@@ -34,6 +34,22 @@ enum {
 
 #define AREG3 "edi"
   AREG3_ID = 7,
+
+  // NOTE: the following XMM registers definitions require to build
+  // *-dyngen-ops.cpp with -ffixed-xmmN
+
+  /* vector registers */
+#define VREG0 "xmm4"
+  VREG0_ID = 4,
+
+#define VREG1 "xmm5"
+  VREG1_ID = 5,
+
+#define VREG2 "xmm6"
+  VREG2_ID = 6,
+
+#define VREG3 "xmm7"
+  VREG3_ID = 7,
 };
 
 #endif /* DYNGEN_TARGET_EXEC_H */
