@@ -492,7 +492,7 @@ public:
 	DEFINE_OP(div, DIV);
 	DEFINE_OP(min, MIN);
 	DEFINE_OP(max, MAX);
-	DEFINE_OP_P(and, ADD);
+	DEFINE_OP_P(and, AND);
 	DEFINE_OP_P(andn, ANDN);
 	DEFINE_OP_P(or, OR);
 	DEFINE_OP_P(xor, XOR);
