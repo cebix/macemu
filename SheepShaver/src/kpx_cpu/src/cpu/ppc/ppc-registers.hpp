@@ -168,35 +168,16 @@ union powerpc_fpr {
 
 class powerpc_vscr
 {
-	uint8 nj;
-	uint8 sat;
+	uint32 vscr;
 public:
-	powerpc_vscr();
-	void set(uint32 v);
-	uint32 get() const;
-	uint32 get_nj() const		{ return nj; }
-	void set_nj(int v)			{ nj = v; }
-	uint32 get_sat() const		{ return sat; }
-	void set_sat(int v)			{ sat = v; }
+	powerpc_vscr() : vscr(0)	{ }
+	void set(uint32 v)			{ vscr = v; }
+	uint32 get() const			{ return vscr; }
+	uint32 get_nj() const		{ return vscr & VSCR_NJ_field::mask(); }
+	void set_nj(bool v)			{ VSCR_NJ_field::insert(vscr, v); }
+	uint32 get_sat() const		{ return vscr & VSCR_SAT_field::mask(); }
+	void set_sat(bool v)		{ VSCR_SAT_field::insert(vscr, v); }
 };
-
-inline
-powerpc_vscr::powerpc_vscr()
-	: nj(0), sat(0)
-{ }
-
-inline uint32
-powerpc_vscr::get() const
-{
-	return (nj << 16) | sat;
-}
-
-inline void
-powerpc_vscr::set(uint32 v)
-{
-	nj = VSCR_NJ_field::extract(v);
-	sat = VSCR_SAT_field::extract(v);
-}
 
 
 /**
