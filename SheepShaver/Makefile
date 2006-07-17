@@ -81,9 +81,11 @@ links:
 	       Windows/kernel_windows.h Windows/kernel_windows.cpp \
 	       Windows/serial_windows.cpp Windows/router Windows/b2ether \
 	       Windows/ether_windows.h Windows/ether_windows.cpp \
-	       Windows/serial_windows.cpp Windows/prefs_editor_gtk.cpp'; \
+	       Windows/serial_windows.cpp Windows/prefs_editor_gtk.cpp \
+	       uae_cpu/compiler/codegen_x86.h'; \
 	PREFIX="`pwd`/"; case $(B2_TOPDIR) in /*) PREFIX="";; esac; \
 	for i in $$list; do \
-	  echo $$i; \
-	  ln -sf "$${PREFIX}$(B2_TOPDIR)/src/$$i" src/$$i; \
+	  echo $$i; o=$$i; \
+	  case $$i in *codegen_x86.h) o=kpx_cpu/src/cpu/jit/x86/codegen_x86.h;; esac; \
+	  ln -sf "$${PREFIX}$(B2_TOPDIR)/src/$$i" src/$$o; \
 	done;
