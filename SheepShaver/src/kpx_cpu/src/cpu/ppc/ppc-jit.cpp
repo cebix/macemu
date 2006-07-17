@@ -144,6 +144,8 @@ powerpc_jit::powerpc_jit(dyngen_cpu_base cpu, int cache_size)
 			DEFINE_OP(VMAXUB,	2, PI,PMAXUB),
 			DEFINE_OP(VMINSH,	2, PI,PMINSW),
 			DEFINE_OP(VMAXSH,	2, PI,PMAXSW),
+			DEFINE_OP(VAVGUB,	2, PI,PAVGB),
+			DEFINE_OP(VAVGUH,	2, PI,PAVGW),
 #undef DEFINE_OP
 #define DEFINE_OP(MNEMO, COND) \
 			{ PPC_I(MNEMO), (gen_handler_t)&powerpc_jit::gen_sse_arith_c, X86_SSE_CC_##COND }
@@ -153,6 +155,7 @@ powerpc_jit::powerpc_jit(dyngen_cpu_base cpu, int cache_size)
 #undef DEFINE_OP
 #define DEFINE_OP(MNEMO, GEN_OP) \
 			{ PPC_I(MNEMO), (gen_handler_t)&powerpc_jit::gen_sse_##GEN_OP }
+			DEFINE_OP(VSEL,		vsel),
 			DEFINE_OP(VMADDFP,	vmaddfp),
 			DEFINE_OP(VNMSUBFP,	vnmsubfp)
 #undef DEFINE_OP
@@ -188,6 +191,7 @@ powerpc_jit::powerpc_jit(dyngen_cpu_base cpu, int cache_size)
 #undef DEFINE_OP
 #define DEFINE_OP(MNEMO, GEN_OP) \
 			{ PPC_I(MNEMO), (gen_handler_t)&powerpc_jit::gen_sse2_##GEN_OP, }
+			DEFINE_OP(VSEL,		vsel),
 			DEFINE_OP(VSLDOI,	vsldoi),
 			DEFINE_OP(VSPLTB,	vspltb),
 			DEFINE_OP(VSPLTH,	vsplth),
@@ -518,6 +522,20 @@ bool powerpc_jit::gen_sse_vnmsubfp(int mnemo, int vD, int vA, int vB, int vC)
 	return true;
 }
 
+// vsel
+bool powerpc_jit::gen_sse_vsel(int mnemo, int vD, int vA, int vB, int vC)
+{
+	// NOTE: simplified into (vB & vC) | (vA & ~vC)
+	gen_movaps(x86_memory_operand(xPPC_VR(vC), REG_CPU_ID), REG_V0_ID);
+	gen_movaps(x86_memory_operand(xPPC_VR(vB), REG_CPU_ID), REG_V1_ID);
+	gen_movaps(x86_memory_operand(xPPC_VR(vA), REG_CPU_ID), REG_V2_ID);
+	gen_andps(REG_V0_ID, REG_V1_ID);
+	gen_andnps(REG_V2_ID, REG_V0_ID);
+	gen_orps(REG_V1_ID, REG_V0_ID);
+	gen_movaps(REG_V0_ID, x86_memory_operand(xPPC_VR(vD), REG_CPU_ID));
+	return true;
+}
+
 /*
  *	SSE2 optimizations
  */
@@ -584,6 +602,20 @@ bool powerpc_jit::gen_sse2_vsldoi(int mnemo, int vD, int vA, int vB, int SH)
 		gen_por(REG_V1_ID, REG_V0_ID);
 		gen_pshufd(x86_immediate_operand(0x1b), REG_V0_ID, REG_V0_ID);
 	}
+	gen_movdqa(REG_V0_ID, x86_memory_operand(xPPC_VR(vD), REG_CPU_ID));
+	return true;
+}
+
+// vsel
+bool powerpc_jit::gen_sse2_vsel(int mnemo, int vD, int vA, int vB, int vC)
+{
+	// NOTE: simplified into (vB & vC) | (vA & ~vC)
+	gen_movdqa(x86_memory_operand(xPPC_VR(vC), REG_CPU_ID), REG_V0_ID);
+	gen_movdqa(x86_memory_operand(xPPC_VR(vB), REG_CPU_ID), REG_V1_ID);
+	gen_movdqa(x86_memory_operand(xPPC_VR(vA), REG_CPU_ID), REG_V2_ID);
+	gen_pand(REG_V0_ID, REG_V1_ID);
+	gen_pandn(REG_V2_ID, REG_V0_ID);
+	gen_por(REG_V1_ID, REG_V0_ID);
 	gen_movdqa(REG_V0_ID, x86_memory_operand(xPPC_VR(vD), REG_CPU_ID));
 	return true;
 }

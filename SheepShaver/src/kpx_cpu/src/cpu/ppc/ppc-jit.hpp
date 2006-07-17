@@ -77,12 +77,14 @@ private:
 	bool gen_sse_arith_2(int mnemo, int vD, int vA, int vB);
 	bool gen_sse_arith_s(int mnemo, int vD, int vA, int vB);
 	bool gen_sse_arith_c(int mnemo, int vD, int vA, int vB, bool Rc);
+	bool gen_sse_vsel(int mnemo, int vD, int vA, int vB, int vC);
 	bool gen_sse_vmaddfp(int mnemo, int vD, int vA, int vB, int vC);
 	bool gen_sse_vnmsubfp(int mnemo, int vD, int vA, int vB, int vC);
 	void gen_sse2_record_cr6(int vD);
 	bool gen_sse2_arith_2(int mnemo, int vD, int vA, int vB);
 	bool gen_sse2_arith_s(int mnemo, int vD, int vA, int vB);
 	bool gen_sse2_arith_c(int mnemo, int vD, int vA, int vB, bool Rc);
+	bool gen_sse2_vsel(int mnemo, int vD, int vA, int vB, int vC);
 	bool gen_sse2_vsldoi(int mnemo, int vD, int vA, int vB, int SH);
 	void gen_sse2_vsplat(int vD, int rValue);
 	bool gen_sse2_vspltisb(int mnemo, int vD, int SIMM);

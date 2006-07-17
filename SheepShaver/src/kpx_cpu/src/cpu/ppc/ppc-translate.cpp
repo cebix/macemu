@@ -1402,6 +1402,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 				goto do_generic;
 			break;
 		}
+		case PPC_I(VSEL):
 		case PPC_I(VMADDFP):
 		case PPC_I(VNMSUBFP):
 		{
