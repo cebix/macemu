@@ -54,8 +54,9 @@ protected:
 	// Initialize user code start
 	void set_code_start(uint8 *ptr);
 
-	// Get & increase current position
+	// Increase/set/get current position
 	void inc_code_ptr(int offset)	{ code_p += offset; }
+	void set_code_ptr(uint8 *ptr)	{ code_p = ptr; }
 public:
 	uint8 *code_ptr() const			{ return code_p; }
 

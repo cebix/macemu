@@ -29,7 +29,7 @@ int __op_jmp0, __op_jmp1;
 #include "basic-dyngen-ops.hpp"
 
 basic_dyngen::basic_dyngen(dyngen_cpu_base cpu, int cache_size)
-	: parent_cpu(cpu), basic_jit_cache(cache_size)
+	: parent_cpu(cpu), jit_codegen(cache_size)
 {
 	execute_func = gen_start();
 	gen_op_execute();

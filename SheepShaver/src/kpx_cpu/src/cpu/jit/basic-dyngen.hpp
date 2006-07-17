@@ -22,7 +22,7 @@
 #define BASIC_DYNGEN_H
 
 #include "cpu/jit/jit-config.hpp"
-#include "cpu/jit/jit-cache.hpp"
+#include "cpu/jit/jit-codegen.hpp"
 
 // Set jump target address
 static inline void dg_set_jmp_target(uint8 *jmp_addr, uint8 *addr)
@@ -57,7 +57,7 @@ typedef basic_cpu *dyngen_cpu_base;
 #endif
 
 class basic_dyngen
-	: public basic_jit_cache
+	: public jit_codegen
 {
 	uint8 *execute_func;
 	uint8 *gen_code_start;

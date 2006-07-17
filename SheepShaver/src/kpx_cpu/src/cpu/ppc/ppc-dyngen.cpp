@@ -307,29 +307,3 @@ void powerpc_dyngen::gen_store_vect_VS_T0(int vS)
 	gen_load_ad_VD_VR(vS);
 	gen_op_store_vect_VD_T0();
 }
-
-void powerpc_dyngen::gen_sse2_vsldoi_VD_V0_V1(int SH)
-{
-#if defined(__i386__) || defined(__x86_64__)
-	switch (SH) {
-#define GEN_OP(SH) case SH: gen_op_sse2_vsldoi_##SH(); break
-		GEN_OP(1);
-		GEN_OP(2);
-		GEN_OP(3);
-		GEN_OP(4);
-		GEN_OP(5);
-		GEN_OP(6);
-		GEN_OP(7);
-		GEN_OP(8);
-		GEN_OP(9);
-		GEN_OP(10);
-		GEN_OP(11);
-		GEN_OP(12);
-		GEN_OP(13);
-		GEN_OP(14);
-		GEN_OP(15);
-#undef GEN_OP
-	default: abort();
-	}
-#endif
-}

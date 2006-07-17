@@ -374,6 +374,7 @@ private:
 	// Dynamic translation engine
 	friend class powerpc_dyngen_helper;
 	friend class powerpc_dyngen;
+	friend class powerpc_jit;
 	powerpc_jit codegen;
 	block_info *compile_block(uint32 entry);
 #if DYNGEN_DIRECT_BLOCK_CHAINING

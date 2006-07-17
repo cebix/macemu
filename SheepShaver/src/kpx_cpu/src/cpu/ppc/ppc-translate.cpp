@@ -1346,67 +1346,16 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			break;
 		}
 #endif
-		// NOTE: A0/VD are clobbered in the following instructions!
 		case PPC_I(LVEWX):
 		case PPC_I(LVX):
 		case PPC_I(LVXL):
-		{
-			const int rA = rA_field::extract(opcode);
-			const int rB = rB_field::extract(opcode);
-			const int vD = vD_field::extract(opcode);
-			dg.gen_load_T0_GPR(rB);
-			if (rA != 0) {
-				dg.gen_load_T1_GPR(rA);
-				dg.gen_add_32_T0_T1();
-			}
-			switch (ii->mnemo) {
-			case PPC_I(LVEWX):	dg.gen_load_word_VD_T0(vD); break;
-			case PPC_I(LVX):	dg.gen_load_vect_VD_T0(vD); break;
-			case PPC_I(LVXL):	dg.gen_load_vect_VD_T0(vD); break;
-			}
-			break;
-		}
 		case PPC_I(STVEWX):
 		case PPC_I(STVX):
 		case PPC_I(STVXL):
-		{
-			const int rA = rA_field::extract(opcode);
-			const int rB = rB_field::extract(opcode);
-			const int vS = vS_field::extract(opcode);
-			dg.gen_load_T0_GPR(rB);
-			if (rA != 0) {
-				dg.gen_load_T1_GPR(rA);
-				dg.gen_add_32_T0_T1();
-			}
-			switch (ii->mnemo) {
-			case PPC_I(STVEWX):	dg.gen_store_word_VS_T0(vS); break;
-			case PPC_I(STVX):	dg.gen_store_vect_VS_T0(vS); break;
-			case PPC_I(STVXL):	dg.gen_store_vect_VS_T0(vS); break;
-			}
-			break;
-		}
-		case PPC_I(MFVSCR):
-		{
-			dg.gen_load_ad_VD_VR(vD_field::extract(opcode));
-			dg.gen_mfvscr_VD();
-			break;
-		}
-		case PPC_I(MTVSCR):
-		{
-			dg.gen_load_ad_V0_VR(vB_field::extract(opcode));
-			dg.gen_mtvscr_V0();
-			break;
-		}
-		case PPC_I(VSLDOI):
-		{
-			const int vD = vD_field::extract(opcode);
-			const int vA = vA_field::extract(opcode);
-			const int vB = vB_field::extract(opcode);
-			const int SH = vSH_field::extract(opcode);
-			if (!dg.gen_vector_3(ii->mnemo, vD, vA, vB, SH))
-				goto do_generic;
-			break;
-		}
+			assert(vD_field::mask() == vS_field::mask());
+			assert(vA_field::mask() == rA_field::mask());
+			assert(vB_field::mask() == rB_field::mask());
+			// fall-through
 		case PPC_I(VCMPEQFP):
 		case PPC_I(VCMPEQUB):
 		case PPC_I(VCMPEQUH):
@@ -1420,7 +1369,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			const int vD = vD_field::extract(opcode);
 			const int vA = vA_field::extract(opcode);
 			const int vB = vB_field::extract(opcode);
-			if (!dg.gen_vector_2(ii->mnemo, vD, vA, vB, vRc_field::test(opcode)))
+			if (!dg.gen_vector_compare(ii->mnemo, vD, vA, vB, vRc_field::test(opcode)))
 				goto do_generic;
 			break;
 		}
@@ -1443,6 +1392,8 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		case PPC_I(VSUBUHM):
 		case PPC_I(VSUBUWM):
 		case PPC_I(VXOR):
+		case PPC_I(VREFP):
+		case PPC_I(VRSQRTEFP):
 		{
 			const int vD = vD_field::extract(opcode);
 			const int vA = vA_field::extract(opcode);
@@ -1459,6 +1410,49 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			const int vB = vB_field::extract(opcode);
 			const int vC = vC_field::extract(opcode);
 			if (!dg.gen_vector_3(ii->mnemo, vD, vA, vB, vC))
+				goto do_generic;
+			break;
+		}
+		case PPC_I(VSLDOI):
+		{
+			const int vD = vD_field::extract(opcode);
+			const int vA = vA_field::extract(opcode);
+			const int vB = vB_field::extract(opcode);
+			const int SH = vSH_field::extract(opcode);
+			if (!dg.gen_vector_3(ii->mnemo, vD, vA, vB, SH))
+				goto do_generic;
+			break;
+		}
+		case PPC_I(MFVSCR):
+		{
+			if (!dg.gen_vector_1(ii->mnemo, vD_field::extract(opcode)))
+				goto do_generic;
+			break;
+		}
+		case PPC_I(MTVSCR):
+		{
+			if (!dg.gen_vector_1(ii->mnemo, vB_field::extract(opcode)))
+				goto do_generic;
+			break;
+		}
+		case PPC_I(VSPLTISB):
+		case PPC_I(VSPLTISH):
+		case PPC_I(VSPLTISW):
+		{
+			const int vD = vD_field::extract(opcode);
+			const int SIMM = op_sign_extend_5_32::apply(vUIMM_field::extract(opcode));
+			if (!dg.gen_vector_2(ii->mnemo, vD, SIMM, 0))
+				goto do_generic;
+			break;
+		}
+		case PPC_I(VSPLTB):
+		case PPC_I(VSPLTH):
+		case PPC_I(VSPLTW):
+		{
+			const int vD = vD_field::extract(opcode);
+			const int UIMM = vUIMM_field::extract(opcode);
+			const int vB = vB_field::extract(opcode);
+			if (!dg.gen_vector_2(ii->mnemo, vD, UIMM, vB))
 				goto do_generic;
 			break;
 		}

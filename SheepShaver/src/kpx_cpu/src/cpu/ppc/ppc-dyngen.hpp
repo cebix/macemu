@@ -234,7 +234,6 @@ public:
 	DEFINE_ALIAS(record_cr6_VD,0);
 	DEFINE_ALIAS(mfvscr_VD,0);
 	DEFINE_ALIAS(mtvscr_V0,0);
-	void gen_sse2_vsldoi_VD_V0_V1(int SH);
 
 #undef DEFINE_ALIAS
 #undef DEFINE_ALIAS_0
