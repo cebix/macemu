@@ -138,7 +138,7 @@ static bool remove_shm_range(shm_range_t *r)
 
 static bool remove_shm_range(void *base, unsigned int size)
 {
-	remove_shm_range(find_shm_range(base, size));
+	return remove_shm_range(find_shm_range(base, size));
 }
 #endif
 
