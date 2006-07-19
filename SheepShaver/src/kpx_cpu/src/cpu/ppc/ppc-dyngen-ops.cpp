@@ -1657,13 +1657,19 @@ void op_vxor_VD_V0_V1(void)
 
 void op_record_cr6_VD(void)
 {
-	if (VD.j[0] == UVAL64(0xffffffffffffffff) &&
-		VD.j[1] == UVAL64(0xffffffffffffffff))
-		powerpc_dyngen_helper::cr().set(6, 8);
-	else if (VD.j[0] == UVAL64(0) && VD.j[1] == UVAL64(0))
-		powerpc_dyngen_helper::cr().set(6, 2);
-	else
-		powerpc_dyngen_helper::cr().set(6, 0);
+	unsigned int cr6 = 0;
+#if SIZEOF_VOID_P == 8
+	if ((~VD.j[0] | ~VD.j[1]) == 0)
+		cr6 = 8;
+	else if ((VD.j[0] | VD.j[1]) == 0)
+		cr6 = 2;
+#else
+	if ((~VD.w[0] | ~VD.w[1] | ~VD.w[2] | ~VD.w[3]) == 0)
+		cr6 = 8;
+	else if ((VD.w[0] | VD.w[1] | VD.w[2] | VD.w[3]) == 0)
+		cr6 = 2;
+#endif
+	powerpc_dyngen_helper::cr().set(6, cr6);
 	dyngen_barrier();
 }
 
