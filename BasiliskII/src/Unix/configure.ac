@@ -905,9 +905,9 @@ AC_CACHE_CHECK([whether 33-bit memory addressing is working],
     int main(void) { /* returns 0 if we have working 33-bit addressing */
       if (sizeof(void *) < 8) exit(1);
       if (vm_init() < 0) exit(2);
-      char *m1 = (char *)vm_acquire(32768, VM_MAP_DEFAULT | VM_MAP_33BIT);
+      volatile char *m1 = (char *)vm_acquire(32768, VM_MAP_DEFAULT | VM_MAP_33BIT);
       if (m1 == VM_MAP_FAILED) exit(3);
-      char *m2 = m1 + (1L << 32);
+      volatile char *m2 = m1 + (1L << 32);
       m1[0] = 0x12; if (m2[0] != 0x12) exit(4);
       m2[0] = 0x34; if (m1[0] != 0x34) exit(5);
       vm_exit(); exit(0);
