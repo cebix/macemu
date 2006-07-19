@@ -220,7 +220,7 @@ $(OBJ_DIR)/ppc-dyngen-ops.o: $(kpxsrcdir)/cpu/ppc/ppc-dyngen-ops.cpp basic-dynge
 ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o $(DYNGEN)
 	./$(DYNGEN) -o $@ $<
 
-$(OBJ_DIR)/sheepshaver_glue.o $(OBJ_DIR)/ppc-cpu.o $(OBJ_DIR)/ppc-decode.o $(OBJ_DIR)/ppc-translate.o: basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
+$(OBJ_DIR)/sheepshaver_glue.o $(OBJ_DIR)/ppc-cpu.o $(OBJ_DIR)/ppc-decode.o $(OBJ_DIR)/ppc-translate.o $(OBJ_DIR)/ppc-jit.o: basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 endif
 
 $(OBJ_DIR)/ppc-execute.o: ppc-execute-impl.cpp
