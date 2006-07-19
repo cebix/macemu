@@ -27,13 +27,6 @@
 // Address type
 typedef char * sigsegv_address_t;
 
-// Transfer type (intended to be used a mask for sigsegv_*_ignore_range())
-enum sigsegv_transfer_type_t {
-	SIGSEGV_TRANSFER_UNKNOWN	= 0,
-	SIGSEGV_TRANSFER_LOAD		= 1,
-	SIGSEGV_TRANSFER_STORE		= 2,
-};
-
 // SIGSEGV handler return state
 enum sigsegv_return_t {
   SIGSEGV_RETURN_SUCCESS,

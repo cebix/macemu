@@ -66,6 +66,13 @@ static bool sigsegv_do_install_handler(int sig);
  *  Instruction decoding aids
  */
 
+// Transfer type
+enum transfer_type_t {
+	SIGSEGV_TRANSFER_UNKNOWN	= 0,
+	SIGSEGV_TRANSFER_LOAD		= 1,
+	SIGSEGV_TRANSFER_STORE		= 2,
+};
+
 // Transfer size
 enum transfer_size_t {
 	SIZE_UNKNOWN,
@@ -74,9 +81,6 @@ enum transfer_size_t {
 	SIZE_LONG, // 4 bytes
 	SIZE_QUAD, // 8 bytes
 };
-
-// Transfer type
-typedef sigsegv_transfer_type_t transfer_type_t;
 
 #if (defined(powerpc) || defined(__powerpc__) || defined(__ppc__))
 // Addressing mode
@@ -859,8 +863,14 @@ static bool ix86_skip_instruction(unsigned long * regs)
 		return false;
 #endif
 	
+	enum instruction_type_t {
+		i_MOV,
+		i_ADD
+	};
+
 	transfer_type_t transfer_type = SIGSEGV_TRANSFER_UNKNOWN;
 	transfer_size_t transfer_size = SIZE_LONG;
+	instruction_type_t instruction_type = i_MOV;
 	
 	int reg = -1;
 	int len = 0;
@@ -911,6 +921,7 @@ static bool ix86_skip_instruction(unsigned long * regs)
 #endif
 
 	// Decode instruction
+	int op_len = 1;
 	int target_size = SIZE_UNKNOWN;
 	switch (eip[0]) {
 	case 0x0f:
@@ -925,24 +936,10 @@ static bool ix86_skip_instruction(unsigned long * regs)
 			transfer_size = SIZE_WORD;
 			goto do_mov_extend;
 		  do_mov_extend:
-			switch (eip[2] & 0xc0) {
-			case 0x80:
-				reg = (eip[2] >> 3) & 7;
-				transfer_type = SIGSEGV_TRANSFER_LOAD;
-				break;
-			case 0x40:
-				reg = (eip[2] >> 3) & 7;
-				transfer_type = SIGSEGV_TRANSFER_LOAD;
-				break;
-			case 0x00:
-				reg = (eip[2] >> 3) & 7;
-				transfer_type = SIGSEGV_TRANSFER_LOAD;
-				break;
-			}
-			len += 3 + ix86_step_over_modrm(eip + 2);
-			break;
-	    }
-	  break;
+			op_len = 2;
+			goto do_transfer_load;
+		}
+		break;
 #if defined(__x86_64__)
 	case 0x63: // MOVSXD r64, r/m32
 		if (has_rex && rex.W) {
@@ -953,60 +950,57 @@ static bool ix86_skip_instruction(unsigned long * regs)
 			transfer_size = SIZE_LONG;
 			target_size = SIZE_QUAD;
 		}
-		switch (eip[1] & 0xc0) {
-		case 0x80:
-			reg = (eip[1] >> 3) & 7;
-			transfer_type = SIGSEGV_TRANSFER_LOAD;
-			break;
-		case 0x40:
-			reg = (eip[1] >> 3) & 7;
-			transfer_type = SIGSEGV_TRANSFER_LOAD;
-			break;
-		case 0x00:
-			reg = (eip[1] >> 3) & 7;
-			transfer_type = SIGSEGV_TRANSFER_LOAD;
-			break;
-		}
-		len += 2 + ix86_step_over_modrm(eip + 1);
-		break;
+		goto do_transfer_load;
 #endif
+	case 0x02: // ADD r8, r/m8
+		transfer_size = SIZE_BYTE;
+	case 0x03: // ADD r32, r/m32
+		instruction_type = i_ADD;
+		goto do_transfer_load;
 	case 0x8a: // MOV r8, r/m8
 		transfer_size = SIZE_BYTE;
 	case 0x8b: // MOV r32, r/m32 (or 16-bit operation)
-		switch (eip[1] & 0xc0) {
+	  do_transfer_load:
+		switch (eip[op_len] & 0xc0) {
 		case 0x80:
-			reg = (eip[1] >> 3) & 7;
+			reg = (eip[op_len] >> 3) & 7;
 			transfer_type = SIGSEGV_TRANSFER_LOAD;
 			break;
 		case 0x40:
-			reg = (eip[1] >> 3) & 7;
+			reg = (eip[op_len] >> 3) & 7;
 			transfer_type = SIGSEGV_TRANSFER_LOAD;
 			break;
 		case 0x00:
-			reg = (eip[1] >> 3) & 7;
+			reg = (eip[op_len] >> 3) & 7;
 			transfer_type = SIGSEGV_TRANSFER_LOAD;
 			break;
 		}
-		len += 2 + ix86_step_over_modrm(eip + 1);
+		len += 1 + op_len + ix86_step_over_modrm(eip + op_len);
 		break;
+	case 0x00: // ADD r/m8, r8
+		transfer_size = SIZE_BYTE;
+	case 0x01: // ADD r/m32, r32
+		instruction_type = i_ADD;
+		goto do_transfer_store;
 	case 0x88: // MOV r/m8, r8
 		transfer_size = SIZE_BYTE;
 	case 0x89: // MOV r/m32, r32 (or 16-bit operation)
-		switch (eip[1] & 0xc0) {
+	  do_transfer_store:
+		switch (eip[op_len] & 0xc0) {
 		case 0x80:
-			reg = (eip[1] >> 3) & 7;
+			reg = (eip[op_len] >> 3) & 7;
 			transfer_type = SIGSEGV_TRANSFER_STORE;
 			break;
 		case 0x40:
-			reg = (eip[1] >> 3) & 7;
+			reg = (eip[op_len] >> 3) & 7;
 			transfer_type = SIGSEGV_TRANSFER_STORE;
 			break;
 		case 0x00:
-			reg = (eip[1] >> 3) & 7;
+			reg = (eip[op_len] >> 3) & 7;
 			transfer_type = SIGSEGV_TRANSFER_STORE;
 			break;
 		}
-		len += 2 + ix86_step_over_modrm(eip + 1);
+		len += 1 + op_len + ix86_step_over_modrm(eip + op_len);
 		break;
 	}
 	if (target_size == SIZE_UNKNOWN)
@@ -1022,7 +1016,7 @@ static bool ix86_skip_instruction(unsigned long * regs)
 		reg += 8;
 #endif
 
-	if (transfer_type == SIGSEGV_TRANSFER_LOAD && reg != -1) {
+	if (instruction_type == i_MOV && transfer_type == SIGSEGV_TRANSFER_LOAD && reg != -1) {
 		static const int x86_reg_map[] = {
 			X86_REG_EAX, X86_REG_ECX, X86_REG_EDX, X86_REG_EBX,
 			X86_REG_ESP, X86_REG_EBP, X86_REG_ESI, X86_REG_EDI,
@@ -1058,7 +1052,7 @@ static bool ix86_skip_instruction(unsigned long * regs)
 	}
 
 #if DEBUG
-	printf("%08x: %s %s access", regs[X86_REG_EIP],
+	printf("%p: %s %s access", (void *)regs[X86_REG_EIP],
 		   transfer_size == SIZE_BYTE ? "byte" :
 		   transfer_size == SIZE_WORD ? "word" :
 		   transfer_size == SIZE_LONG ? "long" :
