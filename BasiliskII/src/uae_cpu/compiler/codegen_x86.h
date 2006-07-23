@@ -11,10 +11,10 @@
  *
  *  Copyright 1999, 2000, 2001, 2002, 2003 Ian Piumarta
  *
- *  Adaptations and enhancements for AMD64 support, Copyright 2003
+ *  Adaptations and enhancements for AMD64 support, Copyright 2003-2006
  *    Gwenole Beauchesne
  *
- *  Basilisk II (C) 1997-2005 Christian Bauer
+ *  Basilisk II (C) 1997-2006 Christian Bauer
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -399,15 +399,15 @@ typedef unsigned int	_ul;
 /* --- Memory subformats - urgh! ------------------------------------------- */
 
 /* _r_D() is RIP addressing mode if X86_TARGET_64BIT, use _r_DSIB() instead */
-#define _r_D(	R, D	  )	(_Mrm(_b00,_rN(R),_b101 )		             ,_L((long)(D)))
-#define _r_DSIB(R, D      )	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(1),_b100 ,_b101 ),_L((long)(D)))
+#define _r_D(	R, D	  )	(_Mrm(_b00,_rN(R),_b101 )		             ,_L((_sl)(D)))
+#define _r_DSIB(R, D      )	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(1),_b100 ,_b101 ),_L((_sl)(D)))
 #define _r_0B(	R,   B    )	(_Mrm(_b00,_rN(R),_rA(B))			                   )
 #define _r_0BIS(R,   B,I,S)	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B))              )
-#define _r_1B(	R, D,B    )	(_Mrm(_b01,_rN(R),_rA(B))		             ,_B((long)(D)))
-#define _r_1BIS(R, D,B,I,S)	(_Mrm(_b01,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B)),_B((long)(D)))
-#define _r_4B(	R, D,B    )	(_Mrm(_b10,_rN(R),_rA(B))		             ,_L((long)(D)))
-#define _r_4IS( R, D,I,S)	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_b101 ),_L((long)(D)))
-#define _r_4BIS(R, D,B,I,S)	(_Mrm(_b10,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B)),_L((long)(D)))
+#define _r_1B(	R, D,B    )	(_Mrm(_b01,_rN(R),_rA(B))		             ,_B((_sc)(D)))
+#define _r_1BIS(R, D,B,I,S)	(_Mrm(_b01,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B)),_B((_sc)(D)))
+#define _r_4B(	R, D,B    )	(_Mrm(_b10,_rN(R),_rA(B))		             ,_L((_sl)(D)))
+#define _r_4IS( R, D,I,S)	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_b101 ),_L((_sl)(D)))
+#define _r_4BIS(R, D,B,I,S)	(_Mrm(_b10,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B)),_L((_sl)(D)))
 
 #define _r_DB(  R, D,B    )	((_s0P(D) && (!_rbp13P(B)) ? _r_0B  (R,  B    ) : (_s8P(D) ? _r_1B(  R,D,B    ) : _r_4B(  R,D,B    ))))
 #define _r_DBIS(R, D,B,I,S)	((_s0P(D) && (!_rbp13P(B)) ? _r_0BIS(R,  B,I,S) : (_s8P(D) ? _r_1BIS(R,D,B,I,S) : _r_4BIS(R,D,B,I,S))))
@@ -439,8 +439,8 @@ typedef unsigned int	_ul;
 #define	 _d16()					   (		  _B(0x66	)				  )
 #define	  _O(	     OP				)  (		  _B(  OP	)				  )
 #define	  _Or(	     OP,R			)  (		  _B( (OP)|_r(R))				  )
-#define	 _OO(	     OP				)  ( _B((OP)>>8), _B( (OP)	)				  )
-#define	 _OOr(	     OP,R			)  ( _B((OP)>>8), _B( (OP)|_r(R))				  )
+#define	 _OO(	     OP				)  ( _B((OP)>>8), _B(( (OP)      )&0xff)			  )
+#define	 _OOr(	     OP,R			)  ( _B((OP)>>8), _B(( (OP)|_r(R))&0xff)			  )
 #define	  _Os(	     OP,B			)  (	_s8P(B) ? _B(((OP)|_b10)) : _B(OP)			  )
 #define	    _sW(			     W	)  (				       _s8P(W) ? _B(W):_W(W)	  )
 #define	    _sL(			     L	)  (				       _s8P(L) ? _B(L):_L(L)	  )
