@@ -318,7 +318,7 @@ AC_DEFUN([AC_CHECK_FRAMEWORK], [
     saved_LIBS="$LIBS"
     LIBS="$LIBS -framework $1"
     AC_TRY_LINK(
-      [$2], [int main(void) { return 0; }], 
+      [$2], [],
       [AS_VAR_SET(ac_Framework, yes)], [AS_VAR_SET(ac_Framework, no); LIBS="$saved_LIBS"]
     )
   ])
@@ -329,6 +329,7 @@ AC_DEFUN([AC_CHECK_FRAMEWORK], [
 ])
 
 dnl Check for some MacOS X frameworks
+AC_CHECK_FRAMEWORK(AppKit, [])
 AC_CHECK_FRAMEWORK(Carbon, [#include <Carbon/Carbon.h>])
 AC_CHECK_FRAMEWORK(IOKit, [#include <IOKit/IOKitLib.h>])
 AC_CHECK_FRAMEWORK(CoreFoundation, [#include <CoreFoundation/CoreFoundation.h>])
@@ -629,9 +630,9 @@ AC_CACHE_CHECK([whether 33-bit memory addressing is working],
     int main(void) { /* returns 0 if we have working 33-bit addressing */
       if (sizeof(void *) < 8) exit(1);
       if (vm_init() < 0) exit(2);
-      char *m1 = (char *)vm_acquire(32768, VM_MAP_DEFAULT | VM_MAP_33BIT);
+      volatile char *m1 = (char *)vm_acquire(32768, VM_MAP_DEFAULT | VM_MAP_33BIT);
       if (m1 == VM_MAP_FAILED) exit(3);
-      char *m2 = m1 + (1L << 32);
+      volatile char *m2 = m1 + (1L << 32);
       m1[0] = 0x12; if (m2[0] != 0x12) exit(4);
       m2[0] = 0x34; if (m1[0] != 0x34) exit(5);
       vm_exit(); exit(0);
@@ -813,6 +814,10 @@ dnl Check for linker script support
 case $target_os:$target_cpu in
 linux*:i?86)    LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-i386.ld";;
 linux*:x86_64)  LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-x86_64.ld";;
+linux*:powerpc) LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-ppc.ld";;
+netbsd*:i?86)   LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-i386.ld";;
+freebsd*:i?86)  LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/freebsd-i386.ld";;
+darwin*:*)      LINKER_SCRIPT_FLAGS="-Wl,-seg1addr,0x78048000";;
 esac
 if [[ -n "$LINKER_SCRIPT_FLAGS" ]]; then
   AC_CACHE_CHECK([whether linker script is usable],
