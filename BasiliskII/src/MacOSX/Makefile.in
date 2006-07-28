@@ -46,7 +46,7 @@ SRCS =  BasiliskII.icns Controller.h Controller.mm Credits.html \
 	Emulator.h Emulator.mm EmulatorView.h EmulatorView.mm English.lproj \
 	NNThread.h NNThread.m PrefsEditor.h PrefsEditor.mm \
 	ToDo.html Versions.html \
-	audio_macosx.mm extfs_macosx.mm macos_util_macosx.h main_macosx.h \
+	audio_macosx.cpp extfs_macosx.mm macos_util_macosx.h main_macosx.h \
 	main_macosx.mm misc_macosx.h misc_macosx.mm nowrite.icns \
 	prefs_macosx.cpp sysdeps.h video_macosx.mm video_macosx.h
 
