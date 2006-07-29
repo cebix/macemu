@@ -146,8 +146,11 @@
 				A63638A10964120600BE2F74,
 				29B97324FDCFA39411CA2CEA,
 				A685FF0D05C4E89D00DDBA94,
+				A6F396980A6B67AB0050CF14,
+				A6F396990A6B67AB0050CF14,
 				A685FE6A05C4E87D00DDBA94,
 				1058C7A1FEA54F0111CA2CBB,
+				A6F3969A0A6B67AB0050CF14,
 				A685FFCD05C4E8CC00DDBA94,
 				29B97325FDCFA39411CA2CEA,
 				A68500CB05C4E8DE00DDBA94,
@@ -284,6 +287,9 @@
 				A68501EC05C4EEF200DDBA94,
 				A68501F005C4EEF200DDBA94,
 				A685020D05C4EF6700DDBA94,
+				A6F395DF0A6B676C0050CF14,
+				A6F395E10A6B676C0050CF14,
+				A6F396CD0A6B68230050CF14,
 			);
 			isa = PBXHeadersBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
@@ -342,7 +348,6 @@
 				A68501F305C4EF3300DDBA94,
 				A685020305C4EF6700DDBA94,
 				A685020C05C4EF6700DDBA94,
-				A685021305C4EFDC00DDBA94,
 				A685021405C4EFDC00DDBA94,
 				A685021605C4EFDC00DDBA94,
 				A685021705C4EFDC00DDBA94,
@@ -368,6 +373,10 @@
 				A685024005C4F04700DDBA94,
 				A685024105C4F04700DDBA94,
 				A6C4EFBF09641353006D945B,
+				A622F5580A6B533900E826C8,
+				A6F395DE0A6B676C0050CF14,
+				A6F395E00A6B676C0050CF14,
+				A6F396CC0A6B68230050CF14,
 			);
 			isa = PBXSourcesBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
@@ -382,6 +391,9 @@
 				A68500CC05C4E8DE00DDBA94,
 				A63638A20964120600BE2F74,
 				A60B5F490A174A4900D7F586,
+				A6F3969B0A6B67AB0050CF14,
+				A6F3969C0A6B67AB0050CF14,
+				A6F3969D0A6B67AB0050CF14,
 			);
 			isa = PBXFrameworksBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
@@ -427,6 +439,20 @@
 		};
 		A60B5F490A174A4900D7F586 = {
 			fileRef = A60B5F480A174A4900D7F586;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		A622F5570A6B533900E826C8 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.cpp;
+			path = audio_macosx.cpp;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		A622F5580A6B533900E826C8 = {
+			fileRef = A622F5570A6B533900E826C8;
 			isa = PBXBuildFile;
 			settings = {
 			};
@@ -1014,7 +1040,6 @@
 		};
 		A68501D305C4ED9A00DDBA94 = {
 			children = (
-				A685020E05C4EFDC00DDBA94,
 				A685020F05C4EFDC00DDBA94,
 				A685021105C4EFDC00DDBA94,
 				A685021205C4EFDC00DDBA94,
@@ -1261,15 +1286,6 @@
 			settings = {
 			};
 		};
-		A685020E05C4EFDC00DDBA94 = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.cpp;
-			name = audio_dummy.cpp;
-			path = ../dummy/audio_dummy.cpp;
-			refType = 2;
-			sourceTree = SOURCE_ROOT;
-		};
 		A685020F05C4EFDC00DDBA94 = {
 			fileEncoding = 30;
 			isa = PBXFileReference;
@@ -1296,12 +1312,6 @@
 			path = ../dummy/serial_dummy.cpp;
 			refType = 2;
 			sourceTree = SOURCE_ROOT;
-		};
-		A685021305C4EFDC00DDBA94 = {
-			fileRef = A685020E05C4EFDC00DDBA94;
-			isa = PBXBuildFile;
-			settings = {
-			};
 		};
 		A685021405C4EFDC00DDBA94 = {
 			fileRef = A685020F05C4EFDC00DDBA94;
@@ -1660,6 +1670,13 @@
 				A685018005C4EAD900DDBA94,
 				A685018105C4EAD900DDBA94,
 				A685018205C4EAD900DDBA94,
+				A6F395DA0A6B676C0050CF14,
+				A6F395DB0A6B676C0050CF14,
+				A6F395DC0A6B676C0050CF14,
+				A6F395DD0A6B676C0050CF14,
+				A6F396CA0A6B68230050CF14,
+				A6F396CB0A6B68230050CF14,
+				A622F5570A6B533900E826C8,
 				A685018C05C4EB6F00DDBA94,
 				A685018D05C4EB6F00DDBA94,
 				A685018E05C4EB6F00DDBA94,
@@ -1731,6 +1748,132 @@
 		};
 		A6C4EFBF09641353006D945B = {
 			fileRef = A6C4EFBE09641353006D945B;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		A6F395DA0A6B676C0050CF14 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.cpp;
+			path = AudioBackEnd.cpp;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
+		};
+		A6F395DB0A6B676C0050CF14 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			path = AudioBackEnd.h;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
+		};
+		A6F395DC0A6B676C0050CF14 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.cpp;
+			path = AudioDevice.cpp;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
+		};
+		A6F395DD0A6B676C0050CF14 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			path = AudioDevice.h;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
+		};
+		A6F395DE0A6B676C0050CF14 = {
+			fileRef = A6F395DA0A6B676C0050CF14;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		A6F395DF0A6B676C0050CF14 = {
+			fileRef = A6F395DB0A6B676C0050CF14;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		A6F395E00A6B676C0050CF14 = {
+			fileRef = A6F395DC0A6B676C0050CF14;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		A6F395E10A6B676C0050CF14 = {
+			fileRef = A6F395DD0A6B676C0050CF14;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		A6F396980A6B67AB0050CF14 = {
+			isa = PBXFileReference;
+			lastKnownFileType = wrapper.framework;
+			name = AudioToolbox.framework;
+			path = /System/Library/Frameworks/AudioToolbox.framework;
+			refType = 0;
+			sourceTree = "<absolute>";
+		};
+		A6F396990A6B67AB0050CF14 = {
+			isa = PBXFileReference;
+			lastKnownFileType = wrapper.framework;
+			name = AudioUnit.framework;
+			path = /System/Library/Frameworks/AudioUnit.framework;
+			refType = 0;
+			sourceTree = "<absolute>";
+		};
+		A6F3969A0A6B67AB0050CF14 = {
+			isa = PBXFileReference;
+			lastKnownFileType = wrapper.framework;
+			name = CoreAudio.framework;
+			path = /System/Library/Frameworks/CoreAudio.framework;
+			refType = 0;
+			sourceTree = "<absolute>";
+		};
+		A6F3969B0A6B67AB0050CF14 = {
+			fileRef = A6F396980A6B67AB0050CF14;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		A6F3969C0A6B67AB0050CF14 = {
+			fileRef = A6F396990A6B67AB0050CF14;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		A6F3969D0A6B67AB0050CF14 = {
+			fileRef = A6F3969A0A6B67AB0050CF14;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		A6F396CA0A6B68230050CF14 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.cpp;
+			path = MacOSX_sound_if.cpp;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		A6F396CB0A6B68230050CF14 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			path = MacOSX_sound_if.h;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		A6F396CC0A6B68230050CF14 = {
+			fileRef = A6F396CA0A6B68230050CF14;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		A6F396CD0A6B68230050CF14 = {
+			fileRef = A6F396CB0A6B68230050CF14;
 			isa = PBXBuildFile;
 			settings = {
 			};
