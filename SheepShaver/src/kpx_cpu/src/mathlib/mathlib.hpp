@@ -56,6 +56,13 @@
 #define isgreater(x,y)	mathlib_generic_2(isgreater, x, y)
 #endif
 
+// C++ exception specifications
+#if defined __GLIBC__ && defined __THROW
+#define MATHLIB_THROW __THROW
+#else
+#define MATHLIB_THROW
+#endif
+
 // 7.12  Mathematics <math.h> [#6]
 #ifndef FP_NAN
 enum {
@@ -118,10 +125,10 @@ static inline float mathlib_fmsub(float x, float y, float z)
 
 // 7.12.6.2  The exp2 functions
 #ifdef HAVE_EXP2F
-extern "C" float exp2f(float x);
+extern "C" float exp2f(float x) MATHLIB_THROW;
 #else
 #ifdef HAVE_EXP2
-extern "C" double exp2(double x);
+extern "C" double exp2(double x) MATHLIB_THROW;
 #define exp2f(x) (float)exp2(x)
 #else
 #ifndef exp2f
@@ -132,10 +139,10 @@ extern "C" double exp2(double x);
 
 // 7.12.6.10  The log2 functions
 #ifdef HAVE_LOG2F
-extern "C" float log2f(float x);
+extern "C" float log2f(float x) MATHLIB_THROW;
 #else
 #ifdef HAVE_LOG2
-extern "C" double log2(double x);
+extern "C" double log2(double x) MATHLIB_THROW;
 #define log2f(x) (float)log2(x)
 #else
 #ifndef M_LN2
@@ -149,27 +156,27 @@ extern "C" double log2(double x);
 
 // 7.12.9.1  The ceil functions
 #ifdef HAVE_CEILF
-extern "C" float ceilf(float x);
+extern "C" float ceilf(float x) MATHLIB_THROW;
 #else
 #ifdef HAVE_CEIL
-extern "C" double ceil(double x);
+extern "C" double ceil(double x) MATHLIB_THROW;
 #define ceilf(x) (float)ceil(x)
 #endif
 #endif
 
 // 7.12.9.2  The floor functions
 #ifdef HAVE_FLOORF
-extern "C" float floorf(float x);
+extern "C" float floorf(float x) MATHLIB_THROW;
 #else
 #ifdef HAVE_FLOOR
-extern "C" double floor(double x);
+extern "C" double floor(double x) MATHLIB_THROW;
 #define floorf(x) (float)floor(x)
 #endif
 #endif
 
 // 7.12.9.5  The lrint and llrint functions
 #ifdef HAVE_LRINT
-extern "C" long lrint(double x);
+extern "C" long lrint(double x) MATHLIB_THROW;
 #else
 #ifndef mathlib_lrint
 extern long mathlib_lrint(double);
@@ -179,10 +186,10 @@ extern long mathlib_lrint(double);
 
 // 7.12.9.6  The round functions
 #ifdef HAVE_ROUNDF
-extern "C" float roundf(float x);
+extern "C" float roundf(float x) MATHLIB_THROW;
 #else
 #ifdef HAVE_ROUND
-extern "C" double round(double x);
+extern "C" double round(double x) MATHLIB_THROW;
 #define roundf(x) (float)round(x)
 #else
 extern float mathlib_roundf(float);
@@ -192,10 +199,10 @@ extern float mathlib_roundf(float);
 
 // 7.12.9.8  The trunc functions
 #ifdef HAVE_TRUNCF
-extern "C" float truncf(float x);
+extern "C" float truncf(float x) MATHLIB_THROW;
 #else
 #ifdef HAVE_TRUNC
-extern "C" double trunc(double x);
+extern "C" double trunc(double x) MATHLIB_THROW;
 #define truncf(x) (float)trunc(x)
 #endif
 #endif
