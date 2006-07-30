@@ -577,12 +577,6 @@ void OPPROTO op_spcflags_clear(void)
 	powerpc_dyngen_helper::spcflags().clear(PARAM1);
 }
 
-
-/**
- *		Branch instructions
- **/
-
-#ifdef DYNGEN_FAST_DISPATCH
 #if defined(__x86_64__)
 #define FAST_COMPARE_SPECFLAGS_DISPATCH(SPCFLAGS, TARGET) \
 		asm volatile ("test %0,%0 ; jz " #TARGET : : "r" (SPCFLAGS))
@@ -591,7 +585,16 @@ void OPPROTO op_spcflags_clear(void)
 #define FAST_COMPARE_SPECFLAGS_DISPATCH(SPCFLAGS, TARGET) \
 		if (SPCFLAGS == 0) DYNGEN_FAST_DISPATCH(TARGET)
 #endif
-#endif
+
+void OPPROTO op_spcflags_check(void)
+{
+	FAST_COMPARE_SPECFLAGS_DISPATCH(powerpc_dyngen_helper::spcflags().get(), __op_jmp0);
+}
+
+
+/**
+ *		Branch instructions
+ **/
 
 template< int bo >
 static inline void do_prep_branch_bo(void)
@@ -640,78 +643,49 @@ DEFINE_OP(1x1x,(1,0,1,0));
 #undef DEFINE_OP
 #undef BO
 
-template< bool chain >
+void OPPROTO op_branch_chain_1(void)
+{
+	DYNGEN_FAST_DISPATCH(__op_jmp0);
+}
+
+void OPPROTO op_branch_chain_2(void)
+{
+	if (T1)
+		DYNGEN_FAST_DISPATCH(__op_jmp0);
+	else
+		DYNGEN_FAST_DISPATCH(__op_jmp1);
+	dyngen_barrier();
+}
+
 static inline void do_execute_branch_1(uint32 tpc)
 {
-#ifdef DYNGEN_FAST_DISPATCH
-	if (chain)
-		FAST_COMPARE_SPECFLAGS_DISPATCH(powerpc_dyngen_helper::spcflags().get(), __op_jmp0);
-#endif
 	powerpc_dyngen_helper::set_pc(tpc);
-	dyngen_barrier();
 }
 
-void op_branch_1_T0(void)
+void OPPROTO op_branch_1_T0(void)
 {
-	do_execute_branch_1<0>(T0);
+	do_execute_branch_1(T0);
 }
 
-void op_branch_chain_1_T0(void)
+void OPPROTO op_branch_1_im(void)
 {
-	do_execute_branch_1<1>(T0);
+	do_execute_branch_1(PARAM1);
 }
 
-void op_branch_1_im(void)
-{
-	do_execute_branch_1<0>(PARAM1);
-}
-
-void op_branch_chain_1_im(void)
-{
-	do_execute_branch_1<1>(PARAM1);
-}
-
-template< bool chain >
 static inline void do_execute_branch_2(uint32 tpc, uint32 npc)
 {
-#ifdef DYNGEN_FAST_DISPATCH
-	if (chain) {
-		T2 = powerpc_dyngen_helper::spcflags().get();
-		if (T1) {
-			FAST_COMPARE_SPECFLAGS_DISPATCH(T2, __op_jmp0);
-			T0 = tpc;
-		}
-		else {
-			FAST_COMPARE_SPECFLAGS_DISPATCH(T2, __op_jmp1);
-			T0 = npc;
-		}
-	}
-	else
-#endif
-
-	T0 = T1 ? tpc : npc;
-	powerpc_dyngen_helper::set_pc(T0);
+	powerpc_dyngen_helper::set_pc(T1 ? tpc : npc);
 	dyngen_barrier();
 }
 
-void op_branch_2_T0_im(void)
+void OPPROTO op_branch_2_T0_im(void)
 {
-	do_execute_branch_2<0>(T0, PARAM1);
+	do_execute_branch_2(T0, PARAM1);
 }
 
-void op_branch_chain_2_T0_im(void)
+void OPPROTO op_branch_2_im_im(void)
 {
-	do_execute_branch_2<1>(T0, PARAM1);
-}
-
-void op_branch_2_im_im(void)
-{
-	do_execute_branch_2<0>(PARAM1, PARAM2);
-}
-
-void op_branch_chain_2_im_im(void)
-{
-	do_execute_branch_2<1>(PARAM1, PARAM2);
+	do_execute_branch_2(PARAM1, PARAM2);
 }
 
 
@@ -1360,13 +1334,10 @@ void OPPROTO op_dcbz_T0(void)
 
 void OPPROTO op_jump_next_A0(void)
 {
-	// Make sure there is no pending interrupt request
-	if (likely(powerpc_dyngen_helper::spcflags().empty())) {
-		powerpc_block_info *bi = (powerpc_block_info *)A0;
-		uint32 pc = powerpc_dyngen_helper::get_pc();
-		if (likely(bi->pc == pc) || likely((bi = powerpc_dyngen_helper::find_block(pc)) != NULL))
-			goto *(bi->entry_point);
-	}
+	powerpc_block_info *bi = (powerpc_block_info *)A0;
+	uint32 pc = powerpc_dyngen_helper::get_pc();
+	if (likely(bi->pc == pc) || likely((bi = powerpc_dyngen_helper::find_block(pc)) != NULL))
+		goto *(bi->entry_point);
 	dyngen_barrier();
 }
 

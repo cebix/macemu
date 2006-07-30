@@ -52,6 +52,18 @@ powerpc_dyngen::powerpc_dyngen(dyngen_cpu_base cpu, int cache_size)
 #endif
 }
 
+uint8 *powerpc_dyngen::gen_start(uint32 pc)
+{
+	// Generate exit if there are pending spcflags
+	uint8 *p = basic_dyngen::gen_start();
+	gen_op_spcflags_check();
+	gen_op_set_PC_im(pc);
+	gen_exec_return();
+	dg_set_jmp_target_noflush(jmp_addr[0], gen_align());
+	jmp_addr[0] = NULL;
+	return p;
+}
+
 void powerpc_dyngen::gen_compare_T0_T1(int crf)
 {
 	gen_op_compare_T0_T1();
@@ -250,30 +262,22 @@ void powerpc_dyngen::gen_bc(int bo, int bi, uint32 tpc, uint32 npc, bool direct_
 	
 	if (BO_CONDITIONAL_BRANCH(bo) || BO_DECREMENT_CTR(bo)) {
 		// two-way branches
-		if (tpc != 0xffffffff) {
-			if (direct_chaining)
-				gen_op_branch_chain_2_im_im(tpc, npc);
-			else
-				gen_op_branch_2_im_im(tpc, npc);
-		}
+		if (direct_chaining)
+			gen_op_branch_chain_2();
 		else {
-			if (direct_chaining)
-				gen_op_branch_chain_2_T0_im(npc);
+			if (tpc != 0xffffffff)
+				gen_op_branch_2_im_im(tpc, npc);
 			else
 				gen_op_branch_2_T0_im(npc);
 		}
 	}
 	else {
 		// one-way branches
-		if (tpc != 0xffffffff) {
-			if (direct_chaining)
-				gen_op_branch_chain_1_im(tpc);
-			else
-				gen_op_branch_1_im(tpc);
-		}
+		if (direct_chaining)
+			gen_op_branch_chain_1();
 		else {
-			if (direct_chaining)
-				gen_op_branch_chain_1_T0();
+			if (tpc != 0xffffffff)
+				gen_op_branch_1_im(tpc);
 			else
 				gen_op_branch_1_T0();
 		}

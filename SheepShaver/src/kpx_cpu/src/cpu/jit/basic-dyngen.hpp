@@ -25,7 +25,7 @@
 #include "cpu/jit/jit-codegen.hpp"
 
 // Set jump target address
-static inline void dg_set_jmp_target(uint8 *jmp_addr, uint8 *addr)
+static inline void dg_set_jmp_target_noflush(uint8 *jmp_addr, uint8 *addr)
 {
 #if defined(__powerpc__) || defined(__ppc__)
 	// patch the branch destination
@@ -33,18 +33,23 @@ static inline void dg_set_jmp_target(uint8 *jmp_addr, uint8 *addr)
 	uint32 val  = *ptr;
     val = (val & ~0x03fffffc) | ((addr - jmp_addr) & 0x03fffffc);
     *ptr = val;
+#endif
+#if defined(__i386__) || defined(__x86_64__)
+	// patch the branch destination
+	*(uint32 *)jmp_addr = addr - (jmp_addr + 4);
+#endif
+}
 
+static inline void dg_set_jmp_target(uint8 *jmp_addr, uint8 *addr)
+{
+	dg_set_jmp_target_noflush(jmp_addr, addr);
+#if defined(__powerpc__) || defined(__ppc__)
     // flush icache
     asm volatile ("dcbst 0,%0" : : "r"(ptr) : "memory");
     asm volatile ("sync" : : : "memory");
     asm volatile ("icbi 0,%0" : : "r"(ptr) : "memory");
     asm volatile ("sync" : : : "memory");
     asm volatile ("isync" : : : "memory");
-#endif
-#if defined(__i386__) || defined(__x86_64__)
-	// patch the branch destination
-	*(uint32 *)jmp_addr = addr - (jmp_addr + 4);
-	// no need to flush icache explicitly
 #endif
 }
 

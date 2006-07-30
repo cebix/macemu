@@ -52,6 +52,9 @@ public:
 	// Default constructor
 	powerpc_dyngen(dyngen_cpu_base cpu, int cache_size = -1);
 
+	// Generate prologue
+	uint8 *gen_start(uint32 pc);
+
 	// Load/store registers
 	void gen_load_T0_GPR(int i);
 	void gen_load_T1_GPR(int i);

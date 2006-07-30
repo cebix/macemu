@@ -145,7 +145,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
   again:
 	block_info *bi = block_cache.new_blockinfo();
 	bi->init(entry_point);
-	bi->entry_point = dg.gen_start();
+	bi->entry_point = dg.gen_start(entry_point);
 
 	// Direct block chaining support variables
 	bool use_direct_block_chaining = false;
@@ -163,7 +163,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		if (ii->cflow & CFLOW_END_BLOCK)
 			done_compile = true;
 
-		// Assume we can compile this opcode;
+		// Assume we can compile this opcode
 		compile_status = COMPILE_CODE_OK;
 
 #if PPC_FLIGHT_RECORDER
@@ -1538,7 +1538,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 				assert(dg.jmp_addr[i] != NULL);
 				bi->li[i].jmp_addr = dg.jmp_addr[i];
 				bi->li[i].jmp_resolve_addr = p;
-				dg_set_jmp_target(bi->li[i].jmp_addr, bi->li[i].jmp_resolve_addr);
+				dg_set_jmp_target_noflush(bi->li[i].jmp_addr, bi->li[i].jmp_resolve_addr);
 			}
 		}
 	}

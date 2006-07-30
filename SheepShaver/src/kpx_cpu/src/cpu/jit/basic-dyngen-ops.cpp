@@ -246,15 +246,6 @@ DEFINE_OP(8,T0,1,T2);
 #define FORCE_RET() asm volatile ("rts")
 #endif
 
-#define SLOW_DISPATCH(TARGET) do {										\
-	static const void __attribute__((unused)) *label1 = &&dummy_label1;	\
-	static const void __attribute__((unused)) *label2 = &&dummy_label2;	\
-	goto *((void *)TARGET);												\
-  dummy_label1:															\
-  dummy_label2:															\
-	dyngen_barrier();													\
-} while (0)
-
 extern "C" void OPPROTO op_execute(uint8 *entry_point, basic_cpu *this_cpu);
 void OPPROTO op_execute(uint8 *entry_point, basic_cpu *this_cpu)
 {
@@ -267,7 +258,7 @@ void OPPROTO op_execute(uint8 *entry_point, basic_cpu *this_cpu)
 	stk[n_slots - 3] = A1;
 	stk[n_slots - 4] = A2;
 	CPU = this_cpu;
-	SLOW_DISPATCH(entry_point);
+	DYNGEN_SLOW_DISPATCH(entry_point);
 	func(); // NOTE: never called, fake to make compiler save return point
 #ifdef  ASM_OP_EXEC_RETURN_INSN
 	asm volatile ("1: .byte " ASM_OP_EXEC_RETURN_INSN);
@@ -288,7 +279,7 @@ void OPPROTO op_execute(uint8 *entry_point, basic_cpu *this_cpu)
 
 void OPPROTO op_jmp_slow(void)
 {
-	SLOW_DISPATCH(PARAM1);
+	DYNGEN_SLOW_DISPATCH(PARAM1);
 }
 
 void OPPROTO op_jmp_fast(void)
@@ -296,13 +287,13 @@ void OPPROTO op_jmp_fast(void)
 #ifdef DYNGEN_FAST_DISPATCH
 	DYNGEN_FAST_DISPATCH(__op_PARAM1);
 #else
-	SLOW_DISPATCH(PARAM1);
+	DYNGEN_SLOW_DISPATCH(PARAM1);
 #endif
 }
 
 void OPPROTO op_jmp_A0(void)
 {
-	SLOW_DISPATCH(A0);
+	DYNGEN_SLOW_DISPATCH(A0);
 }
 
 // Register calling conventions based arches don't need a stack frame

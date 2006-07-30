@@ -115,6 +115,15 @@ extern int __op_PARAM1, __op_PARAM2, __op_PARAM3;
 #define DYNGEN_FAST_DISPATCH(TARGET) asm volatile ("jmp " ASM_NAME(TARGET))
 #endif
 
+#define DYNGEN_SLOW_DISPATCH(TARGET) do {								\
+	static const void __attribute__((unused)) *label1 = &&dummy_label1;	\
+	static const void __attribute__((unused)) *label2 = &&dummy_label2;	\
+	goto *((void *)TARGET);												\
+  dummy_label1:															\
+  dummy_label2:															\
+	dyngen_barrier();													\
+} while (0)
+
 extern int __op_jmp0, __op_jmp1;
 
 // Sections handling
