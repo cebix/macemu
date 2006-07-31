@@ -348,7 +348,6 @@
 				A68501F305C4EF3300DDBA94,
 				A685020305C4EF6700DDBA94,
 				A685020C05C4EF6700DDBA94,
-				A685021405C4EFDC00DDBA94,
 				A685021605C4EFDC00DDBA94,
 				A685021705C4EFDC00DDBA94,
 				A685022D05C4F04700DDBA94,
@@ -377,6 +376,7 @@
 				A6F395DE0A6B676C0050CF14,
 				A6F395E00A6B676C0050CF14,
 				A6F396CC0A6B68230050CF14,
+				A60CFFD60A7DFB7600AE526A,
 			);
 			isa = PBXSourcesBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
@@ -439,6 +439,20 @@
 		};
 		A60B5F490A174A4900D7F586 = {
 			fileRef = A60B5F480A174A4900D7F586;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		A60CFFD50A7DFB7600AE526A = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.cpp;
+			path = clip_macosx.cpp;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
+		};
+		A60CFFD60A7DFB7600AE526A = {
+			fileRef = A60CFFD50A7DFB7600AE526A;
 			isa = PBXBuildFile;
 			settings = {
 			};
@@ -1040,7 +1054,6 @@
 		};
 		A68501D305C4ED9A00DDBA94 = {
 			children = (
-				A685020F05C4EFDC00DDBA94,
 				A685021105C4EFDC00DDBA94,
 				A685021205C4EFDC00DDBA94,
 			);
@@ -1286,15 +1299,6 @@
 			settings = {
 			};
 		};
-		A685020F05C4EFDC00DDBA94 = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.cpp;
-			name = clip_dummy.cpp;
-			path = ../dummy/clip_dummy.cpp;
-			refType = 2;
-			sourceTree = SOURCE_ROOT;
-		};
 		A685021105C4EFDC00DDBA94 = {
 			fileEncoding = 30;
 			isa = PBXFileReference;
@@ -1312,12 +1316,6 @@
 			path = ../dummy/serial_dummy.cpp;
 			refType = 2;
 			sourceTree = SOURCE_ROOT;
-		};
-		A685021405C4EFDC00DDBA94 = {
-			fileRef = A685020F05C4EFDC00DDBA94;
-			isa = PBXBuildFile;
-			settings = {
-			};
 		};
 		A685021605C4EFDC00DDBA94 = {
 			fileRef = A685021105C4EFDC00DDBA94;
@@ -1677,6 +1675,7 @@
 				A6F396CA0A6B68230050CF14,
 				A6F396CB0A6B68230050CF14,
 				A622F5570A6B533900E826C8,
+				A60CFFD50A7DFB7600AE526A,
 				A685018C05C4EB6F00DDBA94,
 				A685018D05C4EB6F00DDBA94,
 				A685018E05C4EB6F00DDBA94,
