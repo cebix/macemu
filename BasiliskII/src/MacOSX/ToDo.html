@@ -16,6 +16,7 @@ Bugs:
 	(if the emulation changes its own screen settings, and the program
 	 is compiled with the default window drawing mode of CGIMAGEREF).
 	Setting the depth to millions (in the emulator) is a workaround for now</LI>
+<LI>Cut and paste between emulator and OS X only half works</LI>
 </UL>
 Untested:
 <UL>
@@ -25,11 +26,12 @@ Untested:
 Unimplemented:
 <UL>
 <LI>CD audio stuff. I am still trying to get this to work</LI>
-<LI>Cut and paste between emulator and OS X</LI>
+<LI>CD insert detection. At the moment, if a CD isn't there when the
+	emulator boots, or if you change CDs, it will never know. I don't
+	know how to register with the OS for disk insertion and mount events</LI>
 <LI>Floppy stuff. If a floppy is mounted by the OS X Finder,
 	it is busy and cannot be opened by the emulator</LI>
 <LI>Interrupt function for emulator</LI>
-<LI>Sound</LI>
 <LI>'nogui' to disable GUI alerts (and maybe preferences, but I need to split
 	MainMenu.nib to do that)</LI>
 </UL>
@@ -43,7 +45,6 @@ Possible Enhancements:
 	but the uae_cpu code has lots of globals, and is not re-entrant</LI>
 <LI>Real addressing mode for the emulator. Mike Sliczniak had done most of the
 	work, but with real addressing the emulator just crashes for me</LI>
-<LI>Get VOSF (Video on Seg Fault) working, to speed up screen redrawing</LI>
 <LI>Improve Objective-C object allocation. e.g. http://www.mulle-kybernetik.com/artikel/Optimisation/opti-5.html</LI>
 <LI>Use automake instead of the current 1_prepare_files.sh ?</LI>
 <LI>Add JIT options to preferences?</LI>
