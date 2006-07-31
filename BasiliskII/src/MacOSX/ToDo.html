@@ -28,7 +28,9 @@ Unimplemented:
 <LI>CD audio stuff. I am still trying to get this to work</LI>
 <LI>CD insert detection. At the moment, if a CD isn't there when the
 	emulator boots, or if you change CDs, it will never know. I don't
-	know how to register with the OS for disk insertion and mount events</LI>
+	know how to register with the OS for disk insertion and mount events.
+	(Gwenolé rewrote the CD code, and it should poll for new disks,
+	 but it don't work for me. I must be doing something wrong!)</LI>
 <LI>Floppy stuff. If a floppy is mounted by the OS X Finder,
 	it is busy and cannot be opened by the emulator</LI>
 <LI>Interrupt function for emulator</LI>
@@ -38,7 +40,7 @@ Unimplemented:
 Possible Enhancements:
 <UL>
 <LI>Use NSFileManager's movePath:toPath:handler to rename all a file's forks
-    in extfs_macosx.mm</LI>
+	in extfs_macosx.mm</LI>
 <LI>Emulator snapshot - save the current emulator state
 	(memory + registers) to a file for fast startup next time</LI>
 <LI>Multiple emulators. The window stuff is mostly there,
@@ -50,5 +52,10 @@ Possible Enhancements:
 <LI>Add JIT options to preferences?</LI>
 <LI>Use internal windows to display Help doco?</LI>
 <LI>Provide feedback during external commands (<I>e.g.</I> ejecting a CD or
-	creating a disk volume)
+	creating a disk volume)</LI>
+<LI>Widescreen window layout (suggestion by Michael Franz), so that users
+	with widescreen displays can squeeze a bigger emulated screen in.
+	I have a mock up of this that can be pasted in (MainMenu.nib).
+	Ideally, this would be via a generalised "theme" facility,
+	but who has time for that :-)</LI>
 </UL>
