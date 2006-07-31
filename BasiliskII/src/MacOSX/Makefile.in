@@ -37,7 +37,7 @@ EMU_LIB = libgenemu.a
 
 # Symlinks to, or copies of, files in other directories
 GENLINK = README.txt INSTALL.txt install-sh \
-	  Darwin config.guess config.sub semaphore.h \
+	  Darwin config.guess config.sub ether_unix.cpp semaphore.h \
 	  sys_unix.cpp timer_unix.cpp user_strings_unix.h
 
 GEN  = $(GENEMUS) $(GENSRCS)

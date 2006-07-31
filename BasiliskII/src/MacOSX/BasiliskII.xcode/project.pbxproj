@@ -1741,8 +1741,7 @@
 			fileEncoding = 30;
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.cpp.cpp;
-			name = ether_unix.cpp;
-			path = ../Unix/ether_unix.cpp;
+			path = ether_unix.cpp;
 			refType = 2;
 			sourceTree = SOURCE_ROOT;
 		};
