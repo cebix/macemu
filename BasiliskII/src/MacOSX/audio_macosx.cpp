@@ -35,7 +35,7 @@
 #include "audio_defs.h"
 #include "MacOSX_sound_if.h"
 
-#define DEBUG 1
+#define DEBUG 0
 #include "debug.h"
 
 
