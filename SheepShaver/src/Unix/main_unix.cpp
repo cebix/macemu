@@ -644,7 +644,10 @@ int main(int argc, char **argv)
 			{ 0xffff0000, 0x00390000, "PPC970" },
 			{ 0xffff0000, 0x003c0000, "PPC970FX" },
 			{ 0xffff0000, 0x003a0000, "POWER5 (gr)" },
-			{ 0xffff0000, 0x003b0000, "POWER5 (gs)" },
+			{ 0xffff0000, 0x003b0000, "POWER5+ (gs)" },
+			{ 0xffff0000, 0x003e0000, "POWER6" },
+			{ 0xffff0000, 0x00700000, "Cell Broadband Engine" },
+			{ 0x7fff0000, 0x00900000, "PA6T" },
 			{ 0, 0, 0 }
 		};
 
@@ -658,8 +661,9 @@ int main(int argc, char **argv)
 
 			// Parse line
 			int i;
+			float f;
 			char value[256];
-			if (sscanf(line, "cpu : %[0-9A-Za-a]", value) == 1) {
+			if (sscanf(line, "cpu : %[^,]", value) == 1) {
 				// Search by name
 				const char *cpu_name = NULL;
 				for (int i = 0; cpu_specs[i].pvr_mask != 0; i++) {
@@ -674,7 +678,9 @@ int main(int argc, char **argv)
 				else
 					printf("Found a PowerPC %s processor\n", cpu_name);
 			}
-			if (sscanf(line, "clock : %dMHz", &i) == 1)
+			if (sscanf(line, "clock : %fMHz", &f) == 1)
+				CPUClockSpeed = BusClockSpeed = ((int64)f) * 1000000;
+			else if (sscanf(line, "clock : %dMHz", &i) == 1)
 				CPUClockSpeed = BusClockSpeed = i * 1000000;
 		}
 		fclose(proc_file);
