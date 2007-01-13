@@ -88,77 +88,6 @@ static int zero_fd	= -1;
 #endif
 #endif
 
-/* Utility functions for POSIX SHM handling.  */
-
-#ifdef USE_33BIT_ADDRESSING
-struct shm_range_t {
-	const char *file;
-	void *base;
-	unsigned int size;
-	shm_range_t *next;
-};
-
-static shm_range_t *shm_ranges = NULL;
-
-static bool add_shm_range(const char *file, void *base, unsigned int size)
-{
-	shm_range_t *r = (shm_range_t *)malloc(sizeof(shm_range_t));
-	if (r) {
-		r->file = file;
-		r->base = base;
-		r->size = size;
-		r->next = shm_ranges ? shm_ranges : NULL;
-		shm_ranges = r;
-		return true;
-	}
-	return false;
-}
-
-static shm_range_t *find_shm_range(void *base, unsigned int size)
-{
-	for (shm_range_t *r = shm_ranges; r != NULL; r = r->next)
-		if (r->base == base && r->size == size)
-			return r;
-	return NULL;
-}
-
-static bool remove_shm_range(shm_range_t *r)
-{
-	if (r) {
-		for (shm_range_t *p = shm_ranges; p != NULL; p = p->next) {
-			if (p->next == r) {
-				p->next = r->next;
-				free(r);
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-static bool remove_shm_range(void *base, unsigned int size)
-{
-	return remove_shm_range(find_shm_range(base, size));
-}
-#endif
-
-/* Build a POSIX SHM memory segment file descriptor name.  */
-
-#ifdef USE_33BIT_ADDRESSING
-static const char *build_shm_filename(void)
-{
-	static int id = 0;
-	static char filename[PATH_MAX];
-	
-	int ret = snprintf(filename, sizeof(filename), "/BasiliskII-%d-shm-%d", getpid(), id);
-	if (ret == -1 || ret >= sizeof(filename))
-		return NULL;
-
-	id++;
-	return filename;
-}
-#endif
-
 /* Translate generic VM map flags to host values.  */
 
 #ifdef HAVE_MMAP_VM
@@ -260,23 +189,6 @@ void * vm_acquire(size_t size, int options)
 	int fd = zero_fd;
 	int the_map_flags = translate_map_flags(options) | map_flags;
 
-#ifdef USE_33BIT_ADDRESSING
-	const char *shm_file = NULL;
-	if (sizeof(void *) == 8 && (options & VM_MAP_33BIT)) {
-		the_map_flags &= ~(MAP_PRIVATE | MAP_ANON | MAP_ANONYMOUS);
-		the_map_flags |= MAP_SHARED;
-
-		if ((shm_file = build_shm_filename()) == NULL)
-			return VM_MAP_FAILED;
-
-		if ((fd = shm_open(shm_file, O_RDWR | O_CREAT | O_EXCL, 0644)) < 0)
-			return VM_MAP_FAILED;
-
-		if (ftruncate(fd, size) < 0)
-			return VM_MAP_FAILED;
-	}
-#endif
-
 	if ((addr = mmap((caddr_t)next_address, size, VM_PAGE_DEFAULT, the_map_flags, fd, 0)) == (void *)MAP_FAILED)
 		return VM_MAP_FAILED;
 	
@@ -285,18 +197,6 @@ void * vm_acquire(size_t size, int options)
 		return VM_MAP_FAILED;
 
 	next_address = (char *)addr + size;
-
-	// Remap to 33-bit space
-#ifdef USE_33BIT_ADDRESSING
-	if (sizeof(void *) == 8 && (options & VM_MAP_33BIT)) {
-		if (!add_shm_range(strdup(shm_file), addr, size))
-			return VM_MAP_FAILED;
-
-		if (mmap((char *)addr + (1L << 32), size, VM_PAGE_DEFAULT, the_map_flags | MAP_FIXED, fd, 0) == (void *)MAP_FAILED)
-			return VM_MAP_FAILED;
-		close(fd);
-	}
-#endif
 #else
 #ifdef HAVE_WIN32_VM
 	if ((addr = VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE)) == NULL)
@@ -337,37 +237,8 @@ int vm_acquire_fixed(void * addr, size_t size, int options)
 	int fd = zero_fd;
 	int the_map_flags = translate_map_flags(options) | map_flags | MAP_FIXED;
 
-#ifdef USE_33BIT_ADDRESSING
-	const char *shm_file = NULL;
-	if (sizeof(void *) == 8 && (options & VM_MAP_33BIT)) {
-		the_map_flags &= ~(MAP_PRIVATE | MAP_ANON | MAP_ANONYMOUS);
-		the_map_flags |= MAP_SHARED;
-
-		if ((shm_file = build_shm_filename()) == NULL)
-			return -1;
-
-		if ((fd = shm_open(shm_file, O_RDWR | O_CREAT | O_EXCL, 0644)) < 0)
-			return -1;
-
-		if (ftruncate(fd, size) < 0)
-			return -1;
-	}
-#endif
-
 	if (mmap((caddr_t)addr, size, VM_PAGE_DEFAULT, the_map_flags, fd, 0) == (void *)MAP_FAILED)
 		return -1;
-
-	// Remap to 33-bit space
-#ifdef USE_33BIT_ADDRESSING
-	if (sizeof(void *) == 8 && (options & VM_MAP_33BIT)) {
-		if (!add_shm_range(strdup(shm_file), addr, size))
-			return -1;
-
-		if (mmap((char *)addr + (1L << 32), size, VM_PAGE_DEFAULT, the_map_flags, fd, 0) == (void *)MAP_FAILED)
-			return -1;
-		close(fd);
-	}
-#endif
 #else
 #ifdef HAVE_WIN32_VM
 	// Windows cannot allocate Low Memory
@@ -411,21 +282,6 @@ int vm_release(void * addr, size_t size)
 #ifdef HAVE_MMAP_VM
 	if (munmap((caddr_t)addr, size) != 0)
 		return -1;
-
-#ifdef USE_33BIT_ADDRESSING
-	shm_range_t *r = find_shm_range(addr, size);
-	if (r) {
-		if (munmap((char *)r->base + (1L << 32), size) != 0)
-			return -1;
-
-		if (shm_unlink(r->file) < 0)
-			return -1;
-		free((char *)r->file);
-
-		if (!remove_shm_range(r))
-			return -1;
-	}
-#endif
 #else
 #ifdef HAVE_WIN32_VM
 	if (VirtualFree(align_addr_segment(addr), 0, MEM_RELEASE) == 0)

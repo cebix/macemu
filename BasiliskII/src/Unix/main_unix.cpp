@@ -124,7 +124,6 @@ int CPUType;
 bool CPUIs68060;
 int FPUType;
 bool TwentyFourBitAddressing;
-bool ThirtyThreeBitAddressing = false;
 
 
 // Global variables
@@ -230,31 +229,15 @@ char *strdup(const char *s)
  *  Helpers to map memory that can be accessed from the Mac side
  */
 
-// NOTE: VM_MAP_33BIT is only used when compiling a 64-bit JIT on specific platforms
+// NOTE: VM_MAP_32BIT is only used when compiling a 64-bit JIT on specific platforms
 void *vm_acquire_mac(size_t size)
 {
-	void *m = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_33BIT);
-#ifdef USE_33BIT_ADDRESSING
-	if (m == VM_MAP_FAILED) {
-		printf("WARNING: Cannot acquire memory in 33-bit address space (%s)\n", strerror(errno));
-		ThirtyThreeBitAddressing = false;
-		m = vm_acquire(size);
-	}
-#endif
-	return m;
+	return vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 }
 
 static int vm_acquire_mac_fixed(void *addr, size_t size)
 {
-	int ret = vm_acquire_fixed(addr, size, VM_MAP_DEFAULT | VM_MAP_33BIT);
-#ifdef USE_33BIT_ADDRESSING
-	if (ret < 0) {
-		printf("WARNING: Cannot acquire fixed memory in 33-bit address space (%s)\n", strerror(errno));
-		ThirtyThreeBitAddressing = false;
-		ret = vm_acquire_fixed(addr, size);
-	}
-#endif
-	return ret;
+	return vm_acquire_fixed(addr, size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 }
 
 
@@ -558,11 +541,6 @@ int main(int argc, char **argv)
 	
 	// Initialize VM system
 	vm_init();
-
-#ifdef USE_33BIT_ADDRESSING
-	// Speculatively enables 33-bit addressing
-	ThirtyThreeBitAddressing = true;
-#endif
 
 #if REAL_ADDRESSING
 	// Flag: RAM and ROM are contigously allocated from address 0

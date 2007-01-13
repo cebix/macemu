@@ -169,6 +169,12 @@ static const uae_u8 need_to_preserve[]={0,0,0,1,0,1,1,1};
 
 #if defined(__x86_64__)
 #define X86_TARGET_64BIT		1
+/* The address override prefix causes a 5 cycles penalty on Intel Core
+   processors. Another solution would be to decompose the load in an LEA,
+   MOV (to zero-extend), MOV (from memory): is it better? */
+#define ADDR32					x86_emit_byte(0x67),
+#else
+#define ADDR32					/**/
 #endif
 #define X86_FLAT_REGISTERS		0
 #define X86_OPTIMIZE_ALU		1
@@ -616,93 +622,93 @@ LENDFUNC(NONE,NONE,2,raw_mov_w_rr,(W2 d, R2 s))
 
 LOWFUNC(NONE,READ,4,raw_mov_l_rrm_indexed,(W4 d,R4 baser, R4 index, IMM factor))
 {
-	MOVLmr(0, baser, index, factor, d);
+	ADDR32 MOVLmr(0, baser, index, factor, d);
 }
 LENDFUNC(NONE,READ,4,raw_mov_l_rrm_indexed,(W4 d,R4 baser, R4 index, IMM factor))
 
 LOWFUNC(NONE,READ,4,raw_mov_w_rrm_indexed,(W2 d, R4 baser, R4 index, IMM factor))
 {
-	MOVWmr(0, baser, index, factor, d);
+	ADDR32 MOVWmr(0, baser, index, factor, d);
 }
 LENDFUNC(NONE,READ,4,raw_mov_w_rrm_indexed,(W2 d, R4 baser, R4 index, IMM factor))
 
 LOWFUNC(NONE,READ,4,raw_mov_b_rrm_indexed,(W1 d, R4 baser, R4 index, IMM factor))
 {
-	MOVBmr(0, baser, index, factor, d);
+	ADDR32 MOVBmr(0, baser, index, factor, d);
 }
 LENDFUNC(NONE,READ,4,raw_mov_b_rrm_indexed,(W1 d, R4 baser, R4 index, IMM factor))
 
 LOWFUNC(NONE,WRITE,4,raw_mov_l_mrr_indexed,(R4 baser, R4 index, IMM factor, R4 s))
 {
-	MOVLrm(s, 0, baser, index, factor);
+	ADDR32 MOVLrm(s, 0, baser, index, factor);
 }
 LENDFUNC(NONE,WRITE,4,raw_mov_l_mrr_indexed,(R4 baser, R4 index, IMM factor, R4 s))
 
 LOWFUNC(NONE,WRITE,4,raw_mov_w_mrr_indexed,(R4 baser, R4 index, IMM factor, R2 s))
 {
-	MOVWrm(s, 0, baser, index, factor);
+	ADDR32 MOVWrm(s, 0, baser, index, factor);
 }
 LENDFUNC(NONE,WRITE,4,raw_mov_w_mrr_indexed,(R4 baser, R4 index, IMM factor, R2 s))
 
 LOWFUNC(NONE,WRITE,4,raw_mov_b_mrr_indexed,(R4 baser, R4 index, IMM factor, R1 s))
 {
-	MOVBrm(s, 0, baser, index, factor);
+	ADDR32 MOVBrm(s, 0, baser, index, factor);
 }
 LENDFUNC(NONE,WRITE,4,raw_mov_b_mrr_indexed,(R4 baser, R4 index, IMM factor, R1 s))
 
 LOWFUNC(NONE,WRITE,5,raw_mov_l_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R4 s))
 {
-	MOVLrm(s, base, baser, index, factor);
+	ADDR32 MOVLrm(s, base, baser, index, factor);
 }
 LENDFUNC(NONE,WRITE,5,raw_mov_l_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R4 s))
 
 LOWFUNC(NONE,WRITE,5,raw_mov_w_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R2 s))
 {
-	MOVWrm(s, base, baser, index, factor);
+	ADDR32 MOVWrm(s, base, baser, index, factor);
 }
 LENDFUNC(NONE,WRITE,5,raw_mov_w_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R2 s))
 
 LOWFUNC(NONE,WRITE,5,raw_mov_b_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R1 s))
 {
-	MOVBrm(s, base, baser, index, factor);
+	ADDR32 MOVBrm(s, base, baser, index, factor);
 }
 LENDFUNC(NONE,WRITE,5,raw_mov_b_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R1 s))
 
 LOWFUNC(NONE,READ,5,raw_mov_l_brrm_indexed,(W4 d, IMM base, R4 baser, R4 index, IMM factor))
 {
-	MOVLmr(base, baser, index, factor, d);
+	ADDR32 MOVLmr(base, baser, index, factor, d);
 }
 LENDFUNC(NONE,READ,5,raw_mov_l_brrm_indexed,(W4 d, IMM base, R4 baser, R4 index, IMM factor))
 
 LOWFUNC(NONE,READ,5,raw_mov_w_brrm_indexed,(W2 d, IMM base, R4 baser, R4 index, IMM factor))
 {
-	MOVWmr(base, baser, index, factor, d);
+	ADDR32 MOVWmr(base, baser, index, factor, d);
 }
 LENDFUNC(NONE,READ,5,raw_mov_w_brrm_indexed,(W2 d, IMM base, R4 baser, R4 index, IMM factor))
 
 LOWFUNC(NONE,READ,5,raw_mov_b_brrm_indexed,(W1 d, IMM base, R4 baser, R4 index, IMM factor))
 {
-	MOVBmr(base, baser, index, factor, d);
+	ADDR32 MOVBmr(base, baser, index, factor, d);
 }
 LENDFUNC(NONE,READ,5,raw_mov_b_brrm_indexed,(W1 d, IMM base, R4 baser, R4 index, IMM factor))
 
 LOWFUNC(NONE,READ,4,raw_mov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor))
 {
-	MOVLmr(base, X86_NOREG, index, factor, d);
+	ADDR32 MOVLmr(base, X86_NOREG, index, factor, d);
 }
 LENDFUNC(NONE,READ,4,raw_mov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor))
 
 LOWFUNC(NONE,READ,5,raw_cmov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor, IMM cond))
 {
 	if (have_cmov)
-		CMOVLmr(cond, base, X86_NOREG, index, factor, d);
+		ADDR32 CMOVLmr(cond, base, X86_NOREG, index, factor, d);
 	else { /* replacement using branch and mov */
 #if defined(__x86_64__)
 		write_log("x86-64 implementations are bound to have CMOV!\n");
 		abort();
 #endif
 		JCCSii(cond^1, 7);
-		MOVLmr(base, X86_NOREG, index, factor, d);
+		ADDR32 MOVLmr(base, X86_NOREG, index, factor, d);
 	}
 }
 LENDFUNC(NONE,READ,5,raw_cmov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor, IMM cond))
@@ -724,73 +730,73 @@ LENDFUNC(NONE,READ,3,raw_cmov_l_rm,(W4 d, IMM mem, IMM cond))
 
 LOWFUNC(NONE,READ,3,raw_mov_l_rR,(W4 d, R4 s, IMM offset))
 {
-	MOVLmr(offset, s, X86_NOREG, 1, d);
+	ADDR32 MOVLmr(offset, s, X86_NOREG, 1, d);
 }
 LENDFUNC(NONE,READ,3,raw_mov_l_rR,(W4 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,READ,3,raw_mov_w_rR,(W2 d, R4 s, IMM offset))
 {
-	MOVWmr(offset, s, X86_NOREG, 1, d);
+	ADDR32 MOVWmr(offset, s, X86_NOREG, 1, d);
 }
 LENDFUNC(NONE,READ,3,raw_mov_w_rR,(W2 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,READ,3,raw_mov_b_rR,(W1 d, R4 s, IMM offset))
 {
-	MOVBmr(offset, s, X86_NOREG, 1, d);
+	ADDR32 MOVBmr(offset, s, X86_NOREG, 1, d);
 }
 LENDFUNC(NONE,READ,3,raw_mov_b_rR,(W1 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,READ,3,raw_mov_l_brR,(W4 d, R4 s, IMM offset))
 {
-	MOVLmr(offset, s, X86_NOREG, 1, d);
+	ADDR32 MOVLmr(offset, s, X86_NOREG, 1, d);
 }
 LENDFUNC(NONE,READ,3,raw_mov_l_brR,(W4 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,READ,3,raw_mov_w_brR,(W2 d, R4 s, IMM offset))
 {
-	MOVWmr(offset, s, X86_NOREG, 1, d);
+	ADDR32 MOVWmr(offset, s, X86_NOREG, 1, d);
 }
 LENDFUNC(NONE,READ,3,raw_mov_w_brR,(W2 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,READ,3,raw_mov_b_brR,(W1 d, R4 s, IMM offset))
 {
-	MOVBmr(offset, s, X86_NOREG, 1, d);
+	ADDR32 MOVBmr(offset, s, X86_NOREG, 1, d);
 }
 LENDFUNC(NONE,READ,3,raw_mov_b_brR,(W1 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_l_Ri,(R4 d, IMM i, IMM offset))
 {
-	MOVLim(i, offset, d, X86_NOREG, 1);
+	ADDR32 MOVLim(i, offset, d, X86_NOREG, 1);
 }
 LENDFUNC(NONE,WRITE,3,raw_mov_l_Ri,(R4 d, IMM i, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_w_Ri,(R4 d, IMM i, IMM offset))
 {
-	MOVWim(i, offset, d, X86_NOREG, 1);
+	ADDR32 MOVWim(i, offset, d, X86_NOREG, 1);
 }
 LENDFUNC(NONE,WRITE,3,raw_mov_w_Ri,(R4 d, IMM i, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_b_Ri,(R4 d, IMM i, IMM offset))
 {
-	MOVBim(i, offset, d, X86_NOREG, 1);
+	ADDR32 MOVBim(i, offset, d, X86_NOREG, 1);
 }
 LENDFUNC(NONE,WRITE,3,raw_mov_b_Ri,(R4 d, IMM i, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_l_Rr,(R4 d, R4 s, IMM offset))
 {
-	MOVLrm(s, offset, d, X86_NOREG, 1);
+	ADDR32 MOVLrm(s, offset, d, X86_NOREG, 1);
 }
 LENDFUNC(NONE,WRITE,3,raw_mov_l_Rr,(R4 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_w_Rr,(R4 d, R2 s, IMM offset))
 {
-	MOVWrm(s, offset, d, X86_NOREG, 1);
+	ADDR32 MOVWrm(s, offset, d, X86_NOREG, 1);
 }
 LENDFUNC(NONE,WRITE,3,raw_mov_w_Rr,(R4 d, R2 s, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_b_Rr,(R4 d, R1 s, IMM offset))
 {
-	MOVBrm(s, offset, d, X86_NOREG, 1);
+	ADDR32 MOVBrm(s, offset, d, X86_NOREG, 1);
 }
 LENDFUNC(NONE,WRITE,3,raw_mov_b_Rr,(R4 d, R1 s, IMM offset))
 
@@ -814,19 +820,19 @@ LENDFUNC(NONE,NONE,4,raw_lea_l_rr_indexed,(W4 d, R4 s, R4 index, IMM factor))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_l_bRr,(R4 d, R4 s, IMM offset))
 {
-	MOVLrm(s, offset, d, X86_NOREG, 1);
+	ADDR32 MOVLrm(s, offset, d, X86_NOREG, 1);
 }
 LENDFUNC(NONE,WRITE,3,raw_mov_l_bRr,(R4 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_w_bRr,(R4 d, R2 s, IMM offset))
 {
-	MOVWrm(s, offset, d, X86_NOREG, 1);
+	ADDR32 MOVWrm(s, offset, d, X86_NOREG, 1);
 }
 LENDFUNC(NONE,WRITE,3,raw_mov_w_bRr,(R4 d, R2 s, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_b_bRr,(R4 d, R1 s, IMM offset))
 {
-	MOVBrm(s, offset, d, X86_NOREG, 1);
+	ADDR32 MOVBrm(s, offset, d, X86_NOREG, 1);
 }
 LENDFUNC(NONE,WRITE,3,raw_mov_b_bRr,(R4 d, R1 s, IMM offset))
 
@@ -1144,7 +1150,7 @@ LENDFUNC(WRITE,NONE,2,raw_cmp_b,(R1 d, R1 s))
 
 LOWFUNC(WRITE,READ,4,raw_cmp_l_rm_indexed,(R4 d, IMM offset, R4 index, IMM factor))
 {
-	CMPLmr(offset, X86_NOREG, index, factor, d);
+	ADDR32 CMPLmr(offset, X86_NOREG, index, factor, d);
 }
 LENDFUNC(WRITE,READ,4,raw_cmp_l_rm_indexed,(R4 d, IMM offset, R4 index, IMM factor))
 

@@ -595,56 +595,6 @@ AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x2000],
   ]
 )
 
-dnl Check if we have POSIX shared memory support
-AC_CACHE_CHECK([whether POSIX shared memory is working],
-  ac_cv_have_posix_shm, [
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
-  AC_TRY_RUN([
-    #define HAVE_POSIX_SHM
-    #include "vm_alloc.cpp"
-    int main(void) { /* returns 0 if we have working POSIX shm */
-      if (vm_init() < 0) exit(2);
-      char *m1 = (char *)vm_acquire(32768, VM_MAP_DEFAULT | VM_MAP_33BIT);
-      if (m1 == VM_MAP_FAILED) exit(3);
-      vm_exit(); exit(0);
-    }
-  ], ac_cv_have_posix_shm=yes, ac_cv_have_posix_shm=no,
-  dnl When cross-compiling, do not assume anything.
-  ac_cv_have_posix_shm="guessing no"
-  )
-  AC_LANG_RESTORE
-  ]
-)
-AC_TRANSLATE_DEFINE(HAVE_POSIX_SHM, "$ac_cv_have_posix_shm",
-  [Define if your system supports POSIX shared memory.])
-
-dnl Check if we have working 33-bit memory addressing
-AC_CACHE_CHECK([whether 33-bit memory addressing is working],
-  ac_cv_have_33bit_addressing, [
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
-  AC_TRY_RUN([
-    #define USE_33BIT_ADDRESSING 1
-    #include "vm_alloc.cpp"
-    int main(void) { /* returns 0 if we have working 33-bit addressing */
-      if (sizeof(void *) < 8) exit(1);
-      if (vm_init() < 0) exit(2);
-      volatile char *m1 = (char *)vm_acquire(32768, VM_MAP_DEFAULT | VM_MAP_33BIT);
-      if (m1 == VM_MAP_FAILED) exit(3);
-      volatile char *m2 = m1 + (1L << 32);
-      m1[0] = 0x12; if (m2[0] != 0x12) exit(4);
-      m2[0] = 0x34; if (m1[0] != 0x34) exit(5);
-      vm_exit(); exit(0);
-    }
-  ], ac_cv_have_33bit_addressing=yes, ac_cv_have_33bit_addressing=no,
-  dnl When cross-compiling, do not assume anything.
-  ac_cv_have_33bit_addressing="guessing no"
-  )
-  AC_LANG_RESTORE
-  ]
-)
-
 dnl Check signal handlers need to be reinstalled
 AC_CACHE_CHECK([whether signal handlers need to be reinstalled],
   ac_cv_signal_need_reinstall, [
@@ -1044,7 +994,6 @@ elif [[ "x$HAVE_GCC30" = "xyes" -a "x$HAVE_X86_64" = "xyes" ]]; then
     DEFINES="$DEFINES -DX86_64_ASSEMBLY -DOPTIMIZED_FLAGS"
     JITSRCS="cpuemu1_nf.cpp cpuemu2_nf.cpp cpuemu3_nf.cpp cpuemu4_nf.cpp cpuemu5_nf.cpp cpuemu6_nf.cpp cpuemu7_nf.cpp cpuemu8_nf.cpp $JITSRCS"
     CAN_JIT=yes
-    WANT_33BIT_ADDRESSING=yes
   fi
 elif [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xyes" ]]; then
   dnl SPARC CPU
@@ -1100,13 +1049,6 @@ else
   WANT_JIT_DEBUG=no
   JITSRCS=""
 fi
-
-dnl Use 33-bit memory addressing?
-if [[ "$ac_cv_have_33bit_addressing:$WANT_33BIT_ADDRESSING" = "yes:yes" ]]; then
-  use_33bit_addressing=yes
-fi
-AC_TRANSLATE_DEFINE(USE_33BIT_ADDRESSING, "$use_33bit_addressing",
-  [Define to use 33-bit memory addressing on 64-bit JIT capable systems.])
 
 dnl Utility macro used by next two tests.
 dnl AC_EXAMINE_OBJECT(C source code,

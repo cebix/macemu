@@ -73,7 +73,6 @@ int CPUType;
 bool CPUIs68060;
 int FPUType;
 bool TwentyFourBitAddressing;
-bool ThirtyThreeBitAddressing = false;
 
 
 // Global variables
@@ -134,12 +133,7 @@ char *strdup(const char *s)
 
 void *vm_acquire_mac(size_t size)
 {
-	void *m = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_33BIT);
-	if (m == NULL) {
-		ThirtyThreeBitAddressing = false;
-		m = vm_acquire(size);
-	}
-	return m;
+	return vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 }
 
 
@@ -356,10 +350,6 @@ int main(int argc, char **argv)
 	vm_init();
 
 	// Create areas for Mac RAM and ROM
-#ifdef USE_33BIT_ADDRESSING
-	// Speculatively enables 33-bit addressing
-	ThirtyThreeBitAddressing = true;
-#endif
 	RAMBaseHost = (uint8 *)vm_acquire_mac(RAMSize);
 	ROMBaseHost = (uint8 *)vm_acquire_mac(0x100000);
 	if (RAMBaseHost == VM_MAP_FAILED || ROMBaseHost == VM_MAP_FAILED) {

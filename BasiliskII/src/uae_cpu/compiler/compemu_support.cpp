@@ -137,9 +137,6 @@ static compop_func *nfcompfunctbl[65536];
 static cpuop_func *nfcpufunctbl[65536];
 uae_u8* comp_pc_p;
 
-// From main_unix.cpp
-extern bool ThirtyThreeBitAddressing;
-
 // From newcpu.cpp
 extern bool quit_program;
 
@@ -5446,11 +5443,6 @@ static void writemem_real(int address, int source, int size, int tmp, int clobbe
 	if (clobber)
 	    f=source;
 
-#if SIZEOF_VOID_P == 8
-	if (!ThirtyThreeBitAddressing)
-		sign_extend_32_rr(address, address);
-#endif
-
 	switch(size) {
 	 case 1: mov_b_bRr(address,source,MEMBaseDiff); break; 
 	 case 2: mov_w_rr(f,source); bswap_16(f); mov_w_bRr(address,f,MEMBaseDiff); break;
@@ -5509,11 +5501,6 @@ static void readmem_real(int address, int dest, int size, int tmp)
 
     if (size==4 && address!=dest)
 	f=dest;
-
-#if SIZEOF_VOID_P == 8
-	if (!ThirtyThreeBitAddressing)
-		sign_extend_32_rr(address, address);
-#endif
 
 	switch(size) {
 	 case 1: mov_b_brR(dest,address,MEMBaseDiff); break; 
