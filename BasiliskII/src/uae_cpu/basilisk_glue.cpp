@@ -68,8 +68,8 @@ bool Init680x0(void)
 {
 #if REAL_ADDRESSING
 	// Mac address space = host address space
-	RAMBaseMac = (uint32)RAMBaseHost;
-	ROMBaseMac = (uint32)ROMBaseHost;
+	RAMBaseMac = (uintptr)RAMBaseHost;
+	ROMBaseMac = (uintptr)ROMBaseHost;
 #elif DIRECT_ADDRESSING
 	// Mac address space = host address space minus constant offset (MEMBaseDiff)
 	// NOTE: MEMBaseDiff is set up in main_unix.cpp/main()
