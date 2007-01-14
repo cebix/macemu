@@ -818,6 +818,12 @@ LOWFUNC(NONE,NONE,4,raw_lea_l_rr_indexed,(W4 d, R4 s, R4 index, IMM factor))
 }
 LENDFUNC(NONE,NONE,4,raw_lea_l_rr_indexed,(W4 d, R4 s, R4 index, IMM factor))
 
+LOWFUNC(NONE,NONE,4,raw_lea_l_r_scaled,(W4 d, R4 index, IMM factor))
+{
+	LEALmr(0, X86_NOREG, index, factor, d);
+}
+LENDFUNC(NONE,NONE,4,raw_lea_l_r_scaled,(W4 d, R4 index, IMM factor))
+
 LOWFUNC(NONE,WRITE,3,raw_mov_l_bRr,(R4 d, R4 s, IMM offset))
 {
 	ADDR32 MOVLrm(s, offset, d, X86_NOREG, 1);
@@ -1189,6 +1195,12 @@ LOWFUNC(NONE,NONE,2,raw_xchg_l_rr,(RW4 r1, RW4 r2))
 	XCHGLrr(r2, r1);
 }
 LENDFUNC(NONE,NONE,2,raw_xchg_l_rr,(RW4 r1, RW4 r2))
+
+LOWFUNC(NONE,NONE,2,raw_xchg_b_rr,(RW4 r1, RW4 r2))
+{
+	XCHGBrr(r2, r1);
+}
+LENDFUNC(NONE,NONE,2,raw_xchg_b_rr,(RW4 r1, RW4 r2))
 
 LOWFUNC(READ,WRITE,0,raw_pushfl,(void))
 {
@@ -2968,6 +2980,13 @@ LOWFUNC(NONE,NONE,2,raw_xchg_l_rr,(RW4 r1, RW4 r2))
 }
 LENDFUNC(NONE,NONE,2,raw_xchg_l_rr,(RW4 r1, RW4 r2))
 
+LOWFUNC(NONE,NONE,2,raw_xchg_b_rr,(RW4 r1, RW4 r2))
+{
+  emit_byte(0x86);
+  emit_byte(0xc0+8*(r1&0xf)+(r2&0xf)); /* XXX this handles upper-halves registers (e.g. %ah defined as 0x10+4) */
+}
+LENDFUNC(NONE,NONE,2,raw_xchg_l_rr,(RW4 r1, RW4 r2))
+
 /*************************************************************************
  * FIXME: mem access modes probably wrong                                *
  *************************************************************************/
@@ -3243,18 +3262,8 @@ static __inline__ void raw_emit_nop_filler(int nbytes)
  * Flag handling, to and fro UAE flag register                           *
  *************************************************************************/
 
-#ifdef SAHF_SETO_PROFITABLE
-
-#define FLAG_NREG1 0  /* Set to -1 if any register will do */
-static __inline__ void raw_flags_to_reg(int r)
+static __inline__ void raw_flags_evicted(int r)
 {
-  raw_lahf(0);  /* Most flags in AH */
-  //raw_setcc(r,0); /* V flag in AL */
-  raw_setcc_m((uintptr)live.state[FLAGTMP].mem,0); 
-  
-#if 1   /* Let's avoid those nasty partial register stalls */
-  //raw_mov_b_mr((uintptr)live.state[FLAGTMP].mem,r);
-  raw_mov_b_mr(((uintptr)live.state[FLAGTMP].mem)+1,AH_INDEX);
   //live.state[FLAGTMP].status=CLEAN;
   live.state[FLAGTMP].status=INMEM;
   live.state[FLAGTMP].realreg=-1;
@@ -3264,18 +3273,31 @@ static __inline__ void raw_flags_to_reg(int r)
       abort();
   }
   live.nat[r].nholds=0;
+}
+
+#define FLAG_NREG1_FLAGREG 0  /* Set to -1 if any register will do */
+static __inline__ void raw_flags_to_reg_FLAGREG(int r)
+{
+  raw_lahf(0);  /* Most flags in AH */
+  //raw_setcc(r,0); /* V flag in AL */
+  raw_setcc_m((uintptr)live.state[FLAGTMP].mem,0); 
+  
+#if 1   /* Let's avoid those nasty partial register stalls */
+  //raw_mov_b_mr((uintptr)live.state[FLAGTMP].mem,r);
+  raw_mov_b_mr(((uintptr)live.state[FLAGTMP].mem)+1,AH_INDEX);
+  raw_flags_evicted(r);
 #endif
 }
 
-#define FLAG_NREG2 0  /* Set to -1 if any register will do */
-static __inline__ void raw_reg_to_flags(int r)
+#define FLAG_NREG2_FLAGREG 0  /* Set to -1 if any register will do */
+static __inline__ void raw_reg_to_flags_FLAGREG(int r)
 {
   raw_cmp_b_ri(r,-127); /* set V */
   raw_sahf(0);
 }
 
-#define FLAG_NREG3 0  /* Set to -1 if any register will do */
-static __inline__ void raw_flags_set_zero(int s, int tmp)
+#define FLAG_NREG3_FLAGREG 0  /* Set to -1 if any register will do */
+static __inline__ void raw_flags_set_zero_FLAGREG(int s, int tmp)
 {
     raw_mov_l_rr(tmp,s);
     raw_lahf(s); /* flags into ah */
@@ -3286,34 +3308,26 @@ static __inline__ void raw_flags_set_zero(int s, int tmp)
     raw_sahf(s);
 }
 
-#else
+static __inline__ void raw_flags_init_FLAGREG(void) { }
 
-#define FLAG_NREG1 -1  /* Set to -1 if any register will do */
-static __inline__ void raw_flags_to_reg(int r)
+#define FLAG_NREG1_FLAGSTK -1  /* Set to -1 if any register will do */
+static __inline__ void raw_flags_to_reg_FLAGSTK(int r)
 {
 	raw_pushfl();
 	raw_pop_l_r(r);
 	raw_mov_l_mr((uintptr)live.state[FLAGTMP].mem,r);
-//	live.state[FLAGTMP].status=CLEAN;
-	live.state[FLAGTMP].status=INMEM;
-	live.state[FLAGTMP].realreg=-1;
-	/* We just "evicted" FLAGTMP. */
-	if (live.nat[r].nholds!=1) {
-	  /* Huh? */
-	  abort();
-	}
-	live.nat[r].nholds=0;
+	raw_flags_evicted(r);
 }
 
-#define FLAG_NREG2 -1  /* Set to -1 if any register will do */
-static __inline__ void raw_reg_to_flags(int r)
+#define FLAG_NREG2_FLAGSTK -1  /* Set to -1 if any register will do */
+static __inline__ void raw_reg_to_flags_FLAGSTK(int r)
 {
 	raw_push_l_r(r);
 	raw_popfl();
 }
 
-#define FLAG_NREG3 -1  /* Set to -1 if any register will do */
-static __inline__ void raw_flags_set_zero(int s, int tmp)
+#define FLAG_NREG3_FLAGSTK -1  /* Set to -1 if any register will do */
+static __inline__ void raw_flags_set_zero_FLAGSTK(int s, int tmp)
 {
     raw_mov_l_rr(tmp,s);
     raw_pushfl();
@@ -3325,7 +3339,87 @@ static __inline__ void raw_flags_set_zero(int s, int tmp)
     raw_push_l_r(s);
     raw_popfl();
 }
+
+static __inline__ void raw_flags_init_FLAGSTK(void) { }
+
+#if defined(__x86_64__)
+/* Try to use the LAHF/SETO method on x86_64 since it is faster.
+   This can't be the default because some older CPUs don't support
+   LAHF/SAHF in long mode.  */
+static int FLAG_NREG1_FLAGGEN = 0;
+static __inline__ void raw_flags_to_reg_FLAGGEN(int r)
+{
+	if (have_lahf_lm) {
+		// NOTE: the interpreter uses the normal EFLAGS layout
+		//   pushf/popf CF(0) ZF( 6) SF( 7) OF(11)
+		//   sahf/lahf  CF(8) ZF(14) SF(15) OF( 0)
+		assert(r == 0);
+		raw_setcc(r,0);					/* V flag in AL */
+		raw_lea_l_r_scaled(0,0,8);		/* move it to its EFLAGS location */
+		raw_mov_b_mr(((uintptr)live.state[FLAGTMP].mem)+1,0);
+		raw_lahf(0);					/* most flags in AH */
+		raw_mov_b_mr((uintptr)live.state[FLAGTMP].mem,AH_INDEX);
+		raw_flags_evicted(r);
+	}
+	else
+		raw_flags_to_reg_FLAGSTK(r);
+}
+
+static int FLAG_NREG2_FLAGGEN = 0;
+static __inline__ void raw_reg_to_flags_FLAGGEN(int r)
+{
+	if (have_lahf_lm) {
+		raw_xchg_b_rr(0,AH_INDEX);
+		raw_cmp_b_ri(r,-120); /* set V */
+		raw_sahf(0);
+	}
+	else
+		raw_reg_to_flags_FLAGSTK(r);
+}
+
+static int FLAG_NREG3_FLAGGEN = 0;
+static __inline__ void raw_flags_set_zero_FLAGGEN(int s, int tmp)
+{
+	if (have_lahf_lm)
+		raw_flags_set_zero_FLAGREG(s, tmp);
+	else
+		raw_flags_set_zero_FLAGSTK(s, tmp);
+}
+
+static __inline__ void raw_flags_init_FLAGGEN(void)
+{
+	if (have_lahf_lm) {
+		FLAG_NREG1_FLAGGEN = FLAG_NREG1_FLAGREG;
+		FLAG_NREG2_FLAGGEN = FLAG_NREG2_FLAGREG;
+		FLAG_NREG1_FLAGGEN = FLAG_NREG3_FLAGREG;
+	}
+	else {
+		FLAG_NREG1_FLAGGEN = FLAG_NREG1_FLAGSTK;
+		FLAG_NREG2_FLAGGEN = FLAG_NREG2_FLAGSTK;
+		FLAG_NREG1_FLAGGEN = FLAG_NREG3_FLAGSTK;
+	}
+}
 #endif
+
+#ifdef SAHF_SETO_PROFITABLE
+#define FLAG_SUFFIX FLAGREG
+#elif defined __x86_64__
+#define FLAG_SUFFIX FLAGGEN
+#else
+#define FLAG_SUFFIX FLAGSTK
+#endif
+
+#define FLAG_GLUE_2(x, y)		x ## _ ## y
+#define FLAG_GLUE_1(x, y)		FLAG_GLUE_2(x, y)
+#define FLAG_GLUE(x)			FLAG_GLUE_1(x, FLAG_SUFFIX)
+
+#define raw_flags_init			FLAG_GLUE(raw_flags_init)
+#define FLAG_NREG1				FLAG_GLUE(FLAG_NREG1)
+#define raw_flags_to_reg		FLAG_GLUE(raw_flags_to_reg)
+#define FLAG_NREG2				FLAG_GLUE(FLAG_NREG2)
+#define raw_reg_to_flags		FLAG_GLUE(raw_reg_to_flags)
+#define FLAG_NREG3				FLAG_GLUE(FLAG_NREG3)
+#define raw_flags_set_zero		FLAG_GLUE(raw_flags_set_zero)
 
 /* Apparently, there are enough instructions between flag store and
    flag reload to avoid the partial memory stall */
@@ -3864,6 +3958,8 @@ raw_init_cpu(void)
   write_log("Max CPUID level=%d Processor is %s [%s]\n",
 			c->cpuid_level, c->x86_vendor_id,
 			x86_processor_string_table[c->x86_processor]);
+
+  raw_flags_init();
 }
 
 static bool target_check_bsf(void)
