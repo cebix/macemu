@@ -160,10 +160,8 @@ static const uae_u8 need_to_preserve[]={0,0,0,1,0,1,1,1};
 #define CLOBBER_BT   clobber_flags()
 #define CLOBBER_BSF  clobber_flags()
 
-/* FIXME: disabled until that's proofread.  */
-#if defined(__x86_64__)
+/* The older code generator is now deprecated.  */
 #define USE_NEW_RTASM 1
-#endif
 
 #if USE_NEW_RTASM
 
