@@ -528,12 +528,10 @@ LOWFUNC(READ,NONE,3,raw_cmov_l_rr,(RW4 d, R4 s, IMM cc))
 	if (have_cmov)
 		CMOVLrr(cc, s, d);
 	else { /* replacement using branch and mov */
-#if defined(__x86_64__)
-		write_log("x86-64 implementations are bound to have CMOV!\n");
-		abort();
-#endif
-		JCCSii(cc^1, 2);
+		int8 *target_p = (int8 *)x86_get_target() + 1;
+		JCCSii(cc^1, 0);
 		MOVLrr(s, d);
+	    *target_p = (uintptr)x86_get_target() - ((uintptr)target_p + 1);
 	}
 }
 LENDFUNC(READ,NONE,3,raw_cmov_l_rr,(RW4 d, R4 s, IMM cc))
@@ -701,12 +699,10 @@ LOWFUNC(NONE,READ,5,raw_cmov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor,
 	if (have_cmov)
 		ADDR32 CMOVLmr(cond, base, X86_NOREG, index, factor, d);
 	else { /* replacement using branch and mov */
-#if defined(__x86_64__)
-		write_log("x86-64 implementations are bound to have CMOV!\n");
-		abort();
-#endif
-		JCCSii(cond^1, 7);
+		int8 *target_p = (int8 *)x86_get_target() + 1;
+		JCCSii(cond^1, 0);
 		ADDR32 MOVLmr(base, X86_NOREG, index, factor, d);
+	    *target_p = (uintptr)x86_get_target() - ((uintptr)target_p + 1);
 	}
 }
 LENDFUNC(NONE,READ,5,raw_cmov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor, IMM cond))
@@ -716,12 +712,10 @@ LOWFUNC(NONE,READ,3,raw_cmov_l_rm,(W4 d, IMM mem, IMM cond))
 	if (have_cmov)
 		CMOVLmr(cond, mem, X86_NOREG, X86_NOREG, 1, d);
 	else { /* replacement using branch and mov */
-#if defined(__x86_64__)
-		write_log("x86-64 implementations are bound to have CMOV!\n");
-		abort();
-#endif
-		JCCSii(cond^1, 6);
+		int8 *target_p = (int8 *)x86_get_target() + 1;
+		JCCSii(cond^1, 0);
 		MOVLmr(mem, X86_NOREG, X86_NOREG, 1, d);
+	    *target_p = (uintptr)x86_get_target() - ((uintptr)target_p + 1);
 	}
 }
 LENDFUNC(NONE,READ,3,raw_cmov_l_rm,(W4 d, IMM mem, IMM cond))
@@ -3936,6 +3930,12 @@ raw_init_cpu(void)
 
   /* Have CMOV support? */
   have_cmov = c->x86_hwcap & (1 << 15);
+#if defined(__x86_64__)
+  if (!have_cmov) {
+	  write_log("x86-64 implementations are bound to have CMOV!\n");
+	  abort();
+  }
+#endif
 
   /* Can the host CPU suffer from partial register stalls? */
   have_rat_stall = (c->x86_vendor == X86_VENDOR_INTEL);
