@@ -44,8 +44,8 @@ powerpc_dyngen::powerpc_dyngen(dyngen_cpu_base cpu, int cache_size)
 		printf(" SSE2");
 	if (cpuinfo_check_sse3())
 		printf(" SSE3");
-	if (cpuinfo_check_sse4())
-		printf(" SSE4");
+	if (cpuinfo_check_ssse3())
+		printf(" SSSE3");
 	if (cpuinfo_check_altivec())
 		printf(" VMX");
 	printf("\n");

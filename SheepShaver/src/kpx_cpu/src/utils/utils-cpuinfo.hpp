@@ -36,8 +36,8 @@ extern bool cpuinfo_check_sse2(void);
 // Check for x86 feature SSE3
 extern bool cpuinfo_check_sse3(void);
 
-// Check for x86 feature SSE4
-extern bool cpuinfo_check_sse4(void);
+// Check for x86 feature SSSE3
+extern bool cpuinfo_check_ssse3(void);
 
 // Check for ppc feature VMX (Altivec)
 extern bool cpuinfo_check_altivec(void);
