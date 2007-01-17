@@ -258,7 +258,6 @@ void powerpc_cpu_base::init_decoder()
 	static const instr_info_t return_ii_table[] = {
 		{ "return",
 		  (execute_pmf)&powerpc_cpu_base::execute_return,
-		  NULL,
 		  PPC_I(MAX),
 		  D_form, 6, 0, CFLOW_JUMP
 		}
