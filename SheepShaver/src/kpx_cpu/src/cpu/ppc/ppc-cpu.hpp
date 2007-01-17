@@ -189,15 +189,10 @@ protected:
 	typedef void (powerpc_cpu::*execute_pmf)(uint32 opcode);
 	typedef nv_mem_fun1_t< void, powerpc_cpu, uint32 > execute_fn;
 
-	// Specialzed instruction decoders type
-	typedef execute_fn (powerpc_cpu::*decode_pmf)(uint32 opcode);
-	typedef nv_mem_fun1_t< execute_fn, powerpc_cpu, uint32 > decode_fn;
-
 	// Instruction information structure
 	struct instr_info_t {
 		char			name[12];		// Instruction name
 		execute_fn		execute;		// Semantic routine for this instruction
-		decode_fn		decode;			// Specialized instruction decoder
 		uint16			mnemo;			// Mnemonic
 		uint16			format;			// Instruction format (XO-form, D-form, etc.)
 		uint16			opcode;			// Primary opcode

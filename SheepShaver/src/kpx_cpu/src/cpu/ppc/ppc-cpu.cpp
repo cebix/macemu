@@ -634,7 +634,7 @@ void powerpc_cpu::execute(uint32 entry)
 				}
 #endif
 				di->opcode = opcode;
-				di->execute = ii->decode.ptr() ? ii->decode(this, opcode) : ii->execute;
+				di->execute = ii->execute;
 				di++;
 #if PPC_EXECUTE_DUMP_STATE
 				if (dump_state) {

@@ -191,7 +191,6 @@ void sheepshaver_cpu::init_decoder()
 	static const instr_info_t sheep_ii_table[] = {
 		{ "sheep",
 		  (execute_pmf)&sheepshaver_cpu::execute_sheep,
-		  NULL,
 		  PPC_I(SHEEP),
 		  D_form, 6, 0, CFLOW_JUMP | CFLOW_TRAP
 		}
