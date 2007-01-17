@@ -21,6 +21,8 @@
 #ifndef PPC_REGISTERS_H
 #define PPC_REGISTERS_H
 
+#include "cpu/ppc/ppc-bitfields.hpp"
+
 /**
  *		Condition Register
  **/
@@ -224,25 +226,21 @@ struct powerpc_registers
 	static inline int FPR(int r) { return FPR_BASE + r; }
 	static void interrupt_copy(powerpc_registers &oregs, powerpc_registers const &iregs);
 	
-	uint32	gpr[32];			// General-Purpose Registers
+	uint32 gpr[32];				// General-Purpose Registers
 	powerpc_fpr fpr[32];		// Floating-Point Registers
-	powerpc_fpr	fp_result;		// Floating-Point result
+	powerpc_vr vr[32];			// Vector Registers
 	powerpc_cr_register cr;		// Condition Register
 	powerpc_xer_register xer;	// XER Register (SPR 1)
-	uint32	fpscr;				// Floating-Point Status and Control Register
-	uint32	lr;					// Link Register (SPR 8)
-	uint32	ctr;				// Count Register (SPR 9)
-	uint32	pc;					// Program Counter
+	powerpc_vscr vscr;			// Vector Status and Control Register
+	uint32 vrsave;				// AltiVec Save Register
+	uint32 fpscr;				// Floating-Point Status and Control Register
+	uint32 lr;					// Link Register (SPR 8)
+	uint32 ctr;					// Count Register (SPR 9)
+	uint32 pc;					// Program Counter
 	powerpc_spcflags spcflags;	// Special CPU flags
 	static uint32 reserve_valid;
 	static uint32 reserve_addr;
 	static uint32 reserve_data;
-#define PPC_SZ(T) sizeof(powerpc_##T)
-	uint8 _pad[16 - ((PPC_SZ(fpr) + PPC_SZ(cr_register) + PPC_SZ(xer_register) + PPC_SZ(spcflags)) % 16)];
-#undef  PPC_SZ
-	powerpc_vr vr[32];			// Vector Registers
-	powerpc_vscr vscr;			// Vector Status and Control Register
-	uint32 vrsave;				// AltiVec Save Register
 };
 
 #endif /* PPC_REGISTERS_H */

@@ -26,6 +26,7 @@
 #include "cpu/ppc/ppc-config.hpp"
 
 #if PPC_ENABLE_JIT
+#include "cpu/ppc/ppc-registers.hpp"
 #include "cpu/jit/jit-config.hpp"
 #include "cpu/jit/basic-dyngen.hpp"
 
@@ -35,6 +36,10 @@ class powerpc_dyngen
 #ifndef REG_T3
 	uintptr reg_T3;
 #endif
+
+//#ifndef REG_F3
+	powerpc_fpr reg_F3;
+//#endif
 
 	// Code generators for PowerPC synthetic instructions
 #ifndef NO_DEFINE_ALIAS

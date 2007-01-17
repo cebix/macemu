@@ -50,8 +50,8 @@ DYNGEN_DEFINE_GLOBAL_REGISTER(3);
 #define F1_dw			FPREG(A1)->j
 #define F2				FPREG(A2)->d
 #define F2_dw			FPREG(A2)->j
-#define FD				powerpc_dyngen_helper::fp_result()
-#define FD_dw			powerpc_dyngen_helper::fp_result_dw()
+#define FD				powerpc_dyngen_helper::reg_F3().d
+#define FD_dw			powerpc_dyngen_helper::reg_F3().j
 
 // Vector registers
 #define VREG(X)			((powerpc_vr *)(X))[0]
@@ -90,13 +90,14 @@ struct powerpc_dyngen_helper {
 	static inline powerpc_cr_register & cr()	{ return CPU->cr(); }
 	static inline powerpc_xer_register & xer()	{ return CPU->xer(); }
 	static inline powerpc_spcflags & spcflags()	{ return CPU->spcflags(); }
-	static inline double & fp_result()			{ return CPU->fp_result(); }
-	static inline uint64 & fp_result_dw()		{ return CPU->fp_result_dw(); }
 	static inline void set_cr(int crfd, int v)	{ CPU->cr().set(crfd, v); }
 
 #ifndef REG_T3
 	static inline uintptr & reg_T3()			{ return CPU->codegen.reg_T3; }
 #endif
+//#ifndef REG_F3
+	static inline powerpc_fpr & reg_F3()		{ return CPU->codegen.reg_F3; }
+//#endif
 
 	static inline powerpc_block_info *find_block(uint32 pc) { return CPU->block_cache.fast_find(pc); }
 };
