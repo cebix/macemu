@@ -238,9 +238,14 @@ struct powerpc_registers
 	uint32 ctr;					// Count Register (SPR 9)
 	uint32 pc;					// Program Counter
 	powerpc_spcflags spcflags;	// Special CPU flags
+#if KPX_MAX_CPUS == 1
+	uint32 reserve_valid;
+	uint32 reserve_addr;
+#else
 	static uint32 reserve_valid;
 	static uint32 reserve_addr;
 	static uint32 reserve_data;
+#endif
 };
 
 #endif /* PPC_REGISTERS_H */

@@ -91,6 +91,7 @@ struct powerpc_dyngen_helper {
 	static inline powerpc_xer_register & xer()	{ return CPU->xer(); }
 	static inline powerpc_spcflags & spcflags()	{ return CPU->spcflags(); }
 	static inline void set_cr(int crfd, int v)	{ CPU->cr().set(crfd, v); }
+	static inline powerpc_registers *regs()		{ return &CPU->regs(); }
 
 #ifndef REG_T3
 	static inline uintptr & reg_T3()			{ return CPU->codegen.reg_T3; }
@@ -279,6 +280,37 @@ DEFINE_OP(T2);
 
 #undef im
 #undef DEFINE_OP
+
+void OPPROTO op_lwarx_T0_T1(void)
+{
+	T0 = vm_read_memory_4(T1);
+	powerpc_dyngen_helper::regs()->reserve_valid = 1;
+	powerpc_dyngen_helper::regs()->reserve_addr = T1;
+#if KPX_MAX_CPUS != 1
+	powerpc_dyngen_helper::regs()->reserve_data = T0;
+#endif
+}
+
+void OPPROTO op_stwcx_T0_T1(void)
+{
+	uint32 cr = powerpc_dyngen_helper::get_cr() & ~CR_field<0>::mask();
+	cr |= powerpc_dyngen_helper::xer().get_so() << 28;
+	if (powerpc_dyngen_helper::regs()->reserve_valid) {
+		powerpc_dyngen_helper::regs()->reserve_valid = 0;
+		if (powerpc_dyngen_helper::regs()->reserve_addr == T1 /* physical_addr(EA) */
+#if KPX_MAX_CPUS != 1
+			/* HACK: if another processor wrote to the reserved block,
+			   nothing happens, i.e. we should operate as if reserve == 0 */
+			&& powerpc_dyngen_helper::regs()->reserve_data == vm_read_memory_4(T1)
+#endif
+			) {
+			vm_write_memory_4(T1, T0);
+			cr |= CR_EQ_field<0>::mask();
+		}
+	}
+	powerpc_dyngen_helper::set_cr(cr);
+	dyngen_barrier();
+}
 
 
 /**

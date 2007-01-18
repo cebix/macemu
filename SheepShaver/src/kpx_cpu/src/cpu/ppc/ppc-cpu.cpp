@@ -114,9 +114,11 @@ any_register powerpc_cpu::get_register(int id)
 	return value;
 }
 
+#if KPX_MAX_CPUS != 1
 uint32 powerpc_registers::reserve_valid = 0;
 uint32 powerpc_registers::reserve_addr = 0;
 uint32 powerpc_registers::reserve_data = 0;
+#endif
 
 void powerpc_cpu::init_registers()
 {

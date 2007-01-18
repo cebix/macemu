@@ -465,6 +465,30 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			}
 			break;
 		}
+		case PPC_I(STWCX):		// Store Word Conditional Indexed
+		case PPC_I(LWARX):		// Load Word and Reserve Indexed
+		{
+			const int rA = rA_field::extract(opcode);
+			const int rB = rB_field::extract(opcode);
+			if (rA == 0)
+				dg.gen_load_T1_GPR(rB);
+			else {
+				dg.gen_load_T1_GPR(rA);
+				dg.gen_load_T2_GPR(rB);
+				dg.gen_add_32_T1_T2();
+			}
+			switch (ii->mnemo) {
+			case PPC_I(LWARX):
+				dg.gen_lwarx_T0_T1();
+				dg.gen_store_T0_GPR(rD_field::extract(opcode));
+				break;
+			case PPC_I(STWCX):
+				dg.gen_load_T0_GPR(rS_field::extract(opcode));
+				dg.gen_stwcx_T0_T1();
+				break;
+			}
+			break;
+		}
 		case PPC_I(BC):			// Branch Conditional
 		{
 			const int bo = BO_field::extract(opcode);
