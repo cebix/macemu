@@ -510,6 +510,22 @@ int16 DiskStatus(uint32 pb, uint32 dce)
 			Mac2Mac_memcpy(pb + csParam, info->status, 22);
 			return noErr;
 
+		case 44: // get startup partition status: http://developer.apple.com/documentation/Hardware/DeviceManagers/ata/ata_ref/ATA.21.html
+			printf("WARNING: DiskStatus(44:'get startup partition status') Not Implemented\n");
+			return statusErr;
+
+		case 45: // get partition write protect status: http://developer.apple.com/documentation/Hardware/DeviceManagers/ata/ata_ref/ATA.23.html
+			printf("WARNING: DiskStatus(45:'get partition write protect status') Not Implemented\n");
+			return statusErr;
+
+		case 46: // get partition mount status: http://developer.apple.com/documentation/Hardware/DeviceManagers/ata/ata_ref/ATA.22.html
+			printf("WARNING: DiskStatus(46:'get partition mount status') Not Implemented\n");
+			return statusErr;
+
+		case 70: // get power mode status: http://developer.apple.com/documentation/Hardware/DeviceManagers/ata/ata_ref/ATA.24.html
+			printf("WARNING: DiskStatus(70:'get power mode status') Not Implemented\n");
+			return statusErr;
+
 		default:
 			printf("WARNING: Unknown DiskStatus(%d)\n", code);
 			return statusErr;
