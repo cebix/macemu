@@ -355,6 +355,14 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 				// Don't call FE0A opcode (7.6, 7.6.1, 8.0, 8.1, 8.5, 8.6, 9.0)
 				p[1] = htons(0x2008);	// move.l a0,d0
 				D(bug(" patch 3 applied\n"));
+			} else if (PM(0,0x6c00) && PM(1,0x016a) && PM(2,0x2278) && PM(3,0x0134)) {
+				// We don't have SonyVars (8.6)
+				p[-4] = htons(0x21fc);  // move.l $40810000,($0000)
+				p[-3] = htons(0x4081);
+				p[-2] = htons(0x0000);
+				p[-1] = htons(0x0000);
+				p[0] = htons(0x6000);
+				D(bug(" patch 4 applied\n"));
 			}
 			p++;
 		}
