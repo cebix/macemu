@@ -247,15 +247,12 @@ private:
 	// Current execute() nested level
 	int execute_depth;
 
-	// Do we enable the JIT compiler?
-	bool use_jit;
-
 public:
 
 	// Initialization & finalization
 	void initialize();
 #ifdef SHEEPSHAVER
-	powerpc_cpu(bool do_use_jit = true);
+	powerpc_cpu();
 #else
 	powerpc_cpu(task_struct *parent_task);
 #endif
@@ -332,6 +329,10 @@ protected:
 		COMPILE_EPILOGUE_OK		// generated code, including basic block epilogue
 	};
 	virtual int compile1(codegen_context_t & cg_context) { return COMPILE_FAILURE; }
+
+	bool use_jit;
+public:
+	void enable_jit(uint32 cache_size = 0);
 #endif
 
 private:

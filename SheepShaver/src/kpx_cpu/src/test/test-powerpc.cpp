@@ -35,10 +35,6 @@
 #define NATIVE_POWERPC
 #endif
 
-#ifndef USE_JIT
-#define USE_JIT 0
-#endif
-
 #if EMU_KHEPERIX
 #include "sysdeps.h"
 #include "vm_alloc.h"
@@ -217,10 +213,6 @@ void init_emul_op_trampolines(basic_dyngen & dg)
 {
 }
 #endif
-
-#define ENABLE_JIT_P (USE_JIT && 1)
-#else
-#define ENABLE_JIT_P 0
 #endif
 
 struct powerpc_cpu_base
@@ -243,7 +235,6 @@ struct powerpc_cpu_base
 };
 
 powerpc_cpu_base::powerpc_cpu_base()
-	: powerpc_cpu(ENABLE_JIT_P)
 {
 	init_decoder();
 }
@@ -279,6 +270,7 @@ struct powerpc_cpu_base
 {
 	powerpc_cpu_base();
 	void execute(uintptr);
+	void enable_jit() { }
 	void invalidate_cache() { }
 	void invalidate_cache_range(uint32 *start, uint32 size) { }
 
@@ -329,6 +321,7 @@ struct powerpc_cpu_base
 {
 	powerpc_cpu_base();
 	void execute(uintptr);
+	void enable_jit() { }
 	void invalidate_cache() { }
 	void invalidate_cache_range(uint32 *start, uint32 size) { }
 
@@ -382,6 +375,7 @@ public:
 	powerpc_cpu_base();
 	~powerpc_cpu_base();
 	void execute(uintptr);
+	void enable_jit() { }
 	void invalidate_cache() { tb_flush(); }
 	void invalidate_cache_range(uint32 *start, uint32 size) { invalidate_cache(); }
 
@@ -2184,6 +2178,16 @@ int main(int argc, char *argv[])
 
 	FILE *fp = NULL;
 	powerpc_test_cpu *ppc = new powerpc_test_cpu;
+
+	if (argc > 1) {
+		const char *arg = argv[1];
+		if (strcmp(arg, "--jit") == 0) {
+			--argc;
+			argv[1] = argv[0];
+			++argv;
+			ppc->enable_jit();
+		}
+	}
 
 	if (argc > 1) {
 		const char *file = argv[1];

@@ -28,7 +28,10 @@ struct powerpc_jit
 	: public powerpc_dyngen
 {
 	// Default constructor
-	powerpc_jit(dyngen_cpu_base cpu, int cache_size = -1);
+	powerpc_jit(dyngen_cpu_base cpu);
+
+	// Initialization
+	bool initialize(void);
 
 	bool gen_vector_1(int mnemo, int vD);
 	bool gen_vector_2(int mnemo, int vD, int vA, int vB);

@@ -24,13 +24,9 @@
 #define X86_TARGET_64BIT 1
 #include "cpu/jit/x86/jit-target-codegen.hpp"
 
-struct amd64_codegen
+class amd64_codegen
 	: public x86_codegen
 {
-	amd64_codegen(int cache_size = -1)
-		: x86_codegen(cache_size)
-		{ }
-
 public:
 
 #define DEFINE_OP(NAME, OP)											\

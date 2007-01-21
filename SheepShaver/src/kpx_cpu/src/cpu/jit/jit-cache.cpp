@@ -25,20 +25,19 @@
 #define DEBUG 0
 #include "debug.h"
 
-// Default cache size
+// Default cache size in KB
 #if defined(__alpha__)
-const int JIT_CACHE_SIZE = 2 * 1024 * 1024;
+const int JIT_CACHE_SIZE = 2 * 1024;
 #elif defined(__powerpc__) || defined(__ppc__)
-const int JIT_CACHE_SIZE = 4 * 1024 * 1024;
+const int JIT_CACHE_SIZE = 4 * 1024;
 #else
-const int JIT_CACHE_SIZE = 8 * 1024 * 1024;
+const int JIT_CACHE_SIZE = 8 * 1024;
 #endif
 const int JIT_CACHE_SIZE_GUARD = 4096;
 
-basic_jit_cache::basic_jit_cache(int init_cache_size)
-	: tcode_start(NULL), code_start(NULL), code_p(NULL), code_end(NULL), data(NULL)
+basic_jit_cache::basic_jit_cache()
+	: cache_size(0), tcode_start(NULL), code_start(NULL), code_p(NULL), code_end(NULL), data(NULL)
 {
-	init_translation_cache(init_cache_size);
 }
 
 basic_jit_cache::~basic_jit_cache()
@@ -56,10 +55,9 @@ basic_jit_cache::~basic_jit_cache()
 }
 
 bool
-basic_jit_cache::init_translation_cache(int size)
+basic_jit_cache::init_translation_cache(uint32 size)
 {
-	if (size == -1)
-		size = JIT_CACHE_SIZE;
+	size *= 1024;
 
 	// Round up translation cache size to 16 KB boundaries
 	const uint32 roundup = 16 * 1024;
@@ -93,7 +91,25 @@ basic_jit_cache::kill_translation_cache()
 	if (tcode_start) {
 		D(bug("basic_jit_cache: Release translation cache\n"));
 		vm_release(tcode_start, cache_size);
+		cache_size = 0;
+		tcode_start = NULL;
 	}
+}
+
+bool
+basic_jit_cache::initialize(void)
+{
+	if (cache_size == 0)
+		set_cache_size(JIT_CACHE_SIZE);
+	return tcode_start && cache_size;
+}
+
+void
+basic_jit_cache::set_cache_size(uint32 size)
+{
+	kill_translation_cache();
+	if (size)
+		init_translation_cache(size);
 }
 
 uint8 *

@@ -55,7 +55,7 @@ public:
 	typedef nv_mem_fun_t< void, powerpc_dyngen > gen_handler_t;
 
 	// Default constructor
-	powerpc_dyngen(dyngen_cpu_base cpu, int cache_size = -1);
+	powerpc_dyngen(dyngen_cpu_base cpu);
 
 	// Generate prologue
 	uint8 *gen_start(uint32 pc);

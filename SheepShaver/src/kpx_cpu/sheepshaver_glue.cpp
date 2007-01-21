@@ -118,12 +118,6 @@ static uint8 *emul_op_trampoline;
 static uint8 *native_op_trampoline;
 #endif
 
-// JIT Compiler enabled?
-static inline bool enable_jit_p()
-{
-	return PrefsFindBool("jit");
-}
-
 
 /**
  *		PowerPC emulator glue with special 'sheep' opcodes
@@ -181,9 +175,13 @@ public:
 };
 
 sheepshaver_cpu::sheepshaver_cpu()
-	: powerpc_cpu(enable_jit_p())
 {
 	init_decoder();
+
+#if PPC_ENABLE_JIT
+	if (PrefsFindBool("jit"))
+		enable_jit();
+#endif
 }
 
 void sheepshaver_cpu::init_decoder()

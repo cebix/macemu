@@ -33,9 +33,6 @@ typedef amd64_codegen jit_codegen;
 struct jit_codegen
 	: public basic_jit_cache
 {
-	jit_codegen(int cache_size = -1)
-		: basic_jit_cache(cache_size)
-		{ }
 };
 #endif
 

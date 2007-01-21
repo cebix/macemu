@@ -31,9 +31,16 @@
 const powerpc_jit::jit_info_t *powerpc_jit::jit_info[PPC_I(MAX)];
 
 // PowerPC JIT initializer
-powerpc_jit::powerpc_jit(dyngen_cpu_base cpu, int cache_size)
-	: powerpc_dyngen(cpu, cache_size)
+powerpc_jit::powerpc_jit(dyngen_cpu_base cpu)
+	: powerpc_dyngen(cpu)
 {
+}
+
+bool powerpc_jit::initialize(void)
+{
+	if (!powerpc_dyngen::initialize())
+		return false;
+
 	static bool once = true;
 
 	if (once) {
@@ -208,6 +215,8 @@ powerpc_jit::powerpc_jit(dyngen_cpu_base cpu, int cache_size)
 		}
 #endif
 	}
+
+	return true;
 }
 
 // Dispatch mid-level code generators

@@ -48,7 +48,7 @@ class basic_jit_cache
 protected:
 
 	// Initialize translation cache
-	bool init_translation_cache(int size);
+	bool init_translation_cache(uint32 size);
 	void kill_translation_cache();
 
 	// Initialize user code start
@@ -63,8 +63,11 @@ public:
 public:
 
 	// Default constructor & destructor (use default JIT_CACHE_SIZE)
-	basic_jit_cache(int init_cache_size = -1);
+	basic_jit_cache();
 	~basic_jit_cache();
+
+	bool initialize(void);
+	void set_cache_size(uint32 size);
 
 	// Invalidate translation cache
 	void invalidate_cache();

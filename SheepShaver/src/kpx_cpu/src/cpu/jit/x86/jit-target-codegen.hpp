@@ -67,10 +67,6 @@ protected:
 
 public:
 
-	x86_codegen(int cache_size = -1)
-		: basic_jit_cache(cache_size)
-		{ }
-
 	/* XXX this avoids emit_XXX() functions because GCC cannot
 	   optimize out intermediate code_ptr() updates */
 #define GEN_CODE(CODE) do {						\

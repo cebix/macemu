@@ -28,9 +28,17 @@ int __op_jmp0, __op_jmp1;
 #define DEFINE_GEN(NAME,RET,ARGS) RET basic_dyngen::NAME ARGS
 #include "basic-dyngen-ops.hpp"
 
-basic_dyngen::basic_dyngen(dyngen_cpu_base cpu, int cache_size)
-	: parent_cpu(cpu), jit_codegen(cache_size)
+basic_dyngen::basic_dyngen(dyngen_cpu_base cpu)
+	: parent_cpu(cpu)
 {
+}
+
+bool
+basic_dyngen::initialize(void)
+{
+	if (!jit_codegen::initialize())
+		return false;
+
 	execute_func = gen_start();
 	gen_op_execute();
 	gen_end();
@@ -43,6 +51,8 @@ basic_dyngen::basic_dyngen(dyngen_cpu_base cpu, int cache_size)
 	set_code_start(code_ptr());
 #endif
 #endif
+
+	return true;
 }
 
 void

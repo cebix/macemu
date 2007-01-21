@@ -302,6 +302,16 @@ void powerpc_cpu::initialize()
 #endif
 }
 
+#if PPC_ENABLE_JIT
+void powerpc_cpu::enable_jit(uint32 cache_size)
+{
+	use_jit = true;
+	if (cache_size)
+		codegen.set_cache_size(cache_size);
+	codegen.initialize();
+}
+#endif
+
 // Memory allocator returning powerpc_cpu objects aligned on 16-byte boundaries
 // FORMAT: [ alignment ] magic identifier, offset to malloc'ed data, powerpc_cpu data
 void *powerpc_cpu::operator new(size_t size)
@@ -341,20 +351,19 @@ void powerpc_cpu::operator delete(void *p)
 }
 
 #ifdef SHEEPSHAVER
-powerpc_cpu::powerpc_cpu(bool do_use_jit)
-	: use_jit(do_use_jit)
+powerpc_cpu::powerpc_cpu()
 #if PPC_ENABLE_JIT
-	, codegen(this)
+	: codegen(this)
 #endif
 #else
 powerpc_cpu::powerpc_cpu(task_struct *parent_task)
-	: basic_cpu(parent_task), use_jit(true)
+	: basic_cpu(parent_task)
 #if PPC_ENABLE_JIT
 	, codegen(this)
 #endif
 #endif
 {
-#if !PPC_ENABLE_JIT
+#if PPC_ENABLE_JIT
 	use_jit = false;
 #endif
 	++ppc_refcount;

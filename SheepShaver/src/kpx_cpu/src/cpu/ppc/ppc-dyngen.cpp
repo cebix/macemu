@@ -31,8 +31,8 @@
 #define DEFINE_GEN(NAME,RET,ARGS) RET powerpc_dyngen::NAME ARGS
 #include "ppc-dyngen-ops.hpp"
 
-powerpc_dyngen::powerpc_dyngen(dyngen_cpu_base cpu, int cache_size)
-	: basic_dyngen(cpu, cache_size)
+powerpc_dyngen::powerpc_dyngen(dyngen_cpu_base cpu)
+	: basic_dyngen(cpu)
 {
 #ifdef SHEEPSHAVER
 	printf("Detected CPU features:");
