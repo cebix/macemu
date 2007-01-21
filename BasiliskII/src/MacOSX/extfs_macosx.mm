@@ -241,6 +241,10 @@ void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 		status = FSGetCatalogInfo(&fsRef, AllFinderInfo, &cInfo, NULL, NULL, NULL);
 		if ( status == noErr )
 		{
+			// byte-swap them to big endian (network order) if necessary
+			((FileInfo *)&cInfo.finderInfo)->fileType = htonl(((FileInfo *)&cInfo.finderInfo)->fileType);
+			((FileInfo *)&cInfo.finderInfo)->fileCreator = htonl(((FileInfo *)&cInfo.finderInfo)->fileCreator);
+			((FileInfo *)&cInfo.finderInfo)->finderFlags = htons(((FileInfo *)&cInfo.finderInfo)->finderFlags);
 			D(printf("get_finfo(%s,...) - Got info of '%16.16s'\n", path, cInfo.finderInfo));
 			Host2Mac_memcpy(finfo, &cInfo.finderInfo, SIZEOF_FInfo);
 			if (fxinfo)
@@ -317,6 +321,10 @@ void set_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 				whichInfo |= kFSCatInfoFinderXInfo;
 				Mac2Host_memcpy(&cInfo.extFinderInfo, fxinfo, SIZEOF_FXInfo);
 			}
+			// byte-swap them to system byte order from big endian (network order) if necessary
+			((FileInfo *)&cInfo.finderInfo)->fileType = ntohl(((FileInfo *)&cInfo.finderInfo)->fileType);
+			((FileInfo *)&cInfo.finderInfo)->fileCreator = ntohl(((FileInfo *)&cInfo.finderInfo)->fileCreator);
+			((FileInfo *)&cInfo.finderInfo)->finderFlags = ntohs(((FileInfo *)&cInfo.finderInfo)->finderFlags);
 			FSSetCatalogInfo(&fsRef, whichInfo, &cInfo);
 		}
     }
