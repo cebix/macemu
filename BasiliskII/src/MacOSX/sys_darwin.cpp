@@ -257,12 +257,12 @@ void DarwinAddFloppyPrefs(void)
 			D(bug("Got size of %ld\n", size));
 			if ( size < 800 * 1024 || size > 1440 * 1024 )
 			{
-				D(puts("Device does not appear to be 800k or 1440k"));
+				D(puts("Device does not appear to be 800k or 1440k\n"));
 				continue;
 			}
 		}
 		else
-			bug("Couldn't get kIOMediaSizeKey of device");
+			bug("Couldn't get kIOMediaSizeKey of device\n");
 		
 		
 		*bsdPath = '\0';
