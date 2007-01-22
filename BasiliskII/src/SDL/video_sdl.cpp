@@ -739,8 +739,9 @@ driver_window::driver_window(SDL_monitor_desc &m)
 	// the second time (SDL_SetVideoMode will call SDL_Init() and all will be
 	// well). Without this, the video becomes corrupted (at least on Mac OS X),
 	// after the resolution switch (for the second and subsequent times).
-	if (SDL_display_opened)
-		SDL_Quit();
+// EDIT: Ack, this breaks audio!
+//	if (SDL_display_opened)
+//		SDL_Quit();
 
 	// Create surface
 	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
