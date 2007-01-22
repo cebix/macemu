@@ -735,13 +735,12 @@ driver_window::driver_window(SDL_monitor_desc &m)
 	// This is ugly:
 	// If we're switching resolutions (ie, not setting it for the first time),
 	// there's a bug in SDL where the SDL_Surface created will not be properly
-	// setup. The solution is to SDL_Quit() before calling SDL_SetVideoMode for
-	// the second time (SDL_SetVideoMode will call SDL_Init() and all will be
-	// well). Without this, the video becomes corrupted (at least on Mac OS X),
-	// after the resolution switch (for the second and subsequent times).
-// EDIT: Ack, this breaks audio!
-//	if (SDL_display_opened)
-//		SDL_Quit();
+	// setup. The solution is to SDL_QuitSubSystem(SDL_INIT_VIDEO) before calling
+	// SDL_SetVideoMode for the second time (SDL_SetVideoMode will call SDL_Init()
+	// and all will be well). Without this, the video becomes corrupted (at least
+	// on Mac OS X), after the resolution switch.
+	if (SDL_display_opened)
+		SDL_QuitSubSystem(SDL_INIT_VIDEO);
 
 	// Create surface
 	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
