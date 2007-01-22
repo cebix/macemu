@@ -236,15 +236,10 @@ void DarwinAddFloppyPrefs(void)
 		return;
 	}
 
-
 	// Iterate through each floppy
 	while ( nextFloppy = IOIteratorNext(allFloppies))
 	{
 		char		bsdPath[MAXPATHLEN];
-		CFTypeRef	bsdPathAsCFString =
-						IORegistryEntryCreateCFProperty(nextFloppy,
-														CFSTR(kIOBSDNameKey),
-														kCFAllocatorDefault, 0);
 		long		size;
 		CFTypeRef	sizeAsCFNumber =
 						IORegistryEntryCreateCFProperty(nextFloppy,
@@ -266,29 +261,11 @@ void DarwinAddFloppyPrefs(void)
 			continue; // if kIOMediaSizeKey is unavailable, we shouldn't use it anyway
 		}
 
-		*bsdPath = '\0';
-		if ( bsdPathAsCFString )
-		{
-			size_t devPathLength;
-
-			strcpy(bsdPath, "/dev/");
-			devPathLength = strlen(bsdPath);
-
-			if ( CFStringGetCString((const __CFString *)bsdPathAsCFString,
-									 bsdPath + devPathLength,
-									 MAXPATHLEN - devPathLength,
-									 kCFStringEncodingASCII) )
-			{
-				D(bug("Floppy BSD path: %s\n", bsdPath));
-				PrefsAddString("floppy", bsdPath);
-			}
-			else
-				D(bug("Could not get BSD device path for floppy\n"));
-
-			CFRelease(bsdPathAsCFString);
+		if (get_device_path(nextFloppy, bsdPath, sizeof(bsdPath)) == KERN_SUCCESS) {
+			PrefsAddString("floppy", bsdPath);
+		} else {
+			D(bug("Could not get BSD device path for floppy\n"));
 		}
-		else
-			D(bug("Cannot determine bsdPath for floppy\n"));
 	}
 
 	IOObjectRelease(nextFloppy);
