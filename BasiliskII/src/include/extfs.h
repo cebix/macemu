@@ -42,6 +42,7 @@ extern ssize_t extfs_read(int fd, void *buffer, size_t length);
 extern ssize_t extfs_write(int fd, void *buffer, size_t length);
 extern bool extfs_remove(const char *path);
 extern bool extfs_rename(const char *old_path, const char *new_path);
+extern const char *host_encoding_to_macroman(const char *filename); // What if the guest OS is using MacJapanese or MacArabic? Oh well...
 
 // Maximum length of full path name
 const int MAX_PATH_LENGTH = 1024;

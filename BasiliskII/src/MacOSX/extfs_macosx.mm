@@ -221,7 +221,6 @@ void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 {
     FSRef	fsRef;
     int32	status;
-
 	// Set default finder info
 	Mac_memset(finfo, 0, SIZEOF_FInfo);
 	if (fxinfo)
@@ -422,3 +421,20 @@ bool extfs_rename(const char *old_path, const char *new_path)
 	// Now rename file
 	return rename(old_path, new_path) == 0;
 }
+
+
+// Convert from the host OS filename encoding to MacRoman
+const char *host_encoding_to_macroman(const char *filename)
+{
+	static char filename_mr[64];
+	CFStringRef sref = CFStringCreateWithCString(0, filename, kCFStringEncodingUTF8);
+	if (sref) {
+		memset(filename_mr, 0, sizeof(filename_mr));
+		if (CFStringGetCString(sref, filename_mr, sizeof(filename_mr), kCFStringEncodingMacRoman)) {
+			return filename_mr;
+		}
+		CFRelease(sref);
+	}
+	return filename;
+}
+

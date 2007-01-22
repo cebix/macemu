@@ -375,3 +375,10 @@ bool extfs_rename(const char *old_path, const char *new_path)
 	// Now rename file
 	return rename(old_path, new_path) == 0;
 }
+
+
+// Convert from the host OS filename encoding to MacRoman
+const char *host_encoding_to_macroman(const char *filename)
+{
+	return filename;
+}

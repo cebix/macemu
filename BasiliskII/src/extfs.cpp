@@ -158,7 +158,8 @@ struct FSItem {
 	uint32 id;				// CNID of this file/dir
 	uint32 parent_id;		// CNID of parent file/dir
 	FSItem *parent;			// Pointer to parent
-	char name[32];			// Object name (C string)
+	char name[32];			// Object name (C string) - Host OS
+	char guest_name[32];			// Object name (C string) - Guest OS
 	time_t mtime;			// Modification time for get_cat_info caching
 	int cache_dircount;		// Cached number of files in directory
 };
@@ -221,6 +222,26 @@ static FSItem *find_fsitem_by_id(uint32 cnid)
 	return NULL;
 }
 
+/*
+ *  Create FSItem with the given parameters
+ */
+
+static FSItem *create_fsitem(const char *name, const char *guest_name, FSItem *parent)
+{
+	FSItem *p = new FSItem;
+	last_fs_item->next = p;
+	p->next = NULL;
+	last_fs_item = p;
+	p->id = next_cnid++;
+	p->parent_id = parent->id;
+	p->parent = parent;
+	strncpy(p->name, name, 31);
+	p->name[31] = 0;
+	strncpy(p->guest_name, guest_name, 31);
+	p->guest_name[31] = 0;
+	p->mtime = 0;
+	return p;
+}
 
 /*
  *  Find FSItem for given name and parent, construct new FSItem if not found
@@ -236,19 +257,25 @@ static FSItem *find_fsitem(const char *name, FSItem *parent)
 	}
 
 	// Not found, construct new FSItem
-	p = new FSItem;
-	last_fs_item->next = p;
-	p->next = NULL;
-	last_fs_item = p;
-	p->id = next_cnid++;
-	p->parent_id = parent->id;
-	p->parent = parent;
-	strncpy(p->name, name, 31);
-	p->name[31] = 0;
-	p->mtime = 0;
-	return p;
+	return create_fsitem(name, host_encoding_to_macroman(name), parent);
 }
 
+/*
+ *  Find FSItem for given guest_name and parent, construct new FSItem if not found
+ */
+
+static FSItem *find_fsitem_guest(const char *guest_name, FSItem *parent)
+{
+	FSItem *p = first_fs_item;
+	while (p) {
+		if (p->parent == parent && !strcmp(p->guest_name, guest_name))
+			return p;
+		p = p->next;
+	}
+
+	// Not found, construct new FSItem
+	return create_fsitem(guest_name, guest_name, parent);
+}
 
 /*
  *  Get full path (->full_path) for given FSItem
@@ -390,6 +417,7 @@ void ExtFSInit(void)
 	p->parent_id = 0;
 	p->parent = NULL;
 	p->name[0] = 0;
+	p->guest_name[0] = 0;
 
 	// Create root FSItem
 	p = new FSItem;
@@ -401,6 +429,8 @@ void ExtFSInit(void)
 	p->parent = first_fs_item;
 	strncpy(p->name, GetString(STR_EXTFS_VOLUME_NAME), 32);
 	p->name[31] = 0;
+	strncpy(p->guest_name, host_encoding_to_macroman(p->name), 32);
+	p->guest_name[31] = 0;
 
 	// Find path for root
 	if ((RootPath = PrefsFindString("extfs")) != NULL) {
@@ -911,7 +941,7 @@ static int16 get_item_and_path(uint32 pb, uint32 dirID, FSItem *&item, bool no_v
 						char name[32];
 						strn2cstr(name, (char *)Mac2HostAddr(ReadMacInt32(parseRec + ppNamePtr)) + ReadMacInt16(parseRec + ppStartOffset) + 1, ReadMacInt16(parseRec + ppComponentLength));
 						D(bug("  entering %s\n", name));
-						p = find_fsitem(name, p);
+						p = find_fsitem_guest(name, p);
 						current_dir = p->id;
 
 						// startOffset = start of next component
@@ -934,7 +964,7 @@ static int16 get_item_and_path(uint32 pb, uint32 dirID, FSItem *&item, bool no_v
 					char name[32];
 					strn2cstr(name, (char *)Mac2HostAddr(ReadMacInt32(parseRec + ppNamePtr)) + ReadMacInt16(parseRec + ppStartOffset) + 1, ReadMacInt16(parseRec + ppComponentLength));
 					D(bug("  object is %s\n", name));
-					item = find_fsitem(name, p);
+					item = find_fsitem_guest(name, p);
 				}
 			}
 		}
@@ -1270,7 +1300,7 @@ read_next_de:
 
 	// Fill in struct from fs_item and stats
 	if (ReadMacInt32(pb + ioNamePtr))
-		cstr2pstr((char *)Mac2HostAddr(ReadMacInt32(pb + ioNamePtr)), fs_item->name);
+		cstr2pstr((char *)Mac2HostAddr(ReadMacInt32(pb + ioNamePtr)), fs_item->guest_name);
 	WriteMacInt16(pb + ioFRefNum, 0);
 	WriteMacInt8(pb + ioFlAttrib, access(full_path, W_OK) == 0 ? 0 : faLocked);
 	WriteMacInt32(pb + ioDirID, fs_item->id);
@@ -1393,7 +1423,7 @@ read_next_de:
 
 	// Fill in struct from fs_item and stats
 	if (ReadMacInt32(pb + ioNamePtr))
-		cstr2pstr((char *)Mac2HostAddr(ReadMacInt32(pb + ioNamePtr)), fs_item->name);
+		cstr2pstr((char *)Mac2HostAddr(ReadMacInt32(pb + ioNamePtr)), fs_item->guest_name);
 	WriteMacInt16(pb + ioFRefNum, 0);
 	WriteMacInt8(pb + ioFlAttrib, (S_ISDIR(st.st_mode) ? faIsDir : 0) | (access(full_path, W_OK) == 0 ? 0 : faLocked));
 	WriteMacInt8(pb + ioACUser, 0);
@@ -1564,7 +1594,7 @@ static int16 fs_open(uint32 pb, uint32 dirID, uint32 vcb, bool resource_fork)
 
 	WriteMacInt32(fcb + fcbCatPos, fd);
 	WriteMacInt32(fcb + fcbDirID, fs_item->parent_id);
-	cstr2pstr((char *)Mac2HostAddr(fcb + fcbCName), fs_item->name);
+	cstr2pstr((char *)Mac2HostAddr(fcb + fcbCName), fs_item->guest_name);
 	return noErr;
 }
 
