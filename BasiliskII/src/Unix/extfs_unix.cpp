@@ -382,3 +382,11 @@ const char *host_encoding_to_macroman(const char *filename)
 {
 	return filename;
 }
+
+// Convert from MacRoman to host OS filename encoding
+const char *macroman_to_host_encoding(const char *filename)
+{
+	return filename;
+}
+
+

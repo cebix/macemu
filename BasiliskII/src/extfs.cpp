@@ -274,7 +274,7 @@ static FSItem *find_fsitem_guest(const char *guest_name, FSItem *parent)
 	}
 
 	// Not found, construct new FSItem
-	return create_fsitem(guest_name, guest_name, parent);
+	return create_fsitem(macroman_to_host_encoding(guest_name), guest_name, parent);
 }
 
 /*

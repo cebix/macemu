@@ -438,3 +438,19 @@ const char *host_encoding_to_macroman(const char *filename)
 	return filename;
 }
 
+
+// Convert from MacRoman to the host OS filename encoding
+const char *macroman_to_host_encoding(const char *filename)
+{
+	static char filename_mr[64];
+	CFStringRef sref = CFStringCreateWithCString(0, filename, kCFStringEncodingMacRoman);
+	if (sref) {
+		memset(filename_mr, 0, sizeof(filename_mr));
+		if (CFStringGetCString(sref, filename_mr, sizeof(filename_mr), kCFStringEncodingUTF8)) {
+			return filename_mr;
+		}
+		CFRelease(sref);
+	}
+	return filename;
+}
+
