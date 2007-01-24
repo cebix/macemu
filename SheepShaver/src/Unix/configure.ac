@@ -245,6 +245,8 @@ dnl We use GTK+ if possible.
 UISRCS=../dummy/prefs_editor_dummy.cpp
 case "x$WANT_GTK" in
 xgtk2*)
+  WANT_GTK=no
+  ifdef([AM_PATH_GTK_2_0],
   AM_PATH_GTK_2_0(1.3.15, [
     GUI_CFLAGS="$GTK_CFLAGS"
     GUI_LIBS="$GTK_LIBS"
@@ -258,19 +260,20 @@ xgtk2*)
     *)
       AC_MSG_WARN([Could not find GTK+, disabling user interface.])
       WANT_GTK=no
-      ;;
+     ;;
     esac
-  ])
-  ;;
+  ]))
 esac
 if [[ "x$WANT_GTK" = "xgtk" ]]; then
+  WANT_GTK=no
+  ifdef([AM_PATH_GTK],
   AM_PATH_GTK(1.2.0, [
     GUI_CFLAGS="$GTK_CFLAGS"
     GUI_LIBS="$GTK_LIBS"
+    WANT_GTK=gtk
   ], [
     AC_MSG_WARN([Could not find GTK+, disabling user interface.])
-    WANT_GTK=no
-  ])
+  ]))
 fi
 if [[ "x$WANT_GTK" != "xno" -a "x$WANT_STANDALONE_GUI" = "xno" ]]; then
   AC_DEFINE(ENABLE_GTK, 1, [Define if using GTK.])
@@ -290,15 +293,17 @@ AC_SUBST(STANDALONE_GUI, [$WANT_STANDALONE_GUI])
 
 dnl We use ESD if possible.
 if [[ "x$WANT_ESD" = "xyes" ]]; then
+  WANT_ESD=no
+  ifdef([AM_PATH_ESD],
   AM_PATH_ESD(0.2.8, [
     AC_DEFINE(ENABLE_ESD, 1, [Define is using ESD.])
     CFLAGS="$CFLAGS $ESD_CFLAGS"
     CXXFLAGS="$CXXFLAGS $ESD_CFLAGS"
     LIBS="$LIBS $ESD_LIBS"
+    WANT_ESD=yes
   ], [
     AC_MSG_WARN([Could not find ESD, disabling ESD support.])
-    WANT_ESD=no
-  ])
+  ]))
 fi
 
 dnl We use 64-bit file size support if possible.
