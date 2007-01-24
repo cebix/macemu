@@ -143,7 +143,8 @@ static int tftp_send_error(struct tftp_session *spt,
   
   tp->tp_op = htons(TFTP_ERROR);
   tp->x.tp_error.tp_error_code = htons(errorcode);
-  strcpy(tp->x.tp_error.tp_msg, msg);
+  strncpy((char *)tp->x.tp_error.tp_msg, msg, sizeof(tp->x.tp_error.tp_msg));
+  tp->x.tp_error.tp_msg[sizeof(tp->x.tp_error.tp_msg)-1] = 0;
 
   saddr.sin_addr = recv_tp->ip.ip_dst;
   saddr.sin_port = recv_tp->udp.uh_dport;
