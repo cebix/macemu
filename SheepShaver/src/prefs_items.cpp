@@ -66,7 +66,9 @@ prefs_desc common_prefs_items[] = {
 
 void AddPrefsDefaults(void)
 {
+#ifndef PREFS_EDITOR
 	SysAddSerialPrefs();
+#endif
 	PrefsAddInt32("bootdriver", 0);
 	PrefsAddInt32("bootdrive", 0);
 	PrefsAddInt32("ramsize", 16 * 1024 * 1024);
