@@ -94,8 +94,10 @@ public:
 #endif
 
 	// Misc instructions
+#if KPX_MAX_CPUS == 1
 	DEFINE_ALIAS(lwarx_T0_T1,0);
 	DEFINE_ALIAS(stwcx_T0_T1,0);
+#endif
 	DEFINE_ALIAS(inc_32_mem,1);
 	DEFINE_ALIAS(nego_T0,0);
 	DEFINE_ALIAS(dcbz_T0,0);

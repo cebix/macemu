@@ -281,14 +281,12 @@ DEFINE_OP(T2);
 #undef im
 #undef DEFINE_OP
 
+#if KPX_MAX_CPUS == 1
 void OPPROTO op_lwarx_T0_T1(void)
 {
 	T0 = vm_read_memory_4(T1);
 	powerpc_dyngen_helper::regs()->reserve_valid = 1;
 	powerpc_dyngen_helper::regs()->reserve_addr = T1;
-#if KPX_MAX_CPUS != 1
-	powerpc_dyngen_helper::regs()->reserve_data = T0;
-#endif
 }
 
 void OPPROTO op_stwcx_T0_T1(void)
@@ -297,13 +295,7 @@ void OPPROTO op_stwcx_T0_T1(void)
 	cr |= powerpc_dyngen_helper::xer().get_so() << 28;
 	if (powerpc_dyngen_helper::regs()->reserve_valid) {
 		powerpc_dyngen_helper::regs()->reserve_valid = 0;
-		if (powerpc_dyngen_helper::regs()->reserve_addr == T1 /* physical_addr(EA) */
-#if KPX_MAX_CPUS != 1
-			/* HACK: if another processor wrote to the reserved block,
-			   nothing happens, i.e. we should operate as if reserve == 0 */
-			&& powerpc_dyngen_helper::regs()->reserve_data == vm_read_memory_4(T1)
-#endif
-			) {
+		if (powerpc_dyngen_helper::regs()->reserve_addr == T1 /* physical_addr(EA) */) {
 			vm_write_memory_4(T1, T0);
 			cr |= CR_EQ_field<0>::mask();
 		}
@@ -311,6 +303,7 @@ void OPPROTO op_stwcx_T0_T1(void)
 	powerpc_dyngen_helper::set_cr(cr);
 	dyngen_barrier();
 }
+#endif
 
 
 /**

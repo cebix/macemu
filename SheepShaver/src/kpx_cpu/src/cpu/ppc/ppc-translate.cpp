@@ -465,6 +465,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			}
 			break;
 		}
+#if KPX_MAX_CPUS == 1
 		case PPC_I(STWCX):		// Store Word Conditional Indexed
 		case PPC_I(LWARX):		// Load Word and Reserve Indexed
 		{
@@ -489,6 +490,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			}
 			break;
 		}
+#endif
 		case PPC_I(BC):			// Branch Conditional
 		{
 			const int bo = BO_field::extract(opcode);
