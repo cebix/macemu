@@ -250,6 +250,14 @@ void powerpc_cpu::initialize()
 	printf("PowerPC CPU emulator by Gwenole Beauchesne\n");
 #endif
 
+#if PPC_PROFILE_REGS_USE
+	reginfo = new register_info[32];
+	for (int i = 0; i < 32; i++) {
+		reginfo[i].id = i;
+		reginfo[i].count = 0;
+	}
+#endif
+
 	init_flight_recorder();
 	init_decoder();
 	init_registers();
@@ -291,14 +299,6 @@ void powerpc_cpu::initialize()
 	compile_count = 0;
 	compile_time = 0;
 	emul_start_time = clock();
-#endif
-
-#if PPC_PROFILE_REGS_USE
-	reginfo = new register_info[32];
-	for (int i = 0; i < 32; i++) {
-		reginfo[i].id = i;
-		reginfo[i].count = 0;
-	}
 #endif
 }
 
@@ -427,12 +427,12 @@ powerpc_cpu::~powerpc_cpu()
 	uint64 cum_reg_count = 0;
 	for (int i = 0; i < 32; i++) {
 		cum_reg_count += reginfo[i].count;
-	    printf("r%-2d : %16lld %2.1f%% [%3.1f%%]\n",
+	    printf("r%-2d : %16llu %2.1f%% [%3.1f%%]\n",
 			   reginfo[i].id, reginfo[i].count,
 			   100.0*double(reginfo[i].count)/double(tot_reg_count),
 			   100.0*double(cum_reg_count)/double(tot_reg_count));
 	}
-	delete reginfo;
+	delete[] reginfo;
 #endif
 
 	kill_decode_cache();

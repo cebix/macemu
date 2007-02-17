@@ -328,7 +328,14 @@ bool powerpc_jit::gen_vector_generic_store_word(int mnemo, int vS, int rA, int r
 	return true;
 }
 
-#define xPPC_FIELD(M)	((uintptr)&((powerpc_cpu *)0)->M)
+#if PPC_PROFILE_REGS_USE
+// XXX update reginfo[] counts for xPPC_GPR() accesses
+static uint8 dummy_ppc_context[sizeof(powerpc_cpu)];
+#define xPPC_CONTEXT	((powerpc_cpu *)dummy_ppc_context)
+#else
+#define xPPC_CONTEXT	((powerpc_cpu *)0)
+#endif
+#define xPPC_FIELD(M)	(((uintptr)&xPPC_CONTEXT->M) - (uintptr)xPPC_CONTEXT)
 #define xPPC_GPR(N)		xPPC_FIELD(gpr(N))
 #define xPPC_VR(N)		xPPC_FIELD(vr(N))
 #define xPPC_CR			xPPC_FIELD(cr())

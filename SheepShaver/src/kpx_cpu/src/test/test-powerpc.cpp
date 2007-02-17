@@ -235,6 +235,9 @@ struct powerpc_cpu_base
 };
 
 powerpc_cpu_base::powerpc_cpu_base()
+#ifndef SHEEPSHAVER
+	: powerpc_cpu(NULL)
+#endif
 {
 	init_decoder();
 }
