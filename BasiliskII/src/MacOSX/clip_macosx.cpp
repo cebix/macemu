@@ -34,6 +34,45 @@
 static bool we_put_this_data = false;
 
 
+static void SwapScrapData(uint32 type, void *data, int32 length, int from_host) {
+#if BYTE_ORDER != BIG_ENDIAN
+	if (type == kScrapFlavorTypeTextStyle) {
+		uint16 *sdata = (uint16 *) data;
+		// the first short stores the number of runs
+		uint16 runs = sdata[0];
+		sdata[0] = htons(sdata[0]);
+		if (from_host)
+			runs = sdata[0];
+		sdata++;
+		// loop through each run
+		for (int i = 0; i < runs; i++) {
+			struct style_data {
+				uint32 offset;
+				uint16 line_height;
+				uint16 line_ascent;
+				uint16 font_family;
+				uint16 character_style; // not swapped
+				uint16 point_size;
+				uint16 red;
+				uint16 green;
+				uint16 blue;
+			} *style = (struct style_data *) (sdata + i*10);
+			style->offset = htonl(style->offset);
+			style->line_height = htons(style->line_height);
+			style->line_ascent = htons(style->line_ascent);
+			style->font_family = htons(style->font_family);
+			style->point_size = htons(style->point_size);
+			style->red = htons(style->red);
+			style->green = htons(style->green);
+			style->blue = htons(style->blue);
+		}
+	} else {
+		// add byteswapping code for other flavor types here ...
+	}
+#endif
+}
+
+
 /*
  *  Initialization
  */
@@ -79,7 +118,7 @@ void GetScrap(void **handle, uint32 type, int32 offset)
 		if (scrap_area) {
 			uint8 * const data = Mac2HostAddr(scrap_area);
 			if (GetScrapFlavorData(theScrap, type, &byteCount, data) == noErr) {
-
+				SwapScrapData(type, data, byteCount, FALSE);
 				// Add new data to clipboard
 				static uint8 proc[] = {
 					0x59, 0x8f,					// subq.l	#4,sp
@@ -137,6 +176,7 @@ void PutScrap(uint32 type, void *scrap, int32 length)
 		return;
 	}
 
+	SwapScrapData(type, scrap, length, TRUE);
 	if (PutScrapFlavor(theScrap, type, kScrapFlavorMaskNone, length, scrap) != noErr) {
 		D(bug(" could not put to scrap\n"));
 		return;
