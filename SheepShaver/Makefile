@@ -74,6 +74,9 @@ links:
 	       MacOSX/sys_darwin.cpp MacOSX/clip_macosx.cpp \
 	       MacOSX/macos_util_macosx.h MacOSX/extfs_macosx.h \
 	       MacOSX/extfs_macosx.mm Windows/clip_windows.cpp \
+	       MacOSX/MacOSX_sound_if.cpp MacOSX/MacOSX_sound_if.h \
+	       MacOSX/AudioBackEnd.cpp MacOSX/AudioBackEnd.h \
+	       MacOSX/AudioDevice.cpp MacOSX/AudioDevice.h MacOSX/audio_macosx.cpp \
 	       Windows/cd_defs.h Windows/cdenable Windows/extfs_windows.cpp \
 	       Windows/posix_emu.cpp Windows/posix_emu.h Windows/sys_windows.cpp \
 	       Windows/timer_windows.cpp Windows/util_windows.cpp \
