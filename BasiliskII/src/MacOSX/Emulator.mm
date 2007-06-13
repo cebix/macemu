@@ -424,8 +424,13 @@ uint8 lastXPRAM[XPRAM_SIZE];		// Copy of PRAM
 
 - (void) RTCinterrupt
 {
-	if ( uaeCreated )
-		WriteMacInt32 (0x20c, TimerDateTime() );	// Update MacOS time
+	if ( ! uaeCreated )
+		return;
+
+	WriteMacInt32 (0x20c, TimerDateTime() );	// Update MacOS time
+
+	SetInterruptFlag(INTFLAG_1HZ);
+	TriggerInterrupt();
 }
 
 - (void) redrawScreen
