@@ -23,7 +23,6 @@
 typedef uae_u32 (REGPARAM2 *mem_get_func)(uaecptr) REGPARAM;
 typedef void (REGPARAM2 *mem_put_func)(uaecptr, uae_u32) REGPARAM;
 typedef uae_u8 *(REGPARAM2 *xlate_func)(uaecptr) REGPARAM;
-typedef int (REGPARAM2 *check_func)(uaecptr, uae_u32) REGPARAM;
 
 #undef DIRECT_MEMFUNCS_SUCCESSFUL
 
@@ -44,11 +43,6 @@ typedef struct {
      * This doesn't work for all memory banks, so this function may call
      * abort(). */
     xlate_func xlateaddr;
-    /* To prevent calls to abort(), use check before calling xlateaddr.
-     * It checks not only that the memory bank can do xlateaddr, but also
-     * that the pointer points to an area of at least the specified size.
-     * This is used for example to translate bitplane pointers in custom.c */
-    check_func check;
 } addrbank;
 
 extern uae_u8 filesysory[65536];
@@ -59,7 +53,6 @@ extern addrbank frame_bank;	// Frame buffer
 
 /* Default memory access functions */
 
-extern int REGPARAM2 default_check(uaecptr addr, uae_u32 size) REGPARAM;
 extern uae_u8 *REGPARAM2 default_xlate(uaecptr addr) REGPARAM;
 
 #define bankindex(addr) (((uaecptr)(addr)) >> 16)
@@ -164,10 +157,6 @@ static __inline__ uae_u32 get_virtual_address(uae_u8 *addr)
 {
 	return do_get_virtual_address(addr);
 }
-static __inline__ int valid_address(uaecptr addr, uae_u32 size)
-{
-    return 1;
-}
 #else
 static __inline__ uae_u32 get_long(uaecptr addr)
 {
@@ -199,10 +188,6 @@ static __inline__ uae_u8 *get_real_address(uaecptr addr)
 }
 /* gb-- deliberately not implemented since it shall not be used... */
 extern uae_u32 get_virtual_address(uae_u8 *addr);
-static __inline__ int valid_address(uaecptr addr, uae_u32 size)
-{
-    return get_mem_bank(addr).check(addr, size);
-}
 #endif /* DIRECT_ADDRESSING || REAL_ADDRESSING */
 
 #endif /* MEMORY_H */
