@@ -34,6 +34,10 @@ if test "$DIE" -eq 1; then
         exit 1
 fi
 
+if test -z "$ACLOCAL_FLAGS"; then
+    ACLOCAL_FLAGS="-I `aclocal --print-ac-dir` -I m4"
+fi
+
 aclocalinclude="$ACLOCAL_FLAGS"; \
 (echo $_echo_n " + Running aclocal: $_echo_c"; \
     aclocal $aclocalinclude; \
