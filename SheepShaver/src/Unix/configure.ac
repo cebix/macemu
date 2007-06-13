@@ -106,7 +106,7 @@ if [[ "x$WANT_MON" = "xyes" ]]; then
   if grep mon_init $mon_srcdir/mon.h >/dev/null 2>/dev/null; then
     AC_MSG_RESULT(yes)
     AC_DEFINE(ENABLE_MON, 1, [Define if using "mon".])
-    MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_z80.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_lowmem.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c"
+    MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_z80.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_lowmem.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c $mon_srcdir/disass/mips-dis.c $mon_srcdir/disass/mips-opc.c $mon_srcdir/disass/mips16-opc.c"
     CXXFLAGS="$CXXFLAGS -I$mon_srcdir -I$mon_srcdir/disass"
     AC_CHECK_LIB(ncurses, tgetent, ,
       AC_CHECK_LIB(termcap, tgetent, ,
