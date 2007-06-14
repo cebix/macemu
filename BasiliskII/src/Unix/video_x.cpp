@@ -194,7 +194,6 @@ static void *redraw_func(void *arg);
 // From main_unix.cpp
 extern char *x_display_name;
 extern Display *x_display;
-extern void *vm_acquire_mac(size_t size);
 
 // From sys_unix.cpp
 extern void SysMountFirstFloppy(void);
@@ -498,6 +497,33 @@ static int error_handler(Display *d, XErrorEvent *e)
 
 
 /*
+ *  Framebuffer allocation routines
+ */
+
+#ifdef ENABLE_VOSF
+#include "vm_alloc.h"
+
+static void *vm_acquire_framebuffer(uint32 size)
+{
+	// always try to allocate framebuffer at the same address
+	static void *fb = VM_MAP_FAILED;
+	if (fb != VM_MAP_FAILED) {
+		if (vm_acquire_fixed(fb, size) < 0)
+			fb = VM_MAP_FAILED;
+	}
+	if (fb == VM_MAP_FAILED)
+		fb = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
+	return fb;
+}
+
+static inline void vm_release_framebuffer(void *fb, uint32 size)
+{
+	vm_release(fb, size);
+}
+#endif
+
+
+/*
  *  Display "driver" classes
  */
 
@@ -632,7 +658,7 @@ driver_base::~driver_base()
 		// the_buffer shall always be mapped through vm_acquire() so that we can vm_protect() it at will
 		if (the_buffer != VM_MAP_FAILED) {
 			D(bug(" releasing the_buffer at %p (%d bytes)\n", the_buffer, the_buffer_size));
-			vm_release(the_buffer, the_buffer_size);
+			vm_release_framebuffer(the_buffer, the_buffer_size);
 			the_buffer = NULL;
 		}
 		if (the_host_buffer) {
@@ -782,7 +808,7 @@ driver_window::driver_window(X11_monitor_desc &m)
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	the_host_buffer = the_buffer_copy;
 	the_buffer_size = page_extend((aligned_height + 2) * img->bytes_per_line);
-	the_buffer = (uint8 *)vm_acquire_mac(the_buffer_size);
+	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
 	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
 #else
@@ -1162,7 +1188,7 @@ driver_fbdev::driver_fbdev(X11_monitor_desc &m) : driver_dga(m)
 	  the_host_buffer = the_buffer;
 	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
 	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
-	  the_buffer = (uint8 *)vm_acquire_mac(the_buffer_size);
+	  the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
 
 	  // Fake image for DGA/VOSF mode to know about display bounds
 	  img = new FakeXImage(width, height, depth_of_video_mode(mode));
@@ -1299,7 +1325,7 @@ driver_xf86dga::driver_xf86dga(X11_monitor_desc &m)
 	  the_host_buffer = the_buffer;
 	  the_buffer_size = page_extend((height + 2) * bytes_per_row);
 	  the_buffer_copy = (uint8 *)malloc(the_buffer_size);
-	  the_buffer = (uint8 *)vm_acquire_mac(the_buffer_size);
+	  the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
 
 	  // Fake image for DGA/VOSF mode to know about display bounds
 	  img = new FakeXImage((v_width + 7) & ~7, height, depth_of_video_mode(mode));

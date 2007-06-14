@@ -16,6 +16,8 @@ General:
 - Classic ROM: mouse button/movement is broken with ROM mouse handler
 - Classic ROM: sound output
 - Write a nice User's Manual with linuxdoc or something similar
+- Fix video mode switch to cope with different mac_frame_base
+  (CrsrBase is overriden with the previous base after the mode switch)
 
 AmigaOS:
 - "Create Hardfile..." button

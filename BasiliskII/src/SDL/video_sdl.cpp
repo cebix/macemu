@@ -197,7 +197,19 @@ extern void SysMountFirstFloppy(void);
 
 static void *vm_acquire_framebuffer(uint32 size)
 {
-	return vm_acquire(size);
+	// always try to reallocate framebuffer at the same address
+	static void *fb = VM_MAP_FAILED;
+	if (fb != VM_MAP_FAILED) {
+		if (vm_acquire_fixed(fb, size) < 0) {
+#ifndef SHEEPSHAVER
+			printf("FATAL: Could not reallocate framebuffer at previous address\n");
+#endif
+			fb = VM_MAP_FAILED;
+		}
+	}
+	if (fb == VM_MAP_FAILED)
+		fb = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
+	return fb;
 }
 
 static inline void vm_release_framebuffer(void *fb, uint32 size)
@@ -719,7 +731,7 @@ void driver_base::restore_mouse_accel(void)
  *  Windowed display driver
  */
 
-static int SDL_display_opened = FALSE;
+static bool SDL_display_opened = false;
 
 // Open display
 driver_window::driver_window(SDL_monitor_desc &m)
@@ -747,7 +759,7 @@ driver_window::driver_window(SDL_monitor_desc &m)
 	if ((s = SDL_SetVideoMode(width, height, depth, SDL_HWSURFACE)) == NULL)
 		return;
 
-	SDL_display_opened = TRUE;
+	SDL_display_opened = true;
 
 #ifdef ENABLE_VOSF
 	use_vosf = true;
