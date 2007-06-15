@@ -6168,12 +6168,12 @@ static bool merge_blacklist()
 				p += 4;
 			}
 
-			if (*p == 0 || *p == ';') {
+			if (*p == 0 || *p == ',' || *p == ';') {
 				write_log("<JIT compiler> : blacklist opcodes : %04x-%04x\n", opcode1, opcode2);
 				for (int opcode = opcode1; opcode <= opcode2; opcode++)
 					reset_compop(cft_map(opcode));
 
-				if (*p++ == ';')
+				if (*p == ',' || *p++ == ';')
 					continue;
 
 				return true;
