@@ -5122,9 +5122,9 @@ bool compiler_use_jit(void)
 		return false;
 	}
 	
-	// FIXME: there are currently problems with JIT compilation and anything below a 68040
-	if (CPUType < 4) {
-		write_log("<JIT compiler> : 68040 emulation is required instead of 680%d0. Disabling JIT.\n", CPUType);
+	// Enable JIT for 68020+ emulation only
+	if (CPUType < 2) {
+		write_log("<JIT compiler> : JIT is not supported in 680%d0 emulation mode, disabling.\n", CPUType);
 		return false;
 	}
 

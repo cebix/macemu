@@ -2251,6 +2251,11 @@ static void generate_one_opcode (int rp)
 	return;
 
     if (opcode_next_clev[rp] != cpu_level) {
+	if (table68k[opcode].flagdead == 0)
+	/* force to the "ff" variant since the instruction doesn't set at all the condition codes */
+	fprintf (stblfile, "{ CPUFUNC_FF(op_%lx_%d), 0, %ld }, /* %s */\n", opcode, opcode_last_postfix[rp],
+		 opcode, lookuptab[i].name);
+	else
 	fprintf (stblfile, "{ CPUFUNC(op_%lx_%d), 0, %ld }, /* %s */\n", opcode, opcode_last_postfix[rp],
 		 opcode, lookuptab[i].name);
 	return;
@@ -2264,8 +2269,6 @@ static void generate_one_opcode (int rp)
 
     fprintf (headerfile, "extern cpuop_func op_%lx_%d_nf;\n", opcode, postfix);
     fprintf (headerfile, "extern cpuop_func op_%lx_%d_ff;\n", opcode, postfix);
-    printf ("void REGPARAM2 CPUFUNC(op_%lx_%d)(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, lookuptab[i].name);
-	printf ("\tcpuop_begin();\n");
 	
 	/* gb-- The "nf" variant for an instruction that doesn't set the condition
 	   codes at all is the same as the "ff" variant, so we don't need the "nf"
@@ -2273,6 +2276,9 @@ static void generate_one_opcode (int rp)
 	   smalltbl. */
 	if (table68k[opcode].flagdead == 0)
 	printf ("#ifndef NOFLAGS\n");
+
+	printf ("void REGPARAM2 CPUFUNC(op_%lx_%d)(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, lookuptab[i].name);
+	printf ("\tcpuop_begin();\n");
 
     switch (table68k[opcode].stype) {
      case 0: smsk = 7; break;
@@ -2393,10 +2399,10 @@ static void generate_one_opcode (int rp)
     gen_opcode (opcode);
     if (need_endlabel)
 	printf ("%s: ;\n", endlabelstr);
-	if (table68k[opcode].flagdead == 0)
-	printf ("\n#endif\n");
 	printf ("\tcpuop_end();\n");
     printf ("}\n");
+	if (table68k[opcode].flagdead == 0)
+	printf ("\n#endif\n");
     opcode_next_clev[rp] = next_cpu_level;
     opcode_last_postfix[rp] = postfix;
 }
