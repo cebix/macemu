@@ -3,10 +3,10 @@
 ## System specific configuration
 SHELL = /bin/sh
 
-HOST_CC = gcc
-HOST_CXX = g++
-CC = @CC@ -arch $(ARCH)
-CXX = @CXX@ -arch $(ARCH)
+HOST_CC = @CC@
+HOST_CXX = @CXX@
+CC_PROG = @CC@
+CXX_PROG = @CXX@
 CFLAGS = @CFLAGS@ -g
 CXXFLAGS = @CXXFLAGS@ -g
 CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../uae_cpu
@@ -16,6 +16,25 @@ LIBS = @LIBS@
 MONSRCS = @MONSRCS@
 BLESS = @BLESS@
 LN_S = ln -s
+
+## Compilers selection (XXX hackery for 10.2 cross-compilation...)
+SDK_VERSION.ppc = @PPC_SDK_VERSION@
+SDK_VERSION = $(SDK_VERSION.$(ARCH))
+ifeq ($(SDK_VERSION), 10.2.8)
+CC_PROG = gcc-3.3
+CXX_PROG = g++-3.3
+SDK_ROOT = /Developer/SDKs/MacOSX10.2.8.sdk
+CC_ROOT = -F$(SDK_ROOT)/System/Library/Frameworks
+LDFLAGS += -Wl,-syslibroot,$(SDK_ROOT)
+endif
+ifeq ($(SDK_VERSION), 10.3.9)
+CC_ROOT = -isysroot /Developer/SDKs/MacOSX10.3.9.sdk -mmacosx-version-min=10.3
+endif
+ifeq ($(SDK_VERSION), 10.4)
+CC_ROOT = -isysroot /Developer/SDKs/MacOSX10.4u.sdk -mmacosx-version-min=10.4
+endif
+CC = $(CC_PROG) $(CC_ROOT) -arch $(ARCH)
+CXX = $(CXX_PROG) $(CC_ROOT) -arch $(ARCH)
 
 ## slirp network emulation code
 WANT_SLIRP = @WANT_SLIRP@
@@ -193,11 +212,11 @@ $(OBJ_DIR)/%.ho : %.cpp
 	$(HOST_CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/build68k: $(OBJ_DIR)/build68k.ho
-	$(HOST_CC) $(LDFLAGS) -o $@ $(OBJ_DIR)/build68k.ho
+	$(HOST_CC) -o $@ $(OBJ_DIR)/build68k.ho
 $(OBJ_DIR)/gencpu: $(OBJ_DIR)/gencpu.ho $(OBJ_DIR)/readcpu.ho $(OBJ_DIR)/cpudefs.ho
-	$(HOST_CXX) $(LDFLAGS) -o $@ $(OBJ_DIR)/gencpu.ho $(OBJ_DIR)/readcpu.ho $(OBJ_DIR)/cpudefs.ho
+	$(HOST_CXX) -o $@ $(OBJ_DIR)/gencpu.ho $(OBJ_DIR)/readcpu.ho $(OBJ_DIR)/cpudefs.ho
 $(OBJ_DIR)/gencomp: $(OBJ_DIR)/gencomp.ho $(OBJ_DIR)/readcpu.ho $(OBJ_DIR)/cpudefs.ho
-	$(HOST_CXX) $(LDFLAGS) -o $@ $(OBJ_DIR)/gencomp.ho $(OBJ_DIR)/readcpu.ho $(OBJ_DIR)/cpudefs.ho
+	$(HOST_CXX) -o $@ $(OBJ_DIR)/gencomp.ho $(OBJ_DIR)/readcpu.ho $(OBJ_DIR)/cpudefs.ho
 
 $(GEN_DIR)::
 	@[ -d $(GEN_DIR) ] || mkdir $(GEN_DIR) > /dev/null 2>&1

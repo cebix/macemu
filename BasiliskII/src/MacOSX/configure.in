@@ -37,6 +37,7 @@ AC_ARG_ENABLE(universal,
     esac
   done
 ])
+AC_ARG_WITH(ppc-sdk,         [  --with-ppc-sdk=VERSION  use specific SDK VERSION for ppc builds [default=earliest]], [PPC_SDK_VERSION=$withval])
 
 dnl Video options.
 AC_ARG_ENABLE(multiwin,
@@ -61,7 +62,7 @@ AC_ARG_ENABLE(addressing,
 ])
 
 dnl External packages.
-AC_ARG_WITH(mon,             [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=yes])
+AC_ARG_WITH(mon,             [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=no])
 
 dnl Canonical system information.
 AC_CANONICAL_HOST
@@ -1013,6 +1014,17 @@ if [[ -z "$WANT_UNIVERSAL" ]]; then
   WANT_UNIVERSAL=`echo $target_cpu | sed -e 's/i.86/i386/'`
 fi
 AC_SUBST(TARGET_ARCHES, [$WANT_UNIVERSAL])
+
+AC_MSG_CHECKING(for PowerPC SDK)
+for version in $PPC_SDK_VERSION 10.2.8 10.3.9 10.4; do
+  sdk=`echo /Developer/SDKs/MacOSX$version*.sdk`
+  if [[ -d "$sdk" ]]; then
+    PPC_SDK_VERSION="$version"
+	break
+  fi
+done
+AC_MSG_RESULT($PPC_SDK_VERSION)
+AC_SUBST(PPC_SDK_VERSION)
 
 AC_DEFINE(DATADIR, "~", [unix_ether needs this!])
 
