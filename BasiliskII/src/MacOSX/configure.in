@@ -219,8 +219,6 @@ dnl Checks for library functions.
 AC_CHECK_FUNCS(strdup strerror cfmakeraw)
 AC_CHECK_FUNCS(clock_gettime timer_create)
 AC_CHECK_FUNCS(sigaction signal)
-AC_CHECK_FUNCS(mmap mprotect munmap)
-AC_CHECK_FUNCS(vm_allocate vm_deallocate vm_protect)
 AC_CHECK_FUNCS(poll inet_aton)
 
 dnl Darwin seems to define mach_task_self() instead of task_self().
@@ -410,188 +408,6 @@ AC_CACHE_CHECK([whether TUN/TAP is supported],
 AC_TRANSLATE_DEFINE(ENABLE_TUNTAP, "$ac_cv_tun_tap_support",
   [Define if your system supports TUN/TAP devices.])
 
-dnl Various checks if the system supports vm_allocate() and the like functions.
-have_mach_vm=no
-if [[ "x$ac_cv_func_vm_allocate" = "xyes" -a "x$ac_cv_func_vm_deallocate" = "xyes" -a \
-      "x$ac_cv_func_vm_protect" = "xyes" ]]; then
-  have_mach_vm=yes
-fi
-AC_TRANSLATE_DEFINE(HAVE_MACH_VM, "$have_mach_vm",
-  [Define if your system has a working vm_allocate()-based memory allocator.])
-
-dnl Check that vm_allocate(), vm_protect() work
-if [[ "x$have_mach_vm" = "xyes" ]]; then
-
-AC_CACHE_CHECK([whether vm_protect works],
-  ac_cv_vm_protect_works, [
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
-  ac_cv_vm_protect_works=yes
-  dnl First the tests that should segfault
-  for test_def in NONE_READ NONE_WRITE READ_WRITE; do
-    AC_TRY_RUN([
-      #define CONFIGURE_TEST_VM_MAP
-      #define TEST_VM_PROT_$test_def
-      #include "../Unix/vm_alloc.cpp"
-    ], ac_cv_vm_protect_works=no, rm -f core,
-    dnl When cross-compiling, do not assume anything
-    ac_cv_vm_protect_works="guessing no"
-    )
-  done
-  AC_TRY_RUN([
-    #define CONFIGURE_TEST_VM_MAP
-    #define TEST_VM_PROT_RDWR_WRITE
-    #include "../Unix/vm_alloc.cpp"
-  ], , ac_cv_vm_protect_works=no,
-  dnl When cross-compiling, do not assume anything
-  ac_cv_vm_protect_works="guessing no"
-  )
-  AC_LANG_RESTORE
-  ]
-)
-
-dnl Remove support for vm_allocate() if vm_protect() does not work
-if [[ "x$have_mach_vm" = "xyes" ]]; then
-  case $ac_cv_vm_protect_works in
-    *yes) have_mach_vm=yes;;
-    *no) have_mach_vm=no;;
-  esac
-fi
-AC_TRANSLATE_DEFINE(HAVE_MACH_VM, "$have_mach_vm",
-  [Define if your system has a working vm_allocate()-based memory allocator.])
-
-fi dnl HAVE_MACH_VM
-
-dnl Various checks if the system supports mmap() and the like functions.
-dnl ... and Mach memory allocators are not supported
-have_mmap_vm=no
-if [[ "x$ac_cv_func_mmap" = "xyes" -a "x$ac_cv_func_munmap" = "xyes" -a \
-      "x$ac_cv_func_mprotect" = "xyes" ]]; then
-  if [[ "x$have_mach_vm" = "xno" ]]; then
-    have_mmap_vm=yes
-  fi
-fi
-AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, "$have_mmap_vm",
-  [Define if your system has a working mmap()-based memory allocator.])
-
-dnl Check that mmap() and associated functions work.
-if [[ "x$have_mmap_vm" = "xyes" ]]; then
-
-dnl Check if we have a working anonymous mmap()
-AC_CACHE_CHECK([whether mmap supports MAP_ANON],
-  ac_cv_mmap_anon, [
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
-  AC_TRY_RUN([
-    #define HAVE_MMAP_ANON
-    #define CONFIGURE_TEST_VM_MAP
-    #define TEST_VM_MMAP_ANON
-    #include "../Unix/vm_alloc.cpp"
-  ], ac_cv_mmap_anon=yes, ac_cv_mmap_anon=no,
-  dnl When cross-compiling, do not assume anything.
-  ac_cv_mmap_anon="guessing no"
-  )
-  AC_LANG_RESTORE
-  ]
-)
-AC_TRANSLATE_DEFINE(HAVE_MMAP_ANON, "$ac_cv_mmap_anon",
-  [Define if <sys/mman.h> defines MAP_ANON and mmap()'ing with MAP_ANON works.])
-
-AC_CACHE_CHECK([whether mmap supports MAP_ANONYMOUS],
-  ac_cv_mmap_anonymous, [
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
-  AC_TRY_RUN([
-    #define HAVE_MMAP_ANONYMOUS
-    #define CONFIGURE_TEST_VM_MAP
-    #define TEST_VM_MMAP_ANON
-    #include "../Unix/vm_alloc.cpp"
-  ], ac_cv_mmap_anonymous=yes, ac_cv_mmap_anonymous=no,
-  dnl When cross-compiling, do not assume anything.
-  ac_cv_mmap_anonymous="guessing no"
-  )
-  AC_LANG_RESTORE
-  ]
-)
-AC_TRANSLATE_DEFINE(HAVE_MMAP_ANONYMOUS, "$ac_cv_mmap_anonymous",
-  [Define if <sys/mman.h> defines MAP_ANONYMOUS and mmap()'ing with MAP_ANONYMOUS works.])
-
-AC_CACHE_CHECK([whether mprotect works],
-  ac_cv_mprotect_works, [
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
-  ac_cv_mprotect_works=yes
-  dnl First the tests that should segfault
-  for test_def in NONE_READ NONE_WRITE READ_WRITE; do
-    AC_TRY_RUN([
-      #define CONFIGURE_TEST_VM_MAP
-      #define TEST_VM_PROT_$test_def
-      #include "../Unix/vm_alloc.cpp"
-    ], ac_cv_mprotect_works=no, rm -f core,
-    dnl When cross-compiling, do not assume anything
-    ac_cv_mprotect_works="guessing no"
-    )
-  done
-  AC_TRY_RUN([
-    #define CONFIGURE_TEST_VM_MAP
-    #define TEST_VM_PROT_RDWR_WRITE
-    #include "../Unix/vm_alloc.cpp"
-  ], , ac_cv_mprotect_works=no,
-  dnl When cross-compiling, do not assume anything
-  ac_cv_mprotect_works="guessing no"
-  )
-  AC_LANG_RESTORE
-  ]
-)
-
-dnl Remove support for mmap() if mprotect() does not work
-if [[ "x$have_mmap_vm" = "xyes" ]]; then
-  case $ac_cv_mprotect_works in
-    *yes) have_mmap_vm=yes;;
-    *no) have_mmap_vm=no;;
-  esac
-fi
-AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, $have_mmap_vm,
-  [Define if your system has a working mmap()-based memory allocator.])
-
-fi dnl HAVE_MMAP_VM
-
-dnl Check if we can modify the __PAGEZERO segment for use as Low Memory
-AC_CACHE_CHECK([whether __PAGEZERO can be Low Memory area 0x0000-0x2000],
-  ac_cv_pagezero_hack, [
-  ac_cv_pagezero_hack=no 
-  if AC_TRY_COMMAND([Darwin/testlmem.sh 0x2000]); then
-    ac_cv_pagezero_hack=yes
-    dnl might as well skip the test for mmap-able low memory
-    ac_cv_can_map_lm=no
-  fi
-])
-AC_TRANSLATE_DEFINE(PAGEZERO_HACK, "$ac_cv_pagezero_hack",
-  [Define if the __PAGEZERO Mach-O Low Memory Globals hack works on this system.])
-
-dnl Check if we can mmap 0x2000 bytes from 0x0000
-AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x2000],
-  ac_cv_can_map_lm, [
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
-  AC_TRY_RUN([
-    #include "../Unix/vm_alloc.cpp"
-    int main(void) { /* returns 0 if we could map the lowmem globals */
-      volatile char * lm = 0;
-      if (vm_init() < 0) exit(1);
-      if (vm_acquire_fixed(0, 0x2000) < 0) exit(1);
-      lm[0] = 'z';
-      if (vm_release((char *)lm, 0x2000) < 0) exit(1);
-      vm_exit(); exit(0);
-    }
-  ], ac_cv_can_map_lm=yes, ac_cv_can_map_lm=no,
-  dnl When cross-compiling, do not assume anything.
-  ac_cv_can_map_lm="guessing no"
-  )
-  AC_LANG_RESTORE
-  ]
-)
-
 dnl Check signal handlers need to be reinstalled
 AC_CACHE_CHECK([whether signal handlers need to be reinstalled],
   ac_cv_signal_need_reinstall, [
@@ -653,87 +469,13 @@ AC_CACHE_CHECK([whether sigaction handlers need to be reinstalled],
 AC_TRANSLATE_DEFINE(SIGACTION_NEED_REINSTALL, "$ac_cv_sigaction_need_reinstall",
   [Define if your system requires sigactions to be reinstalled.])
 
-dnl Check if Mach exceptions supported.
-AC_CACHE_CHECK([whether your system supports Mach exceptions],
-  ac_cv_have_mach_exceptions, [
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
-  AC_TRY_RUN([
-    #define HAVE_MACH_EXCEPTIONS 1
-    #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "../Unix/vm_alloc.cpp"
-    #include "../Unix/sigsegv.cpp"
-  ], [
-  sigsegv_recovery=mach
-  ac_cv_have_mach_exceptions=yes
-  ],
-  ac_cv_have_mach_exceptions=no,
-  dnl When cross-compiling, do not assume anything.
-  ac_cv_have_mach_exceptions=no
-  )
-  AC_LANG_RESTORE
-  ]
-)
-AC_TRANSLATE_DEFINE(HAVE_MACH_EXCEPTIONS, "$ac_cv_have_mach_exceptions",
-  [Define if your system supports Mach exceptions.])
-
-dnl Otherwise, check if extended signals are supported.
-if [[ -z "$sigsegv_recovery" ]]; then
-  AC_CACHE_CHECK([whether your system supports extended signal handlers],
-    ac_cv_have_extended_signals, [
-    AC_LANG_SAVE
-    AC_LANG_CPLUSPLUS
-    AC_TRY_RUN([
-      #define HAVE_SIGINFO_T 1
-      #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-      #include "../Unix/vm_alloc.cpp"
-      #include "../Unix/sigsegv.cpp"
-    ], [
-    sigsegv_recovery=siginfo
-    ac_cv_have_extended_signals=yes
-    ],
-    ac_cv_have_extended_signals=no,
-    dnl When cross-compiling, do not assume anything.
-    ac_cv_have_extended_signals=no
-    )
-    AC_LANG_RESTORE
-    ]
-  )
-  AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_extended_signals",
-    [Define if your system support extended signals.])
-fi
-
-dnl Otherwise, check for subterfuges.
-if [[ -z "$sigsegv_recovery" ]]; then
-  AC_CACHE_CHECK([whether we then have a subterfuge for your system],
-  ac_cv_have_sigcontext_hack, [
-    AC_LANG_SAVE
-    AC_LANG_CPLUSPLUS
-    AC_TRY_RUN([
-      #define HAVE_SIGCONTEXT_SUBTERFUGE 1
-      #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-      #include "../Unix/vm_alloc.cpp"
-      #include "../Unix/sigsegv.cpp"
-    ], [
-    sigsegv_recovery=sigcontext
-    ac_cv_have_sigcontext_hack=yes
-    ],
-    ac_cv_have_sigcontext_hack=no,
-    dnl When cross-compiling, do not assume anything.
-    ac_cv_have_sigcontext_hack=no
-    )
-    AC_LANG_RESTORE
-  ])
-  AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack",
-    [Define if we know a hack to replace siginfo_t->si_addr member.])
-fi
-
 dnl Check if we can ignore the fault (instruction skipping in SIGSEGV handler)
 AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
   ac_cv_have_skip_instruction, [
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
   AC_TRY_RUN([
+    #include "config_macosx.h"
     #define HAVE_SIGSEGV_SKIP_INSTRUCTION 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
     #include "../Unix/vm_alloc.cpp"
@@ -748,11 +490,8 @@ AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
 AC_TRANSLATE_DEFINE(HAVE_SIGSEGV_SKIP_INSTRUCTION, "$ac_cv_have_skip_instruction",
   [Define if we can ignore the fault (instruction skipping in SIGSEGV handler).])
 
-dnl Can we do Video on SEGV Signals ?
-CAN_VOSF=no
-if [[ -n "$sigsegv_recovery" ]]; then
-  CAN_VOSF=yes
-fi
+dnl We can do Video on SEGV Signals
+CAN_VOSF=yes
 
 dnl A dummy program that returns always true
 AC_PATH_PROG([BLESS], "true")
@@ -796,10 +535,6 @@ AC_MSG_CHECKING([for the addressing mode to use])
   for am in $ADDRESSING_TEST_ORDER; do
     case $am in
     real)
-      dnl Requires ability to mmap() Low Memory globals
-      if [[ "x$ac_cv_can_map_lm$ac_cv_pagezero_hack" = "xnono" ]]; then
-        continue
-      fi
       dnl Requires VOSF screen updates
       if [[ "x$CAN_VOSF" = "xno" ]]; then
         continue
@@ -809,10 +544,7 @@ AC_MSG_CHECKING([for the addressing mode to use])
       WANT_VOSF=yes dnl we can use VOSF and we need it actually
       DEFINES="$DEFINES -DREAL_ADDRESSING"
       AC_DEFINE(REAL_ADDRESSING, 1, [Emulated memory is memory mapped to actual address.])
-      if [[ "x$ac_cv_pagezero_hack" = "xyes" ]]; then
-        BLESS=Darwin/lowmem
-        LDFLAGS="$LDFLAGS -pagezero_size 0x2000"
-      fi
+      LDFLAGS="$LDFLAGS -pagezero_size 0x2000"
       break
       ;;
     direct)
@@ -1056,7 +788,6 @@ echo mon debugger support ................... : $WANT_MON
 echo Build JIT compiler ..................... : $WANT_JIT
 echo Build JIT with debug code .............. : $WANT_JIT_DEBUG
 echo Addressing mode ........................ : $ADDRESSING_MODE
-echo Bad memory access recovery type ........ : $sigsegv_recovery
 echo Mac OS X development environment ....... : $IDE
 echo
 echo "Configuration done. Now type \"make\" (or \"make ide\")."

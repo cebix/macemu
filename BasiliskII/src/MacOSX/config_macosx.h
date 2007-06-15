@@ -60,3 +60,18 @@
    does it the other way around. This macro should not be defined if the
    ordering is the same as for multi-word integers. */
 /* #undef HOST_FLOAT_WORDS_BIG_ENDIAN */
+
+/* Define if your system supports Mach exceptions. */
+#define HAVE_MACH_EXCEPTIONS 1
+
+/* Define to 1 if you have the <mach/mach.h> header file. */
+#define HAVE_MACH_MACH_H 1
+
+/* Define to 1 if you have the `mach_task_self' function. */
+#define HAVE_MACH_TASK_SELF 1
+
+/* Define if your system has a working vm_allocate()-based memory allocator. */
+#define HAVE_MACH_VM 1
+
+/* Define if the __PAGEZERO Mach-O Low Memory Globals hack works. */
+#define PAGEZERO_HACK 1

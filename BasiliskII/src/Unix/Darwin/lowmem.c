@@ -32,6 +32,15 @@
 
 static const char progname[] = "lowmem";
 
+static int do_swap = 0;
+
+static uint32_t target_uint32(uint32_t value)
+{
+	if (do_swap)
+		value = NXSwapInt(value);
+	return value;
+}
+
 /*
  * Under Mach there is very little assumed about the memory map of object
  * files. It is the job of the loader to create the initial memory map of an
@@ -89,13 +98,15 @@ main(int argc, const char *argv[])
 	 * we do not care about that.
 	 */
 	machhead = (void *)addr;
-	if (machhead->magic != MH_MAGIC) {
+	if (machhead->magic == MH_CIGAM)
+		do_swap = 1;
+	if (target_uint32(machhead->magic) != MH_MAGIC) {
 		(void)fprintf(stderr, "%s: %s does not appear to be a Mach-O object file\n",
 				progname, argv[1]);
 		exit(1);
 	}
 
-	if (machhead->filetype != MH_EXECUTE) {
+	if (target_uint32(machhead->filetype) != MH_EXECUTE) {
 		(void)fprintf(stderr, "%s: %s does not appear to be an executable file\n",
 				progname, argv[1]);
 		exit(1);
@@ -108,7 +119,7 @@ main(int argc, const char *argv[])
 	}
 
 	sc_cmd = (void *)&machhead[1];
-	if (sc_cmd->cmd != LC_SEGMENT){
+	if (target_uint32(sc_cmd->cmd) != LC_SEGMENT){
 		(void)fprintf(stderr, "%s: load segment not first command in %s\n",
 				progname, argv[1]);
 		exit(1);
@@ -122,8 +133,8 @@ main(int argc, const char *argv[])
 	}
 
 	/* change the permissions */
-	sc_cmd->maxprot = VM_PROT_ALL;
-	sc_cmd->initprot = VM_PROT_ALL;
+	sc_cmd->maxprot = target_uint32(VM_PROT_ALL);
+	sc_cmd->initprot = target_uint32(VM_PROT_ALL);
 
 	/*
 	 * We do not make __PAGEZERO 8K in this program because then

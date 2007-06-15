@@ -14,7 +14,6 @@ DEFS = @DEFS@ @DEFINES@ -D_REENTRANT -DAQUA -DFPU_IEEE
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
 MONSRCS = @MONSRCS@
-BLESS = @BLESS@
 LN_S = ln -s
 
 ## Compilers selection (XXX hackery for 10.2 cross-compilation...)
@@ -116,6 +115,8 @@ APP_APP = $(APP).app
 TARGET_ARCHES = @TARGET_ARCHES@
 PROGS = $(foreach arch, $(TARGET_ARCHES), $(APP).$(arch))
 
+BLESS = $(OBJ_DIR)/lowmem
+
 ## Rules
 .PHONY: modules install installdirs uninstall mostlyclean clean distclean depend dep
 .SUFFIXES:
@@ -159,7 +160,12 @@ $(foreach arch,$(TARGET_ARCHES),$(eval $(call PROGS_template,$(arch))))
 
 links: $(UNIXSRCS)
 
-$(OBJ_DIR)/$(APP): $(OBJ_DIR) $(GEN_DIR) $(OBJS)
+$(BLESS): $(OBJ_DIR) $(OBJ_DIR)/lowmem.o
+	$(HOST_CC) -o $@ $(OBJ_DIR)/lowmem.o
+$(OBJ_DIR)/lowmem.o: ../Unix/Darwin/lowmem.c
+	$(HOST_CC) -o $@ -c $<
+
+$(OBJ_DIR)/$(APP): $(OBJ_DIR) $(GEN_DIR) $(OBJS) $(BLESS)
 	$(CXX) -o $@ $(LDFLAGS) $(OBJS) $(LIBS)
 	$(BLESS) $@
 
