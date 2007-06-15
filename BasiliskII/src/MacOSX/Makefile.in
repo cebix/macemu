@@ -7,18 +7,42 @@ CC = @CC@
 CXX = @CXX@
 CFLAGS = @CFLAGS@ -g
 CXXFLAGS = @CXXFLAGS@ -g
-CPPFLAGS = @CPPFLAGS@ -I../include -I. @CPUINCLUDES@ -I../slirp
+CPPFLAGS = @CPPFLAGS@ -I../include -I. @CPUINCLUDES@
 DEFS = @DEFS@ @DEFINES@ -D_REENTRANT -DAQUA
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
-SYSSRCS = @SYSSRCS@
-CPUSRCS = @CPUSRCS@
+MONSRCS = @MONSRCS@
 BLESS = @BLESS@
 LN_S = ln -s
 
+## slirp network emulation code
+WANT_SLIRP = @WANT_SLIRP@
+ifeq ($(WANT_SLIRP), yes)
+CPPFLAGS += -I../slirp
 SLIRP_CFLAGS = @SLIRP_CFLAGS@
 SLIRP_SRCS = @SLIRP_SRCS@
 SLIRP_OBJS = $(SLIRP_SRCS:../slirp/%.c=obj/%.o)
+endif
+
+## CPU emulation code
+WANT_JIT = @WANT_JIT@
+WANT_JIT_DEBUG = @WANT_JIT_DEBUG@
+USE_JIT = $(WANT_JIT)
+CPUSRCS = @CPUSRCS@
+ifeq ($(USE_JIT), yes)
+DEFS += -DUSE_JIT -DUSE_JIT_FPU
+ifeq ($(WANT_JIT_DEBUG), yes)
+DEFS += -DJIT_DEBUG
+endif
+CPUSRCS += \
+	cpuemu1_nf.cpp cpuemu2_nf.cpp cpuemu3_nf.cpp cpuemu4_nf.cpp \
+	cpuemu5_nf.cpp cpuemu6_nf.cpp cpuemu7_nf.cpp cpuemu8_nf.cpp \
+	compemu1.cpp compemu2.cpp compemu3.cpp compemu4.cpp \
+	compemu5.cpp compemu6.cpp compemu7.cpp compemu8.cpp \
+	../uae_cpu/compiler/compemu_support.cpp \
+	../uae_cpu/compiler/compemu_fpp.cpp \
+	compstbl.o cpustbl_nf.o
+endif
 
 ## Files
 UNIXSRCS = vm_alloc.cpp vm_alloc.h sigsegv.cpp sigsegv.h video_vosf.h video_blit.cpp \
@@ -36,7 +60,7 @@ SRCS = ../main.cpp main_macosx.mm ../prefs.cpp ../prefs_items.cpp prefs_macosx.m
     audio_macosx.cpp AudioBackEnd.cpp AudioDevice.cpp MacOSX_sound_if.cpp \
     NNThread.m Emulator.mm EmulatorView.mm Controller.mm PrefsEditor.mm \
     sshpty.c strlcpy.c \
-    $(CPUSRCS) $(SLIRP_SRCS)
+    $(MONSRCS) $(CPUSRCS) $(SLIRP_SRCS)
 APP = BasiliskII
 APP_APP = $(APP).app
 

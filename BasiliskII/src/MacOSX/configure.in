@@ -108,7 +108,8 @@ if [[ "x$WANT_MON" = "xyes" ]]; then
   if grep mon_init $mon_srcdir/mon.h >/dev/null 2>/dev/null; then
     AC_MSG_RESULT(yes)
     AC_DEFINE(ENABLE_MON, 1, [Define if using "mon".])
-    MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_z80.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/mon_lowmem.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c"
+    MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_z80.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/mon_lowmem.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c $mon_srcdir/disass/mips-dis.c $mon_srcdir/disass/mips-opc.c $mon_srcdir/disass/mips16-opc.c"
+    AC_SUBST(MONSRCS)
     CXXFLAGS="$CXXFLAGS -I$mon_srcdir -I$mon_srcdir/disass"
     AC_CHECK_LIB(ncurses, tgetent, ,
       AC_CHECK_LIB(termcap, tgetent, ,
@@ -361,13 +362,14 @@ dnl Select system-dependant source files.
   fi
 
 dnl Is the slirp library supported?
+WANT_SLIRP=no
 case "$ac_cv_have_byte_bitfields" in
 yes|"guessing yes")
-  CAN_SLIRP=yes
+  WANT_SLIRP=yes
   ETHERSRC=ether_unix.cpp
   ;;
 esac
-if [[ -n "$CAN_SLIRP" ]]; then
+if [[ "x$WANT_SLIRP" = "xyes" ]]; then
   AC_DEFINE(HAVE_SLIRP, 1, [Define if slirp library is supported])
   SLIRP_SRCS="\
     ../slirp/bootp.c     ../slirp/ip_output.c  ../slirp/tcp_input.c  \
@@ -377,10 +379,8 @@ if [[ -n "$CAN_SLIRP" ]]; then
     ../slirp/ip_icmp.c   ../slirp/slirp.c      ../slirp/tftp.c       \
     ../slirp/ip_input.c  ../slirp/socket.c     ../slirp/udp.c"
 fi
+AC_SUBST(WANT_SLIRP)
 AC_SUBST(SLIRP_SRCS)
-
-dnl Use 68k CPU natively?
-WANT_NATIVE_M68K=no
 
 
 dnl Define a macro that translates a yesno-variable into a C macro definition
@@ -798,11 +798,8 @@ AC_TRANSLATE_DEFINE(HAVE_LINKER_SCRIPT, "$ac_cv_linker_script_works",
   [Define if there is a linker script to relocate the executable above 0x70000000.])
 
 dnl Determine the addressing mode to use
-if [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
-  ADDRESSING_MODE="real"
-else
-  ADDRESSING_MODE=""
-  AC_MSG_CHECKING([for the addressing mode to use])
+ADDRESSING_MODE=""
+AC_MSG_CHECKING([for the addressing mode to use])
   for am in $ADDRESSING_TEST_ORDER; do
     case $am in
     real)
@@ -844,11 +841,10 @@ else
       AC_MSG_ERROR([Internal configure.in script error for $am addressing mode])
     esac
   done
-  AC_MSG_RESULT($ADDRESSING_MODE)
-  if [[ "x$ADDRESSING_MODE" = "x" ]]; then
-    AC_MSG_WARN([Sorry, no suitable addressing mode in $ADDRESSING_TEST_ORDER])
-    ADDRESSING_MODE="memory banks"
-  fi
+AC_MSG_RESULT($ADDRESSING_MODE)
+if [[ "x$ADDRESSING_MODE" = "x" ]]; then
+  AC_MSG_WARN([Sorry, no suitable addressing mode in $ADDRESSING_TEST_ORDER])
+  ADDRESSING_MODE="memory banks"
 fi
 
 dnl Banked Memory Addressing mode is not supported by the JIT compiler
@@ -976,18 +972,14 @@ dnl Select appropriate CPU source and REGPARAM define.
 ASM_OPTIMIZATIONS=none
 CPUSRCS="cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp"
 
-dnl (gb) JITSRCS will be emptied later if the JIT is not available
 dnl Other platforms should define their own set of noflags file variants
 CAN_JIT=no
-JITSRCS="compemu1.cpp compemu2.cpp compemu3.cpp compemu4.cpp compemu5.cpp compemu6.cpp compemu7.cpp compemu8.cpp"
-
 if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
   dnl i386 CPU
   DEFINES="$DEFINES -DUNALIGNED_PROFITABLE -DREGPARAM=\"__attribute__((regparm(3)))\""
   if [[ "x$HAVE_GAS" = "xyes" ]]; then
     ASM_OPTIMIZATIONS=i386
     DEFINES="$DEFINES -DX86_ASSEMBLY -DOPTIMIZED_FLAGS -DSAHF_SETO_PROFITABLE"
-    JITSRCS="cpuemu1_nf.cpp cpuemu2_nf.cpp cpuemu3_nf.cpp cpuemu4_nf.cpp cpuemu5_nf.cpp cpuemu6_nf.cpp cpuemu7_nf.cpp cpuemu8_nf.cpp $JITSRCS"
     CAN_JIT=yes
   fi
 elif [[ "x$HAVE_GCC30" = "xyes" -a "x$HAVE_X86_64" = "xyes" ]]; then
@@ -996,47 +988,14 @@ elif [[ "x$HAVE_GCC30" = "xyes" -a "x$HAVE_X86_64" = "xyes" ]]; then
   if [[ "x$HAVE_GAS" = "xyes" ]]; then
     ASM_OPTIMIZATIONS="x86-64"
     DEFINES="$DEFINES -DX86_64_ASSEMBLY -DOPTIMIZED_FLAGS"
-    JITSRCS="cpuemu1_nf.cpp cpuemu2_nf.cpp cpuemu3_nf.cpp cpuemu4_nf.cpp cpuemu5_nf.cpp cpuemu6_nf.cpp cpuemu7_nf.cpp cpuemu8_nf.cpp $JITSRCS"
     CAN_JIT=yes
   fi
-elif [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_SPARC" = "xyes" -a "x$HAVE_GAS" = "xyes" ]]; then
-  dnl SPARC CPU
-  case "$target_os" in
-  solaris*)
-    AC_MSG_CHECKING(SPARC CPU architecture)
-    SPARC_TYPE=`Solaris/which_sparc`
-    AC_MSG_RESULT($SPARC_TYPE)
-    case "$SPARC_TYPE" in
-    SPARC_V8)
-      ASM_OPTIMIZATIONS="SPARC V8 architecture"
-      DEFINES="$DEFINES -DSPARC_V8_ASSEMBLY" dnl -DOPTIMIZED_FLAGS"
-      CFLAGS="$CFLAGS -Wa,-Av8"
-      CXXFLAGS="$CXXFLAGS -Wa,-Av8"
-      ;;
-    SPARC_V9)
-      ASM_OPTIMIZATIONS="SPARC V9 architecture"
-      DEFINES="$DEFINES -DSPARC_V9_ASSEMBLY" dnl -DOPTIMIZED_FLAGS"
-      CFLAGS="$CFLAGS -Wa,-Av9"
-      CXXFLAGS="$CXXFLAGS -Wa,-Av9"
-      ;;
-    esac
-    ;;
-  esac
-elif [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
-  dnl Native m68k, no emulation
-  CPUINCLUDES="-I../native_cpu"
-  CPUSRCS="asm_support.s"
 fi
 
 dnl Enable JIT compiler, if possible.
 if [[ "x$WANT_JIT" = "xyes" -a "x$CAN_JIT" ]]; then
-  JITSRCS="$JITSRCS ../uae_cpu/compiler/compemu_support.cpp ../uae_cpu/compiler/compemu_fpp.cpp compstbl.o cpustbl_nf.o"
-  DEFINES="$DEFINES -DUSE_JIT -DUSE_JIT_FPU"
-  
   if [[ "x$WANT_JIT_DEBUG" = "xyes" ]]; then
-    if [[ "x$WANT_MON" = "xyes" ]]; then
-      DEFINES="$DEFINES -DJIT_DEBUG=1"
-    else
+    if [[ "x$WANT_MON" = "xno" ]]; then
       AC_MSG_WARN([cxmon not found, ignoring --enable-jit-debug])
       WANT_JIT_DEBUG=no
     fi
@@ -1246,10 +1205,8 @@ AC_CHECK_FUNCS(atanh)
 AC_CHECK_FUNCS(isnan isinf finite isnormal signbit)
 
 dnl UAE CPU sources for all non-m68k-native architectures.
-if [[ "x$WANT_NATIVE_M68K" = "xno" ]]; then
   CPUINCLUDES="-I../uae_cpu"
   CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp $FPUSRCS cpustbl.cpp cpudefs.cpp $CPUSRCS $JITSRCS"
-fi
 
 dnl Remove the "-g" option if set for GCC.
 if [[ "x$HAVE_GCC27" = "xyes" ]]; then
@@ -1290,7 +1247,7 @@ AC_DEFINE(DATADIR, "~", [unix_ether needs this!])
 
 dnl Generate Makefile.
 AC_SUBST(DEFINES)
-AC_SUBST(SYSSRCS)
+AC_SUBST(MONSRCS)
 AC_SUBST(CPUINCLUDES)
 AC_SUBST(CPUSRCS)
 AC_SUBST(BLESS)
@@ -1299,6 +1256,8 @@ AC_SUBST(PROJECT)
 AC_SUBST(IDEARGS)
 AC_SUBST(SLIRP_SRCS)
 AC_SUBST(KEYCODES)
+AC_SUBST(WANT_JIT)
+AC_SUBST(WANT_JIT_DEBUG)
 dnl autoconf on 10.1 doesn't understand these
 dnl AC_CONFIG_FILES([Makefile])
 dnl AC_OUTPUT
@@ -1311,9 +1270,8 @@ echo
 echo Multiple emulator windows .............. : $ENABLE_MULTIPLE
 echo Enable video on SEGV signals ........... : $WANT_VOSF
 echo mon debugger support ................... : $WANT_MON
-echo Running m68k code natively ............. : $WANT_NATIVE_M68K
-echo Use JIT compiler ....................... : $WANT_JIT
-echo JIT debug mode ......................... : $WANT_JIT_DEBUG
+echo Build JIT compiler ..................... : $WANT_JIT
+echo Build JIT with debug code .............. : $WANT_JIT_DEBUG
 echo Floating-Point emulation core .......... : $FPE_CORE
 echo Assembly optimizations ................. : $ASM_OPTIMIZATIONS
 echo Addressing mode ........................ : $ADDRESSING_MODE
