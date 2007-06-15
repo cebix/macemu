@@ -1,159 +1,199 @@
-# $Id$
-# MacOS X makefile for Basilisk II. Slightly based on the Unix one
+# Unix makefile for Basilisk II
 
 ## System specific configuration
-@SET_MAKE@
 SHELL = /bin/sh
-
 
 CC = @CC@
 CXX = @CXX@
-CFLAGS = @CFLAGS@
-CXXFLAGS = @CXXFLAGS@
-CPPFLAGS = @CPPFLAGS@ -I../include -I. @CPUINCLUDES@
-DEFS = @DEFS@ @DEFINES@ -D_REENTRANT
+CFLAGS = @CFLAGS@ -g
+CXXFLAGS = @CXXFLAGS@ -g
+CPPFLAGS = @CPPFLAGS@ -I../include -I. @CPUINCLUDES@ -I../slirp
+DEFS = @DEFS@ @DEFINES@ -D_REENTRANT -DAQUA
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
+SYSSRCS = @SYSSRCS@
+CPUSRCS = @CPUSRCS@
 BLESS = @BLESS@
-IDE = @IDE@
-PROJECT = @PROJECT@
-IDEARGS = @IDEARGS@
+LN_S = ln -s
+
+SLIRP_CFLAGS = @SLIRP_CFLAGS@
 SLIRP_SRCS = @SLIRP_SRCS@
+SLIRP_OBJS = $(SLIRP_SRCS:../slirp/%.c=obj/%.o)
 
 ## Files
-OBJ_DIR = build
-GENSRCS = cpudefs.cpp cpuemu.cpp cpustbl.cpp cputbl.h
+UNIXSRCS = vm_alloc.cpp vm_alloc.h sigsegv.cpp sigsegv.h video_vosf.h video_blit.cpp \
+    xpram_unix.cpp user_strings_unix.cpp user_strings_unix.h \
+    serial_unix.cpp ether_unix.cpp sys_unix.cpp timer_unix.cpp \
+    sshpty.c sshpty.h strlcpy.c strlcpy.h semaphore.h
+SRCS = ../main.cpp main_macosx.mm ../prefs.cpp ../prefs_items.cpp prefs_macosx.mm \
+    sys_unix.cpp sys_darwin.cpp ../rom_patches.cpp ../slot_rom.cpp ../rsrc_patches.cpp \
+    ../emul_op.cpp ../macos_util.cpp ../xpram.cpp xpram_unix.cpp ../timer.cpp \
+    timer_unix.cpp ../adb.cpp ../serial.cpp serial_unix.cpp ../ether.cpp ether_unix.cpp \
+    ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp ../video.cpp video_macosx.mm \
+    vm_alloc.cpp sigsegv.cpp ../audio.cpp ../extfs.cpp extfs_macosx.mm \
+    ../user_strings.cpp user_strings_unix.cpp clip_macosx.cpp misc_macosx.mm \
+    ../dummy/scsi_dummy.cpp \
+    audio_macosx.cpp AudioBackEnd.cpp AudioDevice.cpp MacOSX_sound_if.cpp \
+    NNThread.m Emulator.mm EmulatorView.mm Controller.mm PrefsEditor.mm \
+    sshpty.c strlcpy.c \
+    $(CPUSRCS) $(SLIRP_SRCS)
+APP = BasiliskII
+APP_APP = $(APP).app
 
-# Wrappers which split the very large cpuemu.cpp into smaller compile units
-GENEMUS = cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp \
-	  cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp
-
-# We compile the emulator source outside of Project Builder/XCode
-# so that it always picks up appropriate FLAGS from configure.
-# This is necessary because that code doesn't use config.h
-EMU_OBJ = $(patsubst %.cpp, build/%.o, $(GENEMUS))
-EMU_LIB = libgenemu.a
-
-
-# Symlinks to, or copies of, files in other directories
-GENLINK = README.txt INSTALL.txt install-sh \
-	  Darwin config.guess config.sub ether_unix.cpp semaphore.h \
-	  sys_unix.cpp timer_unix.cpp user_strings_unix.h
-
-GEN  = $(GENEMUS) $(GENSRCS)
-
-SRCS =  BasiliskII.icns Controller.h Controller.mm Credits.html \
-	Emulator.h Emulator.mm EmulatorView.h EmulatorView.mm English.lproj \
-	NNThread.h NNThread.m PrefsEditor.h PrefsEditor.mm \
-	ToDo.html Versions.html \
-	audio_macosx.cpp extfs_macosx.mm macos_util_macosx.h main_macosx.h \
-	main_macosx.mm misc_macosx.h misc_macosx.mm nowrite.icns \
-	prefs_macosx.cpp sysdeps.h video_macosx.mm video_macosx.h
-
-SLIRP_OBJ = $(patsubst ../slirp/%.c, build/%.o, $(SLIRP_SRCS))
-SLIRP_LIB = libslirp.a
-
-APP = $(OBJ_DIR)/BasiliskII.app
-
-DEPS = $(OBJ_DIR) $(GEN) $(EMU_LIB) $(SLIRP_LIB) $(SRCS)
+PROGS = $(APP)_app
+DOCS = README.txt Credits.html ToDo.html HowTo.html Versions.html
 
 ## Rules
-
-.PHONY: mostlyclean clean distclean depend dep
+.PHONY: modules install installdirs uninstall mostlyclean clean distclean depend dep
 .SUFFIXES:
 .SUFFIXES: .c .cpp .s .o .h
 
-all: $(APP)
+all: $(PROGS)
 
-ide: $(DEPS)
-	open $(PROJECT)
+README.txt: ../../README
+	$(LN_S) $< $@
+$(UNIXSRCS): %: ../Unix/%
+	$(LN_S) $< $@
 
-test: $(APP)
-	open $(APP)
-
+OBJ_DIR = obj
 $(OBJ_DIR)::
 	@[ -d $(OBJ_DIR) ] || mkdir $(OBJ_DIR) > /dev/null 2>&1
 
+define SRCS_LIST_TO_OBJS
+	$(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(foreach file, $(SRCS), \
+	$(basename $(notdir $(file))))))
+endef
+OBJS = $(SRCS_LIST_TO_OBJS)
 
-$(APP): $(DEPS)
-	$(IDE) -buildstyle Deployment $(IDEARGS) \
-		&& $(BLESS) $(APP)/Contents/MacOS/BasiliskII \
-		|| rm -fr $(APP)
+SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
+VPATH :=
+VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
 
-BasiliskII.icns :
-	touch $@
+$(APP): $(UNIXSRCS) $(OBJ_DIR) $(OBJS)
+	$(CXX) -o $@ $(LDFLAGS) $(OBJS) $(LIBS)
+	$(BLESS) $(APP)
 
-nowrite.icns :
-#	ln -sf /System/Library/CoreServices/Finder.app/Contents/Resources/nowrite.icns .
-	touch $@
+$(APP)_app: $(APP) $(DOCS) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
+	mkdir -p $(APP_APP)/Contents
+	cp -f ../MacOSX/Info.plist $(APP_APP)/Contents/
+	echo -n 'APPL????' > $(APP_APP)/Contents/PkgInfo
+	mkdir -p $(APP_APP)/Contents/MacOS
+	cp -f $(APP) $(APP_APP)/Contents/MacOS/
+	strip $(APP_APP)/Contents/MacOS/$(APP)
+	mkdir -p $(APP_APP)/Contents/Resources
+	cp -Rp English.lproj $(APP_APP)/Contents/Resources/
+	cp -f ../MacOSX/$(APP).icns $(APP_APP)/Contents/Resources/
+	cp -f $(DOCS) $(APP_APP)/Contents/Resources/
+	find $(APP_APP) -type d -name CVS | xargs rm -rf
 
 mostlyclean:
-	rm -fr English.lproj/*~* $(OBJ_DIR)/* core* *.core *~ *.bak
-	rm -fr autom4te.cache config tests vhook
+	rm -rf $(APP_APP)
+	rm -f $(PROGS) $(OBJ_DIR)/* core* *.core *~ *.bak
 
 clean: mostlyclean
-	rm -f $(SLIRP_LIB) $(EMU_LIB)
-	rm -f $(GEN)
-	rm -f cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp
+	rm -f $(UNIXSRCS)
+	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h compemu.cpp compstbl.cpp comptbl.h
 
 distclean: clean
 	rm -rf $(OBJ_DIR)
 	rm -rf autom4te.cache
 	rm -f Makefile
-	rm -f config.cache config.log config.status config.h config.h.in
+	rm -f config.cache config.log config.status config.h
 	rm -f Darwin/lowmem Darwin/pagezero
-	rm -f $(GENLINK)
-	rm -f configure
-	rm -f .DS_Store
 
+depend dep:
+	makedepend $(CPPFLAGS) -Y. $(SRCS) 2>/dev/null
 
+$(OBJ_DIR)/%.o : ../slirp/%.c
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(SLIRP_CFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o : %.c
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o : %.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o : %.m
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o : %.mm
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o : %.s
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
 
-
-$(OBJ_DIR)/build68k: ../uae_cpu/build68k.c
-	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $< -o $@
-
-$(OBJ_DIR)/cpuopti: ../uae_cpu/cpuopti.c
-	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $< -o $@
-
-$(OBJ_DIR)/gencpu: cpudefs.cpp ../uae_cpu/gencpu.c ../uae_cpu/readcpu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(CXXFLAGS) $^ -o $@
-
-
+$(OBJ_DIR)/build68k: $(OBJ_DIR)/build68k.o
+	$(CC) $(LDFLAGS) -o $(OBJ_DIR)/build68k $(OBJ_DIR)/build68k.o
+$(OBJ_DIR)/gencpu: $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+	$(CXX) $(LDFLAGS) -o $(OBJ_DIR)/gencpu $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+$(OBJ_DIR)/gencomp: $(OBJ_DIR)/gencomp.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+	$(CXX) $(LDFLAGS) -o $(OBJ_DIR)/gencomp $(OBJ_DIR)/gencomp.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
 
 cpudefs.cpp: $(OBJ_DIR)/build68k ../uae_cpu/table68k
-	$(OBJ_DIR)/build68k < ../uae_cpu/table68k > $@
+	$(OBJ_DIR)/build68k <../uae_cpu/table68k >cpudefs.cpp
+cpustbl.cpp: cpuemu.cpp
+cpustbl_nf.cpp: cpustbl.cpp
+compstbl.cpp: compemu.cpp
+cputbl.h: cpuemu.cpp
+comptbl.h: compemu.cpp
 
-cpuemu.cpp cpustbl.cpp cputbl.h: $(OBJ_DIR)/gencpu
-	$<
+cpuemu.cpp: $(OBJ_DIR)/gencpu
+	$(OBJ_DIR)/gencpu
 
+compemu.cpp: $(OBJ_DIR)/gencomp
+	$(OBJ_DIR)/gencomp
 
-$(GENEMUS) : cpuemu.cpp
-	for i in 1 2 3 4 5 6 7 8; \
-	do \
-	printf "#define  PART_%d\n#include \"%s\"\n" $$i $<  >cpuemu$$i.cpp; \
-	done
+$(OBJ_DIR)/cpustbl_nf.o: cpustbl.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -DNOFLAGS -c $< -o $@
 
-
-cpufast.s: cpuemu.s $(OBJ_DIR)/cpuopti
-	$(OBJ_DIR)/cpuopti <cpuemu.s >$@ || mv cputmp.s $@
-
-cpuemu.s: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -S $(CXXFLAGS) $< -o $@
-
-$(EMU_OBJ) : build/%.o : %.cpp
+$(OBJ_DIR)/compemu_support.o: compemu_support.cpp comptbl.h
 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
 
-build/newcpu.o : ../uae_cpu/newcpu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu1.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu2.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu3.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu4.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu5.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu6.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu7.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu8.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 $(CXXFLAGS) -c $< -o $@
 
-$(EMU_LIB) : $(EMU_OBJ) build/newcpu.o
-	libtool -static -o $@ $^
+$(OBJ_DIR)/cpuemu1_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu2_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu3_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu4_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu5_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu6_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu7_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/cpuemu8_nf.o: cpuemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
 
-$(SLIRP_OBJ) : build/%.o : ../slirp/%.c
-	$(CC) -I../slirp $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
-
-$(SLIRP_LIB) : $(SLIRP_OBJ)
-	libtool -static -o $@ $^
+$(OBJ_DIR)/compemu1.o: compemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/compemu2.o: compemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/compemu3.o: compemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/compemu4.o: compemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/compemu5.o: compemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/compemu6.o: compemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/compemu7.o: compemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/compemu8.o: compemu.cpp
+	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 $(CXXFLAGS) -c $< -o $@
 
 #-------------------------------------------------------------------------
 # DO NOT DELETE THIS LINE -- make depend depends on it.

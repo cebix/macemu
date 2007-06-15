@@ -10,6 +10,7 @@ dnl autoconf on 10.1 doesn't understand these
 dnl AC_INIT([Basilisk II], 1.0, [Christian.Bauer@uni-mainz.de], BasiliskII)
 dnl AC_CONFIG_SRCDIR(main_macosx.mm)
 AC_INIT(main_macosx.mm)
+AC_CONFIG_AUX_DIR(../Unix)
 AC_PREREQ(2.12)
 AC_CONFIG_HEADER(config.h)
 
@@ -333,6 +334,9 @@ AC_CHECK_FRAMEWORK(AppKit, [])
 AC_CHECK_FRAMEWORK(Carbon, [#include <Carbon/Carbon.h>])
 AC_CHECK_FRAMEWORK(IOKit, [#include <IOKit/IOKitLib.h>])
 AC_CHECK_FRAMEWORK(CoreFoundation, [#include <CoreFoundation/CoreFoundation.h>])
+AC_CHECK_FRAMEWORK(CoreAudio, [#include <CoreAudio/CoreAudio.h>])
+AC_CHECK_FRAMEWORK(AudioUnit, [#include <AudioUnit/AudioUnit.h>])
+AC_CHECK_FRAMEWORK(AudioToolbox, [#include <AudioToolbox/AudioToolbox.h>])
 
 dnl Select system-dependant source files.
   ETHERSRC=ether_unix.cpp
