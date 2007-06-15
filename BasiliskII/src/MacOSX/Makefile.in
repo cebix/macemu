@@ -3,12 +3,14 @@
 ## System specific configuration
 SHELL = /bin/sh
 
-CC = @CC@
-CXX = @CXX@
+HOST_CC = gcc
+HOST_CXX = g++
+CC = @CC@ -arch $(ARCH)
+CXX = @CXX@ -arch $(ARCH)
 CFLAGS = @CFLAGS@ -g
 CXXFLAGS = @CXXFLAGS@ -g
-CPPFLAGS = @CPPFLAGS@ -I../include -I. @CPUINCLUDES@
-DEFS = @DEFS@ @DEFINES@ -D_REENTRANT -DAQUA
+CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../uae_cpu
+DEFS = @DEFS@ @DEFINES@ -D_REENTRANT -DAQUA -DFPU_IEEE
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
 MONSRCS = @MONSRCS@
@@ -27,22 +29,46 @@ endif
 ## CPU emulation code
 WANT_JIT = @WANT_JIT@
 WANT_JIT_DEBUG = @WANT_JIT_DEBUG@
+USE_JIT = no
+CPUSRCS = \
+	../uae_cpu/basilisk_glue.cpp ../uae_cpu/readcpu.cpp \
+	../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/fpu/fpu_ieee.cpp
+GEN_CPUSRCS = \
+	cpustbl.cpp cpudefs.cpp \
+	cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp \
+	cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp
+ifeq ($(ARCH), i386)
 USE_JIT = $(WANT_JIT)
-CPUSRCS = @CPUSRCS@
+DEFS += -DUNALIGNED_PROFITABLE -DREGPARAM="__attribute__((regparm(3)))"
+DEFS += -DX86_ASSEMBLY -DOPTIMIZED_FLAGS -DSAHF_SETO_PROFITABLE
+endif
+ifeq ($(ARCH), x86_64)
+USE_JIT = $(WANT_JIT)
+DEFS += -DUNALIGNED_PROFITABLE
+DEFS += -DX86_64_ASSEMBLY -DOPTIMIZED_FLAGS
+endif
 ifeq ($(USE_JIT), yes)
 DEFS += -DUSE_JIT -DUSE_JIT_FPU
 ifeq ($(WANT_JIT_DEBUG), yes)
 DEFS += -DJIT_DEBUG
 endif
 CPUSRCS += \
+	../uae_cpu/compiler/compemu_support.cpp \
+	../uae_cpu/compiler/compemu_fpp.cpp
+GEN_CPUSRCS += \
 	cpuemu1_nf.cpp cpuemu2_nf.cpp cpuemu3_nf.cpp cpuemu4_nf.cpp \
 	cpuemu5_nf.cpp cpuemu6_nf.cpp cpuemu7_nf.cpp cpuemu8_nf.cpp \
 	compemu1.cpp compemu2.cpp compemu3.cpp compemu4.cpp \
 	compemu5.cpp compemu6.cpp compemu7.cpp compemu8.cpp \
-	../uae_cpu/compiler/compemu_support.cpp \
-	../uae_cpu/compiler/compemu_fpp.cpp \
-	compstbl.o cpustbl_nf.o
+	cpustbl_nf.cpp compstbl.cpp
 endif
+
+GEN_DIR = gen
+ifneq ($(ARCH),)
+GEN_DIR = gen.$(ARCH)
+endif
+CPUSRCS += $(foreach file, $(GEN_CPUSRCS), $(GEN_DIR)/$(file))
+CPPFLAGS += -I$(GEN_DIR)
 
 ## Files
 UNIXSRCS = vm_alloc.cpp vm_alloc.h sigsegv.cpp sigsegv.h video_vosf.h video_blit.cpp \
@@ -61,18 +87,22 @@ SRCS = ../main.cpp main_macosx.mm ../prefs.cpp ../prefs_items.cpp prefs_macosx.m
     NNThread.m Emulator.mm EmulatorView.mm Controller.mm PrefsEditor.mm \
     sshpty.c strlcpy.c \
     $(MONSRCS) $(CPUSRCS) $(SLIRP_SRCS)
+
+## Documentation files
+DOCS = README.txt Credits.html ToDo.html HowTo.html Versions.html
+
+## Binaries to build
 APP = BasiliskII
 APP_APP = $(APP).app
-
-PROGS = $(APP)_app
-DOCS = README.txt Credits.html ToDo.html HowTo.html Versions.html
+TARGET_ARCHES = @TARGET_ARCHES@
+PROGS = $(foreach arch, $(TARGET_ARCHES), $(APP).$(arch))
 
 ## Rules
 .PHONY: modules install installdirs uninstall mostlyclean clean distclean depend dep
 .SUFFIXES:
 .SUFFIXES: .c .cpp .s .o .h
 
-all: $(PROGS)
+all: $(APP)_app
 
 README.txt: ../../README
 	$(LN_S) $< $@
@@ -80,6 +110,9 @@ $(UNIXSRCS): %: ../Unix/%
 	$(LN_S) $< $@
 
 OBJ_DIR = obj
+ifneq ($(ARCH),)
+OBJ_DIR = obj.$(ARCH)
+endif
 $(OBJ_DIR)::
 	@[ -d $(OBJ_DIR) ] || mkdir $(OBJ_DIR) > /dev/null 2>&1
 
@@ -93,11 +126,25 @@ SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
 VPATH :=
 VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
 
-$(APP): $(UNIXSRCS) $(OBJ_DIR) $(OBJS)
-	$(CXX) -o $@ $(LDFLAGS) $(OBJS) $(LIBS)
-	$(BLESS) $(APP)
+define PROGS_template
+$(APP).$(1): links
+	+$(MAKE) $(OBJ_DIR).$(1)/$(APP) ARCH=$(1)
+	$(LN_S) -f $(OBJ_DIR).$(1)/$(APP) $(APP).$(1)
+endef
 
-$(APP)_app: $(APP) $(DOCS) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
+$(APP): $(PROGS)
+	lipo $(foreach arch, $(TARGET_ARCHES), -arch $(arch) $(APP).$(arch)) \
+		-create -output $@
+
+$(foreach arch,$(TARGET_ARCHES),$(eval $(call PROGS_template,$(arch))))
+
+links: $(UNIXSRCS)
+
+$(OBJ_DIR)/$(APP): $(OBJ_DIR) $(GEN_DIR) $(OBJS)
+	$(CXX) -o $@ $(LDFLAGS) $(OBJS) $(LIBS)
+	$(BLESS) $@
+
+$(APP)_app: $(APP) $(DOCS) Info.plist $(APP).icns
 	mkdir -p $(APP_APP)/Contents
 	cp -f ../MacOSX/Info.plist $(APP_APP)/Contents/
 	echo -n 'APPL????' > $(APP_APP)/Contents/PkgInfo
@@ -106,17 +153,17 @@ $(APP)_app: $(APP) $(DOCS) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	strip $(APP_APP)/Contents/MacOS/$(APP)
 	mkdir -p $(APP_APP)/Contents/Resources
 	cp -Rp English.lproj $(APP_APP)/Contents/Resources/
-	cp -f ../MacOSX/$(APP).icns $(APP_APP)/Contents/Resources/
+	cp -f $(APP).icns $(APP_APP)/Contents/Resources/
 	cp -f $(DOCS) $(APP_APP)/Contents/Resources/
 	find $(APP_APP) -type d -name CVS | xargs rm -rf
 
 mostlyclean:
 	rm -rf $(APP_APP)
-	rm -f $(PROGS) $(OBJ_DIR)/* core* *.core *~ *.bak
+	rm -f $(PROGS) $(OBJ_DIR)/* $(OBJ_DIR).*/* core* *.core *~ *.bak
 
 clean: mostlyclean
 	rm -f $(UNIXSRCS)
-	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h compemu.cpp compstbl.cpp comptbl.h
+	rm -f $(GEN_DIR).*/*
 
 distclean: clean
 	rm -rf $(OBJ_DIR)
@@ -140,83 +187,90 @@ $(OBJ_DIR)/%.o : %.mm
 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.s
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.ho : %.c
+	$(HOST_CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.ho : %.cpp
+	$(HOST_CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/build68k: $(OBJ_DIR)/build68k.o
-	$(CC) $(LDFLAGS) -o $(OBJ_DIR)/build68k $(OBJ_DIR)/build68k.o
-$(OBJ_DIR)/gencpu: $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
-	$(CXX) $(LDFLAGS) -o $(OBJ_DIR)/gencpu $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
-$(OBJ_DIR)/gencomp: $(OBJ_DIR)/gencomp.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
-	$(CXX) $(LDFLAGS) -o $(OBJ_DIR)/gencomp $(OBJ_DIR)/gencomp.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+$(OBJ_DIR)/build68k: $(OBJ_DIR)/build68k.ho
+	$(HOST_CC) $(LDFLAGS) -o $@ $(OBJ_DIR)/build68k.ho
+$(OBJ_DIR)/gencpu: $(OBJ_DIR)/gencpu.ho $(OBJ_DIR)/readcpu.ho $(OBJ_DIR)/cpudefs.ho
+	$(HOST_CXX) $(LDFLAGS) -o $@ $(OBJ_DIR)/gencpu.ho $(OBJ_DIR)/readcpu.ho $(OBJ_DIR)/cpudefs.ho
+$(OBJ_DIR)/gencomp: $(OBJ_DIR)/gencomp.ho $(OBJ_DIR)/readcpu.ho $(OBJ_DIR)/cpudefs.ho
+	$(HOST_CXX) $(LDFLAGS) -o $@ $(OBJ_DIR)/gencomp.ho $(OBJ_DIR)/readcpu.ho $(OBJ_DIR)/cpudefs.ho
 
-cpudefs.cpp: $(OBJ_DIR)/build68k ../uae_cpu/table68k
-	$(OBJ_DIR)/build68k <../uae_cpu/table68k >cpudefs.cpp
-cpustbl.cpp: cpuemu.cpp
-cpustbl_nf.cpp: cpustbl.cpp
-compstbl.cpp: compemu.cpp
-cputbl.h: cpuemu.cpp
-comptbl.h: compemu.cpp
+$(GEN_DIR)::
+	@[ -d $(GEN_DIR) ] || mkdir $(GEN_DIR) > /dev/null 2>&1
 
-cpuemu.cpp: $(OBJ_DIR)/gencpu
-	$(OBJ_DIR)/gencpu
+$(GEN_DIR)/cpudefs.cpp: $(OBJ_DIR)/build68k ../uae_cpu/table68k
+	$(OBJ_DIR)/build68k <../uae_cpu/table68k > $@
+$(GEN_DIR)/cpustbl.cpp: $(GEN_DIR)/cpuemu.cpp
+$(GEN_DIR)/cpustbl_nf.cpp: $(GEN_DIR)/cpustbl.cpp
+$(GEN_DIR)/compstbl.cpp: $(GEN_DIR)/compemu.cpp
+$(GEN_DIR)/cputbl.h: $(GEN_DIR)/cpuemu.cpp
+$(GEN_DIR)/comptbl.h: $(GEN_DIR)/compemu.cpp
 
-compemu.cpp: $(OBJ_DIR)/gencomp
-	$(OBJ_DIR)/gencomp
+$(GEN_DIR)/cpuemu.cpp: $(OBJ_DIR)/gencpu
+	cd $(GEN_DIR) && ../$(OBJ_DIR)/gencpu
 
-$(OBJ_DIR)/cpustbl_nf.o: cpustbl.cpp
+$(GEN_DIR)/compemu.cpp: $(OBJ_DIR)/gencomp
+	cd $(GEN_DIR) && ../$(OBJ_DIR)/gencomp
+
+$(OBJ_DIR)/cpustbl_nf.o: $(GEN_DIR)/cpustbl.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -DNOFLAGS -c $< -o $@
 
-$(OBJ_DIR)/compemu_support.o: compemu_support.cpp comptbl.h
+$(OBJ_DIR)/compemu_support.o: compemu_support.cpp $(GEN_DIR)/comptbl.h
 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/cpuemu1.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu1.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu2.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu2.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu3.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu3.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu4.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu4.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu5.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu5.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu6.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu6.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu7.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu7.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu8.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu8.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 $(CXXFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/cpuemu1_nf.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu1_nf.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu2_nf.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu2_nf.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu3_nf.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu3_nf.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu4_nf.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu4_nf.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu5_nf.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu5_nf.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu6_nf.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu6_nf.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu7_nf.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu7_nf.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu8_nf.o: cpuemu.cpp
+$(OBJ_DIR)/cpuemu8_nf.o: $(GEN_DIR)/cpuemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/compemu1.o: compemu.cpp
+$(OBJ_DIR)/compemu1.o: $(GEN_DIR)/compemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/compemu2.o: compemu.cpp
+$(OBJ_DIR)/compemu2.o: $(GEN_DIR)/compemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/compemu3.o: compemu.cpp
+$(OBJ_DIR)/compemu3.o: $(GEN_DIR)/compemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/compemu4.o: compemu.cpp
+$(OBJ_DIR)/compemu4.o: $(GEN_DIR)/compemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/compemu5.o: compemu.cpp
+$(OBJ_DIR)/compemu5.o: $(GEN_DIR)/compemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/compemu6.o: compemu.cpp
+$(OBJ_DIR)/compemu6.o: $(GEN_DIR)/compemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/compemu7.o: compemu.cpp
+$(OBJ_DIR)/compemu7.o: $(GEN_DIR)/compemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/compemu8.o: compemu.cpp
+$(OBJ_DIR)/compemu8.o: $(GEN_DIR)/compemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 $(CXXFLAGS) -c $< -o $@
 
 #-------------------------------------------------------------------------
