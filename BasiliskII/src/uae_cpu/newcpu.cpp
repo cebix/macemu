@@ -811,12 +811,33 @@ static void Interrupt(int nr)
 
 static int caar, cacr, tc, itt0, itt1, dtt0, dtt1, mmusr, urp, srp;
 
+static int movec_illg (int regno)
+{
+	switch (CPUType) {
+	case 1:
+		if ((regno & 0x7ff) <= 1)
+			return 0;
+		break;
+	case 2:
+	case 3:
+		if ((regno & 0x7ff) <= 2)
+			return 0;
+		if (regno == 3 || regno == 4)
+			return 0;
+		break;
+	case 4:
+		if ((regno & 0x7ff) <= 7) {
+			if (regno != 0x802)
+				return 0;
+		}
+		break;
+	}
+	return 1;
+}
+
 int m68k_move2c (int regno, uae_u32 *regp)
 {
-  if ((CPUType == 1 && (regno & 0x7FF) > 1)
-	  || (CPUType < 4 && (regno & 0x7FF) > 2)
-	  || (CPUType == 4 && regno == 0x802))
-  {
+  if (movec_illg (regno)) {
 	op_illg (0x4E7B);
 	return 0;
   } else {
@@ -832,10 +853,7 @@ int m68k_move2c (int regno, uae_u32 *regp)
 				flush_icache(1);
 		}
 		else {
-			set_cache_state((cacr&0x8000) || 0);
-			// FIXME: The User Manual claims bit 3 of CACR is undefined
-			if (*regp & 0x08)
-				flush_icache(2);
+			set_cache_state(cacr&0x8000);
 		}
 #endif
 	 break;
@@ -862,9 +880,7 @@ int m68k_move2c (int regno, uae_u32 *regp)
 
 int m68k_movec2 (int regno, uae_u32 *regp)
 {
-    if ((CPUType == 1 && (regno & 0x7FF) > 1)
-		|| (CPUType < 4 && (regno & 0x7FF) > 2)
-		|| (CPUType == 4 && regno == 0x802))
+    if (movec_illg (regno))
     {
 	op_illg (0x4E7A);
 	return 0;
