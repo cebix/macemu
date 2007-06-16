@@ -218,12 +218,12 @@ static uint32 page_extend(uint32 size)
  */
 
 const int VOSF_PROFITABLE_TRIES = 3;			// Make 3 attempts for full screen update
-const int VOSF_PROFITABLE_THRESHOLD = 16667;	// 60 Hz
+const int VOSF_PROFITABLE_THRESHOLD = 16667/2;	// 60 Hz (half of the quantum)
 
 static bool video_vosf_profitable(void)
 {
-	int64 durations[VOSF_PROFITABLE_TRIES];
-	int mean_duration = 0;
+	uint32 duration = 0;
+	const uint32 n_page_faults = mainBuffer.pageCount * VOSF_PROFITABLE_TRIES;
 
 #ifdef SHEEPSHAVER
 	const bool accel = PrefsFindBool("gfxaccel");
@@ -240,9 +240,8 @@ static bool video_vosf_profitable(void)
 			else
 				addr[0] = 0; // Trigger Screen_fault_handler()
 		}
-		int64 duration = GetTicks_usec() - start;
-		mean_duration += duration;
-		durations[i] = duration;
+		uint64 elapsed = GetTicks_usec() - start;
+		duration += elapsed;
 
 		PFLAG_CLEAR_ALL;
 		mainBuffer.dirty = false;
@@ -250,9 +249,8 @@ static bool video_vosf_profitable(void)
 			return false;
 	}
 
-	mean_duration /= VOSF_PROFITABLE_TRIES;
-	D(bug("Triggered %d screen faults in %ld usec on average\n", mainBuffer.pageCount, mean_duration));
-	return (mean_duration < (VOSF_PROFITABLE_THRESHOLD * (frame_skip ? frame_skip : 1)));
+	D(bug("Triggered %d page faults in %ld usec (%.1f usec per fault)\n", n_page_faults, duration, double(duration) / double(n_page_faults)));
+	return ((duration / VOSF_PROFITABLE_TRIES) < (VOSF_PROFITABLE_THRESHOLD * (frame_skip ? frame_skip : 1)));
 }
 
 
