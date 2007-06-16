@@ -602,32 +602,56 @@ if (ret != KERN_SUCCESS) { \
 }
 
 #ifdef __ppc__
+#define SIGSEGV_EXCEPTION_STATE_TYPE	ppc_exception_state_t
+#define SIGSEGV_EXCEPTION_STATE_FLAVOR	PPC_EXCEPTION_STATE
+#define SIGSEGV_EXCEPTION_STATE_COUNT	PPC_EXCEPTION_STATE_COUNT
+#define SIGSEGV_FAULT_ADDRESS			exc_state->dar
 #define SIGSEGV_THREAD_STATE_TYPE		ppc_thread_state_t
 #define SIGSEGV_THREAD_STATE_FLAVOR		PPC_THREAD_STATE
 #define SIGSEGV_THREAD_STATE_COUNT		PPC_THREAD_STATE_COUNT
-#define SIGSEGV_FAULT_INSTRUCTION		state->srr0
+#define SIGSEGV_FAULT_INSTRUCTION		state.srr0
 #define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
-#define SIGSEGV_REGISTER_FILE			(unsigned long *)&state->srr0, (unsigned long *)&state->r0
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)&state.srr0, (unsigned long *)&state.r0
 #endif
 #ifdef __i386__
 #ifdef i386_SAVED_STATE
 #define SIGSEGV_THREAD_STATE_TYPE		struct i386_saved_state
 #define SIGSEGV_THREAD_STATE_FLAVOR		i386_SAVED_STATE
 #define SIGSEGV_THREAD_STATE_COUNT		i386_SAVED_STATE_COUNT
-#define SIGSEGV_REGISTER_FILE			((unsigned long *)&state->edi) /* EDI is the first GPR we consider */
+#define SIGSEGV_REGISTER_FILE			((unsigned long *)&state.edi) /* EDI is the first GPR we consider */
 #else
+#define SIGSEGV_EXCEPTION_STATE_TYPE	struct i386_exception_state
+#define SIGSEGV_EXCEPTION_STATE_FLAVOR	i386_EXCEPTION_STATE
+#define SIGSEGV_EXCEPTION_STATE_COUNT	i386_EXCEPTION_STATE_COUNT
+#define SIGSEGV_FAULT_ADDRESS			exc_state->faultvaddr
 #define SIGSEGV_THREAD_STATE_TYPE		struct i386_thread_state
 #define SIGSEGV_THREAD_STATE_FLAVOR		i386_THREAD_STATE
 #define SIGSEGV_THREAD_STATE_COUNT		i386_THREAD_STATE_COUNT
-#define SIGSEGV_REGISTER_FILE			((unsigned long *)&state->eax) /* EAX is the first GPR we consider */
+#define SIGSEGV_REGISTER_FILE			((unsigned long *)&state.eax) /* EAX is the first GPR we consider */
 #endif
-#define SIGSEGV_FAULT_INSTRUCTION		state->eip
+#define SIGSEGV_FAULT_INSTRUCTION		state.eip
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
+#ifdef __x86_64__
+#define SIGSEGV_EXCEPTION_STATE_TYPE	struct x86_exception_state64
+#define SIGSEGV_EXCEPTION_STATE_FLAVOR	x86_EXCEPTION_STATE64
+#define SIGSEGV_EXCEPTION_STATE_COUNT	x86_EXCEPTION_STATE64_COUNT
+#define SIGSEGV_FAULT_ADDRESS			exc_state->faultvaddr
+#define SIGSEGV_THREAD_STATE_TYPE		struct x86_thread_state64
+#define SIGSEGV_THREAD_STATE_FLAVOR		x86_THREAD_STATE64
+#define SIGSEGV_THREAD_STATE_COUNT		x86_THREAD_STATE64_COUNT
+#define SIGSEGV_REGISTER_FILE			((unsigned long *)&state.rax) /* RAX is the first GPR we consider */
+#define SIGSEGV_FAULT_INSTRUCTION		state.rip
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#endif
+#ifdef SIGSEGV_EXCEPTION_STATE_TYPE
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	mach_port_t thread, SIGSEGV_EXCEPTION_STATE_TYPE *exc_state
+#define SIGSEGV_FAULT_HANDLER_ARGS		thread, &exc_state
+#else
 #define SIGSEGV_FAULT_ADDRESS			code[1]
-#define SIGSEGV_FAULT_HANDLER_INVOKE(ADDR, IP)	((code[0] == KERN_PROTECTION_FAILURE || code[0] == KERN_INVALID_ADDRESS) ? sigsegv_fault_handler(ADDR, IP) : SIGSEGV_RETURN_FAILURE)
-#define SIGSEGV_FAULT_HANDLER_ARGLIST	mach_port_t thread, exception_data_t code, SIGSEGV_THREAD_STATE_TYPE *state
-#define SIGSEGV_FAULT_HANDLER_ARGS		thread, code, &state
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	mach_port_t thread, exception_data_t code
+#define SIGSEGV_FAULT_HANDLER_ARGS		thread, code
+#endif
 
 // Since there can only be one exception thread running at any time
 // this is not a problem.
@@ -785,6 +809,7 @@ enum {
 #endif
 #if defined(__APPLE__) && defined(__MACH__)
 enum {
+#if (defined(i386) || defined(__i386__))
 #ifdef i386_SAVED_STATE
 	// same as FreeBSD (in Open Darwin 8.0.1)
 	X86_REG_EIP = 10,
@@ -801,12 +826,32 @@ enum {
 	X86_REG_EIP = 10,
 	X86_REG_EAX = 0,
 	X86_REG_ECX = 2,
-	X86_REG_EDX = 4,
+	X86_REG_EDX = 3,
 	X86_REG_EBX = 1,
 	X86_REG_ESP = 7,
 	X86_REG_EBP = 6,
 	X86_REG_ESI = 5,
 	X86_REG_EDI = 4
+#endif
+#endif
+#if defined(__x86_64__)
+	X86_REG_R8  = 8,
+	X86_REG_R9  = 9,
+	X86_REG_R10 = 10,
+	X86_REG_R11 = 11,
+	X86_REG_R12 = 12,
+	X86_REG_R13 = 13,
+	X86_REG_R14 = 14,
+	X86_REG_R15 = 15,
+	X86_REG_EDI = 4,
+	X86_REG_ESI = 5,
+	X86_REG_EBP = 6,
+	X86_REG_EBX = 1,
+	X86_REG_EDX = 3,
+	X86_REG_EAX = 0,
+	X86_REG_ECX = 2,
+	X86_REG_ESP = 7,
+	X86_REG_EIP = 16
 #endif
 };
 #endif
@@ -1618,9 +1663,10 @@ static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 	// We must match the initial count when writing back the CPU state registers
 	kern_return_t krc;
 	mach_msg_type_number_t count;
+	SIGSEGV_THREAD_STATE_TYPE state;
 
 	count = SIGSEGV_THREAD_STATE_COUNT;
-	krc = thread_get_state(thread, SIGSEGV_THREAD_STATE_FLAVOR, (thread_state_t)state, &count);
+	krc = thread_get_state(thread, SIGSEGV_THREAD_STATE_FLAVOR, (thread_state_t)&state, &count);
 	MACH_CHECK_ERROR (thread_get_state, krc);
 #endif
 
@@ -1643,7 +1689,7 @@ static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 			// need to actually call thread_set_state to
 			// have the register values updated.
 			krc = thread_set_state(thread,
-								   SIGSEGV_THREAD_STATE_FLAVOR, (thread_state_t)state,
+								   SIGSEGV_THREAD_STATE_FLAVOR, (thread_state_t)&state,
 								   count);
 			MACH_CHECK_ERROR (thread_set_state, krc);
 #endif
@@ -1795,20 +1841,34 @@ catch_exception_raise(mach_port_t exception_port,
 					  mach_port_t task,
 					  exception_type_t exception,
 					  exception_data_t code,
-					  mach_msg_type_number_t codeCount)
+					  mach_msg_type_number_t code_count)
 {
-	SIGSEGV_THREAD_STATE_TYPE state;
 	kern_return_t krc;
 
-	if ((exception == EXC_BAD_ACCESS)  && (codeCount >= 2)) {
-		if (handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGS))
-			return KERN_SUCCESS;
+	if (exception == EXC_BAD_ACCESS) {
+		switch (code[0]) {
+		case KERN_PROTECTION_FAILURE:
+		case KERN_INVALID_ADDRESS:
+		{
+#ifdef SIGSEGV_EXCEPTION_STATE_TYPE
+			SIGSEGV_EXCEPTION_STATE_TYPE exc_state;
+			mach_msg_type_number_t exc_state_count;
+			exc_state_count = SIGSEGV_EXCEPTION_STATE_COUNT;
+			krc = thread_get_state(thread, SIGSEGV_EXCEPTION_STATE_FLAVOR, (natural_t *)&exc_state, &exc_state_count);
+			MACH_CHECK_ERROR (thread_get_state, krc);
+#endif
+
+			if (handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGS))
+				return KERN_SUCCESS;
+			break;
+		}
+		}
 	}
 
 	// In Mach we do not need to remove the exception handler.
 	// If we forward the exception, eventually some exception handler
 	// will take care of this exception.
-	krc = forward_exception(thread, task, exception, code, codeCount, &ports);
+	krc = forward_exception(thread, task, exception, code, code_count, &ports);
 
 	return krc;
 }
