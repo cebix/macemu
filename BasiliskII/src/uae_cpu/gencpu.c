@@ -2234,38 +2234,35 @@ static int postfix;
 
 static void generate_one_opcode (int rp)
 {
-    int i;
     uae_u16 smsk, dmsk;
     long int opcode = opcode_map[rp];
+    const char *opcode_str;
 
     if (table68k[opcode].mnemo == i_ILLG
 	|| table68k[opcode].clev > cpu_level)
 	return;
 
-    for (i = 0; lookuptab[i].name[0]; i++) {
-	if (table68k[opcode].mnemo == lookuptab[i].mnemo)
-	    break;
-    }
-
     if (table68k[opcode].handler != -1)
 	return;
+
+    opcode_str = get_instruction_string (opcode);
 
     if (opcode_next_clev[rp] != cpu_level) {
 	if (table68k[opcode].flagdead == 0)
 	/* force to the "ff" variant since the instruction doesn't set at all the condition codes */
 	fprintf (stblfile, "{ CPUFUNC_FF(op_%lx_%d), 0, %ld }, /* %s */\n", opcode, opcode_last_postfix[rp],
-		 opcode, lookuptab[i].name);
+		 opcode, opcode_str);
 	else
 	fprintf (stblfile, "{ CPUFUNC(op_%lx_%d), 0, %ld }, /* %s */\n", opcode, opcode_last_postfix[rp],
-		 opcode, lookuptab[i].name);
+		 opcode, opcode_str);
 	return;
     }
 	
 	if (table68k[opcode].flagdead == 0)
 	/* force to the "ff" variant since the instruction doesn't set at all the condition codes */
-    fprintf (stblfile, "{ CPUFUNC_FF(op_%lx_%d), 0, %ld }, /* %s */\n", opcode, postfix, opcode, lookuptab[i].name);
+    fprintf (stblfile, "{ CPUFUNC_FF(op_%lx_%d), 0, %ld }, /* %s */\n", opcode, postfix, opcode, opcode_str);
 	else
-    fprintf (stblfile, "{ CPUFUNC(op_%lx_%d), 0, %ld }, /* %s */\n", opcode, postfix, opcode, lookuptab[i].name);
+    fprintf (stblfile, "{ CPUFUNC(op_%lx_%d), 0, %ld }, /* %s */\n", opcode, postfix, opcode, opcode_str);
 
     fprintf (headerfile, "extern cpuop_func op_%lx_%d_nf;\n", opcode, postfix);
     fprintf (headerfile, "extern cpuop_func op_%lx_%d_ff;\n", opcode, postfix);
@@ -2277,7 +2274,7 @@ static void generate_one_opcode (int rp)
 	if (table68k[opcode].flagdead == 0)
 	printf ("#ifndef NOFLAGS\n");
 
-	printf ("void REGPARAM2 CPUFUNC(op_%lx_%d)(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, lookuptab[i].name);
+	printf ("void REGPARAM2 CPUFUNC(op_%lx_%d)(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, opcode_str);
 	printf ("\tcpuop_begin();\n");
 
     switch (table68k[opcode].stype) {

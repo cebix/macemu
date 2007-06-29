@@ -908,3 +908,112 @@ int get_no_mismatches (void)
 {
     return mismatch;
 }
+
+const char *get_instruction_name (unsigned int opcode)
+{
+    struct instr *ins = &table68k[opcode];
+    for (int i = 0; lookuptab[i].name[0]; i++) {
+	if (ins->mnemo == lookuptab[i].mnemo)
+	    return lookuptab[i].name;
+    }
+    abort();
+    return NULL;
+}
+
+static char *get_ea_string (amodes mode, wordsizes size)
+{
+    static char buffer[80];
+
+    buffer[0] = 0;
+    switch (mode){
+     case Dreg:
+	strcpy (buffer,"Dn");
+	break;
+     case Areg:
+	strcpy (buffer,"An");
+	break;
+     case Aind:
+	strcpy (buffer,"(An)");
+	break;
+     case Aipi:
+	strcpy (buffer,"(An)+");
+	break;
+     case Apdi:
+	strcpy (buffer,"-(An)");
+	break;
+     case Ad16:
+	strcpy (buffer,"(d16,An)");
+	break;
+     case Ad8r:
+	strcpy (buffer,"(d8,An,Xn)");
+	break;
+     case PC16:
+	strcpy (buffer,"(d16,PC)");
+	break;
+     case PC8r:
+	 strcpy (buffer,"(d8,PC,Xn)");
+	break;
+     case absw:
+	strcpy (buffer,"(xxx).W");
+	break;
+     case absl:
+	strcpy (buffer,"(xxx).L");
+	break;
+     case imm:
+	switch (size){
+	 case sz_byte:
+	    strcpy (buffer,"#<data>.B");
+	    break;
+	 case sz_word:
+	    strcpy (buffer,"#<data>.W");
+	    break;
+	 case sz_long:
+	    strcpy (buffer,"#<data>.L");
+	    break;
+	 default:
+	    break;
+	}
+	break;
+     case imm0:
+	strcpy (buffer,"#<data>.B");
+	break;
+     case imm1:
+	strcpy (buffer,"#<data>.W");
+	break;
+     case imm2:
+	strcpy (buffer,"#<data>.L");
+	break;
+     case immi:
+	strcpy (buffer,"#<data>");
+	break;
+
+     default:
+	break;
+    }
+    return buffer;
+}
+
+const char *get_instruction_string (unsigned int opcode)
+{
+    static char out[100];
+    struct instr *ins;
+
+    strcpy (out, get_instruction_name (opcode));
+
+    ins = &table68k[opcode];
+    if (ins->size == sz_byte)
+	strcat (out,".B");
+    if (ins->size == sz_word)
+	strcat (out,".W");
+    if (ins->size == sz_long)
+	strcat (out,".L");
+    strcat (out," ");
+    if (ins->suse)
+	strcat (out, get_ea_string (ins->smode, ins->size));
+    if (ins->duse) {
+	if (ins->suse)
+	    strcat (out,",");
+	strcat (out, get_ea_string (ins->dmode, ins->size));
+    }
+    return out;
+}

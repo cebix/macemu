@@ -120,6 +120,9 @@ extern void do_merges (void);
 extern int get_no_mismatches (void);
 extern int nr_cpuop_funcs;
 
+extern const char *get_instruction_name (unsigned int opcode);
+extern const char *get_instruction_string (unsigned int opcode);
+
 #ifdef __cplusplus
 }
 #endif

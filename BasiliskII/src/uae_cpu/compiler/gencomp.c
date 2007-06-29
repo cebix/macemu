@@ -2768,9 +2768,9 @@ static int postfix;
 static void 
 generate_one_opcode (int rp, int noflags)
 {
-    int i;
     uae_u16 smsk, dmsk;
-    long int opcode = opcode_map[rp];
+    const long int opcode = opcode_map[rp];
+    const char *opcode_str;
     int aborted=0;
     int have_srcreg=0;
     int have_dstreg=0;
@@ -2778,12 +2778,6 @@ generate_one_opcode (int rp, int noflags)
     if (table68k[opcode].mnemo == i_ILLG
 	|| table68k[opcode].clev > cpu_level)
 	return;
-
-    for (i = 0; lookuptab[i].name[0]; i++)
-    {
-	if (table68k[opcode].mnemo == lookuptab[i].mnemo)
-	    break;
-    }
 
     if (table68k[opcode].handler != -1)
 	return;
@@ -2936,6 +2930,8 @@ generate_one_opcode (int rp, int noflags)
     comprintf("\tuae_u32 m68k_pc_offset_thisinst=m68k_pc_offset;\n");
     comprintf("\tm68k_pc_offset+=2;\n");
 
+    opcode_str = get_instruction_string (opcode);
+
     aborted=gen_opcode (opcode);
     {
 	int flags=0;
@@ -2949,19 +2945,19 @@ generate_one_opcode (int rp, int noflags)
 	comprintf ("}\n");
     
 	if (aborted) {
-	    fprintf (stblfile, "{ NULL, 0x%08x, %ld }, /* %s */\n", flags, opcode, lookuptab[i].name);
+	    fprintf (stblfile, "{ NULL, 0x%08x, %ld }, /* %s */\n", flags, opcode, opcode_str);
 	    com_discard();
 	}
 	else {
 	    if (noflags) {
-		fprintf (stblfile, "{ op_%lx_%d_comp_nf, 0x%08x, %ld }, /* %s */\n", opcode, postfix, flags, opcode, lookuptab[i].name);
+		fprintf (stblfile, "{ op_%lx_%d_comp_nf, 0x%08x, %ld }, /* %s */\n", opcode, postfix, flags, opcode, opcode_str);
 		fprintf (headerfile, "extern compop_func op_%lx_%d_comp_nf;\n", opcode, postfix);
-		printf ("void REGPARAM2 op_%lx_%d_comp_nf(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, lookuptab[i].name);
+		printf ("void REGPARAM2 op_%lx_%d_comp_nf(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, opcode_str);
 	    }
 	    else {
-		fprintf (stblfile, "{ op_%lx_%d_comp_ff, 0x%08x, %ld }, /* %s */\n", opcode, postfix, flags, opcode, lookuptab[i].name);
+		fprintf (stblfile, "{ op_%lx_%d_comp_ff, 0x%08x, %ld }, /* %s */\n", opcode, postfix, flags, opcode, opcode_str);
 		fprintf (headerfile, "extern compop_func op_%lx_%d_comp_ff;\n", opcode, postfix);
-		printf ("void REGPARAM2 op_%lx_%d_comp_ff(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, lookuptab[i].name);
+		printf ("void REGPARAM2 op_%lx_%d_comp_ff(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, opcode_str);
 	    }
 	    com_flush();
 	}
