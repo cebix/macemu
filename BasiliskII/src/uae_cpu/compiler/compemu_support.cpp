@@ -2955,6 +2955,32 @@ MIDFUNC(2,setcc_m,(IMM d, IMM cc))
 }
 MENDFUNC(2,setcc_m,(IMM d, IMM cc))
 
+MIDFUNC(3,cmov_b_rr,(RW1 d, R1 s, IMM cc))
+{
+    if (d==s)
+	return;
+    CLOBBER_CMOV;
+    s=readreg(s,1);
+    d=rmw(d,1,1);
+    raw_cmov_b_rr(d,s,cc);
+    unlock2(s);
+    unlock2(d);
+}
+MENDFUNC(3,cmov_b_rr,(RW1 d, R1 s, IMM cc))
+
+MIDFUNC(3,cmov_w_rr,(RW2 d, R2 s, IMM cc))
+{
+    if (d==s)
+	return;
+    CLOBBER_CMOV;
+    s=readreg(s,2);
+    d=rmw(d,2,2);
+    raw_cmov_w_rr(d,s,cc);
+    unlock2(s);
+    unlock2(d);
+}
+MENDFUNC(3,cmov_w_rr,(RW2 d, R2 s, IMM cc))
+
 MIDFUNC(3,cmov_l_rr,(RW4 d, R4 s, IMM cc))
 {
     if (d==s)

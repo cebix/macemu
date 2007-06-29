@@ -523,6 +523,29 @@ LOWFUNC(READ,WRITE,2,raw_setcc_m,(MEMW d, IMM cc))
 }
 LENDFUNC(READ,WRITE,2,raw_setcc_m,(MEMW d, IMM cc))
 
+LOWFUNC(READ,NONE,3,raw_cmov_b_rr,(RW1 d, R1 s, IMM cc))
+{
+	/* replacement using branch and mov */
+	int8 *target_p = (int8 *)x86_get_target() + 1;
+	JCCSii(cc^1, 0);
+	MOVBrr(s, d);
+	*target_p = (uintptr)x86_get_target() - ((uintptr)target_p + 1);
+}
+LENDFUNC(READ,NONE,3,raw_cmov_b_rr,(RW1 d, R1 s, IMM cc))
+
+LOWFUNC(READ,NONE,3,raw_cmov_w_rr,(RW2 d, R2 s, IMM cc))
+{
+	if (have_cmov)
+		CMOVWrr(cc, s, d);
+	else { /* replacement using branch and mov */
+		int8 *target_p = (int8 *)x86_get_target() + 1;
+		JCCSii(cc^1, 0);
+		MOVWrr(s, d);
+	    *target_p = (uintptr)x86_get_target() - ((uintptr)target_p + 1);
+	}
+}
+LENDFUNC(READ,NONE,3,raw_cmov_w_rr,(RW2 d, R2 s, IMM cc))
+
 LOWFUNC(READ,NONE,3,raw_cmov_l_rr,(RW4 d, R4 s, IMM cc))
 {
 	if (have_cmov)
@@ -1738,6 +1761,36 @@ LOWFUNC(READ,WRITE,2,raw_setcc_m,(MEMW d, IMM cc))
     emit_long(d);
 }
 LENDFUNC(READ,WRITE,2,raw_setcc_m,(MEMW d, IMM cc))
+
+LOWFUNC(READ,NONE,3,raw_cmov_b_rr,(RW1 d, R1 s, IMM cc))
+{
+	/* replacement using branch and mov */
+	int uncc=(cc^1);
+	emit_byte(0x70+uncc); 
+	emit_byte(3);  /* skip next 2 bytes if not cc=true */
+    emit_byte(0x88);
+    emit_byte(0xc0+8*s+d);
+}
+LENDFUNC(READ,NONE,3,raw_cmov_b_rr,(RW1 d, R1 s, IMM cc))
+
+LOWFUNC(READ,NONE,3,raw_cmov_w_rr,(RW2 d, R2 s, IMM cc))
+{
+    if (have_cmov) {
+	emit_byte(0x66);
+	emit_byte(0x0f);
+	emit_byte(0x40+cc);
+	emit_byte(0xc0+8*d+s);
+    }
+    else { /* replacement using branch and mov */
+	int uncc=(cc^1);
+	emit_byte(0x70+uncc); 
+	emit_byte(3);  /* skip next 3 bytes if not cc=true */
+	emit_byte(0x66);
+	emit_byte(0x89);
+	emit_byte(0xc0+8*s+d);
+    }
+}
+LENDFUNC(READ,NONE,3,raw_cmov_w_rr,(RW2 d, R2 s, IMM cc))
 
 LOWFUNC(READ,NONE,3,raw_cmov_l_rr,(RW4 d, R4 s, IMM cc))
 {
