@@ -1896,51 +1896,45 @@ gen_opcode (unsigned long int opcode)
 		comprintf("\tint highmask;\n"
 			  "\tint width;\n"
 			  "\tint cdata=scratchie++;\n"
-			  "\tint tmpcnt=scratchie++;\n"
-			  "\tint highshift=scratchie++;\n");
-		comprintf("\tmov_l_rr(tmpcnt,cnt);\n"
-			  "\tand_l_ri(tmpcnt,63);\n"
-			  "\tmov_l_ri(cdata,0);\n"
-			  "\tcmov_l_rr(cdata,data,5);\n");
-		/* cdata is now either data (for shift count!=0) or
-		   0 (for shift count==0) */
-		switch(curi->size) {
-		 case sz_byte: comprintf("\tshra_b_rr(data,cnt);\n"
-					 "\thighmask=0x38;\n"
-					 "\twidth=8;\n"); 
-		 break;
-		 case sz_word: comprintf("\tshra_w_rr(data,cnt);\n"
-					 "\thighmask=0x30;\n"
-					 "\twidth=16;\n"); 
-		 break;
-		 case sz_long: comprintf("\tshra_l_rr(data,cnt);\n"
-					 "\thighmask=0x20;\n"
-					 "\twidth=32;\n"); 
-		 break;
-		 default: abort();
+			  "\tint sdata=scratchie++;\n"
+			  "\tint tmpcnt=scratchie++;\n");
+		comprintf("\tmov_l_rr(sdata,data);\n"
+			  "\tmov_l_rr(cdata,data);\n"
+			  "\tmov_l_rr(tmpcnt,cnt);\n");
+		switch (curi->size) {
+		case sz_byte: comprintf("\tshra_b_ri(sdata,7);\n"); break;
+		case sz_word: comprintf("\tshra_w_ri(sdata,15);\n"); break;
+		case sz_long: comprintf("\tshra_l_ri(sdata,31);\n"); break;
+		default: abort();
 		}
-		comprintf("test_l_ri(cnt,highmask);\n"
-			  "mov_l_ri(highshift,0);\n"
-			  "mov_l_ri(scratchie,width/2);\n"
-			  "cmov_l_rr(highshift,scratchie,5);\n");
-		/* The x86 masks out bits, so we now make sure that things
-		   really get shifted as much as planned */
+		/* sdata is now the MSB propagated to all bits for the
+		   register of specified size */
+		comprintf("\tand_l_ri(tmpcnt,63);\n");
 		switch(curi->size) {
-		 case sz_byte: comprintf("\tshra_b_rr(data,highshift);\n");break;
-		 case sz_word: comprintf("\tshra_w_rr(data,highshift);\n");break;
-		 case sz_long: comprintf("\tshra_l_rr(data,highshift);\n");break;
-		 default: abort();
+		case sz_byte: comprintf("\tshra_b_rr(data,tmpcnt);\n"
+					"\thighmask=0x38;\n");
+		    break;
+		case sz_word: comprintf("\tshra_w_rr(data,tmpcnt);\n"
+					"\thighmask=0x30;\n");
+		    break;
+		case sz_long: comprintf("\tshra_l_rr(data,tmpcnt);\n"
+					"\thighmask=0x20;\n");
+		    break;
 		}
-		/* And again */
-		switch(curi->size) {
-		 case sz_byte: comprintf("\tshra_b_rr(data,highshift);\n");break;
-		 case sz_word: comprintf("\tshra_w_rr(data,highshift);\n");break;
-		 case sz_long: comprintf("\tshra_l_rr(data,highshift);\n");break;
-		 default: abort();
+		comprintf("\ttest_l_ri(tmpcnt,highmask);\n");
+		switch (curi->size) {
+		case sz_byte: comprintf("\tcmov_b_rr(data,sdata,NATIVE_CC_NE);\n"); break;
+		case sz_word: comprintf("\tcmov_w_rr(data,sdata,NATIVE_CC_NE);\n"); break;
+		case sz_long: comprintf("\tcmov_l_rr(data,sdata,NATIVE_CC_NE);\n"); break;
 		}
 		
 		/* Result of shift is now in data. Now we need to determine
 		   the carry by shifting cdata one less */
+		/* NOTE: carry bit is cleared if shift count is zero */
+		comprintf("\tmov_l_ri(scratchie,0);\n"
+			  "\ttest_l_rr(tmpcnt,tmpcnt);\n"
+			  "\tcmov_l_rr(sdata,scratchie,NATIVE_CC_EQ);\n"
+			  "\tforget_about(scratchie);\n");
 		comprintf("\tsub_l_ri(tmpcnt,1);\n");
 		switch(curi->size) {
 		 case sz_byte: comprintf("\tshra_b_rr(cdata,tmpcnt);\n");break;
@@ -1949,10 +1943,16 @@ gen_opcode (unsigned long int opcode)
 		 default: abort();
 		}
 		/* If the shift count was higher than the width, we need
-		   to pick up the sign from data */
-		comprintf("test_l_ri(tmpcnt,highmask);\n"
-			  "cmov_l_rr(cdata,data,5);\n");
-		/* And create the flags */
+		   to pick up the sign from original data (sdata) */
+		/* NOTE: for shift count of zero, the following holds
+		   true and cdata contains 0 so that carry bit is cleared */
+		comprintf("\ttest_l_ri(tmpcnt,highmask);\n"
+			  "\tforget_about(tmpcnt);\n"
+			  "\tcmov_l_rr(cdata,sdata,NATIVE_CC_NE);\n");
+
+		/* And create the flags (preserve X flag if shift count is zero) */
+		comprintf("\ttest_l_ri(cnt,63);\n"
+			  "\tcmov_l_rr(FLAGX,cdata,NATIVE_CC_NE);\n");
 		comprintf("\tstart_needflags();\n");
 		comprintf("\tif (needed_flags & FLAG_ZNV)\n");
 		switch(curi->size) {
@@ -1963,7 +1963,6 @@ gen_opcode (unsigned long int opcode)
 		comprintf("\t bt_l_ri(cdata,0);\n"); /* Set C */
 		comprintf("\t live_flags();\n");
 		comprintf("\t end_needflags();\n");
-		comprintf("\t duplicate_carry();\n");
 		comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
 		genastore ("data", curi->dmode, "dstreg", curi->size, "data");
 	    }
@@ -2214,43 +2213,46 @@ gen_opcode (unsigned long int opcode)
 		comprintf("\tmov_l_rr(tmpcnt,cnt);\n"
 			  "\tand_l_ri(tmpcnt,63);\n"
 			  "\tmov_l_ri(cdata,0);\n"
-			  "\tcmov_l_rr(cdata,data,5);\n");
+			  "\tcmov_l_rr(cdata,data,NATIVE_CC_NE);\n");
 		/* cdata is now either data (for shift count!=0) or
 		   0 (for shift count==0) */
 		switch(curi->size) {
-		 case sz_byte: comprintf("\tshrl_b_rr(data,cnt);\n"
+		 case sz_byte: comprintf("\tshrl_b_rr(data,tmpcnt);\n"
 					 "\thighmask=0x38;\n"); 
 		 break;
-		 case sz_word: comprintf("\tshrl_w_rr(data,cnt);\n"
+		 case sz_word: comprintf("\tshrl_w_rr(data,tmpcnt);\n"
 					 "\thighmask=0x30;\n"); 
 		 break;
-		 case sz_long: comprintf("\tshrl_l_rr(data,cnt);\n"
+		 case sz_long: comprintf("\tshrl_l_rr(data,tmpcnt);\n"
 					 "\thighmask=0x20;\n"); 
 		 break;
 		 default: abort();
 		}
-		comprintf("test_l_ri(cnt,highmask);\n"
-			  "mov_l_ri(scratchie,0);\n"
-			  "cmov_l_rr(scratchie,data,4);\n");
-		switch(curi->size) {
-		 case sz_byte: comprintf("\tmov_b_rr(data,scratchie);\n");break;
-		 case sz_word: comprintf("\tmov_w_rr(data,scratchie);\n");break;
-		 case sz_long: comprintf("\tmov_l_rr(data,scratchie);\n");break;
-		 default: abort();
+		comprintf("\ttest_l_ri(tmpcnt,highmask);\n"
+			  "\rmov_l_ri(scratchie,0);\n");
+		if (curi->size == sz_long)
+		    comprintf("\tcmov_l_rr(data,scratchie,NATIVE_CC_NE);\n");
+		else {
+		    comprintf("\tcmov_l_rr(scratchie,data,NATIVE_CC_EQ);\n");
+		    switch(curi->size) {
+		    case sz_byte: comprintf("\tmov_b_rr(data,scratchie);\n");break;
+		    case sz_word: comprintf("\tmov_w_rr(data,scratchie);\n");break;
+		    default: abort();
+		    }
 		}
 		/* Result of shift is now in data. Now we need to determine
 		   the carry by shifting cdata one less */
 		comprintf("\tsub_l_ri(tmpcnt,1);\n");
-		switch(curi->size) {
-		 case sz_byte: comprintf("\tshrl_b_rr(cdata,tmpcnt);\n");break;
-		 case sz_word: comprintf("\tshrl_w_rr(cdata,tmpcnt);\n");break;
-		 case sz_long: comprintf("\tshrl_l_rr(cdata,tmpcnt);\n");break;
-		 default: abort();
-		}
-		comprintf("test_l_ri(tmpcnt,highmask);\n"
-			  "mov_l_ri(scratchie,0);\n"
-			  "cmov_l_rr(cdata,scratchie,5);\n");
-		/* And create the flags */
+		comprintf("\tshrl_l_rr(cdata,tmpcnt);\n");
+		comprintf("\ttest_l_ri(tmpcnt,highmask);\n");
+		comprintf("\tforget_about(tmpcnt);\n");
+		if (curi->size != sz_long) /* scratchie is still live for LSR.L */
+		    comprintf("\tmov_l_ri(scratchie,0);\n");
+		comprintf("\tcmov_l_rr(cdata,scratchie,NATIVE_CC_NE);\n");
+		comprintf("\tforget_about(scratchie);\n");
+		/* And create the flags (preserve X flag if shift count is zero) */
+		comprintf("\ttest_l_ri(cnt,63);\n"
+			  "\tcmov_l_rr(FLAGX,cdata,NATIVE_CC_NE);\n");
 		comprintf("\tstart_needflags();\n");
 		comprintf("\tif (needed_flags & FLAG_ZNV)\n");
 		switch(curi->size) {
@@ -2261,7 +2263,6 @@ gen_opcode (unsigned long int opcode)
 		comprintf("\t bt_l_ri(cdata,0);\n"); /* Set C */
 		comprintf("\t live_flags();\n");
 		comprintf("\t end_needflags();\n");
-		comprintf("\t duplicate_carry();\n");
 		comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
 		genastore ("data", curi->dmode, "dstreg", curi->size, "data");
 	    }
@@ -2350,56 +2351,61 @@ gen_opcode (unsigned long int opcode)
 		comprintf("\tmov_l_rr(tmpcnt,cnt);\n"
 			  "\tand_l_ri(tmpcnt,63);\n"
 			  "\tmov_l_ri(cdata,0);\n"
-			  "\tcmov_l_rr(cdata,data,5);\n");
+			  "\tcmov_l_rr(cdata,data,NATIVE_CC_NE);\n");
 		/* cdata is now either data (for shift count!=0) or
 		   0 (for shift count==0) */
 		switch(curi->size) {
-		 case sz_byte: comprintf("\tshll_b_rr(data,cnt);\n"
+		 case sz_byte: comprintf("\tshll_b_rr(data,tmpcnt);\n"
 					 "\thighmask=0x38;\n"); 
 		 break;
-		 case sz_word: comprintf("\tshll_w_rr(data,cnt);\n"
+		 case sz_word: comprintf("\tshll_w_rr(data,tmpcnt);\n"
 					 "\thighmask=0x30;\n"); 
 		 break;
-		 case sz_long: comprintf("\tshll_l_rr(data,cnt);\n"
+		 case sz_long: comprintf("\tshll_l_rr(data,tmpcnt);\n"
 					 "\thighmask=0x20;\n"); 
 		 break;
 		 default: abort();
 		}
-		comprintf("test_l_ri(cnt,highmask);\n"
-			  "mov_l_ri(scratchie,0);\n"
-			  "cmov_l_rr(scratchie,data,4);\n");
-		switch(curi->size) {
-		 case sz_byte: comprintf("\tmov_b_rr(data,scratchie);\n");break;
-		 case sz_word: comprintf("\tmov_w_rr(data,scratchie);\n");break;
-		 case sz_long: comprintf("\tmov_l_rr(data,scratchie);\n");break;
-		 default: abort();
+		comprintf("\ttest_l_ri(tmpcnt,highmask);\n"
+			  "\tmov_l_ri(scratchie,0);\n");
+		if (curi->size == sz_long)
+		    comprintf("\tcmov_l_rr(data,scratchie,NATIVE_CC_NE);\n");
+		else {
+		    comprintf("\tcmov_l_rr(scratchie,data,NATIVE_CC_EQ);\n");
+		    switch(curi->size) {
+		    case sz_byte: comprintf("\tmov_b_rr(data,scratchie);\n");break;
+		    case sz_word: comprintf("\tmov_w_rr(data,scratchie);\n");break;
+		    default: abort();
+		    }
 		}
 		/* Result of shift is now in data. Now we need to determine
 		   the carry by shifting cdata one less */
 		comprintf("\tsub_l_ri(tmpcnt,1);\n");
-		switch(curi->size) {
-		 case sz_byte: comprintf("\tshll_b_rr(cdata,tmpcnt);\n");break;
-		 case sz_word: comprintf("\tshll_w_rr(cdata,tmpcnt);\n");break;
-		 case sz_long: comprintf("\tshll_l_rr(cdata,tmpcnt);\n");break;
-		 default: abort();
+		comprintf("\tshll_l_rr(cdata,tmpcnt);\n");
+		comprintf("\ttest_l_ri(tmpcnt,highmask);\n");
+		comprintf("\tforget_about(tmpcnt);\n");
+		if (curi->size != sz_long) /* scratchie is still live for LSL.L */
+		    comprintf("\tmov_l_ri(scratchie,0);\n");
+		comprintf("\tcmov_l_rr(cdata,scratchie,NATIVE_CC_NE);\n");
+		comprintf("\tforget_about(scratchie);\n");
+		/* And create the flags (preserve X flag if shift count is zero) */
+		switch (curi->size) {
+		case sz_byte: comprintf("\tshrl_l_ri(cdata,7);\n"); break;
+		case sz_word: comprintf("\tshrl_l_ri(cdata,15);\n"); break;
+		case sz_long: comprintf("\tshrl_l_ri(cdata,31);\n"); break;
 		}
-		comprintf("test_l_ri(tmpcnt,highmask);\n"
-			  "mov_l_ri(scratchie,0);\n"
-			  "cmov_l_rr(cdata,scratchie,5);\n");
-		/* And create the flags */
+		comprintf("\ttest_l_ri(cnt,63);\n"
+			  "\tcmov_l_rr(FLAGX,cdata,NATIVE_CC_NE);\n");
 		comprintf("\tstart_needflags();\n");
 		comprintf("\tif (needed_flags & FLAG_ZNV)\n");
 		switch(curi->size) {
-		 case sz_byte: comprintf("\t  test_b_rr(data,data);\n"); 
-		    comprintf("\t bt_l_ri(cdata,7);\n"); break;
-		 case sz_word: comprintf("\t  test_w_rr(data,data);\n"); 
-		    comprintf("\t bt_l_ri(cdata,15);\n"); break;
-		 case sz_long: comprintf("\t  test_l_rr(data,data);\n"); 
-		    comprintf("\t bt_l_ri(cdata,31);\n"); break;
+		case sz_byte: comprintf("\t  test_b_rr(data,data);\n"); break;
+		case sz_word: comprintf("\t  test_w_rr(data,data);\n"); break;
+		case sz_long: comprintf("\t  test_l_rr(data,data);\n"); break;
 		}
+		comprintf("\t bt_l_ri(cdata,0);\n");
 		comprintf("\t live_flags();\n");
 		comprintf("\t end_needflags();\n");
-		comprintf("\t duplicate_carry();\n");
 		comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
 		genastore ("data", curi->dmode, "dstreg", curi->size, "data");
 	    }

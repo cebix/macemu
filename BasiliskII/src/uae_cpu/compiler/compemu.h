@@ -30,6 +30,12 @@
 
 #if USE_JIT
 
+#if defined __i386__ || defined __x86_64__
+#include "flags_x86.h"
+#else
+#error "Unsupported JIT compiler for this architecture"
+#endif
+
 #if JIT_DEBUG
 /* dump some information (m68k block, x86 block addresses) about the compiler state */
 extern void compiler_dumpstate(void);
