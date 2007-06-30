@@ -30,6 +30,9 @@
 
 #define BOOL_TYPE "int"
 
+/* Define the minimal 680x0 where NV flags are not affected by xBCD instructions.  */
+#define xBCD_KEEPS_NV_FLAGS 4
+
 static FILE *headerfile;
 static FILE *stblfile;
 
@@ -568,7 +571,7 @@ static void duplicate_carry (void)
 }
 
 typedef enum {
-    flag_logical_noclobber, flag_logical, flag_add, flag_sub, flag_cmp, flag_addx, flag_subx, flag_zn,
+    flag_logical_noclobber, flag_logical, flag_add, flag_sub, flag_cmp, flag_addx, flag_subx, flag_z, flag_zn,
     flag_av, flag_sv
 } flagtypes;
 
@@ -622,6 +625,7 @@ static void genflags_normal (flagtypes type, wordsizes size, char *value, char *
     switch (type) {
      case flag_logical_noclobber:
      case flag_logical:
+     case flag_z:
      case flag_zn:
      case flag_av:
      case flag_sv:
@@ -643,6 +647,7 @@ static void genflags_normal (flagtypes type, wordsizes size, char *value, char *
     switch (type) {
      case flag_logical_noclobber:
      case flag_logical:
+     case flag_z:
      case flag_zn:
 	break;
 
@@ -675,6 +680,9 @@ static void genflags_normal (flagtypes type, wordsizes size, char *value, char *
 	break;
      case flag_sv:
 	printf ("\tSET_VFLG ((flgs ^ flgo) & (flgn ^ flgo));\n");
+	break;
+     case flag_z:
+	printf ("\tSET_ZFLG (GET_ZFLG & (%s == 0));\n", vstr);
 	break;
      case flag_zn:
 	printf ("\tSET_ZFLG (GET_ZFLG & (%s == 0));\n", vstr);
@@ -921,8 +929,16 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tif ((((dst & 0xFF) - (src & 0xFF) - (GET_XFLG ? 1 : 0)) & 0x100) > 0xFF) { newv -= 0x60; }\n");
 	printf ("\tSET_CFLG ((((dst & 0xFF) - (src & 0xFF) - bcd - (GET_XFLG ? 1 : 0)) & 0x300) > 0xFF);\n");
 	duplicate_carry ();
-	genflags (flag_zn, curi->size, "newv", "", "");
-	printf ("\tSET_VFLG ((tmp_newv & 0x80) != 0 && (newv & 0x80) == 0);\n");
+	/* Manual says bits NV are undefined though a real 68040 don't change them */
+	if (cpu_level >= xBCD_KEEPS_NV_FLAGS) {
+	    if (next_cpu_level < xBCD_KEEPS_NV_FLAGS)
+		next_cpu_level = xBCD_KEEPS_NV_FLAGS - 1;
+	    genflags (flag_z, curi->size, "newv", "", "");
+	}
+	else {
+	    genflags (flag_zn, curi->size, "newv", "", "");
+	    printf ("\tSET_VFLG ((tmp_newv & 0x80) != 0 && (newv & 0x80) == 0);\n");
+	}
 	genastore ("newv", curi->dmode, "dstreg", curi->size, "dst");
 	break;
      case i_ADD:
@@ -962,8 +978,16 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tif (cflg) newv += 0x60;\n");
 	printf ("\tSET_CFLG (cflg);\n");
 	duplicate_carry ();
-	genflags (flag_zn, curi->size, "newv", "", "");
-	printf ("\tSET_VFLG ((tmp_newv & 0x80) == 0 && (newv & 0x80) != 0);\n");
+	/* Manual says bits NV are undefined though a real 68040 don't change them */
+	if (cpu_level >= xBCD_KEEPS_NV_FLAGS) {
+	    if (next_cpu_level < xBCD_KEEPS_NV_FLAGS)
+		next_cpu_level = xBCD_KEEPS_NV_FLAGS - 1;
+	    genflags (flag_z, curi->size, "newv", "", "");
+	}
+	else {
+	    genflags (flag_zn, curi->size, "newv", "", "");
+	    printf ("\tSET_VFLG ((tmp_newv & 0x80) == 0 && (newv & 0x80) != 0);\n");
+	}
 	genastore ("newv", curi->dmode, "dstreg", curi->size, "dst");
 	break;
      case i_NEG:
@@ -993,7 +1017,15 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tif (cflg) newv -= 0x60;\n");
 	printf ("\tSET_CFLG (cflg);\n");
 	duplicate_carry();
-	genflags (flag_zn, curi->size, "newv", "", "");
+	/* Manual says bits NV are undefined though a real 68040 don't change them */
+	if (cpu_level >= xBCD_KEEPS_NV_FLAGS) {
+	    if (next_cpu_level < xBCD_KEEPS_NV_FLAGS)
+		next_cpu_level = xBCD_KEEPS_NV_FLAGS - 1;
+	    genflags (flag_z, curi->size, "newv", "", "");
+	}
+	else {
+	    genflags (flag_zn, curi->size, "newv", "", "");
+	}
 	genastore ("newv", curi->smode, "srcreg", curi->size, "src");
 	break;
      case i_CLR:
