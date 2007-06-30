@@ -24,8 +24,13 @@
 
 /* Set the strategy for drawing the bitmap in the Mac OS X window */
 //#define CGDRAWBITMAP
+#if defined __i386__
+//#define CGIMAGEREF
+#define NSBITMAP
+#else
 #define CGIMAGEREF
 //#define NSBITMAP
+#endif
 
 // Using Core Graphics is fastest when rendering 32bit data.
 // Using CGImageRefs allows us to use all the bitmaps that BasiliskII supports.
