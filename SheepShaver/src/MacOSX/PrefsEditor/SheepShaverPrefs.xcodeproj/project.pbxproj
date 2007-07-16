@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		084186B10B3A0515004B1F63 /* PrefsEditor.m in Sources */ = {isa = PBXBuildFile; fileRef = 084186B00B3A0515004B1F63 /* PrefsEditor.m */; };
+		084186B10B3A0515004B1F63 /* PrefsEditor.mm in Sources */ = {isa = PBXBuildFile; fileRef = 084186B00B3A0515004B1F63 /* PrefsEditor.mm */; };
 		08DC90BD0B67074C00799A45 /* prefs_items.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 08DC90BC0B67074C00799A45 /* prefs_items.cpp */; };
 		08DC90BF0B67075D00799A45 /* prefs_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 08DC90BE0B67075D00799A45 /* prefs_unix.cpp */; };
 		08DC90C10B67077300799A45 /* prefs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 08DC90C00B67077300799A45 /* prefs.cpp */; };
@@ -19,7 +19,7 @@
 
 /* Begin PBXFileReference section */
 		084186AF0B3A0515004B1F63 /* PrefsEditor.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = PrefsEditor.h; sourceTree = "<group>"; };
-		084186B00B3A0515004B1F63 /* PrefsEditor.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = PrefsEditor.m; sourceTree = "<group>"; };
+		084186B00B3A0515004B1F63 /* PrefsEditor.mm */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.objcpp; path = PrefsEditor.mm; sourceTree = "<group>"; };
 		089C165DFE840E0CC02AAC07 /* English */ = {isa = PBXFileReference; fileEncoding = 10; lastKnownFileType = text.plist.strings; name = English; path = English.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		08DC90BC0B67074C00799A45 /* prefs_items.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; name = prefs_items.cpp; path = ../../prefs_items.cpp; sourceTree = SOURCE_ROOT; };
 		08DC90BE0B67075D00799A45 /* prefs_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; name = prefs_unix.cpp; path = ../../Unix/prefs_unix.cpp; sourceTree = SOURCE_ROOT; };
@@ -102,7 +102,7 @@
 				29B97323FDCFA39411CA2CEA /* Frameworks */,
 				19C28FACFE9D520D11CA2CBB /* Products */,
 				084186AF0B3A0515004B1F63 /* PrefsEditor.h */,
-				084186B00B3A0515004B1F63 /* PrefsEditor.m */,
+				084186B00B3A0515004B1F63 /* PrefsEditor.mm */,
 			);
 			name = SheepShaverPrefs;
 			sourceTree = "<group>";
@@ -189,7 +189,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8D11072D0486CEB800E47090 /* main.m in Sources */,
-				084186B10B3A0515004B1F63 /* PrefsEditor.m in Sources */,
+				084186B10B3A0515004B1F63 /* PrefsEditor.mm in Sources */,
 				08DC90BD0B67074C00799A45 /* prefs_items.cpp in Sources */,
 				08DC90BF0B67075D00799A45 /* prefs_unix.cpp in Sources */,
 				08DC90C10B67077300799A45 /* prefs.cpp in Sources */,
@@ -227,7 +227,10 @@
 				GCC_INPUT_FILETYPE = sourcecode.cpp.objcpp;
 				GCC_MODEL_TUNING = G5;
 				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = PREFS_EDITOR;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					PREFS_EDITOR,
+					STANDALONE_PREFS,
+				);
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
 				OTHER_CFLAGS = "$(inherited)";
@@ -247,7 +250,10 @@
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_INPUT_FILETYPE = sourcecode.cpp.objcpp;
 				GCC_MODEL_TUNING = G5;
-				GCC_PREPROCESSOR_DEFINITIONS = PREFS_EDITOR;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					PREFS_EDITOR,
+					STANDALONE_PREFS,
+				);
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
 				OTHER_CFLAGS = "$(inherited)";

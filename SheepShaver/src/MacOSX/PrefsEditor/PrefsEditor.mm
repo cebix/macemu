@@ -31,6 +31,7 @@ const int CDROMRefNum = -62;			// RefNum of driver
 {
   self = [super init];
 
+#ifdef STANDALONE_PREFS
 	AddPrefsDefaults();
 	AddPlatformPrefsDefaults();
 
@@ -38,6 +39,7 @@ const int CDROMRefNum = -62;			// RefNum of driver
 	LoadPrefs();
   chdir([[[NSBundle mainBundle] bundlePath] cString]);
   chdir("..");
+#endif
 
   return self;
 }
@@ -316,8 +318,11 @@ NSString *getStringFromPrefs(const char *key)
   PrefsReplaceString("ether", [[ethernetInterface stringValue] cString]);
 
   SavePrefs();
+
+#ifdef STANDALONE_PREFS
   PrefsExit();
   exit(0);
+#endif
 }
 
 - (void) dealloc
