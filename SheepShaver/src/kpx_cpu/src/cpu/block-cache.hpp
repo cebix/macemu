@@ -82,7 +82,7 @@ block_cache< block_info, block_allocator >::block_cache()
 }
 
 template< class block_info, template<class T> class block_allocator >
-inline block_cache< block_info, block_allocator >::~block_cache()
+block_cache< block_info, block_allocator >::~block_cache()
 {
 	clear();
 }
@@ -117,21 +117,40 @@ void block_cache< block_info, block_allocator >::clear()
 }
 
 template< class block_info, template<class T> class block_allocator >
-inline void block_cache< block_info, block_allocator >::clear_range(uintptr start, uintptr end)
+void block_cache< block_info, block_allocator >::clear_range(uintptr start, uintptr end)
 {
 	if (!active)
 		return;
 
-	entry *q;
-	entry *p = active;
-	while (p) {
-		q = p;
-		p = p->next;
-		if (q->intersect(start, end)) {
-			q->invalidate();
-			remove_from_cl_list(q);
-			remove_from_list(q);
-			delete_blockinfo(q);
+	entry *p, *q;
+	if (cacheline(start) < cacheline(end - 1)) {
+		// Optimize for short ranges flush
+		const int end_cl = cacheline(end - 1);
+		for (int cl = cacheline(start); cl <= end_cl; cl++) {
+			p = cache_tags[cl];
+			while (p) {
+				q = p;
+				p = p->next_same_cl;
+				if (q->intersect(start, end)) {
+					q->invalidate();
+					remove_from_cl_list(q);
+					remove_from_list(q);
+					delete_blockinfo(q);
+				}
+			}
+		}
+	}
+	else {
+		p = active;
+		while (p) {
+			q = p;
+			p = p->next;
+			if (q->intersect(start, end)) {
+				q->invalidate();
+				remove_from_cl_list(q);
+				remove_from_list(q);
+				delete_blockinfo(q);
+			}
 		}
 	}
 }

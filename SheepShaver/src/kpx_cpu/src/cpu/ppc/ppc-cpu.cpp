@@ -790,7 +790,7 @@ void powerpc_cpu::invalidate_cache()
 #endif
 }
 
-inline void powerpc_block_info::invalidate()
+void powerpc_block_info::invalidate()
 {
 #if PPC_DECODE_CACHE
 	// Don't do anything if this is a predecoded block
