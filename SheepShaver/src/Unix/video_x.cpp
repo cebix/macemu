@@ -37,6 +37,7 @@
 #include <sys/shm.h>
 #include <errno.h>
 #include <pthread.h>
+#include <semaphore.h>
 
 #include <algorithm>
 
@@ -87,10 +88,11 @@ static pthread_attr_t redraw_thread_attr;	// Redraw thread attributes
 static volatile bool redraw_thread_cancel;	// Flag: Cancel Redraw thread
 static pthread_t redraw_thread;				// Redraw thread
 
-static bool local_X11;						// Flag: X server running on local machine?
 static volatile bool thread_stop_req = false;
-static volatile bool thread_stop_ack = false;	// Acknowledge for thread_stop_req
+static sem_t thread_stop_ack;
+static sem_t thread_resume_req;
 
+static bool local_X11;						// Flag: X server running on local machine?
 static bool has_dga = false;				// Flag: Video DGA capable
 static bool has_vidmode = false;			// Flag: VidMode extension available
 
@@ -1661,6 +1663,10 @@ bool VideoInit(void)
 
 	// Start periodic thread
 	XSync(x_display, false);
+	if (sem_init(&thread_stop_ack, 0, 0) < 0)
+		return false;
+	if (sem_init(&thread_resume_req, 0, 0) < 0)
+		return false;
 	Set_pthread_attr(&redraw_thread_attr, 0);
 	redraw_thread_cancel = false;
 	redraw_thread_active = (pthread_create(&redraw_thread, &redraw_thread_attr, redraw_func, NULL) == 0);
@@ -1680,6 +1686,8 @@ void VideoExit(void)
 		redraw_thread_cancel = true;
 		pthread_cancel(redraw_thread);
 		pthread_join(redraw_thread, NULL);
+		sem_destroy(&thread_stop_ack);
+		sem_destroy(&thread_resume_req);
 		redraw_thread_active = false;
 	}
 
@@ -2157,10 +2165,10 @@ int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr)
 			csSave->savePage = ReadMacInt16(ParamPtr + csPage);
 
 			// Disable interrupts and pause redraw thread
-			DisableInterrupt();
-			thread_stop_ack = false;
 			thread_stop_req = true;
-			while (!thread_stop_ack) ;
+			sem_wait(&thread_stop_ack);
+			thread_stop_req = false;
+			DisableInterrupt();
 
 			/* close old display */
 			close_display();
@@ -2181,8 +2189,8 @@ int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr)
 			csSave->saveMode=VModes[cur_mode].viAppleMode;
 
 			// Enable interrupts and resume redraw thread
-			thread_stop_req = false;
 			EnableInterrupt();
+			sem_post(&thread_resume_req);
 			return noErr;
 		}
 	}
@@ -2434,8 +2442,10 @@ static void *redraw_func(void *arg)
 	while (!redraw_thread_cancel) {
 
 		// Pause if requested (during video mode switches)
-		while (thread_stop_req)
-			thread_stop_ack = true;
+		if (thread_stop_req) {
+			sem_post(&thread_stop_ack);
+			sem_wait(&thread_resume_req);
+		}
 
 		int64 delay = next - GetTicks_usec();
 		if (delay < -VIDEO_REFRESH_DELAY) {
