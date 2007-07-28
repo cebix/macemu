@@ -322,6 +322,8 @@ NSString *getStringFromPrefs(const char *key)
 #ifdef STANDALONE_PREFS
   PrefsExit();
   exit(0);
+#else
+	[NSApp stopModal];
 #endif
 }
 
