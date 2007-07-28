@@ -126,6 +126,7 @@ $(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	cp -f $(APP) $(APP_APP)/Contents/MacOS/
 	strip $(APP_APP)/Contents/MacOS/$(APP)
 	mkdir -p $(APP_APP)/Contents/Resources
+	cp -R ../MacOSX/PrefsEditor/standalone_nib/English.lproj $(APP_APP)/Contents/Resources
 	cp -f ../MacOSX/SheepShaver.icns $(APP_APP)/Contents/Resources/
 
 $(GUI_APP)_app: $(GUI_APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
