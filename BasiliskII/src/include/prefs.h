@@ -53,6 +53,11 @@ extern int32 PrefsFindInt32(const char *name);
 
 extern void PrefsRemoveItem(const char *name, int index = 0);
 
+#ifdef SHEEPSHAVER
+// Platform specific functions:
+extern void prefs_init();
+extern void prefs_exit();
+#endif
 
 /*
  *  Definition of preferences items
