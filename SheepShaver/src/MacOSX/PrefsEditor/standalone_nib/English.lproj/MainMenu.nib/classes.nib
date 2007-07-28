@@ -1,0 +1,50 @@
+{
+    IBClasses = (
+        {CLASS = FirstResponder; LANGUAGE = ObjC; SUPERCLASS = NSObject; }, 
+        {
+            ACTIONS = {
+                addDisk = id; 
+                browseForROMFileClicked = id; 
+                createDisk = id; 
+                removeDisk = id; 
+                useRawKeyCodesClicked = id; 
+            }; 
+            CLASS = PrefsEditor; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {
+                bootFrom = NSComboBox; 
+                disableCdrom = NSButton; 
+                disableSound = NSButton; 
+                diskSaveSize = NSView; 
+                diskSaveSizeField = NSTextField; 
+                disks = NSTableView; 
+                dontUseCPUWhenIdle = NSButton; 
+                enable68kDREmulator = NSButton; 
+                enableJIT = NSButton; 
+                ethernetInterface = NSTextField; 
+                height = NSComboBox; 
+                ignoreIllegalMemoryAccesses = NSButton; 
+                mixDevice = NSTextField; 
+                modemPort = NSTextField; 
+                mouseWheel = NSPopUpButton; 
+                outDevice = NSTextField; 
+                printerPort = NSTextField; 
+                qdAccel = NSButton; 
+                ramSize = NSTextField; 
+                ramSizeStepper = NSStepper; 
+                rawKeyCodes = NSTextField; 
+                refreshRate = NSPopUpButton; 
+                romFile = NSTextField; 
+                scrollLines = NSTextField; 
+                scrollLinesStepper = NSStepper; 
+                unixRoot = NSTextField; 
+                useRawKeyCodes = NSButton; 
+                videoType = NSPopUpButton; 
+                width = NSComboBox; 
+                window = NSWindow; 
+            }; 
+            SUPERCLASS = NSObject; 
+        }
+    ); 
+    IBVersion = 1; 
+}
