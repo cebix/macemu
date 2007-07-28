@@ -530,6 +530,7 @@ SERIALSRC=serial_unix.cpp
 ETHERSRC=../dummy/ether_dummy.cpp
 SCSISRC=../dummy/scsi_dummy.cpp
 AUDIOSRC=../dummy/audio_dummy.cpp
+PREFSSRC=../dummy/prefs_dummy.cpp
 EXTFSSRC=extfs_unix.cpp
 EXTRASYSSRCS=
 case "$target_os" in
@@ -560,7 +561,9 @@ darwin*)
   fi
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     EXTFSSRC=../MacOSX/extfs_macosx.mm
-  fi
+    PREFSSRC="../MacOSX/prefs_macosx.mm ../MacOSX/PrefsEditor/PrefsEditor.mm"
+    CPPFLAGS="$CPPFLAGS -I../MacOSX/PrefsEditor"
+ fi
   if [[ "x$ac_cv_framework_CoreAudio" = "xyes" ]]; then
     AUDIOSRC="../MacOSX/audio_macosx.cpp ../MacOSX/AudioBackEnd.cpp ../MacOSX/AudioDevice.cpp ../MacOSX/MacOSX_sound_if.cpp"
   fi
@@ -625,7 +628,7 @@ if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
   AUDIOSRC="../SDL/audio_sdl.cpp"
 fi
 
-SYSSRCS="$VIDEOSRCS $EXTFSSRC $SERIALSRC $ETHERSRC $SCSISRC $AUDIOSRC $SEMSRC $UISRCS $EXTRASYSSRCS"
+SYSSRCS="$VIDEOSRCS $EXTFSSRC $PREFSSRC $SERIALSRC $ETHERSRC $SCSISRC $AUDIOSRC $SEMSRC $UISRCS $EXTRASYSSRCS"
 
 dnl Define a macro that translates a yesno-variable into a C macro definition
 dnl to be put into the config.h file
