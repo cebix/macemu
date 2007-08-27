@@ -371,6 +371,11 @@ int main(int argc, char **argv)
 	time_t now, expire;
 	bool memory_mapped_from_zero;
 
+#ifdef USE_SDL_VIDEO
+	// don't let SDL block the screensaver
+	setenv("SDL_VIDEO_ALLOW_SCREENSAVER", "1", 1);
+#endif
+
 	// Initialize variables
 	RAMBase = 0;
 	tzset();
