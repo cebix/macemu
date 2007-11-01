@@ -580,7 +580,7 @@ darwin*)
     EXTRASYSSRCS="../MacOSX/sys_darwin.cpp"
   fi
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
-    EXTFSSRC=../MacOSX/extfs_macosx.mm
+    EXTFSSRC=../MacOSX/extfs_macosx.cpp
   fi
   ;;
 cygwin*)

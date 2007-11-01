@@ -98,7 +98,7 @@ SRCS = ../main.cpp main_macosx.mm ../prefs.cpp ../prefs_items.cpp prefs_macosx.m
     ../emul_op.cpp ../macos_util.cpp ../xpram.cpp xpram_unix.cpp ../timer.cpp \
     timer_unix.cpp ../adb.cpp ../serial.cpp serial_unix.cpp ../ether.cpp ether_unix.cpp \
     ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp ../video.cpp video_macosx.mm \
-    vm_alloc.cpp sigsegv.cpp ../audio.cpp ../extfs.cpp extfs_macosx.mm \
+    vm_alloc.cpp sigsegv.cpp ../audio.cpp ../extfs.cpp extfs_macosx.cpp \
     ../user_strings.cpp user_strings_unix.cpp clip_macosx.cpp misc_macosx.mm \
     ../dummy/scsi_dummy.cpp \
     audio_macosx.cpp AudioBackEnd.cpp AudioDevice.cpp MacOSX_sound_if.cpp \
