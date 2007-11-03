@@ -32,6 +32,7 @@ int slirp_add_exec(int do_pty, const char *args, int addr_low_byte,
                    int guest_port);
 
 extern const char *tftp_prefix;
+extern char slirp_hostname[33];
 
 #ifdef __cplusplus
 }

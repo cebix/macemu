@@ -9,6 +9,8 @@ struct in_addr loopback_addr;
 
 /* address for slirp virtual addresses */
 struct in_addr special_addr;
+/* virtual address alias for host */
+struct in_addr alias_addr;
 
 const uint8_t special_ethaddr[6] = { 
     0x52, 0x54, 0x00, 0x12, 0x35, 0x00
@@ -24,6 +26,8 @@ struct ex_list *exec_list;
 
 /* XXX: suppress those select globals */
 fd_set *global_readfds, *global_writefds, *global_xfds;
+
+char slirp_hostname[33];
 
 #ifdef _WIN32
 
@@ -144,13 +148,14 @@ int slirp_init(void)
     m_init();
 
     /* set default addresses */
-    getouraddr();
     inet_aton("127.0.0.1", &loopback_addr);
 
     if (get_dns_addr(&dns_addr) < 0)
         return -1;
 
     inet_aton(CTL_SPECIAL, &special_addr);
+	alias_addr.s_addr = special_addr.s_addr | htonl(CTL_ALIAS);
+	getouraddr();
     return 0;
 }
 

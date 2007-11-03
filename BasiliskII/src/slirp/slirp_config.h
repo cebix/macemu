@@ -82,6 +82,9 @@
 
 /* Define if you don't have u_int32_t etc. typedef'd */
 #undef NEED_TYPEDEFS
+#ifdef __sun__
+#define NEED_TYPEDEFS
+#endif
 
 /* Define to sizeof(char *) */
 #define SIZEOF_CHAR_P SIZEOF_VOID_P
