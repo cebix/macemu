@@ -47,6 +47,7 @@
 #include <semaphore.h>
 #include <errno.h>
 #include <stdio.h>
+#include <signal.h>
 #include <map>
 
 #if defined(__FreeBSD__) || defined(sgi) || (defined(__APPLE__) && defined(__MACH__))
@@ -247,6 +248,16 @@ bool ether_init(void)
 #endif
 	else
 		net_if_type = NET_IF_SHEEPNET;
+
+	// Don't raise SIGPIPE, let errno be set to EPIPE
+	struct sigaction sigpipe_sa;
+	if (sigaction(SIGPIPE, NULL, &sigpipe_sa) == 0) {
+		assert(sigpipe_sa.sa_handler == SIG_DFL || sigpipe_sa.sa_handler == SIG_IGN);
+		sigfillset(&sigpipe_sa.sa_mask);
+		sigpipe_sa.sa_flags = 0;
+		sigpipe_sa.sa_handler = SIG_IGN;
+		sigaction(SIGPIPE, &sigpipe_sa, NULL);
+	}
 
 #ifdef HAVE_SLIRP
 	// Initialize slirp library
