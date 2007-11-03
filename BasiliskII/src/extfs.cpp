@@ -158,8 +158,8 @@ struct FSItem {
 	uint32 id;				// CNID of this file/dir
 	uint32 parent_id;		// CNID of parent file/dir
 	FSItem *parent;			// Pointer to parent
-	char name[32];			// Object name (C string) - Host OS
-	char guest_name[32];			// Object name (C string) - Guest OS
+	char *name;				// Object name (C string) - Host OS
+	char guest_name[32];	// Object name (C string) - Guest OS
 	time_t mtime;			// Modification time for get_cat_info caching
 	int cache_dircount;		// Cached number of files in directory
 };
@@ -235,8 +235,8 @@ static FSItem *create_fsitem(const char *name, const char *guest_name, FSItem *p
 	p->id = next_cnid++;
 	p->parent_id = parent->id;
 	p->parent = parent;
-	strncpy(p->name, name, 31);
-	p->name[31] = 0;
+	p->name = new char[strlen(name) + 1];
+	strcpy(p->name, name);
 	strncpy(p->guest_name, guest_name, 31);
 	p->guest_name[31] = 0;
 	p->mtime = 0;
@@ -416,6 +416,7 @@ void ExtFSInit(void)
 	p->id = ROOT_PARENT_ID;
 	p->parent_id = 0;
 	p->parent = NULL;
+	p->name = new char[1];
 	p->name[0] = 0;
 	p->guest_name[0] = 0;
 
@@ -427,8 +428,9 @@ void ExtFSInit(void)
 	p->id = ROOT_ID;
 	p->parent_id = ROOT_PARENT_ID;
 	p->parent = first_fs_item;
-	strncpy(p->name, GetString(STR_EXTFS_VOLUME_NAME), 32);
-	p->name[31] = 0;
+	const char *volume_name = GetString(STR_EXTFS_VOLUME_NAME);
+	p->name = new char[strlen(volume_name) + 1];
+	strcpy(p->name, volume_name);
 	strncpy(p->guest_name, host_encoding_to_macroman(p->name), 32);
 	p->guest_name[31] = 0;
 
@@ -453,6 +455,7 @@ void ExtFSExit(void)
 	FSItem *p = first_fs_item, *next;
 	while (p) {
 		next = p->next;
+		delete[] p->name;
 		delete p;
 		p = next;
 	}
