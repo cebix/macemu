@@ -407,9 +407,9 @@ static void vosf_set_dirty_area(int x, int y, int w, int h, int screen_width, in
  * Screen fault handler
  */
 
-bool Screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction)
+bool Screen_fault_handler(sigsegv_info_t *sip)
 {
-	const uintptr addr = (uintptr)fault_address;
+  const uintptr addr = (uintptr)sigsegv_get_fault_address(sip);
 	
 	/* Someone attempted to write to the frame buffer. Make it writeable
 	 * now so that the data could actually be written to. It will be made
