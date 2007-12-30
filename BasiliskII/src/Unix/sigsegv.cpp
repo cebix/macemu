@@ -1636,13 +1636,13 @@ static bool arm_skip_instruction(unsigned long * regs)
 
 // Fallbacks
 #ifndef SIGSEGV_FAULT_INSTRUCTION
-#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_INVALID_PC
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_INVALID_ADDRESS
 #endif
 #ifndef SIGSEGV_FAULT_HANDLER_ARGLIST_1
 #define SIGSEGV_FAULT_HANDLER_ARGLIST_1	SIGSEGV_FAULT_HANDLER_ARGLIST
 #endif
 #ifndef SIGSEGV_FAULT_HANDLER_INVOKE
-#define SIGSEGV_FAULT_HANDLER_INVOKE(ADDR, IP)	sigsegv_fault_handler(ADDR, IP)
+#define SIGSEGV_FAULT_HANDLER_INVOKE(P)	sigsegv_fault_handler(P)
 #endif
 
 // SIGSEGV recovery supported ?
@@ -1654,6 +1654,24 @@ static bool arm_skip_instruction(unsigned long * regs)
 /*
  *  SIGSEGV global handler
  */
+
+struct sigsegv_info_t {
+	sigsegv_address_t addr;
+	sigsegv_address_t pc;
+};
+
+// Return the address of the invalid memory reference
+sigsegv_address_t sigsegv_get_fault_address(sigsegv_info_t *sip)
+{
+	return sip->addr;
+}
+
+// Return the address of the instruction that caused the fault, or
+// SIGSEGV_INVALID_ADDRESS if we could not retrieve this information
+sigsegv_address_t sigsegv_get_fault_instruction_address(sigsegv_info_t *sip)
+{
+	return sip->pc;
+}
 
 // This function handles the badaccess to memory.
 // It is called from the signal handler or the exception handler.
@@ -1670,11 +1688,12 @@ static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 	MACH_CHECK_ERROR (thread_get_state, krc);
 #endif
 
-	sigsegv_address_t fault_address = (sigsegv_address_t)SIGSEGV_FAULT_ADDRESS;
-	sigsegv_address_t fault_instruction = (sigsegv_address_t)SIGSEGV_FAULT_INSTRUCTION;
+	sigsegv_info_t si;
+	si.addr = (sigsegv_address_t)SIGSEGV_FAULT_ADDRESS;
+	si.pc = (sigsegv_address_t)SIGSEGV_FAULT_INSTRUCTION;
 	
 	// Call user's handler and reinstall the global handler, if required
-	switch (SIGSEGV_FAULT_HANDLER_INVOKE(fault_address, fault_instruction)) {
+	switch (SIGSEGV_FAULT_HANDLER_INVOKE(&si)) {
 	case SIGSEGV_RETURN_SUCCESS:
 		return true;
 
@@ -1700,7 +1719,7 @@ static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 	case SIGSEGV_RETURN_FAILURE:
 		// We can't do anything with the fault_address, dump state?
 		if (sigsegv_state_dumper != 0)
-			sigsegv_state_dumper(fault_address, fault_instruction);
+			sigsegv_state_dumper(&si);
 		break;
 	}
 
@@ -2192,8 +2211,10 @@ static volatile int handler_called = 0;
 static void *b_region, *e_region;
 #endif
 
-static sigsegv_return_t sigsegv_test_handler(sigsegv_address_t fault_address, sigsegv_address_t instruction_address)
+static sigsegv_return_t sigsegv_test_handler(sigsegv_info_t *sip)
 {
+	const sigsegv_address_t fault_address = sigsegv_get_fault_address(sip);
+	const sigsegv_address_t instruction_address = sigsegv_get_fault_instruction_address(sip);
 #if DEBUG
 	printf("sigsegv_test_handler(%p, %p)\n", fault_address, instruction_address);
 	printf("expected fault at %p\n", page + REF_INDEX);
@@ -2207,7 +2228,7 @@ static sigsegv_return_t sigsegv_test_handler(sigsegv_address_t fault_address, si
 #ifdef __GNUC__
 	// Make sure reported fault instruction address falls into
 	// expected code range
-	if (instruction_address != SIGSEGV_INVALID_PC
+	if (instruction_address != SIGSEGV_INVALID_ADDRESS
 		&& ((instruction_address <  (sigsegv_address_t)b_region) ||
 			(instruction_address >= (sigsegv_address_t)e_region)))
 		exit(11);
@@ -2218,8 +2239,10 @@ static sigsegv_return_t sigsegv_test_handler(sigsegv_address_t fault_address, si
 }
 
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
-static sigsegv_return_t sigsegv_insn_handler(sigsegv_address_t fault_address, sigsegv_address_t instruction_address)
+static sigsegv_return_t sigsegv_insn_handler(sigsegv_info_t *sip)
 {
+	const sigsegv_address_t fault_address = sigsegv_get_fault_address(sip);
+	const sigsegv_address_t instruction_address = sigsegv_get_fault_instruction_address(sip);
 #if DEBUG
 	printf("sigsegv_insn_handler(%p, %p)\n", fault_address, instruction_address);
 #endif
@@ -2227,7 +2250,7 @@ static sigsegv_return_t sigsegv_insn_handler(sigsegv_address_t fault_address, si
 #ifdef __GNUC__
 		// Make sure reported fault instruction address falls into
 		// expected code range
-		if (instruction_address != SIGSEGV_INVALID_PC
+		if (instruction_address != SIGSEGV_INVALID_ADDRESS
 			&& ((instruction_address <  (sigsegv_address_t)b_region) ||
 				(instruction_address >= (sigsegv_address_t)e_region)))
 			return SIGSEGV_RETURN_FAILURE;
