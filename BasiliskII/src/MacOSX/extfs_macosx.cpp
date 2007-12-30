@@ -33,8 +33,15 @@
 #include "extfs.h"
 #include "extfs_defs.h"
 
-#define noErr native_noErr
-#include <CoreFoundation/CFString.h>
+// XXX: don't clobber with native definitions
+#define noErr	native_noErr
+#define Point	native_Point
+#define Rect	native_Rect
+#define ProcPtr	native_ProcPtr
+# include <CoreFoundation/CFString.h>
+#undef ProcPtr
+#undef Rect
+#undef Point
 #undef noErr
 
 #define DEBUG 0
