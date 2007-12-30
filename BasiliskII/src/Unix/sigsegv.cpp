@@ -605,53 +605,42 @@ if (ret != KERN_SUCCESS) { \
 #define SIGSEGV_EXCEPTION_STATE_TYPE	ppc_exception_state_t
 #define SIGSEGV_EXCEPTION_STATE_FLAVOR	PPC_EXCEPTION_STATE
 #define SIGSEGV_EXCEPTION_STATE_COUNT	PPC_EXCEPTION_STATE_COUNT
-#define SIGSEGV_FAULT_ADDRESS			exc_state->dar
+#define SIGSEGV_FAULT_ADDRESS			sip->exc_state.dar
 #define SIGSEGV_THREAD_STATE_TYPE		ppc_thread_state_t
 #define SIGSEGV_THREAD_STATE_FLAVOR		PPC_THREAD_STATE
 #define SIGSEGV_THREAD_STATE_COUNT		PPC_THREAD_STATE_COUNT
-#define SIGSEGV_FAULT_INSTRUCTION		state.srr0
+#define SIGSEGV_FAULT_INSTRUCTION		sip->thr_state.srr0
 #define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
-#define SIGSEGV_REGISTER_FILE			(unsigned long *)&state.srr0, (unsigned long *)&state.r0
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)&sip->thr_state.srr0, (unsigned long *)&sip->thr_state.r0
 #endif
 #ifdef __i386__
-#ifdef i386_SAVED_STATE
-#define SIGSEGV_THREAD_STATE_TYPE		struct i386_saved_state
-#define SIGSEGV_THREAD_STATE_FLAVOR		i386_SAVED_STATE
-#define SIGSEGV_THREAD_STATE_COUNT		i386_SAVED_STATE_COUNT
-#define SIGSEGV_REGISTER_FILE			((unsigned long *)&state.edi) /* EDI is the first GPR we consider */
-#else
 #define SIGSEGV_EXCEPTION_STATE_TYPE	struct i386_exception_state
 #define SIGSEGV_EXCEPTION_STATE_FLAVOR	i386_EXCEPTION_STATE
 #define SIGSEGV_EXCEPTION_STATE_COUNT	i386_EXCEPTION_STATE_COUNT
-#define SIGSEGV_FAULT_ADDRESS			exc_state->faultvaddr
+#define SIGSEGV_FAULT_ADDRESS			sip->exc_state.faultvaddr
 #define SIGSEGV_THREAD_STATE_TYPE		struct i386_thread_state
 #define SIGSEGV_THREAD_STATE_FLAVOR		i386_THREAD_STATE
 #define SIGSEGV_THREAD_STATE_COUNT		i386_THREAD_STATE_COUNT
-#define SIGSEGV_REGISTER_FILE			((unsigned long *)&state.eax) /* EAX is the first GPR we consider */
-#endif
-#define SIGSEGV_FAULT_INSTRUCTION		state.eip
+#define SIGSEGV_FAULT_INSTRUCTION		sip->thr_state.eip
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#define SIGSEGV_REGISTER_FILE			((unsigned long *)&sip->thr_state.eax) /* EAX is the first GPR we consider */
 #endif
 #ifdef __x86_64__
 #define SIGSEGV_EXCEPTION_STATE_TYPE	struct x86_exception_state64
 #define SIGSEGV_EXCEPTION_STATE_FLAVOR	x86_EXCEPTION_STATE64
 #define SIGSEGV_EXCEPTION_STATE_COUNT	x86_EXCEPTION_STATE64_COUNT
-#define SIGSEGV_FAULT_ADDRESS			exc_state->faultvaddr
+#define SIGSEGV_FAULT_ADDRESS			sip->exc_state.faultvaddr
 #define SIGSEGV_THREAD_STATE_TYPE		struct x86_thread_state64
 #define SIGSEGV_THREAD_STATE_FLAVOR		x86_THREAD_STATE64
 #define SIGSEGV_THREAD_STATE_COUNT		x86_THREAD_STATE64_COUNT
-#define SIGSEGV_REGISTER_FILE			((unsigned long *)&state.rax) /* RAX is the first GPR we consider */
-#define SIGSEGV_FAULT_INSTRUCTION		state.rip
+#define SIGSEGV_FAULT_INSTRUCTION		sip->thr_state.rip
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#define SIGSEGV_REGISTER_FILE			((unsigned long *)&sip->thr_state.rax) /* RAX is the first GPR we consider */
 #endif
-#ifdef SIGSEGV_EXCEPTION_STATE_TYPE
-#define SIGSEGV_FAULT_HANDLER_ARGLIST	mach_port_t thread, SIGSEGV_EXCEPTION_STATE_TYPE *exc_state
-#define SIGSEGV_FAULT_HANDLER_ARGS		thread, &exc_state
-#else
-#define SIGSEGV_FAULT_ADDRESS			code[1]
+#define SIGSEGV_FAULT_ADDRESS_FAST		code[1]
+#define SIGSEGV_FAULT_INSTRUCTION_FAST	SIGSEGV_INVALID_ADDRESS
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	mach_port_t thread, exception_data_t code
 #define SIGSEGV_FAULT_HANDLER_ARGS		thread, code
-#endif
 
 // Since there can only be one exception thread running at any time
 // this is not a problem.
@@ -1635,6 +1624,12 @@ static bool arm_skip_instruction(unsigned long * regs)
 
 
 // Fallbacks
+#ifndef SIGSEGV_FAULT_ADDRESS_FAST
+#define SIGSEGV_FAULT_ADDRESS_FAST		SIGSEGV_FAULT_ADDRESS
+#endif
+#ifndef SIGSEGV_FAULT_INSTRUCTION_FAST
+#define SIGSEGV_FAULT_INSTRUCTION_FAST	SIGSEGV_FAULT_INSTRUCTION
+#endif
 #ifndef SIGSEGV_FAULT_INSTRUCTION
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_INVALID_ADDRESS
 #endif
@@ -1658,11 +1653,37 @@ static bool arm_skip_instruction(unsigned long * regs)
 struct sigsegv_info_t {
 	sigsegv_address_t addr;
 	sigsegv_address_t pc;
+#ifdef HAVE_MACH_EXCEPTIONS
+	mach_port_t thread;
+	bool has_exc_state;
+	SIGSEGV_EXCEPTION_STATE_TYPE exc_state;
+	mach_msg_type_number_t exc_state_count;
+	bool has_thr_state;
+	SIGSEGV_THREAD_STATE_TYPE thr_state;
+	mach_msg_type_number_t thr_state_count;
+#endif
 };
 
 // Return the address of the invalid memory reference
 sigsegv_address_t sigsegv_get_fault_address(sigsegv_info_t *sip)
 {
+#ifdef HAVE_MACH_EXCEPTIONS
+	static int use_fast_path = -1;
+	if (use_fast_path != 1 && !sip->has_exc_state) {
+		sip->exc_state_count = SIGSEGV_EXCEPTION_STATE_COUNT;
+		kern_return_t krc = thread_get_state(sip->thread,
+											 SIGSEGV_EXCEPTION_STATE_FLAVOR,
+											 (natural_t *)&sip->exc_state,
+											 &sip->exc_state_count);
+		MACH_CHECK_ERROR(thread_get_state, krc);
+		sip->has_exc_state = true;
+
+		sigsegv_address_t addr = (sigsegv_address_t)SIGSEGV_FAULT_ADDRESS;
+		if (use_fast_path < 0)
+			use_fast_path = addr == sip->addr;
+		sip->addr = addr;
+	}
+#endif
 	return sip->addr;
 }
 
@@ -1670,6 +1691,19 @@ sigsegv_address_t sigsegv_get_fault_address(sigsegv_info_t *sip)
 // SIGSEGV_INVALID_ADDRESS if we could not retrieve this information
 sigsegv_address_t sigsegv_get_fault_instruction_address(sigsegv_info_t *sip)
 {
+#ifdef HAVE_MACH_EXCEPTIONS
+	if (!sip->has_thr_state) {
+		sip->thr_state_count = SIGSEGV_THREAD_STATE_COUNT;
+		kern_return_t krc = thread_get_state(sip->thread,
+											 SIGSEGV_THREAD_STATE_FLAVOR,
+											 (natural_t *)&sip->thr_state,
+											 &sip->thr_state_count);
+		MACH_CHECK_ERROR(thread_get_state, krc);
+		sip->has_thr_state = true;
+
+		sip->pc = (sigsegv_address_t)SIGSEGV_FAULT_INSTRUCTION;
+	}
+#endif
 	return sip->pc;
 }
 
@@ -1677,23 +1711,18 @@ sigsegv_address_t sigsegv_get_fault_instruction_address(sigsegv_info_t *sip)
 // It is called from the signal handler or the exception handler.
 static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 {
-#ifdef HAVE_MACH_EXCEPTIONS
-	// We must match the initial count when writing back the CPU state registers
-	kern_return_t krc;
-	mach_msg_type_number_t count;
-	SIGSEGV_THREAD_STATE_TYPE state;
-
-	count = SIGSEGV_THREAD_STATE_COUNT;
-	krc = thread_get_state(thread, SIGSEGV_THREAD_STATE_FLAVOR, (thread_state_t)&state, &count);
-	MACH_CHECK_ERROR (thread_get_state, krc);
-#endif
-
 	sigsegv_info_t si;
-	si.addr = (sigsegv_address_t)SIGSEGV_FAULT_ADDRESS;
-	si.pc = (sigsegv_address_t)SIGSEGV_FAULT_INSTRUCTION;
-	
+	si.addr = (sigsegv_address_t)SIGSEGV_FAULT_ADDRESS_FAST;
+	si.pc = (sigsegv_address_t)SIGSEGV_FAULT_INSTRUCTION_FAST;
+#ifdef HAVE_MACH_EXCEPTIONS
+	si.thread = thread;
+	si.has_exc_state = false;
+	si.has_thr_state = false;
+#endif
+	sigsegv_info_t * const sip = &si;
+
 	// Call user's handler and reinstall the global handler, if required
-	switch (SIGSEGV_FAULT_HANDLER_INVOKE(&si)) {
+	switch (SIGSEGV_FAULT_HANDLER_INVOKE(sip)) {
 	case SIGSEGV_RETURN_SUCCESS:
 		return true;
 
@@ -1707,10 +1736,11 @@ static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 			// is modified off of the stack, in Mach we
 			// need to actually call thread_set_state to
 			// have the register values updated.
-			krc = thread_set_state(thread,
-								   SIGSEGV_THREAD_STATE_FLAVOR, (thread_state_t)&state,
-								   count);
-			MACH_CHECK_ERROR (thread_set_state, krc);
+			kern_return_t krc = thread_set_state(sip->thread,
+												 SIGSEGV_THREAD_STATE_FLAVOR,
+												 (natural_t *)&sip->thr_state,
+												 sip->thr_state_count);
+			MACH_CHECK_ERROR(thread_set_state, krc);
 #endif
 			return true;
 		}
@@ -1719,7 +1749,7 @@ static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 	case SIGSEGV_RETURN_FAILURE:
 		// We can't do anything with the fault_address, dump state?
 		if (sigsegv_state_dumper != 0)
-			sigsegv_state_dumper(&si);
+			sigsegv_state_dumper(sip);
 		break;
 	}
 
@@ -1868,19 +1898,9 @@ catch_exception_raise(mach_port_t exception_port,
 		switch (code[0]) {
 		case KERN_PROTECTION_FAILURE:
 		case KERN_INVALID_ADDRESS:
-		{
-#ifdef SIGSEGV_EXCEPTION_STATE_TYPE
-			SIGSEGV_EXCEPTION_STATE_TYPE exc_state;
-			mach_msg_type_number_t exc_state_count;
-			exc_state_count = SIGSEGV_EXCEPTION_STATE_COUNT;
-			krc = thread_get_state(thread, SIGSEGV_EXCEPTION_STATE_FLAVOR, (natural_t *)&exc_state, &exc_state_count);
-			MACH_CHECK_ERROR (thread_get_state, krc);
-#endif
-
 			if (handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGS))
 				return KERN_SUCCESS;
 			break;
-		}
 		}
 	}
 
