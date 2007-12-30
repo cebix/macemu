@@ -171,7 +171,7 @@ public:
 	void interrupt(uint32 entry);
 
 	// Make sure the SIGSEGV handler can access CPU registers
-	friend sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
+	friend sigsegv_return_t sigsegv_handler(sigsegv_info_t *sip);
 };
 
 sheepshaver_cpu::sheepshaver_cpu()
@@ -730,16 +730,16 @@ static void dump_log(void)
  *  Initialize CPU emulation
  */
 
-sigsegv_return_t sigsegv_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction)
+sigsegv_return_t sigsegv_handler(sigsegv_info_t *sip)
 {
 #if ENABLE_VOSF
 	// Handle screen fault
-	extern bool Screen_fault_handler(sigsegv_address_t, sigsegv_address_t);
-	if (Screen_fault_handler(fault_address, fault_instruction))
+	extern bool Screen_fault_handler(sigsegv_info_t *sip);
+	if (Screen_fault_handler(sip))
 		return SIGSEGV_RETURN_SUCCESS;
 #endif
 
-	const uintptr addr = (uintptr)fault_address;
+	const uintptr addr = (uintptr)sigsegv_get_fault_address(sip);
 #if HAVE_SIGSEGV_SKIP_INSTRUCTION
 	// Ignore writes to ROM
 	if ((addr - (uintptr)ROMBaseHost) < ROM_SIZE)
@@ -790,8 +790,8 @@ sigsegv_return_t sigsegv_handler(sigsegv_address_t fault_address, sigsegv_addres
 #endif
 
 	fprintf(stderr, "SIGSEGV\n");
-	fprintf(stderr, "  pc %p\n", fault_instruction);
-	fprintf(stderr, "  ea %p\n", fault_address);
+	fprintf(stderr, "  pc %p\n", sigsegv_get_fault_instruction_address(sip));
+	fprintf(stderr, "  ea %p\n", sigsegv_get_fault_address(sip));
 	dump_registers();
 	ppc_cpu->dump_log();
 	enter_mon();

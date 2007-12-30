@@ -114,7 +114,7 @@ static void jump_to_rom(uint32 entry);
 extern void emul_ppc(uint32 start);
 extern void init_emul_ppc(void);
 extern void exit_emul_ppc(void);
-sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
+sigsegv_return_t sigsegv_handler(sigsegv_info_t *sip);
 
 
 /*

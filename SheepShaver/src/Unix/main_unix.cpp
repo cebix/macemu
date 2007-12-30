@@ -253,7 +253,7 @@ static void *tick_func(void *arg);
 extern void emul_ppc(uint32 start);
 extern void init_emul_ppc(void);
 extern void exit_emul_ppc(void);
-sigsegv_return_t sigsegv_handler(sigsegv_address_t, sigsegv_address_t);
+sigsegv_return_t sigsegv_handler(sigsegv_info_t *sip);
 #else
 extern "C" void sigusr2_handler_init(int sig, siginfo_t *sip, void *scp);
 extern "C" void sigusr2_handler(int sig, siginfo_t *sip, void *scp);
@@ -1637,9 +1637,19 @@ static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 #endif
 
 #if ENABLE_VOSF
-	// Handle screen fault.
-	extern bool Screen_fault_handler(sigsegv_address_t fault_address, sigsegv_address_t fault_instruction);
-	if (Screen_fault_handler((sigsegv_address_t)addr, (sigsegv_address_t)r->pc()))
+	// Handle screen fault
+	// XXX: don't redefine locally?
+#if SIGSEGV_CHECK_VERSION(1,0,0)
+	struct sigsegv_info_t {
+		sigsegv_address_t addr;
+		sigsegv_address_t pc;
+	};
+	sigsegv_info_t si;
+	si.addr = (sigsegv_address_t)addr;
+	si.pc = (sigsegv_address_t)r->pc();
+#endif
+	extern bool Screen_fault_handler(sigsegv_info_t *sip);
+	if (Screen_fault_handler(&si))
 		return;
 #endif
 
