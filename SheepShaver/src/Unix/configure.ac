@@ -560,7 +560,7 @@ darwin*)
     EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/sys_darwin.cpp"
   fi
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
-    EXTFSSRC=../MacOSX/extfs_macosx.mm
+    EXTFSSRC=../MacOSX/extfs_macosx.cpp
     PREFSSRC="../MacOSX/prefs_macosx.mm ../MacOSX/PrefsEditor/PrefsEditor.mm"
     CPPFLAGS="$CPPFLAGS -I../MacOSX/PrefsEditor"
  fi
