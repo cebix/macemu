@@ -1676,19 +1676,46 @@ struct sigsegv_info_t {
 #endif
 };
 
+#ifdef HAVE_MACH_EXCEPTIONS
+static void mach_get_exception_state(sigsegv_info_t *sip)
+{
+	sip->exc_state_count = SIGSEGV_EXCEPTION_STATE_COUNT;
+	kern_return_t krc = thread_get_state(sip->thread,
+										 SIGSEGV_EXCEPTION_STATE_FLAVOR,
+										 (natural_t *)&sip->exc_state,
+										 &sip->exc_state_count);
+	MACH_CHECK_ERROR(thread_get_state, krc);
+	sip->has_exc_state = true;
+}
+
+static void mach_get_thread_state(sigsegv_info_t *sip)
+{
+	sip->thr_state_count = SIGSEGV_THREAD_STATE_COUNT;
+	kern_return_t krc = thread_get_state(sip->thread,
+										 SIGSEGV_THREAD_STATE_FLAVOR,
+										 (natural_t *)&sip->thr_state,
+										 &sip->thr_state_count);
+	MACH_CHECK_ERROR(thread_get_state, krc);
+	sip->has_thr_state = true;
+}
+
+static void mach_set_thread_state(sigsegv_info_t *sip)
+{
+	kern_return_t krc = thread_set_state(sip->thread,
+										 SIGSEGV_THREAD_STATE_FLAVOR,
+										 (natural_t *)&sip->thr_state,
+										 sip->thr_state_count);
+	MACH_CHECK_ERROR(thread_set_state, krc);
+}
+#endif
+
 // Return the address of the invalid memory reference
 sigsegv_address_t sigsegv_get_fault_address(sigsegv_info_t *sip)
 {
 #ifdef HAVE_MACH_EXCEPTIONS
 	static int use_fast_path = -1;
 	if (use_fast_path != 1 && !sip->has_exc_state) {
-		sip->exc_state_count = SIGSEGV_EXCEPTION_STATE_COUNT;
-		kern_return_t krc = thread_get_state(sip->thread,
-											 SIGSEGV_EXCEPTION_STATE_FLAVOR,
-											 (natural_t *)&sip->exc_state,
-											 &sip->exc_state_count);
-		MACH_CHECK_ERROR(thread_get_state, krc);
-		sip->has_exc_state = true;
+		mach_get_exception_state(sip);
 
 		sigsegv_address_t addr = (sigsegv_address_t)SIGSEGV_FAULT_ADDRESS;
 		if (use_fast_path < 0)
@@ -1705,13 +1732,7 @@ sigsegv_address_t sigsegv_get_fault_instruction_address(sigsegv_info_t *sip)
 {
 #ifdef HAVE_MACH_EXCEPTIONS
 	if (!sip->has_thr_state) {
-		sip->thr_state_count = SIGSEGV_THREAD_STATE_COUNT;
-		kern_return_t krc = thread_get_state(sip->thread,
-											 SIGSEGV_THREAD_STATE_FLAVOR,
-											 (natural_t *)&sip->thr_state,
-											 &sip->thr_state_count);
-		MACH_CHECK_ERROR(thread_get_state, krc);
-		sip->has_thr_state = true;
+		mach_get_thread_state(sip);
 
 		sip->pc = (sigsegv_address_t)SIGSEGV_FAULT_INSTRUCTION;
 	}
@@ -1742,17 +1763,17 @@ static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 	case SIGSEGV_RETURN_SKIP_INSTRUCTION:
 		// Call the instruction skipper with the register file
 		// available
+#ifdef HAVE_MACH_EXCEPTIONS
+		if (!sip->has_thr_state)
+			mach_get_thread_state(sip);
+#endif
 		if (SIGSEGV_SKIP_INSTRUCTION(SIGSEGV_REGISTER_FILE)) {
 #ifdef HAVE_MACH_EXCEPTIONS
 			// Unlike UNIX signals where the thread state
 			// is modified off of the stack, in Mach we
 			// need to actually call thread_set_state to
 			// have the register values updated.
-			kern_return_t krc = thread_set_state(sip->thread,
-												 SIGSEGV_THREAD_STATE_FLAVOR,
-												 (natural_t *)&sip->thr_state,
-												 sip->thr_state_count);
-			MACH_CHECK_ERROR(thread_set_state, krc);
+			mach_set_thread_state(sip);
 #endif
 			return true;
 		}
