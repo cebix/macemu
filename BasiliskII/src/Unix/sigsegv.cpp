@@ -82,7 +82,7 @@ enum transfer_size_t {
 	SIZE_QUAD, // 8 bytes
 };
 
-#if (defined(powerpc) || defined(__powerpc__) || defined(__ppc__))
+#if (defined(powerpc) || defined(__powerpc__) || defined(__ppc__) || defined(__ppc64__))
 // Addressing mode
 enum addressing_mode_t {
 	MODE_UNKNOWN,
@@ -609,6 +609,18 @@ if (ret != KERN_SUCCESS) { \
 #define SIGSEGV_THREAD_STATE_TYPE		ppc_thread_state_t
 #define SIGSEGV_THREAD_STATE_FLAVOR		PPC_THREAD_STATE
 #define SIGSEGV_THREAD_STATE_COUNT		PPC_THREAD_STATE_COUNT
+#define SIGSEGV_FAULT_INSTRUCTION		sip->thr_state.srr0
+#define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)&sip->thr_state.srr0, (unsigned long *)&sip->thr_state.r0
+#endif
+#ifdef __ppc64__
+#define SIGSEGV_EXCEPTION_STATE_TYPE	ppc_exception_state64_t
+#define SIGSEGV_EXCEPTION_STATE_FLAVOR	PPC_EXCEPTION_STATE64
+#define SIGSEGV_EXCEPTION_STATE_COUNT	PPC_EXCEPTION_STATE64_COUNT
+#define SIGSEGV_FAULT_ADDRESS			sip->exc_state.dar
+#define SIGSEGV_THREAD_STATE_TYPE		ppc_thread_state64_t
+#define SIGSEGV_THREAD_STATE_FLAVOR		PPC_THREAD_STATE64
+#define SIGSEGV_THREAD_STATE_COUNT		PPC_THREAD_STATE64_COUNT
 #define SIGSEGV_FAULT_INSTRUCTION		sip->thr_state.srr0
 #define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
 #define SIGSEGV_REGISTER_FILE			(unsigned long *)&sip->thr_state.srr0, (unsigned long *)&sip->thr_state.r0
@@ -1149,7 +1161,7 @@ static bool ix86_skip_instruction(unsigned long * regs)
 #endif
 
 // Decode and skip PPC instruction
-#if (defined(powerpc) || defined(__powerpc__) || defined(__ppc__))
+#if (defined(powerpc) || defined(__powerpc__) || defined(__ppc__) || defined(__ppc64__))
 static bool powerpc_skip_instruction(unsigned long * nip_p, unsigned long * regs)
 {
 	instruction_t instr;
