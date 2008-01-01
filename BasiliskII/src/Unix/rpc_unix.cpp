@@ -1,7 +1,7 @@
 /*
  *  rpc_unix.cpp - Remote Procedure Calls, Unix specific backend
  *
- *  Basilisk II (C) 1997-2006 Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *  Contributed by Gwenole Beauchesne
  *
  *  This program is free software; you can redistribute it and/or modify

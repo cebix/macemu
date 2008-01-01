@@ -1,7 +1,7 @@
 /*
  *  types.h - basic types for fpu registers
  *
- *  Basilisk II (C) 1997-2005 Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
  *  MC68881/68040 fpu emulation
  *  

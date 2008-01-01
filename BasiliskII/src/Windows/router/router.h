@@ -1,7 +1,7 @@
 /*
  *  router.h - ip router
  *
- *  Basilisk II (C) 1997-2001 Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
  *  Windows platform specific code copyright (C) Lauri Pesonen
  *

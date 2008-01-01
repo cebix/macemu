@@ -1,7 +1,7 @@
 /*
  *  video_beos.cpp - Video/graphics emulation, BeOS specific stuff
  *
- *  Basilisk II (C) 1997-2005 Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *  Portions written by Marc Hellwig
  *
  *  This program is free software; you can redistribute it and/or modify

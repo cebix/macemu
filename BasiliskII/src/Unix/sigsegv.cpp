@@ -10,7 +10,7 @@
  *    tjw@omnigroup.com Sun, 4 Jun 2000
  *    www.omnigroup.com/mailman/archive/macosx-dev/2000-June/002030.html
  *
- *  Basilisk II (C) 1997-2005 Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

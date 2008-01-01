@@ -1,7 +1,7 @@
 /*
  *  util_windows.h - Miscellaneous utilities for Win32
  *
- *  Basilisk II (C) 1997-2005 Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
  *  Windows platform specific code copyright (C) Lauri Pesonen
  *

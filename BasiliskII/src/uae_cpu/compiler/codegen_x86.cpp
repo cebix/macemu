@@ -6,7 +6,7 @@
  *  Adaptation for Basilisk II and improvements, copyright 2000-2005
  *    Gwenole Beauchesne
  *
- *  Basilisk II (C) 1997-2005 Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
  *  Portions related to CPU detection come from linux/arch/i386/kernel/setup.c
  *  

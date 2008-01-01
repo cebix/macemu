@@ -2,7 +2,7 @@
  *  vm_alloc.h - Wrapper to various virtual memory allocation schemes
  *               (supports mmap, vm_allocate or fallbacks to malloc)
  *
- *  Basilisk II (C) 1997-2005 Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

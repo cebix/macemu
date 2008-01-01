@@ -1,7 +1,7 @@
 \/*
  *  about_window.cpp - "About" window
  *
- *  Basilisk II (C) 1997-2005 Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ void ShowAboutWindow(void)
 	char str[512];
 	sprintf(str,
 		"Basilisk II\nVersion %d.%d\n\n"
-		"Copyright " B_UTF8_COPYRIGHT " 1997-2004 Christian Bauer et al.\n"
+		"Copyright " B_UTF8_COPYRIGHT " 1997-2008 Christian Bauer et al.\n"
 		"E-mail: Christian.Bauer@uni-mainz.de\n"
 		"http://www.uni-mainz.de/~bauec002/B2Main.html\n\n"
 		"Basilisk II comes with ABSOLUTELY NO\n"

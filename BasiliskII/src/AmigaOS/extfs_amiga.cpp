@@ -1,7 +1,7 @@
 /*
  *  extfs_amiga.cpp - MacOS file system for access native file system access, AmigaOS specific stuff
  *
- *  Basilisk II (C) 1997-2001 Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

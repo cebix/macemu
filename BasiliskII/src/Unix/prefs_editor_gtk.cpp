@@ -1,7 +1,7 @@
 /*
  *  prefs_editor_gtk.cpp - Preferences editor, Unix implementation using GTK+
  *
- *  Basilisk II (C) 1997-2005 Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -428,7 +428,7 @@ static void mn_about(...)
 	dialog = gnome_about_new(
 		"Basilisk II",
 		version,
-		"Copyright (C) 1997-2005 Christian Bauer",
+		"Copyright (C) 1997-2008 Christian Bauer",
 		authors,
 		"Basilisk II comes with ABSOLUTELY NO WARRANTY."
 		"This is free software, and you are welcome to redistribute it"
@@ -444,7 +444,7 @@ static void mn_about(...)
 	char str[512];
 	sprintf(str,
 		"Basilisk II\nVersion %d.%d\n\n"
-		"Copyright (C) 1997-2005 Christian Bauer et al.\n"
+		"Copyright (C) 1997-2008 Christian Bauer et al.\n"
 		"E-mail: Christian.Bauer@uni-mainz.de\n"
 		"http://www.uni-mainz.de/~bauec002/B2Main.html\n\n"
 		"Basilisk II comes with ABSOLUTELY NO\n"

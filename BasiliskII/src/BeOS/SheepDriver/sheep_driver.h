@@ -2,8 +2,8 @@
  *  sheep_driver.h - Low memory and ROM access driver for SheepShaver and
  *                   Basilisk II on PowerPC systems
  *
- *  SheepShaver (C) 1997-2002 Marc Hellwig and Christian Bauer
- *  Basilisk II (C) 1997-2002 Christian Bauer
+ *  SheepShaver (C) 1997-2008 Marc Hellwig and Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

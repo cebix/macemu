@@ -1,7 +1,7 @@
 /*
  *  audio_amiga.cpp - Audio support, AmigaOS implementation using AHI
  *
- *  Basilisk II (C) 1997-2001 Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

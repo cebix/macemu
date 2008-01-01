@@ -1,7 +1,7 @@
 /*
  *  prefs_editor_gtk.cpp - Preferences editor, Unix implementation using GTK+
  *
- *  Basilisk II (C) 1997-2005 Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -420,7 +420,7 @@ static void cb_about(...)
 	char str[512];
 	sprintf(str,
 		PROGRAM_NAME "\nVersion %d.%d\n\n"
-		"Copyright (C) 1997-2005 Christian Bauer et al.\n"
+		"Copyright (C) 1997-2008 Christian Bauer et al.\n"
 		"E-mail: cb@cebix.net\n"
 #ifdef SHEEPSHAVER
 		"http://sheepshaver.cebix.net/\n\n"

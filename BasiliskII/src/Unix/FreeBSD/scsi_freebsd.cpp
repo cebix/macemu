@@ -2,7 +2,7 @@
  *  scsi_freebsd.cpp - SCSI Manager, FreeBSD SCSI Driver implementation
  *  Copyright (C) 1999 Orlando Bassotto
  *
- *  Basilisk II (C) 1997-2005 Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
