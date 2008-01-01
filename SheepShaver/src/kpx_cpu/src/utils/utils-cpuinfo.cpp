@@ -33,7 +33,9 @@ enum {
 	HWCAP_I386_EDX_FLAGS	= (HWCAP_I386_CMOV|HWCAP_I386_MMX|HWCAP_I386_SSE|HWCAP_I386_SSE2),
 	HWCAP_I386_SSE3			= 1 << 0,
 	HWCAP_I386_SSSE3		= 1 << 9,
-	HWCAP_I386_ECX_FLAGS	= (HWCAP_I386_SSE3|HWCAP_I386_SSSE3),
+	HWCAP_I386_SSE4_1		= 1 << 19,
+	HWCAP_I386_SSE4_2		= 1 << 20,
+	HWCAP_I386_ECX_FLAGS	= (HWCAP_I386_SSE3|HWCAP_I386_SSSE3|HWCAP_I386_SSE4_1|HWCAP_I386_SSE4_2)
 };
 
 // Determine x86 CPU features
@@ -114,6 +116,18 @@ bool cpuinfo_check_sse3(void)
 bool cpuinfo_check_ssse3(void)
 {
 	return x86_cpu_features & HWCAP_I386_SSSE3;
+}
+
+// Check for x86 feature SSE4.1
+bool cpuinfo_check_sse4_1(void)
+{
+	return x86_cpu_features & HWCAP_I386_SSE4_1;
+}
+
+// Check for x86 feature SSE4_2
+bool cpuinfo_check_sse4_2(void)
+{
+	return x86_cpu_features & HWCAP_I386_SSE4_2;
 }
 
 // PowerPC CPU features
