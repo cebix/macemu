@@ -1738,9 +1738,15 @@ enum {
   X86_SSE_PUNPCKLQDQ	= 0x6c,
   X86_SSE_PUNPCKLWD	= 0x61,
   X86_SSE_PXOR		= 0xef,
+  X86_SSSE3_PSHUFB	= 0x00,
 };
 
 /*									_format		Opcd		,Mod ,r	     ,m		,mem=dsp+sib	,imm... */
+
+#define _SSSE3Lrr(OP1,OP2,RS,RSA,RD,RDA)	(_B(0x66), _REXLrr(RD,RD),	_B(0x0f), _OO_Mrm	(((OP1)<<8)|(OP2)	,_b11,RDA(RD),RSA(RS)				))
+#define _SSSE3Lmr(OP1,OP2,MD,MB,MI,MS,RD,RDA)	(_B(0x66), _REXLmr(MB, MI, RD),	_B(0x0f), _OO_r_X	(((OP1)<<8)|(OP2)	     ,RDA(RD)		,MD,MB,MI,MS		))
+#define _SSSE3Lirr(OP1,OP2,IM,RS,RD)		(_B(0x66), _REXLrr(RD, RS),	_B(0x0f), _OO_Mrm_B	(((OP1)<<8)|(OP2)	,_b11,_rX(RD),_rX(RS)			,_u8(IM)))
+#define _SSSE3Limr(OP1,OP2,IM,MD,MB,MI,MS,RD)	(_B(0x66), _REXLmr(MB, MI, RD),	_B(0x0f), _OO_r_X_B	(((OP1)<<8)|(OP2)	     ,_rX(RD)		,MD,MB,MI,MS	,_u8(IM)))
 
 #define __SSELir(OP,MO,IM,RD)		(_REXLrr(0, RD),		_OO_Mrm_B	(0x0f00|(OP)	,_b11,MO     ,_rX(RD)			,_u8(IM)))
 #define __SSELim(OP,MO,IM,MD,MB,MI,MS)	(_REXLrm(0, MB, MI),		_OO_r_X_B	(0x0f00|(OP)	     ,MO		,MD,MB,MI,MS	,_u8(IM)))
