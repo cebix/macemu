@@ -96,6 +96,10 @@ private:
 	bool gen_sse2_vspltb(int mnemo, int vD, int UIMM, int vB);
 	bool gen_sse2_vsplth(int mnemo, int vD, int UIMM, int vB);
 	bool gen_sse2_vspltw(int mnemo, int vD, int UIMM, int vB);
+	uintptr gen_ssse3_vswap_mask(void);
+	bool gen_ssse3_lvx(int mnemo, int vD, int rA, int rB);
+	bool gen_ssse3_stvx(int mnemo, int vS, int rA, int rB);
+	bool gen_ssse3_vperm(int mnemo, int vD, int vA, int vB, int vC);
 #endif
 };
 

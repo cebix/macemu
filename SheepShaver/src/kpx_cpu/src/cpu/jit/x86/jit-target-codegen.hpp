@@ -664,6 +664,18 @@ public:
 #undef DEFINE_OP_IR
 #undef DEFINE_OP_IRR
 #undef DEFINE_OP_IXR
+
+private:
+
+	void gen_ssse3_arith(int op1, int op2, int s, int d)
+		{ GEN_CODE(_SSSE3Lrr(op1, op2, s, _rX, d, _rX)); }
+	void gen_ssse3_arith(int op1, int op2, x86_memory_operand const & mem, int d)
+		{ GEN_CODE(_SSSE3Lmr(op1, op2, mem.MD, mem.MB, mem.MI, mem.MS, d, _rX)); }
+	void gen_ssse3_arith(int op1, int op2, x86_immediate_operand const & imm, int s, int d)
+		{ GEN_CODE(_SSSE3Lirr(op1, op2, imm.value, s, d)); }
+	void gen_ssse3_arith(int op1, int op2, x86_immediate_operand const & imm, x86_memory_operand const & mem, int d)
+		{ GEN_CODE(_SSSE3Limr(op1, op2, imm.value, mem.MD, mem.MB, mem.MI, mem.MS, d)); }
+
 };
 
 enum {
@@ -680,6 +692,7 @@ enum {
 	X86_INSN_SSE_PS,
 	X86_INSN_SSE_PD,
 	X86_INSN_SSE_PI,
+	X86_INSN_SSE_3P, /* 3-byte prefix (SSSE3) */
 };
 
 inline void
@@ -700,6 +713,9 @@ x86_codegen::gen_insn(int type, int op, int s, int d)
 		break;
 	case X86_INSN_SSE_PI:
 		gen_sse_arith(0x66, op, s, d);
+		break;
+	case X86_INSN_SSE_3P:
+		gen_ssse3_arith(0x38, op, s, d);
 		break;
 	default:
 		abort();
@@ -724,6 +740,9 @@ x86_codegen::gen_insn(int type, int op, x86_memory_operand const & mem, int d)
 		break;
 	case X86_INSN_SSE_PI:
 		gen_sse_arith(0x66, op, mem, d);
+		break;
+	case X86_INSN_SSE_3P:
+		gen_ssse3_arith(0x38, op, mem, d);
 		break;
 	default:
 		abort();

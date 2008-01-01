@@ -213,6 +213,23 @@ bool powerpc_jit::initialize(void)
 			for (int i = 0; i < sizeof(sse2_vector) / sizeof(sse2_vector[0]); i++)
 				jit_info[sse2_vector[i].mnemo] = &sse2_vector[i];
 		}
+
+		// SSSE3 optimized handlers
+		static const jit_info_t ssse3_vector[] = {
+#define DEFINE_OP(MNEMO, GEN_OP) \
+			{ PPC_I(MNEMO), (gen_handler_t)&powerpc_jit::gen_ssse3_##GEN_OP, }
+			DEFINE_OP(LVX,		lvx),
+			DEFINE_OP(LVXL,		lvx),
+			DEFINE_OP(STVX,		stvx),
+			DEFINE_OP(STVXL,	stvx),
+			DEFINE_OP(VPERM,	vperm)
+#undef DEFINE_OP
+		};
+
+		if (cpuinfo_check_ssse3()) {
+			for (int i = 0; i < sizeof(ssse3_vector) / sizeof(ssse3_vector[0]); i++)
+				jit_info[ssse3_vector[i].mnemo] = &ssse3_vector[i];
+		}
 #endif
 	}
 
@@ -817,6 +834,109 @@ bool powerpc_jit::gen_sse2_vspltw(int mnemo, int vD, int UIMM, int vB)
 	const int N = UIMM & 3;
 	gen_mov_32(x86_memory_operand(xPPC_VR(vB) + N * 4, REG_CPU_ID), REG_T0_ID);
 	gen_sse2_vsplat(vD, REG_T0_ID);
+	return true;
+}
+
+/*
+ *	SSSE3 optimizations
+ */
+
+uintptr powerpc_jit::gen_ssse3_vswap_mask(void)
+{
+	// We must get the following bytes in memory
+	// 0x3 0x2 0x1 0x0 0x7 0x6 0x5 0x4 0xb 0xa 0x9 0x8 0xf 0xe 0xd 0xc
+	static uintptr control_mask = 0;
+	if (control_mask == 0) {
+		static const uint8 value[16] = {
+			0x03, 0x02, 0x01, 0x00, 0x07, 0x06, 0x05, 0x04,
+			0x0b, 0x0a, 0x09, 0x08, 0x0f, 0x0e, 0x0d, 0x0c
+		};
+		control_mask = (uintptr)copy_data(value, sizeof(value));
+		assert(control_mask <= 0xffffffff);
+	}
+	return control_mask;
+}
+
+// lvx, lvxl
+bool powerpc_jit::gen_ssse3_lvx(int mnemo, int vD, int rA, int rB)
+{
+	gen_mov_32(x86_memory_operand(xPPC_GPR(rB), REG_CPU_ID), REG_T0_ID);
+	if (rA != 0)
+		gen_add_32(x86_memory_operand(xPPC_GPR(rA), REG_CPU_ID), REG_T0_ID);
+	gen_and_32(x86_immediate_operand(-16), REG_T0_ID);
+
+	x86_memory_operand vswapmask(gen_ssse3_vswap_mask(), X86_NOREG);
+	gen_movdqa(x86_memory_operand(0, REG_T0_ID), REG_V0_ID);
+	gen_insn(X86_INSN_SSE_3P, X86_SSSE3_PSHUFB, vswapmask, REG_V0_ID);
+	gen_movdqa(REG_V0_ID, x86_memory_operand(xPPC_VR(vD), REG_CPU_ID));
+	return true;
+}
+
+// stvx, stvxl
+bool powerpc_jit::gen_ssse3_stvx(int mnemo, int vS, int rA, int rB)
+{
+	gen_mov_32(x86_memory_operand(xPPC_GPR(rB), REG_CPU_ID), REG_T0_ID);
+	if (rA != 0)
+		gen_add_32(x86_memory_operand(xPPC_GPR(rA), REG_CPU_ID), REG_T0_ID);
+	gen_and_32(x86_immediate_operand(-16), REG_T0_ID);
+
+	x86_memory_operand vswapmask(gen_ssse3_vswap_mask(), X86_NOREG);
+	gen_movdqa(x86_memory_operand(xPPC_VR(vS), REG_CPU_ID), REG_V0_ID);
+	gen_insn(X86_INSN_SSE_3P, X86_SSSE3_PSHUFB, vswapmask, REG_V0_ID);
+	gen_movdqa(REG_V0_ID, x86_memory_operand(0, REG_T0_ID));
+	return true;
+}
+
+// vperm
+bool powerpc_jit::gen_ssse3_vperm(int mnemo, int vD, int vA, int vB, int vC)
+{
+	static uintptr zero_mask = 0;
+	if (zero_mask == 0) {
+		static const uint8 value[16] = {
+			0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
+			0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
+		};
+		zero_mask = (uintptr)copy_data(value, sizeof(value));
+		assert(zero_mask <= 0xffffffff);
+	}
+
+	static uintptr index_mask = 0;
+	if (index_mask == 0) {
+		static const uint8 value[16] = {
+			0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f,
+			0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f
+		};
+		index_mask = (uintptr)copy_data(value, sizeof(value));
+		assert(index_mask <= 0xffffffff);
+	};
+
+	/*
+	 * PROP_IMSB(T) = T.index|most significant bit of T.index (T.bit0 = T.bit3)
+	 * --> used to handle one vector at a time
+	 *
+	 * T.A = PSHUFB(PROP_IMSB(vC & IndexMask), vA);
+	 * T.B = PSHUFB(PROP_IMSB(vC & IndexMaxk) ^ ZeroMask, vB);
+	 * vD = T.A | T.B
+	 */
+	x86_memory_operand swap_mask(gen_ssse3_vswap_mask(), X86_NOREG);
+	gen_movdqa(x86_memory_operand(xPPC_VR(vC), REG_CPU_ID), REG_V2_ID);
+	gen_movdqa(swap_mask, REG_V3_ID);
+	gen_movdqa(x86_memory_operand(xPPC_VR(vA), REG_CPU_ID), REG_V0_ID);
+	gen_pand(x86_memory_operand(index_mask, X86_NOREG), REG_V2_ID);
+	gen_insn(X86_INSN_SSE_3P, X86_SSSE3_PSHUFB, REG_V3_ID, REG_V0_ID);
+	gen_insn(X86_INSN_SSE_3P, X86_SSSE3_PSHUFB, REG_V3_ID, REG_V2_ID);
+	gen_movdqa(REG_V2_ID, REG_V1_ID);
+	gen_psllq(x86_immediate_operand(3), REG_V2_ID);
+	gen_pand(x86_memory_operand(zero_mask, X86_NOREG), REG_V2_ID);
+	gen_por(REG_V2_ID, REG_V1_ID);
+	gen_movdqa(x86_memory_operand(xPPC_VR(vB), REG_CPU_ID), REG_V2_ID);
+	gen_insn(X86_INSN_SSE_3P, X86_SSSE3_PSHUFB, REG_V1_ID, REG_V0_ID);
+	gen_insn(X86_INSN_SSE_3P, X86_SSSE3_PSHUFB, REG_V3_ID, REG_V2_ID);
+	gen_pxor(x86_memory_operand(zero_mask, X86_NOREG), REG_V1_ID);
+	gen_insn(X86_INSN_SSE_3P, X86_SSSE3_PSHUFB, REG_V1_ID, REG_V2_ID);
+	gen_por(REG_V2_ID, REG_V0_ID);
+	gen_insn(X86_INSN_SSE_3P, X86_SSSE3_PSHUFB, REG_V3_ID, REG_V0_ID);
+	gen_movdqa(REG_V0_ID, x86_memory_operand(xPPC_VR(vD), REG_CPU_ID));
 	return true;
 }
 #endif
