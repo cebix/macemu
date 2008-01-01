@@ -1,7 +1,7 @@
 /*
  *  video_defs.h - MacOS types and structures for video
  *
- *  SheepShaver (C) 1997-2005 Marc Hellwig and Christian Bauer
+ *  SheepShaver (C) 1997-2008 Marc Hellwig and Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
