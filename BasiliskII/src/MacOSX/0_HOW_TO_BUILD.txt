@@ -11,7 +11,9 @@
 
 2) Open a Terminal, and cd to BasiliskII-1.0/src/MacOSX
 
-3) sh 1_prepare_files.sh
+3) autoconf
+   autoheader
+   ./configure
 
    This creates some symlinks to files in the Unix source and
    /usr/libexec directories, generates ./configure, and runs it.
