@@ -2389,18 +2389,30 @@ int main(void)
 	
 	if (!sigsegv_install_handler(sigsegv_test_handler))
 		return 4;
-	
+
 #ifdef __GNUC__
 	b_region = &&L_b_region1;
 	e_region = &&L_e_region1;
 #endif
- L_b_region1:
-	page[REF_INDEX] = REF_VALUE;
-	if (page[REF_INDEX] != REF_VALUE)
-	  exit(20);
-	page[REF_INDEX] = REF_VALUE;
-	BARRIER();
- L_e_region1:
+	/* This is a really awful hack but otherwise gcc is smart enough
+	 * (or bug'ous enough?) to optimize the labels and place them
+	 * e.g. at the "main" entry point, which is wrong.
+	 */
+	volatile int label_hack = 1;
+	switch (label_hack) {
+	case 1:
+	L_b_region1:
+		page[REF_INDEX] = REF_VALUE;
+		if (page[REF_INDEX] != REF_VALUE)
+			exit(20);
+		page[REF_INDEX] = REF_VALUE;
+		BARRIER();
+		// fall-through
+	case 2:
+	L_e_region1:
+		BARRIER();
+		break;
+	}
 
 	if (handler_called != 1)
 		return 5;
@@ -2431,18 +2443,24 @@ int main(void)
 	b_region = &&L_b_region2;
 	e_region = &&L_e_region2;
 #endif
- L_b_region2:
-	TEST_SKIP_INSTRUCTION(unsigned char);
-	TEST_SKIP_INSTRUCTION(unsigned short);
-	TEST_SKIP_INSTRUCTION(unsigned int);
-	TEST_SKIP_INSTRUCTION(unsigned long);
-	TEST_SKIP_INSTRUCTION(signed char);
-	TEST_SKIP_INSTRUCTION(signed short);
-	TEST_SKIP_INSTRUCTION(signed int);
-	TEST_SKIP_INSTRUCTION(signed long);
-	BARRIER();
- L_e_region2:
-
+	switch (label_hack) {
+	case 1:
+	L_b_region2:
+		TEST_SKIP_INSTRUCTION(unsigned char);
+		TEST_SKIP_INSTRUCTION(unsigned short);
+		TEST_SKIP_INSTRUCTION(unsigned int);
+		TEST_SKIP_INSTRUCTION(unsigned long);
+		TEST_SKIP_INSTRUCTION(signed char);
+		TEST_SKIP_INSTRUCTION(signed short);
+		TEST_SKIP_INSTRUCTION(signed int);
+		TEST_SKIP_INSTRUCTION(signed long);
+		BARRIER();
+		// fall-through
+	case 2:
+	L_e_region2:
+		BARRIER();
+		break;
+	}
 	if (!arch_insn_skipper_tests())
 		return 20;
 #endif
