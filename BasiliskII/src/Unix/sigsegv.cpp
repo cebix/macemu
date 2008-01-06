@@ -1226,19 +1226,19 @@ const int IA64_N_OPERANDS = 4;
 
 // Decoded operand type
 struct ia64_operand_t {
-	unsigned char commit;
-	unsigned char valid;
-	signed char index;
-	unsigned char nat;
-	unsigned long value;
+	unsigned char commit;		// commit result of operation to register file?
+	unsigned char valid;		// XXX: not really used, can be removed (debug)
+	signed char index;			// index of GPR, or -1 if immediate value
+	unsigned char nat;			// NaT state before operation
+	unsigned long value;		// register contents or immediate value
 };
 
 // Decoded instruction type
 struct ia64_instruction_t {
-	unsigned char mnemo;
-	unsigned char pred;
-	unsigned char no_memory;
-	unsigned long inst;
+	unsigned char mnemo;		// operation to perform
+	unsigned char pred;			// predicate register to check
+	unsigned char no_memory;	// used to emulated main fault instruction
+	unsigned long inst;			// the raw instruction bits (41-bit wide)
 	ia64_operand_t operands[IA64_N_OPERANDS];
 };
 
@@ -1614,6 +1614,11 @@ static bool ia64_decode_instruction(ia64_instruction_t *inst, unsigned long *ctx
 
 static bool ia64_emulate_instruction(ia64_instruction_t *inst, unsigned long *ctx)
 {
+	// XXX: handle Register NaT Consumption fault?
+	// XXX: this simple emulator assumes instructions in a bundle
+	// don't depend on effects of other instructions in the same
+	// bundle. It probably would be simpler to JIT-generate code to be
+	// executed natively but probably more costly (inject/extract CPU state)
 	if (inst->mnemo == IA64_INST_UNKNOWN)
 		return false;
 	if (inst->pred && !IA64_GET_PR(inst->pred))
