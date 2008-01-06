@@ -307,7 +307,10 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(ia64) || defined(__ia64__))
-#define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_ip & ~0x3ULL) /* slot number is in bits 0 and 1 */
+#define SIGSEGV_CONTEXT_REGS			((struct sigcontext *)scp)
+#define SIGSEGV_FAULT_INSTRUCTION		(SIGSEGV_CONTEXT_REGS->sc_ip & ~0x3ULL) /* slot number is in bits 0 and 1 */
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_SKIP_INSTRUCTION		ia64_skip_instruction
 #endif
 #if (defined(powerpc) || defined(__powerpc__))
 #include <sys/ucontext.h>
@@ -1156,6 +1159,719 @@ static bool ix86_skip_instruction(unsigned long * regs)
 #endif
 	
 	regs[X86_REG_EIP] += len;
+	return true;
+}
+#endif
+
+// Decode and skip IA-64 instruction
+#if defined(__ia64__)
+#if defined(__linux__)
+// XXX: we assume everything is 8-byte aligned
+#define OREG(REG) offsetof(struct sigcontext, sc_##REG)
+#define IREG(REG) ((OREG(REG) - OREG(flags)) / 8)
+enum {
+	IA64_REG_IP  = IREG(ip),
+	IA64_REG_NAT = IREG(nat),
+	IA64_REG_PR  = IREG(pr),
+	IA64_REG_GR  = IREG(gr)
+};
+#undef IREG
+#undef OREG
+#endif
+
+// Helper macros to access the machine context
+#define IA64_CONTEXT			(ctx)
+#define IA64_GET_PR(P)			((IA64_CONTEXT[IA64_REG_PR] >> (P)) & 1)
+#define IA64_GET_NAT(I)			((IA64_CONTEXT[IA64_REG_NAT] >> (I)) & 1)
+#define IA64_SET_NAT(I,V)		(IA64_CONTEXT[IA64_REG_NAT] = (IA64_CONTEXT[IA64_REG_NAT] & ~(1ul << (I))) | (((unsigned long)!!(V)) << (I)))
+#define IA64_GET_GR(R)			(IA64_CONTEXT[IA64_REG_GR + (R)])
+#define IA64_SET_GR(R,V)		(IA64_CONTEXT[IA64_REG_GR + (R)] = (V))
+
+// Instruction operations
+enum {
+	IA64_INST_UNKNOWN = 0,
+	IA64_INST_LD1,				// ld1 op0=[op1]
+	IA64_INST_LD1_UPDATE,		// ld1 op0=[op1],op2
+	IA64_INST_LD2,				// ld2 op0=[op1]
+	IA64_INST_LD2_UPDATE,		// ld2 op0=[op1],op2
+	IA64_INST_LD4,				// ld4 op0=[op1]
+	IA64_INST_LD4_UPDATE,		// ld4 op0=[op1],op2
+	IA64_INST_LD8,				// ld8 op0=[op1]
+	IA64_INST_LD8_UPDATE,		// ld8 op0=[op1],op2
+	IA64_INST_ST1,				// st1 [op0]=op1
+	IA64_INST_ST1_UPDATE,		// st1 [op0]=op1,op2
+	IA64_INST_ST2,				// st2 [op0]=op1
+	IA64_INST_ST2_UPDATE,		// st2 [op0]=op1,op2
+	IA64_INST_ST4,				// st4 [op0]=op1
+	IA64_INST_ST4_UPDATE,		// st4 [op0]=op1,op2
+	IA64_INST_ST8,				// st8 [op0]=op1
+	IA64_INST_ST8_UPDATE,		// st8 [op0]=op1,op2
+	IA64_INST_ADD,				// add op0=op1,op2,op3
+	IA64_INST_SUB,				// sub op0=op1,op2,op3
+	IA64_INST_SHLADD,			// shladd op0=op1,op3,op2
+	IA64_INST_AND,				// and op0=op1,op2
+	IA64_INST_ANDCM,			// andcm op0=op1,op2
+	IA64_INST_OR,				// or op0=op1,op2
+	IA64_INST_XOR,				// xor op0=op1,op2
+	IA64_INST_SXT1,				// sxt1 op0=op1
+	IA64_INST_SXT2,				// sxt2 op0=op1
+	IA64_INST_SXT4,				// sxt4 op0=op1
+	IA64_INST_ZXT1,				// zxt1 op0=op1
+	IA64_INST_ZXT2,				// zxt2 op0=op1
+	IA64_INST_ZXT4,				// zxt4 op0=op1
+	IA64_INST_NOP				// nop op0
+};
+
+const int IA64_N_OPERANDS = 4;
+
+// Decoded operand type
+struct ia64_operand_t {
+	unsigned char commit;
+	unsigned char valid;
+	signed char index;
+	unsigned char nat;
+	unsigned long value;
+};
+
+// Decoded instruction type
+struct ia64_instruction_t {
+	unsigned char mnemo;
+	unsigned char pred;
+	unsigned char no_memory;
+	unsigned long inst;
+	ia64_operand_t operands[IA64_N_OPERANDS];
+};
+
+// Get immediate sign-bit
+static inline int ia64_inst_get_sbit(unsigned long inst)
+{
+	return (inst >> 36) & 1;
+}
+
+// Get 8-bit immediate value (A3, A8, I27, M30)
+static inline unsigned long ia64_inst_get_imm8(unsigned long inst)
+{
+	unsigned long value = (inst >> 13) & 0x7ful;
+	if (ia64_inst_get_sbit(inst))
+		value |= ~0x7ful;
+	return value;
+}
+
+// Get 9-bit immediate value (M3)
+static inline unsigned long ia64_inst_get_imm9b(unsigned long inst)
+{
+	unsigned long value = (((inst >> 27) & 1) << 7) | ((inst >> 13) & 0x7f);
+	if (ia64_inst_get_sbit(inst))
+		value |= ~0xfful;
+	return value;
+}
+
+// Get 9-bit immediate value (M5)
+static inline unsigned long ia64_inst_get_imm9a(unsigned long inst)
+{
+	unsigned long value = (((inst >> 27) & 1) << 7) | ((inst >> 6) & 0x7f);
+	if (ia64_inst_get_sbit(inst))
+		value |= ~0xfful;
+	return value;
+}
+
+// Get 14-bit immediate value (A4)
+static inline unsigned long ia64_inst_get_imm14(unsigned long inst)
+{
+	unsigned long value = (((inst >> 27) & 0x3f) << 7) | (inst & 0x7f);
+	if (ia64_inst_get_sbit(inst))
+		value |= ~0x1fful;
+	return value;
+}
+
+// Get 22-bit immediate value (A5)
+static inline unsigned long ia64_inst_get_imm22(unsigned long inst)
+{
+	unsigned long value = ((((inst >> 22) & 0x1f) << 16) |
+						   (((inst >> 27) & 0x1ff) << 7) |
+						   (inst & 0x7f));
+	if (ia64_inst_get_sbit(inst))
+		value |= ~0x1ffffful;
+	return value;
+}
+
+// Get 21-bit immediate value (I19)
+static inline unsigned long ia64_inst_get_imm21(unsigned long inst)
+{
+	return (((inst >> 36) & 1) << 20) | ((inst >> 6) & 0xfffff);
+}
+
+// Get 2-bit count value (A2)
+static inline int ia64_inst_get_count2(unsigned long inst)
+{
+	return (inst >> 27) & 0x3;
+}
+
+// Get bundle template
+static inline unsigned int ia64_get_template(unsigned long raw_ip)
+{
+	unsigned long *ip = (unsigned long *)(raw_ip & ~3ul);
+	return ip[0] & 0x1f;
+}
+
+// Get specified instruction in bundle
+static unsigned long ia64_get_instruction(unsigned long raw_ip, int slot)
+{
+	unsigned long inst;
+	unsigned long *ip = (unsigned long *)(raw_ip & ~3ul);
+#if DEBUG
+	printf("Bundle: %016lx%016lx\n", ip[1], ip[0]);
+#endif
+
+	switch (slot) {
+	case 0:
+		inst = (ip[0] >> 5) & 0x1fffffffffful;
+		break;
+	case 1:
+		inst = ((ip[1] & 0x7ffffful) << 18) | ((ip[0] >> 46) & 0x3fffful);
+		break;
+	case 2:
+		inst = (ip[1] >> 23) & 0x1fffffffffful;
+		break;
+	case 3:
+		fprintf(stderr, "ERROR: ia64_get_instruction(), invalid slot number %d\n", slot);
+		abort();
+		break;
+	}
+
+#if DEBUG
+	printf(" Instruction %d: 0x%016lx\n", slot, inst);
+#endif
+	return inst;
+}
+
+// Decode group 0 instructions
+static bool ia64_decode_instruction_0(ia64_instruction_t *inst, unsigned long *ctx)
+{
+	const int r1 = (inst->inst >>  6) & 0x7f;
+	const int r3 = (inst->inst >> 20) & 0x7f;
+
+	const int x3 = (inst->inst >> 33) & 0x07;
+	const int x6 = (inst->inst >> 27) & 0x3f;
+	const int x2 = (inst->inst >> 31) & 0x03;
+	const int x4 = (inst->inst >> 27) & 0x0f;
+
+	if (x3 == 0) {
+		switch (x6) {
+		case 0x01:						// nop.i (I19)
+			inst->mnemo = IA64_INST_NOP;
+			inst->operands[0].valid = true;
+			inst->operands[0].index = -1;
+			inst->operands[0].value = ia64_inst_get_imm21(inst->inst);
+			return true;
+		case 0x14:						// sxt1 (I29)
+		case 0x15:						// sxt2 (I29)
+		case 0x16:						// sxt4 (I29)
+		case 0x10:						// zxt1 (I29)
+		case 0x11:						// zxt2 (I29)
+		case 0x12:						// zxt4 (I29)
+			switch (x6) {
+			case 0x14: inst->mnemo = IA64_INST_SXT1; break;
+			case 0x15: inst->mnemo = IA64_INST_SXT2; break;
+			case 0x16: inst->mnemo = IA64_INST_SXT4; break;
+			case 0x10: inst->mnemo = IA64_INST_ZXT1; break;
+			case 0x11: inst->mnemo = IA64_INST_ZXT2; break;
+			case 0x12: inst->mnemo = IA64_INST_ZXT4; break;
+			default: abort();
+			}
+			inst->operands[0].valid = true;
+			inst->operands[0].index = r1;
+			inst->operands[1].valid = true;
+			inst->operands[1].index = r3;
+			inst->operands[1].value = IA64_GET_GR(r3);
+			inst->operands[1].nat   = IA64_GET_NAT(r3);
+			return true;
+		}
+	}
+	return false;
+}
+
+// Decode group 4 instructions (load/store instructions)
+static bool ia64_decode_instruction_4(ia64_instruction_t *inst, unsigned long *ctx)
+{
+	const int r1 = (inst->inst >> 6) & 0x7f;
+	const int r2 = (inst->inst >> 13) & 0x7f;
+	const int r3 = (inst->inst >> 20) & 0x7f;
+
+	const int m  = (inst->inst >> 36) & 1;
+	const int x  = (inst->inst >> 27) & 1;
+	const int x6 = (inst->inst >> 30) & 0x3f;
+
+	switch (x6) {
+	case 0x00:
+	case 0x01:
+	case 0x02:
+	case 0x03:
+		if (x == 0) {
+			inst->operands[0].valid = true;
+			inst->operands[0].index = r1;
+			inst->operands[1].valid = true;
+			inst->operands[1].index = r3;
+			inst->operands[1].value = IA64_GET_GR(r3);
+			inst->operands[1].nat   = IA64_GET_NAT(r3);
+			if (m == 0) {
+				switch (x6) {
+				case 0x00: inst->mnemo = IA64_INST_LD1; break;
+				case 0x01: inst->mnemo = IA64_INST_LD2; break;
+				case 0x02: inst->mnemo = IA64_INST_LD4; break;
+				case 0x03: inst->mnemo = IA64_INST_LD8; break;
+				}
+			}
+			else {
+				inst->operands[2].valid = true;
+				inst->operands[2].index = r2;
+				inst->operands[2].value = IA64_GET_GR(r2);
+				inst->operands[2].nat   = IA64_GET_NAT(r2);
+				switch (x6) {
+				case 0x00: inst->mnemo = IA64_INST_LD1_UPDATE; break;
+				case 0x01: inst->mnemo = IA64_INST_LD2_UPDATE; break;
+				case 0x02: inst->mnemo = IA64_INST_LD4_UPDATE; break;
+				case 0x03: inst->mnemo = IA64_INST_LD8_UPDATE; break;
+				}
+			}
+			return true;
+		}
+		break;
+	case 0x30:
+	case 0x31:
+	case 0x32:
+	case 0x33:
+		if (m == 0 && x == 0) {
+			inst->operands[0].valid = true;
+			inst->operands[0].index = r3;
+			inst->operands[0].value = IA64_GET_GR(r3);
+			inst->operands[0].nat   = IA64_GET_NAT(r3);
+			inst->operands[1].valid = true;
+			inst->operands[1].index = r2;
+			inst->operands[1].value = IA64_GET_GR(r2);
+			inst->operands[1].nat   = IA64_GET_NAT(r2);
+			switch (x6) {
+			case 0x30: inst->mnemo = IA64_INST_ST1; break;
+			case 0x31: inst->mnemo = IA64_INST_ST2; break;
+			case 0x32: inst->mnemo = IA64_INST_ST4; break;
+			case 0x33: inst->mnemo = IA64_INST_ST8; break;
+			}
+			return true;
+		}
+		break;
+	}
+	return false;
+}
+
+// Decode group 5 instructions (load/store instructions)
+static bool ia64_decode_instruction_5(ia64_instruction_t *inst, unsigned long *ctx)
+{
+	const int r1 = (inst->inst >> 6) & 0x7f;
+	const int r2 = (inst->inst >> 13) & 0x7f;
+	const int r3 = (inst->inst >> 20) & 0x7f;
+
+	const int x6 = (inst->inst >> 30) & 0x3f;
+
+	switch (x6) {
+	case 0x00:
+	case 0x01:
+	case 0x02:
+	case 0x03:
+		inst->operands[0].valid = true;
+		inst->operands[0].index = r1;
+		inst->operands[1].valid = true;
+		inst->operands[1].index = r3;
+		inst->operands[1].value = IA64_GET_GR(r3);
+		inst->operands[1].nat   = IA64_GET_NAT(r3);
+		inst->operands[2].valid = true;
+		inst->operands[2].index = -1;
+		inst->operands[2].value = ia64_inst_get_imm9b(inst->inst);
+		inst->operands[2].nat   = 0;
+		switch (x6) {
+		case 0x00: inst->mnemo = IA64_INST_LD1_UPDATE; break;
+		case 0x01: inst->mnemo = IA64_INST_LD2_UPDATE; break;
+		case 0x02: inst->mnemo = IA64_INST_LD4_UPDATE; break;
+		case 0x03: inst->mnemo = IA64_INST_LD8_UPDATE; break;
+		}
+		return true;
+	case 0x30:
+	case 0x31:
+	case 0x32:
+	case 0x33:
+		inst->operands[0].valid = true;
+		inst->operands[0].index = r3;
+		inst->operands[0].value = IA64_GET_GR(r3);
+		inst->operands[0].nat   = IA64_GET_NAT(r3);
+		inst->operands[1].valid = true;
+		inst->operands[1].index = r2;
+		inst->operands[1].value = IA64_GET_GR(r2);
+		inst->operands[1].nat   = IA64_GET_NAT(r2);
+		inst->operands[2].valid = true;
+		inst->operands[2].index = -1;
+		inst->operands[2].value = ia64_inst_get_imm9a(inst->inst);
+		inst->operands[2].nat   = 0;
+		switch (x6) {
+		case 0x30: inst->mnemo = IA64_INST_ST1_UPDATE; break;
+		case 0x31: inst->mnemo = IA64_INST_ST2_UPDATE; break;
+		case 0x32: inst->mnemo = IA64_INST_ST4_UPDATE; break;
+		case 0x33: inst->mnemo = IA64_INST_ST8_UPDATE; break;
+		}
+		return true;
+	}
+	return false;
+}
+
+// Decode group 8 instructions (ALU integer)
+static bool ia64_decode_instruction_8(ia64_instruction_t *inst, unsigned long *ctx)
+{
+	const int r1  = (inst->inst >> 6) & 0x7f;
+	const int r2  = (inst->inst >> 13) & 0x7f;
+	const int r3  = (inst->inst >> 20) & 0x7f;
+
+	const int x2a = (inst->inst >> 34) & 0x3;
+	const int x2b = (inst->inst >> 27) & 0x3;
+	const int x4  = (inst->inst >> 29) & 0xf;
+	const int ve  = (inst->inst >> 33) & 0x1;
+
+	// destination register (r1) is always valid in this group
+	inst->operands[0].valid = true;
+	inst->operands[0].index = r1;
+
+	// source register (r3) is always valid in this group
+	inst->operands[2].valid = true;
+	inst->operands[2].index = r3;
+	inst->operands[2].value = IA64_GET_GR(r3);
+	inst->operands[2].nat   = IA64_GET_NAT(r3);
+
+	if (x2a == 0 && ve == 0) {
+		inst->operands[1].valid = true;
+		inst->operands[1].index = r2;
+		inst->operands[1].value = IA64_GET_GR(r2);
+		inst->operands[1].nat   = IA64_GET_NAT(r2);
+		switch (x4) {
+		case 0x0:				// add (A1)
+			inst->mnemo = IA64_INST_ADD;
+			inst->operands[3].valid = true;
+			inst->operands[3].index = -1;
+			inst->operands[3].value = x2b == 1;
+			return true;
+		case 0x1:				// add (A1)
+			inst->mnemo = IA64_INST_SUB;
+			inst->operands[3].valid = true;
+			inst->operands[3].index = -1;
+			inst->operands[3].value = x2b == 0;
+			return true;
+		case 0x4:				// shladd (A2)
+			inst->mnemo = IA64_INST_SHLADD;
+			inst->operands[3].valid = true;
+			inst->operands[3].index = -1;
+			inst->operands[3].value = ia64_inst_get_count2(inst->inst);
+			return true;
+		case 0x9:
+			if (x2b == 1) {
+				inst->mnemo = IA64_INST_SUB;
+				inst->operands[1].index = -1;
+				inst->operands[1].value = ia64_inst_get_imm8(inst->inst);
+				inst->operands[1].nat   = 0;
+				return true;
+			}
+			break;
+		case 0xb:
+			inst->operands[1].index = -1;
+			inst->operands[1].value = ia64_inst_get_imm8(inst->inst);
+			inst->operands[1].nat   = 0;
+			// fall-through
+		case 0x3:
+			switch (x2b) {
+			case 0: inst->mnemo = IA64_INST_AND;   break;
+			case 1: inst->mnemo = IA64_INST_ANDCM; break;
+			case 2: inst->mnemo = IA64_INST_OR;    break;
+			case 3: inst->mnemo = IA64_INST_XOR;   break;
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
+// Decode instruction
+static bool ia64_decode_instruction(ia64_instruction_t *inst, unsigned long *ctx)
+{
+	const int major = (inst->inst >> 37) & 0xf;
+
+	inst->mnemo = IA64_INST_UNKNOWN;
+	inst->pred  = inst->inst & 0x3f;
+	memset(&inst->operands[0], 0, sizeof(inst->operands));
+
+	switch (major) {
+	case 0x0: return ia64_decode_instruction_0(inst, ctx);
+	case 0x4: return ia64_decode_instruction_4(inst, ctx);
+	case 0x5: return ia64_decode_instruction_5(inst, ctx);
+	case 0x8: return ia64_decode_instruction_8(inst, ctx);
+	}
+	return false;
+}
+
+static bool ia64_emulate_instruction(ia64_instruction_t *inst, unsigned long *ctx)
+{
+	if (inst->mnemo == IA64_INST_UNKNOWN)
+		return false;
+	if (inst->pred && !IA64_GET_PR(inst->pred))
+		return true;
+
+	unsigned char nat, nat2;
+	unsigned long dst, dst2, src1, src2, src3;
+
+	switch (inst->mnemo) {
+	case IA64_INST_NOP:
+		break;
+	case IA64_INST_ADD:
+	case IA64_INST_SUB:
+	case IA64_INST_SHLADD:
+		src3 = inst->operands[3].value;
+		// fall-through
+	case IA64_INST_AND:
+	case IA64_INST_ANDCM:
+	case IA64_INST_OR:
+	case IA64_INST_XOR:
+		src1 = inst->operands[1].value;
+		src2 = inst->operands[2].value;
+		switch (inst->mnemo) {
+		case IA64_INST_ADD:   dst = src1 + src2 + src3;	break;
+		case IA64_INST_SUB:   dst = src1 - src2 - src3;	break;
+		case IA64_INST_SHLADD: dst = (src1 << src3) + src2; break;
+		case IA64_INST_AND:   dst = src1 & src2;		break;
+		case IA64_INST_ANDCM: dst = src1 &~ src2;		break;
+		case IA64_INST_OR:    dst = src1 | src2;		break;
+		case IA64_INST_XOR:   dst = src1 ^ src2;		break;
+		}
+		inst->operands[0].commit = true;
+		inst->operands[0].value  = dst;
+		inst->operands[0].nat    = inst->operands[1].nat | inst->operands[2].nat;
+		break;
+	case IA64_INST_SXT1:
+	case IA64_INST_SXT2:
+	case IA64_INST_SXT4:
+	case IA64_INST_ZXT1:
+	case IA64_INST_ZXT2:
+	case IA64_INST_ZXT4:
+		src1 = inst->operands[1].value;
+		switch (inst->mnemo) {
+		case IA64_INST_SXT1: dst = (signed long)(signed char)src1;		break;
+		case IA64_INST_SXT2: dst = (signed long)(signed short)src1;		break;
+		case IA64_INST_SXT4: dst = (signed long)(signed int)src1;		break;
+		case IA64_INST_ZXT1: dst = (unsigned char)src1;					break;
+		case IA64_INST_ZXT2: dst = (unsigned short)src1;				break;
+		case IA64_INST_ZXT4: dst = (unsigned int)src1;					break;
+		}
+		inst->operands[0].commit = true;
+		inst->operands[0].value  = dst;
+		inst->operands[0].nat    = inst->operands[1].nat;
+		break;
+	case IA64_INST_LD1_UPDATE:
+	case IA64_INST_LD2_UPDATE:
+	case IA64_INST_LD4_UPDATE:
+	case IA64_INST_LD8_UPDATE:
+		inst->operands[1].commit = true;
+		dst2 = inst->operands[1].value + inst->operands[2].value;
+		nat2 = inst->operands[2].nat ? inst->operands[2].nat : 0;
+		// fall-through
+	case IA64_INST_LD1:
+	case IA64_INST_LD2:
+	case IA64_INST_LD4:
+	case IA64_INST_LD8:
+		src1 = inst->operands[1].value;
+		if (inst->no_memory)
+			dst = 0;
+		else {
+			switch (inst->mnemo) {
+			case IA64_INST_LD1: case IA64_INST_LD1_UPDATE: dst = *((unsigned char *)src1);	break;
+			case IA64_INST_LD2: case IA64_INST_LD2_UPDATE: dst = *((unsigned short *)src1);	break;
+			case IA64_INST_LD4: case IA64_INST_LD4_UPDATE: dst = *((unsigned int *)src1);	break;
+			case IA64_INST_LD8: case IA64_INST_LD8_UPDATE: dst = *((unsigned long *)src1);	break;
+			}
+		}
+		inst->operands[0].commit = true;
+		inst->operands[0].value  = dst;
+		inst->operands[0].nat    = 0;
+		inst->operands[1].value  = dst2;
+		inst->operands[1].nat    = nat2;
+		break;
+	case IA64_INST_ST1_UPDATE:
+	case IA64_INST_ST2_UPDATE:
+	case IA64_INST_ST4_UPDATE:
+	case IA64_INST_ST8_UPDATE:
+		inst->operands[0].commit = 0;
+		dst2 = inst->operands[0].value + inst->operands[2].value;
+		nat2 = inst->operands[2].nat ? inst->operands[2].nat : 0;
+		// fall-through
+	case IA64_INST_ST1:
+	case IA64_INST_ST2:
+	case IA64_INST_ST4:
+	case IA64_INST_ST8:
+		dst  = inst->operands[0].value;
+		src1 = inst->operands[1].value;
+		if (!inst->no_memory) {
+			switch (inst->mnemo) {
+			case IA64_INST_ST1: case IA64_INST_ST1_UPDATE: *((unsigned char *)dst) = src1;	break;
+			case IA64_INST_ST2: case IA64_INST_ST2_UPDATE: *((unsigned short *)dst) = src1;	break;
+			case IA64_INST_ST4: case IA64_INST_ST4_UPDATE: *((unsigned int *)dst) = src1;	break;
+			case IA64_INST_ST8: case IA64_INST_ST8_UPDATE: *((unsigned long *)dst) = src1;	break;
+			}
+		}
+		inst->operands[0].value  = dst2;
+		inst->operands[0].nat    = nat2;
+		break;
+	default:
+		return false;
+	}
+
+	for (int i = 0; i < IA64_N_OPERANDS; i++) {
+		ia64_operand_t const & op = inst->operands[i];
+		if (!op.commit)
+			continue;
+		if (op.index == -1)
+			return false; // XXX: internal error
+		IA64_SET_GR(op.index, op.value);
+		IA64_SET_NAT(op.index, op.nat);
+	}
+	return true;
+}
+
+static bool ia64_emulate_instruction(unsigned long raw_inst, unsigned long *ctx)
+{
+	ia64_instruction_t inst;
+	memset(&inst, 0, sizeof(inst));
+	inst.inst = raw_inst;
+	if (!ia64_decode_instruction(&inst, ctx))
+		return false;
+	return ia64_emulate_instruction(&inst, ctx);
+}
+
+static bool ia64_skip_instruction(unsigned long *ctx)
+{
+	unsigned long ip = ctx[IA64_REG_IP];
+#if DEBUG
+	printf("IP: 0x%016lx\n", ip);
+#if 0
+	printf(" Template 0x%02x\n", ia64_get_template(ip));
+	ia64_get_instruction(ip, 0);
+	ia64_get_instruction(ip, 1);
+	ia64_get_instruction(ip, 2);
+#endif
+#endif
+
+	// Select which decode switch to use
+	ia64_instruction_t inst;
+	inst.inst = ia64_get_instruction(ip, ip & 3);
+	if (!ia64_decode_instruction(&inst, ctx)) {
+		fprintf(stderr, "ERROR: ia64_skip_instruction(): could not decode instruction\n");
+		return false;
+	}
+
+	transfer_type_t transfer_type = SIGSEGV_TRANSFER_UNKNOWN;
+	transfer_size_t transfer_size = SIZE_UNKNOWN;
+
+	switch (inst.mnemo) {
+	case IA64_INST_LD1:
+	case IA64_INST_LD2:
+	case IA64_INST_LD4:
+	case IA64_INST_LD8:
+	case IA64_INST_LD1_UPDATE:
+	case IA64_INST_LD2_UPDATE:
+	case IA64_INST_LD4_UPDATE:
+	case IA64_INST_LD8_UPDATE:
+		transfer_type = SIGSEGV_TRANSFER_LOAD;
+		break;
+	case IA64_INST_ST1:
+	case IA64_INST_ST2:
+	case IA64_INST_ST4:
+	case IA64_INST_ST8:
+	case IA64_INST_ST1_UPDATE:
+	case IA64_INST_ST2_UPDATE:
+	case IA64_INST_ST4_UPDATE:
+	case IA64_INST_ST8_UPDATE:
+		transfer_type = SIGSEGV_TRANSFER_STORE;
+		break;
+	}
+
+	if (transfer_type == SIGSEGV_TRANSFER_UNKNOWN) {
+		// Unknown machine code, let it crash. Then patch the decoder
+		fprintf(stderr, "ERROR: ia64_skip_instruction(): not a load/store instruction\n");
+		return false;
+	}
+
+	switch (inst.mnemo) {
+	case IA64_INST_LD1:
+	case IA64_INST_LD1_UPDATE:
+	case IA64_INST_ST1:
+	case IA64_INST_ST1_UPDATE:
+		transfer_size = SIZE_BYTE;
+		break;
+	case IA64_INST_LD2:
+	case IA64_INST_LD2_UPDATE:
+	case IA64_INST_ST2:
+	case IA64_INST_ST2_UPDATE:
+		transfer_size = SIZE_WORD;
+		break;
+	case IA64_INST_LD4:
+	case IA64_INST_LD4_UPDATE:
+	case IA64_INST_ST4:
+	case IA64_INST_ST4_UPDATE:
+		transfer_size = SIZE_LONG;
+		break;
+	case IA64_INST_LD8:
+	case IA64_INST_LD8_UPDATE:
+	case IA64_INST_ST8:
+	case IA64_INST_ST8_UPDATE:
+		transfer_size = SIZE_QUAD;
+		break;
+	}
+
+	if (transfer_size == SIZE_UNKNOWN) {
+		// Unknown machine code, let it crash. Then patch the decoder
+		fprintf(stderr, "ERROR: ia64_skip_instruction(): unknown transfer size\n");
+		return false;
+	}
+
+	inst.no_memory = true;
+	if (!ia64_emulate_instruction(&inst, ctx)) {
+		fprintf(stderr, "ERROR: ia64_skip_instruction(): could not emulate fault instruction\n");
+		return false;
+	}
+
+	int slot = ip & 3;
+	bool emulate_next = false;
+	switch (slot) {
+	case 0:
+		switch (ia64_get_template(ip)) {
+		case 0x2: // MI;I
+		case 0x3: // MI;I;
+			emulate_next = true;
+			slot = 2;
+			break;
+		case 0xa: // M;MI
+		case 0xb: // M;MI;
+			emulate_next = true;
+			slot = 1;
+			break;
+		}
+		break;
+	}
+	if (emulate_next) {
+		while (slot < 3) {
+			if (!ia64_emulate_instruction(ia64_get_instruction(ip, slot), ctx)) {
+				fprintf(stderr, "ERROR: ia64_skip_instruction(): could not emulate instruction\n");
+				return false;
+			}
+			++slot;
+		}
+	}
+
+	ctx[IA64_REG_IP] = (ip & ~3ul) + 16;
+#if DEBUG
+	printf("IP: 0x%016lx\n", ctx[IA64_REG_IP]);
+#endif
 	return true;
 }
 #endif
