@@ -309,7 +309,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #if (defined(ia64) || defined(__ia64__))
 #define SIGSEGV_CONTEXT_REGS			((struct sigcontext *)scp)
 #define SIGSEGV_FAULT_INSTRUCTION		(SIGSEGV_CONTEXT_REGS->sc_ip & ~0x3ULL) /* slot number is in bits 0 and 1 */
-#define SIGSEGV_REGISTER_FILE			(unsigned long *)SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_REGISTER_FILE			SIGSEGV_CONTEXT_REGS
 #define SIGSEGV_SKIP_INSTRUCTION		ia64_skip_instruction
 #endif
 #if (defined(powerpc) || defined(__powerpc__))
@@ -1166,26 +1166,19 @@ static bool ix86_skip_instruction(unsigned long * regs)
 // Decode and skip IA-64 instruction
 #if defined(__ia64__)
 #if defined(__linux__)
-// XXX: we assume everything is 8-byte aligned
-#define OREG(REG) offsetof(struct sigcontext, sc_##REG)
-#define IREG(REG) ((OREG(REG) - OREG(flags)) / 8)
-enum {
-	IA64_REG_IP  = IREG(ip),
-	IA64_REG_NAT = IREG(nat),
-	IA64_REG_PR  = IREG(pr),
-	IA64_REG_GR  = IREG(gr)
-};
-#undef IREG
-#undef OREG
-#endif
-
+// We can directly patch the slot number
+#define IA64_CAN_PATCH_IP_SLOT 1
 // Helper macros to access the machine context
-#define IA64_CONTEXT			(ctx)
-#define IA64_GET_PR(P)			((IA64_CONTEXT[IA64_REG_PR] >> (P)) & 1)
-#define IA64_GET_NAT(I)			((IA64_CONTEXT[IA64_REG_NAT] >> (I)) & 1)
-#define IA64_SET_NAT(I,V)		(IA64_CONTEXT[IA64_REG_NAT] = (IA64_CONTEXT[IA64_REG_NAT] & ~(1ul << (I))) | (((unsigned long)!!(V)) << (I)))
-#define IA64_GET_GR(R)			(IA64_CONTEXT[IA64_REG_GR + (R)])
-#define IA64_SET_GR(R,V)		(IA64_CONTEXT[IA64_REG_GR + (R)] = (V))
+#define IA64_CONTEXT_TYPE		struct sigcontext *
+#define IA64_CONTEXT			scp
+#define IA64_GET_IP()			(IA64_CONTEXT->sc_ip)
+#define IA64_SET_IP(V)			(IA64_CONTEXT->sc_ip = (V))
+#define IA64_GET_PR(P)			((IA64_CONTEXT->sc_pr >> (P)) & 1)
+#define IA64_GET_NAT(I)			((IA64_CONTEXT->sc_nat >> (I)) & 1)
+#define IA64_SET_NAT(I,V)		(IA64_CONTEXT->sc_nat= (IA64_CONTEXT->sc_nat & ~(1ul << (I))) | (((unsigned long)!!(V)) << (I)))
+#define IA64_GET_GR(R)			(IA64_CONTEXT->sc_gr[(R)])
+#define IA64_SET_GR(R,V)		(IA64_CONTEXT->sc_gr[(R)] = (V))
+#endif
 
 // Instruction operations
 enum {
@@ -1346,7 +1339,7 @@ static unsigned long ia64_get_instruction(unsigned long raw_ip, int slot)
 }
 
 // Decode group 0 instructions
-static bool ia64_decode_instruction_0(ia64_instruction_t *inst, unsigned long *ctx)
+static bool ia64_decode_instruction_0(ia64_instruction_t *inst, IA64_CONTEXT_TYPE IA64_CONTEXT)
 {
 	const int r1 = (inst->inst >>  6) & 0x7f;
 	const int r3 = (inst->inst >> 20) & 0x7f;
@@ -1392,7 +1385,7 @@ static bool ia64_decode_instruction_0(ia64_instruction_t *inst, unsigned long *c
 }
 
 // Decode group 4 instructions (load/store instructions)
-static bool ia64_decode_instruction_4(ia64_instruction_t *inst, unsigned long *ctx)
+static bool ia64_decode_instruction_4(ia64_instruction_t *inst, IA64_CONTEXT_TYPE IA64_CONTEXT)
 {
 	const int r1 = (inst->inst >> 6) & 0x7f;
 	const int r2 = (inst->inst >> 13) & 0x7f;
@@ -1464,7 +1457,7 @@ static bool ia64_decode_instruction_4(ia64_instruction_t *inst, unsigned long *c
 }
 
 // Decode group 5 instructions (load/store instructions)
-static bool ia64_decode_instruction_5(ia64_instruction_t *inst, unsigned long *ctx)
+static bool ia64_decode_instruction_5(ia64_instruction_t *inst, IA64_CONTEXT_TYPE IA64_CONTEXT)
 {
 	const int r1 = (inst->inst >> 6) & 0x7f;
 	const int r2 = (inst->inst >> 13) & 0x7f;
@@ -1522,7 +1515,7 @@ static bool ia64_decode_instruction_5(ia64_instruction_t *inst, unsigned long *c
 }
 
 // Decode group 8 instructions (ALU integer)
-static bool ia64_decode_instruction_8(ia64_instruction_t *inst, unsigned long *ctx)
+static bool ia64_decode_instruction_8(ia64_instruction_t *inst, IA64_CONTEXT_TYPE IA64_CONTEXT)
 {
 	const int r1  = (inst->inst >> 6) & 0x7f;
 	const int r2  = (inst->inst >> 13) & 0x7f;
@@ -1595,7 +1588,7 @@ static bool ia64_decode_instruction_8(ia64_instruction_t *inst, unsigned long *c
 }
 
 // Decode instruction
-static bool ia64_decode_instruction(ia64_instruction_t *inst, unsigned long *ctx)
+static bool ia64_decode_instruction(ia64_instruction_t *inst, IA64_CONTEXT_TYPE IA64_CONTEXT)
 {
 	const int major = (inst->inst >> 37) & 0xf;
 
@@ -1604,15 +1597,15 @@ static bool ia64_decode_instruction(ia64_instruction_t *inst, unsigned long *ctx
 	memset(&inst->operands[0], 0, sizeof(inst->operands));
 
 	switch (major) {
-	case 0x0: return ia64_decode_instruction_0(inst, ctx);
-	case 0x4: return ia64_decode_instruction_4(inst, ctx);
-	case 0x5: return ia64_decode_instruction_5(inst, ctx);
-	case 0x8: return ia64_decode_instruction_8(inst, ctx);
+	case 0x0: return ia64_decode_instruction_0(inst, IA64_CONTEXT);
+	case 0x4: return ia64_decode_instruction_4(inst, IA64_CONTEXT);
+	case 0x5: return ia64_decode_instruction_5(inst, IA64_CONTEXT);
+	case 0x8: return ia64_decode_instruction_8(inst, IA64_CONTEXT);
 	}
 	return false;
 }
 
-static bool ia64_emulate_instruction(ia64_instruction_t *inst, unsigned long *ctx)
+static bool ia64_emulate_instruction(ia64_instruction_t *inst, IA64_CONTEXT_TYPE IA64_CONTEXT)
 {
 	// XXX: handle Register NaT Consumption fault?
 	// XXX: this simple emulator assumes instructions in a bundle
@@ -1743,19 +1736,19 @@ static bool ia64_emulate_instruction(ia64_instruction_t *inst, unsigned long *ct
 	return true;
 }
 
-static bool ia64_emulate_instruction(unsigned long raw_inst, unsigned long *ctx)
+static bool ia64_emulate_instruction(unsigned long raw_inst, IA64_CONTEXT_TYPE IA64_CONTEXT)
 {
 	ia64_instruction_t inst;
 	memset(&inst, 0, sizeof(inst));
 	inst.inst = raw_inst;
-	if (!ia64_decode_instruction(&inst, ctx))
+	if (!ia64_decode_instruction(&inst, IA64_CONTEXT))
 		return false;
-	return ia64_emulate_instruction(&inst, ctx);
+	return ia64_emulate_instruction(&inst, IA64_CONTEXT);
 }
 
-static bool ia64_skip_instruction(unsigned long *ctx)
+static bool ia64_skip_instruction(IA64_CONTEXT_TYPE IA64_CONTEXT)
 {
-	unsigned long ip = ctx[IA64_REG_IP];
+	unsigned long ip = IA64_GET_IP();
 #if DEBUG
 	printf("IP: 0x%016lx\n", ip);
 #if 0
@@ -1769,7 +1762,7 @@ static bool ia64_skip_instruction(unsigned long *ctx)
 	// Select which decode switch to use
 	ia64_instruction_t inst;
 	inst.inst = ia64_get_instruction(ip, ip & 3);
-	if (!ia64_decode_instruction(&inst, ctx)) {
+	if (!ia64_decode_instruction(&inst, IA64_CONTEXT)) {
 		fprintf(stderr, "ERROR: ia64_skip_instruction(): could not decode instruction\n");
 		return false;
 	}
@@ -1840,7 +1833,7 @@ static bool ia64_skip_instruction(unsigned long *ctx)
 	}
 
 	inst.no_memory = true;
-	if (!ia64_emulate_instruction(&inst, ctx)) {
+	if (!ia64_emulate_instruction(&inst, IA64_CONTEXT)) {
 		fprintf(stderr, "ERROR: ia64_skip_instruction(): could not emulate fault instruction\n");
 		return false;
 	}
@@ -1863,9 +1856,9 @@ static bool ia64_skip_instruction(unsigned long *ctx)
 		}
 		break;
 	}
-	if (emulate_next) {
+	if (emulate_next && !IA64_CAN_PATCH_IP_SLOT) {
 		while (slot < 3) {
-			if (!ia64_emulate_instruction(ia64_get_instruction(ip, slot), ctx)) {
+			if (!ia64_emulate_instruction(ia64_get_instruction(ip, slot), IA64_CONTEXT)) {
 				fprintf(stderr, "ERROR: ia64_skip_instruction(): could not emulate instruction\n");
 				return false;
 			}
@@ -1873,9 +1866,14 @@ static bool ia64_skip_instruction(unsigned long *ctx)
 		}
 	}
 
-	ctx[IA64_REG_IP] = (ip & ~3ul) + 16;
+#if IA64_CAN_PATCH_IP_SLOT
+	if ((slot = ip & 3) < 2)
+		IA64_SET_IP((ip & ~3ul) + (slot + 1));
+	else
+#endif
+		IA64_SET_IP((ip & ~3ul) + 16);
 #if DEBUG
-	printf("IP: 0x%016lx\n", ctx[IA64_REG_IP]);
+	printf("IP: 0x%016lx\n", IA64_GET_IP());
 #endif
 	return true;
 }
