@@ -70,7 +70,7 @@ static bool sigsegv_do_install_handler(int sig);
 enum transfer_type_t {
 	SIGSEGV_TRANSFER_UNKNOWN	= 0,
 	SIGSEGV_TRANSFER_LOAD		= 1,
-	SIGSEGV_TRANSFER_STORE		= 2,
+	SIGSEGV_TRANSFER_STORE		= 2
 };
 
 // Transfer size
@@ -79,7 +79,7 @@ enum transfer_size_t {
 	SIZE_BYTE,
 	SIZE_WORD, // 2 bytes
 	SIZE_LONG, // 4 bytes
-	SIZE_QUAD, // 8 bytes
+	SIZE_QUAD  // 8 bytes
 };
 
 #if (defined(powerpc) || defined(__powerpc__) || defined(__ppc__) || defined(__ppc64__))
