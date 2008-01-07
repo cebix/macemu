@@ -2437,8 +2437,17 @@ sigsegv_address_t sigsegv_get_fault_address(sigsegv_info_t *SIP)
 		mach_get_exception_state(SIP);
 
 		sigsegv_address_t addr = (sigsegv_address_t)SIGSEGV_FAULT_ADDRESS;
-		if (use_fast_path < 0)
-			use_fast_path = addr == SIP->addr;
+		if (use_fast_path < 0) {
+			const char *machfault = getenv("SIGSEGV_MACH_FAULT");
+			if (machfault) {
+				if (strcmp(machfault, "fast") == 0)
+					use_fast_path = 1;
+				else if (strcmp(machfault, "slow") == 0)
+					use_fast_path = 0;
+			}
+			if (use_fast_path < 0)
+				use_fast_path = addr == SIP->addr;
+		}
 		SIP->addr = addr;
 	}
 #endif
