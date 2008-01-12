@@ -48,6 +48,14 @@
 #endif
 #endif
 
+#ifdef HAVE_WIN32_VM
+/* Windows is either ILP32 or LLP64 */
+typedef UINT_PTR vm_uintptr_t;
+#else
+/* Other systems are sane as they are either ILP32 or LP64 */
+typedef unsigned long vm_uintptr_t;
+#endif
+
 /* We want MAP_32BIT, if available, for SheepShaver and BasiliskII
    because the emulated target is 32-bit and this helps to allocate
    memory so that branches could be resolved more easily (32-bit
@@ -111,12 +119,12 @@ static int translate_map_flags(int vm_flags)
 #ifdef HAVE_WIN32_VM
 static inline LPVOID align_addr_segment(LPVOID addr)
 {
-	return (LPVOID)(((DWORD)addr) & -65536);
+	return (LPVOID)(((vm_uintptr_t)addr) & -((vm_uintptr_t)65536));
 }
 
 static inline DWORD align_size_segment(LPVOID addr, DWORD size)
 {
-	return size + ((DWORD)addr - (DWORD)align_addr_segment(addr));
+	return size + ((vm_uintptr_t)addr - (vm_uintptr_t)align_addr_segment(addr));
 }
 #endif
 
@@ -325,7 +333,7 @@ int vm_protect(void * addr, size_t size, int prot)
 int vm_get_page_size(void)
 {
 #ifdef HAVE_WIN32_VM
-	static unsigned long page_size = 0;
+	static vm_uintptr_t page_size = 0;
 	if (page_size == 0) {
 		SYSTEM_INFO si;
 		GetSystemInfo(&si);
@@ -359,8 +367,8 @@ int main(void)
 	signal(SIGBUS,  fault_handler);
 #endif
 	
-#define page_align(address) ((char *)((unsigned long)(address) & -page_size))
-	unsigned long page_size = vm_get_page_size();
+#define page_align(address) ((char *)((vm_uintptr_t)(address) & -page_size))
+	vm_uintptr_t page_size = vm_get_page_size();
 	
 	const int area_size = 6 * page_size;
 	volatile char * area = (volatile char *) vm_acquire(area_size);
