@@ -49,6 +49,17 @@ using std::list;
 #define RETSIGTYPE void
 #endif
 
+// Size of an unsigned integer large enough to hold all bits of a pointer
+// NOTE: this can be different than SIGSEGV_REGISTER_TYPE. In
+// particular, on ILP32 systems with a 64-bit kernel (HP-UX/ia64?)
+#ifdef HAVE_WIN32_VM
+// Windows is either ILP32 or LLP64
+typedef UINT_PTR sigsegv_uintptr_t;
+#else
+// Other systems are sane enough to follow ILP32 or LP64 models
+typedef unsigned long sigsegv_uintptr_t;
+#endif
+
 // Type of the system signal handler
 typedef RETSIGTYPE (*signal_handler)(int);
 
@@ -264,14 +275,14 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #include <sys/regset.h>
 #define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[EIP]
-#define SIGSEGV_REGISTER_FILE			(unsigned long *)SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #endif
 #if defined(__FreeBSD__) || defined(__OpenBSD__)
 #if (defined(i386) || defined(__i386__))
 #define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_eip)
-#define SIGSEGV_REGISTER_FILE			((unsigned long *)&(((struct sigcontext *)scp)->sc_edi)) /* EDI is the first GPR (even below EIP) in sigcontext */
+#define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&(((struct sigcontext *)scp)->sc_edi)) /* EDI is the first GPR (even below EIP) in sigcontext */
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #endif
@@ -280,7 +291,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #include <sys/ucontext.h>
 #define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.__gregs)
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[_REG_EIP]
-#define SIGSEGV_REGISTER_FILE			(unsigned long *)SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(powerpc) || defined(__powerpc__))
@@ -296,14 +307,14 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #include <sys/ucontext.h>
 #define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[14] /* should use REG_EIP instead */
-#define SIGSEGV_REGISTER_FILE			(unsigned long *)SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(x86_64) || defined(__x86_64__))
 #include <sys/ucontext.h>
 #define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[16] /* should use REG_RIP instead */
-#define SIGSEGV_REGISTER_FILE			(unsigned long *)SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(ia64) || defined(__ia64__))
@@ -351,7 +362,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_FAULT_HANDLER_ARGS		&scs
 #define SIGSEGV_FAULT_ADDRESS			scp->cr2
 #define SIGSEGV_FAULT_INSTRUCTION		scp->eip
-#define SIGSEGV_REGISTER_FILE			(unsigned long *)scp
+#define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)scp
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(sparc) || defined(__sparc__))
@@ -472,7 +483,7 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 #define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp, addr
 #define SIGSEGV_FAULT_ADDRESS			addr
 #define SIGSEGV_FAULT_INSTRUCTION		scp->sc_eip
-#define SIGSEGV_REGISTER_FILE			((unsigned long *)&scp->sc_edi)
+#define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&scp->sc_edi)
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(alpha) || defined(__alpha__))
@@ -535,13 +546,24 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 #include <windows.h>
 #include <winerror.h>
 
+#if defined(_M_IX86)
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	EXCEPTION_POINTERS *ExceptionInfo
 #define SIGSEGV_FAULT_HANDLER_ARGS		ExceptionInfo
 #define SIGSEGV_FAULT_ADDRESS			ExceptionInfo->ExceptionRecord->ExceptionInformation[1]
 #define SIGSEGV_CONTEXT_REGS			ExceptionInfo->ContextRecord
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS->Eip
-#define SIGSEGV_REGISTER_FILE			((unsigned long *)&SIGSEGV_CONTEXT_REGS->Edi)
+#define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&SIGSEGV_CONTEXT_REGS->Edi)
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#endif
+#if defined(_M_X64)
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	EXCEPTION_POINTERS *ExceptionInfo
+#define SIGSEGV_FAULT_HANDLER_ARGS		ExceptionInfo
+#define SIGSEGV_FAULT_ADDRESS			ExceptionInfo->ExceptionRecord->ExceptionInformation[1]
+#define SIGSEGV_CONTEXT_REGS			ExceptionInfo->ContextRecord
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS->Rip
+#define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&SIGSEGV_CONTEXT_REGS->Rax)
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#endif
 #endif
 
 #if HAVE_MACH_EXCEPTIONS
@@ -638,7 +660,7 @@ if (ret != KERN_SUCCESS) { \
 #define SIGSEGV_THREAD_STATE_COUNT		i386_THREAD_STATE_COUNT
 #define SIGSEGV_FAULT_INSTRUCTION		SIP->thr_state.eip
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
-#define SIGSEGV_REGISTER_FILE			((unsigned long *)&SIP->thr_state.eax) /* EAX is the first GPR we consider */
+#define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&SIP->thr_state.eax) /* EAX is the first GPR we consider */
 #endif
 #ifdef __x86_64__
 #define SIGSEGV_EXCEPTION_STATE_TYPE	struct x86_exception_state64
@@ -650,7 +672,7 @@ if (ret != KERN_SUCCESS) { \
 #define SIGSEGV_THREAD_STATE_COUNT		x86_THREAD_STATE64_COUNT
 #define SIGSEGV_FAULT_INSTRUCTION		SIP->thr_state.rip
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
-#define SIGSEGV_REGISTER_FILE			((unsigned long *)&SIP->thr_state.rax) /* RAX is the first GPR we consider */
+#define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&SIP->thr_state.rax) /* RAX is the first GPR we consider */
 #endif
 #define SIGSEGV_FAULT_ADDRESS_FAST		code[1]
 #define SIGSEGV_FAULT_INSTRUCTION_FAST	SIGSEGV_INVALID_ADDRESS
@@ -708,9 +730,13 @@ handleExceptions(void *priv)
  *  Instruction skipping
  */
 
+#ifndef SIGSEGV_REGISTER_TYPE
+#define SIGSEGV_REGISTER_TYPE sigsegv_uintptr_t
+#endif
+
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 // Decode and skip X86 instruction
-#if (defined(i386) || defined(__i386__)) || defined(__x86_64__)
+#if (defined(i386) || defined(__i386__)) || (defined(__x86_64__) || defined(_M_X64))
 #if defined(__linux__)
 enum {
 #if (defined(i386) || defined(__i386__))
@@ -861,7 +887,7 @@ enum {
 #endif
 #if defined(_WIN32)
 enum {
-#if (defined(i386) || defined(__i386__))
+#if defined(_M_IX86)
 	X86_REG_EIP = 7,
 	X86_REG_EAX = 5,
 	X86_REG_ECX = 4,
@@ -871,6 +897,25 @@ enum {
 	X86_REG_EBP = 6,
 	X86_REG_ESI = 1,
 	X86_REG_EDI = 0
+#endif
+#if defined(_M_X64)
+	X86_REG_EAX = 0,
+	X86_REG_ECX = 1,
+	X86_REG_EDX = 2,
+	X86_REG_EBX = 3,
+	X86_REG_ESP = 4,
+	X86_REG_EBP = 5,
+	X86_REG_ESI = 6,
+	X86_REG_EDI = 7,
+	X86_REG_R8  = 8,
+	X86_REG_R9  = 9,
+	X86_REG_R10 = 10,
+	X86_REG_R11 = 11,
+	X86_REG_R12 = 12,
+	X86_REG_R13 = 13,
+	X86_REG_R14 = 14,
+	X86_REG_R15 = 15,
+	X86_REG_EIP = 16
 #endif
 };
 #endif
@@ -908,7 +953,7 @@ static inline int ix86_step_over_modrm(unsigned char * p)
 	return offset;
 }
 
-static bool ix86_skip_instruction(unsigned long * regs)
+static bool ix86_skip_instruction(SIGSEGV_REGISTER_TYPE * regs)
 {
 	unsigned char * eip = (unsigned char *)regs[X86_REG_EIP];
 
@@ -944,7 +989,7 @@ static bool ix86_skip_instruction(unsigned long * regs)
 	}
 
 	// REX prefix
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(_M_X64)
 	struct rex_t {
 		unsigned char W;
 		unsigned char R;
@@ -996,7 +1041,7 @@ static bool ix86_skip_instruction(unsigned long * regs)
 			goto do_transfer_load;
 		}
 		break;
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(_M_X64)
 	case 0x63: // MOVSXD r64, r/m32
 		if (has_rex && rex.W) {
 			transfer_size = SIZE_LONG;
@@ -1067,7 +1112,7 @@ static bool ix86_skip_instruction(unsigned long * regs)
 		return false;
 	}
 
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(_M_X64)
 	if (rex.R)
 		reg += 8;
 #endif
@@ -1076,7 +1121,7 @@ static bool ix86_skip_instruction(unsigned long * regs)
 		static const int x86_reg_map[] = {
 			X86_REG_EAX, X86_REG_ECX, X86_REG_EDX, X86_REG_EBX,
 			X86_REG_ESP, X86_REG_EBP, X86_REG_ESI, X86_REG_EDI,
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(_M_X64)
 			X86_REG_R8,  X86_REG_R9,  X86_REG_R10, X86_REG_R11,
 			X86_REG_R12, X86_REG_R13, X86_REG_R14, X86_REG_R15,
 #endif
@@ -2976,7 +3021,7 @@ void sigsegv_set_dump_state(sigsegv_state_dumper_t handler)
 const int REF_INDEX = 123;
 const int REF_VALUE = 45;
 
-static int page_size;
+static sigsegv_uintptr_t page_size;
 static volatile char * page = 0;
 static volatile int handler_called = 0;
 
@@ -3014,7 +3059,7 @@ static sigsegv_return_t sigsegv_test_handler(sigsegv_info_t *sip)
 			(instruction_address >= (sigsegv_address_t)e_region)))
 		exit(11);
 #endif
-	if (vm_protect((char *)((unsigned long)fault_address & -page_size), page_size, VM_PAGE_READ | VM_PAGE_WRITE) != 0)
+	if (vm_protect((char *)((sigsegv_uintptr_t)fault_address & -page_size), page_size, VM_PAGE_READ | VM_PAGE_WRITE) != 0)
 		exit(12);
 	return SIGSEGV_RETURN_SUCCESS;
 }
@@ -3027,7 +3072,7 @@ static sigsegv_return_t sigsegv_insn_handler(sigsegv_info_t *sip)
 #if DEBUG
 	printf("sigsegv_insn_handler(%p, %p)\n", fault_address, instruction_address);
 #endif
-	if (((unsigned long)fault_address - (unsigned long)page) < page_size) {
+	if (((sigsegv_uintptr_t)fault_address - (sigsegv_uintptr_t)page) < page_size) {
 #ifdef __GNUC__
 		// Make sure reported fault instruction address falls into
 		// expected code range
@@ -3045,7 +3090,7 @@ static sigsegv_return_t sigsegv_insn_handler(sigsegv_info_t *sip)
 // More sophisticated tests for instruction skipper
 static bool arch_insn_skipper_tests()
 {
-#if (defined(i386) || defined(__i386__)) || defined(__x86_64__)
+#if (defined(i386) || defined(__i386__)) || (defined(__x86_64__) || defined(_M_X64))
 	static const unsigned char code[] = {
 		0x8a, 0x00,                    // mov    (%eax),%al
 		0x8a, 0x2c, 0x18,              // mov    (%eax,%ebx,1),%ch
@@ -3059,7 +3104,7 @@ static bool arch_insn_skipper_tests()
 		0x8b, 0x0c, 0x18,              // mov    (%eax,%ebx,1),%ecx
 		0x89, 0x00,                    // mov    %eax,(%eax)
 		0x89, 0x0c, 0x18,              // mov    %ecx,(%eax,%ebx,1)
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(_M_X64)
 		0x44, 0x8a, 0x00,              // mov    (%rax),%r8b
 		0x44, 0x8a, 0x20,              // mov    (%rax),%r12b
 		0x42, 0x8a, 0x3c, 0x10,        // mov    (%rax,%r10,1),%dil
@@ -3088,10 +3133,10 @@ static bool arch_insn_skipper_tests()
 		0                              // end
 	};
 	const int N_REGS = 20;
-	unsigned long regs[N_REGS];
+	SIGSEGV_REGISTER_TYPE regs[N_REGS];
 	for (int i = 0; i < N_REGS; i++)
 		regs[i] = i;
-	const unsigned long start_code = (unsigned long)&code;
+	const sigsegv_uintptr_t start_code = (sigsegv_uintptr_t)&code;
 	regs[X86_REG_EIP] = start_code;
 	while ((regs[X86_REG_EIP] - start_code) < (sizeof(code) - 1)
 		   && ix86_skip_instruction(regs))
