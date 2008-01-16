@@ -46,11 +46,17 @@ extern "C" {
 #endif
 #endif
 
+/* Option to vm_get_write_watch() to reset the write-tracking state
+   once it was retrieved. Otherwise, you have to manually call
+   vm_reset_write_watch() and potentially lose some info.  */
+#define VM_WRITE_WATCH_RESET	0x01
+
 /* Mapping options.  */
 #define VM_MAP_SHARED			0x01
 #define VM_MAP_PRIVATE			0x02
 #define VM_MAP_FIXED			0x04
 #define VM_MAP_32BIT			0x08
+#define VM_MAP_WRITE_WATCH		0x10
 
 /* Default mapping options.  */
 #define VM_MAP_DEFAULT			(VM_MAP_PRIVATE)
@@ -103,9 +109,22 @@ extern int vm_acquire_fixed(void * addr, size_t size, int options = VM_MAP_DEFAU
 extern int vm_release(void * addr, size_t size);
 
 /* Change the memory protection of the region starting at ADDR and
-   extending LEN bytes to PROT. Returns 0 if successful, -1 for errors.  */
+   extending SIZE bytes to PROT. Returns 0 if successful, -1 for errors.  */
 
 extern int vm_protect(void * addr, size_t size, int prot);
+
+/* Return the addresses of the pages that got modified since the last
+   reset of the write-tracking state for the specified range [ ADDR,
+   ADDR + SIZE [. Returns 0 if successful, -1 for errors.  */
+
+extern int vm_get_write_watch(void * addr, size_t size,
+							  void ** pages, unsigned int * n_pages,
+							  int options = 0);
+
+/* Reset the write-tracking state for the specified range [ ADDR, ADDR
+   + SIZE [. Returns 0 if successful, -1 for errors.  */
+
+extern int vm_reset_write_watch(void * addr, size_t size);
 
 /* Returns the size of a page.  */
 

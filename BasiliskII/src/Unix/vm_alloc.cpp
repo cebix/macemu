@@ -188,6 +188,11 @@ void * vm_acquire(size_t size, int options)
 	if (options & VM_MAP_FIXED)
 		return VM_MAP_FAILED;
 
+#ifndef HAVE_VM_WRITE_WATCH
+	if (options & VM_MAP_WRITE_WATCH)
+		return VM_MAP_FAILED;
+#endif
+
 #ifdef HAVE_MACH_VM
 	// vm_allocate() returns a zero-filled memory region
 	if (vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, TRUE) != KERN_SUCCESS)
@@ -207,7 +212,11 @@ void * vm_acquire(size_t size, int options)
 	next_address = (char *)addr + size;
 #else
 #ifdef HAVE_WIN32_VM
-	if ((addr = VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE)) == NULL)
+	int alloc_type = MEM_RESERVE | MEM_COMMIT;
+	if (options & VM_MAP_WRITE_WATCH)
+	  alloc_type |= MEM_WRITE_WATCH;
+
+	if ((addr = VirtualAlloc(NULL, size, alloc_type, PAGE_EXECUTE_READWRITE)) == NULL)
 		return VM_MAP_FAILED;
 #else
 	if ((addr = calloc(size, 1)) == 0)
@@ -236,6 +245,11 @@ int vm_acquire_fixed(void * addr, size_t size, int options)
 	if (options & VM_MAP_SHARED)
 		return -1;
 
+#ifndef HAVE_VM_WRITE_WATCH
+	if (options & VM_MAP_WRITE_WATCH)
+		return -1;
+#endif
+
 #ifdef HAVE_MACH_VM
 	// vm_allocate() returns a zero-filled memory region
 	if (vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, 0) != KERN_SUCCESS)
@@ -253,10 +267,14 @@ int vm_acquire_fixed(void * addr, size_t size, int options)
 	if (addr == NULL)
 		return -1;
 
+	int alloc_type = MEM_RESERVE | MEM_COMMIT;
+	if (options & VM_MAP_WRITE_WATCH)
+	  alloc_type |= MEM_WRITE_WATCH;
+
 	// Allocate a possibly offset region to align on 64K boundaries
 	LPVOID req_addr = align_addr_segment(addr);
 	DWORD  req_size = align_size_segment(addr, size);
-	LPVOID ret_addr = VirtualAlloc(req_addr, req_size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	LPVOID ret_addr = VirtualAlloc(req_addr, req_size, alloc_type, PAGE_EXECUTE_READWRITE);
 	if (ret_addr != req_addr)
 		return -1;
 #else
@@ -328,6 +346,49 @@ int vm_protect(void * addr, size_t size, int prot)
 #endif
 }
 
+/* Return the addresses of the pages that got modified in the
+   specified range [ ADDR, ADDR + SIZE [ since the last reset of the watch
+   bits. Returns 0 if successful, -1 for errors.  */
+
+int vm_get_write_watch(void * addr, size_t size,
+					   void ** pages, unsigned int * n_pages,
+					   int options)
+{
+#ifdef HAVE_VM_WRITE_WATCH
+#ifdef HAVE_WIN32_VM
+	DWORD flags = 0;
+	if (options & VM_WRITE_WATCH_RESET)
+		flags |= WRITE_WATCH_FLAG_RESET;
+
+	ULONG page_size;
+	ULONG count = *n_pages;
+	int ret_code = GetWriteWatch(flags, addr, size, pages, &count, &page_size);
+	if (ret_code != 0)
+		return -1;
+
+	*n_pages = count;
+	return 0;
+#endif
+#endif
+	// Unsupported
+	return -1;
+}
+
+/* Reset the write-tracking state for the specified range [ ADDR, ADDR
+   + SIZE [. Returns 0 if successful, -1 for errors.  */
+
+int vm_reset_write_watch(void * addr, size_t size)
+{
+#ifdef HAVE_VM_WRITE_WATCH
+#ifdef HAVE_WIN32_VM
+	int ret_code = ResetWriteWatch(addr, size);
+	return ret_code == 0 ? 0 : -1;
+#endif
+#endif
+	// Unsupported
+	return -1;
+}
+
 /* Returns the size of a page.  */
 
 int vm_get_page_size(void)
@@ -344,6 +405,53 @@ int vm_get_page_size(void)
 	return getpagesize();
 #endif
 }
+
+#ifdef CONFIGURE_TEST_VM_WRITE_WATCH
+int main(void)
+{
+	int i, j;
+
+	vm_init();
+
+	vm_uintptr_t page_size = vm_get_page_size();
+	
+	char *area;
+	const int n_pages = 7;
+	const int area_size = n_pages * page_size;
+	const int map_options = VM_MAP_DEFAULT | VM_MAP_WRITE_WATCH;
+	if ((area = (char *)vm_acquire(area_size, map_options)) == VM_MAP_FAILED)
+		return 1;
+
+	unsigned int n_modified_pages_expected = 0;
+	static const int touch_page[n_pages] = { 0, 1, 1, 0, 1, 0, 1 };
+	for (i = 0; i < n_pages; i++) {
+		if (touch_page[i]) {
+			area[i * page_size] = 1;
+			++n_modified_pages_expected;
+		}
+	}
+
+	char *modified_pages[n_pages];
+	unsigned int n_modified_pages = n_pages;
+	if (vm_get_write_watch(area, area_size, (void **)modified_pages, &n_modified_pages) < 0)
+		return 2;
+	if (n_modified_pages != n_modified_pages_expected)
+		return 3;
+	for (i = 0, j = 0; i < n_pages; i++) {
+		char v = area[i * page_size];
+		if ((touch_page[i] && !v) || (!touch_page[i] && v))
+			return 4;
+		if (!touch_page[i])
+			continue;
+		if (modified_pages[j] != (area + i * page_size))
+			return 5;
+		++j;
+	}
+
+	vm_release(area, area_size);
+	return 0;
+}
+#endif
 
 #ifdef CONFIGURE_TEST_VM_MAP
 #include <stdlib.h>
