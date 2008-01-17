@@ -361,7 +361,7 @@ int vm_get_write_watch(void * addr, size_t size,
 		flags |= WRITE_WATCH_FLAG_RESET;
 
 	ULONG page_size;
-	ULONG count = *n_pages;
+	ULONG_PTR count = *n_pages;
 	int ret_code = GetWriteWatch(flags, addr, size, pages, &count, &page_size);
 	if (ret_code != 0)
 		return -1;
