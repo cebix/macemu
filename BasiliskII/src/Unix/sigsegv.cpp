@@ -1226,9 +1226,10 @@ static bool ix86_skip_instruction(SIGSEGV_REGISTER_TYPE * regs)
 
 // Decode and skip IA-64 instruction
 #if defined(__ia64__)
+typedef uint64_t ia64_bundle_t[2];
 #if defined(__linux__)
 // We can directly patch the slot number
-#define IA64_CAN_PATCH_IP_SLOT 1
+#define IA64_CAN_PATCH_IP_SLOT	1
 // Helper macros to access the machine context
 #define IA64_CONTEXT_TYPE		struct sigcontext *
 #define IA64_CONTEXT			scp
@@ -1236,9 +1237,18 @@ static bool ix86_skip_instruction(SIGSEGV_REGISTER_TYPE * regs)
 #define IA64_SET_IP(V)			(IA64_CONTEXT->sc_ip = (V))
 #define IA64_GET_PR(P)			((IA64_CONTEXT->sc_pr >> (P)) & 1)
 #define IA64_GET_NAT(I)			((IA64_CONTEXT->sc_nat >> (I)) & 1)
-#define IA64_SET_NAT(I,V)		(IA64_CONTEXT->sc_nat= (IA64_CONTEXT->sc_nat & ~(1ul << (I))) | (((unsigned long)!!(V)) << (I)))
 #define IA64_GET_GR(R)			(IA64_CONTEXT->sc_gr[(R)])
-#define IA64_SET_GR(R,V)		(IA64_CONTEXT->sc_gr[(R)] = (V))
+#define _IA64_SET_GR(R,V)		(IA64_CONTEXT->sc_gr[(R)] = (V))
+#define _IA64_SET_NAT(I,V)		(IA64_CONTEXT->sc_nat = (IA64_CONTEXT->sc_nat & ~(1ull << (I))) | (((uint64_t)!!(V)) << (I)))
+#define IA64_SET_GR(R,V,N)		(_IA64_SET_GR(R,V), _IA64_SET_NAT(R,N))
+
+// Load bundle (in little-endian)
+static inline void ia64_load_bundle(ia64_bundle_t bundle, uint64_t raw_ip)
+{
+	uint64_t *ip = (uint64_t *)(raw_ip & ~3ull);
+	bundle[0] = ip[0];
+	bundle[1] = ip[1];
+}
 #endif
 
 // Instruction operations
@@ -1280,112 +1290,114 @@ const int IA64_N_OPERANDS = 4;
 
 // Decoded operand type
 struct ia64_operand_t {
-	unsigned char commit;		// commit result of operation to register file?
-	unsigned char valid;		// XXX: not really used, can be removed (debug)
-	signed char index;			// index of GPR, or -1 if immediate value
-	unsigned char nat;			// NaT state before operation
-	unsigned long value;		// register contents or immediate value
+	uint8_t commit;				// commit result of operation to register file?
+	uint8_t valid;				// XXX: not really used, can be removed (debug)
+	int8_t index;				// index of GPR, or -1 if immediate value
+	uint8_t nat;				// NaT state before operation
+	uint64_t value;				// register contents or immediate value
 };
 
 // Decoded instruction type
 struct ia64_instruction_t {
-	unsigned char mnemo;		// operation to perform
-	unsigned char pred;			// predicate register to check
-	unsigned char no_memory;	// used to emulated main fault instruction
-	unsigned long inst;			// the raw instruction bits (41-bit wide)
+	uint8_t mnemo;				// operation to perform
+	uint8_t pred;				// predicate register to check
+	uint8_t no_memory;			// used to emulated main fault instruction
+	uint64_t inst;				// the raw instruction bits (41-bit wide)
 	ia64_operand_t operands[IA64_N_OPERANDS];
 };
 
 // Get immediate sign-bit
-static inline int ia64_inst_get_sbit(unsigned long inst)
+static inline int ia64_inst_get_sbit(uint64_t inst)
 {
 	return (inst >> 36) & 1;
 }
 
 // Get 8-bit immediate value (A3, A8, I27, M30)
-static inline unsigned long ia64_inst_get_imm8(unsigned long inst)
+static inline uint64_t ia64_inst_get_imm8(uint64_t inst)
 {
-	unsigned long value = (inst >> 13) & 0x7ful;
+	uint64_t value = (inst >> 13) & 0x7full;
 	if (ia64_inst_get_sbit(inst))
-		value |= ~0x7ful;
+		value |= ~0x7full;
 	return value;
 }
 
 // Get 9-bit immediate value (M3)
-static inline unsigned long ia64_inst_get_imm9b(unsigned long inst)
+static inline uint64_t ia64_inst_get_imm9b(uint64_t inst)
 {
-	unsigned long value = (((inst >> 27) & 1) << 7) | ((inst >> 13) & 0x7f);
+	uint64_t value = (((inst >> 27) & 1) << 7) | ((inst >> 13) & 0x7f);
 	if (ia64_inst_get_sbit(inst))
-		value |= ~0xfful;
+		value |= ~0xffull;
 	return value;
 }
 
 // Get 9-bit immediate value (M5)
-static inline unsigned long ia64_inst_get_imm9a(unsigned long inst)
+static inline uint64_t ia64_inst_get_imm9a(uint64_t inst)
 {
-	unsigned long value = (((inst >> 27) & 1) << 7) | ((inst >> 6) & 0x7f);
+	uint64_t value = (((inst >> 27) & 1) << 7) | ((inst >> 6) & 0x7f);
 	if (ia64_inst_get_sbit(inst))
-		value |= ~0xfful;
+		value |= ~0xffull;
 	return value;
 }
 
 // Get 14-bit immediate value (A4)
-static inline unsigned long ia64_inst_get_imm14(unsigned long inst)
+static inline uint64_t ia64_inst_get_imm14(uint64_t inst)
 {
-	unsigned long value = (((inst >> 27) & 0x3f) << 7) | (inst & 0x7f);
+	uint64_t value = (((inst >> 27) & 0x3f) << 7) | (inst & 0x7f);
 	if (ia64_inst_get_sbit(inst))
-		value |= ~0x1fful;
+		value |= ~0x1ffull;
 	return value;
 }
 
 // Get 22-bit immediate value (A5)
-static inline unsigned long ia64_inst_get_imm22(unsigned long inst)
+static inline uint64_t ia64_inst_get_imm22(uint64_t inst)
 {
-	unsigned long value = ((((inst >> 22) & 0x1f) << 16) |
-						   (((inst >> 27) & 0x1ff) << 7) |
-						   (inst & 0x7f));
+	uint64_t value = ((((inst >> 22) & 0x1f) << 16) |
+					  (((inst >> 27) & 0x1ff) << 7) |
+					  (inst & 0x7f));
 	if (ia64_inst_get_sbit(inst))
-		value |= ~0x1ffffful;
+		value |= ~0x1fffffull;
 	return value;
 }
 
 // Get 21-bit immediate value (I19)
-static inline unsigned long ia64_inst_get_imm21(unsigned long inst)
+static inline uint64_t ia64_inst_get_imm21(uint64_t inst)
 {
 	return (((inst >> 36) & 1) << 20) | ((inst >> 6) & 0xfffff);
 }
 
 // Get 2-bit count value (A2)
-static inline int ia64_inst_get_count2(unsigned long inst)
+static inline int ia64_inst_get_count2(uint64_t inst)
 {
 	return (inst >> 27) & 0x3;
 }
 
 // Get bundle template
-static inline unsigned int ia64_get_template(unsigned long raw_ip)
+static inline unsigned int ia64_get_template(uint64_t ip)
 {
-	unsigned long *ip = (unsigned long *)(raw_ip & ~3ul);
-	return ip[0] & 0x1f;
+	ia64_bundle_t bundle;
+	ia64_load_bundle(bundle, ip);
+	return bundle[0] & 0x1f;
 }
 
 // Get specified instruction in bundle
-static unsigned long ia64_get_instruction(unsigned long raw_ip, int slot)
+static uint64_t ia64_get_instruction(uint64_t ip, int slot)
 {
-	unsigned long inst;
-	unsigned long *ip = (unsigned long *)(raw_ip & ~3ul);
+	uint64_t inst;
+	ia64_bundle_t bundle;
+	ia64_load_bundle(bundle, ip);
 #if DEBUG
-	printf("Bundle: %016lx%016lx\n", ip[1], ip[0]);
+	printf("Bundle: %016llx%016llx\n", bundle[1], bundle[0]);
 #endif
 
 	switch (slot) {
 	case 0:
-		inst = (ip[0] >> 5) & 0x1fffffffffful;
+		inst = (bundle[0] >> 5) & 0x1ffffffffffull;
 		break;
 	case 1:
-		inst = ((ip[1] & 0x7ffffful) << 18) | ((ip[0] >> 46) & 0x3fffful);
+		inst = ((bundle[1] & 0x7fffffull) << 18) | ((bundle[0] >> 46) & 0x3ffffull);
 		break;
 	case 2:
-		inst = (ip[1] >> 23) & 0x1fffffffffful;
+		inst = (bundle[1] >> 23) & 0x1ffffffffffull;
 		break;
 	case 3:
 		fprintf(stderr, "ERROR: ia64_get_instruction(), invalid slot number %d\n", slot);
@@ -1394,7 +1406,7 @@ static unsigned long ia64_get_instruction(unsigned long raw_ip, int slot)
 	}
 
 #if DEBUG
-	printf(" Instruction %d: 0x%016lx\n", slot, inst);
+	printf(" Instruction %d: 0x%016llx\n", slot, inst);
 #endif
 	return inst;
 }
@@ -1678,8 +1690,8 @@ static bool ia64_emulate_instruction(ia64_instruction_t *inst, IA64_CONTEXT_TYPE
 	if (inst->pred && !IA64_GET_PR(inst->pred))
 		return true;
 
-	unsigned char nat, nat2;
-	unsigned long dst, dst2, src1, src2, src3;
+	uint8_t nat, nat2;
+	uint64_t dst, dst2, src1, src2, src3;
 
 	switch (inst->mnemo) {
 	case IA64_INST_NOP:
@@ -1716,12 +1728,12 @@ static bool ia64_emulate_instruction(ia64_instruction_t *inst, IA64_CONTEXT_TYPE
 	case IA64_INST_ZXT4:
 		src1 = inst->operands[1].value;
 		switch (inst->mnemo) {
-		case IA64_INST_SXT1: dst = (signed long)(signed char)src1;		break;
-		case IA64_INST_SXT2: dst = (signed long)(signed short)src1;		break;
-		case IA64_INST_SXT4: dst = (signed long)(signed int)src1;		break;
-		case IA64_INST_ZXT1: dst = (unsigned char)src1;					break;
-		case IA64_INST_ZXT2: dst = (unsigned short)src1;				break;
-		case IA64_INST_ZXT4: dst = (unsigned int)src1;					break;
+		case IA64_INST_SXT1: dst = (int64_t)(int8_t)src1;		break;
+		case IA64_INST_SXT2: dst = (int64_t)(int16_t)src1;		break;
+		case IA64_INST_SXT4: dst = (int64_t)(int32_t)src1;		break;
+		case IA64_INST_ZXT1: dst = (uint8_t)src1;				break;
+		case IA64_INST_ZXT2: dst = (uint16_t)src1;				break;
+		case IA64_INST_ZXT4: dst = (uint32_t)src1;				break;
 		}
 		inst->operands[0].commit = true;
 		inst->operands[0].value  = dst;
@@ -1744,10 +1756,10 @@ static bool ia64_emulate_instruction(ia64_instruction_t *inst, IA64_CONTEXT_TYPE
 			dst = 0;
 		else {
 			switch (inst->mnemo) {
-			case IA64_INST_LD1: case IA64_INST_LD1_UPDATE: dst = *((unsigned char *)src1);	break;
-			case IA64_INST_LD2: case IA64_INST_LD2_UPDATE: dst = *((unsigned short *)src1);	break;
-			case IA64_INST_LD4: case IA64_INST_LD4_UPDATE: dst = *((unsigned int *)src1);	break;
-			case IA64_INST_LD8: case IA64_INST_LD8_UPDATE: dst = *((unsigned long *)src1);	break;
+			case IA64_INST_LD1: case IA64_INST_LD1_UPDATE: dst = *((uint8_t *)src1);	break;
+			case IA64_INST_LD2: case IA64_INST_LD2_UPDATE: dst = *((uint16_t *)src1);	break;
+			case IA64_INST_LD4: case IA64_INST_LD4_UPDATE: dst = *((uint32_t *)src1);	break;
+			case IA64_INST_LD8: case IA64_INST_LD8_UPDATE: dst = *((uint64_t *)src1);	break;
 			}
 		}
 		inst->operands[0].commit = true;
@@ -1772,10 +1784,10 @@ static bool ia64_emulate_instruction(ia64_instruction_t *inst, IA64_CONTEXT_TYPE
 		src1 = inst->operands[1].value;
 		if (!inst->no_memory) {
 			switch (inst->mnemo) {
-			case IA64_INST_ST1: case IA64_INST_ST1_UPDATE: *((unsigned char *)dst) = src1;	break;
-			case IA64_INST_ST2: case IA64_INST_ST2_UPDATE: *((unsigned short *)dst) = src1;	break;
-			case IA64_INST_ST4: case IA64_INST_ST4_UPDATE: *((unsigned int *)dst) = src1;	break;
-			case IA64_INST_ST8: case IA64_INST_ST8_UPDATE: *((unsigned long *)dst) = src1;	break;
+			case IA64_INST_ST1: case IA64_INST_ST1_UPDATE: *((uint8_t *)dst) = src1;	break;
+			case IA64_INST_ST2: case IA64_INST_ST2_UPDATE: *((uint16_t *)dst) = src1;	break;
+			case IA64_INST_ST4: case IA64_INST_ST4_UPDATE: *((uint32_t *)dst) = src1;	break;
+			case IA64_INST_ST8: case IA64_INST_ST8_UPDATE: *((uint64_t *)dst) = src1;	break;
 			}
 		}
 		inst->operands[0].value  = dst2;
@@ -1791,13 +1803,12 @@ static bool ia64_emulate_instruction(ia64_instruction_t *inst, IA64_CONTEXT_TYPE
 			continue;
 		if (op.index == -1)
 			return false; // XXX: internal error
-		IA64_SET_GR(op.index, op.value);
-		IA64_SET_NAT(op.index, op.nat);
+		IA64_SET_GR(op.index, op.value, op.nat);
 	}
 	return true;
 }
 
-static bool ia64_emulate_instruction(unsigned long raw_inst, IA64_CONTEXT_TYPE IA64_CONTEXT)
+static bool ia64_emulate_instruction(uint64_t raw_inst, IA64_CONTEXT_TYPE IA64_CONTEXT)
 {
 	ia64_instruction_t inst;
 	memset(&inst, 0, sizeof(inst));
@@ -1809,9 +1820,9 @@ static bool ia64_emulate_instruction(unsigned long raw_inst, IA64_CONTEXT_TYPE I
 
 static bool ia64_skip_instruction(IA64_CONTEXT_TYPE IA64_CONTEXT)
 {
-	unsigned long ip = IA64_GET_IP();
+	uint64_t ip = IA64_GET_IP();
 #if DEBUG
-	printf("IP: 0x%016lx\n", ip);
+	printf("IP: 0x%016llx\n", ip);
 #if 0
 	printf(" Template 0x%02x\n", ia64_get_template(ip));
 	ia64_get_instruction(ip, 0);
@@ -1929,12 +1940,12 @@ static bool ia64_skip_instruction(IA64_CONTEXT_TYPE IA64_CONTEXT)
 
 #if IA64_CAN_PATCH_IP_SLOT
 	if ((slot = ip & 3) < 2)
-		IA64_SET_IP((ip & ~3ul) + (slot + 1));
+		IA64_SET_IP((ip & ~3ull) + (slot + 1));
 	else
 #endif
-		IA64_SET_IP((ip & ~3ul) + 16);
+		IA64_SET_IP((ip & ~3ull) + 16);
 #if DEBUG
-	printf("IP: 0x%016lx\n", IA64_GET_IP());
+	printf("IP: 0x%016llx\n", IA64_GET_IP());
 #endif
 	return true;
 }
