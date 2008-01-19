@@ -349,6 +349,24 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_SKIP_INSTRUCTION		mips_skip_instruction
 #endif
 #endif
+#if (defined(__hpux) || defined(__hpux__))
+#if (defined(__ia64) || defined(__ia64__))
+#include <sys/ucontext.h>
+#define SIGSEGV_CONTEXT_REGS			((ucontext_t *)scp)
+#define SIGSEGV_FAULT_INSTRUCTION		get_fault_instruction(SIGSEGV_CONTEXT_REGS)
+#define SIGSEGV_REGISTER_FILE			SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_SKIP_INSTRUCTION		ia64_skip_instruction
+
+#include <sys/uc_access.h>
+static sigsegv_address_t get_fault_instruction(const ucontext_t *ucp)
+{
+  uint64_t ip;
+  if (__uc_get_ip(ucp, &ip) != 0)
+	return SIGSEGV_INVALID_ADDRESS;
+  return (sigsegv_address_t)(ip & ~3ULL);
+}
+#endif
+#endif
 #endif
 
 #if HAVE_SIGCONTEXT_SUBTERFUGE
@@ -1225,7 +1243,7 @@ static bool ix86_skip_instruction(SIGSEGV_REGISTER_TYPE * regs)
 #endif
 
 // Decode and skip IA-64 instruction
-#if defined(__ia64__)
+#if defined(__ia64) || defined(__ia64__)
 typedef uint64_t ia64_bundle_t[2];
 #if defined(__linux__)
 // We can directly patch the slot number
@@ -1248,6 +1266,62 @@ static inline void ia64_load_bundle(ia64_bundle_t bundle, uint64_t raw_ip)
 	uint64_t *ip = (uint64_t *)(raw_ip & ~3ull);
 	bundle[0] = ip[0];
 	bundle[1] = ip[1];
+}
+#endif
+#if defined(__hpux) || defined(__hpux__)
+// We can directly patch the slot number
+#define IA64_CAN_PATCH_IP_SLOT	1
+// Helper macros to access the machine context
+#define IA64_CONTEXT_TYPE		ucontext_t *
+#define IA64_CONTEXT			ucp
+#define IA64_GET_IP()			ia64_get_ip(IA64_CONTEXT)
+#define IA64_SET_IP(V)			ia64_set_ip(IA64_CONTEXT, V)
+#define IA64_GET_PR(P)			ia64_get_pr(IA64_CONTEXT, P)
+#define IA64_GET_NAT(I)			ia64_get_nat(IA64_CONTEXT, I)
+#define IA64_GET_GR(R)			ia64_get_gr(IA64_CONTEXT, R)
+#define IA64_SET_GR(R,V,N)		ia64_set_gr(IA64_CONTEXT, R, V, N)
+#define UC_ACCESS(FUNC,ARGS)	do { if (__uc_##FUNC ARGS != 0) abort(); } while (0)
+
+static inline uint64_t ia64_get_ip(IA64_CONTEXT_TYPE IA64_CONTEXT)
+	{ uint64_t v; UC_ACCESS(get_ip,(IA64_CONTEXT, &v)); return v; }
+static inline void ia64_set_ip(IA64_CONTEXT_TYPE IA64_CONTEXT, uint64_t v)
+	{ UC_ACCESS(set_ip,(IA64_CONTEXT, v)); }
+static inline unsigned int ia64_get_pr(IA64_CONTEXT_TYPE IA64_CONTEXT, int pr)
+	{ uint64_t v; UC_ACCESS(get_prs,(IA64_CONTEXT, &v)); return (v >> pr) & 1; }
+static inline unsigned int ia64_get_nat(IA64_CONTEXT_TYPE IA64_CONTEXT, int r)
+	{ uint64_t v; unsigned int nat; UC_ACCESS(get_grs,(IA64_CONTEXT, r, 1, &v, &nat)); return (nat >> r) & 1; }
+static inline uint64_t ia64_get_gr(IA64_CONTEXT_TYPE IA64_CONTEXT, int r)
+	{ uint64_t v; unsigned int nat; UC_ACCESS(get_grs,(IA64_CONTEXT, r, 1, &v, &nat)); return v; }
+
+static void ia64_set_gr(IA64_CONTEXT_TYPE IA64_CONTEXT, int r, uint64_t v, unsigned int nat)
+{
+	if (r == 0)
+		return;
+	if (r > 0 && r < 32)
+		UC_ACCESS(set_grs,(IA64_CONTEXT, r, 1, &v, (!!nat) << r));
+	else {
+		uint64_t bsp, bspstore;
+		UC_ACCESS(get_ar_bsp,(IA64_CONTEXT, &bsp));
+		UC_ACCESS(get_ar_bspstore,(IA64_CONTEXT, &bspstore));
+		abort(); /* XXX: use libunwind, this is not fun... */
+	}
+}
+
+// Byte-swapping
+#if defined(__GNUC__)
+#define BSWAP64(V) ({ uint64_t r; __asm__ __volatile__("mux1 %0=%1,@rev;;" : "=r" (r) : "r" (V)); r; })
+#elif defined (__HP_aCC)
+#define BSWAP64(V) _Asm_mux1(_MBTYPE_REV, V)
+#else
+#error "Define byte-swap instruction"
+#endif
+
+// Load bundle (in little-endian)
+static inline void ia64_load_bundle(ia64_bundle_t bundle, uint64_t raw_ip)
+{
+	uint64_t *ip = (uint64_t *)(raw_ip & ~3ull);
+	bundle[0] = BSWAP64(ip[0]);
+	bundle[1] = BSWAP64(ip[1]);
 }
 #endif
 
