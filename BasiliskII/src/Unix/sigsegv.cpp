@@ -578,23 +578,22 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 #include <windows.h>
 #include <winerror.h>
 
-#if defined(_M_IX86)
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	EXCEPTION_POINTERS *ExceptionInfo
 #define SIGSEGV_FAULT_HANDLER_ARGS		ExceptionInfo
 #define SIGSEGV_FAULT_ADDRESS			ExceptionInfo->ExceptionRecord->ExceptionInformation[1]
 #define SIGSEGV_CONTEXT_REGS			ExceptionInfo->ContextRecord
+#if defined(_M_IX86)
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS->Eip
 #define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&SIGSEGV_CONTEXT_REGS->Edi)
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if defined(_M_X64)
-#define SIGSEGV_FAULT_HANDLER_ARGLIST	EXCEPTION_POINTERS *ExceptionInfo
-#define SIGSEGV_FAULT_HANDLER_ARGS		ExceptionInfo
-#define SIGSEGV_FAULT_ADDRESS			ExceptionInfo->ExceptionRecord->ExceptionInformation[1]
-#define SIGSEGV_CONTEXT_REGS			ExceptionInfo->ContextRecord
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS->Rip
 #define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&SIGSEGV_CONTEXT_REGS->Rax)
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#endif
+#if defined(_M_IA64)
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS->StIIP
 #endif
 #endif
 
@@ -2984,7 +2983,7 @@ static LONG WINAPI main_exception_filter(EXCEPTION_POINTERS *ExceptionInfo)
 {
 	if (sigsegv_fault_handler != NULL
 		&& ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION
-		&& ExceptionInfo->ExceptionRecord->NumberParameters == 2
+		&& ExceptionInfo->ExceptionRecord->NumberParameters >= 2
 		&& handle_badaccess(ExceptionInfo))
 		return EXCEPTION_CONTINUE_EXECUTION;
 
