@@ -243,6 +243,8 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 // Generic extended signal handler
 #if defined(__FreeBSD__)
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGBUS)
+#elif defined(__hpux)
+#define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV) FAULT_HANDLER(SIGBUS)
 #else
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
 #endif
@@ -350,6 +352,18 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #endif
 #endif
 #if (defined(__hpux) || defined(__hpux__))
+#if (defined(__hppa) || defined(__hppa__))
+#define SIGSEGV_CONTEXT_REGS			(&((ucontext_t *)scp)->uc_mcontext)
+#define SIGSEGV_FAULT_INSTRUCTION_32	(SIGSEGV_CONTEXT_REGS->ss_narrow.ss_pcoq_head & ~3ul)
+#define SIGSEGV_FAULT_INSTRUCTION_64	(SIGSEGV_CONTEXT_REGS->ss_wide.ss_64.ss_pcoq_head & ~3ull)
+#if defined(__LP64__)
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_FAULT_INSTRUCTION_64
+#else
+#define SIGSEGV_FAULT_INSTRUCTION		((SIGSEGV_CONTEXT_REGS->ss_flags & SS_WIDEREGS) ? \
+										 (uint32_t)SIGSEGV_FAULT_INSTRUCTION_64 : \
+										 SIGSEGV_FAULT_INSTRUCTION_32)
+#endif
+#endif
 #if (defined(__ia64) || defined(__ia64__))
 #include <sys/ucontext.h>
 #define SIGSEGV_CONTEXT_REGS			((ucontext_t *)scp)
@@ -358,7 +372,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_SKIP_INSTRUCTION		ia64_skip_instruction
 
 #include <sys/uc_access.h>
-static sigsegv_address_t get_fault_instruction(const ucontext_t *ucp)
+static inline sigsegv_address_t get_fault_instruction(const ucontext_t *ucp)
 {
   uint64_t ip;
   if (__uc_get_ip(ucp, &ip) != 0)
