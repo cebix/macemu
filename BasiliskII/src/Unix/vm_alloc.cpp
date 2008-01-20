@@ -60,6 +60,9 @@ typedef unsigned long vm_uintptr_t;
    because the emulated target is 32-bit and this helps to allocate
    memory so that branches could be resolved more easily (32-bit
    displacement to code in .text), on AMD64 for example.  */
+#if defined(__hpux)
+#define MAP_32BIT MAP_ADDR32
+#endif
 #ifndef MAP_32BIT
 #define MAP_32BIT 0
 #endif
