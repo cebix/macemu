@@ -220,7 +220,7 @@ static uint32 page_extend(uint32 size)
 #ifndef VOSF_PROFITABLE_TRIES
 #define VOSF_PROFITABLE_TRIES VOSF_PROFITABLE_TRIES_DFL
 #endif
-const int VOSF_PROFITABLE_TRIES_DFL = 1000;		// Make 3 attempts for full screen update
+const int VOSF_PROFITABLE_TRIES_DFL = 3;		// Make 3 attempts for full screen update
 const int VOSF_PROFITABLE_THRESHOLD = 16667/2;	// 60 Hz (half of the quantum)
 
 static bool video_vosf_profitable(uint32 *duration_p = NULL, uint32 *n_page_faults_p = NULL)
