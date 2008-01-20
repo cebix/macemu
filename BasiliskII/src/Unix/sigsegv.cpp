@@ -617,16 +617,38 @@ extern "C" {
 #include <mach/mach.h>
 #include <mach/mach_error.h>
 
-extern boolean_t exc_server(mach_msg_header_t *, mach_msg_header_t *);
-extern kern_return_t catch_exception_raise(mach_port_t, mach_port_t,
-	mach_port_t, exception_type_t, exception_data_t, mach_msg_type_number_t);
-extern kern_return_t exception_raise(mach_port_t, mach_port_t, mach_port_t,
-	exception_type_t, exception_data_t, mach_msg_type_number_t);
-extern kern_return_t exception_raise_state(mach_port_t, exception_type_t,
-	exception_data_t, mach_msg_type_number_t, thread_state_flavor_t *,
+#ifndef HAVE_MACH64_VM
+#define MACH_EXCEPTION_CODES					0
+#define mach_exception_data_t					exception_data_t
+#define mach_exception_data_type_t				exception_data_type_t
+#define mach_exc_server							exc_server
+#define catch_mach_exception_raise				catch_exception_raise
+#define mach_exception_raise					exception_raise
+#define mach_exception_raise_state				exception_raise_state
+#define mach_exception_raise_state_identity		exception_raise_state_identity
+#endif
+
+extern boolean_t mach_exc_server(mach_msg_header_t *, mach_msg_header_t *);
+extern kern_return_t catch_mach_exception_raise(mach_port_t, mach_port_t,
+	mach_port_t, exception_type_t, mach_exception_data_t, mach_msg_type_number_t);
+extern kern_return_t catch_mach_exception_raise_state(mach_port_t exception_port,
+	exception_type_t exception, mach_exception_data_t code, mach_msg_type_number_t code_count,
+	int *flavor,
+	thread_state_t old_state, mach_msg_type_number_t old_state_count,
+	thread_state_t new_state, mach_msg_type_number_t *new_state_count);
+extern kern_return_t catch_mach_exception_raise_state_identity(mach_port_t exception_port,
+	mach_port_t thread_port, mach_port_t task_port, exception_type_t exception,
+	mach_exception_data_t code, mach_msg_type_number_t code_count,
+	int *flavor,
+	thread_state_t old_state, mach_msg_type_number_t old_state_count,
+	thread_state_t new_state, mach_msg_type_number_t *new_state_count);
+extern kern_return_t mach_exception_raise(mach_port_t, mach_port_t, mach_port_t,
+	exception_type_t, mach_exception_data_t, mach_msg_type_number_t);
+extern kern_return_t mach_exception_raise_state(mach_port_t, exception_type_t,
+	mach_exception_data_t, mach_msg_type_number_t, thread_state_flavor_t *,
 	thread_state_t, mach_msg_type_number_t, thread_state_t, mach_msg_type_number_t *);
-extern kern_return_t exception_raise_state_identity(mach_port_t, mach_port_t, mach_port_t,
-	exception_type_t, exception_data_t, mach_msg_type_number_t, thread_state_flavor_t *,
+extern kern_return_t mach_exception_raise_state_identity(mach_port_t, mach_port_t, mach_port_t,
+	exception_type_t, mach_exception_data_t, mach_msg_type_number_t, thread_state_flavor_t *,
 	thread_state_t, mach_msg_type_number_t, thread_state_t, mach_msg_type_number_t *);
 }
 
@@ -719,7 +741,7 @@ if (ret != KERN_SUCCESS) { \
 #endif
 #define SIGSEGV_FAULT_ADDRESS_FAST		code[1]
 #define SIGSEGV_FAULT_INSTRUCTION_FAST	SIGSEGV_INVALID_ADDRESS
-#define SIGSEGV_FAULT_HANDLER_ARGLIST	mach_port_t thread, exception_data_t code
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	mach_port_t thread, mach_exception_data_t code
 #define SIGSEGV_FAULT_HANDLER_ARGS		thread, code
 
 #ifndef MACH_FIELD_NAME
@@ -755,7 +777,7 @@ handleExceptions(void *priv)
 				_exceptionPort, 0, MACH_PORT_NULL);
 		MACH_CHECK_ERROR(mach_msg, krc);
 
-		if (!exc_server(msg, reply)) {
+		if (!mach_exc_server(msg, reply)) {
 			fprintf(stderr, "exc_server hated the message\n");
 			exit(1);
 		}
@@ -2702,7 +2724,7 @@ static inline kern_return_t
 forward_exception(mach_port_t thread_port,
 				  mach_port_t task_port,
 				  exception_type_t exception_type,
-				  exception_data_t exception_data,
+				  mach_exception_data_t exception_data,
 				  mach_msg_type_number_t data_count,
 				  ExceptionPorts *oldExceptionPorts)
 {
@@ -2749,26 +2771,26 @@ forward_exception(mach_port_t thread_port,
 	switch (behavior) {
 	case EXCEPTION_DEFAULT:
 	  // fprintf(stderr, "forwarding to exception_raise\n");
-	  kret = exception_raise(port, thread_port, task_port, exception_type,
-							 exception_data, data_count);
-	  MACH_CHECK_ERROR (exception_raise, kret);
+	  kret = mach_exception_raise(port, thread_port, task_port, exception_type,
+								  exception_data, data_count);
+	  MACH_CHECK_ERROR (mach_exception_raise, kret);
 	  break;
 	case EXCEPTION_STATE:
 	  // fprintf(stderr, "forwarding to exception_raise_state\n");
-	  kret = exception_raise_state(port, exception_type, exception_data,
-								   data_count, &flavor,
-								   (natural_t *)&thread_state, thread_state_count,
-								   (natural_t *)&thread_state, &thread_state_count);
-	  MACH_CHECK_ERROR (exception_raise_state, kret);
+	  kret = mach_exception_raise_state(port, exception_type, exception_data,
+										data_count, &flavor,
+										(natural_t *)&thread_state, thread_state_count,
+										(natural_t *)&thread_state, &thread_state_count);
+	  MACH_CHECK_ERROR (mach_exception_raise_state, kret);
 	  break;
 	case EXCEPTION_STATE_IDENTITY:
 	  // fprintf(stderr, "forwarding to exception_raise_state_identity\n");
-	  kret = exception_raise_state_identity(port, thread_port, task_port,
-											exception_type, exception_data,
-											data_count, &flavor,
-											(natural_t *)&thread_state, thread_state_count,
-											(natural_t *)&thread_state, &thread_state_count);
-	  MACH_CHECK_ERROR (exception_raise_state_identity, kret);
+	  kret = mach_exception_raise_state_identity(port, thread_port, task_port,
+												 exception_type, exception_data,
+												 data_count, &flavor,
+												 (natural_t *)&thread_state, thread_state_count,
+												 (natural_t *)&thread_state, &thread_state_count);
+	  MACH_CHECK_ERROR (mach_exception_raise_state_identity, kret);
 	  break;
 	default:
 	  fprintf(stderr, "forward_exception got unknown behavior\n");
@@ -2805,12 +2827,12 @@ forward_exception(mach_port_t thread_port,
  * linkage because that is what exc_server expects.
  */
 kern_return_t
-catch_exception_raise(mach_port_t exception_port,
-					  mach_port_t thread,
-					  mach_port_t task,
-					  exception_type_t exception,
-					  exception_data_t code,
-					  mach_msg_type_number_t code_count)
+catch_mach_exception_raise(mach_port_t exception_port,
+						   mach_port_t thread,
+						   mach_port_t task,
+						   exception_type_t exception,
+						   mach_exception_data_t code,
+						   mach_msg_type_number_t code_count)
 {
 	kern_return_t krc;
 
@@ -2830,6 +2852,50 @@ catch_exception_raise(mach_port_t exception_port,
 	krc = forward_exception(thread, task, exception, code, code_count, &ports);
 
 	return krc;
+}
+
+/* XXX: borrowed from launchd and gdb */
+kern_return_t
+catch_mach_exception_raise_state(mach_port_t exception_port,
+								 exception_type_t exception,
+								 mach_exception_data_t code,
+								 mach_msg_type_number_t code_count,
+								 int *flavor,
+								 thread_state_t old_state,
+								 mach_msg_type_number_t old_state_count,
+								 thread_state_t new_state,
+								 mach_msg_type_number_t *new_state_count)
+{
+	memcpy(new_state, old_state, old_state_count * sizeof(old_state[0]));
+	*new_state_count = old_state_count;
+	return KERN_SUCCESS;
+}
+
+/* XXX: borrowed from launchd and gdb */
+kern_return_t
+catch_mach_exception_raise_state_identity(mach_port_t exception_port,
+										  mach_port_t thread_port,
+										  mach_port_t task_port,
+										  exception_type_t exception,
+										  mach_exception_data_t code,
+										  mach_msg_type_number_t code_count,
+										  int *flavor,
+										  thread_state_t old_state,
+										  mach_msg_type_number_t old_state_count,
+										  thread_state_t new_state,
+										  mach_msg_type_number_t *new_state_count)
+{
+	kern_return_t kret;
+
+	memcpy(new_state, old_state, old_state_count * sizeof(old_state[0]));
+	*new_state_count = old_state_count;
+
+	kret = mach_port_deallocate(mach_task_self(), task_port);
+	MACH_CHECK_ERROR(mach_port_deallocate, kret);
+	kret = mach_port_deallocate(mach_task_self(), thread_port);
+	MACH_CHECK_ERROR(mach_port_deallocate, kret);
+
+	return KERN_SUCCESS;
 }
 #endif
 
@@ -2955,7 +3021,7 @@ static bool sigsegv_do_install_handler(sigsegv_fault_handler_t handler)
 	// addressing modes) used in PPC instructions, you will need the
 	// GPR state anyway.
 	krc = thread_set_exception_ports(mach_thread_self(), EXC_MASK_BAD_ACCESS, _exceptionPort,
-				EXCEPTION_DEFAULT, SIGSEGV_THREAD_STATE_FLAVOR);
+				EXCEPTION_DEFAULT | MACH_EXCEPTION_CODES, SIGSEGV_THREAD_STATE_FLAVOR);
 	if (krc != KERN_SUCCESS) {
 		mach_error("thread_set_exception_ports", krc);
 		return false;
