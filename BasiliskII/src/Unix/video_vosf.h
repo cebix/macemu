@@ -217,13 +217,17 @@ static uint32 page_extend(uint32 size)
  *  Check if VOSF acceleration is profitable on this platform
  */
 
-const int VOSF_PROFITABLE_TRIES = 3;			// Make 3 attempts for full screen update
+#ifndef VOSF_PROFITABLE_TRIES
+#define VOSF_PROFITABLE_TRIES VOSF_PROFITABLE_TRIES_DFL
+#endif
+const int VOSF_PROFITABLE_TRIES_DFL = 1000;		// Make 3 attempts for full screen update
 const int VOSF_PROFITABLE_THRESHOLD = 16667/2;	// 60 Hz (half of the quantum)
 
-static bool video_vosf_profitable(void)
+static bool video_vosf_profitable(uint32 *duration_p = NULL, uint32 *n_page_faults_p = NULL)
 {
 	uint32 duration = 0;
-	const uint32 n_page_faults = mainBuffer.pageCount * VOSF_PROFITABLE_TRIES;
+	uint32 n_tries = VOSF_PROFITABLE_TRIES;
+	const uint32 n_page_faults = mainBuffer.pageCount * n_tries;
 
 #ifdef SHEEPSHAVER
 	const bool accel = PrefsFindBool("gfxaccel");
@@ -231,7 +235,7 @@ static bool video_vosf_profitable(void)
 	const bool accel = false;
 #endif
 
-	for (int i = 0; i < VOSF_PROFITABLE_TRIES; i++) {
+	for (int i = 0; i < n_tries; i++) {
 		uint64 start = GetTicks_usec();
 		for (int p = 0; p < mainBuffer.pageCount; p++) {
 			uint8 *addr = (uint8 *)(mainBuffer.memStart + (p * mainBuffer.pageSize));
@@ -249,8 +253,13 @@ static bool video_vosf_profitable(void)
 			return false;
 	}
 
+	if (duration_p)
+	  *duration_p = duration;
+	if (n_page_faults_p)
+	  *n_page_faults_p = n_page_faults;
+
 	D(bug("Triggered %d page faults in %ld usec (%.1f usec per fault)\n", n_page_faults, duration, double(duration) / double(n_page_faults)));
-	return ((duration / VOSF_PROFITABLE_TRIES) < (VOSF_PROFITABLE_THRESHOLD * (frame_skip ? frame_skip : 1)));
+	return ((duration / n_tries) < (VOSF_PROFITABLE_THRESHOLD * (frame_skip ? frame_skip : 1)));
 }
 
 
