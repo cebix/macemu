@@ -115,7 +115,7 @@ static kern_return_t get_device_path(io_object_t obj, char *path, size_t maxPath
 static void media_arrived(int type, io_iterator_t iterator)
 {
 	io_object_t obj;
-	while ((obj = IOIteratorNext(iterator)) != NULL) {
+	while ((obj = IOIteratorNext(iterator))) {
 		char path[MAXPATHLEN];
 		kern_return_t kernResult = get_device_path(obj, path, sizeof(path));
 		if (kernResult == KERN_SUCCESS) {
@@ -137,7 +137,7 @@ static void media_arrived(int type, io_iterator_t iterator)
 static void media_removed(int type, io_iterator_t iterator)
 {
 	io_object_t obj;
-	while ((obj = IOIteratorNext(iterator)) != NULL) {
+	while ((obj = IOIteratorNext(iterator))) {
 		char path[MAXPATHLEN];
 		kern_return_t kernResult = get_device_path(obj, path, sizeof(path));
 		if (kernResult == KERN_SUCCESS) {
