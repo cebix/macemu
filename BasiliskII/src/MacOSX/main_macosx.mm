@@ -73,6 +73,9 @@ const char ROM_FILE_NAME[] = "ROM";
 const int SCRATCH_MEM_SIZE = 0x10000;	// Size of scratch memory area
 
 
+static char *bundle = NULL;		// If in an OS X application bundle, its path
+
+
 // CPU and FPU type, addressing mode
 int CPUType;
 bool CPUIs68060;
@@ -182,6 +185,16 @@ static void sigsegv_dump_state(sigsegv_info_t *sip)
 
 
 /*
+ * Screen fault handler
+ */
+
+bool Screen_fault_handler(sigsegv_info_t *sip)
+{
+	return true;
+}
+
+
+/*
  *  Main program
  */
 
@@ -240,6 +253,20 @@ int main(int argc, char **argv)
 
 	// Init system routines
 	SysInit();
+
+	// Set the current directory somewhere useful.
+	// Handy for storing the ROM file
+	bundle = strstr(argv[0], "BasiliskII.app/Contents/MacOS/BasiliskII");
+	if (bundle)
+	{
+		while (*bundle != '/')
+			++bundle;
+
+		*bundle = 0;  // Throw away Contents/... on end of argv[0]
+		bundle = argv[0];
+
+		chdir(bundle);
+	}
 
 	// Open display, attach to window server,
 	// load pre-instantiated classes from MainMenu.nib, start run loop
@@ -369,6 +396,9 @@ bool InitEmulator (void)
 	// Get rom file path from preferences
 	const char *rom_path = PrefsFindString("rom");
 	if ( ! rom_path )
+	  if ( bundle )
+		WarningAlert("No rom pathname set. Trying BasiliskII.app/ROM");
+	  else
 		WarningAlert("No rom pathname set. Trying ./ROM");
 
 	// Load Mac ROM
@@ -477,7 +507,7 @@ void QuitEmulator(void)
 void FlushCodeCache(void *start, uint32 size)
 {
 #if USE_JIT
-    if (UseJIT)
+	if (UseJIT)
 		flush_icache_range((uint8 *)start, size);
 #endif
 }
