@@ -44,6 +44,8 @@
 
 #include "sysdeps.h"
 
+static int verbose = 2;
+
 #undef abort
 #define abort() do {							\
 	fprintf(stderr, "ABORT: %s, line %d\n", __FILE__, __LINE__);	\
@@ -263,6 +265,20 @@ regnames[] = {
 #undef _
 };
 
+static inline char *find_blanks(char *p)
+{
+    while (*p && !isspace(*p))
+	++p;
+    return p;
+}
+
+static inline char *skip_blanks(char *p)
+{
+    while (*p && isspace(*p))
+	++p;
+    return p;
+}
+
 static int parse_reg(operand_t *op, int optype, char *buf)
 {
     for (int i = 0; regnames[i].name; i++) {
@@ -334,6 +350,17 @@ static void parse_insn(insn_t *ii, char *buf)
 {
     char *p = buf;
     ii->clear();
+
+    if (strncmp(p, "rex64", 5) == 0) {
+	char *q = find_blanks(p);
+	if (verbose > 1) {
+	    char prefix[16];
+	    memset(prefix, 0, sizeof(prefix));
+	    memcpy(prefix, p, q - p);
+	    fprintf(stderr, "Instruction '%s', skip REX prefix '%s'\n", buf, prefix);
+	}
+	p = skip_blanks(q);
+    }
 
     for (int i = 0; !isspace(*p); i++)
 	ii->name[i] = *p++;
@@ -557,8 +584,6 @@ static bool check_mem_reg(insn_t *ii, const char *name, uint32 D, int B, int I, 
     return true;
 }
 
-static int verbose = 2;
-
 int main(void)
 {
     static char buffer[1024];
@@ -595,8 +620,8 @@ int main(void)
 	GENA("inc", INC);
 	GEN("callq", CALLs);
 	GEN("jmpq", JMPs);
-	GEN("pushl", PUSHQ);	// FIXME: disass bug? wrong suffix
-	GEN("popl", POPQ);		// FIXME: disass bug? wrong suffix
+	GEN(X86_TARGET_64BIT ? "pushq" : "pushl", PUSHQ);
+	GEN(X86_TARGET_64BIT ? "popq" : "popl", POPQ);
 	GEN("bswap", BSWAPL);	// FIXME: disass bug? no suffix
 	GEN("bswap", BSWAPQ);	// FIXME: disass bug? no suffix
 	GEN("seto", SETO);
