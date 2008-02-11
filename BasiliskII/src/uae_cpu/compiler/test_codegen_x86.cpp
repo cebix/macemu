@@ -26,7 +26,7 @@
  ***********************************************************************/
 
 /*
- *  STATUS: 13M variations covering unary register based operations,
+ *  STATUS: 18M variations covering unary register based operations,
  *  reg/reg operations, imm/reg operations.
  *
  *  TODO:
@@ -71,6 +71,7 @@ static int verbose = 2;
 #define X86_FLAT_REGISTERS	0
 #define X86_OPTIMIZE_ALU	1
 #define X86_OPTIMIZE_ROTSHI	1
+#define X86_RIP_RELATIVE_ADDR	0
 #include "compiler/codegen_x86.h"
 
 #define x86_emit_byte(B)	emit_byte(B)
@@ -1035,8 +1036,8 @@ int main(void)
 	    for (int I = -1; I < 16; I++) {
 		if (I == X86_RSP)
 		    continue;
-		for (int S = 1; S < 8; S *= 2) {
-		    if (I == -1)
+		for (int S = 1; S < 16; S *= 2) {
+		    if (I == -1 && S > 1)
 			continue;
 		    for (int r = 0; r < 16; r++) {
 			set_target(block);
@@ -1177,9 +1178,9 @@ int main(void)
 	    GEN("movdqa", MOVDQA);
 	    GEN("movdqu", MOVDQU);
 	    GEN("movd", MOVDXD);
-	    GEN("movd", MOVQXD);	// FIXME: disass bug? movq
+	    GEN("movd", MOVQXD);	// FIXME: disass bug? "movq" expected
 	    GEN("movd", MOVDXS);
-	    GEN("movd", MOVQXS);	// FIXME: disass bug? movq
+	    GEN("movd", MOVQXS);	// FIXME: disass bug? "movq" expected
 #undef  GENIA
 #undef  GENI1
 #undef  GENI
@@ -1230,8 +1231,8 @@ int main(void)
 	    for (int I = -1; I < 16; I++) {
 		if (I == X86_RSP)
 		    continue;
-		for (int S = 1; S < 8; S *= 2) {
-		    if (I == -1)
+		for (int S = 1; S < 16; S *= 2) {
+		    if (I == -1 && S > 1)
 			continue;
 		    for (int r = 0; r < 16; r++) {
 			set_target(block);
@@ -1292,7 +1293,7 @@ int main(void)
 #if 0
 			// FIXME: extraneous REX bits generated
 			GEN("movd", MOVDXD);
-			GEN("movd", MOVQXD);	// FIXME: disass bug? movq
+			GEN("movd", MOVQXD);	// FIXME: disass bug? "movq" expected
 #endif
 #undef  GENIA
 #undef  GENI1
