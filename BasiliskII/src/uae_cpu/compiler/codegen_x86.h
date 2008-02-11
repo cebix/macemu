@@ -11,7 +11,7 @@
  *
  *  Copyright 1999, 2000, 2001, 2002, 2003 Ian Piumarta
  *
- *  Adaptations and enhancements for AMD64 support, Copyright 2003-2006
+ *  Adaptations and enhancements for AMD64 support, Copyright 2003-2008
  *    Gwenole Beauchesne
  *
  *  Basilisk II (C) 1997-2008 Christian Bauer
@@ -1659,8 +1659,6 @@ enum {
 };
 
 enum {
-  X86_SSE_CVTIS  = 0x2a,
-  X86_SSE_CVTSI  = 0x2d,
   X86_SSE_UCOMI  = 0x2e,
   X86_SSE_COMI   = 0x2f,
   X86_SSE_CMP		= 0xc2,
@@ -1673,12 +1671,32 @@ enum {
   X86_SSE_XOR    = 0x57,
   X86_SSE_ADD    = 0x58,
   X86_SSE_MUL    = 0x59,
-  X86_SSE_CVTSD  = 0x5a,
-  X86_SSE_CVTDT  = 0x5b,
   X86_SSE_SUB    = 0x5c,
   X86_SSE_MIN    = 0x5d,
   X86_SSE_DIV    = 0x5e,
   X86_SSE_MAX    = 0x5f,
+  X86_SSE_CVTDQ2PD	= 0xe6,
+  X86_SSE_CVTDQ2PS	= 0x5b,
+  X86_SSE_CVTPD2DQ	= 0xe6,
+  X86_SSE_CVTPD2PI	= 0x2d,
+  X86_SSE_CVTPD2PS	= 0x5a,
+  X86_SSE_CVTPI2PD	= 0x2a,
+  X86_SSE_CVTPI2PS	= 0x2a,
+  X86_SSE_CVTPS2DQ	= 0x5b,
+  X86_SSE_CVTPS2PD	= 0x5a,
+  X86_SSE_CVTPS2PI	= 0x2d,
+  X86_SSE_CVTSD2SI	= 0x2d,
+  X86_SSE_CVTSD2SS	= 0x5a,
+  X86_SSE_CVTSI2SD	= 0x2a,
+  X86_SSE_CVTSI2SS	= 0x2a,
+  X86_SSE_CVTSS2SD	= 0x5a,
+  X86_SSE_CVTSS2SI	= 0x2d,
+  X86_SSE_CVTTPD2PI	= 0x2c,
+  X86_SSE_CVTTPD2DQ	= 0xe6,
+  X86_SSE_CVTTPS2DQ	= 0x5b,
+  X86_SSE_CVTTPS2PI	= 0x2c,
+  X86_SSE_CVTTSD2SI	= 0x2c,
+  X86_SSE_CVTTSS2SI	= 0x2c,
   X86_SSE_MOVMSK	= 0x50,
   X86_SSE_PACKSSDW	= 0x6b,
   X86_SSE_PACKSSWB	= 0x63,
@@ -1924,45 +1942,62 @@ enum {
 #define MOVAPDmr(MD, MB, MI, MS, RD)	_SSEPDmr(0x28, MD, MB, MI, MS, RD)
 #define MOVAPDrm(RS, MD, MB, MI, MS)	_SSEPDrm(0x29, RS, MD, MB, MI, MS)
 
-#define CVTPS2PIrr(RS, RD)		__SSELrr(      X86_SSE_CVTSI, RS,_rX, RD,_rM)
-#define CVTPS2PImr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTSI, MD, MB, MI, MS, RD,_rM)
-#define CVTPD2PIrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTSI, RS,_rX, RD,_rM)
-#define CVTPD2PImr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTSI, MD, MB, MI, MS, RD,_rM)
-
-#define CVTPI2PSrr(RS, RD)		__SSELrr(      X86_SSE_CVTIS, RS,_rM, RD,_rX)
-#define CVTPI2PSmr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTIS, MD, MB, MI, MS, RD,_rX)
-#define CVTPI2PDrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTIS, RS,_rM, RD,_rX)
-#define CVTPI2PDmr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTIS, MD, MB, MI, MS, RD,_rX)
-
-#define CVTPS2PDrr(RS, RD)		__SSELrr(      X86_SSE_CVTSD, RS,_rX, RD,_rX)
-#define CVTPS2PDmr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTSD, MD, MB, MI, MS, RD,_rX)
-#define CVTPD2PSrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTSD, RS,_rX, RD,_rX)
-#define CVTPD2PSmr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTSD, MD, MB, MI, MS, RD,_rX)
-
-#define CVTSS2SDrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTSD, RS,_rX, RD,_rX)
-#define CVTSS2SDmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTSD, MD, MB, MI, MS, RD,_rX)
-#define CVTSD2SSrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTSD, RS,_rX, RD,_rX)
-#define CVTSD2SSmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf2, X86_SSE_CVTSD, MD, MB, MI, MS, RD,_rX)
-
-#define CVTSS2SILrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTSI, RS,_rX, RD,_r4)
-#define CVTSS2SILmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTSI, MD, MB, MI, MS, RD,_r4)
-#define CVTSD2SILrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTSI, RS,_rX, RD,_r4)
-#define CVTSD2SILmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf2, X86_SSE_CVTSI, MD, MB, MI, MS, RD,_r4)
-
-#define CVTSI2SSLrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTIS, RS,_r4, RD,_rX)
-#define CVTSI2SSLmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTIS, MD, MB, MI, MS, RD,_rX)
-#define CVTSI2SDLrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTIS, RS,_r4, RD,_rX)
-#define CVTSI2SDLmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf2, X86_SSE_CVTIS, MD, MB, MI, MS, RD,_rX)
-
-#define CVTSS2SIQrr(RS, RD)		 _SSEQrr(0xf3, X86_SSE_CVTSI, RS,_rX, RD,_r8)
-#define CVTSS2SIQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf3, X86_SSE_CVTSI, MD, MB, MI, MS, RD,_r8)
-#define CVTSD2SIQrr(RS, RD)		 _SSEQrr(0xf2, X86_SSE_CVTSI, RS,_rX, RD,_r8)
-#define CVTSD2SIQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf2, X86_SSE_CVTSI, MD, MB, MI, MS, RD,_r8)
-
-#define CVTSI2SSQrr(RS, RD)		 _SSEQrr(0xf3, X86_SSE_CVTIS, RS,_r8, RD,_rX)
-#define CVTSI2SSQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf3, X86_SSE_CVTIS, MD, MB, MI, MS, RD,_rX)
-#define CVTSI2SDQrr(RS, RD)		 _SSEQrr(0xf2, X86_SSE_CVTIS, RS,_r8, RD,_rX)
-#define CVTSI2SDQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf2, X86_SSE_CVTIS, MD, MB, MI, MS, RD,_rX)
+#define CVTDQ2PDrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTDQ2PD, RS,_rX, RD,_rX)
+#define CVTDQ2PDmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTDQ2PD, MD, MB, MI, MS, RD,_rX)
+#define CVTDQ2PSrr(RS, RD)		__SSELrr(      X86_SSE_CVTDQ2PS, RS,_rX, RD,_rX)
+#define CVTDQ2PSmr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTDQ2PS, MD, MB, MI, MS, RD,_rX)
+#define CVTPD2DQrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTPD2DQ, RS,_rX, RD,_rX)
+#define CVTPD2DQmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf2, X86_SSE_CVTPD2DQ, MD, MB, MI, MS, RD,_rX)
+#define CVTPD2PIrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTPD2PI, RS,_rX, RD,_rM)
+#define CVTPD2PImr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTPD2PI, MD, MB, MI, MS, RD,_rM)
+#define CVTPD2PSrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTPD2PS, RS,_rX, RD,_rX)
+#define CVTPD2PSmr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTPD2PS, MD, MB, MI, MS, RD,_rX)
+#define CVTPI2PDrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTPI2PD, RS,_rM, RD,_rX)
+#define CVTPI2PDmr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTPI2PD, MD, MB, MI, MS, RD,_rX)
+#define CVTPI2PSrr(RS, RD)		__SSELrr(      X86_SSE_CVTPI2PS, RS,_rM, RD,_rX)
+#define CVTPI2PSmr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTPI2PS, MD, MB, MI, MS, RD,_rX)
+#define CVTPS2DQrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTPS2DQ, RS,_rX, RD,_rX)
+#define CVTPS2DQmr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTPS2DQ, MD, MB, MI, MS, RD,_rX)
+#define CVTPS2PDrr(RS, RD)		__SSELrr(      X86_SSE_CVTPS2PD, RS,_rX, RD,_rX)
+#define CVTPS2PDmr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTPS2PD, MD, MB, MI, MS, RD,_rX)
+#define CVTPS2PIrr(RS, RD)		__SSELrr(      X86_SSE_CVTPS2PI, RS,_rX, RD,_rM)
+#define CVTPS2PImr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTPS2PI, MD, MB, MI, MS, RD,_rM)
+#define CVTSD2SILrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTSD2SI, RS,_rX, RD,_r4)
+#define CVTSD2SILmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf2, X86_SSE_CVTSD2SI, MD, MB, MI, MS, RD,_r4)
+#define CVTSD2SIQrr(RS, RD)		 _SSEQrr(0xf2, X86_SSE_CVTSD2SI, RS,_rX, RD,_r8)
+#define CVTSD2SIQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf2, X86_SSE_CVTSD2SI, MD, MB, MI, MS, RD,_r8)
+#define CVTSD2SSrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTSD2SS, RS,_rX, RD,_rX)
+#define CVTSD2SSmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf2, X86_SSE_CVTSD2SS, MD, MB, MI, MS, RD,_rX)
+#define CVTSI2SDLrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTSI2SD, RS,_r4, RD,_rX)
+#define CVTSI2SDLmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf2, X86_SSE_CVTSI2SD, MD, MB, MI, MS, RD,_rX)
+#define CVTSI2SDQrr(RS, RD)		 _SSEQrr(0xf2, X86_SSE_CVTSI2SD, RS,_r8, RD,_rX)
+#define CVTSI2SDQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf2, X86_SSE_CVTSI2SD, MD, MB, MI, MS, RD,_rX)
+#define CVTSI2SSLrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTSI2SS, RS,_r4, RD,_rX)
+#define CVTSI2SSLmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTSI2SS, MD, MB, MI, MS, RD,_rX)
+#define CVTSI2SSQrr(RS, RD)		 _SSEQrr(0xf3, X86_SSE_CVTSI2SS, RS,_r8, RD,_rX)
+#define CVTSI2SSQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf3, X86_SSE_CVTSI2SS, MD, MB, MI, MS, RD,_rX)
+#define CVTSS2SDrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTSS2SD, RS,_rX, RD,_rX)
+#define CVTSS2SDmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTSS2SD, MD, MB, MI, MS, RD,_rX)
+#define CVTSS2SILrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTSS2SI, RS,_rX, RD,_r4)
+#define CVTSS2SILmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTSS2SI, MD, MB, MI, MS, RD,_r4)
+#define CVTSS2SIQrr(RS, RD)		 _SSEQrr(0xf3, X86_SSE_CVTSS2SI, RS,_rX, RD,_r8)
+#define CVTSS2SIQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf3, X86_SSE_CVTSS2SI, MD, MB, MI, MS, RD,_r8)
+#define CVTTPD2PIrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTTPD2PI, RS,_rX, RD,_rM)
+#define CVTTPD2PImr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTTPD2PI, MD, MB, MI, MS, RD,_rM)
+#define CVTTPD2DQrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTTPD2DQ, RS,_rX, RD,_rX)
+#define CVTTPD2DQmr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTTPD2DQ, MD, MB, MI, MS, RD,_rX)
+#define CVTTPS2DQrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTTPS2DQ, RS,_rX, RD,_rX)
+#define CVTTPS2DQmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTTPS2DQ, MD, MB, MI, MS, RD,_rX)
+#define CVTTPS2PIrr(RS, RD)		__SSELrr(      X86_SSE_CVTTPS2PI, RS,_rX, RD,_rM)
+#define CVTTPS2PImr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTTPS2PI, MD, MB, MI, MS, RD,_rM)
+#define CVTTSD2SILrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTTSD2SI, RS,_rX, RD,_r4)
+#define CVTTSD2SILmr(MD, MB, MI, MS, RD) _SSELmr(0xf2, X86_SSE_CVTTSD2SI, MD, MB, MI, MS, RD,_r4)
+#define CVTTSD2SIQrr(RS, RD)		 _SSEQrr(0xf2, X86_SSE_CVTTSD2SI, RS,_rX, RD,_r8)
+#define CVTTSD2SIQmr(MD, MB, MI, MS, RD) _SSEQmr(0xf2, X86_SSE_CVTTSD2SI, MD, MB, MI, MS, RD,_r8)
+#define CVTTSS2SILrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTTSS2SI, RS,_rX, RD,_r4)
+#define CVTTSS2SILmr(MD, MB, MI, MS, RD) _SSELmr(0xf3, X86_SSE_CVTTSS2SI, MD, MB, MI, MS, RD,_r4)
+#define CVTTSS2SIQrr(RS, RD)		 _SSEQrr(0xf3, X86_SSE_CVTTSS2SI, RS,_rX, RD,_r8)
+#define CVTTSS2SIQmr(MD, MB, MI, MS, RD) _SSEQmr(0xf3, X86_SSE_CVTTSS2SI, MD, MB, MI, MS, RD,_r8)
 
 #define MOVDXDrr(RS, RD)		 _SSELrr(0x66, 0x6e, RS,_r4, RD,_rX)
 #define MOVDXDmr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, 0x6e, MD, MB, MI, MS, RD,_rX)

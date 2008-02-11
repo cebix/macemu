@@ -26,7 +26,7 @@
  ***********************************************************************/
 
 /*
- *  STATUS: 18M variations covering unary register based operations,
+ *  STATUS: 21M variations covering unary register based operations,
  *  reg/reg operations, imm/reg operations.
  *
  *  TODO:
@@ -1181,6 +1181,40 @@ int main(void)
 	    GEN("movd", MOVQXD);	// FIXME: disass bug? "movq" expected
 	    GEN("movd", MOVDXS);
 	    GEN("movd", MOVQXS);	// FIXME: disass bug? "movq" expected
+	    GEN("cvtdq2pd", CVTDQ2PD);
+	    GEN("cvtdq2ps", CVTDQ2PS);
+	    GEN("cvtpd2dq", CVTPD2DQ);
+	    GEN("cvtpd2ps", CVTPD2PS);
+	    GEN("cvtps2dq", CVTPS2DQ);
+	    GEN("cvtps2pd", CVTPS2PD);
+	    GEN("cvtsd2si", CVTSD2SIL);
+	    GEN("cvtsd2siq", CVTSD2SIQ);
+	    GEN("cvtsd2ss", CVTSD2SS);
+	    GEN("cvtsi2sd", CVTSI2SDL);
+	    GEN("cvtsi2sdq", CVTSI2SDQ);
+	    GEN("cvtsi2ss", CVTSI2SSL);
+	    GEN("cvtsi2ssq", CVTSI2SSQ);
+	    GEN("cvtss2sd", CVTSS2SD);
+	    GEN("cvtss2si", CVTSS2SIL);
+	    GEN("cvtss2siq", CVTSS2SIQ);
+	    GEN("cvttpd2dq", CVTTPD2DQ);
+	    GEN("cvttps2dq", CVTTPS2DQ);
+	    GEN("cvttsd2si", CVTTSD2SIL);
+	    GEN("cvttsd2siq", CVTTSD2SIQ);
+	    GEN("cvttss2si", CVTTSS2SIL);
+	    GEN("cvttss2siq", CVTTSS2SIQ);
+	    if (s < 8) {
+		// MMX source register
+		GEN("cvtpi2pd", CVTPI2PD);
+		GEN("cvtpi2ps", CVTPI2PS);
+	    }
+	    if (d < 8) {
+		// MMX dest register
+		GEN("cvtpd2pi", CVTPD2PI);
+		GEN("cvtps2pi", CVTPS2PI);
+		GEN("cvttpd2pi", CVTTPD2PI);
+		GEN("cvttps2pi", CVTTPS2PI);
+	    }
 #undef  GENIA
 #undef  GENI1
 #undef  GENI
@@ -1295,6 +1329,35 @@ int main(void)
 			GEN("movd", MOVDXD);
 			GEN("movd", MOVQXD);	// FIXME: disass bug? "movq" expected
 #endif
+			GEN("cvtdq2pd", CVTDQ2PD);
+			GEN("cvtdq2ps", CVTDQ2PS);
+			GEN("cvtpd2dq", CVTPD2DQ);
+			GEN("cvtpd2ps", CVTPD2PS);
+			GEN("cvtps2dq", CVTPS2DQ);
+			GEN("cvtps2pd", CVTPS2PD);
+			GEN("cvtsd2si", CVTSD2SIL);
+			GEN("cvtsd2siq", CVTSD2SIQ);
+			GEN("cvtsd2ss", CVTSD2SS);
+			GEN("cvtsi2sd", CVTSI2SDL);
+			GEN("cvtsi2sdq", CVTSI2SDQ);
+			GEN("cvtsi2ss", CVTSI2SSL);
+			GEN("cvtsi2ssq", CVTSI2SSQ);
+			GEN("cvtss2sd", CVTSS2SD);
+			GEN("cvtss2si", CVTSS2SIL);
+			GEN("cvtss2siq", CVTSS2SIQ);
+			GEN("cvttpd2dq", CVTTPD2DQ);
+			GEN("cvttps2dq", CVTTPS2DQ);
+			GEN("cvttsd2si", CVTTSD2SIL);
+			GEN("cvttsd2siq", CVTTSD2SIQ);
+			GEN("cvttss2si", CVTTSS2SIL);
+			GEN("cvttss2siq", CVTTSS2SIQ);
+			if (r < 8) {
+			    // MMX dest register
+			    GEN("cvtpd2pi", CVTPD2PI);
+			    GEN("cvtps2pi", CVTPS2PI);
+			    GEN("cvttpd2pi", CVTTPD2PI);
+			    GEN("cvttps2pi", CVTTPS2PI);
+			}
 #undef  GENIA
 #undef  GENI1
 #undef  GENI
