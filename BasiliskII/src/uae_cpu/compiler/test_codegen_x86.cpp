@@ -46,6 +46,12 @@
 
 static int verbose = 2;
 
+#define TEST_INST_ALU_REG	1
+#define TEST_INST_ALU_REG_REG	1
+#define TEST_INST_ALU_CNT_REG	1
+#define TEST_INST_ALU_IMM_REG	1
+#define TEST_INST_ALU_MEM_REG	1
+
 #undef abort
 #define abort() do {							\
 	fprintf(stderr, "ABORT: %s, line %d\n", __FILE__, __LINE__);	\
@@ -261,6 +267,13 @@ regnames[] = {
     _(RAX), _(RCX), _(RDX), _(RBX), _(RSP), _(RBP), _(RSI), _(RDI),
     _(R8), _(R9), _(R10), _(R11), _(R12), _(R13), _(R14), _(R15),
 
+    _(MM0), _(MM1), _(MM2), _(MM3), _(MM4), _(MM5), _(MM6), _(MM7),
+
+    _(XMM0),  _(XMM1),  _(XMM2),  _(XMM3),
+    _(XMM4),  _(XMM5),  _(XMM6),  _(XMM7),
+    _(XMM8),  _(XMM9),  _(XMM10), _(XMM11),
+    _(XMM12), _(XMM13), _(XMM14), _(XMM15),
+
     { NULL, -1 }
 #undef _
 };
@@ -420,8 +433,8 @@ static void parse_insn(insn_t *ii, char *buf)
     ii->n_operands = n_operands + 1;
 }
 
-static long n_tests, n_failures;
-static long n_all_tests, n_all_failures;
+static unsigned long n_tests, n_failures;
+static unsigned long n_all_tests, n_all_failures;
 
 static bool check_reg(insn_t *ii, const char *name, int r)
 {
@@ -584,6 +597,22 @@ static bool check_mem_reg(insn_t *ii, const char *name, uint32 D, int B, int I, 
     return true;
 }
 
+static void show_status(unsigned long n_tests)
+{
+#if 1
+  const unsigned long N_STEPS = 100000;
+  static const char cursors[] = { '-', '\\', '|', '/' };
+  if ((n_tests % N_STEPS) == 0) {
+    printf(" %c (%d)\r", cursors[(n_tests/N_STEPS)%sizeof(cursors)], n_tests);
+    fflush(stdout);
+  }
+#else
+  const unsigned long N_STEPS = 1000000;
+  if ((n_tests % N_STEPS) == 0)
+    printf(" ... %d\n", n_tests);
+#endif
+}
+
 int main(void)
 {
     static char buffer[1024];
@@ -594,6 +623,7 @@ int main(void)
     static int modes[MAX_INSNS];
     n_all_tests = n_all_failures = 0;
 
+#if TEST_INST_ALU_REG
     printf("Testing reg forms\n");
     n_tests = n_failures = 0;
     for (int r = 0; r < 16; r++) {
@@ -668,7 +698,9 @@ int main(void)
     printf(" done %ld/%ld\n", n_tests - n_failures, n_tests);
     n_all_tests += n_tests;
     n_all_failures += n_failures;
+#endif
 
+#if TEST_INST_ALU_REG_REG
     printf("Testing reg,reg forms\n");
     n_tests = n_failures = 0;
     for (int s = 0; s < 16; s++) {
@@ -768,7 +800,9 @@ int main(void)
     printf(" done %ld/%ld\n", n_tests - n_failures, n_tests);
     n_all_tests += n_tests;
     n_all_failures += n_failures;
+#endif
 
+#if TEST_INST_ALU_CNT_REG
     printf("Testing cl,reg forms\n");
     n_tests = n_failures = 0;
     for (int d = 0; d < 16; d++) {
@@ -820,7 +854,9 @@ int main(void)
     printf(" done %ld/%ld\n", n_tests - n_failures, n_tests);
     n_all_tests += n_tests;
     n_all_failures += n_failures;
+#endif
 
+#if TEST_INST_ALU_IMM_REG
     printf("Testing imm,reg forms\n");
     static const uint32 imm_table[] = {
 	0x00000000, 0x00000001, 0x00000002, 0x00000004,
@@ -929,7 +965,9 @@ int main(void)
     printf(" done %ld/%ld\n", n_tests - n_failures, n_tests);
     n_all_tests += n_tests;
     n_all_failures += n_failures;
+#endif
 
+#if TEST_INST_ALU_MEM_REG
     printf("Testing mem,reg forms\n");
     n_tests = n_failures = 0;
     static const uint32 off_table[] = {
@@ -1016,6 +1054,7 @@ int main(void)
 			    p += n;
 			    i += 1;
 			    n_tests++;
+			    show_status(n_tests);
 			}
 			if (i != last_insn)
 			    abort();
@@ -1027,6 +1066,7 @@ int main(void)
     printf(" done %ld/%ld\n", n_tests - n_failures, n_tests);
     n_all_tests += n_tests;
     n_all_failures += n_failures;
+#endif
 
     printf("\n");
     printf("All %ld tests run, %ld failures\n", n_all_tests, n_all_failures);
