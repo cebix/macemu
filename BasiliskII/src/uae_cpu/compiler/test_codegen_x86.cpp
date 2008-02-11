@@ -26,7 +26,7 @@
  ***********************************************************************/
 
 /*
- *  STATUS: 5.5M variations covering unary register based operations,
+ *  STATUS: 13M variations covering unary register based operations,
  *  reg/reg operations, imm/reg operations.
  *
  *  TODO:
@@ -46,11 +46,20 @@
 
 static int verbose = 2;
 
+#define TEST_INST_ALU		1
+#define TEST_INST_VPU		1
+#if TEST_INST_ALU
 #define TEST_INST_ALU_REG	1
 #define TEST_INST_ALU_REG_REG	1
 #define TEST_INST_ALU_CNT_REG	1
 #define TEST_INST_ALU_IMM_REG	1
 #define TEST_INST_ALU_MEM_REG	1
+#endif
+#if TEST_INST_VPU
+#define TEST_INST_VPU_REG	1
+#define TEST_INST_VPU_REG_REG	1
+#define TEST_INST_VPU_MEM_REG	1
+#endif
 
 #undef abort
 #define abort() do {							\
@@ -294,6 +303,26 @@ static inline char *skip_blanks(char *p)
 
 static int parse_reg(operand_t *op, int optype, char *buf)
 {
+    // fast lookup (SSE registers)
+    int reg = 0;
+    int len = 0;
+    char *p = buf;
+    switch (*p) {
+    case 'x': case 'X':
+	if (strncasecmp(p, "xmm", 3) == 0) {
+	    len = 3;
+	    if (isdigit(p[len+1]) && p[len] == '1')
+		reg = 10, len++;
+	    if (isdigit(p[len])) {
+		reg += p[len++] - '0';
+		op->fill(optype, X86_RegXMM_Base + reg);
+		return len;
+	    }
+	}
+	break;
+    }
+
+    // slow table lookup
     for (int i = 0; regnames[i].name; i++) {
 	int len = strlen(regnames[i].name);
 	if (strncasecmp(regnames[i].name, buf, len) == 0) {
@@ -301,6 +330,8 @@ static int parse_reg(operand_t *op, int optype, char *buf)
 	    return len;
 	}
     }
+
+    // nothing found
     return 0;
 }
 
@@ -364,6 +395,10 @@ static void parse_insn(insn_t *ii, char *buf)
     char *p = buf;
     ii->clear();
 
+#if 0
+    printf("BUF: %s\n", buf);
+#endif
+
     if (strncmp(p, "rex64", 5) == 0) {
 	char *q = find_blanks(p);
 	if (verbose > 1) {
@@ -371,6 +406,17 @@ static void parse_insn(insn_t *ii, char *buf)
 	    memset(prefix, 0, sizeof(prefix));
 	    memcpy(prefix, p, q - p);
 	    fprintf(stderr, "Instruction '%s', skip REX prefix '%s'\n", buf, prefix);
+	}
+	p = skip_blanks(q);
+    }
+
+    if (strncmp(p, "rep", 3) == 0) {
+	char *q = find_blanks(p);
+	if (verbose > 1) {
+	    char prefix[16];
+	    memset(prefix, 0, sizeof(prefix));
+	    memcpy(prefix, p, q - p);
+	    fprintf(stderr, "Instruction '%s', skip REP prefix '%s'\n", buf, prefix);
 	}
 	p = skip_blanks(q);
     }
@@ -482,7 +528,7 @@ static bool check_reg_reg(insn_t *ii, const char *name, int s, int d)
 	if (srcreg == -1)
 	    fprintf(stderr, "nothing\n");
 	else
-	    fprintf(stderr, "%d\n", srcreg);
+	    fprintf(stderr, "r%d\n", srcreg);
 	return false;
     }
 
@@ -491,7 +537,7 @@ static bool check_reg_reg(insn_t *ii, const char *name, int s, int d)
 	if (dstreg == -1)
 	    fprintf(stderr, "nothing\n");
 	else
-	    fprintf(stderr, "%d\n", dstreg);
+	    fprintf(stderr, "r%d\n", dstreg);
 	return false;
     }
 
@@ -856,8 +902,6 @@ int main(void)
     n_all_failures += n_failures;
 #endif
 
-#if TEST_INST_ALU_IMM_REG
-    printf("Testing imm,reg forms\n");
     static const uint32 imm_table[] = {
 	0x00000000, 0x00000001, 0x00000002, 0x00000004,
 	0x00000008, 0x00000010, 0x00000020, 0x00000040,
@@ -874,6 +918,9 @@ int main(void)
 	0xbbbbbbbb, 0xcccccccc, 0xdddddddd, 0xeeeeeeee,
     };
     const int n_imm_tab_count = sizeof(imm_table)/sizeof(imm_table[0]);
+
+#if TEST_INST_ALU_IMM_REG
+    printf("Testing imm,reg forms\n");
     n_tests = n_failures = 0;
     for (int j = 0; j < n_imm_tab_count; j++) {
 	const uint32 value = imm_table[j];
@@ -967,9 +1014,6 @@ int main(void)
     n_all_failures += n_failures;
 #endif
 
-#if TEST_INST_ALU_MEM_REG
-    printf("Testing mem,reg forms\n");
-    n_tests = n_failures = 0;
     static const uint32 off_table[] = {
 	0x00000000,
 	0x00000001,
@@ -981,6 +1025,10 @@ int main(void)
 	0xffffffff,
     };
     const int off_table_count = sizeof(off_table) / sizeof(off_table[0]);
+
+#if TEST_INST_ALU_MEM_REG
+    printf("Testing mem,reg forms\n");
+    n_tests = n_failures = 0;
     for (int d = 0; d < off_table_count; d++) {
 	const uint32 D = off_table[d];
 	for (int B = -1; B < 16; B++) {
@@ -1048,6 +1096,229 @@ int main(void)
 			    if (!check_mem_reg(&ii, insns[i], D, B, I, S, r)) {
 				if (verbose > 1)
 				    fprintf(stderr, "%s\n", buffer);
+				n_failures++;
+			    }
+
+			    p += n;
+			    i += 1;
+			    n_tests++;
+			    show_status(n_tests);
+			}
+			if (i != last_insn)
+			    abort();
+		    }
+		}
+	    }
+	}
+    }
+    printf(" done %ld/%ld\n", n_tests - n_failures, n_tests);
+    n_all_tests += n_tests;
+    n_all_failures += n_failures;
+#endif
+
+#if TEST_INST_VPU_REG_REG
+    printf("Testing SIMD reg,reg forms\n");
+    n_tests = n_failures = 0;
+    for (int s = 0; s < 16; s++) {
+	for (int d = 0; d < 16; d++) {
+	    set_target(block);
+	    uint8 *b = get_target();
+	    int i = 0;
+#define GEN(INSN, GENOP) do {			\
+	insns[i++] = INSN;			\
+	GENOP##rr(s, d);			\
+} while (0)
+#define GEN1(INSN, GENOP) do {			\
+	GEN(INSN "s", GENOP##S);		\
+	GEN(INSN "d", GENOP##D);		\
+} while (0)
+#define GENA(INSN, GENOP) do {			\
+	GEN1(INSN "s", GENOP##S);		\
+	GEN1(INSN "p", GENOP##P);		\
+} while (0)
+#define GENI(INSN, GENOP, IMM) do {		\
+	insns[i++] = INSN;			\
+	GENOP##rr(IMM, s, d);			\
+} while (0)
+#define GENI1(INSN, GENOP, IMM) do {		\
+	GENI(INSN "s", GENOP##S, IMM);		\
+	GENI(INSN "d", GENOP##D, IMM);		\
+} while (0)
+#define GENIA(INSN, GENOP, IMM) do {		\
+	GENI1(INSN "s", GENOP##S, IMM);		\
+	GENI1(INSN "p", GENOP##P, IMM);		\
+} while (0)
+	    GEN1("andp", ANDP);
+	    GEN1("andnp", ANDNP);
+	    GEN1("orp", ORP);
+	    GEN1("xorp", XORP);
+	    GENA("add", ADD);
+	    GENA("sub", SUB);
+	    GENA("mul", MUL);
+	    GENA("div", DIV);
+	    GEN1("comis", COMIS);
+	    GEN1("ucomis", UCOMIS);
+	    GENA("min", MIN);
+	    GENA("max", MAX);
+	    GEN("rcpss", RCPSS);
+	    GEN("rcpps", RCPPS);
+	    GEN("rsqrtss", RSQRTSS);
+	    GEN("rsqrtps", RSQRTPS);
+	    GENA("sqrt", SQRT);
+	    GENIA("cmpeq", CMP, X86_SSE_CC_EQ);
+	    GENIA("cmplt", CMP, X86_SSE_CC_LT);
+	    GENIA("cmple", CMP, X86_SSE_CC_LE);
+	    GENIA("cmpunord", CMP, X86_SSE_CC_U);
+	    GENIA("cmpneq", CMP, X86_SSE_CC_NEQ);
+	    GENIA("cmpnlt", CMP, X86_SSE_CC_NLT);
+	    GENIA("cmpnle", CMP, X86_SSE_CC_NLE);
+	    GENIA("cmpord", CMP, X86_SSE_CC_O);
+	    GEN1("movap", MOVAP);
+	    GEN("movdqa", MOVDQA);
+	    GEN("movdqu", MOVDQU);
+	    GEN("movd", MOVDXD);
+	    GEN("movd", MOVQXD);	// FIXME: disass bug? movq
+	    GEN("movd", MOVDXS);
+	    GEN("movd", MOVQXS);	// FIXME: disass bug? movq
+#undef  GENIA
+#undef  GENI1
+#undef  GENI
+#undef  GENA
+#undef  GEN1
+#undef  GEN
+	    int last_insn = i;
+	    uint8 *e = get_target();
+
+	    uint8 *p = b;
+	    i = 0;
+	    while (p < e) {
+		int n = disass_x86(buffer, (uintptr)p);
+		insn_t ii;
+		parse_insn(&ii, buffer);
+
+		if (!check_reg_reg(&ii, insns[i], s, d)) {
+		    if (verbose > 1) {
+			if (1) {
+			    for (int j = 0; j < MAX_INSN_LENGTH; j++)
+				fprintf(stderr, "%02x ", p[j]);
+			    fprintf(stderr, "| ");
+			}
+			fprintf(stderr, "%s\n", buffer);
+		    }
+		    n_failures++;
+		}
+
+		p += n;
+		i += 1;
+		n_tests++;
+	    }
+	    if (i != last_insn)
+		abort();
+	}
+    }
+    printf(" done %ld/%ld\n", n_tests - n_failures, n_tests);
+    n_all_tests += n_tests;
+    n_all_failures += n_failures;
+#endif
+
+#if TEST_INST_VPU_MEM_REG
+    printf("Testing SIMD mem,reg forms\n");
+    n_tests = n_failures = 0;
+    for (int d = 0; d < off_table_count; d++) {
+	const uint32 D = off_table[d];
+	for (int B = -1; B < 16; B++) {
+	    for (int I = -1; I < 16; I++) {
+		if (I == X86_RSP)
+		    continue;
+		for (int S = 1; S < 8; S *= 2) {
+		    if (I == -1)
+			continue;
+		    for (int r = 0; r < 16; r++) {
+			set_target(block);
+			uint8 *b = get_target();
+			int i = 0;
+#define GEN(INSN, GENOP) do {			\
+	insns[i++] = INSN;			\
+	GENOP##mr(D, B, I, S, r);		\
+} while (0)
+#define GEN1(INSN, GENOP) do {			\
+	GEN(INSN "s", GENOP##S);		\
+	GEN(INSN "d", GENOP##D);		\
+} while (0)
+#define GENA(INSN, GENOP) do {			\
+	GEN1(INSN "s", GENOP##S);		\
+	GEN1(INSN "p", GENOP##P);		\
+} while (0)
+#define GENI(INSN, GENOP, IMM) do {		\
+	insns[i++] = INSN;			\
+	GENOP##mr(IMM, D, B, I, S, r);		\
+} while (0)
+#define GENI1(INSN, GENOP, IMM) do {		\
+	GENI(INSN "s", GENOP##S, IMM);		\
+	GENI(INSN "d", GENOP##D, IMM);		\
+} while (0)
+#define GENIA(INSN, GENOP, IMM) do {		\
+	GENI1(INSN "s", GENOP##S, IMM);		\
+	GENI1(INSN "p", GENOP##P, IMM);		\
+} while (0)
+			GEN1("andp", ANDP);
+			GEN1("andnp", ANDNP);
+			GEN1("orp", ORP);
+			GEN1("xorp", XORP);
+			GENA("add", ADD);
+			GENA("sub", SUB);
+			GENA("mul", MUL);
+			GENA("div", DIV);
+			GEN1("comis", COMIS);
+			GEN1("ucomis", UCOMIS);
+			GENA("min", MIN);
+			GENA("max", MAX);
+			GEN("rcpss", RCPSS);
+			GEN("rcpps", RCPPS);
+			GEN("rsqrtss", RSQRTSS);
+			GEN("rsqrtps", RSQRTPS);
+			GENA("sqrt", SQRT);
+			GENIA("cmpeq", CMP, X86_SSE_CC_EQ);
+			GENIA("cmplt", CMP, X86_SSE_CC_LT);
+			GENIA("cmple", CMP, X86_SSE_CC_LE);
+			GENIA("cmpunord", CMP, X86_SSE_CC_U);
+			GENIA("cmpneq", CMP, X86_SSE_CC_NEQ);
+			GENIA("cmpnlt", CMP, X86_SSE_CC_NLT);
+			GENIA("cmpnle", CMP, X86_SSE_CC_NLE);
+			GENIA("cmpord", CMP, X86_SSE_CC_O);
+			GEN1("movap", MOVAP);
+			GEN("movdqa", MOVDQA);
+			GEN("movdqu", MOVDQU);
+#if 0
+			// FIXME: extraneous REX bits generated
+			GEN("movd", MOVDXD);
+			GEN("movd", MOVQXD);	// FIXME: disass bug? movq
+#endif
+#undef  GENIA
+#undef  GENI1
+#undef  GENI
+#undef  GENA
+#undef  GEN1
+#undef  GEN
+			int last_insn = i;
+			uint8 *e = get_target();
+
+			uint8 *p = b;
+			i = 0;
+			while (p < e) {
+			    int n = disass_x86(buffer, (uintptr)p);
+			    insn_t ii;
+			    parse_insn(&ii, buffer);
+
+			    if (!check_mem_reg(&ii, insns[i], D, B, I, S, r)) {
+				if (verbose > 1) {
+				    if (1) {
+					for (int j = 0; j < MAX_INSN_LENGTH; j++)
+					    fprintf(stderr, "%02x ", p[j]);
+					fprintf(stderr, "| ");
+				    }
+				    fprintf(stderr, "%s\n", buffer);
+				}
 				n_failures++;
 			    }
 
