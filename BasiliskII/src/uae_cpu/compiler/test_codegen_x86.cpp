@@ -47,7 +47,7 @@
 static int verbose = 2;
 
 #define TEST_INST_ALU		1
-#define TEST_INST_VPU		1
+#define TEST_INST_SSE		1
 #if TEST_INST_ALU
 #define TEST_INST_ALU_REG	1
 #define TEST_INST_ALU_REG_REG	1
@@ -55,10 +55,10 @@ static int verbose = 2;
 #define TEST_INST_ALU_IMM_REG	1
 #define TEST_INST_ALU_MEM_REG	1
 #endif
-#if TEST_INST_VPU
-#define TEST_INST_VPU_REG	1
-#define TEST_INST_VPU_REG_REG	1
-#define TEST_INST_VPU_MEM_REG	1
+#if TEST_INST_SSE
+#define TEST_INST_SSE_REG	1
+#define TEST_INST_SSE_REG_REG	1
+#define TEST_INST_SSE_MEM_REG	1
 #endif
 
 #undef abort
@@ -73,6 +73,23 @@ static int verbose = 2;
 #define X86_OPTIMIZE_ROTSHI	1
 #define X86_RIP_RELATIVE_ADDR	0
 #include "compiler/codegen_x86.h"
+
+#if X86_TARGET_64BIT
+#define X86_MAX_REGS		16
+#else
+#define X86_MAX_REGS		8
+#endif
+
+#define VALID_REG(r, b, n)	(((unsigned)((r) - X86_##b)) < (n))
+#if X86_TARGET_64BIT
+#define VALID_REG8(r)		(VALID_REG(r, AL, 16) || VALID_REG(r, AH, 4))
+#define VALID_REG64(r)		VALID_REG(r, RAX, X86_MAX_REGS)
+#else
+#define VALID_REG8(r)		(VALID_REG(r, AL, 4) || VALID_REG(r, AH, 4))
+#define VALID_REG64(r)		(0)
+#endif
+#define VALID_REG16(r)		VALID_REG(r, AX, X86_MAX_REGS)
+#define VALID_REG32(r)		VALID_REG(r, EAX, X86_MAX_REGS)
 
 #define x86_emit_byte(B)	emit_byte(B)
 #define x86_emit_word(W)	emit_word(W)
@@ -181,7 +198,7 @@ static int disass_x86(char *buf, uintptr adr)
     sfile.buffer = buf;
     sfile.current = buf;
     INIT_DISASSEMBLE_INFO(info, (FILE *)&sfile, (fprintf_ftype)mon_sprintf);
-    info.mach = bfd_mach_x86_64;
+    info.mach = X86_TARGET_64BIT ? bfd_mach_x86_64 : bfd_mach_i386_i386;
     info.disassembler_options = "suffix";
     return print_insn_i386(adr, &info);
 }
@@ -221,16 +238,19 @@ struct operand_t {
     }
 };
 
+#define MAX_INSNS		1024
+#define MAX_INSN_LENGTH		16
+#define MAX_INSN_OPERANDS	3
+
 struct insn_t {
     char name[16];
     int n_operands;
-#define MAX_OPERANDS 3
-    operand_t operands[MAX_OPERANDS];
+    operand_t operands[MAX_INSN_OPERANDS];
 
     void clear() {
 	memset(name, 0, sizeof(name));
 	n_operands = 0;
-	for (int i = 0; i < MAX_OPERANDS; i++)
+	for (int i = 0; i < MAX_INSN_OPERANDS; i++)
 	    operands[i].clear();
     }
 
@@ -292,7 +312,9 @@ static int parse_reg(operand_t *op, int optype, char *buf)
 	case 'x': case 'X': reg = X86_BX; break;
 	case 'p': case 'P':
 	    switch (p[2]) {
+#if X86_TARGET_64BIT
 	    case 'l': case 'L': reg = X86_BPL, ++len; break;
+#endif
 	    default: reg = X86_BP; break;
 	    }
 	    break;
@@ -314,7 +336,9 @@ static int parse_reg(operand_t *op, int optype, char *buf)
 	case 'x': case 'X': reg = X86_DX; break;
 	case 'i': case 'I':
 	    switch (p[2]) {
+#if X86_TARGET_64BIT
 	    case 'l': case 'L': reg = X86_DIL; ++len; break;
+#endif
 	    default: reg = X86_DI; break;
 	    }
 	    break;
@@ -323,6 +347,7 @@ static int parse_reg(operand_t *op, int optype, char *buf)
     case 's': case 'S':
 	len = 2;
 	switch (p[2]) {
+#if X86_TARGET_64BIT
 	case 'l': case 'L':
 	    ++len;
 	    switch (p[1]) {
@@ -330,6 +355,7 @@ static int parse_reg(operand_t *op, int optype, char *buf)
 	    case 'i': case 'I': reg = X86_SIL; break;
 	    }
 	    break;
+#endif
 	default:
 	    switch (p[1]) {
 	    case 'p': case 'P': reg = X86_SP; break;
@@ -363,6 +389,7 @@ static int parse_reg(operand_t *op, int optype, char *buf)
 	    break;
 	}
 	break;
+#if X86_TARGET_64BIT
     case 'r': case 'R':
 	len = 3;
 	switch (p[2]) {
@@ -406,31 +433,37 @@ static int parse_reg(operand_t *op, int optype, char *buf)
 	    break;
 	case '0': case '1': case '2': case '3': case '4': case '5':
 	    if (p[1] == '1') {
-		const int r = 10 + (p[2] - '0');
+		const int r = p[2] - '0';
 		switch (p[3]) {
-		case 'b': case 'B': reg = X86_Reg8L_Base + r, ++len; break;
-		case 'w': case 'W': reg = X86_Reg16_Base + r, ++len; break;
-		case 'd': case 'D': reg = X86_Reg32_Base + r, ++len; break;
-		default: reg = X86_Reg64_Base + r; break;
+		case 'b': case 'B': reg = X86_R10B + r, ++len; break;
+		case 'w': case 'W': reg = X86_R10W + r, ++len; break;
+		case 'd': case 'D': reg = X86_R10D + r, ++len; break;
+		default: reg = X86_R10 + r; break;
 		}
 	    }
 	    break;
 	default:
-	    if (isdigit(p[1]))
-		reg = X86_Reg64_Base + (p[1] - '0'), len = 2;
+	    switch (p[1]) {
+	    case '8': reg = X86_R8, len = 2; break;
+	    case '9': reg = X86_R9, len = 2; break;
+	    }
 	    break;
 	}
 	break;
+#endif
     case 'm': case 'M':
 	if ((p[1] == 'm' || p[1] == 'M') && isdigit(p[2]))
-	    reg = X86_RegMMX_Base + (p[2] - '0'), len = 3;
+	    reg = X86_MM0 + (p[2] - '0'), len = 3;
 	break;
     case 'x': case 'X':
 	if ((p[1] == 'm' || p[1] == 'M') && (p[2] == 'm' || p[2] == 'M')) {
+#if X86_TARGET_64BIT
 	    if (p[3] == '1' && isdigit(p[4]))
-		reg = 10 + (p[4] - '0'), len = 5;
-	    else if (isdigit(p[3]))
-		reg = p[3] - '0', len = 4;
+		reg = X86_XMM10 + (p[4] - '0'), len = 5;
+	    else
+#endif
+	    if (isdigit(p[3]))
+		reg = X86_XMM0 + (p[3] - '0'), len = 4;
 	}
 	break;
     }
@@ -445,23 +478,20 @@ static int parse_reg(operand_t *op, int optype, char *buf)
 
 static unsigned long parse_imm(char *nptr, char **endptr, int base = 0)
 {
-    unsigned long val = 0;
     errno = 0;
-    if (X86_TARGET_64BIT && sizeof(unsigned long) != 8) {
-	unsigned long long v = strtoull(nptr, endptr, 0);
+#if X86_TARGET_64BIT
+    if (sizeof(unsigned long) != 8) {
+	unsigned long long val = strtoull(nptr, endptr, 0);
 	if (errno == 0)
-	    val = v;
-	else
-	    abort();
+	    return val;
+	abort();
     }
-    else {
-	unsigned long v = strtoul(nptr, endptr, 0);
-	if (errno == 0)
-	    val = v;
-	else
-	    abort();
-    }
-    return val;
+#endif
+    unsigned long val = strtoul(nptr, endptr, 0);
+    if (errno == 0)
+	return val;
+    abort();
+    return 0;
 }
 
 static int parse_mem(operand_t *op, char *buf)
@@ -765,6 +795,18 @@ static bool check_mem_reg(insn_t *ii, const char *name, uint32 D, int B, int I, 
     return true;
 }
 
+static void show_instruction(const char *buffer, const uint8 *bytes)
+{
+    if (verbose > 1) {
+	if (1) {
+	    for (int j = 0; j < MAX_INSN_LENGTH; j++)
+		fprintf(stderr, "%02x ", bytes[j]);
+	    fprintf(stderr, "| ");
+	}
+	fprintf(stderr, "%s\n", buffer);
+    }
+}
+
 static void show_status(unsigned long n_tests)
 {
 #if 1
@@ -784,8 +826,6 @@ static void show_status(unsigned long n_tests)
 int main(void)
 {
     static char buffer[1024];
-#define MAX_INSN_LENGTH 16
-#define MAX_INSNS 1024
     static uint8 block[MAX_INSNS * MAX_INSN_LENGTH];
     static char *insns[MAX_INSNS];
     static int modes[MAX_INSNS];
@@ -794,7 +834,7 @@ int main(void)
 #if TEST_INST_ALU_REG
     printf("Testing reg forms\n");
     n_tests = n_failures = 0;
-    for (int r = 0; r < 16; r++) {
+    for (int r = 0; r < X86_MAX_REGS; r++) {
 	set_target(block);
 	uint8 *b = get_target();
 	int i = 0;
@@ -802,11 +842,16 @@ int main(void)
 	insns[i++] = INSN;			\
 	GENOP##r(r);				\
 } while (0)
+#define GEN64(INSN, GENOP) do {			\
+	if (X86_TARGET_64BIT)			\
+	    GEN(INSN, GENOP);			\
+} while (0)
 #define GENA(INSN, GENOP) do {			\
-	GEN(INSN "b", GENOP##B);		\
+	if (VALID_REG8(r))			\
+	    GEN(INSN "b", GENOP##B);		\
 	GEN(INSN "w", GENOP##W);		\
 	GEN(INSN "l", GENOP##L);		\
-	GEN(INSN "q", GENOP##Q);		\
+	GEN64(INSN "q", GENOP##Q);		\
 } while (0)
 	GENA("not", NOT);
 	GENA("neg", NEG);
@@ -816,29 +861,40 @@ int main(void)
 	GENA("idiv", IDIV);
 	GENA("dec", DEC);
 	GENA("inc", INC);
-	GEN("callq", CALLs);
-	GEN("jmpq", JMPs);
-	GEN(X86_TARGET_64BIT ? "pushq" : "pushl", PUSHQ);
-	GEN(X86_TARGET_64BIT ? "popq" : "popl", POPQ);
+	if (X86_TARGET_64BIT) {
+	    GEN("callq", CALLs);
+	    GEN("jmpq", JMPs);
+	    GEN("pushq", PUSHQ);
+	    GEN("popq", POPQ);
+	}
+	else {
+	    GEN("calll", CALLs);
+	    GEN("jmpl", JMPs);
+	    GEN("pushl", PUSHL);
+	    GEN("popl", POPL);
+	}
 	GEN("bswap", BSWAPL);	// FIXME: disass bug? no suffix
-	GEN("bswap", BSWAPQ);	// FIXME: disass bug? no suffix
-	GEN("seto", SETO);
-	GEN("setno", SETNO);
-	GEN("setb", SETB);
-	GEN("setae", SETAE);
-	GEN("sete", SETE);
-	GEN("setne", SETNE);
-	GEN("setbe", SETBE);
-	GEN("seta", SETA);
-	GEN("sets", SETS);
-	GEN("setns", SETNS);
-	GEN("setp", SETP);
-	GEN("setnp", SETNP);
-	GEN("setl", SETL);
-	GEN("setge", SETGE);
-	GEN("setle", SETLE);
-	GEN("setg", SETG);
+	GEN64("bswap", BSWAPQ);	// FIXME: disass bug? no suffix
+	if (VALID_REG8(r)) {
+	    GEN("seto", SETO);
+	    GEN("setno", SETNO);
+	    GEN("setb", SETB);
+	    GEN("setae", SETAE);
+	    GEN("sete", SETE);
+	    GEN("setne", SETNE);
+	    GEN("setbe", SETBE);
+	    GEN("seta", SETA);
+	    GEN("sets", SETS);
+	    GEN("setns", SETNS);
+	    GEN("setp", SETP);
+	    GEN("setnp", SETNP);
+	    GEN("setl", SETL);
+	    GEN("setge", SETGE);
+	    GEN("setle", SETLE);
+	    GEN("setg", SETG);
+	}
 #undef  GENA
+#undef  GEN64
 #undef  GEN
 	int last_insn = i;
 	uint8 *e = get_target();
@@ -851,8 +907,7 @@ int main(void)
 	    parse_insn(&ii, buffer);
 
 	    if (!check_reg(&ii, insns[i], r)) {
-		if (verbose > 1)
-		    fprintf(stderr, "%s\n", buffer);
+		show_instruction(buffer, p);
 		n_failures++;
 	    }
 
@@ -871,8 +926,8 @@ int main(void)
 #if TEST_INST_ALU_REG_REG
     printf("Testing reg,reg forms\n");
     n_tests = n_failures = 0;
-    for (int s = 0; s < 16; s++) {
-	for (int d = 0; d < 16; d++) {
+    for (int s = 0; s < X86_MAX_REGS; s++) {
+	for (int d = 0; d < X86_MAX_REGS; d++) {
 	    set_target(block);
 	    uint8 *b = get_target();
 	    int i = 0;
@@ -880,15 +935,20 @@ int main(void)
 	insns[i++] = INSN;			\
 	GENOP##rr(s, d);			\
 } while (0)
+#define GEN64(INSN, GENOP) do {			\
+	if (X86_TARGET_64BIT)			\
+	    GEN(INSN, GENOP);			\
+} while (0)
 #define GEN1(INSN, GENOP, OP) do {		\
 	insns[i++] = INSN;			\
 	GENOP##rr(OP, s, d);			\
 } while (0)
 #define GENA(INSN, GENOP) do {			\
-	GEN(INSN "b", GENOP##B);		\
+	if (VALID_REG8(s) && VALID_REG8(d))	\
+	    GEN(INSN "b", GENOP##B);		\
 	GEN(INSN "w", GENOP##W);		\
 	GEN(INSN "l", GENOP##L);		\
-	GEN(INSN "q", GENOP##Q);		\
+	GEN64(INSN "q", GENOP##Q);		\
 } while (0)
 	    GENA("adc", ADC);
 	    GENA("add", ADD);
@@ -901,45 +961,49 @@ int main(void)
 	    GENA("mov", MOV);
 	    GEN("btw", BTW);
 	    GEN("btl", BTL);
-	    GEN("btq", BTQ);
+	    GEN64("btq", BTQ);
 	    GEN("btcw", BTCW);
 	    GEN("btcl", BTCL);
-	    GEN("btcq", BTCQ);
+	    GEN64("btcq", BTCQ);
 	    GEN("btrw", BTRW);
 	    GEN("btrl", BTRL);
-	    GEN("btrq", BTRQ);
+	    GEN64("btrq", BTRQ);
 	    GEN("btsw", BTSW);
 	    GEN("btsl", BTSL);
-	    GEN("btsq", BTSQ);
+	    GEN64("btsq", BTSQ);
 	    GEN("imulw", IMULW);
 	    GEN("imull", IMULL);
-	    GEN("imulq", IMULQ);
+	    GEN64("imulq", IMULQ);
 	    GEN1("cmove", CMOVW, X86_CC_Z);
 	    GEN1("cmove", CMOVL, X86_CC_Z);
-	    GEN1("cmove", CMOVQ, X86_CC_Z);
+	    if (X86_TARGET_64BIT)
+		GEN1("cmove", CMOVQ, X86_CC_Z);
 	    GENA("test", TEST);
 	    GENA("cmpxchg", CMPXCHG);
 	    GENA("xadd", XADD);
 	    GENA("xchg", XCHG);
 	    GEN("bsfw", BSFW);
 	    GEN("bsfl", BSFL);
-	    GEN("bsfq", BSFQ);
+	    GEN64("bsfq", BSFQ);
 	    GEN("bsrw", BSRW);
 	    GEN("bsrl", BSRL);
-	    GEN("bsrq", BSRQ);
-	    GEN("movsbw", MOVSBW);
-	    GEN("movsbl", MOVSBL);
-	    GEN("movsbq", MOVSBQ);
-	    GEN("movzbw", MOVZBW);
-	    GEN("movzbl", MOVZBL);
-	    GEN("movzbq", MOVZBQ);
+	    GEN64("bsrq", BSRQ);
+	    if (VALID_REG8(s)) {
+		GEN("movsbw", MOVSBW);
+		GEN("movsbl", MOVSBL);
+		GEN64("movsbq", MOVSBQ);
+		GEN("movzbw", MOVZBW);
+		GEN("movzbl", MOVZBL);
+		GEN64("movzbq", MOVZBQ);
+	    }
 	    GEN("movswl", MOVSWL);
-	    GEN("movswq", MOVSWQ);
+	    GEN64("movswq", MOVSWQ);
 	    GEN("movzwl", MOVZWL);
-	    GEN("movzwq", MOVZWQ);
-	    GEN("movslq", MOVSLQ);
+	    GEN64("movzwq", MOVZWQ);
+	    GEN64("movslq", MOVSLQ);
 #undef  GENA
 #undef  GEN1
+#undef  GEN64
 #undef  GEN
 	    int last_insn = i;
 	    uint8 *e = get_target();
@@ -952,8 +1016,8 @@ int main(void)
 		parse_insn(&ii, buffer);
 
 		if (!check_reg_reg(&ii, insns[i], s, d)) {
-		    if (verbose > 1)
-			fprintf(stderr, "%s\n", buffer);
+		    fprintf(stderr, "s %d, d %d\n", s, d);
+		    show_instruction(buffer, p);
 		    n_failures++;
 		}
 
@@ -973,7 +1037,7 @@ int main(void)
 #if TEST_INST_ALU_CNT_REG
     printf("Testing cl,reg forms\n");
     n_tests = n_failures = 0;
-    for (int d = 0; d < 16; d++) {
+    for (int d = 0; d < X86_MAX_REGS; d++) {
 	set_target(block);
 	uint8 *b = get_target();
 	int i = 0;
@@ -981,11 +1045,16 @@ int main(void)
 	insns[i++] = INSN;		\
 	GENOP##rr(X86_CL, d);		\
 } while (0)
+#define GEN64(INSN, GENOP) do {		\
+	if (X86_TARGET_64BIT)		\
+	    GEN(INSN, GENOP);		\
+} while (0)
 #define GENA(INSN, GENOP) do {		\
-	GEN(INSN "b", GENOP##B);	\
+	if (VALID_REG8(d))		\
+	    GEN(INSN "b", GENOP##B);	\
 	GEN(INSN "w", GENOP##W);	\
 	GEN(INSN "l", GENOP##L);	\
-	GEN(INSN "q", GENOP##Q);	\
+	GEN64(INSN "q", GENOP##Q);	\
 } while (0)
 	GENA("rol", ROL);
 	GENA("ror", ROR);
@@ -995,6 +1064,7 @@ int main(void)
 	GENA("shr", SHR);
 	GENA("sar", SAR);
 #undef  GENA
+#undef  GEN64
 #undef  GEN
 	int last_insn = i;
 	uint8 *e = get_target();
@@ -1007,8 +1077,7 @@ int main(void)
 	    parse_insn(&ii, buffer);
 
 	    if (!check_reg_reg(&ii, insns[i], X86_CL, d)) {
-		if (verbose > 1)
-		    fprintf(stderr, "%s\n", buffer);
+		show_instruction(buffer, p);
 		n_failures++;
 	    }
 
@@ -1046,7 +1115,7 @@ int main(void)
     n_tests = n_failures = 0;
     for (int j = 0; j < n_imm_tab_count; j++) {
 	const uint32 value = imm_table[j];
-	for (int d = 0; d < 16; d++) {
+	for (int d = 0; d < X86_MAX_REGS; d++) {
 	    set_target(block);
 	    uint8 *b = get_target();
 	    int i = 0;
@@ -1055,22 +1124,32 @@ int main(void)
 		modes[i] = -1;			\
 		i++; GENOP##ir(value, d);	\
 	} while (0)
+#define GEN64(INSN, GENOP) do {			\
+		if (X86_TARGET_64BIT)		\
+		    GEN(INSN, GENOP);		\
+	} while (0)
 #define GENM(INSN, GENOP, MODE) do {		\
 		insns[i] = INSN;		\
 		modes[i] = MODE;		\
 		i++; GENOP##ir(value, d);	\
 	} while (0)
+#define GENM64(INSN, GENOP, MODE) do {		\
+		if (X86_TARGET_64BIT)		\
+		    GENM(INSN, GENOP, MODE);	\
+	} while (0)
 #define GENA(INSN, GENOP) do {			\
+		if (VALID_REG8(d))		\
 		GEN(INSN "b", GENOP##B);	\
 		GEN(INSN "w", GENOP##W);	\
 		GEN(INSN "l", GENOP##L);	\
-		GEN(INSN "q", GENOP##Q);	\
+		GEN64(INSN "q", GENOP##Q);	\
 	} while (0)
 #define GENAM(INSN, GENOP, MODE) do {		\
+		if (VALID_REG8(d))		\
 		GENM(INSN "b", GENOP##B, MODE);	\
 		GENM(INSN "w", GENOP##W, MODE);	\
 		GENM(INSN "l", GENOP##L, MODE);	\
-		GENM(INSN "q", GENOP##Q, MODE);	\
+		GENM64(INSN "q", GENOP##Q, MODE);	\
 	} while (0)
 	    GENA("adc", ADC);
 	    GENA("add", ADD);
@@ -1083,16 +1162,16 @@ int main(void)
 	    GENA("mov", MOV);
 	    GENM("btw", BTW, 1);
 	    GENM("btl", BTL, 1);
-	    GENM("btq", BTQ, 1);
+	    GENM64("btq", BTQ, 1);
 	    GENM("btcw", BTCW, 1);
 	    GENM("btcl", BTCL, 1);
-	    GENM("btcq", BTCQ, 1);
+	    GENM64("btcq", BTCQ, 1);
 	    GENM("btrw", BTRW, 1);
 	    GENM("btrl", BTRL, 1);
-	    GENM("btrq", BTRQ, 1);
+	    GENM64("btrq", BTRQ, 1);
 	    GENM("btsw", BTSW, 1);
 	    GENM("btsl", BTSL, 1);
-	    GENM("btsq", BTSQ, 1);
+	    GENM64("btsq", BTSQ, 1);
 	    if (value != 1) {
 		GENAM("rol", ROL, 1);
 		GENAM("ror", ROR, 1);
@@ -1105,7 +1184,9 @@ int main(void)
 	    GENA("test", TEST);
 #undef GENAM
 #undef GENA
+#undef GENM64
 #undef GENM
+#undef GEN64
 #undef GEN
 	    int last_insn = i;
 	    uint8 *e = get_target();
@@ -1118,8 +1199,7 @@ int main(void)
 		parse_insn(&ii, buffer);
 
 		if (!check_imm_reg(&ii, insns[i], value, d, modes[i])) {
-		    if (verbose > 1)
-			fprintf(stderr, "%s\n", buffer);
+		    show_instruction(buffer, p);
 		    n_failures++;
 		}
 
@@ -1153,14 +1233,14 @@ int main(void)
     n_tests = n_failures = 0;
     for (int d = 0; d < off_table_count; d++) {
 	const uint32 D = off_table[d];
-	for (int B = -1; B < 16; B++) {
-	    for (int I = -1; I < 16; I++) {
+	for (int B = -1; B < X86_MAX_REGS; B++) {
+	    for (int I = -1; I < X86_MAX_REGS; I++) {
 		if (I == X86_RSP)
 		    continue;
 		for (int S = 1; S < 16; S *= 2) {
 		    if (I == -1 && S > 1)
 			continue;
-		    for (int r = 0; r < 16; r++) {
+		    for (int r = 0; r < X86_MAX_REGS; r++) {
 			set_target(block);
 			uint8 *b = get_target();
 			int i = 0;
@@ -1168,11 +1248,16 @@ int main(void)
 			insns[i++] = INSN;		\
 			GENOP##mr(D, B, I, S, r);	\
 			} while (0)
+#define GEN64(INSN, GENOP) do {				\
+			if (X86_TARGET_64BIT)		\
+			    GEN(INSN, GENOP);		\
+			} while (0)
 #define GENA(INSN, GENOP) do {				\
-			GEN(INSN "b", GENOP##B);	\
+			if (VALID_REG8(r))		\
+			    GEN(INSN "b", GENOP##B);	\
 			GEN(INSN "w", GENOP##W);	\
 			GEN(INSN "l", GENOP##L);	\
-			GEN(INSN "q", GENOP##Q);	\
+			GEN64(INSN "q", GENOP##Q);	\
 			} while (0)
 			GENA("adc", ADC);
 			GENA("add", ADD);
@@ -1185,25 +1270,26 @@ int main(void)
 			GENA("mov", MOV);
 			GEN("imulw", IMULW);
 			GEN("imull", IMULL);
-			GEN("imulq", IMULQ);
+			GEN64("imulq", IMULQ);
 			GEN("bsfw", BSFW);
 			GEN("bsfl", BSFL);
-			GEN("bsfq", BSFQ);
+			GEN64("bsfq", BSFQ);
 			GEN("bsrw", BSRW);
 			GEN("bsrl", BSRL);
-			GEN("bsrq", BSRQ);
+			GEN64("bsrq", BSRQ);
 			GEN("movsbw", MOVSBW);
 			GEN("movsbl", MOVSBL);
-			GEN("movsbq", MOVSBQ);
+			GEN64("movsbq", MOVSBQ);
 			GEN("movzbw", MOVZBW);
 			GEN("movzbl", MOVZBL);
-			GEN("movzbq", MOVZBQ);
+			GEN64("movzbq", MOVZBQ);
 			GEN("movswl", MOVSWL);
-			GEN("movswq", MOVSWQ);
+			GEN64("movswq", MOVSWQ);
 			GEN("movzwl", MOVZWL);
-			GEN("movzwq", MOVZWQ);
-			GEN("movslq", MOVSLQ);
+			GEN64("movzwq", MOVZWQ);
+			GEN64("movslq", MOVSLQ);
 #undef  GENA
+#undef  GEN64
 #undef  GEN
 			int last_insn = i;
 			uint8 *e = get_target();
@@ -1216,8 +1302,7 @@ int main(void)
 			    parse_insn(&ii, buffer);
 
 			    if (!check_mem_reg(&ii, insns[i], D, B, I, S, r)) {
-				if (verbose > 1)
-				    fprintf(stderr, "%s\n", buffer);
+				show_instruction(buffer, p);
 				n_failures++;
 			    }
 
@@ -1238,17 +1323,21 @@ int main(void)
     n_all_failures += n_failures;
 #endif
 
-#if TEST_INST_VPU_REG_REG
-    printf("Testing SIMD reg,reg forms\n");
+#if TEST_INST_SSE_REG_REG
+    printf("Testing SSE reg,reg forms\n");
     n_tests = n_failures = 0;
-    for (int s = 0; s < 16; s++) {
-	for (int d = 0; d < 16; d++) {
+    for (int s = 0; s < X86_MAX_REGS; s++) {
+	for (int d = 0; d < X86_MAX_REGS; d++) {
 	    set_target(block);
 	    uint8 *b = get_target();
 	    int i = 0;
 #define GEN(INSN, GENOP) do {			\
 	insns[i++] = INSN;			\
 	GENOP##rr(s, d);			\
+} while (0)
+#define GEN64(INSN, GENOP) do {			\
+	if (X86_TARGET_64BIT)			\
+	    GEN(INSN, GENOP);			\
 } while (0)
 #define GEN1(INSN, GENOP) do {			\
 	GEN(INSN "s", GENOP##S);		\
@@ -1299,9 +1388,9 @@ int main(void)
 	    GEN("movdqa", MOVDQA);
 	    GEN("movdqu", MOVDQU);
 	    GEN("movd", MOVDXD);
-	    GEN("movd", MOVQXD);	// FIXME: disass bug? "movq" expected
+	    GEN64("movd", MOVQXD);	// FIXME: disass bug? "movq" expected
 	    GEN("movd", MOVDXS);
-	    GEN("movd", MOVQXS);	// FIXME: disass bug? "movq" expected
+	    GEN64("movd", MOVQXS);	// FIXME: disass bug? "movq" expected
 	    GEN("cvtdq2pd", CVTDQ2PD);
 	    GEN("cvtdq2ps", CVTDQ2PS);
 	    GEN("cvtpd2dq", CVTPD2DQ);
@@ -1309,21 +1398,21 @@ int main(void)
 	    GEN("cvtps2dq", CVTPS2DQ);
 	    GEN("cvtps2pd", CVTPS2PD);
 	    GEN("cvtsd2si", CVTSD2SIL);
-	    GEN("cvtsd2siq", CVTSD2SIQ);
+	    GEN64("cvtsd2siq", CVTSD2SIQ);
 	    GEN("cvtsd2ss", CVTSD2SS);
 	    GEN("cvtsi2sd", CVTSI2SDL);
-	    GEN("cvtsi2sdq", CVTSI2SDQ);
+	    GEN64("cvtsi2sdq", CVTSI2SDQ);
 	    GEN("cvtsi2ss", CVTSI2SSL);
-	    GEN("cvtsi2ssq", CVTSI2SSQ);
+	    GEN64("cvtsi2ssq", CVTSI2SSQ);
 	    GEN("cvtss2sd", CVTSS2SD);
 	    GEN("cvtss2si", CVTSS2SIL);
-	    GEN("cvtss2siq", CVTSS2SIQ);
+	    GEN64("cvtss2siq", CVTSS2SIQ);
 	    GEN("cvttpd2dq", CVTTPD2DQ);
 	    GEN("cvttps2dq", CVTTPS2DQ);
 	    GEN("cvttsd2si", CVTTSD2SIL);
-	    GEN("cvttsd2siq", CVTTSD2SIQ);
+	    GEN64("cvttsd2siq", CVTTSD2SIQ);
 	    GEN("cvttss2si", CVTTSS2SIL);
-	    GEN("cvttss2siq", CVTTSS2SIQ);
+	    GEN64("cvttss2siq", CVTTSS2SIQ);
 	    if (s < 8) {
 		// MMX source register
 		GEN("cvtpi2pd", CVTPI2PD);
@@ -1341,6 +1430,7 @@ int main(void)
 #undef  GENI
 #undef  GENA
 #undef  GEN1
+#undef  GEN64
 #undef  GEN
 	    int last_insn = i;
 	    uint8 *e = get_target();
@@ -1353,14 +1443,7 @@ int main(void)
 		parse_insn(&ii, buffer);
 
 		if (!check_reg_reg(&ii, insns[i], s, d)) {
-		    if (verbose > 1) {
-			if (1) {
-			    for (int j = 0; j < MAX_INSN_LENGTH; j++)
-				fprintf(stderr, "%02x ", p[j]);
-			    fprintf(stderr, "| ");
-			}
-			fprintf(stderr, "%s\n", buffer);
-		    }
+		    show_instruction(buffer, p);
 		    n_failures++;
 		}
 
@@ -1377,25 +1460,29 @@ int main(void)
     n_all_failures += n_failures;
 #endif
 
-#if TEST_INST_VPU_MEM_REG
-    printf("Testing SIMD mem,reg forms\n");
+#if TEST_INST_SSE_MEM_REG
+    printf("Testing SSE mem,reg forms\n");
     n_tests = n_failures = 0;
     for (int d = 0; d < off_table_count; d++) {
 	const uint32 D = off_table[d];
-	for (int B = -1; B < 16; B++) {
-	    for (int I = -1; I < 16; I++) {
+	for (int B = -1; B < X86_MAX_REGS; B++) {
+	    for (int I = -1; I < X86_MAX_REGS; I++) {
 		if (I == X86_RSP)
 		    continue;
 		for (int S = 1; S < 16; S *= 2) {
 		    if (I == -1 && S > 1)
 			continue;
-		    for (int r = 0; r < 16; r++) {
+		    for (int r = 0; r < X86_MAX_REGS; r++) {
 			set_target(block);
 			uint8 *b = get_target();
 			int i = 0;
 #define GEN(INSN, GENOP) do {			\
 	insns[i++] = INSN;			\
 	GENOP##mr(D, B, I, S, r);		\
+} while (0)
+#define GEN64(INSN, GENOP) do {			\
+	if (X86_TARGET_64BIT)			\
+	    GEN(INSN, GENOP);			\
 } while (0)
 #define GEN1(INSN, GENOP) do {			\
 	GEN(INSN "s", GENOP##S);		\
@@ -1448,7 +1535,7 @@ int main(void)
 #if 0
 			// FIXME: extraneous REX bits generated
 			GEN("movd", MOVDXD);
-			GEN("movd", MOVQXD);	// FIXME: disass bug? "movq" expected
+			GEN64("movd", MOVQXD);	// FIXME: disass bug? "movq" expected
 #endif
 			GEN("cvtdq2pd", CVTDQ2PD);
 			GEN("cvtdq2ps", CVTDQ2PS);
@@ -1457,21 +1544,21 @@ int main(void)
 			GEN("cvtps2dq", CVTPS2DQ);
 			GEN("cvtps2pd", CVTPS2PD);
 			GEN("cvtsd2si", CVTSD2SIL);
-			GEN("cvtsd2siq", CVTSD2SIQ);
+			GEN64("cvtsd2siq", CVTSD2SIQ);
 			GEN("cvtsd2ss", CVTSD2SS);
 			GEN("cvtsi2sd", CVTSI2SDL);
-			GEN("cvtsi2sdq", CVTSI2SDQ);
+			GEN64("cvtsi2sdq", CVTSI2SDQ);
 			GEN("cvtsi2ss", CVTSI2SSL);
-			GEN("cvtsi2ssq", CVTSI2SSQ);
+			GEN64("cvtsi2ssq", CVTSI2SSQ);
 			GEN("cvtss2sd", CVTSS2SD);
 			GEN("cvtss2si", CVTSS2SIL);
-			GEN("cvtss2siq", CVTSS2SIQ);
+			GEN64("cvtss2siq", CVTSS2SIQ);
 			GEN("cvttpd2dq", CVTTPD2DQ);
 			GEN("cvttps2dq", CVTTPS2DQ);
 			GEN("cvttsd2si", CVTTSD2SIL);
-			GEN("cvttsd2siq", CVTTSD2SIQ);
+			GEN64("cvttsd2siq", CVTTSD2SIQ);
 			GEN("cvttss2si", CVTTSS2SIL);
-			GEN("cvttss2siq", CVTTSS2SIQ);
+			GEN64("cvttss2siq", CVTTSS2SIQ);
 			if (r < 8) {
 			    // MMX dest register
 			    GEN("cvtpd2pi", CVTPD2PI);
@@ -1484,6 +1571,7 @@ int main(void)
 #undef  GENI
 #undef  GENA
 #undef  GEN1
+#undef  GEN64
 #undef  GEN
 			int last_insn = i;
 			uint8 *e = get_target();
@@ -1496,14 +1584,7 @@ int main(void)
 			    parse_insn(&ii, buffer);
 
 			    if (!check_mem_reg(&ii, insns[i], D, B, I, S, r)) {
-				if (verbose > 1) {
-				    if (1) {
-					for (int j = 0; j < MAX_INSN_LENGTH; j++)
-					    fprintf(stderr, "%02x ", p[j]);
-					fprintf(stderr, "| ");
-				    }
-				    fprintf(stderr, "%s\n", buffer);
-				}
+				show_instruction(buffer, p);
 				n_failures++;
 			    }
 
