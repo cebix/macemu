@@ -536,7 +536,7 @@ public:
 	void gen_##NAME(x86_memory_operand const & mem, int d)			\
 		{ GEN_CODE(OP##mr(mem.MD, mem.MB, mem.MI, mem.MS, d)); }
 
-	DEFINE_OP(movd_lx, MOVDLX);
+	DEFINE_OP(movd_lx, MOVDXD);
 
 #undef DEFINE_OP
 
@@ -548,7 +548,7 @@ public:
 	void gen_##NAME(int s, x86_memory_operand const & mem)			\
 		{ GEN_CODE(OP##rm(s, mem.MD, mem.MB, mem.MI, mem.MS)); }
 
-	DEFINE_OP(movd_xl, MOVDXL);
+	DEFINE_OP(movd_xl, MOVDXS);
 
 #undef DEFINE_OP
 
