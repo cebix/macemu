@@ -256,38 +256,6 @@ struct insn_t {
     }
 };
 
-static const struct {
-    const char *name;
-    int reg;
-}
-regnames[] = {
-#define _(REG) { #REG, X86_##REG }
-
-    _(AL), _(CL), _(DL), _(BL),
-    _(AH), _(CH), _(DH), _(BH),
-    _(SPL), _(BPL), _(SIL), _(DIL),
-    _(R8B), _(R9B), _(R10B), _(R11B), _(R12B), _(R13B), _(R14B), _(R15B),
-
-    _(AX), _(CX), _(DX), _(BX), _(SP), _(BP), _(SI), _(DI),
-    _(R8W), _(R9W), _(R10W), _(R11W), _(R12W), _(R13W), _(R14W), _(R15W),
-
-    _(EAX), _(ECX), _(EDX), _(EBX), _(ESP), _(EBP), _(ESI), _(EDI),
-    _(R8D), _(R9D), _(R10D), _(R11D), _(R12D), _(R13D), _(R14D), _(R15D),
-
-    _(RAX), _(RCX), _(RDX), _(RBX), _(RSP), _(RBP), _(RSI), _(RDI),
-    _(R8), _(R9), _(R10), _(R11), _(R12), _(R13), _(R14), _(R15),
-
-    _(MM0), _(MM1), _(MM2), _(MM3), _(MM4), _(MM5), _(MM6), _(MM7),
-
-    _(XMM0),  _(XMM1),  _(XMM2),  _(XMM3),
-    _(XMM4),  _(XMM5),  _(XMM6),  _(XMM7),
-    _(XMM8),  _(XMM9),  _(XMM10), _(XMM11),
-    _(XMM12), _(XMM13), _(XMM14), _(XMM15),
-
-    { NULL, -1 }
-#undef _
-};
-
 static inline char *find_blanks(char *p)
 {
     while (*p && !isspace(*p))
@@ -304,48 +272,204 @@ static inline char *skip_blanks(char *p)
 
 static int parse_reg(operand_t *op, int optype, char *buf)
 {
-    // fast lookup (SSE registers)
-    int reg = 0;
+    int reg = X86_NOREG;
     int len = 0;
     char *p = buf;
-    switch (*p) {
-    case 'x': case 'X':
-	if (strncasecmp(p, "xmm", 3) == 0) {
-	    len = 3;
-	    if (isdigit(p[len+1]) && p[len] == '1')
-		reg = 10, len++;
-	    if (isdigit(p[len])) {
-		reg += p[len++] - '0';
-		op->fill(optype, X86_RegXMM_Base + reg);
-		return len;
+    switch (p[0]) {
+    case 'a': case 'A':
+	len = 2;
+	switch (p[1]) {
+	case 'l': case 'L': reg = X86_AL; break;
+	case 'h': case 'H': reg = X86_AH; break;
+	case 'x': case 'X': reg = X86_AX; break;
+	}
+	break;
+    case 'b': case 'B':
+	len = 2;
+	switch (p[1]) {
+	case 'l': case 'L': reg = X86_BL; break;
+	case 'h': case 'H': reg = X86_BH; break;
+	case 'x': case 'X': reg = X86_BX; break;
+	case 'p': case 'P':
+	    switch (p[2]) {
+	    case 'l': case 'L': reg = X86_BPL, ++len; break;
+	    default: reg = X86_BP; break;
 	    }
+	    break;
+	}
+	break;
+    case 'c': case 'C':
+	len = 2;
+	switch (p[1]) {
+	case 'l': case 'L': reg = X86_CL; break;
+	case 'h': case 'H': reg = X86_CH; break;
+	case 'x': case 'X': reg = X86_CX; break;
+	}
+	break;
+    case 'd': case 'D':
+	len = 2;
+	switch (p[1]) {
+	case 'l': case 'L': reg = X86_DL; break;
+	case 'h': case 'H': reg = X86_DH; break;
+	case 'x': case 'X': reg = X86_DX; break;
+	case 'i': case 'I':
+	    switch (p[2]) {
+	    case 'l': case 'L': reg = X86_DIL; ++len; break;
+	    default: reg = X86_DI; break;
+	    }
+	    break;
+	}
+	break;
+    case 's': case 'S':
+	len = 2;
+	switch (p[2]) {
+	case 'l': case 'L':
+	    ++len;
+	    switch (p[1]) {
+	    case 'p': case 'P': reg = X86_SPL; break;
+	    case 'i': case 'I': reg = X86_SIL; break;
+	    }
+	    break;
+	default:
+	    switch (p[1]) {
+	    case 'p': case 'P': reg = X86_SP; break;
+	    case 'i': case 'I': reg = X86_SI; break;
+	    }
+	    break;
+	}
+	break;
+    case 'e': case 'E':
+	len = 3;
+	switch (p[2]) {
+	case 'x': case 'X':
+	    switch (p[1]) {
+	    case 'a': case 'A': reg = X86_EAX; break;
+	    case 'b': case 'B': reg = X86_EBX; break;
+	    case 'c': case 'C': reg = X86_ECX; break;
+	    case 'd': case 'D': reg = X86_EDX; break;
+	    }
+	    break;
+	case 'i': case 'I':
+	    switch (p[1]) {
+	    case 's': case 'S': reg = X86_ESI; break;
+	    case 'd': case 'D': reg = X86_EDI; break;
+	    }
+	    break;
+	case 'p': case 'P':
+	    switch (p[1]) {
+	    case 'b': case 'B': reg = X86_EBP; break;
+	    case 's': case 'S': reg = X86_ESP; break;
+	    }
+	    break;
+	}
+	break;
+    case 'r': case 'R':
+	len = 3;
+	switch (p[2]) {
+	case 'x': case 'X':
+	    switch (p[1]) {
+	    case 'a': case 'A': reg = X86_RAX; break;
+	    case 'b': case 'B': reg = X86_RBX; break;
+	    case 'c': case 'C': reg = X86_RCX; break;
+	    case 'd': case 'D': reg = X86_RDX; break;
+	    }
+	    break;
+	case 'i': case 'I':
+	    switch (p[1]) {
+	    case 's': case 'S': reg = X86_RSI; break;
+	    case 'd': case 'D': reg = X86_RDI; break;
+	    }
+	    break;
+	case 'p': case 'P':
+	    switch (p[1]) {
+	    case 'b': case 'B': reg = X86_RBP; break;
+	    case 's': case 'S': reg = X86_RSP; break;
+	    }
+	    break;
+	case 'b': case 'B':
+	    switch (p[1]) {
+	    case '8': reg = X86_R8B; break;
+	    case '9': reg = X86_R9B; break;
+	    }
+	    break;
+	case 'w': case 'W':
+	    switch (p[1]) {
+	    case '8': reg = X86_R8W; break;
+	    case '9': reg = X86_R9W; break;
+	    }
+	    break;
+	case 'd': case 'D':
+	    switch (p[1]) {
+	    case '8': reg = X86_R8D; break;
+	    case '9': reg = X86_R9D; break;
+	    }
+	    break;
+	case '0': case '1': case '2': case '3': case '4': case '5':
+	    if (p[1] == '1') {
+		const int r = 10 + (p[2] - '0');
+		switch (p[3]) {
+		case 'b': case 'B': reg = X86_Reg8L_Base + r, ++len; break;
+		case 'w': case 'W': reg = X86_Reg16_Base + r, ++len; break;
+		case 'd': case 'D': reg = X86_Reg32_Base + r, ++len; break;
+		default: reg = X86_Reg64_Base + r; break;
+		}
+	    }
+	    break;
+	default:
+	    if (isdigit(p[1]))
+		reg = X86_Reg64_Base + (p[1] - '0'), len = 2;
+	    break;
+	}
+	break;
+    case 'm': case 'M':
+	if ((p[1] == 'm' || p[1] == 'M') && isdigit(p[2]))
+	    reg = X86_RegMMX_Base + (p[2] - '0'), len = 3;
+	break;
+    case 'x': case 'X':
+	if ((p[1] == 'm' || p[1] == 'M') && (p[2] == 'm' || p[2] == 'M')) {
+	    if (p[3] == '1' && isdigit(p[4]))
+		reg = 10 + (p[4] - '0'), len = 5;
+	    else if (isdigit(p[3]))
+		reg = p[3] - '0', len = 4;
 	}
 	break;
     }
 
-    // slow table lookup
-    for (int i = 0; regnames[i].name; i++) {
-	int len = strlen(regnames[i].name);
-	if (strncasecmp(regnames[i].name, buf, len) == 0) {
-	    op->fill(optype, regnames[i].reg);
-	    return len;
-	}
+    if (len > 0 && reg != X86_NOREG) {
+	op->fill(optype, reg);
+	return len;
     }
 
-    // nothing found
-    return 0;
+    return X86_NOREG;
+}
+
+static unsigned long parse_imm(char *nptr, char **endptr, int base = 0)
+{
+    unsigned long val = 0;
+    errno = 0;
+    if (X86_TARGET_64BIT && sizeof(unsigned long) != 8) {
+	unsigned long long v = strtoull(nptr, endptr, 0);
+	if (errno == 0)
+	    val = v;
+	else
+	    abort();
+    }
+    else {
+	unsigned long v = strtoul(nptr, endptr, 0);
+	if (errno == 0)
+	    val = v;
+	else
+	    abort();
+    }
+    return val;
 }
 
 static int parse_mem(operand_t *op, char *buf)
 {
     char *p = buf;
 
-    if (strncmp(buf, "0x", 2) == 0) {
-	unsigned long val = strtoul(buf, &p, 16);
-	if (val == 0 && errno == EINVAL)
-	    abort();
-	op->disp = val;
-    }
+    if (strncmp(buf, "0x", 2) == 0)
+	op->disp = parse_imm(buf, &p, 16);
 
     if (*p == '(') {
 	p++;
@@ -453,10 +577,7 @@ static void parse_insn(insn_t *ii, char *buf)
 	    p += n;
 	    break;
 	case '$': {
-	    unsigned long val = strtoul(++p, &p, 16);
-	    if (val == 0 && errno == EINVAL)
-		abort();
-	    ii->operands[n_operands].imm = val;
+	    ii->operands[n_operands].imm = parse_imm(++p, &p, 0);
 	    break;
 	}
 	case '*':
@@ -502,7 +623,7 @@ static bool check_reg(insn_t *ii, const char *name, int r)
 	if (reg == -1)
 	    fprintf(stderr, "nothing\n");
 	else
-	    fprintf(stderr, "%d\n", reg);
+	    fprintf(stderr, "r%d\n", reg);
 	return false;
     }
 
