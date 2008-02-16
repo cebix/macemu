@@ -42,7 +42,6 @@
  * TODO
  *
  *	o Fix FIXMEs
- *	o i387 FPU instructions
  *	o SSE instructions
  *	o Optimize for cases where register numbers are not integral constants
  */
@@ -111,6 +110,7 @@ enum {
   X86_Reg64_Base  = 0x50,
   X86_RegMMX_Base = 0x60,
   X86_RegXMM_Base = 0x70,
+  X86_RegFPU_Base = 0x80
 #else
   X86_NOREG       = -1,
   X86_Reg8L_Base  = 0,
@@ -120,6 +120,7 @@ enum {
   X86_Reg64_Base  = 0,
   X86_RegMMX_Base = 0,
   X86_RegXMM_Base = 0,
+  X86_RegFPU_Base = 0
 #endif
 };
 
@@ -171,6 +172,12 @@ enum {
   X86_XMM12, X86_XMM13, X86_XMM14, X86_XMM15
 };
 
+enum {
+  X86_ST0 = X86_RegFPU_Base,
+  X86_ST1, X86_ST2, X86_ST3,
+  X86_ST4, X86_ST5, X86_ST6, X86_ST7
+};
+
 /* Register control and access
  *
  *	_r0P(R)	Null register?
@@ -187,9 +194,11 @@ enum {
  *	_r8(R)	64-bit register ID
  *	_rM(R)	MMX register ID
  *	_rX(R)	XMM register ID
+ *	_rF(R)	FPU register ID
  *	_rA(R)	Address register ID used for EA calculation
  */
 
+#define _rST0P(R)	((int)(R) == (int)X86_ST0)
 #define _r0P(R)		((int)(R) == (int)X86_NOREG)
 #define _rIP(R)		(X86_TARGET_64BIT ? ((int)(R) == (int)X86_RIP) : 0)
 
@@ -212,6 +221,7 @@ enum {
 #define _rA(R)		_rN(R)
 #define _rM(R)		_rN(R)
 #define _rX(R)		_rN(R)
+#define _rF(R)		_rN(R)
 #else
 #define _r1(R)		( ((_rC(R) & (X86_Reg8L_Base | X86_Reg8H_Base)) != 0)	? _rN(R) : x86_emit_failure0( "8-bit register required"))
 #define _r2(R)		( (_rC(R) == X86_Reg16_Base)				? _rN(R) : x86_emit_failure0("16-bit register required"))
@@ -222,6 +232,7 @@ enum {
 			( (_rC(R) == X86_Reg32_Base)				? _rN(R) : x86_emit_failure0("not a valid 32-bit base/index expression")) )
 #define _rM(R)		( (_rC(R) == X86_RegMMX_Base)				? _rN(R) : x86_emit_failure0("MMX register required"))
 #define _rX(R)		( (_rC(R) == X86_RegXMM_Base)				? _rN(R) : x86_emit_failure0("SSE register required"))
+#define _rF(R)		( (_rC(R) == X86_RegFPU_Base)				? _rN(R) : x86_emit_failure0("FPU register required"))
 #endif
 
 #define _rSP()		(X86_TARGET_64BIT ? (int)X86_RSP : (int)X86_ESP)
@@ -2326,99 +2337,229 @@ enum {
 #define MOVLPSrm(RS, MD, MB, MI, MS)	__SSELrm(      0x13, RS,_rX, MD, MB, MI, MS)
 
 
-/* --- FLoating-Point instructions ----------------------------------------- */
+/* --- Floating-Point instructions ----------------------------------------- */
 
-#define _ESCmi(D,B,I,S,OP)	(_REXLrm(0,B,I), _O_r_X(0xd8|(OP & 7), (OP >> 3), D,B,I,S))
+enum {
+  X86_F2XM1	= 0xd9f0,
+  X86_FABS	= 0xd9e1,
+  X86_FADD	= 0xd8c0, // m32fp, m64fp, sti0, st0i, pst0i
+  X86_FIADD	= 0xda00, // m32int, m16int
+  X86_FBLD	= 0xdf04, // mem
+  X86_FBSTP	= 0xdf06, // mem
+  X86_FCHS	= 0xd9e0,
+  X86_FCMOVB	= 0xdac0, // sti0
+  X86_FCMOVE	= 0xdac8, // sti0
+  X86_FCMOVBE	= 0xdad0, // sti0
+  X86_FCMOVU	= 0xdad8, // sti0
+  X86_FCMOVNB	= 0xdbc0, // sti0
+  X86_FCMOVNE	= 0xdbc8, // sti0
+  X86_FCMOVNBE	= 0xdbd0, // sti0
+  X86_FCMOVNU	= 0xdbd8, // sti0
+  X86_FCOM	= 0xd8d2, // m32fp, m64fp, sti
+  X86_FCOMP	= 0xd8db, // m32fp, m64fp, sti
+  X86_FCOMPP	= 0xded9,
+  X86_FCOMI	= 0xdbf0, // sti0
+  X86_FCOMIP	= 0xdff0, // sti0
+  X86_FUCOMI	= 0xdbe8, // sti0
+  X86_FUCOMIP	= 0xdfe8, // sti0
+  X86_FCOS	= 0xd9ff,
+  X86_FDECSTP	= 0xd9f6,
+  X86_FDIV	= 0xd8f6, // m32fp, m64fp, sti0, st0i, pst0i
+  X86_FIDIV	= 0xda06, // m32int, m16int
+  X86_FDIVR	= 0xd8ff, // m32fp, m64fp, sti0, st0i, pst0i
+  X86_FIDIVR	= 0xda07, // m32int, m16int
+  X86_FFREE	= 0xddc0, // sti
+  X86_FICOM	= 0xda02, // m32int, m16int
+  X86_FICOMP	= 0xda03, // m32int, m16int
+  X86_FILD	= 0xdb00, // m32int, m16int
+  X86_FILDQ	= 0xdf05, // mem
+  X86_FINCSTP	= 0xd9f7,
+  X86_FIST	= 0xdb02, // m32int, m16int
+  X86_FISTP	= 0xdb03, // m32int, m16int
+  X86_FISTPQ	= 0xdf07, // mem
+  X86_FISTTP	= 0xdb01, // m32int, m16int
+  X86_FISTTPQ	= 0xdd01, // mem
+  X86_FLD	= 0xd900, // m32fp, m64fp
+  X86_FLDT	= 0xdb05, // mem
+  X86_FLD1	= 0xd9e8,
+  X86_FLDL2T	= 0xd9e9,
+  X86_FLDL2E	= 0xd9ea,
+  X86_FLDPI	= 0xd9eb,
+  X86_FLDLG2	= 0xd9ec,
+  X86_FLDLN2	= 0xd9ed,
+  X86_FLDZ	= 0xd9ee,
+  X86_FMUL	= 0xd8c9, // m32fp, m64fp, sti0, st0i, pst0i
+  X86_FIMUL	= 0xda01, // m32int, m16int
+  X86_FNOP	= 0xd9d0,
+  X86_FPATAN	= 0xd9f3,
+  X86_FPREM	= 0xd9f8,
+  X86_FPREM1	= 0xd9f5,
+  X86_FPTAN	= 0xd9f2,
+  X86_FRNDINT	= 0xd9fc,
+  X86_FSCALE	= 0xd9fd,
+  X86_FSIN	= 0xd9fe,
+  X86_FSINCOS	= 0xd9fb,
+  X86_FSQRT	= 0xd9fa,
+  X86_FSTS	= 0xd902, // mem
+  X86_FSTL	= 0xdd02, // mem
+  X86_FST	= 0xddd0, // sti
+  X86_FSTPS	= 0xd903, // mem
+  X86_FSTPL	= 0xdd03, // mem
+  X86_FSTPT	= 0xdb07, // mem
+  X86_FSTP	= 0xddd8, // sti
+  X86_FSUB	= 0xd8e4, // m32fp, m64fp, sti0, st0i, pst0i
+  X86_FISUB	= 0xda04, // m32int, m16int
+  X86_FSUBR	= 0xd8ed, // m32fp, m64fp, sti0, st0i, pst0i
+  X86_FISUBR	= 0xda05, // m32int, m16int
+  X86_FTST	= 0xd9e4,
+  X86_FUCOM	= 0xdde0, // sti
+  X86_FUCOMP	= 0xdde8, // sti
+  X86_FUCOMPP	= 0xdae9,
+  X86_FXAM	= 0xd9e5,
+  X86_FXCH	= 0xd9c8, // sti
+  X86_FXTRACT	= 0xd9f4,
+  X86_FYL2X	= 0xd9f1,
+  X86_FYL2XP1	= 0xd9f9,
+};
 
-#define FLDr(R)			_OOr(0xd9c0,_rN(R))
-#define FLDLm(D,B,I,S)		_ESCmi(D,B,I,S,005)
-#define FLDSm(D,B,I,S)		_ESCmi(D,B,I,S,001)
-#define FLDTm(D,B,I,S)		_ESCmi(D,B,I,S,053)
+#define _FPU(OP)			_OO(OP)
+#define _FPUm(OP, MD, MB, MI, MS)	(_REXLrm(0, MB, MI), _O_r_X((OP)>>8, (OP)&7, MD, MB, MI, MS))
+#define _FPUSm(OP, MD, MB, MI, MS)	_FPUm(OP, MD, MB, MI, MS)
+#define _FPUDm(OP, MD, MB, MI, MS)	_FPUm((OP)|0x400, MD, MB, MI, MS)
+#define _FPULm(OP, MD, MB, MI, MS)	_FPUm(OP, MD, MB, MI, MS)
+#define _FPUWm(OP, MD, MB, MI, MS)	_FPUm((OP)|0x400, MD, MB, MI, MS)
+#define _FPUr(OP, RR)			_OOr((OP)&0xfff8, _rF(RR))
+#define _FPU0r(OP, RD)			_FPUr((OP)|0x400, RD)
+#define _FPUr0(OP, RS)			_FPUr((OP)      , RS)
+#define _FPUrr(OP, RS, RD)		(_rST0P(RS) ? _FPU0r(OP, RD) : (_rST0P(RD) ? _FPUr0(OP, RS) : x86_emit_failure("FPU instruction without st0")))
+#define _FPUP0r(OP, RD)			_FPU0r((OP)|0x200, RD)
 
-#define FSTr(R)			_OOr(0xddd0,_rN(R))
-#define FSTSm(D,B,I,S)		_ESCmi(D,B,I,S,021)
-#define FSTLm(D,B,I,S)		_ESCmi(D,B,I,S,025)
-
-#define FSTPr(R)		_OOr(0xddd8,_rN(R))
-#define FSTPSm(D,B,I,S)		_ESCmi(D,B,I,S,031)
-#define FSTPLm(D,B,I,S)		_ESCmi(D,B,I,S,035)
-#define FSTPTm(D,B,I,S)		_ESCmi(D,B,I,S,073)
-
-#define FADDr0(R)		_OOr(0xd8c0,_rN(R))
-#define FADD0r(R)		_OOr(0xdcc0,_rN(R))
-#define FADDP0r(R)		_OOr(0xdec0,_rN(R))
-#define FADDSm(D,B,I,S)		_ESCmi(D,B,I,S,000)
-#define FADDLm(D,B,I,S)		_ESCmi(D,B,I,S,004)
-
-#define FSUBSm(D,B,I,S)		_ESCmi(D,B,I,S,040)
-#define FSUBLm(D,B,I,S)		_ESCmi(D,B,I,S,044)
-#define FSUBr0(R)		_OOr(0xd8e0,_rN(R))
-#define FSUB0r(R)		_OOr(0xdce8,_rN(R))
-#define FSUBP0r(R)		_OOr(0xdee8,_rN(R))
-
-#define FSUBRr0(R)		_OOr(0xd8e8,_rN(R))
-#define FSUBR0r(R)		_OOr(0xdce0,_rN(R))
-#define FSUBRP0r(R)		_OOr(0xdee0,_rN(R))
-#define FSUBRSm(D,B,I,S)	_ESCmi(D,B,I,S,050)
-#define FSUBRLm(D,B,I,S)	_ESCmi(D,B,I,S,054)
-
-#define FMULr0(R)		_OOr(0xd8c8,_rN(R))
-#define FMUL0r(R)		_OOr(0xdcc8,_rN(R))
-#define FMULP0r(R)		_OOr(0xdec8,_rN(R))
-#define FMULSm(D,B,I,S)		_ESCmi(D,B,I,S,010)
-#define FMULLm(D,B,I,S)		_ESCmi(D,B,I,S,014)
-
-#define FDIVr0(R)		_OOr(0xd8f0,_rN(R))
-#define FDIV0r(R)		_OOr(0xdcf8,_rN(R))
-#define FDIVP0r(R)		_OOr(0xdef8,_rN(R))
-#define FDIVSm(D,B,I,S)		_ESCmi(D,B,I,S,060)
-#define FDIVLm(D,B,I,S)		_ESCmi(D,B,I,S,064)
-
-#define FDIVRr0(R)		_OOr(0xd8f8,_rN(R))
-#define FDIVR0r(R)		_OOr(0xdcf0,_rN(R))
-#define FDIVRP0r(R)		_OOr(0xdef0,_rN(R))
-#define FDIVRSm(D,B,I,S)	_ESCmi(D,B,I,S,070)
-#define FDIVRLm(D,B,I,S)	_ESCmi(D,B,I,S,074)
-
-#define FCMOVBr0(R)		_OOr(0xdac0,_rN(R))
-#define FCMOVBEr0(R)		_OOr(0xdad0,_rN(R))
-#define FCMOVEr0(R)		_OOr(0xdac8,_rN(R))
-#define FCMOVNBr0(R)		_OOr(0xdbc0,_rN(R))
-#define FCMOVNBEr0(R)		_OOr(0xdbd0,_rN(R))
-#define FCMOVNEr0(R)		_OOr(0xdbc8,_rN(R))
-#define FCMOVNUr0(R)		_OOr(0xdbd8,_rN(R))
-#define FCMOVUr0(R)		_OOr(0xdad8,_rN(R))
-#define FCOMIr0(R)		_OOr(0xdbf0,_rN(R))
-#define FCOMIPr0(R)		_OOr(0xdff0,_rN(R))
-
-#define FCOMr(R)		_OOr(0xd8d0,_rN(R))
-#define FCOMSm(D,B,I,S)		_ESCmi(D,B,I,S,020)
-#define FCOMLm(D,B,I,S)		_ESCmi(D,B,I,S,024)
-
-#define FCOMPr(R)		_OOr(0xd8d8,_rN(R))
-#define FCOMPSm(D,B,I,S)	_ESCmi(D,B,I,S,030)
-#define FCOMPLm(D,B,I,S)	_ESCmi(D,B,I,S,034)
-
-#define FUCOMIr0(R)		_OOr(0xdbe8,_rN(R))
-#define FUCOMIPr0(R)		_OOr(0xdfe8,_rN(R))
-#define FUCOMPr(R)		_OOr(0xdde8,_rN(R))
-#define FUCOMr(R)		_OOr(0xdde0,_rN(R))
-
-#define FIADDLm(D,B,I,S)	_ESCmi(D,B,I,S,002)
-#define FICOMLm(D,B,I,S)	_ESCmi(D,B,I,S,022)
-#define FICOMPLm(D,B,I,S)	_ESCmi(D,B,I,S,032)
-#define FIDIVLm(D,B,I,S)	_ESCmi(D,B,I,S,062)
-#define FIDIVRLm(D,B,I,S)	_ESCmi(D,B,I,S,072)
-#define FILDLm(D,B,I,S)		_ESCmi(D,B,I,S,003)
-#define FILDQm(D,B,I,S)		_ESCmi(D,B,I,S,057)
-#define FIMULLm(D,B,I,S)	_ESCmi(D,B,I,S,012)
-#define FISTLm(D,B,I,S)		_ESCmi(D,B,I,S,023)
-#define FISTPLm(D,B,I,S)	_ESCmi(D,B,I,S,033)
-#define FISTPQm(D,B,I,S)	_ESCmi(D,B,I,S,077)
-#define FISUBLm(D,B,I,S)	_ESCmi(D,B,I,S,042)
-#define FISUBRLm(D,B,I,S)	_ESCmi(D,B,I,S,052)
-
-#define FREEr(R)		_OOr(0xddc0,_rN(R))
-#define FXCHr(R)		_OOr(0xd9c8,_rN(R))
+#define F2XM1()				_FPU(X86_F2XM1)
+#define FABS()				_FPU(X86_FABS)
+#define FADDSm(MD, MB, MI, MS)		_FPUSm(X86_FADD, MD, MB, MI, MS)
+#define FADDDm(MD, MB, MI, MS)		_FPUDm(X86_FADD, MD, MB, MI, MS)
+#define FADDP0r(RD)			_FPUP0r(X86_FADD, RD)
+#define FADDrr(RS, RD)			_FPUrr(X86_FADD, RS, RD)
+#define FADD0r(RD)			_FPU0r(X86_FADD, RD)
+#define FADDr0(RS)			_FPUr0(X86_FADD, RS)
+#define FIADDWm(MD, MB, MI, MS)		_FPUWm(X86_FIADD, MD, MB, MI, MS)
+#define FIADDLm(MD, MB, MI, MS)		_FPULm(X86_FIADD, MD, MB, MI, MS)
+#define FBLDm(MD, MB, MI, MS)		_FPUm(X86_FBLD, MD, MB, MI, MS)
+#define FBSTPm(MD, MB, MI, MS)		_FPUm(X86_FBSTP, MD, MB, MI, MS)
+#define FCHS()				_FPU(X86_FCHS)
+#define FCMOVBr0(RS)			_FPUr0(X86_FCMOVB, RS)
+#define FCMOVEr0(RS)			_FPUr0(X86_FCMOVE, RS)
+#define FCMOVBEr0(RS)			_FPUr0(X86_FCMOVBE, RS)
+#define FCMOVUr0(RS)			_FPUr0(X86_FCMOVU, RS)
+#define FCMOVNBr0(RS)			_FPUr0(X86_FCMOVNB, RS)
+#define FCMOVNEr0(RS)			_FPUr0(X86_FCMOVNE, RS)
+#define FCMOVNBEr0(RS)			_FPUr0(X86_FCMOVNBE, RS)
+#define FCMOVNUr0(RS)			_FPUr0(X86_FCMOVNU, RS)
+#define FCOMSm(MD, MB, MI, MS)		_FPUSm(X86_FCOM, MD, MB, MI, MS)
+#define FCOMDm(MD, MB, MI, MS)		_FPUDm(X86_FCOM, MD, MB, MI, MS)
+#define FCOMr(RD)			_FPUr(X86_FCOM, RD)
+#define FCOMPSm(MD, MB, MI, MS)		_FPUSm(X86_FCOMP, MD, MB, MI, MS)
+#define FCOMPDm(MD, MB, MI, MS)		_FPUDm(X86_FCOMP, MD, MB, MI, MS)
+#define FCOMPr(RD)			_FPUr(X86_FCOMP, RD)
+#define FCOMPP()			_FPU(X86_FCOMPP)
+#define FCOMIr0(RS)			_FPUr0(X86_FCOMI, RS)
+#define FCOMIPr0(RS)			_FPUr0(X86_FCOMIP, RS)
+#define FUCOMIr0(RS)			_FPUr0(X86_FUCOMI, RS)
+#define FUCOMIPr0(RS)			_FPUr0(X86_FUCOMIP, RS)
+#define FCOS()				_FPU(X86_FCOS)
+#define FDECSTP()			_FPU(X86_FDECSTP)
+#define FDIVSm(MD, MB, MI, MS)		_FPUSm(X86_FDIV, MD, MB, MI, MS)
+#define FDIVDm(MD, MB, MI, MS)		_FPUDm(X86_FDIV, MD, MB, MI, MS)
+#define FDIVP0r(RD)			_FPUP0r(X86_FDIV, RD)
+#define FDIVrr(RS, RD)			_FPUrr(X86_FDIV, RS, RD)
+#define FDIV0r(RD)			_FPU0r(X86_FDIV, RD)
+#define FDIVr0(RS)			_FPUr0(X86_FDIV, RS)
+#define FIDIVWm(MD, MB, MI, MS)		_FPUWm(X86_FIDIV, MD, MB, MI, MS)
+#define FIDIVLm(MD, MB, MI, MS)		_FPULm(X86_FIDIV, MD, MB, MI, MS)
+#define FDIVRSm(MD, MB, MI, MS)		_FPUSm(X86_FDIVR, MD, MB, MI, MS)
+#define FDIVRDm(MD, MB, MI, MS)		_FPUDm(X86_FDIVR, MD, MB, MI, MS)
+#define FDIVRP0r(RD)			_FPUP0r(X86_FDIVR, RD)
+#define FDIVRrr(RS, RD)			_FPUrr(X86_FDIVR, RS, RD)
+#define FDIVR0r(RD)			_FPU0r(X86_FDIVR, RD)
+#define FDIVRr0(RS)			_FPUr0(X86_FDIVR, RS)
+#define FIDIVRWm(MD, MB, MI, MS)	_FPUWm(X86_FIDIVR, MD, MB, MI, MS)
+#define FIDIVRLm(MD, MB, MI, MS)	_FPULm(X86_FIDIVR, MD, MB, MI, MS)
+#define FFREEr(RD)			_FPUr(X86_FFREE, RD)
+#define FICOMWm(MD, MB, MI, MS)		_FPUWm(X86_FICOM, MD, MB, MI, MS)
+#define FICOMLm(MD, MB, MI, MS)		_FPULm(X86_FICOM, MD, MB, MI, MS)
+#define FICOMPWm(MD, MB, MI, MS)	_FPUWm(X86_FICOMP, MD, MB, MI, MS)
+#define FICOMPLm(MD, MB, MI, MS)	_FPULm(X86_FICOMP, MD, MB, MI, MS)
+#define FILDWm(MD, MB, MI, MS)		_FPUWm(X86_FILD, MD, MB, MI, MS)
+#define FILDLm(MD, MB, MI, MS)		_FPULm(X86_FILD, MD, MB, MI, MS)
+#define FILDQm(MD, MB, MI, MS)		_FPUm(X86_FILDQ, MD, MB, MI, MS)
+#define FINCSTP()			_FPU(X86_FINCSTP)
+#define FISTWm(MD, MB, MI, MS)		_FPUWm(X86_FIST, MD, MB, MI, MS)
+#define FISTLm(MD, MB, MI, MS)		_FPULm(X86_FIST, MD, MB, MI, MS)
+#define FISTPWm(MD, MB, MI, MS)		_FPUWm(X86_FISTP, MD, MB, MI, MS)
+#define FISTPLm(MD, MB, MI, MS)		_FPULm(X86_FISTP, MD, MB, MI, MS)
+#define FISTPQm(MD, MB, MI, MS)		_FPUm(X86_FISTPQ, MD, MB, MI, MS)
+#define FISTTPWm(MD, MB, MI, MS)	_FPUWm(X86_FISTTP, MD, MB, MI, MS)
+#define FISTTPLm(MD, MB, MI, MS)	_FPULm(X86_FISTTP, MD, MB, MI, MS)
+#define FISTTPQm(MD, MB, MI, MS)	_FPUm(X86_FISTTPQ, MD, MB, MI, MS)
+#define FLDSm(MD, MB, MI, MS)		_FPUSm(X86_FLD, MD, MB, MI, MS)
+#define FLDDm(MD, MB, MI, MS)		_FPUDm(X86_FLD, MD, MB, MI, MS)
+#define FLDTm(MD, MB, MI, MS)		_FPUm(X86_FLDT, MD, MB, MI, MS)
+#define FLD1()				_FPU(X86_FLD1)
+#define FLDL2T()			_FPU(X86_FLDL2T)
+#define FLDL2E()			_FPU(X86_FLDL2E)
+#define FLDPI()				_FPU(X86_FLDPI)
+#define FLDLG2()			_FPU(X86_FLDLG2)
+#define FLDLN2()			_FPU(X86_FLDLN2)
+#define FLDZ()				_FPU(X86_FLDZ)
+#define FMULSm(MD, MB, MI, MS)		_FPUSm(X86_FMUL, MD, MB, MI, MS)
+#define FMULDm(MD, MB, MI, MS)		_FPUDm(X86_FMUL, MD, MB, MI, MS)
+#define FMULP0r(RD)			_FPUP0r(X86_FMUL, RD)
+#define FMULrr(RS, RD)			_FPUrr(X86_FMUL, RS, RD)
+#define FMUL0r(RD)			_FPU0r(X86_FMUL, RD)
+#define FMULr0(RS)			_FPUr0(X86_FMUL, RS)
+#define FIMULWm(MD, MB, MI, MS)		_FPUWm(X86_FIMUL, MD, MB, MI, MS)
+#define FIMULLm(MD, MB, MI, MS)		_FPULm(X86_FIMUL, MD, MB, MI, MS)
+#define FNOP()				_FPU(X86_FNOP)
+#define FPATAN()			_FPU(X86_FPATAN)
+#define FPREM()				_FPU(X86_FPREM)
+#define FPREM1()			_FPU(X86_FPREM1)
+#define FPTAN()				_FPU(X86_FPTAN)
+#define FRNDINT()			_FPU(X86_FRNDINT)
+#define FSCALE()			_FPU(X86_FSCALE)
+#define FSIN()				_FPU(X86_FSIN)
+#define FSINCOS()			_FPU(X86_FSINCOS)
+#define FSQRT()				_FPU(X86_FSQRT)
+#define FSTSm(MD, MB, MI, MS)		_FPUm(X86_FSTS, MD, MB, MI, MS)
+#define FSTLm(MD, MB, MI, MS)		_FPUm(X86_FSTL, MD, MB, MI, MS)
+#define FSTr(RD)			_FPUr(X86_FST, RD)
+#define FSTPSm(MD, MB, MI, MS)		_FPUm(X86_FSTPS, MD, MB, MI, MS)
+#define FSTPLm(MD, MB, MI, MS)		_FPUm(X86_FSTPL, MD, MB, MI, MS)
+#define FSTPTm(MD, MB, MI, MS)		_FPUm(X86_FSTPT, MD, MB, MI, MS)
+#define FSTPr(RD)			_FPUr(X86_FSTP, RD)
+#define FSUBSm(MD, MB, MI, MS)		_FPUSm(X86_FSUB, MD, MB, MI, MS)
+#define FSUBDm(MD, MB, MI, MS)		_FPUDm(X86_FSUB, MD, MB, MI, MS)
+#define FSUBP0r(RD)			_FPUP0r(X86_FSUB, RD)
+#define FSUBrr(RS, RD)			_FPUrr(X86_FSUB, RS, RD)
+#define FSUB0r(RD)			_FPU0r(X86_FSUB, RD)
+#define FSUBr0(RS)			_FPUr0(X86_FSUB, RS)
+#define FISUBWm(MD, MB, MI, MS)		_FPUWm(X86_FISUB, MD, MB, MI, MS)
+#define FISUBLm(MD, MB, MI, MS)		_FPULm(X86_FISUB, MD, MB, MI, MS)
+#define FSUBRSm(MD, MB, MI, MS)		_FPUSm(X86_FSUBR, MD, MB, MI, MS)
+#define FSUBRDm(MD, MB, MI, MS)		_FPUDm(X86_FSUBR, MD, MB, MI, MS)
+#define FSUBRP0r(RD)			_FPUP0r(X86_FSUBR, RD)
+#define FSUBRrr(RS, RD)			_FPUrr(X86_FSUBR, RS, RD)
+#define FSUBR0r(RD)			_FPU0r(X86_FSUBR, RD)
+#define FSUBRr0(RS)			_FPUr0(X86_FSUBR, RS)
+#define FISUBRWm(MD, MB, MI, MS)	_FPUWm(X86_FISUBR, MD, MB, MI, MS)
+#define FISUBRLm(MD, MB, MI, MS)	_FPULm(X86_FISUBR, MD, MB, MI, MS)
+#define FTST()				_FPU(X86_FTST)
+#define FUCOMr(RD)			_FPUr(X86_FUCOM, RD)
+#define FUCOMPr(RD)			_FPUr(X86_FUCOMP, RD)
+#define FUCOMPP()			_FPU(X86_FUCOMPP)
+#define FXAM()				_FPU(X86_FXAM)
+#define FXCHr(RD)			_FPUr(X86_FXCH, RD)
+#define FXTRACT()			_FPU(X86_FXTRACT)
+#define FYL2X()				_FPU(X86_FYL2X)
+#define FYL2XP1()			_FPU(X86_FYL2XP1)
 
 #endif /* X86_RTASM_H */

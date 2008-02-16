@@ -7,7 +7,7 @@
 
 /***********************************************************************
  *
- *  Copyright 2004 Gwenole Beauchesne
+ *  Copyright 2004-2008 Gwenole Beauchesne
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -47,6 +47,7 @@
 static int verbose = 2;
 
 #define TEST_INST_ALU		1
+#define TEST_INST_FPU		1
 #define TEST_INST_MMX		1
 #define TEST_INST_SSE		1
 #if TEST_INST_ALU
@@ -55,6 +56,11 @@ static int verbose = 2;
 #define TEST_INST_ALU_CNT_REG	1
 #define TEST_INST_ALU_IMM_REG	1
 #define TEST_INST_ALU_MEM_REG	1
+#endif
+#if TEST_INST_FPU
+#define TEST_INST_FPU_UNARY	1
+#define TEST_INST_FPU_REG	1
+#define TEST_INST_FPU_MEM	1
 #endif
 #if TEST_INST_MMX
 #define TEST_INST_MMX_REG_REG	1
@@ -87,6 +93,7 @@ static int verbose = 2;
 #define X86_MAX_ALU_REGS	8
 #define X86_MAX_SSE_REGS	8
 #endif
+#define X86_MAX_FPU_REGS	8
 #define X86_MAX_MMX_REGS	8
 
 #define VALID_REG(r, b, n)	(((unsigned)((r) - X86_##b)) < (n))
@@ -365,8 +372,13 @@ static int parse_reg(operand_t *op, int optype, char *buf)
 	    }
 	    break;
 #endif
+	case '(':
+	    if ((p[1] == 't' || p[1] == 'T') && isdigit(p[3]) && p[4] == ')')
+		len += 3, reg = X86_ST0 + (p[3] - '0');
+	    break;
 	default:
 	    switch (p[1]) {
+	    case 't': case 'T': reg = X86_ST0; break;
 	    case 'p': case 'P': reg = X86_SP; break;
 	    case 'i': case 'I': reg = X86_SI; break;
 	    }
@@ -643,6 +655,21 @@ static void parse_insn(insn_t *ii, char *buf)
 static unsigned long n_tests, n_failures;
 static unsigned long n_all_tests, n_all_failures;
 
+static bool check_unary(insn_t *ii, const char *name)
+{
+    if (strcasecmp(ii->name, name) != 0) {
+	fprintf(stderr, "ERROR: instruction mismatch, expected %s, got %s\n", name, ii->name);
+	return false;
+    }
+
+    if (ii->n_operands != 0) {
+	fprintf(stderr, "ERROR: instruction expected 0 operand, got %d\n", ii->n_operands);
+	return false;
+    }
+
+    return true;
+}
+
 static bool check_reg(insn_t *ii, const char *name, int r)
 {
     if (strcasecmp(ii->name, name) != 0) {
@@ -755,26 +782,13 @@ static bool check_imm_reg(insn_t *ii, const char *name, uint32 v, int d, int mod
     return true;
 }
 
-static bool check_mem_reg(insn_t *ii, const char *name, uint32 D, int B, int I, int S, int R, int Rpos = 1)
+static bool do_check_mem(insn_t *ii, uint32 D, int B, int I, int S, int Mpos)
 {
-    if (strcasecmp(ii->name, name) != 0) {
-	fprintf(stderr, "ERROR: instruction mismatch, expected %s, got %s\n", name, ii->name);
-	return false;
-    }
-
-    if (ii->n_operands != 2) {
-	fprintf(stderr, "ERROR: instruction expected 2 operands, got %d\n", ii->n_operands);
-	return false;
-    }
-
-    operand_t *mem = &ii->operands[Rpos ^ 1];
-    operand_t *reg = &ii->operands[Rpos];
-
+    operand_t *mem = &ii->operands[Mpos];
     uint32 d = mem->disp;
     int b = mem->base;
     int i = mem->index;
     int s = mem->scale;
-    int r = reg->reg;
 
     if (d != D) {
 	fprintf(stderr, "ERROR: instruction expected 0x%08x as displacement, got 0x%08x\n", D, d);
@@ -795,6 +809,41 @@ static bool check_mem_reg(insn_t *ii, const char *name, uint32 D, int B, int I, 
 	fprintf(stderr, "ERROR: instruction expected %d as scale factor, got %d\n", S, s);
 	return false;
     }
+
+    return true;
+}
+
+static bool check_mem(insn_t *ii, const char *name, uint32 D, int B, int I, int S)
+{
+    if (strcasecmp(ii->name, name) != 0) {
+	fprintf(stderr, "ERROR: instruction mismatch, expected %s, got %s\n", name, ii->name);
+	return false;
+    }
+
+    if (ii->n_operands != 1) {
+	fprintf(stderr, "ERROR: instruction expected 1 operand, got %d\n", ii->n_operands);
+	return false;
+    }
+
+    return do_check_mem(ii, D, B, I, S, 0);
+}
+
+static bool check_mem_reg(insn_t *ii, const char *name, uint32 D, int B, int I, int S, int R, int Rpos = 1)
+{
+    if (strcasecmp(ii->name, name) != 0) {
+	fprintf(stderr, "ERROR: instruction mismatch, expected %s, got %s\n", name, ii->name);
+	return false;
+    }
+
+    if (ii->n_operands != 2) {
+	fprintf(stderr, "ERROR: instruction expected 2 operands, got %d\n", ii->n_operands);
+	return false;
+    }
+
+    if (!do_check_mem(ii, D, B, I, S, Rpos ^ 1))
+	return false;
+
+    int r = ii->operands[Rpos].reg;
 
     if (r != R) {
 	fprintf(stderr, "ERROR: instruction expected r%d as reg operand, got r%d\n", R, r);
@@ -1030,7 +1079,6 @@ int main(void)
 		parse_insn(&ii, buffer);
 
 		if (!check_reg_reg(&ii, insns[i], s, d)) {
-		    fprintf(stderr, "s %d, d %d\n", s, d);
 		    show_instruction(buffer, p);
 		    n_failures++;
 		}
@@ -1328,6 +1376,273 @@ int main(void)
 			if (i != last_insn)
 			    abort();
 		    }
+		}
+	    }
+	}
+    }
+    printf(" done %ld/%ld\n", n_tests - n_failures, n_tests);
+    n_all_tests += n_tests;
+    n_all_failures += n_failures;
+#endif
+
+#if TEST_INST_FPU_UNARY
+    printf("Testing FPU unary forms\n");
+    n_tests = n_failures = 0;
+    {
+	set_target(block);
+	uint8 *b = get_target();
+	int i = 0;
+#define GEN(INSN, GENOP) do {			\
+	insns[i++] = INSN;			\
+	GENOP();				\
+} while (0)
+	GEN("f2xm1", F2XM1);
+	GEN("fabs", FABS);
+	GEN("fchs", FCHS);
+	GEN("fcompp", FCOMPP);
+	GEN("fcos", FCOS);
+	GEN("fdecstp", FDECSTP);
+	GEN("fincstp", FINCSTP);
+	GEN("fld1", FLD1);
+	GEN("fldl2t", FLDL2T);
+	GEN("fldl2e", FLDL2E);
+	GEN("fldpi", FLDPI);
+	GEN("fldlg2", FLDLG2);
+	GEN("fldln2", FLDLN2);
+	GEN("fldz", FLDZ);
+	GEN("fnop", FNOP);
+	GEN("fpatan", FPATAN);
+	GEN("fprem", FPREM);
+	GEN("fprem1", FPREM1);
+	GEN("fptan", FPTAN);
+	GEN("frndint", FRNDINT);
+	GEN("fscale", FSCALE);
+	GEN("fsin", FSIN);
+	GEN("fsincos", FSINCOS);
+	GEN("fsqrt", FSQRT);
+	GEN("ftst", FTST);
+	GEN("fucompp", FUCOMPP);
+	GEN("fxam", FXAM);
+	GEN("fxtract", FXTRACT);
+	GEN("fyl2x", FYL2X);
+	GEN("fyl2xp1", FYL2XP1);
+#undef GEN
+	int last_insn = i;
+	uint8 *e = get_target();
+
+	uint8 *p = b;
+	i = 0;
+	while (p < e) {
+	    int n = disass_x86(buffer, (uintptr)p);
+	    insn_t ii;
+	    parse_insn(&ii, buffer);
+
+	    if (!check_unary(&ii, insns[i])) {
+		show_instruction(buffer, p);
+		n_failures++;
+	    }
+
+	    p += n;
+	    i += 1;
+	    n_tests++;
+	}
+	if (i != last_insn)
+	    abort();
+    }
+    printf(" done %ld/%ld\n", n_tests - n_failures, n_tests);
+    n_all_tests += n_tests;
+    n_all_failures += n_failures;
+#endif
+
+#if TEST_INST_FPU_REG
+    printf("Testing FPU reg forms\n");
+    n_tests = n_failures = 0;
+    for (int r = 0; r < X86_MAX_FPU_REGS; r++) {
+	set_target(block);
+	uint8 *b = get_target();
+	int i = 0;
+#define GENr(INSN, GENOP) do {			\
+	insns[i] = INSN;			\
+	modes[i] = 0;				\
+	i++, GENOP##r(r);			\
+} while (0)
+#define GENr0(INSN, GENOP) do {			\
+	insns[i] = INSN;			\
+	modes[i] = 1;				\
+	i++, GENOP##r0(r);			\
+} while (0)
+#define GEN0r(INSN, GENOP) do {			\
+	insns[i] = INSN;			\
+	modes[i] = 2;				\
+	i++, GENOP##0r(r);			\
+} while (0)
+	GENr("fcom", FCOM);
+	GENr("fcomp", FCOMP);
+	GENr("ffree", FFREE);
+	GENr("fxch", FXCH);
+	GENr("fst", FST);
+	GENr("fstp", FSTP);
+	GENr("fucom", FUCOM);
+	GENr("fucomp", FUCOMP);
+	GENr0("fadd", FADD);
+	GENr0("fcmovb", FCMOVB);
+	GENr0("fcmove", FCMOVE);
+	GENr0("fcmovbe", FCMOVBE);
+	GENr0("fcmovu", FCMOVU);
+	GENr0("fcmovnb", FCMOVNB);
+	GENr0("fcmovne", FCMOVNE);
+	GENr0("fcmovnbe", FCMOVNBE);
+	GENr0("fcmovnu", FCMOVNU);
+	GENr0("fcomi", FCOMI);
+	GENr0("fcomip", FCOMIP);
+	GENr0("fucomi", FUCOMI);
+	GENr0("fucomip", FUCOMIP);
+	GENr0("fdiv", FDIV);
+	GENr0("fdivr", FDIVR);
+	GENr0("fmul", FMUL);
+	GENr0("fsub", FSUB);
+	GENr0("fsubr", FSUBR);
+#undef  GEN0r
+#undef  GENr0
+#undef  GENr
+	int last_insn = i;
+	uint8 *e = get_target();
+
+	uint8 *p = b;
+	i = 0;
+	while (p < e) {
+	    int n = disass_x86(buffer, (uintptr)p);
+	    insn_t ii;
+	    parse_insn(&ii, buffer);
+
+	    switch (modes[i]) {
+	    case 0:
+		if (!check_reg(&ii, insns[i], r)) {
+		    show_instruction(buffer, p);
+		    n_failures++;
+		}
+		break;
+	    case 1:
+		if (!check_reg_reg(&ii, insns[i], r, 0)) {
+		    show_instruction(buffer, p);
+		    n_failures++;
+		}
+		break;
+	    case 2:
+		if (!check_reg_reg(&ii, insns[i], 0, r)) {
+		    show_instruction(buffer, p);
+		    n_failures++;
+		}
+		break;
+	    }
+
+	    p += n;
+	    i += 1;
+	    n_tests++;
+	}
+	if (i != last_insn)
+	    abort();
+    }
+    printf(" done %ld/%ld\n", n_tests - n_failures, n_tests);
+    n_all_tests += n_tests;
+    n_all_failures += n_failures;
+#endif
+
+#if TEST_INST_FPU_MEM
+    printf("Testing FPU mem forms\n");
+    n_tests = n_failures = 0;
+    for (int d = 0; d < off_table_count; d++) {
+	const uint32 D = off_table[d];
+	for (int B = -1; B < X86_MAX_ALU_REGS; B++) {
+	    for (int I = -1; I < X86_MAX_ALU_REGS; I++) {
+		if (I == X86_RSP)
+		    continue;
+		for (int S = 1; S < 16; S *= 2) {
+		    if (I == -1 && S > 1)
+			continue;
+		    set_target(block);
+		    uint8 *b = get_target();
+		    int i = 0;
+#define GEN(INSN, GENOP) do {			\
+		    insns[i++] = INSN;		\
+		    GENOP##m(D, B, I, S);	\
+} while (0)
+		    GEN("fadds", FADDS);
+		    GEN("faddl", FADDD);
+		    GEN("fiadd", FIADDW);
+		    GEN("fiaddl", FIADDL);
+		    GEN("fbld", FBLD);
+		    GEN("fbstp", FBSTP);
+		    GEN("fcoms", FCOMS);
+		    GEN("fcoml", FCOMD);
+		    GEN("fcomps", FCOMPS);
+		    GEN("fcompl", FCOMPD);
+		    GEN("fdivs", FDIVS);
+		    GEN("fdivl", FDIVD);
+		    GEN("fidiv", FIDIVW);
+		    GEN("fidivl", FIDIVL);
+		    GEN("fdivrs", FDIVRS);
+		    GEN("fdivrl", FDIVRD);
+		    GEN("fidivr", FIDIVRW);
+		    GEN("fidivrl", FIDIVRL);
+		    GEN("ficom", FICOMW);
+		    GEN("ficoml", FICOML);
+		    GEN("ficomp", FICOMPW);
+		    GEN("ficompl", FICOMPL);
+		    GEN("fild", FILDW);
+		    GEN("fildl", FILDL);
+		    GEN("fildll", FILDQ);
+		    GEN("fist", FISTW);
+		    GEN("fistl", FISTL);
+		    GEN("fistp", FISTPW);
+		    GEN("fistpl", FISTPL);
+		    GEN("fistpll", FISTPQ);
+		    GEN("fisttp", FISTTPW);
+		    GEN("fisttpl", FISTTPL);
+		    GEN("fisttpll", FISTTPQ);
+		    GEN("flds", FLDS);
+		    GEN("fldl", FLDD);
+		    GEN("fldt", FLDT);
+		    GEN("fmuls", FMULS);
+		    GEN("fmull", FMULD);
+		    GEN("fimul", FIMULW);
+		    GEN("fimull", FIMULL);
+		    GEN("fsts", FSTS);
+		    GEN("fstl", FSTL);
+		    GEN("fstps", FSTPS);
+		    GEN("fstpl", FSTPL);
+		    GEN("fstpt", FSTPT);
+		    GEN("fsubs", FSUBS);
+		    GEN("fsubl", FSUBD);
+		    GEN("fisub", FISUBW);
+		    GEN("fisubl", FISUBL);
+		    GEN("fsubrs", FSUBRS);
+		    GEN("fsubrl", FSUBRD);
+		    GEN("fisubr", FISUBRW);
+		    GEN("fisubrl", FISUBRL);
+#undef  GEN
+		    int last_insn = i;
+		    uint8 *e = get_target();
+
+		    uint8 *p = b;
+		    i = 0;
+		    while (p < e) {
+			int n = disass_x86(buffer, (uintptr)p);
+			insn_t ii;
+			parse_insn(&ii, buffer);
+
+			if (!check_mem(&ii, insns[i], D, B, I, S)) {
+			    show_instruction(buffer, p);
+			    n_failures++;
+			}
+
+			p += n;
+			i += 1;
+			n_tests++;
+			show_status(n_tests);
+		    }
+		    if (i != last_insn)
+			abort();
 		}
 	    }
 	}
