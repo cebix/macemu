@@ -2401,10 +2401,10 @@ enum {
   X86_FSINCOS	= 0xd9fb,
   X86_FSQRT	= 0xd9fa,
   X86_FSTS	= 0xd902, // mem
-  X86_FSTL	= 0xdd02, // mem
+  X86_FSTD	= 0xdd02, // mem
   X86_FST	= 0xddd0, // sti
   X86_FSTPS	= 0xd903, // mem
-  X86_FSTPL	= 0xdd03, // mem
+  X86_FSTPD	= 0xdd03, // mem
   X86_FSTPT	= 0xdb07, // mem
   X86_FSTP	= 0xddd8, // sti
   X86_FSUB	= 0xd8e4, // m32fp, m64fp, sti0, st0i, pst0i
@@ -2530,10 +2530,10 @@ enum {
 #define FSINCOS()			_FPU(X86_FSINCOS)
 #define FSQRT()				_FPU(X86_FSQRT)
 #define FSTSm(MD, MB, MI, MS)		_FPUm(X86_FSTS, MD, MB, MI, MS)
-#define FSTLm(MD, MB, MI, MS)		_FPUm(X86_FSTL, MD, MB, MI, MS)
+#define FSTDm(MD, MB, MI, MS)		_FPUm(X86_FSTD, MD, MB, MI, MS)
 #define FSTr(RD)			_FPUr(X86_FST, RD)
 #define FSTPSm(MD, MB, MI, MS)		_FPUm(X86_FSTPS, MD, MB, MI, MS)
-#define FSTPLm(MD, MB, MI, MS)		_FPUm(X86_FSTPL, MD, MB, MI, MS)
+#define FSTPDm(MD, MB, MI, MS)		_FPUm(X86_FSTPD, MD, MB, MI, MS)
 #define FSTPTm(MD, MB, MI, MS)		_FPUm(X86_FSTPT, MD, MB, MI, MS)
 #define FSTPr(RD)			_FPUr(X86_FSTP, RD)
 #define FSUBSm(MD, MB, MI, MS)		_FPUSm(X86_FSUB, MD, MB, MI, MS)

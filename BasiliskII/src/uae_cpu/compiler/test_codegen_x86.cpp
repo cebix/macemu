@@ -1608,9 +1608,9 @@ int main(void)
 		    GEN("fimul", FIMULW);
 		    GEN("fimull", FIMULL);
 		    GEN("fsts", FSTS);
-		    GEN("fstl", FSTL);
+		    GEN("fstl", FSTD);
 		    GEN("fstps", FSTPS);
-		    GEN("fstpl", FSTPL);
+		    GEN("fstpl", FSTPD);
 		    GEN("fstpt", FSTPT);
 		    GEN("fsubs", FSUBS);
 		    GEN("fsubl", FSUBD);
