@@ -1232,7 +1232,7 @@ LENDFUNC(WRITE,READ,0,raw_popfl,(void))
 /* Generate floating-point instructions */
 static inline void x86_fadd_m(MEMR s)
 {
-	FADDLm(s,X86_NOREG,X86_NOREG,1);
+	FADDDm(s,X86_NOREG,X86_NOREG,1);
 }
 
 #else
@@ -4169,9 +4169,9 @@ static inline void raw_##NAME(uint32 m)		\
 {						\
     GEN(m, X86_NOREG, X86_NOREG, 1);		\
 }
-DEFINE_OP(fstl,  FSTLm);
-DEFINE_OP(fstpl, FSTPLm);
-DEFINE_OP(fldl,  FLDLm);
+DEFINE_OP(fstl,  FSTDm);
+DEFINE_OP(fstpl, FSTPDm);
+DEFINE_OP(fldl,  FLDDm);
 DEFINE_OP(fildl, FILDLm);
 DEFINE_OP(fistl, FISTLm);
 DEFINE_OP(flds,  FLDSm);
