@@ -1,50 +1,103 @@
-{
-    IBClasses = (
-        {CLASS = FirstResponder; LANGUAGE = ObjC; SUPERCLASS = NSObject; }, 
-        {
-            ACTIONS = {
-                addDisk = id; 
-                browseForROMFileClicked = id; 
-                createDisk = id; 
-                removeDisk = id; 
-                useRawKeyCodesClicked = id; 
-            }; 
-            CLASS = PrefsEditor; 
-            LANGUAGE = ObjC; 
-            OUTLETS = {
-                bootFrom = NSComboBox; 
-                disableCdrom = NSButton; 
-                disableSound = NSButton; 
-                diskSaveSize = NSView; 
-                diskSaveSizeField = NSTextField; 
-                disks = NSTableView; 
-                dontUseCPUWhenIdle = NSButton; 
-                enable68kDREmulator = NSButton; 
-                enableJIT = NSButton; 
-                ethernetInterface = NSTextField; 
-                height = NSComboBox; 
-                ignoreIllegalMemoryAccesses = NSButton; 
-                mixDevice = NSTextField; 
-                modemPort = NSTextField; 
-                mouseWheel = NSPopUpButton; 
-                outDevice = NSTextField; 
-                printerPort = NSTextField; 
-                qdAccel = NSButton; 
-                ramSize = NSTextField; 
-                ramSizeStepper = NSStepper; 
-                rawKeyCodes = NSTextField; 
-                refreshRate = NSPopUpButton; 
-                romFile = NSTextField; 
-                scrollLines = NSTextField; 
-                scrollLinesStepper = NSStepper; 
-                unixRoot = NSTextField; 
-                useRawKeyCodes = NSButton; 
-                videoType = NSPopUpButton; 
-                width = NSComboBox; 
-                window = NSWindow; 
-            }; 
-            SUPERCLASS = NSObject; 
-        }
-    ); 
-    IBVersion = 1; 
-}
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IBClasses</key>
+	<array>
+		<dict>
+			<key>ACTIONS</key>
+			<dict>
+				<key>addDisk</key>
+				<string>id</string>
+				<key>browseForROMFileClicked</key>
+				<string>id</string>
+				<key>createDisk</key>
+				<string>id</string>
+				<key>removeDisk</key>
+				<string>id</string>
+				<key>useRawKeyCodesClicked</key>
+				<string>id</string>
+			</dict>
+			<key>CLASS</key>
+			<string>PrefsEditor</string>
+			<key>LANGUAGE</key>
+			<string>ObjC</string>
+			<key>OUTLETS</key>
+			<dict>
+				<key>bootFrom</key>
+				<string>NSComboBox</string>
+				<key>disableCdrom</key>
+				<string>NSButton</string>
+				<key>disableSound</key>
+				<string>NSButton</string>
+				<key>diskSaveSize</key>
+				<string>NSView</string>
+				<key>diskSaveSizeField</key>
+				<string>NSTextField</string>
+				<key>disks</key>
+				<string>NSTableView</string>
+				<key>dontUseCPUWhenIdle</key>
+				<string>NSButton</string>
+				<key>enable68kDREmulator</key>
+				<string>NSButton</string>
+				<key>enableJIT</key>
+				<string>NSButton</string>
+				<key>ethernetInterface</key>
+				<string>NSTextField</string>
+				<key>height</key>
+				<string>NSComboBox</string>
+				<key>ignoreIllegalMemoryAccesses</key>
+				<string>NSButton</string>
+				<key>mixDevice</key>
+				<string>NSTextField</string>
+				<key>modemPort</key>
+				<string>NSTextField</string>
+				<key>mouseWheel</key>
+				<string>NSPopUpButton</string>
+				<key>outDevice</key>
+				<string>NSTextField</string>
+				<key>printerPort</key>
+				<string>NSTextField</string>
+				<key>qdAccel</key>
+				<string>NSButton</string>
+				<key>ramSize</key>
+				<string>NSTextField</string>
+				<key>ramSizeStepper</key>
+				<string>NSStepper</string>
+				<key>rawKeyCodes</key>
+				<string>NSTextField</string>
+				<key>refreshRate</key>
+				<string>NSPopUpButton</string>
+				<key>romFile</key>
+				<string>NSTextField</string>
+				<key>scrollLines</key>
+				<string>NSTextField</string>
+				<key>scrollLinesStepper</key>
+				<string>NSStepper</string>
+				<key>unixRoot</key>
+				<string>NSTextField</string>
+				<key>useRawKeyCodes</key>
+				<string>NSButton</string>
+				<key>videoType</key>
+				<string>NSPopUpButton</string>
+				<key>width</key>
+				<string>NSComboBox</string>
+				<key>window</key>
+				<string>NSWindow</string>
+			</dict>
+			<key>SUPERCLASS</key>
+			<string>NSObject</string>
+		</dict>
+		<dict>
+			<key>CLASS</key>
+			<string>FirstResponder</string>
+			<key>LANGUAGE</key>
+			<string>ObjC</string>
+			<key>SUPERCLASS</key>
+			<string>NSObject</string>
+		</dict>
+	</array>
+	<key>IBVersion</key>
+	<string>1</string>
+</dict>
+</plist>

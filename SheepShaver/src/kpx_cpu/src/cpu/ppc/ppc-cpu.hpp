@@ -208,7 +208,7 @@ private:
 	// Compile blocks statistics
 #if PPC_PROFILE_GENERIC_CALLS
 	friend int generic_calls_compare(const void *, const void *);
-	static uint32 generic_calls_count[PPC_I(MAX)];
+	static uint32 generic_calls_count[];
 #endif
 
 	// Flight recorder data

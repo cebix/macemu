@@ -32,12 +32,12 @@ const int CDROMRefNum = -62;			// RefNum of driver
   self = [super init];
 
 #ifdef STANDALONE_PREFS
-	AddPrefsDefaults();
-	AddPlatformPrefsDefaults();
+  AddPrefsDefaults();
+  AddPlatformPrefsDefaults();
 
-	// Load preferences from settings file
-	LoadPrefs();
-  chdir([[[NSBundle mainBundle] bundlePath] cString]);
+  // Load preferences from settings file
+  LoadPrefs();
+  chdir([[[NSBundle mainBundle] bundlePath] UTF8String]);
   chdir("..");
 #endif
 
@@ -74,11 +74,11 @@ NSString *getStringFromPrefs(const char *key)
   [disks setDataSource: self];
   [disks reloadData];
 
-	int bootdriver = PrefsFindInt32("bootdriver"), active = 0;
-	switch (bootdriver) {
-		case 0: active = 0; break;
+  int bootdriver = PrefsFindInt32("bootdriver"), active = 0;
+  switch (bootdriver) {
+    case 0: active = 0; break;
     case CDROMRefNum: active = 1; break;
-	}
+  }
   [bootFrom selectItemAtIndex: active ];
 
   [romFile  setStringValue: getStringFromPrefs("rom") ];
@@ -88,10 +88,10 @@ NSString *getStringFromPrefs(const char *key)
   [ramSizeStepper setIntValue: PrefsFindInt32("ramsize") / (1024*1024) ];
 
   int display_type = 0;
-	int dis_width = 640;
-	int dis_height = 480;
+  int dis_width = 640;
+  int dis_height = 480;
 
-	const char *str = PrefsFindString("screen");
+  const char *str = PrefsFindString("screen");
   if (str != NULL) {
     if (sscanf(str, "win/%d/%d", &dis_width, &dis_height) == 2)
       display_type = 0;
@@ -103,18 +103,18 @@ NSString *getStringFromPrefs(const char *key)
   [width setIntValue: dis_width ];
   [height setIntValue: dis_height ];
 
-	int frameskip = PrefsFindInt32("frameskip");
-	int item = -1;
-	switch (frameskip) {
-		case 12: item = 0; break;
-		case 8: item = 1; break;
-		case 6: item = 2; break;
-		case 4: item = 3; break;
-		case 2: item = 4; break;
-		case 1: item = 5; break;
-		case 0: item = 5; break;
-	}
-	if (item >= 0)
+  int frameskip = PrefsFindInt32("frameskip");
+  int item = -1;
+  switch (frameskip) {
+    case 12: item = 0; break;
+    case 8: item = 1; break;
+    case 6: item = 2; break;
+    case 4: item = 3; break;
+    case 2: item = 4; break;
+    case 1: item = 5; break;
+    case 0: item = 6; break;
+  }
+  if (item >= 0)
     [refreshRate selectItemAtIndex: item ];
 
   [qdAccel setIntValue: PrefsFindBool("gfxaccel") ];
@@ -128,10 +128,10 @@ NSString *getStringFromPrefs(const char *key)
   [rawKeyCodes setEnabled:[useRawKeyCodes intValue]];
 
   int wheelmode = PrefsFindInt32("mousewheelmode"), wheel = 0;
-	switch (wheelmode) {
-		case 0: wheel = 0; break;
-		case 1: wheel = 1; break;
-	}
+  switch (wheelmode) {
+    case 0: wheel = 0; break;
+    case 1: wheel = 1; break;
+  }
   [mouseWheel selectItemAtIndex: wheel ];
 
   [scrollLines setIntValue: PrefsFindInt32("mousewheellines") ];
@@ -141,7 +141,7 @@ NSString *getStringFromPrefs(const char *key)
   [dontUseCPUWhenIdle setIntValue: PrefsFindBool("idlewait") ];
   [enableJIT setIntValue: PrefsFindBool("jit") ];
   [enable68kDREmulator setIntValue: PrefsFindBool("jit68k") ];
-  
+
   [modemPort setStringValue: getStringFromPrefs("seriala") ];
   [printerPort setStringValue: getStringFromPrefs("serialb") ];
   [ethernetInterface setStringValue: getStringFromPrefs("ether") ];
@@ -162,22 +162,22 @@ NSString *getStringFromPrefs(const char *key)
 
 - (void) _addDiskEnd: (NSOpenPanel *) open returnCode: (int) theReturnCode contextInfo: (void *) theContextInfo
 {
-    if (theReturnCode == NSOKButton) {
-      char cwd[1024], filename[1024];
-      int cwdlen;
-      strlcpy(filename, [[open filename] cString], sizeof(filename));
-      getcwd(cwd, sizeof(cwd));
-      cwdlen = strlen(cwd);
-      if (!strncmp(cwd, filename, cwdlen)) {
-        if (cwdlen >= 0 && cwd[cwdlen-1] != '/')
-          cwdlen++;
-        [diskArray addObject: [NSString stringWithCString: filename + cwdlen ]];
-      } else {
-        [diskArray addObject: [open filename]];
-      }
-      [disks reloadData];
+  if (theReturnCode == NSOKButton) {
+    char cwd[1024], filename[1024];
+    int cwdlen;
+    strlcpy(filename, [[open filename] UTF8String], sizeof(filename));
+    getcwd(cwd, sizeof(cwd));
+    cwdlen = strlen(cwd);
+    if (!strncmp(cwd, filename, cwdlen)) {
+      if (cwdlen >= 0 && cwd[cwdlen-1] != '/')
+        cwdlen++;
+      [diskArray addObject: [NSString stringWithCString: filename + cwdlen ]];
+    } else {
+      [diskArray addObject: [open filename]];
     }
-    [(NSData *)theContextInfo release];
+    [disks reloadData];
+  }
+  [(NSData *)theContextInfo release];
 }
 
 - (IBAction) removeDisk:(id)sender
@@ -203,30 +203,30 @@ NSString *getStringFromPrefs(const char *key)
 
 - (void) _createDiskEnd: (NSSavePanel *) save returnCode: (int) theReturnCode contextInfo: (void *) theContextInfo
 {
-    if (theReturnCode == NSOKButton) {
-      int size = [diskSaveSizeField intValue];
-      if (size >= 0 && size <= 10000) {
-        char cmd[1024];
-        snprintf(cmd, sizeof(cmd), "dd if=/dev/zero \"of=%s\" bs=1024k count=%d", [[save filename] cString], [diskSaveSizeField intValue]);
-        int ret = system(cmd);
-        if (ret == 0) {
-          char cwd[1024], filename[1024];
-          int cwdlen;
-          strlcpy(filename, [[save filename] cString], sizeof(filename));
-          getcwd(cwd, sizeof(cwd));
-          cwdlen = strlen(cwd);
-          if (!strncmp(cwd, filename, cwdlen)) {
-            if (cwdlen >= 0 && cwd[cwdlen-1] != '/')
-              cwdlen++;
-            [diskArray addObject: [NSString stringWithCString: filename + cwdlen ]];
-          } else {
-            [diskArray addObject: [save filename]];
-          }
-          [disks reloadData];
+  if (theReturnCode == NSOKButton) {
+    int size = [diskSaveSizeField intValue];
+    if (size >= 0 && size <= 10000) {
+      char cmd[1024];
+      snprintf(cmd, sizeof(cmd), "dd if=/dev/zero \"of=%s\" bs=1024k count=%d", [[save filename] UTF8String], [diskSaveSizeField intValue]);
+      int ret = system(cmd);
+      if (ret == 0) {
+        char cwd[1024], filename[1024];
+        int cwdlen;
+        strlcpy(filename, [[save filename] UTF8String], sizeof(filename));
+        getcwd(cwd, sizeof(cwd));
+        cwdlen = strlen(cwd);
+        if (!strncmp(cwd, filename, cwdlen)) {
+          if (cwdlen >= 0 && cwd[cwdlen-1] != '/')
+            cwdlen++;
+          [diskArray addObject: [NSString stringWithCString: filename + cwdlen ]];
+        } else {
+          [diskArray addObject: [save filename]];
         }
+        [disks reloadData];
       }
     }
-    [(NSData *)theContextInfo release];
+  }
+  [(NSData *)theContextInfo release];
 }
 
 - (IBAction) useRawKeyCodesClicked:(id)sender
@@ -251,38 +251,38 @@ NSString *getStringFromPrefs(const char *key)
 
 - (void) _browseForROMFileEnd: (NSOpenPanel *) open returnCode: (int) theReturnCode contextInfo: (void *) theContextInfo
 {
-    if (theReturnCode == NSOKButton) {
-      char cwd[1024], filename[1024];
-      int cwdlen;
-      strlcpy(filename, [[open filename] cString], sizeof(filename));
-      getcwd(cwd, sizeof(cwd));
-      cwdlen = strlen(cwd);
-      if (!strncmp(cwd, filename, cwdlen)) {
-        if (cwdlen >= 0 && cwd[cwdlen-1] != '/')
-          cwdlen++;
-        [romFile setStringValue: [NSString stringWithCString: filename + cwdlen ]];
-      } else {
-        [romFile setStringValue: [open filename]];
-      }
+  if (theReturnCode == NSOKButton) {
+    char cwd[1024], filename[1024];
+    int cwdlen;
+    strlcpy(filename, [[open filename] UTF8String], sizeof(filename));
+    getcwd(cwd, sizeof(cwd));
+    cwdlen = strlen(cwd);
+    if (!strncmp(cwd, filename, cwdlen)) {
+      if (cwdlen >= 0 && cwd[cwdlen-1] != '/')
+        cwdlen++;
+      [romFile setStringValue: [NSString stringWithCString: filename + cwdlen ]];
+    } else {
+      [romFile setStringValue: [open filename]];
     }
-    [(NSData *)theContextInfo release];
+  }
+  [(NSData *)theContextInfo release];
 }
 
 - (void) windowWillClose: (NSNotification *) aNotification;
 {
-	while (PrefsFindString("disk"))
-		PrefsRemoveItem("disk");
+  while (PrefsFindString("disk"))
+    PrefsRemoveItem("disk");
 
   for (int i = 0; i < [diskArray count]; i++) {
-    PrefsAddString("disk", [[diskArray objectAtIndex:i] cString]);
+    PrefsAddString("disk", [[diskArray objectAtIndex:i] UTF8String]);
   }
   PrefsReplaceInt32("bootdriver", ([bootFrom indexOfSelectedItem] == 1 ? CDROMRefNum : 0));
-  PrefsReplaceString("rom", [[romFile stringValue] cString]);
-  PrefsReplaceString("extfs", [[unixRoot stringValue] cString]);
-	PrefsReplaceBool("nocdrom", [disableCdrom intValue]);
-	PrefsReplaceInt32("ramsize", [ramSize intValue] << 20);
+  PrefsReplaceString("rom", [[romFile stringValue] UTF8String]);
+  PrefsReplaceString("extfs", [[unixRoot stringValue] UTF8String]);
+  PrefsReplaceBool("nocdrom", [disableCdrom intValue]);
+  PrefsReplaceInt32("ramsize", [ramSize intValue] << 20);
 
-	char pref[256];
+  char pref[256];
   snprintf(pref, sizeof(pref), "%s/%d/%d", [videoType indexOfSelectedItem] == 0 ? "win" : "dga", [width intValue], [height intValue]);
   PrefsReplaceString("screen", pref);
 
@@ -296,26 +296,26 @@ NSString *getStringFromPrefs(const char *key)
     case 5: rate = 1; break;
   }
   PrefsReplaceInt32("frameskip", rate);
-	PrefsReplaceBool("gfxaccel", [qdAccel intValue]);
+  PrefsReplaceBool("gfxaccel", [qdAccel intValue]);
 
-	PrefsReplaceBool("nosound", [disableSound intValue]);
-  PrefsReplaceString("dsp", [[outDevice stringValue] cString]);
-  PrefsReplaceString("mixer", [[mixDevice stringValue] cString]);
+  PrefsReplaceBool("nosound", [disableSound intValue]);
+  PrefsReplaceString("dsp", [[outDevice stringValue] UTF8String]);
+  PrefsReplaceString("mixer", [[mixDevice stringValue] UTF8String]);
 
-	PrefsReplaceBool("keycodes", [useRawKeyCodes intValue]);
-  PrefsReplaceString("keycodefile", [[rawKeyCodes stringValue] cString]);
+  PrefsReplaceBool("keycodes", [useRawKeyCodes intValue]);
+  PrefsReplaceString("keycodefile", [[rawKeyCodes stringValue] UTF8String]);
 
   PrefsReplaceInt32("mousewheelmode", [mouseWheel indexOfSelectedItem]);
-	PrefsReplaceInt32("mousewheellines", [scrollLines intValue]);
+  PrefsReplaceInt32("mousewheellines", [scrollLines intValue]);
 
-	PrefsReplaceBool("ignoresegv", [ignoreIllegalMemoryAccesses intValue]);
-	PrefsReplaceBool("idlewait", [dontUseCPUWhenIdle intValue]);
-	PrefsReplaceBool("jit", [enableJIT intValue]);
-	PrefsReplaceBool("jit68k", [enable68kDREmulator intValue]);
+  PrefsReplaceBool("ignoresegv", [ignoreIllegalMemoryAccesses intValue]);
+  PrefsReplaceBool("idlewait", [dontUseCPUWhenIdle intValue]);
+  PrefsReplaceBool("jit", [enableJIT intValue]);
+  PrefsReplaceBool("jit68k", [enable68kDREmulator intValue]);
 
-  PrefsReplaceString("seriala", [[modemPort stringValue] cString]);
-  PrefsReplaceString("serialb", [[printerPort stringValue] cString]);
-  PrefsReplaceString("ether", [[ethernetInterface stringValue] cString]);
+  PrefsReplaceString("seriala", [[modemPort stringValue] UTF8String]);
+  PrefsReplaceString("serialb", [[printerPort stringValue] UTF8String]);
+  PrefsReplaceString("ether", [[ethernetInterface stringValue] UTF8String]);
 
   SavePrefs();
 
@@ -323,7 +323,7 @@ NSString *getStringFromPrefs(const char *key)
   PrefsExit();
   exit(0);
 #else
-	[NSApp stopModal];
+  [NSApp stopModal];
 #endif
 }
 
