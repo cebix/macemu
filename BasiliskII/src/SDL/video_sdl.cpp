@@ -136,7 +136,7 @@ static SDL_Cursor *sdl_cursor;						// Copy of Mac cursor
 static volatile bool cursor_changed = false;		// Flag: cursor changed, redraw_func must update the cursor
 static SDL_Color sdl_palette[256];					// Color palette to be used as CLUT and gamma table
 static bool sdl_palette_changed = false;			// Flag: Palette changed, redraw thread must set new colors
-static const int sdl_eventmask = SDL_MOUSEBUTTONDOWNMASK | SDL_MOUSEBUTTONUPMASK | SDL_MOUSEMOTIONMASK | SDL_KEYUPMASK | SDL_KEYDOWNMASK | SDL_VIDEOEXPOSEMASK | SDL_QUITMASK;
+static const int sdl_eventmask = SDL_MOUSEEVENTMASK | SDL_KEYEVENTMASK | SDL_VIDEOEXPOSEMASK | SDL_QUITMASK | SDL_ACTIVEEVENTMASK;
 
 // Mutex to protect SDL events
 static SDL_mutex *sdl_events_lock = NULL;
@@ -1857,6 +1857,10 @@ static void handle_events(void)
 			case SDL_QUIT:
 				ADBKeyDown(0x7f);	// Power key
 				ADBKeyUp(0x7f);
+				break;
+
+			// Application activate/deactivate; consume the event but otherwise ignore it
+			case SDL_ACTIVEEVENT:
 				break;
 			}
 		}
