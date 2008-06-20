@@ -1800,7 +1800,7 @@ static int16 fs_set_fpos(uint32 pb)
 			return fnOpnErr;
 
 	// Set file position
-	switch (ReadMacInt16(pb + ioPosMode)) {
+	switch (ReadMacInt16(pb + ioPosMode) & 3) {
 		case fsFromStart:
 			if (lseek(fd, ReadMacInt32(pb + ioPosOffset), SEEK_SET) < 0)
 				return posErr;
