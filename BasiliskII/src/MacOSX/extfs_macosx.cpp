@@ -239,7 +239,7 @@ static void make_rsrc_path(const char *src, char *dest)
 		// The rsrc component is copied as is, if there is not enough
 		// space to add it. In that case, open() will fail gracefully
 		// and this is what we want.
-		dest[0] - '.';
+		dest[0] = '.';
 		dest[1] = '\0';
 	}
 
