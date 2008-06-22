@@ -372,8 +372,11 @@ int main(int argc, char **argv)
 	bool memory_mapped_from_zero;
 
 #ifdef USE_SDL_VIDEO
-	// don't let SDL block the screensaver
-	setenv("SDL_VIDEO_ALLOW_SCREENSAVER", "1", 1);
+	// Don't let SDL block the screensaver
+	putenv("SDL_VIDEO_ALLOW_SCREENSAVER=1");
+
+	// Make SDL pass through command-clicks and option-clicks unaltered
+	putenv("SDL_HAS3BUTTONMOUSE=1");
 #endif
 
 	// Initialize variables
