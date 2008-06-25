@@ -1543,7 +1543,23 @@ void SDL_monitor_desc::switch_to_current_mode(void)
 #ifdef SHEEPSHAVER
 bool video_can_change_cursor(void)
 {
-	return (display_type == DISPLAY_WINDOW);
+	static char driver[] = "Quartz?";
+	static int quartzok = -1;
+
+	if (display_type != DISPLAY_WINDOW)
+		return false;
+
+	if (quartzok < 0) {
+		if (SDL_VideoDriverName(driver, sizeof driver) == NULL || strncmp(driver, "Quartz", sizeof driver))
+			quartzok = true;
+		else {
+			// Quartz driver bug prevents cursor changing in SDL 1.2.11 and later
+			const SDL_version *vp = SDL_Linked_Version();
+			quartzok = SDL_VERSIONNUM(vp->major, vp->minor, vp->patch) <= SDL_VERSIONNUM(1, 2, 10);
+		}
+	}
+
+	return quartzok;
 }
 #endif
 
@@ -2220,6 +2236,7 @@ static inline void do_video_refresh(void)
 		SDL_FreeCursor(sdl_cursor);
 		sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, MacCursor[2], MacCursor[3]);
 		if (sdl_cursor) {
+			SDL_ShowCursor(private_data == NULL || private_data->cursorVisible);
 			SDL_SetCursor(sdl_cursor);
 #ifdef WIN32
 			// XXX Windows apparently needs an extra mouse event to

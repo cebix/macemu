@@ -21,7 +21,6 @@
 /*
  * TODO
  * - check for supported modes ???
- * - window mode "hardware" cursor hotspot
  */
 
 #include <stdio.h>
@@ -143,6 +142,17 @@ bool VideoSnapshot(int xsize, int ysize, uint8 *p)
 
 
 /*
+ *  Determine whether we should use the hardware or software cursor, and return true for the former, false for the latter.
+ *  Currently we use the hardware cursor if we can, but perhaps this can be made a preference someday.
+ */
+
+static bool UseHardwareCursor(void)
+{
+	return video_can_change_cursor();
+}
+
+
+/*
  *  Video driver open routine
  */
 
@@ -157,10 +167,14 @@ static int16 VideoOpen(uint32 pb, VidLocals *csSave)
 	csSave->savePage = 0;
 	csSave->saveVidParms = 0;			// Add the right table
 	csSave->luminanceMapping = false;
+	csSave->cursorHardware = UseHardwareCursor();
 	csSave->cursorX = 0;
 	csSave->cursorY = 0;
 	csSave->cursorVisible = 0;
 	csSave->cursorSet = 0;
+	csSave->cursorHotFlag = false;
+	csSave->cursorHotX = 0;
+	csSave->cursorHotY = 0;
 
 	// Find and set default gamma table
 	csSave->gammaTable = 0;
@@ -416,34 +430,43 @@ static int16 VideoControl(uint32 pb, VidLocals *csSave)
 
 		case cscSetHardwareCursor: {
 //			D(bug("SetHardwareCursor\n"));
+
+			if (!csSave->cursorHardware)
+				return controlErr;
+
 			csSave->cursorSet = false;
 			bool changed = false;
 
-			// Get cursor data even on a screen, to set the right cursor image when switching back to a window
 			// Image
 			uint32 cursor = ReadMacInt32(param);	// Pointer to CursorImage
 			uint32 pmhandle = ReadMacInt32(cursor + ciCursorPixMap);
 			if (pmhandle == 0 || ReadMacInt32(pmhandle) == 0)
 				return controlErr;
 			uint32 pixmap = ReadMacInt32(pmhandle);
-			if (memcmp(MacCursor + 4, Mac2HostAddr(ReadMacInt32(pixmap)), 32)) {
-				memcpy(MacCursor + 4, Mac2HostAddr(ReadMacInt32(pixmap)), 32);
-				changed = true;
-			}
+
+			// XXX: only certain image formats are handled properly at the moment
+			uint16 rowBytes = ReadMacInt16(pixmap + 4) & 0x7FFF;
+			if (rowBytes != 2)
+				return controlErr;
 
 			// Mask
 			uint32 bmhandle = ReadMacInt32(cursor + ciCursorBitMask);
 			if (bmhandle == 0 || ReadMacInt32(bmhandle) == 0)
 				return controlErr;
 			uint32 bitmap = ReadMacInt32(bmhandle);
+
+			// Get cursor data even on a screen, to set the right cursor image when switching back to a window.
+			// Hotspot is stale, but will be fixed by the next call to DrawHardwareCursor, which is likely to
+			// occur immediately hereafter.
+
+			if (memcmp(MacCursor + 4, Mac2HostAddr(ReadMacInt32(pixmap)), 32)) {
+				memcpy(MacCursor + 4, Mac2HostAddr(ReadMacInt32(pixmap)), 32);
+				changed = true;
+			}
 			if (memcmp(MacCursor + 4 + 32, Mac2HostAddr(ReadMacInt32(bitmap)), 32)) {
 				memcpy(MacCursor + 4 + 32, Mac2HostAddr(ReadMacInt32(bitmap)), 32);
 				changed = true;
 			}
-
-			// Hotspot (!! this doesn't work)
-			MacCursor[2] = ReadMacInt8(0x885);
-			MacCursor[3] = ReadMacInt8(0x887);
 
 			// Set new cursor image
 			if (!video_can_change_cursor())
@@ -452,15 +475,78 @@ static int16 VideoControl(uint32 pb, VidLocals *csSave)
 				video_set_cursor();
 
 			csSave->cursorSet = true;
+			csSave->cursorHotFlag = true;
 			return noErr;
 		}
 
-		case cscDrawHardwareCursor:
+		case cscDrawHardwareCursor: {
 //			D(bug("DrawHardwareCursor\n"));
+
+			if (!csSave->cursorHardware)
+				return controlErr;
+
+			int32 oldX = csSave->cursorX;
+			int32 oldY = csSave->cursorY;
+			uint32 oldVisible = csSave->cursorVisible;
+
 			csSave->cursorX = ReadMacInt32(param + csCursorX);
 			csSave->cursorY = ReadMacInt32(param + csCursorY);
 			csSave->cursorVisible = ReadMacInt32(param + csCursorVisible);
+			bool changed = (csSave->cursorVisible != oldVisible);
+
+			// If this is the first DrawHardwareCursor call since the cursor was last set (via SetHardwareCursor),
+			// attempt to set an appropriate cursor hotspot.  SetHardwareCursor itself does not know what the
+			// hotspot should be; it knows only the cursor image and mask.  The hotspot is known only to the caller,
+			// and we have to try to infer it here.  The usual sequence of calls when changing the cursor is:
+			//
+			//	DrawHardwareCursor with (oldX, oldY, invisible)
+			//	SetHardwareCursor with (cursor)
+			//	DrawHardwareCursor with (newX, newY, visible)
+			//
+			// The key thing to note is that the sequence is intended not to change the current screen pixel location
+			// indicated by the hotspot.  Thus, the difference between (newX, newY) and (oldX, oldY) reflects precisely
+			// the difference between the old cursor hotspot and the new one.  For example, if you change from a
+			// cursor whose hotspot is (1, 1) to one whose hotspot is (7, 4), then you must adjust the cursor position
+			// by (-6, -3) in order for the same screen pixel to remain under the new hotspot.
+			//
+			// Alas, on rare occasions this heuristic can fail, and if you did nothing else you could even get stuck
+			// with the wrong hotspot from then on.  To address that possibility, we force the hotspot to (1, 1)
+			// whenever the cursor being drawn is the standard arrow.  Thus, while it is very unlikely that you will
+			// ever have the wrong hotspot, if you do, it is easy to recover.
+
+			if (csSave->cursorHotFlag) {
+				csSave->cursorHotFlag = false;
+				D(bug("old hotspot (%d, %d)\n", csSave->cursorHotX, csSave->cursorHotY));
+
+				static uint8 arrow[] = {
+					0x00, 0x00, 0x40, 0x00, 0x60, 0x00, 0x70, 0x00, 0x78, 0x00, 0x7C, 0x00, 0x7E, 0x00, 0x7F, 0x00,
+					0x7F, 0x80, 0x7C, 0x00, 0x6C, 0x00, 0x46, 0x00, 0x06, 0x00, 0x03, 0x00, 0x03, 0x00, 0x00, 0x00,
+				};
+				if (memcmp(MacCursor + 4, arrow, 32) == 0) {
+					csSave->cursorHotX = 1;
+					csSave->cursorHotY = 1;
+				} else if (csSave->cursorX != oldX || csSave->cursorY != oldY) {
+					int32 hotX = csSave->cursorHotX + (oldX - csSave->cursorX);
+					int32 hotY = csSave->cursorHotY + (oldY - csSave->cursorY);
+
+					if (0 <= hotX && hotX <= 15 && 0 <= hotY && hotY <= 15) {
+						csSave->cursorHotX = hotX;
+						csSave->cursorHotY = hotY;
+					}
+				}
+				if (MacCursor[2] != csSave->cursorHotX || MacCursor[3] != csSave->cursorHotY) {
+					MacCursor[2] = csSave->cursorHotX;
+					MacCursor[3] = csSave->cursorHotY;
+					changed = true;
+				}
+				D(bug("new hotspot (%d, %d)\n", csSave->cursorHotX, csSave->cursorHotY));
+			}
+
+			if (changed && video_can_change_cursor())
+				video_set_cursor();
+
 			return noErr;
+		}
 
 		case 43: {	// Driver Gestalt
 			uint32 sel = ReadMacInt32(pb + csParam);
@@ -859,11 +945,15 @@ static int16 VideoStatus(uint32 pb, VidLocals *csSave)
 
 		case cscSupportsHardwareCursor:
 			D(bug("SupportsHardwareCursor\n"));
-			WriteMacInt32(param, 1);
+			WriteMacInt32(param, csSave->cursorHardware);
 			return noErr;
 
 		case cscGetHardwareCursorDrawState:
 			D(bug("GetHardwareCursorDrawState\n"));
+
+			if (!csSave->cursorHardware)
+				return statusErr;
+
 			WriteMacInt32(param + csCursorX, csSave->cursorX);
 			WriteMacInt32(param + csCursorY, csSave->cursorY);
 			WriteMacInt32(param + csCursorVisible, csSave->cursorVisible);

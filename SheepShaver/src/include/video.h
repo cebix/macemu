@@ -118,10 +118,14 @@ struct VidLocals{
 	uint32	maxGammaTableSize;	// Biggest gamma table allocated
 	uint32	saveVidParms;
 	bool	luminanceMapping;	// Luminance mapping on/off
-	int32	cursorX;			// Hardware cursor state. Unused, but must be remembered
+	bool	cursorHardware;		// True if using hardware cursor
+	int32	cursorX;			// Hardware cursor state
 	int32	cursorY;
 	uint32	cursorVisible;
 	uint32	cursorSet;
+	bool	cursorHotFlag;
+	uint8	cursorHotX;
+	uint8	cursorHotY;
 	uint32	vslServiceID;		// VSL interrupt service ID
 	bool	interruptsEnabled;	// VBL interrupts on/off
 	uint32	regEntryID;			// Mac address of the service owner
