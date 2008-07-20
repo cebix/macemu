@@ -1770,8 +1770,12 @@ static void handle_events(void)
 			// Mouse button
 			case SDL_MOUSEBUTTONDOWN: {
 				unsigned int button = event.button.button;
-				if (button < 4)
-					ADBMouseDown(button - 1);
+				if (button == SDL_BUTTON_LEFT)
+					ADBMouseDown(0);
+				else if (button == SDL_BUTTON_RIGHT)
+					ADBMouseDown(1);
+				else if (button == SDL_BUTTON_MIDDLE)
+					ADBMouseDown(2);
 				else if (button < 6) {	// Wheel mouse
 					if (mouse_wheel_mode == 0) {
 						int key = (button == 5) ? 0x79 : 0x74;	// Page up/down
@@ -1789,8 +1793,12 @@ static void handle_events(void)
 			}
 			case SDL_MOUSEBUTTONUP: {
 				unsigned int button = event.button.button;
-				if (button < 4)
-					ADBMouseUp(button - 1);
+				if (button == SDL_BUTTON_LEFT)
+					ADBMouseUp(0);
+				else if (button == SDL_BUTTON_RIGHT)
+					ADBMouseUp(1);
+				else if (button == SDL_BUTTON_MIDDLE)
+					ADBMouseUp(2);
 				break;
 			}
 
