@@ -294,6 +294,7 @@ NSString *getStringFromPrefs(const char *key)
     case 3: rate = 4; break;
     case 4: rate = 2; break;
     case 5: rate = 1; break;
+    case 6: rate = 0; break;
   }
   PrefsReplaceInt32("frameskip", rate);
   PrefsReplaceBool("gfxaccel", [qdAccel intValue]);
