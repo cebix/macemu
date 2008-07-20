@@ -48,7 +48,7 @@
 
 
 // Global variables
-static CFRunLoopRef media_poll_loop = NULL;
+static volatile CFRunLoopRef media_poll_loop = NULL;
 static bool media_thread_active = false;
 static pthread_t media_thread;
 
@@ -78,10 +78,14 @@ void DarwinSysInit(void)
 void DarwinSysExit(void)
 {
 	// Stop media poll thread
-	if (media_poll_loop)
+	if (media_thread_active) {
+		while (media_poll_loop == NULL || !CFRunLoopIsWaiting(media_poll_loop))
+			usleep(0);
 		CFRunLoopStop(media_poll_loop);
-	if (media_thread_active)
 		pthread_join(media_thread, NULL);
+		media_poll_loop = NULL;
+		media_thread_active = false;
+	}
 }
 
 
@@ -154,52 +158,65 @@ static void media_removed(int type, io_iterator_t iterator)
 
 /*
  *  Media poll function
+ *
+ *  NOTE: to facilitate orderly thread termination, media_poll_func MUST end up waiting in CFRunLoopRun.
+ *  Early returns must be avoided, even if there is nothing useful to be done here. See DarwinSysExit.
  */
+
+static void dummy(void *) { };	// stub for dummy runloop source
 
 static void *media_poll_func(void *)
 {
 	media_poll_loop = CFRunLoopGetCurrent();
 
 	mach_port_t masterPort;
-	kern_return_t kernResult = IOMasterPort(bootstrap_port, &masterPort);
-	if (kernResult != KERN_SUCCESS) {
+	kern_return_t kernResult;
+	CFMutableDictionaryRef matchingDictionary;
+	CFRunLoopSourceRef loopSource = NULL;
+	CFRunLoopSourceRef dummySource = NULL;
+
+	if ((kernResult = IOMasterPort(bootstrap_port, &masterPort)) != KERN_SUCCESS)
 		fprintf(stderr, "IOMasterPort() returned %d\n", kernResult);
-		return NULL;
-	}
-
-	CFMutableDictionaryRef matchingDictionary = IOServiceMatching(kIOCDMediaClass);
-	if (matchingDictionary == NULL) {
+	else if ((matchingDictionary = IOServiceMatching(kIOCDMediaClass)) == NULL)
 		fprintf(stderr, "IOServiceMatching() returned a NULL dictionary\n");
-		return NULL;
+	else {
+		matchingDictionary = (CFMutableDictionaryRef)CFRetain(matchingDictionary);
+		IONotificationPortRef notificationPort = IONotificationPortCreate(kIOMasterPortDefault);
+		loopSource = IONotificationPortGetRunLoopSource(notificationPort);
+		CFRunLoopAddSource(media_poll_loop, loopSource, kCFRunLoopDefaultMode);
+
+		io_iterator_t mediaArrivedIterator;
+		kernResult = IOServiceAddMatchingNotification(notificationPort,
+			kIOMatchedNotification,
+			matchingDictionary,
+			(IOServiceMatchingCallback)media_arrived,
+			(void *)MEDIA_CD, &mediaArrivedIterator);
+		if (kernResult != KERN_SUCCESS)
+			fprintf(stderr, "IOServiceAddMatchingNotification() returned %d\n", kernResult);
+		media_arrived(MEDIA_CD, mediaArrivedIterator);
+
+		io_iterator_t mediaRemovedIterator;
+		kernResult = IOServiceAddMatchingNotification(notificationPort,
+			kIOTerminatedNotification,
+			matchingDictionary,
+			(IOServiceMatchingCallback)media_removed,
+			(void *)MEDIA_CD, &mediaRemovedIterator);
+		if (kernResult != KERN_SUCCESS)
+			fprintf(stderr, "IOServiceAddMatchingNotification() returned %d\n", kernResult);
+		media_removed(MEDIA_CD, mediaRemovedIterator);
 	}
-	matchingDictionary = (CFMutableDictionaryRef)CFRetain(matchingDictionary);
 
-	IONotificationPortRef notificationPort = IONotificationPortCreate(kIOMasterPortDefault);
-	CFRunLoopAddSource(media_poll_loop,
-					   IONotificationPortGetRunLoopSource(notificationPort),
-					   kCFRunLoopDefaultMode);
-
-	io_iterator_t mediaArrivedIterator;
-	kernResult = IOServiceAddMatchingNotification(notificationPort,
-												  kIOMatchedNotification,
-												  matchingDictionary,
-												  (IOServiceMatchingCallback)media_arrived,
-												  (void *)MEDIA_CD, &mediaArrivedIterator);
-	if (kernResult != KERN_SUCCESS)
-		fprintf(stderr, "IOServiceAddMatchingNotification() returned %d\n", kernResult);
-	media_arrived(MEDIA_CD, mediaArrivedIterator);
-
-	io_iterator_t mediaRemovedIterator;
-	kernResult = IOServiceAddMatchingNotification(notificationPort,
-												  kIOTerminatedNotification,
-												  matchingDictionary,
-												  (IOServiceMatchingCallback)media_removed,
-												  (void *)MEDIA_CD, &mediaRemovedIterator);
-	if (kernResult != KERN_SUCCESS)
-		fprintf(stderr, "IOServiceAddMatchingNotification() returned %d\n", kernResult);
-	media_removed(MEDIA_CD, mediaRemovedIterator);
+	if (loopSource == NULL) {
+		// add a dummy runloop source to prevent premature return from CFRunLoopRun
+		CFRunLoopSourceContext context = { 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, dummy };
+		dummySource = CFRunLoopSourceCreate(NULL, 0, &context);
+		CFRunLoopAddSource(media_poll_loop, dummySource, kCFRunLoopDefaultMode);
+	}
 
 	CFRunLoopRun();
+
+	if (dummySource != NULL)
+		CFRelease(dummySource);
 	return NULL;
 }
 
