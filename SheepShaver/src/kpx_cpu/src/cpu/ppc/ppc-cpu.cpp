@@ -49,7 +49,7 @@ int generic_calls_compare(const void *e1, const void *e2)
 {
 	const int id1 = *(const int *)e1;
 	const int id2 = *(const int *)e2;
-	return powerpc_cpu::generic_calls_count[id1] < powerpc_cpu::generic_calls_count[id2];
+	return powerpc_cpu::generic_calls_count[id2] - powerpc_cpu::generic_calls_count[id1];
 }
 #endif
 
@@ -58,7 +58,7 @@ int register_info_compare(const void *e1, const void *e2)
 {
 	const powerpc_cpu::register_info *ri1 = (powerpc_cpu::register_info *)e1;
 	const powerpc_cpu::register_info *ri2 = (powerpc_cpu::register_info *)e2;
-	return ri1->count < ri2->count;
+	return ri2->count - ri1->count;
 }
 #endif
 
