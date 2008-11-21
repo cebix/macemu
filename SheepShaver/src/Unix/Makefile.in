@@ -124,7 +124,7 @@ $(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	echo -n 'APPL????' > $(APP_APP)/Contents/PkgInfo
 	mkdir -p $(APP_APP)/Contents/MacOS
 	cp -f $(APP) $(APP_APP)/Contents/MacOS/
-	strip $(APP_APP)/Contents/MacOS/$(APP)
+	strip -x $(APP_APP)/Contents/MacOS/$(APP)
 	mkdir -p $(APP_APP)/Contents/Resources
 	cp -R ../MacOSX/PrefsEditor/standalone_nib/English.lproj $(APP_APP)/Contents/Resources
 	cp -f ../MacOSX/SheepShaver.icns $(APP_APP)/Contents/Resources/
@@ -135,7 +135,7 @@ $(GUI_APP)_app: $(GUI_APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	echo -n 'APPL????' > $(GUI_APP_APP)/Contents/PkgInfo
 	mkdir -p $(GUI_APP_APP)/Contents/MacOS
 	cp -f $(GUI_APP) $(GUI_APP_APP)/Contents/MacOS/
-	strip $(GUI_APP_APP)/Contents/MacOS/$(GUI_APP)
+	strip -x $(GUI_APP_APP)/Contents/MacOS/$(GUI_APP)
 	mkdir -p $(GUI_APP_APP)/Contents/Resources
 	cp -f ../MacOSX/$(APP).icns $(GUI_APP_APP)/Contents/Resources/$(GUI_APP).icns
 
