@@ -175,7 +175,7 @@ $(APP)_app: $(APP) $(DOCS) Info.plist $(APP).icns
 	echo -n 'APPL????' > $(APP_APP)/Contents/PkgInfo
 	mkdir -p $(APP_APP)/Contents/MacOS
 	cp -f $(APP) $(APP_APP)/Contents/MacOS/
-	strip $(APP_APP)/Contents/MacOS/$(APP)
+	strip -x $(APP_APP)/Contents/MacOS/$(APP)
 	mkdir -p $(APP_APP)/Contents/Resources
 	cp -Rp English.lproj $(APP_APP)/Contents/Resources/
 	cp -f $(APP).icns $(APP_APP)/Contents/Resources/
