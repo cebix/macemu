@@ -351,7 +351,7 @@ private:
 
 	// Block lookup table
 	typedef powerpc_block_info block_info;
-	block_cache< block_info, lazy_allocator > block_cache;
+	block_cache< block_info, lazy_allocator > my_block_cache;
 
 #if PPC_DECODE_CACHE
 	// Decode Cache

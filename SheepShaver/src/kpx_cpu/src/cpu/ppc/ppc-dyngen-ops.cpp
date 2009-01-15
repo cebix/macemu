@@ -100,7 +100,7 @@ struct powerpc_dyngen_helper {
 	static inline powerpc_fpr & reg_F3()		{ return CPU->codegen.reg_F3; }
 //#endif
 
-	static inline powerpc_block_info *find_block(uint32 pc) { return CPU->block_cache.fast_find(pc); }
+	static inline powerpc_block_info *find_block(uint32 pc) { return CPU->my_block_cache.fast_find(pc); }
 };
 
 // Semantic action templates
@@ -1380,13 +1380,13 @@ static inline void do_lmw(void)
 }
 
 template<>
-static inline void do_lmw<31>(void)
+inline void do_lmw<31>(void)
 {
 	CPU->gpr(31) = vm_read_memory_4(T0);
 }
 
 template<>
-static inline void do_lmw<32>(void)
+inline void do_lmw<32>(void)
 {
 	for (uint32 r = PARAM1, ad = T0; r <= 31; r++, ad += 4)
 		CPU->gpr(r) = vm_read_memory_4(ad);
@@ -1402,13 +1402,13 @@ static inline void do_stmw(void)
 }
 
 template<>
-static inline void do_stmw<31>(void)
+inline void do_stmw<31>(void)
 {
 	vm_write_memory_4(T0, CPU->gpr(31));
 }
 
 template<>
-static inline void do_stmw<32>(void)
+inline void do_stmw<32>(void)
 {
 	for (uint32 r = PARAM1, ad = T0; r <= 31; r++, ad += 4)
 		vm_write_memory_4(ad, CPU->gpr(r));

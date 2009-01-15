@@ -266,7 +266,7 @@ void powerpc_cpu::initialize()
 
 	// Initialize block lookup table
 #if PPC_DECODE_CACHE || PPC_ENABLE_JIT
-	block_cache.initialize();
+	my_block_cache.initialize();
 #endif
 
 	// Init cache range invalidate recorder
@@ -551,7 +551,7 @@ void *powerpc_cpu::compile_chain_block(block_info *sbi)
 	const uint32 bpc = sbi->pc;
 
 	const uint32 tpc = sbi->li[n].jmp_pc;
-	block_info *tbi = block_cache.find(tpc);
+	block_info *tbi = my_block_cache.find(tpc);
 	if (tbi == NULL)
 		tbi = compile_block(tpc);
 	assert(tbi && tbi->pc == tpc);
@@ -573,7 +573,7 @@ void powerpc_cpu::execute(uint32 entry)
 	if (execute_depth == 1 || (PPC_ENABLE_JIT && PPC_REENTRANT_JIT)) {
 #if PPC_ENABLE_JIT
 		if (use_jit) {
-			block_info *bi = block_cache.find(pc());
+			block_info *bi = my_block_cache.find(pc());
 			if (bi == NULL)
 				bi = compile_block(pc());
 			for (;;) {
@@ -596,7 +596,7 @@ void powerpc_cpu::execute(uint32 entry)
 					// Don't check for backward branches here as this
 					// is now done by generated code. Besides, we will
 					// get here if the fast cache lookup failed too.
-					if ((bi = block_cache.find(pc())) == NULL)
+					if ((bi = my_block_cache.find(pc())) == NULL)
 						break;
 				}
 
@@ -607,7 +607,7 @@ void powerpc_cpu::execute(uint32 entry)
 		}
 #endif
 #if PPC_DECODE_CACHE
-		block_info *bi = block_cache.find(pc());
+		block_info *bi = my_block_cache.find(pc());
 		if (bi != NULL)
 			goto pdi_execute;
 		for (;;) {
@@ -617,7 +617,7 @@ void powerpc_cpu::execute(uint32 entry)
 			clock_t start_time;
 			start_time = clock();
 #endif
-			bi = block_cache.new_blockinfo();
+			bi = my_block_cache.new_blockinfo();
 			bi->init(pc());
 
 			// Predecode a new block
@@ -667,8 +667,8 @@ void powerpc_cpu::execute(uint32 entry)
 			bi->min_pc = dpc;
 			bi->max_pc = entry;
 			bi->size = di - bi->di;
-			block_cache.add_to_cl_list(bi);
-			block_cache.add_to_active_list(bi);
+			my_block_cache.add_to_cl_list(bi);
+			my_block_cache.add_to_active_list(bi);
 			decode_cache_p += bi->size;
 #if PPC_PROFILE_COMPILE_TIME
 			compile_time += (clock() - start_time);
@@ -702,7 +702,7 @@ void powerpc_cpu::execute(uint32 entry)
 					}
 				}
 
-				if ((bi->pc != pc()) && ((bi = block_cache.find(pc())) == NULL))
+				if ((bi->pc != pc()) && ((bi = my_block_cache.find(pc())) == NULL))
 					break;
 			}
 		}
@@ -778,8 +778,8 @@ void powerpc_cpu::invalidate_cache()
 {
 	D(bug("Invalidate all cache blocks\n"));
 #if PPC_DECODE_CACHE || PPC_ENABLE_JIT
-	block_cache.clear();
-	block_cache.initialize();
+	my_block_cache.clear();
+	my_block_cache.initialize();
 	spcflags().set(SPCFLAG_JIT_EXEC_RETURN);
 #endif
 #if PPC_ENABLE_JIT
@@ -822,6 +822,6 @@ void powerpc_cpu::invalidate_cache_range(uintptr start, uintptr end)
 	}
 #endif
 	spcflags().set(SPCFLAG_JIT_EXEC_RETURN);
-	block_cache.clear_range(start, end);
+	my_block_cache.clear_range(start, end);
 #endif
 }

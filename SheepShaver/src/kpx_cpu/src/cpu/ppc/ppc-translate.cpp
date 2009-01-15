@@ -143,7 +143,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 	codegen_context_t cg_context(dg);
 	cg_context.entry_point = entry_point;
   again:
-	block_info *bi = block_cache.new_blockinfo();
+	block_info *bi = my_block_cache.new_blockinfo();
 	bi->init(entry_point);
 	bi->entry_point = dg.gen_start(entry_point);
 
@@ -1576,11 +1576,11 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		disasm_translation(entry_point, dpc - entry_point + 4, bi->entry_point, bi->size);
 
 	dg.gen_end();
-	block_cache.add_to_cl_list(bi);
+	my_block_cache.add_to_cl_list(bi);
 	if (is_read_only_memory(bi->pc))
-		block_cache.add_to_dormant_list(bi);
+		my_block_cache.add_to_dormant_list(bi);
 	else
-		block_cache.add_to_active_list(bi);
+		my_block_cache.add_to_active_list(bi);
 #if PPC_PROFILE_COMPILE_TIME
 	compile_time += (clock() - start_time);
 #endif
