@@ -37,7 +37,96 @@
 typedef char *sigsegv_address_t;
 
 // SIGSEGV handler argument (forward declaration)
-struct sigsegv_info_t;
+
+#if HAVE_MACH_EXCEPTIONS
+#if defined(__APPLE__) && defined(__MACH__)
+extern "C" {
+#include <mach/mach.h>
+#include <mach/mach_error.h>
+}
+
+#ifdef __ppc__
+#if __DARWIN_UNIX03 && defined _STRUCT_PPC_THREAD_STATE
+#define MACH_FIELD_NAME(X)				__CONCAT(__,X)
+#endif
+#define SIGSEGV_EXCEPTION_STATE_TYPE	ppc_exception_state_t
+#define SIGSEGV_EXCEPTION_STATE_FLAVOR	PPC_EXCEPTION_STATE
+#define SIGSEGV_EXCEPTION_STATE_COUNT	PPC_EXCEPTION_STATE_COUNT
+#define SIGSEGV_FAULT_ADDRESS			SIP->exc_state.MACH_FIELD_NAME(dar)
+#define SIGSEGV_THREAD_STATE_TYPE		ppc_thread_state_t
+#define SIGSEGV_THREAD_STATE_FLAVOR		PPC_THREAD_STATE
+#define SIGSEGV_THREAD_STATE_COUNT		PPC_THREAD_STATE_COUNT
+#define SIGSEGV_FAULT_INSTRUCTION		SIP->thr_state.MACH_FIELD_NAME(srr0)
+#define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)&SIP->thr_state.MACH_FIELD_NAME(srr0), (unsigned long *)&SIP->thr_state.MACH_FIELD_NAME(r0)
+#endif
+#ifdef __ppc64__
+#if __DARWIN_UNIX03 && defined _STRUCT_PPC_THREAD_STATE64
+#define MACH_FIELD_NAME(X)				__CONCAT(__,X)
+#endif
+#define SIGSEGV_EXCEPTION_STATE_TYPE	ppc_exception_state64_t
+#define SIGSEGV_EXCEPTION_STATE_FLAVOR	PPC_EXCEPTION_STATE64
+#define SIGSEGV_EXCEPTION_STATE_COUNT	PPC_EXCEPTION_STATE64_COUNT
+#define SIGSEGV_FAULT_ADDRESS			SIP->exc_state.MACH_FIELD_NAME(dar)
+#define SIGSEGV_THREAD_STATE_TYPE		ppc_thread_state64_t
+#define SIGSEGV_THREAD_STATE_FLAVOR		PPC_THREAD_STATE64
+#define SIGSEGV_THREAD_STATE_COUNT		PPC_THREAD_STATE64_COUNT
+#define SIGSEGV_FAULT_INSTRUCTION		SIP->thr_state.MACH_FIELD_NAME(srr0)
+#define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)&SIP->thr_state.MACH_FIELD_NAME(srr0), (unsigned long *)&SIP->thr_state.MACH_FIELD_NAME(r0)
+#endif
+#ifdef __i386__
+#if __DARWIN_UNIX03 && defined _STRUCT_X86_THREAD_STATE32
+#define MACH_FIELD_NAME(X)				__CONCAT(__,X)
+#endif
+#define SIGSEGV_EXCEPTION_STATE_TYPE	i386_exception_state_t
+#define SIGSEGV_EXCEPTION_STATE_FLAVOR	i386_EXCEPTION_STATE
+#define SIGSEGV_EXCEPTION_STATE_COUNT	i386_EXCEPTION_STATE_COUNT
+#define SIGSEGV_FAULT_ADDRESS			SIP->exc_state.MACH_FIELD_NAME(faultvaddr)
+#define SIGSEGV_THREAD_STATE_TYPE		i386_thread_state_t
+#define SIGSEGV_THREAD_STATE_FLAVOR		i386_THREAD_STATE
+#define SIGSEGV_THREAD_STATE_COUNT		i386_THREAD_STATE_COUNT
+#define SIGSEGV_FAULT_INSTRUCTION		SIP->thr_state.MACH_FIELD_NAME(eip)
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&SIP->thr_state.MACH_FIELD_NAME(eax)) /* EAX is the first GPR we consider */
+#endif
+#ifdef __x86_64__
+#if __DARWIN_UNIX03 && defined _STRUCT_X86_THREAD_STATE64
+#define MACH_FIELD_NAME(X)				__CONCAT(__,X)
+#endif
+#define SIGSEGV_EXCEPTION_STATE_TYPE	x86_exception_state64_t
+#define SIGSEGV_EXCEPTION_STATE_FLAVOR	x86_EXCEPTION_STATE64
+#define SIGSEGV_EXCEPTION_STATE_COUNT	x86_EXCEPTION_STATE64_COUNT
+#define SIGSEGV_FAULT_ADDRESS			SIP->exc_state.MACH_FIELD_NAME(faultvaddr)
+#define SIGSEGV_THREAD_STATE_TYPE		x86_thread_state64_t
+#define SIGSEGV_THREAD_STATE_FLAVOR		x86_THREAD_STATE64
+#define SIGSEGV_THREAD_STATE_COUNT		x86_THREAD_STATE64_COUNT
+#define SIGSEGV_FAULT_INSTRUCTION		SIP->thr_state.MACH_FIELD_NAME(rip)
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&SIP->thr_state.MACH_FIELD_NAME(rax)) /* RAX is the first GPR we consider */
+#endif
+#define SIGSEGV_FAULT_ADDRESS_FAST		code[1]
+#define SIGSEGV_FAULT_INSTRUCTION_FAST	SIGSEGV_INVALID_ADDRESS
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	mach_port_t thread, mach_exception_data_t code
+#define SIGSEGV_FAULT_HANDLER_ARGS		thread, code
+
+#endif
+#endif
+
+struct sigsegv_info_t {
+	sigsegv_address_t addr;
+	sigsegv_address_t pc;
+#ifdef HAVE_MACH_EXCEPTIONS
+	mach_port_t thread;
+	bool has_exc_state;
+	SIGSEGV_EXCEPTION_STATE_TYPE exc_state;
+	mach_msg_type_number_t exc_state_count;
+	bool has_thr_state;
+	SIGSEGV_THREAD_STATE_TYPE thr_state;
+	mach_msg_type_number_t thr_state_count;
+#endif
+};
+
 
 // SIGSEGV handler return state
 enum sigsegv_return_t {
