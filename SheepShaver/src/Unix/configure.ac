@@ -527,6 +527,7 @@ AC_CHECK_FRAMEWORK(CoreFoundation, [#include <CoreFoundation/CoreFoundation.h>])
 AC_CHECK_FRAMEWORK(CoreAudio, [#include <CoreAudio/CoreAudio.h>])
 AC_CHECK_FRAMEWORK(AudioUnit, [#include <AudioUnit/AudioUnit.h>])
 AC_CHECK_FRAMEWORK(AudioToolbox, [#include <AudioToolbox/AudioToolbox.h>])
+AC_CHECK_FRAMEWORK(AppKit, [])
 
 dnl Select system-dependant sources.
 SERIALSRC=serial_unix.cpp
@@ -564,10 +565,12 @@ darwin*)
   fi
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     EXTFSSRC=../MacOSX/extfs_macosx.cpp
-    PREFSSRC="../MacOSX/prefs_macosx.mm ../MacOSX/PrefsEditor/PrefsEditor.mm"
-    CPPFLAGS="$CPPFLAGS -I../MacOSX/PrefsEditor"
- fi
-  if [[ "x$ac_cv_framework_CoreAudio" = "xyes" ]]; then
+    if [[ "x$ac_cv_framework_AppKit" = "xyes" ]]; then
+      PREFSSRC="../MacOSX/prefs_macosx.mm ../MacOSX/PrefsEditor/PrefsEditor.mm"
+      CPPFLAGS="$CPPFLAGS -I../MacOSX/PrefsEditor"
+    fi
+  fi
+  if [[ "x$ac_cv_framework_CoreAudio" = "xyes" -a "x$WANT_SDL_AUDIO" = "xno" ]]; then
     AUDIOSRC="../MacOSX/audio_macosx.cpp ../MacOSX/AudioBackEnd.cpp ../MacOSX/AudioDevice.cpp ../MacOSX/MacOSX_sound_if.cpp"
   fi
   ;;

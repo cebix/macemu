@@ -79,24 +79,34 @@ struct machine_regs : public mcontext_t
 // Extract machine registers from Darwin signal frame
 #if defined(__APPLE__) && defined(__MACH__)
 #include <sys/signal.h>
-extern "C" int sigaltstack(const struct sigaltstack *ss, struct sigaltstack *oss);
 
-#include <sys/ucontext.h>
 #define MACHINE_REGISTERS(scp)	((machine_regs *)(((ucontext_t *)scp)->uc_mcontext))
 
+#if __DARWIN_UNIX03
+#define	__(x)	__CONCAT(__,x)
+#else
+#define	__(x)	x
+#endif
+
+#include <sys/ucontext.h>
+
+#if __DARWIN_UNIX03
+struct machine_regs : public __darwin_mcontext
+#else
 struct machine_regs : public mcontext
+#endif
 {
-	uint32 & cr()				{ return ss.cr; }
-	uint32 cr() const			{ return ss.cr; }
-	uint32 lr() const			{ return ss.lr; }
-	uint32 ctr() const			{ return ss.ctr; }
-	uint32 xer() const			{ return ss.xer; }
-	uint32 msr() const			{ return ss.srr1; }
-	uint32 dar() const			{ return es.dar; }
-	uint32 & pc()				{ return ss.srr0; }
-	uint32 pc() const			{ return ss.srr0; }
-	uint32 & gpr(int i)			{ return (&ss.r0)[i]; }
-	uint32 gpr(int i) const		{ return (&ss.r0)[i]; }
+	uint32 & cr()				{ return __(ss).__(cr); }
+	uint32 cr() const			{ return __(ss).__(cr); }
+	uint32 lr() const			{ return __(ss).__(lr); }
+	uint32 ctr() const			{ return __(ss).__(ctr); }
+	uint32 xer() const			{ return __(ss).__(xer); }
+	uint32 msr() const			{ return __(ss).__(srr1); }
+	uint32 dar() const			{ return __(es).__(dar); }
+	uint32 & pc()				{ return __(ss).__(srr0); }
+	uint32 pc() const			{ return __(ss).__(srr0); }
+	uint32 & gpr(int i)			{ return (&__(ss).__(r0))[i]; }
+	uint32 gpr(int i) const		{ return (&__(ss).__(r0))[i]; }
 };
 #endif
 

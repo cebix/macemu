@@ -85,8 +85,8 @@ void paranoia_check(void)
 		exit(1);
 	}
 
-	struct sigaltstack old_stack;
-	struct sigaltstack new_stack;
+	stack_t old_stack;
+	stack_t new_stack;
 	new_stack.ss_sp = (char *)sig_stack;
 	new_stack.ss_flags = 0;
 	new_stack.ss_size = SIG_STACK_SIZE;

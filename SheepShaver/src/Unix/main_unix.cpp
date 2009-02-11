@@ -225,8 +225,8 @@ static uintptr sig_stack = 0;				// Stack for PowerPC interrupt routine
 #else
 static struct sigaction sigsegv_action;		// Data access exception signal (of emulator thread)
 static struct sigaction sigill_action;		// Illegal instruction signal (of emulator thread)
-static struct sigaltstack sig_stack;		// Stack for signal handlers
-static struct sigaltstack extra_stack;		// Stack for SIGSEGV inside interrupt handler
+static stack_t sig_stack;					// Stack for signal handlers
+static stack_t extra_stack;					// Stack for SIGSEGV inside interrupt handler
 static bool emul_thread_fatal = false;		// Flag: MacOS thread crashed, tick thread shall dump debug output
 static sigregs sigsegv_regs;				// Register dump when crashed
 static const char *crash_reason = NULL;		// Reason of the crash (SIGSEGV, SIGBUS, SIGILL)
@@ -1623,6 +1623,15 @@ void sigusr2_handler(int sig, siginfo_t *sip, void *scp)
  */
 
 #if !EMULATED_PPC
+// XXX: don't redefine locally?
+// Note: Original declaration is in sigsegv.cpp
+// FIXME: If HAVE_MACH_EXCEPTIONS is set, sigsegv_info_t has a bunch of other
+//        fields too! Let's hope Screen_fault_handler() doesn't use them...
+struct sigsegv_info_t {
+	sigsegv_address_t addr;
+	sigsegv_address_t pc;
+};
+
 static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 {
 	machine_regs *r = MACHINE_REGISTERS(scp);
@@ -1641,12 +1650,7 @@ static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 
 #if ENABLE_VOSF
 	// Handle screen fault
-	// XXX: don't redefine locally?
 #if SIGSEGV_CHECK_VERSION(1,0,0)
-	struct sigsegv_info_t {
-		sigsegv_address_t addr;
-		sigsegv_address_t pc;
-	};
 	sigsegv_info_t si;
 	si.addr = (sigsegv_address_t)addr;
 	si.pc = (sigsegv_address_t)r->pc();

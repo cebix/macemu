@@ -550,10 +550,10 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 #ifndef HAVE_MACH_EXCEPTIONS
 #if defined(__APPLE__) && defined(__MACH__)
 #if (defined(ppc) || defined(__ppc__))
-#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct sigcontext *scp
+#define SIGSEGV_FAULT_HANDLER_ARGLIST	int sig, int code, struct __darwin_sigcontext *scp
 #define SIGSEGV_FAULT_HANDLER_ARGS		sig, code, scp
 #define SIGSEGV_FAULT_ADDRESS			get_fault_address(scp)
-#define SIGSEGV_FAULT_INSTRUCTION		scp->sc_ir
+#define SIGSEGV_FAULT_INSTRUCTION		scp->MACH_FIELD_NAME(sc_ir)
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGBUS)
 #define SIGSEGV_REGISTER_FILE			(unsigned int *)&scp->sc_ir, &((unsigned int *) scp->sc_regs)[2]
 #define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
@@ -561,11 +561,11 @@ static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 // Use decoding scheme from SheepShaver
 static sigsegv_address_t get_fault_address(struct sigcontext *scp)
 {
-	unsigned int   nip = (unsigned int) scp->sc_ir;
-	unsigned int * gpr = &((unsigned int *) scp->sc_regs)[2];
+	unsigned int   nip = (unsigned int) scp->MACH_FIELD_NAME(sc_ir);
+	unsigned int * gpr = &((unsigned int *) scp->MACH_FIELD_NAME(sc_regs))[2];
 	instruction_t  instr;
 
-	powerpc_decode_instruction(&instr, nip, gpr);
+	powerpc_decode_instruction(&instr, nip, (long unsigned int*)gpr);
 	return (sigsegv_address_t)instr.addr;
 }
 #endif
@@ -618,6 +618,11 @@ extern "C" {
 #include <mach/mach_error.h>
 
 #ifndef HAVE_MACH64_VM
+
+// Undefine this to prevent a preprocessor warning when compiling on a
+// 32-bit machine with Mac OS X 10.5.
+#undef	MACH_EXCEPTION_CODES
+
 #define MACH_EXCEPTION_CODES					0
 #define mach_exception_data_t					exception_data_t
 #define mach_exception_data_type_t				exception_data_type_t
@@ -2613,6 +2618,7 @@ static void mach_set_thread_state(sigsegv_info_t *SIP)
 sigsegv_address_t sigsegv_get_fault_address(sigsegv_info_t *SIP)
 {
 #ifdef HAVE_MACH_EXCEPTIONS
+#ifdef EMULATED_PPC
 	static int use_fast_path = -1;
 	if (use_fast_path != 1 && !SIP->has_exc_state) {
 		mach_get_exception_state(SIP);
@@ -2632,6 +2638,7 @@ sigsegv_address_t sigsegv_get_fault_address(sigsegv_info_t *SIP)
 		SIP->addr = addr;
 	}
 #endif
+#endif
 	return SIP->addr;
 }
 
@@ -2640,11 +2647,13 @@ sigsegv_address_t sigsegv_get_fault_address(sigsegv_info_t *SIP)
 sigsegv_address_t sigsegv_get_fault_instruction_address(sigsegv_info_t *SIP)
 {
 #ifdef HAVE_MACH_EXCEPTIONS
+#ifdef EMULATED_PPC
 	if (!SIP->has_thr_state) {
 		mach_get_thread_state(SIP);
 
 		SIP->pc = (sigsegv_address_t)SIGSEGV_FAULT_INSTRUCTION;
 	}
+#endif
 #endif
 	return SIP->pc;
 }
