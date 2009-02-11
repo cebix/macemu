@@ -1623,15 +1623,6 @@ void sigusr2_handler(int sig, siginfo_t *sip, void *scp)
  */
 
 #if !EMULATED_PPC
-// XXX: don't redefine locally?
-// Note: Original declaration is in sigsegv.cpp
-// FIXME: If HAVE_MACH_EXCEPTIONS is set, sigsegv_info_t has a bunch of other
-//        fields too! Let's hope Screen_fault_handler() doesn't use them...
-struct sigsegv_info_t {
-	sigsegv_address_t addr;
-	sigsegv_address_t pc;
-};
-
 static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 {
 	machine_regs *r = MACHINE_REGISTERS(scp);
