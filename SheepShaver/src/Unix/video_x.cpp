@@ -1372,6 +1372,7 @@ bool VideoInit(void)
 	
 	// Check if X server runs on local machine
 	local_X11 = (strncmp(XDisplayName(x_display_name), ":", 1) == 0)
+	         || (strncmp(XDisplayName(x_display_name), "/", 1) == 0)
 	         || (strncmp(XDisplayName(x_display_name), "unix:", 5) == 0);
     
 	// Init keycode translation
