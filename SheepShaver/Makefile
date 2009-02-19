@@ -72,7 +72,7 @@ links:
 	       dummy/audio_dummy.cpp dummy/clip_dummy.cpp dummy/serial_dummy.cpp \
 	       dummy/prefs_editor_dummy.cpp dummy/scsi_dummy.cpp SDL slirp \
 	       MacOSX/sys_darwin.cpp MacOSX/clip_macosx.cpp \
-	       MacOSX/macos_util_macosx.h MacOSX/extfs_macosx.h \
+	       MacOSX/macos_util_macosx.h Unix/cpr.sh \
 	       MacOSX/extfs_macosx.cpp Windows/clip_windows.cpp \
 	       MacOSX/MacOSX_sound_if.cpp MacOSX/MacOSX_sound_if.h \
 	       MacOSX/AudioBackEnd.cpp MacOSX/AudioBackEnd.h \

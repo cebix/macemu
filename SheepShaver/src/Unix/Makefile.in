@@ -119,25 +119,27 @@ $(GUI_APP_EXE): $(OBJ_DIR) $(GUI_OBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(GUI_OBJS) $(GUI_LIBS)
 
 $(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
+	rm -rf $(APP_APP)/Contents
 	mkdir -p $(APP_APP)/Contents
-	cp -f ../MacOSX/Info.plist $(APP_APP)/Contents/
+	./cpr.sh ../MacOSX/Info.plist $(APP_APP)/Contents/
 	echo -n 'APPL????' > $(APP_APP)/Contents/PkgInfo
 	mkdir -p $(APP_APP)/Contents/MacOS
-	cp -f $(APP) $(APP_APP)/Contents/MacOS/
+	./cpr.sh $(APP) $(APP_APP)/Contents/MacOS/
 	strip -x $(APP_APP)/Contents/MacOS/$(APP)
 	mkdir -p $(APP_APP)/Contents/Resources
-	cp -R ../MacOSX/PrefsEditor/standalone_nib/English.lproj $(APP_APP)/Contents/Resources
-	cp -f ../MacOSX/SheepShaver.icns $(APP_APP)/Contents/Resources/
+	./cpr.sh ../MacOSX/PrefsEditor/standalone_nib/English.lproj $(APP_APP)/Contents/Resources
+	./cpr.sh ../MacOSX/SheepShaver.icns $(APP_APP)/Contents/Resources/
 
 $(GUI_APP)_app: $(GUI_APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
+	rm -rf $(GUI_APP_APP)/Contents
 	mkdir -p $(GUI_APP_APP)/Contents
 	sed -e "s/$(APP)/$(GUI_APP)/" < ../MacOSX/Info.plist > $(GUI_APP_APP)/Contents/Info.plist
 	echo -n 'APPL????' > $(GUI_APP_APP)/Contents/PkgInfo
 	mkdir -p $(GUI_APP_APP)/Contents/MacOS
-	cp -f $(GUI_APP) $(GUI_APP_APP)/Contents/MacOS/
+	./cpr.sh $(GUI_APP) $(GUI_APP_APP)/Contents/MacOS/
 	strip -x $(GUI_APP_APP)/Contents/MacOS/$(GUI_APP)
 	mkdir -p $(GUI_APP_APP)/Contents/Resources
-	cp -f ../MacOSX/$(APP).icns $(GUI_APP_APP)/Contents/Resources/$(GUI_APP).icns
+	./cpr.sh ../MacOSX/$(APP).icns $(GUI_APP_APP)/Contents/Resources/$(GUI_APP).icns
 
 modules:
 	cd Linux/NetDriver; make
