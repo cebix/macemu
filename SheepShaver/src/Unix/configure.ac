@@ -56,6 +56,8 @@ dnl SDL options.
 AC_ARG_ENABLE(sdl-static,   [  --enable-sdl-static     use SDL static libraries for linking [default=no]], [WANT_SDL_STATIC=$enableval], [WANT_SDL_STATIC=no])
 AC_ARG_ENABLE(sdl-video,    [  --enable-sdl-video      use SDL for video graphics [default=no]], [WANT_SDL_VIDEO=$enableval], [WANT_SDL_VIDEO=no])
 AC_ARG_ENABLE(sdl-audio,    [  --enable-sdl-audio      use SDL for audio [default=no]], [WANT_SDL_AUDIO=$enableval], [WANT_SDL_AUDIO=no])
+AC_ARG_ENABLE(sdl-framework,    [  --enable-sdl-framework  use SDL framework [default=no]], [WANT_SDL_FRAMEWORK=$enableval], [WANT_SDL_FRAMEWORK=no])
+AC_ARG_ENABLE(sdl-framework-prefix,    [  --enable-sdl-framework-prefix=PFX    default=/Library/Frameworks], [SDL_FRAMEWORK="$enableval"], [SDL_FRAMEWORK=/Library/Frameworks])
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -128,6 +130,36 @@ dnl Checks for libraries.
 AC_CHECK_LIB(posix4, sem_init)
 AC_CHECK_LIB(m, cos)
 
+dnl AC_CHECK_SDLFRAMEWORK($1=NAME, $2=INCLUDES)
+dnl AC_TRY_LINK uses main() but SDL needs main to take args,
+dnl therefore main is undefined with #undef.
+dnl Framework can be in an custom location.
+AC_DEFUN([AC_CHECK_SDLFRAMEWORK], [
+  AS_VAR_PUSHDEF([ac_Framework], [ac_cv_framework_$1])
+  AC_CACHE_CHECK([whether compiler supports framework $1],
+    ac_Framework, [
+    saved_LIBS="$LIBS"
+    LIBS="$LIBS -framework $1"
+    if [[ "x$SDL_FRAMEWORK" != "x/Library/Frameworks" ]]; then
+      if [[ "x$SDL_FRAMEWORK" != "x/System/Library/Frameworks" ]]; then
+        LIBS="$saved_LIBS -F$SDL_FRAMEWORK -framework $1"
+      fi
+    fi
+    saved_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS -I$SDL_FRAMEWORK/SDL.framework/Headers"
+    AC_TRY_LINK(
+      [$2
+#undef main], [],
+      [AS_VAR_SET(ac_Framework, yes)], [AS_VAR_SET(ac_Framework, no);
+LIBS="$saved_LIBS"; CPPFLAGS="$saved_CPPFLAGS"]
+    )
+  ])
+  AS_IF([test AS_VAR_GET(ac_Framework) = yes],
+    [AC_DEFINE(AS_TR_CPP(HAVE_FRAMEWORK_$1), 1, [Define if framework $1 is available.])]
+  )
+  AS_VAR_POPDEF([ac_Framework])
+])
+
 dnl Do we need SDL?
 WANT_SDL=no
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
@@ -142,21 +174,28 @@ if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
   SDL_SUPPORT="$SDL_SUPPORT audio"
 fi
 if [[ "x$WANT_SDL" = "xyes" ]]; then
-  AC_PATH_PROG(sdl_config, "sdl-config")
-  if [[ -n "$sdl_config" ]]; then
-    sdl_cflags=`$sdl_config --cflags`
-    if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
-      sdl_libs=`$sdl_config --static-libs`
-    else
-      sdl_libs=`$sdl_config --libs`
-    fi
-    CFLAGS="$CFLAGS $sdl_cflags"
-    CXXFLAGS="$CXXFLAGS $sdl_cflags"
-    LIBS="$LIBS $sdl_libs"
+  if [[ "x$WANT_SDL_FRAMEWORK" = "xyes" ]]; then
+    AC_CHECK_SDLFRAMEWORK(SDL, [#include <SDL.h>])
   else
-    WANT_SDL=no
-    WANT_SDL_VIDEO=no
-    WANT_SDL_AUDIO=no
+    ac_cv_framework_SDL=no
+  fi
+  if [[ "x$ac_cv_framework_SDL" = "xno" ]]; then
+    AC_PATH_PROG(sdl_config, "sdl-config")
+    if [[ -n "$sdl_config" ]]; then
+      sdl_cflags=`$sdl_config --cflags`
+      if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
+        sdl_libs=`$sdl_config --static-libs`
+      else
+        sdl_libs=`$sdl_config --libs`
+      fi
+      CFLAGS="$CFLAGS $sdl_cflags"
+      CXXFLAGS="$CXXFLAGS $sdl_cflags"
+      LIBS="$LIBS $sdl_libs"
+    else
+      WANT_SDL=no
+      WANT_SDL_VIDEO=no
+      WANT_SDL_AUDIO=no
+    fi
   fi
   SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
 else
@@ -565,12 +604,12 @@ darwin*)
   fi
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     EXTFSSRC=../MacOSX/extfs_macosx.cpp
-    if [[ "x$ac_cv_framework_AppKit" = "xyes" ]]; then
+    if [[ "x$ac_cv_framework_AppKit" = "xyes" -a "x$no_x" = "xyes" ]]; then
       PREFSSRC="../MacOSX/prefs_macosx.mm ../MacOSX/PrefsEditor/PrefsEditor.mm"
       CPPFLAGS="$CPPFLAGS -I../MacOSX/PrefsEditor"
     fi
   fi
-  if [[ "x$ac_cv_framework_CoreAudio" = "xyes" -a "x$WANT_SDL_AUDIO" = "xno" ]]; then
+  if [[ "x$WANT_ESD" = "xno" -a "x$ac_cv_framework_CoreAudio" = "xyes" -a "x$WANT_SDL_AUDIO" = "xno" ]]; then
     AUDIOSRC="../MacOSX/audio_macosx.cpp ../MacOSX/AudioBackEnd.cpp ../MacOSX/AudioDevice.cpp ../MacOSX/MacOSX_sound_if.cpp"
   fi
   ;;
@@ -614,6 +653,9 @@ AC_SUBST(SLIRP_SRCS)
 dnl SDL overrides
 if [[ "x$WANT_SDL" = "xyes" ]]; then
   AC_DEFINE(USE_SDL, 1, [Define to enble SDL support.])
+  if [[ "x$WANT_SDL_FRAMEWORK" = "xyes" ]]; then
+    EXTRASYSSRCS="$EXTRASYSSRCS ../SDL/SDLMain.m"
+  fi
 fi
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support.])
