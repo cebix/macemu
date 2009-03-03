@@ -105,8 +105,7 @@ extern void byteput(uaecptr addr, uae_u32 b);
 
 #if REAL_ADDRESSING
 const uintptr MEMBaseDiff = 0;
-#endif
-#if DIRECT_ADDRESSING
+#elif DIRECT_ADDRESSING
 extern uintptr MEMBaseDiff;
 #endif
 
