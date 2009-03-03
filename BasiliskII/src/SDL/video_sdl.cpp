@@ -625,12 +625,12 @@ public:
 class driver_window;
 static void update_display_window_vosf(driver_window *drv);
 static void update_display_dynamic(int ticker, driver_window *drv);
-static void update_display_static(driver_window *drv);
+static void update_display_static(driver_base *drv);
 
 class driver_window : public driver_base {
 	friend void update_display_window_vosf(driver_window *drv);
 	friend void update_display_dynamic(int ticker, driver_window *drv);
-	friend void update_display_static(driver_window *drv);
+	friend void update_display_static(driver_base *drv);
 
 public:
 	driver_window(SDL_monitor_desc &monitor);
@@ -1238,12 +1238,8 @@ bool VideoInit(bool classic)
 				continue;
 			if (w == 512 && h == 384)
 				continue;
-#ifdef ENABLE_VOSF
 			for (int d = VIDEO_DEPTH_1BIT; d <= default_depth; d++)
 				add_mode(display_type, w, h, video_modes[i].resolution_id, TrivialBytesPerRow(w, (video_depth)d), d);
-#else
-			add_mode(display_type, w, h, video_modes[i].resolution_id, TrivialBytesPerRow(w, (video_depth)default_depth), default_depth);
-#endif
 		}
 	}
 
@@ -1897,7 +1893,7 @@ static void handle_events(void)
  */
 
 // Static display update (fixed frame rate, but incremental)
-static void update_display_static(driver_window *drv)
+static void update_display_static(driver_base *drv)
 {
 	// Incremental update code
 	int wide = 0, high = 0, x1, x2, y1, y2, i, j;
@@ -1986,6 +1982,7 @@ static void update_display_static(driver_window *drv)
 
 		} else {
 			const int bytes_per_pixel = VIDEO_MODE_ROW_BYTES / VIDEO_MODE_X;
+			const int dst_bytes_per_row = drv->s->pitch;
 
 			x1 = VIDEO_MODE_X;
 			for (j=y1; j<=y2; j++) {
@@ -2026,8 +2023,9 @@ static void update_display_static(driver_window *drv)
 				// Blit to screen surface
 				for (j=y1; j<=y2; j++) {
 					i = j * bytes_per_row + x1 * bytes_per_pixel;
+					int dst_i = j * dst_bytes_per_row + x1 * bytes_per_pixel;
 					memcpy(the_buffer_copy + i, the_buffer + i, bytes_per_pixel * wide);
-					Screen_blit((uint8 *)drv->s->pixels + i, the_buffer + i, bytes_per_pixel * wide);
+					Screen_blit((uint8 *)drv->s->pixels + dst_i, the_buffer + i, bytes_per_pixel * wide);
 				}
 
 				// Unlock surface, if required
@@ -2043,7 +2041,7 @@ static void update_display_static(driver_window *drv)
 
 // Static display update (fixed frame rate, bounding boxes based)
 // XXX use NQD bounding boxes to help detect dirty areas?
-static void update_display_static_bbox(driver_window *drv)
+static void update_display_static_bbox(driver_base *drv)
 {
 	const VIDEO_MODE &mode = drv->mode;
 
@@ -2061,6 +2059,7 @@ static void update_display_static_bbox(driver_window *drv)
 	// Update the surface from Mac screen
 	const int bytes_per_row = VIDEO_MODE_ROW_BYTES;
 	const int bytes_per_pixel = bytes_per_row / VIDEO_MODE_X;
+	const int dst_bytes_per_row = drv->s->pitch;
 	int x, y;
 	for (y = 0; y < VIDEO_MODE_Y; y += N_PIXELS) {
 		int h = N_PIXELS;
@@ -2075,9 +2074,10 @@ static void update_display_static_bbox(driver_window *drv)
 			bool dirty = false;
 			for (int j = y; j < (y + h); j++) {
 				const int yb = j * bytes_per_row;
+				const int dst_yb = j * dst_bytes_per_row;
 				if (memcmp(&the_buffer[yb + xb], &the_buffer_copy[yb + xb], xs) != 0) {
 					memcpy(&the_buffer_copy[yb + xb], &the_buffer[yb + xb], xs);
-					Screen_blit((uint8 *)drv->s->pixels + yb + xb, the_buffer + yb + xb, xs);
+					Screen_blit((uint8 *)drv->s->pixels + dst_yb + xb, the_buffer + yb + xb, xs);
 					dirty = true;
 				}
 			}
@@ -2141,10 +2141,13 @@ static inline void handle_palette_changes(void)
 	UNLOCK_PALETTE;
 }
 
+static void video_refresh_window_static(void);
+
 static void video_refresh_dga(void)
 {
 	// Quit DGA mode if requested
 	possibly_quit_dga_mode();
+	video_refresh_window_static();
 }
 
 #ifdef ENABLE_VOSF
@@ -2196,9 +2199,9 @@ static void video_refresh_window_static(void)
 		tick_counter = 0;
 		const VIDEO_MODE &mode = drv->mode;
 		if ((int)VIDEO_MODE_DEPTH >= VIDEO_DEPTH_8BIT)
-			update_display_static_bbox(static_cast<driver_window *>(drv));
+			update_display_static_bbox(drv);
 		else
-			update_display_static(static_cast<driver_window *>(drv));
+			update_display_static(drv);
 	}
 }
 
