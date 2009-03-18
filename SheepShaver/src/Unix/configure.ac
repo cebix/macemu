@@ -604,7 +604,7 @@ darwin*)
   fi
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     EXTFSSRC=../MacOSX/extfs_macosx.cpp
-    if [[ "x$ac_cv_framework_AppKit" = "xyes" -a "x$no_x" = "xyes" ]]; then
+    if [[ "x$ac_cv_framework_AppKit" = "xyes" -a "x$WANT_GTK" = "xno" ]]; then
       PREFSSRC="../MacOSX/prefs_macosx.mm ../MacOSX/PrefsEditor/PrefsEditor.mm"
       CPPFLAGS="$CPPFLAGS -I../MacOSX/PrefsEditor"
     fi
