@@ -52,8 +52,9 @@ using std::list;
 // Size of an unsigned integer large enough to hold all bits of a pointer
 // NOTE: this can be different than SIGSEGV_REGISTER_TYPE. In
 // particular, on ILP32 systems with a 64-bit kernel (HP-UX/ia64?)
-#if defined(HAVE_WIN32_VM) && !defined(__CYGWIN__)
+#if defined(HAVE_WIN32_VM)
 // Windows is either ILP32 or LLP64
+#include <BaseTsd.h>
 typedef UINT_PTR sigsegv_uintptr_t;
 #else
 // Other systems are sane enough to follow ILP32 or LP64 models
