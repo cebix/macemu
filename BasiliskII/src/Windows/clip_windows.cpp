@@ -231,6 +231,8 @@ static void do_getscrap(void **handle, uint32 type, int32 offset)
 						for (int i = 0; i < length; i++) {
 							uint8 c = data[i];
 							if (c < 0x80) {
+								if (c == 0)
+									break;
 								if (c == 13 && i < length - 1 && data[i + 1] == 10) {	// CR/LF -> CR
 									c = 13;
 									i++;
