@@ -221,10 +221,14 @@ if [[ "x$WANT_JIT" = "xyes" ]]; then
   CPUSRCS="\
     ../kpx_cpu/src/cpu/jit/jit-cache.cpp \
     ../kpx_cpu/src/cpu/jit/basic-dyngen.cpp \
-    ../kpx_cpu/src/cpu/ppc/ppc-dyngen.cpp $CPUSRCS"
+    ../kpx_cpu/src/cpu/ppc/ppc-dyngen.cpp \
+    ../kpx_cpu/src/cpu/ppc/ppc-jit.cpp $CPUSRCS"
   CPPFLAGS="$CPPFLAGS -DUSE_JIT"
 fi
 CPUSRCS="$CPUSRCS ../kpx_cpu/sheepshaver_glue.cpp"
+
+dnl Use the dummy prefs file.
+CPUSRCS="$CPUSRCS ../dummy/prefs_dummy.cpp"
 
 dnl We really want SDL for now
 AC_CHECK_TOOL(sdl_config, sdl-config, [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
