@@ -191,7 +191,7 @@ $(OBJ_DIR)/ppc-dyngen-ops.o: $(kpxsrcdir)/cpu/ppc/ppc-dyngen-ops.cpp basic-dynge
 ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o $(DYNGEN)
 	./$(DYNGEN) -o $@ $<
 
-$(OBJ_DIR)/sheepshaver_glue.o $(OBJ_DIR)/ppc-cpu.o $(OBJ_DIR)/ppc-decode.o $(OBJ_DIR)/ppc-translate.o: basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
+$(OBJ_DIR)/sheepshaver_glue.o $(OBJ_DIR)/ppc-cpu.o $(OBJ_DIR)/ppc-decode.o $(OBJ_DIR)/ppc-translate.o $(OBJ_DIR)/ppc-jit.o: basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 endif
 
 $(OBJ_DIR)/ppc-execute.o: ppc-execute-impl.cpp
@@ -199,9 +199,9 @@ ppc-execute-impl.cpp: $(kpxsrcdir)/cpu/ppc/ppc-decode.cpp $(GENEXECPL) $(DYNGEND
 	$(CPP) $(CPPFLAGS) -DGENEXEC $< | $(PERL) $(GENEXECPL) > $@
 
 # PowerPC CPU tester
-TESTSRCS_ = mathlib/ieeefp.cpp cpu/ppc/ppc-cpu.cpp cpu/ppc/ppc-decode.cpp cpu/ppc/ppc-execute.cpp cpu/ppc/ppc-translate.cpp test/test-powerpc.cpp $(MONSRCS) vm_alloc.cpp
+TESTSRCS_ = mathlib/ieeefp.cpp mathlib/mathlib.cpp cpu/ppc/ppc-cpu.cpp cpu/ppc/ppc-decode.cpp cpu/ppc/ppc-execute.cpp cpu/ppc/ppc-translate.cpp test/test-powerpc.cpp $(MONSRCS) vm_alloc.cpp utils/utils-cpuinfo.cpp
 ifeq ($(USE_DYNGEN),yes)
-TESTSRCS_ += cpu/jit/jit-cache.cpp cpu/jit/basic-dyngen.cpp cpu/ppc/ppc-dyngen.cpp
+TESTSRCS_ += cpu/jit/jit-cache.cpp cpu/jit/basic-dyngen.cpp cpu/ppc/ppc-dyngen.cpp cpu/ppc/ppc-jit.cpp
 endif
 TESTSRCS  = $(TESTSRCS_:%.cpp=$(kpxsrcdir)/%.cpp)
 
