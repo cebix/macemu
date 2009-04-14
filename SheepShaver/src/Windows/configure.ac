@@ -189,11 +189,13 @@ fi
 
 dnl CPU emulator sources
 CPUSRCS="\
-  ../kpx_cpu/src/mathlib/ieeefp.cpp \
-  ../kpx_cpu/src/cpu/ppc/ppc-cpu.cpp \
-  ../kpx_cpu/src/cpu/ppc/ppc-decode.cpp \
-  ../kpx_cpu/src/cpu/ppc/ppc-execute.cpp \
-  ../kpx_cpu/src/cpu/ppc/ppc-translate.cpp"
+    ../kpx_cpu/src/mathlib/ieeefp.cpp \
+    ../kpx_cpu/src/mathlib/mathlib.cpp \
+    ../kpx_cpu/src/cpu/ppc/ppc-cpu.cpp \
+    ../kpx_cpu/src/cpu/ppc/ppc-decode.cpp \
+    ../kpx_cpu/src/cpu/ppc/ppc-execute.cpp \
+    ../kpx_cpu/src/cpu/ppc/ppc-translate.cpp \
+    ../kpx_cpu/src/utils/utils-cpuinfo.cpp"
 CPPFLAGS="$CPPFLAGS -I../kpx_cpu/include -I../kpx_cpu/src"
 
 dnl Enable JIT compiler, if possible
