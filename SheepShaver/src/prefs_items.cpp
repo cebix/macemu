@@ -54,6 +54,7 @@ prefs_desc common_prefs_items[] = {
 	{"nogui", TYPE_BOOLEAN, false,      "disable GUI"},
 	{"noclipconversion", TYPE_BOOLEAN, false, "don't convert clipboard contents"},
 	{"ignoresegv", TYPE_BOOLEAN, false, "ignore illegal memory accesses"},
+	{"ignoreillegal", TYPE_BOOLEAN, false, "ignore illegal instructions"},
 	{"jit", TYPE_BOOLEAN, false,        "enable JIT compiler"},
 	{"jit68k", TYPE_BOOLEAN, false,     "enable 68k DR emulator"},
 	{"keyboardtype", TYPE_INT32, false, "hardware keyboard type"},
@@ -80,6 +81,7 @@ void AddPrefsDefaults(void)
 	PrefsAddBool("nogui", false);
 	PrefsAddBool("noclipconversion", false);
 	PrefsAddBool("ignoresegv", false);
+	PrefsAddBool("ignoreillegal", false);
 
 #if USE_JIT
 	// JIT compiler specific options
@@ -89,5 +91,5 @@ void AddPrefsDefaults(void)
 #endif
 	PrefsAddBool("jit68k", false);
 
-    PrefsAddInt32("keyboardtype", 5);
+	PrefsAddInt32("keyboardtype", 5);
 }

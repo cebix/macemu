@@ -37,6 +37,7 @@
 
 #ifdef SHEEPSHAVER
 #include "main.h"
+#include "prefs.h"
 #endif
 
 #if ENABLE_MON
@@ -54,6 +55,14 @@
 void powerpc_cpu::execute_illegal(uint32 opcode)
 {
 	fprintf(stderr, "Illegal instruction at %08x, opcode = %08x\n", pc(), opcode);
+
+#ifdef SHEEPSHAVER
+	if (PrefsFindBool("ignoreillegal")) {
+		increment_pc(4);
+		return;
+	}
+#endif
+
 #if ENABLE_MON
 	disass_ppc(stdout, pc(), opcode);
 
