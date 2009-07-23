@@ -89,6 +89,7 @@
 #include <sys/mman.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/stat.h>
 #include <signal.h>
 
 #include "sysdeps.h"
@@ -360,6 +361,19 @@ static void usage(const char *prg_name)
 	exit(0);
 }
 
+static bool valid_vmdir(const char *path)
+{
+	const int suffix_len = sizeof(".sheepvm") - 1;
+	int len = strlen(path);
+	if (len > suffix_len && !strcmp(path + len - suffix_len, ".sheepvm")) {
+		struct stat d;
+		if (!stat(path, &d) && S_ISDIR(d.st_mode)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 int main(int argc, char **argv)
 {
 	char str[256];
@@ -370,6 +384,7 @@ int main(int argc, char **argv)
 	uint8 *rom_tmp;
 	time_t now, expire;
 	bool memory_mapped_from_zero;
+	const char *vmdir = NULL;
 
 #ifdef USE_SDL_VIDEO
 	// Don't let SDL block the screensaver
@@ -414,6 +429,15 @@ int main(int argc, char **argv)
 				gui_connection_path = argv[i];
 				argv[i] = NULL;
 			}
+		} else if (valid_vmdir(argv[i])) {
+			vmdir = argv[i];
+			argv[i] = NULL;
+			printf("Using %s as vmdir.\n", vmdir);
+			if (chdir(vmdir)) {
+				printf("Failed to chdir to %s. Good bye.", vmdir);
+				exit(1);
+			}
+			break;
 		}
 	}
 
@@ -448,7 +472,7 @@ int main(int argc, char **argv)
 #endif
 
 	// Read preferences
-	PrefsInit(argc, argv);
+	PrefsInit(vmdir, argc, argv);
 
 	// Any command line arguments left?
 	for (int i=1; i<argc; i++) {
@@ -895,7 +919,7 @@ int main(int argc, char **argv)
 	delete[] rom_tmp;
 
 	// Initialize everything
-	if (!InitAll())
+	if (!InitAll(vmdir))
 		goto quit;
 	D(bug("Initialization complete\n"));
 

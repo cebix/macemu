@@ -72,7 +72,7 @@ static string prefs_path;
  *  Load preferences from settings file
  */
 
-void LoadPrefs(void)
+void LoadPrefs(const char *vmdir)
 {
 	// Construct prefs path
 	if (UserPrefsPath.empty()) {

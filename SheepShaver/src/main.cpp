@@ -70,10 +70,10 @@ static void sheepshaver_write_byte(uintptr adr, uint32 b)
  *  Initialize everything, returns false on error
  */
 
-bool InitAll(void)
+bool InitAll(const char *vmdir)
 {
 	// Load NVRAM
-	XPRAMInit();
+	XPRAMInit(vmdir);
 
 	// Load XPRAM default values if signature not found
 	if (XPRAM[0x130c] != 0x4e || XPRAM[0x130d] != 0x75

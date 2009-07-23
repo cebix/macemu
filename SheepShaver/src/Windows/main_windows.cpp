@@ -173,7 +173,7 @@ int main(int argc, char **argv)
 	printf(" %s\n", GetString(STR_ABOUT_TEXT2));
 
 	// Read preferences
-	PrefsInit(argc, argv);
+	PrefsInit(NULL, argc, argv);
 
 	// Parse command line arguments
 	for (int i=1; i<argc; i++) {

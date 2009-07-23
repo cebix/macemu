@@ -49,7 +49,7 @@ time_t PrefsFileDate = 0;
  *  Load preferences from settings file
  */
 
-void LoadPrefs(void)
+void LoadPrefs(const char *vmdir)
 {
 	// Construct prefs path
 	find_directory(B_USER_SETTINGS_DIRECTORY, &prefs_path, true);

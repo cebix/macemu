@@ -318,7 +318,7 @@ void SheepShaver::ReadyToRun(void)
 	// Read preferences
 	int argc = 0;
 	char **argv = NULL;
-	PrefsInit(argc, argv);
+	PrefsInit(NULL, argc, argv);
 
 	// Init system routines
 	SysInit();

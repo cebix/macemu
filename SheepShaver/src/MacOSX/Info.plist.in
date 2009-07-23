@@ -18,5 +18,22 @@
 	<string>SheepShaver.icns</string>
 	<key>CSResourcesFileMapped</key>
 	<true/>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>sheepvm</string>
+			</array>
+			<key>CFBundleTypeIconFile</key>
+			<string>SheepShaver.icns</string>
+			<key>CFBundleTypeName</key>
+			<string>SheepShaver VM</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSTypeIsPackage</key>
+			<true/>
+		</dict>
+	</array>
 </dict>
 </plist>

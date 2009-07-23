@@ -54,8 +54,20 @@ static char prefs_path[1024];
  *  Load preferences from settings file
  */
 
-void LoadPrefs(void)
+void LoadPrefs(const char *vmdir)
 {
+	if (vmdir) {
+		snprintf(prefs_path, sizeof(prefs_path), "%s/prefs", vmdir);
+		FILE *prefs = fopen(prefs_path, "r");
+		if (!prefs) {
+			printf("No file at %s found.\n", prefs_path);
+			exit(1);
+		}
+		LoadPrefsFromStream(prefs);
+		fclose(prefs);
+		return;
+	}
+
 	// Construct prefs path
 	prefs_path[0] = 0;
 	char *home = getenv("HOME");
