@@ -206,7 +206,7 @@ static void usage(const char *prg_name)
 		"  --break ADDRESS\n    set ROM breakpoint\n"
 		"  --rominfo\n    dump ROM information\n", prg_name
 	);
-	LoadPrefs(); // read the prefs file so PrefsPrintUsage() will print the correct default values
+	LoadPrefs(NULL); // read the prefs file so PrefsPrintUsage() will print the correct default values
 	PrefsPrintUsage();
 	exit(0);
 }

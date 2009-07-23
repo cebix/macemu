@@ -1731,7 +1731,7 @@ int main(int argc, char *argv[])
 	gtk_init(&argc, &argv);
 
 	// Read preferences
-	PrefsInit(argc, argv);
+	PrefsInit(NULL, argc, argv);
 
 	// Migrate preferences
 	PrefsMigrate();

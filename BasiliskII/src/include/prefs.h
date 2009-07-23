@@ -23,7 +23,7 @@
 
 #include <stdio.h>
 
-extern void PrefsInit(int &argc, char **&argv);
+extern void PrefsInit(const char *vmdir, int &argc, char **&argv);
 extern void PrefsExit(void);
 
 extern void PrefsPrintUsage(void);
@@ -32,7 +32,7 @@ extern void AddPrefsDefaults(void);
 extern void AddPlatformPrefsDefaults(void);
 
 // Preferences loading/saving
-extern void LoadPrefs(void);
+extern void LoadPrefs(const char *vmdir);
 extern void SavePrefs(void);
 
 extern void LoadPrefsFromStream(FILE *f);

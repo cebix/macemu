@@ -61,7 +61,7 @@ static void mon_write_byte_b2(uintptr adr, uint32 b)
  *  Initialize everything, returns false on error
  */
 
-bool InitAll(void)
+bool InitAll(const char *vmdir)
 {
 	// Check ROM version
 	if (!CheckROM()) {
@@ -100,7 +100,7 @@ bool InitAll(void)
 #endif
 
 	// Load XPRAM
-	XPRAMInit();
+	XPRAMInit(vmdir);
 
 	// Load XPRAM default values if signature not found
 	if (XPRAM[0x0c] != 0x4e || XPRAM[0x0d] != 0x75

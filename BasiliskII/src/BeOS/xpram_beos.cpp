@@ -38,7 +38,7 @@ static BPath xpram_path;
  *  Load XPRAM from settings file
  */
 
-void LoadXPRAM(void)
+void LoadXPRAM(const char *vmdir)
 {
 	// Construct XPRAM path
 	find_directory(B_USER_SETTINGS_DIRECTORY, &xpram_path, true);

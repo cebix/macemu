@@ -38,16 +38,24 @@ static char xpram_path[1024];
  *  Load XPRAM from settings file
  */
 
-void LoadXPRAM(void)
+void LoadXPRAM(const char *vmdir)
 {
-	// Construct XPRAM path
-	xpram_path[0] = 0;
-	char *home = getenv("HOME");
-	if (home != NULL && strlen(home) < 1000) {
-		strncpy(xpram_path, home, 1000);
-		strcat(xpram_path, "/");
+	if (vmdir) {
+#if POWERPC_ROM
+		snprintf(xpram_path, sizeof(xpram_path), "%s/nvram", vmdir);
+#else
+		snprintf(xpram_path, sizeof(xpram_path), "%s/xpram", vmdir);
+#endif
+	} else {
+		// Construct XPRAM path
+		xpram_path[0] = 0;
+		char *home = getenv("HOME");
+		if (home != NULL && strlen(home) < 1000) {
+			strncpy(xpram_path, home, 1000);
+			strcat(xpram_path, "/");
+		}
+		strcat(xpram_path, XPRAM_FILE_NAME);
 	}
-	strcat(xpram_path, XPRAM_FILE_NAME);
 
 	// Load XPRAM from settings file
 	int fd;

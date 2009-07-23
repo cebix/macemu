@@ -39,7 +39,7 @@ struct M68kRegisters {
 };
 
 // General functions
-extern bool InitAll(void);
+extern bool InitAll(const char *vmdir);
 extern void ExitAll(void);
 
 // Platform-specific functions

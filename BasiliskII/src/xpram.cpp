@@ -37,13 +37,13 @@ uint8 XPRAM[XPRAM_SIZE];
  *  Initialize XPRAM
  */
 
-void XPRAMInit(void)
+void XPRAMInit(const char *vmdir)
 {
 	// Clear XPRAM
 	memset(XPRAM, 0, XPRAM_SIZE);
 
 	// Load XPRAM from settings file
-	LoadXPRAM();
+	LoadXPRAM(vmdir);
 }
 
 

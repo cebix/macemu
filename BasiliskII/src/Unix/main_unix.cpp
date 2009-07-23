@@ -374,13 +374,14 @@ static void usage(const char *prg_name)
 		"  --break ADDRESS\n    set ROM breakpoint\n"
 		"  --rominfo\n    dump ROM information\n", prg_name
 	);
-	LoadPrefs(); // read the prefs file so PrefsPrintUsage() will print the correct default values
+	LoadPrefs(NULL); // read the prefs file so PrefsPrintUsage() will print the correct default values
 	PrefsPrintUsage();
 	exit(0);
 }
 
 int main(int argc, char **argv)
 {
+	const char *vmdir = NULL;
 	char str[256];
 
 	// Initialize variables
@@ -466,7 +467,7 @@ int main(int argc, char **argv)
 #endif
 
 	// Read preferences
-	PrefsInit(argc, argv);
+	PrefsInit(vmdir, argc, argv);
 
 	// Any command line arguments left?
 	for (int i=1; i<argc; i++) {
@@ -674,7 +675,7 @@ int main(int argc, char **argv)
 #endif
 
 	// Initialize everything
-	if (!InitAll())
+	if (!InitAll(vmdir))
 		QuitEmulator();
 	D(bug("Initialization complete\n"));
 

@@ -47,21 +47,21 @@ static const prefs_desc *find_prefs_desc(const char *name);
  *  Initialize preferences
  */
 
-void PrefsInit(int &argc, char **&argv)
+void PrefsInit(const char *vmdir, int &argc, char **&argv)
 {
 	// Set defaults
 	AddPrefsDefaults();
 	AddPlatformPrefsDefaults();
 
 	// Load preferences from settings file
-	LoadPrefs();
+	LoadPrefs(vmdir);
 
 	// Override prefs with command line options
 	for (int i=1; i<argc; i++) {
 
 		// Options are of the form '--keyword'
 		const char *option = argv[i];
-		if (strlen(option) < 3 || option[0] != '-' || option[1] != '-')
+		if (!option || strlen(option) < 3 || option[0] != '-' || option[1] != '-')
 			continue;
 		const char *keyword = option + 2;
 

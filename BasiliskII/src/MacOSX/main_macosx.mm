@@ -286,6 +286,7 @@ int main(int argc, char **argv)
 
 bool InitEmulator (void)
 {
+	const char *vmdir = NULL;
 	char str[256];
 
 
@@ -423,7 +424,7 @@ bool InitEmulator (void)
 
 
 	// Initialize everything
-	if (!InitAll())
+	if (!InitAll(vmdir))
 		QuitEmulator();
 	D(bug("Initialization complete\n"));
 

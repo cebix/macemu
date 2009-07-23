@@ -58,7 +58,7 @@ static void build_xpram_path(void)
  *  Load XPRAM from settings file
  */
 
-void LoadXPRAM(void)
+void LoadXPRAM(const char *vmdir)
 {
 	// Construct XPRAM path
 	build_xpram_path();

@@ -29,11 +29,11 @@ const int XPRAM_SIZE = 256;
 
 extern uint8 XPRAM[XPRAM_SIZE];
 
-extern void XPRAMInit(void);
+extern void XPRAMInit(const char *vmdir);
 extern void XPRAMExit(void);
 
 // System specific and internal functions/data
-extern void LoadXPRAM(void);
+extern void LoadXPRAM(const char *vmdir);
 extern void SaveXPRAM(void);
 extern void ZapPRAM(void);
 
