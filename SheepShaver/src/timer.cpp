@@ -428,12 +428,20 @@ int16 PrimeTime(uint32 tm, int32 time)
 		// Yes, tmWakeUp set?
 		if (ReadMacInt32(tm + tmWakeUp)) {
 
+			// PrimeTime(0) can either mean (a) "the task runs as soon as interrupts are enabled"
+			// or (b) "continue previous delay" if an expired task was stopped via RmvTime() and
+			// then re-installed using InsXTime(). This currently only handles (a).
+			//
+			// API reference: http://developer.apple.com/documentation/mac/Processes/Processes-68.html
+
+#if 0
 			//!! PrimeTime(0) means continue previous delay
 			// (save wakeup time in RmvTime?)
 			if (time == 0) {
 				printf("FATAL: Unsupported PrimeTime(0)\n");
 				return 0;
 			}
+#endif
 
 			// Yes, calculate wakeup time relative to last scheduled time
 			tm_time_t wakeup;
