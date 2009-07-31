@@ -18,10 +18,6 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-/*
- * TODO: Prime(0)
- */
-
 #include "sysdeps.h"
 #include "timer.h"
 #include "macos_util.h"
@@ -430,18 +426,9 @@ int16 PrimeTime(uint32 tm, int32 time)
 
 			// PrimeTime(0) can either mean (a) "the task runs as soon as interrupts are enabled"
 			// or (b) "continue previous delay" if an expired task was stopped via RmvTime() and
-			// then re-installed using InsXTime(). This currently only handles (a).
-			//
-			// API reference: http://developer.apple.com/documentation/mac/Processes/Processes-68.html
-
-#if 0
-			//!! PrimeTime(0) means continue previous delay
-			// (save wakeup time in RmvTime?)
-			if (time == 0) {
-				printf("FATAL: Unsupported PrimeTime(0)\n");
-				return 0;
-			}
-#endif
+			// then re-installed using InsXTime(). Since tmWakeUp was set, this is case (b).
+			// The remaining time was saved in tmCount by RmvTime().
+			timer_mac2host_time(delay, ReadMacInt16(tm + tmCount));
 
 			// Yes, calculate wakeup time relative to last scheduled time
 			tm_time_t wakeup;
