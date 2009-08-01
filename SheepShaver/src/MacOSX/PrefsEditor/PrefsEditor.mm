@@ -25,6 +25,14 @@
 
 const int CDROMRefNum = -62;			// RefNum of driver
 
+void prefs_init()
+{
+}
+
+void prefs_exit()
+{
+}
+
 @implementation PrefsEditor
 
 - (id) init
@@ -36,7 +44,7 @@ const int CDROMRefNum = -62;			// RefNum of driver
   AddPlatformPrefsDefaults();
 
   // Load preferences from settings file
-  LoadPrefs();
+  LoadPrefs(NULL);
   chdir([[[NSBundle mainBundle] bundlePath] UTF8String]);
   chdir("..");
 #endif
