@@ -25,6 +25,7 @@
 
 const int CDROMRefNum = -62;			// RefNum of driver
 
+#ifdef STANDALONE_PREFS
 void prefs_init()
 {
 }
@@ -32,6 +33,7 @@ void prefs_init()
 void prefs_exit()
 {
 }
+#endif
 
 @implementation PrefsEditor
 
