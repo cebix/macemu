@@ -428,7 +428,9 @@ int16 PrimeTime(uint32 tm, int32 time)
 			// or (b) "continue previous delay" if an expired task was stopped via RmvTime() and
 			// then re-installed using InsXTime(). Since tmWakeUp was set, this is case (b).
 			// The remaining time was saved in tmCount by RmvTime().
-			timer_mac2host_time(delay, ReadMacInt16(tm + tmCount));
+			if (time == 0) {
+				timer_mac2host_time(delay, ReadMacInt16(tm + tmCount));
+			}
 
 			// Yes, calculate wakeup time relative to last scheduled time
 			tm_time_t wakeup;
