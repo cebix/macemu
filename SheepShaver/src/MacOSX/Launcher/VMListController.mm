@@ -27,7 +27,6 @@ TODO:
 
 Verify if VM exists
 Create Disk on New VM
-Keep track of VMs that are running and disallow editing settings, re-launching, etc..
 Drag-drop to re-arrange order of VMs
 Drag VM from Finder to import
 Don't show Preferences menu in spawned SheepShaver instances - or make them
@@ -53,6 +52,13 @@ use the same nib file as this app!
 	NSArray *vms = [[NSUserDefaults standardUserDefaults] stringArrayForKey:@"vm_list"];
 	vmArray = [[NSMutableArray alloc] initWithCapacity:[vms count]];
 	[vmArray addObjectsFromArray:vms];
+
+	tasks = [[NSMutableDictionary alloc] init];
+
+	[[NSNotificationCenter defaultCenter] addObserver:self
+		selector:@selector(onTaskTerminated:)
+		name:NSTaskDidTerminateNotification
+		object:nil];
 
 	return self;
 }
@@ -167,7 +173,18 @@ use the same nib file as this app!
 {
 	int selectedRow = [vmList selectedRow];
 	if (selectedRow >= 0) {
-		[[VMSettingsController sharedInstance] editSettingsFor:[vmArray objectAtIndex:selectedRow] sender:sender];
+		NSString *path = [vmArray objectAtIndex:selectedRow];
+		if ([tasks objectForKey:path]) {
+			NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+			[alert setMessageText:@"Cannot edit virtual machine settings while it's running."];
+			[alert setAlertStyle:NSWarningAlertStyle];
+			[alert beginSheetModalForWindow:[self window]
+		                    modalDelegate:self
+		                   didEndSelector:nil
+		                      contextInfo:nil];
+		} else {
+			[[VMSettingsController sharedInstance] editSettingsFor:path sender:sender];
+		}
 	}
 }
 
@@ -175,10 +192,36 @@ use the same nib file as this app!
 {
 	int selectedRow = [vmList selectedRow];
 	if (selectedRow >= 0) {
-		NSTask *sheep = [[NSTask alloc] init];
-		[sheep setLaunchPath:[[NSBundle mainBundle] pathForAuxiliaryExecutable:@"SheepShaver"]];
-		[sheep setArguments:[NSArray arrayWithObject:[vmArray objectAtIndex:selectedRow]]];
-		[sheep launch];
+		NSString *path = [vmArray objectAtIndex:selectedRow];
+		if ([tasks objectForKey:path]) {
+			NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+			[alert setMessageText:@"The selected virtual machine is already running."];
+			[alert setAlertStyle:NSWarningAlertStyle];
+			[alert beginSheetModalForWindow:[self window]
+		                    modalDelegate:self
+		                   didEndSelector:nil
+		                      contextInfo:nil];
+		} else {
+			NSTask *sheep = [[NSTask alloc] init];
+			[sheep setLaunchPath:[[NSBundle mainBundle] pathForAuxiliaryExecutable:@"SheepShaver"]];
+			[sheep setArguments:[NSArray arrayWithObject:path]];
+			[sheep launch];
+			[tasks setObject:sheep forKey:path];
+		}
+	}
+}
+
+- (void) onTaskTerminated: (NSNotification *) notification
+{
+	NSArray *paths = [tasks allKeys];
+	NSEnumerator *enumerator = [paths objectEnumerator];
+	NSString *path;
+	while ((path = [enumerator nextObject])) {
+		NSTask *task = [tasks objectForKey:path];
+		if (![task isRunning]) {
+			[tasks removeObjectForKey:path];
+			[task release];
+		}
 	}
 }
 
@@ -196,7 +239,7 @@ use the same nib file as this app!
 		                 didEndSelector:@selector(_deleteVirtualMachineDone: returnCode: contextInfo:)
 		                    contextInfo:nil];
 
-			}
+	}
 }
 
 - (void) _deleteVirtualMachineDone: (NSAlert *) alert returnCode: (int) returnCode contextInfo: (void *) contextInfo

@@ -26,6 +26,7 @@
 	IBOutlet NSButton *importButton;
 	IBOutlet NSButton *settingsButton;
 	IBOutlet NSButton *launchButton;
+	NSMutableDictionary *tasks;
 	NSMutableArray *vmArray;
 }
 
