@@ -33,6 +33,6 @@
 - (IBAction) newVirtualMachine: (id) sender;
 - (IBAction) importVirtualMachine: (id) sender;
 - (IBAction) editVirtualMachineSettings: (id) sender;
-- (IBAction) runVirtualMachine: (id) sender;
+- (IBAction) launchVirtualMachine: (id) sender;
 
 @end

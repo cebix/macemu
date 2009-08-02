@@ -45,19 +45,19 @@
 
 - (void) awakeFromNib
 {
-  [vmList setDataSource: self];
+	[vmList setDataSource: self];
 	//[vmList setDelegate: self];
-  [vmList reloadData];
+	[vmList reloadData];
 }
 
 - (int) numberOfRowsInTableView: (NSTableView *) table
 {
-  return [vmArray count];
+	return [vmArray count];
 }
 
 - (id) tableView: (NSTableView *) table objectValueForTableColumn: (NSTableColumn *) c row: (int) r
 {
-  return [vmArray objectAtIndex: r]; // [[vmArray objectAtIndex: r] lastPathComponent];
+	return [vmArray objectAtIndex: r]; // [[vmArray objectAtIndex: r] lastPathComponent];
 }
 
 //- (NSString *) tableView: (NSTableView *) table toolTipForCell: (NSCell *) cell rect: (NSRectPointer) rect
@@ -121,13 +121,20 @@
 - (IBAction) editVirtualMachineSettings:(id)sender
 {
 	int selectedRow = [vmList selectedRow];
-  if (selectedRow >= 0) {
+	if (selectedRow >= 0) {
 		[[VMSettingsController sharedInstance] editSettingsFor:[vmArray objectAtIndex:selectedRow] sender:sender];
-  }
+	}
 }
 
-- (IBAction) runVirtualMachine:(id)sender
+- (IBAction) launchVirtualMachine:(id)sender
 {
+	int selectedRow = [vmList selectedRow];
+	if (selectedRow >= 0) {
+		NSTask *sheep = [[NSTask alloc] init];
+		[sheep setLaunchPath:[[NSBundle mainBundle] pathForAuxiliaryExecutable:@"SheepShaver"]];
+		[sheep setArguments:[NSArray arrayWithObject:[vmArray objectAtIndex:selectedRow]]];
+		[sheep launch];
+	}
 }
 
 @end

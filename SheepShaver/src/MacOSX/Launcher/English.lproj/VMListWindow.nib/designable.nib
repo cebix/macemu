@@ -44,7 +44,7 @@
 				<string key="NSWindowContentMaxSize">{3.40282e+38, 3.40282e+38}</string>
 				<string key="NSWindowContentMinSize">{412, 201}</string>
 				<object class="NSView" key="NSWindowView" id="1006">
-					<nil key="NSNextResponder"/>
+					<reference key="NSNextResponder"/>
 					<int key="NSvFlags">256</int>
 					<object class="NSMutableArray" key="NSSubviews">
 						<bool key="EncodedWithXMLCoder">YES</bool>
@@ -63,6 +63,7 @@
 											<int key="NSvFlags">256</int>
 											<string key="NSFrameSize">{374, 94}</string>
 											<reference key="NSSuperview" ref="665987475"/>
+											<reference key="NSWindow"/>
 											<bool key="NSEnabled">YES</bool>
 											<object class="_NSCornerView" key="NSCornerView">
 												<nil key="NSNextResponder"/>
@@ -151,8 +152,9 @@
 										</object>
 									</object>
 									<string key="NSFrame">{{1, 1}, {355, 94}}</string>
-									<string key="NSBounds">{{19, 0}, {355, 94}}</string>
 									<reference key="NSSuperview" ref="459107301"/>
+									<reference key="NSWindow"/>
+									<reference key="NSNextKeyView" ref="1061134531"/>
 									<reference key="NSDocView" ref="1061134531"/>
 									<reference key="NSBGColor" ref="241468539"/>
 									<int key="NScvFlags">4</int>
@@ -162,6 +164,7 @@
 									<int key="NSvFlags">256</int>
 									<string key="NSFrame">{{356, 1}, {15, 94}}</string>
 									<reference key="NSSuperview" ref="459107301"/>
+									<reference key="NSWindow"/>
 									<reference key="NSTarget" ref="459107301"/>
 									<string key="NSAction">_doScroller:</string>
 									<double key="NSPercent">3.947369e-01</double>
@@ -171,6 +174,7 @@
 									<int key="NSvFlags">256</int>
 									<string key="NSFrame">{{-100, -100}, {374, 15}}</string>
 									<reference key="NSSuperview" ref="459107301"/>
+									<reference key="NSWindow"/>
 									<bool key="NSEnabled">YES</bool>
 									<int key="NSsFlags">1</int>
 									<reference key="NSTarget" ref="459107301"/>
@@ -180,6 +184,8 @@
 							</object>
 							<string key="NSFrame">{{20, 60}, {372, 96}}</string>
 							<reference key="NSSuperview" ref="1006"/>
+							<reference key="NSWindow"/>
+							<reference key="NSNextKeyView" ref="665987475"/>
 							<int key="NSsFlags">146</int>
 							<reference key="NSVScroller" ref="1054079060"/>
 							<reference key="NSHScroller" ref="61958229"/>
@@ -191,11 +197,12 @@
 							<int key="NSvFlags">293</int>
 							<string key="NSFrame">{{302, 12}, {96, 32}}</string>
 							<reference key="NSSuperview" ref="1006"/>
+							<reference key="NSWindow"/>
 							<bool key="NSEnabled">YES</bool>
 							<object class="NSButtonCell" key="NSCell" id="918506050">
 								<int key="NSCellFlags">67239424</int>
 								<int key="NSCellFlags2">134217728</int>
-								<string key="NSContents">Run</string>
+								<string key="NSContents">Launch</string>
 								<reference key="NSSupport" ref="30348852"/>
 								<reference key="NSControlView" ref="389169892"/>
 								<int key="NSButtonFlags">-2038284033</int>
@@ -211,6 +218,7 @@
 							<int key="NSvFlags">293</int>
 							<string key="NSFrame">{{206, 12}, {96, 32}}</string>
 							<reference key="NSSuperview" ref="1006"/>
+							<reference key="NSWindow"/>
 							<bool key="NSEnabled">YES</bool>
 							<object class="NSButtonCell" key="NSCell" id="816832141">
 								<int key="NSCellFlags">67239424</int>
@@ -231,6 +239,7 @@
 							<int key="NSvFlags">293</int>
 							<string key="NSFrame">{{14, 12}, {96, 32}}</string>
 							<reference key="NSSuperview" ref="1006"/>
+							<reference key="NSWindow"/>
 							<bool key="NSEnabled">YES</bool>
 							<object class="NSButtonCell" key="NSCell" id="752809530">
 								<int key="NSCellFlags">67239424</int>
@@ -251,6 +260,7 @@
 							<int key="NSvFlags">268</int>
 							<string key="NSFrame">{{17, 164}, {147, 17}}</string>
 							<reference key="NSSuperview" ref="1006"/>
+							<reference key="NSWindow"/>
 							<bool key="NSEnabled">YES</bool>
 							<object class="NSTextFieldCell" key="NSCell" id="397198339">
 								<int key="NSCellFlags">68288064</int>
@@ -272,6 +282,7 @@
 							<int key="NSvFlags">293</int>
 							<string key="NSFrame">{{110, 11}, {96, 32}}</string>
 							<reference key="NSSuperview" ref="1006"/>
+							<reference key="NSWindow"/>
 							<bool key="NSEnabled">YES</bool>
 							<object class="NSButtonCell" key="NSCell" id="45041965">
 								<int key="NSCellFlags">67239424</int>
@@ -289,6 +300,8 @@
 						</object>
 					</object>
 					<string key="NSFrameSize">{412, 201}</string>
+					<reference key="NSSuperview"/>
+					<reference key="NSWindow"/>
 				</object>
 				<string key="NSScreenRect">{{0, 0}, {1680, 1028}}</string>
 				<string key="NSMinSize">{412, 223}</string>
@@ -305,14 +318,6 @@
 						<reference key="destination" ref="1001"/>
 					</object>
 					<int key="connectionID">46</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">runVirtualMachine:</string>
-						<reference key="source" ref="1001"/>
-						<reference key="destination" ref="389169892"/>
-					</object>
-					<int key="connectionID">47</int>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
@@ -353,6 +358,14 @@
 						<reference key="destination" ref="1005"/>
 					</object>
 					<int key="connectionID">52</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">launchVirtualMachine:</string>
+						<reference key="source" ref="1001"/>
+						<reference key="destination" ref="389169892"/>
+					</object>
+					<int key="connectionID">53</int>
 				</object>
 			</object>
 			<object class="IBMutableOrderedSet" key="objectRecords">
@@ -618,7 +631,7 @@
 				</object>
 			</object>
 			<nil key="sourceID"/>
-			<int key="maxID">52</int>
+			<int key="maxID">53</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<object class="NSMutableArray" key="referencedPartialClassDescriptions">
@@ -632,8 +645,8 @@
 							<bool key="EncodedWithXMLCoder">YES</bool>
 							<string>editVirtualMachineSettings:</string>
 							<string>importVirtualMachine:</string>
+							<string>launchVirtualMachine:</string>
 							<string>newVirtualMachine:</string>
-							<string>runVirtualMachine:</string>
 						</object>
 						<object class="NSMutableArray" key="dict.values">
 							<bool key="EncodedWithXMLCoder">YES</bool>
