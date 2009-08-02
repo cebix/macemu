@@ -34,5 +34,6 @@
 - (IBAction) importVirtualMachine: (id) sender;
 - (IBAction) editVirtualMachineSettings: (id) sender;
 - (IBAction) launchVirtualMachine: (id) sender;
+- (IBAction) deleteVirtualMachine: (id) sender;
 
 @end

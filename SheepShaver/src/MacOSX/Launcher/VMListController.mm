@@ -21,6 +21,21 @@
 #import "VMListController.h"
 #import "VMSettingsController.h"
 
+/*
+
+TODO:
+
+Verify if VM exists
+Create Disk on New VM
+Keep track of VMs that are running and disallow editing settings, re-launching, etc..
+Drag-drop to re-arrange order of VMs
+Drag VM from Finder to import
+Don't show Preferences menu in spawned SheepShaver instances - or make them
+use the same nib file as this app!
+Disable buttons on empty selection
+
+ */
+
 @implementation VMListController
 
 + (id) sharedInstance
@@ -46,8 +61,18 @@
 - (void) awakeFromNib
 {
 	[vmList setDataSource: self];
-	//[vmList setDelegate: self];
+	[vmList setDelegate: self];
 	[vmList reloadData];
+}
+
+- (void) keyDown: (NSEvent *) event
+{
+	if ([event type] == NSKeyDown && [[event characters] length] > 0) {
+		unichar key = [[event characters] characterAtIndex:0];
+		if (key == NSDeleteFunctionKey || key == NSDeleteCharacter) {
+			[self deleteVirtualMachine:self];
+		}
+	}
 }
 
 - (int) numberOfRowsInTableView: (NSTableView *) table
@@ -128,7 +153,7 @@
 	}
 }
 
-- (IBAction) editVirtualMachineSettings:(id)sender
+- (IBAction) editVirtualMachineSettings: (id) sender
 {
 	int selectedRow = [vmList selectedRow];
 	if (selectedRow >= 0) {
@@ -136,7 +161,7 @@
 	}
 }
 
-- (IBAction) launchVirtualMachine:(id)sender
+- (IBAction) launchVirtualMachine: (id) sender
 {
 	int selectedRow = [vmList selectedRow];
 	if (selectedRow >= 0) {
@@ -144,6 +169,33 @@
 		[sheep setLaunchPath:[[NSBundle mainBundle] pathForAuxiliaryExecutable:@"SheepShaver"]];
 		[sheep setArguments:[NSArray arrayWithObject:[vmArray objectAtIndex:selectedRow]]];
 		[sheep launch];
+	}
+}
+
+- (IBAction) deleteVirtualMachine: (id) sender
+{
+	int selectedRow = [vmList selectedRow];
+	if (selectedRow >= 0) {
+		NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+		[alert setMessageText:@"Do you wish to remove the selected virtual machine from the list?"];
+		[alert addButtonWithTitle:@"Remove"];
+		[alert addButtonWithTitle:@"Cancel"];
+		[alert setAlertStyle:NSWarningAlertStyle];
+		[alert beginSheetModalForWindow:[self window]
+		                  modalDelegate:self
+		                 didEndSelector:@selector(_deleteVirtualMachineDone: returnCode: contextInfo:)
+		                    contextInfo:nil];
+
+			}
+}
+
+- (void) _deleteVirtualMachineDone: (NSAlert *) alert returnCode: (int) returnCode contextInfo: (void *) contextInfo
+{
+	if (returnCode == NSAlertFirstButtonReturn) {
+		[vmArray removeObjectAtIndex:[vmList selectedRow]];
+		[vmList deselectAll:self];
+		[vmList reloadData];
+		[[NSUserDefaults standardUserDefaults] setObject:vmArray forKey:@"vm_list"];
 	}
 }
 
