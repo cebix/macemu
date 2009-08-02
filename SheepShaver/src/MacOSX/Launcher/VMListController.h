@@ -22,6 +22,10 @@
 
 @interface VMListController : NSWindowController {
 	IBOutlet NSTableView *vmList;
+	IBOutlet NSButton *newButton;
+	IBOutlet NSButton *importButton;
+	IBOutlet NSButton *settingsButton;
+	IBOutlet NSButton *launchButton;
 	NSMutableArray *vmArray;
 }
 

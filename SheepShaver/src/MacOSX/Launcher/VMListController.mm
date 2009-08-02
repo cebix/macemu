@@ -32,7 +32,6 @@ Drag-drop to re-arrange order of VMs
 Drag VM from Finder to import
 Don't show Preferences menu in spawned SheepShaver instances - or make them
 use the same nib file as this app!
-Disable buttons on empty selection
 
  */
 
@@ -83,6 +82,17 @@ Disable buttons on empty selection
 - (id) tableView: (NSTableView *) table objectValueForTableColumn: (NSTableColumn *) c row: (int) r
 {
 	return [vmArray objectAtIndex: r]; // [[vmArray objectAtIndex: r] lastPathComponent];
+}
+
+- (void) tableViewSelectionDidChange: (NSNotification *) notification
+{
+	if ([vmList selectedRow] >= 0) {
+		[settingsButton setEnabled:YES];
+		[launchButton setEnabled:YES];
+	} else {
+		[settingsButton setEnabled:NO];
+		[launchButton setEnabled:NO];
+	}
 }
 
 //- (NSString *) tableView: (NSTableView *) table toolTipForCell: (NSCell *) cell rect: (NSRectPointer) rect
