@@ -84,10 +84,20 @@
 - (IBAction) _newVirtualMachineDone: (NSSavePanel *) save returnCode: (int) returnCode contextInfo: (void *) contextInfo
 {
 	if (returnCode == NSOKButton) {
-		// make dir.
-		// create prefs file in there
-		// edit said prefs file
-		// advanced: show sub-panel in save dialog that says "Create Disk:"
+		NSFileManager *manager = [NSFileManager defaultManager];
+		[manager createDirectoryAtPath:[save filename] attributes:nil];
+		[manager createFileAtPath:[[save filename] stringByAppendingPathComponent:@"prefs"] contents:nil attributes:nil];
+		[vmArray addObject:[save filename]];
+		[vmList reloadData];
+		[[NSUserDefaults standardUserDefaults] setObject:vmArray forKey:@"vm_list"];
+		[vmList selectRow:([vmArray count] - 1) byExtendingSelection:NO];
+		[self editVirtualMachineSettings:self];
+		if ([[VMSettingsController sharedInstance] cancelWasClicked]) {
+			[manager removeFileAtPath:[save filename] handler:nil];
+			[vmArray removeObjectAtIndex:([vmArray count] - 1)];
+			[vmList reloadData];
+		}
+		// TODO advanced: show sub-panel in save dialog that says "Create Disk:"
 	}
 }
 

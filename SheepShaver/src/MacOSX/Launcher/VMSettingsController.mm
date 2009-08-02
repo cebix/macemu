@@ -46,7 +46,11 @@ void prefs_exit()
 
 - (id) init
 {
-  return [super initWithWindowNibName:@"VMSettingsWindow"];
+  self = [super initWithWindowNibName:@"VMSettingsWindow"];
+
+	cancelWasClicked = NO;
+
+	return self;
 }
 
 - (int) numberOfRowsInTableView: (NSTableView *) table
@@ -289,6 +293,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
   PrefsExit();
 	[[self window] close];
 	[NSApp stopModal];
+	cancelWasClicked = YES;
 }
 
 - (void) saveChanges: (id) sender
@@ -346,6 +351,12 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 
 	[[self window] close];
 	[NSApp stopModal];
+	cancelWasClicked = NO;
+}
+
+- (BOOL) cancelWasClicked
+{
+  return cancelWasClicked;
 }
 
 - (void) dealloc

@@ -22,6 +22,8 @@
 
 @interface VMSettingsController : NSWindowController
 {
+    BOOL cancelWasClicked;
+
     IBOutlet NSView *diskSaveSize;
     IBOutlet NSTextField *diskSaveSizeField;
     NSMutableArray *diskArray;
@@ -71,6 +73,7 @@
 - (IBAction) browseForUnixRootClicked: (id) sender;
 - (void) cancelEdit: (id) sender;
 - (void) saveChanges: (id) sender;
+- (BOOL) cancelWasClicked;
 - (void) dealloc;
 
 @end
