@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		084186B10B3A0515004B1F63 /* VMSettingsController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 084186B00B3A0515004B1F63 /* VMSettingsController.mm */; };
+		08AAB16D102614D5007E1230 /* SheepShaver.icns in Resources */ = {isa = PBXBuildFile; fileRef = 08AAB16C102614D5007E1230 /* SheepShaver.icns */; };
 		08B5FAFD102497FA0047FD1B /* VMSettingsWindow.nib in Resources */ = {isa = PBXBuildFile; fileRef = 08B5FAFB102497FA0047FD1B /* VMSettingsWindow.nib */; };
 		08B5FB01102498B00047FD1B /* VMListWindow.nib in Resources */ = {isa = PBXBuildFile; fileRef = 08B5FAFF102498B00047FD1B /* VMListWindow.nib */; };
 		08B5FB221024FE320047FD1B /* AppController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 08B5FB211024FE320047FD1B /* AppController.mm */; };
@@ -25,6 +26,7 @@
 		084186AF0B3A0515004B1F63 /* VMSettingsController.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = VMSettingsController.h; sourceTree = "<group>"; };
 		084186B00B3A0515004B1F63 /* VMSettingsController.mm */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.objcpp; path = VMSettingsController.mm; sourceTree = "<group>"; };
 		089C165DFE840E0CC02AAC07 /* English */ = {isa = PBXFileReference; fileEncoding = 10; lastKnownFileType = text.plist.strings; name = English; path = English.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		08AAB16C102614D5007E1230 /* SheepShaver.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = SheepShaver.icns; path = ../SheepShaver.icns; sourceTree = SOURCE_ROOT; };
 		08B5FAFC102497FA0047FD1B /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/VMSettingsWindow.nib; sourceTree = "<group>"; };
 		08B5FB00102498B00047FD1B /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/VMListWindow.nib; sourceTree = "<group>"; };
 		08B5FB201024FE320047FD1B /* AppController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppController.h; sourceTree = "<group>"; };
@@ -131,6 +133,7 @@
 		29B97317FDCFA39411CA2CEA /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				08AAB16C102614D5007E1230 /* SheepShaver.icns */,
 				8D1107310486CEB800E47090 /* Info.plist */,
 				089C165CFE840E0CC02AAC07 /* InfoPlist.strings */,
 				29B97318FDCFA39411CA2CEA /* MainMenu.nib */,
@@ -196,6 +199,7 @@
 				8D11072B0486CEB800E47090 /* InfoPlist.strings in Resources */,
 				08B5FAFD102497FA0047FD1B /* VMSettingsWindow.nib in Resources */,
 				08B5FB01102498B00047FD1B /* VMListWindow.nib in Resources */,
+				08AAB16D102614D5007E1230 /* SheepShaver.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
