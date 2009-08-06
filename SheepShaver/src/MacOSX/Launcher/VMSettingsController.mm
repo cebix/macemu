@@ -37,20 +37,20 @@ void prefs_exit()
 
 + (id) sharedInstance
 {
-	static VMSettingsController *_sharedInstance = nil;
-	if (!_sharedInstance) {
-		_sharedInstance = [[VMSettingsController allocWithZone:[self zone]] init];
-	}
-	return _sharedInstance;
+  static VMSettingsController *_sharedInstance = nil;
+  if (!_sharedInstance) {
+    _sharedInstance = [[VMSettingsController allocWithZone:[self zone]] init];
+  }
+  return _sharedInstance;
 }
 
 - (id) init
 {
   self = [super initWithWindowNibName:@"VMSettingsWindow"];
 
-	cancelWasClicked = NO;
+  cancelWasClicked = NO;
 
-	return self;
+  return self;
 }
 
 - (int) numberOfRowsInTableView: (NSTableView *) table
@@ -135,6 +135,7 @@ static NSString *getStringFromPrefs(const char *key)
   [useRawKeyCodes setIntValue: PrefsFindBool("keycodes") ];
   [rawKeyCodes setStringValue: getStringFromPrefs("keycodefile") ];
   [rawKeyCodes setEnabled:[useRawKeyCodes intValue]];
+  [browseRawKeyCodesButton setEnabled:[useRawKeyCodes intValue]];
 
   int wheelmode = PrefsFindInt32("mousewheelmode"), wheel = 0;
   switch (wheelmode) {
@@ -159,28 +160,28 @@ static NSString *getStringFromPrefs(const char *key)
 
 - (void) editSettingsFor: (NSString *) vmdir sender: (id) sender
 {
-	chdir([vmdir fileSystemRepresentation]);
+  chdir([vmdir fileSystemRepresentation]);
   AddPrefsDefaults();
   AddPlatformPrefsDefaults();
   LoadPrefs([vmdir fileSystemRepresentation]);
-	NSWindow *window = [self window];
-	[self setupGUI];
-	[NSApp runModalForWindow:window];
+  NSWindow *window = [self window];
+  [self setupGUI];
+  [NSApp runModalForWindow:window];
 }
 
 static NSString *makeRelativeIfNecessary(NSString *path)
 {
-	char cwd[1024], filename[1024];
-	int cwdlen;
-	strlcpy(filename, [path fileSystemRepresentation], sizeof(filename));
-	getcwd(cwd, sizeof(cwd));
-	cwdlen = strlen(cwd);
-	if (!strncmp(cwd, filename, cwdlen)) {
-		if (cwdlen >= 0 && cwd[cwdlen-1] != '/')
-			cwdlen++;
-		return [NSString stringWithCString: filename + cwdlen];
-	}
-	return path;
+  char cwd[1024], filename[1024];
+  int cwdlen;
+  strlcpy(filename, [path fileSystemRepresentation], sizeof(filename));
+  getcwd(cwd, sizeof(cwd));
+  cwdlen = strlen(cwd);
+  if (!strncmp(cwd, filename, cwdlen)) {
+    if (cwdlen >= 0 && cwd[cwdlen-1] != '/')
+      cwdlen++;
+    return [NSString stringWithCString: filename + cwdlen];
+  }
+  return path;
 }
 
 - (IBAction) addDisk: (id) sender
@@ -200,7 +201,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 - (void) _addDiskEnd: (NSOpenPanel *) open returnCode: (int) theReturnCode contextInfo: (void *) theContextInfo
 {
   if (theReturnCode == NSOKButton) {
-		[diskArray addObject: makeRelativeIfNecessary([open filename])];
+    [diskArray addObject: makeRelativeIfNecessary([open filename])];
     [disks reloadData];
   }
 }
@@ -236,7 +237,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
       snprintf(cmd, sizeof(cmd), "dd if=/dev/zero \"of=%s\" bs=1024k count=%d", [[save filename] UTF8String], [diskSaveSizeField intValue]);
       int ret = system(cmd);
       if (ret == 0) {
-				[diskArray addObject: makeRelativeIfNecessary([save filename])];
+        [diskArray addObject: makeRelativeIfNecessary([save filename])];
         [disks reloadData];
       }
     }
@@ -247,6 +248,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 - (IBAction) useRawKeyCodesClicked: (id) sender
 {
   [rawKeyCodes setEnabled:[useRawKeyCodes intValue]];
+  [browseRawKeyCodesButton setEnabled:[useRawKeyCodes intValue]];
 }
 
 - (IBAction) browseForROMFileClicked: (id) sender
@@ -266,8 +268,8 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 - (void) _browseForROMFileEnd: (NSOpenPanel *) open returnCode: (int) theReturnCode contextInfo: (void *) theContextInfo
 {
   if (theReturnCode == NSOKButton) {
-		[romFile setStringValue: makeRelativeIfNecessary([open filename])];
-	}
+    [romFile setStringValue: makeRelativeIfNecessary([open filename])];
+  }
 }
 
 - (IBAction) browseForUnixRootClicked: (id) sender
@@ -287,16 +289,37 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 - (void) _browseForUnixRootEnd: (NSOpenPanel *) open returnCode: (int) theReturnCode contextInfo: (void *) theContextInfo
 {
   if (theReturnCode == NSOKButton) {
-		[unixRoot setStringValue: makeRelativeIfNecessary([open filename])];
+    [unixRoot setStringValue: makeRelativeIfNecessary([open filename])];
+  }
+}
+
+- (IBAction) browseForKeyCodesFileClicked: (id) sender
+{
+  NSOpenPanel *open = [NSOpenPanel openPanel];
+  [open setCanChooseDirectories:NO];
+  [open setAllowsMultipleSelection:NO];
+  [open setTreatsFilePackagesAsDirectories:YES];
+  [open beginSheetForDirectory: @""
+                          file: [unixRoot stringValue]
+                modalForWindow: [self window]
+                 modalDelegate: self
+                didEndSelector: @selector(_browseForKeyCodesFileEnd: returnCode: contextInfo:)
+                   contextInfo: nil];
+}
+
+- (void) _browseForKeyCodesFileEnd: (NSOpenPanel *) open returnCode: (int) theReturnCode contextInfo: (void *) theContextInfo
+{
+  if (theReturnCode == NSOKButton) {
+    [rawKeyCodes setStringValue: makeRelativeIfNecessary([open filename])];
   }
 }
 
 - (void) cancelEdit: (id) sender
 {
   PrefsExit();
-	[[self window] close];
-	[NSApp stopModal];
-	cancelWasClicked = YES;
+  [[self window] close];
+  [NSApp stopModal];
+  cancelWasClicked = YES;
 }
 
 - (void) saveChanges: (id) sender
@@ -352,9 +375,9 @@ static NSString *makeRelativeIfNecessary(NSString *path)
   SavePrefs();
   PrefsExit();
 
-	[[self window] close];
-	[NSApp stopModal];
-	cancelWasClicked = NO;
+  [[self window] close];
+  [NSApp stopModal];
+  cancelWasClicked = NO;
 }
 
 - (BOOL) cancelWasClicked

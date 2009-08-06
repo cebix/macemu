@@ -48,6 +48,7 @@
     // Keyboard/Mouse
     IBOutlet NSButton *useRawKeyCodes;
     IBOutlet NSTextField *rawKeyCodes;
+		IBOutlet NSButton *browseRawKeyCodesButton;
     IBOutlet NSPopUpButton *mouseWheel;
     IBOutlet NSTextField *scrollLines;
     IBOutlet NSStepper *scrollLinesStepper;
@@ -71,6 +72,7 @@
 - (IBAction) useRawKeyCodesClicked: (id) sender;
 - (IBAction) browseForROMFileClicked: (id) sender;
 - (IBAction) browseForUnixRootClicked: (id) sender;
+- (IBAction) browseForKeyCodesFileClicked: (id) sender;
 - (void) cancelEdit: (id) sender;
 - (void) saveChanges: (id) sender;
 - (BOOL) cancelWasClicked;

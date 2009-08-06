@@ -26,11 +26,19 @@
 - (void) awakeFromNib
 {
 	[self openVirtualMachinesList:self];
+	[NSApp setDelegate:self];
 }
 
 - (IBAction) openVirtualMachinesList: (id) sender
 {
 	[[VMListController sharedInstance] showWindow:sender];
+}
+
+- (BOOL) applicationShouldHandleReopen: (NSApplication *) app hasVisibleWindows: (BOOL) hasVisible
+{
+	if (!hasVisible)
+		[self openVirtualMachinesList:self];
+	return YES;
 }
 
 @end
