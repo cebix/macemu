@@ -188,7 +188,8 @@ static NSString *makeRelativeIfNecessary(NSString *path)
   NSOpenPanel *open = [NSOpenPanel openPanel];
   [open setCanChooseDirectories:NO];
   [open setAllowsMultipleSelection:NO];
-  [open beginSheetForDirectory: @""
+  [open setTreatsFilePackagesAsDirectories:YES];
+  [open beginSheetForDirectory: [[NSFileManager defaultManager] currentDirectoryPath]
                           file: @"Unknown"
                 modalForWindow: [self window]
                  modalDelegate: self
@@ -217,7 +218,8 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 {
   NSSavePanel *save = [NSSavePanel savePanel];
   [save setAccessoryView: diskSaveSize];
-  [save beginSheetForDirectory: @""
+  [save setTreatsFilePackagesAsDirectories:YES];
+  [save beginSheetForDirectory: [[NSFileManager defaultManager] currentDirectoryPath]
                           file: @"New.dsk"
                 modalForWindow: [self window]
                  modalDelegate: self
@@ -252,6 +254,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
   NSOpenPanel *open = [NSOpenPanel openPanel];
   [open setCanChooseDirectories:NO];
   [open setAllowsMultipleSelection:NO];
+  [open setTreatsFilePackagesAsDirectories:YES];
   [open beginSheetForDirectory: @""
                           file: [romFile stringValue]
                 modalForWindow: [self window]
