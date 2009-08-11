@@ -32,6 +32,7 @@
 #include <windows.h>
 #endif
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -151,6 +152,24 @@ static int translate_prot_flags(int prot_flags)
 }
 #endif
 
+/* Translate Mach return codes to POSIX errno values. */
+#ifdef HAVE_MACH_VM
+static int vm_error(kern_return_t ret_code)
+{
+	switch (ret_code) {
+		case KERN_SUCCESS:
+			return 0;
+		case KERN_INVALID_ADDRESS:
+		case KERN_NO_SPACE:
+			return ENOMEM;
+		case KERN_PROTECTION_FAILURE:
+			return EACCES;
+		default:
+			return EINVAL;
+	}
+}
+#endif
+
 /* Initialize the VM system. Returns 0 if successful, -1 for errors.  */
 
 int vm_init(void)
@@ -186,6 +205,8 @@ void vm_exit(void)
 void * vm_acquire(size_t size, int options)
 {
 	void * addr;
+	
+	errno = 0;
 
 	// VM_MAP_FIXED are to be used with vm_acquire_fixed() only
 	if (options & VM_MAP_FIXED)
@@ -198,8 +219,11 @@ void * vm_acquire(size_t size, int options)
 
 #ifdef HAVE_MACH_VM
 	// vm_allocate() returns a zero-filled memory region
-	if (vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, TRUE) != KERN_SUCCESS)
+	kern_return_t ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, TRUE);
+	if (ret_code != KERN_SUCCESS) {
+		errno = vm_error(ret_code);
 		return VM_MAP_FAILED;
+	}
 #else
 #ifdef HAVE_MMAP_VM
 	int fd = zero_fd;
@@ -244,6 +268,8 @@ void * vm_acquire(size_t size, int options)
 
 int vm_acquire_fixed(void * addr, size_t size, int options)
 {
+	errno = 0;
+	
 	// Fixed mappings are required to be private
 	if (options & VM_MAP_SHARED)
 		return -1;
@@ -255,8 +281,11 @@ int vm_acquire_fixed(void * addr, size_t size, int options)
 
 #ifdef HAVE_MACH_VM
 	// vm_allocate() returns a zero-filled memory region
-	if (vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, 0) != KERN_SUCCESS)
+	kern_return_t ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, 0);
+	if (ret_code != KERN_SUCCESS) {
+		errno = vm_error(ret_code);
 		return -1;
+	}
 #else
 #ifdef HAVE_MMAP_VM
 	int fd = zero_fd;
