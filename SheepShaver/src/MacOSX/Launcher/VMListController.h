@@ -28,6 +28,7 @@
 	IBOutlet NSButton *launchButton;
 	NSMutableDictionary *tasks;
 	NSMutableArray *vmArray;
+	NSString *vmBeingDragged;
 }
 
 + (id) sharedInstance;

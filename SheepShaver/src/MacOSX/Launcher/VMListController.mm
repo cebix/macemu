@@ -26,13 +26,28 @@
 TODO:
 
 Verify if VM exists
-Create Disk on New VM
-Drag-drop to re-arrange order of VMs
 Drag VM from Finder to import
 Don't show Preferences menu in spawned SheepShaver instances - or make them
 use the same nib file as this app!
+When choosing things like rom file and keycode files - have a checkbox to copy
+selected file into the bundle.
 
  */
+
+@interface NSObject (TableViewContextMenu)
+- (NSMenu *) tableView: (NSTableView *) tableView menuForEvent: (NSEvent *) event;
+@end
+
+@implementation NSTableView (ContextMenu)
+- (NSMenu *) menuForEvent: (NSEvent *) event
+{
+	if ([[self delegate] respondsToSelector:@selector(tableView:menuForEvent:)])
+		return [[self delegate] tableView:self menuForEvent:event];
+	return nil;
+}
+@end
+
+#define VM_DRAG_TYPE @"sheepvm"
 
 @implementation VMListController
 
@@ -68,6 +83,7 @@ use the same nib file as this app!
 	[vmList setDataSource: self];
 	[vmList setDelegate: self];
 	[vmList reloadData];
+	[vmList registerForDraggedTypes:[NSArray arrayWithObjects:VM_DRAG_TYPE, nil]];
 }
 
 - (void) keyDown: (NSEvent *) event
@@ -99,6 +115,65 @@ use the same nib file as this app!
 		[settingsButton setEnabled:NO];
 		[launchButton setEnabled:NO];
 	}
+}
+
+- (BOOL) tableView: (NSTableView *) table writeRowsWithIndexes: (NSIndexSet *) rows toPasteboard: (NSPasteboard *) pboard
+{
+	vmBeingDragged = [vmArray objectAtIndex:[rows firstIndex]];
+	[pboard declareTypes:[NSArray arrayWithObject:VM_DRAG_TYPE] owner:self];
+	[pboard setString:VM_DRAG_TYPE forType:VM_DRAG_TYPE];
+	return YES;
+}
+
+- (NSDragOperation) tableView: (NSTableView *) table validateDrop: (id <NSDraggingInfo>) info proposedRow: (int) row proposedDropOperation: (NSTableViewDropOperation) op
+{
+	if (op == NSTableViewDropAbove && row != -1) {
+		return NSDragOperationPrivate;
+	} else {
+		return NSDragOperationNone;
+	}
+}
+
+- (BOOL) tableView: (NSTableView *) table acceptDrop: (id <NSDraggingInfo>) info row: (int) row dropOperation: (NSTableViewDropOperation) op
+{	
+	if ([[[info draggingPasteboard] availableTypeFromArray:[NSArray arrayWithObject:VM_DRAG_TYPE]] isEqualToString:VM_DRAG_TYPE]) {
+		[vmList deselectAll:nil];
+		int index = [vmArray indexOfObject:vmBeingDragged];
+		if (index != row) {
+			[vmArray insertObject:vmBeingDragged atIndex:row];
+			if (row <= index) {
+				index += 1;
+			} else {
+				row -= 1;
+			}
+			[vmArray removeObjectAtIndex: index];
+		}
+		[[NSUserDefaults standardUserDefaults] setObject:vmArray forKey:@"vm_list"];
+		[vmList reloadData];
+		[vmList selectRow:row byExtendingSelection:NO];
+		return YES;
+	}
+
+	return NO;
+}
+
+- (NSMenu *) tableView: (NSTableView *) table menuForEvent: (NSEvent *) event
+{
+	NSMenu *menu = nil;
+	int row = [table rowAtPoint:[table convertPoint:[event locationInWindow] fromView:nil]];
+	if (row >= 0) {
+		[table selectRow:row byExtendingSelection:NO];
+		menu = [[[NSMenu alloc] initWithTitle: @"Contextual Menu"] autorelease];
+		[menu addItemWithTitle: @"Launch Virtual Machine"
+		                action: @selector(launchVirtualMachine:) keyEquivalent: @""];
+		[menu addItemWithTitle: @"Edit VM Settings..."
+		                action: @selector(editVirtualMachineSettings:) keyEquivalent: @""];
+		[menu addItemWithTitle: @"Reveal VM in Finder"
+		                action: @selector(revealVirtualMachineInFinder:) keyEquivalent: @""];
+		[menu addItemWithTitle: @"Remove VM from List"
+		                action: @selector(deleteVirtualMachine:) keyEquivalent: @""];
+	}
+	return menu;
 }
 
 //- (NSString *) tableView: (NSTableView *) table toolTipForCell: (NSCell *) cell rect: (NSRectPointer) rect
@@ -249,6 +324,14 @@ use the same nib file as this app!
 		[vmList deselectAll:self];
 		[vmList reloadData];
 		[[NSUserDefaults standardUserDefaults] setObject:vmArray forKey:@"vm_list"];
+	}
+}
+
+- (IBAction) revealVirtualMachineInFinder: (id) sender
+{
+	int selectedRow = [vmList selectedRow];
+	if (selectedRow >= 0) {
+		[[NSWorkspace sharedWorkspace] selectFile: [vmArray objectAtIndex:selectedRow] inFileViewerRootedAtPath: @""];
 	}
 }
 
