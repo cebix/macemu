@@ -32,6 +32,23 @@
 #define CLOCK_REALTIME 0
 #endif
 
+#if defined(__MACH__)
+#include <mach/mach_host.h>
+#include <mach/clock.h>
+
+static clock_serv_t host_clock;
+static bool host_clock_inited = false;
+
+static inline void mach_current_time(tm_time_t &t) {
+	if(!host_clock_inited) {
+		host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &host_clock);
+		host_clock_inited = true;
+	}
+	
+	clock_get_time(host_clock, &t);
+}
+#endif
+
 
 /*
  *  Return microseconds since boot (64 bit)
@@ -40,9 +57,13 @@
 void Microseconds(uint32 &hi, uint32 &lo)
 {
 	D(bug("Microseconds\n"));
-#ifdef HAVE_CLOCK_GETTIME
+#if defined(HAVE_CLOCK_GETTIME)
 	struct timespec t;
 	clock_gettime(CLOCK_REALTIME, &t);
+	uint64 tl = (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
+#elif defined(__MACH__)
+	tm_time_t t;
+	mach_current_time(t);
 	uint64 tl = (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
 #else
 	struct timeval t;
@@ -72,6 +93,8 @@ void timer_current_time(tm_time_t &t)
 {
 #ifdef HAVE_CLOCK_GETTIME
 	clock_gettime(CLOCK_REALTIME, &t);
+#elif defined(__MACH__)
+	mach_current_time(t);
 #else
 	gettimeofday(&t, NULL);
 #endif
@@ -84,7 +107,7 @@ void timer_current_time(tm_time_t &t)
 
 void timer_add_time(tm_time_t &res, tm_time_t a, tm_time_t b)
 {
-#ifdef HAVE_CLOCK_GETTIME
+#if defined(HAVE_CLOCK_GETTIME) || defined(__MACH__)
 	res.tv_sec = a.tv_sec + b.tv_sec;
 	res.tv_nsec = a.tv_nsec + b.tv_nsec;
 	if (res.tv_nsec >= 1000000000) {
@@ -108,7 +131,7 @@ void timer_add_time(tm_time_t &res, tm_time_t a, tm_time_t b)
 
 void timer_sub_time(tm_time_t &res, tm_time_t a, tm_time_t b)
 {
-#ifdef HAVE_CLOCK_GETTIME
+#if defined(HAVE_CLOCK_GETTIME) || defined(__MACH__)
 	res.tv_sec = a.tv_sec - b.tv_sec;
 	res.tv_nsec = a.tv_nsec - b.tv_nsec;
 	if (res.tv_nsec < 0) {
@@ -132,7 +155,7 @@ void timer_sub_time(tm_time_t &res, tm_time_t a, tm_time_t b)
 
 int timer_cmp_time(tm_time_t a, tm_time_t b)
 {
-#ifdef HAVE_CLOCK_GETTIME
+#if defined(HAVE_CLOCK_GETTIME) || defined(__MACH__)
 	if (a.tv_sec == b.tv_sec)
 		return a.tv_nsec - b.tv_nsec;
 	else
@@ -152,7 +175,7 @@ int timer_cmp_time(tm_time_t a, tm_time_t b)
 
 void timer_mac2host_time(tm_time_t &res, int32 mactime)
 {
-#ifdef HAVE_CLOCK_GETTIME
+#if defined(HAVE_CLOCK_GETTIME) || defined(__MACH__)
 	if (mactime > 0) {
 		// Time in milliseconds
 		res.tv_sec = mactime / 1000;
@@ -187,7 +210,7 @@ int32 timer_host2mac_time(tm_time_t hosttime)
 	if (hosttime.tv_sec < 0)
 		return 0;
 	else {
-#ifdef HAVE_CLOCK_GETTIME
+#if defined(HAVE_CLOCK_GETTIME) || defined(__MACH__)
 		uint64 t = (uint64)hosttime.tv_sec * 1000000 + hosttime.tv_nsec / 1000;
 #else
 		uint64 t = (uint64)hosttime.tv_sec * 1000000 + hosttime.tv_usec;
@@ -209,6 +232,10 @@ uint64 GetTicks_usec(void)
 #ifdef HAVE_CLOCK_GETTIME
 	struct timespec t;
 	clock_gettime(CLOCK_REALTIME, &t);
+	return (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
+#elif defined(__MACH__)
+	tm_time_t t;
+	mach_current_time(t);
 	return (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
 #else
 	struct timeval t;

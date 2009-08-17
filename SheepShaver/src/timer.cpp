@@ -29,6 +29,10 @@
 #include <semaphore.h>
 #endif
 
+#ifdef PRECISE_TIMING_MACH
+#include <mach/mach.h>
+#endif
+
 #define DEBUG 0
 #include "debug.h"
 
@@ -71,6 +75,15 @@ static volatile bool timer_thread_cancel = false;
 static tm_time_t wakeup_time_max = { 0x7fffffff, 999999999 };
 static tm_time_t wakeup_time = wakeup_time_max;
 static pthread_mutex_t wakeup_time_lock = PTHREAD_MUTEX_INITIALIZER;
+static void *timer_func(void *arg);
+#endif
+#ifdef PRECISE_TIMING_MACH
+static clock_serv_t system_clock;
+static thread_act_t timer_thread;
+static bool timer_thread_active = false;
+static tm_time_t wakeup_time_max = { 0x7fffffff, 999999999 };
+static tm_time_t wakeup_time = wakeup_time_max;
+static semaphore_t wakeup_time_sem;
 static void *timer_func(void *arg);
 #endif
 #endif
@@ -268,6 +281,13 @@ void TimerInit(void)
 	wakeup_time_sem = create_sem(1, "Wakeup Time");
 	timer_thread = spawn_thread(timer_func, "Time Manager", B_REAL_TIME_PRIORITY, NULL);
 	resume_thread(timer_thread);
+#elif PRECISE_TIMING_MACH
+	pthread_t pthread;
+	
+	host_get_clock_service(mach_host_self(), REALTIME_CLOCK, &system_clock);
+	semaphore_create(mach_task_self(), &wakeup_time_sem, SYNC_POLICY_FIFO, 1);
+
+	pthread_create(&pthread, NULL, &timer_func, NULL);
 #endif
 #ifdef PRECISE_TIMING_POSIX
 	timer_thread_active = timer_thread_init();
@@ -292,6 +312,10 @@ void TimerExit(void)
 		resume_thread(timer_thread);
 		wait_for_thread(timer_thread, &l);
 		delete_sem(wakeup_time_sem);
+#endif
+#ifdef PRECISE_TIMING_MACH
+		timer_thread_active = false;
+		semaphore_destroy(mach_task_self(), wakeup_time_sem);
 #endif
 #ifdef PRECISE_TIMING_POSIX
 		timer_thread_kill();
@@ -352,6 +376,10 @@ int16 RmvTime(uint32 tm)
 	while (acquire_sem(wakeup_time_sem) == B_INTERRUPTED) ;
 	suspend_thread(timer_thread);
 #endif
+#ifdef PRECISE_TIMING_MACH
+	semaphore_wait(wakeup_time_sem);
+	thread_suspend(timer_thread);
+#endif
 #if PRECISE_TIMING_POSIX
 	timer_thread_suspend();
 	pthread_mutex_lock(&wakeup_time_lock);
@@ -386,6 +414,11 @@ int16 RmvTime(uint32 tm)
 		resume_thread(timer_thread);			// This will unblock the thread
 		get_thread_info(timer_thread, &info);
 	} while (info.state == B_THREAD_SUSPENDED);	// Sometimes, resume_thread() doesn't work (BeOS bug?)
+#endif
+#ifdef PRECISE_TIMING_MACH
+	semaphore_signal(wakeup_time_sem);
+	thread_abort(timer_thread);
+	thread_resume(timer_thread);
 #endif
 #if PRECISE_TIMING_POSIX
 	pthread_mutex_unlock(&wakeup_time_lock);
@@ -461,6 +494,10 @@ int16 PrimeTime(uint32 tm, int32 time)
 	while (acquire_sem(wakeup_time_sem) == B_INTERRUPTED) ;
 	suspend_thread(timer_thread);
 #endif
+#ifdef PRECISE_TIMING_MACH
+	semaphore_wait(wakeup_time_sem);
+	thread_suspend(timer_thread);
+#endif
 #if PRECISE_TIMING_POSIX
 	timer_thread_suspend();
 	pthread_mutex_lock(&wakeup_time_lock);
@@ -482,6 +519,11 @@ int16 PrimeTime(uint32 tm, int32 time)
 		resume_thread(timer_thread);			// This will unblock the thread
 		get_thread_info(timer_thread, &info);
 	} while (info.state == B_THREAD_SUSPENDED);	// Sometimes, resume_thread() doesn't work (BeOS bug?)
+#endif
+#ifdef PRECISE_TIMING_MACH
+	semaphore_signal(wakeup_time_sem);
+	thread_abort(timer_thread);
+	thread_resume(timer_thread);
 #endif
 #ifdef PRECISE_TIMING_POSIX
 	pthread_mutex_unlock(&wakeup_time_lock);
@@ -519,11 +561,33 @@ static int32 timer_func(void *arg)
 }
 #endif
 
+#ifdef PRECISE_TIMING_MACH
+static void *timer_func(void *arg)
+{
+	timer_thread = mach_thread_self();
+	timer_thread_active = true;
+	
+	while (timer_thread_active) {
+		clock_sleep(system_clock, TIME_ABSOLUTE, wakeup_time, NULL);
+		semaphore_wait(wakeup_time_sem);
+	   
+		tm_time_t system_time;
+		
+		timer_current_time(system_time);
+		if (timer_cmp_time(wakeup_time, system_time) < 0) {
+			wakeup_time = wakeup_time_max;
+			SetInterruptFlag(INTFLAG_TIMER);
+			TriggerInterrupt();
+		}
+		semaphore_signal(wakeup_time_sem);
+	}
+}
+#endif
+
 #ifdef PRECISE_TIMING_POSIX
 static void *timer_func(void *arg)
 {
 	while (!timer_thread_cancel) {
-
 		// Wait until time specified by wakeup_time
 		clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &wakeup_time, NULL);
 
@@ -583,6 +647,10 @@ void TimerInterrupt(void)
 	while (acquire_sem(wakeup_time_sem) == B_INTERRUPTED) ;
 	suspend_thread(timer_thread);
 #endif
+#if PRECISE_TIMING_MACH
+	semaphore_wait(wakeup_time_sem);
+	thread_suspend(timer_thread);
+#endif
 #if PRECISE_TIMING_POSIX
 	timer_thread_suspend();
 	pthread_mutex_lock(&wakeup_time_lock);
@@ -600,6 +668,11 @@ void TimerInterrupt(void)
 		resume_thread(timer_thread);			// This will unblock the thread
 		get_thread_info(timer_thread, &info);
 	} while (info.state == B_THREAD_SUSPENDED);	// Sometimes, resume_thread() doesn't work (BeOS bug?)
+#endif
+#if PRECISE_TIMING_MACH
+	semaphore_signal(wakeup_time_sem);
+	thread_abort(timer_thread);
+	thread_resume(timer_thread);
 #endif
 #if PRECISE_TIMING_POSIX
 	pthread_mutex_unlock(&wakeup_time_lock);

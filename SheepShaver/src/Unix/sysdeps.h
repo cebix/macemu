@@ -64,6 +64,10 @@
 # endif
 #endif
 
+#ifdef __MACH__
+#include <mach/mach_types.h>
+#endif
+
 // Fix offsetof() on FreeBSD and GCC >= 3.4
 #if defined(__FreeBSD__) && defined(__cplusplus)
 #undef offsetof
@@ -400,6 +404,8 @@ static inline int spin_trylock(spinlock_t *lock)
 // Time data type for Time Manager emulation
 #ifdef HAVE_CLOCK_GETTIME
 typedef struct timespec tm_time_t;
+#elif defined(__MACH__)
+typedef mach_timespec_t tm_time_t;
 #else
 typedef struct timeval tm_time_t;
 #endif
@@ -416,6 +422,9 @@ typedef struct timeval tm_time_t;
 #if defined(HAVE_PTHREADS) && defined(HAVE_CLOCK_NANOSLEEP)
 #define PRECISE_TIMING 1
 #define PRECISE_TIMING_POSIX 1
+#elif defined(HAVE_PTHREADS) && defined(__MACH__)
+#define PRECISE_TIMING 1
+#define PRECISE_TIMING_MACH 1
 #endif
 
 // Timing functions
