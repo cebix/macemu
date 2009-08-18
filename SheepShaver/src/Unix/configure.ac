@@ -605,8 +605,8 @@ darwin*)
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     EXTFSSRC=../MacOSX/extfs_macosx.cpp
     if [[ "x$ac_cv_framework_AppKit" = "xyes" -a "x$WANT_GTK" = "xno" ]]; then
-      PREFSSRC="../MacOSX/prefs_macosx.mm ../MacOSX/PrefsEditor/PrefsEditor.mm"
-      CPPFLAGS="$CPPFLAGS -I../MacOSX/PrefsEditor"
+      PREFSSRC="../MacOSX/prefs_macosx.mm ../MacOSX/Launcher/VMSettingsController.mm"
+      CPPFLAGS="$CPPFLAGS -I../MacOSX/Launcher"
     fi
   fi
   if [[ "x$WANT_ESD" = "xno" -a "x$ac_cv_framework_CoreAudio" = "xyes" -a "x$WANT_SDL_AUDIO" = "xno" ]]; then

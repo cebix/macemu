@@ -1,4 +1,4 @@
-# Linux makefile for SheepShaver
+# Unix makefile for SheepShaver
 
 ## System specific configuration
 @SET_MAKE@
@@ -127,7 +127,8 @@ $(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	./cpr.sh $(APP) $(APP_APP)/Contents/MacOS/
 	strip -x $(APP_APP)/Contents/MacOS/$(APP)
 	mkdir -p $(APP_APP)/Contents/Resources
-	./cpr.sh ../MacOSX/PrefsEditor/standalone_nib/English.lproj $(APP_APP)/Contents/Resources
+	mkdir -p $(APP_APP)/Contents/Resources/English.lproj
+	./cpr.sh ../MacOSX/Launcher/English.lproj/VMSettingsWindow.nib $(APP_APP)/Contents/Resources/English.lproj
 	./cpr.sh ../MacOSX/SheepShaver.icns $(APP_APP)/Contents/Resources/
 
 $(GUI_APP)_app: $(GUI_APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
