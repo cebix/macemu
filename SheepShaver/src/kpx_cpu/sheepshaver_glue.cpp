@@ -750,25 +750,25 @@ sigsegv_return_t sigsegv_handler(sigsegv_info_t *sip)
 	const uint32 pc = cpu->pc();
 	
 	// Fault in Mac ROM or RAM?
-	bool mac_fault = (pc >= ROM_BASE) && (pc < (ROM_BASE + ROM_AREA_SIZE)) || (pc >= RAMBase) && (pc < (RAMBase + RAMSize)) || (pc >= DR_CACHE_BASE && pc < (DR_CACHE_BASE + DR_CACHE_SIZE));
+	bool mac_fault = (pc >= ROMBase) && (pc < (ROMBase + ROM_AREA_SIZE)) || (pc >= RAMBase) && (pc < (RAMBase + RAMSize)) || (pc >= DR_CACHE_BASE && pc < (DR_CACHE_BASE + DR_CACHE_SIZE));
 	if (mac_fault) {
 
 		// "VM settings" during MacOS 8 installation
-		if (pc == ROM_BASE + 0x488160 && cpu->gpr(20) == 0xf8000000)
+		if (pc == ROMBase + 0x488160 && cpu->gpr(20) == 0xf8000000)
 			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
 	
 		// MacOS 8.5 installation
-		else if (pc == ROM_BASE + 0x488140 && cpu->gpr(16) == 0xf8000000)
+		else if (pc == ROMBase + 0x488140 && cpu->gpr(16) == 0xf8000000)
 			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
 	
 		// MacOS 8 serial drivers on startup
-		else if (pc == ROM_BASE + 0x48e080 && (cpu->gpr(8) == 0xf3012002 || cpu->gpr(8) == 0xf3012000))
+		else if (pc == ROMBase + 0x48e080 && (cpu->gpr(8) == 0xf3012002 || cpu->gpr(8) == 0xf3012000))
 			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
 	
 		// MacOS 8.1 serial drivers on startup
-		else if (pc == ROM_BASE + 0x48c5e0 && (cpu->gpr(20) == 0xf3012002 || cpu->gpr(20) == 0xf3012000))
+		else if (pc == ROMBase + 0x48c5e0 && (cpu->gpr(20) == 0xf3012002 || cpu->gpr(20) == 0xf3012000))
 			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
-		else if (pc == ROM_BASE + 0x4a10a0 && (cpu->gpr(20) == 0xf3012002 || cpu->gpr(20) == 0xf3012000))
+		else if (pc == ROMBase + 0x4a10a0 && (cpu->gpr(20) == 0xf3012002 || cpu->gpr(20) == 0xf3012000))
 			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
 	
 		// MacOS 8.6 serial drivers on startup (with DR Cache and OldWorld ROM)
@@ -807,7 +807,7 @@ void init_emul_ppc(void)
 
 	// Initialize main CPU emulator
 	ppc_cpu = new sheepshaver_cpu();
-	ppc_cpu->set_register(powerpc_registers::GPR(3), any_register((uint32)ROM_BASE + 0x30d000));
+	ppc_cpu->set_register(powerpc_registers::GPR(3), any_register((uint32)ROMBase + 0x30d000));
 	ppc_cpu->set_register(powerpc_registers::GPR(4), any_register(KernelDataAddr + 0x1000));
 	WriteMacInt32(XLM_RUN_MODE, MODE_68K);
 
@@ -951,9 +951,9 @@ void HandleInterrupt(powerpc_registers *r)
 			// Execute nanokernel interrupt routine (this will activate the 68k emulator)
 			DisableInterrupt();
 			if (ROMType == ROMTYPE_NEWWORLD)
-				ppc_cpu->interrupt(ROM_BASE + 0x312b1c);
+				ppc_cpu->interrupt(ROMBase + 0x312b1c);
 			else
-				ppc_cpu->interrupt(ROM_BASE + 0x312a3c);
+				ppc_cpu->interrupt(ROMBase + 0x312a3c);
 		}
 		break;
 #endif

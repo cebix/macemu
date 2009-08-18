@@ -1496,7 +1496,7 @@ void init_emul_ppc(void)
 	cr = xer = 0;
 	fpscr = 0;
 
-	r[3] = ROM_BASE + 0x30d000;
+	r[3] = ROMBase + 0x30d000;
 
 	// Install SIGSEGV handler
 	sigemptyset(&sigsegv_action.sa_mask);

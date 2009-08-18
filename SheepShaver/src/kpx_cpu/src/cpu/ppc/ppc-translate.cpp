@@ -48,7 +48,7 @@
 static inline bool is_read_only_memory(uintptr addr)
 {
 #ifdef SHEEPSHAVER
-	if ((addr - ROM_BASE) < ROM_AREA_SIZE)
+	if ((addr - ROMBase) < ROM_AREA_SIZE)
 		return true;
 #endif
 	return false;

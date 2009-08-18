@@ -173,11 +173,11 @@ bool InitAll(const char *vmdir)
 		memset((uint8 *)kernel_data + 0xb80, 0x3d, 0x80);
 		Mac_memset(vector_lookup_tbl, 0, 128);
 		Mac_memset(vector_mask_tbl, 0, 64);
-		kernel_data->v[0xb80 >> 2] = htonl(ROM_BASE);
+		kernel_data->v[0xb80 >> 2] = htonl(ROMBase);
 		kernel_data->v[0xb84 >> 2] = htonl(of_dev_tree);			// OF device tree base
 		kernel_data->v[0xb90 >> 2] = htonl(vector_lookup_tbl);
 		kernel_data->v[0xb94 >> 2] = htonl(vector_mask_tbl);
-		kernel_data->v[0xb98 >> 2] = htonl(ROM_BASE);				// OpenPIC base
+		kernel_data->v[0xb98 >> 2] = htonl(ROMBase);				// OpenPIC base
 		kernel_data->v[0xbb0 >> 2] = htonl(0);						// ADB base
 		kernel_data->v[0xc20 >> 2] = htonl(RAMSize);
 		kernel_data->v[0xc24 >> 2] = htonl(RAMSize);

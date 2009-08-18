@@ -489,8 +489,10 @@ C_SYMBOL_NAME(jump_to_rom):
 	stw	r1,XLM_EMUL_RETURN_STACK(0)
 
 	// Preset registers for ROM boot routine
-	lis	r3,0x40b0		// Pointer to ROM boot structure
-	ori	r3,r3,0xd000
+	lis   r3,ASM_HA16(C_SYMBOL_NAME(ROMBase))		// Pointer to ROM boot structure:
+	lwz   r3,ASM_LO16(C_SYMBOL_NAME(ROMBase))(r3)	//    r3 = ROMBase + 0x30d000
+	addis r3,r3,ASM_HA16(0x30d000)
+	addi  r3,r3,ASM_LO16(0x30d000)
 
 	// 68k emulator is now active
 	li	r0,MODE_68K
@@ -887,7 +889,7 @@ C_SYMBOL_NAME(ASM_MACRO_ARG0):
 
 	// Atomically increase stack_id
 	lis	r19,ASM_HA16(ASM_MACRO_ARG2)
-	la	r19,ASM_LO16(ASM_MACRO_ARG2,r19)
+	la	r19,ASM_LO16(ASM_MACRO_ARG2)(r19)
 	li	r4,1
 	mr	r3,r19
 	bl	C_SYMBOL_NAME(atomic_add)
@@ -897,7 +899,7 @@ C_SYMBOL_NAME(ASM_MACRO_ARG0):
 	// ID was 0, we can use the local stack
 	lis	r9,ASM_HA16(ASM_MACRO_ARG1)
 	lis	r3,(SIG_STACK_SIZE>>16)
-	la	r9,ASM_LO16(ASM_MACRO_ARG1,r9)
+	la	r9,ASM_LO16(ASM_MACRO_ARG1)(r9)
 	addi	r3,r3,((SIG_STACK_SIZE&0xffff)-64)
 	add	r1,r9,r3
 

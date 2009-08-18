@@ -38,6 +38,8 @@ user_string_def platform_strings[] = {
 	{STR_KD2_SHMAT_ERR, "Cannot map second Kernel Data area: %s."},
 	{STR_ROM_MMAP_ERR, "Cannot map ROM: %s."},
 	{STR_RAM_MMAP_ERR, "Cannot map RAM: %s."},
+	{STR_RAM_ROM_MMAP_ERR, "Cannot map area for RAM and ROM: %s."},
+	{STR_RAM_AREA_TOO_HIGH_ERR, "Cannot map usable RAM area. Try to decrease the MacOS RAM size."},
 	{STR_DR_CACHE_MMAP_ERR, "Cannot map DR Cache: %s."},
 	{STR_DR_EMULATOR_MMAP_ERR, "Cannot map DR Emulator: %s."},
 	{STR_SHEEP_MEM_MMAP_ERR, "Cannot map SheepShaver Data area: %s."},

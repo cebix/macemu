@@ -290,7 +290,7 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 				WriteMacInt32(KernelDataAddr + 0x17c4, DR_CACHE_SIZE);
 				WriteMacInt32(KernelDataAddr + 0x1b04, DR_CACHE_BASE);
 				WriteMacInt32(KernelDataAddr + 0x1b00, DR_EMULATOR_BASE);
-				memcpy((void *)DR_EMULATOR_BASE, (void *)(ROM_BASE + 0x370000), DR_EMULATOR_SIZE);
+				memcpy((void *)DR_EMULATOR_BASE, (void *)(ROMBase + 0x370000), DR_EMULATOR_SIZE);
 				MakeExecutable(0, DR_EMULATOR_BASE, DR_EMULATOR_SIZE);
 			}
 			break;

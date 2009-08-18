@@ -929,7 +929,7 @@ void PatchNativeResourceManager(void)
 
 	// Patch native GetResource()
 	uint32 upp = ReadMacInt32(0x1480);
-	if ((upp & 0xffc00000) == ROM_BASE)
+	if ((upp & 0xffc00000) == ROMBase)
 		return;
 	uint32 tvec = ReadMacInt32(upp + 5 * 4);
 	D(bug(" GetResource() entry %08x, TOC %08x\n", ReadMacInt32(tvec), ReadMacInt32(tvec + 4)));

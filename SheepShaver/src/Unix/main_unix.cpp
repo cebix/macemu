@@ -161,11 +161,13 @@
 const char ROM_FILE_NAME[] = "ROM";
 const char ROM_FILE_NAME2[] = "Mac OS ROM";
 
-#if REAL_ADDRESSING
-const uintptr RAM_BASE = 0x20000000;		// Base address of RAM
-#else
+#if !REAL_ADDRESSING
 // FIXME: needs to be >= 0x04000000
 const uintptr RAM_BASE = 0x10000000;		// Base address of RAM
+#endif
+const uintptr ROM_BASE = 0x40800000;		// Base address of ROM
+#if REAL_ADDRESSING
+const uint32 ROM_ALIGNMENT = 0x100000;		// ROM must be aligned to a 1MB boundary
 #endif
 const uint32 SIG_STACK_SIZE = 0x10000;		// Size of signal stack
 
@@ -177,6 +179,7 @@ void *R13 = NULL;		// Pointer to .sdata section (r13 under Linux)
 #endif
 uint32 RAMBase;			// Base address of Mac RAM
 uint32 RAMSize;			// Size of Mac RAM
+uint32 ROMBase;			// Base address of Mac ROM
 uint32 KernelDataAddr;	// Address of Kernel Data
 uint32 BootGlobsAddr;	// Address of BootGlobs structure at top of Mac RAM
 uint32 DRCacheAddr;		// Address of DR Cache
@@ -337,7 +340,12 @@ int atomic_or(int *var, int v)
  *  Memory management helpers
  */
 
-static inline int vm_mac_acquire(uint32 addr, uint32 size)
+static inline uint8 *vm_mac_acquire(uint32 size)
+{
+	return (uint8 *)vm_acquire(size);
+}
+
+static inline int vm_mac_acquire_fixed(uint32 addr, uint32 size)
 {
 	return vm_acquire_fixed(Mac2HostAddr(addr), size);
 }
@@ -385,7 +393,7 @@ int main(int argc, char **argv)
 	uint32 rom_size, actual;
 	uint8 *rom_tmp;
 	time_t now, expire;
-	bool memory_mapped_from_zero;
+	bool memory_mapped_from_zero, ram_rom_areas_contiguous;
 	const char *vmdir = NULL;
 
 #ifdef USE_SDL_VIDEO
@@ -798,13 +806,13 @@ int main(int argc, char **argv)
 	D(bug("Emulator Data at %p (%08x)\n", emulator_data, KERNEL_DATA_BASE + offsetof(KernelData, ed)));
 
 	// Create area for DR Cache
-	if (vm_mac_acquire(DR_EMULATOR_BASE, DR_EMULATOR_SIZE) < 0) {
+	if (vm_mac_acquire_fixed(DR_EMULATOR_BASE, DR_EMULATOR_SIZE) < 0) {
 		sprintf(str, GetString(STR_DR_EMULATOR_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
 	dr_emulator_area_mapped = true;
-	if (vm_mac_acquire(DR_CACHE_BASE, DR_CACHE_SIZE) < 0) {
+	if (vm_mac_acquire_fixed(DR_CACHE_BASE, DR_CACHE_SIZE) < 0) {
 		sprintf(str, GetString(STR_DR_CACHE_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
@@ -826,24 +834,7 @@ int main(int argc, char **argv)
 		ErrorAlert(str);
 		goto quit;
 	}
-
-	// Create area for Mac ROM
-	if (vm_mac_acquire(ROM_BASE, ROM_AREA_SIZE) < 0) {
-		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-	ROMBaseHost = Mac2HostAddr(ROM_BASE);
-#if !EMULATED_PPC
-	if (vm_protect(ROMBaseHost, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
-		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-#endif
-	rom_area_mapped = true;
-	D(bug("ROM area at %p (%08x)\n", ROMBaseHost, ROM_BASE));
-
+	
 	// Create area for Mac RAM
 	RAMSize = PrefsFindInt32("ramsize");
 	if (RAMSize < 8*1024*1024) {
@@ -851,31 +842,48 @@ int main(int argc, char **argv)
 		RAMSize = 8*1024*1024;
 	}
 	memory_mapped_from_zero = false;
+	ram_rom_areas_contiguous = false;
 #if REAL_ADDRESSING && HAVE_LINKER_SCRIPT
-	if (vm_mac_acquire(0, RAMSize) == 0) {
+	if (vm_mac_acquire_fixed(0, RAMSize) == 0) {
 		D(bug("Could allocate RAM from 0x0000\n"));
 		RAMBase = 0;
+		RAMBaseHost = Mac2HostAddr(RAMBase);
 		memory_mapped_from_zero = true;
 	}
 #endif
 	if (!memory_mapped_from_zero) {
 #ifndef PAGEZERO_HACK
 		// Create Low Memory area (0x0000..0x3000)
-		if (vm_mac_acquire(0, 0x3000) < 0) {
+		if (vm_mac_acquire_fixed(0, 0x3000) < 0) {
 			sprintf(str, GetString(STR_LOW_MEM_MMAP_ERR), strerror(errno));
 			ErrorAlert(str);
 			goto quit;
 		}
 		lm_area_mapped = true;
 #endif
-		if (vm_mac_acquire(RAM_BASE, RAMSize) < 0) {
+#if REAL_ADDRESSING
+		// Allocate RAM at any address. Since ROM must be higher than RAM, allocate the RAM
+		// and ROM areas contiguously, plus a little extra to allow for ROM address alignment.
+		RAMBaseHost = vm_mac_acquire(RAMSize + ROM_AREA_SIZE + ROM_ALIGNMENT);
+		if (RAMBaseHost == VM_MAP_FAILED) {
+			sprintf(str, GetString(STR_RAM_ROM_MMAP_ERR), strerror(errno));
+			ErrorAlert(str);
+			goto quit;
+		}
+		RAMBase = Host2MacAddr(RAMBaseHost);
+		ROMBase = (RAMBase + RAMSize + ROM_ALIGNMENT -1) & -ROM_ALIGNMENT;
+		ROMBaseHost = Mac2HostAddr(ROMBase);
+		ram_rom_areas_contiguous = true;
+#else
+		if (vm_mac_acquire_fixed(RAM_BASE, RAMSize) < 0) {
 			sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
 			ErrorAlert(str);
 			goto quit;
 		}
 		RAMBase = RAM_BASE;
+		RAMBaseHost = Mac2HostAddr(RAMBase);
+#endif
 	}
-	RAMBaseHost = Mac2HostAddr(RAMBase);
 #if !EMULATED_PPC
 	if (vm_protect(RAMBaseHost, RAMSize, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
 		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
@@ -886,7 +894,32 @@ int main(int argc, char **argv)
 	ram_area_mapped = true;
 	D(bug("RAM area at %p (%08x)\n", RAMBaseHost, RAMBase));
 
-	if (RAMBase > ROM_BASE) {
+	if (RAMBase > KernelDataAddr) {
+		ErrorAlert(GetString(STR_RAM_AREA_TOO_HIGH_ERR));
+		goto quit;
+	}
+	
+	// Create area for Mac ROM
+	if (!ram_rom_areas_contiguous) {
+		if (vm_mac_acquire_fixed(ROM_BASE, ROM_AREA_SIZE) < 0) {
+			sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
+			ErrorAlert(str);
+			goto quit;
+		}
+		ROMBase = ROM_BASE;
+		ROMBaseHost = Mac2HostAddr(ROMBase);
+	}
+#if !EMULATED_PPC
+	if (vm_protect(ROMBaseHost, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
+		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+#endif
+	rom_area_mapped = true;
+	D(bug("ROM area at %p (%08x)\n", ROMBaseHost, ROMBase));
+
+	if (RAMBase > ROMBase) {
 		ErrorAlert(GetString(STR_RAM_HIGHER_THAN_ROM_ERR));
 		goto quit;
 	}
@@ -927,7 +960,7 @@ int main(int argc, char **argv)
 
 	// Clear caches (as we loaded and patched code) and write protect ROM
 #if !EMULATED_PPC
-	flush_icache_range(ROM_BASE, ROM_BASE + ROM_AREA_SIZE);
+	flush_icache_range(ROMBase, ROMBase + ROM_AREA_SIZE);
 #endif
 	vm_protect(ROMBaseHost, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_EXECUTE);
 
@@ -1042,7 +1075,7 @@ static void Quit(void)
 
 	// Delete ROM area
 	if (rom_area_mapped)
-		vm_mac_release(ROM_BASE, ROM_AREA_SIZE);
+		vm_mac_release(ROMBase, ROM_AREA_SIZE);
 
 	// Delete DR cache areas
 	if (dr_emulator_area_mapped)
@@ -1161,9 +1194,9 @@ static void *emul_func(void *arg)
 	// Jump to ROM boot routine
 	D(bug("Jumping to ROM\n"));
 #if EMULATED_PPC
-	jump_to_rom(ROM_BASE + 0x310000);
+	jump_to_rom(ROMBase + 0x310000);
 #else
-	jump_to_rom(ROM_BASE + 0x310000, (uint32)emulator_data);
+	jump_to_rom(ROMBase + 0x310000, (uint32)emulator_data);
 #endif
 	D(bug("Returned from ROM\n"));
 
@@ -1249,7 +1282,7 @@ void Dump68kRegs(M68kRegisters *r)
 
 void MakeExecutable(int dummy, uint32 start, uint32 length)
 {
-	if ((start >= ROM_BASE) && (start < (ROM_BASE + ROM_SIZE)))
+	if ((start >= ROMBase) && (start < (ROMBase + ROM_SIZE)))
 		return;
 #if EMULATED_PPC
 	FlushCodeCache(start, start + length);
@@ -1592,9 +1625,9 @@ void sigusr2_handler(int sig, siginfo_t *sip, void *scp)
 				// Execute nanokernel interrupt routine (this will activate the 68k emulator)
 				DisableInterrupt();
 				if (ROMType == ROMTYPE_NEWWORLD)
-					ppc_interrupt(ROM_BASE + 0x312b1c, KernelDataAddr);
+					ppc_interrupt(ROMBase + 0x312b1c, KernelDataAddr);
 				else
-					ppc_interrupt(ROM_BASE + 0x312a3c, KernelDataAddr);
+					ppc_interrupt(ROMBase + 0x312a3c, KernelDataAddr);
 
 				// Reset normal stack
 				sigaltstack(&sig_stack, NULL);
@@ -1680,32 +1713,32 @@ static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 	num_segv++;
 
 	// Fault in Mac ROM or RAM or DR Cache?
-	bool mac_fault = (r->pc() >= ROM_BASE) && (r->pc() < (ROM_BASE + ROM_AREA_SIZE)) || (r->pc() >= RAMBase) && (r->pc() < (RAMBase + RAMSize)) || (r->pc() >= DR_CACHE_BASE && r->pc() < (DR_CACHE_BASE + DR_CACHE_SIZE));
+	bool mac_fault = (r->pc() >= ROMBase) && (r->pc() < (ROMBase + ROM_AREA_SIZE)) || (r->pc() >= RAMBase) && (r->pc() < (RAMBase + RAMSize)) || (r->pc() >= DR_CACHE_BASE && r->pc() < (DR_CACHE_BASE + DR_CACHE_SIZE));
 	if (mac_fault) {
 
 		// "VM settings" during MacOS 8 installation
-		if (r->pc() == ROM_BASE + 0x488160 && r->gpr(20) == 0xf8000000) {
+		if (r->pc() == ROMBase + 0x488160 && r->gpr(20) == 0xf8000000) {
 			r->pc() += 4;
 			r->gpr(8) = 0;
 			return;
 	
 		// MacOS 8.5 installation
-		} else if (r->pc() == ROM_BASE + 0x488140 && r->gpr(16) == 0xf8000000) {
+		} else if (r->pc() == ROMBase + 0x488140 && r->gpr(16) == 0xf8000000) {
 			r->pc() += 4;
 			r->gpr(8) = 0;
 			return;
 	
 		// MacOS 8 serial drivers on startup
-		} else if (r->pc() == ROM_BASE + 0x48e080 && (r->gpr(8) == 0xf3012002 || r->gpr(8) == 0xf3012000)) {
+		} else if (r->pc() == ROMBase + 0x48e080 && (r->gpr(8) == 0xf3012002 || r->gpr(8) == 0xf3012000)) {
 			r->pc() += 4;
 			r->gpr(8) = 0;
 			return;
 	
 		// MacOS 8.1 serial drivers on startup
-		} else if (r->pc() == ROM_BASE + 0x48c5e0 && (r->gpr(20) == 0xf3012002 || r->gpr(20) == 0xf3012000)) {
+		} else if (r->pc() == ROMBase + 0x48c5e0 && (r->gpr(20) == 0xf3012002 || r->gpr(20) == 0xf3012000)) {
 			r->pc() += 4;
 			return;
-		} else if (r->pc() == ROM_BASE + 0x4a10a0 && (r->gpr(20) == 0xf3012002 || r->gpr(20) == 0xf3012000)) {
+		} else if (r->pc() == ROMBase + 0x4a10a0 && (r->gpr(20) == 0xf3012002 || r->gpr(20) == 0xf3012000)) {
 			r->pc() += 4;
 			return;
 	
@@ -1838,7 +1871,7 @@ static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 	
 		// Ignore ROM writes (including to the zero page, which is read-only)
 		if (transfer_type == TYPE_STORE &&
-			((addr >= ROM_BASE && addr < ROM_BASE + ROM_SIZE) ||
+			((addr >= ROMBase && addr < ROMBase + ROM_SIZE) ||
 			 (addr >= SheepMem::ZeroPage() && addr < SheepMem::ZeroPage() + SheepMem::PageSize()))) {
 //			D(bug("WARNING: %s write access to ROM at %08lx, pc %08lx\n", transfer_size == SIZE_BYTE ? "Byte" : transfer_size == SIZE_HALFWORD ? "Halfword" : "Word", addr, r->pc()));
 			if (addr_mode == MODE_U || addr_mode == MODE_UX)
@@ -1929,7 +1962,7 @@ static void sigill_handler(int sig, siginfo_t *sip, void *scp)
 #endif
 
 	// Fault in Mac ROM or RAM?
-	bool mac_fault = (r->pc() >= ROM_BASE) && (r->pc() < (ROM_BASE + ROM_AREA_SIZE)) || (r->pc() >= RAMBase) && (r->pc() < (RAMBase + RAMSize));
+	bool mac_fault = (r->pc() >= ROMBase) && (r->pc() < (ROMBase + ROM_AREA_SIZE)) || (r->pc() >= RAMBase) && (r->pc() < (RAMBase + RAMSize));
 	if (mac_fault) {
 
 		// Get opcode and divide into fields
@@ -2097,7 +2130,7 @@ bool SheepMem::Init(void)
 
 	// Allocate SheepShaver globals
 	proc = base;
-	if (vm_mac_acquire(base, size) < 0)
+	if (vm_mac_acquire_fixed(base, size) < 0)
 		return false;
 
 	// Allocate page with all bits set to 0, right in the middle
@@ -2110,7 +2143,7 @@ bool SheepMem::Init(void)
 #if EMULATED_PPC
 	// Allocate alternate stack for PowerPC interrupt routine
 	sig_stack = base + size;
-	if (vm_mac_acquire(sig_stack, SIG_STACK_SIZE) < 0)
+	if (vm_mac_acquire_fixed(sig_stack, SIG_STACK_SIZE) < 0)
 		return false;
 #endif
 

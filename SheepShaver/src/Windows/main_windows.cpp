@@ -58,12 +58,15 @@
 const char ROM_FILE_NAME[] = "ROM";
 const char ROM_FILE_NAME2[] = "Mac OS ROM";
 
+const uintptr ROM_BASE = 0x40800000;		// Base address of ROM
+
 const uint32 SIG_STACK_SIZE = 0x10000;		// Size of signal stack
 
 
 // Global variables (exported)
 uint32 RAMBase;			// Base address of Mac RAM
 uint32 RAMSize;			// Size of Mac RAM
+uint32 ROMBase;			// Base address of Mac ROM
 uint32 KernelDataAddr;	// Address of Kernel Data
 uint32 BootGlobsAddr;	// Address of BootGlobs structure at top of Mac RAM
 uint32 DRCacheAddr;		// Address of DR Cache
@@ -297,9 +300,10 @@ int main(int argc, char **argv)
 		ErrorAlert(str);
 		goto quit;
 	}
-	ROMBaseHost = Mac2HostAddr(ROM_BASE);
+	ROMBase = ROM_BASE;
+	ROMBaseHost = Mac2HostAddr(ROMBase);
 	rom_area_mapped = true;
-	D(bug("ROM area at %p (%08x)\n", ROMBaseHost, ROM_BASE));
+	D(bug("ROM area at %p (%08x)\n", ROMBaseHost, ROMBase));
 
 	// Create area for Mac RAM
 	RAMSize = PrefsFindInt32("ramsize");
@@ -317,7 +321,7 @@ int main(int argc, char **argv)
 	ram_area_mapped = true;
 	D(bug("RAM area at %p (%08x)\n", RAMBaseHost, RAMBase));
 
-	if (RAMBase > ROM_BASE) {
+	if (RAMBase > ROMBase) {
 		ErrorAlert(GetString(STR_RAM_HIGHER_THAN_ROM_ERR));
 		goto quit;
 	}
@@ -383,7 +387,7 @@ int main(int argc, char **argv)
 	// Get my thread ID and jump to ROM boot routine
 	emul_thread = GetCurrentThread();
 	D(bug("Jumping to ROM\n"));
-	jump_to_rom(ROM_BASE + 0x310000);
+	jump_to_rom(ROMBase + 0x310000);
 	D(bug("Returned from ROM\n"));
 
 quit:
@@ -425,7 +429,7 @@ static void Quit(void)
 
 	// Delete ROM area
 	if (rom_area_mapped)
-		vm_mac_release(ROM_BASE, ROM_AREA_SIZE);
+		vm_mac_release(ROMBase, ROM_AREA_SIZE);
 
 	// Delete DR cache areas
 	if (dr_emulator_area_mapped)
@@ -577,7 +581,7 @@ void Dump68kRegs(M68kRegisters *r)
 
 void MakeExecutable(int dummy, uint32 start, uint32 length)
 {
-	if ((start >= ROM_BASE) && (start < (ROM_BASE + ROM_SIZE)))
+	if ((start >= ROMBase) && (start < (ROMBase + ROM_SIZE)))
 		return;
 	FlushCodeCache(start, start + length);
 }

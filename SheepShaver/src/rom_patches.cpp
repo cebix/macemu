@@ -224,9 +224,9 @@ static uint32 rsrc_ptr = 0;
 // id = 4711 means "find any ID"
 static uint32 find_rom_resource(uint32 s_type, int16 s_id = 4711, bool cont = false)
 {
-	uint32 lp = ROM_BASE + 0x1a;
+	uint32 lp = ROMBase + 0x1a;
 	uint32 x = ReadMacInt32(lp);
-	uint32 header_size = ReadMacInt8(ROM_BASE + x + 5);
+	uint32 header_size = ReadMacInt8(ROMBase + x + 5);
 
 	if (!cont)
 		rsrc_ptr = x;
@@ -234,14 +234,14 @@ static uint32 find_rom_resource(uint32 s_type, int16 s_id = 4711, bool cont = fa
 		return 0;
 
 	for (;;) {
-		lp = ROM_BASE + rsrc_ptr;
+		lp = ROMBase + rsrc_ptr;
 		rsrc_ptr = ReadMacInt32(lp);
 		if (rsrc_ptr == 0)
 			break;
 
 		rsrc_ptr += header_size;
 
-		lp = ROM_BASE + rsrc_ptr + 4;
+		lp = ROMBase + rsrc_ptr + 4;
 		uint32 data = ReadMacInt32(lp);
 		uint32 type = ReadMacInt32(lp + 4);
 		int16 id = ReadMacInt16(lp + 8);
@@ -258,7 +258,7 @@ static uint32 find_rom_resource(uint32 s_type, int16 s_id = 4711, bool cont = fa
 
 static uint32 find_rom_trap(uint16 trap)
 {
-	uint32 lp = ROM_BASE + ReadMacInt32(ROM_BASE + 0x22);
+	uint32 lp = ROMBase + ReadMacInt32(ROMBase + 0x22);
 
 	if (trap > 0xa800)
 		return ReadMacInt32(lp + 4 * (trap & 0x3ff));
@@ -759,10 +759,10 @@ static bool patch_nanokernel_boot(void)
 	lp[0x9c >> 2] = htonl(KernelDataAddr);			// LA_InfoRecord
 	lp[0xa0 >> 2] = htonl(KernelDataAddr);			// LA_KernelData
 	lp[0xa4 >> 2] = htonl(KernelDataAddr + 0x1000);	// LA_EmulatorData
-	lp[0xa8 >> 2] = htonl(ROM_BASE + 0x480000);		// LA_DispatchTable
-	lp[0xac >> 2] = htonl(ROM_BASE + 0x460000);		// LA_EmulatorCode
+	lp[0xa8 >> 2] = htonl(ROMBase + 0x480000);		// LA_DispatchTable
+	lp[0xac >> 2] = htonl(ROMBase + 0x460000);		// LA_EmulatorCode
 	lp[0x360 >> 2] = htonl(0);						// Physical RAM base (? on NewWorld ROM, this contains -1)
-	lp[0xfd8 >> 2] = htonl(ROM_BASE + 0x2a);		// 68k reset vector
+	lp[0xfd8 >> 2] = htonl(ROMBase + 0x2a);		// 68k reset vector
 
 	// Skip SR/BAT/SDR init
 	loc = 0x310000;
@@ -775,7 +775,7 @@ static bool patch_nanokernel_boot(void)
 	if ((base = find_rom_data(0x3101b0, 0x3105b0, sr_init_dat, sizeof(sr_init_dat))) == 0) return false;
 	D(bug("sr_init %08lx\n", base));
 	lp = (uint32 *)(ROMBaseHost + loc + 8);
-	*lp = htonl(0x48000000 | ((base - loc - 8) & 0x3fffffc));	// b		ROM_BASE+0x3101b0
+	*lp = htonl(0x48000000 | ((base - loc - 8) & 0x3fffffc));	// b		ROMBase+0x3101b0
 	lp = (uint32 *)(ROMBaseHost + base);
 	*lp++ = htonl(0x80200000 + XLM_KERNEL_DATA);		// lwz	r1,(pointer to Kernel Data)
 	*lp++ = htonl(0x3da0dead);		// lis	r13,0xdead	(start of kernel memory)
@@ -1303,8 +1303,8 @@ dr_found:
 		D(bug(" patching absolute branch at %08x\n", loc));
 		*lp = htonl(0x48000000 + 0xf000 - (loc & 0xffff));				// b	DR_CACHE_BASE+0x1f000
 		lp = (uint32 *)(ROMBaseHost + 0x37f000);
-		*lp++ = htonl(0x3c000000 + ((ROM_BASE + base) >> 16));			// lis	r0,xxx
-		*lp++ = htonl(0x60000000 + ((ROM_BASE + base) & 0xffff));		// ori	r0,r0,xxx
+		*lp++ = htonl(0x3c000000 + ((ROMBase + base) >> 16));			// lis	r0,xxx
+		*lp++ = htonl(0x60000000 + ((ROMBase + base) & 0xffff));		// ori	r0,r0,xxx
 		*lp++ = htonl(0x7c0803a6);										// mtlr	r0
 		*lp = htonl(POWERPC_BLR);										// blr
 	}
@@ -1428,14 +1428,14 @@ static bool patch_nanokernel(void)
 	while (ntohl(*lp) != 0x7d5a03a6) lp--;
 	*lp++ = htonl(0x7d4903a6);					// mtctr	r10
 	*lp++ = htonl(0x7daff120);					// mtcr	r13
-	*lp = htonl(0x48000000 + ((0x318000 - ((uintptr)lp - (uintptr)ROMBaseHost)) & 0x03fffffc));	// b		ROM_BASE+0x318000
+	*lp = htonl(0x48000000 + ((0x318000 - ((uintptr)lp - (uintptr)ROMBaseHost)) & 0x03fffffc));	// b		ROMBase+0x318000
 	uint32 npc = (uintptr)(lp + 1) - (uintptr)ROMBaseHost;
 
 	lp = (uint32 *)(ROMBaseHost + 0x318000);
 	*lp++ = htonl(0x81400000 + XLM_IRQ_NEST);	// lwz	r10,XLM_IRQ_NEST
 	*lp++ = htonl(0x394affff);					// subi	r10,r10,1
 	*lp++ = htonl(0x91400000 + XLM_IRQ_NEST);	// stw	r10,XLM_IRQ_NEST
-	*lp = htonl(0x48000000 + ((npc - 0x31800c) & 0x03fffffc));	// b		ROM_BASE+0x312c2c
+	*lp = htonl(0x48000000 + ((npc - 0x31800c) & 0x03fffffc));	// b		ROMBase+0x312c2c
 
 	// Patch FEOA opcode, selector 0x0A (virtual->physical page index)
 	static const uint8 fe0a_0a_dat[] = {0x55, 0x23, 0xa3, 0x3e, 0x4b};
@@ -1480,7 +1480,7 @@ static bool patch_nanokernel(void)
 
 /*
 	// Disable FE0A/FE06 opcodes
-	lp = (uint32 *)(ROM_BASE + 0x3144ac);
+	lp = (uint32 *)(ROMBase + 0x3144ac);
 	*lp++ = htonl(POWERPC_NOP);
 	*lp += 8;
 */
@@ -1754,10 +1754,10 @@ static bool patch_68k(void)
 	static const uint8 ext_cache_dat[] = {0x4e, 0x7b, 0x00, 0x02};
 	if ((base = find_rom_data(0x1d0, 0x230, ext_cache_dat, sizeof(ext_cache_dat))) == 0) return false;
 	D(bug("ext_cache %08lx\n", base));
-	loc = ReadMacInt32(ROM_BASE + base + 6);
+	loc = ReadMacInt32(ROMBase + base + 6);
 	wp = (uint16 *)(ROMBaseHost + loc + base + 6);
 	*wp = htons(M68K_RTS);
-	loc = ReadMacInt32(ROM_BASE + base + 12);
+	loc = ReadMacInt32(ROMBase + base + 12);
 	wp = (uint16 *)(ROMBaseHost + loc + base + 12);
 	*wp = htons(M68K_RTS);
 
@@ -1788,7 +1788,7 @@ static bool patch_68k(void)
 	for (;;) {
 		D(bug(" %08lx\n", (uintptr)lp - (uintptr)ROMBaseHost));
 		while ((ntohl(*lp) & 0xff000000) == 0xff000000) {
-			*lp = htonl((ntohl(*lp) & (ROM_SIZE-1)) + ROM_BASE);
+			*lp = htonl((ntohl(*lp) & (ROM_SIZE-1)) + ROMBase);
 			lp++;
 		}
 		while (!ntohl(*lp)) lp++;
@@ -2068,12 +2068,12 @@ static bool patch_68k(void)
 	D(bug("scsi_mgr %08lx\n", base));
 	wp = (uint16 *)(ROMBaseHost + base);
 	*wp++ = htons(0x21fc);			// move.l	#xxx,0x624	(SCSIAtomic)
-	*wp++ = htons((ROM_BASE + base + 18) >> 16);
-	*wp++ = htons((ROM_BASE + base + 18) & 0xffff);
+	*wp++ = htons((ROMBase + base + 18) >> 16);
+	*wp++ = htons((ROMBase + base + 18) & 0xffff);
 	*wp++ = htons(0x0624);
 	*wp++ = htons(0x21fc);			// move.l	#xxx,0xe54	(SCSIDispatch)
-	*wp++ = htons((ROM_BASE + base + 22) >> 16);
-	*wp++ = htons((ROM_BASE + base + 22) & 0xffff);
+	*wp++ = htons((ROMBase + base + 22) >> 16);
+	*wp++ = htons((ROMBase + base + 22) & 0xffff);
 	*wp++ = htons(0x0e54);
 	*wp++ = htons(M68K_RTS);
 	*wp++ = htons(M68K_EMUL_OP_SCSI_ATOMIC);
@@ -2142,8 +2142,8 @@ static bool patch_68k(void)
 	D(bug("check_load %08lx\n", base));
 	wp = (uint16 *)(ROMBaseHost + base);
 	*wp++ = htons(M68K_JMP);
-	*wp++ = htons((ROM_BASE + CHECK_LOAD_PATCH_SPACE) >> 16);
-	*wp = htons((ROM_BASE + CHECK_LOAD_PATCH_SPACE) & 0xffff);
+	*wp++ = htons((ROMBase + CHECK_LOAD_PATCH_SPACE) >> 16);
+	*wp = htons((ROMBase + CHECK_LOAD_PATCH_SPACE) & 0xffff);
 	wp = (uint16 *)(ROMBaseHost + CHECK_LOAD_PATCH_SPACE);
 	*wp++ = htons(0x2f03);			// move.l	d3,-(a7)
 	*wp++ = htons(0x2078);			// move.l	$07f0,a0
@@ -2173,19 +2173,19 @@ static bool patch_68k(void)
 	memcpy((void *)(ROMBaseHost + sony_offset + 0x200), cdrom_driver, sizeof(cdrom_driver));
 
 	// Install serial drivers
-	gen_ain_driver( ROM_BASE + sony_offset + 0x300);
-	gen_aout_driver(ROM_BASE + sony_offset + 0x400);
-	gen_bin_driver( ROM_BASE + sony_offset + 0x500);
-	gen_bout_driver(ROM_BASE + sony_offset + 0x600);
+	gen_ain_driver( ROMBase + sony_offset + 0x300);
+	gen_aout_driver(ROMBase + sony_offset + 0x400);
+	gen_bin_driver( ROMBase + sony_offset + 0x500);
+	gen_bout_driver(ROMBase + sony_offset + 0x600);
 
 	// Copy icons to ROM
-	SonyDiskIconAddr = ROM_BASE + sony_offset + 0x800;
+	SonyDiskIconAddr = ROMBase + sony_offset + 0x800;
 	memcpy(ROMBaseHost + sony_offset + 0x800, SonyDiskIcon, sizeof(SonyDiskIcon));
-	SonyDriveIconAddr = ROM_BASE + sony_offset + 0xa00;
+	SonyDriveIconAddr = ROMBase + sony_offset + 0xa00;
 	memcpy(ROMBaseHost + sony_offset + 0xa00, SonyDriveIcon, sizeof(SonyDriveIcon));
-	DiskIconAddr = ROM_BASE + sony_offset + 0xc00;
+	DiskIconAddr = ROMBase + sony_offset + 0xc00;
 	memcpy(ROMBaseHost + sony_offset + 0xc00, DiskIcon, sizeof(DiskIcon));
-	CDROMIconAddr = ROM_BASE + sony_offset + 0xe00;
+	CDROMIconAddr = ROMBase + sony_offset + 0xe00;
 	memcpy(ROMBaseHost + sony_offset + 0xe00, CDROMIcon, sizeof(CDROMIcon));
 
 	// Patch driver install routine
@@ -2269,7 +2269,7 @@ static bool patch_68k(void)
 	static const uint8 via_int_dat[] = {0x70, 0x7f, 0xc0, 0x29, 0x1a, 0x00, 0xc0, 0x29, 0x1c, 0x00};
 	if ((base = find_rom_data(0x13000, 0x1c000, via_int_dat, sizeof(via_int_dat))) == 0) return false;
 	D(bug("via_int %08lx\n", base));
-	uint32 level1_int = ROM_BASE + base;
+	uint32 level1_int = ROMBase + base;
 	wp = (uint16 *)(ROMBaseHost + base);	// Level 1 handler
 	*wp++ = htons(0x7002);			// moveq	#2,d0 (60Hz interrupt)
 	*wp++ = htons(M68K_NOP);
@@ -2301,9 +2301,9 @@ static bool patch_68k(void)
 	wp = (uint16 *)(ROMBaseHost + PUT_SCRAP_PATCH_SPACE);
 	*wp++ = htons(M68K_EMUL_OP_PUT_SCRAP);
 	*wp++ = htons(M68K_JMP);
-	*wp++ = htons((ROM_BASE + put_scrap) >> 16);
-	*wp++ = htons((ROM_BASE + put_scrap) & 0xffff);
-	base = ROM_BASE + ReadMacInt32(ROM_BASE + 0x22);
+	*wp++ = htons((ROMBase + put_scrap) >> 16);
+	*wp++ = htons((ROMBase + put_scrap) & 0xffff);
+	base = ROMBase + ReadMacInt32(ROMBase + 0x22);
 	WriteMacInt32(base + 4 * (0xa9fe & 0x3ff), PUT_SCRAP_PATCH_SPACE);
 
 	// Patch GetScrap() for clipboard exchange with host OS
@@ -2311,9 +2311,9 @@ static bool patch_68k(void)
 	wp = (uint16 *)(ROMBaseHost + GET_SCRAP_PATCH_SPACE);
 	*wp++ = htons(M68K_EMUL_OP_GET_SCRAP);
 	*wp++ = htons(M68K_JMP);
-	*wp++ = htons((ROM_BASE + get_scrap) >> 16);
-	*wp++ = htons((ROM_BASE + get_scrap) & 0xffff);
-	base = ROM_BASE + ReadMacInt32(ROM_BASE + 0x22);
+	*wp++ = htons((ROMBase + get_scrap) >> 16);
+	*wp++ = htons((ROMBase + get_scrap) & 0xffff);
+	base = ROMBase + ReadMacInt32(ROMBase + 0x22);
 	WriteMacInt32(base + 4 * (0xa9fd & 0x3ff), GET_SCRAP_PATCH_SPACE);
 
 	// Patch SynchIdleTime()
@@ -2336,7 +2336,7 @@ static bool patch_68k(void)
 	D(bug("Searching for sound components with type sdev in ROM\n"));
 	uint32 thing = find_rom_resource(FOURCC('t','h','n','g'));
 	while (thing) {
-		thing += ROM_BASE;
+		thing += ROMBase;
 		D(bug(" found %c%c%c%c %c%c%c%c\n", ReadMacInt8(thing), ReadMacInt8(thing + 1), ReadMacInt8(thing + 2), ReadMacInt8(thing + 3), ReadMacInt8(thing + 4), ReadMacInt8(thing + 5), ReadMacInt8(thing + 6), ReadMacInt8(thing + 7)));
 		if (ReadMacInt32(thing) == FOURCC('s','d','e','v') && ReadMacInt32(thing + 4) == FOURCC('s','i','n','g')) {
 			WriteMacInt32(thing + 4, FOURCC('a','w','g','c'));
@@ -2394,13 +2394,13 @@ void InstallDrivers(void)
 	if (ROMType == ROMTYPE_NEWWORLD || ROMType == ROMTYPE_GOSSAMER) {
 
 		// Force installation of floppy driver with NewWorld and Gossamer ROMs
-		r.a[0] = ROM_BASE + sony_offset;
+		r.a[0] = ROMBase + sony_offset;
 		r.d[0] = (uint32)SonyRefNum;
 		Execute68kTrap(0xa43d, &r);		// DrvrInstallRsrvMem()
 		r.a[0] = ReadMacInt32(ReadMacInt32(0x11c) + ~SonyRefNum * 4);	// Get driver handle from Unit Table
 		Execute68kTrap(0xa029, &r);		// HLock()
 		uint32 dce = ReadMacInt32(r.a[0]);
-		WriteMacInt32(dce + dCtlDriver, ROM_BASE + sony_offset);
+		WriteMacInt32(dce + dCtlDriver, ROMBase + sony_offset);
 		WriteMacInt16(dce + dCtlFlags, SonyDriverFlags);
 	}
 
@@ -2412,13 +2412,13 @@ void InstallDrivers(void)
 	Execute68kTrap(0xa000, &r);		// Open()
 
 	// Install disk driver
-	r.a[0] = ROM_BASE + sony_offset + 0x100;
+	r.a[0] = ROMBase + sony_offset + 0x100;
 	r.d[0] = (uint32)DiskRefNum;
 	Execute68kTrap(0xa43d, &r);		// DrvrInstallRsrvMem()
 	r.a[0] = ReadMacInt32(ReadMacInt32(0x11c) + ~DiskRefNum * 4);	// Get driver handle from Unit Table
 	Execute68kTrap(0xa029, &r);		// HLock()
 	uint32 dce = ReadMacInt32(r.a[0]);
-	WriteMacInt32(dce + dCtlDriver, ROM_BASE + sony_offset + 0x100);
+	WriteMacInt32(dce + dCtlDriver, ROMBase + sony_offset + 0x100);
 	WriteMacInt16(dce + dCtlFlags, DiskDriverFlags);
 
 	// Open disk driver
@@ -2431,13 +2431,13 @@ void InstallDrivers(void)
 	if (!PrefsFindBool("nocdrom")) {
 
 		// Install CD-ROM driver
-		r.a[0] = ROM_BASE + sony_offset + 0x200;
+		r.a[0] = ROMBase + sony_offset + 0x200;
 		r.d[0] = (uint32)CDROMRefNum;
 		Execute68kTrap(0xa43d, &r);		// DrvrInstallRsrvMem()
 		r.a[0] = ReadMacInt32(ReadMacInt32(0x11c) + ~CDROMRefNum * 4);	// Get driver handle from Unit Table
 		Execute68kTrap(0xa029, &r);		// HLock()
 		dce = ReadMacInt32(r.a[0]);
-		WriteMacInt32(dce + dCtlDriver, ROM_BASE + sony_offset + 0x200);
+		WriteMacInt32(dce + dCtlDriver, ROMBase + sony_offset + 0x200);
 		WriteMacInt16(dce + dCtlFlags, CDROMDriverFlags);
 
 		// Open CD-ROM driver
@@ -2448,39 +2448,39 @@ void InstallDrivers(void)
 	}
 
 	// Install serial drivers
-	r.a[0] = ROM_BASE + sony_offset + 0x300;
+	r.a[0] = ROMBase + sony_offset + 0x300;
 	r.d[0] = (uint32)-6;
 	Execute68kTrap(0xa43d, &r);		// DrvrInstallRsrvMem()
 	r.a[0] = ReadMacInt32(ReadMacInt32(0x11c) + ~(-6) * 4);	// Get driver handle from Unit Table
 	Execute68kTrap(0xa029, &r);		// HLock()
 	dce = ReadMacInt32(r.a[0]);
-	WriteMacInt32(dce + dCtlDriver, ROM_BASE + sony_offset + 0x300);
+	WriteMacInt32(dce + dCtlDriver, ROMBase + sony_offset + 0x300);
 	WriteMacInt16(dce + dCtlFlags, 0x4d00);
 
-	r.a[0] = ROM_BASE + sony_offset + 0x400;
+	r.a[0] = ROMBase + sony_offset + 0x400;
 	r.d[0] = (uint32)-7;
 	Execute68kTrap(0xa43d, &r);		// DrvrInstallRsrvMem()
 	r.a[0] = ReadMacInt32(ReadMacInt32(0x11c) + ~(-7) * 4);	// Get driver handle from Unit Table
 	Execute68kTrap(0xa029, &r);		// HLock()
 	dce = ReadMacInt32(r.a[0]);
-	WriteMacInt32(dce + dCtlDriver, ROM_BASE + sony_offset + 0x400);
+	WriteMacInt32(dce + dCtlDriver, ROMBase + sony_offset + 0x400);
 	WriteMacInt16(dce + dCtlFlags, 0x4e00);
 
-	r.a[0] = ROM_BASE + sony_offset + 0x500;
+	r.a[0] = ROMBase + sony_offset + 0x500;
 	r.d[0] = (uint32)-8;
 	Execute68kTrap(0xa43d, &r);		// DrvrInstallRsrvMem()
 	r.a[0] = ReadMacInt32(ReadMacInt32(0x11c) + ~(-8) * 4);	// Get driver handle from Unit Table
 	Execute68kTrap(0xa029, &r);		// HLock()
 	dce = ReadMacInt32(r.a[0]);
-	WriteMacInt32(dce + dCtlDriver, ROM_BASE + sony_offset + 0x500);
+	WriteMacInt32(dce + dCtlDriver, ROMBase + sony_offset + 0x500);
 	WriteMacInt16(dce + dCtlFlags, 0x4d00);
 
-	r.a[0] = ROM_BASE + sony_offset + 0x600;
+	r.a[0] = ROMBase + sony_offset + 0x600;
 	r.d[0] = (uint32)-9;
 	Execute68kTrap(0xa43d, &r);		// DrvrInstallRsrvMem()
 	r.a[0] = ReadMacInt32(ReadMacInt32(0x11c) + ~(-9) * 4);	// Get driver handle from Unit Table
 	Execute68kTrap(0xa029, &r);		// HLock()
 	dce = ReadMacInt32(r.a[0]);
-	WriteMacInt32(dce + dCtlDriver, ROM_BASE + sony_offset + 0x600);
+	WriteMacInt32(dce + dCtlDriver, ROMBase + sony_offset + 0x600);
 	WriteMacInt16(dce + dCtlFlags, 0x4e00);
 }

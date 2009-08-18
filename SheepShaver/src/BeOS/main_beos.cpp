@@ -110,6 +110,8 @@ const char DR_CACHE_AREA_NAME[] = "Macintosh DR Cache";
 const char DR_EMULATOR_AREA_NAME[] = "Macintosh DR Emulator";
 const char SHEEP_AREA_NAME[] = "SheepShaver Virtual Stack";
 
+const uintptr ROM_BASE = 0x40800000;		// Base address of ROM
+
 const uint32 SIG_STACK_SIZE = 8192;			// Size of signal stack
 
 const uint32 MSG_START = 'strt';			// Emulator start message
@@ -202,6 +204,7 @@ void *TOC;				// TOC pointer
 #endif
 uint32 RAMBase;			// Base address of Mac RAM
 uint32 RAMSize;			// Size of Mac RAM
+uint32 ROMBase;			// Base address of Mac ROM
 uint32 KernelDataAddr;	// Address of Kernel Data
 uint32 BootGlobsAddr;	// Address of BootGlobs structure at top of Mac RAM
 uint32 DRCacheAddr;		// Address of DR Cache
@@ -600,10 +603,11 @@ void SheepShaver::init_rom(void)
 	page_size = B_PAGE_SIZE;
 
 	// Create area for ROM
-	ROMBaseHost = (uint8 *)ROM_BASE;
-	rom_area = create_area(ROM_AREA_NAME, (void **)&ROMBaseHost, B_EXACT_ADDRESS, ROM_AREA_SIZE, B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
+	ROMBase = ROM_BASE;
+	rom_area = create_area(ROM_AREA_NAME, (void **)&ROMBase, B_EXACT_ADDRESS, ROM_AREA_SIZE, B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
 	if (rom_area < 0)
 		throw area_error();
+	ROMBaseHost = (uint8 *)ROMBase;
 	D(bug("ROM area %ld at %p\n", rom_area, rom_addr));
 
 	// Load ROM
@@ -631,7 +635,7 @@ void SheepShaver::load_rom(void)
 		uint8 *rom = new uint8[ROM_SIZE];	// Reading directly into the area doesn't work
 		ssize_t actual = read(sheep_fd, (void *)rom, ROM_SIZE);
 		if (actual == ROM_SIZE) {
-			memcpy((void *)ROM_BASE, rom, ROM_SIZE);
+			memcpy(ROMBaseHost, rom, ROM_SIZE);
 			delete[] rom;
 			return;
 		} else
@@ -702,7 +706,7 @@ status_t SheepShaver::emul_func(void *arg)
 
 	// Jump to ROM boot routine
 	D(bug("Jumping to ROM\n"));
-	obj->jump_to_rom(ROM_BASE + 0x310000);
+	obj->jump_to_rom(ROMBase + 0x310000);
 	D(bug("Returned from ROM\n"));
 
 	// We're no longer ready to receive signals
@@ -1185,7 +1189,7 @@ void Dump68kRegs(M68kRegisters *r)
 
 void MakeExecutable(int dummy, uint32 start, uint32 length)
 {
-	if ((start >= ROM_BASE) && (start < (ROM_BASE + ROM_SIZE)))
+	if ((start >= ROMBase) && (start < (ROMBase + ROM_SIZE)))
 		return;
 	clear_caches((void *)start, length, B_INVALIDATE_ICACHE | B_FLUSH_DCACHE);
 }
@@ -1400,9 +1404,9 @@ void SheepShaver::sigusr1_handler(vregs *r)
 				// Execute nanokernel interrupt routine (this will activate the 68k emulator)
 				atomic_add((int32 *)XLM_IRQ_NEST, 1);
 				if (ROMType == ROMTYPE_NEWWORLD)
-					ppc_interrupt(ROM_BASE + 0x312b1c);
+					ppc_interrupt(ROMBase + 0x312b1c);
 				else
-					ppc_interrupt(ROM_BASE + 0x312a3c);
+					ppc_interrupt(ROMBase + 0x312a3c);
 			}
 			break;
 #endif
@@ -1506,32 +1510,32 @@ static void sigsegv_handler(vregs *r)
 	uint32 imm = opcode & 0xffff;
 
 	// Fault in Mac ROM or RAM?
-	bool mac_fault = (r->pc >= ROM_BASE) && (r->pc < (ROM_BASE + ROM_AREA_SIZE)) || (r->pc >= RAMBase) && (r->pc < (RAMBase + RAMSize));
+	bool mac_fault = (r->pc >= ROMBase) && (r->pc < (ROMBase + ROM_AREA_SIZE)) || (r->pc >= RAMBase) && (r->pc < (RAMBase + RAMSize));
 	if (mac_fault) {
 
 		// "VM settings" during MacOS 8 installation
-		if (r->pc == ROM_BASE + 0x488160 && segv_r[20] == 0xf8000000) {
+		if (r->pc == ROMBase + 0x488160 && segv_r[20] == 0xf8000000) {
 			r->pc += 4;
 			segv_r[8] = 0;
 			goto rti;
 
 		// MacOS 8.5 installation
-		} else if (r->pc == ROM_BASE + 0x488140 && segv_r[16] == 0xf8000000) {
+		} else if (r->pc == ROMBase + 0x488140 && segv_r[16] == 0xf8000000) {
 			r->pc += 4;
 			segv_r[8] = 0;
 			goto rti;
 
 		// MacOS 8 serial drivers on startup
-		} else if (r->pc == ROM_BASE + 0x48e080 && (segv_r[8] == 0xf3012002 || segv_r[8] == 0xf3012000)) {
+		} else if (r->pc == ROMBase + 0x48e080 && (segv_r[8] == 0xf3012002 || segv_r[8] == 0xf3012000)) {
 			r->pc += 4;
 			segv_r[8] = 0;
 			goto rti;
 
 		// MacOS 8.1 serial drivers on startup
-		} else if (r->pc == ROM_BASE + 0x48c5e0 && (segv_r[20] == 0xf3012002 || segv_r[20] == 0xf3012000)) {
+		} else if (r->pc == ROMBase + 0x48c5e0 && (segv_r[20] == 0xf3012002 || segv_r[20] == 0xf3012000)) {
 			r->pc += 4;
 			goto rti;
-		} else if (r->pc == ROM_BASE + 0x4a10a0 && (segv_r[20] == 0xf3012002 || segv_r[20] == 0xf3012000)) {
+		} else if (r->pc == ROMBase + 0x4a10a0 && (segv_r[20] == 0xf3012002 || segv_r[20] == 0xf3012000)) {
 			r->pc += 4;
 			goto rti;
 		}
@@ -1642,7 +1646,7 @@ static void sigsegv_handler(vregs *r)
 	}
 
 	// Ignore ROM writes
-	if (transfer_type == TYPE_STORE && addr >= ROM_BASE && addr < ROM_BASE + ROM_SIZE) {
+	if (transfer_type == TYPE_STORE && addr >= ROMBase && addr < ROMBase + ROM_SIZE) {
 		D(bug("WARNING: %s write access to ROM at %p, pc %p\n", transfer_size == SIZE_BYTE ? "Byte" : transfer_size == SIZE_HALFWORD ? "Halfword" : "Word", addr, r->pc));
 		if (addr_mode == MODE_U || addr_mode == MODE_UX)
 			segv_r[ra] = addr;
@@ -1777,7 +1781,7 @@ static void sigill_handler(vregs *r)
 	uint32 imm = opcode & 0xffff;
 
 	// Fault in Mac ROM or RAM?
-	bool mac_fault = (r->pc >= ROM_BASE) && (r->pc < (ROM_BASE + ROM_AREA_SIZE)) || (r->pc >= RAMBase) && (r->pc < (RAMBase + RAMSize));
+	bool mac_fault = (r->pc >= ROMBase) && (r->pc < (ROMBase + ROM_AREA_SIZE)) || (r->pc >= RAMBase) && (r->pc < (RAMBase + RAMSize));
 	if (mac_fault) {
 
 		switch (primop) {

@@ -31,7 +31,7 @@
 #define ASM_TYPE(NAME, TYPE)	/* nothing */
 #define ASM_ALIGN_2(EXP)	EXP
 #define ASM_HA16(VAR)		ha16(VAR)
-#define ASM_LO16(VAR, REG)	lo16(VAR)(REG)
+#define ASM_LO16(VAR)		lo16(VAR)
 #define ASM_MACRO_END		.endmacro
 #define ASM_MACRO_ARG_SEP	,
 #define ASM_MACRO_ARG0_DEF	/* nothing! */
@@ -55,7 +55,7 @@
 #define ASM_HA16(VAR)		VAR@ha
 #endif
 #ifndef ASM_LO16
-#define ASM_LO16(VAR, REG)	VAR@l(REG)
+#define ASM_LO16(VAR)		VAR@l
 #endif
 #ifndef ASM_MACRO_START
 #define ASM_MACRO_START		.macro

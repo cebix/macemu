@@ -97,7 +97,7 @@ void DoPatchNameRegistry(void)
 		SheepRegEntryID aapl_rom;
 		if (!RegistryCStrEntryCreate(device_tree.addr(), "AAPL,ROM", aapl_rom.addr())) {
 			RegistryPropertyCreateStr(aapl_rom.addr(), "device_type", "rom");
-			SheepPair reg(ROM_BASE, ROM_SIZE);
+			SheepPair reg(ROMBase, ROM_SIZE);
 			RegistryPropertyCreate(aapl_rom.addr(), "reg", reg.addr(), 8);
 		}
 
