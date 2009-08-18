@@ -365,7 +365,9 @@ static bool valid_vmdir(const char *path)
 {
 	const int suffix_len = sizeof(".sheepvm") - 1;
 	int len = strlen(path);
-	if (len > suffix_len && !strcmp(path + len - suffix_len, ".sheepvm")) {
+	if (len && path[len - 1] == '/') // to support both ".sheepvm" and ".sheepvm/"
+		len--;
+	if (len > suffix_len && !strncmp(path + len - suffix_len, ".sheepvm", suffix_len)) {
 		struct stat d;
 		if (!stat(path, &d) && S_ISDIR(d.st_mode)) {
 			return true;
