@@ -25,8 +25,7 @@
 #include "sysdeps.h"
 
 #include <Cocoa/Cocoa.h>
-
-#include "PrefsEditor.h"
+#include "VMSettingsController.h"
 
 @interface SheepShaverMain : NSObject
 	NSArray *nibObjects;
@@ -38,10 +37,10 @@
 
 - (NSArray*) loadPrefsNibFile
 {
-	NSNib *nib = [[NSNib alloc] initWithNibNamed:@"MainMenu" bundle:nil];
+	NSNib *nib = [[NSNib alloc] initWithNibNamed:@"VMSettingsWindow" bundle:nil];
 	NSArray *objects = nil;
  
-	if (![nib instantiateNibWithOwner:self topLevelObjects:&objects]) {
+	if (![nib instantiateNibWithOwner:[VMSettingsController sharedInstance] topLevelObjects:&objects]) {
 		NSLog(@"Could not load Prefs NIB file!\n");
 		return nil;
 	}
@@ -83,6 +82,7 @@
 		[nibObjects retain];
 	}
 
+	[[VMSettingsController sharedInstance] setupGUI];
 	[NSApp runModalForWindow:prefsWindow];
 }
 
