@@ -171,6 +171,16 @@ static NSString *getStringFromPrefs(const char *key)
   [NSApp runModalForWindow:window];
 }
 
+- (void) editSettingsForNewVM: (NSString *) vmdir sender: (id) sender
+{
+  chdir([vmdir fileSystemRepresentation]);
+  AddPrefsDefaults();
+  AddPlatformPrefsDefaults();
+  LoadPrefs([vmdir fileSystemRepresentation]);
+  NSWindow *window = [self window];
+  [NSApp runModalForWindow:window];
+}
+
 static NSString *makeRelativeIfNecessary(NSString *path)
 {
   char cwd[1024], filename[1024];

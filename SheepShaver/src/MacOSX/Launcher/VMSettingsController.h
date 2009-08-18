@@ -67,6 +67,7 @@
 - (id) init;
 - (void) setupGUI;
 - (void) editSettingsFor: (NSString *) vmdir sender: (id) sender;
+- (void) editSettingsForNewVM: (NSString *) vmdir sender: (id) sender;
 - (IBAction) addDisk: (id) sender;
 - (IBAction) removeDisk: (id) sender;
 - (IBAction) createDisk: (id) sender;

@@ -31,6 +31,7 @@ Don't show Preferences menu in spawned SheepShaver instances - or make them
 use the same nib file as this app!
 When choosing things like rom file and keycode files - have a checkbox to copy
 selected file into the bundle.
+Copy path!
 
  */
 
@@ -84,6 +85,12 @@ selected file into the bundle.
 	[vmList setDelegate: self];
 	[vmList reloadData];
 	[vmList registerForDraggedTypes:[NSArray arrayWithObjects:VM_DRAG_TYPE, nil]];
+}
+
+- (void) reloadDataAndSave
+{
+	[vmList reloadData];
+	[[NSUserDefaults standardUserDefaults] setObject:vmArray forKey:@"vm_list"];
 }
 
 - (void) keyDown: (NSEvent *) event
@@ -148,8 +155,7 @@ selected file into the bundle.
 			}
 			[vmArray removeObjectAtIndex: index];
 		}
-		[[NSUserDefaults standardUserDefaults] setObject:vmArray forKey:@"vm_list"];
-		[vmList reloadData];
+		[self reloadDataAndSave];
 		[vmList selectRow:row byExtendingSelection:NO];
 		return YES;
 	}
@@ -205,15 +211,13 @@ selected file into the bundle.
 		[manager createFileAtPath:[[save filename] stringByAppendingPathComponent:@"prefs"] contents:nil attributes:nil];
 		[vmArray addObject:[save filename]];
 		[vmList reloadData];
-		[[NSUserDefaults standardUserDefaults] setObject:vmArray forKey:@"vm_list"];
 		[vmList selectRow:([vmArray count] - 1) byExtendingSelection:NO];
-		[self editVirtualMachineSettings:self];
+		[[VMSettingsController sharedInstance] editSettingsForNewVM:[save filename] sender:self];
 		if ([[VMSettingsController sharedInstance] cancelWasClicked]) {
 			[manager removeFileAtPath:[save filename] handler:nil];
 			[vmArray removeObjectAtIndex:([vmArray count] - 1)];
-			[vmList reloadData];
 		}
-		// TODO advanced: show sub-panel in save dialog that says "Create Disk:"
+		[self reloadDataAndSave];
 	}
 }
 
@@ -239,8 +243,7 @@ selected file into the bundle.
 {
 	if (returnCode == NSOKButton) {
 		[vmArray addObject:[open filename]];
-		[vmList reloadData];
-		[[NSUserDefaults standardUserDefaults] setObject:vmArray forKey:@"vm_list"];
+		[self reloadDataAndSave];
 	}
 }
 
@@ -322,8 +325,7 @@ selected file into the bundle.
 	if (returnCode == NSAlertFirstButtonReturn) {
 		[vmArray removeObjectAtIndex:[vmList selectedRow]];
 		[vmList deselectAll:self];
-		[vmList reloadData];
-		[[NSUserDefaults standardUserDefaults] setObject:vmArray forKey:@"vm_list"];
+		[self reloadDataAndSave];
 	}
 }
 
