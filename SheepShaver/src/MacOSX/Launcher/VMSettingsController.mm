@@ -25,6 +25,7 @@
 
 const int CDROMRefNum = -62;			// RefNum of driver
 
+#ifdef STANDALONE_PREFS
 void prefs_init()
 {
 }
@@ -32,6 +33,7 @@ void prefs_init()
 void prefs_exit()
 {
 }
+#endif
 
 @implementation VMSettingsController
 
@@ -316,7 +318,9 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 
 - (void) cancelEdit: (id) sender
 {
+#ifdef STANDALONE_PREFS
   PrefsExit();
+#endif
   [[self window] close];
   [NSApp stopModal];
   cancelWasClicked = YES;
@@ -373,7 +377,9 @@ static NSString *makeRelativeIfNecessary(NSString *path)
   PrefsReplaceString("serialb", [[printerPort stringValue] UTF8String]);
   PrefsReplaceString("ether", [[ethernetInterface stringValue] UTF8String]);
   SavePrefs();
+#ifdef STANDALONE_PREFS
   PrefsExit();
+#endif
 
   [[self window] close];
   [NSApp stopModal];
