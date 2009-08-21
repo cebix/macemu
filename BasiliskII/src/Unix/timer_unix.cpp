@@ -33,7 +33,7 @@
 #endif
 
 #if defined(__MACH__)
-#include <mach/mach_host.h>
+#include <mach/mach.h>
 #include <mach/clock.h>
 
 static clock_serv_t host_clock;
