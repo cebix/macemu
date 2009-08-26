@@ -103,6 +103,7 @@ bool InitAll(const char *vmdir)
 		XPRAM[0x130b] = 0xcc;
 		XPRAM[0x1376] = 0x00;	// OSDefault = MacOS
 		XPRAM[0x1377] = 0x01;
+		XPRAM[0x138a] = 0x25;	// Use PPC memory manager ("Modern Memory Manager")
 	}
 
 	// Set boot volume
