@@ -27,8 +27,6 @@ TODO:
 
 Verify if VM exists
 Drag VM from Finder to import
-Don't show Preferences menu in spawned SheepShaver instances - or make them
-use the same nib file as this app!
 When choosing things like rom file and keycode files - have a checkbox to copy
 selected file into the bundle.
 Copy path!
@@ -81,6 +79,7 @@ Copy path!
 
 - (void) awakeFromNib
 {
+	[[[vmList tableColumns] objectAtIndex:0] setEditable:YES];
 	[vmList setDataSource: self];
 	[vmList setDelegate: self];
 	[vmList reloadData];
@@ -110,7 +109,19 @@ Copy path!
 
 - (id) tableView: (NSTableView *) table objectValueForTableColumn: (NSTableColumn *) c row: (int) r
 {
-	return [vmArray objectAtIndex: r]; // [[vmArray objectAtIndex: r] lastPathComponent];
+	return [[[vmArray objectAtIndex: r] lastPathComponent] stringByDeletingPathExtension];
+}
+
+- (void) tableView: (NSTableView *) table setObjectValue: (id) value forTableColumn: (NSTableColumn *) c row: (int) r
+{
+	NSString *currentPath = [vmArray objectAtIndex: r];
+	NSString *newPath = [[NSString stringWithFormat:@"%@/%@.sheepvm",
+		[currentPath stringByDeletingLastPathComponent], value] retain];
+	NSFileManager *manager = [NSFileManager defaultManager];
+	if ([manager movePath: currentPath toPath: newPath handler:nil]) {
+		[vmArray replaceObjectAtIndex: r withObject: newPath];
+		[currentPath release];
+	}
 }
 
 - (void) tableViewSelectionDidChange: (NSNotification *) notification
@@ -182,11 +193,11 @@ Copy path!
 	return menu;
 }
 
-//- (NSString *) tableView: (NSTableView *) table toolTipForCell: (NSCell *) cell rect: (NSRectPointer) rect
-//             tableColumn: (NSTableColumn *) c row: (int) r mouseLocation: (NSPoint) loc
-//{
-//	return [vmArray objectAtIndex: r];
-//}
+- (NSString *) tableView: (NSTableView *) table toolTipForCell: (NSCell *) cell rect: (NSRectPointer) rect
+             tableColumn: (NSTableColumn *) c row: (int) r mouseLocation: (NSPoint) loc
+{
+	return [vmArray objectAtIndex: r];
+}
 
 - (IBAction) newVirtualMachine: (id) sender
 {
