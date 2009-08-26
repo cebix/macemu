@@ -328,12 +328,12 @@ int main(int argc, char **argv)
 
 	// Load Mac ROM
 	rom_path = PrefsFindString("rom");
-	rom_fh = CreateFile(rom_path ? rom_path : ROM_FILE_NAME,
+	rom_fh = CreateFile(rom_path && *rom_path ? rom_path : ROM_FILE_NAME,
 						GENERIC_READ, 0, NULL, OPEN_EXISTING,
 						FILE_ATTRIBUTE_NORMAL, NULL);
 
 	if (rom_fh == INVALID_HANDLE_VALUE) {
-		rom_fh = CreateFile(rom_path ? rom_path : ROM_FILE_NAME2,
+		rom_fh = CreateFile(ROM_FILE_NAME2,
 							GENERIC_READ, 0, NULL, OPEN_EXISTING,
 							FILE_ATTRIBUTE_NORMAL, NULL);
 

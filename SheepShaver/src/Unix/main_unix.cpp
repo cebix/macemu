@@ -926,9 +926,9 @@ int main(int argc, char **argv)
 
 	// Load Mac ROM
 	rom_path = PrefsFindString("rom");
-	rom_fd = open(rom_path ? rom_path : ROM_FILE_NAME, O_RDONLY);
+	rom_fd = open(rom_path && *rom_path ? rom_path : ROM_FILE_NAME, O_RDONLY);
 	if (rom_fd < 0) {
-		rom_fd = open(rom_path ? rom_path : ROM_FILE_NAME2, O_RDONLY);
+		rom_fd = open(ROM_FILE_NAME2, O_RDONLY);
 		if (rom_fd < 0) {
 			ErrorAlert(GetString(STR_NO_ROM_FILE_ERR));
 			goto quit;

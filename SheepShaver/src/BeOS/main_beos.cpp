@@ -628,7 +628,7 @@ void SheepShaver::load_rom(void)
 	const char *rom_path = PrefsFindString("rom");
 
 	// Try to open ROM file
-	BFile file(rom_path ? rom_path : ROM_FILE_NAME, B_READ_ONLY);
+	BFile file(rom_path && *rom_path ? rom_path : ROM_FILE_NAME, B_READ_ONLY);
 	if (file.InitCheck() != B_NO_ERROR) {
 
 		// Failed, then ask memory_mess driver for ROM
