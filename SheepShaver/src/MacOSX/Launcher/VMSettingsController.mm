@@ -177,7 +177,14 @@ static NSString *getStringFromPrefs(const char *key)
   AddPrefsDefaults();
   AddPlatformPrefsDefaults();
   LoadPrefs([vmdir fileSystemRepresentation]);
+  PrefsReplaceString("screen", "win/800/600");
+  PrefsReplaceString("extfs", "");
+  PrefsReplaceString("ether", "slirp");
+  PrefsReplaceInt32("ramsize", 64 << 20);
+  PrefsReplaceInt32("frameskip", 2);
+  PrefsReplaceBool("jit", true);
   NSWindow *window = [self window];
+  [self setupGUI];
   [NSApp runModalForWindow:window];
 }
 
