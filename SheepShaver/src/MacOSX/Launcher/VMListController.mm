@@ -25,7 +25,6 @@
 
 TODO:
 
-Verify if VM exists
 Drag VM from Finder to import
 When choosing things like rom file and keycode files - have a checkbox to copy
 selected file into the bundle.
@@ -86,6 +85,17 @@ Copy path!
 	[vmList registerForDraggedTypes:[NSArray arrayWithObjects:VM_DRAG_TYPE, nil]];
 }
 
+- (void) _showNotFoundAlert
+{
+	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+	[alert setMessageText:@"The virtual machine cannot be found."];
+	[alert setAlertStyle:NSWarningAlertStyle];
+	[alert beginSheetModalForWindow:[self window]
+                    modalDelegate:self
+                   didEndSelector:nil
+                      contextInfo:nil];
+}
+
 - (void) reloadDataAndSave
 {
 	[vmList reloadData];
@@ -117,10 +127,16 @@ Copy path!
 	NSString *currentPath = [vmArray objectAtIndex: r];
 	NSString *newPath = [[NSString stringWithFormat:@"%@/%@.sheepvm",
 		[currentPath stringByDeletingLastPathComponent], value] retain];
-	NSFileManager *manager = [NSFileManager defaultManager];
-	if ([manager movePath: currentPath toPath: newPath handler:nil]) {
-		[vmArray replaceObjectAtIndex: r withObject: newPath];
-		[currentPath release];
+	if (![currentPath isEqual:newPath]) {
+		if ([[NSFileManager defaultManager] fileExistsAtPath:currentPath]) {
+			NSFileManager *manager = [NSFileManager defaultManager];
+			if ([manager movePath: currentPath toPath: newPath handler:nil]) {
+				[vmArray replaceObjectAtIndex: r withObject: newPath];
+				[currentPath release];
+			}
+		} else {
+			[self _showNotFoundAlert];
+		}
 	}
 }
 
@@ -271,8 +287,10 @@ Copy path!
 		                    modalDelegate:self
 		                   didEndSelector:nil
 		                      contextInfo:nil];
-		} else {
+		} else if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
 			[[VMSettingsController sharedInstance] editSettingsFor:path sender:sender];
+		} else {
+			[self _showNotFoundAlert];
 		}
 	}
 }
@@ -290,12 +308,14 @@ Copy path!
 		                    modalDelegate:self
 		                   didEndSelector:nil
 		                      contextInfo:nil];
-		} else {
+		} else if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
 			NSTask *sheep = [[NSTask alloc] init];
 			[sheep setLaunchPath:[[NSBundle mainBundle] pathForAuxiliaryExecutable:@"SheepShaver"]];
 			[sheep setArguments:[NSArray arrayWithObject:path]];
 			[sheep launch];
 			[tasks setObject:sheep forKey:path];
+		} else {
+			[self _showNotFoundAlert];
 		}
 	}
 }
@@ -327,7 +347,6 @@ Copy path!
 		                  modalDelegate:self
 		                 didEndSelector:@selector(_deleteVirtualMachineDone: returnCode: contextInfo:)
 		                    contextInfo:nil];
-
 	}
 }
 
@@ -344,7 +363,12 @@ Copy path!
 {
 	int selectedRow = [vmList selectedRow];
 	if (selectedRow >= 0) {
-		[[NSWorkspace sharedWorkspace] selectFile: [vmArray objectAtIndex:selectedRow] inFileViewerRootedAtPath: @""];
+		NSString *path = [vmArray objectAtIndex:selectedRow];
+		if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
+			[[NSWorkspace sharedWorkspace] selectFile: path inFileViewerRootedAtPath: @""];
+		} else {
+			[self _showNotFoundAlert];
+		}
 	}
 }
 
