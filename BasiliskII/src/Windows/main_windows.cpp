@@ -411,7 +411,7 @@ int main(int argc, char **argv)
 	timer_init();
 
 	// Initialize everything
-	if (!InitAll())
+	if (!InitAll(NULL))
 		QuitEmulator();
 	D(bug("Initialization complete\n"));
 

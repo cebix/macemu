@@ -364,7 +364,7 @@ int main(int argc, char **argv)
 	timer_init();
 
 	// Initialize everything
-	if (!InitAll())
+	if (!InitAll(NULL))
 		goto quit;
 	D(bug("Initialization complete\n"));
 

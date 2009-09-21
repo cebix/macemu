@@ -311,7 +311,7 @@ int main(int argc, char **argv)
 	FPUType = attn & AFF_68881 ? 1 : 0;
 
 	// Initialize everything
-	if (!InitAll())
+	if (!InitAll(NULL))
 		QuitEmulator();
 
 	// Move VBR away from 0 if neccessary

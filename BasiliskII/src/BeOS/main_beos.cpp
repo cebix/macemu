@@ -271,7 +271,7 @@ void BasiliskII::StartEmulator(void)
 	}
 
 	// Initialize everything
-	if (!InitAll()) {
+	if (!InitAll(NULL)) {
 		PostMessage(B_QUIT_REQUESTED);
 		return;
 	}

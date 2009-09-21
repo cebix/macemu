@@ -34,7 +34,7 @@ const char XPRAM_FILE_NAME[] = "BasiliskII_XPRAM";
  *  Load XPRAM from settings file
  */
 
-void LoadXPRAM(void)
+void LoadXPRAM(const char *vmdir)
 {
 	FILE *f = fopen(XPRAM_FILE_NAME, "rb");
 	if (f != NULL) {

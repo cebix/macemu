@@ -474,7 +474,7 @@ void SheepShaver::StartEmulator(void)
 	D(bug("DR Emulator area %ld at %p\n", dr_emulator_area, DREmulatorAddr));
 
 	// Initialize everything
-	if (!InitAll()) {
+	if (!InitAll(NULL)) {
 		PostMessage(B_QUIT_REQUESTED);
 		return;
 	}
