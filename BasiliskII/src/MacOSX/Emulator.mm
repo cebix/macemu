@@ -35,7 +35,8 @@
 #import "prefs.h"
 #import "timer.h"
 
-#undef check				// memory.h defines a check macro, clashes with an OS X one?
+#undef check				// memory.h defines a check macro,
+							// which may clash with an OS X one on 10.1 or 10.2
 #import "cpu_emulation.h"
 
 #define DEBUG 0
@@ -218,7 +219,7 @@
 		int	argc = 0;
 		char **argv;
 
-		PrefsInit(argc, argv);
+		PrefsInit(NULL, argc, argv);
 		SysInit();
 
 		emul = [NNThread new];
