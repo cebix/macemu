@@ -40,21 +40,21 @@
 using std::string;
 
 #include "cpu_emulation.h"
-#include "macos_util_macosx.h"
-#include "main.h"
+#include "sys.h"
+#include "rom_patches.h"
+#include "xpram.h"
+#include "video.h"
 #include "prefs.h"
 #include "prefs_editor.h"
-#include "rom_patches.h"
-#include "sigsegv.h"
-#include "sys.h"
+#include "macos_util_macosx.h"
 #include "user_strings.h"
 #include "version.h"
-#include "video.h"
+#include "main.h"
 #include "vm_alloc.h"
-#include "xpram.h"
+#include "sigsegv.h"
 
 #if USE_JIT
-extern void flush_icache_range(uint8 *start, uint32 size);  // from compemu_support.cpp
+extern void flush_icache_range(uint8 *start, uint32 size); // from compemu_support.cpp
 #endif
 
 #ifdef ENABLE_MON
@@ -155,7 +155,6 @@ static sigsegv_return_t sigsegv_handler(sigsegv_info_t *sip)
 	return SIGSEGV_RETURN_FAILURE;
 }
 
-
 /*
  *  Dump state when everything went wrong after a SEGV
  */
@@ -200,19 +199,23 @@ bool Screen_fault_handler(sigsegv_info_t *sip)
 
 static void usage(const char *prg_name)
 {
-	printf("Usage: %s [OPTION...]\n", prg_name);
-	printf("\nUnix options:\n");
-	printf("  --help\n    display this usage message\n");
-	printf("  --config FILE\n    read/write configuration from/to FILE\n");
-	printf("  --break ADDRESS\n    set ROM breakpoint\n");
-	printf("  --rominfo\n    dump ROM information\n");
-	LoadPrefs(); // read the prefs file so PrefsPrintUsage() will print the correct default values
+	printf(
+		"Usage: %s [OPTION...]\n"
+		"\nUnix options:\n"
+		"  --config FILE\n    read/write configuration from/to FILE\n"
+		"  --break ADDRESS\n    set ROM breakpoint\n"
+		"  --rominfo\n    dump ROM information\n", prg_name
+	);
+	LoadPrefs(NULL); // read the prefs file so PrefsPrintUsage() will print the correct default values
 	PrefsPrintUsage();
 	exit(0);
 }
 
 int main(int argc, char **argv)
 {
+	const char *vmdir = NULL;
+	char str[256];
+
 	// Initialize variables
 	RAMBaseHost = NULL;
 	ROMBaseHost = NULL;
@@ -230,9 +233,11 @@ int main(int argc, char **argv)
 		} else if (strncmp(argv[i], "-psn_", 5) == 0) {// OS X process identifier
 			i++;
 		} else if (strcmp(argv[i], "--break") == 0) {
-			i++;
-			if (i < argc)
+			argv[i++] = NULL;
+			if (i < argc) {
 				ROMBreakpoint = strtol(argv[i], NULL, 0);
+				argv[i] = NULL;
+			}
 		} else if (strcmp(argv[i], "--config") == 0) {
 			argv[i++] = NULL;
 			if (i < argc) {
@@ -241,15 +246,35 @@ int main(int argc, char **argv)
 				argv[i] = NULL;
 			}
 		} else if (strcmp(argv[i], "--rominfo") == 0) {
+			argv[i] = NULL;
 			PrintROMInfo = true;
-		} else if (argv[i][0] == '-') {
-			fprintf(stderr, "Unrecognized option '%s'\n", argv[i]);
-			usage(argv[0]);
+		}
+	}
+
+	// Remove processed arguments
+	for (int i=1; i<argc; i++) {
+		int k;
+		for (k=i; k<argc; k++)
+			if (argv[k] != NULL)
+				break;
+		if (k > i) {
+			k -= i;
+			for (int j=i+k; j<argc; j++)
+				argv[j-k] = argv[j];
+			argc -= k;
 		}
 	}
 
 	// Read preferences
-	PrefsInit(argc, argv);
+	PrefsInit(vmdir, argc, argv);
+
+	// Any command line arguments left?
+	for (int i=1; i<argc; i++) {
+		if (argv[i][0] == '-') {
+			fprintf(stderr, "Unrecognized option '%s'\n", argv[i]);
+			usage(argv[0]);
+		}
+	}
 
 	// Init system routines
 	SysInit();
