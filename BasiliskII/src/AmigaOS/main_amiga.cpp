@@ -202,7 +202,7 @@ int main(int argc, char **argv)
 	CyberGfxBase = OpenLibrary((UBYTE *) "cybergraphics.library", 2);
 
 	// Read preferences
-	PrefsInit(argc, argv);
+	PrefsInit(NULL, argc, argv);
 
 	// Open AHI
 	ahi_port = CreateMsgPort();
