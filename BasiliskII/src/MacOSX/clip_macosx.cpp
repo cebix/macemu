@@ -160,17 +160,22 @@ void GetScrap(void **handle, uint32 type, int32 offset)
 
 void PutScrap(uint32 type, void *scrap, int32 length)
 {
-	D(bug("PutScrap type %08lx, data %08lx, length %ld\n", type, scrap, length));
+	static bool clear = true;
+	D(bug("PutScrap type %4.4s, data %08lx, length %ld\n", &type, scrap, length));
 	ScrapRef theScrap;
 
 	if (we_put_this_data) {
 		we_put_this_data = false;
+		clear = true;
 		return;
 	}
 	if (length <= 0)
 		return;
 
-	ClearCurrentScrap();
+	if (clear) {
+		D(bug(" calling ClearCurrentScrap\n"));
+		ClearCurrentScrap();
+	}
 	if (GetCurrentScrap(&theScrap) != noErr) {
 		D(bug(" could not open scrap\n"));
 		return;
@@ -179,6 +184,7 @@ void PutScrap(uint32 type, void *scrap, int32 length)
 	SwapScrapData(type, scrap, length, TRUE);
 	if (PutScrapFlavor(theScrap, type, kScrapFlavorMaskNone, length, scrap) != noErr) {
 		D(bug(" could not put to scrap\n"));
-		return;
+		//return;
 	}
+	SwapScrapData(type, scrap, length, FALSE); // swap it back
 }
