@@ -19,7 +19,11 @@
  */
 
 /* determine whether to use checksummed versions of kernel symbols */
+/***
 #include <linux/config.h>
+***/
+#include "config.h"
+#include <linux/autoconf.h>
 
 #if defined(CONFIG_MODVERSIONS) && !defined(MODVERSIONS)
 #define MODVERSIONS
@@ -48,6 +52,7 @@
 #include <asm/ioctls.h>
 #include <net/arp.h>
 #include <net/ip.h>
+#include <net/raw.h>
 #include <linux/in.h>
 #include <linux/wait.h>
 
@@ -67,14 +72,14 @@ typedef struct wait_queue *wait_queue_head_t;
 #endif
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
 #define eth_hdr(skb) (skb)->mac.ethernet
+#define skb_mac_header(skb) (skb)->mac.raw
+#define ipip_hdr(skb) (skb)->h.ipiph
 #endif
 
 #ifdef LINUX_26
-#define compat_sk_alloc(a,b,c)	sk_alloc( (a), (b), (c), NULL )
 #define skt_set_dead(skt)		do {} while(0)
 #define wmem_alloc				sk_wmem_alloc
 #else
-#define compat_sk_alloc			sk_alloc
 #define skt_set_dead(skt)		(skt)->dead = 1
 #endif
 
@@ -106,8 +111,11 @@ static ssize_t sheep_net_read(struct file *f, char *buf, size_t count, loff_t *o
 static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, loff_t *off);
 static unsigned int sheep_net_poll(struct file *f, struct poll_table_struct *wait);
 static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int code, unsigned long arg);
+#ifdef LINUX_26
+static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *foo);
+#else
 static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt);
-
+#endif
 
 /*
  *  Driver private variables
@@ -156,6 +164,16 @@ static struct miscdevice sheep_net_device = {
 
 
 /*
+ * fake protocol to use a common socket
+ */
+static struct proto sheep_proto = {
+	.name	  = "SHEEP",
+	.owner	  = THIS_MODULE,
+	.obj_size = sizeof(struct sock),
+};
+
+
+/*
  *  Initialize module
  */
 
@@ -196,9 +214,11 @@ static int sheep_net_open(struct inode *inode, struct file *f)
 		return -EPERM;
 
 	/* Allocate private variables */
-	v = (struct SheepVars *)(f->private_data = kmalloc(sizeof(struct SheepVars), GFP_USER));
+	v = (struct SheepVars *)kmalloc(sizeof(struct SheepVars), GFP_USER);
 	if (v == NULL)
 		return -ENOMEM;
+
+	lock_kernel();
 	memset(v, 0, sizeof(struct SheepVars));
 	skb_queue_head_init(&v->queue);
 	init_waitqueue_head(&v->wait);
@@ -209,10 +229,14 @@ static int sheep_net_open(struct inode *inode, struct file *f)
 	v->fake_addr[4] = 0xbe;
 	v->fake_addr[5] = 0xef;
 
+	/* Put our stuff where we will be able to find it later */
+	f->private_data = (void *)v;
+
 	/* Yes, we're open */
 #ifndef LINUX_26
 	MOD_INC_USE_COUNT;
 #endif
+	unlock_kernel();
 	return 0;
 }
 
@@ -280,7 +304,7 @@ static inline void do_demasq(struct SheepVars *v, u8 *p)
 
 static void demasquerade(struct SheepVars *v, struct sk_buff *skb)
 {
-	u8 *p = skb->mac.raw;
+	u8 *p = skb_mac_header(skb);
 	int proto = (p[12] << 8) | p[13];
 	
 	do_demasq(v, p + 6); /* source address */
@@ -311,7 +335,7 @@ static inline void do_masq(struct SheepVars *v, u8 *p)
 
 static void masquerade(struct SheepVars *v, struct sk_buff *skb)
 {
-	u8 *p = skb->mac.raw;
+	u8 *p = skb_mac_header(skb);
 	if (!(p[0] & ETH_ADDR_MULTICAST))
 		do_masq(v, p); /* destination address */
 
@@ -372,7 +396,7 @@ static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, lo
 	if (count < sizeof(struct ethhdr))
 		return -EINVAL;
 	if (count > 1514) {
-		printk("sheep_net_write: packet size > 1514\n");
+		printk("sheep_net_write: packet size %ld > 1514\n", count);
 		count = 1514;
 	}
 
@@ -397,8 +421,14 @@ static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, lo
 	skb->sk = v->skt;
 	skb->dev = v->ether;
 	skb->priority = 0;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
 	skb->nh.raw = skb->h.raw = skb->data + v->ether->hard_header_len;
 	skb->mac.raw = skb->data;
+#else
+	skb_reset_mac_header(skb);
+	skb_set_transport_header(skb, v->ether->hard_header_len);
+	skb_set_network_header(skb, v->ether->hard_header_len);
+#endif
 
 	/* Base the IP-filtering on the IP address in any outgoing ARP packets */
 	if (eth_hdr(skb)->h_proto == htons(ETH_P_ARP)) {
@@ -483,7 +513,9 @@ static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int cod
 			name[19] = 0;
 
 			/* Find card */
-#ifdef LINUX_24
+#ifdef LINUX_26
+			v->ether = dev_get_by_name(&init_net, name);
+#elif defined(LINUX_24)
 			v->ether = dev_get_by_name(name);
 #else
 			dev_lock_list();
@@ -504,7 +536,11 @@ static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int cod
 			memcpy(v->eth_addr, v->ether->dev_addr, 6);
 
 			/* Allocate socket */
-			v->skt = compat_sk_alloc(0, GFP_USER, 1);
+#ifdef LINUX_26
+			v->skt = sk_alloc(dev_net(v->ether), GFP_USER, 1, &sheep_proto);
+#else
+			v->skt = sk_alloc(0, GFP_USER, 1);
+#endif
 			if (v->skt == NULL) {
 				err = -ENOMEM;
 				goto error;
@@ -606,7 +642,11 @@ error:
  *  Packet receiver function
  */
 
+#ifdef LINUX_26
+static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *foo)
+#else
 static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+#endif
 {
 	struct SheepVars *v = (struct SheepVars *)pt;
 	struct sk_buff *skb2;
@@ -632,7 +672,7 @@ static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struc
 	/* Apply any filters here (if fake is true, then we *know* we want this packet) */
 	if (!fake) {
 		if ((skb->protocol == htons(ETH_P_IP))
-		 && (!v->ipfilter || (ntohl(skb->h.ipiph->daddr) != v->ipfilter && !multicast)))
+		 && (!v->ipfilter || (ntohl(ipip_hdr(skb)->daddr) != v->ipfilter && !multicast)))
 			goto drop;
 	}
 
@@ -645,7 +685,7 @@ static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struc
 	masquerade(v, skb);
 
 	/* We also want the Ethernet header */
-	skb_push(skb, skb->data - skb->mac.raw);
+	skb_push(skb, skb->data - skb_mac_header(skb));
 
 	/* Enqueue packet */
 	skb_queue_tail(&v->queue, skb);
