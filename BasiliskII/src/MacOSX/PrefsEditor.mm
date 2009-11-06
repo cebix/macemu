@@ -662,7 +662,7 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 
 	PrefsExit();				// Purge all the old pref values
 
-	PrefsInit(argc, argv);
+	PrefsInit(NULL, argc, argv);
 	AddPrefsDefaults();
 	AddPlatformPrefsDefaults();	// and only create basic ones
 
