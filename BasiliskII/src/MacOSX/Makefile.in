@@ -183,15 +183,16 @@ $(APP)_app: $(APP) $(DOCS) Info.plist $(APP).icns
 	find $(APP_APP) -type d -name CVS | xargs rm -rf
 
 mostlyclean:
-	rm -rf $(APP_APP)
-	rm -f $(PROGS) $(OBJ_DIR)/* $(OBJ_DIR).*/* core* *.core *~ *.bak
+	rm -f $(PROGS) $(OBJ_DIR)/* core* *.core *~ *.bak
+ 	rm -f $(foreach arch, $(TARGET_ARCHES), $(GEN_DIR).$(arch)/*)
+ 	rm -f $(foreach arch, $(TARGET_ARCHES), $(OBJ_DIR).$(arch)/*)
 
 clean: mostlyclean
 	rm -f $(UNIXSRCS)
-	rm -f $(GEN_DIR).*/*
 
 distclean: clean
-	rm -rf $(OBJ_DIR)
+	rm -rf $(foreach arch, $(TARGET_ARCHES), $(GEN_DIR).$(arch))
+ 	rm -rf $(foreach arch, $(TARGET_ARCHES), $(OBJ_DIR).$(arch))
 	rm -rf autom4te.cache
 	rm -f Makefile
 	rm -f config.cache config.log config.status config.h
