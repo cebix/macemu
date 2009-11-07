@@ -189,14 +189,14 @@ mostlyclean:
 
 clean: mostlyclean
 	rm -f $(UNIXSRCS)
+	rm -f README.txt
 
 distclean: clean
 	rm -rf $(foreach arch, $(TARGET_ARCHES), $(GEN_DIR).$(arch))
  	rm -rf $(foreach arch, $(TARGET_ARCHES), $(OBJ_DIR).$(arch))
 	rm -rf autom4te.cache
 	rm -f Makefile
-	rm -f config.cache config.log config.status config.h
-	rm -f Darwin/lowmem Darwin/pagezero
+	rm -f config.cache config.log config.status config.h configure
 
 depend dep:
 	makedepend $(CPPFLAGS) -Y. $(SRCS) 2>/dev/null
