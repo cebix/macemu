@@ -7,42 +7,40 @@ HOST_CC = @CC@
 HOST_CXX = @CXX@
 CC_PROG = @CC@
 CXX_PROG = @CXX@
-CFLAGS = @CFLAGS@ -g
-CXXFLAGS = @CXXFLAGS@ -g
-CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../uae_cpu
+CFLAGS = @CFLAGS@
+CXXFLAGS = @CXXFLAGS@
+CPPFLAGS = @CPPFLAGS@ -I../include -I. @CPUINCLUDES@ -I../slirp
 DEFS = @DEFS@ @DEFINES@ -D_REENTRANT -DAQUA -DFPU_IEEE
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
-MONSRCS = @MONSRCS@
+
+CFLAGS   += -g
+CPPFLAGS += -I../uae_cpu
+CXXFLAGS += -g
 LN_S = ln -s
 
 ## Compilers selection (XXX hackery for 10.2 cross-compilation...)
 SDK_VERSION.ppc = @PPC_SDK_VERSION@
 SDK_VERSION = $(SDK_VERSION.$(ARCH))
 ifeq ($(SDK_VERSION), 10.2.8)
-CC_PROG = gcc-3.3
-CXX_PROG = g++-3.3
-SDK_ROOT = /Developer/SDKs/MacOSX10.2.8.sdk
-CC_ROOT = -F$(SDK_ROOT)/System/Library/Frameworks
-LDFLAGS += -Wl,-syslibroot,$(SDK_ROOT)
+  CC_PROG = gcc-3.3
+  CXX_PROG = g++-3.3
+  SDK_ROOT = /Developer/SDKs/MacOSX10.2.8.sdk
+  CC_ROOT = -F$(SDK_ROOT)/System/Library/Frameworks
+  LDFLAGS += -Wl,-syslibroot,$(SDK_ROOT)
 endif
 ifeq ($(SDK_VERSION), 10.3.9)
-CC_ROOT = -isysroot /Developer/SDKs/MacOSX10.3.9.sdk -mmacosx-version-min=10.3
+  CC_ROOT = -isysroot /Developer/SDKs/MacOSX10.3.9.sdk -mmacosx-version-min=10.3
 endif
 ifeq ($(SDK_VERSION), 10.4)
-CC_ROOT = -isysroot /Developer/SDKs/MacOSX10.4u.sdk -mmacosx-version-min=10.4
+  CC_ROOT = -isysroot /Developer/SDKs/MacOSX10.4u.sdk -mmacosx-version-min=10.4
 endif
 CC = $(CC_PROG) $(CC_ROOT) -arch $(ARCH)
 CXX = $(CXX_PROG) $(CC_ROOT) -arch $(ARCH)
 
-## slirp network emulation code
-WANT_SLIRP = @WANT_SLIRP@
-ifeq ($(WANT_SLIRP), yes)
-CPPFLAGS += -I../slirp
 SLIRP_CFLAGS = @SLIRP_CFLAGS@
 SLIRP_SRCS = @SLIRP_SRCS@
 SLIRP_OBJS = $(SLIRP_SRCS:../slirp/%.c=obj/%.o)
-endif
 
 ## CPU emulation code
 WANT_JIT = @WANT_JIT@
@@ -56,24 +54,24 @@ GEN_CPUSRCS = \
 	cpuemu1.cpp cpuemu2.cpp cpuemu3.cpp cpuemu4.cpp \
 	cpuemu5.cpp cpuemu6.cpp cpuemu7.cpp cpuemu8.cpp
 ifeq ($(ARCH), i386)
-USE_JIT = $(WANT_JIT)
-DEFS += -DUNALIGNED_PROFITABLE -DREGPARAM="__attribute__((regparm(3)))"
-DEFS += -DX86_ASSEMBLY -DOPTIMIZED_FLAGS -DSAHF_SETO_PROFITABLE
+  USE_JIT = $(WANT_JIT)
+  DEFS += -DUNALIGNED_PROFITABLE -DREGPARAM="__attribute__((regparm(3)))"
+  DEFS += -DX86_ASSEMBLY -DOPTIMIZED_FLAGS -DSAHF_SETO_PROFITABLE
 endif
 ifeq ($(ARCH), x86_64)
-USE_JIT = $(WANT_JIT)
-DEFS += -DUNALIGNED_PROFITABLE
-DEFS += -DX86_64_ASSEMBLY -DOPTIMIZED_FLAGS
+  USE_JIT = $(WANT_JIT)
+  DEFS += -DUNALIGNED_PROFITABLE
+  DEFS += -DX86_64_ASSEMBLY -DOPTIMIZED_FLAGS
 endif
 ifeq ($(USE_JIT), yes)
-DEFS += -DUSE_JIT -DUSE_JIT_FPU
-ifeq ($(WANT_JIT_DEBUG), yes)
-DEFS += -DJIT_DEBUG
-endif
-CPUSRCS += \
+  DEFS += -DUSE_JIT -DUSE_JIT_FPU
+  ifeq ($(WANT_JIT_DEBUG), yes)
+    DEFS += -DJIT_DEBUG
+  endif
+  CPUSRCS += \
 	../uae_cpu/compiler/compemu_support.cpp \
 	../uae_cpu/compiler/compemu_fpp.cpp
-GEN_CPUSRCS += \
+  GEN_CPUSRCS += \
 	cpuemu1_nf.cpp cpuemu2_nf.cpp cpuemu3_nf.cpp cpuemu4_nf.cpp \
 	cpuemu5_nf.cpp cpuemu6_nf.cpp cpuemu7_nf.cpp cpuemu8_nf.cpp \
 	compemu1.cpp compemu2.cpp compemu3.cpp compemu4.cpp \
@@ -83,28 +81,33 @@ endif
 
 GEN_DIR = gen
 ifneq ($(ARCH),)
-GEN_DIR = gen.$(ARCH)
+  GEN_DIR = gen.$(ARCH)
 endif
 CPUSRCS += $(foreach file, $(GEN_CPUSRCS), $(GEN_DIR)/$(file))
 CPPFLAGS += -I$(GEN_DIR)
 
-## Files
-UNIXSRCS = vm_alloc.cpp vm_alloc.h sigsegv.cpp sigsegv.h video_vosf.h video_blit.cpp \
-    xpram_unix.cpp user_strings_unix.cpp user_strings_unix.h \
-    serial_unix.cpp ether_unix.cpp sys_unix.cpp timer_unix.cpp \
-    sshpty.c sshpty.h strlcpy.c strlcpy.h semaphore.h
-SRCS = ../main.cpp main_macosx.mm ../prefs.cpp ../prefs_items.cpp prefs_macosx.mm \
-    sys_unix.cpp sys_darwin.cpp ../rom_patches.cpp ../slot_rom.cpp ../rsrc_patches.cpp \
-    ../emul_op.cpp ../macos_util.cpp ../xpram.cpp xpram_unix.cpp ../timer.cpp \
-    timer_unix.cpp ../adb.cpp ../serial.cpp serial_unix.cpp ../ether.cpp ether_unix.cpp \
-    ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp ../video.cpp video_macosx.mm \
-    vm_alloc.cpp sigsegv.cpp ../audio.cpp ../extfs.cpp extfs_macosx.cpp \
-    ../user_strings.cpp user_strings_unix.cpp clip_macosx.cpp misc_macosx.mm \
-    ../dummy/scsi_dummy.cpp \
+## Source files thst replace/augment the ones from the Unix directory
+SYSSRCS = serial_unix.cpp ../dummy/scsi_dummy.cpp \
     audio_macosx.cpp AudioBackEnd.cpp AudioDevice.cpp MacOSX_sound_if.cpp \
-    NNThread.m Emulator.mm EmulatorView.mm Controller.mm PrefsEditor.mm \
-    sshpty.c strlcpy.c \
-    $(MONSRCS) $(CPUSRCS) $(SLIRP_SRCS)
+    clip_macosx.cpp Controller.mm Emulator.mm EmulatorView.mm \
+    ether_unix.cpp extfs_macosx.cpp  main_macosx.mm misc_macosx.mm \
+    NNThread.m prefs_macosx.cpp PrefsEditor.mm sys_darwin.cpp video_macosx.mm
+
+## Files
+SRCS = ../main.cpp ../prefs.cpp ../prefs_items.cpp \
+    sys_unix.cpp ../rom_patches.cpp ../slot_rom.cpp ../rsrc_patches.cpp \
+    ../emul_op.cpp ../macos_util.cpp ../xpram.cpp xpram_unix.cpp ../timer.cpp \
+    timer_unix.cpp ../adb.cpp ../serial.cpp ../ether.cpp \
+    ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp ../video.cpp \
+    vm_alloc.cpp sigsegv.cpp ../audio.cpp ../extfs.cpp \
+    ../user_strings.cpp user_strings_unix.cpp sshpty.c strlcpy.c \
+    $(SYSSRCS) $(CPUSRCS) $(SLIRP_SRCS)
+
+## Source files from Unix source directory that we link to
+UNIXSRCS = ether_unix.cpp semaphore.h serial_unix.cpp sigsegv.cpp sigsegv.h \
+    sshpty.c sshpty.h strlcpy.c strlcpy.h sys_unix.cpp timer_unix.cpp \
+    user_strings_unix.cpp user_strings_unix.h \
+    vm_alloc.cpp vm_alloc.h xpram_unix.cpp
 
 ## Documentation files
 DOCS = README.txt Credits.html ToDo.html HowTo.html Versions.html
@@ -131,7 +134,7 @@ $(UNIXSRCS): %: ../Unix/%
 
 OBJ_DIR = obj
 ifneq ($(ARCH),)
-OBJ_DIR = obj.$(ARCH)
+  OBJ_DIR = obj.$(ARCH)
 endif
 $(OBJ_DIR)::
 	@[ -d $(OBJ_DIR) ] || mkdir $(OBJ_DIR) > /dev/null 2>&1
@@ -170,6 +173,7 @@ $(OBJ_DIR)/$(APP): $(OBJ_DIR) $(GEN_DIR) $(OBJS) $(BLESS)
 	$(BLESS) $@
 
 $(APP)_app: $(APP) $(DOCS) Info.plist $(APP).icns
+	rm -rf $(APP_APP)/Contents
 	mkdir -p $(APP_APP)/Contents
 	cp -f ../MacOSX/Info.plist $(APP_APP)/Contents/
 	echo -n 'APPL????' > $(APP_APP)/Contents/PkgInfo
@@ -184,8 +188,8 @@ $(APP)_app: $(APP) $(DOCS) Info.plist $(APP).icns
 
 mostlyclean:
 	rm -f $(PROGS) $(OBJ_DIR)/* core* *.core *~ *.bak
- 	rm -f $(foreach arch, $(TARGET_ARCHES), $(GEN_DIR).$(arch)/*)
- 	rm -f $(foreach arch, $(TARGET_ARCHES), $(OBJ_DIR).$(arch)/*)
+	rm -f $(foreach arch, $(TARGET_ARCHES), $(GEN_DIR).$(arch)/*)
+	rm -f $(foreach arch, $(TARGET_ARCHES), $(OBJ_DIR).$(arch)/*)
 
 clean: mostlyclean
 	rm -f $(UNIXSRCS)
@@ -193,7 +197,7 @@ clean: mostlyclean
 
 distclean: clean
 	rm -rf $(foreach arch, $(TARGET_ARCHES), $(GEN_DIR).$(arch))
- 	rm -rf $(foreach arch, $(TARGET_ARCHES), $(OBJ_DIR).$(arch))
+	rm -rf $(foreach arch, $(TARGET_ARCHES), $(OBJ_DIR).$(arch))
 	rm -rf autom4te.cache
 	rm -f Makefile
 	rm -f config.cache config.log config.status config.h configure
@@ -230,11 +234,11 @@ $(GEN_DIR)::
 
 $(GEN_DIR)/cpudefs.cpp: $(OBJ_DIR)/build68k ../uae_cpu/table68k
 	$(OBJ_DIR)/build68k <../uae_cpu/table68k > $@
-$(GEN_DIR)/cpustbl.cpp: $(GEN_DIR)/cpuemu.cpp
+$(GEN_DIR)/cpustbl.cpp:    $(GEN_DIR)/cpuemu.cpp
 $(GEN_DIR)/cpustbl_nf.cpp: $(GEN_DIR)/cpustbl.cpp
-$(GEN_DIR)/compstbl.cpp: $(GEN_DIR)/compemu.cpp
-$(GEN_DIR)/cputbl.h: $(GEN_DIR)/cpuemu.cpp
-$(GEN_DIR)/comptbl.h: $(GEN_DIR)/compemu.cpp
+$(GEN_DIR)/compstbl.cpp:   $(GEN_DIR)/compemu.cpp
+$(GEN_DIR)/cputbl.h:       $(GEN_DIR)/cpuemu.cpp
+$(GEN_DIR)/comptbl.h:      $(GEN_DIR)/compemu.cpp
 
 $(GEN_DIR)/cpuemu.cpp: $(OBJ_DIR)/gencpu
 	cd $(GEN_DIR) && ../$(OBJ_DIR)/gencpu
