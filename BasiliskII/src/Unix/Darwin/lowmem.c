@@ -29,18 +29,83 @@
 #include <string.h>
 #include <mach/vm_prot.h>
 #include <mach-o/loader.h>
+#include <mach-o/fat.h>
 
 static const char progname[] = "lowmem";
+static const char *filename;
 
 static int do_swap = 0;
 
 static uint32_t target_uint32(uint32_t value)
 {
 	if (do_swap)
-		value = NXSwapInt(value);
+		value = OSSwapInt32(value);
 	return value;
 }
 
+void pagezero_32(struct mach_header *machhead)
+{
+	struct segment_command *sc_cmd;
+
+	if (target_uint32(machhead->filetype) != MH_EXECUTE) {
+		(void)fprintf(stderr, "%s: %s does not appear to be an executable file\n",
+				progname, filename);
+		exit(1);
+	}
+	if (machhead->ncmds == 0) {
+		(void)fprintf(stderr, "%s: %s does not contain any load commands\n",
+				progname, filename);
+		exit(1);
+	}
+	sc_cmd = (void *)&machhead[1];
+	if (target_uint32(sc_cmd->cmd) != LC_SEGMENT){
+		(void)fprintf(stderr, "%s: load segment not first command in %s\n",
+				progname, filename);
+		exit(1);
+	}
+	if (strncmp(sc_cmd->segname, "__PAGEZERO", sizeof (*sc_cmd->segname))) {
+		(void)fprintf(stderr, "%s: zero page not first segment in %s\n",
+				progname, filename);
+		exit(1);
+	}
+	/* change the permissions */
+	sc_cmd->maxprot = target_uint32(VM_PROT_ALL);
+	sc_cmd->initprot = target_uint32(VM_PROT_ALL);
+}
+
+#if defined(MH_MAGIC_64)
+void pagezero_64(struct mach_header_64 *machhead)
+{
+	struct segment_command_64 *sc_cmd;
+
+	if (target_uint32(machhead->filetype) != MH_EXECUTE) {
+		(void)fprintf(stderr, "%s: %s does not appear to be an executable file\n",
+				progname, filename);
+		exit(1);
+	}
+	if (machhead->ncmds == 0) {
+		(void)fprintf(stderr, "%s: %s does not contain any load commands\n",
+				progname, filename);
+		exit(1);
+	}
+	sc_cmd = (void *)&machhead[1];
+	if (target_uint32(sc_cmd->cmd) != LC_SEGMENT_64) {
+		(void)fprintf(stderr, "%s: load segment not first command in %s\n",
+				progname, filename);
+		exit(1);
+	}
+	if (strncmp(sc_cmd->segname, "__PAGEZERO", sizeof(*sc_cmd->segname))) {
+		(void)fprintf(stderr, "%s: zero page not first segment in %s\n",
+				progname, filename);
+		exit(1);
+	}
+	/* change the permissions */
+	sc_cmd->maxprot = target_uint32(VM_PROT_ALL);
+	sc_cmd->initprot = target_uint32(VM_PROT_ALL);
+}
+#endif
+
+/*
 /*
  * Under Mach there is very little assumed about the memory map of object
  * files. It is the job of the loader to create the initial memory map of an
@@ -64,77 +129,103 @@ main(int argc, const char *argv[])
 {
 	int fd;
 	char *addr;
+	off_t file_size;
 	struct mach_header *machhead;
-	struct segment_command *sc_cmd;
+#if defined(MH_MAGIC_64)
+	struct mach_header_64 *machhead64;
+#endif
+	struct fat_header *fathead;
 
 	if (argc != 2) {
 		(void)fprintf(stderr, "Usage: %s executable\n", progname);
 		exit(1);
 	}
 
-	fd = open(argv[1], O_RDWR, 0);
+	filename = argv[1];
+
+	fd = open(filename, O_RDWR, 0);
 	if (fd == -1) {
 		(void)fprintf(stderr, "%s: could not open %s: %s\n",
-			progname, argv[1], strerror(errno));
+			progname, filename, strerror(errno));
 		exit(1);
+	}
+
+	file_size = lseek(fd, 0, SEEK_END);
+	if (file_size == -1) {
+		// for some mysterious reason, this sometimes fails...
+		file_size = 0x1000;
+#if 0
+		(void)fprintf(stderr, "%s: could not get size of %s: %s\n",
+                      progname, filename, strerror(errno));
+		exit(1);
+#endif
 	}
 
 	/*
 	 * Size does not really matter, it will be rounded-up to a multiple
 	 * of the page size automatically.
 	 */
-	addr = mmap(NULL, 0x1000, PROT_READ | PROT_WRITE,
+	addr = mmap(NULL, file_size, PROT_READ | PROT_WRITE,
 	    MAP_FILE | MAP_SHARED, fd, 0);
 	if (addr == NULL) {
 		(void)fprintf(stderr, "%s: could not mmap %s: %s\n",
-				progname, argv[1], strerror(errno));
+				progname, filename, strerror(errno));
 		exit(1);
 	}
 
 	/*
 	 * Check to see if the Mach-O magic bytes are in the header.
-	 * If we cared about cross compiling we would also check against
-	 * MH_CIGAM and then change the endianness with every access, but
-	 * we do not care about that.
 	 */
 	machhead = (void *)addr;
-	if (machhead->magic == MH_CIGAM)
-		do_swap = 1;
-	if (target_uint32(machhead->magic) != MH_MAGIC) {
+#if defined(MH_MAGIC_64)
+	machhead64 = (void *)addr;
+#endif
+	fathead	= (void *)addr;
+
+#if defined(MH_MAGIC_64)
+	do_swap = machhead->magic == MH_CIGAM || fathead->magic == FAT_CIGAM || machhead64->magic == MH_CIGAM_64;
+#else
+	do_swap = machhead->magic == MH_CIGAM || fathead->magic == FAT_CIGAM;
+#endif
+
+	if (target_uint32(machhead->magic) == MH_MAGIC) {
+		pagezero_32(machhead);
+#if defined(MH_MAGIC_64)
+	} else if (target_uint32(machhead64->magic) == MH_MAGIC_64) {
+		pagezero_64(machhead64);
+#endif
+	} else if (target_uint32(fathead->magic) == FAT_MAGIC) {
+		struct fat_arch *arch = (void *)&fathead[1];
+		int saved_swap = do_swap;
+		int i;
+		for (i = 0; i < target_uint32(fathead->nfat_arch); ++i, ++arch) {
+			machhead   = (void *)(addr + target_uint32(arch->offset));
+#if defined(MH_MAGIC_64)
+			machhead64 = (void *)(addr + target_uint32(arch->offset));
+#endif
+#if defined(MH_MAGIC_64)
+			do_swap = machhead->magic == MH_CIGAM || machhead64->magic == MH_CIGAM_64;
+#else
+			do_swap = machhead->magic == MH_CIGAM;
+#endif
+			if (target_uint32(machhead->magic) == MH_MAGIC) {
+				pagezero_32(machhead);
+#if defined(MH_MAGIC_64)
+			} else if (target_uint32(machhead64->magic) == MH_MAGIC_64) {
+				pagezero_64(machhead64);
+#endif
+			} else {
+				(void)fprintf(stderr, "%s: %s does not appear to be a Mach-O object file\n",
+						progname, filename);
+				exit(1);
+			}
+			do_swap = saved_swap;
+		}
+	} else {
 		(void)fprintf(stderr, "%s: %s does not appear to be a Mach-O object file\n",
-				progname, argv[1]);
+				progname, filename);
 		exit(1);
 	}
-
-	if (target_uint32(machhead->filetype) != MH_EXECUTE) {
-		(void)fprintf(stderr, "%s: %s does not appear to be an executable file\n",
-				progname, argv[1]);
-		exit(1);
-	}
-
-	if (machhead->ncmds == 0) {
-		(void)fprintf(stderr, "%s: %s does not contain any load commands\n",
-				progname, argv[1]);
-		exit(1);
-	}
-
-	sc_cmd = (void *)&machhead[1];
-	if (target_uint32(sc_cmd->cmd) != LC_SEGMENT){
-		(void)fprintf(stderr, "%s: load segment not first command in %s\n",
-				progname, argv[1]);
-		exit(1);
-	}
-
-	if (strncmp(sc_cmd->segname, "__PAGEZERO",
-			 sizeof (*sc_cmd->segname))) {
-		(void)fprintf(stderr, "%s: zero page not first segment in %s\n",
-				progname, argv[1]);
-		exit(1);
-	}
-
-	/* change the permissions */
-	sc_cmd->maxprot = target_uint32(VM_PROT_ALL);
-	sc_cmd->initprot = target_uint32(VM_PROT_ALL);
 
 	/*
 	 * We do not make __PAGEZERO 8K in this program because then
@@ -142,15 +233,15 @@ main(int argc, const char *argv[])
 	 * this segment. Instead we use the -pagezero_size option
 	 * to link the executable.
 	 */
-	if (msync(addr, 0x1000, MS_SYNC) == -1) {
+	if (msync(addr, file_size, MS_SYNC) == -1) {
 		(void)fprintf(stderr, "%s: could not sync %s: %s\n",
-				progname, argv[1], strerror(errno));
+				progname, filename, strerror(errno));
 		exit(1);
 	}
 
-	if (munmap(addr, 0x1000) == -1) {
+	if (munmap(addr, file_size) == -1) {
 		(void)fprintf(stderr, "%s: could not unmap %s: %s\n",
-				progname, argv[1], strerror(errno));
+				progname, filename, strerror(errno));
 		exit(1);
 	}
 
