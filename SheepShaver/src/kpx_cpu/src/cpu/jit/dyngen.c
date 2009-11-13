@@ -572,6 +572,7 @@ int text_shndx;
 int data_shndx;
 uint8_t *text;
 uint8_t *data;
+uint8_t *literal16;
 EXE_RELOC *relocs;
 int nb_relocs;
 
@@ -1156,6 +1157,7 @@ struct symtab_command 	*symtabcmd = 0;
 struct SECTION  *section_hdr;
 struct SECTION *text_sec_hdr;
 struct SECTION *data_sec_hdr;
+struct SECTION *literal16_sec_hdr;
 uint8_t 	**sdata;
 
 /* relocs */
@@ -1277,8 +1279,8 @@ static const char * find_reloc_name_in_sec_ptr(int address, struct SECTION * sec
 		    error("size = 0");
 		
 	}
-	else if( sec_hdr->flags & S_LAZY_SYMBOL_POINTERS ||
-	            sec_hdr->flags & S_NON_LAZY_SYMBOL_POINTERS)
+	else if( (sec_hdr->flags & S_LAZY_SYMBOL_POINTERS) ||
+	            (sec_hdr->flags & S_NON_LAZY_SYMBOL_POINTERS) )
 		size = sizeof(unsigned long);
 	else
 		return 0;
@@ -1355,6 +1357,10 @@ static const char * get_reloc_name(EXE_RELOC * rel, int * sslide)
 		return get_sym_name(&symtab[rel->r_symbolnum]);
 	}
 
+#ifdef HOST_X86_64
+	return 0;
+#else
+
 	/* Intruction contains an offset to the symbols pointed to, in the rel->r_symbolnum section */
 	sectoffset = *(uint32_t *)(text + rel->r_address) & 0xffff;
 			
@@ -1401,6 +1407,7 @@ static const char * get_reloc_name(EXE_RELOC * rel, int * sslide)
 		name = (char *)find_sym_with_value_and_sec_number(sectoffset, sectnum, sslide);
 	
 	return name;
+#endif
 }
 
 /* Used by dyngen common code */
@@ -1510,10 +1517,12 @@ int load_object(const char *filename, FILE *outfile)
     /* .data section */
     data_sec_hdr = find_mach_sec_hdr(section_hdr, segment->nsects, SEG_DATA, SECT_DATA);
     i = find_mach_sec_index(section_hdr, segment->nsects, SEG_DATA, SECT_DATA);
-    if (i == -1)
-        data = NULL;
-    else
-        data = sdata[i];
+    data = (i == -1) ? NULL : sdata[i];
+
+    /* const section TODO: __cstring __literal4 __literal8 */
+	literal16_sec_hdr = find_mach_sec_hdr(section_hdr, segment->nsects, SEG_TEXT, "__literal16");
+	i = find_mach_sec_index(section_hdr, segment->nsects, SEG_TEXT, "__literal16");
+    literal16 = (i == -1) ? NULL : sdata[i];
 
     /* .text section */
     text_sec_hdr = find_mach_sec_hdr(section_hdr, segment->nsects, SEG_TEXT, SECT_TEXT);
@@ -1584,7 +1593,14 @@ int load_object(const char *filename, FILE *outfile)
 void get_reloc_expr(char *name, int name_size, const char *sym_name)
 {
     const char *p;
+    char *demangled;
+    char demangled_buf[256];
+    size_t nd = sizeof(demangled_buf);
+    int status;
     
+    demangled = cxx_demangle(sym_name, demangled_buf, &nd, &status);
+    if (!status && demangled)
+        sym_name = demangled;
     if (strstart(sym_name, "__op_param", &p) ||
         strstart(sym_name, "__op_PARAM", &p)) {
         snprintf(name, name_size, "param%s", p);
@@ -1713,6 +1729,10 @@ void gen_code(const char *name, const char *demangled_name,
     const char *sym_name, *p;
     EXE_RELOC *rel;
     int op_execute = 0;
+    char demangled_buf[256];
+    size_t nd;
+    char *demangled;
+    int status;
 
     if (strncmp(name, "op_execute", 10) == 0)
       op_execute = 1;
@@ -1933,6 +1953,10 @@ void gen_code(const char *name, const char *demangled_name,
             sym_name = get_rel_sym_name(rel);
             if(!sym_name)
                 continue;
+            nd = sizeof(demangled_buf);
+            demangled = cxx_demangle(sym_name, demangled_buf, &nd, &status);
+            if (!status && demangled)
+                sym_name = demangled;
             if (strstart(sym_name, "__op_PARAM", &p)) {
                 n = strtoul(p, NULL, 10);
                 if (n > MAX_ARGS)
@@ -1979,6 +2003,10 @@ void gen_code(const char *name, const char *demangled_name,
                 sym_name = get_rel_sym_name(rel);
                 if(!sym_name)
                     continue;
+                nd = sizeof(demangled_buf);
+                demangled = cxx_demangle(sym_name, demangled_buf, &nd, &status);
+                if (!status && demangled)
+                    sym_name = demangled;
                 if (*sym_name && 
                     !strstart(sym_name, "__op_PARAM", NULL) &&
                     !strstart(sym_name, "__op_jmp", NULL) &&
@@ -2218,8 +2246,9 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 	const char *p;
 	int slide, sslide;
 	int i, bytecount, bitlength;
+	int local16;
 
-	for (i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
+	for (i = 0, rel = relocs, local16 = 0; i < nb_relocs; i++, rel++) {
 		unsigned int isym, usesym, offset, length, pcrel, type;
 
 		isym = rel->r_symbolnum;
@@ -2238,14 +2267,36 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 		if (length > 3)
 			error("unsupported %d-bit relocation", 8 * (1 << length));
                     
-		sym_name = get_reloc_name(rel, &sslide);
-		if (!sym_name) {
-			fprintf(outfile, "/* #warning relocation not handled in %s (value 0x%x, %s, offset 0x%x, length 0x%x, %s, type 0x%x) */\n",
-				name, isym, usesym ? "use sym" : "don't use sym", offset, length, pcrel ? "pcrel":"", type);
-			continue; /* dunno how to handle without final_sym_name */
+		bytecount = (1 << length);
+		bitlength = 8 * bytecount;
+		slide = offset - start_offset;
+
+		if (!usesym) {
+			// local reloc
+			sslide = get32((uint32_t *)(text + offset)) + rel->r_address + 4;
+			if ( literal16_sec_hdr 
+				&& sslide >= literal16_sec_hdr->addr 
+				&& sslide + 16 <= literal16_sec_hdr->addr + literal16_sec_hdr->size ) {
+				sprintf(final_sym_name, "literal16_%d", ++local);
+				print_data(outfile, final_sym_name, literal16 + sslide - literal16_sec_hdr->addr, 16);
+				fprintf(outfile, "    static uint8 *data_p_%d = NULL;\n", local);
+				fprintf(outfile, "    if (data_p_%d == NULL)\n", local);
+				fprintf(outfile, "        data_p_%d = copy_data(%s, %d);\n", local, final_sym_name, 16);
+				fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = (int32_t)((long)data_p_%d - (long)(code_ptr() + %d + %d));\n", 
+						slide, local, slide, bytecount);
+			} else {
+				fprintf(outfile, "/* #warning relocation not handled in %s (section %d, offset 0x%x, length 0x%x, %s, type 0x%x) */\n",
+						name, isym, offset, length, pcrel ? "pcrel":"", type);
+			}
+			continue;
 		}
 
-		slide = offset - start_offset;
+		sym_name = get_reloc_name(rel, &sslide);
+		if (!sym_name) {
+			error("external symbol not found in %s (section %d, offset 0x%x, length 0x%x, %s, type 0x%x\n",
+					name, isym, offset, length, pcrel ? "pcrel":"", type);
+		}
+
 		if (strstart(sym_name, "__op_jmp", &p)) {
 			int n;
 			n = strtol(p, NULL, 10);
@@ -2253,9 +2304,6 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 			fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = 0;\n", slide);
 			continue; /* Nothing more to do */
 		}
-
-		bytecount = (1 << length);
-		bitlength = 8 * bytecount;
 
 		get_reloc_expr(final_sym_name, sizeof(final_sym_name), sym_name);
                     
@@ -2854,6 +2902,7 @@ int gen_file(FILE *outfile, int out_type)
 			}
 			else {
 				/* demangle C++ symbols */
+				nd = 256;
 				demangled_name = cxx_demangle(name, demangled_name, &nd, &status);
 				if (status == 0 && strstart(demangled_name, OP_PREFIX, NULL)) {
 					/* get real function name */
