@@ -2277,13 +2277,13 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 			if ( literal16_sec_hdr 
 				&& sslide >= literal16_sec_hdr->addr 
 				&& sslide + 16 <= literal16_sec_hdr->addr + literal16_sec_hdr->size ) {
-				sprintf(final_sym_name, "literal16_%d", ++local);
+				sprintf(final_sym_name, "literal16_%d", ++local16);
 				print_data(outfile, final_sym_name, literal16 + sslide - literal16_sec_hdr->addr, 16);
-				fprintf(outfile, "    static uint8 *data_p_%d = NULL;\n", local);
-				fprintf(outfile, "    if (data_p_%d == NULL)\n", local);
-				fprintf(outfile, "        data_p_%d = copy_data(%s, %d);\n", local, final_sym_name, 16);
+				fprintf(outfile, "    static uint8 *data_p_%d = NULL;\n", local16);
+				fprintf(outfile, "    if (data_p_%d == NULL)\n", local16);
+				fprintf(outfile, "        data_p_%d = copy_data(%s, %d);\n", local16, final_sym_name, 16);
 				fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = (int32_t)((long)data_p_%d - (long)(code_ptr() + %d + %d));\n", 
-						slide, local, slide, bytecount);
+						slide, local16, slide, bytecount);
 			} else {
 				fprintf(outfile, "/* #warning relocation not handled in %s (section %d, offset 0x%x, length 0x%x, %s, type 0x%x) */\n",
 						name, isym, offset, length, pcrel ? "pcrel":"", type);
