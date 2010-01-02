@@ -75,6 +75,8 @@
 
 - (void) openPreferences:(id)sender
 {
+	NSAutoreleasePool *pool;
+
 	if (nibObjects == nil) {
 		nibObjects = [self loadPrefsNibFile];
 		if (nibObjects == nil)
@@ -82,8 +84,10 @@
 		[nibObjects retain];
 	}
 
+	pool = [[NSAutoreleasePool alloc] init];
 	[[VMSettingsController sharedInstance] setupGUI];
 	[NSApp runModalForWindow:prefsWindow];
+	[pool release];
 }
 
 @end
