@@ -98,8 +98,11 @@
 
 void prefs_init(void)
 {
+	NSAutoreleasePool *pool;
 	NSMenu *appMenu;
 	NSMenuItem *menuItem;
+
+	pool = [[NSAutoreleasePool alloc] init];
 
 	appMenu = [[[NSApp mainMenu] itemAtIndex:0] submenu];
 	menuItem = [[NSMenuItem alloc] initWithTitle:@"Preferences..." action:@selector(openPreferences:) keyEquivalent:@","];
@@ -108,6 +111,8 @@ void prefs_init(void)
 	[menuItem release];
 	
 	[NSApp setDelegate:[[SheepShaverMain alloc] init]];
+
+	[pool release];
 }
 
 
