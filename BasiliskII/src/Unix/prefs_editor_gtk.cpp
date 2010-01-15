@@ -1730,7 +1730,7 @@ int main(int argc, char *argv[])
 #endif
 
 	// Read preferences
-	PrefsInit(argc, argv);
+	PrefsInit(NULL, argc, argv);
 
 	// Show preferences editor
 	bool start = PrefsEditor();

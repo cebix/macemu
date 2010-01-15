@@ -267,7 +267,7 @@ int main(int argc, char **argv)
 	}
 
 	// Read preferences
-	PrefsInit(argc, argv);
+	PrefsInit(NULL, argc, argv);
 
 	// Boot MacOS from CD-ROM?
 	if (cd_boot)
