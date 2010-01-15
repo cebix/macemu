@@ -483,7 +483,7 @@ void put32(uint32_t *p, uint32_t val)
 void gen_code(const char *name, const char *demangled_name,
               host_ulong offset, host_ulong size, 
               FILE *outfile, int gen_switch, const char *prefix);
-void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ulong start_offset);
+void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ulong start_offset, int copy_size);
 
 static void do_print_code(FILE *outfile, const char *name, const uint8_t *code_p, int code_size, int is_code)
 {
@@ -2084,7 +2084,7 @@ void gen_code(const char *name, const char *demangled_name,
         }
 
         /* patch relocations */
-				patch_relocations(outfile, name, size, start_offset);
+        patch_relocations(outfile, name, size, start_offset, copy_size);
         fprintf(outfile, "    inc_code_ptr(%d);\n", copy_size);
         fprintf(outfile, "}\n");
         fprintf(outfile, "#endif\n");
@@ -2092,17 +2092,17 @@ void gen_code(const char *name, const char *demangled_name,
     }
 }
 
-void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ulong start_offset)
+void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ulong start_offset, int copy_size)
 {
+	EXE_RELOC *rel;
+	int i;
 #if defined(HOST_I386)
 #ifdef CONFIG_FORMAT_MACH
 	struct scattered_relocation_info *scarel;
-	struct relocation_info * rel;
 	char final_sym_name[256];
 	const char *sym_name;
 	const char *p;
 	int slide, sslide;
-	int i;
 
 	for (i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
 		unsigned int offset, length, value = 0;
@@ -2171,6 +2171,8 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 	}
 #else
 	char final_sym_name[256];
+	const char *sym_name;
+	const char *p;
 	int type;
 	int addend;
 	for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
@@ -2240,12 +2242,11 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 #endif
 #elif defined(HOST_X86_64)
 #if defined(CONFIG_FORMAT_MACH)
-	struct relocation_info * rel;
 	char final_sym_name[256];
 	const char *sym_name;
 	const char *p;
 	int slide, sslide;
-	int i, bytecount, bitlength;
+	int bytecount, bitlength;
 	int local16;
 
 	for (i = 0, rel = relocs, local16 = 0; i < nb_relocs; i++, rel++) {
@@ -2382,9 +2383,6 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 #endif
 #elif defined(HOST_PPC)
 #ifdef CONFIG_FORMAT_ELF
-	char final_sym_name[256];
-	int type;
-	int addend;
 	for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
 		if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
@@ -2435,12 +2433,10 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 	}
 #elif defined(CONFIG_FORMAT_MACH)
 	struct scattered_relocation_info *scarel;
-	struct relocation_info * rel;
 	char final_sym_name[256];
 	const char *sym_name;
 	const char *p;
 	int slide, sslide;
-	int i;
 
 	for(i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
 		unsigned int offset, length, value = 0;
@@ -2888,7 +2884,11 @@ int gen_file(FILE *outfile, int out_type)
 #endif
 				if (data == NULL)
 					error("no .data section found");
+#ifdef CONFIG_FORMAT_MACH
 				fprintf(outfile, "DEFINE_CST(%s,0x%xL)\n\n", name, *((host_ulong *)(data + sym->st_value - data_sec_hdr->addr)));
+#else
+				fprintf(outfile, "DEFINE_CST(%s,0x%xL)\n\n", name, *((host_ulong *)(data + sym->st_value)));
+#endif
 			}
 			else if (strstart(name, OP_PREFIX "invoke", NULL)) {
 				const char *prefix = "helper_";
