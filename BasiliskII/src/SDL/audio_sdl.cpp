@@ -81,7 +81,7 @@ static bool open_sdl_audio(void)
 	audio_spec.freq = audio_sample_rates[audio_sample_rate_index] >> 16;
 	audio_spec.format = (audio_sample_sizes[audio_sample_size_index] == 8) ? AUDIO_U8 : AUDIO_S16MSB;
 	audio_spec.channels = audio_channel_counts[audio_channel_count_index];
-	audio_spec.samples = 16384;
+	audio_spec.samples = 4096;
 	audio_spec.callback = stream_func;
 	audio_spec.userdata = NULL;
 
