@@ -1,7 +1,7 @@
 /*
  *  main_unix.cpp - Startup code for Unix
  *
- *  Basilisk II (C) 1997-2008 Christian Bauer
+ *  Basilisk II (C) Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ struct sigstate {
 
 #ifdef ENABLE_XF86_DGA
 # include <X11/Xutil.h>
-# include <X11/extensions/xf86dga.h>
+# include <X11/extensions/Xxf86dga.h>
 #endif
 
 #include <string>
@@ -291,7 +291,7 @@ static void sigsegv_dump_state(sigsegv_info_t *sip)
 #endif
 	VideoQuitFullScreen();
 #ifdef ENABLE_MON
-	char *arg[4] = {"mon", "-m", "-r", NULL};
+	const char *arg[4] = {"mon", "-m", "-r", NULL};
 	mon(3, arg);
 #endif
 	QuitEmulator();
@@ -948,7 +948,7 @@ static void sigint_handler(...)
 	m68k_dumpstate(&nextpc);
 #endif
 	VideoQuitFullScreen();
-	char *arg[4] = {"mon", "-m", "-r", NULL};
+	const char *arg[4] = {"mon", "-m", "-r", NULL};
 	mon(3, arg);
 	QuitEmulator();
 }
