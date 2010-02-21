@@ -1,7 +1,7 @@
 /*
  *  main_unix.cpp - Emulation core, Unix implementation
  *
- *  SheepShaver (C) 1997-2008 Christian Bauer and Marc Hellwig
+ *  SheepShaver (C) Christian Bauer and Marc Hellwig
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -136,7 +136,7 @@
 #ifdef ENABLE_XF86_DGA
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <X11/extensions/xf86dga.h>
+#include <X11/extensions/Xxf86dga.h>
 #endif
 
 #ifdef ENABLE_MON

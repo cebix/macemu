@@ -1,7 +1,7 @@
 /*
  *  video_x.cpp - Video/graphics emulation, X11 specific stuff
  *
- *  SheepShaver (C) 1997-2008 Marc Hellwig and Christian Bauer
+ *  SheepShaver (C) Marc Hellwig and Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@
 #endif
 
 #ifdef ENABLE_XF86_DGA
-# include <X11/extensions/xf86dga.h>
+# include <X11/extensions/Xxf86dga.h>
 #endif
 
 #ifdef ENABLE_XF86_VIDMODE
