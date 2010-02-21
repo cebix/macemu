@@ -1,7 +1,7 @@
 /*
  *  name_registry.cpp - Name Registry handling
  *
- *  SheepShaver (C) 1997-2008 Christian Bauer and Marc Hellwig
+ *  SheepShaver (C) Christian Bauer and Marc Hellwig
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@ void DoPatchNameRegistry(void)
 
 		// Create "PowerPC,60x"
 		SheepRegEntryID power_pc;
-		char *str;
+		const char *str;
 		switch (PVR >> 16) {
 			case 1:		// 601
 				str = "PowerPC,601";
