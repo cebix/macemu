@@ -1,7 +1,7 @@
 /*
  *  adb.cpp - ADB emulation (mouse/keyboard)
  *
- *  Basilisk II (C) 1997-2008 Christian Bauer
+ *  Basilisk II (C) Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -387,7 +387,7 @@ void ADBInterrupt(void)
 				0x2f, 0x01,		// move.l d1,-(sp)
 				0x70, 0x01,		// moveq #1,d0 (MoveTo)
 				0xaa, 0xdb,		// CursorDeviceDispatch
-				M68K_RTS >> 8, M68K_RTS
+				M68K_RTS >> 8, M68K_RTS & 0xff
 			};
 			BUILD_SHEEPSHAVER_PROCEDURE(proc);
 			r.a[0] = ReadMacInt32(mouse_base + 4);
