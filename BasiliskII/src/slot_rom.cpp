@@ -1,7 +1,7 @@
 /*
  *  slot_rom.cpp - Slot declaration ROM
  *
- *  Basilisk II (C) 1997-2008 Christian Bauer
+ *  Basilisk II (C) Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -89,14 +89,14 @@ static void Word(uint16 data)
 	srom[p++] = data;
 }
 
-static void String(char *str)
+static void String(const char *str)
 {
 	while ((srom[p++] = *str++) != 0) ;
 	if (p & 1)
 		srom[p++] = 0;
 }
 
-static void PString(char *str)
+static void PString(const char *str)
 {
 	srom[p++] = strlen(str);
 	while ((srom[p++] = *str++) != 0) ;

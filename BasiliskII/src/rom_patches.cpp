@@ -1,7 +1,7 @@
 /*
  *  rom_patches.cpp - ROM patches
  *
- *  Basilisk II (C) 1997-2008 Christian Bauer
+ *  Basilisk II (C) Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -184,7 +184,7 @@ static void list_rom_resources(void)
 
 // Mapping of Model IDs to Model names
 struct mac_desc {
-	char *name;
+	const char *name;
 	int32 id;
 };
 
@@ -258,7 +258,7 @@ static void print_universal_info(uint32 info)
 	uint16 rom85 = ReadMacInt16(info + 20);
 
 	// Find model name
-	char *name = "unknown";
+	const char *name = "unknown";
 	for (int i=0; MacDesc[i].id >= 0; i++)
 		if (MacDesc[i].id == id + 6) {
 			name = MacDesc[i].name;

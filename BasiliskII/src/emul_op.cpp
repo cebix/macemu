@@ -1,7 +1,7 @@
 /*
  *  emul_op.cpp - 68k opcodes for ROM patches
  *
- *  Basilisk II (C) 1997-2008 Christian Bauer
+ *  Basilisk II (C) Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 				   r->sr);
 			VideoQuitFullScreen();
 #ifdef ENABLE_MON
-			char *arg[4] = {"mon", "-m", "-r", NULL};
+			const char *arg[4] = {"mon", "-m", "-r", NULL};
 			mon(3, arg);
 #endif
 			QuitEmulator();
@@ -575,7 +575,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 				   r->a[0], r->a[1], r->a[2], r->a[3], r->a[4], r->a[5], r->a[6], r->a[7],
 				   r->sr);
 #ifdef ENABLE_MON
-			char *arg[4] = {"mon", "-m", "-r", NULL};
+			const char *arg[4] = {"mon", "-m", "-r", NULL};
 			mon(3, arg);
 #endif
 			QuitEmulator();
