@@ -1,7 +1,7 @@
 /*
  *  sys_unix.cpp - System dependent routines, Unix implementation
  *
- *  Basilisk II (C) 1997-2008 Christian Bauer
+ *  Basilisk II (C) Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include <linux/major.h>
 #include <linux/kdev_t.h>
 #include <dirent.h>
+#include <limits.h>
 #endif
 
 #if defined(__FreeBSD__) || defined(__NetBSD__)
