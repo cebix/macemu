@@ -1,7 +1,7 @@
 /*
  *  macos_util.cpp - MacOS definitions/utility functions
  *
- *  SheepShaver (C) 1997-2008 Christian Bauer and Marc Hellwig
+ *  SheepShaver (C) Christian Bauer and Marc Hellwig
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -163,7 +163,7 @@ void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_s
  *  lib and sym must be Pascal strings!
  */
 
-uint32 FindLibSymbol(char *lib_str, char *sym_str)
+uint32 FindLibSymbol(const char *lib_str, const char *sym_str)
 {
 	SheepVar32 conn_id = 0;
 	SheepVar32 main_addr = 0;
@@ -192,7 +192,7 @@ uint32 FindLibSymbol(char *lib_str, char *sym_str)
 			0x3f, 0x3c, 0x00, 0x01,				// (GetSharedLibrary)
 			0xaa, 0x5a,							// CFMDispatch
 			0x30, 0x1f,							// move.w	(a7)+,d0
-			M68K_RTS >> 8, M68K_RTS
+			M68K_RTS >> 8, M68K_RTS & 0xff
 		};
 		BUILD_SHEEPSHAVER_PROCEDURE(proc1);
 		r.a[0] = lib.addr();
@@ -214,7 +214,7 @@ uint32 FindLibSymbol(char *lib_str, char *sym_str)
 			0x3f, 0x3c, 0x00, 0x05,		// (FindSymbol)
 			0xaa, 0x5a,					// CFMDispatch
 			0x30, 0x1f,					// move.w	(a7)+,d0
-			M68K_RTS >> 8, M68K_RTS
+			M68K_RTS >> 8, M68K_RTS & 0xff
 		};
 		BUILD_SHEEPSHAVER_PROCEDURE(proc2);
 		r.d[0] = conn_id.value();
