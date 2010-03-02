@@ -1606,6 +1606,8 @@ void get_reloc_expr(char *name, int name_size, const char *sym_name)
         snprintf(name, name_size, "param%s", p);
     } else if (strstart(sym_name, "__op_gen_label", &p)) {
         snprintf(name, name_size, "gen_labels[param%s]", p);
+    } else if (strstart(sym_name, ".LC", NULL)) {
+        snprintf(name, name_size, "(long)(gen_const_%s())", gen_dot_prefix(sym_name));	
     } else {
 #ifdef HOST_SPARC
         if (sym_name[0] == '.')
@@ -2336,6 +2338,8 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 	}                
 #elif defined (CONFIG_FORMAT_ELF)
 	char final_sym_name[256];
+	const char *sym_name;
+	const char *p;
 	int type;
 	int addend;
 	for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
@@ -2520,6 +2524,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 #endif
 #elif defined(HOST_S390)
 	char final_sym_name[256];
+	const char *sym_name;
 	int type;
 	int addend;
 	for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
@@ -2603,6 +2608,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 	}
 #elif defined(HOST_IA64)
 	char final_sym_name[256];
+	const char *sym_name;
 	int type;
 	int addend;
 	for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
@@ -2623,6 +2629,8 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 	}
 #elif defined(HOST_SPARC)
 	char final_sym_name[256];
+	const char *sym_name;
+	const char *p;
 	int type;
 	int addend;
 	for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
@@ -2686,6 +2694,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 	}
 #elif defined(HOST_SPARC64)
 	char final_sym_name[256];
+	const char *sym_name;
 	int type;
 	int addend;
 	for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
@@ -2739,6 +2748,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 	}
 #elif defined(HOST_ARM)
 	char final_sym_name[256];
+	const char *sym_name;
 	int type;
 	int addend;
 
@@ -2771,6 +2781,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 	}
 #elif defined(HOST_M68K)
 	char final_sym_name[256];
+	const char *sym_name;
 	int type;
 	int addend;
 	Elf32_Sym *sym;
@@ -2800,6 +2811,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 	}
 #elif defined(HOST_MIPS)
 	char final_sym_name[256];
+	const char *sym_name;
 	int type;
 	int addend;
 	for (i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
