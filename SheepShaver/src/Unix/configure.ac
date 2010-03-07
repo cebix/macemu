@@ -111,11 +111,11 @@ if [[ "x$WANT_MON" = "xyes" ]]; then
     MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_z80.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_lowmem.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c $mon_srcdir/disass/mips-dis.c $mon_srcdir/disass/mips-opc.c $mon_srcdir/disass/mips16-opc.c"
     CXXFLAGS="$CXXFLAGS -I$mon_srcdir -I$mon_srcdir/disass"
     AC_CHECK_LIB(ncurses, tgetent, ,
-      AC_CHECK_LIB(termcap, tgetent, ,
-        AC_CHECK_LIB(termlib, tgetent, ,
-          AC_CHECK_LIB(terminfo, tgetent, ,
-            AC_CHECK_LIB(Hcurses, tgetent, ,
-              AC_CHECK_LIB(curses, tgetent))))))
+      [AC_CHECK_LIB(termcap, tgetent, ,
+        [AC_CHECK_LIB(termlib, tgetent, ,
+          [AC_CHECK_LIB(terminfo, tgetent, ,
+            [AC_CHECK_LIB(Hcurses, tgetent, ,
+              [AC_CHECK_LIB(curses, tgetent)])])])])])
     AC_CHECK_LIB(readline, readline)
     AC_CHECK_HEADERS(readline.h history.h readline/readline.h readline/history.h)
   else
