@@ -3282,9 +3282,9 @@ int main(void)
 	 * (or bug'ous enough?) to optimize the labels and place them
 	 * e.g. at the "main" entry point, which is wrong.
 	 */
-	volatile int label_hack = 1;
+	volatile int label_hack = 3;
 	switch (label_hack) {
-	case 1:
+	case 3:
 	L_b_region1:
 		page[REF_INDEX] = REF_VALUE;
 		if (page[REF_INDEX] != REF_VALUE)
@@ -3328,7 +3328,7 @@ int main(void)
 	e_region = &&L_e_region2;
 #endif
 	switch (label_hack) {
-	case 1:
+	case 3:
 	L_b_region2:
 		TEST_SKIP_INSTRUCTION(unsigned char);
 		TEST_SKIP_INSTRUCTION(unsigned short);
