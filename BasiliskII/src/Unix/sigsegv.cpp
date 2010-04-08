@@ -3182,6 +3182,7 @@ static sigsegv_return_t sigsegv_insn_handler(sigsegv_info_t *sip)
 	const sigsegv_address_t instruction_address = sigsegv_get_fault_instruction_address(sip);
 #if DEBUG
 	printf("sigsegv_insn_handler(%p, %p)\n", fault_address, instruction_address);
+	printf("expected instruction address range: %p-%p\n", b_region, e_region);
 #endif
 	if (((sigsegv_uintptr_t)fault_address - (sigsegv_uintptr_t)page) < page_size) {
 #ifdef __GNUC__
@@ -3326,17 +3327,48 @@ int main(void)
 #ifdef __GNUC__
 	b_region = &&L_b_region2;
 	e_region = &&L_e_region2;
+#ifdef DEBUG
+	printf("switch footage : \n");
+	printf("   4 : %p\n", &&L_b_4_region2);
+	printf("   5 : %p\n", &&L_b_5_region2);
+	printf("   8 : %p\n", &&L_b_8_region2);
+	printf("   6 : %p\n", &&L_b_6_region2);
+	printf("   7 : %p\n", &&L_b_7_region2);
+	printf("   9 : %p\n", &&L_b_9_region2);
+	printf("   1 : %p\n", &&L_b_1_region2);
+#endif
 #endif
 	switch (label_hack) {
 	case 3:
 	L_b_region2:
 		TEST_SKIP_INSTRUCTION(unsigned char);
+		BARRIER();
+	case 4:
+	L_b_4_region2:
 		TEST_SKIP_INSTRUCTION(unsigned short);
+		BARRIER();
+	case 5:
+	L_b_5_region2:
 		TEST_SKIP_INSTRUCTION(unsigned int);
+		BARRIER();
+	case 8:
+	L_b_8_region2:
 		TEST_SKIP_INSTRUCTION(unsigned long);
+		BARRIER();
+	case 6:
+	L_b_6_region2:
 		TEST_SKIP_INSTRUCTION(signed char);
+		BARRIER();
+	case 7:
+	L_b_7_region2:
 		TEST_SKIP_INSTRUCTION(signed short);
+		BARRIER();
+	case 9:
+	L_b_9_region2:
 		TEST_SKIP_INSTRUCTION(signed int);
+		BARRIER();
+	case 1:
+	L_b_1_region2:
 		TEST_SKIP_INSTRUCTION(signed long);
 		BARRIER();
 		// fall-through
