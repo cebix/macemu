@@ -7,6 +7,7 @@ MP		:= $(shell test -f $(KERNEL_SOURCE)/Rules.make && echo "o" || echo "ko")
 ifeq ($(LV),26)
 # Kernel 2.6
 
+KERNEL_DRIVER	= $(KERNEL_DIR)/kernel/drivers
 obj-m = sheep_net.o
 
 sheep_net.ko: sheep_net.c
@@ -26,6 +27,7 @@ LDFLAGS =
 LIBS =
 
 ## Files
+KERNEL_DRIVER	= $(KERNEL_DIR)
 OBJS = sheep_net.o
 
 ## Rules
@@ -44,8 +46,8 @@ dev:
 	mknod /dev/sheep_net c 10 198
 
 install: sheep_net.$(MP)
-	install -d $(KERNEL_DIR)/misc
-	install -m 644 sheep_net.$(MP) $(KERNEL_DIR)/misc
+	install -d $(KERNEL_DRIVER)/misc
+	install -m 644 sheep_net.$(MP) $(KERNEL_DRIVER)/misc
 	depmod -a
 
 # DO NOT DELETE

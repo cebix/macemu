@@ -17,6 +17,15 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+/* modversions.h redefines kernel symbols.  Now include other headers */
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/version.h>
+
+/* Compatibility glue */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
+#define LINUX_26_30
+#else
 
 /* determine whether to use checksummed versions of kernel symbols */
 /***
@@ -33,10 +42,7 @@
 #include <linux/modversions.h>
 #endif
 
-/* modversions.h redefines kernel symbols.  Now include other headers */
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/version.h>
+#endif
 
 #include <linux/types.h>
 #include <linux/miscdevice.h>
@@ -218,7 +224,9 @@ static int sheep_net_open(struct inode *inode, struct file *f)
 	if (v == NULL)
 		return -ENOMEM;
 
+#ifndef LINUX_26_30
 	lock_kernel();
+#endif
 	memset(v, 0, sizeof(struct SheepVars));
 	skb_queue_head_init(&v->queue);
 	init_waitqueue_head(&v->wait);
@@ -236,7 +244,9 @@ static int sheep_net_open(struct inode *inode, struct file *f)
 #ifndef LINUX_26
 	MOD_INC_USE_COUNT;
 #endif
+#ifndef LINUX_26_30
 	unlock_kernel();
+#endif
 	return 0;
 }
 
