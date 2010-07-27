@@ -472,9 +472,7 @@ AC_CHECK_FILE([/dev/ptc],
 		have_dev_ptc=1
 	]
 )
-
 dnl (end of code from openssh-3.2.2p1 configure.ac)
-
 
 dnl Check for systems where POSIX-style non-blocking I/O (O_NONBLOCK)
 dnl doesn't work or is unimplemented. On these systems (mostly older
@@ -982,6 +980,9 @@ AC_CACHE_CHECK([whether your system supports Mach exceptions],
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
   AC_TRY_RUN([
+    #define HAVE_UNISTD_H 1
+    #define HAVE_MACH_VM 1
+    #define HAVE_MACH_TASK_SELF 1
     #define HAVE_MACH_EXCEPTIONS 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
     #include "vm_alloc.cpp"
