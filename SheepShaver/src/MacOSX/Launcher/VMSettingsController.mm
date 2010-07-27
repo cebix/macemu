@@ -18,10 +18,13 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#import "VMSettingsController.h"
-
 #import "sysdeps.h"
 #import "prefs.h"
+
+// The _UINT64 define is needed to guard against a typedef mismatch with Snow Leopard headers.
+#define _UINT64
+
+#import "VMSettingsController.h"
 
 const int CDROMRefNum = -62;			// RefNum of driver
 
