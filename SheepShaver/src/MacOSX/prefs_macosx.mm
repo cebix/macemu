@@ -24,6 +24,9 @@
 
 #include "sysdeps.h"
 
+// The _UINT64 define is needed to guard against a typedef mismatch with Snow Leopard headers.
+#define _UINT64
+
 #include <Cocoa/Cocoa.h>
 #include "VMSettingsController.h"
 
