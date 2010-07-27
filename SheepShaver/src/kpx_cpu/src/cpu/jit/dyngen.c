@@ -479,6 +479,23 @@ void put32(uint32_t *p, uint32_t val)
     *p = val;
 }
 
+static int is_op_param(const char *sym_name, const char **ptr)
+{
+	return
+		strstart(sym_name, "__op_param", ptr) || strstart(sym_name, "_op_param", ptr) ||
+		strstart(sym_name, "__op_PARAM", ptr) || strstart(sym_name, "_op_PARAM", ptr);
+}
+
+static int is_op_jmp(const char *sym_name, const char **ptr)
+{
+	return strstart(sym_name, "__op_jmp", ptr) || strstart(sym_name, "_op_jmp", ptr);
+}
+
+static int is_op_gen_label(const char *sym_name, const char **ptr)
+{
+	return strstart(sym_name, "__op_gen_label", ptr) || strstart(sym_name, "_op_gen_label", ptr);
+}
+
 /* generate op code */
 void gen_code(const char *name, const char *demangled_name,
               host_ulong offset, host_ulong size, 
@@ -1601,10 +1618,9 @@ void get_reloc_expr(char *name, int name_size, const char *sym_name)
     demangled = cxx_demangle(sym_name, demangled_buf, &nd, &status);
     if (!status && demangled)
         sym_name = demangled;
-    if (strstart(sym_name, "__op_param", &p) ||
-        strstart(sym_name, "__op_PARAM", &p)) {
+    if (is_op_param(sym_name, &p)) {
         snprintf(name, name_size, "param%s", p);
-    } else if (strstart(sym_name, "__op_gen_label", &p)) {
+    } else if (is_op_gen_label(sym_name, &p)) {
         snprintf(name, name_size, "gen_labels[param%s]", p);
     } else if (strstart(sym_name, ".LC", NULL)) {
         snprintf(name, name_size, "(long)(gen_const_%s())", gen_dot_prefix(sym_name));	
@@ -1959,7 +1975,7 @@ void gen_code(const char *name, const char *demangled_name,
             demangled = cxx_demangle(sym_name, demangled_buf, &nd, &status);
             if (!status && demangled)
                 sym_name = demangled;
-            if (strstart(sym_name, "__op_PARAM", &p)) {
+            if (is_op_param(sym_name, &p)) {
                 n = strtoul(p, NULL, 10);
                 if (n > MAX_ARGS)
                     error("too many arguments in %s", name);
@@ -2010,8 +2026,8 @@ void gen_code(const char *name, const char *demangled_name,
                 if (!status && demangled)
                     sym_name = demangled;
                 if (*sym_name && 
-                    !strstart(sym_name, "__op_PARAM", NULL) &&
-                    !strstart(sym_name, "__op_jmp", NULL) &&
+                    !is_op_param(sym_name, NULL) &&
+                    !is_op_jmp(sym_name, NULL) &&
                     !strstart(sym_name, ".LC", NULL))
                   error("unexpected external symbol %s", sym_name);
             }
@@ -2138,7 +2154,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 		if (usesym && (symtab[isym].n_type & N_STAB))
 			continue; /* don't handle STAB (debug sym) */
 
-		if (sym_name && strstart(sym_name, "__op_jmp", &p)) {
+		if (sym_name && is_op_jmp(sym_name, &p)) {
 			int n;
 			n = strtol(p, NULL, 10);
 			fprintf(outfile, "    jmp_addr[%d] = code_ptr() + %d;\n", n, slide);
@@ -2181,7 +2197,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 		if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
 			sym_name = get_rel_sym_name(rel);
-			if (strstart(sym_name, "__op_jmp", &p)) {
+			if (is_op_jmp(sym_name, &p)) {
 				int n;
 				n = strtol(p, NULL, 10);
 				/* __op_jmp relocations are done at
@@ -2300,7 +2316,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 					name, isym, offset, length, pcrel ? "pcrel":"", type);
 		}
 
-		if (strstart(sym_name, "__op_jmp", &p)) {
+		if (is_op_jmp(sym_name, &p)) {
 			int n;
 			n = strtol(p, NULL, 10);
 			fprintf(outfile, "    jmp_addr[%d] = code_ptr() + %d;\n", n, slide);
@@ -2310,7 +2326,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 
 		get_reloc_expr(final_sym_name, sizeof(final_sym_name), sym_name);
                     
-		if (pcrel || strstart(sym_name,"__op_gen_label",&p)) {
+		if (pcrel || is_op_gen_label(sym_name, &p)) {
 			switch (type) {
 			case X86_64_RELOC_UNSIGNED:     // for absolute addresses
 			case X86_64_RELOC_SIGNED:		// for signed 32-bit displacement
@@ -2347,7 +2363,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 			rel->r_offset < start_offset + copy_size) {
 			int slide;
 			sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
-			if (strstart(sym_name, "__op_jmp", &p)) {
+			if (is_op_jmp(sym_name, &p)) {
 				int n;
 				n = strtol(p, NULL, 10);
 				/* __op_jmp relocations are done at
@@ -2392,7 +2408,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 			rel->r_offset < start_offset + copy_size) {
 			int slide;
 			sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
-			if (strstart(sym_name, "__op_jmp", &p)) {
+			if (is_op_jmp(sym_name, &p)) {
 				int n;
 				n = strtol(p, NULL, 10);
 				/* __op_jmp relocations are done at
@@ -2473,7 +2489,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 		if(usesym && (symtab[isym].n_type & N_STAB))
 			continue; /* don't handle STAB (debug sym) */
 					
-		if (sym_name && strstart(sym_name, "__op_jmp", &p)) {
+		if (sym_name && is_op_jmp(sym_name, &p)) {
 			int n;
 			n = strtol(p, NULL, 10);
 			fprintf(outfile, "    jmp_addr[%d] = code_ptr() + %d;\n",
@@ -2492,7 +2508,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 
 		switch(type) {
 		case PPC_RELOC_BR24:
-			if (!strstart(sym_name, "__op_PARAM", &p)) {
+			if (!is_op_param(sym_name, &p)) {
 				fprintf(outfile, "{\n");
 				fprintf(outfile, "    uint32_t imm = *(uint32_t *)(code_ptr() + %d) & 0x3fffffc;\n", slide);
 				fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = (*(uint32_t *)(code_ptr() + %d) & ~0x03fffffc) | ((imm + ((long)%s - (long)code_ptr()) + %d) & 0x03fffffc);\n", 
@@ -2586,12 +2602,12 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 				/* Handle fake relocations against __op_PARAM symbol.  Need to emit the
 					high part of the immediate value instead.  Other symbols need no
 					special treatment.  */
-				if (strstart(sym_name, "__op_PARAM", &p))
+				if (is_op_param(sym_name, &p))
 					fprintf(outfile, "    immediate_ldah(code_ptr() + %ld, param%s);\n",
 				rel->r_offset - start_offset, p);
 				break;
 			case R_ALPHA_GPRELLOW:
-				if (strstart(sym_name, "__op_PARAM", &p))
+				if (is_op_param(sym_name, &p))
 					fprintf(outfile, "    immediate_lda(code_ptr() + %ld, param%s);\n",
 				rel->r_offset - start_offset, p);
 				break;
@@ -2637,7 +2653,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 		if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
 			sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
-			if (strstart(sym_name, "__op_PARAM", &p)) {
+			if (is_op_param(sym_name, &p)) {
 				snprintf(final_sym_name, sizeof(final_sym_name), "param%s", p);
 			} else {
 				if (sym_name[0] == '.')
@@ -2818,7 +2834,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 		if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
 				sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
-			if (strstart(sym_name, "__op_jmp", &p)) {
+			if (is_op_jmp(sym_name, &p)) {
 				int n;
 				n = strtol(p, NULL, 10);
 				/* __op_jmp relocations are done at
