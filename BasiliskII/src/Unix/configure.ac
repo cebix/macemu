@@ -103,6 +103,38 @@ case "$target_cpu" in
   x86_64* ) HAVE_X86_64=yes;;
 esac
 
+dnl Check if we should really be assuming x86_64 even if we detected HAVE_I386 above.
+if [[ "x$HAVE_I386" = "xyes" ]]; then
+  AC_TRY_RUN([
+    int main(void) {
+        #if defined(__x86_64__)
+                return 0;
+        #else
+                return 1;
+        #endif
+    }
+  ], [
+    HAVE_I386=no
+    HAVE_X86_64=yes
+  ])
+fi
+
+dnl Check if we should really be assuming x86_64 even if we detected HAVE_I386 above.
+if [[ "x$HAVE_I386" = "xyes" ]]; then
+  AC_TRY_RUN([
+    int main(void) {
+        #if defined(__x86_64__)
+                return 0;
+        #else
+                return 1;
+        #endif
+    }
+  ], [
+    HAVE_I386=no
+    HAVE_X86_64=yes
+  ])
+fi
+
 dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_CC_C_O
@@ -980,7 +1012,6 @@ AC_CACHE_CHECK([whether your system supports Mach exceptions],
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
   AC_TRY_RUN([
-    #define HAVE_UNISTD_H 1
     #define HAVE_MACH_VM 1
     #define HAVE_MACH_TASK_SELF 1
     #define HAVE_MACH_EXCEPTIONS 1
@@ -1325,7 +1356,7 @@ if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_I386" = "xyes" ]]; then
   DEFINES="$DEFINES -DUNALIGNED_PROFITABLE -DREGPARAM=\"__attribute__((regparm(3)))\""
   if [[ "x$HAVE_GAS" = "xyes" ]]; then
     ASM_OPTIMIZATIONS=i386
-    DEFINES="$DEFINES -DX86_ASSEMBLY -DOPTIMIZED_FLAGS -DSAHF_SETO_PROFITABLE"
+    DEFINES="-m32 $DEFINES -DX86_ASSEMBLY -DOPTIMIZED_FLAGS -DSAHF_SETO_PROFITABLE"
     JITSRCS="cpuemu1_nf.cpp cpuemu2_nf.cpp cpuemu3_nf.cpp cpuemu4_nf.cpp cpuemu5_nf.cpp cpuemu6_nf.cpp cpuemu7_nf.cpp cpuemu8_nf.cpp $JITSRCS"
     CAN_JIT=yes
   fi
@@ -1334,7 +1365,7 @@ elif [[ "x$HAVE_GCC30" = "xyes" -a "x$HAVE_X86_64" = "xyes" ]]; then
   DEFINES="$DEFINES -DUNALIGNED_PROFITABLE"
   if [[ "x$HAVE_GAS" = "xyes" ]]; then
     ASM_OPTIMIZATIONS="x86-64"
-    DEFINES="$DEFINES -DX86_64_ASSEMBLY -DOPTIMIZED_FLAGS"
+    DEFINES="-m64 $DEFINES -DX86_64_ASSEMBLY -DOPTIMIZED_FLAGS"
     JITSRCS="cpuemu1_nf.cpp cpuemu2_nf.cpp cpuemu3_nf.cpp cpuemu4_nf.cpp cpuemu5_nf.cpp cpuemu6_nf.cpp cpuemu7_nf.cpp cpuemu8_nf.cpp $JITSRCS"
     CAN_JIT=yes
   fi
