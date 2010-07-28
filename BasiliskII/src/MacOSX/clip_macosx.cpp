@@ -19,6 +19,7 @@
  */
 
 #include "sysdeps.h"
+#define _UINT64
 #include <Carbon/Carbon.h>
 
 #include "clip.h"
@@ -97,6 +98,10 @@ void ClipExit(void)
 
 void GetScrap(void **handle, uint32 type, int32 offset)
 {
+#if defined(MAC_OS_X_VERSION_10_6)
+	D(bug("GetScrap handle %p, type %08x, offset %d\n", handle, type, offset));
+	#warning Carbon scrapbook function have been removed from Mac OS X 10.6+
+#else
 	D(bug("GetScrap handle %p, type %08x, offset %d\n", handle, type, offset));
 	ScrapRef theScrap;
 
@@ -151,6 +156,7 @@ void GetScrap(void **handle, uint32 type, int32 offset)
 			Execute68kTrap(0xa01f, &r);			// DisposePtr
 		}
 	}
+#endif
 }
 
 
@@ -160,6 +166,10 @@ void GetScrap(void **handle, uint32 type, int32 offset)
 
 void PutScrap(uint32 type, void *scrap, int32 length)
 {
+#if defined(MAC_OS_X_VERSION_10_6)
+#warning Carbon scrapbook function have been removed from Mac OS X 10.6+
+	D(bug("PutScrap type %4.4s, data %08lx, length %ld\n", &type, scrap, length));
+#else
 	static bool clear = true;
 	D(bug("PutScrap type %4.4s, data %08lx, length %ld\n", &type, scrap, length));
 	ScrapRef theScrap;
@@ -187,4 +197,5 @@ void PutScrap(uint32 type, void *scrap, int32 length)
 		//return;
 	}
 	SwapScrapData(type, scrap, length, FALSE); // swap it back
+#endif
 }
