@@ -42,6 +42,7 @@
  * terms and conditions of the copyright.
  */
 
+#include <stdlib.h>
 #include <slirp.h>
 #include "ip_icmp.h"
 
