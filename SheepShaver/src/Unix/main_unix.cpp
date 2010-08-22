@@ -934,7 +934,7 @@ int main(int argc, char **argv)
 			goto quit;
 		}
 	}
-	printf(GetString(STR_READING_ROM_FILE));
+	printf("%s", GetString(STR_READING_ROM_FILE));
 	rom_size = lseek(rom_fd, 0, SEEK_END);
 	lseek(rom_fd, 0, SEEK_SET);
 	rom_tmp = new uint8[ROM_SIZE];
