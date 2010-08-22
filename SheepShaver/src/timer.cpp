@@ -573,6 +573,7 @@ static void *timer_func(void *arg)
 		}
 		semaphore_signal(wakeup_time_sem);
 	}
+	return NULL;
 }
 #endif
 
