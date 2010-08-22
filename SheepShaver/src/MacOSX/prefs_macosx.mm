@@ -30,9 +30,12 @@
 #include <Cocoa/Cocoa.h>
 #include "VMSettingsController.h"
 
+
 @interface SheepShaverMain : NSObject
+{
 	NSArray *nibObjects;
 	NSWindow *prefsWindow;
+}
 @end
 
 @implementation SheepShaverMain
