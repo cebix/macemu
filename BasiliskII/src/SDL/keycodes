@@ -46,7 +46,7 @@ sdl dga
 111	105	# PrintScrn
 78	107	# Scroll Lock
 110	113	# Pause
-49	10	# `
+49	50	# `
 10	18	# 1
 11	19	# 2
 12	20	# 3
@@ -156,7 +156,7 @@ sdl fbcon
 99	105	# PrintScrn
 70	107	# Scroll Lock
 119	113	# Pause
-41	10	# `
+41	50	# `
 2	18	# 1
 3	19	# 2
 4	20	# 3
@@ -373,7 +373,7 @@ sdl directx
 183	105	# PrintScrn
 70	107	# Scroll Lock
 197	113	# Pause
-41	10	# `
+41	50	# `
 2	18	# 1
 3	19	# 2
 4	20	# 3
