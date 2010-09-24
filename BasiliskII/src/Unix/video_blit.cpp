@@ -485,7 +485,7 @@ static Screen_blit_func_info Screen_blitters[] = {
 	{ 32, 0xff0000, 0x00ff00, 0x0000ff, Blit_RGB888_NBO	, Blit_Copy_Raw		},	// OK (NBO)
 	{ 32, 0x0000ff, 0x00ff00, 0xff0000, Blit_BGR888_NBO	, Blit_BGR888_OBO	},	// NT
 #endif
-    { 32, 0xff00, 0xff0000, 0xff000000, Blit_Copy_Raw   , Blit_Copy_Raw     }   // OK
+	{ 32, 0xff00, 0xff0000, 0xff000000, Blit_Copy_Raw   , Blit_Copy_Raw     }   // OK
 };
 
 // Initialize the framebuffer update function
