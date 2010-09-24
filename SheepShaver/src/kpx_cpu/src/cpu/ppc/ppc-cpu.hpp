@@ -29,7 +29,9 @@
 #include "cpu/ppc/ppc-bitfields.hpp"
 #include "cpu/ppc/ppc-blockinfo.hpp"
 #include "cpu/ppc/ppc-registers.hpp"
+#if PPC_ENABLE_JIT 
 #include "cpu/ppc/ppc-jit.hpp"
+#endif
 #include "cpu/ppc/ppc-instructions.hpp"
 #include <vector>
 
