@@ -472,7 +472,7 @@ static Screen_blit_func_info Screen_blitters[] = {
 	{ 24, 0xff0000, 0x00ff00, 0x0000ff, Blit_Copy_Raw	, Blit_RGB888_OBO	},	// OK (OBO)
 	{ 24, 0x0000ff, 0x00ff00, 0xff0000, Blit_BGR888_NBO	, Blit_BGR888_OBO	},	// NT
 	{ 32, 0xff0000, 0x00ff00, 0x0000ff, Blit_Copy_Raw	, Blit_RGB888_OBO	},	// OK
-	{ 32, 0x0000ff, 0x00ff00, 0xff0000, Blit_BGR888_NBO	, Blit_BGR888_OBO	}	// OK
+	{ 32, 0x0000ff, 0x00ff00, 0xff0000, Blit_BGR888_NBO	, Blit_BGR888_OBO	},	// OK
 #else
 	{  1, 0x000000, 0x000000, 0x000000, Blit_Copy_Raw	, Blit_Copy_Raw		},	// NT
 	{  8, 0x000000, 0x000000, 0x000000, Blit_Copy_Raw	, Blit_Copy_Raw		},	// OK (NBO)
@@ -483,8 +483,9 @@ static Screen_blit_func_info Screen_blitters[] = {
 	{ 24, 0xff0000, 0x00ff00, 0x0000ff, Blit_RGB888_NBO	, Blit_Copy_Raw		},	// OK (NBO)
 	{ 24, 0x0000ff, 0x00ff00, 0xff0000, Blit_BGR888_NBO	, Blit_BGR888_OBO	},	// NT
 	{ 32, 0xff0000, 0x00ff00, 0x0000ff, Blit_RGB888_NBO	, Blit_Copy_Raw		},	// OK (NBO)
-	{ 32, 0x0000ff, 0x00ff00, 0xff0000, Blit_BGR888_NBO	, Blit_BGR888_OBO	}	// NT
+	{ 32, 0x0000ff, 0x00ff00, 0xff0000, Blit_BGR888_NBO	, Blit_BGR888_OBO	},	// NT
 #endif
+    { 32, 0xff00, 0xff0000, 0xff000000, Blit_Copy_Raw   , Blit_Copy_Raw     }   // OK
 };
 
 // Initialize the framebuffer update function
