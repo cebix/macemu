@@ -59,7 +59,8 @@ links:
 	       BeOS/audio_beos.cpp BeOS/extfs_beos.cpp BeOS/scsi_beos.cpp \
 	       BeOS/serial_beos.cpp BeOS/sys_beos.cpp BeOS/timer_beos.cpp \
 	       BeOS/xpram_beos.cpp BeOS/SheepDriver BeOS/SheepNet \
-	       Unix/audio_oss_esd.cpp Unix/extfs_unix.cpp Unix/serial_unix.cpp \
+	       Unix/audio_oss_esd.cpp Unix/bincue_unix.cpp Unix/bincue_unix.h \
+	       Unix/extfs_unix.cpp Unix/serial_unix.cpp \
 	       Unix/sshpty.h Unix/sshpty.c Unix/strlcpy.h Unix/strlcpy.c \
 	       Unix/sys_unix.cpp Unix/timer_unix.cpp Unix/xpram_unix.cpp \
 	       Unix/sigsegv.h Unix/sigsegv.cpp Unix/vm_alloc.h Unix/vm_alloc.cpp \

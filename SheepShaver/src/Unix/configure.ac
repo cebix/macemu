@@ -41,6 +41,10 @@ AC_ARG_WITH(gtk,            [  --with-gtk              use GTK user interface [d
 AC_ARG_WITH(mon,            [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=yes])
 AC_ARG_WITH(dgcc,           [  --with-dgcc=COMPILER    use C++ COMPILER to compile synthetic opcodes], [DYNGEN_CC=$withval])
 
+AC_ARG_WITH(bincue,   
+  AS_HELP_STRING([--with-bincue], [Allow cdrom image files in bin/cue mode]))
+
+
 dnl Addressing mode
 AC_ARG_ENABLE(addressing,
   [  --enable-addressing=AM  set the addressing mode to use [default=real]],
@@ -212,6 +216,8 @@ if [[ "x$WANT_SDL_VIDEO" != "xyes" ]]; then
   CXXFLAGS="$CXXFLAGS $X_CFLAGS"
   LIBS="$LIBS $X_PRE_LIBS $X_LIBS -lX11 -lXext $X_EXTRA_LIBS"
 fi
+
+
 
 dnl We need pthreads on non-PowerPC systems. Try libpthread first, then libc_r (FreeBSD), then PTL.
 HAVE_PTHREADS=yes
@@ -611,6 +617,7 @@ darwin*)
   fi
   if [[ "x$WANT_ESD" = "xno" -a "x$ac_cv_framework_CoreAudio" = "xyes" -a "x$WANT_SDL_AUDIO" = "xno" ]]; then
     AUDIOSRC="../MacOSX/audio_macosx.cpp ../MacOSX/AudioBackEnd.cpp ../MacOSX/AudioDevice.cpp ../MacOSX/MacOSX_sound_if.cpp"
+    OSX_CORE_AUDIO="-DOSX_CORE_AUDIO"
   fi
   ;;
 irix*)
@@ -630,6 +637,17 @@ irix*)
   CFLAGS="$ocflags"
   ;;
 esac
+
+dnl BINCUE
+AS_IF([test  "x$with_bincue" = "xyes" ], [have_bincue=yes], [have_bincue=no])
+AS_IF([test  "x$have_bincue" = "xyes" ], [
+   if [[ "xOSX_CORE_AUDIO" = "xno"  -a "x$WANT_SDL_AUDIO"="xno"]]; then
+       AC_MSG_ERROR([You need SDL or OSX Core Audio to use BINCUE support.])
+   else
+       CPPFLAGS="$CPPFLAGS -DBINCUE $OSX_CORE_AUDIO"
+   fi
+])
+
 
 dnl Is the slirp library supported?
 case "$ac_cv_have_byte_bitfields" in
@@ -675,6 +693,13 @@ if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
   AC_DEFINE(USE_SDL_AUDIO, 1, [Define to enable SDL audio support])
   AUDIOSRC="../SDL/audio_sdl.cpp"
 fi
+
+dnl BINCUE overrides
+
+if [[ "x$have_bincue" = "xyes" ]]; then
+  EXTRASYSSRCS="$EXTRASYSSRCS bincue_unix.cpp"
+fi
+
 
 SYSSRCS="$VIDEOSRCS $EXTFSSRC $PREFSSRC $SERIALSRC $ETHERSRC $SCSISRC $AUDIOSRC $SEMSRC $UISRCS $EXTRASYSSRCS"
 
@@ -1576,6 +1601,7 @@ echo
 echo SheepShaver configuration summary:
 echo
 echo SDL support ...................... : $SDL_SUPPORT
+echo BINCUE support ................... : $have_bincue
 echo FBDev DGA support ................ : $WANT_FBDEV_DGA
 echo XFree86 DGA support .............. : $WANT_XF86_DGA
 echo XFree86 VidMode support .......... : $WANT_XF86_VIDMODE
