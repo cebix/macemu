@@ -57,19 +57,25 @@
 #include "user_strings.h"
 #include "sys.h"
 
+#if defined(BINCUE)
+#include "bincue_unix.h"
+#endif
+
 #define DEBUG 0
 #include "debug.h"
 
-
 // File handles are pointers to these structures
 struct file_handle {
-	char *name;			// Copy of device/file name
+	char *name;	        // Copy of device/file name
 	int fd;
 	bool is_file;		// Flag: plain file or /dev/something?
 	bool is_floppy;		// Flag: floppy device
 	bool is_cdrom;		// Flag: CD-ROM device
+#if defined(BINCUE)
+	bool is_bincue;		// Flag: BIN CUE file
+#endif
 	bool read_only;		// Copy of Sys_open() flag
-	loff_t start_byte;	// Size of file header (if any)
+    loff_t start_byte;	// Size of file header (if any)
 	loff_t file_size;	// Size of file data (only valid if is_file is true)
 	bool is_media_present;		// Flag: media is inserted and available
 
@@ -78,8 +84,12 @@ struct file_handle {
 #elif defined(__FreeBSD__)
 	struct ioc_capability cdrom_cap;
 #elif defined(__APPLE__) && defined(__MACH__)
-	char	*ioctl_name;	// For CDs on OS X - a device for special ioctls
-	int		ioctl_fd;
+	char *ioctl_name;	// For CDs on OS X - a device for special ioctls
+	int ioctl_fd;
+#endif
+
+#if defined(BINCUE)
+	void *bincue_fd;
 #endif
 };
 
@@ -438,6 +448,7 @@ bool cdrom_open(file_handle *fh, const char *path)
 
 void cdrom_close(file_handle *fh)
 {
+
 	if (fh->fd >= 0) {
 		close(fh->fd);
 		fh->fd = -1;
@@ -549,6 +560,31 @@ void *Sys_open(const char *name, bool read_only)
 	}
 
 	// Open file/device
+
+#if defined(BINCUE)
+
+	void *binfd = open_bincue(name);
+	if (binfd) {
+		file_handle *fh = new file_handle;
+		fh->fd = 0;
+		fh->is_file = false;
+		fh->name = strdup(name);
+		fh->bincue_fd = binfd;
+		fh->is_bincue = true;
+		fh->read_only  = true;
+		fh->start_byte = 0;
+		fh->is_floppy = false;
+		fh->is_cdrom = false;
+		fh->is_media_present = true;
+#if defined __MACOSX__
+	    fh->ioctl_fd = -1;
+	    fh->ioctl_name = NULL;
+#endif
+	    sys_add_file_handle(fh);
+	    return fh;
+	  }
+#endif
+
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__MACOSX__)
 	int fd = open(name, (read_only ? O_RDONLY : O_RDWR) | (is_cdrom ? O_NONBLOCK : 0));
 #else
@@ -569,9 +605,16 @@ void *Sys_open(const char *name, bool read_only)
 		fh->is_floppy = is_floppy;
 		fh->is_cdrom = is_cdrom;
 		fh->is_media_present = false;
+#if defined __linux__
+		fh->cdrom_cap = 0;
+#endif
 #if defined __MACOSX__
 		fh->ioctl_fd = -1;
 		fh->ioctl_name = NULL;
+#endif
+#if defined(BINCUE)
+		fh->is_bincue = false;
+		fh->bincue_fd = NULL;
 #endif
 		if (fh->is_file) {
 			fh->is_media_present = true;
@@ -646,6 +689,13 @@ void Sys_close(void *arg)
 
 	sys_remove_file_handle(fh);
 
+#if defined(BINCUE)
+	if (fh->is_bincue) {
+	    close_bincue(fh->bincue_fd);
+	    fh->bincue_fd = NULL;
+	}
+#endif
+
 	if (fh->is_cdrom)
 		cdrom_close(fh);
 	if (fh->fd >= 0)
@@ -666,6 +716,12 @@ size_t Sys_read(void *arg, void *buffer, loff_t offset, size_t length)
 	file_handle *fh = (file_handle *)arg;
 	if (!fh)
 		return 0;
+
+#if defined(BINCUE)
+	if (fh->is_bincue) {
+	    return read_bincue(fh->bincue_fd, buffer, offset, length);
+	}
+#endif
 
 	// Seek to position
 	if (lseek(fh->fd, offset + fh->start_byte, SEEK_SET) < 0)
@@ -709,8 +765,14 @@ loff_t SysGetFileSize(void *arg)
 	if (fh->is_file)
 		return fh->file_size;
 	else {
-#if defined(__linux__)
 		long blocks;
+#if defined(BINCUE)
+		if (fh->is_bincue) {
+		    return size_bincue(fh->bincue_fd);
+		}
+#endif 
+#if defined(__linux__)
+
 		if (ioctl(fh->fd, BLKGETSIZE, &blocks) < 0)
 			return 0;
 		D(bug(" BLKGETSIZE returns %d blocks\n", blocks));
@@ -951,7 +1013,14 @@ bool SysCDReadTOC(void *arg, uint8 *toc)
 	if (!fh)
 		return false;
 
+#if defined(BINCUE)
+	if (fh->is_bincue){
+		return readtoc_bincue(fh->bincue_fd, toc);
+	}
+#endif
+
 	if (fh->is_cdrom) {
+
 #if defined(__linux__)
 		uint8 *p = toc + 2;
 
@@ -1092,6 +1161,13 @@ bool SysCDGetPosition(void *arg, uint8 *pos)
 	if (!fh)
 		return false;
 
+#if defined(BINCUE)
+	if (fh->is_bincue) {
+
+		return GetPosition_bincue(fh->bincue_fd, pos);
+	}
+#endif
+
 	if (fh->is_cdrom) {
 #if defined(__linux__)
 		cdrom_subchnl chan;
@@ -1157,6 +1233,13 @@ bool SysCDPlay(void *arg, uint8 start_m, uint8 start_s, uint8 start_f, uint8 end
 	if (!fh)
 		return false;
 
+#if defined(BINCUE)
+	if (fh->is_bincue) {
+	    return CDPlay_bincue(fh->bincue_fd, start_m, start_s, 
+							 start_f, end_m, end_s, end_f);
+	}
+#endif
+
 	if (fh->is_cdrom) {
 #if defined(__linux__)
 		cdrom_msf play;
@@ -1194,6 +1277,12 @@ bool SysCDPause(void *arg)
 	if (!fh)
 		return false;
 
+#if defined(BINCUE)
+	if (fh->is_bincue){
+	    return CDPause_bincue(fh->bincue_fd);
+	}
+#endif
+
 	if (fh->is_cdrom) {
 #if defined(__linux__)
 		return ioctl(fh->fd, CDROMPAUSE) == 0;
@@ -1217,6 +1306,13 @@ bool SysCDResume(void *arg)
 	if (!fh)
 		return false;
 
+#if defined(BINCUE)
+	if (fh->is_bincue) {
+	    return CDResume_bincue(fh->bincue_fd);
+	}
+#endif
+
+
 	if (fh->is_cdrom) {
 #if defined(__linux__)
 		return ioctl(fh->fd, CDROMRESUME) == 0;
@@ -1239,6 +1335,13 @@ bool SysCDStop(void *arg, uint8 lead_out_m, uint8 lead_out_s, uint8 lead_out_f)
 	file_handle *fh = (file_handle *)arg;
 	if (!fh)
 		return false;
+
+#if defined(BINCUE)
+	if (fh->is_bincue) {
+	    return CDStop_bincue(fh->bincue_fd);
+	}
+#endif
+
 
 	if (fh->is_cdrom) {
 #if defined(__linux__)

@@ -74,6 +74,9 @@ AC_ARG_WITH(gtk,             [  --with-gtk              use GTK user interface [
   [WANT_GTK="gtk2 gtk"])
 AC_ARG_WITH(mon,             [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=yes])
 
+AC_ARG_WITH(bincue,   
+  AS_HELP_STRING([--with-bincue], [Allow cdrom image files in bin/cue mode]))
+
 dnl Canonical system information.
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
@@ -247,6 +250,17 @@ if [[ "x$WANT_SDL" = "xno" ]]; then
   CXXFLAGS="$CXXFLAGS $X_CFLAGS"
   LIBS="$LIBS $X_PRE_LIBS $X_LIBS -lX11 -lXext $X_EXTRA_LIBS"
 fi
+
+dnl BINCUE
+AS_IF([test  "x$with_bincue" = "xyes" ], [have_bincue=yes], [have_bincue=no])
+AS_IF([test  "x$have_bincue" = "xyes" ], [
+   if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
+       DEFINES="$DEFINES -DBINCUE"
+   else
+       AC_MSG_ERROR([You need SDL Audio to use BINCUE support.])
+   fi
+])
+
 
 dnl We want pthreads. Try libpthread first, then libc_r (FreeBSD), then PTL.
 HAVE_PTHREADS=yes
@@ -695,6 +709,12 @@ fi
 if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
   AC_DEFINE(USE_SDL_AUDIO, 1, [Define to enable SDL audio support])
   AUDIOSRC="../SDL/audio_sdl.cpp"
+fi
+
+dnl BINCUE overrides
+
+if [[ "x$have_bincue" = "xyes" ]]; then
+  EXTRASYSSRCS="$EXTRASYSSRCS bincue_unix.cpp"
 fi
 
 dnl Use 68k CPU natively?
@@ -1633,6 +1653,7 @@ echo
 echo Basilisk II configuration summary:
 echo
 echo SDL support ............................ : $SDL_SUPPORT
+echo BINCUE support ......................... : $have_bincue
 echo XFree86 DGA support .................... : $WANT_XF86_DGA
 echo XFree86 VidMode support ................ : $WANT_XF86_VIDMODE
 echo fbdev DGA support ...................... : $WANT_FBDEV_DGA
