@@ -98,9 +98,9 @@ void ClipExit(void)
 
 void GetScrap(void **handle, uint32 type, int32 offset)
 {
-#if defined(MAC_OS_X_VERSION_10_6)
+#if defined(__LP64__)
 	D(bug("GetScrap handle %p, type %08x, offset %d\n", handle, type, offset));
-	#warning Carbon scrapbook function have been removed from Mac OS X 10.6+
+	#warning Carbon scrapbook function are not implemented in 64-bit mode
 #else
 	D(bug("GetScrap handle %p, type %08x, offset %d\n", handle, type, offset));
 	ScrapRef theScrap;
@@ -166,8 +166,8 @@ void GetScrap(void **handle, uint32 type, int32 offset)
 
 void PutScrap(uint32 type, void *scrap, int32 length)
 {
-#if defined(MAC_OS_X_VERSION_10_6)
-#warning Carbon scrapbook function have been removed from Mac OS X 10.6+
+#if defined(__LP64__)
+	#warning Carbon scrapbook function are not implemented in 64-bit mode
 	D(bug("PutScrap type %4.4s, data %08lx, length %ld\n", &type, scrap, length));
 #else
 	static bool clear = true;
