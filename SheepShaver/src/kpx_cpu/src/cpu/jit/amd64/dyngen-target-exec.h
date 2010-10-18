@@ -26,6 +26,26 @@ enum {
 #define AREG0 "rbp"
   AREG0_ID = 5,
 
+/*
+ * Use of rbx register with gcc 4.2 on Mac OS 10.6
+ * does not produce usable code. Just use r12 to r15.
+ */
+#if (defined(__APPLE__) && defined(__MACH__))
+
+#define AREG1 "r12"
+  AREG1_ID = 12,
+    
+#define AREG2 "r13"
+  AREG2_ID = 13,
+
+#define AREG3 "r14"
+  AREG3_ID = 14,
+
+#define AREG4 "r15"
+  AREG4_ID = 15,
+    
+#else
+
 #define AREG1 "rbx"
   AREG1_ID = 3,
 
@@ -40,6 +60,9 @@ enum {
 
 #define AREG5 "r15"
   AREG5_ID = 15,
+
+#endif
+
 
   // NOTE: the following XMM registers definitions require to build
   // *-dyngen-ops.cpp with -ffixed-xmmN
