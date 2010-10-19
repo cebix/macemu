@@ -587,7 +587,7 @@ bool XSERDPort::open_pty(void)
 		// <should we drop privileges if running setuid?>
 
 		// Let the shell do the dirty work
-		execlp("/bin/sh", "/bin/sh", "-c", ++device_name, 0);
+		execlp("/bin/sh", "/bin/sh", "-c", ++device_name, (char *)NULL);
 
 		// exec failed!
 		printf("serial_open:  could not exec %s: %s\n",
