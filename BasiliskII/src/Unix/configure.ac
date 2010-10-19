@@ -77,6 +77,10 @@ AC_ARG_WITH(mon,             [  --with-mon              use mon as debugger [def
 AC_ARG_WITH(bincue,   
   AS_HELP_STRING([--with-bincue], [Allow cdrom image files in bin/cue mode]))
 
+AC_ARG_WITH(libvhd,   
+  AS_HELP_STRING([--with-libvhd], [Enable VHD disk images]))
+
+
 dnl Canonical system information.
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
@@ -260,6 +264,22 @@ AS_IF([test  "x$have_bincue" = "xyes" ], [
        AC_MSG_ERROR([You need SDL Audio to use BINCUE support.])
    fi
 ])
+
+dnl LIBVHD
+AS_IF([test  "x$with_libvhd" = "xyes" ], [have_libvhd=yes], [have_libvhd=no])
+AS_IF([test  "x$have_libvhd" = "xyes" ], [
+       CPPFLAGS="$CPPFLAGS -DHAVE_LIBVHD"
+	   LIBS="$LIBS -lvhd"
+	   case $target_os in
+	   linux*)
+	   LIBS="$LIBS -luuid" 
+	   esac
+	   AC_CHECK_LIB(vhd, vhd_open)
+	   AC_CHECK_LIB(vhd, vhd_io_read)
+	   AC_CHECK_LIB(vhd, vhd_io_write)
+	   AC_CHECK_LIB(vhd, vhd_close)
+])
+
 
 
 dnl We want pthreads. Try libpthread first, then libc_r (FreeBSD), then PTL.
@@ -716,6 +736,13 @@ dnl BINCUE overrides
 if [[ "x$have_bincue" = "xyes" ]]; then
   EXTRASYSSRCS="$EXTRASYSSRCS bincue_unix.cpp"
 fi
+
+dnl libvhd overrides
+
+if [[ "x$have_libvhd" = "xyes" ]]; then
+  EXTRASYSSRCS="$EXTRASYSSRCS vhd_unix.cpp"
+fi
+
 
 dnl Use 68k CPU natively?
 WANT_NATIVE_M68K=no
@@ -1654,6 +1681,7 @@ echo Basilisk II configuration summary:
 echo
 echo SDL support ............................ : $SDL_SUPPORT
 echo BINCUE support ......................... : $have_bincue
+echo LIBVHD support ......................... : $have_libvhd
 echo XFree86 DGA support .................... : $WANT_XF86_DGA
 echo XFree86 VidMode support ................ : $WANT_XF86_VIDMODE
 echo fbdev DGA support ...................... : $WANT_FBDEV_DGA

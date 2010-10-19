@@ -61,6 +61,11 @@
 #include "bincue_unix.h"
 #endif
 
+#if defined(HAVE_LIBVHD)
+#include "vhd_unix.h"
+#endif
+
+
 #define DEBUG 0
 #include "debug.h"
 
@@ -68,15 +73,15 @@
 struct file_handle {
 	char *name;	        // Copy of device/file name
 	int fd;
+
 	bool is_file;		// Flag: plain file or /dev/something?
 	bool is_floppy;		// Flag: floppy device
 	bool is_cdrom;		// Flag: CD-ROM device
-#if defined(BINCUE)
-	bool is_bincue;		// Flag: BIN CUE file
-#endif
 	bool read_only;		// Copy of Sys_open() flag
-    loff_t start_byte;	// Size of file header (if any)
+
+	loff_t start_byte;	// Size of file header (if any)
 	loff_t file_size;	// Size of file data (only valid if is_file is true)
+
 	bool is_media_present;		// Flag: media is inserted and available
 
 #if defined(__linux__)
@@ -89,7 +94,13 @@ struct file_handle {
 #endif
 
 #if defined(BINCUE)
+	bool is_bincue;		// Flag: BIN CUE file
 	void *bincue_fd;
+#endif
+
+#if defined(HAVE_LIBVHD)
+	bool is_vhd;		// Flag: VHD file
+	void *vhd_fd;
 #endif
 };
 
@@ -507,6 +518,19 @@ static bool is_drive_mounted(const char *dev_name, char *mount_name)
 /*
  *  Open file/device, create new file handle (returns NULL on error)
  */
+ 
+static file_handle *open_filehandle(const char *name)
+{
+		file_handle *fh = new file_handle;
+		memset(fh, 0, sizeof(file_handle));
+		fh->name = strdup(name);
+		fh->fd = -1;
+#if defined __MACOSX__
+		fh->ioctl_fd = -1;
+		fh->ioctl_name = NULL;
+#endif
+		return fh;
+}
 
 void *Sys_open(const char *name, bool read_only)
 {
@@ -562,27 +586,34 @@ void *Sys_open(const char *name, bool read_only)
 	// Open file/device
 
 #if defined(BINCUE)
-
 	void *binfd = open_bincue(name);
 	if (binfd) {
-		file_handle *fh = new file_handle;
-		fh->fd = 0;
-		fh->is_file = false;
-		fh->name = strdup(name);
+		file_handle *fh = open_filehandle(name);
+		D(bug("opening %s as bincue\n", name));
 		fh->bincue_fd = binfd;
 		fh->is_bincue = true;
-		fh->read_only  = true;
-		fh->start_byte = 0;
-		fh->is_floppy = false;
-		fh->is_cdrom = false;
+		fh->read_only = true;
 		fh->is_media_present = true;
-#if defined __MACOSX__
-	    fh->ioctl_fd = -1;
-	    fh->ioctl_name = NULL;
+		sys_add_file_handle(fh);
+		return fh;
+	}
 #endif
-	    sys_add_file_handle(fh);
-	    return fh;
-	  }
+
+
+#if defined(HAVE_LIBVHD)
+	int vhdsize;
+	void *vhdfd = vhd_unix_open(name, &vhdsize, read_only);
+	if (vhdfd) {
+		file_handle *fh = open_filehandle(name);
+		D(bug("opening %s as vnd\n", name));
+		fh->is_vhd = true;
+		fh->vhd_fd = vhdfd; 
+		fh->read_only = read_only;
+		fh->file_size = vhdsize;
+		fh->is_media_present = true;
+		sys_add_file_handle(fh);
+		return fh;
+	}
 #endif
 
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__MACOSX__)
@@ -596,26 +627,12 @@ void *Sys_open(const char *name, bool read_only)
 		fd = open(name, O_RDONLY);
 	}
 	if (fd >= 0 || is_polled_media) {
-		file_handle *fh = new file_handle;
-		fh->name = strdup(name);
+		file_handle *fh = open_filehandle(name);
 		fh->fd = fd;
 		fh->is_file = is_file;
 		fh->read_only = read_only;
-		fh->start_byte = 0;
 		fh->is_floppy = is_floppy;
 		fh->is_cdrom = is_cdrom;
-		fh->is_media_present = false;
-#if defined __linux__
-		fh->cdrom_cap = 0;
-#endif
-#if defined __MACOSX__
-		fh->ioctl_fd = -1;
-		fh->ioctl_name = NULL;
-#endif
-#if defined(BINCUE)
-		fh->is_bincue = false;
-		fh->bincue_fd = NULL;
-#endif
 		if (fh->is_file) {
 			fh->is_media_present = true;
 			// Detect disk image file layout
@@ -639,8 +656,6 @@ void *Sys_open(const char *name, bool read_only)
 						if (fh->cdrom_cap < 0)
 							fh->cdrom_cap = 0;
 					}
-#else
-					fh->cdrom_cap = 0;
 #endif
 #elif defined(__FreeBSD__)
 					fh->is_floppy = ((st.st_rdev >> 16) == 2);
@@ -649,8 +664,6 @@ void *Sys_open(const char *name, bool read_only)
 						if (ioctl(fh->fd, CDIOCCAPABILITY, &fh->cdrom_cap) < 0)
 							memset(&fh->cdrom_cap, 0, sizeof(fh->cdrom_cap));
 					}
-#else
-					fh->cdrom_cap = 0;
 #endif
 #elif defined(__NetBSD__)
 					fh->is_floppy = ((st.st_rdev >> 16) == 2);
@@ -689,11 +702,14 @@ void Sys_close(void *arg)
 
 	sys_remove_file_handle(fh);
 
+#if defined(HAVE_LIBVHD)
+	if (fh->is_vhd)
+		vhd_unix_close(fh->vhd_fd);
+#endif
+
 #if defined(BINCUE)
-	if (fh->is_bincue) {
-	    close_bincue(fh->bincue_fd);
-	    fh->bincue_fd = NULL;
-	}
+	if (fh->is_bincue)
+		close_bincue(fh->bincue_fd);
 #endif
 
 	if (fh->is_cdrom)
@@ -718,9 +734,13 @@ size_t Sys_read(void *arg, void *buffer, loff_t offset, size_t length)
 		return 0;
 
 #if defined(BINCUE)
-	if (fh->is_bincue) {
-	    return read_bincue(fh->bincue_fd, buffer, offset, length);
-	}
+	if (fh->is_bincue)
+		return read_bincue(fh->bincue_fd, buffer, offset, length);
+#endif
+
+#if defined(HAVE_LIBVHD)
+	if (fh->is_vhd)
+		return vhd_unix_read(fh->vhd_fd, buffer, offset, length);
 #endif
 
 	// Seek to position
@@ -743,6 +763,11 @@ size_t Sys_write(void *arg, void *buffer, loff_t offset, size_t length)
 	if (!fh)
 		return 0;
 
+#if defined(HAVE_LIBVHD)
+	if (fh->is_vhd)
+		return vhd_unix_write(fh->vhd_fd, buffer, offset, length);
+#endif
+
 	// Seek to position
 	if (lseek(fh->fd, offset + fh->start_byte, SEEK_SET) < 0)
 		return 0;
@@ -762,17 +787,21 @@ loff_t SysGetFileSize(void *arg)
 	if (!fh)
 		return true;
 
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		return size_bincue(fh->bincue_fd);
+#endif 
+
+#if defined(HAVE_LIBVHD)
+	if (fh->is_vhd)
+		return fh->file_size;
+#endif
+
 	if (fh->is_file)
 		return fh->file_size;
 	else {
 		long blocks;
-#if defined(BINCUE)
-		if (fh->is_bincue) {
-		    return size_bincue(fh->bincue_fd);
-		}
-#endif 
 #if defined(__linux__)
-
 		if (ioctl(fh->fd, BLKGETSIZE, &blocks) < 0)
 			return 0;
 		D(bug(" BLKGETSIZE returns %d blocks\n", blocks));
@@ -901,6 +930,11 @@ bool SysIsFixedDisk(void *arg)
 	if (!fh)
 		return true;
 
+#if defined(HAVE_LIBVHD)
+	if (fh->is_vhd)
+		return true;
+#endif
+
 	if (fh->is_file)
 		return true;
 	else if (fh->is_floppy || fh->is_cdrom)
@@ -919,6 +953,11 @@ bool SysIsDiskInserted(void *arg)
 	file_handle *fh = (file_handle *)arg;
 	if (!fh)
 		return false;
+
+#if defined(HAVE_LIBVHD)
+	if (fh->is_vhd)
+		return true;
+#endif
 
 	if (fh->is_file) {
 		return true;
@@ -1014,9 +1053,8 @@ bool SysCDReadTOC(void *arg, uint8 *toc)
 		return false;
 
 #if defined(BINCUE)
-	if (fh->is_bincue){
+	if (fh->is_bincue)
 		return readtoc_bincue(fh->bincue_fd, toc);
-	}
 #endif
 
 	if (fh->is_cdrom) {
@@ -1162,10 +1200,8 @@ bool SysCDGetPosition(void *arg, uint8 *pos)
 		return false;
 
 #if defined(BINCUE)
-	if (fh->is_bincue) {
-
+	if (fh->is_bincue)
 		return GetPosition_bincue(fh->bincue_fd, pos);
-	}
 #endif
 
 	if (fh->is_cdrom) {
@@ -1234,10 +1270,8 @@ bool SysCDPlay(void *arg, uint8 start_m, uint8 start_s, uint8 start_f, uint8 end
 		return false;
 
 #if defined(BINCUE)
-	if (fh->is_bincue) {
-	    return CDPlay_bincue(fh->bincue_fd, start_m, start_s, 
-							 start_f, end_m, end_s, end_f);
-	}
+	if (fh->is_bincue)
+		return CDPlay_bincue(fh->bincue_fd, start_m, start_s, start_f, end_m, end_s, end_f);
 #endif
 
 	if (fh->is_cdrom) {
@@ -1278,9 +1312,8 @@ bool SysCDPause(void *arg)
 		return false;
 
 #if defined(BINCUE)
-	if (fh->is_bincue){
-	    return CDPause_bincue(fh->bincue_fd);
-	}
+	if (fh->is_bincue)
+		return CDPause_bincue(fh->bincue_fd);
 #endif
 
 	if (fh->is_cdrom) {
@@ -1307,9 +1340,8 @@ bool SysCDResume(void *arg)
 		return false;
 
 #if defined(BINCUE)
-	if (fh->is_bincue) {
-	    return CDResume_bincue(fh->bincue_fd);
-	}
+	if (fh->is_bincue)
+		return CDResume_bincue(fh->bincue_fd);
 #endif
 
 
@@ -1337,9 +1369,8 @@ bool SysCDStop(void *arg, uint8 lead_out_m, uint8 lead_out_s, uint8 lead_out_f)
 		return false;
 
 #if defined(BINCUE)
-	if (fh->is_bincue) {
-	    return CDStop_bincue(fh->bincue_fd);
-	}
+	if (fh->is_bincue)
+		return CDStop_bincue(fh->bincue_fd);
 #endif
 
 
