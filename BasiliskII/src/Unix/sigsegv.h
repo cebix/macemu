@@ -89,7 +89,6 @@ extern "C" {
 #define SIGSEGV_FAULT_INSTRUCTION		SIP->thr_state.MACH_FIELD_NAME(eip)
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&SIP->thr_state.MACH_FIELD_NAME(eax)) /* EAX is the first GPR we consider */
-#define SIGSEGV_FAULT_ADDRESS_FAST		code[1]
 #endif
 #ifdef __x86_64__
 #if __DARWIN_UNIX03 && defined _STRUCT_X86_THREAD_STATE64
@@ -105,7 +104,11 @@ extern "C" {
 #define SIGSEGV_FAULT_INSTRUCTION		SIP->thr_state.MACH_FIELD_NAME(rip)
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&SIP->thr_state.MACH_FIELD_NAME(rax)) /* RAX is the first GPR we consider */
+#endif
+#ifdef __x86_64__
 #define SIGSEGV_FAULT_ADDRESS_FAST		(((uint64_t)code[1])|0x100000000)
+#else
+#define SIGSEGV_FAULT_ADDRESS_FAST		code[1]
 #endif
 #define SIGSEGV_FAULT_INSTRUCTION_FAST	SIGSEGV_INVALID_ADDRESS
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	mach_port_t thread, mach_exception_data_t code
