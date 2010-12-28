@@ -217,6 +217,7 @@ Copy path!
 
 - (IBAction) newVirtualMachine: (id) sender
 {
+	[vmList abortEditing];
 	NSSavePanel *save = [NSSavePanel savePanel];
 	[save setMessage: @"New SheepShaver Virtual Machine:"];
 	[save setRequiredFileType: @"sheepvm"];
@@ -250,6 +251,7 @@ Copy path!
 
 - (IBAction) importVirtualMachine: (id) sender
 {
+	[vmList abortEditing];
 	NSOpenPanel *open = [NSOpenPanel openPanel];
 	[open setMessage:@"Import SheepShaver Virtual Machine:"];
 	[open setResolvesAliases:YES];
@@ -276,6 +278,7 @@ Copy path!
 
 - (IBAction) editVirtualMachineSettings: (id) sender
 {
+	[vmList abortEditing];
 	int selectedRow = [vmList selectedRow];
 	if (selectedRow >= 0) {
 		NSString *path = [vmArray objectAtIndex:selectedRow];
@@ -297,6 +300,7 @@ Copy path!
 
 - (IBAction) launchVirtualMachine: (id) sender
 {
+	[vmList abortEditing];
 	int selectedRow = [vmList selectedRow];
 	if (selectedRow >= 0) {
 		NSString *path = [vmArray objectAtIndex:selectedRow];
@@ -336,6 +340,7 @@ Copy path!
 
 - (IBAction) deleteVirtualMachine: (id) sender
 {
+	[vmList abortEditing];
 	int selectedRow = [vmList selectedRow];
 	if (selectedRow >= 0) {
 		NSAlert *alert = [[[NSAlert alloc] init] autorelease];
@@ -361,6 +366,7 @@ Copy path!
 
 - (IBAction) revealVirtualMachineInFinder: (id) sender
 {
+	[vmList abortEditing];
 	int selectedRow = [vmList selectedRow];
 	if (selectedRow >= 0) {
 		NSString *path = [vmArray objectAtIndex:selectedRow];
