@@ -40,6 +40,7 @@
 /* Begin PBXFileReference section */
 		084186AF0B3A0515004B1F63 /* VMSettingsController.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = VMSettingsController.h; sourceTree = "<group>"; };
 		084186B00B3A0515004B1F63 /* VMSettingsController.mm */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.objcpp; path = VMSettingsController.mm; sourceTree = "<group>"; };
+		085339D612C9874400345D35 /* LauncherPrefix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LauncherPrefix.h; sourceTree = SOURCE_ROOT; };
 		089C165DFE840E0CC02AAC07 /* English */ = {isa = PBXFileReference; fileEncoding = 10; lastKnownFileType = text.plist.strings; name = English; path = English.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		08AAB16C102614D5007E1230 /* SheepShaver.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = SheepShaver.icns; path = ../SheepShaver.icns; sourceTree = SOURCE_ROOT; };
 		08AAB1B11026168B007E1230 /* SheepShaver */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = SheepShaver; path = ../../Unix/SheepShaver; sourceTree = SOURCE_ROOT; };
@@ -115,6 +116,7 @@
 		29B97314FDCFA39411CA2CEA /* SheepShaverLauncher */ = {
 			isa = PBXGroup;
 			children = (
+				085339D612C9874400345D35 /* LauncherPrefix.h */,
 				08DC90C20B67078300799A45 /* prefs.h */,
 				08DC90C40B67079800799A45 /* sys.h */,
 				08DC90C50B6707AC00799A45 /* user_strings_unix.h */,
@@ -333,6 +335,8 @@
 		C01FCF5008A954540054247B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREFIX_HEADER = LauncherPrefix.h;
+				GCC_VERSION = 4.0;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				PREBINDING = NO;

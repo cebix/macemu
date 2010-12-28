@@ -1,7 +1,7 @@
 /*
  *  VMSettingsController.mm - Preferences editing in Cocoa on Mac OS X
  *
- *  Copyright (C) 2006-2009 Alexei Svitkine
+ *  Copyright (C) 2006-2010 Alexei Svitkine
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 #define _UINT64
 
 #import "VMSettingsController.h"
+
+#include <unistd.h>
 
 const int CDROMRefNum = -62;			// RefNum of driver
 
