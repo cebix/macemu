@@ -5,6 +5,13 @@ AC_INIT([SheepShaver], 2.3, [Christian.Bauer@uni-mainz.de], SheepShaver)
 AC_CONFIG_SRCDIR(main_unix.cpp)
 AC_PREREQ(2.52)
 AC_CONFIG_HEADER(config.h)
+AH_TOP(
+#ifndef CONFIG_H
+#define CONFIG_H
+)
+AH_BOTTOM(
+#endif /* CONFIG_H */
+)
 
 dnl Canonical system information.
 AC_CANONICAL_HOST
