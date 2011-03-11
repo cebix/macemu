@@ -231,7 +231,7 @@ int main(int argc, char **argv)
 		if (strcmp(argv[i], "--help") == 0) {
 			usage(argv[0]);
 		} else if (strncmp(argv[i], "-psn_", 5) == 0) {// OS X process identifier
-			i++;
+			argv[i++] = NULL;
 		} else if (strcmp(argv[i], "--break") == 0) {
 			argv[i++] = NULL;
 			if (i < argc) {
