@@ -114,11 +114,11 @@ if [[ "x$WANT_MON" = "xyes" ]]; then
     AC_SUBST(MONSRCS)
     CXXFLAGS="$CXXFLAGS -I$mon_srcdir -I$mon_srcdir/disass"
     AC_CHECK_LIB(ncurses, tgetent, ,
-      AC_CHECK_LIB(termcap, tgetent, ,
-        AC_CHECK_LIB(termlib, tgetent, ,
-          AC_CHECK_LIB(terminfo, tgetent, ,
-            AC_CHECK_LIB(Hcurses, tgetent, ,
-              AC_CHECK_LIB(curses, tgetent))))))
+      [AC_CHECK_LIB(termcap, tgetent, ,
+        [AC_CHECK_LIB(termlib, tgetent, ,
+          [AC_CHECK_LIB(terminfo, tgetent, ,
+            [AC_CHECK_LIB(Hcurses, tgetent, ,
+              [AC_CHECK_LIB(curses, tgetent)])])])])])
     AC_CHECK_LIB(readline, readline)
   else
     AC_MSG_RESULT(no)
