@@ -65,6 +65,9 @@
 # endif
 #endif
 
+#if defined(__MACH__)
+#include <mach/clock.h>
+#endif
 
 /* Symbol to distinguish Nigel's Aqua port from a normal Darwin X11 build */
 /* (this sysdeps.h file is currently specific to the Mac OS X Aqua port)  */
@@ -178,6 +181,8 @@ typedef char * caddr_t;
 /* Time data type for Time Manager emulation */
 #ifdef HAVE_CLOCK_GETTIME
 typedef struct timespec tm_time_t;
+#elif defined(__MACH__)
+typedef mach_timespec_t tm_time_t;
 #else
 typedef struct timeval tm_time_t;
 #endif
