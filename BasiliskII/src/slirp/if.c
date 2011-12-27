@@ -274,9 +274,9 @@ if_start(void)
 	   return; /* Nothing to do */
 	
  again:
-        /* check if we can really output */
-        if (!slirp_can_output())
-            return;
+	/* check if we can really output */
+	if (!slirp_can_output())
+		return;
 
 	/*
 	 * See which queue to get next packet from
@@ -313,9 +313,9 @@ if_start(void)
 	}
 	
 	/* Encapsulate the packet for sending */
-        if_encap(ifm->m_data, ifm->m_len);
+	if_encap((uint8_t*)ifm->m_data, ifm->m_len);
 
-        m_free(ifm);
+	m_free(ifm);
 
 	if (if_queued)
 	   goto again;
