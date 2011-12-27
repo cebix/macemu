@@ -166,7 +166,7 @@ main(int argc, const char *argv[])
 	 */
 	addr = mmap(NULL, file_size, PROT_READ | PROT_WRITE,
 	    MAP_FILE | MAP_SHARED, fd, 0);
-	if (addr == NULL) {
+	if (addr == NULL || addr == MAP_FAILED) {
 		(void)fprintf(stderr, "%s: could not mmap %s: %s\n",
 				progname, filename, strerror(errno));
 		exit(1);
