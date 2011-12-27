@@ -30,6 +30,7 @@
 #include <mach/vm_prot.h>
 #include <mach-o/loader.h>
 #include <mach-o/fat.h>
+#include <sys/stat.h>
 
 static const char progname[] = "lowmem";
 static const char *filename;
@@ -134,6 +135,7 @@ main(int argc, const char *argv[])
 	struct mach_header_64 *machhead64;
 #endif
 	struct fat_header *fathead;
+	struct stat f;
 
 	if (argc != 2) {
 		(void)fprintf(stderr, "Usage: %s executable\n", progname);
@@ -142,22 +144,18 @@ main(int argc, const char *argv[])
 
 	filename = argv[1];
 
+	if (stat(filename, &f)) {
+		(void)fprintf(stderr, "%s: could not stat %s: %s\n",
+			progname, filename, strerror(errno));
+		exit(1);
+	}
+	file_size = f.st_size;
+
 	fd = open(filename, O_RDWR, 0);
 	if (fd == -1) {
 		(void)fprintf(stderr, "%s: could not open %s: %s\n",
 			progname, filename, strerror(errno));
 		exit(1);
-	}
-
-	file_size = lseek(fd, 0, SEEK_END);
-	if (file_size == -1) {
-		// for some mysterious reason, this sometimes fails...
-		file_size = 0x1000;
-#if 0
-		(void)fprintf(stderr, "%s: could not get size of %s: %s\n",
-                      progname, filename, strerror(errno));
-		exit(1);
-#endif
 	}
 
 	/*
