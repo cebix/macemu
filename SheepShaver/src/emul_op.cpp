@@ -261,7 +261,7 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 
 			// Patch DebugStr()
 			static const uint8 proc_template[] = {
-				M68K_EMUL_OP_DEBUG_STR >> 8, M68K_EMUL_OP_DEBUG_STR,
+				M68K_EMUL_OP_DEBUG_STR >> 8, M68K_EMUL_OP_DEBUG_STR & 0xFF,
 				0x4e, 0x74,			// rtd	#4
 				0x00, 0x04
 			};
