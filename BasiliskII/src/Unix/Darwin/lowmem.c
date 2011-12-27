@@ -106,7 +106,6 @@ void pagezero_64(struct mach_header_64 *machhead)
 #endif
 
 /*
-/*
  * Under Mach there is very little assumed about the memory map of object
  * files. It is the job of the loader to create the initial memory map of an
  * executable. In a Mach-O executable there will be numerous loader commands
