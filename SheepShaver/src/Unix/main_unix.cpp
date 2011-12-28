@@ -392,7 +392,6 @@ int main(int argc, char **argv)
 	const char *rom_path;
 	uint32 rom_size, actual;
 	uint8 *rom_tmp;
-	time_t now, expire;
 	bool memory_mapped_from_zero, ram_rom_areas_contiguous;
 	const char *vmdir = NULL;
 
