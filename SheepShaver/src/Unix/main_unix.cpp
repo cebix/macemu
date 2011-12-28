@@ -577,13 +577,43 @@ static void get_system_info(void)
 	D(bug("PVR: %08x (assumed)\n", PVR));
 }
 
+static bool load_mac_rom(void)
+{
+	uint32 rom_size, actual;
+	uint8 *rom_tmp;
+	const char *rom_path = PrefsFindString("rom");
+	int rom_fd = open(rom_path && *rom_path ? rom_path : ROM_FILE_NAME, O_RDONLY);
+	if (rom_fd < 0) {
+		rom_fd = open(ROM_FILE_NAME2, O_RDONLY);
+		if (rom_fd < 0) {
+			ErrorAlert(GetString(STR_NO_ROM_FILE_ERR));
+			return false;
+		}
+	}
+	printf("%s", GetString(STR_READING_ROM_FILE));
+	rom_size = lseek(rom_fd, 0, SEEK_END);
+	lseek(rom_fd, 0, SEEK_SET);
+	rom_tmp = new uint8[ROM_SIZE];
+	actual = read(rom_fd, (void *)rom_tmp, ROM_SIZE);
+	close(rom_fd);
+	
+	// Decode Mac ROM
+	if (!DecodeROM(rom_tmp, actual)) {
+		if (rom_size != 4*1024*1024) {
+			ErrorAlert(GetString(STR_ROM_SIZE_ERR));
+			return false;
+		} else {
+			ErrorAlert(GetString(STR_ROM_FILE_READ_ERR));
+			return false;
+		}
+	}
+	delete[] rom_tmp;
+	return true;
+}
+
 int main(int argc, char **argv)
 {
 	char str[256];
-	int rom_fd;
-	const char *rom_path;
-	uint32 rom_size, actual;
-	uint8 *rom_tmp;
 	bool memory_mapped_from_zero, ram_rom_areas_contiguous;
 	const char *vmdir = NULL;
 
@@ -936,33 +966,8 @@ int main(int argc, char **argv)
 	}
 
 	// Load Mac ROM
-	rom_path = PrefsFindString("rom");
-	rom_fd = open(rom_path && *rom_path ? rom_path : ROM_FILE_NAME, O_RDONLY);
-	if (rom_fd < 0) {
-		rom_fd = open(ROM_FILE_NAME2, O_RDONLY);
-		if (rom_fd < 0) {
-			ErrorAlert(GetString(STR_NO_ROM_FILE_ERR));
-			goto quit;
-		}
-	}
-	printf("%s", GetString(STR_READING_ROM_FILE));
-	rom_size = lseek(rom_fd, 0, SEEK_END);
-	lseek(rom_fd, 0, SEEK_SET);
-	rom_tmp = new uint8[ROM_SIZE];
-	actual = read(rom_fd, (void *)rom_tmp, ROM_SIZE);
-	close(rom_fd);
-	
-	// Decode Mac ROM
-	if (!DecodeROM(rom_tmp, actual)) {
-		if (rom_size != 4*1024*1024) {
-			ErrorAlert(GetString(STR_ROM_SIZE_ERR));
-			goto quit;
-		} else {
-			ErrorAlert(GetString(STR_ROM_FILE_READ_ERR));
-			goto quit;
-		}
-	}
-	delete[] rom_tmp;
+	if (!load_mac_rom())
+		goto quit;
 
 	// Initialize everything
 	if (!InitAll(vmdir))
