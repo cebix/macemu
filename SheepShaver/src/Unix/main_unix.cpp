@@ -384,11 +384,203 @@ static bool valid_vmdir(const char *path)
 	return false;
 }
 
+static void get_system_info(void)
+{
+#if !EMULATED_PPC
+	FILE *proc_file;
+#endif
+
+	PVR = 0x00040000;			// Default: 604
+	CPUClockSpeed = 100000000;	// Default: 100MHz
+	BusClockSpeed = 100000000;	// Default: 100MHz
+	TimebaseSpeed =  25000000;	// Default:  25MHz
+
+#if EMULATED_PPC
+	PVR = 0x000c0000;			// Default: 7400 (with AltiVec)
+#elif defined(__APPLE__) && defined(__MACH__)
+	proc_file = popen("ioreg -c IOPlatformDevice", "r");
+	if (proc_file) {
+		char line[256];
+		bool powerpc_node = false;
+		while (fgets(line, sizeof(line) - 1, proc_file)) {
+			// Read line
+			int len = strlen(line);
+			if (len == 0)
+				continue;
+			line[len - 1] = 0;
+
+			// Parse line
+			if (strstr(line, "o PowerPC,"))
+				powerpc_node = true;
+			else if (powerpc_node) {
+				uint32 value;
+				char head[256];
+				if (sscanf(line, "%[ |]\"cpu-version\" = <%x>", head, &value) == 2)
+					PVR = value;
+				else if (sscanf(line, "%[ |]\"clock-frequency\" = <%x>", head, &value) == 2)
+					CPUClockSpeed = value;
+				else if (sscanf(line, "%[ |]\"bus-frequency\" = <%x>", head, &value) == 2)
+					BusClockSpeed = value;
+				else if (sscanf(line, "%[ |]\"timebase-frequency\" = <%x>", head, &value) == 2)
+					TimebaseSpeed = value;
+				else if (strchr(line, '}'))
+					powerpc_node = false;
+			}
+		}
+		fclose(proc_file);
+	} else {
+		sprintf(str, GetString(STR_PROC_CPUINFO_WARN), strerror(errno));
+		WarningAlert(str);
+	}
+#else
+	proc_file = fopen("/proc/cpuinfo", "r");
+	if (proc_file) {
+		// CPU specs from Linux kernel
+		// TODO: make it more generic with features (e.g. AltiVec) and
+		// cache information and friends for NameRegistry
+		static const struct {
+			uint32 pvr_mask;
+			uint32 pvr_value;
+			const char *cpu_name;
+		}
+		cpu_specs[] = {
+			{ 0xffff0000, 0x00010000, "601" },
+			{ 0xffff0000, 0x00030000, "603" },
+			{ 0xffff0000, 0x00060000, "603e" },
+			{ 0xffff0000, 0x00070000, "603ev" },
+			{ 0xffff0000, 0x00040000, "604" },
+			{ 0xfffff000, 0x00090000, "604e" },
+			{ 0xffff0000, 0x00090000, "604r" },
+			{ 0xffff0000, 0x000a0000, "604ev" },
+			{ 0xffffffff, 0x00084202, "740/750" },
+			{ 0xfffff000, 0x00083000, "745/755" },
+			{ 0xfffffff0, 0x00080100, "750CX" },
+			{ 0xfffffff0, 0x00082200, "750CX" },
+			{ 0xfffffff0, 0x00082210, "750CXe" },
+			{ 0xffffff00, 0x70000100, "750FX" },
+			{ 0xffffffff, 0x70000200, "750FX" },
+			{ 0xffff0000, 0x70000000, "750FX" },
+			{ 0xffff0000, 0x70020000, "750GX" },
+			{ 0xffff0000, 0x00080000, "740/750" },
+			{ 0xffffffff, 0x000c1101, "7400 (1.1)" },
+			{ 0xffff0000, 0x000c0000, "7400" },
+			{ 0xffff0000, 0x800c0000, "7410" },
+			{ 0xffffffff, 0x80000200, "7450" },
+			{ 0xffffffff, 0x80000201, "7450" },
+			{ 0xffff0000, 0x80000000, "7450" },
+			{ 0xffffff00, 0x80010100, "7455" },
+			{ 0xffffffff, 0x80010200, "7455" },
+			{ 0xffff0000, 0x80010000, "7455" },
+			{ 0xffff0000, 0x80020000, "7457" },
+			{ 0xffff0000, 0x80030000, "7447A" },
+			{ 0xffff0000, 0x80040000, "7448" },
+			{ 0x7fff0000, 0x00810000, "82xx" },
+			{ 0x7fff0000, 0x00820000, "8280" },
+			{ 0xffff0000, 0x00400000, "Power3 (630)" },
+			{ 0xffff0000, 0x00410000, "Power3 (630+)" },
+			{ 0xffff0000, 0x00360000, "I-star" },
+			{ 0xffff0000, 0x00370000, "S-star" },
+			{ 0xffff0000, 0x00350000, "Power4" },
+			{ 0xffff0000, 0x00390000, "PPC970" },
+			{ 0xffff0000, 0x003c0000, "PPC970FX" },
+			{ 0xffff0000, 0x00440000, "PPC970MP" },
+			{ 0xffff0000, 0x003a0000, "POWER5 (gr)" },
+			{ 0xffff0000, 0x003b0000, "POWER5+ (gs)" },
+			{ 0xffff0000, 0x003e0000, "POWER6" },
+			{ 0xffff0000, 0x00700000, "Cell Broadband Engine" },
+			{ 0x7fff0000, 0x00900000, "PA6T" },
+			{ 0, 0, 0 }
+		};
+
+		char line[256];
+		while(fgets(line, 255, proc_file)) {
+			// Read line
+			int len = strlen(line);
+			if (len == 0)
+				continue;
+			line[len-1] = 0;
+
+			// Parse line
+			int i;
+			float f;
+			char value[256];
+			if (sscanf(line, "cpu : %[^,]", value) == 1) {
+				// Search by name
+				const char *cpu_name = NULL;
+				for (int i = 0; cpu_specs[i].pvr_mask != 0; i++) {
+					if (strcmp(cpu_specs[i].cpu_name, value) == 0) {
+						cpu_name = cpu_specs[i].cpu_name;
+						PVR = cpu_specs[i].pvr_value;
+						break;
+					}
+				}
+				if (cpu_name == NULL)
+					printf("WARNING: Unknown CPU type '%s', assuming 604\n", value);
+				else
+					printf("Found a PowerPC %s processor\n", cpu_name);
+			}
+			if (sscanf(line, "clock : %fMHz", &f) == 1)
+				CPUClockSpeed = BusClockSpeed = ((int64)f) * 1000000;
+			else if (sscanf(line, "clock : %dMHz", &i) == 1)
+				CPUClockSpeed = BusClockSpeed = i * 1000000;
+		}
+		fclose(proc_file);
+	} else {
+		sprintf(str, GetString(STR_PROC_CPUINFO_WARN), strerror(errno));
+		WarningAlert(str);
+	}
+
+	// Get actual bus frequency
+	proc_file = fopen("/proc/device-tree/clock-frequency", "r");
+	if (proc_file) {
+		union { uint8 b[4]; uint32 l; } value;
+		if (fread(value.b, sizeof(value), 1, proc_file) == 1)
+			BusClockSpeed = value.l;
+		fclose(proc_file);
+	}
+
+	// Get actual timebase frequency
+	TimebaseSpeed = BusClockSpeed / 4;
+	DIR *cpus_dir;
+	if ((cpus_dir = opendir("/proc/device-tree/cpus")) != NULL) {
+		struct dirent *cpu_entry;
+		while ((cpu_entry = readdir(cpus_dir)) != NULL) {
+			if (strstr(cpu_entry->d_name, "PowerPC,") == cpu_entry->d_name) {
+				char timebase_freq_node[256];
+				sprintf(timebase_freq_node, "/proc/device-tree/cpus/%s/timebase-frequency", cpu_entry->d_name);
+				proc_file = fopen(timebase_freq_node, "r");
+				if (proc_file) {
+					union { uint8 b[4]; uint32 l; } value;
+					if (fread(value.b, sizeof(value), 1, proc_file) == 1)
+						TimebaseSpeed = value.l;
+					fclose(proc_file);
+				}
+			}
+		}
+		closedir(cpus_dir);
+	}
+#endif
+
+	// Remap any newer G4/G5 processor to plain G4 for compatibility
+	switch (PVR >> 16) {
+	case 0x8000:				// 7450
+	case 0x8001:				// 7455
+	case 0x8002:				// 7457
+	case 0x8003:				// 7447A
+	case 0x8004:				// 7448
+	case 0x0039:				//  970
+	case 0x003c:				//  970FX
+	case 0x0044:				//  970MP
+		PVR = 0x000c0000;		// 7400
+		break;
+	}
+	D(bug("PVR: %08x (assumed)\n", PVR));
+}
+
 int main(int argc, char **argv)
 {
 	char str[256];
 	int rom_fd;
-	FILE *proc_file;
 	const char *rom_path;
 	uint32 rom_size, actual;
 	uint8 *rom_tmp;
@@ -592,189 +784,7 @@ int main(int argc, char **argv)
 	vm_init();
 
 	// Get system info
-	PVR = 0x00040000;			// Default: 604
-	CPUClockSpeed = 100000000;	// Default: 100MHz
-	BusClockSpeed = 100000000;	// Default: 100MHz
-	TimebaseSpeed =  25000000;	// Default:  25MHz
-#if EMULATED_PPC
-	PVR = 0x000c0000;			// Default: 7400 (with AltiVec)
-#elif defined(__APPLE__) && defined(__MACH__)
-	proc_file = popen("ioreg -c IOPlatformDevice", "r");
-	if (proc_file) {
-		char line[256];
-		bool powerpc_node = false;
-		while (fgets(line, sizeof(line) - 1, proc_file)) {
-			// Read line
-			int len = strlen(line);
-			if (len == 0)
-				continue;
-			line[len - 1] = 0;
-
-			// Parse line
-			if (strstr(line, "o PowerPC,"))
-				powerpc_node = true;
-			else if (powerpc_node) {
-				uint32 value;
-				char head[256];
-				if (sscanf(line, "%[ |]\"cpu-version\" = <%x>", head, &value) == 2)
-					PVR = value;
-				else if (sscanf(line, "%[ |]\"clock-frequency\" = <%x>", head, &value) == 2)
-					CPUClockSpeed = value;
-				else if (sscanf(line, "%[ |]\"bus-frequency\" = <%x>", head, &value) == 2)
-					BusClockSpeed = value;
-				else if (sscanf(line, "%[ |]\"timebase-frequency\" = <%x>", head, &value) == 2)
-					TimebaseSpeed = value;
-				else if (strchr(line, '}'))
-					powerpc_node = false;
-			}
-		}
-		fclose(proc_file);
-	} else {
-		sprintf(str, GetString(STR_PROC_CPUINFO_WARN), strerror(errno));
-		WarningAlert(str);
-	}
-#else
-	proc_file = fopen("/proc/cpuinfo", "r");
-	if (proc_file) {
-		// CPU specs from Linux kernel
-		// TODO: make it more generic with features (e.g. AltiVec) and
-		// cache information and friends for NameRegistry
-		static const struct {
-			uint32 pvr_mask;
-			uint32 pvr_value;
-			const char *cpu_name;
-		}
-		cpu_specs[] = {
-			{ 0xffff0000, 0x00010000, "601" },
-			{ 0xffff0000, 0x00030000, "603" },
-			{ 0xffff0000, 0x00060000, "603e" },
-			{ 0xffff0000, 0x00070000, "603ev" },
-			{ 0xffff0000, 0x00040000, "604" },
-			{ 0xfffff000, 0x00090000, "604e" },
-			{ 0xffff0000, 0x00090000, "604r" },
-			{ 0xffff0000, 0x000a0000, "604ev" },
-			{ 0xffffffff, 0x00084202, "740/750" },
-			{ 0xfffff000, 0x00083000, "745/755" },
-			{ 0xfffffff0, 0x00080100, "750CX" },
-			{ 0xfffffff0, 0x00082200, "750CX" },
-			{ 0xfffffff0, 0x00082210, "750CXe" },
-			{ 0xffffff00, 0x70000100, "750FX" },
-			{ 0xffffffff, 0x70000200, "750FX" },
-			{ 0xffff0000, 0x70000000, "750FX" },
-			{ 0xffff0000, 0x70020000, "750GX" },
-			{ 0xffff0000, 0x00080000, "740/750" },
-			{ 0xffffffff, 0x000c1101, "7400 (1.1)" },
-			{ 0xffff0000, 0x000c0000, "7400" },
-			{ 0xffff0000, 0x800c0000, "7410" },
-			{ 0xffffffff, 0x80000200, "7450" },
-			{ 0xffffffff, 0x80000201, "7450" },
-			{ 0xffff0000, 0x80000000, "7450" },
-			{ 0xffffff00, 0x80010100, "7455" },
-			{ 0xffffffff, 0x80010200, "7455" },
-			{ 0xffff0000, 0x80010000, "7455" },
-			{ 0xffff0000, 0x80020000, "7457" },
-			{ 0xffff0000, 0x80030000, "7447A" },
-			{ 0xffff0000, 0x80040000, "7448" },
-			{ 0x7fff0000, 0x00810000, "82xx" },
-			{ 0x7fff0000, 0x00820000, "8280" },
-			{ 0xffff0000, 0x00400000, "Power3 (630)" },
-			{ 0xffff0000, 0x00410000, "Power3 (630+)" },
-			{ 0xffff0000, 0x00360000, "I-star" },
-			{ 0xffff0000, 0x00370000, "S-star" },
-			{ 0xffff0000, 0x00350000, "Power4" },
-			{ 0xffff0000, 0x00390000, "PPC970" },
-			{ 0xffff0000, 0x003c0000, "PPC970FX" },
-			{ 0xffff0000, 0x00440000, "PPC970MP" },
-			{ 0xffff0000, 0x003a0000, "POWER5 (gr)" },
-			{ 0xffff0000, 0x003b0000, "POWER5+ (gs)" },
-			{ 0xffff0000, 0x003e0000, "POWER6" },
-			{ 0xffff0000, 0x00700000, "Cell Broadband Engine" },
-			{ 0x7fff0000, 0x00900000, "PA6T" },
-			{ 0, 0, 0 }
-		};
-
-		char line[256];
-		while(fgets(line, 255, proc_file)) {
-			// Read line
-			int len = strlen(line);
-			if (len == 0)
-				continue;
-			line[len-1] = 0;
-
-			// Parse line
-			int i;
-			float f;
-			char value[256];
-			if (sscanf(line, "cpu : %[^,]", value) == 1) {
-				// Search by name
-				const char *cpu_name = NULL;
-				for (int i = 0; cpu_specs[i].pvr_mask != 0; i++) {
-					if (strcmp(cpu_specs[i].cpu_name, value) == 0) {
-						cpu_name = cpu_specs[i].cpu_name;
-						PVR = cpu_specs[i].pvr_value;
-						break;
-					}
-				}
-				if (cpu_name == NULL)
-					printf("WARNING: Unknown CPU type '%s', assuming 604\n", value);
-				else
-					printf("Found a PowerPC %s processor\n", cpu_name);
-			}
-			if (sscanf(line, "clock : %fMHz", &f) == 1)
-				CPUClockSpeed = BusClockSpeed = ((int64)f) * 1000000;
-			else if (sscanf(line, "clock : %dMHz", &i) == 1)
-				CPUClockSpeed = BusClockSpeed = i * 1000000;
-		}
-		fclose(proc_file);
-	} else {
-		sprintf(str, GetString(STR_PROC_CPUINFO_WARN), strerror(errno));
-		WarningAlert(str);
-	}
-
-	// Get actual bus frequency
-	proc_file = fopen("/proc/device-tree/clock-frequency", "r");
-	if (proc_file) {
-		union { uint8 b[4]; uint32 l; } value;
-		if (fread(value.b, sizeof(value), 1, proc_file) == 1)
-			BusClockSpeed = value.l;
-		fclose(proc_file);
-	}
-
-	// Get actual timebase frequency
-	TimebaseSpeed = BusClockSpeed / 4;
-	DIR *cpus_dir;
-	if ((cpus_dir = opendir("/proc/device-tree/cpus")) != NULL) {
-		struct dirent *cpu_entry;
-		while ((cpu_entry = readdir(cpus_dir)) != NULL) {
-			if (strstr(cpu_entry->d_name, "PowerPC,") == cpu_entry->d_name) {
-				char timebase_freq_node[256];
-				sprintf(timebase_freq_node, "/proc/device-tree/cpus/%s/timebase-frequency", cpu_entry->d_name);
-				proc_file = fopen(timebase_freq_node, "r");
-				if (proc_file) {
-					union { uint8 b[4]; uint32 l; } value;
-					if (fread(value.b, sizeof(value), 1, proc_file) == 1)
-						TimebaseSpeed = value.l;
-					fclose(proc_file);
-				}
-			}
-		}
-		closedir(cpus_dir);
-	}
-#endif
-	// Remap any newer G4/G5 processor to plain G4 for compatibility
-	switch (PVR >> 16) {
-	case 0x8000:				// 7450
-	case 0x8001:				// 7455
-	case 0x8002:				// 7457
-	case 0x8003:				// 7447A
-	case 0x8004:				// 7448
-	case 0x0039:				//  970
-	case 0x003c:				//  970FX
-	case 0x0044:				//  970MP
-		PVR = 0x000c0000;		// 7400
-		break;
-	}
-	D(bug("PVR: %08x (assumed)\n", PVR));
+	get_system_info();
 
 	// Init system routines
 	SysInit();
