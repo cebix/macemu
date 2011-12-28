@@ -75,7 +75,7 @@ static NSString *getStringFromPrefs(const char *key)
   const char *value = PrefsFindString(key);
   if (value == NULL)
     return @"";
-  return [NSString stringWithCString: value];
+  return [NSString stringWithUTF8String: value];
 }
 
 - (void) setupGUI
@@ -85,7 +85,7 @@ static NSString *getStringFromPrefs(const char *key)
   const char *dsk;
   int index = 0;
   while ((dsk = PrefsFindString("disk", index++)) != NULL)
-    [diskArray addObject: [NSString stringWithCString: dsk ]];
+    [diskArray addObject: [NSString stringWithUTF8String: dsk ]];
 
   [disks setDataSource: self];
   [disks reloadData];
@@ -203,7 +203,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
   if (!strncmp(cwd, filename, cwdlen)) {
     if (cwdlen >= 0 && cwd[cwdlen-1] != '/')
       cwdlen++;
-    return [NSString stringWithCString: filename + cwdlen];
+    return [NSString stringWithUTF8String: filename + cwdlen];
   }
   return path;
 }
