@@ -109,6 +109,10 @@
 		0873A54314AAF18E004F12B7 /* dyngen.c in Sources */ = {isa = PBXBuildFile; fileRef = 0873A54114AAF18E004F12B7 /* dyngen.c */; };
 		0873A5D614AB80CA004F12B7 /* basic-dyngen-ops.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0873A5D514AB80CA004F12B7 /* basic-dyngen-ops.cpp */; };
 		0873A5D814AB80E3004F12B7 /* ppc-dyngen-ops.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0873A5D714AB80E3004F12B7 /* ppc-dyngen-ops.cpp */; };
+		0873A76814ABD151004F12B7 /* config-macosx-x86_64.h in Headers */ = {isa = PBXBuildFile; fileRef = 0873A76614ABD151004F12B7 /* config-macosx-x86_64.h */; };
+		0873A76914ABD151004F12B7 /* config.h in Headers */ = {isa = PBXBuildFile; fileRef = 0873A76714ABD151004F12B7 /* config.h */; };
+		0873A76A14ABD151004F12B7 /* config-macosx-x86_64.h in Headers */ = {isa = PBXBuildFile; fileRef = 0873A76614ABD151004F12B7 /* config-macosx-x86_64.h */; };
+		0873A76B14ABD151004F12B7 /* config.h in Headers */ = {isa = PBXBuildFile; fileRef = 0873A76714ABD151004F12B7 /* config.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -322,7 +326,6 @@
 		0856CEC414A99EF0000B1711 /* about_window_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = about_window_unix.cpp; sourceTree = "<group>"; };
 		0856CECF14A99EF0000B1711 /* bincue_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = bincue_unix.cpp; sourceTree = "<group>"; };
 		0856CED014A99EF0000B1711 /* bincue_unix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = bincue_unix.h; sourceTree = "<group>"; };
-		0856CED314A99EF0000B1711 /* config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = config.h; sourceTree = "<group>"; };
 		0856CEE314A99EF0000B1711 /* ether_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ether_unix.cpp; sourceTree = "<group>"; };
 		0856CEFB14A99EF0000B1711 /* main_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = main_unix.cpp; sourceTree = "<group>"; };
 		0856CF5A14A99EF0000B1711 /* prefs_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = prefs_unix.cpp; sourceTree = "<group>"; };
@@ -364,6 +367,8 @@
 		0873A5CC14AB806D004F12B7 /* libppc-dyngen-ops.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libppc-dyngen-ops.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		0873A5D514AB80CA004F12B7 /* basic-dyngen-ops.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "basic-dyngen-ops.cpp"; sourceTree = "<group>"; };
 		0873A5D714AB80E3004F12B7 /* ppc-dyngen-ops.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "ppc-dyngen-ops.cpp"; sourceTree = "<group>"; };
+		0873A76614ABD151004F12B7 /* config-macosx-x86_64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "config-macosx-x86_64.h"; sourceTree = "<group>"; };
+		0873A76714ABD151004F12B7 /* config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = config.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -695,6 +700,7 @@
 		0856CE0614A99EEF000B1711 /* MacOSX */ = {
 			isa = PBXGroup;
 			children = (
+				0873A76514ABD151004F12B7 /* config */,
 				0856D2D614A9A704000B1711 /* Launcher */,
 				0856CE2C14A99EF0000B1711 /* clip_macosx.cpp */,
 				0856CE2D14A99EF0000B1711 /* extfs_macosx.cpp */,
@@ -777,7 +783,6 @@
 				0856CEC414A99EF0000B1711 /* about_window_unix.cpp */,
 				0856CECF14A99EF0000B1711 /* bincue_unix.cpp */,
 				0856CED014A99EF0000B1711 /* bincue_unix.h */,
-				0856CED314A99EF0000B1711 /* config.h */,
 				0856CEE314A99EF0000B1711 /* ether_unix.cpp */,
 				0856CEFB14A99EF0000B1711 /* main_unix.cpp */,
 				0856CF5A14A99EF0000B1711 /* prefs_unix.cpp */,
@@ -817,6 +822,15 @@
 			path = Launcher;
 			sourceTree = "<group>";
 		};
+		0873A76514ABD151004F12B7 /* config */ = {
+			isa = PBXGroup;
+			children = (
+				0873A76614ABD151004F12B7 /* config-macosx-x86_64.h */,
+				0873A76714ABD151004F12B7 /* config.h */,
+			);
+			path = config;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
@@ -824,6 +838,8 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0873A76A14ABD151004F12B7 /* config-macosx-x86_64.h in Headers */,
+				0873A76B14ABD151004F12B7 /* config.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -831,6 +847,8 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0873A76814ABD151004F12B7 /* config-macosx-x86_64.h in Headers */,
+				0873A76914ABD151004F12B7 /* config.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1035,7 +1053,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "gcc -E \"-I${SRCROOT}/../include\" \"-I${SRCROOT}/../kpx_cpu/include\" \"-I${SRCROOT}/../kpx_cpu/src\" \"-I${SRCROOT}/../Unix\" -DUSE_JIT -DGENEXEC \"${SRCROOT}/../kpx_cpu/src/cpu/ppc/ppc-decode.cpp\" | perl \"${SRCROOT}/../kpx_cpu/src/cpu/ppc/genexec.pl\" > \"${SRCROOT}/../Unix/ppc-execute-impl.cpp\"\n";
+			shellScript = "gcc -E \"-I${SRCROOT}/config\" \"-I${SRCROOT}/../include\" \"-I${SRCROOT}/../kpx_cpu/include\" \"-I${SRCROOT}/../kpx_cpu/src\" \"-I${SRCROOT}/../Unix\" -DUSE_JIT -DGENEXEC \"${SRCROOT}/../kpx_cpu/src/cpu/ppc/ppc-decode.cpp\" | perl \"${SRCROOT}/../kpx_cpu/src/cpu/ppc/genexec.pl\" > \"${SRCROOT}/../Unix/ppc-execute-impl.cpp\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -1299,6 +1317,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
 					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
+					./config/,
 					../Unix,
 					../MacOSX/Launcher,
 					../slirp,
@@ -1356,6 +1375,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
 					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
+					./config/,
 					../Unix,
 					../MacOSX/Launcher,
 					../slirp,
