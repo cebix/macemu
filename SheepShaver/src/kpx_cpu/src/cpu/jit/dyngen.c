@@ -1549,14 +1549,14 @@ int load_object(const char *filename, FILE *outfile)
     text = sdata[i];
 	    
     /* Make sure dysym was loaded */
-    if(!(int)dysymtabcmd)
+    if(dysymtabcmd == NULL)
         error("could not find __DYSYMTAB segment");
     
     /* read the table of content of the indirect sym */
     tocdylib = load_data( fd, dysymtabcmd->indirectsymoff, dysymtabcmd->nindirectsyms * sizeof(uint32_t) );
     
     /* Make sure symtab was loaded  */
-    if(!(int)symtabcmd)
+    if(symtabcmd == NULL)
         error("could not find __SYMTAB segment");
     nb_syms = symtabcmd->nsyms;
 
