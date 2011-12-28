@@ -1549,10 +1549,9 @@ bool video_can_change_cursor(void)
 		if (SDL_VideoDriverName(driver, sizeof driver) == NULL || strncmp(driver, "Quartz", sizeof driver))
 			quartzok = true;
 		else {
-			// Quartz driver bug prevents cursor changing in SDL 1.2.11 to 1.2.13.
+			// Quartz driver bug prevents cursor changing in SDL 1.2.11 and later
 			const SDL_version *vp = SDL_Linked_Version();
-			int version = SDL_VERSIONNUM(vp->major, vp->minor, vp->patch);
-			quartzok = (version <= SDL_VERSIONNUM(1, 2, 10) || version >= SDL_VERSIONNUM(1, 2, 14));
+			quartzok = SDL_VERSIONNUM(vp->major, vp->minor, vp->patch) <= SDL_VERSIONNUM(1, 2, 10);
 		}
 	}
 
