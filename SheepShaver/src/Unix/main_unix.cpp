@@ -611,6 +611,62 @@ static bool load_mac_rom(void)
 	return true;
 }
 
+static bool install_signal_handlers(void)
+{
+	char str[256];
+#if !EMULATED_PPC
+	// Create and install stacks for signal handlers
+	sig_stack.ss_sp = malloc(SIG_STACK_SIZE);
+	D(bug("Signal stack at %p\n", sig_stack.ss_sp));
+	if (sig_stack.ss_sp == NULL) {
+		ErrorAlert(GetString(STR_NOT_ENOUGH_MEMORY_ERR));
+		return false;
+	}
+	sig_stack.ss_flags = 0;
+	sig_stack.ss_size = SIG_STACK_SIZE;
+	if (sigaltstack(&sig_stack, NULL) < 0) {
+		sprintf(str, GetString(STR_SIGALTSTACK_ERR), strerror(errno));
+		ErrorAlert(str);
+		return false;
+	}
+	extra_stack.ss_sp = malloc(SIG_STACK_SIZE);
+	D(bug("Extra stack at %p\n", extra_stack.ss_sp));
+	if (extra_stack.ss_sp == NULL) {
+		ErrorAlert(GetString(STR_NOT_ENOUGH_MEMORY_ERR));
+		return false;
+	}
+	extra_stack.ss_flags = 0;
+	extra_stack.ss_size = SIG_STACK_SIZE;
+
+	// Install SIGSEGV and SIGBUS handlers
+	sigemptyset(&sigsegv_action.sa_mask);	// Block interrupts during SEGV handling
+	sigaddset(&sigsegv_action.sa_mask, SIGUSR2);
+	sigsegv_action.sa_sigaction = sigsegv_handler;
+	sigsegv_action.sa_flags = SA_ONSTACK | SA_SIGINFO;
+#ifdef HAVE_SIGNAL_SA_RESTORER
+	sigsegv_action.sa_restorer = NULL;
+#endif
+	if (sigaction(SIGSEGV, &sigsegv_action, NULL) < 0) {
+		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGSEGV", strerror(errno));
+		ErrorAlert(str);
+		return false;
+	}
+	if (sigaction(SIGBUS, &sigsegv_action, NULL) < 0) {
+		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGBUS", strerror(errno));
+		ErrorAlert(str);
+		return false;
+	}
+#else
+	// Install SIGSEGV handler for CPU emulator
+	if (!sigsegv_install_handler(sigsegv_handler)) {
+		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGSEGV", strerror(errno));
+		ErrorAlert(str);
+		return false;
+	}
+#endif
+	return true;
+}
+
 int main(int argc, char **argv)
 {
 	char str[256];
@@ -757,58 +813,9 @@ int main(int argc, char **argv)
 	mon_init();
 #endif
 
-#if !EMULATED_PPC
-	// Create and install stacks for signal handlers
-	sig_stack.ss_sp = malloc(SIG_STACK_SIZE);
-	D(bug("Signal stack at %p\n", sig_stack.ss_sp));
-	if (sig_stack.ss_sp == NULL) {
-		ErrorAlert(GetString(STR_NOT_ENOUGH_MEMORY_ERR));
+  // Install signal handlers
+	if (!install_signal_handlers())
 		goto quit;
-	}
-	sig_stack.ss_flags = 0;
-	sig_stack.ss_size = SIG_STACK_SIZE;
-	if (sigaltstack(&sig_stack, NULL) < 0) {
-		sprintf(str, GetString(STR_SIGALTSTACK_ERR), strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-	extra_stack.ss_sp = malloc(SIG_STACK_SIZE);
-	D(bug("Extra stack at %p\n", extra_stack.ss_sp));
-	if (extra_stack.ss_sp == NULL) {
-		ErrorAlert(GetString(STR_NOT_ENOUGH_MEMORY_ERR));
-		goto quit;
-	}
-	extra_stack.ss_flags = 0;
-	extra_stack.ss_size = SIG_STACK_SIZE;
-#endif
-
-#if !EMULATED_PPC
-	// Install SIGSEGV and SIGBUS handlers
-	sigemptyset(&sigsegv_action.sa_mask);	// Block interrupts during SEGV handling
-	sigaddset(&sigsegv_action.sa_mask, SIGUSR2);
-	sigsegv_action.sa_sigaction = sigsegv_handler;
-	sigsegv_action.sa_flags = SA_ONSTACK | SA_SIGINFO;
-#ifdef HAVE_SIGNAL_SA_RESTORER
-	sigsegv_action.sa_restorer = NULL;
-#endif
-	if (sigaction(SIGSEGV, &sigsegv_action, NULL) < 0) {
-		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGSEGV", strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-	if (sigaction(SIGBUS, &sigsegv_action, NULL) < 0) {
-		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGBUS", strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-#else
-	// Install SIGSEGV handler for CPU emulator
-	if (!sigsegv_install_handler(sigsegv_handler)) {
-		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGSEGV", strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-#endif
 
 	// Initialize VM system
 	vm_init();
