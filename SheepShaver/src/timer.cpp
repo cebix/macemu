@@ -324,7 +324,7 @@ void TimerReset(void)
 	while (desc) {
 		TMDesc *next = desc->next;
 		delete desc;
-		desc = desc->next;
+		desc = next;
 	}
 	tmDescList = NULL;
 }
