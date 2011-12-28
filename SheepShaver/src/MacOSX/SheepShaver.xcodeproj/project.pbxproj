@@ -1237,9 +1237,10 @@
 				GCC_ENABLE_BUILTIN_FUNCTIONS = NO;
 				GCC_ENABLE_FIX_AND_CONTINUE = NO;
 				GCC_ENABLE_PASCAL_STRINGS = NO;
+				GCC_ENABLE_SYMBOL_SEPARATION = NO;
 				GCC_MODEL_TUNING = G5;
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "$(SYSTEM_LIBRARY_DIR)/Frameworks/AppKit.framework/Headers/AppKit.h";
+				GCC_PRECOMPILE_PREFIX_HEADER = NO;
+				GCC_PREFIX_HEADER = "";
 				INSTALL_PATH = /usr/local/bin;
 				OTHER_LDFLAGS = (
 					"-framework",
@@ -1248,6 +1249,7 @@
 					AppKit,
 				);
 				PREBINDING = NO;
+				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = lowmem;
 				ZERO_LINK = NO;
 			};
@@ -1278,7 +1280,7 @@
 				GCC_ENABLE_FIX_AND_CONTINUE = NO;
 				GCC_ENABLE_PASCAL_STRINGS = NO;
 				GCC_ENABLE_SYMBOL_SEPARATION = NO;
-				GCC_ENABLE_TRIGRAPHS = YES;
+				GCC_ENABLE_TRIGRAPHS = NO;
 				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
 				GCC_MODEL_TUNING = G5;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -1294,6 +1296,7 @@
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
 					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
 					../Unix,
@@ -1305,10 +1308,8 @@
 				);
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
-				OTHER_CPLUSPLUSFLAGS = (
-					"$(OTHER_CFLAGS)",
-					"-mdynamic-no-pic",
-				);
+				OTHER_CFLAGS = "";
+				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				OTHER_LDFLAGS = (
 					"-pagezero_size",
 					0x3000,
@@ -1329,21 +1330,54 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				COPY_PHASE_STRIP = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_CW_ASM_SYNTAX = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				GCC_ENABLE_PASCAL_STRINGS = NO;
+				GCC_ENABLE_SYMBOL_SEPARATION = NO;
+				GCC_ENABLE_TRIGRAPHS = NO;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
 				GCC_MODEL_TUNING = G5;
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "$(SYSTEM_LIBRARY_DIR)/Frameworks/AppKit.framework/Headers/AppKit.h";
-				INFOPLIST_FILE = "SheepShaver-Info.plist";
+				GCC_PRECOMPILE_PREFIX_HEADER = NO;
+				GCC_PREFIX_HEADER = "";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DATADIR=",
+					HAVE_CONFIG_H,
+					USE_JIT,
+					"_GNU_SOURCE=1",
+					_THREAD_SAFE,
+					_REENTRANT,
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
+					../Unix,
+					../MacOSX/Launcher,
+					../slirp,
+					../kpx_cpu/src,
+					../kpx_cpu/include,
+					../include,
+				);
+				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
+				OTHER_CFLAGS = "";
+				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				OTHER_LDFLAGS = (
+					"-pagezero_size",
+					0x3000,
+					"-Wl,-seg1addr,0x78048000",
 					"-framework",
 					Foundation,
 					"-framework",
 					AppKit,
 				);
 				PREBINDING = NO;
+				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = SheepShaver;
 				ZERO_LINK = NO;
 			};
@@ -1380,12 +1414,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				COPY_PHASE_STRIP = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				GCC_ENABLE_SYMBOL_SEPARATION = NO;
 				GCC_MODEL_TUNING = G5;
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "$(SYSTEM_LIBRARY_DIR)/Frameworks/AppKit.framework/Headers/AppKit.h";
+				GCC_PRECOMPILE_PREFIX_HEADER = NO;
+				GCC_PREFIX_HEADER = "";
 				INSTALL_PATH = /usr/local/bin;
 				OTHER_LDFLAGS = (
 					"-framework",
@@ -1394,6 +1430,7 @@
 					AppKit,
 				);
 				PREBINDING = NO;
+				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = dyngen;
 				ZERO_LINK = NO;
 			};
@@ -1452,13 +1489,29 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				COPY_PHASE_STRIP = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				GCC_ENABLE_FIX_AND_CONTINUE = NO;
 				GCC_MODEL_TUNING = G5;
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "$(SYSTEM_LIBRARY_DIR)/Frameworks/AppKit.framework/Headers/AppKit.h";
+				GCC_PRECOMPILE_PREFIX_HEADER = NO;
+				GCC_PREFIX_HEADER = "";
+				HEADER_SEARCH_PATHS = (
+					../kpx_cpu/src,
+					../kpx_cpu/include,
+				);
 				INSTALL_PATH = /usr/local/lib;
+				OTHER_CFLAGS = (
+					"-mdynamic-no-pic",
+					"-fomit-frame-pointer",
+					"-fno-align-functions",
+					"-finline-functions",
+					"-finline-limit=10000",
+					"-fno-exceptions",
+					"-g0",
+					"-fno-reorder-blocks",
+					"-fno-optimize-sibling-calls",
+				);
 				OTHER_LDFLAGS = (
 					"-framework",
 					Foundation,
@@ -1466,6 +1519,7 @@
 					AppKit,
 				);
 				PREBINDING = NO;
+				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = "basic-dyngen-ops";
 				ZERO_LINK = NO;
 			};
@@ -1515,13 +1569,29 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				COPY_PHASE_STRIP = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				GCC_ENABLE_FIX_AND_CONTINUE = NO;
 				GCC_MODEL_TUNING = G5;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "$(SYSTEM_LIBRARY_DIR)/Frameworks/AppKit.framework/Headers/AppKit.h";
+				GCC_PREFIX_HEADER = "";
+				HEADER_SEARCH_PATHS = (
+					../kpx_cpu/src,
+					../kpx_cpu/include,
+				);
 				INSTALL_PATH = /usr/local/lib;
+				OTHER_CFLAGS = (
+					"-mdynamic-no-pic",
+					"-fomit-frame-pointer",
+					"-fno-align-functions",
+					"-finline-functions",
+					"-finline-limit=10000",
+					"-fno-exceptions",
+					"-g0",
+					"-fno-reorder-blocks",
+					"-fno-optimize-sibling-calls",
+				);
 				OTHER_LDFLAGS = (
 					"-framework",
 					Foundation,
