@@ -66,6 +66,11 @@
 #define DEBUG 0
 #include "debug.h"
 
+#if (defined(__APPLE__) && defined(__MACH__))
+extern "C" {
+	void NSAutoReleasePool_wrap(void (*fn)(void));
+}
+#endif
 
 // Supported video modes
 using std::vector;
@@ -2237,7 +2242,12 @@ static inline void do_video_refresh(void)
 	handle_events();
 
 	// Update display
+#if (defined(__APPLE__) && defined(__MACH__))
+	// SDL expects an auto-release pool to be present.
+	NSAutoReleasePool_wrap(video_refresh);
+#else
 	video_refresh();
+#endif
 
 #ifdef SHEEPSHAVER
 	// Set new cursor image if it was changed

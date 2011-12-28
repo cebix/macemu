@@ -346,7 +346,13 @@ static void CustomApplicationMain (int argc, char **argv)
 
 @end
 
-
+// This is used from video_sdl.cpp.
+void NSAutoReleasePool_wrap(void (*fn)(void))
+{
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	fn();
+	[pool release];
+}
 
 #ifdef main
 #  undef main
