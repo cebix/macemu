@@ -667,11 +667,16 @@ static bool install_signal_handlers(void)
 	return true;
 }
 
-int main(int argc, char **argv)
+static bool init_sdl()
 {
-	char str[256];
-	bool memory_mapped_from_zero, ram_rom_areas_contiguous;
-	const char *vmdir = NULL;
+	int sdl_flags = 0;
+#ifdef USE_SDL_VIDEO
+	sdl_flags |= SDL_INIT_VIDEO;
+#endif
+#ifdef USE_SDL_AUDIO
+	sdl_flags |= SDL_INIT_AUDIO;
+#endif
+	assert(sdl_flags != 0);
 
 #ifdef USE_SDL_VIDEO
 	// Don't let SDL block the screensaver
@@ -680,6 +685,26 @@ int main(int argc, char **argv)
 	// Make SDL pass through command-clicks and option-clicks unaltered
 	setenv("SDL_HAS3BUTTONMOUSE", "1", TRUE);
 #endif
+
+	if (SDL_Init(sdl_flags) == -1) {
+		char str[256];
+		sprintf(str, "Could not initialize SDL: %s.\n", SDL_GetError());
+		ErrorAlert(str);
+		return false;
+	}
+	atexit(SDL_Quit);
+
+	// Don't let SDL catch SIGINT and SIGTERM signals
+	signal(SIGINT, SIG_DFL);
+	signal(SIGTERM, SIG_DFL);
+	return true;
+}
+
+int main(int argc, char **argv)
+{
+	char str[256];
+	bool memory_mapped_from_zero, ram_rom_areas_contiguous;
+	const char *vmdir = NULL;
 
 	// Initialize variables
 	RAMBase = 0;
@@ -771,25 +796,8 @@ int main(int argc, char **argv)
 
 #ifdef USE_SDL
 	// Initialize SDL system
-	int sdl_flags = 0;
-#ifdef USE_SDL_VIDEO
-	sdl_flags |= SDL_INIT_VIDEO;
-#endif
-#ifdef USE_SDL_AUDIO
-	sdl_flags |= SDL_INIT_AUDIO;
-#endif
-	assert(sdl_flags != 0);
-	if (SDL_Init(sdl_flags) == -1) {
-		char str[256];
-		sprintf(str, "Could not initialize SDL: %s.\n", SDL_GetError());
-		ErrorAlert(str);
+	if (!init_sdl())
 		goto quit;
-	}
-	atexit(SDL_Quit);
-
-	// Don't let SDL catch SIGINT and SIGTERM signals
-	signal(SIGINT, SIG_DFL);
-	signal(SIGTERM, SIG_DFL);
 #endif
 
 #ifndef USE_SDL_VIDEO
