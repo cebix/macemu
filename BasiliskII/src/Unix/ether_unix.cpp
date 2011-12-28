@@ -125,7 +125,6 @@ static map<uint16, uint32> net_protocols;
 // Prototypes
 static void *receive_func(void *arg);
 static void *slirp_receive_func(void *arg);
-static int poll_fd(int fd);
 static int16 ether_do_add_multicast(uint8 *addr);
 static int16 ether_do_del_multicast(uint8 *addr);
 static int16 ether_do_write(uint32 arg);
