@@ -60,7 +60,7 @@ links:
 	       BeOS/serial_beos.cpp BeOS/sys_beos.cpp BeOS/timer_beos.cpp \
 	       BeOS/xpram_beos.cpp BeOS/SheepDriver BeOS/SheepNet \
 	       Unix/audio_oss_esd.cpp Unix/bincue_unix.cpp Unix/bincue_unix.h \
-           Unix/vhd_unix.cpp Unix/vhd_unix.h \
+	       Unix/vhd_unix.cpp Unix/vhd_unix.h \
 	       Unix/extfs_unix.cpp Unix/serial_unix.cpp \
 	       Unix/sshpty.h Unix/sshpty.c Unix/strlcpy.h Unix/strlcpy.c \
 	       Unix/sys_unix.cpp Unix/timer_unix.cpp Unix/xpram_unix.cpp \
@@ -79,6 +79,7 @@ links:
 	       MacOSX/MacOSX_sound_if.cpp MacOSX/MacOSX_sound_if.h \
 	       MacOSX/AudioBackEnd.cpp MacOSX/AudioBackEnd.h \
 	       MacOSX/AudioDevice.cpp MacOSX/AudioDevice.h MacOSX/audio_macosx.cpp \
+	       MacOSX/utils_macosx.mm MacOSX/utils_macosx.h \
 	       Windows/cd_defs.h Windows/cdenable Windows/extfs_windows.cpp \
 	       Windows/posix_emu.cpp Windows/posix_emu.h Windows/sys_windows.cpp \
 	       Windows/timer_windows.cpp Windows/util_windows.cpp \

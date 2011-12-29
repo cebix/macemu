@@ -708,6 +708,8 @@ if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   KEYCODES="../SDL/keycodes"
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp"
+    EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/utils_macosx.mm"
+    CPPFLAGS="$CPPFLAGS -I../MacOSX"
   else
     EXTRASYSSRCS="$EXTRASYSSRCS ../dummy/clip_dummy.cpp"
   fi

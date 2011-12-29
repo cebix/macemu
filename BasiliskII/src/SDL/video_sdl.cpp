@@ -63,14 +63,12 @@
 #include "video_blit.h"
 #include "vm_alloc.h"
 
+#if (defined(__APPLE__) && defined(__MACH__))
+#include "utils_macosx.h"
+#endif
+
 #define DEBUG 0
 #include "debug.h"
-
-#if (defined(__APPLE__) && defined(__MACH__))
-extern "C" {
-	void NSAutoReleasePool_wrap(void (*fn)(void));
-}
-#endif
 
 // Supported video modes
 using std::vector;
