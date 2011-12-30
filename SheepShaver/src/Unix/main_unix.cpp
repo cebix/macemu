@@ -429,6 +429,7 @@ static void get_system_info(void)
 		}
 		fclose(proc_file);
 	} else {
+		char str[256];
 		sprintf(str, GetString(STR_PROC_CPUINFO_WARN), strerror(errno));
 		WarningAlert(str);
 	}
