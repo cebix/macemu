@@ -39,6 +39,10 @@
 #include <limits.h>
 #include "vm_alloc.h"
 
+#if defined(__APPLE__) && defined(__MACH__)
+#include <sys/utsname.h>
+#endif
+
 #ifdef HAVE_MACH_VM
 #ifndef HAVE_MACH_TASK_SELF
 #ifdef HAVE_TASK_SELF
@@ -181,6 +185,21 @@ int vm_init(void)
 		return -1;
 #endif
 #endif
+
+// On 10.4 and earlier, reset CrashReporter's task signal handler to
+// avoid having it show up for signals that get handled.
+#if defined(__APPLE__) && defined(__MACH__)
+	struct utsname info;
+
+	if (!uname(&info) && atoi(info.release) <= 8) {
+		task_set_exception_ports(mach_task_self(),
+			EXC_MASK_BAD_ACCESS | EXC_MASK_ARITHMETIC,
+			MACH_PORT_NULL,
+			EXCEPTION_STATE_IDENTITY,
+			MACHINE_THREAD_STATE);
+	}
+#endif
+
 	return 0;
 }
 

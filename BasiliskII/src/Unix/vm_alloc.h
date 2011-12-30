@@ -32,6 +32,7 @@
 #ifdef HAVE_MACH_VM
 extern "C" {
 #include <mach/mach.h>
+#include <mach/task.h>
 }
 #endif
 
