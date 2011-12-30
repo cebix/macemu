@@ -1016,15 +1016,18 @@
 			);
 			inputPaths = (
 				"$(BUILT_PRODUCTS_DIR)/dyngen",
-				"$(OBJECT_FILE_DIR)-$(CURRENT_VARIANT)/$(CURRENT_ARCH)/basic-dyngen-ops.o",
+				"$(OBJECT_FILE_DIR)-$(CURRENT_VARIANT)/i386/basic-dyngen-ops.o",
+				"$(OBJECT_FILE_DIR)-$(CURRENT_VARIANT)/x86_64/basic-dyngen-ops.o",
 			);
 			name = "Run dyngen";
 			outputPaths = (
+				"$(SRCROOT)/../Unix/basic-dyngen-ops-x86_32.hpp",
+				"$(SRCROOT)/../Unix/basic-dyngen-ops-x86_64.hpp",
 				"$(SRCROOT)/../Unix/basic-dyngen-ops.hpp",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${BUILT_PRODUCTS_DIR}/dyngen\" -o \"${SRCROOT}/../Unix/basic-dyngen-ops.hpp\" \"${OBJECT_FILE_DIR}-${CURRENT_VARIANT}/${CURRENT_ARCH}/basic-dyngen-ops.o\"\n";
+			shellScript = "arch -x86_64 \"${BUILT_PRODUCTS_DIR}/dyngen\" -o \"${SRCROOT}/../Unix/basic-dyngen-ops-x86_64.hpp\" \"${OBJECT_FILE_DIR}-${CURRENT_VARIANT}/x86_64/basic-dyngen-ops.o\"\narch -i386 \"${BUILT_PRODUCTS_DIR}/dyngen\" -o \"${SRCROOT}/../Unix/basic-dyngen-ops-x86_32.hpp\" \"${OBJECT_FILE_DIR}-${CURRENT_VARIANT}/i386/basic-dyngen-ops.o\"\n\necho \"#if defined(__x86_64__)\" > \"${SRCROOT}/../Unix/basic-dyngen-ops.hpp\"\necho \"\t#include \\\"basic-dyngen-ops-x86_64.hpp\\\"\" >> \"${SRCROOT}/../Unix/basic-dyngen-ops.hpp\"\necho \"#elif defined(__i386__)\" >> \"${SRCROOT}/../Unix/basic-dyngen-ops.hpp\"\necho \"\t#include \\\"basic-dyngen-ops-x86_32.hpp\\\"\" >> \"${SRCROOT}/../Unix/basic-dyngen-ops.hpp\"\necho \"#else\" >> \"${SRCROOT}/../Unix/basic-dyngen-ops.hpp\"\necho \"\t#error Unknown platform\" >> \"${SRCROOT}/../Unix/basic-dyngen-ops.hpp\"\necho \"#endif\" >> \"${SRCROOT}/../Unix/basic-dyngen-ops.hpp\"\n";
 		};
 		0873A66914AB8A40004F12B7 /* Run dyngen */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1033,15 +1036,18 @@
 			);
 			inputPaths = (
 				"$(BUILT_PRODUCTS_DIR)/dyngen",
-				"$(OBJECT_FILE_DIR)-$(CURRENT_VARIANT)/$(CURRENT_ARCH)/ppc-dyngen-ops.o",
+				"$(OBJECT_FILE_DIR)-$(CURRENT_VARIANT)/i386/ppc-dyngen-ops.o",
+				"$(OBJECT_FILE_DIR)-$(CURRENT_VARIANT)/x86_64/ppc-dyngen-ops.o",
 			);
 			name = "Run dyngen";
 			outputPaths = (
+				"$(SRCROOT)/../Unix/ppc-dyngen-ops-x86_32.hpp",
+				"$(SRCROOT)/../Unix/ppc-dyngen-ops-x86_64.hpp",
 				"$(SRCROOT)/../Unix/ppc-dyngen-ops.hpp",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${BUILT_PRODUCTS_DIR}/dyngen\" -o \"${SRCROOT}/../Unix/ppc-dyngen-ops.hpp\" \"${OBJECT_FILE_DIR}-${CURRENT_VARIANT}/${CURRENT_ARCH}/ppc-dyngen-ops.o\"\n";
+			shellScript = "arch -x86_64 \"${BUILT_PRODUCTS_DIR}/dyngen\" -o \"${SRCROOT}/../Unix/ppc-dyngen-ops-x86_64.hpp\" \"${OBJECT_FILE_DIR}-${CURRENT_VARIANT}/x86_64/ppc-dyngen-ops.o\"\narch -i386 \"${BUILT_PRODUCTS_DIR}/dyngen\" -o \"${SRCROOT}/../Unix/ppc-dyngen-ops-x86_32.hpp\" \"${OBJECT_FILE_DIR}-${CURRENT_VARIANT}/i386/ppc-dyngen-ops.o\"\n\necho \"#if defined(__x86_64__)\" > \"${SRCROOT}/../Unix/ppc-dyngen-ops.hpp\"\necho \"\t#include \\\"ppc-dyngen-ops-x86_64.hpp\\\"\" >> \"${SRCROOT}/../Unix/ppc-dyngen-ops.hpp\"\necho \"#elif defined(__i386__)\" >> \"${SRCROOT}/../Unix/ppc-dyngen-ops.hpp\"\necho \"\t#include \\\"ppc-dyngen-ops-x86_32.hpp\\\"\" >> \"${SRCROOT}/../Unix/ppc-dyngen-ops.hpp\"\necho \"#else\" >> \"${SRCROOT}/../Unix/ppc-dyngen-ops.hpp\"\necho \"\t#error Unknown platform\" >> \"${SRCROOT}/../Unix/ppc-dyngen-ops.hpp\"\necho \"#endif\" >> \"${SRCROOT}/../Unix/ppc-dyngen-ops.hpp\"\n";
 		};
 		0873A67214AB8AE9004F12B7 /* Run genexec */ = {
 			isa = PBXShellScriptBuildPhase;
