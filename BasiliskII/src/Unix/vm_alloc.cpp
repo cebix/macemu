@@ -236,15 +236,14 @@ void * vm_acquire(size_t size, int options)
 		return VM_MAP_FAILED;
 #endif
 
-#ifdef HAVE_MACH_VM
+#if defined(HAVE_MACH_VM)
 	// vm_allocate() returns a zero-filled memory region
 	kern_return_t ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, TRUE);
 	if (ret_code != KERN_SUCCESS) {
 		errno = vm_error(ret_code);
 		return VM_MAP_FAILED;
 	}
-#else
-#ifdef HAVE_MMAP_VM
+#elif defined(HAVE_MMAP_VM)
 	int fd = zero_fd;
 	int the_map_flags = translate_map_flags(options) | map_flags;
 
@@ -256,8 +255,7 @@ void * vm_acquire(size_t size, int options)
 		return VM_MAP_FAILED;
 
 	next_address = (char *)addr + size;
-#else
-#ifdef HAVE_WIN32_VM
+#elif defined(HAVE_WIN32_VM)
 	int alloc_type = MEM_RESERVE | MEM_COMMIT;
 	if (options & VM_MAP_WRITE_WATCH)
 	  alloc_type |= MEM_WRITE_WATCH;
@@ -270,8 +268,6 @@ void * vm_acquire(size_t size, int options)
 	
 	// Omit changes for protections because they are not supported in this mode
 	return addr;
-#endif
-#endif
 #endif
 
 	// Explicitely protect the newly mapped region here because on some systems,
