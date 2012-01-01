@@ -23,6 +23,18 @@
 /* Begin PBXBuildFile section */
 		082AC22D14AA52E900071F5E /* prefs_editor_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 082AC22C14AA52E900071F5E /* prefs_editor_dummy.cpp */; };
 		082AC26214AA59F000071F5E /* lowmem.c in Sources */ = {isa = PBXBuildFile; fileRef = 082AC26114AA59F000071F5E /* lowmem.c */; };
+		0846E4A314B1252800574779 /* sheepshaver_glue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDBB14A99EEF000B1711 /* sheepshaver_glue.cpp */; };
+		0846E4B114B1264700574779 /* ieeefp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDF714A99EEF000B1711 /* ieeefp.cpp */; };
+		0846E4B314B1264F00574779 /* mathlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDFD14A99EEF000B1711 /* mathlib.cpp */; };
+		0846E4B514B1265500574779 /* utils-cpuinfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE0214A99EEF000B1711 /* utils-cpuinfo.cpp */; };
+		0846E4B614B1265A00574779 /* ppc-translate.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDF014A99EEF000B1711 /* ppc-translate.cpp */; };
+		0846E4B814B1266000574779 /* ppc-jit.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDEB14A99EEF000B1711 /* ppc-jit.cpp */; };
+		0846E4B914B1266600574779 /* ppc-execute.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDE814A99EEF000B1711 /* ppc-execute.cpp */; };
+		0846E4BC14B1267200574779 /* ppc-dyngen.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDE614A99EEF000B1711 /* ppc-dyngen.cpp */; };
+		0846E4BE14B1267A00574779 /* ppc-decode.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDE414A99EEF000B1711 /* ppc-decode.cpp */; };
+		0846E4C014B1267F00574779 /* ppc-cpu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDE214A99EEF000B1711 /* ppc-cpu.cpp */; };
+		0846E4C114B1268B00574779 /* jit-cache.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDCD14A99EEF000B1711 /* jit-cache.cpp */; };
+		0846E4C214B1269600574779 /* basic-dyngen.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDC514A99EEF000B1711 /* basic-dyngen.cpp */; };
 		0856CFC114A99EF0000B1711 /* adb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD4B14A99EEF000B1711 /* adb.cpp */; };
 		0856CFC214A99EF0000B1711 /* audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD4C14A99EEF000B1711 /* audio.cpp */; };
 		0856CFE214A99EF0000B1711 /* cdrom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD7814A99EEF000B1711 /* cdrom.cpp */; };
@@ -32,18 +44,6 @@
 		0856CFF014A99EF0000B1711 /* ether.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD8914A99EEF000B1711 /* ether.cpp */; };
 		0856CFF314A99EF0000B1711 /* extfs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD8C14A99EEF000B1711 /* extfs.cpp */; };
 		0856CFF414A99EF0000B1711 /* gfxaccel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD8D14A99EEF000B1711 /* gfxaccel.cpp */; };
-		0856CFF514A99EF0000B1711 /* sheepshaver_glue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDBB14A99EEF000B1711 /* sheepshaver_glue.cpp */; };
-		0856CFF714A99EF0000B1711 /* basic-dyngen.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDC514A99EEF000B1711 /* basic-dyngen.cpp */; };
-		0856CFFA14A99EF0000B1711 /* jit-cache.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDCD14A99EEF000B1711 /* jit-cache.cpp */; };
-		0856CFFC14A99EF0000B1711 /* ppc-cpu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDE214A99EEF000B1711 /* ppc-cpu.cpp */; };
-		0856CFFD14A99EF0000B1711 /* ppc-decode.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDE414A99EEF000B1711 /* ppc-decode.cpp */; };
-		0856CFFF14A99EF0000B1711 /* ppc-dyngen.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDE614A99EEF000B1711 /* ppc-dyngen.cpp */; };
-		0856D00014A99EF0000B1711 /* ppc-execute.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDE814A99EEF000B1711 /* ppc-execute.cpp */; };
-		0856D00114A99EF0000B1711 /* ppc-jit.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDEB14A99EEF000B1711 /* ppc-jit.cpp */; };
-		0856D00214A99EF0000B1711 /* ppc-translate.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDF014A99EEF000B1711 /* ppc-translate.cpp */; };
-		0856D00414A99EF0000B1711 /* ieeefp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDF714A99EEF000B1711 /* ieeefp.cpp */; };
-		0856D00614A99EF0000B1711 /* mathlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDFD14A99EEF000B1711 /* mathlib.cpp */; };
-		0856D00814A99EF0000B1711 /* utils-cpuinfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE0214A99EEF000B1711 /* utils-cpuinfo.cpp */; };
 		0856D00914A99EF0000B1711 /* macos_util.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE0514A99EEF000B1711 /* macos_util.cpp */; };
 		0856D02414A99EF0000B1711 /* clip_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE2C14A99EF0000B1711 /* clip_macosx.cpp */; };
 		0856D02514A99EF0000B1711 /* extfs_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE2D14A99EF0000B1711 /* extfs_macosx.cpp */; };
@@ -124,12 +124,26 @@
 			remoteGlobalIDString = 082AC25114AA59B600071F5E;
 			remoteInfo = lowmem;
 		};
-		0873A5DB14AB80F0004F12B7 /* PBXContainerItemProxy */ = {
+		0846E4A614B1253500574779 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0856CCAE14A99DE0000B1711 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 0873A5CB14AB806D004F12B7;
+			remoteGlobalIDString = 0846E49914B124DE00574779 /* kpx_cpu */;
+			remoteInfo = kpx_cpu;
+		};
+		0846E4C514B126B600574779 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0856CCAE14A99DE0000B1711 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0873A5CB14AB806D004F12B7 /* ppc-dyngen-ops */;
 			remoteInfo = "ppc-dyngen-ops";
+		};
+		0846E4C714B126B800574779 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0856CCAE14A99DE0000B1711 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0873A67314AB8AE9004F12B7 /* ppc-execute-impl */;
+			remoteInfo = "ppc-execute-impl";
 		};
 		0873A60214AB83CC004F12B7 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -145,19 +159,13 @@
 			remoteGlobalIDString = 0873A53114AAF05A004F12B7;
 			remoteInfo = dyngen;
 		};
-		0873A67C14AB8AF9004F12B7 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 0856CCAE14A99DE0000B1711 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 0873A67314AB8AE9004F12B7;
-			remoteInfo = "ppc-execute-impl";
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		082AC22C14AA52E900071F5E /* prefs_editor_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = prefs_editor_dummy.cpp; sourceTree = "<group>"; };
 		082AC25214AA59B600071F5E /* lowmem */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = lowmem; sourceTree = BUILT_PRODUCTS_DIR; };
 		082AC26114AA59F000071F5E /* lowmem.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = lowmem.c; path = ../../../BasiliskII/src/Unix/Darwin/lowmem.c; sourceTree = SOURCE_ROOT; };
+		0846E49A14B124DE00574779 /* libkpx_cpu.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libkpx_cpu.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		0856CCC114A99E1C000B1711 /* SheepShaver.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SheepShaver.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0856CD4B14A99EEF000B1711 /* adb.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = adb.cpp; path = ../adb.cpp; sourceTree = SOURCE_ROOT; };
 		0856CD4C14A99EEF000B1711 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = ../audio.cpp; sourceTree = SOURCE_ROOT; };
@@ -382,6 +390,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0846E49814B124DE00574779 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0856CCBF14A99E1C000B1711 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -441,6 +456,7 @@
 				0873A53214AAF05A004F12B7 /* dyngen */,
 				0873A5C514AB8038004F12B7 /* libbasic-dyngen-ops.a */,
 				0873A5CC14AB806D004F12B7 /* libppc-dyngen-ops.a */,
+				0846E49A14B124DE00574779 /* libkpx_cpu.a */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -839,6 +855,13 @@
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
+		0846E49614B124DE00574779 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0873A5C114AB8038004F12B7 /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
@@ -876,6 +899,25 @@
 			productReference = 082AC25214AA59B600071F5E /* lowmem */;
 			productType = "com.apple.product-type.tool";
 		};
+		0846E49914B124DE00574779 /* kpx_cpu */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0846E4A114B1251400574779 /* Build configuration list for PBXNativeTarget "kpx_cpu" */;
+			buildPhases = (
+				0846E49614B124DE00574779 /* Headers */,
+				0846E49714B124DE00574779 /* Sources */,
+				0846E49814B124DE00574779 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0846E4C614B126B600574779 /* PBXTargetDependency */,
+				0846E4C814B126B800574779 /* PBXTargetDependency */,
+			);
+			name = kpx_cpu;
+			productName = kpx_cpu;
+			productReference = 0846E49A14B124DE00574779 /* libkpx_cpu.a */;
+			productType = "com.apple.product-type.library.static";
+		};
 		0856CCC014A99E1C000B1711 /* SheepShaver */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0856CCC714A99E1D000B1711 /* Build configuration list for PBXNativeTarget "SheepShaver" */;
@@ -888,8 +930,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				0873A5DC14AB80F0004F12B7 /* PBXTargetDependency */,
-				0873A67D14AB8AF9004F12B7 /* PBXTargetDependency */,
+				0846E4A714B1253500574779 /* PBXTargetDependency */,
 				082AC26814AA5A4800071F5E /* PBXTargetDependency */,
 			);
 			name = SheepShaver;
@@ -977,6 +1018,7 @@
 				0873A5C414AB8038004F12B7 /* basic-dyngen-ops */,
 				0873A5CB14AB806D004F12B7 /* ppc-dyngen-ops */,
 				0873A67314AB8AE9004F12B7 /* ppc-execute-impl */,
+				0846E49914B124DE00574779 /* kpx_cpu */,
 			);
 		};
 /* End PBXProject section */
@@ -1077,6 +1119,25 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0846E49714B124DE00574779 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0846E4A314B1252800574779 /* sheepshaver_glue.cpp in Sources */,
+				0846E4B114B1264700574779 /* ieeefp.cpp in Sources */,
+				0846E4B314B1264F00574779 /* mathlib.cpp in Sources */,
+				0846E4B514B1265500574779 /* utils-cpuinfo.cpp in Sources */,
+				0846E4B614B1265A00574779 /* ppc-translate.cpp in Sources */,
+				0846E4B814B1266000574779 /* ppc-jit.cpp in Sources */,
+				0846E4B914B1266600574779 /* ppc-execute.cpp in Sources */,
+				0846E4BC14B1267200574779 /* ppc-dyngen.cpp in Sources */,
+				0846E4BE14B1267A00574779 /* ppc-decode.cpp in Sources */,
+				0846E4C014B1267F00574779 /* ppc-cpu.cpp in Sources */,
+				0846E4C114B1268B00574779 /* jit-cache.cpp in Sources */,
+				0846E4C214B1269600574779 /* basic-dyngen.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0856CCBE14A99E1C000B1711 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1090,18 +1151,6 @@
 				0856CFF014A99EF0000B1711 /* ether.cpp in Sources */,
 				0856CFF314A99EF0000B1711 /* extfs.cpp in Sources */,
 				0856CFF414A99EF0000B1711 /* gfxaccel.cpp in Sources */,
-				0856CFF514A99EF0000B1711 /* sheepshaver_glue.cpp in Sources */,
-				0856CFF714A99EF0000B1711 /* basic-dyngen.cpp in Sources */,
-				0856CFFA14A99EF0000B1711 /* jit-cache.cpp in Sources */,
-				0856CFFC14A99EF0000B1711 /* ppc-cpu.cpp in Sources */,
-				0856CFFD14A99EF0000B1711 /* ppc-decode.cpp in Sources */,
-				0856CFFF14A99EF0000B1711 /* ppc-dyngen.cpp in Sources */,
-				0856D00014A99EF0000B1711 /* ppc-execute.cpp in Sources */,
-				0856D00114A99EF0000B1711 /* ppc-jit.cpp in Sources */,
-				0856D00214A99EF0000B1711 /* ppc-translate.cpp in Sources */,
-				0856D00414A99EF0000B1711 /* ieeefp.cpp in Sources */,
-				0856D00614A99EF0000B1711 /* mathlib.cpp in Sources */,
-				0856D00814A99EF0000B1711 /* utils-cpuinfo.cpp in Sources */,
 				0856D00914A99EF0000B1711 /* macos_util.cpp in Sources */,
 				0856D02414A99EF0000B1711 /* clip_macosx.cpp in Sources */,
 				0856D02514A99EF0000B1711 /* extfs_macosx.cpp in Sources */,
@@ -1197,10 +1246,20 @@
 			target = 082AC25114AA59B600071F5E /* lowmem */;
 			targetProxy = 082AC26714AA5A4800071F5E /* PBXContainerItemProxy */;
 		};
-		0873A5DC14AB80F0004F12B7 /* PBXTargetDependency */ = {
+		0846E4A714B1253500574779 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0846E49914B124DE00574779 /* kpx_cpu */;
+			targetProxy = 0846E4A614B1253500574779 /* PBXContainerItemProxy */;
+		};
+		0846E4C614B126B600574779 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 0873A5CB14AB806D004F12B7 /* ppc-dyngen-ops */;
-			targetProxy = 0873A5DB14AB80F0004F12B7 /* PBXContainerItemProxy */;
+			targetProxy = 0846E4C514B126B600574779 /* PBXContainerItemProxy */;
+		};
+		0846E4C814B126B800574779 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0873A67314AB8AE9004F12B7 /* ppc-execute-impl */;
+			targetProxy = 0846E4C714B126B800574779 /* PBXContainerItemProxy */;
 		};
 		0873A60314AB83CC004F12B7 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1211,11 +1270,6 @@
 			isa = PBXTargetDependency;
 			target = 0873A53114AAF05A004F12B7 /* dyngen */;
 			targetProxy = 0873A62614AB869A004F12B7 /* PBXContainerItemProxy */;
-		};
-		0873A67D14AB8AF9004F12B7 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 0873A67314AB8AE9004F12B7 /* ppc-execute-impl */;
-			targetProxy = 0873A67C14AB8AF9004F12B7 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1281,6 +1335,86 @@
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = lowmem;
 				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
+				ZERO_LINK = NO;
+			};
+			name = Release;
+		};
+		0846E49B14B124DF00574779 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = (
+					i386,
+					x86_64,
+				);
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_MODEL_TUNING = "";
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DATADIR=",
+					HAVE_CONFIG_H,
+					USE_JIT,
+					"_GNU_SOURCE=1",
+					_THREAD_SAFE,
+					_REENTRANT,
+				);
+				GCC_VERSION = 4.0;
+				HEADER_SEARCH_PATHS = (
+					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
+					./config/,
+					../Unix,
+					../MacOSX/Launcher,
+					../slirp,
+					../kpx_cpu/src,
+					../kpx_cpu/include,
+					../include,
+				);
+				INSTALL_PATH = /usr/local/lib;
+				PREBINDING = NO;
+				PRODUCT_NAME = kpx_cpu;
+				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.5.sdk";
+				"SDKROOT[arch=i386]" = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
+			};
+			name = Debug;
+		};
+		0846E49C14B124DF00574779 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = (
+					i386,
+					x86_64,
+				);
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				GCC_MODEL_TUNING = "";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DATADIR=",
+					HAVE_CONFIG_H,
+					USE_JIT,
+					"_GNU_SOURCE=1",
+					_THREAD_SAFE,
+					_REENTRANT,
+				);
+				GCC_VERSION = 4.0;
+				HEADER_SEARCH_PATHS = (
+					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
+					./config/,
+					../Unix,
+					../MacOSX/Launcher,
+					../slirp,
+					../kpx_cpu/src,
+					../kpx_cpu/include,
+					../include,
+				);
+				INSTALL_PATH = /usr/local/lib;
+				PREBINDING = NO;
+				PRODUCT_NAME = kpx_cpu;
+				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.5.sdk";
+				"SDKROOT[arch=i386]" = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
 				ZERO_LINK = NO;
 			};
 			name = Release;
@@ -1355,6 +1489,7 @@
 					AppKit,
 					"-framework",
 					Carbon,
+					"-lkpx_cpu",
 				);
 				PREBINDING = NO;
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
@@ -1421,6 +1556,7 @@
 					AppKit,
 					"-framework",
 					Carbon,
+					"-lkpx_cpu",
 				);
 				PREBINDING = NO;
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
@@ -1701,6 +1837,15 @@
 			buildConfigurations = (
 				082AC25414AA59B700071F5E /* Debug */,
 				082AC25514AA59B700071F5E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0846E4A114B1251400574779 /* Build configuration list for PBXNativeTarget "kpx_cpu" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0846E49B14B124DF00574779 /* Debug */,
+				0846E49C14B124DF00574779 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
