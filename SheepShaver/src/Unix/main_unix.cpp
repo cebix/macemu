@@ -1118,9 +1118,6 @@ static void Quit(void)
 	if (dr_cache_area_mapped)
 		vm_mac_release(DR_CACHE_BASE, DR_CACHE_SIZE);
 
-	// Delete Kernel Data area
-	kernel_data_exit();
-
 	// Delete Low Memory area
 	if (lm_area_mapped)
 		vm_mac_release(0, 0x3000);
@@ -1163,27 +1160,35 @@ static void Quit(void)
 static bool kernel_data_init(void)
 {
 	char str[256];
+	void *kernel_addr1 = NULL;
+	void *kernel_addr2 = NULL;
 	uint32 kernel_area_size = (KERNEL_AREA_SIZE + SHMLBA - 1) & -SHMLBA;
 
 	kernel_area = shmget(IPC_PRIVATE, kernel_area_size, 0600);
 	if (kernel_area == -1) {
 		sprintf(str, GetString(STR_KD_SHMGET_ERR), strerror(errno));
-		ErrorAlert(str);
-		return false;
+		goto fail_shmget;
 	}
-	void *kernel_addr = Mac2HostAddr(KERNEL_DATA_BASE & -SHMLBA);
-	if (shmat(kernel_area, kernel_addr, 0) != kernel_addr) {
+	kernel_addr1 = Mac2HostAddr(KERNEL_DATA_BASE & -SHMLBA);
+	if (shmat(kernel_area, kernel_addr1, 0) != kernel_addr1) {
 		sprintf(str, GetString(STR_KD_SHMAT_ERR), strerror(errno));
-		ErrorAlert(str);
-		return false;
+		goto fail_shmat1;
 	}
-	kernel_addr = Mac2HostAddr(KERNEL_DATA2_BASE & -SHMLBA);
-	if (shmat(kernel_area, kernel_addr, 0) != kernel_addr) {
+	kernel_addr2 = Mac2HostAddr(KERNEL_DATA2_BASE & -SHMLBA);
+	if (shmat(kernel_area, kernel_addr2, 0) != kernel_addr2) {
 		sprintf(str, GetString(STR_KD2_SHMAT_ERR), strerror(errno));
-		ErrorAlert(str);
-		return false;
+		goto fail_shmat2;
 	}
+	atexit(kernel_data_exit);
 	return true;
+
+fail_shmat2:
+	shmdt(kernel_addr1);
+fail_shmat1:
+	shmctl(kernel_area, IPC_RMID, NULL);
+fail_shmget:
+	ErrorAlert(str);
+	return false;
 }
 
 
@@ -1197,6 +1202,7 @@ static void kernel_data_exit(void)
 		shmdt(Mac2HostAddr(KERNEL_DATA_BASE & -SHMLBA));
 		shmdt(Mac2HostAddr(KERNEL_DATA2_BASE & -SHMLBA));
 		shmctl(kernel_area, IPC_RMID, NULL);
+		kernel_area = NULL;
 	}
 }
 
