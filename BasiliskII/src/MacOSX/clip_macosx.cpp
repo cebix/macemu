@@ -133,7 +133,7 @@ void GetScrap(void **handle, uint32 type, int32 offset)
 					0x2f, 0x3c, 0, 0, 0, 0,		// move.l	#outbuf,-(sp)
 					0xa9, 0xfe,					// PutScrap()
 					0x58, 0x8f,					// addq.l	#4,sp
-					M68K_RTS >> 8, M68K_RTS
+					M68K_RTS >> 8, M68K_RTS & 0xff
 				};
 				r.d[0] = sizeof(proc);
 				Execute68kTrap(0xa71e, &r);		// NewPtrSysClear()
