@@ -294,22 +294,20 @@ int vm_acquire_fixed(void * addr, size_t size, int options)
 		return -1;
 #endif
 
-#ifdef HAVE_MACH_VM
+#if defined(HAVE_MACH_VM)
 	// vm_allocate() returns a zero-filled memory region
 	kern_return_t ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, 0);
 	if (ret_code != KERN_SUCCESS) {
 		errno = vm_error(ret_code);
 		return -1;
 	}
-#else
-#ifdef HAVE_MMAP_VM
+#elif defined(HAVE_MMAP_VM)
 	int fd = zero_fd;
 	int the_map_flags = translate_map_flags(options) | map_flags | MAP_FIXED;
 
 	if (mmap((caddr_t)addr, size, VM_PAGE_DEFAULT, the_map_flags, fd, 0) == (void *)MAP_FAILED)
 		return -1;
-#else
-#ifdef HAVE_WIN32_VM
+#elif defined(HAVE_WIN32_VM)
 	// Windows cannot allocate Low Memory
 	if (addr == NULL)
 		return -1;
@@ -328,14 +326,12 @@ int vm_acquire_fixed(void * addr, size_t size, int options)
 	// Unsupported
 	return -1;
 #endif
-#endif
-#endif
-	
+
 	// Explicitely protect the newly mapped region here because on some systems,
 	// say MacOS X, mmap() doesn't honour the requested protection flags.
 	if (vm_protect(addr, size, VM_PAGE_DEFAULT) != 0)
 		return -1;
-	
+
 	return 0;
 }
 
