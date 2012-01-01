@@ -1386,7 +1386,7 @@ static void *tick_func(void *arg)
 			sigregs *r = &sigsegv_regs;
 			char str[256];
 			if (crash_reason == NULL)
-				crash_reason = "SIGSEGV!";
+				crash_reason = "SIGSEGV";
 			sprintf(str, "%s\n"
 				"   pc %08lx     lr %08lx    ctr %08lx    msr %08lx\n"
 				"  xer %08lx     cr %08lx  \n"
@@ -1411,20 +1411,6 @@ static void *tick_func(void *arg)
 				r->gpr[28], r->gpr[29], r->gpr[30], r->gpr[31]);
 			printf(str);
 			VideoQuitFullScreen();
-
-			{
-				static int (*backtrace_fn)(void**, int);
-				static char** (*backtrace_symbols_fn)(void* const*, int);
-				backtrace_fn = dlsym(RTLD_DEFAULT, "backtrace");
-				backtrace_symbols_fn = dlsym(RTLD_DEFAULT, "backtrace_symbols");
-	void *frame_ptrs[64];
-	int count = backtrace_fn(frame_ptrs, 64);
-	char **fnames = backtrace_symbols_fn(frame_ptrs, count);
-	int i;
-	for (i = 0; i < count; i++)
-		printf("%s", fnames[i]);
-	free(fnames);
-			}
 
 #ifdef ENABLE_MON
 			// Start up mon in real-mode
