@@ -669,6 +669,7 @@ static bool install_signal_handlers(void)
 	return true;
 }
 
+#ifdef USE_SDL
 static bool init_sdl()
 {
 	int sdl_flags = 0;
@@ -701,6 +702,7 @@ static bool init_sdl()
 	signal(SIGTERM, SIG_DFL);
 	return true;
 }
+#endif
 
 int main(int argc, char **argv)
 {
