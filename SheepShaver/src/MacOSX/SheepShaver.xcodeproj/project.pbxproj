@@ -23,7 +23,6 @@
 /* Begin PBXBuildFile section */
 		082AC22D14AA52E900071F5E /* prefs_editor_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 082AC22C14AA52E900071F5E /* prefs_editor_dummy.cpp */; };
 		082AC26214AA59F000071F5E /* lowmem.c in Sources */ = {isa = PBXBuildFile; fileRef = 082AC26114AA59F000071F5E /* lowmem.c */; };
-		0846E4A314B1252800574779 /* sheepshaver_glue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDBB14A99EEF000B1711 /* sheepshaver_glue.cpp */; };
 		0846E4B114B1264700574779 /* ieeefp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDF714A99EEF000B1711 /* ieeefp.cpp */; };
 		0846E4B314B1264F00574779 /* mathlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDFD14A99EEF000B1711 /* mathlib.cpp */; };
 		0846E4B514B1265500574779 /* utils-cpuinfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE0214A99EEF000B1711 /* utils-cpuinfo.cpp */; };
@@ -35,6 +34,9 @@
 		0846E4C014B1267F00574779 /* ppc-cpu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDE214A99EEF000B1711 /* ppc-cpu.cpp */; };
 		0846E4C114B1268B00574779 /* jit-cache.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDCD14A99EEF000B1711 /* jit-cache.cpp */; };
 		0846E4C214B1269600574779 /* basic-dyngen.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDC514A99EEF000B1711 /* basic-dyngen.cpp */; };
+		0846E51314B128ED00574779 /* sheepshaver_glue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDBB14A99EEF000B1711 /* sheepshaver_glue.cpp */; };
+		0846E52B14B12A0800574779 /* ppc_asm.S in Sources */ = {isa = PBXBuildFile; fileRef = 0846E52314B129DA00574779 /* ppc_asm.S */; };
+		0846E55314B12B0D00574779 /* paranoia.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0846E55214B12B0D00574779 /* paranoia.cpp */; };
 		0856CFC114A99EF0000B1711 /* adb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD4B14A99EEF000B1711 /* adb.cpp */; };
 		0856CFC214A99EF0000B1711 /* audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD4C14A99EEF000B1711 /* audio.cpp */; };
 		0856CFE214A99EF0000B1711 /* cdrom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD7814A99EEF000B1711 /* cdrom.cpp */; };
@@ -145,6 +147,13 @@
 			remoteGlobalIDString = 0873A67314AB8AE9004F12B7 /* ppc-execute-impl */;
 			remoteInfo = "ppc-execute-impl";
 		};
+		0846E52D14B12A2E00574779 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0856CCAE14A99DE0000B1711 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0846E52714B129EE00574779 /* ppc_asm */;
+			remoteInfo = ppc_asm;
+		};
 		0873A60214AB83CC004F12B7 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0856CCAE14A99DE0000B1711 /* Project object */;
@@ -166,6 +175,9 @@
 		082AC25214AA59B600071F5E /* lowmem */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = lowmem; sourceTree = BUILT_PRODUCTS_DIR; };
 		082AC26114AA59F000071F5E /* lowmem.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = lowmem.c; path = ../../../BasiliskII/src/Unix/Darwin/lowmem.c; sourceTree = SOURCE_ROOT; };
 		0846E49A14B124DE00574779 /* libkpx_cpu.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libkpx_cpu.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		0846E52314B129DA00574779 /* ppc_asm.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; path = ppc_asm.S; sourceTree = "<group>"; };
+		0846E52814B129EE00574779 /* libppc_asm.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libppc_asm.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		0846E55214B12B0D00574779 /* paranoia.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = paranoia.cpp; sourceTree = "<group>"; };
 		0856CCC114A99E1C000B1711 /* SheepShaver.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SheepShaver.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0856CD4B14A99EEF000B1711 /* adb.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = adb.cpp; path = ../adb.cpp; sourceTree = SOURCE_ROOT; };
 		0856CD4C14A99EEF000B1711 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = ../audio.cpp; sourceTree = SOURCE_ROOT; };
@@ -397,6 +409,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0846E52614B129EE00574779 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0856CCBF14A99E1C000B1711 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -457,6 +476,7 @@
 				0873A5C514AB8038004F12B7 /* libbasic-dyngen-ops.a */,
 				0873A5CC14AB806D004F12B7 /* libppc-dyngen-ops.a */,
 				0846E49A14B124DE00574779 /* libkpx_cpu.a */,
+				0846E52814B129EE00574779 /* libppc_asm.a */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -806,6 +826,8 @@
 				0856CED014A99EF0000B1711 /* bincue_unix.h */,
 				0856CEE314A99EF0000B1711 /* ether_unix.cpp */,
 				0856CEFB14A99EF0000B1711 /* main_unix.cpp */,
+				0846E55214B12B0D00574779 /* paranoia.cpp */,
+				0846E52314B129DA00574779 /* ppc_asm.S */,
 				0856CF5A14A99EF0000B1711 /* prefs_unix.cpp */,
 				0856CF5B14A99EF0000B1711 /* rpc.h */,
 				0856CF5C14A99EF0000B1711 /* rpc_unix.cpp */,
@@ -856,6 +878,13 @@
 
 /* Begin PBXHeadersBuildPhase section */
 		0846E49614B124DE00574779 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0846E52414B129EE00574779 /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -918,6 +947,23 @@
 			productReference = 0846E49A14B124DE00574779 /* libkpx_cpu.a */;
 			productType = "com.apple.product-type.library.static";
 		};
+		0846E52714B129EE00574779 /* ppc_asm */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0846E52C14B12A2600574779 /* Build configuration list for PBXNativeTarget "ppc_asm" */;
+			buildPhases = (
+				0846E52414B129EE00574779 /* Headers */,
+				0846E52514B129EE00574779 /* Sources */,
+				0846E52614B129EE00574779 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ppc_asm;
+			productName = ppc_asm;
+			productReference = 0846E52814B129EE00574779 /* libppc_asm.a */;
+			productType = "com.apple.product-type.library.static";
+		};
 		0856CCC014A99E1C000B1711 /* SheepShaver */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0856CCC714A99E1D000B1711 /* Build configuration list for PBXNativeTarget "SheepShaver" */;
@@ -930,6 +976,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				0846E52E14B12A2E00574779 /* PBXTargetDependency */,
 				0846E4A714B1253500574779 /* PBXTargetDependency */,
 				082AC26814AA5A4800071F5E /* PBXTargetDependency */,
 			);
@@ -1019,6 +1066,7 @@
 				0873A5CB14AB806D004F12B7 /* ppc-dyngen-ops */,
 				0873A67314AB8AE9004F12B7 /* ppc-execute-impl */,
 				0846E49914B124DE00574779 /* kpx_cpu */,
+				0846E52714B129EE00574779 /* ppc_asm */,
 			);
 		};
 /* End PBXProject section */
@@ -1123,7 +1171,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0846E4A314B1252800574779 /* sheepshaver_glue.cpp in Sources */,
 				0846E4B114B1264700574779 /* ieeefp.cpp in Sources */,
 				0846E4B314B1264F00574779 /* mathlib.cpp in Sources */,
 				0846E4B514B1265500574779 /* utils-cpuinfo.cpp in Sources */,
@@ -1135,6 +1182,16 @@
 				0846E4C014B1267F00574779 /* ppc-cpu.cpp in Sources */,
 				0846E4C114B1268B00574779 /* jit-cache.cpp in Sources */,
 				0846E4C214B1269600574779 /* basic-dyngen.cpp in Sources */,
+				0846E51314B128ED00574779 /* sheepshaver_glue.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0846E52514B129EE00574779 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0846E52B14B12A0800574779 /* ppc_asm.S in Sources */,
+				0846E55314B12B0D00574779 /* paranoia.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1260,6 +1317,11 @@
 			isa = PBXTargetDependency;
 			target = 0873A67314AB8AE9004F12B7 /* ppc-execute-impl */;
 			targetProxy = 0846E4C714B126B800574779 /* PBXContainerItemProxy */;
+		};
+		0846E52E14B12A2E00574779 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0846E52714B129EE00574779 /* ppc_asm */;
+			targetProxy = 0846E52D14B12A2E00574779 /* PBXContainerItemProxy */;
 		};
 		0873A60314AB83CC004F12B7 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1419,6 +1481,52 @@
 			};
 			name = Release;
 		};
+		0846E52914B129EF00574779 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = ppc;
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_MODEL_TUNING = G5;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = __ASSEMBLY__;
+				GCC_VERSION = 4.0;
+				HEADER_SEARCH_PATHS = (
+					../Unix,
+					../include,
+				);
+				INSTALL_PATH = /usr/local/lib;
+				PREBINDING = NO;
+				PRODUCT_NAME = ppc_asm;
+				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
+			};
+			name = Debug;
+		};
+		0846E52A14B129EF00574779 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = ppc;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				GCC_MODEL_TUNING = G5;
+				GCC_PREPROCESSOR_DEFINITIONS = __ASSEMBLY__;
+				GCC_VERSION = 4.0;
+				HEADER_SEARCH_PATHS = (
+					../Unix,
+					../include,
+				);
+				INSTALL_PATH = /usr/local/lib;
+				PREBINDING = NO;
+				PRODUCT_NAME = ppc_asm;
+				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
+				ZERO_LINK = NO;
+			};
+			name = Release;
+		};
 		0856CCAF14A99DE0000B1711 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1438,6 +1546,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = (
+					ppc,
 					i386,
 					x86_64,
 				);
@@ -1491,11 +1600,24 @@
 					Carbon,
 					"-lkpx_cpu",
 				);
+				"OTHER_LDFLAGS[arch=ppc]" = (
+					"-pagezero_size",
+					0x3000,
+					"-Wl,-seg1addr,0x78048000",
+					"-framework",
+					Foundation,
+					"-framework",
+					AppKit,
+					"-framework",
+					Carbon,
+					"-lppc_asm",
+				);
 				PREBINDING = NO;
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = SheepShaver;
 				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.5.sdk";
 				"SDKROOT[arch=i386]" = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
+				"SDKROOT[arch=ppc]" = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
 				WARNING_LDFLAGS = "";
 			};
 			name = Debug;
@@ -1505,6 +1627,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = (
+					ppc,
 					i386,
 					x86_64,
 				);
@@ -1558,11 +1681,24 @@
 					Carbon,
 					"-lkpx_cpu",
 				);
+				"OTHER_LDFLAGS[arch=ppc]" = (
+					"-pagezero_size",
+					0x3000,
+					"-Wl,-seg1addr,0x78048000",
+					"-framework",
+					Foundation,
+					"-framework",
+					AppKit,
+					"-framework",
+					Carbon,
+					"-lppc_asm",
+				);
 				PREBINDING = NO;
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = SheepShaver;
 				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.5.sdk";
 				"SDKROOT[arch=i386]" = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
+				"SDKROOT[arch=ppc]" = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
 				ZERO_LINK = NO;
 			};
 			name = Release;
@@ -1846,6 +1982,15 @@
 			buildConfigurations = (
 				0846E49B14B124DF00574779 /* Debug */,
 				0846E49C14B124DF00574779 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0846E52C14B12A2600574779 /* Build configuration list for PBXNativeTarget "ppc_asm" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0846E52914B129EF00574779 /* Debug */,
+				0846E52A14B129EF00574779 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
