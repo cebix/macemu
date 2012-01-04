@@ -63,10 +63,6 @@
 #include "video_blit.h"
 #include "vm_alloc.h"
 
-#if (defined(__APPLE__) && defined(__MACH__))
-#include "utils_macosx.h"
-#endif
-
 #define DEBUG 0
 #include "debug.h"
 
@@ -2241,12 +2237,7 @@ static inline void do_video_refresh(void)
 	handle_events();
 
 	// Update display
-#if (defined(__APPLE__) && defined(__MACH__))
-	// SDL expects an auto-release pool to be present.
-	NSAutoReleasePool_wrap(video_refresh);
-#else
 	video_refresh();
-#endif
 
 #ifdef SHEEPSHAVER
 	// Set new cursor image if it was changed
