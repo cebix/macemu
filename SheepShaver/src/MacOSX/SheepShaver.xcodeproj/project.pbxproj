@@ -37,6 +37,7 @@
 		0846E51314B128ED00574779 /* sheepshaver_glue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDBB14A99EEF000B1711 /* sheepshaver_glue.cpp */; };
 		0846E52B14B12A0800574779 /* ppc_asm.S in Sources */ = {isa = PBXBuildFile; fileRef = 0846E52314B129DA00574779 /* ppc_asm.S */; };
 		0846E55314B12B0D00574779 /* paranoia.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0846E55214B12B0D00574779 /* paranoia.cpp */; };
+		0846E65414B513CE00574779 /* SDL.framework in Copy SDL Framework */ = {isa = PBXBuildFile; fileRef = 0856D17414A9A1A2000B1711 /* SDL.framework */; };
 		0856CFC114A99EF0000B1711 /* adb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD4B14A99EEF000B1711 /* adb.cpp */; };
 		0856CFC214A99EF0000B1711 /* audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD4C14A99EEF000B1711 /* audio.cpp */; };
 		0856CFE214A99EF0000B1711 /* cdrom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD7814A99EEF000B1711 /* cdrom.cpp */; };
@@ -169,6 +170,20 @@
 			remoteInfo = dyngen;
 		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		0846E65E14B513DF00574779 /* Copy SDL Framework */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				0846E65414B513CE00574779 /* SDL.framework in Copy SDL Framework */,
+			);
+			name = "Copy SDL Framework";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		082AC22C14AA52E900071F5E /* prefs_editor_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = prefs_editor_dummy.cpp; sourceTree = "<group>"; };
@@ -968,6 +983,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0856CCC714A99E1D000B1711 /* Build configuration list for PBXNativeTarget "SheepShaver" */;
 			buildPhases = (
+				0846E65E14B513DF00574779 /* Copy SDL Framework */,
 				0856CCBD14A99E1C000B1711 /* Resources */,
 				0856CCBE14A99E1C000B1711 /* Sources */,
 				0856CCBF14A99E1C000B1711 /* Frameworks */,
