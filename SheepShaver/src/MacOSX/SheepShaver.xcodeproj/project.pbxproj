@@ -37,7 +37,7 @@
 		0846E51314B128ED00574779 /* sheepshaver_glue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDBB14A99EEF000B1711 /* sheepshaver_glue.cpp */; };
 		0846E52B14B12A0800574779 /* ppc_asm.S in Sources */ = {isa = PBXBuildFile; fileRef = 0846E52314B129DA00574779 /* ppc_asm.S */; };
 		0846E55314B12B0D00574779 /* paranoia.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0846E55214B12B0D00574779 /* paranoia.cpp */; };
-		0846E65414B513CE00574779 /* SDL.framework in Copy SDL Framework */ = {isa = PBXBuildFile; fileRef = 0856D17414A9A1A2000B1711 /* SDL.framework */; };
+		0846E65414B513CE00574779 /* SDL.framework in Copy Frameworks */ = {isa = PBXBuildFile; fileRef = 0856D17414A9A1A2000B1711 /* SDL.framework */; };
 		0856CFC114A99EF0000B1711 /* adb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD4B14A99EEF000B1711 /* adb.cpp */; };
 		0856CFC214A99EF0000B1711 /* audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD4C14A99EEF000B1711 /* audio.cpp */; };
 		0856CFE214A99EF0000B1711 /* cdrom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD7814A99EEF000B1711 /* cdrom.cpp */; };
@@ -131,28 +131,28 @@
 			isa = PBXContainerItemProxy;
 			containerPortal = 0856CCAE14A99DE0000B1711 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 0846E49914B124DE00574779 /* kpx_cpu */;
+			remoteGlobalIDString = 0846E49914B124DE00574779;
 			remoteInfo = kpx_cpu;
 		};
 		0846E4C514B126B600574779 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0856CCAE14A99DE0000B1711 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 0873A5CB14AB806D004F12B7 /* ppc-dyngen-ops */;
+			remoteGlobalIDString = 0873A5CB14AB806D004F12B7;
 			remoteInfo = "ppc-dyngen-ops";
 		};
 		0846E4C714B126B800574779 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0856CCAE14A99DE0000B1711 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 0873A67314AB8AE9004F12B7 /* ppc-execute-impl */;
+			remoteGlobalIDString = 0873A67314AB8AE9004F12B7;
 			remoteInfo = "ppc-execute-impl";
 		};
 		0846E52D14B12A2E00574779 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0856CCAE14A99DE0000B1711 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 0846E52714B129EE00574779 /* ppc_asm */;
+			remoteGlobalIDString = 0846E52714B129EE00574779;
 			remoteInfo = ppc_asm;
 		};
 		0873A60214AB83CC004F12B7 /* PBXContainerItemProxy */ = {
@@ -172,15 +172,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		0846E65E14B513DF00574779 /* Copy SDL Framework */ = {
+		0846E65E14B513DF00574779 /* Copy Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				0846E65414B513CE00574779 /* SDL.framework in Copy SDL Framework */,
+				0846E65414B513CE00574779 /* SDL.framework in Copy Frameworks */,
 			);
-			name = "Copy SDL Framework";
+			name = "Copy Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -297,7 +297,6 @@
 		0856CE0514A99EEF000B1711 /* macos_util.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = macos_util.cpp; path = ../macos_util.cpp; sourceTree = SOURCE_ROOT; };
 		0856CE2C14A99EF0000B1711 /* clip_macosx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = clip_macosx.cpp; sourceTree = "<group>"; };
 		0856CE2D14A99EF0000B1711 /* extfs_macosx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = extfs_macosx.cpp; sourceTree = "<group>"; };
-		0856CE2E14A99EF0000B1711 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		0856CE6D14A99EF0000B1711 /* macos_util_macosx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = macos_util_macosx.h; sourceTree = "<group>"; };
 		0856CE7014A99EF0000B1711 /* prefs_macosx.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = prefs_macosx.mm; sourceTree = "<group>"; };
 		0856CE8314A99EF0000B1711 /* SheepShaver.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = SheepShaver.icns; sourceTree = "<group>"; };
@@ -758,7 +757,6 @@
 				0856D2D614A9A704000B1711 /* Launcher */,
 				0856CE2C14A99EF0000B1711 /* clip_macosx.cpp */,
 				0856CE2D14A99EF0000B1711 /* extfs_macosx.cpp */,
-				0856CE2E14A99EF0000B1711 /* Info.plist */,
 				0856CE6D14A99EF0000B1711 /* macos_util_macosx.h */,
 				0856CE7014A99EF0000B1711 /* prefs_macosx.mm */,
 				0856CE8314A99EF0000B1711 /* SheepShaver.icns */,
@@ -983,11 +981,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0856CCC714A99E1D000B1711 /* Build configuration list for PBXNativeTarget "SheepShaver" */;
 			buildPhases = (
-				0846E65E14B513DF00574779 /* Copy SDL Framework */,
+				0846E65E14B513DF00574779 /* Copy Frameworks */,
 				0856CCBD14A99E1C000B1711 /* Resources */,
 				0856CCBE14A99E1C000B1711 /* Sources */,
 				0856CCBF14A99E1C000B1711 /* Frameworks */,
 				082AC26A14AA5A5A00071F5E /* Run lowmem */,
+				08CD3F3214B665E1009CA2A2 /* Preprocess Info.plist */,
 			);
 			buildRules = (
 			);
@@ -1171,6 +1170,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "gcc -E \"-I${SRCROOT}/config\" \"-I${SRCROOT}/../include\" \"-I${SRCROOT}/../kpx_cpu/include\" \"-I${SRCROOT}/../kpx_cpu/src\" \"-I${SRCROOT}/../Unix\" -DUSE_JIT -DGENEXEC \"${SRCROOT}/../kpx_cpu/src/cpu/ppc/ppc-decode.cpp\" | perl \"${SRCROOT}/../kpx_cpu/src/cpu/ppc/genexec.pl\" > \"${SRCROOT}/../Unix/ppc-execute-impl.cpp\"\n";
+		};
+		08CD3F3214B665E1009CA2A2 /* Preprocess Info.plist */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Preprocess Info.plist";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "sed -i '' 's/@PACKAGE_VERSION@/2.3/g' \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -1600,7 +1613,9 @@
 					../kpx_cpu/include,
 					../include,
 				);
-				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_FILE = Info.plist.in;
+				INFOPLIST_PREFIX_HEADER = "";
+				INFOPLIST_PREPROCESS = NO;
 				INSTALL_PATH = "$(HOME)/Applications";
 				OTHER_CFLAGS = "";
 				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
@@ -1681,7 +1696,9 @@
 					../kpx_cpu/include,
 					../include,
 				);
-				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_FILE = Info.plist.in;
+				INFOPLIST_PREFIX_HEADER = "";
+				INFOPLIST_PREPROCESS = NO;
 				INSTALL_PATH = "$(HOME)/Applications";
 				OTHER_CFLAGS = "";
 				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
