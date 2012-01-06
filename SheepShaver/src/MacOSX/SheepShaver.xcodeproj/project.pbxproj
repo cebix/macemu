@@ -1002,6 +1002,7 @@
 				0856CCBE14A99E1C000B1711 /* Sources */,
 				0856CCBF14A99E1C000B1711 /* Frameworks */,
 				082AC26A14AA5A5A00071F5E /* Run lowmem */,
+				08CD43CF14B7BD01009CA2A2 /* Change SDL load path */,
 				08CD3F3214B665E1009CA2A2 /* Preprocess Info.plist */,
 			);
 			buildRules = (
@@ -1200,6 +1201,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "sed -i '' 's/@PACKAGE_VERSION@/2.3/g' \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"";
+		};
+		08CD43CF14B7BD01009CA2A2 /* Change SDL load path */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Change SDL load path";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "install_name_tool -change @rpath/SDL.framework/Versions/A/SDL @executable_path/../Frameworks/SDL.framework/Versions/A/SDL \"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_PATH}\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
