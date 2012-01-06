@@ -117,6 +117,8 @@
 		0873A76A14ABD151004F12B7 /* config-macosx-x86_64.h in Headers */ = {isa = PBXBuildFile; fileRef = 0873A76614ABD151004F12B7 /* config-macosx-x86_64.h */; };
 		0873A76B14ABD151004F12B7 /* config.h in Headers */ = {isa = PBXBuildFile; fileRef = 0873A76714ABD151004F12B7 /* config.h */; };
 		0873A80214AC515D004F12B7 /* utils_macosx.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0873A80114AC515D004F12B7 /* utils_macosx.mm */; };
+		08CD42DC14B7B85B009CA2A2 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */; };
+		08CD42E814B7B8AA009CA2A2 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42E714B7B8AA009CA2A2 /* Carbon.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -406,6 +408,8 @@
 		0873A76714ABD151004F12B7 /* config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = config.h; sourceTree = "<group>"; };
 		0873A80014AC515D004F12B7 /* utils_macosx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = utils_macosx.h; sourceTree = "<group>"; };
 		0873A80114AC515D004F12B7 /* utils_macosx.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = utils_macosx.mm; sourceTree = "<group>"; };
+		08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
+		08CD42E714B7B8AA009CA2A2 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = /System/Library/Frameworks/Carbon.framework; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -436,6 +440,8 @@
 			files = (
 				0856D17514A9A1A2000B1711 /* SDL.framework in Frameworks */,
 				0856D21514A9A6C6000B1711 /* IOKit.framework in Frameworks */,
+				08CD42DC14B7B85B009CA2A2 /* Cocoa.framework in Frameworks */,
+				08CD42E814B7B8AA009CA2A2 /* Carbon.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -475,9 +481,8 @@
 			isa = PBXGroup;
 			children = (
 				0856CCC814A99E30000B1711 /* Sources */,
+				08CD42DF14B7B865009CA2A2 /* Frameworks */,
 				0856CCC214A99E1C000B1711 /* Products */,
-				0856D21414A9A6C6000B1711 /* IOKit.framework */,
-				0856D17414A9A1A2000B1711 /* SDL.framework */,
 			);
 			sourceTree = "<group>";
 		};
@@ -885,6 +890,17 @@
 				0873A76714ABD151004F12B7 /* config.h */,
 			);
 			path = config;
+			sourceTree = "<group>";
+		};
+		08CD42DF14B7B865009CA2A2 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				08CD42E714B7B8AA009CA2A2 /* Carbon.framework */,
+				08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */,
+				0856D21414A9A6C6000B1711 /* IOKit.framework */,
+				0856D17414A9A1A2000B1711 /* SDL.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -1623,24 +1639,12 @@
 					"-pagezero_size",
 					0x3000,
 					"-Wl,-seg1addr,0x78048000",
-					"-framework",
-					Foundation,
-					"-framework",
-					AppKit,
-					"-framework",
-					Carbon,
 					"-lkpx_cpu",
 				);
 				"OTHER_LDFLAGS[arch=ppc]" = (
 					"-pagezero_size",
 					0x3000,
 					"-Wl,-seg1addr,0x78048000",
-					"-framework",
-					Foundation,
-					"-framework",
-					AppKit,
-					"-framework",
-					Carbon,
 					"-lppc_asm",
 				);
 				PREBINDING = NO;
@@ -1706,24 +1710,12 @@
 					"-pagezero_size",
 					0x3000,
 					"-Wl,-seg1addr,0x78048000",
-					"-framework",
-					Foundation,
-					"-framework",
-					AppKit,
-					"-framework",
-					Carbon,
 					"-lkpx_cpu",
 				);
 				"OTHER_LDFLAGS[arch=ppc]" = (
 					"-pagezero_size",
 					0x3000,
 					"-Wl,-seg1addr,0x78048000",
-					"-framework",
-					Foundation,
-					"-framework",
-					AppKit,
-					"-framework",
-					Carbon,
 					"-lppc_asm",
 				);
 				PREBINDING = NO;
