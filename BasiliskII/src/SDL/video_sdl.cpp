@@ -622,13 +622,15 @@ public:
 };
 
 class driver_window;
+#ifdef ENABLE_VOSF
 static void update_display_window_vosf(driver_window *drv);
-static void update_display_dynamic(int ticker, driver_window *drv);
+#endif
 static void update_display_static(driver_base *drv);
 
 class driver_window : public driver_base {
+#ifdef ENABLE_VOSF
 	friend void update_display_window_vosf(driver_window *drv);
-	friend void update_display_dynamic(int ticker, driver_window *drv);
+#endif
 	friend void update_display_static(driver_base *drv);
 
 public:
@@ -737,7 +739,6 @@ driver_window::driver_window(SDL_monitor_desc &m)
 	: driver_base(m), mouse_grabbed(false)
 {
 	int width = VIDEO_MODE_X, height = VIDEO_MODE_Y;
-	int aligned_width = (width + 15) & ~15;
 	int aligned_height = (height + 15) & ~15;
 
 	// Set absolute mouse mode
@@ -891,7 +892,6 @@ driver_fullscreen::driver_fullscreen(SDL_monitor_desc &m)
 	: driver_base(m)
 {
 	int width = VIDEO_MODE_X, height = VIDEO_MODE_Y;
-	int aligned_width = (width + 15) & ~15;
 	int aligned_height = (height + 15) & ~15;
 
 	// Set absolute mouse mode
@@ -1061,8 +1061,8 @@ static void keycode_init(void)
 bool SDL_monitor_desc::video_open(void)
 {
 	D(bug("video_open()\n"));
-	const VIDEO_MODE &mode = get_current_mode();
 #if DEBUG
+	const VIDEO_MODE &mode = get_current_mode();
 	D(bug("Current video mode:\n"));
 	D(bug(" %dx%d (ID %02x), %d bpp\n", VIDEO_MODE_X, VIDEO_MODE_Y, VIDEO_MODE_RESOLUTION, 1 << (VIDEO_MODE_DEPTH & 0x0f)));
 #endif
