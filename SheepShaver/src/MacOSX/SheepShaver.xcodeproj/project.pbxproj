@@ -76,7 +76,7 @@
 		0856D07114A99EF1000B1711 /* sbuf.c in Sources */ = {isa = PBXBuildFile; fileRef = 0856CEAC14A99EF0000B1711 /* sbuf.c */; };
 		0856D07214A99EF1000B1711 /* slirp.c in Sources */ = {isa = PBXBuildFile; fileRef = 0856CEAE14A99EF0000B1711 /* slirp.c */; };
 		0856D07314A99EF1000B1711 /* socket.c in Sources */ = {isa = PBXBuildFile; fileRef = 0856CEB114A99EF0000B1711 /* socket.c */; };
-		0856D07414A99EF1000B1711 /* tcp_input.c in Sources */ = {isa = PBXBuildFile; fileRef = 0856CEB414A99EF0000B1711 /* tcp_input.c */; };
+		0856D07414A99EF1000B1711 /* tcp_input.c in Sources */ = {isa = PBXBuildFile; fileRef = 0856CEB414A99EF0000B1711 /* tcp_input.c */; settings = {COMPILER_FLAGS = "-O1"; }; };
 		0856D07514A99EF1000B1711 /* tcp_output.c in Sources */ = {isa = PBXBuildFile; fileRef = 0856CEB514A99EF0000B1711 /* tcp_output.c */; };
 		0856D07614A99EF1000B1711 /* tcp_subr.c in Sources */ = {isa = PBXBuildFile; fileRef = 0856CEB614A99EF0000B1711 /* tcp_subr.c */; };
 		0856D07714A99EF1000B1711 /* tcp_timer.c in Sources */ = {isa = PBXBuildFile; fileRef = 0856CEB714A99EF0000B1711 /* tcp_timer.c */; };
