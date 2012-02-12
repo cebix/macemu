@@ -196,8 +196,14 @@ static void inline ppc_flush_icache_range(uint32 *start_p, uint32 length)
 #if EMU_KHEPERIX
 // Wrappers when building from SheepShaver tree
 #ifdef SHEEPSHAVER
+uint32 ROMBase = 0x40800000;
 int64 TimebaseSpeed = 25000000;	// Default:  25 MHz
 uint32 PVR = 0x000c0000;		// Default: 7400 (with AltiVec)
+
+bool PrefsFindBool(const char *name)
+{
+	return false;
+}
 
 uint64 GetTicks_usec(void)
 {
