@@ -225,7 +225,7 @@ static bool execute_network_script(const char *action)
 
 bool ether_init(void)
 {
-	int val, nonblock = 1;
+	int val;
 	char str[256];
 
 	// Do nothing if no Ethernet device specified
@@ -347,6 +347,7 @@ bool ether_init(void)
 
 	// Set nonblocking I/O
 #ifdef USE_FIONBIO
+	int nonblock = 1;
 	if (ioctl(fd, FIONBIO, &nonblock) < 0) {
 		sprintf(str, GetString(STR_BLOCKING_NET_SOCKET_WARN), strerror(errno));
 		WarningAlert(str);
