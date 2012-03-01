@@ -1783,7 +1783,6 @@ void gen_code(const char *name, const char *demangled_name,
     }
     else
 #if defined(HOST_I386) || defined(HOST_X86_64)
-#if defined(CONFIG_FORMAT_COFF) || defined(CONFIG_FORMAT_MACH)
     {
         uint8_t *p;
         p = p_end - 1;
@@ -1796,20 +1795,6 @@ void gen_code(const char *name, const char *demangled_name,
         }
         copy_size = p - p_start;
     }
-#else
-    {
-        int len;
-        len = p_end - p_start;
-        if (len == 0)
-            error("empty code for %s", name);
-        if (p_end[-1] == 0xc3) {
-            len--;
-        } else {
-            error("ret or jmp expected at the end of %s", name);
-        }
-        copy_size = len;
-    }
-#endif    
 #elif defined(HOST_PPC)
     {
         uint8_t *p;
