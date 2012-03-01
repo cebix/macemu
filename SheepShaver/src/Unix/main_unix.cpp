@@ -221,12 +221,11 @@ static pthread_t tick_thread;				// 60Hz thread
 static pthread_t emul_thread;				// MacOS thread
 
 static bool ready_for_signals = false;		// Handler installed, signals can be sent
-static int64 num_segv = 0;					// Number of handled SEGV signals
 
-static struct sigaction sigusr2_action;		// Interrupt signal (of emulator thread)
 #if EMULATED_PPC
 static uintptr sig_stack = 0;				// Stack for PowerPC interrupt routine
 #else
+static struct sigaction sigusr2_action;		// Interrupt signal (of emulator thread)
 static struct sigaction sigsegv_action;		// Data access exception signal (of emulator thread)
 static struct sigaction sigill_action;		// Illegal instruction signal (of emulator thread)
 static stack_t sig_stack;					// Stack for signal handlers
@@ -1750,8 +1749,6 @@ static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 	if (Screen_fault_handler(&si))
 		return;
 #endif
-
-	num_segv++;
 
 	// Fault in Mac ROM or RAM or DR Cache?
 	bool mac_fault = (r->pc() >= ROMBase) && (r->pc() < (ROMBase + ROM_AREA_SIZE)) || (r->pc() >= RAMBase) && (r->pc() < (RAMBase + RAMSize)) || (r->pc() >= DR_CACHE_BASE && r->pc() < (DR_CACHE_BASE + DR_CACHE_SIZE));
