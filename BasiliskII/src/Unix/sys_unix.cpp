@@ -800,8 +800,8 @@ loff_t SysGetFileSize(void *arg)
 	if (fh->is_file)
 		return fh->file_size;
 	else {
-		long blocks;
 #if defined(__linux__)
+		long blocks;
 		if (ioctl(fh->fd, BLKGETSIZE, &blocks) < 0)
 			return 0;
 		D(bug(" BLKGETSIZE returns %d blocks\n", blocks));
