@@ -213,8 +213,6 @@ static bool allocate_gamma_table(VidLocals *csSave, uint32 size)
 
 static int16 set_gamma(VidLocals *csSave, uint32 gamma)
 {
-	return paramErr;
-
 	if (gamma == 0) { // Build linear ramp, 256 entries
 
 		// Allocate new table, if necessary
@@ -699,7 +697,7 @@ static int16 VideoStatus(uint32 pb, VidLocals *csSave)
 		case cscGetGamma:							// GetGamma
 			D(bug("GetGamma\n"));
 			WriteMacInt32(param, (uint32)csSave->gammaTable);
-			return statusErr;
+			return noErr;
 
 		case cscGetDefaultMode:						// GetDefaultMode
 			D(bug("GetDefaultMode\n"));
