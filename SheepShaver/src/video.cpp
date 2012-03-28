@@ -245,7 +245,7 @@ static int16 set_gamma(VidLocals *csSave, uint32 gamma)
 		int data_width = ReadMacInt16(gamma + gDataWidth);
 		if (data_width > 8)
 			return paramErr;
-		int data_cnt = ReadMacInt16(gamma + gDataWidth);
+		int data_cnt = ReadMacInt16(gamma + gDataCnt);
 		if (data_cnt != (1 << data_width))
 			return paramErr;
 
@@ -366,7 +366,7 @@ static int16 VideoControl(uint32 pb, VidLocals *csSave)
 		case cscSetGamma: {							// SetGamma
 			uint32 user_table = ReadMacInt32(param + csGTable);
 			D(bug("SetGamma %08x\n", user_table));
-			return set_gamma(csSave, ReadMacInt32(user_table));
+			return set_gamma(csSave, user_table);
 		}
 
 		case cscGrayPage: {							// GrayPage
