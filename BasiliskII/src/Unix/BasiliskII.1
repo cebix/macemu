@@ -1,6 +1,6 @@
 .TH BasiliskII 1 "January, 2002"
 .SH NAME
-Basilisk II \- a free, portable Mac II emulator
+BasiliskII \- a 68k Macintosh emulator
 .SH SYNOPSIS
 .B BasiliskII
 [\-\-display
@@ -10,8 +10,38 @@ Basilisk II \- a free, portable Mac II emulator
 [\-\-rominfo]
 .SH DESCRIPTION
 .B Basilisk II
-is a free, portable 68k Mac emulator. For more information, see the included
-"README" file.
+
+is an Open Source 68k Macintosh emulator. That is, it enables you to
+run 68k MacOS software on you computer, even if you are using a
+different operating system. However, you still need a copy of MacOS
+and a Macintosh ROM image to use Basilisk II.
+
+.B Basilisk II
+:
+.TP
+- Emulates either a Mac Classic (which runs MacOS 0.x thru 7.5) or a Mac II series machine (which runs MacOS 7.x, 8.0 and 8.1), depending on the ROM being used
+.TP
+- Color video display
+.TP
+- CD quality sound output
+.TP
+- Floppy disk driver (only 1.44MB disks supported)
+.TP
+- Driver for HFS partitions and hardfiles
+.TP
+- CD-ROM driver with basic audio functions
+.TP
+- Easy file exchange with the host OS via a "Host Directory Tree" icon on the Mac desktop
+.TP
+- Ethernet driver
+.TP
+- Serial drivers
+.TP
+- SCSI Manager (old-style) emulation
+.TP
+- Emulates extended ADB keyboard and 3-button mouse
+.TP
+- Uses UAE 68k emulation or (under AmigaOS and NetBSD/m68k) real 68k processor
 .SH OPTIONS
 .TP
 .BI "\-\-display " display-name
