@@ -6,6 +6,8 @@ AC_CONFIG_SRCDIR(main_unix.cpp)
 AC_PREREQ(2.52)
 AC_CONFIG_HEADER(config.h)
 
+AC_USE_SYSTEM_EXTENSIONS
+
 dnl Aliases for PACKAGE and VERSION macros.
 AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE_NAME", [Define this program name.])
 AC_DEFINE_UNQUOTED(VERSION, "$PACKAGE_VERSION", [Define this program version.])
