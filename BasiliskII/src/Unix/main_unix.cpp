@@ -631,7 +631,7 @@ int main(int argc, char **argv)
 		ErrorAlert(STR_NO_ROM_FILE_ERR);
 		QuitEmulator();
 	}
-	printf(GetString(STR_READING_ROM_FILE));
+	printf("%s", GetString(STR_READING_ROM_FILE));
 	ROMSize = lseek(rom_fd, 0, SEEK_END);
 	if (ROMSize != 64*1024 && ROMSize != 128*1024 && ROMSize != 256*1024 && ROMSize != 512*1024 && ROMSize != 1024*1024) {
 		ErrorAlert(STR_ROM_SIZE_ERR);

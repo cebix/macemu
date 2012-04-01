@@ -262,7 +262,7 @@ bool ether_init(void)
 	// Initialize slirp library
 	if (net_if_type == NET_IF_SLIRP) {
 		if (slirp_init() < 0) {
-			sprintf(str, GetString(STR_SLIRP_NO_DNS_FOUND_WARN));
+			sprintf(str, "%s", GetString(STR_SLIRP_NO_DNS_FOUND_WARN));
 			WarningAlert(str);
 			return false;
 		}
