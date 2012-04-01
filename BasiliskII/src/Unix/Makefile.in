@@ -19,7 +19,9 @@ CC = @CC@
 CXX = @CXX@
 CFLAGS = @CFLAGS@
 CXXFLAGS = @CXXFLAGS@
-CPPFLAGS = @CPPFLAGS@ -I../include -I. @CPUINCLUDES@ -I../slirp
+CPUINCLUDES_FLAGS=@CPUINCLUDES@
+CPUINCLUDES_FLAGS:=$(CPUINCLUDES_FLAGS:-I%=-I@top_srcdir@/%)
+CPPFLAGS = @CPPFLAGS@ -I@top_srcdir@/../include -I@top_srcdir@/. -I. $(CPUINCLUDES_FLAGS) -I@top_srcdir@/../slirp
 DEFS = @DEFS@ @DEFINES@ -D_REENTRANT -DDATADIR=\"$(datadir)/$(APP)\"
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
@@ -50,7 +52,14 @@ SRCS = ../main.cpp main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp 
     vm_alloc.cpp sigsegv.cpp ../audio.cpp ../extfs.cpp \
 	../user_strings.cpp user_strings_unix.cpp sshpty.c strlcpy.c rpc_unix.cpp \
     $(SYSSRCS) $(CPUSRCS) $(SLIRP_SRCS)
-APP = BasiliskII
+APP_FLAVOR ?=
+ifneq ($(APP_FLAVOR),)
+	CURR_APP_FLAVOR := -$(APP_FLAVOR)
+else
+	CURR_APP_FLAVOR :=
+endif
+APP_BASENAME = BasiliskII
+APP = $(APP_BASENAME)$(CURR_APP_FLAVOR)
 APP_APP = $(APP).app
 
 PROGS = $(APP)$(EXEEXT)
@@ -78,13 +87,15 @@ define SRCS_LIST_TO_OBJS
 	$(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(foreach file, $(SRCS), \
 	$(basename $(notdir $(file))))))
 endef
-OBJS = $(SRCS_LIST_TO_OBJS)
+OBJS := $(SRCS_LIST_TO_OBJS)
+SRCS := $(SRCS:%=@top_srcdir@/%)
 
 define GUI_SRCS_LIST_TO_OBJS
 	$(addprefix $(OBJ_DIR)/, $(addsuffix .go, $(foreach file, $(GUI_SRCS), \
 	$(basename $(notdir $(file))))))
 endef
 GUI_OBJS = $(GUI_SRCS_LIST_TO_OBJS)
+GUI_SRCS := $(GUI_SRCS:%=@top_srcdir@/%)
 
 SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
 VPATH :=
@@ -127,13 +138,13 @@ install: $(PROGS) installdirs
 	if test -f "$(GUI_APP)$(EXEEXT)"; then \
 	  $(INSTALL_PROGRAM) $(GUI_APP)$(EXEEXT) $(DESTDIR)$(bindir)/$(GUI_APP)$(EXEEXT); \
 	fi
-	-$(INSTALL_DATA) $(APP).1 $(DESTDIR)$(man1dir)/$(APP).1
-	$(INSTALL_DATA) $(KEYCODES) $(DESTDIR)$(datadir)/$(APP)/keycodes
-	$(INSTALL_DATA) fbdevices $(DESTDIR)$(datadir)/$(APP)/fbdevices
-	$(INSTALL_DATA) tunconfig $(DESTDIR)$(datadir)/$(APP)/tunconfig
+	-$(INSTALL_DATA) @top_srcdir@/$(APP_BASENAME).1 $(DESTDIR)$(man1dir)/$(APP).1
+	$(INSTALL_DATA) @top_srcdir@/$(KEYCODES) $(DESTDIR)$(datadir)/$(APP)/keycodes
+	$(INSTALL_DATA) @top_srcdir@/fbdevices $(DESTDIR)$(datadir)/$(APP)/fbdevices
+	$(INSTALL_DATA) @top_srcdir@/tunconfig $(DESTDIR)$(datadir)/$(APP)/tunconfig
 
 installdirs:
-	$(SHELL) mkinstalldirs $(DESTDIR)$(bindir) $(DESTDIR)$(man1dir) $(DESTDIR)$(datadir)/$(APP)
+	$(SHELL) @top_srcdir@/mkinstalldirs $(DESTDIR)$(bindir) $(DESTDIR)$(man1dir) $(DESTDIR)$(datadir)/$(APP)
 
 uninstall:
 	rm -f $(DESTDIR)$(bindir)/$(APP)$(EXEEXT)
@@ -162,7 +173,7 @@ depend dep:
 
 $(OBJ_DIR)/SDLMain.o : SDLMain.m
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
-$(OBJ_DIR)/%.o : ../slirp/%.c
+$(OBJ_DIR)/%.o : @top_srcdir@/../slirp/%.c
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(SLIRP_CFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.c
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
@@ -186,8 +197,8 @@ $(OBJ_DIR)/gencpu$(EXEEXT): $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/
 $(OBJ_DIR)/gencomp$(EXEEXT): $(OBJ_DIR)/gencomp.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
 	$(CXX) $(LDFLAGS) -o $(OBJ_DIR)/gencomp$(EXEEXT) $(OBJ_DIR)/gencomp.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
 
-cpudefs.cpp: $(OBJ_DIR)/build68k$(EXEEXT) ../uae_cpu/table68k
-	$(OBJ_DIR)/build68k$(EXEEXT) <../uae_cpu/table68k >cpudefs.cpp
+cpudefs.cpp: $(OBJ_DIR)/build68k$(EXEEXT) @top_srcdir@/../uae_cpu/table68k
+	$(OBJ_DIR)/build68k$(EXEEXT) <@top_srcdir@/../uae_cpu/table68k >cpudefs.cpp
 cpustbl.cpp: cpuemu.cpp
 cpustbl_nf.cpp: cpustbl.cpp
 compstbl.cpp: compemu.cpp
