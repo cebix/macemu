@@ -1,0 +1,80 @@
+[version]
+Signature   = "$Windows NT$"
+Class       = NetTrans
+ClassGUID   = {4d36e975-e325-11ce-bfc1-08002be10318}
+Provider    = %Msft%
+DriverVer   = 12/05/1999,5.00.2128
+
+[Manufacturer]
+%Msft%=MSFT
+
+[MSFT]
+%B2ETHER_Desc%=Install, MS_B2ETHER
+
+;-------------------------------------------------------------------------
+; Installation Section
+;-------------------------------------------------------------------------
+[Install]
+AddReg=Inst_Ndi
+Characteristics=0 ; Has no characterstic
+CopyFiles=CpyFiles_Sys
+
+;-------------------------------------------------------------------------
+; Ndi installation support
+;-------------------------------------------------------------------------
+[Inst_Ndi]
+HKR,Ndi,Service,,"B2Ether"
+HKR,Ndi,HelpText,,%B2ETHER_HelpText%
+HKR, Ndi\Interfaces, UpperRange,, noupper
+HKR,"Ndi\Interfaces","LowerRange",,"ndis5,ndis4"
+
+;-------------------------------------------------------------------------
+; Service installation support
+;-------------------------------------------------------------------------
+[Install.Services]
+AddService=B2Ether,,B2ETHER_Service_Inst
+
+[B2Ether_Service_Inst]
+DisplayName     = %B2ETHER_Desc%
+ServiceType     = 1 ;SERVICE_KERNEL_DRIVER
+StartType       = 2 ;SERVICE_AUTO_START
+ErrorControl    = 1 ;SERVICE_ERROR_NORMAL
+ServiceBinary   = %12%\B2Ether.sys
+LoadOrderGroup  = "PNP_TDI"
+AddReg          = AddReg_B2ETHER_Service_Inst
+Description     = %B2ETHER_Desc%
+
+[AddReg_B2ETHER_Service_Inst]
+HKLM,"System\CurrentControlSet\Services\B2Ether","TextModeFlags",%REG_DWORD%,0x0001
+HKR,"Parameters","Version",,"5.00.2128"
+
+;-------------------------------------------------------------------------
+; Support for removal of static registry settings
+;-------------------------------------------------------------------------
+[Install.Remove]
+DelReg=Del_Static_Reg
+
+[Install.Remove.Services]
+DelService=B2Ether
+
+[Del_Static_Reg]
+HKLM,"System\CurrentControlSet\Services\B2Ether","TextModeFlags"
+
+;-------------------------------------------------------------------------
+; Declare Destination Directories for file copy/deletion
+;-------------------------------------------------------------------------
+[DestinationDirs]
+CpyFiles_Sys    = 12    ; DIRID_DRIVERS
+
+
+;-------------------------------------------------------------------------
+; Files to Copy/Delete - Referenced by Install and Remove sections above
+;-------------------------------------------------------------------------
+[CpyFiles_Sys]
+B2Ether.sys,,,2
+
+[Strings]
+Msft = "Microsoft"
+B2ETHER_Desc = "Basilisk II Ethernet Driver"
+B2ETHER_HelpText = "Adds ethernet capability to the Basilisk II Macintosh II emulator."
+REG_DWORD = 0x10001

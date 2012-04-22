@@ -1,0 +1,17 @@
+# MYMODE must be set
+
+TARGETNAME=b2ether
+TARGETPATH=obj
+TARGETTYPE=DRIVER
+
+TARGETLIBS=$(DDK_LIB_PATH)\ndis.lib
+C_DEFINES=$(C_DEFINES) -DNDIS50
+INCLUDES=$(BASEDIR)\inc;$(BASEDIR)\src\network\inc;..\inc
+
+MSC_WARNING_LEVEL=/W3 /WX /FR /FAcs /D$(MYMODE)
+
+SOURCES=b2ether.c    \
+        b2ether_openclose.c  \
+        b2ether_read.c      \
+        b2ether_write.c      \
+        b2ether.rc
