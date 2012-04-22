@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -49,61 +49,53 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <NMakeBuildCommandLine>call $(WDKPATH)\bin\setenv.bat $(WDKPATH) chk win7
-cd /d C:\Dev\projects\b2ether64
 build</NMakeBuildCommandLine>
-    <NMakeCleanCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objchk_win7_x86</NMakeCleanCommandLine>
-    <NMakeReBuildCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objchk_win7_x86
+    <NMakeCleanCommandLine>rmdir /s /q objchk_win7_x86</NMakeCleanCommandLine>
+    <NMakeReBuildCommandLine>rmdir /s /q objchk_win7_x86
 call $(WDKPATH)\bin\setenv.bat $(WDKPATH) chk win7
-cd /d C:\Dev\projects\b2ether64
 build</NMakeReBuildCommandLine>
-    <IntDir>C:\Dev\projects\b2ether64\objchk_win7_x86</IntDir>
-    <OutDir>C:\Dev\projects\b2ether64\objchk_win7_x86</OutDir>
-    <NMakeOutput>C:\Dev\projects\b2ether64\objchk_win7_x86\i386\b2ether.sys</NMakeOutput>
+    <IntDir>objchk_win7_x86</IntDir>
+    <OutDir>objchk_win7_x86</OutDir>
+    <NMakeOutput>objchk_win7_x86\i386\b2ether.sys</NMakeOutput>
     <NMakePreprocessorDefinitions>WIN32;_CONSOLE;_X86_;_DDK_;_DEBUG;DBG=1;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
     <NMakeIncludeSearchPath>$(WDKPATH)\inc\ddk;$(WDKPATH)\inc\api;$(WDKPATH)\inc\crt;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <NMakeBuildCommandLine>call $(WDKPATH)\bin\setenv.bat $(WDKPATH) fre win7
-cd /d C:\Dev\projects\b2ether64
 build</NMakeBuildCommandLine>
-    <NMakeCleanCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objfre_win7_x86</NMakeCleanCommandLine>
-    <NMakeReBuildCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objfre_win7_x86
+    <NMakeCleanCommandLine>rmdir /s /q objfre_win7_x86</NMakeCleanCommandLine>
+    <NMakeReBuildCommandLine>rmdir /s /q objfre_win7_x86
 call $(WDKPATH)\bin\setenv.bat $(WDKPATH) fre win7
-cd /d C:\Dev\projects\b2ether64
 build</NMakeReBuildCommandLine>
-    <IntDir>C:\Dev\projects\b2ether64\objfre_win7_x86</IntDir>
-    <OutDir>C:\Dev\projects\b2ether64\objfre_win7_x86</OutDir>
-    <NMakeOutput>C:\Dev\projects\b2ether64\objfre_win7_x86\i386\b2ether.sys</NMakeOutput>
+    <IntDir>objfre_win7_x86</IntDir>
+    <OutDir>objfre_win7_x86</OutDir>
+    <NMakeOutput>objfre_win7_x86\i386\b2ether.sys</NMakeOutput>
     <NMakePreprocessorDefinitions>WIN32;_CONSOLE;_X86_;_DDK_;_NDEBUG;DBG=0;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
     <NMakeIncludeSearchPath>$(WDKPATH)\inc\ddk;$(WDKPATH)\inc\api;$(WDKPATH)\inc\crt;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <NMakeBuildCommandLine>call $(WDKPATH)\bin\setenv.bat $(WDKPATH) chk x64 win7
-cd /d C:\Dev\projects\b2ether64
 build</NMakeBuildCommandLine>
-    <NMakeCleanCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objchk_win7_amd64</NMakeCleanCommandLine>
-    <NMakeReBuildCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objchk_win7_amd64
+    <NMakeCleanCommandLine>rmdir /s /q objchk_win7_amd64</NMakeCleanCommandLine>
+    <NMakeReBuildCommandLine>rmdir /s /q objchk_win7_amd64
 call $(WDKPATH)\bin\setenv.bat $(WDKPATH) chk x64 win7
-cd /d C:\Dev\projects\b2ether64
 build</NMakeReBuildCommandLine>
-    <IntDir>C:\Dev\projects\b2ether64\objchk_win7_amd64</IntDir>
-    <OutDir>C:\Dev\projects\b2ether64\objchk_win7_amd64</OutDir>
-    <NMakeOutput>C:\Dev\projects\b2ether64\objchk_win7_amd64\amd64\b2ether64.sys</NMakeOutput>
+    <IntDir>objchk_win7_amd64</IntDir>
+    <OutDir>objchk_win7_amd64</OutDir>
+    <NMakeOutput>objchk_win7_amd64\amd64\b2ether64.sys</NMakeOutput>
     <NMakePreprocessorDefinitions>WIN32;_CONSOLE;_AMD64_;_DDK_;_DEBUG;DBG=1;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
     <NMakeIncludeSearchPath>$(WDKPATH)\inc\ddk;$(WDKPATH)\inc\api;$(WDKPATH)\inc\crt;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <NMakeBuildCommandLine>call $(WDKPATH)\bin\setenv.bat $(WDKPATH) fre x64 win7
-cd /d C:\Dev\projects\b2ether64
 build</NMakeBuildCommandLine>
-    <NMakeCleanCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objfre_win7_amd64</NMakeCleanCommandLine>
-    <NMakeReBuildCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objfre_win7_amd64
+    <NMakeCleanCommandLine>rmdir /s /q objfre_win7_amd64</NMakeCleanCommandLine>
+    <NMakeReBuildCommandLine>rmdir /s /q objfre_win7_amd64
 call $(WDKPATH)\bin\setenv.bat $(WDKPATH) fre x64 win7
-cd /d C:\Dev\projects\b2ether64
 build</NMakeReBuildCommandLine>
-    <IntDir>C:\Dev\projects\b2ether64\objfre_win7_amd64</IntDir>
-    <OutDir>C:\Dev\projects\b2ether64\objfre_win7_amd64</OutDir>
-    <NMakeOutput>C:\Dev\projects\b2ether64\objfre_win7_amd64\amd64\b2ether64.sys</NMakeOutput>
+    <IntDir>objfre_win7_amd64</IntDir>
+    <OutDir>objfre_win7_amd64</OutDir>
+    <NMakeOutput>objfre_win7_amd64\amd64\b2ether64.sys</NMakeOutput>
     <NMakePreprocessorDefinitions>WIN32;_CONSOLE;_AMD64_;_DDK_;_NDEBUG;DBG=0;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
     <NMakeIncludeSearchPath>$(WDKPATH)\inc\ddk;$(WDKPATH)\inc\api;$(WDKPATH)\inc\crt;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
   </PropertyGroup>
