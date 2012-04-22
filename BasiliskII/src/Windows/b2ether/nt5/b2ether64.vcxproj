@@ -1,0 +1,128 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{F7EA62B6-E0EC-4074-8A83-D0CBB1C990B4}</ProjectGuid>
+    <Keyword>MakeFileProj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ConfigurationType>Makefile</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ConfigurationType>Makefile</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <NMakeBuildCommandLine>call $(WDKPATH)\bin\setenv.bat $(WDKPATH) chk win7
+cd /d C:\Dev\projects\b2ether64
+build</NMakeBuildCommandLine>
+    <NMakeCleanCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objchk_win7_x86</NMakeCleanCommandLine>
+    <NMakeReBuildCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objchk_win7_x86
+call $(WDKPATH)\bin\setenv.bat $(WDKPATH) chk win7
+cd /d C:\Dev\projects\b2ether64
+build</NMakeReBuildCommandLine>
+    <IntDir>C:\Dev\projects\b2ether64\objchk_win7_x86</IntDir>
+    <OutDir>C:\Dev\projects\b2ether64\objchk_win7_x86</OutDir>
+    <NMakeOutput>C:\Dev\projects\b2ether64\objchk_win7_x86\i386\b2ether.sys</NMakeOutput>
+    <NMakePreprocessorDefinitions>WIN32;_CONSOLE;_X86_;_DDK_;_DEBUG;DBG=1;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
+    <NMakeIncludeSearchPath>$(WDKPATH)\inc\ddk;$(WDKPATH)\inc\api;$(WDKPATH)\inc\crt;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <NMakeBuildCommandLine>call $(WDKPATH)\bin\setenv.bat $(WDKPATH) fre win7
+cd /d C:\Dev\projects\b2ether64
+build</NMakeBuildCommandLine>
+    <NMakeCleanCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objfre_win7_x86</NMakeCleanCommandLine>
+    <NMakeReBuildCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objfre_win7_x86
+call $(WDKPATH)\bin\setenv.bat $(WDKPATH) fre win7
+cd /d C:\Dev\projects\b2ether64
+build</NMakeReBuildCommandLine>
+    <IntDir>C:\Dev\projects\b2ether64\objfre_win7_x86</IntDir>
+    <OutDir>C:\Dev\projects\b2ether64\objfre_win7_x86</OutDir>
+    <NMakeOutput>C:\Dev\projects\b2ether64\objfre_win7_x86\i386\b2ether.sys</NMakeOutput>
+    <NMakePreprocessorDefinitions>WIN32;_CONSOLE;_X86_;_DDK_;_NDEBUG;DBG=0;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
+    <NMakeIncludeSearchPath>$(WDKPATH)\inc\ddk;$(WDKPATH)\inc\api;$(WDKPATH)\inc\crt;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <NMakeBuildCommandLine>call $(WDKPATH)\bin\setenv.bat $(WDKPATH) chk x64 win7
+cd /d C:\Dev\projects\b2ether64
+build</NMakeBuildCommandLine>
+    <NMakeCleanCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objchk_win7_amd64</NMakeCleanCommandLine>
+    <NMakeReBuildCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objchk_win7_amd64
+call $(WDKPATH)\bin\setenv.bat $(WDKPATH) chk x64 win7
+cd /d C:\Dev\projects\b2ether64
+build</NMakeReBuildCommandLine>
+    <IntDir>C:\Dev\projects\b2ether64\objchk_win7_amd64</IntDir>
+    <OutDir>C:\Dev\projects\b2ether64\objchk_win7_amd64</OutDir>
+    <NMakeOutput>C:\Dev\projects\b2ether64\objchk_win7_amd64\amd64\b2ether64.sys</NMakeOutput>
+    <NMakePreprocessorDefinitions>WIN32;_CONSOLE;_AMD64_;_DDK_;_DEBUG;DBG=1;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
+    <NMakeIncludeSearchPath>$(WDKPATH)\inc\ddk;$(WDKPATH)\inc\api;$(WDKPATH)\inc\crt;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <NMakeBuildCommandLine>call $(WDKPATH)\bin\setenv.bat $(WDKPATH) fre x64 win7
+cd /d C:\Dev\projects\b2ether64
+build</NMakeBuildCommandLine>
+    <NMakeCleanCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objfre_win7_amd64</NMakeCleanCommandLine>
+    <NMakeReBuildCommandLine>rmdir /s /q C:\Dev\projects\b2ether64\objfre_win7_amd64
+call $(WDKPATH)\bin\setenv.bat $(WDKPATH) fre x64 win7
+cd /d C:\Dev\projects\b2ether64
+build</NMakeReBuildCommandLine>
+    <IntDir>C:\Dev\projects\b2ether64\objfre_win7_amd64</IntDir>
+    <OutDir>C:\Dev\projects\b2ether64\objfre_win7_amd64</OutDir>
+    <NMakeOutput>C:\Dev\projects\b2ether64\objfre_win7_amd64\amd64\b2ether64.sys</NMakeOutput>
+    <NMakePreprocessorDefinitions>WIN32;_CONSOLE;_AMD64_;_DDK_;_NDEBUG;DBG=0;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
+    <NMakeIncludeSearchPath>$(WDKPATH)\inc\ddk;$(WDKPATH)\inc\api;$(WDKPATH)\inc\crt;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="b2ether.c" />
+    <ClCompile Include="b2ether_openclose.c" />
+    <ClCompile Include="b2ether_read.c" />
+    <ClCompile Include="b2ether_write.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="b2ether.h" />
+    <ClInclude Include="NTDDPACK.H" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="sources" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
