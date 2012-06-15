@@ -1201,7 +1201,7 @@ static void kernel_data_exit(void)
 		shmdt(Mac2HostAddr(KERNEL_DATA_BASE & -SHMLBA));
 		shmdt(Mac2HostAddr(KERNEL_DATA2_BASE & -SHMLBA));
 		shmctl(kernel_area, IPC_RMID, NULL);
-		kernel_area = NULL;
+		kernel_area = -1;
 	}
 }
 
