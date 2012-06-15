@@ -370,7 +370,7 @@ AC_CHECK_HEADERS(mach/vm_map.h mach/mach_init.h sys/mman.h)
 AC_CHECK_HEADERS(unistd.h fcntl.h byteswap.h dirent.h)
 AC_CHECK_HEADERS(sys/socket.h sys/ioctl.h sys/filio.h sys/bitypes.h sys/wait.h)
 AC_CHECK_HEADERS(sys/time.h sys/poll.h sys/select.h arpa/inet.h)
-AC_CHECK_HEADERS(linux/if.h linux/if_tun.h net/if.h net/if_tun.h, [], [], [
+AC_CHECK_HEADERS(netinet/in.h linux/if.h linux/if_tun.h net/if.h net/if_tun.h, [], [], [
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -753,6 +753,9 @@ dnl Check that the host supports TUN/TAP devices
 AC_CACHE_CHECK([whether TUN/TAP is supported],
   ac_cv_tun_tap_support, [
   AC_TRY_COMPILE([
+	#if defined(HAVE_NETINET_IN_H)
+	#include <netinet/in.h>
+	#endif
     #if defined(HAVE_LINUX_IF_H) && defined(HAVE_LINUX_IF_TUN_H)
     #include <linux/if.h>
     #include <linux/if_tun.h>
