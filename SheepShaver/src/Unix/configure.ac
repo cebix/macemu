@@ -1491,6 +1491,9 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
       powerpc:mach)
         ac_cv_use_dyngen=yes
         ;;
+      x86_64:mach)
+        ac_cv_use_dyngen=yes
+        ;;
       i?86:mach)
         ac_cv_use_dyngen=yes
         ;;
