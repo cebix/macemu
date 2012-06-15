@@ -73,6 +73,10 @@ RCSID("$OpenBSD: sshpty.c,v 1.4 2001/12/19 07:18:56 deraadt Exp $");
 #define fatal(x) do { printf("Fatal error: %s", x); return 0; } while(0)
 #endif /* not in BasiliskII */
 
+#define mysig_t sig_t
+#define mysignal sig
+#include <signal.h>
+
 /* Pty allocated with _getpty gets broken if we do I_PUSH:es to it. */
 #if defined(HAVE__GETPTY) || defined(HAVE_OPENPTY)
 #undef HAVE_DEV_PTMX
