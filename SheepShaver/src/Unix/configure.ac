@@ -1571,7 +1571,7 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
         ../kpx_cpu/src/cpu/ppc/ppc-jit.cpp $CPUSRCS"
     fi
   fi
-  CPUSRCS="$CPUSRCS ../kpx_cpu/sheepshaver_glue.cpp"
+  CPUSRCS="$CPUSRCS ../kpx_cpu/sheepshaver_glue.cpp ../kpx_cpu/ppc-dis.c"
 else
   WANT_JIT=no
 fi

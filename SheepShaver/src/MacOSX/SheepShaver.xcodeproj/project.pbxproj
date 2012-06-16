@@ -21,6 +21,8 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		08163339158C121000C449F9 /* dis-asm.h in Headers */ = {isa = PBXBuildFile; fileRef = 08163337158C121000C449F9 /* dis-asm.h */; };
+		08163340158C125800C449F9 /* ppc-dis.c in Sources */ = {isa = PBXBuildFile; fileRef = 08163338158C121000C449F9 /* ppc-dis.c */; };
 		082AC22D14AA52E900071F5E /* prefs_editor_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 082AC22C14AA52E900071F5E /* prefs_editor_dummy.cpp */; };
 		082AC26214AA59F000071F5E /* lowmem.c in Sources */ = {isa = PBXBuildFile; fileRef = 082AC26114AA59F000071F5E /* lowmem.c */; };
 		0846E4B114B1264700574779 /* ieeefp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDF714A99EEF000B1711 /* ieeefp.cpp */; };
@@ -188,6 +190,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		08163337158C121000C449F9 /* dis-asm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "dis-asm.h"; sourceTree = "<group>"; };
+		08163338158C121000C449F9 /* ppc-dis.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "ppc-dis.c"; sourceTree = "<group>"; };
 		082AC22C14AA52E900071F5E /* prefs_editor_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = prefs_editor_dummy.cpp; sourceTree = "<group>"; };
 		082AC25214AA59B600071F5E /* lowmem */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = lowmem; sourceTree = BUILT_PRODUCTS_DIR; };
 		082AC26114AA59F000071F5E /* lowmem.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = lowmem.c; path = ../../../BasiliskII/src/Unix/Darwin/lowmem.c; sourceTree = SOURCE_ROOT; };
@@ -592,6 +596,8 @@
 		0856CDB114A99EEF000B1711 /* kpx_cpu */ = {
 			isa = PBXGroup;
 			children = (
+				08163337158C121000C449F9 /* dis-asm.h */,
+				08163338158C121000C449F9 /* ppc-dis.c */,
 				0856CDB214A99EEF000B1711 /* include */,
 				0856CDBB14A99EEF000B1711 /* sheepshaver_glue.cpp */,
 				0856CDBC14A99EEF000B1711 /* src */,
@@ -910,6 +916,7 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				08163339158C121000C449F9 /* dis-asm.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1243,6 +1250,7 @@
 				0846E4C114B1268B00574779 /* jit-cache.cpp in Sources */,
 				0846E4C214B1269600574779 /* basic-dyngen.cpp in Sources */,
 				0846E51314B128ED00574779 /* sheepshaver_glue.cpp in Sources */,
+				08163340158C125800C449F9 /* ppc-dis.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1690,7 +1698,7 @@
 					i386,
 					x86_64,
 				);
-				COPY_PHASE_STRIP = YES;
+				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				FRAMEWORK_SEARCH_PATHS = /Library/Frameworks;

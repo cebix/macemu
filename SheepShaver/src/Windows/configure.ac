@@ -227,7 +227,7 @@ if [[ "x$WANT_JIT" = "xyes" ]]; then
     ../kpx_cpu/src/cpu/ppc/ppc-jit.cpp $CPUSRCS"
   CPPFLAGS="$CPPFLAGS -DUSE_JIT"
 fi
-CPUSRCS="$CPUSRCS ../kpx_cpu/sheepshaver_glue.cpp"
+CPUSRCS="$CPUSRCS ../kpx_cpu/sheepshaver_glue.cpp ../kpx_cpu/ppc-dis.c"
 
 dnl Use the dummy prefs file.
 CPUSRCS="$CPUSRCS ../dummy/prefs_dummy.cpp"
