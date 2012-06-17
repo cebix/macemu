@@ -74,7 +74,7 @@ RCSID("$OpenBSD: sshpty.c,v 1.4 2001/12/19 07:18:56 deraadt Exp $");
 #endif /* not in BasiliskII */
 
 #define mysig_t sig_t
-#define mysignal sig
+#define mysignal signal
 #include <signal.h>
 
 /* Pty allocated with _getpty gets broken if we do I_PUSH:es to it. */
