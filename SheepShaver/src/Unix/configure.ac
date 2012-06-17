@@ -381,6 +381,7 @@ AC_CHECK_HEADERS(netinet/in.h linux/if.h linux/if_tun.h net/if.h net/if_tun.h, [
 AC_CHECK_HEADERS(AvailabilityMacros.h)
 AC_CHECK_HEADERS(IOKit/storage/IOBlockStorageDevice.h)
 AC_CHECK_HEADERS(fenv.h)
+AC_CHECK_HEADERS(sys/stropts.h stropts.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
