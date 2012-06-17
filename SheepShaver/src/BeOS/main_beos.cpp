@@ -427,7 +427,7 @@ void SheepShaver::StartEmulator(void)
 		PostMessage(B_QUIT_REQUESTED);
 		return;
 	}
-	RAMBaseHost = (uint8 *)RAMBase
+	RAMBaseHost = (uint8 *)RAMBase;
 	D(bug("RAM area %ld at %p\n", ram_area, RAMBaseHost));
 
 	// Create area and load Mac ROM
