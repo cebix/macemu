@@ -88,6 +88,9 @@ RCSID("$OpenBSD: sshpty.c,v 1.4 2001/12/19 07:18:56 deraadt Exp $");
 #if defined(HAVE_DEV_PTMX) && defined(HAVE_SYS_STROPTS_H)
 # include <sys/stropts.h>
 #endif
+#if defined(HAVE_DEV_PTMX) && defined(HAVE_STROPTS_H)
+# include <stropts.h>
+#endif
 
 #ifndef O_NOCTTY
 #define O_NOCTTY 0
@@ -179,7 +182,7 @@ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 		close(*ptyfd);
 		return 0;
 	}
-#if !defined(HAVE_CYGWIN) && !defined(__FreeBSD__)
+#ifndef HAVE_CYGWIN
 	/*
 	 * Push the appropriate streams modules, as described in Solaris pts(7).
 	 * HP-UX pts(7) doesn't have ttcompat module.
