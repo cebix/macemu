@@ -179,7 +179,7 @@ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 		close(*ptyfd);
 		return 0;
 	}
-#ifndef HAVE_CYGWIN
+#if !defined(HAVE_CYGWIN) && !defined(__FreeBSD__)
 	/*
 	 * Push the appropriate streams modules, as described in Solaris pts(7).
 	 * HP-UX pts(7) doesn't have ttcompat module.
