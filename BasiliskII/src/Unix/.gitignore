@@ -1,0 +1,19 @@
+# Object files
+obj/*
+BasiliskII
+
+# Autotools generated files
+Makefile
+aclocal.m4
+autom4te.cache/*
+config.h
+config.h.in
+config.log
+config.status
+configure
+
+# Generated files for CPU emulation
+cpudefs.cpp
+cpuemu.cpp
+cpustbl.cpp
+cputbl.h
