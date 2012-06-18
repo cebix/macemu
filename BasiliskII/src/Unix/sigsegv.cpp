@@ -2504,6 +2504,7 @@ static bool arm_skip_instruction(unsigned long * regs)
  */
 
 #ifdef HAVE_MACH_EXCEPTIONS
+#ifdef EMULATED_PPC
 static void mach_get_exception_state(sigsegv_info_t *SIP)
 {
 	SIP->exc_state_count = SIGSEGV_EXCEPTION_STATE_COUNT;
@@ -2514,6 +2515,7 @@ static void mach_get_exception_state(sigsegv_info_t *SIP)
 	MACH_CHECK_ERROR(thread_get_state, krc);
 	SIP->has_exc_state = true;
 }
+#endif
 
 static void mach_get_thread_state(sigsegv_info_t *SIP)
 {
