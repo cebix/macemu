@@ -27,6 +27,19 @@
 #include "cpu/ppc/ppc-registers.hpp"
 #include "cpu/ppc/ppc-operations.hpp"
 
+#if defined(__GNUC__)
+// Force inlining under newer versions of GCC.
+static inline uint64 vm_read_memory_8(vm_addr_t addr) __attribute__((always_inline));
+static inline void vm_write_memory_8(vm_addr_t addr, uint64 value) __attribute__((always_inline));
+static inline uint64 vm_do_read_memory_8(uint64 *a) __attribute__((always_inline));
+static inline void vm_do_write_memory_8(uint64 *a, uint64 v) __attribute__((always_inline));
+static inline uint64 generic_bswap_64(uint64 x) __attribute__((always_inline));
+static inline uint32 fp_store_single_convert(uint64 v) __attribute__((always_inline));
+#define INLINE inline __attribute__((always_inline))
+#else
+#define INLINE inline
+#endif
+
 // We need at least 4 general purpose registers
 register struct powerpc_cpu *CPU asm(REG_CPU);
 #define DYNGEN_DEFINE_GLOBAL_REGISTER(REG) \
@@ -69,38 +82,38 @@ DYNGEN_DEFINE_GLOBAL_REGISTER(3);
  **/
 
 struct powerpc_dyngen_helper {
-	static inline uint32 get_pc()				{ return CPU->pc(); }
-	static inline void set_pc(uint32 value)		{ CPU->pc() = value; }
-	static inline void inc_pc(int32 offset)		{ CPU->pc() += offset; }
-	static inline uint32 get_lr()				{ return CPU->lr(); }
-	static inline void set_lr(uint32 value)		{ CPU->lr() = value; }
-	static inline uint32 get_ctr()				{ return CPU->ctr(); }
-	static inline void set_ctr(uint32 value)	{ CPU->ctr() = value; }
-	static inline uint32 get_cr()				{ return CPU->cr().get(); }
-	static inline void set_cr(uint32 value)		{ CPU->cr().set(value); }
-	static inline uint32 get_fpscr()			{ return CPU->fpscr(); }
-	static inline void set_fpscr(uint32 value)	{ CPU->fpscr() = value; }
-	static inline uint32 get_xer()				{ return CPU->xer().get(); }
-	static inline void set_xer(uint32 value)	{ CPU->xer().set(value); }
-	static inline uint32 get_vrsave()			{ return CPU->vrsave(); }
-	static inline void set_vrsave(uint32 value)	{ CPU->vrsave() = value; }
-	static inline uint32 get_vscr()				{ return CPU->vscr().get(); }
-	static inline void set_vscr(uint32 value)	{ CPU->vscr().set(value); }
-	static inline void record(int crf, int32 v)	{ CPU->record_cr(crf, v); }
-	static inline powerpc_cr_register & cr()	{ return CPU->cr(); }
-	static inline powerpc_xer_register & xer()	{ return CPU->xer(); }
-	static inline powerpc_spcflags & spcflags()	{ return CPU->spcflags(); }
-	static inline void set_cr(int crfd, int v)	{ CPU->cr().set(crfd, v); }
-	static inline powerpc_registers *regs()		{ return &CPU->regs(); }
+	static INLINE uint32 get_pc()				{ return CPU->pc(); }
+	static INLINE void set_pc(uint32 value)		{ CPU->pc() = value; }
+	static INLINE void inc_pc(int32 offset)		{ CPU->pc() += offset; }
+	static INLINE uint32 get_lr()				{ return CPU->lr(); }
+	static INLINE void set_lr(uint32 value)		{ CPU->lr() = value; }
+	static INLINE uint32 get_ctr()				{ return CPU->ctr(); }
+	static INLINE void set_ctr(uint32 value)	{ CPU->ctr() = value; }
+	static INLINE uint32 get_cr()				{ return CPU->cr().get(); }
+	static INLINE void set_cr(uint32 value)		{ CPU->cr().set(value); }
+	static INLINE uint32 get_fpscr()			{ return CPU->fpscr(); }
+	static INLINE void set_fpscr(uint32 value)	{ CPU->fpscr() = value; }
+	static INLINE uint32 get_xer()				{ return CPU->xer().get(); }
+	static INLINE void set_xer(uint32 value)	{ CPU->xer().set(value); }
+	static INLINE uint32 get_vrsave()			{ return CPU->vrsave(); }
+	static INLINE void set_vrsave(uint32 value)	{ CPU->vrsave() = value; }
+	static INLINE uint32 get_vscr()				{ return CPU->vscr().get(); }
+	static INLINE void set_vscr(uint32 value)	{ CPU->vscr().set(value); }
+	static INLINE void record(int crf, int32 v)	{ CPU->record_cr(crf, v); }
+	static INLINE powerpc_cr_register & cr()	{ return CPU->cr(); }
+	static INLINE powerpc_xer_register & xer()	{ return CPU->xer(); }
+	static INLINE powerpc_spcflags & spcflags()	{ return CPU->spcflags(); }
+	static INLINE void set_cr(int crfd, int v)	{ CPU->cr().set(crfd, v); }
+	static INLINE powerpc_registers *regs()		{ return &CPU->regs(); }
 
 #ifndef REG_T3
-	static inline uintptr & reg_T3()			{ return CPU->codegen.reg_T3; }
+	static INLINE uintptr & reg_T3()			{ return CPU->codegen.reg_T3; }
 #endif
 //#ifndef REG_F3
-	static inline powerpc_fpr & reg_F3()		{ return CPU->codegen.reg_F3; }
+	static INLINE powerpc_fpr & reg_F3()		{ return CPU->codegen.reg_F3; }
 //#endif
 
-	static inline powerpc_block_info *find_block(uint32 pc) { return CPU->my_block_cache.fast_find(pc); }
+	static INLINE powerpc_block_info *find_block(uint32 pc) { return CPU->my_block_cache.fast_find(pc); }
 };
 
 // Semantic action templates
@@ -623,7 +636,7 @@ void OPPROTO op_spcflags_check(void)
  **/
 
 template< int bo >
-static inline void do_prep_branch_bo(void)
+static INLINE void do_prep_branch_bo(void)
 {
 	bool ctr_ok = true;
 	bool cond_ok = true;
@@ -683,7 +696,7 @@ void OPPROTO op_branch_chain_2(void)
 	dyngen_barrier();
 }
 
-static inline void do_execute_branch_1(uint32 tpc)
+static INLINE void do_execute_branch_1(uint32 tpc)
 {
 	powerpc_dyngen_helper::set_pc(tpc);
 }
@@ -698,7 +711,7 @@ void OPPROTO op_branch_1_im(void)
 	do_execute_branch_1(PARAM1);
 }
 
-static inline void do_execute_branch_2(uint32 tpc, uint32 npc)
+static INLINE void do_execute_branch_2(uint32 tpc, uint32 npc)
 {
 	powerpc_dyngen_helper::set_pc(T1 ? tpc : npc);
 	dyngen_barrier();
@@ -1372,7 +1385,7 @@ void OPPROTO op_jump_next_A0(void)
  **/
 
 template< int N >
-static inline void do_lmw(void)
+static INLINE void do_lmw(void)
 {
 	CPU->gpr(N) = vm_read_memory_4(T0);
 	T0 += 4;
@@ -1380,13 +1393,13 @@ static inline void do_lmw(void)
 }
 
 template<>
-inline void do_lmw<31>(void)
+INLINE void do_lmw<31>(void)
 {
 	CPU->gpr(31) = vm_read_memory_4(T0);
 }
 
 template<>
-inline void do_lmw<32>(void)
+INLINE void do_lmw<32>(void)
 {
 	for (uint32 r = PARAM1, ad = T0; r <= 31; r++, ad += 4)
 		CPU->gpr(r) = vm_read_memory_4(ad);
@@ -1394,7 +1407,7 @@ inline void do_lmw<32>(void)
 }
 
 template< int N >
-static inline void do_stmw(void)
+static INLINE void do_stmw(void)
 {
 	vm_write_memory_4(T0, CPU->gpr(N));
 	T0 += 4;
@@ -1402,13 +1415,13 @@ static inline void do_stmw(void)
 }
 
 template<>
-inline void do_stmw<31>(void)
+INLINE void do_stmw<31>(void)
 {
 	vm_write_memory_4(T0, CPU->gpr(31));
 }
 
 template<>
-inline void do_stmw<32>(void)
+INLINE void do_stmw<32>(void)
 {
 	for (uint32 r = PARAM1, ad = T0; r <= 31; r++, ad += 4)
 		vm_write_memory_4(ad, CPU->gpr(r));
@@ -1520,48 +1533,48 @@ void op_store_vect_VD_T0(void)
 #define VNONE op_VNONE
 struct op_VNONE {
 	typedef null_operand type;
-	static inline uint32 get(powerpc_vr const & v, int i) { return 0; }
-	static inline void set(powerpc_vr const & v, int i, uint32) { }
+	static INLINE uint32 get(powerpc_vr const & v, int i) { return 0; }
+	static INLINE void set(powerpc_vr const & v, int i, uint32) { }
 };
 
 #define V16QI op_V16QI
 struct op_V16QI {
 	typedef uint8 type;
-	static inline type get(powerpc_vr const & v, int i) { return v.b[i]; }
-	static inline void set(powerpc_vr & v, int i, type x) { v.b[i] = x; }
+	static INLINE type get(powerpc_vr const & v, int i) { return v.b[i]; }
+	static INLINE void set(powerpc_vr & v, int i, type x) { v.b[i] = x; }
 };
 
 #define V8HI op_V8HI
 struct op_V8HI {
 	typedef uint16 type;
-	static inline type get(powerpc_vr const & v, int i) { return v.h[i]; }
-	static inline void set(powerpc_vr & v, int i, type x) { v.h[i] = x; }
+	static INLINE type get(powerpc_vr const & v, int i) { return v.h[i]; }
+	static INLINE void set(powerpc_vr & v, int i, type x) { v.h[i] = x; }
 };
 
 #define V4SI op_V4SI
 struct op_V4SI {
 	typedef uint32 type;
-	static inline type get(powerpc_vr const & v, int i) { return v.w[i]; }
-	static inline void set(powerpc_vr & v, int i, type x) { v.w[i] = x; }
+	static INLINE type get(powerpc_vr const & v, int i) { return v.w[i]; }
+	static INLINE void set(powerpc_vr & v, int i, type x) { v.w[i] = x; }
 };
 
 #define V2DI op_V2DI
 struct op_V2DI {
 	typedef uint64 type;
-	static inline type get(powerpc_vr const & v, int i) { return v.j[i]; }
-	static inline void set(powerpc_vr & v, int i, type x) { v.j[i] = x; }
+	static INLINE type get(powerpc_vr const & v, int i) { return v.j[i]; }
+	static INLINE void set(powerpc_vr & v, int i, type x) { v.j[i] = x; }
 };
 
 #define V4SF op_V4SF
 struct op_V4SF {
 	typedef float type;
-	static inline type get(powerpc_vr const & v, int i) { return v.f[i]; }
-	static inline void set(powerpc_vr & v, int i, type x) { v.f[i] = x; }
+	static INLINE type get(powerpc_vr const & v, int i) { return v.f[i]; }
+	static INLINE void set(powerpc_vr & v, int i, type x) { v.f[i] = x; }
 };
 
 template< class OP, class VX, class VA, class VB, class VC, int N >
 struct do_vector_execute {
-	static inline void apply() {
+	static INLINE void apply() {
 		do_vector_execute<OP, VX, VA, VB, VC, N - 1>::apply();
 		VX::set(
 			VD, N,
@@ -1574,7 +1587,7 @@ struct do_vector_execute {
 
 template< class OP, class VX, class VA, class VB, class VC >
 struct do_vector_execute<OP, VX, VA, VB, VC, 0> {
-	static inline void apply() {
+	static INLINE void apply() {
 		VX::set(
 			VD, 0, op_apply<typename VX::type, OP, typename VA::type, typename VB::type, typename VC::type>::apply(
 				VA::get(V0, 0),
@@ -1585,7 +1598,7 @@ struct do_vector_execute<OP, VX, VA, VB, VC, 0> {
 
 template< class OP, class VX, class VA, class VB = VNONE, class VC = VNONE >
 struct vector_execute {
-	static inline void apply() {
+	static INLINE void apply() {
 		do_vector_execute<OP, VX, VA, VB, VC, (16 / sizeof(typename VX::type)) - 1>::apply();
 	}
 };
@@ -1613,7 +1626,7 @@ void op_vmaddfp_VD_V0_V1_V2(void)
 #if defined(__i386__) && defined(__SSE__)
 // Workaround gcc 3.2.2 miscompilation that inserts SSE instructions
 struct op_do_vnmsubfp {
-	static inline float apply(float x, float y, float z) {
+	static INLINE float apply(float x, float y, float z) {
 //		return 0. - ((x * z) - y);
 		return y - (x * z);
 	}
