@@ -1,0 +1,4 @@
+# Xcode build files
+build/*
+SheepShaver.xcodeproj/*.mode1v3
+SheepShaver.xcodeproj/*.pbxuser
