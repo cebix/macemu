@@ -1441,10 +1441,11 @@ if [[ "x$HAVE_GCC30" = "xyes" ]]; then
   CFLAGS="$CFLAGS -fno-strict-aliasing"
   AC_CACHE_CHECK([whether the compiler supports -fno-strict-aliasing],
     ac_cv_gcc_no_strict_aliasing, [
-    AC_TRY_COMPILE([],[],
-      [ac_cv_gcc_no_strict_aliasing=yes; AC_SUBST(SLIRP_CFLAGS, "-fno-strict-aliasing")],
-      [ac_cv_gcc_no_strict_aliasing=no])
+    AC_TRY_COMPILE([],[],[ac_cv_gcc_no_strict_aliasing=yes],[ac_cv_gcc_no_strict_aliasing=no])
   ])
+  if [[ "x$ac_cv_gcc_no_strict_aliasing" = "xyes" ]]; then
+    AC_SUBST(SLIRP_CFLAGS, "-fno-strict-aliasing")
+  fi
   CFLAGS="$SAVED_CFLAGS"
 fi
 
