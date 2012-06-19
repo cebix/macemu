@@ -2254,6 +2254,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 
 	for (i = 0, rel = relocs, local16 = 0; i < nb_relocs; i++, rel++) {
 		unsigned int isym, usesym, offset, length, pcrel, type;
+		int adjustment = 0;
 
 		isym = rel->r_symbolnum;
 		usesym = rel->r_extern;
@@ -2310,14 +2311,29 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 		}
 
 		get_reloc_expr(final_sym_name, sizeof(final_sym_name), sym_name);
-                    
+
+		switch (type) {
+			case X86_64_RELOC_SIGNED_1:		// Signed displacement with a -1 added.
+				adjustment = -1;
+				type = X86_64_RELOC_SIGNED;
+				break;
+			case X86_64_RELOC_SIGNED_2:		// Signed displacement with a -2 added.
+				adjustment = -2;
+				type = X86_64_RELOC_SIGNED;
+				break;
+			case X86_64_RELOC_SIGNED_4:		// Signed displacement with a -4 added.
+				adjustment = -4;
+				type = X86_64_RELOC_SIGNED;
+				break;
+		}
+
 		if (pcrel || is_op_gen_label(sym_name, &p)) {
 			switch (type) {
 			case X86_64_RELOC_UNSIGNED:     // for absolute addresses
 			case X86_64_RELOC_SIGNED:		// for signed 32-bit displacement
 			case X86_64_RELOC_BRANCH:		// a CALL/JMP instruction with 32-bit displacement
 				fprintf(outfile, "    *(uint%d_t *)(code_ptr() + %d) = (int%d_t)((long)%s - (long)(code_ptr() + %d + %d)) + %d;\n", 
-					bitlength, slide, bitlength, final_sym_name, slide, bytecount, sslide);
+					bitlength, slide, bitlength, final_sym_name, slide, bytecount, sslide + adjustment);
 				break;
 			default:
 				error("unsupported x86_64 relocation (%d) in %s\n", type, sym_name);
@@ -2330,7 +2346,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 				break;
 			case X86_64_RELOC_SIGNED:		// for signed 32-bit displacement
 				fprintf(outfile, "    *(uint%d_t *)(code_ptr() + %d) = (int%d_t)%s + %d;\n", 
-					bitlength, slide, bitlength, final_sym_name, sslide);
+					bitlength, slide, bitlength, final_sym_name, sslide + adjustment);
 				break;
 			default:
 				error("unsupported x86_64 relocation (%d) in %s\n", type, sym_name);
