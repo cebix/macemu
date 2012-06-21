@@ -47,8 +47,6 @@ union any_register
  *		Basic CPU model
  **/
 
-struct task_struct;
-
 struct basic_cpu
 	: public task_plugin
 {
