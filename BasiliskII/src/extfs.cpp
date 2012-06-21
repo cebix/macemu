@@ -1693,12 +1693,13 @@ static int16 fs_get_eof(uint32 pb)
 	if (ReadMacInt32(fcb + fcbFlNm) == 0)
 		return fnOpnErr;
 	int fd = ReadMacInt32(fcb + fcbCatPos);
-	if (fd < 0)
+	if (fd < 0) {
 		if (ReadMacInt8(fcb + fcbFlags) & fcbResourceMask) {	// "pseudo" resource fork
 			WriteMacInt32(pb + ioMisc, 0);
 			return noErr;
 		} else
 			return fnOpnErr;
+	}
 
 	// Get file size
 	struct stat st;
@@ -1729,11 +1730,12 @@ static int16 fs_set_eof(uint32 pb)
 	if (ReadMacInt32(fcb + fcbFlNm) == 0)
 		return fnOpnErr;
 	int fd = ReadMacInt32(fcb + fcbCatPos);
-	if (fd < 0)
+	if (fd < 0) {
 		if (ReadMacInt8(fcb + fcbFlags) & fcbResourceMask)	// "pseudo" resource fork
 			return noErr;
 		else
 			return fnOpnErr;
+	}
 
 	// Truncate file
 	uint32 size = ReadMacInt32(pb + ioMisc);
@@ -1766,12 +1768,13 @@ static int16 fs_get_fpos(uint32 pb)
 	if (ReadMacInt32(fcb + fcbFlNm) == 0)
 		return fnOpnErr;
 	int fd = ReadMacInt32(fcb + fcbCatPos);
-	if (fd < 0)
+	if (fd < 0) {
 		if (ReadMacInt8(fcb + fcbFlags) & fcbResourceMask) {	// "pseudo" resource fork
 			WriteMacInt32(pb + ioPosOffset, 0);
 			return noErr;
 		} else
 			return fnOpnErr;
+	}
 
 	// Get file position
 	uint32 pos = lseek(fd, 0, SEEK_CUR);
@@ -1792,12 +1795,13 @@ static int16 fs_set_fpos(uint32 pb)
 	if (ReadMacInt32(fcb + fcbFlNm) == 0)
 		return fnOpnErr;
 	int fd = ReadMacInt32(fcb + fcbCatPos);
-	if (fd < 0)
+	if (fd < 0) {
 		if (ReadMacInt8(fcb + fcbFlags) & fcbResourceMask) {	// "pseudo" resource fork
 			WriteMacInt32(pb + ioPosOffset, 0);
 			return noErr;
 		} else
 			return fnOpnErr;
+	}
 
 	// Set file position
 	switch (ReadMacInt16(pb + ioPosMode) & 3) {
@@ -1838,12 +1842,13 @@ static int16 fs_read(uint32 pb)
 	if (ReadMacInt32(fcb + fcbFlNm) == 0)
 		return fnOpnErr;
 	int fd = ReadMacInt32(fcb + fcbCatPos);
-	if (fd < 0)
+	if (fd < 0) {
 		if (ReadMacInt8(fcb + fcbFlags) & fcbResourceMask) {	// "pseudo" resource fork
 			WriteMacInt32(pb + ioActCount, 0);
 			return eofErr;
 		} else
 			return fnOpnErr;
+	}
 
 	// Seek
 	switch (ReadMacInt16(pb + ioPosMode) & 3) {
@@ -1891,12 +1896,13 @@ static int16 fs_write(uint32 pb)
 	if (ReadMacInt32(fcb + fcbFlNm) == 0)
 		return fnOpnErr;
 	int fd = ReadMacInt32(fcb + fcbCatPos);
-	if (fd < 0)
+	if (fd < 0) {
 		if (ReadMacInt8(fcb + fcbFlags) & fcbResourceMask) {	// "pseudo" resource fork
 			WriteMacInt32(pb + ioActCount, ReadMacInt32(pb + ioReqCount));
 			return noErr;
 		} else
 			return fnOpnErr;
+	}
 
 	// Seek
 	switch (ReadMacInt16(pb + ioPosMode) & 3) {
