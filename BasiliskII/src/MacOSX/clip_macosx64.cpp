@@ -21,7 +21,7 @@
 
 #include "sysdeps.h"
 #define _UINT64
-#include <Carbon/Carbon.h>
+#include <ApplicationServices/ApplicationServices.h>
 
 #include "clip.h"
 #include "main.h"
