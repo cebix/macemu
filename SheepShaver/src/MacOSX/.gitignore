@@ -2,3 +2,6 @@
 build/*
 SheepShaver.xcodeproj/*.mode1v3
 SheepShaver.xcodeproj/*.pbxuser
+
+# autoconf build generated Info.plist file
+Info.plist
