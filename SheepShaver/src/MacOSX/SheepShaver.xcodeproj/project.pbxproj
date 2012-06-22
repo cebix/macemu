@@ -50,7 +50,6 @@
 		0856CFF314A99EF0000B1711 /* extfs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD8C14A99EEF000B1711 /* extfs.cpp */; };
 		0856CFF414A99EF0000B1711 /* gfxaccel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD8D14A99EEF000B1711 /* gfxaccel.cpp */; };
 		0856D00914A99EF0000B1711 /* macos_util.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE0514A99EEF000B1711 /* macos_util.cpp */; };
-		0856D02414A99EF0000B1711 /* clip_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE2C14A99EF0000B1711 /* clip_macosx.cpp */; };
 		0856D02514A99EF0000B1711 /* extfs_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE2D14A99EF0000B1711 /* extfs_macosx.cpp */; };
 		0856D05014A99EF1000B1711 /* prefs_macosx.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE7014A99EF0000B1711 /* prefs_macosx.mm */; };
 		0856D05914A99EF1000B1711 /* SheepShaver.icns in Resources */ = {isa = PBXBuildFile; fileRef = 0856CE8314A99EF0000B1711 /* SheepShaver.icns */; };
@@ -119,6 +118,8 @@
 		0873A76A14ABD151004F12B7 /* config-macosx-x86_64.h in Headers */ = {isa = PBXBuildFile; fileRef = 0873A76614ABD151004F12B7 /* config-macosx-x86_64.h */; };
 		0873A76B14ABD151004F12B7 /* config.h in Headers */ = {isa = PBXBuildFile; fileRef = 0873A76714ABD151004F12B7 /* config.h */; };
 		0873A80214AC515D004F12B7 /* utils_macosx.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0873A80114AC515D004F12B7 /* utils_macosx.mm */; };
+		0885A52F1593E47F005C4F7B /* clip_macosx64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0851E9561593E22B00EE3FAD /* clip_macosx64.cpp */; };
+		08C99DA11593E79F00898E41 /* clip_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE2C14A99EF0000B1711 /* clip_macosx.cpp */; };
 		08CD42DC14B7B85B009CA2A2 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */; };
 		08CD42E814B7B8AA009CA2A2 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42E714B7B8AA009CA2A2 /* Carbon.framework */; };
 /* End PBXBuildFile section */
@@ -173,6 +174,20 @@
 			remoteGlobalIDString = 0873A53114AAF05A004F12B7;
 			remoteInfo = dyngen;
 		};
+		0885A5391593E4BC005C4F7B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0856CCAE14A99DE0000B1711 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0885A5201593E3B6005C4F7B;
+			remoteInfo = clip;
+		};
+		0885A53B1593E4BC005C4F7B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0856CCAE14A99DE0000B1711 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0885A52B1593E47F005C4F7B;
+			remoteInfo = clip64;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -199,6 +214,7 @@
 		0846E52314B129DA00574779 /* ppc_asm.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; path = ppc_asm.S; sourceTree = "<group>"; };
 		0846E52814B129EE00574779 /* libppc_asm.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libppc_asm.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		0846E55214B12B0D00574779 /* paranoia.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = paranoia.cpp; sourceTree = "<group>"; };
+		0851E9561593E22B00EE3FAD /* clip_macosx64.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = clip_macosx64.cpp; sourceTree = "<group>"; };
 		0856CCC114A99E1C000B1711 /* SheepShaver.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SheepShaver.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0856CD4B14A99EEF000B1711 /* adb.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = adb.cpp; path = ../adb.cpp; sourceTree = SOURCE_ROOT; };
 		0856CD4C14A99EEF000B1711 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = ../audio.cpp; sourceTree = SOURCE_ROOT; };
@@ -412,6 +428,8 @@
 		0873A76714ABD151004F12B7 /* config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = config.h; sourceTree = "<group>"; };
 		0873A80014AC515D004F12B7 /* utils_macosx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = utils_macosx.h; sourceTree = "<group>"; };
 		0873A80114AC515D004F12B7 /* utils_macosx.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = utils_macosx.mm; sourceTree = "<group>"; };
+		0885A5211593E3B6005C4F7B /* libclip.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libclip.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		0885A5341593E47F005C4F7B /* libclip64.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libclip64.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
 		08CD42E714B7B8AA009CA2A2 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = /System/Library/Frameworks/Carbon.framework; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
@@ -470,6 +488,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0885A51F1593E3B6005C4F7B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0885A5301593E47F005C4F7B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -500,6 +532,8 @@
 				0873A5CC14AB806D004F12B7 /* libppc-dyngen-ops.a */,
 				0846E49A14B124DE00574779 /* libkpx_cpu.a */,
 				0846E52814B129EE00574779 /* libppc_asm.a */,
+				0885A5211593E3B6005C4F7B /* libclip.a */,
+				0885A5341593E47F005C4F7B /* libclip64.a */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -767,6 +801,7 @@
 				0873A76514ABD151004F12B7 /* config */,
 				0856D2D614A9A704000B1711 /* Launcher */,
 				0856CE2C14A99EF0000B1711 /* clip_macosx.cpp */,
+				0851E9561593E22B00EE3FAD /* clip_macosx64.cpp */,
 				0856CE2D14A99EF0000B1711 /* extfs_macosx.cpp */,
 				0856CE6D14A99EF0000B1711 /* macos_util_macosx.h */,
 				0856CE7014A99EF0000B1711 /* prefs_macosx.mm */,
@@ -945,6 +980,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0885A51D1593E3B6005C4F7B /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0885A52C1593E47F005C4F7B /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
@@ -1018,6 +1067,8 @@
 				0846E52E14B12A2E00574779 /* PBXTargetDependency */,
 				0846E4A714B1253500574779 /* PBXTargetDependency */,
 				082AC26814AA5A4800071F5E /* PBXTargetDependency */,
+				0885A53A1593E4BC005C4F7B /* PBXTargetDependency */,
+				0885A53C1593E4BC005C4F7B /* PBXTargetDependency */,
 			);
 			name = SheepShaver;
 			productName = SheepShaver;
@@ -1078,6 +1129,40 @@
 			productReference = 0873A5CC14AB806D004F12B7 /* libppc-dyngen-ops.a */;
 			productType = "com.apple.product-type.library.static";
 		};
+		0885A5201593E3B6005C4F7B /* clip */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0885A5241593E450005C4F7B /* Build configuration list for PBXNativeTarget "clip" */;
+			buildPhases = (
+				0885A51D1593E3B6005C4F7B /* Headers */,
+				0885A51E1593E3B6005C4F7B /* Sources */,
+				0885A51F1593E3B6005C4F7B /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = clip;
+			productName = clipboard;
+			productReference = 0885A5211593E3B6005C4F7B /* libclip.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+		0885A52B1593E47F005C4F7B /* clip64 */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0885A5311593E47F005C4F7B /* Build configuration list for PBXNativeTarget "clip64" */;
+			buildPhases = (
+				0885A52C1593E47F005C4F7B /* Headers */,
+				0885A52D1593E47F005C4F7B /* Sources */,
+				0885A5301593E47F005C4F7B /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = clip64;
+			productName = clipboard;
+			productReference = 0885A5341593E47F005C4F7B /* libclip64.a */;
+			productType = "com.apple.product-type.library.static";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -1106,6 +1191,8 @@
 				0873A67314AB8AE9004F12B7 /* ppc-execute-impl */,
 				0846E49914B124DE00574779 /* kpx_cpu */,
 				0846E52714B129EE00574779 /* ppc_asm */,
+				0885A5201593E3B6005C4F7B /* clip */,
+				0885A52B1593E47F005C4F7B /* clip64 */,
 			);
 		};
 /* End PBXProject section */
@@ -1277,7 +1364,6 @@
 				0856CFF314A99EF0000B1711 /* extfs.cpp in Sources */,
 				0856CFF414A99EF0000B1711 /* gfxaccel.cpp in Sources */,
 				0856D00914A99EF0000B1711 /* macos_util.cpp in Sources */,
-				0856D02414A99EF0000B1711 /* clip_macosx.cpp in Sources */,
 				0856D02514A99EF0000B1711 /* extfs_macosx.cpp in Sources */,
 				0856D05014A99EF1000B1711 /* prefs_macosx.mm in Sources */,
 				0856D05A14A99EF1000B1711 /* sys_darwin.cpp in Sources */,
@@ -1363,6 +1449,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0885A51E1593E3B6005C4F7B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				08C99DA11593E79F00898E41 /* clip_macosx.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0885A52D1593E47F005C4F7B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0885A52F1593E47F005C4F7B /* clip_macosx64.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -1400,6 +1502,16 @@
 			isa = PBXTargetDependency;
 			target = 0873A53114AAF05A004F12B7 /* dyngen */;
 			targetProxy = 0873A62614AB869A004F12B7 /* PBXContainerItemProxy */;
+		};
+		0885A53A1593E4BC005C4F7B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0885A5201593E3B6005C4F7B /* clip */;
+			targetProxy = 0885A5391593E4BC005C4F7B /* PBXContainerItemProxy */;
+		};
+		0885A53C1593E4BC005C4F7B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0885A52B1593E47F005C4F7B /* clip64 */;
+			targetProxy = 0885A53B1593E4BC005C4F7B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1504,8 +1616,8 @@
 				INSTALL_PATH = /usr/local/lib;
 				PREBINDING = NO;
 				PRODUCT_NAME = kpx_cpu;
-				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.5.sdk";
-				"SDKROOT[arch=i386]" = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
+				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
+				"SDKROOT[arch=x86_64]" = "$(DEVELOPER_SDK_DIR)/MacOSX10.5.sdk";
 			};
 			name = Debug;
 		};
@@ -1673,12 +1785,21 @@
 					0x3000,
 					"-Wl,-seg1addr,0x78048000",
 					"-lkpx_cpu",
+					"-lclip",
 				);
 				"OTHER_LDFLAGS[arch=ppc]" = (
 					"-pagezero_size",
 					0x3000,
 					"-Wl,-seg1addr,0x78048000",
 					"-lppc_asm",
+					"-lclip",
+				);
+				"OTHER_LDFLAGS[arch=x86_64]" = (
+					"-pagezero_size",
+					0x3000,
+					"-Wl,-seg1addr,0x78048000",
+					"-lkpx_cpu",
+					"-lclip64",
 				);
 				PREBINDING = NO;
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
@@ -1744,7 +1865,7 @@
 				INFOPLIST_PREPROCESS = NO;
 				INSTALL_PATH = "$(HOME)/Applications";
 				MACOSX_DEPLOYMENT_TARGET = 10.4;
-				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.6;
+				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.5;
 				OTHER_CFLAGS = "";
 				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				OTHER_LDFLAGS = (
@@ -1752,18 +1873,27 @@
 					0x3000,
 					"-Wl,-seg1addr,0x78048000",
 					"-lkpx_cpu",
+					"-lclip",
 				);
 				"OTHER_LDFLAGS[arch=ppc]" = (
 					"-pagezero_size",
 					0x3000,
 					"-Wl,-seg1addr,0x78048000",
 					"-lppc_asm",
+					"-lclip",
+				);
+				"OTHER_LDFLAGS[arch=x86_64]" = (
+					"-pagezero_size",
+					0x3000,
+					"-Wl,-seg1addr,0x78048000",
+					"-lkpx_cpu",
+					"-lclip64",
 				);
 				PREBINDING = NO;
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = SheepShaver;
 				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
-				"SDKROOT[arch=x86_64]" = "$(DEVELOPER_SDK_DIR)/MacOSX10.6.sdk";
+				"SDKROOT[arch=x86_64]" = "$(DEVELOPER_SDK_DIR)/MacOSX10.5.sdk";
 				ZERO_LINK = NO;
 			};
 			name = Release;
@@ -2034,6 +2164,130 @@
 			};
 			name = Release;
 		};
+		0885A5221593E3B6005C4F7B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = (
+					ppc,
+					i386,
+				);
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_MODEL_TUNING = G5;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_VERSION = 4.0;
+				HEADER_SEARCH_PATHS = (
+					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
+					./config/,
+					../Unix,
+					../MacOSX/Launcher,
+					../slirp,
+					../kpx_cpu/src,
+					../kpx_cpu/include,
+					../include,
+				);
+				INSTALL_PATH = /usr/local/lib;
+				PREBINDING = NO;
+				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
+				PRODUCT_NAME = clip;
+				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
+			};
+			name = Debug;
+		};
+		0885A5231593E3B6005C4F7B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = (
+					ppc,
+					i386,
+				);
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				GCC_MODEL_TUNING = G5;
+				GCC_VERSION = 4.0;
+				HEADER_SEARCH_PATHS = (
+					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
+					./config/,
+					../Unix,
+					../MacOSX/Launcher,
+					../slirp,
+					../kpx_cpu/src,
+					../kpx_cpu/include,
+					../include,
+				);
+				INSTALL_PATH = /usr/local/lib;
+				PREBINDING = NO;
+				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
+				PRODUCT_NAME = clip;
+				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
+				ZERO_LINK = NO;
+			};
+			name = Release;
+		};
+		0885A5321593E47F005C4F7B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT_PRE_XCODE_3_1)";
+				ARCHS_STANDARD_64_BIT_PRE_XCODE_3_1 = x86_64;
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_MODEL_TUNING = G5;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_VERSION = 4.0;
+				HEADER_SEARCH_PATHS = (
+					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
+					./config/,
+					../Unix,
+					../MacOSX/Launcher,
+					../slirp,
+					../kpx_cpu/src,
+					../kpx_cpu/include,
+					../include,
+				);
+				INSTALL_PATH = /usr/local/lib;
+				PREBINDING = NO;
+				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
+				PRODUCT_NAME = clip64;
+				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.5.sdk";
+			};
+			name = Debug;
+		};
+		0885A5331593E47F005C4F7B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT_PRE_XCODE_3_1)";
+				ARCHS_STANDARD_64_BIT_PRE_XCODE_3_1 = x86_64;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				GCC_MODEL_TUNING = G5;
+				GCC_VERSION = 4.0;
+				HEADER_SEARCH_PATHS = (
+					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
+					./config/,
+					../Unix,
+					../MacOSX/Launcher,
+					../slirp,
+					../kpx_cpu/src,
+					../kpx_cpu/include,
+					../include,
+				);
+				INSTALL_PATH = /usr/local/lib;
+				PREBINDING = NO;
+				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
+				PRODUCT_NAME = clip64;
+				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.5.sdk";
+				ZERO_LINK = NO;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -2114,6 +2368,24 @@
 			buildConfigurations = (
 				0873A67414AB8AE9004F12B7 /* Debug */,
 				0873A67514AB8AE9004F12B7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0885A5241593E450005C4F7B /* Build configuration list for PBXNativeTarget "clip" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0885A5221593E3B6005C4F7B /* Debug */,
+				0885A5231593E3B6005C4F7B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0885A5311593E47F005C4F7B /* Build configuration list for PBXNativeTarget "clip64" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0885A5321593E47F005C4F7B /* Debug */,
+				0885A5331593E47F005C4F7B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
