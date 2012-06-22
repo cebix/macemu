@@ -708,7 +708,18 @@ if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   VIDEOSRCS="../SDL/video_sdl.cpp"
   KEYCODES="../SDL/keycodes"
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
-    EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp"
+    AC_MSG_CHECKING([whether __LP64__ is defined])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#if !defined(__LP64__)
+                                         # error __LP64__ not defined
+                                         #endif
+                                       ]])],
+                      [AC_MSG_RESULT(yes); LP64_DEFINED=yes],
+                      [AC_MSG_RESULT(no)])
+    if [[ "x$LP64_DEFINED" = "xyes" ]]; then
+      EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx64.cpp"
+    else
+      EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp"
+    fi
     EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/utils_macosx.mm"
     CPPFLAGS="$CPPFLAGS -I../MacOSX"
   else

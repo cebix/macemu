@@ -77,7 +77,7 @@ static int GetMacScriptManagerVariable(uint16 id)
 		0x2f, 0x3c, 0x84, 0x02, 0x00, 0x08, // move.l	 #-2080243704,-(sp)
 		0xa8, 0xb5,							// ScriptUtil()
 		0x20, 0x1f,							// move.l	 (a7)+,d0
-		M68K_RTS >> 8, M68K_RTS
+		M68K_RTS >> 8, M68K_RTS & 0xff
 	};
 	r.d[0] = sizeof(proc);
 	Execute68kTrap(0xa71e, &r);		// NewPtrSysClear()
