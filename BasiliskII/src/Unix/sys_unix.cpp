@@ -616,10 +616,26 @@ void *Sys_open(const char *name, bool read_only)
 	}
 #endif
 
+	int open_flags = (read_only ? O_RDONLY : O_RDWR);
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__MACOSX__)
-	int fd = open(name, (read_only ? O_RDONLY : O_RDWR) | (is_cdrom ? O_NONBLOCK : 0));
-#else
-	int fd = open(name, read_only ? O_RDONLY : O_RDWR);
+	open_flags |= (is_cdrom ? O_NONBLOCK : 0);
+#endif
+#if defined(__MACOSX__)
+	open_flags |= (is_file ? O_EXLOCK | O_NONBLOCK : 0);
+#endif
+	int fd = open(name, open_flags);
+#if defined(__MACOSX__)
+	if (fd < 0 && (open_flags & O_EXLOCK)) {
+		if (errno == EOPNOTSUPP) {
+			// File system does not support locking. Try again without.
+			open_flags &= ~O_EXLOCK;
+			fd = open(name, open_flags);
+		} else if (errno == EAGAIN) {
+			// File is likely already locked by another process.
+			printf("WARNING: Cannot open %s (%s)\n", name, strerror(errno));
+			return NULL;
+		}
+	}
 #endif
 	if (fd < 0 && !read_only) {
 		// Read-write failed, try read-only
