@@ -240,6 +240,14 @@ void PutScrap(uint32 type, void *scrap, int32 length)
 	}
 }
 
+/*
+ * Mac application zeroes clipboard
+ */
+
+void ZeroScrap()
+{
+
+}
 
 /*
  *  Mac application reads clipboard

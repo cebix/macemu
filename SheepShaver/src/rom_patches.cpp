@@ -60,9 +60,10 @@
 
 // Other ROM addresses
 const uint32 CHECK_LOAD_PATCH_SPACE = 0x2fcf00;
-const uint32 PUT_SCRAP_PATCH_SPACE = 0x2fcf80;
-const uint32 GET_SCRAP_PATCH_SPACE = 0x2fcfc0;
-const uint32 ADDR_MAP_PATCH_SPACE = 0x2fd100;
+const uint32 ZERO_SCRAP_PATCH_SPACE = 0x2fcf80;
+const uint32 PUT_SCRAP_PATCH_SPACE = 0x2fcfc0;
+const uint32 GET_SCRAP_PATCH_SPACE = 0x2fd100;
+const uint32 ADDR_MAP_PATCH_SPACE = 0x2fd140;
 
 // Global variables
 int ROMType;				// ROM type
@@ -712,6 +713,8 @@ bool PatchROM(void)
 
 	// Check that other ROM addresses point to really free regions
 	if (!check_rom_patch_space(CHECK_LOAD_PATCH_SPACE, 0x40))
+		return false;
+	if (!check_rom_patch_space(ZERO_SCRAP_PATCH_SPACE, 0x40))
 		return false;
 	if (!check_rom_patch_space(PUT_SCRAP_PATCH_SPACE, 0x40))
 		return false;
@@ -2295,6 +2298,16 @@ static bool patch_68k(void)
 		*wp++ = htons((level1_int - 12) >> 16);
 		*wp = htons((level1_int - 12) & 0xffff);
 	}
+
+	// Patch ZeroScrap() for clipboard exchange with host OS
+	uint32 zero_scrap = find_rom_trap(0xa9fc);	// ZeroScrap()
+	wp = (uint16 *)(ROMBaseHost + ZERO_SCRAP_PATCH_SPACE);
+	*wp++ = htons(M68K_EMUL_OP_ZERO_SCRAP);
+	*wp++ = htons(M68K_JMP);
+	*wp++ = htons((ROMBase + zero_scrap) >> 16);
+	*wp++ = htons((ROMBase + zero_scrap) & 0xffff);
+	base = ROMBase + ReadMacInt32(ROMBase + 0x22);
+	WriteMacInt32(base + 4 * (0xa9fc & 0x3ff), ZERO_SCRAP_PATCH_SPACE);
 
 	// Patch PutScrap() for clipboard exchange with host OS
 	uint32 put_scrap = find_rom_trap(0xa9fe);	// PutScrap()
