@@ -2941,11 +2941,13 @@ int gen_file(FILE *outfile, int out_type)
 					if (p && !strstart(p, "()::label", NULL)) {
 						int func_name_length = p - demangled_name;
 						if (nd > nf) {
+							char *new_func_name;
 							nf = nd;
-							if ((func_name = realloc(func_name, nf)) == NULL) {
+							if ((new_func_name = realloc(func_name, nf)) == NULL) {
 								free(func_name);
 								return -1;
 							}
+							func_name = new_func_name;
 						}
 						strncpy(func_name, demangled_name, func_name_length);
 						func_name[func_name_length] = '\0';
