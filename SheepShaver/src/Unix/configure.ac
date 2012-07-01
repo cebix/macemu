@@ -716,7 +716,7 @@ if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
                       [AC_MSG_RESULT(yes); LP64_DEFINED=yes],
                       [AC_MSG_RESULT(no)])
     if [[ "x$LP64_DEFINED" = "xyes" ]]; then
-      EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx64.cpp"
+      EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx64.mm"
     else
       EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp"
     fi

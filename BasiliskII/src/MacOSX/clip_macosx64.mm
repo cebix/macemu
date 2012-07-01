@@ -1,5 +1,5 @@
 /*
- *	clip_macosx64.cpp - Clipboard handling, MacOS X (Pasteboard Manager) implementation
+ *	clip_macosx64.mm - Clipboard handling, MacOS X (Pasteboard Manager) implementation
  *
  *	(C) 2012 Jean-Pierre Stierlin
  *	(C) 2012 Alexei Svitkine
