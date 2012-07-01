@@ -386,7 +386,7 @@ static NSData *ConvertToMacTEXTAndStyl(NSAttributedString *aStr, NSData **outSty
 	const NSUInteger charLimit = 32 * 1024;
 	const NSUInteger elementLimit = 1601;
 	
-	if([aStr length] > charLimit) {
+	if ([aStr length] > charLimit) {
 		aStr = [aStr attributedSubstringFromRange:NSMakeRange(0, charLimit)];
 	}
 	
@@ -721,7 +721,7 @@ void GetScrap(void **handle, uint32 type, int32 offset)
 			
 			ZeroMacClipboard();
 			
-			if(stylData)
+			if (stylData)
 				WriteDataToMacClipboard(stylData, TYPE_STYL);
 			
 			WriteDataToMacClipboard(textData, TYPE_TEXT);
