@@ -885,8 +885,10 @@ int load_object(const char *filename, FILE *outfile)
         char *demangled_name, *func_name;
         if ((demangled_name = malloc(nd)) == NULL)
             return -1;
-        if ((func_name = malloc(nf = nd)) == NULL)
+        if ((func_name = malloc(nf = nd)) == NULL) {
+            free(demangled_name);
             return -1;
+        }
 
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             const char *name;
@@ -914,6 +916,9 @@ int load_object(const char *filename, FILE *outfile)
                 fprintf(outfile, "#endif\n");
             }
         }
+
+        free(func_name);
+        free(demangled_name);
     }
     return 0;
 }
