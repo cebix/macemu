@@ -2937,20 +2937,22 @@ int gen_file(FILE *outfile, int out_type)
 				demangled_name = cxx_demangle(name, demangled_name, &nd, &status);
 				if (status == 0 && strstart(demangled_name, OP_PREFIX, NULL)) {
 					/* get real function name */
-						char *p = strchr(demangled_name, '(');
-						if (p && !strstart(p, "()::label", NULL)) {
-							int func_name_length = p - demangled_name;
-							if (nd > nf) {
-								nf = nd;
-								if ((func_name = realloc(func_name, nf)) == NULL)
-									return -1;
-								}
-							strncpy(func_name, demangled_name, func_name_length);
-							func_name[func_name_length] = '\0';
-							/* emit code generator */
+					char *p = strchr(demangled_name, '(');
+					if (p && !strstart(p, "()::label", NULL)) {
+						int func_name_length = p - demangled_name;
+						if (nd > nf) {
+							nf = nd;
+							if ((func_name = realloc(func_name, nf)) == NULL) {
+								free(func_name);
+								return -1;
+							}
+						}
+						strncpy(func_name, demangled_name, func_name_length);
+						func_name[func_name_length] = '\0';
+						/* emit code generator */
 #if defined(CONFIG_FORMAT_ELF) || defined(CONFIG_FORMAT_COFF)
-							if (sym->st_shndx != text_shndx)
-								error("invalid section for opcode (%s:0x%x)", name, sym->st_shndx);
+						if (sym->st_shndx != text_shndx)
+							error("invalid section for opcode (%s:0x%x)", name, sym->st_shndx);
 #endif
 						gen_code(func_name, demangled_name, sym->st_value, sym->st_size, outfile, 3, NULL);
 					}
