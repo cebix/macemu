@@ -2885,8 +2885,10 @@ int gen_file(FILE *outfile, int out_type)
 		char *demangled_name, *func_name;
 		if ((demangled_name = malloc(nd)) == NULL)
 			return -1;
-		if ((func_name = malloc(nf = nd)) == NULL)
+		if ((func_name = malloc(nf = nd)) == NULL) {
+			free(demangled_name);
 			return -1;
+		}
 
 		fprintf(outfile, "#ifndef DEFINE_CST\n");
 		fprintf(outfile, "#define DEFINE_CST(NAME, VALUE)\n");
