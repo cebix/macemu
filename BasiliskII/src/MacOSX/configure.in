@@ -744,7 +744,7 @@ fi
 
 dnl Universal binaries
 if [[ -z "$WANT_UNIVERSAL" ]]; then
-  WANT_UNIVERSAL=`echo $target_cpu | sed -e 's/i.86/i386/'`
+  WANT_UNIVERSAL=`echo $target_cpu | sed -e 's/i.86/i386/' | sed -e 's/powerpc/ppc/'`
 fi
 AC_SUBST(TARGET_ARCHES, [$WANT_UNIVERSAL])
 
