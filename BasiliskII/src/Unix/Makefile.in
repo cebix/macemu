@@ -102,6 +102,9 @@ SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
 VPATH :=
 VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
 
+## Documentation files
+OSX_DOCS = ../MacOSX/Credits.html ../MacOSX/ToDo.html ../MacOSX/HowTo.html ../MacOSX/Versions.html
+
 $(APP)$(EXEEXT): $(OBJ_DIR) $(OBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(OBJS) $(LIBS)
 	$(BLESS) $(APP)$(EXEEXT)
@@ -109,7 +112,7 @@ $(APP)$(EXEEXT): $(OBJ_DIR) $(OBJS)
 $(GUI_APP)$(EXEEXT): $(OBJ_DIR) $(GUI_OBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(GUI_OBJS) $(GUI_LIBS)
 
-$(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
+$(APP)_app: $(APP) $(OSX_DOCS) ../../README ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	rm -rf $(APP_APP)/Contents
 	mkdir -p $(APP_APP)/Contents
 	./cpr.sh ../MacOSX/Info.plist $(APP_APP)/Contents/
@@ -120,6 +123,8 @@ $(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	mkdir -p $(APP_APP)/Contents/Resources
 	./cpr.sh ../MacOSX/$(APP).icns $(APP_APP)/Contents/Resources/
 	./cpr.sh ../MacOSX/English.lproj $(APP_APP)/Contents/Resources/
+	cp -f $(OSX_DOCS) $(APP_APP)/Contents/Resources/
+	cp -f ../../README $(APP_APP)/Contents/Resources/README.txt
 
 $(GUI_APP)_app: $(GUI_APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	rm -rf $(GUI_APP_APP)/Contents
