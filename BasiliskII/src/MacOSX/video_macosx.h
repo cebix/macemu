@@ -25,8 +25,8 @@
 /* Set the strategy for drawing the bitmap in the Mac OS X window */
 //#define CGDRAWBITMAP
 #if defined __i386__
-//#define CGIMAGEREF
-#define NSBITMAP
+#define CGIMAGEREF
+//#define NSBITMAP
 #else
 #define CGIMAGEREF
 //#define NSBITMAP
