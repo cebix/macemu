@@ -885,8 +885,10 @@ int load_object(const char *filename, FILE *outfile)
         char *demangled_name, *func_name;
         if ((demangled_name = malloc(nd)) == NULL)
             return -1;
-        if ((func_name = malloc(nf = nd)) == NULL)
+        if ((func_name = malloc(nf = nd)) == NULL) {
+            free(demangled_name);
             return -1;
+        }
 
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             const char *name;
@@ -914,6 +916,9 @@ int load_object(const char *filename, FILE *outfile)
                 fprintf(outfile, "#endif\n");
             }
         }
+
+        free(func_name);
+        free(demangled_name);
     }
     return 0;
 }
@@ -2885,8 +2890,10 @@ int gen_file(FILE *outfile, int out_type)
 		char *demangled_name, *func_name;
 		if ((demangled_name = malloc(nd)) == NULL)
 			return -1;
-		if ((func_name = malloc(nf = nd)) == NULL)
+		if ((func_name = malloc(nf = nd)) == NULL) {
+			free(demangled_name);
 			return -1;
+		}
 
 		fprintf(outfile, "#ifndef DEFINE_CST\n");
 		fprintf(outfile, "#define DEFINE_CST(NAME, VALUE)\n");
@@ -2935,20 +2942,24 @@ int gen_file(FILE *outfile, int out_type)
 				demangled_name = cxx_demangle(name, demangled_name, &nd, &status);
 				if (status == 0 && strstart(demangled_name, OP_PREFIX, NULL)) {
 					/* get real function name */
-						char *p = strchr(demangled_name, '(');
-						if (p && !strstart(p, "()::label", NULL)) {
-							int func_name_length = p - demangled_name;
-							if (nd > nf) {
-								nf = nd;
-								if ((func_name = realloc(func_name, nf)) == NULL)
-									return -1;
-								}
-							strncpy(func_name, demangled_name, func_name_length);
-							func_name[func_name_length] = '\0';
-							/* emit code generator */
+					char *p = strchr(demangled_name, '(');
+					if (p && !strstart(p, "()::label", NULL)) {
+						int func_name_length = p - demangled_name;
+						if (nd > nf) {
+							char *new_func_name;
+							nf = nd;
+							if ((new_func_name = realloc(func_name, nf)) == NULL) {
+								free(func_name);
+								return -1;
+							}
+							func_name = new_func_name;
+						}
+						strncpy(func_name, demangled_name, func_name_length);
+						func_name[func_name_length] = '\0';
+						/* emit code generator */
 #if defined(CONFIG_FORMAT_ELF) || defined(CONFIG_FORMAT_COFF)
-							if (sym->st_shndx != text_shndx)
-								error("invalid section for opcode (%s:0x%x)", name, sym->st_shndx);
+						if (sym->st_shndx != text_shndx)
+							error("invalid section for opcode (%s:0x%x)", name, sym->st_shndx);
 #endif
 						gen_code(func_name, demangled_name, sym->st_value, sym->st_size, outfile, 3, NULL);
 					}

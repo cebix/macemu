@@ -227,6 +227,10 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 			Microseconds(r->a[0], r->d[0]);
 			break;
 
+		case OP_ZERO_SCRAP:			// ZeroScrap() patch
+			ZeroScrap();
+			break;
+
 		case OP_PUT_SCRAP:			// PutScrap() patch
 			PutScrap(ReadMacInt32(r->a[7] + 8), Mac2HostAddr(ReadMacInt32(r->a[7] + 4)), ReadMacInt32(r->a[7] + 12));
 			break;

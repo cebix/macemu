@@ -52,6 +52,14 @@ void ClipExit(void)
 {
 }
 
+/*
+ * Mac application zeroes clipboard
+ */
+
+void ZeroScrap()
+{
+
+}
 
 /*
  *  Mac application reads clipboard

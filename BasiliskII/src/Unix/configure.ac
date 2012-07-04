@@ -713,7 +713,18 @@ if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   VIDEOSRCS="../SDL/video_sdl.cpp"
   KEYCODES="../SDL/keycodes"
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
-    EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp"
+    AC_MSG_CHECKING([whether __LP64__ is defined])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#if !defined(__LP64__)
+                                         # error __LP64__ not defined
+                                         #endif
+                                       ]])],
+                      [AC_MSG_RESULT(yes); LP64_DEFINED=yes],
+                      [AC_MSG_RESULT(no)])
+    if [[ "x$LP64_DEFINED" = "xyes" ]]; then
+      EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx64.mm"
+    else
+      EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp"
+    fi
     EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/utils_macosx.mm"
     CPPFLAGS="$CPPFLAGS -I../MacOSX"
   else
@@ -1357,10 +1368,11 @@ if [[ "x$HAVE_GCC30" = "xyes" ]]; then
   CFLAGS="$CFLAGS -fno-strict-aliasing"
   AC_CACHE_CHECK([whether the compiler supports -fno-strict-aliasing],
     ac_cv_gcc_no_strict_aliasing, [
-    AC_TRY_COMPILE([],[],
-      [ac_cv_gcc_no_strict_aliasing=yes; AC_SUBST(SLIRP_CFLAGS, "-fno-strict-aliasing")],
-      [ac_cv_gcc_no_strict_aliasing=no])
+    AC_TRY_COMPILE([],[],[ac_cv_gcc_no_strict_aliasing=yes],[ac_cv_gcc_no_strict_aliasing=no])
   ])
+  if [[ "x$ac_cv_gcc_no_strict_aliasing" = "xyes" ]]; then
+    AC_SUBST(SLIRP_CFLAGS, "-fno-strict-aliasing")
+  fi
   CFLAGS="$SAVED_CFLAGS"
 fi
 

@@ -97,6 +97,14 @@ void ClipExit(void)
 		FreeIFF(iffw);
 }
 
+/*
+ * Mac application zeroes clipboard
+ */
+
+void ZeroScrap()
+{
+
+}
 
 /*
  *  Mac application reads clipboard

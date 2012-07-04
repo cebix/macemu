@@ -66,7 +66,7 @@ extern void SysMediaRemoved(const char *path, int type);
 
 void DarwinSysInit(void)
 {
-	if (PrefsFindBool("nocdrom")) {
+	if (!PrefsFindBool("nocdrom")) {
 		media_thread_active = (pthread_create(&media_thread, NULL, media_poll_func, NULL) == 0);
 		D(bug("Media poll thread installed (%ld)\n", media_thread));
 	}
