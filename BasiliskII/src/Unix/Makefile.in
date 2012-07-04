@@ -44,13 +44,14 @@ GUI_SRCS = ../prefs.cpp prefs_unix.cpp prefs_editor_gtk.cpp ../prefs_items.cpp \
 	../user_strings.cpp user_strings_unix.cpp xpram_unix.cpp sys_unix.cpp rpc_unix.cpp
 
 ## Files
-SRCS = ../main.cpp main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp \
+SRCS = ../main.cpp ../prefs.cpp ../prefs_items.cpp \
     sys_unix.cpp ../rom_patches.cpp ../slot_rom.cpp ../rsrc_patches.cpp \
     ../emul_op.cpp ../macos_util.cpp ../xpram.cpp xpram_unix.cpp ../timer.cpp \
     timer_unix.cpp ../adb.cpp ../serial.cpp ../ether.cpp \
-    ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp ../video.cpp video_blit.cpp \
+    ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp ../video.cpp \
+    video_blit.cpp \
     vm_alloc.cpp sigsegv.cpp ../audio.cpp ../extfs.cpp \
-	../user_strings.cpp user_strings_unix.cpp sshpty.c strlcpy.c rpc_unix.cpp \
+    ../user_strings.cpp user_strings_unix.cpp sshpty.c strlcpy.c rpc_unix.cpp \
     $(SYSSRCS) $(CPUSRCS) $(SLIRP_SRCS)
 APP_FLAVOR ?=
 ifneq ($(APP_FLAVOR),)
@@ -118,6 +119,7 @@ $(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	strip -x $(APP_APP)/Contents/MacOS/$(APP)
 	mkdir -p $(APP_APP)/Contents/Resources
 	./cpr.sh ../MacOSX/$(APP).icns $(APP_APP)/Contents/Resources/
+	./cpr.sh ../MacOSX/English.lproj $(APP_APP)/Contents/Resources/
 
 $(GUI_APP)_app: $(GUI_APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	rm -rf $(GUI_APP_APP)/Contents
@@ -179,6 +181,8 @@ $(OBJ_DIR)/%.o : %.c
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o : %.m
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.mm
 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.s

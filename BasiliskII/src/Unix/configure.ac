@@ -18,6 +18,9 @@ ulimit -c 0
 
 AC_ARG_ENABLE(standalone-gui,[  --enable-standalone-gui enable a standalone GUI prefs editor [default=no]], [WANT_STANDALONE_GUI=$enableval], [WANT_STANDALONE_GUI=no])
 
+dnl Mac OS X GUI.
+AC_ARG_ENABLE(macosx-gui,    [  --enable-macosx-gui     enable Mac OS X GUI [default=no]], [WANT_MACOSX_GUI=$enableval], [WANT_MACOSX_GUI=yes])
+
 dnl Video options.
 AC_ARG_ENABLE(xf86-dga,      [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(xf86-vidmode,  [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
@@ -701,6 +704,26 @@ if [[ -n "$CAN_SLIRP" ]]; then
 fi
 AC_SUBST(SLIRP_SRCS)
 
+if [[ "x$WANT_MACOSX_GUI" = "xyes" ]]; then
+  CPPFLAGS="$CPPFLAGS -I../MacOSX"
+  LIBS="$LIBS -framework CoreAudio -framework AudioUnit -framework AudioToolbox"
+
+  EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/Controller.mm"
+  EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/Emulator.mm"
+  EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/EmulatorView.mm"
+  EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/PrefsEditor.mm"
+  EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/NNThread.m"
+  EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/misc_macosx.mm"
+  EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp"
+  EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/main_macosx.mm"
+  EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/prefs_macosx.cpp"
+
+  VIDEOSRCS="../MacOSX/video_macosx.mm"
+  AUDIOSRC="../MacOSX/audio_macosx.cpp ../MacOSX/AudioBackEnd.cpp ../MacOSX/AudioDevice.cpp ../MacOSX/MacOSX_sound_if.cpp"
+else
+  EXTRASYSSRCS="$EXTRASYSSRCS main_unix.cpp prefs_unix.cpp"
+fi
+
 dnl SDL overrides
 if [[ "x$WANT_SDL" = "xyes" ]]; then
   AC_DEFINE(USE_SDL, 1, [Define to enble SDL support])
@@ -737,7 +760,7 @@ if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
       ;;
     esac
   fi
-else
+elif [[ "x$WANT_MACOSX_GUI" != "xyes" ]]; then
   VIDEOSRCS="video_x.cpp"
   KEYCODES="keycodes"
   EXTRASYSSRCS="$EXTRASYSSRCS clip_unix.cpp"
