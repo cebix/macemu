@@ -76,7 +76,7 @@ bits_from_depth(const video_depth depth)
 	return bits;
 }
 
-static char *
+static const char *
 colours_from_depth(const video_depth depth)
 {
 	switch ( depth )
@@ -92,7 +92,7 @@ colours_from_depth(const video_depth depth)
 	return "illegal colour depth";
 }
 
-static char *
+static const char *
 colours_from_depth(const uint16 depth)
 {
 	return colours_from_depth(DepthModeForPixelDepth(depth) );
@@ -999,9 +999,8 @@ OSX_monitor::set_palette(uint8 *pal, int num)
 void
 OSX_monitor::switch_to_current_mode(void)
 {
-	video_mode	mode = get_current_mode();
-	char		*failure = NULL;
-
+	video_mode mode = get_current_mode();
+	const char *failure = NULL;
 
 	D(bug("switch_to_current_mode(): width=%d  height=%d  depth=%d  bytes_per_row=%d\n", mode.x, mode.y, bits_from_depth(mode.depth), mode.bytes_per_row));
 	
