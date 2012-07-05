@@ -101,7 +101,7 @@
 - (NSApplicationTerminateReply) applicationShouldTerminate: (NSApplication *)app
 {
 	short	count;
-	char	*stillRunningMessage;
+	const char *stillRunningMessage;
 
 	if ( [thePrefsEditor hasEdited] )
 		if ( ChoiceAlert("Preferences have been edited",

@@ -157,7 +157,7 @@ static int prevFlags;
 	int			i;
 	float		seconds;
 	NSDate		*startDate;
-	char		*method;
+	const char *method;
 
 	if ( ! drawView )
 	{
