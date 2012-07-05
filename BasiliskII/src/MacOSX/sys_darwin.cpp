@@ -260,13 +260,19 @@ void DarwinAddFloppyPrefs(void)
 	{
 		char		bsdPath[MAXPATHLEN];
 		long		size;
+		Boolean gotSize = FALSE;
 		CFTypeRef	sizeAsCFNumber =
 						IORegistryEntryCreateCFProperty(nextFloppy,
 														CFSTR(kIOMediaSizeKey),
 														kCFAllocatorDefault, 0);
 
-		if ( CFNumberGetValue((CFNumberRef)sizeAsCFNumber,
-								kCFNumberSInt32Type, &size) )
+		if (sizeAsCFNumber)
+		{
+			gotSize = CFNumberGetValue((CFNumberRef)sizeAsCFNumber, kCFNumberSInt32Type, &size);
+			CFRelease(sizeAsCFNumber);
+		}
+
+		if (gotSize)
 		{
 			D(bug("Got size of %ld\n", size));
 			if ( size < 800 * 1024 || size > 1440 * 1024 )
