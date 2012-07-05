@@ -704,7 +704,7 @@ OSX_monitor::init_screen(video_mode &mode)
 		mode.bytes_per_row = CGDisplayBytesPerRow(theDisplay);
 	}
 
-	HideMenuBar();
+	[NSMenu setMenuBarVisible:NO];
 
 	if ( singleDisplay )
 	{
@@ -883,7 +883,7 @@ OSX_monitor::video_close()
 			{
 				if ( singleDisplay )
 					CGDisplayShowCursor(theDisplay);
-				ShowMenuBar();
+				[NSMenu setMenuBarVisible:YES];
 				CGDisplaySwitchToMode(theDisplay, originalMode);
 				CGDisplayRelease(theDisplay);
 				//[the_win deminiaturize: nil];
