@@ -19,7 +19,7 @@ ulimit -c 0
 AC_ARG_ENABLE(standalone-gui,[  --enable-standalone-gui enable a standalone GUI prefs editor [default=no]], [WANT_STANDALONE_GUI=$enableval], [WANT_STANDALONE_GUI=no])
 
 dnl Mac OS X GUI.
-AC_ARG_ENABLE(macosx-gui,    [  --enable-macosx-gui     enable Mac OS X GUI [default=no]], [WANT_MACOSX_GUI=$enableval], [WANT_MACOSX_GUI=yes])
+AC_ARG_ENABLE(macosx-gui,    [  --enable-macosx-gui     enable Mac OS X GUI [default=no]], [WANT_MACOSX_GUI=$enableval], [WANT_MACOSX_GUI=no])
 
 dnl Video options.
 AC_ARG_ENABLE(xf86-dga,      [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
@@ -1719,6 +1719,7 @@ dnl Print summary.
 echo
 echo Basilisk II configuration summary:
 echo
+echo Mac OS X GUI ........................... : $WANT_MACOSX_GUI
 echo SDL support ............................ : $SDL_SUPPORT
 echo BINCUE support ......................... : $have_bincue
 echo LIBVHD support ......................... : $have_libvhd
