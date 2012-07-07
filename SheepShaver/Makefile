@@ -49,13 +49,14 @@ $(SRCARCHIVE): $(SRCS) $(DOCS)
 # Links to Basilisk II sources
 #
 links:
-	@list='adb.cpp audio.cpp cdrom.cpp disk.cpp extfs.cpp prefs.cpp \
-	       scsi.cpp sony.cpp xpram.cpp \
+	@list='adb.cpp audio.cpp cdrom.cpp disk.cpp extfs.cpp pict.c \
+	       prefs.cpp scsi.cpp sony.cpp xpram.cpp \
 	       include/adb.h include/audio.h include/audio_defs.h \
 	       include/cdrom.h include/clip.h include/debug.h include/disk.h \
-	       include/extfs.h include/extfs_defs.h include/prefs.h \
-	       include/scsi.h include/serial.h include/serial_defs.h \
-	       include/sony.h include/sys.h include/timer.h include/xpram.h \
+	       include/extfs.h include/extfs_defs.h include/pict.h \
+	       include/prefs.h include/scsi.h include/serial.h \
+	       include/serial_defs.h include/sony.h include/sys.h \
+	       include/timer.h include/xpram.h \
 	       BeOS/audio_beos.cpp BeOS/extfs_beos.cpp BeOS/scsi_beos.cpp \
 	       BeOS/serial_beos.cpp BeOS/sys_beos.cpp BeOS/timer_beos.cpp \
 	       BeOS/xpram_beos.cpp BeOS/SheepDriver BeOS/SheepNet \
