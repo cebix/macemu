@@ -118,6 +118,7 @@
 		0873A76A14ABD151004F12B7 /* config-macosx-x86_64.h in Headers */ = {isa = PBXBuildFile; fileRef = 0873A76614ABD151004F12B7 /* config-macosx-x86_64.h */; };
 		0873A76B14ABD151004F12B7 /* config.h in Headers */ = {isa = PBXBuildFile; fileRef = 0873A76714ABD151004F12B7 /* config.h */; };
 		0873A80214AC515D004F12B7 /* utils_macosx.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0873A80114AC515D004F12B7 /* utils_macosx.mm */; };
+		0879BD5E15A88F7600DC277D /* pict.c in Sources */ = {isa = PBXBuildFile; fileRef = 0879BD5D15A88F7600DC277D /* pict.c */; };
 		08C99DA11593E79F00898E41 /* clip_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE2C14A99EF0000B1711 /* clip_macosx.cpp */; };
 		08CD42DC14B7B85B009CA2A2 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */; };
 		08CD42E814B7B8AA009CA2A2 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42E714B7B8AA009CA2A2 /* Carbon.framework */; };
@@ -427,6 +428,8 @@
 		0873A76714ABD151004F12B7 /* config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = config.h; sourceTree = "<group>"; };
 		0873A80014AC515D004F12B7 /* utils_macosx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = utils_macosx.h; sourceTree = "<group>"; };
 		0873A80114AC515D004F12B7 /* utils_macosx.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = utils_macosx.mm; sourceTree = "<group>"; };
+		0879BD5B15A88F6300DC277D /* pict.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = pict.h; sourceTree = "<group>"; };
+		0879BD5D15A88F7600DC277D /* pict.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = pict.c; path = ../pict.c; sourceTree = SOURCE_ROOT; };
 		0885A5211593E3B6005C4F7B /* libclip.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libclip.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		0885A5341593E47F005C4F7B /* libclip64.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libclip64.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
@@ -556,6 +559,7 @@
 				0856CE0614A99EEF000B1711 /* MacOSX */,
 				0856CE8814A99EF0000B1711 /* main.cpp */,
 				0856CE8914A99EF0000B1711 /* name_registry.cpp */,
+				0879BD5D15A88F7600DC277D /* pict.c */,
 				0856CE8A14A99EF0000B1711 /* prefs_items.cpp */,
 				0856CE8B14A99EF0000B1711 /* prefs.cpp */,
 				0856CE8C14A99EF0000B1711 /* rom_patches.cpp */,
@@ -605,6 +609,7 @@
 				0856CD9D14A99EEF000B1711 /* macos_util.h */,
 				0856CD9E14A99EEF000B1711 /* main.h */,
 				0856CD9F14A99EEF000B1711 /* name_registry.h */,
+				0879BD5B15A88F6300DC277D /* pict.h */,
 				0856CDA014A99EEF000B1711 /* prefs.h */,
 				0856CDA114A99EEF000B1711 /* prefs_editor.h */,
 				0856CDA214A99EEF000B1711 /* rom_patches.h */,
@@ -1462,6 +1467,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				08D93A16159FE174003B04EC /* clip_macosx64.mm in Sources */,
+				0879BD5E15A88F7600DC277D /* pict.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
