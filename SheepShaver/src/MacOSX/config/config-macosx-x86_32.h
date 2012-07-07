@@ -415,7 +415,7 @@
 #define PACKAGE_NAME "SheepShaver"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "SheepShaver 2.3"
+#define PACKAGE_STRING "SheepShaver 2.4"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "SheepShaver"
@@ -424,7 +424,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.3"
+#define PACKAGE_VERSION "2.4"
 
 /* Define if the __PAGEZERO Mach-O Low Memory Globals hack works on this
    system. */

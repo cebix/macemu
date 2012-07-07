@@ -119,6 +119,10 @@
 		0873A76B14ABD151004F12B7 /* config.h in Headers */ = {isa = PBXBuildFile; fileRef = 0873A76714ABD151004F12B7 /* config.h */; };
 		0873A80214AC515D004F12B7 /* utils_macosx.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0873A80114AC515D004F12B7 /* utils_macosx.mm */; };
 		0879BD5E15A88F7600DC277D /* pict.c in Sources */ = {isa = PBXBuildFile; fileRef = 0879BD5D15A88F7600DC277D /* pict.c */; };
+		0879BD8715A891EC00DC277D /* config-macosx-ppc_32.h in Headers */ = {isa = PBXBuildFile; fileRef = 0879BD8515A891EC00DC277D /* config-macosx-ppc_32.h */; };
+		0879BD8815A891EC00DC277D /* config-macosx-x86_32.h in Headers */ = {isa = PBXBuildFile; fileRef = 0879BD8615A891EC00DC277D /* config-macosx-x86_32.h */; };
+		0879BD8915A891EC00DC277D /* config-macosx-ppc_32.h in Headers */ = {isa = PBXBuildFile; fileRef = 0879BD8515A891EC00DC277D /* config-macosx-ppc_32.h */; };
+		0879BD8A15A891EC00DC277D /* config-macosx-x86_32.h in Headers */ = {isa = PBXBuildFile; fileRef = 0879BD8615A891EC00DC277D /* config-macosx-x86_32.h */; };
 		08C99DA11593E79F00898E41 /* clip_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE2C14A99EF0000B1711 /* clip_macosx.cpp */; };
 		08CD42DC14B7B85B009CA2A2 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */; };
 		08CD42E814B7B8AA009CA2A2 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42E714B7B8AA009CA2A2 /* Carbon.framework */; };
@@ -430,6 +434,8 @@
 		0873A80114AC515D004F12B7 /* utils_macosx.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = utils_macosx.mm; sourceTree = "<group>"; };
 		0879BD5B15A88F6300DC277D /* pict.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = pict.h; sourceTree = "<group>"; };
 		0879BD5D15A88F7600DC277D /* pict.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = pict.c; path = ../pict.c; sourceTree = SOURCE_ROOT; };
+		0879BD8515A891EC00DC277D /* config-macosx-ppc_32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "config-macosx-ppc_32.h"; sourceTree = "<group>"; };
+		0879BD8615A891EC00DC277D /* config-macosx-x86_32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "config-macosx-x86_32.h"; sourceTree = "<group>"; };
 		0885A5211593E3B6005C4F7B /* libclip.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libclip.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		0885A5341593E47F005C4F7B /* libclip64.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libclip64.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
@@ -932,6 +938,8 @@
 		0873A76514ABD151004F12B7 /* config */ = {
 			isa = PBXGroup;
 			children = (
+				0879BD8515A891EC00DC277D /* config-macosx-ppc_32.h */,
+				0879BD8615A891EC00DC277D /* config-macosx-x86_32.h */,
 				0873A76614ABD151004F12B7 /* config-macosx-x86_64.h */,
 				0873A76714ABD151004F12B7 /* config.h */,
 			);
@@ -973,6 +981,8 @@
 			files = (
 				0873A76A14ABD151004F12B7 /* config-macosx-x86_64.h in Headers */,
 				0873A76B14ABD151004F12B7 /* config.h in Headers */,
+				0879BD8715A891EC00DC277D /* config-macosx-ppc_32.h in Headers */,
+				0879BD8815A891EC00DC277D /* config-macosx-x86_32.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -982,6 +992,8 @@
 			files = (
 				0873A76814ABD151004F12B7 /* config-macosx-x86_64.h in Headers */,
 				0873A76914ABD151004F12B7 /* config.h in Headers */,
+				0879BD8915A891EC00DC277D /* config-macosx-ppc_32.h in Headers */,
+				0879BD8A15A891EC00DC277D /* config-macosx-x86_32.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1299,7 +1311,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "sed -i '' 's/@PACKAGE_VERSION@/2.3/g' \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"";
+			shellScript = "sed -i '' 's/@PACKAGE_VERSION@/2.4/g' \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"";
 		};
 		08CD43CF14B7BD01009CA2A2 /* Change SDL load path */ = {
 			isa = PBXShellScriptBuildPhase;
