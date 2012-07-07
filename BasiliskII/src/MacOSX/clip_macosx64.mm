@@ -30,6 +30,7 @@
 #include "cpu_emulation.h"
 #include "emul_op.h"
 #include "autorelease.h"
+#include "pict.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -43,13 +44,14 @@
 #define TYPE_STYL FOURCC('s','t','y','l')
 
 static NSPasteboard *g_pboard;
+static NSUInteger g_pb_change_count = 0;
 
 // Flag for PutScrap(): the data was put by GetScrap(), don't bounce it back to the MacOS X side
 static bool we_put_this_data = false;
 
 static bool should_clear = false;
 
-static NSMutableDictionary *macScrap;
+static NSMutableDictionary *g_macScrap;
 
 // flavor UTIs
 
@@ -150,7 +152,7 @@ static ScriptCode ScriptNumberForFontID(int16_t fontID)
 }
 
 /*
- * Get Mac's default text encoding
+ *  Get Mac's default text encoding
  */
 
 static TextEncoding MacDefaultTextEncoding()
@@ -269,7 +271,7 @@ static NSData *ConvertToMacTextEncoding(NSAttributedString *aStr, NSArray **styl
 }
 
 /*
- * Count all Mac font IDs on the system
+ *  Count all Mac font IDs on the system
  */
 
 static NSUInteger CountMacFonts()
@@ -305,7 +307,7 @@ static NSUInteger CountMacFonts()
 }
 
 /*
- * Get Mac font ID at index
+ *  Get Mac font ID at index
  */
 
 static int16_t MacFontIDAtIndex(NSUInteger index)
@@ -377,7 +379,7 @@ static int16_t MacFontIDAtIndex(NSUInteger index)
 }
 
 /*
- * List all font IDs on the system
+ *  List all font IDs on the system
  */
 
 static NSArray *ListMacFonts()
@@ -395,7 +397,7 @@ static NSArray *ListMacFonts()
 }
 
 /*
- * List all font IDs having a certain script
+ *  List all font IDs having a certain script
  */
 
 static NSArray *ListMacFontsForScript(ScriptCode script)
@@ -411,7 +413,7 @@ static NSArray *ListMacFontsForScript(ScriptCode script)
 }
 
 /*
- * Convert Mac font ID to font name
+ *  Convert Mac font ID to font name
  */
 
 static NSString *FontNameFromFontID(int16_t fontID)
@@ -456,7 +458,7 @@ static NSString *FontNameFromFontID(int16_t fontID)
 }
 
 /*
- * Convert font name to Mac font ID
+ *  Convert font name to Mac font ID
  */
 
 static int16_t FontIDFromFontName(NSString *fontName)
@@ -506,7 +508,7 @@ static int16_t FontIDFromFontName(NSString *fontName)
 }
 
 /*
- * Get font ID in desired script if possible; otherwise, try to get some font in the desired script.
+ *  Get font ID in desired script if possible; otherwise, try to get some font in the desired script.
  */
 
 static int16_t FontIDFromFontNameAndScript(NSString *fontName, ScriptCode script)
@@ -536,7 +538,7 @@ static int16_t FontIDFromFontNameAndScript(NSString *fontName, ScriptCode script
 }
 
 /*
- * Convert Mac TEXT/styl to attributed string
+ *  Convert Mac TEXT/styl to attributed string
  */
 
 static NSAttributedString *AttributedStringFromMacTEXTAndStyl(NSData *textData, NSData *stylData)
@@ -667,7 +669,7 @@ static NSAttributedString *AttributedStringFromMacTEXTAndStyl(NSData *textData, 
 }
 
 /*
- * Append styl data for one text run
+ *  Append styl data for one text run
  */
 
 static void AppendStylRunData(NSMutableData *stylData, NSDictionary *attrs, ScriptCode script)
@@ -739,7 +741,7 @@ static void AppendStylRunData(NSMutableData *stylData, NSDictionary *attrs, Scri
 }
 
 /*
- * Convert attributed string to TEXT/styl
+ *  Convert attributed string to TEXT/styl
  */
 
 static NSData *ConvertToMacTEXTAndStyl(NSAttributedString *aStr, NSData **outStylData)
@@ -789,10 +791,28 @@ static NSData *ConvertToMacTEXTAndStyl(NSAttributedString *aStr, NSData **outSty
 }
 
 /*
- * Convert Mac TEXT/styl to RTF
+ *  Get data of a particular flavor from the pasteboard
  */
 
-static void WriteMacTEXTAndStylToPasteboard(NSData *textData, NSData *stylData)
+static NSData *DataFromPasteboard(NSPasteboard *pboard, NSString *flavor)
+{
+	NSArray *objs = [pboard readObjectsForClasses:[NSArray arrayWithObject:[NSPasteboardItem class]] options:nil];
+
+	for (NSPasteboardItem *eachItem in objs) {
+		NSData *data = [eachItem dataForType:flavor];
+
+		if ([data length])
+			return data;
+	}
+
+	return nil;
+}
+
+/*
+ *  Convert Mac TEXT/styl to RTF
+ */
+
+static void WriteMacTEXTAndStylToPasteboard(NSPasteboard *pboard, NSData *textData, NSData *stylData)
 {
 	NSMutableAttributedString *aStr = [AttributedStringFromMacTEXTAndStyl(textData, stylData) mutableCopy];
 
@@ -810,23 +830,23 @@ static void WriteMacTEXTAndStylToPasteboard(NSData *textData, NSData *stylData)
 	// fix line endings
 	[[aStr mutableString] replaceOccurrencesOfString:@"\r" withString:@"\n" options:NSLiteralSearch range:NSMakeRange(0, [aStr length])];
 
-	[g_pboard writeObjects:[NSArray arrayWithObject:aStr]];
+	[pboard writeObjects:[NSArray arrayWithObject:aStr]];
 }
 
 /*
- * Convert RTF to Mac TEXT/styl
+ *  Convert RTF to Mac TEXT/styl
  */
 
-static NSData *GetMacTEXTAndStylDataFromPasteboard(NSData **outStylData)
+static NSData *MacTEXTAndStylDataFromPasteboard(NSPasteboard *pboard, NSData **outStylData)
 {
 	NSMutableAttributedString *aStr;
 
-	NSArray *objs = [g_pboard readObjectsForClasses:[NSArray arrayWithObject:[NSAttributedString class]] options:nil];
+	NSArray *objs = [pboard readObjectsForClasses:[NSArray arrayWithObject:[NSAttributedString class]] options:nil];
 
 	if ([objs count]) {
 		aStr = [[objs objectAtIndex:0] mutableCopy];
 	} else {
-		objs = [g_pboard readObjectsForClasses:[NSArray arrayWithObject:[NSString class]] options:nil];
+		objs = [pboard readObjectsForClasses:[NSArray arrayWithObject:[NSString class]] options:nil];
 
 		if (![objs count])
 			return nil;
@@ -859,7 +879,7 @@ void ClipInit(void)
 		D(bug("could not create Pasteboard\n"));
 	}
 
-	macScrap = [[NSMutableDictionary alloc] init];
+	g_macScrap = [[NSMutableDictionary alloc] init];
 }
 
 
@@ -872,12 +892,105 @@ void ClipExit(void)
 	[g_pboard release];
 	g_pboard = nil;
 
-	[macScrap release];
-	macScrap = nil;
+	[g_macScrap release];
+	g_macScrap = nil;
 }
 
 /*
- * Zero Mac clipboard
+ *  Convert an NSImage to PICT format.
+ */
+
+static NSData *ConvertImageToPICT(NSImage *image) {
+	if ([[image representations] count] == 0) {
+		return nil;
+	}
+
+	NSImageRep *rep = [[image representations] objectAtIndex:0];
+	NSUInteger width;
+	NSUInteger height;
+
+	if ([rep isKindOfClass:[NSBitmapImageRep class]]) {
+		width = [rep pixelsWide];
+		height = [rep pixelsHigh];
+	} else {
+		width = lrint([image size].width);
+		height = lrint([image size].height);
+	}
+
+	// create a new bitmap image rep in our desired format, following the advice here:
+	// https://developer.apple.com/library/mac/#releasenotes/Cocoa/AppKitOlderNotes.html#X10_6Notes
+
+	NSBitmapImageRep *bitmap = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL
+																	   pixelsWide:width
+																	   pixelsHigh:height
+																	bitsPerSample:8
+																  samplesPerPixel:4
+																		 hasAlpha:YES
+																		 isPlanar:NO
+																   colorSpaceName:NSCalibratedRGBColorSpace
+																	  bytesPerRow:width * 4
+																	 bitsPerPixel:32];
+
+	[NSGraphicsContext saveGraphicsState];
+	[NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithBitmapImageRep:bitmap]];
+	[rep draw];
+	[NSGraphicsContext restoreGraphicsState];
+
+	unsigned char *rgba = [bitmap bitmapData];
+
+	long bufSize = ConvertRGBAToPICT(NULL, 0, rgba, width, height);
+
+	NSData *pictData = nil;
+
+	if (bufSize > 0) {
+		uint8_t *buf = (uint8_t *)malloc(bufSize);
+
+		long pictSize = ConvertRGBAToPICT(buf, bufSize, rgba, width, height);
+
+		if (pictSize > 0)
+			pictData = [NSData dataWithBytes:buf length:pictSize];
+
+		free(buf);
+	}
+
+	[bitmap release];
+
+	return pictData;
+}
+
+/*
+ *  Convert any images that may be on the clipboard to PICT format if possible.
+ */
+
+static NSData *MacPICTDataFromPasteboard(NSPasteboard *pboard)
+{
+	// check if there's any PICT data on the pasteboard
+	NSData *pictData = DataFromPasteboard(pboard, (NSString *)kUTTypePICT);
+
+	if (pictData)
+		return pictData;
+
+	// now check to see if any images on the pasteboard have PICT representations
+	NSArray *objs = [pboard readObjectsForClasses:[NSArray arrayWithObject:[NSImage class]] options:nil];
+
+	for (NSImage *eachImage in objs) {
+		for (NSImageRep *eachRep in [eachImage representations]) {
+
+			if ([eachRep isKindOfClass:[NSPICTImageRep class]])
+				return [(NSPICTImageRep *)eachRep PICTRepresentation];
+		}
+	}
+
+	// Give up and perform the conversion ourselves
+	if ([objs count])
+		return ConvertImageToPICT([objs objectAtIndex:0]);
+
+	// If none of that worked, sorry, we're out of options
+	return nil;
+}
+
+/*
+ *  Zero Mac clipboard
  */
 
 static void ZeroMacClipboard()
@@ -904,7 +1017,7 @@ static void ZeroMacClipboard()
 }
 
 /*
- * Write data to Mac clipboard
+ *  Write data to Mac clipboard
  */
 
 static void WriteDataToMacClipboard(NSData *pbData, uint32_t type)
@@ -948,10 +1061,86 @@ static void WriteDataToMacClipboard(NSData *pbData, uint32_t type)
 
 			r.a[0] = proc_area;
 			Execute68kTrap(0xa01f, &r); // DisposePtr
+
+			[g_macScrap setObject:pbData forKey:[NSNumber numberWithInteger:type]];
 		}
 
 		r.a[0] = scrap_area;
 		Execute68kTrap(0xa01f, &r);			// DisposePtr
+	}
+}
+
+/*
+ *  Take all the data on host pasteboard and convert it to something the Mac understands if possible
+ */
+
+static void ConvertHostPasteboardToMacScrap()
+{
+	ZeroMacClipboard();
+
+	NSData *stylData = nil;
+	NSData *textData = MacTEXTAndStylDataFromPasteboard(g_pboard, &stylData);
+
+	if (textData) {
+		if (stylData)
+			WriteDataToMacClipboard(stylData, TYPE_STYL);
+
+		WriteDataToMacClipboard(textData, TYPE_TEXT);
+	}
+
+	NSData *pictData = MacPICTDataFromPasteboard(g_pboard);
+
+	if (pictData)
+		WriteDataToMacClipboard(pictData, TYPE_PICT);
+}
+
+/*
+ *  Take all the data on the Mac clipbord and convert it to something the host pasteboard understands if possible
+ */
+
+static void ConvertMacScrapToHostPasteboard()
+{
+	BOOL wroteText = NO;
+
+	[g_pboard clearContents];
+
+	for (NSNumber *eachTypeNum in g_macScrap) AUTORELEASE_POOL {
+		uint32_t eachType = [eachTypeNum integerValue];
+
+		if (eachType == TYPE_TEXT || eachType == TYPE_STYL) {
+			if(wroteText)
+				continue;
+
+			NSData *textData;
+			NSData *stylData;
+
+			textData = [g_macScrap objectForKey:[NSNumber numberWithInteger:TYPE_TEXT]];
+			stylData = [g_macScrap objectForKey:[NSNumber numberWithInteger:TYPE_STYL]];
+
+			if (textData) {
+				WriteMacTEXTAndStylToPasteboard(g_pboard, textData, stylData);
+				wroteText = YES;
+			}
+
+			continue;
+		}
+
+		NSData *pbData = [g_macScrap objectForKey:eachTypeNum];
+
+		if (pbData) {
+			NSString *typeStr = GetUTIFromFlavor(eachType);
+
+			if(!typeStr)
+				continue;
+
+			NSPasteboardItem *pbItem = [[NSPasteboardItem alloc] init];
+
+			[pbItem setData:pbData forType:typeStr];
+
+			[g_pboard writeObjects:[NSArray arrayWithObject:pbItem]];
+
+			[pbItem release];
+		}
 	}
 }
 
@@ -964,52 +1153,18 @@ void GetScrap(void **handle, uint32_t type, int32_t offset)
 	D(bug("GetScrap handle %p, type %4.4s, offset %d\n", handle, (char *)&type, offset));
 
 	AUTORELEASE_POOL {
-		NSString *typeStr;
-
 		if (!g_pboard)
 			return;
 
-		if (!(typeStr = GetUTIFromFlavor(type)))
-			return;
-
-		if (type == TYPE_TEXT || type == TYPE_STYL) {
-			NSData *stylData = nil;
-			NSData *textData = GetMacTEXTAndStylDataFromPasteboard(&stylData);
-
-			if (textData) {
-				ZeroMacClipboard();
-
-				if (stylData)
-					WriteDataToMacClipboard(stylData, TYPE_STYL);
-
-				WriteDataToMacClipboard(textData, TYPE_TEXT);
-
-				return;
-			}
-		}
-
-		NSData *pbData = nil;
-
-		NSArray *objs = [g_pboard readObjectsForClasses:[NSArray arrayWithObject:[NSPasteboardItem class]] options:nil];
-
-		for (NSPasteboardItem *eachItem in objs) {
-			NSData *data = [eachItem dataForType:typeStr];
-
-			if ([data length]) {
-				pbData = data;
-				break;
-			}
-		}
-
-		if (pbData) {
-			ZeroMacClipboard();
-			WriteDataToMacClipboard(pbData, type);
+		if ([g_pboard changeCount] > g_pb_change_count) {
+			ConvertHostPasteboardToMacScrap();
+			g_pb_change_count = [g_pboard changeCount];
 		}
 	}
 }
 
 /*
- * ZeroScrap() is called before a Mac application writes to the clipboard; clears out the previous contents
+ *  ZeroScrap() is called before a Mac application writes to the clipboard; clears out the previous contents
  */
 
 void ZeroScrap()
@@ -1032,25 +1187,19 @@ void PutScrap(uint32_t type, void *scrap, int32_t length)
 	D(bug("PutScrap type %4.4s, data %p, length %ld\n", (char *)&type, scrap, (long)length));
 
 	AUTORELEASE_POOL {
-		NSString *typeStr;
-
 		if (!g_pboard)
-			return;
-
-		if (!(typeStr = GetUTIFromFlavor(type)))
 			return;
 
 		if (we_put_this_data) {
 			we_put_this_data = false;
 			return;
 		}
+
 		if (length <= 0)
 			return;
 
 		if (should_clear) {
-			[g_pboard clearContents];
-
-			[macScrap removeAllObjects];
+			[g_macScrap removeAllObjects];
 			should_clear = false;
 		}
 
@@ -1058,24 +1207,11 @@ void PutScrap(uint32_t type, void *scrap, int32_t length)
 		if (!pbData)
 			return;
 
-		[macScrap setObject:pbData forKey:[NSNumber numberWithInteger:type]];
+		[g_macScrap setObject:pbData forKey:[NSNumber numberWithInteger:type]];
 
-		if (type == TYPE_TEXT || type == TYPE_STYL) {
-			NSData *textData;
-			NSData *stylData;
+		ConvertMacScrapToHostPasteboard();
 
-			textData = [macScrap objectForKey:[NSNumber numberWithInteger:TYPE_TEXT]];
-			stylData = [macScrap objectForKey:[NSNumber numberWithInteger:TYPE_STYL]];
-
-			if (textData) {
-				WriteMacTEXTAndStylToPasteboard(textData, stylData);
-			}
-		} else if (pbData) {
-			NSPasteboardItem *pbItem = [[[NSPasteboardItem alloc] init] autorelease];
-
-			[pbItem setData:pbData forType:typeStr];
-
-			[g_pboard writeObjects:[NSArray arrayWithObject:pbItem]];
-		}
+		// So that our PutScrap() patch won't bounce the data we just wrote back to the Mac clipboard
+		g_pb_change_count = [g_pboard changeCount];
 	}
 }
