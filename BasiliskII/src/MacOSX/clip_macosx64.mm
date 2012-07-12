@@ -42,9 +42,15 @@
 #define TYPE_PICT FOURCC('P','I','C','T')
 #define TYPE_TEXT FOURCC('T','E','X','T')
 #define TYPE_STYL FOURCC('s','t','y','l')
+#define TYPE_UTXT FOURCC('u','t','x','t')
+#define TYPE_UT16 FOURCC('u','t','1','6')
+#define TYPE_USTL FOURCC('u','s','t','l')
+#define TYPE_MOOV FOURCC('m','o','o','v')
+#define TYPE_SND  FOURCC('s','n','d',' ')
+#define TYPE_ICNS FOURCC('i','c','n','s')
 
 static NSPasteboard *g_pboard;
-static NSUInteger g_pb_change_count = 0;
+static NSInteger g_pb_change_count = 0;
 
 // Flag for PutScrap(): the data was put by GetScrap(), don't bounce it back to the MacOS X side
 static bool we_put_this_data = false;
@@ -78,21 +84,50 @@ enum {
 #define smMacSysScript		18
 #define smMacRegionCode		40
 
-static NSString *GetUTIFromFlavor(uint32_t type)
+static NSString *UTIForFlavor(uint32_t type)
 {
 	switch (type) {
-		case TYPE_PICT: return (NSString *)kUTTypePICT;
-		case TYPE_TEXT: return TEXT_FLAVOR_NAME;
-			//case TYPE_TEXT: return UTF16_TEXT_FLAVOR_NAME;
-		case TYPE_STYL: return STYL_FLAVOR_NAME;
-		case FOURCC('m','o','o','v'): return (NSString *)kUTTypeQuickTimeMovie;
-		case FOURCC('s','n','d',' '): return (NSString *)kUTTypeAudio;
-			//case FOURCC('u','t','x','t'): return UTF16_TEXT_FLAVOR_NAME;
-		case FOURCC('u','t','1','6'): return UTF16_TEXT_FLAVOR_NAME;
-			//case FOURCC('u','s','t','l'): return @"????";
-		case FOURCC('i','c','n','s'): return (NSString *)kUTTypeAppleICNS;
-		default: return nil;
+		case TYPE_MOOV:
+			return (NSString *)kUTTypeQuickTimeMovie;
+		case TYPE_SND:
+			return (NSString *)kUTTypeAudio;
+		case TYPE_ICNS:
+			return (NSString *)kUTTypeAppleICNS;
+		default: {
+			CFStringRef typeString = UTCreateStringForOSType(type);
+			NSString *uti = (NSString *)UTTypeCreatePreferredIdentifierForTag(kUTTagClassOSType, typeString, NULL);
+
+			CFRelease(typeString);
+
+			if (uti == nil || [uti hasPrefix:@"dyn."]) {
+				// The docs threaten that this may stop working at some unspecified point in the future.
+				// However, it seems to work on Lion and Mountain Lion, and there's no other way to do this
+				// that I can see. Most likely, whichever release eventually breaks this will probably also
+				// drop support for the 32-bit applications which typically use these 32-bit scrap types anyway,
+				// making it irrelevant. When this happens, we should include a version check for the version of
+				// OS X that dropped this support, and leave uti alone in that case.
+
+				[uti release];
+				uti = [[NSString alloc] initWithFormat:@"CorePasteboardFlavorType 0x%08x", type];
+			}
+
+			return [uti autorelease];
+		}
 	}
+}
+
+static uint32_t FlavorForUTI(NSString *uti)
+{
+	CFStringRef typeTag = UTTypeCopyPreferredTagWithClass((CFStringRef)uti, kUTTagClassOSType);
+
+	if (!typeTag)
+		return 0;
+
+	uint32_t type = UTGetOSTypeFromString(typeTag);
+
+	CFRelease(typeTag);
+
+	return type;
 }
 
 /*
@@ -560,25 +595,25 @@ static NSAttributedString *AttributedStringFromMacTEXTAndStyl(NSData *textData, 
 	if (length < elements * elementSize)
 		return nil;
 
-	NSUInteger pointer = 2;
+	NSUInteger cursor = 2;
 
 	for (NSUInteger i = 0; i < elements; i++) AUTORELEASE_POOL {
-		int32_t startChar = CFSwapInt32BigToHost(*(int32_t *)(bytes + pointer)); pointer += 4;
-		int16_t height __attribute__((unused)) = CFSwapInt16BigToHost(*(int16_t *)&bytes[pointer]); pointer += 2;
-		int16_t ascent __attribute__((unused)) = CFSwapInt16BigToHost(*(int16_t *)&bytes[pointer]); pointer += 2;
-		int16_t fontID = CFSwapInt16BigToHost(*(int16_t *)&bytes[pointer]); pointer += 2;
-		uint8_t face = bytes[pointer]; pointer += 2;
-		int16_t size = CFSwapInt16BigToHost(*(int16_t *)&bytes[pointer]); pointer += 2;
-		uint16_t red = CFSwapInt16BigToHost(*(int16_t *)&bytes[pointer]); pointer += 2;
-		uint16_t green = CFSwapInt16BigToHost(*(int16_t *)&bytes[pointer]); pointer += 2;
-		uint16_t blue = CFSwapInt16BigToHost(*(int16_t *)&bytes[pointer]); pointer += 2;
+		int32_t startChar = CFSwapInt32BigToHost(*(int32_t *)(bytes + cursor)); cursor += 4;
+		int16_t height __attribute__((unused)) = CFSwapInt16BigToHost(*(int16_t *)&bytes[cursor]); cursor += 2;
+		int16_t ascent __attribute__((unused)) = CFSwapInt16BigToHost(*(int16_t *)&bytes[cursor]); cursor += 2;
+		int16_t fontID = CFSwapInt16BigToHost(*(int16_t *)&bytes[cursor]); cursor += 2;
+		uint8_t face = bytes[cursor]; cursor += 2;
+		int16_t size = CFSwapInt16BigToHost(*(int16_t *)&bytes[cursor]); cursor += 2;
+		uint16_t red = CFSwapInt16BigToHost(*(int16_t *)&bytes[cursor]); cursor += 2;
+		uint16_t green = CFSwapInt16BigToHost(*(int16_t *)&bytes[cursor]); cursor += 2;
+		uint16_t blue = CFSwapInt16BigToHost(*(int16_t *)&bytes[cursor]); cursor += 2;
 
 		int32_t nextChar;
 
 		if (i + 1 == elements)
 			nextChar = [textData length];
 		else
-			nextChar = CFSwapInt32BigToHost(*(int32_t *)(bytes + pointer));
+			nextChar = CFSwapInt32BigToHost(*(int32_t *)(bytes + cursor));
 
 		NSMutableDictionary *attrs = [[NSMutableDictionary alloc] init];
 		NSColor *color = [NSColor colorWithDeviceRed:(CGFloat)red / 65535.0 green:(CGFloat)green / 65535.0 blue:(CGFloat)blue / 65535.0 alpha:1.0];
@@ -796,16 +831,7 @@ static NSData *ConvertToMacTEXTAndStyl(NSAttributedString *aStr, NSData **outSty
 
 static NSData *DataFromPasteboard(NSPasteboard *pboard, NSString *flavor)
 {
-	NSArray *objs = [pboard readObjectsForClasses:[NSArray arrayWithObject:[NSPasteboardItem class]] options:nil];
-
-	for (NSPasteboardItem *eachItem in objs) {
-		NSData *data = [eachItem dataForType:flavor];
-
-		if ([data length])
-			return data;
-	}
-
-	return nil;
+	return [pboard dataForType:flavor];
 }
 
 /*
@@ -831,6 +857,8 @@ static void WriteMacTEXTAndStylToPasteboard(NSPasteboard *pboard, NSData *textDa
 	[[aStr mutableString] replaceOccurrencesOfString:@"\r" withString:@"\n" options:NSLiteralSearch range:NSMakeRange(0, [aStr length])];
 
 	[pboard writeObjects:[NSArray arrayWithObject:aStr]];
+
+	[aStr release];
 }
 
 /*
@@ -1011,6 +1039,8 @@ static void ZeroMacClipboard()
 		Host2Mac_memcpy(proc_area, proc, sizeof(proc));
 		Execute68k(proc_area, &r);
 
+		[g_macScrap removeAllObjects];
+
 		r.a[0] = proc_area;
 		Execute68kTrap(0xa01f, &r); // DisposePtr
 	}
@@ -1024,6 +1054,16 @@ static void WriteDataToMacClipboard(NSData *pbData, uint32_t type)
 {
 	D(bug("Writing data %s to Mac clipboard with type '%c%c%c%c'\n", [[pbData description] UTF8String],
 		  (type >> 24) & 0xff, (type >> 16) & 0xff, (type >> 8) & 0xff, type & 0xff));
+
+	if ([pbData length] == 0)
+		return;
+
+	NSNumber *typeNum = [NSNumber numberWithInteger:type];
+
+	if ([g_macScrap objectForKey:typeNum]) {
+		// the classic Mac OS can't have more than one object of the same type on the clipboard
+		return;
+	}
 
 	// Allocate space for new scrap in MacOS side
 	M68kRegisters r;
@@ -1062,7 +1102,7 @@ static void WriteDataToMacClipboard(NSData *pbData, uint32_t type)
 			r.a[0] = proc_area;
 			Execute68kTrap(0xa01f, &r); // DisposePtr
 
-			[g_macScrap setObject:pbData forKey:[NSNumber numberWithInteger:type]];
+			[g_macScrap setObject:pbData forKey:typeNum];
 		}
 
 		r.a[0] = scrap_area;
@@ -1076,6 +1116,8 @@ static void WriteDataToMacClipboard(NSData *pbData, uint32_t type)
 
 static void ConvertHostPasteboardToMacScrap()
 {
+	D(bug("ConvertHostPasteboardToMacScrap\n"));
+
 	ZeroMacClipboard();
 
 	NSData *stylData = nil;
@@ -1092,6 +1134,26 @@ static void ConvertHostPasteboardToMacScrap()
 
 	if (pictData)
 		WriteDataToMacClipboard(pictData, TYPE_PICT);
+
+	for (NSString *eachType in [g_pboard types]) {
+		if (UTTypeConformsTo((CFStringRef)eachType, kUTTypeText)) {
+			// text types are already handled
+			continue;
+		}
+
+		if (UTTypeConformsTo((CFStringRef)eachType, kUTTypeImage)) {
+			// image types are already handled
+			continue;
+		}
+
+		uint32_t type = FlavorForUTI(eachType);
+
+		// skip styl and ustl as well; those fall under text, which is handled already
+		if (!type || type == TYPE_STYL || type == TYPE_USTL)
+			continue;
+
+		WriteDataToMacClipboard(DataFromPasteboard(g_pboard, eachType), type);
+	}
 }
 
 /*
@@ -1100,6 +1162,8 @@ static void ConvertHostPasteboardToMacScrap()
 
 static void ConvertMacScrapToHostPasteboard()
 {
+	D(bug("ConvertMacScrapToHostPasteboard\n"));
+
 	BOOL wroteText = NO;
 
 	[g_pboard clearContents];
@@ -1107,8 +1171,8 @@ static void ConvertMacScrapToHostPasteboard()
 	for (NSNumber *eachTypeNum in g_macScrap) AUTORELEASE_POOL {
 		uint32_t eachType = [eachTypeNum integerValue];
 
-		if (eachType == TYPE_TEXT || eachType == TYPE_STYL) {
-			if(wroteText)
+		if (eachType == TYPE_TEXT || eachType == TYPE_STYL || eachType == TYPE_UTXT || eachType == TYPE_UT16 || eachType == TYPE_USTL) {
+			if (wroteText)
 				continue;
 
 			NSData *textData;
@@ -1122,25 +1186,36 @@ static void ConvertMacScrapToHostPasteboard()
 				wroteText = YES;
 			}
 
+			// sometime, it might be interesting to write a converter for utxt/ustl if possible
+
 			continue;
 		}
 
 		NSData *pbData = [g_macScrap objectForKey:eachTypeNum];
 
 		if (pbData) {
-			NSString *typeStr = GetUTIFromFlavor(eachType);
+			NSString *typeStr = UTIForFlavor(eachType);
 
-			if(!typeStr)
+			if (!typeStr)
 				continue;
 
-			NSPasteboardItem *pbItem = [[NSPasteboardItem alloc] init];
-
-			[pbItem setData:pbData forType:typeStr];
-
-			[g_pboard writeObjects:[NSArray arrayWithObject:pbItem]];
-
-			[pbItem release];
+			[g_pboard setData:pbData forType:typeStr];
 		}
+	}
+}
+
+/*
+ *  Check whether the pasteboard has changed since our last check; if it has, write it to the emulated pasteboard
+ */
+
+static void ConvertHostPasteboardToMacScrapIfChanged()
+{
+	if (!g_pboard)
+		return;
+
+	if ([g_pboard changeCount] > g_pb_change_count) {
+		ConvertHostPasteboardToMacScrap();
+		g_pb_change_count = [g_pboard changeCount];
 	}
 }
 
@@ -1153,13 +1228,7 @@ void GetScrap(void **handle, uint32_t type, int32_t offset)
 	D(bug("GetScrap handle %p, type %4.4s, offset %d\n", handle, (char *)&type, offset));
 
 	AUTORELEASE_POOL {
-		if (!g_pboard)
-			return;
-
-		if ([g_pboard changeCount] > g_pb_change_count) {
-			ConvertHostPasteboardToMacScrap();
-			g_pb_change_count = [g_pboard changeCount];
-		}
+		ConvertHostPasteboardToMacScrapIfChanged();
 	}
 }
 
