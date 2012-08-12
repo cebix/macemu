@@ -306,52 +306,47 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #endif
 #endif
 #if defined(__linux__)
-#if (defined(i386) || defined(__i386__))
+#if HAVE_ASM_UCONTEXT
+#include <asm/ucontext.h> /* use kernel structure, glibc may not be in sync */
+#else
 #include <sys/ucontext.h>
-#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
-#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[14] /* should use REG_EIP instead */
-#define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
-#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
-#endif
-#if (defined(x86_64) || defined(__x86_64__))
-#include <sys/ucontext.h>
-#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
-#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[16] /* should use REG_RIP instead */
-#define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
-#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
-#endif
-#if (defined(ia64) || defined(__ia64__))
-#define SIGSEGV_CONTEXT_REGS			((struct sigcontext *)scp)
-#define SIGSEGV_FAULT_INSTRUCTION		(SIGSEGV_CONTEXT_REGS->sc_ip & ~0x3ULL) /* slot number is in bits 0 and 1 */
-#define SIGSEGV_REGISTER_FILE			SIGSEGV_CONTEXT_REGS
-#define SIGSEGV_SKIP_INSTRUCTION		ia64_skip_instruction
-#endif
-#if (defined(powerpc) || defined(__powerpc__))
-#include <sys/ucontext.h>
-#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.regs)
-#define SIGSEGV_FAULT_INSTRUCTION		(SIGSEGV_CONTEXT_REGS->nip)
-#define SIGSEGV_REGISTER_FILE			(unsigned long *)&SIGSEGV_CONTEXT_REGS->nip, (unsigned long *)(SIGSEGV_CONTEXT_REGS->gpr)
-#define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
 #endif
 #if (defined(hppa) || defined(__hppa__))
 #undef  SIGSEGV_FAULT_ADDRESS
 #define SIGSEGV_FAULT_ADDRESS			sip->si_ptr
 #endif
-#if (defined(arm) || defined(__arm__))
-#include <asm/ucontext.h> /* use kernel structure, glibc may not be in sync */
+#if (defined(i386) || defined(__i386__))
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[14] /* should use REG_EIP instead */
+#define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#elif (defined(x86_64) || defined(__x86_64__))
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[16] /* should use REG_RIP instead */
+#define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#elif (defined(ia64) || defined(__ia64__))
+#define SIGSEGV_CONTEXT_REGS			((struct sigcontext *)scp)
+#define SIGSEGV_FAULT_INSTRUCTION		(SIGSEGV_CONTEXT_REGS->sc_ip & ~0x3ULL) /* slot number is in bits 0 and 1 */
+#define SIGSEGV_REGISTER_FILE			SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_SKIP_INSTRUCTION		ia64_skip_instruction
+#elif (defined(powerpc) || defined(__powerpc__))
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.regs)
+#define SIGSEGV_FAULT_INSTRUCTION		(SIGSEGV_CONTEXT_REGS->nip)
+#define SIGSEGV_REGISTER_FILE			(unsigned long *)&SIGSEGV_CONTEXT_REGS->nip, (unsigned long *)(SIGSEGV_CONTEXT_REGS->gpr)
+#define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
+#epif (defined(arm) || defined(__arm__))
 #define SIGSEGV_CONTEXT_REGS			(((struct ucontext *)scp)->uc_mcontext)
 #define SIGSEGV_FAULT_INSTRUCTION		(SIGSEGV_CONTEXT_REGS.arm_pc)
 #define SIGSEGV_REGISTER_FILE			(&SIGSEGV_CONTEXT_REGS.arm_r0)
 #define SIGSEGV_SKIP_INSTRUCTION		arm_skip_instruction
-#endif
-#if (defined(mips) || defined(__mips__))
-#include <sys/ucontext.h>
+#elif (defined(mips) || defined(__mips__))
 #define SIGSEGV_CONTEXT_REGS			(((struct ucontext *)scp)->uc_mcontext)
 #define SIGSEGV_FAULT_INSTRUCTION		(SIGSEGV_CONTEXT_REGS.pc)
 #define SIGSEGV_REGISTER_FILE			&SIGSEGV_CONTEXT_REGS.pc, &SIGSEGV_CONTEXT_REGS.gregs[0]
 #define SIGSEGV_SKIP_INSTRUCTION		mips_skip_instruction
 #endif
-#endif
+#endif  // defined(__linux__)
 #if (defined(__hpux) || defined(__hpux__))
 #if (defined(__hppa) || defined(__hppa__))
 #define SIGSEGV_CONTEXT_REGS			(&((ucontext_t *)scp)->uc_mcontext)
