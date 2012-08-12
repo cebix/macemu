@@ -1134,6 +1134,9 @@ if [[ -z "$sigsegv_recovery" ]]; then
     AC_LANG_SAVE
     AC_LANG_CPLUSPLUS
     AC_TRY_RUN([
+      #ifdef HAVE_UNISTD_H
+      #include <unistd.h>
+      #endif
       #define HAVE_ASM_UCONTEXT 1
       #define HAVE_SIGINFO_T 1
       #define CONFIGURE_TEST_SIGSEGV_RECOVERY
@@ -1162,6 +1165,9 @@ if [[ -z "$sigsegv_recovery" -a "x$ac_cv_have_extended_signals" != "xyes" ]]; th
     AC_LANG_SAVE
     AC_LANG_CPLUSPLUS
     AC_TRY_RUN([
+      #ifdef HAVE_UNISTD_H
+      #include <unistd.h>
+      #endif
       #define HAVE_SIGINFO_T 1
       #define CONFIGURE_TEST_SIGSEGV_RECOVERY
       #include "vm_alloc.cpp"
