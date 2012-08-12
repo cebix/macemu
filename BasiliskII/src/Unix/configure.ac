@@ -1130,7 +1130,7 @@ AC_TRANSLATE_DEFINE(HAVE_WIN32_EXCEPTIONS, "$ac_cv_have_win32_exceptions",
 dnl Otherwise, check if extended signals are supported with <asm/ucontext.h>.
 if [[ -z "$sigsegv_recovery" ]]; then
   AC_CACHE_CHECK([whether your system supports extended signal handlers via asm],
-    ac_cv_have_extended_signals, [
+    ac_cv_have_asm_extended_signals, [
     AC_LANG_SAVE
     AC_LANG_CPLUSPLUS
     AC_TRY_RUN([
@@ -1144,22 +1144,22 @@ if [[ -z "$sigsegv_recovery" ]]; then
       #include "sigsegv.cpp"
     ], [
     sigsegv_recovery=siginfo
-    ac_cv_have_extended_signals=yes
+    ac_cv_have_asm_extended_signals=yes
     ],
-    ac_cv_have_extended_signals=no,
+    ac_cv_have_asm_extended_signals=no,
     dnl When cross-compiling, do not assume anything.
-    ac_cv_have_extended_signals=no
+    ac_cv_have_asm_extended_signals=no
     )
     AC_LANG_RESTORE
     ]
   )
-  AC_TRANSLATE_DEFINE(HAVE_ASM_UCONTEXT, "$ac_cv_have_extended_signals",
+  AC_TRANSLATE_DEFINE(HAVE_ASM_UCONTEXT, "$ac_cv_have_asm_extended_signals",
     [Define if your system has <asm/ucontext.h> header.])
-  AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_extended_signals",
+  AC_TRANSLATE_DEFINE(HAVE_SIGINFO_T, "$ac_cv_have_asm_extended_signals",
     [Define if your system supports extended signals.])
 fi
 
-if [[ -z "$sigsegv_recovery" -a "x$ac_cv_have_extended_signals" != "xyes" ]]; then
+if [[ -z "$sigsegv_recovery" ]]; then
   AC_CACHE_CHECK([whether your system supports extended signal handlers],
     ac_cv_have_extended_signals, [
     AC_LANG_SAVE
