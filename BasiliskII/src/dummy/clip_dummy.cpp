@@ -54,6 +54,14 @@ void GetScrap(void **handle, uint32 type, int32 offset)
 	D(bug("GetScrap handle %p, type %08x, offset %d\n", handle, type, offset));
 }
 
+/*
+ * ZeroScrap() is called before a Mac application writes to the clipboard; clears out the previous contents
+ */
+
+void ZeroScrap()
+{
+	D(bug("ZeroScrap\n"));
+}
 
 /*
  *  Mac application wrote to clipboard
