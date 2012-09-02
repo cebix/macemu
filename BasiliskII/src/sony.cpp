@@ -115,7 +115,6 @@ struct sony_drive_info {
 	void *fh;			// Floppy driver file handle
 	bool to_be_mounted;	// Flag: drive must be mounted in accRun
 	bool read_only;		// Flag: force write protection
-	uint32 tag_buffer;	// Mac address of tag buffer
 	uint32 status;		// Mac address of drive status record
 };
 
@@ -283,7 +282,6 @@ int16 SonyOpen(uint32 pb, uint32 dce)
 
 		info->num = FindFreeDriveNumber(1);
 		info->to_be_mounted = false;
-		info->tag_buffer = 0;
 
 		if (info->fh) {
 
@@ -302,9 +300,9 @@ int16 SonyOpen(uint32 pb, uint32 dce)
 			WriteMacInt8(info->status + dsSides, 0xff);
 			WriteMacInt8(info->status + dsTwoSideFmt, 0xff);
 			WriteMacInt8(info->status + dsNewIntf, 0xff);
-			WriteMacInt8(info->status + dsMFMDrive, 0xff);
-			WriteMacInt8(info->status + dsMFMDisk, 0xff);
-			WriteMacInt8(info->status + dsTwoMegFmt, 0xff);
+			WriteMacInt8(info->status + dsMFMDrive, 0xff);	// SuperDrive (0 = 400/800K GCR drive)
+			WriteMacInt8(info->status + dsMFMDisk, 0xff);	// MFM (0 = GCR)
+			WriteMacInt8(info->status + dsTwoMegFmt, 0xff);	// 1.44MB (0 = 720K)
 
 			// Disk in drive?
 			if (SysIsDiskInserted(info->fh)) {
@@ -389,10 +387,10 @@ int16 SonyControl(uint32 pb, uint32 dce)
 
 	// General codes
 	switch (code) {
-		case 1:		// KillIO
+		case 1:		// KillIO (not supported)
 			return set_dsk_err(-1);
 
-		case 9:		// Track cache
+		case 9:		// Track cache control (ignore, assume that host OS does the caching)
 			return set_dsk_err(noErr);
 
 		case 65:	// Periodic action (accRun, "insert" disks on startup)
@@ -411,30 +409,30 @@ int16 SonyControl(uint32 pb, uint32 dce)
 	// Drive-specific codes
 	int16 err = noErr;
 	switch (code) {
-		case 5:		// Verify disk
-			if (ReadMacInt8(info->status + dsDiskInPlace) <= 0)
-				err = verErr;
+		case 5:			// Verify disk
+			if (ReadMacInt8(info->status + dsDiskInPlace) <= 0) {
+				err = offLinErr;
+			}
 			break;
 
-		case 6:		// Format disk
-			if (info->read_only)
+		case 6:			// Format disk
+			if (info->read_only) {
 				err = wPrErr;
-			else if (ReadMacInt8(info->status + dsDiskInPlace) > 0) {
+			} else if (ReadMacInt8(info->status + dsDiskInPlace) > 0) {
 				if (!SysFormat(info->fh))
 					err = writErr;
 			} else
 				err = offLinErr;
 			break;
 
-		case 7:		// Eject
+		case 7:			// Eject
 			if (ReadMacInt8(info->status + dsDiskInPlace) > 0) {
 				SysEject(info->fh);
 				WriteMacInt8(info->status + dsDiskInPlace, 0);
 			}
 			break;
 
-		case 8:		// Set tag buffer
-			info->tag_buffer = ReadMacInt32(pb + csParam);
+		case 8:			// Set tag buffer (ignore, not supported)
 			break;
 
 		case 21:		// Get drive icon
@@ -446,18 +444,26 @@ int16 SonyControl(uint32 pb, uint32 dce)
 			break;
 
 		case 23:		// Get drive info
-			if (info->num == 1)
-				WriteMacInt32(pb + csParam, 0x0004);	// Internal drive
-			else
-				WriteMacInt32(pb + csParam, 0x0104);	// External drive
+			if (info->num == 1) {
+				WriteMacInt32(pb + csParam, 0x0004);	// Internal SuperDrive
+			} else {
+				WriteMacInt32(pb + csParam, 0x0104);	// External SuperDrive
+			}
 			break;
 
-		case 0x5343:	// Format and write to disk ('SC'), used by DiskCopy
-			if (!ReadMacInt8(info->status + dsDiskInPlace))
+//		case 0x4350:	// Enable/disable retries ('CP') (not supported)
+//			break;
+
+//		case 0x4744:	// Get raw track data ('GD') (not supported)
+//			break;
+
+		case 0x5343:	// Format and write to disk ('SC') in one pass, used by DiskCopy to speed things up
+			if (!ReadMacInt8(info->status + dsDiskInPlace)) {
 				err = offLinErr;
-			else if (info->read_only)
+			} else if (info->read_only) {
 				err = wPrErr;
-			else {
+			} else {
+				// Assume that the disk is already formatted and only write the data
 				void *data = Mac2HostAddr(ReadMacInt32(pb + csParam + 2));
 				size_t actual = Sys_write(info->fh, data, 0, 2880*512);
 				if (actual != 2880*512)
@@ -491,30 +497,44 @@ int16 SonyStatus(uint32 pb, uint32 dce)
 
 	int16 err = noErr;
 	switch (code) {
-		case 6:		// Return format list
-			if (ReadMacInt16(pb + csParam) > 0) {
+		case 6:			// Return list of supported disk formats
+			if (ReadMacInt16(pb + csParam) > 0) {	// At least one entry requested?
 				uint32 adr = ReadMacInt32(pb + csParam + 2);
-				WriteMacInt16(pb + csParam, 1);		// 1 format
+				WriteMacInt16(pb + csParam, 1);		// 1 format supported
 				WriteMacInt32(adr, 2880);			// 2880 sectors
-				WriteMacInt32(adr + 4, 0xd2120050);	// 2 heads, 18 secs/track, 80 tracks
-			} else
+				WriteMacInt32(adr + 4, 0xd2120050);	// DD, 2 heads, 18 secs/track, 80 tracks
+
+				// Upper byte of format flags:
+				//  bit #7: number of tracks, sectors, and heads is valid
+				//  bit #6: current disk has this format
+				//  bit #5: <unused>
+				//  bit #4: double density
+				//  bits #3..#0: number of heads
+			} else {
 				err = paramErr;
+			}
 			break;
 
-		case 8:		// Get drive status
+		case 8:			// Get drive status
 			Mac2Mac_memcpy(pb + csParam, info->status, 22);
 			break;
 
-		case 10:	// Get disk type
-			WriteMacInt32(pb + csParam, ReadMacInt32(info->status + dsMFMDrive) & 0xffffff00 | 0xfe);
+		case 10:		// Get disk type and MFM info
+			WriteMacInt32(pb + csParam, ReadMacInt32(info->status + dsMFMDrive) & 0xffffff00 | 0xfe);	// 0xfe = SWIM2 controller
 			break;
 
-		case 0x4456: // Duplicator version supported ('DV')
-			WriteMacInt16(pb + csParam, 0x0410);
+//		case 0x4350:	// Measure disk speed at a given track ('CP') (not supported)
+//			break;
+
+		case 0x4456:	// Duplicator (DiskCopy) version supported ('DV'), enables the 'SC' control code above
+			WriteMacInt16(pb + csParam, 0x0410);	// Version 4.1 and later
 			break;
 
-		case 0x5343: // Get address header format byte ('SC')
-			WriteMacInt8(pb + csParam, 0x22);	// 512 bytes/sector
+//		case 0x5250:	// Get floppy info record ('RP') (not supported)
+//			break;
+
+		case 0x5343:	// Get address header format byte ('SC')
+			WriteMacInt8(pb + csParam, 0x02);	// 500 kbit/s (HD) MFM
 			break;
 
 		default:
