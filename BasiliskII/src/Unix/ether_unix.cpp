@@ -96,7 +96,9 @@ enum {
 };
 
 // Constants
+#if ENABLE_TUNTAP
 static const char ETHERCONFIG_FILE_NAME[] = DATADIR "/tunconfig";
+#endif
 
 // Global variables
 static int fd = -1;							// fd of sheep_net device
@@ -650,11 +652,13 @@ static int16 ether_do_add_multicast(uint8 *addr)
 	case NET_IF_SHEEPNET:
 		if (ioctl(fd, SIOCADDMULTI, addr) < 0) {
 			D(bug("WARNING: Couldn't enable multicast address\n"));
-			if (net_if_type == NET_IF_ETHERTAP)
+			if (net_if_type == NET_IF_ETHERTAP) {
 				return noErr;
-			else
+			} else {
 				return eMultiErr;
+			}
 		}
+		return noErr;
 	default:
 		return noErr;
 	}
@@ -674,6 +678,7 @@ static int16 ether_do_del_multicast(uint8 *addr)
 			D(bug("WARNING: Couldn't disable multicast address\n"));
 			return eMultiErr;
 		}
+		return noErr;
 	default:
 		return noErr;
 	}

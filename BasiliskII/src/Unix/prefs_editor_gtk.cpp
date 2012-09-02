@@ -200,7 +200,6 @@ static GtkWidget *table_make_option_menu(GtkWidget *table, int row, int label_id
 static GtkWidget *table_make_combobox(GtkWidget *table, int row, int label_id, const char *default_value, GList *glist)
 {
 	GtkWidget *label, *combo;
-	char str[32];
 
 	label = gtk_label_new(GetString(label_id));
 	gtk_widget_show(label);
@@ -654,7 +653,7 @@ static void read_volumes_settings(void)
 // Create "Volumes" pane
 static void create_volumes_pane(GtkWidget *top)
 {
-	GtkWidget *box, *scroll, *menu;
+	GtkWidget *box, *scroll;
 
 	box = make_pane(top, STR_VOLUMES_PANE_TITLE);
 
@@ -696,7 +695,7 @@ static void create_volumes_pane(GtkWidget *top)
 		case 0: active = 0; break;
 		case CDROMRefNum: active = 1; break;
 	}
-	menu = make_option_menu(box, STR_BOOTDRIVER_CTRL, options, active);
+	make_option_menu(box, STR_BOOTDRIVER_CTRL, options, active);
 
 	make_checkbox(box, STR_NOCDROM_CTRL, "nocdrom", GTK_SIGNAL_FUNC(tb_nocdrom));
 }
@@ -707,7 +706,6 @@ static void create_volumes_pane(GtkWidget *top)
  */
 
 static GtkWidget *w_jit_fpu;
-static GtkWidget *w_jit_atraps;
 static GtkWidget *w_jit_cache_size;
 static GtkWidget *w_jit_lazy_flush;
 static GtkWidget *w_jit_follow_const_jumps;
@@ -784,8 +782,7 @@ static void create_jit_pane(GtkWidget *top)
 	if (!is_jit_capable())
 		return;
 
-	GtkWidget *box, *table, *label, *menu;
-	char str[32];
+	GtkWidget *box;
 	
 	box = make_pane(top, STR_JIT_PANE_TITLE);
 	make_checkbox(box, STR_JIT_CTRL, "jit", GTK_SIGNAL_FUNC(tb_jit));
@@ -1163,7 +1160,7 @@ static void read_input_settings(void)
 // Create "Input" pane
 static void create_input_pane(GtkWidget *top)
 {
-	GtkWidget *box, *hbox, *menu, *label, *button;
+	GtkWidget *box, *hbox, *label, *button;
 	GtkObject *adj;
 
 	box = make_pane(top, STR_INPUT_PANE_TITLE);
@@ -1203,7 +1200,7 @@ static void create_input_pane(GtkWidget *top)
 		case 0: active = 0; break;
 		case 1: active = 1; break;
 	}
-	menu = make_option_menu(box, STR_MOUSEWHEELMODE_CTRL, options, active);
+	make_option_menu(box, STR_MOUSEWHEELMODE_CTRL, options, active);
 
 	hbox = gtk_hbox_new(FALSE, 4);
 	gtk_widget_show(hbox);
@@ -1475,7 +1472,7 @@ static void read_memory_settings(void)
 // Create "Memory/Misc" pane
 static void create_memory_pane(GtkWidget *top)
 {
-	GtkWidget *box, *hbox, *table, *label, *menu;
+	GtkWidget *box, *table;
 
 	box = make_pane(top, STR_MEMORY_MISC_PANE_TITLE);
 	table = make_table(box, 2, 5);

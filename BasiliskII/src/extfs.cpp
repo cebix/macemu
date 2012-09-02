@@ -820,9 +820,9 @@ static int16 get_current_dir(uint32 pb, uint32 dirID, uint32 &current_dir, bool 
 				break;
 
 			case dtmvWDRefNum:		// Determined by working directory refNum
-				if (dirID)
+				if (dirID) {
 					current_dir = dirID;
-				else {
+				} else {
 					D(bug("  resolving WDCB\n"));
 					r.d[0] = 0;
 					r.d[1] = 0;
@@ -838,9 +838,9 @@ static int16 get_current_dir(uint32 pb, uint32 dirID, uint32 &current_dir, bool 
 				break;
 
 			case dtmvDefault:		// Determined by default volume
-				if (dirID)
+				if (dirID) {
 					current_dir = dirID;
-				else {
+				} else {
 					uint32 wdpb = fs_data + fsReturn;
 					WriteMacInt32(wdpb + ioNamePtr, 0);
 					D(bug("  getting default volume\n"));

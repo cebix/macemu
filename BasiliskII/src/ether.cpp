@@ -327,7 +327,7 @@ int16 EtherControl(uint32 pb, uint32 dce)
 
 					// Extract destination address
 					uint32 dest_ip;
-					if (packet[0] == 'B' && packet[1] == '2')
+					if (len >= 6 && packet[0] == 'B' && packet[1] == '2')
 						dest_ip = (packet[2] << 24) | (packet[3] << 16) | (packet[4] << 8) | packet[5];
 					else if (is_apple_talk_broadcast(packet) || is_ethernet_broadcast(packet))
 						dest_ip = INADDR_BROADCAST;

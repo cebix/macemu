@@ -333,6 +333,7 @@ udp_attach(so)
      * (sendto() on an unbound socket will bind it), it's done
      * here so that emulation of ytalk etc. don't have to do it
      */
+	memset(&addr, 0, sizeof(struct sockaddr_in));
     addr.sin_family = AF_INET;
     addr.sin_port = 0;
     addr.sin_addr.s_addr = INADDR_ANY;
@@ -645,6 +646,7 @@ udp_listen(port, laddr, lport, flags)
 	so->so_expire = curtime + SO_EXPIRE;
 	insque(so,&udb);
 
+	memset(&addr, 0, sizeof(struct sockaddr_in));
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = INADDR_ANY;
 	addr.sin_port = port;

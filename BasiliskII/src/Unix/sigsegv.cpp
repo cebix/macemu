@@ -38,6 +38,7 @@
 #include <list>
 #include <stdio.h>
 #include <signal.h>
+#include <string.h>
 #include "sigsegv.h"
 
 #ifndef NO_STD_NAMESPACE
@@ -1060,11 +1061,13 @@ static bool ix86_skip_instruction(SIGSEGV_REGISTER_TYPE * regs)
 #endif
 	case 0x02: // ADD r8, r/m8
 		transfer_size = SIZE_BYTE;
+		// fall through
 	case 0x03: // ADD r32, r/m32
 		instruction_type = i_ADD;
 		goto do_transfer_load;
 	case 0x8a: // MOV r8, r/m8
 		transfer_size = SIZE_BYTE;
+		// fall through
 	case 0x8b: // MOV r32, r/m32 (or 16-bit operation)
 	  do_transfer_load:
 		switch (eip[op_len] & 0xc0) {
@@ -1085,11 +1088,13 @@ static bool ix86_skip_instruction(SIGSEGV_REGISTER_TYPE * regs)
 		break;
 	case 0x00: // ADD r/m8, r8
 		transfer_size = SIZE_BYTE;
+		// fall through
 	case 0x01: // ADD r/m32, r32
 		instruction_type = i_ADD;
 		goto do_transfer_store;
 	case 0x88: // MOV r/m8, r8
 		transfer_size = SIZE_BYTE;
+		// fall through
 	case 0x89: // MOV r/m32, r32 (or 16-bit operation)
 	  do_transfer_store:
 		switch (eip[op_len] & 0xc0) {
@@ -2857,6 +2862,7 @@ static bool sigsegv_do_install_handler(int sig)
 	// Setup SIGSEGV handler to process writes to frame buffer
 #ifdef HAVE_SIGACTION
 	struct sigaction sigsegv_sa;
+	memset(&sigsegv_sa, 0, sizeof(struct sigaction));
 	sigemptyset(&sigsegv_sa.sa_mask);
 	sigsegv_sa.sa_sigaction = sigsegv_handler;
 	sigsegv_sa.sa_flags = SA_SIGINFO;
@@ -2873,6 +2879,7 @@ static bool sigsegv_do_install_handler(int sig)
 	// Setup SIGSEGV handler to process writes to frame buffer
 #ifdef HAVE_SIGACTION
 	struct sigaction sigsegv_sa;
+	memset(&sigsegv_sa, 0, sizeof(struct sigaction));
 	sigemptyset(&sigsegv_sa.sa_mask);
 	sigsegv_sa.sa_handler = (signal_handler)sigsegv_handler;
 	sigsegv_sa.sa_flags = 0;

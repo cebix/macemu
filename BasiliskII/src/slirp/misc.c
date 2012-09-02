@@ -333,6 +333,7 @@ fork_exec(so, ex, do_pty)
 			return 0;
 		}
 	} else {
+		memset(&addr, 0, sizeof(struct sockaddr_in));
 		addr.sin_family = AF_INET;
 		addr.sin_port = 0;
 		addr.sin_addr.s_addr = INADDR_ANY;

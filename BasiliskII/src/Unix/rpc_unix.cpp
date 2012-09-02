@@ -196,12 +196,14 @@ rpc_connection_t *rpc_init_server(const char *ident)
 
   if (bind(connection->server_socket, (struct sockaddr *)&addr, addr_len) < 0) {
 	perror("server bind");
+	close(connection->socket);
 	free(connection);
 	return NULL;
   }
 
   if (listen(connection->server_socket, 1) < 0) {
 	perror("server listen");
+	close(connection->socket);
 	free(connection);
 	return NULL;
   }
@@ -253,6 +255,7 @@ rpc_connection_t *rpc_init_client(const char *ident)
 	  break;
 	if (n_connect_attempts > 1 && errno != ECONNREFUSED && errno != ENOENT) {
 	  perror("client_connect");
+	  close(connection->socket);
 	  free(connection);
 	  return NULL;
 	}
@@ -260,6 +263,7 @@ rpc_connection_t *rpc_init_client(const char *ident)
 	usleep(N_CONNECT_WAIT_DELAY);
   }
   if (n_connect_attempts == 0) {
+	close(connection->socket);
 	free(connection);
 	return NULL;
   }
@@ -780,13 +784,15 @@ int rpc_message_recv_string(rpc_message_t *message, char **ret)
   if ((error = _rpc_message_recv_bytes(message, (unsigned char *)&r_value, sizeof(r_value))) < 0)
 	return error;
   length = ntohl(r_value);
-  if (length == 0)
+  if (length == 0) {
 	str = NULL;
-  else {
+  } else {
 	if ((str = (char *)malloc(length + 1)) == NULL)
 	  return RPC_ERROR_NO_MEMORY;
-	if ((error = _rpc_message_recv_bytes(message, (unsigned char *)str, length)) < 0)
+	if ((error = _rpc_message_recv_bytes(message, (unsigned char *)str, length)) < 0) {
+	  free(str);
 	  return error;
+	}
 	str[length] = '\0';
   }
   *ret = str;
@@ -838,8 +844,10 @@ static int rpc_message_recv_args(rpc_message_t *message, va_list args)
 		if ((array = (unsigned char *)malloc(array_size * sizeof(*array))) == NULL)
 		  return RPC_ERROR_NO_MEMORY;
 		error = _rpc_message_recv_bytes(message, array, array_size);
-		if (error != RPC_ERROR_NO_ERROR)
+		if (error != RPC_ERROR_NO_ERROR) {
+		  free(array);
 		  return error;
+		}
 		*((void **)p_value) = (void *)array;
 		break;
 	  }
@@ -850,8 +858,10 @@ static int rpc_message_recv_args(rpc_message_t *message, va_list args)
 		  return RPC_ERROR_NO_MEMORY;
 		for (i = 0; i < array_size; i++) {
 		  int32_t value;
-		  if ((error = rpc_message_recv_int32(message, &value)) < 0)
+		  if ((error = rpc_message_recv_int32(message, &value)) < 0) {
+		    free(array);
 			return error;
+		  }
 		  array[i] = value;
 		}
 		*((void **)p_value) = (void *)array;
@@ -863,8 +873,10 @@ static int rpc_message_recv_args(rpc_message_t *message, va_list args)
 		  return RPC_ERROR_NO_MEMORY;
 		for (i = 0; i < array_size; i++) {
 		  uint32_t value;
-		  if ((error = rpc_message_recv_uint32(message, &value)) < 0)
+		  if ((error = rpc_message_recv_uint32(message, &value)) < 0) {
+		    free(array);
 			return error;
+		  }
 		  array[i] = value;
 		}
 		*((void **)p_value) = (void *)array;
@@ -876,8 +888,10 @@ static int rpc_message_recv_args(rpc_message_t *message, va_list args)
 		  return RPC_ERROR_NO_MEMORY;
 		for (i = 0; i < array_size; i++) {
 		  char *str;
-		  if ((error = rpc_message_recv_string(message, &str)) < 0)
+		  if ((error = rpc_message_recv_string(message, &str)) < 0) {
+		    free(array);
 			return error;
+		  }
 		  array[i] = str;
 		}
 		*((void **)p_value) = (void *)array;
@@ -889,8 +903,10 @@ static int rpc_message_recv_args(rpc_message_t *message, va_list args)
 		  if ((array = (char *)malloc(array_size * desc->size)) == NULL)
 			return RPC_ERROR_NO_MEMORY;
 		  for (i = 0; i < array_size; i++) {
-			if ((error = desc->recv_callback(message, &array[i * desc->size])) < 0)
+			if ((error = desc->recv_callback(message, &array[i * desc->size])) < 0) {
+			  free(array);
 			  return error;
+			}
 		  }
 		  *((void **)p_value) = array;
 		}

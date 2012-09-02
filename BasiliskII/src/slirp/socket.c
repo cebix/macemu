@@ -575,6 +575,7 @@ solisten(port, laddr, lport, flags)
 	so->so_lport = lport; /* Kept in network format */
 	so->so_laddr.s_addr = laddr; /* Ditto */
 	
+	memset(&addr, 0, sizeof(struct sockaddr_in));
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = INADDR_ANY;
 	addr.sin_port = port;

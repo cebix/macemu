@@ -1011,7 +1011,6 @@ static bool patch_rom_classic(void)
 // ROM patches for 32-bit clean Mac-II ROMs (version $067c)
 static bool patch_rom_32(void)
 {
-	uint32 *lp;
 	uint16 *wp;
 	uint8 *bp;
 	uint32 base;

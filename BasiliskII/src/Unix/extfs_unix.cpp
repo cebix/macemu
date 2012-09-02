@@ -388,5 +388,3 @@ const char *macroman_to_host_encoding(const char *filename)
 {
 	return filename;
 }
-
-

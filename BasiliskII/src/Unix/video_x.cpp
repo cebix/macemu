@@ -386,6 +386,7 @@ static void add_mode(uint32 width, uint32 height, uint32 resolution_id, uint32 b
 	mode.resolution_id = resolution_id;
 	mode.bytes_per_row = bytes_per_row;
 	mode.depth = depth;
+	mode.user_data = 0;
 	VideoModes.push_back(mode);
 }
 
@@ -707,7 +708,8 @@ void driver_base::restore_mouse_accel(void)
 
 // Open display
 driver_window::driver_window(X11_monitor_desc &m)
- : driver_base(m), gc(0), img(NULL), have_shm(false), mac_cursor(0), mouse_grabbed(false)
+ : driver_base(m), gc(0), img(NULL), have_shm(false), mac_cursor(0),
+   mouse_grabbed(false), mouse_last_x(0), mouse_last_y(0)
 {
 	int width = mode.x, height = mode.y;
 	int aligned_width = (width + 15) & ~15;
@@ -2271,9 +2273,10 @@ static void update_display_dynamic(int ticker, driver_window *drv)
 
 	y2s = sm_uptd[ticker % 8];
 	y2a = 8;
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < 6; i++) {
 		if (ticker % (2 << i))
 			break;
+	}
 	max_box = sm_no_boxes[i];
 
 	if (y2a) {

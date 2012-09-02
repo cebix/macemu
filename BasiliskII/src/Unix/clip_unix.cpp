@@ -650,14 +650,15 @@ static bool handle_selection(XSelectionRequestEvent *req, bool is_multiple)
 {
 	bool handled =false;
 
-	if (req->target == xa_timestamp)
+	if (req->target == xa_timestamp) {
 		handled = handle_selection_TIMESTAMP(req);
-	else if (req->target == xa_targets)
+	} else if (req->target == xa_targets) {
 		handled = handle_selection_TARGETS(req);
-	else if (req->target == XA_STRING)
+	} else if (req->target == XA_STRING) {
 		handled = handle_selection_STRING(req);
-	else if (req->target == xa_multiple)
+	} else if (req->target == xa_multiple) {
 		handled = handle_selection_MULTIPLE(req);
+	}
 
 	// Notify requestor only when we are done with his request
 	if (handled && !is_multiple) {
@@ -666,7 +667,7 @@ static bool handle_selection(XSelectionRequestEvent *req, bool is_multiple)
 		out_event.xselection.requestor = req->requestor;
 		out_event.xselection.selection = req->selection;
 		out_event.xselection.target    = req->target;
-		out_event.xselection.property  = handled ? req->property : None;
+		out_event.xselection.property  = req->property;
 		out_event.xselection.time      = req->time;
 		XSendEvent(x_display, req->requestor, False, 0, &out_event);
 	}

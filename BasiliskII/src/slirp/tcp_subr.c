@@ -400,6 +400,7 @@ int tcp_fconnect(so)
   if( (ret=so->s=socket(AF_INET,SOCK_STREAM,0)) >= 0) {
     int opt, s=so->s;
     struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(struct sockaddr_in));
 
     fd_nonblock(s);
     opt = 1;

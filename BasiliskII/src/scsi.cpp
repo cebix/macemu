@@ -115,10 +115,11 @@ static int16 exec_tib(uint32 tib)
 		switch (cmd) {
 			case scInc:
 				WriteMacInt32(tib - 8, ptr + len);
+				// fall through to scNoInc
 			case scNoInc:
-				if ((sg_index > 0) && (Mac2HostAddr(ptr) == sg_ptr[sg_index-1] + sg_len[sg_index-1]))
+				if ((sg_index > 0) && (Mac2HostAddr(ptr) == sg_ptr[sg_index-1] + sg_len[sg_index-1])) {
 					sg_len[sg_index-1] += len;				// Merge to previous entry
-				else {
+				} else {
 					if (sg_index == SG_TABLE_SIZE) {
 						ErrorAlert(GetString(STR_SCSI_SG_FULL_ERR));
 						return -108;
@@ -208,21 +209,20 @@ int16 SCSISelect(int id)
 		return scSequenceErr;
 
 	// ID valid?
-	if (id >= 0 && id <= 7) {
-		target_id = id;
+	if (id < 0 || id > 7)
+		return scBadParmsErr;
 
-		// Target present?
-		if (scsi_is_target_present(target_id)) {
-			phase = PH_SELECTED;
-			fake_status = 0x006a;			// Target selected, command phase
-			return 0;
-		}
+	// Target present?
+	target_id = id;
+	if (!scsi_is_target_present(target_id)) {
+		phase = PH_FREE;
+		fake_status = 0x0000;	// Bus free
+		return scCommErr;
 	}
 
-	// Error
-	phase = PH_FREE;
-	fake_status = 0x0000;		// Bus free
-	return scCommErr;
+	phase = PH_SELECTED;
+	fake_status = 0x006a;		// Target selected, command phase
+	return 0;
 }
 
 

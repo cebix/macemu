@@ -466,11 +466,13 @@ int16 CDROMPrime(uint32 pb, uint32 dce)
 				// Yes, fake (otherwise audio CDs won't get mounted)
 				memset(buffer, 0, 0x200);
 				actual = 0x200;
-			} else
+			} else {
 				return readErr;
+			}
 		}
-	} else
+	} else {
 		return wPrErr;
+	}
 
 	// Update ParamBlock and DCE
 	WriteMacInt32(pb + ioActCount, actual);
@@ -500,7 +502,7 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			return noErr;
 		}
 
-		case 81:		// Set poll freq
+		case 81:	// Set poll freq
 			WriteMacInt16(dce + dCtlDelay, ReadMacInt16(pb + csParam));
 			return noErr;
 	}
@@ -508,10 +510,11 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 	// Drive valid?
 	drive_vec::iterator info = get_drive_info(ReadMacInt16(pb + ioVRefNum));
 	if (info == drives.end()) {
-		if (drives.empty())
+		if (drives.empty()) {
 			return nsDrvErr;
-		else
+		} else {
 			info = drives.begin();	// This is needed for Apple's Audio CD program
+		}
 	}
 
 	// Drive-specific codes
@@ -539,15 +542,15 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			WriteMacInt32(pb + csParam, CDROMIconAddr);
 			return noErr;
 
-		case 23:		// drive_info
+		case 23:		// GetDriveInfo
 			WriteMacInt32(pb + csParam, 0x00000b01);	// Unspecified external removable SCSI disk
 			return noErr;
 
 		case 70: {		// SetPowerMode
 			uint8 mode = ReadMacInt8(pb + csParam);
-			if (mode > 3)
+			if (mode > 3) {
 				return paramErr;
-			else {
+			} else {
 				info->power_mode = mode;
 				return noErr;
 			}
@@ -560,9 +563,9 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 		case 79: {		// Change block size
 			uint16 size = ReadMacInt16(pb + csParam);
 			D(bug(" change block size to %d bytes\n", size));
-			if (size != 512 && size != 2048)
+			if (size != 512 && size != 2048) {
 				return paramErr;
-			else {
+			} else {
 				info->block_size = size;
 				return noErr;
 			}
@@ -575,8 +578,9 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 				else
 					SysPreventRemoval(info->fh);
 				return noErr;
-			} else
+			} else {
 				return offLinErr;
+			}
 
 		case 100: {		// ReadTOC
 			if (ReadMacInt8(info->status + dsDiskInPlace) == 0)
@@ -611,7 +615,7 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 					}
 
 					// Fill buffer
-					if (i != 804)
+					if (i != 804) {
 						while (buf_size > 0) {
 							WriteMacInt8(buf, info->toc[i+1] & 0x0f); buf++;	// Control
 							WriteMacInt8(buf, bin2bcd[info->toc[i+5]]); buf++;	// M
@@ -625,6 +629,7 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 							buf_size -= 4;
 							i += 8;
 						}
+					}
 					break;
 				}
 
@@ -665,8 +670,9 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 				WriteMacInt8(p, bin2bcd[pos[11]]); p++;	// F (abs)
 				WriteMacInt8(p, 0);
 				return noErr;
-			} else
+			} else {
 				return ioErr;
+			}
 		}
 
 		case 102:		// ReadHeader
@@ -786,10 +792,11 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, start_m, start_s, start_f))
 				return paramErr;
 
-			if (!SysCDScan(info->fh, start_m, start_s, start_f, ReadMacInt16(pb + csParam + 6)))
+			if (!SysCDScan(info->fh, start_m, start_s, start_f, ReadMacInt16(pb + csParam + 6))) {
 				return paramErr;
-			else
+			} else {
 				return noErr;
+			}
 		}
 
 		case 109:		// AudioControl
@@ -805,7 +812,7 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			return controlErr;
 
 		case 112: {		// ReadAudioVolume
-			uint8 left, right;
+			uint8 left = 0, right = 0;
 			SysCDGetVolume(info->fh, left, right);
 			WriteMacInt8(pb + csParam, left);
 			WriteMacInt8(pb + csParam + 1, right);
@@ -940,8 +947,9 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 				WriteMacInt32(adr, SysGetFileSize(info->fh) / 512);	// Number of blocks
 				WriteMacInt32(adr + 4, 0);							// heads/track/sectors
 				return noErr;
-			} else
+			} else {
 				return paramErr;
+			}
 
 		case 8:			// DriveStatus
 			Mac2Mac_memcpy(pb + csParam, info->status, 22);
@@ -955,8 +963,9 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 			if (info->twok_offset > 0) {
 				WriteMacInt16(pb + csParam, info->twok_offset);
 				return noErr;
-			} else
+			} else {
 				return statusErr;
+			}
 
 		case 96:		// Get drive type
 			WriteMacInt16(pb + csParam, 3);			// Apple CD 300 or newer
