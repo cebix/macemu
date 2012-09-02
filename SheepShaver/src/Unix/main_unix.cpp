@@ -202,7 +202,6 @@ X11_LOCK_TYPE x_display_lock = X11_LOCK_INIT; // X11 display lock
 
 static int zero_fd = 0;						// FD of /dev/zero
 static bool lm_area_mapped = false;			// Flag: Low Memory area mmap()ped
-static int kernel_area = -1;				// SHM ID of Kernel Data area
 static bool rom_area_mapped = false;		// Flag: Mac ROM mmap()ped
 static bool ram_area_mapped = false;		// Flag: Mac RAM mmap()ped
 static bool dr_cache_area_mapped = false;	// Flag: Mac DR Cache mmap()ped
@@ -247,7 +246,7 @@ uintptr SheepMem::data;						// Top of SheepShaver data (stack like storage)
 
 // Prototypes
 static bool kernel_data_init(void);
-static void kernel_data_exit(void);
+static bool shm_map_address(int kernel_area, uint32 addr);
 static void Quit(void);
 static void *emul_func(void *arg);
 static void *nvram_func(void *arg);
@@ -1158,51 +1157,39 @@ static void Quit(void)
 
 static bool kernel_data_init(void)
 {
-	char str[256];
-	void *kernel_addr1 = NULL;
-	void *kernel_addr2 = NULL;
+	int error_string = STR_KD_SHMGET_ERR;
 	uint32 kernel_area_size = (KERNEL_AREA_SIZE + SHMLBA - 1) & -SHMLBA;
+	int kernel_area = shmget(IPC_PRIVATE, kernel_area_size, 0600);
+	if (kernel_area != -1) {
+		bool mapped =
+			shm_map_address(kernel_area, KERNEL_DATA_BASE & -SHMLBA) &&
+			shm_map_address(kernel_area, KERNEL_DATA2_BASE & -SHMLBA);
 
-	kernel_area = shmget(IPC_PRIVATE, kernel_area_size, 0600);
-	if (kernel_area == -1) {
-		sprintf(str, GetString(STR_KD_SHMGET_ERR), strerror(errno));
-		goto fail_shmget;
-	}
-	kernel_addr1 = Mac2HostAddr(KERNEL_DATA_BASE & -SHMLBA);
-	if (shmat(kernel_area, kernel_addr1, 0) != kernel_addr1) {
-		sprintf(str, GetString(STR_KD_SHMAT_ERR), strerror(errno));
-		goto fail_shmat1;
-	}
-	kernel_addr2 = Mac2HostAddr(KERNEL_DATA2_BASE & -SHMLBA);
-	if (shmat(kernel_area, kernel_addr2, 0) != kernel_addr2) {
-		sprintf(str, GetString(STR_KD2_SHMAT_ERR), strerror(errno));
-		goto fail_shmat2;
-	}
-	atexit(kernel_data_exit);
-	return true;
+		// Mark the shared memory segment for removal. This is safe to do
+		// because the deletion is not performed while the memory is still
+		// mapped and so will only be done once the process exits.
+		shmctl(kernel_area, IPC_RMID, NULL);
+		if (mapped)
+			return true;
 
-fail_shmat2:
-	shmdt(kernel_addr1);
-fail_shmat1:
-	shmctl(kernel_area, IPC_RMID, NULL);
-fail_shmget:
+		error_string = STR_KD_SHMAT_ERR;
+	}
+
+	char str[256];
+	sprintf(str, GetString(error_string), strerror(errno));
 	ErrorAlert(str);
 	return false;
 }
 
 
 /*
- *  Deallocate Kernel Data segments
+ *  Maps the memory identified by kernel_area at the specified addr
  */
 
-static void kernel_data_exit(void)
+static bool shm_map_address(int kernel_area, uint32 addr)
 {
-	if (kernel_area >= 0) {
-		shmdt(Mac2HostAddr(KERNEL_DATA_BASE & -SHMLBA));
-		shmdt(Mac2HostAddr(KERNEL_DATA2_BASE & -SHMLBA));
-		shmctl(kernel_area, IPC_RMID, NULL);
-		kernel_area = -1;
-	}
+	void *kernel_addr = Mac2HostAddr(addr);
+	return shmat(kernel_area, kernel_addr, 0) == kernel_addr;
 }
 
 
