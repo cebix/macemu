@@ -222,7 +222,7 @@ int16 XSERDPort::open(uint16 config)
 	}
 
 	// Configure port for raw mode
-	if (protocol == serial) {
+	if (protocol == serial || protocol == pty) {
 		if (tcgetattr(fd, &mode) < 0)
 			goto open_error;
 		cfmakeraw(&mode);
