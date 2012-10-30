@@ -993,7 +993,7 @@ static void slirp_add_redirs()
 static int slirp_add_redir(const char *redir_str)
 {
 	// code adapted from qemu source
-	struct in_addr guest_addr = { .s_addr = 0 };
+	struct in_addr guest_addr = {0};
 	int host_port, guest_port;
 	const char *p;
 	char buf[256];
