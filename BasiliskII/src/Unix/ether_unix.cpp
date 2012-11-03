@@ -66,6 +66,7 @@
 
 #ifdef HAVE_SLIRP
 #include "libslirp.h"
+#include "ctl.h"
 #endif
 
 #include "cpu_emulation.h"
@@ -131,6 +132,8 @@ static int16 ether_do_add_multicast(uint8 *addr);
 static int16 ether_do_del_multicast(uint8 *addr);
 static int16 ether_do_write(uint32 arg);
 static void ether_do_interrupt(void);
+static void slirp_add_redirs();
+static int slirp_add_redir(const char *redir_str);
 
 
 /*
@@ -279,6 +282,9 @@ bool ether_init(void)
 		// Open slirp input pipe
 		if (pipe(slirp_input_fds) < 0)
 			return false;
+
+		// Set up port redirects
+		slirp_add_redirs();
 	}
 #endif
 
@@ -950,4 +956,96 @@ void ether_do_interrupt(void)
 			ether_dispatch_packet(p, length);
 		}
 	}
+}
+
+// Helper function for port forwarding
+static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
+{
+	const char *p, *p1;
+	int len;
+	p = *pp;
+	p1 = strchr(p, sep);
+	if (!p1)
+		return -1;
+	len = p1 - p;
+	p1++;
+	if (buf_size > 0) {
+		if (len > buf_size - 1)
+			len = buf_size - 1;
+		memcpy(buf, p, len);
+		buf[len] = '\0';
+	}
+	*pp = p1;
+	return 0;
+}
+
+// Set up port forwarding for slirp
+static void slirp_add_redirs()
+{
+	int index = 0;
+	const char *str;
+	while ((str = PrefsFindString("redir", index++)) != NULL) {
+		slirp_add_redir(str);
+	}
+}
+
+// Add a port forward/redirection for slirp
+static int slirp_add_redir(const char *redir_str)
+{
+	// code adapted from qemu source
+	struct in_addr guest_addr = {0};
+	int host_port, guest_port;
+	const char *p;
+	char buf[256];
+	int is_udp;
+	char *end;
+	char str[256];
+
+	p = redir_str;
+	if (!p || get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+		goto fail_syntax;
+	}
+	if (!strcmp(buf, "tcp") || buf[0] == '\0') {
+		is_udp = 0;
+	} else if (!strcmp(buf, "udp")) {
+		is_udp = 1;
+	} else {
+		goto fail_syntax;
+	}
+
+	if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+		goto fail_syntax;
+	}
+	host_port = strtol(buf, &end, 0);
+	if (*end != '\0' || host_port < 1 || host_port > 65535) {
+		goto fail_syntax;
+	}
+
+	if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+		goto fail_syntax;
+	}
+	// 0.0.0.0 doesn't seem to work, so default to a client address
+	// if none is specified
+	if (buf[0] == '\0' ?
+			!inet_aton(CTL_LOCAL, &guest_addr) :
+			!inet_aton(buf, &guest_addr)) {
+		goto fail_syntax;
+	}
+
+	guest_port = strtol(p, &end, 0);
+	if (*end != '\0' || guest_port < 1 || guest_port > 65535) {
+		goto fail_syntax;
+	}
+
+	if (slirp_redir(is_udp, host_port, guest_addr, guest_port) < 0) {
+		sprintf(str, "could not set up host forwarding rule '%s'", redir_str);
+		WarningAlert(str);
+		return -1;
+	}
+	return 0;
+
+ fail_syntax:
+	sprintf(str, "invalid host forwarding rule '%s'", redir_str);
+	WarningAlert(str);
+	return -1;
 }

@@ -528,6 +528,18 @@ udpport <IP port number>
   This item specifies the IP port number to use for the "UDP Tunnel" mode.
   The default is 6066.
 
+redir <port redirection description>
+
+  This item defines a port to be forwarded from the host to the client. 
+  The format is "[protocol]:hostport:[clientaddress]:clientport", where
+  protocol is "udp" or "tcp" (default), hostport is the port on your
+  computer to forward to the Mac, clientaddress is the IP address of the Mac
+  in the virtual network (defaults to 10.0.2.15), and clientport is the port on
+  the Mac to be exposed. For example, if you have a web server in MacOS running
+  on port 80, you can expose it as port 8000 with the line below:
+
+  redir tcp:8000:10.0.2.15:80
+
 rom <ROM file path>
 
   This item specifies the file name of the Mac ROM file to be used by
