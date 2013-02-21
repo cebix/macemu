@@ -134,6 +134,7 @@ static int screen_depth;							// Depth of current screen
 static SDL_Cursor *sdl_cursor;						// Copy of Mac cursor
 static SDL_Color sdl_palette[256];					// Color palette to be used as CLUT and gamma table
 static bool sdl_palette_changed = false;			// Flag: Palette changed, redraw thread must set new colors
+static bool toggle_fullscreen = false;
 static const int sdl_eventmask = SDL_MOUSEEVENTMASK | SDL_KEYEVENTMASK | SDL_VIDEOEXPOSEMASK | SDL_QUITMASK | SDL_ACTIVEEVENTMASK;
 
 static bool mouse_grabbed = false;
@@ -1215,6 +1216,51 @@ void VideoQuitFullScreen(void)
 	quit_full_screen = true;
 }
 
+#ifdef SHEEPSHAVER
+static void do_toggle_fullscreen(void)
+{
+	// pause redraw thread
+	thread_stop_ack = false;
+	thread_stop_req = true;
+	while (!thread_stop_ack) ;
+
+	// save the mouse position
+	int x, y;
+	SDL_GetMouseState(&x, &y);
+
+	// save the screen contents
+	SDL_Surface *tmp_surface = SDL_ConvertSurface(drv->s, drv->s->format,
+		drv->s->flags);
+
+	// switch modes
+	display_type = (display_type == DISPLAY_SCREEN) ? DISPLAY_WINDOW
+		: DISPLAY_SCREEN;
+	drv->set_video_mode(display_type == DISPLAY_SCREEN ? SDL_FULLSCREEN : 0);
+	drv->adapt_to_video_mode();
+
+	// reset the palette
+	video_set_palette();
+	drv->update_palette();
+
+	// restore the screen contents
+	SDL_BlitSurface(tmp_surface, NULL, drv->s, NULL);
+	SDL_FreeSurface(tmp_surface);
+	SDL_UpdateRect(drv->s, 0, 0, 0, 0);
+
+	// reset the video refresh handler
+	VideoRefreshInit();
+
+	// while SetVideoMode is happening, control key up may be missed
+	ADBKeyUp(0x36);
+
+	// restore the mouse position
+	SDL_WarpMouse(x, y);
+
+	// resume redraw thread
+	toggle_fullscreen = false;
+	thread_stop_req = false;
+}
+#endif
 
 /*
  *  Mac VBL interrupt
@@ -1230,6 +1276,9 @@ void VideoVBL(void)
 	// Emergency quit requested? Then quit
 	if (emerg_quit)
 		QuitEmulator();
+
+	if (toggle_fullscreen)
+		do_toggle_fullscreen();
 
 	// Temporarily give up frame buffer lock (this is the point where
 	// we are suspended when the user presses Ctrl-Tab)
@@ -1547,7 +1596,7 @@ static int kc_decode(SDL_keysym const & ks, bool key_down)
 	case SDLK_SLASH: case SDLK_QUESTION: return 0x2c;
 
 	case SDLK_TAB: if (is_ctrl_down(ks)) {if (!key_down) drv->suspend(); return -2;} else return 0x30;
-	case SDLK_RETURN: return 0x24;
+	case SDLK_RETURN: if (is_ctrl_down(ks)) {if (!key_down) toggle_fullscreen = true; return -2;} else return 0x24;
 	case SDLK_SPACE: return 0x31;
 	case SDLK_BACKSPACE: return 0x33;
 
