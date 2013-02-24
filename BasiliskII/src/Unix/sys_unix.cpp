@@ -70,6 +70,11 @@
 #define DEBUG 0
 #include "debug.h"
 
+static disk_factory *disk_factories[] = {
+	disk_sparsebundle_factory,
+	NULL
+};
+
 // File handles are pointers to these structures
 struct mac_file_handle {
 	char *name;	        // Copy of device/file name
@@ -619,16 +624,17 @@ void *Sys_open(const char *name, bool read_only)
 	}
 #endif
 	
-	// FIXME
-	disk_generic *generic = disk_sparsebundle_factory(name, read_only);
-	if (generic) {
-		mac_file_handle *fh = open_filehandle(name);
-		fh->generic_disk = generic;
-		fh->file_size = generic->size();
-		fh->read_only = generic->is_read_only();
-		fh->is_media_present = true;
-		sys_add_mac_file_handle(fh);
-		return fh;
+	for (disk_factory **f = disk_factories; *f; ++f) {
+		disk_generic *generic = (*f)(name, read_only);
+		if (generic) {
+			mac_file_handle *fh = open_filehandle(name);
+			fh->generic_disk = generic;
+			fh->file_size = generic->size();
+			fh->read_only = generic->is_read_only();
+			fh->is_media_present = true;
+			sys_add_mac_file_handle(fh);
+			return fh;
+		}
 	}
 
 	int open_flags = (read_only ? O_RDONLY : O_RDWR);
