@@ -25,7 +25,6 @@
  
 // TODO
 // - Add to basilisk build
-// - Add to 'make links'
 // - Test on Linux
 // - Iterate through factories 
 
