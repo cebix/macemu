@@ -36,5 +36,6 @@ struct disk_generic {
 typedef disk_generic *(disk_factory)(const char *path, bool read_only);
 
 extern disk_factory disk_sparsebundle_factory;
+extern disk_factory disk_vhd_factory;
 
 #endif

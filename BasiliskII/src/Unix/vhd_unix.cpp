@@ -19,7 +19,7 @@
  */
 
 #include "sysdeps.h"
-#include "vhd_unix.h"
+#include "disk_unix.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -32,7 +32,7 @@ extern "C" {
 #define DEBUG 0
 #include "debug.h"
 
-void *vhd_unix_open(const char *name, int *size, bool read_only)
+static void *vhd_unix_open(const char *name, int *size, bool read_only)
 {
 	int amode = read_only ? R_OK : (R_OK | W_OK);
 	int fid;
@@ -79,9 +79,9 @@ void *vhd_unix_open(const char *name, int *size, bool read_only)
 	}
 }
 
-int vhd_unix_read(void *arg, void *buffer, loff_t offset, size_t length)
+static int vhd_unix_read(vhd_context_t *ctx, void *buffer, loff_t offset,
+	size_t length)
 {
-	vhd_context_t *ctx = (vhd_context_t *) arg;
 	int err;
 	if ((offset % VHD_SECTOR_SIZE) || (length % VHD_SECTOR_SIZE)) {
 		printf("vhd read only supported on sector boundaries (%d)\n",
@@ -97,10 +97,10 @@ int vhd_unix_read(void *arg, void *buffer, loff_t offset, size_t length)
 		return length;
 }
 
-int vhd_unix_write(void *arg, void *buffer, loff_t offset, size_t length)
+static int vhd_unix_write(vhd_context_t *ctx, void *buffer, loff_t offset,
+	size_t length)
 {
 	int err;
-	vhd_context_t *ctx = (vhd_context_t *) arg;
 
 	if ((offset % VHD_SECTOR_SIZE) || (length % VHD_SECTOR_SIZE)) {
 		printf("vhd write only supported on sector boundaries (%d)\n",
@@ -116,9 +116,41 @@ int vhd_unix_write(void *arg, void *buffer, loff_t offset, size_t length)
 		return length;
 }
 
-void vhd_unix_close(void *arg)
+
+static void vhd_unix_close(vhd_context_t *ctx)
 {
 	D(bug("vhd close\n"));
-	vhd_close((vhd_context_t *) arg);
-	free(arg);
+	vhd_close(ctx);
+	free(ctx);
+}
+
+
+struct disk_vhd : disk_generic {
+	disk_vhd(vhd_context_t *ctx, bool read_only, loff_t size)
+	: ctx(ctx), read_only(read_only), file_size(size) { }
+	
+	virtual ~disk_vhd() { vhd_unix_close(ctx); }
+	virtual bool is_read_only() { return read_only; }
+	virtual loff_t size() { return file_size; }
+	
+	virtual size_t read(void *buf, loff_t offset, size_t length) {
+		return vhd_unix_read(ctx, buf, offset, length);
+	}
+	
+	virtual size_t write(void *buf, loff_t offset, size_t length) {
+		return vhd_unix_write(ctx, buf, offset, length);
+	}
+
+protected:
+	vhd_context_t *ctx;
+	bool read_only;
+	loff_t file_size;
+};
+
+disk_generic *disk_vhd_factory(const char *path, bool read_only) {
+	int size;
+	vhd_context_t *ctx = (vhd_context_t*)vhd_unix_open(path, &size, read_only);
+	if (!ctx)
+		return NULL;
+	return new disk_vhd(ctx, read_only, size);
 }
