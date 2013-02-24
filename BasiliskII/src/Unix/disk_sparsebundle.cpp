@@ -24,7 +24,6 @@
 #include <limits.h>
  
 // TODO
-// - Add to basilisk build
 // - Test on Linux
 // - Iterate through factories 
 
