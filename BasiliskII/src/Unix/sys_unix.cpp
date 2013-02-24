@@ -56,6 +56,7 @@
 #include "prefs.h"
 #include "user_strings.h"
 #include "sys.h"
+#include "disk_unix.h"
 
 #if defined(BINCUE)
 #include "bincue_unix.h"
@@ -83,6 +84,7 @@ struct mac_file_handle {
 	loff_t file_size;	// Size of file data (only valid if is_file is true)
 
 	bool is_media_present;		// Flag: media is inserted and available
+	disk_generic *generic_disk;
 
 #if defined(__linux__)
 	int cdrom_cap;		// CD-ROM capability flags (only valid if is_cdrom is true)
@@ -525,6 +527,7 @@ static mac_file_handle *open_filehandle(const char *name)
 		memset(fh, 0, sizeof(mac_file_handle));
 		fh->name = strdup(name);
 		fh->fd = -1;
+		fh->generic_disk = NULL;
 #if defined __MACOSX__
 		fh->ioctl_fd = -1;
 		fh->ioctl_name = NULL;
@@ -615,6 +618,18 @@ void *Sys_open(const char *name, bool read_only)
 		return fh;
 	}
 #endif
+	
+	// FIXME
+	disk_generic *generic = disk_sparsebundle_factory(name, read_only);
+	if (generic) {
+		mac_file_handle *fh = open_filehandle(name);
+		fh->generic_disk = generic;
+		fh->file_size = generic->size();
+		fh->read_only = generic->is_read_only();
+		fh->is_media_present = true;
+		sys_add_mac_file_handle(fh);
+		return fh;
+	}
 
 	int open_flags = (read_only ? O_RDONLY : O_RDWR);
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__MACOSX__)
@@ -727,6 +742,8 @@ void Sys_close(void *arg)
 	if (fh->is_bincue)
 		close_bincue(fh->bincue_fd);
 #endif
+	if (fh->generic_disk)
+		delete fh->generic_disk;
 
 	if (fh->is_cdrom)
 		cdrom_close(fh);
@@ -759,6 +776,9 @@ size_t Sys_read(void *arg, void *buffer, loff_t offset, size_t length)
 		return vhd_unix_read(fh->vhd_fd, buffer, offset, length);
 #endif
 
+	if (fh->generic_disk)
+		return fh->generic_disk->read(buffer, offset, length);
+	
 	// Seek to position
 	if (lseek(fh->fd, offset + fh->start_byte, SEEK_SET) < 0)
 		return 0;
@@ -783,6 +803,9 @@ size_t Sys_write(void *arg, void *buffer, loff_t offset, size_t length)
 	if (fh->is_vhd)
 		return vhd_unix_write(fh->vhd_fd, buffer, offset, length);
 #endif
+
+	if (fh->generic_disk)
+		return fh->generic_disk->write(buffer, offset, length);
 
 	// Seek to position
 	if (lseek(fh->fd, offset + fh->start_byte, SEEK_SET) < 0)
@@ -812,6 +835,9 @@ loff_t SysGetFileSize(void *arg)
 	if (fh->is_vhd)
 		return fh->file_size;
 #endif
+
+	if (fh->generic_disk)
+		return fh->file_size;
 
 	if (fh->is_file)
 		return fh->file_size;
@@ -950,6 +976,9 @@ bool SysIsFixedDisk(void *arg)
 	if (fh->is_vhd)
 		return true;
 #endif
+	
+	if (fh->generic_disk)
+		return true;
 
 	if (fh->is_file)
 		return true;
@@ -975,6 +1004,9 @@ bool SysIsDiskInserted(void *arg)
 		return true;
 #endif
 
+	if (fh->generic_disk)
+		return true;
+	
 	if (fh->is_file) {
 		return true;
 
