@@ -23,10 +23,6 @@
 
 #include <limits.h>
  
-// TODO
-// - Test on Linux
-// - Iterate through factories 
-
 typedef ssize_t (band_func)(int fd, void *buf, size_t len);
 
 static ssize_t band_read(int fd, void *buf, size_t len) {
