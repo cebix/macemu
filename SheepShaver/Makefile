@@ -71,8 +71,8 @@ links:
 	       Unix/keycodes Unix/tunconfig Unix/clip_unix.cpp Unix/Irix/audio_irix.cpp \
 	       Unix/Linux/scsi_linux.cpp Unix/Linux/NetDriver Unix/ether_unix.cpp \
 	       Unix/rpc.h Unix/rpc_unix.cpp Unix/ldscripts \
-		   Unix/tinyxml2.h Unix/tinyxml2.cpp Unix/disk_unix.h \
-		   Unix/disk_sparsebundle.cpp Unix/Darwin/mkstandalone \
+	       Unix/tinyxml2.h Unix/tinyxml2.cpp Unix/disk_unix.h \
+	       Unix/disk_sparsebundle.cpp Unix/Darwin/mkstandalone \
 	       Unix/Darwin/lowmem.c Unix/Darwin/pagezero.c Unix/Darwin/testlmem.sh \
 	       dummy/audio_dummy.cpp dummy/clip_dummy.cpp dummy/serial_dummy.cpp \
 	       dummy/prefs_editor_dummy.cpp dummy/scsi_dummy.cpp SDL slirp \
