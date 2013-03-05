@@ -353,12 +353,13 @@ int main(int argc, char **argv)
 	vm_init();
 
 	// Create areas for Mac RAM and ROM
-	RAMBaseHost = (uint8 *)vm_acquire_mac(RAMSize);
-	ROMBaseHost = (uint8 *)vm_acquire_mac(0x100000);
-	if (RAMBaseHost == VM_MAP_FAILED || ROMBaseHost == VM_MAP_FAILED) {
+	uint8 *ram_rom_area = (uint8 *)vm_acquire_mac(RAMSize + 0x100000);
+	if (ram_rom_area == VM_MAP_FAILED) {
 		ErrorAlert(STR_NO_MEM_ERR);
 		QuitEmulator();
 	}
+	RAMBaseHost = ram_rom_area;
+	ROMBaseHost = RAMBaseHost + RAMSize;
 
 #if USE_SCRATCHMEM_SUBTERFUGE
 	// Allocate scratch memory
