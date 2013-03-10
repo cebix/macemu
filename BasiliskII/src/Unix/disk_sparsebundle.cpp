@@ -39,18 +39,19 @@ static ssize_t band_read(int fd, void *buf, size_t len) {
 }
 
 static ssize_t band_write(int fd, void *buf, size_t len) {
-	return ::write(fd, buf, len);
+	return (fd == -1 ? 0 : ::write(fd, buf, len));
 }
 
 struct disk_sparsebundle : disk_generic {
-	disk_sparsebundle(char *bands, int fd, bool read_only, loff_t band_size,
-			loff_t total_size)
+	disk_sparsebundle(const char *bands, int fd, bool read_only,
+		loff_t band_size, loff_t total_size)
 	: token_fd(fd), read_only(read_only), band_size(band_size),
-			total_size(total_size), band_dir(bands), band_cur(-1), band_fd(0) {
+		total_size(total_size), band_dir(strdup(bands)),
+		band_cur(-1), band_fd(-1) {
 	}
 	
 	virtual ~disk_sparsebundle() {
-		if (band_fd)
+		if (band_fd != -1)
 			close(band_fd);
 		close(token_fd);
 		free(band_dir);
@@ -256,7 +257,6 @@ disk_generic *disk_sparsebundle_factory(const char *path, bool read_only) {
 	// We're good to go!
 	if (snprintf(buf, PATH_MAX, "%s/%s", path, "bands") >= PATH_MAX)
 		return NULL;
-	char *bands = strdup(buf);
-	return new disk_sparsebundle(bands, token, read_only, band_size,
+	return new disk_sparsebundle(buf, token, read_only, band_size,
 		total_size);
 }
