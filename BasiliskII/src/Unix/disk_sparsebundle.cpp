@@ -23,21 +23,6 @@
 
 #include <limits.h>
  
-typedef ssize_t (band_func)(int fd, void *buf, size_t len);
-
-static ssize_t band_read(int fd, void *buf, size_t len) {
-	ssize_t err = (fd == -1 ? 0 : ::read(fd, buf, len));
-	if (err == -1)
-		return err;
-	if (err < len)
-		memset((char*)buf + err, 0, len - err);
-	return len;
-}
-
-static ssize_t band_write(int fd, void *buf, size_t len) {
-	return (fd == -1 ? 0 : ::write(fd, buf, len));
-}
-
 struct disk_sparsebundle : disk_generic {
 	disk_sparsebundle(const char *bands, int fd, bool read_only,
 		loff_t band_size, loff_t total_size)
@@ -57,11 +42,11 @@ struct disk_sparsebundle : disk_generic {
 	virtual loff_t size() { return total_size; }
 	
 	virtual size_t read(void *buf, loff_t offset, size_t length) {
-		return band_do(&band_read, buf, offset, length);
+		return band_do(&disk_sparsebundle::band_read, buf, offset, length);
 	}
 	
 	virtual size_t write(void *buf, loff_t offset, size_t length) {
-		return band_do(&band_write, buf, offset, length);
+		return band_do(&disk_sparsebundle::band_write, buf, offset, length);
 	}
 	
 protected:
@@ -72,6 +57,8 @@ protected:
 	
 	loff_t band_cur;
 	int band_fd;
+	
+	typedef ssize_t (disk_sparsebundle::*band_func)(char *buf, size_t len);
 	
 	size_t band_do(band_func func, void *buf, loff_t offset, size_t length) {
 		char *b = (char*)buf;
@@ -88,7 +75,7 @@ protected:
 			
 			if (band_fd != -1 && lseek(band_fd, start, SEEK_SET) == -1)
 				return done;
-			ssize_t err = func(band_fd, buf, segment);
+			ssize_t err = (this->*func)((char*)buf, segment);
 			if (err > 0)
 				done += err;
 			if (err < segment)
@@ -126,6 +113,19 @@ protected:
 		
 		band_cur = band;
 		return true;
+	}
+	
+	ssize_t band_read(char *buf, size_t len) {
+		ssize_t err = (band_fd == -1 ? 0 : ::read(band_fd, buf, len));
+		if (err == -1)
+			return err;
+		if (err < len)
+			memset(buf + err, 0, len - err);
+		return len;
+	}
+
+	ssize_t band_write(char *buf, size_t len) {
+		return ::write(band_fd, buf, len);
 	}
 };
 
