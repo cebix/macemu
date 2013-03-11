@@ -21,14 +21,16 @@
 #include "disk_unix.h"
 #include "tinyxml2.h"
 
+#include <errno.h>
 #include <limits.h>
+#include <algorithm>
  
 struct disk_sparsebundle : disk_generic {
 	disk_sparsebundle(const char *bands, int fd, bool read_only,
 		loff_t band_size, loff_t total_size)
 	: token_fd(fd), read_only(read_only), band_size(band_size),
 		total_size(total_size), band_dir(strdup(bands)),
-		band_cur(-1), band_fd(-1) {
+		band_cur(-1), band_fd(-1), band_alloc(-1) {
 	}
 	
 	virtual ~disk_sparsebundle() {
@@ -50,32 +52,31 @@ struct disk_sparsebundle : disk_generic {
 	}
 	
 protected:
-	int token_fd;
+	int token_fd;			// lockfile
 	bool read_only;
 	loff_t band_size, total_size;
-	char *band_dir;
+	char *band_dir;			// directory containing band files
 	
-	loff_t band_cur;
-	int band_fd;
+	// Currently open band
+	loff_t band_cur;		// index of the band
+	int band_fd;			// -1 if not open
+	loff_t band_alloc;		// how much space is already used?
 	
-	typedef ssize_t (disk_sparsebundle::*band_func)(char *buf, size_t len);
+	typedef ssize_t (disk_sparsebundle::*band_func)(char *buf, loff_t band,
+		size_t offset, size_t len);
 	
+	// Split an (offset, length) operation into bands.
 	size_t band_do(band_func func, void *buf, loff_t offset, size_t length) {
 		char *b = (char*)buf;
 		loff_t band = offset / band_size;
 		size_t done = 0;
 		while (length) {
-			if (!open_band(band))
+			if (offset >= total_size)
 				break;
-			
 			size_t start = offset % band_size;
-			size_t segment = band_size - start;
-			if (segment > length)
-				segment = length;
+			size_t segment = std::min((size_t)band_size - start, length);
 			
-			if (band_fd != -1 && lseek(band_fd, start, SEEK_SET) == -1)
-				return done;
-			ssize_t err = (this->*func)((char*)buf, segment);
+			ssize_t err = (this->*func)(b, band, start, segment);
 			if (err > 0)
 				done += err;
 			if (err < segment)
@@ -88,44 +89,88 @@ protected:
 		}
 		return done;
 	}
-	
-	// Open band index 'band', return false on error
-	bool open_band(loff_t band) {
+		
+	// Open a band by index. It's ok if the band is already open.
+	enum open_ret {
+		OPEN_FAILED = 0,
+		OPEN_NOENT,		// Band doesn't exist yet
+		OPEN_OK,
+	};
+	open_ret open_band(loff_t band, bool create) {
 		if (band_cur == band)
-			return true;
+			return OPEN_OK;
 		
 		char path[PATH_MAX + 1];
 		if (snprintf(path, PATH_MAX, "%s/%lx", band_dir,
 				(unsigned long)band) >= PATH_MAX) {
-			return false;
+			return OPEN_FAILED;
 		}
 		
-		int oflags = read_only ? O_RDONLY : (O_RDWR | O_CREAT);
+		if (band_fd != -1)
+			close(band_fd);
+		band_alloc = -1;
+		band_cur = -1;
+		
+		int oflags = read_only ? O_RDONLY : O_RDWR;
+		if (create)
+			oflags |= O_CREAT;
 		band_fd = open(path, oflags, 0644);
 		if (band_fd == -1) {
-			if (read_only) {
-				band_cur == -1;
-				return true;
-			} else {
-				return false;
-			}
+			return (!create && errno == ENOENT) ? OPEN_NOENT : OPEN_FAILED;
 		}
 		
+		// Get the allocated size
+		if (!read_only) {
+			band_alloc = lseek(band_fd, 0, SEEK_END);
+			if (band_alloc == -1)
+				band_alloc = band_size;
+		}
 		band_cur = band;
-		return true;
+		return OPEN_OK;
 	}
 	
-	ssize_t band_read(char *buf, size_t len) {
-		ssize_t err = (band_fd == -1 ? 0 : ::read(band_fd, buf, len));
-		if (err == -1)
-			return err;
-		if (err < len)
-			memset(buf + err, 0, len - err);
+	ssize_t band_read(char *buf, loff_t band, size_t off, size_t len) {
+		open_ret st = open_band(band, false);
+		if (st == OPEN_FAILED)
+			return -1;
+		
+		// Unallocated bytes 
+		size_t want = (st == OPEN_NOENT || off >= band_alloc) ? 0
+			: std::min(len, (size_t)band_alloc - off);
+		if (want) {
+			if (lseek(band_fd, off, SEEK_SET) == -1)
+				return -1;
+			ssize_t err = ::read(band_fd, buf, want);
+			if (err < want)
+				return err;
+		}
+		memset(buf + want, 0, len - want);
 		return len;
 	}
 
-	ssize_t band_write(char *buf, size_t len) {
-		return ::write(band_fd, buf, len);
+	ssize_t band_write(char *buf, loff_t band, size_t off, size_t len) {
+		// If space is unused, don't needlessly fill it with zeros
+		
+		// Find min length such that all trailing chars are zero:
+		size_t nz = len;
+		for (; nz > 0 && !buf[nz-1]; --nz)
+			; // pass
+		
+		open_ret st = open_band(band, nz);
+		if (st != OPEN_OK)
+			return st == OPEN_NOENT ? len : -1;
+
+		if (lseek(band_fd, off, SEEK_SET) == -1)
+			return -1;
+		
+		size_t space = (off >= band_alloc ? 0 : band_alloc - off);
+		size_t want = std::max(nz, std::min(space, len));
+		ssize_t err = ::write(band_fd, buf, want);
+		if (err >= 0)
+			band_alloc = std::max(band_alloc, loff_t(off + err));
+		if (err < want)
+			return err;
+		return len;
 	}
 };
 
