@@ -603,9 +603,10 @@ void *Sys_open(const char *name, bool read_only)
 #endif
 
 
-	for (disk_factory **f = disk_factories; *f; ++f) {
+	for (int i = 0; disk_factories[i]; ++i) {
+		disk_factory *f = disk_factories[i];
 		disk_generic *generic;
-		disk_generic::status st = (*f)(name, read_only, &generic);
+		disk_generic::status st = f(name, read_only, &generic);
 		if (st == disk_generic::DISK_INVALID)
 			return NULL;
 		if (st == disk_generic::DISK_VALID) {
