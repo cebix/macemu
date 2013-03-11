@@ -56,18 +56,24 @@
 #include "prefs.h"
 #include "user_strings.h"
 #include "sys.h"
+#include "disk_unix.h"
 
 #if defined(BINCUE)
 #include "bincue_unix.h"
 #endif
 
-#if defined(HAVE_LIBVHD)
-#include "vhd_unix.h"
-#endif
 
 
 #define DEBUG 0
 #include "debug.h"
+
+static disk_factory *disk_factories[] = {
+	disk_sparsebundle_factory,
+#if defined(HAVE_LIBVHD)
+	disk_vhd_factory,
+#endif
+	NULL
+};
 
 // File handles are pointers to these structures
 struct mac_file_handle {
@@ -83,6 +89,7 @@ struct mac_file_handle {
 	loff_t file_size;	// Size of file data (only valid if is_file is true)
 
 	bool is_media_present;		// Flag: media is inserted and available
+	disk_generic *generic_disk;
 
 #if defined(__linux__)
 	int cdrom_cap;		// CD-ROM capability flags (only valid if is_cdrom is true)
@@ -96,11 +103,6 @@ struct mac_file_handle {
 #if defined(BINCUE)
 	bool is_bincue;		// Flag: BIN CUE file
 	void *bincue_fd;
-#endif
-
-#if defined(HAVE_LIBVHD)
-	bool is_vhd;		// Flag: VHD file
-	void *vhd_fd;
 #endif
 };
 
@@ -525,6 +527,7 @@ static mac_file_handle *open_filehandle(const char *name)
 		memset(fh, 0, sizeof(mac_file_handle));
 		fh->name = strdup(name);
 		fh->fd = -1;
+		fh->generic_disk = NULL;
 #if defined __MACOSX__
 		fh->ioctl_fd = -1;
 		fh->ioctl_name = NULL;
@@ -600,21 +603,22 @@ void *Sys_open(const char *name, bool read_only)
 #endif
 
 
-#if defined(HAVE_LIBVHD)
-	int vhdsize;
-	void *vhdfd = vhd_unix_open(name, &vhdsize, read_only);
-	if (vhdfd) {
-		mac_file_handle *fh = open_filehandle(name);
-		D(bug("opening %s as vnd\n", name));
-		fh->is_vhd = true;
-		fh->vhd_fd = vhdfd; 
-		fh->read_only = read_only;
-		fh->file_size = vhdsize;
-		fh->is_media_present = true;
-		sys_add_mac_file_handle(fh);
-		return fh;
+	for (int i = 0; disk_factories[i]; ++i) {
+		disk_factory *f = disk_factories[i];
+		disk_generic *generic;
+		disk_generic::status st = f(name, read_only, &generic);
+		if (st == disk_generic::DISK_INVALID)
+			return NULL;
+		if (st == disk_generic::DISK_VALID) {
+			mac_file_handle *fh = open_filehandle(name);
+			fh->generic_disk = generic;
+			fh->file_size = generic->size();
+			fh->read_only = generic->is_read_only();
+			fh->is_media_present = true;
+			sys_add_mac_file_handle(fh);
+			return fh;
+		}
 	}
-#endif
 
 	int open_flags = (read_only ? O_RDONLY : O_RDWR);
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__MACOSX__)
@@ -718,15 +722,12 @@ void Sys_close(void *arg)
 
 	sys_remove_mac_file_handle(fh);
 
-#if defined(HAVE_LIBVHD)
-	if (fh->is_vhd)
-		vhd_unix_close(fh->vhd_fd);
-#endif
-
 #if defined(BINCUE)
 	if (fh->is_bincue)
 		close_bincue(fh->bincue_fd);
 #endif
+	if (fh->generic_disk)
+		delete fh->generic_disk;
 
 	if (fh->is_cdrom)
 		cdrom_close(fh);
@@ -754,11 +755,9 @@ size_t Sys_read(void *arg, void *buffer, loff_t offset, size_t length)
 		return read_bincue(fh->bincue_fd, buffer, offset, length);
 #endif
 
-#if defined(HAVE_LIBVHD)
-	if (fh->is_vhd)
-		return vhd_unix_read(fh->vhd_fd, buffer, offset, length);
-#endif
-
+	if (fh->generic_disk)
+		return fh->generic_disk->read(buffer, offset, length);
+	
 	// Seek to position
 	if (lseek(fh->fd, offset + fh->start_byte, SEEK_SET) < 0)
 		return 0;
@@ -779,10 +778,8 @@ size_t Sys_write(void *arg, void *buffer, loff_t offset, size_t length)
 	if (!fh)
 		return 0;
 
-#if defined(HAVE_LIBVHD)
-	if (fh->is_vhd)
-		return vhd_unix_write(fh->vhd_fd, buffer, offset, length);
-#endif
+	if (fh->generic_disk)
+		return fh->generic_disk->write(buffer, offset, length);
 
 	// Seek to position
 	if (lseek(fh->fd, offset + fh->start_byte, SEEK_SET) < 0)
@@ -808,10 +805,8 @@ loff_t SysGetFileSize(void *arg)
 		return size_bincue(fh->bincue_fd);
 #endif 
 
-#if defined(HAVE_LIBVHD)
-	if (fh->is_vhd)
+	if (fh->generic_disk)
 		return fh->file_size;
-#endif
 
 	if (fh->is_file)
 		return fh->file_size;
@@ -946,10 +941,8 @@ bool SysIsFixedDisk(void *arg)
 	if (!fh)
 		return true;
 
-#if defined(HAVE_LIBVHD)
-	if (fh->is_vhd)
+	if (fh->generic_disk)
 		return true;
-#endif
 
 	if (fh->is_file)
 		return true;
@@ -970,11 +963,9 @@ bool SysIsDiskInserted(void *arg)
 	if (!fh)
 		return false;
 
-#if defined(HAVE_LIBVHD)
-	if (fh->is_vhd)
+	if (fh->generic_disk)
 		return true;
-#endif
-
+	
 	if (fh->is_file) {
 		return true;
 

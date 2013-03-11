@@ -59,7 +59,7 @@ SRCS = ../main.cpp main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp 
     ../macos_util.cpp ../timer.cpp timer_unix.cpp ../xpram.cpp xpram_unix.cpp \
     ../adb.cpp ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp \
     ../gfxaccel.cpp ../video.cpp video_blit.cpp ../audio.cpp ../ether.cpp ../thunks.cpp \
-    ../serial.cpp ../extfs.cpp \
+    ../serial.cpp ../extfs.cpp disk_sparsebundle.cpp tinyxml2.cpp \
     about_window_unix.cpp ../user_strings.cpp user_strings_unix.cpp \
     vm_alloc.cpp sigsegv.cpp rpc_unix.cpp \
     sshpty.c strlcpy.c $(SYSSRCS) $(CPUSRCS) $(MONSRCS) $(SLIRP_SRCS)
