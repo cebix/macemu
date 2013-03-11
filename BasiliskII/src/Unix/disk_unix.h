@@ -24,6 +24,12 @@
 #include "sysdeps.h"
 
 struct disk_generic {
+	enum status {
+		DISK_UNKNOWN,
+		DISK_INVALID,
+		DISK_VALID,
+	};
+	
 	disk_generic() { }
 	virtual ~disk_generic() { };
 	
@@ -33,7 +39,8 @@ struct disk_generic {
 	virtual loff_t size() = 0;
 };
 
-typedef disk_generic *(disk_factory)(const char *path, bool read_only);
+typedef disk_generic::status (disk_factory)(const char *path, bool read_only,
+	disk_generic **disk);
 
 extern disk_factory disk_sparsebundle_factory;
 extern disk_factory disk_vhd_factory;

@@ -32,7 +32,8 @@ extern "C" {
 #define DEBUG 0
 #include "debug.h"
 
-static void *vhd_unix_open(const char *name, int *size, bool read_only)
+static disk_generic::status vhd_unix_open(const char *name, int *size,
+	bool read_only, vhd_context_t **ctx)
 {
 	int amode = read_only ? R_OK : (R_OK | W_OK);
 	int fid;
@@ -42,12 +43,12 @@ static void *vhd_unix_open(const char *name, int *size, bool read_only)
 
 	if (access(name, amode)) {
 		D(bug("vhd open -- incorrect permissions %s\n", name));
-		return NULL;
+		return disk_generic::DISK_UNKNOWN;
 	}
   
 	if (! (fid = open(name, O_RDONLY))) { 
 		D(bug("vhd open -- couldn't open file %s\n", name));
-		return NULL;
+		return disk_generic::DISK_UNKNOWN;
 	} 
 	else {
 		char buf[9];
@@ -56,7 +57,7 @@ static void *vhd_unix_open(const char *name, int *size, bool read_only)
 		close(fid);
 		if (strcmp("conectix", buf) != 0) {
 			D(bug("vhd open -- not vhd magic = %s\n", buf));
-			return NULL;
+			return disk_generic::DISK_UNKNOWN;
 		}
 		if (vhd = (vhd_context_t *) malloc(sizeof(vhd_context_t))) {
 			int err;
@@ -64,17 +65,18 @@ static void *vhd_unix_open(const char *name, int *size, bool read_only)
 								VHD_OPEN_RDONLY : VHD_OPEN_RDWR)) {
 				D(bug("vhd_open failed (%d)\n", err));
 				free(vhd);
-				return NULL;
+				return disk_generic::DISK_INVALID;
 			} 
 			else {
 				*size = (int) vhd->footer.curr_size;
 				printf("VHD Open %s\n", name);
-				return (void *) vhd;
+				*ctx = vhd;
+				return disk_generic::DISK_VALID;
 			}
 		}
 		else {
 			D(bug("vhd open -- malloc failed\n"));
-			return NULL;
+			return disk_generic::DISK_INVALID;
 		}
 	}
 }
@@ -147,10 +149,12 @@ protected:
 	loff_t file_size;
 };
 
-disk_generic *disk_vhd_factory(const char *path, bool read_only) {
+disk_generic::status disk_vhd_factory(const char *path,
+		bool read_only, disk_generic **disk) {
 	int size;
-	vhd_context_t *ctx = (vhd_context_t*)vhd_unix_open(path, &size, read_only);
-	if (!ctx)
-		return NULL;
-	return new disk_vhd(ctx, read_only, size);
+	vhd_context_t *ctx = NULL;
+	disk_generic::status st = vhd_unix_open(path, &size, read_only, &ctx);
+	if (st == disk_generic::DISK_VALID)
+		*disk = new disk_vhd(ctx, read_only, size);
+	return st;
 }
