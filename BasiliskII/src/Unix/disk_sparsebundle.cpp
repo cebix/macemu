@@ -24,7 +24,11 @@
 #include <errno.h>
 #include <limits.h>
 #include <algorithm>
- 
+
+#if defined __APPLE__ && defined __MACH__
+#define __MACOSX__ 1
+#endif
+
 struct disk_sparsebundle : disk_generic {
 	disk_sparsebundle(const char *bands, int fd, bool read_only,
 		loff_t band_size, loff_t total_size)
@@ -232,19 +236,19 @@ protected:
 };
 
 
-static int try_open(const char *path, bool read_only) {
+static int try_open(const char *path, bool read_only, bool *locked) {
 	int oflags = (read_only ? O_RDONLY : O_RDWR);
+	int lockflags = 0;
 #if defined(__MACOSX__)
-	oflags |= O_EXLOCK;
+	lockflags = O_NONBLOCK | (read_only ? O_SHLOCK : O_EXLOCK);
 #endif
-	int fd = open(path, oflags);
+	int fd = open(path, oflags | lockflags);
 #if defined(__MACOSX__)
 	if (fd == -1) {
-		if (errno == EOPNOTSUPP) { // no locking support
-			oflags &= ~O_EXLOCK;
+		if (errno == EOPNOTSUPP) { // no locking support, try again
 			fd = open(path, oflags);
-		} else if (errno == EAGAIN) { // already locked
-			fprintf(stderr, "sparsebundle: Refusing to double-mount\n");
+		} else if (errno == EAGAIN) { // locked
+			*locked = true;
 		}
 	}
 #endif
@@ -284,13 +288,19 @@ disk_generic *disk_sparsebundle_factory(const char *path, bool read_only) {
 	// Check if we can open it
 	if (snprintf(buf, PATH_MAX, "%s/%s", path, "token") >= PATH_MAX)
 		return NULL;
-	int token = try_open(buf, read_only);
+	bool locked = false;
+	int token = try_open(buf, read_only, &locked);
 	if (token == -1 && !read_only) { // try again, read-only
+		token = try_open(buf, true, &locked);
+		if (token != -1 && !read_only)
+			fprintf(stderr, "sparsebundle: Can only mount read-only\n");
 		read_only = true;
-		token = try_open(buf, read_only);
 	}
 	if (token == -1) {
-		fprintf(stderr, "sparsebundle: Can't open the bundle\n");
+		if (locked)
+			fprintf(stderr, "sparsebundle: Refusing to double-mount\n");
+		else
+			perror("sparsebundle: open failed:");
 		return NULL;
 	}
 	
