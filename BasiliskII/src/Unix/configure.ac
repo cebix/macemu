@@ -1725,12 +1725,6 @@ if [[ "x$WANT_NATIVE_M68K" = "xno" ]]; then
   CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp $FPUSRCS cpustbl.cpp cpudefs.cpp $CPUSRCS $JITSRCS"
 fi
 
-dnl Remove the "-g" option if set for GCC.
-if [[ "x$HAVE_GCC27" = "xyes" ]]; then
-  CFLAGS=`echo $CFLAGS | sed -e 's/-g\b//g'`
-  CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-g\b//g'`
-fi
-
 dnl Or if we have -IPA (MIPSPro compilers)
 if [[ "x$HAVE_IPA" = "xyes" ]]; then
   CFLAGS="`echo $CFLAGS | sed -e 's/-g//g'` -O3 -OPT:Olimit=0 -IPA"
