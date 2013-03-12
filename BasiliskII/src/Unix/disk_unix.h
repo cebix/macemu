@@ -1,7 +1,7 @@
 /*
- * vhd_unix.h -- support for disk images in vhd format 
+ *  disk_unix.h - Generic disk interface
  *
- *  (C) 2010 Geoffrey Brown
+ *  Basilisk II (C) Dave Vasilevsky
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,12 +18,31 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef VHD_H
-#define VHD_H
+#ifndef DISK_UNIX_H
+#define DISK_UNIX_H
 
-void *vhd_unix_open(const char *name, int *size, bool read_only);
-int vhd_unix_read(void *arg, void *buffer, loff_t offset, size_t length);
-int vhd_unix_write(void *arg, void *buffer, loff_t offset, size_t length);
-void vhd_unix_close(void *arg);
+#include "sysdeps.h"
+
+struct disk_generic {
+	enum status {
+		DISK_UNKNOWN,
+		DISK_INVALID,
+		DISK_VALID,
+	};
+	
+	disk_generic() { }
+	virtual ~disk_generic() { };
+	
+	virtual bool is_read_only() = 0;
+	virtual size_t read(void *buf, loff_t offset, size_t length) = 0;
+	virtual size_t write(void *buf, loff_t offset, size_t length) = 0;
+	virtual loff_t size() = 0;
+};
+
+typedef disk_generic::status (disk_factory)(const char *path, bool read_only,
+	disk_generic **disk);
+
+extern disk_factory disk_sparsebundle_factory;
+extern disk_factory disk_vhd_factory;
 
 #endif

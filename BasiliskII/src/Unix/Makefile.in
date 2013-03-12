@@ -50,7 +50,8 @@ SRCS = ../main.cpp ../prefs.cpp ../prefs_items.cpp \
     timer_unix.cpp ../adb.cpp ../serial.cpp ../ether.cpp \
     ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp ../video.cpp \
     video_blit.cpp \
-    vm_alloc.cpp sigsegv.cpp ../audio.cpp ../extfs.cpp \
+    vm_alloc.cpp sigsegv.cpp ../audio.cpp ../extfs.cpp disk_sparsebundle.cpp \
+	tinyxml2.cpp \
     ../user_strings.cpp user_strings_unix.cpp sshpty.c strlcpy.c rpc_unix.cpp \
     $(SYSSRCS) $(CPUSRCS) $(SLIRP_SRCS)
 APP_FLAVOR ?=
