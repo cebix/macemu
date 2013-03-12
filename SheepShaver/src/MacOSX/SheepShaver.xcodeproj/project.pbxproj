@@ -25,6 +25,8 @@
 		08163340158C125800C449F9 /* ppc-dis.c in Sources */ = {isa = PBXBuildFile; fileRef = 08163338158C121000C449F9 /* ppc-dis.c */; };
 		082AC22D14AA52E900071F5E /* prefs_editor_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 082AC22C14AA52E900071F5E /* prefs_editor_dummy.cpp */; };
 		082AC26214AA59F000071F5E /* lowmem.c in Sources */ = {isa = PBXBuildFile; fileRef = 082AC26114AA59F000071F5E /* lowmem.c */; };
+		083E370C16EFE85000CCCA59 /* disk_sparsebundle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 083E370A16EFE85000CCCA59 /* disk_sparsebundle.cpp */; };
+		083E372216EFE87200CCCA59 /* tinyxml2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 083E372016EFE87200CCCA59 /* tinyxml2.cpp */; };
 		0846E4B114B1264700574779 /* ieeefp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDF714A99EEF000B1711 /* ieeefp.cpp */; };
 		0846E4B314B1264F00574779 /* mathlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDFD14A99EEF000B1711 /* mathlib.cpp */; };
 		0846E4B514B1265500574779 /* utils-cpuinfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE0214A99EEF000B1711 /* utils-cpuinfo.cpp */; };
@@ -215,6 +217,10 @@
 		082AC22C14AA52E900071F5E /* prefs_editor_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = prefs_editor_dummy.cpp; sourceTree = "<group>"; };
 		082AC25214AA59B600071F5E /* lowmem */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = lowmem; sourceTree = BUILT_PRODUCTS_DIR; };
 		082AC26114AA59F000071F5E /* lowmem.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = lowmem.c; path = ../../../BasiliskII/src/Unix/Darwin/lowmem.c; sourceTree = SOURCE_ROOT; };
+		083E370A16EFE85000CCCA59 /* disk_sparsebundle.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = disk_sparsebundle.cpp; path = ../Unix/disk_sparsebundle.cpp; sourceTree = SOURCE_ROOT; };
+		083E370B16EFE85000CCCA59 /* disk_unix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = disk_unix.h; path = ../Unix/disk_unix.h; sourceTree = SOURCE_ROOT; };
+		083E372016EFE87200CCCA59 /* tinyxml2.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = tinyxml2.cpp; path = ../Unix/tinyxml2.cpp; sourceTree = SOURCE_ROOT; };
+		083E372116EFE87200CCCA59 /* tinyxml2.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = tinyxml2.h; path = ../Unix/tinyxml2.h; sourceTree = SOURCE_ROOT; };
 		0846E49A14B124DE00574779 /* libkpx_cpu.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libkpx_cpu.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		0846E52314B129DA00574779 /* ppc_asm.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; path = ppc_asm.S; sourceTree = "<group>"; };
 		0846E52814B129EE00574779 /* libppc_asm.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libppc_asm.a; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -896,6 +902,8 @@
 				0856CEC414A99EF0000B1711 /* about_window_unix.cpp */,
 				0856CECF14A99EF0000B1711 /* bincue_unix.cpp */,
 				0856CED014A99EF0000B1711 /* bincue_unix.h */,
+				083E370A16EFE85000CCCA59 /* disk_sparsebundle.cpp */,
+				083E370B16EFE85000CCCA59 /* disk_unix.h */,
 				0856CEE314A99EF0000B1711 /* ether_unix.cpp */,
 				0856CEFB14A99EF0000B1711 /* main_unix.cpp */,
 				0846E55214B12B0D00574779 /* paranoia.cpp */,
@@ -915,6 +923,8 @@
 				0856CF6814A99EF0000B1711 /* sys_unix.cpp */,
 				0856CF6914A99EF0000B1711 /* sysdeps.h */,
 				0856CF6A14A99EF0000B1711 /* timer_unix.cpp */,
+				083E372016EFE87200CCCA59 /* tinyxml2.cpp */,
+				083E372116EFE87200CCCA59 /* tinyxml2.h */,
 				0856CF6C14A99EF0000B1711 /* user_strings_unix.cpp */,
 				0856CF6D14A99EF0000B1711 /* user_strings_unix.h */,
 				0856CF7014A99EF0000B1711 /* video_blit.cpp */,
@@ -1440,6 +1450,8 @@
 				0856D33914A9A704000B1711 /* VMSettingsController.mm in Sources */,
 				082AC22D14AA52E900071F5E /* prefs_editor_dummy.cpp in Sources */,
 				0873A80214AC515D004F12B7 /* utils_macosx.mm in Sources */,
+				083E370C16EFE85000CCCA59 /* disk_sparsebundle.cpp in Sources */,
+				083E372216EFE87200CCCA59 /* tinyxml2.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
