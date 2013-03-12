@@ -326,7 +326,7 @@ void SysAddDiskPrefs(void)
 			line[len-1] = 0;
 
 			// Parse line
-			char *dev, *mnt_point, *fstype;
+			char *dev = NULL, *mnt_point = NULL, *fstype = NULL;
 			if (sscanf(line, "%as %as %as", &dev, &mnt_point, &fstype) == 3) {
 				if (strcmp(fstype, "hfs") == 0)
 					PrefsAddString("disk", dev);
