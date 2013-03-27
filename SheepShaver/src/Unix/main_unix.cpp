@@ -681,10 +681,10 @@ static bool init_sdl()
 
 #ifdef USE_SDL_VIDEO
 	// Don't let SDL block the screensaver
-	setenv("SDL_VIDEO_ALLOW_SCREENSAVER", "1", TRUE);
+	setenv("SDL_VIDEO_ALLOW_SCREENSAVER", "1", true);
 
 	// Make SDL pass through command-clicks and option-clicks unaltered
-	setenv("SDL_HAS3BUTTONMOUSE", "1", TRUE);
+	setenv("SDL_HAS3BUTTONMOUSE", "1", true);
 #endif
 
 	if (SDL_Init(sdl_flags) == -1) {
