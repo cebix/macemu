@@ -68,9 +68,11 @@
 #include "debug.h"
 
 static disk_factory *disk_factories[] = {
+#ifndef STANDALONE_GUI
 	disk_sparsebundle_factory,
 #if defined(HAVE_LIBVHD)
 	disk_vhd_factory,
+#endif
 #endif
 	NULL
 };
