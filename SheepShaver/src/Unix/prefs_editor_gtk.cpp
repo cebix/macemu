@@ -1493,7 +1493,7 @@ int main(int argc, char *argv[])
 	gtk_init(&argc, &argv);
 
 	// Read preferences
-	PrefsInit(argc, argv);
+	PrefsInit(0, argc, argv);
 
 	// Show preferences editor
 	bool start = PrefsEditor();
