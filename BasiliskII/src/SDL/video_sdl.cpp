@@ -639,13 +639,9 @@ public:
 	~driver_window();
 
 	void toggle_mouse_grab(void);
-	void mouse_moved(int x, int y);
 
 	void grab_mouse(void);
 	void ungrab_mouse(void);
-
-private:
-	int mouse_last_x, mouse_last_y;	// Last mouse position (for relative mode)
 };
 
 class driver_fullscreen : public driver_base {
@@ -850,14 +846,6 @@ void driver_window::ungrab_mouse(void)
 		}
 	}
 }
-
-// Mouse moved
-void driver_window::mouse_moved(int x, int y)
-{
-	mouse_last_x = x; mouse_last_y = y;
-	ADBMouseMoved(x, y);
-}
-
 
 /*
  *  Full-screen display driver
