@@ -136,6 +136,8 @@ static SDL_Color sdl_palette[256];					// Color palette to be used as CLUT and g
 static bool sdl_palette_changed = false;			// Flag: Palette changed, redraw thread must set new colors
 static const int sdl_eventmask = SDL_MOUSEEVENTMASK | SDL_KEYEVENTMASK | SDL_VIDEOEXPOSEMASK | SDL_QUITMASK | SDL_ACTIVEEVENTMASK;
 
+static bool mouse_grabbed = false;
+
 // Mutex to protect SDL events
 static SDL_mutex *sdl_events_lock = NULL;
 #define LOCK_EVENTS SDL_LockMutex(sdl_events_lock)
@@ -643,7 +645,6 @@ public:
 	void ungrab_mouse(void);
 
 private:
-	bool mouse_grabbed;				// Flag: mouse pointer grabbed, using relative mouse mode
 	int mouse_last_x, mouse_last_y;	// Last mouse position (for relative mode)
 };
 
@@ -735,7 +736,7 @@ static bool SDL_display_opened = false;
 
 // Open display
 driver_window::driver_window(SDL_monitor_desc &m)
-	: driver_base(m), mouse_grabbed(false)
+	: driver_base(m)
 {
 	int width = VIDEO_MODE_X, height = VIDEO_MODE_Y;
 	int aligned_height = (height + 15) & ~15;
@@ -1576,16 +1577,25 @@ void video_set_cursor(void)
 		if (sdl_cursor) {
 			SDL_ShowCursor(private_data == NULL || private_data->cursorVisible);
 			SDL_SetCursor(sdl_cursor);
-#ifdef WIN32
+
 			// XXX Windows apparently needs an extra mouse event to
-			// make the new cursor image visible
-			int visible = SDL_ShowCursor(-1);
-			if (visible) {
-				int x, y;
-				SDL_GetMouseState(&x, &y);
-				SDL_WarpMouse(x, y);
-			}
+			// make the new cursor image visible.
+			// On Mac, if mouse is grabbed, SDL_ShowCursor() recenters the
+			// mouse, we have to put it back.
+			bool move = false;
+#ifdef WIN32
+			move = true;
+#elif defined(__APPLE__)
+			move = mouse_grabbed;
 #endif
+			if (move) {
+				int visible = SDL_ShowCursor(-1);
+				if (visible) {
+					int x, y;
+					SDL_GetMouseState(&x, &y);
+					SDL_WarpMouse(x, y);
+				}
+			}
 		}
 	}
 }
