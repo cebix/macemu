@@ -726,6 +726,9 @@ void driver_base::adapt_to_video_mode() {
 			SDL_SetCursor(sdl_cursor);
 		}
 	}
+	// Tell the video driver there's a change in cursor type
+	if (private_data)
+		private_data->cursorHardware = hardware_cursor;
 #endif
 	// Hide cursor
 	SDL_ShowCursor(hardware_cursor);
