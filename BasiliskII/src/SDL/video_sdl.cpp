@@ -732,8 +732,6 @@ void driver_base::restore_mouse_accel(void)
  *  Windowed display driver
  */
 
-static bool SDL_display_opened = false;
-
 // Open display
 driver_window::driver_window(SDL_monitor_desc &m)
 	: driver_base(m)
@@ -744,22 +742,10 @@ driver_window::driver_window(SDL_monitor_desc &m)
 	// Set absolute mouse mode
 	ADBSetRelMouseMode(mouse_grabbed);
 
-	// This is ugly:
-	// If we're switching resolutions (ie, not setting it for the first time),
-	// there's a bug in SDL where the SDL_Surface created will not be properly
-	// setup. The solution is to SDL_QuitSubSystem(SDL_INIT_VIDEO) before calling
-	// SDL_SetVideoMode for the second time (SDL_SetVideoMode will call SDL_Init()
-	// and all will be well). Without this, the video becomes corrupted (at least
-	// on Mac OS X), after the resolution switch.
-	if (SDL_display_opened)
-		SDL_QuitSubSystem(SDL_INIT_VIDEO);
-
 	// Create surface
 	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
 	if ((s = SDL_SetVideoMode(width, height, depth, SDL_HWSURFACE)) == NULL)
 		return;
-
-	SDL_display_opened = true;
 
 #ifdef ENABLE_VOSF
 	use_vosf = true;
