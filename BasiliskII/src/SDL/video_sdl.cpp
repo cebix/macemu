@@ -106,10 +106,8 @@ static bool redraw_thread_active = false;			// Flag: Redraw thread installed
 #ifndef USE_CPU_EMUL_SERVICES
 static volatile bool redraw_thread_cancel;			// Flag: Cancel Redraw thread
 static SDL_Thread *redraw_thread = NULL;			// Redraw thread
-#ifdef SHEEPSHAVER
 static volatile bool thread_stop_req = false;
 static volatile bool thread_stop_ack = false;		// Acknowledge for thread_stop_req
-#endif
 #endif
 
 #ifdef ENABLE_VOSF
@@ -1216,13 +1214,14 @@ void VideoQuitFullScreen(void)
 	quit_full_screen = true;
 }
 
-#ifdef SHEEPSHAVER
 static void do_toggle_fullscreen(void)
 {
+#ifndef USE_CPU_EMUL_SERVICES
 	// pause redraw thread
 	thread_stop_ack = false;
 	thread_stop_req = true;
 	while (!thread_stop_ack) ;
+#endif
 
 	// save the mouse position
 	int x, y;
@@ -1239,7 +1238,9 @@ static void do_toggle_fullscreen(void)
 	drv->adapt_to_video_mode();
 
 	// reset the palette
+#ifdef SHEEPSHAVER
 	video_set_palette();
+#endif
 	drv->update_palette();
 
 	// restore the screen contents
@@ -1258,9 +1259,10 @@ static void do_toggle_fullscreen(void)
 
 	// resume redraw thread
 	toggle_fullscreen = false;
+#ifndef USE_CPU_EMUL_SERVICES
 	thread_stop_req = false;
-}
 #endif
+}
 
 /*
  *  Mac VBL interrupt
@@ -1298,6 +1300,9 @@ void VideoInterrupt(void)
 	// Emergency quit requested? Then quit
 	if (emerg_quit)
 		QuitEmulator();
+
+	if (toggle_fullscreen)
+		do_toggle_fullscreen();
 
 	// Temporarily give up frame buffer lock (this is the point where
 	// we are suspended when the user presses Ctrl-Tab)
@@ -2209,13 +2214,11 @@ static int redraw_func(void *arg)
 			next = GetTicks_usec();
 		ticks++;
 
-#ifdef SHEEPSHAVER
 		// Pause if requested (during video mode switches)
 		if (thread_stop_req) {
 			thread_stop_ack = true;
 			continue;
 		}
-#endif
 
 		// Process pending events and update display
 		do_video_refresh();
