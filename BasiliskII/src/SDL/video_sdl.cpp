@@ -691,11 +691,6 @@ driver_base::~driver_base()
 	}
 #ifdef ENABLE_VOSF
 	else {
-		if (the_host_buffer) {
-			D(bug(" freeing the_host_buffer at %p\n", the_host_buffer));
-			free(the_host_buffer);
-			the_host_buffer = NULL;
-		}
 		if (the_buffer_copy) {
 			D(bug(" freeing the_buffer_copy at %p\n", the_buffer_copy));
 			free(the_buffer_copy);
@@ -817,10 +812,6 @@ driver_window::driver_window(SDL_monitor_desc &m)
 // Close display
 driver_window::~driver_window()
 {
-#ifdef ENABLE_VOSF
-	if (use_vosf)
-		the_host_buffer = NULL;	// don't free() in driver_base dtor
-#endif
 	if (s)
 		SDL_FreeSurface(s);
 }
@@ -947,10 +938,6 @@ driver_fullscreen::driver_fullscreen(SDL_monitor_desc &m)
 // Close display
 driver_fullscreen::~driver_fullscreen()
 {
-#ifdef ENABLE_VOSF
-	if (use_vosf)
-		the_host_buffer = NULL;	// don't free() in driver_base dtor
-#endif
 	if (s)
 		SDL_FreeSurface(s);
 
