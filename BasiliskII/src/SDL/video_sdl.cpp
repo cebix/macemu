@@ -600,6 +600,7 @@ static void migrate_screen_prefs(void)
 class driver_base {
 public:
 	driver_base(SDL_monitor_desc &m);
+	virtual void init();
 	virtual ~driver_base();
 
 	virtual void update_palette(void);
@@ -636,6 +637,7 @@ class driver_window : public driver_base {
 
 public:
 	driver_window(SDL_monitor_desc &monitor);
+	virtual void init();
 	~driver_window();
 
 	void toggle_mouse_grab(void);
@@ -647,6 +649,7 @@ public:
 class driver_fullscreen : public driver_base {
 public:
 	driver_fullscreen(SDL_monitor_desc &monitor);
+	virtual void init();
 	~driver_fullscreen();
 };
 
@@ -661,6 +664,10 @@ driver_base::driver_base(SDL_monitor_desc &m)
 {
 	the_buffer = NULL;
 	the_buffer_copy = NULL;
+}
+
+void driver_base::init()
+{
 }
 
 driver_base::~driver_base()
@@ -727,6 +734,10 @@ void driver_base::restore_mouse_accel(void)
 driver_window::driver_window(SDL_monitor_desc &m)
 	: driver_base(m)
 {
+}
+
+void driver_window::init()
+{
 	int width = VIDEO_MODE_X, height = VIDEO_MODE_Y;
 	int aligned_height = (height + 15) & ~15;
 
@@ -748,7 +759,7 @@ driver_window::driver_window(SDL_monitor_desc &m)
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
 
 	// Check whether we can initialize the VOSF subsystem and it's profitable
-	if (!video_vosf_init(m)) {
+	if (!video_vosf_init(monitor)) {
 		WarningAlert(STR_VOSF_INIT_ERR);
 		use_vosf = false;
 	}
@@ -855,6 +866,10 @@ void driver_window::ungrab_mouse(void)
 driver_fullscreen::driver_fullscreen(SDL_monitor_desc &m)
 	: driver_base(m)
 {
+}
+
+void driver_fullscreen::init()
+{
 	int width = VIDEO_MODE_X, height = VIDEO_MODE_Y;
 	int aligned_height = (height + 15) & ~15;
 
@@ -876,7 +891,7 @@ driver_fullscreen::driver_fullscreen(SDL_monitor_desc &m)
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
 
 	// Check whether we can initialize the VOSF subsystem and it's profitable
-	if (!video_vosf_init(m)) {
+	if (!video_vosf_init(monitor)) {
 		WarningAlert(STR_VOSF_INIT_ERR);
 		use_vosf = false;
 	}
@@ -1038,6 +1053,7 @@ bool SDL_monitor_desc::video_open(void)
 	}
 	if (drv == NULL)
 		return false;
+	drv->init();
 	if (!drv->init_ok) {
 		delete drv;
 		drv = NULL;
