@@ -669,6 +669,7 @@ driver_base::driver_base(SDL_monitor_desc &m)
 void driver_base::init()
 {
 	int aligned_height = (VIDEO_MODE_Y + 15) & ~15;
+	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
 
 #ifdef ENABLE_VOSF
 	use_vosf = true;
@@ -702,6 +703,26 @@ void driver_base::init()
 		the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
 		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
 	}
+
+	// Init blitting routines
+	SDL_PixelFormat *f = s->format;
+	VisualFormat visualFormat;
+	visualFormat.depth = depth;
+	visualFormat.Rmask = f->Rmask;
+	visualFormat.Gmask = f->Gmask;
+	visualFormat.Bmask = f->Bmask;
+	Screen_blitter_init(visualFormat, true, mac_depth_of_video_depth(VIDEO_MODE_DEPTH));
+
+	// Load gray ramp to 8->16/32 expand map
+	if (!IsDirectMode(mode))
+		for (int i=0; i<256; i++)
+			ExpandMap[i] = SDL_MapRGB(f, i, i, i);
+
+	// Set frame buffer base
+	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
+
+	// Everything went well
+	init_ok = true;
 }
 
 driver_base::~driver_base()
@@ -796,26 +817,6 @@ void driver_window::init()
 
 	// Set window name/class
 	set_window_name(STR_WINDOW_TITLE);
-
-	// Init blitting routines
-	SDL_PixelFormat *f = s->format;
-	VisualFormat visualFormat;
-	visualFormat.depth = depth;
-	visualFormat.Rmask = f->Rmask;
-	visualFormat.Gmask = f->Gmask;
-	visualFormat.Bmask = f->Bmask;
-	Screen_blitter_init(visualFormat, true, mac_depth_of_video_depth(VIDEO_MODE_DEPTH));
-
-	// Load gray ramp to 8->16/32 expand map
-	if (!IsDirectMode(mode))
-		for (int i=0; i<256; i++)
-			ExpandMap[i] = SDL_MapRGB(f, i, i, i);
-
-	// Set frame buffer base
-	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
-
-	// Everything went well
-	init_ok = true;
 }
 
 // Close display
@@ -886,26 +887,6 @@ void driver_fullscreen::init()
 
 	// Hide cursor
 	SDL_ShowCursor(0);
-
-	// Init blitting routines
-	SDL_PixelFormat *f = s->format;
-	VisualFormat visualFormat;
-	visualFormat.depth = depth;
-	visualFormat.Rmask = f->Rmask;
-	visualFormat.Gmask = f->Gmask;
-	visualFormat.Bmask = f->Bmask;
-	Screen_blitter_init(visualFormat, true, mac_depth_of_video_depth(VIDEO_MODE_DEPTH));
-
-	// Load gray ramp to 8->16/32 expand map
-	if (!IsDirectMode(mode))
-		for (int i=0; i<256; i++)
-			ExpandMap[i] = SDL_MapRGB(f, i, i, i);
-
-	// Set frame buffer base
-	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
-
-	// Everything went well
-	init_ok = true;
 }
 
 // Close display
