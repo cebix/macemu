@@ -668,6 +668,40 @@ driver_base::driver_base(SDL_monitor_desc &m)
 
 void driver_base::init()
 {
+	int aligned_height = (VIDEO_MODE_Y + 15) & ~15;
+
+#ifdef ENABLE_VOSF
+	use_vosf = true;
+	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
+	the_host_buffer = (uint8 *)s->pixels;
+	the_buffer_size = page_extend((aligned_height + 2) * s->pitch);
+	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
+	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
+	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
+
+	// Check whether we can initialize the VOSF subsystem and it's profitable
+	if (!video_vosf_init(monitor)) {
+		WarningAlert(STR_VOSF_INIT_ERR);
+		use_vosf = false;
+	}
+	else if (!video_vosf_profitable()) {
+		video_vosf_exit();
+		printf("VOSF acceleration is not profitable on this platform, disabling it\n");
+		use_vosf = false;
+	}
+	if (!use_vosf) {
+		free(the_buffer_copy);
+		vm_release(the_buffer, the_buffer_size);
+		the_host_buffer = NULL;
+	}
+#endif
+	if (!use_vosf) {
+		// Allocate memory for frame buffer
+		the_buffer_size = (aligned_height + 2) * s->pitch;
+		the_buffer_copy = (uint8 *)calloc(1, the_buffer_size);
+		the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
+		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
+	}
 }
 
 driver_base::~driver_base()
@@ -739,7 +773,6 @@ driver_window::driver_window(SDL_monitor_desc &m)
 void driver_window::init()
 {
 	int width = VIDEO_MODE_X, height = VIDEO_MODE_Y;
-	int aligned_height = (height + 15) & ~15;
 
 	// Set absolute mouse mode
 	ADBSetRelMouseMode(mouse_grabbed);
@@ -749,38 +782,7 @@ void driver_window::init()
 	if ((s = SDL_SetVideoMode(width, height, depth, SDL_HWSURFACE)) == NULL)
 		return;
 
-#ifdef ENABLE_VOSF
-	use_vosf = true;
-	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
-	the_host_buffer = (uint8 *)s->pixels;
-	the_buffer_size = page_extend((aligned_height + 2) * s->pitch);
-	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
-	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
-	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
-
-	// Check whether we can initialize the VOSF subsystem and it's profitable
-	if (!video_vosf_init(monitor)) {
-		WarningAlert(STR_VOSF_INIT_ERR);
-		use_vosf = false;
-	}
-	else if (!video_vosf_profitable()) {
-		video_vosf_exit();
-		printf("VOSF acceleration is not profitable on this platform, disabling it\n");
-		use_vosf = false;
-	}
-	if (!use_vosf) {
-		free(the_buffer_copy);
-		vm_release(the_buffer, the_buffer_size);
-		the_host_buffer = NULL;
-	}
-#endif
-	if (!use_vosf) {
-		// Allocate memory for frame buffer
-		the_buffer_size = (aligned_height + 2) * s->pitch;
-		the_buffer_copy = (uint8 *)calloc(1, the_buffer_size);
-		the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
-		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
-	}
+	driver_base::init();
 	
 #ifdef SHEEPSHAVER
 	// Create cursor
@@ -871,7 +873,6 @@ driver_fullscreen::driver_fullscreen(SDL_monitor_desc &m)
 void driver_fullscreen::init()
 {
 	int width = VIDEO_MODE_X, height = VIDEO_MODE_Y;
-	int aligned_height = (height + 15) & ~15;
 
 	// Set absolute mouse mode
 	ADBSetRelMouseMode(false);
@@ -881,39 +882,8 @@ void driver_fullscreen::init()
 	if ((s = SDL_SetVideoMode(width, height, depth, SDL_HWSURFACE | SDL_FULLSCREEN)) == NULL)
 		return;
 
-#ifdef ENABLE_VOSF
-	use_vosf = true;
-	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
-	the_host_buffer = (uint8 *)s->pixels;
-	the_buffer_size = page_extend((aligned_height + 2) * s->pitch);
-	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
-	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
-	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
+	driver_base::init();
 
-	// Check whether we can initialize the VOSF subsystem and it's profitable
-	if (!video_vosf_init(monitor)) {
-		WarningAlert(STR_VOSF_INIT_ERR);
-		use_vosf = false;
-	}
-	else if (!video_vosf_profitable()) {
-		video_vosf_exit();
-		printf("VOSF acceleration is not profitable on this platform, disabling it\n");
-		use_vosf = false;
-	}
-	if (!use_vosf) {
-		free(the_buffer_copy);
-		vm_release(the_buffer, the_buffer_size);
-		the_host_buffer = NULL;
-	}
-#endif
-	if (!use_vosf) {
-		// Allocate memory for frame buffer
-		the_buffer_size = (aligned_height + 2) * s->pitch;
-		the_buffer_copy = (uint8 *)calloc(1, the_buffer_size);
-		the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
-		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
-	}
-	
 	// Hide cursor
 	SDL_ShowCursor(0);
 
