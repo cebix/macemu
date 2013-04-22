@@ -638,7 +638,6 @@ class driver_window : public driver_base {
 public:
 	driver_window(SDL_monitor_desc &monitor);
 	virtual void init();
-	~driver_window();
 
 	void toggle_mouse_grab(void);
 
@@ -650,7 +649,6 @@ class driver_fullscreen : public driver_base {
 public:
 	driver_fullscreen(SDL_monitor_desc &monitor);
 	virtual void init();
-	~driver_fullscreen();
 };
 
 static driver_base *drv = NULL;	// Pointer to currently used driver object
@@ -775,6 +773,8 @@ driver_base::~driver_base()
 		video_vosf_exit();
 	}
 #endif
+
+	SDL_ShowCursor(1);
 }
 
 // Palette has changed
@@ -820,13 +820,6 @@ void driver_window::init()
 		return;
 
 	driver_base::init();
-}
-
-// Close display
-driver_window::~driver_window()
-{
-	if (s)
-		SDL_FreeSurface(s);
 }
 
 // Toggle mouse grab
@@ -887,16 +880,6 @@ void driver_fullscreen::init()
 		return;
 
 	driver_base::init();
-}
-
-// Close display
-driver_fullscreen::~driver_fullscreen()
-{
-	if (s)
-		SDL_FreeSurface(s);
-
-	// Show cursor
-	SDL_ShowCursor(1);
 }
 
 
