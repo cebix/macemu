@@ -734,6 +734,9 @@ void driver_base::init()
 	// Hide cursor
 	SDL_ShowCursor(hardware_cursor);
 
+	// Set window name/class
+	set_window_name(STR_WINDOW_TITLE);
+
 	// Everything went well
 	init_ok = true;
 }
@@ -817,9 +820,6 @@ void driver_window::init()
 		return;
 
 	driver_base::init();
-
-	// Set window name/class
-	set_window_name(STR_WINDOW_TITLE);
 }
 
 // Close display
