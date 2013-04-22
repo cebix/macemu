@@ -601,7 +601,7 @@ class driver_base {
 public:
 	driver_base(SDL_monitor_desc &m);
 	virtual void init();
-	virtual ~driver_base();
+	~driver_base();
 
 	virtual void update_palette(void);
 	virtual void suspend(void) {}
@@ -623,18 +623,12 @@ public:
 	SDL_Surface *s;	// The surface we draw into
 };
 
-class driver_window;
 #ifdef ENABLE_VOSF
-static void update_display_window_vosf(driver_window *drv);
+static void update_display_window_vosf(driver_base *drv);
 #endif
 static void update_display_static(driver_base *drv);
 
 class driver_window : public driver_base {
-#ifdef ENABLE_VOSF
-	friend void update_display_window_vosf(driver_window *drv);
-#endif
-	friend void update_display_static(driver_base *drv);
-
 public:
 	driver_window(SDL_monitor_desc &monitor);
 	virtual void init();
@@ -2104,7 +2098,7 @@ static void video_refresh_dga_vosf(void)
 		tick_counter = 0;
 		if (mainBuffer.dirty) {
 			LOCK_VOSF;
-			update_display_dga_vosf(static_cast<driver_fullscreen *>(drv));
+			update_display_dga_vosf(drv);
 			UNLOCK_VOSF;
 		}
 	}
@@ -2122,7 +2116,7 @@ static void video_refresh_window_vosf(void)
 		tick_counter = 0;
 		if (mainBuffer.dirty) {
 			LOCK_VOSF;
-			update_display_window_vosf(static_cast<driver_window *>(drv));
+			update_display_window_vosf(drv);
 			UNLOCK_VOSF;
 		}
 	}
