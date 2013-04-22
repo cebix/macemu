@@ -721,6 +721,19 @@ void driver_base::init()
 	// Set frame buffer base
 	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
 
+	bool hardware_cursor = false;
+#ifdef SHEEPSHAVER
+	hardware_cursor = video_can_change_cursor();
+	if (hardware_cursor) {
+		// Create cursor
+		if ((sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, 0, 0)) != NULL) {
+			SDL_SetCursor(sdl_cursor);
+		}
+	}
+#endif
+	// Hide cursor
+	SDL_ShowCursor(hardware_cursor);
+
 	// Everything went well
 	init_ok = true;
 }
@@ -804,16 +817,6 @@ void driver_window::init()
 		return;
 
 	driver_base::init();
-	
-#ifdef SHEEPSHAVER
-	// Create cursor
-	if ((sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, 0, 0)) != NULL) {
-		SDL_SetCursor(sdl_cursor);
-	}
-#else
-	// Hide cursor
-	SDL_ShowCursor(0);
-#endif
 
 	// Set window name/class
 	set_window_name(STR_WINDOW_TITLE);
@@ -884,9 +887,6 @@ void driver_fullscreen::init()
 		return;
 
 	driver_base::init();
-
-	// Hide cursor
-	SDL_ShowCursor(0);
 }
 
 // Close display
