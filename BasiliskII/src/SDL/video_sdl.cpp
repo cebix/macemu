@@ -603,9 +603,9 @@ public:
 	virtual void init();
 	~driver_base();
 
-	virtual void update_palette(void);
-	virtual void suspend(void) {}
-	virtual void resume(void) {}
+	void update_palette(void);
+	void suspend(void) {}
+	void resume(void) {}
 	void toggle_mouse_grab(void);
 	void mouse_moved(int x, int y) { ADBMouseMoved(x, y); }
 
