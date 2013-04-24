@@ -600,7 +600,7 @@ static void migrate_screen_prefs(void)
 class driver_base {
 public:
 	driver_base(SDL_monitor_desc &m);
-	virtual void init();
+	void init();
 	~driver_base();
 
 	void update_palette(void);
@@ -631,13 +631,11 @@ static void update_display_static(driver_base *drv);
 class driver_window : public driver_base {
 public:
 	driver_window(SDL_monitor_desc &monitor);
-	virtual void init();
 };
 
 class driver_fullscreen : public driver_base {
 public:
 	driver_fullscreen(SDL_monitor_desc &monitor);
-	virtual void init();
 };
 
 static driver_base *drv = NULL;	// Pointer to currently used driver object
@@ -657,6 +655,16 @@ void driver_base::init()
 {
 	int aligned_height = (VIDEO_MODE_Y + 15) & ~15;
 	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
+	int width = VIDEO_MODE_X, height = VIDEO_MODE_Y;
+
+	ADBSetRelMouseMode(mouse_grabbed);
+
+	// Create surface
+	int flags = SDL_HWSURFACE;
+	if (display_type == DISPLAY_SCREEN)
+		flags |= SDL_FULLSCREEN;
+	if ((s = SDL_SetVideoMode(width, height, depth, flags)) == NULL)
+		return;
 
 #ifdef ENABLE_VOSF
 	use_vosf = true;
@@ -796,21 +804,6 @@ driver_window::driver_window(SDL_monitor_desc &m)
 {
 }
 
-void driver_window::init()
-{
-	int width = VIDEO_MODE_X, height = VIDEO_MODE_Y;
-
-	// Set absolute mouse mode
-	ADBSetRelMouseMode(mouse_grabbed);
-
-	// Create surface
-	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
-	if ((s = SDL_SetVideoMode(width, height, depth, SDL_HWSURFACE)) == NULL)
-		return;
-
-	driver_base::init();
-}
-
 // Toggle mouse grab
 void driver_base::toggle_mouse_grab(void)
 {
@@ -854,21 +847,6 @@ void driver_base::ungrab_mouse(void)
 driver_fullscreen::driver_fullscreen(SDL_monitor_desc &m)
 	: driver_base(m)
 {
-}
-
-void driver_fullscreen::init()
-{
-	int width = VIDEO_MODE_X, height = VIDEO_MODE_Y;
-
-	// Set absolute mouse mode
-	ADBSetRelMouseMode(false);
-
-	// Create surface
-	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
-	if ((s = SDL_SetVideoMode(width, height, depth, SDL_HWSURFACE | SDL_FULLSCREEN)) == NULL)
-		return;
-
-	driver_base::init();
 }
 
 
