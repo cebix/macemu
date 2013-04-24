@@ -606,14 +606,14 @@ public:
 	virtual void update_palette(void);
 	virtual void suspend(void) {}
 	virtual void resume(void) {}
-	virtual void toggle_mouse_grab(void) {}
-	virtual void mouse_moved(int x, int y) { ADBMouseMoved(x, y); }
+	void toggle_mouse_grab(void);
+	void mouse_moved(int x, int y) { ADBMouseMoved(x, y); }
 
 	void disable_mouse_accel(void);
 	void restore_mouse_accel(void);
 
-	virtual void grab_mouse(void) {}
-	virtual void ungrab_mouse(void) {}
+	void grab_mouse(void);
+	void ungrab_mouse(void);
 
 public:
 	SDL_monitor_desc &monitor; // Associated video monitor
@@ -632,11 +632,6 @@ class driver_window : public driver_base {
 public:
 	driver_window(SDL_monitor_desc &monitor);
 	virtual void init();
-
-	void toggle_mouse_grab(void);
-
-	void grab_mouse(void);
-	void ungrab_mouse(void);
 };
 
 class driver_fullscreen : public driver_base {
@@ -817,7 +812,7 @@ void driver_window::init()
 }
 
 // Toggle mouse grab
-void driver_window::toggle_mouse_grab(void)
+void driver_base::toggle_mouse_grab(void)
 {
 	if (mouse_grabbed)
 		ungrab_mouse();
@@ -826,7 +821,7 @@ void driver_window::toggle_mouse_grab(void)
 }
 
 // Grab mouse, switch to relative mouse mode
-void driver_window::grab_mouse(void)
+void driver_base::grab_mouse(void)
 {
 	if (!mouse_grabbed) {
 		SDL_GrabMode new_mode = set_grab_mode(SDL_GRAB_ON);
@@ -839,7 +834,7 @@ void driver_window::grab_mouse(void)
 }
 
 // Ungrab mouse, switch to absolute mouse mode
-void driver_window::ungrab_mouse(void)
+void driver_base::ungrab_mouse(void)
 {
 	if (mouse_grabbed) {
 		SDL_GrabMode new_mode = set_grab_mode(SDL_GRAB_OFF);
