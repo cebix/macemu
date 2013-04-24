@@ -628,16 +628,6 @@ static void update_display_window_vosf(driver_base *drv);
 #endif
 static void update_display_static(driver_base *drv);
 
-class driver_window : public driver_base {
-public:
-	driver_window(SDL_monitor_desc &monitor);
-};
-
-class driver_fullscreen : public driver_base {
-public:
-	driver_fullscreen(SDL_monitor_desc &monitor);
-};
-
 static driver_base *drv = NULL;	// Pointer to currently used driver object
 
 #ifdef ENABLE_VOSF
@@ -793,17 +783,6 @@ void driver_base::restore_mouse_accel(void)
 {
 }
 
-
-/*
- *  Windowed display driver
- */
-
-// Open display
-driver_window::driver_window(SDL_monitor_desc &m)
-	: driver_base(m)
-{
-}
-
 // Toggle mouse grab
 void driver_base::toggle_mouse_grab(void)
 {
@@ -838,17 +817,6 @@ void driver_base::ungrab_mouse(void)
 		}
 	}
 }
-
-/*
- *  Full-screen display driver
- */
-
-// Open display
-driver_fullscreen::driver_fullscreen(SDL_monitor_desc &m)
-	: driver_base(m)
-{
-}
-
 
 /*
  *  Initialization
@@ -944,14 +912,7 @@ bool SDL_monitor_desc::video_open(void)
 #endif
 
 	// Create display driver object of requested type
-	switch (display_type) {
-	case DISPLAY_WINDOW:
-		drv = new(std::nothrow) driver_window(*this);
-		break;
-	case DISPLAY_SCREEN:
-		drv = new(std::nothrow) driver_fullscreen(*this);
-		break;
-	}
+	drv = new(std::nothrow) driver_base(*this);
 	if (drv == NULL)
 		return false;
 	drv->init();
