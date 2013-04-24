@@ -600,8 +600,11 @@ static void migrate_screen_prefs(void)
 class driver_base {
 public:
 	driver_base(SDL_monitor_desc &m);
-	void init();
 	~driver_base();
+
+	void init(); // One-time init
+	void set_video_mode(int flags);
+	void adapt_to_video_mode();
 
 	void update_palette(void);
 	void suspend(void) {}
@@ -641,25 +644,26 @@ driver_base::driver_base(SDL_monitor_desc &m)
 	the_buffer_copy = NULL;
 }
 
-void driver_base::init()
+void driver_base::set_video_mode(int flags)
 {
 	int aligned_height = (VIDEO_MODE_Y + 15) & ~15;
 	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
-	int width = VIDEO_MODE_X, height = VIDEO_MODE_Y;
-
-	ADBSetRelMouseMode(mouse_grabbed);
-
-	// Create surface
-	int flags = SDL_HWSURFACE;
-	if (display_type == DISPLAY_SCREEN)
-		flags |= SDL_FULLSCREEN;
-	if ((s = SDL_SetVideoMode(width, height, depth, flags)) == NULL)
+	if ((s = SDL_SetVideoMode(VIDEO_MODE_X, VIDEO_MODE_Y, depth,
+			SDL_HWSURFACE | flags)) == NULL)
 		return;
+#ifdef ENABLE_VOSF
+	the_host_buffer = (uint8 *)s->pixels;
+#endif
+}
+
+void driver_base::init()
+{
+	set_video_mode(display_type == DISPLAY_SCREEN ? SDL_FULLSCREEN : 0);
+	int aligned_height = (VIDEO_MODE_Y + 15) & ~15;
 
 #ifdef ENABLE_VOSF
 	use_vosf = true;
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
-	the_host_buffer = (uint8 *)s->pixels;
 	the_buffer_size = page_extend((aligned_height + 2) * s->pitch);
 	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
 	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
@@ -689,10 +693,19 @@ void driver_base::init()
 		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
 	}
 
+	// Set frame buffer base
+	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
+
+	adapt_to_video_mode();
+}
+
+void driver_base::adapt_to_video_mode() {
+	ADBSetRelMouseMode(false);
+
 	// Init blitting routines
 	SDL_PixelFormat *f = s->format;
 	VisualFormat visualFormat;
-	visualFormat.depth = depth;
+	visualFormat.depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
 	visualFormat.Rmask = f->Rmask;
 	visualFormat.Gmask = f->Gmask;
 	visualFormat.Bmask = f->Bmask;
@@ -703,8 +716,6 @@ void driver_base::init()
 		for (int i=0; i<256; i++)
 			ExpandMap[i] = SDL_MapRGB(f, i, i, i);
 
-	// Set frame buffer base
-	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
 
 	bool hardware_cursor = false;
 #ifdef SHEEPSHAVER
