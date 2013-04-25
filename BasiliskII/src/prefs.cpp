@@ -382,12 +382,15 @@ void PrefsRemoveItem(const char *name, int index)
 void LoadPrefsFromStream(FILE *f)
 {
 	char line[256];
-	while(fgets(line, 255, f)) {
-		// Read line
+	while(fgets(line, sizeof(line), f)) {
+		// Remove newline, if present
 		int len = strlen(line);
+		if (len > 0 && line[len-1] == '\n') {
+			line[len-1] = '\0';
+			len--;
+		}
 		if (len == 0)
 			continue;
-		line[len-1] = 0;
 
 		// Comments begin with "#" or ";"
 		if (line[0] == '#' || line[0] == ';')
@@ -395,11 +398,12 @@ void LoadPrefsFromStream(FILE *f)
 
 		// Terminate string after keyword
 		char *p = line;
-		while (!isspace(*p)) p++;
-		*p++ = 0;
+		while (*p && !isspace(*p)) p++;
+		if (*p != '\0')
+			*p++ = 0;
 
 		// Skip whitespace until value
-		while (isspace(*p)) p++;
+		while (*p && isspace(*p)) p++;
 		char *keyword = line;
 		char *value = p;
 		int32 i = atol(value);

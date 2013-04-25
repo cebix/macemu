@@ -106,10 +106,8 @@ static bool redraw_thread_active = false;			// Flag: Redraw thread installed
 #ifndef USE_CPU_EMUL_SERVICES
 static volatile bool redraw_thread_cancel;			// Flag: Cancel Redraw thread
 static SDL_Thread *redraw_thread = NULL;			// Redraw thread
-#ifdef SHEEPSHAVER
 static volatile bool thread_stop_req = false;
 static volatile bool thread_stop_ack = false;		// Acknowledge for thread_stop_req
-#endif
 #endif
 
 #ifdef ENABLE_VOSF
@@ -134,7 +132,10 @@ static int screen_depth;							// Depth of current screen
 static SDL_Cursor *sdl_cursor;						// Copy of Mac cursor
 static SDL_Color sdl_palette[256];					// Color palette to be used as CLUT and gamma table
 static bool sdl_palette_changed = false;			// Flag: Palette changed, redraw thread must set new colors
+static bool toggle_fullscreen = false;
 static const int sdl_eventmask = SDL_MOUSEEVENTMASK | SDL_KEYEVENTMASK | SDL_VIDEOEXPOSEMASK | SDL_QUITMASK | SDL_ACTIVEEVENTMASK;
+
+static bool mouse_grabbed = false;
 
 // Mutex to protect SDL events
 static SDL_mutex *sdl_events_lock = NULL;
@@ -598,19 +599,23 @@ static void migrate_screen_prefs(void)
 class driver_base {
 public:
 	driver_base(SDL_monitor_desc &m);
-	virtual ~driver_base();
+	~driver_base();
 
-	virtual void update_palette(void);
-	virtual void suspend(void) {}
-	virtual void resume(void) {}
-	virtual void toggle_mouse_grab(void) {}
-	virtual void mouse_moved(int x, int y) { ADBMouseMoved(x, y); }
+	void init(); // One-time init
+	void set_video_mode(int flags);
+	void adapt_to_video_mode();
+
+	void update_palette(void);
+	void suspend(void) {}
+	void resume(void) {}
+	void toggle_mouse_grab(void);
+	void mouse_moved(int x, int y) { ADBMouseMoved(x, y); }
 
 	void disable_mouse_accel(void);
 	void restore_mouse_accel(void);
 
-	virtual void grab_mouse(void) {}
-	virtual void ungrab_mouse(void) {}
+	void grab_mouse(void);
+	void ungrab_mouse(void);
 
 public:
 	SDL_monitor_desc &monitor; // Associated video monitor
@@ -620,38 +625,10 @@ public:
 	SDL_Surface *s;	// The surface we draw into
 };
 
-class driver_window;
 #ifdef ENABLE_VOSF
-static void update_display_window_vosf(driver_window *drv);
+static void update_display_window_vosf(driver_base *drv);
 #endif
 static void update_display_static(driver_base *drv);
-
-class driver_window : public driver_base {
-#ifdef ENABLE_VOSF
-	friend void update_display_window_vosf(driver_window *drv);
-#endif
-	friend void update_display_static(driver_base *drv);
-
-public:
-	driver_window(SDL_monitor_desc &monitor);
-	~driver_window();
-
-	void toggle_mouse_grab(void);
-	void mouse_moved(int x, int y);
-
-	void grab_mouse(void);
-	void ungrab_mouse(void);
-
-private:
-	bool mouse_grabbed;				// Flag: mouse pointer grabbed, using relative mouse mode
-	int mouse_last_x, mouse_last_y;	// Last mouse position (for relative mode)
-};
-
-class driver_fullscreen : public driver_base {
-public:
-	driver_fullscreen(SDL_monitor_desc &monitor);
-	~driver_fullscreen();
-};
 
 static driver_base *drv = NULL;	// Pointer to currently used driver object
 
@@ -664,6 +641,102 @@ driver_base::driver_base(SDL_monitor_desc &m)
 {
 	the_buffer = NULL;
 	the_buffer_copy = NULL;
+}
+
+void driver_base::set_video_mode(int flags)
+{
+	int aligned_height = (VIDEO_MODE_Y + 15) & ~15;
+	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
+	if ((s = SDL_SetVideoMode(VIDEO_MODE_X, VIDEO_MODE_Y, depth,
+			SDL_HWSURFACE | flags)) == NULL)
+		return;
+#ifdef ENABLE_VOSF
+	the_host_buffer = (uint8 *)s->pixels;
+#endif
+}
+
+void driver_base::init()
+{
+	set_video_mode(display_type == DISPLAY_SCREEN ? SDL_FULLSCREEN : 0);
+	int aligned_height = (VIDEO_MODE_Y + 15) & ~15;
+
+#ifdef ENABLE_VOSF
+	use_vosf = true;
+	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
+	the_buffer_size = page_extend((aligned_height + 2) * s->pitch);
+	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
+	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
+	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
+
+	// Check whether we can initialize the VOSF subsystem and it's profitable
+	if (!video_vosf_init(monitor)) {
+		WarningAlert(STR_VOSF_INIT_ERR);
+		use_vosf = false;
+	}
+	else if (!video_vosf_profitable()) {
+		video_vosf_exit();
+		printf("VOSF acceleration is not profitable on this platform, disabling it\n");
+		use_vosf = false;
+	}
+	if (!use_vosf) {
+		free(the_buffer_copy);
+		vm_release(the_buffer, the_buffer_size);
+		the_host_buffer = NULL;
+	}
+#endif
+	if (!use_vosf) {
+		// Allocate memory for frame buffer
+		the_buffer_size = (aligned_height + 2) * s->pitch;
+		the_buffer_copy = (uint8 *)calloc(1, the_buffer_size);
+		the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
+		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
+	}
+
+	// Set frame buffer base
+	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
+
+	adapt_to_video_mode();
+}
+
+void driver_base::adapt_to_video_mode() {
+	ADBSetRelMouseMode(false);
+
+	// Init blitting routines
+	SDL_PixelFormat *f = s->format;
+	VisualFormat visualFormat;
+	visualFormat.depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
+	visualFormat.Rmask = f->Rmask;
+	visualFormat.Gmask = f->Gmask;
+	visualFormat.Bmask = f->Bmask;
+	Screen_blitter_init(visualFormat, true, mac_depth_of_video_depth(VIDEO_MODE_DEPTH));
+
+	// Load gray ramp to 8->16/32 expand map
+	if (!IsDirectMode(mode))
+		for (int i=0; i<256; i++)
+			ExpandMap[i] = SDL_MapRGB(f, i, i, i);
+
+
+	bool hardware_cursor = false;
+#ifdef SHEEPSHAVER
+	hardware_cursor = video_can_change_cursor();
+	if (hardware_cursor) {
+		// Create cursor
+		if ((sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, 0, 0)) != NULL) {
+			SDL_SetCursor(sdl_cursor);
+		}
+	}
+	// Tell the video driver there's a change in cursor type
+	if (private_data)
+		private_data->cursorHardware = hardware_cursor;
+#endif
+	// Hide cursor
+	SDL_ShowCursor(hardware_cursor);
+
+	// Set window name/class
+	set_window_name(STR_WINDOW_TITLE);
+
+	// Everything went well
+	init_ok = true;
 }
 
 driver_base::~driver_base()
@@ -690,11 +763,6 @@ driver_base::~driver_base()
 	}
 #ifdef ENABLE_VOSF
 	else {
-		if (the_host_buffer) {
-			D(bug(" freeing the_host_buffer at %p\n", the_host_buffer));
-			free(the_host_buffer);
-			the_host_buffer = NULL;
-		}
 		if (the_buffer_copy) {
 			D(bug(" freeing the_buffer_copy at %p\n", the_buffer_copy));
 			free(the_buffer_copy);
@@ -705,6 +773,8 @@ driver_base::~driver_base()
 		video_vosf_exit();
 	}
 #endif
+
+	SDL_ShowCursor(1);
 }
 
 // Palette has changed
@@ -726,120 +796,8 @@ void driver_base::restore_mouse_accel(void)
 {
 }
 
-
-/*
- *  Windowed display driver
- */
-
-static bool SDL_display_opened = false;
-
-// Open display
-driver_window::driver_window(SDL_monitor_desc &m)
-	: driver_base(m), mouse_grabbed(false)
-{
-	int width = VIDEO_MODE_X, height = VIDEO_MODE_Y;
-	int aligned_height = (height + 15) & ~15;
-
-	// Set absolute mouse mode
-	ADBSetRelMouseMode(mouse_grabbed);
-
-	// This is ugly:
-	// If we're switching resolutions (ie, not setting it for the first time),
-	// there's a bug in SDL where the SDL_Surface created will not be properly
-	// setup. The solution is to SDL_QuitSubSystem(SDL_INIT_VIDEO) before calling
-	// SDL_SetVideoMode for the second time (SDL_SetVideoMode will call SDL_Init()
-	// and all will be well). Without this, the video becomes corrupted (at least
-	// on Mac OS X), after the resolution switch.
-	if (SDL_display_opened)
-		SDL_QuitSubSystem(SDL_INIT_VIDEO);
-
-	// Create surface
-	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
-	if ((s = SDL_SetVideoMode(width, height, depth, SDL_HWSURFACE)) == NULL)
-		return;
-
-	SDL_display_opened = true;
-
-#ifdef ENABLE_VOSF
-	use_vosf = true;
-	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
-	the_host_buffer = (uint8 *)s->pixels;
-	the_buffer_size = page_extend((aligned_height + 2) * s->pitch);
-	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
-	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
-	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
-
-	// Check whether we can initialize the VOSF subsystem and it's profitable
-	if (!video_vosf_init(m)) {
-		WarningAlert(STR_VOSF_INIT_ERR);
-		use_vosf = false;
-	}
-	else if (!video_vosf_profitable()) {
-		video_vosf_exit();
-		printf("VOSF acceleration is not profitable on this platform, disabling it\n");
-		use_vosf = false;
-	}
-	if (!use_vosf) {
-		free(the_buffer_copy);
-		vm_release(the_buffer, the_buffer_size);
-		the_host_buffer = NULL;
-	}
-#endif
-	if (!use_vosf) {
-		// Allocate memory for frame buffer
-		the_buffer_size = (aligned_height + 2) * s->pitch;
-		the_buffer_copy = (uint8 *)calloc(1, the_buffer_size);
-		the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
-		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
-	}
-	
-#ifdef SHEEPSHAVER
-	// Create cursor
-	if ((sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, 0, 0)) != NULL) {
-		SDL_SetCursor(sdl_cursor);
-	}
-#else
-	// Hide cursor
-	SDL_ShowCursor(0);
-#endif
-
-	// Set window name/class
-	set_window_name(STR_WINDOW_TITLE);
-
-	// Init blitting routines
-	SDL_PixelFormat *f = s->format;
-	VisualFormat visualFormat;
-	visualFormat.depth = depth;
-	visualFormat.Rmask = f->Rmask;
-	visualFormat.Gmask = f->Gmask;
-	visualFormat.Bmask = f->Bmask;
-	Screen_blitter_init(visualFormat, true, mac_depth_of_video_depth(VIDEO_MODE_DEPTH));
-
-	// Load gray ramp to 8->16/32 expand map
-	if (!IsDirectMode(mode))
-		for (int i=0; i<256; i++)
-			ExpandMap[i] = SDL_MapRGB(f, i, i, i);
-
-	// Set frame buffer base
-	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
-
-	// Everything went well
-	init_ok = true;
-}
-
-// Close display
-driver_window::~driver_window()
-{
-#ifdef ENABLE_VOSF
-	if (use_vosf)
-		the_host_buffer = NULL;	// don't free() in driver_base dtor
-#endif
-	if (s)
-		SDL_FreeSurface(s);
-}
-
 // Toggle mouse grab
-void driver_window::toggle_mouse_grab(void)
+void driver_base::toggle_mouse_grab(void)
 {
 	if (mouse_grabbed)
 		ungrab_mouse();
@@ -848,7 +806,7 @@ void driver_window::toggle_mouse_grab(void)
 }
 
 // Grab mouse, switch to relative mouse mode
-void driver_window::grab_mouse(void)
+void driver_base::grab_mouse(void)
 {
 	if (!mouse_grabbed) {
 		SDL_GrabMode new_mode = set_grab_mode(SDL_GRAB_ON);
@@ -861,7 +819,7 @@ void driver_window::grab_mouse(void)
 }
 
 // Ungrab mouse, switch to absolute mouse mode
-void driver_window::ungrab_mouse(void)
+void driver_base::ungrab_mouse(void)
 {
 	if (mouse_grabbed) {
 		SDL_GrabMode new_mode = set_grab_mode(SDL_GRAB_OFF);
@@ -872,105 +830,6 @@ void driver_window::ungrab_mouse(void)
 		}
 	}
 }
-
-// Mouse moved
-void driver_window::mouse_moved(int x, int y)
-{
-	mouse_last_x = x; mouse_last_y = y;
-	ADBMouseMoved(x, y);
-}
-
-
-/*
- *  Full-screen display driver
- */
-
-// Open display
-driver_fullscreen::driver_fullscreen(SDL_monitor_desc &m)
-	: driver_base(m)
-{
-	int width = VIDEO_MODE_X, height = VIDEO_MODE_Y;
-	int aligned_height = (height + 15) & ~15;
-
-	// Set absolute mouse mode
-	ADBSetRelMouseMode(false);
-
-	// Create surface
-	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
-	if ((s = SDL_SetVideoMode(width, height, depth, SDL_HWSURFACE | SDL_FULLSCREEN)) == NULL)
-		return;
-
-#ifdef ENABLE_VOSF
-	use_vosf = true;
-	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
-	the_host_buffer = (uint8 *)s->pixels;
-	the_buffer_size = page_extend((aligned_height + 2) * s->pitch);
-	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
-	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
-	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
-
-	// Check whether we can initialize the VOSF subsystem and it's profitable
-	if (!video_vosf_init(m)) {
-		WarningAlert(STR_VOSF_INIT_ERR);
-		use_vosf = false;
-	}
-	else if (!video_vosf_profitable()) {
-		video_vosf_exit();
-		printf("VOSF acceleration is not profitable on this platform, disabling it\n");
-		use_vosf = false;
-	}
-	if (!use_vosf) {
-		free(the_buffer_copy);
-		vm_release(the_buffer, the_buffer_size);
-		the_host_buffer = NULL;
-	}
-#endif
-	if (!use_vosf) {
-		// Allocate memory for frame buffer
-		the_buffer_size = (aligned_height + 2) * s->pitch;
-		the_buffer_copy = (uint8 *)calloc(1, the_buffer_size);
-		the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
-		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
-	}
-	
-	// Hide cursor
-	SDL_ShowCursor(0);
-
-	// Init blitting routines
-	SDL_PixelFormat *f = s->format;
-	VisualFormat visualFormat;
-	visualFormat.depth = depth;
-	visualFormat.Rmask = f->Rmask;
-	visualFormat.Gmask = f->Gmask;
-	visualFormat.Bmask = f->Bmask;
-	Screen_blitter_init(visualFormat, true, mac_depth_of_video_depth(VIDEO_MODE_DEPTH));
-
-	// Load gray ramp to 8->16/32 expand map
-	if (!IsDirectMode(mode))
-		for (int i=0; i<256; i++)
-			ExpandMap[i] = SDL_MapRGB(f, i, i, i);
-
-	// Set frame buffer base
-	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
-
-	// Everything went well
-	init_ok = true;
-}
-
-// Close display
-driver_fullscreen::~driver_fullscreen()
-{
-#ifdef ENABLE_VOSF
-	if (use_vosf)
-		the_host_buffer = NULL;	// don't free() in driver_base dtor
-#endif
-	if (s)
-		SDL_FreeSurface(s);
-
-	// Show cursor
-	SDL_ShowCursor(1);
-}
-
 
 /*
  *  Initialization
@@ -1066,16 +925,10 @@ bool SDL_monitor_desc::video_open(void)
 #endif
 
 	// Create display driver object of requested type
-	switch (display_type) {
-	case DISPLAY_WINDOW:
-		drv = new(std::nothrow) driver_window(*this);
-		break;
-	case DISPLAY_SCREEN:
-		drv = new(std::nothrow) driver_fullscreen(*this);
-		break;
-	}
+	drv = new(std::nothrow) driver_base(*this);
 	if (drv == NULL)
 		return false;
+	drv->init();
 	if (!drv->init_ok) {
 		delete drv;
 		drv = NULL;
@@ -1361,6 +1214,55 @@ void VideoQuitFullScreen(void)
 	quit_full_screen = true;
 }
 
+static void do_toggle_fullscreen(void)
+{
+#ifndef USE_CPU_EMUL_SERVICES
+	// pause redraw thread
+	thread_stop_ack = false;
+	thread_stop_req = true;
+	while (!thread_stop_ack) ;
+#endif
+
+	// save the mouse position
+	int x, y;
+	SDL_GetMouseState(&x, &y);
+
+	// save the screen contents
+	SDL_Surface *tmp_surface = SDL_ConvertSurface(drv->s, drv->s->format,
+		drv->s->flags);
+
+	// switch modes
+	display_type = (display_type == DISPLAY_SCREEN) ? DISPLAY_WINDOW
+		: DISPLAY_SCREEN;
+	drv->set_video_mode(display_type == DISPLAY_SCREEN ? SDL_FULLSCREEN : 0);
+	drv->adapt_to_video_mode();
+
+	// reset the palette
+#ifdef SHEEPSHAVER
+	video_set_palette();
+#endif
+	drv->update_palette();
+
+	// restore the screen contents
+	SDL_BlitSurface(tmp_surface, NULL, drv->s, NULL);
+	SDL_FreeSurface(tmp_surface);
+	SDL_UpdateRect(drv->s, 0, 0, 0, 0);
+
+	// reset the video refresh handler
+	VideoRefreshInit();
+
+	// while SetVideoMode is happening, control key up may be missed
+	ADBKeyUp(0x36);
+
+	// restore the mouse position
+	SDL_WarpMouse(x, y);
+
+	// resume redraw thread
+	toggle_fullscreen = false;
+#ifndef USE_CPU_EMUL_SERVICES
+	thread_stop_req = false;
+#endif
+}
 
 /*
  *  Mac VBL interrupt
@@ -1376,6 +1278,9 @@ void VideoVBL(void)
 	// Emergency quit requested? Then quit
 	if (emerg_quit)
 		QuitEmulator();
+
+	if (toggle_fullscreen)
+		do_toggle_fullscreen();
 
 	// Temporarily give up frame buffer lock (this is the point where
 	// we are suspended when the user presses Ctrl-Tab)
@@ -1395,6 +1300,9 @@ void VideoInterrupt(void)
 	// Emergency quit requested? Then quit
 	if (emerg_quit)
 		QuitEmulator();
+
+	if (toggle_fullscreen)
+		do_toggle_fullscreen();
 
 	// Temporarily give up frame buffer lock (this is the point where
 	// we are suspended when the user presses Ctrl-Tab)
@@ -1536,12 +1444,12 @@ void SDL_monitor_desc::switch_to_current_mode(void)
 #ifdef SHEEPSHAVER
 bool video_can_change_cursor(void)
 {
+	if (display_type != DISPLAY_WINDOW)
+		return false;
+
 #if defined(__APPLE__)
 	static char driver[] = "Quartz?";
 	static int quartzok = -1;
-
-	if (display_type != DISPLAY_WINDOW)
-		return false;
 
 	if (quartzok < 0) {
 		if (SDL_VideoDriverName(driver, sizeof driver) == NULL || strncmp(driver, "Quartz", sizeof driver))
@@ -1576,16 +1484,25 @@ void video_set_cursor(void)
 		if (sdl_cursor) {
 			SDL_ShowCursor(private_data == NULL || private_data->cursorVisible);
 			SDL_SetCursor(sdl_cursor);
-#ifdef WIN32
+
 			// XXX Windows apparently needs an extra mouse event to
-			// make the new cursor image visible
-			int visible = SDL_ShowCursor(-1);
-			if (visible) {
-				int x, y;
-				SDL_GetMouseState(&x, &y);
-				SDL_WarpMouse(x, y);
-			}
+			// make the new cursor image visible.
+			// On Mac, if mouse is grabbed, SDL_ShowCursor() recenters the
+			// mouse, we have to put it back.
+			bool move = false;
+#ifdef WIN32
+			move = true;
+#elif defined(__APPLE__)
+			move = mouse_grabbed;
 #endif
+			if (move) {
+				int visible = SDL_ShowCursor(-1);
+				if (visible) {
+					int x, y;
+					SDL_GetMouseState(&x, &y);
+					SDL_WarpMouse(x, y);
+				}
+			}
 		}
 	}
 }
@@ -1684,7 +1601,7 @@ static int kc_decode(SDL_keysym const & ks, bool key_down)
 	case SDLK_SLASH: case SDLK_QUESTION: return 0x2c;
 
 	case SDLK_TAB: if (is_ctrl_down(ks)) {if (!key_down) drv->suspend(); return -2;} else return 0x30;
-	case SDLK_RETURN: return 0x24;
+	case SDLK_RETURN: if (is_ctrl_down(ks)) {if (!key_down) toggle_fullscreen = true; return -2;} else return 0x24;
 	case SDLK_SPACE: return 0x31;
 	case SDLK_BACKSPACE: return 0x33;
 
@@ -2183,7 +2100,7 @@ static void video_refresh_dga_vosf(void)
 		tick_counter = 0;
 		if (mainBuffer.dirty) {
 			LOCK_VOSF;
-			update_display_dga_vosf(static_cast<driver_fullscreen *>(drv));
+			update_display_dga_vosf(drv);
 			UNLOCK_VOSF;
 		}
 	}
@@ -2201,7 +2118,7 @@ static void video_refresh_window_vosf(void)
 		tick_counter = 0;
 		if (mainBuffer.dirty) {
 			LOCK_VOSF;
-			update_display_window_vosf(static_cast<driver_window *>(drv));
+			update_display_window_vosf(drv);
 			UNLOCK_VOSF;
 		}
 	}
@@ -2297,13 +2214,11 @@ static int redraw_func(void *arg)
 			next = GetTicks_usec();
 		ticks++;
 
-#ifdef SHEEPSHAVER
 		// Pause if requested (during video mode switches)
 		if (thread_stop_req) {
 			thread_stop_ack = true;
 			continue;
 		}
-#endif
 
 		// Process pending events and update display
 		do_video_refresh();
