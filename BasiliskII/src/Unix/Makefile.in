@@ -74,6 +74,10 @@ CXXFLAGS += $(GUI_CFLAGS)
 LIBS += $(GUI_LIBS)
 endif
 
+ifeq (@MACOSX_ETHERSLAVE@,yes)
+PROGS += etherslavetool
+endif
+
 ## Rules
 .PHONY: modules install installdirs uninstall mostlyclean clean distclean depend dep
 .SUFFIXES:
@@ -138,6 +142,9 @@ $(GUI_APP)_app: $(GUI_APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	mkdir -p $(GUI_APP_APP)/Contents/Resources
 	./cpr.sh ../MacOSX/$(APP).icns $(GUI_APP_APP)/Contents/Resources/$(GUI_APP).icns
 
+etherslavetool: ../MacOSX/etherslavetool.c
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(LIBS) $<  -o $@
+
 modules:
 	cd Linux/NetDriver; make
 
@@ -167,7 +174,7 @@ mostlyclean:
 	rm -f $(PROGS) $(OBJ_DIR)/* core* *.core *~ *.bak
 
 clean: mostlyclean
-	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h compemu.cpp compstbl.cpp comptbl.h
+	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h compemu.cpp compstbl.cpp comptbl.h Darwin/lowmem Darwin/pagezero
 
 distclean: clean
 	rm -rf $(OBJ_DIR)

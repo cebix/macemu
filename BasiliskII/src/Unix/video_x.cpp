@@ -328,7 +328,7 @@ static bool find_visual_for_depth(video_depth depth)
 	bool visual_found = false;
 	for (int i=0; i<num_depths && !visual_found; i++) {
 
-		xdepth = avail_depths[i];
+		xdepth = avail_depths[num_depths-i-1];
 		D(bug(" trying to find visual for depth %d\n", xdepth));
 		if (xdepth < min_depth || xdepth > max_depth)
 			continue;
