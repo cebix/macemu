@@ -21,6 +21,9 @@ AC_ARG_ENABLE(standalone-gui,[  --enable-standalone-gui enable a standalone GUI 
 dnl Mac OS X GUI.
 AC_ARG_ENABLE(macosx-gui,    [  --enable-macosx-gui     enable Mac OS X GUI [default=no]], [WANT_MACOSX_GUI=$enableval], [WANT_MACOSX_GUI=no])
 
+dnl Mac OS X Sound
+AC_ARG_ENABLE(macosx-sound,  [  --enable-macosx-sound   enable Mac OS X Sound [default=no]], [WANT_MACOSX_SOUND=$enableval], [WANT_MACOSX_SOUND=no])
+
 dnl Video options.
 AC_ARG_ENABLE(xf86-dga,      [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(xf86-vidmode,  [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
@@ -509,6 +512,7 @@ mips-sony-bsd|mips-sony-newsos4)
 	;;
 *-*-darwin*)
 	no_dev_ptmx=1
+	LIBS="$LIBS -lstdc++"
 	;;
 esac
 
@@ -719,9 +723,13 @@ if [[ "x$WANT_MACOSX_GUI" = "xyes" ]]; then
   EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/prefs_macosx.cpp"
 
   VIDEOSRCS="../MacOSX/video_macosx.mm"
-  AUDIOSRC="../MacOSX/audio_macosx.cpp ../MacOSX/AudioBackEnd.cpp ../MacOSX/AudioDevice.cpp ../MacOSX/MacOSX_sound_if.cpp"
 else
   EXTRASYSSRCS="$EXTRASYSSRCS main_unix.cpp prefs_unix.cpp"
+fi
+
+if [[ "x$WANT_MACOSX_SOUND" = "xyes" ]]; then
+  AUDIOSRC="../MacOSX/audio_macosx.cpp ../MacOSX/AudioBackEnd.cpp ../MacOSX/AudioDevice.cpp ../MacOSX/MacOSX_sound_if.cpp"
+  LIBS="$LIBS -framework AudioToolbox -framework AudioUnit -framework CoreAudio"
 fi
 
 dnl SDL overrides
@@ -1748,6 +1756,7 @@ echo
 echo Basilisk II configuration summary:
 echo
 echo Mac OS X GUI ........................... : $WANT_MACOSX_GUI
+echo Mac OS X Sound ......................... : $WANT_MACOSX_SOUND
 echo SDL support ............................ : $SDL_SUPPORT
 echo BINCUE support ......................... : $have_bincue
 echo LIBVHD support ......................... : $have_libvhd

@@ -167,7 +167,8 @@ mostlyclean:
 	rm -f $(PROGS) $(OBJ_DIR)/* core* *.core *~ *.bak
 
 clean: mostlyclean
-	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h compemu.cpp compstbl.cpp comptbl.h
+	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h compemu.cpp compstbl.cpp comptbl.h Darwin/lowmem Darwin/pagezero
+	rm -rf etherslavetool.dSYM
 
 distclean: clean
 	rm -rf $(OBJ_DIR)
