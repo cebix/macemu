@@ -41,6 +41,9 @@ prefs_desc platform_prefs_items[] = {
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 	{"ignoresegv", TYPE_BOOLEAN, false,    "ignore illegal memory accesses"},
 #endif
+#ifdef ENABLE_MACOSX_ETHERSLAVE
+	{"etherslavedev", TYPE_STRING, false, "ethernet device for etherslave ethernet"},
+#endif
 	{"idlewait", TYPE_BOOLEAN, false,      "sleep when idle"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };

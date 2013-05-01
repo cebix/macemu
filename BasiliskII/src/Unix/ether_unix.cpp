@@ -41,6 +41,12 @@
 #endif
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+
+#ifdef ENABLE_MACOSX_ETHERSLAVE
+#include <net/if_dl.h>
+#include <ifaddrs.h>
+#endif
+
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -93,8 +99,16 @@ enum {
 	NET_IF_SHEEPNET,
 	NET_IF_ETHERTAP,
 	NET_IF_TUNTAP,
-	NET_IF_SLIRP
+	NET_IF_SLIRP,
+	NET_IF_ETHERSLAVE
 };
+
+
+#ifdef ENABLE_MACOSX_ETHERSLAVE
+extern "C" {
+	extern FILE * runTool(const char *ifName);
+}
+#endif
 
 // Constants
 #if ENABLE_TUNTAP
@@ -122,6 +136,11 @@ static uint8 ether_addr[6];					// Our Ethernet address
 const bool ether_driver_opened = true;		// Flag: is the MacOS driver opened?
 #endif
 
+
+#ifdef ENABLE_MACOSX_ETHERSLAVE
+static uint8 packet_buffer[2048];
+#endif
+
 // Attached network protocols, maps protocol type to MacOS handler address
 static map<uint16, uint32> net_protocols;
 
@@ -135,6 +154,11 @@ static void ether_do_interrupt(void);
 static void slirp_add_redirs();
 static int slirp_add_redir(const char *redir_str);
 
+#ifdef ENABLE_MACOSX_ETHERSLAVE
+static int getmacaddress(const char* dev, unsigned char *addr);
+static bool openEtherSlave(const char *ifName);
+static int readpacket(void);
+#endif
 
 /*
  *  Start packet reception thread
@@ -235,6 +259,9 @@ bool ether_init(void)
 
 	// Do nothing if no Ethernet device specified
 	const char *name = PrefsFindString("ether");
+#ifdef ENABLE_MACOSX_ETHERSLAVE
+	const char *slaveDev = PrefsFindString("etherslavedev");
+#endif
 	if (name == NULL)
 		return false;
 
@@ -249,6 +276,10 @@ bool ether_init(void)
 #ifdef HAVE_SLIRP
 	else if (strcmp(name, "slirp") == 0)
 		net_if_type = NET_IF_SLIRP;
+#endif
+#ifdef ENABLE_MACOSX_ETHERSLAVE
+	else if (strcmp(name, "etherslave") == 0)
+		 net_if_type = NET_IF_ETHERSLAVE;
 #endif
 	else
 		net_if_type = NET_IF_SHEEPNET;
@@ -300,6 +331,14 @@ bool ether_init(void)
 	case NET_IF_SHEEPNET:
 		strcpy(dev_name, "/dev/sheep_net");
 		break;
+#ifdef ENABLE_MACOSX_ETHERSLAVE
+	case NET_IF_ETHERSLAVE:
+		if(slaveDev == NULL) {
+			WarningAlert("etherslavedev not defined in preferences.");
+			return false;
+		}
+		return openEtherSlave(slaveDev);
+#endif
 	}
 	if (net_if_type != NET_IF_SLIRP) {
 		fd = open(dev_name, O_RDWR);
@@ -751,6 +790,21 @@ static int16 ether_do_write(uint32 arg)
 		return noErr;
 	} else
 #endif
+#ifdef ENABLE_MACOSX_ETHERSLAVE
+	if (net_if_type == NET_IF_ETHERSLAVE) {
+		unsigned short pktlen;
+
+		pktlen = len;
+		if(write(fd, &pktlen, 2) < 2) {
+			return excessCollsns;
+		}
+
+		if(write(fd, packet, len) < len) {
+			return excessCollsns;
+		}
+		return noErr;
+	} else
+#endif
 	if (write(fd, packet, len) < 0) {
 		D(bug("WARNING: Couldn't transmit packet\n"));
 		return excessCollsns;
@@ -884,6 +938,13 @@ static void *receive_func(void *arg)
 		if (res <= 0)
 			break;
 
+#ifdef ENABLE_MACOSX_ETHERSLAVE
+		if (net_if_type == NET_IF_ETHERSLAVE) {
+			if(readpacket() < 1) {
+				break;
+			}
+		}
+#endif
 		if (ether_driver_opened) {
 			// Trigger Ethernet interrupt
 			D(bug(" packet received, triggering Ethernet interrupt\n"));
@@ -922,6 +983,18 @@ void ether_do_interrupt(void)
 				break;
 			ether_udp_read(packet, length, &from);
 
+		} else
+#endif
+#ifdef ENABLE_MACOSX_ETHERSLAVE
+		if (net_if_type == NET_IF_ETHERSLAVE) {
+			unsigned short *pktlen;
+			uint32 p = packet;
+
+			pktlen = (unsigned short *)packet_buffer;
+			length = *pktlen;
+			memcpy(Mac2HostAddr(packet), pktlen + 1, length);
+			ether_dispatch_packet(p, length);
+			break;
 		} else
 #endif
 		{
@@ -1049,3 +1122,110 @@ static int slirp_add_redir(const char *redir_str)
 	WarningAlert(str);
 	return -1;
 }
+
+#ifdef ENABLE_MACOSX_ETHERSLAVE
+static int getmacaddress(const char* dev, unsigned char *addr)
+{
+	struct ifaddrs *ifaddrs, *next;
+	int ret = -1;
+	struct sockaddr_dl *sa;
+
+	if(getifaddrs(&ifaddrs) != 0) {
+		perror("getifaddrs");
+		return -1;
+	}
+
+	next = ifaddrs;
+	while(next != NULL) {
+		switch(next->ifa_addr->sa_family) {
+		case AF_LINK:
+			if(!strcmp(dev, next->ifa_name)) {
+				sa = (struct sockaddr_dl *)next->ifa_addr;
+				memcpy(addr, LLADDR(sa), 6);
+				ret = 0;
+			}
+			break;
+		default:
+			break;
+		}
+		next = next->ifa_next;
+	}
+
+	freeifaddrs(ifaddrs);
+
+	return ret;
+}
+
+static bool openEtherSlave(const char *ifName)
+{
+	FILE *fp;
+	char str[64];
+
+	str[sizeof(str)-1] = '\0';
+
+	if(getmacaddress(ifName, ether_addr) != 0) {
+		snprintf(str, sizeof(str)-1, "Unable to find interface %s.",
+			 ifName);
+		WarningAlert(str);
+		return false;
+	}
+
+	fp = runTool(ifName);
+	if(fp == NULL) {
+		snprintf(str, sizeof(str)-1, "Unable to run ether slave helper tool.");
+		WarningAlert(str);
+		return false;
+	}
+
+	fd = dup(fileno(fp));
+	fclose(fp);
+
+	if(start_thread() == false) {
+		close(fd);
+		fd = -1;
+		return false;
+	}
+
+	return true;
+}
+
+static int readpacket()
+{
+	int index;
+	unsigned short *pktLen;
+	int ret = -1;
+
+	pktLen = (unsigned short *)packet_buffer;
+
+	index = 0;
+	while(1) {
+		if(index < 2) {
+			ret = read(fd, packet_buffer + index, 2 - index);
+		} else {
+			ret = read(fd, packet_buffer + index, *pktLen - index + 2);
+		}
+
+		if(ret < 1) {
+			fprintf(stderr, "%s: read() returned %d.\n", __func__, ret);
+			break;
+		}
+
+		index += ret;
+    
+		if(index > 1) {
+			if(*pktLen > (sizeof(packet_buffer) + 2)) {
+				fprintf(stderr, "%s: pktLen (%d) too large.\n", __func__, *pktLen);
+				break;
+			}
+
+			if(index == (*pktLen + 2)) {
+				ret = *pktLen;
+				break;
+			}
+		}
+	}
+
+	return ret;
+}
+
+#endif

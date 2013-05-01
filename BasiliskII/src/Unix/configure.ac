@@ -21,6 +21,9 @@ AC_ARG_ENABLE(standalone-gui,[  --enable-standalone-gui enable a standalone GUI 
 dnl Mac OS X GUI.
 AC_ARG_ENABLE(macosx-gui,    [  --enable-macosx-gui     enable Mac OS X GUI [default=no]], [WANT_MACOSX_GUI=$enableval], [WANT_MACOSX_GUI=no])
 
+dnl Mac OS X etherslave support
+AC_ARG_ENABLE(macosx-etherslave,  [  --enable-macosx-etherslave   enable Mac OS X Sound [default=no]], [WANT_MACOSX_ETHERSLAVE=$enableval], [WANT_MACOSX_ETHERSLAVE=no])
+
 dnl Video options.
 AC_ARG_ENABLE(xf86-dga,      [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(xf86-vidmode,  [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
@@ -723,6 +726,14 @@ if [[ "x$WANT_MACOSX_GUI" = "xyes" ]]; then
 else
   EXTRASYSSRCS="$EXTRASYSSRCS main_unix.cpp prefs_unix.cpp"
 fi
+
+if [[ "x$WANT_MACOSX_ETHERSLAVE" = "xyes" ]]; then
+    EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/runtool.m"
+    LIBS="$LIBS -framework Security"
+    AC_DEFINE(ENABLE_MACOSX_ETHERSLAVE, 1, [Define if supporting "etherslave" network device.])
+fi
+
+AC_SUBST(MACOSX_ETHERSLAVE, $WANT_MACOSX_ETHERSLAVE)
 
 dnl SDL overrides
 if [[ "x$WANT_SDL" = "xyes" ]]; then
