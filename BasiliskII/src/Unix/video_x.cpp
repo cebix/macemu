@@ -396,7 +396,7 @@ static void add_window_modes(video_depth depth)
 #if (defined(__APPLE__) && defined(__MACH__))
 	//  16-bit video does not work properly on OS X
 	if(depth == VDEPTH_16BIT) {
-	  return;
+		return;
 	}
 #endif
 
