@@ -393,6 +393,13 @@ static void add_mode(uint32 width, uint32 height, uint32 resolution_id, uint32 b
 // Add standard list of windowed modes for given color depth
 static void add_window_modes(video_depth depth)
 {
+#if (defined(__APPLE__) && defined(__MACH__))
+	//  16-bit video does not work properly on OS X
+	if(depth == VDEPTH_16BIT) {
+	  return;
+	}
+#endif
+
 	add_mode(512, 384, 0x80, TrivialBytesPerRow(512, depth), depth);
 	add_mode(640, 480, 0x81, TrivialBytesPerRow(640, depth), depth);
 	add_mode(800, 600, 0x82, TrivialBytesPerRow(800, depth), depth);
