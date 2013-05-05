@@ -106,7 +106,7 @@ enum {
 
 #ifdef ENABLE_MACOSX_ETHERSLAVE
 extern "C" {
-	extern FILE * runTool(const char *ifName);
+	extern FILE * run_tool(const char *if_name);
 }
 #endif
 
@@ -155,9 +155,9 @@ static void slirp_add_redirs();
 static int slirp_add_redir(const char *redir_str);
 
 #ifdef ENABLE_MACOSX_ETHERSLAVE
-static int getmacaddress(const char* dev, unsigned char *addr);
-static bool openEtherSlave(const char *ifName);
-static int readpacket(void);
+static int get_mac_address(const char* dev, unsigned char *addr);
+static bool open_ether_slave(const char *if_name);
+static int read_packet(void);
 #endif
 
 /*
@@ -260,7 +260,7 @@ bool ether_init(void)
 	// Do nothing if no Ethernet device specified
 	const char *name = PrefsFindString("ether");
 #ifdef ENABLE_MACOSX_ETHERSLAVE
-	const char *slaveDev = PrefsFindString("etherslavedev");
+	const char *slave_dev = PrefsFindString("etherslavedev");
 #endif
 	if (name == NULL)
 		return false;
@@ -333,11 +333,11 @@ bool ether_init(void)
 		break;
 #ifdef ENABLE_MACOSX_ETHERSLAVE
 	case NET_IF_ETHERSLAVE:
-		if(slaveDev == NULL) {
+		if (slave_dev == NULL) {
 			WarningAlert("etherslavedev not defined in preferences.");
 			return false;
 		}
-		return openEtherSlave(slaveDev);
+		return open_ether_slave(slave_dev);
 #endif
 	}
 	if (net_if_type != NET_IF_SLIRP) {
@@ -792,14 +792,14 @@ static int16 ether_do_write(uint32 arg)
 #endif
 #ifdef ENABLE_MACOSX_ETHERSLAVE
 	if (net_if_type == NET_IF_ETHERSLAVE) {
-		unsigned short pktlen;
+		unsigned short pkt_len;
 
-		pktlen = len;
-		if(write(fd, &pktlen, 2) < 2) {
+		pkt_len = len;
+		if (write(fd, &pkt_len, 2) < 2) {
 			return excessCollsns;
 		}
 
-		if(write(fd, packet, len) < len) {
+		if (write(fd, packet, len) < len) {
 			return excessCollsns;
 		}
 		return noErr;
@@ -940,7 +940,7 @@ static void *receive_func(void *arg)
 
 #ifdef ENABLE_MACOSX_ETHERSLAVE
 		if (net_if_type == NET_IF_ETHERSLAVE) {
-			if(readpacket() < 1) {
+			if (read_packet() < 1) {
 				break;
 			}
 		}
@@ -987,12 +987,12 @@ void ether_do_interrupt(void)
 #endif
 #ifdef ENABLE_MACOSX_ETHERSLAVE
 		if (net_if_type == NET_IF_ETHERSLAVE) {
-			unsigned short *pktlen;
+			unsigned short *pkt_len;
 			uint32 p = packet;
 
-			pktlen = (unsigned short *)packet_buffer;
-			length = *pktlen;
-			memcpy(Mac2HostAddr(packet), pktlen + 1, length);
+			pkt_len = (unsigned short *)packet_buffer;
+			length = *pkt_len;
+			memcpy(Mac2HostAddr(packet), pkt_len + 1, length);
 			ether_dispatch_packet(p, length);
 			break;
 		} else
@@ -1124,22 +1124,22 @@ static int slirp_add_redir(const char *redir_str)
 }
 
 #ifdef ENABLE_MACOSX_ETHERSLAVE
-static int getmacaddress(const char* dev, unsigned char *addr)
+static int get_mac_address(const char* dev, unsigned char *addr)
 {
 	struct ifaddrs *ifaddrs, *next;
 	int ret = -1;
 	struct sockaddr_dl *sa;
 
-	if(getifaddrs(&ifaddrs) != 0) {
+	if (getifaddrs(&ifaddrs) != 0) {
 		perror("getifaddrs");
 		return -1;
 	}
 
 	next = ifaddrs;
-	while(next != NULL) {
-		switch(next->ifa_addr->sa_family) {
+	while (next != NULL) {
+		switch (next->ifa_addr->sa_family) {
 		case AF_LINK:
-			if(!strcmp(dev, next->ifa_name)) {
+			if (!strcmp(dev, next->ifa_name)) {
 				sa = (struct sockaddr_dl *)next->ifa_addr;
 				memcpy(addr, LLADDR(sa), 6);
 				ret = 0;
@@ -1156,23 +1156,21 @@ static int getmacaddress(const char* dev, unsigned char *addr)
 	return ret;
 }
 
-static bool openEtherSlave(const char *ifName)
+static bool open_ether_slave(const char *if_name)
 {
 	FILE *fp;
 	char str[64];
 
-	str[sizeof(str)-1] = '\0';
-
-	if(getmacaddress(ifName, ether_addr) != 0) {
-		snprintf(str, sizeof(str)-1, "Unable to find interface %s.",
-			 ifName);
+	if (get_mac_address(if_name, ether_addr) != 0) {
+		snprintf(str, sizeof(str), "Unable to find interface %s.",
+			 if_name);
 		WarningAlert(str);
 		return false;
 	}
 
-	fp = runTool(ifName);
-	if(fp == NULL) {
-		snprintf(str, sizeof(str)-1, "Unable to run ether slave helper tool.");
+	fp = run_tool(if_name);
+	if (fp == NULL) {
+		snprintf(str, sizeof(str), "Unable to run ether slave helper tool.");
 		WarningAlert(str);
 		return false;
 	}
@@ -1180,7 +1178,7 @@ static bool openEtherSlave(const char *ifName)
 	fd = dup(fileno(fp));
 	fclose(fp);
 
-	if(start_thread() == false) {
+	if (start_thread() == false) {
 		close(fd);
 		fd = -1;
 		return false;
@@ -1189,37 +1187,37 @@ static bool openEtherSlave(const char *ifName)
 	return true;
 }
 
-static int readpacket()
+static int read_packet()
 {
 	int index;
-	unsigned short *pktLen;
+	unsigned short *pkt_len;
 	int ret = -1;
 
-	pktLen = (unsigned short *)packet_buffer;
+	pkt_len = (unsigned short *)packet_buffer;
 
 	index = 0;
-	while(1) {
-		if(index < 2) {
+	while (1) {
+		if (index < 2) {
 			ret = read(fd, packet_buffer + index, 2 - index);
 		} else {
-			ret = read(fd, packet_buffer + index, *pktLen - index + 2);
+			ret = read(fd, packet_buffer + index, *pkt_len - index + 2);
 		}
 
-		if(ret < 1) {
+		if (ret < 1) {
 			fprintf(stderr, "%s: read() returned %d.\n", __func__, ret);
 			break;
 		}
 
 		index += ret;
     
-		if(index > 1) {
-			if(*pktLen > (sizeof(packet_buffer) + 2)) {
-				fprintf(stderr, "%s: pktLen (%d) too large.\n", __func__, *pktLen);
+		if (index > 1) {
+			if (*pkt_len > (sizeof(packet_buffer) + 2)) {
+				fprintf(stderr, "%s: pkt_len (%d) too large.\n", __func__, *pkt_len);
 				break;
 			}
 
-			if(index == (*pktLen + 2)) {
-				ret = *pktLen;
+			if (index == (*pkt_len + 2)) {
+				ret = *pkt_len;
 				break;
 			}
 		}

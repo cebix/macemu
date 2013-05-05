@@ -43,160 +43,160 @@
 
 #include <Carbon/Carbon.h>
 
-static int openBpf(char *ifname);
-static int retreiveAuthInfo(void);
-static int mainLoop(int sd);
+static int open_bpf(char *ifname);
+static int retreive_auth_info(void);
+static int main_loop(int sd);
 
 int main(int argc, char **argv) {
-	char *ifName;
+	char *if_name;
 	int ret;
 	int sd;
 
-	if(argc != 2) {
+	if (argc != 2) {
 		return 255;
 	}
 
-	ifName = argv[1];
+	if_name = argv[1];
 
-	ret = retreiveAuthInfo();
-	if(ret != 0) {
+	ret = retreive_auth_info();
+	if (ret != 0) {
 		return 254;
 	}
 
 	fflush(stdout);
 
-	sd = openBpf(ifName);
-	if(sd < 0) {
+	sd = open_bpf(if_name);
+	if (sd < 0) {
 		return 253;
 	}
 
 	fflush(stdout);
 
-	ret = mainLoop(sd);
+	ret = main_loop(sd);
 
 	close(sd);
 
-	if(ret < 0) {
+	if (ret < 0) {
 		return 252;
 	}
 
 	return 0;
 }
 
-static int mainLoop(int sd) {
+static int main_loop(int sd) {
 	fd_set readSet;
 	char *outgoing, *incoming;
-	unsigned short *outLen;
-	unsigned short *inLen;
-	int inIndex, outIndex;
+	unsigned short *out_len;
+	unsigned short *in_len;
+	int in_index, out_index;
 	u_int blen = 0;
 	int ret;
 	int fret = 0;
 	struct bpf_hdr *hdr;
-	int pktLen;
-	int frameLen;
+	int pkt_len;
+	int frame_len;
 	int pad;
 
-	if(ioctl(sd, BIOCGBLEN, &blen) < 0) {
+	if (ioctl(sd, BIOCGBLEN, &blen) < 0) {
 		return -1;
 	}
 
 	incoming = malloc(blen);
-	if(incoming == NULL) {
+	if (incoming == NULL) {
 		return -2;
 	}
 
 	outgoing = malloc(blen);
-	if(outgoing == NULL) {
+	if (outgoing == NULL) {
 		free(outgoing);
 		return -3;
 	}
 
-	inIndex = 0;
-	outIndex = 0;
+	in_index = 0;
+	out_index = 0;
 
-	outLen = (unsigned short *)outgoing;
+	out_len = (unsigned short *)outgoing;
 
-	while(1) {
+	while (1) {
 		int i;
 		FD_ZERO(&readSet);
 		FD_SET(0, &readSet);
 		FD_SET(sd, &readSet);
 
 		ret = select(sd + 1, &readSet, NULL, NULL, NULL);
-		if(ret < 0) {
+		if (ret < 0) {
 			fret = -4;
 			break;
 		}
 
-		if(FD_ISSET(0, &readSet)) {
-			if(outIndex < 2) {
-				ret = read(0, outgoing + outIndex, 2-outIndex);
+		if (FD_ISSET(0, &readSet)) {
+			if (out_index < 2) {
+				ret = read(0, outgoing + out_index, 2-out_index);
 			} else {
-				ret = read(0, outgoing + outIndex, *outLen - outIndex + 2);
+				ret = read(0, outgoing + out_index, *out_len - out_index + 2);
 			}
 
-			if(ret < 1) {
+			if (ret < 1) {
 				fret = -5;
 				break;
 			}
 
-			outIndex += ret;
-			if(outIndex > 1) {
+			out_index += ret;
+			if (out_index > 1) {
 				fflush(stdout);
 
-				if((*outLen + 2) > blen) {
+				if ((*out_len + 2) > blen) {
 					fret = -6;
 					break;
 				}
 
-				if(outIndex == (*outLen + 2)) {
-					ret = write(sd, outLen + 1, *outLen);
-					if(ret != *outLen) {
+				if (out_index == (*out_len + 2)) {
+					ret = write(sd, out_len + 1, *out_len);
+					if (ret != *out_len) {
 						fret = -7;
 						break;
 					}
-					outIndex = 0;
+					out_index = 0;
 				}
 			}
 
 		}
 
-		if(FD_ISSET(sd, &readSet)) {
+		if (FD_ISSET(sd, &readSet)) {
 			int i;
 
 			ret = read(sd, incoming, blen);
-			if(ret < 1) {
+			if (ret < 1) {
 				fret = -8;
 				break;
 			}
 
 			hdr = (struct bpf_hdr *)incoming;
-			inLen = (unsigned short *)(incoming + 16);
+			in_len = (unsigned short *)(incoming + 16);
 
 			do {
-				pktLen = hdr->bh_caplen;
-				frameLen = pktLen + 18;
+				pkt_len = hdr->bh_caplen;
+				frame_len = pkt_len + 18;
 
-				if((pktLen < 0) || (frameLen > ret) || (frameLen < 0)) {
+				if ((pkt_len < 0) || (frame_len > ret) || (frame_len < 0)) {
 					fret = -9;
 					break;
 				}
-				*inLen = pktLen;
+				*in_len = pkt_len;
 
-				write(0, inLen, pktLen + 2);
-				if((frameLen & 0x03) == 0) {
+				write(0, in_len, pkt_len + 2);
+				if ((frame_len & 0x03) == 0) {
 					pad = 0;
 				} else {
-					pad = 4 - (frameLen & 0x03);
+					pad = 4 - (frame_len & 0x03);
 				}
 
-				ret -= (frameLen + pad);
-				hdr = (struct bpf_hdr *)((unsigned char *)hdr + frameLen + pad);
-				inLen = (unsigned short *)((unsigned char *)hdr + 16);
+				ret -= (frame_len + pad);
+				hdr = (struct bpf_hdr *)((unsigned char *)hdr + frame_len + pad);
+				in_len = (unsigned short *)((unsigned char *)hdr + 16);
 			} while (ret > 0);
 
-			if(fret != 0) {
+			if (fret != 0) {
 				break;
 			}
 		}
@@ -208,7 +208,7 @@ static int mainLoop(int sd) {
 	return fret;
 }
 
-static int retreiveAuthInfo(void) {
+static int retreive_auth_info(void) {
 	AuthorizationRef aRef;
 	OSStatus status;
 	AuthorizationRights myRights;
@@ -219,12 +219,12 @@ static int retreiveAuthInfo(void) {
 	int i;
 
 	status = AuthorizationCopyPrivilegedReference(&aRef, kAuthorizationFlagDefaults);
-	if(status != errAuthorizationSuccess) {
+	if (status != errAuthorizationSuccess) {
 		return -1;
 	}
 
 	status = AuthorizationCopyInfo(aRef, NULL, &mySet);
-	if(status != errAuthorizationSuccess) {
+	if (status != errAuthorizationSuccess) {
 		AuthorizationFree(aRef, kAuthorizationFlagDestroyRights);
 		return -1;
 	}
@@ -240,7 +240,7 @@ static int retreiveAuthInfo(void) {
 	status = AuthorizationCopyRights(aRef, &myRights, NULL,
 					 kAuthorizationFlagExtendRights,
 					 &newRights);
-	if(status != errAuthorizationSuccess) {
+	if (status != errAuthorizationSuccess) {
 		AuthorizationFreeItemSet(mySet);
 		AuthorizationFree(aRef, kAuthorizationFlagDestroyRights);
 		return -2;
@@ -253,18 +253,18 @@ static int retreiveAuthInfo(void) {
 	return 0;
 }
  
-static int openBpf(char *ifname) {
+static int open_bpf(char *ifname) {
 	u_int blen = 0;
 	struct ifreq ifreq;
 	u_int arg;
 
 	int sd = open("/dev/bpf2", O_RDWR);
 
-	if(sd < 0) {
+	if (sd < 0) {
 		return -1;
 	}
 
-	if(ioctl(sd, BIOCGBLEN, &blen) < 0) {
+	if (ioctl(sd, BIOCGBLEN, &blen) < 0) {
 		close(sd);
 		return -2;
 	}
@@ -273,25 +273,25 @@ static int openBpf(char *ifname) {
 	strncpy(ifreq.ifr_name, ifname, IFNAMSIZ);
 
 	arg = 0;
-	if(ioctl(sd, BIOCSETIF, &ifreq) < 0) {
+	if (ioctl(sd, BIOCSETIF, &ifreq) < 0) {
 		close(sd);
 		return -3;
 	}
 
 	arg = 0;
-	if(ioctl(sd, BIOCSSEESENT, &arg) < 0) {
+	if (ioctl(sd, BIOCSSEESENT, &arg) < 0) {
 		close(sd);
 		return -4;
 	}
 
 	arg = 1;
-	if(ioctl(sd, BIOCPROMISC, &arg) < 0) {
+	if (ioctl(sd, BIOCPROMISC, &arg) < 0) {
 		close(sd);
 		return -5;
 	}
 
 	arg = 1;
-	if(ioctl(sd, BIOCIMMEDIATE, &arg) < 0) {
+	if (ioctl(sd, BIOCIMMEDIATE, &arg) < 0) {
 		close(sd);
 		return -6;
 	}

@@ -40,58 +40,57 @@
 
 #include <Carbon/Carbon.h>
 
-FILE * runTool(const char *ifName);
+FILE * run_tool(const char *ifName);
 
-FILE * runTool(const char *ifName) {
-	OSStatus authStatus;
+FILE * run_tool(const char *ifName) {
+	OSStatus auth_status;
 	FILE *fp;
 	char *args[] = {"etherslavetool", NULL, NULL};
 	int ret;
 	const char *path;
+	AuthorizationFlags auth_flags;
+	AuthorizationRef auth_ref;
+	AuthorizationItem auth_items[1];
+	AuthorizationRights auth_rights;
 
 	path = [[[NSBundle mainBundle]
 			pathForResource:@"etherslavetool" ofType: nil] UTF8String];
 
-	if(path == NULL) {
+	if (path == NULL) {
 		return NULL;
 	}
 
-	AuthorizationFlags authFlags;
-	AuthorizationRef authRef;
-	AuthorizationItem authItems[1];
-	AuthorizationRights authRights;
-
 	args[1] = (char *)ifName;
   
-	authFlags = kAuthorizationFlagExtendRights |
+	auth_flags = kAuthorizationFlagExtendRights |
 		kAuthorizationFlagInteractionAllowed |
 		kAuthorizationFlagPreAuthorize;
  
-	authItems[0].name = "system.privilege.admin";
-	authItems[0].valueLength = 0;
-	authItems[0].value = NULL;
-	authItems[0].flags = 0;
+	auth_items[0].name = "system.privilege.admin";
+	auth_items[0].valueLength = 0;
+	auth_items[0].value = NULL;
+	auth_items[0].flags = 0;
 
-	authRights.count = sizeof (authItems) / sizeof (authItems[0]);
-	authRights.items = authItems;
+	auth_rights.count = sizeof (auth_items) / sizeof (auth_items[0]);
+	auth_rights.items = auth_items;
   
-	authStatus = AuthorizationCreate(&authRights,
-					 kAuthorizationEmptyEnvironment,
-					 authFlags,
-					 &authRef);
+	auth_status = AuthorizationCreate(&auth_rights,
+					  kAuthorizationEmptyEnvironment,
+					  auth_flags,
+					  &auth_ref);
   
-	if(authStatus != errAuthorizationSuccess) {
+	if (auth_status != errAuthorizationSuccess) {
 		fprintf(stderr, "%s: AuthorizationCreate() failed.\n", __func__);
 		return NULL;
 	}
 
-	authStatus = AuthorizationExecuteWithPrivileges(authRef,
-							path,
-							kAuthorizationFlagDefaults,
-							args + 1,
-							&fp);
+	auth_status = AuthorizationExecuteWithPrivileges(auth_ref,
+							 path,
+							 kAuthorizationFlagDefaults,
+							 args + 1,
+							 &fp);
 
-	if(authStatus != errAuthorizationSuccess) {
+	if (auth_status != errAuthorizationSuccess) {
 		fprintf(stderr, "%s: AuthorizationExecWithPrivileges() failed.\n", __func__);
 		return NULL;
 	}
