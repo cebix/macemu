@@ -1636,13 +1636,12 @@ bool VideoInit(bool classic)
 		ErrorAlert(STR_UNSUPP_DEPTH_ERR);
 		return false;
 	}
-	std::sort(avail_depths, avail_depths + num_depths);
 
-#ifdef __APPLE__
 	// 15-bit color does not seem to work on OS X
-	int *last = std::remove(avail_depths, avail_depths + num_depths, 15);
-	num_depths = ( (size_t)last - (size_t)avail_depths ) / sizeof(int);
-#endif
+	int *list_end = std::remove(avail_depths, avail_depths + num_depths, 
+				    15);
+	num_depths = list_end - avail_depths;
+	std::sort(avail_depths, avail_depths + num_depths);
 	
 #ifdef ENABLE_FBDEV_DGA
 	// Frame buffer name
