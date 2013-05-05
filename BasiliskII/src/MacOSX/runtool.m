@@ -42,7 +42,8 @@
 
 FILE * run_tool(const char *ifName);
 
-FILE * run_tool(const char *ifName) {
+FILE * run_tool(const char *ifName)
+{
 	OSStatus auth_status;
 	FILE *fp;
 	char *args[] = {"etherslavetool", NULL, NULL};

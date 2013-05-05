@@ -47,7 +47,8 @@ static int open_bpf(char *ifname);
 static int retreive_auth_info(void);
 static int main_loop(int sd);
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
 	char *if_name;
 	int ret;
 	int sd;
@@ -83,7 +84,8 @@ int main(int argc, char **argv) {
 	return 0;
 }
 
-static int main_loop(int sd) {
+static int main_loop(int sd)
+{
 	fd_set readSet;
 	char *outgoing, *incoming;
 	unsigned short *out_len;
@@ -208,7 +210,8 @@ static int main_loop(int sd) {
 	return fret;
 }
 
-static int retreive_auth_info(void) {
+static int retreive_auth_info(void)
+{
 	AuthorizationRef aRef;
 	OSStatus status;
 	AuthorizationRights myRights;
@@ -253,7 +256,8 @@ static int retreive_auth_info(void) {
 	return 0;
 }
  
-static int open_bpf(char *ifname) {
+static int open_bpf(char *ifname)
+{
 	u_int blen = 0;
 	struct ifreq ifreq;
 	u_int arg;
