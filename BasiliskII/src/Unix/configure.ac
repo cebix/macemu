@@ -736,7 +736,7 @@ if [[ "x$WANT_MACOSX_SOUND" = "xyes" ]]; then
 fi
 
 if [[ "x$WANT_MACOSX_ETHERSLAVE" = "xyes" ]]; then
-    EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/runtool.m"
+    EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/runtool.c"
     LIBS="$LIBS -framework Security"
     AC_DEFINE(ENABLE_MACOSX_ETHERSLAVE, 1, [Define if supporting "etherslave" network device.])
 fi

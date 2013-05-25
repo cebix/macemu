@@ -106,7 +106,7 @@ enum {
 
 #ifdef ENABLE_MACOSX_ETHERSLAVE
 extern "C" {
-	extern FILE * run_tool(const char *if_name);
+	extern FILE * run_tool(const char *if_name, const char *tool_name);
 }
 #endif
 
@@ -1168,7 +1168,7 @@ static bool open_ether_slave(const char *if_name)
 		return false;
 	}
 
-	fp = run_tool(if_name);
+	fp = run_tool(if_name, "etherslavetool");
 	if (fp == NULL) {
 		snprintf(str, sizeof(str), "Unable to run ether slave helper tool.");
 		WarningAlert(str);

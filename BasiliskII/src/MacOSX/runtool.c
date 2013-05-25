@@ -40,28 +40,56 @@
 
 #include <Carbon/Carbon.h>
 
-FILE * run_tool(const char *ifName);
+FILE * run_tool(const char *if_name, const char *tool_name);
 
-FILE * run_tool(const char *ifName)
+FILE * run_tool(const char *if_name, const char *tool_name)
 {
 	OSStatus auth_status;
-	FILE *fp;
+	FILE *fp = NULL;
 	char *args[] = {"etherslavetool", NULL, NULL};
 	int ret;
-	const char *path;
+	char path_buffer[256];
 	AuthorizationFlags auth_flags;
 	AuthorizationRef auth_ref;
 	AuthorizationItem auth_items[1];
 	AuthorizationRights auth_rights;
+	CFBundleRef bundle_ref;
+	CFURLRef url_ref;
+	CFStringRef path_str;
+	CFStringRef tool_name_str;
 
-	path = [[[NSBundle mainBundle]
-			pathForResource:@"etherslavetool" ofType: nil] UTF8String];
-
-	if (path == NULL) {
+	bundle_ref = CFBundleGetMainBundle();
+	if(bundle_ref == NULL) {
 		return NULL;
 	}
 
-	args[1] = (char *)ifName;
+	tool_name_str = CFStringCreateWithCString(NULL, tool_name,
+						  kCFStringEncodingUTF8);
+
+	url_ref = CFBundleCopyResourceURL(bundle_ref, tool_name_str,
+					 NULL, NULL);
+
+	if(url_ref == NULL) {
+		return NULL;
+	}
+
+	path_str = CFURLCopyFileSystemPath(url_ref, kCFURLPOSIXPathStyle);
+	CFRelease(url_ref);
+
+	if(path_str == NULL) {
+		return NULL;
+	}
+
+	CFIndex index = CFStringGetLength(path_str);
+	if(!CFStringGetCString(path_str, path_buffer, sizeof(path_buffer),
+			       kCFStringEncodingUTF8)) {
+		CFRelease(path_str);
+		return NULL;
+	}
+	CFRelease(path_str);
+
+	args[0] = (char *)tool_name;
+	args[1] = (char *)if_name;
   
 	auth_flags = kAuthorizationFlagExtendRights |
 		kAuthorizationFlagInteractionAllowed |
@@ -81,18 +109,20 @@ FILE * run_tool(const char *ifName)
 					  &auth_ref);
   
 	if (auth_status != errAuthorizationSuccess) {
-		fprintf(stderr, "%s: AuthorizationCreate() failed.\n", __func__);
+		fprintf(stderr, "%s: AuthorizationCreate() failed.\n",
+			__func__);
 		return NULL;
 	}
 
 	auth_status = AuthorizationExecuteWithPrivileges(auth_ref,
-							 path,
+							 path_buffer,
 							 kAuthorizationFlagDefaults,
 							 args + 1,
 							 &fp);
 
 	if (auth_status != errAuthorizationSuccess) {
-		fprintf(stderr, "%s: AuthorizationExecWithPrivileges() failed.\n", __func__);
+		fprintf(stderr, "%s: AuthorizationExecWithPrivileges() failed.\n", 
+			__func__);
 		return NULL;
 	}
 
