@@ -43,15 +43,27 @@
 
 #include <Carbon/Carbon.h>
 
+#define STR_MAX 256
+#define MAX_ARGV 10
+
 static int open_bpf(char *ifname);
+static int open_tap(char *ifname);
 static int retreive_auth_info(void);
-static int main_loop(int sd);
+static int main_loop(int sd, int use_bpf);
+static int run_cmd(const char *cmd);
+static void handler(int signum);
+static int install_signal_handlers();
+static void do_exit();
+
+static int removeBridge = 0;
 
 int main(int argc, char **argv)
 {
 	char *if_name;
-	int ret;
+	int ret = 255;
 	int sd;
+        int tapNum;
+        int use_bpf;
 
 	if (argc != 2) {
 		return 255;
@@ -59,32 +71,41 @@ int main(int argc, char **argv)
 
 	if_name = argv[1];
 
-	ret = retreive_auth_info();
-	if (ret != 0) {
-		return 254;
-	}
+        do {
+                ret = retreive_auth_info();
+                if (ret != 0) {
+                        ret = 254;
+                        break;
+                }
 
-	fflush(stdout);
+                if(sscanf(if_name, "tap%d", &tapNum) == 1) {
+                        sd = open_tap(if_name);
+                        use_bpf = 0;
+                } else {
+                        sd = open_bpf(if_name);
+                        use_bpf = 0;
+                }
 
-	sd = open_bpf(if_name);
-	if (sd < 0) {
-		return 253;
-	}
+                if (sd < 0) {
+                        ret = 253;
+                        break;
+                }
 
-	fflush(stdout);
+                if(install_signal_handlers() != 0) {
+                        ret = 252;
+                        break;
+                }
 
-	ret = main_loop(sd);
+                ret = main_loop(sd, use_bpf);
+                close(sd);
+        } while(0);
 
-	close(sd);
+        do_exit();
 
-	if (ret < 0) {
-		return 252;
-	}
-
-	return 0;
+	return ret;
 }
 
-static int main_loop(int sd)
+static int main_loop(int sd, int use_bpf)
 {
 	fd_set readSet;
 	char *outgoing, *incoming;
@@ -98,10 +119,15 @@ static int main_loop(int sd)
 	int pkt_len;
 	int frame_len;
 	int pad;
+        char c = 0;
 
-	if (ioctl(sd, BIOCGBLEN, &blen) < 0) {
-		return -1;
-	}
+	if(use_bpf) {
+                if (ioctl(sd, BIOCGBLEN, &blen) < 0) {
+                        return -1;
+                }
+        } else {
+                blen = 2048;
+        }
 
 	incoming = malloc(blen);
 	if (incoming == NULL) {
@@ -118,6 +144,9 @@ static int main_loop(int sd)
 	out_index = 0;
 
 	out_len = (unsigned short *)outgoing;
+
+        /* Let our parent know we are ready for business. */
+        write(0, &c, 1);
 
 	while (1) {
 		int i;
@@ -164,7 +193,7 @@ static int main_loop(int sd)
 
 		}
 
-		if (FD_ISSET(sd, &readSet)) {
+		if (use_bpf && FD_ISSET(sd, &readSet)) {
 			int i;
 
 			ret = read(sd, incoming, blen);
@@ -186,7 +215,11 @@ static int main_loop(int sd)
 				}
 				*in_len = pkt_len;
 
-				write(0, in_len, pkt_len + 2);
+				if(write(0, in_len, pkt_len + 2) < (pkt_len + 2)) {
+                                        fret = -10;
+                                        break;
+                                }
+
 				if ((frame_len & 0x03) == 0) {
 					pad = 0;
 				} else {
@@ -202,6 +235,24 @@ static int main_loop(int sd)
 				break;
 			}
 		}
+
+		if (!use_bpf && FD_ISSET(sd, &readSet)) {
+			in_len = (unsigned short *)incoming;
+
+			pkt_len = read(sd, incoming+2, blen-2);
+			if (pkt_len < 14) {
+				fret = -8;
+				break;
+			}
+
+                        *in_len = ret;
+                        if(write(0, in_len, pkt_len + 2) < (pkt_len + 2)) {
+                                fret = -10;
+                                break;
+                        }
+
+                }
+
 	}
 
 	free(incoming);
@@ -255,6 +306,44 @@ static int retreive_auth_info(void)
 
 	return 0;
 }
+
+static int open_tap(char *ifname)
+{
+        char str[STR_MAX] = {0};
+        int sd;
+
+        snprintf(str, STR_MAX, "/dev/%s", ifname);
+
+        sd = open(str, O_RDWR);
+        if(sd < 0) {
+                return -1;
+        }
+
+        snprintf(str, STR_MAX, "/sbin/ifconfig %s up", ifname);
+        if(run_cmd(str) != 0) {
+                close(sd);
+                return -1;
+        }
+
+        snprintf(str, STR_MAX, "/sbin/ifconfig bridge0 create");
+        if(run_cmd(str) == 0) {
+                removeBridge = 1;
+        }
+
+        snprintf(str, STR_MAX, "/sbin/ifconfig bridge0 addm %s", ifname);
+        if(run_cmd(str) != 0) {
+                close(sd);
+                return -1;
+        }
+
+        snprintf(str, STR_MAX, "/sbin/ifconfig bridge0 up");
+        if(run_cmd(str) != 0) {
+                close(sd);
+                return -1;
+        }
+
+        return sd;
+}
  
 static int open_bpf(char *ifname)
 {
@@ -301,4 +390,84 @@ static int open_bpf(char *ifname)
 	}
 
 	return sd;
+}
+
+static int run_cmd(const char *cmd) {
+  char cmd_buffer[STR_MAX] = {0};
+  char *argv[MAX_ARGV + 1] = {0};
+  int i;
+  pid_t pid, waitpid;
+  int status = 0;
+
+  /* Collect arguments */
+  strncpy(cmd_buffer, cmd, STR_MAX-1);
+
+  argv[0] = strtok(cmd_buffer, " ");
+  for (i=1; i<MAX_ARGV; ++i) {
+    argv[i] = strtok(NULL, " ");
+    if (argv[i] == NULL) {
+      break;
+    }
+  }
+
+  /* Run sub process */
+  pid = fork();
+  if (pid == 0) {
+
+    /* Child process */
+    fclose(stdout);
+    fclose(stderr);
+
+    if (execve(argv[0], argv, NULL) < 0) {
+      perror("execve");
+      return -1;
+    }
+  } else {
+    /* Wait for child to exit */
+    waitpid = wait(&status);
+    if (waitpid < 0) {
+      perror("wait");
+      return -1;
+    }
+
+    if (status != 0) {
+      return -1;
+    }
+  }
+
+  return 0;
+}
+
+static void handler(int signum) {
+        do_exit();
+        exit(1);
+}
+
+static int install_signal_handlers() {
+        struct sigaction act = {0};
+
+        act.sa_handler = handler;
+        sigemptyset(&act.sa_mask);
+
+        if(sigaction(SIGINT, &act, NULL) != 0) {
+                return -1;
+        }
+
+
+        if(sigaction(SIGHUP, &act, NULL) != 0) {
+                return -1;
+        }
+
+
+        if(sigaction(SIGTERM, &act, NULL) != 0) {
+                return -1;
+        }
+
+        return 0;
+}
+
+static void do_exit() {
+        if(removeBridge) {
+                run_cmd("/sbin/ifconfig bridge0 destroy");
+        }
 }

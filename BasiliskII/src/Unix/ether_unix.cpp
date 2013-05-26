@@ -1161,16 +1161,16 @@ static bool open_ether_slave(const char *if_name)
 	FILE *fp;
 	char str[64];
 
-	if (get_mac_address(if_name, ether_addr) != 0) {
-		snprintf(str, sizeof(str), "Unable to find interface %s.",
-			 if_name);
+	fp = run_tool(if_name, "etherslavetool");
+	if (fp == NULL) {
+		snprintf(str, sizeof(str), "Unable to run ether slave helper tool.");
 		WarningAlert(str);
 		return false;
 	}
 
-	fp = run_tool(if_name, "etherslavetool");
-	if (fp == NULL) {
-		snprintf(str, sizeof(str), "Unable to run ether slave helper tool.");
+	if (get_mac_address(if_name, ether_addr) != 0) {
+		snprintf(str, sizeof(str), "Unable to find interface %s.",
+			 if_name);
 		WarningAlert(str);
 		return false;
 	}

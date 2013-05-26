@@ -57,6 +57,7 @@ FILE * run_tool(const char *if_name, const char *tool_name)
 	CFURLRef url_ref;
 	CFStringRef path_str;
 	CFStringRef tool_name_str;
+	char c;
 
 	bundle_ref = CFBundleGetMainBundle();
 	if(bundle_ref == NULL) {
@@ -68,6 +69,7 @@ FILE * run_tool(const char *if_name, const char *tool_name)
 
 	url_ref = CFBundleCopyResourceURL(bundle_ref, tool_name_str,
 					 NULL, NULL);
+	CFRelease(tool_name_str);
 
 	if(url_ref == NULL) {
 		return NULL;
@@ -80,7 +82,6 @@ FILE * run_tool(const char *if_name, const char *tool_name)
 		return NULL;
 	}
 
-	CFIndex index = CFStringGetLength(path_str);
 	if(!CFStringGetCString(path_str, path_buffer, sizeof(path_buffer),
 			       kCFStringEncodingUTF8)) {
 		CFRelease(path_str);
@@ -124,6 +125,11 @@ FILE * run_tool(const char *if_name, const char *tool_name)
 		fprintf(stderr, "%s: AuthorizationExecWithPrivileges() failed.\n", 
 			__func__);
 		return NULL;
+	}
+
+	if(fread(&c, 1, 1, fp) != 1) {
+	  fclose(fp);
+	  return NULL;
 	}
 
 	return fp;
