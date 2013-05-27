@@ -126,7 +126,7 @@ static int main_loop(int sd, int use_bpf)
                         return -1;
                 }
         } else {
-                blen = 2048;
+                blen = 4096;
         }
 
 	incoming = malloc(blen);
@@ -239,7 +239,7 @@ static int main_loop(int sd, int use_bpf)
 		if (!use_bpf && FD_ISSET(sd, &readSet)) {
 			in_len = (unsigned short *)incoming;
 
-			pkt_len = read(sd, incoming+2, blen-2);
+			pkt_len = read(sd, in_len + 1, blen-2);
 			if (pkt_len < 14) {
 				fret = -8;
 				break;

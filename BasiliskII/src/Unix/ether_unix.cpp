@@ -1188,11 +1188,22 @@ static bool open_ether_slave(const std::string &if_name)
 		dev_name.erase(pos);
 	}
 
-	if (get_mac_address(dev_name.c_str(), ether_addr) != 0) {
-		snprintf(str, sizeof(str), "Unable to find interface %s.",
-			 dev_name.c_str());
-		WarningAlert(str);
-		return false;
+	if(strncmp(if_name.c_str(), "tap", 3) != 0) {
+		if (get_mac_address(dev_name.c_str(), ether_addr) != 0) {
+			snprintf(str, sizeof(str), "Unable to find interface %s.",
+				 dev_name.c_str());
+			WarningAlert(str);
+			return false;
+		}
+	} else {
+		/* There is something special about this address. */
+		pid_t p = getpid();
+		ether_addr[0] = 0xfe;
+		ether_addr[1] = 0xfd;
+		ether_addr[2] = p >> 24;
+		ether_addr[3] = p >> 16;
+		ether_addr[4] = p >> 8;
+		ether_addr[5] = p;
 	}
 
 	fd = dup(fileno(fp));
