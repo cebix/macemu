@@ -74,16 +74,16 @@ int main(int argc, char **argv)
         do {
                 ret = retreive_auth_info();
                 if (ret != 0) {
-                        ret = 254;
-                        break;
+			ret = 254;
+			break;
                 }
 
-                if(sscanf(if_name, "tap%d", &tapNum) == 1) {
+		if (strncmp(if_name, "tap", 3) == 0) {
                         sd = open_tap(if_name);
                         use_bpf = 0;
                 } else {
                         sd = open_bpf(if_name);
-                        use_bpf = 0;
+                        use_bpf = 1;
                 }
 
                 if (sd < 0) {
@@ -91,14 +91,14 @@ int main(int argc, char **argv)
                         break;
                 }
 
-                if(install_signal_handlers() != 0) {
+                if (install_signal_handlers() != 0) {
                         ret = 252;
                         break;
                 }
 
                 ret = main_loop(sd, use_bpf);
                 close(sd);
-        } while(0);
+        } while (0);
 
         do_exit();
 
@@ -121,7 +121,7 @@ static int main_loop(int sd, int use_bpf)
 	int pad;
         char c = 0;
 
-	if(use_bpf) {
+	if (use_bpf) {
                 if (ioctl(sd, BIOCGBLEN, &blen) < 0) {
                         return -1;
                 }
@@ -215,7 +215,7 @@ static int main_loop(int sd, int use_bpf)
 				}
 				*in_len = pkt_len;
 
-				if(write(0, in_len, pkt_len + 2) < (pkt_len + 2)) {
+				if (write(0, in_len, pkt_len + 2) < (pkt_len + 2)) {
                                         fret = -10;
                                         break;
                                 }
@@ -245,8 +245,8 @@ static int main_loop(int sd, int use_bpf)
 				break;
 			}
 
-                        *in_len = ret;
-                        if(write(0, in_len, pkt_len + 2) < (pkt_len + 2)) {
+                        *in_len = pkt_len;
+                        if (write(0, in_len, pkt_len + 2) < (pkt_len + 2)) {
                                 fret = -10;
                                 break;
                         }
@@ -310,37 +310,80 @@ static int retreive_auth_info(void)
 static int open_tap(char *ifname)
 {
         char str[STR_MAX] = {0};
+        char ifstr[STR_MAX] = {0};
+	char *interface;
+	char *address = NULL;
+	char *netmask = NULL;
+	char *bridge = NULL;
+	char *bridged_if = NULL;
         int sd;
 
-        snprintf(str, STR_MAX, "/dev/%s", ifname);
+	snprintf(ifstr, STR_MAX, "%s", ifname);
+	interface = strtok(ifstr, "/");
+	bridge = strtok(NULL, "/");
+	if (bridge != NULL) {
+		bridged_if = strtok(NULL, "/");
+	}
+	interface = strtok(ifstr, ":");
+
+	address = strtok(NULL, ":");
+
+	if (address != NULL) {
+		netmask = strtok(NULL, ":");
+	}
+
+        snprintf(str, STR_MAX, "/dev/%s", interface);
 
         sd = open(str, O_RDWR);
-        if(sd < 0) {
+        if (sd < 0) {
                 return -1;
         }
 
-        snprintf(str, STR_MAX, "/sbin/ifconfig %s up", ifname);
-        if(run_cmd(str) != 0) {
+	if (address == NULL) {
+		snprintf(str, STR_MAX, "/sbin/ifconfig %s up", interface);
+	} else if (netmask == NULL) {
+		snprintf(str, STR_MAX, "/sbin/ifconfig %s %s", 
+			 interface, address);
+	} else {
+		snprintf(str, STR_MAX, "/sbin/ifconfig %s %s netmask %s", 
+			 interface, address, netmask);
+	}
+
+        if (run_cmd(str) != 0) {
                 close(sd);
                 return -1;
         }
 
-        snprintf(str, STR_MAX, "/sbin/ifconfig bridge0 create");
-        if(run_cmd(str) == 0) {
-                removeBridge = 1;
-        }
+	if (bridge != NULL) {
+		snprintf(str, STR_MAX, "/sbin/ifconfig %s create", bridge);
+		if (run_cmd(str) == 0) {
+			removeBridge = 1;
+		}
 
-        snprintf(str, STR_MAX, "/sbin/ifconfig bridge0 addm %s", ifname);
-        if(run_cmd(str) != 0) {
-                close(sd);
-                return -1;
-        }
+		snprintf(str, STR_MAX, "/sbin/ifconfig %s up", bridge);
+		if (run_cmd(str) != 0) {
+			close(sd);
+			return -1;
+		}
 
-        snprintf(str, STR_MAX, "/sbin/ifconfig bridge0 up");
-        if(run_cmd(str) != 0) {
-                close(sd);
-                return -1;
-        }
+		if (bridged_if != NULL) {
+			snprintf(str, STR_MAX, "/sbin/ifconfig %s addm %s", 
+				 bridge, bridged_if);
+			if (run_cmd(str) != 0) {
+				close(sd);
+				return -1;
+			}
+		}
+
+		snprintf(str, STR_MAX, "/sbin/ifconfig %s addm %s", 
+			 bridge, interface);
+		if (run_cmd(str) != 0) {
+			close(sd);
+			return -1;
+		}
+
+
+	}
 
         return sd;
 }
@@ -393,49 +436,49 @@ static int open_bpf(char *ifname)
 }
 
 static int run_cmd(const char *cmd) {
-  char cmd_buffer[STR_MAX] = {0};
-  char *argv[MAX_ARGV + 1] = {0};
-  int i;
-  pid_t pid, waitpid;
-  int status = 0;
+	char cmd_buffer[STR_MAX] = {0};
+	char *argv[MAX_ARGV + 1] = {0};
+	int i;
+	pid_t pid, waitpid;
+	int status = 0;
 
-  /* Collect arguments */
-  strncpy(cmd_buffer, cmd, STR_MAX-1);
+	/* Collect arguments */
+	strncpy(cmd_buffer, cmd, STR_MAX-1);
 
-  argv[0] = strtok(cmd_buffer, " ");
-  for (i=1; i<MAX_ARGV; ++i) {
-    argv[i] = strtok(NULL, " ");
-    if (argv[i] == NULL) {
-      break;
-    }
-  }
+	argv[0] = strtok(cmd_buffer, " ");
+	for (i=1; i<MAX_ARGV; ++i) {
+		argv[i] = strtok(NULL, " ");
+		if (argv[i] == NULL) {
+			break;
+		}
+	}
 
-  /* Run sub process */
-  pid = fork();
-  if (pid == 0) {
+	/* Run sub process */
+	pid = fork();
+	if (pid == 0) {
 
-    /* Child process */
-    fclose(stdout);
-    fclose(stderr);
+		/* Child process */
+		fclose(stdout);
+		fclose(stderr);
 
-    if (execve(argv[0], argv, NULL) < 0) {
-      perror("execve");
-      return -1;
-    }
-  } else {
-    /* Wait for child to exit */
-    waitpid = wait(&status);
-    if (waitpid < 0) {
-      perror("wait");
-      return -1;
-    }
+		if (execve(argv[0], argv, NULL) < 0) {
+			perror("execve");
+			return -1;
+		}
+	} else {
+		/* Wait for child to exit */
+		waitpid = wait(&status);
+		if (waitpid < 0) {
+			perror("wait");
+			return -1;
+		}
 
-    if (status != 0) {
-      return -1;
-    }
-  }
+		if (status != 0) {
+			return -1;
+		}
+	}
 
-  return 0;
+	return 0;
 }
 
 static void handler(int signum) {
@@ -449,17 +492,17 @@ static int install_signal_handlers() {
         act.sa_handler = handler;
         sigemptyset(&act.sa_mask);
 
-        if(sigaction(SIGINT, &act, NULL) != 0) {
+        if (sigaction(SIGINT, &act, NULL) != 0) {
                 return -1;
         }
 
 
-        if(sigaction(SIGHUP, &act, NULL) != 0) {
+        if (sigaction(SIGHUP, &act, NULL) != 0) {
                 return -1;
         }
 
 
-        if(sigaction(SIGTERM, &act, NULL) != 0) {
+        if (sigaction(SIGTERM, &act, NULL) != 0) {
                 return -1;
         }
 
@@ -467,7 +510,7 @@ static int install_signal_handlers() {
 }
 
 static void do_exit() {
-        if(removeBridge) {
+        if (removeBridge) {
                 run_cmd("/sbin/ifconfig bridge0 destroy");
         }
 }

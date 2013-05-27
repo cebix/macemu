@@ -55,6 +55,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <map>
+#include <string>
 
 #if defined(__FreeBSD__) || defined(sgi) || (defined(__APPLE__) && defined(__MACH__))
 #include <net/if.h>
@@ -156,7 +157,7 @@ static int slirp_add_redir(const char *redir_str);
 
 #ifdef ENABLE_MACOSX_ETHERSLAVE
 static int get_mac_address(const char* dev, unsigned char *addr);
-static bool open_ether_slave(const char *if_name);
+static bool open_ether_slave(const std::string &if_name);
 static int read_packet(void);
 #endif
 
@@ -260,7 +261,7 @@ bool ether_init(void)
 	// Do nothing if no Ethernet device specified
 	const char *name = PrefsFindString("ether");
 #ifdef ENABLE_MACOSX_ETHERSLAVE
-	const char *slave_dev = PrefsFindString("etherslavedev");
+	std::string slave_dev;
 #endif
 	if (name == NULL)
 		return false;
@@ -278,7 +279,7 @@ bool ether_init(void)
 		net_if_type = NET_IF_SLIRP;
 #endif
 #ifdef ENABLE_MACOSX_ETHERSLAVE
-	else if (strcmp(name, "etherslave") == 0)
+	else if (strncmp(name, "etherslave", 10) == 0)
 		 net_if_type = NET_IF_ETHERSLAVE;
 #endif
 	else
@@ -332,12 +333,23 @@ bool ether_init(void)
 		strcpy(dev_name, "/dev/sheep_net");
 		break;
 #ifdef ENABLE_MACOSX_ETHERSLAVE
-	case NET_IF_ETHERSLAVE:
-		if (slave_dev == NULL) {
-			WarningAlert("etherslavedev not defined in preferences.");
+	case NET_IF_ETHERSLAVE: {
+		std::string device(name);
+		size_t pos;
+
+		pos = device.find('/');
+		if(pos != device.npos) {
+			slave_dev = device.substr(pos + 1);
+		}
+
+		if(slave_dev.size() == 0) {
+			WarningAlert("No network device specified.");
 			return false;
 		}
+
 		return open_ether_slave(slave_dev);
+	}
+
 #endif
 	}
 	if (net_if_type != NET_IF_SLIRP) {
@@ -1156,21 +1168,29 @@ static int get_mac_address(const char* dev, unsigned char *addr)
 	return ret;
 }
 
-static bool open_ether_slave(const char *if_name)
+static bool open_ether_slave(const std::string &if_name)
 {
 	FILE *fp;
 	char str[64];
+	std::string dev_name;
+	size_t pos;
 
-	fp = run_tool(if_name, "etherslavetool");
+	fp = run_tool(if_name.c_str(), "etherslavetool");
 	if (fp == NULL) {
 		snprintf(str, sizeof(str), "Unable to run ether slave helper tool.");
 		WarningAlert(str);
 		return false;
 	}
 
-	if (get_mac_address(if_name, ether_addr) != 0) {
+	pos = if_name.find('/');
+	dev_name = if_name;
+	if(pos != if_name.npos) {
+		dev_name.erase(pos);
+	}
+
+	if (get_mac_address(dev_name.c_str(), ether_addr) != 0) {
 		snprintf(str, sizeof(str), "Unable to find interface %s.",
-			 if_name);
+			 dev_name.c_str());
 		WarningAlert(str);
 		return false;
 	}
