@@ -55,7 +55,8 @@ static void handler(int signum);
 static int install_signal_handlers();
 static void do_exit();
 
-static int removeBridge = 0;
+static int remove_bridge = 0;
+static const char *exec_name = "etherslavetool";
 
 int main(int argc, char **argv)
 {
@@ -68,12 +69,14 @@ int main(int argc, char **argv)
 	if (argc != 2) {
 		return 255;
 	}
-
+	
 	if_name = argv[1];
 
         do {
                 ret = retreive_auth_info();
                 if (ret != 0) {
+			fprintf(stderr, "%s: authorization failed.\n",
+				exec_name);
 			ret = 254;
 			break;
                 }
@@ -87,11 +90,16 @@ int main(int argc, char **argv)
                 }
 
                 if (sd < 0) {
+			fprintf(stderr, "%s: open device failed.\n",
+				exec_name);
                         ret = 253;
                         break;
                 }
 
                 if (install_signal_handlers() != 0) {
+			fprintf(stderr, 
+				"%s: failed to install signal handers.\n",
+				exec_name);
                         ret = 252;
                         break;
                 }
@@ -123,6 +131,9 @@ static int main_loop(int sd, int use_bpf)
 
 	if (use_bpf) {
                 if (ioctl(sd, BIOCGBLEN, &blen) < 0) {
+			fprintf(stderr, 
+				"%s: ioctl() failed.\n",
+				exec_name);
                         return -1;
                 }
         } else {
@@ -131,12 +142,18 @@ static int main_loop(int sd, int use_bpf)
 
 	incoming = malloc(blen);
 	if (incoming == NULL) {
+		fprintf(stderr, 
+			"%s: malloc() failed.\n",
+			exec_name);
 		return -2;
 	}
 
 	outgoing = malloc(blen);
 	if (outgoing == NULL) {
 		free(outgoing);
+		fprintf(stderr, 
+			"%s: malloc() failed.\n",
+			exec_name);
 		return -3;
 	}
 
@@ -156,6 +173,9 @@ static int main_loop(int sd, int use_bpf)
 
 		ret = select(sd + 1, &readSet, NULL, NULL, NULL);
 		if (ret < 0) {
+			fprintf(stderr, 
+				"%s: select() failed.\n",
+				exec_name);
 			fret = -4;
 			break;
 		}
@@ -168,14 +188,17 @@ static int main_loop(int sd, int use_bpf)
 			}
 
 			if (ret < 1) {
+				if(ret < 0) {
+					fprintf(stderr, 
+						"%s: read() failed.\n",
+						exec_name);
+				}
 				fret = -5;
 				break;
 			}
 
 			out_index += ret;
 			if (out_index > 1) {
-				fflush(stdout);
-
 				if ((*out_len + 2) > blen) {
 					fret = -6;
 					break;
@@ -184,6 +207,9 @@ static int main_loop(int sd, int use_bpf)
 				if (out_index == (*out_len + 2)) {
 					ret = write(sd, out_len + 1, *out_len);
 					if (ret != *out_len) {
+						fprintf(stderr, 
+							"%s: write() failed.\n",
+							exec_name);
 						fret = -7;
 						break;
 					}
@@ -198,6 +224,11 @@ static int main_loop(int sd, int use_bpf)
 
 			ret = read(sd, incoming, blen);
 			if (ret < 1) {
+				if(ret < 0) {
+					fprintf(stderr, 
+						"%s: read() failed %d.\n",
+						exec_name, errno);
+				}
 				fret = -8;
 				break;
 			}
@@ -232,6 +263,9 @@ static int main_loop(int sd, int use_bpf)
 			} while (ret > 0);
 
 			if (fret != 0) {
+				fprintf(stderr, 
+					"%s: fret == %d.\n",
+					exec_name, fret);
 				break;
 			}
 		}
@@ -241,12 +275,18 @@ static int main_loop(int sd, int use_bpf)
 
 			pkt_len = read(sd, in_len + 1, blen-2);
 			if (pkt_len < 14) {
+				fprintf(stderr, 
+					"%s: read() returned %d.\n",
+					exec_name, pkt_len);
 				fret = -8;
 				break;
 			}
 
                         *in_len = pkt_len;
                         if (write(0, in_len, pkt_len + 2) < (pkt_len + 2)) {
+				fprintf(stderr, 
+					"%s: write() failed\n",
+					exec_name);
                                 fret = -10;
                                 break;
                         }
@@ -357,7 +397,7 @@ static int open_tap(char *ifname)
 	if (bridge != NULL) {
 		snprintf(str, STR_MAX, "/sbin/ifconfig %s create", bridge);
 		if (run_cmd(str) == 0) {
-			removeBridge = 1;
+			remove_bridge = 1;
 		}
 
 		snprintf(str, STR_MAX, "/sbin/ifconfig %s up", bridge);
@@ -510,7 +550,7 @@ static int install_signal_handlers() {
 }
 
 static void do_exit() {
-        if (removeBridge) {
+        if (remove_bridge) {
                 run_cmd("/sbin/ifconfig bridge0 destroy");
         }
 }
