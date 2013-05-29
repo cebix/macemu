@@ -46,7 +46,7 @@ FILE * run_tool(const char *if_name, const char *tool_name)
 {
 	OSStatus auth_status;
 	FILE *fp = NULL;
-	char *args[] = {"etherslavetool", NULL, NULL};
+	char *args[] = {NULL, NULL, NULL};
 	int ret;
 	char path_buffer[256];
 	AuthorizationFlags auth_flags;

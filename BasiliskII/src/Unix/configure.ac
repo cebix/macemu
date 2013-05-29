@@ -24,8 +24,8 @@ AC_ARG_ENABLE(macosx-gui,    [  --enable-macosx-gui     enable Mac OS X GUI [def
 dnl Mac OS X Sound
 AC_ARG_ENABLE(macosx-sound,  [  --enable-macosx-sound   enable Mac OS X Sound [default=no]], [WANT_MACOSX_SOUND=$enableval], [WANT_MACOSX_SOUND=no])
 
-dnl Mac OS X etherslave support
-AC_ARG_ENABLE(macosx-etherslave,  [  --enable-macosx-etherslave   enable Mac OS X Sound [default=no]], [WANT_MACOSX_ETHERSLAVE=$enableval], [WANT_MACOSX_ETHERSLAVE=no])
+dnl Mac OS X etherhelper support
+AC_ARG_ENABLE(macosx-etherhelper,  [  --enable-macosx-etherhelper   enable Mac OS X Sound [default=no]], [WANT_MACOSX_ETHERHELPER=$enableval], [WANT_MACOSX_ETHERHELPER=no])
 
 dnl Video options.
 AC_ARG_ENABLE(xf86-dga,      [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
@@ -735,13 +735,13 @@ if [[ "x$WANT_MACOSX_SOUND" = "xyes" ]]; then
   LIBS="$LIBS -framework AudioToolbox -framework AudioUnit -framework CoreAudio"
 fi
 
-if [[ "x$WANT_MACOSX_ETHERSLAVE" = "xyes" ]]; then
+if [[ "x$WANT_MACOSX_ETHERHELPER" = "xyes" ]]; then
     EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/runtool.c"
     LIBS="$LIBS -framework Security"
-    AC_DEFINE(ENABLE_MACOSX_ETHERSLAVE, 1, [Define if supporting "etherslave" network device.])
+    AC_DEFINE(ENABLE_MACOSX_ETHERHELPER, 1, [Define if supporting "etherhelper" network device.])
 fi
 
-AC_SUBST(MACOSX_ETHERSLAVE, $WANT_MACOSX_ETHERSLAVE)
+AC_SUBST(MACOSX_ETHERHELPER, $WANT_MACOSX_ETHERHELPER)
 
 dnl SDL overrides
 if [[ "x$WANT_SDL" = "xyes" ]]; then

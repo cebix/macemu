@@ -1,7 +1,7 @@
 # Object files
 obj/*
 BasiliskII
-etherslavetool
+etherhelpertool
 
 # Autotools generated files
 Makefile

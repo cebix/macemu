@@ -1,5 +1,5 @@
 /*
- *  etherslavetool.c - Reads and writes raw ethernet packets usng bpf
+ *  etherhelpertool.c - Reads and writes raw ethernet packets usng bpf
  *  interface.
  *
  *  Copyright (C) 2010, Daniel Sumorok
@@ -56,7 +56,7 @@ static int install_signal_handlers();
 static void do_exit();
 
 static int remove_bridge = 0;
-static const char *exec_name = "etherslavetool";
+static const char *exec_name = "etherhelpertool";
 
 int main(int argc, char **argv)
 {

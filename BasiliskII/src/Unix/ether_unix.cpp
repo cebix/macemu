@@ -42,7 +42,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
-#ifdef ENABLE_MACOSX_ETHERSLAVE
+#ifdef ENABLE_MACOSX_ETHERHELPER
 #include <net/if_dl.h>
 #include <ifaddrs.h>
 #endif
@@ -101,11 +101,11 @@ enum {
 	NET_IF_ETHERTAP,
 	NET_IF_TUNTAP,
 	NET_IF_SLIRP,
-	NET_IF_ETHERSLAVE
+	NET_IF_ETHERHELPER
 };
 
 
-#ifdef ENABLE_MACOSX_ETHERSLAVE
+#ifdef ENABLE_MACOSX_ETHERHELPER
 extern "C" {
 	extern FILE * run_tool(const char *if_name, const char *tool_name);
 }
@@ -138,7 +138,7 @@ const bool ether_driver_opened = true;		// Flag: is the MacOS driver opened?
 #endif
 
 
-#ifdef ENABLE_MACOSX_ETHERSLAVE
+#ifdef ENABLE_MACOSX_ETHERHELPER
 static uint8 packet_buffer[2048];
 #endif
 
@@ -155,9 +155,9 @@ static void ether_do_interrupt(void);
 static void slirp_add_redirs();
 static int slirp_add_redir(const char *redir_str);
 
-#ifdef ENABLE_MACOSX_ETHERSLAVE
+#ifdef ENABLE_MACOSX_ETHERHELPER
 static int get_mac_address(const char* dev, unsigned char *addr);
-static bool open_ether_slave(const std::string &if_name);
+static bool open_ether_helper(const std::string &if_name);
 static int read_packet(void);
 #endif
 
@@ -260,7 +260,7 @@ bool ether_init(void)
 
 	// Do nothing if no Ethernet device specified
 	const char *name = PrefsFindString("ether");
-#ifdef ENABLE_MACOSX_ETHERSLAVE
+#ifdef ENABLE_MACOSX_ETHERHELPER
 	std::string slave_dev;
 #endif
 	if (name == NULL)
@@ -278,9 +278,9 @@ bool ether_init(void)
 	else if (strcmp(name, "slirp") == 0)
 		net_if_type = NET_IF_SLIRP;
 #endif
-#ifdef ENABLE_MACOSX_ETHERSLAVE
-	else if (strncmp(name, "etherslave", 10) == 0)
-		 net_if_type = NET_IF_ETHERSLAVE;
+#ifdef ENABLE_MACOSX_ETHERHELPER
+	else if (strncmp(name, "etherhelper", 10) == 0)
+		 net_if_type = NET_IF_ETHERHELPER;
 #endif
 	else
 		net_if_type = NET_IF_SHEEPNET;
@@ -332,8 +332,8 @@ bool ether_init(void)
 	case NET_IF_SHEEPNET:
 		strcpy(dev_name, "/dev/sheep_net");
 		break;
-#ifdef ENABLE_MACOSX_ETHERSLAVE
-	case NET_IF_ETHERSLAVE: {
+#ifdef ENABLE_MACOSX_ETHERHELPER
+	case NET_IF_ETHERHELPER: {
 		std::string device(name);
 		size_t pos;
 
@@ -347,7 +347,7 @@ bool ether_init(void)
 			return false;
 		}
 
-		return open_ether_slave(slave_dev);
+		return open_ether_helper(slave_dev);
 	}
 
 #endif
@@ -802,8 +802,8 @@ static int16 ether_do_write(uint32 arg)
 		return noErr;
 	} else
 #endif
-#ifdef ENABLE_MACOSX_ETHERSLAVE
-	if (net_if_type == NET_IF_ETHERSLAVE) {
+#ifdef ENABLE_MACOSX_ETHERHELPER
+	if (net_if_type == NET_IF_ETHERHELPER) {
 		unsigned short pkt_len;
 
 		pkt_len = len;
@@ -950,8 +950,8 @@ static void *receive_func(void *arg)
 		if (res <= 0)
 			break;
 
-#ifdef ENABLE_MACOSX_ETHERSLAVE
-		if (net_if_type == NET_IF_ETHERSLAVE) {
+#ifdef ENABLE_MACOSX_ETHERHELPER
+		if (net_if_type == NET_IF_ETHERHELPER) {
 			if (read_packet() < 1) {
 				break;
 			}
@@ -997,8 +997,8 @@ void ether_do_interrupt(void)
 
 		} else
 #endif
-#ifdef ENABLE_MACOSX_ETHERSLAVE
-		if (net_if_type == NET_IF_ETHERSLAVE) {
+#ifdef ENABLE_MACOSX_ETHERHELPER
+		if (net_if_type == NET_IF_ETHERHELPER) {
 			unsigned short *pkt_len;
 			uint32 p = packet;
 
@@ -1135,7 +1135,7 @@ static int slirp_add_redir(const char *redir_str)
 	return -1;
 }
 
-#ifdef ENABLE_MACOSX_ETHERSLAVE
+#ifdef ENABLE_MACOSX_ETHERHELPER
 static int get_mac_address(const char* dev, unsigned char *addr)
 {
 	struct ifaddrs *ifaddrs, *next;
@@ -1168,16 +1168,16 @@ static int get_mac_address(const char* dev, unsigned char *addr)
 	return ret;
 }
 
-static bool open_ether_slave(const std::string &if_name)
+static bool open_ether_helper(const std::string &if_name)
 {
 	FILE *fp;
 	char str[64];
 	std::string dev_name;
 	size_t pos;
 
-	fp = run_tool(if_name.c_str(), "etherslavetool");
+	fp = run_tool(if_name.c_str(), "etherhelpertool");
 	if (fp == NULL) {
-		snprintf(str, sizeof(str), "Unable to run ether slave helper tool.");
+		snprintf(str, sizeof(str), "Unable to run ether helper helper tool.");
 		WarningAlert(str);
 		return false;
 	}
