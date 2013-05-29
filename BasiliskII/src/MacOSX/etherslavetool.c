@@ -376,6 +376,8 @@ static int open_tap(char *ifname)
 
         sd = open(str, O_RDWR);
         if (sd < 0) {
+		fprintf(stderr, "%s: Failed to open %s\n",
+			exec_name, interface);
                 return -1;
         }
 
@@ -390,39 +392,59 @@ static int open_tap(char *ifname)
 	}
 
         if (run_cmd(str) != 0) {
+		fprintf(stderr, "%s: Failed to configure %s\n",
+			exec_name, interface);
                 close(sd);
                 return -1;
         }
 
 	if (bridge != NULL) {
-		snprintf(str, STR_MAX, "/sbin/ifconfig %s create", bridge);
+		/* Check to see if bridge is alread up */
+		snprintf(str, STR_MAX, "/sbin/ifconfig %s", bridge);
 		if (run_cmd(str) == 0) {
-			remove_bridge = 1;
-		}
-
-		snprintf(str, STR_MAX, "/sbin/ifconfig %s up", bridge);
-		if (run_cmd(str) != 0) {
-			close(sd);
-			return -1;
-		}
-
-		if (bridged_if != NULL) {
-			snprintf(str, STR_MAX, "/sbin/ifconfig %s addm %s", 
-				 bridge, bridged_if);
+			/* bridge is already up */
+			if (bridged_if != NULL) {
+				fprintf(stderr, "%s: Warning: %s already exists, so %s was not added.\n",
+					exec_name, bridge, bridged_if);
+			}
+		} else {
+			snprintf(str, STR_MAX, "/sbin/ifconfig %s create", bridge);
 			if (run_cmd(str) != 0) {
+				fprintf(stderr, "%s: Failed to create %s\n",
+					exec_name, bridge);
+				close(sd);
+				return -1;
+			}
+			remove_bridge = 1;
+
+			snprintf(str, STR_MAX, "/sbin/ifconfig %s up", bridge);
+			if (run_cmd(str) != 0) {
+				fprintf(stderr, "%s: Failed to open %s\n",
+					exec_name, bridge);
+				close(sd);
+				return -1;
+			}
+
+			if (bridged_if != NULL) {
+				snprintf(str, STR_MAX, "/sbin/ifconfig %s addm %s", 
+					 bridge, bridged_if);
+				if (run_cmd(str) != 0) {
+					fprintf(stderr, "%s: Failed to add %s to %s\n",
+						exec_name, bridged_if, bridge);
+					close(sd);
+					return -1;
+				}
+			}
+			
+			snprintf(str, STR_MAX, "/sbin/ifconfig %s addm %s", 
+				 bridge, interface);
+			if (run_cmd(str) != 0) {
+				fprintf(stderr, "%s: Failed to add %s to %s\n",
+					exec_name, interface, bridge);
 				close(sd);
 				return -1;
 			}
 		}
-
-		snprintf(str, STR_MAX, "/sbin/ifconfig %s addm %s", 
-			 bridge, interface);
-		if (run_cmd(str) != 0) {
-			close(sd);
-			return -1;
-		}
-
-
 	}
 
         return sd;
