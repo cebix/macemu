@@ -90,6 +90,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
+#include <sys/param.h>
 #include <signal.h>
 
 #include "sysdeps.h"
