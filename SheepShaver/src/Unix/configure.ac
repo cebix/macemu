@@ -484,6 +484,9 @@ mips-sony-bsd|mips-sony-newsos4)
 *-*-darwin*)
 	no_dev_ptmx=1
 	;;
+*-*-freebsd*)
+	no_dev_ptmx=1
+	;;
 esac
 
 if test -z "$no_dev_ptmx" ; then

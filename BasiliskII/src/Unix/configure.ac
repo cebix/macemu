@@ -112,7 +112,7 @@ case "$target_cpu" in
   m68k* ) HAVE_M68K=yes;;
   sparc* ) HAVE_SPARC=yes;;
   powerpc* ) HAVE_POWERPC=yes;;
-  x86_64* ) HAVE_X86_64=yes;;
+  x86_64* | amd64* ) HAVE_X86_64=yes;;
 esac
 
 dnl Check if we should really be assuming x86_64 even if we detected HAVE_I386 above.
@@ -508,6 +508,9 @@ mips-sony-bsd|mips-sony-newsos4)
 	no_dev_ptmx=1
 	;;
 *-*-darwin*)
+	no_dev_ptmx=1
+	;;
+*-*-freebsd*)
 	no_dev_ptmx=1
 	;;
 esac

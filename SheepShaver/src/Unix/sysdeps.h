@@ -69,7 +69,7 @@
 #endif
 
 // Fix offsetof() on FreeBSD and GCC >= 3.4
-#if defined(__FreeBSD__) && defined(__cplusplus)
+#if defined(__FreeBSD__) && defined(__cplusplus) && __GNUC__ < 4
 #undef offsetof
 /* The cast to "char &" below avoids problems with user-defined
    "operator &", which can appear in a POD type.  */
