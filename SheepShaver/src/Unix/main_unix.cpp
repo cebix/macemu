@@ -341,7 +341,7 @@ int atomic_or(int *var, int v)
 
 static inline uint8 *vm_mac_acquire(uint32 size)
 {
-	return (uint8 *)vm_acquire(size);
+	return (uint8 *)vm_acquire(size, VM_MAP_32BIT);
 }
 
 static inline int vm_mac_acquire_fixed(uint32 addr, uint32 size)
