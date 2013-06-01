@@ -259,7 +259,8 @@ void * vm_acquire(size_t size, int options)
 	if (sizeof(void *) == 8 && (options & VM_MAP_32BIT) && !((char *)addr <= (char *)0xffffffff))
 		return VM_MAP_FAILED;
 
-	next_address = (char *)addr + size;
+	if ((unsigned long long)addr < 0xffffffffULL)
+		next_address = (char *)addr + size;
 #elif defined(HAVE_WIN32_VM)
 	int alloc_type = MEM_RESERVE | MEM_COMMIT;
 	if (options & VM_MAP_WRITE_WATCH)
