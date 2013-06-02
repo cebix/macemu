@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <sys/param.h>
 #include "vm_alloc.h"
 
 #if defined(__APPLE__) && defined(__MACH__)
@@ -251,6 +252,12 @@ void * vm_acquire(size_t size, int options)
 #elif defined(HAVE_MMAP_VM)
 	int fd = zero_fd;
 	int the_map_flags = translate_map_flags(options) | map_flags;
+
+	// Force page-alignment for fixed allocations
+	if (the_map_flags & MAP_FIXED) {
+		uintptr_t align = (uintptr_t)next_address;
+		next_address = (char*)(PAGE_SIZE * ((align - 1) / PAGE_SIZE + 1));
+	}
 
 	if ((addr = mmap((caddr_t)next_address, size, VM_PAGE_DEFAULT, the_map_flags, fd, 0)) == (void *)MAP_FAILED)
 		return VM_MAP_FAILED;
