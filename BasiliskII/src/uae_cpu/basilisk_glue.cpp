@@ -280,8 +280,8 @@ static uae_u8 fifoA[fifoCapacity];
 static uae_u8 fifoB[fifoCapacity];
 static int32 ascBufferSize = -1;
 static int soundRunning = 0;
-static int soundStop = 0;
 static uae_u8 zeros[1024] = {0};
+static uae_u8 lastMode = 0;
 
 extern uae_u32 io_read(uaecptr addr, int width_bits) {
 	if((addr & 0x00ff000) == 0x0014000) {
@@ -334,12 +334,6 @@ extern void io_write(uaecptr addr, uae_u32 b, int width_bits) {
 	static int downsample = 0;
 
 	if((addr & 0x00ff000) == 0x0014000) {
-		if(soundStop) {
-			asc_stop();
-			soundRunning = 0;
-			soundStop = 0;
-		}
-
 		// Apple Sound Chip
 		if(width_bits > 8) {
 			fprintf(stderr,
@@ -383,8 +377,8 @@ extern void io_write(uaecptr addr, uae_u32 b, int width_bits) {
 						ascBufferSize = asc_get_buffer_size();
 						soundRunning = 1;
 
-						while(((fifoWriteA - fifoOutA) < (ascBufferSize*2)) &&
-						      ((fifoInA - fifoWriteA) > ascBufferSize) ){
+						while( //((fifoWriteA - fifoOutA) < (ascBufferSize*2)) &&
+						      ((fifoInA - fifoWriteA) > ascBufferSize) ) {
 							asc_process_samples(&fifoA[fifoWriteA % fifoCapacity], 
 									    ascBufferSize);
 							fifoWriteA += ascBufferSize;
@@ -401,11 +395,22 @@ extern void io_write(uaecptr addr, uae_u32 b, int width_bits) {
 				// MODE
 				// 1 = FIFO mode, 2 = wavetable mode
 				ASCRegs[0x801] = b & 0x03;
-				asc_stop();
-				soundRunning = 0;
+				if(b == 0) {
+					break;
+				}
+
+				if(ASCRegs[0x801] != lastMode) {
+					asc_stop();
+					soundRunning = 0;
+					fifoWriteA = fifoInA;
+				}
+				lastMode = ASCRegs[0x801];
 				break;
 
 			case 0x802:
+				if(ASCRegs[0x802] == b) {
+					break;
+				}
 				// CONTROL
 				// bit 0: analog or PWM output
 				// bit 1: stereo/mono
@@ -416,9 +421,9 @@ extern void io_write(uaecptr addr, uae_u32 b, int width_bits) {
 			case 0x803:
 				// FIFO Mode 
 				if(b & 0x80) {
-					downsample = 0;
-					asc_stop();
-					soundRunning = 0;
+					if(fifoInA > (fifoWriteA + ascBufferSize)) {
+						fifoInA = fifoWriteA + ascBufferSize;
+					}
 				}
 				break;
 
@@ -463,7 +468,8 @@ void asc_callback() {
 
 	fifoOutA += ascBufferSize;
 
-	if((fifoInA - fifoWriteA) >= ascBufferSize) {
+	if( ((fifoInA - fifoWriteA) >= ascBufferSize) &&
+	    (ASCRegs[0x801] == 1))  {
 		asc_process_samples(&fifoA[fifoWriteA % fifoCapacity], ascBufferSize);
 		fifoWriteA += ascBufferSize;
 	} else {
