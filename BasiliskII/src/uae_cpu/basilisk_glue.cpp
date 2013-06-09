@@ -264,3 +264,211 @@ void Execute68k(uint32 addr, struct M68kRegisters *r)
 		r->a[i] = m68k_areg(regs, i);
 	quit_program = false;
 }
+
+#ifdef ENABLE_ASC_EMU
+#include <asc.h>
+
+static uae_u8 ASCRegs[0x2000] = {0};
+static const int fifoCapacity = 2048;
+static uint32 fifoInA = 0;
+static uint32 fifoInB = 0;
+static uint32 fifoWriteA = 0;
+static uint32 fifoWriteB = 0;
+static uint32 fifoOutA = 0;
+static uint32 fifoOutB = 0;
+static uae_u8 fifoA[fifoCapacity];
+static uae_u8 fifoB[fifoCapacity];
+static int32 ascBufferSize = -1;
+static int soundRunning = 0;
+static int soundStop = 0;
+static uae_u8 zeros[1024] = {0};
+
+extern uae_u32 io_read(uaecptr addr, int width_bits) {
+	if((addr & 0x00ff000) == 0x0014000) {
+		// Apple Sound Chip
+
+		uaecptr offset = addr & 0x00000fff;
+		uae_u32 val;
+
+		if(offset < 0x400) {
+			/* Read of FIFO A. */
+		} else if(offset < 0x800) {
+			/* Read of Fifo B */
+		} else {
+			if(width_bits > 8) {
+				fprintf(stderr,
+					"Unexpected ASC read width %d\n", width_bits);
+				return 0;
+			}
+
+			switch(offset) {
+			case 0x800:
+				// VERSION
+				return 0;
+
+			case 0x804:
+				// FIFO IRQ STATUS
+				val = 0;
+				if((fifoInA - fifoWriteA) >= 0x200) {
+					val = 0x1;
+				}
+				if((fifoInA - fifoWriteA) >= 0x400) {
+					val = 0x2;
+				}
+
+				val |= (val << 2);
+				return val;
+
+			default:
+				return ASCRegs[offset];
+				break;
+			}
+		}
+    
+	}
+
+	return 0x00;
+}
+
+extern void io_write(uaecptr addr, uae_u32 b, int width_bits) {
+	static int downsample = 0;
+
+	if((addr & 0x00ff000) == 0x0014000) {
+		if(soundStop) {
+			asc_stop();
+			soundRunning = 0;
+			soundStop = 0;
+		}
+
+		// Apple Sound Chip
+		if(width_bits > 8) {
+			fprintf(stderr,
+				"Unexpected ASC read width %d, addr 0x%08x\n",
+				width_bits, addr);
+			return;
+		}
+
+		uaecptr offset = addr & 0x00000fff;
+		uae_u32 val;
+
+		if(offset < 0x400) {
+			if(ASCRegs[0x801] != 2) {
+				static int counter = 0;
+				static int32 depthA = fifoInA - fifoWriteA;
+
+				// FIFO Mode
+				if(depthA == fifoCapacity) {
+					return;
+				}
+
+				if(ASCRegs[0x807] == 0) {
+					downsample += 22050;
+					if(downsample >= 22257) {
+						downsample -= 22257;
+						fifoA[(fifoInA++) % fifoCapacity] = b;
+					}
+				} else {
+					fifoA[(fifoInA++) % fifoCapacity] = b;
+				}
+
+				if(soundRunning == 0) {
+					depthA = fifoInA - fifoWriteA;
+
+					if(depthA >= 1024) {
+						if(ASCRegs[0x807] == 3) {
+							asc_init(44100);
+						} else {
+							asc_init(22050);
+						}
+						ascBufferSize = asc_get_buffer_size();
+						soundRunning = 1;
+
+						while(((fifoWriteA - fifoOutA) < (ascBufferSize*2)) &&
+						      ((fifoInA - fifoWriteA) > ascBufferSize) ){
+							asc_process_samples(&fifoA[fifoWriteA % fifoCapacity], 
+									    ascBufferSize);
+							fifoWriteA += ascBufferSize;
+						}
+					}
+				}
+			} else {
+				// Non fifo mode write
+			}
+		} else if(offset < 0x800) {
+		} else {
+			switch(offset) {
+			case 0x801:
+				// MODE
+				// 1 = FIFO mode, 2 = wavetable mode
+				ASCRegs[0x801] = b & 0x03;
+				asc_stop();
+				soundRunning = 0;
+				break;
+
+			case 0x802:
+				// CONTROL
+				// bit 0: analog or PWM output
+				// bit 1: stereo/mono
+				// bit 7: processing time exceeded
+				ASCRegs[0x802] = b;
+				break;
+
+			case 0x803:
+				// FIFO Mode 
+				if(b & 0x80) {
+					downsample = 0;
+					asc_stop();
+					soundRunning = 0;
+				}
+				break;
+
+			case 0x804:
+				// fifo status
+				break;
+
+			case 0x805:
+				// wavetable control
+				break;
+
+			case 0x806:
+				// Volume
+				break;
+
+			case 0x807:
+				// Clock rate 0 = 22257, 2 = 22050, 3 = 44100
+				downsample = 0;
+				ASCRegs[0x807] = b;
+				break;
+
+			case 0x80f:
+				printf("ASC Test\n");
+				break;
+
+			default:
+				break;
+			}
+		}
+	}
+
+}
+	
+void asc_callback() {
+	if(zeros[0] == 0) {
+		memset(zeros, 128, sizeof(zeros));
+	}
+	if(soundRunning == 0) {
+		asc_process_samples(zeros, ascBufferSize);
+		return;
+	}
+
+	fifoOutA += ascBufferSize;
+
+	if((fifoInA - fifoWriteA) >= ascBufferSize) {
+		asc_process_samples(&fifoA[fifoWriteA % fifoCapacity], ascBufferSize);
+		fifoWriteA += ascBufferSize;
+	} else {
+		static int ucount = 0;
+		asc_process_samples(zeros, ascBufferSize);
+	}
+}
+#endif

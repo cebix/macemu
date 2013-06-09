@@ -18,6 +18,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+
 #include "AudioBackEnd.h"
 #include "MacOSX_sound_if.h"
 
@@ -77,7 +78,7 @@ unsigned int OSXsoundOutput::bufferSizeFrames() {
   return 0;
 }
 
-int OSXsoundOutput::sendAudioBuffer(void *buffer, int numFrames) {
+int OSXsoundOutput::sendAudioBuffer(const void *buffer, int numFrames) {
   if(player != NULL) {
     return player->sendAudioBuffer(buffer, numFrames);
   }

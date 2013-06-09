@@ -23,6 +23,10 @@
 #ifndef UAE_MEMORY_H
 #define UAE_MEMORY_H
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #if !DIRECT_ADDRESSING && !REAL_ADDRESSING
 
 /* Enabling this adds one additional native memory reference per 68k memory
@@ -124,6 +128,9 @@ extern uintptr MEMBaseDiff;
 #endif
 
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
+extern uae_u32 io_read(uaecptr addr, int width_bits);
+extern void io_write(uaecptr addr, uae_u32 b, int width_bits);
+
 static __inline__ uae_u8 *do_get_real_address(uaecptr addr)
 {
 	return (uae_u8 *)MEMBaseDiff + addr;
@@ -134,31 +141,63 @@ static __inline__ uae_u32 do_get_virtual_address(uae_u8 *addr)
 }
 static __inline__ uae_u32 get_long(uaecptr addr)
 {
+    if(addr & 0x40000000) {
+	return io_read(addr, 32);
+    }
+
     uae_u32 * const m = (uae_u32 *)do_get_real_address(addr);
     return do_get_mem_long(m);
 }
 static __inline__ uae_u32 get_word(uaecptr addr)
 {
+#ifdef ENABLE_ASC_EMU
+    if(addr & 0x40000000) {
+	return io_read(addr, 16);
+    }
+#endif
     uae_u16 * const m = (uae_u16 *)do_get_real_address(addr);
     return do_get_mem_word(m);
 }
 static __inline__ uae_u32 get_byte(uaecptr addr)
 {
+#ifdef ENABLE_ASC_EMU
     uae_u8 * const m = (uae_u8 *)do_get_real_address(addr);
+    if(addr & 0x40000000) {
+	return io_read(addr, 8);
+    }
+#endif
     return do_get_mem_byte(m);
 }
 static __inline__ void put_long(uaecptr addr, uae_u32 l)
 {
+#ifdef ENABLE_ASC_EMU
+    if(addr & 0x40000000) {
+	io_write(addr, l, 32);
+	return;
+    }
+#endif
     uae_u32 * const m = (uae_u32 *)do_get_real_address(addr);
     do_put_mem_long(m, l);
 }
 static __inline__ void put_word(uaecptr addr, uae_u32 w)
 {
+#ifdef ENABLE_ASC_EMU
+    if(addr & 0x40000000) {
+	io_write(addr, w, 16);
+	return;
+    }
+#endif
     uae_u16 * const m = (uae_u16 *)do_get_real_address(addr);
     do_put_mem_word(m, w);
 }
 static __inline__ void put_byte(uaecptr addr, uae_u32 b)
 {
+#ifdef ENABLE_ASC_EMU
+    if(addr & 0x40000000) {
+	io_write(addr, b, 8);
+	return;
+    }
+#endif
     uae_u8 * const m = (uae_u8 *)do_get_real_address(addr);
     do_put_mem_byte(m, b);
 }

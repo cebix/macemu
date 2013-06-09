@@ -24,6 +24,9 @@ AC_ARG_ENABLE(macosx-gui,    [  --enable-macosx-gui     enable Mac OS X GUI [def
 dnl Mac OS X Sound
 AC_ARG_ENABLE(macosx-sound,  [  --enable-macosx-sound   enable Mac OS X Sound [default=no]], [WANT_MACOSX_SOUND=$enableval], [WANT_MACOSX_SOUND=no])
 
+dnl Apple Sound Chip Emulation
+AC_ARG_ENABLE(asc-emu,       [  --enable-asc-emu        enable Apple Sound Chip emulation [default=no]], [WANT_ASC_EMU=$enableval], [WANT_ASC_EMU=no])
+
 dnl Mac OS X etherhelper support
 AC_ARG_ENABLE(macosx-etherhelper,  [  --enable-macosx-etherhelper   enable Mac OS X Sound [default=no]], [WANT_MACOSX_ETHERHELPER=$enableval], [WANT_MACOSX_ETHERHELPER=no])
 
@@ -739,6 +742,11 @@ if [[ "x$WANT_MACOSX_ETHERHELPER" = "xyes" ]]; then
     EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/runtool.c"
     LIBS="$LIBS -framework Security"
     AC_DEFINE(ENABLE_MACOSX_ETHERHELPER, 1, [Define if supporting "etherhelper" network device.])
+fi
+
+if [[ "x$WANT_ASC_EMU" = "xyes" ]]; then
+    AC_DEFINE(ENABLE_ASC_EMU, 1, [Define if supporting Apple Sound Chip Emulation.])
+    AUDIOSRC+=" ../MacOSX/asc.cpp"
 fi
 
 AC_SUBST(MACOSX_ETHERHELPER, $WANT_MACOSX_ETHERHELPER)

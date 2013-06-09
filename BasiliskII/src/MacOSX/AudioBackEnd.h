@@ -51,7 +51,7 @@ class AudioBackEnd  {
   Boolean IsRunning();
   void setCallback(playthruCallback func, void *arg);
   UInt32 BufferSizeFrames();
-  int sendAudioBuffer(void *buffer, int numFrames);
+  int sendAudioBuffer(const void *buffer, int numFrames);
  private:
   OSStatus SetupGraph();
   OSStatus CallbackSetup();

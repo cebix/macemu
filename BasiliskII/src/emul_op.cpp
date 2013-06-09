@@ -251,12 +251,34 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 
 			// Setup fake ASC registers
 			if (ROMVersion == ROM_VERSION_32) {
+#ifdef ENABLE_ASC_EMU
+				uae_u32 paramBlk;
+				uae_u32 ioNamePtr;
+				uae_u32 namePtr;
+
+				r.d[0] = 100;
+				Execute68kTrap(0xa71e, &r);  // NewPtrSysClear()
+
+				paramBlk = r.a[0]; // pointer to a ParamBlockRec
+				ioNamePtr = paramBlk + 18; // Pointer to ioNamePtr field
+				namePtr = r.a[0] + 80; // Storage for ".sound" string
+
+				memcpy(Mac2HostAddr(namePtr), "\006.sound", 7);
+				*((uae_u32*)Mac2HostAddr(ioNamePtr)) = ntohl(namePtr);
+
+				Execute68kTrap(0xa000, &r); // PBOpenSync()
+				
+				r.a[0] = paramBlk;
+				Execute68kTrap(0x101f, &r); // DisposePtr();
+
+#else
 				r.d[0] = 0x1000;
 				Execute68kTrap(0xa71e, &r);		// NewPtrSysClear()
 				uint32 asc_regs = r.a[0];
 				D(bug("ASC registers at %08lx\n", asc_regs));
 				WriteMacInt8(asc_regs + 0x800, 0x0f);	// Set ASC version number
 				WriteMacInt32(0xcc0, asc_regs);			// Set ASCBase
+#endif
 			}
 			break;
 		}

@@ -191,19 +191,21 @@ OSStatus AudioBackEnd::SetupBuffers() {
                              
 
   asbd.mFormatID = 0x6c70636d; // 'lpcm'
-  asbd.mFormatFlags = (kAudioFormatFlagIsSignedInteger |
-                       kAudioFormatFlagIsBigEndian |
-                       kAudioFormatFlagIsPacked);
-  asbd.mChannelsPerFrame = mNumChannels;
-  asbd.mSampleRate = mSampleRate;
-        
-  if(asbd.mFormatFlags & kAudioFormatFlagIsSignedInteger) {
-    asbd.mBitsPerChannel = mBitsPerSample;
-  } else if(asbd.mFormatFlags & kAudioFormatFlagIsFloat)        {
-    asbd.mBitsPerChannel = 32;
+  if(mBitsPerSample == 16) {
+    asbd.mFormatFlags = (kAudioFormatFlagIsSignedInteger |
+			 kAudioFormatFlagIsBigEndian |
+			 kAudioFormatFlagIsPacked);
+  } else if(mBitsPerSample == 8) {
+    asbd.mFormatFlags = kAudioFormatFlagIsPacked;
   } else {
-    asbd.mBitsPerChannel = 0;
+    asbd.mFormatFlags = kAudioFormatFlagsAreAllClear;
   }
+
+  asbd.mChannelsPerFrame = mNumChannels;
+
+  asbd.mSampleRate = mSampleRate;
+
+  asbd.mBitsPerChannel = mBitsPerSample;
 
   asbd.mFramesPerPacket = 1;
   asbd.mBytesPerFrame = (asbd.mBitsPerChannel / 8) * asbd.mChannelsPerFrame;
@@ -269,7 +271,6 @@ OSStatus AudioBackEnd::OutputProc(void *inRefCon,
     This->mAudioBufferReadIndex += bytesToCopy;
   }
 
-
   while(This->mFramesProcessed >= This->mBufferSizeFrames) {
     This->mFramesProcessed -= This->mBufferSizeFrames;
     if(This->mCallback != NULL) {
@@ -289,19 +290,28 @@ UInt32 AudioBackEnd::BufferSizeFrames() {
   return mBufferSizeFrames;
 }
 
-int AudioBackEnd::sendAudioBuffer(void *buffer, int numFrames) {
+int AudioBackEnd::sendAudioBuffer(const void *buffer, int numFrames) {
   UInt8 *dstBuffer;
   int totalBytes;
-        
+  int framesWritten;
+
+  if(numFrames > mBufferSizeFrames) {
+    framesWritten = mBufferSizeFrames;
+  } else {
+    framesWritten = numFrames;
+  }
+
   mAudioBufferWriteIndex += (mAudioBufferSize / 2);
   mAudioBufferWriteIndex &= (mAudioBufferSize - 1);
 
   dstBuffer = &mAudioBuffer[mAudioBufferWriteIndex];
-  totalBytes = mBytesPerFrame * numFrames;
+  totalBytes = mBytesPerFrame * framesWritten;
   memcpy(dstBuffer, buffer, totalBytes);
 
-  dstBuffer += totalBytes;
-  bzero(dstBuffer, (mBufferSizeFrames * mBytesPerFrame) - totalBytes);
+  if(framesWritten < mBufferSizeFrames) {
+    dstBuffer += totalBytes;
+    bzero(dstBuffer, (mBufferSizeFrames * mBytesPerFrame) - totalBytes);
+  }
 
-  return numFrames;
+  return framesWritten;
 }
