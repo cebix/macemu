@@ -266,22 +266,20 @@ void Execute68k(uint32 addr, struct M68kRegisters *r)
 }
 
 #ifdef ENABLE_ASC_EMU
+
 #include <asc.h>
 
 static uae_u8 ASCRegs[0x2000] = {0};
 static const int fifoCapacity = 2048;
 static uint32 fifoInA = 0;
-static uint32 fifoInB = 0;
 static uint32 fifoWriteA = 0;
-static uint32 fifoWriteB = 0;
 static uint32 fifoOutA = 0;
-static uint32 fifoOutB = 0;
 static uae_u8 fifoA[fifoCapacity];
-static uae_u8 fifoB[fifoCapacity];
+static int underrun = 0;
+static int clearFifo = 0;
 static int32 ascBufferSize = -1;
 static int soundRunning = 0;
 static uae_u8 zeros[1024] = {0};
-static uae_u8 lastMode = 0;
 
 extern uae_u32 io_read(uaecptr addr, int width_bits) {
 	if((addr & 0x00ff000) == 0x0014000) {
@@ -291,9 +289,9 @@ extern uae_u32 io_read(uaecptr addr, int width_bits) {
 		uae_u32 val;
 
 		if(offset < 0x400) {
-			/* Read of FIFO A. */
+			return 0;
 		} else if(offset < 0x800) {
-			/* Read of Fifo B */
+			return 0;
 		} else {
 			if(width_bits > 8) {
 				fprintf(stderr,
@@ -317,6 +315,7 @@ extern uae_u32 io_read(uaecptr addr, int width_bits) {
 				}
 
 				val |= (val << 2);
+
 				return val;
 
 			default:
@@ -327,7 +326,7 @@ extern uae_u32 io_read(uaecptr addr, int width_bits) {
     
 	}
 
-	return 0x00;
+	return 0;
 }
 
 extern void io_write(uaecptr addr, uae_u32 b, int width_bits) {
@@ -361,33 +360,9 @@ extern void io_write(uaecptr addr, uae_u32 b, int width_bits) {
 						downsample -= 22257;
 						fifoA[(fifoInA++) % fifoCapacity] = b;
 					}
-				} else {
-					fifoA[(fifoInA++) % fifoCapacity] = b;
 				}
-
-				if(soundRunning == 0) {
-					depthA = fifoInA - fifoWriteA;
-
-					if(depthA >= 1024) {
-						if(ASCRegs[0x807] == 3) {
-							asc_init(44100);
-						} else {
-							asc_init(22050);
-						}
-						ascBufferSize = asc_get_buffer_size();
-						soundRunning = 1;
-
-						while( //((fifoWriteA - fifoOutA) < (ascBufferSize*2)) &&
-						      ((fifoInA - fifoWriteA) > ascBufferSize) ) {
-							asc_process_samples(&fifoA[fifoWriteA % fifoCapacity], 
-									    ascBufferSize);
-							fifoWriteA += ascBufferSize;
-						}
-					}
-				}
-			} else {
-				// Non fifo mode write
 			}
+
 		} else if(offset < 0x800) {
 		} else {
 			switch(offset) {
@@ -395,22 +370,9 @@ extern void io_write(uaecptr addr, uae_u32 b, int width_bits) {
 				// MODE
 				// 1 = FIFO mode, 2 = wavetable mode
 				ASCRegs[0x801] = b & 0x03;
-				if(b == 0) {
-					break;
-				}
-
-				if(ASCRegs[0x801] != lastMode) {
-					asc_stop();
-					soundRunning = 0;
-					fifoWriteA = fifoInA;
-				}
-				lastMode = ASCRegs[0x801];
 				break;
 
 			case 0x802:
-				if(ASCRegs[0x802] == b) {
-					break;
-				}
 				// CONTROL
 				// bit 0: analog or PWM output
 				// bit 1: stereo/mono
@@ -420,9 +382,10 @@ extern void io_write(uaecptr addr, uae_u32 b, int width_bits) {
 
 			case 0x803:
 				// FIFO Mode 
-				if(b & 0x80) {
+				if((b & 0x80) && (underrun == 0)) {
 					if(fifoInA > (fifoWriteA + ascBufferSize)) {
-						fifoInA = fifoWriteA + ascBufferSize;
+						fifoInA = 0;
+						clearFifo = 1;
 					}
 				}
 				break;
@@ -441,7 +404,52 @@ extern void io_write(uaecptr addr, uae_u32 b, int width_bits) {
 
 			case 0x807:
 				// Clock rate 0 = 22257, 2 = 22050, 3 = 44100
-				downsample = 0;
+				{
+					int newRate, oldRate;
+
+					if(ASCRegs[0x807] == 3) {
+						oldRate = 44100;
+					} else {
+						oldRate = 22050;
+					}
+
+					if(b == 3) {
+						newRate = 44100;
+					} else {
+						newRate = 22050;
+					}
+
+					if(newRate != oldRate) {
+						asc_stop();
+						soundRunning = 0;
+					}
+
+					if(soundRunning == 0) {
+						int32 depthA = fifoInA - fifoWriteA;
+
+						soundRunning = 1;
+						downsample = 0;
+						if(zeros[0] == 0) {
+							memset(zeros, 128, sizeof(zeros));
+						}
+
+						asc_init(newRate);
+
+						ascBufferSize = asc_get_buffer_size();
+
+						if(depthA >= ascBufferSize) {
+							asc_process_samples(&fifoA[fifoWriteA % fifoCapacity],
+									    ascBufferSize);
+							fifoWriteA += ascBufferSize;
+							underrun = 0;
+						} else {
+							underrun = 1;
+							asc_process_samples(zeros, ascBufferSize);
+						}
+						
+					}
+				}
+
 				ASCRegs[0x807] = b;
 				break;
 
@@ -458,22 +466,23 @@ extern void io_write(uaecptr addr, uae_u32 b, int width_bits) {
 }
 	
 void asc_callback() {
-	if(zeros[0] == 0) {
-		memset(zeros, 128, sizeof(zeros));
-	}
 	if(soundRunning == 0) {
 		asc_process_samples(zeros, ascBufferSize);
 		return;
 	}
 
-	fifoOutA += ascBufferSize;
+	if(clearFifo) {
+		fifoWriteA = 0;
+		clearFifo = 0;
+	}
 
-	if( ((fifoInA - fifoWriteA) >= ascBufferSize) &&
-	    (ASCRegs[0x801] == 1))  {
+	if((fifoInA > fifoWriteA) &&
+	   ((fifoInA - fifoWriteA) >= ascBufferSize)) {
 		asc_process_samples(&fifoA[fifoWriteA % fifoCapacity], ascBufferSize);
 		fifoWriteA += ascBufferSize;
+		underrun = 0;
 	} else {
-		static int ucount = 0;
+		underrun = 1;
 		asc_process_samples(zeros, ascBufferSize);
 	}
 }
