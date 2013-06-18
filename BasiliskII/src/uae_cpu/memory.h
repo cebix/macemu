@@ -128,8 +128,11 @@ extern uintptr MEMBaseDiff;
 #endif
 
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
+
+#ifdef ENABLE_ASC_EMU
 extern uae_u32 io_read(uaecptr addr, int width_bits);
 extern void io_write(uaecptr addr, uae_u32 b, int width_bits);
+#endif
 
 static __inline__ uae_u8 *do_get_real_address(uaecptr addr)
 {
@@ -141,9 +144,11 @@ static __inline__ uae_u32 do_get_virtual_address(uae_u8 *addr)
 }
 static __inline__ uae_u32 get_long(uaecptr addr)
 {
+#ifdef ENABLE_ASC_EMU
     if(addr & 0x40000000) {
 	return io_read(addr, 32);
     }
+#endif
 
     uae_u32 * const m = (uae_u32 *)do_get_real_address(addr);
     return do_get_mem_long(m);
