@@ -166,11 +166,11 @@ static __inline__ uae_u32 get_word(uaecptr addr)
 static __inline__ uae_u32 get_byte(uaecptr addr)
 {
 #ifdef ENABLE_ASC_EMU
-    uae_u8 * const m = (uae_u8 *)do_get_real_address(addr);
     if(addr & 0x40000000) {
 	return io_read(addr, 8);
     }
 #endif
+    uae_u8 * const m = (uae_u8 *)do_get_real_address(addr);
     return do_get_mem_byte(m);
 }
 static __inline__ void put_long(uaecptr addr, uae_u32 l)
