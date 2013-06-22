@@ -460,6 +460,33 @@ extern void io_write(uaecptr addr, uae_u32 b, int width_bits) {
 			default:
 				break;
 			}
+
+			if(soundRunning == 0) {
+				int32 depthA = fifoInA - fifoWriteA;
+
+				soundRunning = 1;
+				downsample = 0;
+
+				if(zeros[0] == 0) {
+					memset(zeros, 128, sizeof(zeros));
+				}
+
+				asc_init(22050);
+
+				ascBufferSize = asc_get_buffer_size();
+
+				if(depthA >= ascBufferSize) {
+					asc_process_samples(&fifoA[fifoWriteA % fifoCapacity],
+							    ascBufferSize);
+					fifoWriteA += ascBufferSize;
+					underrun = 0;
+				} else {
+					underrun = 1;
+					asc_process_samples(zeros, ascBufferSize);
+				}
+						
+			}
+
 		}
 	}
 
