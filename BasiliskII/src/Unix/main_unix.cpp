@@ -404,6 +404,8 @@ int main(int argc, char **argv)
 			if (i < argc)
 				x_display_name = strdup(argv[i]);
 #endif
+		} else if (strncmp(argv[i], "-psn_", 5) == 0) {// OS X process identifier
+			argv[i++] = NULL;
 		} else if (strcmp(argv[i], "--gui-connection") == 0) {
 			argv[i++] = NULL;
 			if (i < argc) {
