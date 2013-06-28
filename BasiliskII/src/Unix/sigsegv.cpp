@@ -614,8 +614,10 @@ extern "C" {
 #include <mach/mach.h>
 #include <mach/mach_error.h>
 
-#ifndef HAVE_MACH64_VM
-
+#ifdef __LP64__
+#include "mach_excServer.c"
+#include "mach_excUser.c"
+#else
 // Undefine this to prevent a preprocessor warning when compiling on a
 // 32-bit machine with Mac OS X 10.5.
 #undef	MACH_EXCEPTION_CODES

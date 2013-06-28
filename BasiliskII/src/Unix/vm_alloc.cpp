@@ -38,6 +38,7 @@
 #include <string.h>
 #include <limits.h>
 #include "vm_alloc.h"
+#include "sysdeps.h"
 
 #if defined(__APPLE__) && defined(__MACH__)
 #include <sys/utsname.h>
@@ -237,8 +238,36 @@ void * vm_acquire(size_t size, int options)
 #endif
 
 #if defined(HAVE_MACH_VM)
-	// vm_allocate() returns a zero-filled memory region
-	kern_return_t ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, TRUE);
+	static size_t addrOffset = 0x80000000;
+	kern_return_t ret_code;
+	static uint8 *base32 = NULL;
+
+	if(options & VM_MAP_32BIT) {
+#ifdef __LP64__
+		if((size < 0x08000000) && (addrOffset < 0x100000000ULL) && (base32 != NULL)) {
+			addr = (void *)(base32 + addrOffset);
+			ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, 
+					       size, VM_FLAGS_FIXED);
+			addrOffset += 0x08000000;
+		} else {
+			ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, 
+					       size, VM_FLAGS_ANYWHERE);
+			if((ret_code == KERN_SUCCESS) && (base32 == NULL)) {
+			  base32 = (uint8_t *)addr;
+			}
+
+		}
+#else
+		// vm_allocate() returns a zero-filled memory region
+		ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, 
+				       size, VM_FLAGS_ANYWHERE);
+#endif
+	} else {
+		// vm_allocate() returns a zero-filled memory region
+		ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, 
+				       size, VM_FLAGS_ANYWHERE);
+	}
+
 	if (ret_code != KERN_SUCCESS) {
 		errno = vm_error(ret_code);
 		return VM_MAP_FAILED;
@@ -296,7 +325,13 @@ int vm_acquire_fixed(void * addr, size_t size, int options)
 
 #if defined(HAVE_MACH_VM)
 	// vm_allocate() returns a zero-filled memory region
-	kern_return_t ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, 0);
+#ifdef __LP64__
+	kern_return_t ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, 
+					     VM_FLAGS_FIXED | VM_FLAGS_OVERWRITE);
+#else
+	kern_return_t ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, 
+					     VM_FLAGS_FIXED);
+#endif
 	if (ret_code != KERN_SUCCESS) {
 		errno = vm_error(ret_code);
 		return -1;

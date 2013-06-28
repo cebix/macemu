@@ -25,7 +25,10 @@
 #error "Your compiler is not ANSI. Get a real one."
 #endif
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
+
 #include "user_strings_unix.h"
 
 #ifndef STDC_HEADERS
@@ -210,7 +213,8 @@ typedef struct timeval tm_time_t;
 #define uae_u32 uint32
 #define uae_s64 int64
 #define uae_u64 uint64
-typedef uae_u32 uaecptr;
+//typedef uae_u32 uaecptr;
+typedef size_t uaecptr;
 
 /* Alignment restrictions */
 #if defined(__i386__) || defined(__powerpc__) || defined(__m68k__) || defined(__x86_64__)

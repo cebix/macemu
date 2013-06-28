@@ -110,6 +110,7 @@ extern "C" {
 #else
 #define SIGSEGV_FAULT_ADDRESS_FAST		code[1]
 #endif
+
 #define SIGSEGV_FAULT_INSTRUCTION_FAST	SIGSEGV_INVALID_ADDRESS
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	mach_port_t thread, mach_exception_data_t code
 #define SIGSEGV_FAULT_HANDLER_ARGS		thread, code

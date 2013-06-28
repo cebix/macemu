@@ -30,6 +30,9 @@ AC_ARG_ENABLE(asc-emu,       [  --enable-asc-emu        enable Apple Sound Chip 
 dnl Mac OS X etherhelper support
 AC_ARG_ENABLE(macosx-etherhelper,  [  --enable-macosx-etherhelper   enable Mac OS X Sound [default=no]], [WANT_MACOSX_ETHERHELPER=$enableval], [WANT_MACOSX_ETHERHELPER=no])
 
+dnl 32-bit build
+AC_ARG_ENABLE(32-bit-build,  [  --enable-32-bit-build   enable a 32-bit build [default=no]], [WANT_32BIT_BUILD=$enableval], [WANT_32BIT_BUILD=no])
+
 dnl Video options.
 AC_ARG_ENABLE(xf86-dga,      [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(xf86-vidmode,  [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
@@ -125,7 +128,7 @@ case "$target_cpu" in
 esac
 
 dnl Check if we should really be assuming x86_64 even if we detected HAVE_I386 above.
-if [[ "x$HAVE_I386" = "xyes" ]]; then
+if [[ "x$HAVE_I386" == "xyes" ]]; then
   AC_TRY_RUN([
     int main(void) {
         #if defined(__x86_64__)
@@ -140,6 +143,11 @@ if [[ "x$HAVE_I386" = "xyes" ]]; then
   ])
 fi
 
+if [[ "x$HAVE_X86_64" == "xyes" ] && [ "x$WANT_32BIT_BUILD" == "xyes" ]]; then
+  HAVE_I386=yes
+  HAVE_X86_64=no
+fi
+
 dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_CC_C_O
@@ -148,6 +156,12 @@ AC_PROG_CXX
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
 AC_PROG_EGREP
+
+if [[ "x$WANT_32BIT_BUILD" == "xyes" ]]; then
+CFLAGS+=" -m32"
+CXXFLAGS+=" -m32"
+LDFLAGS+=" -m32"
+fi
 
 dnl We use mon if possible.
 MONSRCS=
