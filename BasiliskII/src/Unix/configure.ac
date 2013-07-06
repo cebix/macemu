@@ -772,18 +772,20 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
     EXTRASYSSRCS="$EXTRASYSSRCS ../SDL/SDLMain.m"
   fi
 fi
+
+AC_MSG_CHECKING([whether __LP64__ is defined])
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#if !defined(__LP64__)
+                                     # error __LP64__ not defined
+                                     #endif
+                                   ]])],
+                  [AC_MSG_RESULT(yes); LP64_DEFINED=yes],
+                  [AC_MSG_RESULT(no)])
+
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support])
   VIDEOSRCS="../SDL/video_sdl.cpp"
   KEYCODES="../SDL/keycodes"
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
-    AC_MSG_CHECKING([whether __LP64__ is defined])
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#if !defined(__LP64__)
-                                         # error __LP64__ not defined
-                                         #endif
-                                       ]])],
-                      [AC_MSG_RESULT(yes); LP64_DEFINED=yes],
-                      [AC_MSG_RESULT(no)])
     if [[ "x$LP64_DEFINED" = "xyes" ]]; then
       EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx64.mm ../pict.c"
     else
@@ -1772,6 +1774,16 @@ if [[ "x$HAVE_IPA" = "xyes" ]]; then
   CXXFLAGS="`echo $CXXFLAGS | sed -e 's/-g//g'` -O3 -OPT:Olimit=0 -IPA"
   CXXFLAGS="-LANG:std $CXXFLAGS"
   LDFLAGS="$LDFLAGS -O3 -OPT:Olimit=0 -IPA"
+fi
+
+if [[ "x$LP64_DEFINED" = "xyes" ] && [ "x$have_mach_vm" = "xyes" ]]; then
+LIBS+=" -Wl,-pagezero_size,0x20000000"
+LIBS+=" -Wl,-segaddr,__TEXT,0x60000000"
+LIBS+=" -Wl,-segaddr,__PAGEZERO,0x20000000"
+fi
+
+if [[ ${OS_TYPE} = darwin ]]; then
+LIBS+=" -Wl,-no_pie"
 fi
 
 dnl Generate Makefile.

@@ -221,6 +221,9 @@ void vm_exit(void)
 /* Allocate zero-filled memory of SIZE bytes. The mapping is private
    and default protection bits are read / write. The return value
    is the actual mapping address chosen or VM_MAP_FAILED for errors.  */
+#if defined(HAVE_MACH_VM)
+static void *last_alloc = NULL;
+#endif
 
 void * vm_acquire(size_t size, int options)
 {
@@ -238,24 +241,18 @@ void * vm_acquire(size_t size, int options)
 #endif
 
 #if defined(HAVE_MACH_VM)
-	static size_t addrOffset = 0x80000000;
+	static size_t addrOffset = 0x20000000;
 	kern_return_t ret_code;
 	static uint8 *base32 = NULL;
 
 	if(options & VM_MAP_32BIT) {
 #ifdef __LP64__
-		if((size < 0x08000000) && (addrOffset < 0x100000000ULL) && (base32 != NULL)) {
-			addr = (void *)(base32 + addrOffset);
-			ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, 
-					       size, VM_FLAGS_FIXED);
-			addrOffset += 0x08000000;
-		} else {
-			ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, 
-					       size, VM_FLAGS_ANYWHERE);
-			if((ret_code == KERN_SUCCESS) && (base32 == NULL)) {
-			  base32 = (uint8_t *)addr;
-			}
-
+		addr = base32 + addrOffset;
+		ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, 
+				       size, VM_FLAGS_FIXED | VM_FLAGS_OVERWRITE);
+		if(ret_code == KERN_SUCCESS) {
+			last_alloc = addr;
+			base32 = base32 + size;
 		}
 #else
 		// vm_allocate() returns a zero-filled memory region
@@ -325,9 +322,16 @@ int vm_acquire_fixed(void * addr, size_t size, int options)
 
 #if defined(HAVE_MACH_VM)
 	// vm_allocate() returns a zero-filled memory region
+
 #ifdef __LP64__
-	kern_return_t ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, 
+	if(addr != last_alloc) {
+		return -1;
+	}
+
+	kern_return_t ret_code = vm_allocate(mach_task_self(), 
+					     (vm_address_t *)&addr, size, 
 					     VM_FLAGS_FIXED | VM_FLAGS_OVERWRITE);
+
 #else
 	kern_return_t ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, 
 					     VM_FLAGS_FIXED);
