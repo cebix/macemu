@@ -211,7 +211,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 - (IBAction) addDisk: (id) sender
 {
   NSOpenPanel *open = [NSOpenPanel openPanel];
-  [open setCanChooseDirectories:NO];
+  [open setCanChooseDirectories:YES];
   [open setAllowsMultipleSelection:NO];
   [open setTreatsFilePackagesAsDirectories:YES];
   [open beginSheetForDirectory: [[NSFileManager defaultManager] currentDirectoryPath]
