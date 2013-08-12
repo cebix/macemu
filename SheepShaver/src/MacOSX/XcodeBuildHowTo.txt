@@ -1,0 +1,26 @@
+The Xcode SheepShaver project makes it easier to build SheepShaver as a
+Universal Binary (with 3 architectures: i386, x86_64 and ppc).
+
+This is an optional build system that does not affect the existing
+autogen/configure based build system, which is still fully supported.
+The Xcode project will build SheepShaver with configuration
+"--enable-sdl-audio --enable-sdl-video --disable-vosf".
+
+The Xcode project lives in has been tested to work on Snow Leopard
+64-bit with Xcode 3.2.6 and the 10.4 SDK installed. It may not work
+under newer versions of Xcode or Mac OS X.
+
+To use it, you need the following:
+
+1. A complete 'macemu' git checkout of SheepShaver and BasiliskII.
+2. SDL installed as a framework in /Library/Frameworks/SDL.framework.
+3. You do not need to run autogen.sh / configure to use the Xcode
+project. If you've done so already, you should remove or temporarily
+move/rename src/Unix/config.h, as the presence of that file currently
+conflicts with the Xcode build and will cause errors in Xcode.
+
+With the above all set, you should be able to launch the Xcode project
+and build SheepShaver, resulting in a UB build containing SDL as a
+private framework in the bundle. The result will be located in either
+SheepShaver/src/MacOSX/build/Debug or SheepShaver/src/MacOSX/build/Release
+directories, depending if you do a Debug or Release build.
