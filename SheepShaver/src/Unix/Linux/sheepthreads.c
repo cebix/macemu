@@ -48,19 +48,19 @@ extern int test_and_set(int *var, int val);
 /* Linux kernel calls */
 extern int __clone(int (*fn)(void *), void *, int, void *);
 
-/* struct sem_t */
+/* libc no longer provides struct _pthread_fastlock in pthread.h */
+struct fastlock {
+	int status;
+	int spinlock;
+};
+
 typedef struct {
-	struct _pthread_fastlock __sem_lock;
-	int __sem_value;
-	_pthread_descr __sem_waiting;
+	struct fastlock sem_lock;
+	int sem_value;
+	int sem_waiting;
 } sem_t;
 
 #define SEM_VALUE_MAX 64
-#define status __status
-#define spinlock __spinlock
-#define sem_lock __sem_lock
-#define sem_value __sem_value
-#define sem_waiting __sem_waiting
 
 /* Wait for "clone" children only (Linux 2.4+ specific) */
 #ifndef __WCLONE
@@ -185,13 +185,13 @@ void pthread_testcancel(void)
    need to make sure that the compiler has flushed everything to memory.  */
 #define MEMORY_BARRIER() __asm__ __volatile__ ("sync" : : : "memory")
 
-static void fastlock_init(struct _pthread_fastlock *lock)
+static void fastlock_init(struct fastlock *lock)
 {
 	lock->status = 0;
 	lock->spinlock = 0;
 }
 
-static int fastlock_try_acquire(struct _pthread_fastlock *lock)
+static int fastlock_try_acquire(struct fastlock *lock)
 {
 	int res = EBUSY;
 	if (test_and_set(&lock->spinlock, 1) == 0) {
@@ -205,14 +205,14 @@ static int fastlock_try_acquire(struct _pthread_fastlock *lock)
 	return res;
 }
 
-static void fastlock_acquire(struct _pthread_fastlock *lock)
+static void fastlock_acquire(struct fastlock *lock)
 {
 	MEMORY_BARRIER();
 	while (test_and_set(&lock->spinlock, 1))
 		usleep(0);
 }
 
-static void fastlock_release(struct _pthread_fastlock *lock)
+static void fastlock_release(struct fastlock *lock)
 {
 	MEMORY_BARRIER();
 	lock->spinlock = 0;
@@ -226,10 +226,7 @@ static void fastlock_release(struct _pthread_fastlock *lock)
 
 int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *mutex_attr)
 {
-	fastlock_init(&mutex->__m_lock);
-	mutex->__m_kind = mutex_attr ? mutex_attr->__mutexkind : PTHREAD_MUTEX_TIMED_NP;
-	mutex->__m_count = 0;
-	mutex->__m_owner = NULL;
+	fastlock_init((struct fastlock *)mutex);
 	return 0;
 }
 
@@ -240,12 +237,7 @@ int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *mutex_
 
 int pthread_mutex_destroy(pthread_mutex_t *mutex)
 {
-	switch (mutex->__m_kind) {
-	case PTHREAD_MUTEX_TIMED_NP:
-		return (mutex->__m_lock.__status != 0) ? EBUSY : 0;
-	default:
-		return EINVAL;
-	}
+	return (((struct fastlock *)mutex)->status != 0) ? EBUSY : 0;
 }
 
 
@@ -255,13 +247,8 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex)
 
 int pthread_mutex_lock(pthread_mutex_t *mutex)
 {
-	switch (mutex->__m_kind) {
-	case PTHREAD_MUTEX_TIMED_NP:
-		fastlock_acquire(&mutex->__m_lock);
-		return 0;
-	default:
-		return EINVAL;
-	}
+	fastlock_acquire((struct fastlock *)mutex);
+	return 0;
 }
 
 
@@ -271,12 +258,7 @@ int pthread_mutex_lock(pthread_mutex_t *mutex)
 
 int pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
-	switch (mutex->__m_kind) {
-	case PTHREAD_MUTEX_TIMED_NP:
-		return fastlock_try_acquire(&mutex->__m_lock);
-	default:
-		return EINVAL;
-	}
+	return fastlock_try_acquire((struct fastlock *)mutex);
 }
 
 
@@ -286,13 +268,8 @@ int pthread_mutex_trylock(pthread_mutex_t *mutex)
 
 int pthread_mutex_unlock(pthread_mutex_t *mutex)
 {
-	switch (mutex->__m_kind) {
-	case PTHREAD_MUTEX_TIMED_NP:
-		fastlock_release(&mutex->__m_lock);
-		return 0;
-	default:
-		return EINVAL;
-	}
+	fastlock_release((struct fastlock *)mutex);
+	return 0;
 }
 
 
@@ -302,7 +279,6 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex)
 
 int pthread_mutexattr_init(pthread_mutexattr_t *attr)
 {
-	attr->__mutexkind = PTHREAD_MUTEX_TIMED_NP;
 	return 0;
 }
 
@@ -333,7 +309,7 @@ int sem_init(sem_t *sem, int pshared, unsigned int value)
 	}
 	fastlock_init(&sem->sem_lock);
 	sem->sem_value = value;
-	sem->sem_waiting = NULL;
+	sem->sem_waiting = 0;
 	return 0;
 }
 
@@ -353,7 +329,7 @@ int sem_destroy(sem_t *sem)
 		return -1;
 	}
 	sem->sem_value = 0;
-	sem->sem_waiting = NULL;
+	sem->sem_waiting = 0;
 	return 0;
 }
 
@@ -374,7 +350,7 @@ int sem_wait(sem_t *sem)
 		fastlock_release(&sem->sem_lock);
 		return 0;
 	}
-	sem->sem_waiting = (struct _pthread_descr_struct *)((long)sem->sem_waiting + 1);
+	sem->sem_waiting++;
 	while (sem->sem_value == 0) {
 		fastlock_release(&sem->sem_lock);
 		usleep(0);
@@ -398,7 +374,7 @@ int sem_post(sem_t *sem)
 	}
 	fastlock_acquire(&sem->sem_lock);
 	if (sem->sem_waiting)
-		sem->sem_waiting = (struct _pthread_descr_struct *)((long)sem->sem_waiting - 1);
+		sem->sem_waiting--;
 	else {
 		if (sem->sem_value >= SEM_VALUE_MAX) {
 			errno = ERANGE;
