@@ -93,7 +93,7 @@ OBJS := $(SRCS_LIST_TO_OBJS)
 SRCS := $(SRCS:%=@top_srcdir@/%)
 
 define GUI_SRCS_LIST_TO_OBJS
-	$(addprefix $(OBJ_DIR)/, $(addsuffix .go, $(foreach file, $(GUI_SRCS), \
+	$(addprefix $(OBJ_DIR)/, $(addsuffix .guio, $(foreach file, $(GUI_SRCS), \
 	$(basename $(notdir $(file))))))
 endef
 GUI_OBJS = $(GUI_SRCS_LIST_TO_OBJS)
@@ -193,7 +193,7 @@ $(OBJ_DIR)/%.o : %.mm
 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.s
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
-$(OBJ_DIR)/%.go : %.cpp
+$(OBJ_DIR)/%.guio : %.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(GUI_CFLAGS) -DSTANDALONE_GUI -c $< -o $@
 
 # Windows resources
