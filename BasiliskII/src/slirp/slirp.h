@@ -284,14 +284,6 @@ void lprint _P((const char *, ...));
 
 extern int do_echo;
 
-#if SIZEOF_CHAR_P == 4
-# define insque_32 insque
-# define remque_32 remque
-#else
- extern inline void insque_32 _P((void *, void *));
- extern inline void remque_32 _P((void *));
-#endif
-
 #ifndef _WIN32
 #include <netdb.h>
 #endif
@@ -308,7 +300,8 @@ void if_output _P((struct socket *, struct mbuf *));
 /* ip_input.c */
 void ip_init _P((void));
 void ip_input _P((struct mbuf *));
-struct ip * ip_reass _P((register struct ipasfrag *, register struct ipq *));
+static struct ip *
+ip_reass(register struct ip *ip, register struct ipq *);
 void ip_freef _P((struct ipq *));
 void ip_enq _P((register struct ipasfrag *, register struct ipasfrag *));
 void ip_deq _P((register struct ipasfrag *));
