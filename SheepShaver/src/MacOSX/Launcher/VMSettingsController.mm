@@ -102,11 +102,11 @@ static NSString *getStringFromPrefs(const char *key)
   const char *dsk;
   int index = 0;
   while ((dsk = PrefsFindString("disk", index++)) != NULL) {
-	  DiskType *disk = [[DiskType alloc] init];
-	  [disk setPath:[NSString stringWithUTF8String: dsk ]];
-	  [disk setIsCDROM:NO];
-	  
-	  [diskArray addObject:disk];
+    DiskType *disk = [[DiskType alloc] init];
+    [disk setPath:[NSString stringWithUTF8String: dsk ]];
+    [disk setIsCDROM:NO];
+    
+    [diskArray addObject:disk];
   }
 
   /* Fetch all CDROMs */
@@ -258,18 +258,18 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 - (void) _addDiskEnd: (NSOpenPanel *) open returnCode: (int) theReturnCode contextInfo: (void *) theContextInfo
 {
   if (theReturnCode == NSOKButton) {
-	  DiskType *d = [[DiskType alloc] init];
-	  [d setPath:makeRelativeIfNecessary([open filename])];
+    DiskType *d = [[DiskType alloc] init];
+    [d setPath:makeRelativeIfNecessary([open filename])];
 	  
-	  if([isCDROMcheckbox state] == NSOnState) {
-		  [d setIsCDROM:YES];
-	  }
-	  else {
-		  [d setIsCDROM:NO];
-	  }
+    if([isCDROMcheckbox state] == NSOnState) {
+      [d setIsCDROM:YES];
+    }
+    else {
+      [d setIsCDROM:NO];
+    }
 		   
-	 [diskArray addObject: d]; 
-	 [disks reloadData];
+    [diskArray addObject: d]; 
+    [disks reloadData];
   }
 }
 
@@ -308,7 +308,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
         [d setPath:makeRelativeIfNecessary([save filename])];
         [d setIsCDROM:NO];
 		  
-		[diskArray addObject: d];
+        [diskArray addObject: d];
         [disks reloadData];
       }
     }
@@ -407,8 +407,8 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 	
 	// Write all disks
   for (int i = 0; i < [diskArray count]; i++) {
-	  DiskType *d = [diskArray objectAtIndex:i];
-	  PrefsAddString([d isCDROM] ? "cdrom" : "disk", [[d path] UTF8String]);
+    DiskType *d = [diskArray objectAtIndex:i];
+    PrefsAddString([d isCDROM] ? "cdrom" : "disk", [[d path] UTF8String]);
   }
 	
   PrefsReplaceInt32("bootdriver", ([bootFrom indexOfSelectedItem] == 1 ? CDROMRefNum : 0));
