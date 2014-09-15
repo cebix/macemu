@@ -30,7 +30,6 @@
 
 #include <unistd.h>
 
-
 const int CDROMRefNum = -62;			// RefNum of driver
 
 #ifdef STANDALONE_PREFS
@@ -65,7 +64,6 @@ void prefs_exit()
 
 - (int) numberOfRowsInTableView: (NSTableView *) table
 {
-	//NSLog(@"Count of diskArray: %d", [diskArray count]);
   return [diskArray count];
 }
 
@@ -112,18 +110,18 @@ static NSString *getStringFromPrefs(const char *key)
 	  [diskArray addObject:disk];
   }
 
-	/* Fetch all CDROMs */
-	index = 0;
-	while ((dsk=PrefsFindString("cdrom", index++))!=NULL) {
-		DiskType *disk = [[DiskType alloc] init];
-		[disk setPath:[NSString stringWithUTF8String: dsk ]];
-		[disk setIsCDROM:YES];
+  /* Fetch all CDROMs */
+  index = 0;
+  while ((dsk=PrefsFindString("cdrom", index++))!=NULL) {
+    DiskType *disk = [[DiskType alloc] init];
+    [disk setPath:[NSString stringWithUTF8String: dsk ]];
+    [disk setIsCDROM:YES];
 		
-		[diskArray addObject:disk];
-	}
+    [diskArray addObject:disk];
+  }
 	
-	[disks setDataSource: self];
-	[disks reloadData];
+  [disks setDataSource: self];
+  [disks reloadData];
 	
   int bootdriver = PrefsFindInt32("bootdriver"), active = 0;
   switch (bootdriver) {
@@ -247,7 +245,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 {
   NSOpenPanel *open = [NSOpenPanel openPanel];
   [open setCanChooseDirectories:YES];
-	[open setAccessoryView:isCDROM];
+  [open setAccessoryView:isCDROM];
   [open setAllowsMultipleSelection:NO];
   [open setTreatsFilePackagesAsDirectories:YES];
   [open beginSheetForDirectory: [[NSFileManager defaultManager] currentDirectoryPath]
@@ -261,10 +259,10 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 - (void) _addDiskEnd: (NSOpenPanel *) open returnCode: (int) theReturnCode contextInfo: (void *) theContextInfo
 {
   if (theReturnCode == NSOKButton) {
-	  DiskType *d=[[DiskType alloc] init];
+	  DiskType *d = [[DiskType alloc] init];
 	  [d setPath:makeRelativeIfNecessary([open filename])];
 	  
-	  if([isCDROMcheckbox state]==NSOnState)
+	  if([isCDROMcheckbox state] == NSOnState)
 	  {
 		  [d setIsCDROM:YES];
 	  }
@@ -405,18 +403,14 @@ static NSString *makeRelativeIfNecessary(NSString *path)
   while (PrefsFindString("disk"))
     PrefsRemoveItem("disk");
 	// Remove all cdroms
-	while (PrefsFindString("cdrom"))
-		PrefsRemoveItem("cdrom");
+  while (PrefsFindString("cdrom"))
+    PrefsRemoveItem("cdrom");
 	
 	
 	// Write all disks
   for (int i = 0; i < [diskArray count]; i++) {
-	  DiskType *d = [diskArray objectAtIndex:i];	  
-	  if([d isCDROM])
-		  PrefsAddString("cdrom", [[d path] UTF8String]);
-	  else 
-		  PrefsAddString("disk", [[d path] UTF8String]);
-
+	  DiskType *d = [diskArray objectAtIndex:i];
+	  PrefsAddString([d isCDROM] ? "cdrom" : "disk", [[d path] UTF8String]);
   }
 	
   PrefsReplaceInt32("bootdriver", ([bootFrom indexOfSelectedItem] == 1 ? CDROMRefNum : 0));
