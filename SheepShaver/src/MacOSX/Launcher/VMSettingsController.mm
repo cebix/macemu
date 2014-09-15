@@ -261,8 +261,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 	  DiskType *d = [[DiskType alloc] init];
 	  [d setPath:makeRelativeIfNecessary([open filename])];
 	  
-	  if([isCDROMcheckbox state] == NSOnState)
-	  {
+	  if([isCDROMcheckbox state] == NSOnState) {
 		  [d setIsCDROM:YES];
 	  }
 	  else {
