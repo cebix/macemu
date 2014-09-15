@@ -101,8 +101,7 @@ static NSString *getStringFromPrefs(const char *key)
 
   const char *dsk;
   int index = 0;
-  while ((dsk = PrefsFindString("disk", index++)) != NULL)
-  {
+  while ((dsk = PrefsFindString("disk", index++)) != NULL) {
 	  DiskType *disk = [[DiskType alloc] init];
 	  [disk setPath:[NSString stringWithUTF8String: dsk ]];
 	  [disk setIsCDROM:NO];
@@ -112,7 +111,7 @@ static NSString *getStringFromPrefs(const char *key)
 
   /* Fetch all CDROMs */
   index = 0;
-  while ((dsk=PrefsFindString("cdrom", index++))!=NULL) {
+  while ((dsk = PrefsFindString("cdrom", index++)) != NULL) {
     DiskType *disk = [[DiskType alloc] init];
     [disk setPath:[NSString stringWithUTF8String: dsk ]];
     [disk setIsCDROM:YES];
