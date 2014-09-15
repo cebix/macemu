@@ -304,9 +304,9 @@ static NSString *makeRelativeIfNecessary(NSString *path)
       snprintf(cmd, sizeof(cmd), "dd if=/dev/zero \"of=%s\" bs=1024k count=%d", [[save filename] UTF8String], [diskSaveSizeField intValue]);
       int ret = system(cmd);
       if (ret == 0) {
-		  DiskType *d=[[DiskType alloc] init];
-		  [d setPath:makeRelativeIfNecessary([save filename])];
-		  [d setIsCDROM:NO];
+        DiskType *d=[[DiskType alloc] init];
+        [d setPath:makeRelativeIfNecessary([save filename])];
+        [d setIsCDROM:NO];
 		  
 		[diskArray addObject: d];
         [disks reloadData];
