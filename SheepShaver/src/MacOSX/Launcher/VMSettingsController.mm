@@ -69,22 +69,21 @@ void prefs_exit()
 
 - (id) tableView: (NSTableView *) table objectValueForTableColumn: (NSTableColumn *) col row: (int) row
 {
- 	DiskType *d = (DiskType*)[diskArray objectAtIndex:row];
+  DiskType *d = (DiskType*)[diskArray objectAtIndex:row];
 	
-	if([[col identifier] isEqualTo:@"isCDROMcol"])
-	{
-		return [NSString stringWithFormat:@"%d", [d isCDROM]];
-	}
+  if([[col identifier] isEqualTo:@"isCDROMcol"]) {
+    return [NSString stringWithFormat:@"%d", [d isCDROM]];
+  }
 	
-	return [d path];
+  return [d path];
 }
 
 -(void)tableView:(NSTableView *)tableView setObjectValue:(id)object forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row
 {	
-	if ([[tableColumn identifier] isEqual:@"isCDROMcol"]) {
-		DiskType *d = (DiskType*)[diskArray objectAtIndex:row];
-		[d setIsCDROM:![d isCDROM]];
-	}
+  if ([[tableColumn identifier] isEqual:@"isCDROMcol"]) {
+    DiskType *d = (DiskType*)[diskArray objectAtIndex:row];
+    [d setIsCDROM:![d isCDROM]];
+  }
 }
 
 static NSString *getStringFromPrefs(const char *key)
