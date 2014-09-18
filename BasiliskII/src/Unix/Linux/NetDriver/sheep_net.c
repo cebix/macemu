@@ -21,7 +21,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
+#include <linux/init.h>
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
+#define LINUX_3_15
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)
 #define LINUX_26_35
@@ -153,6 +157,9 @@ struct SheepVars {
 	u32 ipfilter;				/* Only receive IP packets destined for this address (host byte order) */
 	char eth_addr[6];			/* Hardware address of the Ethernet card */
 	char fake_addr[6];			/* Local faked hardware address (what SheepShaver sees) */
+#ifdef LINUX_3_15
+    int got_packet;
+#endif
 };
 
 
@@ -389,8 +396,17 @@ static ssize_t sheep_net_read(struct file *f, char *buf, size_t count, loff_t *o
 		if (skb != NULL || (f->f_flags & O_NONBLOCK))
 			break;
 
+        /*packet is not available*/
+        #ifdef LINUX_3_15
+        v->got_packet = 0;
+        #endif
+
 		/* No packet in queue and in blocking mode, so block */
-		interruptible_sleep_on(&v->wait);
+        #ifdef LINUX_3_15
+        wait_event_interruptible(v->wait, v->got_packet == 1);
+        #else
+        interruptible_sleep_on(&v->wait);
+        #endif
 
 		/* Signal received? Then bail out */
 		if (signal_pending(current))
@@ -670,7 +686,7 @@ error:
 
 		case SIOC_MOL_SET_IPFILTER:
 			v->ipfilter = arg;
-			return 0;
+            return 0;
 
 		default:
 			return -ENOIOCTLCMD;
@@ -729,6 +745,10 @@ static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struc
 
 	/* Enqueue packet */
 	skb_queue_tail(&v->queue, skb);
+
+    #ifdef LINUX_3_15
+    v->got_packet = 1;
+    #endif
 
 	/* Unblock blocked read */
 	wake_up(&v->wait);
