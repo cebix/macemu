@@ -71,7 +71,7 @@ void prefs_exit()
 {
   DiskType *d = (DiskType*)[diskArray objectAtIndex:row];
 	
-  if([[col identifier] isEqualTo:@"isCDROMcol"]) {
+  if ([[col identifier] isEqualTo:@"isCDROMcol"]) {
     return [NSString stringWithFormat:@"%d", [d isCDROM]];
   }
 	
@@ -260,12 +260,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
     DiskType *d = [[DiskType alloc] init];
     [d setPath:makeRelativeIfNecessary([open filename])];
 	  
-    if([isCDROMcheckbox state] == NSOnState) {
-      [d setIsCDROM:YES];
-    }
-    else {
-      [d setIsCDROM:NO];
-    }
+    [d setIsCDROM:([isCDROMcheckbox state] == NSOnState)];
 		   
     [diskArray addObject: d]; 
     [disks reloadData];
@@ -303,7 +298,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
       snprintf(cmd, sizeof(cmd), "dd if=/dev/zero \"of=%s\" bs=1024k count=%d", [[save filename] UTF8String], [diskSaveSizeField intValue]);
       int ret = system(cmd);
       if (ret == 0) {
-        DiskType *d=[[DiskType alloc] init];
+        DiskType *d = [[DiskType alloc] init];
         [d setPath:makeRelativeIfNecessary([save filename])];
         [d setIsCDROM:NO];
 		  
