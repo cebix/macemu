@@ -396,15 +396,15 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 
 - (void) saveChanges: (id) sender
 {
-	// Remove all disks
+  // Remove all disks
   while (PrefsFindString("disk"))
     PrefsRemoveItem("disk");
-	// Remove all cdroms
+  // Remove all cdroms
   while (PrefsFindString("cdrom"))
     PrefsRemoveItem("cdrom");
 	
 	
-	// Write all disks
+  // Write all disks
   for (int i = 0; i < [diskArray count]; i++) {
     DiskType *d = [diskArray objectAtIndex:i];
     PrefsAddString([d isCDROM] ? "cdrom" : "disk", [[d path] UTF8String]);

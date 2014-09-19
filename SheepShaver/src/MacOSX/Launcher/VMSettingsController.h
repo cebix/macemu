@@ -52,7 +52,7 @@
     // Keyboard/Mouse
     IBOutlet NSButton *useRawKeyCodes;
     IBOutlet NSTextField *rawKeyCodes;
-		IBOutlet NSButton *browseRawKeyCodesButton;
+	IBOutlet NSButton *browseRawKeyCodesButton;
     IBOutlet NSPopUpButton *mouseWheel;
     IBOutlet NSTextField *scrollLines;
     IBOutlet NSStepper *scrollLinesStepper;
