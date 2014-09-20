@@ -21,7 +21,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
+#include <linux/init.h>
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
+#define LINUX_3_15
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)
 #define LINUX_26_35
@@ -153,6 +157,9 @@ struct SheepVars {
 	u32 ipfilter;				/* Only receive IP packets destined for this address (host byte order) */
 	char eth_addr[6];			/* Hardware address of the Ethernet card */
 	char fake_addr[6];			/* Local faked hardware address (what SheepShaver sees) */
+#ifdef LINUX_3_15
+	atomic_t got_packet;
+#endif
 };
 
 
@@ -390,7 +397,12 @@ static ssize_t sheep_net_read(struct file *f, char *buf, size_t count, loff_t *o
 			break;
 
 		/* No packet in queue and in blocking mode, so block */
+#ifdef LINUX_3_15
+		atomic_set(&v->got_packet, 0);
+		wait_event_interruptible(v->wait, atomic_read(&v->got_packet));
+#else
 		interruptible_sleep_on(&v->wait);
+#endif
 
 		/* Signal received? Then bail out */
 		if (signal_pending(current))
@@ -731,7 +743,17 @@ static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struc
 	skb_queue_tail(&v->queue, skb);
 
 	/* Unblock blocked read */
+#ifdef LINUX_3_15
+
+	atomic_set(&v->got_packet, 1);
+
+	wake_up_interruptible(&v->wait);
+
+#else
+
 	wake_up(&v->wait);
+
+#endif
 	return 0;
 
 drop:
