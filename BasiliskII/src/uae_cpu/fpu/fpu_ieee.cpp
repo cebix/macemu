@@ -726,7 +726,7 @@ PRIVATE inline int FFPU get_fp_value (uae_u32 opcode, uae_u16 extra, fpu_registe
 }
 
 /* Convert the FP value to integer according to the current m68k rounding mode */
-PRIVATE inline uae_s32 FFPU toint(fpu_register const & src)
+PRIVATE uae_s32 FFPU toint(fpu_register const & src)
 {
 	fpu_register result;
 	switch (get_fpcr() & 0x30) {
