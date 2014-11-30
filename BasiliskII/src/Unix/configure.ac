@@ -1777,9 +1777,7 @@ if [[ "x$HAVE_IPA" = "xyes" ]]; then
 fi
 
 if [[ "x$LP64_DEFINED" = "xyes" ] && [ "x$have_mach_vm" = "xyes" ]]; then
-LIBS+=" -Wl,-pagezero_size,0x20000000"
-#LIBS+=" -Wl,-segaddr,__TEXT,0x60000000"
-LIBS+=" -Wl,-segaddr,__PAGEZERO,0x20000000"
+LIBS+=" -Wl,-pagezero_size,0x1000"
 fi
 
 if [[ ${OS_TYPE} = darwin ]]; then
