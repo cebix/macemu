@@ -97,7 +97,7 @@ endef
 OBJS = $(SRCS_LIST_TO_OBJS)
 
 define GUI_SRCS_LIST_TO_OBJS
-	$(addprefix $(OBJ_DIR)/, $(addsuffix .go, $(foreach file, $(GUI_SRCS), \
+	$(addprefix $(OBJ_DIR)/, $(addsuffix .guio, $(foreach file, $(GUI_SRCS), \
 	$(basename $(notdir $(file))))))
 endef
 GUI_OBJS = $(GUI_SRCS_LIST_TO_OBJS)
@@ -195,7 +195,7 @@ $(OBJ_DIR)/%.o : %.S
 	$(CPP) $(CPPFLAGS) -D__ASSEMBLY__ $< -o $*.out.s
 	$(AS) $(ASFLAGS) -o $@ $*.out.s
 	rm $*.out.s
-$(OBJ_DIR)/%.go : %.cpp
+$(OBJ_DIR)/%.guio : %.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(GUI_CFLAGS) -DSTANDALONE_GUI -c $< -o $@
 
 # Kheperix CPU emulator

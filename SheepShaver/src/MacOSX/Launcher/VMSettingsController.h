@@ -21,6 +21,9 @@
 #import <Cocoa/Cocoa.h>
 
 @interface VMSettingsController : NSWindowController
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
+    <NSTableViewDataSource>
+#endif
 {
     BOOL cancelWasClicked;
 

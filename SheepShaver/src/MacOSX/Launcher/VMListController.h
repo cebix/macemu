@@ -20,7 +20,11 @@
 
 #import <Cocoa/Cocoa.h>
 
-@interface VMListController : NSWindowController {
+@interface VMListController : NSWindowController
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
+    <NSTableViewDataSource, NSTableViewDelegate>
+#endif
+{
 	IBOutlet NSTableView *vmList;
 	IBOutlet NSButton *newButton;
 	IBOutlet NSButton *importButton;
