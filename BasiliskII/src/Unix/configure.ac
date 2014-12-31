@@ -28,7 +28,7 @@ dnl Apple Sound Chip Emulation
 AC_ARG_ENABLE(asc-emu,       [  --enable-asc-emu        enable Apple Sound Chip emulation [default=no]], [WANT_ASC_EMU=$enableval], [WANT_ASC_EMU=no])
 
 dnl Mac OS X etherhelper support
-AC_ARG_ENABLE(macosx-etherhelper,  [  --enable-macosx-etherhelper   enable Mac OS X Sound [default=no]], [WANT_MACOSX_ETHERHELPER=$enableval], [WANT_MACOSX_ETHERHELPER=no])
+AC_ARG_ENABLE(macosx-etherhelper,  [  --enable-macosx-etherhelper   enable Mac OS X Ethernet Helper Program [default=no]], [WANT_MACOSX_ETHERHELPER=$enableval], [WANT_MACOSX_ETHERHELPER=no])
 
 dnl 32-bit build
 AC_ARG_ENABLE(32-bit-build,  [  --enable-32-bit-build   enable a 32-bit build [default=no]], [WANT_32BIT_BUILD=$enableval], [WANT_32BIT_BUILD=no])
@@ -1781,10 +1781,6 @@ fi
 
 if [[ "x$LP64_DEFINED" = "xyes" ] && [ "x$have_mach_vm" = "xyes" ]]; then
 LIBS+=" -Wl,-pagezero_size,0x1000"
-fi
-
-if [[ ${OS_TYPE} = darwin ]]; then
-LIBS+=" -Wl,-no_pie"
 fi
 
 dnl Generate Makefile.

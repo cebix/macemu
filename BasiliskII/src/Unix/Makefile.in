@@ -184,7 +184,7 @@ distclean: clean
 	rm -rf $(OBJ_DIR)
 	rm -rf autom4te.cache
 	rm -f Makefile
-	rm -f config.cache config.log config.status config.h
+	rm -f config.cache config.log config.status config.h config.h.in configure
 	rm -f Darwin/lowmem Darwin/pagezero
 
 depend dep:
