@@ -1779,6 +1779,13 @@ if [[ "x$HAVE_IPA" = "xyes" ]]; then
   LDFLAGS="$LDFLAGS -O3 -OPT:Olimit=0 -IPA"
 fi
 
+if [[ `uname -s` = Darwin ]]; then
+   MACOSVERSION=`sw_vers -productVersion | cut -d. -f2`
+   if [[ ${MACOSVERSION} -gt 6 ]]; then
+     LIBS+=" -Wl,-no_pie"
+   fi
+fi
+
 if [[ "x$LP64_DEFINED" = "xyes" ] && [ "x$have_mach_vm" = "xyes" ]]; then
 LIBS+=" -Wl,-pagezero_size,0x1000"
 fi
