@@ -33,7 +33,7 @@ TYPE= APP
 MACHINE=$(shell uname -m)
 ifeq ($(MACHINE), BePC)
 	CPUSRCS = ../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp \
-	    ../uae_cpu/readcpu.cpp ../uae_cpu/fpu/fpu_uae.cpp cpustbl.cpp cpudefs.cpp cpufast.s
+	    ../uae_cpu/readcpu.cpp ../uae_cpu/fpu/fpu_x86.cpp cpustbl.cpp cpudefs.cpp cpufast.s
 else
 #	CPUSRCS = ../powerrom_cpu/powerrom_cpu.cpp
 	CPUSRCS = ../uae_cpu/basilisk_glue.cpp ../uae_cpu/newcpu.cpp \
@@ -116,7 +116,7 @@ SYMBOLS =
 DEBUGGER = 
 
 #	specify additional compiler flags for all files
-COMPILER_FLAGS =
+COMPILER_FLAGS = -fomit-frame-pointer -fno-PIC
 
 #	specify additional linker flags
 LINKER_FLAGS =
