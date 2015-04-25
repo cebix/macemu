@@ -40,6 +40,11 @@
 #define DEBUG 0
 #include "debug.h"
 
+#ifdef __HAIKU__
+#include <fs_volume.h>
+#define unmount(x) fs_unmount_volume(x, 0)
+#endif
+
 
 // File handles are pointers to these structures
 struct file_handle {
@@ -284,6 +289,10 @@ void SysAddCDROMPrefs(void)
 
 void SysAddSerialPrefs(void)
 {
+#ifdef __HAIKU__
+	PrefsAddString("seriala", "serial1");
+	PrefsAddString("serialb", "serial2");
+#else
 	system_info info;
 	get_system_info(&info);
 	switch (info.platform_type) {
@@ -301,6 +310,7 @@ void SysAddSerialPrefs(void)
 			PrefsAddString("serialb", "none");
 			break;
 	}
+#endif
 }
 
 
