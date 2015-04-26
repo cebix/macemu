@@ -137,7 +137,6 @@ private:
 
 	BitmapView *main_view;		// Main view for bitmap drawing
 	BBitmap *the_bitmap;		// Mac screen bitmap
-	uint8 *the_buffer;			// Mac frame buffer
 
 	uint32 old_scroll_lock_state;
 
@@ -210,6 +209,7 @@ static void add_mode(uint32 width, uint32 height, uint32 resolution_id, uint32 b
 // Add standard list of windowed modes for given color depth
 static void add_window_modes(video_depth depth)
 {
+#if 0
 	add_mode(512, 384, 0x80, TrivialBytesPerRow(512, depth), depth);
 	add_mode(640, 480, 0x81, TrivialBytesPerRow(640, depth), depth);
 	add_mode(800, 600, 0x82, TrivialBytesPerRow(800, depth), depth);
@@ -217,6 +217,7 @@ static void add_window_modes(video_depth depth)
 	add_mode(1152, 870, 0x84, TrivialBytesPerRow(1152, depth), depth);
 	add_mode(1280, 1024, 0x85, TrivialBytesPerRow(1280, depth), depth);
 	add_mode(1600, 1200, 0x86, TrivialBytesPerRow(1600, depth), depth);
+#endif
 }
 
 
@@ -252,31 +253,34 @@ bool VideoInit(bool classic)
 		default_height = DisplayHeight(x_display, screen);
 #endif
 
-	// Mac screen depth follows X depth
+	// Mac screen depth follows BeOS depth
 	video_depth default_depth = VDEPTH_1BIT;
-#if 0
-	switch (DefaultDepth(x_display, screen)) {
-		case 8:
+	switch (BScreen().ColorSpace()) {
+		case B_CMAP8:
 			default_depth = VDEPTH_8BIT;
 			break;
-		case 15: case 16:
+		case B_RGB15:
 			default_depth = VDEPTH_16BIT;
 			break;
-		case 24: case 32:
+		case B_RGB32:
 			default_depth = VDEPTH_32BIT;
 			break;
+		default:
+			fprintf(stderr, "Unknown color space!");
 	}
-#endif
 
 	// Construct list of supported modes
 	if (display_type == DISPLAY_WINDOW) {
 		if (classic)
 			add_mode(512, 342, 0x80, 64, VDEPTH_1BIT);
 		else {
+			add_mode(default_width, default_height, 0x80, TrivialBytesPerRow(default_width, default_depth), default_depth);
+#if 0
 			for (unsigned d=VDEPTH_1BIT; d<=VDEPTH_32BIT; d++) {
-				//if (find_visual_for_depth(video_depth(d)))
+				if (find_visual_for_depth(video_depth(d)))
 					add_window_modes(video_depth(d));
 			}
+#endif
 		}
 	} else
 		add_mode(default_width, default_height, 0x80, TrivialBytesPerRow(default_width, default_depth), default_depth);
@@ -569,30 +573,38 @@ MacWindow::MacWindow(BRect frame, const BeOS_monitor_desc& monitor)
 	// Allocate bitmap and Mac frame buffer
 	uint32 x = frame.IntegerWidth() + 1;
 	uint32 y = frame.IntegerHeight() + 1;
+	int fbsize = x * y;
 	const video_mode &mode = monitor.get_current_mode();
 	switch (mode.depth) {
 		case VDEPTH_1BIT:
-			the_bitmap = new BBitmap(frame, B_RGB16);
+			fprintf(stderr, "1BIT SCREEN CREATED");
+			the_bitmap = new BBitmap(frame, B_GRAY1);
+			fbsize /= 8;
 			break;
 		case VDEPTH_8BIT:
+			fprintf(stderr, "8BIT SCREEN CREATED");
 			the_bitmap = new BBitmap(frame, B_CMAP8);
+			break;
+		case VDEPTH_32BIT:
+			fprintf(stderr, "32BIT SCREEN CREATED");
+			the_bitmap = new BBitmap(frame, B_RGB32_BIG);
+			fbsize *= 4;
 			break;
 		default:
 			fprintf(stderr, "width: %d", 1 << mode.depth);
 			debugger("OOPS");
 	}
-	the_buffer = new uint8[x * (y + 2) * 2];	// "y + 2" for safety
 
 #if REAL_ADDRESSING
-	monitor.set_mac_frame_base((uint32)the_buffer);
+	monitor.set_mac_frame_base((uint32)the_bitmap->Bits());
 #else
 	monitor.set_mac_frame_base(MacFrameBaseMac);
 #endif
 
 #if !REAL_ADDRESSING
 	// Set variables for UAE memory mapping
-	MacFrameBaseHost = the_buffer;
-	MacFrameSize = x * y;
+	MacFrameBaseHost = (uint8*)the_bitmap->Bits();
+	MacFrameSize = fbsize;
 	MacFrameLayout = FLAYOUT_DIRECT;
 #endif
 
@@ -709,7 +721,6 @@ MacWindow::~MacWindow()
 
 	// Free bitmap and frame buffer
 	delete the_bitmap;
-	delete[] the_buffer;
 
 	// Tell emulator that we're done
 	the_window = NULL;
@@ -763,11 +774,6 @@ void MacWindow::MessageReceived(BMessage *msg)
 			
 			// Convert Mac screen buffer to BeOS palette and blit
 			const video_mode &mode = monitor.get_current_mode();
-			uint8 *source = the_buffer - 1;
-			uint8 *dest = (uint8 *)the_bitmap->Bits() - 1;
-			uint32 length = mode.bytes_per_row * mode.y;
-			for (int i=0; i<length; i++)
-				*++dest = remap_mac_be[*++source];
 			BRect update_rect = BRect(0, 0, mode.x-1, mode.y-1);
 			main_view->DrawBitmapAsync(the_bitmap, update_rect, update_rect);
 			break;
@@ -877,43 +883,7 @@ status_t MacWindow::tick_func(void *arg)
 
 			// Refresh screen unless Scroll Lock is down
 			if (!scroll_lock_state) {
-
-				// If direct frame buffer access is supported and the content area is completely visible,
-				// convert the Mac screen buffer directly. Otherwise, send a message to the window to do
-				// it into a bitmap
-				if (obj->supports_direct_mode) {
-					if (acquire_sem(obj->drawing_sem) != B_NO_ERROR)
-						return 0;
-					if (obj->unclipped && obj->pixel_format == B_CMAP8) {
-						uint8 *source = obj->the_buffer - 1;
-						uint8 *dest = (uint8 *)obj->bits;
-						uint32 bytes_per_row = obj->bytes_per_row;
-						const video_mode &mode = obj->monitor.get_current_mode();
-						int xsize = mode.x;
-						int ysize = mode.y;
-						for (int y=0; y<ysize; y++) {
-							uint32 *p = (uint32 *)dest - 1;
-							for (int x=0; x<xsize/4; x++) {
-#if B_HOST_IS_BENDIAN
-								uint32 c = obj->remap_mac_be[*++source] << 24;
-								c |= obj->remap_mac_be[*++source] << 16;
-								c |= obj->remap_mac_be[*++source] << 8;
-								c |= obj->remap_mac_be[*++source];
-#else
-								uint32 c = obj->remap_mac_be[*++source];
-								c |= obj->remap_mac_be[*++source] << 8;
-								c |= obj->remap_mac_be[*++source] << 16;
-								c |= obj->remap_mac_be[*++source] << 24;
-#endif
-								*++p = c;
-							}
-							dest += bytes_per_row;
-						}
-					} else
-						obj->PostMessage(MSG_REDRAW);
-					release_sem(obj->drawing_sem);
-				} else
-					obj->PostMessage(MSG_REDRAW);
+				obj->PostMessage(MSG_REDRAW);
 			}
 		}
 		snooze(16666);
