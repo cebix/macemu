@@ -472,6 +472,7 @@ const char *host_encoding_to_macroman(const char *filename)
 	int32 size = sizeof(buffer) - 1;
 	int32 insize = strlen(filename);
 	convert_from_utf8(B_MAC_ROMAN_CONVERSION, filename, &insize, buffer, &size, &state);
+	buffer[size] = 0;
 	return buffer;
 }
 
@@ -483,5 +484,6 @@ const char *macroman_to_host_encoding(const char *filename)
 	int32 insize = strlen(filename);
 	int32 size = sizeof(buffer) - 1;
 	convert_to_utf8(B_MAC_ROMAN_CONVERSION, filename, &insize, buffer, &size, &state);
+	buffer[size] = 0;
 	return buffer;
 }
