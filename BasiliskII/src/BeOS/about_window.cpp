@@ -1,4 +1,4 @@
-\/*
+/*
  *  about_window.cpp - "About" window
  *
  *  Basilisk II (C) 1997-2008 Christian Bauer
