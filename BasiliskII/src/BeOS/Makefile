@@ -97,7 +97,7 @@ OPTIMIZE= FULL
 #	to use.  For example, setting DEFINES to "DEBUG=1" will cause the
 #	compiler option "-DDEBUG=1" to be used.  Setting DEFINES to "DEBUG"
 #	would pass "-DDEBUG" on the compiler's command line.
-DEFINES= 
+DEFINES= FPU_X86 SIZEOF_FLOAT=4 SIZEOF_DOUBLE=8 SIZEOF_LONG_DOUBLE=10
 
 #	specify special warning levels
 #	if unspecified default warnings will be used
