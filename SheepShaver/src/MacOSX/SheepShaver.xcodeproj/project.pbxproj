@@ -129,6 +129,7 @@
 		08CD42DC14B7B85B009CA2A2 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */; };
 		08CD42E814B7B8AA009CA2A2 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42E714B7B8AA009CA2A2 /* Carbon.framework */; };
 		08D93A16159FE174003B04EC /* clip_macosx64.mm in Sources */ = {isa = PBXBuildFile; fileRef = 08D93A15159FE174003B04EC /* clip_macosx64.mm */; };
+		A7B1921418C35D4700791D8D /* DiskType.m in Sources */ = {isa = PBXBuildFile; fileRef = A7B1921318C35D4700791D8D /* DiskType.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -448,6 +449,8 @@
 		08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
 		08CD42E714B7B8AA009CA2A2 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = /System/Library/Frameworks/Carbon.framework; sourceTree = "<absolute>"; };
 		08D93A15159FE174003B04EC /* clip_macosx64.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = clip_macosx64.mm; sourceTree = "<group>"; };
+		A7B1921218C35D4700791D8D /* DiskType.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DiskType.h; sourceTree = "<group>"; };
+		A7B1921318C35D4700791D8D /* DiskType.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DiskType.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -940,6 +943,8 @@
 		0856D2D614A9A704000B1711 /* Launcher */ = {
 			isa = PBXGroup;
 			children = (
+				A7B1921218C35D4700791D8D /* DiskType.h */,
+				A7B1921318C35D4700791D8D /* DiskType.m */,
 				0856D30714A9A704000B1711 /* VMSettingsWindow.nib */,
 				0856D31114A9A704000B1711 /* VMSettingsController.h */,
 				0856D31214A9A704000B1711 /* VMSettingsController.mm */,
@@ -1452,6 +1457,7 @@
 				0873A80214AC515D004F12B7 /* utils_macosx.mm in Sources */,
 				083E370C16EFE85000CCCA59 /* disk_sparsebundle.cpp in Sources */,
 				083E372216EFE87200CCCA59 /* tinyxml2.cpp in Sources */,
+				A7B1921418C35D4700791D8D /* DiskType.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
