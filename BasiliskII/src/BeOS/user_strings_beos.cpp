@@ -38,6 +38,7 @@ user_string_def platform_strings[] = {
 	{STR_NET_CONFIG_MODIFY_WARN, "To enable Ethernet networking for Basilisk II, your network configuration has to be modified and the network restarted. Do you want this to be done now (selecting \"Cancel\" will disable Ethernet under Basilisk II)?."},
 	{STR_NET_ADDON_INIT_FAILED, "SheepShaver net server add-on found\nbut there seems to be no network hardware.\nPlease check your network preferences."},
 	{STR_NET_ADDON_CLONE_FAILED, "Cloning of the network transfer area failed."},
+	{STR_VIDEO_FAILED, "Failed to set video mode."},
 
 	{-1, NULL}	// End marker
 };

@@ -63,7 +63,9 @@ typedef off_t loff_t;
 
 // Networking types
 #define PF_INET AF_INET
+#ifndef __HAIKU__
 typedef int socklen_t;
+#endif
 
 // UAE CPU data types
 #define uae_s8 int8

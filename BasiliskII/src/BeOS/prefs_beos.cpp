@@ -44,8 +44,23 @@ static BPath prefs_path;
  *  Load preferences from settings file
  */
 
-void LoadPrefs(void)
+void LoadPrefs(const char* vmdir)
 {
+#if 0
+	if (vmdir) {
+		prefs_path.SetTo(vmdir);
+		prefs_path.Append("prefs");
+		FILE *prefs = fopen(prefs_path.Path(), "r");
+		if (!prefs) {
+			printf("No file at %s found.\n", prefs_path.Path());
+			exit(1);
+		}
+		LoadPrefsFromStream(prefs);
+		fclose(prefs);
+		return;
+	}
+#endif
+
 	// Construct prefs path
 	find_directory(B_USER_SETTINGS_DIRECTORY, &prefs_path, true);
 	prefs_path.Append(PREFS_FILE_NAME);

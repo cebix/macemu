@@ -97,7 +97,7 @@ OPTIMIZE= FULL
 #	to use.  For example, setting DEFINES to "DEBUG=1" will cause the
 #	compiler option "-DDEBUG=1" to be used.  Setting DEFINES to "DEBUG"
 #	would pass "-DDEBUG" on the compiler's command line.
-DEFINES= 
+DEFINES= FPU_X86 SIZEOF_FLOAT=4 SIZEOF_DOUBLE=8 SIZEOF_LONG_DOUBLE=10
 
 #	specify special warning levels
 #	if unspecified default warnings will be used
@@ -116,14 +116,14 @@ SYMBOLS =
 DEBUGGER = 
 
 #	specify additional compiler flags for all files
-COMPILER_FLAGS =
+COMPILER_FLAGS = -fomit-frame-pointer -fno-PIC
 
 #	specify additional linker flags
 LINKER_FLAGS =
 
 
 ## include the makefile-engine
-include /boot/develop/etc/makefile-engine
+include /boot/system/develop/etc/makefile-engine
 
 
 #	special handling of UAE CPU engine

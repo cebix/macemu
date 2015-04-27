@@ -118,6 +118,8 @@ private:
 	class file_open_error {};
 	class file_read_error {};
 	class rom_size_error {};
+
+	char* vmdir;
 };
 
 static BasiliskII *the_app;
@@ -178,7 +180,7 @@ void BasiliskII::ReadyToRun(void)
 	// Read preferences
 	int argc = 0;
 	char **argv = NULL;
-	PrefsInit(argc, argv);
+	PrefsInit(vmdir, argc, argv);
 
 	// Init system routines
 	SysInit();
