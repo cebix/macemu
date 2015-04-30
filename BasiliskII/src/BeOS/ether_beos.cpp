@@ -31,6 +31,11 @@
 #include <string.h>
 #include <sys/socket.h>
 
+#ifdef __HAIKU__
+#include <sys/select.h>
+#include <netinet/in.h>
+#endif
+
 #include "cpu_emulation.h"
 #include "main.h"
 #include "prefs.h"
