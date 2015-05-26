@@ -462,7 +462,10 @@ static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, lo
 	}
 
 	/* Transmit packet */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
+	/* XXX: unsure which version needs this */
 	atomic_add(skb->truesize, &v->skt->wmem_alloc);
+#endif
 	skb->sk = v->skt;
 	skb->dev = v->ether;
 	skb->priority = 0;
