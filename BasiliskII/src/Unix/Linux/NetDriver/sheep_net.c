@@ -425,6 +425,11 @@ static ssize_t sheep_net_read(struct file *f, char *buf, size_t count, loff_t *o
  *  Driver write() function
  */
 
+static inline void do_nothing(struct sk_buff *skb)
+{
+	return;
+}
+
 static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, loff_t *off)
 {
 	struct SheepVars *v = (struct SheepVars *)f->private_data;
@@ -498,6 +503,7 @@ static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, lo
 	/* Outgoing packet (will be on the net) */
 	demasquerade(v, skb);
 
+	skb->destructor = do_nothing;
 	skb->protocol = PROT_MAGIC;	/* Magic value (we can recognize the packet in sheep_net_receiver) */
 	dev_queue_xmit(skb);
 	return count;
