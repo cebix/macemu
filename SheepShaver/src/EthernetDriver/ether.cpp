@@ -126,6 +126,7 @@ struct DLPIStream {
 	nw_uint32 flags;						// Flags
 	nw_uint16 dlsap;						// SAP bound to this stream
 	nw_bool framing_8022;					// Using 802.2 framing? This is only used to report the MAC type for DL_INFO_ACK and can be set with an ioctl() call
+	nw_bool raw_mode;					// Using raw mode? Header is treated as data
 	nw_queue_p rdq;							// Read queue for this stream
 	nw_uint32 group_sap[kGroupSAPMapSize];	// Map of bound group SAPs
 	uint8 snap[k8022SNAPLength];			// SNAP bound to this stream
@@ -487,6 +488,7 @@ int ether_open(queue_t *rdq, void *dev, int flag, int sflag, void *creds)
 	the_stream->flags = 0;
 	the_stream->dlsap = 0;
 	the_stream->framing_8022 = false;
+	the_stream->raw_mode = false;
 	the_stream->multicast_list = NULL;
 	return 0;
 }
@@ -710,8 +712,8 @@ static void ether_ioctl(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 			}
 			dlrc = (dl_recv_control_t *)(void *)info_mp->b_rptr;
 			D(bug("  I_OTSetRawMode primitive %d\n", (int)dlrc->dl_primitive));
-			ioc->ioc_error = MAC_EINVAL;
-			goto ioctl_error;
+			the_stream->raw_mode = true;
+			goto ioctl_ok;
 		}
 
 		default:
@@ -996,7 +998,8 @@ static void handle_received_packet(DLPIStream *the_stream, mblk_t *mp, uint16 pa
 
 	// In Fast Path mode, don't send DL_UNITDATA_IND messages for unicast packets
 	if ((the_stream->flags & kFastPathMode) && dest_addr_type == keaStandardAddress) {
-		mp->b_rptr += header_len;
+		if (the_stream->raw_mode == false)
+			mp->b_rptr += header_len;
 		num_rx_fastpath++;
 		putq(the_stream->rdq, mp);
 		return;
@@ -1045,7 +1048,8 @@ static void handle_received_packet(DLPIStream *the_stream, mblk_t *mp, uint16 pa
 	}
 
 	// "Hide" the ethernet and protocol header(s)
-	mp->b_rptr += header_len;
+	if (the_stream->raw_mode == false)
+		mp->b_rptr += header_len;
 
 	// Pass message up the stream
 	num_unitdata_ind++;
