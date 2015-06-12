@@ -255,12 +255,9 @@ static int sheep_net_open(struct inode *inode, struct file *f)
 	memset(v, 0, sizeof(struct SheepVars));
 	skb_queue_head_init(&v->queue);
 	init_waitqueue_head(&v->wait);
-	v->fake_addr[0] = 0xfe;
-	v->fake_addr[1] = 0xfd;
-	v->fake_addr[2] = 0xde;
-	v->fake_addr[3] = 0xad;
-	v->fake_addr[4] = 0xbe;
-	v->fake_addr[5] = 0xef;
+	v->fake_addr[0] = 'v'; /* "SheepShaver" */
+	v->fake_addr[1] = 'r'; /*          ^ ^  */
+	get_random_bytes(&v->fake_addr[2], 4);
 
 	/* Put our stuff where we will be able to find it later */
 	f->private_data = (void *)v;
