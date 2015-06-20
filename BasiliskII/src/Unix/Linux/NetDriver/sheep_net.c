@@ -489,6 +489,7 @@ static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, lo
 
 	/* Is this packet addressed solely to the local host? */
 	if (is_local_addr(v, skb->data) && !(skb->data[0] & ETH_ADDR_MULTICAST)) {
+		skb->destructor = do_nothing;
 		skb->protocol = eth_type_trans(skb, v->ether);
 		netif_rx(skb);
 		return count;
