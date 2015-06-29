@@ -21,6 +21,15 @@
 #import "VMListController.h"
 #import "VMSettingsController.h"
 
+// NSInteger was added in 10.5 SDK.
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+  #if __LP64__ || NS_BUILD_32_LIKE_64
+    typedef long NSInteger;
+  #else
+    typedef int NSInteger;
+  #endif
+#endif
+
 /*
 
 TODO:
@@ -112,17 +121,17 @@ Copy path!
 	}
 }
 
-- (int) numberOfRowsInTableView: (NSTableView *) table
+- (NSInteger) numberOfRowsInTableView: (NSTableView *) table
 {
 	return [vmArray count];
 }
 
-- (id) tableView: (NSTableView *) table objectValueForTableColumn: (NSTableColumn *) c row: (int) r
+- (id) tableView: (NSTableView *) table objectValueForTableColumn: (NSTableColumn *) c row: (NSInteger) r
 {
 	return [[[vmArray objectAtIndex: r] lastPathComponent] stringByDeletingPathExtension];
 }
 
-- (void) tableView: (NSTableView *) table setObjectValue: (id) value forTableColumn: (NSTableColumn *) c row: (int) r
+- (void) tableView: (NSTableView *) table setObjectValue: (id) value forTableColumn: (NSTableColumn *) c row: (NSInteger) r
 {
 	NSString *currentPath = [vmArray objectAtIndex: r];
 	NSString *newPath = [[NSString stringWithFormat:@"%@/%@.sheepvm",
@@ -159,7 +168,7 @@ Copy path!
 	return YES;
 }
 
-- (NSDragOperation) tableView: (NSTableView *) table validateDrop: (id <NSDraggingInfo>) info proposedRow: (int) row proposedDropOperation: (NSTableViewDropOperation) op
+- (NSDragOperation) tableView: (NSTableView *) table validateDrop: (id <NSDraggingInfo>) info proposedRow: (NSInteger) row proposedDropOperation: (NSTableViewDropOperation) op
 {
 	if (op == NSTableViewDropAbove && row != -1) {
 		return NSDragOperationPrivate;
@@ -168,7 +177,7 @@ Copy path!
 	}
 }
 
-- (BOOL) tableView: (NSTableView *) table acceptDrop: (id <NSDraggingInfo>) info row: (int) row dropOperation: (NSTableViewDropOperation) op
+- (BOOL) tableView: (NSTableView *) table acceptDrop: (id <NSDraggingInfo>) info row: (NSInteger) row dropOperation: (NSTableViewDropOperation) op
 {	
 	if ([[[info draggingPasteboard] availableTypeFromArray:[NSArray arrayWithObject:VM_DRAG_TYPE]] isEqualToString:VM_DRAG_TYPE]) {
 		[vmList deselectAll:nil];
@@ -210,7 +219,7 @@ Copy path!
 }
 
 - (NSString *) tableView: (NSTableView *) table toolTipForCell: (NSCell *) cell rect: (NSRectPointer) rect
-             tableColumn: (NSTableColumn *) c row: (int) r mouseLocation: (NSPoint) loc
+             tableColumn: (NSTableColumn *) c row: (NSInteger) r mouseLocation: (NSPoint) loc
 {
 	return [vmArray objectAtIndex: r];
 }
