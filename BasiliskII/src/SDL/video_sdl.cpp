@@ -645,7 +645,6 @@ driver_base::driver_base(SDL_monitor_desc &m)
 
 void driver_base::set_video_mode(int flags)
 {
-	int aligned_height = (VIDEO_MODE_Y + 15) & ~15;
 	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
 	if ((s = SDL_SetVideoMode(VIDEO_MODE_X, VIDEO_MODE_Y, depth,
 			SDL_HWSURFACE | flags)) == NULL)

@@ -330,6 +330,7 @@ int rpc_wait_dispatch(rpc_connection_t *connection, int timeout)
 	return _rpc_wait_dispatch(connection, timeout);
 }
 
+#ifdef USE_THREADS
 // Process incoming messages in the background
 static void *rpc_server_func(void *arg)
 {
@@ -356,6 +357,7 @@ static void *rpc_server_func(void *arg)
   connection->server_thread_active = 0;
   return NULL;
 }
+#endif
 
 // Return listen socket of RPC connection
 int rpc_listen_socket(rpc_connection_t *connection)

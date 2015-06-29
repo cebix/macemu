@@ -30,6 +30,15 @@
 
 #include <unistd.h>
 
+// NSInteger was added in 10.5 SDK.
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+  #if __LP64__ || NS_BUILD_32_LIKE_64
+    typedef long NSInteger;
+  #else
+    typedef int NSInteger;
+  #endif
+#endif
+
 const int CDROMRefNum = -62;			// RefNum of driver
 
 #ifdef STANDALONE_PREFS
@@ -62,12 +71,12 @@ void prefs_exit()
   return self;
 }
 
-- (int) numberOfRowsInTableView: (NSTableView *) table
+- (NSInteger) numberOfRowsInTableView: (NSTableView *) table
 {
   return [diskArray count];
 }
 
-- (id) tableView: (NSTableView *) table objectValueForTableColumn: (NSTableColumn *) col row: (int) row
+- (id) tableView: (NSTableView *) table objectValueForTableColumn: (NSTableColumn *) col row: (NSInteger) row
 {
   DiskType *d = (DiskType*)[diskArray objectAtIndex:row];
 
@@ -78,7 +87,7 @@ void prefs_exit()
   return [d path];
 }
 
--(void)tableView:(NSTableView *)tableView setObjectValue:(id)object forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row
+- (void) tableView: (NSTableView *) table setObjectValue: (id) object forTableColumn: (NSTableColumn *) tableColumn row: (NSInteger) row
 {
   if ([[tableColumn identifier] isEqual:@"isCDROMcol"]) {
     DiskType *d = (DiskType*)[diskArray objectAtIndex:row];

@@ -339,7 +339,7 @@ int16 InsTime(uint32 tm, uint16 trap)
 	D(bug("InsTime %08lx, trap %04x\n", tm, trap));
 	WriteMacInt16((uint32)tm + qType, ReadMacInt16((uint32)tm + qType) & 0x1fff | (trap << 4) & 0x6000);
 	if (find_desc(tm))
-		printf("WARNING: InsTime(%08lx): Task re-inserted\n", tm);
+		printf("WARNING: InsTime(%08x): Task re-inserted\n", tm);
 	else {
 		TMDesc *desc = new TMDesc;
 		desc->task = tm;
@@ -361,7 +361,7 @@ int16 RmvTime(uint32 tm)
 	// Find descriptor
 	TMDesc *desc = find_desc(tm);
 	if (!desc) {
-		printf("WARNING: RmvTime(%08lx): Descriptor not found\n", tm);
+		printf("WARNING: RmvTime(%08x): Descriptor not found\n", tm);
 		return 0;
 	}
 
@@ -436,7 +436,7 @@ int16 PrimeTime(uint32 tm, int32 time)
 	// Find descriptor
 	TMDesc *desc = find_desc(tm);
 	if (!desc) {
-		printf("FATAL: PrimeTime(%08lx): Descriptor not found\n", tm);
+		printf("FATAL: PrimeTime(%08x): Descriptor not found\n", tm);
 		return 0;
 	}
 
