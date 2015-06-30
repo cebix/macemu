@@ -847,7 +847,7 @@ static void keycode_init(void)
 		FILE *f = fopen(kc_path ? kc_path : KEYCODE_FILE_NAME, "r");
 		if (f == NULL) {
 			char str[256];
-			sprintf(str, GetString(STR_KEYCODE_FILE_WARN), kc_path ? kc_path : KEYCODE_FILE_NAME, strerror(errno));
+			snprintf(str, sizeof(str), GetString(STR_KEYCODE_FILE_WARN), kc_path ? kc_path : KEYCODE_FILE_NAME, strerror(errno));
 			WarningAlert(str);
 			return;
 		}
@@ -904,7 +904,7 @@ static void keycode_init(void)
 		// Vendor not found? Then display warning
 		if (!video_driver_found) {
 			char str[256];
-			sprintf(str, GetString(STR_KEYCODE_VENDOR_WARN), video_driver, kc_path ? kc_path : KEYCODE_FILE_NAME);
+			snprintf(str, sizeof(str), GetString(STR_KEYCODE_VENDOR_WARN), video_driver, kc_path ? kc_path : KEYCODE_FILE_NAME);
 			WarningAlert(str);
 			return;
 		}
@@ -1683,6 +1683,23 @@ static int event2keycode(SDL_KeyboardEvent const &ev, bool key_down)
 	return kc_decode(ev.keysym, key_down);
 }
 
+static void force_complete_window_refresh()
+{
+	if (display_type == DISPLAY_WINDOW) {
+#ifdef ENABLE_VOSF
+		if (use_vosf) {	// VOSF refresh
+			LOCK_VOSF;
+			PFLAG_SET_ALL;
+			UNLOCK_VOSF;
+		}
+#endif
+		// Ensure each byte of the_buffer_copy differs from the_buffer to force a full update.
+		const VIDEO_MODE &mode = VideoMonitors[0]->get_current_mode();
+		const int len = VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y;
+		for (int i = 0; i < len; i++)
+			the_buffer_copy[i] = !the_buffer[i];
+	}
+}
 
 /*
  *  SDL event handling
@@ -1794,19 +1811,7 @@ static void handle_events(void)
 
 			// Hidden parts exposed, force complete refresh of window
 			case SDL_VIDEOEXPOSE:
-				if (display_type == DISPLAY_WINDOW) {
-					const VIDEO_MODE &mode = VideoMonitors[0]->get_current_mode();
-#ifdef ENABLE_VOSF
-					if (use_vosf) {			// VOSF refresh
-						LOCK_VOSF;
-						PFLAG_SET_ALL;
-						UNLOCK_VOSF;
-						memset(the_buffer_copy, 0, VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y);
-					}
-					else
-#endif
-						memset(the_buffer_copy, 0, VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y);
-				}
+				force_complete_window_refresh();
 				break;
 
 			// Window "close" widget clicked
@@ -1815,8 +1820,11 @@ static void handle_events(void)
 				ADBKeyUp(0x7f);
 				break;
 
-			// Application activate/deactivate; consume the event but otherwise ignore it
+			// Application activate/deactivate
 			case SDL_ACTIVEEVENT:
+				// Force a complete window refresh when activating, to avoid redraw artifacts otherwise.
+				if (event.active.gain && (event.active.state & SDL_APPACTIVE))
+					force_complete_window_refresh();
 				break;
 			}
 		}
