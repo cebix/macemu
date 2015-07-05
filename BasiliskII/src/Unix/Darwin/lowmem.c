@@ -72,6 +72,11 @@ void pagezero_32(struct mach_header *machhead)
 	/* change the permissions */
 	sc_cmd->maxprot = target_uint32(VM_PROT_ALL);
 	sc_cmd->initprot = target_uint32(VM_PROT_ALL);
+
+#ifdef MH_PIE
+	/* disable pie in header */
+	machhead->flags = target_uint32(target_uint32(machhead->flags) & ~MH_PIE);
+#endif
 }
 
 #if defined(MH_MAGIC_64)

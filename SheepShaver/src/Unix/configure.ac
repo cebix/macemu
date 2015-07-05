@@ -936,6 +936,18 @@ AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, $have_mmap_vm,
 
 fi dnl HAVE_MMAP_VM
 
+dnl Check if we can disable position-independent code
+AC_CACHE_CHECK([how to disable position-independent code],
+  ac_cv_no_pie, [
+  ac_cv_no_pie='-Wl,-no_pie'
+  saved_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $ac_cv_no_pie"
+  AC_TRY_LINK(,,,[ac_cv_no_pie="cannot"])
+  if [[ "$ac_cv_no_pie" = "cannot" ]]; then
+    LDFLAGS="$saved_LDFLAGS"
+  fi
+])
+
 dnl Check if we can modify the __PAGEZERO segment for use as Low Memory
 AC_CACHE_CHECK([whether __PAGEZERO can be Low Memory area 0x0000-0x3000],
   ac_cv_pagezero_hack, [
