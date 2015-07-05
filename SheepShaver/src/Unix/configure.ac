@@ -625,7 +625,7 @@ darwin*)
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     EXTFSSRC=../MacOSX/extfs_macosx.cpp
     if [[ "x$ac_cv_framework_AppKit" = "xyes" -a "x$WANT_GTK" = "xno" ]]; then
-      PREFSSRC="../MacOSX/prefs_macosx.mm ../MacOSX/Launcher/VMSettingsController.mm"
+      PREFSSRC="../MacOSX/prefs_macosx.mm ../MacOSX/Launcher/VMSettingsController.mm ../MacOSX/Launcher/DiskType.m"
       CPPFLAGS="$CPPFLAGS -I../MacOSX/Launcher"
     fi
   fi
