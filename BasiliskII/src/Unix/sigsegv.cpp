@@ -243,7 +243,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 
 #if HAVE_SIGINFO_T
 // Generic extended signal handler
-#if defined(__hpux)
+#if defined(__hpux) || defined(__FreeBSD__)
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV) FAULT_HANDLER(SIGBUS)
 #else
 #define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGSEGV)
@@ -283,8 +283,6 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #endif
 #if defined(__FreeBSD__) || defined(__OpenBSD__)
 #if (defined(i386) || defined(__i386__))
-#undef SIGSEGV_ALL_SIGNALS
-#define SIGSEGV_ALL_SIGNALS				FAULT_HANDLER(SIGBUS)
 #define SIGSEGV_FAULT_INSTRUCTION		(((struct sigcontext *)scp)->sc_eip)
 #define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&(((struct sigcontext *)scp)->sc_edi)) /* EDI is the first GPR (even below EIP) in sigcontext */
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction

@@ -5719,7 +5719,7 @@ static uint8 *do_alloc_code(uint32 size, int depth)
 
 	return do_alloc_code(size, depth + 1);
 #else
-	uint8 *code = (uint8 *)vm_acquire(size);
+	uint8 *code = (uint8 *)vm_acquire(size, VM_MAP_32BIT);
 	return code == VM_MAP_FAILED ? NULL : code;
 #endif
 }
