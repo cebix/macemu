@@ -49,7 +49,6 @@ using std::string;
 #include "vm_alloc.h"
 #include "sigsegv.h"
 #include "util_windows.h"
-#include "kernel_windows.h"
 
 #if USE_JIT
 extern void flush_icache_range(uint8 *start, uint32 size); // from compemu_support.cpp
@@ -90,9 +89,6 @@ static SDL_Thread *tick_thread;						// 60Hz thread
 static SDL_mutex *intflag_lock = NULL;				// Mutex to protect InterruptFlags
 #define LOCK_INTFLAGS SDL_LockMutex(intflag_lock)
 #define UNLOCK_INTFLAGS SDL_UnlockMutex(intflag_lock)
-
-DWORD win_os;										// Windows OS id
-DWORD win_os_major;									// Windows OS version major
 
 #if USE_SCRATCHMEM_SUBTERFUGE
 uint8 *ScratchMem = NULL;			// Scratch memory for Mac ROM writes
@@ -219,7 +215,7 @@ int main(int argc, char **argv)
 	// Initialize variables
 	RAMBaseHost = NULL;
 	ROMBaseHost = NULL;
-	srand(time(NULL));
+	srand(unsigned(time(NULL)));
 	tzset();
 
 	// Print some info
@@ -239,7 +235,7 @@ int main(int argc, char **argv)
 		} else if (strcmp(argv[i], "--config") == 0) {
 			argv[i++] = NULL;
 			if (i < argc) {
-				extern string UserPrefsPath; // from prefs_unix.cpp
+				extern string UserPrefsPath; // from prefs_windows.cpp
 				UserPrefsPath = argv[i];
 				argv[i] = NULL;
 			}
@@ -281,27 +277,9 @@ int main(int argc, char **argv)
 		}
 	}
 
-	// Check we are using a Windows NT kernel >= 4.0
-	OSVERSIONINFO osvi;
-	ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
-	osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-	if (!GetVersionEx(&osvi)) {
-		ErrorAlert("Could not determine OS type");
-		QuitEmulator();
-	}
-	win_os = osvi.dwPlatformId;
-	win_os_major = osvi.dwMajorVersion;
-	if (win_os != VER_PLATFORM_WIN32_NT || win_os_major < 4) {
-		ErrorAlert(STR_NO_WIN32_NT_4);
-		QuitEmulator();
-	}
-
 	// Check that drivers are installed
 	if (!check_drivers())
 		QuitEmulator();
-
-	// Load win32 libraries
-	KernelInit();
 
 	// FIXME: default to DIB driver
 	if (getenv("SDL_VIDEODRIVER") == NULL)
@@ -386,7 +364,7 @@ int main(int argc, char **argv)
 	// Load Mac ROM
 	HANDLE rom_fh = CreateFile(rom_path ? rom_path : ROM_FILE_NAME,
 							   GENERIC_READ,
-							   0, NULL,
+							   FILE_SHARE_READ, NULL,
 							   OPEN_EXISTING,
 							   FILE_ATTRIBUTE_NORMAL,
 							   NULL);
@@ -494,9 +472,6 @@ void QuitEmulator(void)
 
 	// Exit preferences
 	PrefsExit();
-
-	// Release win32 libraries
-	KernelExit();
 
 	exit(0);
 }
@@ -631,7 +606,7 @@ static int tick_func(void *arg)
 		next += 16625;
 		int64 delay = next - GetTicks_usec();
 		if (delay > 0)
-			Delay_usec(delay);
+			Delay_usec(uint32(delay));
 		else if (delay < -16625)
 			next = GetTicks_usec();
 		ticks++;

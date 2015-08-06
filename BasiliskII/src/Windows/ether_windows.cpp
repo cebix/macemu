@@ -38,7 +38,7 @@
 #include "b2ether/inc/b2ether_hl.h"
 #include "ether_windows.h"
 #include "router/router.h"
-#include "kernel_windows.h"
+#include "util_windows.h"
 #include "libslirp.h"
 
 // Define to let the slirp library determine the right timeout for select()
@@ -175,10 +175,10 @@ static bool tap_set_status(LPADAPTER fd, ULONG status);
 static bool tap_get_mac(LPADAPTER fd, LPBYTE addr);
 static bool tap_receive_packet(LPADAPTER fd, LPPACKET lpPacket, BOOLEAN Sync);
 static bool tap_send_packet(LPADAPTER fd, LPPACKET lpPacket, BOOLEAN Sync, BOOLEAN recycle);
-static WINAPI unsigned int slirp_receive_func(void *arg);
-static WINAPI unsigned int ether_thread_feed_int(void *arg);
-static WINAPI unsigned int ether_thread_get_packets_nt(void *arg);
-static WINAPI unsigned int ether_thread_write_packets(void *arg);
+static unsigned int WINAPI slirp_receive_func(void *arg);
+static unsigned int WINAPI ether_thread_feed_int(void *arg);
+static unsigned int WINAPI ether_thread_get_packets_nt(void *arg);
+static unsigned int WINAPI ether_thread_write_packets(void *arg);
 static void init_queue(void);
 static void final_queue(void);
 static bool allocate_read_packets(void);
@@ -403,26 +403,10 @@ bool ether_init(void)
 	// No need to enter wait state if we can avoid it.
 	// These all terminate fast.
 
-	if(pfnInitializeCriticalSectionAndSpinCount) {
-		pfnInitializeCriticalSectionAndSpinCount( &fetch_csection, 5000 );
-	} else {
-		InitializeCriticalSection( &fetch_csection );
-	}
-	if(pfnInitializeCriticalSectionAndSpinCount) {
-		pfnInitializeCriticalSectionAndSpinCount( &queue_csection, 5000 );
-	} else {
-		InitializeCriticalSection( &queue_csection );
-	}
-	if(pfnInitializeCriticalSectionAndSpinCount) {
-		pfnInitializeCriticalSectionAndSpinCount( &send_csection, 5000 );
-	} else {
-		InitializeCriticalSection( &send_csection );
-	}
-	if(pfnInitializeCriticalSectionAndSpinCount) {
-		pfnInitializeCriticalSectionAndSpinCount( &wpool_csection, 5000 );
-	} else {
-		InitializeCriticalSection( &wpool_csection );
-	}
+	InitializeCriticalSectionAndSpinCount( &fetch_csection, 5000 );
+	InitializeCriticalSectionAndSpinCount( &queue_csection, 5000 );
+	InitializeCriticalSectionAndSpinCount( &send_csection, 5000 );
+	InitializeCriticalSectionAndSpinCount( &wpool_csection, 5000 );
 
 	ether_th = (HANDLE)_beginthreadex( 0, 0, ether_thread_feed_int, 0, 0, &ether_tid );
 	if (!ether_th) {
@@ -497,8 +481,8 @@ void ether_exit(void)
 	if(int_send_now) ReleaseSemaphore(int_send_now,1,NULL);
 
 	D(bug("CancelIO if needed\n"));
-	if (fd && fd->hFile && pfnCancelIo)
-		pfnCancelIo(fd->hFile);
+	if (fd && fd->hFile)
+		CancelIo(fd->hFile);
 
 	// Wait max 2 secs to shut down pending io. After that, kill them.
 	D(bug("Wait delay\n"));
@@ -992,7 +976,7 @@ static LPPACKET get_write_packet( UINT len )
 	return Packet;
 }
 
-static unsigned int ether_thread_write_packets(void *arg)
+unsigned int WINAPI ether_thread_write_packets(void *arg)
 {
 	LPPACKET Packet;
 
@@ -1246,7 +1230,7 @@ static bool tap_set_status(LPADAPTER fd, ULONG status)
 	DWORD len = 0;
 	return DeviceIoControl(fd->hFile, TAP_IOCTL_SET_MEDIA_STATUS,
 						   &status, sizeof (status),
-						   &status, sizeof (status), &len, NULL);
+						   &status, sizeof (status), &len, NULL) != FALSE;
 }
 
 static bool tap_get_mac(LPADAPTER fd, LPBYTE addr)
@@ -1254,8 +1238,7 @@ static bool tap_get_mac(LPADAPTER fd, LPBYTE addr)
 	DWORD len = 0;
 	return DeviceIoControl(fd->hFile, TAP_IOCTL_GET_MAC,
 						   addr, 6,
-						   addr, 6, &len, NULL);
-						   
+						   addr, 6, &len, NULL) != FALSE;
 }
 
 static VOID CALLBACK tap_write_completion(
@@ -1309,7 +1292,7 @@ static bool tap_send_packet(
 			recycle_write_packet(lpPacket);
 	}
 
-	return Result;
+	return Result != FALSE;
 }
 
 static bool tap_receive_packet(LPADAPTER fd, LPPACKET lpPacket, BOOLEAN Sync)
@@ -1348,7 +1331,7 @@ static bool tap_receive_packet(LPADAPTER fd, LPPACKET lpPacket, BOOLEAN Sync)
 			lpPacket->BytesReceived = 0;
 	}
 
-	return Result;
+	return Result != FALSE;
 }
 
 
@@ -1366,7 +1349,7 @@ void slirp_output(const uint8 *packet, int len)
 	enqueue_packet(packet, len);
 }
 
-static unsigned int slirp_receive_func(void *arg)
+unsigned int WINAPI slirp_receive_func(void *arg)
 {
 	D(bug("slirp_receive_func\n"));
 	thread_active_2 = true;
@@ -1508,7 +1491,7 @@ static void free_read_packets(void)
 	}
 }
 
-static unsigned int ether_thread_get_packets_nt(void *arg)
+unsigned int WINAPI ether_thread_get_packets_nt(void *arg)
 {
 	static uint8 packet[1514];
 	int i, packet_sz = 0;
@@ -1565,7 +1548,7 @@ static unsigned int ether_thread_get_packets_nt(void *arg)
 	return 0;
 }
 
-static unsigned int ether_thread_feed_int(void *arg)
+unsigned int WINAPI ether_thread_feed_int(void *arg)
 {
 	bool looping;
 
