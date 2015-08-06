@@ -23,6 +23,8 @@
 #define MAXIMUM_NUMBER_TRACKS 100
 #define MAXIMUM_CDROM_SIZE 804
 
+#pragma pack(push, 1)
+
 typedef struct _TRACK_DATA {
     UCHAR Reserved;
     UCHAR Control : 4;
@@ -30,14 +32,14 @@ typedef struct _TRACK_DATA {
     UCHAR TrackNumber;
     UCHAR Reserved1;
     UCHAR Address[4];
-} ATTRIBUTE_PACKED TRACK_DATA, *PTRACK_DATA;
+} TRACK_DATA, *PTRACK_DATA;
 
 typedef struct _CDROM_TOC {
     UCHAR Length[2];
     UCHAR FirstTrack;
     UCHAR LastTrack;
     TRACK_DATA TrackData[MAXIMUM_NUMBER_TRACKS];
-} ATTRIBUTE_PACKED CDROM_TOC, *PCDROM_TOC;
+} CDROM_TOC, *PCDROM_TOC;
 
 // #include "ntddcdrm.h"
 #define IOCTL_CDROM_BASE                 FILE_DEVICE_CD_ROM
@@ -61,7 +63,7 @@ typedef struct _CDROM_TOC {
 
 typedef struct _VOLUME_CONTROL {
     UCHAR PortVolume[4];
-} ATTRIBUTE_PACKED VOLUME_CONTROL, *PVOLUME_CONTROL;
+} VOLUME_CONTROL, *PVOLUME_CONTROL;
 
 typedef struct _CDROM_PLAY_AUDIO_MSF {
     UCHAR StartingM;
@@ -70,13 +72,13 @@ typedef struct _CDROM_PLAY_AUDIO_MSF {
     UCHAR EndingM;
     UCHAR EndingS;
     UCHAR EndingF;
-} ATTRIBUTE_PACKED CDROM_PLAY_AUDIO_MSF, *PCDROM_PLAY_AUDIO_MSF;
+} CDROM_PLAY_AUDIO_MSF, *PCDROM_PLAY_AUDIO_MSF;
 
 typedef struct _CDROM_SEEK_AUDIO_MSF {
     UCHAR M;
     UCHAR S;
     UCHAR F;
-} ATTRIBUTE_PACKED CDROM_SEEK_AUDIO_MSF, *PCDROM_SEEK_AUDIO_MSF;
+} CDROM_SEEK_AUDIO_MSF, *PCDROM_SEEK_AUDIO_MSF;
 
 
 //
@@ -87,7 +89,7 @@ typedef struct _SUB_Q_HEADER {
     UCHAR Reserved;
     UCHAR AudioStatus;
     UCHAR DataLength[2];
-} ATTRIBUTE_PACKED SUB_Q_HEADER, *PSUB_Q_HEADER;
+} SUB_Q_HEADER, *PSUB_Q_HEADER;
 
 typedef struct _SUB_Q_CURRENT_POSITION {
     SUB_Q_HEADER Header;
@@ -98,7 +100,7 @@ typedef struct _SUB_Q_CURRENT_POSITION {
     UCHAR IndexNumber;
     UCHAR AbsoluteAddress[4];
     UCHAR TrackRelativeAddress[4];
-} ATTRIBUTE_PACKED SUB_Q_CURRENT_POSITION, *PSUB_Q_CURRENT_POSITION;
+} SUB_Q_CURRENT_POSITION, *PSUB_Q_CURRENT_POSITION;
 
 typedef struct _SUB_Q_MEDIA_CATALOG_NUMBER {
     SUB_Q_HEADER Header;
@@ -107,7 +109,7 @@ typedef struct _SUB_Q_MEDIA_CATALOG_NUMBER {
     UCHAR Reserved1 : 7;
     UCHAR Mcval : 1;
     UCHAR MediaCatalog[15];
-} ATTRIBUTE_PACKED SUB_Q_MEDIA_CATALOG_NUMBER, *PSUB_Q_MEDIA_CATALOG_NUMBER;
+} SUB_Q_MEDIA_CATALOG_NUMBER, *PSUB_Q_MEDIA_CATALOG_NUMBER;
 
 typedef struct _SUB_Q_TRACK_ISRC {
     SUB_Q_HEADER Header;
@@ -118,7 +120,7 @@ typedef struct _SUB_Q_TRACK_ISRC {
     UCHAR Reserved2 : 7;
     UCHAR Tcval : 1;
     UCHAR TrackIsrc[15];
-} ATTRIBUTE_PACKED SUB_Q_TRACK_ISRC, *PSUB_Q_TRACK_ISRC;
+} SUB_Q_TRACK_ISRC, *PSUB_Q_TRACK_ISRC;
 
 typedef union _SUB_Q_CHANNEL_DATA {
     SUB_Q_CURRENT_POSITION CurrentPosition;
@@ -136,16 +138,16 @@ typedef struct __RAW_READ_INFO {
     LARGE_INTEGER DiskOffset;
     ULONG    SectorCount;
     TRACK_MODE_TYPE TrackMode;
-} ATTRIBUTE_PACKED RAW_READ_INFO, *PRAW_READ_INFO;
+} RAW_READ_INFO, *PRAW_READ_INFO;
 
 typedef struct _CDROM_SUB_Q_DATA_FORMAT {
     UCHAR Format;
     UCHAR Track;
-} ATTRIBUTE_PACKED CDROM_SUB_Q_DATA_FORMAT, *PCDROM_SUB_Q_DATA_FORMAT;
+} CDROM_SUB_Q_DATA_FORMAT, *PCDROM_SUB_Q_DATA_FORMAT;
 
 #define IOCTL_CDROM_SUB_Q_CHANNEL    0x00
 #define IOCTL_CDROM_CURRENT_POSITION 0x01
 #define IOCTL_CDROM_MEDIA_CATALOG    0x02
 #define IOCTL_CDROM_TRACK_ISRC       0x03
 
-#pragma pack()
+#pragma pack(pop)

@@ -166,8 +166,8 @@ public:
 private:
 	bool configure(uint16 config);
 	void set_handshake(uint32 s, bool with_dtr);
-	static WINAPI unsigned int input_func(void *arg);
-	static WINAPI unsigned int output_func(void *arg);
+	static unsigned int WINAPI input_func(void *arg);
+	static unsigned int WINAPI output_func(void *arg);
 	static int acknowledge_error(HANDLE h, bool is_read);
 	bool set_timeouts(int bauds, int parity_bits, int stop_bits);
 

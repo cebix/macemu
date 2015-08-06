@@ -20,8 +20,6 @@
 
 #include "sysdeps.h"
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 #include <winioctl.h>
 
 #include <string>
@@ -497,11 +495,11 @@ void *Sys_open(const char *path_name, bool read_only)
 		}
 	}
 
-	if (fh->is_floppy && first_floppy == NULL)
-		first_floppy = fh;
-
-	if (fh)
+	if (fh) {
+		if (fh->is_floppy && first_floppy == NULL)
+			first_floppy = fh;
 		sys_add_file_handle(fh);
+	}
 
 	return fh;
 }
@@ -793,7 +791,7 @@ bool SysCDReadTOC(void *arg, uint8 *toc)
 						   NULL, 0,
 						   toc, min((int)sizeof(CDROM_TOC), 804),
 						   &dummy,
-						   NULL);
+						   NULL) != FALSE;
 }
 
 
@@ -819,7 +817,7 @@ bool SysCDGetPosition(void *arg, uint8 *pos)
 							  &q_format, sizeof(CDROM_SUB_Q_DATA_FORMAT),
 							  &q_data, sizeof(SUB_Q_CHANNEL_DATA),
 							  &dwBytesReturned,
-							  NULL);
+							  NULL) != FALSE;
 	if (ok)
 		memcpy(pos, &q_data.CurrentPosition, sizeof(SUB_Q_CURRENT_POSITION));
 
@@ -851,7 +849,7 @@ bool SysCDPlay(void *arg, uint8 start_m, uint8 start_s, uint8 start_f, uint8 end
 						   &msf, sizeof(CDROM_PLAY_AUDIO_MSF),
 						   NULL, 0,
 						   &dwBytesReturned,
-						   NULL);
+						   NULL) != FALSE;
 }
 
 
@@ -871,7 +869,7 @@ bool SysCDPause(void *arg)
 						   NULL, 0,
 						   NULL, 0,
 						   &dwBytesReturned,
-						   NULL);
+						   NULL) != FALSE;
 }
 
 
@@ -890,7 +888,7 @@ bool SysCDResume(void *arg)
 						   IOCTL_CDROM_RESUME_AUDIO,
 						   NULL, 0,
 						   NULL, 0,
-						   &dwBytesReturned, NULL);
+						   &dwBytesReturned, NULL) != FALSE;
 }
 
 
@@ -910,7 +908,7 @@ bool SysCDStop(void *arg, uint8 lead_out_m, uint8 lead_out_s, uint8 lead_out_f)
 						   NULL, 0,
 						   NULL, 0,
 						   &dwBytesReturned,
-						   NULL);
+						   NULL) != FALSE;
 }
 
 
@@ -935,7 +933,7 @@ bool SysCDScan(void *arg, uint8 start_m, uint8 start_s, uint8 start_f, bool reve
 						   &msf, sizeof(CDROM_SEEK_AUDIO_MSF),
 						   NULL, 0,
 						   &dwBytesReturned,
-						   NULL);
+						   NULL) != FALSE;
 }
 
 

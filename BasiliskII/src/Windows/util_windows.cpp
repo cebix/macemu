@@ -23,6 +23,8 @@
 #include "sysdeps.h"
 #include "util_windows.h"
 #include "main.h"
+#include <io.h>
+#include <fcntl.h>
 
 #include <list>
 using std::list;
@@ -35,10 +37,10 @@ BOOL exists( const char *path )
 	HFILE h;
 	bool ret = false;
 
-	h = _lopen( path, OF_READ );
-	if(h != HFILE_ERROR) {
+	h = _open( path, _O_RDONLY | _O_BINARY );
+	if(h != -1) {
 		ret = true;
-		_lclose(h);
+		_close(h);
 	}
 	return(ret);
 }

@@ -21,9 +21,6 @@
 #include "sysdeps.h"
 #include "user_strings.h"
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
 
 // Platform-specific string definitions
 user_string_def platform_strings[] = {
