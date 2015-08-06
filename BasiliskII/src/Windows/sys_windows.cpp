@@ -23,12 +23,13 @@
 #include <winioctl.h>
 
 #include <string>
-using std::string;
+typedef std::basic_string<TCHAR> tstring;
 
 #include <algorithm>
 using std::min;
 
 #include "main.h"
+#include "util_windows.h"
 #include "macos_util.h"
 #include "prefs.h"
 #include "user_strings.h"
@@ -45,7 +46,7 @@ using std::min;
 
 // File handles are pointers to these structures
 struct file_handle {
-	char *name;			// Copy of device/file name
+	TCHAR *name;		// Copy of device/file name
 	HANDLE fh;
 	bool is_file;		// Flag: plain file or physical device?
 	bool is_floppy;		// Flag: floppy device
@@ -149,8 +150,8 @@ void mount_removable_media(int media)
 				CloseHandle(fh->fh);
 
 			// Re-open device
-			char device_name[MAX_PATH];
-			sprintf(device_name, "\\\\.\\%c:", fh->name[0]);
+			TCHAR device_name[MAX_PATH];
+			_sntprintf(device_name, lengthof(device_name), TEXT("\\\\.\\%c:"), fh->name[0]);
 			fh->fh = CreateFile(
 				device_name,
 				GENERIC_READ,
@@ -230,11 +231,10 @@ void SysAddCDROMPrefs(void)
 	if (PrefsFindBool("nocdrom"))
 		return;
 
-	for (char letter = 'C'; letter <= 'Z'; letter++) {
-		int i = (int)(letter - 'A');
-		string rootdir = letter + ":\\";
-		if (GetDriveType(rootdir.c_str()) == DRIVE_CDROM)
-			PrefsAddString("cdrom", rootdir.c_str());
+	char rootdir[] = "C:\\";
+	for (; rootdir[0] <= 'Z'; rootdir[0]++) {
+		if (GetDriveTypeA(rootdir) == DRIVE_CDROM)
+			PrefsAddString("cdrom", rootdir);
 	}
 }
 
@@ -395,9 +395,9 @@ static bool is_cdrom_readable(file_handle *fh)
  *  Check if NAME represents a read-only file
  */
 
-static bool is_read_only_path(const char *name)
+static bool is_read_only_path(const TCHAR *name)
 {
-	DWORD attrib = GetFileAttributes((char *)name);
+	DWORD attrib = GetFileAttributes(name);
 	return (attrib != INVALID_FILE_ATTRIBUTES && ((attrib & FILE_ATTRIBUTE_READONLY) != 0));
 }
 
@@ -411,25 +411,25 @@ void *Sys_open(const char *path_name, bool read_only)
 	file_handle * fh = NULL;
 
 	// Parse path name and options
-	char name[MAX_PATH];
-	strcpy(name, path_name);
+	TCHAR name[MAX_PATH];
+	tcslcpy(name, path_name, lengthof(name));
 
 	// Normalize floppy / cd path
-	int name_len = strlen(name);
-	if (name_len == 1 && isalpha(name[0]))
-		strcat(name, ":\\");
-	if (name_len > 0 && name[name_len - 1] == ':')
-		strcat(name, "\\");
-	name_len = strlen(name);
+	int name_len = _tcslen(name);
+	if (name_len == 1 && _istalpha(name[0]))
+		_tcscat(name, TEXT(":\\"));
+	if (name_len > 0 && name[name_len - 1] == TEXT(':'))
+		_tcscat(name, TEXT("\\"));
+	name_len = _tcslen(name);
 
-	D(bug("Sys_open(%s, %s)\n", name, read_only ? "read-only" : "read/write"));
-	if (name_len > 0 && name[name_len - 1] == '\\') {
+	D(bug(TEXT("Sys_open(%s, %s)\n"), name, read_only ? TEXT("read-only") : TEXT("read/write")));
+	if (name_len > 0 && name[name_len - 1] == TEXT('\\')) {
 		int type = GetDriveType(name);
 
 		if (type == DRIVE_CDROM) {
 			read_only = true;
-			char device_name[MAX_PATH];
-			sprintf(device_name, "\\\\.\\%c:", name[0]);
+			TCHAR device_name[MAX_PATH];
+			_sntprintf(device_name, lengthof(device_name), TEXT("\\\\.\\%c:"), name[0]);
 
 			// Open device
 			HANDLE h = CreateFile(
@@ -439,7 +439,7 @@ void *Sys_open(const char *path_name, bool read_only)
 
 			if (h != INVALID_HANDLE_VALUE) {
 				fh = new file_handle;
-				fh->name = strdup(name);
+				fh->name = _tcsdup(name);
 				fh->fh = h;
 				fh->is_file = false;
 				fh->read_only = read_only;
@@ -478,7 +478,7 @@ void *Sys_open(const char *path_name, bool read_only)
 
 		if (h != INVALID_HANDLE_VALUE) {
 			fh = new file_handle;
-			fh->name = strdup(name);
+			fh->name = _tcsdup(name);
 			fh->fh = h;
 			fh->is_file = true;
 			fh->read_only = read_only;

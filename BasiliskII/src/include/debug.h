@@ -30,24 +30,62 @@
 #include <sys/types.h>
 #include <sys/timeb.h>
 
-static void _cdecl inline winbug( char *s, ...)
+static inline void _cdecl vwinbug(const char *s, va_list vargs)
 {
-	va_list vargs;
 	char msg[1024], date[50], hours[50];
 	struct _timeb tstruct;
 
 	_ftime( &tstruct );
 	_strtime( hours );
 	_strdate( date );
-	sprintf( msg, "B2: %s %s:%03u ", date, hours, tstruct.millitm );
-	
-	va_start( vargs, s );
-	vsprintf( &msg[strlen(msg)], s, vargs );
-	va_end( vargs );
+	_snprintf( msg, lengthof(msg), "B2: %s %s:%03u ", date, hours, tstruct.millitm );
 
-	OutputDebugString(msg);
+	char *rest = &msg[strlen(msg)];
+	_vsnprintf( rest, lengthof(msg) - (rest - msg), s, vargs );
+
+	OutputDebugStringA(msg);
 }
+static inline void _cdecl vwwinbug( const wchar_t *s, va_list vargs)
+{
+	wchar_t msg[1024], date[50], hours[50];
+	struct _timeb tstruct;
+
+	_ftime( &tstruct );
+	_wstrtime( hours );
+	_wstrdate( date );
+	_snwprintf( msg, lengthof(msg), L"B2: %s %s:%03u ", date, hours, tstruct.millitm );
+
+	wchar_t *rest = &msg[wcslen(msg)];
+	_vsnwprintf( rest, lengthof(msg) - (rest - msg), s, vargs );
+
+	OutputDebugStringW(msg);
+}
+static inline void _cdecl winbug( const char *s, ...)
+{
+	va_list vargs;
+	va_start(vargs, s);
+	vwinbug(s, vargs);
+	va_end(vargs);
+}
+static inline void _cdecl wwinbug(const wchar_t *s, ...)
+{
+	va_list vargs;
+	va_start(vargs, s);
+	vwwinbug(s, vargs);
+	va_end(vargs);
+}
+
+#ifdef __cplusplus
+static inline void _cdecl winbug(wchar_t *s, ...)
+{
+	va_list vargs;
+	va_start(vargs, s);
+	vwwinbug(s, vargs);
+	va_end(vargs);
+}
+#endif
 #define bug winbug
+#define wbug wwinbug
 
 #elif defined(AMIGA)
 

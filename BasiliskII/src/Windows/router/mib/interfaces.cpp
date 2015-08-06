@@ -21,6 +21,7 @@
  */
 
 #include "sysdeps.h"
+#include "main.h"
 #include "interfaces.h"
 #include "../dump.h"
 #include "mibaccess.h"

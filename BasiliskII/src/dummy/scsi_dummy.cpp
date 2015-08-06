@@ -19,6 +19,7 @@
  */
 
 #include "sysdeps.h"
+#include "main.h"
 #include "scsi.h"
 
 #define DEBUG 0

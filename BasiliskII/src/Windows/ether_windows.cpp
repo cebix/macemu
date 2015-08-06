@@ -168,7 +168,7 @@ static HANDLE int_sig2 = 0;
 static HANDLE int_send_now = 0;
 
 // Prototypes
-static LPADAPTER tap_open_adapter(const char *dev_name);
+static LPADAPTER tap_open_adapter(LPCTSTR dev_name);
 static void tap_close_adapter(LPADAPTER fd);
 static bool tap_check_version(LPADAPTER fd);
 static bool tap_set_status(LPADAPTER fd, ULONG status);
@@ -218,7 +218,7 @@ static NetProtocol *find_protocol(uint16 type)
 
 bool ether_init(void)
 {
-	char str[256];
+	TCHAR buf[256];
 
 	// Do nothing if no Ethernet device specified
 	const char *name = PrefsFindString("ether");
@@ -248,22 +248,21 @@ bool ether_init(void)
 	// Initialize slirp library
 	if (net_if_type == NET_IF_SLIRP) {
 		if (slirp_init() < 0) {
-			sprintf(str, GetString(STR_SLIRP_NO_DNS_FOUND_WARN));
-			WarningAlert(str);
+			WarningAlert(GetString(STR_SLIRP_NO_DNS_FOUND_WARN));
 			return false;
 		}
 	}
 
 	// Open ethernet device
-	const char *dev_name;
+	decltype(tstr(std::declval<const char*>())) dev_name;
 	switch (net_if_type) {
 	case NET_IF_B2ETHER:
-		dev_name = PrefsFindString("etherguid");
+		dev_name = tstr(PrefsFindString("etherguid"));
 		if (dev_name == NULL || strcmp(name, "b2ether") != 0)
-			dev_name = name;
+			dev_name = tstr(name);
 		break;
 	case NET_IF_TAP:
-		dev_name = PrefsFindString("etherguid");
+		dev_name = tstr(PrefsFindString("etherguid"));
 		break;
 	}
 	if (net_if_type == NET_IF_B2ETHER) {
@@ -272,17 +271,17 @@ bool ether_init(void)
 			goto open_error;
 		}
 
-		fd = PacketOpenAdapter( dev_name, ether_multi_mode );
+		fd = PacketOpenAdapter( dev_name.get(), ether_multi_mode );
 		if (!fd) {
-			sprintf(str, "Could not open ethernet adapter %s.", dev_name);
-			WarningAlert(str);
+			_sntprintf(buf, lengthof(buf), TEXT("Could not open ethernet adapter %s."), dev_name.get());
+			WarningAlert(buf);
 			goto open_error;
 		}
 
 		// Get Ethernet address
 		if(!PacketGetMAC(fd,ether_addr,ether_use_permanent)) {
-			sprintf(str, "Could not get hardware address of device %s. Ethernet is not available.", dev_name);
-			WarningAlert(str);
+			_sntprintf(buf, lengthof(buf), TEXT("Could not get hardware address of device %s. Ethernet is not available."), dev_name.get());
+			WarningAlert(buf);
 			goto open_error;
 		}
 		D(bug("Real ethernet address %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
@@ -306,28 +305,27 @@ bool ether_init(void)
 			goto open_error;
 		}
 
-		fd = tap_open_adapter(dev_name);
+		fd = tap_open_adapter(dev_name.get());
 		if (!fd) {
-			sprintf(str, "Could not open ethernet adapter %s.", dev_name);
-			WarningAlert(str);
+			_sntprintf(buf, lengthof(buf), TEXT("Could not open ethernet adapter %s."), dev_name.get());
+			WarningAlert(buf);
 			goto open_error;
 		}
 
 		if (!tap_check_version(fd)) {
-			sprintf(str, "Minimal TAP-Win32 version supported is %d.%d.", TAP_VERSION_MIN_MAJOR, TAP_VERSION_MIN_MINOR);
-			WarningAlert(str);
+			_sntprintf(buf, lengthof(buf), TEXT("Minimal TAP-Win32 version supported is %d.%d."), TAP_VERSION_MIN_MAJOR, TAP_VERSION_MIN_MINOR);
+			WarningAlert(buf);
 			goto open_error;
 		}
 
 		if (!tap_set_status(fd, true)) {
-			sprintf(str, "Could not set media status to connected.");
-			WarningAlert(str);
+			WarningAlert("Could not set media status to connected.");
 			goto open_error;
 		}
 
 		if (!tap_get_mac(fd, ether_addr)) {
-			sprintf(str, "Could not get hardware address of device %s. Ethernet is not available.", dev_name);
-			WarningAlert(str);
+			_sntprintf(buf, lengthof(buf), TEXT("Could not get hardware address of device %s. Ethernet is not available."), dev_name.get());
+			WarningAlert(buf);
 			goto open_error;
 		}
 		D(bug("Real ethernet address %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
@@ -1168,15 +1166,15 @@ static bool set_wait_request(void)
  *  TAP-Win32 glue
  */
 
-static LPADAPTER tap_open_adapter(const char *dev_name)
+static LPADAPTER tap_open_adapter(LPCTSTR dev_name)
 {
 	fd = (LPADAPTER)GlobalAllocPtr(GMEM_MOVEABLE | GMEM_ZEROINIT, sizeof(*fd));
 	if (fd == NULL)
 		return NULL;
 
-	char dev_path[MAX_PATH];
-	snprintf(dev_path, sizeof(dev_path),
-			 "\\\\.\\Global\\%s.tap", dev_name);
+	TCHAR dev_path[MAX_PATH];
+	_sntprintf(dev_path, lengthof(dev_path),
+			 TEXT("\\\\.\\Global\\%s.tap"), dev_name);
 
 	HANDLE handle = CreateFile(
 		dev_path,

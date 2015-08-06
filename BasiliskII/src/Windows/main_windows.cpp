@@ -30,7 +30,7 @@
 #include <SDL_thread.h>
 
 #include <string>
-using std::string;
+typedef std::basic_string<TCHAR> tstring;
 
 #include "cpu_emulation.h"
 #include "sys.h"
@@ -63,7 +63,7 @@ extern void flush_icache_range(uint8 *start, uint32 size); // from compemu_suppo
 
 
 // Constants
-const char ROM_FILE_NAME[] = "ROM";
+const TCHAR ROM_FILE_NAME[] = TEXT("ROM");
 const int SCRATCH_MEM_SIZE = 0x10000;	// Size of scratch memory area
 
 
@@ -235,8 +235,8 @@ int main(int argc, char **argv)
 		} else if (strcmp(argv[i], "--config") == 0) {
 			argv[i++] = NULL;
 			if (i < argc) {
-				extern string UserPrefsPath; // from prefs_windows.cpp
-				UserPrefsPath = argv[i];
+				extern tstring UserPrefsPath; // from prefs_windows.cpp
+				UserPrefsPath = to_tstring(argv[i]);
 				argv[i] = NULL;
 			}
 		} else if (strcmp(argv[i], "--rominfo") == 0) {
@@ -277,9 +277,11 @@ int main(int argc, char **argv)
 		}
 	}
 
+#if 0
 	// Check that drivers are installed
 	if (!check_drivers())
 		QuitEmulator();
+#endif
 
 	// FIXME: default to DIB driver
 	if (getenv("SDL_VIDEODRIVER") == NULL)
@@ -359,10 +361,10 @@ int main(int argc, char **argv)
 	D(bug("Mac ROM starts at %p (%08x)\n", ROMBaseHost, ROMBaseMac));
 	
 	// Get rom file path from preferences
-	const char *rom_path = PrefsFindString("rom");
+	auto rom_path = tstr(PrefsFindString("rom"));
 
 	// Load Mac ROM
-	HANDLE rom_fh = CreateFile(rom_path ? rom_path : ROM_FILE_NAME,
+	HANDLE rom_fh = CreateFile(rom_path ? rom_path.get() : ROM_FILE_NAME,
 							   GENERIC_READ,
 							   FILE_SHARE_READ, NULL,
 							   OPEN_EXISTING,
@@ -639,7 +641,12 @@ HWND GetMainWindowHandle(void)
 static void display_alert(int title_id, const char *text, int flags)
 {
 	HWND hMainWnd = GetMainWindowHandle();
-	MessageBox(hMainWnd, text, GetString(title_id), MB_OK | flags);
+	MessageBoxA(hMainWnd, text, GetString(title_id), MB_OK | flags);
+}
+static void display_alert(int title_id, const wchar_t *text, int flags)
+{
+	HWND hMainWnd = GetMainWindowHandle();
+	MessageBoxW(hMainWnd, text, GetStringW(title_id).get(), MB_OK | flags);
 }
 
 
@@ -655,6 +662,14 @@ void ErrorAlert(const char *text)
 	VideoQuitFullScreen();
 	display_alert(STR_ERROR_ALERT_TITLE, text, MB_ICONSTOP);
 }
+void ErrorAlert(const wchar_t *text)
+{
+	if (PrefsFindBool("nogui"))
+		return;
+
+	VideoQuitFullScreen();
+	display_alert(STR_ERROR_ALERT_TITLE, text, MB_ICONSTOP);
+}
 
 
 /*
@@ -662,6 +677,13 @@ void ErrorAlert(const char *text)
  */
 
 void WarningAlert(const char *text)
+{
+	if (PrefsFindBool("nogui"))
+		return;
+
+	display_alert(STR_WARNING_ALERT_TITLE, text, MB_ICONINFORMATION);
+}
+void WarningAlert(const wchar_t *text)
 {
 	if (PrefsFindBool("nogui"))
 		return;

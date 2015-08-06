@@ -27,6 +27,7 @@
  */
 
 #include "sysdeps.h"
+#include "main.h"
 
 #include <process.h>
 

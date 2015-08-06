@@ -39,7 +39,7 @@ typedef struct DIR {
 	HANDLE h;
 	WIN32_FIND_DATA FindFileData;
 	dirent de;
-	char *vname_list;
+	TCHAR *vname_list;
 } DIR;
 
 // emulated

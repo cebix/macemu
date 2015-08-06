@@ -88,7 +88,7 @@ static const char *get_volume_name(void)
 	// Try Windows 2000 key first
 	if (ERROR_SUCCESS == RegOpenKey(
 			HKEY_CURRENT_USER,
-			"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\CLSID\\{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
+			TEXT("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\CLSID\\{20D04FE0-3AEA-1069-A2D8-08002B30309D}"),
 			&hHelpKey))
 	{
 		cbData = sizeof(volume);
@@ -99,7 +99,7 @@ static const char *get_volume_name(void)
 	if (volume[0] == 0 &&
 		ERROR_SUCCESS == RegOpenKey(
 			HKEY_CURRENT_USER,
-			"Software\\Classes\\CLSID\\{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
+			TEXT("Software\\Classes\\CLSID\\{20D04FE0-3AEA-1069-A2D8-08002B30309D}"),
 			&hHelpKey))
 	{
 		cbData = sizeof(volume);
@@ -110,7 +110,7 @@ static const char *get_volume_name(void)
 	if (volume[0] == 0 &&
 		ERROR_SUCCESS == RegOpenKey(
 			HKEY_CLASSES_ROOT,
-			"CLSID\\{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
+			TEXT("CLSID\\{20D04FE0-3AEA-1069-A2D8-08002B30309D}"),
 			&hHelpKey))
 	{
 		cbData = sizeof(volume);
@@ -119,7 +119,7 @@ static const char *get_volume_name(void)
 	}
 
 	// Fix the error that some "tweak" apps do.
-	if (stricmp(volume, "%USERNAME% on %COMPUTER%") == 0)
+	if (_stricmp(volume, "%USERNAME% on %COMPUTER%") == 0)
 		volume[0] = '\0';
 
 	// No volume name found, default to "My Computer"
@@ -158,4 +158,22 @@ const char *GetString(int num)
 		i++;
 	}
 	return NULL;
+}
+
+/*
+ *  Convert text to wide string, given the string number
+ */
+std::unique_ptr<wchar_t[]> GetStringW(int num)
+{
+	auto str = GetString(num);
+	if (str == nullptr)
+		return nullptr;
+
+	auto length = MultiByteToWideChar(CP_ACP, 0, str, -1, nullptr, 0);
+	if (length == 0)
+		return nullptr;
+
+	auto p = std::unique_ptr<wchar_t[]>(new wchar_t[length]);
+	MultiByteToWideChar(CP_ACP, 0, str, -1, p.get(), length);
+	return p;
 }
