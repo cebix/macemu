@@ -74,4 +74,15 @@ extern uint32 InterruptFlags;									// Currently pending interrupts
 extern void SetInterruptFlag(uint32 flag);						// Set/clear interrupt flags
 extern void ClearInterruptFlag(uint32 flag);
 
+// Array length
+#if __cplusplus >= 201103L || (_MSC_VER >= 1900 && defined __cplusplus)
+template <typename T, size_t size>
+constexpr size_t lengthof(T (& a)[size])
+{
+	return size;
+}
+#else
+#define lengthof(a) (sizeof(a) / sizeof(a[0]))
+#endif
+
 #endif
