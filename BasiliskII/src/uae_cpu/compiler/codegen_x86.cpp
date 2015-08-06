@@ -62,7 +62,7 @@
 #define REG_RESULT EAX_INDEX
 
 /* The registers subroutines take their first and second argument in */
-#if defined( _MSC_VER ) && !defined( USE_NORMAL_CALLING_CONVENTION )
+#if defined( _MSC_VER ) && !USE_NORMAL_CALLING_CONVENTION
 /* Handle the _fastcall parameters of ECX and EDX */
 #define REG_PAR1 ECX_INDEX
 #define REG_PAR2 EDX_INDEX
@@ -75,7 +75,7 @@
 #endif
 
 #define REG_PC_PRE EAX_INDEX /* The register we use for preloading regs.pc_p */
-#if defined( _MSC_VER ) && !defined( USE_NORMAL_CALLING_CONVENTION )
+#if defined( _MSC_VER ) && !USE_NORMAL_CALLING_CONVENTION
 #define REG_PC_TMP EAX_INDEX
 #else
 #define REG_PC_TMP ECX_INDEX /* Another register that is not the above */
@@ -3982,7 +3982,7 @@ raw_init_cpu(void)
   }
 
   /* Have CMOV support? */
-  have_cmov = c->x86_hwcap & (1 << 15);
+  have_cmov = (c->x86_hwcap & (1 << 15)) != 0;
 #if defined(__x86_64__)
   if (!have_cmov) {
 	  write_log("x86-64 implementations are bound to have CMOV!\n");
@@ -4023,8 +4023,14 @@ static bool target_check_bsf(void)
 		for (int value = -1; value <= 1; value++) {
 			unsigned long flags = (g_SF << 7) | (g_OF << 11) | (g_ZF << 6) | g_CF;
 			unsigned long tmp = value;
+#ifdef _MSC_VER
+			__writeeflags(flags);
+			_BitScanForward(&tmp, value);
+			flags = __readeflags();
+#else
 			__asm__ __volatile__ ("push %0; popf; bsf %1,%1; pushf; pop %0"
 								  : "+r" (flags), "+r" (tmp) : : "cc");
+#endif
 			int OF = (flags >> 11) & 1;
 			int SF = (flags >>  7) & 1;
 			int ZF = (flags >>  6) & 1;
@@ -4267,8 +4273,6 @@ LENDFUNC(NONE,WRITE,2,raw_fmov_ext_mr,(MEMW m, FR r))
 
 LOWFUNC(NONE,WRITE,2,raw_fmov_ext_mr_drop,(MEMW m, FR r))
 {
-    int rs;
-
     make_tos(r);
     raw_fstpt(m);	/* store and pop it */
     live.onstack[live.tos]=-1;
