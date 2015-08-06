@@ -21,7 +21,6 @@
  */
 
 #include "sysdeps.h"
-#include <windows.h>
 
 extern "C" {
 
