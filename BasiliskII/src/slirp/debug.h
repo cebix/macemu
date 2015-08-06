@@ -36,15 +36,15 @@ extern int slirp_debug;
 
 #endif
 
-void debug_init _P((char *, int));
-//void ttystats _P((struct ttys *));
-void allttystats _P((void));
-void ipstats _P((void));
-void vjstats _P((void));
-void tcpstats _P((void));
-void udpstats _P((void));
-void icmpstats _P((void));
-void mbufstats _P((void));
-void sockstats _P((void));
-void slirp_exit _P((int));
+void debug_init(char *, int);
+//void ttystats(struct ttys *);
+void allttystats(void);
+void ipstats(void);
+void vjstats(void);
+void tcpstats(void);
+void udpstats(void);
+void icmpstats(void);
+void mbufstats(void);
+void sockstats(void);
+void slirp_exit(int);
 

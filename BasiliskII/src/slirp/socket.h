@@ -81,24 +81,24 @@ struct iovec {
 };
 #endif
 
-void so_init _P((void));
-struct socket * solookup _P((struct socket *, struct in_addr, u_int, struct in_addr, u_int));
-struct socket * socreate _P((void));
-void sofree _P((struct socket *));
-int soread _P((struct socket *));
-void sorecvoob _P((struct socket *));
-int sosendoob _P((struct socket *));
-int sowrite _P((struct socket *));
-void sorecvfrom _P((struct socket *));
-int sosendto _P((struct socket *, struct mbuf *));
-struct socket * solisten _P((u_int, u_int32_t, u_int, int));
-void sorwakeup _P((struct socket *));
-void sowwakeup _P((struct socket *));
-void soisfconnecting _P((register struct socket *));
-void soisfconnected _P((register struct socket *));
-void sofcantrcvmore _P((struct  socket *));
-void sofcantsendmore _P((struct socket *));
-void soisfdisconnected _P((struct socket *));
-void sofwdrain _P((struct socket *));
+void so_init(void);
+struct socket * solookup(struct socket *, struct in_addr, u_int, struct in_addr, u_int);
+struct socket * socreate(void);
+void sofree(struct socket *);
+int soread(struct socket *);
+void sorecvoob(struct socket *);
+int sosendoob(struct socket *);
+int sowrite(struct socket *);
+void sorecvfrom(struct socket *);
+int sosendto(struct socket *, struct mbuf *);
+struct socket * solisten(u_int, u_int32_t, u_int, int);
+void sorwakeup(struct socket *);
+void sowwakeup(struct socket *);
+void soisfconnecting(register struct socket *);
+void soisfconnected(register struct socket *);
+void sofcantrcvmore(struct  socket *);
+void sofcantsendmore(struct socket *);
+void soisfdisconnected(struct socket *);
+void sofwdrain(struct socket *);
 
 #endif /* _SOCKET_H_ */
