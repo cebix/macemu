@@ -209,7 +209,7 @@ private:
 	bool allocate_gamma_table(int size);
 
 	// Set gamma table (0 = build linear ramp)
-	bool set_gamma_table(uint32 user_table);
+	int16 set_gamma_table(uint32 user_table);
 
 	// Switch video mode
 	void switch_mode(vector<video_mode>::const_iterator it, uint32 param, uint32 dce);
