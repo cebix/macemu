@@ -1199,10 +1199,10 @@ static void gen_opcode (unsigned long int opcode)
 		   curi->size == sz_word ? sz_word : sz_long, "src");
 	break;
      case i_MVMEL:
-	genmovemel (opcode);
+	genmovemel ((uae_u16)opcode);
 	break;
      case i_MVMLE:
-	genmovemle (opcode);
+	genmovemle ((uae_u16)opcode);
 	break;
      case i_TRAP:
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
@@ -1523,7 +1523,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tcnt &= 63;\n");
 	printf ("\tCLEAR_CZNV;\n");
 	printf ("\tif (cnt >= %d) {\n", bit_size (curi->size));
-	printf ("\t\tval = %s & (uae_u32)-sign;\n", bit_mask (curi->size));
+	printf ("\t\tval = %s & (uae_u32)-(uae_s32)sign;\n", bit_mask (curi->size));
 	printf ("\t\tSET_CFLG (sign);\n");
 	duplicate_carry ();
 	if (source_is_imm1_8 (curi))
@@ -1534,7 +1534,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\t\tSET_CFLG (val & 1);\n");
 	duplicate_carry ();
 	printf ("\t\tval >>= 1;\n");
-	printf ("\t\tval |= (%s << (%d - cnt)) & (uae_u32)-sign;\n",
+	printf ("\t\tval |= (%s << (%d - cnt)) & (uae_u32)-(uae_s32)sign;\n",
 		bit_mask (curi->size),
 		bit_size (curi->size));
 	printf ("\t\tval &= %s;\n", bit_mask (curi->size));
@@ -2286,7 +2286,7 @@ static void generate_one_opcode (int rp)
     const char *opcode_str;
 
     if (table68k[opcode].mnemo == i_ILLG
-	|| table68k[opcode].clev > cpu_level)
+	|| table68k[opcode].clev > (unsigned)cpu_level)
 	return;
 
     if (table68k[opcode].handler != -1)
@@ -2475,10 +2475,16 @@ static void generate_func (void)
 	postfix = i;
 	fprintf (stblfile, "struct cputbl CPUFUNC(op_smalltbl_%d)[] = {\n", postfix);
 
+	/* Disable spurious warnings. */
+	printf ("\n"
+		"#ifdef _MSC_VER\n"
+		"#pragma warning(disable:4102)	/* unreferenced label */\n"
+		"#endif\n");
+
 	/* sam: this is for people with low memory (eg. me :)) */
 	printf ("\n"
                 "#if !defined(PART_1) && !defined(PART_2) && "
-	 	    "!defined(PART_3) && !defined(PART_4) && "
+		    "!defined(PART_3) && !defined(PART_4) && "
 		    "!defined(PART_5) && !defined(PART_6) && "
 		    "!defined(PART_7) && !defined(PART_8)"
 		"\n"
@@ -2534,5 +2540,19 @@ int main (int argc, char **argv)
     fclose (headerfile);
     fclose (stblfile);
     fflush (out);
+
+    /* For build systems (IDEs mainly) that don't make it easy to compile the
+     * same file twice with different settings. */
+    stblfile = fopen ("cpustbl_nf.cpp", "w");
+    out = freopen ("cpuemu_nf.cpp", "w", stdout);
+
+    fprintf (stblfile, "#define NOFLAGS\n");
+    fprintf (stblfile, "#include \"cpustbl.cpp\"\n");
+    fclose (stblfile);
+
+    printf ("#define NOFLAGS\n");
+    printf ("#include \"cpuemu.cpp\"\n");
+    fflush (out);
+
     return 0;
 }
