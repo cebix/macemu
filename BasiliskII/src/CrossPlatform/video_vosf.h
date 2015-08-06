@@ -73,13 +73,13 @@
 
 // Prototypes
 static void vosf_do_set_dirty_area(uintptr first, uintptr last);
-static void vosf_set_dirty_area(int x, int y, int w, int h, int screen_width, int screen_height, int bytes_per_row);
+static void vosf_set_dirty_area(int x, int y, int w, int h, unsigned screen_width, unsigned screen_height, unsigned bytes_per_row);
 
 // Variables for Video on SEGV support
 static uint8 *the_host_buffer;	// Host frame buffer in VOSF mode
 
 struct ScreenPageInfo {
-    int top, bottom;			// Mapping between this virtual page and Mac scanlines
+    unsigned top, bottom;		// Mapping between this virtual page and Mac scanlines
 };
 
 struct ScreenInfo {
@@ -148,7 +148,7 @@ static ScreenInfo mainBuffer;
 // provides a really fast strchr() implementation
 //#define HAVE_FAST_STRCHR 0
 
-static inline int find_next_page_set(int page)
+static inline unsigned find_next_page_set(unsigned page)
 {
 #if HAVE_FAST_STRCHR
 	char *match = strchr(mainBuffer.dirtyPages + page, PFLAG_SET_VALUE);
@@ -162,7 +162,7 @@ static inline int find_next_page_set(int page)
 #endif
 }
 
-static inline int find_next_page_clear(int page)
+static inline unsigned find_next_page_clear(unsigned page)
 {
 #if HAVE_FAST_STRCHR
 	char *match = strchr(mainBuffer.dirtyPages + page, PFLAG_CLEAR_VALUE);
@@ -235,17 +235,16 @@ static bool video_vosf_profitable(uint32 *duration_p = NULL, uint32 *n_page_faul
 	const bool accel = false;
 #endif
 
-	for (int i = 0; i < n_tries; i++) {
+	for (uint32 i = 0; i < n_tries; i++) {
 		uint64 start = GetTicks_usec();
-		for (int p = 0; p < mainBuffer.pageCount; p++) {
+		for (uint32 p = 0; p < mainBuffer.pageCount; p++) {
 			uint8 *addr = (uint8 *)(mainBuffer.memStart + (p * mainBuffer.pageSize));
 			if (accel)
 				vosf_do_set_dirty_area((uintptr)addr, (uintptr)addr + mainBuffer.pageSize - 1);
 			else
 				addr[0] = 0; // Trigger Screen_fault_handler()
 		}
-		uint64 elapsed = GetTicks_usec() - start;
-		duration += elapsed;
+		duration += uint32(GetTicks_usec() - start);
 
 		PFLAG_CLEAR_ALL;
 		mainBuffer.dirty = false;
@@ -353,7 +352,7 @@ static void vosf_do_set_dirty_area(uintptr first, uintptr last)
 {
 	const int first_page = (first - mainBuffer.memStart) >> mainBuffer.pageBits;
 	const int last_page = (last - mainBuffer.memStart) >> mainBuffer.pageBits;
-	uint8 *addr = (uint8 *)(first & -mainBuffer.pageSize);
+	uint8 *addr = (uint8 *)(first & ~(mainBuffer.pageSize - 1));
 	for (int i = first_page; i <= last_page; i++) {
 		if (PFLAG_ISCLEAR(i)) {
 			PFLAG_SET(i);
@@ -363,7 +362,7 @@ static void vosf_do_set_dirty_area(uintptr first, uintptr last)
 	}
 }
 
-static void vosf_set_dirty_area(int x, int y, int w, int h, int screen_width, int screen_height, int bytes_per_row)
+static void vosf_set_dirty_area(int x, int y, int w, int h, unsigned screen_width, unsigned screen_height, unsigned bytes_per_row)
 {
 	if (x < 0) {
 		w -= -x;
@@ -375,10 +374,10 @@ static void vosf_set_dirty_area(int x, int y, int w, int h, int screen_width, in
 	}
 	if (w <= 0 || h <= 0)
 		return;
-	if (x + w > screen_width)
-		w -= (x + w) - screen_width;
-	if (y + h > screen_height)
-		h -= (y + h) - screen_height;
+	if (unsigned(x + w) > screen_width)
+		w -= unsigned(x + w) - screen_width;
+	if (unsigned(y + h) > screen_height)
+		h -= unsigned(y + h) - screen_height;
 	LOCK_VOSF;
 	if (bytes_per_row >= screen_width) {
 		const int bytes_per_pixel = bytes_per_row / screen_width;
@@ -429,7 +428,7 @@ bool Screen_fault_handler(sigsegv_info_t *sip)
 		LOCK_VOSF;
 		if (PFLAG_ISCLEAR(page)) {
 			PFLAG_SET(page);
-			vm_protect((char *)(addr & -mainBuffer.pageSize), mainBuffer.pageSize, VM_PAGE_READ | VM_PAGE_WRITE);
+			vm_protect((char *)(addr & ~(mainBuffer.pageSize - 1)), mainBuffer.pageSize, VM_PAGE_READ | VM_PAGE_WRITE);
 		}
 		mainBuffer.dirty = true;
 		UNLOCK_VOSF;
@@ -483,7 +482,7 @@ static void update_display_window_vosf(VIDEO_DRV_WIN_INIT)
 {
 	VIDEO_MODE_INIT;
 
-	int page = 0;
+	unsigned page = 0;
 	for (;;) {
 		const unsigned first_page = find_next_page_set(page);
 		if (first_page >= mainBuffer.pageCount)
@@ -553,7 +552,7 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 		memcpy(the_buffer_copy, the_buffer, VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y);
 		VIDEO_DRV_LOCK_PIXELS;
 		int i1 = 0, i2 = 0;
-		for (int j = 0;  j < VIDEO_MODE_Y; j++) {
+		for (uint32_t j = 0;  j < VIDEO_MODE_Y; j++) {
 			Screen_blit(the_host_buffer + i2, the_buffer + i1, src_bytes_per_row);
 			i1 += src_bytes_per_row;
 			i2 += scr_bytes_per_row;
@@ -566,15 +565,16 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 	}
 
 	// Setup partial blitter (use 64-pixel wide chunks)
-	const int n_pixels = 64;
-	const int n_chunks = VIDEO_MODE_X / n_pixels;
-	const int n_pixels_left = VIDEO_MODE_X - (n_chunks * n_pixels);
-	const int src_chunk_size = src_bytes_per_row / n_chunks;
-	const int dst_chunk_size = dst_bytes_per_row / n_chunks;
-	const int src_chunk_size_left = src_bytes_per_row - (n_chunks * src_chunk_size);
-	const int dst_chunk_size_left = dst_bytes_per_row - (n_chunks * dst_chunk_size);
+	const uint32 n_pixels = 64;
+	const uint32 n_chunks = VIDEO_MODE_X / n_pixels;
+	const uint32 n_pixels_left = VIDEO_MODE_X - (n_chunks * n_pixels);
+	const uint32 src_chunk_size = src_bytes_per_row / n_chunks;
+	const uint32 dst_chunk_size = dst_bytes_per_row / n_chunks;
+	const uint32 src_chunk_size_left = src_bytes_per_row - (n_chunks * src_chunk_size);
+	const uint32 dst_chunk_size_left = dst_bytes_per_row - (n_chunks * dst_chunk_size);
 
-	int page = 0, last_scanline = -1;
+	unsigned page = 0;
+	uint32 last_scanline = uint32(-1);
 	for (;;) {
 		const unsigned first_page = find_next_page_set(page);
 		if (first_page >= mainBuffer.pageCount)
@@ -589,28 +589,30 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 		vm_protect((char *)mainBuffer.memStart + offset, length, VM_PAGE_READ);
 
 		// Optimized for scanlines, don't process overlapping lines again
-		int y1 = mainBuffer.pageInfo[first_page].top;
-		int y2 = mainBuffer.pageInfo[page - 1].bottom;
-		if (y1 <= last_scanline && ++y1 >= VIDEO_MODE_Y)
-			continue;
-		if (y2 <= last_scanline && ++y2 >= VIDEO_MODE_Y)
-			continue;
+		uint32 y1 = mainBuffer.pageInfo[first_page].top;
+		uint32 y2 = mainBuffer.pageInfo[page - 1].bottom;
+		if (last_scanline != uint32(-1)) {
+			if (y1 <= last_scanline && ++y1 >= VIDEO_MODE_Y)
+				continue;
+			if (y2 <= last_scanline && ++y2 >= VIDEO_MODE_Y)
+				continue;
+		}
 		last_scanline = y2;
 
 		// Update the_host_buffer and copy of the_buffer, one line at a time
-		int i1 = y1 * src_bytes_per_row;
-		int i2 = y1 * scr_bytes_per_row;
+		uint32 i1 = y1 * src_bytes_per_row;
+		uint32 i2 = y1 * scr_bytes_per_row;
 #ifdef USE_SDL_VIDEO
 		int bbi = 0;
 		SDL_Rect bb[3] = {
-			{ VIDEO_MODE_X, y1, 0, 0 },
-			{ VIDEO_MODE_X, -1, 0, 0 },
-			{ VIDEO_MODE_X, -1, 0, 0 }
+			{ Sint16(VIDEO_MODE_X), Sint16(y1), 0, 0 },
+			{ Sint16(VIDEO_MODE_X), -1, 0, 0 },
+			{ Sint16(VIDEO_MODE_X), -1, 0, 0 }
 		};
 #endif
 		VIDEO_DRV_LOCK_PIXELS;
-		for (int j = y1; j <= y2; j++) {
-			for (int i = 0; i < n_chunks; i++) {
+		for (uint32 j = y1; j <= y2; j++) {
+			for (uint32 i = 0; i < n_chunks; i++) {
 				if (memcmp(the_buffer_copy + i1, the_buffer + i1, src_chunk_size) != 0) {
 					memcpy(the_buffer_copy + i1, the_buffer + i1, src_chunk_size);
 					Screen_blit(the_host_buffer + i2, the_buffer + i1, src_chunk_size);
