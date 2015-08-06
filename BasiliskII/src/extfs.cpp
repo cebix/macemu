@@ -334,7 +334,7 @@ static void pstrcpy(char *dst, const char *src)
 // Convert C string to pascal string
 static void cstr2pstr(char *dst, const char *src)
 {
-	*dst++ = strlen(src);
+	*dst++ = char(strlen(src));
 	char c;
 	while ((c = *src++) != 0) {
 		// Note: we are converting host ':' characters to Mac '/' characters here
@@ -2158,7 +2158,7 @@ static int16 fs_get_wd_info(uint32 pb, uint32 vcb)
 int16 ExtFSHFS(uint32 vcb, uint16 selectCode, uint32 paramBlock, uint32 globalsPtr, int16 fsid)
 {
 	uint16 trapWord = selectCode & 0xf0ff;
-	bool hfs = selectCode & kHFSMask;
+	bool hfs = (selectCode & kHFSMask) != 0;
 	switch (trapWord) {
 		case kFSMOpen:
 			return fs_open(paramBlock, hfs ? ReadMacInt32(paramBlock + ioDirID) : 0, vcb, false);

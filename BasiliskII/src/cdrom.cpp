@@ -557,7 +557,7 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 		}
 
 		case 76:		// ModifyPostEvent
-			info->mount_non_hfs = ReadMacInt16(pb + csParam);
+			info->mount_non_hfs = ReadMacInt16(pb + csParam) != 0;
 			return noErr;
 
 		case 79: {		// Change block size
@@ -792,7 +792,7 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, start_m, start_s, start_f))
 				return paramErr;
 
-			if (!SysCDScan(info->fh, start_m, start_s, start_f, ReadMacInt16(pb + csParam + 6))) {
+			if (!SysCDScan(info->fh, start_m, start_s, start_f, ReadMacInt16(pb + csParam + 6) != 0)) {
 				return paramErr;
 			} else {
 				return noErr;
@@ -944,7 +944,7 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 			if (ReadMacInt16(pb + csParam) > 0) {
 				uint32 adr = ReadMacInt32(pb + csParam + 2);
 				WriteMacInt16(pb + csParam, 1);						// 1 format
-				WriteMacInt32(adr, SysGetFileSize(info->fh) / 512);	// Number of blocks
+				WriteMacInt32(adr, uint32(SysGetFileSize(info->fh) / 512));	// Number of blocks
 				WriteMacInt32(adr + 4, 0);							// heads/track/sectors
 				return noErr;
 			} else {

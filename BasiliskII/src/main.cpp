@@ -177,7 +177,7 @@ bool InitAll(const char *vmdir)
 	XPRAM[0x56] = 0x42;	// 'B'
 	XPRAM[0x57] = 0x32;	// '2'
 	const monitor_desc &main_monitor = *VideoMonitors[0];
-	XPRAM[0x58] = main_monitor.depth_to_apple_mode(main_monitor.get_current_mode().depth);
+	XPRAM[0x58] = uint8(main_monitor.depth_to_apple_mode(main_monitor.get_current_mode().depth));
 	XPRAM[0x59] = 0;
 
 #if EMULATED_68K

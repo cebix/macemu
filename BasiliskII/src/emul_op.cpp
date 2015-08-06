@@ -111,7 +111,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 		}
 
 		case M68K_EMUL_OP_CLKNOMEM: {		// Clock/PRAM operations
-			bool is_read = r->d[1] & 0x80;
+			bool is_read = (r->d[1] & 0x80) != 0;
 			if ((r->d[1] & 0x78) == 0x38) {
 				// XPRAM
 				uint8 reg = (r->d[1] << 5) & 0xe0 | (r->d[1] >> 10) & 0x1f;
