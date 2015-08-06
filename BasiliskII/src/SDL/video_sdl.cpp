@@ -94,7 +94,7 @@ const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
 
 
 // Global variables
-static int32 frame_skip;							// Prefs items
+static uint32 frame_skip;							// Prefs items
 static int16 mouse_wheel_mode;
 static int16 mouse_wheel_lines;
 
@@ -475,7 +475,7 @@ static bool has_mode(int type, int width, int height, int depth)
 	// Rely on SDL capabilities
 	return SDL_VideoModeOK(width, height,
 						   sdl_depth_of_video_depth(depth),
-						   SDL_HWSURFACE | (type == DISPLAY_SCREEN ? SDL_FULLSCREEN : 0));
+						   SDL_HWSURFACE | (type == DISPLAY_SCREEN ? SDL_FULLSCREEN : 0)) != 0;
 }
 
 // Add mode to list of supported modes
@@ -1840,21 +1840,22 @@ static void handle_events(void)
 static void update_display_static(driver_base *drv)
 {
 	// Incremental update code
-	int wide = 0, high = 0, x1, x2, y1, y2, i, j;
+	int wide = 0, high = 0;
+	uint32 x1, x2, y1, y2;
 	const VIDEO_MODE &mode = drv->mode;
 	int bytes_per_row = VIDEO_MODE_ROW_BYTES;
 	uint8 *p, *p2;
 
 	// Check for first line from top and first line from bottom that have changed
 	y1 = 0;
-	for (j=0; j<VIDEO_MODE_Y; j++) {
+	for (uint32 j = 0; j < VIDEO_MODE_Y; j++) {
 		if (memcmp(&the_buffer[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
 			y1 = j;
 			break;
 		}
 	}
 	y2 = y1 - 1;
-	for (j=VIDEO_MODE_Y-1; j>=y1; j--) {
+	for (uint32 j = VIDEO_MODE_Y; j-- > y1; ) {
 		if (memcmp(&the_buffer[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
 			y2 = j;
 			break;
@@ -1864,16 +1865,16 @@ static void update_display_static(driver_base *drv)
 
 	// Check for first column from left and first column from right that have changed
 	if (high) {
-		if ((int)VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
+		if (VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
 			const int src_bytes_per_row = bytes_per_row;
 			const int dst_bytes_per_row = drv->s->pitch;
 			const int pixels_per_byte = VIDEO_MODE_X / src_bytes_per_row;
 
 			x1 = VIDEO_MODE_X / pixels_per_byte;
-			for (j = y1; j <= y2; j++) {
+			for (uint32 j = y1; j <= y2; j++) {
 				p = &the_buffer[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
-				for (i = 0; i < x1; i++) {
+				for (uint32 i = 0; i < x1; i++) {
 					if (*p != *p2) {
 						x1 = i;
 						break;
@@ -1882,12 +1883,12 @@ static void update_display_static(driver_base *drv)
 				}
 			}
 			x2 = x1;
-			for (j = y1; j <= y2; j++) {
+			for (uint32 j = y1; j <= y2; j++) {
 				p = &the_buffer[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
 				p += bytes_per_row;
 				p2 += bytes_per_row;
-				for (i = (VIDEO_MODE_X / pixels_per_byte); i > x2; i--) {
+				for (uint32 i = (VIDEO_MODE_X / pixels_per_byte); i > x2; i--) {
 					p--; p2--;
 					if (*p != *p2) {
 						x2 = i;
@@ -1909,7 +1910,7 @@ static void update_display_static(driver_base *drv)
 				// Blit to screen surface
 				int si = y1 * src_bytes_per_row + (x1 / pixels_per_byte);
 				int di = y1 * dst_bytes_per_row + x1;
-				for (j = y1; j <= y2; j++) {
+				for (uint32 j = y1; j <= y2; j++) {
 					memcpy(the_buffer_copy + si, the_buffer + si, wide / pixels_per_byte);
 					Screen_blit((uint8 *)drv->s->pixels + di, the_buffer + si, wide / pixels_per_byte);
 					si += src_bytes_per_row;
@@ -1929,10 +1930,10 @@ static void update_display_static(driver_base *drv)
 			const int dst_bytes_per_row = drv->s->pitch;
 
 			x1 = VIDEO_MODE_X;
-			for (j=y1; j<=y2; j++) {
+			for (uint32 j = y1; j <= y2; j++) {
 				p = &the_buffer[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
-				for (i=0; i<x1*bytes_per_pixel; i++) {
+				for (uint32 i = 0; i < x1 * bytes_per_pixel; i++) {
 					if (*p != *p2) {
 						x1 = i / bytes_per_pixel;
 						break;
@@ -1941,12 +1942,12 @@ static void update_display_static(driver_base *drv)
 				}
 			}
 			x2 = x1;
-			for (j=y1; j<=y2; j++) {
+			for (uint32 j = y1; j <= y2; j++) {
 				p = &the_buffer[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
 				p += bytes_per_row;
 				p2 += bytes_per_row;
-				for (i=VIDEO_MODE_X*bytes_per_pixel; i>x2*bytes_per_pixel; i--) {
+				for (uint32 i = VIDEO_MODE_X * bytes_per_pixel; i > x2 * bytes_per_pixel; i--) {
 					p--;
 					p2--;
 					if (*p != *p2) {
@@ -1965,8 +1966,8 @@ static void update_display_static(driver_base *drv)
 					SDL_LockSurface(drv->s);
 
 				// Blit to screen surface
-				for (j=y1; j<=y2; j++) {
-					i = j * bytes_per_row + x1 * bytes_per_pixel;
+				for (uint32 j = y1; j <= y2; j++) {
+					uint32 i = j * bytes_per_row + x1 * bytes_per_pixel;
 					int dst_i = j * dst_bytes_per_row + x1 * bytes_per_pixel;
 					memcpy(the_buffer_copy + i, the_buffer + i, bytes_per_pixel * wide);
 					Screen_blit((uint8 *)drv->s->pixels + dst_i, the_buffer + i, bytes_per_pixel * wide);
@@ -1990,35 +1991,34 @@ static void update_display_static_bbox(driver_base *drv)
 	const VIDEO_MODE &mode = drv->mode;
 
 	// Allocate bounding boxes for SDL_UpdateRects()
-	const int N_PIXELS = 64;
-	const int n_x_boxes = (VIDEO_MODE_X + N_PIXELS - 1) / N_PIXELS;
-	const int n_y_boxes = (VIDEO_MODE_Y + N_PIXELS - 1) / N_PIXELS;
+	const uint32 N_PIXELS = 64;
+	const uint32 n_x_boxes = (VIDEO_MODE_X + N_PIXELS - 1) / N_PIXELS;
+	const uint32 n_y_boxes = (VIDEO_MODE_Y + N_PIXELS - 1) / N_PIXELS;
 	SDL_Rect *boxes = (SDL_Rect *)alloca(sizeof(SDL_Rect) * n_x_boxes * n_y_boxes);
-	int nr_boxes = 0;
+	uint32 nr_boxes = 0;
 
 	// Lock surface, if required
 	if (SDL_MUSTLOCK(drv->s))
 		SDL_LockSurface(drv->s);
 
 	// Update the surface from Mac screen
-	const int bytes_per_row = VIDEO_MODE_ROW_BYTES;
-	const int bytes_per_pixel = bytes_per_row / VIDEO_MODE_X;
-	const int dst_bytes_per_row = drv->s->pitch;
-	int x, y;
-	for (y = 0; y < VIDEO_MODE_Y; y += N_PIXELS) {
-		int h = N_PIXELS;
+	const uint32 bytes_per_row = VIDEO_MODE_ROW_BYTES;
+	const uint32 bytes_per_pixel = bytes_per_row / VIDEO_MODE_X;
+	const uint32 dst_bytes_per_row = drv->s->pitch;
+	for (uint32 y = 0; y < VIDEO_MODE_Y; y += N_PIXELS) {
+		uint32 h = N_PIXELS;
 		if (h > VIDEO_MODE_Y - y)
 			h = VIDEO_MODE_Y - y;
-		for (x = 0; x < VIDEO_MODE_X; x += N_PIXELS) {
-			int w = N_PIXELS;
+		for (uint32 x = 0; x < VIDEO_MODE_X; x += N_PIXELS) {
+			uint32 w = N_PIXELS;
 			if (w > VIDEO_MODE_X - x)
 				w = VIDEO_MODE_X - x;
 			const int xs = w * bytes_per_pixel;
 			const int xb = x * bytes_per_pixel;
 			bool dirty = false;
-			for (int j = y; j < (y + h); j++) {
-				const int yb = j * bytes_per_row;
-				const int dst_yb = j * dst_bytes_per_row;
+			for (uint32 j = y; j < (y + h); j++) {
+				const uint32 yb = j * bytes_per_row;
+				const uint32 dst_yb = j * dst_bytes_per_row;
 				if (memcmp(&the_buffer[yb + xb], &the_buffer_copy[yb + xb], xs) != 0) {
 					memcpy(&the_buffer_copy[yb + xb], &the_buffer[yb + xb], xs);
 					Screen_blit((uint8 *)drv->s->pixels + dst_yb + xb, the_buffer + yb + xb, xs);
@@ -2102,7 +2102,7 @@ static void video_refresh_dga_vosf(void)
 	possibly_quit_dga_mode();
 	
 	// Update display (VOSF variant)
-	static int tick_counter = 0;
+	static uint32 tick_counter = 0;
 	if (++tick_counter >= frame_skip) {
 		tick_counter = 0;
 		if (mainBuffer.dirty) {
@@ -2120,7 +2120,7 @@ static void video_refresh_window_vosf(void)
 	possibly_ungrab_mouse();
 	
 	// Update display (VOSF variant)
-	static int tick_counter = 0;
+	static uint32 tick_counter = 0;
 	if (++tick_counter >= frame_skip) {
 		tick_counter = 0;
 		if (mainBuffer.dirty) {
@@ -2138,7 +2138,7 @@ static void video_refresh_window_static(void)
 	possibly_ungrab_mouse();
 
 	// Update display (static variant)
-	static int tick_counter = 0;
+	static uint32 tick_counter = 0;
 	if (++tick_counter >= frame_skip) {
 		tick_counter = 0;
 		const VIDEO_MODE &mode = drv->mode;
@@ -2214,7 +2214,7 @@ static int redraw_func(void *arg)
 
 		// Wait
 		next += VIDEO_REFRESH_DELAY;
-		int64 delay = next - GetTicks_usec();
+		int32 delay = int32(next - GetTicks_usec());
 		if (delay > 0)
 			Delay_usec(delay);
 		else if (delay < -VIDEO_REFRESH_DELAY)
@@ -2247,9 +2247,9 @@ void video_set_dirty_area(int x, int y, int w, int h)
 {
 #ifdef ENABLE_VOSF
 	const VIDEO_MODE &mode = drv->mode;
-	const int screen_width = VIDEO_MODE_X;
-	const int screen_height = VIDEO_MODE_Y;
-	const int bytes_per_row = VIDEO_MODE_ROW_BYTES;
+	const unsigned screen_width = VIDEO_MODE_X;
+	const unsigned screen_height = VIDEO_MODE_Y;
+	const unsigned bytes_per_row = VIDEO_MODE_ROW_BYTES;
 
 	if (use_vosf) {
 		vosf_set_dirty_area(x, y, w, h, screen_width, screen_height, bytes_per_row);
