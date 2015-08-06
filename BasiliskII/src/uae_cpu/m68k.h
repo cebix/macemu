@@ -59,7 +59,7 @@ struct flag_struct {
 
 #define COPY_CARRY	(regflags.x = regflags.cznv)
 
-extern struct flag_struct regflags __asm__ ("regflags");
+extern struct flag_struct regflags ASM_SYM ("regflags");
 
 static __inline__ int cctrue(int cc)
 {
@@ -202,7 +202,7 @@ struct flag_struct {
 
 #define COPY_CARRY	(regflags.x = (regflags.cznv)>>8)
 
-extern struct flag_struct regflags __asm__ ("regflags");
+extern struct flag_struct regflags ASM_SYM("regflags");
 
 static __inline__ int cctrue(int cc)
 {

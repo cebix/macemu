@@ -61,7 +61,7 @@ struct cputbl {
     uae_u16 opcode;
 };
 
-extern cpuop_func *cpufunctbl[65536] ASM_SYM_FOR_FUNC ("cpufunctbl");
+extern cpuop_func *cpufunctbl[65536] ASM_SYM("cpufunctbl");
 
 #if USE_JIT
 typedef void compop_func (uae_u32) REGPARAM;

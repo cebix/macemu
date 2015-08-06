@@ -297,9 +297,9 @@ static inline uae_u32 do_byteswap_16_g(uae_u32 v)
 #define ATTRIBUTE_PACKED __attribute__((packed))
 
 #if defined(X86_ASSEMBLY) || defined(X86_64_ASSEMBLY)
-#define ASM_SYM_FOR_FUNC(a) __asm__(a)
+#define ASM_SYM(a) __asm__(a)
 #else
-#define ASM_SYM_FOR_FUNC(a)
+#define ASM_SYM(a)
 #endif
 
 #ifndef REGPARAM
