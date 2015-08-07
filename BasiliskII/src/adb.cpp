@@ -340,7 +340,7 @@ void ADBInterrupt(void)
 	int my = mouse_y;
 	if (relative_mouse)
 		mouse_x = mouse_y = 0;
-	int mb[3] = {mouse_button[0], mouse_button[1], mouse_button[2]};
+	bool mb[3] = {mouse_button[0], mouse_button[1], mouse_button[2]};
 	B2_unlock_mutex(mouse_lock);
 
 	uint32 key_base = adb_base + 4;
@@ -349,7 +349,7 @@ void ADBInterrupt(void)
 	if (relative_mouse) {
 
 		// Mouse movement (relative) and buttons
-		if (mx != 0 || my != 0 || !!mb[0] != old_mouse_button[0] || !!mb[1] != old_mouse_button[1] || !!mb[2] != old_mouse_button[2]) {
+		if (mx != 0 || my != 0 || mb[0] != old_mouse_button[0] || mb[1] != old_mouse_button[1] || mb[2] != old_mouse_button[2]) {
 
 			// Call mouse ADB handler
 			if (mouse_reg_3[1] == 4) {
@@ -371,9 +371,9 @@ void ADBInterrupt(void)
 			r.d[0] = (mouse_reg_3[0] << 4) | 0x0c;	// Talk 0
 			Execute68k(r.a[1], &r);
 
-			old_mouse_button[0] = mb[0] != 0;
-			old_mouse_button[1] = mb[1] != 0;
-			old_mouse_button[2] = mb[2] != 0;
+			old_mouse_button[0] = mb[0];
+			old_mouse_button[1] = mb[1];
+			old_mouse_button[2] = mb[2];
 		}
 
 	} else {
@@ -406,7 +406,7 @@ void ADBInterrupt(void)
 		}
 
 		// Send mouse button events
-		if (!!mb[0] != old_mouse_button[0] || !!mb[1] != old_mouse_button[1] || !!mb[2] != old_mouse_button[2]) {
+		if (mb[0] != old_mouse_button[0] || mb[1] != old_mouse_button[1] || mb[2] != old_mouse_button[2]) {
 			uint32 mouse_base = adb_base + 16;
 
 			// Call mouse ADB handler
@@ -429,9 +429,9 @@ void ADBInterrupt(void)
 			r.d[0] = (mouse_reg_3[0] << 4) | 0x0c;	// Talk 0
 			Execute68k(r.a[1], &r);
 
-			old_mouse_button[0] = mb[0] != 0;
-			old_mouse_button[1] = mb[1] != 0;
-			old_mouse_button[2] = mb[2] != 0;
+			old_mouse_button[0] = mb[0];
+			old_mouse_button[1] = mb[1];
+			old_mouse_button[2] = mb[2];
 		}
 	}
 
