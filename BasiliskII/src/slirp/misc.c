@@ -73,9 +73,8 @@ int inet_aton(const char *cp, struct in_addr *ia)
 void getouraddr()
 {
 	char buff[256];
-	struct hostent *he = NULL;
 
-	if (gethostname(buff,256) == 0)
+	if (gethostname(buff, sizeof(buf)) == 0)
 	{
 		struct addrinfo hints = { 0 };
 		hints.ai_flags = AI_NUMERICHOST;
