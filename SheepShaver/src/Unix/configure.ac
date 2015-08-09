@@ -812,7 +812,7 @@ AC_CACHE_CHECK([whether vm_protect works],
     AC_TRY_RUN([
       #define CONFIGURE_TEST_VM_MAP
       #define TEST_VM_PROT_$test_def
-      #include "vm_alloc.cpp"
+      #include "../CrossPlatform/vm_alloc.cpp"
     ], ac_cv_vm_protect_works=no, rm -f core,
     dnl When cross-compiling, do not assume anything
     ac_cv_vm_protect_works="guessing no"
@@ -821,7 +821,7 @@ AC_CACHE_CHECK([whether vm_protect works],
   AC_TRY_RUN([
     #define CONFIGURE_TEST_VM_MAP
     #define TEST_VM_PROT_RDWR_WRITE
-    #include "vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
   ], , ac_cv_vm_protect_works=no,
   dnl When cross-compiling, do not assume anything
   ac_cv_vm_protect_works="guessing no"
@@ -866,7 +866,7 @@ AC_CACHE_CHECK([whether mmap supports MAP_ANON],
     #define HAVE_MMAP_ANON
     #define CONFIGURE_TEST_VM_MAP
     #define TEST_VM_MMAP_ANON
-    #include "vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
   ], ac_cv_mmap_anon=yes, ac_cv_mmap_anon=no,
   dnl When cross-compiling, do not assume anything.
   ac_cv_mmap_anon="guessing no"
@@ -885,7 +885,7 @@ AC_CACHE_CHECK([whether mmap supports MAP_ANONYMOUS],
     #define HAVE_MMAP_ANONYMOUS
     #define CONFIGURE_TEST_VM_MAP
     #define TEST_VM_MMAP_ANON
-    #include "vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
   ], ac_cv_mmap_anonymous=yes, ac_cv_mmap_anonymous=no,
   dnl When cross-compiling, do not assume anything.
   ac_cv_mmap_anonymous="guessing no"
@@ -906,7 +906,7 @@ AC_CACHE_CHECK([whether mprotect works],
     AC_TRY_RUN([
       #define CONFIGURE_TEST_VM_MAP
       #define TEST_VM_PROT_$test_def
-      #include "vm_alloc.cpp"
+      #include "../CrossPlatform/vm_alloc.cpp"
     ], ac_cv_mprotect_works=no, rm -f core,
     dnl When cross-compiling, do not assume anything
     ac_cv_mprotect_works="guessing no"
@@ -915,7 +915,7 @@ AC_CACHE_CHECK([whether mprotect works],
   AC_TRY_RUN([
     #define CONFIGURE_TEST_VM_MAP
     #define TEST_VM_PROT_RDWR_WRITE
-    #include "vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
   ], , ac_cv_mprotect_works=no,
   dnl When cross-compiling, do not assume anything
   ac_cv_mprotect_works="guessing no"
@@ -955,7 +955,7 @@ AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x3000],
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
   AC_TRY_RUN([
-    #include "vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
     int main(void) { /* returns 0 if we could map the lowmem globals */
       volatile char * lm = 0;
       if (vm_init() < 0) exit(1);
@@ -1041,8 +1041,8 @@ AC_CACHE_CHECK([whether your system supports Mach exceptions],
   AC_TRY_RUN([
     #define HAVE_MACH_EXCEPTIONS 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "vm_alloc.cpp"
-    #include "sigsegv.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
+    #include "../CrossPlatform/sigsegv.cpp"
   ],
   ac_cv_have_mach_exceptions=yes,
   ac_cv_have_mach_exceptions=no,
@@ -1066,8 +1066,8 @@ AC_CACHE_CHECK([whether your system supports Windows exceptions],
   AC_TRY_RUN([
     #define HAVE_WIN32_EXCEPTIONS 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "vm_alloc.cpp"
-    #include "sigsegv.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
+    #include "../CrossPlatform/sigsegv.cpp"
   ], [
   sigsegv_recovery=win32
   ac_cv_have_win32_exceptions=yes
@@ -1091,8 +1091,8 @@ if [[ -z "$sigsegv_recovery" ]]; then
     AC_TRY_RUN([
       #define HAVE_SIGINFO_T 1
       #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-      #include "vm_alloc.cpp"
-      #include "sigsegv.cpp"
+      #include "../CrossPlatform/vm_alloc.cpp"
+      #include "../CrossPlatform/sigsegv.cpp"
     ],
     ac_cv_have_extended_signals=yes,
     ac_cv_have_extended_signals=no,
@@ -1118,8 +1118,8 @@ if [[ -z "$sigsegv_recovery" ]]; then
     AC_TRY_RUN([
       #define HAVE_SIGCONTEXT_SUBTERFUGE 1
       #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-      #include "vm_alloc.cpp"
-      #include "sigsegv.cpp"
+      #include "../CrossPlatform/vm_alloc.cpp"
+      #include "../CrossPlatform/sigsegv.cpp"
     ],
     ac_cv_have_sigcontext_hack=yes,
     ac_cv_have_sigcontext_hack=no,
@@ -1143,8 +1143,8 @@ AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
   AC_TRY_RUN([
     #define HAVE_SIGSEGV_SKIP_INSTRUCTION 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "vm_alloc.cpp"
-    #include "sigsegv.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
+    #include "../CrossPlatform/sigsegv.cpp"
   ], ac_cv_have_skip_instruction=yes, ac_cv_have_skip_instruction=no,
   dnl When cross-compiling, do not assume anything.
   ac_cv_have_skip_instruction=no
@@ -1186,7 +1186,7 @@ if [[ "$WANT_ADDRESSING_MODE" = "direct" ]]; then
   cat >> conftest.$ac_ext << EOF
 #include <stdio.h>
 #include <string.h>
-#include "vm_alloc.cpp"
+#include "../CrossPlatform/vm_alloc.cpp"
 
 int main(void)
 {
