@@ -14,6 +14,12 @@
 #include <sys/filio.h>
 #endif
 
+#ifdef _WIN32
+#define IS_EAGAIN(e) ((e) == WSAEINTR || (e) == EAGAIN)
+#else
+#define IS_EAGAIN(e) ((e) == EAGAIN)
+#endif
+
 void
 so_init()
 {
@@ -161,7 +167,7 @@ soread(so)
 #endif	
 	if (nn <= 0) {
 		int error = WSAGetLastError();
-		if (nn < 0 && (error == WSAEINTR || error == EAGAIN))
+		if (nn < 0 && IS_EAGAIN(error))
 			return 0;
 		else {
 			DEBUG_MISC((dfd, " --- soread() disconnected, nn = %d, errno = %d-%s\n", nn, errno,strerror(errno)));
@@ -348,7 +354,7 @@ sowrite(so)
 	/* This should never happen, but people tell me it does *shrug* */
 	if (nn < 0) {
 		int error = WSAGetLastError();
-		if (error == EAGAIN || error == WSAEINTR)
+		if (IS_EAGAIN(error))
 			return 0;
 	}
 
