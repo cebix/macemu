@@ -68,7 +68,7 @@ ip_input(m)
 	struct mbuf *m;
 {
 	register struct ip *ip;
-	int hlen;
+	u_int hlen;
 	
 	DEBUG_CALL("ip_input");
 	DEBUG_ARG("m = %lx", (long)m);

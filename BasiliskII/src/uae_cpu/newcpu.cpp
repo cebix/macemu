@@ -211,7 +211,7 @@ static void build_cpufunctbl (void)
 {
     int i;
     unsigned long opcode;
-	int cpu_level = 0;		// 68000 (default)
+	unsigned int cpu_level = 0;		// 68000 (default)
 	if (CPUType == 4)
 		cpu_level = 4;		// 68040 with FPU
 	else {
@@ -979,8 +979,8 @@ void m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra, uaecptr oldpc)
 	    SET_CFLG (0);
 	    SET_ZFLG (((uae_s32)quot) == 0);
 	    SET_NFLG (((uae_s32)quot) < 0);
-	    m68k_dreg(regs, extra & 7) = rem;
-	    m68k_dreg(regs, (extra >> 12) & 7) = quot;
+	    m68k_dreg(regs, extra & 7) = (uae_u32)rem;
+	    m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)quot;
 	}
     } else {
 	/* unsigned */
@@ -1002,8 +1002,8 @@ void m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra, uaecptr oldpc)
 	    SET_CFLG (0);
 	    SET_ZFLG (((uae_s32)quot) == 0);
 	    SET_NFLG (((uae_s32)quot) < 0);
-	    m68k_dreg(regs, extra & 7) = rem;
-	    m68k_dreg(regs, (extra >> 12) & 7) = quot;
+	    m68k_dreg(regs, extra & 7) = (uae_u32)rem;
+	    m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)quot;
 	}
     }
 #else

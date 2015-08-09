@@ -23,7 +23,7 @@
 #ifndef _ROUTER_TYPES_H_
 #define _ROUTER_TYPES_H_
 
-#pragma pack(1)
+#pragma pack(push, 1)
 
 
 // --------------------------- MAC ---------------------------
@@ -31,7 +31,7 @@ typedef struct {
 	uint8 dest[6];
 	uint8 src[6];
 	uint16 type;
-} ATTRIBUTE_PACKED mac_t;
+} mac_t;
 
 enum {
 	mac_type_llc_ipx_limit	= 0x05DC, // <= mac_type_llc_ipx_limit -->> 802.3 MAC frame
@@ -54,7 +54,7 @@ typedef struct {
 	uint8 srcp[4];	// size for ip
 	uint8 dsth[6];	// size for ethernet
 	uint8 dstp[4];	// size for ip
-} ATTRIBUTE_PACKED arp_t;
+} arp_t;
 
 enum {
 	arp_request = 1,
@@ -79,7 +79,7 @@ typedef struct {
 	uint32 src;
 	uint32 dest;
 	// ip options, size = 4 * header_len - 20
-} ATTRIBUTE_PACKED ip_t;
+} ip_t;
 
 // Protocol STD numbers
 enum {
@@ -95,7 +95,7 @@ typedef struct {
 	uint8 code;
 	uint16 checksum;
 	// data
-} ATTRIBUTE_PACKED icmp_t;
+} icmp_t;
 
 enum {
 	icmp_Echo_reply	= 0,
@@ -140,7 +140,7 @@ typedef struct {
 	uint16 urgent_ptr;
 	// options + padding: size = dataoffset*4-20
 	// data
-} ATTRIBUTE_PACKED tcp_t;
+} tcp_t;
 
 enum {
 	tcp_flags_URG = 0x20,	// The urgent pointer field is significant in this segment.
@@ -173,15 +173,15 @@ typedef struct {
 	uint16 msg_len;
 	uint16 checksum;
 	// data
-} ATTRIBUTE_PACKED udp_t;
+} udp_t;
 
 typedef struct {
 	uint16 src_lo, src_hi;
 	uint16 dest_lo, dest_hi;
 	uint16 proto;
 	uint16 msg_len;
-} ATTRIBUTE_PACKED pseudo_ip_t;
+} pseudo_ip_t;
 
-#pragma pack()
+#pragma pack(pop)
 
 #endif // _ROUTER_TYPES_H_

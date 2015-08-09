@@ -21,7 +21,8 @@
  */
 
 #include "sysdeps.h"
-#include <windows.h>
+#include "main.h"
+#include "util_windows.h"
 #include <windowsx.h>
 #include <winioctl.h>
 #include "cpu_emulation.h"
@@ -73,26 +74,18 @@ extern "C" {
 #define MAX_MULTICAST 100
 #define MAX_MULTICAST_SZ (20*ETH_802_3_ADDRESS_LENGTH)
 
-static int os = VER_PLATFORM_WIN32_WINDOWS;
-
 static ULONG packet_filter = 0;
 
 
-LPADAPTER PacketOpenAdapter( LPCSTR AdapterName, int16 mode )
+LPADAPTER PacketOpenAdapter( LPCTSTR AdapterName, int16 mode )
 {
   LPADAPTER  lpAdapter;
   BOOLEAN    Result = TRUE;
-	OSVERSIONINFO osv;
 
   D(bug("Packet32: PacketOpenAdapter\n"));
 
-	osv.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-	if(GetVersionEx( &osv )) os = osv.dwPlatformId;
-
-	if(os == VER_PLATFORM_WIN32_NT) {
-		// May fail if user is not an Administrator.
-		StartPacketDriver( "B2ether" );
-	}
+  // May fail if user is not an Administrator.
+  StartPacketDriver( TEXT("B2ether") );
 
   lpAdapter = (LPADAPTER)GlobalAllocPtr( GMEM_MOVEABLE|GMEM_ZEROINIT, sizeof(ADAPTER) );
   if (lpAdapter==NULL) {
@@ -100,25 +93,21 @@ LPADAPTER PacketOpenAdapter( LPCSTR AdapterName, int16 mode )
       return NULL;
   }
 
-	if(os == VER_PLATFORM_WIN32_NT) {
-		char device_name[256];
-		wsprintf(  lpAdapter->SymbolicLink, "\\\\.\\B2ether_%s", AdapterName );
-		wsprintf(  device_name, "\\Device\\B2ether_%s", AdapterName );
+	TCHAR device_name[256];
+	_sntprintf(lpAdapter->SymbolicLink, lengthof(lpAdapter->SymbolicLink), TEXT("\\\\.\\B2ether_%s"), AdapterName );
+	_sntprintf(device_name, lengthof(device_name), TEXT("\\Device\\B2ether_%s"), AdapterName );
 
-		// Work around one subtle NT4 bug.
-		DefineDosDevice(
-				DDD_REMOVE_DEFINITION,
-				&lpAdapter->SymbolicLink[4],
-				NULL
-		);
-		DefineDosDevice(
-				DDD_RAW_TARGET_PATH,
-				&lpAdapter->SymbolicLink[4],
-				device_name
-		);
-	} else {
-		wsprintf(  lpAdapter->SymbolicLink, "\\\\.\\B2ether" );
-	}
+	// Work around one subtle NT4 bug.
+	DefineDosDevice(
+			DDD_REMOVE_DEFINITION,
+			&lpAdapter->SymbolicLink[4],
+			NULL
+	);
+	DefineDosDevice(
+			DDD_RAW_TARGET_PATH,
+			&lpAdapter->SymbolicLink[4],
+			device_name
+	);
 
 	packet_filter = NDIS_PACKET_TYPE_DIRECTED |
 									NDIS_PACKET_TYPE_MULTICAST |
@@ -138,10 +127,7 @@ LPADAPTER PacketOpenAdapter( LPCSTR AdapterName, int16 mode )
                          0
                          );
     if (lpAdapter->hFile != INVALID_HANDLE_VALUE) {
-			if(*AdapterName && strcmp(AdapterName,"<None>") != 0) {
-				if(os == VER_PLATFORM_WIN32_WINDOWS) {
-					PacketSelectAdapterByName( lpAdapter, AdapterName );
-				}
+			if(*AdapterName && _tcscmp(AdapterName,TEXT("<None>")) != 0) {
 				PacketSetFilter( lpAdapter, packet_filter );
 			}
       return lpAdapter;
@@ -282,58 +268,48 @@ BOOLEAN PacketSendPacket(
   D(bug("Packet32: PacketSendPacket bytes=%d, sync=%d\n",lpPacket->Length,Sync));
 #endif
 
-	if(os == VER_PLATFORM_WIN32_NT) {
-		lpPacket->OverLapped.Offset = 0;
-		lpPacket->OverLapped.OffsetHigh = 0;
-		lpPacket->bIoComplete = FALSE;
+	lpPacket->OverLapped.Offset = 0;
+	lpPacket->OverLapped.OffsetHigh = 0;
+	lpPacket->bIoComplete = FALSE;
 
-		if(Sync) {
-			Result = WriteFile(
-								AdapterObject->hFile,
-								lpPacket->Buffer,
-								lpPacket->Length,
-								&lpPacket->BytesReceived,
-								&lpPacket->OverLapped
-								);
-			if(Result) {
-				Result = GetOverlappedResult(
-									 AdapterObject->hFile,
-									 &lpPacket->OverLapped,
-									 &lpPacket->BytesReceived,
-									 TRUE
-									 );
-			} else {
-				D(bug("Packet32: PacketSendPacket WriteFile failed, err=%d\n",(int)GetLastError()));
-			}
-			lpPacket->bIoComplete = TRUE;
-			if(RecyclingAllowed) PacketFreePacket(lpPacket);
-#if DEBUG_PACKETS
-			D(bug("Packet32: PacketSendPacket result=%d, bytes=%d\n",(int)Result,(int)lpPacket->BytesReceived));
-#endif
+	if(Sync) {
+		Result = WriteFile(
+							AdapterObject->hFile,
+							lpPacket->Buffer,
+							lpPacket->Length,
+							&lpPacket->BytesReceived,
+							&lpPacket->OverLapped
+							);
+		if(Result) {
+			Result = GetOverlappedResult(
+									AdapterObject->hFile,
+									&lpPacket->OverLapped,
+									&lpPacket->BytesReceived,
+									TRUE
+									);
 		} else {
-			// don't care about the result
-			Result = WriteFileEx(
-				AdapterObject->hFile,
-				lpPacket->Buffer,
-				lpPacket->Length,
-				&lpPacket->OverLapped,
-				PacketSendCompletionRoutine
-			);
-#if DEBUG_PACKETS
-			D(bug("Packet32: PacketSendPacket result=%d\n",(int)Result));
-#endif
-			if(!Result && RecyclingAllowed)	{
-				recycle_write_packet(lpPacket);
-			}
+			D(bug("Packet32: PacketSendPacket WriteFile failed, err=%d\n",(int)GetLastError()));
 		}
+		lpPacket->bIoComplete = TRUE;
+		if(RecyclingAllowed) PacketFreePacket(lpPacket);
+#if DEBUG_PACKETS
+		D(bug("Packet32: PacketSendPacket result=%d, bytes=%d\n",(int)Result,(int)lpPacket->BytesReceived));
+#endif
 	} else {
-		// Now: make writes always synchronous under Win9x
-		Sync = TRUE;
-		Result = PacketDeviceIoControl( AdapterObject,
-										lpPacket,
-										IOCTL_PROTOCOL_WRITE,
-										Sync );
-		if(RecyclingAllowed) recycle_write_packet(lpPacket);
+		// don't care about the result
+		Result = WriteFileEx(
+			AdapterObject->hFile,
+			lpPacket->Buffer,
+			lpPacket->Length,
+			&lpPacket->OverLapped,
+			PacketSendCompletionRoutine
+		);
+#if DEBUG_PACKETS
+		D(bug("Packet32: PacketSendPacket result=%d\n",(int)Result));
+#endif
+		if(!Result && RecyclingAllowed)	{
+			recycle_write_packet(lpPacket);
+		}
 	}
 
   return Result;
@@ -347,57 +323,45 @@ BOOLEAN PacketReceivePacket(
 {
   BOOLEAN      Result;
 
-	if(os == VER_PLATFORM_WIN32_NT) {
-		lpPacket->OverLapped.Offset=0;
-		lpPacket->OverLapped.OffsetHigh=0;
-		lpPacket->bIoComplete = FALSE;
+	lpPacket->OverLapped.Offset=0;
+	lpPacket->OverLapped.OffsetHigh=0;
+	lpPacket->bIoComplete = FALSE;
 
 #if DEBUG_PACKETS
-		D(bug("Packet32: PacketReceivePacket\n"));
+	D(bug("Packet32: PacketReceivePacket\n"));
 #endif
 
-		if (Sync) {
-			Result = ReadFile(
-								AdapterObject->hFile,
-								lpPacket->Buffer,
-								lpPacket->Length,
-								&lpPacket->BytesReceived,
-								&lpPacket->OverLapped
-								);
-			if(Result) {
-				Result = GetOverlappedResult(
-									 AdapterObject->hFile,
-									 &lpPacket->OverLapped,
-									 &lpPacket->BytesReceived,
-									 TRUE
-									 );
-				if(Result)
-					lpPacket->bIoComplete = TRUE;
-				else
-					lpPacket->free = TRUE;
-			}
-		} else {
-			Result = ReadFileEx(
-								AdapterObject->hFile,
-								lpPacket->Buffer,
-								lpPacket->Length,
-								&lpPacket->OverLapped,
-								packet_read_completion
-								);
+	if (Sync) {
+		Result = ReadFile(
+							AdapterObject->hFile,
+							lpPacket->Buffer,
+							lpPacket->Length,
+							&lpPacket->BytesReceived,
+							&lpPacket->OverLapped
+							);
+		if(Result) {
+			Result = GetOverlappedResult(
+									AdapterObject->hFile,
+									&lpPacket->OverLapped,
+									&lpPacket->BytesReceived,
+									TRUE
+									);
+			if(Result)
+				lpPacket->bIoComplete = TRUE;
+			else
+				lpPacket->free = TRUE;
 		}
-
-		if(!Result) lpPacket->BytesReceived = 0;
 	} else {
-		Result = PacketDeviceIoControl(	AdapterObject,
-										lpPacket,
-										IOCTL_PROTOCOL_READ,
-										Sync );
-		if( !Result && !Sync ) {
-			if (GetLastError() == ERROR_IO_PENDING) {
-				Result = TRUE;
-			}
-		}
+		Result = ReadFileEx(
+							AdapterObject->hFile,
+							lpPacket->Buffer,
+							lpPacket->Length,
+							&lpPacket->OverLapped,
+							packet_read_completion
+							);
 	}
+
+	if(!Result) lpPacket->BytesReceived = 0;
 
 #if DEBUG_PACKETS
   D(bug("Packet32: PacketReceivePacket got %d bytes, result=%d\n",lpPacket->BytesReceived,(int)Result));
@@ -641,7 +605,7 @@ BOOLEAN PacketSetFilter( LPADAPTER AdapterObject, ULONG Filter )
 	return Status;
 }
 
-BOOLEAN StartPacketDriver( LPTSTR ServiceName )
+BOOLEAN StartPacketDriver( LPCTSTR ServiceName )
 {
   BOOLEAN Status = FALSE;
 
@@ -658,7 +622,7 @@ BOOLEAN StartPacketDriver( LPTSTR ServiceName )
   } else {
     SCServiceHandle = OpenService(SCManagerHandle,ServiceName,SERVICE_START);
     if (SCServiceHandle == NULL) {
-      D(bug("Could not open service %s\r\n",ServiceName));
+      D(bug(TEXT("Could not open service %s\r\n"),ServiceName));
     } else {
 			Status = StartService( SCServiceHandle, 0, NULL );
 			if(!Status) {
@@ -686,7 +650,7 @@ BOOLEAN StartPacketDriver( LPTSTR ServiceName )
 				} else {
 					waiting = FALSE;
 				}
-      }
+		  }
 		  CloseServiceHandle(SCServiceHandle);
 		}
 		CloseServiceHandle(SCManagerHandle);
@@ -694,90 +658,32 @@ BOOLEAN StartPacketDriver( LPTSTR ServiceName )
   return Status;
 }
 
-ULONG PacketGetAdapterNames( LPADAPTER lpAdapter, PTSTR pStr, PULONG BufferSize )
+ULONG PacketGetAdapterNames( LPADAPTER lpAdapter, LPTSTR pStr, PULONG BufferSize )
 {
   LONG Status;
 
-	if(os == VER_PLATFORM_WIN32_NT) {
-		HKEY hKey;
-	  DWORD RegType;
+	HKEY hKey;
+	DWORD RegType;
 
-		Status = RegOpenKey(
-				HKEY_LOCAL_MACHINE,
-				"SYSTEM\\CurrentControlSet\\Services\\B2Ether\\Linkage",
-				&hKey
-		);
-		if( Status == ERROR_SUCCESS ) {
-			Status = RegQueryValueEx(
-								 hKey,
-								 "Export",
-								 NULL,
-								 &RegType,
-								 (LPBYTE)pStr,
-								 BufferSize
-								 );
-			RegCloseKey(hKey);
-		}
-	} else {
-    if (lpAdapter && lpAdapter->hFile != INVALID_HANDLE_VALUE) {
-			LPPACKET Packet = PacketAllocatePacket( lpAdapter, *BufferSize );
-			if(Packet) {
-				memset( pStr, 0, *BufferSize );
-				Packet->Buffer = (PVOID)pStr;
-				Packet->Length = *BufferSize;
-				Status = PacketDeviceIoControl(
-						lpAdapter,
-						Packet,
-						(ULONG)IOCTL_PROTOCOL_MACNAME,
-						TRUE
-				);
-				if(Status) {
-					while(*pStr) {
-						if(*pStr == '|' || *pStr == ' ') *pStr = 0;
-						pStr++;
-					}
-					*(++pStr) = 0;
-					Status = ERROR_SUCCESS;
-				} else {
-					Status = ERROR_ACCESS_DENIED;
-				}
-				*BufferSize = Packet->BytesReceived;
-				PacketFreePacket(Packet);
-			}
-		}
+	Status = RegOpenKey(
+			HKEY_LOCAL_MACHINE,
+			TEXT("SYSTEM\\CurrentControlSet\\Services\\B2Ether\\Linkage"),
+			&hKey
+	);
+	if( Status == ERROR_SUCCESS ) {
+		Status = RegQueryValueEx(
+								hKey,
+								TEXT("Export"),
+								NULL,
+								&RegType,
+								(LPBYTE)pStr,
+								BufferSize
+								);
+		RegCloseKey(hKey);
 	}
 
   return Status;
 }
-
-
-ULONG PacketSelectAdapterByName( LPADAPTER lpAdapter, LPCSTR name )
-{
-  ULONG Status = 0;
-
-	if(os == VER_PLATFORM_WIN32_WINDOWS) {
-		int len = strlen(name) + 1;
-		LPPACKET Packet = PacketAllocatePacket( lpAdapter, len );
-		if(Packet) {
-			Packet->Buffer = (PVOID)name;
-			Packet->Length = len;
-			Status = PacketDeviceIoControl(
-					lpAdapter,
-					Packet,
-					(ULONG)IOCTL_PROTOCOL_SELECT_BY_NAME,
-					TRUE
-			);
-			if(Status) {
-				Status = ERROR_SUCCESS;
-			} else {
-				Status = ERROR_ACCESS_DENIED;
-			}
-			PacketFreePacket(Packet);
-		}
-	}
-  return Status;
-}
-
 
 #ifdef __cplusplus
 }

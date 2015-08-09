@@ -162,6 +162,6 @@ extern sigsegv_address_t sigsegv_get_fault_address(sigsegv_info_t *sip);
 extern sigsegv_address_t sigsegv_get_fault_instruction_address(sigsegv_info_t *sip);
 
 // Define an address that is bound to be invalid for a program counter
-const sigsegv_address_t SIGSEGV_INVALID_ADDRESS = (sigsegv_address_t)(-1UL);
+const sigsegv_address_t SIGSEGV_INVALID_ADDRESS = sigsegv_address_t(-1);
 
 #endif /* SIGSEGV_H */

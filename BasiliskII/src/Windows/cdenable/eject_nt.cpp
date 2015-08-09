@@ -22,7 +22,6 @@
 
 #include "sysdeps.h"
 
-#include "windows.h"
 #include <winioctl.h>
 
 // Prototypes

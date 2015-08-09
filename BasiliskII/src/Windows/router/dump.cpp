@@ -21,6 +21,7 @@
  */
 
 #include "sysdeps.h"
+#include "main.h"
 #include "dump.h"
 
 #if DEBUG

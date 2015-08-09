@@ -25,7 +25,7 @@
 
 #ifdef OPTIMIZED_FLAGS
 
-#if (defined(__i386__) && defined(X86_ASSEMBLY)) || (defined(__x86_64__) && defined(X86_64_ASSEMBLY))
+#if defined(X86_ASSEMBLY) || defined(X86_64_ASSEMBLY) || defined(MSVC_INTRINSICS)
 
 #ifndef SAHF_SETO_PROFITABLE
 
@@ -59,7 +59,7 @@ struct flag_struct {
 
 #define COPY_CARRY	(regflags.x = regflags.cznv)
 
-extern struct flag_struct regflags __asm__ ("regflags");
+extern struct flag_struct regflags ASM_SYM ("regflags");
 
 static __inline__ int cctrue(int cc)
 {
@@ -202,7 +202,7 @@ struct flag_struct {
 
 #define COPY_CARRY	(regflags.x = (regflags.cznv)>>8)
 
-extern struct flag_struct regflags __asm__ ("regflags");
+extern struct flag_struct regflags ASM_SYM("regflags");
 
 static __inline__ int cctrue(int cc)
 {
@@ -352,7 +352,7 @@ static __inline__ int cctrue(int cc)
 
 #endif
 
-#elif defined(__sparc__) && (defined(SPARC_V8_ASSEMBLY) || defined(SPARC_V9_ASSEMBLY))
+#elif defined(SPARC_V8_ASSEMBLY) || defined(SPARC_V9_ASSEMBLY)
 
 struct flag_struct {
     unsigned char nzvc;

@@ -27,6 +27,7 @@
 #include <process.h>
 
 #include "main.h"
+#include "util_windows.h"
 #include "macos_util.h"
 #include "prefs.h"
 #include "serial.h"
@@ -38,7 +39,7 @@
 #undef OutputDebugString
 #define OutputDebugString serial_log_write
 static void serial_log_write( char *s );
-#define SERIAL_LOG_FILE_NAME "serial.log"
+#define SERIAL_LOG_FILE_NAME TEXT("serial.log")
 #include "debug.h"
 #undef D
 #define D(x) if(debug_serial != DB_SERIAL_NONE) (x);
@@ -54,7 +55,7 @@ static int16 debug_serial = DB_SERIAL_NONE;
 
 static HANDLE serial_log_file = INVALID_HANDLE_VALUE;
 
-static void serial_log_open( char *path )
+static void serial_log_open( LPCTSTR path )
 {
 	if(debug_serial == DB_SERIAL_NONE) return;
 
@@ -108,28 +109,27 @@ static void serial_log_write( char *s )
 // Driver private variables
 class XSERDPort : public SERDPort {
 public:
-  XSERDPort(const char *dev, const char *suffix)
+  XSERDPort(LPCTSTR dev, LPCTSTR suffix)
   {
-		D(bug("XSERDPort constructor %s\r\n", dev));
-		// device_name = (char *)dev;
+		D(bug(TEXT("XSERDPort constructor %s\r\n"), dev));
 
 		read_pending = write_pending = false;
 
 		if(dev)
-			strcpy( device_name, (char *)dev );
+			_tcscpy( device_name, dev );
 		else
 			*device_name = 0;
-		strupr(device_name);
-		is_parallel = (strncmp(device_name,"LPT",3) == 0);
-		is_file = (strncmp(device_name,"FILE",4) == 0);
+		_tcsupr(device_name);
+		is_parallel = (_tcsncmp(device_name, TEXT("LPT"), 3) == 0);
+		is_file = (_tcsncmp(device_name, TEXT("FILE"), 4) == 0);
 		if(is_file) {
 			char entry_name[20];
-			wsprintf( entry_name, "portfile%s", suffix );
+			_snprintf( entry_name, lengthof(entry_name), "portfile%s", str(suffix).get() );
 			const char *path = PrefsFindString(entry_name);
 			if(path) {
-				strcpy( output_file_name, path );
+				_tcscpy( output_file_name, tstr(path).get() );
 			} else {
-				strcpy( output_file_name, "C:\\B2TEMP.OUT" );
+				_tcscpy( output_file_name, TEXT("C:\\B2TEMP.OUT") );
 			}
 		}
 
@@ -166,12 +166,12 @@ public:
 private:
 	bool configure(uint16 config);
 	void set_handshake(uint32 s, bool with_dtr);
-	static WINAPI unsigned int input_func(void *arg);
-	static WINAPI unsigned int output_func(void *arg);
+	static unsigned int WINAPI input_func(void *arg);
+	static unsigned int WINAPI output_func(void *arg);
 	static int acknowledge_error(HANDLE h, bool is_read);
 	bool set_timeouts(int bauds, int parity_bits, int stop_bits);
 
-	char device_name[256];
+	TCHAR device_name[256];
 	HANDLE fd;
 
 	bool io_killed;					// Flag: KillIO called, I/O threads must not call deferred tasks
@@ -193,7 +193,7 @@ private:
 	bool is_parallel;							// true if LPTx
 
 	bool is_file;									// true if FILE
-	char output_file_name[256];
+	TCHAR output_file_name[256];
 };
 
 /*
@@ -214,13 +214,13 @@ void SerialInit(void)
 	if(port) {
 		D(bug("SerialInit seriala=%s\r\n",port));
 	}
-  the_serd_port[0] = new XSERDPort(port,"0");
+  the_serd_port[0] = new XSERDPort(tstr(port).get(), TEXT("0"));
 
 	port = PrefsFindString("serialb");
 	if(port) {
 		D(bug("SerialInit serialb=%s\r\n",port));
 	}
-  the_serd_port[1] = new XSERDPort(port,"1");
+  the_serd_port[1] = new XSERDPort(tstr(port).get(), TEXT("1"));
 }
 
 
@@ -249,7 +249,7 @@ int16 XSERDPort::open(uint16 config)
 	if (!device_name || !*device_name)
 		return openErr;
 
-	D(bug("XSERDPort::open device=%s,config=0x%X\r\n",device_name,(int)config));
+	D(bug(TEXT("XSERDPort::open device=%s,config=0x%X\r\n"),device_name,(int)config));
 
 	// Init variables
 	io_killed = false;
@@ -268,7 +268,7 @@ int16 XSERDPort::open(uint16 config)
 	}
 	if(fd == INVALID_HANDLE_VALUE) {
 		goto open_error;
-		D(bug("XSERDPort::open failed to open port %s\r\n",device_name));
+		D(bug(TEXT("XSERDPort::open failed to open port %s\r\n"),device_name));
 	}
 
 	if(is_serial) {
@@ -1046,7 +1046,7 @@ unsigned int XSERDPort::input_func(void *arg)
 	set_desktop();
 #endif
 
-	D(bug("XSERDPort::input_func started for device %s\r\n",s->device_name));
+	D(bug(TEXT("XSERDPort::input_func started for device %s\r\n"),s->device_name));
 
 	for (;;) {
 
@@ -1131,7 +1131,7 @@ unsigned int XSERDPort::output_func(void *arg)
 	set_desktop();
 #endif
 
-	D(bug("XSERDPort::output_func started for device %s\r\n",s->device_name));
+	D(bug(TEXT("XSERDPort::output_func started for device %s\r\n"),s->device_name));
 
 	for (;;) {
 

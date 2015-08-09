@@ -27,7 +27,6 @@
 */
 
 #include "sysdeps.h"
-#include "windows.h"
 #include "cache.h"
 
 #ifdef __cplusplus

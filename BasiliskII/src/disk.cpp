@@ -200,7 +200,7 @@ bool DiskMountVolume(void *fh)
 			WriteMacInt8(info->status + dsWriteProt, info->read_only ? 0xff : 0);
 			find_hfs_partition(*info);
 			if (info->start_byte == 0)
-				info->num_blocks = SysGetFileSize(info->fh) / 512;
+				info->num_blocks = uint32(SysGetFileSize(info->fh) / 512);
 			WriteMacInt16(info->status + dsDriveSize, info->num_blocks & 0xffff);
 			WriteMacInt16(info->status + dsDriveS1, info->num_blocks >> 16);
 			info->to_be_mounted = true;
@@ -288,7 +288,7 @@ int16 DiskOpen(uint32 pb, uint32 dce)
 				WriteMacInt8(info->status + dsWriteProt, info->read_only ? 0x80 : 0);
 				find_hfs_partition(*info);
 				if (info->start_byte == 0)
-					info->num_blocks = SysGetFileSize(info->fh) / 512;
+					info->num_blocks = uint32(SysGetFileSize(info->fh) / 512);
 				info->to_be_mounted = true;
 			}
 			D(bug(" %d blocks\n", info->num_blocks));

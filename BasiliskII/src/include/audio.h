@@ -76,7 +76,7 @@ extern uint32 audio_component_flags;	// Component feature flags
 
 extern vector<uint32> audio_sample_rates;	// Vector of supported sample rates (16.16 fixed point)
 extern vector<uint16> audio_sample_sizes;	// Vector of supported sample sizes
-extern vector<uint16> audio_channel_counts;	// Array of supported channels counts
+extern vector<uint8> audio_channel_counts;	// Array of supported channels counts
 
 // Audio component global data and 68k routines
 enum {

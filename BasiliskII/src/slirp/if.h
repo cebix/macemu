@@ -15,8 +15,8 @@
 
 /* Needed for FreeBSD */
 #undef if_mtu
-extern int	if_mtu;
-extern int	if_mru;	/* MTU and MRU */
+extern size_t	if_mtu;
+extern size_t	if_mru;	/* MTU and MRU */
 extern int	if_comp;	/* Flags for compression */
 extern int	if_maxlinkhdr;
 extern int	if_queued;	/* Number of packets queued so far */

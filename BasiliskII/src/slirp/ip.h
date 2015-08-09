@@ -98,7 +98,7 @@ struct ip {
 } PACKED__;
 
 #ifdef PRAGMA_PACK_SUPPORTED
-#pragma pack(0)
+#pragma pack(PACK_RESET)
 #endif
 
 #define	IP_MAXPACKET	65535		/* maximum packet size */
@@ -168,7 +168,7 @@ struct	ip_timestamp {
 } PACKED__;
 
 #ifdef PRAGMA_PACK_SUPPORTED
-#pragma pack(0)
+#pragma pack(PACK_RESET)
 #endif
 
 /* flag bits for ipt_flg */
@@ -230,7 +230,7 @@ struct ipovly {
 } PACKED__;
 
 #ifdef PRAGMA_PACK_SUPPORTED
-#pragma pack(0)
+#pragma pack(PACK_RESET)
 #endif
 
 /*

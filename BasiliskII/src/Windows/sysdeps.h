@@ -21,7 +21,7 @@
 #ifndef SYSDEPS_H
 #define SYSDEPS_H
 
-#ifndef __STDC__
+#if !defined _MSC_VER && !defined __STDC__
 #error "Your compiler is not ANSI. Get a real one."
 #endif
 
@@ -40,10 +40,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <tchar.h>
 #include <time.h>
-#ifdef __WIN32__
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#endif
+#include <WinSock2.h>
 #include <sys/types.h>
 
 
@@ -78,6 +79,10 @@
 /* ExtFS is supported */
 #define SUPPORTS_EXTFS 1
 
+/* POSIX data types missing from Microsoft's CRT */
+#ifdef _MSC_VER
+typedef ptrdiff_t ssize_t;
+#endif
 
 /* Data types */
 typedef unsigned char uint8;
@@ -123,11 +128,19 @@ typedef int64 intptr;
 #error "Unsupported size of pointer"
 #endif
 
-#ifdef __WIN32__
+#ifdef _WIN32
 typedef int64 loff_t;
 #endif
 #ifndef HAVE_CADDR_T
 typedef char * caddr_t;
+#endif
+
+#ifdef _MSC_VER
+#ifdef _M_IX86
+#define __i386__
+#elif defined _M_AMD64
+#define __x86_64__
+#endif
 #endif
 
 /* Time data type for Time Manager emulation */
@@ -207,31 +220,42 @@ static inline int spin_trylock(spinlock_t *lock)
 }
 #endif
 
-/* Intel x86 */
 #define X86_PPRO_OPT
+#define HAVE_OPTIMIZED_BYTESWAP_32
+#define HAVE_OPTIMIZED_BYTESWAP_16
+
+#ifdef _MSC_VER
+static inline uae_u32 do_get_mem_long(uae_u32 *a) {return _byteswap_ulong(*a);}
+static inline uae_u32 do_get_mem_word(uae_u16 *a) {return _byteswap_ushort(*a);}
+static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {*a = _byteswap_ulong(v);}
+static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {*a = _byteswap_ushort(v);}
+static inline uae_u32 do_byteswap_32_g(uae_u32 v) {return _byteswap_ulong(v);}
+static inline uae_u32 do_byteswap_16_g(uae_u32 v) {return _byteswap_ushort(v);}
+#else
+/* Intel x86 */
 static inline uae_u32 do_get_mem_long(uae_u32 *a) {uint32 retval; __asm__ ("bswap %0" : "=r" (retval) : "0" (*a) : "cc"); return retval;}
 #ifdef X86_PPRO_OPT
 static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint32 retval; __asm__ ("movzwl %w1,%k0\n\tshll $16,%k0\n\tbswapl %k0\n" : "=&r" (retval) : "m" (*a) : "cc"); return retval;}
 #else
 static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint32 retval; __asm__ ("xorl %k0,%k0\n\tmovw %w1,%w0\n\trolw $8,%w0" : "=&r" (retval) : "m" (*a) : "cc"); return retval;}
 #endif
-#define HAVE_GET_WORD_UNSWAPPED
-#define do_get_mem_word_unswapped(a) ((uae_u32)*((uae_u16 *)(a)))
 static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {__asm__ ("bswap %0" : "=r" (v) : "0" (v) : "cc"); *a = v;}
 #ifdef X86_PPRO_OPT
 static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("bswapl %0" : "=&r" (v) : "0" (v << 16) : "cc"); *a = v;}
 #else
 static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v) : "0" (v) : "cc"); *a = v;}
 #endif
-#define HAVE_OPTIMIZED_BYTESWAP_32
 /* bswap doesn't affect condition codes */
 static inline uae_u32 do_byteswap_32_g(uae_u32 v) {__asm__ ("bswap %0" : "=r" (v) : "0" (v)); return v;}
-#define HAVE_OPTIMIZED_BYTESWAP_16
 #ifdef X86_PPRO_OPT
 static inline uae_u32 do_byteswap_16_g(uae_u32 v) {__asm__ ("bswapl %0" : "=&r" (v) : "0" (v << 16) : "cc"); return v;}
 #else
 static inline uae_u32 do_byteswap_16_g(uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v) : "0" (v) : "cc"); return v;}
 #endif
+#endif
+
+#define HAVE_GET_WORD_UNSWAPPED
+#define do_get_mem_word_unswapped(a) ((uae_u32)*((uae_u16 *)(a)))
 
 #ifndef HAVE_OPTIMIZED_BYTESWAP_32
 static inline uae_u32 do_byteswap_32_g(uae_u32 v)
@@ -294,17 +318,19 @@ static inline uae_u32 do_byteswap_16_g(uae_u32 v)
 #define ENUMNAME(name) name
 #define write_log printf
 
-#define ATTRIBUTE_PACKED __attribute__((packed))
-
 #if defined(X86_ASSEMBLY) || defined(X86_64_ASSEMBLY)
-#define ASM_SYM_FOR_FUNC(a) __asm__(a)
+#define ASM_SYM(a) __asm__(a)
 #else
-#define ASM_SYM_FOR_FUNC(a)
+#define ASM_SYM(a)
 #endif
 
 #ifndef REGPARAM
 # define REGPARAM
 #endif
 #define REGPARAM2
+
+#ifdef _MSC_VER
+#define ATTRIBUTE_PACKED
+#endif
 
 #endif

@@ -103,10 +103,10 @@ extern struct instr {
     unsigned int mnemo:8;
     unsigned int cc:4;
     unsigned int plev:2;
-    wordsizes size:2;
-    amodes smode:5;
+    unsigned int size:2;
+    unsigned int smode:5;
     unsigned int stype:3;
-    amodes dmode:5;
+    unsigned int dmode:5;
     unsigned int suse:1;
     unsigned int duse:1;
     unsigned int unused1:1;

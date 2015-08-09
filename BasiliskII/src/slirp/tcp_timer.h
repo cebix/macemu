@@ -130,9 +130,9 @@ extern int tcp_backoff[];
 
 struct tcpcb;
 
-void tcp_fasttimo _P((void));
-void tcp_slowtimo _P((void));
-void tcp_canceltimers _P((struct tcpcb *));
-struct tcpcb * tcp_timers _P((register struct tcpcb *, int));
+void tcp_fasttimo(void);
+void tcp_slowtimo(void);
+void tcp_canceltimers(struct tcpcb *);
+struct tcpcb * tcp_timers(register struct tcpcb *, int);
 
 #endif

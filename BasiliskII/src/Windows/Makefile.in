@@ -37,7 +37,7 @@ CC = @CC@
 CXX = @CXX@
 CFLAGS = @CFLAGS@ $(SDL_CFLAGS)
 CXXFLAGS = @CXXFLAGS@ $(SDL_CFLAGS)
-CPPFLAGS = @CPPFLAGS@ -I../include -I. @CPUINCLUDES@ -I../slirp
+CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../CrossPlatform @CPUINCLUDES@ -I../slirp
 DEFS = @DEFS@ @DEFINES@
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@ -lwsock32 -liphlpapi
@@ -50,7 +50,7 @@ HOST_CXXFLAGS = -O2
 HOST_LDFLAGS =
 
 ## Files
-UNIXSRCS = vm_alloc.cpp vm_alloc.h sigsegv.cpp sigsegv.h video_vosf.h video_blit.cpp video_blit.h
+XPLATSRCS = vm_alloc.cpp vm_alloc.h sigsegv.cpp sigsegv.h video_vosf.h video_blit.cpp video_blit.h
 
 CDENABLESRCS = cdenable/cache.cpp cdenable/eject_nt.cpp cdenable/ntcd.cpp
 
@@ -66,7 +66,7 @@ SRCS = ../main.cpp main_windows.cpp ../prefs.cpp ../prefs_items.cpp prefs_window
     ../scsi.cpp ../dummy/scsi_dummy.cpp ../video.cpp ../SDL/video_sdl.cpp \
     video_blit.cpp ../audio.cpp ../SDL/audio_sdl.cpp clip_windows.cpp \
 	../extfs.cpp extfs_windows.cpp ../user_strings.cpp user_strings_windows.cpp \
-    vm_alloc.cpp sigsegv.cpp posix_emu.cpp util_windows.cpp kernel_windows.cpp \
+    vm_alloc.cpp sigsegv.cpp posix_emu.cpp util_windows.cpp \
     ../dummy/prefs_editor_dummy.cpp BasiliskII.rc \
     $(CDENABLESRCS) $(ROUTERSRCS) $(CPUSRCS) $(SLIRP_OBJS)
 
@@ -91,7 +91,7 @@ endif
 
 all: $(PROGS)
 
-$(UNIXSRCS): %: ../Unix/%
+$(XPLATSRCS): %: ../CrossPlatform/%
 	$(LN_S) $< $@
 
 OBJ_DIR = obj
@@ -114,17 +114,17 @@ SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
 VPATH :=
 VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
 
-$(APP): $(UNIXSRCS) $(OBJ_DIR) $(OBJS)
+$(APP): $(XPLATSRCS) $(OBJ_DIR) $(OBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(OBJS) $(LIBS) $(SDL_LIBS)
 
-$(UI_APP): $(UNIXSRCS) $(OBJ_DIR) $(UI_OBJS)
+$(UI_APP): $(XPLATSRCS) $(OBJ_DIR) $(UI_OBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(UI_OBJS) $(LIBS) $(GTK_LIBS) -mwindows -mno-cygwin
 
 mostlyclean:
 	rm -f $(APP) $(UI_APP) $(OBJ_DIR)/* core* *.core *~ *.bak
 
 clean: mostlyclean
-	rm -f $(UNIXSRCS)
+	rm -f $(XPLATSRCS)
 	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h compemu.cpp compstbl.cpp comptbl.h
 
 distclean: clean

@@ -50,11 +50,11 @@ typedef struct _PACKET {
 
 
 BOOLEAN StartPacketDriver(
-	LPTSTR ServiceName
+	LPCTSTR ServiceName
 );
 
 LPADAPTER PacketOpenAdapter(
-	LPCSTR   AdapterName,
+	LPCTSTR   AdapterName,
 	int16		 mode
 );
 
@@ -95,8 +95,7 @@ BOOLEAN PacketGetMAC( LPADAPTER AdapterObject, LPBYTE address, BOOL permanent );
 BOOLEAN PacketAddMulticast( LPADAPTER AdapterObject, LPBYTE address );
 BOOLEAN PacketDelMulticast( LPADAPTER AdapterObject, LPBYTE address );
 
-ULONG PacketGetAdapterNames( LPADAPTER lpAdapter, PTSTR pStr, PULONG BufferSize );
-ULONG PacketSelectAdapterByName( LPADAPTER  AdapterObject, LPCSTR name );
+ULONG PacketGetAdapterNames( LPADAPTER lpAdapter, LPTSTR pStr, PULONG BufferSize );
 
 // callbacks
 void recycle_write_packet( LPPACKET Packet );

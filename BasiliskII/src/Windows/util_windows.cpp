@@ -23,27 +23,159 @@
 #include "sysdeps.h"
 #include "util_windows.h"
 #include "main.h"
+#include <io.h>
+#include <fcntl.h>
 
 #include <list>
 using std::list;
 
 #include <string>
 using std::string;
+using std::wstring;
+typedef std::basic_string<TCHAR> tstring;
 
-BOOL exists( const char *path )
+std::unique_ptr<char[]> str(const wchar_t* s)
+{
+	auto length = WideCharToMultiByte(CP_ACP, 0, s, -1, nullptr, 0, nullptr, nullptr);
+	if (length == -1)
+		return nullptr;
+
+	std::unique_ptr<char[]> p(new char[length]);
+	WideCharToMultiByte(CP_ACP, 0, s, -1, p.get(), length, nullptr, nullptr);
+	return p;
+}
+
+std::unique_ptr<wchar_t[]> wstr(const char* s)
+{
+	auto length = MultiByteToWideChar(CP_ACP, 0, s, -1, nullptr, 0);
+	if (length == -1)
+		return nullptr;
+
+	std::unique_ptr<wchar_t[]> p(new wchar_t[length]);
+	MultiByteToWideChar(CP_ACP, 0, s, -1, p.get(), length);
+	return p;
+}
+
+string to_string(const wchar_t* s)
+{
+	auto wlen = wcslen(s);	// length without null terminator
+	auto len = WideCharToMultiByte(CP_ACP, 0, s, wlen, nullptr, 0, nullptr, nullptr);
+	if (len == -1)
+		return string();
+
+	string str(len, '\0');
+	WideCharToMultiByte(CP_ACP, 0, s, wlen, &str.front(), len, nullptr, nullptr);
+	return str;
+}
+
+wstring to_wstring(const char* s)
+{
+	auto len = strlen(s);	// length without null terminator
+	auto wlen = MultiByteToWideChar(CP_ACP, 0, s, len, nullptr, 0);
+	if (len == -1)
+		return wstring();
+
+	wstring str(wlen, L'\0');
+	MultiByteToWideChar(CP_ACP, 0, s, len, &str.front(), wlen);
+	return str;
+}
+
+size_t strlcpy(char* dst, const char* src, size_t size)
+{
+	size_t length = strlen(src);
+	if (size-- > 0) {
+		if (length < size)
+			size = length;
+		memcpy(dst, src, size);
+		dst[size] = '\0';
+	}
+	return length;
+}
+
+size_t strlcpy(char* dst, const wchar_t* src, size_t size)
+{
+	size_t length = WideCharToMultiByte(CP_ACP, 0, src, -1, dst, size, nullptr, nullptr);
+	if (size > 0) {
+		if (length == 0)
+			return strlcpy(dst, str(src).get(), size);
+		--length;
+	}
+	return length;
+}
+
+size_t strlcat(char* dst, const char* src, size_t size)
+{
+	char* end = static_cast<char*>(memchr(dst, '\0', size));
+	if (end == nullptr)
+		return size;
+	size_t length = end - dst;
+	return length + strlcpy(end, src, size - length);
+}
+
+size_t strlcat(char* dst, const wchar_t* src, size_t size)
+{
+	char* end = static_cast<char*>(memchr(dst, '\0', size));
+	if (end == nullptr)
+		return size;
+	size_t length = end - dst;
+	return length + strlcpy(end, src, size - length);
+}
+
+size_t wcslcpy(wchar_t* dst, const wchar_t* src, size_t size)
+{
+	size_t length = wcslen(src);
+	if (size-- > 0) {
+		if (length < size)
+			size = length;
+		wmemcpy(dst, src, size);
+		dst[size] = '\0';
+	}
+	return length;
+}
+
+size_t wcslcpy(wchar_t* dst, const char* src, size_t size)
+{
+	size_t length = MultiByteToWideChar(CP_ACP, 0, src, -1, dst, size);
+	if (size > 0) {
+		if (length == 0)
+			return wcslcpy(dst, wstr(src).get(), size);
+		--length;
+	}
+	return length;
+}
+
+size_t wcslcat(wchar_t* dst, const wchar_t* src, size_t size)
+{
+	wchar_t* end = wmemchr(dst, L'\0', size);
+	if (end == nullptr)
+		return size;
+	size_t length = end - dst;
+	return length + wcslcpy(end, src, size - length);
+}
+
+size_t wcslcat(wchar_t* dst, const char* src, size_t size)
+{
+	wchar_t* end = wmemchr(dst, L'\0', size);
+	if (end == nullptr)
+		return size;
+	size_t length = end - dst;
+	return length + wcslcpy(end, src, size - length);
+}
+
+BOOL exists( const TCHAR *path )
 {
 	HFILE h;
 	bool ret = false;
 
-	h = _lopen( path, OF_READ );
-	if(h != HFILE_ERROR) {
+	h = _topen( path, _O_RDONLY | _O_BINARY );
+	if(h != -1) {
 		ret = true;
-		_lclose(h);
+		_close(h);
 	}
 	return(ret);
 }
 
-BOOL create_file( const char *path, DWORD size )
+BOOL create_file( const TCHAR *path, DWORD size )
 {
 	HANDLE h;
 	bool ok = false;
@@ -78,7 +210,7 @@ BOOL create_file( const char *path, DWORD size )
 	return(ok);
 }
 
-int32 get_file_size( const char *path )
+int32 get_file_size( const TCHAR *path )
 {
 	HANDLE h;
 	DWORD size = 0;
@@ -123,22 +255,22 @@ void kill_thread(HANDLE thread)
 
 bool check_drivers(void)
 {
-	char path[_MAX_PATH];
-	GetSystemDirectory(path, sizeof(path));
-	strcat(path, "\\drivers\\cdenable.sys");
+	TCHAR path[_MAX_PATH];
+	GetSystemDirectory(path, lengthof(path));
+	_tcscat(path, TEXT("\\drivers\\cdenable.sys"));
 
 	if (exists(path)) {
 		int32 size = get_file_size(path);
 		if (size != 6112) {
-			char str[256];
-			sprintf(str, "The CD-ROM driver file \"%s\" is too old or corrupted.", path);
+			TCHAR str[256];
+			_sntprintf(str, lengthof(str), TEXT("The CD-ROM driver file \"%s\" is too old or corrupted."), path);
 			ErrorAlert(str);
 			return false;
 		}
 	}
 	else {
-		char str[256];
-		sprintf(str, "The CD-ROM driver file \"%s\" is missing.", path);
+		TCHAR str[256];
+		_sntprintf(str, lengthof(str), TEXT("The CD-ROM driver file \"%s\" is missing."), path);
 		WarningAlert(str);
 	}
 
@@ -151,15 +283,15 @@ bool check_drivers(void)
  */
 
 struct panel_reg {
-	string name;
-	string guid;
+	tstring name;
+	tstring guid;
 };
 
 static list<panel_reg> network_registry;
 typedef list<panel_reg>::const_iterator network_registry_iterator;
 
 #define NETWORK_CONNECTIONS_KEY \
-		"SYSTEM\\CurrentControlSet\\Control\\Network\\{4D36E972-E325-11CE-BFC1-08002BE10318}"
+		TEXT("SYSTEM\\CurrentControlSet\\Control\\Network\\{4D36E972-E325-11CE-BFC1-08002BE10318}")
 
 static void get_network_registry(void)
 {
@@ -182,14 +314,14 @@ static void get_network_registry(void)
 		return;
 
 	while (true) {
-		char enum_name[256];
-		char connection_string[256];
+		TCHAR enum_name[256];
+		TCHAR connection_string[256];
 		HKEY connection_key;
-		char name_data[256];
+		TCHAR name_data[256];
 		DWORD name_type;
-		const char name_string[] = "Name";
+		const TCHAR name_string[] = TEXT("Name");
 
-		len = sizeof (enum_name);
+		len = lengthof(enum_name);
 		status = RegEnumKeyEx(
 			network_connections_key,
 			i,
@@ -202,8 +334,8 @@ static void get_network_registry(void)
 		if (status != ERROR_SUCCESS)
 			break;
 
-		snprintf (connection_string, sizeof(connection_string),
-				  "%s\\%s\\Connection",
+		_sntprintf (connection_string, lengthof(connection_string),
+				  TEXT("%s\\%s\\Connection"),
 				  NETWORK_CONNECTIONS_KEY, enum_name);
 
 		status = RegOpenKeyEx(
@@ -214,7 +346,7 @@ static void get_network_registry(void)
 			&connection_key);
 
 		if (status == ERROR_SUCCESS) {
-			len = sizeof (name_data);
+			len = lengthof(name_data);
 			status = RegQueryValueEx(
 				connection_key,
 				name_string,
@@ -237,24 +369,24 @@ static void get_network_registry(void)
 	RegCloseKey (network_connections_key);
 }
 
-const char *ether_name_to_guid(const char *name)
+const TCHAR *ether_name_to_guid(const TCHAR *name)
 {
 	get_network_registry();
 
 	for (network_registry_iterator it = network_registry.begin(); it != network_registry.end(); it++) {
-		if (strcmp((*it).name.c_str(), name) == 0)
+		if (_tcscmp((*it).name.c_str(), name) == 0)
 			return (*it).guid.c_str();
 	}
 
 	return NULL;
 }
 
-const char *ether_guid_to_name(const char *guid)
+const TCHAR *ether_guid_to_name(const TCHAR *guid)
 {
 	get_network_registry();
 
 	for (network_registry_iterator it = network_registry.begin(); it != network_registry.end(); it++) {
-		if (strcmp((*it).guid.c_str(), guid) == 0)
+		if (_tcscmp((*it).guid.c_str(), guid) == 0)
 			return (*it).name.c_str();
 	}
 
@@ -266,11 +398,11 @@ const char *ether_guid_to_name(const char *guid)
  *  Get TAP-Win32 adapters
  */
 
-#define ADAPTER_KEY "SYSTEM\\CurrentControlSet\\Control\\Class\\{4D36E972-E325-11CE-BFC1-08002BE10318}"
+#define ADAPTER_KEY TEXT("SYSTEM\\CurrentControlSet\\Control\\Class\\{4D36E972-E325-11CE-BFC1-08002BE10318}")
 
-#define TAP_COMPONENT_ID "tap0801"
+#define TAP_COMPONENT_ID TEXT("tap0801")
 
-const char *ether_tap_devices(void)
+const TCHAR *ether_tap_devices(void)
 {
 	HKEY adapter_key;
 	LONG status;
@@ -287,19 +419,19 @@ const char *ether_tap_devices(void)
 	if (status != ERROR_SUCCESS)
 		return NULL;
 
-	list<string> devices;
+	list<tstring> devices;
 
 	while (true) {
-		char enum_name[256];
-		char unit_string[256];
+		TCHAR enum_name[256];
+		TCHAR unit_string[256];
 		HKEY unit_key;
-		char component_id_string[] = "ComponentId";
-		char component_id[256];
-		char net_cfg_instance_id_string[] = "NetCfgInstanceId";
-		char net_cfg_instance_id[256];
+		TCHAR component_id_string[] = TEXT("ComponentId");
+		TCHAR component_id[256];
+		TCHAR net_cfg_instance_id_string[] = TEXT("NetCfgInstanceId");
+		TCHAR net_cfg_instance_id[256];
 		DWORD data_type;
 
-		len = sizeof (enum_name);
+		len = lengthof(enum_name);
 		status = RegEnumKeyEx(
 			adapter_key,
 			i,
@@ -312,7 +444,7 @@ const char *ether_tap_devices(void)
 		if (status != ERROR_SUCCESS)
 			break;
 
-		snprintf (unit_string, sizeof(unit_string), "%s\\%s",
+		_sntprintf (unit_string, lengthof(unit_string), TEXT("%s\\%s"),
 				  ADAPTER_KEY, enum_name);
 
 		status = RegOpenKeyEx(
@@ -323,7 +455,7 @@ const char *ether_tap_devices(void)
 			&unit_key);
 
 		if (status == ERROR_SUCCESS) {
-			len = sizeof (component_id);
+			len = lengthof(component_id);
 			status = RegQueryValueEx(
 				unit_key,
 				component_id_string,
@@ -333,7 +465,7 @@ const char *ether_tap_devices(void)
 				&len);
 
 			if (status == ERROR_SUCCESS && data_type == REG_SZ) {
-				len = sizeof (net_cfg_instance_id);
+				len = lengthof(net_cfg_instance_id);
 				status = RegQueryValueEx(
 					unit_key,
 					net_cfg_instance_id_string,
@@ -343,7 +475,7 @@ const char *ether_tap_devices(void)
 					&len);
 
 				if (status == ERROR_SUCCESS && data_type == REG_SZ) {
-					if (!strcmp (component_id, TAP_COMPONENT_ID))
+					if (!_tcscmp (component_id, TAP_COMPONENT_ID))
 						devices.push_back(net_cfg_instance_id);
 				}
 			}
@@ -358,17 +490,17 @@ const char *ether_tap_devices(void)
 		return NULL;
 
 	// The result is a '\0' separated list of strings
-	list<string>::const_iterator it;
+	list<tstring>::const_iterator it;
 	len = 0;
 	for (it = devices.begin(); it != devices.end(); it++)
 		len += (*it).length() + 1;
 
-	char *names = (char *)malloc(len);
+	TCHAR *names = (TCHAR *)malloc(len * sizeof(TCHAR));
 	if (names) {
-		char *p = names;
+		TCHAR *p = names;
 		for (it = devices.begin(); it != devices.end(); it++) {
 			len = (*it).length();
-			strcpy(p, (*it).c_str());
+			_tcscpy(p, (*it).c_str());
 			p[len] = '\0';
 			p += len + 1;
 		}

@@ -746,7 +746,7 @@ handleExceptions(void *priv)
 
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 // Decode and skip X86 instruction
-#if (defined(i386) || defined(__i386__)) || (defined(__x86_64__) || defined(_M_X64))
+#if (defined(i386) || defined(__i386__) || defined(_M_IX86)) || (defined(__x86_64__) || defined(_M_X64))
 #if defined(__linux__)
 enum {
 #if (defined(i386) || defined(__i386__))

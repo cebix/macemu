@@ -132,7 +132,7 @@ static int translate_map_flags(int vm_flags)
 #ifdef HAVE_WIN32_VM
 static inline LPVOID align_addr_segment(LPVOID addr)
 {
-	return (LPVOID)(((vm_uintptr_t)addr) & -((vm_uintptr_t)65536));
+	return LPVOID(vm_uintptr_t(addr) & ~vm_uintptr_t(0xFFFF));
 }
 
 static inline DWORD align_size_segment(LPVOID addr, DWORD size)

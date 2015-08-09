@@ -1,0 +1,685 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug JIT|Win32">
+      <Configuration>Debug JIT</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug JIT|x64">
+      <Configuration>Debug JIT</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release JIT|Win32">
+      <Configuration>Release JIT</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release JIT|x64">
+      <Configuration>Release JIT</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\adb.cpp" />
+    <ClCompile Include="..\audio.cpp" />
+    <ClCompile Include="..\cdrom.cpp" />
+    <ClCompile Include="..\CrossPlatform\sigsegv.cpp" />
+    <ClCompile Include="..\CrossPlatform\video_blit.cpp" />
+    <ClCompile Include="..\CrossPlatform\vm_alloc.cpp" />
+    <ClCompile Include="..\disk.cpp" />
+    <ClCompile Include="..\dummy\prefs_editor_dummy.cpp" />
+    <ClCompile Include="..\dummy\scsi_dummy.cpp" />
+    <ClCompile Include="..\emul_op.cpp" />
+    <ClCompile Include="..\ether.cpp" />
+    <ClCompile Include="..\extfs.cpp" />
+    <ClCompile Include="..\macos_util.cpp" />
+    <ClCompile Include="..\main.cpp" />
+    <ClCompile Include="..\prefs.cpp" />
+    <ClCompile Include="..\prefs_items.cpp" />
+    <ClCompile Include="..\rom_patches.cpp" />
+    <ClCompile Include="..\rsrc_patches.cpp" />
+    <ClCompile Include="..\scsi.cpp" />
+    <ClCompile Include="..\SDL\audio_sdl.cpp" />
+    <ClCompile Include="..\SDL\video_sdl.cpp" />
+    <ClCompile Include="..\serial.cpp" />
+    <ClCompile Include="..\slirp\bootp.c" />
+    <ClCompile Include="..\slirp\cksum.c" />
+    <ClCompile Include="..\slirp\debug.c" />
+    <ClCompile Include="..\slirp\if.c" />
+    <ClCompile Include="..\slirp\ip_icmp.c" />
+    <ClCompile Include="..\slirp\ip_input.c" />
+    <ClCompile Include="..\slirp\ip_output.c" />
+    <ClCompile Include="..\slirp\mbuf.c" />
+    <ClCompile Include="..\slirp\misc.c" />
+    <ClCompile Include="..\slirp\sbuf.c" />
+    <ClCompile Include="..\slirp\slirp.c" />
+    <ClCompile Include="..\slirp\socket.c" />
+    <ClCompile Include="..\slirp\tcp_input.c" />
+    <ClCompile Include="..\slirp\tcp_output.c" />
+    <ClCompile Include="..\slirp\tcp_subr.c" />
+    <ClCompile Include="..\slirp\tcp_timer.c" />
+    <ClCompile Include="..\slirp\tftp.c" />
+    <ClCompile Include="..\slirp\udp.c" />
+    <ClCompile Include="..\slot_rom.cpp" />
+    <ClCompile Include="..\sony.cpp" />
+    <ClCompile Include="..\timer.cpp" />
+    <ClCompile Include="..\uae_cpu\basilisk_glue.cpp" />
+    <ClCompile Include="..\uae_cpu\compemu.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\uae_cpu\compiler\codegen_x86.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release JIT|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release JIT|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug JIT|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug JIT|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\uae_cpu\compiler\compemu_support.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\uae_cpu\compstbl.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\uae_cpu\cpudefs.cpp" />
+    <ClCompile Include="..\uae_cpu\cpuemu.cpp" />
+    <ClCompile Include="..\uae_cpu\cpuemu_nf.cpp" />
+    <ClCompile Include="..\uae_cpu\cpustbl.cpp" />
+    <ClCompile Include="..\uae_cpu\cpustbl_nf.cpp" />
+    <ClCompile Include="..\uae_cpu\fpu\fpu_ieee.cpp" />
+    <ClCompile Include="..\uae_cpu\memory.cpp" />
+    <ClCompile Include="..\uae_cpu\newcpu.cpp" />
+    <ClCompile Include="..\uae_cpu\readcpu.cpp" />
+    <ClCompile Include="..\user_strings.cpp" />
+    <ClCompile Include="..\video.cpp" />
+    <ClCompile Include="b2ether\packet32.cpp" />
+    <ClCompile Include="cdenable\cache.cpp" />
+    <ClCompile Include="cdenable\eject_nt.cpp" />
+    <ClCompile Include="cdenable\ntcd.cpp" />
+    <ClCompile Include="clip_windows.cpp" />
+    <ClCompile Include="ether_windows.cpp" />
+    <ClCompile Include="extfs_windows.cpp" />
+    <ClCompile Include="main_windows.cpp" />
+    <ClCompile Include="posix_emu.cpp" />
+    <ClCompile Include="prefs_windows.cpp" />
+    <ClCompile Include="router\arp.cpp" />
+    <ClCompile Include="router\dump.cpp" />
+    <ClCompile Include="router\dynsockets.cpp" />
+    <ClCompile Include="router\ftp.cpp" />
+    <ClCompile Include="router\icmp.cpp" />
+    <ClCompile Include="router\iphelp.cpp" />
+    <ClCompile Include="router\ipsocket.cpp" />
+    <ClCompile Include="router\mib\interfaces.cpp" />
+    <ClCompile Include="router\mib\mibaccess.cpp" />
+    <ClCompile Include="router\router.cpp" />
+    <ClCompile Include="router\tcp.cpp" />
+    <ClCompile Include="router\udp.cpp" />
+    <ClCompile Include="serial_windows.cpp" />
+    <ClCompile Include="sys_windows.cpp" />
+    <ClCompile Include="timer_windows.cpp" />
+    <ClCompile Include="user_strings_windows.cpp" />
+    <ClCompile Include="util_windows.cpp" />
+    <ClCompile Include="xpram_windows.cpp" />
+    <ClCompile Include="..\xpram.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="BasiliskII.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="BasiliskII.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\CrossPlatform\sigsegv.h" />
+    <ClInclude Include="..\CrossPlatform\video_blit.h" />
+    <ClInclude Include="..\CrossPlatform\video_vosf.h" />
+    <ClInclude Include="..\CrossPlatform\vm_alloc.h" />
+    <ClInclude Include="..\include\adb.h" />
+    <ClInclude Include="..\include\audio.h" />
+    <ClInclude Include="..\include\audio_defs.h" />
+    <ClInclude Include="..\include\cdrom.h" />
+    <ClInclude Include="..\include\clip.h" />
+    <ClInclude Include="..\include\debug.h" />
+    <ClInclude Include="..\include\disk.h" />
+    <ClInclude Include="..\include\emul_op.h" />
+    <ClInclude Include="..\include\ether.h" />
+    <ClInclude Include="..\include\ether_defs.h" />
+    <ClInclude Include="..\include\extfs.h" />
+    <ClInclude Include="..\include\extfs_defs.h" />
+    <ClInclude Include="..\include\macos_util.h" />
+    <ClInclude Include="..\include\main.h" />
+    <ClInclude Include="..\include\pict.h" />
+    <ClInclude Include="..\include\prefs.h" />
+    <ClInclude Include="..\include\prefs_editor.h" />
+    <ClInclude Include="..\include\rom_patches.h" />
+    <ClInclude Include="..\include\rsrc_patches.h" />
+    <ClInclude Include="..\include\scsi.h" />
+    <ClInclude Include="..\include\serial.h" />
+    <ClInclude Include="..\include\serial_defs.h" />
+    <ClInclude Include="..\include\slot_rom.h" />
+    <ClInclude Include="..\include\sony.h" />
+    <ClInclude Include="..\include\sys.h" />
+    <ClInclude Include="..\include\timer.h" />
+    <ClInclude Include="..\include\user_strings.h" />
+    <ClInclude Include="..\include\version.h" />
+    <ClInclude Include="..\include\video.h" />
+    <ClInclude Include="..\include\video_defs.h" />
+    <ClInclude Include="..\include\xpram.h" />
+    <ClInclude Include="..\slirp\bootp.h" />
+    <ClInclude Include="..\slirp\ctl.h" />
+    <ClInclude Include="..\slirp\debug.h" />
+    <ClInclude Include="..\slirp\icmp_var.h" />
+    <ClInclude Include="..\slirp\if.h" />
+    <ClInclude Include="..\slirp\ip.h" />
+    <ClInclude Include="..\slirp\ip_icmp.h" />
+    <ClInclude Include="..\slirp\libslirp.h" />
+    <ClInclude Include="..\slirp\main.h" />
+    <ClInclude Include="..\slirp\mbuf.h" />
+    <ClInclude Include="..\slirp\misc.h" />
+    <ClInclude Include="..\slirp\sbuf.h" />
+    <ClInclude Include="..\slirp\slirp.h" />
+    <ClInclude Include="..\slirp\slirp_config.h" />
+    <ClInclude Include="..\slirp\socket.h" />
+    <ClInclude Include="..\slirp\tcp.h" />
+    <ClInclude Include="..\slirp\tcpip.h" />
+    <ClInclude Include="..\slirp\tcp_timer.h" />
+    <ClInclude Include="..\slirp\tcp_var.h" />
+    <ClInclude Include="..\slirp\tftp.h" />
+    <ClInclude Include="..\slirp\udp.h" />
+    <ClInclude Include="..\uae_cpu\compiler\codegen_x86.h" />
+    <ClInclude Include="..\uae_cpu\compiler\compemu.h" />
+    <ClInclude Include="..\uae_cpu\comptbl.h" />
+    <ClInclude Include="..\uae_cpu\cputbl.h" />
+    <ClInclude Include="..\uae_cpu\fpu\fpu.h" />
+    <ClInclude Include="..\uae_cpu\fpu\fpu_ieee.h" />
+    <ClInclude Include="..\uae_cpu\fpu\mathlib.h" />
+    <ClInclude Include="..\uae_cpu\fpu\types.h" />
+    <ClInclude Include="..\uae_cpu\m68k.h" />
+    <ClInclude Include="..\uae_cpu\memory.h" />
+    <ClInclude Include="..\uae_cpu\newcpu.h" />
+    <ClInclude Include="..\uae_cpu\noflags.h" />
+    <ClInclude Include="..\uae_cpu\readcpu.h" />
+    <ClInclude Include="..\uae_cpu\spcflags.h" />
+    <ClInclude Include="b2ether\inc\b2ether_hl.h" />
+    <ClInclude Include="b2ether\inc\ntddpack.h" />
+    <ClInclude Include="b2ether\multiopt.h" />
+    <ClInclude Include="cdenable\cache.h" />
+    <ClInclude Include="cdenable\cdenable.h" />
+    <ClInclude Include="cdenable\eject_nt.h" />
+    <ClInclude Include="cdenable\ntcd.h" />
+    <ClInclude Include="cd_defs.h" />
+    <ClInclude Include="config.h" />
+    <ClInclude Include="ether_windows.h" />
+    <ClInclude Include="kernel_windows.h" />
+    <ClInclude Include="posix_emu.h" />
+    <ClInclude Include="router\arp.h" />
+    <ClInclude Include="router\dump.h" />
+    <ClInclude Include="router\dynsockets.h" />
+    <ClInclude Include="router\ftp.h" />
+    <ClInclude Include="router\icmp.h" />
+    <ClInclude Include="router\iphelp.h" />
+    <ClInclude Include="router\ipsocket.h" />
+    <ClInclude Include="router\mib\interfaces.h" />
+    <ClInclude Include="router\mib\mibaccess.h" />
+    <ClInclude Include="router\router.h" />
+    <ClInclude Include="router\router_types.h" />
+    <ClInclude Include="router\tcp.h" />
+    <ClInclude Include="router\udp.h" />
+    <ClInclude Include="sysdeps.h" />
+    <ClInclude Include="user_strings_windows.h" />
+    <ClInclude Include="util_windows.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\SDL-1.2.15\VisualC\SDL\SDL.vcxproj">
+      <Project>{81ce8daf-ebb2-4761-8e45-b71abcca8c68}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\thirdparty\src\SDL-1.2.15\VisualC\SDLmain\SDLmain.vcxproj">
+      <Project>{da956fd3-e142-46f2-9dd5-c78bebb56b7a}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{1AAA5D96-9498-4EB5-A436-0143E2B7A0B0}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>BasiliskII</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140_xp</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140_xp</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug JIT|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140_xp</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug JIT|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140_xp</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140_xp</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140_xp</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release JIT|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140_xp</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release JIT|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140_xp</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="BasiliskII.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="BasiliskII.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug JIT|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="BasiliskII.props" />
+    <Import Project="BasiliskII.DebugJIT.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug JIT|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="BasiliskII.props" />
+    <Import Project="BasiliskII.DebugJIT.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="BasiliskII.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="BasiliskII.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release JIT|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="BasiliskII.props" />
+    <Import Project="BasiliskII.ReleaseJIT.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release JIT|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="BasiliskII.props" />
+    <Import Project="BasiliskII.ReleaseJIT.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <IntDir>$(Configuration)\$(ProjectName)\</IntDir>
+    <CustomBuildBeforeTargets>ClCompile</CustomBuildBeforeTargets>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <CustomBuildBeforeTargets>ClCompile</CustomBuildBeforeTargets>
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug JIT|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <IntDir>$(Configuration)\$(ProjectName)\</IntDir>
+    <CustomBuildBeforeTargets>ClCompile</CustomBuildBeforeTargets>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug JIT|x64'">
+    <CustomBuildBeforeTargets>ClCompile</CustomBuildBeforeTargets>
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <IntDir>$(Configuration)\$(ProjectName)\</IntDir>
+    <CustomBuildBeforeTargets>ClCompile</CustomBuildBeforeTargets>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <CustomBuildBeforeTargets>ClCompile</CustomBuildBeforeTargets>
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release JIT|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <IntDir>$(Configuration)\$(ProjectName)\</IntDir>
+    <CustomBuildBeforeTargets>ClCompile</CustomBuildBeforeTargets>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release JIT|x64'">
+    <CustomBuildBeforeTargets>ClCompile</CustomBuildBeforeTargets>
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>WS2_32.lib;IPHlpApi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <CustomBuildStep>
+      <Command>cd ..\uae_cpu
+"$(ToolsDir)gencpu"
+"$(ToolsDir)gencomp"
+</Command>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Message>Generating CPU emulation sources...</Message>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs>..\uae_cpu\cpustbl.cpp;..\uae_cpu\cpustbl_nf.cpp;..\uae_cpu\cputbl.h;..\uae_cpu\cpuemu.cpp;..\uae_cpu\cpuemu_nf.cpp;..\uae_cpu\compstbl.cpp;..\uae_cpu\comptbl.h;..\uae_cpu\compemu.cpp;%(Outputs)</Outputs>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Inputs>$(ToolsDir)gencpu.exe;$(ToolsDir)gencomp.exe</Inputs>
+    </CustomBuildStep>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>WS2_32.lib;IPHlpApi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <CustomBuildStep>
+      <Command>cd ..\uae_cpu
+"$(ToolsDir)gencpu"
+"$(ToolsDir)gencomp"
+</Command>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Message>Generating CPU emulation sources...</Message>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs>..\uae_cpu\cpustbl.cpp;..\uae_cpu\cpustbl_nf.cpp;..\uae_cpu\cputbl.h;..\uae_cpu\cpuemu.cpp;..\uae_cpu\cpuemu_nf.cpp;..\uae_cpu\compstbl.cpp;..\uae_cpu\comptbl.h;..\uae_cpu\compemu.cpp;%(Outputs)</Outputs>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Inputs>$(ToolsDir)gencpu.exe;$(ToolsDir)gencomp.exe</Inputs>
+    </CustomBuildStep>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug JIT|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;USE_JIT;USE_JIT_FPU;JIT_DEBUG;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>WS2_32.lib;IPHlpApi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <CustomBuildStep>
+      <Command>cd ..\uae_cpu
+"$(ToolsDir)gencpu"
+"$(ToolsDir)gencomp"
+</Command>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Message>Generating CPU emulation sources...</Message>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs>..\uae_cpu\cpustbl.cpp;..\uae_cpu\cpustbl_nf.cpp;..\uae_cpu\cputbl.h;..\uae_cpu\cpuemu.cpp;..\uae_cpu\cpuemu_nf.cpp;..\uae_cpu\compstbl.cpp;..\uae_cpu\comptbl.h;..\uae_cpu\compemu.cpp;%(Outputs)</Outputs>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Inputs>$(ToolsDir)gencpu.exe;$(ToolsDir)gencomp.exe</Inputs>
+    </CustomBuildStep>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug JIT|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;USE_JIT;USE_JIT_FPU;JIT_DEBUG;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>WS2_32.lib;IPHlpApi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <CustomBuildStep>
+      <Command>cd ..\uae_cpu
+"$(ToolsDir)gencpu"
+"$(ToolsDir)gencomp"
+</Command>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Message>Generating CPU emulation sources...</Message>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs>..\uae_cpu\cpustbl.cpp;..\uae_cpu\cpustbl_nf.cpp;..\uae_cpu\cputbl.h;..\uae_cpu\cpuemu.cpp;..\uae_cpu\cpuemu_nf.cpp;..\uae_cpu\compstbl.cpp;..\uae_cpu\comptbl.h;..\uae_cpu\compemu.cpp;%(Outputs)</Outputs>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Inputs>$(ToolsDir)gencpu.exe;$(ToolsDir)gencomp.exe</Inputs>
+    </CustomBuildStep>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;WIN32;_WINDOWS;NDEBUG;OPTIMIZED_FLAGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>WS2_32.lib;IPHlpApi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <CustomBuildStep>
+      <Command>cd ..\uae_cpu
+"$(ToolsDir)gencpu"
+"$(ToolsDir)gencomp"
+</Command>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Message>Generating CPU emulation sources...</Message>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs>..\uae_cpu\cpustbl.cpp;..\uae_cpu\cpustbl_nf.cpp;..\uae_cpu\cputbl.h;..\uae_cpu\cpuemu.cpp;..\uae_cpu\cpuemu_nf.cpp;..\uae_cpu\compstbl.cpp;..\uae_cpu\comptbl.h;..\uae_cpu\compemu.cpp;%(Outputs)</Outputs>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Inputs>$(ToolsDir)gencpu.exe;$(ToolsDir)gencomp.exe</Inputs>
+    </CustomBuildStep>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;WIN32;_WINDOWS;NDEBUG;OPTIMIZED_FLAGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>WS2_32.lib;IPHlpApi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <CustomBuildStep>
+      <Command>cd ..\uae_cpu
+"$(ToolsDir)gencpu"
+"$(ToolsDir)gencomp"
+</Command>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Message>Generating CPU emulation sources...</Message>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs>..\uae_cpu\cpustbl.cpp;..\uae_cpu\cpustbl_nf.cpp;..\uae_cpu\cputbl.h;..\uae_cpu\cpuemu.cpp;..\uae_cpu\cpuemu_nf.cpp;..\uae_cpu\compstbl.cpp;..\uae_cpu\comptbl.h;..\uae_cpu\compemu.cpp;%(Outputs)</Outputs>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Inputs>$(ToolsDir)gencpu.exe;$(ToolsDir)gencomp.exe</Inputs>
+    </CustomBuildStep>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release JIT|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;WIN32;_WINDOWS;NDEBUG;OPTIMIZED_FLAGS;USE_JIT;USE_JIT_FPU;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>WS2_32.lib;IPHlpApi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <CustomBuildStep>
+      <Command>cd ..\uae_cpu
+"$(ToolsDir)gencpu"
+"$(ToolsDir)gencomp"
+</Command>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Message>Generating CPU emulation sources...</Message>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs>..\uae_cpu\cpustbl.cpp;..\uae_cpu\cpustbl_nf.cpp;..\uae_cpu\cputbl.h;..\uae_cpu\cpuemu.cpp;..\uae_cpu\cpuemu_nf.cpp;..\uae_cpu\compstbl.cpp;..\uae_cpu\comptbl.h;..\uae_cpu\compemu.cpp;%(Outputs)</Outputs>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Inputs>$(ToolsDir)gencpu.exe;$(ToolsDir)gencomp.exe</Inputs>
+    </CustomBuildStep>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release JIT|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;WIN32;_WINDOWS;NDEBUG;OPTIMIZED_FLAGS;USE_JIT;USE_JIT_FPU;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>WS2_32.lib;IPHlpApi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <CustomBuildStep>
+      <Command>cd ..\uae_cpu
+"$(ToolsDir)gencpu"
+"$(ToolsDir)gencomp"
+</Command>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Message>Generating CPU emulation sources...</Message>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs>..\uae_cpu\cpustbl.cpp;..\uae_cpu\cpustbl_nf.cpp;..\uae_cpu\cputbl.h;..\uae_cpu\cpuemu.cpp;..\uae_cpu\cpuemu_nf.cpp;..\uae_cpu\compstbl.cpp;..\uae_cpu\comptbl.h;..\uae_cpu\compemu.cpp;%(Outputs)</Outputs>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Inputs>$(ToolsDir)gencpu.exe;$(ToolsDir)gencomp.exe</Inputs>
+    </CustomBuildStep>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

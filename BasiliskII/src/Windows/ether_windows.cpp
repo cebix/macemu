@@ -38,7 +38,7 @@
 #include "b2ether/inc/b2ether_hl.h"
 #include "ether_windows.h"
 #include "router/router.h"
-#include "kernel_windows.h"
+#include "util_windows.h"
 #include "libslirp.h"
 
 // Define to let the slirp library determine the right timeout for select()
@@ -168,17 +168,17 @@ static HANDLE int_sig2 = 0;
 static HANDLE int_send_now = 0;
 
 // Prototypes
-static LPADAPTER tap_open_adapter(const char *dev_name);
+static LPADAPTER tap_open_adapter(LPCTSTR dev_name);
 static void tap_close_adapter(LPADAPTER fd);
 static bool tap_check_version(LPADAPTER fd);
 static bool tap_set_status(LPADAPTER fd, ULONG status);
 static bool tap_get_mac(LPADAPTER fd, LPBYTE addr);
 static bool tap_receive_packet(LPADAPTER fd, LPPACKET lpPacket, BOOLEAN Sync);
 static bool tap_send_packet(LPADAPTER fd, LPPACKET lpPacket, BOOLEAN Sync, BOOLEAN recycle);
-static WINAPI unsigned int slirp_receive_func(void *arg);
-static WINAPI unsigned int ether_thread_feed_int(void *arg);
-static WINAPI unsigned int ether_thread_get_packets_nt(void *arg);
-static WINAPI unsigned int ether_thread_write_packets(void *arg);
+static unsigned int WINAPI slirp_receive_func(void *arg);
+static unsigned int WINAPI ether_thread_feed_int(void *arg);
+static unsigned int WINAPI ether_thread_get_packets_nt(void *arg);
+static unsigned int WINAPI ether_thread_write_packets(void *arg);
 static void init_queue(void);
 static void final_queue(void);
 static bool allocate_read_packets(void);
@@ -218,7 +218,7 @@ static NetProtocol *find_protocol(uint16 type)
 
 bool ether_init(void)
 {
-	char str[256];
+	TCHAR buf[256];
 
 	// Do nothing if no Ethernet device specified
 	const char *name = PrefsFindString("ether");
@@ -248,22 +248,21 @@ bool ether_init(void)
 	// Initialize slirp library
 	if (net_if_type == NET_IF_SLIRP) {
 		if (slirp_init() < 0) {
-			sprintf(str, GetString(STR_SLIRP_NO_DNS_FOUND_WARN));
-			WarningAlert(str);
+			WarningAlert(GetString(STR_SLIRP_NO_DNS_FOUND_WARN));
 			return false;
 		}
 	}
 
 	// Open ethernet device
-	const char *dev_name;
+	decltype(tstr(std::declval<const char*>())) dev_name;
 	switch (net_if_type) {
 	case NET_IF_B2ETHER:
-		dev_name = PrefsFindString("etherguid");
+		dev_name = tstr(PrefsFindString("etherguid"));
 		if (dev_name == NULL || strcmp(name, "b2ether") != 0)
-			dev_name = name;
+			dev_name = tstr(name);
 		break;
 	case NET_IF_TAP:
-		dev_name = PrefsFindString("etherguid");
+		dev_name = tstr(PrefsFindString("etherguid"));
 		break;
 	}
 	if (net_if_type == NET_IF_B2ETHER) {
@@ -272,17 +271,17 @@ bool ether_init(void)
 			goto open_error;
 		}
 
-		fd = PacketOpenAdapter( dev_name, ether_multi_mode );
+		fd = PacketOpenAdapter( dev_name.get(), ether_multi_mode );
 		if (!fd) {
-			sprintf(str, "Could not open ethernet adapter %s.", dev_name);
-			WarningAlert(str);
+			_sntprintf(buf, lengthof(buf), TEXT("Could not open ethernet adapter %s."), dev_name.get());
+			WarningAlert(buf);
 			goto open_error;
 		}
 
 		// Get Ethernet address
 		if(!PacketGetMAC(fd,ether_addr,ether_use_permanent)) {
-			sprintf(str, "Could not get hardware address of device %s. Ethernet is not available.", dev_name);
-			WarningAlert(str);
+			_sntprintf(buf, lengthof(buf), TEXT("Could not get hardware address of device %s. Ethernet is not available."), dev_name.get());
+			WarningAlert(buf);
 			goto open_error;
 		}
 		D(bug("Real ethernet address %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
@@ -306,28 +305,27 @@ bool ether_init(void)
 			goto open_error;
 		}
 
-		fd = tap_open_adapter(dev_name);
+		fd = tap_open_adapter(dev_name.get());
 		if (!fd) {
-			sprintf(str, "Could not open ethernet adapter %s.", dev_name);
-			WarningAlert(str);
+			_sntprintf(buf, lengthof(buf), TEXT("Could not open ethernet adapter %s."), dev_name.get());
+			WarningAlert(buf);
 			goto open_error;
 		}
 
 		if (!tap_check_version(fd)) {
-			sprintf(str, "Minimal TAP-Win32 version supported is %d.%d.", TAP_VERSION_MIN_MAJOR, TAP_VERSION_MIN_MINOR);
-			WarningAlert(str);
+			_sntprintf(buf, lengthof(buf), TEXT("Minimal TAP-Win32 version supported is %d.%d."), TAP_VERSION_MIN_MAJOR, TAP_VERSION_MIN_MINOR);
+			WarningAlert(buf);
 			goto open_error;
 		}
 
 		if (!tap_set_status(fd, true)) {
-			sprintf(str, "Could not set media status to connected.");
-			WarningAlert(str);
+			WarningAlert("Could not set media status to connected.");
 			goto open_error;
 		}
 
 		if (!tap_get_mac(fd, ether_addr)) {
-			sprintf(str, "Could not get hardware address of device %s. Ethernet is not available.", dev_name);
-			WarningAlert(str);
+			_sntprintf(buf, lengthof(buf), TEXT("Could not get hardware address of device %s. Ethernet is not available."), dev_name.get());
+			WarningAlert(buf);
 			goto open_error;
 		}
 		D(bug("Real ethernet address %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
@@ -403,26 +401,10 @@ bool ether_init(void)
 	// No need to enter wait state if we can avoid it.
 	// These all terminate fast.
 
-	if(pfnInitializeCriticalSectionAndSpinCount) {
-		pfnInitializeCriticalSectionAndSpinCount( &fetch_csection, 5000 );
-	} else {
-		InitializeCriticalSection( &fetch_csection );
-	}
-	if(pfnInitializeCriticalSectionAndSpinCount) {
-		pfnInitializeCriticalSectionAndSpinCount( &queue_csection, 5000 );
-	} else {
-		InitializeCriticalSection( &queue_csection );
-	}
-	if(pfnInitializeCriticalSectionAndSpinCount) {
-		pfnInitializeCriticalSectionAndSpinCount( &send_csection, 5000 );
-	} else {
-		InitializeCriticalSection( &send_csection );
-	}
-	if(pfnInitializeCriticalSectionAndSpinCount) {
-		pfnInitializeCriticalSectionAndSpinCount( &wpool_csection, 5000 );
-	} else {
-		InitializeCriticalSection( &wpool_csection );
-	}
+	InitializeCriticalSectionAndSpinCount( &fetch_csection, 5000 );
+	InitializeCriticalSectionAndSpinCount( &queue_csection, 5000 );
+	InitializeCriticalSectionAndSpinCount( &send_csection, 5000 );
+	InitializeCriticalSectionAndSpinCount( &wpool_csection, 5000 );
 
 	ether_th = (HANDLE)_beginthreadex( 0, 0, ether_thread_feed_int, 0, 0, &ether_tid );
 	if (!ether_th) {
@@ -497,8 +479,8 @@ void ether_exit(void)
 	if(int_send_now) ReleaseSemaphore(int_send_now,1,NULL);
 
 	D(bug("CancelIO if needed\n"));
-	if (fd && fd->hFile && pfnCancelIo)
-		pfnCancelIo(fd->hFile);
+	if (fd && fd->hFile)
+		CancelIo(fd->hFile);
 
 	// Wait max 2 secs to shut down pending io. After that, kill them.
 	D(bug("Wait delay\n"));
@@ -992,7 +974,7 @@ static LPPACKET get_write_packet( UINT len )
 	return Packet;
 }
 
-static unsigned int ether_thread_write_packets(void *arg)
+unsigned int WINAPI ether_thread_write_packets(void *arg)
 {
 	LPPACKET Packet;
 
@@ -1184,15 +1166,15 @@ static bool set_wait_request(void)
  *  TAP-Win32 glue
  */
 
-static LPADAPTER tap_open_adapter(const char *dev_name)
+static LPADAPTER tap_open_adapter(LPCTSTR dev_name)
 {
 	fd = (LPADAPTER)GlobalAllocPtr(GMEM_MOVEABLE | GMEM_ZEROINIT, sizeof(*fd));
 	if (fd == NULL)
 		return NULL;
 
-	char dev_path[MAX_PATH];
-	snprintf(dev_path, sizeof(dev_path),
-			 "\\\\.\\Global\\%s.tap", dev_name);
+	TCHAR dev_path[MAX_PATH];
+	_sntprintf(dev_path, lengthof(dev_path),
+			 TEXT("\\\\.\\Global\\%s.tap"), dev_name);
 
 	HANDLE handle = CreateFile(
 		dev_path,
@@ -1246,7 +1228,7 @@ static bool tap_set_status(LPADAPTER fd, ULONG status)
 	DWORD len = 0;
 	return DeviceIoControl(fd->hFile, TAP_IOCTL_SET_MEDIA_STATUS,
 						   &status, sizeof (status),
-						   &status, sizeof (status), &len, NULL);
+						   &status, sizeof (status), &len, NULL) != FALSE;
 }
 
 static bool tap_get_mac(LPADAPTER fd, LPBYTE addr)
@@ -1254,8 +1236,7 @@ static bool tap_get_mac(LPADAPTER fd, LPBYTE addr)
 	DWORD len = 0;
 	return DeviceIoControl(fd->hFile, TAP_IOCTL_GET_MAC,
 						   addr, 6,
-						   addr, 6, &len, NULL);
-						   
+						   addr, 6, &len, NULL) != FALSE;
 }
 
 static VOID CALLBACK tap_write_completion(
@@ -1309,7 +1290,7 @@ static bool tap_send_packet(
 			recycle_write_packet(lpPacket);
 	}
 
-	return Result;
+	return Result != FALSE;
 }
 
 static bool tap_receive_packet(LPADAPTER fd, LPPACKET lpPacket, BOOLEAN Sync)
@@ -1348,7 +1329,7 @@ static bool tap_receive_packet(LPADAPTER fd, LPPACKET lpPacket, BOOLEAN Sync)
 			lpPacket->BytesReceived = 0;
 	}
 
-	return Result;
+	return Result != FALSE;
 }
 
 
@@ -1366,7 +1347,7 @@ void slirp_output(const uint8 *packet, int len)
 	enqueue_packet(packet, len);
 }
 
-static unsigned int slirp_receive_func(void *arg)
+unsigned int WINAPI slirp_receive_func(void *arg)
 {
 	D(bug("slirp_receive_func\n"));
 	thread_active_2 = true;
@@ -1508,7 +1489,7 @@ static void free_read_packets(void)
 	}
 }
 
-static unsigned int ether_thread_get_packets_nt(void *arg)
+unsigned int WINAPI ether_thread_get_packets_nt(void *arg)
 {
 	static uint8 packet[1514];
 	int i, packet_sz = 0;
@@ -1565,7 +1546,7 @@ static unsigned int ether_thread_get_packets_nt(void *arg)
 	return 0;
 }
 
-static unsigned int ether_thread_feed_int(void *arg)
+unsigned int WINAPI ether_thread_feed_int(void *arg)
 {
 	bool looping;
 

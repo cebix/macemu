@@ -223,9 +223,9 @@ icmp_error(msrc, type, code, minsize, message)
   if(!msrc) goto end_error;
   ip = mtod(msrc, struct ip *);
 #if DEBUG  
-  { char bufa[20], bufb[20];
-    strcpy(bufa, inet_ntoa(ip->ip_src));
-    strcpy(bufb, inet_ntoa(ip->ip_dst));
+  { char bufa[INET_ADDRSTRLEN], bufb[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &ip->ip_src, bufa, sizeof(bufa));
+	inet_ntop(AF_INET, &ip->ip_dst, bufb, sizeof(bufb));
     DEBUG_MISC((dfd, " %.16s to %.16s\n", bufa, bufb));
   }
 #endif
@@ -244,7 +244,7 @@ icmp_error(msrc, type, code, minsize, message)
 
   /* make a copy */
   if(!(m=m_get())) goto end_error;               /* get mbuf */
-  { int new_m_size;
+  { u_int new_m_size;
     new_m_size=sizeof(struct ip )+ICMP_MINLEN+msrc->m_len+ICMP_MAXDATALEN;
     if(new_m_size>m->m_size) m_inc(m, new_m_size);
   }
@@ -299,7 +299,7 @@ icmp_error(msrc, type, code, minsize, message)
 
   /* fill in ip */
   ip->ip_hl = hlen >> 2;
-  ip->ip_len = m->m_len;
+  ip->ip_len = (u_int16_t)m->m_len;
   
   ip->ip_tos=((ip->ip_tos & 0x1E) | 0xC0);  /* high priority for errors */
 
