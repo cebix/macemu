@@ -74,7 +74,7 @@ void getouraddr()
 {
 	char buff[256];
 
-	if (gethostname(buff, sizeof(buf)) == 0)
+	if (gethostname(buff, sizeof(buff)) == 0)
 	{
 		struct addrinfo hints = { 0 };
 		hints.ai_flags = AI_NUMERICHOST;
