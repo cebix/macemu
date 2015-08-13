@@ -42,6 +42,12 @@
 #include <string.h>
 #include <tchar.h>
 #include <time.h>
+
+// MinGW Windows headers don't define min/max when compiling in C++
+// mode, so make sure other environments behave the same way.
+#if defined __cplusplus && !defined NOMINMAX
+#define NOMINMAX
+#endif
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <WinSock2.h>
