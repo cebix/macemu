@@ -209,7 +209,7 @@ static void usage(const char *prg_name)
 
 int main(int argc, char **argv)
 {
-	char str[256];
+	char errstr[256];
 	bool cd_boot = false;
 
 	// Initialize variables
@@ -297,9 +297,8 @@ int main(int argc, char **argv)
 #endif
 	assert(sdl_flags != 0);
 	if (SDL_Init(sdl_flags) == -1) {
-		char str[256];
-		sprintf(str, "Could not initialize SDL: %s.\n", SDL_GetError());
-		ErrorAlert(str);
+		sprintf(errstr, "Could not initialize SDL: %s.\n", SDL_GetError());
+		ErrorAlert(errstr);
 		QuitEmulator();
 	}
 	atexit(SDL_Quit);
@@ -314,8 +313,8 @@ int main(int argc, char **argv)
 
 	// Install the handler for SIGSEGV
 	if (!sigsegv_install_handler(sigsegv_handler)) {
-		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGSEGV", strerror(errno));
-		ErrorAlert(str);
+		sprintf(errstr, GetString(STR_SIG_INSTALL_ERR), "SIGSEGV", strerror(errno));
+		ErrorAlert(errstr);
 		QuitEmulator();
 	}
 	
@@ -402,8 +401,8 @@ int main(int argc, char **argv)
 	// SDL threads available, start 60Hz thread
 	tick_thread_active = ((tick_thread = SDL_CreateThread(tick_func, NULL)) != NULL);
 	if (!tick_thread_active) {
-		sprintf(str, GetString(STR_TICK_THREAD_ERR), strerror(errno));
-		ErrorAlert(str);
+		sprintf(errstr, GetString(STR_TICK_THREAD_ERR), strerror(errno));
+		ErrorAlert(errstr);
 		QuitEmulator();
 	}
 	D(bug("60Hz thread started\n"));
