@@ -89,6 +89,7 @@ dnl Checks for header files.
 AC_HEADER_STDC
 
 dnl Checks for typedefs, structures, and compiler characteristics.
+AX_CXX_COMPILE_STDCXX_11(noext, mandatory)
 AC_C_BIGENDIAN
 AC_C_CONST
 AC_C_INLINE
