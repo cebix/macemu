@@ -1,9 +1,8 @@
-// #include <ntddndis.h>
-
 #ifndef __NTDDPACKET
 #define __NTDDPACKET 1
 
-// #include <devioctl.h>
+#include <ntddndis.h>
+#include <devioctl.h>
 
 #define        MAX_LINK_NAME_LENGTH   124
 
@@ -12,7 +11,7 @@ typedef struct _PACKET_OID_DATA {
 	ULONG           Oid;
 	ULONG           Length;
 	UCHAR           Data[1];
-} ATTRIBUTE_PACKED  PACKET_OID_DATA, *PPACKET_OID_DATA;
+} PACKET_OID_DATA, *PPACKET_OID_DATA;
 #pragma pack()
 
 

@@ -335,8 +335,4 @@ static inline uae_u32 do_byteswap_16_g(uae_u32 v)
 #endif
 #define REGPARAM2
 
-#ifdef _MSC_VER
-#define ATTRIBUTE_PACKED
-#endif
-
 #endif

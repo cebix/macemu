@@ -26,14 +26,6 @@
 #include <windowsx.h>
 #include <winioctl.h>
 #include "cpu_emulation.h"
-typedef unsigned long ULONG_PTR, *PULONG_PTR;
-
-// VC6 does not have this, Platform SDK has.
-// In case of errors, try to comment out, the needed
-// definitions are below (#ifndef _NTDDNDIS_)
-
-// Most people don't have the Platform SDK, so I take this one out.
-// #include <ntddndis.h>
 
 #include "inc/ntddpack.h"
 
@@ -41,23 +33,6 @@ typedef unsigned long ULONG_PTR, *PULONG_PTR;
 #include "ether_defs.h"
 #include "b2ether/multiopt.h"
 #include "b2ether/inc/b2ether_hl.h"
-
-
-
-#ifndef _NTDDNDIS_
-#define NDIS_PACKET_TYPE_DIRECTED					0x00000001
-#define NDIS_PACKET_TYPE_MULTICAST				0x00000002
-#define NDIS_PACKET_TYPE_ALL_MULTICAST		0x00000004
-#define NDIS_PACKET_TYPE_BROADCAST				0x00000008
-#define NDIS_PACKET_TYPE_SOURCE_ROUTING		0x00000010
-#define NDIS_PACKET_TYPE_PROMISCUOUS			0x00000020
-
-#define OID_802_3_PERMANENT_ADDRESS				0x01010101
-#define OID_802_3_CURRENT_ADDRESS					0x01010102
-#define OID_802_3_MULTICAST_LIST					0x01010103
-
-#define OID_GEN_CURRENT_PACKET_FILTER			0x0001010E
-#endif
 
 #define DEBUG_PACKETS 0
 #define DEBUG 0
