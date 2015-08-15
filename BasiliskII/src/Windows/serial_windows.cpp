@@ -23,9 +23,6 @@
 // TODO: serial i/o threads should have high priority.
 #include "sysdeps.h"
 
-#include <ctype.h>
-#include <process.h>
-
 #include "main.h"
 #include "util_windows.h"
 #include "macos_util.h"
@@ -33,6 +30,12 @@
 #include "serial.h"
 #include "serial_defs.h"
 #include "cpu_emulation.h"
+
+#include <algorithm>
+using std::min;
+
+#include <ctype.h>
+#include <process.h>
 
 // This must be always on.
 #define DEBUG 1
@@ -166,8 +169,8 @@ public:
 private:
 	bool configure(uint16 config);
 	void set_handshake(uint32 s, bool with_dtr);
-	static unsigned int WINAPI input_func(void *arg);
-	static unsigned int WINAPI output_func(void *arg);
+	static DWORD WINAPI input_func(LPVOID arg);
+	static DWORD WINAPI output_func(LPVOID arg);
 	static int acknowledge_error(HANDLE h, bool is_read);
 	bool set_timeouts(int bauds, int parity_bits, int stop_bits);
 
@@ -178,12 +181,12 @@ private:
 	bool quitting;					// Flag: Quit threads
 
 	HANDLE input_thread_active;		// Handle: Input thread installed (was a bool)
-	unsigned int input_thread_id;
+	DWORD input_thread_id;
 	HANDLE input_signal;				  // Signal for input thread: execute command
 	uint32 input_pb, input_dce;		// Command parameters for input thread
 
 	HANDLE output_thread_active;	// Handle: Output thread installed (was a bool)
-	unsigned int output_thread_id;
+	DWORD output_thread_id;
 	HANDLE output_signal;			    // Signal for output thread: execute command
 	uint32 output_pb, output_dce;	// Command parameters for output thread
 
@@ -246,7 +249,7 @@ void SerialExit(void)
 int16 XSERDPort::open(uint16 config)
 {
 	// Don't open NULL name devices
-	if (!device_name || !*device_name)
+	if (!*device_name)
 		return openErr;
 
 	D(bug(TEXT("XSERDPort::open device=%s,config=0x%X\r\n"),device_name,(int)config));
@@ -296,8 +299,8 @@ int16 XSERDPort::open(uint16 config)
 
 	D(bug("Semaphores created\r\n"));
 
-	input_thread_active = (HANDLE)_beginthreadex( 0, 0, input_func, (LPVOID)this, 0, &input_thread_id );
-	output_thread_active = (HANDLE)_beginthreadex( 0, 0, output_func, (LPVOID)this, 0, &output_thread_id );
+	input_thread_active = CreateThread( NULL, 0, input_func, this, 0, &input_thread_id );
+	output_thread_active = CreateThread( NULL, 0, output_func, this, 0, &output_thread_id );
 
 	if (!input_thread_active || !output_thread_active)
 		goto open_error;
@@ -310,12 +313,12 @@ open_error:
 	if (input_thread_active) {
 		TerminateThread(input_thread_active,0);
 		CloseHandle(input_signal);
-		input_thread_active = false;
+		input_thread_active = NULL;
 	}
 	if (output_thread_active) {
 		TerminateThread(output_thread_active,0);
 		CloseHandle(output_signal);
-		output_thread_active = false;
+		output_thread_active = NULL;
 	}
 	if(fd != INVALID_HANDLE_VALUE) {
 		CloseHandle(fd);
@@ -674,13 +677,13 @@ int16 XSERDPort::close()
 	if (input_thread_active) {
 		quitting = true;
 		ReleaseSemaphore(input_signal,1,NULL);
-		input_thread_active = false;
+		input_thread_active = NULL;
 		CloseHandle(input_signal);
 	}
 	if (output_thread_active) {
 		quitting = true;
 		ReleaseSemaphore(output_signal,1,NULL);
-		output_thread_active = false;
+		output_thread_active = NULL;
 		// bugfix: was: CloseHandle(&output_signal);
 		CloseHandle(output_signal);
 	}
@@ -1018,7 +1021,7 @@ static void dump_dirst_bytes( BYTE *buf, int32 actual )
 	if(debug_serial != DB_SERIAL_LOUD) return;
 
 	BYTE b[256];
-	int32 i, bytes = min(actual,sizeof(b)-3);
+	int32 i, bytes = min(actual,int32(sizeof(b)-3));
 
 	for (i=0; i<bytes; i++) {
 		b[i] = isprint(buf[i]) ? buf[i] : '.';
@@ -1035,7 +1038,7 @@ static void dump_dirst_bytes( BYTE *buf, int32 actual )
  *  Data input thread
  */
 
-unsigned int XSERDPort::input_func(void *arg)
+DWORD WINAPI XSERDPort::input_func(LPVOID arg)
 {
 	XSERDPort *s = (XSERDPort *)arg;
 	int error_code;
@@ -1110,8 +1113,6 @@ unsigned int XSERDPort::input_func(void *arg)
 
 	D(bug("XSERDPort::input_func terminating gracefully\r\n"));
 
-	_endthreadex( 0 );
-
 	return(0);
 }
 
@@ -1120,7 +1121,7 @@ unsigned int XSERDPort::input_func(void *arg)
  *  Data output thread
  */
 
-unsigned int XSERDPort::output_func(void *arg)
+DWORD WINAPI XSERDPort::output_func(LPVOID arg)
 {
 	XSERDPort *s = (XSERDPort *)arg;
 	int error_code;
@@ -1191,8 +1192,6 @@ unsigned int XSERDPort::output_func(void *arg)
 	}
 
 	D(bug("XSERDPort::output_func terminating gracefully\r\n"));
-
-	_endthreadex( 0 );
 
 	return(0);
 }
