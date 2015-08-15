@@ -50,9 +50,9 @@ HOST_CXXFLAGS = -O2
 HOST_LDFLAGS =
 
 ## Files
-XPLATSRCS = vm_alloc.cpp vm_alloc.h sigsegv.cpp sigsegv.h video_vosf.h video_blit.cpp video_blit.h
+XPLATSRCS = ../CrossPlatform/vm_alloc.cpp ../CrossPlatform/sigsegv.cpp ../CrossPlatform/video_blit.cpp
 
-CDENABLESRCS = cdenable/cache.cpp cdenable/eject_nt.cpp cdenable/ntcd.cpp
+CDENABLESRCS = @CDENABLESRCS@
 
 ROUTERSRCS =  router/arp.cpp router/dump.cpp router/dynsockets.cpp router/ftp.cpp \
 	router/icmp.cpp router/mib/interfaces.cpp router/iphelp.cpp router/ipsocket.cpp \
@@ -68,7 +68,7 @@ SRCS = ../main.cpp main_windows.cpp ../prefs.cpp ../prefs_items.cpp prefs_window
 	../extfs.cpp extfs_windows.cpp ../user_strings.cpp user_strings_windows.cpp \
     vm_alloc.cpp sigsegv.cpp posix_emu.cpp util_windows.cpp \
     ../dummy/prefs_editor_dummy.cpp BasiliskII.rc \
-    $(CDENABLESRCS) $(ROUTERSRCS) $(CPUSRCS) $(SLIRP_OBJS)
+    $(CDENABLESRCS) $(ROUTERSRCS) $(CPUSRCS) $(SLIRP_OBJS) $(XPLATSRCS)
 
 UI_SRCS = ../prefs.cpp prefs_windows.cpp prefs_editor_gtk.cpp xpram_windows.cpp \
 	../prefs_items.cpp ../user_strings.cpp user_strings_windows.cpp util_windows.cpp \
@@ -91,9 +91,6 @@ endif
 
 all: $(PROGS)
 
-$(XPLATSRCS): %: ../CrossPlatform/%
-	$(LN_S) $< $@
-
 OBJ_DIR = obj
 $(OBJ_DIR)::
 	@[ -d $(OBJ_DIR) ] || mkdir $(OBJ_DIR) > /dev/null 2>&1
@@ -114,17 +111,16 @@ SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
 VPATH :=
 VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
 
-$(APP): $(XPLATSRCS) $(OBJ_DIR) $(OBJS)
+$(APP): $(OBJ_DIR) $(OBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(OBJS) $(LIBS) $(SDL_LIBS)
 
-$(UI_APP): $(XPLATSRCS) $(OBJ_DIR) $(UI_OBJS)
+$(UI_APP): $(OBJ_DIR) $(UI_OBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(UI_OBJS) $(LIBS) $(GTK_LIBS) -mwindows
 
 mostlyclean:
 	rm -f $(APP) $(UI_APP) $(OBJ_DIR)/* core* *.core *~ *.bak
 
 clean: mostlyclean
-	rm -f $(XPLATSRCS)
 	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h compemu.cpp compstbl.cpp comptbl.h
 
 distclean: clean

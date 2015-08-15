@@ -331,6 +331,13 @@ else
   JITSRCS=""
 fi
 
+dnl Add cdenable sources only for 32-bit builds.
+if [[ "x$HAVE_X86_64" = "xyes" ]]; then
+  CDENABLESRCS=""
+else
+  CDENABLESRCS="cdenable/cache.cpp cdenable/eject_nt.cpp cdenable/ntcd.cpp"
+fi
+
 dnl Utility macro used by next two tests.
 dnl AC_EXAMINE_OBJECT(C source code,
 dnl	commands examining object file,
@@ -553,6 +560,7 @@ dnl Generate Makefile.
 AC_SUBST(DEFINES)
 AC_SUBST(CPUINCLUDES)
 AC_SUBST(CPUSRCS)
+AC_SUBST(CDENABLESRCS)
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
 
