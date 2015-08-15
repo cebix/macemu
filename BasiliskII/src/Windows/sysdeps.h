@@ -283,7 +283,7 @@ static inline uae_u32 do_byteswap_16_g(uae_u32 v)
 #if defined(__GNUC__)
 #define do_byteswap_16(x)						\
 		(__extension__							\
-		 ({ register uint16 __v, __x = (x);		\
+		 ({ uint16 __v, __x = (x);		\
 		 if (__builtin_constant_p(__x))			\
 		   __v = do_byteswap_16_c(__x);			\
 		 else									\
@@ -292,7 +292,7 @@ static inline uae_u32 do_byteswap_16_g(uae_u32 v)
 
 #define do_byteswap_32(x)						\
 		(__extension__							\
-		 ({ register uint32 __v, __x = (x);		\
+		 ({ uint32 __v, __x = (x);		\
 		 if (__builtin_constant_p(__x))			\
 		   __v = do_byteswap_32_c(__x);			\
 		 else									\
