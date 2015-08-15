@@ -78,6 +78,21 @@ extern int my_errno;
 
 // must hook all other functions that manipulate file names
 #ifndef NO_POSIX_API_HOOK
+#undef stat
+#undef fstat
+#undef open
+#undef rename
+#undef access
+#undef mkdir
+#undef remove
+#undef creat
+#undef close
+#undef lseek
+#undef read
+#undef write
+#undef ftruncate
+#undef locking
+
 #define stat my_stat
 #define fstat my_fstat
 #define open my_open
