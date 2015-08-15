@@ -6,3 +6,12 @@
 
 # Mac OS X metadata
 *.DS_Store
+
+# Generated files
+Makefile
+aclocal.m4
+autom4te.cache
+config.h.in
+config.log
+config.status
+configure
