@@ -43,8 +43,8 @@ LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@ -lwsock32 -liphlpapi
 CPUSRCS = @CPUSRCS@
 
-HOST_CC = gcc
-HOST_CXX = g++
+HOST_CC = cc
+HOST_CXX = c++
 HOST_CFLAGS = -O2
 HOST_CXXFLAGS = -O2
 HOST_LDFLAGS =

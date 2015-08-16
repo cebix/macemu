@@ -64,10 +64,10 @@ case "$target_cpu" in
 esac
 
 dnl Checks for programs.
-AC_PROG_CC
+AC_PROG_CC([cc clang gcc])
 AC_PROG_CC_C_O
 AC_PROG_CPP
-AC_PROG_CXX
+AC_PROG_CXX([c++ clang++ g++])
 AC_PROG_MAKE_SET
 AC_PROG_EGREP
 AC_PROG_LN_S
