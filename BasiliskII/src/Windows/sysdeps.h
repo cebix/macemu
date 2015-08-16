@@ -85,6 +85,11 @@
 /* ExtFS is supported */
 #define SUPPORTS_EXTFS 1
 
+/* Disable specific warnings */
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wswitch"
+#endif
+
 /* POSIX data types missing from Microsoft's CRT */
 #ifdef _MSC_VER
 typedef ptrdiff_t ssize_t;
