@@ -63,7 +63,42 @@ void redir_x(u_int32_t inaddr, int start_port, int display, int screen)
 #ifndef HAVE_INET_ATON
 int inet_aton(const char *cp, struct in_addr *ia)
 {
+#if !defined _WIN32_WINNT || _WIN32_WINNT >= _WIN32_WINNT_VISTA
 	return inet_pton(AF_INET, cp, &ia->s_addr);
+#else
+	u_int32_t addr = inet_addr(cp);
+	if (addr == 0xffffffff)
+		return 0;
+	ia->s_addr = addr;
+	return 1;
+#endif
+}
+#endif
+
+#if defined _WIN32_WINNT && _WIN32_WINNT < _WIN32_WINNT_VISTA
+const char* inet_ntop(int af, const void* restrict src, char* restrict dst, socklen_t size)
+{
+	if (af != AF_INET)
+	{
+		WSASetLastError(WSAEAFNOSUPPORT);
+		return NULL;
+	}
+
+	if (src == NULL || dst == NULL || size == 0)
+	{
+		WSASetLastError(ERROR_INVALID_PARAMETER);
+		return NULL;
+	}
+
+	strncpy(dst, inet_ntoa(*(const struct in_addr*)src), size);
+	if (dst[size - 1] != '\0')
+	{
+		dst[0] = '\0';
+		WSASetLastError(ERROR_INVALID_PARAMETER);
+		return NULL;
+	}
+
+	return dst;
 }
 #endif
 

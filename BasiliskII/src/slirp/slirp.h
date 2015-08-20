@@ -148,10 +148,6 @@ void *malloc(size_t arg);
 void free(void *ptr);
 #endif
 
-#ifndef HAVE_INET_ATON
-int inet_aton(const char *cp, struct in_addr *ia);
-#endif
-
 #include <fcntl.h>
 #ifdef _WIN32
 #include <io.h>

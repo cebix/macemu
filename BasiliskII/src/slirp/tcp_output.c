@@ -135,7 +135,7 @@ again:
 
 	len = min(so->so_snd.sb_cc, win) - off;
 
-	if (len < 0) {
+	if ((int)len < 0) {
 		/*
 		 * If FIN has been sent but not acked,
 		 * but we haven't been called to retransmit,
