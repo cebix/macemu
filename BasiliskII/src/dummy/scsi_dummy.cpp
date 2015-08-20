@@ -80,7 +80,7 @@ bool scsi_set_target(int id, int lun)
  *  read/write data according to S/G table (returns false on error)
  */
 
-bool scsi_send_cmd(size_t data_length, bool reading, int sg_size, uint8 **sg_ptr, uint32 *sg_len, uint16 *stat, uint32 timeout)
+bool scsi_send_cmd(size_t data_length, bool reading, int sg_size, void* const* sg_ptr, uint32* sg_len, uint16* stat, uint32 timeout)
 {
 	return false;
 }

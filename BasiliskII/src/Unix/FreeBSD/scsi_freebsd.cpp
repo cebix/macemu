@@ -610,7 +610,7 @@ static bool try_buffer(int size)
 	return true;
 }
 
-bool scsi_send_cmd(size_t data_length, bool reading, int sg_size, uint8 **sg_ptr, uint32 *sg_len, uint16 *stat, uint32 timeout)
+bool scsi_send_cmd(size_t data_length, bool reading, int sg_size, void* const* sg_ptr, uint32* sg_len, uint16* stat, uint32 timeout)
 {
 	int value = 0;
 #ifdef CAM
@@ -730,9 +730,9 @@ bool scsi_send_cmd(size_t data_length, bool reading, int sg_size, uint8 **sg_ptr
 			static char line[16];
 			for(int r=0, x=0;x<len;x++) {
 				if(x!=0&&x%16==0) { D(bug("%s\n", line)); r = 0; } 
-				line[r++] = isprint(sg_ptr[i][x])?sg_ptr[i][x]:'.';
+				line[r++] = isprint(((uint8*)sg_ptr[i])[x])?((uint8*)sg_ptr[i])[x]:'.';
 				line[r] = 0;
-				D(bug("%02x ", sg_ptr[i][x]));
+				D(bug("%02x ", (uint8*)(sg_ptr[i])[x]));
 			}
 #endif /* VERBOSE_CAM_DEBUG */
 #endif /* CAM */

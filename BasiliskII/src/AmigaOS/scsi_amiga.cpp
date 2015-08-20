@@ -213,7 +213,7 @@ bool scsi_set_target(int id, int lun)
  *  read/write data according to S/G table (returns false on error); timeout is in 1/60 sec
  */
 
-bool scsi_send_cmd(size_t data_length, bool reading, int sg_size, uint8 **sg_ptr, uint32 *sg_len, uint16 *stat, uint32 timeout)
+bool scsi_send_cmd(size_t data_length, bool reading, int sg_size, void* const* sg_ptr, uint32* sg_len, uint16* stat, uint32 timeout)
 {
 	// Bypass the buffer if there's only one S/G table entry
 	bool do_direct_transfer = (sg_size == 1 && ((uint32)sg_ptr[0] & 1) == 0 && direct_transfers_supported);
