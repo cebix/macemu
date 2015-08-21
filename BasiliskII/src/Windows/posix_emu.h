@@ -125,13 +125,16 @@ struct my_stat {
   short st_uid;
   short st_gid;
   _dev_t st_rdev;
+#if __MINGW32__ && !defined _USE_32BIT_TIME_T
+  __int64 st_size;
+#else
   _off_t st_size;
+#endif
   time_t st_atime;
   time_t st_mtime;
   time_t st_ctime;
 };
-
-// Your compiler may have different "struct stat" -> edit "struct my_stat"
-#define validate_stat_struct ( sizeof(struct my_stat) == sizeof(struct stat) )
+static_assert(sizeof(struct stat) == sizeof(struct my_stat),
+    "Your compiler may have different struct stat -> edit struct my_stat");
 
 #define st_crtime st_ctime

@@ -323,11 +323,6 @@ static bool is_ntfs_volume(LPCTSTR rootdir)
 // !!UNC
 void init_posix_emu(void)
 {
-	if(!validate_stat_struct) {
-		ErrorAlert( "Invalid struct my_stat -- edit posix_emu.h" );
-		QuitEmulator();
-	}
-
 #if DEBUG_EXTFS
 	debug_extfs = PrefsFindInt16("debugextfs");
 
