@@ -305,6 +305,11 @@ elif [[ "x$HAVE_GCC30" = "xyes" -a "x$HAVE_X86_64" = "xyes" ]]; then
   fi
 fi
 
+dnl If building using mingw, prefer 64-bit time_t.
+case "$host_os" in
+    mingw*) DEFINES="$DEFINES -D__MINGW_USE_VC2005_COMPAT"
+esac
+
 dnl Enable JIT compiler, if possible.
 if [[ "x$WANT_JIT" = "xyes" -a "x$CAN_JIT" ]]; then
   JITSRCS="$JITSRCS ../uae_cpu/compiler/compemu_support.cpp ../uae_cpu/compiler/compemu_fpp.cpp compstbl.o cpustbl_nf.o"
@@ -329,13 +334,6 @@ else
   WANT_JIT=no
   WANT_JIT_DEBUG=no
   JITSRCS=""
-fi
-
-dnl Add cdenable sources only for 32-bit builds.
-if [[ "x$HAVE_X86_64" = "xyes" ]]; then
-  CDENABLESRCS=""
-else
-  CDENABLESRCS="cdenable/cache.cpp cdenable/eject_nt.cpp cdenable/ntcd.cpp"
 fi
 
 dnl Utility macro used by next two tests.
@@ -530,6 +528,9 @@ AC_CHECK_FUNCS(isnan isinf finite isnormal signbit)
 dnl UAE CPU sources for all non-m68k-native architectures.
 CPUINCLUDES="-I../uae_cpu"
 CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp $FPUSRCS cpustbl.cpp cpudefs.cpp $CPUSRCS $JITSRCS"
+
+dnl Eventually, these should be optional.
+CDENABLESRCS="cdenable/cache.cpp cdenable/eject_nt.cpp cdenable/ntcd.cpp"
 
 dnl We really want SDL for now
 AC_CHECK_TOOL(sdl_config, sdl-config, [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
