@@ -40,13 +40,13 @@ CXXFLAGS = @CXXFLAGS@ $(SDL_CFLAGS)
 CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../CrossPlatform @CPUINCLUDES@ -I../slirp
 DEFS = @DEFS@ @DEFINES@
 LDFLAGS = @LDFLAGS@
-LIBS = @LIBS@ -lwsock32 -liphlpapi
+LIBS = @LIBS@ -lws2_32 -liphlpapi
 CPUSRCS = @CPUSRCS@
 
 HOST_CC = cc
 HOST_CXX = c++
-HOST_CFLAGS = -O2
-HOST_CXXFLAGS = -O2
+HOST_CFLAGS = @CFLAGS@
+HOST_CXXFLAGS = @CXXFLAGS@
 HOST_LDFLAGS =
 
 ## Files
@@ -64,9 +64,9 @@ SRCS = ../main.cpp main_windows.cpp ../prefs.cpp ../prefs_items.cpp prefs_window
     timer_windows.cpp ../adb.cpp ../serial.cpp serial_windows.cpp \
     ../ether.cpp ether_windows.cpp ../sony.cpp ../disk.cpp ../cdrom.cpp \
     ../scsi.cpp ../dummy/scsi_dummy.cpp ../video.cpp ../SDL/video_sdl.cpp \
-    video_blit.cpp ../audio.cpp ../SDL/audio_sdl.cpp clip_windows.cpp \
+    ../audio.cpp ../SDL/audio_sdl.cpp clip_windows.cpp \
 	../extfs.cpp extfs_windows.cpp ../user_strings.cpp user_strings_windows.cpp \
-    vm_alloc.cpp sigsegv.cpp posix_emu.cpp util_windows.cpp \
+    posix_emu.cpp util_windows.cpp \
     ../dummy/prefs_editor_dummy.cpp BasiliskII.rc \
     $(CDENABLESRCS) $(ROUTERSRCS) $(CPUSRCS) $(SLIRP_OBJS) $(XPLATSRCS)
 
@@ -145,7 +145,7 @@ $(OBJ_DIR)/%.o : %.cpp
 $(OBJ_DIR)/%.o : %.s
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
 $(OBJ_DIR)/prefs_editor_gtk.o: prefs_editor_gtk.cpp
-	$(CXX) -O2 -mms-bitfields $(CPPFLAGS) $(DEFS) $(GTK_CFLAGS) -c $< -o $@
+	$(CXX) -O2 -mms-bitfields $(CPPFLAGS) $(DEFS) $(GTK_CFLAGS) $(CXXFLAGS) -c $< -o $@
 
 # Windows resources
 $(OBJ_DIR)/%.o: %.rc
