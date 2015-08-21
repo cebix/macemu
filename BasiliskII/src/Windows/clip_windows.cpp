@@ -233,7 +233,7 @@ static void do_getscrap(void **handle, uint32 type, int32 offset)
 						D(bug(" clipping TEXT\n"));
 
 						// Convert text from ISO-Latin1 to Mac charset
-						uint8 *p = Mac2HostAddr(scrap_area);
+						uint8* p = static_cast<uint8*>(Mac2HostAddr(scrap_area));
 						for (uint32 i = 0; i < length; i++) {
 							uint8 c = data[i];
 							if (c < 0x80) {

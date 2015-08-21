@@ -36,7 +36,7 @@
 
 typedef uae_u32 (REGPARAM2 *mem_get_func)(uaecptr) REGPARAM;
 typedef void (REGPARAM2 *mem_put_func)(uaecptr, uae_u32) REGPARAM;
-typedef uae_u8 *(REGPARAM2 *xlate_func)(uaecptr) REGPARAM;
+typedef void* (REGPARAM2 *xlate_func)(uaecptr) REGPARAM;
 
 #undef DIRECT_MEMFUNCS_SUCCESSFUL
 
@@ -67,12 +67,12 @@ extern addrbank frame_bank;	// Frame buffer
 
 /* Default memory access functions */
 
-extern uae_u8 *REGPARAM2 default_xlate(uaecptr addr) REGPARAM;
+extern void* REGPARAM2 default_xlate(uaecptr addr) REGPARAM;
 
 #define bankindex(addr) (((uaecptr)(addr)) >> 16)
 
 #ifdef SAVE_MEMORY_BANKS
-extern addrbank *mem_banks[65536];
+extern addrbank* mem_banks[65536];
 #define get_mem_bank(addr) (*mem_banks[bankindex(addr)])
 #define put_mem_bank(addr, b) (mem_banks[bankindex(addr)] = (b))
 #else
@@ -82,7 +82,7 @@ extern addrbank mem_banks[65536];
 #endif
 
 extern void memory_init(void);
-extern void map_banks(addrbank *bank, int first, int count);
+extern void map_banks(addrbank* bank, int first, int count);
 
 #ifndef NO_INLINE_MEMORY_ACCESS
 
@@ -118,55 +118,55 @@ extern void byteput(uaecptr addr, uae_u32 b);
 #endif /* !DIRECT_ADDRESSING && !REAL_ADDRESSING */
 
 #if REAL_ADDRESSING
-const uintptr MEMBaseDiff = 0;
+const uae_u8* MEMBase = NULL;
 #elif DIRECT_ADDRESSING
-extern uintptr MEMBaseDiff;
+extern uae_u8* MEMBase;
 #endif
 
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
-static __inline__ uae_u8 *do_get_real_address(uaecptr addr)
+static __inline__ void* do_get_real_address(uaecptr addr)
 {
-	return (uae_u8 *)MEMBaseDiff + addr;
+	return MEMBase + addr;
 }
-static __inline__ uae_u32 do_get_virtual_address(uae_u8 *addr)
+static __inline__ uaecptr do_get_virtual_address(const void* addr)
 {
-	return (uintptr)addr - MEMBaseDiff;
+	return (const uae_u8*)addr - MEMBase;
 }
 static __inline__ uae_u32 get_long(uaecptr addr)
 {
-    uae_u32 * const m = (uae_u32 *)do_get_real_address(addr);
+    const uae_u32* m = (const uae_u32*)do_get_real_address(addr);
     return do_get_mem_long(m);
 }
 static __inline__ uae_u32 get_word(uaecptr addr)
 {
-    uae_u16 * const m = (uae_u16 *)do_get_real_address(addr);
+    const uae_u16* m = (const uae_u16*)do_get_real_address(addr);
     return do_get_mem_word(m);
 }
 static __inline__ uae_u32 get_byte(uaecptr addr)
 {
-    uae_u8 * const m = (uae_u8 *)do_get_real_address(addr);
+    const uae_u8* m = (const uae_u8*)do_get_real_address(addr);
     return do_get_mem_byte(m);
 }
 static __inline__ void put_long(uaecptr addr, uae_u32 l)
 {
-    uae_u32 * const m = (uae_u32 *)do_get_real_address(addr);
+    uae_u32* m = (uae_u32*)do_get_real_address(addr);
     do_put_mem_long(m, l);
 }
 static __inline__ void put_word(uaecptr addr, uae_u32 w)
 {
-    uae_u16 * const m = (uae_u16 *)do_get_real_address(addr);
+    uae_u16* m = (uae_u16*)do_get_real_address(addr);
     do_put_mem_word(m, w);
 }
 static __inline__ void put_byte(uaecptr addr, uae_u32 b)
 {
-    uae_u8 * const m = (uae_u8 *)do_get_real_address(addr);
+    uae_u8* m = (uae_u8*)do_get_real_address(addr);
     do_put_mem_byte(m, b);
 }
-static __inline__ uae_u8 *get_real_address(uaecptr addr)
+static __inline__ void* get_real_address(uaecptr addr)
 {
 	return do_get_real_address(addr);
 }
-static __inline__ uae_u32 get_virtual_address(uae_u8 *addr)
+static __inline__ uaecptr get_virtual_address(const void* addr)
 {
 	return do_get_virtual_address(addr);
 }
@@ -195,12 +195,12 @@ static __inline__ void put_byte(uaecptr addr, uae_u32 b)
 {
     byteput_1(addr, b);
 }
-static __inline__ uae_u8 *get_real_address(uaecptr addr)
+static __inline__ void* get_real_address(uaecptr addr)
 {
     return get_mem_bank(addr).xlateaddr(addr);
 }
 /* gb-- deliberately not implemented since it shall not be used... */
-extern uae_u32 get_virtual_address(uae_u8 *addr);
+extern uae_u32 get_virtual_address(const void* addr);
 #endif /* DIRECT_ADDRESSING || REAL_ADDRESSING */
 
 #endif /* MEMORY_H */

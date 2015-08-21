@@ -352,7 +352,7 @@ int main(int argc, char **argv)
 
 #if DIRECT_ADDRESSING
 	// RAMBaseMac shall always be zero
-	MEMBaseDiff = (uintptr)RAMBaseHost;
+	MEMBase = RAMBaseHost;
 	RAMBaseMac = 0;
 	ROMBaseMac = Host2MacAddr(ROMBaseHost);
 #endif

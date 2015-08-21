@@ -30,11 +30,11 @@
 #ifndef SAHF_SETO_PROFITABLE
 
 /* PUSH/POP instructions are naturally 64-bit sized on x86-64, thus
-   unsigned long hereunder is either 64-bit or 32-bit wide depending
+   uintptr hereunder is either 64-bit or 32-bit wide depending
    on the target.  */
 struct flag_struct {
-    unsigned long cznv;
-    unsigned long x;
+    uintptr cznv;
+    uintptr x;
 };
 
 #define FLAGVAL_Z	0x40

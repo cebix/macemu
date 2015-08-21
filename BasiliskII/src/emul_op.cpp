@@ -210,7 +210,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 		}
 
 		case M68K_EMUL_OP_ADBOP:			// ADBOp() replacement
-			ADBOp(r->d[0], Mac2HostAddr(ReadMacInt32(r->a[0])));
+			ADBOp(r->d[0], static_cast<uint8*>(Mac2HostAddr(ReadMacInt32(r->a[0]))));
 			break;
 
 		case M68K_EMUL_OP_INSTIME:			// InsTime() replacement
@@ -398,7 +398,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 					stack = 2;
 					break;
 				case 3:		// SCSICmd
-					WriteMacInt16(r->a[7] + 6, SCSICmd(ReadMacInt16(r->a[7]), Mac2HostAddr(ReadMacInt32(r->a[7] + 2))));
+					WriteMacInt16(r->a[7] + 6, SCSICmd(ReadMacInt16(r->a[7]), static_cast<uint8*>(Mac2HostAddr(ReadMacInt32(r->a[7] + 2)))));
 					stack = 6;
 					break;
 				case 4:		// SCSIComplete
@@ -528,7 +528,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			uint32 adr = ReadMacInt32(r->a[0]);
 			if (adr == 0)
 				break;
-			uint8 *p = Mac2HostAddr(adr);
+			uint8* p = static_cast<uint8*>(Mac2HostAddr(adr));
 			uint32 size = ReadMacInt32(adr - 8) & 0xffffff;
 			CheckLoad(type, id, p, size);
 			break;

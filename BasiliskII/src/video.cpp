@@ -224,12 +224,14 @@ void monitor_desc::set_gray_palette(void)
 void monitor_desc::load_ramp_palette(void)
 {
 	// Find tables for gamma correction
-	uint8 *red_gamma = NULL, *green_gamma = NULL, *blue_gamma = NULL;
+	const uint8* red_gamma = NULL;
+	const uint8* green_gamma = NULL;
+	const uint8* blue_gamma = NULL;
 	bool have_gamma = false;
 	int data_width = 0;
 	if (gamma_table) {
 		uint32 table = gamma_table;
-		red_gamma = Mac2HostAddr(table + gFormulaData + ReadMacInt16(table + gFormulaSize));
+		red_gamma = static_cast<const uint8*>(Mac2HostAddr(table + gFormulaData + ReadMacInt16(table + gFormulaSize)));
 		int chan_cnt = ReadMacInt16(table + gChanCnt);
 		if (chan_cnt == 1)
 			green_gamma = blue_gamma = red_gamma;
@@ -526,11 +528,13 @@ int16 monitor_desc::driver_control(uint16 code, uint32 param, uint32 dce)
 				return paramErr;
 
 			// Find tables for gamma correction
-			uint8 *red_gamma = NULL, *green_gamma = NULL, *blue_gamma = NULL;
+			const uint8* red_gamma = NULL;
+			const uint8* green_gamma = NULL;
+			const uint8* blue_gamma = NULL;
 			bool have_gamma = false;
 			int data_width = 0;
 			if (gamma_table) {
-				red_gamma = Mac2HostAddr(gamma_table + gFormulaData + ReadMacInt16(gamma_table + gFormulaSize));
+				red_gamma = static_cast<const uint8*>(Mac2HostAddr(gamma_table + gFormulaData + ReadMacInt16(gamma_table + gFormulaSize)));
 				int chan_cnt = ReadMacInt16(gamma_table + gChanCnt);
 				if (chan_cnt == 1)
 					green_gamma = blue_gamma = red_gamma;

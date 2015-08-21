@@ -679,13 +679,13 @@ void EtherIRQ(void)
 // Add multicast address
 int16 ether_add_multicast(uint32 pb)
 {
-	return ether_do_add_multicast(Mac2HostAddr(pb + eMultiAddr));
+	return ether_do_add_multicast(static_cast<uint8*>(Mac2HostAddr(pb + eMultiAddr)));
 }
 
 // Disable multicast address
 int16 ether_del_multicast(uint32 pb)
 {
-	return ether_do_del_multicast(Mac2HostAddr(pb + eMultiAddr));
+	return ether_do_del_multicast(static_cast<uint8*>(Mac2HostAddr(pb + eMultiAddr)));
 }
 
 // Transmit one packet
@@ -865,7 +865,7 @@ int16 ether_detach_ph(uint16 type)
 }
 
 #if MONITOR
-static void dump_packet( uint8 *packet, int length )
+static void dump_packet( const uint8 *packet, int length )
 {
 	char buf[1000], sm[10];
 
@@ -1120,7 +1120,7 @@ void enqueue_packet( const uint8 *buf, int sz )
 	LeaveCriticalSection( &queue_csection );
 }
 
-static int dequeue_packet( uint8 *buf )
+static int dequeue_packet( void *buf )
 {
 	int sz;
 

@@ -205,7 +205,7 @@ static inline unsigned int cft_map (unsigned int f)
 #endif
 }
 
-uae_u8* start_pc_p;
+const uae_u8* start_pc_p;
 uae_u32 start_pc;
 uae_u32 current_block_pc_p;
 static uintptr current_block_start_target;
@@ -327,7 +327,7 @@ static __inline__ blockinfo* get_blockinfo(uae_u32 cl)
     return cache_tags[cl+1].bi;
 }
 
-static __inline__ blockinfo* get_blockinfo_addr(void* addr)
+static __inline__ blockinfo* get_blockinfo_addr(const void* addr)
 {
     blockinfo*  bi=get_blockinfo(cacheline(addr));
 
@@ -543,7 +543,7 @@ static __inline__ void mark_callers_recompile(blockinfo * bi)
   }
 }
 
-static __inline__ blockinfo* get_blockinfo_addr_new(void* addr, int setstate)
+static __inline__ blockinfo* get_blockinfo_addr_new(const void* addr, int setstate)
 {
     blockinfo*  bi=get_blockinfo_addr(addr);
     int i;
@@ -555,7 +555,7 @@ static __inline__ blockinfo* get_blockinfo_addr_new(void* addr, int setstate)
 		
 		bi=hold_bi[i];
 		hold_bi[i]=NULL;
-		bi->pc_p=(uae_u8 *)addr;
+		bi->pc_p=(const uae_u8 *)addr;
 		invalidate_block(bi);
 		add_to_active(bi);
 		add_to_cl_list(bi);
@@ -723,7 +723,7 @@ static __inline__ void alloc_blockinfos(void)
 
 static uae_u8* target;
 
-static  void emit_init(void)
+static void emit_init(void)
 {
 }
 
@@ -5469,9 +5469,9 @@ static void writemem_real(int address, int source, int size, int tmp, int clobbe
 	    f=source;
 
 	switch(size) {
-	 case 1: mov_b_bRr(address,source,MEMBaseDiff); break; 
-	 case 2: mov_w_rr(f,source); bswap_16(f); mov_w_bRr(address,f,MEMBaseDiff); break;
-	 case 4: mov_l_rr(f,source); bswap_32(f); mov_l_bRr(address,f,MEMBaseDiff); break;
+	 case 1: mov_b_bRr(address,source,intptr(MEMBase)); break; 
+	 case 2: mov_w_rr(f,source); bswap_16(f); mov_w_bRr(address,f,intptr(MEMBase)); break;
+	 case 4: mov_l_rr(f,source); bswap_32(f); mov_l_bRr(address,f,intptr(MEMBase)); break;
 	}
 	forget_about(tmp);
 	forget_about(f);
@@ -5528,9 +5528,9 @@ static void readmem_real(int address, int dest, int size, int tmp)
 	f=dest;
 
 	switch(size) {
-	 case 1: mov_b_brR(dest,address,MEMBaseDiff); break; 
-	 case 2: mov_w_brR(dest,address,MEMBaseDiff); bswap_16(dest); break;
-	 case 4: mov_l_brR(dest,address,MEMBaseDiff); bswap_32(dest); break;
+	 case 1: mov_b_brR(dest,address,intptr(MEMBase)); break; 
+	 case 2: mov_w_brR(dest,address,intptr(MEMBase)); bswap_16(dest); break;
+	 case 4: mov_l_brR(dest,address,intptr(MEMBase)); bswap_32(dest); break;
 	}
 	forget_about(tmp);
 }
@@ -5568,7 +5568,7 @@ void get_n_addr(int address, int dest, int tmp)
 #if REAL_ADDRESSING
 	mov_l_rr(dest, address);
 #elif DIRECT_ADDRESSING
-	lea_l_brr(dest,address,MEMBaseDiff);
+	lea_l_brr(dest,address,intptr(MEMBase));
 #endif
 	forget_about(tmp);
 }
@@ -6567,7 +6567,7 @@ void compiler_dumpstate(void)
 		return;
 	
 	write_log("### Host addresses\n");
-	write_log("MEM_BASE    : %x\n", MEMBaseDiff);
+	write_log("MEM_BASE    : %x\n", MEMBase);
 	write_log("PC_P        : %p\n", &regs.pc_p);
 	write_log("SPCFLAGS    : %p\n", &regs.spcflags);
 	write_log("D0-D7       : %p-%p\n", &regs.regs[0], &regs.regs[7]);
@@ -6663,7 +6663,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 	liveflags[blocklen]=0x1f; /* All flags needed afterwards */
 	i=blocklen;
 	while (i--) {
-	    uae_u16* currpcp=pc_hist[i].location;
+	    const uae_u16* currpcp=pc_hist[i].location;
 	    uae_u32 op=DO_GET_OPCODE(currpcp);
 
 #if USE_CHECKSUM_INFO

@@ -3130,45 +3130,45 @@ static __inline__ void raw_jmp_m(uae_u32 base)
 }
 
 
-static __inline__ void raw_call(uae_u32 t)
+static __inline__ void raw_call(uintptr t)
 {
 #if USE_NEW_RTASM
     CALLm(t);
 #else
     emit_byte(0xe8);
-    emit_long(t-(uae_u32)target-4);
+    emit_long(t-uintptr(target)-4);
 #endif
 }
 
-static __inline__ void raw_jmp(uae_u32 t)
+static __inline__ void raw_jmp(uintptr t)
 {
 #if USE_NEW_RTASM
     JMPm(t);
 #else
     emit_byte(0xe9);
-    emit_long(t-(uae_u32)target-4);
+    emit_long(t-uintptr(target)-4);
 #endif
 }
 
-static __inline__ void raw_jl(uae_u32 t)
+static __inline__ void raw_jl(uintptr t)
 {
     emit_byte(0x0f);
     emit_byte(0x8c);
-    emit_long(t-(uintptr)target-4);
+    emit_long(t-uintptr(target)-4);
 }
 
-static __inline__ void raw_jz(uae_u32 t)
+static __inline__ void raw_jz(uintptr t)
 {
     emit_byte(0x0f);
     emit_byte(0x84);
-    emit_long(t-(uintptr)target-4);
+    emit_long(t-uintptr(target)-4);
 }
 
-static __inline__ void raw_jnz(uae_u32 t)
+static __inline__ void raw_jnz(uintptr t)
 {
     emit_byte(0x0f);
     emit_byte(0x85);
-    emit_long(t-(uintptr)target-4);
+    emit_long(t-uintptr(target)-4);
 }
 
 static __inline__ void raw_jnz_l_oponly(void)

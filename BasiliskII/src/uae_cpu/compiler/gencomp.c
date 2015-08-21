@@ -1359,7 +1359,7 @@ gen_opcode (unsigned long int opcode)
      case i_BCLR:
      case i_BSET:
      case i_BTST:
-/*	failure; /* NEW: from "Ipswitch Town" release */
+	/* NEW: from "Ipswitch Town" release */
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	start_brace();
@@ -1541,7 +1541,7 @@ gen_opcode (unsigned long int opcode)
 	failure;
 	break;
      case i_RTD:
-/*	failure; /* NEW: from "Ipswitch Town" release */
+	/* NEW: from "Ipswitch Town" release */
 	genamode (curi->smode, "srcreg", curi->size, "offs", 1, 0);
 	/* offs is constant */
 	comprintf("\tadd_l_ri(offs,4);\n");
@@ -1557,7 +1557,7 @@ gen_opcode (unsigned long int opcode)
 	isjump; 
 	break;
      case i_LINK:
-/*	failure; /* NEW: from "Ipswitch Town" release */
+	/* NEW: from "Ipswitch Town" release */
 	genamode (curi->smode, "srcreg", sz_long, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "offs", 1, 0);
 	comprintf("\tsub_l_ri(15,4);\n"
@@ -1569,7 +1569,7 @@ gen_opcode (unsigned long int opcode)
 	genastore ("src", curi->smode, "srcreg", sz_long, "src");
 	break;
      case i_UNLK:
-/*	failure; /* NEW: from "Ipswitch Town" release */
+	/* NEW: from "Ipswitch Town" release */
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	comprintf("\tmov_l_rr(15,src);\n"
 		  "\treadlong(15,src,scratchie);\n"
@@ -1790,7 +1790,7 @@ gen_opcode (unsigned long int opcode)
 	break;
 
      case i_Scc:
-/*	failure; /* NEW: from "Ipswitch Town" release */
+	/* NEW: from "Ipswitch Town" release */
 	genamode (curi->smode, "srcreg", curi->size, "src", 2, 0);
 	start_brace ();
 	comprintf ("\tint val = scratchie++;\n");
@@ -1837,7 +1837,7 @@ gen_opcode (unsigned long int opcode)
 	failure;
 	break;
      case i_MULU:
-/*	failure; /* NEW: from "Ipswitch Town" release */
+	/* NEW: from "Ipswitch Town" release */
 	comprintf("\tdont_care_flags();\n");
 	genamode (curi->smode, "srcreg", sz_word, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", sz_word, "dst", 1, 0);
@@ -1852,7 +1852,7 @@ gen_opcode (unsigned long int opcode)
 	genastore ("dst", curi->dmode, "dstreg", sz_long, "dst");
 	break;
      case i_MULS:
-/*	failure; /* NEW: from "Ipswitch Town" release */
+	/* NEW: from "Ipswitch Town" release */
 	comprintf("\tdont_care_flags();\n");
 	genamode (curi->smode, "srcreg", sz_word, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", sz_word, "dst", 1, 0);
@@ -1886,7 +1886,7 @@ gen_opcode (unsigned long int opcode)
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0);
 	if (curi->smode!=immi) {
-/*		failure; /* UNTESTED: NEW: from "Ipswitch Town" release */
+		/* UNTESTED: NEW: from "Ipswitch Town" release */
 	    if (!noflags) {
 		uses_cmov;
 		start_brace();
@@ -2039,7 +2039,7 @@ gen_opcode (unsigned long int opcode)
 	break;
 
      case i_ASL:
-/*	failure; /* NEW: from "Ipswitch Town" release */
+	/* NEW: from "Ipswitch Town" release */
     mayfail;
 	if (curi->smode==Dreg) {
 	  comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
@@ -2186,7 +2186,7 @@ gen_opcode (unsigned long int opcode)
 	break;
     
      case i_LSR:
-/*	failure; /* NEW: from "Ipswitch Town" release */
+	/* NEW: from "Ipswitch Town" release */
     mayfail;
 	if (curi->smode==Dreg) {
 	  comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
@@ -2337,7 +2337,7 @@ gen_opcode (unsigned long int opcode)
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0);
 	if (curi->smode!=immi) {
-/*		failure; /* UNTESTED: NEW: from "Ipswitch Town" release */
+		/* UNTESTED: NEW: from "Ipswitch Town" release */
 	    if (!noflags) {
 		uses_cmov;
 		start_brace();
@@ -2609,7 +2609,7 @@ gen_opcode (unsigned long int opcode)
 	failure;
 	break;
      case i_MULL:
-/*	failure; /* NEW: from "Ipswitch Town" release */
+	/* NEW: from "Ipswitch Town" release */
 	if (!noflags) {
 	    failure;
 	    break;

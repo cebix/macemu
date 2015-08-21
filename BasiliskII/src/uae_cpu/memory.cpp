@@ -134,51 +134,43 @@ static uae_u32 REGPARAM2 ram_bget(uaecptr) REGPARAM;
 static void REGPARAM2 ram_lput(uaecptr, uae_u32) REGPARAM;
 static void REGPARAM2 ram_wput(uaecptr, uae_u32) REGPARAM;
 static void REGPARAM2 ram_bput(uaecptr, uae_u32) REGPARAM;
-static uae_u8 *REGPARAM2 ram_xlate(uaecptr addr) REGPARAM;
+static uae_u8* REGPARAM2 ram_xlate(uaecptr addr) REGPARAM;
 
-static uintptr RAMBaseDiff;	// RAMBaseHost - RAMBaseMac
+static uae_u8* RAMBase;	// RAMBaseHost - RAMBaseMac
 
 uae_u32 REGPARAM2 ram_lget(uaecptr addr)
 {
-    uae_u32 *m;
-    m = (uae_u32 *)(RAMBaseDiff + addr);
-    return do_get_mem_long(m);
+    return do_get_mem_long(RAMBase + addr);
 }
 
 uae_u32 REGPARAM2 ram_wget(uaecptr addr)
 {
-    uae_u16 *m;
-    m = (uae_u16 *)(RAMBaseDiff + addr);
-    return do_get_mem_word(m);
+    return do_get_mem_word(RAMBase + addr);
 }
 
 uae_u32 REGPARAM2 ram_bget(uaecptr addr)
 {
-    return (uae_u32)*(uae_u8 *)(RAMBaseDiff + addr);
+    return *(RAMBase + addr);
 }
 
 void REGPARAM2 ram_lput(uaecptr addr, uae_u32 l)
 {
-    uae_u32 *m;
-    m = (uae_u32 *)(RAMBaseDiff + addr);
-    do_put_mem_long(m, l);
+    do_put_mem_long(RAMBase + addr, l);
 }
 
 void REGPARAM2 ram_wput(uaecptr addr, uae_u32 w)
 {
-    uae_u16 *m;
-    m = (uae_u16 *)(RAMBaseDiff + addr);
-    do_put_mem_word(m, w);
+    do_put_mem_word(RAMBase + addr, w);
 }
 
 void REGPARAM2 ram_bput(uaecptr addr, uae_u32 b)
 {
-	*(uae_u8 *)(RAMBaseDiff + addr) = b;
+	*(RAMBase + addr) = b;
 }
 
-uae_u8 *REGPARAM2 ram_xlate(uaecptr addr)
+uae_u8* REGPARAM2 ram_xlate(uaecptr addr)
 {
-    return (uae_u8 *)(RAMBaseDiff + addr);
+    return RAMBase + addr;
 }
 
 /* Mac RAM (24 bit addressing) */
@@ -189,49 +181,45 @@ static uae_u32 REGPARAM2 ram24_bget(uaecptr) REGPARAM;
 static void REGPARAM2 ram24_lput(uaecptr, uae_u32) REGPARAM;
 static void REGPARAM2 ram24_wput(uaecptr, uae_u32) REGPARAM;
 static void REGPARAM2 ram24_bput(uaecptr, uae_u32) REGPARAM;
-static uae_u8 *REGPARAM2 ram24_xlate(uaecptr addr) REGPARAM;
+static uae_u8* REGPARAM2 ram24_xlate(uaecptr addr) REGPARAM;
 
 uae_u32 REGPARAM2 ram24_lget(uaecptr addr)
 {
-    uae_u32 *m;
-    m = (uae_u32 *)(RAMBaseDiff + (addr & 0xffffff));
+    uae_u32* m = (uae_u32*)(RAMBase + (addr & 0xffffff));
     return do_get_mem_long(m);
 }
 
 uae_u32 REGPARAM2 ram24_wget(uaecptr addr)
 {
-    uae_u16 *m;
-    m = (uae_u16 *)(RAMBaseDiff + (addr & 0xffffff));
+    uae_u16* m = (uae_u16*)(RAMBase + (addr & 0xffffff));
     return do_get_mem_word(m);
 }
 
 uae_u32 REGPARAM2 ram24_bget(uaecptr addr)
 {
-    return (uae_u32)*(uae_u8 *)(RAMBaseDiff + (addr & 0xffffff));
+    return *(RAMBase + (addr & 0xffffff));
 }
 
 void REGPARAM2 ram24_lput(uaecptr addr, uae_u32 l)
 {
-    uae_u32 *m;
-    m = (uae_u32 *)(RAMBaseDiff + (addr & 0xffffff));
+    uae_u32* m = (uae_u32*)(RAMBase + (addr & 0xffffff));
     do_put_mem_long(m, l);
 }
 
 void REGPARAM2 ram24_wput(uaecptr addr, uae_u32 w)
 {
-    uae_u16 *m;
-    m = (uae_u16 *)(RAMBaseDiff + (addr & 0xffffff));
+    uae_u16* m = (uae_u16*)(RAMBase + (addr & 0xffffff));
     do_put_mem_word(m, w);
 }
 
 void REGPARAM2 ram24_bput(uaecptr addr, uae_u32 b)
 {
-	*(uae_u8 *)(RAMBaseDiff + (addr & 0xffffff)) = b;
+	*(RAMBase + (addr & 0xffffff)) = b;
 }
 
-uae_u8 *REGPARAM2 ram24_xlate(uaecptr addr)
+uae_u8* REGPARAM2 ram24_xlate(uaecptr addr)
 {
-    return (uae_u8 *)(RAMBaseDiff + (addr & 0xffffff));
+    return RAMBase + (addr & 0xffffff);
 }
 
 /* Mac ROM (32 bit addressing) */
@@ -242,27 +230,23 @@ static uae_u32 REGPARAM2 rom_bget(uaecptr) REGPARAM;
 static void REGPARAM2 rom_lput(uaecptr, uae_u32) REGPARAM;
 static void REGPARAM2 rom_wput(uaecptr, uae_u32) REGPARAM;
 static void REGPARAM2 rom_bput(uaecptr, uae_u32) REGPARAM;
-static uae_u8 *REGPARAM2 rom_xlate(uaecptr addr) REGPARAM;
+static uae_u8* REGPARAM2 rom_xlate(uaecptr addr) REGPARAM;
 
-static uintptr ROMBaseDiff;	// ROMBaseHost - ROMBaseMac
+static uae_u8* ROMBase;	// ROMBaseHost - ROMBaseMac
 
 uae_u32 REGPARAM2 rom_lget(uaecptr addr)
 {
-    uae_u32 *m;
-    m = (uae_u32 *)(ROMBaseDiff + addr);
-    return do_get_mem_long(m);
+    return do_get_mem_long(ROMBase + addr);
 }
 
 uae_u32 REGPARAM2 rom_wget(uaecptr addr)
 {
-    uae_u16 *m;
-    m = (uae_u16 *)(ROMBaseDiff + addr);
-    return do_get_mem_word(m);
+    return do_get_mem_word(ROMBase + addr);
 }
 
 uae_u32 REGPARAM2 rom_bget(uaecptr addr)
 {
-    return (uae_u32)*(uae_u8 *)(ROMBaseDiff + addr);
+    return *(ROMBase + addr);
 }
 
 void REGPARAM2 rom_lput(uaecptr addr, uae_u32 b)
@@ -285,7 +269,7 @@ void REGPARAM2 rom_bput(uaecptr addr, uae_u32 b)
 
 uae_u8 *REGPARAM2 rom_xlate(uaecptr addr)
 {
-    return (uae_u8 *)(ROMBaseDiff + addr);
+    return ROMBase + addr;
 }
 
 /* Mac ROM (24 bit addressing) */
@@ -293,30 +277,26 @@ uae_u8 *REGPARAM2 rom_xlate(uaecptr addr)
 static uae_u32 REGPARAM2 rom24_lget(uaecptr) REGPARAM;
 static uae_u32 REGPARAM2 rom24_wget(uaecptr) REGPARAM;
 static uae_u32 REGPARAM2 rom24_bget(uaecptr) REGPARAM;
-static uae_u8 *REGPARAM2 rom24_xlate(uaecptr addr) REGPARAM;
+static uae_u8* REGPARAM2 rom24_xlate(uaecptr addr) REGPARAM;
 
 uae_u32 REGPARAM2 rom24_lget(uaecptr addr)
 {
-    uae_u32 *m;
-    m = (uae_u32 *)(ROMBaseDiff + (addr & 0xffffff));
-    return do_get_mem_long(m);
+    return do_get_mem_long(ROMBase + (addr & 0xffffff));
 }
 
 uae_u32 REGPARAM2 rom24_wget(uaecptr addr)
 {
-    uae_u16 *m;
-    m = (uae_u16 *)(ROMBaseDiff + (addr & 0xffffff));
-    return do_get_mem_word(m);
+    return do_get_mem_word(ROMBase + (addr & 0xffffff));
 }
 
 uae_u32 REGPARAM2 rom24_bget(uaecptr addr)
 {
-    return (uae_u32)*(uae_u8 *)(ROMBaseDiff + (addr & 0xffffff));
+    return *(ROMBase + (addr & 0xffffff));
 }
 
-uae_u8 *REGPARAM2 rom24_xlate(uaecptr addr)
+uae_u8* REGPARAM2 rom24_xlate(uaecptr addr)
 {
-    return (uae_u8 *)(ROMBaseDiff + (addr & 0xffffff));
+    return ROMBaseDiff + (addr & 0xffffff);
 }
 
 /* Frame buffer */
@@ -341,131 +321,108 @@ static void REGPARAM2 frame_host_565_wput(uaecptr, uae_u32) REGPARAM;
 static uae_u32 REGPARAM2 frame_host_888_lget(uaecptr) REGPARAM;
 static void REGPARAM2 frame_host_888_lput(uaecptr, uae_u32) REGPARAM;
 
-static uae_u8 *REGPARAM2 frame_xlate(uaecptr addr) REGPARAM;
+static uae_u8* REGPARAM2 frame_xlate(uaecptr addr) REGPARAM;
 
-static uintptr FrameBaseDiff;	// MacFrameBaseHost - MacFrameBaseMac
+static uae_u8* FrameBase;	// MacFrameBaseHost - MacFrameBaseMac
 
 uae_u32 REGPARAM2 frame_direct_lget(uaecptr addr)
 {
-    uae_u32 *m;
-    m = (uae_u32 *)(FrameBaseDiff + addr);
-    return do_get_mem_long(m);
+    return do_get_mem_long(FrameBase + addr);
 }
 
 uae_u32 REGPARAM2 frame_direct_wget(uaecptr addr)
 {
-    uae_u16 *m;
-    m = (uae_u16 *)(FrameBaseDiff + addr);
-    return do_get_mem_word(m);
+    return do_get_mem_word(FrameBase + addr);
 }
 
 uae_u32 REGPARAM2 frame_direct_bget(uaecptr addr)
 {
-    return (uae_u32)*(uae_u8 *)(FrameBaseDiff + addr);
+    return *(FrameBase + addr);
 }
 
 void REGPARAM2 frame_direct_lput(uaecptr addr, uae_u32 l)
 {
-    uae_u32 *m;
-    m = (uae_u32 *)(FrameBaseDiff + addr);
-    do_put_mem_long(m, l);
+    do_put_mem_long(FrameBase + addr, l);
 }
 
 void REGPARAM2 frame_direct_wput(uaecptr addr, uae_u32 w)
 {
-    uae_u16 *m;
-    m = (uae_u16 *)(FrameBaseDiff + addr);
-    do_put_mem_word(m, w);
+    do_put_mem_word(FrameBase + addr, w);
 }
 
 void REGPARAM2 frame_direct_bput(uaecptr addr, uae_u32 b)
 {
-    *(uae_u8 *)(FrameBaseDiff + addr) = b;
+    *(FrameBase + addr) = b;
 }
 
 uae_u32 REGPARAM2 frame_host_555_lget(uaecptr addr)
 {
-    uae_u32 *m, l;
-    m = (uae_u32 *)(FrameBaseDiff + addr);
-    l = *m;
+    uae_u32 l = *(uae_u32*)(FrameBase + addr);
 	return swap_words(l);
 }
 
 uae_u32 REGPARAM2 frame_host_555_wget(uaecptr addr)
 {
-    uae_u16 *m;
-    m = (uae_u16 *)(FrameBaseDiff + addr);
-    return *m;
+    return *(uae_u16*)(FrameBase + addr);
 }
 
 void REGPARAM2 frame_host_555_lput(uaecptr addr, uae_u32 l)
 {
-    uae_u32 *m;
-    m = (uae_u32 *)(FrameBaseDiff + addr);
+    uae_u32* m = (uae_u32*)(FrameBase + addr);
     *m = swap_words(l);
 }
 
 void REGPARAM2 frame_host_555_wput(uaecptr addr, uae_u32 w)
 {
-    uae_u16 *m;
-    m = (uae_u16 *)(FrameBaseDiff + addr);
+    uae_u16* m = (uae_u16*)(FrameBase + addr);
     *m = w;
 }
 
 uae_u32 REGPARAM2 frame_host_565_lget(uaecptr addr)
 {
-    uae_u32 *m, l;
-    m = (uae_u32 *)(FrameBaseDiff + addr);
-    l = *m;
+    uae_u32 l = *(uae_u32*)(FrameBase + addr);
     l = (l & 0x001f001f) | ((l >> 1) & 0x7fe07fe0);
     return swap_words(l);
 }
 
 uae_u32 REGPARAM2 frame_host_565_wget(uaecptr addr)
 {
-    uae_u16 *m, w;
-    m = (uae_u16 *)(FrameBaseDiff + addr);
-    w = *m;
+    uae_u16 w = *(uae_u16*)(FrameBase + addr);
     return (w & 0x1f) | ((w >> 1) & 0x7fe0);
 }
 
 void REGPARAM2 frame_host_565_lput(uaecptr addr, uae_u32 l)
 {
-    uae_u32 *m;
-    m = (uae_u32 *)(FrameBaseDiff + addr);
+    uae_u32* m = (uae_u32*)(FrameBase + addr);
     l = (l & 0x001f001f) | ((l << 1) & 0xffc0ffc0);
     *m = swap_words(l);
 }
 
 void REGPARAM2 frame_host_565_wput(uaecptr addr, uae_u32 w)
 {
-    uae_u16 *m;
-    m = (uae_u16 *)(FrameBaseDiff + addr);
+    uae_u16* m = (uae_u16*)(FrameBase + addr);
     *m = (w & 0x1f) | ((w << 1) & 0xffc0);
 }
 
 uae_u32 REGPARAM2 frame_host_888_lget(uaecptr addr)
 {
-    uae_u32 *m, l;
-    m = (uae_u32 *)(FrameBaseDiff + addr);
-    return *m;
+    return *(uae_u32*)(FrameBase + addr);
 }
 
 void REGPARAM2 frame_host_888_lput(uaecptr addr, uae_u32 l)
 {
-    uae_u32 *m;
-    m = (uae_u32 *)(MacFrameBaseHost + addr - MacFrameBaseMac);
+    uae_u32* m = (uae_u32*)(MacFrameBaseHost + addr - MacFrameBaseMac);
     *m = l;
 }
 
-uae_u8 *REGPARAM2 frame_xlate(uaecptr addr)
+uae_u8* REGPARAM2 frame_xlate(uaecptr addr)
 {
-    return (uae_u8 *)(FrameBaseDiff + addr);
+    return FrameBase + addr;
 }
 
 /* Default memory access functions */
 
-uae_u8 *REGPARAM2 default_xlate (uaecptr a)
+uae_u8* REGPARAM2 default_xlate(uaecptr a)
 {
     write_log("Your Mac program just did something terribly stupid\n");
     return NULL;
@@ -535,9 +492,9 @@ void memory_init(void)
 	// Limit RAM size to not overlap ROM
 	uint32 ram_size = RAMSize > ROMBaseMac ? ROMBaseMac : RAMSize;
 
-	RAMBaseDiff = (uintptr)RAMBaseHost - (uintptr)RAMBaseMac;
-	ROMBaseDiff = (uintptr)ROMBaseHost - (uintptr)ROMBaseMac;
-	FrameBaseDiff = (uintptr)MacFrameBaseHost - (uintptr)MacFrameBaseMac;
+	RAMBase = RAMBaseHost - RAMBaseMac;
+	ROMBase = ROMBaseHost - ROMBaseMac;
+	FrameBase = MacFrameBaseHost - MacFrameBaseMac;
 
 	// Map RAM and ROM
 	if (TwentyFourBitAddressing) {

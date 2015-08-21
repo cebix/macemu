@@ -81,8 +81,8 @@ struct regstruct {
     uae_u32		regs[16];
 
     uae_u32		pc;
-    uae_u8 *	pc_p;
-    uae_u8 *	pc_oldp;
+    const uae_u8*	pc_p;
+    const uae_u8*	pc_oldp;
 
 	spcflags_t	spcflags;
     int			intmask;
@@ -112,9 +112,9 @@ extern regstruct regs, lastint_regs;
 #define m68k_dreg(r,num) ((r).regs[(num)])
 #define m68k_areg(r,num) (((r).regs + 8)[(num)])
 
-#define get_ibyte(o) do_get_mem_byte((uae_u8 *)(regs.pc_p + (o) + 1))
-#define get_iword(o) do_get_mem_word((uae_u16 *)(regs.pc_p + (o)))
-#define get_ilong(o) do_get_mem_long((uae_u32 *)(regs.pc_p + (o)))
+#define get_ibyte(o) do_get_mem_byte(regs.pc_p + (o) + 1)
+#define get_iword(o) do_get_mem_word(regs.pc_p + (o))
+#define get_ilong(o) do_get_mem_long(regs.pc_p + (o))
 
 #ifdef HAVE_GET_WORD_UNSWAPPED
 #define GET_OPCODE (do_get_mem_word_unswapped (regs.pc_p))
@@ -126,24 +126,24 @@ extern regstruct regs, lastint_regs;
 static __inline__ uae_u32 get_ibyte_prefetch (uae_s32 o)
 {
     if (o > 3 || o < 0)
-	return do_get_mem_byte((uae_u8 *)(regs.pc_p + o + 1));
+	return do_get_mem_byte(regs.pc_p + o + 1);
 
-    return do_get_mem_byte((uae_u8 *)(((uae_u8 *)&regs.prefetch) + o + 1));
+    return do_get_mem_byte(((uae_u8 *)&regs.prefetch) + o + 1);
 }
 static __inline__ uae_u32 get_iword_prefetch (uae_s32 o)
 {
     if (o > 3 || o < 0)
-	return do_get_mem_word((uae_u16 *)(regs.pc_p + o));
+	return do_get_mem_word(regs.pc_p + o);
 
-    return do_get_mem_word((uae_u16 *)(((uae_u8 *)&regs.prefetch) + o));
+    return do_get_mem_word(((uae_u8 *)&regs.prefetch) + o);
 }
 static __inline__ uae_u32 get_ilong_prefetch (uae_s32 o)
 {
     if (o > 3 || o < 0)
-	return do_get_mem_long((uae_u32 *)(regs.pc_p + o));
+	return do_get_mem_long(regs.pc_p + o);
     if (o == 0)
 	return do_get_mem_long(&regs.prefetch);
-    return (do_get_mem_word (((uae_u16 *)&regs.prefetch) + 1) << 16) | do_get_mem_word ((uae_u16 *)(regs.pc_p + 4));
+    return (do_get_mem_word (((uae_u16 *)&regs.prefetch) + 1) << 16) | do_get_mem_word (regs.pc_p + 4);
 }
 #endif
 
@@ -157,7 +157,7 @@ static __inline__ void fill_prefetch_0 (void)
     r = *(uae_u32 *)regs.pc_p;
     regs.prefetch = r;
 #else
-    r = do_get_mem_long ((uae_u32 *)regs.pc_p);
+    r = do_get_mem_long (regs.pc_p);
     do_put_mem_long (&regs.prefetch, r);
 #endif
 #endif
@@ -201,9 +201,9 @@ static __inline__ uae_u32 next_ilong (void)
 static __inline__ void m68k_setpc (uaecptr newpc)
 {
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
-	regs.pc_p = get_real_address(newpc);
+	regs.pc_p = static_cast<const uae_u8*>(get_real_address(newpc));
 #else
-    regs.pc_p = regs.pc_oldp = get_real_address(newpc);
+    regs.pc_p = regs.pc_oldp = static_cast<const uae_u8*>(get_real_address(newpc));
     regs.pc = newpc;
 #endif
 }
@@ -213,7 +213,7 @@ static __inline__ uaecptr m68k_getpc (void)
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
 	return get_virtual_address(regs.pc_p);
 #else
-    return regs.pc + ((char *)regs.pc_p - (char *)regs.pc_oldp);
+    return regs.pc + (regs.pc_p - regs.pc_oldp);
 #endif
 }
 

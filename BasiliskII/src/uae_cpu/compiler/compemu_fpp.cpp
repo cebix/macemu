@@ -215,10 +215,8 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra)
 	 }
 	 case 2:
 	 {
-	     uae_u32 address=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+
-		 m68k_pc_offset;
-	     uae_s32 PC16off =(uae_s32)(uae_s16)comp_get_iword((m68k_pc_offset+=2)
--2);
+	     uae_u32 address=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+m68k_pc_offset;
+	     uae_s32 PC16off =(uae_s32)(uae_s16)comp_get_iword((m68k_pc_offset+=2)-2);
 	     ad=S1;
 	     mov_l_ri(ad,address+PC16off);
 	     break;
@@ -231,7 +229,7 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra)
 	    break;
 	 case 4: 
 	 {
-	     uae_u32 address=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+ m68k_pc_offset;
+	     uae_u32 address=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+m68k_pc_offset;
 	     ad=S1;
 		// Immediate addressing mode && Operation Length == Byte -> 
 		// Use the low-order byte of the extension word.
@@ -419,8 +417,7 @@ STATIC_INLINE int put_fp_value (int val, uae_u32 opcode, uae_u16 extra)
 	 }
 	 case 2:
 	 {
-	     uae_u32 address=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+
-		 m68k_pc_offset;
+	     uae_u32 address=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+m68k_pc_offset;
 	     uae_s32 PC16off =(uae_s32)(uae_s16)comp_get_iword((m68k_pc_offset+=2)-2);
 	     ad=S1;
 	     mov_l_ri(ad,address+PC16off);
@@ -434,8 +431,7 @@ STATIC_INLINE int put_fp_value (int val, uae_u32 opcode, uae_u16 extra)
 	    break;
 	 case 4:
 	 {
-	     uae_u32 address=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+
-		 m68k_pc_offset;
+	     uae_u32 address=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+m68k_pc_offset;
 	     ad=S1;
 	     mov_l_ri(ad,address);
 	     m68k_pc_offset+=sz2[size];
@@ -926,7 +922,7 @@ static const fpu_register const_loge_10	= 2.30258509299404568402;
 static const fpu_register power10[]		= {
 	1e0, 1e1, 1e2, 1e4, 1e8, 1e16, 1e32, 1e64, 1e128, 1e256
 #if USE_LONG_DOUBLE
-,	1e512, 1e1024, 1e2048, 1e4096
+,	1e512L, 1e1024L, 1e2048L, 1e4096L
 #endif
 };
 
@@ -955,7 +951,7 @@ static uae_u16 x86_fpucw[]={
 
 void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 {
-    int reg;
+    int reg, reg2;
     int src;
     
     switch ((extra >> 13) & 0x7) {
@@ -969,7 +965,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
      case 6:
      case 7: 
 	{
-	    uae_u32 ad, list = 0;
+	    uae_u32 list = 0;
 	    int incr = 0;
 	    if (extra & 0x2000) {
 		uae_u32 ad;
@@ -984,8 +980,8 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		 default:
 		    FAIL(1); return;
 		}
-		ad=get_fp_ad (opcode, &ad);
-		if (ad<0) {
+		int reg2 = get_fp_ad (opcode, &ad);
+		if (reg2<0) {
 			abort();
 		    m68k_setpc (m68k_getpc () - 4);
 		    fpuop_illg (opcode,extra);
@@ -1009,15 +1005,15 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 				if (list & 0x80) {
 					fmov_ext_mr((uintptr)temp_fp,reg);
 					delay;
-					sub_l_ri(ad,4); 
+					sub_l_ri(reg2,4); 
 					mov_l_rm(S2,(uintptr)temp_fp);
-					writelong_clobber(ad,S2,S3);
-					sub_l_ri(ad,4); 
+					writelong_clobber(reg2,S2,S3);
+					sub_l_ri(reg2,4); 
 					mov_l_rm(S2,(uintptr)temp_fp+4);
-					writelong_clobber(ad,S2,S3);
-					sub_l_ri(ad,4); 
+					writelong_clobber(reg2,S2,S3);
+					sub_l_ri(reg2,4); 
 					mov_w_rm(S2,(uintptr)temp_fp+8);
-					writeword_clobber(ad,S2,S3);
+					writeword_clobber(reg2,S2,S3);
 				}
 				list <<= 1;
 			}
@@ -1028,22 +1024,22 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 					fmov_ext_mr((uintptr)temp_fp,reg);
 					delay;
 					mov_w_rm(S2,(uintptr)temp_fp+8);
-					writeword_clobber(ad,S2,S3);
-					add_l_ri(ad,4);
+					writeword_clobber(reg2,S2,S3);
+					add_l_ri(reg2,4);
 					mov_l_rm(S2,(uintptr)temp_fp+4);
-					writelong_clobber(ad,S2,S3);
-					add_l_ri(ad,4);
+					writelong_clobber(reg2,S2,S3);
+					add_l_ri(reg2,4);
 					mov_l_rm(S2,(uintptr)temp_fp);
-					writelong_clobber(ad,S2,S3);
-					add_l_ri(ad,4);
+					writelong_clobber(reg2,S2,S3);
+					add_l_ri(reg2,4);
 				}
 				list <<= 1;
 			}
 		}
 		if ((opcode & 0x38) == 0x18)
-		    mov_l_rr((opcode & 7)+8,ad);
+		    mov_l_rr((opcode & 7)+8,reg2);
 		if ((opcode & 0x38) == 0x20)
-		    mov_l_rr((opcode & 7)+8,ad);
+		    mov_l_rr((opcode & 7)+8,reg2);
 	    } else {
 		/* FMOVEM memory->FPP */
 
@@ -1057,8 +1053,8 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		 default:
 		    FAIL(1); return;
 		}
-		ad=get_fp_ad (opcode, &ad);
-		if (ad<0) {
+		int reg2=get_fp_ad (opcode, &ad);
+		if (reg2<0) {
 			abort();
 		    m68k_setpc (m68k_getpc () - 4);
 			write_log("no ad\n");
@@ -1084,14 +1080,14 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 			for (reg = 7; reg >= 0; reg--) {
 				uae_u32 wrd1, wrd2, wrd3;
 				if (list & 0x80) {
-					sub_l_ri(ad,4);
-					readlong(ad,S2,S3);
+					sub_l_ri(reg2,4);
+					readlong(reg2,S2,S3);
 					mov_l_mr((uintptr)(temp_fp),S2);
-					sub_l_ri(ad,4);
-					readlong(ad,S2,S3);
+					sub_l_ri(reg2,4);
+					readlong(reg2,S2,S3);
 					mov_l_mr((uintptr)(temp_fp)+4,S2);
-					sub_l_ri(ad,4);
-					readword(ad,S2,S3);
+					sub_l_ri(reg2,4);
+					readword(reg2,S2,S3);
 					mov_w_mr(((uintptr)temp_fp)+8,S2);
 					delay2;
 					fmov_ext_rm(reg,(uintptr)(temp_fp));
@@ -1103,15 +1099,15 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 			for (reg = 0; reg < 8; reg++) {
 				uae_u32 wrd1, wrd2, wrd3;
 				if (list & 0x80) {
-					readword(ad,S2,S3);
+					readword(reg2,S2,S3);
 					mov_w_mr(((uintptr)temp_fp)+8,S2);
-					add_l_ri(ad,4);
-					readlong(ad,S2,S3);
+					add_l_ri(reg2,4);
+					readlong(reg2,S2,S3);
 					mov_l_mr((uintptr)(temp_fp)+4,S2);
-					add_l_ri(ad,4);
-					readlong(ad,S2,S3);
+					add_l_ri(reg2,4);
+					readlong(reg2,S2,S3);
 					mov_l_mr((uintptr)(temp_fp),S2);
-					add_l_ri(ad,4);
+					add_l_ri(reg2,4);
 					delay2;
 					fmov_ext_rm(reg,(uintptr)(temp_fp));
 				}
@@ -1119,9 +1115,9 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 			}
 		}
 		if ((opcode & 0x38) == 0x18)
-		    mov_l_rr((opcode & 7)+8,ad);
+		    mov_l_rr((opcode & 7)+8,reg2);
 		if ((opcode & 0x38) == 0x20)
-		    mov_l_rr((opcode & 7)+8,ad);
+		    mov_l_rr((opcode & 7)+8,reg2);
 	    }
 	}
 	return;
