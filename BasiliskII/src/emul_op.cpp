@@ -565,7 +565,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			break;
 
 		default:
-			printf("FATAL: EMUL_OP called with bogus opcode %08x\n", opcode);
+			printf("FATAL: EMUL_OP called with bogus opcode %04x\n", opcode);
 			printf("d0 %08x d1 %08x d2 %08x d3 %08x\n"
 				   "d4 %08x d5 %08x d6 %08x d7 %08x\n"
 				   "a0 %08x a1 %08x a2 %08x a3 %08x\n"

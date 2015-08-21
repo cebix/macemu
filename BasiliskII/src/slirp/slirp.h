@@ -27,6 +27,11 @@ typedef unsigned long ioctlsockopt_t;
 # include <sys/timeb.h>
 # include <iphlpapi.h>
 
+// Microsoft's headers don't define ssize_t.
+#ifdef _MSC_VER
+typedef ptrdiff_t ssize_t;
+#endif
+
 # define USE_FIONBIO 1
 
 /* Basilisk II Router defines those */

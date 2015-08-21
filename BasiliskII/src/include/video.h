@@ -159,10 +159,10 @@ public:
 	const video_mode &get_current_mode(void) const {return *current_mode;}
 
 	// Get Apple mode id for given depth
-	uint16 depth_to_apple_mode(video_depth depth) const {return apple_mode_for_depth[depth];}
+	uint8 depth_to_apple_mode(video_depth depth) const {return apple_mode_for_depth[depth];}
 
 	// Get current color depth
-	uint16 get_apple_mode(void) const {return depth_to_apple_mode(current_mode->depth);}
+	uint8 get_apple_mode(void) const {return depth_to_apple_mode(current_mode->depth);}
 
 	// Get bytes-per-row value for specified resolution/depth
 	// (if the mode isn't supported, make a good guess)
@@ -191,7 +191,7 @@ private:
 	vector<video_mode>::const_iterator invalid_mode(void) const {return modes.end();}
 
 	// Find specified mode (depth/resolution) (or invalid_mode() if not found)
-	vector<video_mode>::const_iterator find_mode(uint16 apple_mode, uint32 id) const;
+	vector<video_mode>::const_iterator find_mode(uint8 apple_mode, uint32 id) const;
 
 	// Find maximum supported depth for given resolution ID
 	video_depth max_depth_of_resolution(uint32 id) const;
@@ -226,9 +226,9 @@ private:
 	uint32 gamma_table;          // Mac address of gamma table
 	int alloc_gamma_table_size;  // Allocated size of gamma table
 
-	uint16 current_apple_mode;   // Currently selected depth/resolution
+	uint8 current_apple_mode;    // Currently selected depth/resolution
 	uint32 current_id;
-	uint16 preferred_apple_mode; // Preferred depth/resolution
+	uint8 preferred_apple_mode;  // Preferred depth/resolution
 	uint32 preferred_id;
 
 	uint32 slot_param;           // Mac address of Slot Manager parameter block
@@ -237,7 +237,7 @@ private:
 	// MacOS, the Apple modes must start at 0x80 and be contiguous. Therefore
 	// we maintain an array to map the depth codes to the corresponding Apple
 	// mode.
-	uint16 apple_mode_for_depth[6];
+	uint8 apple_mode_for_depth[6];
 
 // The following functions are implemented by platform-specific code
 public:

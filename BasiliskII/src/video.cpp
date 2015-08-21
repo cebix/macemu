@@ -91,7 +91,7 @@ monitor_desc::monitor_desc(const vector<video_mode> &available_modes, video_dept
 	slot_id = next_slot_id++;
 
 	// Initialize Apple mode list
-	uint16 mode = 0x80;
+	uint8 mode = 0x80;
 	for (int depth = VDEPTH_1BIT; depth <= VDEPTH_32BIT; depth++) {
 		if (has_depth(video_depth(depth)))
 			apple_mode_for_depth[depth] = mode++;
@@ -157,7 +157,7 @@ bool monitor_desc::has_resolution(uint32 id) const
  *  Find specified mode (depth/resolution) (or invalid_mode() if not found)
  */
 
-vector<video_mode>::const_iterator monitor_desc::find_mode(uint16 apple_mode, uint32 id) const
+vector<video_mode>::const_iterator monitor_desc::find_mode(uint8 apple_mode, uint32 id) const
 {
 	vector<video_mode>::const_iterator i, end = modes.end();
 	for (i = modes.begin(); i != end; ++i) {
@@ -502,7 +502,7 @@ int16 monitor_desc::driver_control(uint16 code, uint32 param, uint32 dce)
 				return paramErr;
 
 			if (mode != current_apple_mode) {
-				vector<video_mode>::const_iterator i = find_mode(mode, current_id);
+				vector<video_mode>::const_iterator i = find_mode(uint8(mode), current_id);
 				if (i == invalid_mode())
 					return paramErr;
 				switch_mode(i, param, dce);
@@ -640,7 +640,7 @@ int16 monitor_desc::driver_control(uint16 code, uint32 param, uint32 dce)
 			return noErr;
 
 		case cscSetDefaultMode: { // Set default color depth
-			uint16 mode = ReadMacInt8(param + csMode);
+			uint8 mode = ReadMacInt8(param + csMode);
 			D(bug(" SetDefaultMode %02x\n", mode));
 			preferred_apple_mode = mode;
 			return noErr;
@@ -658,7 +658,7 @@ int16 monitor_desc::driver_control(uint16 code, uint32 param, uint32 dce)
 				return paramErr;
 
 			if (mode != current_apple_mode || id != current_id) {
-				vector<video_mode>::const_iterator i = find_mode(mode, id);
+				vector<video_mode>::const_iterator i = find_mode(uint8(mode), id);
 				if (i == invalid_mode())
 					return paramErr;
 				switch_mode(i, param, dce);
@@ -671,7 +671,7 @@ int16 monitor_desc::driver_control(uint16 code, uint32 param, uint32 dce)
 			uint16 mode = ReadMacInt16(param + csMode);
 			uint32 id = ReadMacInt32(param + csData);
 			D(bug(" SavePreferredConfiguration %04x, %08x\n", mode, id));
-			preferred_apple_mode = mode;
+			preferred_apple_mode = uint8(mode);
 			preferred_id = id;
 			return noErr;
 		}
@@ -706,7 +706,7 @@ int16 monitor_desc::driver_status(uint16 code, uint32 param)
 	switch (code) {
 
 		case cscGetMode:			// Get current color depth
-			D(bug(" GetMode -> %04x, base %08x\n", current_apple_mode, mac_frame_base));
+			D(bug(" GetMode -> %02x, base %08x\n", current_apple_mode, mac_frame_base));
 			WriteMacInt16(param + csMode, current_apple_mode);
 			WriteMacInt16(param + csPage, 0);
 			WriteMacInt32(param + csBaseAddr, mac_frame_base);
@@ -784,7 +784,7 @@ int16 monitor_desc::driver_status(uint16 code, uint32 param)
 			return noErr;
 
 		case cscGetCurrentMode:		// Get current video mode (depth and resolution)
-			D(bug(" GetCurMode -> %04x/%08x, base %08x\n", current_apple_mode, current_id, mac_frame_base));
+			D(bug(" GetCurMode -> %02x/%08x, base %08x\n", current_apple_mode, current_id, mac_frame_base));
 			WriteMacInt16(param + csMode, current_apple_mode);
 			WriteMacInt32(param + csData, current_id);
 			WriteMacInt16(param + csPage, 0);
@@ -821,7 +821,7 @@ int16 monitor_desc::driver_status(uint16 code, uint32 param)
 			return noErr;
 
 		case cscGetPreferredConfiguration: // Get default video mode (depth and resolution)
-			D(bug(" GetPreferredConfiguration -> %04x/%08x\n", preferred_apple_mode, preferred_id));
+			D(bug(" GetPreferredConfiguration -> %02x/%08x\n", preferred_apple_mode, preferred_id));
 			WriteMacInt16(param + csMode, preferred_apple_mode);
 			WriteMacInt32(param + csData, preferred_id);
 			return noErr;

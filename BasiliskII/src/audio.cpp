@@ -82,7 +82,7 @@ static int32 AudioGetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			uint32 h = r.a[0];
 			if (h == 0)
 				return memFullErr;
-			WriteMacInt16(infoPtr + sil_count, audio_sample_sizes.size());
+			WriteMacInt16(infoPtr + sil_count, uint16(audio_sample_sizes.size()));
 			WriteMacInt32(infoPtr + sil_infoHandle, h);
 			uint32 sp = ReadMacInt32(h);
 			for (unsigned i=0; i<audio_sample_sizes.size(); i++)
@@ -100,7 +100,7 @@ static int32 AudioGetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			uint32 h = r.a[0];
 			if (h == 0)
 				return memFullErr;
-			WriteMacInt16(infoPtr + sil_count, audio_channel_counts.size());
+			WriteMacInt16(infoPtr + sil_count, uint16(audio_channel_counts.size()));
 			WriteMacInt32(infoPtr + sil_infoHandle, h);
 			uint32 sp = ReadMacInt32(h);
 			for (unsigned i=0; i<audio_channel_counts.size(); i++)
@@ -118,7 +118,7 @@ static int32 AudioGetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			uint32 h = r.a[0];
 			if (h == 0)
 				return memFullErr;
-			WriteMacInt16(infoPtr + sil_count, audio_sample_rates.size());
+			WriteMacInt16(infoPtr + sil_count, uint16(audio_sample_rates.size()));
 			WriteMacInt32(infoPtr + sil_infoHandle, h);
 			uint32 lp = ReadMacInt32(h);
 			for (unsigned i=0; i<audio_sample_rates.size(); i++)
