@@ -30,11 +30,11 @@ extern "C" {
 
 #include "eject_nt.h"
 
-LPTSTR szVolumeFormat = TEXT("\\\\.\\%c:");
-LPTSTR szRootFormat = TEXT("%c:\\");
-LPTSTR szErrorFormat = TEXT("Error %d: %s\n");
+LPCTSTR szVolumeFormat = TEXT("\\\\.\\%c:");
+LPCTSTR szRootFormat = TEXT("%c:\\");
+LPCTSTR szErrorFormat = TEXT("Error %d: %s\n");
 
-void ReportError(LPTSTR szMsg)
+void ReportError(LPCTSTR szMsg)
 {
    // _tprintf(szErrorFormat, GetLastError(), szMsg);
 }
