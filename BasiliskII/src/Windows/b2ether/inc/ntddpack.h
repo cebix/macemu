@@ -2,7 +2,6 @@
 #define __NTDDPACKET 1
 
 #include <ntddndis.h>
-#include <devioctl.h>
 
 #define        MAX_LINK_NAME_LENGTH   124
 
