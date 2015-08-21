@@ -45,7 +45,9 @@
 #define USE_MATCH 0
 
 /* kludge for Brian, so he can compile under MSVC++ */
-#define USE_NORMAL_CALLING_CONVENTION 1 && defined(_MSC_VER)
+#ifdef _WIN32
+#define USE_NORMAL_CALLING_CONVENTION 1
+#endif
 
 #ifndef WIN32
 #include <unistd.h>
