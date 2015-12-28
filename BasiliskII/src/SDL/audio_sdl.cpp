@@ -37,6 +37,8 @@
 #endif
 
 
+#define MAC_MAX_VOLUME 0x0100
+
 // The currently selected audio parameters (indices in audio_sample_rates[] etc. vectors)
 static int audio_sample_rate_index = 0;
 static int audio_sample_size_index = 0;
@@ -305,7 +307,7 @@ bool audio_get_main_mute(void)
 
 uint32 audio_get_main_volume(void)
 {
-	uint32 chan = (audio_volume * 0x0100 / SDL_MIX_MAXVOLUME);
+	uint32 chan = (audio_volume * MAC_MAX_VOLUME / SDL_MIX_MAXVOLUME);
 	return (chan << 16) + chan;
 }
 
@@ -328,9 +330,9 @@ void audio_set_main_volume(uint32 vol)
 {
 	// We only have one-channel volume right now.
 	uint32 avg = ((vol >> 16) + (vol & 0xffff)) / 2;
-	if (avg > 0x0100)
-		avg = 0x0100;
-	audio_volume = avg * SDL_MIX_MAXVOLUME / 0x0100;
+	if (avg > MAC_MAX_VOLUME)
+		avg = MAC_MAX_VOLUME;
+	audio_volume = avg * SDL_MIX_MAXVOLUME / MAC_MAX_VOLUME;
 }
 
 void audio_set_speaker_mute(bool mute)
