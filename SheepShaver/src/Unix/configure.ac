@@ -625,7 +625,7 @@ darwin*)
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     EXTFSSRC=../MacOSX/extfs_macosx.cpp
     if [[ "x$ac_cv_framework_AppKit" = "xyes" -a "x$WANT_GTK" = "xno" ]]; then
-      PREFSSRC="../MacOSX/prefs_macosx.mm ../MacOSX/Launcher/VMSettingsController.mm"
+      PREFSSRC="../MacOSX/prefs_macosx.mm ../MacOSX/Launcher/VMSettingsController.mm ../MacOSX/Launcher/DiskType.m"
       CPPFLAGS="$CPPFLAGS -I../MacOSX/Launcher"
     fi
   fi
@@ -935,6 +935,18 @@ AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, $have_mmap_vm,
   [Define if your system has a working mmap()-based memory allocator.])
 
 fi dnl HAVE_MMAP_VM
+
+dnl Check if we can disable position-independent code
+AC_CACHE_CHECK([how to disable position-independent code],
+  ac_cv_no_pie, [
+  ac_cv_no_pie='-Wl,-no_pie'
+  saved_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $ac_cv_no_pie"
+  AC_TRY_LINK(,,,[ac_cv_no_pie="cannot"])
+  if [[ "$ac_cv_no_pie" = "cannot" ]]; then
+    LDFLAGS="$saved_LDFLAGS"
+  fi
+])
 
 dnl Check if we can modify the __PAGEZERO segment for use as Low Memory
 AC_CACHE_CHECK([whether __PAGEZERO can be Low Memory area 0x0000-0x3000],
