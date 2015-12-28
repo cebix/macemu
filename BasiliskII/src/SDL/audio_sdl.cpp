@@ -37,6 +37,8 @@
 #endif
 
 
+#define MAC_MAX_VOLUME 0x0100
+
 // The currently selected audio parameters (indices in audio_sample_rates[] etc. vectors)
 static int audio_sample_rate_index = 0;
 static int audio_sample_size_index = 0;
@@ -45,6 +47,9 @@ static int audio_channel_count_index = 0;
 // Global variables
 static SDL_sem *audio_irq_done_sem = NULL;			// Signal from interrupt to streaming thread: data block read
 static uint8 silence_byte;							// Byte value to use to fill sound buffers with silence
+static uint8 *audio_mix_buf = NULL;
+static int audio_volume = SDL_MIX_MAXVOLUME;
+static bool audio_mute = false;
 
 // Prototypes
 static void stream_func(void *arg, uint8 *stream, int stream_len);
@@ -107,6 +112,7 @@ static bool open_sdl_audio(void)
 
 	// Sound buffer size = 4096 frames
 	audio_frames_per_block = audio_spec.samples;
+	audio_mix_buf = (uint8*)malloc(audio_spec.size);
 	return true;
 }
 
@@ -156,6 +162,8 @@ static void close_audio(void)
 {
 	// Close audio device
 	SDL_CloseAudio();
+	free(audio_mix_buf);
+	audio_mix_buf = NULL;
 	audio_open = false;
 }
 
@@ -195,7 +203,6 @@ void audio_exit_stream()
 static void stream_func(void *arg, uint8 *stream, int stream_len)
 {
 	if (AudioStatus.num_sources) {
-
 		// Trigger audio interrupt to get new buffer
 		D(bug("stream: triggering irq\n"));
 		SetInterruptFlag(INTFLAG_AUDIO);
@@ -206,7 +213,7 @@ static void stream_func(void *arg, uint8 *stream, int stream_len)
 
 		// Get size of audio data
 		uint32 apple_stream_info = ReadMacInt32(audio_data + adatStreamInfo);
-		if (apple_stream_info) {
+		if (apple_stream_info && !audio_mute) {
 			int work_size = ReadMacInt32(apple_stream_info + scd_sampleCount) * (AudioStatus.sample_size >> 3) * AudioStatus.channels;
 			D(bug("stream: work_size %d\n", work_size));
 			if (work_size > stream_len)
@@ -215,10 +222,12 @@ static void stream_func(void *arg, uint8 *stream, int stream_len)
 				goto silence;
 
 			// Send data to audio device
-			Mac2Host_memcpy(stream, ReadMacInt32(apple_stream_info + scd_buffer), work_size);
-			if (work_size != stream_len)
-				memset((uint8 *)stream + work_size, silence_byte, stream_len - work_size);
+			Mac2Host_memcpy(audio_mix_buf, ReadMacInt32(apple_stream_info + scd_buffer), work_size);
+			memset((uint8 *)stream, silence_byte, stream_len);
+			SDL_MixAudio(stream, audio_mix_buf, work_size, audio_volume);
+
 			D(bug("stream: data written\n"));
+
 		} else
 			goto silence;
 
@@ -293,30 +302,37 @@ bool audio_set_channels(int index)
 
 bool audio_get_main_mute(void)
 {
-	return false;
+	return audio_mute;
 }
 
 uint32 audio_get_main_volume(void)
 {
-	return 0x01000100;
+	uint32 chan = (audio_volume * MAC_MAX_VOLUME / SDL_MIX_MAXVOLUME);
+	return (chan << 16) + chan;
 }
 
 bool audio_get_speaker_mute(void)
 {
-	return false;
+	return audio_mute;
 }
 
 uint32 audio_get_speaker_volume(void)
 {
-	return 0x01000100;
+	return audio_get_main_volume();
 }
 
 void audio_set_main_mute(bool mute)
 {
+	audio_mute = mute;
 }
 
 void audio_set_main_volume(uint32 vol)
 {
+	// We only have one-channel volume right now.
+	uint32 avg = ((vol >> 16) + (vol & 0xffff)) / 2;
+	if (avg > MAC_MAX_VOLUME)
+		avg = MAC_MAX_VOLUME;
+	audio_volume = avg * SDL_MIX_MAXVOLUME / MAC_MAX_VOLUME;
 }
 
 void audio_set_speaker_mute(bool mute)
