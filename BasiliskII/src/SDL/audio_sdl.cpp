@@ -161,6 +161,7 @@ static void close_audio(void)
 	// Close audio device
 	SDL_CloseAudio();
 	free(audio_mix_buf);
+	audio_mix_buf = NULL;
 	audio_open = false;
 }
 
@@ -222,10 +223,6 @@ static void stream_func(void *arg, uint8 *stream, int stream_len)
 			Mac2Host_memcpy(audio_mix_buf, ReadMacInt32(apple_stream_info + scd_buffer), work_size);
 			memset((uint8 *)stream, silence_byte, stream_len);
 			SDL_MixAudio(stream, audio_mix_buf, work_size, audio_volume);
-
-			// Mac2Host_memcpy(stream, ReadMacInt32(apple_stream_info + scd_buffer), work_size);
-			// if (work_size != stream_len)
-			// 	memset((uint8 *)stream + work_size, silence_byte, stream_len - work_size);
 
 			D(bug("stream: data written\n"));
 
