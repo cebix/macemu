@@ -61,7 +61,11 @@
 #endif
 
 // Force only one return point
+#if defined(__i386__) || defined(__x86_64__)
+#define dyngen_barrier() asm volatile ("nop")
+#else
 #define dyngen_barrier() asm volatile ("")
+#endif
 
 #ifndef OPPROTO
 #define OPPROTO
