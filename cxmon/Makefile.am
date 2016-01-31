@@ -1,13 +1,10 @@
 ## Process this file with automake to produce Makefile.in
 SUBDIRS = src
 
-# Requires automake 1.5
-AUTOMAKE_OPTIONS = foreign 1.5
-
 # Manpages
 man_MANS = cxmon.1
 
-EXTRA_DIST = cxmon.1
+EXTRA_DIST = cxmon.1 bootstrap
 
 dist-hook: cxmon.spec
 	cp cxmon.spec $(distdir)

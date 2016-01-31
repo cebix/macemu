@@ -1,13 +1,12 @@
 dnl Process this file with autoconf to produce a configure script.
-dnl Written in 2000 by Christian Bauer
+dnl Written by Christian Bauer
 
-AC_INIT
-AC_CONFIG_SRCDIR(src/mon.cpp)
-AC_PREREQ(2.50)
+AC_PREREQ(2.69)
+AC_INIT([cxmon], [3.2], [cb@cebix.net], [cxmon])
+AC_CONFIG_SRCDIR([src/mon.cpp])
+AM_INIT_AUTOMAKE([1.12 foreign])
 
-dnl This defines PACKAGE and VERSION.
 AM_CONFIG_HEADER(config.h)
-AM_INIT_AUTOMAKE([cxmon], [3.2])
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -29,13 +28,12 @@ AC_CHECK_SIZEOF(long long, 8)
 AC_CHECK_SIZEOF(void *, 4)
 
 dnl Checks for libraries.
-AC_CHECK_LIB(ncurses, tgetent, ,
-  AC_CHECK_LIB(termcap, tgetent, ,
-    AC_CHECK_LIB(termlib, tgetent, ,
-      AC_CHECK_LIB(terminfo, tgetent, ,
-        AC_CHECK_LIB(Hcurses, tgetent, ,
-          AC_CHECK_LIB(curses, tgetent))))))
-AC_CHECK_LIB(readline, readline)
+AC_SEARCH_LIBS([tgetent], [ncurses termcap termlib terminfo Hcurses curses], [], [
+  AC_MSG_ERROR([unable to find the tgetent() function])
+])
+AC_SEARCH_LIBS([readline], [readline], [], [
+  AC_MSG_ERROR([unable to find the readline() function])
+])
 
 dnl Generate Makefile.
 AC_OUTPUT([
