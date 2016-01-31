@@ -21,6 +21,7 @@
 #include "sysdeps.h"
 
 #include <stdlib.h>
+#include <assert.h>
 
 #include "mon.h"
 #include "mon_cmd.h"
@@ -84,11 +85,13 @@ start:
 			if (mon_token == T_STRING) {
 				unsigned n = strlen(mon_string);
 				str = (uint8 *)realloc(str, (len + n - 1 + GRANULARITY) & ~(GRANULARITY - 1));
+				assert(str != NULL);
 				memcpy(str + len, mon_string, n);
 				len += n;
 				mon_get_token();
 			} else if (mon_expression(&value)) {
 				str = (uint8 *)realloc(str, (len + GRANULARITY) & ~(GRANULARITY - 1));
+				assert(str != NULL);
 				str[len] = value;
 				len++;
 			} else {
