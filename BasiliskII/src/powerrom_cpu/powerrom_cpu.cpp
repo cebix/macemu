@@ -1255,7 +1255,7 @@ void TriggerNMI(void)
  *  r->a[7] and r->sr are unused!
  */
 
-static asm void execute_68k(register uint32 addr, register M68kRegisters *r)
+static asm void execute_68k(register uaecptr addr, register M68kRegisters* r)
 {
 	// Create stack frame
 	mflr	r0
@@ -1330,10 +1330,10 @@ static asm void execute_68k(register uint32 addr, register M68kRegisters *r)
 	blr
 }
 
-void Execute68k(uint32 addr, M68kRegisters *r)
+void Execute68k(uaecptr addr, M68kRegisters* r)
 {
 	uint16 proc[4] = {M68K_JSR, addr >> 16, addr & 0xffff, M68K_EXEC_RETURN};
-	execute_68k((uint32)proc, r);
+	execute_68k((uaecptr)proc, r);
 }
 
 

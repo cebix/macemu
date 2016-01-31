@@ -387,10 +387,10 @@ void Set_pthread_attr(pthread_attr_t *attr, int priority);
 #ifdef CPU_CAN_ACCESS_UNALIGNED
 
 /* Big-endian CPUs which can do unaligned accesses */
-static inline uae_u32 do_get_mem_long(uae_u32 *a) {return *a;}
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {return *a;}
-static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {*a = v;}
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {*a = v;}
+static inline uae_u32 do_get_mem_long(const void* a) {return *(const uae_u32*)a;}
+static inline uae_u32 do_get_mem_word(const void* a) {return *(const uae_u16*)a;}
+static inline void do_put_mem_long(void* a, uae_u32 v) {*(uae_u32*)a = v;}
+static inline void do_put_mem_word(void* a, uae_u32 v) {*(uae_u16*)a = v;}
 
 #else /* CPU_CAN_ACCESS_UNALIGNED */
 
@@ -400,10 +400,10 @@ static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {*a = v;}
 #ifdef __cplusplus
 extern "C" { /* only the C compiler does unaligned accesses */
 #endif
-extern uae_u32 do_get_mem_long(uae_u32 *a);
-extern uae_u32 do_get_mem_word(uae_u16 *a);
-extern void do_put_mem_long(uae_u32 *a, uae_u32 v);
-extern void do_put_mem_word(uae_u16 *a, uae_u32 v);
+extern uae_u32 do_get_mem_long(const void* a);
+extern uae_u32 do_get_mem_word(const void* a);
+extern void do_put_mem_long(void* a, uae_u32 v);
+extern void do_put_mem_word(void* a, uae_u32 v);
 #ifdef __cplusplus
 }
 #endif
@@ -411,10 +411,10 @@ extern void do_put_mem_word(uae_u16 *a, uae_u32 v);
 #else /* sgi */
 
 /* Big-endian CPUs which can not do unaligned accesses (this is not the most efficient way to do this...) */
-static inline uae_u32 do_get_mem_long(uae_u32 *a) {uint8 *b = (uint8 *)a; return (b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3];}
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint8 *b = (uint8 *)a; return (b[0] << 8) | b[1];}
-static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {uint8 *b = (uint8 *)a; b[0] = v >> 24; b[1] = v >> 16; b[2] = v >> 8; b[3] = v;}
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {uint8 *b = (uint8 *)a; b[0] = v >> 8; b[1] = v;}
+static inline uae_u32 do_get_mem_long(const void* a) {uint8* b = (const uint8*)a; return (b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3];}
+static inline uae_u32 do_get_mem_word(const void* a) {uint8* b = (const uint8*)a; return (b[0] << 8) | b[1];}
+static inline void do_put_mem_long(void* a, uae_u32 v) {uint8* b = (uint8*)a; b[0] = v >> 24; b[1] = v >> 16; b[2] = v >> 8; b[3] = v;}
+static inline void do_put_mem_word(void* a, uae_u32 v) {uint8* b = (uint8*)a; b[0] = v >> 8; b[1] = v;}
 #endif /* sgi */
 
 #endif /* CPU_CAN_ACCESS_UNALIGNED */
@@ -425,19 +425,19 @@ static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {uint8 *b = (uint8 *)a
 
 /* Intel x86 */
 #define X86_PPRO_OPT
-static inline uae_u32 do_get_mem_long(uae_u32 *a) {uint32 retval; __asm__ ("bswap %0" : "=r" (retval) : "0" (*a) : "cc"); return retval;}
+static inline uae_u32 do_get_mem_long(const void* a) {uint32 retval; __asm__ ("bswap %0" : "=r" (retval) : "0" (*(const uae_u32*)a) : "cc"); return retval;}
 #ifdef X86_PPRO_OPT
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint32 retval; __asm__ ("movzwl %w1,%k0\n\tshll $16,%k0\n\tbswapl %k0\n" : "=&r" (retval) : "m" (*a) : "cc"); return retval;}
+static inline uae_u32 do_get_mem_word(const void* a) {uint32 retval; __asm__ ("movzwl %w1,%k0\n\tshll $16,%k0\n\tbswapl %k0\n" : "=&r" (retval) : "m" (*(const uae_u16*)a) : "cc"); return retval;}
 #else
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint32 retval; __asm__ ("xorl %k0,%k0\n\tmovw %w1,%w0\n\trolw $8,%w0" : "=&r" (retval) : "m" (*a) : "cc"); return retval;}
+static inline uae_u32 do_get_mem_word(const void* a) {uint32 retval; __asm__ ("xorl %k0,%k0\n\tmovw %w1,%w0\n\trolw $8,%w0" : "=&r" (retval) : "m" (*(const uae_u16*)a) : "cc"); return retval;}
 #endif
 #define HAVE_GET_WORD_UNSWAPPED
 #define do_get_mem_word_unswapped(a) ((uae_u32)*((uae_u16 *)(a)))
-static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {__asm__ ("bswap %0" : "=r" (v) : "0" (v) : "cc"); *a = v;}
+static inline void do_put_mem_long(void* a, uae_u32 v) {__asm__ ("bswap %0" : "=r" (v) : "0" (v) : "cc"); *(uae_u32*)a = v;}
 #ifdef X86_PPRO_OPT
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("bswapl %0" : "=&r" (v) : "0" (v << 16) : "cc"); *a = v;}
+static inline void do_put_mem_word(void* a, uae_u32 v) {__asm__ ("bswapl %0" : "=&r" (v) : "0" (v << 16) : "cc"); *(uae_u16*)a = v;}
 #else
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v) : "0" (v) : "cc"); *a = v;}
+static inline void do_put_mem_word(void* a, uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v) : "0" (v) : "cc"); *(uae_u16*)a = v;}
 #endif
 #define HAVE_OPTIMIZED_BYTESWAP_32
 /* bswap doesn't affect condition codes */
@@ -452,18 +452,18 @@ static inline uae_u32 do_byteswap_16(uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v
 #elif defined(CPU_CAN_ACCESS_UNALIGNED)
 
 /* Other little-endian CPUs which can do unaligned accesses */
-static inline uae_u32 do_get_mem_long(uae_u32 *a) {uint32 x = *a; return (x >> 24) | (x >> 8) & 0xff00 | (x << 8) & 0xff0000 | (x << 24);}
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint16 x = *a; return (x >> 8) | (x << 8);}
-static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {*a = (v >> 24) | (v >> 8) & 0xff00 | (v << 8) & 0xff0000 | (v << 24);}
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {*a = (v >> 8) | (v << 8);}
+static inline uae_u32 do_get_mem_long(const void* a) {uint32 x = *(uae_u32*)a; return (x >> 24) | (x >> 8) & 0xff00 | (x << 8) & 0xff0000 | (x << 24);}
+static inline uae_u32 do_get_mem_word(const void* a) {uint16 x = *(uae_u16*)a; return (x >> 8) | (x << 8);}
+static inline void do_put_mem_long(void* a, uae_u32 v) {*(uae_u32*)a = (v >> 24) | (v >> 8) & 0xff00 | (v << 8) & 0xff0000 | (v << 24);}
+static inline void do_put_mem_word(void* a, uae_u32 v) {*(uae_u32*)a = (v >> 8) | (v << 8);}
 
 #else /* CPU_CAN_ACCESS_UNALIGNED */
 
 /* Other little-endian CPUs which can not do unaligned accesses (this needs optimization) */
-static inline uae_u32 do_get_mem_long(uae_u32 *a) {uint8 *b = (uint8 *)a; return (b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3];}
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint8 *b = (uint8 *)a; return (b[0] << 8) | b[1];}
-static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {uint8 *b = (uint8 *)a; b[0] = v >> 24; b[1] = v >> 16; b[2] = v >> 8; b[3] = v;}
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {uint8 *b = (uint8 *)a; b[0] = v >> 8; b[1] = v;}
+static inline uae_u32 do_get_mem_long(const void* a) {const uint8* b = (const uint8*)a; return (b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3];}
+static inline uae_u32 do_get_mem_word(const void* a) {const uint8* b = (const uint8*)a; return (b[0] << 8) | b[1];}
+static inline void do_put_mem_long(void* a, uae_u32 v) {uint8* b = (uint8*)a; b[0] = v >> 24; b[1] = v >> 16; b[2] = v >> 8; b[3] = v;}
+static inline void do_put_mem_word(void* a, uae_u32 v) {uint8* b = (uint8*)a; b[0] = v >> 8; b[1] = v;}
 
 #endif /* CPU_CAN_ACCESS_UNALIGNED */
 

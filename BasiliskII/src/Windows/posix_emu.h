@@ -78,6 +78,21 @@ extern int my_errno;
 
 // must hook all other functions that manipulate file names
 #ifndef NO_POSIX_API_HOOK
+#undef stat
+#undef fstat
+#undef open
+#undef rename
+#undef access
+#undef mkdir
+#undef remove
+#undef creat
+#undef close
+#undef lseek
+#undef read
+#undef write
+#undef ftruncate
+#undef locking
+
 #define stat my_stat
 #define fstat my_fstat
 #define open my_open
@@ -110,13 +125,16 @@ struct my_stat {
   short st_uid;
   short st_gid;
   _dev_t st_rdev;
+#if __MINGW32__ && !defined _USE_32BIT_TIME_T
+  __int64 st_size;
+#else
   _off_t st_size;
+#endif
   time_t st_atime;
   time_t st_mtime;
   time_t st_ctime;
 };
-
-// Your compiler may have different "struct stat" -> edit "struct my_stat"
-#define validate_stat_struct ( sizeof(struct my_stat) == sizeof(struct stat) )
+static_assert(sizeof(struct stat) == sizeof(struct my_stat),
+    "Your compiler may have different struct stat -> edit struct my_stat");
 
 #define st_crtime st_ctime

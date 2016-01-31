@@ -22,11 +22,6 @@
 
 #include "sysdeps.h"
 
-#include <process.h>
-#include <windowsx.h>
-#include <winioctl.h>
-#include <ctype.h>
-
 #include "cpu_emulation.h"
 #include "main.h"
 #include "macos_util.h"
@@ -40,6 +35,14 @@
 #include "router/router.h"
 #include "util_windows.h"
 #include "libslirp.h"
+
+#include <algorithm>
+using std::min;
+
+#include <process.h>
+#include <windowsx.h>
+#include <winioctl.h>
+#include <ctype.h>
 
 // Define to let the slirp library determine the right timeout for select()
 #define USE_SLIRP_TIMEOUT 1
@@ -144,7 +147,7 @@ static LPPACKET write_packet_pool = 0;
 static int echo_count = 0;
 typedef uint8 echo_t[1514];
 static echo_t pending_packet[MAX_ECHO];
-static int pending_packet_sz[MAX_ECHO];
+static unsigned pending_packet_sz[MAX_ECHO];
 
 
 // List of attached protocols
@@ -676,13 +679,13 @@ void EtherIRQ(void)
 // Add multicast address
 int16 ether_add_multicast(uint32 pb)
 {
-	return ether_do_add_multicast(Mac2HostAddr(pb + eMultiAddr));
+	return ether_do_add_multicast(static_cast<uint8*>(Mac2HostAddr(pb + eMultiAddr)));
 }
 
 // Disable multicast address
 int16 ether_del_multicast(uint32 pb)
 {
-	return ether_do_del_multicast(Mac2HostAddr(pb + eMultiAddr));
+	return ether_do_del_multicast(static_cast<uint8*>(Mac2HostAddr(pb + eMultiAddr)));
 }
 
 // Transmit one packet
@@ -862,7 +865,7 @@ int16 ether_detach_ph(uint16 type)
 }
 
 #if MONITOR
-static void dump_packet( uint8 *packet, int length )
+static void dump_packet( const uint8 *packet, int length )
 {
 	char buf[1000], sm[10];
 
@@ -1023,7 +1026,7 @@ unsigned int WINAPI ether_thread_write_packets(void *arg)
 	return(0);
 }
 
-static BOOL write_packet( uint8 *packet, int len )
+static BOOL write_packet( uint8 *packet, unsigned len )
 {
 	LPPACKET Packet;
 
@@ -1034,7 +1037,7 @@ static BOOL write_packet( uint8 *packet, int len )
 		memcpy( Packet->Buffer, packet, len );
 
 		EnterCriticalSection( &fetch_csection );
-		pending_packet_sz[echo_count] = min(sizeof(pending_packet),len);
+		pending_packet_sz[echo_count] = min(unsigned(sizeof(pending_packet)),len);
 		memcpy( pending_packet[echo_count], packet, pending_packet_sz[echo_count] );
 		echo_count = (echo_count+1) & (~(MAX_ECHO-1));
 		LeaveCriticalSection( &fetch_csection );
@@ -1117,7 +1120,7 @@ void enqueue_packet( const uint8 *buf, int sz )
 	LeaveCriticalSection( &queue_csection );
 }
 
-static int dequeue_packet( uint8 *buf )
+static int dequeue_packet( void *buf )
 {
 	int sz;
 
@@ -1405,7 +1408,7 @@ VOID CALLBACK packet_read_completion(
 	D(bug("packet_read_completion bytes=%d, error code=%d\n",dwNumberOfBytesTransfered,dwErrorCode));
 
 	if(thread_active && !dwErrorCode) {
-		int count = min(dwNumberOfBytesTransfered,1514);
+		int count = min(dwNumberOfBytesTransfered,DWORD(1514));
 		if(count) {
 			int j = echo_count;
 			for(int i=MAX_ECHO; i; i--) {

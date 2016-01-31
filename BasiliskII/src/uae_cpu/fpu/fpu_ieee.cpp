@@ -167,7 +167,7 @@ PRIVATE void FFPU dump_registers(const char * str)
 #endif
 }
 
-PRIVATE void FFPU dump_first_bytes(uae_u8 * buffer, uae_s32 actual)
+PRIVATE void FFPU dump_first_bytes(const uae_u8* buffer, uae_s32 actual)
 {
 #if FPU_DEBUG && FPU_DUMP_FIRST_BYTES
 	char temp_buf1[256], temp_buf2[10];
@@ -347,7 +347,7 @@ PRIVATE inline void FFPU make_extended_no_normalize(
 )
 {
 	// is it zero?
-	if ((wrd1 && 0x7fff0000) == 0 && wrd2 == 0 && wrd3 == 0) {
+	if ((wrd1 & 0x7fff0000) == 0 && wrd2 == 0 && wrd3 == 0) {
 		make_zero_positive(result);
 		return;
 	}
@@ -673,8 +673,8 @@ PRIVATE inline int FFPU get_fp_value (uae_u32 opcode, uae_u16 extra, fpu_registe
 	fpu_debug(("get_fp_value m68k_getpc()=%X\n",m68k_getpc()));
 	fpu_debug(("get_fp_value ad=%X\n",ad));
 	fpu_debug(("get_fp_value get_long (ad)=%X\n",get_long (ad)));
-	dump_first_bytes( get_real_address(ad)-64, 64 );
-	dump_first_bytes( get_real_address(ad), 64 );
+	dump_first_bytes( static_cast<const uae_u8*>(get_real_address(ad))-64, 64 );
+	dump_first_bytes( static_cast<const uae_u8*>(get_real_address(ad)), 64 );
 
 	switch (size) {
 	case 0:
@@ -1768,13 +1768,13 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 						FPU registers[reg] = (double)(FPU registers[reg] * src);
 				}
 				else if (fl_dest.nan || fl_source.nan || 
-						 fl_dest.zero && fl_source.infinity || 
-						 fl_dest.infinity && fl_source.zero ) {
+						 (fl_dest.zero && fl_source.infinity) || 
+						 (fl_dest.infinity && fl_source.zero)) {
 					make_nan( FPU registers[reg] );
 				}
 				else if (fl_dest.zero || fl_source.zero ) {
-					if (fl_dest.negative && !fl_source.negative ||
-						!fl_dest.negative && fl_source.negative)  {
+					if ((fl_dest.negative && !fl_source.negative) ||
+						(!fl_dest.negative && fl_source.negative))  {
 						make_zero_negative(FPU registers[reg]);
 					}
 					else {
@@ -1782,8 +1782,8 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 					}
 				}
 				else {
-					if( fl_dest.negative && !fl_source.negative ||
-						!fl_dest.negative && fl_source.negative)  {
+					if ((fl_dest.negative && !fl_source.negative) ||
+						(!fl_dest.negative && fl_source.negative))  {
 						make_inf_negative(FPU registers[reg]);
 					}
 					else {
@@ -1971,13 +1971,13 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 				FPU registers[reg] *= src;
 			}
 			else if (fl_dest.nan || fl_source.nan || 
-					 fl_dest.zero && fl_source.infinity || 
-					 fl_dest.infinity && fl_source.zero ) {
+					 (fl_dest.zero && fl_source.infinity) || 
+					 (fl_dest.infinity && fl_source.zero)) {
 				make_nan( FPU registers[reg] );
 			}
 			else if (fl_dest.zero || fl_source.zero ) {
-				if (fl_dest.negative && !fl_source.negative ||
-					!fl_dest.negative && fl_source.negative)  {
+				if ((fl_dest.negative && !fl_source.negative) ||
+					(!fl_dest.negative && fl_source.negative))  {
 					make_zero_negative(FPU registers[reg]);
 				}
 				else {
@@ -1985,8 +1985,8 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 				}
 			}
 			else {
-				if( fl_dest.negative && !fl_source.negative ||
-					!fl_dest.negative && fl_source.negative)  {
+				if ((fl_dest.negative && !fl_source.negative) ||
+					(!fl_dest.negative && fl_source.negative))  {
 					make_inf_negative(FPU registers[reg]);
 				}
 				else {

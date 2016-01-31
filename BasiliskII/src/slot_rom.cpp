@@ -211,17 +211,17 @@ static uint32 VMonitor(const monitor_desc &m, uint32 videoType, uint32 videoName
 	Offs(0x40, gammaDir);				// Gamma directory
 	Rsrc(0x7d, 6);						// Video attributes: Default to color, built-in
 	if (m.has_depth(VDEPTH_1BIT))
-		Offs(uint8(m.depth_to_apple_mode(VDEPTH_1BIT)), vidMode1);	// Video mode parameters for 1 bit
+		Offs(m.depth_to_apple_mode(VDEPTH_1BIT), vidMode1);	// Video mode parameters for 1 bit
 	if (m.has_depth(VDEPTH_2BIT))
-		Offs(uint8(m.depth_to_apple_mode(VDEPTH_2BIT)), vidMode2);	// Video mode parameters for 2 bit
+		Offs(m.depth_to_apple_mode(VDEPTH_2BIT), vidMode2);	// Video mode parameters for 2 bit
 	if (m.has_depth(VDEPTH_4BIT))
-		Offs(uint8(m.depth_to_apple_mode(VDEPTH_4BIT)), vidMode4);	// Video mode parameters for 4 bit
+		Offs(m.depth_to_apple_mode(VDEPTH_4BIT), vidMode4);	// Video mode parameters for 4 bit
 	if (m.has_depth(VDEPTH_8BIT))
-		Offs(uint8(m.depth_to_apple_mode(VDEPTH_8BIT)), vidMode8);	// Video mode parameters for 8 bit
+		Offs(m.depth_to_apple_mode(VDEPTH_8BIT), vidMode8);	// Video mode parameters for 8 bit
 	if (m.has_depth(VDEPTH_16BIT))
-		Offs(uint8(m.depth_to_apple_mode(VDEPTH_16BIT)), vidMode16);	// Video mode parameters for 16 bit
+		Offs(m.depth_to_apple_mode(VDEPTH_16BIT), vidMode16);	// Video mode parameters for 16 bit
 	if (m.has_depth(VDEPTH_32BIT))
-		Offs(uint8(m.depth_to_apple_mode(VDEPTH_32BIT)), vidMode32);	// Video mode parameters for 32 bit
+		Offs(m.depth_to_apple_mode(VDEPTH_32BIT), vidMode32);	// Video mode parameters for 32 bit
 	EndOfList();
 	return ret;
 }

@@ -114,7 +114,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			bool is_read = (r->d[1] & 0x80) != 0;
 			if ((r->d[1] & 0x78) == 0x38) {
 				// XPRAM
-				uint8 reg = (r->d[1] << 5) & 0xe0 | (r->d[1] >> 10) & 0x1f;
+				uint8 reg = ((r->d[1] << 5) & 0xe0) | ((r->d[1] >> 10) & 0x1f);
 				if (is_read) {
 					r->d[2] = XPRAM[reg];
 					bool localtalk = !(XPRAM[0xe0] || XPRAM[0xe1]);	// LocalTalk enabled?
@@ -210,7 +210,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 		}
 
 		case M68K_EMUL_OP_ADBOP:			// ADBOp() replacement
-			ADBOp(r->d[0], Mac2HostAddr(ReadMacInt32(r->a[0])));
+			ADBOp(r->d[0], static_cast<uint8*>(Mac2HostAddr(ReadMacInt32(r->a[0]))));
 			break;
 
 		case M68K_EMUL_OP_INSTIME:			// InsTime() replacement
@@ -398,7 +398,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 					stack = 2;
 					break;
 				case 3:		// SCSICmd
-					WriteMacInt16(r->a[7] + 6, SCSICmd(ReadMacInt16(r->a[7]), Mac2HostAddr(ReadMacInt32(r->a[7] + 2))));
+					WriteMacInt16(r->a[7] + 6, SCSICmd(ReadMacInt16(r->a[7]), static_cast<uint8*>(Mac2HostAddr(ReadMacInt32(r->a[7] + 2)))));
 					stack = 6;
 					break;
 				case 4:		// SCSIComplete
@@ -528,7 +528,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			uint32 adr = ReadMacInt32(r->a[0]);
 			if (adr == 0)
 				break;
-			uint8 *p = Mac2HostAddr(adr);
+			uint8* p = static_cast<uint8*>(Mac2HostAddr(adr));
 			uint32 size = ReadMacInt32(adr - 8) & 0xffffff;
 			CheckLoad(type, id, p, size);
 			break;
@@ -565,7 +565,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			break;
 
 		default:
-			printf("FATAL: EMUL_OP called with bogus opcode %08x\n", opcode);
+			printf("FATAL: EMUL_OP called with bogus opcode %04x\n", opcode);
 			printf("d0 %08x d1 %08x d2 %08x d3 %08x\n"
 				   "d4 %08x d5 %08x d6 %08x d7 %08x\n"
 				   "a0 %08x a1 %08x a2 %08x a3 %08x\n"

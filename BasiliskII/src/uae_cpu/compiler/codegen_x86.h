@@ -376,7 +376,7 @@ typedef unsigned int	_ul;
 #define _b110		6
 #define _b111		7
 
-#define _OFF4(D)	(_UL(D) - _UL(x86_get_target()))
+#define _OFF4(D)	(_UL(D - uintptr(x86_get_target())))
 #define _CKD8(D)	_ck_d(8, ((_uc) _OFF4(D)) )
 
 #define _D8(D)		(_B(0), ((*(_PUC(x86_get_target())-1))= _CKD8(D)))
@@ -1259,23 +1259,23 @@ enum {
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
 // FIXME: no prefix is availble to encode a 32-bit operand size in 64-bit mode
-#define CALLm(M)							_O_D32		(0xe8					,(int)(M)		)
+#define CALLm(M)							_O_D32		(0xe8					,uintptr(M)		)
 #define _CALLLsr(R)			(_REXLrr(0, R),			_O_Mrm		(0xff		,_b11,_b010,_r4(R)				))
 #define _CALLQsr(R)			(_REXLrr(0, R),			_O_Mrm		(0xff		,_b11,_b010,_r8(R)				))
 #define CALLsr(R)			( X86_TARGET_64BIT ? _CALLQsr(R) : _CALLLsr(R))
-#define CALLsm(D,B,I,S)			(_REXLrm(0, B, I),		_O_r_X		(0xff		     ,_b010		,(int)(D),B,I,S		))
+#define CALLsm(D,B,I,S)			(_REXLrm(0, B, I),		_O_r_X		(0xff		     ,_b010		,int32(D),B,I,S		))
 
 // FIXME: no prefix is availble to encode a 32-bit operand size in 64-bit mode
-#define JMPSm(M)							_O_D8		(0xeb					,(int)(M)		)
-#define JMPm(M)								_O_D32		(0xe9					,(int)(M)		)
+#define JMPSm(M)							_O_D8		(0xeb					,uintptr(M)		)
+#define JMPm(M)								_O_D32		(0xe9					,uintptr(M)		)
 #define _JMPLsr(R)			(_REXLrr(0, R),			_O_Mrm		(0xff		,_b11,_b100,_r4(R)				))
 #define _JMPQsr(R)			(_REXLrr(0, R),			_O_Mrm		(0xff		,_b11,_b100,_r8(R)				))
 #define JMPsr(R)			( X86_TARGET_64BIT ? _JMPQsr(R) : _JMPLsr(R))
-#define JMPsm(D,B,I,S)			(_REXLrm(0, B, I),		_O_r_X		(0xff		     ,_b100		,(int)(D),B,I,S		))
+#define JMPsm(D,B,I,S)			(_REXLrm(0, B, I),		_O_r_X		(0xff		     ,_b100		,int32(D),B,I,S		))
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
-#define JCCSii(CC, D)							_O_B		(0x70|(CC)				,(_sc)(int)(D)		)
-#define JCCSim(CC, D)							_O_D8		(0x70|(CC)				,(int)(D)		)
+#define JCCSii(CC, D)							_O_B		(0x70|(CC)				,_sc(D)		)
+#define JCCSim(CC, D)							_O_D8		(0x70|(CC)				,int32(D)		)
 #define JOSm(D)				JCCSim(X86_CC_O,   D)
 #define JNOSm(D)			JCCSim(X86_CC_NO,  D)
 #define JBSm(D)				JCCSim(X86_CC_B,   D)

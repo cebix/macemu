@@ -90,19 +90,19 @@ extern void Delay_usec(uint32 usec);
 
 // Intel x86 assembler optimizations
 #define X86_PPRO_OPT
-static inline uae_u32 do_get_mem_long(uae_u32 *a) {uint32 retval; __asm__ ("bswap %0" : "=r" (retval) : "0" (*a) : "cc"); return retval;}
+static inline uae_u32 do_get_mem_long(const void* a) {uint32 retval; __asm__ ("bswap %0" : "=r" (retval) : "0" (*a) : "cc"); return retval;}
 #ifdef X86_PPRO_OPT
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint32 retval; __asm__ ("movzwl %w1,%k0\n\tshll $16,%k0\n\tbswap %k0\n" : "=&r" (retval) : "m" (*a) : "cc"); return retval;}
+static inline uae_u32 do_get_mem_word(const void* a) {uint32 retval; __asm__ ("movzwl %w1,%k0\n\tshll $16,%k0\n\tbswap %k0\n" : "=&r" (retval) : "m" (*a) : "cc"); return retval;}
 #else
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint32 retval; __asm__ ("xorl %k0,%k0\n\tmovw %w1,%w0\n\trolw $8,%w0" : "=&r" (retval) : "m" (*a) : "cc"); return retval;}
+static inline uae_u32 do_get_mem_word(const void* a) {uint32 retval; __asm__ ("xorl %k0,%k0\n\tmovw %w1,%w0\n\trolw $8,%w0" : "=&r" (retval) : "m" (*a) : "cc"); return retval;}
 #endif
 #define HAVE_GET_WORD_UNSWAPPED
 #define do_get_mem_word_unswapped(a) ((uae_u32)*((uae_u16 *)(a)))
-static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {__asm__ ("bswap %0" : "=r" (v) : "0" (v) : "cc"); *a = v;}
+static inline void do_put_mem_long(void* a, uae_u32 v) {__asm__ ("bswap %0" : "=r" (v) : "0" (v) : "cc"); *a = v;}
 #ifdef X86_PPRO_OPT
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("bswap %0" : "=&r" (v) : "0" (v << 16) : "cc"); *a = v;}
+static inline void do_put_mem_word(void* a, uae_u32 v) {__asm__ ("bswap %0" : "=&r" (v) : "0" (v << 16) : "cc"); *a = v;}
 #else
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v) : "0" (v) : "cc"); *a = v;}
+static inline void do_put_mem_word(void* a, uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v) : "0" (v) : "cc"); *a = v;}
 #endif
 
 #define X86_ASSEMBLY
@@ -114,10 +114,10 @@ static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("rolw $8,%0"
 #else
 
 // PowerPC (memory.cpp not used, so no optimization neccessary)
-static inline uae_u32 do_get_mem_long(uae_u32 *a) {return *a;}
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {return *a;}
-static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {*a = v;}
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {*a = v;}
+static inline uae_u32 do_get_mem_long(const void* a) {return *(const uae_u32*)a;}
+static inline uae_u32 do_get_mem_word(const void* a) {return *(const uae_u16*)a;}
+static inline void do_put_mem_long(void* a, uae_u32 v) {*(uae_u32*)a = v;}
+static inline void do_put_mem_word(void* a, uae_u32 v) {*(uae_u16*)a = v;}
 
 #undef X86_ASSEMBLY
 #define UNALIGNED_PROFITABLE
@@ -126,8 +126,8 @@ static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {*a = v;}
 #define REGPARAM
 #endif
 
-#define do_get_mem_byte(a) ((uae_u32)*((uae_u8 *)(a)))
-#define do_put_mem_byte(a, v) (*(uae_u8 *)(a) = (v))
+#define do_get_mem_byte(a) ((uae_u32)*((const uae_u8*)(a)))
+#define do_put_mem_byte(a, v) (*(uae_u8*)(a) = (v))
 
 #define call_mem_get_func(func, addr) ((*func)(addr))
 #define call_mem_put_func(func, addr, v) ((*func)(addr, v))

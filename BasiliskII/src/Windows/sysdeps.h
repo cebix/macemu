@@ -42,6 +42,12 @@
 #include <string.h>
 #include <tchar.h>
 #include <time.h>
+
+// MinGW Windows headers don't define min/max when compiling in C++
+// mode, so make sure other environments behave the same way.
+#if defined __cplusplus && !defined NOMINMAX
+#define NOMINMAX
+#endif
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <WinSock2.h>
@@ -78,6 +84,11 @@
 
 /* ExtFS is supported */
 #define SUPPORTS_EXTFS 1
+
+/* Disable specific warnings */
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wswitch"
+#endif
 
 /* POSIX data types missing from Microsoft's CRT */
 #ifdef _MSC_VER
@@ -225,25 +236,25 @@ static inline int spin_trylock(spinlock_t *lock)
 #define HAVE_OPTIMIZED_BYTESWAP_16
 
 #ifdef _MSC_VER
-static inline uae_u32 do_get_mem_long(uae_u32 *a) {return _byteswap_ulong(*a);}
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {return _byteswap_ushort(*a);}
-static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {*a = _byteswap_ulong(v);}
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {*a = _byteswap_ushort(v);}
+static inline uae_u32 do_get_mem_long(const void* a) {return _byteswap_ulong(*(const uae_u32*)a);}
+static inline uae_u32 do_get_mem_word(const void* a) {return _byteswap_ushort(*(const uae_u16*)a);}
+static inline void do_put_mem_long(void* a, uae_u32 v) {*(uae_u32*)a = _byteswap_ulong(v);}
+static inline void do_put_mem_word(void* a, uae_u32 v) {*(uae_u16*)a = _byteswap_ushort(v);}
 static inline uae_u32 do_byteswap_32_g(uae_u32 v) {return _byteswap_ulong(v);}
 static inline uae_u32 do_byteswap_16_g(uae_u32 v) {return _byteswap_ushort(v);}
 #else
 /* Intel x86 */
-static inline uae_u32 do_get_mem_long(uae_u32 *a) {uint32 retval; __asm__ ("bswap %0" : "=r" (retval) : "0" (*a) : "cc"); return retval;}
+static inline uae_u32 do_get_mem_long(const void* a) {uint32 retval; __asm__ ("bswap %0" : "=r" (retval) : "0" (*(const uae_u32*)a) : "cc"); return retval;}
 #ifdef X86_PPRO_OPT
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint32 retval; __asm__ ("movzwl %w1,%k0\n\tshll $16,%k0\n\tbswapl %k0\n" : "=&r" (retval) : "m" (*a) : "cc"); return retval;}
+static inline uae_u32 do_get_mem_word(const void* a) {uint32 retval; __asm__ ("movzwl %w1,%k0\n\tshll $16,%k0\n\tbswapl %k0\n" : "=&r" (retval) : "m" (*(const uae_u16*)a) : "cc"); return retval;}
 #else
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint32 retval; __asm__ ("xorl %k0,%k0\n\tmovw %w1,%w0\n\trolw $8,%w0" : "=&r" (retval) : "m" (*a) : "cc"); return retval;}
+static inline uae_u32 do_get_mem_word(const void* a) {uint32 retval; __asm__ ("xorl %k0,%k0\n\tmovw %w1,%w0\n\trolw $8,%w0" : "=&r" (retval) : "m" (*(const uae_u16*)a) : "cc"); return retval;}
 #endif
-static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {__asm__ ("bswap %0" : "=r" (v) : "0" (v) : "cc"); *a = v;}
+static inline void do_put_mem_long(void* a, uae_u32 v) {__asm__ ("bswap %0" : "=r" (v) : "0" (v) : "cc"); *(uae_u32*)a = v;}
 #ifdef X86_PPRO_OPT
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("bswapl %0" : "=&r" (v) : "0" (v << 16) : "cc"); *a = v;}
+static inline void do_put_mem_word(void* a, uae_u32 v) {__asm__ ("bswapl %0" : "=&r" (v) : "0" (v << 16) : "cc"); *(uae_u16*)a = v;}
 #else
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v) : "0" (v) : "cc"); *a = v;}
+static inline void do_put_mem_word(void* a, uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v) : "0" (v) : "cc"); *(uae_u16*)a = v;}
 #endif
 /* bswap doesn't affect condition codes */
 static inline uae_u32 do_byteswap_32_g(uae_u32 v) {__asm__ ("bswap %0" : "=r" (v) : "0" (v)); return v;}
@@ -277,7 +288,7 @@ static inline uae_u32 do_byteswap_16_g(uae_u32 v)
 #if defined(__GNUC__)
 #define do_byteswap_16(x)						\
 		(__extension__							\
-		 ({ register uint16 __v, __x = (x);		\
+		 ({ uint16 __v, __x = (x);		\
 		 if (__builtin_constant_p(__x))			\
 		   __v = do_byteswap_16_c(__x);			\
 		 else									\
@@ -286,7 +297,7 @@ static inline uae_u32 do_byteswap_16_g(uae_u32 v)
 
 #define do_byteswap_32(x)						\
 		(__extension__							\
-		 ({ register uint32 __v, __x = (x);		\
+		 ({ uint32 __v, __x = (x);		\
 		 if (__builtin_constant_p(__x))			\
 		   __v = do_byteswap_32_c(__x);			\
 		 else									\
@@ -305,8 +316,8 @@ static inline uae_u32 do_byteswap_16_g(uae_u32 v)
 #define htons(x) do_byteswap_16(x)
 #endif
 
-#define do_get_mem_byte(a) ((uae_u32)*((uae_u8 *)(a)))
-#define do_put_mem_byte(a, v) (*(uae_u8 *)(a) = (v))
+#define do_get_mem_byte(a) ((uae_u32)*((const uae_u8*)(a)))
+#define do_put_mem_byte(a, v) (*(uae_u8*)(a) = (v))
 
 #define call_mem_get_func(func, addr) ((*func)(addr))
 #define call_mem_put_func(func, addr, v) ((*func)(addr, v))
@@ -328,9 +339,5 @@ static inline uae_u32 do_byteswap_16_g(uae_u32 v)
 # define REGPARAM
 #endif
 #define REGPARAM2
-
-#ifdef _MSC_VER
-#define ATTRIBUTE_PACKED
-#endif
 
 #endif

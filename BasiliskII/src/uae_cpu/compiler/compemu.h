@@ -49,13 +49,13 @@ extern void compiler_dumpstate(void);
 #define MAXRUN 1024
 #define cacheline(x) (((uintptr)x)&TAGMASK)
 
-extern uae_u8* start_pc_p;
+extern const uae_u8* start_pc_p;
 extern uae_u32 start_pc;
 
 struct blockinfo_t;
 
 struct cpu_history {
-	uae_u16 * location;
+	const uae_u16* location;
 };
 
 union cacheline {
@@ -272,7 +272,7 @@ extern bigstate live;
 extern int touchcnt;
 
 
-#define IMM uae_s32
+#define IMM intptr
 #define R1  uae_u32
 #define R2  uae_u32
 #define R4  uae_u32
@@ -524,9 +524,9 @@ extern uae_u32 get_const(int r);
 extern int  is_const(int r);
 extern void register_branch(uae_u32 not_taken, uae_u32 taken, uae_u8 cond);
 
-#define comp_get_ibyte(o) do_get_mem_byte((uae_u8 *)(comp_pc_p + (o) + 1))
-#define comp_get_iword(o) do_get_mem_word((uae_u16 *)(comp_pc_p + (o)))
-#define comp_get_ilong(o) do_get_mem_long((uae_u32 *)(comp_pc_p + (o)))
+#define comp_get_ibyte(o) do_get_mem_byte(comp_pc_p + (o) + 1)
+#define comp_get_iword(o) do_get_mem_word(comp_pc_p + (o))
+#define comp_get_ilong(o) do_get_mem_long(comp_pc_p + (o))
 
 struct blockinfo_t;
 
@@ -556,7 +556,7 @@ typedef struct blockinfo_t {
     cpuop_func* direct_pen;
     cpuop_func* direct_pcc;
 
-    uae_u8* pc_p;
+    const uae_u8* pc_p;
     
     uae_u32 c1;     
     uae_u32 c2;

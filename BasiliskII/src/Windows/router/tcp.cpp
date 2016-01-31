@@ -283,9 +283,9 @@ static int alloc_socket()
 			// sockets[i].src_port = sockets[i].dest_port = 0;
 
 			memset( &sockets[i].overlapped_read, 0, sizeof(sockets[i].overlapped_read) );
-			sockets[i].overlapped_read.hEvent = (HANDLE)i;
+			sockets[i].overlapped_read.hEvent = HANDLE(intptr_t(i));
 			memset( &sockets[i].overlapped_write, 0, sizeof(sockets[i].overlapped_write) );
-			sockets[i].overlapped_write.hEvent = (HANDLE)i;
+			sockets[i].overlapped_write.hEvent = HANDLE(intptr_t(i));
 
 			sockets[i].bytes_received = 0;
 			sockets[i].bytes_written = 0;
@@ -691,7 +691,7 @@ static void CALLBACK tcp_read_completion(
 {
 	EnterCriticalSection( &tcp_section );
 
-	const int t = (int)lpOverlapped->hEvent;
+	const int t = intptr_t(lpOverlapped->hEvent);
 
 	sockets[t].bytes_received = bytes_read;
 
@@ -775,7 +775,7 @@ static void CALLBACK tcp_write_completion(
 {
 	EnterCriticalSection( &tcp_section );
 
-	const int t = (int)lpOverlapped->hEvent;
+	const int t = intptr_t(lpOverlapped->hEvent);
 
 	sockets[t].bytes_written = bytes_written;
 	sockets[t].bytes_remaining_to_send -= bytes_written;
@@ -1332,7 +1332,7 @@ void write_tcp( tcp_t *tcp, int len )
 	- Expire time-waits.
 	- Handle resend timeouts.
 */
-static unsigned int WINAPI tcp_connect_close_thread(void *arg)
+static DWORD WINAPI tcp_connect_close_thread(void *arg)
 {
 	WSAEVENT wait_handles[MAX_SOCKETS];
 
@@ -1428,7 +1428,7 @@ static unsigned int WINAPI tcp_connect_close_thread(void *arg)
 	return 0;
 }
 
-static unsigned int WINAPI tcp_listen_thread(void *arg)
+static DWORD WINAPI tcp_listen_thread(void *arg)
 {
 	WSAEVENT wait_handles[MAX_SOCKETS];
 
@@ -1550,11 +1550,8 @@ void init_tcp()
 
 	init_tcp_listen_ports();
 
-	unsigned int tcp_tid;
-	tcp_handle = (HANDLE)_beginthreadex( 0, 0, tcp_connect_close_thread, 0, 0, &tcp_tid );
-
-	unsigned int tcp_l_tid;
-	tcp_l_handle = (HANDLE)_beginthreadex( 0, 0, tcp_listen_thread, 0, 0, &tcp_l_tid );
+	tcp_handle = CreateThread(nullptr, 0, tcp_connect_close_thread, nullptr, 0, nullptr);
+	tcp_l_handle = CreateThread(nullptr, 0, tcp_listen_thread, nullptr, 0, nullptr);
 }
 
 void final_tcp()

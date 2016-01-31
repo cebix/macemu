@@ -78,7 +78,7 @@ static bool reading;					// Flag: reading from device
 
 const int SG_TABLE_SIZE = 1024;
 static int sg_index;					// Index of first unused entry in S/G table
-static uint8 *sg_ptr[SG_TABLE_SIZE];	// Scatter/gather table data pointer (host address space)
+static void* sg_ptr[SG_TABLE_SIZE];	// Scatter/gather table data pointer (host address space)
 static uint32 sg_len[SG_TABLE_SIZE];	// Scatter/gather table data length
 static uint32 sg_total_length;			// Total data length
 
@@ -117,7 +117,7 @@ static int16 exec_tib(uint32 tib)
 				WriteMacInt32(tib - 8, ptr + len);
 				// fall through to scNoInc
 			case scNoInc:
-				if ((sg_index > 0) && (Mac2HostAddr(ptr) == sg_ptr[sg_index-1] + sg_len[sg_index-1])) {
+				if ((sg_index > 0) && (Mac2HostAddr(ptr) == static_cast<uint8*>(sg_ptr[sg_index-1]) + sg_len[sg_index-1])) {
 					sg_len[sg_index-1] += len;				// Merge to previous entry
 				} else {
 					if (sg_index == SG_TABLE_SIZE) {

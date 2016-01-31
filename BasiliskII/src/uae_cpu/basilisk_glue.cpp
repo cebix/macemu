@@ -49,7 +49,7 @@ int MacFrameLayout;			// Frame buffer layout
 #endif
 
 #if DIRECT_ADDRESSING
-uintptr MEMBaseDiff;		// Global offset between a Mac address and its Host equivalent
+uae_u8* MEMBase;		// Global offset between a Mac address and its Host equivalent
 #endif
 
 #if USE_JIT
@@ -71,8 +71,8 @@ bool Init680x0(void)
 	RAMBaseMac = (uintptr)RAMBaseHost;
 	ROMBaseMac = (uintptr)ROMBaseHost;
 #elif DIRECT_ADDRESSING
-	// Mac address space = host address space minus constant offset (MEMBaseDiff)
-	// NOTE: MEMBaseDiff is set up in main_unix.cpp/main()
+	// Mac address space = host address space minus constant offset (MEMBase)
+	// NOTE: MEMBase is set up in main_unix.cpp/main()
 	RAMBaseMac = 0;
 	ROMBaseMac = Host2MacAddr(ROMBaseHost);
 #else
@@ -225,7 +225,7 @@ void Execute68kTrap(uint16 trap, struct M68kRegisters *r)
  *  r->a[7] and r->sr are unused!
  */
 
-void Execute68k(uint32 addr, struct M68kRegisters *r)
+void Execute68k(uaecptr addr, struct M68kRegisters* r)
 {
 	int i;
 

@@ -64,10 +64,10 @@ case "$target_cpu" in
 esac
 
 dnl Checks for programs.
-AC_PROG_CC
+AC_PROG_CC([cc clang gcc])
 AC_PROG_CC_C_O
 AC_PROG_CPP
-AC_PROG_CXX
+AC_PROG_CXX([c++ clang++ g++])
 AC_PROG_MAKE_SET
 AC_PROG_EGREP
 AC_PROG_LN_S
@@ -89,6 +89,7 @@ dnl Checks for header files.
 AC_HEADER_STDC
 
 dnl Checks for typedefs, structures, and compiler characteristics.
+AX_CXX_COMPILE_STDCXX_11(noext, mandatory)
 AC_C_BIGENDIAN
 AC_C_CONST
 AC_C_INLINE
@@ -131,7 +132,7 @@ AC_CACHE_CHECK([whether VirtualProtect works],
       #define HAVE_WIN32_VM 1
       #define CONFIGURE_TEST_VM_MAP
       #define TEST_VM_PROT_$test_def
-      #include "../Unix/vm_alloc.cpp"
+      #include "../CrossPlatform/vm_alloc.cpp"
     ], ac_cv_VirtualProtect_works=no, rm -f core,
     dnl When cross-compiling, assume it works
     ac_cv_VirtualProtect_works="yes"
@@ -141,7 +142,7 @@ AC_CACHE_CHECK([whether VirtualProtect works],
     #define HAVE_WIN32_VM 1
     #define CONFIGURE_TEST_VM_MAP
     #define TEST_VM_PROT_RDWR_WRITE
-    #include "../Unix/vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
   ], , ac_cv_VirtualProtect_works=no,
   dnl When cross-compiling, assume it works
   ac_cv_VirtualProtect_works="yes"
@@ -163,8 +164,8 @@ AC_CACHE_CHECK([whether your system supports Windows exceptions],
   AC_TRY_RUN([
     #define HAVE_WIN32_EXCEPTIONS 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "../Unix/vm_alloc.cpp"
-    #include "../Unix/sigsegv.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
+    #include "../CrossPlatform/sigsegv.cpp"
   ],
   ac_cv_have_win32_exceptions=yes,
   ac_cv_have_win32_exceptions=no,
@@ -188,8 +189,8 @@ AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
   AC_TRY_RUN([
     #define HAVE_SIGSEGV_SKIP_INSTRUCTION 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "../Unix/vm_alloc.cpp"
-    #include "../Unix/sigsegv.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
+    #include "../CrossPlatform/sigsegv.cpp"
   ], ac_cv_have_skip_instruction=yes, ac_cv_have_skip_instruction=no,
   dnl When cross-compiling, do not assume anything.
   ac_cv_have_skip_instruction=no
@@ -303,6 +304,11 @@ elif [[ "x$HAVE_GCC30" = "xyes" -a "x$HAVE_X86_64" = "xyes" ]]; then
     CAN_JIT=yes
   fi
 fi
+
+dnl If building using mingw, prefer 64-bit time_t.
+case "$host_os" in
+    mingw*) DEFINES="$DEFINES -D__MINGW_USE_VC2005_COMPAT"
+esac
 
 dnl Enable JIT compiler, if possible.
 if [[ "x$WANT_JIT" = "xyes" -a "x$CAN_JIT" ]]; then
@@ -523,6 +529,9 @@ dnl UAE CPU sources for all non-m68k-native architectures.
 CPUINCLUDES="-I../uae_cpu"
 CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp $FPUSRCS cpustbl.cpp cpudefs.cpp $CPUSRCS $JITSRCS"
 
+dnl Eventually, these should be optional.
+CDENABLESRCS="cdenable/cache.cpp cdenable/eject_nt.cpp cdenable/ntcd.cpp"
+
 dnl We really want SDL for now
 AC_CHECK_TOOL(sdl_config, sdl-config, [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
 SDL_CFLAGS=`$sdl_config --cflags`
@@ -552,6 +561,7 @@ dnl Generate Makefile.
 AC_SUBST(DEFINES)
 AC_SUBST(CPUINCLUDES)
 AC_SUBST(CPUSRCS)
+AC_SUBST(CDENABLESRCS)
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
 

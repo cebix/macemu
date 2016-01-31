@@ -152,7 +152,7 @@ void ADBOp(uint8 op, uint8 *data)
 					break;
 				case 3:		// Address/HandlerID
 					data[0] = 2;
-					data[1] = mouse_reg_3[0] & 0xf0 | (rand() & 0x0f);
+					data[1] = (mouse_reg_3[0] & 0xf0) | (rand() & 0x0f);
 					data[2] = mouse_reg_3[1];
 					break;
 				default:
@@ -211,7 +211,7 @@ void ADBOp(uint8 op, uint8 *data)
 				}
 				case 3:		// Address/HandlerID
 					data[0] = 2;
-					data[1] = key_reg_3[0] & 0xf0 | (rand() & 0x0f);
+					data[1] = (key_reg_3[0] & 0xf0) | (rand() & 0x0f);
 					data[2] = key_reg_3[1];
 					break;
 				default:

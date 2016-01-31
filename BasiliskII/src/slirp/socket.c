@@ -456,7 +456,7 @@ sorecvfrom(so)
 			      (struct sockaddr *)&addr, &addrlen);
 	  DEBUG_MISC((dfd, " did recvfrom %d, errno = %d-%s\n", 
 		      m->m_len, errno,strerror(errno)));
-	  if(m->m_len<0) {
+	  if((ssize_t)m->m_len<0) {
 	    u_char code=ICMP_UNREACH_PORT;
 
 		int error = WSAGetLastError();

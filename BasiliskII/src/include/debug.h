@@ -30,7 +30,7 @@
 #include <sys/types.h>
 #include <sys/timeb.h>
 
-static inline void _cdecl vwinbug(const char *s, va_list vargs)
+static inline void vwinbug(const char *s, va_list vargs)
 {
 	char msg[1024], date[50], hours[50];
 	struct _timeb tstruct;
@@ -45,7 +45,7 @@ static inline void _cdecl vwinbug(const char *s, va_list vargs)
 
 	OutputDebugStringA(msg);
 }
-static inline void _cdecl vwwinbug( const wchar_t *s, va_list vargs)
+static inline void vwwinbug( const wchar_t *s, va_list vargs)
 {
 	wchar_t msg[1024], date[50], hours[50];
 	struct _timeb tstruct;
@@ -60,14 +60,14 @@ static inline void _cdecl vwwinbug( const wchar_t *s, va_list vargs)
 
 	OutputDebugStringW(msg);
 }
-static inline void _cdecl winbug( const char *s, ...)
+static inline void winbug( const char *s, ...)
 {
 	va_list vargs;
 	va_start(vargs, s);
 	vwinbug(s, vargs);
 	va_end(vargs);
 }
-static inline void _cdecl wwinbug(const wchar_t *s, ...)
+static inline void wwinbug(const wchar_t *s, ...)
 {
 	va_list vargs;
 	va_start(vargs, s);
@@ -76,7 +76,7 @@ static inline void _cdecl wwinbug(const wchar_t *s, ...)
 }
 
 #ifdef __cplusplus
-static inline void _cdecl winbug(wchar_t *s, ...)
+static inline void winbug(wchar_t *s, ...)
 {
 	va_list vargs;
 	va_start(vargs, s);

@@ -274,10 +274,10 @@ int main(int argc, char **argv)
 			QuitEmulator();
 		}
 	}
-	RAMBaseMac = (uint32)RAMBaseHost;
+	RAMBaseMac = (uaecptr)RAMBaseHost;
 	D(bug("Mac RAM starts at %08lx\n", RAMBaseHost));
 	ROMBaseHost = RAMBaseHost + RAMSize;
-	ROMBaseMac = (uint32)ROMBaseHost;
+	ROMBaseMac = (uaecptr)ROMBaseHost;
 	D(bug("Mac ROM starts at %08lx\n", ROMBaseHost));
 
 	// Get rom file path from preferences
