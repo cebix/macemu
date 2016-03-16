@@ -43,7 +43,16 @@
 #include <sys/socket.h>
 
 #ifdef ENABLE_MACOSX_ETHERHELPER
+
+#ifdef __APPLE__
 #include <net/if_dl.h>
+#endif
+
+#ifdef __linux__
+#include <linux/if_packet.h>
+#endif
+
+#include <sys/socket.h>
 #include <ifaddrs.h>
 #endif
 
@@ -1140,8 +1149,13 @@ static int get_mac_address(const char* dev, unsigned char *addr)
 {
 	struct ifaddrs *ifaddrs, *next;
 	int ret = -1;
+#ifdef __APPLE__
 	struct sockaddr_dl *sa;
+#endif
 
+#ifdef __linux__
+	struct sockaddr_ll *sa;
+#endif
 	if (getifaddrs(&ifaddrs) != 0) {
 		perror("getifaddrs");
 		return -1;
@@ -1150,6 +1164,7 @@ static int get_mac_address(const char* dev, unsigned char *addr)
 	next = ifaddrs;
 	while (next != NULL) {
 		switch (next->ifa_addr->sa_family) {
+#ifdef __APPLE__
 		case AF_LINK:
 			if (!strcmp(dev, next->ifa_name)) {
 				sa = (struct sockaddr_dl *)next->ifa_addr;
@@ -1157,6 +1172,17 @@ static int get_mac_address(const char* dev, unsigned char *addr)
 				ret = 0;
 			}
 			break;
+#endif
+
+#ifdef __linux__
+		case AF_PACKET:
+			if (!strcmp(dev, next->ifa_name)) {
+				sa = (struct sockaddr_ll *)next->ifa_addr;
+				memcpy(addr, sa->sll_addr, 6);
+				ret = 0;
+			}
+			break;
+#endif
 		default:
 			break;
 		}
@@ -1240,7 +1266,7 @@ static int read_packet()
 		}
 
 		index += ret;
-    
+
 		if (index > 1) {
 			if (*pkt_len > (sizeof(packet_buffer) + 2)) {
 				fprintf(stderr, "%s: pkt_len (%d) too large.\n", __func__, *pkt_len);
