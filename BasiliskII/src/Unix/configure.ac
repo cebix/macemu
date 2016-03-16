@@ -756,8 +756,18 @@ if [[ "x$WANT_MACOSX_SOUND" = "xyes" ]]; then
 fi
 
 if [[ "x$WANT_MACOSX_ETHERHELPER" = "xyes" ]]; then
-    EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/runtool.c"
-    LIBS="$LIBS -framework Security"
+    if [[ ${OS_TYPE} = "linux" ]]; then
+       EXTRASYSSRCS="$EXTRASYSSRCS ../Linux/runtool.c"
+       ETHERHELPERDIR=../Linux
+    fi
+
+    if [[ ${OS_TYPE} = "darwin" ]]; then
+       EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/runtool.c"
+       LIBS="$LIBS -framework Security"
+       ETHERHELPERDIR=../MacOSX
+    fi
+
+    AC_SUBST(ETHERHELPERDIR, ${ETHERHELPERDIR})
     AC_DEFINE(ENABLE_MACOSX_ETHERHELPER, 1, [Define if supporting "etherhelper" network device.])
 fi
 
