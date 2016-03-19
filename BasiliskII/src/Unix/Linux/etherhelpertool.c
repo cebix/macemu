@@ -50,6 +50,7 @@
 #define MAX_ARGV 10
 
 static int remove_bridge = 0;
+static char bridge_name[STR_MAX];
 static const char *exec_name = "etherhelpertool";
 
 static int main_loop(int sd, int use_bpf);
@@ -193,13 +194,24 @@ static int main_loop(int sd, int use_bpf)
 				}
 
 				if (out_index == (*out_len + 2)) {
-					ret = write(sd, out_len + 1, *out_len);
-					if (ret != *out_len) {
-						fprintf(stderr, 
-							"%s: write() failed.\n",
-							exec_name);
-						fret = -7;
-						break;
+					if(use_bpf) {
+						ret = write(sd, out_len + 1, *out_len);
+						if (ret != *out_len) {
+							fprintf(stderr,
+								"%s: write() failed.\n",
+								exec_name);
+							fret = -7;
+							break;
+						}
+					} else {
+						ret = write(sd, out_len + 1, *out_len);
+						if (ret != *out_len) {
+							fprintf(stderr,
+								"%s: write() failed.\n",
+								exec_name);
+							fret = -7;
+							break;
+						}
 					}
 
 					out_index = 0;
@@ -213,7 +225,7 @@ static int main_loop(int sd, int use_bpf)
 
 			pkt_len = read(sd, in_len + 1, blen-2);
 			if (pkt_len < 14) {
-				fprintf(stderr, 
+				fprintf(stderr,
 					"%s: read() returned %d.\n",
 					exec_name, pkt_len);
 				fret = -8;
@@ -222,7 +234,7 @@ static int main_loop(int sd, int use_bpf)
                         *in_len = pkt_len;
 
                         if (write(0, in_len, pkt_len + 2) < (pkt_len + 2)) {
-				fprintf(stderr, 
+				fprintf(stderr,
 					"%s: write() failed\n",
 					exec_name);
                                 fret = -10;
@@ -248,6 +260,7 @@ static int open_tap(char *ifname)
 	char *bridge = NULL;
 	char *bridged_if = NULL;
         int sd;
+	struct ifreq ifr = {0};
 
 	snprintf(ifstr, STR_MAX, "%s", ifname);
 	interface = strtok(ifstr, "/");
@@ -263,24 +276,33 @@ static int open_tap(char *ifname)
 		netmask = strtok(NULL, ":");
 	}
 
-        snprintf(str, STR_MAX, "/dev/%s", interface);
-
-        sd = open(str, O_RDWR);
+        sd = open("/dev/net/tun", O_RDWR);
         if (sd < 0) {
 		fprintf(stderr, "%s: Failed to open %s\n",
 			exec_name, interface);
                 return -1;
         }
 
-	if (address == NULL) {
-		snprintf(str, STR_MAX, "/sbin/ifconfig %s up", interface);
-	} else if (netmask == NULL) {
-		snprintf(str, STR_MAX, "/sbin/ifconfig %s %s", 
-			 interface, address);
-	} else {
-		snprintf(str, STR_MAX, "/sbin/ifconfig %s %s netmask %s", 
-			 interface, address, netmask);
-	}
+        snprintf(str, STR_MAX, "/dev/%s", interface);
+        ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
+        strncpy(ifr.ifr_name, interface, IFNAMSIZ);
+
+        if(ioctl(sd, TUNSETIFF, (void *)&ifr) != 0) {
+                fprintf(stderr, "%s: ioctl(TUNSETIFF): %s\n",
+                        __func__, strerror(errno));
+                close(sd);
+                return -1;
+        }
+
+        if (address == NULL) {
+                snprintf(str, STR_MAX, "/sbin/ifconfig %s up", interface);
+        } else if (netmask == NULL) {
+                snprintf(str, STR_MAX, "/sbin/ifconfig %s %s",
+                         interface, address);
+        } else {
+                snprintf(str, STR_MAX, "/sbin/ifconfig %s %s netmask %s",
+                         interface, address, netmask);
+        }
 
         if (run_cmd(str) != 0) {
 		fprintf(stderr, "%s: Failed to configure %s\n",
@@ -299,7 +321,7 @@ static int open_tap(char *ifname)
 					exec_name, bridge, bridged_if);
 			}
 		} else {
-			snprintf(str, STR_MAX, "/sbin/ifconfig %s create", bridge);
+			snprintf(str, STR_MAX, "/sbin/brctl addbr %s", bridge);
 			if (run_cmd(str) != 0) {
 				fprintf(stderr, "%s: Failed to create %s\n",
 					exec_name, bridge);
@@ -307,6 +329,8 @@ static int open_tap(char *ifname)
 				return -1;
 			}
 			remove_bridge = 1;
+
+			strncpy(bridge_name, bridge, STR_MAX);
 
 			snprintf(str, STR_MAX, "/sbin/ifconfig %s up", bridge);
 			if (run_cmd(str) != 0) {
@@ -317,7 +341,7 @@ static int open_tap(char *ifname)
 			}
 
 			if (bridged_if != NULL) {
-				snprintf(str, STR_MAX, "/sbin/ifconfig %s addm %s", 
+				snprintf(str, STR_MAX, "/sbin/brctl addif %s %s",
 					 bridge, bridged_if);
 				if (run_cmd(str) != 0) {
 					fprintf(stderr, "%s: Failed to add %s to %s\n",
@@ -326,8 +350,8 @@ static int open_tap(char *ifname)
 					return -1;
 				}
 			}
-			
-			snprintf(str, STR_MAX, "/sbin/ifconfig %s addm %s", 
+
+			snprintf(str, STR_MAX, "/sbin/brctl addif %s %s",
 				 bridge, interface);
 			if (run_cmd(str) != 0) {
 				fprintf(stderr, "%s: Failed to add %s to %s\n",
@@ -416,8 +440,22 @@ static int install_signal_handlers() {
 }
 
 static void do_exit() {
+	char cmd[STR_MAX];
+
         if (remove_bridge) {
-                run_cmd("/sbin/ifconfig bridge0 destroy");
+		snprintf(cmd, STR_MAX, "/sbin/ifconfig %s down",
+			 bridge_name);
+
+                if(run_cmd(cmd) != 0) {
+			fprintf(stderr, "Failed to bring bridge down\n");
+		}
+
+		snprintf(cmd, STR_MAX, "/sbin/brctl delbr %s",
+			 bridge_name);
+
+                if(run_cmd(cmd) != 0) {
+			fprintf(stderr, "Failed to destroy bridge\n");
+		}
         }
 }
 
@@ -466,159 +504,3 @@ static int open_bpf(char *ifname)
 
 	return sd;
 }
-
-#if 0
-static int retreive_auth_info(void);
-
-
-static int retreive_auth_info(void)
-{
-	AuthorizationRef aRef;
-	OSStatus status;
-	AuthorizationRights myRights;
-	AuthorizationRights *newRights;
-	AuthorizationItem *myItem;
-	AuthorizationItem myItems[1];
-	AuthorizationItemSet *mySet;
-	int i;
-
-	status = AuthorizationCopyPrivilegedReference(&aRef, kAuthorizationFlagDefaults);
-	if (status != errAuthorizationSuccess) {
-		return -1;
-	}
-
-	status = AuthorizationCopyInfo(aRef, NULL, &mySet);
-	if (status != errAuthorizationSuccess) {
-		AuthorizationFree(aRef, kAuthorizationFlagDestroyRights);
-		return -1;
-	}
-
-	myItems[0].name = "system.privilege.admin";
-	myItems[0].valueLength = 0;
-	myItems[0].value = NULL;
-	myItems[0].flags = 0;
-
-	myRights.count = sizeof (myItems) / sizeof (myItems[0]);
-	myRights.items = myItems;
-
-	status = AuthorizationCopyRights(aRef, &myRights, NULL,
-					 kAuthorizationFlagExtendRights,
-					 &newRights);
-	if (status != errAuthorizationSuccess) {
-		AuthorizationFreeItemSet(mySet);
-		AuthorizationFree(aRef, kAuthorizationFlagDestroyRights);
-		return -2;
-	}
-
-	AuthorizationFreeItemSet(newRights);
-	AuthorizationFreeItemSet(mySet);
-	AuthorizationFree(aRef, kAuthorizationFlagDestroyRights);  
-
-	return 0;
-}
-
-static int open_tap(char *ifname)
-{
-        char str[STR_MAX] = {0};
-        char ifstr[STR_MAX] = {0};
-	char *interface;
-	char *address = NULL;
-	char *netmask = NULL;
-	char *bridge = NULL;
-	char *bridged_if = NULL;
-        int sd;
-
-	snprintf(ifstr, STR_MAX, "%s", ifname);
-	interface = strtok(ifstr, "/");
-	bridge = strtok(NULL, "/");
-	if (bridge != NULL) {
-		bridged_if = strtok(NULL, "/");
-	}
-	interface = strtok(ifstr, ":");
-
-	address = strtok(NULL, ":");
-
-	if (address != NULL) {
-		netmask = strtok(NULL, ":");
-	}
-
-        snprintf(str, STR_MAX, "/dev/%s", interface);
-
-        sd = open(str, O_RDWR);
-        if (sd < 0) {
-		fprintf(stderr, "%s: Failed to open %s\n",
-			exec_name, interface);
-                return -1;
-        }
-
-	if (address == NULL) {
-		snprintf(str, STR_MAX, "/sbin/ifconfig %s up", interface);
-	} else if (netmask == NULL) {
-		snprintf(str, STR_MAX, "/sbin/ifconfig %s %s", 
-			 interface, address);
-	} else {
-		snprintf(str, STR_MAX, "/sbin/ifconfig %s %s netmask %s", 
-			 interface, address, netmask);
-	}
-
-        if (run_cmd(str) != 0) {
-		fprintf(stderr, "%s: Failed to configure %s\n",
-			exec_name, interface);
-                close(sd);
-                return -1;
-        }
-
-	if (bridge != NULL) {
-		/* Check to see if bridge is alread up */
-		snprintf(str, STR_MAX, "/sbin/ifconfig %s", bridge);
-		if (run_cmd(str) == 0) {
-			/* bridge is already up */
-			if (bridged_if != NULL) {
-				fprintf(stderr, "%s: Warning: %s already exists, so %s was not added.\n",
-					exec_name, bridge, bridged_if);
-			}
-		} else {
-			snprintf(str, STR_MAX, "/sbin/ifconfig %s create", bridge);
-			if (run_cmd(str) != 0) {
-				fprintf(stderr, "%s: Failed to create %s\n",
-					exec_name, bridge);
-				close(sd);
-				return -1;
-			}
-			remove_bridge = 1;
-
-			snprintf(str, STR_MAX, "/sbin/ifconfig %s up", bridge);
-			if (run_cmd(str) != 0) {
-				fprintf(stderr, "%s: Failed to open %s\n",
-					exec_name, bridge);
-				close(sd);
-				return -1;
-			}
-
-			if (bridged_if != NULL) {
-				snprintf(str, STR_MAX, "/sbin/ifconfig %s addm %s", 
-					 bridge, bridged_if);
-				if (run_cmd(str) != 0) {
-					fprintf(stderr, "%s: Failed to add %s to %s\n",
-						exec_name, bridged_if, bridge);
-					close(sd);
-					return -1;
-				}
-			}
-			
-			snprintf(str, STR_MAX, "/sbin/ifconfig %s addm %s", 
-				 bridge, interface);
-			if (run_cmd(str) != 0) {
-				fprintf(stderr, "%s: Failed to add %s to %s\n",
-					exec_name, interface, bridge);
-				close(sd);
-				return -1;
-			}
-		}
-	}
-
-        return sd;
-}
- 
-
-#endif
