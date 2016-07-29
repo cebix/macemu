@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
+#include <utime.h>
 
 #include "sysdeps.h"
 #include "extfs.h"
@@ -256,6 +257,14 @@ void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 
 void set_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 {
+	struct utimbuf times;
+	times.actime = MacTimeToTime(ReadMacInt32(finfo - ioFlFndrInfo + ioFlCrDat));
+	times.modtime = MacTimeToTime(ReadMacInt32(finfo - ioFlFndrInfo + ioFlMdDat));
+
+	if (utime(path, &times) < 0) {
+		D(bug("utime failed on %s\n", path));
+	}
+
 	// Open Finder info file
 	int fd = open_finf(path, O_RDWR);
 	if (fd < 0)
