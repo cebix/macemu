@@ -73,6 +73,7 @@ int my_read( int fd, void *, unsigned int);
 int my_write( int fd, const void *, unsigned int);
 int my_chsize( int fd, unsigned int size );
 int my_locking( int fd, int mode, long nbytes );
+int my_utime( const char *path, struct my_utimbuf * );
 
 extern int my_errno;
 
@@ -92,6 +93,7 @@ extern int my_errno;
 #define write my_write
 #define ftruncate my_chsize
 #define locking my_locking
+#define utime my_utime
 
 #undef errno
 #define errno my_errno
@@ -114,6 +116,12 @@ struct my_stat {
   time_t st_atime;
   time_t st_mtime;
   time_t st_ctime;
+};
+
+struct my_utimbuf
+{
+	time_t actime;      // access time
+	time_t modtime;     // modification time
 };
 
 // Your compiler may have different "struct stat" -> edit "struct my_stat"

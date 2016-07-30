@@ -151,6 +151,6 @@ uint32 TimeToMacTime(time_t t)
 
 time_t MacTimeToTime(uint32 t)
 {
-	// simply subtract number of seconds between 1.1.1094 and 1.1.1970
+	// simply subtract number of seconds between 1.1.1904 and 1.1.1970
 	return t - 2082826800;
 }
