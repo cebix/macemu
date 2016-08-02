@@ -1123,3 +1123,28 @@ int my_write( int fd, const void *buffer, unsigned int count )
 	D(bug("write(%ld,%08x,%ld) = %d\n", fd, buffer, count, result));
 	return result;
 }
+
+static FILETIME get_file_time(time_t time) {
+	FILETIME ft;
+	unsigned long long result = 11644473600LL;
+	result += time;
+	result *= 10000000LL;
+	ft.dwHighDateTime = (result >> 32);
+	ft.dwLowDateTime = (result & 0xFFFFFFFF);
+	return ft;
+}
+
+int my_utime( const char *path, struct my_utimbuf * my_times )
+{
+	auto tpath = tstr(path);
+	LPCTSTR p = MRP(tpath.get());
+	HANDLE f = CreateFile(p, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (f != INVALID_HANDLE_VALUE) {
+		FILETIME crTime = get_file_time(my_times->actime);
+		FILETIME modTime = get_file_time(my_times->modtime);
+		SetFileTime(f, &crTime, NULL, &modTime);
+		CloseHandle(f);
+		return 0;
+	}
+	return -1;
+}

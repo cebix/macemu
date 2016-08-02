@@ -269,6 +269,14 @@ void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 
 void set_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 {
+	struct my_utimbuf times;
+	times.actime = MacTimeToTime(ReadMacInt32(finfo - ioFlFndrInfo + ioFlCrDat));
+	times.modtime = MacTimeToTime(ReadMacInt32(finfo - ioFlFndrInfo + ioFlMdDat));
+
+	if (utime(path, &times) < 0) {
+		D(bug("utime failed on %s, error %d\n", path, GetLastError()));
+	}
+
 	// Open Finder info file
 	int fd = open_finf(path, O_RDWR);
 	if (fd < 0)
