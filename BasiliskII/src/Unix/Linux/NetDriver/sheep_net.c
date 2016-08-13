@@ -610,6 +610,9 @@ static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int cod
 			v->pt.type = htons(ETH_P_ALL);
 			v->pt.dev = v->ether;
 			v->pt.func = sheep_net_receiver;
+#ifdef LINUX_26
+			v->pt.af_packet_priv = v;
+#endif
 			dev_add_pack(&v->pt);
 #ifndef LINUX_24
 			dev_unlock_list();
@@ -715,7 +718,11 @@ static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struc
 static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
 #endif
 {
+#ifdef LINUX_26
+	struct SheepVars *v = (struct SheepVars *)pt->af_packet_priv;
+#else
 	struct SheepVars *v = (struct SheepVars *)pt;
+#endif
 	struct sk_buff *skb2;
 	int fake;
 	int multicast;
