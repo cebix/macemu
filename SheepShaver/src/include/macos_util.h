@@ -357,6 +357,7 @@ extern uint32 FindLibSymbol(const char *lib, const char *sym);	// Find symbol in
 extern void InitCallUniversalProc(void);				// Init CallUniversalProc()
 extern long CallUniversalProc(void *upp, uint32 info);	// CallUniversalProc()
 extern uint32 TimeToMacTime(time_t t);					// Convert time_t value to MacOS time
+extern time_t MacTimeToTime(uint32 t);				// Convert MacOS time to time_t value
 extern uint32 Mac_sysalloc(uint32 size);				// Allocate block in MacOS system heap zone
 extern void Mac_sysfree(uint32 addr);					// Release block occupied by the nonrelocatable block p
 
