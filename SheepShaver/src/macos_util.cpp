@@ -340,6 +340,17 @@ uint32 TimeToMacTime(time_t t)
 
 
 /*
+ *  Convert MacOS time to time_t (seconds since 1.1.1970)
+ */
+
+time_t MacTimeToTime(uint32 t)
+{
+	// simply subtract number of seconds between 1.1.1904 and 1.1.1970
+	return t - 2082826800;
+}
+
+
+/*
  *  Memory allocators in MacOS system heap zone
  */
 
