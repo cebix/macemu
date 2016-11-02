@@ -66,7 +66,7 @@ u_char  tcp_outflags[TCP_NSTATES] = {
 int tcp_output(register struct tcpcb *tp)
 {
 	register struct socket *so = tp->t_socket;
-	register u_long len, win;
+	register long len, win;
 	int off, flags, error;
 	register struct mbuf *m;
 	register struct tcpiphdr *ti;
@@ -199,12 +199,12 @@ again:
 		 * taking into account that we are limited by
 		 * TCP_MAXWIN << tp->rcv_scale.
 		 */
-		u_int adv = min(win, (u_int)TCP_MAXWIN << tp->rcv_scale) -
+		long adv = min(win, TCP_MAXWIN << tp->rcv_scale) -
 			(tp->rcv_adv - tp->rcv_nxt);
 
-		if (adv >= (u_int)(2 * tp->t_maxseg))
+		if (adv >= (long)(2 * tp->t_maxseg))
 			goto send;
-		if (2 * adv >= so->so_rcv.sb_datalen)
+		if (2 * adv >= (long)so->so_rcv.sb_datalen)
 			goto send;
 	}
 
