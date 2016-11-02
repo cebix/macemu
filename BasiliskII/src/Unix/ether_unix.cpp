@@ -240,11 +240,12 @@ bool ether_init(void)
 
 	// Determine Ethernet device type
 	net_if_type = -1;
+#if ENABLE_TUNTAP
+	if (strncmp(name, "tap", 3) == 0)
+		net_if_type = NET_IF_TUNTAP;
+#else
 	if (strncmp(name, "tap", 3) == 0)
 		net_if_type = NET_IF_ETHERTAP;
-#if ENABLE_TUNTAP
-	else if (strcmp(name, "tun") == 0)
-		net_if_type = NET_IF_TUNTAP;
 #endif
 #ifdef HAVE_SLIRP
 	else if (strcmp(name, "slirp") == 0)
@@ -291,12 +292,15 @@ bool ether_init(void)
 	// Open sheep_net or ethertap or TUN/TAP device
 	char dev_name[16];
 	switch (net_if_type) {
-	case NET_IF_ETHERTAP:
-		sprintf(dev_name, "/dev/%s", name);
-		break;
+#if ENABLE_TUNTAP
 	case NET_IF_TUNTAP:
 		strcpy(dev_name, "/dev/net/tun");
 		break;
+#else
+	case NET_IF_ETHERTAP:
+		sprintf(dev_name, "/dev/%s", name);
+		break;
+#endif
 	case NET_IF_SHEEPNET:
 		strcpy(dev_name, "/dev/sheep_net");
 		break;
@@ -314,14 +318,6 @@ bool ether_init(void)
 	// Open TUN/TAP interface
 	if (net_if_type == NET_IF_TUNTAP) {
 		struct ifreq ifr;
-		memset(&ifr, 0, sizeof(ifr));
-		ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
-		strcpy(ifr.ifr_name, "tun%d");
-		if (ioctl(fd, TUNSETIFF, (void *) &ifr) != 0) {
-			sprintf(str, GetString(STR_SHEEP_NET_ATTACH_WARN), strerror(errno));
-			WarningAlert(str);
-			goto open_error;
-		}
 
 		// Get network config script file path
 		net_if_script = PrefsFindString("etherconfig");
@@ -334,9 +330,17 @@ bool ether_init(void)
 			WarningAlert(str);
 			goto open_error;
 		}
-		net_if_name = strdup(ifr.ifr_name);
+		net_if_name = strdup(name);
 		if (!execute_network_script("up")) {
 			sprintf(str, GetString(STR_TUN_TAP_CONFIG_WARN), "script execute error");
+			WarningAlert(str);
+			goto open_error;
+		}
+		memset(&ifr, 0, sizeof(ifr));
+		ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
+		strcpy(ifr.ifr_name, name);
+		if (ioctl(fd, TUNSETIFF, (void *) &ifr) != 0) {
+			sprintf(str, GetString(STR_SHEEP_NET_ATTACH_WARN), strerror(errno));
 			WarningAlert(str);
 			goto open_error;
 		}
@@ -431,14 +435,6 @@ void ether_exit(void)
 	// Stop reception threads
 	stop_thread();
 
-	// Shut down TUN/TAP interface
-	if (net_if_type == NET_IF_TUNTAP)
-		execute_network_script("down");
-
-	// Free TUN/TAP device name
-	if (net_if_name)
-		free(net_if_name);
-
 	// Close sheep_net device
 	if (fd > 0)
 		close(fd);
@@ -452,6 +448,14 @@ void ether_exit(void)
 	// Close slirp output buffer
 	if (slirp_output_fd > 0)
 		close(slirp_output_fd);
+
+	// Shut down TUN/TAP interface
+	if (net_if_type == NET_IF_TUNTAP)
+		execute_network_script("down");
+
+	// Free TUN/TAP device name
+	if (net_if_name)
+		free(net_if_name);
 
 #if STATISTICS
 	// Show statistics
