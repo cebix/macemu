@@ -401,11 +401,20 @@ static inline int spin_trylock(spinlock_t *lock)
 }
 #endif
 
+// High-precision timing
+#if defined(HAVE_PTHREADS) && defined(HAVE_CLOCK_NANOSLEEP)
+#define PRECISE_TIMING 1
+#define PRECISE_TIMING_POSIX 1
+#elif defined(HAVE_PTHREADS) && defined(__MACH__)
+#define PRECISE_TIMING 1
+#define PRECISE_TIMING_MACH 1
+#endif
+
 // Time data type for Time Manager emulation
-#ifdef HAVE_CLOCK_GETTIME
-typedef struct timespec tm_time_t;
-#elif defined(__MACH__)
+#if defined(PRECISE_TIMING_MACH)
 typedef mach_timespec_t tm_time_t;
+#elif defined(HAVE_CLOCK_GETTIME)
+typedef struct timespec tm_time_t;
 #else
 typedef struct timeval tm_time_t;
 #endif
@@ -417,15 +426,6 @@ typedef struct timeval tm_time_t;
 #define VAX_FLOAT_FORMAT 2
 #define IBM_FLOAT_FORMAT 3
 #define C4X_FLOAT_FORMAT 4
-
-// High-precision timing
-#if defined(HAVE_PTHREADS) && defined(HAVE_CLOCK_NANOSLEEP)
-#define PRECISE_TIMING 1
-#define PRECISE_TIMING_POSIX 1
-#elif defined(HAVE_PTHREADS) && defined(__MACH__)
-#define PRECISE_TIMING 1
-#define PRECISE_TIMING_MACH 1
-#endif
 
 // Timing functions
 extern uint64 GetTicks_usec(void);
