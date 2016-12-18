@@ -772,7 +772,7 @@ sigsegv_return_t sigsegv_handler(sigsegv_info_t *sip)
 	const uint32 pc = cpu->pc();
 	
 	// Fault in Mac ROM or RAM?
-	bool mac_fault = (pc >= ROMBase) && (pc < (ROMBase + ROM_AREA_SIZE)) || (pc >= RAMBase) && (pc < (RAMBase + RAMSize)) || (pc >= DR_CACHE_BASE && pc < (DR_CACHE_BASE + DR_CACHE_SIZE));
+	bool mac_fault = (pc >= ROMBase && pc < (ROMBase + ROM_AREA_SIZE)) || (pc >= RAMBase && pc < (RAMBase + RAMSize)) || (pc >= DR_CACHE_BASE && pc < (DR_CACHE_BASE + DR_CACHE_SIZE));
 	if (mac_fault) {
 
 		// "VM settings" during MacOS 8 installation

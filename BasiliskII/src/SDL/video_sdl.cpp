@@ -343,12 +343,6 @@ static void ErrorAlert(int error)
 {
 	ErrorAlert(GetString(error));
 }
-
-// Display warning alert
-static void WarningAlert(int warning)
-{
-	WarningAlert(GetString(warning));
-}
 #endif
 
 
@@ -385,26 +379,6 @@ static int palette_size(int mode)
 	case VIDEO_DEPTH_32BIT: return 256;
 	default: return 0;
 	}
-}
-
-// Return bytes per pixel for requested depth
-static inline int bytes_per_pixel(int depth)
-{
-	int bpp;
-	switch (depth) {
-	case 8:
-		bpp = 1;
-		break;
-	case 15: case 16:
-		bpp = 2;
-		break;
-	case 24: case 32:
-		bpp = 4;
-		break;
-	default:
-		abort();
-	}
-	return bpp;
 }
 
 // Map video_mode depth ID to numerical depth value
@@ -690,7 +664,7 @@ void driver_base::init()
 
 	// Check whether we can initialize the VOSF subsystem and it's profitable
 	if (!video_vosf_init(monitor)) {
-		WarningAlert(STR_VOSF_INIT_ERR);
+		WarningAlert(GetString(STR_VOSF_INIT_ERR));
 		use_vosf = false;
 	}
 	else if (!video_vosf_profitable()) {

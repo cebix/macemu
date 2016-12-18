@@ -454,7 +454,7 @@ sorecvfrom(so)
 		
 	  m->m_len = recvfrom(so->s, m->m_data, len, 0,
 			      (struct sockaddr *)&addr, &addrlen);
-	  DEBUG_MISC((dfd, " did recvfrom %d, errno = %d-%s\n", 
+	  DEBUG_MISC((dfd, " did recvfrom %zu, errno = %d-%s\n",
 		      m->m_len, errno,strerror(errno)));
 	  if(m->m_len<0) {
 	    u_char code=ICMP_UNREACH_PORT;

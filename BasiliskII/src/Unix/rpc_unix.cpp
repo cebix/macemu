@@ -433,7 +433,9 @@ static struct {
   int last;
   int count;
 } g_message_descriptors = { NULL, 0, 0 };
+#ifdef USE_THREADS
 static pthread_mutex_t g_message_descriptors_lock = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 // Add a user-defined marshaler
 static int rpc_message_add_callback(const rpc_message_descriptor_t *desc)

@@ -29,7 +29,7 @@
 }
 
 -(NSString*)description {
-	return [NSString stringWithFormat:@"DiskType, path:%@ isCDROM:%@", _path, _isCDROM];
+	return [NSString stringWithFormat:@"DiskType, path:%@ isCDROM:%hhd", _path, _isCDROM];
 }
 
 @end
