@@ -102,9 +102,9 @@
 		087B91BE1B780FFC00825F7F /* sigsegv.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 087B91B71B780FFC00825F7F /* sigsegv.cpp */; };
 		087B91BF1B780FFC00825F7F /* video_blit.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 087B91B91B780FFC00825F7F /* video_blit.cpp */; };
 		087B91C01B780FFC00825F7F /* vm_alloc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 087B91BC1B780FFC00825F7F /* vm_alloc.cpp */; };
-		08C99DA11593E79F00898E41 /* clip_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE2C14A99EF0000B1711 /* clip_macosx.cpp */; };
 		08CD42DC14B7B85B009CA2A2 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */; };
 		08CD42E814B7B8AA009CA2A2 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42E714B7B8AA009CA2A2 /* Carbon.framework */; };
+		08E877521E0640E800A90A2C /* clip_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE2C14A99EF0000B1711 /* clip_macosx.cpp */; };
 		A7B1921418C35D4700791D8D /* DiskType.m in Sources */ = {isa = PBXBuildFile; fileRef = A7B1921318C35D4700791D8D /* DiskType.m */; };
 /* End PBXBuildFile section */
 
@@ -122,13 +122,6 @@
 			proxyType = 1;
 			remoteGlobalIDString = 0846E49914B124DE00574779;
 			remoteInfo = kpx_cpu;
-		};
-		0885A5391593E4BC005C4F7B /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 0856CCAE14A99DE0000B1711 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 0885A5201593E3B6005C4F7B;
-			remoteInfo = clip;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -381,7 +374,6 @@
 		087B91BB1B780FFC00825F7F /* video_vosf.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = video_vosf.h; path = ../CrossPlatform/video_vosf.h; sourceTree = SOURCE_ROOT; };
 		087B91BC1B780FFC00825F7F /* vm_alloc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = vm_alloc.cpp; path = ../CrossPlatform/vm_alloc.cpp; sourceTree = SOURCE_ROOT; };
 		087B91BD1B780FFC00825F7F /* vm_alloc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = vm_alloc.h; path = ../CrossPlatform/vm_alloc.h; sourceTree = SOURCE_ROOT; };
-		0885A5211593E3B6005C4F7B /* libclip.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libclip.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
 		08CD42E714B7B8AA009CA2A2 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = /System/Library/Frameworks/Carbon.framework; sourceTree = "<absolute>"; };
 		08D93A15159FE174003B04EC /* clip_macosx64.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = clip_macosx64.mm; sourceTree = "<group>"; };
@@ -412,13 +404,6 @@
 				0856D21514A9A6C6000B1711 /* IOKit.framework in Frameworks */,
 				08CD42DC14B7B85B009CA2A2 /* Cocoa.framework in Frameworks */,
 				08CD42E814B7B8AA009CA2A2 /* Carbon.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		0885A51F1593E3B6005C4F7B /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -462,7 +447,6 @@
 				0856CCC114A99E1C000B1711 /* SheepShaver.app */,
 				082AC25214AA59B600071F5E /* lowmem */,
 				0846E49A14B124DE00574779 /* libkpx_cpu.a */,
-				0885A5211593E3B6005C4F7B /* libclip.a */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -910,13 +894,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		0885A51D1593E3B6005C4F7B /* Headers */ = {
-			isa = PBXHeadersBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
@@ -970,29 +947,11 @@
 			dependencies = (
 				0846E4A714B1253500574779 /* PBXTargetDependency */,
 				082AC26814AA5A4800071F5E /* PBXTargetDependency */,
-				0885A53A1593E4BC005C4F7B /* PBXTargetDependency */,
 			);
 			name = SheepShaver;
 			productName = SheepShaver;
 			productReference = 0856CCC114A99E1C000B1711 /* SheepShaver.app */;
 			productType = "com.apple.product-type.application";
-		};
-		0885A5201593E3B6005C4F7B /* clip */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 0885A5241593E450005C4F7B /* Build configuration list for PBXNativeTarget "clip" */;
-			buildPhases = (
-				0885A51D1593E3B6005C4F7B /* Headers */,
-				0885A51E1593E3B6005C4F7B /* Sources */,
-				0885A51F1593E3B6005C4F7B /* Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = clip;
-			productName = clipboard;
-			productReference = 0885A5211593E3B6005C4F7B /* libclip.a */;
-			productType = "com.apple.product-type.library.static";
 		};
 /* End PBXNativeTarget section */
 
@@ -1020,7 +979,6 @@
 				0856CCC014A99E1C000B1711 /* SheepShaver */,
 				082AC25114AA59B600071F5E /* lowmem */,
 				0846E49914B124DE00574779 /* kpx_cpu */,
-				0885A5201593E3B6005C4F7B /* clip */,
 			);
 		};
 /* End PBXProject section */
@@ -1116,6 +1074,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				08E877521E0640E800A90A2C /* clip_macosx.cpp in Sources */,
 				0856CFC114A99EF0000B1711 /* adb.cpp in Sources */,
 				0856CFC214A99EF0000B1711 /* audio.cpp in Sources */,
 				0856CFE214A99EF0000B1711 /* cdrom.cpp in Sources */,
@@ -1189,14 +1148,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		0885A51E1593E3B6005C4F7B /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				08C99DA11593E79F00898E41 /* clip_macosx.cpp in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -1209,11 +1160,6 @@
 			isa = PBXTargetDependency;
 			target = 0846E49914B124DE00574779 /* kpx_cpu */;
 			targetProxy = 0846E4A614B1253500574779 /* PBXContainerItemProxy */;
-		};
-		0885A53A1593E4BC005C4F7B /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 0885A5201593E3B6005C4F7B /* clip */;
-			targetProxy = 0885A5391593E4BC005C4F7B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1468,56 +1414,6 @@
 			};
 			name = Release;
 		};
-		0885A5221593E3B6005C4F7B /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
-				COPY_PHASE_STRIP = NO;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_ENABLE_FIX_AND_CONTINUE = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				HEADER_SEARCH_PATHS = (
-					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
-					./config/,
-					../Unix,
-					../MacOSX/Launcher,
-					../slirp,
-					../kpx_cpu/src,
-					../kpx_cpu/include,
-					../include,
-				);
-				INSTALL_PATH = /usr/local/lib;
-				MACOSX_DEPLOYMENT_TARGET = 10.6;
-				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
-				PRODUCT_NAME = clip;
-			};
-			name = Debug;
-		};
-		0885A5231593E3B6005C4F7B /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
-				COPY_PHASE_STRIP = YES;
-				GCC_ENABLE_FIX_AND_CONTINUE = NO;
-				HEADER_SEARCH_PATHS = (
-					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
-					./config/,
-					../Unix,
-					../MacOSX/Launcher,
-					../slirp,
-					../kpx_cpu/src,
-					../kpx_cpu/include,
-					../include,
-				);
-				INSTALL_PATH = /usr/local/lib;
-				MACOSX_DEPLOYMENT_TARGET = 10.6;
-				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
-				PRODUCT_NAME = clip;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1553,15 +1449,6 @@
 			buildConfigurations = (
 				0856CCC514A99E1C000B1711 /* Debug */,
 				0856CCC614A99E1C000B1711 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		0885A5241593E450005C4F7B /* Build configuration list for PBXNativeTarget "clip" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				0885A5221593E3B6005C4F7B /* Debug */,
-				0885A5231593E3B6005C4F7B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
