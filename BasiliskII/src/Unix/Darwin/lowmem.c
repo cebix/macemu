@@ -20,6 +20,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <fcntl.h>
@@ -27,10 +28,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <mach/vm_prot.h>
 #include <mach-o/loader.h>
 #include <mach-o/fat.h>
-#include <sys/stat.h>
 
 static const char progname[] = "lowmem";
 static const char *filename;
