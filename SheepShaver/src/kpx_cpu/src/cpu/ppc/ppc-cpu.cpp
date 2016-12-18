@@ -602,7 +602,6 @@ void powerpc_cpu::execute(uint32 entry)
 				// Compile new block
 				bi = compile_block(pc());
 			}
-			goto return_site;
 		}
 #endif
 #if PPC_DECODE_CACHE
@@ -703,9 +702,9 @@ void powerpc_cpu::execute(uint32 entry)
 					break;
 			}
 		}
-		goto return_site;
-#endif
+#else
 		goto do_interpret;
+#endif
 	}
 #endif
   do_interpret:

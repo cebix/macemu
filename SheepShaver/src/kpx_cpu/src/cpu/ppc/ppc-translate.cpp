@@ -880,8 +880,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			case PPC_I(SUBFIC):
 				dg.gen_subfc_T0_im(val);
 				break;
-			  defautl:
-				abort();
+			default: abort();
 			}
 			dg.gen_store_T0_GPR(rD_field::extract(opcode));
 			break;

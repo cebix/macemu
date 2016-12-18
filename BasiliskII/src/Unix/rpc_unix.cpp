@@ -64,8 +64,6 @@
 #define pthread_cancel(th)
 #define pthread_join(th, ret)
 #define pthread_testcancel()
-#define pthread_create(th, attr, start, arg) dummy_thread_create()
-static inline int dummy_thread_create(void) { errno = ENOSYS; return -1; }
 
 #undef  pthread_mutex_t
 #define pthread_mutex_t volatile int
