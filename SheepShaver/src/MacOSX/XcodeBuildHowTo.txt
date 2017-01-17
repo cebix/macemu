@@ -36,5 +36,5 @@ which SheepShaver requires.
 
 2. Since the SheepShaver JIT-generation compilation does not support Clang,
 this build uses prebuilt and checked-in dyngen source files, rather than
-building dungeon and generating them with it, as is done normally during the
+building dyngen and generating them with it, as is done normally during the
 SheepShaver build process.
