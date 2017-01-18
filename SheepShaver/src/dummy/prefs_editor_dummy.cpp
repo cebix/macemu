@@ -1,1 +1,0 @@
-../../../BasiliskII/src/dummy/prefs_editor_dummy.cpp

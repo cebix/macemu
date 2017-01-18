@@ -32,6 +32,8 @@
 #include "ether_defs.h"
 #include "macos_util.h"
 
+#include "main.h"
+
 #define DEBUG 0
 #include "debug.h"
 

@@ -77,4 +77,15 @@ extern void TriggerInterrupt(void);							// Trigger SIGUSR1 interrupt in emulat
 extern void DisableInterrupt(void);							// Disable SIGUSR1 interrupt (can be nested)
 extern void EnableInterrupt(void);							// Enable SIGUSR1 interrupt (can be nested)
 
+// Array length
+#if __cplusplus >= 201103L || (_MSC_VER >= 1900 && defined __cplusplus)
+template <typename T, size_t size>
+constexpr size_t lengthof(T (& a)[size])
+{
+	return size;
+}
+#else
+#define lengthof(a) (sizeof(a) / sizeof(a[0]))
+#endif
+
 #endif

@@ -84,7 +84,7 @@ AC_CACHE_CHECK([whether VirtualProtect works],
       #define HAVE_WIN32_VM 1
       #define CONFIGURE_TEST_VM_MAP
       #define TEST_VM_PROT_$test_def
-      #include "../Unix/vm_alloc.cpp"
+      #include "../CrossPlatform/vm_alloc.cpp"
     ], ac_cv_VirtualProtect_works=no, rm -f core,
     dnl When cross-compiling, assume it works
     ac_cv_VirtualProtect_works="yes"
@@ -94,7 +94,7 @@ AC_CACHE_CHECK([whether VirtualProtect works],
     #define HAVE_WIN32_VM 1
     #define CONFIGURE_TEST_VM_MAP
     #define TEST_VM_PROT_RDWR_WRITE
-    #include "../Unix/vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
   ], , ac_cv_VirtualProtect_works=no,
   dnl When cross-compiling, assume it works
   ac_cv_VirtualProtect_works="yes"
@@ -116,8 +116,8 @@ AC_CACHE_CHECK([whether your system supports Windows exceptions],
   AC_TRY_RUN([
     #define HAVE_WIN32_EXCEPTIONS 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "../Unix/vm_alloc.cpp"
-    #include "../Unix/sigsegv.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
+    #include "../CrossPlatform/sigsegv.cpp"
   ],
   ac_cv_have_win32_exceptions=yes,
   ac_cv_have_win32_exceptions=no,
@@ -141,8 +141,8 @@ AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
   AC_TRY_RUN([
     #define HAVE_SIGSEGV_SKIP_INSTRUCTION 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "../Unix/vm_alloc.cpp"
-    #include "../Unix/sigsegv.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
+    #include "../CrossPlatform/sigsegv.cpp"
   ], ac_cv_have_skip_instruction=yes, ac_cv_have_skip_instruction=no,
   dnl When cross-compiling, assume it works
   ac_cv_have_skip_instruction="yes"

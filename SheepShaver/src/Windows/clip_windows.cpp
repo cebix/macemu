@@ -1,1 +1,0 @@
-../../../BasiliskII/src/Windows/clip_windows.cpp

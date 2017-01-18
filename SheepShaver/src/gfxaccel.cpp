@@ -24,6 +24,8 @@
 #include "video.h"
 #include "video_defs.h"
 
+#include "main.h"
+
 #define DEBUG 0
 #include "debug.h"
 

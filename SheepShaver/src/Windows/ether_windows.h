@@ -1,1 +1,0 @@
-../../../BasiliskII/src/Windows/ether_windows.h

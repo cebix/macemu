@@ -25,6 +25,8 @@
 #error "Your compiler is not ANSI. Get a real one."
 #endif
 
+#define min(x,y) ((x) < (y) ? (x) : (y))
+
 #include "config.h"
 #include "user_strings_windows.h"
 
@@ -32,11 +34,17 @@
 #error "You don't have ANSI C header files."
 #endif
 
+#ifndef PASCAL
+#define PASCAL
+#endif
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <tchar.h>
+#undef _TEXT
 #include <time.h>
 #ifdef __WIN32__
 #include <windows.h>
@@ -225,6 +233,7 @@ static inline uint64 tswap64(uint64 x) { return bswap_64(x); }
       (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
 
 #if defined(__GNUC__)
+#if 0
 #define do_byteswap_16(x)						\
 		(__extension__							\
 		 ({ register uint16 __v, __x = (x);		\
@@ -243,8 +252,19 @@ static inline uint64 tswap64(uint64 x) { return bswap_64(x); }
 		   __v = do_byteswap_32_g(__x);			\
 		 __v; }))
 #else
-#define do_byteswap_16(x) do_byteswap_16_g(x)
-#define do_byteswap_32(x) do_byteswap_32_g(x)
+
+inline uint16 funyun_bswap_16(uint16 x)
+{
+  return ((x & 0xff) << 8) | ((x >> 8) & 0xff);
+}
+
+#define do_byteswap_16(x) (funyun_bswap_16(x))
+#define do_byteswap_32(x) (do_byteswap_32_g(x))
+
+#endif
+#else
+#define do_byteswap_16(x) (do_byteswap_16_g((uint16)(x)))
+#define do_byteswap_32(x) (do_byteswap_32_g(x))
 #endif
 
 #if defined(__i386__) || defined(__x86_64__)

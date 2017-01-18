@@ -1,1 +1,0 @@
-../../../BasiliskII/src/include/clip.h

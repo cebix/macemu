@@ -1,1 +1,0 @@
-../../../../BasiliskII/src/Unix/Darwin/testlmem.sh

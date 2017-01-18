@@ -1,0 +1,12 @@
+diff -ur downloads/SDL-1.2.15-orig/build-scripts/ltmain.sh downloads/SDL-1.2.15/build-scripts/ltmain.sh
+--- downloads/SDL-1.2.15-orig/build-scripts/ltmain.sh	2017-01-15 20:57:25 -0800
++++ downloads/SDL-1.2.15/build-scripts/ltmain.sh	2017-01-15 21:00:16 -0800
+@@ -2274,7 +2274,7 @@
+     if test -n "$current_libdirs"; then
+       # Maybe just do a dry run.
+       $opt_dry_run && current_libdirs=" -n$current_libdirs"
+-      exec_cmd='$SHELL $progpath $preserve_args --finish$current_libdirs'
++      exec_cmd='$SHELL "$progpath" $preserve_args --finish$current_libdirs'
+     else
+       exit $EXIT_SUCCESS
+     fi
