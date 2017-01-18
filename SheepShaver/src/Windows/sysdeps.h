@@ -34,10 +34,6 @@
 #error "You don't have ANSI C header files."
 #endif
 
-#ifndef PASCAL
-#define PASCAL
-#endif
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
