@@ -140,3 +140,5 @@ SheepShaver/src/Windows/config.log
 SheepShaver/src/kpx_cpu/src/cpu/jit/x86/codegen_x86.h
 BasiliskII/src/Windows/x64/
 SheepShaver/src/Windows/config.status
+SheepShaver/src/Windows/obj/
+SheepShaver/src/Windows/build_on_msys.cache.json

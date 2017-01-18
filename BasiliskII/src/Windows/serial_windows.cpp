@@ -28,6 +28,8 @@
 
 #include "main.h"
 #include "util_windows.h"
+// somehow util_windows undefines min
+#define min(x,y) ((x) < (y) ? (x) : (y))
 #include "macos_util.h"
 #include "prefs.h"
 #include "serial.h"
@@ -310,12 +312,12 @@ open_error:
 	if (input_thread_active) {
 		TerminateThread(input_thread_active,0);
 		CloseHandle(input_signal);
-		input_thread_active = false;
+		input_thread_active = 0;
 	}
 	if (output_thread_active) {
 		TerminateThread(output_thread_active,0);
 		CloseHandle(output_signal);
-		output_thread_active = false;
+		output_thread_active = 0;
 	}
 	if(fd != INVALID_HANDLE_VALUE) {
 		CloseHandle(fd);
@@ -674,13 +676,13 @@ int16 XSERDPort::close()
 	if (input_thread_active) {
 		quitting = true;
 		ReleaseSemaphore(input_signal,1,NULL);
-		input_thread_active = false;
+		input_thread_active = 0;
 		CloseHandle(input_signal);
 	}
 	if (output_thread_active) {
 		quitting = true;
 		ReleaseSemaphore(output_signal,1,NULL);
-		output_thread_active = false;
+		output_thread_active = 0;
 		// bugfix: was: CloseHandle(&output_signal);
 		CloseHandle(output_signal);
 	}
