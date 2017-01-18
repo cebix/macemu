@@ -52,6 +52,8 @@ def parse_args():
     parser.add_argument("--install-to-dir",
                         default=None,
                         help="Copy the resulting exe to the given directory after building")
+    parser.add_argument("--run-shell-command", "-c",
+                        help="Run a command in the mingw shell")
     return parser.parse_args()
 
 
@@ -353,7 +355,7 @@ def uninstall_packages():
         cc([mingw_get_filename, "remove", package_name])
 
 
-def run_shell():
+def run_shell(command=None):
     mingw_get_dir = MINGW_EXTRACT_PATH
 
     msys_bin_dir = os.path.join(mingw_get_dir, "msys", "1.0", "bin")
@@ -364,7 +366,10 @@ def run_shell():
 
     our_env = env_augmented_with_paths(mingw_get_bin_dir, msys_bin_dir, mingw_bin_dir)
 
-    cc([msys_bash], env=our_env)
+    args = [msys_bash]
+    if command is not None:
+        args += ["-c", command]
+    cc(args, env=our_env)
 
 
 def get_symlink_filenames(prefix="SheepShaver/src/"):
@@ -529,6 +534,8 @@ def main():
 
     if options.run_shell:
         run_shell()
+    elif options.run_shell_command is not None:
+        run_shell(options.run_shell_command)
     elif options.uninstall_packages:
         uninstall_packages()
     elif options.gitignore_link_outputs:
