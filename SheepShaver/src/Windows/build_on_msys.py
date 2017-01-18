@@ -13,6 +13,8 @@ import sys
 from contextlib import contextmanager
 import datetime
 
+import shutil
+
 MACEMU_CFLAGS = "-mwin32"
 MACEMU_CXXFLAGS = "-mwin32 -std=gnu++11 -U__STRICT_ANSI__"
 
@@ -47,6 +49,9 @@ def parse_args():
                         default=False,
                         action="store_true",
                         )
+    parser.add_argument("--install-to-dir",
+                        default=None,
+                        help="Copy the resulting exe to the given directory after building")
     return parser.parse_args()
 
 
@@ -110,7 +115,7 @@ def log(msg):
     sys.stdout.flush()
 
 
-def install(make_args, show_build_environment):
+def install(make_args, show_build_environment, install_to_dir=None):
 
     root_dir = os.path.abspath(os.path.join(script_path, "..", "..", ".."))
     dep_tracker = BuildDepTracker(root_dir)
@@ -249,6 +254,13 @@ def install(make_args, show_build_environment):
                cwd=script_path, env=configure_macemu_env)
 
     cc([make_bin] + make_args, cwd=script_path, env=our_env)
+
+    if install_to_dir is not None:
+        assert os.path.isdir(install_to_dir)
+        binary_name = "SheepShaver.exe"
+        dest_filename = os.path.join(install_to_dir, binary_name)
+        log("Creating %s" % dest_filename)
+        shutil.copy(os.path.join(script_path, binary_name), dest_filename)
 
 
 def show_env_dict(d):
@@ -543,7 +555,8 @@ def main():
         if num_threads > 1:
             make_args.append("-j%d" % num_threads)
 
-        install(make_args, options.show_build_environment)
+        log("Install to %s" % options.install_to_dir)
+        install(make_args, options.show_build_environment, install_to_dir=options.install_to_dir)
 
 
 if __name__ == "__main__":
