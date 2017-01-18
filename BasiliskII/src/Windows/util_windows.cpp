@@ -271,7 +271,7 @@ bool check_drivers(void)
 	else {
 		TCHAR str[256];
 		_sntprintf(str, lengthof(str), TEXT("The CD-ROM driver file \"%s\" is missing."), path);
-		WarningAlert(str);
+		//WarningAlert(str);
 	}
 
 	return true;
