@@ -59,6 +59,9 @@ def parse_args():
     parser.add_argument("--use-precompiled-dyngen",
                         default=False,
                         action="store_true")
+    parser.add_argument("--build-jit",
+                        default=False,
+                        action="store_true")
     return parser.parse_args()
 
 
@@ -122,7 +125,7 @@ def log(msg):
     sys.stdout.flush()
 
 
-def install(make_args, show_build_environment, use_precompiled_dyngen, install_to_dir=None):
+def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit, install_to_dir=None):
 
     root_dir = os.path.abspath(os.path.join(script_path, "..", "..", ".."))
     dep_tracker = BuildDepTracker(root_dir)
@@ -256,12 +259,15 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, install_t
     with dep_tracker.rebuilding_if_needed("sheepshaver_configure", ["configure", "Makefile.in"],
                                           base_dir=script_path) as needs_rebuild:
         if needs_rebuild:
-            run([msys_bash, "./configure", "--with-gtk=no"],
+            sheepshaver_configure_options = []
+            if not build_jit:
+                sheepshaver_configure_options.append("--enable-jit=no")
+            run([msys_bash, "./configure", "--with-gtk=no"] + sheepshaver_configure_options,
                 cwd=script_path, env=configure_macemu_env)
 
     sheepshaver_make_args = list(make_args)
             
-    if use_precompiled_dyngen:
+    if use_precompiled_dyngen and build_jit:
         for precompiled_dyngen_file, target_dir, target_dyngen_file in (
             ("dyngen_precompiled/ppc-execute-impl.cpp", ".", "ppc-execute-impl.cpp"),
             ("dyngen_precompiled/basic-dyngen-ops-x86_32.hpp", "../Unix", "basic-dyngen-ops.hpp"),
@@ -588,7 +594,7 @@ def main():
             make_args.append("-j%d" % num_threads)
 
         log("Will install to %s" % options.install_to_dir)
-        install(make_args, options.show_build_environment, options.use_precompiled_dyngen,
+        install(make_args, options.show_build_environment, options.use_precompiled_dyngen, options.build_jit,
                 install_to_dir=options.install_to_dir)
 
 
