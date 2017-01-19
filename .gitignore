@@ -161,6 +161,10 @@ SheepShaver/src/Windows/config.log
 SheepShaver/src/Windows/config.status
 SheepShaver/src/Windows/config.h
 SheepShaver/src/Windows/Makefile
+SheepShaver/src/Windows/dyngen.exe
+SheepShaver/src/Windows/basic-dyngen-ops.hpp
+SheepShaver/src/Windows/ppc-dyngen-ops.hpp
+SheepShaver/src/Windows/ppc-execute-impl.cpp
 SheepShaver/src/Windows/obj/
 SheepShaver/src/Windows/SheepShaver.exe
 
