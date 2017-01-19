@@ -110,7 +110,7 @@ static NSString *getStringFromPrefs(const char *key)
   const char *dsk;
   int index = 0;
   while ((dsk = PrefsFindString("disk", index++)) != NULL) {
-    DiskType *disk = [[DiskType alloc] init];
+    DiskType *disk = [[[DiskType alloc] init] autorelease];
     [disk setPath:[NSString stringWithUTF8String: dsk ]];
     [disk setIsCDROM:NO];
 
@@ -120,7 +120,7 @@ static NSString *getStringFromPrefs(const char *key)
   /* Fetch all CDROMs */
   index = 0;
   while ((dsk = PrefsFindString("cdrom", index++)) != NULL) {
-    DiskType *disk = [[DiskType alloc] init];
+    DiskType *disk = [[[DiskType alloc] init] autorelease];
     [disk setPath:[NSString stringWithUTF8String: dsk ]];
     [disk setIsCDROM:YES];
 
@@ -266,7 +266,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 - (void) _addDiskEnd: (NSOpenPanel *) open returnCode: (int) theReturnCode contextInfo: (void *) theContextInfo
 {
   if (theReturnCode == NSOKButton) {
-    DiskType *d = [[DiskType alloc] init];
+    DiskType *d = [[[DiskType alloc] init] autorelease];
     [d setPath:makeRelativeIfNecessary([open filename])];
 
     [d setIsCDROM:([isCDROMcheckbox state] == NSOnState)];
@@ -307,7 +307,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
       snprintf(cmd, sizeof(cmd), "dd if=/dev/zero \"of=%s\" bs=1024k count=%d", [[save filename] UTF8String], [diskSaveSizeField intValue]);
       int ret = system(cmd);
       if (ret == 0) {
-        DiskType *d = [[DiskType alloc] init];
+        DiskType *d = [[[DiskType alloc] init] autorelease];
         [d setPath:makeRelativeIfNecessary([save filename])];
         [d setIsCDROM:NO];
 

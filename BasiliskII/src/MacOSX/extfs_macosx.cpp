@@ -125,7 +125,7 @@ void add_path_component(char *path, const char *component)
 		path[l] = '/';
 		path[l+1] = 0;
 	}
-	strncat(path, component, MAX_PATH_LENGTH-1);
+	strlcat(path, component, MAX_PATH_LENGTH);
 }
 
 
@@ -185,11 +185,11 @@ static void make_finf_path(const char *src, char *dest, bool only_dir = false)
 	dest[last_part-src] = 0;
 
 	// Add additional component
-	strncat(dest, ".finf/", MAX_PATH_LENGTH-1);
+	strlcat(dest, ".finf/", MAX_PATH_LENGTH);
 
 	// Add last component
 	if (!only_dir)
-		strncat(dest, last_part, MAX_PATH_LENGTH-1);
+		strlcat(dest, last_part, MAX_PATH_LENGTH);
 }
 
 static int create_finf_dir(const char *path)

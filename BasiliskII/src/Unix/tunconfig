@@ -77,7 +77,7 @@ $IPTABLES -L -n -t nat > /dev/null || exit 1
 #########################################################
 
 {
-    $IPTABLES -t nat -D POSTROUTING -s $TUN_NET -d ! $TUN_NET -j MASQUERADE
+    $IPTABLES -t nat -D POSTROUTING -s $TUN_NET ! -d $TUN_NET -j MASQUERADE
 } >& /dev/null
 
 #########################################################
@@ -96,7 +96,7 @@ $IPTABLES -L -n -t nat > /dev/null || exit 1
     $IFCONFIG $TUN_DEV $TUN_HOST
 
     # masquerade the tun network
-    $IPTABLES -t nat -A POSTROUTING -s $TUN_NET -d ! $TUN_NET -j MASQUERADE
+    $IPTABLES -t nat -A POSTROUTING -s $TUN_NET ! -d $TUN_NET -j MASQUERADE
 }
 
 exit 0

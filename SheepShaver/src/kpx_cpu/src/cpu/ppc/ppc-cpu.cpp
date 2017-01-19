@@ -548,7 +548,6 @@ void *powerpc_cpu::compile_chain_block(block_info *sbi)
 	// which is aligned at least on 4-byte boundaries
 	const int n = ((uintptr)sbi) & 3;
 	sbi = (block_info *)(((uintptr)sbi) & ~3L);
-	const uint32 bpc = sbi->pc;
 
 	const uint32 tpc = sbi->li[n].jmp_pc;
 	block_info *tbi = my_block_cache.find(tpc);
@@ -603,7 +602,6 @@ void powerpc_cpu::execute(uint32 entry)
 				// Compile new block
 				bi = compile_block(pc());
 			}
-			goto return_site;
 		}
 #endif
 #if PPC_DECODE_CACHE
@@ -704,9 +702,9 @@ void powerpc_cpu::execute(uint32 entry)
 					break;
 			}
 		}
-		goto return_site;
-#endif
+#else
 		goto do_interpret;
+#endif
 	}
 #endif
   do_interpret:

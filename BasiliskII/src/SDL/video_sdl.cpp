@@ -216,6 +216,27 @@ static inline void vm_release_framebuffer(void *fb, uint32 size)
 	vm_release(fb, size);
 }
 
+static inline int get_customized_color_depth(int default_depth)
+{
+	int display_color_depth = PrefsFindInt32("displaycolordepth");
+
+	D(bug("Get displaycolordepth %d\n", display_color_depth));
+
+	if(0 == display_color_depth)
+		return default_depth;
+	else{
+		switch (display_color_depth) {
+		case 8:
+			return VIDEO_DEPTH_8BIT;
+		case 15: case 16:
+			return VIDEO_DEPTH_16BIT;
+		case 24: case 32:
+			return VIDEO_DEPTH_32BIT;
+		default:
+			return default_depth;
+		}
+	}
+}
 
 /*
  *  Windows message handler
@@ -322,12 +343,6 @@ static void ErrorAlert(int error)
 {
 	ErrorAlert(GetString(error));
 }
-
-// Display warning alert
-static void WarningAlert(int warning)
-{
-	WarningAlert(GetString(warning));
-}
 #endif
 
 
@@ -364,26 +379,6 @@ static int palette_size(int mode)
 	case VIDEO_DEPTH_32BIT: return 256;
 	default: return 0;
 	}
-}
-
-// Return bytes per pixel for requested depth
-static inline int bytes_per_pixel(int depth)
-{
-	int bpp;
-	switch (depth) {
-	case 8:
-		bpp = 1;
-		break;
-	case 15: case 16:
-		bpp = 2;
-		break;
-	case 24: case 32:
-		bpp = 4;
-		break;
-	default:
-		abort();
-	}
-	return bpp;
 }
 
 // Map video_mode depth ID to numerical depth value
@@ -669,7 +664,7 @@ void driver_base::init()
 
 	// Check whether we can initialize the VOSF subsystem and it's profitable
 	if (!video_vosf_init(monitor)) {
-		WarningAlert(STR_VOSF_INIT_ERR);
+		WarningAlert(GetString(STR_VOSF_INIT_ERR));
 		use_vosf = false;
 	}
 	else if (!video_vosf_profitable()) {
@@ -1144,8 +1139,12 @@ bool VideoInit(bool classic)
 	}
 #endif
 
+	int color_depth = get_customized_color_depth(default_depth);
+
+	D(bug("Return get_customized_color_depth %d\n", color_depth));
+
 	// Create SDL_monitor_desc for this (the only) display
-	SDL_monitor_desc *monitor = new SDL_monitor_desc(VideoModes, (video_depth)default_depth, default_id);
+	SDL_monitor_desc *monitor = new SDL_monitor_desc(VideoModes, (video_depth)color_depth, default_id);
 	VideoMonitors.push_back(monitor);
 
 	// Open display

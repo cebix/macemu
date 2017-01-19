@@ -23,6 +23,15 @@
 #include <linux/version.h>
 #include <linux/init.h>
 
+/* wrap up socket object allocation */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 00)
+	#define compat_sk_alloc(_net, _family, _priority, _proto) \
+		sk_alloc(_net, _family, _priority, _proto, 0)
+#else
+	#define compat_sk_alloc(_net, _family, _priority, _proto) \
+		sk_alloc(_net, _family, _priority, _proto)
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
 #define LINUX_3_15
 #endif
@@ -214,7 +223,7 @@ int init_module(void)
 
 	/* Register driver */
 	ret = misc_register(&sheep_net_device);
-	D(bug("Sheep net driver installed\n"));
+	printk("sheep net: driver installed\n");
 	return ret;
 }
 
@@ -227,7 +236,7 @@ void cleanup_module(void)
 {
 	/* Unregister driver */
 	misc_deregister(&sheep_net_device);
-	D(bug("Sheep net driver removed\n"));
+	printk("sheep net: driver removed\n");
 }
 
 
@@ -491,7 +500,8 @@ static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, lo
 		netif_rx(skb);
 		return count;
 	}
-	if (skb->data[0] & ETH_ADDR_MULTICAST) {
+	/* Relay multicast for host process except ARP packet */
+	if ((skb->data[0] & ETH_ADDR_MULTICAST) && (eth_hdr(skb)->h_proto != htons(ETH_P_ARP))) {
 		/* We can't clone the skb since we will manipulate the data below */
 		struct sk_buff *lskb = skb_copy(skb, GFP_ATOMIC);
 		if (lskb) {
@@ -587,7 +597,7 @@ static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int cod
 
 			/* Allocate socket */
 #ifdef LINUX_26
-			v->skt = sk_alloc(dev_net(v->ether), GFP_USER, 1, &sheep_proto);
+			v->skt = compat_sk_alloc(dev_net(v->ether), GFP_USER, 1, &sheep_proto);
 #else
 			v->skt = sk_alloc(0, GFP_USER, 1);
 #endif
@@ -597,10 +607,16 @@ static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int cod
 			}
 			skt_set_dead(v->skt);
 
+			/*initialize ipfilter*/
+			v->ipfilter = 0;
+
 			/* Attach packet handler */
 			v->pt.type = htons(ETH_P_ALL);
 			v->pt.dev = v->ether;
 			v->pt.func = sheep_net_receiver;
+#ifdef LINUX_26
+			v->pt.af_packet_priv = v;
+#endif
 			dev_add_pack(&v->pt);
 #ifndef LINUX_24
 			dev_unlock_list();
@@ -706,7 +722,11 @@ static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struc
 static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
 #endif
 {
+#ifdef LINUX_26
+	struct SheepVars *v = (struct SheepVars *)pt->af_packet_priv;
+#else
 	struct SheepVars *v = (struct SheepVars *)pt;
+#endif
 	struct sk_buff *skb2;
 	int fake;
 	int multicast;
@@ -730,8 +750,25 @@ static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struc
 	/* Apply any filters here (if fake is true, then we *know* we want this packet) */
 	if (!fake) {
 		if ((skb->protocol == htons(ETH_P_IP))
-		 && (!v->ipfilter || (ntohl(ipip_hdr(skb)->daddr) != v->ipfilter && !multicast)))
+		 && (!v->ipfilter || (ntohl(ip_hdr(skb)->daddr) != v->ipfilter && !multicast))) {
+#if DEBUG
+			char source[16];
+			snprintf(source, 16, "%pI4", &ip_hdr(skb)->saddr);
+			D(bug("sheep_net: drop incoming IP packet %s for filter %d.%d.%d.%d\n",
+					 source,
+					 (v->ipfilter >> 24) & 0xff, (v->ipfilter >> 16) & 0xff, (v->ipfilter >> 8) & 0xff, v->ipfilter & 0xff));
+#endif
 			goto drop;
+		}
+#if DEBUG
+		else{
+			if(!multicast){
+				char source[16];
+				snprintf(source, 16, "%pI4", &ip_hdr(skb)->saddr);
+				D(bug("sheep_net: retain incoming unicast IP packet %s\n", source));
+			}
+		}
+#endif
 	}
 
 	/* Masquerade (we are typically a clone - best to make a real copy) */

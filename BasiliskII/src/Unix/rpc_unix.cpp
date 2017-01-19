@@ -64,8 +64,6 @@
 #define pthread_cancel(th)
 #define pthread_join(th, ret)
 #define pthread_testcancel()
-#define pthread_create(th, attr, start, arg) dummy_thread_create()
-static inline int dummy_thread_create(void) { errno = ENOSYS; return -1; }
 
 #undef  pthread_mutex_t
 #define pthread_mutex_t volatile int
@@ -433,7 +431,9 @@ static struct {
   int last;
   int count;
 } g_message_descriptors = { NULL, 0, 0 };
+#ifdef USE_THREADS
 static pthread_mutex_t g_message_descriptors_lock = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 // Add a user-defined marshaler
 static int rpc_message_add_callback(const rpc_message_descriptor_t *desc)

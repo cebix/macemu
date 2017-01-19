@@ -1,0 +1,20 @@
+V3.2 - 64-bit fixes to 680x0 disassembler, added AltiVec instructions to PPC
+       disassembler, fixes to Z80 disassembler (hl->ix/iy and relative jumps)
+V3.1 - Make LowMem globals as predefined variables, fix 64-bit support, enable
+       x86-64 disassembler with "d8664" command, removed input line length
+       restrictions
+V3.0 - Replaced 680x0 and 80x86 disassemblers with the ones from GNU binutils,
+       added symbolic display of MacOS low memory globals to PPC disassembler,
+       MacOS features in PPC disassembler are controlled by "-m" argument,
+       real memory mode is entered by "-r" argument, extended 8080 disassembler
+       to Z80, name changed from "mon" to "cxmon"
+V2.2 - Switched to autoconf/automake, fixed some minor bugs in the PPC
+       disassembler, commands made modular, added binary dump (b) command
+V2.1 - Compiled for BeOS R4, opens Terminal window when started from Tracker,
+       implemented 8080 disassembler, included Unix makefile
+V2.0 - Unified PPC and x86 release
+V1.5 - Non-interactive mode, real mode
+V1.4 - Implemented 6502 and 680x0 disassemblers
+V1.3 - Now uses libreadline
+       Disassembler: prints SPR names instead of numbers, fixed bugs
+V1.0 - Initial release
