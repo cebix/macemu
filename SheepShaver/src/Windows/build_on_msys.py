@@ -253,8 +253,7 @@ def install(make_args, show_build_environment, install_to_dir=None):
     with dep_tracker.rebuilding_if_needed("sheepshaver_configure", ["configure", "Makefile.in"],
                                           base_dir=script_path) as needs_rebuild:
         if needs_rebuild:
-            # TODO FIX JIT
-            run([msys_bash, "./configure", "--with-gtk=no", "--enable-jit=no"],
+            run([msys_bash, "./configure", "--with-gtk=no"],
                 cwd=script_path, env=configure_macemu_env)
 
     run([make_bin] + make_args, cwd=script_path, env=our_env)
@@ -445,7 +444,14 @@ class BuildDepTracker(object):
     def load(self):
         if os.path.exists(self.filename):
             with open(self.filename, "r") as handle:
-                self.cache = json.load(handle)
+                try:
+                    self.cache = json.load(handle)
+                except ValueError:
+                    msg = "ERROR: There was a problem loading the JSON cache file %s. " \
+                          "Maybe check the file for a syntax error?" % self.filename
+                    print >> sys.stderr, msg
+                    sys.stderr.flush()
+                    raise Exception(msg)
         else:
             self.cache = {"steps": {}}
 
