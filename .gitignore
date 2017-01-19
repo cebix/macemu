@@ -6,8 +6,19 @@
 
 # Mac OS X metadata
 *.DS_Store
-SheepShaver/src/Windows/downloads/
+
+# IDE project and intermeidate files
 .idea/
+BasiliskII/src/Windows/x64/
+SheepShaver/src/Windows/x64/
+CMakeLists.txt
+cmake-build-debug/
+
+# Python build script files
+SheepShaver/src/Windows/downloads/
+SheepShaver/src/Windows/build_on_msys.cache.json
+
+# Symlinks/copies created by make links
 SheepShaver/src/adb.cpp
 SheepShaver/src/audio.cpp
 SheepShaver/src/cdrom.cpp
@@ -131,14 +142,26 @@ SheepShaver/src/Windows/ether_windows.cpp
 SheepShaver/src/Windows/serial_windows.cpp
 SheepShaver/src/Windows/prefs_editor_gtk.cpp
 SheepShaver/src/uae_cpu/compiler/codegen_x86.h
-SheepShaver/src/Windows/autom4te.cache/
+SheepShaver/src/kpx_cpu/src/cpu/jit/x86/codegen_x86.h
+SheepShaver/src/Windows/video_blit.cpp
+SheepShaver/src/Windows/video_blit.h
+SheepShaver/src/Windows/video_vosf.h
+SheepShaver/src/Windows/sigsegv.cpp
+SheepShaver/src/Windows/sigsegv.h
+SheepShaver/src/Windows/vm_alloc.cpp
+SheepShaver/src/Windows/vm_alloc.h
 SheepShaver/src/Windows/m4/
+
+# Makefile intermediate and output files
 SheepShaver/src/Windows/aclocal.m4
+SheepShaver/src/Windows/autom4te.cache/
 SheepShaver/src/Windows/config.h.in
 SheepShaver/src/Windows/configure
 SheepShaver/src/Windows/config.log
-SheepShaver/src/kpx_cpu/src/cpu/jit/x86/codegen_x86.h
-BasiliskII/src/Windows/x64/
 SheepShaver/src/Windows/config.status
+SheepShaver/src/Windows/config.h
+SheepShaver/src/Windows/Makefile
 SheepShaver/src/Windows/obj/
-SheepShaver/src/Windows/build_on_msys.cache.json
+SheepShaver/src/Windows/SheepShaver.exe
+
+# additions below

@@ -18,7 +18,6 @@ import shutil
 # redo the macemu configures if they change
 
 MACEMU_CFLAGS = "-mwin32"
-# TODO check if __STRICT_ANSI__ is still required since we switched to gnu++11
 MACEMU_CXXFLAGS = "-mwin32 -std=gnu++11"
 
 script_path = os.path.dirname(os.path.abspath(__file__))
@@ -109,7 +108,7 @@ def display_dir(path):
     return path
 
 
-def cc(cmd_args, *args, **kwargs):
+def run(cmd_args, *args, **kwargs):
     print "%s (cwd=%s)" % (" ".join(cmd_args), kwargs.get("cwd"))
     sys.stdout.flush()
     subprocess.check_call(cmd_args, *args, **kwargs)
@@ -147,7 +146,7 @@ def install(make_args, show_build_environment, install_to_dir=None):
     installed_packages = get_installed_packages(quiet=True)
 
     if any(package not in installed_packages for package in all_packages_to_install):
-        cc([mingw_get_filename, "install"] + all_packages_to_install)
+        run([mingw_get_filename, "install"] + all_packages_to_install)
     else:
         log("All required packages installed")
 
@@ -180,7 +179,7 @@ def install(make_args, show_build_environment, install_to_dir=None):
         if needs_rebuild:
             # apply patch for building in msys/mingw
             patch_exe = os.path.join(msys_bin_dir, "patch.exe")
-            cc([patch_exe, "-p2", "-i", patch_filename], cwd=sdl_dir, env=our_env)
+            run([patch_exe, "-p2", "-i", patch_filename], cwd=sdl_dir, env=our_env)
             dep_tracker.done("sdl_patch")
 
     msys_bash = os.path.join(msys_bin_dir, "bash.exe")
@@ -191,15 +190,15 @@ def install(make_args, show_build_environment, install_to_dir=None):
     with dep_tracker.rebuilding_if_needed("sdl_autogen",
                                           ["configure.in"] + sdl_patched_files, base_dir=sdl_dir) as needs_rebuild:
         if needs_rebuild:
-            cc([msys_bash, "./autogen.sh"], cwd=sdl_dir, env=our_env)
+            run([msys_bash, "./autogen.sh"], cwd=sdl_dir, env=our_env)
     with dep_tracker.rebuilding_if_needed("sdl_configure", "configure", base_dir=sdl_dir) as needs_rebuild:
         if needs_rebuild:
-            cc([msys_bash, "./configure", "--disable-shared", "--prefix=/usr"], cwd=sdl_dir, env=our_env)
-            cc([make_bin] + make_args + ["clean"], cwd=sdl_dir, env=our_env)
+            run([msys_bash, "./configure", "--disable-shared", "--prefix=/usr"], cwd=sdl_dir, env=our_env)
+            run([make_bin] + make_args + ["clean"], cwd=sdl_dir, env=our_env)
 
-    cc([make_bin] + make_args, cwd=sdl_dir, env=our_env)
+    run([make_bin] + make_args, cwd=sdl_dir, env=our_env)
 
-    # TODO track all the files tht this could install
+    # TODO track all the files that this could install
     sdl_headers = "SDL.h SDL_active.h SDL_audio.h SDL_byteorder.h SDL_cdrom.h SDL_cpuinfo.h SDL_endian.h " \
                   "SDL_error.h SDL_events.h SDL_getenv.h SDL_joystick.h SDL_keyboard.h SDL_keysym.h SDL_loadso.h " \
                   "SDL_main.h SDL_mouse.h SDL_mutex.h SDL_name.h SDL_opengl.h SDL_platform.h SDL_quit.h SDL_rwops.h " \
@@ -210,7 +209,7 @@ def install(make_args, show_build_environment, install_to_dir=None):
 
     with dep_tracker.rebuilding_if_needed("sdl_install", sdl_files_being_installed, base_dir=sdl_dir) as needs_rebuild:
         if needs_rebuild:
-            cc([make_bin, "install"], cwd=sdl_dir, env=our_env)
+            run([make_bin, "install"], cwd=sdl_dir, env=our_env)
 
     # build sheepshaver
 
@@ -227,7 +226,7 @@ def install(make_args, show_build_environment, install_to_dir=None):
                                           base_dir=root_dir) as needs_rebuild:
         if needs_rebuild:
             try:
-                cc([make_bin, "links"], cwd=sheepshaver_dir, env=our_env)
+                run([make_bin, "links"], cwd=sheepshaver_dir, env=our_env)
             except subprocess.CalledProcessError:
                 pass
 
@@ -238,14 +237,14 @@ def install(make_args, show_build_environment, install_to_dir=None):
     with dep_tracker.rebuilding_if_needed("sheepshaver_autogen", ["configure.ac"],
                                           base_dir=script_path) as needs_rebuild:
         if needs_rebuild:
-            cc([msys_bash, os.path.join(unix_dir, "autogen.sh")], cwd=script_path, env=autogen_env)
+            run([msys_bash, os.path.join(unix_dir, "autogen.sh")], cwd=script_path, env=autogen_env)
 
     ln_cmd = os.path.join(msys_bin_dir, "ln.exe")
 
     windows_m4_dir = os.path.join(script_path, "m4")
     if not os.path.exists(windows_m4_dir):
-        cc([ln_cmd, "-sf", os.path.join(unix_dir, "m4"), windows_m4_dir],
-           cwd=script_path, env=autogen_env)
+        run([ln_cmd, "-sf", os.path.join(unix_dir, "m4"), windows_m4_dir],
+            cwd=script_path, env=autogen_env)
 
     configure_macemu_env = dict(our_env)
     configure_macemu_env["CC"] = "gcc %s" % MACEMU_CFLAGS
@@ -255,10 +254,10 @@ def install(make_args, show_build_environment, install_to_dir=None):
                                           base_dir=script_path) as needs_rebuild:
         if needs_rebuild:
             # TODO FIX JIT
-            cc([msys_bash, "./configure", "--with-gtk=no", "--enable-jit=no"],
-               cwd=script_path, env=configure_macemu_env)
+            run([msys_bash, "./configure", "--with-gtk=no", "--enable-jit=no"],
+                cwd=script_path, env=configure_macemu_env)
 
-    cc([make_bin] + make_args, cwd=script_path, env=our_env)
+    run([make_bin] + make_args, cwd=script_path, env=our_env)
 
     if install_to_dir is not None:
         assert os.path.isdir(install_to_dir)
@@ -355,7 +354,7 @@ def uninstall_packages():
 
     # uninstall them
     for package_name in installed_packages:
-        cc([mingw_get_filename, "remove", package_name])
+        run([mingw_get_filename, "remove", package_name])
 
 
 def run_shell(command=None):
@@ -372,7 +371,7 @@ def run_shell(command=None):
     args = [msys_bash]
     if command is not None:
         args += ["-c", command]
-    cc(args, env=our_env)
+    run(args, env=our_env)
 
 
 def get_symlink_filenames(prefix="SheepShaver/src/"):
