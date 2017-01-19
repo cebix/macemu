@@ -534,14 +534,20 @@ class BuildDepTracker(object):
 
         return rebuild_required
 
-    @staticmethod
-    def get_inputs_modified_time(input_filenames):
+    @classmethod
+    def get_inputs_modified_time(cls, input_filenames):
         input_file_mtimes = []
         for input_filename in input_filenames:
+            if os.path.isdir(input_filename):
+                subtime = cls.get_inputs_modified_time(os.path.join(input_filename, s) for s in os.listdir(input_filename))
+                if subtime is not None:
+                    input_file_mtimes.append(subtime)
             stat = os.stat(input_filename)
             if stat is None:
                 assert False, "Missing input file %s" % input_filename
             input_file_mtimes.append(stat.st_mtime)
+        if not input_file_mtimes:
+            return None
         input_modified_time = max(input_file_mtimes)
         return input_modified_time
 
