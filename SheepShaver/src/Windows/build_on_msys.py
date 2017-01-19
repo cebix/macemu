@@ -16,7 +16,8 @@ import datetime
 import shutil
 
 MACEMU_CFLAGS = "-mwin32"
-MACEMU_CXXFLAGS = "-mwin32 -std=gnu++11 -U__STRICT_ANSI__"
+# TODO check if __STRICT_ANSI__ is still required since we switched to gnu++11
+MACEMU_CXXFLAGS = "-mwin32 -std=gnu++11"
 
 script_path = os.path.dirname(os.path.abspath(__file__))
 
