@@ -7,7 +7,7 @@
 # Mac OS X metadata
 *.DS_Store
 
-# IDE project and intermeidate files
+# IDE project and intermediate files
 .idea/
 BasiliskII/src/Windows/x64/
 SheepShaver/src/Windows/x64/
@@ -152,7 +152,7 @@ SheepShaver/src/Windows/vm_alloc.cpp
 SheepShaver/src/Windows/vm_alloc.h
 SheepShaver/src/Windows/m4/
 
-# Makefile intermediate and output files
+# autotools & make intermediate and output files
 SheepShaver/src/Windows/aclocal.m4
 SheepShaver/src/Windows/autom4te.cache/
 SheepShaver/src/Windows/config.h.in
