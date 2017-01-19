@@ -47,8 +47,17 @@
 
 #if HAVE_FAST_NV_MEM_FUN
 
+#ifdef __MINGW32__
+#define PF_CONVENTION __thiscall
+#else
+// TODO set a calling convention on other platforms/compilers where the default cc does not pass obj as first param
+#define PF_CONVENTION
+#endif
+
 template< class PMF, class PF >
 inline PF nv_mem_fun_of(PMF pmf) {
+    /** Convert member function pointer to a regular function pointer that takes the object as first parameter
+    */
 	if (pmf == 0)
 		return 0;
 	union { PMF pmf; uintptr p[MEM_FUN_WORDS]; } x;
@@ -59,7 +68,7 @@ inline PF nv_mem_fun_of(PMF pmf) {
 template< class R, class T >
 class nv_mem_fun_t : public std::unary_function<T, R> {
 	typedef R (T::*pmf_t)();
-	typedef R (*pf_t)(T *);
+	typedef R (* PF_CONVENTION pf_t)(T *);
 	pf_t pf;
 public:
 	nv_mem_fun_t(pmf_t pmf) : pf(nv_mem_fun_of<pmf_t, pf_t>(pmf)) {}
@@ -70,7 +79,7 @@ public:
 template< class R, class T >
 class const_nv_mem_fun_t : public std::unary_function<T, R> {
 	typedef R (T::*pmf_t)();
-	typedef R (*pf_t)(T *);
+	typedef R (* PF_CONVENTION pf_t)(T *);
 	pf_t const pf;
 public:
 	const_nv_mem_fun_t(pmf_t const pmf) : pf(nv_mem_fun_of<pmf_t, pf_t>(pmf)) {}
@@ -81,7 +90,7 @@ public:
 template< class R, class T, class A >
 class nv_mem_fun1_t : public std::binary_function<T, A, R> {
 	typedef R (T::*pmf_t)(A);
-	typedef R (*pf_t)(T *, A x);
+	typedef R (* PF_CONVENTION pf_t)(T *, A x);
 	pf_t pf;
 public:
 	nv_mem_fun1_t(pmf_t pmf) : pf(nv_mem_fun_of<pmf_t, pf_t>(pmf)) {}
@@ -92,7 +101,7 @@ public:
 template< class R, class T, class A >
 class const_nv_mem_fun1_t : public std::binary_function<T, A, R> {
 	typedef R (T::*pmf_t)(A);
-	typedef R (*pf_t)(T *, A x);
+	typedef R (* PF_CONVENTION pf_t)(T *, A x);
 	pf_t const pf;
 public:
 	const_nv_mem_fun1_t(pmf_t const pmf) : pf(nv_mem_fun_of<pmf_t, pf_t>(pmf)) {}
