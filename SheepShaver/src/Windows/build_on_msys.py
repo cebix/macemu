@@ -555,7 +555,7 @@ def main():
             # filename = os.path.join(root_dir, filename_relative.replace("/", "\\"))
             file_is_tracked = filename_relative in tracked_files or \
                               any(filename.startswith(filename_relative + "/") for filename in tracked_files)
-            if file_is_tracked and not filename_relative in staged_deletes:
+            if file_is_tracked and filename_relative not in staged_deletes:
                 subprocess.check_call(["git", "rm", "--cached", filename_relative], cwd=root_dir)
 
     else:
