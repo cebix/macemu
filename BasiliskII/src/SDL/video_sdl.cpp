@@ -1493,6 +1493,14 @@ void video_set_cursor(void)
 #elif defined(__APPLE__)
 			move = mouse_grabbed;
 #endif
+            if (move) {
+				// when the cursor is not in the window, the cursor position from GetMouseState is not the actual
+				// cursor position, so do not warp the cursor as we don't want to actually move it.
+				if (!(SDL_GetAppState() & SDL_APPMOUSEFOCUS)) {
+					move = false;
+				}
+            }
+
 			if (move) {
 				int visible = SDL_ShowCursor(-1);
 				if (visible) {
