@@ -56,6 +56,9 @@ def parse_args():
                         help="Copy the resulting exe to the given directory after building")
     parser.add_argument("--run-shell-command", "-c",
                         help="Run a command in the mingw shell")
+    parser.add_argument("--use-precompiled-dyngen",
+                        default=False,
+                        action="store_true")
     return parser.parse_args()
 
 
@@ -119,7 +122,7 @@ def log(msg):
     sys.stdout.flush()
 
 
-def install(make_args, show_build_environment, install_to_dir=None):
+def install(make_args, show_build_environment, use_precompiled_dyngen, install_to_dir=None):
 
     root_dir = os.path.abspath(os.path.join(script_path, "..", "..", ".."))
     dep_tracker = BuildDepTracker(root_dir)
@@ -256,7 +259,21 @@ def install(make_args, show_build_environment, install_to_dir=None):
             run([msys_bash, "./configure", "--with-gtk=no"],
                 cwd=script_path, env=configure_macemu_env)
 
-    run([make_bin] + make_args, cwd=script_path, env=our_env)
+    sheepshaver_make_args = list(make_args)
+            
+    if use_precompiled_dyngen:
+        for precompiled_dyngen_file, target_dir, target_dyngen_file in (
+            ("dyngen_precompiled/ppc-execute-impl.cpp", ".", "ppc-execute-impl.cpp"),
+            ("dyngen_precompiled/basic-dyngen-ops-x86_32.hpp", "../Unix", "basic-dyngen-ops.hpp"),
+            ("dyngen_precompiled/ppc-dyngen-ops-x86_32.hpp", "../kpx_cpu", "ppc-dyngen-ops.hpp"),
+        ):
+            log("Copying %s to %s" % (precompiled_dyngen_file, target_dyngen_file))
+            shutil.copy(os.path.join(script_path, "..", "Unix", precompiled_dyngen_file),
+                        os.path.join(script_path, target_dyngen_file)
+                        )
+        sheepshaver_make_args.append("USE_DYNGEN=no")
+
+    run([make_bin] + sheepshaver_make_args, cwd=script_path, env=our_env)
 
     if install_to_dir is not None:
         assert os.path.isdir(install_to_dir)
@@ -571,7 +588,8 @@ def main():
             make_args.append("-j%d" % num_threads)
 
         log("Will install to %s" % options.install_to_dir)
-        install(make_args, options.show_build_environment, install_to_dir=options.install_to_dir)
+        install(make_args, options.show_build_environment, options.use_precompiled_dyngen,
+                install_to_dir=options.install_to_dir)
 
 
 if __name__ == "__main__":
