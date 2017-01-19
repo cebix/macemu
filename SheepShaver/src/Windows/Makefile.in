@@ -38,6 +38,7 @@ CXXFLAGS = @CXXFLAGS@ $(SDL_CFLAGS)
 CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../slirp
 DEFS = @DEFS@
 LDFLAGS = @LDFLAGS@ -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic
+#TODO remove pthread part of that if irrelevant
 LIBS = @LIBS@ -lws2_32 -lwsock32 -liphlpapi
 CPUSRCS = @CPUSRCS@
 PERL = @PERL@

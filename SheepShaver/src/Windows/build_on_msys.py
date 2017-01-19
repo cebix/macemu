@@ -1,5 +1,5 @@
 #
-# A python 2.7 script to fetch all dependencies and build Sheepshaver using MSYS
+# A python 2.7 script to fetch all dependencies and build Sheepshaver using MSYS / mingw
 #
 import argparse
 import glob
@@ -12,8 +12,10 @@ import zipfile
 import sys
 from contextlib import contextmanager
 import datetime
-
 import shutil
+
+# TODO keep track of the values for these flags used for the previous compile and
+# redo the macemu configures if they change
 
 MACEMU_CFLAGS = "-mwin32"
 # TODO check if __STRICT_ANSI__ is still required since we switched to gnu++11
@@ -563,7 +565,7 @@ def main():
         if num_threads > 1:
             make_args.append("-j%d" % num_threads)
 
-        log("Install to %s" % options.install_to_dir)
+        log("Will install to %s" % options.install_to_dir)
         install(make_args, options.show_build_environment, install_to_dir=options.install_to_dir)
 
 
