@@ -282,6 +282,10 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit
     with dep_tracker.rebuilding_if_needed("sheepshaver_configure", ["configure", "Makefile.in"],
                                           base_dir=script_path) as needs_rebuild:
         if needs_rebuild:
+            config_status_filename = os.path.join(script_path, "config.status")
+            if os.path.exists(config_status_filename):
+                log("removing existing config.status")
+                os.remove(config_status_filename)
             sheepshaver_configure_options = []
             if not build_jit:
                 sheepshaver_configure_options.append("--enable-jit=no")
