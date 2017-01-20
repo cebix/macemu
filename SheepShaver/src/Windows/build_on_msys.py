@@ -222,15 +222,33 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit
     sheepshaver_dir = os.path.abspath(os.path.join(script_path, "..", ".."))
     print "SHEEPSHAVER_DIR: %s" % sheepshaver_dir
 
-    link_inputs = get_symlink_filenames(prefix="BasiliskII/src/")
+    link_input_prefix = "BasiliskII/src/"
+    link_output_prefix = "SheepShaver/src/"
+    link_inputs = get_symlink_filenames(prefix=link_input_prefix)
 
     print "Tracking %d link inputs" % len(link_inputs)
     sys.stdout.flush()
 
+    stale_or_missing_dir_contents_files = False
+    for link_input_proper in link_inputs:
+        link_input = os.path.join(root_dir, link_input_proper)
+        if os.path.isdir(link_input):
+            assert link_input_proper.startswith(link_input_prefix)
+            link_output_proper = link_output_prefix + link_input_proper[len(link_input_prefix):]
+            link_input_mtime = dep_tracker.get_inputs_modified_time([link_input])
+            link_output = os.path.join(root_dir, link_output_proper)
+            if os.path.isdir(link_output):
+                link_output_mtime = dep_tracker.get_inputs_modified_time([link_output])
+                if link_output_mtime is None or link_output_mtime < link_input_mtime:
+                    shutil.rmtree(link_output)
+                    stale_or_missing_dir_contents_files = True
+            else:
+                stale_or_missing_dir_contents_files = True
+
     # TODO: fix make links step rather than just eating the exception
     with dep_tracker.rebuilding_if_needed("sheepshaver_top_makefile", ["SheepShaver/Makefile"] + link_inputs,
                                           base_dir=root_dir) as needs_rebuild:
-        if needs_rebuild:
+        if needs_rebuild or stale_or_missing_dir_contents_files:
             try:
                 run([make_bin, "links"], cwd=sheepshaver_dir, env=our_env)
             except subprocess.CalledProcessError:
