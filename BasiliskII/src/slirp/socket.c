@@ -108,6 +108,10 @@ soread(so)
 	struct sbuf *sb = &so->so_snd;
 	u_int len = sb->sb_datalen - sb->sb_cc;
 	struct iovec iov[2];
+
+	if (!so->so_tcpcb) {
+		so->so_tcpcb = tcp_newtcpcb(so); // but how did we get in this state? should we just default mss for it?
+	}
 	u_int mss = so->so_tcpcb->t_maxseg;
 	
 	DEBUG_CALL("soread");
