@@ -62,6 +62,10 @@ def parse_args():
     parser.add_argument("--build-jit",
                         default=False,
                         action="store_true")
+    parser.add_argument("--debug-build",
+                        default=False,
+                        action="store_true",
+                        help="disable things in the build that are a problem for debugging")
     return parser.parse_args()
 
 
@@ -125,7 +129,7 @@ def log(msg):
     sys.stdout.flush()
 
 
-def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit, install_to_dir=None):
+def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit, debug_build, install_to_dir=None):
 
     root_dir = os.path.abspath(os.path.join(script_path, "..", "..", ".."))
     dep_tracker = BuildDepTracker(root_dir)
@@ -280,6 +284,8 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit
             sheepshaver_configure_options = []
             if not build_jit:
                 sheepshaver_configure_options.append("--enable-jit=no")
+            if debug_build:
+                sheepshaver_configure_options.append("--enable-vosf=no")
             run([msys_bash, "./configure", "--with-gtk=no"] + sheepshaver_configure_options,
                 cwd=script_path, env=configure_macemu_env)
 
@@ -619,7 +625,7 @@ def main():
 
         log("Will install to %s" % options.install_to_dir)
         install(make_args, options.show_build_environment, options.use_precompiled_dyngen, options.build_jit,
-                install_to_dir=options.install_to_dir)
+                options.debug_build, install_to_dir=options.install_to_dir)
 
 
 if __name__ == "__main__":

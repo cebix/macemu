@@ -14,6 +14,7 @@ AC_CANONICAL_TARGET
 dnl Options.
 AC_ARG_ENABLE(jit,          [  --enable-jit            enable JIT compiler [default=yes]], [WANT_JIT=$enableval], [WANT_JIT=yes])
 AC_ARG_WITH(gtk,          [  --with-gtk              use GTK user interface [default=yes]], [WANT_GTK=$withval], [WANT_GTK=yes])
+AC_ARG_ENABLE(vosf,         [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=yes])
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -153,8 +154,12 @@ AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
 AC_TRANSLATE_DEFINE(HAVE_SIGSEGV_SKIP_INSTRUCTION, "$ac_cv_have_skip_instruction",
   [Define if we can ignore the fault (instruction skipping in SIGSEGV handler).])
 
-dnl We really want VOSF (Video on SEGV Signals) screen updates acceleration
-AC_DEFINE(ENABLE_VOSF, 1, [Define if using video enabled on SEGV signals.])
+dnl Enable VOSF screen updates with this feature is requested
+if [[ "x$WANT_VOSF" = "xyes" ]]; then
+    AC_DEFINE(ENABLE_VOSF, 1, [Define if using video enabled on SEGV signals.])
+else
+    WANT_VOSF=no
+fi
 
 dnl Check for GCC 2.7 or higher.
 HAVE_GCC27=no
@@ -262,5 +267,6 @@ echo SheepShaver configuration summary:
 echo
 echo Enable JIT compiler .............. : $WANT_JIT
 echo GTK user interface ............... : $WANT_GTK
+echo Enable VOSF ...................... : $WANT_VOSF
 echo
 echo "Configuration done. Now type \"make\"."
