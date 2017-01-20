@@ -112,7 +112,10 @@ inline void remque_32(void *a)
 {
 	register struct quehead_32 *element = (struct quehead_32 *) a;
 	((struct quehead_32 *)(element->qh_link))->qh_rlink = element->qh_rlink;
-	((struct quehead_32 *)(element->qh_rlink))->qh_link = element->qh_link;
+	struct quehead_32 * prev = element->qh_rlink;
+	if (prev != 0) {
+		prev->qh_link = element->qh_link;
+	}
 	element->qh_rlink = 0;
 }
 
@@ -138,7 +141,10 @@ void remque(void *a)
 {
   register struct quehead *element = (struct quehead *) a;
   ((struct quehead *)(element->qh_link))->qh_rlink = element->qh_rlink;
-  ((struct quehead *)(element->qh_rlink))->qh_link = element->qh_link;
+  struct quehead * prev = element->qh_rlink;
+  if (prev != NULL) {
+	  prev->qh_link = element->qh_link;
+  }
   element->qh_rlink = NULL;
   /*  element->qh_link = NULL;  TCP FIN1 crashes if you do this.  Why ? */
 }
