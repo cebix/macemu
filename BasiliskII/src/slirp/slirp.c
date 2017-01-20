@@ -219,7 +219,7 @@ int slirp_select_fill(int *pnfds,
 			/*
 			 * See if we need a tcp_fasttimo
 			 */
-			if (time_fasttimo == 0 && so->so_tcpcb->t_flags & TF_DELACK)
+			if (time_fasttimo == 0 && so->so_tcpcb && so->so_tcpcb->t_flags & TF_DELACK)
 				time_fasttimo = curtime; /* Flag when we want a fasttimo */
 			
 			/*

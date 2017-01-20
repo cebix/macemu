@@ -110,7 +110,10 @@ soread(so)
 	struct iovec iov[2];
 
 	if (!so->so_tcpcb) {
-		so->so_tcpcb = tcp_newtcpcb(so); // but how did we get in this state? should we just default mss for it?
+		// how did we get in this state?
+		tcp_newtcpcb(so);
+		// from what I've seen while debugging, the socket struct is about to get freed, so consider it closed.
+		return -1;
 	}
 	u_int mss = so->so_tcpcb->t_maxseg;
 	
