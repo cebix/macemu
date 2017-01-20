@@ -278,6 +278,7 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit
     configure_macemu_env["CC"] = "gcc %s" % MACEMU_CFLAGS
     configure_macemu_env["CXX"] = "g++ %s" % MACEMU_CXXFLAGS
 
+    did_configure = False
     with dep_tracker.rebuilding_if_needed("sheepshaver_configure", ["configure", "Makefile.in"],
                                           base_dir=script_path) as needs_rebuild:
         if needs_rebuild:
@@ -288,6 +289,10 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit
                 sheepshaver_configure_options.append("--enable-vosf=no")
             run([msys_bash, "./configure", "--with-gtk=no"] + sheepshaver_configure_options,
                 cwd=script_path, env=configure_macemu_env)
+            did_configure = True
+
+    if did_configure:
+        run([make_bin, "clean"], cwd=script_path, env=our_env)
 
     sheepshaver_make_args = list(make_args)
             
