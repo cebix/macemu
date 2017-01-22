@@ -354,6 +354,8 @@ def get_installed_packages(quiet=False):
 
     # first, get the mapping from tarnames to package names for all available packages
     package_list_filename = os.path.join(data_path, "package-list.xml")
+    if not os.path.exists(package_list_filename):
+        return []
     catalogues = xml_read_helper(package_list_filename, "package-list", "catalogue")
 
     packages_by_tarname = {}
