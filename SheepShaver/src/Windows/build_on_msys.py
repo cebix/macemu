@@ -439,8 +439,11 @@ def get_symlink_filenames(prefix="SheepShaver/src/"):
     with open(top_makefile, "r") as handle:
         while not handle.readline().startswith("links:"):
             pass
-        first_line = handle.readline()
         links_list_prefix = "	@list='"
+        while True:
+            first_line = handle.readline()
+            if first_line.startswith(links_list_prefix):
+                break
         assert first_line.startswith(links_list_prefix)
         lines = [first_line[len(links_list_prefix):]]
         while True:
