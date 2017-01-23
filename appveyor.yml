@@ -11,7 +11,7 @@ environment:
 
 build_script:
 - cmd: >-
-    %PYTHON%\python.exe c:\project\src\github.com\rakslice\macemu\SheepShaver\src\Windows\build_on_msys.py --build i686-pc-mingw32 --alt-mingw-path c:\mingw
+    %PYTHON%\python.exe c:\project\src\github.com\rakslice\macemu\SheepShaver\src\Windows\build_on_msys.py --build i686-pc-mingw32
 
 after_build:
   - 7z a sheepshaver.zip c:\project\src\github.com\rakslice\macemu\SheepShaver\SheepShaver.exe
