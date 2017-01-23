@@ -1,0 +1,21 @@
+version: 1.0.{build}
+platform: x64
+clone_folder: c:\project\src\github.com\rakslice\macemu
+clone_depth: 5
+
+environment:
+  matrix:
+    - PYTHON: "C:\\Python27"
+      PYTHON_VERSION: "2.7.x" # currently 2.7.9?
+      PYTHON_ARCH: "32"
+
+build_script:
+- cmd: >-
+    %PYTHON%\python.exe c:\project\src\github.com\rakslice\macemu\SheepShaver\src\Windows\build_on_msys.py
+
+after_build:
+  - 7z a sheepshaver.zip c:\project\src\github.com\rakslice\macemu\SheepShaver\SheepShaver.exe
+
+artifacts:
+  - path: sheepshaver.zip
+    name: sheepshaver non-jit build
