@@ -20,6 +20,8 @@ import shutil
 MACEMU_CFLAGS = "-mwin32"
 MACEMU_CXXFLAGS = "-mwin32 -std=gnu++11"
 
+GTK_INSTALL_URL = "https://downloads.sourceforge.net/project/gladewin32/gtk%2B-win32-devel/2.12.9/" \
+                  "gtk-dev-2.12.9-win32-2.exe"
 MINGW_GET_URL = "https://downloads.sourceforge.net/project/mingw/Installer/mingw-get/" \
                 "mingw-get-0.6.2-beta-20131004-1/mingw-get-0.6.2-mingw32-beta-20131004-1-bin.zip"
 SDL_ZIP_URL = "http://www.libsdl.org/release/SDL-1.2.15.zip"
@@ -28,6 +30,7 @@ script_path = os.path.dirname(os.path.abspath(__file__))
 
 
 MINGW_EXTRACT_PATH = r"c:\mingw-sheep"
+GTK_INSTALL_DIR = r"C:\GTK_DIR"
 
 
 def parse_args():
@@ -196,6 +199,16 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit
         print "ENVIRONMENT FOR BUILD"
         show_env_dict(our_env)
         print ""
+
+    # download & install GTK
+
+    gtk_install_filename = download(GTK_INSTALL_URL)
+    with dep_tracker.rebuilding_if_needed("gtk_install", gtk_install_filename) as needs_rebuild:
+        if needs_rebuild:
+            run([gtk_install_filename, "/S", "/D=" + GTK_INSTALL_DIR], shell=True)
+
+    gtk_pkg_config_path = os.path.join(GTK_INSTALL_DIR, "lib", "pkgconfig")
+    our_env["PKG_CONFIG_PATH"] = gtk_pkg_config_path
 
     # build SDL
 
