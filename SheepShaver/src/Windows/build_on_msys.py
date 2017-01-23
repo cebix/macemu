@@ -66,6 +66,9 @@ def parse_args():
                         default=False,
                         action="store_true",
                         help="disable things in the build that are a problem for debugging")
+    parser.add_argument("--add-path",
+                        default=None,
+                        help="Add something to the PATH used for builds, with highest priority")
     return parser.parse_args()
 
 
@@ -129,7 +132,8 @@ def log(msg):
     sys.stdout.flush()
 
 
-def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit, debug_build, install_to_dir=None):
+def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit, debug_build,
+            install_to_dir=None, add_path=None):
 
     root_dir = os.path.abspath(os.path.join(script_path, "..", "..", ".."))
     dep_tracker = BuildDepTracker(root_dir)
@@ -163,8 +167,11 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit
     mingw_get_bin_dir = os.path.join(mingw_get_dir, "bin")
     msys_bin_dir = os.path.join(mingw_get_dir, "msys", "1.0", "bin")
     mingw_bin_dir = os.path.join(mingw_get_dir, "mingw32", "bin")
-
-    our_env = env_augmented_with_paths(mingw_get_bin_dir, msys_bin_dir, mingw_bin_dir)
+    
+    paths_to_add = [mingw_get_bin_dir, msys_bin_dir, mingw_bin_dir]
+    if add_path is not None:
+        paths_to_add.insert(0, add_path)
+    our_env = env_augmented_with_paths(*paths_to_add)
 
     # ditch any outer make flags from cmake or similar due to compatibility problems
     for var in ["MAKEFLAGS", "MAKELEVEL", "MFLAGS"]:
@@ -639,7 +646,7 @@ def main():
 
         log("Will install to %s" % options.install_to_dir)
         install(make_args, options.show_build_environment, options.use_precompiled_dyngen, options.build_jit,
-                options.debug_build, install_to_dir=options.install_to_dir)
+                options.debug_build, install_to_dir=options.install_to_dir, add_path=options.add_path)
 
 
 if __name__ == "__main__":
