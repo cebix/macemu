@@ -1,4 +1,4 @@
-version: 1.0.{build}a
+version: 1.0.{build}-{commit}
 platform: x64
 clone_folder: c:\project\src\github.com\rakslice\macemu
 clone_depth: 5
