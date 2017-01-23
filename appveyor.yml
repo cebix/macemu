@@ -16,6 +16,9 @@ build_script:
 after_build:
   - 7z a sheepshaver.zip c:\project\src\github.com\rakslice\macemu\SheepShaver\SheepShaver.exe
 
+cache:
+  - C:\mingw-sheep\var -> appveyor.yml
+
 artifacts:
   - path: sheepshaver.zip
     name: sheepshaver non-jit build
