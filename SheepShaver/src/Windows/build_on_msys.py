@@ -304,17 +304,17 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit
 
     unix_dir = os.path.join(sheepshaver_dir, "src", "Unix")
 
-    with dep_tracker.rebuilding_if_needed("sheepshaver_autogen", ["configure.ac"],
-                                          base_dir=script_path) as needs_rebuild:
-        if needs_rebuild:
-            run([msys_bash, os.path.join(unix_dir, "autogen.sh")], cwd=script_path, env=autogen_env)
-
     ln_cmd = os.path.join(msys_bin_dir, "ln.exe")
 
     windows_m4_dir = os.path.join(script_path, "m4")
     if not os.path.exists(windows_m4_dir):
         run([ln_cmd, "-sf", os.path.join(unix_dir, "m4"), windows_m4_dir],
             cwd=script_path, env=autogen_env)
+
+    with dep_tracker.rebuilding_if_needed("sheepshaver_autogen", ["configure.ac"],
+                                          base_dir=script_path) as needs_rebuild:
+        if needs_rebuild:
+            run([msys_bash, os.path.join(unix_dir, "autogen.sh")], cwd=script_path, env=autogen_env)
 
     configure_macemu_env = dict(our_env)
     configure_macemu_env["CC"] = "gcc %s" % MACEMU_CFLAGS
