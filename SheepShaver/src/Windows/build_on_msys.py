@@ -158,7 +158,7 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit
     mingw_get_filename = os.path.join(mingw_get_dir, "bin", "mingw-get.exe")
     assert os.path.isfile(mingw_get_filename)
 
-    msys_packages = ["bash", "autogen", "m4", "make", "patch"]
+    msys_packages = ["bash", "autogen", "m4", "make", "patch", "grep", "sed"]
     mingw_packages = ["autoconf", "autoconf2.5", "automake", "automake1.11", "binutils", "base", "autotools", "libtool",
                       "gcc", "gcc-g++"]
 
