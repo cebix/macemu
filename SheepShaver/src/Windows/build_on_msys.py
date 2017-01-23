@@ -72,6 +72,10 @@ def parse_args():
     parser.add_argument("--build",
                         default=None,
                         help="Build platform to pass to configure scripts")
+    parser.add_argument("--alt-mingw-path",
+                        dest="alt_mingw_path",
+                        default=None,
+                        help="Path to use for mingw install")
     return parser.parse_args()
 
 
@@ -618,7 +622,11 @@ class BuildDepTracker(object):
 
 
 def main():
+    global MINGW_EXTRACT_PATH
     options = parse_args()
+
+    if options.alt_mingw_path:
+        MINGW_EXTRACT_PATH = options.alt_mingw_path
 
     if options.run_shell:
         run_shell()
