@@ -69,6 +69,9 @@ def parse_args():
     parser.add_argument("--add-path",
                         default=None,
                         help="Add something to the PATH used for builds, with highest priority")
+    parser.add_argument("--build",
+                        default=None,
+                        help="Build platform to pass to configure scripts")
     return parser.parse_args()
 
 
@@ -133,7 +136,7 @@ def log(msg):
 
 
 def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit, debug_build,
-            install_to_dir=None, add_path=None):
+            install_to_dir=None, add_path=None, build=None):
 
     root_dir = os.path.abspath(os.path.join(script_path, "..", "..", ".."))
     dep_tracker = BuildDepTracker(root_dir)
@@ -210,7 +213,10 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit
             run([msys_bash, "./autogen.sh"], cwd=sdl_dir, env=our_env)
     with dep_tracker.rebuilding_if_needed("sdl_configure", "configure", base_dir=sdl_dir) as needs_rebuild:
         if needs_rebuild:
-            run([msys_bash, "./configure", "--disable-shared", "--prefix=/usr"], cwd=sdl_dir, env=our_env)
+            sdl_configure_args = [msys_bash, "./configure", "--disable-shared", "--prefix=/usr"]
+            if build is not None:
+                sdl_configure_args += ["--build", build]
+            run(sdl_configure_args, cwd=sdl_dir, env=our_env)
             run([make_bin] + make_args + ["clean"], cwd=sdl_dir, env=our_env)
 
     run([make_bin] + make_args, cwd=sdl_dir, env=our_env)
@@ -647,7 +653,8 @@ def main():
         if options.install_to_dir is not None:
             log("Will install to %s" % options.install_to_dir)
         install(make_args, options.show_build_environment, options.use_precompiled_dyngen, options.build_jit,
-                options.debug_build, install_to_dir=options.install_to_dir, add_path=options.add_path)
+                options.debug_build, install_to_dir=options.install_to_dir, add_path=options.add_path,
+                build=options.build)
 
 
 if __name__ == "__main__":
