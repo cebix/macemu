@@ -195,11 +195,6 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit
     for var in ["MAKEFLAGS", "MAKELEVEL", "MFLAGS"]:
         our_env.pop(var, None)
         
-    if show_build_environment:
-        print "ENVIRONMENT FOR BUILD"
-        show_env_dict(our_env)
-        print ""
-
     # download & install GTK
 
     gtk_install_filename = download(GTK_INSTALL_URL)
@@ -211,6 +206,13 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit
     gtk_aclocal_path = os.path.join(GTK_INSTALL_DIR, "share", "aclocal")
     our_env["PKG_CONFIG_PATH"] = gtk_pkg_config_path
     our_env["ACLOCAL_PATH"] = gtk_aclocal_path
+
+    # show build environment
+
+    if show_build_environment:
+        print "ENVIRONMENT FOR BUILD"
+        show_env_dict(our_env)
+        print ""
 
     # build SDL
 
