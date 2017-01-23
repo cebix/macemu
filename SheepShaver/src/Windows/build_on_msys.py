@@ -208,7 +208,9 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit
             run([gtk_install_filename, "/S", "/D=" + GTK_INSTALL_DIR], shell=True)
 
     gtk_pkg_config_path = os.path.join(GTK_INSTALL_DIR, "lib", "pkgconfig")
+    gtk_aclocal_path = os.path.join(GTK_INSTALL_DIR, "share", "aclocal")
     our_env["PKG_CONFIG_PATH"] = gtk_pkg_config_path
+    our_env["ACLOCAL_PATH"] = gtk_aclocal_path
 
     # build SDL
 
