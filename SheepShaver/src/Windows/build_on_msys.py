@@ -114,9 +114,14 @@ def extract_zip(zip_filename, target_dir):
 def env_augmented_with_paths(*path_dirs_to_add):
     env_copy = dict(os.environ)
     path_dirs = env_copy["PATH"].split(os.pathsep)
+
+    paths_adding = []
     for d in path_dirs_to_add:
         if d not in path_dirs:
-            path_dirs.append(d)
+            paths_adding.append(d)
+
+    path_dirs = paths_adding + path_dirs
+
     env_copy["PATH"] = os.pathsep.join(path_dirs)
     return env_copy
 
