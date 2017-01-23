@@ -14,7 +14,7 @@ build_script:
     %PYTHON%\python.exe c:\project\src\github.com\rakslice\macemu\SheepShaver\src\Windows\build_on_msys.py --build i686-pc-mingw32 --show-build-environment
 
 after_build:
-  - 7z a sheepshaver.zip c:\project\src\github.com\rakslice\macemu\SheepShaver\SheepShaver.exe
+  - 7z a sheepshaver.zip c:\project\src\github.com\rakslice\macemu\SheepShaver\src\Windows\SheepShaver.exe
 
 cache:
   - C:\mingw-sheep\var -> appveyor.yml
