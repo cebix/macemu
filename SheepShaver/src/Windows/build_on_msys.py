@@ -644,7 +644,8 @@ def main():
         if num_threads > 1:
             make_args.append("-j%d" % num_threads)
 
-        log("Will install to %s" % options.install_to_dir)
+        if options.install_to_dir is not None:
+            log("Will install to %s" % options.install_to_dir)
         install(make_args, options.show_build_environment, options.use_precompiled_dyngen, options.build_jit,
                 options.debug_build, install_to_dir=options.install_to_dir, add_path=options.add_path)
 
