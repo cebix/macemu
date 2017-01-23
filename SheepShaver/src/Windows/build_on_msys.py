@@ -20,6 +20,10 @@ import shutil
 MACEMU_CFLAGS = "-mwin32"
 MACEMU_CXXFLAGS = "-mwin32 -std=gnu++11"
 
+MINGW_GET_URL = "https://downloads.sourceforge.net/project/mingw/Installer/mingw-get/" \
+                "mingw-get-0.6.2-beta-20131004-1/mingw-get-0.6.2-mingw32-beta-20131004-1-bin.zip"
+SDL_ZIP_URL = "http://www.libsdl.org/release/SDL-1.2.15.zip"
+
 script_path = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -155,8 +159,7 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit
 
     # get msys / mingw tools we need to build
 
-    mingw_get_zip = download("https://downloads.sourceforge.net/project/mingw/Installer/mingw-get/"
-                             "mingw-get-0.6.2-beta-20131004-1/mingw-get-0.6.2-mingw32-beta-20131004-1-bin.zip")
+    mingw_get_zip = download(MINGW_GET_URL)
     mingw_get_dir = MINGW_EXTRACT_PATH
     extract_zip(mingw_get_zip, mingw_get_dir)
 
@@ -196,7 +199,7 @@ def install(make_args, show_build_environment, use_precompiled_dyngen, build_jit
 
     # build SDL
 
-    sdl_zip_filename = download("http://www.libsdl.org/release/SDL-1.2.15.zip")
+    sdl_zip_filename = download(SDL_ZIP_URL)
     sdl_dir = os.path.join(get_download_dir(), "SDL-1.2.15")
     with dep_tracker.rebuilding_if_needed("sdl_extract_zip", sdl_zip_filename) as needs_rebuild:
         if needs_rebuild:
