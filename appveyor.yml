@@ -17,7 +17,7 @@ after_build:
   - 7z a sheepshaver.zip c:\project\src\github.com\rakslice\macemu\SheepShaver\src\Windows\SheepShaver.exe
 
 cache:
-  - C:\mingw-sheep\var -> appveyor.yml
+  - C:\mingw-sheep\var\cache -> appveyor.yml
 
 artifacts:
   - path: sheepshaver.zip
