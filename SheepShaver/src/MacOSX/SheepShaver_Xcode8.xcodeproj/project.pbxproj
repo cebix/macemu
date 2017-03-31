@@ -1358,7 +1358,6 @@
 					0x3000,
 					"-Wl,-seg1addr,0x78048000",
 					"-lkpx_cpu",
-					"-lclip",
 				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = SheepShaver;
@@ -1417,7 +1416,6 @@
 					0x3000,
 					"-Wl,-seg1addr,0x78048000",
 					"-lkpx_cpu",
-					"-lclip",
 				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = SheepShaver;
