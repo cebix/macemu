@@ -135,7 +135,7 @@ main(int argc, const char *argv[])
 {
 	int fd;
 	char *addr;
-	off_t file_size;
+	size_t file_size;
 	struct mach_header *machhead;
 #if defined(MH_MAGIC_64)
 	struct mach_header_64 *machhead64;
@@ -155,7 +155,7 @@ main(int argc, const char *argv[])
 			progname, filename, strerror(errno));
 		exit(1);
 	}
-	file_size = f.st_size;
+	file_size = (size_t) f.st_size;
 
 	fd = open(filename, O_RDWR, 0);
 	if (fd == -1) {
