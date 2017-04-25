@@ -32,7 +32,7 @@
 #include "user_strings_beos.h"
 
 // Are the Mac and the host address space the same?
-#ifdef __i386__
+#if defined(__i386__) || defined(__x86_64__)
 #define REAL_ADDRESSING 0
 #undef WORDS_BIGENDIAN
 #else
@@ -86,7 +86,7 @@ typedef int32 intptr;
 extern void Delay_usec(uint32 usec);
 
 // UAE CPU defines
-#ifdef __i386__
+#if defined(__i386__) || defined(__x86_64__)
 
 // Intel x86 assembler optimizations
 #define X86_PPRO_OPT

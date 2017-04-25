@@ -34,6 +34,9 @@ MACHINE=$(shell uname -m)
 ifeq ($(MACHINE), BePC)
 	CPUSRCS = ../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp \
 	    ../uae_cpu/readcpu.cpp ../uae_cpu/fpu/fpu_x86.cpp cpustbl.cpp cpudefs.cpp cpufast.s
+else ifeq ($(MACHINE), x86_64) #the same like x86/BePC for now
+	CPUSRCS = ../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp \
+	    ../uae_cpu/readcpu.cpp ../uae_cpu/fpu/fpu_x86.cpp cpustbl.cpp cpudefs.cpp cpufast.s
 else
 #	CPUSRCS = ../powerrom_cpu/powerrom_cpu.cpp
 	CPUSRCS = ../uae_cpu/basilisk_glue.cpp ../uae_cpu/newcpu.cpp \
@@ -68,7 +71,7 @@ RSRCS=
 #		naming scheme you need to specify the path to the library
 #		and it's name
 #		library: my_lib.a entry: my_lib.a or path/my_lib.a
-LIBS=be game media device textencoding tracker net
+LIBS=be game media device textencoding tracker network stdc++
 		
 #	specify additional paths to directories following the standard
 #	libXXX.so or libXXX.a naming scheme.  You can specify full paths
@@ -116,7 +119,7 @@ SYMBOLS =
 DEBUGGER = 
 
 #	specify additional compiler flags for all files
-COMPILER_FLAGS = -fomit-frame-pointer -fno-PIC
+COMPILER_FLAGS = -fomit-frame-pointer -fpermissive #-fno-PIC
 
 #	specify additional linker flags
 LINKER_FLAGS =
