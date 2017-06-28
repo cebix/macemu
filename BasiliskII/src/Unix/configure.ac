@@ -1315,6 +1315,7 @@ else
       ;;
     direct)
       dnl Requires VOSF screen updates
+      echo "CAN_VOSF=$CAN_VOSF"
       if [[ "x$CAN_VOSF" = "xyes" ]]; then
         ADDRESSING_MODE="direct"
         WANT_VOSF=yes dnl we can use VOSF and we need it actually
