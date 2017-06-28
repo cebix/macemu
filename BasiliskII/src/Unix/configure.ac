@@ -828,7 +828,7 @@ dnl $1 -- the macro to define
 dnl $2 -- the value to translate
 dnl $3 -- template name
 AC_DEFUN([AC_TRANSLATE_DEFINE], [
-    if [[ "x$2" = "xyes" -o "x$2" = "xguessing yes" ]]; then
+    if [[ ""x$2"" = "xyes" -o ""x$2"" = "xguessing yes" ]]; then
         AC_DEFINE($1, 1, $3)
     fi
 ])
@@ -997,7 +997,7 @@ if [[ "x$have_mmap_vm" = "xyes" ]]; then
     *no) have_mmap_vm=no;;
   esac
 fi
-AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, $have_mmap_vm,
+AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, "$have_mmap_vm",
   [Define if your system has a working mmap()-based memory allocator.])
 
 fi dnl HAVE_MMAP_VM
