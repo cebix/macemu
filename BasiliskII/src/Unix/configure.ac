@@ -290,9 +290,16 @@ AS_IF([test  "x$have_libvhd" = "xyes" ], [
 
 
 
-dnl We want pthreads. Try libpthread first, then libc_r (FreeBSD), then PTL.
+dnl We want pthreads. Try libpthread first, then npth, then libc_r (FreeBSD), then PTL.
+AC_SEARCH_LIBS([pthread_create], [pthread])
+AC_SEARCH_LIBS([pthread_create], [npth])
+AC_SEARCH_LIBS([pthread_create], [c_r])
+AC_SEARCH_LIBS([pthread_create], [PTL])
+
+
+
 HAVE_PTHREADS=yes
-AC_SEARCH_LIBS([pthread_create], [pthread npth c_r PTL], , [
+AC_SEARCH_LIBS([pthread_create], [pthread], , [
   HAVE_PTHREADS=no
 ])
 if [[ "x$HAVE_PTHREADS" = "xyes" ]]; then
