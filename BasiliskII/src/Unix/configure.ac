@@ -41,6 +41,9 @@ dnl JIT compiler options.
 AC_ARG_ENABLE(jit-compiler,  [  --enable-jit-compiler   enable JIT compiler [default=no]], [WANT_JIT=$enableval], [WANT_JIT=no])
 AC_ARG_ENABLE(jit-debug,     [  --enable-jit-debug      activate native code disassemblers [default=no]], [WANT_JIT_DEBUG=$enableval], [WANT_JIT_DEBUG=no])
 
+dnl CrossCompile default overrides.
+AC_ARG_ENABLE(cross-exsig, [  --enable-cross-exsig      Force the use of extended signal handlers when crosscompiling [default=no]], [WANT_CC_EX_SIG=$enableval], [WANT_CC_EX_SIG=no]) 
+
 dnl FPU emulation core.
 AC_ARG_ENABLE(fpe,
 [  --enable-fpe=FPE        specify which fpu emulator to use [default=auto]],
@@ -1154,6 +1157,7 @@ if [[ -z "$sigsegv_recovery" ]]; then
     ],
     ac_cv_have_asm_extended_signals=no,
     dnl When cross-compiling, do not assume anything.
+    dnl Assume no when cross-compiling. If there's ASM support for the target, this should probably be enabled...
     ac_cv_have_asm_extended_signals=no
     )
     AC_LANG_RESTORE
@@ -1183,8 +1187,10 @@ if [[ -z "$sigsegv_recovery" ]]; then
     ac_cv_have_extended_signals=yes
     ],
     ac_cv_have_extended_signals=no,
-    dnl When cross-compiling, do not assume anything.
-    ac_cv_have_extended_signals=no
+    [
+      dnl When cross-compiling, default to the value of WANT_CC_EX_SIG [default = no]
+      ac_cv_have_extended_signals=$WANT_CC_EX_SIG
+    ]
     )
     AC_LANG_RESTORE
     ]
