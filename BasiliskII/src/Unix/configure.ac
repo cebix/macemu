@@ -519,22 +519,34 @@ mips-sony-bsd|mips-sony-newsos4)
 	;;
 esac
 
+if test ! -z "$cross_compiling" && test "x$cross_compiling" = "xyes"; then
+	AC_MSG_WARN([cross compiling: Disabling /dev/ptmx test])
+	disable_ptmx_check=yes
+fi
 if test -z "$no_dev_ptmx" ; then
 	if test "x$disable_ptmx_check" != "xyes" ; then
-		AC_CHECK_FILE([/dev/ptmx],
+		AC_CHECK_FILE(["/dev/ptmx"],
 			[
-				AC_DEFINE_UNQUOTED(HAVE_DEV_PTMX, 1, [Define if you have /dev/ptmx.])
+				AC_DEFINE_UNQUOTED([HAVE_DEV_PTMX], [1],
+					[Define if you have /dev/ptmx])
 				have_dev_ptmx=1
 			]
 		)
 	fi
 fi
-AC_CHECK_FILE([/dev/ptc],
-	[
-		AC_DEFINE_UNQUOTED(HAVE_DEV_PTS_AND_PTC, 1, [Define if you have /dev/ptc.])
-		have_dev_ptc=1
-	]
-)
+
+if test ! -z "$cross_compiling" && test "x$cross_compiling" != "xyes"; then
+	AC_CHECK_FILE(["/dev/ptc"],
+		[
+			AC_DEFINE_UNQUOTED([HAVE_DEV_PTS_AND_PTC], [1],
+				[Define if you have /dev/ptc])
+			have_dev_ptc=1
+		]
+	)
+else
+	AC_MSG_WARN([cross compiling: Disabling /dev/ptc test])
+fi
+	
 dnl (end of code from openssh-3.2.2p1 configure.ac)
 
 dnl Check for systems where POSIX-style non-blocking I/O (O_NONBLOCK)
