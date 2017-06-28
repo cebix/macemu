@@ -227,8 +227,8 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
   fi
   if [[ "x$ac_cv_framework_SDL" = "xno" ]]; then
     dnl Check for SDL
-    SDL_VERSION=2.0.0
-    AM_PATH_SDL2($SDL_VERSION,
+    SDL_VERSION=1.2.0
+    AM_PATH_SDL($SDL_VERSION,
               :,
               WANT_SDL=no
               AC_MSG_ERROR([*** SDL version $SDL_VERSION not found!])
