@@ -223,29 +223,16 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
     ac_cv_framework_SDL=no
   fi
   if [[ "x$ac_cv_framework_SDL" = "xno" ]]; then
-    AC_PATH_PROG(sdl_config, "sdl-config")
-    if [[ -n "$sdl_config" ]]; then
-      case $target_os in
-      # Special treatment for Cygwin so that we can still use the POSIX layer
-      *cygwin*)
-        sdl_cflags="-I`$sdl_config --prefix`/include/SDL"
-        sdl_libs="-L`$sdl_config --exec-prefix`/lib -lSDL"
-        ;;
-      *)
-        sdl_cflags=`$sdl_config --cflags`
-        if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
-          sdl_libs=`$sdl_config --static-libs`
-        else
-          sdl_libs=`$sdl_config --libs`
-        fi
-        ;;
-      esac
-      CFLAGS="$CFLAGS $sdl_cflags"
-      CXXFLAGS="$CXXFLAGS $sdl_cflags"
-      LIBS="$LIBS $sdl_libs"
-    else
-      WANT_SDL=no
-    fi
+    dnl Check for SDL
+    SDL_VERSION=2.0.0
+    AM_PATH_SDL2($SDL_VERSION,
+              :,
+              WANT_SDL=no
+              AC_MSG_ERROR([*** SDL version $SDL_VERSION not found!])
+    )
+    CFLAGS="$CFLAGS $SDL_CFLAGS"
+    CXXFLAGS="$CXXFLAGS $SDL_CFLAGS"
+    LIBS="$LIBS $SDL_LIBS"
   fi
   SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
 else
