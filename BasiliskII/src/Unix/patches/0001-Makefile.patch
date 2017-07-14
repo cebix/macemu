@@ -1,0 +1,34 @@
+Index: Unix/Makefile.in
+===================================================================
+--- Unix.orig/Makefile.in
++++ Unix/Makefile.in
+@@ -168,7 +168,7 @@ mostlyclean:
+ 	rm -f $(PROGS) $(OBJ_DIR)/* core* *.core *~ *.bak
+ 
+ clean: mostlyclean
+-	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h compemu.cpp compstbl.cpp comptbl.h
++	rm -f cputmp*.s cpufast*.s compemu.cpp compstbl.cpp comptbl.h
+ 
+ distclean: clean
+ 	rm -rf $(OBJ_DIR)
+@@ -208,20 +208,6 @@ $(OBJ_DIR)/gencpu$(EXEEXT): $(OBJ_DIR)/g
+ $(OBJ_DIR)/gencomp$(EXEEXT): $(OBJ_DIR)/gencomp.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+ 	$(CXX) $(LDFLAGS) -o $(OBJ_DIR)/gencomp$(EXEEXT) $(OBJ_DIR)/gencomp.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+ 
+-cpudefs.cpp: $(OBJ_DIR)/build68k$(EXEEXT) @top_srcdir@/../uae_cpu/table68k
+-	$(OBJ_DIR)/build68k$(EXEEXT) <@top_srcdir@/../uae_cpu/table68k >cpudefs.cpp
+-cpustbl.cpp: cpuemu.cpp
+-cpustbl_nf.cpp: cpustbl.cpp
+-compstbl.cpp: compemu.cpp
+-cputbl.h: cpuemu.cpp
+-comptbl.h: compemu.cpp
+-
+-cpuemu.cpp: $(OBJ_DIR)/gencpu$(EXEEXT)
+-	$(OBJ_DIR)/gencpu$(EXEEXT)
+-
+-compemu.cpp: $(OBJ_DIR)/gencomp$(EXEEXT)
+-	$(OBJ_DIR)/gencomp$(EXEEXT)
+-
+ $(OBJ_DIR)/cpustbl_nf.o: cpustbl.cpp
+ 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -DNOFLAGS -c $< -o $@
+ 
