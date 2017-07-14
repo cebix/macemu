@@ -229,9 +229,9 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
    PKG_CHECK_MODULES([sdl], [sdl >= 1.2], [], [
      WANT_SDL=no
    ])
-   CFLAGS="$CFLAGS $SDL_CFLAGS"		
-   CXXFLAGS="$CXXFLAGS $SDL_CFLAGS"		
-   LIBS="$LIBS $SDL_LIBS"		
+   CFLAGS="$CFLAGS $SDL_CFLAGS"
+   CXXFLAGS="$CXXFLAGS $SDL_CFLAGS"
+   LIBS="$LIBS $SDL_LIBS"
   fi
   SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
 else
