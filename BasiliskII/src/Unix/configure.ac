@@ -226,13 +226,12 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
     ac_cv_framework_SDL=no
   fi
   if [[ "x$ac_cv_framework_SDL" = "xno" ]]; then
-   PKG_CHECK_MODULES([sdl], [sdl >= 1.2], [
-      CFLAGS="$CFLAGS $SDL_CFLAGS"		
-      CXXFLAGS="$CXXFLAGS $SDL_CFLAGS"		
-      LIBS="$LIBS $SDL_LIBS"		
-   ], [
+   PKG_CHECK_MODULES([sdl], [sdl >= 1.2], [], [
      WANT_SDL=no
    ])
+   CFLAGS="$CFLAGS $SDL_CFLAGS"		
+   CXXFLAGS="$CXXFLAGS $SDL_CFLAGS"		
+   LIBS="$LIBS $SDL_LIBS"		
   fi
   SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
 else
