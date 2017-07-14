@@ -226,16 +226,13 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
     ac_cv_framework_SDL=no
   fi
   if [[ "x$ac_cv_framework_SDL" = "xno" ]]; then
-    dnl Check for SDL
-    SDL_VERSION=1.2.0
-    AM_PATH_SDL($SDL_VERSION,
-              :,
-              WANT_SDL=no
-              AC_MSG_ERROR([*** SDL version $SDL_VERSION not found!])
-    )
-    CFLAGS="$CFLAGS $SDL_CFLAGS"
-    CXXFLAGS="$CXXFLAGS $SDL_CFLAGS"
-    LIBS="$LIBS $SDL_LIBS"
+   PKG_CHECK_MODULES([sdl], [sdl >= 1.2], [
+      CFLAGS="$CFLAGS $SDL_CFLAGS"		
+      CXXFLAGS="$CXXFLAGS $SDL_CFLAGS"		
+      LIBS="$LIBS $SDL_LIBS"		
+   ], [
+     WANT_SDL=no
+   ])
   fi
   SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
 else
