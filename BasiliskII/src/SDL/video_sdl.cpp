@@ -31,7 +31,6 @@
  *  - Ctr-Tab for suspend/resume but how? SDL does not support that for non-Linux
  *  - Ctrl-Fn doesn't generate SDL_KEYDOWN events (SDL bug?)
  *  - Mouse acceleration, there is no API in SDL yet for that
- *  - Force relative mode in Grab mode even if SDL provides absolute coordinates?
  *  - Gamma tables support is likely to be broken here
  *  - Events processing is bound to the general emulation thread as SDL requires
  *    to PumpEvents() within the same thread as the one that called SetVideoMode().
@@ -693,7 +692,7 @@ void driver_base::init()
 }
 
 void driver_base::adapt_to_video_mode() {
-	ADBSetRelMouseMode(false);
+	ADBSetRelMouseMode(mouse_grabbed);
 
 	// Init blitting routines
 	SDL_PixelFormat *f = s->format;
@@ -727,7 +726,7 @@ void driver_base::adapt_to_video_mode() {
 	SDL_ShowCursor(hardware_cursor);
 
 	// Set window name/class
-	set_window_name(STR_WINDOW_TITLE);
+	set_window_name(mouse_grabbed ? STR_WINDOW_TITLE_GRABBED : STR_WINDOW_TITLE);
 
 	// Everything went well
 	init_ok = true;
@@ -807,7 +806,7 @@ void driver_base::grab_mouse(void)
 		if (new_mode == SDL_GRAB_ON) {
 			set_window_name(STR_WINDOW_TITLE_GRABBED);
 			disable_mouse_accel();
-			mouse_grabbed = true;
+			ADBSetRelMouseMode(mouse_grabbed = true);
 		}
 	}
 }
@@ -820,7 +819,7 @@ void driver_base::ungrab_mouse(void)
 		if (new_mode == SDL_GRAB_OFF) {
 			set_window_name(STR_WINDOW_TITLE);
 			restore_mouse_accel();
-			mouse_grabbed = false;
+			ADBSetRelMouseMode(mouse_grabbed = false);
 		}
 	}
 }
@@ -1752,7 +1751,11 @@ static void handle_events(void)
 
 			// Mouse moved
 			case SDL_MOUSEMOTION:
-				drv->mouse_moved(event.motion.x, event.motion.y);
+				if (mouse_grabbed) {
+					drv->mouse_moved(event.motion.xrel, event.motion.yrel);
+				} else {
+					drv->mouse_moved(event.motion.x, event.motion.y);
+				}
 				break;
 
 			// Keyboard
