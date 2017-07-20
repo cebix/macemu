@@ -1170,7 +1170,6 @@ AC_CACHE_CHECK([whether your system supports Mach exceptions],
     #include "../CrossPlatform/vm_alloc.cpp"
     #include "../CrossPlatform/sigsegv.cpp"
   ], [
-  sigsegv_recovery=mach
   ac_cv_have_mach_exceptions=yes
   ],
   ac_cv_have_mach_exceptions=no,
@@ -1194,7 +1193,6 @@ AC_CACHE_CHECK([whether your system supports Windows exceptions],
     #include "../CrossPlatform/vm_alloc.cpp"
     #include "../CrossPlatform/sigsegv.cpp"
   ], [
-  sigsegv_recovery=win32
   ac_cv_have_win32_exceptions=yes
   ],
   ac_cv_have_win32_exceptions=no,
@@ -1223,7 +1221,6 @@ if [[ -z "$sigsegv_recovery" ]]; then
       #include "../CrossPlatform/vm_alloc.cpp"
       #include "../CrossPlatform/sigsegv.cpp"
     ], [
-    sigsegv_recovery=siginfo
     ac_cv_have_asm_extended_signals=yes
     ],
     ac_cv_have_asm_extended_signals=no,
@@ -1254,7 +1251,6 @@ if [[ -z "$sigsegv_recovery" ]]; then
       #include "../CrossPlatform/vm_alloc.cpp"
       #include "../CrossPlatform/sigsegv.cpp"
     ], [
-    sigsegv_recovery=siginfo
     ac_cv_have_extended_signals=yes
     ],
     ac_cv_have_extended_signals=no,
@@ -1268,31 +1264,41 @@ if [[ -z "$sigsegv_recovery" ]]; then
     [Define if your system supports extended signals.])
 fi
 
-dnl Otherwise, check for subterfuges.
-if [[ -z "$sigsegv_recovery" ]]; then
-  AC_CACHE_CHECK([whether we then have a subterfuge for your system],
-  ac_cv_have_sigcontext_hack, [
-    AC_LANG_SAVE
-    AC_LANG_CPLUSPLUS
-    AC_TRY_RUN([
-      #define HAVE_SIGCONTEXT_SUBTERFUGE 1
-      #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-      #include "../CrossPlatform/vm_alloc.cpp"
-      #include "../CrossPlatform/sigsegv.cpp"
-    ], [
-    sigsegv_recovery=sigcontext
-    ac_cv_have_sigcontext_hack=yes
-    ],
-    ac_cv_have_sigcontext_hack=no,
-    dnl When cross-compiling, do not assume anything.
-    ac_cv_have_sigcontext_hack="$BII_CROSS_HAVE_SIGCONTEXT_SUBTERFUGE"
-    )
-    AC_LANG_RESTORE
-  ])
-  AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack",
-    [Define if we know a hack to replace siginfo_t->si_addr member.])
-fi
+AC_CACHE_CHECK([whether we then have a subterfuge for your system],
+ac_cv_have_sigcontext_hack, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #define HAVE_SIGCONTEXT_SUBTERFUGE 1
+    #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+    #include "../CrossPlatform/vm_alloc.cpp"
+    #include "../CrossPlatform/sigsegv.cpp"
+  ], [
+  ac_cv_have_sigcontext_hack=yes
+  ],
+  ac_cv_have_sigcontext_hack=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_have_sigcontext_hack="$BII_CROSS_HAVE_SIGCONTEXT_SUBTERFUGE"
+  )
+  AC_LANG_RESTORE
+])
+AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack",
+  [Define if we know a hack to replace siginfo_t->si_addr member.])
 
+
+dnl Resolve and set the proper sigsegv_recovery method... 
+if [[ "x$ac_cv_have_win32_exceptions" = "xyes" ]]; then
+  sigsegv_recovery=mach
+elif [[ "x$ac_cv_have_win32_exceptions" = "xyes" ]]; then
+  sigsegv_recovery=win32
+elif [[ "x$ac_cv_have_asm_extended_signals" = "xyes" ]]; then
+  sigsegv_recovery=siginfo
+elif [[ "x$ac_cv_have_extended_signals" = "xyes" ]]; then
+  sigsegv_recovery=siginfo
+elif [[ "x$ac_cv_have_sigcontext_hack" = "xyes" ]]; then
+  sigsegv_recovery=sigcontext
+fi
+  
 dnl Check if we can ignore the fault (instruction skipping in SIGSEGV handler)
 AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
   ac_cv_have_skip_instruction, [
