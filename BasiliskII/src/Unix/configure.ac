@@ -41,9 +41,6 @@ dnl JIT compiler options.
 AC_ARG_ENABLE(jit-compiler,  [  --enable-jit-compiler   enable JIT compiler [default=no]], [WANT_JIT=$enableval], [WANT_JIT=no])
 AC_ARG_ENABLE(jit-debug,     [  --enable-jit-debug      activate native code disassemblers [default=no]], [WANT_JIT_DEBUG=$enableval], [WANT_JIT_DEBUG=no])
 
-dnl CrossCompile default overrides.
-AC_ARG_ENABLE(cross-exsig, [  --enable-cross-exsig      Force the use of extended signal handlers when crosscompiling [default=no]], [WANT_CC_EX_SIG=$enableval], [WANT_CC_EX_SIG=no]) 
-
 dnl FPU emulation core.
 AC_ARG_ENABLE(fpe,
 [  --enable-fpe=FPE        specify which fpu emulator to use [default=auto]],
@@ -91,6 +88,83 @@ AC_ARG_WITH(bincue,
 AC_ARG_WITH(libvhd,   
   AS_HELP_STRING([--with-libvhd], [Enable VHD disk images]))
 
+  
+dnl Cross Compiling results in 'guesses' being made about the target system. These defaults are oftetimes incorrect.
+dnl The following Environment variables allow you to configure the default guess value for each option in the configure script.
+AC_ARG_VAR(BII_CROSS_SOCKLEN_T, [  Whether sys/socket.h defines type socklen_t. [default=guessing no]])
+if [[ "x$BII_CROSS_SOCKLEN_T" = "x" ]]; then
+	BII_CROSS_SOCKLEN_T="guessing no"
+fi
+
+AC_ARG_VAR(BII_CROSS_BYTE_BITFIELDS, [  Whether non-GCC compilers support byte bit-fields. [default=guessing no]])
+if [[ "x$BII_CROSS_BYTE_BITFIELDS" = "x" ]]; then
+	BII_CROSS_BYTE_BITFIELDS="guessing no"
+fi
+
+AC_ARG_VAR(BII_CROSS_VM_PROTECT, [  Whether vm_protect works on the target system [default=guessing no]])
+if [[ "x$BII_CROSS_VM_PROTECT" = "x" ]]; then
+	BII_CROSS_VM_PROTECT="guessing no"
+fi
+
+AC_ARG_VAR(BII_CROSS_MMAP_ANON, [  Whether anonymous mmap() works on the target system [default=guessing no]])
+if [[ "x$BII_CROSS_MMAP_ANON" = "x" ]]; then
+	BII_CROSS_MMAP_ANON="guessing no"
+fi
+
+AC_ARG_VAR(BII_CROSS_MMAP_SUPPORTS_MAP_ANONYMOUS, [  Whether <sys/mman.h> defines MAP_ANON and mmap()'ing with MAP_ANON works on the target system [default=guessing no]])
+if [[ "x$BII_CROSS_MMAP_SUPPORTS_MAP_ANONYMOUS" = "x" ]]; then
+	BII_CROSS_MMAP_SUPPORTS_MAP_ANONYMOUS="guessing no"
+fi
+
+AC_ARG_VAR(BII_CROSS_MPROTECT_WORKS, [  Whether mprotect works on the target system [default=guessing no]])
+if [[ "x$BII_CROSS_MPROTECT_WORKS" = "x" ]]; then
+	BII_CROSS_MPROTECT_WORKS="guessing no"
+fi
+
+AC_ARG_VAR(BII_CROSS_MAP_LOW_AREA, [  Whether the target system can map 0x2000 bytes from 0x0000 [default=guessing no]])
+if [[ "x$BII_CROSS_MAP_LOW_AREA" = "x" ]]; then
+	BII_CROSS_MAP_LOW_AREA="guessing no"
+fi
+
+AC_ARG_VAR(BII_CROSS_SIGNAL_NEED_REINSTALL, [  Whether the target system needs signal handlers to be reinstalled [default=guessing yes]])
+if [[ "x$BII_CROSS_SIGNAL_NEED_REINSTALL" = "x" ]]; then
+	BII_CROSS_SIGNAL_NEED_REINSTALL="guessing yes"
+fi
+
+AC_ARG_VAR(BII_CROSS_SIGACTION_NEED_REINSTALL, [  Whether the target system needs signal action handlers to be reinstalled [default=guessing yes]])
+if [[ "x$BII_CROSS_SIGACTION_NEED_REINSTALL" = "x" ]]; then
+	BII_CROSS_SIGACTION_NEED_REINSTALL="guessing yes"
+fi
+
+AC_ARG_VAR(BII_CROSS_HAVE_MACH_EXCEPTIONS, [  Whether the target system has mach exceptions [default=no]])
+if [[ "x$BII_CROSS_HAVE_MACH_EXCEPTIONS" = "x" ]]; then
+	BII_CROSS_HAVE_MACH_EXCEPTIONS="no"
+fi
+
+AC_ARG_VAR(BII_CROSS_HAVE_WIN32_EXCEPTIONS, [  Whether the target system has win32 exceptions [default=no]])
+if [[ "x$BII_CROSS_HAVE_WIN32_EXCEPTIONS" = "x" ]]; then
+	BII_CROSS_HAVE_WIN32_EXCEPTIONS="no"
+fi
+
+AC_ARG_VAR(BII_CROSS_HAVE_ASM_EXTENDED_SIGNALS, [  Whether the target system has extended signals supported with <asm/ucontext.h> [default=no]])
+if [[ "x$BII_CROSS_HAVE_ASM_EXTENDED_SIGNALS" = "x" ]]; then
+	BII_CROSS_HAVE_ASM_EXTENDED_SIGNALS="no"
+fi
+
+AC_ARG_VAR(BII_CROSS_EXTENDED_SIGNALS, [  Whether the target system supports extended signal handlers [default=no]])
+if [[ "x$BII_CROSS_HAVE_EXTENDED_SIGNALS" = "x" ]]; then
+	BII_CROSS_HAVE_EXTENDED_SIGNALS="no"
+fi
+
+AC_ARG_VAR(BII_CROSS_HAVE_SIGCONTEXT_SUBTERFUGE, [  Whether there is a sigcontext subterfuge for the target system [default=no]])
+if [[ "x$BII_CROSS_HAVE_SIGCONTEXT_SUBTERFUGE" = "x" ]]; then
+	BII_CROSS_HAVE_SIGCONTEXT_SUBTERFUGE="no"
+fi
+
+AC_ARG_VAR(BII_CROSS_SIGSEGV_SKIP_INSTRUCTION, [  Whether the target system can skip instruction in SIGSEGV handler [default=no]])
+if [[ "x$BII_CROSS_SIGSEGV_SKIP_INSTRUCTION" = "x" ]]; then
+	BII_CROSS_SIGSEGV_SKIP_INSTRUCTION="no"
+fi
 
 dnl Canonical system information.
 AC_CANONICAL_HOST
@@ -450,7 +524,7 @@ AC_CACHE_CHECK([for socklen_t],
   ], [socklen_t len = 42; return 0;],
   ac_cv_type_socklen_t=yes, ac_cv_type_socklen_t=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_type_socklen_t="guessing no"
+  ac_cv_type_socklen_t="$BII_CROSS_SOCKLEN_T"
   )
 ])
 if [[ "x$ac_cv_type_socklen_t" != "xyes" ]]; then
@@ -580,7 +654,7 @@ AC_CACHE_CHECK([whether compiler supports byte bit-fields],
     [if [[ "$GCC" = "yes" ]]; then
       ac_cv_have_byte_bitfields="guessing yes"
     else
-      ac_cv_have_byte_bitfields="guessing no"
+      ac_cv_have_byte_bitfields="$BII_CROSS_BYTE_BITFIELDS"
     fi]
     )
   AC_LANG_RESTORE
@@ -864,7 +938,7 @@ AC_CACHE_CHECK([whether vm_protect works],
       #include "../CrossPlatform/vm_alloc.cpp"
     ], ac_cv_vm_protect_works=no, rm -f core,
     dnl When cross-compiling, do not assume anything
-    ac_cv_vm_protect_works="guessing no"
+    ac_cv_vm_protect_works="$BII_CROSS_VM_PROTECT"
     )
   done
   AC_TRY_RUN([
@@ -873,7 +947,7 @@ AC_CACHE_CHECK([whether vm_protect works],
     #include "../CrossPlatform/vm_alloc.cpp"
   ], , ac_cv_vm_protect_works=no,
   dnl When cross-compiling, do not assume anything
-  ac_cv_vm_protect_works="guessing no"
+  ac_cv_vm_protect_works="$BII_CROSS_VM_PROTECT"
   )
   AC_LANG_RESTORE
   ]
@@ -918,7 +992,7 @@ AC_CACHE_CHECK([whether mmap supports MAP_ANON],
     #include "../CrossPlatform/vm_alloc.cpp"
   ], ac_cv_mmap_anon=yes, ac_cv_mmap_anon=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_mmap_anon="guessing no"
+  ac_cv_mmap_anon="$BII_CROSS_MMAP_ANON"
   )
   AC_LANG_RESTORE
   ]
@@ -937,7 +1011,7 @@ AC_CACHE_CHECK([whether mmap supports MAP_ANONYMOUS],
     #include "../CrossPlatform/vm_alloc.cpp"
   ], ac_cv_mmap_anonymous=yes, ac_cv_mmap_anonymous=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_mmap_anonymous="guessing no"
+  ac_cv_mmap_anonymous="$BII_CROSS_MMAP_SUPPORTS_MAP_ANONYMOUS"
   )
   AC_LANG_RESTORE
   ]
@@ -958,7 +1032,7 @@ AC_CACHE_CHECK([whether mprotect works],
       #include "../CrossPlatform/vm_alloc.cpp"
     ], ac_cv_mprotect_works=no, rm -f core,
     dnl When cross-compiling, do not assume anything
-    ac_cv_mprotect_works="guessing no"
+    ac_cv_mprotect_works="$BII_CROSS_MPROTECT_WORKS"
     )
   done
   AC_TRY_RUN([
@@ -967,7 +1041,7 @@ AC_CACHE_CHECK([whether mprotect works],
     #include "../CrossPlatform/vm_alloc.cpp"
   ], , ac_cv_mprotect_works=no,
   dnl When cross-compiling, do not assume anything
-  ac_cv_mprotect_works="guessing no"
+  ac_cv_mprotect_works="$BII_CROSS_MPROTECT_WORKS"
   )
   AC_LANG_RESTORE
   ]
@@ -1015,7 +1089,7 @@ AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x2000],
     }
   ], ac_cv_can_map_lm=yes, ac_cv_can_map_lm=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_can_map_lm="guessing no"
+  ac_cv_can_map_lm="$BII_CROSS_MAP_LOW_AREA"
   )
   AC_LANG_RESTORE
   ]
@@ -1040,7 +1114,7 @@ AC_CACHE_CHECK([whether signal handlers need to be reinstalled],
     }
   ], ac_cv_signal_need_reinstall=yes, ac_cv_signal_need_reinstall=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_signal_need_reinstall="guessing yes"
+  ac_cv_signal_need_reinstall="$BII_CROSS_SIGNAL_NEED_REINSTALL"
   )
   AC_LANG_RESTORE
   ]
@@ -1074,7 +1148,7 @@ AC_CACHE_CHECK([whether sigaction handlers need to be reinstalled],
     }
   ], ac_cv_sigaction_need_reinstall=yes, ac_cv_sigaction_need_reinstall=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_sigaction_need_reinstall="guessing yes"
+  ac_cv_sigaction_need_reinstall="$BII_CROSS_SIGACTION_NEED_REINSTALL"
   )
   AC_LANG_RESTORE
   ]
@@ -1101,7 +1175,7 @@ AC_CACHE_CHECK([whether your system supports Mach exceptions],
   ],
   ac_cv_have_mach_exceptions=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_have_mach_exceptions=no
+  ac_cv_have_mach_exceptions="$BII_CROSS_HAVE_MACH_EXCEPTIONS"
   )
   AC_LANG_RESTORE
   ]
@@ -1125,7 +1199,7 @@ AC_CACHE_CHECK([whether your system supports Windows exceptions],
   ],
   ac_cv_have_win32_exceptions=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_have_win32_exceptions=no
+  ac_cv_have_win32_exceptions="$BII_CROSS_HAVE_WIN32_EXCEPTIONS"
   )
   AC_LANG_RESTORE
   ]
@@ -1155,7 +1229,7 @@ if [[ -z "$sigsegv_recovery" ]]; then
     ac_cv_have_asm_extended_signals=no,
     dnl When cross-compiling, do not assume anything.
     dnl Assume no when cross-compiling. If there's ASM support for the target, this should probably be enabled...
-    ac_cv_have_asm_extended_signals=no
+    ac_cv_have_asm_extended_signals="$BII_CROSS_HAVE_ASM_EXTENDED_SIGNALS"
     )
     AC_LANG_RESTORE
     ]
@@ -1184,14 +1258,8 @@ if [[ -z "$sigsegv_recovery" ]]; then
     ac_cv_have_extended_signals=yes
     ],
     ac_cv_have_extended_signals=no,
-    [
-      dnl When cross-compiling, default to the value of WANT_CC_EX_SIG [default = no]
-      ac_cv_have_extended_signals=$WANT_CC_EX_SIG
-      dnl If we just forced this yes for a cross build, set siginfo.
-      if [[ "x$ac_cv_have_extended_signals" = "xyes" ]]; then
-        sigsegv_recovery=siginfo
-      fi
-    ]
+    dnl When cross-compiling, do not assume anything.
+    ac_cv_have_extended_signals="$BII_CROSS_HAVE_EXTENDED_SIGNALS"
     )
     AC_LANG_RESTORE
     ]
@@ -1217,7 +1285,7 @@ if [[ -z "$sigsegv_recovery" ]]; then
     ],
     ac_cv_have_sigcontext_hack=no,
     dnl When cross-compiling, do not assume anything.
-    ac_cv_have_sigcontext_hack=no
+    ac_cv_have_sigcontext_hack="$BII_CROSS_HAVE_SIGCONTEXT_SUBTERFUGE"
     )
     AC_LANG_RESTORE
   ])
@@ -1237,7 +1305,7 @@ AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
     #include "../CrossPlatform/sigsegv.cpp"
   ], ac_cv_have_skip_instruction=yes, ac_cv_have_skip_instruction=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_have_skip_instruction=no
+  ac_cv_have_skip_instruction="$BII_CROSS_SIGSEGV_SKIP_INSTRUCTION"
   )
   AC_LANG_RESTORE
   ]
