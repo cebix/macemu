@@ -151,7 +151,7 @@ if [[ "x$BII_CROSS_HAVE_ASM_EXTENDED_SIGNALS" = "x" ]]; then
 	BII_CROSS_HAVE_ASM_EXTENDED_SIGNALS="no"
 fi
 
-AC_ARG_VAR(BII_CROSS_EXTENDED_SIGNALS, [  Whether the target system supports extended signal handlers [default=no]])
+AC_ARG_VAR(BII_CROSS_HAVE_EXTENDED_SIGNALS, [  Whether the target system supports extended signal handlers [default=no]])
 if [[ "x$BII_CROSS_HAVE_EXTENDED_SIGNALS" = "x" ]]; then
 	BII_CROSS_HAVE_EXTENDED_SIGNALS="no"
 fi
