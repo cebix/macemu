@@ -1225,7 +1225,6 @@ if [[ -z "$sigsegv_recovery" ]]; then
     ],
     ac_cv_have_asm_extended_signals=no,
     dnl When cross-compiling, do not assume anything.
-    dnl Assume no when cross-compiling. If there's ASM support for the target, this should probably be enabled...
     ac_cv_have_asm_extended_signals="$BII_CROSS_HAVE_ASM_EXTENDED_SIGNALS"
     )
     AC_LANG_RESTORE
