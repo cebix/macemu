@@ -526,6 +526,7 @@ loff_t size_bincue(void *fh)
 	if (fh) {
 		return ((CueSheet *)fh)->length * COOKED_SECTOR_SIZE;
 	}
+	return 0;
 }
 
 bool readtoc_bincue(void *fh, unsigned char *toc)
@@ -564,6 +565,7 @@ bool readtoc_bincue(void *fh, unsigned char *toc)
 		*toc++ = toc_size & 0xff;
 		return true;
 	}
+	return false;
 }
 
 bool GetPosition_bincue(void *fh, uint8 *pos)

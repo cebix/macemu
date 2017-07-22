@@ -2189,14 +2189,14 @@ static void gen_opcode (unsigned long int opcode)
      case i_CINVA:
 	/* gb-- srcreg now contains the cache field */
 	printf ("\tif (srcreg&0x2)\n");
-	printf ("\t\tflush_icache(%d);\n", 30 + ((opcode >> 3) & 3)); 
+	printf ("\t\tflush_icache(%d);\n", (int)(30 + ((opcode >> 3) & 3))); 
 	break;
      case i_CPUSHL:
      case i_CPUSHP:
      case i_CPUSHA:
 	/* gb-- srcreg now contains the cache field */
 	printf ("\tif (srcreg&0x2)\n");
-	printf ("\t\tflush_icache(%d);\n", 40 + ((opcode >> 3) & 3)); 
+	printf ("\t\tflush_icache(%d);\n", (int)(40 + ((opcode >> 3) & 3))); 
 	break;
      case i_MOVE16:
 	if ((opcode & 0xfff8) == 0xf620) {

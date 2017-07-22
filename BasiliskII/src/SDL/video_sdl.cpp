@@ -51,7 +51,7 @@
 #include <malloc.h> /* alloca() */
 #endif
 
-#include "cpu_emulation.h"
+#include <cpu_emulation.h>
 #include "main.h"
 #include "adb.h"
 #include "macos_util.h"
@@ -86,6 +86,8 @@ static int display_type = DISPLAY_WINDOW;			// See enum above
 
 // Constants
 #ifdef WIN32
+const char KEYCODE_FILE_NAME[] = "BasiliskII_keycodes";
+#elif __MACOSX__
 const char KEYCODE_FILE_NAME[] = "BasiliskII_keycodes";
 #else
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
@@ -195,6 +197,9 @@ extern void SysMountFirstFloppy(void);
 
 static void *vm_acquire_framebuffer(uint32 size)
 {
+#if __MACOSX__
+	return calloc(1, size);
+#else
 	// always try to reallocate framebuffer at the same address
 	static void *fb = VM_MAP_FAILED;
 	if (fb != VM_MAP_FAILED) {
@@ -208,11 +213,16 @@ static void *vm_acquire_framebuffer(uint32 size)
 	if (fb == VM_MAP_FAILED)
 		fb = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 	return fb;
+#endif
 }
 
 static inline void vm_release_framebuffer(void *fb, uint32 size)
 {
+#if __MACOSX__
+	free(fb);
+#else
 	vm_release(fb, size);
+#endif
 }
 
 static inline int get_customized_color_depth(int default_depth)
@@ -1841,6 +1851,43 @@ static void handle_events(void)
 // Static display update (fixed frame rate, but incremental)
 static void update_display_static(driver_base *drv)
 {
+	// Lock surface, if required
+	if (SDL_MUSTLOCK(drv->s))
+		SDL_LockSurface(drv->s);
+	
+	const VIDEO_MODE &mode = drv->mode;
+	
+	memcpy(the_buffer_copy, the_buffer, the_buffer_size);
+	
+	// HACK: Create a temporary surface, with which to use in color conversion
+	SDL_Surface * mid_surface = NULL;
+	switch (mode.depth) {
+		case VDEPTH_1BIT: {
+			const int pixels_per_byte = VIDEO_MODE_X / VIDEO_MODE_ROW_BYTES;
+			mid_surface = SDL_CreateRGBSurfaceFrom(the_buffer_copy, VIDEO_MODE_X, VIDEO_MODE_Y, 1, (VIDEO_MODE_X / pixels_per_byte), 1, 1, 1, 0);
+		} break;
+		
+		// Consider using Screen_blit, for other depths
+			
+		default: {
+			printf("WARNING: Unhandled depth mode in SDL backend: %s\n", NameOfDepth(mode.depth));
+		} break;
+	}
+	
+	// Blit to screen surface
+	if (mid_surface) {
+		SDL_BlitSurface(mid_surface, NULL, drv->s, NULL);
+		SDL_FreeSurface(mid_surface);
+	}
+	
+	// Unlock surface, if required
+	if (SDL_MUSTLOCK(drv->s))
+		SDL_UnlockSurface(drv->s);
+	
+	// Refresh display
+	SDL_UpdateRect(drv->s, 0, 0, 0, 0);
+
+/*
 	// Incremental update code
 	int wide = 0, high = 0;
 	uint32 x1, x2, y1, y2;
@@ -1984,6 +2031,7 @@ static void update_display_static(driver_base *drv)
 			}
 		}
 	}
+ */
 }
 
 // Static display update (fixed frame rate, bounding boxes based)
@@ -2044,7 +2092,7 @@ static void update_display_static_bbox(driver_base *drv)
 	// Refresh display
 	if (nr_boxes)
 		SDL_UpdateRects(drv->s, nr_boxes, boxes);
-}
+	}
 
 
 // We suggest the compiler to inline the next two functions so that it

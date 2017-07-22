@@ -49,6 +49,23 @@ vector<monitor_desc *> VideoMonitors;
 
 
 /*
+ * Converts a video_depth to a C-String name ("VDEPTH_1BIT", "VDEPTH_2BIT", etc.)
+ */
+const char * NameOfDepth(video_depth depth)
+{
+	switch (depth) {
+		case VDEPTH_1BIT: return "VDEPTH_1BIT";
+		case VDEPTH_2BIT: return "VDEPTH_2BIT";
+		case VDEPTH_4BIT: return "VDEPTH_4BIT";
+		case VDEPTH_8BIT: return "VDEPTH_8BIT";
+		case VDEPTH_16BIT: return "VDEPTH_16BIT";
+		case VDEPTH_32BIT: return "VDEPTH_32BIT";
+	}
+	return "";
+}
+
+
+/*
  *  Find palette size for given color depth
  */
 

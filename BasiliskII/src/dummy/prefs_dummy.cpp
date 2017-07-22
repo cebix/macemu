@@ -22,6 +22,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 
 #include "prefs.h"
 
@@ -33,14 +34,20 @@ prefs_desc platform_prefs_items[] = {
 
 
 // Prefs file name and path
+#if defined(__APPLE__) && defined(__MACH__)
+const char PREFS_FILE_NAME[] = "/tmp/BasiliskII/BasiliskII_Prefs";	// HACK: for now, just load stuff from a fixed dir, inside /tmp
+#else
 const char PREFS_FILE_NAME[] = "BasiliskII_Prefs";
+#endif
+
+std::string UserPrefsPath;
 
 
 /*
  *  Load preferences from settings file
  */
 
-void LoadPrefs(void)
+void LoadPrefs(const char * vmdir)	// TODO: load prefs from 'vmdir'
 {
 	// Read preferences from settings file
 	FILE *f = fopen(PREFS_FILE_NAME, "r");

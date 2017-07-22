@@ -426,6 +426,10 @@ int main(int argc, char **argv)
 		} else if (strcmp(argv[i], "--rominfo") == 0) {
 			argv[i] = NULL;
 			PrintROMInfo = true;
+		} else if (strcmp(argv[i], "-NSDocumentRevisionsDebugMode") == 0) {
+			// HACK: prevent Basilisk from exiting, when run via Xcode 8, which
+			// passes in a '-NSDocumentRevisionsDebugMode' option.
+			argv[i] = NULL;
 		}
 	}
 
