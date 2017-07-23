@@ -641,16 +641,11 @@ driver_base::driver_base(SDL_monitor_desc &m)
 	the_buffer_copy = NULL;
 }
 
-static void shutdown_sdl_video()
+static void delete_sdl_video_surfaces()
 {
 	if (sdl_texture) {
 		SDL_DestroyTexture(sdl_texture);
 		sdl_texture = NULL;
-	}
-	
-	if (sdl_renderer) {
-		SDL_DestroyRenderer(sdl_renderer);
-		sdl_renderer = NULL;
 	}
 	
 	if (inner_sdl_surface) {
@@ -666,6 +661,14 @@ static void shutdown_sdl_video()
 		SDL_FreeSurface(outer_sdl_surface);
 		outer_sdl_surface = NULL;
 	}
+}
+
+static void delete_sdl_video_window()
+{
+	if (sdl_renderer) {
+		SDL_DestroyRenderer(sdl_renderer);
+		sdl_renderer = NULL;
+	}
 	
 	if (sdl_window) {
 		SDL_DestroyWindow(sdl_window);
@@ -673,15 +676,22 @@ static void shutdown_sdl_video()
 	}
 }
 
+static void shutdown_sdl_video()
+{
+	delete_sdl_video_surfaces();
+	delete_sdl_video_window();
+}
+
 static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags)
 {
     if (outer_sdl_surface) {
-        shutdown_sdl_video();
+        delete_sdl_video_surfaces();
     }
 	
 	int window_width = width;
 	int window_height = height;
     Uint32 window_flags = 0;
+	const int window_flags_to_monitor = SDL_WINDOW_FULLSCREEN;
 
 	if (flags & SDL_WINDOW_FULLSCREEN) {
 		SDL_DisplayMode desktop_mode;
@@ -693,31 +703,50 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 		window_width = desktop_mode.w;
 		window_height = desktop_mode.h;
 	}
+	
+	if (sdl_window) {
+		int old_window_width, old_window_height, old_window_flags;
+		SDL_GetWindowSize(sdl_window, &old_window_width, &old_window_height);
+		old_window_flags = SDL_GetWindowFlags(sdl_window);
+		if (old_window_width != window_width ||
+			old_window_height != window_height ||
+			(old_window_flags & window_flags_to_monitor) != (window_flags & window_flags_to_monitor))
+		{
+			delete_sdl_video_window();
+		}
+	}
 
-    sdl_window = SDL_CreateWindow(
-        "Basilisk II",
-        SDL_WINDOWPOS_UNDEFINED,
-        SDL_WINDOWPOS_UNDEFINED,
-        window_width,
-        window_height,
-        window_flags);
-    if (!sdl_window) {
-        shutdown_sdl_video();
-        return NULL;
-    }
+	if (!sdl_window) {
+		sdl_window = SDL_CreateWindow(
+			"Basilisk II",
+			SDL_WINDOWPOS_UNDEFINED,
+			SDL_WINDOWPOS_UNDEFINED,
+			window_width,
+			window_height,
+			window_flags);
+		if (!sdl_window) {
+			shutdown_sdl_video();
+			return NULL;
+		}
+	}
 
-    sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_ACCELERATED);
-    if (!sdl_renderer) {
-        shutdown_sdl_video();
-        return NULL;
-    }
+	if (!sdl_renderer) {
+		sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_ACCELERATED);
+		if (!sdl_renderer) {
+			shutdown_sdl_video();
+			return NULL;
+		}
+	}
 
+	SDL_assert(sdl_texture == NULL);
     sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, width, height);
     if (!sdl_texture) {
         shutdown_sdl_video();
         return NULL;
     }
 
+	SDL_assert(outer_sdl_surface == NULL);
+	SDL_assert(inner_sdl_surface == NULL);
     switch (bpp) {
         case 8:
             outer_sdl_surface = SDL_CreateRGBSurface(0, width, height, 8, 0, 0, 0, 0);
@@ -879,7 +908,14 @@ driver_base::~driver_base()
 	ungrab_mouse();
 	restore_mouse_accel();
 
-	shutdown_sdl_video();
+	// HACK: Just delete instances of SDL_Surface and SDL_Texture, rather
+	// than also the SDL_Window and SDL_Renderer.  This fixes a bug whereby
+	// OSX hosts, when in fullscreen, will, on a guest OS resolution change,
+	// do a series of switches (using OSX's "Spaces" feature) to and from
+	// the Basilisk II desktop,
+	delete_sdl_video_surfaces();	// This deletes instances of SDL_Surface and SDL_Texture
+	//shutdown_sdl_video();			// This deletes SDL_Window, SDL_Renderer, in addition to
+									// instances of SDL_Surface and SDL_Texture.
 
 	// the_buffer shall always be mapped through vm_acquire_framebuffer()
 	if (the_buffer != VM_MAP_FAILED) {
