@@ -100,6 +100,8 @@
 		7539E2A81F23CB9B006B2DF2 /* cpustbl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2A31F23CB9B006B2DF2 /* cpustbl.cpp */; };
 		7539E2A91F23CB9B006B2DF2 /* defs68k.c in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2A41F23CB9B006B2DF2 /* defs68k.c */; };
 		7539E2AB1F23CDB7006B2DF2 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 7539E2AA1F23CDB7006B2DF2 /* Info.plist */; };
+		756C1B341F252FC100620917 /* utils_macosx.mm in Sources */ = {isa = PBXBuildFile; fileRef = 756C1B331F252FC100620917 /* utils_macosx.mm */; };
+		756C1B391F25306A00620917 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 756C1B381F25306A00620917 /* AppKit.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -316,6 +318,9 @@
 		7539E2A31F23CB9B006B2DF2 /* cpustbl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = cpustbl.cpp; sourceTree = "<group>"; };
 		7539E2A41F23CB9B006B2DF2 /* defs68k.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = defs68k.c; sourceTree = "<group>"; };
 		7539E2AA1F23CDB7006B2DF2 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		756C1B321F252FC100620917 /* utils_macosx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = utils_macosx.h; sourceTree = "<group>"; };
+		756C1B331F252FC100620917 /* utils_macosx.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = utils_macosx.mm; sourceTree = "<group>"; };
+		756C1B381F25306A00620917 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -323,6 +328,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				756C1B391F25306A00620917 /* AppKit.framework in Frameworks */,
 				752F27141F251B5C001032B4 /* SDL2.framework in Frameworks */,
 				752F26FB1F240E69001032B4 /* IOKit.framework in Frameworks */,
 				752F26F91F240E51001032B4 /* Foundation.framework in Frameworks */,
@@ -335,6 +341,7 @@
 		752F26F71F240E51001032B4 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				756C1B381F25306A00620917 /* AppKit.framework */,
 				752F26FA1F240E69001032B4 /* IOKit.framework */,
 				752F26F81F240E51001032B4 /* Foundation.framework */,
 			);
@@ -456,6 +463,8 @@
 				7539E0141F23B25A006B2DF2 /* HowTo.html */,
 				7539E29C1F23C83F006B2DF2 /* sys_darwin.cpp */,
 				7539E02B1F23B25A006B2DF2 /* ToDo.html */,
+				756C1B321F252FC100620917 /* utils_macosx.h */,
+				756C1B331F252FC100620917 /* utils_macosx.mm */,
 				7539E02E1F23B25A006B2DF2 /* Versions.html */,
 			);
 			name = MacOSX;
@@ -831,6 +840,7 @@
 				7539E1711F23B25A006B2DF2 /* rom_patches.cpp in Sources */,
 				7539E1281F23B25A006B2DF2 /* sigsegv.cpp in Sources */,
 				7539E1A21F23B25A006B2DF2 /* readcpu.cpp in Sources */,
+				756C1B341F252FC100620917 /* utils_macosx.mm in Sources */,
 				7539E2701F23B32A006B2DF2 /* tinyxml2.cpp in Sources */,
 				7539E28F1F23C56F006B2DF2 /* ether_dummy.cpp in Sources */,
 				7539E1721F23B25A006B2DF2 /* rsrc_patches.cpp in Sources */,
