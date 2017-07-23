@@ -879,8 +879,7 @@ driver_base::~driver_base()
 	ungrab_mouse();
 	restore_mouse_accel();
 
-	if (s)
-		SDL_FreeSurface(s);
+	shutdown_sdl_video();
 
 	// the_buffer shall always be mapped through vm_acquire_framebuffer()
 	if (the_buffer != VM_MAP_FAILED) {
