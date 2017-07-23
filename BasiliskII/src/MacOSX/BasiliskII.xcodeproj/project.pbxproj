@@ -11,6 +11,7 @@
 		752F26F21F240140001032B4 /* SDL2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 7539E1E51F23B288006B2DF2 /* SDL2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		752F26F91F240E51001032B4 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 752F26F81F240E51001032B4 /* Foundation.framework */; };
 		752F26FB1F240E69001032B4 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 752F26FA1F240E69001032B4 /* IOKit.framework */; };
+		752F27011F242BAF001032B4 /* prefs_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 752F27001F242BAF001032B4 /* prefs_sdl.cpp */; };
 		7539DFBF1F23B17E006B2DF2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7539DFBE1F23B17E006B2DF2 /* Assets.xcassets */; };
 		7539E1251F23B25A006B2DF2 /* adb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539DFC91F23B25A006B2DF2 /* adb.cpp */; };
 		7539E1261F23B25A006B2DF2 /* audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539DFCA1F23B25A006B2DF2 /* audio.cpp */; };
@@ -85,7 +86,6 @@
 		7539E2801F23C4CA006B2DF2 /* main_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E27F1F23C4CA006B2DF2 /* main_unix.cpp */; };
 		7539E28E1F23C56F006B2DF2 /* clip_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2851F23C56F006B2DF2 /* clip_dummy.cpp */; };
 		7539E28F1F23C56F006B2DF2 /* ether_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2861F23C56F006B2DF2 /* ether_dummy.cpp */; };
-		7539E2901F23C56F006B2DF2 /* prefs_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2871F23C56F006B2DF2 /* prefs_dummy.cpp */; };
 		7539E2911F23C56F006B2DF2 /* prefs_editor_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2881F23C56F006B2DF2 /* prefs_editor_dummy.cpp */; };
 		7539E2921F23C56F006B2DF2 /* scsi_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2891F23C56F006B2DF2 /* scsi_dummy.cpp */; };
 		7539E2931F23C56F006B2DF2 /* serial_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E28A1F23C56F006B2DF2 /* serial_dummy.cpp */; };
@@ -119,6 +119,7 @@
 /* Begin PBXFileReference section */
 		752F26F81F240E51001032B4 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		752F26FA1F240E69001032B4 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
+		752F27001F242BAF001032B4 /* prefs_sdl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = prefs_sdl.cpp; sourceTree = "<group>"; };
 		7539DFB21F23B17E006B2DF2 /* BasiliskII.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BasiliskII.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7539DFBE1F23B17E006B2DF2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7539DFC91F23B25A006B2DF2 /* adb.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = adb.cpp; path = ../adb.cpp; sourceTree = "<group>"; };
@@ -263,7 +264,6 @@
 		7539E27F1F23C4CA006B2DF2 /* main_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = main_unix.cpp; sourceTree = "<group>"; };
 		7539E2851F23C56F006B2DF2 /* clip_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = clip_dummy.cpp; sourceTree = "<group>"; };
 		7539E2861F23C56F006B2DF2 /* ether_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ether_dummy.cpp; sourceTree = "<group>"; };
-		7539E2871F23C56F006B2DF2 /* prefs_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = prefs_dummy.cpp; sourceTree = "<group>"; };
 		7539E2881F23C56F006B2DF2 /* prefs_editor_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = prefs_editor_dummy.cpp; sourceTree = "<group>"; };
 		7539E2891F23C56F006B2DF2 /* scsi_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = scsi_dummy.cpp; sourceTree = "<group>"; };
 		7539E28A1F23C56F006B2DF2 /* serial_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = serial_dummy.cpp; sourceTree = "<group>"; };
@@ -412,6 +412,7 @@
 		7539E0711F23B25A006B2DF2 /* SDL */ = {
 			isa = PBXGroup;
 			children = (
+				752F27001F242BAF001032B4 /* prefs_sdl.cpp */,
 				7539E0721F23B25A006B2DF2 /* audio_sdl.cpp */,
 				7539E0731F23B25A006B2DF2 /* keycodes */,
 				7539E0761F23B25A006B2DF2 /* video_sdl.cpp */,
@@ -590,7 +591,6 @@
 			children = (
 				7539E2851F23C56F006B2DF2 /* clip_dummy.cpp */,
 				7539E2861F23C56F006B2DF2 /* ether_dummy.cpp */,
-				7539E2871F23C56F006B2DF2 /* prefs_dummy.cpp */,
 				7539E2881F23C56F006B2DF2 /* prefs_editor_dummy.cpp */,
 				7539E2891F23C56F006B2DF2 /* scsi_dummy.cpp */,
 				7539E28A1F23C56F006B2DF2 /* serial_dummy.cpp */,
@@ -729,11 +729,11 @@
 				7539E2801F23C4CA006B2DF2 /* main_unix.cpp in Sources */,
 				7539E2A61F23CB9B006B2DF2 /* cpuemu.cpp in Sources */,
 				7539E1E11F23B25A006B2DF2 /* user_strings.cpp in Sources */,
+				752F27011F242BAF001032B4 /* prefs_sdl.cpp in Sources */,
 				7539E2A51F23CB9B006B2DF2 /* cpuemu_nf.cpp in Sources */,
 				7539E2971F23C5FD006B2DF2 /* newcpu.cpp in Sources */,
 				7539E12A1F23B25A006B2DF2 /* vm_alloc.cpp in Sources */,
 				7539E16C1F23B25A006B2DF2 /* main.cpp in Sources */,
-				7539E2901F23C56F006B2DF2 /* prefs_dummy.cpp in Sources */,
 				7539E26D1F23B32A006B2DF2 /* strlcpy.c in Sources */,
 				7539E26E1F23B32A006B2DF2 /* sys_unix.cpp in Sources */,
 				7539E1271F23B25A006B2DF2 /* cdrom.cpp in Sources */,
