@@ -105,8 +105,8 @@ static bool open_sdl_audio(void)
 	audio_spec.silence);
 #endif
 
-	char driver_name[32];
-	printf("Using SDL/%s audio output\n", SDL_AudioDriverName(driver_name, sizeof(driver_name) - 1));
+	const char * driver_name = SDL_GetCurrentAudioDriver();
+	printf("Using SDL/%s audio output\n", driver_name ? driver_name : "");
 	silence_byte = audio_spec.silence;
 	SDL_PauseAudio(0);
 

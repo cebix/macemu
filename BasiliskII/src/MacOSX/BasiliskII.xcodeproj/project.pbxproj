@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		752F26F11F240140001032B4 /* SDL2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7539E1E51F23B288006B2DF2 /* SDL2.framework */; };
+		752F26F21F240140001032B4 /* SDL2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 7539E1E51F23B288006B2DF2 /* SDL2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		752F26F91F240E51001032B4 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 752F26F81F240E51001032B4 /* Foundation.framework */; };
+		752F26FB1F240E69001032B4 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 752F26FA1F240E69001032B4 /* IOKit.framework */; };
 		7539DFBF1F23B17E006B2DF2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7539DFBE1F23B17E006B2DF2 /* Assets.xcassets */; };
 		7539E1251F23B25A006B2DF2 /* adb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539DFC91F23B25A006B2DF2 /* adb.cpp */; };
 		7539E1261F23B25A006B2DF2 /* audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539DFCA1F23B25A006B2DF2 /* audio.cpp */; };
@@ -35,7 +39,6 @@
 		7539E1731F23B25A006B2DF2 /* scsi.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E0701F23B25A006B2DF2 /* scsi.cpp */; };
 		7539E1741F23B25A006B2DF2 /* audio_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E0721F23B25A006B2DF2 /* audio_sdl.cpp */; };
 		7539E1751F23B25A006B2DF2 /* keycodes in Resources */ = {isa = PBXBuildFile; fileRef = 7539E0731F23B25A006B2DF2 /* keycodes */; };
-		7539E1761F23B25A006B2DF2 /* SDLMain.m in Sources */ = {isa = PBXBuildFile; fileRef = 7539E0751F23B25A006B2DF2 /* SDLMain.m */; };
 		7539E1771F23B25A006B2DF2 /* video_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E0761F23B25A006B2DF2 /* video_sdl.cpp */; };
 		7539E1781F23B25A006B2DF2 /* serial.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E0771F23B25A006B2DF2 /* serial.cpp */; };
 		7539E18D1F23B25A006B2DF2 /* slot_rom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E0A21F23B25A006B2DF2 /* slot_rom.cpp */; };
@@ -79,8 +82,6 @@
 		7539E26F1F23B32A006B2DF2 /* timer_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2301F23B32A006B2DF2 /* timer_unix.cpp */; };
 		7539E2701F23B32A006B2DF2 /* tinyxml2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2311F23B32A006B2DF2 /* tinyxml2.cpp */; };
 		7539E2711F23B32A006B2DF2 /* tunconfig in Resources */ = {isa = PBXBuildFile; fileRef = 7539E2331F23B32A006B2DF2 /* tunconfig */; };
-		7539E27B1F23B488006B2DF2 /* SDL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7539E2771F23B469006B2DF2 /* SDL.framework */; };
-		7539E27C1F23B488006B2DF2 /* SDL.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 7539E2771F23B469006B2DF2 /* SDL.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		7539E2801F23C4CA006B2DF2 /* main_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E27F1F23C4CA006B2DF2 /* main_unix.cpp */; };
 		7539E28E1F23C56F006B2DF2 /* clip_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2851F23C56F006B2DF2 /* clip_dummy.cpp */; };
 		7539E28F1F23C56F006B2DF2 /* ether_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2861F23C56F006B2DF2 /* ether_dummy.cpp */; };
@@ -102,13 +103,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		7539E27D1F23B489006B2DF2 /* Embed Frameworks */ = {
+		752F26F31F240140001032B4 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				7539E27C1F23B488006B2DF2 /* SDL.framework in Embed Frameworks */,
+				752F26F21F240140001032B4 /* SDL2.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -116,6 +117,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		752F26F81F240E51001032B4 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		752F26FA1F240E69001032B4 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
 		7539DFB21F23B17E006B2DF2 /* BasiliskII.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BasiliskII.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7539DFBE1F23B17E006B2DF2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7539DFC91F23B25A006B2DF2 /* adb.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = adb.cpp; path = ../adb.cpp; sourceTree = "<group>"; };
@@ -182,8 +185,6 @@
 		7539E0701F23B25A006B2DF2 /* scsi.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = scsi.cpp; path = ../scsi.cpp; sourceTree = "<group>"; };
 		7539E0721F23B25A006B2DF2 /* audio_sdl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = audio_sdl.cpp; sourceTree = "<group>"; };
 		7539E0731F23B25A006B2DF2 /* keycodes */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = keycodes; sourceTree = "<group>"; };
-		7539E0741F23B25A006B2DF2 /* SDLMain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SDLMain.h; sourceTree = "<group>"; };
-		7539E0751F23B25A006B2DF2 /* SDLMain.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SDLMain.m; sourceTree = "<group>"; };
 		7539E0761F23B25A006B2DF2 /* video_sdl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = video_sdl.cpp; sourceTree = "<group>"; };
 		7539E0771F23B25A006B2DF2 /* serial.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = serial.cpp; path = ../serial.cpp; sourceTree = "<group>"; };
 		7539E0A21F23B25A006B2DF2 /* slot_rom.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = slot_rom.cpp; path = ../slot_rom.cpp; sourceTree = "<group>"; };
@@ -258,7 +259,6 @@
 		7539E2321F23B32A006B2DF2 /* tinyxml2.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tinyxml2.h; sourceTree = "<group>"; };
 		7539E2331F23B32A006B2DF2 /* tunconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = tunconfig; sourceTree = "<group>"; };
 		7539E2351F23B32A006B2DF2 /* user_strings_unix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = user_strings_unix.h; sourceTree = "<group>"; };
-		7539E2771F23B469006B2DF2 /* SDL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL.framework; path = /Library/Frameworks/SDL.framework; sourceTree = "<absolute>"; };
 		7539E27E1F23BEB4006B2DF2 /* config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = config.h; sourceTree = "<group>"; };
 		7539E27F1F23C4CA006B2DF2 /* main_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = main_unix.cpp; sourceTree = "<group>"; };
 		7539E2851F23C56F006B2DF2 /* clip_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = clip_dummy.cpp; sourceTree = "<group>"; };
@@ -285,21 +285,32 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7539E27B1F23B488006B2DF2 /* SDL.framework in Frameworks */,
+				752F26FB1F240E69001032B4 /* IOKit.framework in Frameworks */,
+				752F26F91F240E51001032B4 /* Foundation.framework in Frameworks */,
+				752F26F11F240140001032B4 /* SDL2.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		752F26F71F240E51001032B4 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				752F26FA1F240E69001032B4 /* IOKit.framework */,
+				752F26F81F240E51001032B4 /* Foundation.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		7539DFA91F23B17E006B2DF2 = {
 			isa = PBXGroup;
 			children = (
 				7539E1E41F23B25E006B2DF2 /* src */,
 				7539DFB41F23B17E006B2DF2 /* Assets */,
 				7539DFB31F23B17E006B2DF2 /* Products */,
-				7539E2771F23B469006B2DF2 /* SDL.framework */,
 				7539E1E51F23B288006B2DF2 /* SDL2.framework */,
+				752F26F71F240E51001032B4 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -403,8 +414,6 @@
 			children = (
 				7539E0721F23B25A006B2DF2 /* audio_sdl.cpp */,
 				7539E0731F23B25A006B2DF2 /* keycodes */,
-				7539E0741F23B25A006B2DF2 /* SDLMain.h */,
-				7539E0751F23B25A006B2DF2 /* SDLMain.m */,
 				7539E0761F23B25A006B2DF2 /* video_sdl.cpp */,
 			);
 			name = SDL;
@@ -602,7 +611,7 @@
 				7539DFAE1F23B17E006B2DF2 /* Sources */,
 				7539DFAF1F23B17E006B2DF2 /* Frameworks */,
 				7539DFB01F23B17E006B2DF2 /* Resources */,
-				7539E27D1F23B489006B2DF2 /* Embed Frameworks */,
+				752F26F31F240140001032B4 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -710,7 +719,6 @@
 				7539E2A71F23CB9B006B2DF2 /* cpustbl_nf.cpp in Sources */,
 				7539E1711F23B25A006B2DF2 /* rom_patches.cpp in Sources */,
 				7539E1281F23B25A006B2DF2 /* sigsegv.cpp in Sources */,
-				7539E1761F23B25A006B2DF2 /* SDLMain.m in Sources */,
 				7539E1A21F23B25A006B2DF2 /* readcpu.cpp in Sources */,
 				7539E2701F23B32A006B2DF2 /* tinyxml2.cpp in Sources */,
 				7539E28F1F23C56F006B2DF2 /* ether_dummy.cpp in Sources */,
@@ -816,7 +824,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
-					/Library/Frameworks/SDL.framework/Headers,
+					/Library/Frameworks/SDL2.framework/Headers,
 					../UNIX,
 					../include,
 					.,
@@ -865,7 +873,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
-					/Library/Frameworks/SDL.framework/Headers,
+					/Library/Frameworks/SDL2.framework/Headers,
 					../UNIX,
 					../include,
 					.,

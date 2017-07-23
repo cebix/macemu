@@ -27,6 +27,7 @@
 
 #ifdef USE_SDL
 # include <SDL.h>
+# include <SDL_main.h>
 #endif
 
 #ifndef USE_SDL_VIDEO
