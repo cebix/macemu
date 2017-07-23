@@ -427,11 +427,18 @@ int main(int argc, char **argv)
 		} else if (strcmp(argv[i], "--rominfo") == 0) {
 			argv[i] = NULL;
 			PrintROMInfo = true;
-		} else if (strcmp(argv[i], "-NSDocumentRevisionsDebugMode") == 0) {
-			// HACK: prevent Basilisk from exiting, when run via Xcode 8, which
-			// passes in a '-NSDocumentRevisionsDebugMode' option.
+		}
+		
+#if defined(__APPLE__) && defined(__MACH__)
+		// Mac OS X likes to pass in various options of its own, when launching an app.
+		// Attempt to ignore these.
+		const char * mac_psn_prefix = "-psn_";
+		if (strcmp(argv[i], "-NSDocumentRevisionsDebugMode") == 0) {
+			argv[i] = NULL;
+		} else if (strncmp(mac_psn_prefix, argv[i], strlen(mac_psn_prefix)) == 0) {
 			argv[i] = NULL;
 		}
+#endif
 	}
 
 	// Remove processed arguments
