@@ -87,6 +87,7 @@ static bool open_sdl_audio(void)
 	}
 
 	SDL_AudioSpec audio_spec;
+	SDL_zero(audio_spec);
 	audio_spec.freq = audio_sample_rates[audio_sample_rate_index] >> 16;
 	audio_spec.format = (audio_sample_sizes[audio_sample_size_index] == 8) ? AUDIO_U8 : AUDIO_S16MSB;
 	audio_spec.channels = audio_channel_counts[audio_channel_count_index];
@@ -98,6 +99,12 @@ static bool open_sdl_audio(void)
 	if (SDL_OpenAudio(&audio_spec, NULL) < 0) {
 		fprintf(stderr, "WARNING: Cannot open audio: %s\n", SDL_GetError());
 		return false;
+	}
+	
+	// HACK: workaround a possible bug in SDL 2.0.5 (reported via https://bugzilla.libsdl.org/show_bug.cgi?id=3710 )
+	// whereby SDL does not update audio_spec.size
+	if (audio_spec.size == 0) {
+		audio_spec.size = (SDL_AUDIO_BITSIZE(audio_spec.format) / 8) * audio_spec.channels * audio_spec.samples;
 	}
 
 #if defined(BINCUE)
