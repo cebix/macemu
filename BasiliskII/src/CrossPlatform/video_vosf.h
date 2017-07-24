@@ -514,7 +514,8 @@ static void update_display_window_vosf(VIDEO_DRV_WIN_INIT)
 		VIDEO_DRV_UNLOCK_PIXELS;
 
 #ifdef USE_SDL_VIDEO
-		SDL_UpdateRect(drv->s, 0, y1, VIDEO_MODE_X, height);
+		//SDL_UpdateRect(drv->s, 0, y1, VIDEO_MODE_X, height);
+		update_sdl_video();
 #else
 		if (VIDEO_DRV_HAVE_SHM)
 			XShmPutImage(x_display, VIDEO_DRV_WINDOW, VIDEO_DRV_GC, VIDEO_DRV_IMAGE, 0, y1, 0, y1, VIDEO_MODE_X, height, 0);
@@ -558,7 +559,8 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 			i2 += scr_bytes_per_row;
 		}
 #ifdef USE_SDL_VIDEO
-		SDL_UpdateRect(drv->s, 0, 0, VIDEO_MODE_X, VIDEO_MODE_Y);
+		//SDL_UpdateRect(drv->s, 0, 0, VIDEO_MODE_X, VIDEO_MODE_Y);
+		update_sdl_video();
 #endif
 		VIDEO_DRV_UNLOCK_PIXELS;
 		return;
@@ -664,7 +666,8 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 #endif
 		}
 #ifdef USE_SDL_VIDEO
-		SDL_UpdateRects(drv->s, bbi, bb);
+		//SDL_UpdateRects(drv->s, bbi, bb);
+		update_sdl_video();
 #endif
 		VIDEO_DRV_UNLOCK_PIXELS;
 	}

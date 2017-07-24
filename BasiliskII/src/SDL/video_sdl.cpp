@@ -129,7 +129,7 @@ static bool use_keycodes = false;					// Flag: Use keycodes rather than keysyms
 static int keycode_table[256];						// X keycode -> Mac keycode translation table
 
 // SDL variables
-static SDL_Window * sdl_window = NULL;				// Wraps an OS-native window
+SDL_Window * sdl_window = NULL;				        // Wraps an OS-native window
 static SDL_Surface * inner_sdl_surface = NULL;		// Surface in guest-OS display format
 static SDL_Surface * outer_sdl_surface = NULL;		// Surface in host-OS display format
 static SDL_Renderer * sdl_renderer = NULL;			// Handle to SDL2 renderer
@@ -164,6 +164,7 @@ static void (*video_refresh)(void);
 
 // Prototypes
 static int redraw_func(void *arg);
+static int update_sdl_video();
 
 // From sys_unix.cpp
 extern void SysMountFirstFloppy(void);
@@ -175,7 +176,7 @@ extern void SysMountFirstFloppy(void);
 
 #ifdef ENABLE_VOSF
 #define SDL_VIDEO_LOCK_VOSF_SURFACE(SURFACE) do {				\
-	if ((SURFACE)->flags & (SDL_FULLSCREEN))	\
+	if (sdl_window && SDL_GetWindowFlags(sdl_window) & (SDL_WINDOW_FULLSCREEN))	\
 		the_host_buffer = (uint8 *)(SURFACE)->pixels;			\
 } while (0)
 #else
