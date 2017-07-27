@@ -30,3 +30,8 @@ xcuserdata/
 *.moved-aside
 *.xccheckout
 *.xcscmblueprint
+
+#
+# JetBrains IDE settings
+#
+*.idea
