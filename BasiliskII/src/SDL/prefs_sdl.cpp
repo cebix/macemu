@@ -30,6 +30,7 @@
 
 // Platform-specific preferences items
 prefs_desc platform_prefs_items[] = {
+	{"idlewait", TYPE_BOOLEAN, false,      "sleep when idle"},
 	{NULL, TYPE_END, false}	// End of list
 };
 
