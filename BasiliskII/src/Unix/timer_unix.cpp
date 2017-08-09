@@ -44,7 +44,7 @@ static inline void mach_current_time(tm_time_t &t) {
 		host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &host_clock);
 		host_clock_inited = true;
 	}
-	
+
 	clock_get_time(host_clock, &t);
 }
 #endif
@@ -57,13 +57,13 @@ static inline void mach_current_time(tm_time_t &t) {
 void Microseconds(uint32 &hi, uint32 &lo)
 {
 	D(bug("Microseconds\n"));
-#if defined(HAVE_CLOCK_GETTIME)
-	struct timespec t;
-	clock_gettime(CLOCK_REALTIME, &t);
-	uint64 tl = (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
-#elif defined(__MACH__)
+#if defined(__MACH__)
 	tm_time_t t;
 	mach_current_time(t);
+	uint64 tl = (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
+#elif defined(HAVE_CLOCK_GETTIME)
+	struct timespec t;
+	clock_gettime(CLOCK_REALTIME, &t);
 	uint64 tl = (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
 #else
 	struct timeval t;
@@ -91,10 +91,10 @@ uint32 TimerDateTime(void)
 
 void timer_current_time(tm_time_t &t)
 {
-#ifdef HAVE_CLOCK_GETTIME
-	clock_gettime(CLOCK_REALTIME, &t);
-#elif defined(__MACH__)
+#if defined(__MACH__)
 	mach_current_time(t);
+#elif defined(HAVE_CLOCK_GETTIME)
+	clock_gettime(CLOCK_REALTIME, &t);
 #else
 	gettimeofday(&t, NULL);
 #endif
@@ -229,13 +229,13 @@ int32 timer_host2mac_time(tm_time_t hosttime)
 
 uint64 GetTicks_usec(void)
 {
-#ifdef HAVE_CLOCK_GETTIME
-	struct timespec t;
-	clock_gettime(CLOCK_REALTIME, &t);
-	return (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
-#elif defined(__MACH__)
+#if defined(__MACH__)
 	tm_time_t t;
 	mach_current_time(t);
+	return (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
+#elif defined(HAVE_CLOCK_GETTIME)
+	struct timespec t;
+	clock_gettime(CLOCK_REALTIME, &t);
 	return (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
 #else
 	struct timeval t;
