@@ -130,10 +130,10 @@ static int keycode_table[256];						// X keycode -> Mac keycode translation tabl
 
 // SDL variables
 SDL_Window * sdl_window = NULL;				        // Wraps an OS-native window
-static SDL_Surface * inner_sdl_surface = NULL;		// Surface in guest-OS display format
-static SDL_Surface * outer_sdl_surface = NULL;		// Surface in host-OS display format
+static SDL_Surface * host_surface = NULL;			// Surface in host-OS display format
+static SDL_Surface * guest_surface = NULL;			// Surface in guest-OS display format
 static SDL_Renderer * sdl_renderer = NULL;			// Handle to SDL2 renderer
-static SDL_Texture * sdl_texture = NULL;			// Handle to a GPU texture, with which to draw outer_sdl_surface to
+static SDL_Texture * sdl_texture = NULL;			// Handle to a GPU texture, with which to draw guest_surface to
 static int screen_depth;							// Depth of current screen
 //static SDL_Cursor *sdl_cursor;						// Copy of Mac cursor
 static SDL_Palette *sdl_palette = NULL;				// Color palette to be used as CLUT and gamma table
@@ -649,18 +649,18 @@ static void delete_sdl_video_surfaces()
 		sdl_texture = NULL;
 	}
 	
-	if (inner_sdl_surface) {
-		if (inner_sdl_surface == outer_sdl_surface) {
-			outer_sdl_surface = NULL;
+	if (host_surface) {
+		if (host_surface == guest_surface) {
+			guest_surface = NULL;
 		}
 		
-		SDL_FreeSurface(inner_sdl_surface);
-		inner_sdl_surface = NULL;
+		SDL_FreeSurface(host_surface);
+		host_surface = NULL;
 	}
 	
-	if (outer_sdl_surface) {
-		SDL_FreeSurface(outer_sdl_surface);
-		outer_sdl_surface = NULL;
+	if (guest_surface) {
+		SDL_FreeSurface(guest_surface);
+		guest_surface = NULL;
 	}
 }
 
@@ -685,7 +685,7 @@ static void shutdown_sdl_video()
 
 static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags)
 {
-    if (outer_sdl_surface) {
+    if (guest_surface) {
         delete_sdl_video_surfaces();
     }
 	
@@ -746,61 +746,61 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
         return NULL;
     }
 
-	SDL_assert(outer_sdl_surface == NULL);
-	SDL_assert(inner_sdl_surface == NULL);
+	SDL_assert(guest_surface == NULL);
+	SDL_assert(host_surface == NULL);
     switch (bpp) {
         case 8:
-            outer_sdl_surface = SDL_CreateRGBSurface(0, width, height, 8, 0, 0, 0, 0);
+            guest_surface = SDL_CreateRGBSurface(0, width, height, 8, 0, 0, 0, 0);
             break;
 		case 16:
-			outer_sdl_surface = SDL_CreateRGBSurfaceWithFormat(0, width, height, 16, SDL_PIXELFORMAT_RGB565);
+			guest_surface = SDL_CreateRGBSurfaceWithFormat(0, width, height, 16, SDL_PIXELFORMAT_RGB565);
 			break;
         case 32:
-            outer_sdl_surface = SDL_CreateRGBSurface(0, width, height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
-            inner_sdl_surface = outer_sdl_surface;
+            guest_surface = SDL_CreateRGBSurface(0, width, height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+            host_surface = guest_surface;
             break;
         default:
             printf("WARNING: An unsupported bpp of %d was used\n", bpp);
             break;
     }
-    if (!outer_sdl_surface) {
+    if (!guest_surface) {
         shutdown_sdl_video();
         return NULL;
     }
 
-    if (!inner_sdl_surface) {
-        inner_sdl_surface = SDL_CreateRGBSurface(0, width, height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
-        if (!inner_sdl_surface) {
+    if (!host_surface) {
+        host_surface = SDL_CreateRGBSurface(0, width, height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+        if (!host_surface) {
             shutdown_sdl_video();
             return NULL;
         }
     }
 
-    return outer_sdl_surface;
+    return guest_surface;
 }
 
 static int update_sdl_video()
 {
-	if (!sdl_renderer || !sdl_texture || !outer_sdl_surface) {
+	if (!sdl_renderer || !sdl_texture || !guest_surface) {
 		printf("WARNING: A video mode does not appear to have been set.\n");
 		return -1;
 	}
 	
-	if (inner_sdl_surface != outer_sdl_surface &&
-		inner_sdl_surface != NULL &&
-		outer_sdl_surface != NULL)
+	if (host_surface != guest_surface &&
+		host_surface != NULL &&
+		guest_surface != NULL)
 	{
-		SDL_Rect destRect = {0, 0, inner_sdl_surface->w, inner_sdl_surface->h};
-		if (SDL_BlitSurface(outer_sdl_surface, NULL, inner_sdl_surface, &destRect) != 0) {
+		SDL_Rect destRect = {0, 0, host_surface->w, host_surface->h};
+		if (SDL_BlitSurface(guest_surface, NULL, host_surface, &destRect) != 0) {
 			return -1;
 		}
 	}
 	
-	if (SDL_UpdateTexture(sdl_texture, NULL, inner_sdl_surface->pixels, inner_sdl_surface->pitch) != 0) {
+	if (SDL_UpdateTexture(sdl_texture, NULL, host_surface->pixels, host_surface->pitch) != 0) {
 		return -1;
 	}
 	
-	SDL_Rect src_rect = {0, 0, inner_sdl_surface->w, inner_sdl_surface->h};
+	SDL_Rect src_rect = {0, 0, host_surface->w, host_surface->h};
 	if (SDL_RenderCopy(sdl_renderer, sdl_texture, &src_rect, NULL) != 0) {
 		return -1;
 	}
@@ -1884,7 +1884,7 @@ static void force_complete_window_refresh()
 
 static void scale_mouse_event_coordinates(void *userdata, SDL_Event * event)
 {
-    if (!inner_sdl_surface || !sdl_window) {
+    if (!host_surface || !sdl_window) {
         return;
     }
 
@@ -1895,8 +1895,8 @@ static void scale_mouse_event_coordinates(void *userdata, SDL_Event * event)
         return;
     }
 
-    float scale_x = (float)inner_sdl_surface->w / (float)window_width;
-    float scale_y = (float)inner_sdl_surface->h / (float)window_height;
+    float scale_x = (float)host_surface->w / (float)window_width;
+    float scale_y = (float)host_surface->h / (float)window_height;
 
     switch (event->type) {
         case SDL_MOUSEBUTTONDOWN:
