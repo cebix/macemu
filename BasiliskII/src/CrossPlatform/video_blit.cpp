@@ -498,12 +498,16 @@ bool Screen_blitter_init(VisualFormat const & visual_format, bool native_byte_or
 #else
 	const bool use_sdl_video = false;
 #endif
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if REAL_ADDRESSING || DIRECT_ADDRESSING || USE_SDL_VIDEO
 	if (mac_depth == 1 && !use_sdl_video && !visual_format.fullscreen) {
 
 		// Windowed 1-bit mode uses a 1-bit X image, so there's no need for special blitting routines
 		Screen_blit = Blit_Copy_Raw;
 
+	} else if (mac_depth == 16) {
+
+		Screen_blit = Blit_Copy_Raw;
+	
 	} else {
 
 		// Compute RGB shift values

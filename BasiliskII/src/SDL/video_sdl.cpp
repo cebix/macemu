@@ -810,6 +810,12 @@ static int update_sdl_video()
 	return 0;
 }
 
+static int update_sdl_video(SDL_Surface *s, int x, int y, int w, int h)
+{
+	// HACK, dludwig@pobox.com: for now, just update the whole screen
+	return update_sdl_video();
+}
+
 void driver_base::set_video_mode(int flags)
 {
 	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
@@ -2061,43 +2067,6 @@ static void handle_events(void)
 // Static display update (fixed frame rate, but incremental)
 static void update_display_static(driver_base *drv)
 {
-	// Lock surface, if required
-	if (SDL_MUSTLOCK(drv->s))
-		SDL_LockSurface(drv->s);
-	
-	const VIDEO_MODE &mode = drv->mode;
-	
-	memcpy(the_buffer_copy, the_buffer, the_buffer_size);
-	
-	// HACK: Create a temporary surface, with which to use in color conversion
-	SDL_Surface * mid_surface = NULL;
-	switch (mode.depth) {
-		case VDEPTH_1BIT: {
-			const int pixels_per_byte = VIDEO_MODE_X / VIDEO_MODE_ROW_BYTES;
-			mid_surface = SDL_CreateRGBSurfaceFrom(the_buffer_copy, VIDEO_MODE_X, VIDEO_MODE_Y, 1, (VIDEO_MODE_X / pixels_per_byte), 1, 1, 1, 0);
-		} break;
-		
-		// Consider using Screen_blit, for other depths
-			
-		default: {
-			printf("WARNING: Unhandled depth mode in SDL backend: %s\n", NameOfDepth(mode.depth));
-		} break;
-	}
-	
-	// Blit to screen surface
-	if (mid_surface) {
-		SDL_BlitSurface(mid_surface, NULL, drv->s, NULL);
-		SDL_FreeSurface(mid_surface);
-	}
-	
-	// Unlock surface, if required
-	if (SDL_MUSTLOCK(drv->s))
-		SDL_UnlockSurface(drv->s);
-	
-	// Refresh display
-	update_sdl_video();
-
-/*
 	// Incremental update code
 	int wide = 0, high = 0;
 	uint32 x1, x2, y1, y2;
@@ -2181,7 +2150,7 @@ static void update_display_static(driver_base *drv)
 					SDL_UnlockSurface(drv->s);
 
 				// Refresh display
-				SDL_UpdateRect(drv->s, x1, y1, wide, high);
+				update_sdl_video(drv->s, x1, y1, wide, high);
 			}
 
 		} else {
@@ -2237,11 +2206,10 @@ static void update_display_static(driver_base *drv)
 					SDL_UnlockSurface(drv->s);
 
 				// Refresh display
-				SDL_UpdateRect(drv->s, x1, y1, wide, high);
+				update_sdl_video(drv->s, x1, y1, wide, high);
 			}
 		}
 	}
- */
 }
 
 // Static display update (fixed frame rate, bounding boxes based)
