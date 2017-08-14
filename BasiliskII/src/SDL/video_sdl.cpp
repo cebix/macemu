@@ -1917,38 +1917,6 @@ static void force_complete_window_refresh()
  *  SDL event handling
  */
 
-static void scale_mouse_event_coordinates(void *userdata, SDL_Event * event)
-{
-    if (!host_surface || !sdl_window) {
-        return;
-    }
-
-    int window_width = 0;
-    int window_height = 0;
-    SDL_GetWindowSize(sdl_window, &window_width, &window_height);
-    if (window_width == 0 || window_height == 0) {
-        return;
-    }
-
-    float scale_x = (float)host_surface->w / (float)window_width;
-    float scale_y = (float)host_surface->h / (float)window_height;
-
-    switch (event->type) {
-        case SDL_MOUSEBUTTONDOWN:
-        case SDL_MOUSEBUTTONUP:
-            event->button.x = (int)(event->button.x * scale_x);
-            event->button.y = (int)(event->button.y * scale_y);
-            break;
-
-        case SDL_MOUSEMOTION:
-            event->motion.x = (int)(event->motion.x * scale_x);
-            event->motion.y = (int)(event->motion.y * scale_y);
-            event->motion.xrel = (int)(event->motion.xrel * scale_x);
-            event->motion.yrel = (int)(event->motion.yrel * scale_y);
-            break;
-    }
-}
-	
 static void handle_events(void)
 {
 	SDL_Event events[10];
@@ -1958,10 +1926,6 @@ static void handle_events(void)
 	while ((n_events = SDL_PeepEvents(events, n_max_events, SDL_GETEVENT, SDL_FIRSTEVENT, SDL_LASTEVENT)) > 0) {
 		for (int i = 0; i < n_events; i++) {
 			SDL_Event & event = events[i];
-
-			// Make sure events with mouse coordinates get scaled, in case the Mac's
-			// display size is different than the host OS' window.
-			scale_mouse_event_coordinates(NULL, &events[i]);
 
 			switch (event.type) {
 
