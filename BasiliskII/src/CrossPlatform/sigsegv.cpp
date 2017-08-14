@@ -340,12 +340,12 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_REGISTER_FILE			(unsigned long *)&SIGSEGV_CONTEXT_REGS->nip, (unsigned long *)(SIGSEGV_CONTEXT_REGS->gpr)
 #define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
 #elif (defined(arm) || defined(__arm__))
-#define SIGSEGV_CONTEXT_REGS			(((struct ucontext *)scp)->uc_mcontext)
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext)
 #define SIGSEGV_FAULT_INSTRUCTION		(SIGSEGV_CONTEXT_REGS.arm_pc)
 #define SIGSEGV_REGISTER_FILE			(&SIGSEGV_CONTEXT_REGS.arm_r0)
 #define SIGSEGV_SKIP_INSTRUCTION		arm_skip_instruction
 #elif (defined(mips) || defined(__mips__))
-#define SIGSEGV_CONTEXT_REGS			(((struct ucontext *)scp)->uc_mcontext)
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext)
 #define SIGSEGV_FAULT_INSTRUCTION		(SIGSEGV_CONTEXT_REGS.pc)
 #define SIGSEGV_REGISTER_FILE			&SIGSEGV_CONTEXT_REGS.pc, &SIGSEGV_CONTEXT_REGS.gregs[0]
 #define SIGSEGV_SKIP_INSTRUCTION		mips_skip_instruction

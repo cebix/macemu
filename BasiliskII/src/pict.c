@@ -101,7 +101,8 @@ static ssize_t CompressUsingRLE(uint8_t *row, uint16_t uncmpLength, uint8_t *out
 			uint8_t literals = 0;
 			uint8_t i;
 
-			while (cursor + literals + 1 < uncmpLength && literals < 127 && nextByte != (nextByte = row[cursor + literals + 1])) {
+			while (cursor + literals + 1 < uncmpLength && literals < 127 && nextByte != row[cursor + literals + 1]) {
+				nextByte = row[cursor + literals + 1];
 				literals++;
 			}
 
