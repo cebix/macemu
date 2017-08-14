@@ -753,7 +753,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
             guest_surface = SDL_CreateRGBSurface(0, width, height, 8, 0, 0, 0, 0);
             break;
 		case 16:
-			guest_surface = SDL_CreateRGBSurfaceWithFormat(0, width, height, 16, SDL_PIXELFORMAT_RGB565);
+			guest_surface = SDL_CreateRGBSurface(0, width, height, 16, 0x0000F800, 0x000007E0, 0x0000001F, 0x00000000);
 			break;
         case 32:
             guest_surface = SDL_CreateRGBSurface(0, width, height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
