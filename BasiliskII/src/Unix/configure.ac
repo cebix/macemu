@@ -266,7 +266,7 @@ AC_DEFUN([AC_CHECK_SDLFRAMEWORK], [
       fi
     fi
     saved_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CPPFLAGS -I$SDL_FRAMEWORK/SDL.framework/Headers"
+    CPPFLAGS="$CPPFLAGS -I$SDL_FRAMEWORK/SDL2.framework/Headers"
     AC_TRY_LINK(
       [$2
 #undef main], [],
@@ -295,15 +295,15 @@ if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
 fi
 if [[ "x$WANT_SDL" = "xyes" ]]; then
   if [[ "x$WANT_SDL_FRAMEWORK" = "xyes" ]]; then
-    AC_CHECK_SDLFRAMEWORK(SDL, [#include <SDL.h>])
+    AC_CHECK_SDLFRAMEWORK(SDL2, [#include <SDL.h>])
   else
     ac_cv_framework_SDL=no
   fi
   if [[ "x$ac_cv_framework_SDL" = "xno" ]]; then
-   PKG_CHECK_MODULES([sdl], [sdl >= 1.2], [
-     CFLAGS="$CFLAGS $sdl_CFLAGS"
-     CXXFLAGS="$CXXFLAGS $sdl_CFLAGS"
-     LIBS="$LIBS $sdl_LIBS"
+   PKG_CHECK_MODULES([sdl2], [sdl2 >= 2.0], [
+     CFLAGS="$CFLAGS $sdl2_CFLAGS"
+     CXXFLAGS="$CXXFLAGS $sdl2_CFLAGS"
+     LIBS="$LIBS $sdl2_LIBS"
    ], [
      WANT_SDL=no
    ])
