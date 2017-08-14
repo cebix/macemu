@@ -716,6 +716,9 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 			delete_sdl_video_window();
 		}
 	}
+	
+	// Apply anti-aliasing, if and when appropriate (usually in fullscreen)
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 
 	if (!sdl_window) {
 		sdl_window = SDL_CreateWindow(
@@ -792,7 +795,6 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
         }
     }
 
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 	if (SDL_RenderSetLogicalSize(sdl_renderer, width, height) != 0) {
 		printf("ERROR: Unable to set SDL rendeer's logical size (to %dx%d): %s\n",
 			   width, height, SDL_GetError());
