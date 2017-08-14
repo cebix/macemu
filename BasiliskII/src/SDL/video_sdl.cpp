@@ -791,6 +791,13 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
             return NULL;
         }
     }
+	
+	if (SDL_RenderSetLogicalSize(sdl_renderer, width, height) != 0) {
+		printf("ERROR: Unable to set SDL rendeer's logical size (to %dx%d): %s\n",
+			   width, height, SDL_GetError());
+		shutdown_sdl_video();
+		return NULL;
+	}
 
     return guest_surface;
 }
@@ -801,6 +808,13 @@ static int update_sdl_video()
 		printf("WARNING: A video mode does not appear to have been set.\n");
 		return -1;
 	}
+
+	// Make sure the display's internal (to SDL, possibly the OS) buffer gets
+	// cleared.  Not doing so can, if and when letterboxing is applied (whereby
+	// colored bars are drawn on the screen's sides to help with aspect-ratio
+	// correction), the colored bars can be an unknown color.
+	SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 0);	// Use black
+	SDL_RenderClear(sdl_renderer);						// Clear the display
 	
 	if (host_surface != guest_surface &&
 		host_surface != NULL &&
