@@ -504,9 +504,11 @@ bool Screen_blitter_init(VisualFormat const & visual_format, bool native_byte_or
 		// Windowed 1-bit mode uses a 1-bit X image, so there's no need for special blitting routines
 		Screen_blit = Blit_Copy_Raw;
 
+/*	// dludwig@pobox.com, TODO: This works on OSX (64-bit, at least), but not Linux (32-bit?).  Why?
 	} else if (mac_depth == 16) {
 
 		Screen_blit = Blit_Copy_Raw;
+*/
 	
 	} else {
 
