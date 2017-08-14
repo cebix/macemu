@@ -791,7 +791,8 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
             return NULL;
         }
     }
-	
+
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 	if (SDL_RenderSetLogicalSize(sdl_renderer, width, height) != 0) {
 		printf("ERROR: Unable to set SDL rendeer's logical size (to %dx%d): %s\n",
 			   width, height, SDL_GetError());
