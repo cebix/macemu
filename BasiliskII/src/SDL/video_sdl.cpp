@@ -1294,8 +1294,6 @@ bool VideoInit(bool classic)
 			const int h = video_modes[i].h;
 			if (i > 0 && (w >= default_width || h >= default_height))
 				continue;
-			if (w == 512 && h == 384)
-				continue;
 			for (int d = VIDEO_DEPTH_1BIT; d <= default_depth; d++)
 				add_mode(display_type, w, h, video_modes[i].resolution_id, TrivialBytesPerRow(w, (video_depth)d), d);
 		}
