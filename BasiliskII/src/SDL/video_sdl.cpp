@@ -769,8 +769,24 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
     }
 
     if (!host_surface) {
-        host_surface = SDL_CreateRGBSurface(0, width, height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+    	Uint32 texture_format;
+    	if (SDL_QueryTexture(sdl_texture, &texture_format, NULL, NULL, NULL) != 0) {
+    		printf("ERROR: Unable to get the SDL texture's pixel format: %s\n", SDL_GetError());
+    		shutdown_sdl_video();
+    		return NULL;
+    	}
+
+    	int bpp;
+    	Uint32 Rmask, Gmask, Bmask, Amask;
+    	if (!SDL_PixelFormatEnumToMasks(texture_format, &bpp, &Rmask, &Gmask, &Bmask, &Amask)) {
+    		printf("ERROR: Unable to determine format for host SDL_surface: %s\n", SDL_GetError());
+    		shutdown_sdl_video();
+    		return NULL;
+    	}
+
+        host_surface = SDL_CreateRGBSurface(0, width, height, bpp, Rmask, Gmask, Bmask, Amask);
         if (!host_surface) {
+        	printf("ERROR: Unable to create host SDL_surface: %s\n", SDL_GetError());
             shutdown_sdl_video();
             return NULL;
         }
