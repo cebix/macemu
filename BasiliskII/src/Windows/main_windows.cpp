@@ -212,6 +212,13 @@ int main(int argc, char **argv)
 	char str[256];
 	bool cd_boot = false;
 
+	// Make sure stdout and stderr gets displayed, if and when the app is run
+	// via a command prompt window.
+	if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+		freopen("CONOUT$", "w", stdout);
+		freopen("CONOUT$", "w", stderr);
+	}
+
 	// Initialize variables
 	RAMBaseHost = NULL;
 	ROMBaseHost = NULL;
