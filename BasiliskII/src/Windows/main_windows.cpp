@@ -212,11 +212,24 @@ int main(int argc, char **argv)
 	char str[256];
 	bool cd_boot = false;
 
-	// Make sure stdout and stderr gets displayed, if and when the app is run
-	// via a command prompt window.
-	if (AttachConsole(ATTACH_PARENT_PROCESS)) {
-		freopen("CONOUT$", "w", stdout);
-		freopen("CONOUT$", "w", stderr);
+	// Redirect stdout and stderr to a log file, for diagnostic purposes.
+	// Unbuffered file IO will be used (setup via setvbuf() calls), so as
+	// to write log file data ASAP, lest it get lost in case of program
+	// termination.
+	wchar_t logFileName[4096];
+	logFileName[0] = L'\0';
+	_wgetcwd(logFileName, SDL_arraysize(logFileName));
+	if (logFileName[0] != L'\0') {
+		SDL_wcslcat(logFileName, L"\\BasiliskII_log.txt", SDL_arraysize(logFileName));
+		FILE * fp;
+		fp = _wfreopen(logFileName, L"w", stdout);
+		if (fp) {
+			setvbuf(stdout, NULL, _IONBF, 0);
+		}
+		fp = _wfreopen(logFileName, L"w", stderr);
+		if (fp) {
+			setvbuf(stderr, NULL, _IONBF, 0);
+		}
 	}
 
 	// Initialize variables
