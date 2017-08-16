@@ -703,6 +703,8 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 		window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 		window_width = desktop_mode.w;
 		window_height = desktop_mode.h;
+	} else {
+		window_flags |= SDL_WINDOW_RESIZABLE;
 	}
 	
 	if (sdl_window) {
