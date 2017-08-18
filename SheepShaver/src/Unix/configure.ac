@@ -657,10 +657,12 @@ AS_IF([test  "x$with_bincue" = "xyes" ], [have_bincue=yes], [have_bincue=no])
 AS_IF([test  "x$have_bincue" = "xyes" ], [
    if [[ "xOSX_CORE_AUDIO" = "xno"  -a "x$WANT_SDL_AUDIO"="xno" ]]; then
        AC_MSG_ERROR([You need SDL or OSX Core Audio to use BINCUE support.])
+       AC_SUBST(USE_BINCUE, no)
    else
        CPPFLAGS="$CPPFLAGS -DBINCUE $OSX_CORE_AUDIO"
+       AC_SUBST(USE_BINCUE, yes)
    fi
-])
+], [AC_SUBST(USE_BINCUE, no)])
 
 dnl LIBVHD
 AS_IF([test  "x$with_libvhd" = "xyes" ], [have_libvhd=yes], [have_libvhd=no])

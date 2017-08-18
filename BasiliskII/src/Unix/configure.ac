@@ -329,10 +329,12 @@ AS_IF([test  "x$with_bincue" = "xyes" ], [have_bincue=yes], [have_bincue=no])
 AS_IF([test  "x$have_bincue" = "xyes" ], [
    if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
        DEFINES="$DEFINES -DBINCUE"
+       AC_SUBST(USE_BINCUE, yes)
    else
        AC_MSG_ERROR([You need SDL Audio to use BINCUE support.])
+       AC_SUBST(USE_BINCUE, no)
    fi
-])
+], [AC_SUBST(USE_BINCUE, no)])
 
 dnl LIBVHD
 AS_IF([test  "x$with_libvhd" = "xyes" ], [have_libvhd=yes], [have_libvhd=no])

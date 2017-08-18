@@ -42,6 +42,8 @@ SLIRP_CFLAGS = @SLIRP_CFLAGS@
 SLIRP_SRCS = @SLIRP_SRCS@
 SLIRP_OBJS = $(SLIRP_SRCS:../slirp/%.c=obj/%.o)
 
+USE_BINCUE = @USE_BINCUE@
+
 STANDALONE_GUI = @STANDALONE_GUI@
 GUI_CFLAGS = @GUI_CFLAGS@
 GUI_LIBS = @GUI_LIBS@
@@ -102,6 +104,9 @@ define GUI_SRCS_LIST_TO_OBJS
 	$(basename $(notdir $(file))))))
 endef
 GUI_OBJS = $(GUI_SRCS_LIST_TO_OBJS)
+ifeq ($(USE_BINCUE),yes)
+GUI_OBJS += bincue_unix.o
+endif
 
 define DYNGENSRCS_LIST_TO_OBJS
 	$(addprefix $(OBJ_DIR)/, $(addsuffix .dgo, $(foreach file, $(DYNGENSRCS), \
@@ -118,7 +123,7 @@ $(APP_EXE): $(OBJ_DIR) $(OBJS)
 	$(BLESS) $(APP_EXE)
 
 $(GUI_APP_EXE): $(OBJ_DIR) $(GUI_OBJS)
-	$(CXX) -o $@ $(LDFLAGS) $(GUI_OBJS) $(GUI_LIBS)
+	$(CXX) -o $@ $(LDFLAGS) $(GUI_OBJS) $(GUI_LIBS) $(LIBS)
 
 $(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	rm -rf $(APP_APP)/Contents

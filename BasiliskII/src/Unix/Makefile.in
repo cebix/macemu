@@ -37,6 +37,8 @@ SLIRP_CFLAGS = @SLIRP_CFLAGS@
 SLIRP_SRCS = @SLIRP_SRCS@
 SLIRP_OBJS = $(SLIRP_SRCS:../slirp/%.c=obj/%.o)
 
+USE_BINCUE = @USE_BINCUE@
+
 STANDALONE_GUI = @STANDALONE_GUI@
 GUI_CFLAGS = @GUI_CFLAGS@
 GUI_LIBS = @GUI_LIBS@
@@ -72,7 +74,6 @@ GUI_APP_APP = $(GUI_APP).app
 PROGS += $(GUI_APP)$(EXEEXT)
 else
 CXXFLAGS += $(GUI_CFLAGS)
-LIBS += $(GUI_LIBS)
 endif
 
 ## Rules
@@ -98,6 +99,9 @@ define GUI_SRCS_LIST_TO_OBJS
 	$(basename $(notdir $(file))))))
 endef
 GUI_OBJS = $(GUI_SRCS_LIST_TO_OBJS)
+ifeq ($(USE_BINCUE),yes)
+GUI_OBJS += bincue_unix.o
+endif
 GUI_SRCS := $(GUI_SRCS:%=@top_srcdir@/%)
 
 SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
@@ -108,11 +112,11 @@ VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(S
 OSX_DOCS = ../MacOSX/Credits.html ../MacOSX/ToDo.html ../MacOSX/HowTo.html ../MacOSX/Versions.html
 
 $(APP)$(EXEEXT): $(OBJ_DIR) $(OBJS)
-	$(CXX) -o $@ $(LDFLAGS) $(OBJS) $(LIBS)
+	$(CXX) -o $@ $(LDFLAGS) $(OBJS) $(LIBS) $(GUI_LIBS)
 	$(BLESS) $(APP)$(EXEEXT)
 
 $(GUI_APP)$(EXEEXT): $(OBJ_DIR) $(GUI_OBJS)
-	$(CXX) -o $@ $(LDFLAGS) $(GUI_OBJS) $(GUI_LIBS)
+	$(CXX) -o $@ $(LDFLAGS) $(GUI_OBJS) $(GUI_LIBS) $(LIBS)
 
 $(APP)_app: $(APP) $(OSX_DOCS) ../../README ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	rm -rf $(APP_APP)/Contents
