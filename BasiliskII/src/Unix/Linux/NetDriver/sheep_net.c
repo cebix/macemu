@@ -23,6 +23,10 @@
 #include <linux/version.h>
 #include <linux/init.h>
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0)
+#include <linux/sched/signal.h>
+#endif
+
 /* wrap up socket object allocation */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 00)
 	#define compat_sk_alloc(_net, _family, _priority, _proto) \
