@@ -26,6 +26,7 @@ CPUSRCS = @CPUSRCS@
 MONSRCS = @MONSRCS@
 PERL = @PERL@
 USE_DYNGEN = @USE_DYNGEN@
+USE_DYNGEN_PRECOMPILED = @USE_DYNGEN_PRECOMPILED@
 DYNGENSRCS = @DYNGENSRCS@
 DYNGEN_CC = @DYNGEN_CC@
 DYNGEN_CFLAGS = @DYNGEN_CFLAGS@
@@ -209,9 +210,28 @@ DYNGEN    = dyngen$(EXEEXT)
 ifeq ($(USE_DYNGEN),yes)
 DYNGENDEPS = basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 
+ifeq ($(USE_DYNGEN_PRECOMPILED),yes)
+basic-dyngen-ops.hpp: dyngen_precompiled/basic-dyngen-ops.hpp basic-dyngen-ops-x86_32.hpp basic-dyngen-ops-x86_64.hpp
+	cp -f $< $@
+basic-dyngen-ops-x86_32.hpp: dyngen_precompiled/basic-dyngen-ops-x86_32.hpp
+	cp -f $< $@
+basic-dyngen-ops-x86_64.hpp: dyngen_precompiled/basic-dyngen-ops-x86_64.hpp
+	cp -f $< $@
+ppc-dyngen-ops.hpp: dyngen_precompiled/ppc-dyngen-ops.hpp ppc-dyngen-ops-x86_32.hpp ppc-dyngen-ops-x86_64.hpp
+	cp -f $< $@
+ppc-dyngen-ops-x86_32.hpp: dyngen_precompiled/ppc-dyngen-ops-x86_32.hpp
+	cp -f $< $@
+ppc-dyngen-ops-x86_64.hpp: dyngen_precompiled/ppc-dyngen-ops-x86_64.hpp
+	cp -f $< $@
+else
 # Only GCC is supported for generating synthetic opcodes
 $(DYNGEN): $(DYNGENOBJS)
 	$(DYNGEN_CC) -o $@ $(LDFLAGS) $(DYNGENOBJS)
+basic-dyngen-ops.hpp: $(OBJ_DIR)/basic-dyngen-ops.o $(DYNGEN)
+	./$(DYNGEN) -o $@ $<
+ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o $(DYNGEN)
+	./$(DYNGEN) -o $@ $<
+endif
 
 $(OBJ_DIR)/%.dgo : %.c
 	$(DYNGEN_CC) -xc $(CPPFLAGS) $(DEFS) $(DYNGEN_CFLAGS) -c $< -o $@
@@ -221,14 +241,10 @@ $(OBJ_DIR)/%.dgo : %.cpp
 $(OBJ_DIR)/basic-dyngen.o: basic-dyngen-ops.hpp
 $(OBJ_DIR)/basic-dyngen-ops.o: $(kpxsrcdir)/cpu/jit/basic-dyngen-ops.cpp
 	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(DYNGEN_CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
-basic-dyngen-ops.hpp: $(OBJ_DIR)/basic-dyngen-ops.o $(DYNGEN)
-	./$(DYNGEN) -o $@ $<
 
 $(OBJ_DIR)/ppc-dyngen.o: ppc-dyngen-ops.hpp
 $(OBJ_DIR)/ppc-dyngen-ops.o: $(kpxsrcdir)/cpu/ppc/ppc-dyngen-ops.cpp basic-dyngen-ops.hpp
 	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(DYNGEN_CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
-ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o $(DYNGEN)
-	./$(DYNGEN) -o $@ $<
 
 $(OBJ_DIR)/sheepshaver_glue.o $(OBJ_DIR)/ppc-cpu.o $(OBJ_DIR)/ppc-decode.o $(OBJ_DIR)/ppc-translate.o $(OBJ_DIR)/ppc-jit.o: basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 endif
