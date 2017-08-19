@@ -133,6 +133,7 @@ SDL_Window * sdl_window = NULL;				        // Wraps an OS-native window
 static SDL_Surface * host_surface = NULL;			// Surface in host-OS display format
 static SDL_Surface * guest_surface = NULL;			// Surface in guest-OS display format
 static SDL_Renderer * sdl_renderer = NULL;			// Handle to SDL2 renderer
+static SDL_threadID sdl_renderer_thread_id = 0;		// Thread ID where the SDL_renderer was created, and SDL_renderer ops should run (for compatibility w/ d3d9)
 static SDL_Texture * sdl_texture = NULL;			// Handle to a GPU texture, with which to draw guest_surface to
 static int screen_depth;							// Depth of current screen
 //static SDL_Cursor *sdl_cursor;						// Copy of Mac cursor
@@ -165,6 +166,7 @@ static void (*video_refresh)(void);
 // Prototypes
 static int redraw_func(void *arg);
 static int update_sdl_video();
+static int present_sdl_video();
 
 // From sys_unix.cpp
 extern void SysMountFirstFloppy(void);
@@ -742,6 +744,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 			shutdown_sdl_video();
 			return NULL;
 		}
+		sdl_renderer_thread_id = SDL_ThreadID();
 	}
 
 	SDL_assert(sdl_texture == NULL);
@@ -807,12 +810,20 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
     return guest_surface;
 }
 
-static int update_sdl_video()
+static int present_sdl_video()
 {
 	if (!sdl_renderer || !sdl_texture || !guest_surface) {
 		printf("WARNING: A video mode does not appear to have been set.\n");
 		return -1;
 	}
+
+	// Some systems, such as D3D9, can fail if and when they are used across
+	// certain operations.  To address this, only utilize SDL_Renderer in a
+	// single thread, preferably the main thread.
+	//
+	// This was added as part of a fix for https://github.com/DavidLudwig/macemu/issues/21
+	// "BasiliskII, Win32: resizing a window does not stretch "
+	SDL_assert(SDL_ThreadID() == sdl_renderer_thread_id);
 
 	// Make sure the display's internal (to SDL, possibly the OS) buffer gets
 	// cleared.  Not doing so can, if and when letterboxing is applied (whereby
@@ -845,10 +856,28 @@ static int update_sdl_video()
 	return 0;
 }
 
+static int update_sdl_video()
+{
+	// HACK, dludwig@pobox.com: for now, just update the whole screen, via
+	// VideoInterrupt(), which gets called on the main thread.
+	//
+	// TODO: make sure SDL_Renderer resources get displayed, if and when
+	// MacsBug is running (and VideoInterrupt() might not get called)
+	//
+	// TODO: cache rects to update, then use rects in present_sdl_video()
+	return 0;
+}
+
 static int update_sdl_video(SDL_Surface *s, int x, int y, int w, int h)
 {
-	// HACK, dludwig@pobox.com: for now, just update the whole screen
-	return update_sdl_video();
+	// HACK, dludwig@pobox.com: for now, just update the whole screen, via
+	// VideoInterrupt(), which gets called on the main thread.
+	//
+	// TODO: make sure SDL_Renderer resources get displayed, if and when
+	// MacsBug is running (and VideoInterrupt() might not get called)
+	//
+	// TODO: cache rects to update, then use rects in present_sdl_video()
+	return 0;
 }
 
 void driver_base::set_video_mode(int flags)
@@ -1517,6 +1546,8 @@ void VideoInterrupt(void)
 
 	if (toggle_fullscreen)
 		do_toggle_fullscreen();
+
+	present_sdl_video();
 
 	// Temporarily give up frame buffer lock (this is the point where
 	// we are suspended when the user presses Ctrl-Tab)
