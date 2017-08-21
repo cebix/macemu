@@ -70,7 +70,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 				   r->sr);
 			VideoQuitFullScreen();
 #ifdef ENABLE_MON
-			const char *arg[4] = {"mon", "-m", "-r", NULL};
+			char *arg[4] = {"mon", "-m", "-r", NULL};
 			mon(3, arg);
 #endif
 			QuitEmulator();
@@ -575,7 +575,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 				   r->a[0], r->a[1], r->a[2], r->a[3], r->a[4], r->a[5], r->a[6], r->a[7],
 				   r->sr);
 #ifdef ENABLE_MON
-			const char *arg[4] = {"mon", "-m", "-r", NULL};
+			char *arg[4] = {"mon", "-m", "-r", NULL};
 			mon(3, arg);
 #endif
 			QuitEmulator();
