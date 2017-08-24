@@ -2000,6 +2000,11 @@ static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
 						(display_type == DISPLAY_SCREEN && !is_full);
 					if (adjust_fullscreen) {
 						do_toggle_fullscreen();
+
+						// Utilizing SDL2's 'relative mouse mode', when in fullscreen,
+						// fixes an issue on OSX hosts whereby a fullscreen window
+						// can, in some cases, be dragged around.
+						// ( https://github.com/DavidLudwig/macemu/issues/19 )
 						if (is_fullscreen(sdl_window)) {
 							SDL_SetRelativeMouseMode(SDL_TRUE);
 						} else {
