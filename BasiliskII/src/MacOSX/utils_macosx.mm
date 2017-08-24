@@ -20,6 +20,7 @@
 
 #include <Cocoa/Cocoa.h>
 #include "utils_macosx.h"
+#include <SDL_syswm.h>
 
 // This is used from video_sdl.cpp.
 void NSAutoReleasePool_wrap(void (*fn)(void))
@@ -40,3 +41,18 @@ void disable_SDL2_macosx_menu_bar_keyboard_shortcuts() {
 	}
 }
 
+bool is_fullscreen_osx(SDL_Window * window)
+{
+	if (!window) {
+		return false;
+	}
+	
+	SDL_SysWMinfo wmInfo;
+	SDL_VERSION(&wmInfo.version);
+	if (!SDL_GetWindowWMInfo(window, &wmInfo)) {
+		return false;
+	}
+
+	const NSWindowStyleMask styleMask = [wmInfo.info.cocoa.window styleMask];
+	return (styleMask & NSWindowStyleMaskFullScreen) != 0;
+}

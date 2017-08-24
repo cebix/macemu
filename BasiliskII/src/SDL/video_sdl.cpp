@@ -140,6 +140,7 @@ static int screen_depth;							// Depth of current screen
 static SDL_Palette *sdl_palette = NULL;				// Color palette to be used as CLUT and gamma table
 static bool sdl_palette_changed = false;			// Flag: Palette changed, redraw thread must set new colors
 static bool toggle_fullscreen = false;
+static bool did_add_event_watch = false;
 
 static bool mouse_grabbed = false;
 
@@ -167,6 +168,7 @@ static void (*video_refresh)(void);
 static int redraw_func(void *arg);
 static int update_sdl_video();
 static int present_sdl_video();
+static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event);
 
 // From sys_unix.cpp
 extern void SysMountFirstFloppy(void);
@@ -695,7 +697,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 	int window_height = height;
     Uint32 window_flags = 0;
 	const int window_flags_to_monitor = SDL_WINDOW_FULLSCREEN;
-
+	
 	if (flags & SDL_WINDOW_FULLSCREEN) {
 		SDL_DisplayMode desktop_mode;
 		if (SDL_GetDesktopDisplayMode(0, &desktop_mode) != 0) {
@@ -705,8 +707,6 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 		window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 		window_width = desktop_mode.w;
 		window_height = desktop_mode.h;
-	} else {
-		window_flags |= SDL_WINDOW_RESIZABLE;
 	}
 	
 	if (sdl_window) {
@@ -724,6 +724,10 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 	// Apply anti-aliasing, if and when appropriate (usually in fullscreen)
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 
+	// Always use a resize-able window.  This helps allow SDL to manage
+	// transitions involving fullscreen to or from windowed-mode.
+	window_flags |= SDL_WINDOW_RESIZABLE;
+	
 	if (!sdl_window) {
 		sdl_window = SDL_CreateWindow(
 			"Basilisk II",
@@ -736,6 +740,14 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 			shutdown_sdl_video();
 			return NULL;
 		}
+	}
+	
+	// Some SDL events (regarding some native-window events), need processing
+	// as they are generated.  SDL2 has a facility, SDL_AddEventWatch(), which
+	// allows events to be processed as they are generated.
+	if (!did_add_event_watch) {
+		SDL_AddEventWatch(&on_sdl_event_generated, NULL);
+		did_add_event_watch = true;
 	}
 
 	if (!sdl_renderer) {
@@ -1041,11 +1053,11 @@ void driver_base::restore_mouse_accel(void)
 // Toggle mouse grab
 void driver_base::toggle_mouse_grab(void)
 {
-	if (mouse_grabbed)
-		ungrab_mouse();
-	else
-		grab_mouse();
-}
+		if (mouse_grabbed)
+			ungrab_mouse();
+		else
+			grab_mouse();
+	}
 
 // Grab mouse, switch to relative mouse mode
 void driver_base::grab_mouse(void)
@@ -1470,14 +1482,18 @@ static void do_toggle_fullscreen(void)
 	int x, y;
 	SDL_GetMouseState(&x, &y);
 
-	// save the screen contents
-	SDL_Surface *tmp_surface = SDL_ConvertSurface(drv->s, drv->s->format,
-		drv->s->flags);
+	// Apply fullscreen
+	if (sdl_window) {
+		if (display_type == DISPLAY_SCREEN) {
+			display_type = DISPLAY_WINDOW;
+			SDL_SetWindowFullscreen(sdl_window, 0);
+		} else {
+			display_type = DISPLAY_SCREEN;
+			SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+		}
+	}
 
 	// switch modes
-	display_type = (display_type == DISPLAY_SCREEN) ? DISPLAY_WINDOW
-		: DISPLAY_SCREEN;
-	drv->set_video_mode(display_type == DISPLAY_SCREEN ? SDL_WINDOW_FULLSCREEN : 0);
 	drv->adapt_to_video_mode();
 
 	// reset the palette
@@ -1485,11 +1501,6 @@ static void do_toggle_fullscreen(void)
 	video_set_palette();
 #endif
 	drv->update_palette();
-
-	// restore the screen contents
-	SDL_BlitSurface(tmp_surface, NULL, drv->s, NULL);
-	SDL_FreeSurface(tmp_surface);
-	update_sdl_video();
 
 	// reset the video refresh handler
 	VideoRefreshInit();
@@ -1499,7 +1510,7 @@ static void do_toggle_fullscreen(void)
 
 	// restore the mouse position
 	SDL_WarpMouseGlobal(x, y);
-
+	
 	// resume redraw thread
 	toggle_fullscreen = false;
 #ifndef USE_CPU_EMUL_SERVICES
@@ -1514,6 +1525,26 @@ static void do_toggle_fullscreen(void)
 /*
  *  Execute video VBL routine
  */
+	
+static bool is_fullscreen(SDL_Window * window)
+{
+#ifdef __MACOSX__
+	// On OSX, SDL, at least as of 2.0.5 (and possibly beyond), does not always
+	// report changes to fullscreen via the SDL_WINDOW_FULLSCREEN flag.
+	// (Example: https://bugzilla.libsdl.org/show_bug.cgi?id=3766 , which
+	// involves fullscreen/windowed toggles via window-manager UI controls).
+	// Until it does, or adds a facility to do so, we'll use a platform-specific
+	// code path to detect fullscreen changes.
+	extern bool is_fullscreen_osx(SDL_Window * window);
+	return is_fullscreen_osx(sdl_window);
+#else
+	if (!window) {
+		return false;
+	}
+	const Uint32 sdl_window_flags = SDL_GetWindowFlags(sdl_window);
+	return (sdl_window_flags & SDL_WINDOW_FULLSCREEN) != 0;
+#endif
+}
 
 #ifdef SHEEPSHAVER
 void VideoVBL(void)
@@ -1952,6 +1983,38 @@ static void force_complete_window_refresh()
  *  SDL event handling
  */
 
+static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
+{
+	switch (event->type) {
+		case SDL_WINDOWEVENT: {
+			switch (event->window.event) {
+				case SDL_WINDOWEVENT_RESIZED: {
+					// Handle changes of fullscreen.  This is done here, in
+					// on_sdl_event_generated() and not the main SDL_Event-processing
+					// loop, in order to perform this change on the main thread.
+					// (Some os'es UI APIs, such as OSX's NSWindow, are not
+					// thread-safe.)
+					const bool is_full = is_fullscreen(sdl_window);
+					const bool adjust_fullscreen = \
+						(display_type == DISPLAY_WINDOW && is_full) ||
+						(display_type == DISPLAY_SCREEN && !is_full);
+					if (adjust_fullscreen) {
+						do_toggle_fullscreen();
+						if (is_fullscreen(sdl_window)) {
+							SDL_SetRelativeMouseMode(SDL_TRUE);
+						} else {
+							SDL_SetRelativeMouseMode(SDL_FALSE);
+						}
+					}
+				} break;
+			}
+		} break;
+	}
+	
+	return 1;	// return 1 to add event to queue, 0 to drop it
+}
+
+
 static void handle_events(void)
 {
 	SDL_Event events[10];
@@ -1961,7 +2024,7 @@ static void handle_events(void)
 	while ((n_events = SDL_PeepEvents(events, n_max_events, SDL_GETEVENT, SDL_FIRSTEVENT, SDL_LASTEVENT)) > 0) {
 		for (int i = 0; i < n_events; i++) {
 			SDL_Event & event = events[i];
-
+			
 			switch (event.type) {
 
 			// Mouse button
@@ -2072,7 +2135,7 @@ static void handle_events(void)
 					case SDL_WINDOWEVENT_RESTORED:
 						force_complete_window_refresh();
 						break;
-						
+					
 				}
 				break;
 			}
