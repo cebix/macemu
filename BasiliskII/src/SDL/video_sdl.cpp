@@ -1555,6 +1555,8 @@ void VideoVBL(void)
 
 	if (toggle_fullscreen)
 		do_toggle_fullscreen();
+	
+	present_sdl_video();
 
 	// Temporarily give up frame buffer lock (this is the point where
 	// we are suspended when the user presses Ctrl-Tab)

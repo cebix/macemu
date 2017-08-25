@@ -729,7 +729,25 @@ int main(int argc, char **argv)
 #endif
 
 	// Parse command line arguments
+	
+#if defined(__APPLE__) && defined(__MACH__)
+	// Mac OS X likes to pass in various options of its own, when launching an app.
+	// Attempt to ignore these.
 	for (int i=1; i<argc; i++) {
+		const char * mac_psn_prefix = "-psn_";
+		if (strcmp(argv[i], "-NSDocumentRevisionsDebugMode") == 0) {
+			argv[i] = NULL;
+		} else if (strncmp(mac_psn_prefix, argv[i], strlen(mac_psn_prefix)) == 0) {
+			argv[i] = NULL;
+		}
+	}
+#endif
+	
+	for (int i=1; i<argc; i++) {
+		if (argv[i] == NULL) {
+			continue;
+		}
+		
 		if (strcmp(argv[i], "--help") == 0) {
 			usage(argv[0]);
 #ifndef USE_SDL_VIDEO
@@ -754,17 +772,6 @@ int main(int argc, char **argv)
 			}
 			break;
 		}
-
-#if defined(__APPLE__) && defined(__MACH__)
-		// Mac OS X likes to pass in various options of its own, when launching an app.
-		// Attempt to ignore these.
-		const char * mac_psn_prefix = "-psn_";
-		if (strcmp(argv[i], "-NSDocumentRevisionsDebugMode") == 0) {
-			argv[i] = NULL;
-		} else if (strncmp(mac_psn_prefix, argv[i], strlen(mac_psn_prefix)) == 0) {
-			argv[i] = NULL;
-		}
-#endif
 	}
 
 	// Remove processed arguments
