@@ -136,7 +136,7 @@ static SDL_Renderer * sdl_renderer = NULL;			// Handle to SDL2 renderer
 static SDL_threadID sdl_renderer_thread_id = 0;		// Thread ID where the SDL_renderer was created, and SDL_renderer ops should run (for compatibility w/ d3d9)
 static SDL_Texture * sdl_texture = NULL;			// Handle to a GPU texture, with which to draw guest_surface to
 static int screen_depth;							// Depth of current screen
-//static SDL_Cursor *sdl_cursor;						// Copy of Mac cursor
+static SDL_Cursor *sdl_cursor = NULL;				// Copy of Mac cursor
 static SDL_Palette *sdl_palette = NULL;				// Color palette to be used as CLUT and gamma table
 static bool sdl_palette_changed = false;			// Flag: Palette changed, redraw thread must set new colors
 static bool toggle_fullscreen = false;
@@ -1728,25 +1728,7 @@ bool video_can_change_cursor(void)
 	if (display_type != DISPLAY_WINDOW)
 		return false;
 
-#if defined(__APPLE__)
-	static char driver[] = "Quartz?";
-	static int quartzok = -1;
-
-	if (quartzok < 0) {
-		if (SDL_VideoDriverName(driver, sizeof driver) == NULL || strncmp(driver, "Quartz", sizeof driver))
-			quartzok = true;
-		else {
-			// Quartz driver bug prevents cursor changing in SDL 1.2.11 to 1.2.14.
-			const SDL_version *vp = SDL_Linked_Version();
-			int version = SDL_VERSIONNUM(vp->major, vp->minor, vp->patch);
-			quartzok = (version <= SDL_VERSIONNUM(1, 2, 10) || version >= SDL_VERSIONNUM(1, 2, 15));
-		}
-	}
-
-	return quartzok;
-#else
 	return true;
-#endif
 }
 #endif
 
@@ -1781,7 +1763,7 @@ void video_set_cursor(void)
 				if (visible) {
 					int x, y;
 					SDL_GetMouseState(&x, &y);
-					SDL_WarpMouse(x, y);
+					SDL_WarpMouseGlobal(x, y);
 				}
 			}
 		}
