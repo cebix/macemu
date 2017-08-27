@@ -45,8 +45,8 @@ static int audio_sample_size_index = 0;
 static int audio_channel_count_index = 0;
 
 // Global variables
-static SDL_AudioDeviceID audio_device = 0;
-static SDL_AudioSpec audio_spec_obtained;
+SDL_AudioDeviceID audio_device = 0;
+SDL_AudioSpec audio_spec_obtained;
 static SDL_sem *audio_irq_done_sem = NULL;			// Signal from interrupt to streaming thread: data block read
 static uint8 silence_byte;							// Byte value to use to fill sound buffers with silence
 static uint8 *audio_mix_buf = NULL;
