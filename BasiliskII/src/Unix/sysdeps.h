@@ -25,7 +25,7 @@
 #error "Your compiler is not ANSI. Get a real one."
 #endif
 
-#include "config.h"
+#include <config.h>
 #include "user_strings_unix.h"
 
 #ifndef STDC_HEADERS
