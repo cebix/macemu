@@ -45,6 +45,8 @@ static int audio_sample_size_index = 0;
 static int audio_channel_count_index = 0;
 
 // Global variables
+static SDL_AudioDeviceID audio_device = 0;
+static SDL_AudioSpec audio_spec_obtained;
 static SDL_sem *audio_irq_done_sem = NULL;			// Signal from interrupt to streaming thread: data block read
 static uint8 silence_byte;							// Byte value to use to fill sound buffers with silence
 static uint8 *audio_mix_buf = NULL;
@@ -86,40 +88,36 @@ static bool open_sdl_audio(void)
 		audio_channel_count_index = audio_channel_counts.size() - 1;
 	}
 
-	SDL_AudioSpec audio_spec;
-	SDL_zero(audio_spec);
-	audio_spec.freq = audio_sample_rates[audio_sample_rate_index] >> 16;
-	audio_spec.format = (audio_sample_sizes[audio_sample_size_index] == 8) ? AUDIO_U8 : AUDIO_S16MSB;
-	audio_spec.channels = audio_channel_counts[audio_channel_count_index];
-	audio_spec.samples = 4096;
-	audio_spec.callback = stream_func;
-	audio_spec.userdata = NULL;
+	SDL_AudioSpec audio_spec_desired;
+	SDL_zero(audio_spec_desired);
+	audio_spec_desired.freq = audio_sample_rates[audio_sample_rate_index] >> 16;
+	audio_spec_desired.format = (audio_sample_sizes[audio_sample_size_index] == 8) ? AUDIO_U8 : AUDIO_S16MSB;
+	audio_spec_desired.channels = audio_channel_counts[audio_channel_count_index];
+	audio_spec_desired.samples = 4096;
+	audio_spec_desired.callback = stream_func;
+	audio_spec_desired.userdata = NULL;
 
 	// Open the audio device, forcing the desired format
-	if (SDL_OpenAudio(&audio_spec, NULL) < 0) {
+	SDL_zero(audio_spec_obtained);
+	audio_device = SDL_OpenAudioDevice(NULL, 0, &audio_spec_desired, &audio_spec_obtained, 0);
+	if (!audio_device) {
 		fprintf(stderr, "WARNING: Cannot open audio: %s\n", SDL_GetError());
 		return false;
 	}
-	
-	// HACK: workaround a possible bug in SDL 2.0.5 (reported via https://bugzilla.libsdl.org/show_bug.cgi?id=3710 )
-	// whereby SDL does not update audio_spec.size
-	if (audio_spec.size == 0) {
-		audio_spec.size = (SDL_AUDIO_BITSIZE(audio_spec.format) / 8) * audio_spec.channels * audio_spec.samples;
-	}
 
 #if defined(BINCUE)
-	OpenAudio_bincue(audio_spec.freq, audio_spec.format, audio_spec.channels,
-	audio_spec.silence);
+	OpenAudio_bincue(audio_spec_obtained.freq, audio_spec_obtained.format, audio_spec_obtained.channels,
+	audio_spec_obtained.silence);
 #endif
 
 	const char * driver_name = SDL_GetCurrentAudioDriver();
 	printf("Using SDL/%s audio output\n", driver_name ? driver_name : "");
-	silence_byte = audio_spec.silence;
-	SDL_PauseAudio(0);
+	silence_byte = audio_spec_obtained.silence;
+	SDL_PauseAudioDevice(audio_device, 0);
 
 	// Sound buffer size = 4096 frames
-	audio_frames_per_block = audio_spec.samples;
-	audio_mix_buf = (uint8*)malloc(audio_spec.size);
+	audio_frames_per_block = audio_spec_obtained.samples;
+	audio_mix_buf = (uint8*)malloc(audio_spec_obtained.size);
 	return true;
 }
 
@@ -168,7 +166,10 @@ void AudioInit(void)
 static void close_audio(void)
 {
 	// Close audio device
-	SDL_CloseAudio();
+	if (audio_device) {
+		SDL_CloseAudioDevice(audio_device);
+		audio_device = 0;
+	}
 	free(audio_mix_buf);
 	audio_mix_buf = NULL;
 	audio_open = false;
@@ -231,7 +232,7 @@ static void stream_func(void *arg, uint8 *stream, int stream_len)
 			// Send data to audio device
 			Mac2Host_memcpy(audio_mix_buf, ReadMacInt32(apple_stream_info + scd_buffer), work_size);
 			memset((uint8 *)stream, silence_byte, stream_len);
-			SDL_MixAudio(stream, audio_mix_buf, work_size, audio_volume);
+			SDL_MixAudioFormat(stream, audio_mix_buf, audio_spec_obtained.format, work_size, audio_volume);
 
 			D(bug("stream: data written\n"));
 
