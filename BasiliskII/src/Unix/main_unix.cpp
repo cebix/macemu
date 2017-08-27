@@ -291,7 +291,7 @@ static void sigsegv_dump_state(sigsegv_info_t *sip)
 #endif
 	VideoQuitFullScreen();
 #ifdef ENABLE_MON
-	const char *arg[4] = {"mon", "-m", "-r", NULL};
+	char *arg[4] = {"mon", "-m", "-r", NULL};
 	mon(3, arg);
 #endif
 	QuitEmulator();
@@ -948,7 +948,7 @@ static void sigint_handler(...)
 	m68k_dumpstate(&nextpc);
 #endif
 	VideoQuitFullScreen();
-	const char *arg[4] = {"mon", "-m", "-r", NULL};
+	char *arg[4] = {"mon", "-m", "-r", NULL};
 	mon(3, arg);
 	QuitEmulator();
 }
