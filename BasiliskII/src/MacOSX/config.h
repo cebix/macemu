@@ -1,6 +1,13 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+#if ! USE_XCODE
+// HACK, dludwig@pobox.com: Unless we are building with Xcode, use the
+// config.h file that Autotools generates.  This is located in
+// BasiliskII/src/Unix/
+#include "../Unix/config.h"
+#else
+
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
@@ -811,3 +818,4 @@
 #define FPU_UAE 1
 //#define FPU_IMPLEMENTATION 1
 
+#endif
