@@ -160,7 +160,7 @@ AC_DEFUN([AC_CHECK_SDLFRAMEWORK], [
       fi
     fi
     saved_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CPPFLAGS -I$SDL_FRAMEWORK/SDL.framework/Headers"
+    CPPFLAGS="$CPPFLAGS -I$SDL_FRAMEWORK/SDL2.framework/Headers"
     AC_TRY_LINK(
       [$2
 #undef main], [],
@@ -189,22 +189,22 @@ if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
 fi
 if [[ "x$WANT_SDL" = "xyes" ]]; then
   if [[ "x$WANT_SDL_FRAMEWORK" = "xyes" ]]; then
-    AC_CHECK_SDLFRAMEWORK(SDL, [#include <SDL.h>])
+    AC_CHECK_SDLFRAMEWORK(SDL2, [#include <SDL.h>])
   else
     ac_cv_framework_SDL=no
   fi
   if [[ "x$ac_cv_framework_SDL" = "xno" ]]; then
-    AC_PATH_PROG(sdl_config, "sdl-config")
-    if [[ -n "$sdl_config" ]]; then
-      sdl_cflags=`$sdl_config --cflags`
+    AC_PATH_PROG(sdl2_config, "sdl2-config")
+    if [[ -n "$sdl2_config" ]]; then
+      sdl2_cflags=`$sdl2_config --cflags`
       if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
-        sdl_libs=`$sdl_config --static-libs`
+        sdl2_libs=`$sdl2_config --static-libs`
       else
-        sdl_libs=`$sdl_config --libs`
+        sdl2_libs=`$sdl2_config --libs`
       fi
-      CFLAGS="$CFLAGS $sdl_cflags"
-      CXXFLAGS="$CXXFLAGS $sdl_cflags"
-      LIBS="$LIBS $sdl_libs"
+      CFLAGS="$CFLAGS $sdl2_cflags"
+      CXXFLAGS="$CXXFLAGS $sdl2_cflags"
+      LIBS="$LIBS $sdl2_libs"
     else
       WANT_SDL=no
       WANT_SDL_VIDEO=no
@@ -702,9 +702,6 @@ AC_SUBST(SLIRP_SRCS)
 dnl SDL overrides
 if [[ "x$WANT_SDL" = "xyes" ]]; then
   AC_DEFINE(USE_SDL, 1, [Define to enble SDL support.])
-  if [[ "x$WANT_SDL_FRAMEWORK" = "xyes" ]]; then
-    EXTRASYSSRCS="$EXTRASYSSRCS ../SDL/SDLMain.m"
-  fi
 fi
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support.])
