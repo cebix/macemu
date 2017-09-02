@@ -99,13 +99,13 @@
 		7539E2911F23C56F006B2DF2 /* prefs_editor_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2881F23C56F006B2DF2 /* prefs_editor_dummy.cpp */; };
 		7539E2921F23C56F006B2DF2 /* scsi_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2891F23C56F006B2DF2 /* scsi_dummy.cpp */; };
 		7539E2931F23C56F006B2DF2 /* serial_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E28A1F23C56F006B2DF2 /* serial_dummy.cpp */; };
-		7539E2941F23C56F006B2DF2 /* user_strings_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E28B1F23C56F006B2DF2 /* user_strings_dummy.cpp */; };
 		7539E2971F23C5FD006B2DF2 /* newcpu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2961F23C5FD006B2DF2 /* newcpu.cpp */; };
 		7539E29D1F23C83F006B2DF2 /* sys_darwin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E29C1F23C83F006B2DF2 /* sys_darwin.cpp */; };
 		7539E29F1F23C939006B2DF2 /* fpu_uae.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E29E1F23C939006B2DF2 /* fpu_uae.cpp */; };
 		7539E2AB1F23CDB7006B2DF2 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 7539E2AA1F23CDB7006B2DF2 /* Info.plist */; };
 		756C1B341F252FC100620917 /* utils_macosx.mm in Sources */ = {isa = PBXBuildFile; fileRef = 756C1B331F252FC100620917 /* utils_macosx.mm */; };
 		756C1B391F25306A00620917 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 756C1B381F25306A00620917 /* AppKit.framework */; };
+		757A2BF01F5AF9D6003EDB01 /* user_strings_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 757A2BEF1F5AF9D6003EDB01 /* user_strings_unix.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -368,7 +368,6 @@
 		7539E2881F23C56F006B2DF2 /* prefs_editor_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = prefs_editor_dummy.cpp; sourceTree = "<group>"; };
 		7539E2891F23C56F006B2DF2 /* scsi_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = scsi_dummy.cpp; sourceTree = "<group>"; };
 		7539E28A1F23C56F006B2DF2 /* serial_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = serial_dummy.cpp; sourceTree = "<group>"; };
-		7539E28B1F23C56F006B2DF2 /* user_strings_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = user_strings_dummy.cpp; sourceTree = "<group>"; };
 		7539E2961F23C5FD006B2DF2 /* newcpu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = newcpu.cpp; sourceTree = "<group>"; };
 		7539E29C1F23C83F006B2DF2 /* sys_darwin.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = sys_darwin.cpp; sourceTree = "<group>"; };
 		7539E29E1F23C939006B2DF2 /* fpu_uae.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fpu_uae.cpp; sourceTree = "<group>"; };
@@ -376,6 +375,7 @@
 		756C1B321F252FC100620917 /* utils_macosx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = utils_macosx.h; sourceTree = "<group>"; };
 		756C1B331F252FC100620917 /* utils_macosx.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = utils_macosx.mm; sourceTree = "<group>"; };
 		756C1B381F25306A00620917 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		757A2BEF1F5AF9D6003EDB01 /* user_strings_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = user_strings_unix.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -713,6 +713,7 @@
 				7539E2311F23B32A006B2DF2 /* tinyxml2.cpp */,
 				7539E2321F23B32A006B2DF2 /* tinyxml2.h */,
 				7539E2331F23B32A006B2DF2 /* tunconfig */,
+				757A2BEF1F5AF9D6003EDB01 /* user_strings_unix.cpp */,
 				7539E2351F23B32A006B2DF2 /* user_strings_unix.h */,
 			);
 			name = Unix;
@@ -760,7 +761,6 @@
 				7539E2881F23C56F006B2DF2 /* prefs_editor_dummy.cpp */,
 				7539E2891F23C56F006B2DF2 /* scsi_dummy.cpp */,
 				7539E28A1F23C56F006B2DF2 /* serial_dummy.cpp */,
-				7539E28B1F23C56F006B2DF2 /* user_strings_dummy.cpp */,
 			);
 			name = dummy;
 			path = ../dummy;
@@ -1070,11 +1070,11 @@
 				7539E12D1F23B25A006B2DF2 /* ether.cpp in Sources */,
 				7539E26C1F23B32A006B2DF2 /* sshpty.c in Sources */,
 				7539E1781F23B25A006B2DF2 /* serial.cpp in Sources */,
+				757A2BF01F5AF9D6003EDB01 /* user_strings_unix.cpp in Sources */,
 				7539E1991F23B25A006B2DF2 /* flags.cpp in Sources */,
 				7539E2921F23C56F006B2DF2 /* scsi_dummy.cpp in Sources */,
 				7539E16F1F23B25A006B2DF2 /* prefs_items.cpp in Sources */,
 				7539E18E1F23B25A006B2DF2 /* sony.cpp in Sources */,
-				7539E2941F23C56F006B2DF2 /* user_strings_dummy.cpp in Sources */,
 				7539E26F1F23B32A006B2DF2 /* timer_unix.cpp in Sources */,
 				7539E12E1F23B25A006B2DF2 /* extfs.cpp in Sources */,
 				7539E23F1F23B32A006B2DF2 /* bincue_unix.cpp in Sources */,

@@ -1053,11 +1053,11 @@ void driver_base::restore_mouse_accel(void)
 // Toggle mouse grab
 void driver_base::toggle_mouse_grab(void)
 {
-		if (mouse_grabbed)
-			ungrab_mouse();
-		else
-			grab_mouse();
-	}
+	if (mouse_grabbed)
+		ungrab_mouse();
+	else
+		grab_mouse();
+}
 
 // Grab mouse, switch to relative mouse mode
 void driver_base::grab_mouse(void)
@@ -1905,7 +1905,7 @@ static int kc_decode(SDL_Keysym const & ks, bool key_down)
 	case SDLK_F2: return 0x78;
 	case SDLK_F3: return 0x63;
 	case SDLK_F4: return 0x76;
-	case SDLK_F5: if (is_ctrl_down(ks)) {if (!key_down) drv->toggle_mouse_grab(); return -2;} else return 0x60;
+	case SDLK_F5: return 0x60;
 	case SDLK_F6: return 0x61;
 	case SDLK_F7: return 0x62;
 	case SDLK_F8: return 0x64;
@@ -1967,9 +1967,33 @@ static void force_complete_window_refresh()
  *  SDL event handling
  */
 
+// possible return codes for SDL-registered event watches
+enum : int {
+	EVENT_DROP_FROM_QUEUE = 0,
+	EVENT_ADD_TO_QUEUE    = 1
+};
+	
+// Some events need to be processed in the host-app's main thread, due to
+// host-OS requirements.
+//
+// This function is called by SDL, whenever it generates an SDL_Event.  It has
+// the ability to process events, and optionally, to prevent them from being
+// added to SDL's event queue (and retrieve-able via SDL_PeepEvents(), etc.)
 static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
 {
 	switch (event->type) {
+		case SDL_KEYUP: {
+			SDL_Keysym const & ks = event->key.keysym;
+			switch (ks.sym) {
+				case SDLK_F5: {
+					if (is_ctrl_down(ks)) {
+						drv->toggle_mouse_grab();
+						return EVENT_DROP_FROM_QUEUE;
+					}
+				} break;
+			}
+		} break;
+			
 		case SDL_WINDOWEVENT: {
 			switch (event->window.event) {
 				case SDL_WINDOWEVENT_RESIZED: {
@@ -2000,7 +2024,7 @@ static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
 		} break;
 	}
 	
-	return 1;	// return 1 to add event to queue, 0 to drop it
+	return EVENT_ADD_TO_QUEUE;
 }
 
 
