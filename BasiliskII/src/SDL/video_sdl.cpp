@@ -169,6 +169,7 @@ static int redraw_func(void *arg);
 static int update_sdl_video();
 static int present_sdl_video();
 static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event);
+static bool is_fullscreen(SDL_Window *);
 
 // From sys_unix.cpp
 extern void SysMountFirstFloppy(void);
@@ -1059,14 +1060,24 @@ void driver_base::toggle_mouse_grab(void)
 		grab_mouse();
 }
 
+static void update_mouse_grab()
+{
+	if (mouse_grabbed || is_fullscreen(sdl_window)) {
+		SDL_SetRelativeMouseMode(SDL_TRUE);
+	} else {
+		SDL_SetRelativeMouseMode(SDL_FALSE);
+	}
+}
+
 // Grab mouse, switch to relative mouse mode
 void driver_base::grab_mouse(void)
 {
 	if (!mouse_grabbed) {
-		set_grab_mode(true);
+		mouse_grabbed = true;
+		update_mouse_grab();
 		set_window_name(STR_WINDOW_TITLE_GRABBED);
 		disable_mouse_accel();
-		ADBSetRelMouseMode(mouse_grabbed = true);
+		ADBSetRelMouseMode(true);
 	}
 }
 
@@ -1074,10 +1085,11 @@ void driver_base::grab_mouse(void)
 void driver_base::ungrab_mouse(void)
 {
 	if (mouse_grabbed) {
-		set_grab_mode(false);
+		mouse_grabbed = false;
+		update_mouse_grab();
 		set_window_name(STR_WINDOW_TITLE);
 		restore_mouse_accel();
-		ADBSetRelMouseMode(mouse_grabbed = false);
+		ADBSetRelMouseMode(false);
 	}
 }
 
@@ -1518,7 +1530,7 @@ static void do_toggle_fullscreen(void)
 /*
  *  Execute video VBL routine
  */
-	
+
 static bool is_fullscreen(SDL_Window * window)
 {
 #ifdef __MACOSX__
@@ -1758,6 +1770,7 @@ void video_set_cursor(void)
 				if (visible) {
 					int x, y;
 					SDL_GetMouseState(&x, &y);
+					printf("WarpMouse to {%d,%d} via video_set_cursor\n", x, y);
 					SDL_WarpMouseGlobal(x, y);
 				}
 			}
@@ -2006,11 +2019,10 @@ static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
 						// fixes an issue on OSX hosts whereby a fullscreen window
 						// can, in some cases, be dragged around.
 						// ( https://github.com/DavidLudwig/macemu/issues/19 )
-						if (is_fullscreen(sdl_window)) {
-							SDL_SetRelativeMouseMode(SDL_TRUE);
-						} else {
-							SDL_SetRelativeMouseMode(SDL_FALSE);
-						}
+						//
+						// Calling update_mouse_grab() will lead to SDL_SetRelativeMouseMode()
+						// being called, as appropriate.
+						update_mouse_grab();
 					}
 				} break;
 			}
