@@ -43,11 +43,6 @@ extern int intlev(void);	// From baisilisk_glue.cpp
 B2_mutex *spcflags_lock = NULL;
 #endif
 
-#if ENABLE_MON
-#include "mon.h"
-#include "mon_disass.h"
-#endif
-
 bool quit_program = false;
 struct flag_struct regflags;
 

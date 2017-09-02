@@ -564,6 +564,23 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			r->a[0] = ReadMacInt32(0x2b6);
 			break;
 
+		case M68K_EMUL_OP_SUSPEND: {
+			printf("*** Suspend\n");
+			printf("d0 %08x d1 %08x d2 %08x d3 %08x\n"
+				   "d4 %08x d5 %08x d6 %08x d7 %08x\n"
+				   "a0 %08x a1 %08x a2 %08x a3 %08x\n"
+				   "a4 %08x a5 %08x a6 %08x a7 %08x\n"
+				   "sr %04x\n",
+				   r->d[0], r->d[1], r->d[2], r->d[3], r->d[4], r->d[5], r->d[6], r->d[7],
+				   r->a[0], r->a[1], r->a[2], r->a[3], r->a[4], r->a[5], r->a[6], r->a[7],
+				   r->sr);
+#ifdef ENABLE_MON
+			char *arg[4] = {"mon", "-m", "-r", NULL};
+			mon(3, arg);
+#endif
+			break;
+		}
+
 		default:
 			printf("FATAL: EMUL_OP called with bogus opcode %08x\n", opcode);
 			printf("d0 %08x d1 %08x d2 %08x d3 %08x\n"

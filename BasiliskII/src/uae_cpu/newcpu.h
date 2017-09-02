@@ -30,7 +30,13 @@
 #include "m68k.h"
 #include "readcpu.h"
 #include "spcflags.h"
- 
+
+#if ENABLE_MON
+#include "mon.h"
+#include "mon_disass.h"
+#endif
+
+
 extern int areg_byteinc[];
 extern int imm8_table[];
 
@@ -74,6 +80,7 @@ struct comptbl {
 #endif
 
 extern void REGPARAM2 op_illg (uae_u32) REGPARAM;
+extern void m68k_dumpstate(uaecptr *nextpc);
 
 typedef char flagtype;
 
@@ -147,8 +154,6 @@ static __inline__ uae_u32 get_ilong_prefetch (uae_s32 o)
 }
 #endif
 
-#define m68k_incpc(o) (regs.pc_p += (o))
-
 static __inline__ void fill_prefetch_0 (void)
 {
 #if USE_PREFETCH_BUFFER
@@ -175,6 +180,52 @@ static __inline__ void fill_prefetch_2 (void)
 #define fill_prefetch_2 fill_prefetch_0
 #endif
 
+static __inline__ void m68k_setpc (uaecptr newpc)
+{
+#if ENABLE_MON
+	uae_u8 * previous_pc_p = regs.pc_p;
+#endif
+
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	regs.pc_p = get_real_address(newpc);
+#else
+	regs.pc_p = regs.pc_oldp = get_real_address(newpc);
+	regs.pc = newpc;
+#endif
+
+#if ENABLE_MON
+	if(isBreakPoint(newpc)) {
+		printf("Stopped at break point address: %08lx. Last PC: %08lx\n", newpc, get_virtual_address(previous_pc_p));
+		m68k_dumpstate(NULL);
+		char *arg[4] = {"mon", "-m", "-r", NULL};
+		mon(3, arg);
+	}
+#endif // end of #if ENABLE_MON
+}
+
+static __inline__ uaecptr m68k_getpc (void)
+{
+#if REAL_ADDRESSING || DIRECT_ADDRESSING
+	return get_virtual_address(regs.pc_p);
+#else
+	return regs.pc + ((char *)regs.pc_p - (char *)regs.pc_oldp);
+#endif
+}
+
+static __inline__ void m68k_incpc (uae_s32 delta)
+{
+	regs.pc_p += (delta);
+#if ENABLE_MON
+	uaecptr next_pc = m68k_getpc();
+	if(isBreakPoint(next_pc)) {
+		printf("Stopped at break point address: %08lx. Last PC: %08lx\n", next_pc, get_virtual_address(regs.pc_p - delta));
+		m68k_dumpstate(NULL);
+		char *arg[4] = {"mon", "-m", "-r", NULL};
+		mon(3, arg);
+	}
+#endif // end of #if ENABLE_MON
+}
+
 /* These are only used by the 68020/68881 code, and therefore don't
  * need to handle prefetch.  */
 static __inline__ uae_u32 next_ibyte (void)
@@ -196,25 +247,6 @@ static __inline__ uae_u32 next_ilong (void)
     uae_u32 r = get_ilong (0);
     m68k_incpc (4);
     return r;
-}
-
-static __inline__ void m68k_setpc (uaecptr newpc)
-{
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
-	regs.pc_p = get_real_address(newpc);
-#else
-    regs.pc_p = regs.pc_oldp = get_real_address(newpc);
-    regs.pc = newpc;
-#endif
-}
-
-static __inline__ uaecptr m68k_getpc (void)
-{
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
-	return get_virtual_address(regs.pc_p);
-#else
-    return regs.pc + ((char *)regs.pc_p - (char *)regs.pc_oldp);
-#endif
 }
 
 #define m68k_setpc_fast m68k_setpc

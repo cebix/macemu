@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <sstream>
 
 #include "mon.h"
 #include "mon_cmd.h"
@@ -31,6 +32,9 @@
 #define VERSION "3"
 #endif
 
+
+static const char* STR_ACTIVE_BREAK_POINTS 	= "Active Break Points:\n";
+static const char* STR_DISABLED_BREAK_POINTS	= "Disabled Break Points:\n";
 
 /*
  *  range_args = [expression] [[COMMA] expression] END
@@ -299,6 +303,288 @@ void binary_dump(void)
 	}
 
 	mon_dot_address = adr;
+}
+
+
+/*
+ * Add Break Point
+ */
+void break_point_add(void)
+{
+	uintptr address;
+
+	if (mon_token == T_END ||
+			!mon_expression(&address)) {
+		fprintf(monerr, "Expect break point in hexadecimal.\n");
+		return;
+	}
+
+	if (mon_token != T_END) {
+		mon_error("Too many arguments");
+		return;
+	}
+
+	BREAK_POINT_SET::iterator it;
+	// Save break point
+	if((it = disabled_break_points.find(address)) == disabled_break_points.end())
+		active_break_points.insert(address);
+	else {
+		disabled_break_points.erase(it);
+		active_break_points.insert(address);
+	}
+}
+
+
+/*
+ * Remove Break Point
+ */
+void break_point_remove(void)
+{
+	uintptr index;
+
+	if (mon_token == T_END ||
+			!mon_expression(&index)) {
+		fprintf(monerr, "Expect index number of break point in hexadecimal.\n");
+		return;
+	}
+
+	if (mon_token != T_END) {
+		mon_error("Too many arguments");
+		return;
+	}
+
+	if (index > active_break_points.size()) {
+		mon_error("Illegal Index Number!");
+		return;
+	}
+
+	BREAK_POINT_SET::iterator it;
+
+	if (0 == index) {
+		active_break_points.clear();
+		printf("Removed all break points!\n");
+		return;
+	}
+
+	int pos = 1;
+	for (it = active_break_points.begin(); it != active_break_points.end(); it++)
+		if (pos++ == index)
+			break;
+	// Remove break point
+	printf("Removed break point %4x at address %08lx\n", index, *it);
+	active_break_points.erase(it);
+}
+
+
+/*
+ * Disable Break Point
+ */
+void break_point_disable(void)
+{
+	uintptr index;
+
+	if (mon_token == T_END ||
+			!mon_expression(&index)) {
+		fprintf(monerr, "Expect index number of break point in hexadecimal.\n");
+		return;
+	}
+
+	if (mon_token != T_END) {
+		mon_error("Too many arguments");
+		return;
+	}
+
+	if (index > active_break_points.size()) {
+		mon_error("Illegal Index Number!");
+		return;
+	}
+
+	BREAK_POINT_SET::iterator it;
+
+	if (0 == index) {
+		for (it = active_break_points.begin(); it != active_break_points.end(); it++)
+			disabled_break_points.insert(*it);
+		active_break_points.clear();
+		printf("Disabled all break points!\n");
+		return;
+	}
+
+	int pos = 1;
+	for (it = active_break_points.begin(); it != active_break_points.end(); it++)
+		if (pos++ == index)
+			break;
+	// Add to disable break points
+	printf("Disabled break point %4x at address %08lx\n", index, *it);
+	disabled_break_points.insert(*it);
+	// Remove break point
+	active_break_points.erase(it);
+}
+
+
+/*
+ * Enable Break Point
+ */
+void break_point_enable(void)
+{
+	uintptr index;
+
+	if (mon_token == T_END ||
+			!mon_expression(&index)) {
+		fprintf(monerr, "Expect index number of break point in hexadecimal.\n");
+		return;
+	}
+
+	if (mon_token != T_END) {
+		mon_error("Too many arguments");
+		return;
+	}
+
+	if (index > disabled_break_points.size()) {
+		mon_error("Illegal Index Number!");
+		return;
+	}
+
+	BREAK_POINT_SET::iterator it;
+
+	if (0 == index) {
+		for (it = disabled_break_points.begin(); it != disabled_break_points.end(); it++)
+			active_break_points.insert(*it);
+		disabled_break_points.clear();
+		printf("Enabled all break points!\n");
+		return;
+	}
+
+	int pos = 1;
+	for (it = disabled_break_points.begin(); it != disabled_break_points.end(); it++)
+		if (pos++ == index)
+			break;
+	// Add to active break points
+	printf("Disabled break point %4x at address %08lx\n", index, *it);
+	active_break_points.insert(*it);
+	// Remove break point
+	disabled_break_points.erase(it);
+}
+
+
+/*
+ * List all Active Break Points
+ */
+void break_point_info(void)
+{
+	if (mon_token != T_END) {
+		mon_error("Too many arguments");
+		return;
+	}
+
+	BREAK_POINT_SET::iterator it;
+	int pos;
+
+	if (!active_break_points.empty()) {
+		pos = 1;
+		printf(STR_ACTIVE_BREAK_POINTS);
+		for (it = active_break_points.begin(); it != active_break_points.end(); it++)
+			printf("\tBreak point %4x at address %08lx\n", pos++, *it);
+	}
+
+	if (!disabled_break_points.empty()) {
+		putchar('\n');
+		printf(STR_DISABLED_BREAK_POINTS);
+		pos = 1;
+		for (it = disabled_break_points.begin(); it != disabled_break_points.end(); it++)
+			printf("\tBreak point %4x at address %08lx\n", pos++, *it);
+	}
+}
+
+
+/*
+ * Save all Active Break Points to a file
+ */
+void break_point_save(void)
+{
+	FILE *file;
+
+	if (mon_token == T_END) {
+		mon_error("Missing file name");
+		return;
+	}
+	if (mon_token != T_STRING) {
+		mon_error("'\"' around file name expected");
+		return;
+	}
+	mon_get_token();
+	if (mon_token != T_END) {
+		mon_error("Too many arguments");
+		return;
+	}
+
+	if (!(file = fopen(mon_string, "w")))
+		mon_error("Unable to create file");
+	else {
+		BREAK_POINT_SET::iterator it;
+
+		fprintf(file, STR_ACTIVE_BREAK_POINTS);
+		for (it = active_break_points.begin(); it != active_break_points.end(); it++)
+			fprintf(file, "%x\n", *it);
+
+		fprintf(file, STR_DISABLED_BREAK_POINTS);
+		for (it = disabled_break_points.begin(); it != disabled_break_points.end(); it++)
+				fprintf(file, "%x\n", *it);
+
+		fclose(file);
+	}
+}
+
+
+/*
+ * Load Break Point from a file
+ */
+void break_point_load(void)
+{
+	FILE *file;
+
+	if (mon_token == T_END) {
+		mon_error("Missing file name");
+		return;
+	}
+	if (mon_token != T_STRING) {
+		mon_error("'\"' around file name expected");
+		return;
+	}
+	mon_get_token();
+	if (mon_token != T_END) {
+		mon_error("Too many arguments");
+		return;
+	}
+
+	if (!(file = fopen(mon_string, "r")))
+		mon_error("Unable to create file");
+	else{
+		char line_buff[1024];
+		bool isDisabledBreakPoints = false;;
+
+		if(fgets(line_buff, sizeof(line_buff), file) == NULL ||
+				strcmp(line_buff, STR_ACTIVE_BREAK_POINTS) != 0) {
+			mon_error("Invalid break point file format!");
+			return;
+		}
+
+		while(fgets(line_buff, sizeof(line_buff), file) != NULL) {
+			if(strcmp(line_buff, STR_DISABLED_BREAK_POINTS) == 0) {
+				isDisabledBreakPoints = true;
+				continue;
+			}
+			uintptr address;
+			std::stringstream ss;
+			ss << std::hex << line_buff;
+			ss >> address;
+			if(isDisabledBreakPoints)
+				disabled_break_points.insert(address);
+			else
+				active_break_points.insert(address);
+		}
+
+		fclose(file);
+	}
 }
 
 
