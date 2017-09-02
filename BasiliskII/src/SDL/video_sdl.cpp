@@ -1478,10 +1478,6 @@ static void do_toggle_fullscreen(void)
 	while (!thread_stop_ack) ;
 #endif
 
-	// save the mouse position
-	int x, y;
-	SDL_GetMouseState(&x, &y);
-
 	// Apply fullscreen
 	if (sdl_window) {
 		if (display_type == DISPLAY_SCREEN) {
@@ -1507,9 +1503,6 @@ static void do_toggle_fullscreen(void)
 
 	// while SetVideoMode is happening, control key up may be missed
 	ADBKeyUp(0x36);
-
-	// restore the mouse position
-	SDL_WarpMouseGlobal(x, y);
 	
 	// resume redraw thread
 	toggle_fullscreen = false;
