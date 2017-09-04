@@ -51,7 +51,6 @@
 		7539E1731F23B25A006B2DF2 /* scsi.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E0701F23B25A006B2DF2 /* scsi.cpp */; };
 		7539E1741F23B25A006B2DF2 /* audio_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E0721F23B25A006B2DF2 /* audio_sdl.cpp */; };
 		7539E1751F23B25A006B2DF2 /* keycodes in Resources */ = {isa = PBXBuildFile; fileRef = 7539E0731F23B25A006B2DF2 /* keycodes */; };
-		7539E1771F23B25A006B2DF2 /* video_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E0761F23B25A006B2DF2 /* video_sdl.cpp */; };
 		7539E1781F23B25A006B2DF2 /* serial.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E0771F23B25A006B2DF2 /* serial.cpp */; };
 		7539E18D1F23B25A006B2DF2 /* slot_rom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E0A21F23B25A006B2DF2 /* slot_rom.cpp */; };
 		7539E18E1F23B25A006B2DF2 /* sony.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E0A31F23B25A006B2DF2 /* sony.cpp */; };
@@ -106,6 +105,7 @@
 		756C1B341F252FC100620917 /* utils_macosx.mm in Sources */ = {isa = PBXBuildFile; fileRef = 756C1B331F252FC100620917 /* utils_macosx.mm */; };
 		756C1B391F25306A00620917 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 756C1B381F25306A00620917 /* AppKit.framework */; };
 		757A2BF01F5AF9D6003EDB01 /* user_strings_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 757A2BEF1F5AF9D6003EDB01 /* user_strings_unix.cpp */; };
+		75CBCF751F5DB3AD00830063 /* video_sdl2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 75CBCF741F5DB3AD00830063 /* video_sdl2.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -288,7 +288,6 @@
 		7539E0701F23B25A006B2DF2 /* scsi.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = scsi.cpp; path = ../scsi.cpp; sourceTree = "<group>"; };
 		7539E0721F23B25A006B2DF2 /* audio_sdl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = audio_sdl.cpp; sourceTree = "<group>"; };
 		7539E0731F23B25A006B2DF2 /* keycodes */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = keycodes; sourceTree = "<group>"; };
-		7539E0761F23B25A006B2DF2 /* video_sdl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = video_sdl.cpp; sourceTree = "<group>"; };
 		7539E0771F23B25A006B2DF2 /* serial.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = serial.cpp; path = ../serial.cpp; sourceTree = "<group>"; };
 		7539E0A21F23B25A006B2DF2 /* slot_rom.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = slot_rom.cpp; path = ../slot_rom.cpp; sourceTree = "<group>"; };
 		7539E0A31F23B25A006B2DF2 /* sony.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = sony.cpp; path = ../sony.cpp; sourceTree = "<group>"; };
@@ -376,6 +375,7 @@
 		756C1B331F252FC100620917 /* utils_macosx.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = utils_macosx.mm; sourceTree = "<group>"; };
 		756C1B381F25306A00620917 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		757A2BEF1F5AF9D6003EDB01 /* user_strings_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = user_strings_unix.cpp; sourceTree = "<group>"; };
+		75CBCF741F5DB3AD00830063 /* video_sdl2.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = video_sdl2.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -584,7 +584,7 @@
 				752F27001F242BAF001032B4 /* prefs_sdl.cpp */,
 				7539E0721F23B25A006B2DF2 /* audio_sdl.cpp */,
 				7539E0731F23B25A006B2DF2 /* keycodes */,
-				7539E0761F23B25A006B2DF2 /* video_sdl.cpp */,
+				75CBCF741F5DB3AD00830063 /* video_sdl2.cpp */,
 			);
 			name = SDL;
 			path = ../SDL;
@@ -1038,7 +1038,6 @@
 				7539E1A01F23B25A006B2DF2 /* memory.cpp in Sources */,
 				753253351F53688D0024025B /* readcpu.cpp in Sources */,
 				7539E1741F23B25A006B2DF2 /* audio_sdl.cpp in Sources */,
-				7539E1771F23B25A006B2DF2 /* video_sdl.cpp in Sources */,
 				753252EE1F535DD10024025B /* defs68k.c in Sources */,
 				7539E29F1F23C939006B2DF2 /* fpu_uae.cpp in Sources */,
 				7539E1E21F23B25A006B2DF2 /* video.cpp in Sources */,
@@ -1056,6 +1055,7 @@
 				7539E1901F23B25A006B2DF2 /* basilisk_glue.cpp in Sources */,
 				7539E2801F23C4CA006B2DF2 /* main_unix.cpp in Sources */,
 				7539E1E11F23B25A006B2DF2 /* user_strings.cpp in Sources */,
+				75CBCF751F5DB3AD00830063 /* video_sdl2.cpp in Sources */,
 				752F27011F242BAF001032B4 /* prefs_sdl.cpp in Sources */,
 				7539E2971F23C5FD006B2DF2 /* newcpu.cpp in Sources */,
 				7539E12A1F23B25A006B2DF2 /* vm_alloc.cpp in Sources */,
