@@ -313,9 +313,8 @@ void break_point_add(void)
 {
 	uintptr address;
 
-	if (mon_token == T_END ||
-			!mon_expression(&address)) {
-		fprintf(monerr, "Expect break point in hexadecimal.\n");
+	if (mon_token == T_END || !mon_expression(&address)) {
+		mon_error("Expect break point in hexadecimal.");
 		return;
 	}
 
@@ -335,6 +334,27 @@ void break_point_add(void)
 }
 
 
+bool validate_index(uintptr *index_ptr, const BREAK_POINT_SET& break_point_set)
+{
+	if (mon_token == T_END || !mon_expression(index_ptr)) {
+		mon_error("Expect index number of break point in hexadecimal.\n");
+		return false;
+	}
+
+	if (mon_token != T_END) {
+		mon_error("Too many arguments");
+		return false;
+	}
+
+	if (*index_ptr > break_point_set.size()) {
+		mon_error("Illegal Index Number!");
+		return false;
+	}
+
+	return true;
+}
+
+
 /*
  * Remove Break Point
  */
@@ -342,23 +362,8 @@ void break_point_remove(void)
 {
 	uintptr index;
 
-	if (mon_token == T_END ||
-			!mon_expression(&index)) {
-		fprintf(monerr, "Expect index number of break point in hexadecimal.\n");
+	if (!validate_index(&index, active_break_points))
 		return;
-	}
-
-	if (mon_token != T_END) {
-		mon_error("Too many arguments");
-		return;
-	}
-
-	if (index > active_break_points.size()) {
-		mon_error("Illegal Index Number!");
-		return;
-	}
-
-	BREAK_POINT_SET::iterator it;
 
 	if (0 == index) {
 		active_break_points.clear();
@@ -366,10 +371,8 @@ void break_point_remove(void)
 		return;
 	}
 
-	int pos = 1;
-	for (it = active_break_points.begin(); it != active_break_points.end(); it++)
-		if (pos++ == index)
-			break;
+	BREAK_POINT_SET::iterator it = active_break_points.begin();
+	std::advance(it, index - 1);
 	// Remove break point
 	printf("Removed break point %4x at address %08lx\n", index, *it);
 	active_break_points.erase(it);
@@ -383,36 +386,19 @@ void break_point_disable(void)
 {
 	uintptr index;
 
-	if (mon_token == T_END ||
-			!mon_expression(&index)) {
-		fprintf(monerr, "Expect index number of break point in hexadecimal.\n");
+	if(!validate_index(&index, active_break_points))
 		return;
-	}
-
-	if (mon_token != T_END) {
-		mon_error("Too many arguments");
-		return;
-	}
-
-	if (index > active_break_points.size()) {
-		mon_error("Illegal Index Number!");
-		return;
-	}
-
-	BREAK_POINT_SET::iterator it;
 
 	if (0 == index) {
-		for (it = active_break_points.begin(); it != active_break_points.end(); it++)
+		for (BREAK_POINT_SET::iterator it = active_break_points.begin(); it != active_break_points.end(); it++)
 			disabled_break_points.insert(*it);
 		active_break_points.clear();
 		printf("Disabled all break points!\n");
 		return;
 	}
 
-	int pos = 1;
-	for (it = active_break_points.begin(); it != active_break_points.end(); it++)
-		if (pos++ == index)
-			break;
+	BREAK_POINT_SET::iterator it = active_break_points.begin();
+	std::advance(it, index - 1);
 	// Add to disable break points
 	printf("Disabled break point %4x at address %08lx\n", index, *it);
 	disabled_break_points.insert(*it);
@@ -428,36 +414,19 @@ void break_point_enable(void)
 {
 	uintptr index;
 
-	if (mon_token == T_END ||
-			!mon_expression(&index)) {
-		fprintf(monerr, "Expect index number of break point in hexadecimal.\n");
+	if(!validate_index(&index, disabled_break_points))
 		return;
-	}
-
-	if (mon_token != T_END) {
-		mon_error("Too many arguments");
-		return;
-	}
-
-	if (index > disabled_break_points.size()) {
-		mon_error("Illegal Index Number!");
-		return;
-	}
-
-	BREAK_POINT_SET::iterator it;
 
 	if (0 == index) {
-		for (it = disabled_break_points.begin(); it != disabled_break_points.end(); it++)
+		for (BREAK_POINT_SET::iterator it = disabled_break_points.begin(); it != disabled_break_points.end(); it++)
 			active_break_points.insert(*it);
 		disabled_break_points.clear();
 		printf("Enabled all break points!\n");
 		return;
 	}
 
-	int pos = 1;
-	for (it = disabled_break_points.begin(); it != disabled_break_points.end(); it++)
-		if (pos++ == index)
-			break;
+	BREAK_POINT_SET::iterator it = disabled_break_points.begin();
+	std::advance(it, index - 1);
 	// Add to active break points
 	printf("Disabled break point %4x at address %08lx\n", index, *it);
 	active_break_points.insert(*it);
@@ -477,10 +446,9 @@ void break_point_info(void)
 	}
 
 	BREAK_POINT_SET::iterator it;
-	int pos;
 
 	if (!active_break_points.empty()) {
-		pos = 1;
+		int pos = 1;
 		printf(STR_ACTIVE_BREAK_POINTS);
 		for (it = active_break_points.begin(); it != active_break_points.end(); it++)
 			printf("\tBreak point %4x at address %08lx\n", pos++, *it);
@@ -489,7 +457,7 @@ void break_point_info(void)
 	if (!disabled_break_points.empty()) {
 		putchar('\n');
 		printf(STR_DISABLED_BREAK_POINTS);
-		pos = 1;
+		int pos = 1;
 		for (it = disabled_break_points.begin(); it != disabled_break_points.end(); it++)
 			printf("\tBreak point %4x at address %08lx\n", pos++, *it);
 	}
@@ -560,7 +528,7 @@ void break_point_load(void)
 		mon_error("Unable to create file");
 	else{
 		char line_buff[1024];
-		bool isDisabledBreakPoints = false;;
+		bool is_disabled_break_points = false;;
 
 		if(fgets(line_buff, sizeof(line_buff), file) == NULL ||
 				strcmp(line_buff, STR_ACTIVE_BREAK_POINTS) != 0) {
@@ -570,14 +538,14 @@ void break_point_load(void)
 
 		while(fgets(line_buff, sizeof(line_buff), file) != NULL) {
 			if(strcmp(line_buff, STR_DISABLED_BREAK_POINTS) == 0) {
-				isDisabledBreakPoints = true;
+				is_disabled_break_points = true;
 				continue;
 			}
 			uintptr address;
 			std::stringstream ss;
 			ss << std::hex << line_buff;
 			ss >> address;
-			if(isDisabledBreakPoints)
+			if(is_disabled_break_points)
 				disabled_break_points.insert(address);
 			else
 				active_break_points.insert(address);

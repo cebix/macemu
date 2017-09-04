@@ -103,6 +103,6 @@ extern uint32 mon_read_word(uintptr adr);
 extern void mon_write_word(uintptr adr, uint32 l);
 
 // Check if break point is set
-#define isBreakPoint(address) (active_break_points.find(address) != active_break_points.end())
+#define IS_BREAK_POINT(address) (active_break_points.find(address) != active_break_points.end())
 
 #endif
