@@ -56,3 +56,8 @@ bool is_fullscreen_osx(SDL_Window * window)
 	const NSWindowStyleMask styleMask = [wmInfo.info.cocoa.window styleMask];
 	return (styleMask & NSWindowStyleMaskFullScreen) != 0;
 }
+
+void set_menu_bar_visible_osx(bool visible)
+{
+	[NSMenu setMenuBarVisible:(visible ? YES : NO)];
+}

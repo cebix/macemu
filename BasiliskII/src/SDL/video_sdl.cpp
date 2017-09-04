@@ -1062,7 +1062,7 @@ void driver_base::toggle_mouse_grab(void)
 
 static void update_mouse_grab()
 {
-	if (mouse_grabbed || is_fullscreen(sdl_window)) {
+	if (mouse_grabbed) {
 		SDL_SetRelativeMouseMode(SDL_TRUE);
 	} else {
 		SDL_SetRelativeMouseMode(SDL_FALSE);
@@ -1978,7 +1978,7 @@ enum : int {
 	EVENT_DROP_FROM_QUEUE = 0,
 	EVENT_ADD_TO_QUEUE    = 1
 };
-	
+
 // Some events need to be processed in the host-app's main thread, due to
 // host-OS requirements.
 //
@@ -2014,15 +2014,17 @@ static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
 						(display_type == DISPLAY_SCREEN && !is_full);
 					if (adjust_fullscreen) {
 						do_toggle_fullscreen();
-
-						// Utilizing SDL2's 'relative mouse mode', when in fullscreen,
-						// fixes an issue on OSX hosts whereby a fullscreen window
-						// can, in some cases, be dragged around.
-						// ( https://github.com/DavidLudwig/macemu/issues/19 )
-						//
-						// Calling update_mouse_grab() will lead to SDL_SetRelativeMouseMode()
-						// being called, as appropriate.
-						update_mouse_grab();
+						
+#if __MACOSX__
+						// HACK-FIX: on OSX hosts, make sure that the OSX menu
+						// bar does not show up in fullscreen mode, when the
+						// cursor is near the top of the screen, lest the
+						// guest OS' menu bar be obscured.
+						if (is_full) {
+							extern void set_menu_bar_visible_osx(bool);
+							set_menu_bar_visible_osx(false);
+						}
+#endif
 					}
 				} break;
 			}
