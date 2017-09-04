@@ -42,6 +42,8 @@
 #include "sysdeps.h"
 
 #include <SDL.h>
+#if (SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0))
+
 #include <SDL_mutex.h>
 #include <SDL_thread.h>
 #include <errno.h>
@@ -2262,3 +2264,5 @@ void video_set_dirty_area(int x, int y, int w, int h)
 	// XXX handle dirty bounding boxes for non-VOSF modes
 }
 #endif
+
+#endif	// ends: SDL version check
