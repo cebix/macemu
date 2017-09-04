@@ -203,7 +203,7 @@ static __inline__ void m68k_setpc (uaecptr newpc)
 #endif
 
 #if ENABLE_MON
-	if(IS_BREAK_POINT(newpc)) {
+	if (IS_BREAK_POINT(newpc)) {
 		printf("Stopped at break point address: %08lx. Last PC: %08lx\n", newpc, previous_pc);
 		m68k_dumpstate(NULL);
 		char *arg[4] = {"mon", "-m", "-r", NULL};
@@ -220,7 +220,7 @@ static __inline__ void m68k_incpc (uae_s32 delta)
 	regs.pc_p += (delta);
 #if ENABLE_MON
 	uaecptr next_pc = m68k_getpc();
-	if(IS_BREAK_POINT(next_pc)) {
+	if (IS_BREAK_POINT(next_pc)) {
 		printf("Stopped at break point address: %08lx. Last PC: %08lx\n", next_pc, previous_pc);
 		m68k_dumpstate(NULL);
 		char *arg[4] = {"mon", "-m", "-r", NULL};

@@ -1,5 +1,5 @@
 # What
-suspend.bin is a MacBinary file which should be upacked and run in M68k Macintosh only. It runs emul_op `0x7138` and trigger BasiliskII into cxmon so that you can add break points there.
+suspend.bin is a MacBinary file which should be unpacked and run in M68k Macintosh only. It runs emul_op `0x7138` and trigger BasiliskII into cxmon so that you can add break points there.
 
 # How
 1. You must build Basilisk II `--with-mon=YES` options.
