@@ -22,6 +22,7 @@
 #define MON_H
 
 #include <stdio.h>
+#include <set>
 
 
 /*
@@ -80,6 +81,10 @@ extern uint32 mon_mem_size;    // Size of mon buffer (if mon_use_real_mem = fals
 
 extern bool mon_macos_mode;    // Flag: enable features in the disassembler for working with MacOS code
 
+typedef std::set<uintptr> BREAK_POINT_SET;
+extern BREAK_POINT_SET active_break_points;
+extern BREAK_POINT_SET disabled_break_points;
+
 // Add command to mon
 extern void mon_add_command(const char *name, void (*func)(), const char *help_text);
 
@@ -96,5 +101,8 @@ extern uint32 mon_read_half(uintptr adr);
 extern void mon_write_half(uintptr adr, uint32 w);
 extern uint32 mon_read_word(uintptr adr);
 extern void mon_write_word(uintptr adr, uint32 l);
+
+// Check if break point is set
+#define IS_BREAK_POINT(address) (active_break_points.find(address) != active_break_points.end())
 
 #endif
