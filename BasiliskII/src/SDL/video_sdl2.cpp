@@ -1,5 +1,5 @@
 /*
- *  video_sdl.cpp - Video/graphics emulation, SDL specific stuff
+ *  video_sdl2.cpp - Video/graphics emulation, SDL 2.x specific stuff
  *
  *  Basilisk II (C) 1997-2008 Christian Bauer
  *
