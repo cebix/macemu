@@ -325,7 +325,7 @@ void break_point_add(void)
 
 	BREAK_POINT_SET::iterator it;
 	// Save break point
-	if((it = disabled_break_points.find(address)) == disabled_break_points.end())
+	if ((it = disabled_break_points.find(address)) == disabled_break_points.end())
 		active_break_points.insert(address);
 	else {
 		disabled_break_points.erase(it);
@@ -386,7 +386,7 @@ void break_point_disable(void)
 {
 	uintptr index;
 
-	if(!validate_index(&index, active_break_points))
+	if (!validate_index(&index, active_break_points))
 		return;
 
 	if (0 == index) {
@@ -414,7 +414,7 @@ void break_point_enable(void)
 {
 	uintptr index;
 
-	if(!validate_index(&index, disabled_break_points))
+	if (!validate_index(&index, disabled_break_points))
 		return;
 
 	if (0 == index) {
@@ -526,7 +526,7 @@ void break_point_load(void)
 
 	if (!(file = fopen(mon_string, "r")))
 		mon_error("Unable to create file");
-	else{
+	else {
 		char line_buff[1024];
 		bool is_disabled_break_points = false;;
 
