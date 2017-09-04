@@ -496,7 +496,7 @@ void break_point_save(void)
 
 	fprintf(file, STR_DISABLED_BREAK_POINTS);
 	for (it = disabled_break_points.begin(); it != disabled_break_points.end(); it++)
-			fprintf(file, "%x\n", *it);
+		fprintf(file, "%x\n", *it);
 
 	fclose(file);
 }
@@ -528,7 +528,7 @@ void break_point_load(void)
 	}
 
 	char line_buff[1024];
-	bool is_disabled_break_points = false;;
+	bool is_disabled_break_points = false;
 
 	if (fgets(line_buff, sizeof(line_buff), file) == NULL ||
 			strcmp(line_buff, STR_ACTIVE_BREAK_POINTS) != 0) {
