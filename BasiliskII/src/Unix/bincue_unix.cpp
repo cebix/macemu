@@ -49,8 +49,6 @@ static int bincue_core_audio_callback(void);
 #ifdef USE_SDL_AUDIO
 #include <SDL.h>
 #include <SDL_audio.h>
-extern SDL_AudioDeviceID audio_device;
-extern SDL_AudioSpec audio_spec_obtained;
 #endif
 
 #include "bincue_unix.h"
@@ -666,7 +664,7 @@ bool CDPlay_bincue(void *fh, uint8 start_m, uint8 start_s, uint8 start_f,
 		MSF msf;
 
 #ifdef USE_SDL_AUDIO
-		SDL_LockAudioDevice(audio_device);
+		SDL_LockAudio();
 #endif
 
 		player.audiostatus = CDROM_AUDIO_NO_STATUS;
@@ -711,7 +709,7 @@ bool CDPlay_bincue(void *fh, uint8 start_m, uint8 start_s, uint8 start_f,
 			D(bug("CDPlay_bincue: play beyond last track !\n"));
 
 #ifdef USE_SDL_AUDIO
-		SDL_UnlockAudioDevice(audio_device);
+		SDL_UnlockAudio();
 #endif
 
 		if (audio_enabled) {
@@ -806,7 +804,7 @@ void MixAudio_bincue(uint8 *stream, int stream_len)
 	if (audio_enabled && (player.audiostatus == CDROM_AUDIO_PLAY)) {
 		uint8 *buf = fill_buffer(stream_len);
 		if (buf)
-			SDL_MixAudioFormat(stream, buf, audio_spec_obtained.format, stream_len, SDL_MIX_MAXVOLUME);
+			SDL_MixAudio(stream, buf, stream_len, SDL_MIX_MAXVOLUME);
 	}
 }
 
