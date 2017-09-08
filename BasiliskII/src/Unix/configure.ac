@@ -300,13 +300,26 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
     ac_cv_framework_SDL=no
   fi
   if [[ "x$ac_cv_framework_SDL" = "xno" ]]; then
-   PKG_CHECK_MODULES([sdl2], [sdl2 >= 2.0], [
-     CFLAGS="$CFLAGS $sdl2_CFLAGS"
-     CXXFLAGS="$CXXFLAGS $sdl2_CFLAGS"
-     LIBS="$LIBS $sdl2_LIBS"
-   ], [
-     WANT_SDL=no
-   ])
+    WANT_SDL_VERSION_MAJOR=2
+    if [[ "x$WANT_SDL_VERSION_MAJOR" = "x2" ]]; then
+      PKG_CHECK_MODULES([sdl2], [sdl2 >= 2.0], [
+        CFLAGS="$CFLAGS $sdl2_CFLAGS"
+        CXXFLAGS="$CXXFLAGS $sdl2_CFLAGS"
+        LIBS="$LIBS $sdl2_LIBS"
+      ], [
+        WANT_SDL_VERSION_MAJOR=1
+      ])
+    fi
+    if [[ "x$WANT_SDL_VERSION_MAJOR" = "x1" ]]; then
+      PKG_CHECK_MODULES([sdl], [sdl >= 1.2], [
+        CFLAGS="$CFLAGS $sdl_CFLAGS"
+        CXXFLAGS="$CXXFLAGS $sdl_CFLAGS"
+        LIBS="$LIBS $sdl_LIBS"
+      ], [
+        WANT_SDL=no
+        WANT_SDL_VERSION_MAJOR=
+      ])
+    fi
   fi
   SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
 else

@@ -883,7 +883,7 @@ static int update_sdl_video()
 	return 0;
 }
 
-static int update_sdl_video(SDL_Surface *s, int x, int y, int w, int h)
+void update_sdl_video(SDL_Surface *s, Sint32 x, Sint32 y, Sint32 w, Sint32 h)
 {
 	// HACK, dludwig@pobox.com: for now, just update the whole screen, via
 	// VideoInterrupt(), which gets called on the main thread.
@@ -892,7 +892,17 @@ static int update_sdl_video(SDL_Surface *s, int x, int y, int w, int h)
 	// MacsBug is running (and VideoInterrupt() might not get called)
 	//
 	// TODO: cache rects to update, then use rects in present_sdl_video()
-	return 0;
+}
+
+void update_sdl_video(SDL_Surface *s, int numrects, SDL_Rect *rects)
+{
+	// HACK, dludwig@pobox.com: for now, just update the whole screen, via
+	// VideoInterrupt(), which gets called on the main thread.
+	//
+	// TODO: make sure SDL_Renderer resources get displayed, if and when
+	// MacsBug is running (and VideoInterrupt() might not get called)
+	//
+	// TODO: cache rects to update, then use rects in present_sdl_video()
 }
 
 void driver_base::set_video_mode(int flags)

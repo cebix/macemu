@@ -587,6 +587,16 @@ static void migrate_screen_prefs(void)
 #endif
 }
 
+void update_sdl_video(SDL_Surface *screen, Sint32 x, Sint32 y, Sint32 w, Sint32 h)
+{
+	SDL_UpdateRect(screen, x, y, w, h);
+}
+
+void update_sdl_video(SDL_Surface *screen, int numrects, SDL_Rect *rects)
+{
+	SDL_UpdateRects(screen, numrects, rects);
+}
+
 
 /*
  *  Display "driver" classes
