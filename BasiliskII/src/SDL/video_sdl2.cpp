@@ -754,12 +754,26 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 	}
 
 	if (!sdl_renderer) {
-		sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_ACCELERATED);
+		const char *render_driver = PrefsFindString("sdlrender");
+		if (render_driver) {
+			if (SDL_strcmp(render_driver, "auto") == 0) {
+				SDL_SetHint(SDL_HINT_RENDER_DRIVER, "");
+			} else {
+				SDL_SetHint(SDL_HINT_RENDER_DRIVER, render_driver);
+			}
+		}
+
+		sdl_renderer = SDL_CreateRenderer(sdl_window, -1, 0);
 		if (!sdl_renderer) {
 			shutdown_sdl_video();
 			return NULL;
 		}
 		sdl_renderer_thread_id = SDL_ThreadID();
+
+		SDL_RendererInfo info;
+		memset(&info, 0, sizeof(info));
+		SDL_GetRendererInfo(sdl_renderer, &info);
+		printf("Using SDL_Renderer driver: %s\n", (info.name ? info.name : "(null)"));
 	}
 
 	SDL_assert(sdl_texture == NULL);

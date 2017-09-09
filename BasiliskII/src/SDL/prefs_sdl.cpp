@@ -31,6 +31,7 @@
 // Platform-specific preferences items
 prefs_desc platform_prefs_items[] = {
 	{"idlewait", TYPE_BOOLEAN, false,      "sleep when idle"},
+	{"sdlrender", TYPE_STRING, false,      "SDL_Renderer driver (\"auto\", \"software\" (may be faster), etc.)"},
 	{NULL, TYPE_END, false}	// End of list
 };
 
