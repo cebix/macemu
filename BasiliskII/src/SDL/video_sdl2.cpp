@@ -1007,7 +1007,7 @@ void driver_base::adapt_to_video_mode() {
 	SDL_ShowCursor(hardware_cursor);
 
 	// Set window name/class
-	set_window_name(mouse_grabbed ? STR_WINDOW_TITLE_GRABBED : STR_WINDOW_TITLE);
+	set_window_name(mouse_grabbed ? (int)STR_WINDOW_TITLE_GRABBED : (int)STR_WINDOW_TITLE);
 
 	// Everything went well
 	init_ok = true;
@@ -2000,7 +2000,7 @@ static void force_complete_window_refresh()
  */
 
 // possible return codes for SDL-registered event watches
-enum : int {
+enum {
 	EVENT_DROP_FROM_QUEUE = 0,
 	EVENT_ADD_TO_QUEUE    = 1
 };
@@ -2230,7 +2230,7 @@ static void update_display_static(driver_base *drv)
 
 	// Check for first column from left and first column from right that have changed
 	if (high) {
-		if (VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
+		if ((int)VIDEO_MODE_DEPTH < (int)VIDEO_DEPTH_8BIT) {
 			const int src_bytes_per_row = bytes_per_row;
 			const int dst_bytes_per_row = drv->s->pitch;
 			const int pixels_per_byte = VIDEO_MODE_X / src_bytes_per_row;
