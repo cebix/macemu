@@ -251,7 +251,7 @@ AC_CHECK_LIB(rt, timer_create)
 AC_CHECK_LIB(rt, shm_open)
 AC_CHECK_LIB(m, cos)
 
-dnl AC_CHECK_SDLFRAMEWORK($1=NAME, $2=INCLUDES)
+dnl AC_CHECK_SDLFRAMEWORK($1=NAME, $2=INCLUDES, $3=ACTION_IF_SUCCESSFUL, $4=ACTION_IF_UNSUCCESSFUL)
 dnl AC_TRY_LINK uses main() but SDL needs main to take args,
 dnl therefore main is undefined with #undef.
 dnl Framework can be in an custom location.
@@ -261,18 +261,16 @@ AC_DEFUN([AC_CHECK_SDLFRAMEWORK], [
     ac_Framework, [
     saved_LIBS="$LIBS"
     LIBS="$LIBS -framework $1"
-    if [[ "x$SDL_FRAMEWORK" != "x/Library/Frameworks" ]]; then
-      if [[ "x$SDL_FRAMEWORK" != "x/System/Library/Frameworks" ]]; then
-        LIBS="$saved_LIBS -F$SDL_FRAMEWORK -framework $1"
-      fi
+    if [[ "x$SDL_FRAMEWORK" != "x/System/Library/Frameworks" ]]; then
+      LIBS="$saved_LIBS -F$SDL_FRAMEWORK -framework $1"
     fi
     saved_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CPPFLAGS -I$SDL_FRAMEWORK/SDL2.framework/Headers"
+    CPPFLAGS="$CPPFLAGS -I$SDL_FRAMEWORK/$1.framework/Headers"
     AC_TRY_LINK(
       [$2
 #undef main], [],
-      [AS_VAR_SET(ac_Framework, yes)], [AS_VAR_SET(ac_Framework, no);
-LIBS="$saved_LIBS"; CPPFLAGS="$saved_CPPFLAGS"]
+      [AS_VAR_SET(ac_Framework, yes); $3], [AS_VAR_SET(ac_Framework, no);
+LIBS="$saved_LIBS"; CPPFLAGS="$saved_CPPFLAGS"; $4]
     )
   ])
   AS_IF([test AS_VAR_GET(ac_Framework) = yes],
@@ -296,11 +294,32 @@ if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
 fi
 if [[ "x$WANT_SDL" = "xyes" ]]; then
   if [[ "x$WANT_SDL_FRAMEWORK" = "xyes" ]]; then
-    AC_CHECK_SDLFRAMEWORK(SDL2, [#include <SDL.h>])
+    TEMP_WANT_SDL_VERSION_MAJOR=$WANT_SDL_VERSION_MAJOR
+    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x" ]]; then
+      TEMP_WANT_SDL_VERSION_MAJOR=2
+    fi
+
+    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x2" ]]; then
+      AC_CHECK_SDLFRAMEWORK(SDL2, [#include <SDL.h>], [
+        WANT_SDL_VERSION_MAJOR=2
+      ], [
+        TEMP_WANT_SDL_VERSION_MAJOR=1
+      ])
+    fi
+    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x1" ]]; then
+      AC_CHECK_SDLFRAMEWORK(SDL, [#include <SDL.h>], [
+        WANT_SDL_VERSION_MAJOR=1
+      ])
+    fi
   else
     ac_cv_framework_SDL=no
   fi
   if [[ "x$ac_cv_framework_SDL" = "xno" ]]; then
+    TEMP_WANT_SDL_VERSION_MAJOR=$WANT_SDL_VERSION_MAJOR
+    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x" ]]; then
+      TEMP_WANT_SDL_VERSION_MAJOR=2
+    fi
+
     dnl use PKG_PROG_PKG_CONFIG to declare PKG_CONFIG variables.  Otherwise,
     dnl PKG_* macros may fail, without much explanation.  The lack of this
     dnl was causing --with-sdl1 to fail, as SDL 1.x could not be detected,
@@ -308,23 +327,22 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
     dnl never got defined (bizarrely-enough).  -- dludwig@pobox.com
     PKG_PROG_PKG_CONFIG
 
-    if [[ "x$WANT_SDL_VERSION_MAJOR" = "x" ]]; then
-      WANT_SDL_VERSION_MAJOR=2
-    fi
-    if [[ "x$WANT_SDL_VERSION_MAJOR" = "x2" ]]; then
+    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x2" ]]; then
       PKG_CHECK_MODULES([sdl2], [sdl2 >= 2.0], [
         CFLAGS="$CFLAGS $sdl2_CFLAGS"
         CXXFLAGS="$CXXFLAGS $sdl2_CFLAGS"
         LIBS="$LIBS $sdl2_LIBS"
+        WANT_SDL_VERSION_MAJOR=2
       ], [
-        WANT_SDL_VERSION_MAJOR=1
+        TEMP_WANT_SDL_VERSION_MAJOR=1
       ])
     fi
-    if [[ "x$WANT_SDL_VERSION_MAJOR" = "x1" ]]; then
+    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x1" ]]; then
       PKG_CHECK_MODULES([sdl], [sdl >= 1.2], [
         CFLAGS="$CFLAGS $sdl_CFLAGS"
         CXXFLAGS="$CXXFLAGS $sdl_CFLAGS"
         LIBS="$LIBS $sdl_LIBS"
+        WANT_SDL_VERSION_MAJOR=1
       ], [
         WANT_SDL=no
         WANT_SDL_VERSION_MAJOR=
