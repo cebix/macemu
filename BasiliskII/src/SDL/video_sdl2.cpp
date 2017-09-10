@@ -777,7 +777,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 	}
 
 	SDL_assert(sdl_texture == NULL);
-    sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, width, height);
+    sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
     if (!sdl_texture) {
         shutdown_sdl_video();
         return NULL;
