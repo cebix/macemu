@@ -298,7 +298,6 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
     if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x" ]]; then
       TEMP_WANT_SDL_VERSION_MAJOR=2
     fi
-
     if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x2" ]]; then
       AC_CHECK_SDLFRAMEWORK(SDL2, [#include <SDL.h>], [
         WANT_SDL_VERSION_MAJOR=2
