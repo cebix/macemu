@@ -72,6 +72,7 @@ AC_ARG_ENABLE(sdl-video,    [  --enable-sdl-video      use SDL for video graphic
 AC_ARG_ENABLE(sdl-audio,    [  --enable-sdl-audio      use SDL for audio [default=no]], [WANT_SDL_AUDIO=$enableval], [WANT_SDL_AUDIO=no])
 AC_ARG_ENABLE(sdl-framework,    [  --enable-sdl-framework  use SDL framework [default=no]], [WANT_SDL_FRAMEWORK=$enableval], [WANT_SDL_FRAMEWORK=no])
 AC_ARG_ENABLE(sdl-framework-prefix,    [  --enable-sdl-framework-prefix=PFX    default=/Library/Frameworks], [SDL_FRAMEWORK="$enableval"], [SDL_FRAMEWORK=/Library/Frameworks])
+AC_ARG_WITH(sdl1,            [  --with-sdl1             use SDL 1.x, rather than SDL 2.x [default=no]], [WANT_SDL_VERSION_MAJOR=1], [])
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -144,7 +145,7 @@ dnl Checks for libraries.
 AC_CHECK_LIB(posix4, sem_init)
 AC_CHECK_LIB(m, cos)
 
-dnl AC_CHECK_SDLFRAMEWORK($1=NAME, $2=INCLUDES)
+dnl AC_CHECK_SDLFRAMEWORK($1=NAME, $2=INCLUDES, $3=ACTION_IF_SUCCESSFUL, $4=ACTION_IF_UNSUCCESSFUL)
 dnl AC_TRY_LINK uses main() but SDL needs main to take args,
 dnl therefore main is undefined with #undef.
 dnl Framework can be in an custom location.
@@ -154,18 +155,16 @@ AC_DEFUN([AC_CHECK_SDLFRAMEWORK], [
     ac_Framework, [
     saved_LIBS="$LIBS"
     LIBS="$LIBS -framework $1"
-    if [[ "x$SDL_FRAMEWORK" != "x/Library/Frameworks" ]]; then
-      if [[ "x$SDL_FRAMEWORK" != "x/System/Library/Frameworks" ]]; then
-        LIBS="$saved_LIBS -F$SDL_FRAMEWORK -framework $1"
-      fi
+    if [[ "x$SDL_FRAMEWORK" != "x/System/Library/Frameworks" ]]; then
+      LIBS="$saved_LIBS -F$SDL_FRAMEWORK -framework $1"
     fi
     saved_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CPPFLAGS -I$SDL_FRAMEWORK/SDL2.framework/Headers"
+    CPPFLAGS="$CPPFLAGS -I$SDL_FRAMEWORK/$1.framework/Headers"
     AC_TRY_LINK(
       [$2
 #undef main], [],
-      [AS_VAR_SET(ac_Framework, yes)], [AS_VAR_SET(ac_Framework, no);
-LIBS="$saved_LIBS"; CPPFLAGS="$saved_CPPFLAGS"]
+      [AS_VAR_SET(ac_Framework, yes); $3], [AS_VAR_SET(ac_Framework, no);
+LIBS="$saved_LIBS"; CPPFLAGS="$saved_CPPFLAGS"; $4]
     )
   ])
   AS_IF([test AS_VAR_GET(ac_Framework) = yes],
@@ -189,26 +188,65 @@ if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
 fi
 if [[ "x$WANT_SDL" = "xyes" ]]; then
   if [[ "x$WANT_SDL_FRAMEWORK" = "xyes" ]]; then
-    AC_CHECK_SDLFRAMEWORK(SDL2, [#include <SDL.h>])
+    TEMP_WANT_SDL_VERSION_MAJOR=$WANT_SDL_VERSION_MAJOR
+    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x" ]]; then
+      TEMP_WANT_SDL_VERSION_MAJOR=2
+    fi
+    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x2" ]]; then
+      AC_CHECK_SDLFRAMEWORK(SDL2, [#include <SDL.h>], [
+        WANT_SDL_VERSION_MAJOR=2
+      ], [
+        TEMP_WANT_SDL_VERSION_MAJOR=1
+      ])
+    fi
+    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x1" ]]; then
+      AC_CHECK_SDLFRAMEWORK(SDL, [#include <SDL.h>], [
+        WANT_SDL_VERSION_MAJOR=1
+      ])
+    fi
   else
     ac_cv_framework_SDL=no
   fi
   if [[ "x$ac_cv_framework_SDL" = "xno" ]]; then
-    AC_PATH_PROG(sdl2_config, "sdl2-config")
-    if [[ -n "$sdl2_config" ]]; then
-      sdl2_cflags=`$sdl2_config --cflags`
-      if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
-        sdl2_libs=`$sdl2_config --static-libs`
+    TEMP_WANT_SDL_VERSION_MAJOR=$WANT_SDL_VERSION_MAJOR
+    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x" ]]; then
+      TEMP_WANT_SDL_VERSION_MAJOR=2
+    fi
+    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x2" ]]; then
+      AC_PATH_PROG(sdl2_config, "sdl2-config")
+      if [[ -n "$sdl2_config" ]]; then
+        sdl2_cflags=`$sdl2_config --cflags`
+        if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
+          sdl2_libs=`$sdl2_config --static-libs`
+        else
+          sdl2_libs=`$sdl2_config --libs`
+        fi
+        CFLAGS="$CFLAGS $sdl2_cflags"
+        CXXFLAGS="$CXXFLAGS $sdl2_cflags"
+        LIBS="$LIBS $sdl2_libs"
+        WANT_SDL_VERSION_MAJOR=2
       else
-        sdl2_libs=`$sdl2_config --libs`
+        TEMP_WANT_SDL_VERSION_MAJOR=1
       fi
-      CFLAGS="$CFLAGS $sdl2_cflags"
-      CXXFLAGS="$CXXFLAGS $sdl2_cflags"
-      LIBS="$LIBS $sdl2_libs"
-    else
-      WANT_SDL=no
-      WANT_SDL_VIDEO=no
-      WANT_SDL_AUDIO=no
+    fi
+    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x1" ]]; then
+      AC_PATH_PROG(sdl_config, "sdl-config")
+      if [[ -n "$sdl_config" ]]; then
+        sdl_cflags=`$sdl_config --cflags`
+        if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
+          sdl_libs=`$sdl_config --static-libs`
+        else
+          sdl_libs=`$sdl_config --libs`
+        fi
+        CFLAGS="$CFLAGS $sdl_cflags"
+        CXXFLAGS="$CXXFLAGS $sdl_cflags"
+        LIBS="$LIBS $sdl_libs"
+        WANT_SDL_VERSION_MAJOR=1
+      else
+        WANT_SDL=no
+        WANT_SDL_VIDEO=no
+        WANT_SDL_AUDIO=no
+      fi
     fi
   fi
   SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
@@ -1667,6 +1705,7 @@ echo
 echo SheepShaver configuration summary:
 echo
 echo SDL support ...................... : $SDL_SUPPORT
+echo SDL major-version ................ : $WANT_SDL_VERSION_MAJOR
 echo BINCUE support ................... : $have_bincue
 echo LIBVHD support ................... : $have_libvhd
 echo FBDev DGA support ................ : $WANT_FBDEV_DGA
