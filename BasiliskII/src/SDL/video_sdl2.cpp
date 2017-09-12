@@ -210,9 +210,6 @@ extern void SysMountFirstFloppy(void);
 
 static void *vm_acquire_framebuffer(uint32 size)
 {
-#if __MACOSX__
-	return calloc(1, size);
-#else
 	// always try to reallocate framebuffer at the same address
 	static void *fb = VM_MAP_FAILED;
 	if (fb != VM_MAP_FAILED) {
@@ -226,16 +223,11 @@ static void *vm_acquire_framebuffer(uint32 size)
 	if (fb == VM_MAP_FAILED)
 		fb = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 	return fb;
-#endif
 }
 
 static inline void vm_release_framebuffer(void *fb, uint32 size)
 {
-#if __MACOSX__
-	free(fb);
-#else
 	vm_release(fb, size);
-#endif
 }
 
 static inline int get_customized_color_depth(int default_depth)
@@ -696,7 +688,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
     if (guest_surface) {
         delete_sdl_video_surfaces();
     }
-	
+    
 	int window_width = width;
 	int window_height = height;
     Uint32 window_flags = 0;
@@ -961,7 +953,7 @@ void driver_base::init()
 		printf("VOSF acceleration is not profitable on this platform, disabling it\n");
 		use_vosf = false;
 	}
-	if (!use_vosf) {
+    if (!use_vosf) {
 		free(the_buffer_copy);
 		vm_release(the_buffer, the_buffer_size);
 		the_host_buffer = NULL;
