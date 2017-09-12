@@ -137,6 +137,8 @@ static SDL_Surface * guest_surface = NULL;			// Surface in guest-OS display form
 static SDL_Renderer * sdl_renderer = NULL;			// Handle to SDL2 renderer
 static SDL_threadID sdl_renderer_thread_id = 0;		// Thread ID where the SDL_renderer was created, and SDL_renderer ops should run (for compatibility w/ d3d9)
 static SDL_Texture * sdl_texture = NULL;			// Handle to a GPU texture, with which to draw guest_surface to
+static SDL_Rect sdl_update_video_rect = {0,0,0,0};  // Union of all rects to update, when updating sdl_texture
+static SDL_mutex * sdl_update_video_mutex = NULL;   // Mutex to protect sdl_update_video_rect
 static int screen_depth;							// Depth of current screen
 static SDL_Cursor *sdl_cursor = NULL;				// Copy of Mac cursor
 static SDL_Palette *sdl_palette = NULL;				// Color palette to be used as CLUT and gamma table
@@ -168,7 +170,6 @@ static void (*video_refresh)(void);
 
 // Prototypes
 static int redraw_func(void *arg);
-static int update_sdl_video();
 static int present_sdl_video();
 static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event);
 static bool is_fullscreen(SDL_Window *);
@@ -775,6 +776,10 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 		SDL_GetRendererInfo(sdl_renderer, &info);
 		printf("Using SDL_Renderer driver: %s\n", (info.name ? info.name : "(null)"));
 	}
+    
+    if (!sdl_update_video_mutex) {
+        sdl_update_video_mutex = SDL_CreateMutex();
+    }
 
 	SDL_assert(sdl_texture == NULL);
     sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
@@ -782,6 +787,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
         shutdown_sdl_video();
         return NULL;
     }
+    sdl_update_video_rect = {0,0,0,0};
 
 	SDL_assert(guest_surface == NULL);
 	SDL_assert(host_surface == NULL);
@@ -861,62 +867,65 @@ static int present_sdl_video()
 	SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 0);	// Use black
 	SDL_RenderClear(sdl_renderer);						// Clear the display
 	
-	if (host_surface != guest_surface &&
+    // We're about to work with sdl_update_video_rect, so stop other threads from
+    // modifying it!
+    SDL_LockMutex(sdl_update_video_mutex);
+
+    // Convert from the guest OS' pixel format, to the host OS' texture, if necessary.
+    if (host_surface != guest_surface &&
 		host_surface != NULL &&
 		guest_surface != NULL)
 	{
-		SDL_Rect destRect = {0, 0, host_surface->w, host_surface->h};
-		if (SDL_BlitSurface(guest_surface, NULL, host_surface, &destRect) != 0) {
+		SDL_Rect destRect = sdl_update_video_rect;
+		if (SDL_BlitSurface(guest_surface, &sdl_update_video_rect, host_surface, &destRect) != 0) {
+            SDL_UnlockMutex(sdl_update_video_mutex);
 			return -1;
 		}
 	}
-	
-	if (SDL_UpdateTexture(sdl_texture, NULL, host_surface->pixels, host_surface->pitch) != 0) {
+
+    // Update the host OS' texture
+    void * srcPixels = (void *)((uint8_t *)host_surface->pixels +
+        sdl_update_video_rect.y * host_surface->pitch +
+        sdl_update_video_rect.x * host_surface->format->BytesPerPixel);
+
+    if (SDL_UpdateTexture(sdl_texture, &sdl_update_video_rect, srcPixels, host_surface->pitch) != 0) {
+        SDL_UnlockMutex(sdl_update_video_mutex);
+		return -1;
+	}
+
+    // We are done working with pixels in host_surface.  Reset sdl_update_video_rect, then let
+    // other threads modify it, as-needed.
+    sdl_update_video_rect = {0,0,0,0};
+    SDL_UnlockMutex(sdl_update_video_mutex);
+
+    // Copy the texture to the display
+    if (SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL) != 0) {
 		return -1;
 	}
 	
-	SDL_Rect src_rect = {0, 0, host_surface->w, host_surface->h};
-	if (SDL_RenderCopy(sdl_renderer, sdl_texture, &src_rect, NULL) != 0) {
-		return -1;
-	}
-	
+    // Update the display
 	SDL_RenderPresent(sdl_renderer);
-	
-	return 0;
-}
-
-static int update_sdl_video()
-{
-	// HACK, dludwig@pobox.com: for now, just update the whole screen, via
-	// VideoInterrupt(), which gets called on the main thread.
-	//
-	// TODO: make sure SDL_Renderer resources get displayed, if and when
-	// MacsBug is running (and VideoInterrupt() might not get called)
-	//
-	// TODO: cache rects to update, then use rects in present_sdl_video()
-	return 0;
-}
-
-void update_sdl_video(SDL_Surface *s, Sint32 x, Sint32 y, Sint32 w, Sint32 h)
-{
-	// HACK, dludwig@pobox.com: for now, just update the whole screen, via
-	// VideoInterrupt(), which gets called on the main thread.
-	//
-	// TODO: make sure SDL_Renderer resources get displayed, if and when
-	// MacsBug is running (and VideoInterrupt() might not get called)
-	//
-	// TODO: cache rects to update, then use rects in present_sdl_video()
+    
+    // Indicate success to the caller!
+    return 0;
 }
 
 void update_sdl_video(SDL_Surface *s, int numrects, SDL_Rect *rects)
 {
-	// HACK, dludwig@pobox.com: for now, just update the whole screen, via
-	// VideoInterrupt(), which gets called on the main thread.
-	//
-	// TODO: make sure SDL_Renderer resources get displayed, if and when
-	// MacsBug is running (and VideoInterrupt() might not get called)
-	//
-	// TODO: cache rects to update, then use rects in present_sdl_video()
+    // TODO: make sure SDL_Renderer resources get displayed, if and when
+    // MacsBug is running (and VideoInterrupt() might not get called)
+    
+    SDL_LockMutex(sdl_update_video_mutex);
+    for (int i = 0; i < numrects; ++i) {
+        SDL_UnionRect(&sdl_update_video_rect, &rects[i], &sdl_update_video_rect);
+    }
+    SDL_UnlockMutex(sdl_update_video_mutex);
+}
+
+void update_sdl_video(SDL_Surface *s, Sint32 x, Sint32 y, Sint32 w, Sint32 h)
+{
+    SDL_Rect temp = {x, y, w, h};
+    update_sdl_video(s, 1, &temp);
 }
 
 void driver_base::set_video_mode(int flags)
@@ -2406,8 +2415,8 @@ static void update_display_static_bbox(driver_base *drv)
 
 	// Refresh display
 	if (nr_boxes)
-		update_sdl_video();
-	}
+		update_sdl_video(drv->s, nr_boxes, boxes);
+}
 
 
 // We suggest the compiler to inline the next two functions so that it
