@@ -779,7 +779,10 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
         shutdown_sdl_video();
         return NULL;
     }
-    sdl_update_video_rect = {0,0,0,0};
+    sdl_update_video_rect.x = 0;
+    sdl_update_video_rect.y = 0;
+    sdl_update_video_rect.w = 0;
+    sdl_update_video_rect.h = 0;
 
 	SDL_assert(guest_surface == NULL);
 	SDL_assert(host_surface == NULL);
@@ -887,7 +890,10 @@ static int present_sdl_video()
 
     // We are done working with pixels in host_surface.  Reset sdl_update_video_rect, then let
     // other threads modify it, as-needed.
-    sdl_update_video_rect = {0,0,0,0};
+    sdl_update_video_rect.x = 0;
+    sdl_update_video_rect.y = 0;
+    sdl_update_video_rect.w = 0;
+    sdl_update_video_rect.h = 0;
     SDL_UnlockMutex(sdl_update_video_mutex);
 
     // Copy the texture to the display
