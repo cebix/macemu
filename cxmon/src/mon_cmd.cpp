@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  mon_cmd.cpp - cxmon standard commands
  *
  *  cxmon (C) 1997-2004 Christian Bauer, Marc Hellwig
@@ -22,7 +22,6 @@
 
 #include <stdlib.h>
 #include <assert.h>
-#include <sstream>
 
 #include "mon.h"
 #include "mon_cmd.h"
@@ -32,9 +31,6 @@
 #define VERSION "3"
 #endif
 
-
-static const char STR_ACTIVE_BREAK_POINTS[]		= "Active Break Points:\n";
-static const char STR_DISABLED_BREAK_POINTS[]	= "Disabled Break Points:\n";
 
 /*
  *  range_args = [expression] [[COMMA] expression] END
@@ -323,14 +319,7 @@ void break_point_add(void)
 		return;
 	}
 
-	BREAK_POINT_SET::iterator it;
-	// Save break point
-	if ((it = disabled_break_points.find(address)) == disabled_break_points.end())
-		active_break_points.insert(address);
-	else {
-		disabled_break_points.erase(it);
-		active_break_points.insert(address);
-	}
+	mon_add_break_point(address);
 }
 
 
@@ -521,38 +510,8 @@ void break_point_load(void)
 		return;
 	}
 
-	FILE *file;
-	if (!(file = fopen(mon_string, "r"))) {
-		mon_error("Unable to create file");
-		return;
-	}
-
-	char line_buff[1024];
-	bool is_disabled_break_points = false;
-
-	if (fgets(line_buff, sizeof(line_buff), file) == NULL ||
-			strcmp(line_buff, STR_ACTIVE_BREAK_POINTS) != 0) {
-		mon_error("Invalid break point file format!");
-		fclose(file);
-		return;
-	}
-
-	while (fgets(line_buff, sizeof(line_buff), file) != NULL) {
-		if (strcmp(line_buff, STR_DISABLED_BREAK_POINTS) == 0) {
-			is_disabled_break_points = true;
-			continue;
-		}
-		uintptr address;
-		std::stringstream ss;
-		ss << std::hex << line_buff;
-		ss >> address;
-		if (is_disabled_break_points)
-			disabled_break_points.insert(address);
-		else
-			active_break_points.insert(address);
-	}
-
-	fclose(file);
+	// load from file
+	mon_load_break_point(mon_string);
 }
 
 

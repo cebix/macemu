@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <errno.h>
+#include <sstream>
 
 #ifdef USE_SDL
 # include <SDL.h>
@@ -371,7 +372,8 @@ static void usage(const char *prg_name)
 		"\nUnix options:\n"
 		"  --config FILE\n    read/write configuration from/to FILE\n"
 		"  --display STRING\n    X display to use\n"
-		"  --break ADDRESS\n    set ROM breakpoint\n"
+		"  --break ADDRESS\n    set ROM breakpoint in hexadecimal\n"
+		"  --loadbreak FILE\n    load breakpoint from FILE\n"
 		"  --rominfo\n    dump ROM information\n", prg_name
 	);
 	LoadPrefs(NULL); // read the prefs file so PrefsPrintUsage() will print the correct default values
@@ -413,9 +415,17 @@ int main(int argc, char **argv)
 		} else if (strcmp(argv[i], "--break") == 0) {
 			argv[i++] = NULL;
 			if (i < argc) {
-				ROMBreakpoint = strtol(argv[i], NULL, 0);
+				std::stringstream ss;
+				ss << std::hex << argv[i];
+				ss >>	ROMBreakpoint;
 				argv[i] = NULL;
 			}
+#ifdef ENABLE_MON
+		} else if (strcmp(argv[i], "--loadbreak") == 0) {
+			argv[i++] = NULL;
+			if (i < argc)
+				mon_load_break_point(argv[i]);
+#endif
 		} else if (strcmp(argv[i], "--config") == 0) {
 			argv[i++] = NULL;
 			if (i < argc) {

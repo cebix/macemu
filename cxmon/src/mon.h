@@ -33,6 +33,9 @@ void mon_init();
 void mon_exit();
 void mon(int argc, char **argv);
 
+// Break points prompt
+const char STR_ACTIVE_BREAK_POINTS[]	= "Active Break Points:\n";
+const char STR_DISABLED_BREAK_POINTS[]	= "Disabled Break Points:\n";
 
 /*
  *  Definitions for adding commands to mon
@@ -104,5 +107,8 @@ extern void mon_write_word(uintptr adr, uint32 l);
 
 // Check if break point is set
 #define IS_BREAK_POINT(address) (active_break_points.find(address) != active_break_points.end())
+// Add break point
+extern void mon_add_break_point(uintptr adr);
+extern void mon_load_break_point(char* file_path);
 
 #endif

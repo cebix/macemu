@@ -32,6 +32,11 @@
 #include "video.h"
 #include "extfs.h"
 #include "prefs.h"
+
+#if ENABLE_MON
+#include "mon.h"
+#endif
+
 #include "rom_patches.h"
 
 #define DEBUG 0
@@ -1678,8 +1683,14 @@ bool PatchROM(void)
 
 	// Install breakpoint
 	if (ROMBreakpoint) {
+#if ENABLE_MON
+		mon_add_break_point(ROMBaseMac + ROMBreakpoint);
+		printf("ROM start address at %08lx\n", ROMBaseMac);
+		printf("Set ROM break point at %08lx\n", ROMBaseMac + ROMBreakpoint);
+#else
 		uint16 *wp = (uint16 *)(ROMBaseHost + ROMBreakpoint);
 		*wp = htons(M68K_EMUL_BREAK);
+#endif
 	}
 
 	// Clear caches as we loaded and patched code

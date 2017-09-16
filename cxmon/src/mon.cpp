@@ -26,6 +26,7 @@
 #include <ctype.h>
 #include <string>
 #include <map>
+#include <sstream>
 
 #if defined(HAVE_READLINE_H)
 extern "C" {
@@ -66,7 +67,7 @@ static uint8 *mem;
 
 
 // Streams for input, output and error messages
-FILE *monin, *monout, *monerr;
+FILE *monin, *monout, *monerr = NULL;
 
 // Input line
 static char *input;
@@ -153,7 +154,7 @@ void mon_add_command(const char *name, void (*func)(), const char *help_text)
 
 void mon_error(const char *s)
 {
-	fprintf(monerr, "*** %s\n", s);
+	fprintf(monerr == NULL? stdout: monerr, "*** %s\n", s);
 }
 
 
@@ -1026,6 +1027,63 @@ void mon_change_dir()
 	put_back(c);
 	if (chdir(in_ptr) != 0)
 		mon_error("Cannot change directory");
+}
+
+
+/*
+ * Add break point
+ */
+
+void mon_add_break_point(uintptr adr)
+{
+	BREAK_POINT_SET::iterator it;
+	// Save break point
+	if ((it = disabled_break_points.find(adr)) == disabled_break_points.end())
+		active_break_points.insert(adr);
+	else {
+		disabled_break_points.erase(it);
+		active_break_points.insert(adr);
+	}
+}
+
+
+/*
+ * Load break point from file
+ */
+void mon_load_break_point(char* file_path)
+{
+	FILE *file;
+	if (!(file = fopen(file_path, "r"))) {
+		mon_error("Unable to create file");
+		return;
+	}
+
+	char line_buff[1024];
+	bool is_disabled_break_points = false;
+
+	if (fgets(line_buff, sizeof(line_buff), file) == NULL ||
+			strcmp(line_buff, STR_ACTIVE_BREAK_POINTS) != 0) {
+		mon_error("Invalid break point file format!");
+		fclose(file);
+		return;
+	}
+
+	while (fgets(line_buff, sizeof(line_buff), file) != NULL) {
+		if (strcmp(line_buff, STR_DISABLED_BREAK_POINTS) == 0) {
+			is_disabled_break_points = true;
+			continue;
+		}
+		uintptr address;
+		std::stringstream ss;
+		ss << std::hex << line_buff;
+		ss >> address;
+		if (is_disabled_break_points)
+			disabled_break_points.insert(address);
+		else
+			active_break_points.insert(address);
+	}
+
+	fclose(file);
 }
 
 
