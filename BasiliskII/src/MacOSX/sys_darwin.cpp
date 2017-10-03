@@ -256,10 +256,10 @@ void DarwinAddFloppyPrefs(void)
 	}
 
 	// Iterate through each floppy
-	while ( nextFloppy = IOIteratorNext(allFloppies))
+	while ( (nextFloppy = IOIteratorNext(allFloppies)))
 	{
 		char		bsdPath[MAXPATHLEN];
-		long		size;
+		long		size = 0;
 		Boolean gotSize = FALSE;
 		CFTypeRef	sizeAsCFNumber =
 						IORegistryEntryCreateCFProperty(nextFloppy,
@@ -333,7 +333,7 @@ void DarwinAddSerialPrefs(void)
 	}
 
 	// Iterate through each modem
-	while ( nextModem = IOIteratorNext(allModems))
+	while ( (nextModem = IOIteratorNext(allModems)))
 	{
 		char		bsdPath[MAXPATHLEN];
 		CFTypeRef	bsdPathAsCFString =

@@ -173,7 +173,7 @@ void TimerReset(void)
 int16 InsTime(uint32 tm, uint16 trap)
 {
 	D(bug("InsTime %08lx, trap %04x\n", tm, trap));
-	WriteMacInt16(tm + qType, ReadMacInt16(tm + qType) & 0x1fff | (trap << 4) & 0x6000);
+	WriteMacInt16(tm + qType, (ReadMacInt16(tm + qType) & 0x1fff) | ((trap << 4) & 0x6000));
 	if (find_desc(tm) >= 0)
 		printf("WARNING: InsTime(): Task re-inserted\n");
 	else {

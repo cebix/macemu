@@ -219,7 +219,7 @@ typedef uae_u32 uaecptr;
 
 /* Timing functions */
 extern uint64 GetTicks_usec(void);
-extern void Delay_usec(uint32 usec);
+extern void Delay_usec(uint64 usec);
 
 /* Spinlocks */
 #ifdef __GNUC__

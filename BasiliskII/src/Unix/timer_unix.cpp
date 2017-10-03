@@ -264,7 +264,7 @@ uint64 GetTicks_usec(void)
 #define USE_COND_TIMEDWAIT
 #endif
 
-void Delay_usec(uint32 usec)
+void Delay_usec(uint64 usec)
 {
 	int was_error;
 
