@@ -272,7 +272,10 @@ int udp_output2(struct socket *so, struct mbuf *m,
 	 * and addresses and length put into network format.
 	 */
 	ui = mtod(m, struct udpiphdr *);
-	ui->ui_next = ui->ui_prev = 0;
+	//ui->ui_next = ui->ui_prev = 0;
+	
+	memset(&ui->ui_i.ih_mbuf, 0 , sizeof(struct mbuf_ptr));
+	
 	ui->ui_x1 = 0;
 	ui->ui_pr = IPPROTO_UDP;
 	ui->ui_len = htons((u_short) (m->m_len - sizeof(struct ip))); /* + sizeof (struct udphdr)); */
