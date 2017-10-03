@@ -1,0 +1,576 @@
+# /usr/share/BasiliskII/keycodes
+#
+# Basilisk II (C) 1997-2005 Christian Bauer
+#
+# This file is used to translate the (server-specific) scancodes to
+# Mac keycodes depending on the window server being used.
+#
+# The format of this file is as follows:
+#
+# sdl <driver string>
+# <SDL scancode> <Mac keycode>
+# <SDL scancode> <Mac keycode>
+# <SDL scancode> <Mac keycode>
+# ...
+# sdl <driver string>
+# <SDL scancode> <Mac keycode>
+# <SDL scancode> <Mac keycode>
+# ...
+#
+# The "driver string" must match the first part of the SDL driver vendor
+# description as reported by SDL_VideoDriverName(). If a match is found,
+# the keycode translation table is constructed from the following
+# lines. Each line contains an SDL scancode followed by its associated
+# Mac keycode. Both keycodes have to be given in decimal. Lines
+# beginning with "#" or ";" are treated as comments and ignored.
+#
+
+#
+# Cocoa French Keyboard
+#
+
+sdl cocoa
+41	53	# Esc
+58	122	# F1
+59	120	# F2
+60	99	# F3
+61	118	# F4
+62	96	# F5
+63	97	# F6
+64	98	# F7
+65	100	# F8
+66	101	# F9
+67	109	# F10
+68	103	# F11
+69	111	# F12
+70	105	# F13/PrintScrn
+71	107	# F14/Scroll Lock
+72	113	# F15/Pause
+53	10	# `
+30	18	# 1
+31	19	# 2
+32	20	# 3
+33	21	# 4
+34	23	# 5
+35	22	# 6
+36	26	# 7
+37	28	# 8
+38	25	# 9
+39	29	# 0
+45	27	# -
+46	24	# =
+42	51	# Backspace
+73	114	# Help/Insert
+74	115	# Home
+75	116	# Page Up
+83	71	# Num Lock
+81	81	# KP =
+84	75	# KP /
+85	67	# KP *
+43	48	# Tab
+20	12	# Q
+26	13	# W
+8	14	# E
+21	15	# R
+23	17	# T
+28	16	# Y
+24	32	# U
+12	34	# I
+18	31	# O
+19	35	# P
+47	33	# [
+48	30	# ]
+40	36	# Return
+76	117	# Delete
+77	119	# End
+78	121	# Page Down
+95	89	# KP 7
+96	91	# KP 8
+97	92	# KP 9
+86	78	# KP -
+130	57	# Caps Lock
+4	0	# A
+22	1	# S
+7	2	# D
+9	3	# F
+10	5	# G
+11	4	# H
+13	38	# J
+14	40	# K
+15	37	# L
+51	41	# ;
+52	39	# '
+49	42	# \
+92	86	# KP 4
+93	87	# KP 5
+94	88	# KP 6
+87	69	# KP +
+56	56	# Shift
+100	50	# International SDL_NONUSBACKSLASH
+29	6	# Z
+27	7	# X
+6	8	# C
+25	9	# V
+5	11	# B
+17	45	# N
+16	46	# M
+54	43	# ,
+55	47	# .
+56	44	# /
+82	62	# Cursor Up
+80	59	# Cursor Left
+81	61	# Cursor Down
+79	60	# Cursor Right
+83	83	# KP 1
+84	84	# KP 2
+85	85	# KP 3
+76	76	# KP Enter
+228	54	# Ctrl
+226	58	# Option
+227	55	# Command
+224	54	# Ctrl Left
+230	58	# Right Alt->option
+231	55	# Right cmd
+44	49	# Space
+82	82	# KP 0
+65	65	# KP .
+
+#
+# X11 server
+#
+sdl x11
+sdl dga
+9	53	# Esc
+67	122	# F1
+68	120	# F2
+69	99	# F3
+70	118	# F4
+71	96	# F5
+72	97	# F6
+73	98	# F7
+74	100	# F8
+75	101	# F9
+76	109	# F10
+95	103	# F11
+96	111	# F12
+111	105	# PrintScrn
+78	107	# Scroll Lock
+110	113	# Pause
+49	10	# `
+10	18	# 1
+11	19	# 2
+12	20	# 3
+13	21	# 4
+14	23	# 5
+15	22	# 6
+16	26	# 7
+17	28	# 8
+18	25	# 9
+19	29	# 0
+20	27	# -
+21	24	# =
+22	51	# Backspace
+106	114	# Insert
+97	115	# Home
+99	116	# Page Up
+77	71	# Num Lock
+112	75	# KP /
+63	67	# KP *
+82	78	# KP -
+23	48	# Tab
+24	12	# Q
+25	13	# W
+26	14	# E
+27	15	# R
+28	17	# T
+29	16	# Y
+30	32	# U
+31	34	# I
+32	31	# O
+33	35	# P
+34	33	# [
+35	30	# ]
+36	36	# Return
+107	117	# Delete
+103	119	# End
+105	121	# Page Down
+79	89	# KP 7
+80	91	# KP 8
+81	92	# KP 9
+86	69	# KP +
+66	57	# Caps Lock
+38	0	# A
+39	1	# S
+40	2	# D
+41	3	# F
+42	5	# G
+43	4	# H
+44	38	# J
+45	40	# K
+46	37	# L
+47	41	# ;
+48	39	# '
+83	86	# KP 4
+84	87	# KP 5
+85	88	# KP 6
+50	56	# Shift Left
+94	50	# International
+52	6	# Z
+53	7	# X
+54	8	# C
+55	9	# V
+56	11	# B
+57	45	# N
+58	46	# M
+59	43	# ,
+60	47	# .
+61	44	# /
+62	56	# Shift Right
+51	42	# \
+98	62	# Cursor Up
+87	83	# KP 1
+88	84	# KP 2
+89	85	# KP 3
+108	76	# KP Enter
+37	54	# Ctrl Left
+115	58	# Logo Left (-> Option)
+64	55	# Alt Left (-> Command)
+65	49	# Space
+113	55	# Alt Right (-> Command)
+116	58	# Logo Right (-> Option)
+117	50	# Menu (-> International)
+109	54	# Ctrl Right
+100	59	# Cursor Left
+104	61	# Cursor Down
+102	60	# Cursor Right
+90	82	# KP 0
+91	65	# KP .
+
+#
+# Linux Framebuffer Console
+#
+sdl fbcon
+1	53	# Esc
+59	122	# F1
+60	120	# F2
+61	99	# F3
+62	118	# F4
+63	96	# F5
+64	97	# F6
+65	98	# F7
+66	100	# F8
+67	101	# F9
+68	109	# F10
+87	103	# F11
+88	111	# F12
+99	105	# PrintScrn
+70	107	# Scroll Lock
+119	113	# Pause
+41	10	# `
+2	18	# 1
+3	19	# 2
+4	20	# 3
+5	21	# 4
+6	23	# 5
+7	22	# 6
+8	26	# 7
+9	28	# 8
+10	25	# 9
+11	29	# 0
+12	27	# -
+13	24	# =
+14	51	# Backspace
+110	114	# Insert
+102	115	# Home
+104	116	# Page Up
+69	71	# Num Lock
+98	75	# KP /
+55	67	# KP *
+74	78	# KP -
+15	48	# Tab
+16	12	# Q
+17	13	# W
+18	14	# E
+19	15	# R
+20	17	# T
+21	16	# Y
+22	32	# U
+23	34	# I
+24	31	# O
+25	35	# P
+26	33	# [
+27	30	# ]
+28	36	# Return
+111	117	# Delete
+107	119	# End
+109	121	# Page Down
+71	89	# KP 7
+72	91	# KP 8
+73	92	# KP 9
+78	69	# KP +
+58	57	# Caps Lock
+30	0	# A
+31	1	# S
+32	2	# D
+33	3	# F
+34	5	# G
+35	4	# H
+36	38	# J
+37	40	# K
+38	37	# L
+39	41	# ;
+40	39	# '
+75	86	# KP 4
+76	87	# KP 5
+77	88	# KP 6
+42	56	# Shift Left
+86	50	# International
+44	6	# Z
+45	7	# X
+46	8	# C
+47	9	# V
+48	11	# B
+49	45	# N
+50	46	# M
+51	43	# ,
+52	47	# .
+53	44	# /
+54	56	# Shift Right
+43	42	# \
+103	62	# Cursor Up
+79	83	# KP 1
+80	84	# KP 2
+81	85	# KP 3
+96	76	# KP Enter
+29	54	# Ctrl Left
+125	58	# Logo Left (-> Option)
+56	55	# Alt Left (-> Command)
+57	49	# Space
+100	55	# Alt Right (-> Command)
+126	58	# Logo Right (-> Option)
+97	54	# Ctrl Right
+105	59	# Cursor Left
+108	61	# Cursor Down
+106	60	# Cursor Right
+82	82	# KP 0
+83	65	# KP .
+
+#
+# Quartz (1:1 translation actually)
+#
+sdl Quartz
+41	53	# Esc
+58	122	# F1
+59	120	# F2
+60	99	# F3
+61	118	# F4
+62	96	# F5
+63	97	# F6
+64	98	# F7
+65	100	# F8
+66	101	# F9
+67	109	# F10
+68	103	# F11
+69	111	# F12
+70	105	# F13/PrintScrn
+71	107	# F14/Scroll Lock
+72	113	# F15/Pause
+52	10	# `
+30	18	# 1
+31	19	# 2
+32	20	# 3
+33	21	# 4
+34	23	# 5
+35	22	# 6
+36	26	# 7
+37	28	# 8
+38	25	# 9
+39	29	# 0
+45	27	# -
+24	24	# =
+42	51	# Backspace
+114	114	# Help/Insert
+74	115	# Home
+75	116	# Page Up
+83	71	# Num Lock
+81	81	# KP =
+84	75	# KP /
+85	67	# KP *
+48	48	# Tab
+20	12	# Q
+26	13	# W
+8	14	# E
+21	15	# R
+23	17	# T
+28	16	# Y
+24	32	# U
+12	34	# I
+18	31	# O
+19	35	# P
+47	33	# [
+48	30	# ]
+40	36	# Return
+117	117	# Delete
+119	119	# End
+121	121	# Page Down
+95	89	# KP 7
+96	91	# KP 8
+97	92	# KP 9
+86	78	# KP -
+57	57	# Caps Lock
+4	0	# A
+22	1	# S
+7	2	# D
+9	3	# F
+10	5	# G
+11	4	# H
+13	38	# J
+14	40	# K
+15	37	# L
+51	41	# ;
+52	39	# '
+49	42	# \
+92	86	# KP 4
+93	87	# KP 5
+94	88	# KP 6
+87	69	# KP +
+56	56	# Shift
+100	50	# International SDL_NONUSBACKSLASH
+29	6	# Z
+27	7	# X
+6	8	# C
+25	9	# V
+5	11	# B
+17	45	# N
+16	46	# M
+54	43	# ,
+55	47	# .
+56	44	# /
+126	62	# Cursor Up
+123	59	# Cursor Left
+125	61	# Cursor Down
+124	60	# Cursor Right
+83	83	# KP 1
+84	84	# KP 2
+85	85	# KP 3
+76	76	# KP Enter
+228	54	# Ctrl
+226	58	# Option
+227	55	# Command
+224	54	# Ctrl Left
+230	58	# Right Alt->option
+231	55	# Right cmd
+44	49	# Space
+82	82	# KP 0
+65	65	# KP .
+
+#
+# Windows
+#
+sdl windib
+sdl directx
+1	53	# Esc
+59	122	# F1
+60	120	# F2
+61	99	# F3
+62	118	# F4
+63	96	# F5
+64	97	# F6
+65	98	# F7
+66	100	# F8
+67	101	# F9
+68	109	# F10
+87	103	# F11
+88	111	# F12
+183	105	# PrintScrn
+70	107	# Scroll Lock
+197	113	# Pause
+41	10	# `
+2	18	# 1
+3	19	# 2
+4	20	# 3
+5	21	# 4
+6	23	# 5
+7	22	# 6
+8	26	# 7
+9	28	# 8
+10	25	# 9
+11	29	# 0
+12	27	# -
+13	24	# =
+14	51	# Backspace
+210	114	# Insert
+199	115	# Home
+75	116	# Page Up
+69	71	# Num Lock
+181	75	# KP /
+55	67	# KP *
+74	78	# KP -
+15	48	# Tab
+16	12	# Q
+17	13	# W
+18	14	# E
+19	15	# R
+20	17	# T
+21	16	# Y
+22	32	# U
+23	34	# I
+24	31	# O
+25	35	# P
+26	33	# [
+27	30	# ]
+28	36	# Return
+211	117	# Delete
+207	119	# End
+209	121	# Page Down
+71	89	# KP 7
+72	91	# KP 8
+73	92	# KP 9
+78	69	# KP +
+58	57	# Caps Lock
+30	0	# A
+31	1	# S
+32	2	# D
+33	3	# F
+34	5	# G
+35	4	# H
+36	38	# J
+37	40	# K
+38	37	# L
+39	41	# ;
+40	39	# '
+75	86	# KP 4
+76	87	# KP 5
+77	88	# KP 6
+225	56	# Shift Left
+100	50	# International
+44	6	# Z
+45	7	# X
+46	8	# C
+47	9	# V
+48	11	# B
+49	45	# N
+50	46	# M
+51	43	# ,
+52	47	# .
+53	44	# /
+229	56	# Shift Right
+43	42	# \
+200	62	# Cursor Up
+79	83	# KP 1
+80	84	# KP 2
+81	85	# KP 3
+156	76	# KP Enter
+224	54	# Ctrl Left
+227	58	# Logo Left (-> Option)
+226	55	# Alt Left (-> Command)
+57	49	# Space
+230	55	# Alt Right (-> Command)
+231	58	# Logo Right (-> Option)
+221	50	# Menu (-> International)
+157	54	# Ctrl Right
+80	59	# Cursor Left
+81	61	# Cursor Down
+79	60	# Cursor Right
+98	82	# KP 0
+99	65	# KP .
