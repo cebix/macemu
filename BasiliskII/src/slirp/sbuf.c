@@ -1,31 +1,37 @@
 /*
  * Copyright (c) 1995 Danny Gasparovski.
- * 
- * Please read the file COPYRIGHT for the 
+ *
+ * Please read the file COPYRIGHT for the
  * terms and conditions of the copyright.
  */
 
-#include <stdlib.h>
 #include <slirp.h>
+
+static void sbappendsb(struct sbuf *sb, struct mbuf *m);
 
 /* Done as a macro in socket.h */
 /* int
- * sbspace(struct sockbuff *sb) 
+ * sbspace(struct sockbuff *sb)
  * {
  *	return SB_DATALEN - sb->sb_cc;
  * }
  */
 
-void sbfree(struct sbuf *sb)
+void
+sbfree(sb)
+	struct sbuf *sb;
 {
 	free(sb->sb_data);
 }
 
-void sbdrop(struct sbuf *sb, u_int num)
+void
+sbdrop(sb, num)
+	struct sbuf *sb;
+	int num;
 {
-	/* 
+	/*
 	 * We can only drop how much we have
-	 * This should never succeed 
+	 * This should never succeed
 	 */
 	if(num > sb->sb_cc)
 		num = sb->sb_cc;
@@ -33,10 +39,13 @@ void sbdrop(struct sbuf *sb, u_int num)
 	sb->sb_rptr += num;
 	if(sb->sb_rptr >= sb->sb_data + sb->sb_datalen)
 		sb->sb_rptr -= sb->sb_datalen;
-   
+
 }
 
-void sbreserve(struct sbuf *sb, size_t size)
+void
+sbreserve(sb, size)
+	struct sbuf *sb;
+	int size;
 {
 	if (sb->sb_data) {
 		/* Already alloced, realloc if necessary */
@@ -64,21 +73,24 @@ void sbreserve(struct sbuf *sb, size_t size)
  * this prevents an unnecessary copy of the data
  * (the socket is non-blocking, so we won't hang)
  */
-void sbappend(struct socket *so, struct mbuf *m)
+void
+sbappend(so, m)
+	struct socket *so;
+	struct mbuf *m;
 {
 	int ret = 0;
-	
+
 	DEBUG_CALL("sbappend");
 	DEBUG_ARG("so = %lx", (long)so);
 	DEBUG_ARG("m = %lx", (long)m);
-	DEBUG_ARG("m->m_len = %zu", m->m_len);
-	
+	DEBUG_ARG("m->m_len = %d", m->m_len);
+
 	/* Shouldn't happen, but...  e.g. foreign host closes connection */
 	if (m->m_len <= 0) {
 		m_free(m);
 		return;
 	}
-	
+
 	/*
 	 * If there is urgent data, call sosendoob
 	 * if not all was sent, sowrite will take care of the rest
@@ -90,16 +102,16 @@ void sbappend(struct socket *so, struct mbuf *m)
 		sosendoob(so);
 		return;
 	}
-	
+
 	/*
 	 * We only write if there's nothing in the buffer,
 	 * ottherwise it'll arrive out of order, and hence corrupt
 	 */
 	if (!so->so_rcv.sb_cc)
 	   ret = send(so->s, m->m_data, m->m_len, 0);
-	
+
 	if (ret <= 0) {
-		/* 
+		/*
 		 * Nothing was written
 		 * It's possible that the socket has closed, but
 		 * we don't need to check because if it has closed,
@@ -123,10 +135,11 @@ void sbappend(struct socket *so, struct mbuf *m)
  * Copy the data from m into sb
  * The caller is responsible to make sure there's enough room
  */
-void sbappendsb(struct sbuf *sb, struct mbuf *m)
+static void
+sbappendsb(struct sbuf *sb, struct mbuf *m)
 {
 	int len, n,  nn;
-	
+
 	len = m->m_len;
 
 	if (sb->sb_wptr < sb->sb_rptr) {
@@ -159,10 +172,15 @@ void sbappendsb(struct sbuf *sb, struct mbuf *m)
  * Don't update the sbuf rptr, this will be
  * done in sbdrop when the data is acked
  */
-void sbcopy(struct sbuf *sb, u_int off, u_int len, char *to)
+void
+sbcopy(sb, off, len, to)
+	struct sbuf *sb;
+	int off;
+	int len;
+	char *to;
 {
 	char *from;
-	
+
 	from = sb->sb_rptr + off;
 	if (from >= sb->sb_data + sb->sb_datalen)
 		from -= sb->sb_datalen;
@@ -180,4 +198,4 @@ void sbcopy(struct sbuf *sb, u_int off, u_int len, char *to)
 		   memcpy(to+off,sb->sb_data,len);
 	}
 }
-		
+

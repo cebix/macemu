@@ -40,6 +40,11 @@
  */
 #undef USE_LOWCPU
 
+/* Define this if your compiler doesn't like prototypes */
+#ifndef __STDC__
+#define NO_PROTOTYPES
+#endif
+
 /*********************************************************/
 /*
  * Autoconf defined configuration options
@@ -49,10 +54,39 @@
 /* Ignore this */
 #undef DUMMY_PPP
 
-/* XXX: Define according to how time.h should be included */
-#undef TIME_WITH_SYS_TIME
+/* Define if you have unistd.h */
+#define HAVE_UNISTD_H
+
+/* Define if you have stdlib.h */
+#define HAVE_STDLIB_H
+
+/* Define if you have sys/ioctl.h */
+#undef HAVE_SYS_IOCTL_H
+#ifndef _WIN32
+#define HAVE_SYS_IOCTL_H
+#endif
+
+/* Define if you have sys/filio.h */
+#undef HAVE_SYS_FILIO_H
+#ifdef __APPLE__
+#define HAVE_SYS_FILIO_H
+#endif
+
+/* Define if you have strerror */
+#define HAVE_STRERROR
+
+/* Define if you have strdup() */
+#define HAVE_STRDUP
+
+/* Define according to how time.h should be included */
 #define TIME_WITH_SYS_TIME 0
 #undef HAVE_SYS_TIME_H
+
+/* Define if you have sys/bitypes.h */
+#undef HAVE_SYS_BITYPES_H
+
+/* Define if the machine is big endian */
+//#undef WORDS_BIGENDIAN
 
 /* Define if your sprintf returns char * instead of int */
 #undef BAD_SPRINTF
@@ -69,8 +103,38 @@
 /* Define if a declaration of sprintf/fprintf is needed */
 #undef DECLARE_SPRINTF
 
+/* Define if you have a POSIX.1 sys/wait.h */
+#undef HAVE_SYS_WAIT_H
+
+/* Define if you have sys/select.h */
+#undef HAVE_SYS_SELECT_H
+#ifndef _WIN32
+#define HAVE_SYS_SELECT_H
+#endif
+
+/* Define if you have strings.h */
+#define HAVE_STRING_H
+
+/* Define if you have arpa/inet.h */
+#undef HAVE_ARPA_INET_H
+#ifndef _WIN32
+#define HAVE_ARPA_INET_H
+#endif
+
+/* Define if you have sys/signal.h */
+#undef HAVE_SYS_SIGNAL_H
+
 /* Define if you have sys/stropts.h */
 #undef HAVE_SYS_STROPTS_H
+
+/* Define to whatever your compiler thinks inline should be */
+#define inline inline
+
+/* Define to whatever your compiler thinks const should be */
+#define const const
+
+/* Define if your compiler doesn't like prototypes */
+#undef NO_PROTOTYPES
 
 /* Define if you don't have u_int32_t etc. typedef'd */
 #undef NEED_TYPEDEFS
@@ -78,14 +142,29 @@
 #define NEED_TYPEDEFS
 #endif
 
+/* Define to sizeof(char) */
+#define SIZEOF_CHAR 1
+
+/* Define to sizeof(short) */
+#define SIZEOF_SHORT 2
+
+/* Define to sizeof(int) */
+#define SIZEOF_INT 4
+
 /* Define to sizeof(char *) */
-#define SIZEOF_CHAR_P SIZEOF_VOID_P
+#define SIZEOF_CHAR_P (HOST_LONG_BITS / 8)
 
 /* Define if you have random() */
 #undef HAVE_RANDOM
 
 /* Define if you have srandom() */
 #undef HAVE_SRANDOM
+
+/* Define if you have inet_aton */
+#undef HAVE_INET_ATON
+#ifndef _WIN32
+#define HAVE_INET_ATON
+#endif
 
 /* Define if you have setenv */
 #undef HAVE_SETENV

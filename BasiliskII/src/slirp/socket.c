@@ -1,12 +1,11 @@
 /*
  * Copyright (c) 1995 Danny Gasparovski.
- * 
- * Please read the file COPYRIGHT for the 
+ *
+ * Please read the file COPYRIGHT for the
  * terms and conditions of the copyright.
  */
 
 #define WANT_SYS_IOCTL_H
-#include <stdlib.h>
 #include <slirp.h>
 #include "ip_icmp.h"
 #include "main.h"
@@ -14,18 +13,16 @@
 #include <sys/filio.h>
 #endif
 
-#ifdef _WIN32
-#define IS_EAGAIN(e) ((e) == WSAEINTR || (e) == EAGAIN)
-#else
-#define IS_EAGAIN(e) ((e) == EAGAIN)
-#endif
+static void sofcantrcvmore(struct socket *so);
+static void sofcantsendmore(struct socket *so);
 
-void
+#if 0
+static void
 so_init()
 {
 	/* Nothing yet */
 }
-
+#endif
 
 struct socket *
 solookup(head, laddr, lport, faddr, fport)
@@ -36,19 +33,19 @@ solookup(head, laddr, lport, faddr, fport)
 	u_int fport;
 {
 	struct socket *so;
-	
+
 	for (so = head->so_next; so != head; so = so->so_next) {
-		if (so->so_lport == lport && 
+		if (so->so_lport == lport &&
 		    so->so_laddr.s_addr == laddr.s_addr &&
 		    so->so_faddr.s_addr == faddr.s_addr &&
 		    so->so_fport == fport)
 		   break;
 	}
-	
+
 	if (so == head)
 	   return (struct socket *)NULL;
 	return so;
-	
+
 }
 
 /*
@@ -60,7 +57,7 @@ struct socket *
 socreate()
 {
   struct socket *so;
-	
+
   so = (struct socket *)malloc(sizeof(struct socket));
   if(so) {
     memset(so, 0, sizeof(struct socket));
@@ -85,10 +82,10 @@ sofree(so)
     tcp_last_so = &tcb;
   else if (so == udp_last_so)
     udp_last_so = &udb;
-	
+
   m_free(so->so_m);
-	
-  if(so->so_next && so->so_prev) 
+
+  if(so->so_next && so->so_prev)
     remque(so);  /* crashes if so is not in a queue */
 
   free(so);
@@ -103,23 +100,22 @@ int
 soread(so)
 	struct socket *so;
 {
-	int n, nn;
-	u_int lss, total;
+	int n, nn, lss, total;
 	struct sbuf *sb = &so->so_snd;
-	u_int len = sb->sb_datalen - sb->sb_cc;
+	int len = sb->sb_datalen - sb->sb_cc;
 	struct iovec iov[2];
-	u_int mss = so->so_tcpcb->t_maxseg;
-	
+	int mss = so->so_tcpcb->t_maxseg;
+
 	DEBUG_CALL("soread");
 	DEBUG_ARG("so = %lx", (long )so);
-	
-	/* 
+
+	/*
 	 * No need to check if there's enough room to read.
 	 * soread wouldn't have been called if there weren't
 	 */
-	
+
 	len = sb->sb_datalen - sb->sb_cc;
-	
+
 	iov[0].iov_base = sb->sb_wptr;
 	if (sb->sb_wptr < sb->sb_rptr) {
 		iov[0].iov_len = sb->sb_rptr - sb->sb_wptr;
@@ -158,16 +154,15 @@ soread(so)
 			n = 1;
 		}
 	}
-	
+
 #ifdef HAVE_READV
 	nn = readv(so->s, (struct iovec *)iov, n);
 	DEBUG_MISC((dfd, " ... read nn = %d bytes\n", nn));
 #else
 	nn = recv(so->s, iov[0].iov_base, iov[0].iov_len,0);
-#endif	
+#endif
 	if (nn <= 0) {
-		int error = WSAGetLastError();
-		if (nn < 0 && IS_EAGAIN(error))
+		if (nn < 0 && (errno == EINTR || errno == EAGAIN))
 			return 0;
 		else {
 			DEBUG_MISC((dfd, " --- soread() disconnected, nn = %d, errno = %d-%s\n", nn, errno,strerror(errno)));
@@ -176,7 +171,7 @@ soread(so)
 			return -1;
 		}
 	}
-	
+
 #ifndef HAVE_READV
 	/*
 	 * If there was no error, try and read the second time round
@@ -193,10 +188,10 @@ soread(so)
             if (ret > 0)
                 nn += ret;
         }
-	
+
 	DEBUG_MISC((dfd, " ... read nn = %d bytes\n", nn));
 #endif
-	
+
 	/* Update fields */
 	sb->sb_cc += nn;
 	sb->sb_wptr += nn;
@@ -204,10 +199,10 @@ soread(so)
 		sb->sb_wptr -= sb->sb_datalen;
 	return nn;
 }
-	
+
 /*
  * Get urgent data
- * 
+ *
  * When the socket is created, we set it SO_OOBINLINE,
  * so when OOB data arrives, we soread() it and everything
  * in the send buffer is sent as urgent data
@@ -220,13 +215,13 @@ sorecvoob(so)
 
 	DEBUG_CALL("sorecvoob");
 	DEBUG_ARG("so = %lx", (long)so);
-	
+
 	/*
 	 * We take a guess at how much urgent data has arrived.
 	 * In most situations, when urgent data arrives, the next
 	 * read() should get all the urgent data.  This guess will
 	 * be wrong however if more data arrives just after the
-	 * urgent data, or the read() doesn't return all the 
+	 * urgent data, or the read() doesn't return all the
 	 * urgent data.
 	 */
 	soread(so);
@@ -246,24 +241,24 @@ sosendoob(so)
 {
 	struct sbuf *sb = &so->so_rcv;
 	char buff[2048]; /* XXX Shouldn't be sending more oob data than this */
-	
+
 	int n, len;
-	
+
 	DEBUG_CALL("sosendoob");
 	DEBUG_ARG("so = %lx", (long)so);
 	DEBUG_ARG("sb->sb_cc = %d", sb->sb_cc);
-	
+
 	if (so->so_urgc > 2048)
 	   so->so_urgc = 2048; /* XXXX */
-	
+
 	if (sb->sb_rptr < sb->sb_wptr) {
 		/* We can send it directly */
 		n = send(so->s, sb->sb_rptr, so->so_urgc, (MSG_OOB)); /* |MSG_DONTWAIT)); */
 		so->so_urgc -= n;
-		
+
 		DEBUG_MISC((dfd, " --- sent %d bytes urgent data, %d urgent bytes left\n", n, so->so_urgc));
 	} else {
-		/* 
+		/*
 		 * Since there's no sendv or sendtov like writev,
 		 * we must copy all data to a linear buffer then
 		 * send it all
@@ -283,20 +278,20 @@ sosendoob(so)
 #ifdef DEBUG
 		if (n != len)
 		   DEBUG_ERROR((dfd, "Didn't send all data urgently XXXXX\n"));
-#endif		
+#endif
 		DEBUG_MISC((dfd, " ---2 sent %d bytes urgent data, %d urgent bytes left\n", n, so->so_urgc));
 	}
-	
+
 	sb->sb_cc -= n;
 	sb->sb_rptr += n;
 	if (sb->sb_rptr >= (sb->sb_data + sb->sb_datalen))
 		sb->sb_rptr -= sb->sb_datalen;
-	
+
 	return n;
 }
 
 /*
- * Write data from so_rcv to so's socket, 
+ * Write data from so_rcv to so's socket,
  * updating all sbuf field as necessary
  */
 int
@@ -305,12 +300,12 @@ sowrite(so)
 {
 	int  n,nn;
 	struct sbuf *sb = &so->so_rcv;
-	u_int len = sb->sb_cc;
+	int len = sb->sb_cc;
 	struct iovec iov[2];
-	
+
 	DEBUG_CALL("sowrite");
 	DEBUG_ARG("so = %lx", (long)so);
-	
+
 	if (so->so_urgc) {
 		sosendoob(so);
 		if (sb->sb_cc == 0)
@@ -321,9 +316,9 @@ sowrite(so)
 	 * No need to check if there's something to write,
 	 * sowrite wouldn't have been called otherwise
 	 */
-	
+
         len = sb->sb_cc;
-	
+
 	iov[0].iov_base = sb->sb_rptr;
 	if (sb->sb_rptr < sb->sb_wptr) {
 		iov[0].iov_len = sb->sb_wptr - sb->sb_rptr;
@@ -346,17 +341,14 @@ sowrite(so)
 
 #ifdef HAVE_READV
 	nn = writev(so->s, (const struct iovec *)iov, n);
-	
+
 	DEBUG_MISC((dfd, "  ... wrote nn = %d bytes\n", nn));
 #else
 	nn = send(so->s, iov[0].iov_base, iov[0].iov_len,0);
 #endif
 	/* This should never happen, but people tell me it does *shrug* */
-	if (nn < 0) {
-		int error = WSAGetLastError();
-		if (IS_EAGAIN(error))
-			return 0;
-	}
+	if (nn < 0 && (errno == EAGAIN || errno == EINTR))
+		return 0;
 
 	if (nn <= 0) {
 		DEBUG_MISC((dfd, " --- sowrite disconnected, so->so_state = %x, errno = %d\n",
@@ -365,7 +357,7 @@ sowrite(so)
 		tcp_sockclosed(sototcpcb(so));
 		return -1;
 	}
-	
+
 #ifndef HAVE_READV
 	if (n == 2 && nn == iov[0].iov_len) {
             int ret;
@@ -375,20 +367,20 @@ sowrite(so)
         }
         DEBUG_MISC((dfd, "  ... wrote nn = %d bytes\n", nn));
 #endif
-	
+
 	/* Update sbuf */
 	sb->sb_cc -= nn;
 	sb->sb_rptr += nn;
 	if (sb->sb_rptr >= (sb->sb_data + sb->sb_datalen))
 		sb->sb_rptr -= sb->sb_datalen;
-	
+
 	/*
 	 * If in DRAIN mode, and there's no more data, set
 	 * it CANTSENDMORE
 	 */
 	if ((so->so_state & SS_FWDRAIN) && sb->sb_cc == 0)
 		sofcantsendmore(so);
-	
+
 	return nn;
 }
 
@@ -400,26 +392,25 @@ sorecvfrom(so)
 	struct socket *so;
 {
 	struct sockaddr_in addr;
-	socklen_t addrlen = sizeof(struct sockaddr_in);
-	
+	int addrlen = sizeof(struct sockaddr_in);
+
 	DEBUG_CALL("sorecvfrom");
 	DEBUG_ARG("so = %lx", (long)so);
-	
+
 	if (so->so_type == IPPROTO_ICMP) {   /* This is a "ping" reply */
 	  char buff[256];
 	  int len;
-		
-	  len = recvfrom(so->s, buff, 256, 0, 
+
+	  len = recvfrom(so->s, buff, 256, 0,
 			 (struct sockaddr *)&addr, &addrlen);
 	  /* XXX Check if reply is "correct"? */
-	  
+
 	  if(len == -1 || len == 0) {
 	    u_char code=ICMP_UNREACH_PORT;
 
-		int error = WSAGetLastError();
-	    if(error == WSAEHOSTUNREACH) code=ICMP_UNREACH_HOST;
-	    else if(error == WSAENETUNREACH) code=ICMP_UNREACH_NET;
-	    
+	    if(errno == EHOSTUNREACH) code=ICMP_UNREACH_HOST;
+	    else if(errno == ENETUNREACH) code=ICMP_UNREACH_NET;
+
 	    DEBUG_MISC((dfd," udp icmp rx errno = %d-%s\n",
 			errno,strerror(errno)));
 	    icmp_error(so->so_m, ICMP_UNREACH,code, 0,strerror(errno));
@@ -431,38 +422,36 @@ sorecvfrom(so)
 	  udp_detach(so);
 	} else {                            	/* A "normal" UDP packet */
 	  struct mbuf *m;
-	  u_int len;
-	  ioctlsockopt_t n;
+	  int len, n;
 
 	  if (!(m = m_get())) return;
-	  m->m_data += if_maxlinkhdr;
-		
-	  /* 
+	  m->m_data += IF_MAXLINKHDR;
+
+	  /*
 	   * XXX Shouldn't FIONREAD packets destined for port 53,
 	   * but I don't know the max packet size for DNS lookups
 	   */
 	  len = M_FREEROOM(m);
 	  /* if (so->so_fport != htons(53)) { */
 	  ioctlsocket(so->s, FIONREAD, &n);
-	  
+
 	  if (n > len) {
 	    n = (m->m_data - m->m_dat) + m->m_len + n + 1;
 	    m_inc(m, n);
 	    len = M_FREEROOM(m);
 	  }
 	  /* } */
-		
+
 	  m->m_len = recvfrom(so->s, m->m_data, len, 0,
 			      (struct sockaddr *)&addr, &addrlen);
-	  DEBUG_MISC((dfd, " did recvfrom %zu, errno = %d-%s\n",
+	  DEBUG_MISC((dfd, " did recvfrom %d, errno = %d-%s\n",
 		      m->m_len, errno,strerror(errno)));
 	  if(m->m_len<0) {
 	    u_char code=ICMP_UNREACH_PORT;
 
-		int error = WSAGetLastError();
-	    if(error == WSAEHOSTUNREACH) code=ICMP_UNREACH_HOST;
-	    else if(error == WSAENETUNREACH) code=ICMP_UNREACH_NET;
-	    
+	    if(errno == EHOSTUNREACH) code=ICMP_UNREACH_HOST;
+	    else if(errno == ENETUNREACH) code=ICMP_UNREACH_NET;
+
 	    DEBUG_MISC((dfd," rx error, tx icmp ICMP_UNREACH:%i\n", code));
 	    icmp_error(so->so_m, ICMP_UNREACH,code, 0,strerror(errno));
 	    m_free(m);
@@ -485,8 +474,8 @@ sorecvfrom(so)
 	     *			m->m_len = 0;
 	     *		}
 	     */
-	    
-	    /* 
+
+	    /*
 	     * If this packet was destined for CTL_ADDR,
 	     * make it look like that's where it came from, done by udp_output
 	     */
@@ -509,7 +498,7 @@ sosendto(so, m)
 	DEBUG_CALL("sosendto");
 	DEBUG_ARG("so = %lx", (long)so);
 	DEBUG_ARG("m = %lx", (long)m);
-	
+
         addr.sin_family = AF_INET;
 	if ((so->so_faddr.s_addr & htonl(0xffffff00)) == special_addr.s_addr) {
 	  /* It's an alias */
@@ -526,16 +515,14 @@ sosendto(so, m)
 	  addr.sin_addr = so->so_faddr;
 	addr.sin_port = so->so_fport;
 
-	char addrstr[INET_ADDRSTRLEN];
-	DEBUG_MISC((dfd, " sendto()ing, addr.sin_port=%d, addr.sin_addr.s_addr=%.16s\n",
-		ntohs(addr.sin_port), inet_ntop(AF_INET, &addr.sin_addr, addrstr, sizeof(addrstr))));
-	
+	DEBUG_MISC((dfd, " sendto()ing, addr.sin_port=%d, addr.sin_addr.s_addr=%.16s\n", ntohs(addr.sin_port), inet_ntoa(addr.sin_addr)));
+
 	/* Don't care what port we get */
 	ret = sendto(so->s, m->m_data, m->m_len, 0,
 		     (struct sockaddr *)&addr, sizeof (struct sockaddr));
 	if (ret < 0)
 		return -1;
-	
+
 	/*
 	 * Kill the socket if there's no reply in 4 minutes,
 	 * but only if it's an expirable socket
@@ -558,57 +545,58 @@ solisten(port, laddr, lport, flags)
 {
 	struct sockaddr_in addr;
 	struct socket *so;
-	int s;
-	socklen_t addrlen = sizeof(addr);
-	int opt = 1;
+	int s, addrlen = sizeof(addr), opt = 1;
 
 	DEBUG_CALL("solisten");
 	DEBUG_ARG("port = %d", port);
 	DEBUG_ARG("laddr = %x", laddr);
 	DEBUG_ARG("lport = %d", lport);
 	DEBUG_ARG("flags = %x", flags);
-	
+
 	if ((so = socreate()) == NULL) {
 	  /* free(so);      Not sofree() ??? free(NULL) == NOP */
 	  return NULL;
 	}
-	
+
 	/* Don't tcp_attach... we don't need so_snd nor so_rcv */
 	if ((so->so_tcpcb = tcp_newtcpcb(so)) == NULL) {
 		free(so);
 		return NULL;
 	}
 	insque(so,&tcb);
-	
-	/* 
+
+	/*
 	 * SS_FACCEPTONCE sockets must time out.
 	 */
 	if (flags & SS_FACCEPTONCE)
 	   so->so_tcpcb->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT*2;
-	
+
 	so->so_state = (SS_FACCEPTCONN|flags);
 	so->so_lport = lport; /* Kept in network format */
 	so->so_laddr.s_addr = laddr; /* Ditto */
-	
-	memset(&addr, 0, sizeof(struct sockaddr_in));
+
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = INADDR_ANY;
 	addr.sin_port = port;
-	
+
 	if (((s = socket(AF_INET,SOCK_STREAM,0)) < 0) ||
 	    (setsockopt(s,SOL_SOCKET,SO_REUSEADDR,(char *)&opt,sizeof(int)) < 0) ||
 	    (bind(s,(struct sockaddr *)&addr, sizeof(addr)) < 0) ||
 	    (listen(s,1) < 0)) {
-		int error = WSAGetLastError(); /* Don't clobber the real reason we failed */
-		
+		int tmperrno = errno; /* Don't clobber the real reason we failed */
+
 		close(s);
 		sofree(so);
 		/* Restore the real errno */
-		WSASetLastError(error);
+#ifdef _WIN32
+		WSASetLastError(tmperrno);
+#else
+		errno = tmperrno;
+#endif
 		return NULL;
 	}
 	setsockopt(s,SOL_SOCKET,SO_OOBINLINE,(char *)&opt,sizeof(int));
-	
+
 	getsockname(s,(struct sockaddr *)&addr,&addrlen);
 	so->so_fport = addr.sin_port;
 	if (addr.sin_addr.s_addr == 0 || addr.sin_addr.s_addr == loopback_addr.s_addr)
@@ -620,30 +608,32 @@ solisten(port, laddr, lport, flags)
 	return so;
 }
 
-/* 
+#if 0
+/*
  * Data is available in so_rcv
  * Just write() the data to the socket
  * XXX not yet...
  */
-void
+static void
 sorwakeup(so)
 	struct socket *so;
 {
 /*	sowrite(so); */
 /*	FD_CLR(so->s,&writefds); */
 }
-	
+
 /*
  * Data has been freed in so_snd
  * We have room for a read() if we want to
  * For now, don't read, it'll be done in the main loop
  */
-void
+static void
 sowwakeup(so)
 	struct socket *so;
 {
 	/* Nothing, yet */
 }
+#endif
 
 /*
  * Various session state calls
@@ -668,9 +658,8 @@ soisfconnected(so)
 	so->so_state |= SS_ISFCONNECTED; /* Clobber other states */
 }
 
-void
-sofcantrcvmore(so)
-	struct  socket *so;
+static void
+sofcantrcvmore(struct socket *so)
 {
 	if ((so->so_state & SS_NOFDREF) == 0) {
 		shutdown(so->s,0);
@@ -685,9 +674,8 @@ sofcantrcvmore(so)
 	   so->so_state |= SS_FCANTRCVMORE;
 }
 
-void
-sofcantsendmore(so)
-	struct socket *so;
+static void
+sofcantsendmore(struct socket *so)
 {
 	if ((so->so_state & SS_NOFDREF) == 0) {
             shutdown(so->s,1);           /* send FIN to fhost */

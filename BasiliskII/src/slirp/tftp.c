@@ -1,8 +1,8 @@
 /*
  * tftp.c - a simple, read-only tftp server for qemu
- * 
+ *
  * Copyright (c) 2004 Magnus Damm <damm@opensource.se>
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -26,15 +26,15 @@
 
 struct tftp_session {
     int in_use;
-    char filename[TFTP_FILENAME_MAX];
-    
+    unsigned char filename[TFTP_FILENAME_MAX];
+
     struct in_addr client_ip;
     u_int16_t client_port;
-    
+
     int timestamp;
 };
 
-struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
+static struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
 
 const char *tftp_prefix;
 
@@ -102,8 +102,15 @@ static int tftp_read_data(struct tftp_session *spt, u_int16_t block_nr,
 {
   int fd;
   int bytes_read = 0;
+  char buffer[1024];
+  int n;
 
-  fd = open(spt->filename, O_RDONLY | O_BINARY);
+  n = snprintf(buffer, sizeof(buffer), "%s/%s",
+	       tftp_prefix, spt->filename);
+  if (n >= sizeof(buffer))
+    return -1;
+
+  fd = open(buffer, O_RDONLY | O_BINARY);
 
   if (fd < 0) {
     return -1;
@@ -120,13 +127,53 @@ static int tftp_read_data(struct tftp_session *spt, u_int16_t block_nr,
   return bytes_read;
 }
 
-static int tftp_send_error(struct tftp_session *spt, 
+static int tftp_send_oack(struct tftp_session *spt,
+                          const char *key, uint32_t value,
+                          struct tftp_t *recv_tp)
+{
+    struct sockaddr_in saddr, daddr;
+    struct mbuf *m;
+    struct tftp_t *tp;
+    int n = 0;
+
+    m = m_get();
+
+    if (!m)
+	return -1;
+
+    memset(m->m_data, 0, m->m_size);
+
+    m->m_data += IF_MAXLINKHDR;
+    tp = (void *)m->m_data;
+    m->m_data += sizeof(struct udpiphdr);
+
+    tp->tp_op = htons(TFTP_OACK);
+    n += sprintf(tp->x.tp_buf + n, "%s", key) + 1;
+    n += sprintf(tp->x.tp_buf + n, "%u", value) + 1;
+
+    saddr.sin_addr = recv_tp->ip.ip_dst;
+    saddr.sin_port = recv_tp->udp.uh_dport;
+
+    daddr.sin_addr = spt->client_ip;
+    daddr.sin_port = spt->client_port;
+
+    m->m_len = sizeof(struct tftp_t) - 514 + n -
+        sizeof(struct ip) - sizeof(struct udphdr);
+    udp_output2(NULL, m, &saddr, &daddr, IPTOS_LOWDELAY);
+
+    return 0;
+}
+
+
+
+static int tftp_send_error(struct tftp_session *spt,
 			   u_int16_t errorcode, const char *msg,
 			   struct tftp_t *recv_tp)
 {
   struct sockaddr_in saddr, daddr;
   struct mbuf *m;
   struct tftp_t *tp;
+  int nobytes;
 
   m = m_get();
 
@@ -136,14 +183,13 @@ static int tftp_send_error(struct tftp_session *spt,
 
   memset(m->m_data, 0, m->m_size);
 
-  m->m_data += if_maxlinkhdr;
+  m->m_data += IF_MAXLINKHDR;
   tp = (void *)m->m_data;
   m->m_data += sizeof(struct udpiphdr);
-  
+
   tp->tp_op = htons(TFTP_ERROR);
   tp->x.tp_error.tp_error_code = htons(errorcode);
-  strncpy((char *)tp->x.tp_error.tp_msg, msg, sizeof(tp->x.tp_error.tp_msg));
-  tp->x.tp_error.tp_msg[sizeof(tp->x.tp_error.tp_msg)-1] = 0;
+  strcpy(tp->x.tp_error.tp_msg, msg);
 
   saddr.sin_addr = recv_tp->ip.ip_dst;
   saddr.sin_port = recv_tp->udp.uh_dport;
@@ -151,7 +197,9 @@ static int tftp_send_error(struct tftp_session *spt,
   daddr.sin_addr = spt->client_ip;
   daddr.sin_port = spt->client_port;
 
-  m->m_len = sizeof(struct tftp_t) - 514 + 3 + strlen(msg) - 
+  nobytes = 2;
+
+  m->m_len = sizeof(struct tftp_t) - 514 + 3 + strlen(msg) -
         sizeof(struct ip) - sizeof(struct udphdr);
 
   udp_output2(NULL, m, &saddr, &daddr, IPTOS_LOWDELAY);
@@ -161,7 +209,7 @@ static int tftp_send_error(struct tftp_session *spt,
   return 0;
 }
 
-static int tftp_send_data(struct tftp_session *spt, 
+static int tftp_send_data(struct tftp_session *spt,
 			  u_int16_t block_nr,
 			  struct tftp_t *recv_tp)
 {
@@ -182,10 +230,10 @@ static int tftp_send_data(struct tftp_session *spt,
 
   memset(m->m_data, 0, m->m_size);
 
-  m->m_data += if_maxlinkhdr;
+  m->m_data += IF_MAXLINKHDR;
   tp = (void *)m->m_data;
   m->m_data += sizeof(struct udpiphdr);
-  
+
   tp->tp_op = htons(TFTP_DATA);
   tp->x.tp_data.tp_block_nr = htons(block_nr);
 
@@ -207,7 +255,7 @@ static int tftp_send_data(struct tftp_session *spt,
     return -1;
   }
 
-  m->m_len = sizeof(struct tftp_t) - (512 - nobytes) - 
+  m->m_len = sizeof(struct tftp_t) - (512 - nobytes) -
         sizeof(struct ip) - sizeof(struct udphdr);
 
   udp_output2(NULL, m, &saddr, &daddr, IPTOS_LOWDELAY);
@@ -237,7 +285,7 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
   spt = &tftp_sessions[s];
 
   src = tp->x.tp_buf;
-  dst = (u_int8_t *)spt->filename;
+  dst = spt->filename;
   n = pktlen - ((uint8_t *)&tp->x.tp_buf[0] - (uint8_t *)tp);
 
   /* get name */
@@ -249,27 +297,29 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
     else {
       return;
     }
-    
+
     if (src[k] == '\0') {
       break;
     }
   }
-      
+
   if (k >= n) {
     return;
   }
-  
+
   k++;
-  
+
   /* check mode */
   if ((n - k) < 6) {
     return;
   }
-  
+
   if (memcmp(&src[k], "octet\0", 6) != 0) {
       tftp_send_error(spt, 4, "Unsupported transfer mode", tp);
       return;
   }
+
+  k += 6; /* skipping octet */
 
   /* do sanity checks on the filename */
 
@@ -282,17 +332,58 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
 
   /* only allow exported prefixes */
 
-  if (!tftp_prefix
-      || (strncmp(spt->filename, tftp_prefix, strlen(tftp_prefix)) != 0)) {
+  if (!tftp_prefix) {
       tftp_send_error(spt, 2, "Access violation", tp);
       return;
   }
 
   /* check if the file exists */
-  
-  if (tftp_read_data(spt, 0, (u_int8_t *)spt->filename, 0) < 0) {
+
+  if (tftp_read_data(spt, 0, spt->filename, 0) < 0) {
       tftp_send_error(spt, 1, "File not found", tp);
       return;
+  }
+
+  if (src[n - 1] != 0) {
+      tftp_send_error(spt, 2, "Access violation", tp);
+      return;
+  }
+
+  while (k < n) {
+      const char *key, *value;
+
+      key = src + k;
+      k += strlen(key) + 1;
+
+      if (k >= n) {
+	  tftp_send_error(spt, 2, "Access violation", tp);
+	  return;
+      }
+
+      value = src + k;
+      k += strlen(value) + 1;
+
+      if (strcmp(key, "tsize") == 0) {
+	  int tsize = atoi(value);
+	  struct stat stat_p;
+
+	  if (tsize == 0 && tftp_prefix) {
+	      char buffer[1024];
+	      int len;
+
+	      len = snprintf(buffer, sizeof(buffer), "%s/%s",
+			     tftp_prefix, spt->filename);
+
+	      if (stat(buffer, &stat_p) == 0)
+		  tsize = stat_p.st_size;
+	      else {
+		  tftp_send_error(spt, 1, "File not found", tp);
+		  return;
+	      }
+	  }
+
+	  tftp_send_oack(spt, "tsize", tsize, tp);
+      }
   }
 
   tftp_send_data(spt, 1, tp);
@@ -308,8 +399,8 @@ static void tftp_handle_ack(struct tftp_t *tp, int pktlen)
     return;
   }
 
-  if (tftp_send_data(&tftp_sessions[s], 
-		     ntohs(tp->x.tp_data.tp_block_nr) + 1, 
+  if (tftp_send_data(&tftp_sessions[s],
+		     ntohs(tp->x.tp_data.tp_block_nr) + 1,
 		     tp) < 0) {
     return;
   }

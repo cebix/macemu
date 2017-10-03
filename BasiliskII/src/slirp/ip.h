@@ -10,7 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -72,16 +76,12 @@ typedef u_int32_t n_long;                 /* long as received from the net */
 /*
  * Structure of an internet header, naked of options.
  */
-#ifdef PRAGMA_PACK_SUPPORTED
-#pragma pack(1)
-#endif
-
 struct ip {
 #ifdef WORDS_BIGENDIAN
-	u_char ip_v:4,			/* version */
+	u_int ip_v:4,			/* version */
 		ip_hl:4;		/* header length */
 #else
-	u_char ip_hl:4,		/* header length */
+	u_int ip_hl:4,		/* header length */
 		ip_v:4;			/* version */
 #endif
 	u_int8_t ip_tos;			/* type of service */
@@ -95,11 +95,7 @@ struct ip {
 	u_int8_t ip_p;			/* protocol */
 	u_int16_t	ip_sum;			/* checksum */
 	struct	in_addr ip_src,ip_dst;	/* source and dest address */
-} PACKED__;
-
-#ifdef PRAGMA_PACK_SUPPORTED
-#pragma pack(PACK_RESET)
-#endif
+};
 
 #define	IP_MAXPACKET	65535		/* maximum packet size */
 
@@ -143,19 +139,15 @@ struct ip {
 /*
  * Time stamp option structure.
  */
-#ifdef PRAGMA_PACK_SUPPORTED
-#pragma pack(1)
-#endif
-
 struct	ip_timestamp {
 	u_int8_t	ipt_code;		/* IPOPT_TS */
 	u_int8_t	ipt_len;		/* size of structure (variable) */
 	u_int8_t	ipt_ptr;		/* index of current entry */
 #ifdef WORDS_BIGENDIAN
-	u_char	ipt_oflw:4,		/* overflow counter */
+	u_int	ipt_oflw:4,		/* overflow counter */
 		ipt_flg:4;		/* flags, see below */
 #else
-	u_char	ipt_flg:4,		/* flags, see below */
+	u_int	ipt_flg:4,		/* flags, see below */
 		ipt_oflw:4;		/* overflow counter */
 #endif
 	union ipt_timestamp {
@@ -165,11 +157,7 @@ struct	ip_timestamp {
 			n_long ipt_time;
 		} ipt_ta[1];
 	} ipt_timestamp;
-} PACKED__;
-
-#ifdef PRAGMA_PACK_SUPPORTED
-#pragma pack(PACK_RESET)
-#endif
+};
 
 /* flag bits for ipt_flg */
 #define	IPOPT_TS_TSONLY		0		/* timestamps only */
@@ -216,10 +204,6 @@ typedef caddr32_t ipasfragp_32;
 /*
  * Overlay for ip header used by other protocols (tcp, udp).
  */
-#ifdef PRAGMA_PACK_SUPPORTED
-#pragma pack(1)
-#endif
-
 struct ipovly {
 	caddr32_t	ih_next, ih_prev;	/* for protocol sequence q's */
 	u_int8_t	ih_x1;			/* (unused) */
@@ -227,11 +211,7 @@ struct ipovly {
 	u_int16_t	ih_len;			/* protocol length */
 	struct	in_addr ih_src;		/* source internet address */
 	struct	in_addr ih_dst;		/* destination internet address */
-} PACKED__;
-
-#ifdef PRAGMA_PACK_SUPPORTED
-#pragma pack(PACK_RESET)
-#endif
+};
 
 /*
  * Ip reassembly queue structure.  Each fragment
@@ -257,10 +237,10 @@ struct ipq {
  */
 struct	ipasfrag {
 #ifdef WORDS_BIGENDIAN
-	u_char	ip_v:4,
+	u_int	ip_v:4,
  		ip_hl:4;
 #else
-	u_char	ip_hl:4,
+	u_int	ip_hl:4,
 		ip_v:4;
 #endif
                                         /* BUG : u_int changed to u_int8_t.
@@ -292,6 +272,7 @@ struct ipoption {
 	int8_t	ipopt_list[MAX_IPOPTLEN];	/* options proper */
 };
 
+#ifdef LOG_ENABLED
 /*
  * Structure attached to inpcb.ip_moptions and
  * passed to ip_output when IP multicast options are in use.
@@ -326,8 +307,9 @@ struct	ipstat {
 };
 
 extern struct	ipstat	ipstat;
+#endif
+
 extern struct	ipq	ipq;			/* ip reass. queue */
 extern u_int16_t	ip_id;				/* ip packet ctr, for ids */
-extern int	ip_defttl;			/* default IP ttl */
 
 #endif

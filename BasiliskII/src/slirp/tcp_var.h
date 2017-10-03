@@ -10,7 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -181,6 +185,7 @@ typedef u_int32_t mbufp_32;
 #endif
 #define REASS_MBUF(ti) (*(mbufp_32 *)&((ti)->ti_t))
 
+#ifdef LOG_ENABLED
 /*
  * TCP statistics.
  * Many of these should be kept per connection,
@@ -243,6 +248,8 @@ struct tcpstat {
 };
 
 extern struct	tcpstat tcpstat;	/* tcp statistics */
+#endif
+
 extern u_int32_t	tcp_now;		/* for RFC 1323 timestamps */
 
 #endif

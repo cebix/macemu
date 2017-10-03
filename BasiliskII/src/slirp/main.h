@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 1995 Danny Gasparovski.
- * 
- * Please read the file COPYRIGHT for the 
+ *
+ * Please read the file COPYRIGHT for the
  * terms and conditions of the copyright.
  */
 
@@ -42,7 +42,6 @@ extern char *username;
 extern char *socket_path;
 extern int towrite_max;
 extern int ppp_exit;
-extern int so_options;
 extern int tcp_keepintvl;
 extern uint8_t client_ethaddr[6];
 
