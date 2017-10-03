@@ -17,7 +17,7 @@ struct ex_list {
 };
 
 extern struct ex_list *exec_list;
-extern u_int curtime, time_fasttimo, last_slowtimo;
+extern u_int time_fasttimo, last_slowtimo;
 
 extern int (*lprint_print) _P((void *, const char *, va_list));
 extern char *lprint_ptr, *lprint_ptr2, **lprint_arg;
@@ -72,8 +72,8 @@ extern int x_port, x_server, x_display;
 int show_x _P((char *, struct socket *));
 void redir_x _P((u_int32_t, int, int, int));
 void getouraddr _P((void));
-inline  void slirp_insque  _P((void *, void *));
-inline  void slirp_remque  _P((void *));
+void slirp_insque _P((void *, void *));
+void slirp_remque _P((void *));
 int add_exec _P((struct ex_list **, int, char *, int, int));
 int slirp_openpty _P((int *, int *));
 int fork_exec(struct socket *so, const char *ex, int do_pty);

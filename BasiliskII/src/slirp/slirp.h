@@ -32,6 +32,7 @@ typedef char *caddr_t;
 #define WIN32_LEAN_AND_MEAN
 # include <windows.h>
 # include <winsock2.h>
+# include <ws2tcpip.h>
 # include <sys/timeb.h>
 # include <iphlpapi.h>
 
@@ -102,7 +103,7 @@ typedef unsigned char u_int8_t;
 # include <sys/time.h>
 # include <time.h>
 #else
-# if HAVE_SYS_TIME_H
+# ifdef HAVE_SYS_TIME_H
 #  include <sys/time.h>
 # else
 #  include <time.h>
@@ -119,12 +120,11 @@ typedef unsigned char u_int8_t;
 #include <sys/uio.h>
 #endif
 
-#ifndef _P
+#undef _P
 #ifndef NO_PROTOTYPES
 #  define   _P(x)   x
 #else
 #  define   _P(x)   ()
-#endif
 #endif
 
 #ifndef _WIN32
@@ -264,14 +264,6 @@ void if_start _P((struct ttys *));
 #endif
 
 void lprint _P((const char *, ...));
-
-#if SIZEOF_CHAR_P == 4
-# define insque_32 insque
-# define remque_32 remque
-#else
- inline void insque_32 _P((void *, void *));
- inline void remque_32 _P((void *));
-#endif
 
 #ifndef _WIN32
 #include <netdb.h>

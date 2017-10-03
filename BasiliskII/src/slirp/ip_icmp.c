@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,7 +39,7 @@ struct icmpstat icmpstat;
 
 /* The message sent when emulating PING */
 /* Be nice and tell them it's just a pseudo-ping packet */
-const char icmp_ping_msg[] = "This is a pseudo-PING packet used by Slirp to emulate ICMP ECHO-REQUEST packets.\n";
+static const char icmp_ping_msg[] = "This is a pseudo-PING packet used by Slirp to emulate ICMP ECHO-REQUEST packets.\n";
 
 /* list of actions for icmp_error() on RX of an icmp message */
 static const int icmp_flush[19] = {
@@ -207,12 +203,8 @@ end_error:
 
 #define ICMP_MAXDATALEN (IP_MSS-28)
 void
-icmp_error(msrc, type, code, minsize, message)
-     struct mbuf *msrc;
-     u_char type;
-     u_char code;
-     int minsize;
-     char *message;
+icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
+           const char *message)
 {
   unsigned hlen, shlen, s_ip_len;
   register struct ip *ip;
@@ -228,7 +220,7 @@ icmp_error(msrc, type, code, minsize, message)
   /* check msrc */
   if(!msrc) goto end_error;
   ip = mtod(msrc, struct ip *);
-#if DEBUG
+#ifdef DEBUG
   { char bufa[20], bufb[20];
     strcpy(bufa, inet_ntoa(ip->ip_src));
     strcpy(bufb, inet_ntoa(ip->ip_dst));
@@ -285,7 +277,7 @@ icmp_error(msrc, type, code, minsize, message)
   HTONS(icp->icmp_ip.ip_id);
   HTONS(icp->icmp_ip.ip_off);
 
-#if DEBUG
+#ifdef DEBUG
   if(message) {           /* DEBUG : append message to ICMP packet */
     int message_len;
     char *cpnt;

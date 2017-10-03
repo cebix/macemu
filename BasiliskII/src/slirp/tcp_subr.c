@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -73,7 +69,7 @@ tcp_template(tp)
 	struct socket *so = tp->t_socket;
 	register struct tcpiphdr *n = &tp->t_template;
 
-	n->ti_next = n->ti_prev = 0;
+	n->ti_mbuf = NULL;
 	n->ti_x1 = 0;
 	n->ti_pr = IPPROTO_TCP;
 	n->ti_len = htons(sizeof (struct tcpiphdr) - sizeof (struct ip));
@@ -156,7 +152,7 @@ tcp_respond(tp, ti, m, ack, seq, flags)
 	tlen += sizeof (struct tcpiphdr);
 	m->m_len = tlen;
 
-	ti->ti_next = ti->ti_prev = 0;
+	ti->ti_mbuf = 0;
 	ti->ti_x1 = 0;
 	ti->ti_seq = htonl(seq);
 	ti->ti_ack = htonl(ack);
@@ -196,7 +192,7 @@ tcp_newtcpcb(so)
 		return ((struct tcpcb *)0);
 
 	memset((char *) tp, 0, sizeof(struct tcpcb));
-	tp->seg_next = tp->seg_prev = (tcpiphdrp_32)tp;
+	tp->seg_next = tp->seg_prev = (struct tcpiphdr*)tp;
 	tp->t_maxseg = TCP_MSS;
 
 	tp->t_flags = TCP_DO_RFC1323 ? (TF_REQ_SCALE|TF_REQ_TSTMP) : 0;
@@ -272,11 +268,11 @@ tcp_close(tp)
 	DEBUG_ARG("tp = %lx", (long )tp);
 
 	/* free the reassembly queue, if any */
-	t = (struct tcpiphdr *) tp->seg_next;
-	while (t != (struct tcpiphdr *)tp) {
-		t = (struct tcpiphdr *)t->ti_next;
-		m = (struct mbuf *) REASS_MBUF((struct tcpiphdr *)t->ti_prev);
-		remque_32((struct tcpiphdr *) t->ti_prev);
+	t = tcpfrag_list_first(tp);
+	while (!tcpfrag_list_end(t, tp)) {
+		t = tcpiphdr_next(t);
+		m = tcpiphdr_prev(t)->ti_mbuf;
+		remque(tcpiphdr2qlink(tcpiphdr_prev(t)));
 		m_freem(m);
 	}
 	/* It's static */
@@ -447,7 +443,7 @@ tcp_connect(inso)
 {
 	struct socket *so;
 	struct sockaddr_in addr;
-	int addrlen = sizeof(struct sockaddr_in);
+	socklen_t addrlen = sizeof(struct sockaddr_in);
 	struct tcpcb *tp;
 	int s, opt;
 
@@ -629,7 +625,7 @@ tcp_emu(so, m)
 	struct mbuf *m;
 {
 	u_int n1, n2, n3, n4, n5, n6;
-	char buff[256];
+        char buff[257];
 	u_int32_t laddr;
 	u_int lport;
 	char *bptr;
@@ -649,7 +645,7 @@ tcp_emu(so, m)
 		{
 			struct socket *tmpso;
 			struct sockaddr_in addr;
-			int addrlen = sizeof(struct sockaddr_in);
+			socklen_t addrlen = sizeof(struct sockaddr_in);
 			struct sbuf *so_rcv = &so->so_rcv;
 
 			memcpy(so_rcv->sb_wptr, m->m_data, m->m_len);
@@ -673,7 +669,9 @@ tcp_emu(so, m)
 						}
 					}
 				}
-				so_rcv->sb_cc = sprintf(so_rcv->sb_data, "%d,%d\r\n", n1, n2);
+                                so_rcv->sb_cc = snprintf(so_rcv->sb_data,
+                                                         so_rcv->sb_datalen,
+                                                         "%d,%d\r\n", n1, n2);
 				so_rcv->sb_rptr = so_rcv->sb_data;
 				so_rcv->sb_wptr = so_rcv->sb_data + so_rcv->sb_cc;
 			}
@@ -1007,8 +1005,9 @@ do_prompt:
 			n4 =  (laddr & 0xff);
 
 			m->m_len = bptr - m->m_data; /* Adjust length */
-			m->m_len += sprintf(bptr,"ORT %d,%d,%d,%d,%d,%d\r\n%s",
-					    n1, n2, n3, n4, n5, n6, x==7?buff:"");
+                        m->m_len += snprintf(bptr, m->m_hdr.mh_size - m->m_len,
+                                             "ORT %d,%d,%d,%d,%d,%d\r\n%s",
+                                             n1, n2, n3, n4, n5, n6, x==7?buff:"");
 			return 1;
 		} else if ((bptr = (char *)strstr(m->m_data, "27 Entering")) != NULL) {
 			/*
@@ -1038,8 +1037,9 @@ do_prompt:
 			n4 =  (laddr & 0xff);
 
 			m->m_len = bptr - m->m_data; /* Adjust length */
-			m->m_len += sprintf(bptr,"27 Entering Passive Mode (%d,%d,%d,%d,%d,%d)\r\n%s",
-					    n1, n2, n3, n4, n5, n6, x==7?buff:"");
+			m->m_len += snprintf(bptr, m->m_hdr.mh_size - m->m_len,
+                                             "27 Entering Passive Mode (%d,%d,%d,%d,%d,%d)\r\n%s",
+                                             n1, n2, n3, n4, n5, n6, x==7?buff:"");
 
 			return 1;
 		}
@@ -1062,7 +1062,8 @@ do_prompt:
 		}
 		if (m->m_data[m->m_len-1] == '\0' && lport != 0 &&
 		    (so = solisten(0, so->so_laddr.s_addr, htons(lport), SS_FACCEPTONCE)) != NULL)
-			m->m_len = sprintf(m->m_data, "%d", ntohs(so->so_fport))+1;
+                    m->m_len = snprintf(m->m_data, m->m_hdr.mh_size, "%d",
+                                        ntohs(so->so_fport)) + 1;
 		return 1;
 
 	 case EMU_IRC:
@@ -1079,25 +1080,28 @@ do_prompt:
 				return 1;
 
 			m->m_len = bptr - m->m_data; /* Adjust length */
-			m->m_len += sprintf(bptr, "DCC CHAT chat %lu %u%c\n",
-			     (unsigned long)ntohl(so->so_faddr.s_addr),
-			     ntohs(so->so_fport), 1);
+                        m->m_len += snprintf(bptr, m->m_hdr.mh_size,
+                                             "DCC CHAT chat %lu %u%c\n",
+                                             (unsigned long)ntohl(so->so_faddr.s_addr),
+                                             ntohs(so->so_fport), 1);
 		} else if (sscanf(bptr, "DCC SEND %256s %u %u %u", buff, &laddr, &lport, &n1) == 4) {
 			if ((so = solisten(0, htonl(laddr), htons(lport), SS_FACCEPTONCE)) == NULL)
 				return 1;
 
 			m->m_len = bptr - m->m_data; /* Adjust length */
-			m->m_len += sprintf(bptr, "DCC SEND %s %lu %u %u%c\n",
-			      buff, (unsigned long)ntohl(so->so_faddr.s_addr),
-			      ntohs(so->so_fport), n1, 1);
+                        m->m_len += snprintf(bptr, m->m_hdr.mh_size,
+                                             "DCC SEND %s %lu %u %u%c\n", buff,
+                                             (unsigned long)ntohl(so->so_faddr.s_addr),
+                                             ntohs(so->so_fport), n1, 1);
 		} else if (sscanf(bptr, "DCC MOVE %256s %u %u %u", buff, &laddr, &lport, &n1) == 4) {
 			if ((so = solisten(0, htonl(laddr), htons(lport), SS_FACCEPTONCE)) == NULL)
 				return 1;
 
 			m->m_len = bptr - m->m_data; /* Adjust length */
-			m->m_len += sprintf(bptr, "DCC MOVE %s %lu %u %u%c\n",
-			      buff, (unsigned long)ntohl(so->so_faddr.s_addr),
-			      ntohs(so->so_fport), n1, 1);
+                        m->m_len += snprintf(bptr, m->m_hdr.mh_size,
+                                             "DCC MOVE %s %lu %u %u%c\n", buff,
+                                             (unsigned long)ntohl(so->so_faddr.s_addr),
+                                             ntohs(so->so_fport), n1, 1);
 		}
 		return 1;
 
@@ -1273,6 +1277,11 @@ tcp_ctl(so)
 		for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
 			if (ex_ptr->ex_fport == so->so_fport &&
 			    command == ex_ptr->ex_addr) {
+				if (ex_ptr->ex_pty == 3) {
+					so->s = -1;
+					so->extra = (void *)ex_ptr->ex_exec;
+					return 1;
+				}
 				do_pty = ex_ptr->ex_pty;
 				goto do_exec;
 			}
@@ -1285,8 +1294,8 @@ tcp_ctl(so)
 
 		/* FALLTHROUGH */
 	case CTL_ALIAS:
-	  sb->sb_cc = sprintf(sb->sb_wptr,
-			      "Error: No application configured.\r\n");
+          sb->sb_cc = snprintf(sb->sb_wptr, sb->sb_datalen - (sb->sb_wptr - sb->sb_data),
+                               "Error: No application configured.\r\n");
 	  sb->sb_wptr += sb->sb_cc;
 	  return(0);
 

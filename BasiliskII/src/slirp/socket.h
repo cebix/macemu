@@ -73,14 +73,6 @@ struct socket {
 
 extern struct socket tcb;
 
-
-#if defined(DECLARE_IOVEC) && !defined(HAVE_READV)
-struct iovec {
-	char *iov_base;
-	size_t iov_len;
-};
-#endif
-
 struct socket * solookup _P((struct socket *, struct in_addr, u_int, struct in_addr, u_int));
 struct socket * socreate _P((void));
 void sofree _P((struct socket *));
@@ -95,5 +87,7 @@ void soisfconnecting _P((register struct socket *));
 void soisfconnected _P((register struct socket *));
 void soisfdisconnected _P((struct socket *));
 void sofwdrain _P((struct socket *));
+size_t sopreprbuf(struct socket *so, struct iovec *iov, int *np);
+int soreadbuf(struct socket *so, const char *buf, int size);
 
 #endif /* _SOCKET_H_ */
