@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -37,7 +33,7 @@
 /*
  * Changes and additions relating to SLiRP are
  * Copyright (c) 1995 Danny Gasparovski.
- *
+ * 
  * Please read the file COPYRIGHT for the
  * terms and conditions of the copyright.
  */
@@ -45,18 +41,9 @@
 #include <slirp.h>
 #include "ip_icmp.h"
 
-#ifdef LOG_ENABLED
+int ip_defttl;
 struct ipstat ipstat;
-#endif
-
 struct ipq ipq;
-
-static struct ip *ip_reass(register struct ipasfrag *ip,
-                           register struct ipq *fp);
-static void ip_freef(struct ipq *fp);
-static void ip_enq(register struct ipasfrag *p,
-                   register struct ipasfrag *prev);
-static void ip_deq(register struct ipasfrag *p);
 
 /*
  * IP initialization: fill in IP protocol switch table.
@@ -69,6 +56,7 @@ ip_init()
 	ip_id = tt.tv_sec & 0xffff;
 	udp_init();
 	tcp_init();
+	ip_defttl = IPDEFTTL;
 }
 
 /*
@@ -80,38 +68,38 @@ ip_input(m)
 	struct mbuf *m;
 {
 	register struct ip *ip;
-	int hlen;
-
+	u_int hlen;
+	
 	DEBUG_CALL("ip_input");
 	DEBUG_ARG("m = %lx", (long)m);
-	DEBUG_ARG("m_len = %d", m->m_len);
+	DEBUG_ARG("m_len = %zu", m->m_len);
 
-	STAT(ipstat.ips_total++);
-
+	ipstat.ips_total++;
+	
 	if (m->m_len < sizeof (struct ip)) {
-		STAT(ipstat.ips_toosmall++);
+		ipstat.ips_toosmall++;
 		return;
 	}
-
+	
 	ip = mtod(m, struct ip *);
-
+	
 	if (ip->ip_v != IPVERSION) {
-		STAT(ipstat.ips_badvers++);
+		ipstat.ips_badvers++;
 		goto bad;
 	}
 
 	hlen = ip->ip_hl << 2;
 	if (hlen<sizeof(struct ip ) || hlen>m->m_len) {/* min header length */
-	  STAT(ipstat.ips_badhlen++);                     /* or packet too short */
+	  ipstat.ips_badhlen++;                     /* or packet too short */
 	  goto bad;
 	}
 
         /* keep ip header intact for ICMP reply
-	 * ip->ip_sum = cksum(m, hlen);
-	 * if (ip->ip_sum) {
+	 * ip->ip_sum = cksum(m, hlen); 
+	 * if (ip->ip_sum) { 
 	 */
 	if(cksum(m,hlen)) {
-	  STAT(ipstat.ips_badsum++);
+	  ipstat.ips_badsum++;
 	  goto bad;
 	}
 
@@ -120,7 +108,7 @@ ip_input(m)
 	 */
 	NTOHS(ip->ip_len);
 	if (ip->ip_len < hlen) {
-		STAT(ipstat.ips_badlen++);
+		ipstat.ips_badlen++;
 		goto bad;
 	}
 	NTOHS(ip->ip_id);
@@ -133,7 +121,7 @@ ip_input(m)
 	 * Drop packet if shorter than we expect.
 	 */
 	if (m->m_len < ip->ip_len) {
-		STAT(ipstat.ips_tooshort++);
+		ipstat.ips_tooshort++;
 		goto bad;
 	}
 	/* Should drop packet if mbuf too long? hmmm... */
@@ -162,7 +150,7 @@ ip_input(m)
 	 * (We could look in the reassembly queue to see
 	 * if the packet was previously fragmented,
 	 * but it's not worth the time; just let them time out.)
-	 *
+	 * 
 	 * XXX This should fail, don't fragment yet
 	 */
 	if (ip->ip_off &~ IP_DF) {
@@ -189,7 +177,7 @@ ip_input(m)
 		ip->ip_len -= hlen;
 		if (ip->ip_off & IP_MF)
 		  ((struct ipasfrag *)ip)->ipf_mff |= 1;
-		else
+		else 
 		  ((struct ipasfrag *)ip)->ipf_mff &= ~1;
 
 		ip->ip_off <<= 3;
@@ -200,11 +188,11 @@ ip_input(m)
 		 * attempt reassembly; if it succeeds, proceed.
 		 */
 		if (((struct ipasfrag *)ip)->ipf_mff & 1 || ip->ip_off) {
-			STAT(ipstat.ips_fragments++);
+			ipstat.ips_fragments++;
 			ip = ip_reass((struct ipasfrag *)ip, fp);
 			if (ip == 0)
 				return;
-			STAT(ipstat.ips_reassembled++);
+			ipstat.ips_reassembled++;
 			m = dtom(ip);
 		} else
 			if (fp)
@@ -216,7 +204,7 @@ ip_input(m)
 	/*
 	 * Switch out to protocol's input routine.
 	 */
-	STAT(ipstat.ips_delivered++);
+	ipstat.ips_delivered++;
 	switch (ip->ip_p) {
 	 case IPPROTO_TCP:
 		tcp_input(m, hlen, (struct socket *)NULL);
@@ -228,7 +216,7 @@ ip_input(m)
 		icmp_input(m, hlen);
 		break;
 	 default:
-		STAT(ipstat.ips_noproto++);
+		ipstat.ips_noproto++;
 		m_free(m);
 	}
 	return;
@@ -243,14 +231,16 @@ bad:
  * reassembly of this datagram already exists, then it
  * is given as fp; otherwise have to make a chain.
  */
-static struct ip *
-ip_reass(register struct ipasfrag *ip, register struct ipq *fp)
+struct ip *
+ip_reass(ip, fp)
+	register struct ipasfrag *ip;
+	register struct ipq *fp;
 {
 	register struct mbuf *m = dtom(ip);
 	register struct ipasfrag *q;
 	int hlen = ip->ip_hl << 2;
 	int i, next;
-
+	
 	DEBUG_CALL("ip_reass");
 	DEBUG_ARG("ip = %lx", (long)ip);
 	DEBUG_ARG("fp = %lx", (long)fp);
@@ -281,7 +271,7 @@ ip_reass(register struct ipasfrag *ip, register struct ipq *fp)
 	  q = (struct ipasfrag *)fp;
 	  goto insert;
 	}
-
+	
 	/*
 	 * Find a segment which begins after this one does.
 	 */
@@ -375,7 +365,7 @@ insert:
 	  ip = (struct ipasfrag *)(m->m_ext + delta);
 	}
 
-	/* DEBUG_ARG("ip = %lx", (long)ip);
+	/* DEBUG_ARG("ip = %lx", (long)ip); 
 	 * ip=(struct ipasfrag *)m->m_data; */
 
 	ip->ip_len = next;
@@ -391,7 +381,7 @@ insert:
 	return ((struct ip *)ip);
 
 dropfrag:
-	STAT(ipstat.ips_fragdropped++);
+	ipstat.ips_fragdropped++;
 	m_freem(m);
 	return (0);
 }
@@ -400,8 +390,9 @@ dropfrag:
  * Free a fragment reassembly header and all
  * associated datagrams.
  */
-static void
-ip_freef(struct ipq *fp)
+void
+ip_freef(fp)
+	struct ipq *fp;
 {
 	register struct ipasfrag *q, *p;
 
@@ -419,8 +410,9 @@ ip_freef(struct ipq *fp)
  * Put an ip fragment on a reassembly chain.
  * Like insque, but pointers in middle of structure.
  */
-static void
-ip_enq(register struct ipasfrag *p, register struct ipasfrag *prev)
+void
+ip_enq(p, prev)
+	register struct ipasfrag *p, *prev;
 {
 	DEBUG_CALL("ip_enq");
 	DEBUG_ARG("prev = %lx", (long)prev);
@@ -433,8 +425,9 @@ ip_enq(register struct ipasfrag *p, register struct ipasfrag *prev)
 /*
  * To ip_enq as remque is to insque.
  */
-static void
-ip_deq(register struct ipasfrag *p)
+void
+ip_deq(p)
+	register struct ipasfrag *p;
 {
 	((struct ipasfrag *)(p->ipf_prev))->ipf_next = p->ipf_next;
 	((struct ipasfrag *)(p->ipf_next))->ipf_prev = p->ipf_prev;
@@ -449,9 +442,9 @@ void
 ip_slowtimo()
 {
 	register struct ipq *fp;
-
+	
 	DEBUG_CALL("ip_slowtimo");
-
+	
 	fp = (struct ipq *) ipq.next;
 	if (fp == 0)
 	   return;
@@ -460,7 +453,7 @@ ip_slowtimo()
 		--fp->ipq_ttl;
 		fp = (struct ipq *) fp->next;
 		if (((struct ipq *)(fp->prev))->ipq_ttl == 0) {
-			STAT(ipstat.ips_fragtimeout++);
+			ipstat.ips_fragtimeout++;
 			ip_freef((struct ipq *) fp->prev);
 		}
 	}
@@ -667,7 +660,7 @@ bad:
 /* Not yet */
  	icmp_error(m, type, code, 0, 0);
 
-	STAT(ipstat.ips_badoptions++);
+	ipstat.ips_badoptions++;
 	return (1);
 }
 
@@ -695,6 +688,6 @@ ip_stripoptions(m, mopt)
 	i = m->m_len - (sizeof (struct ip) + olen);
 	memcpy(opts, opts  + olen, (unsigned)i);
 	m->m_len -= olen;
-
+	
 	ip->ip_hl = sizeof(struct ip) >> 2;
 }

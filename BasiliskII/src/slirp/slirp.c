@@ -12,7 +12,7 @@ struct in_addr special_addr;
 /* virtual address alias for host */
 struct in_addr alias_addr;
 
-static const uint8_t special_ethaddr[6] = {
+const uint8_t special_ethaddr[6] = { 
     0x52, 0x54, 0x00, 0x12, 0x35, 0x00
 };
 
@@ -38,10 +38,10 @@ static int get_dns_addr(struct in_addr *pdns_addr)
     DWORD    ret;
     IP_ADDR_STRING *pIPAddr;
     struct in_addr tmp_addr;
-
+    
     FixedInfo = (FIXED_INFO *)GlobalAlloc(GPTR, sizeof(FIXED_INFO));
     BufLen = sizeof(FIXED_INFO);
-
+   
     if (ERROR_BUFFER_OVERFLOW == GetNetworkParams(FixedInfo, &BufLen)) {
         if (FixedInfo) {
             GlobalFree(FixedInfo);
@@ -49,7 +49,7 @@ static int get_dns_addr(struct in_addr *pdns_addr)
         }
         FixedInfo = GlobalAlloc(GPTR, BufLen);
     }
-
+	
     if ((ret = GetNetworkParams(FixedInfo, &BufLen)) != ERROR_SUCCESS) {
         printf("GetNetworkParams failed. ret = %08x\n", (u_int)ret );
         if (FixedInfo) {
@@ -58,14 +58,14 @@ static int get_dns_addr(struct in_addr *pdns_addr)
         }
         return -1;
     }
-
+     
     pIPAddr = &(FixedInfo->DnsServerList);
     inet_aton(pIPAddr->IpAddress.String, &tmp_addr);
     *pdns_addr = tmp_addr;
 #if 0
     printf( "DNS Servers:\n" );
     printf( "DNS Addr:%s\n", pIPAddr->IpAddress.String );
-
+    
     pIPAddr = FixedInfo -> DnsServerList.Next;
     while ( pIPAddr ) {
             printf( "DNS Addr:%s\n", pIPAddr ->IpAddress.String );
@@ -84,18 +84,16 @@ static int get_dns_addr(struct in_addr *pdns_addr)
 static int get_dns_addr(struct in_addr *pdns_addr)
 {
     char buff[512];
-    char buff2[256];
+    char buff2[256+1];
     FILE *f;
     int found = 0;
     struct in_addr tmp_addr;
-
+    
     f = fopen("/etc/resolv.conf", "r");
     if (!f)
         return -1;
 
-#ifdef DEBUG
     lprint("IP address of your DNS(s): ");
-#endif
     while (fgets(buff, 512, f) != NULL) {
         if (sscanf(buff, "nameserver%*[ \t]%256s", buff2) == 1) {
             if (!inet_aton(buff2, &tmp_addr))
@@ -105,20 +103,13 @@ static int get_dns_addr(struct in_addr *pdns_addr)
             /* If it's the first one, set it to dns_addr */
             if (!found)
                 *pdns_addr = tmp_addr;
-#ifdef DEBUG
             else
                 lprint(", ");
-#endif
             if (++found > 3) {
-#ifdef DEBUG
                 lprint("(more)");
-#endif
                 break;
-            }
-#ifdef DEBUG
-            else
+            } else
                 lprint("%s", inet_ntoa(tmp_addr));
-#endif
         }
     }
     fclose(f);
@@ -130,16 +121,16 @@ static int get_dns_addr(struct in_addr *pdns_addr)
 #endif
 
 #ifdef _WIN32
-static void slirp_cleanup(void)
+void slirp_cleanup(void)
 {
     WSACleanup();
 }
 #endif
 
-void slirp_init(void)
+int slirp_init(void)
 {
     //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
-
+    
 #ifdef _WIN32
     {
         WSADATA Data;
@@ -159,14 +150,13 @@ void slirp_init(void)
     /* set default addresses */
     inet_aton("127.0.0.1", &loopback_addr);
 
-    if (get_dns_addr(&dns_addr) < 0) {
-        dns_addr = loopback_addr;
-        fprintf (stderr, "Warning: No DNS servers found\n");
-    }
+    if (get_dns_addr(&dns_addr) < 0)
+        return -1;
 
     inet_aton(CTL_SPECIAL, &special_addr);
-    alias_addr.s_addr = special_addr.s_addr | htonl(CTL_ALIAS);
-    getouraddr();
+	alias_addr.s_addr = special_addr.s_addr | htonl(CTL_ALIAS);
+	getouraddr();
+    return 0;
 }
 
 #define CONN_CANFSEND(so) (((so)->so_state & (SS_FCANTSENDMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)
@@ -189,57 +179,56 @@ static void updtime(void)
 static void updtime(void)
 {
 	gettimeofday(&tt, 0);
-
+	
 	curtime = (u_int)tt.tv_sec * (u_int)1000;
 	curtime += (u_int)tt.tv_usec / (u_int)1000;
-
+	
 	if ((tt.tv_usec % 1000) >= 500)
 	   curtime++;
 }
 #endif
 
-void slirp_select_fill(int *pnfds,
-                       fd_set *readfds, fd_set *writefds, fd_set *xfds)
+int slirp_select_fill(int *pnfds, 
+					  fd_set *readfds, fd_set *writefds, fd_set *xfds)
 {
     struct socket *so, *so_next;
-    struct timeval timeout;
     int nfds;
-    int tmp_time;
+    int timeout, tmp_time;
 
     /* fail safe */
     global_readfds = NULL;
     global_writefds = NULL;
     global_xfds = NULL;
-
+    
     nfds = *pnfds;
 	/*
 	 * First, TCP sockets
 	 */
 	do_slowtimo = 0;
 	if (link_up) {
-		/*
+		/* 
 		 * *_slowtimo needs calling if there are IP fragments
 		 * in the fragment queue, or there are TCP connections active
 		 */
 		do_slowtimo = ((tcb.so_next != &tcb) ||
 			       ((struct ipasfrag *)&ipq != (struct ipasfrag *)ipq.next));
-
+		
 		for (so = tcb.so_next; so != &tcb; so = so_next) {
 			so_next = so->so_next;
-
+			
 			/*
 			 * See if we need a tcp_fasttimo
 			 */
 			if (time_fasttimo == 0 && so->so_tcpcb->t_flags & TF_DELACK)
-			   time_fasttimo = curtime; /* Flag when we want a fasttimo */
-
+				time_fasttimo = curtime; /* Flag when we want a fasttimo */
+			
 			/*
 			 * NOFDREF can include still connecting to local-host,
 			 * newly socreated() sockets etc. Don't want to select these.
 	 		 */
 			if (so->so_state & SS_NOFDREF || so->s == -1)
-			   continue;
-
+				continue;
+			
 			/*
 			 * Set for reading sockets which are accepting
 			 */
@@ -248,7 +237,7 @@ void slirp_select_fill(int *pnfds,
 				UPD_NFDS(so->s);
 				continue;
 			}
-
+			
 			/*
 			 * Set for writing sockets which are connecting
 			 */
@@ -257,7 +246,7 @@ void slirp_select_fill(int *pnfds,
 				UPD_NFDS(so->s);
 				continue;
 			}
-
+			
 			/*
 			 * Set for writing if we are connected, can send more, and
 			 * we have something to send
@@ -266,7 +255,7 @@ void slirp_select_fill(int *pnfds,
 				FD_SET(so->s, writefds);
 				UPD_NFDS(so->s);
 			}
-
+			
 			/*
 			 * Set for reading (and urgent data) if we are connected, can
 			 * receive more, and we have room for it XXX /2 ?
@@ -277,13 +266,13 @@ void slirp_select_fill(int *pnfds,
 				UPD_NFDS(so->s);
 			}
 		}
-
+		
 		/*
 		 * UDP sockets
 		 */
 		for (so = udb.so_next; so != &udb; so = so_next) {
 			so_next = so->so_next;
-
+			
 			/*
 			 * See if it's timed out
 			 */
@@ -294,7 +283,7 @@ void slirp_select_fill(int *pnfds,
 				} else
 					do_slowtimo = 1; /* Let socket expire */
 			}
-
+			
 			/*
 			 * When UDP packets are received from over the
 			 * link, they're sendto()'d straight away, so
@@ -311,51 +300,58 @@ void slirp_select_fill(int *pnfds,
 			}
 		}
 	}
-
+	
 	/*
 	 * Setup timeout to use minimum CPU usage, especially when idle
 	 */
 
-	/*
-	 * First, see the timeout needed by *timo
-	 */
-	timeout.tv_sec = 0;
-	timeout.tv_usec = -1;
-	/*
-	 * If a slowtimo is needed, set timeout to 500ms from the last
-	 * slow timeout. If a fast timeout is needed, set timeout within
-	 * 200ms of when it was requested.
-	 */
-	if (do_slowtimo) {
-		/* XXX + 10000 because some select()'s aren't that accurate */
-		timeout.tv_usec = ((500 - (curtime - last_slowtimo)) * 1000) + 10000;
-		if (timeout.tv_usec < 0)
-		   timeout.tv_usec = 0;
-		else if (timeout.tv_usec > 510000)
-		   timeout.tv_usec = 510000;
+	timeout = -1;
 
+	/*
+	 * If a slowtimo is needed, set timeout to 5ms from the last
+	 * slow timeout. If a fast timeout is needed, set timeout within
+	 * 2ms of when it was requested.
+	 */
+#	define SLOW_TIMO 5
+#	define FAST_TIMO 2
+	if (do_slowtimo) {
+		timeout = (SLOW_TIMO - (curtime - last_slowtimo)) * 1000;
+		if (timeout < 0)
+		   timeout = 0;
+		else if (timeout > (SLOW_TIMO * 1000))
+		   timeout = SLOW_TIMO * 1000;
+		
 		/* Can only fasttimo if we also slowtimo */
 		if (time_fasttimo) {
-			tmp_time = (200 - (curtime - time_fasttimo)) * 1000;
+			tmp_time = (FAST_TIMO - (curtime - time_fasttimo)) * 1000;
 			if (tmp_time < 0)
-			   tmp_time = 0;
-
+				tmp_time = 0;
+			
 			/* Choose the smallest of the 2 */
-			if (tmp_time < timeout.tv_usec)
-			   timeout.tv_usec = (u_int)tmp_time;
+			if (tmp_time < timeout)
+			   timeout = tmp_time;
 		}
 	}
-        *pnfds = nfds;
-}
+	*pnfds = nfds;
+
+	/*
+	 * Adjust the timeout to make the minimum timeout
+	 * 2ms (XXX?) to lessen the CPU load
+	 */
+	if (timeout < (FAST_TIMO * 1000))
+		timeout = FAST_TIMO * 1000;
+
+	return timeout;
+}	
 
 void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 {
-    struct socket *so, *so_next;
-    int ret;
+	struct socket *so, *so_next;
+	int ret;
 
-    global_readfds = readfds;
-    global_writefds = writefds;
-    global_xfds = xfds;
+	global_readfds = readfds;
+	global_writefds = writefds;
+	global_xfds = xfds;
 
 	/* Update time */
 	updtime();
@@ -364,11 +360,11 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 	 * See if anything has timed out
 	 */
 	if (link_up) {
-		if (time_fasttimo && ((curtime - time_fasttimo) >= 2)) {
+		if (time_fasttimo && ((curtime - time_fasttimo) >= FAST_TIMO)) {
 			tcp_fasttimo();
 			time_fasttimo = 0;
 		}
-		if (do_slowtimo && ((curtime - last_slowtimo) >= 499)) {
+		if (do_slowtimo && ((curtime - last_slowtimo) >= SLOW_TIMO)) {
 			ip_slowtimo();
 			tcp_slowtimo();
 			last_slowtimo = curtime;
@@ -390,7 +386,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 			 * (and they can crash the program)
 			 */
 			if (so->so_state & SS_NOFDREF || so->s == -1)
-			   continue;
+				continue;
 
 			/*
 			 * Check for URG data
@@ -398,7 +394,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 			 * test for readfds below if this succeeds
 			 */
 			if (FD_ISSET(so->s, xfds))
-			   sorecvoob(so);
+				sorecvoob(so);
 			/*
 			 * Check sockets for reading
 			 */
@@ -414,82 +410,88 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 
 				/* Output it if we read something */
 				if (ret > 0)
-				   tcp_output(sototcpcb(so));
+					tcp_output(sototcpcb(so));
 			}
 
 			/*
 			 * Check sockets for writing
 			 */
 			if (FD_ISSET(so->s, writefds)) {
-			  /*
-			   * Check for non-blocking, still-connecting sockets
-			   */
-			  if (so->so_state & SS_ISFCONNECTING) {
-			    /* Connected */
-			    so->so_state &= ~SS_ISFCONNECTING;
+				/*
+				 * Check for non-blocking, still-connecting sockets
+				 */
+				if (so->so_state & SS_ISFCONNECTING) {
+					/* Connected */
+					so->so_state &= ~SS_ISFCONNECTING;
 
-			    ret = send(so->s, &ret, 0, 0);
-			    if (ret < 0) {
-			      /* XXXXX Must fix, zero bytes is a NOP */
-			      if (errno == EAGAIN || errno == EWOULDBLOCK ||
-				  errno == EINPROGRESS || errno == ENOTCONN)
-				continue;
+					ret = send(so->s, (char*)&ret, 0, 0);
+					if (ret < 0) {
+						/* XXXXX Must fix, zero bytes is a NOP */
+						int error = WSAGetLastError();
+						if (error == EAGAIN || error == WSAEWOULDBLOCK ||
+							error == WSAEINPROGRESS || error == WSAENOTCONN)
+							continue;
 
-			      /* else failed */
-			      so->so_state = SS_NOFDREF;
-			    }
-			    /* else so->so_state &= ~SS_ISFCONNECTING; */
+						/* else failed */
+						so->so_state = SS_NOFDREF;
+					}
+					/* else so->so_state &= ~SS_ISFCONNECTING; */
 
-			    /*
-			     * Continue tcp_input
-			     */
-			    tcp_input((struct mbuf *)NULL, sizeof(struct ip), so);
-			    /* continue; */
-			  } else
-			    ret = sowrite(so);
-			  /*
-			   * XXXXX If we wrote something (a lot), there
-			   * could be a need for a window update.
-			   * In the worst case, the remote will send
-			   * a window probe to get things going again
-			   */
+					/*
+					 * Continue tcp_input
+					 */
+					tcp_input((struct mbuf *)NULL, sizeof(struct ip), so);
+					/* continue; */
+				}
+				else
+					ret = sowrite(so);
+				/*
+				 * XXXXX If we wrote something (a lot), there
+				 * could be a need for a window update.
+				 * In the worst case, the remote will send
+				 * a window probe to get things going again
+				 */
 			}
 
 			/*
 			 * Probe a still-connecting, non-blocking socket
 			 * to check if it's still alive
-	 	 	 */
+			 */
 #ifdef PROBE_CONN
 			if (so->so_state & SS_ISFCONNECTING) {
-			  ret = recv(so->s, (char *)&ret, 0,0);
+				ret = recv(so->s, (char *)&ret, 0, 0);
 
-			  if (ret < 0) {
-			    /* XXX */
-			    if (errno == EAGAIN || errno == EWOULDBLOCK ||
-				errno == EINPROGRESS || errno == ENOTCONN)
-			      continue; /* Still connecting, continue */
+				if (ret < 0) {
+					/* XXX */
+					int error = WSAGetLastError();
+					if (error == EAGAIN || error == WSAEWOULDBLOCK ||
+						error == WSAEINPROGRESS || error == WSAENOTCONN)
+						continue; /* Still connecting, continue */
 
-			    /* else failed */
-			    so->so_state = SS_NOFDREF;
+					  /* else failed */
+					so->so_state = SS_NOFDREF;
 
-			    /* tcp_input will take care of it */
-			  } else {
-			    ret = send(so->s, &ret, 0,0);
-			    if (ret < 0) {
-			      /* XXX */
-			      if (errno == EAGAIN || errno == EWOULDBLOCK ||
-				  errno == EINPROGRESS || errno == ENOTCONN)
-				continue;
-			      /* else failed */
-			      so->so_state = SS_NOFDREF;
-			    } else
-			      so->so_state &= ~SS_ISFCONNECTING;
+					/* tcp_input will take care of it */
+				}
+				else {
+					ret = send(so->s, &ret, 0, 0);
+					if (ret < 0) {
+						/* XXX */
+						int error = WSAGetLastError();
+						if (error == EAGAIN || error == WSAEWOULDBLOCK ||
+							error == WSAEINPROGRESS || error == WSAENOTCONN)
+							continue;
+						/* else failed */
+						so->so_state = SS_NOFDREF;
+					}
+					else
+						so->so_state &= ~SS_ISFCONNECTING;
 
-			  }
-			  tcp_input((struct mbuf *)NULL, sizeof(struct ip),so);
-			} /* SS_ISFCONNECTING */
+				}
+				tcp_input((struct mbuf *)NULL, sizeof(struct ip), so);
+		} /* SS_ISFCONNECTING */
 #endif
-		}
+	}
 
 		/*
 		 * Now UDP sockets.
@@ -500,25 +502,25 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 			so_next = so->so_next;
 
 			if (so->s != -1 && FD_ISSET(so->s, readfds)) {
-                            sorecvfrom(so);
-                        }
+				sorecvfrom(so);
+			}
 		}
-	}
+}
 
 	/*
 	 * See if we can start outputting
 	 */
 	if (if_queued && link_up)
-	   if_start();
+		if_start();
 
 	/* clear global file descriptor sets.
 	 * these reside on the stack in vl.c
 	 * so they're unusable if we're not in
 	 * slirp_select_fill or slirp_select_poll.
 	 */
-	 global_readfds = NULL;
-	 global_writefds = NULL;
-	 global_xfds = NULL;
+	global_readfds = NULL;
+	global_writefds = NULL;
+	global_xfds = NULL;
 }
 
 #define ETH_ALEN 6
@@ -530,7 +532,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 #define	ARPOP_REQUEST	1		/* ARP request			*/
 #define	ARPOP_REPLY	2		/* ARP reply			*/
 
-struct ethhdr
+struct ethhdr 
 {
 	unsigned char	h_dest[ETH_ALEN];	/* destination eth addr	*/
 	unsigned char	h_source[ETH_ALEN];	/* source ether addr	*/
@@ -568,7 +570,7 @@ void arp_input(const uint8_t *pkt, int pkt_len)
     switch(ar_op) {
     case ARPOP_REQUEST:
         if (!memcmp(ah->ar_tip, &special_addr, 3)) {
-            if (ah->ar_tip[3] == CTL_DNS || ah->ar_tip[3] == CTL_ALIAS)
+            if (ah->ar_tip[3] == CTL_DNS || ah->ar_tip[3] == CTL_ALIAS) 
                 goto arp_ok;
             for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
                 if (ex_ptr->ex_addr == ah->ar_tip[3])
@@ -609,8 +611,8 @@ void slirp_input(const uint8_t *pkt, int pkt_len)
 
     if (pkt_len < ETH_HLEN)
         return;
-
-    proto = ntohs(*(uint16_t *)(pkt + 12));
+    
+    proto = (pkt[12] << 8) | pkt[13];
     switch(proto) {
     case ETH_P_ARP:
         arp_input(pkt, pkt_len);
@@ -651,24 +653,24 @@ void if_encap(const uint8_t *ip_data, int ip_data_len)
     slirp_output(buf, ip_data_len + ETH_HLEN);
 }
 
-int slirp_redir(int is_udp, int host_port,
+int slirp_redir(int is_udp, int host_port, 
                 struct in_addr guest_addr, int guest_port)
 {
     if (is_udp) {
-        if (!udp_listen(htons(host_port), guest_addr.s_addr,
+        if (!udp_listen(htons(host_port), guest_addr.s_addr, 
                         htons(guest_port), 0))
             return -1;
     } else {
-        if (!solisten(htons(host_port), guest_addr.s_addr,
+        if (!solisten(htons(host_port), guest_addr.s_addr, 
                       htons(guest_port), 0))
             return -1;
     }
     return 0;
 }
 
-int slirp_add_exec(int do_pty, const char *args, int addr_low_byte,
+int slirp_add_exec(int do_pty, const char *args, int addr_low_byte, 
                   int guest_port)
 {
-    return add_exec(&exec_list, do_pty, (char *)args,
+    return add_exec(&exec_list, do_pty, (char *)args, 
                     addr_low_byte, htons(guest_port));
 }

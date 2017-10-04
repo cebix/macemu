@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -41,7 +37,7 @@
  *
  * This routine is very heavily used in the network
  * code and should be modified for each CPU to be as fast as possible.
- *
+ * 
  * XXX Since we will never span more than 1 mbuf, we can optimise this
  */
 
@@ -63,13 +59,13 @@ int cksum(struct mbuf *m, int len)
 		u_int16_t s[2];
 		u_int32_t l;
 	} l_util;
-
+	
 	if (m->m_len == 0)
 	   goto cont;
 	w = mtod(m, u_int16_t *);
-
+	
 	mlen = m->m_len;
-
+	
 	if (len < mlen)
 	   mlen = len;
 	len -= mlen;
@@ -107,7 +103,7 @@ int cksum(struct mbuf *m, int len)
 	while ((mlen -= 2) >= 0) {
 		sum += *w++;
 	}
-
+	
 	if (byte_swapped) {
 		REDUCE;
 		sum <<= 8;
@@ -117,11 +113,11 @@ int cksum(struct mbuf *m, int len)
 			sum += s_util.s;
 			mlen = 0;
 		} else
-
+		   
 		   mlen = -1;
 	} else if (mlen == -1)
 	   s_util.c[0] = *(u_int8_t *)w;
-
+	
 cont:
 #ifdef DEBUG
 	if (len) {

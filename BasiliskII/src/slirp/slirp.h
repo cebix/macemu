@@ -3,21 +3,12 @@
 
 #define CONFIG_QEMU
 
-//#define DEBUG 1
-
-// Uncomment the following line to enable SLIRP statistics printing in Qemu
-//#define LOG_ENABLED
-
-#ifdef LOG_ENABLED
-#define STAT(expr) expr
-#else
-#define STAT(expr) do { } while(0)
-#endif
+#define DEBUG 1
 
 #ifndef CONFIG_QEMU
 #include "version.h"
 #endif
-#include "config-host.h"
+#include "config.h"
 #include "slirp_config.h"
 
 #ifdef _WIN32
@@ -28,20 +19,31 @@ typedef uint16_t u_int16_t;
 typedef uint32_t u_int32_t;
 typedef uint64_t u_int64_t;
 typedef char *caddr_t;
+typedef int socklen_t;
+typedef unsigned long ioctlsockopt_t;
 
-#define WIN32_LEAN_AND_MEAN
-# include <windows.h>
 # include <winsock2.h>
+# include <WS2tcpip.h>
 # include <sys/timeb.h>
 # include <iphlpapi.h>
 
-# define EWOULDBLOCK WSAEWOULDBLOCK
-# define EINPROGRESS WSAEINPROGRESS
-# define ENOTCONN WSAENOTCONN
-# define EHOSTUNREACH WSAEHOSTUNREACH
-# define ENETUNREACH WSAENETUNREACH
-# define ECONNREFUSED WSAECONNREFUSED
+# define USE_FIONBIO 1
+
+/* Basilisk II Router defines those */
+# define udp_read_completion slirp_udp_read_completion
+# define write_udp slirp_write_udp
+# define init_udp slirp_init_udp
+# define final_udp slirp_final_udp
 #else
+# define WSAGetLastError() (int)(errno)
+# define WSASetLastError(e) (void)(errno = (e))
+# define WSAEWOULDBLOCK EWOULDBLOCK
+# define WSAEINPROGRESS EINPROGRESS
+# define WSAENOTCONN ENOTCONN
+# define WSAEHOSTUNREACH EHOSTUNREACH
+# define WSAENETUNREACH ENETUNREACH
+# define WSAECONNREFUSED ECONNREFUSED
+typedef int ioctlsockopt_t;
 # define ioctlsocket ioctl
 # define closesocket(s) close(s)
 # define O_BINARY 0
@@ -51,8 +53,13 @@ typedef char *caddr_t;
 #ifdef HAVE_SYS_BITYPES_H
 # include <sys/bitypes.h>
 #endif
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
 
+#ifndef _WIN32
 #include <sys/time.h>
+#endif
 
 #ifdef NEED_TYPEDEFS
 typedef char int8_t;
@@ -82,6 +89,11 @@ typedef unsigned char u_int8_t;
 #  endif
 # endif
 #endif /* NEED_TYPEDEFS */
+
+/* Basilisk II types glue */
+typedef u_int8_t uint8;
+typedef u_int16_t uint16;
+typedef u_int32_t uint32;
 
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
@@ -117,17 +129,6 @@ typedef unsigned char u_int8_t;
 
 #ifndef _WIN32
 #include <sys/uio.h>
-#endif
-
-#ifndef _P
-#ifndef NO_PROTOTYPES
-#  define   _P(x)   x
-#else
-#  define   _P(x)   ()
-#endif
-#endif
-
-#ifndef _WIN32
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #endif
@@ -138,20 +139,23 @@ typedef unsigned char u_int8_t;
 
 /* Systems lacking strdup() definition in <string.h>. */
 #if defined(ultrix)
-char *strdup _P((const char *));
+char *strdup(const char *);
 #endif
 
 /* Systems lacking malloc() definition in <stdlib.h>. */
 #if defined(ultrix) || defined(hcx)
-void *malloc _P((size_t arg));
-void free _P((void *ptr));
+void *malloc(size_t arg);
+void free(void *ptr);
 #endif
 
 #ifndef HAVE_INET_ATON
-int inet_aton _P((const char *cp, struct in_addr *ia));
+int inet_aton(const char *cp, struct in_addr *ia);
 #endif
 
 #include <fcntl.h>
+#ifdef _WIN32
+#include <io.h>
+#endif
 #ifndef NO_UNIX_SOCKETS
 #include <sys/un.h>
 #endif
@@ -183,11 +187,7 @@ int inet_aton _P((const char *cp, struct in_addr *ia));
 #include <ppp/slirppp.h>
 #endif
 
-#ifdef __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #include <sys/stat.h>
 
@@ -201,6 +201,20 @@ int inet_aton _P((const char *cp, struct in_addr *ia));
 #endif
 
 #include "debug.h"
+
+#if defined __GNUC__
+#define PACKED__ __attribute__ ((packed))
+#elif defined _MSC_VER 
+#define PRAGMA_PACK_SUPPORTED 1
+#define PACK_RESET
+#define PACKED__
+#elif defined __sgi
+#define PRAGMA_PACK_SUPPORTED 1
+#define PACK_RESET 0
+#define PACKED__
+#else
+#error "Packed attribute or pragma shall be supported"
+#endif
 
 #include "ip.h"
 #include "tcp.h"
@@ -232,45 +246,47 @@ extern struct ttys *ttys_unit[MAX_INTERFACES];
 #endif
 
 #ifndef FULL_BOLT
-void if_start _P((void));
+void if_start(void);
 #else
-void if_start _P((struct ttys *));
+void if_start(struct ttys *);
 #endif
 
 #ifdef BAD_SPRINTF
 # define vsprintf vsprintf_len
 # define sprintf sprintf_len
- extern int vsprintf_len _P((char *, const char *, va_list));
- extern int sprintf_len _P((char *, const char *, ...));
+ extern int vsprintf_len(char *, const char *, va_list);
+ extern int sprintf_len(char *, const char *, ...);
 #endif
 
 #ifdef DECLARE_SPRINTF
 # ifndef BAD_SPRINTF
- extern int vsprintf _P((char *, const char *, va_list));
+ extern int vsprintf(char *, const char *, va_list);
 # endif
- extern int vfprintf _P((FILE *, const char *, va_list));
+ extern int vfprintf(FILE *, const char *, va_list);
 #endif
 
 #ifndef HAVE_STRERROR
- extern char *strerror _P((int error));
+ extern char *strerror(int error);
 #endif
 
 #ifndef HAVE_INDEX
- char *index _P((const char *, int));
+ char *index(const char *, int);
 #endif
 
 #ifndef HAVE_GETHOSTID
- long gethostid _P((void));
+ long gethostid(void);
 #endif
 
-void lprint _P((const char *, ...));
+void lprint(const char *, ...);
+
+extern int do_echo;
 
 #if SIZEOF_CHAR_P == 4
 # define insque_32 insque
 # define remque_32 remque
 #else
- inline void insque_32 _P((void *, void *));
- inline void remque_32 _P((void *));
+ extern inline void insque_32(void *, void *);
+ extern inline void remque_32(void *);
 #endif
 
 #ifndef _WIN32
@@ -279,46 +295,51 @@ void lprint _P((const char *, ...));
 
 #define DEFAULT_BAUD 115200
 
-#define SO_OPTIONS DO_KEEPALIVE
-#define TCP_MAXIDLE (TCPTV_KEEPCNT * TCPTV_KEEPINTVL)
-
 /* cksum.c */
 int cksum(struct mbuf *m, int len);
 
 /* if.c */
-void if_init _P((void));
-void if_output _P((struct socket *, struct mbuf *));
+void if_init(void);
+void if_output(struct socket *, struct mbuf *);
 
 /* ip_input.c */
-void ip_init _P((void));
-void ip_input _P((struct mbuf *));
-void ip_slowtimo _P((void));
-void ip_stripoptions _P((register struct mbuf *, struct mbuf *));
+void ip_init(void);
+void ip_input(struct mbuf *);
+struct ip * ip_reass(register struct ipasfrag *, register struct ipq *);
+void ip_freef(struct ipq *);
+void ip_enq(register struct ipasfrag *, register struct ipasfrag *);
+void ip_deq(register struct ipasfrag *);
+void ip_slowtimo(void);
+void ip_stripoptions(register struct mbuf *, struct mbuf *);
 
 /* ip_output.c */
-int ip_output _P((struct socket *, struct mbuf *));
+int ip_output(struct socket *, struct mbuf *);
 
 /* tcp_input.c */
-void tcp_input _P((register struct mbuf *, int, struct socket *));
-int tcp_mss _P((register struct tcpcb *, u_int));
+int tcp_reass(register struct tcpcb *, register struct tcpiphdr *, struct mbuf *);
+void tcp_input(register struct mbuf *, int, struct socket *);
+void tcp_dooptions(struct tcpcb *, u_char *, int, struct tcpiphdr *);
+void tcp_xmit_timer(register struct tcpcb *, int);
+u_int tcp_mss(register struct tcpcb *, u_int);
 
 /* tcp_output.c */
-int tcp_output _P((register struct tcpcb *));
-void tcp_setpersist _P((register struct tcpcb *));
+int tcp_output(register struct tcpcb *);
+void tcp_setpersist(register struct tcpcb *);
 
 /* tcp_subr.c */
-void tcp_init _P((void));
-void tcp_template _P((struct tcpcb *));
-void tcp_respond _P((struct tcpcb *, register struct tcpiphdr *, register struct mbuf *, tcp_seq, tcp_seq, int));
-struct tcpcb * tcp_newtcpcb _P((struct socket *));
-struct tcpcb * tcp_close _P((register struct tcpcb *));
-void tcp_sockclosed _P((struct tcpcb *));
-int tcp_fconnect _P((struct socket *));
-void tcp_connect _P((struct socket *));
-int tcp_attach _P((struct socket *));
-u_int8_t tcp_tos _P((struct socket *));
-int tcp_emu _P((struct socket *, struct mbuf *));
-int tcp_ctl _P((struct socket *));
+void tcp_init(void);
+void tcp_template(struct tcpcb *);
+void tcp_respond(struct tcpcb *, register struct tcpiphdr *, register struct mbuf *, tcp_seq, tcp_seq, int);
+struct tcpcb * tcp_newtcpcb(struct socket *);
+struct tcpcb * tcp_close(register struct tcpcb *);
+void tcp_drain(void);
+void tcp_sockclosed(struct tcpcb *);
+int tcp_fconnect(struct socket *);
+void tcp_connect(struct socket *);
+int tcp_attach(struct socket *);
+u_int8_t tcp_tos(struct socket *);
+int tcp_emu(struct socket *, struct mbuf *);
+int tcp_ctl(struct socket *);
 struct tcpcb *tcp_drop(struct tcpcb *tp, int err);
 
 #ifdef USE_PPP
@@ -332,11 +353,6 @@ struct tcpcb *tcp_drop(struct tcpcb *tp, int err);
 #ifndef _WIN32
 #define min(x,y) ((x) < (y) ? (x) : (y))
 #define max(x,y) ((x) > (y) ? (x) : (y))
-#endif
-
-#ifdef _WIN32
-#undef errno
-#define errno (WSAGetLastError())
 #endif
 
 #endif

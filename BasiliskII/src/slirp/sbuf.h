@@ -1,12 +1,14 @@
 /*
  * Copyright (c) 1995 Danny Gasparovski.
- *
- * Please read the file COPYRIGHT for the
+ * 
+ * Please read the file COPYRIGHT for the 
  * terms and conditions of the copyright.
  */
 
 #ifndef _SBUF_H_
 #define _SBUF_H_
+
+#include <stddef.h>
 
 #define sbflush(sb) sbdrop((sb),(sb)->sb_cc)
 #define sbspace(sb) ((sb)->sb_datalen - (sb)->sb_cc)
@@ -21,10 +23,11 @@ struct sbuf {
 	char	*sb_data;	/* Actual data */
 };
 
-void sbfree _P((struct sbuf *));
-void sbdrop _P((struct sbuf *, int));
-void sbreserve _P((struct sbuf *, int));
-void sbappend _P((struct socket *, struct mbuf *));
-void sbcopy _P((struct sbuf *, int, int, char *));
+void sbfree(struct sbuf *);
+void sbdrop(struct sbuf *, u_int);
+void sbreserve(struct sbuf *, size_t);
+void sbappend(struct socket *, struct mbuf *);
+void sbappendsb(struct sbuf *, struct mbuf *);
+void sbcopy(struct sbuf *, u_int, u_int, char *);
 
 #endif

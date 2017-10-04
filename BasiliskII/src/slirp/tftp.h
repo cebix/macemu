@@ -9,25 +9,32 @@
 #define TFTP_DATA   3
 #define TFTP_ACK    4
 #define TFTP_ERROR  5
-#define TFTP_OACK   6
 
 #define TFTP_FILENAME_MAX 512
+
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(1)
+#endif
 
 struct tftp_t {
   struct ip ip;
   struct udphdr udp;
   u_int16_t tp_op;
   union {
-    struct {
+    struct { 
       u_int16_t tp_block_nr;
       u_int8_t tp_buf[512];
     } tp_data;
-    struct {
+    struct { 
       u_int16_t tp_error_code;
       u_int8_t tp_msg[512];
     } tp_error;
     u_int8_t tp_buf[512 + 2];
   } x;
-};
+} PACKED__;
+
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(PACK_RESET)
+#endif
 
 void tftp_input(struct mbuf *m);

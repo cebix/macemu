@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -42,6 +38,8 @@ typedef	u_int32_t	tcp_seq;
 #define      PR_SLOWHZ       2               /* 2 slow timeouts per second (approx) */
 #define      PR_FASTHZ       5               /* 5 fast timeouts per second (not important) */
 
+extern size_t tcp_rcvspace;
+extern size_t tcp_sndspace;
 extern struct socket *tcp_last_so;
 
 #define TCP_SNDSPACE 8192
@@ -51,16 +49,20 @@ extern struct socket *tcp_last_so;
  * TCP header.
  * Per RFC 793, September, 1981.
  */
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(1)
+#endif
+
 struct tcphdr {
 	u_int16_t	th_sport;		/* source port */
 	u_int16_t	th_dport;		/* destination port */
 	tcp_seq	th_seq;			/* sequence number */
 	tcp_seq	th_ack;			/* acknowledgement number */
 #ifdef WORDS_BIGENDIAN
-	u_int	th_off:4,		/* data offset */
+	u_char	th_off:4,		/* data offset */
 		th_x2:4;		/* (unused) */
 #else
-	u_int	th_x2:4,		/* (unused) */
+	u_char	th_x2:4,		/* (unused) */
 		th_off:4;		/* data offset */
 #endif
 	u_int8_t	th_flags;
@@ -73,7 +75,11 @@ struct tcphdr {
 	u_int16_t	th_win;			/* window */
 	u_int16_t	th_sum;			/* checksum */
 	u_int16_t	th_urp;			/* urgent pointer */
-};
+} PACKED__;
+
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(PACK_RESET)
+#endif
 
 #include "tcp_var.h"
 
@@ -170,6 +176,6 @@ struct tcphdr {
 
 extern tcp_seq tcp_iss;                /* tcp initial send seq # */
 
-extern const char * const tcpstates[];
+extern char *tcpstates[];
 
 #endif

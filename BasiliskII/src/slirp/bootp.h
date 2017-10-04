@@ -90,6 +90,10 @@
 #define BOOTP_VENDOR_LEN	64
 #define DHCP_OPT_LEN		312
 
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(1)
+#endif
+
 struct bootp_t {
     struct ip ip;
     struct udphdr udp;
@@ -108,6 +112,10 @@ struct bootp_t {
     uint8_t bp_sname[64];
     uint8_t bp_file[128];
     uint8_t bp_vend[DHCP_OPT_LEN];
-};
+} PACKED__;
+
+#ifdef PRAGMA_PACK_SUPPORTED
+#pragma pack(PACK_RESET)
+#endif
 
 void bootp_input(struct mbuf *m);

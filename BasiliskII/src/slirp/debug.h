@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 1995 Danny Gasparovski.
- *
- * Please read the file COPYRIGHT for the
+ * 
+ * Please read the file COPYRIGHT for the 
  * terms and conditions of the copyright.
  */
 
@@ -36,5 +36,15 @@ extern int slirp_debug;
 
 #endif
 
-void debug_init _P((char *, int));
+void debug_init(char *, int);
+//void ttystats(struct ttys *);
+void allttystats(void);
+void ipstats(void);
+void vjstats(void);
+void tcpstats(void);
+void udpstats(void);
+void icmpstats(void);
+void mbufstats(void);
+void sockstats(void);
+void slirp_exit(int);
 
