@@ -15,8 +15,9 @@ struct	mbuf *next_m;			/* Pointer to next mbuf to output */
 
 #define ifs_init(ifm) ((ifm)->ifs_next = (ifm)->ifs_prev = (ifm))
 
-static void
-ifs_insque(struct mbuf *ifm, struct mbuf *ifmhead)
+void
+ifs_insque(ifm, ifmhead)
+	struct mbuf *ifm, *ifmhead;
 {
 	ifm->ifs_next = ifmhead->ifs_next;
 	ifmhead->ifs_next = ifm;
@@ -24,8 +25,9 @@ ifs_insque(struct mbuf *ifm, struct mbuf *ifmhead)
 	ifm->ifs_next->ifs_prev = ifm;
 }
 
-static void
-ifs_remque(struct mbuf *ifm)
+void
+ifs_remque(ifm)
+	struct mbuf *ifm;
 {
 	ifm->ifs_prev->ifs_next = ifm->ifs_next;
 	ifm->ifs_next->ifs_prev = ifm->ifs_prev;
@@ -289,7 +291,7 @@ if_start(void)
 	}
 
 	/* Encapsulate the packet for sending */
-        if_encap((uint8_t *)ifm->m_data, ifm->m_len);
+        if_encap(ifm->m_data, ifm->m_len);
 
         m_free(ifm);
 

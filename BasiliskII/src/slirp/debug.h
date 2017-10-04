@@ -37,3 +37,4 @@ extern int slirp_debug;
 #endif
 
 void debug_init _P((char *, int));
+

@@ -10,7 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -56,7 +60,8 @@ struct udpiphdr {
 	        struct  ipovly ui_i;            /* overlaid ip structure */
 	        struct  udphdr ui_u;            /* udp header */
 };
-#define ui_mbuf         ui_i.ih_mbuf.mptr
+#define ui_next         ui_i.ih_next
+#define ui_prev         ui_i.ih_prev
 #define ui_x1           ui_i.ih_x1
 #define ui_pr           ui_i.ih_pr
 #define ui_len          ui_i.ih_len

@@ -5,10 +5,10 @@
  * terms and conditions of the copyright.
  */
 
-#include "qemu-common.h"
 #define WANT_SYS_IOCTL_H
 #include <slirp.h>
 #include "ip_icmp.h"
+#include "main.h"
 #ifdef __sun__
 #include <sys/filio.h>
 #endif
@@ -91,24 +91,32 @@ sofree(so)
   free(so);
 }
 
-size_t sopreprbuf(struct socket *so, struct iovec *iov, int *np)
+/*
+ * Read from so's socket into sb_snd, updating all relevant sbuf fields
+ * NOTE: This will only be called if it is select()ed for reading, so
+ * a read() of 0 (or less) means it's disconnected
+ */
+int
+soread(so)
+	struct socket *so;
 {
-	int n, lss, total;
+	int n, nn, lss, total;
 	struct sbuf *sb = &so->so_snd;
 	int len = sb->sb_datalen - sb->sb_cc;
+	struct iovec iov[2];
 	int mss = so->so_tcpcb->t_maxseg;
 
-	DEBUG_CALL("sopreprbuf");
+	DEBUG_CALL("soread");
 	DEBUG_ARG("so = %lx", (long )so);
+
+	/*
+	 * No need to check if there's enough room to read.
+	 * soread wouldn't have been called if there weren't
+	 */
 
 	len = sb->sb_datalen - sb->sb_cc;
 
-	if (len <= 0)
-		return 0;
-
 	iov[0].iov_base = sb->sb_wptr;
-        iov[1].iov_base = NULL;
-        iov[1].iov_len = 0;
 	if (sb->sb_wptr < sb->sb_rptr) {
 		iov[0].iov_len = sb->sb_rptr - sb->sb_wptr;
 		/* Should never succeed, but... */
@@ -146,33 +154,6 @@ size_t sopreprbuf(struct socket *so, struct iovec *iov, int *np)
 			n = 1;
 		}
 	}
-	if (np)
-		*np = n;
-
-	return iov[0].iov_len + (n - 1) * iov[1].iov_len;
-}
-
-/*
- * Read from so's socket into sb_snd, updating all relevant sbuf fields
- * NOTE: This will only be called if it is select()ed for reading, so
- * a read() of 0 (or less) means it's disconnected
- */
-int
-soread(so)
-	struct socket *so;
-{
-	int n, nn;
-	struct sbuf *sb = &so->so_snd;
-	struct iovec iov[2];
-
-	DEBUG_CALL("soread");
-	DEBUG_ARG("so = %lx", (long )so);
-
-	/*
-	 * No need to check if there's enough room to read.
-	 * soread wouldn't have been called if there weren't
-	 */
-	sopreprbuf(so, iov, &n);
 
 #ifdef HAVE_READV
 	nn = readv(so->s, (struct iovec *)iov, n);
@@ -217,48 +198,6 @@ soread(so)
 	if (sb->sb_wptr >= (sb->sb_data + sb->sb_datalen))
 		sb->sb_wptr -= sb->sb_datalen;
 	return nn;
-}
-
-int soreadbuf(struct socket *so, const char *buf, int size)
-{
-    int n, nn, copy = size;
-	struct sbuf *sb = &so->so_snd;
-	struct iovec iov[2];
-
-	DEBUG_CALL("soreadbuf");
-	DEBUG_ARG("so = %lx", (long )so);
-
-	/*
-	 * No need to check if there's enough room to read.
-	 * soread wouldn't have been called if there weren't
-	 */
-	if (sopreprbuf(so, iov, &n) < size)
-        goto err;
-
-    nn = MIN(iov[0].iov_len, copy);
-    memcpy(iov[0].iov_base, buf, nn);
-
-    copy -= nn;
-    buf += nn;
-
-    if (copy == 0)
-        goto done;
-
-    memcpy(iov[1].iov_base, buf, copy);
-
-done:
-    /* Update fields */
-	sb->sb_cc += size;
-	sb->sb_wptr += size;
-	if (sb->sb_wptr >= (sb->sb_data + sb->sb_datalen))
-		sb->sb_wptr -= sb->sb_datalen;
-    return size;
-err:
-
-    sofcantrcvmore(so);
-    tcp_sockclosed(sototcpcb(so));
-    fprintf(stderr, "soreadbuf buffer to small");
-    return -1;
 }
 
 /*
@@ -314,7 +253,7 @@ sosendoob(so)
 
 	if (sb->sb_rptr < sb->sb_wptr) {
 		/* We can send it directly */
-		n = slirp_send(so, sb->sb_rptr, so->so_urgc, (MSG_OOB)); /* |MSG_DONTWAIT)); */
+		n = send(so->s, sb->sb_rptr, so->so_urgc, (MSG_OOB)); /* |MSG_DONTWAIT)); */
 		so->so_urgc -= n;
 
 		DEBUG_MISC((dfd, " --- sent %d bytes urgent data, %d urgent bytes left\n", n, so->so_urgc));
@@ -335,7 +274,7 @@ sosendoob(so)
 			so->so_urgc -= n;
 			len += n;
 		}
-		n = slirp_send(so, buff, len, (MSG_OOB)); /* |MSG_DONTWAIT)); */
+		n = send(so->s, buff, len, (MSG_OOB)); /* |MSG_DONTWAIT)); */
 #ifdef DEBUG
 		if (n != len)
 		   DEBUG_ERROR((dfd, "Didn't send all data urgently XXXXX\n"));
@@ -381,8 +320,6 @@ sowrite(so)
         len = sb->sb_cc;
 
 	iov[0].iov_base = sb->sb_rptr;
-        iov[1].iov_base = NULL;
-        iov[1].iov_len = 0;
 	if (sb->sb_rptr < sb->sb_wptr) {
 		iov[0].iov_len = sb->sb_wptr - sb->sb_rptr;
 		/* Should never succeed, but... */
@@ -407,7 +344,7 @@ sowrite(so)
 
 	DEBUG_MISC((dfd, "  ... wrote nn = %d bytes\n", nn));
 #else
-	nn = slirp_send(so, iov[0].iov_base, iov[0].iov_len,0);
+	nn = send(so->s, iov[0].iov_base, iov[0].iov_len,0);
 #endif
 	/* This should never happen, but people tell me it does *shrug* */
 	if (nn < 0 && (errno == EAGAIN || errno == EINTR))
@@ -424,7 +361,7 @@ sowrite(so)
 #ifndef HAVE_READV
 	if (n == 2 && nn == iov[0].iov_len) {
             int ret;
-            ret = slirp_send(so, iov[1].iov_base, iov[1].iov_len,0);
+            ret = send(so->s, iov[1].iov_base, iov[1].iov_len,0);
             if (ret > 0)
                 nn += ret;
         }
@@ -455,7 +392,7 @@ sorecvfrom(so)
 	struct socket *so;
 {
 	struct sockaddr_in addr;
-	socklen_t addrlen = sizeof(struct sockaddr_in);
+	int addrlen = sizeof(struct sockaddr_in);
 
 	DEBUG_CALL("sorecvfrom");
 	DEBUG_ARG("so = %lx", (long)so);
@@ -608,8 +545,7 @@ solisten(port, laddr, lport, flags)
 {
 	struct sockaddr_in addr;
 	struct socket *so;
-	int s, opt = 1;
-	socklen_t addrlen = sizeof(addr);
+	int s, addrlen = sizeof(addr), opt = 1;
 
 	DEBUG_CALL("solisten");
 	DEBUG_ARG("port = %d", port);
@@ -782,3 +718,4 @@ sofwdrain(so)
 	else
 		sofcantsendmore(so);
 }
+

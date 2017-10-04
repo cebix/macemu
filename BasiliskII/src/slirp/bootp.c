@@ -36,7 +36,7 @@ typedef struct {
     uint8_t macaddr[6];
 } BOOTPClient;
 
-static BOOTPClient bootp_clients[NB_ADDR];
+BOOTPClient bootp_clients[NB_ADDR];
 
 const char *bootp_filename;
 
@@ -172,8 +172,7 @@ static void bootp_reply(struct bootp_t *bp)
     }
 
     if (bootp_filename)
-        snprintf((char *)rbp->bp_file, sizeof(rbp->bp_file), "%s",
-                 bootp_filename);
+        snprintf(rbp->bp_file, sizeof(rbp->bp_file), "%s", bootp_filename);
 
     dprintf("offered addr=%08x\n", ntohl(daddr.sin_addr.s_addr));
 
@@ -190,8 +189,6 @@ static void bootp_reply(struct bootp_t *bp)
 
     rbp->bp_yiaddr = daddr.sin_addr; /* Client IP address */
     rbp->bp_siaddr = saddr.sin_addr; /* Server IP address */
-
-    daddr.sin_addr.s_addr = 0xffffffffu;
 
     q = rbp->bp_vend;
     memcpy(q, rfc1533_cookie, 4);
@@ -221,18 +218,16 @@ static void bootp_reply(struct bootp_t *bp)
         *q++ = 0xff;
         *q++ = 0x00;
 
-        if (!slirp_restrict) {
-            *q++ = RFC1533_GATEWAY;
-            *q++ = 4;
-            memcpy(q, &saddr.sin_addr, 4);
-            q += 4;
+        *q++ = RFC1533_GATEWAY;
+        *q++ = 4;
+        memcpy(q, &saddr.sin_addr, 4);
+        q += 4;
 
-            *q++ = RFC1533_DNS;
-            *q++ = 4;
-            dns_addr.s_addr = htonl(ntohl(special_addr.s_addr) | CTL_DNS);
-            memcpy(q, &dns_addr, 4);
-            q += 4;
-        }
+        *q++ = RFC1533_DNS;
+        *q++ = 4;
+        dns_addr.s_addr = htonl(ntohl(special_addr.s_addr) | CTL_DNS);
+        memcpy(q, &dns_addr, 4);
+        q += 4;
 
         *q++ = RFC2132_LEASE_TIME;
         *q++ = 4;

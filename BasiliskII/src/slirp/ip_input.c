@@ -10,7 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -39,7 +43,6 @@
  */
 
 #include <slirp.h>
-#include <osdep.h>
 #include "ip_icmp.h"
 
 #ifdef LOG_ENABLED
@@ -48,7 +51,7 @@ struct ipstat ipstat;
 
 struct ipq ipq;
 
-static struct ip *ip_reass(register struct ip *ip,
+static struct ip *ip_reass(register struct ipasfrag *ip,
                            register struct ipq *fp);
 static void ip_freef(struct ipq *fp);
 static void ip_enq(register struct ipasfrag *p,
@@ -62,7 +65,7 @@ static void ip_deq(register struct ipasfrag *p);
 void
 ip_init()
 {
-	ipq.ip_link.next = ipq.ip_link.prev = &ipq.ip_link;
+	ipq.next = ipq.prev = (ipqp_32)&ipq;
 	ip_id = tt.tv_sec & 0xffff;
 	udp_init();
 	tcp_init();
@@ -133,27 +136,6 @@ ip_input(m)
 		STAT(ipstat.ips_tooshort++);
 		goto bad;
 	}
-
-    if (slirp_restrict) {
-        if (memcmp(&ip->ip_dst.s_addr, &special_addr, 3)) {
-            if (ip->ip_dst.s_addr == 0xffffffff && ip->ip_p != IPPROTO_UDP)
-                goto bad;
-        } else {
-            int host = ntohl(ip->ip_dst.s_addr) & 0xff;
-            struct ex_list *ex_ptr;
-
-            if (host == 0xff)
-                goto bad;
-
-            for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
-                if (ex_ptr->ex_addr == host)
-                    break;
-
-            if (!ex_ptr)
-                goto bad;
-        }
-    }
-
 	/* Should drop packet if mbuf too long? hmmm... */
 	if (m->m_len > ip->ip_len)
 	   m_adj(m, ip->ip_len - m->m_len);
@@ -185,20 +167,18 @@ ip_input(m)
 	 */
 	if (ip->ip_off &~ IP_DF) {
 	  register struct ipq *fp;
-      struct qlink *l;
 		/*
 		 * Look for queue of fragments
 		 * of this datagram.
 		 */
-		for (l = ipq.ip_link.next; l != &ipq.ip_link; l = l->next) {
-            fp = container_of(l, struct ipq, ip_link);
-            if (ip->ip_id == fp->ipq_id &&
-                    ip->ip_src.s_addr == fp->ipq_src.s_addr &&
-                    ip->ip_dst.s_addr == fp->ipq_dst.s_addr &&
-                    ip->ip_p == fp->ipq_p)
+		for (fp = (struct ipq *) ipq.next; fp != &ipq;
+		     fp = (struct ipq *) fp->next)
+		  if (ip->ip_id == fp->ipq_id &&
+		      ip->ip_src.s_addr == fp->ipq_src.s_addr &&
+		      ip->ip_dst.s_addr == fp->ipq_dst.s_addr &&
+		      ip->ip_p == fp->ipq_p)
 		    goto found;
-        }
-        fp = NULL;
+		fp = 0;
 	found:
 
 		/*
@@ -208,9 +188,9 @@ ip_input(m)
 		 */
 		ip->ip_len -= hlen;
 		if (ip->ip_off & IP_MF)
-		  ip->ip_tos |= 1;
+		  ((struct ipasfrag *)ip)->ipf_mff |= 1;
 		else
-		  ip->ip_tos &= ~1;
+		  ((struct ipasfrag *)ip)->ipf_mff &= ~1;
 
 		ip->ip_off <<= 3;
 
@@ -219,9 +199,9 @@ ip_input(m)
 		 * or if this is not the first fragment,
 		 * attempt reassembly; if it succeeds, proceed.
 		 */
-		if (ip->ip_tos & 1 || ip->ip_off) {
+		if (((struct ipasfrag *)ip)->ipf_mff & 1 || ip->ip_off) {
 			STAT(ipstat.ips_fragments++);
-			ip = ip_reass(ip, fp);
+			ip = ip_reass((struct ipasfrag *)ip, fp);
 			if (ip == 0)
 				return;
 			STAT(ipstat.ips_reassembled++);
@@ -257,8 +237,6 @@ bad:
 	return;
 }
 
-#define iptofrag(P) ((struct ipasfrag *)(((char*)(P)) - sizeof(struct qlink)))
-#define fragtoip(P) ((struct ip*)(((char*)(P)) + sizeof(struct qlink)))
 /*
  * Take incoming datagram fragment and try to
  * reassemble it into whole datagram.  If a chain for
@@ -266,7 +244,7 @@ bad:
  * is given as fp; otherwise have to make a chain.
  */
 static struct ip *
-ip_reass(register struct ip *ip, register struct ipq *fp)
+ip_reass(register struct ipasfrag *ip, register struct ipq *fp)
 {
 	register struct mbuf *m = dtom(ip);
 	register struct ipasfrag *q;
@@ -293,13 +271,13 @@ ip_reass(register struct ip *ip, register struct ipq *fp)
 	  struct mbuf *t;
 	  if ((t = m_get()) == NULL) goto dropfrag;
 	  fp = mtod(t, struct ipq *);
-	  insque(&fp->ip_link, &ipq.ip_link);
+	  insque_32(fp, &ipq);
 	  fp->ipq_ttl = IPFRAGTTL;
 	  fp->ipq_p = ip->ip_p;
 	  fp->ipq_id = ip->ip_id;
-	  fp->frag_link.next = fp->frag_link.prev = &fp->frag_link;
-	  fp->ipq_src = ip->ip_src;
-	  fp->ipq_dst = ip->ip_dst;
+	  fp->ipq_next = fp->ipq_prev = (ipasfragp_32)fp;
+	  fp->ipq_src = ((struct ip *)ip)->ip_src;
+	  fp->ipq_dst = ((struct ip *)ip)->ip_dst;
 	  q = (struct ipasfrag *)fp;
 	  goto insert;
 	}
@@ -307,9 +285,9 @@ ip_reass(register struct ip *ip, register struct ipq *fp)
 	/*
 	 * Find a segment which begins after this one does.
 	 */
-	for (q = fp->frag_link.next; q != (struct ipasfrag *)&fp->frag_link;
-            q = q->ipf_next)
-		if (q->ipf_off > ip->ip_off)
+	for (q = (struct ipasfrag *)fp->ipq_next; q != (struct ipasfrag *)fp;
+	    q = (struct ipasfrag *)q->ipf_next)
+		if (q->ip_off > ip->ip_off)
 			break;
 
 	/*
@@ -317,9 +295,9 @@ ip_reass(register struct ip *ip, register struct ipq *fp)
 	 * our data already.  If so, drop the data from the incoming
 	 * segment.  If it provides all of our data, drop us.
 	 */
-	if (q->ipf_prev != &fp->frag_link) {
-        struct ipasfrag *pq = q->ipf_prev;
-		i = pq->ipf_off + pq->ipf_len - ip->ip_off;
+	if (q->ipf_prev != (ipasfragp_32)fp) {
+		i = ((struct ipasfrag *)(q->ipf_prev))->ip_off +
+		  ((struct ipasfrag *)(q->ipf_prev))->ip_len - ip->ip_off;
 		if (i > 0) {
 			if (i >= ip->ip_len)
 				goto dropfrag;
@@ -333,18 +311,17 @@ ip_reass(register struct ip *ip, register struct ipq *fp)
 	 * While we overlap succeeding segments trim them or,
 	 * if they are completely covered, dequeue them.
 	 */
-	while (q != (struct ipasfrag*)&fp->frag_link &&
-            ip->ip_off + ip->ip_len > q->ipf_off) {
-		i = (ip->ip_off + ip->ip_len) - q->ipf_off;
-		if (i < q->ipf_len) {
-			q->ipf_len -= i;
-			q->ipf_off += i;
+	while (q != (struct ipasfrag *)fp && ip->ip_off + ip->ip_len > q->ip_off) {
+		i = (ip->ip_off + ip->ip_len) - q->ip_off;
+		if (i < q->ip_len) {
+			q->ip_len -= i;
+			q->ip_off += i;
 			m_adj(dtom(q), i);
 			break;
 		}
-		q = q->ipf_next;
-		m_freem(dtom(q->ipf_prev));
-		ip_deq(q->ipf_prev);
+		q = (struct ipasfrag *) q->ipf_next;
+		m_freem(dtom((struct ipasfrag *) q->ipf_prev));
+		ip_deq((struct ipasfrag *) q->ipf_prev);
 	}
 
 insert:
@@ -352,26 +329,27 @@ insert:
 	 * Stick new segment in its place;
 	 * check for complete reassembly.
 	 */
-	ip_enq(iptofrag(ip), q->ipf_prev);
+	ip_enq(ip, (struct ipasfrag *) q->ipf_prev);
 	next = 0;
-	for (q = fp->frag_link.next; q != (struct ipasfrag*)&fp->frag_link;
-            q = q->ipf_next) {
-		if (q->ipf_off != next)
+	for (q = (struct ipasfrag *) fp->ipq_next; q != (struct ipasfrag *)fp;
+	     q = (struct ipasfrag *) q->ipf_next) {
+		if (q->ip_off != next)
 			return (0);
-		next += q->ipf_len;
+		next += q->ip_len;
 	}
-	if (((struct ipasfrag *)(q->ipf_prev))->ipf_tos & 1)
+	if (((struct ipasfrag *)(q->ipf_prev))->ipf_mff & 1)
 		return (0);
 
 	/*
 	 * Reassembly is complete; concatenate fragments.
 	 */
-    q = fp->frag_link.next;
+	q = (struct ipasfrag *) fp->ipq_next;
 	m = dtom(q);
 
 	q = (struct ipasfrag *) q->ipf_next;
-	while (q != (struct ipasfrag*)&fp->frag_link) {
-	  struct mbuf *t = dtom(q);
+	while (q != (struct ipasfrag *)fp) {
+	  struct mbuf *t;
+	  t = dtom(q);
 	  q = (struct ipasfrag *) q->ipf_next;
 	  m_cat(m, t);
 	}
@@ -382,7 +360,7 @@ insert:
 	 * dequeue and discard fragment reassembly header.
 	 * Make header visible.
 	 */
-	q = fp->frag_link.next;
+	ip = (struct ipasfrag *) fp->ipq_next;
 
 	/*
 	 * If the fragments concatenated to an mbuf that's
@@ -392,24 +370,25 @@ insert:
 	 * into the new buffer.
 	 */
 	if (m->m_flags & M_EXT) {
-	  int delta = (char *)q - m->m_dat;
-	  q = (struct ipasfrag *)(m->m_ext + delta);
+	  int delta;
+	  delta = (char *)ip - m->m_dat;
+	  ip = (struct ipasfrag *)(m->m_ext + delta);
 	}
 
 	/* DEBUG_ARG("ip = %lx", (long)ip);
 	 * ip=(struct ipasfrag *)m->m_data; */
 
-    ip = fragtoip(q);
 	ip->ip_len = next;
-	ip->ip_tos &= ~1;
-	ip->ip_src = fp->ipq_src;
-	ip->ip_dst = fp->ipq_dst;
-	remque(&fp->ip_link);
+	ip->ipf_mff &= ~1;
+	((struct ip *)ip)->ip_src = fp->ipq_src;
+	((struct ip *)ip)->ip_dst = fp->ipq_dst;
+	remque_32(fp);
 	(void) m_free(dtom(fp));
+	m = dtom(ip);
 	m->m_len += (ip->ip_hl << 2);
 	m->m_data -= (ip->ip_hl << 2);
 
-	return ip;
+	return ((struct ip *)ip);
 
 dropfrag:
 	STAT(ipstat.ips_fragdropped++);
@@ -426,12 +405,13 @@ ip_freef(struct ipq *fp)
 {
 	register struct ipasfrag *q, *p;
 
-	for (q = fp->frag_link.next; q != (struct ipasfrag*)&fp->frag_link; q = p) {
-		p = q->ipf_next;
+	for (q = (struct ipasfrag *) fp->ipq_next; q != (struct ipasfrag *)fp;
+	    q = p) {
+		p = (struct ipasfrag *) q->ipf_next;
 		ip_deq(q);
 		m_freem(dtom(q));
 	}
-	remque(&fp->ip_link);
+	remque_32(fp);
 	(void) m_free(dtom(fp));
 }
 
@@ -444,10 +424,10 @@ ip_enq(register struct ipasfrag *p, register struct ipasfrag *prev)
 {
 	DEBUG_CALL("ip_enq");
 	DEBUG_ARG("prev = %lx", (long)prev);
-	p->ipf_prev =  prev;
+	p->ipf_prev = (ipasfragp_32) prev;
 	p->ipf_next = prev->ipf_next;
-	((struct ipasfrag *)(prev->ipf_next))->ipf_prev = p;
-	prev->ipf_next = p;
+	((struct ipasfrag *)(prev->ipf_next))->ipf_prev = (ipasfragp_32) p;
+	prev->ipf_next = (ipasfragp_32) p;
 }
 
 /*
@@ -468,21 +448,20 @@ ip_deq(register struct ipasfrag *p)
 void
 ip_slowtimo()
 {
-    struct qlink *l;
+	register struct ipq *fp;
 
 	DEBUG_CALL("ip_slowtimo");
 
-    l = ipq.ip_link.next;
-
-	if (l == 0)
+	fp = (struct ipq *) ipq.next;
+	if (fp == 0)
 	   return;
 
-	while (l != &ipq.ip_link) {
-        struct ipq *fp = container_of(l, struct ipq, ip_link);
-        l = l->next;
-		if (--fp->ipq_ttl == 0) {
+	while (fp != &ipq) {
+		--fp->ipq_ttl;
+		fp = (struct ipq *) fp->next;
+		if (((struct ipq *)(fp->prev))->ipq_ttl == 0) {
 			STAT(ipstat.ips_fragtimeout++);
-			ip_freef(fp);
+			ip_freef((struct ipq *) fp->prev);
 		}
 	}
 }

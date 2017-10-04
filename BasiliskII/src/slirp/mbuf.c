@@ -17,6 +17,8 @@
 
 #include <slirp.h>
 
+struct	mbuf *mbutl;
+char	*mclrefcnt;
 int mbuf_alloced = 0;
 struct mbuf m_freelist, m_usedlist;
 #define MBUF_THRESH 30
@@ -26,7 +28,7 @@ int mbuf_max = 0;
  * Find a nice value for msize
  * XXX if_maxlinkhdr already in mtu
  */
-#define SLIRP_MSIZE (IF_MTU + IF_MAXLINKHDR + sizeof(struct m_hdr ) + 6)
+#define MSIZE (IF_MTU + IF_MAXLINKHDR + sizeof(struct m_hdr ) + 6)
 
 void
 m_init()
@@ -52,7 +54,7 @@ m_get()
 	DEBUG_CALL("m_get");
 
 	if (m_freelist.m_next == &m_freelist) {
-		m = (struct mbuf *)malloc(SLIRP_MSIZE);
+		m = (struct mbuf *)malloc(MSIZE);
 		if (m == NULL) goto end_error;
 		mbuf_alloced++;
 		if (mbuf_alloced > MBUF_THRESH)
@@ -69,7 +71,7 @@ m_get()
 	m->m_flags = (flags | M_USEDLIST);
 
 	/* Initialise it */
-	m->m_size = SLIRP_MSIZE - sizeof(struct m_hdr);
+	m->m_size = MSIZE - sizeof(struct m_hdr);
 	m->m_data = m->m_dat;
 	m->m_len = 0;
 	m->m_nextpkt = 0;
@@ -234,3 +236,4 @@ dtom(dat)
 
 	return (struct mbuf *)0;
 }
+

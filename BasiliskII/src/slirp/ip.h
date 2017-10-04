@@ -10,7 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -179,31 +183,35 @@ struct	ip_timestamp {
 
 #define	IP_MSS		576		/* default maximum segment size */
 
-#if SIZEOF_CHAR_P == 4
-struct mbuf_ptr {
-	struct mbuf *mptr;
-	uint32_t dummy;
-};
+#ifdef HAVE_SYS_TYPES32_H  /* Overcome some Solaris 2.x junk */
+#include <sys/types32.h>
 #else
-struct mbuf_ptr {
-	struct mbuf *mptr;
-};
+#if SIZEOF_CHAR_P == 4
+typedef caddr_t caddr32_t;
+#else
+typedef u_int32_t caddr32_t;
 #endif
-struct qlink {
-	void *next, *prev;
-};
+#endif
+
+#if SIZEOF_CHAR_P == 4
+typedef struct ipq *ipqp_32;
+typedef struct ipasfrag *ipasfragp_32;
+#else
+typedef caddr32_t ipqp_32;
+typedef caddr32_t ipasfragp_32;
+#endif
 
 /*
  * Overlay for ip header used by other protocols (tcp, udp).
  */
 struct ipovly {
-	struct mbuf_ptr ih_mbuf;	/* backpointer to mbuf */
+	caddr32_t	ih_next, ih_prev;	/* for protocol sequence q's */
 	u_int8_t	ih_x1;			/* (unused) */
 	u_int8_t	ih_pr;			/* protocol */
 	u_int16_t	ih_len;			/* protocol length */
 	struct	in_addr ih_src;		/* source internet address */
 	struct	in_addr ih_dst;		/* destination internet address */
-} __attribute__((packed));
+};
 
 /*
  * Ip reassembly queue structure.  Each fragment
@@ -213,29 +221,43 @@ struct ipovly {
  * size 28 bytes
  */
 struct ipq {
-        struct qlink frag_link;			/* to ip headers of fragments */
-	struct qlink ip_link;				/* to other reass headers */
+	ipqp_32 next,prev;	/* to other reass headers */
 	u_int8_t	ipq_ttl;		/* time for reass q to live */
 	u_int8_t	ipq_p;			/* protocol of this fragment */
 	u_int16_t	ipq_id;			/* sequence id for reassembly */
+	ipasfragp_32 ipq_next,ipq_prev;
+					/* to ip headers of fragments */
 	struct	in_addr ipq_src,ipq_dst;
 };
 
 /*
  * Ip header, when holding a fragment.
  *
- * Note: ipf_link must be at same offset as frag_link above
+ * Note: ipf_next must be at same offset as ipq_next above
  */
 struct	ipasfrag {
-	struct qlink ipf_link;
-	struct ip ipf_ip;
+#ifdef WORDS_BIGENDIAN
+	u_int	ip_v:4,
+ 		ip_hl:4;
+#else
+	u_int	ip_hl:4,
+		ip_v:4;
+#endif
+                                        /* BUG : u_int changed to u_int8_t.
+                                         * sizeof(u_int)==4 on linux 2.0
+					 */
+        u_int8_t ipf_mff;		/* XXX overlays ip_tos: use low bit
+					 * to avoid destroying tos (PPPDTRuu);
+					 * copied from (ip_off&IP_MF) */
+	u_int16_t	ip_len;
+	u_int16_t	ip_id;
+	u_int16_t	ip_off;
+	u_int8_t	ip_ttl;
+	u_int8_t	ip_p;
+	u_int16_t	ip_sum;
+	ipasfragp_32 ipf_next;		/* next fragment */
+	ipasfragp_32 ipf_prev;		/* previous fragment */
 };
-
-#define ipf_off      ipf_ip.ip_off
-#define ipf_tos      ipf_ip.ip_tos
-#define ipf_len      ipf_ip.ip_len
-#define ipf_next     ipf_link.next
-#define ipf_prev     ipf_link.prev 
 
 /*
  * Structure stored in mbuf in inpcb.ip_options

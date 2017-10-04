@@ -1,30 +1,4 @@
-/*
- * libslirp glue
- *
- * Copyright (c) 2004-2008 Fabrice Bellard
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
-#include "qemu-common.h"
-#include "qemu-char.h"
 #include "slirp.h"
-#include "hw/hw.h"
 
 /* host address */
 struct in_addr our_addr;
@@ -42,14 +16,8 @@ static const uint8_t special_ethaddr[6] = {
     0x52, 0x54, 0x00, 0x12, 0x35, 0x00
 };
 
-/* ARP cache for the guest IP addresses (XXX: allow many entries) */
 uint8_t client_ethaddr[6];
-static struct in_addr client_ipaddr;
 
-static const uint8_t zero_ethaddr[6] = { 0, 0, 0, 0, 0, 0 };
-
-const char *slirp_special_ip = CTL_SPECIAL;
-int slirp_restrict;
 int do_slowtimo;
 int link_up;
 struct timeval tt;
@@ -116,7 +84,7 @@ static int get_dns_addr(struct in_addr *pdns_addr)
 static int get_dns_addr(struct in_addr *pdns_addr)
 {
     char buff[512];
-    char buff2[257];
+    char buff2[256];
     FILE *f;
     int found = 0;
     struct in_addr tmp_addr;
@@ -168,10 +136,7 @@ static void slirp_cleanup(void)
 }
 #endif
 
-static void slirp_state_save(QEMUFile *f, void *opaque);
-static int slirp_state_load(QEMUFile *f, void *opaque, int version_id);
-
-void slirp_init(int restrict, char *special_ip)
+void slirp_init(void)
 {
     //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
 
@@ -184,7 +149,6 @@ void slirp_init(int restrict, char *special_ip)
 #endif
 
     link_up = 1;
-    slirp_restrict = restrict;
 
     if_init();
     ip_init();
@@ -200,13 +164,9 @@ void slirp_init(int restrict, char *special_ip)
         fprintf (stderr, "Warning: No DNS servers found\n");
     }
 
-    if (special_ip)
-        slirp_special_ip = special_ip;
-
-    inet_aton(slirp_special_ip, &special_addr);
+    inet_aton(CTL_SPECIAL, &special_addr);
     alias_addr.s_addr = special_addr.s_addr | htonl(CTL_ALIAS);
     getouraddr();
-    register_savevm("slirp", 0, 1, slirp_state_save, slirp_state_load, NULL);
 }
 
 #define CONN_CANFSEND(so) (((so)->so_state & (SS_FCANTSENDMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)
@@ -262,7 +222,7 @@ void slirp_select_fill(int *pnfds,
 		 * in the fragment queue, or there are TCP connections active
 		 */
 		do_slowtimo = ((tcb.so_next != &tcb) ||
-                (&ipq.ip_link != ipq.ip_link.next));
+			       ((struct ipasfrag *)&ipq != (struct ipasfrag *)ipq.next));
 
 		for (so = tcb.so_next; so != &tcb; so = so_next) {
 			so_next = so->so_next;
@@ -594,7 +554,7 @@ struct arphdr
 	unsigned char		ar_tip[4];		/* target IP address		*/
 };
 
-static void arp_input(const uint8_t *pkt, int pkt_len)
+void arp_input(const uint8_t *pkt, int pkt_len)
 {
     struct ethhdr *eh = (struct ethhdr *)pkt;
     struct arphdr *ah = (struct arphdr *)(pkt + ETH_HLEN);
@@ -637,13 +597,6 @@ static void arp_input(const uint8_t *pkt, int pkt_len)
             slirp_output(arp_reply, sizeof(arp_reply));
         }
         break;
-    case ARPOP_REPLY:
-        /* reply to request of client mac address ? */
-        if (!memcmp(client_ethaddr, zero_ethaddr, ETH_ALEN) &&
-            !memcmp(ah->ar_sip, &client_ipaddr.s_addr, 4)) {
-            memcpy(client_ethaddr, ah->ar_sha, ETH_ALEN);
-        }
-        break;
     default:
         break;
     }
@@ -667,9 +620,6 @@ void slirp_input(const uint8_t *pkt, int pkt_len)
         if (!m)
             return;
         /* Note: we add to align the IP header */
-        if (M_FREEROOM(m) < pkt_len + 2) {
-            m_inc(m, pkt_len + 2);
-        }
         m->m_len = pkt_len + 2;
         memcpy(m->m_data + 2, pkt, pkt_len);
 
@@ -691,47 +641,14 @@ void if_encap(const uint8_t *ip_data, int ip_data_len)
 
     if (ip_data_len + ETH_HLEN > sizeof(buf))
         return;
-    
-    if (!memcmp(client_ethaddr, zero_ethaddr, ETH_ALEN)) {
-        uint8_t arp_req[ETH_HLEN + sizeof(struct arphdr)];
-        struct ethhdr *reh = (struct ethhdr *)arp_req;
-        struct arphdr *rah = (struct arphdr *)(arp_req + ETH_HLEN);
-        const struct ip *iph = (const struct ip *)ip_data;
 
-        /* If the client addr is not known, there is no point in
-           sending the packet to it. Normally the sender should have
-           done an ARP request to get its MAC address. Here we do it
-           in place of sending the packet and we hope that the sender
-           will retry sending its packet. */
-        memset(reh->h_dest, 0xff, ETH_ALEN);
-        memcpy(reh->h_source, special_ethaddr, ETH_ALEN - 1);
-        reh->h_source[5] = CTL_ALIAS;
-        reh->h_proto = htons(ETH_P_ARP);
-        rah->ar_hrd = htons(1);
-        rah->ar_pro = htons(ETH_P_IP);
-        rah->ar_hln = ETH_ALEN;
-        rah->ar_pln = 4;
-        rah->ar_op = htons(ARPOP_REQUEST);
-        /* source hw addr */
-        memcpy(rah->ar_sha, special_ethaddr, ETH_ALEN - 1);
-        rah->ar_sha[5] = CTL_ALIAS;
-        /* source IP */
-        memcpy(rah->ar_sip, &alias_addr, 4);
-        /* target hw addr (none) */
-        memset(rah->ar_tha, 0, ETH_ALEN);
-        /* target IP */
-        memcpy(rah->ar_tip, &iph->ip_dst, 4);
-        client_ipaddr = iph->ip_dst;
-        slirp_output(arp_req, sizeof(arp_req));
-    } else {
-        memcpy(eh->h_dest, client_ethaddr, ETH_ALEN);
-        memcpy(eh->h_source, special_ethaddr, ETH_ALEN - 1);
-        /* XXX: not correct */
-        eh->h_source[5] = CTL_ALIAS;
-        eh->h_proto = htons(ETH_P_IP);
-        memcpy(buf + sizeof(struct ethhdr), ip_data, ip_data_len);
-        slirp_output(buf, ip_data_len + ETH_HLEN);
-    }
+    memcpy(eh->h_dest, client_ethaddr, ETH_ALEN);
+    memcpy(eh->h_source, special_ethaddr, ETH_ALEN - 1);
+    /* XXX: not correct */
+    eh->h_source[5] = CTL_ALIAS;
+    eh->h_proto = htons(ETH_P_IP);
+    memcpy(buf + sizeof(struct ethhdr), ip_data, ip_data_len);
+    slirp_output(buf, ip_data_len + ETH_HLEN);
 }
 
 int slirp_redir(int is_udp, int host_port,
@@ -749,291 +666,9 @@ int slirp_redir(int is_udp, int host_port,
     return 0;
 }
 
-int slirp_add_exec(int do_pty, const void *args, int addr_low_byte,
+int slirp_add_exec(int do_pty, const char *args, int addr_low_byte,
                   int guest_port)
 {
     return add_exec(&exec_list, do_pty, (char *)args,
                     addr_low_byte, htons(guest_port));
-}
-
-ssize_t slirp_send(struct socket *so, const void *buf, size_t len, int flags)
-{
-	if (so->s == -1 && so->extra) {
-		qemu_chr_write(so->extra, buf, len);
-		return len;
-	}
-
-	return send(so->s, buf, len, flags);
-}
-
-static struct socket *slirp_find_ctl_socket(int addr_low_byte, int guest_port)
-{
-	struct socket *so;
-
-	for (so = tcb.so_next; so != &tcb; so = so->so_next) {
-		if ((so->so_faddr.s_addr & htonl(0xffffff00)) ==
-				special_addr.s_addr
-				&& (ntohl(so->so_faddr.s_addr) & 0xff) ==
-				addr_low_byte
-				&& htons(so->so_fport) == guest_port)
-			return so;
-	}
-
-	return NULL;
-}
-
-size_t slirp_socket_can_recv(int addr_low_byte, int guest_port)
-{
-	struct iovec iov[2];
-	struct socket *so;
-
-    if (!link_up)
-        return 0;
-
-	so = slirp_find_ctl_socket(addr_low_byte, guest_port);
-
-	if (!so || so->so_state & SS_NOFDREF)
-		return 0;
-
-	if (!CONN_CANFRCV(so) || so->so_snd.sb_cc >= (so->so_snd.sb_datalen/2))
-		return 0;
-
-	return sopreprbuf(so, iov, NULL);
-}
-
-void slirp_socket_recv(int addr_low_byte, int guest_port, const uint8_t *buf,
-        int size)
-{
-    int ret;
-    struct socket *so = slirp_find_ctl_socket(addr_low_byte, guest_port);
-   
-    if (!so)
-        return;
-
-    ret = soreadbuf(so, (const char *)buf, size);
-
-    if (ret > 0)
-        tcp_output(sototcpcb(so));
-}
-
-static void slirp_tcp_save(QEMUFile *f, struct tcpcb *tp)
-{
-    int i;
-
-    qemu_put_sbe16(f, tp->t_state);
-    for (i = 0; i < TCPT_NTIMERS; i++)
-        qemu_put_sbe16(f, tp->t_timer[i]);
-    qemu_put_sbe16(f, tp->t_rxtshift);
-    qemu_put_sbe16(f, tp->t_rxtcur);
-    qemu_put_sbe16(f, tp->t_dupacks);
-    qemu_put_be16(f, tp->t_maxseg);
-    qemu_put_sbyte(f, tp->t_force);
-    qemu_put_be16(f, tp->t_flags);
-    qemu_put_be32(f, tp->snd_una);
-    qemu_put_be32(f, tp->snd_nxt);
-    qemu_put_be32(f, tp->snd_up);
-    qemu_put_be32(f, tp->snd_wl1);
-    qemu_put_be32(f, tp->snd_wl2);
-    qemu_put_be32(f, tp->iss);
-    qemu_put_be32(f, tp->snd_wnd);
-    qemu_put_be32(f, tp->rcv_wnd);
-    qemu_put_be32(f, tp->rcv_nxt);
-    qemu_put_be32(f, tp->rcv_up);
-    qemu_put_be32(f, tp->irs);
-    qemu_put_be32(f, tp->rcv_adv);
-    qemu_put_be32(f, tp->snd_max);
-    qemu_put_be32(f, tp->snd_cwnd);
-    qemu_put_be32(f, tp->snd_ssthresh);
-    qemu_put_sbe16(f, tp->t_idle);
-    qemu_put_sbe16(f, tp->t_rtt);
-    qemu_put_be32(f, tp->t_rtseq);
-    qemu_put_sbe16(f, tp->t_srtt);
-    qemu_put_sbe16(f, tp->t_rttvar);
-    qemu_put_be16(f, tp->t_rttmin);
-    qemu_put_be32(f, tp->max_sndwnd);
-    qemu_put_byte(f, tp->t_oobflags);
-    qemu_put_byte(f, tp->t_iobc);
-    qemu_put_sbe16(f, tp->t_softerror);
-    qemu_put_byte(f, tp->snd_scale);
-    qemu_put_byte(f, tp->rcv_scale);
-    qemu_put_byte(f, tp->request_r_scale);
-    qemu_put_byte(f, tp->requested_s_scale);
-    qemu_put_be32(f, tp->ts_recent);
-    qemu_put_be32(f, tp->ts_recent_age);
-    qemu_put_be32(f, tp->last_ack_sent);
-}
-
-static void slirp_sbuf_save(QEMUFile *f, struct sbuf *sbuf)
-{
-    uint32_t off;
-
-    qemu_put_be32(f, sbuf->sb_cc);
-    qemu_put_be32(f, sbuf->sb_datalen);
-    off = (uint32_t)(sbuf->sb_wptr - sbuf->sb_data);
-    qemu_put_sbe32(f, off);
-    off = (uint32_t)(sbuf->sb_rptr - sbuf->sb_data);
-    qemu_put_sbe32(f, off);
-    qemu_put_buffer(f, (unsigned char*)sbuf->sb_data, sbuf->sb_datalen);
-}
-
-static void slirp_socket_save(QEMUFile *f, struct socket *so)
-{
-    qemu_put_be32(f, so->so_urgc);
-    qemu_put_be32(f, so->so_faddr.s_addr);
-    qemu_put_be32(f, so->so_laddr.s_addr);
-    qemu_put_be16(f, so->so_fport);
-    qemu_put_be16(f, so->so_lport);
-    qemu_put_byte(f, so->so_iptos);
-    qemu_put_byte(f, so->so_emu);
-    qemu_put_byte(f, so->so_type);
-    qemu_put_be32(f, so->so_state);
-    slirp_sbuf_save(f, &so->so_rcv);
-    slirp_sbuf_save(f, &so->so_snd);
-    slirp_tcp_save(f, so->so_tcpcb);
-}
-
-static void slirp_state_save(QEMUFile *f, void *opaque)
-{
-    struct ex_list *ex_ptr;
-
-    for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
-        if (ex_ptr->ex_pty == 3) {
-            struct socket *so;
-            so = slirp_find_ctl_socket(ex_ptr->ex_addr, ntohs(ex_ptr->ex_fport));
-            if (!so)
-                continue;
-
-            qemu_put_byte(f, 42);
-            slirp_socket_save(f, so);
-        }
-    qemu_put_byte(f, 0);
-}
-
-static void slirp_tcp_load(QEMUFile *f, struct tcpcb *tp)
-{
-    int i;
-
-    tp->t_state = qemu_get_sbe16(f);
-    for (i = 0; i < TCPT_NTIMERS; i++)
-        tp->t_timer[i] = qemu_get_sbe16(f);
-    tp->t_rxtshift = qemu_get_sbe16(f);
-    tp->t_rxtcur = qemu_get_sbe16(f);
-    tp->t_dupacks = qemu_get_sbe16(f);
-    tp->t_maxseg = qemu_get_be16(f);
-    tp->t_force = qemu_get_sbyte(f);
-    tp->t_flags = qemu_get_be16(f);
-    tp->snd_una = qemu_get_be32(f);
-    tp->snd_nxt = qemu_get_be32(f);
-    tp->snd_up = qemu_get_be32(f);
-    tp->snd_wl1 = qemu_get_be32(f);
-    tp->snd_wl2 = qemu_get_be32(f);
-    tp->iss = qemu_get_be32(f);
-    tp->snd_wnd = qemu_get_be32(f);
-    tp->rcv_wnd = qemu_get_be32(f);
-    tp->rcv_nxt = qemu_get_be32(f);
-    tp->rcv_up = qemu_get_be32(f);
-    tp->irs = qemu_get_be32(f);
-    tp->rcv_adv = qemu_get_be32(f);
-    tp->snd_max = qemu_get_be32(f);
-    tp->snd_cwnd = qemu_get_be32(f);
-    tp->snd_ssthresh = qemu_get_be32(f);
-    tp->t_idle = qemu_get_sbe16(f);
-    tp->t_rtt = qemu_get_sbe16(f);
-    tp->t_rtseq = qemu_get_be32(f);
-    tp->t_srtt = qemu_get_sbe16(f);
-    tp->t_rttvar = qemu_get_sbe16(f);
-    tp->t_rttmin = qemu_get_be16(f);
-    tp->max_sndwnd = qemu_get_be32(f);
-    tp->t_oobflags = qemu_get_byte(f);
-    tp->t_iobc = qemu_get_byte(f);
-    tp->t_softerror = qemu_get_sbe16(f);
-    tp->snd_scale = qemu_get_byte(f);
-    tp->rcv_scale = qemu_get_byte(f);
-    tp->request_r_scale = qemu_get_byte(f);
-    tp->requested_s_scale = qemu_get_byte(f);
-    tp->ts_recent = qemu_get_be32(f);
-    tp->ts_recent_age = qemu_get_be32(f);
-    tp->last_ack_sent = qemu_get_be32(f);
-    tcp_template(tp);
-}
-
-static int slirp_sbuf_load(QEMUFile *f, struct sbuf *sbuf)
-{
-    uint32_t off, sb_cc, sb_datalen;
-
-    sb_cc = qemu_get_be32(f);
-    sb_datalen = qemu_get_be32(f);
-
-    sbreserve(sbuf, sb_datalen);
-
-    if (sbuf->sb_datalen != sb_datalen)
-        return -ENOMEM;
-
-    sbuf->sb_cc = sb_cc;
-
-    off = qemu_get_sbe32(f);
-    sbuf->sb_wptr = sbuf->sb_data + off;
-    off = qemu_get_sbe32(f);
-    sbuf->sb_rptr = sbuf->sb_data + off;
-    qemu_get_buffer(f, (unsigned char*)sbuf->sb_data, sbuf->sb_datalen);
-
-    return 0;
-}
-
-static int slirp_socket_load(QEMUFile *f, struct socket *so)
-{
-    if (tcp_attach(so) < 0)
-        return -ENOMEM;
-
-    so->so_urgc = qemu_get_be32(f);
-    so->so_faddr.s_addr = qemu_get_be32(f);
-    so->so_laddr.s_addr = qemu_get_be32(f);
-    so->so_fport = qemu_get_be16(f);
-    so->so_lport = qemu_get_be16(f);
-    so->so_iptos = qemu_get_byte(f);
-    so->so_emu = qemu_get_byte(f);
-    so->so_type = qemu_get_byte(f);
-    so->so_state = qemu_get_be32(f);
-    if (slirp_sbuf_load(f, &so->so_rcv) < 0)
-        return -ENOMEM;
-    if (slirp_sbuf_load(f, &so->so_snd) < 0)
-        return -ENOMEM;
-    slirp_tcp_load(f, so->so_tcpcb);
-
-    return 0;
-}
-
-static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
-{
-    struct ex_list *ex_ptr;
-    int r;
-
-    while ((r = qemu_get_byte(f))) {
-        int ret;
-        struct socket *so = socreate();
-
-        if (!so)
-            return -ENOMEM;
-
-        ret = slirp_socket_load(f, so);
-
-        if (ret < 0)
-            return ret;
-
-        if ((so->so_faddr.s_addr & htonl(0xffffff00)) != special_addr.s_addr)
-            return -EINVAL;
-
-        for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
-            if (ex_ptr->ex_pty == 3 &&
-                    (ntohl(so->so_faddr.s_addr) & 0xff) == ex_ptr->ex_addr &&
-                    so->so_fport == ex_ptr->ex_fport)
-                break;
-
-        if (!ex_ptr)
-            return -EINVAL;
-
-        so->extra = (void *)ex_ptr->ex_exec;
-    }
-
-    return 0;
 }

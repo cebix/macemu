@@ -10,7 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -132,7 +136,8 @@ udp_input(m, iphlen)
 	 * Checksum extended UDP header and data.
 	 */
 	if (UDPCKSUM && uh->uh_sum) {
-      memset(&((struct ipovly *)ip)->ih_mbuf, 0, sizeof(struct mbuf_ptr));
+	  ((struct ipovly *)ip)->ih_next = 0;
+	  ((struct ipovly *)ip)->ih_prev = 0;
 	  ((struct ipovly *)ip)->ih_x1 = 0;
 	  ((struct ipovly *)ip)->ih_len = uh->uh_ulen;
 	  /* keep uh_sum for ICMP reply
@@ -152,9 +157,6 @@ udp_input(m, iphlen)
             bootp_input(m);
             goto bad;
         }
-
-        if (slirp_restrict)
-            goto bad;
 
         /*
          *  handle TFTP
@@ -278,7 +280,7 @@ int udp_output2(struct socket *so, struct mbuf *m,
 	 * and addresses and length put into network format.
 	 */
 	ui = mtod(m, struct udpiphdr *);
-    memset(&ui->ui_i.ih_mbuf, 0 , sizeof(struct mbuf_ptr));
+	ui->ui_next = ui->ui_prev = 0;
 	ui->ui_x1 = 0;
 	ui->ui_pr = IPPROTO_UDP;
 	ui->ui_len = htons(m->m_len - sizeof(struct ip)); /* + sizeof (struct udphdr)); */
@@ -317,11 +319,9 @@ int udp_output(struct socket *so, struct mbuf *m,
 
     saddr = *addr;
     if ((so->so_faddr.s_addr & htonl(0xffffff00)) == special_addr.s_addr) {
+        saddr.sin_addr.s_addr = so->so_faddr.s_addr;
         if ((so->so_faddr.s_addr & htonl(0x000000ff)) == htonl(0xff))
             saddr.sin_addr.s_addr = alias_addr.s_addr;
-        else if (addr->sin_addr.s_addr == loopback_addr.s_addr ||
-                 (ntohl(so->so_faddr.s_addr) & 0xff) != CTL_ALIAS)
-            saddr.sin_addr.s_addr = so->so_faddr.s_addr;
     }
     daddr.sin_addr = so->so_laddr;
     daddr.sin_port = so->so_lport;
@@ -408,7 +408,7 @@ static void
 udp_emu(struct socket *so, struct mbuf *m)
 {
 	struct sockaddr_in addr;
-	socklen_t addrlen = sizeof(addr);
+        int addrlen = sizeof(addr);
 #ifdef EMULATE_TALK
 	CTL_MSG_OLD *omsg;
 	CTL_MSG *nmsg;
@@ -473,14 +473,14 @@ struct cu_header {
 			type = omsg->type;
 			OTOSIN(omsg, ctl_addr)->sin_port = addr.sin_port;
 			OTOSIN(omsg, ctl_addr)->sin_addr = our_addr;
-                        pstrcpy(omsg->l_name, NAME_SIZE_OLD, getlogin());
+			strncpy(omsg->l_name, getlogin(), NAME_SIZE_OLD);
 		} else {		/* new talk */
 			omsg = (CTL_MSG_OLD *) buff;
 			nmsg = mtod(m, CTL_MSG *);
 			type = nmsg->type;
 			OTOSIN(nmsg, ctl_addr)->sin_port = addr.sin_port;
 			OTOSIN(nmsg, ctl_addr)->sin_addr = our_addr;
-                        pstrcpy(nmsg->l_name, NAME_SIZE_OLD, getlogin());
+			strncpy(nmsg->l_name, getlogin(), NAME_SIZE_OLD);
 		}
 
 		if (type == LOOK_UP)
@@ -639,7 +639,7 @@ udp_listen(port, laddr, lport, flags)
 {
 	struct sockaddr_in addr;
 	struct socket *so;
-	socklen_t addrlen = sizeof(struct sockaddr_in), opt = 1;
+	int addrlen = sizeof(struct sockaddr_in), opt = 1;
 
 	if ((so = socreate()) == NULL) {
 		free(so);
