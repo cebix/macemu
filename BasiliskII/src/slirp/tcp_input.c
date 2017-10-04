@@ -292,11 +292,7 @@ void tcp_input(register struct mbuf *m, int iphlen, struct socket *inso)
 	 * Checksum extended TCP header and data.
 	 */
 	tlen = ((struct ip *)ti)->ip_len;
-	//ti->ti_next = ti->ti_prev = 0;
-	
-	tcpiphdr2qlink(ti)->next = tcpiphdr2qlink(ti)->prev = 0;
-	memset(&ti->ti_i.ih_mbuf, 0 , sizeof(struct mbuf_ptr));
-	
+	ti->ti_next = ti->ti_prev = 0;
 	ti->ti_x1 = 0;
 	ti->ti_len = htons((u_int16_t)tlen);
 	len = sizeof(struct ip) + tlen;
