@@ -10,7 +10,7 @@
 		084186B10B3A0515004B1F63 /* VMSettingsController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 084186B00B3A0515004B1F63 /* VMSettingsController.mm */; };
 		088EBBB61B41AEBB0066D352 /* DiskType.m in Sources */ = {isa = PBXBuildFile; fileRef = 088EBBB51B41AEBB0066D352 /* DiskType.m */; };
 		08AAB16D102614D5007E1230 /* SheepShaver.icns in Resources */ = {isa = PBXBuildFile; fileRef = 08AAB16C102614D5007E1230 /* SheepShaver.icns */; };
-		08AAB1B310261691007E1230 /* SheepShaver in Copy SheepShaver */ = {isa = PBXBuildFile; fileRef = 08AAB1B11026168B007E1230 /* SheepShaver */; };
+		08AAB1B310261691007E1230 /* SheepShaver in Copy SheepShaver */ = {isa = PBXBuildFile; fileRef = 08AAB1B11026168B007E1230 /* SheepShaver */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		08B5FAFD102497FA0047FD1B /* VMSettingsWindow.nib in Resources */ = {isa = PBXBuildFile; fileRef = 08B5FAFB102497FA0047FD1B /* VMSettingsWindow.nib */; };
 		08B5FB01102498B00047FD1B /* VMListWindow.nib in Resources */ = {isa = PBXBuildFile; fileRef = 08B5FAFF102498B00047FD1B /* VMListWindow.nib */; };
 		08B5FB221024FE320047FD1B /* AppController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 08B5FB211024FE320047FD1B /* AppController.mm */; };
@@ -209,6 +209,9 @@
 /* Begin PBXProject section */
 		29B97313FDCFA39411CA2CEA /* Project object */ = {
 			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0900;
+			};
 			buildConfigurationList = C01FCF4E08A954540054247B /* Build configuration list for PBXProject "SheepShaverLauncher" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = English;
@@ -310,11 +313,13 @@
 					PREFS_EDITOR,
 					STANDALONE_PREFS,
 				);
-				GCC_VERSION = 4.0;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
 				OTHER_CFLAGS = "$(inherited)";
+				PRODUCT_BUNDLE_IDENTIFIER = net.sourceforge.SheepShaverLauncher;
 				PRODUCT_NAME = SheepShaverLauncher;
+				SDKROOT = macosx;
 				WRAPPER_EXTENSION = app;
 				ZERO_LINK = YES;
 			};
@@ -324,11 +329,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = (
-					ppc,
-					i386,
-					x86_64,
-				);
 				COPY_PHASE_STRIP = NO;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_INPUT_FILETYPE = sourcecode.cpp.objcpp;
@@ -337,15 +337,17 @@
 					PREFS_EDITOR,
 					STANDALONE_PREFS,
 				);
-				GCC_VERSION = 4.0;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				"GCC_VERSION[arch=x86_64]" = 4.2;
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
 				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.5;
 				OTHER_CFLAGS = "$(inherited)";
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
+				PRODUCT_BUNDLE_IDENTIFIER = net.sourceforge.SheepShaverLauncher;
 				PRODUCT_NAME = SheepShaverLauncher;
-				"SDKROOT[arch=x86_64]" = macosx10.6;
+				SDKROOT = macosx;
+				"SDKROOT[arch=x86_64]" = macosx10.13;
 				WRAPPER_EXTENSION = app;
 			};
 			name = Release;
@@ -353,8 +355,33 @@
 		C01FCF4F08A954540054247B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				ONLY_ACTIVE_ARCH = YES;
 				PREBINDING = NO;
 				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
 			};
@@ -363,10 +390,33 @@
 		C01FCF5008A954540054247B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_PREFIX_HEADER = LauncherPrefix.h;
 				GCC_VERSION = 4.0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				PREBINDING = NO;
 				SDKROOT = "$(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk";
 			};

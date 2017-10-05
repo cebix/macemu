@@ -149,7 +149,7 @@ typedef long int32;
 #error "No 4 byte type, you lose."
 #endif
 #if SIZEOF_LONG == 8
-typedef unsigned long uint64;
+typedef uint64_t uint64;
 typedef long int64;
 #define VAL64(a) (a ## l)
 #define UVAL64(a) (a ## ul)

@@ -54,12 +54,12 @@ void prefs_exit()
   return self;
 }
 
-- (int)numberOfRowsInTableView:(NSTableView *)aTable
+- (NSInteger)numberOfRowsInTableView:(NSTableView *)aTable
 {
   return [diskArray count];
 }
 
-- (id)tableView:(NSTableView *)aTable objectValueForTableColumn:(NSTableColumn *)aCol row:(int)aRow
+- (id)tableView:(NSTableView *)aTable objectValueForTableColumn:(NSTableColumn *)aCol row:(NSInteger)aRow
 {
   return [diskArray objectAtIndex: aRow];
 }
