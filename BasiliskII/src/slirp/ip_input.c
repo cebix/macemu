@@ -460,7 +460,7 @@ ip_slowtimo()
 
  	if (l == 0)
 	   return;
-	printf("Line 453\n");
+
 	while (l != &ipq.ip_link) {
 		struct ipq *fp = container_of(l, struct ipq, ip_link);
 		l = l->next;
