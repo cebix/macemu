@@ -38,8 +38,8 @@ typedef	u_int32_t	tcp_seq;
 #define      PR_SLOWHZ       2               /* 2 slow timeouts per second (approx) */
 #define      PR_FASTHZ       5               /* 5 fast timeouts per second (not important) */
 
-extern size_t tcp_rcvspace;
-extern size_t tcp_sndspace;
+extern int tcp_rcvspace;
+extern int tcp_sndspace;
 extern struct socket *tcp_last_so;
 
 #define TCP_SNDSPACE 8192
@@ -78,7 +78,7 @@ struct tcphdr {
 } PACKED__;
 
 #ifdef PRAGMA_PACK_SUPPORTED
-#pragma pack(PACK_RESET)
+#pragma pack(0)
 #endif
 
 #include "tcp_var.h"

@@ -84,7 +84,7 @@ static int get_dns_addr(struct in_addr *pdns_addr)
 static int get_dns_addr(struct in_addr *pdns_addr)
 {
     char buff[512];
-    char buff2[256+1];
+    char buff2[256];
     FILE *f;
     int found = 0;
     struct in_addr tmp_addr;
@@ -211,8 +211,8 @@ int slirp_select_fill(int *pnfds,
 		 * in the fragment queue, or there are TCP connections active
 		 */
 		do_slowtimo = ((tcb.so_next != &tcb) ||
-			       ((struct ipasfrag *)&ipq != (struct ipasfrag *)ipq.next));
-		
+			 (&ipq.ip_link != ipq.ip_link.next));
+	
 		for (so = tcb.so_next; so != &tcb; so = so_next) {
 			so_next = so->so_next;
 			
@@ -220,14 +220,14 @@ int slirp_select_fill(int *pnfds,
 			 * See if we need a tcp_fasttimo
 			 */
 			if (time_fasttimo == 0 && so->so_tcpcb->t_flags & TF_DELACK)
-				time_fasttimo = curtime; /* Flag when we want a fasttimo */
+			   time_fasttimo = curtime; /* Flag when we want a fasttimo */
 			
 			/*
 			 * NOFDREF can include still connecting to local-host,
 			 * newly socreated() sockets etc. Don't want to select these.
 	 		 */
 			if (so->so_state & SS_NOFDREF || so->s == -1)
-				continue;
+			   continue;
 			
 			/*
 			 * Set for reading sockets which are accepting
@@ -346,18 +346,18 @@ int slirp_select_fill(int *pnfds,
 
 void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 {
-	struct socket *so, *so_next;
-	int ret;
+    struct socket *so, *so_next;
+    int ret;
 
-	global_readfds = readfds;
-	global_writefds = writefds;
-	global_xfds = xfds;
+    global_readfds = readfds;
+    global_writefds = writefds;
+    global_xfds = xfds;
 
 	/* Update time */
 	updtime();
-
+	
 	/*
-	 * See if anything has timed out
+	 * See if anything has timed out 
 	 */
 	if (link_up) {
 		if (time_fasttimo && ((curtime - time_fasttimo) >= FAST_TIMO)) {
@@ -370,7 +370,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 			last_slowtimo = curtime;
 		}
 	}
-
+	
 	/*
 	 * Check sockets
 	 */
@@ -380,21 +380,21 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 		 */
 		for (so = tcb.so_next; so != &tcb; so = so_next) {
 			so_next = so->so_next;
-
+			
 			/*
 			 * FD_ISSET is meaningless on these sockets
 			 * (and they can crash the program)
 			 */
 			if (so->so_state & SS_NOFDREF || so->s == -1)
-				continue;
-
+			   continue;
+			
 			/*
 			 * Check for URG data
 			 * This will soread as well, so no need to
 			 * test for readfds below if this succeeds
 			 */
 			if (FD_ISSET(so->s, xfds))
-				sorecvoob(so);
+			   sorecvoob(so);
 			/*
 			 * Check sockets for reading
 			 */
@@ -407,92 +407,86 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 					continue;
 				} /* else */
 				ret = soread(so);
-
+				
 				/* Output it if we read something */
 				if (ret > 0)
-					tcp_output(sototcpcb(so));
+				   tcp_output(sototcpcb(so));
 			}
-
+			
 			/*
 			 * Check sockets for writing
 			 */
 			if (FD_ISSET(so->s, writefds)) {
-				/*
-				 * Check for non-blocking, still-connecting sockets
-				 */
-				if (so->so_state & SS_ISFCONNECTING) {
-					/* Connected */
-					so->so_state &= ~SS_ISFCONNECTING;
-
-					ret = send(so->s, (char*)&ret, 0, 0);
-					if (ret < 0) {
-						/* XXXXX Must fix, zero bytes is a NOP */
-						int error = WSAGetLastError();
-						if (error == EAGAIN || error == WSAEWOULDBLOCK ||
-							error == WSAEINPROGRESS || error == WSAENOTCONN)
-							continue;
-
-						/* else failed */
-						so->so_state = SS_NOFDREF;
-					}
-					/* else so->so_state &= ~SS_ISFCONNECTING; */
-
-					/*
-					 * Continue tcp_input
-					 */
-					tcp_input((struct mbuf *)NULL, sizeof(struct ip), so);
-					/* continue; */
-				}
-				else
-					ret = sowrite(so);
-				/*
-				 * XXXXX If we wrote something (a lot), there
-				 * could be a need for a window update.
-				 * In the worst case, the remote will send
-				 * a window probe to get things going again
-				 */
+			  /*
+			   * Check for non-blocking, still-connecting sockets
+			   */
+			  if (so->so_state & SS_ISFCONNECTING) {
+			    /* Connected */
+			    so->so_state &= ~SS_ISFCONNECTING;
+			    
+			    ret = send(so->s, &ret, 0, 0);
+			    if (ret < 0) {
+			      /* XXXXX Must fix, zero bytes is a NOP */
+			      if (errno == EAGAIN || errno == EWOULDBLOCK ||
+				  errno == EINPROGRESS || errno == ENOTCONN)
+				continue;
+			      
+			      /* else failed */
+			      so->so_state = SS_NOFDREF;
+			    }
+			    /* else so->so_state &= ~SS_ISFCONNECTING; */
+			    
+			    /*
+			     * Continue tcp_input
+			     */
+			    tcp_input((struct mbuf *)NULL, sizeof(struct ip), so);
+			    /* continue; */
+			  } else
+			    ret = sowrite(so);
+			  /*
+			   * XXXXX If we wrote something (a lot), there 
+			   * could be a need for a window update.
+			   * In the worst case, the remote will send
+			   * a window probe to get things going again
+			   */
 			}
-
+			
 			/*
 			 * Probe a still-connecting, non-blocking socket
 			 * to check if it's still alive
-			 */
+	 	 	 */
 #ifdef PROBE_CONN
 			if (so->so_state & SS_ISFCONNECTING) {
-				ret = recv(so->s, (char *)&ret, 0, 0);
-
-				if (ret < 0) {
-					/* XXX */
-					int error = WSAGetLastError();
-					if (error == EAGAIN || error == WSAEWOULDBLOCK ||
-						error == WSAEINPROGRESS || error == WSAENOTCONN)
-						continue; /* Still connecting, continue */
-
-					  /* else failed */
-					so->so_state = SS_NOFDREF;
-
-					/* tcp_input will take care of it */
-				}
-				else {
-					ret = send(so->s, &ret, 0, 0);
-					if (ret < 0) {
-						/* XXX */
-						int error = WSAGetLastError();
-						if (error == EAGAIN || error == WSAEWOULDBLOCK ||
-							error == WSAEINPROGRESS || error == WSAENOTCONN)
-							continue;
-						/* else failed */
-						so->so_state = SS_NOFDREF;
-					}
-					else
-						so->so_state &= ~SS_ISFCONNECTING;
-
-				}
-				tcp_input((struct mbuf *)NULL, sizeof(struct ip), so);
-		} /* SS_ISFCONNECTING */
+			  ret = recv(so->s, (char *)&ret, 0,0);
+			  
+			  if (ret < 0) {
+			    /* XXX */
+			    if (errno == EAGAIN || errno == EWOULDBLOCK ||
+				errno == EINPROGRESS || errno == ENOTCONN)
+			      continue; /* Still connecting, continue */
+			    
+			    /* else failed */
+			    so->so_state = SS_NOFDREF;
+			    
+			    /* tcp_input will take care of it */
+			  } else {
+			    ret = send(so->s, &ret, 0,0);
+			    if (ret < 0) {
+			      /* XXX */
+			      if (errno == EAGAIN || errno == EWOULDBLOCK ||
+				  errno == EINPROGRESS || errno == ENOTCONN)
+				continue;
+			      /* else failed */
+			      so->so_state = SS_NOFDREF;
+			    } else
+			      so->so_state &= ~SS_ISFCONNECTING;
+			    
+			  }
+			  tcp_input((struct mbuf *)NULL, sizeof(struct ip),so);
+			} /* SS_ISFCONNECTING */
 #endif
-	}
-
+		}
+		
 		/*
 		 * Now UDP sockets.
 		 * Incoming packets are sent straight away, they're not buffered.
@@ -500,27 +494,27 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 		 */
 		for (so = udb.so_next; so != &udb; so = so_next) {
 			so_next = so->so_next;
-
+			
 			if (so->s != -1 && FD_ISSET(so->s, readfds)) {
-				sorecvfrom(so);
-			}
+                            sorecvfrom(so);
+                        }
 		}
-}
-
+	}
+	
 	/*
 	 * See if we can start outputting
 	 */
 	if (if_queued && link_up)
-		if_start();
+	   if_start();
 
 	/* clear global file descriptor sets.
 	 * these reside on the stack in vl.c
 	 * so they're unusable if we're not in
 	 * slirp_select_fill or slirp_select_poll.
 	 */
-	global_readfds = NULL;
-	global_writefds = NULL;
-	global_xfds = NULL;
+	 global_readfds = NULL;
+	 global_writefds = NULL;
+	 global_xfds = NULL;
 }
 
 #define ETH_ALEN 6

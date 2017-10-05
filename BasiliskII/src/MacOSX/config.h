@@ -458,7 +458,7 @@
 #define HAVE_SINL 1
 
 /* Define if slirp library is supported */
-/* #define HAVE_SLIRP 1 */
+#define HAVE_SLIRP 1
 
 /* Define to 1 if you have the `snprintf' function. */
 #define HAVE_SNPRINTF 1

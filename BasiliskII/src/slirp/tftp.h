@@ -34,7 +34,7 @@ struct tftp_t {
 } PACKED__;
 
 #ifdef PRAGMA_PACK_SUPPORTED
-#pragma pack(PACK_RESET)
+#pragma pack(0)
 #endif
 
 void tftp_input(struct mbuf *m);
