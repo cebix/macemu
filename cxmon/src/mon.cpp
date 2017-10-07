@@ -154,7 +154,7 @@ void mon_add_command(const char *name, void (*func)(), const char *help_text)
 
 void mon_error(const char *s)
 {
-	fprintf(monerr == NULL? stdout: monerr, "*** %s\n", s);
+	fprintf(monerr == NULL? stdout : monerr, "*** %s\n", s);
 }
 
 
@@ -1034,15 +1034,15 @@ void mon_change_dir()
  * Add break point
  */
 
-void mon_add_break_point(uintptr adr)
+void mon_add_break_point(uintptr addr)
 {
-	BREAK_POINT_SET::iterator it;
+	BREAK_POINT_SET::iterator it = disabled_break_points.find(addr);
 	// Save break point
-	if ((it = disabled_break_points.find(adr)) == disabled_break_points.end())
-		active_break_points.insert(adr);
-	else {
+	if (it == disabled_break_points.end()) {
+		active_break_points.insert(addr);
+	} else {
 		disabled_break_points.erase(it);
-		active_break_points.insert(adr);
+		active_break_points.insert(addr);
 	}
 }
 
@@ -1050,7 +1050,7 @@ void mon_add_break_point(uintptr adr)
 /*
  * Load break point from file
  */
-void mon_load_break_point(char* file_path)
+void mon_load_break_point(const char* file_path)
 {
 	FILE *file;
 	if (!(file = fopen(file_path, "r"))) {

@@ -108,7 +108,7 @@ extern void mon_write_word(uintptr adr, uint32 l);
 // Check if break point is set
 #define IS_BREAK_POINT(address) (active_break_points.find(address) != active_break_points.end())
 // Add break point
-extern void mon_add_break_point(uintptr adr);
-extern void mon_load_break_point(char* file_path);
+extern void mon_add_break_point(uintptr addr);
+extern void mon_load_break_point(const char* file_path);
 
 #endif

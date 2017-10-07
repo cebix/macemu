@@ -417,7 +417,7 @@ int main(int argc, char **argv)
 			if (i < argc) {
 				std::stringstream ss;
 				ss << std::hex << argv[i];
-				ss >>	ROMBreakpoint;
+				ss >> ROMBreakpoint;
 				argv[i] = NULL;
 			}
 #ifdef ENABLE_MON
