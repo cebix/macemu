@@ -302,6 +302,27 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 #include "video_blit.h"
 
 /* -------------------------------------------------------------------------- */
+/* --- 1-bit indexed to 8-bit color mode conversion                       --- */
+/* -------------------------------------------------------------------------- */
+
+#define CONVERT_BW(byte) (byte)==1?0:255
+static void Blit_Expand_1_To_8_Color(uint8 * dest, const uint8 * p, uint32 length)
+{
+	uint8 *q = (uint8 *)dest;
+	for (uint32 i=0; i<length; i++) {
+		uint8 c = *p++;
+		*q++ = CONVERT_BW(c >> 7);
+		*q++ = CONVERT_BW((c >> 6) & 1);
+		*q++ = CONVERT_BW((c >> 5) & 1);
+		*q++ = CONVERT_BW((c >> 4) & 1);
+		*q++ = CONVERT_BW((c >> 3) & 1);
+		*q++ = CONVERT_BW((c >> 2) & 1);
+		*q++ = CONVERT_BW((c >> 1) & 1);
+		*q++ = CONVERT_BW(c & 1);
+	}
+}
+
+/* -------------------------------------------------------------------------- */
 /* --- 1/2/4-bit indexed to 8-bit mode conversion                         --- */
 /* -------------------------------------------------------------------------- */
 
@@ -577,9 +598,16 @@ bool Screen_blitter_init(VisualFormat const & visual_format, bool native_byte_or
 		}
 	}
 #else
-	// The UAE memory handlers will blit correctly
-	// --> no need for specialised blitters here
-	Screen_blit = Blit_Copy_Raw;
+	if (use_sdl_video && 1 == mac_depth && 8 == visual_format.depth) {
+		// A special case for 24 bit ROM in SDL:
+		// SDL allows minimum 8 bit per pixel color mode.
+		// Transform 1 bit per pixel BW mode from guest OS frame into SDL surface.
+		Screen_blit = Blit_Expand_1_To_8_Color;
+	} else {
+		// The UAE memory handlers will blit correctly
+		// --> no need for specialised blitters here
+		Screen_blit = Blit_Copy_Raw;
+	}
 #endif
 	
 	// If the blitter simply reduces to a copy, we don't need VOSF in DGA mode
