@@ -1288,6 +1288,7 @@
 				PREBINDING = NO;
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = lowmem;
+				SDKROOT = macosx;
 			};
 			name = Debug;
 		};
@@ -1307,6 +1308,7 @@
 				PREBINDING = NO;
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = lowmem;
+				SDKROOT = macosx;
 				ZERO_LINK = NO;
 			};
 			name = Release;
@@ -1329,7 +1331,7 @@
 					_REENTRANT,
 				);
 				HEADER_SEARCH_PATHS = (
-					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
+					"$(BUILT_PRODUCTS_DIR)/SDL2.framework/Headers",
 					./config/,
 					../Unix,
 					../MacOSX/Launcher,
@@ -1364,7 +1366,7 @@
 					_REENTRANT,
 				);
 				HEADER_SEARCH_PATHS = (
-					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
+					"$(BUILT_PRODUCTS_DIR)/SDL2.framework/Headers",
 					./config/,
 					../Unix,
 					../MacOSX/Launcher,
@@ -1429,8 +1431,8 @@
 					_REENTRANT,
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
+				GCC_WARN_UNUSED_FUNCTION = NO;
+				GCC_WARN_UNUSED_VARIABLE = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(BUILT_PRODUCTS_DIR)/SDL2.framework/Headers",
 					./config/,
@@ -1487,8 +1489,8 @@
 					_REENTRANT,
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
+				GCC_WARN_UNUSED_FUNCTION = NO;
+				GCC_WARN_UNUSED_VARIABLE = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(BUILT_PRODUCTS_DIR)/SDL2.framework/Headers",
 					./config/,

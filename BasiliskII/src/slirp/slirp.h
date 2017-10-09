@@ -41,6 +41,14 @@ typedef unsigned long ioctlsockopt_t;
 # define init_udp slirp_init_udp
 # define final_udp slirp_final_udp
 #else
+# define WSAGetLastError() (int)(errno)
+# define WSASetLastError(e) (void)(errno = (e))
+# define WSAEWOULDBLOCK EWOULDBLOCK
+# define WSAEINPROGRESS EINPROGRESS
+# define WSAENOTCONN ENOTCONN
+# define WSAEHOSTUNREACH EHOSTUNREACH
+# define WSAENETUNREACH ENETUNREACH
+# define WSAECONNREFUSED ECONNREFUSED
 typedef int ioctlsockopt_t;
 # define ioctlsocket ioctl
 # define closesocket(s) close(s)
@@ -55,7 +63,9 @@ typedef int ioctlsockopt_t;
 # include <stdint.h>
 #endif
 
+#ifndef _WIN32
 #include <sys/time.h>
+#endif
 
 #ifdef NEED_TYPEDEFS
 typedef char int8_t;
@@ -125,6 +135,8 @@ typedef u_int32_t uint32;
 
 #ifndef _WIN32
 #include <sys/uio.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #endif
 
 #ifndef _P
@@ -135,10 +147,6 @@ typedef u_int32_t uint32;
 #endif
 #endif
 
-#ifndef _WIN32
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#endif
 
 #ifdef GETTIMEOFDAY_ONE_ARG
 #define gettimeofday(x, y) gettimeofday(x)
