@@ -429,7 +429,7 @@ typedef struct timeval tm_time_t;
 
 // Timing functions
 extern uint64 GetTicks_usec(void);
-extern void Delay_usec(uint32 usec);
+extern void Delay_usec(uint64 usec);
 
 #ifdef HAVE_PTHREADS
 // Setup pthread attributes

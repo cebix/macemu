@@ -514,7 +514,8 @@
 				4ECAC2461F8A89FE0013B963 /* udp.h */,
 				4ECAC25C1F8A8A010013B963 /* VERSION */,
 			);
-			path = slirp;
+			name = slirp;
+			path = ../slirp;
 			sourceTree = "<group>";
 		};
 		752F26F71F240E51001032B4 /* Frameworks */ = {
