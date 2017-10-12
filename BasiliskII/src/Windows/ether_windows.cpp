@@ -1387,6 +1387,9 @@ unsigned int WINAPI slirp_receive_func(void *arg)
 	return 0;
 }
 
+const uint8 ether_broadcast_addr[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+const uint8 appletalk_broadcast_addr[6] = { 0x09, 0x00, 0x07, 0xFF, 0xFF, 0xFF };
+const uint8 appletalk_zone_multicast_prefix[5] = { 0x09, 0x00, 0x07, 0x00, 0x00 };
 
 /*
  *  Packet reception threads
@@ -1425,10 +1428,15 @@ VOID CALLBACK packet_read_completion(
 					break;
 				}
 			}
-			// XXX drop packets that are not for us
+			// XXX drop packets that we don't care about
 			if (net_if_type == NET_IF_TAP) {
-				if (memcmp((LPBYTE)lpPacket->Buffer, ether_addr, 6) != 0)
+				if (memcmp((LPBYTE)lpPacket->Buffer, ether_addr, 6) != 0 &&
+					memcmp((LPBYTE)lpPacket->Buffer, ether_broadcast_addr, 6) != 0 &&
+					memcmp((LPBYTE)lpPacket->Buffer, appletalk_broadcast_addr, 6) != 0 &&
+					memcmp((LPBYTE)lpPacket->Buffer, appletalk_zone_multicast_prefix, 5) != 0
+					) {
 					dwNumberOfBytesTransfered = 0;
+				}
 			}
 			if(dwNumberOfBytesTransfered) {
 				if(net_if_type != NET_IF_ROUTER || !router_read_packet((uint8 *)lpPacket->Buffer, dwNumberOfBytesTransfered)) {
