@@ -375,7 +375,7 @@ static bool do_get_finfo(const char *path, bool has_fxinfo,
 	memset(emu_finfo, 0, SIZEOF_FInfo);
 	if (has_fxinfo)
 		memset(emu_fxinfo, 0, SIZEOF_FXInfo);
-	*((uint16 *)(emu_finfo + fdFlags)) = htonl(DEFAULT_FINDER_FLAGS);
+	*((uint16 *)(emu_finfo + fdFlags)) = htons(DEFAULT_FINDER_FLAGS);
 	*((uint32 *)(emu_finfo + fdLocation)) = htonl((uint32)-1);
 
 	if (USE_XATTRS)
