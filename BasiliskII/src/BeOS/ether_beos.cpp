@@ -106,7 +106,9 @@ static NetProtocol *find_protocol(uint16 type)
 static void remove_all_protocols(void)
 {
 	NetProtocol *p;
+	#if 0
 	while ((p = (NetProtocol *)prot_list.RemoveItem((long)0)) != NULL)
+	#endif
 		delete p;
 }
 

@@ -20,7 +20,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifdef __i386__
+#if defined(__i386__) || defined(__x86_64__)
 #error The sheep driver only runs on PowerPC machines.
 #endif
 
