@@ -400,7 +400,7 @@ const TCHAR *ether_guid_to_name(const TCHAR *guid)
 
 #define ADAPTER_KEY TEXT("SYSTEM\\CurrentControlSet\\Control\\Class\\{4D36E972-E325-11CE-BFC1-08002BE10318}")
 
-#define TAP_COMPONENT_ID TEXT("tap0801")
+const _TCHAR * tap_component_ids[] = { TEXT("tap0801"), TEXT("tap0901"), 0 };
 
 const TCHAR *ether_tap_devices(void)
 {
@@ -475,8 +475,13 @@ const TCHAR *ether_tap_devices(void)
 					&len);
 
 				if (status == ERROR_SUCCESS && data_type == REG_SZ) {
-					if (!_tcscmp (component_id, TAP_COMPONENT_ID))
-						devices.push_back(net_cfg_instance_id);
+					const _TCHAR * * cur_tap_component_id;
+					for (cur_tap_component_id = tap_component_ids; *cur_tap_component_id != NULL; cur_tap_component_id++) {
+						if (!_tcscmp(component_id, *cur_tap_component_id)) {
+							devices.push_back(net_cfg_instance_id);
+							break;
+						}
+					}
 				}
 			}
 			RegCloseKey (unit_key);
