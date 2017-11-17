@@ -191,6 +191,9 @@ int64 TimebaseSpeed;	// Timebase clock speed (Hz)
 uint8 *RAMBaseHost;		// Base address of Mac RAM (host address space)
 uint8 *ROMBaseHost;		// Base address of Mac ROM (host address space)
 
+#if defined(__APPLE__) && defined(__x86_64__)
+uint8 gZeroPage[0x3000], gKernelData[0x2000];
+#endif
 
 // Global variables
 #ifndef USE_SDL_VIDEO
@@ -855,15 +858,17 @@ int main(int argc, char **argv)
 		goto quit;
 	}
 
+#if !defined(__APPLE__) || !defined(__x86_64__)
 	// Create areas for Kernel Data
 	if (!kernel_data_init())
 		goto quit;
+#endif
 	kernel_data = (KernelData *)Mac2HostAddr(KERNEL_DATA_BASE);
 	emulator_data = &kernel_data->ed;
 	KernelDataAddr = KERNEL_DATA_BASE;
 	D(bug("Kernel Data at %p (%08x)\n", kernel_data, KERNEL_DATA_BASE));
 	D(bug("Emulator Data at %p (%08x)\n", emulator_data, KERNEL_DATA_BASE + offsetof(KernelData, ed)));
-
+#if 0
 	// Create area for DR Cache
 	if (vm_mac_acquire_fixed(DR_EMULATOR_BASE, DR_EMULATOR_SIZE) < 0) {
 		sprintf(str, GetString(STR_DR_EMULATOR_MMAP_ERR), strerror(errno));
@@ -886,7 +891,7 @@ int main(int argc, char **argv)
 #endif
 	DRCacheAddr = DR_CACHE_BASE;
 	D(bug("DR Cache at %p\n", DRCacheAddr));
-
+#endif
 	// Create area for SheepShaver data
 	if (!SheepMem::Init()) {
 		sprintf(str, GetString(STR_SHEEP_MEM_MMAP_ERR), strerror(errno));
@@ -1634,8 +1639,8 @@ void sigusr2_handler(int sig, siginfo_t *sip, void *scp)
 	switch (ReadMacInt32(XLM_RUN_MODE)) {
 		case MODE_68K:
 			// 68k emulator active, trigger 68k interrupt level 1
-			WriteMacInt16(ntohl(kernel_data->v[0x67c >> 2]), 1);
-			r->cr() |= ntohl(kernel_data->v[0x674 >> 2]);
+			WriteMacInt16(ReadMacInt32(0x67c), 1);
+			r->cr() |= ReadMacInt32(0x674);
 			break;
 
 #if INTERRUPTS_IN_NATIVE_MODE
@@ -1647,8 +1652,8 @@ void sigusr2_handler(int sig, siginfo_t *sip, void *scp)
 				sigaltstack(&extra_stack, NULL);
 				
 				// Prepare for 68k interrupt level 1
-				WriteMacInt16(ntohl(kernel_data->v[0x67c >> 2]), 1);
-				WriteMacInt32(ntohl(kernel_data->v[0x658 >> 2]) + 0xdc, ReadMacInt32(ntohl(kernel_data->v[0x658 >> 2]) + 0xdc) | ntohl(kernel_data->v[0x674 >> 2]));
+				WriteMacInt16(ReadMacInt32(0x67c), 1);
+				WriteMacInt32(ReadMacInt32(0x658) + 0xdc, ReadMacInt32(ReadMacInt32(0x658) + 0xdc) | ReadMacInt32(0x674));
 
 				// Execute nanokernel interrupt routine (this will activate the 68k emulator)
 				DisableInterrupt();
@@ -2155,10 +2160,10 @@ bool SheepMem::Init(void)
 	page_size = getpagesize();
 
 	// Allocate SheepShaver globals
-	proc = base;
-	if (vm_mac_acquire_fixed(base, size) < 0)
+	uint8 *adr = vm_mac_acquire(size);
+	if (adr == VM_MAP_FAILED)
 		return false;
-
+	proc = base = Host2MacAddr(adr);
 	// Allocate page with all bits set to 0, right in the middle
 	// This is also used to catch undesired overlaps between proc and data areas
 	zero_page = proc + (size / 2);
@@ -2168,9 +2173,10 @@ bool SheepMem::Init(void)
 
 #if EMULATED_PPC
 	// Allocate alternate stack for PowerPC interrupt routine
-	sig_stack = base + size;
-	if (vm_mac_acquire_fixed(sig_stack, SIG_STACK_SIZE) < 0)
+	adr = vm_mac_acquire(SIG_STACK_SIZE);
+	if (adr == VM_MAP_FAILED)
 		return false;
+	sig_stack = Host2MacAddr(adr);
 #endif
 
 	data = base + size;
