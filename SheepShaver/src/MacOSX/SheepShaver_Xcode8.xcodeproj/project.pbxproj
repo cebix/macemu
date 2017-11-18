@@ -16,7 +16,6 @@
 		08163339158C121000C449F9 /* dis-asm.h in Headers */ = {isa = PBXBuildFile; fileRef = 08163337158C121000C449F9 /* dis-asm.h */; };
 		08163340158C125800C449F9 /* ppc-dis.c in Sources */ = {isa = PBXBuildFile; fileRef = 08163338158C121000C449F9 /* ppc-dis.c */; };
 		082AC22D14AA52E900071F5E /* prefs_editor_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 082AC22C14AA52E900071F5E /* prefs_editor_dummy.cpp */; };
-		082AC26214AA59F000071F5E /* lowmem.c in Sources */ = {isa = PBXBuildFile; fileRef = 082AC26114AA59F000071F5E /* lowmem.c */; };
 		083E370C16EFE85000CCCA59 /* disk_sparsebundle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 083E370A16EFE85000CCCA59 /* disk_sparsebundle.cpp */; };
 		083E372216EFE87200CCCA59 /* tinyxml2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 083E372016EFE87200CCCA59 /* tinyxml2.cpp */; };
 		0846E4B114B1264700574779 /* ieeefp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDF714A99EEF000B1711 /* ieeefp.cpp */; };
@@ -106,6 +105,7 @@
 		08CD42E814B7B8AA009CA2A2 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42E714B7B8AA009CA2A2 /* Carbon.framework */; };
 		08E877521E0640E800A90A2C /* clip_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE2C14A99EF0000B1711 /* clip_macosx.cpp */; };
 		A7B1921418C35D4700791D8D /* DiskType.m in Sources */ = {isa = PBXBuildFile; fileRef = A7B1921318C35D4700791D8D /* DiskType.m */; };
+		E4302EE31FBFE7FA00A5B500 /* lowmem.c in Sources */ = {isa = PBXBuildFile; fileRef = E4302EE21FBFE7FA00A5B500 /* lowmem.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -151,7 +151,6 @@
 		08163338158C121000C449F9 /* ppc-dis.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "ppc-dis.c"; sourceTree = "<group>"; };
 		082AC22C14AA52E900071F5E /* prefs_editor_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = prefs_editor_dummy.cpp; sourceTree = "<group>"; };
 		082AC25214AA59B600071F5E /* lowmem */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = lowmem; sourceTree = BUILT_PRODUCTS_DIR; };
-		082AC26114AA59F000071F5E /* lowmem.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = lowmem.c; path = ../../../BasiliskII/src/Unix/Darwin/lowmem.c; sourceTree = SOURCE_ROOT; };
 		083E370A16EFE85000CCCA59 /* disk_sparsebundle.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = disk_sparsebundle.cpp; path = ../Unix/disk_sparsebundle.cpp; sourceTree = SOURCE_ROOT; };
 		083E370B16EFE85000CCCA59 /* disk_unix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = disk_unix.h; path = ../Unix/disk_unix.h; sourceTree = SOURCE_ROOT; };
 		083E372016EFE87200CCCA59 /* tinyxml2.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = tinyxml2.cpp; path = ../Unix/tinyxml2.cpp; sourceTree = SOURCE_ROOT; };
@@ -379,6 +378,7 @@
 		08D93A15159FE174003B04EC /* clip_macosx64.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = clip_macosx64.mm; sourceTree = "<group>"; };
 		A7B1921218C35D4700791D8D /* DiskType.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DiskType.h; sourceTree = "<group>"; };
 		A7B1921318C35D4700791D8D /* DiskType.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DiskType.m; sourceTree = "<group>"; };
+		E4302EE21FBFE7FA00A5B500 /* lowmem.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = lowmem.c; path = Darwin/lowmem.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -427,7 +427,7 @@
 		082AC25614AA59DA00071F5E /* Darwin */ = {
 			isa = PBXGroup;
 			children = (
-				082AC26114AA59F000071F5E /* lowmem.c */,
+				E4302EE21FBFE7FA00A5B500 /* lowmem.c */,
 			);
 			name = Darwin;
 			sourceTree = "<group>";
@@ -1046,7 +1046,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				082AC26214AA59F000071F5E /* lowmem.c in Sources */,
+				E4302EE31FBFE7FA00A5B500 /* lowmem.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

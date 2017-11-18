@@ -107,8 +107,8 @@ void pagezero_64(struct mach_header_64 *machhead)
 		exit(1);
 	}
 	/* change the permissions */
-	sc_cmd->maxprot = target_uint32(VM_PROT_ALL);
-	sc_cmd->initprot = target_uint32(VM_PROT_ALL);
+//	sc_cmd->maxprot = target_uint32(VM_PROT_ALL);
+//	sc_cmd->initprot = target_uint32(VM_PROT_ALL);
 }
 #endif
 
