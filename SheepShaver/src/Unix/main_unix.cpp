@@ -190,6 +190,7 @@ int64 BusClockSpeed;	// Bus clock speed (Hz)
 int64 TimebaseSpeed;	// Timebase clock speed (Hz)
 uint8 *RAMBaseHost;		// Base address of Mac RAM (host address space)
 uint8 *ROMBaseHost;		// Base address of Mac ROM (host address space)
+uint8 *ROMEndHost;
 
 #if defined(__APPLE__) && defined(__x86_64__)
 uint8 gZeroPage[0x3000], gKernelData[0x2000];
@@ -937,6 +938,8 @@ int main(int argc, char **argv)
 		RAMBase = Host2MacAddr(RAMBaseHost);
 		ROMBase = (RAMBase + RAMSize + ROM_ALIGNMENT -1) & -ROM_ALIGNMENT;
 		ROMBaseHost = Mac2HostAddr(ROMBase);
+		ROMEndHost = RAMBaseHost + RAMSize + ROM_AREA_SIZE + ROM_ALIGNMENT;
+
 		ram_rom_areas_contiguous = true;
 #else
 		if (vm_mac_acquire_fixed(RAM_BASE, RAMSize) < 0) {
@@ -1001,7 +1004,7 @@ int main(int argc, char **argv)
 #if !EMULATED_PPC
 	flush_icache_range(ROMBase, ROMBase + ROM_AREA_SIZE);
 #endif
-	vm_protect(ROMBaseHost, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_EXECUTE);
+//	vm_protect(ROMBaseHost, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_EXECUTE);
 
 	// Start 60Hz thread
 	tick_thread_cancel = false;

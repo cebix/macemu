@@ -182,7 +182,7 @@ sheepshaver_cpu::sheepshaver_cpu()
 {
 	init_decoder();
 
-#if PPC_ENABLE_JIT && !(defined(__APPLE__) && defined(__x86_64__))
+#if PPC_ENABLE_JIT
 	if (PrefsFindBool("jit"))
 		enable_jit();
 #endif
