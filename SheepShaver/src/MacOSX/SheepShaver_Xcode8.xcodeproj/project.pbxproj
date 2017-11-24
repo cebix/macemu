@@ -1356,7 +1356,6 @@
 				OTHER_LDFLAGS = (
 					"-pagezero_size",
 					0x3000,
-					"-Wl,-seg1addr,0x78048000",
 					"-lkpx_cpu",
 				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
@@ -1414,7 +1413,6 @@
 				OTHER_LDFLAGS = (
 					"-pagezero_size",
 					0x3000,
-					"-Wl,-seg1addr,0x78048000",
 					"-lkpx_cpu",
 				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
