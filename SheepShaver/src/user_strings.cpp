@@ -172,6 +172,7 @@ user_string_def common_strings[] = {
 
 	{STR_WINDOW_TITLE, "SheepShaver"},
 	{STR_WINDOW_TITLE_FROZEN, "SheepShaver *** FROZEN ***"},
+	{STR_WINDOW_TITLE_GRABBED, "SheepShaver (mouse grabbed, press Ctrl-F5 to release)"},
 	{STR_WINDOW_MENU, "SheepShaver"},
 	{STR_WINDOW_ITEM_ABOUT, "About SheepShaver" ELLIPSIS},
 	{STR_WINDOW_ITEM_REFRESH, "Refresh Rate"},
