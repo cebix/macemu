@@ -136,6 +136,7 @@ static bool toggle_fullscreen = false;
 static const int sdl_eventmask = SDL_MOUSEEVENTMASK | SDL_KEYEVENTMASK | SDL_VIDEOEXPOSEMASK | SDL_QUITMASK | SDL_ACTIVEEVENTMASK;
 
 static bool mouse_grabbed = false;
+static bool mouse_grabbed_window_name_status = false;
 
 // Mutex to protect SDL events
 static SDL_mutex *sdl_events_lock = NULL;
@@ -805,7 +806,6 @@ void driver_base::grab_mouse(void)
 	if (!mouse_grabbed) {
 		SDL_GrabMode new_mode = set_grab_mode(SDL_GRAB_ON);
 		if (new_mode == SDL_GRAB_ON) {
-			set_window_name(STR_WINDOW_TITLE_GRABBED);
 			disable_mouse_accel();
 			mouse_grabbed = true;
 		}
@@ -818,7 +818,6 @@ void driver_base::ungrab_mouse(void)
 	if (mouse_grabbed) {
 		SDL_GrabMode new_mode = set_grab_mode(SDL_GRAB_OFF);
 		if (new_mode == SDL_GRAB_OFF) {
-			set_window_name(STR_WINDOW_TITLE);
 			restore_mouse_accel();
 			mouse_grabbed = false;
 		}
@@ -1280,6 +1279,13 @@ void VideoVBL(void)
 	if (toggle_fullscreen)
 		do_toggle_fullscreen();
 
+	// Setting the window name must happen on the main thread, else it doesn't work on
+	// some platforms - e.g. macOS Sierra.
+	if (mouse_grabbed_window_name_status != mouse_grabbed) {
+		set_window_name(mouse_grabbed ? STR_WINDOW_TITLE_GRABBED : STR_WINDOW_TITLE);
+		mouse_grabbed_window_name_status = mouse_grabbed;
+	}
+
 	// Temporarily give up frame buffer lock (this is the point where
 	// we are suspended when the user presses Ctrl-Tab)
 	UNLOCK_FRAME_BUFFER;
@@ -1301,6 +1307,13 @@ void VideoInterrupt(void)
 
 	if (toggle_fullscreen)
 		do_toggle_fullscreen();
+
+	// Setting the window name must happen on the main thread, else it doesn't work on
+	// some platforms - e.g. macOS Sierra.
+	if (mouse_grabbed_window_name_status != mouse_grabbed) {
+		set_window_name(mouse_grabbed ? STR_WINDOW_TITLE_GRABBED : STR_WINDOW_TITLE);
+		mouse_grabbed_window_name_status = mouse_grabbed;
+	}
 
 	// Temporarily give up frame buffer lock (this is the point where
 	// we are suspended when the user presses Ctrl-Tab)
