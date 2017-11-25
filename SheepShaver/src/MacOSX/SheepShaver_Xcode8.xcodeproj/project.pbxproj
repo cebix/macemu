@@ -489,6 +489,7 @@
 			);
 			name = Sources;
 			sourceTree = "<group>";
+			usesTabs = 1;
 		};
 		0856CD7E14A99EEF000B1711 /* dummy */ = {
 			isa = PBXGroup;
