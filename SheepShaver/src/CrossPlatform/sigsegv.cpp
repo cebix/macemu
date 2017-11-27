@@ -2646,6 +2646,14 @@ static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 	x86_thread_state64_t *ts = &SIP->thr_state;
 	uint8_t *rip = (uint8_t *)ts->__rip;
 	switch (rip[0]) {
+		case 0xf:
+			if (rip[1] == 0xb7 && rip[2] == 0) {
+				ts->__rax = safeLoad<uint16_t>(ts->__rax);
+				ts->__rip += 3;
+				mach_set_thread_state(SIP);
+				return true;
+			}
+			break;
 		case 0x44:
 			if (rip[1] == 0xf && rip[2] == 0xb6 && rip[3] == 0x20) {
 				ts->__r12 = safeLoad<uint8_t>(ts->__rax);
