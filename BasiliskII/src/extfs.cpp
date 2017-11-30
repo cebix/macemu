@@ -176,7 +176,7 @@ static uint32 next_cnid = fsUsrCNID;	// Next available CNID
 #if defined __APPLE__ && defined __MACH__
 struct crtimebuf {
     u_int32_t length;
-	struct timespec crtime;
+    struct timespec crtime;
 } __attribute__((aligned(4), packed));
 
 static uint32 do_get_creation_time(const char *path)
