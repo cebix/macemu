@@ -418,7 +418,7 @@ Here's how to do it (all functions are defined in the mon.h header file):
     arguments and the mon_read/write_*() functions to access memory.
  5. To enter cxmon, call the mon() function like this:
 
-      char *args[3] = {"mon", "-r", NULL};
+      const char *args[3] = {"mon", "-r", NULL};
       mon(2, args);
 
  6. If you're done with cxmon, call mon_exit().

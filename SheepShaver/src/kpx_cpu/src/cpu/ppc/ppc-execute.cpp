@@ -67,7 +67,7 @@ void powerpc_cpu::execute_illegal(uint32 opcode)
 	disass_ppc(stdout, pc(), opcode);
 
 	// Start up mon in real-mode
-	char *arg[4] = {"mon", "-m", "-r", NULL};
+	const char *arg[4] = {"mon", "-m", "-r", NULL};
 	mon(3, arg);
 #endif
 	abort();

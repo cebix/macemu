@@ -872,7 +872,7 @@ static void help_or_hunt()
 	}
 	fprintf(monout, "x                        Quit mon\n"
 					"h                        This help text\n");
-	fprintf(monout, cmd_help);
+	fprintf(monout, "%s", cmd_help);
 }
 
 
@@ -1180,7 +1180,7 @@ void mon_exit()
  *  Main function, read-execute loop
  */
 
-void mon(int argc, char **argv)
+void mon(int argc, const char **argv)
 {
 	bool done = false, interactive = true;
 

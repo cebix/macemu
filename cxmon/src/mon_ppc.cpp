@@ -187,7 +187,7 @@ static void disass31(FILE *f, unsigned int adr, unsigned int w);
 static void disass59(FILE *f, unsigned int adr, unsigned int w);
 static void disass63(FILE *f, unsigned int adr, unsigned int w);
 static unsigned int mbme2mask(int mb, int me);
-static char *get_spr(int reg);
+static const char *get_spr(int reg);
 
 
 /*
@@ -279,7 +279,7 @@ void disass_ppc(FILE *f, unsigned int adr, unsigned int w)
 
 		case 16: {
 			int target = short(imm & 0xfffc);
-			char *form;
+			const char *form;
 			if (w & 1)
 				if (w & 2)
 					form = "la";
@@ -817,7 +817,7 @@ static void disass31(FILE *f, unsigned int adr, unsigned int w)
 			else if ((ra | (rb << 5)) == 256)
 				fprintf(f, "mfvrsave\tr%d\n", rd);
 			else {
-				char *spr = get_spr(ra | (rb << 5));
+				const char *spr = get_spr(ra | (rb << 5));
 				if (spr)
 					fprintf(f, "mfspr\tr%d,%s\n", rd, spr);
 				else
@@ -894,7 +894,7 @@ static void disass31(FILE *f, unsigned int adr, unsigned int w)
 			else if ((ra | (rb << 5)) == 256)
 				fprintf(f, "mtvrsave\tr%d\n", rd);
 			else {
-				char *spr = get_spr(ra | (rb << 5));
+				const char *spr = get_spr(ra | (rb << 5));
 				if (spr)
 					fprintf(f, "mtspr\t%s,r%d\n", spr, rd);
 				else
@@ -1058,7 +1058,7 @@ static unsigned int mbme2mask(int mb, int me)
  *  Convert SPR number to register name
  */
 
-char *get_spr(int reg)
+const char *get_spr(int reg)
 {
 	switch (reg) {
 		case 1: return "xer";
