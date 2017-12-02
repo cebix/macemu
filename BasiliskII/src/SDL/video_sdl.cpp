@@ -1835,7 +1835,7 @@ static void handle_events(void)
 			// Application activate/deactivate
 			case SDL_ACTIVEEVENT:
 				// Force a complete window refresh when activating, to avoid redraw artifacts otherwise.
-				if (event.active.gain && (event.active.state & SDL_APPACTIVE))
+				if (event.active.gain)
 					force_complete_window_refresh();
 				break;
 			}
