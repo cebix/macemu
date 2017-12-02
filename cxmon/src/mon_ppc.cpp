@@ -30,7 +30,7 @@ static unsigned short imm;
 
 
 // Codes for trap instructions
-static char *to_code[32] = {
+static const char *to_code[32] = {
 	NULL, "lgt", "llt", NULL, "eq", "lge", "lle", NULL,
 	"gt", NULL, NULL, NULL, "ge", NULL, NULL, NULL,
 	"lt", NULL, NULL, NULL, "le", NULL, NULL, NULL,
