@@ -300,13 +300,22 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
     ac_cv_framework_SDL=no
   fi
   if [[ "x$ac_cv_framework_SDL" = "xno" ]]; then
-   PKG_CHECK_MODULES([sdl], [sdl >= 1.2], [
-     CFLAGS="$CFLAGS $sdl_CFLAGS"
-     CXXFLAGS="$CXXFLAGS $sdl_CFLAGS"
-     LIBS="$LIBS $sdl_LIBS"
-   ], [
-     WANT_SDL=no
-   ])
+    AC_PATH_PROG(sdl_config, "sdl-config")
+    if [[ -n "$sdl_config" ]]; then
+      sdl_cflags=`$sdl_config --cflags`
+      if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
+        sdl_libs=`$sdl_config --static-libs`
+      else
+        sdl_libs=`$sdl_config --libs`
+      fi
+      CFLAGS="$CFLAGS $sdl_cflags"
+      CXXFLAGS="$CXXFLAGS $sdl_cflags"
+      LIBS="$LIBS $sdl_libs"
+    else
+      WANT_SDL=no
+      WANT_SDL_VIDEO=no
+      WANT_SDL_AUDIO=no
+    fi
   fi
   SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
 else
