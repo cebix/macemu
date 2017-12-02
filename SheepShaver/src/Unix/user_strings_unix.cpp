@@ -84,7 +84,6 @@ user_string_def platform_strings[] = {
 	{STR_VOSF_INIT_ERR, "Cannot initialize Video on SEGV signals."},
 
 	{STR_OPEN_WINDOW_ERR, "Cannot open Mac window."},
-	{STR_WINDOW_TITLE_GRABBED, "SheepShaver (mouse grabbed, press Ctrl-F5 to release)"},
 
 	{STR_NO_B2_EXE_FOUND, "Could not start %s (%s)."},
 
