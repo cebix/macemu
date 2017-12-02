@@ -212,7 +212,7 @@ static void dump(void)
 
 	// Start up mon in real-mode
 #if ENABLE_MON
-	char *arg[4] = {"mon", "-m", "-r", NULL};
+	const char *arg[4] = {"mon", "-m", "-r", NULL};
 	mon(3, arg);
 #endif
 	QuitEmulator();

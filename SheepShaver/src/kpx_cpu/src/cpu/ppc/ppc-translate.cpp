@@ -95,7 +95,7 @@ static void disasm_block(int target, uint8 *start, uint32 length)
 			target == TARGET_POWERPC ? "d" : "x",
 			start, start + length - 1);
 
-	char *arg[] = {"mon",
+	const char *arg[] = {"mon",
 #ifdef SHEEPSHAVER
 				   "-m",
 #endif
