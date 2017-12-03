@@ -422,17 +422,10 @@ void
 OSX_monitor::set_mac_frame_buffer(const video_mode mode)
 {
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
-	switch ( mode.depth )
-	{
-	//	case VDEPTH_15BIT:
-		case VDEPTH_16BIT: MacFrameLayout = FLAYOUT_HOST_555; break;
-	//	case VDEPTH_24BIT:
-		case VDEPTH_32BIT: MacFrameLayout = FLAYOUT_HOST_888; break;
-		default			 : MacFrameLayout = FLAYOUT_DIRECT;
-	}
 	set_mac_frame_base(MacFrameBaseMac);
 
 	// Set variables used by UAE memory banking
+	MacFrameLayout = FLAYOUT_DIRECT;
 	MacFrameBaseHost = (uint8 *) the_buffer;
 	MacFrameSize = mode.bytes_per_row * mode.y;
 	InitFrameBufferMapping();
