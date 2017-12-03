@@ -496,7 +496,7 @@ static void add_mode(int type, int width, int height, int resolution_id, int byt
 }
 
 // Set Mac frame layout and base address (uses the_buffer/MacFrameBaseMac)
-static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth, bool native_byte_order)
+static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth)
 {
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 	int layout = FLAYOUT_DIRECT;
@@ -504,10 +504,7 @@ static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth, bool nati
 		layout = (screen_depth == 15) ? FLAYOUT_HOST_555 : FLAYOUT_HOST_565;
 	else if (depth == VIDEO_DEPTH_32BIT)
 		layout = (screen_depth == 24) ? FLAYOUT_HOST_888 : FLAYOUT_DIRECT;
-	if (native_byte_order)
-		MacFrameLayout = layout;
-	else
-		MacFrameLayout = FLAYOUT_DIRECT;
+	MacFrameLayout = layout;
 	monitor.set_mac_frame_base(MacFrameBaseMac);
 
 	// Set variables used by UAE memory banking
@@ -688,7 +685,7 @@ void driver_base::init()
 	}
 
 	// Set frame buffer base
-	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
+	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH);
 
 	adapt_to_video_mode();
 }
