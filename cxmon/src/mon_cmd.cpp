@@ -1,4 +1,4 @@
-﻿/*
+/*
  *  mon_cmd.cpp - cxmon standard commands
  *
  *  cxmon (C) 1997-2004 Christian Bauer, Marc Hellwig
