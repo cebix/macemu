@@ -209,6 +209,7 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
       WANT_SDL=no
       WANT_SDL_VIDEO=no
       WANT_SDL_AUDIO=no
+      SDL_SUPPORT="none"
     fi
   fi
   SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
