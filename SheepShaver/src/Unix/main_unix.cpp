@@ -734,7 +734,10 @@ int main(int argc, char **argv)
 
 	// Parse command line arguments
 	for (int i=1; i<argc; i++) {
-		if (strcmp(argv[i], "--help") == 0) {
+		if (strcmp(argv[i], "-NSDocumentRevisionsDebugMode") == 0 && i < argc - 1) {
+			argv[i++] = NULL;
+			argv[i++] = NULL;
+		} else if (strcmp(argv[i], "--help") == 0) {
 			usage(argv[0]);
 #ifndef USE_SDL_VIDEO
 		} else if (strcmp(argv[i], "--display") == 0) {
@@ -893,12 +896,6 @@ int main(int argc, char **argv)
 	DRCacheAddr = DR_CACHE_BASE;
 	D(bug("DR Cache at %p\n", DRCacheAddr));
 #endif
-	// Create area for SheepShaver data
-	if (!SheepMem::Init()) {
-		sprintf(str, GetString(STR_SHEEP_MEM_MMAP_ERR), strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
 	
 	// Create area for Mac RAM
 	RAMSize = PrefsFindInt32("ramsize");
@@ -929,7 +926,7 @@ int main(int argc, char **argv)
 #if REAL_ADDRESSING
 		// Allocate RAM at any address. Since ROM must be higher than RAM, allocate the RAM
 		// and ROM areas contiguously, plus a little extra to allow for ROM address alignment.
-		RAMBaseHost = vm_mac_acquire(RAMSize + ROM_AREA_SIZE + ROM_ALIGNMENT);
+		RAMBaseHost = vm_mac_acquire(RAMSize + ROM_AREA_SIZE + ROM_ALIGNMENT + SIG_STACK_SIZE);
 		if (RAMBaseHost == VM_MAP_FAILED) {
 			sprintf(str, GetString(STR_RAM_ROM_MMAP_ERR), strerror(errno));
 			ErrorAlert(str);
@@ -963,6 +960,13 @@ int main(int argc, char **argv)
 
 	if (RAMBase > KernelDataAddr) {
 		ErrorAlert(GetString(STR_RAM_AREA_TOO_HIGH_ERR));
+		goto quit;
+	}
+	
+	// Create area for SheepShaver data
+	if (!SheepMem::Init()) {
+		sprintf(str, GetString(STR_SHEEP_MEM_MMAP_ERR), strerror(errno));
+		ErrorAlert(str);
 		goto quit;
 	}
 	
@@ -2175,11 +2179,7 @@ bool SheepMem::Init(void)
 		return false;
 
 #if EMULATED_PPC
-	// Allocate alternate stack for PowerPC interrupt routine
-	adr = vm_mac_acquire(SIG_STACK_SIZE);
-	if (adr == VM_MAP_FAILED)
-		return false;
-	sig_stack = Host2MacAddr(adr);
+	sig_stack = ROMEnd;
 #endif
 
 	data = base + size;
