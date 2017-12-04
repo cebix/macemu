@@ -1,3 +1,30 @@
+#define ADD_RAX_RCX 0x01,0xc8
+#define ADD_RDX_RCX 0x01,0xca
+#define ADD_RAX_RDX 0x01,0xd0
+#define TRANS_RAX \
+	0x48,0x3D,0x00,0x30,0x00,0x00,\
+	0x72,0x16,\
+	0x48,0x3D,0x00,0xE0,0xFF,0x5F,\
+	0x72,0x14,\
+	0x48,0x25,0xFF,0x1F,0x00,0x00,\
+	0x48,0x05,0x00,0x00,0x00,0x00,\
+	0xEB,0x06,\
+	0x48,0x05,0x00,0x00,0x00,0x00
+
+#define TRANS_RDX \
+	0x48,0x81,0xFA,0x00,0x30,0x00,0x00,\
+	0x72,0x19,\
+	0x48,0x81,0xFA,0x00,0xE0,0xFF,0x5F,\
+	0x72,0x17,\
+	0x48,0x81,0xE2,0xFF,0x1F,0x00,0x00,\
+	0x48,0x81,0xC2,0x00,0x00,0x00,0x00,\
+	0xEB,0x07,\
+	0x48,0x81,0xC2,0x00,0x00,0x00,0x00
+
+#ifdef DYNGEN_IMPL
+extern uint8 gZeroPage[0x3000], gKernelData[0x2000];
+#endif
+
 #ifndef DEFINE_CST
 #define DEFINE_CST(NAME, VALUE)
 #endif
@@ -1324,10 +1351,14 @@ DEFINE_GEN(gen_op_load_u8_T0_T1_0,void,(void))
 #define HAVE_gen_op_load_u8_T0_T1_0
 {
     static const uint8 op_load_u8_T0_T1_0_code[] = {
-       0x44, 0x89, 0xe8, 0x44, 0x0f, 0xb6, 0x20
+       0x44, 0x89, 0xe8, 
+       TRANS_RAX,
+       0x44, 0x0f, 0xb6, 0x20, 
     };
-    copy_block(op_load_u8_T0_T1_0_code, 7);
-    inc_code_ptr(7);
+    copy_block(op_load_u8_T0_T1_0_code, 43);
+    *(uint32_t *)(code_ptr() + 27) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 35) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(43);
 }
 #endif
 
@@ -1336,10 +1367,14 @@ DEFINE_GEN(gen_op_store_8_T0_T1_0,void,(void))
 #define HAVE_gen_op_store_8_T0_T1_0
 {
     static const uint8 op_store_8_T0_T1_0_code[] = {
-       0x44, 0x89, 0xe8, 0x44, 0x88, 0x20
+       0x44, 0x89, 0xe8, 
+       TRANS_RAX,
+       0x44, 0x88, 0x20, 
     };
-    copy_block(op_store_8_T0_T1_0_code, 6);
-    inc_code_ptr(6);
+    copy_block(op_store_8_T0_T1_0_code, 42);
+    *(uint32_t *)(code_ptr() + 27) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 35) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(42);
 }
 #endif
 
@@ -1348,11 +1383,15 @@ DEFINE_GEN(gen_op_load_s16_T0_T1_0,void,(void))
 #define HAVE_gen_op_load_s16_T0_T1_0
 {
     static const uint8 op_load_s16_T0_T1_0_code[] = {
-       0x44, 0x89, 0xe8, 0x0f, 0xb7, 0x00, 0x66, 0xc1, 0xc0, 0x08, 0x44, 0x0f,
-       0xbf, 0xe0
+       0x44, 0x89, 0xe8, 
+       TRANS_RAX,
+       0x0f, 0xb7, 0x00, 
+       0x66, 0xc1, 0xc0, 0x08, 0x44, 0x0f, 0xbf, 0xe0
     };
-    copy_block(op_load_s16_T0_T1_0_code, 14);
-    inc_code_ptr(14);
+    copy_block(op_load_s16_T0_T1_0_code, 50);
+    *(uint32_t *)(code_ptr() + 27) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 35) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(50);
 }
 #endif
 
@@ -1361,10 +1400,15 @@ DEFINE_GEN(gen_op_load_s32_T0_T1_0,void,(void))
 #define HAVE_gen_op_load_s32_T0_T1_0
 {
     static const uint8 op_load_s32_T0_T1_0_code[] = {
-       0x44, 0x89, 0xe8, 0x8b, 0x00, 0x41, 0x89, 0xc4, 0x41, 0x0f, 0xcc
+       0x44, 0x89, 0xe8, 
+       TRANS_RAX,
+       0x8b, 0x00, 
+       0x41, 0x89, 0xc4, 0x41, 0x0f, 0xcc
     };
-    copy_block(op_load_s32_T0_T1_0_code, 11);
-    inc_code_ptr(11);
+    copy_block(op_load_s32_T0_T1_0_code, 47);
+    *(uint32_t *)(code_ptr() + 27) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 35) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(47);
 }
 #endif
 
@@ -1399,11 +1443,15 @@ DEFINE_GEN(gen_op_load_u16_T0_T1_0,void,(void))
 #define HAVE_gen_op_load_u16_T0_T1_0
 {
     static const uint8 op_load_u16_T0_T1_0_code[] = {
-       0x44, 0x89, 0xe8, 0x0f, 0xb7, 0x00, 0x66, 0xc1, 0xc0, 0x08, 0x44, 0x0f,
-       0xb7, 0xe0
+       0x44, 0x89, 0xe8, 
+       TRANS_RAX,
+       0x0f, 0xb7, 0x00, 
+       0x66, 0xc1, 0xc0, 0x08, 0x44, 0x0f, 0xb7, 0xe0
     };
-    copy_block(op_load_u16_T0_T1_0_code, 14);
-    inc_code_ptr(14);
+    copy_block(op_load_u16_T0_T1_0_code, 50);
+    *(uint32_t *)(code_ptr() + 27) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 35) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(50);
 }
 #endif
 
@@ -1412,10 +1460,15 @@ DEFINE_GEN(gen_op_load_u32_T0_T1_0,void,(void))
 #define HAVE_gen_op_load_u32_T0_T1_0
 {
     static const uint8 op_load_u32_T0_T1_0_code[] = {
-       0x44, 0x89, 0xe8, 0x8b, 0x00, 0x41, 0x89, 0xc4, 0x41, 0x0f, 0xcc
+       0x44, 0x89, 0xe8, 
+       TRANS_RAX,
+       0x8b, 0x00, 
+       0x41, 0x89, 0xc4, 0x41, 0x0f, 0xcc
     };
-    copy_block(op_load_u32_T0_T1_0_code, 11);
-    inc_code_ptr(11);
+    copy_block(op_load_u32_T0_T1_0_code, 47);
+    *(uint32_t *)(code_ptr() + 27) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 35) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(47);
 }
 #endif
 
@@ -1424,10 +1477,14 @@ DEFINE_GEN(gen_op_load_u8_T0_T1_T2,void,(void))
 #define HAVE_gen_op_load_u8_T0_T1_T2
 {
     static const uint8 op_load_u8_T0_T1_T2_code[] = {
-       0x43, 0x8d, 0x04, 0x2e, 0x44, 0x0f, 0xb6, 0x20
+       0x43, 0x8d, 0x04, 0x2e, 
+       TRANS_RAX,
+       0x44, 0x0f, 0xb6, 0x20, 
     };
-    copy_block(op_load_u8_T0_T1_T2_code, 8);
-    inc_code_ptr(8);
+    copy_block(op_load_u8_T0_T1_T2_code, 44);
+    *(uint32_t *)(code_ptr() + 28) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 36) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(44);
 }
 #endif
 
@@ -1436,12 +1493,16 @@ DEFINE_GEN(gen_op_load_u8_T0_T1_im,void,(long param1))
 #define HAVE_gen_op_load_u8_T0_T1_im
 {
     static const uint8 op_load_u8_T0_T1_im_code[] = {
-       0x44, 0x89, 0xea, 0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00, 0x44, 0x0f,
-       0xb6, 0x24, 0x02
+       0x44, 0x89, 0xea, 0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00, 
+       ADD_RAX_RDX,
+       TRANS_RAX,
+       0x44, 0x0f, 0xb6, 0x20,
     };
-    copy_block(op_load_u8_T0_T1_im_code, 15);
+    copy_block(op_load_u8_T0_T1_im_code, 52);
+    *(uint32_t *)(code_ptr() + 36) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 44) = (uint32_t)(uintptr)gZeroPage;
     *(uint32_t *)(code_ptr() + 6) = (int32_t)((long)param1 - (long)(code_ptr() + 6 + 4)) + 0;
-    inc_code_ptr(15);
+    inc_code_ptr(52);
 }
 #endif
 
@@ -1450,11 +1511,14 @@ DEFINE_GEN(gen_op_store_16_T0_T1_0,void,(void))
 #define HAVE_gen_op_store_16_T0_T1_0
 {
     static const uint8 op_store_16_T0_T1_0_code[] = {
-       0x44, 0x89, 0xea, 0x44, 0x89, 0xe0, 0x66, 0xc1, 0xc0, 0x08, 0x66, 0x89,
-       0x02
+       0x44, 0x89, 0xea, 0x44, 0x89, 0xe0, 0x66, 0xc1, 0xc0, 0x08, 
+       TRANS_RDX,
+       0x66, 0x89, 0x02, 
     };
-    copy_block(op_store_16_T0_T1_0_code, 13);
-    inc_code_ptr(13);
+    copy_block(op_store_16_T0_T1_0_code, 54);
+    *(uint32_t *)(code_ptr() + 38) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 47) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(54);
 }
 #endif
 
@@ -1463,10 +1527,14 @@ DEFINE_GEN(gen_op_store_32_T0_T1_0,void,(void))
 #define HAVE_gen_op_store_32_T0_T1_0
 {
     static const uint8 op_store_32_T0_T1_0_code[] = {
-       0x44, 0x89, 0xe2, 0x0f, 0xca, 0x44, 0x89, 0xe8, 0x89, 0x10
+       0x44, 0x89, 0xe2, 0x0f, 0xca, 0x44, 0x89, 0xe8, 
+       TRANS_RAX,
+       0x89, 0x10, 
     };
-    copy_block(op_store_32_T0_T1_0_code, 10);
-    inc_code_ptr(10);
+    copy_block(op_store_32_T0_T1_0_code, 46);
+    *(uint32_t *)(code_ptr() + 32) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 40) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(46);
 }
 #endif
 
@@ -1475,10 +1543,14 @@ DEFINE_GEN(gen_op_store_8_T0_T1_T2,void,(void))
 #define HAVE_gen_op_store_8_T0_T1_T2
 {
     static const uint8 op_store_8_T0_T1_T2_code[] = {
-       0x43, 0x8d, 0x04, 0x2e, 0x44, 0x88, 0x20
+       0x43, 0x8d, 0x04, 0x2e, 
+       TRANS_RAX,
+       0x44, 0x88, 0x20, 
     };
-    copy_block(op_store_8_T0_T1_T2_code, 7);
-    inc_code_ptr(7);
+    copy_block(op_store_8_T0_T1_T2_code, 43);
+    *(uint32_t *)(code_ptr() + 28) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 36) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(43);
 }
 #endif
 
@@ -1487,12 +1559,16 @@ DEFINE_GEN(gen_op_store_8_T0_T1_im,void,(long param1))
 #define HAVE_gen_op_store_8_T0_T1_im
 {
     static const uint8 op_store_8_T0_T1_im_code[] = {
-       0x44, 0x89, 0xea, 0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00, 0x44, 0x88,
-       0x24, 0x02
+       0x44, 0x89, 0xea, 0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00, 
+       ADD_RAX_RDX,
+       TRANS_RAX,
+       0x44, 0x88, 0x20,
     };
-    copy_block(op_store_8_T0_T1_im_code, 14);
+    copy_block(op_store_8_T0_T1_im_code, 51);
+    *(uint32_t *)(code_ptr() + 36) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 44) = (uint32_t)(uintptr)gZeroPage;
     *(uint32_t *)(code_ptr() + 6) = (int32_t)((long)param1 - (long)(code_ptr() + 6 + 4)) + 0;
-    inc_code_ptr(14);
+    inc_code_ptr(51);
 }
 #endif
 
@@ -1501,11 +1577,15 @@ DEFINE_GEN(gen_op_load_s16_T0_T1_T2,void,(void))
 #define HAVE_gen_op_load_s16_T0_T1_T2
 {
     static const uint8 op_load_s16_T0_T1_T2_code[] = {
-       0x43, 0x8d, 0x04, 0x2e, 0x0f, 0xb7, 0x00, 0x66, 0xc1, 0xc0, 0x08, 0x44,
-       0x0f, 0xbf, 0xe0
+       0x43, 0x8d, 0x04, 0x2e, 
+       TRANS_RAX,
+       0x0f, 0xb7, 0x00, 
+       0x66, 0xc1, 0xc0, 0x08, 0x44, 0x0f, 0xbf, 0xe0
     };
-    copy_block(op_load_s16_T0_T1_T2_code, 15);
-    inc_code_ptr(15);
+    copy_block(op_load_s16_T0_T1_T2_code, 51);
+    *(uint32_t *)(code_ptr() + 28) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 36) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(51);
 }
 #endif
 
@@ -1514,12 +1594,17 @@ DEFINE_GEN(gen_op_load_s16_T0_T1_im,void,(long param1))
 #define HAVE_gen_op_load_s16_T0_T1_im
 {
     static const uint8 op_load_s16_T0_T1_im_code[] = {
-       0x44, 0x89, 0xea, 0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00, 0x0f, 0xb7,
-       0x04, 0x02, 0x66, 0xc1, 0xc0, 0x08, 0x44, 0x0f, 0xbf, 0xe0
+       0x44, 0x89, 0xea, 0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00, 
+       ADD_RAX_RDX,
+       TRANS_RAX,
+       0x0f, 0xb7, 0x00,
+       0x66, 0xc1, 0xc0, 0x08, 0x44, 0x0f, 0xbf, 0xe0
     };
-    copy_block(op_load_s16_T0_T1_im_code, 22);
+    copy_block(op_load_s16_T0_T1_im_code, 59);
+    *(uint32_t *)(code_ptr() + 36) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 44) = (uint32_t)(uintptr)gZeroPage;
     *(uint32_t *)(code_ptr() + 6) = (int32_t)((long)param1 - (long)(code_ptr() + 6 + 4)) + 0;
-    inc_code_ptr(22);
+    inc_code_ptr(59);
 }
 #endif
 
@@ -1528,10 +1613,15 @@ DEFINE_GEN(gen_op_load_s32_T0_T1_T2,void,(void))
 #define HAVE_gen_op_load_s32_T0_T1_T2
 {
     static const uint8 op_load_s32_T0_T1_T2_code[] = {
-       0x43, 0x8d, 0x04, 0x2e, 0x8b, 0x00, 0x41, 0x89, 0xc4, 0x41, 0x0f, 0xcc
+       0x43, 0x8d, 0x04, 0x2e, 
+       TRANS_RAX,
+       0x8b, 0x00, 
+       0x41, 0x89, 0xc4, 0x41, 0x0f, 0xcc
     };
-    copy_block(op_load_s32_T0_T1_T2_code, 12);
-    inc_code_ptr(12);
+    copy_block(op_load_s32_T0_T1_T2_code, 48);
+    *(uint32_t *)(code_ptr() + 28) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 36) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(48);
 }
 #endif
 
@@ -1540,12 +1630,17 @@ DEFINE_GEN(gen_op_load_s32_T0_T1_im,void,(long param1))
 #define HAVE_gen_op_load_s32_T0_T1_im
 {
     static const uint8 op_load_s32_T0_T1_im_code[] = {
-       0x44, 0x89, 0xea, 0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00, 0x8b, 0x04,
-       0x02, 0x41, 0x89, 0xc4, 0x41, 0x0f, 0xcc
+       0x44, 0x89, 0xea, 0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00, 
+       ADD_RAX_RDX,
+       TRANS_RAX,
+       0x8b, 0x00,
+       0x41, 0x89, 0xc4, 0x41, 0x0f, 0xcc
     };
-    copy_block(op_load_s32_T0_T1_im_code, 19);
+    copy_block(op_load_s32_T0_T1_im_code, 56);
+    *(uint32_t *)(code_ptr() + 36) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 44) = (uint32_t)(uintptr)gZeroPage;
     *(uint32_t *)(code_ptr() + 6) = (int32_t)((long)param1 - (long)(code_ptr() + 6 + 4)) + 0;
-    inc_code_ptr(19);
+    inc_code_ptr(56);
 }
 #endif
 
@@ -1554,11 +1649,15 @@ DEFINE_GEN(gen_op_load_u16_T0_T1_T2,void,(void))
 #define HAVE_gen_op_load_u16_T0_T1_T2
 {
     static const uint8 op_load_u16_T0_T1_T2_code[] = {
-       0x43, 0x8d, 0x04, 0x2e, 0x0f, 0xb7, 0x00, 0x66, 0xc1, 0xc0, 0x08, 0x44,
-       0x0f, 0xb7, 0xe0
+       0x43, 0x8d, 0x04, 0x2e, 
+       TRANS_RAX,
+       0x0f, 0xb7, 0x00, 
+       0x66, 0xc1, 0xc0, 0x08, 0x44, 0x0f, 0xb7, 0xe0
     };
-    copy_block(op_load_u16_T0_T1_T2_code, 15);
-    inc_code_ptr(15);
+    copy_block(op_load_u16_T0_T1_T2_code, 51);
+    *(uint32_t *)(code_ptr() + 28) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 36) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(51);
 }
 #endif
 
@@ -1567,12 +1666,17 @@ DEFINE_GEN(gen_op_load_u16_T0_T1_im,void,(long param1))
 #define HAVE_gen_op_load_u16_T0_T1_im
 {
     static const uint8 op_load_u16_T0_T1_im_code[] = {
-       0x44, 0x89, 0xea, 0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00, 0x0f, 0xb7,
-       0x04, 0x02, 0x66, 0xc1, 0xc0, 0x08, 0x44, 0x0f, 0xb7, 0xe0
+       0x44, 0x89, 0xea, 0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00, 
+       ADD_RAX_RDX,
+       TRANS_RAX,
+       0x0f, 0xb7, 0x00,
+       0x66, 0xc1, 0xc0, 0x08, 0x44, 0x0f, 0xb7, 0xe0
     };
-    copy_block(op_load_u16_T0_T1_im_code, 22);
+    copy_block(op_load_u16_T0_T1_im_code, 59);
+    *(uint32_t *)(code_ptr() + 36) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 44) = (uint32_t)(uintptr)gZeroPage;
     *(uint32_t *)(code_ptr() + 6) = (int32_t)((long)param1 - (long)(code_ptr() + 6 + 4)) + 0;
-    inc_code_ptr(22);
+    inc_code_ptr(59);
 }
 #endif
 
@@ -1581,10 +1685,15 @@ DEFINE_GEN(gen_op_load_u32_T0_T1_T2,void,(void))
 #define HAVE_gen_op_load_u32_T0_T1_T2
 {
     static const uint8 op_load_u32_T0_T1_T2_code[] = {
-       0x43, 0x8d, 0x04, 0x2e, 0x8b, 0x00, 0x41, 0x89, 0xc4, 0x41, 0x0f, 0xcc
+       0x43, 0x8d, 0x04, 0x2e, 
+       TRANS_RAX,
+       0x8b, 0x00, 
+       0x41, 0x89, 0xc4, 0x41, 0x0f, 0xcc
     };
-    copy_block(op_load_u32_T0_T1_T2_code, 12);
-    inc_code_ptr(12);
+    copy_block(op_load_u32_T0_T1_T2_code, 48);
+    *(uint32_t *)(code_ptr() + 28) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 36) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(48);
 }
 #endif
 
@@ -1593,12 +1702,17 @@ DEFINE_GEN(gen_op_load_u32_T0_T1_im,void,(long param1))
 #define HAVE_gen_op_load_u32_T0_T1_im
 {
     static const uint8 op_load_u32_T0_T1_im_code[] = {
-       0x44, 0x89, 0xea, 0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00, 0x8b, 0x04,
-       0x02, 0x41, 0x89, 0xc4, 0x41, 0x0f, 0xcc
+       0x44, 0x89, 0xea, 0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00, 
+       ADD_RAX_RDX,
+       TRANS_RAX,
+       0x8b, 0x00,
+       0x41, 0x89, 0xc4, 0x41, 0x0f, 0xcc
     };
-    copy_block(op_load_u32_T0_T1_im_code, 19);
+    copy_block(op_load_u32_T0_T1_im_code, 56);
+    *(uint32_t *)(code_ptr() + 36) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 44) = (uint32_t)(uintptr)gZeroPage;
     *(uint32_t *)(code_ptr() + 6) = (int32_t)((long)param1 - (long)(code_ptr() + 6 + 4)) + 0;
-    inc_code_ptr(19);
+    inc_code_ptr(56);
 }
 #endif
 
@@ -1607,11 +1721,14 @@ DEFINE_GEN(gen_op_store_16_T0_T1_T2,void,(void))
 #define HAVE_gen_op_store_16_T0_T1_T2
 {
     static const uint8 op_store_16_T0_T1_T2_code[] = {
-       0x43, 0x8d, 0x14, 0x2e, 0x44, 0x89, 0xe0, 0x66, 0xc1, 0xc0, 0x08, 0x66,
-       0x89, 0x02
+       0x43, 0x8d, 0x14, 0x2e, 0x44, 0x89, 0xe0, 0x66, 0xc1, 0xc0, 0x08, 
+       TRANS_RDX,
+       0x66, 0x89, 0x02, 
     };
-    copy_block(op_store_16_T0_T1_T2_code, 14);
-    inc_code_ptr(14);
+    copy_block(op_store_16_T0_T1_T2_code, 55);
+    *(uint32_t *)(code_ptr() + 39) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 48) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(55);
 }
 #endif
 
@@ -1621,11 +1738,16 @@ DEFINE_GEN(gen_op_store_16_T0_T1_im,void,(long param1))
 {
     static const uint8 op_store_16_T0_T1_im_code[] = {
        0x44, 0x89, 0xe9, 0x44, 0x89, 0xe2, 0x66, 0xc1, 0xc2, 0x08, 0x48, 0x8d,
-       0x05, 0x00, 0x00, 0x00, 0x00, 0x66, 0x89, 0x14, 0x01
+       0x05, 0x00, 0x00, 0x00, 0x00, 
+       ADD_RAX_RCX,
+       TRANS_RAX,
+       0x66, 0x89, 0x10,
     };
-    copy_block(op_store_16_T0_T1_im_code, 21);
+    copy_block(op_store_16_T0_T1_im_code, 58);
+    *(uint32_t *)(code_ptr() + 43) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 51) = (uint32_t)(uintptr)gZeroPage;
     *(uint32_t *)(code_ptr() + 13) = (int32_t)((long)param1 - (long)(code_ptr() + 13 + 4)) + 0;
-    inc_code_ptr(21);
+    inc_code_ptr(58);
 }
 #endif
 
@@ -1634,11 +1756,14 @@ DEFINE_GEN(gen_op_store_32_T0_T1_T2,void,(void))
 #define HAVE_gen_op_store_32_T0_T1_T2
 {
     static const uint8 op_store_32_T0_T1_T2_code[] = {
-       0x44, 0x89, 0xf2, 0x44, 0x89, 0xe1, 0x0f, 0xc9, 0x44, 0x01, 0xea, 0x89,
-       0x0a
+       0x44, 0x89, 0xf2, 0x44, 0x89, 0xe1, 0x0f, 0xc9, 0x44, 0x01, 0xea, 
+       TRANS_RDX,
+       0x89, 0x0a, 
     };
-    copy_block(op_store_32_T0_T1_T2_code, 13);
-    inc_code_ptr(13);
+    copy_block(op_store_32_T0_T1_T2_code, 54);
+    *(uint32_t *)(code_ptr() + 39) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 48) = (uint32_t)(uintptr)gZeroPage;
+    inc_code_ptr(54);
 }
 #endif
 
@@ -1648,11 +1773,16 @@ DEFINE_GEN(gen_op_store_32_T0_T1_im,void,(long param1))
 {
     static const uint8 op_store_32_T0_T1_im_code[] = {
        0x44, 0x89, 0xe1, 0x0f, 0xc9, 0x44, 0x89, 0xe8, 0x48, 0x8d, 0x15, 0x00,
-       0x00, 0x00, 0x00, 0x89, 0x0c, 0x10
+       0x00, 0x00, 0x00, 
+       ADD_RAX_RDX,
+       TRANS_RAX,
+       0x89, 0x08,
     };
-    copy_block(op_store_32_T0_T1_im_code, 18);
+    copy_block(op_store_32_T0_T1_im_code, 55);
+    *(uint32_t *)(code_ptr() + 41) = (uint32_t)(uintptr)gKernelData;
+    *(uint32_t *)(code_ptr() + 49) = (uint32_t)(uintptr)gZeroPage;
     *(uint32_t *)(code_ptr() + 11) = (int32_t)((long)param1 - (long)(code_ptr() + 11 + 4)) + 0;
-    inc_code_ptr(18);
+    inc_code_ptr(55);
 }
 #endif
 
