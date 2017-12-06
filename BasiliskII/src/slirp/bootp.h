@@ -115,7 +115,7 @@ struct bootp_t {
 } PACKED__;
 
 #ifdef PRAGMA_PACK_SUPPORTED
-#pragma pack(PACK_RESET)
+#pragma pack(0)
 #endif
 
 void bootp_input(struct mbuf *m);

@@ -54,7 +54,7 @@ struct udphdr {
 } PACKED__;
 
 #ifdef PRAGMA_PACK_SUPPORTED
-#pragma pack(PACK_RESET)
+#pragma pack(0)
 #endif
 
 /*
@@ -64,8 +64,7 @@ struct udpiphdr {
 	        struct  ipovly ui_i;            /* overlaid ip structure */
 	        struct  udphdr ui_u;            /* udp header */
 };
-#define ui_next         ui_i.ih_next
-#define ui_prev         ui_i.ih_prev
+#define ui_mbuf         ui_i.ih_mbuf.mptr
 #define ui_x1           ui_i.ih_x1
 #define ui_pr           ui_i.ih_pr
 #define ui_len          ui_i.ih_len
@@ -100,14 +99,14 @@ extern struct udpstat udpstat;
 extern struct socket udb;
 struct mbuf;
 
-void udp_init(void);
-void udp_input(register struct mbuf *, int);
-int udp_output(struct socket *, struct mbuf *, struct sockaddr_in *);
-int udp_attach(struct socket *);
-void udp_detach(struct socket *);
-u_int8_t udp_tos(struct socket *);
-void udp_emu(struct socket *, struct mbuf *);
-struct socket * udp_listen(u_int, u_int32_t, u_int, int);
+void udp_init _P((void));
+void udp_input _P((register struct mbuf *, int));
+int udp_output _P((struct socket *, struct mbuf *, struct sockaddr_in *));
+int udp_attach _P((struct socket *));
+void udp_detach _P((struct socket *));
+u_int8_t udp_tos _P((struct socket *));
+void udp_emu _P((struct socket *, struct mbuf *));
+struct socket * udp_listen _P((u_int, u_int32_t, u_int, int));
 int udp_output2(struct socket *so, struct mbuf *m, 
                 struct sockaddr_in *saddr, struct sockaddr_in *daddr,
                 int iptos);
