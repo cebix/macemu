@@ -55,8 +55,9 @@ ip_output(so, m0)
 {
 	register struct ip *ip;
 	register struct mbuf *m = m0;
-	register int hlen = sizeof(struct ip );
-	int len, off, error = 0;
+	register u_int hlen = sizeof(struct ip);
+	u_int len, off;
+	int error = 0;
 
 	DEBUG_CALL("ip_output");
 	DEBUG_ARG("so = %lx", (long)so);
@@ -128,7 +129,7 @@ ip_output(so, m0)
 	 */
 	m0 = m;
 	mhlen = sizeof (struct ip);
-	for (off = hlen + len; off < (u_int16_t)ip->ip_len; off += len) {
+	for (off = hlen + len; off < ip->ip_len; off += len) {
 	  register struct ip *mhip;
 	  m = m_get();
 	  if (m == 0) {
@@ -173,7 +174,7 @@ ip_output(so, m0)
 	 * and updating header, then send each fragment (in order).
 	 */
 	m = m0;
-	m_adj(m, hlen + firstlen - (u_int16_t)ip->ip_len);
+	m_adj(m, hlen + firstlen - ip->ip_len);
 	ip->ip_len = htons((u_int16_t)m->m_len);
 	ip->ip_off = htons((u_int16_t)(ip->ip_off | IP_MF));
 	ip->ip_sum = 0;

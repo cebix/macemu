@@ -14,6 +14,12 @@
 #include <sys/filio.h>
 #endif
 
+#ifdef _WIN32
+#define IS_EAGAIN(e) ((e) == WSAEINTR || (e) == EAGAIN)
+#else
+#define IS_EAGAIN(e) ((e) == EAGAIN)
+#endif
+
 void
 so_init()
 {
@@ -97,11 +103,12 @@ int
 soread(so)
 	struct socket *so;
 {
-	int n, nn, lss, total;
+	int n, nn;
+	u_int lss, total;
 	struct sbuf *sb = &so->so_snd;
-	int len = sb->sb_datalen - sb->sb_cc;
+	u_int len = sb->sb_datalen - sb->sb_cc;
 	struct iovec iov[2];
-	int mss = so->so_tcpcb->t_maxseg;
+	u_int mss = so->so_tcpcb->t_maxseg;
 	
 	DEBUG_CALL("soread");
 	DEBUG_ARG("so = %lx", (long )so);
@@ -159,7 +166,8 @@ soread(so)
 	nn = recv(so->s, iov[0].iov_base, iov[0].iov_len,0);
 #endif	
 	if (nn <= 0) {
-		if (nn < 0 && (errno == EINTR || errno == EAGAIN))
+		int error = WSAGetLastError();
+		if (nn < 0 && IS_EAGAIN(error))
 			return 0;
 		else {
 			DEBUG_MISC((dfd, " --- soread() disconnected, nn = %d, errno = %d-%s\n", nn, errno,strerror(errno)));
@@ -297,7 +305,7 @@ sowrite(so)
 {
 	int  n,nn;
 	struct sbuf *sb = &so->so_rcv;
-	int len = sb->sb_cc;
+	u_int len = sb->sb_cc;
 	struct iovec iov[2];
 	
 	DEBUG_CALL("sowrite");
@@ -344,9 +352,12 @@ sowrite(so)
 	nn = send(so->s, iov[0].iov_base, iov[0].iov_len,0);
 #endif
 	/* This should never happen, but people tell me it does *shrug* */
-	if (nn < 0 && (errno == EAGAIN || errno == EINTR))
-		return 0;
-	
+	if (nn < 0) {
+		int error = WSAGetLastError();
+		if (IS_EAGAIN(error))
+			return 0;
+	}
+
 	if (nn <= 0) {
 		DEBUG_MISC((dfd, " --- sowrite disconnected, so->so_state = %x, errno = %d\n",
 			so->so_state, errno));
@@ -405,8 +416,9 @@ sorecvfrom(so)
 	  if(len == -1 || len == 0) {
 	    u_char code=ICMP_UNREACH_PORT;
 
-	    if(errno == EHOSTUNREACH) code=ICMP_UNREACH_HOST;
-	    else if(errno == ENETUNREACH) code=ICMP_UNREACH_NET;
+		int error = WSAGetLastError();
+	    if(error == WSAEHOSTUNREACH) code=ICMP_UNREACH_HOST;
+	    else if(error == WSAENETUNREACH) code=ICMP_UNREACH_NET;
 	    
 	    DEBUG_MISC((dfd," udp icmp rx errno = %d-%s\n",
 			errno,strerror(errno)));
@@ -419,7 +431,7 @@ sorecvfrom(so)
 	  udp_detach(so);
 	} else {                            	/* A "normal" UDP packet */
 	  struct mbuf *m;
-	  int len;
+	  u_int len;
 	  ioctlsockopt_t n;
 
 	  if (!(m = m_get())) return;
@@ -442,13 +454,14 @@ sorecvfrom(so)
 		
 	  m->m_len = recvfrom(so->s, m->m_data, len, 0,
 			      (struct sockaddr *)&addr, &addrlen);
-	  DEBUG_MISC((dfd, " did recvfrom %d, errno = %d-%s\n", 
+	  DEBUG_MISC((dfd, " did recvfrom %zu, errno = %d-%s\n",
 		      m->m_len, errno,strerror(errno)));
 	  if(m->m_len<0) {
 	    u_char code=ICMP_UNREACH_PORT;
 
-	    if(errno == EHOSTUNREACH) code=ICMP_UNREACH_HOST;
-	    else if(errno == ENETUNREACH) code=ICMP_UNREACH_NET;
+		int error = WSAGetLastError();
+	    if(error == WSAEHOSTUNREACH) code=ICMP_UNREACH_HOST;
+	    else if(error == WSAENETUNREACH) code=ICMP_UNREACH_NET;
 	    
 	    DEBUG_MISC((dfd," rx error, tx icmp ICMP_UNREACH:%i\n", code));
 	    icmp_error(so->so_m, ICMP_UNREACH,code, 0,strerror(errno));
@@ -513,7 +526,9 @@ sosendto(so, m)
 	  addr.sin_addr = so->so_faddr;
 	addr.sin_port = so->so_fport;
 
-	DEBUG_MISC((dfd, " sendto()ing, addr.sin_port=%d, addr.sin_addr.s_addr=%.16s\n", ntohs(addr.sin_port), inet_ntoa(addr.sin_addr)));
+	char addrstr[INET_ADDRSTRLEN];
+	DEBUG_MISC((dfd, " sendto()ing, addr.sin_port=%d, addr.sin_addr.s_addr=%.16s\n",
+		ntohs(addr.sin_port), inet_ntop(AF_INET, &addr.sin_addr, addrstr, sizeof(addrstr))));
 	
 	/* Don't care what port we get */
 	ret = sendto(so->s, m->m_data, m->m_len, 0,
@@ -584,16 +599,12 @@ solisten(port, laddr, lport, flags)
 	    (setsockopt(s,SOL_SOCKET,SO_REUSEADDR,(char *)&opt,sizeof(int)) < 0) ||
 	    (bind(s,(struct sockaddr *)&addr, sizeof(addr)) < 0) ||
 	    (listen(s,1) < 0)) {
-		int tmperrno = errno; /* Don't clobber the real reason we failed */
+		int error = WSAGetLastError(); /* Don't clobber the real reason we failed */
 		
 		close(s);
 		sofree(so);
 		/* Restore the real errno */
-#ifdef _WIN32
-		WSASetLastError(tmperrno);
-#else
-		errno = tmperrno;
-#endif
+		WSASetLastError(error);
 		return NULL;
 	}
 	setsockopt(s,SOL_SOCKET,SO_OOBINLINE,(char *)&opt,sizeof(int));
