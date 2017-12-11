@@ -122,7 +122,7 @@ while (<S>) {
 					$n += 2;
 					if (length($key) == 8) {
 						$n++;
-						printf "0x%02s, ", shift @code if length($key) == 8;
+						printf "0x%02s, ", shift @code;
 					}
 					printf "0x%02s, ", shift @code;
 					printf "0x%02x,\n", hex(shift @code) - ($keys_add{$key} =~ /RAX/ ? 4 : 2);
