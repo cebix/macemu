@@ -31,7 +31,6 @@
  *  - Ctr-Tab for suspend/resume but how? SDL does not support that for non-Linux
  *  - Ctrl-Fn doesn't generate SDL_KEYDOWN events (SDL bug?)
  *  - Mouse acceleration, there is no API in SDL yet for that
- *  - Force relative mode in Grab mode even if SDL provides absolute coordinates?
  *  - Gamma tables support is likely to be broken here
  *  - Events processing is bound to the general emulation thread as SDL requires
  *    to PumpEvents() within the same thread as the one that called SetVideoMode().
@@ -136,7 +135,6 @@ static bool toggle_fullscreen = false;
 static const int sdl_eventmask = SDL_MOUSEEVENTMASK | SDL_KEYEVENTMASK | SDL_VIDEOEXPOSEMASK | SDL_QUITMASK | SDL_ACTIVEEVENTMASK;
 
 static bool mouse_grabbed = false;
-static bool mouse_grabbed_window_name_status = false;
 
 // Mutex to protect SDL events
 static SDL_mutex *sdl_events_lock = NULL;
@@ -496,7 +494,7 @@ static void add_mode(int type, int width, int height, int resolution_id, int byt
 }
 
 // Set Mac frame layout and base address (uses the_buffer/MacFrameBaseMac)
-static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth)
+static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth, bool native_byte_order)
 {
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 	int layout = FLAYOUT_DIRECT;
@@ -504,7 +502,10 @@ static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth)
 		layout = (screen_depth == 15) ? FLAYOUT_HOST_555 : FLAYOUT_HOST_565;
 	else if (depth == VIDEO_DEPTH_32BIT)
 		layout = (screen_depth == 24) ? FLAYOUT_HOST_888 : FLAYOUT_DIRECT;
-	MacFrameLayout = layout;
+	if (native_byte_order)
+		MacFrameLayout = layout;
+	else
+		MacFrameLayout = FLAYOUT_DIRECT;
 	monitor.set_mac_frame_base(MacFrameBaseMac);
 
 	// Set variables used by UAE memory banking
@@ -685,13 +686,13 @@ void driver_base::init()
 	}
 
 	// Set frame buffer base
-	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH);
+	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
 
 	adapt_to_video_mode();
 }
 
 void driver_base::adapt_to_video_mode() {
-	ADBSetRelMouseMode(false);
+	ADBSetRelMouseMode(mouse_grabbed);
 
 	// Init blitting routines
 	SDL_PixelFormat *f = s->format;
@@ -725,7 +726,7 @@ void driver_base::adapt_to_video_mode() {
 	SDL_ShowCursor(hardware_cursor);
 
 	// Set window name/class
-	set_window_name(STR_WINDOW_TITLE);
+	set_window_name(mouse_grabbed ? STR_WINDOW_TITLE_GRABBED : STR_WINDOW_TITLE);
 
 	// Everything went well
 	init_ok = true;
@@ -803,8 +804,9 @@ void driver_base::grab_mouse(void)
 	if (!mouse_grabbed) {
 		SDL_GrabMode new_mode = set_grab_mode(SDL_GRAB_ON);
 		if (new_mode == SDL_GRAB_ON) {
+			set_window_name(STR_WINDOW_TITLE_GRABBED);
 			disable_mouse_accel();
-			mouse_grabbed = true;
+			ADBSetRelMouseMode(mouse_grabbed = true);
 		}
 	}
 }
@@ -815,8 +817,9 @@ void driver_base::ungrab_mouse(void)
 	if (mouse_grabbed) {
 		SDL_GrabMode new_mode = set_grab_mode(SDL_GRAB_OFF);
 		if (new_mode == SDL_GRAB_OFF) {
+			set_window_name(STR_WINDOW_TITLE);
 			restore_mouse_accel();
-			mouse_grabbed = false;
+			ADBSetRelMouseMode(mouse_grabbed = false);
 		}
 	}
 }
@@ -1276,13 +1279,6 @@ void VideoVBL(void)
 	if (toggle_fullscreen)
 		do_toggle_fullscreen();
 
-	// Setting the window name must happen on the main thread, else it doesn't work on
-	// some platforms - e.g. macOS Sierra.
-	if (mouse_grabbed_window_name_status != mouse_grabbed) {
-		set_window_name(mouse_grabbed ? STR_WINDOW_TITLE_GRABBED : STR_WINDOW_TITLE);
-		mouse_grabbed_window_name_status = mouse_grabbed;
-	}
-
 	// Temporarily give up frame buffer lock (this is the point where
 	// we are suspended when the user presses Ctrl-Tab)
 	UNLOCK_FRAME_BUFFER;
@@ -1304,13 +1300,6 @@ void VideoInterrupt(void)
 
 	if (toggle_fullscreen)
 		do_toggle_fullscreen();
-
-	// Setting the window name must happen on the main thread, else it doesn't work on
-	// some platforms - e.g. macOS Sierra.
-	if (mouse_grabbed_window_name_status != mouse_grabbed) {
-		set_window_name(mouse_grabbed ? STR_WINDOW_TITLE_GRABBED : STR_WINDOW_TITLE);
-		mouse_grabbed_window_name_status = mouse_grabbed;
-	}
 
 	// Temporarily give up frame buffer lock (this is the point where
 	// we are suspended when the user presses Ctrl-Tab)
@@ -1762,7 +1751,11 @@ static void handle_events(void)
 
 			// Mouse moved
 			case SDL_MOUSEMOTION:
-				drv->mouse_moved(event.motion.x, event.motion.y);
+				if (mouse_grabbed) {
+					drv->mouse_moved(event.motion.xrel, event.motion.yrel);
+				} else {
+					drv->mouse_moved(event.motion.x, event.motion.y);
+				}
 				break;
 
 			// Keyboard
@@ -1832,7 +1825,7 @@ static void handle_events(void)
 			// Application activate/deactivate
 			case SDL_ACTIVEEVENT:
 				// Force a complete window refresh when activating, to avoid redraw artifacts otherwise.
-				if (event.active.gain)
+				if (event.active.gain && (event.active.state & SDL_APPACTIVE))
 					force_complete_window_refresh();
 				break;
 			}
