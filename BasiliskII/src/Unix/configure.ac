@@ -1298,7 +1298,7 @@ AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack",
 
 
 dnl Resolve and set the proper sigsegv_recovery method... 
-if [[ "x$ac_cv_have_win32_exceptions" = "xyes" ]]; then
+if [[ "x$ac_cv_have_mach_exceptions" = "xyes" ]]; then
   sigsegv_recovery=mach
 elif [[ "x$ac_cv_have_win32_exceptions" = "xyes" ]]; then
   sigsegv_recovery=win32
