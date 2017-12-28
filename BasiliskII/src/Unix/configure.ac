@@ -324,7 +324,7 @@ else
 fi
 
 dnl We need X11, if not using SDL or Mac GUI.
-if [[ "x$WANT_SDL_VIDEO" = "xno" -a "x$WANT_MACOSX_GUI" = "xno"]]; then
+if [[ "x$WANT_SDL_VIDEO" = "xno" -a "x$WANT_MACOSX_GUI" = "xno" ]]; then
   AC_PATH_XTRA
   if [[ "x$no_x" = "xyes" ]]; then
     AC_MSG_ERROR([You need X11 to run Basilisk II.])
