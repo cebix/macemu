@@ -906,6 +906,9 @@ dnl Check that the host supports TUN/TAP devices
 AC_CACHE_CHECK([whether TUN/TAP is supported],
   ac_cv_tun_tap_support, [
   AC_TRY_COMPILE([
+    #ifdef HAVE_SYS_SOCKET_H
+    #include <sys/socket.h>
+    #endif
     #if defined(HAVE_LINUX_IF_H) && defined(HAVE_LINUX_IF_TUN_H)
     #include <linux/if.h>
     #include <linux/if_tun.h>
