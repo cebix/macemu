@@ -371,7 +371,7 @@ bool ether_init(void)
 #endif
 
 	// Get Ethernet address
-	if (net_if_type == NET_IF_ETHERTAP) {
+	if (net_if_type == NET_IF_ETHERTAP || net_if_type == NET_IF_TUNTAP) {
 		pid_t p = getpid();	// If configured for multicast, ethertap requires that the lower 32 bit of the Ethernet address are our PID
 		ether_addr[0] = 0xfe;
 		ether_addr[1] = 0xfd;
