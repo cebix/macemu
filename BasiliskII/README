@@ -442,24 +442,42 @@ ether <ethernet card description>
          instead of sending packets via physical media writes them to
          the user space program.
 
-         Prerequesties:
+         Prerequisites:
          - Make sure the "tun" kernel module is loaded
-           # modprobe tun
-         - Make sure IP Fordwarding is enabled on your system
-           # echo 1 >/proc/sys/net/ipv4/ip_forward
 
-         A virtual network configuration script is required and the
+             # modprobe tun
+
+         - If you wish to route IP packets from Basilisk II, make sure
+           IP Forwarding is enabled on your system (not required for
+           bridging)
+
+             # echo 1 >/proc/sys/net/ipv4/ip_forward
+
+         A virtual network configuration script is required in order
+         to configure the tunN interface after it is created, and the
          default is /usr/local/BasiliskII/tunconfig unless you specify
          a different file with the "etherconfig" item.
 
-         This script requires you that "sudo" is properly configured
+         The default "tunconfig" script configures the tunN interface
+         for IP NAT.  It requires that "sudo" is properly configured
          so that "/sbin/ifconfig" and "/sbin/iptables" can be executed
          as root. Otherwise, you can still write a helper script which
-         invokes your favorite program to enhance a user priviledges.
+         invokes your favorite program to elevate user privileges.
          e.g. in a KDE environment, kdesu can be used as follows:
 
            #!/bin/sh
            exec /usr/bin/kdesu -c /path/to/tunconfig $1 $2
+
+         As an alternative to configuring IP on the tunN interface,
+         you may attach it to a bridge, which will enable AppleTalk
+         frames to be forwarded without Linux needing to route them.
+         No tunconfig-like script is provided to configure bridging,
+         but you may simply configure "etherconfig /bin/true" to skip
+         the automatic configuration and then configure bridging
+         manually once Basilisk II has started, e.g.:
+
+           # ifconfig tun0 up
+           # brctl addif bridge1 tun0
 
       4. Access the network through the user mode network stack.
          (the code and this documentation come from QEMU)
