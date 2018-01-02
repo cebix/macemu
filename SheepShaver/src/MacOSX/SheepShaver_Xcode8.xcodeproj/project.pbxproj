@@ -1447,7 +1447,7 @@
 				INSTALL_PATH = "$(HOME)/Applications";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
-				OTHER_CFLAGS = "";
+				OTHER_CFLAGS = "-D__MACH__";
 				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				OTHER_LDFLAGS = (
 					"-pagezero_size",
@@ -1506,7 +1506,7 @@
 				INSTALL_PATH = "$(HOME)/Applications";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
-				OTHER_CFLAGS = "";
+				OTHER_CFLAGS = "-D__MACH__";
 				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				OTHER_LDFLAGS = (
 					"-pagezero_size",

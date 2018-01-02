@@ -9,7 +9,7 @@
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
 /* Define if using a PowerPC CPU emulator. */
-#define EMULATED_PPC 1
+// #define EMULATED_PPC 1
 
 /* Define to enable dyngen engine */
 #define ENABLE_DYNGEN 1
@@ -114,8 +114,8 @@
 /* #undef HAVE_FRAMEWORK_SDL */
 
 /* Define if framework SDL2 is available. */
-/* #undef HAVE_FRAMEWORK_SDL2 */
-
+#define HAVE_FRAMEWORK_SDL2 */
+#error stophere
 /* Define to 1 if you have the <history.h> header file. */
 /* #undef HAVE_HISTORY_H */
 
