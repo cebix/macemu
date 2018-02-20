@@ -121,7 +121,7 @@ static NSString *getStringFromPrefs(const char *key)
   index = 0;
   while ((dsk = PrefsFindString("cdrom", index++)) != NULL) {
     NSString *path = [NSString stringWithUTF8String: dsk ];
-      if(![path isEqualToString:@"/dev/poll/cdrom"]) {
+      if (![path isEqualToString:@"/dev/poll/cdrom"]) {
         DiskType *disk = [[[DiskType alloc] init] autorelease];
         [disk setPath:[NSString stringWithUTF8String: dsk ]];
         [disk setIsCDROM:YES];
