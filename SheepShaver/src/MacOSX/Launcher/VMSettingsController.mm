@@ -51,8 +51,6 @@ void prefs_exit()
 }
 #endif
 
-#define DEFAULT_CDROM_PATH "/dev/poll/cdrom"
-
 @implementation VMSettingsController
 
 + (id) sharedInstance
@@ -123,7 +121,7 @@ static NSString *getStringFromPrefs(const char *key)
   index = 0;
   while ((dsk = PrefsFindString("cdrom", index++)) != NULL) {
     NSString *path = [NSString stringWithUTF8String: dsk ];
-      if (![path isEqualToString:@DEFAULT_CDROM_PATH]) {
+	  if (![path hasPrefix:@"/dev/"]) {
         DiskType *disk = [[[DiskType alloc] init] autorelease];
         [disk setPath:[NSString stringWithUTF8String: dsk ]];
         [disk setIsCDROM:YES];
@@ -418,8 +416,6 @@ static NSString *makeRelativeIfNecessary(NSString *path)
     DiskType *d = [diskArray objectAtIndex:i];
     PrefsAddString([d isCDROM] ? "cdrom" : "disk", [[d path] UTF8String]);
   }
-
-  PrefsAddString("cdrom", DEFAULT_CDROM_PATH);
 
   PrefsReplaceInt32("bootdriver", ([bootFrom indexOfSelectedItem] == 1 ? CDROMRefNum : 0));
   PrefsReplaceString("rom", [[romFile stringValue] UTF8String]);
