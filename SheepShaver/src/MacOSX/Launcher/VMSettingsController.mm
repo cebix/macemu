@@ -414,11 +414,11 @@ static NSString *makeRelativeIfNecessary(NSString *path)
     if(![p hasPrefix:@"/dev/"]) {
       PrefsRemoveItem("cdrom", index);
     }
-	else {
-		// only increase the index if the current entry has not been deleted
-		// if it has been deleted, the next entry is on the current entrys index
-		index++;
-	}
+    else {
+      // only increase the index if the current entry has not been deleted
+      // if it has been deleted, the next entry is on the current entrys index
+      index++;
+    }
   }
 
   // Write all disks
