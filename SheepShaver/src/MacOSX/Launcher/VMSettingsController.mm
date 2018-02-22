@@ -417,6 +417,8 @@ static NSString *makeRelativeIfNecessary(NSString *path)
     PrefsAddString([d isCDROM] ? "cdrom" : "disk", [[d path] UTF8String]);
   }
 
+  PrefsAddString("cdrom", "/dev/poll/cdrom");
+
   PrefsReplaceInt32("bootdriver", ([bootFrom indexOfSelectedItem] == 1 ? CDROMRefNum : 0));
   PrefsReplaceString("rom", [[romFile stringValue] UTF8String]);
   PrefsReplaceString("extfs", [[unixRoot stringValue] UTF8String]);
