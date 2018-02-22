@@ -409,11 +409,13 @@ static NSString *makeRelativeIfNecessary(NSString *path)
   // Remove all cdroms (but keep the ones in /dev/)
   const char *path;
   int index=0;
-  while ((path = PrefsFindString("cdrom", index++)) != NULL) {
+  while ((path = PrefsFindString("cdrom", index)) != NULL) {
 	NSString *p = [NSString stringWithUTF8String: path];
     if(![p hasPrefix:@"/dev/"]) {
-      PrefsRemoveItem("cdrom");
+      PrefsRemoveItem("cdrom", index);
 	}
+	  
+	index++;
   }
 
   // Write all disks
