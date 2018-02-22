@@ -406,18 +406,21 @@ static NSString *makeRelativeIfNecessary(NSString *path)
   // Remove all disks
   while (PrefsFindString("disk"))
     PrefsRemoveItem("disk");
-  // Remove all cdroms
-  while (PrefsFindString("cdrom"))
-    PrefsRemoveItem("cdrom");
-
+  // Remove all cdroms (but keep the ones in /dev/)
+  const char *path;
+  int index=0;
+  while ((path = PrefsFindString("cdrom", index++)) != NULL) {
+	NSString *p = [NSString stringWithUTF8String: path];
+    if(![p hasPrefix:@"/dev/"]) {
+      PrefsRemoveItem("cdrom");
+	}
+  }
 
   // Write all disks
   for (int i = 0; i < [diskArray count]; i++) {
     DiskType *d = [diskArray objectAtIndex:i];
     PrefsAddString([d isCDROM] ? "cdrom" : "disk", [[d path] UTF8String]);
   }
-
-  PrefsAddString("cdrom", "/dev/poll/cdrom");
 
   PrefsReplaceInt32("bootdriver", ([bootFrom indexOfSelectedItem] == 1 ? CDROMRefNum : 0));
   PrefsReplaceString("rom", [[romFile stringValue] UTF8String]);
