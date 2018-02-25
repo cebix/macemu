@@ -120,11 +120,14 @@ static NSString *getStringFromPrefs(const char *key)
   /* Fetch all CDROMs */
   index = 0;
   while ((dsk = PrefsFindString("cdrom", index++)) != NULL) {
-    DiskType *disk = [[[DiskType alloc] init] autorelease];
-    [disk setPath:[NSString stringWithUTF8String: dsk ]];
-    [disk setIsCDROM:YES];
+    NSString *path = [NSString stringWithUTF8String: dsk ];
+    if (![path hasPrefix:@"/dev/"]) {
+        DiskType *disk = [[[DiskType alloc] init] autorelease];
+        [disk setPath:[NSString stringWithUTF8String: dsk ]];
+        [disk setIsCDROM:YES];
 
-    [diskArray addObject:disk];
+        [diskArray addObject:disk];
+    }
   }
 
   [disks setDataSource: self];
@@ -403,10 +406,19 @@ static NSString *makeRelativeIfNecessary(NSString *path)
   // Remove all disks
   while (PrefsFindString("disk"))
     PrefsRemoveItem("disk");
-  // Remove all cdroms
-  while (PrefsFindString("cdrom"))
-    PrefsRemoveItem("cdrom");
-
+  // Remove all cdroms (but keep the ones in /dev/)
+  const char *path;
+  int index = 0;
+  while ((path = PrefsFindString("cdrom", index)) != NULL) {
+    NSString *p = [NSString stringWithUTF8String: path];
+    if (![p hasPrefix:@"/dev/"]) {
+      PrefsRemoveItem("cdrom", index);
+    } else {
+      // only increase the index if the current entry has not been deleted
+      // if it has been deleted, the next entry is on the current entrys index
+      index++;
+    }
+  }
 
   // Write all disks
   for (int i = 0; i < [diskArray count]; i++) {
