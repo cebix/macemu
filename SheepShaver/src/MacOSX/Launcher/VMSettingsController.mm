@@ -410,7 +410,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
   const char *path;
   int index = 0;
   while ((path = PrefsFindString("cdrom", index)) != NULL) {
-	NSString *p = [NSString stringWithUTF8String: path];
+    NSString *p = [NSString stringWithUTF8String: path];
     if (![p hasPrefix:@"/dev/"]) {
       PrefsRemoveItem("cdrom", index);
     } else {
