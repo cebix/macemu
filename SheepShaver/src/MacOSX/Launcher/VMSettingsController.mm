@@ -121,7 +121,7 @@ static NSString *getStringFromPrefs(const char *key)
   index = 0;
   while ((dsk = PrefsFindString("cdrom", index++)) != NULL) {
     NSString *path = [NSString stringWithUTF8String: dsk ];
-	  if (![path hasPrefix:@"/dev/"]) {
+    if (![path hasPrefix:@"/dev/"]) {
         DiskType *disk = [[[DiskType alloc] init] autorelease];
         [disk setPath:[NSString stringWithUTF8String: dsk ]];
         [disk setIsCDROM:YES];
@@ -408,13 +408,12 @@ static NSString *makeRelativeIfNecessary(NSString *path)
     PrefsRemoveItem("disk");
   // Remove all cdroms (but keep the ones in /dev/)
   const char *path;
-  int index=0;
+  int index = 0;
   while ((path = PrefsFindString("cdrom", index)) != NULL) {
 	NSString *p = [NSString stringWithUTF8String: path];
-    if(![p hasPrefix:@"/dev/"]) {
+    if (![p hasPrefix:@"/dev/"]) {
       PrefsRemoveItem("cdrom", index);
-    }
-    else {
+    } else {
       // only increase the index if the current entry has not been deleted
       // if it has been deleted, the next entry is on the current entrys index
       index++;
