@@ -97,7 +97,24 @@ CHECK:
 crxor
 creqv
  */
-
+/*FOR SOME NEW CODE:*/
+uint32 make_mask(uint32 mstart, uint32 mstop) 
+{
+	if (mstart < (mstop + 1)) {
+		for (i = mstart; i < mstop; i ++) {
+			gCPU.gpr[rA] |= (1 << (32 - i));
+		}
+	}
+	else if (mstart == (mstop + 1)) {
+		gCPU.gpr[rA] = 0xFFFFFFFF;
+	}
+	else {
+		gCPU.gpr[rA] = 0xFFFFFFFF;
+		for (i = (mstop + 1); i < (mstart - 1); i ++) {
+			gCPU.gpr[rA] &= (~(1 << (32 - i)));
+		}
+	}
+}
 #include <stdio.h>
 #include <signal.h>
 
@@ -116,6 +133,38 @@ creqv
 #include "debug.h"
 
 #define FLIGHT_RECORDER 1
+
+
+/*function-like macros for new code*/
+#define MAKE_RD (op & 0x03E00000 >> 21)
+#define MAKE_RA (op & 0x001F0000 >> 16)
+#define MAKE_RB (op & 0x0000FC00 >> 10)
+#define MAKE_IMMEDIATE (op & 0x0000FFFF)
+#define OPC_UPDATE_CRO(opcode) (opcode & 1)
+#define CLEAR_CRO cr &= 0x0FFFFFFFF
+#define	UPDATE_CRO(value) CLEAR_CRO; \
+  (signed int32)value < 0 ? cr |= (8 << 28) : (value == 0 ? cr |= (2 << 28) : cr |= (4 << 28))
+#ifdef __x86_64__
+#define ___X86___
+#elif defined i386
+#define ___X86___
+#endif
+#ifdef ___X86___
+#define rol(v, r) asm const("roll %k1, %k0" : "=r" (v) : "0" (v) "r" (r) :)
+#define ror(v, r) asm const("rorl %k1, %k0" : "=r" (v) : "0" (v) "r" (r) :)
+#define bswap(word) asm const("bswap %k0" : "=r" (word) : "0" (word) : );
+static inline uint32 ppc_bswap_word(uint32 word)
+{
+	bswap(word);
+	return word;
+}
+#else
+#define rol(v, r) for(int i = 0; i < r; i ++) v = ((v << 1) | (v >> 31))
+#define ror(v, r) for (int i = 0; i < r; i ++) v = ((v >> 1) | (v << 31))
+#define ppc_bswap_word(data) (data>>24)|((data>>8)&0xff00)|((data<<8)&0xff0000)|(data<<24)
+#endif
+#define ppc_bswap_dword(data) (((uint64)ppc_bswap_word((uint32)data)) << 32) | (uint64)ppc_bswap_word((uint32)(data >> 32))
+#define ppc_bswap_half(data) (data<<8)|(data>>8)
 
 
 // PowerPC user mode registers
@@ -325,7 +374,7 @@ blr_nobranch:
 			else
 				cr |= 0x80000000 >> rd;
 			break;
-
+		
 		case 129:	// crandc
 			if ((cr & (0x80000000 >> ra)) && !((cr & (0x80000000 >> ((op >> 11) & 0x1f)))))
 				cr |= 0x80000000 >> rd;
@@ -333,7 +382,7 @@ blr_nobranch:
 				cr &= ~(0x80000000 >> rd);
 			break;
 
-		case 150:	// isync
+		case 150:	// isync: no-op
 			break;
 
 		case 193: {	// crxor
@@ -461,7 +510,18 @@ static void emul31(uint32 op)
 				record(r[rd]);
 			break;
 		}
-
+		case 11: /* mulhwu based on pearPC ppc_alu.cc GPL2 (C) 2003, 2004 Sebastian Biallas*/
+			int rD = MAKE_RD;
+			int rA = MAKE_RA;
+			int rB = MAKE_RB;
+			uint64 a = r[rA];
+			uint64 b = r[rB];
+			uint64 c = a * b;
+			r[rD] = c >> 32;
+			if (OPC_UPDATE_CRO(op)) {
+				UPDATE_CRO(r[rD]);
+			}
+			break;
 		case 19:	// mfcr
 			r[rd] = cr;
 			break;
@@ -500,7 +560,15 @@ cntlzw_done:if (op & 1)
 			if (op & 1)
 				record(r[ra]);
 			break;
-
+		case 29: /*G1 maskg*/
+			uint32 rS = MAKE_RD;
+			uint32 rA = MAKE_RA;
+			uint32 rB = MAKE_RB;
+			r[rA] = make_mask((r[rS] & 0x0000001F), (r[rB] & 0x0000001F));
+			if (OPC_UPDATE_CRO(gCPU.current_opc)) {
+				UPDATE_CRO(gCPU.gpr[rA]);
+			}
+			break;
 		case 32: {	// cmplw
 			uint32 crfd = 0x1c - (rd & 0x1c);
 			uint8 crf = 0;
@@ -521,7 +589,8 @@ cntlzw_done:if (op & 1)
 			if (op & 1)
 				record(r[rd]);
 			break;
-
+		case 54: /*dcbst: nop: don't emulate cache*/
+			break;
 		case 55:	// lwzux
 			r[ra] += r[rb];
 			r[rd] = ReadMacInt32(r[ra]);
@@ -554,7 +623,6 @@ cntlzw_done:if (op & 1)
 			if (op & 1)
 				record(r[rd]);
 			break;
-
 		case 119:	// lbzux
 			r[ra] += r[rb];
 			r[rd] = ReadMacInt8(r[ra]);
@@ -614,17 +682,101 @@ cntlzw_done:if (op & 1)
 			r[ra] += r[rb];
 			WriteMacInt32(r[ra], r[rd]);
 			break;
-
+		case 200: /*subfze based on code in ppc_alu.cc GPL2 (C) 2003, 2004 Sebastian Biallas*/
+			int rD = MAKE_RD;
+			int rA = MAKE_RA;
+			int rB = MAKE_RB;
+			if (rB != 0) {
+				/*AAAAAAAAAAAAAAA! Those bits are reserved, and should be zero!  Maybe error here?*/
+				rB = 0;
+			}
+			uint32 a = r[rA];
+			uint32 ca = ((xer&0x20000000)>>29);
+			r[rD] = ~a + ca;
+			if(!a && ca) {
+				xer |= 0x20000000;
+			}
+			else {
+				xer &= 0xDFFFFFFF;
+			}
+			if(OPC_UPDATE_CRO(op)) {
+				UPDATE_CRO(r[rD]);
+			}
+			break;
+		case 202: /*addze based on code in ppc_alu.cc GPL2 (C) 2003, 2004 Sebastian Biallas*/
+			int rD = MAKE_RD;
+			int rA = MAKE_RA;
+			int rB = MAKE_RB;
+			if (rB != 0) {
+				/*AAAAAAAAAAAAAAA! Those bits are reserved, and should be zero!  Maybe error here?*/
+				rB = 0;
+			}
+			uint32 a = r[rA];
+			uint32 ca = ((xer&0x20000000)>>29);
+			r[rD] = a + ca;
+			if ((a == 0xFFFFffff) && ca) {
+				xer |= 0x20000000;
+			}
+			else {
+				xer &= 0xDFFFFFFF;
+			}
+			if(OPC_UPDATE_CRO(op)) {
+				UPDATE_CRO(r[rD]);
+			}
+			break;
 		case 215:	// stbx
 			WriteMacInt8(r[rb] + (ra ? r[ra] : 0), r[rd]);
 			break;
-
+		case 232: /*subfme Based on code in PearPC ppc_alu.cc (C) 2003, 2004 Sebastian Biallas*/
+			int rD = MAKE_RD;
+			int rA = MAKE_RA;
+			int rB = MAKE_RB;
+			if (rB != 0) {
+				/*AAAAAAAAAAAAAAA! Those bits are reserved, and should be zero!  Maybe error here?*/
+				rB = 0;
+			}
+			uint32 a = r[rA];
+			uint32 ca = ((xer&0x20000000)>>29);
+			r[rD] = ~a + ca + 0xFFFFffff;
+			/*update XER*/
+			if ((a!=0xffffFFFF) || ca) {
+				xer |= 0x20000000;
+			}
+			else {
+				xer &= 0xDFFFFFFF;
+			}
+			if(OPC_UPDATE_CRO(op)) {
+				UPDATE_CRO(r[rD]);
+			}
+			break;
+		case 234: /*addme Based on code in PearPC ppc_alu.cc (C) 2003, 2004 Sebastian Biallas*/
+			int rD = MAKE_RD;
+			int rA = MAKE_RA;
+			int rB = MAKE_RB;
+			if (rB != 0) {
+				/*AAAAAAAAAAAAAAA! Those bits are reserved, and should be zero!  Maybe error here?*/
+				rB = 0;
+			}
+			uint32 a = r[rA];
+			uint32 ca = ((xer&0x20000000)>>29);
+			r[rD] = a + ca + 0xffffFFFF;
+			if (a || ca) {
+				xer |= 0x20000000;
+			}
+			else {
+				xer &= 0xDFFFFFFF;
+			}
+			if(OPC_UPDATE_CRO(op)) {
+				UPDATE_CRO(r[rD]);
+			}
+			break;
 		case 235:	// mullw
 			r[rd] = (int32)r[ra] * (int32)r[rb];
 			if (op & 1)
 				record(r[rd]);
 			break;
-
+		case 246: /* don't emulate cache, so nop*/
+			break;
 		case 247:	// stbux
 			r[ra] += r[rb];
 			WriteMacInt8(r[ra], r[rd]);
@@ -635,7 +787,8 @@ cntlzw_done:if (op & 1)
 			if (op & 1)
 				record(r[rd]);
 			break;
-
+		case 278: /*don't emulate cache, so nop*/
+			break;
 		case 279:	// lhzx
 			r[rd] = ReadMacInt16(r[rb] + (ra ? r[ra] : 0));
 			break;
@@ -669,7 +822,8 @@ cntlzw_done:if (op & 1)
 			}
 			break;
 		}
-
+		case 342: /* don't emulate cache, so nop */
+			break;
 		case 343:	// lhax
 			r[rd] = (int32)(int16)ReadMacInt16(r[rb] + (ra ? r[ra] : 0));
 			break;
@@ -736,7 +890,12 @@ cntlzw_done:if (op & 1)
 			if (op & 1)
 				record(r[rd]);
 			break;
-
+		case 512: /*mcrxr from PearPC ppc_opc.cc GPL2 (C) 2003 Sebastian Biallas (C) 2004 Dainel Foesch*/
+			uint32 crfD = ((gCPU.current_opc & 0x03800000) >> 23);
+			cr &= (~(0xF0000000 >> (crfD * 4)));
+			cr |= (((gCPU.xer & 0xF) << 28) >> (crfD * 4));
+			xer &= ~0xF;
+			break;
 		case 520: {	// subfco
 			uint64 tmp = (uint64)r[rb] - (uint64)r[ra];
 			uint32 ov = (r[ra] ^ r[rb]) & ((uint32)tmp ^ r[rb]);
@@ -794,7 +953,24 @@ cntlzw_done:if (op & 1)
 			}
 			break;
 		}
-
+		case 534: /*lwbrx based on code in PearPC ppc_mmu.cc GPL2 (C) 2003, 2004 Sebastian Biallas, portions (C) 2004 Daniel Foesch, portions (C) 2004 Apple Computer*/
+			int rA = MAKE_RA;
+			int rB = MAKE_RB;
+			int rD = MAKE_RD;
+			uint32 r = ReadMacInt32((rA?gCPU.gpr[rA]:0)+gCPU.gpr[rB]);
+			r[rD] = ppc_bswap_word(r);
+			break;
+		case 567: /*lfsux is lfsx, but it adds rA + rB if rA!=0*/
+		case 535: /*lfsx based on code in PearPC ppc_mmu.cc GPL2 (C) 2003, 2004 Sebastian Biallas, portions (C) 2004 Daniel Foesch, portions (C) 2004 Apple Computer*/
+			int rA = MAKE_RA;
+			int rB = MAKE_RB;
+			int frD = MAKE_RD;
+			uint32 r = ReadMacInt32((rA?gCPU.gpr[rA]:0)+gCPU.gpr[rB]);/*read single precision float as uint32*/
+			fr[frD] = ((double)(*((float *)((void *)(&r)))));/*then use pointers to "convert" it to a real float without changing the value, and acturally convert to double*/
+			if ((exop == 567) && (rA != 0)) {
+				r[rA] += r[rB];
+			}
+			break;
 		case 536:	// srw
 			r[ra] = r[rd] >> (r[rb] & 0x3f);
 			if (op & 1)
@@ -827,7 +1003,17 @@ cntlzw_done:if (op & 1)
 
 		case 598:	// sync
 			break;
-
+		case 599: /*lfdx based on code in PearPC ppc_mmu.cc GPL2 (C) 2003, 2004 Sebastian Biallas, portions (C) 2004 Daniel Foesch, portions (C) 2004 Apple Computer*/
+		case 631: /*lfdux is lfdx, but does rA += rB if rA !=0*/
+			int rA = MAKE_RA;
+			int rB = MAKE_RB;
+			int frD = MAKE_RD;
+			uint64 r = ReadMacInt64((rA?gCPU.gpr[rA]:0)+gCPU.gpr[rB]);
+			fr[frD] = (*((double *)((void *)(&r))));
+			if ((exop == 631) && (rA != 0)) {
+				r[rA] += r[rB];
+			}
+			break;
 		case 648: {	// subfeo
 			uint64 tmp = (uint64)r[rb] - (uint64)r[ra];
 			if (!(xer & 0x20000000))
@@ -881,7 +1067,16 @@ cntlzw_done:if (op & 1)
 			}
 			break;
 		}
-
+		case 662: /*stwbrx*/
+			WriteMacInt32(r[rb] + (ra ? r[ra] : 0), ppc_bswap_word(r[rd]));
+			break;
+		case 663: /*stfsx*/
+		case 695: /*stfsux is to stfsx as the other ux's are to the other x's*/
+			WriteMacInt32(r[rb] + (ra ? r[ra] : 0), (*((uint32 *)((void *)(&(fr[rd]))))));
+			if ((exop == 695) && (ra != 0)) {
+				r[ra] += r[rb];
+			}
+			break;
 		case 725: {	// stswi
 			uint32 addr = ra ? r[ra] : 0;
 			int nb = rb ? rb : 32;
@@ -897,7 +1092,6 @@ cntlzw_done:if (op & 1)
 			}
 			break;
 		}
-
 		case 778: {	// addo
 			uint32 tmp = r[ra] + r[rb];
 			uint32 ov = (r[ra] ^ tmp) & (r[rb] ^ tmp);
@@ -1101,7 +1295,18 @@ void emul_ppc(uint32 start)
 					xer |= 0x20000000;
 				break;
 			}
-
+			case 9: {/* G1 instruction dozi*/
+				uint32 rD = MAKE_RD;
+				uint32 rA = MAKE_RA;
+				uint32 immediate = MAKE_IMMEDIATE;
+				if ((signed int32)r[rA] >= (signed int32)immediate) {
+					r[rD] = 0;
+				}
+				else {
+					r[rD] = ((r[rA]) + immediate + 1);
+				}
+				break;
+			}
 			case 10: {	// cmpli
 				uint32 crfd = 0x1c - ((op >> 21) & 0x1c);
 				uint32 ra = (op >> 16) & 0x1f;
@@ -1244,7 +1449,22 @@ bc_nobranch:
 					record(r[ra]);
 				break;
 			}
-
+			case 22: {/* g1 instruction rlmi */
+				uint32 rB = MAKE_RB;
+				int32 rA = MAKE_RA;
+				uint32 rS = MAKE_RD;
+				uint32 mask_begin = ((op & 0x000007C0) >> 6);
+				uint32 mask_end =   ((op & 0x0000003E) >> 1);
+				uint32 tmp = r[rS];
+				uint32 toRotate = (r[rB] & 0x0000001F);
+				uint32 mask = make_mask(mask_begin, mask_end);
+				rol(tmp, toRotate);
+				gCPU.gpr[rA] = use_mask(mask, tmp, r[rA]);
+				if (OPC_UPDATE_CRO(op)) {
+					UPDATE_CRO(r[rA]);
+				}
+				break;
+			}
 			case 23: {	// rlwnm
 				uint32 rs = (op >> 21) & 0x1f;
 				uint32 ra = (op >> 16) & 0x1f;
