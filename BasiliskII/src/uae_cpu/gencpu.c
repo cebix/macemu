@@ -2188,15 +2188,13 @@ static void gen_opcode (unsigned long int opcode)
      case i_CINVP:
      case i_CINVA:
 	/* gb-- srcreg now contains the cache field */
-	printf ("\tif (srcreg&0x2)\n");
-	printf ("\t\tflush_icache(%d);\n", 30 + ((opcode >> 3) & 3)); 
+
 	break;
      case i_CPUSHL:
      case i_CPUSHP:
      case i_CPUSHA:
 	/* gb-- srcreg now contains the cache field */
-	printf ("\tif (srcreg&0x2)\n");
-	printf ("\t\tflush_icache(%d);\n", 40 + ((opcode >> 3) & 3)); 
+
 	break;
      case i_MOVE16:
 	if ((opcode & 0xfff8) == 0xf620) {
@@ -2262,7 +2260,6 @@ static void generate_includes (FILE * f)
     fprintf (f, "#include \"memory.h\"\n");
     fprintf (f, "#include \"readcpu.h\"\n");
     fprintf (f, "#include \"newcpu.h\"\n");
-    fprintf (f, "#include \"compiler/compemu.h\"\n");
     fprintf (f, "#include \"fpu/fpu.h\"\n");
     fprintf (f, "#include \"cputbl.h\"\n");
 	
@@ -2539,19 +2536,6 @@ int main (int argc, char **argv)
     free (table68k);
     fclose (headerfile);
     fclose (stblfile);
-    fflush (out);
-
-    /* For build systems (IDEs mainly) that don't make it easy to compile the
-     * same file twice with different settings. */
-    stblfile = fopen ("cpustbl_nf.cpp", "w");
-    out = freopen ("cpuemu_nf.cpp", "w", stdout);
-
-    fprintf (stblfile, "#define NOFLAGS\n");
-    fprintf (stblfile, "#include \"cpustbl.cpp\"\n");
-    fclose (stblfile);
-
-    printf ("#define NOFLAGS\n");
-    printf ("#include \"cpuemu.cpp\"\n");
     fflush (out);
 
     return 0;

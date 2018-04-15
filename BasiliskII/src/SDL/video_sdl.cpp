@@ -48,10 +48,6 @@
 #include <errno.h>
 #include <vector>
 
-#ifdef WIN32
-#include <malloc.h> /* alloca() */
-#endif
-
 #include "cpu_emulation.h"
 #include "main.h"
 #include "adb.h"
@@ -86,11 +82,7 @@ static int display_type = DISPLAY_WINDOW;			// See enum above
 #endif
 
 // Constants
-#ifdef WIN32
-const char KEYCODE_FILE_NAME[] = "BasiliskII_keycodes";
-#else
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
-#endif
 
 
 // Global variables
@@ -216,43 +208,6 @@ static inline void vm_release_framebuffer(void *fb, uint32 size)
 	vm_release(fb, size);
 }
 
-
-/*
- *  Windows message handler
- */
-
-#ifdef WIN32
-#include <dbt.h>
-static WNDPROC sdl_window_proc = NULL;				// Window proc used by SDL
-
-extern void SysMediaArrived(void);
-extern void SysMediaRemoved(void);
-extern HWND GetMainWindowHandle(void);
-
-static LRESULT CALLBACK windows_message_handler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-	switch (msg) {
-	case WM_DEVICECHANGE:
-		if (wParam == DBT_DEVICEREMOVECOMPLETE) {
-			DEV_BROADCAST_HDR *p = (DEV_BROADCAST_HDR *)lParam;
-			if (p->dbch_devicetype == DBT_DEVTYP_VOLUME)
-				SysMediaRemoved();
-		}
-		else if (wParam == DBT_DEVICEARRIVAL) {
-			DEV_BROADCAST_HDR *p = (DEV_BROADCAST_HDR *)lParam;
-			if (p->dbch_devicetype == DBT_DEVTYP_VOLUME)
-				SysMediaArrived();
-		}
-		return 0;
-
-	default:
-		if (sdl_window_proc)
-			return CallWindowProc(sdl_window_proc, hwnd, msg, wParam, lParam);
-	}
-
-	return DefWindowProc(hwnd, msg, wParam, lParam);
-}
-#endif
 
 
 /*
@@ -502,26 +457,9 @@ static void add_mode(int type, int width, int height, int resolution_id, int byt
 // Set Mac frame layout and base address (uses the_buffer/MacFrameBaseMac)
 static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth, bool native_byte_order)
 {
-#if !REAL_ADDRESSING && !DIRECT_ADDRESSING
-	int layout = FLAYOUT_DIRECT;
-	if (depth == VIDEO_DEPTH_16BIT)
-		layout = (screen_depth == 15) ? FLAYOUT_HOST_555 : FLAYOUT_HOST_565;
-	else if (depth == VIDEO_DEPTH_32BIT)
-		layout = (screen_depth == 24) ? FLAYOUT_HOST_888 : FLAYOUT_DIRECT;
-	if (native_byte_order)
-		MacFrameLayout = layout;
-	else
-		MacFrameLayout = FLAYOUT_DIRECT;
-	monitor.set_mac_frame_base(MacFrameBaseMac);
 
-	// Set variables used by UAE memory banking
-	const VIDEO_MODE &mode = monitor.get_current_mode();
-	MacFrameBaseHost = the_buffer;
-	MacFrameSize = VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y;
-	InitFrameBufferMapping();
-#else
 	monitor.set_mac_frame_base(Host2MacAddr(the_buffer));
-#endif
+
 	D(bug("monitor.mac_frame_base = %08x\n", monitor.get_mac_frame_base()));
 }
 
@@ -934,13 +872,6 @@ bool SDL_monitor_desc::video_open(void)
 		return false;
 	}
 
-#ifdef WIN32
-	// Chain in a new message handler for WM_DEVICECHANGE
-	HWND the_window = GetMainWindowHandle();
-	sdl_window_proc = (WNDPROC)GetWindowLongPtr(the_window, GWLP_WNDPROC);
-	SetWindowLongPtr(the_window, GWLP_WNDPROC, (LONG_PTR)windows_message_handler);
-#endif
-
 	// Initialize VideoRefresh function
 	VideoRefreshInit();
 
@@ -1161,12 +1092,6 @@ bool VideoInit(bool classic)
 void SDL_monitor_desc::video_close(void)
 {
 	D(bug("video_close()\n"));
-
-#ifdef WIN32
-	// Remove message handler for WM_DEVICECHANGE
-	HWND the_window = GetMainWindowHandle();
-	SetWindowLongPtr(the_window, GWLP_WNDPROC, (LONG_PTR)sdl_window_proc);
-#endif
 
 	// Stop redraw thread
 #ifndef USE_CPU_EMUL_SERVICES
@@ -1489,9 +1414,7 @@ void video_set_cursor(void)
 			// On Mac, if mouse is grabbed, SDL_ShowCursor() recenters the
 			// mouse, we have to put it back.
 			bool move = false;
-#ifdef WIN32
-			move = true;
-#elif defined(__APPLE__)
+#if defined(__APPLE__)
 			move = mouse_grabbed;
 #endif
 			if (move) {
@@ -2095,7 +2018,7 @@ static void video_refresh_dga(void)
 }
 
 #ifdef ENABLE_VOSF
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 static void video_refresh_dga_vosf(void)
 {
 	// Quit DGA mode if requested
@@ -2158,7 +2081,7 @@ static void VideoRefreshInit(void)
 {
 	// TODO: set up specialised 8bpp VideoRefresh handlers ?
 	if (display_type == DISPLAY_SCREEN) {
-#if ENABLE_VOSF && (REAL_ADDRESSING || DIRECT_ADDRESSING)
+#if ENABLE_VOSF && (DIRECT_ADDRESSING)
 		if (use_vosf)
 			video_refresh = video_refresh_dga_vosf;
 		else

@@ -827,7 +827,7 @@ bool CheckROM(void)
 	// Read version
 	ROMVersion = ntohs(*(uint16 *)(ROMBaseHost + 8));
 
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 	// Real and direct addressing modes require a 32-bit clean ROM
 	return ROMVersion == ROM_VERSION_32;
 #else
@@ -1254,15 +1254,6 @@ static bool patch_rom_32(void)
 	*wp++ = htons(0x0cea);
 	*wp = htons(M68K_RTS);
 
-#if REAL_ADDRESSING
-	// Move system zone to start of Mac RAM
-	wp = (uint16 *)(ROMBaseHost + 0x50a);
-	*wp++ = htons(HiWord(RAMBaseMac + 0x2000));
-	*wp++ = htons(LoWord(RAMBaseMac + 0x2000));
-	*wp++ = htons(HiWord(RAMBaseMac + 0x3800));
-	*wp = htons(LoWord(RAMBaseMac + 0x3800));
-#endif
-
 #if !ROM_IS_WRITE_PROTECTED
 #if defined(USE_SCRATCHMEM_SUBTERFUGE)
 	// Set fake handle at 0x0000 to scratch memory area (so broken Mac programs won't write into Mac ROM)
@@ -1277,20 +1268,6 @@ static bool patch_rom_32(void)
 #endif
 #endif
 
-#if REAL_ADDRESSING && defined(AMIGA)
-	// Don't overwrite SysBase under AmigaOS
-	wp = (uint16 *)(ROMBaseHost + 0xccb4);
-	*wp++ = htons(M68K_NOP);
-	*wp = htons(M68K_NOP);
-#endif
-	
-#if REAL_ADDRESSING && !defined(AMIGA)
-	// gb-- Temporary hack to get rid of crashes in Speedometer
-	wp = (uint16 *)(ROMBaseHost + 0xdba2);
-	if (ntohs(*wp) == 0x662c)		// bne.b	#$2c
-		*wp = htons(0x602c);		// bra.b	#$2c
-#endif
-	
 	// Don't write to VIA in InitTimeMgr
 	wp = (uint16 *)(ROMBaseHost + 0xb0e2);
 	*wp++ = htons(0x4cdf);			// movem.l	(sp)+,d0-d5/a0-a4

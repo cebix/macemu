@@ -66,12 +66,6 @@
 # define FPU_USE_LAZY_FLAGS
 #endif
 
-/* JIT Compilation for FPU only works with lazy evaluation of FPU flags */
-#if defined(FPU_IEEE) && defined(USE_X87_ASSEMBLY) && defined(USE_JIT_FPU)
-# undef FPU_USE_GENERIC_FLAGS
-# define FPU_USE_LAZY_FLAGS
-#endif
-
 #ifdef FPU_IMPLEMENTATION
 
 /* -------------------------------------------------------------------------- */

@@ -30,7 +30,6 @@
 #include "memory.h"
 #include "readcpu.h"
 #include "newcpu.h"
-#include "compiler/compemu.h"
 
 
 // RAM and ROM pointers
@@ -41,19 +40,13 @@ uint32 ROMBaseMac;			// ROM base (Mac address space)
 uint8 *ROMBaseHost;			// ROM base (host address space)
 uint32 ROMSize;				// Size of ROM
 
-#if !REAL_ADDRESSING
 // Mac frame buffer
 uint8 *MacFrameBaseHost;	// Frame buffer base (host address space)
 uint32 MacFrameSize;		// Size of frame buffer
 int MacFrameLayout;			// Frame buffer layout
-#endif
 
 #if DIRECT_ADDRESSING
 uintptr MEMBaseDiff;		// Global offset between a Mac address and its Host equivalent
-#endif
-
-#if USE_JIT
-bool UseJIT = false;
 #endif
 
 // From newcpu.cpp
@@ -66,42 +59,15 @@ extern bool quit_program;
 
 bool Init680x0(void)
 {
-#if REAL_ADDRESSING
-	// Mac address space = host address space
-	RAMBaseMac = (uintptr)RAMBaseHost;
-	ROMBaseMac = (uintptr)ROMBaseHost;
-#elif DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 	// Mac address space = host address space minus constant offset (MEMBaseDiff)
 	// NOTE: MEMBaseDiff is set up in main_unix.cpp/main()
 	RAMBaseMac = 0;
 	ROMBaseMac = Host2MacAddr(ROMBaseHost);
-#else
-	// Initialize UAE memory banks
-	RAMBaseMac = 0;
-	switch (ROMVersion) {
-		case ROM_VERSION_64K:
-		case ROM_VERSION_PLUS:
-		case ROM_VERSION_CLASSIC:
-			ROMBaseMac = 0x00400000;
-			break;
-		case ROM_VERSION_II:
-			ROMBaseMac = 0x00a00000;
-			break;
-		case ROM_VERSION_32:
-			ROMBaseMac = 0x40800000;
-			break;
-		default:
-			return false;
-	}
-	memory_init();
 #endif
 
 	init_m68k();
-#if USE_JIT
-	UseJIT = compiler_use_jit();
-	if (UseJIT)
-	    compiler_init();
-#endif
+
 	return true;
 }
 
@@ -112,10 +78,7 @@ bool Init680x0(void)
 
 void Exit680x0(void)
 {
-#if USE_JIT
-    if (UseJIT)
-	compiler_exit();
-#endif
+
 	exit_m68k();
 }
 
@@ -126,9 +89,7 @@ void Exit680x0(void)
 
 void InitFrameBufferMapping(void)
 {
-#if !REAL_ADDRESSING && !DIRECT_ADDRESSING
-	memory_init();
-#endif
+
 }
 
 /*
@@ -138,11 +99,7 @@ void InitFrameBufferMapping(void)
 void Start680x0(void)
 {
 	m68k_reset();
-#if USE_JIT
-    if (UseJIT)
-	m68k_compile_execute();
-    else
-#endif
+
 	m68k_execute();
 }
 

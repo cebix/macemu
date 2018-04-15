@@ -49,12 +49,6 @@
 // Use ISO C99 extended-precision math functions (glibc 2.1+)
 #define FPU_USE_ISO_C99 1
 
-// NOTE: this is irrelevant on Win32 platforms since the MS libraries
-// don't support extended-precision floating-point computations
-#if defined(WIN32) && USE_LONG_DOUBLE
-#undef FPU_USE_ISO_C99
-#endif
-
 // Use faster implementation of math functions, but this could cause
 // some incorrect results (?)
 #ifdef _MSC_VER

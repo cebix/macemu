@@ -72,15 +72,7 @@ int main(int argc, char **argv)
     printf ("#include \"sysdeps.h\"\n");
     printf ("#include \"readcpu.h\"\n");
     printf ("struct instr_def defs68k[] = {\n");
-#ifdef WIN32
-    tablef = fopen(argc > 1 ? argv[1] : "table68k","r");
-    if (tablef == NULL) {
-	fprintf(stderr, "table68k not found\n");
-	exit(1);
-    }
-#else
     tablef = stdin;
-#endif
     getnextch();
     while (nextch != EOF) {
 	int cpulevel, plevel, sduse;

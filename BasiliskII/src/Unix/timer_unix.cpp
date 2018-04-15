@@ -27,11 +27,6 @@
 #define DEBUG 0
 #include "debug.h"
 
-// For NetBSD with broken pthreads headers
-#ifndef CLOCK_REALTIME
-#define CLOCK_REALTIME 0
-#endif
-
 #if defined(__MACH__)
 #include <mach/mach.h>
 #include <mach/clock.h>
@@ -57,13 +52,13 @@ static inline void mach_current_time(tm_time_t &t) {
 void Microseconds(uint32 &hi, uint32 &lo)
 {
 	D(bug("Microseconds\n"));
-#if defined(HAVE_CLOCK_GETTIME)
-	struct timespec t;
-	clock_gettime(CLOCK_REALTIME, &t);
-	uint64 tl = (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
-#elif defined(__MACH__)
+#if defined(__MACH__)
 	tm_time_t t;
 	mach_current_time(t);
+	uint64 tl = (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
+#elif defined(HAVE_CLOCK_GETTIME)
+	struct timespec t;
+	clock_gettime(CLOCK_REALTIME, &t);
 	uint64 tl = (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
 #else
 	struct timeval t;
@@ -91,10 +86,10 @@ uint32 TimerDateTime(void)
 
 void timer_current_time(tm_time_t &t)
 {
-#ifdef HAVE_CLOCK_GETTIME
-	clock_gettime(CLOCK_REALTIME, &t);
-#elif defined(__MACH__)
+#if defined(__MACH__)
 	mach_current_time(t);
+#elif defined(HAVE_CLOCK_GETTIME)
+	clock_gettime(CLOCK_REALTIME, &t);
 #else
 	gettimeofday(&t, NULL);
 #endif
@@ -229,13 +224,13 @@ int32 timer_host2mac_time(tm_time_t hosttime)
 
 uint64 GetTicks_usec(void)
 {
-#ifdef HAVE_CLOCK_GETTIME
-	struct timespec t;
-	clock_gettime(CLOCK_REALTIME, &t);
-	return (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
-#elif defined(__MACH__)
+#if defined(__MACH__)
 	tm_time_t t;
 	mach_current_time(t);
+	return (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
+#elif defined(HAVE_CLOCK_GETTIME)
+	struct timespec t;
+	clock_gettime(CLOCK_REALTIME, &t);
 	return (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
 #else
 	struct timeval t;
@@ -251,17 +246,8 @@ uint64 GetTicks_usec(void)
  *  the highest accuracy possible)
  */
 
-#if defined(linux)
-// Linux select() changes its timeout parameter upon return to contain
-// the remaining time. Most other unixen leave it unchanged or undefined.
-#define SELECT_SETS_REMAINING
-#elif defined(__FreeBSD__) || defined(__sun__) || (defined(__MACH__) && defined(__APPLE__))
+#if (defined(__MACH__) && defined(__APPLE__))
 #define USE_NANOSLEEP
-#elif defined(HAVE_PTHREADS) && defined(sgi)
-// SGI pthreads has a bug when using pthreads+signals+nanosleep,
-// so instead of using nanosleep, wait on a CV which is never signalled.
-#include <pthread.h>
-#define USE_COND_TIMEDWAIT
 #endif
 
 void Delay_usec(uint32 usec)
@@ -283,7 +269,6 @@ void Delay_usec(uint32 usec)
 #endif
 #endif
 
-	// Set the timeout interval - Linux only needs to do this once
 #if defined(SELECT_SETS_REMAINING)
     tv.tv_sec = 0;
     tv.tv_usec = usec;

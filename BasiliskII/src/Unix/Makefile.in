@@ -21,7 +21,7 @@ CFLAGS = @CFLAGS@
 CXXFLAGS = @CXXFLAGS@
 CPUINCLUDES_FLAGS=@CPUINCLUDES@
 CPUINCLUDES_FLAGS:=$(CPUINCLUDES_FLAGS:-I%=-I@top_srcdir@/%)
-CPPFLAGS = @CPPFLAGS@ -I@top_srcdir@/../include -I@top_srcdir@/. -I. -I@top_srcdir@/../CrossPlatform $(CPUINCLUDES_FLAGS) -I@top_srcdir@/../slirp
+CPPFLAGS = @CPPFLAGS@ -I@top_srcdir@/../include -I@top_srcdir@/. -I. -I@top_srcdir@/../CrossPlatform $(CPUINCLUDES_FLAGS) 
 DEFS = @DEFS@ @DEFINES@ -D_REENTRANT -DDATADIR=\"$(datadir)/$(APP)\"
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
@@ -33,16 +33,6 @@ INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
 
-SLIRP_CFLAGS = @SLIRP_CFLAGS@
-SLIRP_SRCS = @SLIRP_SRCS@
-SLIRP_OBJS = $(SLIRP_SRCS:../slirp/%.c=obj/%.o)
-
-STANDALONE_GUI = @STANDALONE_GUI@
-GUI_CFLAGS = @GUI_CFLAGS@
-GUI_LIBS = @GUI_LIBS@
-GUI_SRCS = ../prefs.cpp prefs_unix.cpp prefs_editor_gtk.cpp ../prefs_items.cpp \
-	../user_strings.cpp user_strings_unix.cpp xpram_unix.cpp sys_unix.cpp rpc_unix.cpp
-
 XPLAT_SRCS = ../CrossPlatform/vm_alloc.cpp ../CrossPlatform/sigsegv.cpp ../CrossPlatform/video_blit.cpp
 
 ## Files
@@ -51,10 +41,9 @@ SRCS = ../main.cpp ../prefs.cpp ../prefs_items.cpp \
     ../emul_op.cpp ../macos_util.cpp ../xpram.cpp xpram_unix.cpp ../timer.cpp \
     timer_unix.cpp ../adb.cpp ../serial.cpp ../ether.cpp \
     ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp ../video.cpp \
-    ../audio.cpp ../extfs.cpp disk_sparsebundle.cpp \
-	tinyxml2.cpp \
-    ../user_strings.cpp user_strings_unix.cpp sshpty.c strlcpy.c rpc_unix.cpp \
-    $(XPLAT_SRCS) $(SYSSRCS) $(CPUSRCS) $(SLIRP_SRCS)
+    ../audio.cpp ../extfs.cpp \
+    ../user_strings.cpp user_strings_unix.cpp rpc_unix.cpp \
+    $(XPLAT_SRCS) $(SYSSRCS) $(CPUSRCS)
 APP_FLAVOR ?=
 ifneq ($(APP_FLAVOR),)
 	CURR_APP_FLAVOR := -$(APP_FLAVOR)
@@ -63,20 +52,11 @@ else
 endif
 APP_BASENAME = BasiliskII
 APP = $(APP_BASENAME)$(CURR_APP_FLAVOR)
-APP_APP = $(APP).app
 
 PROGS = $(APP)$(EXEEXT)
-ifeq ($(STANDALONE_GUI),yes)
-GUI_APP = BasiliskIIGUI
-GUI_APP_APP = $(GUI_APP).app
-PROGS += $(GUI_APP)$(EXEEXT)
-else
-CXXFLAGS += $(GUI_CFLAGS)
-LIBS += $(GUI_LIBS)
-endif
 
 ## Rules
-.PHONY: modules install installdirs uninstall mostlyclean clean distclean depend dep
+.PHONY: install installdirs uninstall mostlyclean clean distclean depend dep
 .SUFFIXES:
 .SUFFIXES: .c .cpp .s .o .h
 
@@ -93,60 +73,18 @@ endef
 OBJS := $(SRCS_LIST_TO_OBJS)
 SRCS := $(SRCS:%=@top_srcdir@/%)
 
-define GUI_SRCS_LIST_TO_OBJS
-	$(addprefix $(OBJ_DIR)/, $(addsuffix .guio, $(foreach file, $(GUI_SRCS), \
-	$(basename $(notdir $(file))))))
-endef
-GUI_OBJS = $(GUI_SRCS_LIST_TO_OBJS)
-GUI_SRCS := $(GUI_SRCS:%=@top_srcdir@/%)
-
 SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
 VPATH :=
 VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
 
 ## Documentation files
-OSX_DOCS = ../MacOSX/Credits.html ../MacOSX/ToDo.html ../MacOSX/HowTo.html ../MacOSX/Versions.html
 
 $(APP)$(EXEEXT): $(OBJ_DIR) $(OBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(OBJS) $(LIBS)
 	$(BLESS) $(APP)$(EXEEXT)
 
-$(GUI_APP)$(EXEEXT): $(OBJ_DIR) $(GUI_OBJS)
-	$(CXX) -o $@ $(LDFLAGS) $(GUI_OBJS) $(GUI_LIBS)
-
-$(APP)_app: $(APP) $(OSX_DOCS) ../../README ../MacOSX/Info.plist ../MacOSX/$(APP).icns
-	rm -rf $(APP_APP)/Contents
-	mkdir -p $(APP_APP)/Contents
-	./cpr.sh ../MacOSX/Info.plist $(APP_APP)/Contents/
-	echo -n 'APPL????' > $(APP_APP)/Contents/PkgInfo
-	mkdir -p $(APP_APP)/Contents/MacOS
-	./cpr.sh $(APP) $(APP_APP)/Contents/MacOS/
-	strip -x $(APP_APP)/Contents/MacOS/$(APP)
-	mkdir -p $(APP_APP)/Contents/Resources
-	./cpr.sh ../MacOSX/$(APP).icns $(APP_APP)/Contents/Resources/
-	./cpr.sh ../MacOSX/English.lproj $(APP_APP)/Contents/Resources/
-	cp -f $(OSX_DOCS) $(APP_APP)/Contents/Resources/
-	cp -f ../../README $(APP_APP)/Contents/Resources/README.txt
-
-$(GUI_APP)_app: $(GUI_APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
-	rm -rf $(GUI_APP_APP)/Contents
-	mkdir -p $(GUI_APP_APP)/Contents
-	sed -e "s/$(APP)/$(GUI_APP)/" < ../MacOSX/Info.plist > $(GUI_APP_APP)/Contents/Info.plist
-	echo -n 'APPL????' > $(GUI_APP_APP)/Contents/PkgInfo
-	mkdir -p $(GUI_APP_APP)/Contents/MacOS
-	./cpr.sh $(GUI_APP) $(GUI_APP_APP)/Contents/MacOS/
-	strip -x $(GUI_APP_APP)/Contents/MacOS/$(GUI_APP)
-	mkdir -p $(GUI_APP_APP)/Contents/Resources
-	./cpr.sh ../MacOSX/$(APP).icns $(GUI_APP_APP)/Contents/Resources/$(GUI_APP).icns
-
-modules:
-	cd Linux/NetDriver; make
-
 install: $(PROGS) installdirs
 	$(INSTALL_PROGRAM) $(APP)$(EXEEXT) $(DESTDIR)$(bindir)/$(APP)$(EXEEXT)
-	if test -f "$(GUI_APP)$(EXEEXT)"; then \
-	  $(INSTALL_PROGRAM) $(GUI_APP)$(EXEEXT) $(DESTDIR)$(bindir)/$(GUI_APP)$(EXEEXT); \
-	fi
 	-$(INSTALL_DATA) @top_srcdir@/$(APP_BASENAME).1 $(DESTDIR)$(man1dir)/$(APP).1
 	$(INSTALL_DATA) @top_srcdir@/$(KEYCODES) $(DESTDIR)$(datadir)/$(APP)/keycodes
 	$(INSTALL_DATA) @top_srcdir@/fbdevices $(DESTDIR)$(datadir)/$(APP)/fbdevices
@@ -157,7 +95,6 @@ installdirs:
 
 uninstall:
 	rm -f $(DESTDIR)$(bindir)/$(APP)$(EXEEXT)
-	rm -f $(DESTDIR)$(bindir)/$(GUI_APP)$(EXEEXT)
 	rm -f $(DESTDIR)$(man1dir)/$(APP).1
 	rm -f $(DESTDIR)$(datadir)/$(APP)/keycodes
 	rm -f $(DESTDIR)$(datadir)/$(APP)/fbdevices
@@ -168,7 +105,7 @@ mostlyclean:
 	rm -f $(PROGS) $(OBJ_DIR)/* core* *.core *~ *.bak
 
 clean: mostlyclean
-	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h compemu.cpp compstbl.cpp comptbl.h
+	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h
 
 distclean: clean
 	rm -rf $(OBJ_DIR)
@@ -180,10 +117,6 @@ distclean: clean
 depend dep:
 	makedepend $(CPPFLAGS) -Y. $(SRCS) 2>/dev/null
 
-$(OBJ_DIR)/SDLMain.o : SDLMain.m
-	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
-$(OBJ_DIR)/%.o : @top_srcdir@/../slirp/%.c
-	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(SLIRP_CFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.c
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.cpp
@@ -194,90 +127,19 @@ $(OBJ_DIR)/%.o : %.mm
 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.s
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
-$(OBJ_DIR)/%.guio : %.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(GUI_CFLAGS) -DSTANDALONE_GUI -c $< -o $@
-
-# Windows resources
-$(OBJ_DIR)/%.o: %.rc
-	windres --include-dir ../Windows -i $< -o $@
 
 $(OBJ_DIR)/build68k$(EXEEXT): $(OBJ_DIR)/build68k.o
 	$(CC) $(LDFLAGS) -o $(OBJ_DIR)/build68k$(EXEEXT) $(OBJ_DIR)/build68k.o
 $(OBJ_DIR)/gencpu$(EXEEXT): $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
 	$(CXX) $(LDFLAGS) -o $(OBJ_DIR)/gencpu$(EXEEXT) $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
-$(OBJ_DIR)/gencomp$(EXEEXT): $(OBJ_DIR)/gencomp.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
-	$(CXX) $(LDFLAGS) -o $(OBJ_DIR)/gencomp$(EXEEXT) $(OBJ_DIR)/gencomp.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
 
 cpudefs.cpp: $(OBJ_DIR)/build68k$(EXEEXT) @top_srcdir@/../uae_cpu/table68k
 	$(OBJ_DIR)/build68k$(EXEEXT) <@top_srcdir@/../uae_cpu/table68k >cpudefs.cpp
 cpustbl.cpp: cpuemu.cpp
-cpustbl_nf.cpp: cpustbl.cpp
-compstbl.cpp: compemu.cpp
 cputbl.h: cpuemu.cpp
-comptbl.h: compemu.cpp
 
 cpuemu.cpp: $(OBJ_DIR)/gencpu$(EXEEXT)
 	$(OBJ_DIR)/gencpu$(EXEEXT)
-
-compemu.cpp: $(OBJ_DIR)/gencomp$(EXEEXT)
-	$(OBJ_DIR)/gencomp$(EXEEXT)
-
-$(OBJ_DIR)/cpustbl_nf.o: cpustbl.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -DNOFLAGS -c $< -o $@
-
-$(OBJ_DIR)/compemu_support.o: compemu_support.cpp comptbl.h
-	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
-
-$(OBJ_DIR)/cpuemu1.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu2.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu3.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu4.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu5.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu6.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu7.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu8.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 $(CXXFLAGS) -c $< -o $@
-
-$(OBJ_DIR)/cpuemu1_nf.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu2_nf.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu3_nf.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu4_nf.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu5_nf.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu6_nf.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu7_nf.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/cpuemu8_nf.o: cpuemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 -DNOFLAGS $(CXXFLAGS) -c $< -o $@
-
-$(OBJ_DIR)/compemu1.o: compemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_1 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/compemu2.o: compemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_2 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/compemu3.o: compemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_3 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/compemu4.o: compemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_4 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/compemu5.o: compemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_5 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/compemu6.o: compemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_6 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/compemu7.o: compemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 $(CXXFLAGS) -c $< -o $@
-$(OBJ_DIR)/compemu8.o: compemu.cpp
-	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 $(CXXFLAGS) -c $< -o $@
 
 #-------------------------------------------------------------------------
 # DO NOT DELETE THIS LINE -- make depend depends on it.

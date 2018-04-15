@@ -59,14 +59,6 @@ user_string_def platform_strings[] = {
 	{STR_KEYCODE_FILE_WARN, "Cannot open keycode translation file %s (%s)."},
 	{STR_KEYCODE_VENDOR_WARN, "Cannot find vendor '%s' in keycode translation file %s."},
 
-	{STR_PREFS_MENU_FILE_GTK, "/_File"},
-	{STR_PREFS_ITEM_START_GTK, "/File/_Start Basilisk II"},
-	{STR_PREFS_ITEM_ZAP_PRAM_GTK, "/File/_Zap PRAM File"},
-	{STR_PREFS_ITEM_SEPL_GTK, "/File/sepl"},
-	{STR_PREFS_ITEM_QUIT_GTK, "/File/_Quit Basilisk II"},
-	{STR_HELP_MENU_GTK, "/_Help"},
-	{STR_HELP_ITEM_ABOUT_GTK, "/Help/_About Basilisk II"},
-
 	{STR_FBDEV_NAME_CTRL, "Frame Buffer Name"},
 	{STR_FBDEVICE_FILE_CTRL, "Frame Buffer Spec File"},
 	{STR_DSPDEVICE_FILE_CTRL, "Audio Output Device"},

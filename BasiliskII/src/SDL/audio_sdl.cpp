@@ -32,10 +32,6 @@
 #define DEBUG 0
 #include "debug.h"
 
-#if defined(BINCUE)
-#include "bincue_unix.h"
-#endif
-
 
 #define MAC_MAX_VOLUME 0x0100
 
@@ -99,11 +95,6 @@ static bool open_sdl_audio(void)
 		fprintf(stderr, "WARNING: Cannot open audio: %s\n", SDL_GetError());
 		return false;
 	}
-
-#if defined(BINCUE)
-	OpenAudio_bincue(audio_spec.freq, audio_spec.format, audio_spec.channels,
-	audio_spec.silence);
-#endif
 
 	char driver_name[32];
 	printf("Using SDL/%s audio output\n", SDL_AudioDriverName(driver_name, sizeof(driver_name) - 1));
@@ -236,9 +227,7 @@ static void stream_func(void *arg, uint8 *stream, int stream_len)
 		// Audio not active, play silence
 silence: memset(stream, silence_byte, stream_len);
 	}
-#if defined(BINCUE)
-	MixAudio_bincue(stream, stream_len);
-#endif
+
 }
 
 

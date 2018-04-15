@@ -36,17 +36,12 @@ extern int intlev(void);	// From baisilisk_glue.cpp
 #include "memory.h"
 #include "readcpu.h"
 #include "newcpu.h"
-#include "compiler/compemu.h"
 #include "fpu/fpu.h"
 
 #if defined(ENABLE_EXCLUSIVE_SPCFLAGS) && !defined(HAVE_HARDWARE_LOCKS)
 B2_mutex *spcflags_lock = NULL;
 #endif
 
-#if ENABLE_MON
-#include "mon.h"
-#include "mon_disass.h"
-#endif
 
 bool quit_program = false;
 struct flag_struct regflags;
@@ -122,20 +117,12 @@ static void dump_log(void)
 #else
 		fprintf(f, " | ");
 #endif
-#if ENABLE_MON
-		disass_68k(f, pc);
-#endif
+
 	}
 	fclose(f);
 }
 #endif
 
-#if ENABLE_MON
-static void dump_regs(void)
-{
-	m68k_dumpstate(NULL);
-}
-#endif
 
 #define COUNT_INSTRS 0
 
@@ -308,7 +295,7 @@ static int backup_pointer = 0;
 static long int m68kpc_offset;
 int lastint_no;
 
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 #define get_ibyte_1(o) get_byte(get_virtual_address(regs.pc_p) + (o) + 1)
 #define get_iword_1(o) get_word(get_virtual_address(regs.pc_p) + (o))
 #define get_ilong_1(o) get_long(get_virtual_address(regs.pc_p) + (o))
@@ -860,16 +847,7 @@ int m68k_move2c (int regno, uae_u32 *regp)
 	 case 1: regs.dfc = *regp & 7; break;
 	 case 2:
 		cacr = *regp & (CPUType < 4 ? 0x3 : 0x80008000);
-#if USE_JIT
-		if (CPUType < 4) {
-			set_cache_state(cacr&1);
-			if (*regp & 0x08)
-				flush_icache(1);
-		}
-		else {
-			set_cache_state(cacr&0x8000);
-		}
-#endif
+
 	 break;
 	 case 3: tc = *regp & 0xc000; break;
 	 case 4: itt0 = *regp & 0xffffe364; break;
@@ -1209,17 +1187,6 @@ void m68k_reset (void)
 	memset(log, 0, sizeof(log));
 #endif
 
-#if ENABLE_MON
-	static bool first_time = true;
-	if (first_time) {
-		first_time = false;
-		mon_add_command("regs", dump_regs, "regs                    Dump m68k emulator registers\n");
-#if FLIGHT_RECORDER
-		// Install "log" command in mon
-		mon_add_command("log", dump_log, "log                      Dump m68k emulation log\n");
-#endif
-	}
-#endif
 }
 
 void m68k_emulop_return(void)
@@ -1263,9 +1230,6 @@ void REGPARAM2 op_illg (uae_u32 opcode)
     }
 
     write_log ("Illegal instruction: %04x at %08lx\n", opcode, pc);
-#if USE_JIT && JIT_DEBUG
-    compiler_dumpstate();
-#endif
 
     Exception (4,0);
 	return;
@@ -1323,18 +1287,7 @@ static void do_trace (void)
 
 int m68k_do_specialties (void)
 {
-#if USE_JIT
-    // Block was compiled
-    SPCFLAGS_CLEAR( SPCFLAG_JIT_END_COMPILE );
 
-    // Retain the request to get out of compiled code until
-    // we reached the toplevel execution, i.e. the one that
-    // can compile then run compiled code. This also means
-    // we processed all (nested) EmulOps
-    if ((m68k_execute_depth == 0) && SPCFLAGS_TEST( SPCFLAG_JIT_EXEC_RETURN ))
-	SPCFLAGS_CLEAR( SPCFLAG_JIT_EXEC_RETURN );
-#endif
-	
     if (SPCFLAGS_TEST( SPCFLAG_DOTRACE )) {
 	Exception (9,last_trace_ad);
     }
@@ -1389,17 +1342,13 @@ void m68k_do_execute (void)
 
 void m68k_execute (void)
 {
-#if USE_JIT
-    ++m68k_execute_depth;
-#endif
+
     for (;;) {
 	  if (quit_program)
 		break;
 	  m68k_do_execute();
     }
-#if USE_JIT
-    --m68k_execute_depth;
-#endif
+
 }
 
 static void m68k_verify (uaecptr addr, uaecptr *nextpc)

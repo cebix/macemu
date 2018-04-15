@@ -63,16 +63,6 @@ struct cputbl {
 
 extern cpuop_func *cpufunctbl[65536] ASM_SYM("cpufunctbl");
 
-#if USE_JIT
-typedef void compop_func (uae_u32) REGPARAM;
-
-struct comptbl {
-    compop_func *handler;
-	uae_u32		specific;
-	uae_u32		opcode;
-};
-#endif
-
 extern void REGPARAM2 op_illg (uae_u32) REGPARAM;
 
 typedef char flagtype;
@@ -200,7 +190,7 @@ static __inline__ uae_u32 next_ilong (void)
 
 static __inline__ void m68k_setpc (uaecptr newpc)
 {
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 	regs.pc_p = get_real_address(newpc);
 #else
     regs.pc_p = regs.pc_oldp = get_real_address(newpc);
@@ -210,7 +200,7 @@ static __inline__ void m68k_setpc (uaecptr newpc)
 
 static __inline__ uaecptr m68k_getpc (void)
 {
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 	return get_virtual_address(regs.pc_p);
 #else
     return regs.pc + ((char *)regs.pc_p - (char *)regs.pc_oldp);
@@ -300,9 +290,7 @@ extern void m68k_record_step(uaecptr) REGPARAM;
 #endif
 extern void m68k_do_execute(void);
 extern void m68k_execute(void);
-#if USE_JIT
-extern void m68k_compile_execute(void);
-#endif
+
 #ifdef USE_CPU_EMUL_SERVICES
 extern int32 emulated_ticks;
 extern void cpu_do_check_ticks(void);

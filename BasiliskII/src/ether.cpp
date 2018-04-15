@@ -57,11 +57,8 @@ using std::map;
 #define MONITOR 0
 
 
-#ifdef __BEOS__
-#define CLOSESOCKET closesocket
-#else
+
 #define CLOSESOCKET close
-#endif
 
 
 // Global variables
@@ -138,12 +135,8 @@ void EtherInit(void)
 
 		// Set socket options
 		int on = 1;
-#ifdef __BEOS__
-		setsockopt(udp_socket, SOL_SOCKET, SO_NONBLOCK, &on, sizeof(on));
-#else
 		setsockopt(udp_socket, SOL_SOCKET, SO_BROADCAST, &on, sizeof(on));
 		ioctl(udp_socket, FIONBIO, &on);
-#endif
 
 		// Start thread for packet reception
 		if (!ether_start_udp_thread(udp_socket)) {
@@ -453,7 +446,6 @@ void ether_udp_read(uint32 packet, int length, struct sockaddr_in *from)
  *  Ethernet packet allocator
  */
 
-#if SIZEOF_VOID_P != 4 || REAL_ADDRESSING == 0
 static uint32 ether_packet = 0;			// Ethernet packet (cached allocation)
 static uint32 n_ether_packets = 0;		// Number of ethernet packets allocated so far (should be at most 1)
 
@@ -485,4 +477,3 @@ EthernetPacket::~EthernetPacket()
 		bug("WARNING: Nested allocation of ethernet packets!\n");
 	}
 }
-#endif

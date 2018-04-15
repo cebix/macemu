@@ -42,20 +42,6 @@
 #define DEBUG 0
 #include "debug.h"
 
-#if ENABLE_MON
-#include "mon.h"
-
-static uint32 mon_read_byte_b2(uintptr adr)
-{
-	return ReadMacInt8(adr);
-}
-
-static void mon_write_byte_b2(uintptr adr, uint32 b)
-{
-	WriteMacInt8(adr, b);
-}
-#endif
-
 
 /*
  *  Initialize everything, returns false on error
@@ -192,13 +178,6 @@ bool InitAll(const char *vmdir)
 		return false;
 	}
 
-#if ENABLE_MON
-	// Initialize mon
-	mon_init();
-	mon_read_byte = mon_read_byte_b2;
-	mon_write_byte = mon_write_byte_b2;
-#endif
-
 	return true;
 }
 
@@ -209,10 +188,6 @@ bool InitAll(const char *vmdir)
 
 void ExitAll(void)
 {
-#if ENABLE_MON
-	// Deinitialize mon
-	mon_exit();
-#endif
 
 	// Save XPRAM
 	XPRAMExit();

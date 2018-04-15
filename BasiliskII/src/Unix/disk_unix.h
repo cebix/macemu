@@ -42,7 +42,4 @@ struct disk_generic {
 typedef disk_generic::status (disk_factory)(const char *path, bool read_only,
 	disk_generic **disk);
 
-extern disk_factory disk_sparsebundle_factory;
-extern disk_factory disk_vhd_factory;
-
 #endif

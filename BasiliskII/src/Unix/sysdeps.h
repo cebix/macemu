@@ -66,25 +66,6 @@
 #include <mach/clock.h>
 #endif
 
-#ifdef ENABLE_NATIVE_M68K
-
-/* Mac and host address space are the same */
-#define REAL_ADDRESSING 1
-
-/* Using 68k natively */
-#define EMULATED_68K 0
-
-/* Mac ROM is not write protected */
-#define ROM_IS_WRITE_PROTECTED 0
-#define USE_SCRATCHMEM_SUBTERFUGE 1
-
-#else
-
-/* Mac and host address space are distinct */
-#ifndef REAL_ADDRESSING
-#define REAL_ADDRESSING 0
-#endif
-
 /* Using 68k emulator */
 #define EMULATED_68K 1
 
@@ -92,19 +73,11 @@
 #define USE_PREFETCH_BUFFER 0
 
 /* Mac ROM is write protected when banked memory is used */
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 # define ROM_IS_WRITE_PROTECTED 0
 # define USE_SCRATCHMEM_SUBTERFUGE 1
 #else
 # define ROM_IS_WRITE_PROTECTED 1
-#endif
-
-#endif
-
-/* Direct Addressing requires Video on SEGV signals in plain X11 mode */
-#if DIRECT_ADDRESSING && (!ENABLE_VOSF && !USE_SDL_VIDEO)
-# undef  ENABLE_VOSF
-# define ENABLE_VOSF 1
 #endif
 
 /* ExtFS is supported */
@@ -116,11 +89,6 @@
 /* Use the CPU emulator to check for periodic tasks? */
 #ifdef HAVE_PTHREADS
 #define USE_PTHREADS_SERVICES
-#endif
-#if EMULATED_68K
-#if defined(__NetBSD__)
-#define USE_CPU_EMUL_SERVICES
-#endif
 #endif
 #ifdef USE_CPU_EMUL_SERVICES
 #undef USE_PTHREADS_SERVICES
@@ -185,10 +153,11 @@ typedef char * caddr_t;
 #endif
 
 /* Time data type for Time Manager emulation */
-#ifdef HAVE_CLOCK_GETTIME
-typedef struct timespec tm_time_t;
-#elif defined(__MACH__)
+
+#if defined(__MACH__)
 typedef mach_timespec_t tm_time_t;
+#elif defined(HAVE_CLOCK_GETTIME)
+typedef struct timespec tm_time_t;
 #else
 typedef struct timeval tm_time_t;
 #endif
@@ -220,107 +189,6 @@ typedef uae_u32 uaecptr;
 /* Timing functions */
 extern uint64 GetTicks_usec(void);
 extern void Delay_usec(uint32 usec);
-
-/* Spinlocks */
-#ifdef __GNUC__
-
-#if defined(__powerpc__) || defined(__ppc__)
-#define HAVE_TEST_AND_SET 1
-static inline int testandset(volatile int *p)
-{
-	int ret;
-	__asm__ __volatile__("0:    lwarx	%0,0,%1\n"
-						 "      xor.	%0,%3,%0\n"
-						 "      bne		1f\n"
-						 "      stwcx.	%2,0,%1\n"
-						 "      bne-	0b\n"
-						 "1:    "
-						 : "=&r" (ret)
-						 : "r" (p), "r" (1), "r" (0)
-						 : "cr0", "memory");
-	return ret;
-}
-#endif
-
-/* FIXME: SheepShaver occasionnally hangs with those locks */
-#if 0 && (defined(__i386__) || defined(__x86_64__))
-#define HAVE_TEST_AND_SET 1
-static inline int testandset(volatile int *p)
-{
-	long int ret;
-	/* Note: the "xchg" instruction does not need a "lock" prefix */
-	__asm__ __volatile__("xchgl %k0, %1"
-						 : "=r" (ret), "=m" (*p)
-						 : "0" (1), "m" (*p)
-						 : "memory");
-	return ret;
-}
-#endif
-
-#ifdef __s390__
-#define HAVE_TEST_AND_SET 1
-static inline int testandset(volatile int *p)
-{
-	int ret;
-
-	__asm__ __volatile__("0: cs    %0,%1,0(%2)\n"
-						 "   jl    0b"
-						 : "=&d" (ret)
-						 : "r" (1), "a" (p), "0" (*p) 
-						 : "cc", "memory" );
-	return ret;
-}
-#endif
-
-#ifdef __alpha__
-#define HAVE_TEST_AND_SET 1
-static inline int testandset(volatile int *p)
-{
-	int ret;
-	unsigned long one;
-
-	__asm__ __volatile__("0:	mov 1,%2\n"
-						 "	ldl_l %0,%1\n"
-						 "	stl_c %2,%1\n"
-						 "	beq %2,1f\n"
-						 ".subsection 2\n"
-						 "1:	br 0b\n"
-						 ".previous"
-						 : "=r" (ret), "=m" (*p), "=r" (one)
-						 : "m" (*p));
-	return ret;
-}
-#endif
-
-#ifdef __sparc__
-#define HAVE_TEST_AND_SET 1
-static inline int testandset(volatile int *p)
-{
-	int ret;
-
-	__asm__ __volatile__("ldstub	[%1], %0"
-						 : "=r" (ret)
-						 : "r" (p)
-						 : "memory");
-
-	return (ret ? 1 : 0);
-}
-#endif
-
-#ifdef __arm__
-#define HAVE_TEST_AND_SET 1
-static inline int testandset(volatile int *p)
-{
-	register unsigned int ret;
-	__asm__ __volatile__("swp %0, %1, [%2]"
-						 : "=r"(ret)
-						 : "0"(1), "r"(p));
-	
-	return ret;
-}
-#endif
-
-#endif /* __GNUC__ */
 
 typedef volatile int spinlock_t;
 
@@ -355,25 +223,6 @@ static inline int spin_trylock(spinlock_t *lock)
 {
 	return 1;
 }
-#endif
-
-/* X11 display fast locks */
-#ifdef HAVE_SPINLOCKS
-#define X11_LOCK_TYPE spinlock_t
-#define X11_LOCK_INIT SPIN_LOCK_UNLOCKED
-#define XDisplayLock() spin_lock(&x_display_lock)
-#define XDisplayUnlock() spin_unlock(&x_display_lock)
-#elif defined(HAVE_PTHREADS)
-#define X11_LOCK_TYPE pthread_mutex_t
-#define X11_LOCK_INIT PTHREAD_MUTEX_INITIALIZER
-#define XDisplayLock() pthread_mutex_lock(&x_display_lock);
-#define XDisplayUnlock() pthread_mutex_unlock(&x_display_lock);
-#else
-#define XDisplayLock()
-#define XDisplayUnlock()
-#endif
-#ifdef X11_LOCK_TYPE
-extern X11_LOCK_TYPE x_display_lock;
 #endif
 
 #ifdef HAVE_PTHREADS

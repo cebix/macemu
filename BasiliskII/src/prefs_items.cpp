@@ -92,17 +92,7 @@ void AddPrefsDefaults(void)
 	PrefsAddBool("noclipconversion", false);
 	PrefsAddBool("nogui", false);
 	
-#if USE_JIT
-	// JIT compiler specific options
-	PrefsAddBool("jit", true);
-	PrefsAddBool("jitfpu", true);
-	PrefsAddBool("jitdebug", false);
-	PrefsAddInt32("jitcachesize", 8192);
-	PrefsAddBool("jitlazyflush", true);
-	PrefsAddBool("jitinline", true);
-#else
 	PrefsAddBool("jit", false);
-#endif
 
     PrefsAddInt32("keyboardtype", 5);
 }

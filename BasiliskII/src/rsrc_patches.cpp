@@ -30,9 +30,6 @@
 #include "audio_defs.h"
 #include "rsrc_patches.h"
 
-#if ENABLE_MON
-#include "mon.h"
-#endif
 
 #define DEBUG 0
 #include "debug.h"

@@ -27,11 +27,6 @@
 #include <fcntl.h>
 #endif
 
-#ifdef HAVE_WIN32_VM
-#define WIN32_LEAN_AND_MEAN /* avoid including junk */
-#include <windows.h>
-#endif
-
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,13 +48,8 @@
 #endif
 #endif
 
-#ifdef HAVE_WIN32_VM
-/* Windows is either ILP32 or LLP64 */
-typedef UINT_PTR vm_uintptr_t;
-#else
 /* Other systems are sane as they are either ILP32 or LP64 */
 typedef unsigned long vm_uintptr_t;
-#endif
 
 /* We want MAP_32BIT, if available, for SheepShaver and BasiliskII
    because the emulated target is 32-bit and this helps to allocate
@@ -71,11 +61,7 @@ typedef unsigned long vm_uintptr_t;
 #ifndef MAP_32BIT
 #define MAP_32BIT 0
 #endif
-#ifdef __FreeBSD__
-#define FORCE_MAP_32BIT MAP_FIXED
-#else
 #define FORCE_MAP_32BIT MAP_32BIT
-#endif
 #ifndef MAP_ANON
 #define MAP_ANON 0
 #endif
@@ -86,10 +72,9 @@ typedef unsigned long vm_uintptr_t;
 #define MAP_EXTRA_FLAGS (MAP_32BIT)
 
 #ifdef HAVE_MMAP_VM
-#if (defined(__linux__) && defined(__i386__)) || defined(__FreeBSD__) || HAVE_LINKER_SCRIPT
+#if HAVE_LINKER_SCRIPT
 /* Force a reasonnable address below 0x80000000 on x86 so that we
-   don't get addresses above when the program is run on AMD64.
-   NOTE: this is empirically determined on Linux/x86.  */
+   don't get addresses above when the program is run on AMD64. */
 #define MAP_BASE	0x10000000
 #else
 #define MAP_BASE	0x00000000
@@ -127,40 +112,6 @@ static int translate_map_flags(int vm_flags)
 }
 #endif
 
-/* Align ADDR and SIZE to 64K boundaries.  */
-
-#ifdef HAVE_WIN32_VM
-static inline LPVOID align_addr_segment(LPVOID addr)
-{
-	return LPVOID(vm_uintptr_t(addr) & ~vm_uintptr_t(0xFFFF));
-}
-
-static inline DWORD align_size_segment(LPVOID addr, DWORD size)
-{
-	return size + ((vm_uintptr_t)addr - (vm_uintptr_t)align_addr_segment(addr));
-}
-#endif
-
-/* Translate generic VM prot flags to host values.  */
-
-#ifdef HAVE_WIN32_VM
-static int translate_prot_flags(int prot_flags)
-{
-	int prot = PAGE_READWRITE;
-	if (prot_flags == (VM_PAGE_EXECUTE | VM_PAGE_READ | VM_PAGE_WRITE))
-		prot = PAGE_EXECUTE_READWRITE;
-	else if (prot_flags == (VM_PAGE_EXECUTE | VM_PAGE_READ))
-		prot = PAGE_EXECUTE_READ;
-	else if (prot_flags == (VM_PAGE_READ | VM_PAGE_WRITE))
-		prot = PAGE_READWRITE;
-	else if (prot_flags == VM_PAGE_READ)
-		prot = PAGE_READONLY;
-	else if (prot_flags == 0)
-		prot = PAGE_NOACCESS;
-	return prot;
-}
-#endif
-
 /* Translate Mach return codes to POSIX errno values. */
 #ifdef HAVE_MACH_VM
 static int vm_error(kern_return_t ret_code)
@@ -193,17 +144,17 @@ int vm_init(void)
 
 // On 10.4 and earlier, reset CrashReporter's task signal handler to
 // avoid having it show up for signals that get handled.
-#if defined(__APPLE__) && defined(__MACH__)
-	struct utsname info;
+// #if defined(__APPLE__) && defined(__MACH__)
+// 	struct utsname info;
 
-	if (!uname(&info) && atoi(info.release) <= 8) {
-		task_set_exception_ports(mach_task_self(),
-			EXC_MASK_BAD_ACCESS | EXC_MASK_ARITHMETIC,
-			MACH_PORT_NULL,
-			EXCEPTION_STATE_IDENTITY,
-			MACHINE_THREAD_STATE);
-	}
-#endif
+// 	if (!uname(&info) && atoi(info.release) <= 8) {
+// 		task_set_exception_ports(mach_task_self(),
+// 			EXC_MASK_BAD_ACCESS | EXC_MASK_ARITHMETIC,
+// 			MACH_PORT_NULL,
+// 			EXCEPTION_STATE_IDENTITY,
+// 			MACHINE_THREAD_STATE);
+// 	}
+// #endif
 
 	return 0;
 }
@@ -260,13 +211,6 @@ void * vm_acquire(size_t size, int options)
 		return VM_MAP_FAILED;
 
 	next_address = (char *)addr + size;
-#elif defined(HAVE_WIN32_VM)
-	int alloc_type = MEM_RESERVE | MEM_COMMIT;
-	if (options & VM_MAP_WRITE_WATCH)
-	  alloc_type |= MEM_WRITE_WATCH;
-
-	if ((addr = VirtualAlloc(NULL, size, alloc_type, PAGE_EXECUTE_READWRITE)) == NULL)
-		return VM_MAP_FAILED;
 #else
 	if ((addr = calloc(size, 1)) == 0)
 		return VM_MAP_FAILED;
@@ -312,21 +256,6 @@ int vm_acquire_fixed(void * addr, size_t size, int options)
 
 	if (mmap((caddr_t)addr, size, VM_PAGE_DEFAULT, the_map_flags, fd, 0) == (void *)MAP_FAILED)
 		return -1;
-#elif defined(HAVE_WIN32_VM)
-	// Windows cannot allocate Low Memory
-	if (addr == NULL)
-		return -1;
-
-	int alloc_type = MEM_RESERVE | MEM_COMMIT;
-	if (options & VM_MAP_WRITE_WATCH)
-	  alloc_type |= MEM_WRITE_WATCH;
-
-	// Allocate a possibly offset region to align on 64K boundaries
-	LPVOID req_addr = align_addr_segment(addr);
-	DWORD  req_size = align_size_segment(addr, size);
-	LPVOID ret_addr = VirtualAlloc(req_addr, req_size, alloc_type, PAGE_EXECUTE_READWRITE);
-	if (ret_addr != req_addr)
-		return -1;
 #else
 	// Unsupported
 	return -1;
@@ -357,12 +286,7 @@ int vm_release(void * addr, size_t size)
 	if (munmap((caddr_t)addr, size) != 0)
 		return -1;
 #else
-#ifdef HAVE_WIN32_VM
-	if (VirtualFree(align_addr_segment(addr), 0, MEM_RELEASE) == 0)
-		return -1;
-#else
 	free(addr);
-#endif
 #endif
 #endif
 	
@@ -382,14 +306,8 @@ int vm_protect(void * addr, size_t size, int prot)
 	int ret_code = mprotect((caddr_t)addr, size, prot);
 	return ret_code == 0 ? 0 : -1;
 #else
-#ifdef HAVE_WIN32_VM
-	DWORD old_prot;
-	int ret_code = VirtualProtect(addr, size, translate_prot_flags(prot), &old_prot);
-	return ret_code != 0 ? 0 : -1;
-#else
 	// Unsupported
 	return -1;
-#endif
 #endif
 #endif
 }
@@ -403,20 +321,7 @@ int vm_get_write_watch(void * addr, size_t size,
 					   int options)
 {
 #ifdef HAVE_VM_WRITE_WATCH
-#ifdef HAVE_WIN32_VM
-	DWORD flags = 0;
-	if (options & VM_WRITE_WATCH_RESET)
-		flags |= WRITE_WATCH_FLAG_RESET;
 
-	ULONG page_size;
-	ULONG_PTR count = *n_pages;
-	int ret_code = GetWriteWatch(flags, addr, size, pages, &count, &page_size);
-	if (ret_code != 0)
-		return -1;
-
-	*n_pages = count;
-	return 0;
-#endif
 #endif
 	// Unsupported
 	return -1;
@@ -428,10 +333,7 @@ int vm_get_write_watch(void * addr, size_t size,
 int vm_reset_write_watch(void * addr, size_t size)
 {
 #ifdef HAVE_VM_WRITE_WATCH
-#ifdef HAVE_WIN32_VM
-	int ret_code = ResetWriteWatch(addr, size);
-	return ret_code == 0 ? 0 : -1;
-#endif
+
 #endif
 	// Unsupported
 	return -1;
@@ -441,17 +343,7 @@ int vm_reset_write_watch(void * addr, size_t size)
 
 int vm_get_page_size(void)
 {
-#ifdef HAVE_WIN32_VM
-	static vm_uintptr_t page_size = 0;
-	if (page_size == 0) {
-		SYSTEM_INFO si;
-		GetSystemInfo(&si);
-		page_size = si.dwAllocationGranularity;
-	}
-	return page_size;
-#else
 	return getpagesize();
-#endif
 }
 
 #ifdef CONFIGURE_TEST_VM_WRITE_WATCH

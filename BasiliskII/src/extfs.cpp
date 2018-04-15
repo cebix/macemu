@@ -43,10 +43,8 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#ifndef WIN32
 #include <unistd.h>
 #include <dirent.h>
-#endif
 
 #if defined __APPLE__ && defined __MACH__
 #include <sys/attr.h>
@@ -60,10 +58,6 @@
 #include "user_strings.h"
 #include "extfs.h"
 #include "extfs_defs.h"
-
-#ifdef WIN32
-# include "posix_emu.h"
-#endif
 
 #define DEBUG 0
 #include "debug.h"
@@ -1049,9 +1043,7 @@ static int16 fs_volume_mount(uint32 pb)
 
 	// Init VCB
 	WriteMacInt16(vcb + vcbSigWord, 0x4244);
-#if defined(__BEOS__) || defined(WIN32)
-	WriteMacInt32(vcb + vcbCrDate, TimeToMacTime(root_stat.st_crtime));
-#elif defined __APPLE__ && defined __MACH__
+#if defined __APPLE__ && defined __MACH__
 	WriteMacInt32(vcb + vcbCrDate, get_creation_time(RootPath));
 #else
 	WriteMacInt32(vcb + vcbCrDate, 0);
@@ -1114,9 +1106,7 @@ static int16 fs_get_vol_info(uint32 pb, bool hfs)
 	// Fill in struct
 	if (ReadMacInt32(pb + ioNamePtr))
 		pstrcpy((char *)Mac2HostAddr(ReadMacInt32(pb + ioNamePtr)), VOLUME_NAME);
-#if defined(__BEOS__) || defined(WIN32)
-	WriteMacInt32(pb + ioVCrDate, TimeToMacTime(root_stat.st_crtime));
-#elif defined __APPLE__ && defined __MACH__
+#if defined __APPLE__ && defined __MACH__
 	WriteMacInt32(pb + ioVCrDate, get_creation_time(RootPath));
 #else
 	WriteMacInt32(pb + ioVCrDate, 0);
@@ -1308,9 +1298,7 @@ read_next_de:
 	WriteMacInt8(pb + ioFlAttrib, access(full_path, W_OK) == 0 ? 0 : faLocked);
 	WriteMacInt32(pb + ioDirID, fs_item->id);
 
-#if defined(__BEOS__) || defined(WIN32)
-	WriteMacInt32(pb + ioFlCrDat, TimeToMacTime(st.st_crtime));
-#elif defined __APPLE__ && defined __MACH__
+#if defined __APPLE__ && defined __MACH__
 	WriteMacInt32(pb + ioFlCrDat, get_creation_time(full_path));
 #else
 	WriteMacInt32(pb + ioFlCrDat, 0);
@@ -1432,9 +1420,7 @@ read_next_de:
 	WriteMacInt8(pb + ioACUser, 0);
 	WriteMacInt32(pb + ioDirID, fs_item->id);
 	WriteMacInt32(pb + ioFlParID, fs_item->parent_id);
-#if defined(__BEOS__) || defined(WIN32)
-	WriteMacInt32(pb + ioFlCrDat, TimeToMacTime(st.st_crtime));
-#elif defined __APPLE__ && defined __MACH__
+#if defined __APPLE__ && defined __MACH__
 	WriteMacInt32(pb + ioFlCrDat, get_creation_time(full_path));
 #else
 	WriteMacInt32(pb + ioFlCrDat, 0);

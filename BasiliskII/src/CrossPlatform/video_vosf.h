@@ -26,10 +26,7 @@
 
 #include "sigsegv.h"
 #include "vm_alloc.h"
-#ifdef _WIN32
-#include "util_windows.h"
-#endif
-
+ 
 // Glue for SDL and X11 support
 #ifdef TEST_VOSF_PERFORMANCE
 #define MONITOR_INIT			/* nothing */
@@ -180,10 +177,6 @@ static inline unsigned find_next_page_clear(unsigned page)
 static pthread_mutex_t vosf_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect frame buffer (dirtyPages in fact)
 #define LOCK_VOSF pthread_mutex_lock(&vosf_lock);
 #define UNLOCK_VOSF pthread_mutex_unlock(&vosf_lock);
-#elif defined(_WIN32)
-static mutex_t vosf_lock;										// Mutex to protect frame buffer (dirtyPages in fact)
-#define LOCK_VOSF vosf_lock.lock();
-#define UNLOCK_VOSF vosf_lock.unlock();
 #elif defined(HAVE_SPINLOCKS)
 static spinlock_t vosf_lock = SPIN_LOCK_UNLOCKED;				// Mutex to protect frame buffer (dirtyPages in fact)
 #define LOCK_VOSF spin_lock(&vosf_lock)
@@ -533,7 +526,7 @@ static void update_display_window_vosf(VIDEO_DRV_WIN_INIT)
  */
 
 #ifndef TEST_VOSF_PERFORMANCE
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 {
 	VIDEO_MODE_INIT;
