@@ -41,22 +41,10 @@
 #if defined(FPU_UAE)
 
 /* 4-byte floats */
-#if SIZEOF_FLOAT == 4
 typedef float uae_f32;
-#elif SIZEOF_DOUBLE == 4
-typedef double uae_f32;
-#else
-#error "No 4 byte float type, you lose."
-#endif
 
 /* 8-byte floats */
-#if SIZEOF_DOUBLE == 8
 typedef double uae_f64;
-#elif SIZEOF_LONG_DOUBLE == 8
-typedef long double uae_f64;
-#else
-#error "No 8 byte float type, you lose."
-#endif
 
 /* Original UAE FPU registers are only 8 bytes long */
 typedef uae_f64		fpu_register;
@@ -71,22 +59,10 @@ typedef uae_f32		fpu_single;
 #elif defined(FPU_X86)
 
 /* 4-byte floats */
-#if SIZEOF_FLOAT == 4
 typedef float uae_f32;
-#elif SIZEOF_DOUBLE == 4
-typedef double uae_f32;
-#else
-#error "No 4 byte float type, you lose."
-#endif
 
 /* 8-byte floats */
-#if SIZEOF_DOUBLE == 8
-typedef float uae_f64;
-#elif SIZEOF_LONG_DOUBLE == 8
 typedef double uae_f64;
-#else
-#error "No 8 byte float type, you lose."
-#endif
 
 /* At least 10-byte floats are required */
 #if SIZEOF_LONG_DOUBLE >= 10
