@@ -1,1 +1,0 @@
-../../../BasiliskII/src/Windows/prefs_editor_gtk.cpp
