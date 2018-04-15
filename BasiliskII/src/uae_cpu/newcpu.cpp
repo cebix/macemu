@@ -1,24 +1,10 @@
-/*
- * UAE - The Un*x Amiga Emulator
- *
- * MC68000 emulation
- *
- * (c) 1995 Bernd Schmidt
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
+ /*
+  * UAE - The Un*x Amiga Emulator
+  *
+  * MC68000 emulation
+  *
+  * (c) 1995 Bernd Schmidt
+  */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,14 +22,9 @@ extern int intlev(void);	// From baisilisk_glue.cpp
 #include "memory.h"
 #include "readcpu.h"
 #include "newcpu.h"
-#include "fpu/fpu.h"
 
-#if defined(ENABLE_EXCLUSIVE_SPCFLAGS) && !defined(HAVE_HARDWARE_LOCKS)
-B2_mutex *spcflags_lock = NULL;
-#endif
-
-
-bool quit_program = false;
+int quit_program = 0;
+int debugging = 0;
 struct flag_struct regflags;
 
 /* Opcode of faulting instruction */
@@ -60,69 +41,11 @@ int movem_index1[256];
 int movem_index2[256];
 int movem_next[256];
 
+int fpp_movem_index1[256];
+int fpp_movem_index2[256];
+int fpp_movem_next[256];
+
 cpuop_func *cpufunctbl[65536];
-
-#if FLIGHT_RECORDER
-struct rec_step {
-	uae_u32 pc;
-#if FLIGHT_RECORDER >= 2
-	uae_u32 d[8];
-	uae_u32 a[8];
-#endif
-};
-
-const int LOG_SIZE = 32768;
-static rec_step log[LOG_SIZE];
-static int log_ptr = -1; // First time initialization
-
-static const char *log_filename(void)
-{
-	const char *name = getenv("M68K_LOG_FILE");
-	return name ? name : "log.68k";
-}
-
-void m68k_record_step(uaecptr pc)
-{
-#if FLIGHT_RECORDER >= 2
-	/* XXX: if LSB is set, we are recording from generated code and we
-	   don't support registers recording yet.  */
-	if ((pc & 1) == 0) {
-		for (int i = 0; i < 8; i++) {
-			log[log_ptr].d[i] = m68k_dreg(regs, i);
-			log[log_ptr].a[i] = m68k_areg(regs, i);
-		}
-	}
-#endif
-	log[log_ptr].pc = pc;
-	log_ptr = (log_ptr + 1) % LOG_SIZE;
-}
-
-static void dump_log(void)
-{
-	FILE *f = fopen(log_filename(), "w");
-	if (f == NULL)
-		return;
-	for (int i = 0; i < LOG_SIZE; i++) {
-		int j = (i + log_ptr) % LOG_SIZE;
-		uae_u32 pc = log[j].pc & ~1;
-		fprintf(f, "pc %08x", pc);
-#if FLIGHT_RECORDER >= 2
-		fprintf(f, "\n");
-		if ((log[j].pc & 1) == 0) {
-			fprintf(f, "d0 %08x d1 %08x d2 %08x d3 %08x\n", log[j].d[0], log[j].d[1], log[j].d[2], log[j].d[3]);
-			fprintf(f, "d4 %08x d5 %08x d6 %08x d7 %08x\n", log[j].d[4], log[j].d[5], log[j].d[6], log[j].d[7]);
-			fprintf(f, "a0 %08x a1 %08x a2 %08x a3 %08x\n", log[j].a[0], log[j].a[1], log[j].a[2], log[j].a[3]);
-			fprintf(f, "a4 %08x a5 %08x a6 %08x a7 %08x\n", log[j].a[4], log[j].a[5], log[j].a[6], log[j].a[7]);
-		}
-#else
-		fprintf(f, " | ");
-#endif
-
-	}
-	fclose(f);
-}
-#endif
-
 
 #define COUNT_INSTRS 0
 
@@ -187,9 +110,9 @@ static __inline__ unsigned int cft_map (unsigned int f)
 #endif
 }
 
-void REGPARAM2 op_illg_1 (uae_u32 opcode) REGPARAM;
+static void REGPARAM2 op_illg_1 (uae_u32 opcode) REGPARAM;
 
-void REGPARAM2 op_illg_1 (uae_u32 opcode)
+static void REGPARAM2 op_illg_1 (uae_u32 opcode)
 {
     op_illg (cft_map (opcode));
 }
@@ -198,7 +121,7 @@ static void build_cpufunctbl (void)
 {
     int i;
     unsigned long opcode;
-	unsigned int cpu_level = 0;		// 68000 (default)
+	int cpu_level = 0;		// 68000 (default)
 	if (CPUType == 4)
 		cpu_level = 4;		// 68040 with FPU
 	else {
@@ -210,11 +133,11 @@ static void build_cpufunctbl (void)
 			cpu_level = 1;
 	}
     struct cputbl *tbl = (
-		  cpu_level == 4 ? op_smalltbl_0_ff
-		: cpu_level == 3 ? op_smalltbl_1_ff
-		: cpu_level == 2 ? op_smalltbl_2_ff
-		: cpu_level == 1 ? op_smalltbl_3_ff
-		: op_smalltbl_4_ff);
+		  cpu_level == 4 ? op_smalltbl_0
+		: cpu_level == 3 ? op_smalltbl_1
+		: cpu_level == 2 ? op_smalltbl_2
+		: cpu_level == 1 ? op_smalltbl_3
+		: op_smalltbl_4);
 
     for (opcode = 0; opcode < 65536; opcode++)
 	cpufunctbl[cft_map (opcode)] = op_illg_1;
@@ -254,6 +177,15 @@ void init_m68k (void)
 	movem_index2[i] = 7-j;
 	movem_next[i] = i & (~(1 << j));
     }
+    for (i = 0 ; i < 256 ; i++) {
+	int j;
+	for (j = 7 ; j >= 0 ; j--) {
+		if (i & (1 << j)) break;
+	}
+	fpp_movem_index1[i] = 7-j;
+	fpp_movem_index2[i] = j;
+	fpp_movem_next[i] = i & (~(1 << j));
+    }
 #if COUNT_INSTRS
     {
 	FILE *f = fopen (icountfilename (), "r");
@@ -274,19 +206,6 @@ void init_m68k (void)
     do_merges ();
 
     build_cpufunctbl ();
-	
-#if defined(ENABLE_EXCLUSIVE_SPCFLAGS) && !defined(HAVE_HARDWARE_LOCKS)
-	spcflags_lock = B2_create_mutex();
-#endif
-    fpu_init(CPUType == 4);
-}
-
-void exit_m68k (void)
-{
-	fpu_exit ();
-#if defined(ENABLE_EXCLUSIVE_SPCFLAGS) && !defined(HAVE_HARDWARE_LOCKS)
-	B2_delete_mutex(spcflags_lock);
-#endif
 }
 
 struct regstruct regs, lastint_regs;
@@ -295,15 +214,9 @@ static int backup_pointer = 0;
 static long int m68kpc_offset;
 int lastint_no;
 
-#if DIRECT_ADDRESSING
-#define get_ibyte_1(o) get_byte(get_virtual_address(regs.pc_p) + (o) + 1)
-#define get_iword_1(o) get_word(get_virtual_address(regs.pc_p) + (o))
-#define get_ilong_1(o) get_long(get_virtual_address(regs.pc_p) + (o))
-#else
 #define get_ibyte_1(o) get_byte(regs.pc + (regs.pc_p - regs.pc_oldp) + (o) + 1)
 #define get_iword_1(o) get_word(regs.pc + (regs.pc_p - regs.pc_oldp) + (o))
 #define get_ilong_1(o) get_long(regs.pc + (regs.pc_p - regs.pc_oldp) + (o))
-#endif
 
 uae_s32 ShowEA (int reg, amodes mode, wordsizes size, char *buf)
 {
@@ -722,18 +635,15 @@ void MakeFromSR (void)
 	}
     }
 
-    SPCFLAGS_SET( SPCFLAG_INT );
+    regs.spcflags |= SPCFLAG_INT;
     if (regs.t1 || regs.t0)
-		SPCFLAGS_SET( SPCFLAG_TRACE );
+	regs.spcflags |= SPCFLAG_TRACE;
     else
-   	/* Keep SPCFLAG_DOTRACE, we still want a trace exception for
-	   SR-modifying instructions (including STOP).  */
-		SPCFLAGS_CLEAR( SPCFLAG_TRACE );
+	regs.spcflags &= ~(SPCFLAG_TRACE | SPCFLAG_DOTRACE);
 }
 
 void Exception(int nr, uaecptr oldpc)
 {
-    uae_u32 currpc = m68k_getpc ();
     MakeSR();
     if (!regs.s) {
 	regs.usp = m68k_areg(regs, 7);
@@ -762,7 +672,7 @@ void Exception(int nr, uaecptr oldpc)
 	    m68k_areg(regs, 7) -= 2;
 	    put_word (m68k_areg(regs, 7), nr * 4);
 	    m68k_areg(regs, 7) -= 4;
-	    put_long (m68k_areg(regs, 7), currpc);
+	    put_long (m68k_areg(regs, 7), m68k_getpc ());
 	    m68k_areg(regs, 7) -= 2;
 	    put_word (m68k_areg(regs, 7), regs.sr);
 	    regs.sr |= (1 << 13);
@@ -788,15 +698,14 @@ void Exception(int nr, uaecptr oldpc)
 	}
     }
     m68k_areg(regs, 7) -= 4;
-    put_long (m68k_areg(regs, 7), currpc);
+    put_long (m68k_areg(regs, 7), m68k_getpc ());
 kludge_me_do:
     m68k_areg(regs, 7) -= 2;
     put_word (m68k_areg(regs, 7), regs.sr);
     m68k_setpc (get_long (regs.vbr + 4*nr));
-	SPCFLAGS_SET( SPCFLAG_JIT_END_COMPILE );
     fill_prefetch_0 ();
     regs.t1 = regs.t0 = regs.m = 0;
-	SPCFLAGS_CLEAR( SPCFLAG_TRACE | SPCFLAG_DOTRACE );
+    regs.spcflags &= ~(SPCFLAG_TRACE | SPCFLAG_DOTRACE);
 }
 
 static void Interrupt(int nr)
@@ -807,48 +716,20 @@ static void Interrupt(int nr)
     Exception(nr+24, 0);
 
     regs.intmask = nr;
-	SPCFLAGS_SET( SPCFLAG_INT );
+    regs.spcflags |= SPCFLAG_INT;
 }
 
-static int caar, cacr, tc, itt0, itt1, dtt0, dtt1, mmusr, urp, srp;
+static int caar, cacr, tc, itt0, itt1, dtt0, dtt1;
 
-static int movec_illg (int regno)
+void m68k_move2c (int regno, uae_u32 *regp)
 {
-	switch (CPUType) {
-	case 1:
-		if ((regno & 0x7ff) <= 1)
-			return 0;
-		break;
-	case 2:
-	case 3:
-		if ((regno & 0x7ff) <= 2)
-			return 0;
-		if (regno == 3 || regno == 4)
-			return 0;
-		break;
-	case 4:
-		if ((regno & 0x7ff) <= 7) {
-			if (regno != 0x802)
-				return 0;
-		}
-		break;
-	}
-	return 1;
-}
-
-int m68k_move2c (int regno, uae_u32 *regp)
-{
-  if (movec_illg (regno)) {
+    if (CPUType == 1 && (regno & 0x7FF) > 1)
 	op_illg (0x4E7B);
-	return 0;
-  } else {
+    else
 	switch (regno) {
 	 case 0: regs.sfc = *regp & 7; break;
 	 case 1: regs.dfc = *regp & 7; break;
-	 case 2:
-		cacr = *regp & (CPUType < 4 ? 0x3 : 0x80008000);
-
-	 break;
+	 case 2: cacr = *regp & 0x3; break;	/* ignore C and CE */
 	 case 3: tc = *regp & 0xc000; break;
 	 case 4: itt0 = *regp & 0xffffe364; break;
 	 case 5: itt1 = *regp & 0xffffe364; break;
@@ -859,24 +740,17 @@ int m68k_move2c (int regno, uae_u32 *regp)
 	 case 0x802: caar = *regp &0xfc; break;
 	 case 0x803: regs.msp = *regp; if (regs.m == 1) m68k_areg(regs, 7) = regs.msp; break;
 	 case 0x804: regs.isp = *regp; if (regs.m == 0) m68k_areg(regs, 7) = regs.isp; break;
-	case 0x805: mmusr = *regp; break;
-	case 0x806: urp = *regp; break;
-	case 0x807: srp = *regp; break;
 	 default:
 	    op_illg (0x4E7B);
-	    return 0;
+	    break;
 	}
-  }
-  return 1;
 }
 
-int m68k_movec2 (int regno, uae_u32 *regp)
+void m68k_movec2 (int regno, uae_u32 *regp)
 {
-    if (movec_illg (regno))
-    {
+    if (CPUType == 1 && (regno & 0x7FF) > 1)
 	op_illg (0x4E7A);
-	return 0;
-    } else {
+    else
 	switch (regno) {
 	 case 0: *regp = regs.sfc; break;
 	 case 1: *regp = regs.dfc; break;
@@ -891,15 +765,10 @@ int m68k_movec2 (int regno, uae_u32 *regp)
 	 case 0x802: *regp = caar; break;
 	 case 0x803: *regp = regs.m == 1 ? m68k_areg(regs, 7) : regs.msp; break;
 	 case 0x804: *regp = regs.m == 0 ? m68k_areg(regs, 7) : regs.isp; break;
-	case 0x805: *regp = mmusr; break;
-	case 0x806: *regp = urp; break;
-	case 0x807: *regp = srp; break;
 	 default:
 	    op_illg (0x4E7A);
-	    return 0;
+	    break;
 	}
-	}
-	return 1;
 }
 
 static __inline__ int
@@ -957,8 +826,8 @@ void m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra, uaecptr oldpc)
 	    SET_CFLG (0);
 	    SET_ZFLG (((uae_s32)quot) == 0);
 	    SET_NFLG (((uae_s32)quot) < 0);
-	    m68k_dreg(regs, extra & 7) = (uae_u32)rem;
-	    m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)quot;
+	    m68k_dreg(regs, extra & 7) = rem;
+	    m68k_dreg(regs, (extra >> 12) & 7) = quot;
 	}
     } else {
 	/* unsigned */
@@ -980,8 +849,8 @@ void m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra, uaecptr oldpc)
 	    SET_CFLG (0);
 	    SET_ZFLG (((uae_s32)quot) == 0);
 	    SET_NFLG (((uae_s32)quot) < 0);
-	    m68k_dreg(regs, extra & 7) = (uae_u32)rem;
-	    m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)quot;
+	    m68k_dreg(regs, extra & 7) = rem;
+	    m68k_dreg(regs, (extra >> 12) & 7) = quot;
 	}
     }
 #else
@@ -1157,16 +1026,12 @@ static char* ccnames[] =
 { "T ","F ","HI","LS","CC","CS","NE","EQ",
   "VC","VS","PL","MI","GE","LT","GT","LE" };
 
-// If value is greater than zero, this means we are still processing an EmulOp
-// because the counter is incremented only in m68k_execute(), i.e. interpretive
-// execution only
-static int m68k_execute_depth = 0;
-
 void m68k_reset (void)
 {
     m68k_areg (regs, 7) = 0x2000;
     m68k_setpc (ROMBaseMac + 0x2a);
     fill_prefetch_0 ();
+    regs.kick_mask = 0xF80000;
     regs.s = 1;
     regs.m = 0;
     regs.stopped = 0;
@@ -1177,29 +1042,29 @@ void m68k_reset (void)
     SET_CFLG (0);
     SET_VFLG (0);
     SET_NFLG (0);
-	SPCFLAGS_INIT( 0 );
+    regs.spcflags = 0;
     regs.intmask = 7;
     regs.vbr = regs.sfc = regs.dfc = 0;
-    fpu_reset();
-	
-#if FLIGHT_RECORDER
-	log_ptr = 0;
-	memset(log, 0, sizeof(log));
-#endif
-
+    regs.fpcr = regs.fpsr = regs.fpiar = 0;
 }
 
-void m68k_emulop_return(void)
+void REGPARAM2 op_illg (uae_u32 opcode)
 {
-	SPCFLAGS_SET( SPCFLAG_BRK );
-	quit_program = true;
-}
+    uaecptr pc = m68k_getpc ();
 
-void m68k_emulop(uae_u32 opcode)
-{
+
+	if ((opcode & 0xFF00) == 0x7100) {
 		struct M68kRegisters r;
 		int i;
 
+		// Return from Execute68k()?
+		if (opcode == M68K_EXEC_RETURN) {
+			regs.spcflags |= SPCFLAG_BRK;
+			quit_program = 1;
+			return;
+		}
+
+		// Call EMUL_OP opcode
 		for (i=0; i<8; i++) {
 			r.d[i] = m68k_dreg(regs, i);
 			r.a[i] = m68k_areg(regs, i);
@@ -1213,16 +1078,17 @@ void m68k_emulop(uae_u32 opcode)
 		}
 		regs.sr = r.sr;
 		MakeFromSR();
-}
-
-void REGPARAM2 op_illg (uae_u32 opcode)
-{
-	uaecptr pc = m68k_getpc ();
+		m68k_incpc(2);
+		fill_prefetch_0 ();
+		return;
+	}
 
     if ((opcode & 0xF000) == 0xA000) {
 	Exception(0xA,0);
 	return;
     }
+
+//    write_log ("Illegal instruction: %04x at %08lx\n", opcode, pc);
 
     if ((opcode & 0xF000) == 0xF000) {
 	Exception(0xB,0);
@@ -1232,18 +1098,16 @@ void REGPARAM2 op_illg (uae_u32 opcode)
     write_log ("Illegal instruction: %04x at %08lx\n", opcode, pc);
 
     Exception (4,0);
-	return;
 }
 
 void mmu_op(uae_u32 opcode, uae_u16 extra)
 {
-    if ((opcode & 0xFE0) == 0x0500) {
-		/* PFLUSH */
-		mmusr = 0;
-	} else if ((opcode & 0x0FD8) == 0x548) {
-		/* PTEST */
+    if ((extra & 0xB000) == 0) { /* PMOVE instruction */
+
+    } else if ((extra & 0xF000) == 0x2000) { /* PLOAD instruction */
+    } else if ((extra & 0xF000) == 0x8000) { /* PTEST instruction */
     } else
-		op_illg (opcode);
+	op_illg (opcode);
 }
 
 static int n_insns = 0, n_spcinsns = 0;
@@ -1252,14 +1116,14 @@ static uaecptr last_trace_ad = 0;
 
 static void do_trace (void)
 {
-    if (regs.t0 && CPUType >= 2) {
+    if (regs.t0) {
        uae_u16 opcode;
        /* should also include TRAP, CHK, SR modification FPcc */
        /* probably never used so why bother */
        /* We can afford this to be inefficient... */
        m68k_setpc (m68k_getpc ());
        fill_prefetch_0 ();
-       opcode = get_word(m68k_getpc());
+       opcode = get_word (regs.pc);
        if (opcode == 0x4e72            /* RTE */
            || opcode == 0x4e74                 /* RTD */
            || opcode == 0x4e75                 /* RTS */
@@ -1275,80 +1139,97 @@ static void do_trace (void)
                && (uae_s16)m68k_dreg(regs, opcode & 7) != 0))
       {
  	    last_trace_ad = m68k_getpc ();
-		SPCFLAGS_CLEAR( SPCFLAG_TRACE );
-		SPCFLAGS_SET( SPCFLAG_DOTRACE );
+	    regs.spcflags &= ~SPCFLAG_TRACE;
+	    regs.spcflags |= SPCFLAG_DOTRACE;
 	}
     } else if (regs.t1) {
        last_trace_ad = m68k_getpc ();
-       SPCFLAGS_CLEAR( SPCFLAG_TRACE );
-       SPCFLAGS_SET( SPCFLAG_DOTRACE );
+       regs.spcflags &= ~SPCFLAG_TRACE;
+       regs.spcflags |= SPCFLAG_DOTRACE;
     }
 }
 
-int m68k_do_specialties (void)
-{
 
-    if (SPCFLAGS_TEST( SPCFLAG_DOTRACE )) {
+static int do_specialties (void)
+{
+    /*n_spcinsns++;*/
+    if (regs.spcflags & SPCFLAG_DOTRACE) {
 	Exception (9,last_trace_ad);
     }
-    while (SPCFLAGS_TEST( SPCFLAG_STOP )) {
-	if (SPCFLAGS_TEST( SPCFLAG_INT | SPCFLAG_DOINT )){
-		SPCFLAGS_CLEAR( SPCFLAG_INT | SPCFLAG_DOINT );
+    while (regs.spcflags & SPCFLAG_STOP) {
+	if (regs.spcflags & (SPCFLAG_INT | SPCFLAG_DOINT)){
 	    int intr = intlev ();
+	    regs.spcflags &= ~(SPCFLAG_INT | SPCFLAG_DOINT);
 	    if (intr != -1 && intr > regs.intmask) {
 		Interrupt (intr);
 		regs.stopped = 0;
-		SPCFLAGS_CLEAR( SPCFLAG_STOP );
+		regs.spcflags &= ~SPCFLAG_STOP;
 	    }
 	}
     }
-    if (SPCFLAGS_TEST( SPCFLAG_TRACE ))
+    if (regs.spcflags & SPCFLAG_TRACE)
        do_trace ();
 
-    if (SPCFLAGS_TEST( SPCFLAG_DOINT )) {
-	SPCFLAGS_CLEAR( SPCFLAG_DOINT );
+    if (regs.spcflags & SPCFLAG_DOINT) {
 	int intr = intlev ();
+	regs.spcflags &= ~SPCFLAG_DOINT;
 	if (intr != -1 && intr > regs.intmask) {
 	    Interrupt (intr);
 	    regs.stopped = 0;
 	}
     }
-    if (SPCFLAGS_TEST( SPCFLAG_INT )) {
-	SPCFLAGS_CLEAR( SPCFLAG_INT );
-	SPCFLAGS_SET( SPCFLAG_DOINT );
+    if (regs.spcflags & SPCFLAG_INT) {
+	regs.spcflags &= ~SPCFLAG_INT;
+	regs.spcflags |= SPCFLAG_DOINT;
     }
-    if (SPCFLAGS_TEST( SPCFLAG_BRK )) {
-	SPCFLAGS_CLEAR( SPCFLAG_BRK );
+    if (regs.spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE)) {
+	regs.spcflags &= ~(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
 	return 1;
     }
     return 0;
 }
 
-void m68k_do_execute (void)
+static void m68k_run_1 (void)
 {
 	for (;;) {
 		uae_u32 opcode = GET_OPCODE;
-#if FLIGHT_RECORDER
-		m68k_record_step(m68k_getpc());
-#endif
 		(*cpufunctbl[opcode])(opcode);
-		cpu_check_ticks();
-		if (SPCFLAGS_TEST(SPCFLAG_ALL_BUT_EXEC_RETURN)) {
-			if (m68k_do_specialties())
+		if (regs.spcflags) {
+			if (do_specialties())
 				return;
 		}
 	}
 }
 
-void m68k_execute (void)
+#define m68k_run1 m68k_run_1
+
+int in_m68k_go = 0;
+
+void m68k_go (int may_quit)
 {
-
-    for (;;) {
-	  if (quit_program)
-		break;
-	  m68k_do_execute();
+// m68k_go() must be reentrant for Execute68k() and Execute68kTrap() to work
+/*
+    if (in_m68k_go || !may_quit) {
+	write_log("Bug! m68k_go is not reentrant.\n");
+	abort();
     }
-
+*/
+    in_m68k_go++;
+    for (;;) {
+	if (quit_program > 0) {
+	    if (quit_program == 1)
+		break;
+	    quit_program = 0;
+	    m68k_reset ();
+	}
+	m68k_run1();
+    }
+	if (debugging) {
+		uaecptr nextpc;
+		m68k_dumpstate(&nextpc);
+		exit(1);
+	}
+    in_m68k_go--;
 }
 
 static void m68k_verify (uaecptr addr, uaecptr *nextpc)
@@ -1457,10 +1338,16 @@ void m68k_dumpstate (uaecptr *nextpc)
     printf ("T=%d%d S=%d M=%d X=%d N=%d Z=%d V=%d C=%d IMASK=%d\n",
 	    regs.t1, regs.t0, regs.s, regs.m,
 	    GET_XFLG, GET_NFLG, GET_ZFLG, GET_VFLG, GET_CFLG, regs.intmask);
-	
-	fpu_dump_registers();
-	fpu_dump_flags();
-	
+    for (i = 0; i < 8; i++){
+	printf ("FP%d: %g ", i, regs.fp[i]);
+	if ((i & 3) == 3) printf ("\n");
+    }
+    printf ("N=%d Z=%d I=%d NAN=%d\n",
+		(regs.fpsr & 0x8000000) != 0,
+		(regs.fpsr & 0x4000000) != 0,
+		(regs.fpsr & 0x2000000) != 0,
+		(regs.fpsr & 0x1000000) != 0);
+
     m68k_disasm(m68k_getpc (), nextpc, 1);
     if (nextpc)
 	printf ("next PC: %08lx\n", *nextpc);

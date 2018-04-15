@@ -76,7 +76,7 @@ set(BasiliskII_SRCS
 	../uae_cpu/basilisk_glue.cpp
 	../uae_cpu/newcpu.cpp
 	../uae_cpu/readcpu.cpp
-	../uae_cpu/fpu/fpu_uae.cpp
+	# ../uae_cpu/fpp.cpp
 	cpustbl.cpp
 	cpudefs.cpp
 	cpuemu.cpp
@@ -87,7 +87,7 @@ set(BasiliskII_SRCS
 add_executable(BasiliskII ${BasiliskII_SRCS})
 
 set_source_files_properties(${BasiliskII_SRCS}
-	PROPERTIES COMPILE_FLAGS "-DDIRECT_ADDRESSING -DFPU_UAE -DDATADIR=\\\".\\\"")
+	PROPERTIES COMPILE_FLAGS "-DDIRECT_ADDRESSING -DDATADIR=\\\".\\\"")
 
 target_link_libraries(BasiliskII ${COREFOUNDATION_LIBRARY} ${IOKIT_LIBRARY} ${SDL_LIBRARY})
 

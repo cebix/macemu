@@ -1,7 +1,7 @@
 /*
  *  basilisk_glue.cpp - Glue UAE CPU to Basilisk II CPU engine interface
  *
- *  Basilisk II (C) 1997-2008 Christian Bauer
+ *  Basilisk II (C) 1997-1999 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,10 +19,8 @@
  */
 
 #include "sysdeps.h"
-
 #include "cpu_emulation.h"
 #include "main.h"
-#include "prefs.h"
 #include "emul_op.h"
 #include "rom_patches.h"
 #include "timer.h"
@@ -31,26 +29,27 @@
 #include "readcpu.h"
 #include "newcpu.h"
 
-
 // RAM and ROM pointers
-uint32 RAMBaseMac = 0;		// RAM base (Mac address space) gb-- initializer is important
+uint32 RAMBaseMac;			// RAM base (Mac address space)
 uint8 *RAMBaseHost;			// RAM base (host address space)
 uint32 RAMSize;				// Size of RAM
 uint32 ROMBaseMac;			// ROM base (Mac address space)
 uint8 *ROMBaseHost;			// ROM base (host address space)
 uint32 ROMSize;				// Size of ROM
 
+#if !REAL_ADDRESSING
 // Mac frame buffer
 uint8 *MacFrameBaseHost;	// Frame buffer base (host address space)
 uint32 MacFrameSize;		// Size of frame buffer
 int MacFrameLayout;			// Frame buffer layout
+#endif
 
 #if DIRECT_ADDRESSING
 uintptr MEMBaseDiff;		// Global offset between a Mac address and its Host equivalent
 #endif
 
 // From newcpu.cpp
-extern bool quit_program;
+extern int quit_program;
 
 
 /*
@@ -59,7 +58,7 @@ extern bool quit_program;
 
 bool Init680x0(void)
 {
-#if DIRECT_ADDRESSING
+#if REAL_ADDRESSING
 	// Mac address space = host address space minus constant offset (MEMBaseDiff)
 	// NOTE: MEMBaseDiff is set up in main_unix.cpp/main()
 	RAMBaseMac = 0;
@@ -67,7 +66,6 @@ bool Init680x0(void)
 #endif
 
 	init_m68k();
-
 	return true;
 }
 
@@ -78,19 +76,8 @@ bool Init680x0(void)
 
 void Exit680x0(void)
 {
-
-	exit_m68k();
 }
 
-
-/*
- *  Initialize memory mapping of frame buffer (called upon video mode change)
- */
-
-void InitFrameBufferMapping(void)
-{
-
-}
 
 /*
  *  Reset and start 680x0 emulation (doesn't return)
@@ -99,8 +86,7 @@ void InitFrameBufferMapping(void)
 void Start680x0(void)
 {
 	m68k_reset();
-
-	m68k_execute();
+	m68k_go(true);
 }
 
 
@@ -111,7 +97,7 @@ void Start680x0(void)
 void TriggerInterrupt(void)
 {
 	idle_resume();
-	SPCFLAGS_SET( SPCFLAG_INT );
+	regs.spcflags |= SPCFLAG_INT;
 }
 
 void TriggerNMI(void)
@@ -157,8 +143,8 @@ void Execute68kTrap(uint16 trap, struct M68kRegisters *r)
 	// Execute trap
 	m68k_setpc(m68k_areg(regs, 7));
 	fill_prefetch_0();
-	quit_program = false;
-	m68k_execute();
+	quit_program = 0;
+	m68k_go(true);
 
 	// Clean up stack
 	m68k_areg(regs, 7) += 4;
@@ -172,7 +158,7 @@ void Execute68kTrap(uint16 trap, struct M68kRegisters *r)
 		r->d[i] = m68k_dreg(regs, i);
 	for (i=0; i<7; i++)
 		r->a[i] = m68k_areg(regs, i);
-	quit_program = false;
+	quit_program = 0;
 }
 
 
@@ -204,8 +190,8 @@ void Execute68k(uint32 addr, struct M68kRegisters *r)
 	// Execute routine
 	m68k_setpc(addr);
 	fill_prefetch_0();
-	quit_program = false;
-	m68k_execute();
+	quit_program = 0;
+	m68k_go(true);
 
 	// Clean up stack
 	m68k_areg(regs, 7) += 2;
@@ -219,5 +205,5 @@ void Execute68k(uint32 addr, struct M68kRegisters *r)
 		r->d[i] = m68k_dreg(regs, i);
 	for (i=0; i<7; i++)
 		r->a[i] = m68k_areg(regs, i);
-	quit_program = false;
+	quit_program = 0;
 }

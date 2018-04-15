@@ -4,20 +4,6 @@
  * Read 68000 CPU specs from file "table68k" and build table68k.c
  *
  * Copyright 1995,1996 Bernd Schmidt
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <assert.h>
@@ -72,7 +58,15 @@ int main(int argc, char **argv)
     printf ("#include \"sysdeps.h\"\n");
     printf ("#include \"readcpu.h\"\n");
     printf ("struct instr_def defs68k[] = {\n");
+#if 0
+    tablef = fopen("table68k","r");
+    if (tablef == NULL) {
+	fprintf(stderr, "table68k not found\n");
+	exit(1);
+    }
+#else
     tablef = stdin;
+#endif
     getnextch();
     while (nextch != EOF) {
 	int cpulevel, plevel, sduse;
@@ -82,7 +76,6 @@ int main(int argc, char **argv)
 	char opcstr[256];
 	int bitpos[16];
 	int flagset[5], flaguse[5];
-	char cflow;
 
 	unsigned int bitmask,bitpattern;
 	int n_variable;
@@ -114,8 +107,6 @@ int main(int argc, char **argv)
 	     case 'r': currbit = bitr; break;
 	     case 'R': currbit = bitR; break;
 	     case 'z': currbit = bitz; break;
-		 case 'E': currbit = bitE; break;
-		 case 'p': currbit = bitp; break;
 	     default: abort();
 	    }
 	    if (!(bitmask & 1)) {
@@ -164,6 +155,7 @@ int main(int argc, char **argv)
 	    getnextch();
 	    switch(nextch){
 	     case '-': flagset[i] = fa_unset; break;
+	     case '/': flagset[i] = fa_isjmp; break;
 	     case '0': flagset[i] = fa_zero; break;
 	     case '1': flagset[i] = fa_one; break;
 	     case 'x': flagset[i] = fa_dontcare; break;
@@ -183,31 +175,13 @@ int main(int argc, char **argv)
 	    getnextch();
 	    switch(nextch){
 	     case '-': flaguse[i] = fu_unused; break;
+	     case '/': flaguse[i] = fu_isjmp; break;
+	     case '+': flaguse[i] = fu_maybecc; break;
 	     case '?': flaguse[i] = fu_unknown; break;
 	     default: flaguse[i] = fu_used; break;
 	    }
 	}
 
-	getnextch();
-	while (isspace(nextch))
-	    getnextch();
-
-	if (nextch != ':')                        /* Get control flow information */
-	    abort();
-	
-	cflow = 0;
-	for(i = 0; i < 2; i++) {
-		getnextch();
-		switch(nextch){
-		 case '-': break;
-		 case 'R': cflow |= fl_return; break;
-		 case 'B': cflow |= fl_branch; break;
-		 case 'J': cflow |= fl_jump; break;
-		 case 'T': cflow |= fl_trap; break;
-		 default: abort();
-		}
-	}
-	
 	getnextch();
 	while (isspace(nextch))
 	    getnextch();
@@ -259,10 +233,9 @@ int main(int argc, char **argv)
 	    for(i = 0; i < 5; i++) {
 		printf("{ %d, %d }%c ", flaguse[i], flagset[i], i == 4 ? ' ' : ',');
 	    }
-	    printf("}, %d, %d, \"%s\"}", cflow, sduse, opstrp);
+	    printf("}, %d, \"%s\"}", sduse, opstrp);
 	}
     }
     printf("};\nint n_defs68k = %d;\n", no_insns);
-    fflush(stdout);
     return 0;
 }
