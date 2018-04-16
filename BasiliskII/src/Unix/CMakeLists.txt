@@ -15,7 +15,7 @@ add_custom_command(OUTPUT cpudefs.cpp
 
 add_executable(gencpu ../uae_cpu/gencpu.c ../uae_cpu/readcpu.cpp cpudefs.cpp)
 
-add_custom_command(OUTPUT cpuemu.cpp cpustbl.cpp COMMAND gencpu DEPENDS gencpu)
+add_custom_command(OUTPUT cpuemu.cpp cpustbl.cpp cpufunctbl.cpp COMMAND gencpu DEPENDS gencpu)
 
 set(BasiliskII_SRCS 
 	../main.cpp
@@ -76,10 +76,11 @@ set(BasiliskII_SRCS
 	../uae_cpu/basilisk_glue.cpp
 	../uae_cpu/newcpu.cpp
 	../uae_cpu/readcpu.cpp
-	# ../uae_cpu/fpp.cpp
+	../uae_cpu/fpu/fpu_uae.cpp
 	cpustbl.cpp
 	cpudefs.cpp
 	cpuemu.cpp
+	cpufunctbl.cpp
 	#addressing mode =direct -DDIRECT_ADDRESSING
 	#includes 
 )
@@ -87,8 +88,10 @@ set(BasiliskII_SRCS
 add_executable(BasiliskII ${BasiliskII_SRCS})
 
 set_source_files_properties(${BasiliskII_SRCS}
-	PROPERTIES COMPILE_FLAGS "-DDIRECT_ADDRESSING -DDATADIR=\\\".\\\"")
+	PROPERTIES COMPILE_FLAGS "-DDIRECT_ADDRESSING -DFPU_UAE -DDATADIR=\\\".\\\"")
 
 target_link_libraries(BasiliskII ${COREFOUNDATION_LIBRARY} ${IOKIT_LIBRARY} ${SDL_LIBRARY})
+
+
 
 #keycodes -> ../SDL/keycodes

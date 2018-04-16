@@ -1,3 +1,4 @@
+/* 2002 MJ */
 /*
  * UAE - The Un*x Amiga Emulator
  *
@@ -6,13 +7,20 @@
  * Copyright 1995,1996 Bernd Schmidt
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-
 #include "sysdeps.h"
 #include "readcpu.h"
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cctype>
+
+using std::strncmp;
+using std::abort;
+using std::fprintf;
+using std::strcmp;
+using std::strlen;
+using std::malloc;
 
 int nr_cpuop_funcs;
 
@@ -139,13 +147,20 @@ struct mnemolookup lookuptab[] = {
     { i_CPUSHA, "CPUSHA" },
     { i_MOVE16, "MOVE16" },
 
+    { i_EMULOP_RETURN, "EMULOP_RETURN" },
+    { i_EMULOP, "EMULOP" },
+
     { i_MMUOP, "MMUOP" },
+
+    {i_NATFEAT_ID, "NATFEAT_ID" },
+    {i_NATFEAT_CALL, "NATFEAT_CALL" },
+
     { i_ILLG, "" },
 };
 
 struct instr *table68k;
 
-static __inline__ amodes mode_from_str (const char *str)
+static inline amodes mode_from_str (const char *str)
 {
     if (strncmp (str, "Dreg", 4) == 0) return Dreg;
     if (strncmp (str, "Areg", 4) == 0) return Areg;
@@ -163,7 +178,7 @@ static __inline__ amodes mode_from_str (const char *str)
     return (amodes)0;
 }
 
-static __inline__ amodes mode_from_mr (int mode, int reg)
+static inline amodes mode_from_mr (int mode, int reg)
 {
     switch (mode) {
      case 0: return Dreg;
@@ -195,11 +210,30 @@ static void build_insn (int insn)
     int variants;
     struct instr_def id;
     const char *opcstr;
-    int i;
+    int i, n;
 
     int flaglive = 0, flagdead = 0;
+    int cflow = 0;
 
     id = defs68k[insn];
+
+    // Control flow information
+    cflow = id.cflow;
+
+    // Mask of flags set/used
+    unsigned char flags_set(0), flags_used(0);
+
+    for (i = 0, n = 4; i < 5; i++, n--) {
+	switch (id.flaginfo[i].flagset) {
+	    case fa_unset: case fa_isjmp: break;
+	    default: flags_set |= (1 << n);
+	}
+
+	switch (id.flaginfo[i].flaguse) {
+	    case fu_unused: case fu_isjmp: break;
+	    default: flags_used |= (1 << n);
+	}
+    }
 
     for (i = 0; i < 5; i++) {
 	switch (id.flaginfo[i].flagset){
@@ -236,7 +270,7 @@ static void build_insn (int insn)
 	int pos = 0;
 	int mnp = 0;
 	int bitno = 0;
-	char mnemonic[10];
+	char mnemonic[64];
 
 	wordsizes sz = sz_long;
 	int srcgather = 0, dstgather = 0;
@@ -273,6 +307,9 @@ static void build_insn (int insn)
 	    continue;
 	if (bitcnt[bitI] && (bitval[bitI] == 0x00 || bitval[bitI] == 0xff))
 	    continue;
+
+	if (bitcnt[bitE] && (bitval[bitE] == 0x00))
+		continue;
 
 	/* bitI and bitC get copied to biti and bitc */
 	if (bitcnt[bitI]) {
@@ -311,6 +348,11 @@ static void build_insn (int insn)
 		    }
 		}
 		mnp++;
+		if ((unsigned)mnp >= (sizeof(mnemonic)-1)) {
+			mnemonic[sizeof(mnemonic)-1] = '\0';
+			fprintf(stderr, "WTF!!! Instruction '%s' overflow\n", mnemonic);
+			abort();
+		}
 	    }
 	    pos++;
 	}
@@ -339,6 +381,7 @@ static void build_insn (int insn)
 	 case 'A':
 	    srcmode = Areg;
 	    switch (opcstr[pos++]) {
+	     case 'l': srcmode = absl; break;
 	     case 'r': srcreg = bitval[bitr]; srcgather = 1; srcpos = bitpos[bitr]; break;
 	     case 'R': srcreg = bitval[bitR]; srcgather = 1; srcpos = bitpos[bitR]; break;
 	     default: abort();
@@ -348,6 +391,11 @@ static void build_insn (int insn)
 	     case 'P': srcmode = Aipi; pos++; break;
 	    }
 	    break;
+#if 0
+	case 'L':
+		srcmode = absl;
+		break;
+#endif
 	 case '#':
 	    switch (opcstr[pos++]) {
 	     case 'z': srcmode = imm; break;
@@ -391,6 +439,22 @@ static void build_insn (int insn)
 		    srcgather = 1;
 		    srctype = 5;
 		    srcpos = bitpos[bitK];
+		}
+		break;
+	     case 'E': srcmode = immi; srcreg = bitval[bitE];
+		if (CPU_EMU_SIZE < 5) { // gb-- what is CPU_EMU_SIZE used for ??
+			/* 1..255 */
+			srcgather = 1;
+			srctype = 6;
+			srcpos = bitpos[bitE];
+		}
+		break;
+	     case 'p': srcmode = immi; srcreg = bitval[bitp];
+		if (CPU_EMU_SIZE < 5) { // gb-- what is CPU_EMU_SIZE used for ??
+			/* 0..3 */
+			srcgather = 1;
+			srctype = 7;
+			srcpos = bitpos[bitp];
 		}
 		break;
 	     default: abort();
@@ -517,12 +581,16 @@ static void build_insn (int insn)
 	     case 'R': destreg = bitval[bitR]; dstgather = 1; dstpos = bitpos[bitR]; break;
 	     default: abort();
 	    }
+		if (dstpos < 0 || dstpos >= 32)
+			abort();
 	    break;
 	 case 'A':
 	    destmode = Areg;
 	    switch (opcstr[pos++]) {
+	     case 'l': destmode = absl; break;
 	     case 'r': destreg = bitval[bitr]; dstgather = 1; dstpos = bitpos[bitr]; break;
 	     case 'R': destreg = bitval[bitR]; dstgather = 1; dstpos = bitpos[bitR]; break;
+	     case 'x': destreg = 0; dstgather = 0; dstpos = 0; break;
 	     default: abort();
 	    }
 	    switch (opcstr[pos]) {
@@ -530,6 +598,11 @@ static void build_insn (int insn)
 	     case 'P': destmode = Aipi; pos++; break;
 	    }
 	    break;
+#if 0
+	case 'L':
+		destmode = absl;
+		break;
+#endif
 	 case '#':
 	    switch (opcstr[pos++]) {
 	     case 'z': destmode = imm; break;
@@ -700,8 +773,44 @@ static void build_insn (int insn)
 	    table68k[opc].flaginfo[i].flaguse = id.flaginfo[i].flaguse;
 	}
 #endif
+
+	// Fix flags used information for Scc, Bcc, TRAPcc, DBcc instructions
+	if	(	table68k[opc].mnemo == i_Scc
+		||	table68k[opc].mnemo == i_Bcc
+		||	table68k[opc].mnemo == i_DBcc
+		||	table68k[opc].mnemo == i_TRAPcc
+		)	{
+		switch (table68k[opc].cc) {
+		// CC mask:	XNZVC
+		// 			 8421
+		case 0: flags_used = 0x00; break;	/*  T */
+		case 1: flags_used = 0x00; break;	/*  F */
+		case 2: flags_used = 0x05; break;	/* HI */
+		case 3: flags_used = 0x05; break;	/* LS */
+		case 4: flags_used = 0x01; break;	/* CC */
+		case 5: flags_used = 0x01; break;	/* CS */
+		case 6: flags_used = 0x04; break;	/* NE */
+		case 7: flags_used = 0x04; break;	/* EQ */
+		case 8: flags_used = 0x02; break;	/* VC */
+		case 9: flags_used = 0x02; break;	/* VS */
+		case 10:flags_used = 0x08; break;	/* PL */
+		case 11:flags_used = 0x08; break;	/* MI */
+		case 12:flags_used = 0x0A; break;	/* GE */
+		case 13:flags_used = 0x0A; break;	/* LT */
+		case 14:flags_used = 0x0E; break;	/* GT */
+		case 15:flags_used = 0x0E; break;	/* LE */
+		}
+	}
+
+#if 1
+	/* gb-- flagdead and flaglive would not have correct information */
+	table68k[opc].flagdead = flags_set;
+	table68k[opc].flaglive = flags_used;
+#else
 	table68k[opc].flagdead = flagdead;
 	table68k[opc].flaglive = flaglive;
+#endif
+	table68k[opc].cflow = cflow;
 	nomatch:
 	/* FOO! */;
     }
@@ -722,7 +831,7 @@ void read_table68k (void)
     }
 }
 
-static int mismatch;
+static int readcpu_mismatch;
 
 static void handle_merges (long int opcode)
 {
@@ -747,6 +856,10 @@ static void handle_merges (long int opcode)
 	    smsk = 7; sbitdst = 8; break;
 	 case 5:
 	    smsk = 63; sbitdst = 64; break;
+	 case 6:
+	    smsk = 255; sbitdst = 256; break;
+	 case 7:
+	    smsk = 3; sbitdst = 4; break;
 	 default:
 	    smsk = 0; sbitdst = 0;
 	    abort();
@@ -775,20 +888,20 @@ static void handle_merges (long int opcode)
 		|| table68k[code].suse != table68k[opcode].suse
 		|| table68k[code].duse != table68k[opcode].duse)
 	    {
-		mismatch++; continue;
+		readcpu_mismatch++; continue;
 	    }
 	    if (table68k[opcode].suse
 		&& (table68k[opcode].spos != table68k[code].spos
 		    || table68k[opcode].smode != table68k[code].smode
 		    || table68k[opcode].stype != table68k[code].stype))
 	    {
-		mismatch++; continue;
+		readcpu_mismatch++; continue;
 	    }
 	    if (table68k[opcode].duse
 		&& (table68k[opcode].dpos != table68k[code].dpos
 		    || table68k[opcode].dmode != table68k[code].dmode))
 	    {
-		mismatch++; continue;
+		readcpu_mismatch++; continue;
 	    }
 
 	    if (code != opcode)
@@ -801,7 +914,7 @@ void do_merges (void)
 {
     long int opcode;
     int nr = 0;
-    mismatch = 0;
+    readcpu_mismatch = 0;
     for (opcode = 0; opcode < 65536; opcode++) {
 	if (table68k[opcode].handler != -1 || table68k[opcode].mnemo == i_ILLG)
 	    continue;
@@ -813,5 +926,5 @@ void do_merges (void)
 
 int get_no_mismatches (void)
 {
-    return mismatch;
+    return readcpu_mismatch;
 }

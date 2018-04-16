@@ -80,7 +80,13 @@ extern bool Init680x0(void);	// This routine may want to look at CPUType/FPUType
 extern void Exit680x0(void);
 
 // 680x0 emulation functions
-struct M68kRegisters;
+struct M68kRegisters {
+	uint32 d[8];
+	memptr a[8];
+	uint16 sr;
+	memptr usp, isp, msp;
+	memptr pc;
+};
 extern void Start680x0(void);									// Reset and start 680x0
 extern "C" void Execute68k(uint32 addr, M68kRegisters *r);		// Execute 68k code from EMUL_OP routine
 extern "C" void Execute68kTrap(uint16 trap, M68kRegisters *r);	// Execute MacOS 68k trap from EMUL_OP routine
@@ -88,5 +94,13 @@ extern "C" void Execute68kTrap(uint16 trap, M68kRegisters *r);	// Execute MacOS 
 // Interrupt functions
 extern void TriggerInterrupt(void);								// Trigger interrupt level 1 (InterruptFlag must be set first)
 extern void TriggerNMI(void);									// Trigger interrupt level 7
+
+// CPU looping handlers
+void check_eps_limit(uaecptr);
+void report_double_bus_error(void);
+
+extern int intlev(void);
+
+static inline void AtariReset(void) {}
 
 #endif

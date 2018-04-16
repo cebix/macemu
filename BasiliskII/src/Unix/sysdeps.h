@@ -712,6 +712,17 @@ static inline uae_u32 do_byteswap_16(uae_u32 v)
 #endif
 #define REGPARAM2
 
+
+#if __GNUC__ < 3
+# define __builtin_expect(foo,bar) (foo)
+#endif
+#define likely(x) __builtin_expect(!!(x), 1)
+#define unlikely(x)  __builtin_expect(!!(x), 0)
+#define ALWAYS_INLINE   inline __attribute__((always_inline))
+
+#define memptr uint32
+
+
 #endif /* NEED_CONFIG_H_ONLY */
 
 #endif

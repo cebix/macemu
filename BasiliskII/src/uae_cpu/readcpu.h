@@ -1,13 +1,17 @@
+/* 2002 MJ */
+#ifndef READCPU_H
+#define READCPU_H
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-ENUMDECL {
+typedef enum {
   Dreg, Areg, Aind, Aipi, Apdi, Ad16, Ad8r,
   absw, absl, PC16, PC8r, imm, imm0, imm1, imm2, immi, am_unknown, am_illg
-} ENUMNAME (amodes);
+} amodes;
 
-ENUMDECL {
+typedef enum {
     i_ILLG,
 
     i_OR, i_AND, i_EOR, i_ORSR, i_ANDSR, i_EORSR,
@@ -32,30 +36,42 @@ ENUMDECL {
     i_PACK, i_UNPK, i_TAS, i_BKPT, i_CALLM, i_RTM, i_TRAPcc, i_MOVES,
     i_FPP, i_FDBcc, i_FScc, i_FTRAPcc, i_FBcc, i_FSAVE, i_FRESTORE,
     i_CINVL, i_CINVP, i_CINVA, i_CPUSHL, i_CPUSHP, i_CPUSHA, i_MOVE16,
-    i_MMUOP
-} ENUMNAME (instrmnem);
+    i_MMUOP, i_EMULOP_RETURN, i_EMULOP, i_NATFEAT_ID, i_NATFEAT_CALL
+} instrmnem;
 
 extern struct mnemolookup {
     instrmnem mnemo;
     const char *name;
 } lookuptab[];
 
-ENUMDECL {
+typedef enum {
     sz_byte, sz_word, sz_long
-} ENUMNAME (wordsizes);
+} wordsizes;
 
-ENUMDECL {
-    fa_set, fa_unset, fa_zero, fa_one, fa_dontcare, fa_unknown, fa_isjmp
-} ENUMNAME (flagaffect);
+typedef enum {
+    fa_set, fa_unset, fa_zero, fa_one, fa_dontcare, fa_unknown, fa_isjmp,
+    fa_isbranch
+} flagaffect;
 
-ENUMDECL {
+typedef enum {
     fu_used, fu_unused, fu_maybecc, fu_unknown, fu_isjmp
-} ENUMNAME (flaguse);
+} flaguse;
 
-ENUMDECL {
+typedef enum {
+    fl_normal		= 0,
+    fl_branch		= 1,
+    fl_jump		= 2,
+    fl_return		= 3,
+    fl_trap		= 4,
+    fl_const_jump	= 8,
+    /* Instructions that can trap don't mark the end of a block */
+    fl_end_block	= 3
+} cflow_t;
+
+typedef enum {
     bit0, bit1, bitc, bitC, bitf, biti, bitI, bitj, bitJ, bitk, bitK,
-    bits, bitS, bitd, bitD, bitr, bitR, bitz, lastbit
-} ENUMNAME (bitvals);
+    bits, bitS, bitd, bitD, bitr, bitR, bitz, bitE, bitp, lastbit
+} bitvals;
 
 struct instr_def {
     unsigned int bits;
@@ -68,6 +84,7 @@ struct instr_def {
 	unsigned int flaguse:3;
 	unsigned int flagset:3;
     } flaginfo[5];
+    unsigned char cflow;
     unsigned char sduse;
     const char *opcstr;
 };
@@ -86,22 +103,16 @@ extern struct instr {
     unsigned int mnemo:8;
     unsigned int cc:4;
     unsigned int plev:2;
-#ifdef sgi
     wordsizes size:2;
     amodes smode:5;
     unsigned int stype:3;
     amodes dmode:5;
-#else
-    unsigned int size:2;
-    unsigned int smode:5;
-    unsigned int stype:3;
-    unsigned int dmode:5;
-#endif
     unsigned int suse:1;
     unsigned int duse:1;
     unsigned int unused1:1;
     unsigned int clev:3;
-    unsigned int unused2:5;
+    unsigned int cflow:3;
+    unsigned int unused2:2;
 } *table68k;
 
 extern void read_table68k (void);
@@ -111,4 +122,6 @@ extern int nr_cpuop_funcs;
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

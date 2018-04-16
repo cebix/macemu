@@ -199,9 +199,8 @@ static void sigsegv_dump_state(sigsegv_info_t *sip)
 		fprintf(stderr, " [IP=%p]", fault_instruction);
 	fprintf(stderr, "\n");
 #if EMULATED_68K
-	uaecptr nextpc;
-	extern void m68k_dumpstate(uaecptr *nextpc);
-	m68k_dumpstate(&nextpc);
+	extern void m68k_dumpstate (FILE *, uaecptr *);
+	m68k_dumpstate(stderr, 0);
 #endif
 
 	VideoQuitFullScreen();
