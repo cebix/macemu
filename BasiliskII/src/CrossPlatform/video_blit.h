@@ -36,25 +36,7 @@ extern void (*Screen_blit)(uint8 * dest, const uint8 * source, uint32 length);
 extern bool Screen_blitter_init(VisualFormat const & visual_format, bool native_byte_order, int mac_depth);
 extern uint32 ExpandMap[256];
 
-// Glue for SheepShaver and BasiliskII
-#ifdef SHEEPSHAVER
-enum {
-  VIDEO_DEPTH_1BIT = APPLE_1_BIT,
-  VIDEO_DEPTH_2BIT = APPLE_2_BIT,
-  VIDEO_DEPTH_4BIT = APPLE_4_BIT,
-  VIDEO_DEPTH_8BIT = APPLE_8_BIT,
-  VIDEO_DEPTH_16BIT = APPLE_16_BIT,
-  VIDEO_DEPTH_32BIT = APPLE_32_BIT
-};
-#define VIDEO_MODE				VideoInfo
-#define VIDEO_MODE_INIT			VideoInfo const & mode = VModes[cur_mode]
-#define VIDEO_MODE_INIT_MONITOR	VIDEO_MODE_INIT
-#define VIDEO_MODE_ROW_BYTES	mode.viRowBytes
-#define VIDEO_MODE_X			mode.viXsize
-#define VIDEO_MODE_Y			mode.viYsize
-#define VIDEO_MODE_RESOLUTION	mode.viAppleID
-#define VIDEO_MODE_DEPTH		mode.viAppleMode
-#else
+// Glue for BasiliskII
 enum {
   VIDEO_DEPTH_1BIT = VDEPTH_1BIT,
   VIDEO_DEPTH_2BIT = VDEPTH_2BIT,
@@ -71,7 +53,6 @@ enum {
 #define VIDEO_MODE_Y			mode.y
 #define VIDEO_MODE_RESOLUTION	mode.resolution_id
 #define VIDEO_MODE_DEPTH		mode.depth
-#endif
 
 #endif /* VIDEO_BLIT_H */
 

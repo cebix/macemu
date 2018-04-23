@@ -50,7 +50,7 @@
  */
 
 #define CC_FOR_BUILD 1
-#include "sysconfig.h"
+// #include "sysconfig.h"
 
 #include "sysdeps.h"
 #include "readcpu.h"

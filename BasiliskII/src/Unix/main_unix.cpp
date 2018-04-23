@@ -57,6 +57,10 @@ using std::string;
 #include "sigsegv.h"
 #include "rpc.h"
 
+#if USE_JIT
+extern void flush_icache_range(uint8 *start, uint32 size); // from compemu_support.cpp
+#endif
+
 
 #define DEBUG 0
 #include "debug.h"
@@ -166,12 +170,6 @@ static int vm_acquire_mac_fixed(void *addr, size_t size)
 static sigsegv_return_t sigsegv_handler(sigsegv_info_t *sip)
 {
 	const uintptr fault_address = (uintptr)sigsegv_get_fault_address(sip);
-#if ENABLE_VOSF
-	// Handle screen fault
-	extern bool Screen_fault_handler(sigsegv_info_t *sip);
-	if (Screen_fault_handler(sip))
-		return SIGSEGV_RETURN_SUCCESS;
-#endif
 
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 	// Ignore writes to ROM
@@ -199,10 +197,13 @@ static void sigsegv_dump_state(sigsegv_info_t *sip)
 		fprintf(stderr, " [IP=%p]", fault_instruction);
 	fprintf(stderr, "\n");
 #if EMULATED_68K
-	extern void m68k_dumpstate (FILE *, uaecptr *);
-	m68k_dumpstate(stderr, 0);
+	extern void m68k_dumpstate (uaecptr *);
+	m68k_dumpstate(0);
 #endif
-
+#if USE_JIT && JIT_DEBUG
+	extern void compiler_dumpstate(void);
+	compiler_dumpstate();
+#endif
 	VideoQuitFullScreen();
 
 	QuitEmulator();
@@ -652,7 +653,10 @@ void QuitEmulator(void)
 
 void FlushCodeCache(void *start, uint32 size)
 {
-
+#if USE_JIT
+    if (UseJIT)
+		flush_icache_range((uint8 *)start, size);
+#endif
 }
 
 

@@ -1,33 +1,28 @@
 /*
- * fpu/mathlib.h - Floating-point math support library
+ *  fpu/mathlib.h - Floating-point math support library
  *
- * Copyright (c) 2001-2004 Milan Jurik of ARAnyM dev team (see AUTHORS)
- * 
- * Inspired by Christian Bauer's Basilisk II
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
- * This file is part of the ARAnyM project which builds a new and powerful
- * TOS/FreeMiNT compatible virtual machine running on almost any hardware.
+ *  MC68881/68040 fpu emulation
+ *  
+ *  Original UAE FPU, copyright 1996 Herman ten Brugge
+ *  Rewrite for x86, copyright 1999-2001 Lauri Pesonen
+ *  New framework, copyright 2000-2001 Gwenole Beauchesne
+ *  Adapted for JIT compilation (c) Bernd Meyer, 2000-2001
+ *  
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- * MC68881/68040 fpu emulation
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
  *
- * Original UAE FPU, copyright 1996 Herman ten Brugge
- * Rewrite for x86, copyright 1999-2001 Lauri Pesonen
- * New framework, copyright 2000-2001 Gwenole Beauchesne
- * Adapted for JIT compilation (c) Bernd Meyer, 2000-2001
- *
- * ARAnyM is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * ARAnyM is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with ARAnyM; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef FPU_MATHLIB_H
@@ -56,16 +51,20 @@
 
 // NOTE: this is irrelevant on Win32 platforms since the MS libraries
 // don't support extended-precision floating-point computations
-#ifdef WIN32
+#if defined(WIN32) && USE_LONG_DOUBLE
 #undef FPU_USE_ISO_C99
 #endif
 
 // Use faster implementation of math functions, but this could cause
 // some incorrect results (?)
-// TODO: actually implement the slower but safer versions
+#ifdef _MSC_VER
+// MSVC uses intrinsics for all of the math functions, so it should still be fast
+#define FPU_FAST_MATH 0
+#else
 #define FPU_FAST_MATH 1
+#endif
 
-#if defined(FPU_USE_ISO_C99)
+#if FPU_USE_ISO_C99
 // NOTE: no prior <math.h> shall be included at this point
 #define __USE_ISOC99 1 // for glibc 2.2.X and newer
 #define __USE_ISOC9X 1 // for glibc 2.1.X
@@ -148,7 +147,7 @@ union fpu_double_shape {
 		unsigned int mantissa0:20;
 		unsigned int mantissa1:32;
 #else
-#	if defined(HOST_FLOAT_WORDS_BIG_ENDIAN) && HOST_FLOAT_WORDS_BIG_ENDIAN
+#	if HOST_FLOAT_WORDS_BIG_ENDIAN
 		unsigned int mantissa0:20;
 		unsigned int exponent:11;
 		unsigned int negative:1;
@@ -173,7 +172,7 @@ union fpu_double_shape {
 		unsigned int mantissa0:19;
 		unsigned int mantissa1:32;
 #else
-#	if defined(HOST_FLOAT_WORDS_BIG_ENDIAN) && HOST_FLOAT_WORDS_BIG_ENDIAN
+#	if HOST_FLOAT_WORDS_BIG_ENDIAN
 		unsigned int mantissa0:19;
 		unsigned int quiet_nan:1;
 		unsigned int exponent:11;
@@ -192,7 +191,7 @@ union fpu_double_shape {
 
 	/* This format is used to extract the sign_exponent and mantissa parts only */
 	struct {
-#if defined(HOST_FLOAT_WORDS_BIG_ENDIAN) && HOST_FLOAT_WORDS_BIG_ENDIAN
+#if HOST_FLOAT_WORDS_BIG_ENDIAN
 		unsigned int msw:32;
 		unsigned int lsw:32;
 #else
@@ -216,7 +215,7 @@ union fpu_extended_shape {
 		unsigned int mantissa0:32;
 		unsigned int mantissa1:32;
 #else
-#	if defined(HOST_FLOAT_WORDS_BIG_ENDIAN) && HOST_FLOAT_WORDS_BIG_ENDIAN
+#	if HOST_FLOAT_WORDS_BIG_ENDIAN
 		unsigned int exponent:15;
 		unsigned int negative:1;
 		unsigned int empty:16;
@@ -243,7 +242,7 @@ union fpu_extended_shape {
 		unsigned int mantissa0:30;
 		unsigned int mantissa1:32;
 #else
-#	if defined(HOST_FLOAT_WORDS_BIG_ENDIAN) && HOST_FLOAT_WORDS_BIG_ENDIAN
+#	if HOST_FLOAT_WORDS_BIG_ENDIAN
 		unsigned int exponent:15;
 		unsigned int negative:1;
 		unsigned int empty:16;
@@ -265,7 +264,7 @@ union fpu_extended_shape {
 	
 	/* This format is used to extract the sign_exponent and mantissa parts only */
 	struct {
-#if defined(HOST_FLOAT_WORDS_BIG_ENDIAN) && HOST_FLOAT_WORDS_BIG_ENDIAN
+#if HOST_FLOAT_WORDS_BIG_ENDIAN
 		unsigned int sign_exponent:16;
 		unsigned int empty:16;
 		unsigned int msw:32;
@@ -311,7 +310,7 @@ union fpu_extended_shape {
 		unsigned int exponent:15;
 		unsigned int quiet_nan:1;
 		unsigned int mantissa0:15;
-		unsigned int mantissa1:32;
+		unsigned int mantissa1:30;
 		unsigned int mantissa2:32;
 		unsigned int mantissa3:32;
 #else
@@ -326,7 +325,7 @@ union fpu_extended_shape {
 	} ieee_nan;
 
 	/* This format is used to extract the sign_exponent and mantissa parts only */
-#if defined(HOST_FLOAT_WORDS_BIG_ENDIAN) && HOST_FLOAT_WORDS_BIG_ENDIAN
+#if HOST_FLOAT_WORDS_BIG_ENDIAN
 	struct {
 		uae_u64 msw;
 		uae_u64 lsw;
@@ -352,9 +351,9 @@ union fpu_extended_shape {
 };
 #endif
 
-// Declare a shape of the requested FP type
-#define fp_declare_init_shape(psvar, ftype) \
-	fpu_ ## ftype ## _shape psvar
+// Declare and initialize a pointer to a shape of the requested FP type
+#define fp_declare_init_shape(psvar, rfvar, ftype) \
+	fpu_ ## ftype ## _shape * psvar = (fpu_ ## ftype ## _shape *)( &rfvar )
 
 /* -------------------------------------------------------------------------- */
 /* --- Extra Math Functions                                               --- */
@@ -371,51 +370,47 @@ union fpu_extended_shape {
 PRIVATE inline bool FFPU fp_do_isnan(fpu_register const & r)
 {
 #ifdef BRANCHES_ARE_EXPENSIVE
-#if !defined(USE_LONG_DOUBLE)
-	fp_declare_init_shape(sxp, double);
-	sxp.value = r;
-	uae_s32 hx = sxp.parts.msw;
-	uae_s32 lx = sxp.parts.lsw;
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sxp, r, double);
+	uae_s32 hx = sxp->parts.msw;
+	uae_s32 lx = sxp->parts.lsw;
 	hx &= 0x7fffffff;
 	hx |= (uae_u32)(lx | (-lx)) >> 31;
 	hx = 0x7ff00000 - hx;
-	return (int)(((uae_u32)hx) >> 31);
-#elif defined(USE_QUAD_DOUBLE)
-	fp_declare_init_shape(sxp, extended);
-	sxp.value = r;
-	uae_s64 hx = sxp.parts64.msw;
-	uae_s64 lx = sxp.parts64.lsw;
+	return (((uae_u32)hx) >> 31) != 0;
+#elif USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, r, extended);
+	uae_s64 hx = sxp->parts64.msw;
+	uae_s64 lx = sxp->parts64.lsw;
 	hx &= 0x7fffffffffffffffLL;
 	hx |= (uae_u64)(lx | (-lx)) >> 63;
 	hx = 0x7fff000000000000LL - hx;
-	return (int)((uae_u64)hx >> 63);
+	return ((uae_u64)hx >> 63) != 0;
 #else
-	fp_declare_init_shape(sxp, extended);
-	sxp.value = r;
-	uae_s32 se = sxp.parts.sign_exponent;
-	uae_s32 hx = sxp.parts.msw;
-	uae_s32 lx = sxp.parts.lsw;
+	fp_declare_init_shape(sxp, r, extended);
+	uae_s32 se = sxp->parts.sign_exponent;
+	uae_s32 hx = sxp->parts.msw;
+	uae_s32 lx = sxp->parts.lsw;
 	se = (se & 0x7fff) << 1;
 	lx |= hx & 0x7fffffff;
 	se |= (uae_u32)(lx | (-lx)) >> 31;
 	se = 0xfffe - se;
-	return (int)(((uae_u32)(se)) >> 31);
+	// TODO: check whether rshift count is 16 or 31
+	return (((uae_u32)(se)) >> 16) != 0;
 #endif
 #else
-#if defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE)
-	fp_declare_init_shape(sxp, extended);
-	sxp.value = r;
-	return	(sxp.ieee_nan.exponent == FP_EXTENDED_EXP_MAX)
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, r, extended);
+	return	(sxp->ieee_nan.exponent == FP_EXTENDED_EXP_MAX)
 #else
-	fp_declare_init_shape(sxp, double);
-	sxp.value = r;
-	return	(sxp.ieee_nan.exponent == FP_DOUBLE_EXP_MAX)
+	fp_declare_init_shape(sxp, r, double);
+	return	(sxp->ieee_nan.exponent == FP_DOUBLE_EXP_MAX)
 #endif
-		&&	(sxp.ieee_nan.mantissa0 != 0)
-		&&	(sxp.ieee_nan.mantissa1 != 0)
+		&&	(sxp->ieee_nan.mantissa0 != 0)
+		&&	(sxp->ieee_nan.mantissa1 != 0)
 #ifdef USE_QUAD_DOUBLE
-		&&	(sxp.ieee_nan.mantissa2 != 0)
-		&&	(sxp.ieee_nan.mantissa3 != 0)
+		&&	(sxp->ieee_nan.mantissa2 != 0)
+		&&	(sxp->ieee_nan.mantissa3 != 0)
 #endif
 		;
 #endif
@@ -431,55 +426,50 @@ PRIVATE inline bool FFPU fp_do_isnan(fpu_register const & r)
 PRIVATE inline bool FFPU fp_do_isinf(fpu_register const & r)
 {
 #ifdef BRANCHES_ARE_EXPENSIVE
-#if !defined(USE_LONG_DOUBLE)
-	fp_declare_init_shape(sxp, double);
-	sxp.value = r;
-	uae_s32 hx = sxp.parts.msw;
-	uae_s32 lx = sxp.parts.lsw;
+#ifndef USE_LONG_DOUBLE
+	fp_declare_init_shape(sxp, r, double);
+	uae_s32 hx = sxp->parts.msw;
+	uae_s32 lx = sxp->parts.lsw;
 	lx |= (hx & 0x7fffffff) ^ 0x7ff00000;
 	lx |= -lx;
-	return ~(lx >> 31) & (hx >> 30);
-#elif defined(USE_QUAD_DOUBLE)
-	fp_declare_init_shape(sxp, extended);
-	sxp.value = r;
-	uae_s64 hx = sxp.parts64.msw;
-	uae_s64 lx = sxp.parts64.lsw;
+	return (~(lx >> 31) & (hx >> 30)) != 0;
+#elif USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, r, extended);
+	uae_s64 hx = sxp->parts64.msw;
+	uae_s64 lx = sxp->parts64.lsw;
 	lx |= (hx & 0x7fffffffffffffffLL) ^ 0x7fff000000000000LL;
 	lx |= -lx;
-	return ~(lx >> 63) & (hx >> 62);
+	return (~(lx >> 63) & (hx >> 62)) != 0;
 #else
-	fp_declare_init_shape(sxp, extended);
-	sxp.value = r;
-	uae_s32 se = sxp.parts.sign_exponent;
-	uae_s32 hx = sxp.parts.msw;
-	uae_s32 lx = sxp.parts.lsw;
+	fp_declare_init_shape(sxp, r, extended);
+	uae_s32 se = sxp->parts.sign_exponent;
+	uae_s32 hx = sxp->parts.msw;
+	uae_s32 lx = sxp->parts.lsw;
 	/* This additional ^ 0x80000000 is necessary because in Intel's
 	   internal representation of the implicit one is explicit.
 	   NOTE: anyway, this is equivalent to & 0x7fffffff in that case.  */
-#ifdef CPU_i386
+#ifdef __i386__
 	lx |= (hx ^ 0x80000000) | ((se & 0x7fff) ^ 0x7fff);
 #else
 	lx |= (hx & 0x7fffffff) | ((se & 0x7fff) ^ 0x7fff);
 #endif
 	lx |= -lx;
 	se &= 0x8000;
-	return ~(lx >> 31) & (1 - (se >> 14));
+	return (~(lx >> 31) & (1 - (se >> 14))) != 0;
 #endif
 #else
-#if defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE)
-	fp_declare_init_shape(sxp, extended);
-	sxp.value = r;
-	return	(sxp.ieee_nan.exponent == FP_EXTENDED_EXP_MAX)
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, r, extended);
+	return	(sxp->ieee_nan.exponent == FP_EXTENDED_EXP_MAX)
 #else
-	fp_declare_init_shape(sxp, double);
-	sxp.value = r;
-	return	(sxp.ieee_nan.exponent == FP_DOUBLE_EXP_MAX)
+	fp_declare_init_shape(sxp, r, double);
+	return	(sxp->ieee_nan.exponent == FP_DOUBLE_EXP_MAX)
 #endif
-		&&	(sxp.ieee_nan.mantissa0 == 0)
-		&&	(sxp.ieee_nan.mantissa1 == 0)
+		&&	(sxp->ieee_nan.mantissa0 == 0)
+		&&	(sxp->ieee_nan.mantissa1 == 0)
 #ifdef USE_QUAD_DOUBLE
-		&&	(sxp.ieee_nan.mantissa2 == 0)
-		&&	(sxp.ieee_nan.mantissa3 == 0)
+		&&	(sxp->ieee_nan.mantissa2 == 0)
+		&&	(sxp->ieee_nan.mantissa3 == 0)
 #endif
 		;
 #endif
@@ -490,13 +480,12 @@ PRIVATE inline bool FFPU fp_do_isinf(fpu_register const & r)
 
 PRIVATE inline bool FFPU fp_do_isneg(fpu_register const & r)
 {
-#if defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE)
-	fp_declare_init_shape(sxp, extended);
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, r, extended);
 #else
-	fp_declare_init_shape(sxp, double);
+	fp_declare_init_shape(sxp, r, double);
 #endif
-	sxp.value = r;
-	return sxp.ieee.negative;
+	return sxp->ieee.negative;
 }
 
 #undef iszero
@@ -505,18 +494,17 @@ PRIVATE inline bool FFPU fp_do_isneg(fpu_register const & r)
 PRIVATE inline bool FFPU fp_do_iszero(fpu_register const & r)
 {
 	// TODO: BRANCHES_ARE_EXPENSIVE
-#if defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE)
-	fp_declare_init_shape(sxp, extended);
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, r, extended);
 #else
-	fp_declare_init_shape(sxp, double);
+	fp_declare_init_shape(sxp, r, double);
 #endif
-	sxp.value = r;
-	return	(sxp.ieee.exponent == 0)
-		&&	(sxp.ieee.mantissa0 == 0)
-		&&	(sxp.ieee.mantissa1 == 0)
+	return	(sxp->ieee.exponent == 0)
+		&&	(sxp->ieee.mantissa0 == 0)
+		&&	(sxp->ieee.mantissa1 == 0)
 #ifdef USE_QUAD_DOUBLE
-		&&	(sxp.ieee.mantissa2 == 0)
-		&&	(sxp.ieee.mantissa3 == 0)
+		&&	(sxp->ieee.mantissa2 == 0)
+		&&	(sxp->ieee.mantissa3 == 0)
 #endif
 		;
 }
@@ -541,21 +529,21 @@ PRIVATE inline void FFPU get_source_flags(fpu_register const & r)
 
 PRIVATE inline void FFPU make_nan(fpu_register & r)
 {
-#if defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE)
-	fp_declare_init_shape(sxp, extended);
-	sxp.ieee.exponent	= FP_EXTENDED_EXP_MAX;
-	sxp.ieee.mantissa0	= 0xffffffff;
+	// FIXME: is that correct ?
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, r, extended);
+	sxp->ieee.exponent	= FP_EXTENDED_EXP_MAX;
+	sxp->ieee.mantissa0	= 0xffffffff;
 #else
-	fp_declare_init_shape(sxp, double);
-	sxp.ieee.exponent	= FP_DOUBLE_EXP_MAX;
-	sxp.ieee.mantissa0	= 0xfffff;
+	fp_declare_init_shape(sxp, r, double);
+	sxp->ieee.exponent	= FP_DOUBLE_EXP_MAX;
+	sxp->ieee.mantissa0	= 0xfffff;
 #endif
-	sxp.ieee.mantissa1	= 0xffffffff;
+	sxp->ieee.mantissa1	= 0xffffffff;
 #ifdef USE_QUAD_DOUBLE
-	sxp.ieee.mantissa2	= 0xffffffff;
-	sxp.ieee.mantissa3	= 0xffffffff;
+	sxp->ieee.mantissa2	= 0xffffffff;
+	sxp->ieee.mantissa3	= 0xffffffff;
 #endif
-	r = sxp.value;
 }
 
 PRIVATE inline void FFPU make_zero_positive(fpu_register & r)
@@ -563,20 +551,19 @@ PRIVATE inline void FFPU make_zero_positive(fpu_register & r)
 #if 1
 	r = +0.0;
 #else
-#if defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE)
-	fp_declare_init_shape(sxp, extended);
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, r, extended);
 #else
-	fp_declare_init_shape(sxp, double);
+	fp_declare_init_shape(sxp, r, double);
 #endif
-	sxp.ieee.negative	= 0;
-	sxp.ieee.exponent	= 0;
-	sxp.ieee.mantissa0	= 0;
-	sxp.ieee.mantissa1	= 0;
+	sxp->ieee.negative	= 0;
+	sxp->ieee.exponent	= 0;
+	sxp->ieee.mantissa0	= 0;
+	sxp->ieee.mantissa1	= 0;
 #ifdef USE_QUAD_DOUBLE
-	sxp.ieee.mantissa2	= 0;
-	sxp.ieee.mantissa3	= 0;
+	sxp->ieee.mantissa2	= 0;
+	sxp->ieee.mantissa3	= 0;
 #endif
-	r = sxp.value;
 #endif
 }
 
@@ -585,110 +572,101 @@ PRIVATE inline void FFPU make_zero_negative(fpu_register & r)
 #if 1
 	r = -0.0;
 #else
-#if defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE)
-	fp_declare_init_shape(sxp, extended);
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, r, extended);
 #else
-	fp_declare_init_shape(sxp, double);
+	fp_declare_init_shape(sxp, r, double);
 #endif
-	sxp.ieee.negative	= 1;
-	sxp.ieee.exponent	= 0;
-	sxp.ieee.mantissa0	= 0;
-	sxp.ieee.mantissa1	= 0;
+	sxp->ieee.negative	= 1;
+	sxp->ieee.exponent	= 0;
+	sxp->ieee.mantissa0	= 0;
+	sxp->ieee.mantissa1	= 0;
 #ifdef USE_QUAD_DOUBLE
-	sxp.ieee.mantissa2	= 0;
-	sxp.ieee.mantissa3	= 0;
+	sxp->ieee.mantissa2	= 0;
+	sxp->ieee.mantissa3	= 0;
 #endif
-	r = sxp.value;
 #endif
 }
 
 PRIVATE inline void FFPU make_inf_positive(fpu_register & r)
 {
-#if defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE)
-	fp_declare_init_shape(sxp, extended);
-	sxp.ieee_nan.exponent	= FP_EXTENDED_EXP_MAX;
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, r, extended);
+	sxp->ieee_nan.exponent	= FP_EXTENDED_EXP_MAX;
 #else
-	fp_declare_init_shape(sxp, double);
-	sxp.ieee_nan.exponent	= FP_DOUBLE_EXP_MAX;
+	fp_declare_init_shape(sxp, r, double);
+	sxp->ieee_nan.exponent	= FP_DOUBLE_EXP_MAX;
 #endif
-	sxp.ieee_nan.negative	= 0;
-	sxp.ieee_nan.mantissa0	= 0;
-	sxp.ieee_nan.mantissa1	= 0;
+	sxp->ieee_nan.negative	= 0;
+	sxp->ieee_nan.mantissa0	= 0;
+	sxp->ieee_nan.mantissa1	= 0;
 #ifdef USE_QUAD_DOUBLE
-	sxp.ieee_nan.mantissa2 = 0;
-	sxp.ieee_nan.mantissa3 = 0;
+	sxp->ieee_nan.mantissa2 = 0;
+	sxp->ieee_nan.mantissa3 = 0;
 #endif
-	r = sxp.value;
 }
 
 PRIVATE inline void FFPU make_inf_negative(fpu_register & r)
 {
-#if defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE)
-	fp_declare_init_shape(sxp, extended);
-	sxp.ieee_nan.exponent	= FP_EXTENDED_EXP_MAX;
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, r, extended);
+	sxp->ieee_nan.exponent	= FP_EXTENDED_EXP_MAX;
 #else
-	fp_declare_init_shape(sxp, double);
-	sxp.ieee_nan.exponent	= FP_DOUBLE_EXP_MAX;
+	fp_declare_init_shape(sxp, r, double);
+	sxp->ieee_nan.exponent	= FP_DOUBLE_EXP_MAX;
 #endif
-	sxp.ieee_nan.negative	= 1;
-	sxp.ieee_nan.mantissa0	= 0;
-	sxp.ieee_nan.mantissa1	= 0;
+	sxp->ieee_nan.negative	= 1;
+	sxp->ieee_nan.mantissa0	= 0;
+	sxp->ieee_nan.mantissa1	= 0;
 #ifdef USE_QUAD_DOUBLE
-	sxp.ieee_nan.mantissa2 = 0;
-	sxp.ieee_nan.mantissa3 = 0;
+	sxp->ieee_nan.mantissa2 = 0;
+	sxp->ieee_nan.mantissa3 = 0;
 #endif
-	r = sxp.value;
 }
 
 PRIVATE inline fpu_register FFPU fast_fgetexp(fpu_register const & r)
 {
-#if defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE)
-	fp_declare_init_shape(sxp, extended);
-	sxp.value = r;
-	return ((int) sxp.ieee.exponent - FP_EXTENDED_EXP_BIAS);
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, r, extended);
+	return (sxp->ieee.exponent - FP_EXTENDED_EXP_BIAS);
 #else
-	fp_declare_init_shape(sxp, double);
-	sxp.value = r;
-	return ((int) sxp.ieee.exponent - FP_DOUBLE_EXP_BIAS);
+	fp_declare_init_shape(sxp, r, double);
+	return (sxp->ieee.exponent - FP_DOUBLE_EXP_BIAS);
 #endif
 }
 
 // Normalize to range 1..2
 PRIVATE inline void FFPU fast_remove_exponent(fpu_register & r)
 {
-#if defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE)
-	fp_declare_init_shape(sxp, extended);
-	sxp.value = r;
-	sxp.ieee.exponent = FP_EXTENDED_EXP_BIAS;
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, r, extended);
+	sxp->ieee.exponent = FP_EXTENDED_EXP_BIAS;
 #else
-	fp_declare_init_shape(sxp, double);
-	sxp.value = r;
-	sxp.ieee.exponent = FP_DOUBLE_EXP_BIAS;
+	fp_declare_init_shape(sxp, r, double);
+	sxp->ieee.exponent = FP_DOUBLE_EXP_BIAS;
 #endif
-	r = sxp.value;
 }
 
 // The sign of the quotient is the exclusive-OR of the sign bits
 // of the source and destination operands.
 PRIVATE inline uae_u32 FFPU get_quotient_sign(fpu_register const & ra, fpu_register const & rb)
 {
-#if defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE)
-	fp_declare_init_shape(sap, extended);
-	fp_declare_init_shape(sbp, extended);
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
+	fp_declare_init_shape(sap, ra, extended);
+	fp_declare_init_shape(sbp, rb, extended);
 #else
-	fp_declare_init_shape(sap, double);
-	fp_declare_init_shape(sbp, double);
+	fp_declare_init_shape(sap, ra, double);
+	fp_declare_init_shape(sbp, rb, double);
 #endif
-	sap.value = ra;
-	sbp.value = rb;
-	return ((sap.ieee.negative ^ sbp.ieee.negative) ? FPSR_QUOTIENT_SIGN : 0);
+	return ((sap->ieee.negative ^ sbp->ieee.negative) ? FPSR_QUOTIENT_SIGN : 0);
 }
 
 /* -------------------------------------------------------------------------- */
 /* --- Math functions                                                     --- */
 /* -------------------------------------------------------------------------- */
 
-#if defined(FPU_USE_ISO_C99) && (defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE))
+#if FPU_USE_ISO_C99
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
 # ifdef HAVE_LOGL
 #  define fp_log	logl
 # endif
@@ -812,14 +790,13 @@ PRIVATE inline uae_u32 FFPU get_quotient_sign(fpu_register const & ra, fpu_regis
 # define fp_ceil	ceil
 #endif
 
-#if defined(FPU_IEEE) && defined(USE_X87_ASSEMBLY)
+#elif defined(FPU_IEEE) && defined(USE_X87_ASSEMBLY)
 // Assembly optimized support functions. Taken from glibc 2.2.2
 
 #undef fp_log
 #define fp_log fp_do_log
 
-#ifndef FPU_FAST_MATH
-// FIXME: unimplemented
+#if !FPU_FAST_MATH
 PRIVATE fpu_extended fp_do_log(fpu_extended x);
 #else
 PRIVATE inline fpu_extended fp_do_log(fpu_extended x)
@@ -833,7 +810,7 @@ PRIVATE inline fpu_extended fp_do_log(fpu_extended x)
 #undef fp_log10
 #define fp_log10 fp_do_log10
 
-#ifndef FPU_FAST_MATH
+#if !FPU_FAST_MATH
 // FIXME: unimplemented
 PRIVATE fpu_extended fp_do_log10(fpu_extended x);
 #else
@@ -848,20 +825,13 @@ PRIVATE inline fpu_extended fp_do_log10(fpu_extended x)
 #undef fp_exp
 #define fp_exp fp_do_exp
 
-#ifndef FPU_FAST_MATH
+#if !FPU_FAST_MATH
 // FIXME: unimplemented
 PRIVATE fpu_extended fp_do_exp(fpu_extended x);
 #else
 PRIVATE inline fpu_extended fp_do_exp(fpu_extended x)
 {
 	fpu_extended value, exponent;
-	if (isinf(x))
-	{
-		if(isneg(x))
-			return 0.;
-		else
-			return x;
-	}
 	__asm__ __volatile__("fldl2e                    # e^x = 2^(x * log2(e))\n\t"
 				 "fmul      %%st(1)         # x * log2(e)\n\t"
 				 "fst       %%st(1)\n\t"
@@ -901,7 +871,6 @@ PRIVATE inline fpu_extended fp_do_sqrt(fpu_extended x)
 	return value;
 }
 
-#ifndef ACCURATE_SIN_COS_TAN
 #undef fp_sin
 #define fp_sin fp_do_sin
 
@@ -927,11 +896,10 @@ PRIVATE inline fpu_extended fp_do_cos(fpu_extended x)
 
 PRIVATE inline fpu_extended fp_do_tan(fpu_extended x)
 {
-	fpu_extended value, value2;
-	__asm__ __volatile__("fptan" : "=t" (value2), "=u" (value) : "0" (x));
+	fpu_extended value;
+	__asm__ __volatile__("fptan" : "=t" (value) : "0" (x));
 	return value;
 }
-#endif /* ACCURATE_SIN_COS_TAN */
 
 #undef fp_expm1
 #define fp_expm1 fp_do_expm1
@@ -939,14 +907,7 @@ PRIVATE inline fpu_extended fp_do_tan(fpu_extended x)
 // Returns: exp(X) - 1.0
 PRIVATE inline fpu_extended fp_do_expm1(fpu_extended x)
 {
-	fpu_extended value, exponent, temp, temp2;
-	if (isinf(x))
-	{
-		if(isneg(x))
-			return -1.;
-		else
-			return x;
-	}
+	fpu_extended value, exponent, temp;
 	__asm__ __volatile__("fldl2e                    # e^x - 1 = 2^(x * log2(e)) - 1\n\t"
 				 "fmul      %%st(1)         # x * log2(e)\n\t"
 				 "fst       %%st(1)\n\t"
@@ -956,9 +917,7 @@ PRIVATE inline fpu_extended fp_do_expm1(fpu_extended x)
 				 "f2xm1                     # 2^(fract(x * log2(e))) - 1\n\t"
 				 "fscale                    # 2^(x * log2(e)) - 2^(int(x * log2(e)))\n\t"
 				 : "=t" (value), "=u" (exponent) : "0" (x));
-	__asm__ __volatile__("fld1    \n\t"
-                         "fscale  \n\t"
-                         : "=t" (temp), "=u" (temp2) : "0" (exponent));
+	__asm__ __volatile__("fscale" : "=t" (temp) : "0" (1.0), "u" (exponent));
 	temp -= 1.0;
 	return temp + value ? temp + value : x;
 }
@@ -968,33 +927,29 @@ PRIVATE inline fpu_extended fp_do_expm1(fpu_extended x)
 
 PRIVATE inline fpu_extended fp_do_sgn1(fpu_extended x)
 {
-#if defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE)
-	fp_declare_init_shape(sxp, extended);
-	sxp.value = x;
-	sxp.ieee_nan.exponent	= FP_EXTENDED_EXP_MAX>>1;
-	sxp.ieee_nan.one		= 1;
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
+	fp_declare_init_shape(sxp, x, extended);
+	sxp->ieee_nan.exponent	= FP_EXTENDED_EXP_MAX;
+	sxp->ieee_nan.one		= 1;
 #else
-	fp_declare_init_shape(sxp, double);
-	sxp.value = x;
-	sxp.ieee_nan.exponent  = FP_DOUBLE_EXP_MAX>>1;
+	fp_declare_init_shape(sxp, x, double);
+	sxp->ieee_nan.exponent  = FP_DOUBLE_EXP_MAX;
 #endif
-	sxp.ieee_nan.quiet_nan	= 0;
-	sxp.ieee_nan.mantissa0	= 0;
-	sxp.ieee_nan.mantissa1	= 0;
-	x = sxp.value;
+	sxp->ieee_nan.quiet_nan	= 0;
+	sxp->ieee_nan.mantissa0	= 0;
+	sxp->ieee_nan.mantissa1	= 0;
 	return x;
 }
 
 #undef fp_sinh
 #define fp_sinh fp_do_sinh
 
-#ifndef FPU_FAST_MATH
+#if !FPU_FAST_MATH
 // FIXME: unimplemented
 PRIVATE fpu_extended fp_do_sinh(fpu_extended x);
 #else
 PRIVATE inline fpu_extended fp_do_sinh(fpu_extended x)
 {
-	if (isinf(x)) return x;
 	fpu_extended exm1 = fp_expm1(fp_fabs(x));
 	return 0.5 * (exm1 / (exm1 + 1.0) + exm1) * fp_sgn1(x);
 }
@@ -1003,7 +958,7 @@ PRIVATE inline fpu_extended fp_do_sinh(fpu_extended x)
 #undef fp_cosh
 #define fp_cosh fp_do_cosh
 
-#ifndef FPU_FAST_MATH
+#if !FPU_FAST_MATH
 // FIXME: unimplemented
 PRIVATE fpu_extended fp_do_cosh(fpu_extended x);
 #else
@@ -1017,7 +972,7 @@ PRIVATE inline fpu_extended fp_do_cosh(fpu_extended x)
 #undef fp_tanh
 #define fp_tanh fp_do_tanh
 
-#ifndef FPU_FAST_MATH
+#if !FPU_FAST_MATH
 // FIXME: unimplemented
 PRIVATE fpu_extended fp_do_tanh(fpu_extended x);
 #else
@@ -1096,46 +1051,48 @@ PRIVATE inline fpu_extended fp_do_atanh(fpu_extended x)
 	return -0.5 * fp_log1p(-(y + y) / (1.0 + y)) * fp_sgn1(x);
 }
 
+#undef fp_floor
+#define fp_floor fp_do_floor
 
-/*
- * LLVM 2.9 crashes on first definition,
- * clang with LLVM 3.x crashes on 2nd definition... sigh
- */
-#if defined(__clang__) || !defined(__llvm__)
-#define DEFINE_ROUND_FUNC(rounding_mode_str, rounding_mode)						\
-PRIVATE inline fpu_extended fp_do_round_to_ ## rounding_mode_str(fpu_extended __x)	\
-{ \
-	register long double __value; \
-	register int __ignore; \
-	volatile unsigned short __cw; \
-	volatile unsigned short __cwtmp; \
-	__asm __volatile ("fnstcw %3\n\t" \
-					  "movzwl %3, %1\n\t" \
-					  "andl $0xf3ff, %1\n\t" \
-					  "orl %5, %1\n\t" \
-					  "movw %w1, %2\n\t" \
-					  "fldcw %2\n\t" \
-					  "frndint\n\t" \
-					  "fldcw %3" \
-					  : "=t" (__value), "=&q" (__ignore), "=m" (__cwtmp), \
-					  "=m" (__cw) \
-					  : "0" (__x), "i"(rounding_mode)); \
-	return __value; \
+PRIVATE inline fpu_extended fp_do_floor(fpu_extended x)
+{
+	volatile unsigned int cw;
+	__asm__ __volatile__("fnstcw %0" : "=m" (cw));
+	volatile unsigned int cw_temp = (cw & 0xf3ff) | 0x0400; // rounding down
+	__asm__ __volatile__("fldcw %0" : : "m" (cw_temp));
+	fpu_extended value;
+	__asm__ __volatile__("frndint" : "=t" (value) : "0" (x));
+	__asm__ __volatile__("fldcw %0" : : "m" (cw));
+	return value;
 }
-#else
+
+#undef fp_ceil
+#define fp_ceil fp_do_ceil
+
+PRIVATE inline fpu_extended fp_do_ceil(fpu_extended x)
+{
+	volatile unsigned int cw;
+	__asm__ __volatile__("fnstcw %0" : "=m" (cw));
+	volatile unsigned int cw_temp = (cw & 0xf3ff) | 0x0800; // rounding up
+	__asm__ __volatile__("fldcw %0" : : "m" (cw_temp));
+	fpu_extended value;
+	__asm__ __volatile__("frndint" : "=t" (value) : "0" (x));
+	__asm__ __volatile__("fldcw %0" : : "m" (cw));
+	return value;
+}
+
 #define DEFINE_ROUND_FUNC(rounding_mode_str, rounding_mode)						\
 PRIVATE inline fpu_extended fp_do_round_to_ ## rounding_mode_str(fpu_extended x)	\
 {																				\
-	volatile unsigned short cw;													\
+	volatile unsigned int cw;													\
 	__asm__ __volatile__("fnstcw %0" : "=m" (cw));										\
-	volatile unsigned short cw_temp = (cw & 0xf3ff) | (rounding_mode);			\
+	volatile unsigned int cw_temp = (cw & 0xf3ff) | (rounding_mode);			\
 	__asm__ __volatile__("fldcw %0" : : "m" (cw_temp));									\
 	fpu_extended value;															\
 	__asm__ __volatile__("frndint" : "=t" (value) : "0" (x));							\
 	__asm__ __volatile__("fldcw %0" : : "m" (cw));										\
 	return value;																\
 }
-#endif
 
 #undef fp_round_to_minus_infinity
 #define fp_round_to_minus_infinity fp_do_round_to_minus_infinity
@@ -1156,13 +1113,6 @@ DEFINE_ROUND_FUNC(zero, 0xc00)
 #define fp_round_to_nearest fp_do_round_to_nearest
 
 DEFINE_ROUND_FUNC(nearest, 0x000)
-
-#undef fp_ceil
-#define fp_ceil fp_do_round_to_plus_infinity
-
-#undef fp_floor
-#define fp_floor fp_do_round_to_minus_infinity
-
 
 #endif /* USE_X87_ASSEMBLY */
 

@@ -1,33 +1,28 @@
 /*
- * fpu/core.h - base fpu context definition
+ *  fpu/core.h - base fpu context definition
  *
- * Copyright (c) 2001-2004 Milan Jurik of ARAnyM dev team (see AUTHORS)
- * 
- * Inspired by Christian Bauer's Basilisk II
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
- * This file is part of the ARAnyM project which builds a new and powerful
- * TOS/FreeMiNT compatible virtual machine running on almost any hardware.
+ *  MC68881/68040 fpu emulation
+ *  
+ *  Original UAE FPU, copyright 1996 Herman ten Brugge
+ *  Rewrite for x86, copyright 1999-2000 Lauri Pesonen
+ *  New framework, copyright 2000 Gwenole Beauchesne
+ *  Adapted for JIT compilation (c) Bernd Meyer, 2000
+ *  
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- * MC68881/68040 fpu emulation
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
  *
- * Original UAE FPU, copyright 1996 Herman ten Brugge
- * Rewrite for x86, copyright 1999-2001 Lauri Pesonen
- * New framework, copyright 2000-2001 Gwenole Beauchesne
- * Adapted for JIT compilation (c) Bernd Meyer, 2000-2001
- *
- * ARAnyM is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * ARAnyM is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with ARAnyM; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef FPU_CORE_H
@@ -39,15 +34,11 @@
 /* Always use x87 FPU stack on IA-32.  */
 #if defined(X86_ASSEMBLY)
 #define USE_X87_ASSEMBLY 1
-#ifndef USE_JIT_FPU
-#define ACCURATE_SIN_COS_TAN 1
-#endif
 #endif
 
 /* Only use x87 FPU on x86-64 if long double precision is requested.  */
-#if defined(X86_64_ASSEMBLY) && defined(USE_LONG_DOUBLE)
+#if defined(X86_64_ASSEMBLY) && USE_LONG_DOUBLE
 #define USE_X87_ASSEMBLY 1
-#define ACCURATE_SIN_COS_TAN 1
 #endif
 
 /* ========================================================================== */
@@ -116,7 +107,7 @@ struct fpu_t {
 	
 	/* Floating-Point Condition Code Byte */
 	uae_u32		condition_codes;
-	#define		FPSR_CCB				0x0f000000
+	#define		FPSR_CCB				0xff000000
 	#define		FPSR_CCB_NEGATIVE		0x08000000
 	#define		FPSR_CCB_ZERO			0x04000000
 	#define		FPSR_CCB_INFINITY		0x02000000
@@ -228,7 +219,7 @@ struct fpu_t {
 extern fpu_t fpu;
 
 /* Return the address of a particular register */
-inline fpu_register * fpu_register_address(int i)
+inline fpu_register * const fpu_register_address(int i)
 	{ return &fpu.registers[i]; }
 
 /* Dump functions for m68k_dumpstate */
@@ -236,16 +227,16 @@ extern void fpu_dump_registers(void);
 extern void fpu_dump_flags(void);
 
 /* Accessors to FPU Control Register */
-//static inline uae_u32 get_fpcr(void);
-//static inline void set_fpcr(uae_u32 new_fpcr);
+static inline uae_u32 get_fpcr(void);
+static inline void set_fpcr(uae_u32 new_fpcr);
 
 /* Accessors to FPU Status Register */
-//static inline uae_u32 get_fpsr(void);
-//static inline void set_fpsr(uae_u32 new_fpsr);
+static inline uae_u32 get_fpsr(void);
+static inline void set_fpsr(uae_u32 new_fpsr);
 	
 /* Accessors to FPU Instruction Address Register */
-//static inline uae_u32 get_fpiar();
-//static inline void set_fpiar(uae_u32 new_fpiar);
+static inline uae_u32 get_fpiar();
+static inline void set_fpiar(uae_u32 new_fpiar);
 
 /* Initialization / Finalization */
 extern void fpu_init(bool integral_68040);
@@ -263,6 +254,6 @@ void fpuop_scc(uae_u32 opcode, uae_u32 extra) REGPARAM;
 /* Floating-point system control operations */
 void fpuop_save(uae_u32 opcode) REGPARAM;
 void fpuop_restore(uae_u32 opcode) REGPARAM;
-void fpuop_trapcc(uae_u32 opcode, uaecptr oldpc, uae_u32 extra) REGPARAM;
+void fpuop_trapcc(uae_u32 opcode, uaecptr oldpc) REGPARAM;
 
 #endif /* FPU_CORE_H */

@@ -3629,7 +3629,7 @@ enum {
 	X86_PROCESSOR_max
 };
 
-#if defined(UAE) || (defined(DEBUG) && DEBUG)
+// #if defined(UAE) || (defined(DEBUG) && DEBUG)
 static const char * x86_processor_string_table[X86_PROCESSOR_max] = {
 	"80386",
 	"80486",
@@ -3640,7 +3640,7 @@ static const char * x86_processor_string_table[X86_PROCESSOR_max] = {
 	"Pentium4",
 	"x86-64"
 };
-#endif
+// #endif
 
 static struct ptt {
 	const int align_loop;
@@ -3890,7 +3890,7 @@ raw_init_cpu(void)
 }
 
 #ifndef UAE
-static void __attribute_noinline__ prevent_redzone_use(void) {}
+static void inline prevent_redzone_use(void) {}
 
 static bool target_check_bsf(void)
 {

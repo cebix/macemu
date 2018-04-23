@@ -1,33 +1,27 @@
 /*
- * fpu/fpu_x86.cpp - 68881/68040 fpu code for x86/Windows an Linux/x86.
+ *  fpu_x86.cpp - 68881/68040 fpu code for x86/Windows an Linux/x86.
  *
- * Copyright (c) 2001-2004 Milan Jurik of ARAnyM dev team (see AUTHORS)
- * 
- * Inspired by Christian Bauer's Basilisk II
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
- * This file is part of the ARAnyM project which builds a new and powerful
- * TOS/FreeMiNT compatible virtual machine running on almost any hardware.
+ *  MC68881/68040 fpu emulation
  *
- * MC68881/68040 fpu emulation
+ *  Based on UAE FPU, original copyright 1996 Herman ten Brugge,
+ *  rewritten for x86 by Lauri Pesonen 1999-2000,
+ *  accomodated to GCC's Extended Asm syntax by Gwenole Beauchesne 2000.
  *
- * Original UAE FPU, copyright 1996 Herman ten Brugge
- * Rewrite for x86, copyright 1999-2001 Lauri Pesonen
- * New framework, copyright 2000-2001 Gwenole Beauchesne
- * Adapted for JIT compilation (c) Bernd Meyer, 2000-2001
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- * ARAnyM is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
  *
- * ARAnyM is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with ARAnyM; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  *
  *	Interface
@@ -140,8 +134,10 @@
  *			
  */
 
-# include <cmath>
-# include <cstdio>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+#include <signal.h>
 
 #include "sysdeps.h"
 #include "memory.h"
@@ -242,6 +238,8 @@ PUBLIC void FFPU fpu_dump_flags(void)
 #include "debug.h"
 
 #if FPU_DEBUG
+#undef __inline__
+#define __inline__
 
 PRIVATE void FFPU dump_first_bytes_buf(char *b, uae_u8* buf, uae_s32 actual)
 {
@@ -392,7 +390,7 @@ PRIVATE void FFPU FPU_CONSISTENCY_CHECK_STOP(const char *)
 
 /* ---------------------------- Status functions ---------------------------- */
 
-PRIVATE void inline FFPU SET_BSUN_ON_NAN ()
+PRIVATE void __inline__ FFPU SET_BSUN_ON_NAN ()
 {
 	if( (x86_status_word & (SW_Z_I_NAN_MASK)) == SW_NAN ) {
 		x86_status_word |= SW_FAKE_BSUN;
@@ -400,7 +398,7 @@ PRIVATE void inline FFPU SET_BSUN_ON_NAN ()
 	}
 }
 
-PRIVATE void inline FFPU build_ex_status ()
+PRIVATE void __inline__ FFPU build_ex_status ()
 {
 	if(x86_status_word & SW_EXCEPTION_MASK) {
 //		_asm FNCLEX
@@ -417,7 +415,7 @@ When the FPU creates a NAN, the NAN always contains the same bit pattern
 in the mantissa. All bits of the mantissa are ones for any precision.
 When the user creates a NAN, any nonzero bit pattern can be stored in the mantissa.
 */
-PRIVATE inline void FFPU MAKE_NAN (fpu_register & f)
+PRIVATE __inline__ void FFPU MAKE_NAN (fpu_register & f)
 {
 	// Make it non-signaling.
 	uae_u8 * p = (uae_u8 *) &f;
@@ -427,10 +425,10 @@ PRIVATE inline void FFPU MAKE_NAN (fpu_register & f)
 
 /*
 For single- and double-precision infinities the fraction is a zero.
-For extended-precision infinities, the mantissaï¿½s MSB, the explicit
+For extended-precision infinities, the mantissa’s MSB, the explicit
 integer bit, can be either one or zero.
 */
-PRIVATE inline uae_u32 FFPU IS_INFINITY (fpu_register const & f)
+PRIVATE __inline__ uae_u32 FFPU IS_INFINITY (fpu_register const & f)
 {
 	uae_u8 * p = (uae_u8 *) &f;
 	if( ((p[9] & 0x7F) == 0x7F) && p[8] == 0xFF ) {
@@ -441,7 +439,7 @@ PRIVATE inline uae_u32 FFPU IS_INFINITY (fpu_register const & f)
 	return(0);
 }
 
-PRIVATE inline uae_u32 FFPU IS_NAN (fpu_register const & f)
+PRIVATE __inline__ uae_u32 FFPU IS_NAN (fpu_register const & f)
 {
 	uae_u8 * p = (uae_u8 *) &f;
 	if( ((p[9] & 0x7F) == 0x7F) && p[8] == 0xFF ) {
@@ -452,7 +450,7 @@ PRIVATE inline uae_u32 FFPU IS_NAN (fpu_register const & f)
 	return(0);
 }
 
-PRIVATE inline uae_u32 FFPU IS_ZERO (fpu_register const & f)
+PRIVATE __inline__ uae_u32 FFPU IS_ZERO (fpu_register const & f)
 {
 	uae_u8 * p = (uae_u8 *) &f;
 	return *((uae_u32 *)p) == 0 &&
@@ -460,34 +458,34 @@ PRIVATE inline uae_u32 FFPU IS_ZERO (fpu_register const & f)
 				 ( *((uae_u16 *)&p[8]) & 0x7FFF ) == 0;
 }
 
-PRIVATE inline void FFPU MAKE_INF_POSITIVE (fpu_register & f)
+PRIVATE __inline__ void FFPU MAKE_INF_POSITIVE (fpu_register & f)
 {
 	uae_u8 * p = (uae_u8 *) &f;
 	memset( p, 0, sizeof(fpu_register)-2 );
 	*((uae_u16 *)&p[8]) = 0x7FFF;
 }
 
-PRIVATE inline void FFPU MAKE_INF_NEGATIVE (fpu_register & f)
+PRIVATE __inline__ void FFPU MAKE_INF_NEGATIVE (fpu_register & f)
 {
 	uae_u8 * p = (uae_u8 *) &f;
 	memset( p, 0, sizeof(fpu_register)-2 );
 	*((uae_u16 *)&p[8]) = 0xFFFF;
 }
 
-PRIVATE inline void FFPU MAKE_ZERO_POSITIVE (fpu_register & f)
+PRIVATE __inline__ void FFPU MAKE_ZERO_POSITIVE (fpu_register & f)
 {
 	uae_u32 * const p = (uae_u32 *) &f;
 	memset( p, 0, sizeof(fpu_register) );
 }
 
-PRIVATE inline void FFPU MAKE_ZERO_NEGATIVE (fpu_register & f)
+PRIVATE __inline__ void FFPU MAKE_ZERO_NEGATIVE (fpu_register & f)
 {
 	uae_u32 * const p = (uae_u32 *) &f;
 	memset( p, 0, sizeof(fpu_register) );
 	*((uae_u32 *)&p[4]) = 0x80000000;
 }
 
-PRIVATE inline uae_u32 FFPU IS_NEGATIVE (fpu_register const & f)
+PRIVATE __inline__ uae_u32 FFPU IS_NEGATIVE (fpu_register const & f)
 {
 	uae_u8 * p = (uae_u8 *) &f;
 	return( (p[9] & 0x80) != 0 );
@@ -902,34 +900,6 @@ PRIVATE void FFPU do_fmove ( fpu_register & dest, fpu_register const & src )
 	FPU_CONSISTENCY_CHECK_STOP("do_fmove");
 }
 
-PRIVATE void FFPU do_fsmove ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-		:       "=m" (x86_status_word), "=m" (dest)
-		:       "m" (src)
-		);
-	FPU_CONSISTENCY_CHECK_STOP("do_fsmove");
-}
-
-PRIVATE void FFPU do_fdmove ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-		:       "=m" (x86_status_word), "=m" (dest)
-		:       "m" (src)
-		);
-	FPU_CONSISTENCY_CHECK_STOP("do_fdmove");
-}
-
 /*
 PRIVATE void FFPU do_fmove_no_status ( fpu_register & dest, fpu_register const & src )
 {
@@ -1051,50 +1021,6 @@ PRIVATE void FFPU do_fsqrt ( fpu_register & dest, fpu_register const & src )
 		x86_status_word_accrued |= x86_status_word;
 	}
 	FPU_CONSISTENCY_CHECK_STOP("do_fsqrt");
-}
-
-PRIVATE void FFPU do_fssqrt ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fsqrt  \n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-		:       "=m" (x86_status_word), "=m" (dest)
-		:       "m" (src)
-		);
-
-	if(x86_status_word & SW_EXCEPTION_MASK) {
-//              _asm FNCLEX
-		__asm__ __volatile__("fnclex");
-		x86_status_word &= ~(SW_EXCEPTION_MASK - SW_IE - SW_PE);
-		x86_status_word_accrued |= x86_status_word;
-	}
-	FPU_CONSISTENCY_CHECK_STOP("do_fssqrt");
-}
-
-PRIVATE void FFPU do_fdsqrt ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fsqrt  \n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-		:       "=m" (x86_status_word), "=m" (dest)
-		:       "m" (src)
-		);
-
-	if(x86_status_word & SW_EXCEPTION_MASK) {
-//              _asm FNCLEX
-		__asm__ __volatile__("fnclex");
-		x86_status_word &= ~(SW_EXCEPTION_MASK - SW_IE - SW_PE);
-		x86_status_word_accrued |= x86_status_word;
-	}
-	FPU_CONSISTENCY_CHECK_STOP("do_fdsqrt");
 }
 
 PRIVATE void FFPU do_ftst ( fpu_register const & src )
@@ -1385,48 +1311,6 @@ PRIVATE void FFPU do_fabs ( fpu_register & dest, fpu_register const & src )
 	FPU_CONSISTENCY_CHECK_STOP("do_fabs");
 }
 
-PRIVATE void FFPU do_fsabs ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fabs   \n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-		:       "=m" (x86_status_word), "=m" (dest)
-		:       "m" (src)
-		);
-	// x86 fabs should not rise any exceptions (except stack underflow)
-	if(x86_status_word & SW_EXCEPTION_MASK) {
-//              _asm FNCLEX
-		__asm__ __volatile__("fnclex");
-		x86_status_word &= ~SW_EXCEPTION_MASK;
-	}
-	FPU_CONSISTENCY_CHECK_STOP("do_fsabs");
-}
-
-PRIVATE void FFPU do_fdabs ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fabs   \n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-		:       "=m" (x86_status_word), "=m" (dest)
-		:       "m" (src)
-		);
-	// x86 fabs should not rise any exceptions (except stack underflow)
-	if(x86_status_word & SW_EXCEPTION_MASK) {
-//              _asm FNCLEX
-		__asm__ __volatile__("fnclex");
-		x86_status_word &= ~SW_EXCEPTION_MASK;
-	}
-	FPU_CONSISTENCY_CHECK_STOP("do_fdabs");
-}
-
 PRIVATE void FFPU do_fneg ( fpu_register & dest, fpu_register const & src )
 {
 	FPU_CONSISTENCY_CHECK_START();
@@ -1455,48 +1339,6 @@ PRIVATE void FFPU do_fneg ( fpu_register & dest, fpu_register const & src )
 		x86_status_word &= ~SW_EXCEPTION_MASK;
 	}
 	FPU_CONSISTENCY_CHECK_STOP("do_fneg");
-}
-
-PRIVATE void FFPU do_fsneg ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fchs   \n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-		:       "=m" (x86_status_word), "=m" (dest)
-		:       "m" (src)
-		);
-	// x86 fchs should not rise any exceptions (except stack underflow)
-	if(x86_status_word & SW_EXCEPTION_MASK) {
-//              _asm FNCLEX
-		__asm__ __volatile__("fnclex");
-		x86_status_word &= ~SW_EXCEPTION_MASK;
-	}
-	FPU_CONSISTENCY_CHECK_STOP("do_fsneg");
-}
-
-PRIVATE void FFPU do_fdneg ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fchs   \n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-		:       "=m" (x86_status_word), "=m" (dest)
-		:       "m" (src)
-		);
-	// x86 fchs should not rise any exceptions (except stack underflow)
-	if(x86_status_word & SW_EXCEPTION_MASK) {
-//              _asm FNCLEX
-		__asm__ __volatile__("fnclex");
-		x86_status_word &= ~SW_EXCEPTION_MASK;
-	}
-	FPU_CONSISTENCY_CHECK_STOP("do_fdneg");
 }
 
 PRIVATE void FFPU do_fcos ( fpu_register & dest, fpu_register const & src )
@@ -1622,50 +1464,6 @@ PRIVATE void FFPU do_fdiv ( fpu_register & dest, fpu_register const & src )
 		x86_status_word_accrued |= x86_status_word;
 	}
 	FPU_CONSISTENCY_CHECK_STOP("do_fdiv");
-}
-
-PRIVATE void FFPU do_fsdiv ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fldt   %1\n"
-			"fdiv   %%st(1), %%st(0)\n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-			"fstp   %%st(0)\n"
-		:       "=m" (x86_status_word), "+m" (dest)
-		:       "m" (src)
-		);
-	if(x86_status_word & SW_EXCEPTION_MASK) {
-//              _asm FNCLEX
-		__asm__ __volatile__("fnclex");
-		x86_status_word_accrued |= x86_status_word;
-	}
-	FPU_CONSISTENCY_CHECK_STOP("do_fsdiv");
-}
-
-PRIVATE void FFPU do_fddiv ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fldt   %1\n"
-			"fdiv   %%st(1), %%st(0)\n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-			"fstp   %%st(0)\n"
-		:       "=m" (x86_status_word), "+m" (dest)
-		:       "m" (src)
-		);
-	if(x86_status_word & SW_EXCEPTION_MASK) {
-//              _asm FNCLEX
-		__asm__ __volatile__("fnclex");
-		x86_status_word_accrued |= x86_status_word;
-	}
-	FPU_CONSISTENCY_CHECK_STOP("do_fddiv");
 }
 
 // The sign of the quotient is the exclusive-OR of the sign bits
@@ -2053,48 +1851,6 @@ PRIVATE void FFPU do_fadd ( fpu_register & dest, fpu_register const & src )
 	FPU_CONSISTENCY_CHECK_STOP("do_fadd");
 }
 
-PRIVATE void FFPU do_fsadd ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fldt   %1\n"
-			"fadd   \n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-		:       "=m" (x86_status_word), "+m" (dest)
-		:       "m" (src)
-		);
-	if(x86_status_word & SW_EXCEPTION_MASK) {
-//              _asm FNCLEX
-		x86_status_word &= ~(SW_EXCEPTION_MASK - SW_IE - SW_UE - SW_OE - SW_PE);
-		x86_status_word_accrued |= x86_status_word;
-	}
-	FPU_CONSISTENCY_CHECK_STOP("do_fsadd");
-}
-
-PRIVATE void FFPU do_fdadd ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fldt   %1\n"
-			"fadd   \n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-		:       "=m" (x86_status_word), "+m" (dest)
-		:       "m" (src)
-		);
-	if(x86_status_word & SW_EXCEPTION_MASK) {
-//              _asm FNCLEX
-		x86_status_word &= ~(SW_EXCEPTION_MASK - SW_IE - SW_UE - SW_OE - SW_PE);
-		x86_status_word_accrued |= x86_status_word;
-	}
-	FPU_CONSISTENCY_CHECK_STOP("do_fdadd");
-}
-
 PRIVATE void FFPU do_fmul ( fpu_register & dest, fpu_register const & src )
 {
 	FPU_CONSISTENCY_CHECK_START();
@@ -2124,48 +1880,6 @@ PRIVATE void FFPU do_fmul ( fpu_register & dest, fpu_register const & src )
 		x86_status_word_accrued |= x86_status_word;
 	}
 	FPU_CONSISTENCY_CHECK_STOP("do_fmul");
-}
-
-PRIVATE void FFPU do_fsmul ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fldt   %1\n"
-			"fmul   \n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-		:       "=m" (x86_status_word), "+m" (dest)
-		:       "m" (src)
-		);
-	if(x86_status_word & SW_EXCEPTION_MASK) {
-//              _asm FNCLEX
-		__asm__ __volatile__("fnclex");
-		x86_status_word_accrued |= x86_status_word;
-	}
-	FPU_CONSISTENCY_CHECK_STOP("do_fsmul");
-}
-
-PRIVATE void FFPU do_fdmul ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fldt   %1\n"
-			"fmul   \n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-		:       "=m" (x86_status_word), "+m" (dest)
-		:       "m" (src)
-		);
-	if(x86_status_word & SW_EXCEPTION_MASK) {
-//              _asm FNCLEX
-		__asm__ __volatile__("fnclex");
-		x86_status_word_accrued |= x86_status_word;
-	}
-	FPU_CONSISTENCY_CHECK_STOP("do_fdmul");
 }
 
 PRIVATE void FFPU do_fsgldiv ( fpu_register & dest, fpu_register const & src )
@@ -2324,52 +2038,6 @@ PRIVATE void FFPU do_fsub ( fpu_register & dest, fpu_register const & src )
 		x86_status_word_accrued |= x86_status_word;
 	}
 	FPU_CONSISTENCY_CHECK_STOP("do_fsub");
-}
-
-PRIVATE void FFPU do_fssub ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fldt   %1\n"
-			"fsub   %%st(1), %%st(0)\n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-			"fstp   %%st(0)\n"
-		:       "=m" (x86_status_word), "+m" (dest)
-		:       "m" (src)
-		);
-	if(x86_status_word & SW_EXCEPTION_MASK) {
-//              _asm FNCLEX
-		__asm__ __volatile__("fnclex");
-		x86_status_word &= ~(SW_EXCEPTION_MASK - SW_IE - SW_UE - SW_OE - SW_PE);
-		x86_status_word_accrued |= x86_status_word;
-	}
-	FPU_CONSISTENCY_CHECK_STOP("do_fssub");
-}
-
-PRIVATE void FFPU do_fdsub ( fpu_register & dest, fpu_register const & src )
-{
-	FPU_CONSISTENCY_CHECK_START();
-	__asm__ __volatile__(
-			"fldt   %2\n"
-			"fldt   %1\n"
-			"fsub   %%st(1), %%st(0)\n"
-			"fxam   \n"
-			"fnstsw %0\n"
-			"fstpt  %1\n"
-			"fstp   %%st(0)\n"
-		:       "=m" (x86_status_word), "+m" (dest)
-		:       "m" (src)
-		);
-	if(x86_status_word & SW_EXCEPTION_MASK) {
-//              _asm FNCLEX
-		__asm__ __volatile__("fnclex");
-		x86_status_word &= ~(SW_EXCEPTION_MASK - SW_IE - SW_UE - SW_OE - SW_PE);
-		x86_status_word_accrued |= x86_status_word;
-	}
-	FPU_CONSISTENCY_CHECK_STOP("do_fdsub");
 }
 
 PRIVATE void FFPU do_fsincos ( fpu_register & dest_sin, fpu_register & dest_cos, fpu_register const & src )
@@ -2616,9 +2284,11 @@ PRIVATE int FFPU get_fp_value (uae_u32 opcode, uae_u32 extra, fpu_register & src
 			break;
     case 3:
 			ad = m68k_areg (regs, reg);
+			m68k_areg (regs, reg) += reg == 7 ? sz2[size] : sz1[size];
 			break;
     case 4:
-			ad = m68k_areg (regs, reg) - (reg == 7 ? sz2[size] : sz1[size]);
+			m68k_areg (regs, reg) -= reg == 7 ? sz2[size] : sz1[size];
+			ad = m68k_areg (regs, reg);
 			break;
     case 5:
 			ad = m68k_areg (regs, reg) + (uae_s32) (uae_s16) next_iword();
@@ -2716,15 +2386,6 @@ PRIVATE int FFPU get_fp_value (uae_u32 opcode, uae_u32 extra, fpu_register & src
     default:
 			return 0;
   }
-
-	switch (mode) {
-	case 3:
-		m68k_areg (regs, reg) += reg == 7 ? sz2[size] : sz1[size];
-		break;
-	case 4:
-		m68k_areg (regs, reg) -= reg == 7 ? sz2[size] : sz1[size];
-		break;
-	}
 
 	// D(bug("get_fp_value result = %.04f\r\n",(float)src));
 
@@ -2951,7 +2612,7 @@ PRIVATE int FFPU fpp_cond(uae_u32 opcode, int condition)
 #define I				((x86_status_word & (SW_Z_I_NAN_MASK)) == (SW_I))
 #define NotANumber		((x86_status_word & (SW_Z_I_NAN_MASK)) == SW_NAN)
 
-  switch (condition & 0x1f) {
+  switch (condition) {
 		// Common Tests, no BSUN
     case 0x01:
 			CONDRET("Equal",Z);
@@ -3096,11 +2757,11 @@ PUBLIC void REGPARAM2 FFPU fpuop_scc(uae_u32 opcode, uae_u32 extra)
   }
 }
 
-PUBLIC void REGPARAM2 FFPU fpuop_trapcc(uae_u32 opcode, uaecptr oldpc, uae_u32 extra)
+PUBLIC void REGPARAM2 FFPU fpuop_trapcc(uae_u32 opcode, uaecptr oldpc)
 {
   int cc;
 
-  D(bug("ftrapcc_opp %X, %X at %08lx\r\n", (uae_u32)opcode, (uae_u32)extra, m68k_getpc ()));
+  D(bug("ftrapcc_opp %X at %08lx\r\n", (uae_u32)opcode, m68k_getpc ()));
 
 #if I3_ON_FTRAPCC
 #error "FIXME: _asm int 3"
@@ -3108,7 +2769,7 @@ PUBLIC void REGPARAM2 FFPU fpuop_trapcc(uae_u32 opcode, uaecptr oldpc, uae_u32 e
 #endif
 
 	// This must be broken.
-  cc = fpp_cond(opcode, extra & 0x3f);
+  cc = fpp_cond(opcode, opcode & 0x3f);
 
   if (cc < 0) {
 		m68k_setpc (oldpc);
@@ -4985,249 +4646,6 @@ PRIVATE void REGPARAM2 FFPU fpuop_do_load_const_1e4096( uae_u32 opcode, uae_u32 
 }
 
 
-/* -------------------------- 040 ALU -------------------------- */
-PRIVATE void REGPARAM2 FFPU fpuop_do_fsmove( uae_u32 opcode, uae_u32 extra )
-{
-	int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FSMOVE %s\r\n",etos(src)));
-	do_fsmove( FPU registers[reg], src );
-	build_ex_status();
-	dump_registers( "END  ");
-}
-
-PRIVATE void REGPARAM2 FFPU fpuop_do_fdmove( uae_u32 opcode, uae_u32 extra )
-{
-	int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FDMOVE %s\r\n",etos(src)));
-	do_fdmove( FPU registers[reg], src );
-	build_ex_status();
-	dump_registers( "END  ");
-}
-
-PRIVATE void REGPARAM2 FFPU fpuop_do_fssqrt( uae_u32 opcode, uae_u32 extra )
-{
-	int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FSSQRT %s\r\n",etos(src)));
-	do_fssqrt( FPU registers[reg], src );
-	dump_registers( "END  ");
-}
-
-PRIVATE void REGPARAM2 FFPU fpuop_do_fdsqrt( uae_u32 opcode, uae_u32 extra )
-{
-	int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FDSQRT %s\r\n",etos(src)));
-	do_fdsqrt( FPU registers[reg], src );
-	dump_registers( "END  ");
-}
-
-PRIVATE void REGPARAM2 FFPU fpuop_do_fsabs( uae_u32 opcode, uae_u32 extra )
-{
-        int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FSABS %s\r\n",etos(src)));
-	do_fsabs( FPU registers[reg], src );
-	dump_registers( "END  ");
-}
-
-PRIVATE void REGPARAM2 FFPU fpuop_do_fdabs( uae_u32 opcode, uae_u32 extra )
-{
-	int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FDABS %s\r\n",etos(src)));
-	do_fdabs( FPU registers[reg], src );
-	dump_registers( "END  ");
-}
-
-PRIVATE void REGPARAM2 FFPU fpuop_do_fsneg( uae_u32 opcode, uae_u32 extra )
-{
-        int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FSNEG %s\r\n",etos(src)));
-	do_fsneg( FPU registers[reg], src );
-	dump_registers( "END  ");
-}
-
-PRIVATE void REGPARAM2 FFPU fpuop_do_fdneg( uae_u32 opcode, uae_u32 extra )
-{
-	int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FDNEG %s\r\n",etos(src)));
-	do_fdneg( FPU registers[reg], src );
-	dump_registers( "END  ");
-}
-
-PRIVATE void REGPARAM2 FFPU fpuop_do_fsdiv( uae_u32 opcode, uae_u32 extra )
-{
-	int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FSDIV %s\r\n",etos(src)));
-	do_fsdiv( FPU registers[reg], src );
-	dump_registers( "END  ");
-}
-
-PRIVATE void REGPARAM2 FFPU fpuop_do_fddiv( uae_u32 opcode, uae_u32 extra )
-{
-	int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FDDIV %s\r\n",etos(src)));
-	do_fddiv( FPU registers[reg], src );
-	dump_registers( "END  ");
-}
-
-PRIVATE void REGPARAM2 FFPU fpuop_do_fsadd( uae_u32 opcode, uae_u32 extra )
-{
-	int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FSADD %s\r\n",etos(src)));
-	do_fsadd( FPU registers[reg], src );
-	dump_registers( "END  ");
-}
-
-PRIVATE void REGPARAM2 FFPU fpuop_do_fdadd( uae_u32 opcode, uae_u32 extra )
-{
-	int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FDADD %s\r\n",etos(src)));
-	do_fdadd( FPU registers[reg], src );
-	dump_registers( "END  ");
-}
-
-PRIVATE void REGPARAM2 FFPU fpuop_do_fssub( uae_u32 opcode, uae_u32 extra )
-{
-        int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FSSUB %s\r\n",etos(src)));
-	do_fssub( FPU registers[reg], src );
-	dump_registers( "END  ");
-}
-
-PRIVATE void REGPARAM2 FFPU fpuop_do_fdsub( uae_u32 opcode, uae_u32 extra )
-{
-	int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FDSUB %s\r\n",etos(src)));
-	do_fdsub( FPU registers[reg], src );
-	dump_registers( "END  ");
-}
-
-PRIVATE void REGPARAM2 FFPU fpuop_do_fsmul( uae_u32 opcode, uae_u32 extra )
-{
-	int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FSMUL %s\r\n",etos(src)));
-	do_fsmul( FPU registers[reg], src );
-	dump_registers( "END  ");
-}
-
-PRIVATE void REGPARAM2 FFPU fpuop_do_fdmul( uae_u32 opcode, uae_u32 extra )
-{
-	int reg = (extra >> 7) & 7;
-	fpu_register src;
-	if (get_fp_value (opcode, extra, src) == 0) {
-		m68k_setpc (m68k_getpc () - 4);
-		op_illg (opcode);
-		dump_registers( "END  ");
-		return;
-	}
-	D(bug("FSMUL %s\r\n",etos(src)));
-	do_fsmul( FPU registers[reg], src );
-	dump_registers( "END  ");
-}
-
 /* ---------------------------- ALU ---------------------------- */
 
 PRIVATE void REGPARAM2 FFPU fpuop_do_fmove( uae_u32 opcode, uae_u32 extra )
@@ -6326,61 +5744,6 @@ PRIVATE void FFPU build_fpp_opp_lookup_table ()
 						}
 						break;
 					}
-
-					if (FPU is_integral) {
-						switch (extra & 0x7f) {
-							case 0x40:
-								fpufunctbl[mask] = & FFPU fpuop_do_fsmove;
-								break;
-							case 0x44:
-								fpufunctbl[mask] = & FFPU fpuop_do_fdmove;
-								break;
-							case 0x41:
-								fpufunctbl[mask] = & FFPU fpuop_do_fssqrt;
-								break;
-							case 0x45:
-								fpufunctbl[mask] = & FFPU fpuop_do_fdsqrt;
-								break;
-							case 0x58:
-								fpufunctbl[mask] = & FFPU fpuop_do_fsabs;
-								break;
-							case 0x5c:
-								fpufunctbl[mask] = & FFPU fpuop_do_fdabs;
-								break;
-							case 0x5a:
-								fpufunctbl[mask] = & FFPU fpuop_do_fsneg;
-								break;
-							case 0x5e:
-								fpufunctbl[mask] = & FFPU fpuop_do_fdneg;
-								break;
-							case 0x60:
-								fpufunctbl[mask] = & FFPU fpuop_do_fsdiv;
-								break;
-							case 0x64:
-								fpufunctbl[mask] = & FFPU fpuop_do_fddiv;
-								break;
-							case 0x62:
-								fpufunctbl[mask] = & FFPU fpuop_do_fsadd;
-								break;
-							case 0x66:
-								fpufunctbl[mask] = & FFPU fpuop_do_fdadd;
-								break;
-							case 0x68:
-								fpufunctbl[mask] = & FFPU fpuop_do_fssub;
-								break;
-							case 0x6c:
-								fpufunctbl[mask] = & FFPU fpuop_do_fdsub;
-								break;
-							case 0x63:
-								fpufunctbl[mask] = & FFPU fpuop_do_fsmul;
-								break;
-							case 0x67:
-								fpufunctbl[mask] = & FFPU fpuop_do_fdmul;
-								break;
-							default:
-								break;
-						}
-					}
 					
 					switch (extra & 0x7f) {
 						case 0x00:
@@ -6670,26 +6033,6 @@ PRIVATE void FFPU do_fld1 ( fpu_register & dest )
 }
 
 
-void fpu_set_fpsr(uae_u32 new_fpsr)
-{
-	set_fpsr(new_fpsr);
-}
-
-uae_u32 fpu_get_fpsr(void)
-{
-	return get_fpsr();
-}
-
-void fpu_set_fpcr(uae_u32 new_fpcr)
-{
-	set_fpcr(new_fpcr);
-}
-
-uae_u32 fpu_get_fpcr(void)
-{
-	return get_fpcr();
-}
-
 /* ---------------------------- MAIN INIT ---------------------------- */
 
 #ifdef HAVE_SIGACTION
@@ -6741,10 +6084,6 @@ PUBLIC void FFPU fpu_init( bool integral_68040 )
 	
 	build_fpp_opp_lookup_table();
 
-/*	_asm {
-		FNINIT
-		FLDCW   x86_control_word
-	} */
 	__asm__ __volatile__("fninit\nfldcw %0" : : "m" (x86_control_word));
 
 	do_fldpi( const_pi );
@@ -6772,10 +6111,6 @@ PUBLIC void FFPU fpu_init( bool integral_68040 )
 	set_constant( const_1e4096,		"1.0e4096",		1.0e256, 10000 );
 	
 	// Just in case.
-/*	_asm {
-		FNINIT
-		FLDCW   x86_control_word
-	} */
 	__asm__ __volatile__("fninit\nfldcw %0" : : "m" (x86_control_word));
 }
 

@@ -21,7 +21,9 @@
 #ifndef SYSDEPS_H
 #define SYSDEPS_H
 
-
+#ifndef UNUSED
+#define UNUSED(x) ((void)x)
+#endif
 
 
 #if 1
@@ -34,9 +36,6 @@
 
 /* Define if your system supports TUN/TAP devices. */
 /* #undef ENABLE_TUNTAP */
-
-/* Define if using video enabled on SEGV signals. */
-#define ENABLE_VOSF 1
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #define HAVE_ARPA_INET_H 1

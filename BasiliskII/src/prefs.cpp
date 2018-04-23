@@ -121,11 +121,6 @@ void PrefsInit(const char *vmdir, int &argc, char **&argv)
 			argc -= k;
 		}
 	}
-
-#ifdef SHEEPSHAVER
-	// System specific initialization
-	prefs_init();
-#endif
 }
 
 
@@ -135,11 +130,6 @@ void PrefsInit(const char *vmdir, int &argc, char **&argv)
 
 void PrefsExit(void)
 {
-#ifdef SHEEPSHAVER
-	// System specific deinitialization
-	prefs_exit();
-#endif
-
 	// Free prefs list
 	prefs_node *p = the_prefs, *next;
 	while (p) {

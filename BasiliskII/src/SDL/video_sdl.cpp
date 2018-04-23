@@ -67,19 +67,11 @@ using std::vector;
 static vector<VIDEO_MODE> VideoModes;
 
 // Display types
-#ifdef SHEEPSHAVER
-enum {
-	DISPLAY_WINDOW = DIS_WINDOW,					// windowed display
-	DISPLAY_SCREEN = DIS_SCREEN						// fullscreen display
-};
-extern int display_type;							// See enum above
-#else
 enum {
 	DISPLAY_WINDOW,									// windowed display
 	DISPLAY_SCREEN									// fullscreen display
 };
 static int display_type = DISPLAY_WINDOW;			// See enum above
-#endif
 
 // Constants
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
@@ -102,11 +94,7 @@ static volatile bool thread_stop_req = false;
 static volatile bool thread_stop_ack = false;		// Acknowledge for thread_stop_req
 #endif
 
-#ifdef ENABLE_VOSF
-static bool use_vosf = false;						// Flag: VOSF enabled
-#else
 static const bool use_vosf = false;					// VOSF not possible
-#endif
 
 static bool ctrl_down = false;						// Flag: Ctrl key pressed
 static bool caps_on = false;						// Flag: Caps Lock on
@@ -160,14 +148,7 @@ extern void SysMountFirstFloppy(void);
  *  SDL surface locking glue
  */
 
-#ifdef ENABLE_VOSF
-#define SDL_VIDEO_LOCK_VOSF_SURFACE(SURFACE) do {				\
-	if ((SURFACE)->flags & (SDL_HWSURFACE | SDL_FULLSCREEN))	\
-		the_host_buffer = (uint8 *)(SURFACE)->pixels;			\
-} while (0)
-#else
 #define SDL_VIDEO_LOCK_VOSF_SURFACE(SURFACE)
-#endif
 
 #define SDL_VIDEO_LOCK_SURFACE(SURFACE) do {	\
 	if (SDL_MUSTLOCK(SURFACE)) {				\
@@ -207,83 +188,6 @@ static inline void vm_release_framebuffer(void *fb, uint32 size)
 {
 	vm_release(fb, size);
 }
-
-
-
-/*
- *  SheepShaver glue
- */
-
-#ifdef SHEEPSHAVER
-// Color depth modes type
-typedef int video_depth;
-
-// 1, 2, 4 and 8 bit depths use a color palette
-static inline bool IsDirectMode(VIDEO_MODE const & mode)
-{
-	return IsDirectMode(mode.viAppleMode);
-}
-
-// Abstract base class representing one (possibly virtual) monitor
-// ("monitor" = rectangular display with a contiguous frame buffer)
-class monitor_desc {
-public:
-	monitor_desc(const vector<VIDEO_MODE> &available_modes, video_depth default_depth, uint32 default_id) {}
-	virtual ~monitor_desc() {}
-
-	// Get current Mac frame buffer base address
-	uint32 get_mac_frame_base(void) const {return screen_base;}
-
-	// Set Mac frame buffer base address (called from switch_to_mode())
-	void set_mac_frame_base(uint32 base) {screen_base = base;}
-
-	// Get current video mode
-	const VIDEO_MODE &get_current_mode(void) const {return VModes[cur_mode];}
-
-	// Called by the video driver to switch the video mode on this display
-	// (must call set_mac_frame_base())
-	virtual void switch_to_current_mode(void) = 0;
-
-	// Called by the video driver to set the color palette (in indexed modes)
-	// or the gamma table (in direct modes)
-	virtual void set_palette(uint8 *pal, int num) = 0;
-};
-
-// Vector of pointers to available monitor descriptions, filled by VideoInit()
-static vector<monitor_desc *> VideoMonitors;
-
-// Find Apple mode matching best specified dimensions
-static int find_apple_resolution(int xsize, int ysize)
-{
-	if (xsize == 640 && ysize == 480)
-		return APPLE_640x480;
-	if (xsize == 800 && ysize == 600)
-		return APPLE_800x600;
-	if (xsize == 1024 && ysize == 768)
-		return APPLE_1024x768;
-	if (xsize == 1152 && ysize == 768)
-		return APPLE_1152x768;
-	if (xsize == 1152 && ysize == 900)
-		return APPLE_1152x900;
-	if (xsize == 1280 && ysize == 1024)
-		return APPLE_1280x1024;
-	if (xsize == 1600 && ysize == 1200)
-		return APPLE_1600x1200;
-	return APPLE_CUSTOM;
-}
-
-// Display error alert
-static void ErrorAlert(int error)
-{
-	ErrorAlert(GetString(error));
-}
-
-// Display warning alert
-static void WarningAlert(int warning)
-{
-	WarningAlert(GetString(warning));
-}
-#endif
 
 
 /*
@@ -417,11 +321,6 @@ static inline int sdl_display_height(void)
 // Check wether specified mode is available
 static bool has_mode(int type, int width, int height, int depth)
 {
-#ifdef SHEEPSHAVER
-	// Filter out Classic resolutions
-	if (width == 512 && height == 384)
-		return false;
-#endif
 
 	// Filter out out-of-bounds resolutions
 	if (width > sdl_display_width() || height > sdl_display_height())
@@ -442,10 +341,6 @@ static void add_mode(int type, int width, int height, int resolution_id, int byt
 
 	// Fill in VideoMode entry
 	VIDEO_MODE mode;
-#ifdef SHEEPSHAVER
-	resolution_id = find_apple_resolution(width, height);
-	mode.viType = type;
-#endif
 	VIDEO_MODE_X = width;
 	VIDEO_MODE_Y = height;
 	VIDEO_MODE_RESOLUTION = resolution_id;
@@ -483,50 +378,7 @@ static SDL_GrabMode set_grab_mode(SDL_GrabMode mode)
 // Migrate preferences items (XXX to be handled in MigratePrefs())
 static void migrate_screen_prefs(void)
 {
-#ifdef SHEEPSHAVER
-	// Look-up priorities are: "screen", "screenmodes", "windowmodes".
-	if (PrefsFindString("screen"))
-		return;
 
-	uint32 window_modes = PrefsFindInt32("windowmodes");
-	uint32 screen_modes = PrefsFindInt32("screenmodes");
-	int width = 0, height = 0;
-	if (screen_modes) {
-		static const struct {
-			int id;
-			int width;
-			int height;
-		}
-		modes[] = {
-			{  1,	 640,	 480 },
-			{  2,	 800,	 600 },
-			{  4,	1024,	 768 },
-			{ 64,	1152,	 768 },
-			{  8,	1152,	 900 },
-			{ 16,	1280,	1024 },
-			{ 32,	1600,	1200 },
-			{ 0, }
-		};
-		for (int i = 0; modes[i].id != 0; i++) {
-			if (screen_modes & modes[i].id) {
-				if (width < modes[i].width && height < modes[i].height) {
-					width = modes[i].width;
-					height = modes[i].height;
-				}
-			}
-		}
-	} else {
-		if (window_modes & 1)
-			width = 640, height = 480;
-		if (window_modes & 2)
-			width = 800, height = 600;
-	}
-	if (width && height) {
-		char str[32];
-		sprintf(str, "%s/%d/%d", screen_modes ? "dga" : "win", width, height);
-		PrefsReplaceString("screen", str);
-	}
-#endif
 }
 
 
@@ -563,16 +415,9 @@ public:
 	SDL_Surface *s;	// The surface we draw into
 };
 
-#ifdef ENABLE_VOSF
-static void update_display_window_vosf(driver_base *drv);
-#endif
 static void update_display_static(driver_base *drv);
 
 static driver_base *drv = NULL;	// Pointer to currently used driver object
-
-#ifdef ENABLE_VOSF
-# include "video_vosf.h"
-#endif
 
 driver_base::driver_base(SDL_monitor_desc &m)
 	: monitor(m), mode(m.get_current_mode()), init_ok(false), s(NULL)
@@ -587,9 +432,6 @@ void driver_base::set_video_mode(int flags)
 	if ((s = SDL_SetVideoMode(VIDEO_MODE_X, VIDEO_MODE_Y, depth,
 			SDL_HWSURFACE | flags)) == NULL)
 		return;
-#ifdef ENABLE_VOSF
-	the_host_buffer = (uint8 *)s->pixels;
-#endif
 }
 
 void driver_base::init()
@@ -597,30 +439,6 @@ void driver_base::init()
 	set_video_mode(display_type == DISPLAY_SCREEN ? SDL_FULLSCREEN : 0);
 	int aligned_height = (VIDEO_MODE_Y + 15) & ~15;
 
-#ifdef ENABLE_VOSF
-	use_vosf = true;
-	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
-	the_buffer_size = page_extend((aligned_height + 2) * s->pitch);
-	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
-	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
-	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
-
-	// Check whether we can initialize the VOSF subsystem and it's profitable
-	if (!video_vosf_init(monitor)) {
-		WarningAlert(STR_VOSF_INIT_ERR);
-		use_vosf = false;
-	}
-	else if (!video_vosf_profitable()) {
-		video_vosf_exit();
-		printf("VOSF acceleration is not profitable on this platform, disabling it\n");
-		use_vosf = false;
-	}
-	if (!use_vosf) {
-		free(the_buffer_copy);
-		vm_release(the_buffer, the_buffer_size);
-		the_host_buffer = NULL;
-	}
-#endif
 	if (!use_vosf) {
 		// Allocate memory for frame buffer
 		the_buffer_size = (aligned_height + 2) * s->pitch;
@@ -654,18 +472,6 @@ void driver_base::adapt_to_video_mode() {
 
 
 	bool hardware_cursor = false;
-#ifdef SHEEPSHAVER
-	hardware_cursor = video_can_change_cursor();
-	if (hardware_cursor) {
-		// Create cursor
-		if ((sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, 0, 0)) != NULL) {
-			SDL_SetCursor(sdl_cursor);
-		}
-	}
-	// Tell the video driver there's a change in cursor type
-	if (private_data)
-		private_data->cursorHardware = hardware_cursor;
-#endif
 	// Hide cursor
 	SDL_ShowCursor(hardware_cursor);
 
@@ -698,18 +504,6 @@ driver_base::~driver_base()
 			the_buffer_copy = NULL;
 		}
 	}
-#ifdef ENABLE_VOSF
-	else {
-		if (the_buffer_copy) {
-			D(bug(" freeing the_buffer_copy at %p\n", the_buffer_copy));
-			free(the_buffer_copy);
-			the_buffer_copy = NULL;
-		}
-
-		// Deinitialize VOSF
-		video_vosf_exit();
-	}
-#endif
 
 	SDL_ShowCursor(1);
 }
@@ -892,21 +686,9 @@ bool SDL_monitor_desc::video_open(void)
 	return true;
 }
 
-#ifdef SHEEPSHAVER
-bool VideoInit(void)
-{
-	const bool classic = false;
-#else
 bool VideoInit(bool classic)
 {
-#endif
 	classic_mode = classic;
-
-#ifdef ENABLE_VOSF
-	// Zero the mainBuffer structure
-	mainBuffer.dirtyPages = NULL;
-	mainBuffer.pageInfo = NULL;
-#endif
 
 	// Create Mutexes
 	if ((sdl_events_lock = SDL_CreateMutex()) == NULL)
@@ -1035,10 +817,6 @@ bool VideoInit(bool classic)
 		const VIDEO_MODE & mode = (*i);
 		if (VIDEO_MODE_X == default_width && VIDEO_MODE_Y == default_height && VIDEO_MODE_DEPTH == default_depth) {
 			default_id = VIDEO_MODE_RESOLUTION;
-#ifdef SHEEPSHAVER
-			std::vector<VIDEO_MODE>::const_iterator begin = VideoModes.begin();
-			cur_mode = distance(begin, i);
-#endif
 			break;
 		}
 	}
@@ -1046,21 +824,7 @@ bool VideoInit(bool classic)
 		const VIDEO_MODE & mode = VideoModes[0];
 		default_depth = VIDEO_MODE_DEPTH;
 		default_id = VIDEO_MODE_RESOLUTION;
-#ifdef SHEEPSHAVER
-		cur_mode = 0;
-#endif
 	}
-
-#ifdef SHEEPSHAVER
-	for (int i = 0; i < VideoModes.size(); i++)
-		VModes[i] = VideoModes[i];
-	VideoInfo *p = &VModes[VideoModes.size()];
-	p->viType = DIS_INVALID;        // End marker
-	p->viRowBytes = 0;
-	p->viXsize = p->viYsize = 0;
-	p->viAppleMode = 0;
-	p->viAppleID = 0;
-#endif
 
 #if DEBUG
 	D(bug("Available video modes:\n"));
@@ -1162,9 +926,6 @@ static void do_toggle_fullscreen(void)
 	drv->adapt_to_video_mode();
 
 	// reset the palette
-#ifdef SHEEPSHAVER
-	video_set_palette();
-#endif
 	drv->update_palette();
 
 	// restore the screen contents
@@ -1196,26 +957,6 @@ static void do_toggle_fullscreen(void)
  *  Execute video VBL routine
  */
 
-#ifdef SHEEPSHAVER
-void VideoVBL(void)
-{
-	// Emergency quit requested? Then quit
-	if (emerg_quit)
-		QuitEmulator();
-
-	if (toggle_fullscreen)
-		do_toggle_fullscreen();
-
-	// Temporarily give up frame buffer lock (this is the point where
-	// we are suspended when the user presses Ctrl-Tab)
-	UNLOCK_FRAME_BUFFER;
-	LOCK_FRAME_BUFFER;
-
-	// Execute video VBL
-	if (private_data != NULL && private_data->interruptsEnabled)
-		VSLDoInterruptService(private_data->vslServiceID);
-}
-#else
 void VideoInterrupt(void)
 {
 	// We must fill in the events queue in the same thread that did call SDL_SetVideoMode()
@@ -1233,27 +974,11 @@ void VideoInterrupt(void)
 	UNLOCK_FRAME_BUFFER;
 	LOCK_FRAME_BUFFER;
 }
-#endif
 
 
 /*
  *  Set palette
  */
-
-#ifdef SHEEPSHAVER
-void video_set_palette(void)
-{
-	monitor_desc * monitor = VideoMonitors[0];
-	int n_colors = palette_size(monitor->get_current_mode().viAppleMode);
-	uint8 pal[256 * 3];
-	for (int c = 0; c < n_colors; c++) {
-		pal[c*3 + 0] = mac_pal[c].red;
-		pal[c*3 + 1] = mac_pal[c].green;
-		pal[c*3 + 2] = mac_pal[c].blue;
-	}
-	monitor->set_palette(pal, n_colors);
-}
-#endif
 
 void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 {
@@ -1284,15 +1009,6 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 			ExpandMap[i] = SDL_MapRGB(drv->s->format, pal[c*3+0], pal[c*3+1], pal[c*3+2]);
 		}
 
-#ifdef ENABLE_VOSF
-		if (use_vosf) {
-			// We have to redraw everything because the interpretation of pixel values changed
-			LOCK_VOSF;
-			PFLAG_SET_ALL;
-			UNLOCK_VOSF;
-			memset(the_buffer_copy, 0, VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y);
-		}
-#endif
 	}
 
 	// Tell redraw thread to change palette
@@ -1305,46 +1021,6 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 /*
  *  Switch video mode
  */
-
-#ifdef SHEEPSHAVER
-int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr)
-{
-	/* return if no mode change */
-	if ((csSave->saveData == ReadMacInt32(ParamPtr + csData)) &&
-	    (csSave->saveMode == ReadMacInt16(ParamPtr + csMode))) return noErr;
-
-	/* first find video mode in table */
-	for (int i=0; VModes[i].viType != DIS_INVALID; i++) {
-		if ((ReadMacInt16(ParamPtr + csMode) == VModes[i].viAppleMode) &&
-		    (ReadMacInt32(ParamPtr + csData) == VModes[i].viAppleID)) {
-			csSave->saveMode = ReadMacInt16(ParamPtr + csMode);
-			csSave->saveData = ReadMacInt32(ParamPtr + csData);
-			csSave->savePage = ReadMacInt16(ParamPtr + csPage);
-
-			// Disable interrupts and pause redraw thread
-			DisableInterrupt();
-			thread_stop_ack = false;
-			thread_stop_req = true;
-			while (!thread_stop_ack) ;
-
-			cur_mode = i;
-			monitor_desc *monitor = VideoMonitors[0];
-			monitor->switch_to_current_mode();
-
-			WriteMacInt32(ParamPtr + csBaseAddr, screen_base);
-			csSave->saveBaseAddr=screen_base;
-			csSave->saveData=VModes[cur_mode].viAppleID;/* First mode ... */
-			csSave->saveMode=VModes[cur_mode].viAppleMode;
-
-			// Enable interrupts and resume redraw thread
-			thread_stop_req = false;
-			EnableInterrupt();
-			return noErr;
-		}
-	}
-	return paramErr;
-}
-#endif
 
 void SDL_monitor_desc::switch_to_current_mode(void)
 {
@@ -1359,77 +1035,6 @@ void SDL_monitor_desc::switch_to_current_mode(void)
 		QuitEmulator();
 	}
 }
-
-
-/*
- *  Can we set the MacOS cursor image into the window?
- */
-
-#ifdef SHEEPSHAVER
-bool video_can_change_cursor(void)
-{
-	if (display_type != DISPLAY_WINDOW)
-		return false;
-
-#if defined(__APPLE__)
-	static char driver[] = "Quartz?";
-	static int quartzok = -1;
-
-	if (quartzok < 0) {
-		if (SDL_VideoDriverName(driver, sizeof driver) == NULL || strncmp(driver, "Quartz", sizeof driver))
-			quartzok = true;
-		else {
-			// Quartz driver bug prevents cursor changing in SDL 1.2.11 to 1.2.14.
-			const SDL_version *vp = SDL_Linked_Version();
-			int version = SDL_VERSIONNUM(vp->major, vp->minor, vp->patch);
-			quartzok = (version <= SDL_VERSIONNUM(1, 2, 10) || version >= SDL_VERSIONNUM(1, 2, 15));
-		}
-	}
-
-	return quartzok;
-#else
-	return true;
-#endif
-}
-#endif
-
-
-/*
- *  Set cursor image for window
- */
-
-#ifdef SHEEPSHAVER
-void video_set_cursor(void)
-{
-	// Set new cursor image if it was changed
-	if (sdl_cursor) {
-		SDL_FreeCursor(sdl_cursor);
-		sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, MacCursor[2], MacCursor[3]);
-		if (sdl_cursor) {
-			SDL_ShowCursor(private_data == NULL || private_data->cursorVisible);
-			SDL_SetCursor(sdl_cursor);
-
-			// XXX Windows apparently needs an extra mouse event to
-			// make the new cursor image visible.
-			// On Mac, if mouse is grabbed, SDL_ShowCursor() recenters the
-			// mouse, we have to put it back.
-			bool move = false;
-#if defined(__APPLE__)
-			move = mouse_grabbed;
-#endif
-			if (move) {
-				int visible = SDL_ShowCursor(-1);
-				if (visible) {
-					int x, y;
-					SDL_GetMouseState(&x, &y);
-					SDL_WarpMouse(x, y);
-				}
-			}
-		}
-	}
-}
-#endif
-
 
 /*
  *  Keyboard-related utilify functions
@@ -1609,13 +1214,6 @@ static int event2keycode(SDL_KeyboardEvent const &ev, bool key_down)
 static void force_complete_window_refresh()
 {
 	if (display_type == DISPLAY_WINDOW) {
-#ifdef ENABLE_VOSF
-		if (use_vosf) {	// VOSF refresh
-			LOCK_VOSF;
-			PFLAG_SET_ALL;
-			UNLOCK_VOSF;
-		}
-#endif
 		// Ensure each byte of the_buffer_copy differs from the_buffer to force a full update.
 		const VIDEO_MODE &mode = VideoMonitors[0]->get_current_mode();
 		const int len = VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y;
@@ -2017,43 +1615,6 @@ static void video_refresh_dga(void)
 	video_refresh_window_static();
 }
 
-#ifdef ENABLE_VOSF
-#if DIRECT_ADDRESSING
-static void video_refresh_dga_vosf(void)
-{
-	// Quit DGA mode if requested
-	possibly_quit_dga_mode();
-	
-	// Update display (VOSF variant)
-	static uint32 tick_counter = 0;
-	if (++tick_counter >= frame_skip) {
-		tick_counter = 0;
-		if (mainBuffer.dirty) {
-			LOCK_VOSF;
-			update_display_dga_vosf(drv);
-			UNLOCK_VOSF;
-		}
-	}
-}
-#endif
-
-static void video_refresh_window_vosf(void)
-{
-	// Ungrab mouse if requested
-	possibly_ungrab_mouse();
-	
-	// Update display (VOSF variant)
-	static uint32 tick_counter = 0;
-	if (++tick_counter >= frame_skip) {
-		tick_counter = 0;
-		if (mainBuffer.dirty) {
-			LOCK_VOSF;
-			update_display_window_vosf(drv);
-			UNLOCK_VOSF;
-		}
-	}
-}
-#endif // def ENABLE_VOSF
 
 static void video_refresh_window_static(void)
 {
@@ -2081,20 +1642,10 @@ static void VideoRefreshInit(void)
 {
 	// TODO: set up specialised 8bpp VideoRefresh handlers ?
 	if (display_type == DISPLAY_SCREEN) {
-#if ENABLE_VOSF && (DIRECT_ADDRESSING)
-		if (use_vosf)
-			video_refresh = video_refresh_dga_vosf;
-		else
-#endif
-			video_refresh = video_refresh_dga;
+		video_refresh = video_refresh_dga;
 	}
 	else {
-#ifdef ENABLE_VOSF
-		if (use_vosf)
-			video_refresh = video_refresh_window_vosf;
-		else
-#endif
-			video_refresh = video_refresh_window_static;
+		video_refresh = video_refresh_window_static;
 	}
 }
 
@@ -2157,29 +1708,5 @@ static int redraw_func(void *arg)
 	uint64 end = GetTicks_usec();
 	D(bug("%lld refreshes in %lld usec = %f refreshes/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
 	return 0;
-}
-#endif
-
-
-/*
- *  Record dirty area from NQD
- */
-
-#ifdef SHEEPSHAVER
-void video_set_dirty_area(int x, int y, int w, int h)
-{
-#ifdef ENABLE_VOSF
-	const VIDEO_MODE &mode = drv->mode;
-	const unsigned screen_width = VIDEO_MODE_X;
-	const unsigned screen_height = VIDEO_MODE_Y;
-	const unsigned bytes_per_row = VIDEO_MODE_ROW_BYTES;
-
-	if (use_vosf) {
-		vosf_set_dirty_area(x, y, w, h, screen_width, screen_height, bytes_per_row);
-		return;
-	}
-#endif
-
-	// XXX handle dirty bounding boxes for non-VOSF modes
 }
 #endif

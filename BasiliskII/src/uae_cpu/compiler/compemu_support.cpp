@@ -58,7 +58,7 @@
 /* kludge for Brian, so he can compile under MSVC++ */
 #define USE_NORMAL_CALLING_CONVENTION 0
 
-#include "sysconfig.h"
+// #include "sysconfig.h"
 #include "sysdeps.h"
 
 #ifdef JIT
@@ -71,6 +71,7 @@
 #else
 #include "cpu_emulation.h"
 #include "main.h"
+#include "prefs.h"
 #include "vm_alloc.h"
 
 #include "m68k.h"
@@ -85,9 +86,14 @@
 #include "compiler/compemu.h"
 #include "fpu/fpu.h"
 #include "fpu/flags.h"
-#include "parameters.h"
+// #include "parameters.h"
 #endif
-#include "verify.h"
+// #include "verify.h"
+
+// #define jit_log(format, ...) \
+// 	uae_log("JIT: " format "\n", ##__VA_ARGS__);
+#define D2 D
+
 
 #ifdef UAE
 #include "uae/log.h"
@@ -174,7 +180,7 @@ void jit_abort(const char *format, ...)
 {
 	va_list args;
 	va_start(args, format);
-	ndebug::pdbvprintf(format, args);
+	vprintf(format, args);
 	va_end(args);
 	abort();
 }
@@ -254,6 +260,8 @@ extern int quit_program;
 // gb-- Extra data for Basilisk II/JIT
 #ifdef JIT_DEBUG
 static bool		JITDebug			= false;	// Enable runtime disassemblers through mon?
+#else
+const bool		JITDebug			= false;
 #endif
 #if USE_INLINING
 #ifdef UAE
@@ -504,7 +512,7 @@ static inline blockinfo* get_blockinfo_addr(void* addr)
 #if defined(CPU_arm)
 #define TARGET_NATIVE	TARGET_ARM
 #endif
-#include "disasm-glue.h"
+// #include "disasm-glue.h"
 
 #ifdef JIT_DEBUG
 static void disasm_block(int disasm_target, const uint8 *start, size_t length)
@@ -2642,13 +2650,13 @@ void compiler_init(void)
 #else
 #ifdef JIT_DEBUG
 	// JIT debug mode ?
-	JITDebug = bx_options.jit.jitdebug;
+	JITDebug = PrefsFindBool("jitdebug");
 #endif
 	jit_log("<JIT compiler> : enable runtime disassemblers : %s", JITDebug ? "yes" : "no");
 
 #ifdef USE_JIT_FPU
 	// Use JIT compiler for FPU instructions ?
-	avoid_fpu = !bx_options.jit.jitfpu;
+	avoid_fpu = !PrefsFindBool("jitfpu");
 #else
 	// JIT FPU is always disabled
 	avoid_fpu = true;
@@ -2656,7 +2664,7 @@ void compiler_init(void)
 	jit_log("<JIT compiler> : compile FPU instructions : %s", !avoid_fpu ? "yes" : "no");
 
 	// Get size of the translation cache (in KB)
-	cache_size = bx_options.jit.jitcachesize;
+	cache_size = PrefsFindInt32("jitcachesize");
 	jit_log("<JIT compiler> : requested translation cache size : %d KB", cache_size);
 
 	// Initialize target CPU (check for features, e.g. CMOV, rat stalls)
@@ -2671,7 +2679,7 @@ void compiler_init(void)
 #endif
 
 	// Translation cache flush mechanism
-	lazy_flush = (bx_options.jit.jitlazyflush == 0) ? false : true;
+	lazy_flush = PrefsFindBool("jitlazyflush");
 	jit_log("<JIT compiler> : lazy translation cache invalidation : %s", str_on_off(lazy_flush));
 	flush_icache = lazy_flush ? flush_icache_lazy : flush_icache_hard;
 
@@ -2680,7 +2688,7 @@ void compiler_init(void)
 	jit_log("<JIT compiler> : FP register aliasing : %s", str_on_off(USE_F_ALIAS));
 	jit_log("<JIT compiler> : lazy constant offsetting : %s", str_on_off(USE_OFFSET));
 #if USE_INLINING
-	follow_const_jumps = bx_options.jit.jitinline;
+	follow_const_jumps = PrefsFindBool("jitinline");
 #endif
 	jit_log("<JIT compiler> : block inlining : %s", str_on_off(follow_const_jumps));
 	jit_log("<JIT compiler> : separate blockinfo allocation : %s", str_on_off(USE_SEPARATE_BIA));
@@ -2786,12 +2794,12 @@ void compiler_exit(void)
 bool compiler_use_jit(void)
 {
 	// Check for the "jit" prefs item
-	if (!bx_options.jit.jit)
+	if (!PrefsFindBool("jit"))
 		return false;
 	
 	// Don't use JIT if translation cache size is less then MIN_CACHE_SIZE KB
-	if (bx_options.jit.jitcachesize < MIN_CACHE_SIZE) {
-		panicbug("<JIT compiler> : translation cache size is less than %d KB. Disabling JIT.\n", MIN_CACHE_SIZE);
+	if (PrefsFindInt32("jitcachesize") < MIN_CACHE_SIZE) {
+		write_log("<JIT compiler> : translation cache size is less than %d KB. Disabling JIT.\n", MIN_CACHE_SIZE);
 		return false;
 	}
 	
@@ -3579,6 +3587,8 @@ void alloc_cache(void)
 	}
 }
 
+extern void op_illg_1 (uae_u32 opcode) REGPARAM;
+
 static void calc_checksum(blockinfo* bi, uae_u32* c1, uae_u32* c2)
 {
 	uae_u32 k1 = 0;
@@ -3869,7 +3879,7 @@ static inline void create_popalls(void)
 	r=REG_PC_TMP;
 	compemu_raw_mov_l_rm(r, uae_p32(&regs.pc_p));
 	compemu_raw_and_l_ri(r,TAGMASK);
-	verify(sizeof(cache_tags[0]) == sizeof(void *));
+	assert(sizeof(cache_tags[0]) == sizeof(void *));
 	compemu_raw_jmp_m_indexed(uae_p32(cache_tags), r, sizeof(void *));
 
 	/* now the exit points */
@@ -4009,7 +4019,7 @@ static bool merge_blacklist()
 #ifdef UAE
 	const char *blacklist = "";
 #else
-	const char *blacklist = bx_options.jit.jitblacklist;
+	const char *blacklist = PrefsFindString("jitblacklist");
 #endif
 	if (blacklist[0] != '\0') {
 		const char *p = blacklist;
@@ -4346,38 +4356,86 @@ void flush_icache(int n)
 #ifdef UAE
 static
 #endif
-void flush_icache_range(uae_u32 start, uae_u32 length)
+// void flush_icache_range(uae_u32 start, uae_u32 length)
+// {
+// 	if (!active)
+// 		return;
+
+// #if LAZY_FLUSH_ICACHE_RANGE
+// 	uae_u8 *start_p = get_real_address(start);
+// 	blockinfo *bi = active;
+// 	while (bi) {
+// #if USE_CHECKSUM_INFO
+// 		bool invalidate = false;
+// 		for (checksum_info *csi = bi->csi; csi && !invalidate; csi = csi->next)
+// 			invalidate = (((start_p - csi->start_p) < csi->length) ||
+// 						  ((csi->start_p - start_p) < length));
+// #else
+// 		// Assume system is consistent and would invalidate the right range
+// 		const bool invalidate = (bi->pc_p - start_p) < length;
+// #endif
+// 		if (invalidate) {
+// 			uae_u32 cl = cacheline(bi->pc_p);
+// 			if (bi == cache_tags[cl + 1].bi)
+// 					cache_tags[cl].handler = (cpuop_func *)popall_execute_normal;
+// 			bi->handler_to_use = (cpuop_func *)popall_execute_normal;
+// 			set_dhtu(bi, bi->direct_pen);
+// 			bi->status = BI_NEED_RECOMP;
+// 		}
+// 		bi = bi->next;
+// 	}
+// 	return;
+// #else
+// 		UNUSED(start);
+// 		UNUSED(length);
+// #endif
+// 	flush_icache(-1);
+// }
+
+void flush_icache_range(uae_u8 *start_p, uae_u32 length)
 {
 	if (!active)
 		return;
 
 #if LAZY_FLUSH_ICACHE_RANGE
-	uae_u8 *start_p = get_real_address(start);
 	blockinfo *bi = active;
 	while (bi) {
 #if USE_CHECKSUM_INFO
-		bool invalidate = false;
-		for (checksum_info *csi = bi->csi; csi && !invalidate; csi = csi->next)
-			invalidate = (((start_p - csi->start_p) < csi->length) ||
-						  ((csi->start_p - start_p) < length));
+		bool candidate = false;
+		for (checksum_info *csi = bi->csi; csi; csi = csi->next) {
+			if (((start_p - csi->start_p) < csi->length) ||
+				((csi->start_p - start_p) < length)) {
+				candidate = true;
+				break;
+			}
+		}
 #else
 		// Assume system is consistent and would invalidate the right range
-		const bool invalidate = (bi->pc_p - start_p) < length;
+		const bool candidate = (bi->pc_p - start_p) < length;
 #endif
-		if (invalidate) {
-			uae_u32 cl = cacheline(bi->pc_p);
-			if (bi == cache_tags[cl + 1].bi)
-					cache_tags[cl].handler = (cpuop_func *)popall_execute_normal;
-			bi->handler_to_use = (cpuop_func *)popall_execute_normal;
-			set_dhtu(bi, bi->direct_pen);
-			bi->status = BI_NEED_RECOMP;
-		}
+		blockinfo *dbi = bi;
 		bi = bi->next;
+		if (candidate) {
+			uae_u32 cl = cacheline(dbi->pc_p);
+			if (dbi->status == BI_INVALID || dbi->status == BI_NEED_RECOMP) {
+				if (dbi == cache_tags[cl+1].bi) 
+					cache_tags[cl].handler = (cpuop_func *)popall_execute_normal;
+				dbi->handler_to_use = (cpuop_func *)popall_execute_normal;
+				set_dhtu(dbi, dbi->direct_pen);
+				dbi->status = BI_INVALID;
+			}
+			else {
+				if (dbi == cache_tags[cl+1].bi) 
+					cache_tags[cl].handler = (cpuop_func *)popall_check_checksum;
+				dbi->handler_to_use = (cpuop_func *)popall_check_checksum;
+				set_dhtu(dbi, dbi->direct_pcc);
+				dbi->status = BI_NEED_CHECK;
+			}
+			remove_from_list(dbi);
+			add_to_dormant(dbi);
+		}
 	}
 	return;
-#else
-		UNUSED(start);
-		UNUSED(length);
 #endif
 	flush_icache(-1);
 }
@@ -4631,7 +4689,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 					comptbl=compfunctbl;
 				}
 
-#ifdef FLIGHT_RECORDER
+#if FLIGHT_RECORDER
 				{
 					/* store also opcode to second register */
 					clobber_flags();
@@ -5008,7 +5066,7 @@ void exec_nostats(void)
 {
 	for (;;)  { 
 		uae_u32 opcode = GET_OPCODE;
-#ifdef FLIGHT_RECORDER
+#if FLIGHT_RECORDER
 		m68k_record_step(m68k_getpc(), opcode);
 #endif
 		(*cpufunctbl[opcode])(opcode);
@@ -5038,7 +5096,7 @@ void execute_normal(void)
 		for (;;)  { /* Take note: This is the do-it-normal loop */
 			pc_hist[blocklen++].location = (uae_u16 *)regs.pc_p;
 			uae_u32 opcode = GET_OPCODE;
-#ifdef FLIGHT_RECORDER
+#if FLIGHT_RECORDER
 			m68k_record_step(m68k_getpc(), opcode);
 #endif
 			(*cpufunctbl[opcode])(opcode);
@@ -5082,7 +5140,7 @@ setjmpagain:
 		for (;;) {
 			if (quit_program > 0) {
 				if (quit_program == 1) {
-#ifdef FLIGHT_RECORDER
+#if FLIGHT_RECORDER
 					dump_flight_recorder();
 #endif
 					break;

@@ -33,13 +33,13 @@
 #define NOFLAGS_CMP 0
 
 #undef SET_NFLG_ALWAYS
-static inline void SET_NFLG_ALWAYS(uae_u32 x)
+static __inline__ void SET_NFLG_ALWAYS(uae_u32 x)
 {
     SET_NFLG(x);  /* This has not yet been redefined */
 }
 
 #undef SET_CFLG_ALWAYS
-static inline void SET_CFLG_ALWAYS(uae_u32 x)
+static __inline__ void SET_CFLG_ALWAYS(uae_u32 x)
 {
     SET_CFLG(x);  /* This has not yet been redefined */
 }

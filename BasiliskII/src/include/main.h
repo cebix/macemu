@@ -31,6 +31,13 @@ extern int FPUType;
 // Flag: 24-bit-addressing?
 extern bool TwentyFourBitAddressing;
 
+// 68k register structure (for Execute68k())
+struct M68kRegisters {
+	uint32 d[8];
+	uint32 a[8];
+	uint16 sr;
+};
+
 // General functions
 extern bool InitAll(const char *vmdir);
 extern void ExitAll(void);

@@ -264,5 +264,3 @@ void Execute68k(uint32 addr, struct M68kRegisters *r)
 		r->a[i] = m68k_areg(regs, i);
 	quit_program = false;
 }
-
-void report_double_bus_error() {}

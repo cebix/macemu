@@ -28,7 +28,8 @@
  */
 
 #define CC_FOR_BUILD 1
-#include "sysconfig.h"
+// #include "sysconfig.h"
+#define WINUAE_ARANYM
 
 #include "sysdeps.h"
 #include "readcpu.h"
@@ -3101,10 +3102,10 @@ gen_opcode (unsigned int opcode)
 	failure;
 	break;
 
-     case i_NATFEAT_ID:
-     case i_NATFEAT_CALL:
-	failure;
-	break;
+ //     case i_NATFEAT_ID:
+ //     case i_NATFEAT_CALL:
+	// failure;
+	// break;
 
      case i_MMUOP:
 	isjump; 
@@ -3127,7 +3128,7 @@ gen_opcode (unsigned int opcode)
 static void
 generate_includes (FILE * f)
 {
-	fprintf (f, "#include \"sysconfig.h\"\n");
+	// fprintf (f, "#include \"sysconfig.h\"\n");
 	fprintf (f, "#if defined(JIT)\n");
 	fprintf (f, "#include \"sysdeps.h\"\n");
 #ifdef UAE

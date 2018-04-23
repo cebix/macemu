@@ -42,7 +42,7 @@ typedef uae_u64 uintptr;
 typedef uae_u32 uintptr;
 #endif
 /* FIXME: cpummu.cpp also checks for USE_JIT, possibly others */
-// #define USE_JIT
+#define USE_JIT
 #endif
 
 #ifdef USE_JIT
@@ -515,7 +515,7 @@ void jit_abort(const TCHAR *format, ...);
 #else
 
 #ifdef WINUAE_ARANYM
-#define jit_log(format, ...) D(bug(format, ##__VA_ARGS__))
+#define jit_log(format, ...) write_log(format"\n", ##__VA_ARGS__)
 #define jit_log2(format, ...) D2(bug(format, ##__VA_ARGS__))
 void jit_abort(const char *format,...) __attribute__((format(printf, 1, 2))) __attribute__((__noreturn__));
 #else

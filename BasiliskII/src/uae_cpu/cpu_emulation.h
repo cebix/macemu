@@ -1,7 +1,7 @@
 /*
- *  cpu_emulation.h - Definitions for Basilisk II CPU emulation module (UAE 0.8.8 version)
+ *  cpu_emulation.h - Definitions for Basilisk II CPU emulation module (UAE 0.8.10 version)
  *
- *  Basilisk II (C) 1997-1999 Christian Bauer
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
 #ifndef CPU_EMULATION_H
 #define CPU_EMULATION_H
 
+#include <string.h>
+
 
 /*
  *  Memory system
@@ -35,15 +37,15 @@ extern uint32 ROMBaseMac;		// ROM base (Mac address space)
 extern uint8 *ROMBaseHost;		// ROM base (host address space)
 extern uint32 ROMSize;			// Size of ROM
 
-#if !REAL_ADDRESSING
-// If we are not using real addressing, the Mac frame buffer gets mapped to this location
-// The memory must be allocated by VideoInit(). If multiple monitors are used, they must
-// share the frame buffer
+#if !REAL_ADDRESSING && !DIRECT_ADDRESSING
+// If we are not using real or direct addressing, the Mac frame buffer gets
+// mapped to this location. The memory must be allocated by VideoInit().
+// If multiple monitors are used, they must share the frame buffer
 const uint32 MacFrameBaseMac = 0xa0000000;
 extern uint8 *MacFrameBaseHost;	// Frame buffer base (host address space)
 extern uint32 MacFrameSize;		// Size of frame buffer
-extern int MacFrameLayout;		// Frame buffer layout (see defines below)
 #endif
+extern int MacFrameLayout;		// Frame buffer layout (see defines below)
 
 // Possible frame buffer layouts
 enum {
@@ -78,15 +80,17 @@ static inline void *Mac2Mac_memcpy(uint32 dest, uint32 src, size_t n) {return me
 // Initialization
 extern bool Init680x0(void);	// This routine may want to look at CPUType/FPUType to set up the apropriate emulation
 extern void Exit680x0(void);
+extern void InitFrameBufferMapping(void);
+
+// 680x0 dynamic recompilation activation flag
+#if USE_JIT
+extern bool UseJIT;
+#else
+const bool UseJIT = false;
+#endif
 
 // 680x0 emulation functions
-struct M68kRegisters {
-	uint32 d[8];
-	memptr a[8];
-	uint16 sr;
-	memptr usp, isp, msp;
-	memptr pc;
-};
+struct M68kRegisters;
 extern void Start680x0(void);									// Reset and start 680x0
 extern "C" void Execute68k(uint32 addr, M68kRegisters *r);		// Execute 68k code from EMUL_OP routine
 extern "C" void Execute68kTrap(uint16 trap, M68kRegisters *r);	// Execute MacOS 68k trap from EMUL_OP routine
@@ -94,13 +98,5 @@ extern "C" void Execute68kTrap(uint16 trap, M68kRegisters *r);	// Execute MacOS 
 // Interrupt functions
 extern void TriggerInterrupt(void);								// Trigger interrupt level 1 (InterruptFlag must be set first)
 extern void TriggerNMI(void);									// Trigger interrupt level 7
-
-// CPU looping handlers
-void check_eps_limit(uaecptr);
-void report_double_bus_error(void);
-
-extern int intlev(void);
-
-static inline void AtariReset(void) {}
 
 #endif

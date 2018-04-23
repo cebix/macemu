@@ -1,38 +1,28 @@
 /*
  *  fpu/impl.h - extra functions and inline implementations
  *
- * Copyright (c) 2001-2004 Milan Jurik of ARAnyM dev team (see AUTHORS)
- * 
- * Inspired by Christian Bauer's Basilisk II
+ *  Basilisk II (C) 1997-2008 Christian Bauer
  *
- * This file is part of the ARAnyM project which builds a new and powerful
- * TOS/FreeMiNT compatible virtual machine running on almost any hardware.
+ *  MC68881/68040 fpu emulation
+ *  
+ *  Original UAE FPU, copyright 1996 Herman ten Brugge
+ *  Rewrite for x86, copyright 1999-2000 Lauri Pesonen
+ *  New framework, copyright 2000 Gwenole Beauchesne
+ *  Adapted for JIT compilation (c) Bernd Meyer, 2000
+ *  
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- * MC68881/68040 fpu emulation
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
  *
- * Original UAE FPU, copyright 1996 Herman ten Brugge
- * Rewrite for x86, copyright 1999-2001 Lauri Pesonen
- * New framework, copyright 2000-2001 Gwenole Beauchesne
- * Adapted for JIT compilation (c) Bernd Meyer, 2000-2001
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * ARAnyM is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * ARAnyM is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with ARAnyM; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef FPU_IMPL_H
@@ -113,8 +103,7 @@ static inline uae_u32 FFPU get_fpcr(void)
 {
 	uae_u32 rounding_precision	= get_rounding_precision();
 	uae_u32 rounding_mode		= get_rounding_mode();
-	uae_u32 exception_enable        = FPU fpcr.exception_enable;
-	return (rounding_precision | rounding_mode | exception_enable);
+	return (rounding_precision | rounding_mode);
 }
 
 /* Set the floating-point control register from an m68k format */
@@ -123,7 +112,6 @@ static inline void FFPU set_fpcr(uae_u32 new_fpcr)
 	set_rounding_precision		( new_fpcr & FPCR_ROUNDING_PRECISION);
 	set_rounding_mode			( new_fpcr & FPCR_ROUNDING_MODE		);
 	set_host_control_word();
-	FPU fpcr.exception_enable	= new_fpcr & FPCR_EXCEPTION_ENABLE;
 }
 
 /* -------------------------------------------------------------------------- */

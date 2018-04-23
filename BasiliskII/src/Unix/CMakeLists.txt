@@ -5,7 +5,7 @@ project(BasiliskII)
 find_package(SDL REQUIRED)
 find_library(COREFOUNDATION_LIBRARY CoreFoundation)
 find_library(IOKIT_LIBRARY IOKit)
-include_directories(../include . ../CrossPlatform ../uae_cpu ${SDL_INCLUDE_DIR})
+include_directories(../include . ../CrossPlatform ../uae_cpu ${SDL_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(build68k ../uae_cpu/build68k.c)
 
@@ -15,7 +15,12 @@ add_custom_command(OUTPUT cpudefs.cpp
 
 add_executable(gencpu ../uae_cpu/gencpu.c ../uae_cpu/readcpu.cpp cpudefs.cpp)
 
-add_custom_command(OUTPUT cpuemu.cpp cpustbl.cpp cpufunctbl.cpp COMMAND gencpu DEPENDS gencpu)
+#add_custom_command(OUTPUT cpuemu.cpp cpustbl.cpp cpufunctbl.cpp COMMAND gencpu DEPENDS gencpu)
+add_custom_command(OUTPUT cpuemu.cpp cpuemu_nf.cpp cpustbl.cpp cpustbl_nf.cpp COMMAND gencpu DEPENDS gencpu)
+
+add_executable(gencomp ../uae_cpu/compiler/gencomp.c ../uae_cpu/readcpu.cpp cpudefs.cpp)
+
+add_custom_command(OUTPUT compemu.cpp compstbl.cpp comptbl.h COMMAND gencomp DEPENDS gencomp)
 
 set(BasiliskII_SRCS 
 	../main.cpp
@@ -76,11 +81,16 @@ set(BasiliskII_SRCS
 	../uae_cpu/basilisk_glue.cpp
 	../uae_cpu/newcpu.cpp
 	../uae_cpu/readcpu.cpp
-	../uae_cpu/fpu/fpu_uae.cpp
+	../uae_cpu/fpu/fpu_ieee.cpp
 	cpustbl.cpp
 	cpudefs.cpp
 	cpuemu.cpp
-	cpufunctbl.cpp
+	compemu.cpp
+	compstbl.cpp
+	../uae_cpu/compiler/compemu_support.cpp 
+	../uae_cpu/compiler/compemu_fpp.cpp
+	cpustbl_nf.cpp
+	cpuemu_nf.cpp
 	#addressing mode =direct -DDIRECT_ADDRESSING
 	#includes 
 )
@@ -88,10 +98,15 @@ set(BasiliskII_SRCS
 add_executable(BasiliskII ${BasiliskII_SRCS})
 
 set_source_files_properties(${BasiliskII_SRCS}
-	PROPERTIES COMPILE_FLAGS "-DDIRECT_ADDRESSING -DFPU_UAE -DDATADIR=\\\".\\\"")
+	PROPERTIES COMPILE_FLAGS "-DDIRECT_ADDRESSING -DCPU_x86_64 -DFIXED_ADDRESSING -DCPU_64_BIT -DNOFLAGS_SUPPORT -DFPU_IEEE -DUSE_JIT -DJIT -DX86_64_ASSEMBLY -DOPTIMIZED_FLAGS -DWINUAE_ARANYM -DUSE_JIT_FPU -DUSE_INLINING -DDATADIR=\\\".\\\"")
+
+# set_property(SOURCE compemu_support.cpp APPEND_STRING PROPERTY COMPILE_FLAGS " -O0 ")
 
 target_link_libraries(BasiliskII ${COREFOUNDATION_LIBRARY} ${IOKIT_LIBRARY} ${SDL_LIBRARY})
 
+SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -pagezero_size 0x2000" )
+
+add_definitions(-march=native)
 
 
 #keycodes -> ../SDL/keycodes
