@@ -55,7 +55,6 @@ using std::string;
 #include "main.h"
 #include "vm_alloc.h"
 #include "sigsegv.h"
-#include "rpc.h"
 
 #if USE_JIT
 extern void flush_icache_range(uint8 *start, uint32 size); // from compemu_support.cpp
@@ -107,11 +106,6 @@ static struct sigaction timer_sa;	// sigaction used for timer
 static timer_t timer;				// 60Hz timer
 #endif
 #endif // !HAVE_PTHREADS
-
-
-static rpc_connection_t *gui_connection = NULL;	// RPC connection to the GUI
-static const char *gui_connection_path = NULL;	// GUI connection identifier
-
 
 // Prototypes
 static int xpram_func(void *arg);
@@ -300,12 +294,6 @@ int main(int argc, char **argv)
 	for (int i=1; i<argc; i++) {
 		if (strcmp(argv[i], "--help") == 0) {
 			usage(argv[0]);
-		} else if (strcmp(argv[i], "--gui-connection") == 0) {
-			argv[i++] = NULL;
-			if (i < argc) {
-				gui_connection_path = argv[i];
-				argv[i] = NULL;
-			}
 		} else if (strcmp(argv[i], "--break") == 0) {
 			argv[i++] = NULL;
 			if (i < argc) {
@@ -336,14 +324,6 @@ int main(int argc, char **argv)
 			for (int j=i+k; j<argc; j++)
 				argv[j-k] = argv[j];
 			argc -= k;
-		}
-	}
-
-	// Connect to the external GUI
-	if (gui_connection_path) {
-		if ((gui_connection = rpc_init_client(gui_connection_path)) == NULL) {
-			fprintf(stderr, "Failed to initialize RPC client connection to the GUI\n");
-			return 1;
 		}
 	}
 
@@ -379,11 +359,6 @@ int main(int argc, char **argv)
 
 	// Init system routines
 	SysInit();
-
-	// Show preferences editor
-	if (!gui_connection && !PrefsFindBool("nogui"))
-		if (!PrefsEditor())
-			QuitEmulator();
 
 	// Install the handler for SIGSEGV
 	if (!sigsegv_install_handler(sigsegv_handler)) {
@@ -554,12 +529,6 @@ void QuitEmulator(void)
 	// Exit preferences
 	PrefsExit();
 
-	// Notify GUI we are about to leave
-	if (gui_connection) {
-		if (rpc_method_invoke(gui_connection, RPC_METHOD_EXIT, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR)
-			rpc_method_wait_for_reply(gui_connection, RPC_TYPE_INVALID);
-	}
-
 	exit(0);
 }
 
@@ -709,11 +678,6 @@ static int tick_func(void *arg)
 
 void ErrorAlert(const char *text)
 {
-	if (gui_connection) {
-		if (rpc_method_invoke(gui_connection, RPC_METHOD_ERROR_ALERT, RPC_TYPE_STRING, text, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR &&
-			rpc_method_wait_for_reply(gui_connection, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR)
-			return;
-	}
 	printf(GetString(STR_SHELL_ERROR_PREFIX), text);
 }
 
@@ -724,11 +688,6 @@ void ErrorAlert(const char *text)
 
 void WarningAlert(const char *text)
 {
-	if (gui_connection) {
-		if (rpc_method_invoke(gui_connection, RPC_METHOD_WARNING_ALERT, RPC_TYPE_STRING, text, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR &&
-			rpc_method_wait_for_reply(gui_connection, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR)
-			return;
-	}
 	printf(GetString(STR_SHELL_WARNING_PREFIX), text);
 }
 

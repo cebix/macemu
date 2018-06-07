@@ -48,7 +48,6 @@ set(BasiliskII_SRCS
 	../extfs.cpp
 	../user_strings.cpp
 	user_strings_unix.cpp
-	rpc_unix.cpp
 	# XPLAT_SRCS
 	../CrossPlatform/vm_alloc.cpp
 	../CrossPlatform/sigsegv.cpp
@@ -67,7 +66,6 @@ set(BasiliskII_SRCS
 	../dummy/scsi_dummy.cpp
 	#audio src
 	../SDL/audio_sdl.cpp
-	#sem src: posix_sem.cpp
 	#ui src
 	../dummy/prefs_editor_dummy.cpp
 	#extra sys 
