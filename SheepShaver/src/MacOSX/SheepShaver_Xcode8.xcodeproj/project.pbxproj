@@ -101,9 +101,10 @@
 		087B91C01B780FFC00825F7F /* vm_alloc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 087B91BC1B780FFC00825F7F /* vm_alloc.cpp */; };
 		08CD42DC14B7B85B009CA2A2 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */; };
 		08CD42E814B7B8AA009CA2A2 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42E714B7B8AA009CA2A2 /* Carbon.framework */; };
-		08E877521E0640E800A90A2C /* clip_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CE2C14A99EF0000B1711 /* clip_macosx.cpp */; };
 		A7B1921418C35D4700791D8D /* DiskType.m in Sources */ = {isa = PBXBuildFile; fileRef = A7B1921318C35D4700791D8D /* DiskType.m */; };
 		E4302EE31FBFE7FA00A5B500 /* lowmem.c in Sources */ = {isa = PBXBuildFile; fileRef = E4302EE21FBFE7FA00A5B500 /* lowmem.c */; };
+		E444DC1520C8F06700DD29C9 /* pict.c in Sources */ = {isa = PBXBuildFile; fileRef = E444DC1420C8F06700DD29C9 /* pict.c */; };
+		E456E2AD20C82B61006C8DC2 /* clip_macosx64.mm in Sources */ = {isa = PBXBuildFile; fileRef = E456E2AC20C82B60006C8DC2 /* clip_macosx64.mm */; };
 		E4C9A03E1FD55CDC00CABBF9 /* basic-dyngen-ops-x86_64_macos.hpp in Headers */ = {isa = PBXBuildFile; fileRef = E4C9A03D1FD55CDC00CABBF9 /* basic-dyngen-ops-x86_64_macos.hpp */; };
 		E4C9A0401FD55CE700CABBF9 /* ppc-dyngen-ops-x86_64_macos.hpp in Headers */ = {isa = PBXBuildFile; fileRef = E4C9A03F1FD55CE700CABBF9 /* ppc-dyngen-ops-x86_64_macos.hpp */; };
 /* End PBXBuildFile section */
@@ -258,7 +259,6 @@
 		0856CE0314A99EEF000B1711 /* utils-cpuinfo.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "utils-cpuinfo.hpp"; sourceTree = "<group>"; };
 		0856CE0414A99EEF000B1711 /* utils-sentinel.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "utils-sentinel.hpp"; sourceTree = "<group>"; };
 		0856CE0514A99EEF000B1711 /* macos_util.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = macos_util.cpp; path = ../macos_util.cpp; sourceTree = SOURCE_ROOT; };
-		0856CE2C14A99EF0000B1711 /* clip_macosx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = clip_macosx.cpp; sourceTree = "<group>"; };
 		0856CE2D14A99EF0000B1711 /* extfs_macosx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = extfs_macosx.cpp; sourceTree = "<group>"; };
 		0856CE6D14A99EF0000B1711 /* macos_util_macosx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = macos_util_macosx.h; sourceTree = "<group>"; };
 		0856CE7014A99EF0000B1711 /* prefs_macosx.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = prefs_macosx.mm; sourceTree = "<group>"; };
@@ -360,7 +360,6 @@
 		0873A80014AC515D004F12B7 /* utils_macosx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = utils_macosx.h; sourceTree = "<group>"; };
 		0873A80114AC515D004F12B7 /* utils_macosx.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = utils_macosx.mm; sourceTree = "<group>"; };
 		0879BD5B15A88F6300DC277D /* pict.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = pict.h; sourceTree = "<group>"; };
-		0879BD5D15A88F7600DC277D /* pict.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = pict.c; path = ../pict.c; sourceTree = SOURCE_ROOT; };
 		0879BD8515A891EC00DC277D /* config-macosx-ppc_32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "config-macosx-ppc_32.h"; sourceTree = "<group>"; };
 		0879BD8615A891EC00DC277D /* config-macosx-x86_32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "config-macosx-x86_32.h"; sourceTree = "<group>"; };
 		0879BDAF15A8B1AA00DC277D /* Info.plist.in */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = Info.plist.in; sourceTree = "<group>"; };
@@ -373,10 +372,11 @@
 		087B91BD1B780FFC00825F7F /* vm_alloc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = vm_alloc.h; path = ../CrossPlatform/vm_alloc.h; sourceTree = SOURCE_ROOT; };
 		08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
 		08CD42E714B7B8AA009CA2A2 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = /System/Library/Frameworks/Carbon.framework; sourceTree = "<absolute>"; };
-		08D93A15159FE174003B04EC /* clip_macosx64.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = clip_macosx64.mm; sourceTree = "<group>"; };
 		A7B1921218C35D4700791D8D /* DiskType.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DiskType.h; sourceTree = "<group>"; };
 		A7B1921318C35D4700791D8D /* DiskType.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DiskType.m; sourceTree = "<group>"; };
 		E4302EE21FBFE7FA00A5B500 /* lowmem.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = lowmem.c; path = Darwin/lowmem.c; sourceTree = "<group>"; };
+		E444DC1420C8F06700DD29C9 /* pict.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = pict.c; path = ../pict.c; sourceTree = "<group>"; };
+		E456E2AC20C82B60006C8DC2 /* clip_macosx64.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = clip_macosx64.mm; sourceTree = "<group>"; };
 		E4C9A03D1FD55CDC00CABBF9 /* basic-dyngen-ops-x86_64_macos.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = "basic-dyngen-ops-x86_64_macos.hpp"; path = "dyngen_precompiled/basic-dyngen-ops-x86_64_macos.hpp"; sourceTree = "<group>"; };
 		E4C9A03F1FD55CE700CABBF9 /* ppc-dyngen-ops-x86_64_macos.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = "ppc-dyngen-ops-x86_64_macos.hpp"; path = "dyngen_precompiled/ppc-dyngen-ops-x86_64_macos.hpp"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -470,7 +470,7 @@
 				0856CE0614A99EEF000B1711 /* MacOSX */,
 				0856CE8814A99EF0000B1711 /* main.cpp */,
 				0856CE8914A99EF0000B1711 /* name_registry.cpp */,
-				0879BD5D15A88F7600DC277D /* pict.c */,
+				E444DC1420C8F06700DD29C9 /* pict.c */,
 				0856CE8A14A99EF0000B1711 /* prefs_items.cpp */,
 				0856CE8B14A99EF0000B1711 /* prefs.cpp */,
 				0856CE8C14A99EF0000B1711 /* rom_patches.cpp */,
@@ -716,8 +716,7 @@
 			children = (
 				0873A76514ABD151004F12B7 /* config */,
 				0856D2D614A9A704000B1711 /* Launcher */,
-				0856CE2C14A99EF0000B1711 /* clip_macosx.cpp */,
-				08D93A15159FE174003B04EC /* clip_macosx64.mm */,
+				E456E2AC20C82B60006C8DC2 /* clip_macosx64.mm */,
 				0856CE2D14A99EF0000B1711 /* extfs_macosx.cpp */,
 				0879BDAF15A8B1AA00DC277D /* Info.plist.in */,
 				0856CE6D14A99EF0000B1711 /* macos_util_macosx.h */,
@@ -1074,7 +1073,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				08E877521E0640E800A90A2C /* clip_macosx.cpp in Sources */,
 				0856CFC114A99EF0000B1711 /* adb.cpp in Sources */,
 				0856CFC214A99EF0000B1711 /* audio.cpp in Sources */,
 				0856CFE214A99EF0000B1711 /* cdrom.cpp in Sources */,
@@ -1090,6 +1088,7 @@
 				0856D05A14A99EF1000B1711 /* sys_darwin.cpp in Sources */,
 				0856D05B14A99EF1000B1711 /* main.cpp in Sources */,
 				0856D05C14A99EF1000B1711 /* name_registry.cpp in Sources */,
+				E444DC1520C8F06700DD29C9 /* pict.c in Sources */,
 				0856D05D14A99EF1000B1711 /* prefs_items.cpp in Sources */,
 				0856D05E14A99EF1000B1711 /* prefs.cpp in Sources */,
 				0856D05F14A99EF1000B1711 /* rom_patches.cpp in Sources */,
@@ -1113,6 +1112,7 @@
 				0856D07314A99EF1000B1711 /* socket.c in Sources */,
 				0856D07414A99EF1000B1711 /* tcp_input.c in Sources */,
 				0856D07514A99EF1000B1711 /* tcp_output.c in Sources */,
+				E456E2AD20C82B61006C8DC2 /* clip_macosx64.mm in Sources */,
 				0856D07614A99EF1000B1711 /* tcp_subr.c in Sources */,
 				0856D07714A99EF1000B1711 /* tcp_timer.c in Sources */,
 				0856D07814A99EF1000B1711 /* tftp.c in Sources */,
@@ -1179,7 +1179,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
+				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
 				COPY_PHASE_STRIP = NO;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_FIX_AND_CONTINUE = YES;
@@ -1190,6 +1190,7 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
 				GCC_PREFIX_HEADER = "";
 				INSTALL_PATH = /usr/local/bin;
+				ONLY_ACTIVE_ARCH = NO;
 				PREBINDING = NO;
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = lowmem;
@@ -1200,7 +1201,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
+				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
 				COPY_PHASE_STRIP = YES;
 				GCC_ENABLE_FIX_AND_CONTINUE = NO;
 				GCC_ENABLE_PASCAL_STRINGS = NO;
@@ -1209,6 +1210,7 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
 				GCC_PREFIX_HEADER = "";
 				INSTALL_PATH = /usr/local/bin;
+				ONLY_ACTIVE_ARCH = NO;
 				PREBINDING = NO;
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = lowmem;
