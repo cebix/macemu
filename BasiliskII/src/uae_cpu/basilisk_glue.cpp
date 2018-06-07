@@ -159,7 +159,7 @@ void TriggerInterrupt(void)
 
 void TriggerNMI(void)
 {
-	//!! not implemented yet
+	SPCFLAGS_SET( SPCFLAG_BRK ); // use _BRK for NMI
 }
 
 

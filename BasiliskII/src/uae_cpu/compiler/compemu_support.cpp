@@ -43,6 +43,12 @@
 #error "Only [LS]AHF scheme to [gs]et flags is supported with the JIT Compiler"
 #endif
 
+//TODO: detect i386 and arm platforms
+
+#ifdef __x86_64__
+#define CPU_x86_64 1
+#endif
+
 /* NOTE: support for AMD64 assumes translation cache and other code
  * buffers are allocated into a 32-bit address space because (i) B2/JIT
  * code is not 64-bit clean and (ii) it's faster to resolve branches
@@ -254,7 +260,7 @@ uae_u8* comp_pc_p;
 #else
 // External variables
 // newcpu.cpp
-extern int quit_program;
+extern bool quit_program;
 #endif
 
 // gb-- Extra data for Basilisk II/JIT
@@ -4401,41 +4407,28 @@ void flush_icache_range(uae_u8 *start_p, uae_u32 length)
 	blockinfo *bi = active;
 	while (bi) {
 #if USE_CHECKSUM_INFO
-		bool candidate = false;
-		for (checksum_info *csi = bi->csi; csi; csi = csi->next) {
-			if (((start_p - csi->start_p) < csi->length) ||
-				((csi->start_p - start_p) < length)) {
-				candidate = true;
-				break;
-			}
-		}
+		bool invalidate = false;
+		for (checksum_info *csi = bi->csi; csi && !invalidate; csi = csi->next)
+			invalidate = (((start_p - csi->start_p) < csi->length) ||
+						  ((csi->start_p - start_p) < length));
 #else
 		// Assume system is consistent and would invalidate the right range
-		const bool candidate = (bi->pc_p - start_p) < length;
+		const bool invalidate = (bi->pc_p - start_p) < length;
 #endif
-		blockinfo *dbi = bi;
-		bi = bi->next;
-		if (candidate) {
-			uae_u32 cl = cacheline(dbi->pc_p);
-			if (dbi->status == BI_INVALID || dbi->status == BI_NEED_RECOMP) {
-				if (dbi == cache_tags[cl+1].bi) 
+		if (invalidate) {
+			uae_u32 cl = cacheline(bi->pc_p);
+			if (bi == cache_tags[cl + 1].bi)
 					cache_tags[cl].handler = (cpuop_func *)popall_execute_normal;
-				dbi->handler_to_use = (cpuop_func *)popall_execute_normal;
-				set_dhtu(dbi, dbi->direct_pen);
-				dbi->status = BI_INVALID;
-			}
-			else {
-				if (dbi == cache_tags[cl+1].bi) 
-					cache_tags[cl].handler = (cpuop_func *)popall_check_checksum;
-				dbi->handler_to_use = (cpuop_func *)popall_check_checksum;
-				set_dhtu(dbi, dbi->direct_pcc);
-				dbi->status = BI_NEED_CHECK;
-			}
-			remove_from_list(dbi);
-			add_to_dormant(dbi);
+			bi->handler_to_use = (cpuop_func *)popall_execute_normal;
+			set_dhtu(bi, bi->direct_pen);
+			bi->status = BI_NEED_RECOMP;
 		}
+		bi = bi->next;
 	}
 	return;
+#else
+		// UNUSED(start);
+		// UNUSED(length);
 #endif
 	flush_icache(-1);
 }
@@ -5138,15 +5131,11 @@ void m68k_compile_execute (void)
 setjmpagain:
 	TRY(prb) {
 		for (;;) {
-			if (quit_program > 0) {
-				if (quit_program == 1) {
+			if (quit_program == 1) {
 #if FLIGHT_RECORDER
-					dump_flight_recorder();
+				dump_flight_recorder();
 #endif
-					break;
-				}
-				quit_program = 0;
-				m68k_reset ();
+				break;
 			}
 			m68k_do_compile_execute();
 		}

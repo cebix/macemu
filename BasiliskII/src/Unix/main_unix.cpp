@@ -83,27 +83,17 @@ bool TwentyFourBitAddressing;
 
 static uint8 last_xpram[XPRAM_SIZE];				// Buffer for monitoring XPRAM changes
 
-#ifdef HAVE_PTHREADS
-
 static bool xpram_thread_active = false;			// Flag: XPRAM watchdog installed
 static volatile bool xpram_thread_cancel = false;	// Flag: Cancel XPRAM thread
-static pthread_t xpram_thread;						// XPRAM watchdog
+static SDL_Thread *xpram_thread = NULL;				// XPRAM watchdog
 
 static bool tick_thread_active = false;				// Flag: 60Hz thread installed
 static volatile bool tick_thread_cancel = false;	// Flag: Cancel 60Hz thread
-static pthread_t tick_thread;						// 60Hz thread
-static pthread_attr_t tick_thread_attr;				// 60Hz thread attributes
+static SDL_Thread *tick_thread;						// 60Hz thread
 
-static pthread_mutex_t intflag_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to protect InterruptFlags
-#define LOCK_INTFLAGS pthread_mutex_lock(&intflag_lock)
-#define UNLOCK_INTFLAGS pthread_mutex_unlock(&intflag_lock)
-
-#else
-
-#define LOCK_INTFLAGS
-#define UNLOCK_INTFLAGS
-
-#endif
+static SDL_mutex *intflag_lock = NULL;				// Mutex to protect InterruptFlags
+#define LOCK_INTFLAGS SDL_LockMutex(intflag_lock)
+#define UNLOCK_INTFLAGS SDL_UnlockMutex(intflag_lock)
 
 #if USE_SCRATCHMEM_SUBTERFUGE
 uint8 *ScratchMem = NULL;			// Scratch memory for Mac ROM writes
@@ -124,8 +114,8 @@ static const char *gui_connection_path = NULL;	// GUI connection identifier
 
 
 // Prototypes
-static void *xpram_func(void *arg);
-static void *tick_func(void *arg);
+static int xpram_func(void *arg);
+static int tick_func(void *arg);
 static void one_tick(...);
 
 
@@ -482,11 +472,10 @@ int main(int argc, char **argv)
 
 
 #ifndef USE_CPU_EMUL_SERVICES
-#if defined(HAVE_PTHREADS)
+#ifdef USE_SDL
 
-	// POSIX threads available, start 60Hz thread
-	Set_pthread_attr(&tick_thread_attr, 0);
-	tick_thread_active = (pthread_create(&tick_thread, &tick_thread_attr, tick_func, NULL) == 0);
+	// SDL threads available, start 60Hz thread
+	tick_thread_active = ((tick_thread = SDL_CreateThread(tick_func, NULL)) != NULL);
 	if (!tick_thread_active) {
 		sprintf(str, GetString(STR_TICK_THREAD_ERR), strerror(errno));
 		ErrorAlert(str);
@@ -494,60 +483,13 @@ int main(int argc, char **argv)
 	}
 	D(bug("60Hz thread started\n"));
 
-#elif defined(HAVE_TIMER_CREATE) && defined(_POSIX_REALTIME_SIGNALS)
-
-	// POSIX.4 timers and real-time signals available, start 60Hz timer
-	sigemptyset(&timer_sa.sa_mask);
-	timer_sa.sa_sigaction = (void (*)(int, siginfo_t *, void *))one_tick;
-	timer_sa.sa_flags = SA_SIGINFO | SA_RESTART;
-	if (sigaction(SIG_TIMER, &timer_sa, NULL) < 0) {
-		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIG_TIMER", strerror(errno));
-		ErrorAlert(str);
-		QuitEmulator();
-	}
-	struct sigevent timer_event;
-	timer_event.sigev_notify = SIGEV_SIGNAL;
-	timer_event.sigev_signo = SIG_TIMER;
-	if (timer_create(CLOCK_REALTIME, &timer_event, &timer) < 0) {
-		sprintf(str, GetString(STR_TIMER_CREATE_ERR), strerror(errno));
-		ErrorAlert(str);
-		QuitEmulator();
-	}
-	struct itimerspec req;
-	req.it_value.tv_sec = 0;
-	req.it_value.tv_nsec = 16625000;
-	req.it_interval.tv_sec = 0;
-	req.it_interval.tv_nsec = 16625000;
-	if (timer_settime(timer, 0, &req, NULL) < 0) {
-		sprintf(str, GetString(STR_TIMER_SETTIME_ERR), strerror(errno));
-		ErrorAlert(str);
-		QuitEmulator();
-	}
-	D(bug("60Hz timer started\n"));
-
-#else
-
-	// Start 60Hz timer
-	sigemptyset(&timer_sa.sa_mask);		// Block virtual 68k interrupts during SIGARLM handling
-	timer_sa.sa_handler = one_tick;
-	timer_sa.sa_flags = SA_ONSTACK | SA_RESTART;
-	if (sigaction(SIGALRM, &timer_sa, NULL) < 0) {
-		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGALRM", strerror(errno));
-		ErrorAlert(str);
-		QuitEmulator();
-	}
-	struct itimerval req;
-	req.it_interval.tv_sec = req.it_value.tv_sec = 0;
-	req.it_interval.tv_usec = req.it_value.tv_usec = 16625;
-	setitimer(ITIMER_REAL, &req, NULL);
-
 #endif
 #endif
 
-#ifdef USE_PTHREADS_SERVICES
+#ifdef USE_SDL
 	// Start XPRAM watchdog thread
 	memcpy(last_xpram, XPRAM, XPRAM_SIZE);
-	xpram_thread_active = (pthread_create(&xpram_thread, NULL, xpram_func, NULL) == 0);
+	xpram_thread_active = ((xpram_thread = SDL_CreateThread(xpram_func, NULL)) != NULL);
 	D(bug("XPRAM thread started\n"));
 #endif
 
@@ -573,41 +515,17 @@ void QuitEmulator(void)
 	Exit680x0();
 #endif
 
-#if defined(USE_CPU_EMUL_SERVICES)
-	// Show statistics
-	uint64 emulated_ticks_end = GetTicks_usec();
-	D(bug("%ld ticks in %ld usec = %f ticks/sec [%ld tick checks]\n",
-		  (long)emulated_ticks_count, (long)(emulated_ticks_end - emulated_ticks_start),
-		  emulated_ticks_count * 1000000.0 / (emulated_ticks_end - emulated_ticks_start), (long)n_check_ticks));
-#elif defined(USE_PTHREADS_SERVICES)
 	// Stop 60Hz thread
 	if (tick_thread_active) {
 		tick_thread_cancel = true;
-#ifdef HAVE_PTHREAD_CANCEL
-		pthread_cancel(tick_thread);
-#endif
-		pthread_join(tick_thread, NULL);
+		SDL_WaitThread(tick_thread, NULL);
 	}
-#elif defined(HAVE_TIMER_CREATE) && defined(_POSIX_REALTIME_SIGNALS)
-	// Stop 60Hz timer
-	timer_delete(timer);
-#else
-	struct itimerval req;
-	req.it_interval.tv_sec = req.it_value.tv_sec = 0;
-	req.it_interval.tv_usec = req.it_value.tv_usec = 0;
-	setitimer(ITIMER_REAL, &req, NULL);
-#endif
 
-#ifdef USE_PTHREADS_SERVICES
 	// Stop XPRAM watchdog thread
 	if (xpram_thread_active) {
 		xpram_thread_cancel = true;
-#ifdef HAVE_PTHREAD_CANCEL
-		pthread_cancel(xpram_thread);
-#endif
-		pthread_join(xpram_thread, NULL);
+		SDL_WaitThread(xpram_thread, NULL);
 	}
-#endif
 
 	// Deinitialize everything
 	ExitAll();
@@ -659,71 +577,14 @@ void FlushCodeCache(void *start, uint32 size)
 #endif
 }
 
-
-
-#ifdef HAVE_PTHREADS
-/*
- *  Pthread configuration
- */
-
-void Set_pthread_attr(pthread_attr_t *attr, int priority)
-{
-	pthread_attr_init(attr);
-#if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)
-	// Some of these only work for superuser
-	if (geteuid() == 0) {
-		pthread_attr_setinheritsched(attr, PTHREAD_EXPLICIT_SCHED);
-		pthread_attr_setschedpolicy(attr, SCHED_FIFO);
-		struct sched_param fifo_param;
-		fifo_param.sched_priority = ((sched_get_priority_min(SCHED_FIFO) + 
-					      sched_get_priority_max(SCHED_FIFO)) / 2 +
-					     priority);
-		pthread_attr_setschedparam(attr, &fifo_param);
-	}
-	if (pthread_attr_setscope(attr, PTHREAD_SCOPE_SYSTEM) != 0) {
-#ifdef PTHREAD_SCOPE_BOUND_NP
-	    // If system scope is not available (eg. we're not running
-	    // with CAP_SCHED_MGT capability on an SGI box), try bound
-	    // scope.  It exposes pthread scheduling to the kernel,
-	    // without setting realtime priority.
-	    pthread_attr_setscope(attr, PTHREAD_SCOPE_BOUND_NP);
-#endif
-	}
-#endif
-}
-#endif // HAVE_PTHREADS
-
-
 /*
  *  Mutexes
  */
 
-#ifdef HAVE_PTHREADS
-
 struct B2_mutex {
-	B2_mutex() { 
-	    pthread_mutexattr_t attr;
-	    pthread_mutexattr_init(&attr);
-	    // Initialize the mutex for priority inheritance --
-	    // required for accurate timing.
-#if defined(HAVE_PTHREAD_MUTEXATTR_SETPROTOCOL) && !defined(__CYGWIN__)
-	    pthread_mutexattr_setprotocol(&attr, PTHREAD_PRIO_INHERIT);
-#endif
-#if defined(HAVE_PTHREAD_MUTEXATTR_SETTYPE) && defined(PTHREAD_MUTEX_NORMAL)
-	    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);
-#endif
-#ifdef HAVE_PTHREAD_MUTEXATTR_SETPSHARED
-	    pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_PRIVATE);
-#endif
-	    pthread_mutex_init(&m, &attr);
-	    pthread_mutexattr_destroy(&attr);
-	}
-	~B2_mutex() { 
-	    pthread_mutex_trylock(&m); // Make sure it's locked before
-	    pthread_mutex_unlock(&m);  // unlocking it.
-	    pthread_mutex_destroy(&m);
-	}
-	pthread_mutex_t m;
+	B2_mutex() { m = SDL_CreateMutex(); }
+	~B2_mutex() { if (m) SDL_DestroyMutex(m); }
+	SDL_mutex *m;
 };
 
 B2_mutex *B2_create_mutex(void)
@@ -733,45 +594,20 @@ B2_mutex *B2_create_mutex(void)
 
 void B2_lock_mutex(B2_mutex *mutex)
 {
-	pthread_mutex_lock(&mutex->m);
+	if (mutex)
+		SDL_LockMutex(mutex->m);
 }
 
 void B2_unlock_mutex(B2_mutex *mutex)
 {
-	pthread_mutex_unlock(&mutex->m);
+	if (mutex)
+		SDL_UnlockMutex(mutex->m);
 }
 
 void B2_delete_mutex(B2_mutex *mutex)
 {
 	delete mutex;
 }
-
-#else
-
-struct B2_mutex {
-	int dummy;
-};
-
-B2_mutex *B2_create_mutex(void)
-{
-	return new B2_mutex;
-}
-
-void B2_lock_mutex(B2_mutex *mutex)
-{
-}
-
-void B2_unlock_mutex(B2_mutex *mutex)
-{
-}
-
-void B2_delete_mutex(B2_mutex *mutex)
-{
-	delete mutex;
-}
-
-#endif
-
 
 /*
  *  Interrupt flags (must be handled atomically!)
@@ -808,17 +644,15 @@ static void xpram_watchdog(void)
 	}
 }
 
-#ifdef USE_PTHREADS_SERVICES
-static void *xpram_func(void *arg)
+static int xpram_func(void *arg)
 {
 	while (!xpram_thread_cancel) {
 		for (int i=0; i<60 && !xpram_thread_cancel; i++)
 			Delay_usec(999999);		// Only wait 1 second so we quit promptly when xpram_thread_cancel becomes true
 		xpram_watchdog();
 	}
-	return NULL;
+	return 0;
 }
-#endif
 
 
 /*
@@ -832,14 +666,6 @@ static void one_second(void)
 
 	SetInterruptFlag(INTFLAG_1HZ);
 	TriggerInterrupt();
-
-#ifndef USE_PTHREADS_SERVICES
-	static int second_counter = 0;
-	if (++second_counter > 60) {
-		second_counter = 0;
-		xpram_watchdog();
-	}
-#endif
 }
 
 static void one_tick(...)
@@ -850,16 +676,6 @@ static void one_tick(...)
 		one_second();
 	}
 
-#ifndef USE_PTHREADS_SERVICES
-	// Threads not used to trigger interrupts, perform video refresh from here
-	VideoRefresh();
-#endif
-
-#ifndef HAVE_PTHREADS
-	// No threads available, perform networking from here
-	SetInterruptFlag(INTFLAG_ETHER);
-#endif
-
 	// Trigger 60Hz interrupt
 	if (ROMVersion != ROM_VERSION_CLASSIC || HasMacStarted()) {
 		SetInterruptFlag(INTFLAG_60HZ);
@@ -867,8 +683,7 @@ static void one_tick(...)
 	}
 }
 
-#ifdef USE_PTHREADS_SERVICES
-static void *tick_func(void *arg)
+static int tick_func(void *arg)
 {
 	uint64 start = GetTicks_usec();
 	int64 ticks = 0;
@@ -878,17 +693,15 @@ static void *tick_func(void *arg)
 		next += 16625;
 		int64 delay = next - GetTicks_usec();
 		if (delay > 0)
-			Delay_usec(delay);
+			Delay_usec(uint32(delay));
 		else if (delay < -16625)
 			next = GetTicks_usec();
 		ticks++;
 	}
 	uint64 end = GetTicks_usec();
-	D(bug("%lld ticks in %lld usec = %f ticks/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
-	return NULL;
+	D(bug("%Ld ticks in %Ld usec = %f ticks/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
+	return 0;
 }
-#endif
-
 
 /*
  *  Display error alert

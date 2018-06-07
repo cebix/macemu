@@ -854,11 +854,11 @@ int m68k_move2c (int regno, uae_u32 *regp)
 		case 0: regs.sfc = *regp & 7; break;
 		case 1: regs.dfc = *regp & 7; break;
 		case 2:
-			cacr = *regp & (CPUType < 4 ? 0x3 : 0x80008000);
+			regs.cacr = *regp & (CPUType < 4 ? 0x3 : 0x80008000);
 #if USE_JIT
 			set_cache_state(regs.cacr & 0x8000);
 			if (*regp & 0x08) {	/* Just to be on the safe side */
-				flush_icache(2);
+				flush_icache(1);
 			}
 #endif
 			break;
@@ -1267,6 +1267,9 @@ void mmu_op(uae_u32 opcode, uae_u16 extra)
 	if ((opcode & 0xFE0) == 0x0500) {
 		/* PFLUSH */
 		mmusr = 0;
+#ifdef USE_JIT
+		flush_icache(0);
+#endif
 	} else if ((opcode & 0x0FD8) == 0x548) {
 		/* PTEST */
 	} else

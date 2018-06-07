@@ -104,6 +104,8 @@ set_source_files_properties(${BasiliskII_SRCS}
 
 target_link_libraries(BasiliskII ${COREFOUNDATION_LIBRARY} ${IOKIT_LIBRARY} ${SDL_LIBRARY})
 
+# set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
+
 SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -pagezero_size 0x2000" )
 
 add_definitions(-march=native)

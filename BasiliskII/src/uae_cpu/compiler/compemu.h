@@ -35,6 +35,11 @@
 // #include "sysconfig.h"
 #include "newcpu.h"
 
+#ifdef __x86_64__
+#define CPU_64_BIT 1
+#define CPU_x86_64 1
+#endif
+
 #ifdef UAE
 #ifdef CPU_64_BIT
 typedef uae_u64 uintptr;
