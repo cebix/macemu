@@ -156,8 +156,8 @@ static NSString *getStringFromPrefs(const char *key)
   }
 
   [videoType selectItemAtIndex: display_type ];
-  [width setIntValue: dis_width ];
-  [height setIntValue: dis_height ];
+  [width setStringValue:[NSString stringWithFormat:@"%d", dis_width]];
+  [height setStringValue:[NSString stringWithFormat:@"%d", dis_height]];
 
   int frameskip = PrefsFindInt32("frameskip");
   int item = -1;
