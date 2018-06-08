@@ -300,21 +300,31 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
     ac_cv_framework_SDL=no
   fi
   if [[ "x$ac_cv_framework_SDL" = "xno" ]]; then
-   PKG_CHECK_MODULES([sdl], [sdl >= 1.2], [
-     CFLAGS="$CFLAGS $sdl_CFLAGS"
-     CXXFLAGS="$CXXFLAGS $sdl_CFLAGS"
-     LIBS="$LIBS $sdl_LIBS"
-   ], [
-     WANT_SDL=no
-   ])
+    AC_PATH_PROG(sdl_config, "sdl-config")
+    if [[ -n "$sdl_config" ]]; then
+      sdl_cflags=`$sdl_config --cflags`
+      if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
+        sdl_libs=`$sdl_config --static-libs`
+      else
+        sdl_libs=`$sdl_config --libs`
+      fi
+      CFLAGS="$CFLAGS $sdl_cflags"
+      CXXFLAGS="$CXXFLAGS $sdl_cflags"
+      LIBS="$LIBS $sdl_libs"
+    else
+      WANT_SDL=no
+      WANT_SDL_VIDEO=no
+      WANT_SDL_AUDIO=no
+      SDL_SUPPORT="none"
+    fi
   fi
   SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
 else
   SDL_SUPPORT="none"
 fi
 
-dnl We need X11, if not using SDL.
-if [[ "x$WANT_SDL_VIDEO" = "xno" ]]; then
+dnl We need X11, if not using SDL or Mac GUI.
+if [[ "x$WANT_SDL_VIDEO" = "xno" -a "x$WANT_MACOSX_GUI" = "xno" ]]; then
   AC_PATH_XTRA
   if [[ "x$no_x" = "xyes" ]]; then
     AC_MSG_ERROR([You need X11 to run Basilisk II.])
@@ -896,6 +906,9 @@ dnl Check that the host supports TUN/TAP devices
 AC_CACHE_CHECK([whether TUN/TAP is supported],
   ac_cv_tun_tap_support, [
   AC_TRY_COMPILE([
+    #ifdef HAVE_SYS_SOCKET_H
+    #include <sys/socket.h>
+    #endif
     #if defined(HAVE_LINUX_IF_H) && defined(HAVE_LINUX_IF_TUN_H)
     #include <linux/if.h>
     #include <linux/if_tun.h>
@@ -1288,7 +1301,7 @@ AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack",
 
 
 dnl Resolve and set the proper sigsegv_recovery method... 
-if [[ "x$ac_cv_have_win32_exceptions" = "xyes" ]]; then
+if [[ "x$ac_cv_have_mach_exceptions" = "xyes" ]]; then
   sigsegv_recovery=mach
 elif [[ "x$ac_cv_have_win32_exceptions" = "xyes" ]]; then
   sigsegv_recovery=win32

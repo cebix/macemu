@@ -89,7 +89,7 @@ static void REGPARAM2 dummy_bput (uaecptr, uae_u32) REGPARAM;
 uae_u32 REGPARAM2 dummy_lget (uaecptr addr)
 {
     if (illegal_mem)
-	write_log ("Illegal lget at %08lx\n", addr);
+	write_log ("Illegal lget at %08x\n", addr);
 
     return 0;
 }
@@ -97,7 +97,7 @@ uae_u32 REGPARAM2 dummy_lget (uaecptr addr)
 uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
 {
     if (illegal_mem)
-	write_log ("Illegal wget at %08lx\n", addr);
+	write_log ("Illegal wget at %08x\n", addr);
 
     return 0;
 }
@@ -105,7 +105,7 @@ uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
 uae_u32 REGPARAM2 dummy_bget (uaecptr addr)
 {
     if (illegal_mem)
-	write_log ("Illegal bget at %08lx\n", addr);
+	write_log ("Illegal bget at %08x\n", addr);
 
     return 0;
 }
@@ -113,17 +113,17 @@ uae_u32 REGPARAM2 dummy_bget (uaecptr addr)
 void REGPARAM2 dummy_lput (uaecptr addr, uae_u32 l)
 {
     if (illegal_mem)
-	write_log ("Illegal lput at %08lx\n", addr);
+	write_log ("Illegal lput at %08x\n", addr);
 }
 void REGPARAM2 dummy_wput (uaecptr addr, uae_u32 w)
 {
     if (illegal_mem)
-	write_log ("Illegal wput at %08lx\n", addr);
+	write_log ("Illegal wput at %08x\n", addr);
 }
 void REGPARAM2 dummy_bput (uaecptr addr, uae_u32 b)
 {
     if (illegal_mem)
-	write_log ("Illegal bput at %08lx\n", addr);
+	write_log ("Illegal bput at %08x\n", addr);
 }
 
 /* Mac RAM (32 bit addressing) */
@@ -268,19 +268,19 @@ uae_u32 REGPARAM2 rom_bget(uaecptr addr)
 void REGPARAM2 rom_lput(uaecptr addr, uae_u32 b)
 {
     if (illegal_mem)
-	write_log ("Illegal ROM lput at %08lx\n", addr);
+	write_log ("Illegal ROM lput at %08x\n", addr);
 }
 
 void REGPARAM2 rom_wput(uaecptr addr, uae_u32 b)
 {
     if (illegal_mem)
-	write_log ("Illegal ROM wput at %08lx\n", addr);
+	write_log ("Illegal ROM wput at %08x\n", addr);
 }
 
 void REGPARAM2 rom_bput(uaecptr addr, uae_u32 b)
 {
     if (illegal_mem)
-	write_log ("Illegal ROM bput at %08lx\n", addr);
+	write_log ("Illegal ROM bput at %08x\n", addr);
 }
 
 uae_u8 *REGPARAM2 rom_xlate(uaecptr addr)

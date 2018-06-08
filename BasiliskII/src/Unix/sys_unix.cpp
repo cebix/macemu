@@ -883,10 +883,12 @@ void SysEject(void *arg)
 
 			// Try to use "diskutil eject" but it can take up to 5
 			// seconds to complete
-			static const char eject_cmd[] = "/usr/sbin/diskutil eject %s 2>&1 >/dev/null";
-			char *cmd = (char *)alloca(strlen(eject_cmd) + strlen(fh->ioctl_name) + 1);
-			sprintf(cmd, eject_cmd, fh->ioctl_name);
-			system(cmd);
+			if (fh->ioctl_name) {
+				static const char eject_cmd[] = "/usr/sbin/diskutil eject %s 2>&1 >/dev/null";
+				char *cmd = (char *)alloca(strlen(eject_cmd) + strlen(fh->ioctl_name) + 1);
+				sprintf(cmd, eject_cmd, fh->ioctl_name);
+				system(cmd);
+			}
 		}
 		fh->is_media_present = false;
 	}

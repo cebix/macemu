@@ -220,7 +220,6 @@ static inline int spin_trylock(spinlock_t *lock)
 }
 #endif
 
-#define X86_PPRO_OPT
 #define HAVE_OPTIMIZED_BYTESWAP_32
 #define HAVE_OPTIMIZED_BYTESWAP_16
 
@@ -234,24 +233,12 @@ static inline uae_u32 do_byteswap_16_g(uae_u32 v) {return _byteswap_ushort(v);}
 #else
 /* Intel x86 */
 static inline uae_u32 do_get_mem_long(uae_u32 *a) {uint32 retval; __asm__ ("bswap %0" : "=r" (retval) : "0" (*a) : "cc"); return retval;}
-#ifdef X86_PPRO_OPT
 static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint32 retval; __asm__ ("movzwl %w1,%k0\n\tshll $16,%k0\n\tbswapl %k0\n" : "=&r" (retval) : "m" (*a) : "cc"); return retval;}
-#else
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint32 retval; __asm__ ("xorl %k0,%k0\n\tmovw %w1,%w0\n\trolw $8,%w0" : "=&r" (retval) : "m" (*a) : "cc"); return retval;}
-#endif
 static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {__asm__ ("bswap %0" : "=r" (v) : "0" (v) : "cc"); *a = v;}
-#ifdef X86_PPRO_OPT
 static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("bswapl %0" : "=&r" (v) : "0" (v << 16) : "cc"); *a = v;}
-#else
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v) : "0" (v) : "cc"); *a = v;}
-#endif
 /* bswap doesn't affect condition codes */
 static inline uae_u32 do_byteswap_32_g(uae_u32 v) {__asm__ ("bswap %0" : "=r" (v) : "0" (v)); return v;}
-#ifdef X86_PPRO_OPT
 static inline uae_u32 do_byteswap_16_g(uae_u32 v) {__asm__ ("bswapl %0" : "=&r" (v) : "0" (v << 16) : "cc"); return v;}
-#else
-static inline uae_u32 do_byteswap_16_g(uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v) : "0" (v) : "cc"); return v;}
-#endif
 #endif
 
 #define HAVE_GET_WORD_UNSWAPPED

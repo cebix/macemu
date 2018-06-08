@@ -31,7 +31,7 @@
 
 void mon_init();
 void mon_exit();
-void mon(int argc, char **argv);
+void mon(int argc, const char **argv);
 
 // Break points prompt
 const char STR_ACTIVE_BREAK_POINTS[]	= "Active Break Points:\n";

@@ -373,7 +373,7 @@ uae_s32 ShowEA (int reg, amodes mode, wordsizes size, char *buf)
 			if (dp & 4) base += dispreg;
 
 			addr = base + outer;
-			sprintf (buffer,"(%s%c%d.%c*%d+%ld)+%ld == $%08lx", name,
+			sprintf (buffer,"(%s%c%d.%c*%d+%d)+%d == $%08lx", name,
 					 dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W',
 					 1 << ((dp >> 9) & 3),
 					 disp,outer,
@@ -420,7 +420,7 @@ uae_s32 ShowEA (int reg, amodes mode, wordsizes size, char *buf)
 			if (dp & 4) base += dispreg;
 
 			addr = base + outer;
-			sprintf (buffer,"(%s%c%d.%c*%d+%ld)+%ld == $%08lx", name,
+			sprintf (buffer,"(%s%c%d.%c*%d+%d)+%d == $%08lx", name,
 					 dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W',
 					 1 << ((dp >> 9) & 3),
 					 disp,outer,
@@ -1170,7 +1170,7 @@ void m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 	}
 #endif
 }
-static char* ccnames[] =
+static const char* ccnames[] =
 { "T ","F ","HI","LS","CC","CS","NE","EQ",
   "VC","VS","PL","MI","GE","LT","GT","LE" };
 
@@ -1257,7 +1257,7 @@ void REGPARAM2 op_illg (uae_u32 opcode)
 		return;
 	}
 
-	write_log ("Illegal instruction: %04x at %08lx\n", opcode, pc);
+	write_log ("Illegal instruction: %04x at %08x\n", opcode, pc);
 #if USE_JIT && JIT_DEBUG
 	compiler_dumpstate();
 #endif
@@ -1473,11 +1473,11 @@ void m68k_disasm (uaecptr addr, uaecptr *nextpc, int cnt)
 		}
 		if (ccpt != 0) {
 			if (cctrue(dp->cc))
-				printf (" == %08lx (TRUE)", newpc);
+				printf (" == %08x (TRUE)", newpc);
 			else
-				printf (" == %08lx (FALSE)", newpc);
+				printf (" == %08x (FALSE)", newpc);
 		} else if ((opcode & 0xff00) == 0x6100) /* BSR */
-			printf (" == %08lx", newpc);
+			printf (" == %08x", newpc);
 		printf ("\n");
 	}
 	if (nextpc)
@@ -1488,19 +1488,19 @@ void m68k_dumpstate (uaecptr *nextpc)
 {
 	int i;
 	for (i = 0; i < 8; i++){
-		printf ("D%d: %08lx ", i, m68k_dreg(regs, i));
+		printf ("D%d: %08x ", i, m68k_dreg(regs, i));
 		if ((i & 3) == 3) printf ("\n");
 	}
 	for (i = 0; i < 8; i++){
-		printf ("A%d: %08lx ", i, m68k_areg(regs, i));
+		printf ("A%d: %08x ", i, m68k_areg(regs, i));
 		if ((i & 3) == 3) printf ("\n");
 	}
 	if (regs.s == 0) regs.usp = m68k_areg(regs, 7);
 	if (regs.s && regs.m) regs.msp = m68k_areg(regs, 7);
 	if (regs.s && regs.m == 0) regs.isp = m68k_areg(regs, 7);
-	printf ("USP=%08lx ISP=%08lx MSP=%08lx VBR=%08lx\n",
+	printf ("USP=%08x ISP=%08x MSP=%08x VBR=%08x\n",
 			regs.usp,regs.isp,regs.msp,regs.vbr);
-	printf ("T=%d%d S=%d M=%d X=%d N=%d Z=%d V=%d C=%d IMASK=%d\n",
+	printf ("T=%d%d S=%d M=%d X=%ld N=%ld Z=%ld V=%ld C=%ld IMASK=%d\n",
 			regs.t1, regs.t0, regs.s, regs.m,
 			GET_XFLG, GET_NFLG, GET_ZFLG, GET_VFLG, GET_CFLG, regs.intmask);
 
@@ -1509,5 +1509,5 @@ void m68k_dumpstate (uaecptr *nextpc)
 
 	m68k_disasm(m68k_getpc (), nextpc, 1);
 	if (nextpc)
-		printf ("next PC: %08lx\n", *nextpc);
+		printf ("next PC: %08x\n", *nextpc);
 }

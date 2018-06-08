@@ -371,16 +371,11 @@ class OSX_monitor : public monitor_desc
 		bool init_window(const video_mode &mode);
 
 
-#ifdef CGIMAGEREF
 		CGColorSpaceRef		colourSpace;
 		uint8 				*colourTable;
 		CGImageRef			imageRef;
 		CGDataProviderRef	provider;
 		short				x, y, bpp, depth, bpr;
-#endif
-#ifdef NSBITMAP
-		NSBitmapImageRep	*bitmap;
-#endif
 		void				*the_buffer;
 
 
@@ -397,24 +392,17 @@ OSX_monitor :: OSX_monitor (const	vector<video_mode>	&available_modes,
 									uint32				default_id)
 			: monitor_desc (available_modes, default_depth, default_id)
 {
-#ifdef CGIMAGEREF
 	colourSpace = nil;
 	colourTable = (uint8 *) malloc(256 * 3);
 	imageRef = nil;
 	provider = nil;
-#endif
-#ifdef NSBITMAP
-	bitmap = nil;
-#endif
 	newMode = originalMode = nil;
 	the_buffer = NULL;
 	theDisplay = nil;
 };
 
 // Should also have a destructor which does
-//#ifdef CGIMAGEREF
 //	free(colourTable);
-//#endif
 
 
 // Set Mac frame layout and base address (uses the_buffer/MacFrameBaseMac)
@@ -422,17 +410,10 @@ void
 OSX_monitor::set_mac_frame_buffer(const video_mode mode)
 {
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
-	switch ( mode.depth )
-	{
-	//	case VDEPTH_15BIT:
-		case VDEPTH_16BIT: MacFrameLayout = FLAYOUT_HOST_555; break;
-	//	case VDEPTH_24BIT:
-		case VDEPTH_32BIT: MacFrameLayout = FLAYOUT_HOST_888; break;
-		default			 : MacFrameLayout = FLAYOUT_DIRECT;
-	}
 	set_mac_frame_base(MacFrameBaseMac);
 
 	// Set variables used by UAE memory banking
+	MacFrameLayout = FLAYOUT_DIRECT;
 	MacFrameBaseHost = (uint8 *) the_buffer;
 	MacFrameSize = mode.bytes_per_row * mode.y;
 	InitFrameBufferMapping();
@@ -508,7 +489,6 @@ OSX_monitor::init_window(const video_mode &mode)
 	unsigned char *offsetBuffer = (unsigned char *) the_buffer;
 	offsetBuffer += 1;		// OS X NSBitmaps are RGBA, but Basilisk generates ARGB
 
-#ifdef CGIMAGEREF
 	switch ( mode.depth )
 	{
 		case VDEPTH_1BIT:	bpp = 1; break;
@@ -577,61 +557,6 @@ OSX_monitor::init_window(const video_mode &mode)
 //					size_t bitsPerPixel, size_t bytesPerRow,
 //					CGDataProviderRef provider, const float decode[], bool shouldInterpolate);
   #endif
-
-	return true;
-#endif
-
-
-#ifndef CGIMAGEREF
-	short	bitsPer, samplesPer;	// How big is each Pixel?
-
-	if ( mode.depth == VDEPTH_1BIT )
-		bitsPer = 1;
-	else
-		bitsPer = 8;
-
-	if ( mode.depth == VDEPTH_32BIT )
-		samplesPer = 3;
-	else
-		samplesPer = 1;
-#endif
-
-
-#ifdef NSBITMAP
-	bitmap = [NSBitmapImageRep alloc];
-	bitmap = [bitmap initWithBitmapDataPlanes: (unsigned char **) &offsetBuffer
-								   pixelsWide: mode.x
-								   pixelsHigh: mode.y
-								bitsPerSample: bitsPer
-                              samplesPerPixel: samplesPer
-                                     hasAlpha: NO
-									 isPlanar: NO
-							   colorSpaceName: NSCalibratedRGBColorSpace
-								  bytesPerRow: mode.bytes_per_row
-								 bitsPerPixel: bits_from_depth(mode.depth)];
-
-    if ( ! bitmap )
-	{
-		ErrorAlert("Could not allocate an NSBitmapImageRep");
-		return false;
-	}
-
-	[output readyToDraw: bitmap
-			 imageWidth: mode.x
-			imageHeight: mode.y];
-#endif
-
-#ifdef CGDRAWBITMAP
-	[output readyToDraw: offsetBuffer
-				  width: mode.x
-				 height: mode.y
-					bps: bitsPer
-					spp: samplesPer
-					bpp: bits_from_depth(mode.depth)
-					bpr: mode.bytes_per_row
-			   isPlanar: NO
-			   hasAlpha: NO];
-#endif
 
 	return true;
 }
@@ -787,13 +712,11 @@ bool VideoInit(bool classic)
 			case DISPLAY_OPENGL:
 				// Same as window depths and sizes?
 			case DISPLAY_WINDOW:
-#ifdef CGIMAGEREF
 				add_standard_modes(VDEPTH_1BIT);
 				add_standard_modes(VDEPTH_2BIT);
 				add_standard_modes(VDEPTH_4BIT);
 				add_standard_modes(VDEPTH_8BIT);
 				add_standard_modes(VDEPTH_16BIT);
-#endif
 				add_standard_modes(VDEPTH_32BIT);
 				break;
 		}
@@ -866,14 +789,9 @@ OSX_monitor::video_close()
 			[output disableDrawing];
 
 			// Free frame buffer stuff
-#ifdef CGIMAGEREF
 			CGImageRelease(imageRef);
 			CGColorSpaceRelease(colourSpace);
 			CGDataProviderRelease(provider);
-#endif
-#ifdef NSBITMAP
-			[bitmap release];
-#endif
 			free(the_buffer);
 
 			break;
@@ -936,7 +854,6 @@ OSX_monitor::set_palette(uint8 *pal, int num)
 		CGPaletteRelease(CGpal);
 	}
 
-#ifdef CGIMAGEREF
 	if ( display_type != DISPLAY_WINDOW )
 		return;
 
@@ -988,7 +905,6 @@ OSX_monitor::set_palette(uint8 *pal, int num)
 
 	CGColorSpaceRelease(oldColourSpace);
 	CGImageRelease(oldImageRef);
-#endif
 }
 
 
@@ -1035,7 +951,6 @@ OSX_monitor::switch_to_current_mode(void)
 			failure = "Could not get base address of screen";
 
 	}
-#ifdef CGIMAGEREF
 	// Clean up the old CGImageRef stuff
 	else if ( display_type == DISPLAY_WINDOW && imageRef )
 	{
@@ -1054,7 +969,6 @@ OSX_monitor::switch_to_current_mode(void)
 		else
 			failure = "Could not video_open() requested mode";
 	}
-#endif
 	else if ( ! video_open(mode) )
 		failure = "Could not video_open() requested mode";
 

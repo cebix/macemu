@@ -18,8 +18,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef USER_STRINGS_LINUX_H
-#define USER_STRINGS_LINUX_H
+#ifndef USER_STRINGS_UNIX_H
+#define USER_STRINGS_UNIX_H
 
 enum {
 	STR_NO_DEV_ZERO_ERR = 10000,
@@ -78,7 +78,6 @@ enum {
 	STR_MOUSEWHEELLINES_CTRL,
 
 	STR_OPEN_WINDOW_ERR,
-	STR_WINDOW_TITLE_GRABBED,
 
 	STR_NO_B2_EXE_FOUND
 };

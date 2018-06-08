@@ -6533,7 +6533,7 @@ void disasm_block(int target, uint8 * start, size_t length)
 	mon_read_byte = mon_read_byte_jit;
 	mon_write_byte = mon_write_byte_jit;
 	
-	char *arg[5] = {"mon", "-m", "-r", disasm_str, NULL};
+	const char *arg[5] = {"mon", "-m", "-r", disasm_str, NULL};
 	mon(4, arg);
 	
 	mon_read_byte = old_mon_read_byte;

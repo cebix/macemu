@@ -1683,8 +1683,8 @@ bool PatchROM(void)
 	if (ROMBreakpoint) {
 #if ENABLE_MON
 		mon_add_break_point(ROMBaseMac + ROMBreakpoint);
-		printf("ROM start address at %08lx\n", ROMBaseMac);
-		printf("Set ROM break point at %08lx\n", ROMBaseMac + ROMBreakpoint);
+		printf("ROM start address at %08x\n", ROMBaseMac);
+		printf("Set ROM break point at %08x\n", ROMBaseMac + ROMBreakpoint);
 #else
 		uint16 *wp = (uint16 *)(ROMBaseHost + ROMBreakpoint);
 		*wp = htons(M68K_EMUL_BREAK);
