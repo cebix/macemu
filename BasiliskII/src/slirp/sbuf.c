@@ -5,7 +5,7 @@
  * terms and conditions of the copyright.
  */
 
-#include <stdlib.h>
+// #include <stdlib.h>
 #include <slirp.h>
 
 /* Done as a macro in socket.h */
@@ -16,12 +16,17 @@
  * }
  */
 
-void sbfree(struct sbuf *sb)
+void
+sbfree(sb)
+	struct sbuf *sb;
 {
 	free(sb->sb_data);
 }
 
-void sbdrop(struct sbuf *sb, u_int num)
+void
+sbdrop(sb, num)
+	struct sbuf *sb;
+	int num; 
 {
 	/* 
 	 * We can only drop how much we have
@@ -36,7 +41,10 @@ void sbdrop(struct sbuf *sb, u_int num)
    
 }
 
-void sbreserve(struct sbuf *sb, size_t size)
+void
+sbreserve(sb, size)
+	struct sbuf *sb;
+	int size;
 {
 	if (sb->sb_data) {
 		/* Already alloced, realloc if necessary */
@@ -64,14 +72,17 @@ void sbreserve(struct sbuf *sb, size_t size)
  * this prevents an unnecessary copy of the data
  * (the socket is non-blocking, so we won't hang)
  */
-void sbappend(struct socket *so, struct mbuf *m)
+void
+sbappend(so, m)
+	struct socket *so;
+	struct mbuf *m;
 {
 	int ret = 0;
 	
 	DEBUG_CALL("sbappend");
 	DEBUG_ARG("so = %lx", (long)so);
 	DEBUG_ARG("m = %lx", (long)m);
-	DEBUG_ARG("m->m_len = %zu", m->m_len);
+	DEBUG_ARG("m->m_len = %d", m->m_len);
 	
 	/* Shouldn't happen, but...  e.g. foreign host closes connection */
 	if (m->m_len <= 0) {
@@ -123,7 +134,10 @@ void sbappend(struct socket *so, struct mbuf *m)
  * Copy the data from m into sb
  * The caller is responsible to make sure there's enough room
  */
-void sbappendsb(struct sbuf *sb, struct mbuf *m)
+void
+sbappendsb(sb, m)
+	 struct sbuf *sb;
+	 struct mbuf *m;
 {
 	int len, n,  nn;
 	
@@ -159,7 +173,12 @@ void sbappendsb(struct sbuf *sb, struct mbuf *m)
  * Don't update the sbuf rptr, this will be
  * done in sbdrop when the data is acked
  */
-void sbcopy(struct sbuf *sb, u_int off, u_int len, char *to)
+void
+sbcopy(sb, off, len, to)
+	struct sbuf *sb;
+	int off;
+	int len;
+	char *to;
 {
 	char *from;
 	

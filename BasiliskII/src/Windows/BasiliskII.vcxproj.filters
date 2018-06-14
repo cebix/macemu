@@ -270,6 +270,9 @@
     <ClCompile Include="..\SDL\video_sdl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\SDL\video_sdl2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\dummy\scsi_dummy.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

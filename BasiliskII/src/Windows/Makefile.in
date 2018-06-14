@@ -63,7 +63,7 @@ SRCS = ../main.cpp main_windows.cpp ../prefs.cpp ../prefs_items.cpp prefs_window
     ../emul_op.cpp ../macos_util.cpp ../xpram.cpp xpram_windows.cpp ../timer.cpp \
     timer_windows.cpp ../adb.cpp ../serial.cpp serial_windows.cpp \
     ../ether.cpp ether_windows.cpp ../sony.cpp ../disk.cpp ../cdrom.cpp \
-    ../scsi.cpp ../dummy/scsi_dummy.cpp ../video.cpp ../SDL/video_sdl.cpp \
+    ../scsi.cpp ../dummy/scsi_dummy.cpp ../video.cpp ../SDL/video_sdl.cpp ../SDL/video_sdl2.cpp \
     video_blit.cpp ../audio.cpp ../SDL/audio_sdl.cpp clip_windows.cpp \
 	../extfs.cpp extfs_windows.cpp ../user_strings.cpp user_strings_windows.cpp \
     vm_alloc.cpp sigsegv.cpp posix_emu.cpp util_windows.cpp \

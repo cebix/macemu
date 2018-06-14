@@ -56,6 +56,7 @@
     <ClCompile Include="..\scsi.cpp" />
     <ClCompile Include="..\SDL\audio_sdl.cpp" />
     <ClCompile Include="..\SDL\video_sdl.cpp" />
+    <ClCompile Include="..\SDL\video_sdl2.cpp" />
     <ClCompile Include="..\serial.cpp" />
     <ClCompile Include="..\slirp\bootp.c" />
     <ClCompile Include="..\slirp\cksum.c" />
@@ -255,11 +256,11 @@
     <ClInclude Include="util_windows.h" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\SDL-1.2.15\VisualC\SDL\SDL.vcxproj">
-      <Project>{81ce8daf-ebb2-4761-8e45-b71abcca8c68}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\..\thirdparty\src\SDL-1.2.15\VisualC\SDLmain\SDLmain.vcxproj">
+    <ProjectReference Include="..\..\..\external\SDL\VisualC\SDLmain\SDLmain.vcxproj">
       <Project>{da956fd3-e142-46f2-9dd5-c78bebb56b7a}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\external\SDL\VisualC\SDL\SDL.vcxproj">
+      <Project>{81ce8daf-ebb2-4761-8e45-b71abcca8c68}</Project>
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -406,7 +407,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\external\SDL\include</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>
@@ -431,6 +432,9 @@
     <CustomBuildStep>
       <Inputs>$(ToolsDir)gencpu.exe;$(ToolsDir)gencomp.exe</Inputs>
     </CustomBuildStep>
+    <PreLinkEvent>
+      <Command>BasiliskII_MSVC_PostBuild.bat "$(SolutionDir)" "$(Platform)" "$(Configuration)" "$(OutDir)"</Command>
+    </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -439,7 +443,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\external\SDL\include</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>
@@ -472,7 +476,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;USE_JIT;USE_JIT_FPU;JIT_DEBUG;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\external\SDL\include</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>
@@ -497,6 +501,9 @@
     <CustomBuildStep>
       <Inputs>$(ToolsDir)gencpu.exe;$(ToolsDir)gencomp.exe</Inputs>
     </CustomBuildStep>
+    <PreLinkEvent>
+      <Command>BasiliskII_MSVC_PostBuild.bat "$(SolutionDir)" "$(Platform)" "$(Configuration)" "$(OutDir)"</Command>
+    </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug JIT|x64'">
     <ClCompile>
@@ -505,7 +512,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;USE_JIT;USE_JIT_FPU;JIT_DEBUG;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\external\SDL\include</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>
@@ -540,7 +547,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;WIN32;_WINDOWS;NDEBUG;OPTIMIZED_FLAGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\external\SDL\include</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>
@@ -567,6 +574,9 @@
     <CustomBuildStep>
       <Inputs>$(ToolsDir)gencpu.exe;$(ToolsDir)gencomp.exe</Inputs>
     </CustomBuildStep>
+    <PreLinkEvent>
+      <Command>BasiliskII_MSVC_PostBuild.bat "$(SolutionDir)" "$(Platform)" "$(Configuration)" "$(OutDir)"</Command>
+    </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -577,7 +587,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;WIN32;_WINDOWS;NDEBUG;OPTIMIZED_FLAGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\external\SDL\include</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>
@@ -614,7 +624,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;WIN32;_WINDOWS;NDEBUG;OPTIMIZED_FLAGS;USE_JIT;USE_JIT_FPU;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\external\SDL\include</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>
@@ -641,6 +651,9 @@
     <CustomBuildStep>
       <Inputs>$(ToolsDir)gencpu.exe;$(ToolsDir)gencomp.exe</Inputs>
     </CustomBuildStep>
+    <PreLinkEvent>
+      <Command>BasiliskII_MSVC_PostBuild.bat "$(SolutionDir)" "$(Platform)" "$(Configuration)" "$(OutDir)"</Command>
+    </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release JIT|x64'">
     <ClCompile>
@@ -651,7 +664,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>HAVE_CONFIG_H;DIRECT_ADDRESSING;UNALIGNED_PROFITABLE;MSVC_INTRINSICS;OPTIMIZED_FLAGS;SAHF_SETO_PROFITABLE;FPU_IEEE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;WIN32;_WINDOWS;NDEBUG;OPTIMIZED_FLAGS;USE_JIT;USE_JIT_FPU;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\..\SDL-1.2.15\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\uae_cpu;.;..\CrossPlatform;..\slirp;..\..\..\external\SDL\include</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)%(RelativeDir)</AssemblerListingLocation>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <XMLDocumentationFileName>$(IntDir)%(RelativeDir)</XMLDocumentationFileName>

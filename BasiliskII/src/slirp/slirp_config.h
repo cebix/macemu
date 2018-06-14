@@ -40,6 +40,11 @@
  */
 #undef USE_LOWCPU
 
+/* Define this if your compiler doesn't like prototypes */
+#ifndef __STDC__
+#define NO_PROTOTYPES
+#endif
+
 /*********************************************************/
 /*
  * Autoconf defined configuration options
@@ -71,6 +76,9 @@
 
 /* Define if you have sys/stropts.h */
 #undef HAVE_SYS_STROPTS_H
+
+/* Define if your compiler doesn't like prototypes */
+#undef NO_PROTOTYPES
 
 /* Define if you don't have u_int32_t etc. typedef'd */
 #undef NEED_TYPEDEFS

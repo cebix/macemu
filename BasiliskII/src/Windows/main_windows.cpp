@@ -212,6 +212,26 @@ int main(int argc, char **argv)
 	char str[256];
 	bool cd_boot = false;
 
+	// Redirect stdout and stderr to a log file, for diagnostic purposes.
+	// Unbuffered file IO will be used (setup via setvbuf() calls), so as
+	// to write log file data ASAP, lest it get lost in case of program
+	// termination.
+	wchar_t logFileName[4096];
+	logFileName[0] = L'\0';
+	_wgetcwd(logFileName, SDL_arraysize(logFileName));
+	if (logFileName[0] != L'\0') {
+		SDL_wcslcat(logFileName, L"\\BasiliskII_log.txt", SDL_arraysize(logFileName));
+		FILE * fp;
+		fp = _wfreopen(logFileName, L"w", stdout);
+		if (fp) {
+			setvbuf(stdout, NULL, _IONBF, 0);
+		}
+		fp = _wfreopen(logFileName, L"w", stderr);
+		if (fp) {
+			setvbuf(stderr, NULL, _IONBF, 0);
+		}
+	}
+
 	// Initialize variables
 	RAMBaseHost = NULL;
 	ROMBaseHost = NULL;
@@ -282,10 +302,6 @@ int main(int argc, char **argv)
 	if (!check_drivers())
 		QuitEmulator();
 #endif
-
-	// FIXME: default to DIB driver
-	if (getenv("SDL_VIDEODRIVER") == NULL)
-	    putenv("SDL_VIDEODRIVER=windib");
 
 	// Initialize SDL system
 	int sdl_flags = 0;
@@ -400,7 +416,7 @@ int main(int argc, char **argv)
 	emul_thread = GetCurrentThread();
 
 	// SDL threads available, start 60Hz thread
-	tick_thread_active = ((tick_thread = SDL_CreateThread(tick_func, NULL)) != NULL);
+	tick_thread_active = ((tick_thread = SDL_CreateThread(tick_func, "Redraw Thread", NULL)) != NULL);
 	if (!tick_thread_active) {
 		sprintf(str, GetString(STR_TICK_THREAD_ERR), strerror(errno));
 		ErrorAlert(str);
@@ -410,7 +426,7 @@ int main(int argc, char **argv)
 
 	// Start XPRAM watchdog thread
 	memcpy(last_xpram, XPRAM, XPRAM_SIZE);
-	xpram_thread_active = ((xpram_thread = SDL_CreateThread(xpram_func, NULL)) != NULL);
+	xpram_thread_active = ((xpram_thread = SDL_CreateThread(xpram_func, "XPRAM Thread", NULL)) != NULL);
 	D(bug("XPRAM thread started\n"));
 
 	// Start 68k and jump to ROM boot routine
@@ -625,11 +641,21 @@ static int tick_func(void *arg)
 
 #ifdef USE_SDL_VIDEO
 #include <SDL_syswm.h>
+extern SDL_Window *sdl_window;
 HWND GetMainWindowHandle(void)
 {
 	SDL_SysWMinfo wmInfo;
 	SDL_VERSION(&wmInfo.version);
-	return SDL_GetWMInfo(&wmInfo) ? wmInfo.window : NULL;
+	if (!sdl_window) {
+		return NULL;
+	}
+	if (!SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
+		return NULL;
+	}
+	if (wmInfo.subsystem != SDL_SYSWM_WINDOWS) {
+		return NULL;
+	}
+	return wmInfo.info.win.window;
 }
 #endif
 

@@ -6,3 +6,32 @@
 
 # Mac OS X metadata
 *.DS_Store
+
+#
+# Xcode gitignore settings are from https://github.com/github/gitignore/blob/master/Global/Xcode.gitignore
+#
+
+## Xcode, Build generated
+build/
+DerivedData/
+
+## Xcode, Various settings
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+
+## Xcode, Other
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+
+#
+# JetBrains IDE settings
+#
+*.idea

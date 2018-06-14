@@ -7,11 +7,11 @@
 
 #include <slirp.h>
 
-size_t if_mtu, if_mru;
+int if_mtu, if_mru;
 int if_comp;
 int if_maxlinkhdr;
-int if_queued = 0;                  /* Number of packets queued so far */
-int if_thresh = 10;                 /* Number of packets queued before we start sending
+int     if_queued = 0;                  /* Number of packets queued so far */
+int     if_thresh = 10;                 /* Number of packets queued before we start sending
 					 * (to prevent allocing too many mbufs) */
 
 struct  mbuf if_fastq;                  /* fast queue (for interactive data) */
@@ -116,8 +116,7 @@ if_input(ttyp)
 	DEBUG_MISC((dfd, " read %d bytes\n", if_n));
 	
 	if (if_n <= 0) {
-		int error = WSAGetLastError();
-		if (if_n == 0 || (error != WSAEINTR && error != EAGAIN)) {
+		if (if_n == 0 || (errno != EINTR && errno != EAGAIN)) {
 			if (ttyp->up)
 			   link_up--;
 			tty_detached(ttyp, 0);

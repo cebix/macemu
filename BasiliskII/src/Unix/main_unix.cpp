@@ -28,6 +28,7 @@
 
 #ifdef USE_SDL
 # include <SDL.h>
+# include <SDL_main.h>
 #endif
 
 #ifndef USE_SDL_VIDEO
@@ -437,6 +438,19 @@ int main(int argc, char **argv)
 			argv[i] = NULL;
 			PrintROMInfo = true;
 		}
+		
+#if defined(__APPLE__) && defined(__MACH__)
+		// Mac OS X likes to pass in various options of its own, when launching an app.
+		// Attempt to ignore these.
+        if (argv[i]) {
+            const char * mac_psn_prefix = "-psn_";
+            if (strcmp(argv[i], "-NSDocumentRevisionsDebugMode") == 0) {
+                argv[i] = NULL;
+            } else if (strncmp(mac_psn_prefix, argv[i], strlen(mac_psn_prefix)) == 0) {
+                argv[i] = NULL;
+            }
+        }
+#endif
 	}
 
 	// Remove processed arguments
@@ -520,6 +534,18 @@ int main(int argc, char **argv)
 		QuitEmulator();
 	}
 	atexit(SDL_Quit);
+
+#if __MACOSX__
+	// On Mac OS X hosts, SDL2 will create its own menu bar.  This is mostly OK,
+	// except that it will also install keyboard shortcuts, such as Command + Q,
+	// which can interfere with keyboard shortcuts in the guest OS.
+	//
+	// HACK: disable these shortcuts, while leaving all other pieces of SDL2's
+	// menu bar in-place.
+	extern void disable_SDL2_macosx_menu_bar_keyboard_shortcuts();
+	disable_SDL2_macosx_menu_bar_keyboard_shortcuts();
+#endif
+	
 #endif
 
 	// Init system routines

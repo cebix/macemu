@@ -68,6 +68,10 @@ prefs_desc common_prefs_items[] = {
 	{"jitinline", TYPE_BOOLEAN, false,   "enable translation through constant jumps"},
 	{"jitblacklist", TYPE_STRING, false, "blacklist opcodes from translation"},
 	{"keyboardtype", TYPE_INT32, false, "hardware keyboard type"},
+	{"keycodes",TYPE_BOOLEAN,false,"use raw keycode"},
+	{"keycodefile",TYPE_STRING,"Keycode file"},
+	{"mousewheelmode",TYPE_BOOLEAN,"Use WheelMode"},
+	{"mousewheellines",TYPE_INT32,"wheel line nb"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 

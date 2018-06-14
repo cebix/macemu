@@ -149,7 +149,7 @@ typedef long int32;
 #error "No 4 byte type, you lose."
 #endif
 #if SIZEOF_LONG == 8
-typedef unsigned long uint64;
+typedef uint64_t uint64;
 typedef long int64;
 #define VAL64(a) (a ## l)
 #define UVAL64(a) (a ## ul)
@@ -429,7 +429,7 @@ typedef struct timeval tm_time_t;
 
 // Timing functions
 extern uint64 GetTicks_usec(void);
-extern void Delay_usec(uint32 usec);
+extern void Delay_usec(uint64 usec);
 
 #ifdef HAVE_PTHREADS
 // Setup pthread attributes

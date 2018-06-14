@@ -6,6 +6,8 @@
 */
 
 #include "SDL.h"
+#if (SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0)) // SDLMain.m is not needed in SDL 2.x
+
 #include "SDLMain.h"
 #include <sys/param.h> /* for MAXPATHLEN */
 #include <unistd.h>
@@ -379,3 +381,4 @@ int main (int argc, char **argv)
     return 0;
 }
 
+#endif  // ends: SDL version check

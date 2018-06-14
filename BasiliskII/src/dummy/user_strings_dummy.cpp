@@ -23,7 +23,7 @@
 
 
 // Platform-specific string definitions
-const user_string_def platform_strings[] = {
+user_string_def platform_strings[] = {
 	{-1, NULL}	// End marker
 };
 
@@ -32,7 +32,7 @@ const user_string_def platform_strings[] = {
  *  Fetch pointer to string, given the string number
  */
 
-char *GetString(int num)
+const char *GetString(int num)
 {
 	// First search for platform-specific string
 	int i = 0;

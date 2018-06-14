@@ -26,7 +26,6 @@
 #include <windowsx.h>
 #include <winioctl.h>
 #include "cpu_emulation.h"
-typedef unsigned long ULONG_PTR, *PULONG_PTR;
 
 // VC6 does not have this, Platform SDK has.
 // In case of errors, try to comment out, the needed

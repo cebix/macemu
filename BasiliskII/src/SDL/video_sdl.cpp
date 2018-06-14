@@ -1,5 +1,5 @@
 /*
- *  video_sdl.cpp - Video/graphics emulation, SDL specific stuff
+ *  video_sdl.cpp - Video/graphics emulation, SDL 1.x specific stuff
  *
  *  Basilisk II (C) 1997-2008 Christian Bauer
  *
@@ -43,6 +43,8 @@
 #include "sysdeps.h"
 
 #include <SDL.h>
+#if (SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0))
+
 #include <SDL_mutex.h>
 #include <SDL_thread.h>
 #include <errno.h>
@@ -582,6 +584,16 @@ static void migrate_screen_prefs(void)
 		PrefsReplaceString("screen", str);
 	}
 #endif
+}
+
+void update_sdl_video(SDL_Surface *screen, Sint32 x, Sint32 y, Sint32 w, Sint32 h)
+{
+	SDL_UpdateRect(screen, x, y, w, h);
+}
+
+void update_sdl_video(SDL_Surface *screen, int numrects, SDL_Rect *rects)
+{
+	SDL_UpdateRects(screen, numrects, rects);
 }
 
 
@@ -2223,7 +2235,7 @@ static int redraw_func(void *arg)
 
 		// Wait
 		next += VIDEO_REFRESH_DELAY;
-		int32 delay = int32(next - GetTicks_usec());
+		uint64 delay = int32(next - GetTicks_usec());
 		if (delay > 0)
 			Delay_usec(delay);
 		else if (delay < -VIDEO_REFRESH_DELAY)
@@ -2269,3 +2281,5 @@ void video_set_dirty_area(int x, int y, int w, int h)
 	// XXX handle dirty bounding boxes for non-VOSF modes
 }
 #endif
+
+#endif	// ends: SDL version check

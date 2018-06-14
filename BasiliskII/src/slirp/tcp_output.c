@@ -63,7 +63,9 @@ u_char  tcp_outflags[TCP_NSTATES] = {
 /*
  * Tcp output routine: figure out what should be sent and send it.
  */
-int tcp_output(register struct tcpcb *tp)
+int
+tcp_output(tp)
+	register struct tcpcb *tp;
 {
 	register struct socket *so = tp->t_socket;
 	register long len, win;
@@ -124,7 +126,7 @@ again:
 			 * to send then the probe will be the FIN
 			 * itself.
 			 */
-			if (off < (int)so->so_snd.sb_cc)
+			if (off < so->so_snd.sb_cc)
 				flags &= ~TH_FIN;
 			win = 1;
 		} else {
@@ -199,12 +201,12 @@ again:
 		 * taking into account that we are limited by
 		 * TCP_MAXWIN << tp->rcv_scale.
 		 */
-		long adv = min(win, TCP_MAXWIN << tp->rcv_scale) -
+		long adv = min(win, (long)TCP_MAXWIN << tp->rcv_scale) -
 			(tp->rcv_adv - tp->rcv_nxt);
 
-		if (adv >= (long)(2 * tp->t_maxseg))
+		if (adv >= (long) (2 * tp->t_maxseg))
 			goto send;
-		if (2 * adv >= (long)so->so_rcv.sb_datalen)
+		if (2 * adv >= (long) so->so_rcv.sb_datalen)
 			goto send;
 	}
 
@@ -357,7 +359,7 @@ send:
 		 */
 /*		if (len <= MHLEN - hdrlen - max_linkhdr) { */
 
-			sbcopy(&so->so_snd, off, len, mtod(m, caddr_t) + hdrlen);
+			sbcopy(&so->so_snd, off, (int) len, mtod(m, caddr_t) + hdrlen);
 			m->m_len += len;
 
 /*		} else {
@@ -433,12 +435,12 @@ send:
 	 * Calculate receive window.  Don't shrink window,
 	 * but avoid silly window syndrome.
 	 */
-	if (win < (so->so_rcv.sb_datalen / 4) && win < tp->t_maxseg)
+	if (win < (long)(so->so_rcv.sb_datalen / 4) && win < (long)tp->t_maxseg)
 		win = 0;
-	if (win > (u_long) (TCP_MAXWIN << tp->rcv_scale))
-		win = (u_long) (TCP_MAXWIN << tp->rcv_scale);
-	if (win < (tp->rcv_adv - tp->rcv_nxt))
-		win = (tp->rcv_adv - tp->rcv_nxt);
+	if (win > (long)TCP_MAXWIN << tp->rcv_scale)
+		win = (long)TCP_MAXWIN << tp->rcv_scale;
+	if (win < (long)(tp->rcv_adv - tp->rcv_nxt))
+		win = (long)(tp->rcv_adv - tp->rcv_nxt);
 	ti->ti_win = htons((u_int16_t) (win>>tp->rcv_scale));
 	
 	if (SEQ_GT(tp->snd_up, tp->snd_una)) {
@@ -528,7 +530,7 @@ send:
 	
     {
 	    
-	((struct ip *)ti)->ip_len = (u_int16_t) m->m_len;
+	((struct ip *)ti)->ip_len = m->m_len;
 
 	((struct ip *)ti)->ip_ttl = ip_defttl;
 	((struct ip *)ti)->ip_tos = so->so_iptos;
@@ -579,7 +581,9 @@ out:
 	return (0);
 }
 
-void tcp_setpersist(register struct tcpcb *tp)
+void
+tcp_setpersist(tp)
+	register struct tcpcb *tp;
 {
     int t = ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1;
 
