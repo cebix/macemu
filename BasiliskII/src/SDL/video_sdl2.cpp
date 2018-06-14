@@ -719,11 +719,11 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 	
 	// Apply anti-aliasing, if and when appropriate (usually in fullscreen)
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-
+/*
 	// Always use a resize-able window.  This helps allow SDL to manage
 	// transitions involving fullscreen to or from windowed-mode.
 	window_flags |= SDL_WINDOW_RESIZABLE;
-	
+*/
 	if (!sdl_window) {
 		sdl_window = SDL_CreateWindow(
 			"Basilisk II",
@@ -737,6 +737,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 			return NULL;
 		}
 	}
+	if (flags & SDL_WINDOW_FULLSCREEN) SDL_SetWindowGrab(sdl_window, SDL_TRUE);
 	
 	// Some SDL events (regarding some native-window events), need processing
 	// as they are generated.  SDL2 has a facility, SDL_AddEventWatch(), which
@@ -842,6 +843,8 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 
 static int present_sdl_video()
 {
+	if (SDL_RectEmpty(&sdl_update_video_rect)) return 0;
+	
 	if (!sdl_renderer || !sdl_texture || !guest_surface) {
 		printf("WARNING: A video mode does not appear to have been set.\n");
 		return -1;
@@ -1010,6 +1013,13 @@ void driver_base::adapt_to_video_mode() {
 	if (private_data)
 		private_data->cursorHardware = hardware_cursor;
 #endif
+	SDL_LockMutex(sdl_update_video_mutex);
+	sdl_update_video_rect.x = 0;
+	sdl_update_video_rect.y = 0;
+	sdl_update_video_rect.w = VIDEO_MODE_X;
+	sdl_update_video_rect.h = VIDEO_MODE_Y;
+	SDL_UnlockMutex(sdl_update_video_mutex);
+	
 	// Hide cursor
 	SDL_ShowCursor(hardware_cursor);
 
@@ -1528,9 +1538,13 @@ static void do_toggle_fullscreen(void)
 		if (display_type == DISPLAY_SCREEN) {
 			display_type = DISPLAY_WINDOW;
 			SDL_SetWindowFullscreen(sdl_window, 0);
+			const VIDEO_MODE &mode = drv->mode;
+			SDL_SetWindowSize(sdl_window, VIDEO_MODE_X, VIDEO_MODE_Y);
+			SDL_SetWindowGrab(sdl_window, SDL_FALSE);
 		} else {
 			display_type = DISPLAY_SCREEN;
 			SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+			SDL_SetWindowGrab(sdl_window, SDL_TRUE);
 		}
 	}
 
@@ -1765,7 +1779,7 @@ void SDL_monitor_desc::switch_to_current_mode(void)
 #ifdef SHEEPSHAVER
 bool video_can_change_cursor(void)
 {
-	if (display_type != DISPLAY_WINDOW)
+	if (display_type != DISPLAY_WINDOW || !PrefsFindBool("hardcursor"))
 		return false;
 
 	return true;
@@ -2586,7 +2600,7 @@ static int redraw_func(void *arg)
 
 		// Wait
 		next += VIDEO_REFRESH_DELAY;
-		uint64 delay = int32(next - GetTicks_usec());
+		int32 delay = int32(next - GetTicks_usec());
 		if (delay > 0)
 			Delay_usec(delay);
 		else if (delay < -VIDEO_REFRESH_DELAY)

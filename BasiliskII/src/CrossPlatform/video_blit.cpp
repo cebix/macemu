@@ -529,7 +529,7 @@ bool Screen_blitter_init(VisualFormat const & visual_format, bool native_byte_or
 		// Windowed 1-bit mode uses a 1-bit X image, so there's no need for special blitting routines
 		Screen_blit = Blit_Copy_Raw;
 
-#if __MACOSX__
+#if __MACOSX__ && !defined(SHEEPSHAVER)
 	// dludwig@pobox.com, HACK: This works on OSX (64-bit, at least), but not Linux (32-bit?).  Why?
 	//   To note, __MACOSX__ is an SDL-declared macro (for platform identification at compile time).
 	} else if (mac_depth == 16) {

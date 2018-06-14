@@ -43,7 +43,6 @@
 
 /* Define if using video enabled on SEGV signals. */
 /* #undef ENABLE_VOSF */
-#define ENABLE_VOSF 1
 
 /* Define if using XFree86 DGA extension. */
 /* #undef ENABLE_XF86_DGA */

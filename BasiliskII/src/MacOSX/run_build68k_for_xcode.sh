@@ -6,7 +6,7 @@
 # Generates files for 68k emulation, via UAE's virtual cpu, for use on Mac OS X hosts
 #
 
-if [ ! -d "$BUILT_PRODUCTS_DIR" ] || [ ! "$PROJECT_DIR" ]; then
+if [ ! "$BUILT_PRODUCTS_DIR" ] || [ ! "$PROJECT_DIR" ]; then
 	echo "ERROR: $(basename $0) must be run from an Xcode 'External Build System' target"
 	exit 1
 fi
@@ -23,6 +23,10 @@ case "$1" in
 		rm -rf "$BUILT_PRODUCTS_DIR/build68k_output"
 		;;
 	"")
+		if [ ! -d "$BUILT_PRODUCTS_DIR" ]; then
+			echo "No built products directory"
+			exit 1
+		fi
 		echo "Running build68k"
 		cd "$BUILT_PRODUCTS_DIR"
 		mkdir -p build68k_output
