@@ -234,8 +234,8 @@ static NSData *ConvertToMacTextEncoding(NSAttributedString *aStr, NSArray **styl
 
 	[[aStr string] getCharacters:chars range:NSMakeRange(0, length)];
 
-	NSUInteger unicodeLength = length * sizeof(unichar);
-	NSUInteger bufLen = unicodeLength * 2;
+	ByteCount unicodeLength = length * sizeof(unichar);
+	ByteCount bufLen = unicodeLength * 2;
 	uint8_t buf[bufLen];
 	ByteCount bytesRead;
 
@@ -807,6 +807,8 @@ static NSData *ConvertToMacTEXTAndStyl(NSAttributedString *aStr, NSData **outSty
 		ScriptCode script = [[eachRun objectForKey:@"script"] shortValue];
 		NSDictionary *attrs = [eachRun objectForKey:@"attributes"];
 
+		if (![attrs count]) continue;
+		
 		int32_t startChar = CFSwapInt32HostToBig((int32_t)offset);
 		[stylData appendBytes:&startChar length:4];
 
@@ -1124,7 +1126,7 @@ static void ConvertHostPasteboardToMacScrap()
 	NSData *textData = MacTEXTAndStylDataFromPasteboard(g_pboard, &stylData);
 
 	if (textData) {
-		if (stylData)
+		if (stylData && [stylData length] > 2)
 			WriteDataToMacClipboard(stylData, TYPE_STYL);
 
 		WriteDataToMacClipboard(textData, TYPE_TEXT);
