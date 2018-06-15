@@ -30,6 +30,7 @@
 #include <Cocoa/Cocoa.h>
 #include "VMSettingsController.h"
 
+#include <SDL.h>
 
 @interface SheepShaverMain : NSObject
 {
@@ -96,11 +97,27 @@
 	[pool release];
 }
 
+- (BOOL)validateMenuItem:(NSMenuItem *)menuItem
+{
+	return YES;
+}
+
 @end
 
 /*
  *  Initialization
  */
+
+#if SDL_VERSION_ATLEAST(2,0,0)
+
+id gSheepShaverMain;
+
+void prefs_init(void)
+{
+	gSheepShaverMain = [[SheepShaverMain alloc] init];
+}
+
+#else
 
 void prefs_init(void)
 {
@@ -121,6 +138,7 @@ void prefs_init(void)
 	[pool release];
 }
 
+#endif
 
 /*
  *  Deinitialization
