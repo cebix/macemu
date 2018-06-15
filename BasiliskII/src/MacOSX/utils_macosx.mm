@@ -75,3 +75,9 @@ void set_menu_bar_visible_osx(bool visible)
 {
 	[NSMenu setMenuBarVisible:(visible ? YES : NO)];
 }
+
+void set_current_directory()
+{
+	chdir([[[[NSBundle mainBundle] bundlePath] stringByDeletingLastPathComponent] UTF8String]);
+}
+

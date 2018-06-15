@@ -1005,6 +1005,11 @@ int main(int argc, char **argv)
 		goto quit;
 	}
 
+#if __MACOSX__
+	extern void set_current_directory();
+	set_current_directory();
+#endif
+	
 	// Load Mac ROM
 	if (!load_mac_rom())
 		goto quit;

@@ -658,6 +658,11 @@ int main(int argc, char **argv)
 	D(bug("Mac RAM starts at %p (%08x)\n", RAMBaseHost, RAMBaseMac));
 	D(bug("Mac ROM starts at %p (%08x)\n", ROMBaseHost, ROMBaseMac));
 	
+#if __MACOSX__
+	extern void set_current_directory();
+	set_current_directory();
+#endif
+
 	// Get rom file path from preferences
 	const char *rom_path = PrefsFindString("rom");
 
