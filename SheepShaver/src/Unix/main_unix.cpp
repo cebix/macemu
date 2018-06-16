@@ -124,6 +124,7 @@
 
 #ifdef USE_SDL
 #include <SDL.h>
+#include <string>
 #endif
 
 #ifndef USE_SDL_VIDEO
@@ -673,6 +674,9 @@ static bool install_signal_handlers(void)
 }
 
 #ifdef USE_SDL
+
+static std::string sdl_vmdir;
+
 static bool init_sdl()
 {
 	int sdl_flags = 0;
@@ -699,6 +703,18 @@ static bool init_sdl()
 		return false;
 	}
 	atexit(SDL_Quit);
+
+#if SDL_VERSION_ATLEAST(2,0,0)
+	for (int i = 0; i < 100; i++) {
+		SDL_Event event;
+		SDL_PollEvent(&event);
+		if (event.type == SDL_DROPFILE) {
+			sdl_vmdir = event.drop.file;
+			break;
+		}
+		SDL_Delay(1);
+	}
+#endif
 
 #if __MACOSX__
 	// On Mac OS X hosts, SDL2 will create its own menu bar.  This is mostly OK,
@@ -743,6 +759,22 @@ int main(int argc, char **argv)
 #endif
 #endif
 
+#ifdef USE_SDL
+	// Initialize SDL system
+	if (!init_sdl())
+		goto quit;
+#if SDL_VERSION_ATLEAST(2,0,0)
+	if (valid_vmdir(sdl_vmdir.c_str())) {
+		vmdir = sdl_vmdir.c_str();
+		printf("Using %s as vmdir.\n", vmdir);
+		if (chdir(vmdir)) {
+			printf("Failed to chdir to %s. Good bye.", vmdir);
+			exit(1);
+		}
+	}
+#endif
+#endif
+	
 	// Parse command line arguments
 	for (int i=1; i<argc; i++) {
 		if (strcmp(argv[i], "-NSDocumentRevisionsDebugMode") == 0 || strncmp(argv[i], "-psn_", 5) == 0) {
@@ -813,12 +845,6 @@ int main(int argc, char **argv)
 			usage(argv[0]);
 		}
 	}
-
-#ifdef USE_SDL
-	// Initialize SDL system
-	if (!init_sdl())
-		goto quit;
-#endif
 
 #ifndef USE_SDL_VIDEO
 	// Open display
