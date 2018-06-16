@@ -748,6 +748,11 @@ int main(int argc, char **argv)
 #endif
 #endif
 
+#if __MACOSX__
+	extern void set_current_directory();
+	set_current_directory();
+#endif
+	
 #ifdef USE_SDL
 	// Initialize SDL system
 	if (!init_sdl())
@@ -1031,11 +1036,6 @@ int main(int argc, char **argv)
 		goto quit;
 	}
 
-#if __MACOSX__
-	extern void set_current_directory();
-	set_current_directory();
-#endif
-	
 	// Load Mac ROM
 	if (!load_mac_rom())
 		goto quit;
