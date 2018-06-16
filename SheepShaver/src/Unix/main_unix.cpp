@@ -716,17 +716,6 @@ static bool init_sdl()
 	}
 #endif
 
-#if __MACOSX__
-	// On Mac OS X hosts, SDL2 will create its own menu bar.  This is mostly OK,
-	// except that it will also install keyboard shortcuts, such as Command + Q,
-	// which can interfere with keyboard shortcuts in the guest OS.
-	//
-	// HACK: disable these shortcuts, while leaving all other pieces of SDL2's
-	// menu bar in-place.
-	extern void disable_SDL2_macosx_menu_bar_keyboard_shortcuts();
-	disable_SDL2_macosx_menu_bar_keyboard_shortcuts();
-#endif
-
 	// Don't let SDL catch SIGINT and SIGTERM signals
 	signal(SIGINT, SIG_DFL);
 	signal(SIGTERM, SIG_DFL);
@@ -838,6 +827,17 @@ int main(int argc, char **argv)
 	// Read preferences
 	PrefsInit(vmdir, argc, argv);
 
+#if __MACOSX__
+	// On Mac OS X hosts, SDL2 will create its own menu bar.  This is mostly OK,
+	// except that it will also install keyboard shortcuts, such as Command + Q,
+	// which can interfere with keyboard shortcuts in the guest OS.
+	//
+	// HACK: disable these shortcuts, while leaving all other pieces of SDL2's
+	// menu bar in-place.
+	extern void disable_SDL2_macosx_menu_bar_keyboard_shortcuts();
+	disable_SDL2_macosx_menu_bar_keyboard_shortcuts();
+#endif
+	
 	// Any command line arguments left?
 	for (int i=1; i<argc; i++) {
 		if (argv[i][0] == '-') {
