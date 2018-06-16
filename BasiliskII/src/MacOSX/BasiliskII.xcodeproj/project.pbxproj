@@ -124,6 +124,7 @@
 		E413D93620D260DA00E437D8 /* SDL2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E413D93520D260DA00E437D8 /* SDL2.framework */; };
 		E413D93820D2613500E437D8 /* ether_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E413D93720D2613500E437D8 /* ether_unix.cpp */; };
 		E413D93A20D2614E00E437D8 /* extfs_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E413D93920D2614E00E437D8 /* extfs_macosx.cpp */; };
+		E4150D1420D559800077C51A /* SDL2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E4150D1320D559800077C51A /* SDL2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E490334E20D3A5890012DD5F /* clip_macosx64.mm in Sources */ = {isa = PBXBuildFile; fileRef = E490334D20D3A5890012DD5F /* clip_macosx64.mm */; };
 /* End PBXBuildFile section */
 
@@ -165,6 +166,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
+				E4150D1420D559800077C51A /* SDL2.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -399,6 +401,7 @@
 		E413D93520D260DA00E437D8 /* SDL2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL2.framework; path = ../../../../../../Library/Frameworks/SDL2.framework; sourceTree = "<group>"; };
 		E413D93720D2613500E437D8 /* ether_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ether_unix.cpp; sourceTree = "<group>"; };
 		E413D93920D2614E00E437D8 /* extfs_macosx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = extfs_macosx.cpp; sourceTree = "<group>"; };
+		E4150D1320D559800077C51A /* SDL2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL2.framework; path = ../../../../../../Library/Frameworks/SDL2.framework; sourceTree = "<group>"; };
 		E490334D20D3A5890012DD5F /* clip_macosx64.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = clip_macosx64.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -523,6 +526,7 @@
 		7539DFA91F23B17E006B2DF2 = {
 			isa = PBXGroup;
 			children = (
+				E4150D1320D559800077C51A /* SDL2.framework */,
 				7539E1E41F23B25E006B2DF2 /* src */,
 				753252FF1F535E5D0024025B /* generated src */,
 				7539DFB31F23B17E006B2DF2 /* Products */,
