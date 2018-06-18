@@ -832,7 +832,7 @@ int main(int argc, char **argv)
 	// Read preferences
 	PrefsInit(vmdir, argc, argv);
 
-#if __MACOSX__
+#if __MACOSX__ && SDL_VERSION_ATLEAST(2,0,0)
 	// On Mac OS X hosts, SDL2 will create its own menu bar.  This is mostly OK,
 	// except that it will also install keyboard shortcuts, such as Command + Q,
 	// which can interfere with keyboard shortcuts in the guest OS.

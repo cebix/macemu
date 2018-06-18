@@ -225,11 +225,11 @@ dnl We use mon if possible.
 MONSRCS=
 if [[ "x$WANT_MON" = "xyes" ]]; then
   AC_MSG_CHECKING(for mon)
-  mon_srcdir=../../../mon/src
+  mon_srcdir=../../../cxmon/src
   if grep mon_init $mon_srcdir/mon.h >/dev/null 2>/dev/null; then
     AC_MSG_RESULT(yes)
     AC_DEFINE(ENABLE_MON, 1, [Define if using "mon".])
-    MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_z80.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/mon_lowmem.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c $mon_srcdir/disass/mips-dis.c $mon_srcdir/disass/mips-opc.c $mon_srcdir/disass/mips16-opc.c"
+    MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_z80.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/mon_lowmem.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c"
     CXXFLAGS="$CXXFLAGS -I$mon_srcdir -I$mon_srcdir/disass"
     AC_CHECK_LIB(ncurses, tgetent, ,
       [AC_CHECK_LIB(termcap, tgetent, ,
@@ -353,8 +353,8 @@ else
   SDL_SUPPORT="none"
 fi
 
-dnl We need X11, if not using SDL.
-if [[ "x$WANT_SDL_VIDEO" = "xno" ]]; then
+dnl We need X11, if not using SDL or Mac GUI.
+if [[ "x$WANT_SDL_VIDEO" = "xno" -a "x$WANT_MACOSX_GUI" = "xno" ]]; then
   AC_PATH_XTRA
   if [[ "x$no_x" = "xyes" ]]; then
     AC_MSG_ERROR([You need X11 to run Basilisk II.])
@@ -369,10 +369,12 @@ AS_IF([test  "x$with_bincue" = "xyes" ], [have_bincue=yes], [have_bincue=no])
 AS_IF([test  "x$have_bincue" = "xyes" ], [
    if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
        DEFINES="$DEFINES -DBINCUE"
+       AC_SUBST(USE_BINCUE, yes)
    else
        AC_MSG_ERROR([You need SDL Audio to use BINCUE support.])
+       AC_SUBST(USE_BINCUE, no)
    fi
-])
+], [AC_SUBST(USE_BINCUE, no)])
 
 dnl LIBVHD
 AS_IF([test  "x$with_libvhd" = "xyes" ], [have_libvhd=yes], [have_libvhd=no])
@@ -934,6 +936,9 @@ dnl Check that the host supports TUN/TAP devices
 AC_CACHE_CHECK([whether TUN/TAP is supported],
   ac_cv_tun_tap_support, [
   AC_TRY_COMPILE([
+    #ifdef HAVE_SYS_SOCKET_H
+    #include <sys/socket.h>
+    #endif
     #if defined(HAVE_LINUX_IF_H) && defined(HAVE_LINUX_IF_TUN_H)
     #include <linux/if.h>
     #include <linux/if_tun.h>
@@ -1326,7 +1331,7 @@ AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack",
 
 
 dnl Resolve and set the proper sigsegv_recovery method... 
-if [[ "x$ac_cv_have_win32_exceptions" = "xyes" ]]; then
+if [[ "x$ac_cv_have_mach_exceptions" = "xyes" ]]; then
   sigsegv_recovery=mach
 elif [[ "x$ac_cv_have_win32_exceptions" = "xyes" ]]; then
   sigsegv_recovery=win32

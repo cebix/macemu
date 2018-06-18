@@ -46,7 +46,7 @@ AC_ARG_WITH(gtk,            [  --with-gtk              use GTK user interface [d
    esac],
   [WANT_GTK="gtk2 gtk"])
 AC_ARG_WITH(mon,            [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=yes])
-AC_ARG_WITH(dgcc,           [  --with-dgcc=COMPILER    use C++ COMPILER to compile synthetic opcodes], [DYNGEN_CC=$withval])
+AC_ARG_WITH(dgcc,           [  --with-dgcc=COMPILER    use C++ COMPILER to compile synthetic opcodes or 'precompiled'], [DYNGEN_CC=$withval])
 
 AC_ARG_WITH(bincue,   
   AS_HELP_STRING([--with-bincue], [Allow cdrom image files in bin/cue mode]))
@@ -695,10 +695,12 @@ AS_IF([test  "x$with_bincue" = "xyes" ], [have_bincue=yes], [have_bincue=no])
 AS_IF([test  "x$have_bincue" = "xyes" ], [
    if [[ "xOSX_CORE_AUDIO" = "xno"  -a "x$WANT_SDL_AUDIO"="xno" ]]; then
        AC_MSG_ERROR([You need SDL or OSX Core Audio to use BINCUE support.])
+       AC_SUBST(USE_BINCUE, no)
    else
        CPPFLAGS="$CPPFLAGS -DBINCUE $OSX_CORE_AUDIO"
+       AC_SUBST(USE_BINCUE, yes)
    fi
-])
+], [AC_SUBST(USE_BINCUE, no)])
 
 dnl LIBVHD
 AS_IF([test  "x$with_libvhd" = "xyes" ], [have_libvhd=yes], [have_libvhd=no])
@@ -1467,6 +1469,17 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#if ! (__GNUC__ >= 3)
                   [AC_MSG_RESULT(yes); HAVE_GCC30=yes],
                   [AC_MSG_RESULT(no)])
 
+dnl Check for GCC 4.0 or higher.
+HAVE_GCC40=no
+AC_MSG_CHECKING(for GCC 4.0 or higher)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#if ! (__GNUC__ >= 4)
+                                     # error gcc < 4
+                                     typedef syntax error;
+                                     #endif
+                                   ]])],
+                  [AC_MSG_RESULT(yes); HAVE_GCC40=yes],
+                  [AC_MSG_RESULT(no)])
+
 dnl Check for ICC.
 AC_MSG_CHECKING(for ICC)
 HAVE_ICC=no
@@ -1539,6 +1552,7 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
 
   dnl Enable JIT compiler, if possible
   if [[ "x$WANT_JIT" = "xyes" ]]; then
+    ac_cv_use_dyngen_precompiled=no
     AC_CACHE_CHECK([whether dyngen can be used],
       ac_cv_use_dyngen, [
       case $host_cpu:$ac_cv_object_format in
@@ -1569,20 +1583,30 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
       esac
       dnl Check for a suitable synthetic opcodes compiler (icc is faking itself as gcc 3.2.2)
       if [[ -z "$DYNGEN_CC" ]]; then
-        if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_ICC" = "xno" ]]; then
+        if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_GCC40" = "xno" -a "x$HAVE_ICC" = "xno" ]]; then
           DYNGEN_CC=$CXX
-        else
-          for p in /usr/bin /usr/local/bin /usr/freeware/bin; do
-            gxx="$p/g++"
-            if [[ -x "$gxx" ]]; then
-              DYNGEN_CC="$gxx"
-            fi
-          done
+        elif command -v g++ >/dev/null; then
+          vers=`g++ -dumpversion`
+          function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
+          if [[ $(version $vers) -ge $(version "2.7.0") ]] && [[ $(version $vers) -lt $(version "4.0.0") ]]; then
+            DYNGEN_CC="$gxx"
+          fi
         fi
       fi
-      if [[ -z "$DYNGEN_CC" ]]; then
-        ac_cv_use_dyngen=no
+      if [[ -z "$DYNGEN_CC" -o "x$DYNGEN_CC" = "xprecompiled" ]]; then
+        case $host_cpu in
+          i?86)
+            ac_cv_use_dyngen_precompiled=yes
+            ;;
+          x86_64)
+            ac_cv_use_dyngen_precompiled=yes
+            ;;
+          *)
+            ac_cv_use_dyngen=no
+            ;;
+        esac
       fi
+      if [[ "x$ac_cv_use_dyngen_precompiled" = "xyes" ]]; then DYNGEN_CC=precompiled; fi
     ])
     if [[ "x$ac_cv_use_dyngen" = "xyes" ]]; then
       case $host_cpu in
@@ -1599,10 +1623,17 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
         ;;
       esac
       have_dyngen_gcc3=no
-      case "x`$DYNGEN_CC -dumpversion`" in
-      x[12].*) ;;
-      x*) have_dyngen_gcc3=yes ;;
-      esac
+      if [[ "$DYNGEN_CC" != "precompiled" ]]; then
+        case "x`$DYNGEN_CC -dumpversion`" in
+        x[12].*) ;;
+        x*) have_dyngen_gcc3=yes ;;
+        esac
+      else
+        case "x`$CXX -dumpversion`" in
+        x[12].*) ;;
+        x*) have_dyngen_gcc3=yes ;;
+        esac
+      fi
       if [[ "x$have_dyngen_gcc3" = "xyes" ]]; then
         DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -fno-align-functions"
       else
@@ -1686,6 +1717,7 @@ AC_TRANSLATE_DEFINE(HAVE_LINKER_SCRIPT, "$ac_cv_linker_script_works",
 dnl Generate Makefile.
 AC_SUBST(PERL)
 AC_SUBST(USE_DYNGEN, [$ac_cv_use_dyngen])
+AC_SUBST(USE_DYNGEN_PRECOMPILED, [$ac_cv_use_dyngen_precompiled])
 AC_SUBST(DYNGENSRCS)
 AC_SUBST(DYNGEN_CC)
 AC_SUBST(DYNGEN_CFLAGS)

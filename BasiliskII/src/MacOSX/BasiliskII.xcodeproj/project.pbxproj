@@ -101,6 +101,7 @@
 		757A2BF01F5AF9D6003EDB01 /* user_strings_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 757A2BEF1F5AF9D6003EDB01 /* user_strings_unix.cpp */; };
 		75CBCF751F5DB3AD00830063 /* video_sdl2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 75CBCF741F5DB3AD00830063 /* video_sdl2.cpp */; };
 		75CBCF771F5DB65E00830063 /* video_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 75CBCF761F5DB65E00830063 /* video_sdl.cpp */; };
+		E40CEEC620D7910E00BCB88D /* SDLMain.m in Sources */ = {isa = PBXBuildFile; fileRef = E40CEEC520D7910E00BCB88D /* SDLMain.m */; };
 		E413D92120D260BC00E437D8 /* tftp.c in Sources */ = {isa = PBXBuildFile; fileRef = E413D8F820D260B900E437D8 /* tftp.c */; };
 		E413D92220D260BC00E437D8 /* mbuf.c in Sources */ = {isa = PBXBuildFile; fileRef = E413D8F920D260B900E437D8 /* mbuf.c */; };
 		E413D92320D260BC00E437D8 /* ip_icmp.c in Sources */ = {isa = PBXBuildFile; fileRef = E413D8FB20D260B900E437D8 /* ip_icmp.c */; };
@@ -357,6 +358,8 @@
 		757A2BEF1F5AF9D6003EDB01 /* user_strings_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = user_strings_unix.cpp; sourceTree = "<group>"; };
 		75CBCF741F5DB3AD00830063 /* video_sdl2.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = video_sdl2.cpp; sourceTree = "<group>"; };
 		75CBCF761F5DB65E00830063 /* video_sdl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = video_sdl.cpp; sourceTree = "<group>"; };
+		E40CEEC420D7910D00BCB88D /* SDLMain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SDLMain.h; sourceTree = "<group>"; };
+		E40CEEC520D7910E00BCB88D /* SDLMain.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SDLMain.m; sourceTree = "<group>"; };
 		E413D8F820D260B900E437D8 /* tftp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = tftp.c; sourceTree = "<group>"; };
 		E413D8F920D260B900E437D8 /* mbuf.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = mbuf.c; sourceTree = "<group>"; };
 		E413D8FA20D260B900E437D8 /* tftp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tftp.h; sourceTree = "<group>"; };
@@ -624,12 +627,14 @@
 		7539E0711F23B25A006B2DF2 /* SDL */ = {
 			isa = PBXGroup;
 			children = (
-				752F27021F242F51001032B4 /* xpram_sdl.cpp */,
-				752F27001F242BAF001032B4 /* prefs_sdl.cpp */,
 				7539E0721F23B25A006B2DF2 /* audio_sdl.cpp */,
 				7539E0731F23B25A006B2DF2 /* keycodes */,
+				752F27001F242BAF001032B4 /* prefs_sdl.cpp */,
+				E40CEEC420D7910D00BCB88D /* SDLMain.h */,
+				E40CEEC520D7910E00BCB88D /* SDLMain.m */,
 				75CBCF761F5DB65E00830063 /* video_sdl.cpp */,
 				75CBCF741F5DB3AD00830063 /* video_sdl2.cpp */,
+				752F27021F242F51001032B4 /* xpram_sdl.cpp */,
 			);
 			name = SDL;
 			path = ../SDL;
@@ -1041,6 +1046,7 @@
 				E413D93320D260BC00E437D8 /* cksum.c in Sources */,
 				E413D92920D260BC00E437D8 /* udp.c in Sources */,
 				7539E1A01F23B25A006B2DF2 /* memory.cpp in Sources */,
+				E40CEEC620D7910E00BCB88D /* SDLMain.m in Sources */,
 				753253351F53688D0024025B /* readcpu.cpp in Sources */,
 				7539E1741F23B25A006B2DF2 /* audio_sdl.cpp in Sources */,
 				753252EE1F535DD10024025B /* defs68k.c in Sources */,
@@ -1403,7 +1409,7 @@
 				GCC_DYNAMIC_NO_PIC = YES;
 				GCC_ENABLE_PASCAL_STRINGS = NO;
 				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
-				GCC_OPTIMIZATION_LEVEL = fast;
+				GCC_OPTIMIZATION_LEVEL = 3;
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GCC_USE_STANDARD_INCLUDE_SEARCHING = YES;
 				GCC_WARN_CHECK_SWITCH_STATEMENTS = NO;
