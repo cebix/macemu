@@ -22,8 +22,30 @@ typedef char *caddr_t;
 typedef int socklen_t;
 typedef unsigned long ioctlsockopt_t;
 
+#ifdef __MINGW32__
+#if _WIN32_WINNT < 0x501
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x501
+#endif
+#endif
 # include <winsock2.h>
 # include <WS2tcpip.h>
+
+#ifdef __MINGW32__
+char * WSAAPI inet_ntop(
+  INT     Family,
+  PVOID  pAddr,
+  PTSTR  pStringBuf,
+  size_t StringBufSize
+);
+
+INT WSAAPI inet_pton(
+  INT     Family,
+  const char * pszAddrString,
+  PVOID  pAddrBuf
+);
+#endif
+
 # include <sys/timeb.h>
 # include <iphlpapi.h>
 

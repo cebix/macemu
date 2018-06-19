@@ -37,8 +37,9 @@ CFLAGS = @CFLAGS@ $(SDL_CFLAGS)
 CXXFLAGS = @CXXFLAGS@ $(SDL_CFLAGS)
 CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../slirp
 DEFS = @DEFS@
-LDFLAGS = @LDFLAGS@
-LIBS = @LIBS@ -lwsock32 -liphlpapi
+LDFLAGS = @LDFLAGS@ -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic
+#TODO remove pthread part of that if irrelevant
+LIBS = @LIBS@ -lws2_32 -lwsock32 -liphlpapi
 CPUSRCS = @CPUSRCS@
 PERL = @PERL@
 
@@ -54,7 +55,7 @@ HOST_CXXFLAGS = -O2
 HOST_LDFLAGS =
 
 ## Files
-UNIXSRCS = vm_alloc.cpp vm_alloc.h sigsegv.cpp sigsegv.h video_vosf.h video_blit.cpp video_blit.h
+XPLATSRCS = vm_alloc.cpp vm_alloc.h sigsegv.cpp sigsegv.h video_vosf.h video_blit.cpp video_blit.h
 
 ROUTERSRCS =  router/arp.cpp router/dump.cpp router/dynsockets.cpp router/ftp.cpp \
 	router/icmp.cpp router/mib/interfaces.cpp router/iphelp.cpp router/ipsocket.cpp \
@@ -69,7 +70,7 @@ SRCS = ../main.cpp main_windows.cpp ../prefs.cpp ../prefs_items.cpp prefs_window
     ../audio.cpp ../SDL/audio_sdl.cpp ../ether.cpp ether_windows.cpp \
     ../thunks.cpp ../serial.cpp serial_windows.cpp ../extfs.cpp extfs_windows.cpp \
     about_window_windows.cpp ../user_strings.cpp user_strings_windows.cpp \
-    ../dummy/prefs_editor_dummy.cpp clip_windows.cpp util_windows.cpp kernel_windows.cpp \
+    ../dummy/prefs_editor_dummy.cpp clip_windows.cpp util_windows.cpp \
     vm_alloc.cpp sigsegv.cpp posix_emu.cpp SheepShaver.rc \
 	$(CPUSRCS) $(ROUTERSRCS) $(SLIRP_OBJS)
 
@@ -94,7 +95,7 @@ endif
 
 all: $(PROGS)
 
-$(UNIXSRCS): %: ../Unix/%
+$(XPLATSRCS): %: ../CrossPlatform/%
 	$(LN_S) $< $@
 
 OBJ_DIR = obj
@@ -123,17 +124,17 @@ SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
 VPATH :=
 VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
 
-$(APP): $(UNIXSRCS) $(OBJ_DIR) $(OBJS)
+$(APP): $(XPLATSRCS) $(OBJ_DIR) $(OBJS)
 	$(CXX) -o $(APP) $(LDFLAGS) $(OBJS) $(LIBS) $(SDL_LIBS)
 
-$(UI_APP): $(UNIXSRCS) $(OBJ_DIR) $(UI_OBJS)
+$(UI_APP): $(XPLATSRCS) $(OBJ_DIR) $(UI_OBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(UI_OBJS) $(LIBS) $(GTK_LIBS) -mwindows -mno-cygwin
 
 mostlyclean:
 	rm -f $(APP) $(UI_APP) $(OBJ_DIR)/* core* *.core *~ *.bak
 
 clean: mostlyclean
-	rm -f $(UNIXSRCS)
+	rm -f $(XPLATSRCS)
 	rm -f dyngen basic-dyngen-ops.hpp ppc-dyngen-ops.hpp ppc-execute-impl.cpp
 
 distclean: clean

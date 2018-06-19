@@ -2,7 +2,16 @@
 #define _LIBSLIRP_H
 
 #ifdef _WIN32
+#ifdef __MINGW32__
+#if _WIN32_WINNT < 0x501
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x501
+#endif
+#endif
 #include <winsock2.h>
+#ifdef __MINGW32__
+#include <WS2tcpip.h>
+#endif
 int inet_aton(const char *cp, struct in_addr *ia);
 #else
 #include <sys/select.h>

@@ -49,6 +49,8 @@ $(SRCARCHIVE): $(SRCS) $(DOCS)
 # Links to Basilisk II sources
 #
 links:
+	mkdir -p src/CrossPlatform
+	mkdir -p src/Unix/Irix
 	@list='adb.cpp audio.cpp cdrom.cpp disk.cpp extfs.cpp pict.c \
 	       prefs.cpp scsi.cpp sony.cpp xpram.cpp \
 	       include/adb.h include/audio.h include/audio_defs.h \
@@ -87,7 +89,6 @@ links:
 	       Windows/posix_emu.cpp Windows/posix_emu.h Windows/sys_windows.cpp \
 	       Windows/timer_windows.cpp Windows/util_windows.cpp \
 	       Windows/util_windows.h Windows/xpram_windows.cpp \
-	       Windows/kernel_windows.h Windows/kernel_windows.cpp \
 	       Windows/serial_windows.cpp Windows/router Windows/b2ether \
 	       Windows/ether_windows.h Windows/ether_windows.cpp \
 	       Windows/serial_windows.cpp Windows/prefs_editor_gtk.cpp \
@@ -98,7 +99,8 @@ links:
 	    echo $$i; o=$$i; \
 	    case $$i in *codegen_x86.h) o=kpx_cpu/src/cpu/jit/x86/codegen_x86.h;; esac; \
 	    SUB=`echo $$o | sed 's;[^/]*/;../;g' | sed 's;[^/]*$$;;'` ;\
-	    ln -sf "$$PREFIX$$SUB$(B2_TOPDIR)/src/$$i" src/$$o; \
+	    cur_link=src/$$o ;\
+	    if [ -d "$$cur_link" ]; then rm -rf "$$cur_link"; fi ;\
+	    ln -sf "$$PREFIX$$SUB$(B2_TOPDIR)/src/$$i" $$cur_link; \
 	  fi; \
-	done; \
-	ln -sf ../../../../../SheepShaver/src/Unix/config.h $(B2_TOPDIR)/src/Unix/Linux/NetDriver/config.h
+	done;

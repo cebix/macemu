@@ -39,6 +39,8 @@
 #include "ether_windows.h"
 #include "router/router.h"
 #include "util_windows.h"
+// somehow util_windows undefines min
+#define min(x,y) ((x) < (y) ? (x) : (y))
 #include "libslirp.h"
 
 // Define to let the slirp library determine the right timeout for select()

@@ -30,6 +30,8 @@
 #include <sys/types.h>
 #include <sys/timeb.h>
 
+#include "main.h"
+
 static inline void _cdecl vwinbug(const char *s, va_list vargs)
 {
 	char msg[1024], date[50], hours[50];

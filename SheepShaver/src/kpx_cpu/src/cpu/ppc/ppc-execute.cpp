@@ -894,11 +894,19 @@ void powerpc_cpu::execute_fp_int_convert(uint32 opcode)
  *		Rc		Predicate to record CR1
  **/
 
+#ifndef FPCLASSIFY_RETURN_T
+#ifdef __MINGW32__
+#define FPCLASSIFY_RETURN_T int
+#else
+#define FPCLASSIFY_RETURN_T uint8
+#endif
+#endif
+
 template< class FP >
 void powerpc_cpu::fp_classify(FP x)
 {
 	uint32 c = fpscr() & ~FPSCR_FPRF_field::mask();
-	uint8 fc = fpclassify(x);
+	FPCLASSIFY_RETURN_T fc = fpclassify(x);
 	switch (fc) {
 	case FP_NAN:
 		c |= FPSCR_FPRF_FU_field::mask() | FPSCR_FPRF_C_field::mask();
