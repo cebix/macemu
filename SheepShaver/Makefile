@@ -49,8 +49,7 @@ $(SRCARCHIVE): $(SRCS) $(DOCS)
 # Links to Basilisk II sources
 #
 links:
-	mkdir -p src/CrossPlatform
-	mkdir -p src/Unix/Irix
+	(cd src/Windows; if [ ! -e m4 ]; then ln -s ../../../BasiliskII/src/Unix/m4; fi)
 	@list='adb.cpp audio.cpp cdrom.cpp disk.cpp extfs.cpp pict.c \
 	       prefs.cpp scsi.cpp sony.cpp xpram.cpp \
 	       include/adb.h include/audio.h include/audio_defs.h \
