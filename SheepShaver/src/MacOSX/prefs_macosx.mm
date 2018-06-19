@@ -108,24 +108,20 @@
  *  Initialization
  */
 
+void prefs_init(void)
+{
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 #if SDL_VERSION_ATLEAST(2,0,0)
-
-id gSheepShaverMain;
-
-void prefs_init(void)
-{
-	gSheepShaverMain = [[SheepShaverMain alloc] init];
-}
-
+	for (NSMenuItem *sub_item in [NSApp mainMenu].itemArray[0].submenu.itemArray) {
+		if ([sub_item.title isEqualToString:@"Preferences…"]) {
+			sub_item.target = [[SheepShaverMain alloc] init];
+			sub_item.action = @selector(openPreferences:);
+			break;
+		}
+	}
 #else
-
-void prefs_init(void)
-{
-	NSAutoreleasePool *pool;
 	NSMenu *appMenu;
 	NSMenuItem *menuItem;
-
-	pool = [[NSAutoreleasePool alloc] init];
 
 	appMenu = [[[NSApp mainMenu] itemAtIndex:0] submenu];
 	menuItem = [[NSMenuItem alloc] initWithTitle:@"Preferences..." action:@selector(openPreferences:) keyEquivalent:@","];
@@ -134,11 +130,9 @@ void prefs_init(void)
 	[menuItem release];
 	
 	[NSApp setDelegate:[[SheepShaverMain alloc] init]];
-
+#endif
 	[pool release];
 }
-
-#endif
 
 /*
  *  Deinitialization
