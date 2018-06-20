@@ -21,6 +21,10 @@
 #ifndef SYSDEPS_H
 #define SYSDEPS_H
 
+#ifdef __MINGW32__
+#define _UNICODE
+#endif
+
 #if !defined _MSC_VER && !defined __STDC__
 #error "Your compiler is not ANSI. Get a real one."
 #endif
@@ -318,6 +322,8 @@ static inline uae_u32 do_byteswap_16_g(uae_u32 v)
 
 #ifdef _MSC_VER
 #define ATTRIBUTE_PACKED
+#else
+#define ATTRIBUTE_PACKED __attribute__((__packed__))
 #endif
 
 #endif

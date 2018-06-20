@@ -40,7 +40,7 @@ CXXFLAGS = @CXXFLAGS@ $(SDL_CFLAGS)
 CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../CrossPlatform @CPUINCLUDES@ -I../slirp
 DEFS = @DEFS@ @DEFINES@
 LDFLAGS = @LDFLAGS@
-LIBS = @LIBS@ -lwsock32 -liphlpapi
+LIBS = @LIBS@ -lws2_32 -lwsock32 -liphlpapi
 CPUSRCS = @CPUSRCS@
 
 HOST_CC = gcc

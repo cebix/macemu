@@ -44,7 +44,7 @@
 #include "vm_alloc.h"
 #include "sigsegv.h"
 #include "util_windows.h"
-#include "kernel_windows.h"
+//#include "kernel_windows.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -207,8 +207,8 @@ int main(int argc, char **argv)
 	if (!check_drivers())
 		QuitEmulator();
 
-	// Load win32 libraries
-	KernelInit();
+//	// Load win32 libraries
+//	KernelInit();
 
 	// FIXME: default to DIB driver
 	if (getenv("SDL_VIDEODRIVER") == NULL)
@@ -446,8 +446,8 @@ static void Quit(void)
 	// Exit preferences
 	PrefsExit();
 
-	// Release win32 libraries
-	KernelExit();
+//	// Release win32 libraries
+//	KernelExit();
 
 #ifdef ENABLE_MON
 	// Exit mon
