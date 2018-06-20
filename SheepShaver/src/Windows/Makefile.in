@@ -35,7 +35,7 @@ CC = @CC@
 CXX = @CXX@
 CFLAGS = @CFLAGS@ $(SDL_CFLAGS)
 CXXFLAGS = @CXXFLAGS@ $(SDL_CFLAGS)
-CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../slirp
+CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../slirp -I../Unix/dyngen_precompiled
 DEFS = @DEFS@
 LDFLAGS = @LDFLAGS@ -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic
 #TODO remove pthread part of that if irrelevant
@@ -177,20 +177,35 @@ DYNGEN    = dyngen.exe
 ifeq ($(USE_DYNGEN),yes)
 DYNGENDEPS = basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 
-$(DYNGEN): $(DYNGENOBJS)
-	$(HOST_CXX) -o $@ $(LDFLAGS) $(DYNGENOBJS)
+###
 
-$(OBJ_DIR)/basic-dyngen.o: basic-dyngen-ops.hpp
-$(OBJ_DIR)/basic-dyngen-ops.o: $(kpxsrcdir)/cpu/jit/basic-dyngen-ops.cpp
-	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
-basic-dyngen-ops.hpp: $(OBJ_DIR)/basic-dyngen-ops.o $(DYNGEN)
-	./$(DYNGEN) -o $@ $<
+basic-dyngen-ops.hpp: ../Unix/dyngen_precompiled/basic-dyngen-ops.hpp basic-dyngen-ops-x86_32.hpp basic-dyngen-ops-x86_64.hpp
+	cp -f $< $@
+basic-dyngen-ops-x86_32.hpp: ../Unix/dyngen_precompiled/basic-dyngen-ops-x86_32.hpp
+	cp -f $< $@
+basic-dyngen-ops-x86_64.hpp: ../Unix/dyngen_precompiled/basic-dyngen-ops-x86_64.hpp
+	cp -f $< $@
+ppc-dyngen-ops.hpp: ../Unix/dyngen_precompiled/ppc-dyngen-ops.hpp ppc-dyngen-ops-x86_32.hpp ppc-dyngen-ops-x86_64.hpp
+	cp -f $< $@
+ppc-dyngen-ops-x86_32.hpp: ../Unix/dyngen_precompiled/ppc-dyngen-ops-x86_32.hpp
+	cp -f $< $@
+ppc-dyngen-ops-x86_64.hpp: ../Unix/dyngen_precompiled/ppc-dyngen-ops-x86_64.hpp
+	cp -f $< $@
+# Only GCC is supported for generating synthetic opcodes
+#$(DYNGEN): $(DYNGENOBJS)
+#	$(HOST_CXX) -o $@ $(LDFLAGS) $(DYNGENOBJS)
 
-$(OBJ_DIR)/ppc-dyngen.o: ppc-dyngen-ops.hpp
-$(OBJ_DIR)/ppc-dyngen-ops.o: $(kpxsrcdir)/cpu/ppc/ppc-dyngen-ops.cpp basic-dyngen-ops.hpp
-	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
-ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o $(DYNGEN)
-	./$(DYNGEN) -o $@ $<
+#$(OBJ_DIR)/basic-dyngen.o: basic-dyngen-ops.hpp
+#$(OBJ_DIR)/basic-dyngen-ops.o: $(kpxsrcdir)/cpu/jit/basic-dyngen-ops.cpp
+#	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
+#basic-dyngen-ops.hpp: $(OBJ_DIR)/basic-dyngen-ops.o $(DYNGEN)
+#	./$(DYNGEN) -o $@ $<
+
+#$(OBJ_DIR)/ppc-dyngen.o: ppc-dyngen-ops.hpp
+#$(OBJ_DIR)/ppc-dyngen-ops.o: $(kpxsrcdir)/cpu/ppc/ppc-dyngen-ops.cpp basic-dyngen-ops.hpp
+#	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
+#ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o $(DYNGEN)
+#	./$(DYNGEN) -o $@ $<
 
 $(OBJ_DIR)/sheepshaver_glue.o $(OBJ_DIR)/ppc-cpu.o $(OBJ_DIR)/ppc-decode.o $(OBJ_DIR)/ppc-translate.o $(OBJ_DIR)/ppc-jit.o: basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 endif
