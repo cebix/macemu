@@ -2235,7 +2235,7 @@ static int redraw_func(void *arg)
 
 		// Wait
 		next += VIDEO_REFRESH_DELAY;
-		uint64 delay = int32(next - GetTicks_usec());
+		int32 delay = int32(next - GetTicks_usec());
 		if (delay > 0)
 			Delay_usec(delay);
 		else if (delay < -VIDEO_REFRESH_DELAY)
