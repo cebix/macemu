@@ -84,7 +84,6 @@
 		E4150D1220D557820077C51A /* SDL2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E4150D1120D557820077C51A /* SDL2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E41936C420CFE64D003A7654 /* SDLMain.m in Sources */ = {isa = PBXBuildFile; fileRef = E41936C320CFE64D003A7654 /* SDLMain.m */; };
 		E420910120D0C4FA0094654F /* SDL2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E420910020D0C4FA0094654F /* SDL2.framework */; };
-		E4302EE31FBFE7FA00A5B500 /* lowmem.c in Sources */ = {isa = PBXBuildFile; fileRef = E4302EE21FBFE7FA00A5B500 /* lowmem.c */; };
 		E444DC1520C8F06700DD29C9 /* pict.c in Sources */ = {isa = PBXBuildFile; fileRef = E444DC1420C8F06700DD29C9 /* pict.c */; };
 		E44C460520D262B0000583AE /* tftp.c in Sources */ = {isa = PBXBuildFile; fileRef = E44C45DC20D262AD000583AE /* tftp.c */; };
 		E44C460620D262B0000583AE /* mbuf.c in Sources */ = {isa = PBXBuildFile; fileRef = E44C45DD20D262AD000583AE /* mbuf.c */; };
@@ -113,13 +112,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		082AC26714AA5A4800071F5E /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 0856CCAE14A99DE0000B1711 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 082AC25114AA59B600071F5E;
-			remoteInfo = lowmem;
-		};
 		0846E4A614B1253500574779 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0856CCAE14A99DE0000B1711 /* Project object */;
@@ -152,7 +144,6 @@
 		08163337158C121000C449F9 /* dis-asm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "dis-asm.h"; sourceTree = "<group>"; };
 		08163338158C121000C449F9 /* ppc-dis.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "ppc-dis.c"; sourceTree = "<group>"; };
 		082AC22C14AA52E900071F5E /* prefs_editor_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = prefs_editor_dummy.cpp; sourceTree = "<group>"; };
-		082AC25214AA59B600071F5E /* lowmem */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = lowmem; sourceTree = BUILT_PRODUCTS_DIR; };
 		083E370A16EFE85000CCCA59 /* disk_sparsebundle.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = disk_sparsebundle.cpp; path = ../Unix/disk_sparsebundle.cpp; sourceTree = SOURCE_ROOT; };
 		083E370B16EFE85000CCCA59 /* disk_unix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = disk_unix.h; path = ../Unix/disk_unix.h; sourceTree = SOURCE_ROOT; };
 		083E372016EFE87200CCCA59 /* tinyxml2.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = tinyxml2.cpp; path = ../Unix/tinyxml2.cpp; sourceTree = SOURCE_ROOT; };
@@ -387,13 +378,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		082AC25014AA59B600071F5E /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		0846E49814B124DE00574779 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -451,7 +435,6 @@
 			isa = PBXGroup;
 			children = (
 				0856CCC114A99E1C000B1711 /* SheepShaver.app */,
-				082AC25214AA59B600071F5E /* lowmem */,
 				0846E49A14B124DE00574779 /* libkpx_cpu.a */,
 			);
 			name = Products;
@@ -904,22 +887,6 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		082AC25114AA59B600071F5E /* lowmem */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 082AC25714AA59DB00071F5E /* Build configuration list for PBXNativeTarget "lowmem" */;
-			buildPhases = (
-				082AC24F14AA59B600071F5E /* Sources */,
-				082AC25014AA59B600071F5E /* Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = lowmem;
-			productName = lowmem;
-			productReference = 082AC25214AA59B600071F5E /* lowmem */;
-			productType = "com.apple.product-type.tool";
-		};
 		0846E49914B124DE00574779 /* kpx_cpu */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0846E4A114B1251400574779 /* Build configuration list for PBXNativeTarget "kpx_cpu" */;
@@ -944,7 +911,6 @@
 				0856CCBD14A99E1C000B1711 /* Resources */,
 				0856CCBE14A99E1C000B1711 /* Sources */,
 				0856CCBF14A99E1C000B1711 /* Frameworks */,
-				082AC26A14AA5A5A00071F5E /* Run lowmem */,
 				08CD3F3214B665E1009CA2A2 /* Preprocess Info.plist */,
 				E413A40820CF7EF800FBE967 /* Embed Frameworks */,
 			);
@@ -952,7 +918,6 @@
 			);
 			dependencies = (
 				0846E4A714B1253500574779 /* PBXTargetDependency */,
-				082AC26814AA5A4800071F5E /* PBXTargetDependency */,
 			);
 			name = SheepShaver;
 			productName = SheepShaver;
@@ -983,7 +948,6 @@
 			projectRoot = "";
 			targets = (
 				0856CCC014A99E1C000B1711 /* SheepShaver */,
-				082AC25114AA59B600071F5E /* lowmem */,
 				0846E49914B124DE00574779 /* kpx_cpu */,
 			);
 		};
@@ -1004,21 +968,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		082AC26A14AA5A5A00071F5E /* Run lowmem */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"$(BUILT_PRODUCTS_DIR)/$(EXECUTABLE_PATH)",
-			);
-			name = "Run lowmem";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${BUILT_PRODUCTS_DIR}/lowmem\" \"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_PATH}\"";
-		};
 		08CD3F3214B665E1009CA2A2 /* Preprocess Info.plist */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -1031,19 +980,11 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "sed -i '' 's/@PACKAGE_VERSION@/2.4/g' \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"";
+			shellScript = "sed -i '' 's/@PACKAGE_VERSION@/2.5/g' \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"";
 		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		082AC24F14AA59B600071F5E /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				E4302EE31FBFE7FA00A5B500 /* lowmem.c in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		0846E49714B124DE00574779 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1147,11 +1088,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		082AC26814AA5A4800071F5E /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 082AC25114AA59B600071F5E /* lowmem */;
-			targetProxy = 082AC26714AA5A4800071F5E /* PBXContainerItemProxy */;
-		};
 		0846E4A714B1253500574779 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 0846E49914B124DE00574779 /* kpx_cpu */;
@@ -1171,54 +1107,11 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
-		082AC25414AA59B700071F5E /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
-				COPY_PHASE_STRIP = NO;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_ENABLE_FIX_AND_CONTINUE = YES;
-				GCC_ENABLE_PASCAL_STRINGS = NO;
-				GCC_ENABLE_SYMBOL_SEPARATION = NO;
-				GCC_MODEL_TUNING = G5;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PRECOMPILE_PREFIX_HEADER = NO;
-				GCC_PREFIX_HEADER = "";
-				INSTALL_PATH = /usr/local/bin;
-				ONLY_ACTIVE_ARCH = NO;
-				PREBINDING = NO;
-				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
-				PRODUCT_NAME = lowmem;
-			};
-			name = Debug;
-		};
-		082AC25514AA59B700071F5E /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
-				COPY_PHASE_STRIP = YES;
-				GCC_ENABLE_FIX_AND_CONTINUE = NO;
-				GCC_ENABLE_PASCAL_STRINGS = NO;
-				GCC_ENABLE_SYMBOL_SEPARATION = NO;
-				GCC_MODEL_TUNING = G5;
-				GCC_PRECOMPILE_PREFIX_HEADER = NO;
-				GCC_PREFIX_HEADER = "";
-				INSTALL_PATH = /usr/local/bin;
-				ONLY_ACTIVE_ARCH = NO;
-				PREBINDING = NO;
-				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
-				PRODUCT_NAME = lowmem;
-				ZERO_LINK = NO;
-			};
-			name = Release;
-		};
 		0846E49B14B124DF00574779 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				COPY_PHASE_STRIP = NO;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_FIX_AND_CONTINUE = YES;
@@ -1245,6 +1138,7 @@
 				INSTALL_PATH = /usr/local/lib;
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				PRODUCT_NAME = kpx_cpu;
+				VALID_ARCHS = x86_64;
 			};
 			name = Debug;
 		};
@@ -1252,7 +1146,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				COPY_PHASE_STRIP = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				GCC_DYNAMIC_NO_PIC = YES;
@@ -1280,6 +1174,7 @@
 				INSTALL_PATH = /usr/local/lib;
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				PRODUCT_NAME = kpx_cpu;
+				VALID_ARCHS = x86_64;
 			};
 			name = Release;
 		};
@@ -1360,6 +1255,7 @@
 				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = SheepShaver;
+				VALID_ARCHS = x86_64;
 				WARNING_LDFLAGS = "";
 			};
 			name = Debug;
@@ -1419,21 +1315,13 @@
 				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_NAME = SheepShaver;
+				VALID_ARCHS = x86_64;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		082AC25714AA59DB00071F5E /* Build configuration list for PBXNativeTarget "lowmem" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				082AC25414AA59B700071F5E /* Debug */,
-				082AC25514AA59B700071F5E /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		0846E4A114B1251400574779 /* Build configuration list for PBXNativeTarget "kpx_cpu" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
