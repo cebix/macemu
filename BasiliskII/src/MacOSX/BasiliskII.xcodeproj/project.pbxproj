@@ -1375,11 +1375,13 @@
 				INSTALL_PATH = "$(HOME)/Applications";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				ONLY_ACTIVE_ARCH = NO;
 				OTHER_CFLAGS = "";
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.basiliskii.BasiliskII;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USE_HEADERMAP = YES;
+				VALID_ARCHS = x86_64;
 				WARNING_CFLAGS = "";
 			};
 			name = Debug;
@@ -1430,6 +1432,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.basiliskii.BasiliskII;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USE_HEADERMAP = YES;
+				VALID_ARCHS = x86_64;
 				WARNING_CFLAGS = "";
 			};
 			name = Release;

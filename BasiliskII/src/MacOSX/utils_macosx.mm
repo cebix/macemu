@@ -45,6 +45,10 @@ void disable_SDL2_macosx_menu_bar_keyboard_shortcuts() {
 				sub_item.keyEquivalentModifierMask = 0;
 			}
 		}
+		if ([menu_item.title isEqualToString:@"View"]) {
+			[[NSApp mainMenu] removeItem:menu_item];
+			break;
+		}
 	}
 }
 

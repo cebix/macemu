@@ -705,7 +705,8 @@ static bool init_sdl()
 	atexit(SDL_Quit);
 
 #if SDL_VERSION_ATLEAST(2,0,0)
-	for (int i = 0; i < 100; i++) {
+	const int SDL_EVENT_TIMEOUT = 100;
+	for (int i = 0; i < SDL_EVENT_TIMEOUT; i++) {
 		SDL_Event event;
 		SDL_PollEvent(&event);
 		if (event.type == SDL_DROPFILE) {
