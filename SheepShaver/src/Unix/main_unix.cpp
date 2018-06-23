@@ -734,9 +734,8 @@ int main(int argc, char **argv)
 
 	// Parse command line arguments
 	for (int i=1; i<argc; i++) {
-		if (strcmp(argv[i], "-NSDocumentRevisionsDebugMode") == 0 && i < argc - 1) {
-			argv[i++] = NULL;
-			argv[i++] = NULL;
+		if (strcmp(argv[i], "-NSDocumentRevisionsDebugMode") == 0 || strncmp(argv[i], "-psn_", 5) == 0) {
+			argv[i] = NULL;
 		} else if (strcmp(argv[i], "--help") == 0) {
 			usage(argv[0]);
 #ifndef USE_SDL_VIDEO
