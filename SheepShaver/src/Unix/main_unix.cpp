@@ -1005,22 +1005,16 @@ int main(int argc, char **argv)
 		goto quit;
 	}
 	
-	// Create area for SheepShaver data
-	if (!SheepMem::Init()) {
-		sprintf(str, GetString(STR_SHEEP_MEM_MMAP_ERR), strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-	
 	// Create area for Mac ROM
 	if (!ram_rom_areas_contiguous) {
-		if (vm_mac_acquire_fixed(ROM_BASE, ROM_AREA_SIZE) < 0) {
+		if (vm_mac_acquire_fixed(ROM_BASE, ROM_AREA_SIZE + SIG_STACK_SIZE) < 0) {
 			sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
 			ErrorAlert(str);
 			goto quit;
 		}
 		ROMBase = ROM_BASE;
 		ROMBaseHost = Mac2HostAddr(ROMBase);
+		ROMEnd = ROMBase + ROM_AREA_SIZE;
 	}
 #if !EMULATED_PPC
 	if (vm_protect(ROMBaseHost, ROM_AREA_SIZE, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE) < 0) {
@@ -1037,6 +1031,13 @@ int main(int argc, char **argv)
 		goto quit;
 	}
 
+	// Create area for SheepShaver data
+	if (!SheepMem::Init()) {
+		sprintf(str, GetString(STR_SHEEP_MEM_MMAP_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+	
 	// Load Mac ROM
 	if (!load_mac_rom())
 		goto quit;
