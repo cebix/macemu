@@ -1,4 +1,7 @@
 #include "slirp.h"
+#ifdef __MINGW32__
+#include <winerror.h>
+#endif
 
 /* host address */
 struct in_addr our_addr;
