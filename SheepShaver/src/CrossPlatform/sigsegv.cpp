@@ -2639,10 +2639,9 @@ static bool handle_badaccess(SIGSEGV_FAULT_HANDLER_ARGLIST_1)
 #endif
 	sigsegv_info_t * const SIP = &SI;
 
+#if defined(__APPLE__) && defined(__x86_64__)
 	if (!SIP->has_thr_state)
 		mach_get_thread_state(SIP);
-
-#if defined(__APPLE__) && defined(__x86_64__)
 	x86_thread_state64_t *ts = &SIP->thr_state;
 	uint8_t *rip = (uint8_t *)ts->__rip;
 	switch (rip[0]) {
