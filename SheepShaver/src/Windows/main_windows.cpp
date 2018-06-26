@@ -210,10 +210,6 @@ int main(int argc, char **argv)
 //	// Load win32 libraries
 //	KernelInit();
 
-	// FIXME: default to DIB driver
-	if (getenv("SDL_VIDEODRIVER") == NULL)
-	    putenv("SDL_VIDEODRIVER=windib");
-
 	// Initialize SDL system
 	int sdl_flags = 0;
 #ifdef USE_SDL_VIDEO
@@ -770,11 +766,21 @@ void SheepMem::Exit(void)
 
 #ifdef USE_SDL_VIDEO
 #include <SDL_syswm.h>
+extern SDL_Window *sdl_window;
 HWND GetMainWindowHandle(void)
 {
 	SDL_SysWMinfo wmInfo;
 	SDL_VERSION(&wmInfo.version);
-	return SDL_GetWMInfo(&wmInfo) ? wmInfo.window : NULL;
+	if (!sdl_window) {
+		return NULL;
+	}
+	if (!SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
+		return NULL;
+	}
+	if (wmInfo.subsystem != SDL_SYSWM_WINDOWS) {
+		return NULL;
+	}
+	return wmInfo.info.win.window;
 }
 #endif
 

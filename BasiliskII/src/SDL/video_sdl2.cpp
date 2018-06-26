@@ -700,7 +700,11 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 			shutdown_sdl_video();
 			return NULL;
 		}
+#ifdef __MACOSX__
 		window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+#else
+		window_flags |= SDL_WINDOW_FULLSCREEN;
+#endif
 		window_width = desktop_mode.w;
 		window_height = desktop_mode.h;
 	}
@@ -748,15 +752,11 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 	}
 
 	if (!sdl_renderer) {
-		const char *render_driver = PrefsFindString("sdlrender");
-		if (render_driver) {
-			if (SDL_strcmp(render_driver, "auto") == 0) {
-				SDL_SetHint(SDL_HINT_RENDER_DRIVER, "");
-			} else {
-				SDL_SetHint(SDL_HINT_RENDER_DRIVER, render_driver);
-			}
-		}
-
+#ifdef WIN32
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
+#else
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "");
+#endif
 		sdl_renderer = SDL_CreateRenderer(sdl_window, -1, 0);
 		if (!sdl_renderer) {
 			shutdown_sdl_video();
@@ -1543,7 +1543,11 @@ static void do_toggle_fullscreen(void)
 			SDL_SetWindowGrab(sdl_window, SDL_FALSE);
 		} else {
 			display_type = DISPLAY_SCREEN;
+#ifdef __MACOSX__
 			SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+#else
+			SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN);
+#endif
 			SDL_SetWindowGrab(sdl_window, SDL_TRUE);
 		}
 	}
