@@ -320,6 +320,9 @@ int main(int argc, char **argv)
 
 	// Read RAM size
 	RAMSize = PrefsFindInt32("ramsize") & 0xfff00000;	// Round down to 1MB boundary
+	if (RAMSize <= 1000) {
+		RAMSize *= 1024 * 1024;
+	}
 	if (RAMSize < 1024*1024) {
 		WarningAlert(GetString(STR_SMALL_RAM_WARN));
 		RAMSize = 1024*1024;

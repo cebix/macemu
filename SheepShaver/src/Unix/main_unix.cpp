@@ -941,6 +941,9 @@ int main(int argc, char **argv)
 	
 	// Create area for Mac RAM
 	RAMSize = PrefsFindInt32("ramsize");
+	if (RAMSize <= 1000) {
+		RAMSize *= 1024 * 1024;
+	}
 	if (RAMSize < 8*1024*1024) {
 		WarningAlert(GetString(STR_SMALL_RAM_WARN));
 		RAMSize = 8*1024*1024;

@@ -59,6 +59,7 @@ prefs_desc common_prefs_items[] = {
 	{"jit68k", TYPE_BOOLEAN, false,     "enable 68k DR emulator"},
 	{"keyboardtype", TYPE_INT32, false, "hardware keyboard type"},
 	{"hardcursor", TYPE_BOOLEAN, false, "hardware mouse cursor"},
+	{"hotkey", TYPE_INT32, false,       "hotkey modifier"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 

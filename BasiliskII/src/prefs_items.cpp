@@ -72,6 +72,7 @@ prefs_desc common_prefs_items[] = {
 	{"keycodefile",TYPE_STRING,"Keycode file"},
 	{"mousewheelmode",TYPE_BOOLEAN,"Use WheelMode"},
 	{"mousewheellines",TYPE_INT32,"wheel line nb"},
+	{"hotkey",TYPE_INT32,false,"hotkey modifier"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 

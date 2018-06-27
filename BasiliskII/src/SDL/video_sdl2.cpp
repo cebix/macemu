@@ -48,6 +48,7 @@
 #include <SDL_thread.h>
 #include <errno.h>
 #include <vector>
+#include <string>
 
 #ifdef WIN32
 #include <malloc.h> /* alloca() */
@@ -120,6 +121,8 @@ static const bool use_vosf = false;					// VOSF not possible
 #endif
 
 static bool ctrl_down = false;						// Flag: Ctrl key pressed
+static bool opt_down = false;						// Flag: Opt key pressed
+static bool cmd_down = false;						// Flag: Cmd key pressed
 static bool caps_on = false;						// Flag: Caps Lock on
 static bool quit_full_screen = false;				// Flag: DGA close requested from redraw thread
 static bool emerg_quit = false;						// Flag: Ctrl-Esc pressed, emergency quit requested from MacOS thread
@@ -530,6 +533,18 @@ static void set_window_name(int name)
 	}
 	const char *str = GetString(name);
 	SDL_SetWindowTitle(sdl_window, str);
+}
+
+static void set_window_name_grabbed() {
+	if (!sdl_window) return;
+	int hotkey = PrefsFindInt32("hotkey");
+	if (!hotkey) hotkey = 1;
+	std::string s = GetString(STR_WINDOW_TITLE_GRABBED0);
+	if (hotkey & 1) s += GetString(STR_WINDOW_TITLE_GRABBED1);
+	if (hotkey & 2) s += GetString(STR_WINDOW_TITLE_GRABBED2);
+	if (hotkey & 4) s += GetString(STR_WINDOW_TITLE_GRABBED3);
+	s += GetString(STR_WINDOW_TITLE_GRABBED4);
+	SDL_SetWindowTitle(sdl_window, s.c_str());
 }
 
 // Set mouse grab mode
@@ -1024,7 +1039,7 @@ void driver_base::adapt_to_video_mode() {
 	SDL_ShowCursor(hardware_cursor);
 
 	// Set window name/class
-	set_window_name(mouse_grabbed ? (int)STR_WINDOW_TITLE_GRABBED : (int)STR_WINDOW_TITLE);
+	mouse_grabbed ? set_window_name_grabbed() : set_window_name((int)STR_WINDOW_TITLE);
 
 	// Everything went well
 	init_ok = true;
@@ -1118,7 +1133,7 @@ void driver_base::grab_mouse(void)
 	if (!mouse_grabbed) {
 		mouse_grabbed = true;
 		update_mouse_grab();
-		set_window_name(STR_WINDOW_TITLE_GRABBED);
+		set_window_name_grabbed();
 		disable_mouse_accel();
 		ADBSetRelMouseMode(true);
 	}
@@ -1856,9 +1871,13 @@ static bool is_modifier_key(SDL_KeyboardEvent const & e)
 	return false;
 }
 
-static bool is_ctrl_down(SDL_Keysym const & ks)
+static bool is_hotkey_down(SDL_Keysym const & ks)
 {
-	return ctrl_down || (ks.mod & KMOD_CTRL);
+	int hotkey = PrefsFindInt32("hotkey");
+	if (!hotkey) hotkey = 1;
+	return (ctrl_down || (ks.mod & KMOD_CTRL) || !(hotkey & 1)) &&
+			(opt_down || (ks.mod & KMOD_ALT) || !(hotkey & 2)) &&
+			(cmd_down || (ks.mod & KMOD_GUI) || !(hotkey & 4));
 }
 
 
@@ -1920,8 +1939,8 @@ static int kc_decode(SDL_Keysym const & ks, bool key_down)
 	case SDLK_PERIOD: case SDLK_GREATER: return 0x2f;
 	case SDLK_SLASH: case SDLK_QUESTION: return 0x2c;
 
-	case SDLK_TAB: if (is_ctrl_down(ks)) {if (!key_down) drv->suspend(); return -2;} else return 0x30;
-	case SDLK_RETURN: if (is_ctrl_down(ks)) {if (!key_down) toggle_fullscreen = true; return -2;} else return 0x24;
+	case SDLK_TAB: if (is_hotkey_down(ks)) {if (!key_down) drv->suspend(); return -2;} else return 0x30;
+	case SDLK_RETURN: if (is_hotkey_down(ks)) {if (!key_down) toggle_fullscreen = true; return -2;} else return 0x24;
 	case SDLK_SPACE: return 0x31;
 	case SDLK_BACKSPACE: return 0x33;
 
@@ -1936,7 +1955,7 @@ static int kc_decode(SDL_Keysym const & ks, bool key_down)
 	case SDLK_RCTRL: return 0x36;
 	case SDLK_LSHIFT: return 0x38;
 	case SDLK_RSHIFT: return 0x38;
-#if (defined(__APPLE__) && defined(__MACH__))
+#ifdef __APPLE__
 	case SDLK_LALT: return 0x3a;
 	case SDLK_RALT: return 0x3a;
 	case SDLK_LGUI: return 0x37;
@@ -1956,9 +1975,9 @@ static int kc_decode(SDL_Keysym const & ks, bool key_down)
 	case SDLK_LEFT: return 0x3b;
 	case SDLK_RIGHT: return 0x3c;
 
-	case SDLK_ESCAPE: if (is_ctrl_down(ks)) {if (!key_down) { quit_full_screen = true; emerg_quit = true; } return -2;} else return 0x35;
+	case SDLK_ESCAPE: if (is_hotkey_down(ks)) {if (!key_down) { quit_full_screen = true; emerg_quit = true; } return -2;} else return 0x35;
 
-	case SDLK_F1: if (is_ctrl_down(ks)) {if (!key_down) SysMountFirstFloppy(); return -2;} else return 0x7a;
+	case SDLK_F1: if (is_hotkey_down(ks)) {if (!key_down) SysMountFirstFloppy(); return -2;} else return 0x7a;
 	case SDLK_F2: return 0x78;
 	case SDLK_F3: return 0x63;
 	case SDLK_F4: return 0x76;
@@ -2043,7 +2062,7 @@ static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
 			SDL_Keysym const & ks = event->key.keysym;
 			switch (ks.sym) {
 				case SDLK_F5: {
-					if (is_ctrl_down(ks)) {
+					if (is_hotkey_down(ks)) {
 						drv->toggle_mouse_grab();
 						return EVENT_DROP_FROM_QUEUE;
 					}
@@ -2164,6 +2183,18 @@ static void handle_events(void)
 							ADBKeyDown(code);
 						if (code == 0x36)
 							ctrl_down = true;
+#ifdef __APPLE__
+						if (code == 0x3a)
+							opt_down = true;
+						if (code == 0x37)
+							cmd_down = true;
+#else
+						if (code == 0x37)
+							opt_down = true;
+						if (code == 0x3a)
+							cmd_down = true;
+#endif
+						
 					} else {
 						if (code == 0x31)
 							drv->resume();	// Space wakes us up
@@ -2191,6 +2222,17 @@ static void handle_events(void)
 						ADBKeyUp(code);
 					if (code == 0x36)
 						ctrl_down = false;
+#ifdef __APPLE__
+					if (code == 0x3a)
+						opt_down = false;
+					if (code == 0x37)
+						cmd_down = false;
+#else
+					if (code == 0x37)
+						opt_down = false;
+					if (code == 0x3a)
+						cmd_down = false;
+#endif
 				}
 				break;
 			}
