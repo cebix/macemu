@@ -143,8 +143,10 @@ static NSString *getStringFromPrefs(const char *key)
   [romFile setStringValue: getStringFromPrefs("rom") ];
   [unixRoot setStringValue: getStringFromPrefs("extfs") ];
   [disableCdrom setIntValue: PrefsFindBool("nocdrom") ];
-  [ramSize setIntValue: PrefsFindInt32("ramsize") / (1024*1024) ];
-  [ramSizeStepper setIntValue: PrefsFindInt32("ramsize") / (1024*1024) ];
+  int ramsize = PrefsFindInt32("ramsize");
+  if (ramsize > 1000) ramsize >>= 20;
+  [ramSize setIntValue: ramsize ];
+  [ramSizeStepper setIntValue: ramsize ];
 
   int display_type = 0;
   int dis_width = 640;
