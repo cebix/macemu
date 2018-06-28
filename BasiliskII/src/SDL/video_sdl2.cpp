@@ -890,7 +890,10 @@ static int present_sdl_video()
 		guest_surface != NULL)
 	{
 		SDL_Rect destRect = sdl_update_video_rect;
-		if (SDL_BlitSurface(guest_surface, &sdl_update_video_rect, host_surface, &destRect) != 0) {
+		LOCK_PALETTE;
+		int result = SDL_BlitSurface(guest_surface, &sdl_update_video_rect, host_surface, &destRect);
+		UNLOCK_PALETTE;
+		if (result != 0) {
             SDL_UnlockMutex(sdl_update_video_mutex);
 			return -1;
 		}
