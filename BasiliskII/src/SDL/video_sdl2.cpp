@@ -1099,6 +1099,12 @@ void driver_base::update_palette(void)
 
 	if ((int)VIDEO_MODE_DEPTH <= VIDEO_DEPTH_8BIT) {
 		SDL_SetSurfacePalette(s, sdl_palette);
+		SDL_LockMutex(sdl_update_video_mutex);
+		sdl_update_video_rect.x = 0;
+		sdl_update_video_rect.y = 0;
+		sdl_update_video_rect.w = VIDEO_MODE_X;
+		sdl_update_video_rect.h = VIDEO_MODE_Y;
+		SDL_UnlockMutex(sdl_update_video_mutex);
 	}
 }
 
@@ -1930,7 +1936,7 @@ static int kc_decode(SDL_Keysym const & ks, bool key_down)
 	case SDLK_9: return 0x19;
 	case SDLK_0: return 0x1d;
 
-	case SDLK_BACKQUOTE: return 0x0a;
+	case SDLK_BACKQUOTE: case 167: return 0x32;
 	case SDLK_MINUS: case SDLK_UNDERSCORE: return 0x1b;
 	case SDLK_EQUALS: case SDLK_PLUS: return 0x18;
 	case SDLK_LEFTBRACKET: return 0x21;
