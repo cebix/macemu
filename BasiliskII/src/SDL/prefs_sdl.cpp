@@ -59,7 +59,7 @@ void LoadPrefs(const char * vmdir)	// TODO: load prefs from 'vmdir'
 	SDL_snprintf(prefs_path, sizeof(prefs_path), "%s/%s", vmdir, PREFS_FILE_NAME);
 	
 	// Read preferences from settings file
-	FILE *f = fopen(prefs_path, "r");
+	FILE *f = fopen(UserPrefsPath.empty() ? prefs_path : UserPrefsPath.c_str(), "r");
 	if (f != NULL) {
 
 		// Prefs file found, load settings
@@ -89,7 +89,7 @@ void SavePrefs(void)
 	SDL_snprintf(prefs_path, sizeof(prefs_path), "%s/%s", dir, PREFS_FILE_NAME);
 
 	FILE *f;
-	if ((f = fopen(prefs_path, "w")) != NULL) {
+	if ((f = fopen(UserPrefsPath.empty() ? prefs_path : UserPrefsPath.c_str(), "w")) != NULL) {
 		SavePrefsToStream(f);
 		fclose(f);
 	}
