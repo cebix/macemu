@@ -567,10 +567,11 @@ int main(int argc, char **argv)
 	sigsegv_set_dump_state(sigsegv_dump_state);
 
 	// Read RAM size
-	RAMSize = PrefsFindInt32("ramsize") & 0xfff00000;	// Round down to 1MB boundary
+	RAMSize = PrefsFindInt32("ramsize");
 	if (RAMSize <= 1000) {
 		RAMSize *= 1024 * 1024;
 	}
+	RAMSize &= 0xfff00000;	// Round down to 1MB boundary
 	if (RAMSize < 1024*1024) {
 		WarningAlert(GetString(STR_SMALL_RAM_WARN));
 		RAMSize = 1024*1024;
