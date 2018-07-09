@@ -944,9 +944,9 @@ int main(int argc, char **argv)
 	if (RAMSize <= 1000) {
 		RAMSize *= 1024 * 1024;
 	}
-	if (RAMSize < 8*1024*1024) {
+	if (RAMSize < 16 * 1024 * 1024) {
 		WarningAlert(GetString(STR_SMALL_RAM_WARN));
-		RAMSize = 8*1024*1024;
+		RAMSize = 16 * 1024 * 1024;
 	}
 	memory_mapped_from_zero = false;
 	ram_rom_areas_contiguous = false;

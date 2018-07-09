@@ -76,7 +76,7 @@ user_string_def common_strings[] = {
 	{STR_SCSI_BUFFER_ERR, "Cannot allocate SCSI buffer (requested %d bytes). Giving up."},
 	{STR_SCSI_SG_FULL_ERR, "SCSI scatter/gather table full. Giving up."},
 
-	{STR_SMALL_RAM_WARN, "Selected less than 8MB Mac RAM, using 8MB."},
+	{STR_SMALL_RAM_WARN, "Selected less than 16MB Mac RAM, using 16MB."},
 	{STR_CANNOT_UNMOUNT_WARN, "The volume '%s' could not be unmounted. SheepShaver will not use it."},
 	{STR_CREATE_VOLUME_WARN, "Cannot create hardfile (%s)."},
 
