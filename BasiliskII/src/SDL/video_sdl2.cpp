@@ -123,7 +123,6 @@ static const bool use_vosf = false;					// VOSF not possible
 static bool ctrl_down = false;						// Flag: Ctrl key pressed
 static bool opt_down = false;						// Flag: Opt key pressed
 static bool cmd_down = false;						// Flag: Cmd key pressed
-static bool caps_on = false;						// Flag: Caps Lock on
 static bool quit_full_screen = false;				// Flag: DGA close requested from redraw thread
 static bool emerg_quit = false;						// Flag: Ctrl-Esc pressed, emergency quit requested from MacOS thread
 static bool emul_suspended = false;					// Flag: Emulator suspended
@@ -2180,15 +2179,9 @@ static void handle_events(void)
 					code = event2keycode(event.key, true);
 				if (code >= 0) {
 					if (!emul_suspended) {
-						if (code == 0x39) {	// Caps Lock pressed
-							if (caps_on) {
-								ADBKeyUp(code);
-								caps_on = false;
-							} else {
-								ADBKeyDown(code);
-								caps_on = true;
-							}
-						} else
+						if (code == 0x39)
+							(SDL_GetModState() & KMOD_CAPS ? ADBKeyDown : ADBKeyUp)(code);
+						else
 							ADBKeyDown(code);
 						if (code == 0x36)
 							ctrl_down = true;
@@ -2219,15 +2212,7 @@ static void handle_events(void)
 				} else
 					code = event2keycode(event.key, false);
 				if (code >= 0) {
-					if (code == 0x39) {	// Caps Lock released
-						if (caps_on) {
-							ADBKeyUp(code);
-							caps_on = false;
-						} else {
-							ADBKeyDown(code);
-							caps_on = true;
-						}
-					} else
+					if (code != 0x39)
 						ADBKeyUp(code);
 					if (code == 0x36)
 						ctrl_down = false;
