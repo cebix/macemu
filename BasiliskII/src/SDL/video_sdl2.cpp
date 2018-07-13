@@ -2115,6 +2115,7 @@ static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
 
 static void handle_events(void)
 {
+	static bool capslock_inited;
 	SDL_Event events[10];
 	const int n_max_events = sizeof(events) / sizeof(events[0]);
 	int n_events;
@@ -2177,6 +2178,10 @@ static void handle_events(void)
 						code = keycode_table[event.key.keysym.scancode & 0xff];
 				} else
 					code = event2keycode(event.key, true);
+				if (!capslock_inited) {
+					if (SDL_GetModState() & KMOD_CAPS) ADBKeyDown(0x39);
+					capslock_inited = true;
+				}
 				if (code >= 0) {
 					if (!emul_suspended) {
 						if (code == 0x39)
