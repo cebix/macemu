@@ -20,6 +20,9 @@
 
 #include "sysdeps.h"
 
+extern "C" {
+#include <libvdeplug.h>
+}
 /*
  *  NOTES concerning MacOS X issues:
  *  - poll() does not exist in 10.2.8, but is available in 10.4.4
@@ -93,7 +96,8 @@ enum {
 	NET_IF_SHEEPNET,
 	NET_IF_ETHERTAP,
 	NET_IF_TUNTAP,
-	NET_IF_SLIRP
+	NET_IF_SLIRP,
+	NET_IF_VDE
 };
 
 // Constants
@@ -115,6 +119,7 @@ static pthread_t slirp_thread;				// Slirp reception thread
 static bool slirp_thread_active = false;	// Flag: Slirp reception threadinstalled
 static int slirp_output_fd = -1;			// fd of slirp output pipe
 static int slirp_input_fds[2] = { -1, -1 };	// fds of slirp input pipe
+VDECONN *vde_conn;
 #ifdef SHEEPSHAVER
 static bool net_open = false;				// Flag: initialization succeeded, network device open
 static uint8 ether_addr[6];					// Our Ethernet address
@@ -250,6 +255,10 @@ bool ether_init(void)
 	else if (strcmp(name, "slirp") == 0)
 		net_if_type = NET_IF_SLIRP;
 #endif
+	else if (strcmp(name, "vde") == 0){
+		printf("selected Ethernet device type VDE\n");
+		net_if_type = NET_IF_VDE;
+	}
 	else
 		net_if_type = NET_IF_SHEEPNET;
 
@@ -301,7 +310,33 @@ bool ether_init(void)
 		strcpy(dev_name, "/dev/sheep_net");
 		break;
 	}
-	if (net_if_type != NET_IF_SLIRP) {
+
+	//vde switch information
+	int port = 0;
+	char *init_group = NULL;
+	mode_t mode = 0700;
+
+	struct vde_open_args args = {
+		.port = port,
+		.group = init_group,
+		.mode = mode,
+	};
+
+	if (net_if_type == NET_IF_VDE) {
+		/* calling vde open to open the vde connection to the vde switch */
+		vde_conn = vde_open(vde_sock, (char *)"macemu", &args);
+
+		if (!vde_conn) {
+			D(bug("VDE open failed\n"));
+			return -1;
+		} else {
+			/* for select/poll when this fd receive data, there are
+			 * packets to recv(call vde_recv) */
+			fd = vde_datafd(vde_conn);
+		}
+	}
+
+	if (net_if_type != NET_IF_SLIRP && net_if_type != NET_IF_VDE) {
 		fd = open(dev_name, O_RDWR);
 		if (fd < 0) {
 			sprintf(str, GetString(STR_NO_SHEEP_NET_DRIVER_WARN), dev_name, strerror(errno));
@@ -388,6 +423,13 @@ bool ether_init(void)
 		ether_addr[4] = 0x34;
 		ether_addr[5] = 0x56;
 #endif
+	} else if (net_if_type == NET_IF_VDE) {
+		ether_addr[0] = 0x52;
+		ether_addr[1] = 0x54;
+		ether_addr[2] = 0x00;
+		ether_addr[3] = 0x12;
+		ether_addr[4] = 0x34;
+		ether_addr[5] = 0x56;
 	} else
 		ioctl(fd, SIOCGIFADDR, ether_addr);
 	D(bug("Ethernet address %02x %02x %02x %02x %02x %02x\n", ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3], ether_addr[4], ether_addr[5]));
@@ -453,6 +495,9 @@ void ether_exit(void)
 	if (slirp_output_fd > 0)
 		close(slirp_output_fd);
 
+	// Close vde_connection
+	if (net_if_type == NET_IF_VDE)
+		vde_close(vde_conn);
 #if STATISTICS
 	// Show statistics
 	printf("%ld messages put on write queue\n", num_wput);
@@ -749,9 +794,27 @@ static int16 ether_do_write(uint32 arg)
 		write(slirp_input_fd, &len, sizeof(len));
 		write(slirp_input_fd, packet, len);
 		return noErr;
-	} else
+	}
 #endif
-	if (write(fd, packet, len) < 0) {
+	if (net_if_type == NET_IF_VDE) {
+		if (fd == -1) {	// which means vde service is not running
+			D(bug("WARNING: Couldn't transmit VDE packet\n"));
+			return excessCollsns;
+		}
+
+		if (vde_conn == NULL)
+		{
+			D(bug("WARNING: vde_conn is NULL\n"));
+			return -1;
+		}
+
+		do {
+			len = vde_send(vde_conn,packet,sizeof(packet),0);
+		} while (len < 0);
+
+		return noErr;
+	}
+	else if (write(fd, packet, len) < 0) {
 		D(bug("WARNING: Couldn't transmit packet\n"));
 		return excessCollsns;
 	} else
@@ -925,6 +988,9 @@ void ether_do_interrupt(void)
 		} else
 #endif
 		{
+			if (net_if_type == NET_IF_VDE) {
+				length = vde_recv(vde_conn, Mac2HostAddr(packet), 1514, 0);
+			} else {
 
 			// Read packet from sheep_net device
 #if defined(__linux__)
@@ -932,6 +998,7 @@ void ether_do_interrupt(void)
 #else
 			length = read(fd, Mac2HostAddr(packet), 1514);
 #endif
+			}
 			if (length < 14)
 				break;
 
