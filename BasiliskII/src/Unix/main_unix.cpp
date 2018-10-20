@@ -377,7 +377,7 @@ static void usage(const char *prg_name)
 		"  --break ADDRESS\n    set ROM breakpoint in hexadecimal\n"
 		"  --loadbreak FILE\n    load breakpoint from FILE\n"
 		"  --rominfo\n    dump ROM information\n"
-		"  --switch SWITCH_PATH\n    vde switch address\n", prg_name
+		"  --switch SWITCH_PATH\n    vde_switch address\n", prg_name
 	);
 	LoadPrefs(NULL); // read the prefs file so PrefsPrintUsage() will print the correct default values
 	PrefsPrintUsage();
