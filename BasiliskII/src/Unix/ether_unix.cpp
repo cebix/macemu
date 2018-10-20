@@ -119,7 +119,7 @@ static pthread_t slirp_thread;				// Slirp reception thread
 static bool slirp_thread_active = false;	// Flag: Slirp reception threadinstalled
 static int slirp_output_fd = -1;			// fd of slirp output pipe
 static int slirp_input_fds[2] = { -1, -1 };	// fds of slirp input pipe
-VDECONN *vde_conn;
+static VDECONN *vde_conn;
 #ifdef SHEEPSHAVER
 static bool net_open = false;				// Flag: initialization succeeded, network device open
 static uint8 ether_addr[6];					// Our Ethernet address
