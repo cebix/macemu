@@ -810,14 +810,13 @@ static int16 ether_do_write(uint32 arg)
 			return excessCollsns;
 		}
 
-		if (vde_conn == NULL)
-		{
+		if (vde_conn == NULL) {
 			D(bug("WARNING: vde_conn is NULL\n"));
 			return -1;
 		}
 
 		do {
-			len = vde_send(vde_conn,packet,sizeof(packet),0);
+			len = vde_send(vde_conn, packet, sizeof(packet), 0);
 		} while (len < 0);
 
 		return noErr;
