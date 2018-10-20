@@ -119,7 +119,7 @@ static pthread_t slirp_thread;				// Slirp reception thread
 static bool slirp_thread_active = false;	// Flag: Slirp reception threadinstalled
 static int slirp_output_fd = -1;			// fd of slirp output pipe
 static int slirp_input_fds[2] = { -1, -1 };	// fds of slirp input pipe
-VDECONN *vde_conn;
+static VDECONN *vde_conn;
 #ifdef SHEEPSHAVER
 static bool net_open = false;				// Flag: initialization succeeded, network device open
 static uint8 ether_addr[6];					// Our Ethernet address
@@ -245,22 +245,30 @@ bool ether_init(void)
 
 	// Determine Ethernet device type
 	net_if_type = -1;
-	if (strncmp(name, "tap", 3) == 0)
+	if (strncmp(name, "tap", 3) == 0) {
 		net_if_type = NET_IF_ETHERTAP;
+		printf("selected Ethernet device type tap\n");
+	}
 #if ENABLE_TUNTAP
-	else if (strcmp(name, "tun") == 0)
+	else if (strcmp(name, "tun") == 0) {
 		net_if_type = NET_IF_TUNTAP;
+		printf("selected Ethernet device type tun\n");
+	}
 #endif
 #ifdef HAVE_SLIRP
-	else if (strcmp(name, "slirp") == 0)
+	else if (strcmp(name, "slirp") == 0) {
 		net_if_type = NET_IF_SLIRP;
-#endif
-	else if (strcmp(name, "vde") == 0){
-		printf("selected Ethernet device type VDE\n");
-		net_if_type = NET_IF_VDE;
+		printf("selected Ethernet device type slirp\n");
 	}
-	else
+#endif
+	else if (strcmp(name, "vde") == 0) {
+		net_if_type = NET_IF_VDE;
+		printf("selected Ethernet device type VDE\n");
+	}
+	else {
 		net_if_type = NET_IF_SHEEPNET;
+		printf("selected Ethernet device type sheep_net\n");
+	}
 
 	// Don't raise SIGPIPE, let errno be set to EPIPE
 	struct sigaction sigpipe_sa;
