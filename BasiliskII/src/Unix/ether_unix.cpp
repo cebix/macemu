@@ -255,7 +255,7 @@ bool ether_init(void)
 	else if (strcmp(name, "slirp") == 0)
 		net_if_type = NET_IF_SLIRP;
 #endif
-	else if (strcmp(name, "vde") == 0){
+	else if (strcmp(name, "vde") == 0) {
 		printf("selected Ethernet device type VDE\n");
 		net_if_type = NET_IF_VDE;
 	}
