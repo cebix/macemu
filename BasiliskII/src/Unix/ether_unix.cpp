@@ -802,7 +802,7 @@ static int16 ether_do_write(uint32 arg)
 		write(slirp_input_fd, &len, sizeof(len));
 		write(slirp_input_fd, packet, len);
 		return noErr;
-	}
+	} else
 #endif
 	if (net_if_type == NET_IF_VDE) {
 		if (fd == -1) {	// which means vde service is not running
