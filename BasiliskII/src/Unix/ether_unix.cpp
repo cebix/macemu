@@ -998,7 +998,7 @@ void ether_do_interrupt(void)
 			if (net_if_type == NET_IF_VDE) {
 				length = vde_recv(vde_conn, Mac2HostAddr(packet), 1514, 0);
 			} else {
-			// Read packet from sheep_net device
+				// Read packet from sheep_net device
 #if defined(__linux__)
 				length = read(fd, Mac2HostAddr(packet), net_if_type == NET_IF_ETHERTAP ? 1516 : 1514);
 #else
