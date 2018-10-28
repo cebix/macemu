@@ -69,7 +69,6 @@
 		7539E24A1F23B32A006B2DF2 /* disk_sparsebundle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E1FD1F23B32A006B2DF2 /* disk_sparsebundle.cpp */; };
 		7539E24D1F23B32A006B2DF2 /* fbdevices in Resources */ = {isa = PBXBuildFile; fileRef = 7539E2011F23B32A006B2DF2 /* fbdevices */; };
 		7539E2501F23B32A006B2DF2 /* install-sh in Resources */ = {isa = PBXBuildFile; fileRef = 7539E2051F23B32A006B2DF2 /* install-sh */; };
-		7539E2541F23B32A006B2DF2 /* keycodes in Resources */ = {isa = PBXBuildFile; fileRef = 7539E20A1F23B32A006B2DF2 /* keycodes */; };
 		7539E2551F23B32A006B2DF2 /* freebsd-i386.ld in Resources */ = {isa = PBXBuildFile; fileRef = 7539E20C1F23B32A006B2DF2 /* freebsd-i386.ld */; };
 		7539E2561F23B32A006B2DF2 /* linux-i386.ld in Resources */ = {isa = PBXBuildFile; fileRef = 7539E20D1F23B32A006B2DF2 /* linux-i386.ld */; };
 		7539E2571F23B32A006B2DF2 /* linux-ppc.ld in Resources */ = {isa = PBXBuildFile; fileRef = 7539E20E1F23B32A006B2DF2 /* linux-ppc.ld */; };
@@ -969,7 +968,6 @@
 				7539E1A31F23B25A006B2DF2 /* table68k in Resources */,
 				7539E1341F23B25A006B2DF2 /* BasiliskII.icns in Resources */,
 				7539E2601F23B32A006B2DF2 /* gtk-2.0.m4 in Resources */,
-				7539E2541F23B32A006B2DF2 /* keycodes in Resources */,
 				7539E1381F23B25A006B2DF2 /* Credits.html in Resources */,
 				7539E25E1F23B32A006B2DF2 /* esd.m4 in Resources */,
 				7539E2631F23B32A006B2DF2 /* Makefile.in in Resources */,
@@ -1164,7 +1162,7 @@
 		753252DE1F5358D30024025B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_CXX_LIBRARY = "compiler-default";
+				CLANG_CXX_LIBRARY = "libc++";
 				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -1173,7 +1171,7 @@
 		753252DF1F5358D30024025B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_CXX_LIBRARY = "compiler-default";
+				CLANG_CXX_LIBRARY = "libc++";
 				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -1182,7 +1180,7 @@
 		753252F81F535E1E0024025B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_CXX_LIBRARY = "compiler-default";
+				CLANG_CXX_LIBRARY = "libc++";
 				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -1191,7 +1189,7 @@
 		753252F91F535E1E0024025B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_CXX_LIBRARY = "compiler-default";
+				CLANG_CXX_LIBRARY = "libc++";
 				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -1343,7 +1341,7 @@
 				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_CXX_LANGUAGE_STANDARD = "compiler-default";
-				CLANG_CXX_LIBRARY = "compiler-default";
+				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = NO;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES;
@@ -1392,7 +1390,7 @@
 				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_CXX_LANGUAGE_STANDARD = "compiler-default";
-				CLANG_CXX_LIBRARY = "compiler-default";
+				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = NO;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES;
