@@ -31,7 +31,8 @@ dnl Checks for libraries.
 AC_SEARCH_LIBS([tgetent], [ncurses termcap termlib terminfo Hcurses curses], [], [
   AC_MSG_ERROR([unable to find the tgetent() function])
 ])
-AC_SEARCH_LIBS([readline], [readline], [], [
+AC_SEARCH_LIBS([readline], [readline], [
+  AC_DEFINE([HAVE_LIBREADLINE], 1, [Define if you have the Readline library])], [
   AC_MSG_ERROR([unable to find the readline() function])
 ])
 
