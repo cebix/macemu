@@ -1004,9 +1004,10 @@ void ether_do_interrupt(void)
 #else
 				length = read(fd, Mac2HostAddr(packet), 1514);
 #endif
-				if (length < 14)
-					break;
 			}
+			
+			if (length < 14)
+				break;
 
 #if MONITOR
 			bug("Receiving Ethernet packet:\n");
