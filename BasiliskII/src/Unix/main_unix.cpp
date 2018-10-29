@@ -445,11 +445,8 @@ int main(int argc, char **argv)
 				printf("switch address not defined\n");
 				usage(argv[0]);
 			}
-			int vde_str_len = strlen(argv[i]);
-			vde_sock = (char*)malloc(vde_str_len);
-			memset(vde_sock,NULL,vde_str_len);
-			strncpy(vde_sock,argv[i],vde_str_len);
-			argv[i] = NULL; //don't know why it works
+			vde_sock = argv[i];
+			argv[i] = NULL;
 		}
 	}
 
