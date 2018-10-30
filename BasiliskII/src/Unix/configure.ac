@@ -323,6 +323,8 @@ else
   SDL_SUPPORT="none"
 fi
 
+LIBS="$CFLAGS -lvdeplug"
+
 dnl We need X11, if not using SDL or Mac GUI.
 if [[ "x$WANT_SDL_VIDEO" = "xno" -a "x$WANT_MACOSX_GUI" = "xno" ]]; then
   AC_PATH_XTRA
