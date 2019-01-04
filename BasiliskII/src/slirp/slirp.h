@@ -295,15 +295,15 @@ void if_init(void);
 void if_output(struct socket *, struct mbuf *);
 
 /* ip_input.c */
-void ip_init _P((void));
-void ip_input _P((struct mbuf *));
+void ip_init(void);
+void ip_input (struct mbuf *);
 static struct ip *
 ip_reass(register struct ip *ip, register struct ipq *);
-void ip_freef _P((struct ipq *));
-void ip_enq _P((register struct ipasfrag *, register struct ipasfrag *));
-void ip_deq _P((register struct ipasfrag *));
-void ip_slowtimo _P((void));
-void ip_stripoptions _P((register struct mbuf *, struct mbuf *));
+void ip_freef (struct ipq *);
+void ip_enq (register struct ipasfrag *, register struct ipasfrag *);
+void ip_deq (register struct ipasfrag *);
+void ip_slowtimo(void);
+void ip_stripoptions(register struct mbuf *, struct mbuf *);
 
 /* ip_output.c */
 int ip_output(struct socket *, struct mbuf *);
