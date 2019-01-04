@@ -17,7 +17,7 @@ CC = @CC@
 CXX = @CXX@
 CFLAGS = @CFLAGS@
 CXXFLAGS = @CXXFLAGS@
-CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../slirp
+CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../CrossPlatform -I../slirp
 DEFS = @DEFS@ -D_REENTRANT -DDATADIR=\"$(datadir)/$(APP)\"
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
@@ -26,6 +26,7 @@ CPUSRCS = @CPUSRCS@
 MONSRCS = @MONSRCS@
 PERL = @PERL@
 USE_DYNGEN = @USE_DYNGEN@
+USE_DYNGEN_PRECOMPILED = @USE_DYNGEN_PRECOMPILED@
 DYNGENSRCS = @DYNGENSRCS@
 DYNGEN_CC = @DYNGEN_CC@
 DYNGEN_CFLAGS = @DYNGEN_CFLAGS@
@@ -42,12 +43,16 @@ SLIRP_CFLAGS = @SLIRP_CFLAGS@
 SLIRP_SRCS = @SLIRP_SRCS@
 SLIRP_OBJS = $(SLIRP_SRCS:../slirp/%.c=obj/%.o)
 
+USE_BINCUE = @USE_BINCUE@
+
 STANDALONE_GUI = @STANDALONE_GUI@
 GUI_CFLAGS = @GUI_CFLAGS@
 GUI_LIBS = @GUI_LIBS@
 GUI_SRCS = ../prefs.cpp prefs_unix.cpp prefs_editor_gtk.cpp ../prefs_items.cpp \
 	../user_strings.cpp user_strings_unix.cpp xpram_unix.cpp sys_unix.cpp rpc_unix.cpp \
 	../dummy/prefs_dummy.cpp
+
+XPLAT_SRCS = ../CrossPlatform/vm_alloc.cpp ../CrossPlatform/sigsegv.cpp ../CrossPlatform/video_blit.cpp
 
 # Append disassembler to dyngen, if available
 ifneq (:no,$(MONSRCS):$(USE_DYNGEN))
@@ -59,11 +64,10 @@ SRCS = ../main.cpp main_unix.cpp ../prefs.cpp ../prefs_items.cpp prefs_unix.cpp 
     ../rom_patches.cpp ../rsrc_patches.cpp ../emul_op.cpp ../name_registry.cpp \
     ../macos_util.cpp ../timer.cpp timer_unix.cpp ../xpram.cpp xpram_unix.cpp \
     ../adb.cpp ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp \
-    ../gfxaccel.cpp ../video.cpp video_blit.cpp ../audio.cpp ../ether.cpp ../thunks.cpp \
+    ../gfxaccel.cpp ../video.cpp ../audio.cpp ../ether.cpp ../thunks.cpp \
     ../serial.cpp ../extfs.cpp disk_sparsebundle.cpp tinyxml2.cpp \
-    about_window_unix.cpp ../user_strings.cpp user_strings_unix.cpp \
-    vm_alloc.cpp sigsegv.cpp rpc_unix.cpp \
-    sshpty.c strlcpy.c $(SYSSRCS) $(CPUSRCS) $(MONSRCS) $(SLIRP_SRCS)
+    about_window_unix.cpp ../user_strings.cpp user_strings_unix.cpp rpc_unix.cpp \
+    sshpty.c strlcpy.c $(XPLAT_SRCS) $(SYSSRCS) $(CPUSRCS) $(MONSRCS) $(SLIRP_SRCS)
 APP = SheepShaver
 APP_EXE = $(APP)$(EXEEXT)
 APP_APP = $(APP).app
@@ -101,6 +105,9 @@ define GUI_SRCS_LIST_TO_OBJS
 	$(basename $(notdir $(file))))))
 endef
 GUI_OBJS = $(GUI_SRCS_LIST_TO_OBJS)
+ifeq ($(USE_BINCUE),yes)
+GUI_OBJS += bincue_unix.o
+endif
 
 define DYNGENSRCS_LIST_TO_OBJS
 	$(addprefix $(OBJ_DIR)/, $(addsuffix .dgo, $(foreach file, $(DYNGENSRCS), \
@@ -117,7 +124,7 @@ $(APP_EXE): $(OBJ_DIR) $(OBJS)
 	$(BLESS) $(APP_EXE)
 
 $(GUI_APP_EXE): $(OBJ_DIR) $(GUI_OBJS)
-	$(CXX) -o $@ $(LDFLAGS) $(GUI_OBJS) $(GUI_LIBS)
+	$(CXX) -o $@ $(LDFLAGS) $(GUI_OBJS) $(GUI_LIBS) $(LIBS)
 
 $(APP)_app: $(APP) ../MacOSX/Info.plist ../MacOSX/$(APP).icns
 	rm -rf $(APP_APP)/Contents
@@ -187,6 +194,8 @@ $(OBJ_DIR)/%.o : ../slirp/%.c
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) $(SLIRP_CFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.c
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
+$(OBJ_DIR)/DiskType.o : DiskType.m
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) $(CXXFLAGS) -c $< -o $@
 $(OBJ_DIR)/%.o : %.mm
@@ -206,9 +215,28 @@ DYNGEN    = dyngen$(EXEEXT)
 ifeq ($(USE_DYNGEN),yes)
 DYNGENDEPS = basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 
+ifeq ($(USE_DYNGEN_PRECOMPILED),yes)
+basic-dyngen-ops.hpp: dyngen_precompiled/basic-dyngen-ops.hpp basic-dyngen-ops-x86_32.hpp basic-dyngen-ops-x86_64.hpp
+	cp -f $< $@
+basic-dyngen-ops-x86_32.hpp: dyngen_precompiled/basic-dyngen-ops-x86_32.hpp
+	cp -f $< $@
+basic-dyngen-ops-x86_64.hpp: dyngen_precompiled/basic-dyngen-ops-x86_64.hpp
+	cp -f $< $@
+ppc-dyngen-ops.hpp: dyngen_precompiled/ppc-dyngen-ops.hpp ppc-dyngen-ops-x86_32.hpp ppc-dyngen-ops-x86_64.hpp
+	cp -f $< $@
+ppc-dyngen-ops-x86_32.hpp: dyngen_precompiled/ppc-dyngen-ops-x86_32.hpp
+	cp -f $< $@
+ppc-dyngen-ops-x86_64.hpp: dyngen_precompiled/ppc-dyngen-ops-x86_64.hpp
+	cp -f $< $@
+else
 # Only GCC is supported for generating synthetic opcodes
 $(DYNGEN): $(DYNGENOBJS)
 	$(DYNGEN_CC) -o $@ $(LDFLAGS) $(DYNGENOBJS)
+basic-dyngen-ops.hpp: $(OBJ_DIR)/basic-dyngen-ops.o $(DYNGEN)
+	./$(DYNGEN) -o $@ $<
+ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o $(DYNGEN)
+	./$(DYNGEN) -o $@ $<
+endif
 
 $(OBJ_DIR)/%.dgo : %.c
 	$(DYNGEN_CC) -xc $(CPPFLAGS) $(DEFS) $(DYNGEN_CFLAGS) -c $< -o $@
@@ -218,14 +246,10 @@ $(OBJ_DIR)/%.dgo : %.cpp
 $(OBJ_DIR)/basic-dyngen.o: basic-dyngen-ops.hpp
 $(OBJ_DIR)/basic-dyngen-ops.o: $(kpxsrcdir)/cpu/jit/basic-dyngen-ops.cpp
 	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(DYNGEN_CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
-basic-dyngen-ops.hpp: $(OBJ_DIR)/basic-dyngen-ops.o $(DYNGEN)
-	./$(DYNGEN) -o $@ $<
 
 $(OBJ_DIR)/ppc-dyngen.o: ppc-dyngen-ops.hpp
 $(OBJ_DIR)/ppc-dyngen-ops.o: $(kpxsrcdir)/cpu/ppc/ppc-dyngen-ops.cpp basic-dyngen-ops.hpp
 	$(DYNGEN_CC) $(CPPFLAGS) $(DEFS) $(DYNGEN_CXXFLAGS) $(DYNGEN_OP_FLAGS) -c $< -o $@
-ppc-dyngen-ops.hpp: $(OBJ_DIR)/ppc-dyngen-ops.o $(DYNGEN)
-	./$(DYNGEN) -o $@ $<
 
 $(OBJ_DIR)/sheepshaver_glue.o $(OBJ_DIR)/ppc-cpu.o $(OBJ_DIR)/ppc-decode.o $(OBJ_DIR)/ppc-translate.o $(OBJ_DIR)/ppc-jit.o: basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 endif

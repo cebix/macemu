@@ -46,7 +46,7 @@ AC_ARG_WITH(gtk,            [  --with-gtk              use GTK user interface [d
    esac],
   [WANT_GTK="gtk2 gtk"])
 AC_ARG_WITH(mon,            [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=yes])
-AC_ARG_WITH(dgcc,           [  --with-dgcc=COMPILER    use C++ COMPILER to compile synthetic opcodes], [DYNGEN_CC=$withval])
+AC_ARG_WITH(dgcc,           [  --with-dgcc=COMPILER    use C++ COMPILER to compile synthetic opcodes or 'precompiled'], [DYNGEN_CC=$withval])
 
 AC_ARG_WITH(bincue,   
   AS_HELP_STRING([--with-bincue], [Allow cdrom image files in bin/cue mode]))
@@ -209,6 +209,7 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
       WANT_SDL=no
       WANT_SDL_VIDEO=no
       WANT_SDL_AUDIO=no
+      SDL_SUPPORT="none"
     fi
   fi
   SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
@@ -625,7 +626,7 @@ darwin*)
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     EXTFSSRC=../MacOSX/extfs_macosx.cpp
     if [[ "x$ac_cv_framework_AppKit" = "xyes" -a "x$WANT_GTK" = "xno" ]]; then
-      PREFSSRC="../MacOSX/prefs_macosx.mm ../MacOSX/Launcher/VMSettingsController.mm"
+      PREFSSRC="../MacOSX/prefs_macosx.mm ../MacOSX/Launcher/VMSettingsController.mm ../MacOSX/Launcher/DiskType.m"
       CPPFLAGS="$CPPFLAGS -I../MacOSX/Launcher"
     fi
   fi
@@ -657,10 +658,12 @@ AS_IF([test  "x$with_bincue" = "xyes" ], [have_bincue=yes], [have_bincue=no])
 AS_IF([test  "x$have_bincue" = "xyes" ], [
    if [[ "xOSX_CORE_AUDIO" = "xno"  -a "x$WANT_SDL_AUDIO"="xno" ]]; then
        AC_MSG_ERROR([You need SDL or OSX Core Audio to use BINCUE support.])
+       AC_SUBST(USE_BINCUE, no)
    else
        CPPFLAGS="$CPPFLAGS -DBINCUE $OSX_CORE_AUDIO"
+       AC_SUBST(USE_BINCUE, yes)
    fi
-])
+], [AC_SUBST(USE_BINCUE, no)])
 
 dnl LIBVHD
 AS_IF([test  "x$with_libvhd" = "xyes" ], [have_libvhd=yes], [have_libvhd=no])
@@ -812,7 +815,7 @@ AC_CACHE_CHECK([whether vm_protect works],
     AC_TRY_RUN([
       #define CONFIGURE_TEST_VM_MAP
       #define TEST_VM_PROT_$test_def
-      #include "vm_alloc.cpp"
+      #include "../CrossPlatform/vm_alloc.cpp"
     ], ac_cv_vm_protect_works=no, rm -f core,
     dnl When cross-compiling, do not assume anything
     ac_cv_vm_protect_works="guessing no"
@@ -821,7 +824,7 @@ AC_CACHE_CHECK([whether vm_protect works],
   AC_TRY_RUN([
     #define CONFIGURE_TEST_VM_MAP
     #define TEST_VM_PROT_RDWR_WRITE
-    #include "vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
   ], , ac_cv_vm_protect_works=no,
   dnl When cross-compiling, do not assume anything
   ac_cv_vm_protect_works="guessing no"
@@ -866,7 +869,7 @@ AC_CACHE_CHECK([whether mmap supports MAP_ANON],
     #define HAVE_MMAP_ANON
     #define CONFIGURE_TEST_VM_MAP
     #define TEST_VM_MMAP_ANON
-    #include "vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
   ], ac_cv_mmap_anon=yes, ac_cv_mmap_anon=no,
   dnl When cross-compiling, do not assume anything.
   ac_cv_mmap_anon="guessing no"
@@ -885,7 +888,7 @@ AC_CACHE_CHECK([whether mmap supports MAP_ANONYMOUS],
     #define HAVE_MMAP_ANONYMOUS
     #define CONFIGURE_TEST_VM_MAP
     #define TEST_VM_MMAP_ANON
-    #include "vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
   ], ac_cv_mmap_anonymous=yes, ac_cv_mmap_anonymous=no,
   dnl When cross-compiling, do not assume anything.
   ac_cv_mmap_anonymous="guessing no"
@@ -906,7 +909,7 @@ AC_CACHE_CHECK([whether mprotect works],
     AC_TRY_RUN([
       #define CONFIGURE_TEST_VM_MAP
       #define TEST_VM_PROT_$test_def
-      #include "vm_alloc.cpp"
+      #include "../CrossPlatform/vm_alloc.cpp"
     ], ac_cv_mprotect_works=no, rm -f core,
     dnl When cross-compiling, do not assume anything
     ac_cv_mprotect_works="guessing no"
@@ -915,7 +918,7 @@ AC_CACHE_CHECK([whether mprotect works],
   AC_TRY_RUN([
     #define CONFIGURE_TEST_VM_MAP
     #define TEST_VM_PROT_RDWR_WRITE
-    #include "vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
   ], , ac_cv_mprotect_works=no,
   dnl When cross-compiling, do not assume anything
   ac_cv_mprotect_works="guessing no"
@@ -936,6 +939,18 @@ AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, $have_mmap_vm,
 
 fi dnl HAVE_MMAP_VM
 
+dnl Check if we can disable position-independent code
+AC_CACHE_CHECK([how to disable position-independent code],
+  ac_cv_no_pie, [
+  ac_cv_no_pie='-Wl,-no_pie'
+  saved_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $ac_cv_no_pie"
+  AC_TRY_LINK(,,,[ac_cv_no_pie="cannot"])
+  if [[ "$ac_cv_no_pie" = "cannot" ]]; then
+    LDFLAGS="$saved_LDFLAGS"
+  fi
+])
+
 dnl Check if we can modify the __PAGEZERO segment for use as Low Memory
 AC_CACHE_CHECK([whether __PAGEZERO can be Low Memory area 0x0000-0x3000],
   ac_cv_pagezero_hack, [
@@ -955,7 +970,7 @@ AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x3000],
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
   AC_TRY_RUN([
-    #include "vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
     int main(void) { /* returns 0 if we could map the lowmem globals */
       volatile char * lm = 0;
       if (vm_init() < 0) exit(1);
@@ -1041,8 +1056,8 @@ AC_CACHE_CHECK([whether your system supports Mach exceptions],
   AC_TRY_RUN([
     #define HAVE_MACH_EXCEPTIONS 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "vm_alloc.cpp"
-    #include "sigsegv.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
+    #include "../CrossPlatform/sigsegv.cpp"
   ],
   ac_cv_have_mach_exceptions=yes,
   ac_cv_have_mach_exceptions=no,
@@ -1066,8 +1081,8 @@ AC_CACHE_CHECK([whether your system supports Windows exceptions],
   AC_TRY_RUN([
     #define HAVE_WIN32_EXCEPTIONS 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "vm_alloc.cpp"
-    #include "sigsegv.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
+    #include "../CrossPlatform/sigsegv.cpp"
   ], [
   sigsegv_recovery=win32
   ac_cv_have_win32_exceptions=yes
@@ -1091,8 +1106,8 @@ if [[ -z "$sigsegv_recovery" ]]; then
     AC_TRY_RUN([
       #define HAVE_SIGINFO_T 1
       #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-      #include "vm_alloc.cpp"
-      #include "sigsegv.cpp"
+      #include "../CrossPlatform/vm_alloc.cpp"
+      #include "../CrossPlatform/sigsegv.cpp"
     ],
     ac_cv_have_extended_signals=yes,
     ac_cv_have_extended_signals=no,
@@ -1118,8 +1133,8 @@ if [[ -z "$sigsegv_recovery" ]]; then
     AC_TRY_RUN([
       #define HAVE_SIGCONTEXT_SUBTERFUGE 1
       #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-      #include "vm_alloc.cpp"
-      #include "sigsegv.cpp"
+      #include "../CrossPlatform/vm_alloc.cpp"
+      #include "../CrossPlatform/sigsegv.cpp"
     ],
     ac_cv_have_sigcontext_hack=yes,
     ac_cv_have_sigcontext_hack=no,
@@ -1143,8 +1158,8 @@ AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
   AC_TRY_RUN([
     #define HAVE_SIGSEGV_SKIP_INSTRUCTION 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "vm_alloc.cpp"
-    #include "sigsegv.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
+    #include "../CrossPlatform/sigsegv.cpp"
   ], ac_cv_have_skip_instruction=yes, ac_cv_have_skip_instruction=no,
   dnl When cross-compiling, do not assume anything.
   ac_cv_have_skip_instruction=no
@@ -1186,7 +1201,7 @@ if [[ "$WANT_ADDRESSING_MODE" = "direct" ]]; then
   cat >> conftest.$ac_ext << EOF
 #include <stdio.h>
 #include <string.h>
-#include "vm_alloc.cpp"
+#include "../CrossPlatform/vm_alloc.cpp"
 
 int main(void)
 {
@@ -1420,6 +1435,17 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#if ! (__GNUC__ >= 3)
                   [AC_MSG_RESULT(yes); HAVE_GCC30=yes],
                   [AC_MSG_RESULT(no)])
 
+dnl Check for GCC 4.0 or higher.
+HAVE_GCC40=no
+AC_MSG_CHECKING(for GCC 4.0 or higher)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#if ! (__GNUC__ >= 4)
+                                     # error gcc < 4
+                                     typedef syntax error;
+                                     #endif
+                                   ]])],
+                  [AC_MSG_RESULT(yes); HAVE_GCC40=yes],
+                  [AC_MSG_RESULT(no)])
+
 dnl Check for ICC.
 AC_MSG_CHECKING(for ICC)
 HAVE_ICC=no
@@ -1492,6 +1518,7 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
 
   dnl Enable JIT compiler, if possible
   if [[ "x$WANT_JIT" = "xyes" ]]; then
+    ac_cv_use_dyngen_precompiled=no
     AC_CACHE_CHECK([whether dyngen can be used],
       ac_cv_use_dyngen, [
       case $host_cpu:$ac_cv_object_format in
@@ -1522,20 +1549,30 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
       esac
       dnl Check for a suitable synthetic opcodes compiler (icc is faking itself as gcc 3.2.2)
       if [[ -z "$DYNGEN_CC" ]]; then
-        if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_ICC" = "xno" ]]; then
+        if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_GCC40" = "xno" -a "x$HAVE_ICC" = "xno" ]]; then
           DYNGEN_CC=$CXX
-        else
-          for p in /usr/bin /usr/local/bin /usr/freeware/bin; do
-            gxx="$p/g++"
-            if [[ -x "$gxx" ]]; then
-              DYNGEN_CC="$gxx"
-            fi
-          done
+        elif command -v g++ >/dev/null; then
+          vers=`g++ -dumpversion`
+          function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
+          if [[ $(version $vers) -ge $(version "2.7.0") ]] && [[ $(version $vers) -lt $(version "4.0.0") ]]; then
+            DYNGEN_CC="$gxx"
+          fi
         fi
       fi
-      if [[ -z "$DYNGEN_CC" ]]; then
-        ac_cv_use_dyngen=no
+      if [[ -z "$DYNGEN_CC" -o "x$DYNGEN_CC" = "xprecompiled" ]]; then
+        case $host_cpu in
+          i?86)
+            ac_cv_use_dyngen_precompiled=yes
+            ;;
+          x86_64)
+            ac_cv_use_dyngen_precompiled=yes
+            ;;
+          *)
+            ac_cv_use_dyngen=no
+            ;;
+        esac
       fi
+      if [[ "x$ac_cv_use_dyngen_precompiled" = "xyes" ]]; then DYNGEN_CC=precompiled; fi
     ])
     if [[ "x$ac_cv_use_dyngen" = "xyes" ]]; then
       case $host_cpu in
@@ -1552,10 +1589,17 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
         ;;
       esac
       have_dyngen_gcc3=no
-      case "x`$DYNGEN_CC -dumpversion`" in
-      x[12].*) ;;
-      x*) have_dyngen_gcc3=yes ;;
-      esac
+      if [[ "$DYNGEN_CC" != "precompiled" ]]; then
+        case "x`$DYNGEN_CC -dumpversion`" in
+        x[12].*) ;;
+        x*) have_dyngen_gcc3=yes ;;
+        esac
+      else
+        case "x`$CXX -dumpversion`" in
+        x[12].*) ;;
+        x*) have_dyngen_gcc3=yes ;;
+        esac
+      fi
       if [[ "x$have_dyngen_gcc3" = "xyes" ]]; then
         DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -fno-align-functions"
       else
@@ -1639,6 +1683,7 @@ AC_TRANSLATE_DEFINE(HAVE_LINKER_SCRIPT, "$ac_cv_linker_script_works",
 dnl Generate Makefile.
 AC_SUBST(PERL)
 AC_SUBST(USE_DYNGEN, [$ac_cv_use_dyngen])
+AC_SUBST(USE_DYNGEN_PRECOMPILED, [$ac_cv_use_dyngen_precompiled])
 AC_SUBST(DYNGENSRCS)
 AC_SUBST(DYNGEN_CC)
 AC_SUBST(DYNGEN_CFLAGS)

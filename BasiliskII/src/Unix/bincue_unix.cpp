@@ -799,9 +799,9 @@ static uint8 *fill_buffer(int stream_len)
 #ifdef USE_SDL_AUDIO
 void MixAudio_bincue(uint8 *stream, int stream_len)
 {
-	uint8 *buf;
 	if (audio_enabled && (player.audiostatus == CDROM_AUDIO_PLAY)) {
-		if (buf = fill_buffer(stream_len))
+		uint8 *buf = fill_buffer(stream_len);
+		if (buf)
 			SDL_MixAudio(stream, buf, stream_len, SDL_MIX_MAXVOLUME);
 	}
 }

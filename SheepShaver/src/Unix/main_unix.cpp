@@ -1402,7 +1402,7 @@ static void *tick_func(void *arg)
 #ifdef ENABLE_MON
 			// Start up mon in real-mode
 			printf("Welcome to the sheep factory.\n");
-			char *arg[4] = {"mon", "-m", "-r", NULL};
+			const char *arg[4] = {"mon", "-m", "-r", NULL};
 			mon(3, arg);
 #endif
 			return NULL;

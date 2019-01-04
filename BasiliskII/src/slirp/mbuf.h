@@ -63,11 +63,11 @@ struct m_hdr {
 	struct	mbuf *mh_prevpkt; /* Flags aren't used in the output queue */
 	int	mh_flags;	  /* Misc flags */
 
-	int	mh_size;		/* Size of data */
+	size_t	mh_size;		/* Size of data */
 	struct	socket *mh_so;
 	
 	caddr_t	mh_data;		/* Location of data */
-	int	mh_len;			/* Amount of data in this mbuf */
+	size_t	mh_len;			/* Amount of data in this mbuf */
 };
 
 /* 
@@ -130,14 +130,14 @@ extern int mbuf_alloced;
 extern struct mbuf m_freelist, m_usedlist;
 extern int mbuf_max;
 
-void m_init _P((void));
-void msize_init _P((void));
-struct mbuf * m_get _P((void));
-void m_free _P((struct mbuf *));
-void m_cat _P((register struct mbuf *, register struct mbuf *));
-void m_inc _P((struct mbuf *, int));
-void m_adj _P((struct mbuf *, int));
-int m_copy _P((struct mbuf *, struct mbuf *, int, int));
-struct mbuf * dtom _P((void *));
+void m_init(void);
+void msize_init(void);
+struct mbuf * m_get(void);
+void m_free(struct mbuf *);
+void m_cat(register struct mbuf *, register struct mbuf *);
+void m_inc(struct mbuf *, u_int);
+void m_adj(struct mbuf *, int);
+int m_copy(struct mbuf *, struct mbuf *, u_int, u_int);
+struct mbuf * dtom(void *);
 
 #endif

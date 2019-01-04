@@ -78,11 +78,11 @@ ip_input(m)
 	struct mbuf *m;
 {
 	register struct ip *ip;
-	int hlen;
+	u_int hlen;
 	
 	DEBUG_CALL("ip_input");
 	DEBUG_ARG("m = %lx", (long)m);
-	DEBUG_ARG("m_len = %d", m->m_len);
+	DEBUG_ARG("m_len = %zu", m->m_len);
 
 	ipstat.ips_total++;
 	

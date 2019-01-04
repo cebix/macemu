@@ -274,7 +274,7 @@ int udp_output2(struct socket *so, struct mbuf *m,
     memset(&ui->ui_i.ih_mbuf, 0 , sizeof(struct mbuf_ptr));
 	ui->ui_x1 = 0;
 	ui->ui_pr = IPPROTO_UDP;
-	ui->ui_len = htons(m->m_len - sizeof(struct ip)); /* + sizeof (struct udphdr)); */
+	ui->ui_len = htons((u_short) (m->m_len - sizeof(struct ip))); /* + sizeof (struct udphdr)); */
 	/* XXXXX Check for from-one-location sockets, or from-any-location sockets */
         ui->ui_src = saddr->sin_addr;
 	ui->ui_dst = daddr->sin_addr;
@@ -290,7 +290,7 @@ int udp_output2(struct socket *so, struct mbuf *m,
 	    if ((ui->ui_sum = cksum(m, /* sizeof (struct udpiphdr) + */ m->m_len)) == 0)
 		ui->ui_sum = 0xffff;
 	}
-	((struct ip *)ui)->ip_len = m->m_len;
+	((struct ip *)ui)->ip_len = (u_int16_t) m->m_len;
 
 	((struct ip *)ui)->ip_ttl = ip_defttl;
 	((struct ip *)ui)->ip_tos = iptos;
@@ -337,14 +337,10 @@ udp_attach(so)
     addr.sin_port = 0;
     addr.sin_addr.s_addr = INADDR_ANY;
     if(bind(so->s, (struct sockaddr *)&addr, sizeof(addr))<0) {
-      int lasterrno=errno;
+      int error = WSAGetLastError();
       closesocket(so->s);
       so->s=-1;
-#ifdef _WIN32
-      WSASetLastError(lasterrno);
-#else
-      errno=lasterrno;
-#endif
+      WSASetLastError(error);
     } else {
       /* success, insert in queue */
       so->so_expire = curtime + SO_EXPIRE;

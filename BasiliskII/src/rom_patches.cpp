@@ -32,6 +32,11 @@
 #include "video.h"
 #include "extfs.h"
 #include "prefs.h"
+
+#if ENABLE_MON
+#include "mon.h"
+#endif
+
 #include "rom_patches.h"
 
 #define DEBUG 0
@@ -879,12 +884,10 @@ static bool patch_rom_classic(void)
 	*wp++ = htons(M68K_NOP);
 	*wp = htons(M68K_NOP);
 
-	// Install our own drivers
-	wp = (uint16 *)(ROMBaseHost + 0x3f82a);
+	// Don't open .Sound driver but install our own drivers
+	wp = (uint16 *)(ROMBaseHost + 0x36caa);
 	*wp++ = htons(M68K_EMUL_OP_INSTALL_DRIVERS);
-	*wp++ = htons(M68K_NOP);
-	*wp++ = htons(M68K_NOP);
-	*wp = htons(M68K_NOP);
+	*wp = htons(0x4e75); //rts
 
 #if 1
 	// Don't look for SCSI devices
@@ -1678,8 +1681,14 @@ bool PatchROM(void)
 
 	// Install breakpoint
 	if (ROMBreakpoint) {
+#if ENABLE_MON
+		mon_add_break_point(ROMBaseMac + ROMBreakpoint);
+		printf("ROM start address at %08x\n", ROMBaseMac);
+		printf("Set ROM break point at %08x\n", ROMBaseMac + ROMBreakpoint);
+#else
 		uint16 *wp = (uint16 *)(ROMBaseHost + ROMBreakpoint);
 		*wp = htons(M68K_EMUL_BREAK);
+#endif
 	}
 
 	// Clear caches as we loaded and patched code

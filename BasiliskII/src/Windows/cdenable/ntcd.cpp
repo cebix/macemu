@@ -21,7 +21,6 @@
  */
 
 #include "sysdeps.h"
-#include <windows.h>
 
 extern "C" {
 
@@ -30,9 +29,9 @@ extern "C" {
 #include "ntcd.h"
 #include "cdenable.h"
 
-static char *sDriverShort   = "cdenable";
-static char *sDriverLong  = "System32\\Drivers\\cdenable.sys";
-static char *sCompleteName  = "\\\\.\\cdenable";
+static LPCTSTR sDriverShort   = TEXT("cdenable");
+static LPCTSTR sDriverLong    = TEXT("System32\\Drivers\\cdenable.sys");
+static LPCTSTR sCompleteName  = TEXT("\\\\.\\cdenable");
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

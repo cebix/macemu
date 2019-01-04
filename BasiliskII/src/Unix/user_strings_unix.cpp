@@ -38,6 +38,7 @@ user_string_def platform_strings[] = {
 	{STR_FBDEV_NAME_ERR, "The %s frame buffer is not supported in %d bit mode."},
 	{STR_FBDEV_MMAP_ERR, "Cannot mmap() the frame buffer memory (%s)."},
 	{STR_VOSF_INIT_ERR, "Cannot initialize Video on SEGV signals."},
+	{STR_X_ICON_ATOM_ALLOC_ERR, "Failed to allocate X Atom. Icon will not be set."},
 	{STR_NO_DEV_ZERO_ERR, "Cannot open /dev/zero (%s)."},
 	{STR_LOW_MEM_MMAP_ERR, "Cannot map Low Memory Globals (%s)."},
 	{STR_SIGALTSTACK_ERR, "Cannot install alternate signal stack (%s)."},
@@ -83,8 +84,6 @@ user_string_def platform_strings[] = {
 	{STR_MOUSEWHEELLINES_CTRL, "Lines To Scroll"},
 
 	{STR_IGNORESEGV_CTRL, "Ignore Illegal Memory Accesses"},
-
-	{STR_WINDOW_TITLE_GRABBED, "Basilisk II (mouse grabbed, press Ctrl-F5 to release)"},
 
 	{STR_NO_B2_EXE_FOUND, "Could not start %s (%s)."},
 

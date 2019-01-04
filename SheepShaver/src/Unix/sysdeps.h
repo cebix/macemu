@@ -402,10 +402,10 @@ static inline int spin_trylock(spinlock_t *lock)
 #endif
 
 // Time data type for Time Manager emulation
-#ifdef HAVE_CLOCK_GETTIME
-typedef struct timespec tm_time_t;
-#elif defined(__MACH__)
+#if defined(__MACH__)
 typedef mach_timespec_t tm_time_t;
+#elif defined(HAVE_CLOCK_GETTIME)
+typedef struct timespec tm_time_t;
 #else
 typedef struct timeval tm_time_t;
 #endif

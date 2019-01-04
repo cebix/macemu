@@ -21,6 +21,7 @@
  */
 
 #include "sysdeps.h"
+#include "main.h"
 #include "cpu_emulation.h"
 #include "prefs.h"
 #include "ether_windows.h"

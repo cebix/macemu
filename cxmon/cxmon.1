@@ -1,0 +1,56 @@
+.TH cxmon 1 "January, 2007"
+.SH NAME
+cxmon \- a command-line file manipulation tool and disassembler
+.SH SYNOPSIS
+.B cxmon
+[\-m] [\-r]
+.RI [ commands\&... ]
+.SH DESCRIPTION
+.B cxmon
+is an interactive command-driven file manipulation tool that is inspired by
+the "Amiga Monitor" by Timo Rossi. It has commands and features similar to a
+machine code monitor/debugger, but it lacks any functions for running/tracing
+code. There are, however, built-in PowerPC, 680x0, 80x86, 6502 and Z80
+disassemblers and special support for disassembling MacOS code. By default,
+cxmon operates on a fixed-size (but adjustable) memory buffer with adresses
+starting at 0.
+.PP
+Type "h" to get a list of supported commands.
+.PP
+For more information, see the included "README" file.
+.SH OPTIONS
+.TP
+.B \-m
+enables symbolic MacOS A-Trap and low memory globals display in the 680x0
+disassembler
+.TP
+.B \-r
+makes cxmon operate in real (virtual) memory space instead of an allocated
+buffer
+.PP
+If no additional command line arguments are given, cxmon enters interactive
+mode. Otherwise, all remaining arguments are interpreted and executed as cxmon
+commands.
+.SH AUTHORS
+Christian Bauer <www.cebix.net>
+.br
+Marc Hellwig <Marc.Hellwig@uni-mainz.de>
+.SH COPYRIGHT
+Copyright \(co 1997-2007 Christian Bauer, Marc Hellwig
+.br
+GNU binutils disassemblers Copyright \(co 1988, 89, 91, 93, 94, 95, 96, 97, 1998
+Free Software Foundation, Inc.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.

@@ -665,23 +665,6 @@ static const uint8 adbop_patch[] = {	// Call ADBOp() completion procedure
 
 
 /*
- *  Copy PowerPC code to ROM image and reverse bytes if necessary
- */
-
-static inline void memcpy_powerpc_code(void *dst, const void *src, size_t len)
-{
-#ifdef WORDS_BIGENDIAN
-	(void)memcpy(dst, src, len);
-#else
-	uint32 *d = (uint32 *)dst;
-	uint32 *s = (uint32 *)src;
-	for (int i = 0; i < len/4; i++)
-		d[i] = htonl(s[i]);
-#endif
-}
-
-
-/*
  *  Install ROM patches (RAMBase and KernelDataAddr must be set)
  */
 

@@ -21,6 +21,7 @@
  */
 
 #include "sysdeps.h"
+#include "main.h"
 #include "dynsockets.h"
 #include "dump.h"
 #include "main.h"
@@ -40,7 +41,7 @@
 	Win95 b2 users who can't (or won't) upgrade.
 */
 
-static const char *wslib = "WS2_32.DLL";
+static LPCTSTR wslib = TEXT("WS2_32.DLL");
 
 static HMODULE hWinsock32 = 0;
 static WSADATA WSAData;

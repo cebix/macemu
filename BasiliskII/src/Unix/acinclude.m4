@@ -1,5 +1,5 @@
+# serial 1
 dnl Additional macros for Basilisk II
-
 
 dnl Check for libgnomeui
 dnl B2_PATH_GNOMEUI([ACTION-IF-FOUND [, ACTION-IF-NOT-FOUND]])

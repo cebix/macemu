@@ -20,14 +20,11 @@
 
 #include "sysdeps.h"
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 
 #include <string>
-using std::string;
+typedef std::basic_string<TCHAR> tstring;
 
 #include "prefs.h"
 
@@ -61,9 +58,9 @@ prefs_desc platform_prefs_items[] = {
 
 
 // Prefs file name and path
-const char PREFS_FILE_NAME[] = "BasiliskII_prefs";
-string UserPrefsPath;
-static string prefs_path;
+const TCHAR PREFS_FILE_NAME[] = TEXT("BasiliskII_prefs");
+tstring UserPrefsPath;
+static tstring prefs_path;
 
 
 /*
@@ -75,16 +72,15 @@ void LoadPrefs(const char *vmdir)
 	// Construct prefs path
 	if (UserPrefsPath.empty()) {
 		int pwd_len = GetCurrentDirectory(0, NULL);
-		char *pwd = new char[pwd_len];
-		if (GetCurrentDirectory(pwd_len, pwd) == pwd_len - 1)
-			prefs_path = string(pwd) + '\\';
-		delete[] pwd;
+		prefs_path.resize(pwd_len);
+		pwd_len = GetCurrentDirectory(pwd_len, &prefs_path.front());
+		prefs_path[pwd_len] = TEXT('\\');
 		prefs_path += PREFS_FILE_NAME;
 	} else
 		prefs_path = UserPrefsPath;
 
 	// Read preferences from settings file
-	FILE *f = fopen(prefs_path.c_str(), "r");
+	FILE *f = _tfopen(prefs_path.c_str(), TEXT("r"));
 	if (f != NULL) {
 
 		// Prefs file found, load settings
@@ -106,7 +102,7 @@ void LoadPrefs(const char *vmdir)
 void SavePrefs(void)
 {
 	FILE *f;
-	if ((f = fopen(prefs_path.c_str(), "w")) != NULL) {
+	if ((f = _tfopen(prefs_path.c_str(), TEXT("w"))) != NULL) {
 		SavePrefsToStream(f);
 		fclose(f);
 	}

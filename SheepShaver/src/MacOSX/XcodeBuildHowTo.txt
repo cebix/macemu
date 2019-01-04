@@ -13,7 +13,7 @@ under newer versions of Xcode or Mac OS X.
 To use it, you need the following:
 
 1. A complete 'macemu' git checkout of SheepShaver and BasiliskII.
-2. SDL installed as a framework in /Library/Frameworks/SDL.framework.
+2. SDL 1.2 installed as a framework in /Library/Frameworks/SDL.framework.
 3. You do not need to run autogen.sh / configure to use the Xcode
 project. If you've done so already, you should remove or temporarily
 move/rename src/Unix/config.h, as the presence of that file currently
@@ -24,3 +24,17 @@ and build SheepShaver, resulting in a UB build containing SDL as a
 private framework in the bundle. The result will be located in either
 SheepShaver/src/MacOSX/build/Debug or SheepShaver/src/MacOSX/build/Release
 directories, depending if you do a Debug or Release build.
+
+
+There is also an Xcode 8 project file for use with Xcode 8 and newer
+(e.g. 8.2 on 10.11 or 10.12). The main differences are:
+
+1. This builds a i386 version of SheepShaver instead of Universal Binary.
+This is because since PPC is not supported by Xcode 8 and newer versions of
+OS X disallow having memory mapped at page zero for 64-bit applications,
+which SheepShaver requires.
+
+2. Since the SheepShaver JIT-generation compilation does not support Clang,
+this build uses prebuilt and checked-in dyngen source files, rather than
+building dyngen and generating them with it, as is done normally during the
+SheepShaver build process.

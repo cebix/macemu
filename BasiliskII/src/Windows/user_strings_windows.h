@@ -1,5 +1,5 @@
 /*
- *  user_strings_unix.h - Unix-specific localizable strings
+ *  user_strings_windows.h - Windows-specific localizable strings
  *
  *  Basilisk II (C) 1997-2008 Christian Bauer
  *
@@ -18,8 +18,17 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef USER_STRINGS_UNIX_H
-#define USER_STRINGS_UNIX_H
+#ifndef USER_STRINGS_WINDOWS_H
+#define USER_STRINGS_WINDOWS_H
+
+#ifdef __cplusplus
+#if __cplusplus >= 201103L || _MSC_VER >= 1600
+#include <memory>
+
+ // Convert text to wide string, given the string number
+extern std::unique_ptr<wchar_t[]> GetStringW(int num);
+#endif
+#endif
 
 enum {
 	STR_NO_XVISUAL_ERR = 10000,
@@ -30,7 +39,6 @@ enum {
 	STR_NO_AUDIO_WARN,
 	STR_KEYCODE_FILE_WARN,
 	STR_KEYCODE_VENDOR_WARN,
-	STR_WINDOW_TITLE_GRABBED,
 	STR_NO_WIN32_NT_4,
 
 	STR_PREFS_MENU_FILE_GTK,

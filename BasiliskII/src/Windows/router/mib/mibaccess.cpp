@@ -61,6 +61,7 @@
 
 
 #include "sysdeps.h"
+#include "main.h"
 #include "mibaccess.h"
 #include "../dynsockets.h"
 #include "../dump.h"
@@ -71,9 +72,8 @@
 
 #include "debug.h"
 
-MibExtLoad::MibExtLoad( LPSTR MibDllName, LPSTR SnmpDllName )
+MibExtLoad::MibExtLoad( LPCTSTR MibDllName, LPCTSTR SnmpDllName )
 {
-	
 	m_Init = NULL;
 
 	m_InitEx = NULL;
@@ -88,10 +88,10 @@ MibExtLoad::MibExtLoad( LPSTR MibDllName, LPSTR SnmpDllName )
 	
 	m_hInst = LoadLibrary( MibDllName );
 	if(!m_hInst) {
-		D(bug("MIB: library %s could not be loaded.\r\n", MibDllName));
+		D(bug(TEXT("MIB: library %s could not be loaded.\r\n"), MibDllName));
 		return;
 	}
-	D(bug("MIB: library %s loaded ok.\r\n", MibDllName));
+	D(bug(TEXT("MIB: library %s loaded ok.\r\n"), MibDllName));
 
 	m_Init	=	(pSnmpExtensionInit)GetProcAddress(m_hInst ,"SnmpExtensionInit");
 	m_InitEx=	(pSnmpExtensionInitEx)GetProcAddress(m_hInst ,"SnmpExtensionInitEx");
@@ -100,19 +100,19 @@ MibExtLoad::MibExtLoad( LPSTR MibDllName, LPSTR SnmpDllName )
 
 	if( !m_Init || !m_InitEx || !m_Query || !m_Trap )
 	{
-		D(bug("MIB: required entry points not found in library %s.\r\n", MibDllName));
+		D(bug(TEXT("MIB: required entry points not found in library %s.\r\n"), MibDllName));
 		FreeLibrary( m_hInst );
 		m_hInst = NULL;
 	}
 
 	m_hInst_snmputil = LoadLibrary( SnmpDllName );
 	if(!m_hInst_snmputil){
-		D(bug("MIB: library %s could not be loaded.\r\n", SnmpDllName));
+		D(bug(TEXT("MIB: library %s could not be loaded.\r\n"), SnmpDllName));
 		FreeLibrary( m_hInst );
 		m_hInst = NULL;
 		return;
 	}
-	D(bug("MIB: library %s loaded ok.\r\n", SnmpDllName));
+	D(bug(TEXT("MIB: library %s loaded ok.\r\n"), SnmpDllName));
 
 	m_SnmpUtilVarBindFree = (VOID (SNMP_FUNC_TYPE *)(SnmpVarBind *))GetProcAddress( m_hInst_snmputil, "SnmpUtilVarBindFree" );
 	m_SnmpUtilOidNCmp = (SNMPAPI (SNMP_FUNC_TYPE *)(AsnObjectIdentifier *, AsnObjectIdentifier *, UINT))GetProcAddress( m_hInst_snmputil, "SnmpUtilOidNCmp" );
@@ -120,7 +120,7 @@ MibExtLoad::MibExtLoad( LPSTR MibDllName, LPSTR SnmpDllName )
 
 	if( !m_SnmpUtilVarBindFree || !m_SnmpUtilOidNCmp || !m_SnmpUtilOidCpy )
 	{
-		D(bug("MIB: required entry points not found in library %s.\r\n", SnmpDllName));
+		D(bug(TEXT("MIB: required entry points not found in library %s.\r\n"), SnmpDllName));
 		FreeLibrary( m_hInst );
 		FreeLibrary( m_hInst_snmputil );
 		m_hInst = NULL;
@@ -181,7 +181,7 @@ BOOL MibExtLoad::Trap(AsnObjectIdentifier *enterprise, AsnInteger *genericTrap,
 	return FALSE;
 }
 
-MibII::MibII( bool load_winsock ):MibExtLoad("inetmib1.dll","snmpapi.dll")
+MibII::MibII(bool load_winsock) : MibExtLoad(TEXT("inetmib1.dll"), TEXT("snmpapi.dll"))
 {
   WSADATA wsa;
 	m_load_winsock = load_winsock;

@@ -21,7 +21,24 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
+#include <linux/init.h>
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0)
+#include <linux/sched/signal.h>
+#endif
+
+/* wrap up socket object allocation */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 00)
+	#define compat_sk_alloc(_net, _family, _priority, _proto) \
+		sk_alloc(_net, _family, _priority, _proto, 0)
+#else
+	#define compat_sk_alloc(_net, _family, _priority, _proto) \
+		sk_alloc(_net, _family, _priority, _proto)
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
+#define LINUX_3_15
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)
 #define LINUX_26_35
@@ -153,6 +170,9 @@ struct SheepVars {
 	u32 ipfilter;				/* Only receive IP packets destined for this address (host byte order) */
 	char eth_addr[6];			/* Hardware address of the Ethernet card */
 	char fake_addr[6];			/* Local faked hardware address (what SheepShaver sees) */
+#ifdef LINUX_3_15
+	atomic_t got_packet;
+#endif
 };
 
 
@@ -207,7 +227,7 @@ int init_module(void)
 
 	/* Register driver */
 	ret = misc_register(&sheep_net_device);
-	D(bug("Sheep net driver installed\n"));
+	printk("sheep net: driver installed\n");
 	return ret;
 }
 
@@ -220,7 +240,7 @@ void cleanup_module(void)
 {
 	/* Unregister driver */
 	misc_deregister(&sheep_net_device);
-	D(bug("Sheep net driver removed\n"));
+	printk("sheep net: driver removed\n");
 }
 
 
@@ -248,12 +268,9 @@ static int sheep_net_open(struct inode *inode, struct file *f)
 	memset(v, 0, sizeof(struct SheepVars));
 	skb_queue_head_init(&v->queue);
 	init_waitqueue_head(&v->wait);
-	v->fake_addr[0] = 0xfe;
-	v->fake_addr[1] = 0xfd;
-	v->fake_addr[2] = 0xde;
-	v->fake_addr[3] = 0xad;
-	v->fake_addr[4] = 0xbe;
-	v->fake_addr[5] = 0xef;
+	v->fake_addr[0] = 'v'; /* "SheepShaver" */
+	v->fake_addr[1] = 'r'; /*          ^ ^  */
+	get_random_bytes(&v->fake_addr[2], 4);
 
 	/* Put our stuff where we will be able to find it later */
 	f->private_data = (void *)v;
@@ -390,7 +407,12 @@ static ssize_t sheep_net_read(struct file *f, char *buf, size_t count, loff_t *o
 			break;
 
 		/* No packet in queue and in blocking mode, so block */
+#ifdef LINUX_3_15
+		atomic_set(&v->got_packet, 0);
+		wait_event_interruptible(v->wait, atomic_read(&v->got_packet));
+#else
 		interruptible_sleep_on(&v->wait);
+#endif
 
 		/* Signal received? Then bail out */
 		if (signal_pending(current))
@@ -412,6 +434,11 @@ static ssize_t sheep_net_read(struct file *f, char *buf, size_t count, loff_t *o
 /*
  *  Driver write() function
  */
+
+static inline void do_nothing(struct sk_buff *skb)
+{
+	return;
+}
 
 static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, loff_t *off)
 {
@@ -445,7 +472,9 @@ static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, lo
 	}
 
 	/* Transmit packet */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,31)
 	atomic_add(skb->truesize, &v->skt->wmem_alloc);
+#endif
 	skb->sk = v->skt;
 	skb->dev = v->ether;
 	skb->priority = 0;
@@ -470,11 +499,13 @@ static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, lo
 
 	/* Is this packet addressed solely to the local host? */
 	if (is_local_addr(v, skb->data) && !(skb->data[0] & ETH_ADDR_MULTICAST)) {
+		skb->destructor = do_nothing;
 		skb->protocol = eth_type_trans(skb, v->ether);
 		netif_rx(skb);
 		return count;
 	}
-	if (skb->data[0] & ETH_ADDR_MULTICAST) {
+	/* Relay multicast for host process except ARP packet */
+	if ((skb->data[0] & ETH_ADDR_MULTICAST) && (eth_hdr(skb)->h_proto != htons(ETH_P_ARP))) {
 		/* We can't clone the skb since we will manipulate the data below */
 		struct sk_buff *lskb = skb_copy(skb, GFP_ATOMIC);
 		if (lskb) {
@@ -486,6 +517,7 @@ static ssize_t sheep_net_write(struct file *f, const char *buf, size_t count, lo
 	/* Outgoing packet (will be on the net) */
 	demasquerade(v, skb);
 
+	skb->destructor = do_nothing;
 	skb->protocol = PROT_MAGIC;	/* Magic value (we can recognize the packet in sheep_net_receiver) */
 	dev_queue_xmit(skb);
 	return count;
@@ -569,7 +601,7 @@ static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int cod
 
 			/* Allocate socket */
 #ifdef LINUX_26
-			v->skt = sk_alloc(dev_net(v->ether), GFP_USER, 1, &sheep_proto);
+			v->skt = compat_sk_alloc(dev_net(v->ether), GFP_USER, 1, &sheep_proto);
 #else
 			v->skt = sk_alloc(0, GFP_USER, 1);
 #endif
@@ -579,10 +611,16 @@ static int sheep_net_ioctl(struct inode *inode, struct file *f, unsigned int cod
 			}
 			skt_set_dead(v->skt);
 
+			/*initialize ipfilter*/
+			v->ipfilter = 0;
+
 			/* Attach packet handler */
 			v->pt.type = htons(ETH_P_ALL);
 			v->pt.dev = v->ether;
 			v->pt.func = sheep_net_receiver;
+#ifdef LINUX_26
+			v->pt.af_packet_priv = v;
+#endif
 			dev_add_pack(&v->pt);
 #ifndef LINUX_24
 			dev_unlock_list();
@@ -688,7 +726,11 @@ static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struc
 static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
 #endif
 {
+#ifdef LINUX_26
+	struct SheepVars *v = (struct SheepVars *)pt->af_packet_priv;
+#else
 	struct SheepVars *v = (struct SheepVars *)pt;
+#endif
 	struct sk_buff *skb2;
 	int fake;
 	int multicast;
@@ -712,8 +754,25 @@ static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struc
 	/* Apply any filters here (if fake is true, then we *know* we want this packet) */
 	if (!fake) {
 		if ((skb->protocol == htons(ETH_P_IP))
-		 && (!v->ipfilter || (ntohl(ipip_hdr(skb)->daddr) != v->ipfilter && !multicast)))
+		 && (!v->ipfilter || (ntohl(ip_hdr(skb)->daddr) != v->ipfilter && !multicast))) {
+#if DEBUG
+			char source[16];
+			snprintf(source, 16, "%pI4", &ip_hdr(skb)->saddr);
+			D(bug("sheep_net: drop incoming IP packet %s for filter %d.%d.%d.%d\n",
+					 source,
+					 (v->ipfilter >> 24) & 0xff, (v->ipfilter >> 16) & 0xff, (v->ipfilter >> 8) & 0xff, v->ipfilter & 0xff));
+#endif
 			goto drop;
+		}
+#if DEBUG
+		else{
+			if(!multicast){
+				char source[16];
+				snprintf(source, 16, "%pI4", &ip_hdr(skb)->saddr);
+				D(bug("sheep_net: retain incoming unicast IP packet %s\n", source));
+			}
+		}
+#endif
 	}
 
 	/* Masquerade (we are typically a clone - best to make a real copy) */
@@ -731,7 +790,17 @@ static int sheep_net_receiver(struct sk_buff *skb, struct net_device *dev, struc
 	skb_queue_tail(&v->queue, skb);
 
 	/* Unblock blocked read */
+#ifdef LINUX_3_15
+
+	atomic_set(&v->got_packet, 1);
+
+	wake_up_interruptible(&v->wait);
+
+#else
+
 	wake_up(&v->wait);
+
+#endif
 	return 0;
 
 drop:

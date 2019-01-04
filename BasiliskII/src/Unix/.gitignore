@@ -17,3 +17,8 @@ cpudefs.cpp
 cpuemu.cpp
 cpustbl.cpp
 cputbl.h
+cpuemu_nf.cpp
+cpustbl_nf.cpp
+
+patches/*
+.pc*

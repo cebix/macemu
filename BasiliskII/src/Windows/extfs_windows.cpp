@@ -18,16 +18,17 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "sysdeps.h"
+#include "main.h"
+#include "extfs.h"
+#include "extfs_defs.h"
+#include "posix_emu.h"
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-
-#include "sysdeps.h"
-#include "extfs.h"
-#include "extfs_defs.h"
-#include "posix_emu.h"
 
 
 #define DEBUG 0
@@ -127,8 +128,13 @@ static int open_helper(const char *path, const char *add, int flag)
 	char helper_path[MAX_PATH_LENGTH];
 	make_helper_path(path, helper_path, add);
 
-	if ((flag & O_ACCMODE) == O_RDWR || (flag & O_ACCMODE) == O_WRONLY)
+	switch (flag & (_O_RDONLY | _O_WRONLY | _O_RDWR)) {
+	case _O_WRONLY:
+	case _O_RDWR:
 		flag |= O_CREAT;
+		break;
+	}
+
 	int fd = open(helper_path, flag, 0666);
 	if (fd < 0) {
 		if (/*errno == ENOENT &&*/ (flag & O_CREAT)) {
@@ -263,6 +269,14 @@ void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 
 void set_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 {
+	struct my_utimbuf times;
+	times.actime = MacTimeToTime(ReadMacInt32(finfo - ioFlFndrInfo + ioFlCrDat));
+	times.modtime = MacTimeToTime(ReadMacInt32(finfo - ioFlFndrInfo + ioFlMdDat));
+
+	if (utime(path, &times) < 0) {
+		D(bug("utime failed on %s, error %d\n", path, GetLastError()));
+	}
+
 	// Open Finder info file
 	int fd = open_finf(path, O_RDWR);
 	if (fd < 0)

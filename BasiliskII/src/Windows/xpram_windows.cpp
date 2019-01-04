@@ -20,22 +20,19 @@
 
 #include "sysdeps.h"
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
 #include <string>
-using std::string;
+typedef std::basic_string<TCHAR> tstring;
 
 #include "xpram.h"
 
 
 // XPRAM file name and path
 #if POWERPC_ROM
-const char XPRAM_FILE_NAME[] = "SheepShaver_nvram.dat";
+const TCHAR XPRAM_FILE_NAME[] = TEXT("SheepShaver_nvram.dat");
 #else
-const char XPRAM_FILE_NAME[] = "BasiliskII_xpram.dat";
+const TCHAR XPRAM_FILE_NAME[] = TEXT("BasiliskII_xpram.dat");
 #endif
-static string xpram_path;
+static tstring xpram_path;
 
 
 /*
@@ -46,9 +43,9 @@ static void build_xpram_path(void)
 {
 	xpram_path.clear();
 	int pwd_len = GetCurrentDirectory(0, NULL);
-	char *pwd = new char[pwd_len];
+	TCHAR *pwd = new TCHAR[pwd_len];
 	if (GetCurrentDirectory(pwd_len, pwd) == pwd_len - 1)
-		xpram_path = string(pwd) + '\\';
+		xpram_path = tstring(pwd) + TEXT('\\');
 	delete[] pwd;
 	xpram_path += XPRAM_FILE_NAME;
 }

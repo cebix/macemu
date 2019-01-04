@@ -185,10 +185,10 @@ typedef char * caddr_t;
 #endif
 
 /* Time data type for Time Manager emulation */
-#ifdef HAVE_CLOCK_GETTIME
-typedef struct timespec tm_time_t;
-#elif defined(__MACH__)
+#if defined(__MACH__)
 typedef mach_timespec_t tm_time_t;
+#elif defined(HAVE_CLOCK_GETTIME)
+typedef struct timespec tm_time_t;
 #else
 typedef struct timeval tm_time_t;
 #endif
@@ -266,7 +266,7 @@ static inline int testandset(volatile int *p)
 	__asm__ __volatile__("0: cs    %0,%1,0(%2)\n"
 						 "   jl    0b"
 						 : "=&d" (ret)
-						 : "r" (1), "a" (p), "0" (*p) 
+						 : "r" (1), "a" (p), "0" (*p)
 						 : "cc", "memory" );
 	return ret;
 }
@@ -315,7 +315,7 @@ static inline int testandset(volatile int *p)
 	__asm__ __volatile__("swp %0, %1, [%2]"
 						 : "=r"(ret)
 						 : "0"(1), "r"(p));
-	
+
 	return ret;
 }
 #endif
@@ -424,30 +424,17 @@ static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {uint8 *b = (uint8 *)a
 #if defined(__i386__) || defined(__x86_64__)
 
 /* Intel x86 */
-#define X86_PPRO_OPT
 static inline uae_u32 do_get_mem_long(uae_u32 *a) {uint32 retval; __asm__ ("bswap %0" : "=r" (retval) : "0" (*a) : "cc"); return retval;}
-#ifdef X86_PPRO_OPT
 static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint32 retval; __asm__ ("movzwl %w1,%k0\n\tshll $16,%k0\n\tbswapl %k0\n" : "=&r" (retval) : "m" (*a) : "cc"); return retval;}
-#else
-static inline uae_u32 do_get_mem_word(uae_u16 *a) {uint32 retval; __asm__ ("xorl %k0,%k0\n\tmovw %w1,%w0\n\trolw $8,%w0" : "=&r" (retval) : "m" (*a) : "cc"); return retval;}
-#endif
 #define HAVE_GET_WORD_UNSWAPPED
 #define do_get_mem_word_unswapped(a) ((uae_u32)*((uae_u16 *)(a)))
 static inline void do_put_mem_long(uae_u32 *a, uae_u32 v) {__asm__ ("bswap %0" : "=r" (v) : "0" (v) : "cc"); *a = v;}
-#ifdef X86_PPRO_OPT
 static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("bswapl %0" : "=&r" (v) : "0" (v << 16) : "cc"); *a = v;}
-#else
-static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v) : "0" (v) : "cc"); *a = v;}
-#endif
 #define HAVE_OPTIMIZED_BYTESWAP_32
 /* bswap doesn't affect condition codes */
 static inline uae_u32 do_byteswap_32(uae_u32 v) {__asm__ ("bswap %0" : "=r" (v) : "0" (v)); return v;}
 #define HAVE_OPTIMIZED_BYTESWAP_16
-#ifdef X86_PPRO_OPT
 static inline uae_u32 do_byteswap_16(uae_u32 v) {__asm__ ("bswapl %0" : "=&r" (v) : "0" (v << 16) : "cc"); return v;}
-#else
-static inline uae_u32 do_byteswap_16(uae_u32 v) {__asm__ ("rolw $8,%0" : "=r" (v) : "0" (v) : "cc"); return v;}
-#endif
 
 #elif defined(CPU_CAN_ACCESS_UNALIGNED)
 
@@ -493,9 +480,9 @@ static inline uae_u32 do_byteswap_16(uae_u32 v)
 #define write_log printf
 
 #if defined(X86_ASSEMBLY) || defined(X86_64_ASSEMBLY)
-#define ASM_SYM_FOR_FUNC(a) __asm__(a)
+#define ASM_SYM(a) __asm__(a)
 #else
-#define ASM_SYM_FOR_FUNC(a)
+#define ASM_SYM(a)
 #endif
 
 #ifndef REGPARAM

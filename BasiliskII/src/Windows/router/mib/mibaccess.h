@@ -38,7 +38,7 @@ typedef BOOL (WINAPI *pSnmpExtensionInitEx)(OUT AsnObjectIdentifier *supportedVi
 class MibExtLoad
 {
 public:
-	MibExtLoad( LPSTR MibDllName, LPSTR SnmpDllName );
+	MibExtLoad( LPCTSTR MibDllName, LPCTSTR SnmpDllName );
 	~MibExtLoad();
 	BOOL Init(DWORD dwTimeZeroReference,HANDLE *hPollForTrapEvent,AsnObjectIdentifier *supportedView);
 	BOOL InitEx(AsnObjectIdentifier *supportedView);

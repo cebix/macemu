@@ -27,9 +27,8 @@
  */
 
 #include "sysdeps.h"
+#include "main.h"
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 #include <process.h>
 
 #include "cpu_emulation.h"
@@ -147,7 +146,7 @@ bool router_read_packet(uint8 *packet, int len)
 	Arguably an ugly hack, but needed since there is no way to
 	listen to all ports w/o writing another ndis filter driver
 */
-static WINAPI unsigned int router_expire_thread(void *arg)
+static unsigned int WINAPI router_expire_thread(void *arg)
 {
 	while(!is_router_shutting_down) {
 		close_old_sockets();

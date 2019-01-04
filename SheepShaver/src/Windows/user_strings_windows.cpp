@@ -45,7 +45,6 @@ user_string_def platform_strings[] = {
 	{STR_VOSF_INIT_ERR, "Cannot initialize Video on SEGV signals."},
 
 	{STR_OPEN_WINDOW_ERR, "Cannot open Mac window."},
-	{STR_WINDOW_TITLE_GRABBED, "SheepShaver (mouse grabbed, press Ctrl-F5 to release)"},
 	{STR_NO_WIN32_NT_4, "SheepShaver does not run on Windows NT versions less than 4.0"},
 
 	{STR_PREFS_MENU_FILE_GTK, "/_File"},

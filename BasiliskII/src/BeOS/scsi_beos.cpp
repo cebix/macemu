@@ -23,7 +23,11 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <device/scsi.h>
+#ifdef __HAIKU__
+#include <CAM.h>
+#else
 #include <drivers/CAM.h>
+#endif
 
 #include "sysdeps.h"
 #include "main.h"

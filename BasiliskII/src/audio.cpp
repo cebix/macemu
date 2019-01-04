@@ -39,7 +39,7 @@
 // Supported sample rates, sizes and channels
 vector<uint32> audio_sample_rates;
 vector<uint16> audio_sample_sizes;
-vector<uint16> audio_channel_counts;
+vector<uint8> audio_channel_counts;
 
 // Global variables
 struct audio_status AudioStatus;	// Current audio status (sample rate etc.)
@@ -233,7 +233,7 @@ static int32 AudioSetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			return badChannel;
 
 		case siSpeakerMute:
-			audio_set_speaker_mute((uint16)infoPtr);
+			audio_set_speaker_mute(uint16(infoPtr) != 0);
 			break;
 
 		case siSpeakerVolume:
@@ -242,7 +242,7 @@ static int32 AudioSetInfo(uint32 infoPtr, uint32 selector, uint32 sourceID)
 			break;
 
 		case siHardwareMute:
-			audio_set_main_mute((uint16)infoPtr);
+			audio_set_main_mute(uint16(infoPtr) != 0);
 			break;
 
 		case siHardwareVolume:

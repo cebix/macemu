@@ -89,7 +89,7 @@ static void REGPARAM2 dummy_bput (uaecptr, uae_u32) REGPARAM;
 uae_u32 REGPARAM2 dummy_lget (uaecptr addr)
 {
     if (illegal_mem)
-	write_log ("Illegal lget at %08lx\n", addr);
+	write_log ("Illegal lget at %08x\n", addr);
 
     return 0;
 }
@@ -97,7 +97,7 @@ uae_u32 REGPARAM2 dummy_lget (uaecptr addr)
 uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
 {
     if (illegal_mem)
-	write_log ("Illegal wget at %08lx\n", addr);
+	write_log ("Illegal wget at %08x\n", addr);
 
     return 0;
 }
@@ -105,7 +105,7 @@ uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
 uae_u32 REGPARAM2 dummy_bget (uaecptr addr)
 {
     if (illegal_mem)
-	write_log ("Illegal bget at %08lx\n", addr);
+	write_log ("Illegal bget at %08x\n", addr);
 
     return 0;
 }
@@ -113,17 +113,17 @@ uae_u32 REGPARAM2 dummy_bget (uaecptr addr)
 void REGPARAM2 dummy_lput (uaecptr addr, uae_u32 l)
 {
     if (illegal_mem)
-	write_log ("Illegal lput at %08lx\n", addr);
+	write_log ("Illegal lput at %08x\n", addr);
 }
 void REGPARAM2 dummy_wput (uaecptr addr, uae_u32 w)
 {
     if (illegal_mem)
-	write_log ("Illegal wput at %08lx\n", addr);
+	write_log ("Illegal wput at %08x\n", addr);
 }
 void REGPARAM2 dummy_bput (uaecptr addr, uae_u32 b)
 {
     if (illegal_mem)
-	write_log ("Illegal bput at %08lx\n", addr);
+	write_log ("Illegal bput at %08x\n", addr);
 }
 
 /* Mac RAM (32 bit addressing) */
@@ -268,19 +268,19 @@ uae_u32 REGPARAM2 rom_bget(uaecptr addr)
 void REGPARAM2 rom_lput(uaecptr addr, uae_u32 b)
 {
     if (illegal_mem)
-	write_log ("Illegal ROM lput at %08lx\n", addr);
+	write_log ("Illegal ROM lput at %08x\n", addr);
 }
 
 void REGPARAM2 rom_wput(uaecptr addr, uae_u32 b)
 {
     if (illegal_mem)
-	write_log ("Illegal ROM wput at %08lx\n", addr);
+	write_log ("Illegal ROM wput at %08x\n", addr);
 }
 
 void REGPARAM2 rom_bput(uaecptr addr, uae_u32 b)
 {
     if (illegal_mem)
-	write_log ("Illegal ROM bput at %08lx\n", addr);
+	write_log ("Illegal ROM bput at %08x\n", addr);
 }
 
 uae_u8 *REGPARAM2 rom_xlate(uaecptr addr)
@@ -463,6 +463,54 @@ uae_u8 *REGPARAM2 frame_xlate(uaecptr addr)
     return (uae_u8 *)(FrameBaseDiff + addr);
 }
 
+/* Mac framebuffer RAM (24 bit addressing)
+ *
+ * This works by duplicating appropriate writes to the 32-bit
+ * address-space framebuffer.
+ */
+
+static void REGPARAM2 fram24_lput(uaecptr, uae_u32) REGPARAM;
+static void REGPARAM2 fram24_wput(uaecptr, uae_u32) REGPARAM;
+static void REGPARAM2 fram24_bput(uaecptr, uae_u32) REGPARAM;
+
+void REGPARAM2 fram24_lput(uaecptr addr, uae_u32 l)
+{
+    uaecptr page_off = addr & 0xffff;
+    if (0xa700 <= page_off && page_off < 0xfc80) {
+	uae_u32 *fm;
+	fm = (uae_u32 *)(MacFrameBaseHost + page_off - 0xa700);
+	do_put_mem_long(fm, l);
+    }
+
+    uae_u32 *m;
+    m = (uae_u32 *)(RAMBaseDiff + (addr & 0xffffff));
+    do_put_mem_long(m, l);
+}
+
+void REGPARAM2 fram24_wput(uaecptr addr, uae_u32 w)
+{
+    uaecptr page_off = addr & 0xffff;
+    if (0xa700 <= page_off && page_off < 0xfc80) {
+	uae_u16 *fm;
+	fm = (uae_u16 *)(MacFrameBaseHost + page_off - 0xa700);
+	do_put_mem_word(fm, w);
+    }
+
+    uae_u16 *m;
+    m = (uae_u16 *)(RAMBaseDiff + (addr & 0xffffff));
+    do_put_mem_word(m, w);
+}
+
+void REGPARAM2 fram24_bput(uaecptr addr, uae_u32 b)
+{
+    uaecptr page_off = addr & 0xffff;
+    if (0xa700 <= page_off && page_off < 0xfc80) {
+        *(uae_u8 *)(MacFrameBaseHost + page_off - 0xa700) = b;
+    }
+
+    *(uae_u8 *)(RAMBaseDiff + (addr & 0xffffff)) = b;
+}
+
 /* Default memory access functions */
 
 uae_u8 *REGPARAM2 default_xlate (uaecptr a)
@@ -527,6 +575,12 @@ addrbank frame_host_888_bank = {
     frame_xlate
 };
 
+addrbank fram24_bank = {
+    ram24_lget, ram24_wget, ram24_bget,
+    fram24_lput, fram24_wput, fram24_bput,
+    ram24_xlate
+};
+
 void memory_init(void)
 {
 	for(long i=0; i<65536; i++)
@@ -539,29 +593,32 @@ void memory_init(void)
 	ROMBaseDiff = (uintptr)ROMBaseHost - (uintptr)ROMBaseMac;
 	FrameBaseDiff = (uintptr)MacFrameBaseHost - (uintptr)MacFrameBaseMac;
 
-	// Map RAM and ROM
+	// Map RAM, ROM and display
 	if (TwentyFourBitAddressing) {
 		map_banks(&ram24_bank, RAMBaseMac >> 16, ram_size >> 16);
 		map_banks(&rom24_bank, ROMBaseMac >> 16, ROMSize >> 16);
+
+		// Map frame buffer at end of RAM.
+		map_banks(&fram24_bank, ((RAMBaseMac + ram_size) >> 16) - 1, 1);
 	} else {
 		map_banks(&ram_bank, RAMBaseMac >> 16, ram_size >> 16);
 		map_banks(&rom_bank, ROMBaseMac >> 16, ROMSize >> 16);
-	}
 
-	// Map frame buffer
-	switch (MacFrameLayout) {
-		case FLAYOUT_DIRECT:
-			map_banks(&frame_direct_bank, MacFrameBaseMac >> 16, (MacFrameSize >> 16) + 1);
-			break;
-		case FLAYOUT_HOST_555:
-			map_banks(&frame_host_555_bank, MacFrameBaseMac >> 16, (MacFrameSize >> 16) + 1);
-			break;
-		case FLAYOUT_HOST_565:
-			map_banks(&frame_host_565_bank, MacFrameBaseMac >> 16, (MacFrameSize >> 16) + 1);
-			break;
-		case FLAYOUT_HOST_888:
-			map_banks(&frame_host_888_bank, MacFrameBaseMac >> 16, (MacFrameSize >> 16) + 1);
-			break;
+                // Map frame buffer
+		switch (MacFrameLayout) {
+			case FLAYOUT_DIRECT:
+				map_banks(&frame_direct_bank, MacFrameBaseMac >> 16, (MacFrameSize >> 16) + 1);
+				break;
+			case FLAYOUT_HOST_555:
+				map_banks(&frame_host_555_bank, MacFrameBaseMac >> 16, (MacFrameSize >> 16) + 1);
+				break;
+			case FLAYOUT_HOST_565:
+				map_banks(&frame_host_565_bank, MacFrameBaseMac >> 16, (MacFrameSize >> 16) + 1);
+				break;
+			case FLAYOUT_HOST_888:
+				map_banks(&frame_host_888_bank, MacFrameBaseMac >> 16, (MacFrameSize >> 16) + 1);
+				break;
+		}
 	}
 }
 

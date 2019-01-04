@@ -30,7 +30,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "sysdeps.h"
-#include "readcpu.h"
+#include "../readcpu.h"
 
 #define BOOL_TYPE		"int"
 #define failure			global_failure=1
@@ -86,7 +86,7 @@ static FILE *stblfile;
 
 static int using_prefetch;
 static int using_exception_3;
-static int cpu_level;
+static unsigned int cpu_level;
 static int noflags;
 
 /* For the current opcode, the next lower level that will have different code.
@@ -508,7 +508,6 @@ genamode (amodes mode, char *reg, wordsizes size, char *name, int getv, int move
     /* We now might have to fix up the register for pre-dec or post-inc
      * addressing modes. */
     if (!movem) {
-	char x[160];
 	switch (mode)
 	{
 	 case Aipi:
@@ -1510,10 +1509,10 @@ gen_opcode (unsigned long int opcode)
 		   curi->size == sz_word ? sz_word : sz_long, "src");
 	break;
      case i_MVMEL:
-	genmovemel (opcode);
+	genmovemel ((uae_u16)opcode);
 	break;
      case i_MVMLE:
-	genmovemle (opcode);
+	genmovemle ((uae_u16)opcode);
 	break;
      case i_TRAP:
 	isjump; 
@@ -1636,7 +1635,6 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tcomp_pc_p=(uae_u8*)get_const(PC_P);\n");
 	break;
      case i_Bcc:
-	comprintf("\tuae_u32 v,v1,v2;\n");
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	/* That source is an immediate, so we can clobber it with abandon */
 	switch(curi->size) {
@@ -1655,8 +1653,8 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tm68k_pc_offset=0;\n");
 
 	if (curi->cc>=2) {
-	    comprintf("\tv1=get_const(PC_P);\n"
-		      "\tv2=get_const(src);\n"
+	    comprintf("\tuae_u32 v1=get_const(PC_P);\n"
+		      "\tuae_u32 v2=get_const(src);\n"
 		      "\tregister_branch(v1,v2,%d);\n",
 		      cond_codes_x86[curi->cc]);
 	    comprintf("\tmake_flags_live();\n"); /* Load the flags */
@@ -1749,9 +1747,8 @@ gen_opcode (unsigned long int opcode)
 	    comprintf("\tsub_w_ri(src,1);\n");
 	    comprintf("\t end_needflags();\n");
 	    start_brace();
-	    comprintf("\tuae_u32 v2,v;\n"
-		      "\tuae_u32 v1=get_const(PC_P);\n");
-	    comprintf("\tv2=get_const(offs);\n"
+	    comprintf("\tuae_u32 v1=get_const(PC_P);\n");
+	    comprintf("\tuae_u32 v2=get_const(offs);\n"
 		      "\tregister_branch(v1,v2,3);\n");
 	    break;
 
@@ -1894,7 +1891,6 @@ gen_opcode (unsigned long int opcode)
 		uses_cmov;
 		start_brace();
 		comprintf("\tint highmask;\n"
-			  "\tint width;\n"
 			  "\tint cdata=scratchie++;\n"
 			  "\tint sdata=scratchie++;\n"
 			  "\tint tmpcnt=scratchie++;\n");
@@ -2991,7 +2987,7 @@ generate_func (int noflags)
 
 
 	/* sam: this is for people with low memory (eg. me :)) */
-	!printf ("\n"
+	printf ("\n"
 		 "#if !defined(PART_1) && !defined(PART_2) && "
 		 "!defined(PART_3) && !defined(PART_4) && "
 		 "!defined(PART_5) && !defined(PART_6) && "
@@ -3050,10 +3046,10 @@ main (int argc, char **argv)
     noflags=0;
     generate_func (noflags);
 	
-	free(opcode_map);
-	free(opcode_last_postfix);
-	free(opcode_next_clev);
-	free(counts);
+    free(opcode_map);
+    free(opcode_last_postfix);
+    free(opcode_next_clev);
+    free(counts);
 
     opcode_map = (int *) malloc (sizeof (int) * nr_cpuop_funcs);
     opcode_last_postfix = (int *) malloc (sizeof (int) * nr_cpuop_funcs);
@@ -3063,14 +3059,14 @@ main (int argc, char **argv)
     noflags=1;
     generate_func (noflags);
 
-	free(opcode_map);
-	free(opcode_last_postfix);
-	free(opcode_next_clev);
-	free(counts);
+    free(opcode_map);
+    free(opcode_last_postfix);
+    free(opcode_next_clev);
+    free(counts);
 
     free (table68k);
-	fclose (stblfile);
-	fclose (headerfile);
+    fclose (stblfile);
+    fclose (headerfile);
     fflush (stdout);
     return 0;
 }

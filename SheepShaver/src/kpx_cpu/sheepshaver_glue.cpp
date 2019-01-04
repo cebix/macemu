@@ -83,7 +83,7 @@ static void enter_mon(void)
 {
 	// Start up mon in real-mode
 #if ENABLE_MON
-	char *arg[4] = {"mon", "-m", "-r", NULL};
+	const char *arg[4] = {"mon", "-m", "-r", NULL};
 	mon(3, arg);
 #endif
 }
@@ -417,7 +417,7 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 		cg_context.done_compile = true;
 		status = COMPILE_EPILOGUE_OK;
 		break;
-#endif
+#else
 		// Invoke NativeOp handler
 		if (!FN_field::test(opcode)) {
 			typedef void (*func_t)(dyngen_cpu_base, uint32);
@@ -429,6 +429,7 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 		// Otherwise, let it generate a call to execute_sheep() which
 		// will cause necessary updates to the program counter
 		break;
+#endif
 	}
 
 	default: {	// EMUL_OP
@@ -441,7 +442,7 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 		cg_context.done_compile = true;
 		status = COMPILE_EPILOGUE_OK;
 		break;
-#endif
+#else
 		// Invoke EmulOp handler
 		typedef void (*func_t)(dyngen_cpu_base, uint32);
 		func_t func = (func_t)nv_mem_fun(&sheepshaver_cpu::execute_emul_op).ptr();
@@ -449,6 +450,7 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 		cg_context.done_compile = false;
 		status = COMPILE_CODE_OK;
 		break;
+#endif
 	}
 	}
 	return status;
@@ -772,7 +774,7 @@ sigsegv_return_t sigsegv_handler(sigsegv_info_t *sip)
 	const uint32 pc = cpu->pc();
 	
 	// Fault in Mac ROM or RAM?
-	bool mac_fault = (pc >= ROMBase) && (pc < (ROMBase + ROM_AREA_SIZE)) || (pc >= RAMBase) && (pc < (RAMBase + RAMSize)) || (pc >= DR_CACHE_BASE && pc < (DR_CACHE_BASE + DR_CACHE_SIZE));
+	bool mac_fault = (pc >= ROMBase && pc < (ROMBase + ROM_AREA_SIZE)) || (pc >= RAMBase && pc < (RAMBase + RAMSize)) || (pc >= DR_CACHE_BASE && pc < (DR_CACHE_BASE + DR_CACHE_SIZE));
 	if (mac_fault) {
 
 		// "VM settings" during MacOS 8 installation
@@ -815,7 +817,7 @@ sigsegv_return_t sigsegv_handler(sigsegv_info_t *sip)
 	fprintf(stderr, "  pc %p\n", sigsegv_get_fault_instruction_address(sip));
 	fprintf(stderr, "  ea %p\n", sigsegv_get_fault_address(sip));
 	dump_registers();
-	ppc_cpu->dump_log();
+	dump_log();
 	dump_disassembly(pc, 8, 8);
 
 	enter_mon();

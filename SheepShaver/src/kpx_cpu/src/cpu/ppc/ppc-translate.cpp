@@ -95,7 +95,7 @@ static void disasm_block(int target, uint8 *start, uint32 length)
 			target == TARGET_POWERPC ? "d" : "x",
 			start, start + length - 1);
 
-	char *arg[] = {"mon",
+	const char *arg[] = {"mon",
 #ifdef SHEEPSHAVER
 				   "-m",
 #endif
@@ -880,8 +880,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			case PPC_I(SUBFIC):
 				dg.gen_subfc_T0_im(val);
 				break;
-			  defautl:
-				abort();
+			default: abort();
 			}
 			dg.gen_store_T0_GPR(rD_field::extract(opcode));
 			break;

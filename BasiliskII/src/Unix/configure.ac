@@ -88,6 +88,88 @@ AC_ARG_WITH(bincue,
 AC_ARG_WITH(libvhd,   
   AS_HELP_STRING([--with-libvhd], [Enable VHD disk images]))
 
+AC_ARG_WITH(vdeplug,
+  AS_HELP_STRING([--with-vdeplug], [Enable VDE virtual network support]),
+  [],
+  [with_vdeplug=yes])
+
+  
+dnl Cross Compiling results in 'guesses' being made about the target system. These defaults are oftetimes incorrect.
+dnl The following Environment variables allow you to configure the default guess value for each option in the configure script.
+AC_ARG_VAR(BII_CROSS_SOCKLEN_T, [  Whether sys/socket.h defines type socklen_t. [default=guessing no]])
+if [[ "x$BII_CROSS_SOCKLEN_T" = "x" ]]; then
+	BII_CROSS_SOCKLEN_T="guessing no"
+fi
+
+AC_ARG_VAR(BII_CROSS_BYTE_BITFIELDS, [  Whether non-GCC compilers support byte bit-fields. [default=guessing no]])
+if [[ "x$BII_CROSS_BYTE_BITFIELDS" = "x" ]]; then
+	BII_CROSS_BYTE_BITFIELDS="guessing no"
+fi
+
+AC_ARG_VAR(BII_CROSS_VM_PROTECT, [  Whether vm_protect works on the target system [default=guessing no]])
+if [[ "x$BII_CROSS_VM_PROTECT" = "x" ]]; then
+	BII_CROSS_VM_PROTECT="guessing no"
+fi
+
+AC_ARG_VAR(BII_CROSS_MMAP_ANON, [  Whether anonymous mmap() works on the target system [default=guessing no]])
+if [[ "x$BII_CROSS_MMAP_ANON" = "x" ]]; then
+	BII_CROSS_MMAP_ANON="guessing no"
+fi
+
+AC_ARG_VAR(BII_CROSS_MMAP_SUPPORTS_MAP_ANONYMOUS, [  Whether <sys/mman.h> defines MAP_ANON and mmap()'ing with MAP_ANON works on the target system [default=guessing no]])
+if [[ "x$BII_CROSS_MMAP_SUPPORTS_MAP_ANONYMOUS" = "x" ]]; then
+	BII_CROSS_MMAP_SUPPORTS_MAP_ANONYMOUS="guessing no"
+fi
+
+AC_ARG_VAR(BII_CROSS_MPROTECT_WORKS, [  Whether mprotect works on the target system [default=guessing no]])
+if [[ "x$BII_CROSS_MPROTECT_WORKS" = "x" ]]; then
+	BII_CROSS_MPROTECT_WORKS="guessing no"
+fi
+
+AC_ARG_VAR(BII_CROSS_MAP_LOW_AREA, [  Whether the target system can map 0x2000 bytes from 0x0000 [default=guessing no]])
+if [[ "x$BII_CROSS_MAP_LOW_AREA" = "x" ]]; then
+	BII_CROSS_MAP_LOW_AREA="guessing no"
+fi
+
+AC_ARG_VAR(BII_CROSS_SIGNAL_NEED_REINSTALL, [  Whether the target system needs signal handlers to be reinstalled [default=guessing yes]])
+if [[ "x$BII_CROSS_SIGNAL_NEED_REINSTALL" = "x" ]]; then
+	BII_CROSS_SIGNAL_NEED_REINSTALL="guessing yes"
+fi
+
+AC_ARG_VAR(BII_CROSS_SIGACTION_NEED_REINSTALL, [  Whether the target system needs signal action handlers to be reinstalled [default=guessing yes]])
+if [[ "x$BII_CROSS_SIGACTION_NEED_REINSTALL" = "x" ]]; then
+	BII_CROSS_SIGACTION_NEED_REINSTALL="guessing yes"
+fi
+
+AC_ARG_VAR(BII_CROSS_HAVE_MACH_EXCEPTIONS, [  Whether the target system has mach exceptions [default=no]])
+if [[ "x$BII_CROSS_HAVE_MACH_EXCEPTIONS" = "x" ]]; then
+	BII_CROSS_HAVE_MACH_EXCEPTIONS="no"
+fi
+
+AC_ARG_VAR(BII_CROSS_HAVE_WIN32_EXCEPTIONS, [  Whether the target system has win32 exceptions [default=no]])
+if [[ "x$BII_CROSS_HAVE_WIN32_EXCEPTIONS" = "x" ]]; then
+	BII_CROSS_HAVE_WIN32_EXCEPTIONS="no"
+fi
+
+AC_ARG_VAR(BII_CROSS_HAVE_ASM_EXTENDED_SIGNALS, [  Whether the target system has extended signals supported with <asm/ucontext.h> [default=no]])
+if [[ "x$BII_CROSS_HAVE_ASM_EXTENDED_SIGNALS" = "x" ]]; then
+	BII_CROSS_HAVE_ASM_EXTENDED_SIGNALS="no"
+fi
+
+AC_ARG_VAR(BII_CROSS_HAVE_EXTENDED_SIGNALS, [  Whether the target system supports extended signal handlers [default=no]])
+if [[ "x$BII_CROSS_HAVE_EXTENDED_SIGNALS" = "x" ]]; then
+	BII_CROSS_HAVE_EXTENDED_SIGNALS="no"
+fi
+
+AC_ARG_VAR(BII_CROSS_HAVE_SIGCONTEXT_SUBTERFUGE, [  Whether there is a sigcontext subterfuge for the target system [default=no]])
+if [[ "x$BII_CROSS_HAVE_SIGCONTEXT_SUBTERFUGE" = "x" ]]; then
+	BII_CROSS_HAVE_SIGCONTEXT_SUBTERFUGE="no"
+fi
+
+AC_ARG_VAR(BII_CROSS_SIGSEGV_SKIP_INSTRUCTION, [  Whether the target system can skip instruction in SIGSEGV handler [default=no]])
+if [[ "x$BII_CROSS_SIGSEGV_SKIP_INSTRUCTION" = "x" ]]; then
+	BII_CROSS_SIGSEGV_SKIP_INSTRUCTION="no"
+fi
 
 dnl Canonical system information.
 AC_CANONICAL_HOST
@@ -147,11 +229,11 @@ dnl We use mon if possible.
 MONSRCS=
 if [[ "x$WANT_MON" = "xyes" ]]; then
   AC_MSG_CHECKING(for mon)
-  mon_srcdir=../../../mon/src
+  mon_srcdir=../../../cxmon/src
   if grep mon_init $mon_srcdir/mon.h >/dev/null 2>/dev/null; then
     AC_MSG_RESULT(yes)
     AC_DEFINE(ENABLE_MON, 1, [Define if using "mon".])
-    MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_z80.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/mon_lowmem.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c $mon_srcdir/disass/mips-dis.c $mon_srcdir/disass/mips-opc.c $mon_srcdir/disass/mips16-opc.c"
+    MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_z80.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/mon_lowmem.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c"
     CXXFLAGS="$CXXFLAGS -I$mon_srcdir -I$mon_srcdir/disass"
     AC_CHECK_LIB(ncurses, tgetent, ,
       [AC_CHECK_LIB(termcap, tgetent, ,
@@ -225,26 +307,20 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
   if [[ "x$ac_cv_framework_SDL" = "xno" ]]; then
     AC_PATH_PROG(sdl_config, "sdl-config")
     if [[ -n "$sdl_config" ]]; then
-      case $target_os in
-      # Special treatment for Cygwin so that we can still use the POSIX layer
-      *cygwin*)
-        sdl_cflags="-I`$sdl_config --prefix`/include/SDL"
-        sdl_libs="-L`$sdl_config --exec-prefix`/lib -lSDL"
-        ;;
-      *)
-        sdl_cflags=`$sdl_config --cflags`
-        if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
-          sdl_libs=`$sdl_config --static-libs`
-        else
-          sdl_libs=`$sdl_config --libs`
-        fi
-        ;;
-      esac
+      sdl_cflags=`$sdl_config --cflags`
+      if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
+        sdl_libs=`$sdl_config --static-libs`
+      else
+        sdl_libs=`$sdl_config --libs`
+      fi
       CFLAGS="$CFLAGS $sdl_cflags"
       CXXFLAGS="$CXXFLAGS $sdl_cflags"
       LIBS="$LIBS $sdl_libs"
     else
       WANT_SDL=no
+      WANT_SDL_VIDEO=no
+      WANT_SDL_AUDIO=no
+      SDL_SUPPORT="none"
     fi
   fi
   SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
@@ -252,8 +328,8 @@ else
   SDL_SUPPORT="none"
 fi
 
-dnl We need X11, if not using SDL.
-if [[ "x$WANT_SDL_VIDEO" = "xno" ]]; then
+dnl We need X11, if not using SDL or Mac GUI.
+if [[ "x$WANT_SDL_VIDEO" = "xno" -a "x$WANT_MACOSX_GUI" = "xno" ]]; then
   AC_PATH_XTRA
   if [[ "x$no_x" = "xyes" ]]; then
     AC_MSG_ERROR([You need X11 to run Basilisk II.])
@@ -268,10 +344,12 @@ AS_IF([test  "x$with_bincue" = "xyes" ], [have_bincue=yes], [have_bincue=no])
 AS_IF([test  "x$have_bincue" = "xyes" ], [
    if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
        DEFINES="$DEFINES -DBINCUE"
+       AC_SUBST(USE_BINCUE, yes)
    else
        AC_MSG_ERROR([You need SDL Audio to use BINCUE support.])
+       AC_SUBST(USE_BINCUE, no)
    fi
-])
+], [AC_SUBST(USE_BINCUE, no)])
 
 dnl LIBVHD
 AS_IF([test  "x$with_libvhd" = "xyes" ], [have_libvhd=yes], [have_libvhd=no])
@@ -290,14 +368,10 @@ AS_IF([test  "x$have_libvhd" = "xyes" ], [
 
 
 
-dnl We want pthreads. Try libpthread first, then libc_r (FreeBSD), then PTL.
-HAVE_PTHREADS=yes
-AC_CHECK_LIB(pthread, pthread_create, , [
-  AC_CHECK_LIB(c_r, pthread_create, , [
-    AC_CHECK_LIB(PTL, pthread_create, , [
-      HAVE_PTHREADS=no
-    ])
-  ])
+dnl We want pthreads. Try libpthread first, then npth, then libc_r (FreeBSD), then PTL.
+HAVE_PTHREADS=no
+AC_SEARCH_LIBS([pthread_create], [pthread npth c_r PTL], [
+  HAVE_PTHREADS=yes
 ])
 if [[ "x$HAVE_PTHREADS" = "xyes" ]]; then
   AC_DEFINE(HAVE_PTHREADS, 1, [Define if pthreads are available.])
@@ -467,7 +541,7 @@ AC_CACHE_CHECK([for socklen_t],
   ], [socklen_t len = 42; return 0;],
   ac_cv_type_socklen_t=yes, ac_cv_type_socklen_t=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_type_socklen_t="guessing no"
+  ac_cv_type_socklen_t="$BII_CROSS_SOCKLEN_T"
   )
 ])
 if [[ "x$ac_cv_type_socklen_t" != "xyes" ]]; then
@@ -519,22 +593,34 @@ mips-sony-bsd|mips-sony-newsos4)
 	;;
 esac
 
+if test ! -z "$cross_compiling" && test "x$cross_compiling" = "xyes"; then
+	AC_MSG_WARN([cross compiling: Disabling /dev/ptmx test])
+	disable_ptmx_check=yes
+fi
 if test -z "$no_dev_ptmx" ; then
 	if test "x$disable_ptmx_check" != "xyes" ; then
-		AC_CHECK_FILE([/dev/ptmx],
+		AC_CHECK_FILE(["/dev/ptmx"],
 			[
-				AC_DEFINE_UNQUOTED(HAVE_DEV_PTMX, 1, [Define if you have /dev/ptmx.])
+				AC_DEFINE_UNQUOTED([HAVE_DEV_PTMX], [1],
+					[Define if you have /dev/ptmx])
 				have_dev_ptmx=1
 			]
 		)
 	fi
 fi
-AC_CHECK_FILE([/dev/ptc],
-	[
-		AC_DEFINE_UNQUOTED(HAVE_DEV_PTS_AND_PTC, 1, [Define if you have /dev/ptc.])
-		have_dev_ptc=1
-	]
-)
+
+if test ! -z "$cross_compiling" && test "x$cross_compiling" != "xyes"; then
+	AC_CHECK_FILE(["/dev/ptc"],
+		[
+			AC_DEFINE_UNQUOTED([HAVE_DEV_PTS_AND_PTC], [1],
+				[Define if you have /dev/ptc])
+			have_dev_ptc=1
+		]
+	)
+else
+	AC_MSG_WARN([cross compiling: Disabling /dev/ptc test])
+fi
+	
 dnl (end of code from openssh-3.2.2p1 configure.ac)
 
 dnl Check for systems where POSIX-style non-blocking I/O (O_NONBLOCK)
@@ -585,7 +671,7 @@ AC_CACHE_CHECK([whether compiler supports byte bit-fields],
     [if [[ "$GCC" = "yes" ]]; then
       ac_cv_have_byte_bitfields="guessing yes"
     else
-      ac_cv_have_byte_bitfields="guessing no"
+      ac_cv_have_byte_bitfields="$BII_CROSS_BYTE_BITFIELDS"
     fi]
     )
   AC_LANG_RESTORE
@@ -711,6 +797,13 @@ if [[ -n "$CAN_SLIRP" ]]; then
 fi
 AC_SUBST(SLIRP_SRCS)
 
+dnl Is libvdeplug available?
+have_vdeplug=no
+AS_IF([test "x$with_vdeplug" = "xyes"], [
+  have_vdeplug=yes
+  AC_CHECK_LIB(vdeplug, vde_close, [], [have_vdeplug=no])
+])
+
 if [[ "x$WANT_MACOSX_GUI" = "xyes" ]]; then
   CPPFLAGS="$CPPFLAGS -I../MacOSX"
   LIBS="$LIBS -framework CoreAudio -framework AudioUnit -framework AudioToolbox"
@@ -816,7 +909,7 @@ dnl $1 -- the macro to define
 dnl $2 -- the value to translate
 dnl $3 -- template name
 AC_DEFUN([AC_TRANSLATE_DEFINE], [
-    if [[ "x$2" = "xyes" -o "x$2" = "xguessing yes" ]]; then
+    if [[ ""x$2"" = "xyes" -o ""x$2"" = "xguessing yes" ]]; then
         AC_DEFINE($1, 1, $3)
     fi
 ])
@@ -825,6 +918,9 @@ dnl Check that the host supports TUN/TAP devices
 AC_CACHE_CHECK([whether TUN/TAP is supported],
   ac_cv_tun_tap_support, [
   AC_TRY_COMPILE([
+    #ifdef HAVE_SYS_SOCKET_H
+    #include <sys/socket.h>
+    #endif
     #if defined(HAVE_LINUX_IF_H) && defined(HAVE_LINUX_IF_TUN_H)
     #include <linux/if.h>
     #include <linux/if_tun.h>
@@ -866,19 +962,19 @@ AC_CACHE_CHECK([whether vm_protect works],
     AC_TRY_RUN([
       #define CONFIGURE_TEST_VM_MAP
       #define TEST_VM_PROT_$test_def
-      #include "vm_alloc.cpp"
+      #include "../CrossPlatform/vm_alloc.cpp"
     ], ac_cv_vm_protect_works=no, rm -f core,
     dnl When cross-compiling, do not assume anything
-    ac_cv_vm_protect_works="guessing no"
+    ac_cv_vm_protect_works="$BII_CROSS_VM_PROTECT"
     )
   done
   AC_TRY_RUN([
     #define CONFIGURE_TEST_VM_MAP
     #define TEST_VM_PROT_RDWR_WRITE
-    #include "vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
   ], , ac_cv_vm_protect_works=no,
   dnl When cross-compiling, do not assume anything
-  ac_cv_vm_protect_works="guessing no"
+  ac_cv_vm_protect_works="$BII_CROSS_VM_PROTECT"
   )
   AC_LANG_RESTORE
   ]
@@ -920,10 +1016,10 @@ AC_CACHE_CHECK([whether mmap supports MAP_ANON],
     #define HAVE_MMAP_ANON
     #define CONFIGURE_TEST_VM_MAP
     #define TEST_VM_MMAP_ANON
-    #include "vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
   ], ac_cv_mmap_anon=yes, ac_cv_mmap_anon=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_mmap_anon="guessing no"
+  ac_cv_mmap_anon="$BII_CROSS_MMAP_ANON"
   )
   AC_LANG_RESTORE
   ]
@@ -939,10 +1035,10 @@ AC_CACHE_CHECK([whether mmap supports MAP_ANONYMOUS],
     #define HAVE_MMAP_ANONYMOUS
     #define CONFIGURE_TEST_VM_MAP
     #define TEST_VM_MMAP_ANON
-    #include "vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
   ], ac_cv_mmap_anonymous=yes, ac_cv_mmap_anonymous=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_mmap_anonymous="guessing no"
+  ac_cv_mmap_anonymous="$BII_CROSS_MMAP_SUPPORTS_MAP_ANONYMOUS"
   )
   AC_LANG_RESTORE
   ]
@@ -960,19 +1056,19 @@ AC_CACHE_CHECK([whether mprotect works],
     AC_TRY_RUN([
       #define CONFIGURE_TEST_VM_MAP
       #define TEST_VM_PROT_$test_def
-      #include "vm_alloc.cpp"
+      #include "../CrossPlatform/vm_alloc.cpp"
     ], ac_cv_mprotect_works=no, rm -f core,
     dnl When cross-compiling, do not assume anything
-    ac_cv_mprotect_works="guessing no"
+    ac_cv_mprotect_works="$BII_CROSS_MPROTECT_WORKS"
     )
   done
   AC_TRY_RUN([
     #define CONFIGURE_TEST_VM_MAP
     #define TEST_VM_PROT_RDWR_WRITE
-    #include "vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
   ], , ac_cv_mprotect_works=no,
   dnl When cross-compiling, do not assume anything
-  ac_cv_mprotect_works="guessing no"
+  ac_cv_mprotect_works="$BII_CROSS_MPROTECT_WORKS"
   )
   AC_LANG_RESTORE
   ]
@@ -985,7 +1081,7 @@ if [[ "x$have_mmap_vm" = "xyes" ]]; then
     *no) have_mmap_vm=no;;
   esac
 fi
-AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, $have_mmap_vm,
+AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, "$have_mmap_vm",
   [Define if your system has a working mmap()-based memory allocator.])
 
 fi dnl HAVE_MMAP_VM
@@ -1009,7 +1105,7 @@ AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x2000],
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
   AC_TRY_RUN([
-    #include "vm_alloc.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
     int main(void) { /* returns 0 if we could map the lowmem globals */
       volatile char * lm = 0;
       if (vm_init() < 0) exit(1);
@@ -1020,7 +1116,7 @@ AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x2000],
     }
   ], ac_cv_can_map_lm=yes, ac_cv_can_map_lm=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_can_map_lm="guessing no"
+  ac_cv_can_map_lm="$BII_CROSS_MAP_LOW_AREA"
   )
   AC_LANG_RESTORE
   ]
@@ -1045,7 +1141,7 @@ AC_CACHE_CHECK([whether signal handlers need to be reinstalled],
     }
   ], ac_cv_signal_need_reinstall=yes, ac_cv_signal_need_reinstall=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_signal_need_reinstall="guessing yes"
+  ac_cv_signal_need_reinstall="$BII_CROSS_SIGNAL_NEED_REINSTALL"
   )
   AC_LANG_RESTORE
   ]
@@ -1079,7 +1175,7 @@ AC_CACHE_CHECK([whether sigaction handlers need to be reinstalled],
     }
   ], ac_cv_sigaction_need_reinstall=yes, ac_cv_sigaction_need_reinstall=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_sigaction_need_reinstall="guessing yes"
+  ac_cv_sigaction_need_reinstall="$BII_CROSS_SIGACTION_NEED_REINSTALL"
   )
   AC_LANG_RESTORE
   ]
@@ -1098,15 +1194,14 @@ AC_CACHE_CHECK([whether your system supports Mach exceptions],
     #define HAVE_MACH_TASK_SELF 1
     #define HAVE_MACH_EXCEPTIONS 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "vm_alloc.cpp"
-    #include "sigsegv.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
+    #include "../CrossPlatform/sigsegv.cpp"
   ], [
-  sigsegv_recovery=mach
   ac_cv_have_mach_exceptions=yes
   ],
   ac_cv_have_mach_exceptions=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_have_mach_exceptions=no
+  ac_cv_have_mach_exceptions="$BII_CROSS_HAVE_MACH_EXCEPTIONS"
   )
   AC_LANG_RESTORE
   ]
@@ -1122,15 +1217,14 @@ AC_CACHE_CHECK([whether your system supports Windows exceptions],
   AC_TRY_RUN([
     #define HAVE_WIN32_EXCEPTIONS 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "vm_alloc.cpp"
-    #include "sigsegv.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
+    #include "../CrossPlatform/sigsegv.cpp"
   ], [
-  sigsegv_recovery=win32
   ac_cv_have_win32_exceptions=yes
   ],
   ac_cv_have_win32_exceptions=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_have_win32_exceptions=no
+  ac_cv_have_win32_exceptions="$BII_CROSS_HAVE_WIN32_EXCEPTIONS"
   )
   AC_LANG_RESTORE
   ]
@@ -1151,15 +1245,14 @@ if [[ -z "$sigsegv_recovery" ]]; then
       #define HAVE_ASM_UCONTEXT 1
       #define HAVE_SIGINFO_T 1
       #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-      #include "vm_alloc.cpp"
-      #include "sigsegv.cpp"
+      #include "../CrossPlatform/vm_alloc.cpp"
+      #include "../CrossPlatform/sigsegv.cpp"
     ], [
-    sigsegv_recovery=siginfo
     ac_cv_have_asm_extended_signals=yes
     ],
     ac_cv_have_asm_extended_signals=no,
     dnl When cross-compiling, do not assume anything.
-    ac_cv_have_asm_extended_signals=no
+    ac_cv_have_asm_extended_signals="$BII_CROSS_HAVE_ASM_EXTENDED_SIGNALS"
     )
     AC_LANG_RESTORE
     ]
@@ -1181,15 +1274,14 @@ if [[ -z "$sigsegv_recovery" ]]; then
       #endif
       #define HAVE_SIGINFO_T 1
       #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-      #include "vm_alloc.cpp"
-      #include "sigsegv.cpp"
+      #include "../CrossPlatform/vm_alloc.cpp"
+      #include "../CrossPlatform/sigsegv.cpp"
     ], [
-    sigsegv_recovery=siginfo
     ac_cv_have_extended_signals=yes
     ],
     ac_cv_have_extended_signals=no,
     dnl When cross-compiling, do not assume anything.
-    ac_cv_have_extended_signals=no
+    ac_cv_have_extended_signals="$BII_CROSS_HAVE_EXTENDED_SIGNALS"
     )
     AC_LANG_RESTORE
     ]
@@ -1198,31 +1290,41 @@ if [[ -z "$sigsegv_recovery" ]]; then
     [Define if your system supports extended signals.])
 fi
 
-dnl Otherwise, check for subterfuges.
-if [[ -z "$sigsegv_recovery" ]]; then
-  AC_CACHE_CHECK([whether we then have a subterfuge for your system],
-  ac_cv_have_sigcontext_hack, [
-    AC_LANG_SAVE
-    AC_LANG_CPLUSPLUS
-    AC_TRY_RUN([
-      #define HAVE_SIGCONTEXT_SUBTERFUGE 1
-      #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-      #include "vm_alloc.cpp"
-      #include "sigsegv.cpp"
-    ], [
-    sigsegv_recovery=sigcontext
-    ac_cv_have_sigcontext_hack=yes
-    ],
-    ac_cv_have_sigcontext_hack=no,
-    dnl When cross-compiling, do not assume anything.
-    ac_cv_have_sigcontext_hack=no
-    )
-    AC_LANG_RESTORE
-  ])
-  AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack",
-    [Define if we know a hack to replace siginfo_t->si_addr member.])
-fi
+AC_CACHE_CHECK([whether we then have a subterfuge for your system],
+ac_cv_have_sigcontext_hack, [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_RUN([
+    #define HAVE_SIGCONTEXT_SUBTERFUGE 1
+    #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+    #include "../CrossPlatform/vm_alloc.cpp"
+    #include "../CrossPlatform/sigsegv.cpp"
+  ], [
+  ac_cv_have_sigcontext_hack=yes
+  ],
+  ac_cv_have_sigcontext_hack=no,
+  dnl When cross-compiling, do not assume anything.
+  ac_cv_have_sigcontext_hack="$BII_CROSS_HAVE_SIGCONTEXT_SUBTERFUGE"
+  )
+  AC_LANG_RESTORE
+])
+AC_TRANSLATE_DEFINE(HAVE_SIGCONTEXT_SUBTERFUGE, "$ac_cv_have_sigcontext_hack",
+  [Define if we know a hack to replace siginfo_t->si_addr member.])
 
+
+dnl Resolve and set the proper sigsegv_recovery method... 
+if [[ "x$ac_cv_have_mach_exceptions" = "xyes" ]]; then
+  sigsegv_recovery=mach
+elif [[ "x$ac_cv_have_win32_exceptions" = "xyes" ]]; then
+  sigsegv_recovery=win32
+elif [[ "x$ac_cv_have_asm_extended_signals" = "xyes" ]]; then
+  sigsegv_recovery=siginfo
+elif [[ "x$ac_cv_have_extended_signals" = "xyes" ]]; then
+  sigsegv_recovery=siginfo
+elif [[ "x$ac_cv_have_sigcontext_hack" = "xyes" ]]; then
+  sigsegv_recovery=sigcontext
+fi
+  
 dnl Check if we can ignore the fault (instruction skipping in SIGSEGV handler)
 AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
   ac_cv_have_skip_instruction, [
@@ -1231,11 +1333,11 @@ AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
   AC_TRY_RUN([
     #define HAVE_SIGSEGV_SKIP_INSTRUCTION 1
     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
-    #include "vm_alloc.cpp"
-    #include "sigsegv.cpp"
+    #include "../CrossPlatform/vm_alloc.cpp"
+    #include "../CrossPlatform/sigsegv.cpp"
   ], ac_cv_have_skip_instruction=yes, ac_cv_have_skip_instruction=no,
   dnl When cross-compiling, do not assume anything.
-  ac_cv_have_skip_instruction=no
+  ac_cv_have_skip_instruction="$BII_CROSS_SIGSEGV_SKIP_INSTRUCTION"
   )
   AC_LANG_RESTORE
   ]
@@ -1763,6 +1865,7 @@ echo Mac OS X Sound ......................... : $WANT_MACOSX_SOUND
 echo SDL support ............................ : $SDL_SUPPORT
 echo BINCUE support ......................... : $have_bincue
 echo LIBVHD support ......................... : $have_libvhd
+echo VDE support ............................ : $have_vdeplug
 echo XFree86 DGA support .................... : $WANT_XF86_DGA
 echo XFree86 VidMode support ................ : $WANT_XF86_VIDMODE
 echo fbdev DGA support ...................... : $WANT_FBDEV_DGA

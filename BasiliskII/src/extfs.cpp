@@ -175,9 +175,9 @@ static uint32 next_cnid = fsUsrCNID;	// Next available CNID
 
 #if defined __APPLE__ && defined __MACH__
 struct crtimebuf {
-	unsigned long length;
-	struct timespec crtime;
-};
+    u_int32_t length;
+    struct timespec crtime;
+} __attribute__((aligned(4), packed));
 
 static uint32 do_get_creation_time(const char *path)
 {
@@ -334,7 +334,7 @@ static void pstrcpy(char *dst, const char *src)
 // Convert C string to pascal string
 static void cstr2pstr(char *dst, const char *src)
 {
-	*dst++ = strlen(src);
+	*dst++ = char(strlen(src));
 	char c;
 	while ((c = *src++) != 0) {
 		// Note: we are converting host ':' characters to Mac '/' characters here
@@ -1320,8 +1320,9 @@ read_next_de:
 	get_finfo(full_path, pb + ioFlFndrInfo, hfs ? pb + ioFlXFndrInfo : 0, false);
 
 	WriteMacInt16(pb + ioFlStBlk, 0);
-	WriteMacInt32(pb + ioFlLgLen, st.st_size);
-	WriteMacInt32(pb + ioFlPyLen, (st.st_size | (AL_BLK_SIZE - 1)) + 1);
+	uint32 file_size = (uint32) st.st_size;
+	WriteMacInt32(pb + ioFlLgLen, file_size);
+	WriteMacInt32(pb + ioFlPyLen, (file_size | (AL_BLK_SIZE - 1)) + 1);
 	WriteMacInt16(pb + ioFlRStBlk, 0);
 	uint32 rf_size = get_rfork_size(full_path);
 	WriteMacInt32(pb + ioFlRLgLen, rf_size);
@@ -1476,8 +1477,9 @@ read_next_de:
 		WriteMacInt16(pb + ioDrNmFls, count);
 	} else {
 		WriteMacInt16(pb + ioFlStBlk, 0);
-		WriteMacInt32(pb + ioFlLgLen, st.st_size);
-		WriteMacInt32(pb + ioFlPyLen, (st.st_size | (AL_BLK_SIZE - 1)) + 1);
+		uint32 file_size = (uint32) st.st_size;
+		WriteMacInt32(pb + ioFlLgLen, file_size);
+		WriteMacInt32(pb + ioFlPyLen, (file_size | (AL_BLK_SIZE - 1)) + 1);
 		WriteMacInt16(pb + ioFlRStBlk, 0);
 		uint32 rf_size = get_rfork_size(full_path);
 		WriteMacInt32(pb + ioFlRLgLen, rf_size);
@@ -1586,8 +1588,9 @@ static int16 fs_open(uint32 pb, uint32 dirID, uint32 vcb, bool resource_fork)
 	// Initialize FCB, fd is stored in fcbCatPos
 	WriteMacInt32(fcb + fcbFlNm, fs_item->id);
 	WriteMacInt8(fcb + fcbFlags, ((flag == O_WRONLY || flag == O_RDWR) ? fcbWriteMask : 0) | (resource_fork ? fcbResourceMask : 0) | (write_ok ? 0 : fcbFileLockedMask));
-	WriteMacInt32(fcb + fcbEOF, st.st_size);
-	WriteMacInt32(fcb + fcbPLen, (st.st_size | (AL_BLK_SIZE - 1)) + 1);
+	uint32 file_size = (uint32) st.st_size;
+	WriteMacInt32(fcb + fcbEOF, file_size);
+	WriteMacInt32(fcb + fcbPLen, (file_size | (AL_BLK_SIZE - 1)) + 1);
 	WriteMacInt32(fcb + fcbCrPs, 0);
 	WriteMacInt32(fcb + fcbVPtr, vcb);
 	WriteMacInt32(fcb + fcbClmpSize, CLUMP_SIZE);
@@ -1707,9 +1710,10 @@ static int16 fs_get_eof(uint32 pb)
 		return errno2oserr();
 
 	// Adjust FCBs
-	WriteMacInt32(fcb + fcbEOF, st.st_size);
-	WriteMacInt32(fcb + fcbPLen, (st.st_size | (AL_BLK_SIZE - 1)) + 1);
-	WriteMacInt32(pb + ioMisc, st.st_size);
+	uint32 file_size = (uint32) st.st_size;
+	WriteMacInt32(fcb + fcbEOF, file_size);
+	WriteMacInt32(fcb + fcbPLen, (file_size | (AL_BLK_SIZE - 1)) + 1);
+	WriteMacInt32(pb + ioMisc, file_size);
 	D(bug("  adjusting FCBs\n"));
 	r.d[0] = ReadMacInt16(pb + ioRefNum);
 	Execute68k(fs_data + fsAdjustEOF, &r);
@@ -1777,7 +1781,7 @@ static int16 fs_get_fpos(uint32 pb)
 	}
 
 	// Get file position
-	uint32 pos = lseek(fd, 0, SEEK_CUR);
+	uint32 pos = (uint32) lseek(fd, 0, SEEK_CUR);
 	WriteMacInt32(fcb + fcbCrPs, pos);
 	WriteMacInt32(pb + ioPosOffset, pos);
 	return noErr;
@@ -1820,7 +1824,7 @@ static int16 fs_set_fpos(uint32 pb)
 		default:
 			break;
 	}
-	uint32 pos = lseek(fd, 0, SEEK_CUR);
+	uint32 pos = (uint32) lseek(fd, 0, SEEK_CUR);
 	WriteMacInt32(fcb + fcbCrPs, pos);
 	WriteMacInt32(pb + ioPosOffset, pos);
 	return noErr;
@@ -1871,7 +1875,7 @@ static int16 fs_read(uint32 pb)
 	int16 read_err = errno2oserr();
 	D(bug("  actual %d\n", actual));
 	WriteMacInt32(pb + ioActCount, actual >= 0 ? actual : 0);
-	uint32 pos = lseek(fd, 0, SEEK_CUR);
+	uint32 pos = (uint32) lseek(fd, 0, SEEK_CUR);
 	WriteMacInt32(fcb + fcbCrPs, pos);
 	WriteMacInt32(pb + ioPosOffset, pos);
 	if (actual != (ssize_t)ReadMacInt32(pb + ioReqCount))
@@ -1925,7 +1929,7 @@ static int16 fs_write(uint32 pb)
 	int16 write_err = errno2oserr();
 	D(bug("  actual %d\n", actual));
 	WriteMacInt32(pb + ioActCount, actual >= 0 ? actual : 0);
-	uint32 pos = lseek(fd, 0, SEEK_CUR);
+	uint32 pos = (uint32) lseek(fd, 0, SEEK_CUR);
 	WriteMacInt32(fcb + fcbCrPs, pos);
 	WriteMacInt32(pb + ioPosOffset, pos);
 	if (actual != (ssize_t)ReadMacInt32(pb + ioReqCount))
@@ -2158,7 +2162,7 @@ static int16 fs_get_wd_info(uint32 pb, uint32 vcb)
 int16 ExtFSHFS(uint32 vcb, uint16 selectCode, uint32 paramBlock, uint32 globalsPtr, int16 fsid)
 {
 	uint16 trapWord = selectCode & 0xf0ff;
-	bool hfs = selectCode & kHFSMask;
+	bool hfs = (selectCode & kHFSMask) != 0;
 	switch (trapWord) {
 		case kFSMOpen:
 			return fs_open(paramBlock, hfs ? ReadMacInt32(paramBlock + ioDirID) : 0, vcb, false);

@@ -21,6 +21,7 @@
  */
 
 #include "sysdeps.h"
+#include "main.h"
 #include <ctype.h>
 #include "dump.h"
 #include "prefs.h"

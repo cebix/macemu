@@ -147,9 +147,9 @@ basic_dyngen::gen_align(int align)
 		f32_1, f32_2, f32_3, f32_4, f32_5, f32_6, f32_7, f32_8,
 		f32_9, f32_10, f32_11, f32_12, f32_13, f32_14, f32_15
 	};
-	static const uint8 prefixes[4] = { 0x66, 0x66, 0x66, 0x66 };
 
 #if defined(__x86_64__)
+	static const uint8 prefixes[4] = { 0x66, 0x66, 0x66, 0x66 };
 	/* The recommended way to pad 64bit code is to use NOPs preceded by
 	   maximally four 0x66 prefixes.  Balance the size of nops.  */
 	int i;

@@ -340,7 +340,7 @@ void ADBInterrupt(void)
 	int my = mouse_y;
 	if (relative_mouse)
 		mouse_x = mouse_y = 0;
-	int mb[3] = {mouse_button[0], mouse_button[1], mouse_button[2]};
+	bool mb[3] = {mouse_button[0], mouse_button[1], mouse_button[2]};
 	B2_unlock_mutex(mouse_lock);
 
 	uint32 key_base = adb_base + 4;

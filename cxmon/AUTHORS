@@ -1,0 +1,8 @@
+'mon' was written by
+  Christian Bauer <www.cebix.net>
+  Marc Hellwig <Marc.Hellwig@uni-mainz.de>
+
+with contributions from
+  Gwenolé Beauchesne (64-bit support and PPC extensions)
+
+The 680x0 and 80x86 disassemblers are taken from GNU binutils.

@@ -24,18 +24,16 @@ int mbuf_alloced = 0;
 struct mbuf m_freelist, m_usedlist;
 int mbuf_thresh = 30;
 int mbuf_max = 0;
-int msize;
+size_t msize;
 
-void
-m_init()
+void m_init()
 {
 	m_freelist.m_next = m_freelist.m_prev = &m_freelist;
 	m_usedlist.m_next = m_usedlist.m_prev = &m_usedlist;
 	msize_init();
 }
 
-void
-msize_init()
+void msize_init()
 {
 	/*
 	 * Find a nice value for msize
@@ -53,8 +51,7 @@ msize_init()
  * free old mbufs, we mark all mbufs above mbuf_thresh as M_DOFREE,
  * which tells m_free to actually free() it
  */
-struct mbuf *
-m_get()
+struct mbuf *m_get()
 {
 	register struct mbuf *m;
 	int flags = 0;
@@ -89,9 +86,7 @@ end_error:
 	return m;
 }
 
-void
-m_free(m)
-	struct mbuf *m;
+void m_free(struct mbuf *m)
 {
 	
   DEBUG_CALL("m_free");
@@ -124,9 +119,7 @@ m_free(m)
  * the other.. if result is too big for one mbuf, malloc()
  * an M_EXT data segment
  */
-void
-m_cat(m, n)
-	register struct mbuf *m, *n;
+void m_cat(register struct mbuf *m, register struct mbuf *n)
 {
 	/*
 	 * If there's no room, realloc
@@ -142,10 +135,7 @@ m_cat(m, n)
 
 
 /* make m size bytes large */
-void
-m_inc(m, size)
-        struct mbuf *m;
-        int size;
+void m_inc(struct mbuf *m, u_int size)
 {
        int datasize;
 
@@ -179,10 +169,7 @@ m_inc(m, size)
 
 
 
-void
-m_adj(m, len)
-	struct mbuf *m;
-	int len;
+void m_adj(struct mbuf *m, int len)
 {
 	if (m == NULL)
 		return;
@@ -202,9 +189,7 @@ m_adj(m, len)
  * Copy len bytes from m, starting off bytes into n
  */
 int
-m_copy(n, m, off, len)
-	struct mbuf *n, *m;
-	int off, len;
+m_copy(struct mbuf *n, struct mbuf *m, u_int off, u_int len)
 {
 	if (len > M_FREEROOM(n))
 		return -1;
@@ -220,9 +205,7 @@ m_copy(n, m, off, len)
  * XXX This is a kludge, I should eliminate the need for it
  * Fortunately, it's not used often
  */
-struct mbuf *
-dtom(dat)
-	void *dat;
+struct mbuf *dtom(void *dat)
 {
 	struct mbuf *m;
 	

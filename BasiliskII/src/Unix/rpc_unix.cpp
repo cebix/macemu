@@ -64,8 +64,6 @@
 #define pthread_cancel(th)
 #define pthread_join(th, ret)
 #define pthread_testcancel()
-#define pthread_create(th, attr, start, arg) dummy_thread_create()
-static inline int dummy_thread_create(void) { errno = ENOSYS; return -1; }
 
 #undef  pthread_mutex_t
 #define pthread_mutex_t volatile int
@@ -330,6 +328,7 @@ int rpc_wait_dispatch(rpc_connection_t *connection, int timeout)
 	return _rpc_wait_dispatch(connection, timeout);
 }
 
+#ifdef USE_THREADS
 // Process incoming messages in the background
 static void *rpc_server_func(void *arg)
 {
@@ -356,6 +355,7 @@ static void *rpc_server_func(void *arg)
   connection->server_thread_active = 0;
   return NULL;
 }
+#endif
 
 // Return listen socket of RPC connection
 int rpc_listen_socket(rpc_connection_t *connection)
@@ -431,7 +431,9 @@ static struct {
   int last;
   int count;
 } g_message_descriptors = { NULL, 0, 0 };
+#ifdef USE_THREADS
 static pthread_mutex_t g_message_descriptors_lock = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 // Add a user-defined marshaler
 static int rpc_message_add_callback(const rpc_message_descriptor_t *desc)

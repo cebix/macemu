@@ -46,14 +46,13 @@
 int 	tcp_mssdflt = TCP_MSS;
 int 	tcp_rttdflt = TCPTV_SRTTDFLT / PR_SLOWHZ;
 int	tcp_do_rfc1323 = 0;	/* Don't do rfc1323 performance enhancements */
-int	tcp_rcvspace;	/* You may want to change this */
-int	tcp_sndspace;	/* Keep small if you have an error prone link */
+size_t	tcp_rcvspace;	/* You may want to change this */
+size_t	tcp_sndspace;	/* Keep small if you have an error prone link */
 
 /*
  * Tcp initialization
  */
-void
-tcp_init()
+void tcp_init()
 {
 	tcp_iss = 1;		/* wrong */
 	tcb.so_next = tcb.so_prev = &tcb;
@@ -74,9 +73,7 @@ tcp_init()
  * necessary when the connection is used.
  */
 /* struct tcpiphdr * */
-void
-tcp_template(tp)
-	struct tcpcb *tp;
+void tcp_template(struct tcpcb *tp)
 {
 	struct socket *so = tp->t_socket;
 	register struct tcpiphdr *n = &tp->t_template;
@@ -113,13 +110,8 @@ tcp_template(tp)
  * In any case the ack and sequence number of the transmitted
  * segment are as specified by the parameters.
  */
-void
-tcp_respond(tp, ti, m, ack, seq, flags)
-	struct tcpcb *tp;
-	register struct tcpiphdr *ti;
-	register struct mbuf *m;
-	tcp_seq ack, seq;
-	int flags;
+void tcp_respond(struct tcpcb *tp, register struct tcpiphdr *ti,
+	register struct mbuf *m, tcp_seq ack, tcp_seq seq, int flags)
 {
 	register int tlen;
 	int win = 0;
@@ -193,9 +185,7 @@ tcp_respond(tp, ti, m, ack, seq, flags)
  * empty reassembly queue and hooking it to the argument
  * protocol control block.
  */
-struct tcpcb *
-tcp_newtcpcb(so)
-	struct socket *so;
+struct tcpcb *tcp_newtcpcb(struct socket *so)
 {
 	register struct tcpcb *tp;
 	
@@ -268,9 +258,7 @@ struct tcpcb *tcp_drop(struct tcpcb *tp, int err)
  *	discard internet protocol block
  *	wake up any sleepers
  */
-struct tcpcb *
-tcp_close(tp)
-	register struct tcpcb *tp;
+struct tcpcb *tcp_close(register struct tcpcb *tp)
 {
 	register struct tcpiphdr *t;
 	struct socket *so = tp->t_socket;
@@ -306,8 +294,7 @@ tcp_close(tp)
 	return ((struct tcpcb *)0);
 }
 
-void
-tcp_drain()
+void tcp_drain()
 {
 	/* XXX */
 }
@@ -319,10 +306,7 @@ tcp_drain()
 
 #ifdef notdef
 
-void
-tcp_quench(i, errno)
-
-	int errno;
+void tcp_quench(int i, int errno)
 {
 	struct tcpcb *tp = intotcpcb(inp);
 
@@ -346,9 +330,7 @@ tcp_quench(i, errno)
  * for peer to send FIN or not respond to keep-alives, etc.
  * We can let the user exit from the close as soon as the FIN is acked.
  */
-void
-tcp_sockclosed(tp)
-	struct tcpcb *tp;
+void tcp_sockclosed(struct tcpcb *tp)
 {
 
 	DEBUG_CALL("tcp_sockclosed");
@@ -389,8 +371,7 @@ tcp_sockclosed(tp)
  * nonblocking.  Connect returns after the SYN is sent, and does 
  * not wait for ACK+SYN.
  */
-int tcp_fconnect(so)
-     struct socket *so;
+int tcp_fconnect(struct socket *so)
 {
   int ret=0;
   
@@ -423,10 +404,12 @@ int tcp_fconnect(so)
     } else
       addr.sin_addr = so->so_faddr;
     addr.sin_port = so->so_fport;
-    
+
+	char addrstr[INET_ADDRSTRLEN];
     DEBUG_MISC((dfd, " connect()ing, addr.sin_port=%d, "
 		"addr.sin_addr.s_addr=%.16s\n", 
-		ntohs(addr.sin_port), inet_ntoa(addr.sin_addr)));
+		ntohs(addr.sin_port), inet_ntop(AF_INET, &addr.sin_addr,
+			addrstr, sizeof(addrstr))));
     /* We don't care what port we get */
     ret = connect(s,(struct sockaddr *)&addr,sizeof (addr));
     
@@ -452,9 +435,7 @@ int tcp_fconnect(so)
  * the time it gets to accept(), so... We simply accept
  * here and SYN the local-host.
  */ 
-void
-tcp_connect(inso)
-	struct socket *inso;
+void tcp_connect(struct socket *inso)
 {
 	struct socket *so;
 	struct sockaddr_in addr;
@@ -486,7 +467,7 @@ tcp_connect(inso)
 		so->so_lport = inso->so_lport;
 	}
 	
-	(void) tcp_mss(sototcpcb(so), 0);
+	tcp_mss(sototcpcb(so), 0);
 
 	if ((s = accept(inso->s,(struct sockaddr *)&addr,&addrlen)) < 0) {
 		tcp_close(sototcpcb(so)); /* This will sofree() as well */
@@ -539,9 +520,7 @@ tcp_connect(inso)
 /*
  * Attach a TCPCB to a socket.
  */
-int
-tcp_attach(so)
-	struct socket *so;
+int tcp_attach(struct socket *so)
 {
 	if ((so->so_tcpcb = tcp_newtcpcb(so)) == NULL)
 	   return -1;
@@ -575,9 +554,7 @@ struct emu_t *tcpemu = 0;
 /*
  * Return TOS according to the above table
  */
-u_int8_t
-tcp_tos(so)
-	struct socket *so;
+u_int8_t tcp_tos(struct socket *so)
 {
 	int i = 0;
 	struct emu_t *emup;
@@ -629,10 +606,7 @@ int do_echo = -1;
  * 
  * NOTE: if you return 0 you MUST m_free() the mbuf!
  */
-int
-tcp_emu(so, m)
-	struct socket *so;
-	struct mbuf *m;
+int tcp_emu(struct socket *so, struct mbuf *m)
 {
 	u_int n1, n2, n3, n4, n5, n6;
 	char buff[256];
@@ -833,7 +807,7 @@ tcp_emu(so, m)
 				ns->so_laddr=so->so_laddr;
 				ns->so_lport=htons(port);
 
-				(void) tcp_mss(sototcpcb(ns), 0);
+				tcp_mss(sototcpcb(ns), 0);
 
 				ns->so_faddr=so->so_faddr;
 				ns->so_fport=htons(IPPORT_RESERVED-1); /* Use a fake port. */
@@ -1060,7 +1034,7 @@ do_prompt:
 		 * of the connection as a NUL-terminated decimal ASCII string.
 		 */
 		so->so_emu = 0;
-		for (lport = 0, i = 0; i < m->m_len-1; ++i) {
+		for (lport = 0, i = 0; i < (int) (m->m_len-1); ++i) {
 			if (m->m_data[i] < '0' || m->m_data[i] > '9')
 				return 1;       /* invalid number */
 			lport *= 10;
@@ -1245,9 +1219,7 @@ do_prompt:
  * Return 0 if this connections is to be closed, 1 otherwise,
  * return 2 if this is a command-line connection
  */
-int
-tcp_ctl(so)
-	struct socket *so;
+int tcp_ctl(struct socket *so)
 {
 	struct sbuf *sb = &so->so_snd;
 	int command;

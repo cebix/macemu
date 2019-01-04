@@ -26,7 +26,18 @@
 
 #import "VMSettingsController.h"
 
+#import "DiskType.h"
+
 #include <unistd.h>
+
+// NSInteger was added in 10.5 SDK.
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+  #if __LP64__ || NS_BUILD_32_LIKE_64
+    typedef long NSInteger;
+  #else
+    typedef int NSInteger;
+  #endif
+#endif
 
 const int CDROMRefNum = -62;			// RefNum of driver
 
@@ -60,14 +71,28 @@ void prefs_exit()
   return self;
 }
 
-- (int) numberOfRowsInTableView: (NSTableView *) table
+- (NSInteger) numberOfRowsInTableView: (NSTableView *) table
 {
   return [diskArray count];
 }
 
-- (id) tableView: (NSTableView *) table objectValueForTableColumn: (NSTableColumn *) col row: (int) row
+- (id) tableView: (NSTableView *) table objectValueForTableColumn: (NSTableColumn *) col row: (NSInteger) row
 {
-  return [diskArray objectAtIndex: row];
+  DiskType *d = (DiskType*)[diskArray objectAtIndex:row];
+
+  if ([[col identifier] isEqualTo:@"isCDROMcol"]) {
+    return [NSString stringWithFormat:@"%d", [d isCDROM]];
+  }
+
+  return [d path];
+}
+
+- (void) tableView: (NSTableView *) table setObjectValue: (id) object forTableColumn: (NSTableColumn *) tableColumn row: (NSInteger) row
+{
+  if ([[tableColumn identifier] isEqual:@"isCDROMcol"]) {
+    DiskType *d = (DiskType*)[diskArray objectAtIndex:row];
+    [d setIsCDROM:![d isCDROM]];
+  }
 }
 
 static NSString *getStringFromPrefs(const char *key)
@@ -84,8 +109,26 @@ static NSString *getStringFromPrefs(const char *key)
 
   const char *dsk;
   int index = 0;
-  while ((dsk = PrefsFindString("disk", index++)) != NULL)
-    [diskArray addObject: [NSString stringWithUTF8String: dsk ]];
+  while ((dsk = PrefsFindString("disk", index++)) != NULL) {
+    DiskType *disk = [[[DiskType alloc] init] autorelease];
+    [disk setPath:[NSString stringWithUTF8String: dsk ]];
+    [disk setIsCDROM:NO];
+
+    [diskArray addObject:disk];
+  }
+
+  /* Fetch all CDROMs */
+  index = 0;
+  while ((dsk = PrefsFindString("cdrom", index++)) != NULL) {
+    NSString *path = [NSString stringWithUTF8String: dsk ];
+    if (![path hasPrefix:@"/dev/"]) {
+        DiskType *disk = [[[DiskType alloc] init] autorelease];
+        [disk setPath:[NSString stringWithUTF8String: dsk ]];
+        [disk setIsCDROM:YES];
+
+        [diskArray addObject:disk];
+    }
+  }
 
   [disks setDataSource: self];
   [disks reloadData];
@@ -212,6 +255,7 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 {
   NSOpenPanel *open = [NSOpenPanel openPanel];
   [open setCanChooseDirectories:YES];
+  [open setAccessoryView:isCDROM];
   [open setAllowsMultipleSelection:NO];
   [open setTreatsFilePackagesAsDirectories:YES];
   [open beginSheetForDirectory: [[NSFileManager defaultManager] currentDirectoryPath]
@@ -225,7 +269,12 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 - (void) _addDiskEnd: (NSOpenPanel *) open returnCode: (int) theReturnCode contextInfo: (void *) theContextInfo
 {
   if (theReturnCode == NSOKButton) {
-    [diskArray addObject: makeRelativeIfNecessary([open filename])];
+    DiskType *d = [[[DiskType alloc] init] autorelease];
+    [d setPath:makeRelativeIfNecessary([open filename])];
+
+    [d setIsCDROM:([isCDROMcheckbox state] == NSOnState)];
+
+    [diskArray addObject: d]; 
     [disks reloadData];
   }
 }
@@ -261,7 +310,11 @@ static NSString *makeRelativeIfNecessary(NSString *path)
       snprintf(cmd, sizeof(cmd), "dd if=/dev/zero \"of=%s\" bs=1024k count=%d", [[save filename] UTF8String], [diskSaveSizeField intValue]);
       int ret = system(cmd);
       if (ret == 0) {
-        [diskArray addObject: makeRelativeIfNecessary([save filename])];
+        DiskType *d = [[[DiskType alloc] init] autorelease];
+        [d setPath:makeRelativeIfNecessary([save filename])];
+        [d setIsCDROM:NO];
+
+        [diskArray addObject: d];
         [disks reloadData];
       }
     }
@@ -350,12 +403,29 @@ static NSString *makeRelativeIfNecessary(NSString *path)
 
 - (void) saveChanges: (id) sender
 {
+  // Remove all disks
   while (PrefsFindString("disk"))
     PrefsRemoveItem("disk");
-
-  for (int i = 0; i < [diskArray count]; i++) {
-    PrefsAddString("disk", [[diskArray objectAtIndex:i] UTF8String]);
+  // Remove all cdroms (but keep the ones in /dev/)
+  const char *path;
+  int index = 0;
+  while ((path = PrefsFindString("cdrom", index)) != NULL) {
+    NSString *p = [NSString stringWithUTF8String: path];
+    if (![p hasPrefix:@"/dev/"]) {
+      PrefsRemoveItem("cdrom", index);
+    } else {
+      // only increase the index if the current entry has not been deleted
+      // if it has been deleted, the next entry is on the current entrys index
+      index++;
+    }
   }
+
+  // Write all disks
+  for (int i = 0; i < [diskArray count]; i++) {
+    DiskType *d = [diskArray objectAtIndex:i];
+    PrefsAddString([d isCDROM] ? "cdrom" : "disk", [[d path] UTF8String]);
+  }
+
   PrefsReplaceInt32("bootdriver", ([bootFrom indexOfSelectedItem] == 1 ? CDROMRefNum : 0));
   PrefsReplaceString("rom", [[romFile stringValue] UTF8String]);
   PrefsReplaceString("extfs", [[unixRoot stringValue] UTF8String]);

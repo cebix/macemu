@@ -114,21 +114,21 @@ int my_errno = 0;
 
 #define VIRTUAL_ROOT_ID ((HANDLE)0xFFFFFFFE)
 
-static const char *desktop_name = "Virtual Desktop";
+static LPCTSTR desktop_name = TEXT("Virtual Desktop");
 static const char *custom_icon_name = "Icon\r";
 #define my_computer GetString(STR_EXTFS_VOLUME_NAME)
 
-static char lb1[MAX_PATH_LENGTH];
-static char lb2[MAX_PATH_LENGTH];
+static TCHAR lb1[MAX_PATH_LENGTH];
+static TCHAR lb2[MAX_PATH_LENGTH];
 
-#define MRP(path)	 translate(path,lb1)
+#define MRP(path) translate(path,lb1)
 #define MRP2(path) translate(path,lb2)
 
 #define DISABLE_ERRORS UINT prevmode = SetErrorMode(SEM_NOOPENFILEERRORBOX|SEM_FAILCRITICALERRORS)
 #define RESTORE_ERRORS SetErrorMode(prevmode);
 
-static char host_drive_list[512];
-static char virtual_root[248]; // Not _MAX_PATH
+static TCHAR host_drive_list[512];
+static TCHAR virtual_root[248]; // Not _MAX_PATH
 
 const uint8 my_comp_icon[2670] = {
 	0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x09, 0xD8, 0x00, 0x00, 0x08, 0xD8, 0x00, 0x00, 0x00, 0x96,
@@ -302,12 +302,12 @@ const uint8 my_comp_icon[2670] = {
 
 static bool use_streams[ 'Z'-'A'+1 ];
 
-static bool is_ntfs_volume( char *rootdir )
+static bool is_ntfs_volume(LPCTSTR rootdir)
 {
 	bool ret = false;
-	char tst_file[_MAX_PATH], tst_stream[_MAX_PATH];
-	sprintf( tst_file, "%sb2query.tmp", rootdir );
-	sprintf( tst_stream, "%s:AFP_AfpInfo", tst_file );
+	TCHAR tst_file[_MAX_PATH], tst_stream[_MAX_PATH];
+	_sntprintf( tst_file, lengthof(tst_file), TEXT("%sb2query.tmp"), rootdir );
+	_sntprintf( tst_stream, lengthof(tst_stream), TEXT("%s:AFP_AfpInfo"), tst_file );
 	if(!exists(tst_file)) {
 		if(create_file( tst_file, 0 )) {
 			if(create_file( tst_stream, 0 )) {
@@ -353,12 +353,11 @@ void init_posix_emu(void)
 	const char *extdrives = PrefsFindString("extdrives");
 
 	// Set up drive list.
-	int outinx = 0;
-	for( char letter = 'A'; letter <= 'Z'; letter++ ) {
+	size_t outinx = 0;
+	for( TCHAR letter = TEXT('A'); letter <= TEXT('Z'); letter++ ) {
 		if(extdrives && !strchr(extdrives,letter)) continue;
-		int i = (int)( letter - 'A' );
-		char rootdir[20];
-		wsprintf( rootdir, "%c:\\", letter );
+		TCHAR rootdir[20];
+		_sntprintf( rootdir, lengthof(rootdir), TEXT("%c:\\"), letter );
 		use_streams[ letter - 'A' ] = false;
 		switch(GetDriveType(rootdir)) {
 			case DRIVE_FIXED:
@@ -368,7 +367,7 @@ void init_posix_emu(void)
 				// fall
 			case DRIVE_REMOVABLE:
 			case DRIVE_CDROM:
-				if(outinx < sizeof(host_drive_list)) {
+				if(outinx < lengthof(host_drive_list)) {
 					host_drive_list[outinx] = letter;
 					outinx += 2;
 				}
@@ -377,14 +376,13 @@ void init_posix_emu(void)
 
 	// Set up virtual desktop root.
 	// TODO: this should be customizable.
-	GetModuleFileName( NULL, virtual_root, sizeof(virtual_root) );
-	char *p = strrchr( virtual_root, '\\' );
+	GetModuleFileName( NULL, virtual_root, lengthof(virtual_root) );
+	TCHAR *p = _tcsrchr( virtual_root, TEXT('\\') );
 	if(p) {
-		*(++p) = 0;
-		strcat( virtual_root, desktop_name );
+		_tcscpy( ++p, desktop_name );
 	} else {
 		// should never happen
-		sprintf( virtual_root, "C:\\%s", desktop_name );
+		_sntprintf( virtual_root, lengthof(virtual_root), TEXT("C:\\%s"), desktop_name );
 	}
 	CreateDirectory( virtual_root, 0 );
 
@@ -433,14 +431,14 @@ static void charset_host2mac( char *s )
 	}
 }
 
-static void charset_mac2host( char *s )
+static void charset_mac2host( LPTSTR s )
 {
-	int i, convert, len = strlen(s);
+	size_t len = _tcslen(s);
 
-	D(bug("charset_mac2host(%s)...\n", s));
+	D(bug(TEXT("charset_mac2host(%s)...\n"), s));
 
-	for( i=len-1; i>=0; i-- ) {
-		convert = 0;
+	for( size_t i=len; i-->0; ) {
+		bool convert = false;
 		switch( (unsigned char)s[i] ) {
 			// case '\r': // handled by "default"
 			// case '\n':
@@ -455,61 +453,61 @@ static void charset_mac2host( char *s )
 			case '>':
 			case '|':
 			case '%':
-				convert = 1;
+				convert = true;
 				break;
 			default:
-				if((unsigned char)s[i] < ' ') convert = 1;
+				if((unsigned char)s[i] < ' ') convert = true;
 				break;
 		}
 		if(convert) {
-			char sml[10];
-			sprintf( sml, "%%%02X", s[i] );
-			memmove( &s[i+2], &s[i], strlen(&s[i])+1 );
-			memmove( &s[i], sml, 3 );
+			TCHAR sml[10];
+			_sntprintf( sml, lengthof(sml), TEXT("%%%02X"), s[i] );
+			memmove( &s[i+2], &s[i], (_tcslen(&s[i])+1) * sizeof(TCHAR) );
+			memmove( &s[i], sml, 3 * sizeof(TCHAR) );
 		}
 	}
-	D(bug("charset_mac2host = %s\n", s));
+	D(bug(TEXT("charset_mac2host = %s\n"), s));
 }
 
 static void make_mask(
-	char *mask,
-	const char *dir,
-	const char *a1,
-	const char *a2
+	TCHAR *mask,
+	LPCTSTR dir,
+	LPCTSTR a1,
+	LPCTSTR a2
 )
 {
-	strcpy( mask, dir );
+	_tcscpy( mask, dir );
 
-	int len = strlen(mask);
-	if( len && mask[len-1] != '\\' ) strcat( mask, "\\" );
+	size_t len = _tcslen(mask);
+	if( len && mask[len-1] != '\\' ) _tcscat( mask, TEXT("\\") );
 
-	if( a1 ) strcat( mask, a1 );
-	if( a2 ) strcat( mask, a2 );
+	if( a1 ) _tcscat( mask, a1 );
+	if( a2 ) _tcscat( mask, a2 );
 }
 
 // !!UNC
-static char *translate( const char *path, char *buffer )
+static LPTSTR translate( LPCTSTR path, TCHAR *buffer )
 {
-	char *l = host_drive_list;
-	char *p = (char *)path;
+	TCHAR *l = host_drive_list;
+	const TCHAR *p = path;
 
 	while(*l) {
-		if(toupper(p[1]) == toupper(*l)) break;
-		l += strlen(l) + 1;
+		if(_totupper(p[1]) == _totupper(*l)) break;
+		l += _tcslen(l) + 1;
 	}
 
-	if(p[0] == '\\' && *l && (p[2] == 0 || p[2] == ':' || p[2] == '\\')) {
+	if(p[0] == TEXT('\\') && *l && (p[2] == 0 || p[2] == TEXT(':') || p[2] == TEXT('\\'))) {
 		p += 2;
-		if(*p == ':') p++;
-		if(*p == '\\') p++;
-		sprintf( buffer, "%c:\\%s", *l, p );
+		if(*p == TEXT(':')) p++;
+		if(*p == TEXT('\\')) p++;
+		_sntprintf( buffer, MAX_PATH_LENGTH, TEXT("%c:\\%s"), *l, p );
 	} else {
-		if(*path == '\\') {
-			sprintf( buffer, "%s%s", virtual_root, path );
+		if(*path == TEXT('\\')) {
+			_sntprintf( buffer, MAX_PATH_LENGTH, TEXT("%s%s"), virtual_root, path );
 		} else {
-			int len = strlen(path);
-			if(len == 0 || path[len-1] == '\\') {
-				make_mask( buffer, virtual_root, path, my_computer );
+			int len = _tcslen(path);
+			if(len == 0 || path[len-1] == TEXT('\\')) {
+				make_mask( buffer, virtual_root, path, tstr(my_computer).get() );
 			} else {
 				make_mask( buffer, virtual_root, path, 0 );
 			}
@@ -521,10 +519,10 @@ static char *translate( const char *path, char *buffer )
 }
 
 // helpers
-static void strip_trailing_bs( char *path )
+static void strip_trailing_bs( LPTSTR path )
 {
-	int len = strlen(path);
-	if(len > 0 && path[len-1] == '\\') path[len-1] = 0;
+	size_t len = _tcslen(path);
+	if(len > 0 && path[len-1] == TEXT('\\')) path[len-1] = 0;
 }
 
 #if 0 /* defined is util_windows.cpp */
@@ -546,7 +544,7 @@ static int exists( const char *p )
 }
 #endif
 
-static int is_dir( char *p )
+static int is_dir( LPCTSTR p )
 {
 	WIN32_FIND_DATA fdata;
 
@@ -560,31 +558,31 @@ static int is_dir( char *p )
 	return result;
 }
 
-static int myRemoveDirectory( const char *source )
+static int myRemoveDirectory( LPCTSTR source )
 {
 	HANDLE fh;
 	WIN32_FIND_DATA FindFileData;
 	int ok, result = 1;
-	char mask[_MAX_PATH];
+	TCHAR mask[_MAX_PATH];
 
-	D(bug("removing folder %s\n", source));
+	D(bug(TEXT("removing folder %s\n"), source));
 
-	make_mask( mask, source, "*.*", 0 );
+	make_mask( mask, source, TEXT("*.*"), 0 );
 
 	fh = FindFirstFile( mask, &FindFileData );
 	ok = fh != INVALID_HANDLE_VALUE;
 	while(ok) {
 		make_mask( mask, source, FindFileData.cFileName, 0 );
-		D(bug("removing item %s\n", mask));
+		D(bug(TEXT("removing item %s\n"), mask));
 		int isdir = (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
 		if(isdir) {
 			// must delete ".finf", ".rsrc" but not ".", ".."
-			if(strcmp(FindFileData.cFileName,".") && strcmp(FindFileData.cFileName,"..")) {
+			if(_tcscmp(FindFileData.cFileName,TEXT(".")) && _tcscmp(FindFileData.cFileName,TEXT(".."))) {
 				result = myRemoveDirectory( mask );
 				if(!result) break;
 			}
 		} else {
-			D(bug("DeleteFile %s\n", mask));
+			D(bug(TEXT("DeleteFile %s\n"), mask));
 			result = DeleteFile( mask );
 			if(!result) break;
 		}
@@ -592,41 +590,41 @@ static int myRemoveDirectory( const char *source )
 	}
 	if(fh != INVALID_HANDLE_VALUE) FindClose( fh );
 	if(result) {
-		D(bug("RemoveDirectory %s\n", source));
+		D(bug(TEXT("RemoveDirectory %s\n"), source));
 		result = RemoveDirectory( source );
 	}
 	return result;
 }
 
-static void make_folders( char *path )
+static void make_folders( LPCTSTR path )
 {
-	char local_path[_MAX_PATH], *p;
-	strcpy( local_path, path );
-	p = strrchr( local_path, '\\' );
+	TCHAR local_path[_MAX_PATH], *p;
+	_tcscpy( local_path, path );
+	p = _tcsrchr( local_path, TEXT('\\') );
 	if(p) {
 		*p = 0;
-		if(strlen(local_path) > 3) {
+		if(_tcslen(local_path) > 3) {
 			make_folders(local_path);
-			mkdir(local_path);
+			_tmkdir(local_path);
 		}
 	}
 }
 
 // !!UNC
-static bool is_same_drive( char *p1, char *p2 )
+static bool is_same_drive( LPCTSTR p1, LPCTSTR p2 )
 {
-	return toupper(*p1) == toupper(*p2);
+	return _totupper(*p1) == _totupper(*p2);
 }
 
 // Used when the drives are known to be different.
 // Can't use MoveFileEx() etc because of the Win9x limitations.
 // It would simulate CopyFile*() -- DeleteFile*() anyway
-int file_move_copy( char *src, char *dst, bool delete_old )
+static int file_move_copy( LPCTSTR src, LPCTSTR dst, bool delete_old )
 {
 	int result = 0;
 	my_errno = 0;
 
-	D(bug("file_copy %s -> %s\n", src, dst));
+	D(bug(TEXT("file_copy %s -> %s\n"), src, dst));
 
 	// Fail if exists -- it's up to MacOS to move things to Trash
 	if(CopyFile(src,dst,TRUE)) {
@@ -644,24 +642,24 @@ int file_move_copy( char *src, char *dst, bool delete_old )
 	return result;
 }
 
-int file_move( char *src, char *dst )
+static int file_move( LPCTSTR src, LPCTSTR dst )
 {
 	return file_move_copy( src, dst, true );
 }
 
-int file_copy( char *src, char *dst )
+static int file_copy( LPCTSTR src, LPCTSTR dst )
 {
 	return file_move_copy( src, dst, false );
 }
 
-int folder_copy( char *folder_src, char *folder_dst )
+static int folder_copy( LPCTSTR folder_src, LPCTSTR folder_dst )
 {
 	HANDLE fh;
 	WIN32_FIND_DATA FindFileData;
 	int ok, result = 0;
-	char mask[_MAX_PATH];
+	TCHAR mask[_MAX_PATH];
 
-	D(bug("copying folder %s -> \n", folder_src, folder_dst));
+	D(bug(TEXT("copying folder %s -> \n"), folder_src, folder_dst));
 
 	my_errno = 0;
 
@@ -670,18 +668,18 @@ int folder_copy( char *folder_src, char *folder_dst )
 		return -1;
 	}
 
-	make_mask( mask, folder_src, "*.*", 0 );
+	make_mask( mask, folder_src, TEXT("*.*"), 0 );
 
 	fh = FindFirstFile( mask, &FindFileData );
 	ok = fh != INVALID_HANDLE_VALUE;
 	while(ok) {
 		make_mask( mask, folder_src, FindFileData.cFileName, 0 );
 		int isdir = (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
-		char target[_MAX_PATH];
+		TCHAR target[_MAX_PATH];
 		make_mask( target, folder_dst, FindFileData.cFileName, 0 );
-		D(bug("copying item %s -> %s\n", mask, target));
+		D(bug(TEXT("copying item %s -> %s\n"), mask, target));
 		if(isdir) {
-			if(strcmp(FindFileData.cFileName,".") && strcmp(FindFileData.cFileName,"..")) {
+			if(_tcscmp(FindFileData.cFileName,TEXT(".")) && _tcscmp(FindFileData.cFileName,TEXT(".."))) {
 				result = folder_copy( mask, target );
 				if(result < 0) break;
 			}
@@ -715,12 +713,11 @@ static int make_dentry( struct DIR *d )
 	memset( &d->de, 0, sizeof(d->de) );
 	if(d->h != INVALID_HANDLE_VALUE) {
 		if( (d->FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0 &&
-			   *d->FindFileData.cFileName == '.')
+			   *d->FindFileData.cFileName == TEXT('.'))
 		{
 			ok = 0;
 		} else {
-			strncpy( d->de.d_name, d->FindFileData.cFileName, sizeof(d->de.d_name)-1 );
-			d->de.d_name[sizeof(d->de.d_name)-1] = 0;
+			strlcpy( d->de.d_name, d->FindFileData.cFileName, lengthof(d->de.d_name) );
 			charset_host2mac( d->de.d_name );
 			ok = 1;
 		}
@@ -739,14 +736,14 @@ struct dirent *readdir( struct DIR *d )
 			if(d->h == VIRTUAL_ROOT_ID) {
 				make_dentry(d);
 				de = &d->de;
-				d->vname_list += strlen(d->vname_list) + 1;
+				d->vname_list += _tcslen(d->vname_list) + 1;
 				if(*d->vname_list) {
-					strcpy( d->FindFileData.cFileName, d->vname_list );
+					_tcscpy( d->FindFileData.cFileName, d->vname_list );
 					d->FindFileData.dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
 				} else {
 					// Out of static drive entries. Continue with other stuff.
-					char mask[MAX_PATH_LENGTH];
-					make_mask( mask, virtual_root, "*.*", 0 );
+					TCHAR mask[MAX_PATH_LENGTH];
+					make_mask( mask, virtual_root, TEXT("*.*"), 0 );
 					d->h = FindFirstFile( mask, &d->FindFileData );
 				}
 			} else {
@@ -778,23 +775,24 @@ struct dirent *readdir( struct DIR *d )
 struct DIR *opendir( const char *path )
 {
 	DISABLE_ERRORS;
+	auto tpath = tstr(path);
 	DIR *d = new DIR;
 	if(d) {
 		memset( d, 0, sizeof(DIR) );
-		if(*path == 0) {
+		if(*tpath.get() == 0) {
 			d->vname_list = host_drive_list;
 			if(d->vname_list) {
 				d->h = VIRTUAL_ROOT_ID;
-				strcpy( d->FindFileData.cFileName, d->vname_list );
+				_tcscpy( d->FindFileData.cFileName, d->vname_list );
 				d->FindFileData.dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
 			} else {
 				d->h = INVALID_HANDLE_VALUE;
 			}
 		} else {
-			char mask[MAX_PATH_LENGTH];
-			make_mask( mask, MRP(path), "*.*", 0 );
+			TCHAR mask[MAX_PATH_LENGTH];
+			make_mask( mask, MRP(tpath.get()), TEXT("*.*"), 0 );
 
-			D(bug("opendir path=%s, mask=%s\n", path, mask));
+			D(bug(TEXT("opendir path=%s, mask=%s\n"), tpath.get(), mask));
 
 			d->h = FindFirstFile( mask, &d->FindFileData );
 			if(d->h == INVALID_HANDLE_VALUE) {
@@ -804,7 +802,7 @@ struct DIR *opendir( const char *path )
 		}
 	}
 
-	D(bug("opendir(%s,%s) = %08x\n", path, MRP(path), d));
+	D(bug(TEXT("opendir(%s,%s) = %08x\n"), tpath.get(), MRP(tpath.get()), d));
 
 	RESTORE_ERRORS;
 
@@ -823,16 +821,17 @@ int my_stat( const char *path, struct my_stat *st )
 {
 	DISABLE_ERRORS;
 
+	auto tpath = tstr(path);
 	int result;
 
-	if(*path == 0) {
+	if(*tpath.get() == 0) {
 		/// virtual root
 		memset( st, 0, sizeof(struct my_stat) );
 		st->st_mode = _S_IFDIR;
 		result = 0;
 		my_errno = 0;
 	} else {
-		result = stat( MRP(path), (struct stat *)st );
+		result = _tstat( MRP(tpath.get()), (struct _stat *)st );
 		if(result < 0) {
 			my_errno = errno;
 		} else {
@@ -840,7 +839,7 @@ int my_stat( const char *path, struct my_stat *st )
 		}
 	}
 
-	D(bug("stat(%s,%s) = %d\n", path, MRP(path), result));
+	D(bug(TEXT("stat(%s,%s) = %d\n"), tpath.get(), MRP(tpath.get()), result));
 	if(result >= 0) dump_stat( st );
 	RESTORE_ERRORS;
 	return result;
@@ -849,7 +848,7 @@ int my_stat( const char *path, struct my_stat *st )
 int my_fstat( int fd, struct my_stat *st )
 {
 	DISABLE_ERRORS;
-	int result = fstat( fd, (struct stat *)st );
+	int result = _fstat( fd, (struct _stat *)st );
 	if(result < 0) {
 		my_errno = errno;
 	} else {
@@ -865,24 +864,25 @@ int my_open( const char *path, int mode, ... )
 {
 	DISABLE_ERRORS;
 	int result;
-	char *p = MRP(path);
+	auto tpath = tstr(path);
+	LPCTSTR p = MRP(tpath.get());
 
 	// Windows "open" does not handle _O_CREAT and _O_BINARY as it should
 	if(mode & _O_CREAT) {
 		if(exists(p)) {
-			result = open( p, mode & ~_O_CREAT );
-			D(bug("open-nocreat(%s,%s,%d) = %d\n", path, p, mode, result));
+			result = _topen( p, mode & ~_O_CREAT );
+			D(bug(TEXT("open-nocreat(%s,%s,%d) = %d\n"), tpath.get(), p, mode, result));
 		} else {
-			result = creat( p, _S_IWRITE|_S_IREAD );
+			result = _tcreat( p, _S_IWRITE|_S_IREAD );
 			if(result < 0) {
 				make_folders(p);
-				result = creat( p, _S_IWRITE|_S_IREAD );
+				result = _tcreat( p, _S_IWRITE|_S_IREAD );
 			}
-			D(bug("open-creat(%s,%s,%d) = %d\n", path, p, mode, result));
+			D(bug(TEXT("open-creat(%s,%s,%d) = %d\n"), tpath.get(), p, mode, result));
 		}
 	} else {
-		result = open( p, mode );
-		D(bug("open(%s,%s,%d) = %d\n", path, p, mode, result));
+		result = _topen( p, mode );
+		D(bug(TEXT("open(%s,%s,%d) = %d\n"), tpath.get(), p, mode, result));
 	}
 	if(result < 0) {
 		my_errno = errno;
@@ -898,15 +898,17 @@ int my_rename( const char *old_path, const char *new_path )
 {
 	DISABLE_ERRORS;
 	int result = -1;
-	char *p_old = MRP(old_path);
-	char *p_new = MRP2(new_path);
+	auto told_path = tstr(old_path);
+	auto tnew_path = tstr(new_path);
+	LPCTSTR p_old = MRP(told_path.get());
+	LPCTSTR p_new = MRP2(tnew_path.get());
 
 	result = my_access(old_path,0);
 	if(result < 0) {
 		// my_errno already set
 	} else {
 		if(is_same_drive(p_old,p_new)) {
-			result = rename( p_old, p_new );
+			result = _trename( p_old, p_new );
 			if(result != 0) { // by definition, rename may also return a positive value to indicate an error
 				my_errno = errno;
 			} else {
@@ -932,7 +934,7 @@ int my_rename( const char *old_path, const char *new_path )
 			}
 		}
 	}
-	D(bug("rename(%s,%s,%s,%s) = %d\n", old_path, p_old, new_path, p_new, result));
+	D(bug(TEXT("rename(%s,%s,%s,%s) = %d\n"), told_path.get(), p_old, tnew_path.get(), p_new, result));
 	RESTORE_ERRORS;
 	return result;
 }
@@ -940,7 +942,8 @@ int my_rename( const char *old_path, const char *new_path )
 int my_access( const char *path, int mode )
 {
 	DISABLE_ERRORS;
-	char *p = MRP(path);
+	auto tpath = tstr(path);
+	LPCTSTR p = MRP(tpath.get());
 	WIN32_FIND_DATA fdata;
 
 	int result;
@@ -968,7 +971,7 @@ int my_access( const char *path, int mode )
 		}
 	} else {
 		// W_OK, F_OK are ok.
-		result = access(p,mode);
+		result = _taccess(p,mode);
 		if(result < 0) {
 			my_errno = errno;
 		} else {
@@ -976,7 +979,7 @@ int my_access( const char *path, int mode )
 		}
 	}
 
-	D(bug("access(%s,%s,%d) = %d\n", path, MRP(path), mode, result));
+	D(bug(TEXT("access(%s,%s,%d) = %d\n"), tpath.get(), p, mode, result));
 	RESTORE_ERRORS;
 	return result;
 }
@@ -984,19 +987,20 @@ int my_access( const char *path, int mode )
 int my_mkdir( const char *path, int mode )
 {
 	DISABLE_ERRORS;
-	char *p = MRP(path);
+	auto tpath = tstr(path);
+	LPTSTR p = MRP(tpath.get());
 	strip_trailing_bs(p);
-	int result = mkdir( p );
+	int result = _tmkdir( p );
 	if(result < 0) {
 		make_folders(p);
-		result = mkdir( p );
+		result = _tmkdir( p );
 	}
 	if(result < 0) {
 		my_errno = errno;
 	} else {
 		my_errno = 0;
 	}
-	D(bug("mkdir(%s,%s,%d) = %d\n", path, p, mode, result));
+	D(bug(TEXT("mkdir(%s,%s,%d) = %d\n"), tpath.get(), p, mode, result));
 	RESTORE_ERRORS;
 	return result;
 }
@@ -1004,13 +1008,14 @@ int my_mkdir( const char *path, int mode )
 int my_remove( const char *path )
 {
 	DISABLE_ERRORS;
-	char *p = MRP(path);
+	auto tpath = tstr(path);
+	LPTSTR p = MRP(tpath.get());
 	strip_trailing_bs(p);
 	int result;
 	if(is_dir(p)) {
 		result = myRemoveDirectory( p );
 	} else {
-		D(bug("DeleteFile %s\n", p));
+		D(bug(TEXT("DeleteFile %s\n"), p));
 		result = DeleteFile( p );
 	}
 	if(result) {
@@ -1024,7 +1029,7 @@ int my_remove( const char *path )
 			my_errno = ENOENT;
 		}
 	}
-	D(bug("remove(%s,%s) = %d\n", path, p, result));
+	D(bug(TEXT("remove(%s,%s) = %d\n"), tpath.get(), p, result));
 	RESTORE_ERRORS;
 	return result;
 }
@@ -1032,11 +1037,12 @@ int my_remove( const char *path )
 int my_creat( const char *path, int mode )
 {
 	DISABLE_ERRORS;
-	char *p = MRP(path);
-	int result = creat( p, _S_IWRITE|_S_IREAD ); // note mode
+	auto tpath = tstr(path);
+	LPCTSTR p = MRP(tpath.get());
+	int result = _tcreat( p, _S_IWRITE|_S_IREAD ); // note mode
 	if(result < 0) {
 		make_folders(p);
-		result = creat( p, _S_IWRITE|_S_IREAD ); // note mode
+		result = _tcreat( p, _S_IWRITE|_S_IREAD ); // note mode
 	}
 	if(result < 0) {
 		my_errno = errno;
@@ -1044,7 +1050,7 @@ int my_creat( const char *path, int mode )
 		setmode(result, _O_BINARY);
 		my_errno = 0;
 	}
-	D(bug("creat(%s,%s,%d) = %d\n", path, p, mode,result));
+	D(bug(TEXT("creat(%s,%s,%d) = %d\n"), tpath.get(), p, mode,result));
 	RESTORE_ERRORS;
 	return result;
 }
@@ -1116,4 +1122,29 @@ int my_write( int fd, const void *buffer, unsigned int count )
 	RESTORE_ERRORS;
 	D(bug("write(%ld,%08x,%ld) = %d\n", fd, buffer, count, result));
 	return result;
+}
+
+static FILETIME get_file_time(time_t time) {
+	FILETIME ft;
+	unsigned long long result = 11644473600LL;
+	result += time;
+	result *= 10000000LL;
+	ft.dwHighDateTime = (result >> 32);
+	ft.dwLowDateTime = (result & 0xFFFFFFFF);
+	return ft;
+}
+
+int my_utime( const char *path, struct my_utimbuf * my_times )
+{
+	auto tpath = tstr(path);
+	LPCTSTR p = MRP(tpath.get());
+	HANDLE f = CreateFile(p, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (f != INVALID_HANDLE_VALUE) {
+		FILETIME crTime = get_file_time(my_times->actime);
+		FILETIME modTime = get_file_time(my_times->modtime);
+		SetFileTime(f, &crTime, NULL, &modTime);
+		CloseHandle(f);
+		return 0;
+	}
+	return -1;
 }

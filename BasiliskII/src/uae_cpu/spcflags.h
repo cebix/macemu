@@ -71,7 +71,7 @@ enum {
 	regs.spcflags &= ~(m); \
 } while (0)
 
-#elif (defined(__i386__) || defined(__x86_64__)) && defined(X86_ASSEMBLY)
+#elif defined(X86_ASSEMBLY)
 
 #define HAVE_HARDWARE_LOCKS
 

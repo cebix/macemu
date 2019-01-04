@@ -67,7 +67,7 @@ void powerpc_cpu::execute_illegal(uint32 opcode)
 	disass_ppc(stdout, pc(), opcode);
 
 	// Start up mon in real-mode
-	char *arg[4] = {"mon", "-m", "-r", NULL};
+	const char *arg[4] = {"mon", "-m", "-r", NULL};
 	mon(3, arg);
 #endif
 	abort();
@@ -89,16 +89,6 @@ static inline int ppc_to_native_rounding_mode(int round)
 	case 1: return FE_TOWARDZERO;
 	case 2: return FE_UPWARD;
 	case 3: return FE_DOWNWARD;
-	}
-}
-
-static inline int native_to_ppc_rounding_mode(int round)
-{
-	switch (round) {
-	case FE_TONEAREST:	return 0;
-	case FE_TOWARDZERO:	return 1;
-	case FE_UPWARD:		return 2;
-	case FE_DOWNWARD:	return 3;
 	}
 }
 
@@ -1233,7 +1223,7 @@ template< class TBR >
 void powerpc_cpu::execute_mftbr(uint32 opcode)
 {
 	uint32 tbr = TBR::get(this, opcode);
-	uint32 d;
+	uint32 d = 0;
 	switch (tbr) {
 	case 268: d = (uint32)get_tb_ticks(); break;
 	case 269: d = (get_tb_ticks() >> 32); break;
@@ -1630,7 +1620,6 @@ void powerpc_cpu::execute_vector_shift_octet(uint32 opcode)
 	typename VA::type const & vA = VA::const_ref(this, opcode);
 	typename VB::type const & vB = VB::const_ref(this, opcode);
 	typename VD::type & vD = VD::ref(this, opcode);
-	const int n_elements = 16 / VD::element_size;
 
 	const int sh = SH::get(this, opcode);
 	if (SD < 0) {

@@ -63,7 +63,9 @@ typedef off_t loff_t;
 
 // Networking types
 #define PF_INET AF_INET
+#ifndef __HAIKU__
 typedef int socklen_t;
+#endif
 
 // UAE CPU data types
 #define uae_s8 int8
@@ -106,7 +108,7 @@ static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {__asm__ ("rolw $8,%0"
 #define X86_ASSEMBLY
 #define UNALIGNED_PROFITABLE
 #define OPTIMIZED_FLAGS
-#define ASM_SYM_FOR_FUNC(a) __asm__(a)
+#define ASM_SYM(a) __asm__(a)
 #define REGPARAM __attribute__((regparm(3)))
 
 #else
@@ -120,7 +122,7 @@ static inline void do_put_mem_word(uae_u16 *a, uae_u32 v) {*a = v;}
 #undef X86_ASSEMBLY
 #define UNALIGNED_PROFITABLE
 #undef OPTIMIZED_FLAGS
-#define ASM_SYM_FOR_FUNC(a)
+#define ASM_SYM(a)
 #define REGPARAM
 #endif
 

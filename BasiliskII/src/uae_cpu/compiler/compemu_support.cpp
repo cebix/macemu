@@ -23,6 +23,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "sysdeps.h"
+
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 #error "Only Real or Direct Addressing is supported with the JIT Compiler"
 #endif
@@ -43,7 +45,7 @@
 #define USE_MATCH 0
 
 /* kludge for Brian, so he can compile under MSVC++ */
-#define USE_NORMAL_CALLING_CONVENTION 0
+#define USE_NORMAL_CALLING_CONVENTION 1 && defined(_MSC_VER)
 
 #ifndef WIN32
 #include <unistd.h>
@@ -55,7 +57,6 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include "sysdeps.h"
 #include "cpu_emulation.h"
 #include "main.h"
 #include "prefs.h"
@@ -192,7 +193,7 @@ static inline bool is_const_jump(uae_u32 opcode)
 
 static inline bool may_trap(uae_u32 opcode)
 {
-	return (prop[opcode].cflow & fl_trap);
+	return (prop[opcode].cflow & fl_trap) != 0;
 }
 
 static inline unsigned int cft_map (unsigned int f)
@@ -958,7 +959,7 @@ static void ru_fill(regusage *ru, uae_u32 opcode)
 	bool handled = false;
 
 	/* Handle some instructions specifically */
-	uae_u16 reg, ext;
+	uae_u16 ext;
 	switch (dp->mnemo) {
 	case i_BFCHG:
 	case i_BFCLR:
@@ -1565,7 +1566,6 @@ static void mov_nregs(int d, int s)
 
 static __inline__ void make_exclusive(int r, int size, int spec)
 {
-    int clobber;
     reg_status oldstate;
     int rr=live.state[r].realreg;
     int nr;
@@ -1642,7 +1642,6 @@ static __inline__ void add_offset(int r, uae_u32 off)
 
 static __inline__ void remove_offset(int r, int spec)
 {
-    reg_status oldstate;
     int rr;
 
     if (isconst(r))
@@ -5255,7 +5254,7 @@ void init_comp(void)
 /* Only do this if you really mean it! The next call should be to init!*/
 void flush(int save_regs)
 {
-    int fi,i;
+    int i;
     
 	log_flush();
     flush_flags(); /* low level */
@@ -5308,7 +5307,7 @@ void flush(int save_regs)
 
 static void flush_keepflags(void)
 {
-    int fi,i;
+    int i;
     
     for (i=0;i<VFREGS;i++) {
 	if (live.fate[i].needflush==NF_SCRATCH || 
@@ -5379,7 +5378,7 @@ static void align_target(uae_u32 a)
 	}
 }
 
-static __inline__ int isinrom(uintptr addr)
+static __inline__ bool isinrom(uintptr addr)
 {
 	return ((addr >= (uintptr)ROMBaseHost) && (addr < (uintptr)ROMBaseHost + ROMSize));
 }
@@ -5808,7 +5807,7 @@ static void show_checksum(CSI_TYPE* csi)
     uae_u32 k1=0;
     uae_u32 k2=0;
     uae_s32 len=CSI_LENGTH(csi);
-    uae_u32 tmp=(uintptr)CSI_START_P(csi);
+    uae_u32 tmp=(uintptr)CSI_STARTcsi
     uae_u32* pos;
 
     len+=(tmp&3);
@@ -5902,7 +5901,7 @@ static inline int block_check_checksum(blockinfo* bi)
 	bi->handler_to_use=bi->handler;
 	set_dhtu(bi,bi->direct_handler);
 	bi->status=BI_CHECKING;
-	isgood=called_check_checksum(bi);
+	isgood=called_check_checksum(bi) != 0;
     }
     if (isgood) {
 	/*	write_log("reactivate %p/%p (%x %x/%x %x)\n",bi,bi->pc_p,
@@ -6219,7 +6218,7 @@ void build_comp(void)
     struct comptbl* tbl=op_smalltbl_0_comp_ff;
     struct comptbl* nftbl=op_smalltbl_0_comp_nf;
     int count;
-	int cpu_level = 0;			// 68000 (default)
+	unsigned int cpu_level = 0;	// 68000 (default)
 	if (CPUType == 4)
 		cpu_level = 4;			// 68040 with FPU
 	else {
@@ -6356,7 +6355,6 @@ static void flush_icache_none(int n)
     
 static void flush_icache_hard(int n)
 {
-    uae_u32 i;
     blockinfo* bi, *dbi;
 
     hard_flush_count++;
@@ -6394,7 +6392,6 @@ static void flush_icache_hard(int n)
 
 static inline void flush_icache_lazy(int n)
 {
-    uae_u32 i;
     blockinfo* bi;
     blockinfo* bi2;
 
@@ -6536,7 +6533,7 @@ void disasm_block(int target, uint8 * start, size_t length)
 	mon_read_byte = mon_read_byte_jit;
 	mon_write_byte = mon_write_byte_jit;
 	
-	char *arg[5] = {"mon", "-m", "-r", disasm_str, NULL};
+	const char *arg[5] = {"mon", "-m", "-r", disasm_str, NULL};
 	mon(4, arg);
 	
 	mon_read_byte = old_mon_read_byte;

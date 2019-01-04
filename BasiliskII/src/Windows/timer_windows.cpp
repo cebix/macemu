@@ -20,9 +20,6 @@
 
 #include "sysdeps.h"
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
 #include "main.h"
 #include "macos_util.h"
 #include "timer.h"
@@ -169,9 +166,9 @@ int32 timer_host2mac_time(tm_time_t hosttime)
 	else {
 		uint64 t = TICKS2USECS(hosttime);
 		if (t > 0x7fffffff)
-			return t / 1000;	// Time in milliseconds
+			return int32(t / 1000);	// Time in milliseconds
 		else
-			return -t;			// Time in negative microseconds
+			return -int32(t);			// Time in negative microseconds
 	}
 }
 

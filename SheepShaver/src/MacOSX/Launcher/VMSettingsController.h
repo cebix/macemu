@@ -30,7 +30,8 @@
     IBOutlet NSView *diskSaveSize;
     IBOutlet NSTextField *diskSaveSizeField;
     NSMutableArray *diskArray;
-
+    IBOutlet NSView *isCDROM;
+    IBOutlet NSButton *isCDROMcheckbox;	
     // Setup
     IBOutlet NSTableView *disks;
     IBOutlet NSComboBox *bootFrom;
@@ -51,7 +52,7 @@
     // Keyboard/Mouse
     IBOutlet NSButton *useRawKeyCodes;
     IBOutlet NSTextField *rawKeyCodes;
-		IBOutlet NSButton *browseRawKeyCodesButton;
+	IBOutlet NSButton *browseRawKeyCodesButton;
     IBOutlet NSPopUpButton *mouseWheel;
     IBOutlet NSTextField *scrollLines;
     IBOutlet NSStepper *scrollLinesStepper;

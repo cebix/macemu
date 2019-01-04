@@ -144,3 +144,13 @@ uint32 TimeToMacTime(time_t t)
 	uint32 days = local->tm_yday + 365 * (local->tm_year - 4) + intervening_leap_days;
 	return local->tm_sec + 60 * (local->tm_min + 60 * (local->tm_hour + 24 * days));
 }
+
+/*
+ *  Convert MacOS time to time_t (seconds since 1.1.1970)
+ */
+
+time_t MacTimeToTime(uint32 t)
+{
+	// simply subtract number of seconds between 1.1.1904 and 1.1.1970
+	return t - 2082826800;
+}

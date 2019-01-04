@@ -21,8 +21,6 @@
 #include "sysdeps.h"
 
 #include <vector>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 
 #include "macos_util.h"
 #include "clip.h"
@@ -236,7 +234,7 @@ static void do_getscrap(void **handle, uint32 type, int32 offset)
 
 						// Convert text from ISO-Latin1 to Mac charset
 						uint8 *p = Mac2HostAddr(scrap_area);
-						for (int i = 0; i < length; i++) {
+						for (uint32 i = 0; i < length; i++) {
 							uint8 c = data[i];
 							if (c < 0x80) {
 								if (c == 0)
@@ -262,7 +260,7 @@ static void do_getscrap(void **handle, uint32 type, int32 offset)
 						0x2f, 0x3c, 0, 0, 0, 0,		// move.l	#outbuf,-(sp)
 						0xa9, 0xfe,					// PutScrap()
 						0x58, 0x8f,					// addq.l	#4,sp
-						M68K_RTS >> 8, M68K_RTS
+						uint8(M68K_RTS >> 8), uint8(M68K_RTS)
 					};
 					uint32 proc_area = Host2MacAddr(proc);
 					WriteMacInt32(proc_area +  6, out_length);

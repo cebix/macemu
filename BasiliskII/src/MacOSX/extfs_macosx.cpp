@@ -125,7 +125,7 @@ void add_path_component(char *path, const char *component)
 		path[l] = '/';
 		path[l+1] = 0;
 	}
-	strncat(path, component, MAX_PATH_LENGTH-1);
+	strlcat(path, component, MAX_PATH_LENGTH);
 }
 
 
@@ -185,11 +185,11 @@ static void make_finf_path(const char *src, char *dest, bool only_dir = false)
 	dest[last_part-src] = 0;
 
 	// Add additional component
-	strncat(dest, ".finf/", MAX_PATH_LENGTH-1);
+	strlcat(dest, ".finf/", MAX_PATH_LENGTH);
 
 	// Add last component
 	if (!only_dir)
-		strncat(dest, last_part, MAX_PATH_LENGTH-1);
+		strlcat(dest, last_part, MAX_PATH_LENGTH);
 }
 
 static int create_finf_dir(const char *path)
@@ -375,7 +375,7 @@ static bool do_get_finfo(const char *path, bool has_fxinfo,
 	memset(emu_finfo, 0, SIZEOF_FInfo);
 	if (has_fxinfo)
 		memset(emu_fxinfo, 0, SIZEOF_FXInfo);
-	*((uint16 *)(emu_finfo + fdFlags)) = htonl(DEFAULT_FINDER_FLAGS);
+	*((uint16 *)(emu_finfo + fdFlags)) = htons(DEFAULT_FINDER_FLAGS);
 	*((uint32 *)(emu_finfo + fdLocation)) = htonl((uint32)-1);
 
 	if (USE_XATTRS)

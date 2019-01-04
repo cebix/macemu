@@ -54,7 +54,7 @@ struct udphdr {
 } PACKED__;
 
 #ifdef PRAGMA_PACK_SUPPORTED
-#pragma pack(0)
+#pragma pack(PACK_RESET)
 #endif
 
 /*
@@ -99,14 +99,14 @@ extern struct udpstat udpstat;
 extern struct socket udb;
 struct mbuf;
 
-void udp_init _P((void));
-void udp_input _P((register struct mbuf *, int));
-int udp_output _P((struct socket *, struct mbuf *, struct sockaddr_in *));
-int udp_attach _P((struct socket *));
-void udp_detach _P((struct socket *));
-u_int8_t udp_tos _P((struct socket *));
-void udp_emu _P((struct socket *, struct mbuf *));
-struct socket * udp_listen _P((u_int, u_int32_t, u_int, int));
+void udp_init(void);
+void udp_input(register struct mbuf *, int);
+int udp_output(struct socket *, struct mbuf *, struct sockaddr_in *);
+int udp_attach(struct socket *);
+void udp_detach(struct socket *);
+u_int8_t udp_tos(struct socket *);
+void udp_emu(struct socket *, struct mbuf *);
+struct socket * udp_listen(u_int, u_int32_t, u_int, int);
 int udp_output2(struct socket *so, struct mbuf *m, 
                 struct sockaddr_in *saddr, struct sockaddr_in *daddr,
                 int iptos);

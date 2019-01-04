@@ -20,6 +20,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <fcntl.h>
@@ -27,10 +28,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <mach/vm_prot.h>
 #include <mach-o/loader.h>
 #include <mach-o/fat.h>
-#include <sys/stat.h>
 
 static const char progname[] = "lowmem";
 static const char *filename;
@@ -72,6 +73,11 @@ void pagezero_32(struct mach_header *machhead)
 	/* change the permissions */
 	sc_cmd->maxprot = target_uint32(VM_PROT_ALL);
 	sc_cmd->initprot = target_uint32(VM_PROT_ALL);
+
+#ifdef MH_PIE
+	/* disable pie in header */
+	machhead->flags = target_uint32(target_uint32(machhead->flags) & ~MH_PIE);
+#endif
 }
 
 #if defined(MH_MAGIC_64)
@@ -129,7 +135,7 @@ main(int argc, const char *argv[])
 {
 	int fd;
 	char *addr;
-	off_t file_size;
+	size_t file_size;
 	struct mach_header *machhead;
 #if defined(MH_MAGIC_64)
 	struct mach_header_64 *machhead64;
@@ -149,7 +155,7 @@ main(int argc, const char *argv[])
 			progname, filename, strerror(errno));
 		exit(1);
 	}
-	file_size = f.st_size;
+	file_size = (size_t) f.st_size;
 
 	fd = open(filename, O_RDWR, 0);
 	if (fd == -1) {

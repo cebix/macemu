@@ -51,14 +51,18 @@
 
 // NOTE: this is irrelevant on Win32 platforms since the MS libraries
 // don't support extended-precision floating-point computations
-#ifdef WIN32
+#if defined(WIN32) && USE_LONG_DOUBLE
 #undef FPU_USE_ISO_C99
 #endif
 
 // Use faster implementation of math functions, but this could cause
 // some incorrect results (?)
-// TODO: actually implement the slower but safer versions
+#ifdef _MSC_VER
+// MSVC uses intrinsics for all of the math functions, so it should still be fast
+#define FPU_FAST_MATH 0
+#else
 #define FPU_FAST_MATH 1
+#endif
 
 #if FPU_USE_ISO_C99
 // NOTE: no prior <math.h> shall be included at this point
@@ -373,7 +377,7 @@ PRIVATE inline bool FFPU fp_do_isnan(fpu_register const & r)
 	hx &= 0x7fffffff;
 	hx |= (uae_u32)(lx | (-lx)) >> 31;
 	hx = 0x7ff00000 - hx;
-	return (int)(((uae_u32)hx) >> 31);
+	return (((uae_u32)hx) >> 31) != 0;
 #elif USE_QUAD_DOUBLE
 	fp_declare_init_shape(sxp, r, extended);
 	uae_s64 hx = sxp->parts64.msw;
@@ -381,7 +385,7 @@ PRIVATE inline bool FFPU fp_do_isnan(fpu_register const & r)
 	hx &= 0x7fffffffffffffffLL;
 	hx |= (uae_u64)(lx | (-lx)) >> 63;
 	hx = 0x7fff000000000000LL - hx;
-	return (int)((uae_u64)hx >> 63);
+	return ((uae_u64)hx >> 63) != 0;
 #else
 	fp_declare_init_shape(sxp, r, extended);
 	uae_s32 se = sxp->parts.sign_exponent;
@@ -392,7 +396,7 @@ PRIVATE inline bool FFPU fp_do_isnan(fpu_register const & r)
 	se |= (uae_u32)(lx | (-lx)) >> 31;
 	se = 0xfffe - se;
 	// TODO: check whether rshift count is 16 or 31
-	return (int)(((uae_u32)(se)) >> 16);
+	return (((uae_u32)(se)) >> 16) != 0;
 #endif
 #else
 #if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
@@ -428,14 +432,14 @@ PRIVATE inline bool FFPU fp_do_isinf(fpu_register const & r)
 	uae_s32 lx = sxp->parts.lsw;
 	lx |= (hx & 0x7fffffff) ^ 0x7ff00000;
 	lx |= -lx;
-	return ~(lx >> 31) & (hx >> 30);
+	return (~(lx >> 31) & (hx >> 30)) != 0;
 #elif USE_QUAD_DOUBLE
 	fp_declare_init_shape(sxp, r, extended);
 	uae_s64 hx = sxp->parts64.msw;
 	uae_s64 lx = sxp->parts64.lsw;
 	lx |= (hx & 0x7fffffffffffffffLL) ^ 0x7fff000000000000LL;
 	lx |= -lx;
-	return ~(lx >> 63) & (hx >> 62);
+	return (~(lx >> 63) & (hx >> 62)) != 0;
 #else
 	fp_declare_init_shape(sxp, r, extended);
 	uae_s32 se = sxp->parts.sign_exponent;
@@ -451,7 +455,7 @@ PRIVATE inline bool FFPU fp_do_isinf(fpu_register const & r)
 #endif
 	lx |= -lx;
 	se &= 0x8000;
-	return ~(lx >> 31) & (1 - (se >> 14));
+	return (~(lx >> 31) & (1 - (se >> 14))) != 0;
 #endif
 #else
 #if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
@@ -661,7 +665,8 @@ PRIVATE inline uae_u32 FFPU get_quotient_sign(fpu_register const & ra, fpu_regis
 /* --- Math functions                                                     --- */
 /* -------------------------------------------------------------------------- */
 
-#if FPU_USE_ISO_C99 && (USE_LONG_DOUBLE || USE_QUAD_DOUBLE)
+#if FPU_USE_ISO_C99
+#if USE_LONG_DOUBLE || USE_QUAD_DOUBLE
 # ifdef HAVE_LOGL
 #  define fp_log	logl
 # endif
@@ -785,14 +790,13 @@ PRIVATE inline uae_u32 FFPU get_quotient_sign(fpu_register const & ra, fpu_regis
 # define fp_ceil	ceil
 #endif
 
-#if defined(FPU_IEEE) && defined(USE_X87_ASSEMBLY)
+#elif defined(FPU_IEEE) && defined(USE_X87_ASSEMBLY)
 // Assembly optimized support functions. Taken from glibc 2.2.2
 
 #undef fp_log
 #define fp_log fp_do_log
 
-#ifndef FPU_FAST_MATH
-// FIXME: unimplemented
+#if !FPU_FAST_MATH
 PRIVATE fpu_extended fp_do_log(fpu_extended x);
 #else
 PRIVATE inline fpu_extended fp_do_log(fpu_extended x)
@@ -806,7 +810,7 @@ PRIVATE inline fpu_extended fp_do_log(fpu_extended x)
 #undef fp_log10
 #define fp_log10 fp_do_log10
 
-#ifndef FPU_FAST_MATH
+#if !FPU_FAST_MATH
 // FIXME: unimplemented
 PRIVATE fpu_extended fp_do_log10(fpu_extended x);
 #else
@@ -821,7 +825,7 @@ PRIVATE inline fpu_extended fp_do_log10(fpu_extended x)
 #undef fp_exp
 #define fp_exp fp_do_exp
 
-#ifndef FPU_FAST_MATH
+#if !FPU_FAST_MATH
 // FIXME: unimplemented
 PRIVATE fpu_extended fp_do_exp(fpu_extended x);
 #else
@@ -940,7 +944,7 @@ PRIVATE inline fpu_extended fp_do_sgn1(fpu_extended x)
 #undef fp_sinh
 #define fp_sinh fp_do_sinh
 
-#ifndef FPU_FAST_MATH
+#if !FPU_FAST_MATH
 // FIXME: unimplemented
 PRIVATE fpu_extended fp_do_sinh(fpu_extended x);
 #else
@@ -954,7 +958,7 @@ PRIVATE inline fpu_extended fp_do_sinh(fpu_extended x)
 #undef fp_cosh
 #define fp_cosh fp_do_cosh
 
-#ifndef FPU_FAST_MATH
+#if !FPU_FAST_MATH
 // FIXME: unimplemented
 PRIVATE fpu_extended fp_do_cosh(fpu_extended x);
 #else
@@ -968,7 +972,7 @@ PRIVATE inline fpu_extended fp_do_cosh(fpu_extended x)
 #undef fp_tanh
 #define fp_tanh fp_do_tanh
 
-#ifndef FPU_FAST_MATH
+#if !FPU_FAST_MATH
 // FIXME: unimplemented
 PRIVATE fpu_extended fp_do_tanh(fpu_extended x);
 #else

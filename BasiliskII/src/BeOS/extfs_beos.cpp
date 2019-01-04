@@ -32,6 +32,7 @@
 
 #include <fs_attr.h>
 #include <support/TypeConstants.h>
+#include <support/UTF8.h>
 #include <storage/Mime.h>
 
 #include "extfs.h"
@@ -457,4 +458,32 @@ bool extfs_remove(const char *path)
 bool extfs_rename(const char *old_path, const char *new_path)
 {
 	return rename(old_path, new_path) == 0;
+}
+
+/*
+ *  Strings (filenames) conversion
+ */
+
+// Convert from the host OS filename encoding to MacRoman
+const char *host_encoding_to_macroman(const char *filename)
+{
+	int32 state = 0;
+	static char buffer[512];
+	int32 size = sizeof(buffer) - 1;
+	int32 insize = strlen(filename);
+	convert_from_utf8(B_MAC_ROMAN_CONVERSION, filename, &insize, buffer, &size, &state);
+	buffer[size] = 0;
+	return buffer;
+}
+
+// Convert from MacRoman to host OS filename encoding
+const char *macroman_to_host_encoding(const char *filename)
+{
+	int32 state = 0;
+	static char buffer[512];
+	int32 insize = strlen(filename);
+	int32 size = sizeof(buffer) - 1;
+	convert_to_utf8(B_MAC_ROMAN_CONVERSION, filename, &insize, buffer, &size, &state);
+	buffer[size] = 0;
+	return buffer;
 }

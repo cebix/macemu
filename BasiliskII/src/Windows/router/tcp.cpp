@@ -66,9 +66,8 @@
  */
 
 #include "sysdeps.h"
+#include "main.h"
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 #include <process.h>
 
 #include "cpu_emulation.h"
@@ -1333,7 +1332,7 @@ void write_tcp( tcp_t *tcp, int len )
 	- Expire time-waits.
 	- Handle resend timeouts.
 */
-static WINAPI unsigned int tcp_connect_close_thread(void *arg)
+static unsigned int WINAPI tcp_connect_close_thread(void *arg)
 {
 	WSAEVENT wait_handles[MAX_SOCKETS];
 
@@ -1429,7 +1428,7 @@ static WINAPI unsigned int tcp_connect_close_thread(void *arg)
 	return 0;
 }
 
-static WINAPI unsigned int tcp_listen_thread(void *arg)
+static unsigned int WINAPI tcp_listen_thread(void *arg)
 {
 	WSAEVENT wait_handles[MAX_SOCKETS];
 
@@ -1505,9 +1504,9 @@ static void init_tcp_listen_ports()
 	const char *port_str;
 	while ((port_str = PrefsFindString("tcp_port", index++)) != NULL) {
 		uint32 iface = 0;
-		char *if_str = strchr(port_str,',');
+		const char *if_str = strchr(port_str,',');
 		if(if_str) {
-			*if_str++ = 0;
+			if_str++;
 			uint32 if_net = _inet_addr( if_str );
 			if(if_net == INADDR_NONE) if_net = INADDR_ANY;
 			iface = ntohl( if_net );

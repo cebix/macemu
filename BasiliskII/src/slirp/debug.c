@@ -16,8 +16,6 @@ int dostats = 0;
 #endif
 int slirp_debug = 0;
 
-extern char *strerror _P((int));
-
 /* Carry over one item from main.c so that the tty's restored. 
  * Only done when the tty being used is /dev/tty --RedWolf */
 extern struct termios slirp_tty_settings;
@@ -294,6 +292,7 @@ mbufstats()
 void
 sockstats()
 {
+	char addr[INET_ADDRSTRLEN];
 	char buff[256];
 	int n;
 	struct socket *so;
@@ -311,9 +310,11 @@ sockstats()
 		buff[17] = 0;
 		lprint("%s %3d   %15s %5d ",
 				buff, so->s,
-				inet_ntoa(so->so_laddr), ntohs(so->so_lport));
+				inet_ntop(AF_INET, &so->so_laddr, addr, sizeof(addr)),
+				ntohs(so->so_lport));
 		lprint("%15s %5d %5d %5d\r\n",
-				inet_ntoa(so->so_faddr), ntohs(so->so_fport),
+				inet_ntop(AF_INET, &so->so_faddr, addr, sizeof(addr)),
+				ntohs(so->so_fport),
 				so->so_rcv.sb_cc, so->so_snd.sb_cc);
 	}
 		   
@@ -325,9 +326,11 @@ sockstats()
 		buff[17] = 0;
 		lprint("%s %3d  %15s %5d  ",
 				buff, so->s,
-				inet_ntoa(so->so_laddr), ntohs(so->so_lport));
+				inet_ntop(AF_INET, &so->so_laddr, addr, sizeof(addr)),
+				ntohs(so->so_lport));
 		lprint("%15s %5d %5d %5d\r\n",
-				inet_ntoa(so->so_faddr), ntohs(so->so_fport),
+				inet_ntop(AF_INET, &so->so_faddr, addr, sizeof(addr)),
+				ntohs(so->so_fport),
 				so->so_rcv.sb_cc, so->so_snd.sb_cc);
 	}
 }

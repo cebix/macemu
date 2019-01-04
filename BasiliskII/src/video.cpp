@@ -290,7 +290,7 @@ bool monitor_desc::allocate_gamma_table(int size)
  *  Set gamma table (0 = build linear ramp)
  */
 
-bool monitor_desc::set_gamma_table(uint32 user_table)
+int16 monitor_desc::set_gamma_table(uint32 user_table)
 {
 	if (user_table == 0) { // Build linear ramp, 256 entries
 
@@ -340,7 +340,7 @@ bool monitor_desc::set_gamma_table(uint32 user_table)
 	if (IsDirectMode(*current_mode))
 		load_ramp_palette();
 
-	return true;
+	return noErr;
 }
 
 
@@ -590,7 +590,7 @@ int16 monitor_desc::driver_control(uint16 code, uint32 param, uint32 dce)
 		case cscSetGamma: {		// Set gamma table
 			uint32 user_table = ReadMacInt32(param + csGTable);
 			D(bug(" SetGamma %08x\n", user_table));
-			return set_gamma_table(user_table) ? noErr : memFullErr;
+			return set_gamma_table(user_table);
 		}
 
 		case cscGrayPage: {		// Fill page with dithered gray pattern
@@ -627,7 +627,7 @@ int16 monitor_desc::driver_control(uint16 code, uint32 param, uint32 dce)
 
 		case cscSetGray:		// Enable/disable luminance mapping
 			D(bug(" SetGray %02x\n", ReadMacInt8(param + csMode)));
-			luminance_mapping = ReadMacInt8(param + csMode);
+			luminance_mapping = ReadMacInt8(param + csMode) != 0;
 			return noErr;
 
 		case cscSetInterrupt:	// Enable/disable VBL
