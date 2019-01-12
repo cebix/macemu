@@ -73,6 +73,8 @@ prefs_desc common_prefs_items[] = {
 	{"mousewheelmode",TYPE_BOOLEAN,"Use WheelMode"},
 	{"mousewheellines",TYPE_INT32,"wheel line nb"},
 	{"hotkey",TYPE_INT32,false,"hotkey modifier"},
+	{"scale_nearest",TYPE_BOOLEAN,false,"nearest neighbor scaling"},
+	{"scale_integer",TYPE_BOOLEAN,false,"integer scaling"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 

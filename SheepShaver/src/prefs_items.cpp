@@ -60,6 +60,8 @@ prefs_desc common_prefs_items[] = {
 	{"keyboardtype", TYPE_INT32, false, "hardware keyboard type"},
 	{"hardcursor", TYPE_BOOLEAN, false, "hardware mouse cursor"},
 	{"hotkey", TYPE_INT32, false,       "hotkey modifier"},
+	{"scale_nearest",TYPE_BOOLEAN,false,"nearest neighbor scaling"},
+	{"scale_integer",TYPE_BOOLEAN,false,"integer scaling"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 

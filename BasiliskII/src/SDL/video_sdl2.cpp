@@ -735,8 +735,8 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 		}
 	}
 	
-	// Apply anti-aliasing, if and when appropriate (usually in fullscreen)
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, PrefsFindBool("scale_nearest") ? "nearest" : "linear");
+	
 /*
 	// Always use a resize-able window.  This helps allow SDL to manage
 	// transitions involving fullscreen to or from windowed-mode.
@@ -851,6 +851,8 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 		shutdown_sdl_video();
 		return NULL;
 	}
+
+	SDL_RenderSetIntegerScale(sdl_renderer, PrefsFindBool("scale_integer") ? SDL_TRUE : SDL_FALSE);
 
     return guest_surface;
 }
