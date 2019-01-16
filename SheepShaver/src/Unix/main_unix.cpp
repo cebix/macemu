@@ -401,6 +401,8 @@ static void get_system_info(void)
 
 #if EMULATED_PPC
 	PVR = 0x000c0000;			// Default: 7400 (with AltiVec)
+	int pref_cpu_clock = PrefsFindInt32("cpuclock");
+	if (pref_cpu_clock) CPUClockSpeed = 1000000 * pref_cpu_clock;
 #elif defined(__APPLE__) && defined(__MACH__)
 	proc_file = popen("ioreg -c IOPlatformDevice", "r");
 	if (proc_file) {

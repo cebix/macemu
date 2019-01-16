@@ -62,6 +62,7 @@ prefs_desc common_prefs_items[] = {
 	{"hotkey", TYPE_INT32, false,       "hotkey modifier"},
 	{"scale_nearest",TYPE_BOOLEAN,false,"nearest neighbor scaling"},
 	{"scale_integer",TYPE_BOOLEAN,false,"integer scaling"},
+	{"cpuclock", TYPE_INT32, 0,			"CPU clock [MHz] of system info"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 

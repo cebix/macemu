@@ -249,6 +249,10 @@ int main(int argc, char **argv)
 	TimebaseSpeed =  25000000;	// Default:  25MHz
 	PVR = 0x000c0000;			// Default: 7400 (with AltiVec)
 	D(bug("PVR: %08x (assumed)\n", PVR));
+	{
+		int pref_cpu_clock = PrefsFindInt32("cpuclock");
+		if (pref_cpu_clock) CPUClockSpeed = 1000000 * pref_cpu_clock;
+	}
 
 	// Init system routines
 	SysInit();
