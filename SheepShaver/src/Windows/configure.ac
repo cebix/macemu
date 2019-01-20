@@ -241,7 +241,7 @@ dnl We really want SDL for now
 AC_CHECK_TOOL(sdl_config, sdl2-config, [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
 SDL_CFLAGS=`$sdl_config --cflags`
 AC_SUBST(SDL_CFLAGS)
-SDL_LIBS=`$sdl_config --libs`
+SDL_LIBS=`$sdl_config --static-libs`
 AC_SUBST(SDL_LIBS)
 AC_DEFINE(USE_SDL, 1, [Define to enble SDL support])
 AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support])

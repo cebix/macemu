@@ -37,7 +37,7 @@ CFLAGS = @CFLAGS@ $(SDL_CFLAGS)
 CXXFLAGS = @CXXFLAGS@ $(SDL_CFLAGS)
 CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../slirp -I../Unix/dyngen_precompiled
 DEFS = @DEFS@
-LDFLAGS = @LDFLAGS@ -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic
+LDFLAGS = @LDFLAGS@ -Wl,-Bstatic
 #TODO remove pthread part of that if irrelevant
 LIBS = @LIBS@ -lws2_32 -lwsock32 -liphlpapi
 CPUSRCS = @CPUSRCS@

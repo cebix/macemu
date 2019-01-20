@@ -12,7 +12,7 @@ AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE_NAME", [Define this program name.])
 AC_DEFINE_UNQUOTED(VERSION, "$PACKAGE_VERSION", [Define this program version.])
 
 dnl SDL options.
-AC_ARG_ENABLE(sdl-static,    [  --enable-sdl-static     use SDL static libraries for linking [default=no]], [WANT_SDL_STATIC=$enableval], [WANT_SDL_STATIC=no])
+#AC_ARG_ENABLE(sdl-static,    [  --enable-sdl-static     use SDL static libraries for linking [default=no]], [WANT_SDL_STATIC=$enableval], [WANT_SDL_STATIC=no])
 
 dnl JIT compiler options.
 AC_ARG_ENABLE(jit-compiler,  [  --enable-jit-compiler   enable JIT compiler [default=yes]], [WANT_JIT=$enableval], [WANT_JIT=yes])
@@ -527,16 +527,16 @@ dnl We really want SDL for now
 AC_CHECK_TOOL(sdl_config, sdl2-config, [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
 SDL_CFLAGS=`$sdl_config --cflags`
 AC_SUBST(SDL_CFLAGS)
-if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
+#if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
   SDL_LIBS=`$sdl_config --static-libs`
-  sdl_prefix=`$sdl_config --exec-prefix`
-  if [[ -n "$sdl_prefix" ]]; then
-    SDL_LIBS=`echo "$SDL_LIBS" | sed -e "s,-l\(SDLmain\|SDL\),$sdl_prefix/lib/lib\1.a,g"`
-  fi
-  SDL_LIBS="$SDL_LIBS -lwinmm"
-else
-  SDL_LIBS=`$sdl_config --libs`
-fi
+#  sdl_prefix=`$sdl_config --exec-prefix`
+#  if [[ -n "$sdl_prefix" ]]; then
+#    SDL_LIBS=`echo "$SDL_LIBS" | sed -e "s,-l\(SDLmain\|SDL\),$sdl_prefix/lib/lib\1.a,g"`
+#  fi
+#  SDL_LIBS="$SDL_LIBS -lwinmm"
+#else
+#  SDL_LIBS=`$sdl_config --libs`
+#fi
 AC_SUBST(SDL_LIBS)
 AC_DEFINE(USE_SDL, 1, [Define to enble SDL support])
 AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support])
