@@ -30,6 +30,8 @@
 
 #include <unistd.h>
 
+#include "SDL.h"
+
 // NSInteger was added in 10.5 SDK.
 #if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   #if __LP64__ || NS_BUILD_32_LIKE_64
@@ -478,6 +480,10 @@ static NSString *makeRelativeIfNecessary(NSString *path)
   [[self window] close];
   [NSApp stopModal];
   cancelWasClicked = NO;
+
+  // quit
+  SDL_Event event = { .type = SDL_QUIT };
+  SDL_PushEvent(&event);
 }
 
 - (BOOL) cancelWasClicked

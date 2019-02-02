@@ -106,7 +106,7 @@ static uint32 fs_data = 0;		// Mac address of global data
 static char FS_NAME[32], VOLUME_NAME[32];
 
 // This directory is our root (read from prefs)
-static const char *RootPath;
+static char RootPath[MAX_PATH_LENGTH];
 static bool ready = false;
 static struct stat root_stat;
 
@@ -196,7 +196,7 @@ static uint32 get_creation_time(const char *path)
 {
 	if (path == NULL)
 		return 0;
-	if (path == RootPath) {
+	if (!strcmp(path, RootPath)) {
 		static uint32 root_crtime = UINT_MAX;
 		if (root_crtime == UINT_MAX)
 			root_crtime = do_get_creation_time(path);
@@ -435,7 +435,11 @@ void ExtFSInit(void)
 	p->guest_name[31] = 0;
 
 	// Find path for root
-	if ((RootPath = PrefsFindString("extfs")) != NULL) {
+	*RootPath = 0;
+	const char *path = PrefsFindString("extfs");
+	if (path != NULL) {
+		strncpy(RootPath, path, MAX_PATH_LENGTH - 1);
+		RootPath[MAX_PATH_LENGTH - 1] = 0;
 		if (stat(RootPath, &root_stat))
 			return;
 		if (!S_ISDIR(root_stat.st_mode))
