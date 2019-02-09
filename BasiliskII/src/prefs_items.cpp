@@ -76,6 +76,7 @@ prefs_desc common_prefs_items[] = {
 	{"scale_nearest",TYPE_BOOLEAN,false,"nearest neighbor scaling"},
 	{"scale_integer",TYPE_BOOLEAN,false,"integer scaling"},
 	{"yearofs", TYPE_INT32, 0,			"year offset"},
+	{"dayofs", TYPE_INT32, 0,			"day offset"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
