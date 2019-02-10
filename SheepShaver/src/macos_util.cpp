@@ -335,6 +335,7 @@ uint32 TimeToMacTime(time_t t)
 #endif
 	const int TM_EPOCH_YEAR = 1900;
 	const int MAC_EPOCH_YEAR = 1904;
+	// Clip year and day offsets to prevent dates earlier than 1-Jan-1904
 	local->tm_year = std::max(MAC_EPOCH_YEAR - TM_EPOCH_YEAR, local->tm_year - PrefsFindInt32("yearofs"));
 	int a4 = ((local->tm_year + TM_EPOCH_YEAR) >> 2) - !(local->tm_year & 3);
 	int b4 = (MAC_EPOCH_YEAR >> 2) - !(MAC_EPOCH_YEAR & 3);
@@ -344,7 +345,10 @@ uint32 TimeToMacTime(time_t t)
 	int b400 = b100 >> 2;
 	int intervening_leap_days = (a4 - b4) - (a100 - b100) + (a400 - b400);
 	uint32 days = local->tm_yday + 365 * (local->tm_year - 4) + intervening_leap_days;
-	return local->tm_sec + 60 * (local->tm_min + 60 * (local->tm_hour + 24 * days));
+	int32 dayofs = PrefsFindInt32("dayofs");
+	if(dayofs > 0 && dayofs > days)
+		dayofs = days;
+	return local->tm_sec + 60 * (local->tm_min + 60 * (local->tm_hour + 24 * (days - dayofs)));
 }
 
 

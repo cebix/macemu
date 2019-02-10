@@ -64,6 +64,7 @@ prefs_desc common_prefs_items[] = {
 	{"scale_integer",TYPE_BOOLEAN,false,"integer scaling"},
 	{"cpuclock", TYPE_INT32, 0,			"CPU clock [MHz] of system info"},
 	{"yearofs", TYPE_INT32, 0,			"year offset"},
+	{"dayofs", TYPE_INT32, 0,			"day offset"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
