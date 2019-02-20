@@ -2136,19 +2136,6 @@ static void handle_events(void)
 					ADBMouseDown(1);
 				else if (button == SDL_BUTTON_MIDDLE)
 					ADBMouseDown(2);
-				else if (button < 6) {	// Wheel mouse
-					if (mouse_wheel_mode == 0) {
-						int key = (button == 5) ? 0x79 : 0x74;	// Page up/down
-						ADBKeyDown(key);
-						ADBKeyUp(key);
-					} else {
-						int key = (button == 5) ? 0x3d : 0x3e;	// Cursor up/down
-						for(int i=0; i<mouse_wheel_lines; i++) {
-							ADBKeyDown(key);
-							ADBKeyUp(key);
-						}
-					}
-				}
 				break;
 			}
 			case SDL_MOUSEBUTTONUP: {
@@ -2170,6 +2157,22 @@ static void handle_events(void)
 					drv->mouse_moved(event.motion.x, event.motion.y);
 				}
 				break;
+
+			case SDL_MOUSEWHEEL:
+				if (!event.wheel.y) break;
+				if (!mouse_wheel_mode) {
+					int key = event.wheel.y < 0 ? 0x79 : 0x74;	// Page up/down
+					ADBKeyDown(key);
+					ADBKeyUp(key);
+				}
+				else {
+					int key = event.wheel.y < 0 ? 0x3d : 0x3e;	// Cursor up/down
+					for (int i = 0; i < mouse_wheel_lines; i++) {
+						ADBKeyDown(key);
+						ADBKeyUp(key);
+					}
+				}
+			break;
 
 			// Keyboard
 			case SDL_KEYDOWN: {
