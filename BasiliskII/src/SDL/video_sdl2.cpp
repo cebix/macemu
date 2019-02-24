@@ -705,7 +705,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
     
 	int window_width = width;
 	int window_height = height;
-    Uint32 window_flags = 0;
+	Uint32 window_flags = SDL_WINDOW_ALLOW_HIGHDPI;
 	const int window_flags_to_monitor = SDL_WINDOW_FULLSCREEN;
 	
 	if (flags & SDL_WINDOW_FULLSCREEN) {
