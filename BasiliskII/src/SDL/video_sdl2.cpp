@@ -460,15 +460,9 @@ static inline int sdl_display_height(void)
 	return height;
 }
 
-// Check wether specified mode is available
+// Check whether specified mode is available
 static bool has_mode(int type, int width, int height, int depth)
 {
-#ifdef SHEEPSHAVER
-	// Filter out Classic resolutions
-	if (width == 512 && height == 384)
-		return false;
-#endif
-
 	// Filter out out-of-bounds resolutions
 	if (width > sdl_display_width() || height > sdl_display_height())
 		return false;
@@ -1385,6 +1379,19 @@ bool VideoInit(bool classic)
 		int h;
 		int resolution_id;
 	}
+#ifdef SHEEPSHAVER
+	// Omit Classic resolutions
+	video_modes[] = {
+		{   -1,   -1, 0x80 },
+		{  640,  480, 0x81 },
+		{  800,  600, 0x82 },
+		{ 1024,  768, 0x83 },
+		{ 1152,  870, 0x84 },
+		{ 1280, 1024, 0x85 },
+		{ 1600, 1200, 0x86 },
+		{ 0, }
+	};
+#else
 	video_modes[] = {
 		{   -1,   -1, 0x80 },
 		{  512,  384, 0x80 },
@@ -1396,6 +1403,7 @@ bool VideoInit(bool classic)
 		{ 1600, 1200, 0x86 },
 		{ 0, }
 	};
+#endif
 	video_modes[0].w = default_width;
 	video_modes[0].h = default_height;
 
