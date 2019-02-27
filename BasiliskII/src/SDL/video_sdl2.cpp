@@ -875,6 +875,8 @@ static int present_sdl_video()
 	SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 0);	// Use black
 	SDL_RenderClear(sdl_renderer);						// Clear the display
 	
+	// We're about to work with sdl_update_video_rect, so stop other threads from
+	// modifying it!
 	LOCK_PALETTE;
 	SDL_LockMutex(sdl_update_video_mutex);
     // Convert from the guest OS' pixel format, to the host OS' texture, if necessary.
@@ -890,11 +892,7 @@ static int present_sdl_video()
 			return -1;
 		}
 	}
-	UNLOCK_PALETTE;
-
-	// We're about to work with sdl_update_video_rect, so stop other threads from
-	// modifying it!
-//	SDL_LockMutex(sdl_update_video_mutex);
+	UNLOCK_PALETTE; // passed potential deadlock, can unlock palette
 	
     // Update the host OS' texture
     void * srcPixels = (void *)((uint8_t *)host_surface->pixels +
