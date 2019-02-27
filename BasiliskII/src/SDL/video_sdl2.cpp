@@ -875,23 +875,24 @@ static int present_sdl_video()
 	SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 0);	// Use black
 	SDL_RenderClear(sdl_renderer);						// Clear the display
 	
+	// We're about to work with sdl_update_video_rect, so stop other threads from
+	// modifying it!
+	LOCK_PALETTE;
+	SDL_LockMutex(sdl_update_video_mutex);
     // Convert from the guest OS' pixel format, to the host OS' texture, if necessary.
     if (host_surface != guest_surface &&
 		host_surface != NULL &&
 		guest_surface != NULL)
 	{
 		SDL_Rect destRect = sdl_update_video_rect;
-		LOCK_PALETTE;
-		SDL_LockMutex(sdl_update_video_mutex);
 		int result = SDL_BlitSurface(guest_surface, &sdl_update_video_rect, host_surface, &destRect);
-		SDL_UnlockMutex(sdl_update_video_mutex);
-		UNLOCK_PALETTE;
-		if (result != 0) return -1;
+		if (result != 0) {
+			SDL_UnlockMutex(sdl_update_video_mutex);
+			UNLOCK_PALETTE;
+			return -1;
+		}
 	}
-
-	// We're about to work with sdl_update_video_rect, so stop other threads from
-	// modifying it!
-	SDL_LockMutex(sdl_update_video_mutex);
+	UNLOCK_PALETTE; // passed potential deadlock, can unlock palette
 	
     // Update the host OS' texture
     void * srcPixels = (void *)((uint8_t *)host_surface->pixels +
