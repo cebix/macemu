@@ -1126,7 +1126,7 @@
 					_REENTRANT,
 				);
 				HEADER_SEARCH_PATHS = (
-					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
+					/Library/Frameworks/SDL2.framework/Headers/,
 					./config/,
 					../Unix,
 					../MacOSX/Launcher,
@@ -1163,7 +1163,7 @@
 					_REENTRANT,
 				);
 				HEADER_SEARCH_PATHS = (
-					/Library/Frameworks/SDL.framework/Versions/A/Headers/,
+					/Library/Frameworks/SDL2.framework/Headers/,
 					./config/,
 					../Unix,
 					../MacOSX/Launcher,
