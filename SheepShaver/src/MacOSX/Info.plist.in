@@ -28,7 +28,7 @@
 				<string>sheepvm</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>SheepShaver.icns</string>
+			<string>SheepVM.icns</string>
 			<key>CFBundleTypeName</key>
 			<string>SheepShaver VM</string>
 			<key>CFBundleTypeRole</key>
