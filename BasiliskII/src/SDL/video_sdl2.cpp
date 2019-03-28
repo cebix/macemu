@@ -942,6 +942,34 @@ void update_sdl_video(SDL_Surface *s, Sint32 x, Sint32 y, Sint32 w, Sint32 h)
     update_sdl_video(s, 1, &temp);
 }
 
+#ifdef SHEEPSHAVER
+static void MagBits(Uint8 *dst, Uint8 *src, int mag) {
+	for (int y = 0; y < 16; y++)
+		for (int x = 0; x < 16; x++) {
+			int sa = 16 * y + x;
+			if (!(src[sa >> 3] & 0x80 >> (sa & 7))) continue;
+			for (int dy = 0; dy < mag; dy++)
+				for (int dx = 0; dx < mag; dx++) {
+					int da = 16 * mag * (mag * y + dy) + mag * x + dx;
+					dst[da >> 3] |= 0x80 >> (da & 7);
+				}
+		}
+}
+static SDL_Cursor *MagCursor(bool hot) {
+	float sx, sy;
+	SDL_RenderGetScale(sdl_renderer, &sx, &sy);
+	int mag = std::min(sx, sy);
+	Uint8 *data = (Uint8 *)SDL_calloc(1, 32 * mag * mag);
+	Uint8 *mask = (Uint8 *)SDL_calloc(1, 32 * mag * mag);
+	MagBits(data, &MacCursor[4], mag);
+	MagBits(mask, &MacCursor[36], mag);
+	SDL_Cursor *cursor = SDL_CreateCursor(data, mask, 16 * mag, 16 * mag, hot ? MacCursor[2] : 0, hot ? MacCursor[3] : 0);
+	SDL_free(data);
+	SDL_free(mask);
+	return cursor;
+}
+#endif
+
 void driver_base::set_video_mode(int flags)
 {
 	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
@@ -1018,7 +1046,7 @@ void driver_base::adapt_to_video_mode() {
 	hardware_cursor = video_can_change_cursor();
 	if (hardware_cursor) {
 		// Create cursor
-		if ((sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, 0, 0)) != NULL) {
+		if ((sdl_cursor = MagCursor(false)) != NULL) {
 			SDL_SetCursor(sdl_cursor);
 		}
 	}
@@ -1816,10 +1844,7 @@ void SDL_monitor_desc::switch_to_current_mode(void)
 #ifdef SHEEPSHAVER
 bool video_can_change_cursor(void)
 {
-	if (display_type != DISPLAY_WINDOW || !PrefsFindBool("hardcursor"))
-		return false;
-
-	return true;
+	return PrefsFindBool("hardcursor") && (display_type == DISPLAY_WINDOW || PrefsFindBool("scale_integer"));
 }
 #endif
 
@@ -1834,7 +1859,7 @@ void video_set_cursor(void)
 	// Set new cursor image if it was changed
 	if (sdl_cursor) {
 		SDL_FreeCursor(sdl_cursor);
-		sdl_cursor = SDL_CreateCursor(MacCursor + 4, MacCursor + 36, 16, 16, MacCursor[2], MacCursor[3]);
+		sdl_cursor = MagCursor(true);
 		if (sdl_cursor) {
 			SDL_ShowCursor(private_data == NULL || private_data->cursorVisible);
 			SDL_SetCursor(sdl_cursor);
