@@ -963,7 +963,7 @@ static SDL_Cursor *MagCursor(bool hot) {
 	Uint8 *mask = (Uint8 *)SDL_calloc(1, 32 * mag * mag);
 	MagBits(data, &MacCursor[4], mag);
 	MagBits(mask, &MacCursor[36], mag);
-	SDL_Cursor *cursor = SDL_CreateCursor(data, mask, 16 * mag, 16 * mag, hot ? MacCursor[2] : 0, hot ? MacCursor[3] : 0);
+	SDL_Cursor *cursor = SDL_CreateCursor(data, mask, 16 * mag, 16 * mag, hot ? MacCursor[2] * mag : 0, hot ? MacCursor[3] * mag : 0);
 	SDL_free(data);
 	SDL_free(mask);
 	return cursor;
