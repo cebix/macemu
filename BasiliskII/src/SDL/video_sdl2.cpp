@@ -2287,6 +2287,9 @@ static void handle_events(void)
 
 			// Window "close" widget clicked
 			case SDL_QUIT:
+#ifdef WIN32
+				if (SDL_GetModState() & (KMOD_LALT | KMOD_RALT)) break;
+#endif
 				ADBKeyDown(0x7f);	// Power key
 				ADBKeyUp(0x7f);
 				break;
