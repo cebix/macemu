@@ -956,9 +956,9 @@ static void MagBits(Uint8 *dst, Uint8 *src, int mag) {
 		}
 }
 static SDL_Cursor *MagCursor(bool hot) {
-	float sx, sy;
-	SDL_RenderGetScale(sdl_renderer, &sx, &sy);
-	int mag = std::min(sx, sy);
+	int w, h;
+	SDL_GetWindowSize(sdl_window, &w, &h);
+	int mag = std::min(w / drv->VIDEO_MODE_X, h / drv->VIDEO_MODE_Y);
 	Uint8 *data = (Uint8 *)SDL_calloc(1, 32 * mag * mag);
 	Uint8 *mask = (Uint8 *)SDL_calloc(1, 32 * mag * mag);
 	MagBits(data, &MacCursor[4], mag);
@@ -2287,9 +2287,7 @@ static void handle_events(void)
 
 			// Window "close" widget clicked
 			case SDL_QUIT:
-#ifdef WIN32
 				if (SDL_GetModState() & (KMOD_LALT | KMOD_RALT)) break;
-#endif
 				ADBKeyDown(0x7f);	// Power key
 				ADBKeyUp(0x7f);
 				break;
