@@ -18,6 +18,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#ifndef MACOSX_SOUND_IF
+#define MACOSX_SOUND_IF
 
 typedef int (*audioCallback)(void);
 
@@ -39,3 +41,5 @@ class OSXsoundOutput {
   unsigned int bufferSizeFrames();
   int sendAudioBuffer(void *buffer, int numFrames);
 };
+
+#endif

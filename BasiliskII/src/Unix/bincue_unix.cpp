@@ -91,6 +91,7 @@ typedef struct {
 	unsigned int length;	// Track length in frames
 	loff_t fileoffset;		// Track frame start within file
 	unsigned int pregap;	// Silence in frames to generate
+	unsigned int postgap;	// Silence in frames to generate at end
 	unsigned char tcf;		// Track control field
 } Track;
 
@@ -342,8 +343,18 @@ static bool ParseCueSheet(FILE *fh, CueSheet *cs, const char *cuefile)
 				}
 				curr->pregap = MSFToFrames(msf);
 
+			} else if (!strcmp("POSTGAP", keyword)) {
+				MSF msf;
+				char *field = strtok(NULL, " \t\n\r");
+				if (3 != sscanf(field, "%d:%d:%d",
+								&msf.m, &msf.s, &msf.f)) {
+					D(bug("Expected postgap frame\n"));
+					goto fail;
+				}
+				curr->postgap = MSFToFrames(msf);
+				
 				// Ignored directives
-
+				
 			} else if (!strcmp("TITLE", keyword)) {
 			} else if (!strcmp("PERFORMER", keyword)) {
 			} else if (!strcmp("REM", keyword)) {

@@ -19,6 +19,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef USE_SDL_AUDIO
+
 #include "sysdeps.h"
 
 #include <sys/ioctl.h>
@@ -269,3 +271,5 @@ static int audioInt(void)
 	TriggerInterrupt();
 	return 0;
 }
+
+#endif

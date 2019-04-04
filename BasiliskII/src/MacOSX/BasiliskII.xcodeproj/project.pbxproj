@@ -7,6 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5DDE95192255D076004D0E79 /* AudioDevice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE95132255D076004D0E79 /* AudioDevice.cpp */; };
+		5DDE951A2255D076004D0E79 /* audio_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE95152255D076004D0E79 /* audio_macosx.cpp */; };
+		5DDE951B2255D076004D0E79 /* MacOSX_sound_if.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE95162255D076004D0E79 /* MacOSX_sound_if.cpp */; };
+		5DDE951C2255D076004D0E79 /* AudioBackEnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE95172255D076004D0E79 /* AudioBackEnd.cpp */; };
+		5DDE951E2255D0A9004D0E79 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DDE951D2255D0A9004D0E79 /* CoreAudio.framework */; };
+		5DDE95202255D0B6004D0E79 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DDE951F2255D0B6004D0E79 /* AudioToolbox.framework */; };
+		5DDE95222255D0C2004D0E79 /* AudioUnit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DDE95212255D0C2004D0E79 /* AudioUnit.framework */; };
 		752F26F91F240E51001032B4 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 752F26F81F240E51001032B4 /* Foundation.framework */; };
 		752F26FB1F240E69001032B4 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 752F26FA1F240E69001032B4 /* IOKit.framework */; };
 		752F27011F242BAF001032B4 /* prefs_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 752F27001F242BAF001032B4 /* prefs_sdl.cpp */; };
@@ -192,6 +199,16 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		5DDE95122255D075004D0E79 /* AudioBackEnd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AudioBackEnd.h; sourceTree = "<group>"; };
+		5DDE95132255D076004D0E79 /* AudioDevice.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AudioDevice.cpp; sourceTree = "<group>"; };
+		5DDE95142255D076004D0E79 /* AudioDevice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AudioDevice.h; sourceTree = "<group>"; };
+		5DDE95152255D076004D0E79 /* audio_macosx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = audio_macosx.cpp; sourceTree = "<group>"; };
+		5DDE95162255D076004D0E79 /* MacOSX_sound_if.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MacOSX_sound_if.cpp; sourceTree = "<group>"; };
+		5DDE95172255D076004D0E79 /* AudioBackEnd.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AudioBackEnd.cpp; sourceTree = "<group>"; };
+		5DDE95182255D076004D0E79 /* MacOSX_sound_if.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MacOSX_sound_if.h; sourceTree = "<group>"; };
+		5DDE951D2255D0A9004D0E79 /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
+		5DDE951F2255D0B6004D0E79 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
+		5DDE95212255D0C2004D0E79 /* AudioUnit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioUnit.framework; path = System/Library/Frameworks/AudioUnit.framework; sourceTree = SDKROOT; };
 		752F26F81F240E51001032B4 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		752F26FA1F240E69001032B4 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
 		752F27001F242BAF001032B4 /* prefs_sdl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = prefs_sdl.cpp; sourceTree = "<group>"; };
@@ -426,6 +443,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5DDE95222255D0C2004D0E79 /* AudioUnit.framework in Frameworks */,
+				5DDE95202255D0B6004D0E79 /* AudioToolbox.framework in Frameworks */,
+				5DDE951E2255D0A9004D0E79 /* CoreAudio.framework in Frameworks */,
 				E413D93620D260DA00E437D8 /* SDL2.framework in Frameworks */,
 				756C1B391F25306A00620917 /* AppKit.framework in Frameworks */,
 				752F26FB1F240E69001032B4 /* IOKit.framework in Frameworks */,
@@ -488,6 +508,9 @@
 		752F26F71F240E51001032B4 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				5DDE95212255D0C2004D0E79 /* AudioUnit.framework */,
+				5DDE951F2255D0B6004D0E79 /* AudioToolbox.framework */,
+				5DDE951D2255D0A9004D0E79 /* CoreAudio.framework */,
 				E413D93520D260DA00E437D8 /* SDL2.framework */,
 				756C1B381F25306A00620917 /* AppKit.framework */,
 				752F26FA1F240E69001032B4 /* IOKit.framework */,
@@ -619,6 +642,13 @@
 				756C1B321F252FC100620917 /* utils_macosx.h */,
 				756C1B331F252FC100620917 /* utils_macosx.mm */,
 				7539E02E1F23B25A006B2DF2 /* Versions.html */,
+				5DDE95152255D076004D0E79 /* audio_macosx.cpp */,
+				5DDE95172255D076004D0E79 /* AudioBackEnd.cpp */,
+				5DDE95122255D075004D0E79 /* AudioBackEnd.h */,
+				5DDE95132255D076004D0E79 /* AudioDevice.cpp */,
+				5DDE95142255D076004D0E79 /* AudioDevice.h */,
+				5DDE95162255D076004D0E79 /* MacOSX_sound_if.cpp */,
+				5DDE95182255D076004D0E79 /* MacOSX_sound_if.h */,
 			);
 			name = MacOSX;
 			sourceTree = "<group>";
@@ -1058,6 +1088,7 @@
 				756C1B341F252FC100620917 /* utils_macosx.mm in Sources */,
 				E413D92620D260BC00E437D8 /* misc.c in Sources */,
 				753253321F5368370024025B /* cpuemu.cpp in Sources */,
+				5DDE951C2255D076004D0E79 /* AudioBackEnd.cpp in Sources */,
 				7539E2701F23B32A006B2DF2 /* tinyxml2.cpp in Sources */,
 				7539E1721F23B25A006B2DF2 /* rsrc_patches.cpp in Sources */,
 				7539E2931F23C56F006B2DF2 /* serial_dummy.cpp in Sources */,
@@ -1087,6 +1118,8 @@
 				7539E26C1F23B32A006B2DF2 /* sshpty.c in Sources */,
 				7539E1781F23B25A006B2DF2 /* serial.cpp in Sources */,
 				757A2BF01F5AF9D6003EDB01 /* user_strings_unix.cpp in Sources */,
+				5DDE951B2255D076004D0E79 /* MacOSX_sound_if.cpp in Sources */,
+				5DDE951A2255D076004D0E79 /* audio_macosx.cpp in Sources */,
 				E413D92D20D260BC00E437D8 /* tcp_timer.c in Sources */,
 				E413D92820D260BC00E437D8 /* tcp_subr.c in Sources */,
 				7539E1991F23B25A006B2DF2 /* flags.cpp in Sources */,
@@ -1096,7 +1129,7 @@
 				7539E18E1F23B25A006B2DF2 /* sony.cpp in Sources */,
 				7539E26F1F23B32A006B2DF2 /* timer_unix.cpp in Sources */,
 				7539E12E1F23B25A006B2DF2 /* extfs.cpp in Sources */,
-				7539E23F1F23B32A006B2DF2 /* bincue_unix.cpp in Sources */,
+				5DDE95192255D076004D0E79 /* AudioDevice.cpp in Sources */,
 				7539E12C1F23B25A006B2DF2 /* emul_op.cpp in Sources */,
 				E413D92720D260BC00E437D8 /* debug.c in Sources */,
 				E413D92220D260BC00E437D8 /* mbuf.c in Sources */,
@@ -1119,6 +1152,7 @@
 				7539E2681F23B32A006B2DF2 /* rpc_unix.cpp in Sources */,
 				E413D92F20D260BC00E437D8 /* bootp.c in Sources */,
 				7539E2911F23C56F006B2DF2 /* prefs_editor_dummy.cpp in Sources */,
+				7539E23F1F23B32A006B2DF2 /* bincue_unix.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1358,6 +1392,15 @@
 				GCC_C_LANGUAGE_STANDARD = "compiler-default";
 				GCC_ENABLE_PASCAL_STRINGS = NO;
 				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					HAVE_CONFIG_H,
+					"USE_XCODE=1",
+					"DEBUG=1",
+					"USE_SDL_AUDIO=1",
+					"BINCUE=1",
+					"OSX_CORE_AUDIO=1",
+				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GCC_USE_STANDARD_INCLUDE_SEARCHING = YES;
 				GCC_WARN_CHECK_SWITCH_STATEMENTS = NO;
@@ -1410,6 +1453,14 @@
 				GCC_ENABLE_PASCAL_STRINGS = NO;
 				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
 				GCC_OPTIMIZATION_LEVEL = 3;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					HAVE_CONFIG_H,
+					"USE_XCODE=1",
+					"USE_SDL_AUDIO=1",
+					"OSX_CORE_AUDIO=1",
+					"BINCUE=1",
+				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GCC_USE_STANDARD_INCLUDE_SEARCHING = YES;
 				GCC_WARN_CHECK_SWITCH_STATEMENTS = NO;
