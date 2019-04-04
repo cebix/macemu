@@ -1122,10 +1122,12 @@ void driver_base::update_palette(void)
 
 	if ((int)VIDEO_MODE_DEPTH <= VIDEO_DEPTH_8BIT) {
 		SDL_SetSurfacePalette(s, sdl_palette);
+		SDL_LockMutex(sdl_update_video_mutex);
 		sdl_update_video_rect.x = 0;
 		sdl_update_video_rect.y = 0;
 		sdl_update_video_rect.w = VIDEO_MODE_X;
 		sdl_update_video_rect.h = VIDEO_MODE_Y;
+		SDL_UnlockMutex(sdl_update_video_mutex);
 	}
 }
 
@@ -2538,7 +2540,6 @@ static inline void possibly_ungrab_mouse()
 
 static inline void handle_palette_changes(void)
 {
-	SDL_LockMutex(sdl_update_video_mutex);
 	LOCK_PALETTE;
 
 	if (sdl_palette_changed) {
@@ -2547,7 +2548,6 @@ static inline void handle_palette_changes(void)
 	}
 
 	UNLOCK_PALETTE;
-	SDL_UnlockMutex(sdl_update_video_mutex);
 }
 
 static void video_refresh_window_static(void);
