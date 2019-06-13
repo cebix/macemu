@@ -252,7 +252,7 @@ static void stream_func(void *arg, uint8 *stream, int stream_len)
 silence: memset(stream, silence_byte, stream_len);
 	}
 #if defined(BINCUE)
-	MixAudio_bincue(stream, stream_len);
+	MixAudio_bincue(stream, stream_len, audio_volume);
 #endif
 }
 

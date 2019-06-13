@@ -115,6 +115,9 @@ typedef struct {
 #ifdef OSX_CORE_AUDIO
 	OSXsoundOutput soundoutput;
 #endif
+#ifdef USE_SDL_AUDIO
+	SDL_AudioStream *stream;
+#endif
 } CDPlayer;
 
 // Minute,Second,Frame data type
@@ -810,25 +813,49 @@ static uint8 *fill_buffer(int stream_len)
 
 
 #ifdef USE_SDL_AUDIO
-void MixAudio_bincue(uint8 *stream, int stream_len)
+void MixAudio_bincue(uint8 *stream, int stream_len, int volume)
 {
+//	if (audio_enabled && (player.audiostatus == CDROM_AUDIO_PLAY)) {
+//		uint8 *buf = fill_buffer(stream_len);
+//		if (buf)
+//			SDL_MixAudio(stream, buf, stream_len, volume);
+//	}
 	if (audio_enabled && (player.audiostatus == CDROM_AUDIO_PLAY)) {
 		uint8 *buf = fill_buffer(stream_len);
 		if (buf)
-			SDL_MixAudio(stream, buf, stream_len, SDL_MIX_MAXVOLUME);
+			SDL_AudioStreamPut(player.stream, buf, stream_len);
+		int avail = SDL_AudioStreamAvailable(player.stream);
+		if (avail >= stream_len) {
+			uint8 converted[stream_len];
+			SDL_AudioStreamGet(player.stream, converted, stream_len);
+			SDL_MixAudio(stream, converted, stream_len, volume);
+		}
 	}
 }
 
 void OpenAudio_bincue(int freq, int format, int channels, uint8 silence)
 {
-	if (freq == 44100 && format == AUDIO_S16MSB && channels == 2) {
+//	audio_enabled = true;
+//	silence_byte = silence;
+	// audio stream handles converting cd audio to destination output
+	player.stream = SDL_NewAudioStream(AUDIO_S16LSB, 2, 44100, format, channels, freq);
+	if (player.stream == NULL) {
+		D(bug("Failed to open CD player audio stream using SDL!"));
+	}
+	else {
 		audio_enabled = true;
 		silence_byte = silence;
 	}
-	else {
-		D(bug("unexpected frequency %d , format %d, or channels %d\n",
-			  freq, format, channels));
-	}
+//	audio_enabled = true;
+//	silence_byte = silence;
+//	if (freq == 44100 && format == AUDIO_S16MSB && channels == 2) {
+//		audio_enabled = true;
+//		silence_byte = silence;
+//	}
+//	else {
+//		D(bug("unexpected frequency %d , format %d, or channels %d\n",
+//			  freq, format, channels));
+//	}
 }
 #endif
 

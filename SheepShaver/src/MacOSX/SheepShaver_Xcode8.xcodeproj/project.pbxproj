@@ -1291,7 +1291,6 @@
 					_THREAD_SAFE,
 					_REENTRANT,
 					"BINCUE=1",
-					"OSX_CORE_AUDIO=1",
 					"USE_SDL_AUDIO=1",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
@@ -1354,7 +1353,6 @@
 					_THREAD_SAFE,
 					_REENTRANT,
 					"BINCUE=1",
-					"OSX_CORE_AUDIO=1",
 					"USE_SDL_AUDIO=1",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;

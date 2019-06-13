@@ -37,7 +37,7 @@ extern bool CDStop_bincue(void *);
 
 #ifdef USE_SDL_AUDIO
 extern void OpenAudio_bincue(int, int, int, uint8);
-extern void MixAudio_bincue(uint8 *, int);
+extern void MixAudio_bincue(uint8 *, int, int);
 #endif
 
 #endif
