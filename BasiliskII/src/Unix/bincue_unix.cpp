@@ -58,8 +58,8 @@ static int bincue_core_audio_callback(void);
 #define MAXTRACK 100
 #define MAXLINE 512
 #define CD_FRAMES 75
-#define RAW_SECTOR_SIZE		2352
-#define COOKED_SECTOR_SIZE	2048
+//#define RAW_SECTOR_SIZE		2352
+//#define COOKED_SECTOR_SIZE	2048
 
 // Bits of Track Control Field -- These are standard for scsi cd players
 
@@ -100,7 +100,10 @@ typedef struct {
 	unsigned int length;	// file length in frames
 	int binfh;				// binary file handle
 	int tcnt;				// number of tracks
-	Track tracks[MAXTRACK];
+	Track tracks[MAXTRACK]; // Track management
+	int raw_sector_size;	// Raw bytes to read per sector
+	int cooked_sector_size; // Actual data bytes per sector (depends on Mode)
+	int header_size;		// Number of bytes used in header
 } CueSheet;
 
 typedef struct {
@@ -185,7 +188,7 @@ static bool AddTrack(CueSheet *cs)
 		}
 	}
 
-	curr->fileoffset = curr->start * RAW_SECTOR_SIZE;
+	curr->fileoffset = curr->start * cs->raw_sector_size;
 
 	// now we patch up the indicated time
 
@@ -301,8 +304,21 @@ static bool ParseCueSheet(FILE *fh, CueSheet *cs, const char *cuefile)
 				// parse track type
 
 				field = strtok(NULL, " \t\n\r");
-				if (!strcmp("MODE1/2352", field)) {
+				if (!strcmp("MODE1/2352", field)) { // red-book CD-ROM standard
 					curr->tcf = DATA;
+					cs->raw_sector_size = 2352;
+					cs->cooked_sector_size = 2048;
+					cs->header_size = 16; // remaining 288 bytes for error detection
+				} else if (!strcmp("MODE2/2352", field)) { // yellow-book CD-ROM standard
+					curr->tcf = DATA;
+					cs->raw_sector_size = 2352;
+					cs->cooked_sector_size = 2336; // no error bytes at end
+					cs->header_size = 16;
+				} else if (!strcmp("MODE1/2048", field)) { // pure data CD-ROM
+					curr->tcf = DATA;
+					cs->raw_sector_size = 2048;
+					cs->cooked_sector_size = 2048;
+					cs->header_size = 0; // no header or error bytes
 				} else if (!strcmp("AUDIO", field)) {
 					curr->tcf = AUDIO;
 				} else {
@@ -406,7 +422,7 @@ static bool LoadCueSheet(const char *cuefile, CueSheet *cs)
 
 
 		tlast = &cs->tracks[cs->tcnt - 1];
-		tlast->length = buf.st_size/RAW_SECTOR_SIZE 
+		tlast->length = buf.st_size/cs->raw_sector_size
 						- tlast->start + totalPregap;
 
 		if (tlast->length < 0) {
@@ -416,7 +432,7 @@ static bool LoadCueSheet(const char *cuefile, CueSheet *cs)
 
 		// save bin file length and pointer
 
-		cs->length = buf.st_size/RAW_SECTOR_SIZE;
+		cs->length = buf.st_size/cs->raw_sector_size;
 		cs->binfh = binfh;
 
 		fclose(fh);
@@ -473,9 +489,12 @@ void close_bincue(void *fh)
 /*
  * File read (cooked)
  * Data are stored in raw sectors of which only COOKED_SECTOR_SIZE
- * bytes are valid -- the remaining include 16 bytes at the beginning
+ * bytes are valid -- the remaining include header bytes at the beginning
  * of each raw sector and RAW_SECTOR_SIZE - COOKED_SECTOR_SIZE - bytes
- * at the end
+ * at the end for error correction
+ *
+ * The actual number of bytes used for header, raw, cooked, error depend
+ * on mode specified in the cuesheet
  *
  * We assume that a read request can land in the middle of
  * sector.  We compute the byte address of that sector (sec)
@@ -487,19 +506,19 @@ void close_bincue(void *fh)
 
 size_t read_bincue(void *fh, void *b, loff_t offset, size_t len)
 {
+	CueSheet *cs = (CueSheet *) fh;
+	
 	size_t bytes_read = 0;						// bytes read so far
 	unsigned char *buf = (unsigned char *) b;	// target buffer
-	unsigned char secbuf[RAW_SECTOR_SIZE];		// temporary buffer
+	unsigned char secbuf[cs->raw_sector_size];		// temporary buffer
 
-	off_t sec = ((offset/COOKED_SECTOR_SIZE) * RAW_SECTOR_SIZE);
-	off_t secoff = offset % COOKED_SECTOR_SIZE;
+	off_t sec = ((offset/cs->cooked_sector_size) * cs->raw_sector_size);
+	off_t secoff = offset % cs->cooked_sector_size;
 
 	// sec contains location (in bytes) of next raw sector to read
 	// secoff contains offset within that sector at which to start
 	// reading since we can request a read that starts in the middle
 	// of a sector
-
-	CueSheet *cs = (CueSheet *) fh;
 
 	if (cs == NULL || lseek(cs->binfh, sec, SEEK_SET) < 0) {
 		return -1;
@@ -509,19 +528,19 @@ size_t read_bincue(void *fh, void *b, loff_t offset, size_t len)
 		// bytes available in next raw sector or len (bytes)
 		// we want whichever is less
 
-		size_t available = COOKED_SECTOR_SIZE - secoff;
+		size_t available = cs->cooked_sector_size - secoff;
 		available = (available > len) ? len : available;
 
 		// read the next raw sector
 
-		if (read(cs->binfh, secbuf, RAW_SECTOR_SIZE) != RAW_SECTOR_SIZE) {
+		if (read(cs->binfh, secbuf, cs->raw_sector_size) != cs->raw_sector_size) {
 			return bytes_read;
 		}
 
-		// copy cooked sector bytes (skip first 16)
+		// copy cooked sector bytes (skip header if needed, typically 16 bytes)
 		// we want out of those available
 
-		bcopy(&secbuf[16+secoff], &buf[bytes_read], available);
+		bcopy(&secbuf[cs->header_size+secoff], &buf[bytes_read], available);
 
 		// next sector we start at the beginning
 
@@ -538,7 +557,7 @@ size_t read_bincue(void *fh, void *b, loff_t offset, size_t len)
 loff_t size_bincue(void *fh)
 {
 	if (fh) {
-		return ((CueSheet *)fh)->length * COOKED_SECTOR_SIZE;
+		return ((CueSheet *)fh)->length * ((CueSheet *)fh)->cooked_sector_size;
 	}
 	return 0;
 }
@@ -587,7 +606,7 @@ bool GetPosition_bincue(void *fh, uint8 *pos)
 	CueSheet *cs = (CueSheet *) fh;
 	if (cs && player.cs == cs) {
 		MSF abs, rel;
-		int fpos = player.audioposition / RAW_SECTOR_SIZE + player.audiostart;
+		int fpos = player.audioposition / cs->raw_sector_size + player.audiostart;
 		int trackno = PositionToTrack(cs, fpos);
 
 		if (!audio_enabled)
@@ -597,7 +616,7 @@ bool GetPosition_bincue(void *fh, uint8 *pos)
 		if (trackno < cs->tcnt) {
 			// compute position relative to start of frame
 
-			unsigned int position =  player.audioposition/RAW_SECTOR_SIZE +
+			unsigned int position =  player.audioposition/cs->raw_sector_size +
 				player.audiostart - player.cs->tracks[trackno].start;
 
 			FramesToMSF(position, &rel);
@@ -700,7 +719,7 @@ bool CDPlay_bincue(void *fh, uint8 start_m, uint8 start_s, uint8 start_f,
 			else
 				player.silence = (player.cs->tracks[track].pregap -
 								  player.audiostart +
-								  player.cs->tracks[track].start) * RAW_SECTOR_SIZE;
+								  player.cs->tracks[track].start) * cs->raw_sector_size;
 
 			player.fileoffset = player.cs->tracks[track].fileoffset;
 
@@ -711,12 +730,12 @@ bool CDPlay_bincue(void *fh, uint8 start_m, uint8 start_s, uint8 start_f,
 			if (!player.silence) // not at the beginning
 				player.fileoffset += (player.audiostart - 
 									  player.cs->tracks[track].start -
-									  player.cs->tracks[track].pregap) * RAW_SECTOR_SIZE;
+									  player.cs->tracks[track].pregap) * cs->raw_sector_size;
 
 			FramesToMSF(player.cs->tracks[track].start, &msf);
 			D(bug("CDPlay_bincue track %02d start %02d:%02d:%02d silence %d",
 				player.cs->tracks[track].number, msf.m, msf.s, msf.f,
-				player.silence/RAW_SECTOR_SIZE));
+				player.silence/cs->raw_sector_size));
 			D(bug(" Stop %02u:%02u:%02u\n", end_m, end_s, end_f));
 		}
 		else
@@ -763,7 +782,7 @@ static uint8 *fill_buffer(int stream_len)
 	if (player.audiostatus == CDROM_AUDIO_PLAY) {
 		int remaining_silence = player.silence - player.audioposition;
 
-		if (player.audiostart + player.audioposition/RAW_SECTOR_SIZE
+		if (player.audiostart + player.audioposition/player.cs->raw_sector_size
 			>= player.audioend) {
 			player.audiostatus = CDROM_AUDIO_COMPLETED;
 			return buf;
@@ -781,7 +800,7 @@ static uint8 *fill_buffer(int stream_len)
 
 		int ret = 0;
 		int available = ((player.audioend - player.audiostart) *
-							 RAW_SECTOR_SIZE) - player.audioposition;
+							 player.cs->raw_sector_size) - player.audioposition;
 		if (available > (stream_len - offset))
 			available = stream_len - offset;
 
