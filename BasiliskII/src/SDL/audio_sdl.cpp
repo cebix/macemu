@@ -112,7 +112,7 @@ static bool open_sdl_audio(void)
 
 #if defined(BINCUE)
 	OpenAudio_bincue(audio_spec.freq, audio_spec.format, audio_spec.channels,
-	audio_spec.silence);
+	audio_spec.silence, audio_volume);
 #endif
 
 #if SDL_VERSION_ATLEAST(2,0,0)

@@ -1422,6 +1422,11 @@ void SysCDSetVolume(void *arg, uint8 left, uint8 right)
 	mac_file_handle *fh = (mac_file_handle *)arg;
 	if (!fh)
 		return;
+	
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		CDSetVol_bincue(fh->bincue_fd,left,right);
+#endif
 
 	if (fh->is_cdrom) {
 #if defined(__linux__)
@@ -1450,6 +1455,12 @@ void SysCDGetVolume(void *arg, uint8 &left, uint8 &right)
 		return;
 
 	left = right = 0;
+	
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		CDGetVol_bincue(fh->bincue_fd,&left,&right);
+#endif
+	
 	if (fh->is_cdrom) {
 #if defined(__linux__)
 		cdrom_volctrl vol;

@@ -114,6 +114,9 @@ typedef struct {
 	unsigned int audioend;		// end position if playing (frames)
 	unsigned int silence;		// pregap (silence) bytes
 	unsigned char audiostatus;	// See defines above for status
+	uint8 volume_left;			// CD player volume (left)
+	uint8 volume_right;			// CD player volume (right)
+	uint8 volume_mono;			// CD player single-channel volume
 	loff_t fileoffset;			// offset from file beginning to audiostart
 #ifdef OSX_CORE_AUDIO
 	OSXsoundOutput soundoutput;
@@ -464,6 +467,9 @@ void *open_bincue(const char *name)
 
 		if (LoadCueSheet(name, cs)) {
 			player.cs = cs;
+			player.volume_left = 0;
+			player.volume_right = 0;
+			player.volume_mono = 0;
 #ifdef OSX_CORE_AUDIO
 			audio_enabled = true;
 #endif
@@ -759,6 +765,26 @@ bool CDPlay_bincue(void *fh, uint8 start_m, uint8 start_s, uint8 start_f,
 	return false;
 }
 
+void CDSetVol_bincue(void* fh, uint8 left, uint8 right) {
+	CueSheet *cs = (CueSheet *)fh;
+	if (cs && cs == player.cs) {
+		// Convert from classic Mac's 0-255 to 0-128;
+		// calculate mono mix as well in place of panning
+		player.volume_left = (left*128)/255;
+		player.volume_right = (right*128)/255;
+		player.volume_mono = (player.volume_left + player.volume_right)/2; // use avg
+	}
+}
+
+void CDGetVol_bincue(void* fh, uint8* left, uint8* right) {
+	CueSheet *cs = (CueSheet *)fh;
+	if (cs && cs == player.cs) {
+		// Convert from 0-128 to 0-255 scale
+		*left = (player.volume_left*255)/128;
+		*right = (player.volume_right*255)/128;
+	}
+}
+
 static uint8 *fill_buffer(int stream_len)
 {
 	static uint8 *buf = 0;
@@ -847,15 +873,17 @@ void MixAudio_bincue(uint8 *stream, int stream_len, int volume)
 		if (avail >= stream_len) {
 			uint8 converted[stream_len];
 			SDL_AudioStreamGet(player.stream, converted, stream_len);
-			SDL_MixAudio(stream, converted, stream_len, volume);
+			SDL_MixAudio(stream, converted, stream_len, player.volume_mono);
 		}
 	}
 }
 
-void OpenAudio_bincue(int freq, int format, int channels, uint8 silence)
+void OpenAudio_bincue(int freq, int format, int channels, uint8 silence, int volume)
 {
 //	audio_enabled = true;
 //	silence_byte = silence;
+	// set player volume based on SDL volume
+	player.volume_left = player.volume_right = player.volume_mono = volume;
 	// audio stream handles converting cd audio to destination output
 	player.stream = SDL_NewAudioStream(AUDIO_S16LSB, 2, 44100, format, channels, freq);
 	if (player.stream == NULL) {
