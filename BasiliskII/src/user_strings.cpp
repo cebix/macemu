@@ -243,6 +243,8 @@ user_string_def common_strings[] = {
 	{STR_WINDOW_ITEM_MOUNT, "Mount"},
 	{STR_SUSPEND_WINDOW_TITLE, "Basilisk II suspended. Press space to reactivate."},
 
+    {STR_SOUND_IN_NAME, "\010Built-In"},
+    
 	{STR_EXTFS_NAME, "Host Directory Tree"},
 	{STR_EXTFS_VOLUME_NAME, "Host"},
 

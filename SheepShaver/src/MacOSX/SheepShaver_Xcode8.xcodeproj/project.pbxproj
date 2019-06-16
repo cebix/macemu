@@ -29,7 +29,6 @@
 		0846E4C214B1269600574779 /* basic-dyngen.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDC514A99EEF000B1711 /* basic-dyngen.cpp */; };
 		0846E51314B128ED00574779 /* sheepshaver_glue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CDBB14A99EEF000B1711 /* sheepshaver_glue.cpp */; };
 		0856CFC114A99EF0000B1711 /* adb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD4B14A99EEF000B1711 /* adb.cpp */; };
-		0856CFC214A99EF0000B1711 /* audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD4C14A99EEF000B1711 /* audio.cpp */; };
 		0856CFE614A99EF0000B1711 /* disk.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD7D14A99EEF000B1711 /* disk.cpp */; };
 		0856CFEC14A99EF0000B1711 /* scsi_dummy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD8414A99EEF000B1711 /* scsi_dummy.cpp */; };
 		0856CFEE14A99EF0000B1711 /* emul_op.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0856CD8614A99EEF000B1711 /* emul_op.cpp */; };
@@ -96,6 +95,7 @@
 		5DDE950F2255C8B4004D0E79 /* audio_defs_macosx.h in Headers */ = {isa = PBXBuildFile; fileRef = 5DDE950D2255C8B3004D0E79 /* audio_defs_macosx.h */; };
 		5DDE95102255C8B4004D0E79 /* audio_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE950E2255C8B3004D0E79 /* audio_macosx.cpp */; };
 		5DDE95112255C8B4004D0E79 /* audio_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE950E2255C8B3004D0E79 /* audio_macosx.cpp */; };
+		5DF4CB7F22B5BD5D00512A86 /* audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DF4CB7E22B5BD5D00512A86 /* audio.cpp */; };
 		A7B1921418C35D4700791D8D /* DiskType.m in Sources */ = {isa = PBXBuildFile; fileRef = A7B1921318C35D4700791D8D /* DiskType.m */; };
 		E413A40320CF7E6D00FBE967 /* video_sdl2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E413A40220CF7E6D00FBE967 /* video_sdl2.cpp */; };
 		E4150D1220D557820077C51A /* SDL2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E4150D1120D557820077C51A /* SDL2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -170,7 +170,6 @@
 		0846E55214B12B0D00574779 /* paranoia.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = paranoia.cpp; sourceTree = "<group>"; };
 		0856CCC114A99E1C000B1711 /* SheepShaver.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SheepShaver.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0856CD4B14A99EEF000B1711 /* adb.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = adb.cpp; path = ../adb.cpp; sourceTree = SOURCE_ROOT; };
-		0856CD4C14A99EEF000B1711 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = ../audio.cpp; sourceTree = SOURCE_ROOT; };
 		0856CD7D14A99EEF000B1711 /* disk.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = disk.cpp; path = ../disk.cpp; sourceTree = SOURCE_ROOT; };
 		0856CD8414A99EEF000B1711 /* scsi_dummy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = scsi_dummy.cpp; sourceTree = "<group>"; };
 		0856CD8614A99EEF000B1711 /* emul_op.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = emul_op.cpp; path = ../emul_op.cpp; sourceTree = SOURCE_ROOT; };
@@ -350,6 +349,7 @@
 		5DDE950B2255C895004D0E79 /* AudioBackEnd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AudioBackEnd.h; path = ../../../BasiliskII/src/MacOSX/AudioBackEnd.h; sourceTree = "<group>"; };
 		5DDE950D2255C8B3004D0E79 /* audio_defs_macosx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = audio_defs_macosx.h; path = ../../../BasiliskII/src/MacOSX/audio_defs_macosx.h; sourceTree = "<group>"; };
 		5DDE950E2255C8B3004D0E79 /* audio_macosx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio_macosx.cpp; path = ../../../BasiliskII/src/MacOSX/audio_macosx.cpp; sourceTree = "<group>"; };
+		5DF4CB7E22B5BD5D00512A86 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = ../../../BasiliskII/src/audio.cpp; sourceTree = "<group>"; };
 		A7B1921218C35D4700791D8D /* DiskType.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DiskType.h; sourceTree = "<group>"; };
 		A7B1921318C35D4700791D8D /* DiskType.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DiskType.m; sourceTree = "<group>"; };
 		E413A40220CF7E6D00FBE967 /* video_sdl2.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = video_sdl2.cpp; path = ../../../BasiliskII/src/SDL/video_sdl2.cpp; sourceTree = "<group>"; };
@@ -477,7 +477,7 @@
 			children = (
 				087B91B11B780EC900825F7F /* CrossPlatform */,
 				0856CD4B14A99EEF000B1711 /* adb.cpp */,
-				0856CD4C14A99EEF000B1711 /* audio.cpp */,
+				5DF4CB7E22B5BD5D00512A86 /* audio.cpp */,
 				5D55CB3F225584D000FF8E81 /* cdrom.cpp */,
 				0856CD7D14A99EEF000B1711 /* disk.cpp */,
 				0856CD7E14A99EEF000B1711 /* dummy */,
@@ -1068,13 +1068,13 @@
 				E44C460C20D262B0000583AE /* tcp_subr.c in Sources */,
 				0856CFC114A99EF0000B1711 /* adb.cpp in Sources */,
 				E44C461520D262B0000583AE /* ip_output.c in Sources */,
-				0856CFC214A99EF0000B1711 /* audio.cpp in Sources */,
 				E44C461820D262B0000583AE /* tcp_output.c in Sources */,
 				0856CFE614A99EF0000B1711 /* disk.cpp in Sources */,
 				0856CFEC14A99EF0000B1711 /* scsi_dummy.cpp in Sources */,
 				E44C460E20D262B0000583AE /* sbuf.c in Sources */,
 				0856CFEE14A99EF0000B1711 /* emul_op.cpp in Sources */,
 				0856CFF014A99EF0000B1711 /* ether.cpp in Sources */,
+				5DF4CB7F22B5BD5D00512A86 /* audio.cpp in Sources */,
 				0856CFF314A99EF0000B1711 /* extfs.cpp in Sources */,
 				0856CFF414A99EF0000B1711 /* gfxaccel.cpp in Sources */,
 				0856D00914A99EF0000B1711 /* macos_util.cpp in Sources */,

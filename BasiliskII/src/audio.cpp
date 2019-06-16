@@ -31,6 +31,7 @@
 #include "main.h"
 #include "audio.h"
 #include "audio_defs.h"
+#include "user_strings.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -600,8 +601,9 @@ int16 SoundInStatus(uint32 pb, uint32 dce)
 	uint32 *param = (uint32 *)Mac2HostAddr(pb + csParam);
 	uint32 selector = param[0];
 	D(bug(" selector %c%c%c%c\n", selector >> 24, selector >> 16, selector >> 8, selector));
-	switch (selector) {
-#if 0
+	uint32 selector_flipped = bswap_32(selector); // endianness of selector needs swapping?
+	switch (selector_flipped) {
+//#if 0
 		case siDeviceName: {
 			const char *str = GetString(STR_SOUND_IN_NAME);
 			param[0] = 0;
@@ -610,6 +612,7 @@ int16 SoundInStatus(uint32 pb, uint32 dce)
 		}
 
 		case siDeviceIcon: {
+            return -192; // early return: 68k code causes crash in sheep and link error in basilisk
 			M68kRegisters r;
 			static const uint8 proc[] = {
 				0x55, 0x8f,							// 	subq.l	#2,sp
@@ -641,7 +644,7 @@ int16 SoundInStatus(uint32 pb, uint32 dce)
 			} else
 				return -192;		// resNotFound
 		}
-#endif
+//#endif
 		default:
 			return -231;	// siUnknownInfoType
 	}
