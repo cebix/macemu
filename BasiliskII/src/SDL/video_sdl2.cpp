@@ -2105,7 +2105,7 @@ static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
 			SDL_Keysym const & ks = event->key.keysym;
 			switch (ks.sym) {
 				case SDLK_F5: {
-					if (is_hotkey_down(ks)) {
+					if (is_hotkey_down(ks) && !PrefsFindBool("hardcursor")) {
 						drv->toggle_mouse_grab();
 						return EVENT_DROP_FROM_QUEUE;
 					}
