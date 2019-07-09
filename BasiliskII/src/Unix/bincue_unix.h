@@ -34,6 +34,7 @@ extern bool CDPlay_bincue(void *, uint8, uint8,
 extern bool CDPause_bincue(void *);
 extern bool CDResume_bincue(void *);
 extern bool CDStop_bincue(void *);
+extern bool CDScan_bincue(void *, uint8, uint8, uint8, bool);
 extern void CDSetVol_bincue(void *, uint8, uint8);
 extern void CDGetVol_bincue(void *, uint8 *, uint8 *);
 

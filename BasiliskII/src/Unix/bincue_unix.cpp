@@ -765,6 +765,15 @@ bool CDPlay_bincue(void *fh, uint8 start_m, uint8 start_s, uint8 start_f,
 	return false;
 }
 
+bool CDScan_bincue(void *fh, uint8 start_m, uint8 start_s, uint8 start_f, bool reverse) {
+	CueSheet *cs = (CueSheet *)fh;
+	if (cs && cs == player.cs) {
+		// stub
+		return true;
+	}
+    return false;
+}
+
 void CDSetVol_bincue(void* fh, uint8 left, uint8 right) {
 	CueSheet *cs = (CueSheet *)fh;
 	if (cs && cs == player.cs) {

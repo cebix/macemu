@@ -1407,8 +1407,13 @@ bool SysCDScan(void *arg, uint8 start_m, uint8 start_s, uint8 start_f, bool reve
 	mac_file_handle *fh = (mac_file_handle *)arg;
 	if (!fh)
 		return false;
-
-	// Not supported under Linux
+	
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		return CDScan_bincue(fh->bincue_fd,start_m,start_s,start_f,reverse);
+#endif
+	
+	// Not supported outside bincue
 	return false;
 }
 
