@@ -1262,6 +1262,7 @@
 					"-lkpx_cpu",
 				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
+				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.sheepshaver;
 				PRODUCT_NAME = SheepShaver;
 				VALID_ARCHS = x86_64;
 				WARNING_LDFLAGS = "";
@@ -1324,6 +1325,7 @@
 					"-lkpx_cpu",
 				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
+				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.sheepshaver;
 				PRODUCT_NAME = SheepShaver;
 				VALID_ARCHS = x86_64;
 			};
