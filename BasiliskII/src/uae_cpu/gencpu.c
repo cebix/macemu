@@ -582,7 +582,7 @@ static void genmovemle (uae_u16 opcode)
 
 static void duplicate_carry (void)
 {
-    printf ("\tCOPY_CARRY;\n");
+    printf ("\tCOPY_CARRY();\n");
 }
 
 typedef enum {
@@ -682,7 +682,7 @@ static void genflags_normal (flagtypes type, wordsizes size, char *value, char *
 
     switch (type) {
      case flag_logical:
-	printf ("\tCLEAR_CZNV;\n");
+	printf ("\tCLEAR_CZNV();\n");
 	printf ("\tSET_ZFLG (%s == 0);\n", vstr);
 	printf ("\tSET_NFLG (%s < 0);\n", vstr);
 	break;
@@ -697,10 +697,10 @@ static void genflags_normal (flagtypes type, wordsizes size, char *value, char *
 	printf ("\tSET_VFLG ((flgs ^ flgo) & (flgn ^ flgo));\n");
 	break;
      case flag_z:
-	printf ("\tSET_ZFLG (GET_ZFLG & (%s == 0));\n", vstr);
+	printf ("\tSET_ZFLG (GET_ZFLG() & (%s == 0));\n", vstr);
 	break;
      case flag_zn:
-	printf ("\tSET_ZFLG (GET_ZFLG & (%s == 0));\n", vstr);
+	printf ("\tSET_ZFLG (GET_ZFLG() & (%s == 0));\n", vstr);
 	printf ("\tSET_NFLG (%s < 0);\n", vstr);
 	break;
      case flag_add:
@@ -926,7 +926,7 @@ static void gen_opcode (unsigned long int opcode)
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	start_brace ();
-	printf ("\tuae_u32 newv = dst - src - (GET_XFLG ? 1 : 0);\n");
+	printf ("\tuae_u32 newv = dst - src - (GET_XFLG() ? 1 : 0);\n");
 	genflags (flag_subx, curi->size, "newv", "src", "dst");
 	genflags (flag_zn, curi->size, "newv", "", "");
 	genastore ("newv", curi->dmode, "dstreg", curi->size, "dst");
@@ -935,14 +935,14 @@ static void gen_opcode (unsigned long int opcode)
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	start_brace ();
-	printf ("\tuae_u16 newv_lo = (dst & 0xF) - (src & 0xF) - (GET_XFLG ? 1 : 0);\n");
+	printf ("\tuae_u16 newv_lo = (dst & 0xF) - (src & 0xF) - (GET_XFLG() ? 1 : 0);\n");
 	printf ("\tuae_u16 newv_hi = (dst & 0xF0) - (src & 0xF0);\n");
 	printf ("\tuae_u16 newv, tmp_newv;\n");
 	printf ("\tint bcd = 0;\n");
 	printf ("\tnewv = tmp_newv = newv_hi + newv_lo;\n");
 	printf ("\tif (newv_lo & 0xF0) { newv -= 6; bcd = 6; };\n");
-	printf ("\tif ((((dst & 0xFF) - (src & 0xFF) - (GET_XFLG ? 1 : 0)) & 0x100) > 0xFF) { newv -= 0x60; }\n");
-	printf ("\tSET_CFLG ((((dst & 0xFF) - (src & 0xFF) - bcd - (GET_XFLG ? 1 : 0)) & 0x300) > 0xFF);\n");
+	printf ("\tif ((((dst & 0xFF) - (src & 0xFF) - (GET_XFLG() ? 1 : 0)) & 0x100) > 0xFF) { newv -= 0x60; }\n");
+	printf ("\tSET_CFLG ((((dst & 0xFF) - (src & 0xFF) - bcd - (GET_XFLG() ? 1 : 0)) & 0x300) > 0xFF);\n");
 	duplicate_carry ();
 	/* Manual says bits NV are undefined though a real 68040 don't change them */
 	if (cpu_level >= xBCD_KEEPS_NV_FLAGS) {
@@ -974,7 +974,7 @@ static void gen_opcode (unsigned long int opcode)
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	start_brace ();
-	printf ("\tuae_u32 newv = dst + src + (GET_XFLG ? 1 : 0);\n");
+	printf ("\tuae_u32 newv = dst + src + (GET_XFLG() ? 1 : 0);\n");
 	genflags (flag_addx, curi->size, "newv", "src", "dst");
 	genflags (flag_zn, curi->size, "newv", "", "");
 	genastore ("newv", curi->dmode, "dstreg", curi->size, "dst");
@@ -983,7 +983,7 @@ static void gen_opcode (unsigned long int opcode)
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	start_brace ();
-	printf ("\tuae_u16 newv_lo = (src & 0xF) + (dst & 0xF) + (GET_XFLG ? 1 : 0);\n");
+	printf ("\tuae_u16 newv_lo = (src & 0xF) + (dst & 0xF) + (GET_XFLG() ? 1 : 0);\n");
 	printf ("\tuae_u16 newv_hi = (src & 0xF0) + (dst & 0xF0);\n");
 	printf ("\tuae_u16 newv, tmp_newv;\n");
 	printf ("\tint cflg;\n");
@@ -1014,7 +1014,7 @@ static void gen_opcode (unsigned long int opcode)
      case i_NEGX:
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	start_brace ();
-	printf ("\tuae_u32 newv = 0 - src - (GET_XFLG ? 1 : 0);\n");
+	printf ("\tuae_u32 newv = 0 - src - (GET_XFLG() ? 1 : 0);\n");
 	genflags (flag_subx, curi->size, "newv", "src", "0");
 	genflags (flag_zn, curi->size, "newv", "", "");
 	genastore ("newv", curi->smode, "srcreg", curi->size, "src");
@@ -1022,7 +1022,7 @@ static void gen_opcode (unsigned long int opcode)
      case i_NBCD:
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	start_brace ();
-	printf ("\tuae_u16 newv_lo = - (src & 0xF) - (GET_XFLG ? 1 : 0);\n");
+	printf ("\tuae_u16 newv_lo = - (src & 0xF) - (GET_XFLG() ? 1 : 0);\n");
 	printf ("\tuae_u16 newv_hi = - (src & 0xF0);\n");
 	printf ("\tuae_u16 newv;\n");
 	printf ("\tint cflg;\n");
@@ -1295,7 +1295,7 @@ static void gen_opcode (unsigned long int opcode)
 	break;
      case i_TRAPV:
 	sync_m68k_pc ();
-	printf ("\tif (GET_VFLG) { Exception(7,m68k_getpc()); goto %s; }\n", endlabelstr);
+	printf ("\tif (GET_VFLG()) { Exception(7,m68k_getpc()); goto %s; }\n", endlabelstr);
 	need_endlabel = 1;
 	break;
      case i_RTR:
@@ -1505,7 +1505,7 @@ static void gen_opcode (unsigned long int opcode)
 	}
 	printf ("\tSET_ZFLG (upper == reg || lower == reg);\n");
 	printf ("\tSET_CFLG_ALWAYS (lower <= upper ? reg < lower || reg > upper : reg > upper || reg < lower);\n");
-	printf ("\tif ((extra & 0x800) && GET_CFLG) { Exception(6,oldpc); goto %s; }\n}\n", endlabelstr);
+	printf ("\tif ((extra & 0x800) && GET_CFLG()) { Exception(6,oldpc); goto %s; }\n}\n", endlabelstr);
 	need_endlabel = 1;
 	break;
 
@@ -1521,7 +1521,7 @@ static void gen_opcode (unsigned long int opcode)
 	}
 	printf ("\tuae_u32 sign = (%s & val) >> %d;\n", cmask (curi->size), bit_size (curi->size) - 1);
 	printf ("\tcnt &= 63;\n");
-	printf ("\tCLEAR_CZNV;\n");
+	printf ("\tCLEAR_CZNV();\n");
 	printf ("\tif (cnt >= %d) {\n", bit_size (curi->size));
 	printf ("\t\tval = %s & (uae_u32)-(uae_s32)sign;\n", bit_mask (curi->size));
 	printf ("\t\tSET_CFLG (sign);\n");
@@ -1553,7 +1553,7 @@ static void gen_opcode (unsigned long int opcode)
 	 default: abort ();
 	}
 	printf ("\tcnt &= 63;\n");
-	printf ("\tCLEAR_CZNV;\n");
+	printf ("\tCLEAR_CZNV();\n");
 	printf ("\tif (cnt >= %d) {\n", bit_size (curi->size));
 	printf ("\t\tSET_VFLG (val != 0);\n");
 	printf ("\t\tSET_CFLG (cnt == %d ? val & 1 : 0);\n",
@@ -1589,7 +1589,7 @@ static void gen_opcode (unsigned long int opcode)
 	 default: abort ();
 	}
 	printf ("\tcnt &= 63;\n");
-	printf ("\tCLEAR_CZNV;\n");
+	printf ("\tCLEAR_CZNV();\n");
 	printf ("\tif (cnt >= %d) {\n", bit_size (curi->size));
 	printf ("\t\tSET_CFLG ((cnt == %d) & (val >> %d));\n",
 		bit_size (curi->size), bit_size (curi->size) - 1);
@@ -1618,7 +1618,7 @@ static void gen_opcode (unsigned long int opcode)
 	 default: abort ();
 	}
 	printf ("\tcnt &= 63;\n");
-	printf ("\tCLEAR_CZNV;\n");
+	printf ("\tCLEAR_CZNV();\n");
 	printf ("\tif (cnt >= %d) {\n", bit_size (curi->size));
 	printf ("\t\tSET_CFLG (cnt == %d ? val & 1 : 0);\n",
 		bit_size (curi->size));
@@ -1648,7 +1648,7 @@ static void gen_opcode (unsigned long int opcode)
 	 default: abort ();
 	}
 	printf ("\tcnt &= 63;\n");
-	printf ("\tCLEAR_CZNV;\n");
+	printf ("\tCLEAR_CZNV();\n");
 	if (source_is_imm1_8 (curi))
 	    printf ("{");
 	else
@@ -1675,7 +1675,7 @@ static void gen_opcode (unsigned long int opcode)
 	 default: abort ();
 	}
 	printf ("\tcnt &= 63;\n");
-	printf ("\tCLEAR_CZNV;\n");
+	printf ("\tCLEAR_CZNV();\n");
 	if (source_is_imm1_8 (curi))
 	    printf ("{");
 	else
@@ -1702,7 +1702,7 @@ static void gen_opcode (unsigned long int opcode)
 	 default: abort ();
 	}
 	printf ("\tcnt &= 63;\n");
-	printf ("\tCLEAR_CZNV;\n");
+	printf ("\tCLEAR_CZNV();\n");
 	if (source_is_imm1_8 (curi))
 	    printf ("{");
 	else {
@@ -1713,11 +1713,11 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\t{\n\tuae_u32 carry;\n");
 	printf ("\tuae_u32 loval = val >> (%d - cnt);\n", bit_size (curi->size) - 1);
 	printf ("\tcarry = loval & 1;\n");
-	printf ("\tval = (((val << 1) | GET_XFLG) << cnt) | (loval >> 1);\n");
+	printf ("\tval = (((val << 1) | GET_XFLG()) << cnt) | (loval >> 1);\n");
 	printf ("\tSET_XFLG (carry);\n");
 	printf ("\tval &= %s;\n", bit_mask (curi->size));
 	printf ("\t} }\n");
-	printf ("\tSET_CFLG (GET_XFLG);\n");
+	printf ("\tSET_CFLG (GET_XFLG());\n");
 	genflags (flag_logical_noclobber, curi->size, "val", "", "");
 	genastore ("val", curi->dmode, "dstreg", curi->size, "data");
 	break;
@@ -1732,7 +1732,7 @@ static void gen_opcode (unsigned long int opcode)
 	 default: abort ();
 	}
 	printf ("\tcnt &= 63;\n");
-	printf ("\tCLEAR_CZNV;\n");
+	printf ("\tCLEAR_CZNV();\n");
 	if (source_is_imm1_8 (curi))
 	    printf ("{");
 	else {
@@ -1741,7 +1741,7 @@ static void gen_opcode (unsigned long int opcode)
 	}
 	printf ("\tcnt--;\n");
 	printf ("\t{\n\tuae_u32 carry;\n");
-	printf ("\tuae_u32 hival = (val << 1) | GET_XFLG;\n");
+	printf ("\tuae_u32 hival = (val << 1) | GET_XFLG();\n");
 	printf ("\thival <<= (%d - cnt);\n", bit_size (curi->size) - 1);
 	printf ("\tval >>= cnt;\n");
 	printf ("\tcarry = val & 1;\n");
@@ -1750,7 +1750,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tSET_XFLG (carry);\n");
 	printf ("\tval &= %s;\n", bit_mask (curi->size));
 	printf ("\t} }\n");
-	printf ("\tSET_CFLG (GET_XFLG);\n");
+	printf ("\tSET_CFLG (GET_XFLG());\n");
 	genflags (flag_logical_noclobber, curi->size, "val", "", "");
 	genastore ("val", curi->dmode, "dstreg", curi->size, "data");
 	break;
@@ -1788,7 +1788,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tSET_CFLG (sign != 0);\n");
 	duplicate_carry ();
 
-	printf ("\tSET_VFLG (GET_VFLG | (sign2 != sign));\n");
+	printf ("\tSET_VFLG (GET_VFLG() | (sign2 != sign));\n");
 	genastore ("val", curi->smode, "srcreg", curi->size, "data");
 	break;
      case i_LSRW:
@@ -1866,7 +1866,7 @@ static void gen_opcode (unsigned long int opcode)
 	}
 	printf ("\tuae_u32 carry = val & %s;\n", cmask (curi->size));
 	printf ("\tval <<= 1;\n");
-	printf ("\tif (GET_XFLG) val |= 1;\n");
+	printf ("\tif (GET_XFLG()) val |= 1;\n");
 	genflags (flag_logical, curi->size, "val", "", "");
 	printf ("SET_CFLG (carry >> %d);\n", bit_size (curi->size) - 1);
 	duplicate_carry ();
@@ -1883,7 +1883,7 @@ static void gen_opcode (unsigned long int opcode)
 	}
 	printf ("\tuae_u32 carry = val & 1;\n");
 	printf ("\tval >>= 1;\n");
-	printf ("\tif (GET_XFLG) val |= %s;\n", cmask (curi->size));
+	printf ("\tif (GET_XFLG()) val |= %s;\n", cmask (curi->size));
 	genflags (flag_logical, curi->size, "val", "", "");
 	printf ("SET_CFLG (carry);\n");
 	duplicate_carry ();
@@ -1912,7 +1912,7 @@ static void gen_opcode (unsigned long int opcode)
 	    printf ("\tint ru = (src >> 6) & 7;\n");
 	    printf ("\tint rc = src & 7;\n");
 	    genflags (flag_cmp, curi->size, "newv", "m68k_dreg(regs, rc)", "dst");
-	    printf ("\tif (GET_ZFLG)");
+	    printf ("\tif (GET_ZFLG())");
 	    old_brace_level = n_braces;
 	    start_brace ();
 	    genastore ("(m68k_dreg(regs, ru))", curi->dmode, "dstreg", curi->size, "dst");
@@ -1931,14 +1931,14 @@ static void gen_opcode (unsigned long int opcode)
 	    int old_brace_level = n_braces;
 	    printf ("\tuae_u16 dst1 = get_word(rn1), dst2 = get_word(rn2);\n");
 	    genflags (flag_cmp, curi->size, "newv", "m68k_dreg(regs, (extra >> 16) & 7)", "dst1");
-	    printf ("\tif (GET_ZFLG) {\n");
+	    printf ("\tif (GET_ZFLG()) {\n");
 	    genflags (flag_cmp, curi->size, "newv", "m68k_dreg(regs, extra & 7)", "dst2");
-	    printf ("\tif (GET_ZFLG) {\n");
+	    printf ("\tif (GET_ZFLG()) {\n");
 	    printf ("\tput_word(rn1, m68k_dreg(regs, (extra >> 22) & 7));\n");
 	    printf ("\tput_word(rn1, m68k_dreg(regs, (extra >> 6) & 7));\n");
 	    printf ("\t}}\n");
 	    pop_braces (old_brace_level);
-	    printf ("\tif (! GET_ZFLG) {\n");
+	    printf ("\tif (! GET_ZFLG()) {\n");
 	    printf ("\tm68k_dreg(regs, (extra >> 22) & 7) = (m68k_dreg(regs, (extra >> 22) & 7) & ~0xffff) | (dst1 & 0xffff);\n");
 	    printf ("\tm68k_dreg(regs, (extra >> 6) & 7) = (m68k_dreg(regs, (extra >> 6) & 7) & ~0xffff) | (dst2 & 0xffff);\n");
 	    printf ("\t}\n");
@@ -1946,14 +1946,14 @@ static void gen_opcode (unsigned long int opcode)
 	    int old_brace_level = n_braces;
 	    printf ("\tuae_u32 dst1 = get_long(rn1), dst2 = get_long(rn2);\n");
 	    genflags (flag_cmp, curi->size, "newv", "m68k_dreg(regs, (extra >> 16) & 7)", "dst1");
-	    printf ("\tif (GET_ZFLG) {\n");
+	    printf ("\tif (GET_ZFLG()) {\n");
 	    genflags (flag_cmp, curi->size, "newv", "m68k_dreg(regs, extra & 7)", "dst2");
-	    printf ("\tif (GET_ZFLG) {\n");
+	    printf ("\tif (GET_ZFLG()) {\n");
 	    printf ("\tput_long(rn1, m68k_dreg(regs, (extra >> 22) & 7));\n");
 	    printf ("\tput_long(rn1, m68k_dreg(regs, (extra >> 6) & 7));\n");
 	    printf ("\t}}\n");
 	    pop_braces (old_brace_level);
-	    printf ("\tif (! GET_ZFLG) {\n");
+	    printf ("\tif (! GET_ZFLG()) {\n");
 	    printf ("\tm68k_dreg(regs, (extra >> 22) & 7) = dst1;\n");
 	    printf ("\tm68k_dreg(regs, (extra >> 6) & 7) = dst2;\n");
 	    printf ("\t}\n");
@@ -2053,7 +2053,7 @@ static void gen_opcode (unsigned long int opcode)
 	    printf ("\ttmp = ~tmp;\n");
 	    break;
 	 case i_BFEXTS:
-	    printf ("\tif (GET_NFLG) tmp |= width == 32 ? 0 : (-1 << width);\n");
+	    printf ("\tif (GET_NFLG()) tmp |= width == 32 ? 0 : (-1 << width);\n");
 	    printf ("\tm68k_dreg(regs, (extra >> 12) & 7) = tmp;\n");
 	    break;
 	 case i_BFCLR:
@@ -2185,18 +2185,40 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tfpuop_restore(opcode);\n");
 	break;
      case i_CINVL:
+        printf("\n#ifdef USE_JIT\n");
+ 	printf ("\tif (opcode&0x80)\n"
+		"\t\tflush_icache();\n");
+	printf("#endif\n");
+	break;
      case i_CINVP:
+        printf("\n#ifdef USE_JIT\n");
+	printf ("\tif (opcode&0x80)\n"
+		"\t\tflush_icache();\n");
+	printf("#endif\n");
+	break;
      case i_CINVA:
-	/* gb-- srcreg now contains the cache field */
-	printf ("\tif (srcreg&0x2)\n");
-	printf ("\t\tflush_icache(%d);\n", 30 + ((opcode >> 3) & 3)); 
+        printf("\n#ifdef USE_JIT\n");
+	printf ("\tif (opcode&0x80)\n"
+		"\t\tflush_icache();\n");
+	printf("#endif\n");
 	break;
      case i_CPUSHL:
+        printf("\n#ifdef USE_JIT\n");
+	printf ("\tif (opcode&0x80)\n"
+		"\t\tflush_icache();\n");
+	printf("#endif\n");
+	break;
      case i_CPUSHP:
+        printf("\n#ifdef USE_JIT\n");
+	printf ("\tif (opcode&0x80)\n"
+		"\t\tflush_icache();\n");
+	printf("#endif\n");
+	break;
      case i_CPUSHA:
-	/* gb-- srcreg now contains the cache field */
-	printf ("\tif (srcreg&0x2)\n");
-	printf ("\t\tflush_icache(%d);\n", 40 + ((opcode >> 3) & 3)); 
+        printf("\n#ifdef USE_JIT\n");
+	printf ("\tif (opcode&0x80)\n"
+		"\t\tflush_icache();\n");
+	printf("#endif\n");
 	break;
      case i_MOVE16:
 	if ((opcode & 0xfff8) == 0xf620) {

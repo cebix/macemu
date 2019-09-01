@@ -129,7 +129,6 @@ MIDFUNC(0,restore_inverted_carry,(void))
     MSR_CPSRf_r(REG_WORK1);
     unlock2(r);
 }
-MENDFUNC(0,restore_inverted_carry,(void))
 
 /*
  * ADD
@@ -161,7 +160,6 @@ MIDFUNC(3,jnf_ADD_imm,(W4 d, RR4 s, IMM v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ADD_imm,(W4 d, RR4 s, IMM v))
 
 MIDFUNC(3,jnf_ADD,(W4 d, RR4 s, RR4 v))
 {
@@ -180,7 +178,6 @@ MIDFUNC(3,jnf_ADD,(W4 d, RR4 s, RR4 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jnf_ADD,(W4 d, RR4 s, RR4 v))
 
 MIDFUNC(3,jff_ADD_b_imm,(W4 d, RR1 s, IMM v))
 {
@@ -194,7 +191,6 @@ MIDFUNC(3,jff_ADD_b_imm,(W4 d, RR1 s, IMM v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ADD_b_imm,(W4 d, RR1 s, IMM v))
 
 MIDFUNC(3,jff_ADD_b,(W4 d, RR1 s, RR1 v))
 {
@@ -215,7 +211,6 @@ MIDFUNC(3,jff_ADD_b,(W4 d, RR1 s, RR1 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jff_ADD_b,(W4 d, RR1 s, RR1 v))
 
 MIDFUNC(3,jff_ADD_w_imm,(W4 d, RR2 s, IMM v))
 {
@@ -229,7 +224,6 @@ MIDFUNC(3,jff_ADD_w_imm,(W4 d, RR2 s, IMM v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ADD_w_imm,(W4 d, RR2 s, IMM v))
 
 MIDFUNC(3,jff_ADD_w,(W4 d, RR2 s, RR2 v))
 {
@@ -249,7 +243,6 @@ MIDFUNC(3,jff_ADD_w,(W4 d, RR2 s, RR2 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jff_ADD_w,(W4 d, RR2 s, RR2 v))
 
 MIDFUNC(3,jff_ADD_l_imm,(W4 d, RR4 s, IMM v))
 {
@@ -262,7 +255,6 @@ MIDFUNC(3,jff_ADD_l_imm,(W4 d, RR4 s, IMM v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ADD_l_imm,(W4 d, RR4 s, IMM v))
 
 MIDFUNC(3,jff_ADD_l,(W4 d, RR4 s, RR4 v))
 {
@@ -281,7 +273,6 @@ MIDFUNC(3,jff_ADD_l,(W4 d, RR4 s, RR4 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jff_ADD_l,(W4 d, RR4 s, RR4 v))
 
 /*
  * ADDA
@@ -303,7 +294,6 @@ MIDFUNC(2,jnf_ADDA_b,(W4 d, RR1 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_ADDA_b,(W4 d, RR1 s))
 
 MIDFUNC(2,jnf_ADDA_w,(W4 d, RR2 s))
 {
@@ -316,7 +306,6 @@ MIDFUNC(2,jnf_ADDA_w,(W4 d, RR2 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_ADDA_w,(W4 d, RR2 s))
 
 MIDFUNC(2,jnf_ADDA_l,(W4 d, RR4 s))
 {
@@ -328,7 +317,6 @@ MIDFUNC(2,jnf_ADDA_l,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_ADDA_l,(W4 d, RR4 s))
 
 /*
  * ADDX
@@ -358,7 +346,6 @@ MIDFUNC(3,jnf_ADDX,(W4 d, RR4 s, RR4 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jnf_ADDX,(W4 d, RR4 s, RR4 v))
 
 MIDFUNC(3,jff_ADDX_b,(W4 d, RR1 s, RR1 v))
 {
@@ -383,7 +370,6 @@ MIDFUNC(3,jff_ADDX_b,(W4 d, RR1 s, RR1 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jff_ADDX_b,(W4 d, RR1 s, RR1 v))
 
 MIDFUNC(3,jff_ADDX_w,(W4 d, RR2 s, RR2 v))
 {
@@ -408,7 +394,6 @@ MIDFUNC(3,jff_ADDX_w,(W4 d, RR2 s, RR2 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jff_ADDX_w,(W4 d, RR2 s, RR2 v))
 
 MIDFUNC(3,jff_ADDX_l,(W4 d, RR4 s, RR4 v))
 {
@@ -431,7 +416,6 @@ MIDFUNC(3,jff_ADDX_l,(W4 d, RR4 s, RR4 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jff_ADDX_l,(W4 d, RR4 s, RR4 v))
 
 /*
  * ANDI
@@ -458,7 +442,6 @@ MIDFUNC(1,jff_ANDSR,(IMM s, IMM x))
 		STRB_rR(REG_WORK2, REG_WORK1);
 	}
 }
-MENDFUNC(1,jff_ANDSR,(IMM s))
 
 /*
  * AND
@@ -493,7 +476,6 @@ MIDFUNC(3,jnf_AND,(W4 d, RR4 s, RR4 v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_AND,(RW4 d, RR4 s, RR4 v))
 
 MIDFUNC(3,jff_AND_b,(W4 d, RR1 s, RR1 v))
 {
@@ -510,7 +492,6 @@ MIDFUNC(3,jff_AND_b,(W4 d, RR1 s, RR1 v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_AND_b,(RW4 d, RR1 s, RR1 v))
 
 MIDFUNC(3,jff_AND_w,(W4 d, RR2 s, RR2 v))
 {
@@ -527,7 +508,6 @@ MIDFUNC(3,jff_AND_w,(W4 d, RR2 s, RR2 v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_AND_w,(RW4 d, RR2 s, RR2 v))
 
 MIDFUNC(3,jff_AND_l,(W4 d, RR4 s, RR4 v))
 {
@@ -542,7 +522,6 @@ MIDFUNC(3,jff_AND_l,(W4 d, RR4 s, RR4 v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_AND_l,(RW4 d, RR4 s, RR4 v))
 
 /*
  * ASL
@@ -592,7 +571,6 @@ MIDFUNC(3,jff_ASL_b_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ASL_b_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ASL_w_imm,(W4 d, RR4 s, IMM i))
 {
@@ -627,7 +605,6 @@ MIDFUNC(3,jff_ASL_w_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ASL_w_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ASL_l_imm,(W4 d, RR4 s, IMM i))
 {
@@ -660,7 +637,6 @@ MIDFUNC(3,jff_ASL_l_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ASL_l_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ASL_b_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -695,7 +671,6 @@ MIDFUNC(3,jff_ASL_b_reg,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ASL_b_reg,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ASL_w_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -730,7 +705,6 @@ MIDFUNC(3,jff_ASL_w_reg,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ASL_w_reg,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ASL_l_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -763,7 +737,6 @@ MIDFUNC(3,jff_ASL_l_reg,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ASL_l_reg,(W4 d, RR4 s, RR4 i))
 
 /*
  * ASLW
@@ -788,7 +761,6 @@ MIDFUNC(2,jnf_ASLW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_ASLW,(W4 d, RR4 s))
 
 MIDFUNC(2,jff_ASLW,(W4 d, RR4 s))
 {
@@ -806,7 +778,6 @@ MIDFUNC(2,jff_ASLW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_ASLW,(W4 d, RR4 s))
 
 /*
  * ASR
@@ -836,7 +807,6 @@ MIDFUNC(3,jnf_ASR_b_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ASR_b_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_ASR_w_imm,(W4 d, RR4 s, IMM i))
 {
@@ -851,7 +821,6 @@ MIDFUNC(3,jnf_ASR_w_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ASR_w_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_ASR_l_imm,(W4 d, RR4 s, IMM i))
 {
@@ -865,7 +834,6 @@ MIDFUNC(3,jnf_ASR_l_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ASR_l_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ASR_b_imm,(W4 d, RR4 s, IMM i))
 {
@@ -885,7 +853,6 @@ MIDFUNC(3,jff_ASR_b_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ASR_b_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ASR_w_imm,(W4 d, RR4 s, IMM i))
 {
@@ -905,7 +872,6 @@ MIDFUNC(3,jff_ASR_w_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ASR_w_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ASR_l_imm,(W4 d, RR4 s, IMM i))
 {
@@ -924,7 +890,6 @@ MIDFUNC(3,jff_ASR_l_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ASR_l_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_ASR_b_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -940,7 +905,6 @@ MIDFUNC(3,jnf_ASR_b_reg,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_ASR_b_reg,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jnf_ASR_w_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -956,7 +920,6 @@ MIDFUNC(3,jnf_ASR_w_reg,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_ASR_w_reg,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jnf_ASR_l_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -971,7 +934,6 @@ MIDFUNC(3,jnf_ASR_l_reg,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_ASR_l_reg,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ASR_b_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -989,7 +951,6 @@ MIDFUNC(3,jff_ASR_b_reg,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ASR_b_reg,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ASR_w_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -1007,7 +968,6 @@ MIDFUNC(3,jff_ASR_w_reg,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ASR_w_reg,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ASR_l_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -1024,7 +984,6 @@ MIDFUNC(3,jff_ASR_l_reg,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ASR_l_reg,(W4 d, RR4 s, RR4 i))
 
 /*
  * ASRW
@@ -1050,7 +1009,6 @@ MIDFUNC(2,jnf_ASRW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_ASRW,(W4 d, RR4 s))
 
 MIDFUNC(2,jff_ASRW,(W4 d, RR4 s))
 {
@@ -1064,7 +1022,6 @@ MIDFUNC(2,jff_ASRW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_ASRW,(W4 d, RR4 s))
 
 /*
  * BCHG
@@ -1086,7 +1043,6 @@ MIDFUNC(2,jnf_BCHG_b_imm,(RW4 d, IMM s))
 	EOR_rri(d,d,(1 << s));
 	unlock2(d);
 }
-MENDFUNC(2,jnf_BCHG_b_imm,(RW4 d, IMM s))
 
 MIDFUNC(2,jnf_BCHG_l_imm,(RW4 d, IMM s))
 {
@@ -1094,7 +1050,6 @@ MIDFUNC(2,jnf_BCHG_l_imm,(RW4 d, IMM s))
 	EOR_rri(d,d,(1 << s));
 	unlock2(d);
 }
-MENDFUNC(2,jnf_BCHG_l_imm,(RW4 d, IMM s))
 
 MIDFUNC(2,jnf_BCHG_b,(RW4 d, RR4 s))
 {
@@ -1114,7 +1069,6 @@ MIDFUNC(2,jnf_BCHG_b,(RW4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_BCHG_b,(RW4 d, RR4 s))
 
 MIDFUNC(2,jnf_BCHG_l,(RW4 d, RR4 s))
 {
@@ -1135,7 +1089,6 @@ MIDFUNC(2,jnf_BCHG_l,(RW4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_BCHG_l,(RW4 d, RR4 s))
 
 MIDFUNC(2,jff_BCHG_b_imm,(RW4 d, IMM s))
 {
@@ -1151,7 +1104,6 @@ MIDFUNC(2,jff_BCHG_b_imm,(RW4 d, IMM s))
 
 	unlock2(d);
 }
-MENDFUNC(2,jff_BCHG_b_imm,(RW4 d, IMM s))
 
 MIDFUNC(2,jff_BCHG_l_imm,(RW4 d, IMM s))
 {
@@ -1167,7 +1119,6 @@ MIDFUNC(2,jff_BCHG_l_imm,(RW4 d, IMM s))
 
 	unlock2(d);
 }
-MENDFUNC(2,jff_BCHG_l_imm,(RW4 d, IMM s))
 
 MIDFUNC(2,jff_BCHG_b,(RW4 d, RR4 s))
 {
@@ -1192,7 +1143,6 @@ MIDFUNC(2,jff_BCHG_b,(RW4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_BCHG_b,(RW4 d, RR4 s))
 
 MIDFUNC(2,jff_BCHG_l,(RW4 d, RR4 s))
 {
@@ -1218,7 +1168,6 @@ MIDFUNC(2,jff_BCHG_l,(RW4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_BCHG_l,(RW4 d, RR4 s))
 
 /*
  * BCLR
@@ -1240,7 +1189,6 @@ MIDFUNC(2,jnf_BCLR_b_imm,(RW4 d, IMM s))
 	BIC_rri(d,d,(1 << s));
 	unlock2(d);
 }
-MENDFUNC(2,jnf_BCLR_b_imm,(RW4 d, IMM s))
 
 MIDFUNC(2,jnf_BCLR_l_imm,(RW4 d, IMM s))
 {
@@ -1248,7 +1196,6 @@ MIDFUNC(2,jnf_BCLR_l_imm,(RW4 d, IMM s))
 	BIC_rri(d,d,(1 << s));
 	unlock2(d);
 }
-MENDFUNC(2,jnf_BCLR_l_imm,(RW4 d, IMM s))
 
 MIDFUNC(2,jnf_BCLR_b,(RW4 d, RR4 s))
 {
@@ -1268,7 +1215,6 @@ MIDFUNC(2,jnf_BCLR_b,(RW4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_BCLR_b,(RW4 d, RR4 s))
 
 MIDFUNC(2,jnf_BCLR_l,(RW4 d, RR4 s))
 {
@@ -1289,7 +1235,6 @@ MIDFUNC(2,jnf_BCLR_l,(RW4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_BCLR_l,(RW4 d, RR4 s))
 
 MIDFUNC(2,jff_BCLR_b_imm,(RW4 d, IMM s))
 {
@@ -1305,7 +1250,6 @@ MIDFUNC(2,jff_BCLR_b_imm,(RW4 d, IMM s))
 
 	unlock2(d);
 }
-MENDFUNC(2,jff_BCLR_b_imm,(RW4 d, IMM s))
 
 MIDFUNC(2,jff_BCLR_l_imm,(RW4 d, IMM s))
 {
@@ -1321,7 +1265,6 @@ MIDFUNC(2,jff_BCLR_l_imm,(RW4 d, IMM s))
 
 	unlock2(d);
 }
-MENDFUNC(2,jff_BCLR_l_imm,(RW4 d, IMM s))
 
 MIDFUNC(2,jff_BCLR_b,(RW4 d, RR4 s))
 {
@@ -1346,7 +1289,6 @@ MIDFUNC(2,jff_BCLR_b,(RW4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_BCLR_b,(RW4 d, RR4 s))
 
 MIDFUNC(2,jff_BCLR_l,(RW4 d, RR4 s))
 {
@@ -1372,7 +1314,6 @@ MIDFUNC(2,jff_BCLR_l,(RW4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_BCLR_l,(RW4 d, RR4 s))
 
 /*
  * BSET
@@ -1394,7 +1335,6 @@ MIDFUNC(2,jnf_BSET_b_imm,(RW4 d, IMM s))
 	ORR_rri(d,d,(1 << s));
 	unlock2(d);
 }
-MENDFUNC(2,jnf_BSET_b_imm,(RW4 d, IMM s))
 
 MIDFUNC(2,jnf_BSET_l_imm,(RW4 d, IMM s))
 {
@@ -1402,7 +1342,6 @@ MIDFUNC(2,jnf_BSET_l_imm,(RW4 d, IMM s))
 	ORR_rri(d,d,(1 << s));
 	unlock2(d);
 }
-MENDFUNC(2,jnf_BSET_l_imm,(RW4 d, IMM s))
 
 MIDFUNC(2,jnf_BSET_b,(RW4 d, RR4 s))
 {
@@ -1422,7 +1361,6 @@ MIDFUNC(2,jnf_BSET_b,(RW4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_BSET_b,(RW4 d, RR4 s))
 
 MIDFUNC(2,jnf_BSET_l,(RW4 d, RR4 s))
 {
@@ -1443,7 +1381,6 @@ MIDFUNC(2,jnf_BSET_l,(RW4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_BSET_l,(RW4 d, RR4 s))
 
 MIDFUNC(2,jff_BSET_b_imm,(RW4 d, IMM s))
 {
@@ -1459,7 +1396,6 @@ MIDFUNC(2,jff_BSET_b_imm,(RW4 d, IMM s))
 
 	unlock2(d);
 }
-MENDFUNC(2,jff_BSET_b_imm,(RW4 d, IMM s))
 
 MIDFUNC(2,jff_BSET_l_imm,(RW4 d, IMM s))
 {
@@ -1475,7 +1411,6 @@ MIDFUNC(2,jff_BSET_l_imm,(RW4 d, IMM s))
 
 	unlock2(d);
 }
-MENDFUNC(2,jff_BSET_l_imm,(RW4 d, IMM s))
 
 MIDFUNC(2,jff_BSET_b,(RW4 d, RR4 s))
 {
@@ -1500,7 +1435,6 @@ MIDFUNC(2,jff_BSET_b,(RW4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_BSET_b,(RW4 d, RR4 s))
 
 MIDFUNC(2,jff_BSET_l,(RW4 d, RR4 s))
 {
@@ -1526,7 +1460,6 @@ MIDFUNC(2,jff_BSET_l,(RW4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_BSET_l,(RW4 d, RR4 s))
 
 /*
  * BTST
@@ -1554,7 +1487,6 @@ MIDFUNC(2,jff_BTST_b_imm,(RR4 d, IMM s))
 
 	unlock2(d);
 }
-MENDFUNC(2,jff_BTST_b_imm,(RR4 d, IMM s))
 
 MIDFUNC(2,jff_BTST_l_imm,(RR4 d, IMM s))
 {
@@ -1568,7 +1500,6 @@ MIDFUNC(2,jff_BTST_l_imm,(RR4 d, IMM s))
 
 	unlock2(d);
 }
-MENDFUNC(2,jff_BTST_l_imm,(RR4 d, IMM s))
 
 MIDFUNC(2,jff_BTST_b,(RR4 d, RR4 s))
 {
@@ -1592,7 +1523,6 @@ MIDFUNC(2,jff_BTST_b,(RR4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_BTST_b,(RR4 d, RR4 s))
 
 MIDFUNC(2,jff_BTST_l,(RR4 d, RR4 s))
 {
@@ -1617,7 +1547,6 @@ MIDFUNC(2,jff_BTST_l,(RR4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_BTST_l,(RR4 d, RR4 s))
 
 /*
  * CLR
@@ -1638,7 +1567,6 @@ MIDFUNC(1,jnf_CLR,(W4 d))
 	MOV_ri(d,0);
 	unlock2(d);
 }
-MENDFUNC(1,jnf_CLR,(W4 d))
 
 MIDFUNC(1,jff_CLR,(W4 d))
 {
@@ -1647,7 +1575,6 @@ MIDFUNC(1,jff_CLR,(W4 d))
 	MSR_CPSR_i(ARM_Z_FLAG);
 	unlock2(d);
 }
-MENDFUNC(1,jff_CLR,(W4 d))
 
 /*
  * CMP
@@ -1679,7 +1606,6 @@ MIDFUNC(2,jff_CMP_b,(RR1 d, RR1 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jff_CMP_b,(RR1 d, RR1 s))
 
 MIDFUNC(2,jff_CMP_w,(RR2 d, RR2 s))
 {
@@ -1698,7 +1624,6 @@ MIDFUNC(2,jff_CMP_w,(RR2 d, RR2 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jff_CMP_w,(RR2 d, RR2 s))
 
 MIDFUNC(2,jff_CMP_l,(RR4 d, RR4 s))
 {
@@ -1715,7 +1640,6 @@ MIDFUNC(2,jff_CMP_l,(RR4 d, RR4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jff_CMP_l,(RR4 d, RR4 s))
 
 /*
  * CMPA
@@ -1746,7 +1670,6 @@ MIDFUNC(2,jff_CMPA_b,(RR1 d, RR1 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jff_CMPA_b,(RR1 d, RR1 s))
 
 MIDFUNC(2,jff_CMPA_w,(RR2 d, RR2 s))
 {
@@ -1764,7 +1687,6 @@ MIDFUNC(2,jff_CMPA_w,(RR2 d, RR2 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jff_CMPA_w,(RR2 d, RR2 s))
 
 MIDFUNC(2,jff_CMPA_l,(RR4 d, RR4 s))
 {
@@ -1781,7 +1703,6 @@ MIDFUNC(2,jff_CMPA_l,(RR4 d, RR4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jff_CMPA_l,(RR4 d, RR4 s))
 
 /*
  * EOR
@@ -1815,7 +1736,6 @@ MIDFUNC(3,jnf_EOR,(W4 d, RR4 s, RR4 v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_EOR,(RW4 d, RR4 s, RR4 v))
 
 MIDFUNC(3,jff_EOR_b,(W4 d, RR1 s, RR1 v))
 {
@@ -1832,7 +1752,6 @@ MIDFUNC(3,jff_EOR_b,(W4 d, RR1 s, RR1 v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_EOR_b,(RW4 d, RR1 s, RR1 v))
 
 MIDFUNC(3,jff_EOR_w,(W4 d, RR2 s, RR2 v))
 {
@@ -1849,7 +1768,6 @@ MIDFUNC(3,jff_EOR_w,(W4 d, RR2 s, RR2 v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_EOR_w,(RW4 d, RR2 s, RR2 v))
 
 MIDFUNC(3,jff_EOR_l,(W4 d, RR4 s, RR4 v))
 {
@@ -1864,7 +1782,6 @@ MIDFUNC(3,jff_EOR_l,(W4 d, RR4 s, RR4 v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_EOR_l,(RW4 d, RR4 s, RR4 v))
 
 /*
  * EORI
@@ -1892,7 +1809,6 @@ MIDFUNC(1,jff_EORSR,(IMM s, IMM x))
 		STRB_rR(REG_WORK2, REG_WORK1);
 	}
 }
-MENDFUNC(1,jff_EORSR,(IMM s))
 
 /*
  * EXT
@@ -1922,7 +1838,6 @@ MIDFUNC(2,jnf_EXT_b,(W4 d, RR4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jnf_EXT_b,(W4 d, RR4 s))
 
 MIDFUNC(2,jnf_EXT_w,(W4 d, RR4 s))
 {
@@ -1939,7 +1854,6 @@ MIDFUNC(2,jnf_EXT_w,(W4 d, RR4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jnf_EXT_w,(W4 d, RR4 s))
 
 MIDFUNC(2,jnf_EXT_l,(W4 d, RR4 s))
 {
@@ -1956,7 +1870,6 @@ MIDFUNC(2,jnf_EXT_l,(W4 d, RR4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jnf_EXT_l,(W4 d, RR4 s))
 
 MIDFUNC(2,jff_EXT_b,(W4 d, RR4 s))
 {
@@ -1975,7 +1888,6 @@ MIDFUNC(2,jff_EXT_b,(W4 d, RR4 s))
 
 	unlock2(d);
 }
-MENDFUNC(2,jff_EXT_b,(W4 d, RR4 s))
 
 MIDFUNC(2,jff_EXT_w,(W4 d, RR4 s))
 {
@@ -1994,7 +1906,6 @@ MIDFUNC(2,jff_EXT_w,(W4 d, RR4 s))
 
 	unlock2(d);
 }
-MENDFUNC(2,jff_EXT_w,(W4 d, RR4 s))
 
 MIDFUNC(2,jff_EXT_l,(W4 d, RR4 s))
 {
@@ -2012,7 +1923,6 @@ MIDFUNC(2,jff_EXT_l,(W4 d, RR4 s))
 
 	unlock2(d);
 }
-MENDFUNC(2,jff_EXT_l,(W4 d, RR4 s))
 
 /*
  * LSL
@@ -2041,7 +1951,6 @@ MIDFUNC(3,jnf_LSL_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_LSL_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_LSL_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -2056,7 +1965,6 @@ MIDFUNC(3,jnf_LSL_reg,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_LSL_reg,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_LSL_b_imm,(W4 d, RR4 s, IMM i))
 {
@@ -2077,7 +1985,6 @@ MIDFUNC(3,jff_LSL_b_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_LSL_b_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_LSL_w_imm,(W4 d, RR4 s, IMM i))
 {
@@ -2097,7 +2004,6 @@ MIDFUNC(3,jff_LSL_w_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_LSL_w_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_LSL_l_imm,(W4 d, RR4 s, IMM i))
 {
@@ -2115,7 +2021,6 @@ MIDFUNC(3,jff_LSL_l_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_LSL_l_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_LSL_b_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -2135,7 +2040,6 @@ MIDFUNC(3,jff_LSL_b_reg,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_LSL_b_reg,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_LSL_w_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -2154,7 +2058,6 @@ MIDFUNC(3,jff_LSL_w_reg,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_LSL_w_reg,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_LSL_l_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -2171,7 +2074,6 @@ MIDFUNC(3,jff_LSL_l_reg,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_LSL_l_reg,(W4 d, RR4 s, RR4 i))
 
 /*
  * LSLW
@@ -2196,7 +2098,6 @@ MIDFUNC(2,jnf_LSLW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_LSLW,(W4 d, RR4 s))
 
 MIDFUNC(2,jff_LSLW,(W4 d, RR4 s))
 {
@@ -2210,7 +2111,6 @@ MIDFUNC(2,jff_LSLW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_LSLW,(W4 d, RR4 s))
 
 /*
  * LSR
@@ -2256,7 +2156,6 @@ MIDFUNC(3,jnf_LSR_b_imm,(W4 d, RR4 s, IMM i))
 		unlock2(s);
 	}
 }
-MENDFUNC(3,jnf_LSR_b_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_LSR_w_imm,(W4 d, RR4 s, IMM i))
 {
@@ -2285,7 +2184,6 @@ MIDFUNC(3,jnf_LSR_w_imm,(W4 d, RR4 s, IMM i))
 		unlock2(s);
 	}
 }
-MENDFUNC(3,jnf_LSR_w_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_LSR_l_imm,(W4 d, RR4 s, IMM i))
 {
@@ -2313,7 +2211,6 @@ MIDFUNC(3,jnf_LSR_l_imm,(W4 d, RR4 s, IMM i))
 		unlock2(s);
 	}
 }
-MENDFUNC(3,jnf_LSR_l_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_LSR_b_imm,(W4 d, RR4 s, IMM i))
 {
@@ -2343,7 +2240,6 @@ MIDFUNC(3,jff_LSR_b_imm,(W4 d, RR4 s, IMM i))
 		unlock2(s);
 	}
 }
-MENDFUNC(3,jff_LSR_b_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_LSR_w_imm,(W4 d, RR4 s, IMM i))
 {
@@ -2373,7 +2269,6 @@ MIDFUNC(3,jff_LSR_w_imm,(W4 d, RR4 s, IMM i))
 		unlock2(s);
 	}
 }
-MENDFUNC(3,jff_LSR_w_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_LSR_l_imm,(W4 d, RR4 s, IMM i))
 {
@@ -2402,7 +2297,6 @@ MIDFUNC(3,jff_LSR_l_imm,(W4 d, RR4 s, IMM i))
 		unlock2(s);
 	}
 }
-MENDFUNC(3,jff_LSR_l_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_LSR_b_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -2431,7 +2325,6 @@ MIDFUNC(3,jnf_LSR_b_reg,(W4 d, RR4 s, RR4 i))
 	}
 	unlock2(i);
 }
-MENDFUNC(3,jnf_LSR_b_reg,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jnf_LSR_w_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -2460,7 +2353,6 @@ MIDFUNC(3,jnf_LSR_w_reg,(W4 d, RR4 s, RR4 i))
 	}
 	unlock2(i);
 }
-MENDFUNC(3,jnf_LSR_w_reg,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jnf_LSR_l_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -2488,7 +2380,6 @@ MIDFUNC(3,jnf_LSR_l_reg,(W4 d, RR4 s, RR4 i))
 	}
 	unlock2(i);
 }
-MENDFUNC(3,jnf_LSR_l_reg,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_LSR_b_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -2519,7 +2410,6 @@ MIDFUNC(3,jff_LSR_b_reg,(W4 d, RR4 s, RR4 i))
 	}
 	unlock2(i);
 }
-MENDFUNC(3,jff_LSR_b_reg,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_LSR_w_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -2550,7 +2440,6 @@ MIDFUNC(3,jff_LSR_w_reg,(W4 d, RR4 s, RR4 i))
 	}
 	unlock2(i);
 }
-MENDFUNC(3,jff_LSR_w_reg,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_LSR_l_reg,(W4 d, RR4 s, RR4 i))
 {
@@ -2580,7 +2469,6 @@ MIDFUNC(3,jff_LSR_l_reg,(W4 d, RR4 s, RR4 i))
 	}
 	unlock2(i);
 }
-MENDFUNC(3,jff_LSR_l_reg,(W4 d, RR4 s, RR4 i))
 
 /*
  * LSRW
@@ -2606,7 +2494,6 @@ MIDFUNC(2,jnf_LSRW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_LSRW,(W4 d, RR4 s))
 
 MIDFUNC(2,jff_LSRW,(W4 d, RR4 s))
 {
@@ -2620,7 +2507,6 @@ MIDFUNC(2,jff_LSRW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_LSRW,(W4 d, RR4 s))
 
 /*
  * MOVE
@@ -2649,7 +2535,6 @@ MIDFUNC(2,jnf_MOVE,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_MOVE,(W4 d, RR4 s))
 
 MIDFUNC(2,jff_MOVE_b_imm,(W4 d, IMM s))
 {
@@ -2661,7 +2546,6 @@ MIDFUNC(2,jff_MOVE_b_imm,(W4 d, IMM s))
 
 	unlock2(d);
 }
-MENDFUNC(2,jff_MOVE_b_imm,(W4 d, IMM s))
 
 MIDFUNC(2,jff_MOVE_w_imm,(W4 d, IMM s))
 {
@@ -2673,7 +2557,6 @@ MIDFUNC(2,jff_MOVE_w_imm,(W4 d, IMM s))
 
 	unlock2(d);
 }
-MENDFUNC(2,jff_MOVE_w_imm,(W4 d, IMM s))
 
 MIDFUNC(2,jff_MOVE_l_imm,(W4 d, IMM s))
 {
@@ -2685,7 +2568,6 @@ MIDFUNC(2,jff_MOVE_l_imm,(W4 d, IMM s))
 
 	unlock2(d);
 }
-MENDFUNC(2,jff_MOVE_l_imm,(W4 d, IMM s))
 
 MIDFUNC(2,jff_MOVE_b,(W4 d, RR1 s))
 {
@@ -2704,7 +2586,6 @@ MIDFUNC(2,jff_MOVE_b,(W4 d, RR1 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_MOVE_b,(W4 d, RR1 s))
 
 MIDFUNC(2,jff_MOVE_w,(W4 d, RR2 s))
 {
@@ -2723,7 +2604,6 @@ MIDFUNC(2,jff_MOVE_w,(W4 d, RR2 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_MOVE_w,(W4 d, RR2 s))
 
 MIDFUNC(2,jff_MOVE_l,(W4 d, RR4 s))
 {
@@ -2741,7 +2621,6 @@ MIDFUNC(2,jff_MOVE_l,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_MOVE_l,(W4 d, RR4 s))
 
 /*
  * MOVE16
@@ -2776,7 +2655,6 @@ MIDFUNC(2,jnf_MOVE16,(RR4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_MOVE16,(RR4 d, RR4 s))
 
 /*
  * MOVEA
@@ -2797,7 +2675,6 @@ MIDFUNC(2,jnf_MOVEA_w,(W4 d, RR2 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_MOVEA_w,(W4 d, RR2 s))
 
 MIDFUNC(2,jnf_MOVEA_l,(W4 d, RR4 s))
 {
@@ -2809,7 +2686,6 @@ MIDFUNC(2,jnf_MOVEA_l,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_MOVEA_l,(W4 d, RR4 s))
 
 /*
  * MULS
@@ -2836,7 +2712,6 @@ MIDFUNC(2,jnf_MULS,(RW4 d, RR4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jnf_MULS,(RW4 d, RR4 s))
 
 MIDFUNC(2,jff_MULS,(RW4 d, RR4 s))
 {
@@ -2852,7 +2727,6 @@ MIDFUNC(2,jff_MULS,(RW4 d, RR4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jff_MULS,(RW4 d, RR4 s))
 
 MIDFUNC(2,jnf_MULS32,(RW4 d, RR4 s))
 {
@@ -2864,7 +2738,6 @@ MIDFUNC(2,jnf_MULS32,(RW4 d, RR4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jnf_MULS32,(RW4 d, RR4 s))
 
 MIDFUNC(2,jff_MULS32,(RW4 d, RR4 s))
 {
@@ -2882,7 +2755,6 @@ MIDFUNC(2,jff_MULS32,(RW4 d, RR4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jff_MULS32,(RW4 d, RR4 s))
 
 MIDFUNC(2,jnf_MULS64,(RW4 d, RW4 s))
 {
@@ -2895,7 +2767,6 @@ MIDFUNC(2,jnf_MULS64,(RW4 d, RW4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jnf_MULS64,(RW4 d, RW4 s))
 
 MIDFUNC(2,jff_MULS64,(RW4 d, RW4 s))
 {
@@ -2913,7 +2784,6 @@ MIDFUNC(2,jff_MULS64,(RW4 d, RW4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jff_MULS64,(RW4 d, RW4 s))
 
 /*
  * MULU
@@ -2941,7 +2811,6 @@ MIDFUNC(2,jnf_MULU,(RW4 d, RR4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jnf_MULU,(RW4 d, RR4 s))
 
 MIDFUNC(2,jff_MULU,(RW4 d, RR4 s))
 {
@@ -2957,7 +2826,6 @@ MIDFUNC(2,jff_MULU,(RW4 d, RR4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jff_MULU,(RW4 d, RR4 s))
 
 MIDFUNC(2,jnf_MULU32,(RW4 d, RR4 s))
 {
@@ -2969,7 +2837,6 @@ MIDFUNC(2,jnf_MULU32,(RW4 d, RR4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jnf_MULU32,(RW4 d, RR4 s))
 
 MIDFUNC(2,jff_MULU32,(RW4 d, RR4 s))
 {
@@ -2987,7 +2854,6 @@ MIDFUNC(2,jff_MULU32,(RW4 d, RR4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jff_MULU32,(RW4 d, RR4 s))
 
 MIDFUNC(2,jnf_MULU64,(RW4 d, RW4 s))
 {
@@ -3000,7 +2866,6 @@ MIDFUNC(2,jnf_MULU64,(RW4 d, RW4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jnf_MULU64,(RW4 d, RW4 s))
 
 MIDFUNC(2,jff_MULU64,(RW4 d, RW4 s))
 {
@@ -3018,7 +2883,6 @@ MIDFUNC(2,jff_MULU64,(RW4 d, RW4 s))
 	unlock2(s);
 	unlock2(d);
 }
-MENDFUNC(2,jff_MULU64,(RW4 d, RW4 s))
 
 /*
  * NEG
@@ -3043,7 +2907,6 @@ MIDFUNC(2,jnf_NEG,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_NEG,(W4 d, RR4 s))
 
 MIDFUNC(2,jff_NEG_b,(W4 d, RR1 s))
 {
@@ -3061,7 +2924,6 @@ MIDFUNC(2,jff_NEG_b,(W4 d, RR1 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_NEG_b,(W4 d, RR1 s))
 
 MIDFUNC(2,jff_NEG_w,(W4 d, RR2 s))
 {
@@ -3079,7 +2941,6 @@ MIDFUNC(2,jff_NEG_w,(W4 d, RR2 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_NEG_w,(W4 d, RR2 s))
 
 MIDFUNC(2,jff_NEG_l,(W4 d, RR4 s))
 {
@@ -3096,7 +2957,6 @@ MIDFUNC(2,jff_NEG_l,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_NEG_l,(W4 d, RR4 s))
 
 /*
  * NEGX
@@ -3123,7 +2983,6 @@ MIDFUNC(2,jnf_NEGX,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_NEGX,(W4 d, RR4 s))
 
 MIDFUNC(2,jff_NEGX_b,(W4 d, RR1 s))
 {
@@ -3145,7 +3004,6 @@ MIDFUNC(2,jff_NEGX_b,(W4 d, RR1 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_NEGX_b,(W4 d, RR1 s))
 
 MIDFUNC(2,jff_NEGX_w,(W4 d, RR2 s))
 {
@@ -3167,7 +3025,6 @@ MIDFUNC(2,jff_NEGX_w,(W4 d, RR2 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_NEGX_w,(W4 d, RR2 s))
 
 MIDFUNC(2,jff_NEGX_l,(W4 d, RR4 s))
 {
@@ -3188,7 +3045,6 @@ MIDFUNC(2,jff_NEGX_l,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_NEGX_l,(W4 d, RR4 s))
 
 /*
  * NOT
@@ -3213,7 +3069,6 @@ MIDFUNC(2,jnf_NOT,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_NOT,(W4 d, RR4 s))
 
 MIDFUNC(2,jff_NOT_b,(W4 d, RR1 s))
 {
@@ -3227,7 +3082,6 @@ MIDFUNC(2,jff_NOT_b,(W4 d, RR1 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_NOT_b,(W4 d, RR1 s))
 
 MIDFUNC(2,jff_NOT_w,(W4 d, RR2 s))
 {
@@ -3241,7 +3095,6 @@ MIDFUNC(2,jff_NOT_w,(W4 d, RR2 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_NOT_w,(W4 d, RR2 s))
 
 MIDFUNC(2,jff_NOT_l,(W4 d, RR4 s))
 {
@@ -3254,7 +3107,6 @@ MIDFUNC(2,jff_NOT_l,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_NOT_l,(W4 d, RR4 s))
 
 /*
  * OR
@@ -3288,7 +3140,6 @@ MIDFUNC(3,jnf_OR,(W4 d, RR4 s, RR4 v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_OR,(RW4 d, RR4 s, RR4 v))
 
 MIDFUNC(3,jff_OR_b,(W4 d, RR1 s, RR1 v))
 {
@@ -3305,7 +3156,6 @@ MIDFUNC(3,jff_OR_b,(W4 d, RR1 s, RR1 v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_OR_b,(RW4 d, RR1 s, RR1 v))
 
 MIDFUNC(3,jff_OR_w,(W4 d, RR2 s, RR2 v))
 {
@@ -3322,7 +3172,6 @@ MIDFUNC(3,jff_OR_w,(W4 d, RR2 s, RR2 v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_OR_w,(RW4 d, RR2 s, RR2 v))
 
 MIDFUNC(3,jff_OR_l,(W4 d, RR4 s, RR4 v))
 {
@@ -3337,7 +3186,6 @@ MIDFUNC(3,jff_OR_l,(W4 d, RR4 s, RR4 v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_OR_l,(RW4 d, RR4 s, RR4 v))
 
 /*
  * ORI
@@ -3364,7 +3212,6 @@ MIDFUNC(1,jff_ORSR,(IMM s, IMM x))
 		STRB_rR(REG_WORK2, REG_WORK1);
 	}
 }
-MENDFUNC(1,jff_ORSR,(IMM s))
 
 /*
  * ROL
@@ -3394,7 +3241,6 @@ MIDFUNC(3,jnf_ROL_b_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ROL_b_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_ROL_w_imm,(W4 d, RR4 s, IMM i))
 {
@@ -3408,7 +3254,6 @@ MIDFUNC(3,jnf_ROL_w_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ROL_w_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_ROL_l_imm,(W4 d, RR4 s, IMM i))
 {
@@ -3420,7 +3265,6 @@ MIDFUNC(3,jnf_ROL_l_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ROL_l_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ROL_b_imm,(W4 d, RR4 s, IMM i))
 {
@@ -3447,7 +3291,6 @@ MIDFUNC(3,jff_ROL_b_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ROL_b_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ROL_w_imm,(W4 d, RR4 s, IMM i))
 {
@@ -3473,7 +3316,6 @@ MIDFUNC(3,jff_ROL_w_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ROL_w_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ROL_l_imm,(W4 d, RR4 s, IMM i))
 {
@@ -3497,7 +3339,6 @@ MIDFUNC(3,jff_ROL_l_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ROL_l_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_ROL_b,(W4 d, RR4 s, RR4 i))
 {
@@ -3521,7 +3362,6 @@ MIDFUNC(3,jnf_ROL_b,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_ROL_b,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jnf_ROL_w,(W4 d, RR4 s, RR4 i))
 {
@@ -3544,7 +3384,6 @@ MIDFUNC(3,jnf_ROL_w,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_ROL_w,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jnf_ROL_l,(W4 d, RR4 s, RR4 i))
 {
@@ -3565,7 +3404,6 @@ MIDFUNC(3,jnf_ROL_l,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_ROL_l,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ROL_b,(W4 d, RR4 s, RR4 i))
 {
@@ -3597,7 +3435,6 @@ MIDFUNC(3,jff_ROL_b,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ROL_b,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ROL_w,(W4 d, RR4 s, RR4 i))
 {
@@ -3628,7 +3465,6 @@ MIDFUNC(3,jff_ROL_w,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ROL_w,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ROL_l,(W4 d, RR4 s, RR4 i))
 {
@@ -3657,7 +3493,6 @@ MIDFUNC(3,jff_ROL_l,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ROL_l,(W4 d, RR4 s, RR4 i))
 
 /*
  * ROLW
@@ -3684,7 +3519,6 @@ MIDFUNC(2,jnf_ROLW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_ROLW,(W4 d, RR4 s))
 
 MIDFUNC(2,jff_ROLW,(W4 d, RR4 s))
 {
@@ -3705,7 +3539,6 @@ MIDFUNC(2,jff_ROLW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_ROLW,(W4 d, RR4 s))
 
 /*
  * RORW
@@ -3732,7 +3565,6 @@ MIDFUNC(2,jnf_RORW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_RORW,(W4 d, RR4 s))
 
 MIDFUNC(2,jff_RORW,(W4 d, RR4 s))
 {
@@ -3747,7 +3579,6 @@ MIDFUNC(2,jff_RORW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_RORW,(W4 d, RR4 s))
 
 /*
  * ROXL
@@ -3780,7 +3611,6 @@ MIDFUNC(3,jnf_ROXL_b_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ROXL_b_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_ROXL_w_imm,(W4 d, RR4 s, IMM i))
 {
@@ -3799,7 +3629,6 @@ MIDFUNC(3,jnf_ROXL_w_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ROXL_w_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_ROXL_l_imm,(W4 d, RR4 s, IMM i))
 {
@@ -3817,7 +3646,6 @@ MIDFUNC(3,jnf_ROXL_l_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ROXL_l_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ROXL_b_imm,(W4 d, RR4 s, IMM i))
 {
@@ -3843,7 +3671,6 @@ MIDFUNC(3,jff_ROXL_b_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ROXL_b_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ROXL_w_imm,(W4 d, RR4 s, IMM i))
 {
@@ -3869,7 +3696,6 @@ MIDFUNC(3,jff_ROXL_w_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ROXL_w_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ROXL_l_imm,(W4 d, RR4 s, IMM i))
 {
@@ -3893,7 +3719,6 @@ MIDFUNC(3,jff_ROXL_l_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ROXL_l_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_ROXL_b,(W4 d, RR4 s, RR4 i))
 {
@@ -3940,7 +3765,6 @@ MIDFUNC(3,jnf_ROXL_b,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_ROXL_b,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jnf_ROXL_w,(W4 d, RR4 s, RR4 i))
 {
@@ -3984,7 +3808,6 @@ MIDFUNC(3,jnf_ROXL_w,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_ROXL_w,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jnf_ROXL_l,(W4 d, RR4 s, RR4 i))
 {
@@ -4016,7 +3839,6 @@ MIDFUNC(3,jnf_ROXL_l,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_ROXL_l,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ROXL_b,(W4 d, RR4 s, RR4 i))
 {
@@ -4082,7 +3904,6 @@ MIDFUNC(3,jff_ROXL_b,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ROXL_b,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ROXL_w,(W4 d, RR4 s, RR4 i))
 {
@@ -4147,7 +3968,6 @@ MIDFUNC(3,jff_ROXL_w,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ROXL_w,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ROXL_l,(W4 d, RR4 s, RR4 i))
 {
@@ -4196,7 +4016,6 @@ MIDFUNC(3,jff_ROXL_l,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ROXL_l,(W4 d, RR4 s, RR4 i))
 
 /*
  * ROXLW
@@ -4222,7 +4041,6 @@ MIDFUNC(2,jnf_ROXLW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_ROXLW,(W4 d, RR4 s))
 
 MIDFUNC(2,jff_ROXLW,(W4 d, RR4 s))
 {
@@ -4238,7 +4056,6 @@ MIDFUNC(2,jff_ROXLW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_ROXLW,(W4 d, RR4 s))
 
 /*
  * ROR
@@ -4268,7 +4085,6 @@ MIDFUNC(3,jnf_ROR_b_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ROR_b_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_ROR_w_imm,(W4 d, RR4 s, IMM i))
 {
@@ -4282,7 +4098,6 @@ MIDFUNC(3,jnf_ROR_w_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ROR_w_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_ROR_l_imm,(W4 d, RR4 s, IMM i))
 {
@@ -4294,7 +4109,6 @@ MIDFUNC(3,jnf_ROR_l_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ROR_l_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ROR_b_imm,(W4 d, RR4 s, IMM i))
 {
@@ -4310,7 +4124,6 @@ MIDFUNC(3,jff_ROR_b_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ROR_b_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ROR_w_imm,(W4 d, RR4 s, IMM i))
 {
@@ -4325,7 +4138,6 @@ MIDFUNC(3,jff_ROR_w_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ROR_w_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ROR_l_imm,(W4 d, RR4 s, IMM i))
 {
@@ -4338,7 +4150,6 @@ MIDFUNC(3,jff_ROR_l_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ROR_l_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_ROR_b,(W4 d, RR4 s, RR4 i))
 {
@@ -4359,7 +4170,6 @@ MIDFUNC(3,jnf_ROR_b,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_ROR_b,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jnf_ROR_w,(W4 d, RR4 s, RR4 i))
 {
@@ -4379,7 +4189,6 @@ MIDFUNC(3,jnf_ROR_w,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_ROR_w,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jnf_ROR_l,(W4 d, RR4 s, RR4 i))
 {
@@ -4397,7 +4206,6 @@ MIDFUNC(3,jnf_ROR_l,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_ROR_l,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ROR_b,(W4 d, RR4 s, RR4 i))
 {
@@ -4421,7 +4229,6 @@ MIDFUNC(3,jff_ROR_b,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ROR_b,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ROR_w,(W4 d, RR4 s, RR4 i))
 {
@@ -4444,7 +4251,6 @@ MIDFUNC(3,jff_ROR_w,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ROR_w,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ROR_l,(W4 d, RR4 s, RR4 i))
 {
@@ -4465,7 +4271,6 @@ MIDFUNC(3,jff_ROR_l,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ROR_l,(W4 d, RR4 s, RR4 i))
 
 /*
  * ROXR
@@ -4497,7 +4302,6 @@ MIDFUNC(3,jnf_ROXR_b_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ROXR_b_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_ROXR_w_imm,(W4 d, RR4 s, IMM i))
 {
@@ -4515,7 +4319,6 @@ MIDFUNC(3,jnf_ROXR_w_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ROXR_w_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_ROXR_l_imm,(W4 d, RR4 s, IMM i))
 {
@@ -4533,7 +4336,6 @@ MIDFUNC(3,jnf_ROXR_l_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_ROXR_l_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ROXR_b_imm,(W4 d, RR4 s, IMM i))
 {
@@ -4559,7 +4361,6 @@ MIDFUNC(3,jff_ROXR_b_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ROXR_b_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ROXR_w_imm,(W4 d, RR4 s, IMM i))
 {
@@ -4585,7 +4386,6 @@ MIDFUNC(3,jff_ROXR_w_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ROXR_w_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jff_ROXR_l_imm,(W4 d, RR4 s, IMM i))
 {
@@ -4609,7 +4409,6 @@ MIDFUNC(3,jff_ROXR_l_imm,(W4 d, RR4 s, IMM i))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_ROXR_l_imm,(W4 d, RR4 s, IMM i))
 
 MIDFUNC(3,jnf_ROXR_b,(W4 d, RR4 s, RR4 i))
 {
@@ -4647,7 +4446,6 @@ MIDFUNC(3,jnf_ROXR_b,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_ROXR_b,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jnf_ROXR_w,(W4 d, RR4 s, RR4 i))
 {
@@ -4682,7 +4480,6 @@ MIDFUNC(3,jnf_ROXR_w,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_ROXR_w,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jnf_ROXR_l,(W4 d, RR4 s, RR4 i))
 {
@@ -4715,7 +4512,6 @@ MIDFUNC(3,jnf_ROXR_l,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jnf_ROXR_l,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ROXR_b,(W4 d, RR4 s, RR4 i))
 {
@@ -4769,7 +4565,6 @@ MIDFUNC(3,jff_ROXR_b,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ROXR_b,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ROXR_w,(W4 d, RR4 s, RR4 i))
 {
@@ -4821,7 +4616,6 @@ MIDFUNC(3,jff_ROXR_w,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ROXR_w,(W4 d, RR4 s, RR4 i))
 
 MIDFUNC(3,jff_ROXR_l,(W4 d, RR4 s, RR4 i))
 {
@@ -4870,7 +4664,6 @@ MIDFUNC(3,jff_ROXR_l,(W4 d, RR4 s, RR4 i))
 	unlock2(s);
 	unlock2(i);
 }
-MENDFUNC(3,jff_ROXR_l,(W4 d, RR4 s, RR4 i))
 
 /*
  * ROXRW
@@ -4897,7 +4690,6 @@ MIDFUNC(2,jnf_ROXRW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_ROXRW,(W4 d, RR4 s))
 
 MIDFUNC(2,jff_ROXRW,(W4 d, RR4 s))
 {
@@ -4912,7 +4704,6 @@ MIDFUNC(2,jff_ROXRW,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jff_ROXRW,(W4 d, RR4 s))
 
 /*
  * SUB
@@ -4944,7 +4735,6 @@ MIDFUNC(3,jnf_SUB_b_imm,(W4 d, RR4 s, IMM v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_SUB_b_imm,(W4 d, RR4 s, IMM v))
 
 MIDFUNC(3,jnf_SUB_b,(W4 d, RR4 s, RR4 v))
 {
@@ -4964,7 +4754,6 @@ MIDFUNC(3,jnf_SUB_b,(W4 d, RR4 s, RR4 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jnf_SUB_b,(W4 d, RR4 s, RR4 v))
 
 MIDFUNC(3,jnf_SUB_w_imm,(W4 d, RR4 s, IMM v))
 {
@@ -4982,7 +4771,6 @@ MIDFUNC(3,jnf_SUB_w_imm,(W4 d, RR4 s, IMM v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_SUB_w_imm,(W4 d, RR4 s, IMM v))
 
 MIDFUNC(3,jnf_SUB_w,(W4 d, RR4 s, RR4 v))
 {
@@ -5002,7 +4790,6 @@ MIDFUNC(3,jnf_SUB_w,(W4 d, RR4 s, RR4 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jnf_SUB_w,(W4 d, RR4 s, RR4 v))
 
 MIDFUNC(3,jnf_SUB_l_imm,(W4 d, RR4 s, IMM v))
 {
@@ -5020,7 +4807,6 @@ MIDFUNC(3,jnf_SUB_l_imm,(W4 d, RR4 s, IMM v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jnf_SUB_l_imm,(W4 d, RR4 s, IMM v))
 
 MIDFUNC(3,jnf_SUB_l,(W4 d, RR4 s, RR4 v))
 {
@@ -5040,7 +4826,6 @@ MIDFUNC(3,jnf_SUB_l,(W4 d, RR4 s, RR4 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jnf_SUB_l,(W4 d, RR4 s, RR4 v))
 
 MIDFUNC(3,jff_SUB_b_imm,(W4 d, RR1 s, IMM v))
 {
@@ -5060,7 +4845,6 @@ MIDFUNC(3,jff_SUB_b_imm,(W4 d, RR1 s, IMM v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_SUB_b_imm,(W4 d, RR1 s, IMM v))
 
 MIDFUNC(3,jff_SUB_b,(W4 d, RR1 s, RR1 v))
 {
@@ -5087,7 +4871,6 @@ MIDFUNC(3,jff_SUB_b,(W4 d, RR1 s, RR1 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jff_SUB_b,(W4 d, RR1 s, RR1 v))
 
 MIDFUNC(3,jff_SUB_w_imm,(W4 d, RR2 s, IMM v))
 {
@@ -5107,7 +4890,6 @@ MIDFUNC(3,jff_SUB_w_imm,(W4 d, RR2 s, IMM v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jitc_SUB_ff_w2l_rri,(W4 d, RR2 s, IMM v))
 
 MIDFUNC(3,jff_SUB_w,(W4 d, RR2 s, RR2 v))
 {
@@ -5134,7 +4916,6 @@ MIDFUNC(3,jff_SUB_w,(W4 d, RR2 s, RR2 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jff_SUB_w,(W4 d, RR2 s, RR2 v))
 
 MIDFUNC(3,jff_SUB_l_imm,(W4 d, RR4 s, IMM v))
 {
@@ -5153,7 +4934,6 @@ MIDFUNC(3,jff_SUB_l_imm,(W4 d, RR4 s, IMM v))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(3,jff_SUB_l_imm,(W4 d, RR4 s, IMM v))
 
 MIDFUNC(3,jff_SUB_l,(W4 d, RR4 s, RR4 v))
 {
@@ -5178,7 +4958,6 @@ MIDFUNC(3,jff_SUB_l,(W4 d, RR4 s, RR4 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jff_SUB_l,(W4 d, RR4 s, RR4 v))
 
 /*
  * SUBA
@@ -5201,7 +4980,6 @@ MIDFUNC(2,jnf_SUBA_b,(W4 d, RR1 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_SUBA_b,(W4 d, RR1 s))
 
 MIDFUNC(2,jnf_SUBA_w,(W4 d, RR2 s))
 {
@@ -5214,7 +4992,6 @@ MIDFUNC(2,jnf_SUBA_w,(W4 d, RR2 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_SUBA_w,(W4 d, RR2 s))
 
 MIDFUNC(2,jnf_SUBA_l,(W4 d, RR4 s))
 {
@@ -5226,7 +5003,6 @@ MIDFUNC(2,jnf_SUBA_l,(W4 d, RR4 s))
 	unlock2(d);
 	unlock2(s);
 }
-MENDFUNC(2,jnf_SUBA_l,(W4 d, RR4 s))
 
 /*
  * SUBX
@@ -5256,7 +5032,6 @@ MIDFUNC(3,jnf_SUBX,(W4 d, RR4 s, RR4 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jnf_SUBX,(W4 d, RR4 s, RR4 v))
 
 MIDFUNC(3,jff_SUBX_b,(W4 d, RR1 s, RR1 v))
 {
@@ -5283,7 +5058,6 @@ MIDFUNC(3,jff_SUBX_b,(W4 d, RR1 s, RR1 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jff_SUBX_b,(W4 d, RR1 s, RR1 v))
 
 MIDFUNC(3,jff_SUBX_w,(W4 d, RR2 s, RR2 v))
 {
@@ -5310,7 +5084,6 @@ MIDFUNC(3,jff_SUBX_w,(W4 d, RR2 s, RR2 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jff_SUBX_w,(W4 d, RR2 s, RR2 v))
 
 MIDFUNC(3,jff_SUBX_l,(W4 d, RR4 s, RR4 v))
 {
@@ -5333,7 +5106,6 @@ MIDFUNC(3,jff_SUBX_l,(W4 d, RR4 s, RR4 v))
 	unlock2(s);
 	unlock2(v);
 }
-MENDFUNC(3,jff_SUBX_l,(W4 d, RR4 s, RR4 v))
 
 /*
  * SWAP
@@ -5356,7 +5128,6 @@ MIDFUNC(1,jnf_SWAP,(RW4 d))
 
 	unlock2(d);
 }
-MENDFUNC(1,jnf_SWAP,(RW4 d))
 
 MIDFUNC(1,jff_SWAP,(RW4 d))
 {
@@ -5368,7 +5139,6 @@ MIDFUNC(1,jff_SWAP,(RW4 d))
 
 	unlock2(d);
 }
-MENDFUNC(1,jff_SWAP,(RW4 d))
 
 /*
  * TST
@@ -5395,7 +5165,6 @@ MIDFUNC(1,jff_TST_b,(RR1 s))
 	MSR_CPSRf_i(0);
 	TST_rr(REG_WORK1,REG_WORK1);
 }
-MENDFUNC(1,jff_TST_b,(RR1 s))
 
 MIDFUNC(1,jff_TST_w,(RR2 s))
 {
@@ -5409,7 +5178,6 @@ MIDFUNC(1,jff_TST_w,(RR2 s))
 	MSR_CPSRf_i(0);
 	TST_rr(REG_WORK1,REG_WORK1);
 }
-MENDFUNC(1,jff_TST_w,(RR2 s))
 
 MIDFUNC(1,jff_TST_l,(RR4 s))
 {
@@ -5425,4 +5193,3 @@ MIDFUNC(1,jff_TST_l,(RR4 s))
 		unlock2(s);
 	}
 }
-MENDFUNC(1,jff_TST_l,(RR4 s))

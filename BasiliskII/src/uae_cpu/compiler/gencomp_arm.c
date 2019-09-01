@@ -677,6 +677,7 @@ static void gen_move16(uae_u32 opcode, struct instr *curi) {
 	else if ((opcode & 0xfff8) == 0xf608)
 		comprintf("\tarm_ADD_l_ri8(dstreg+8,16);\n");
 
+	start_brace();
 	comprintf("\tint tmp=scratchie;\n");
 	comprintf("\tscratchie+=4;\n");
 
@@ -693,6 +694,7 @@ static void gen_move16(uae_u32 opcode, struct instr *curi) {
 			"\tmov_l_Rr(dst,tmp+2,8);\n"
 			"\tforget_about(tmp+2);\n"
 			"\tmov_l_Rr(dst,tmp+3,12);\n");
+	close_brace();
 #endif
 }
 
@@ -4632,10 +4634,10 @@ gen_opcode(unsigned long int opcode) {
 		failure;
 		break;
 
-	case i_NATFEAT_ID:
-	case i_NATFEAT_CALL:
-		failure;
-		break;
+	// case i_NATFEAT_ID:
+	// case i_NATFEAT_CALL:
+	// 	failure;
+	// 	break;
 
 	case i_MMUOP:
 		isjump;
@@ -4664,6 +4666,105 @@ static void generate_includes(FILE * f) {
 }
 
 static int postfix;
+
+static char *decodeEA (amodes mode, wordsizes size)
+{
+	static char buffer[80];
+
+	buffer[0] = 0;
+	switch (mode){
+	case Dreg:
+		strcpy (buffer,"Dn");
+		break;
+	case Areg:
+		strcpy (buffer,"An");
+		break;
+	case Aind:
+		strcpy (buffer,"(An)");
+		break;
+	case Aipi:
+		strcpy (buffer,"(An)+");
+		break;
+	case Apdi:
+		strcpy (buffer,"-(An)");
+		break;
+	case Ad16:
+		strcpy (buffer,"(d16,An)");
+		break;
+	case Ad8r:
+		strcpy (buffer,"(d8,An,Xn)");
+		break;
+	case PC16:
+		strcpy (buffer,"(d16,PC)");
+		break;
+	case PC8r:
+		strcpy (buffer,"(d8,PC,Xn)");
+		break;
+	case absw:
+		strcpy (buffer,"(xxx).W");
+		break;
+	case absl:
+		strcpy (buffer,"(xxx).L");
+		break;
+	case imm:
+		switch (size){
+		case sz_byte:
+			strcpy (buffer,"#<data>.B");
+			break;
+		case sz_word:
+			strcpy (buffer,"#<data>.W");
+			break;
+		case sz_long:
+			strcpy (buffer,"#<data>.L");
+			break;
+		default:
+			break;
+		}
+		break;
+	case imm0:
+		strcpy (buffer,"#<data>.B");
+		break;
+	case imm1:
+		strcpy (buffer,"#<data>.W");
+		break;
+	case imm2:
+		strcpy (buffer,"#<data>.L");
+		break;
+	case immi:
+		strcpy (buffer,"#<data>");
+		break;
+
+	default:
+		break;
+	}
+	return buffer;
+}
+
+static char *outopcode (const char *name, int opcode)
+{
+	static char out[100];
+	struct instr *ins;
+
+	ins = &table68k[opcode];
+	strcpy (out, name);
+	if (ins->smode == immi)
+		strcat (out, "Q");
+	if (ins->size == sz_byte)
+		strcat (out,".B");
+	if (ins->size == sz_word)
+		strcat (out,".W");
+	if (ins->size == sz_long)
+		strcat (out,".L");
+	strcat (out," ");
+	if (ins->suse)
+		strcat (out, decodeEA (ins->smode, ins->size));
+	if (ins->duse) {
+		if (ins->suse) strcat (out,",");
+		strcat (out, decodeEA (ins->dmode, ins->size));
+	}
+	return out;
+}
+
 
 static void generate_one_opcode(int rp, int noflags) {
 	int i;
@@ -4858,6 +4959,7 @@ static void generate_one_opcode(int rp, int noflags) {
 					opcode, postfix, tbl, opcode, flags, name);
 			fprintf(headerfile, "extern compop_func op_%x_%d_comp_%s;\n",
 					opcode, postfix, tbl);
+			printf ("/* %s */\n", outopcode (name, opcode));
 			printf(
 					"void REGPARAM2 op_%x_%d_comp_%s(uae_u32 opcode) /* %s */\n{\n",
 					opcode, postfix, tbl, name);

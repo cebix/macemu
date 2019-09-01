@@ -678,8 +678,8 @@ void MakeSR (void)
 #endif
 	regs.sr = ((regs.t1 << 15) | (regs.t0 << 14)
 			   | (regs.s << 13) | (regs.m << 12) | (regs.intmask << 8)
-			   | (GET_XFLG << 4) | (GET_NFLG << 3) | (GET_ZFLG << 2) | (GET_VFLG << 1)
-			   | GET_CFLG);
+			   | (GET_XFLG() << 4) | (GET_NFLG() << 3) | (GET_ZFLG() << 2) | (GET_VFLG() << 1)
+			   | GET_CFLG());
 }
 
 void MakeFromSR (void)
@@ -858,7 +858,7 @@ int m68k_move2c (int regno, uae_u32 *regp)
 #if USE_JIT
 			set_cache_state(regs.cacr & 0x8000);
 			if (*regp & 0x08) {	/* Just to be on the safe side */
-				flush_icache(1);
+				flush_icache();
 			}
 #endif
 			break;
@@ -1268,7 +1268,7 @@ void mmu_op(uae_u32 opcode, uae_u16 extra)
 		/* PFLUSH */
 		mmusr = 0;
 #ifdef USE_JIT
-		flush_icache(0);
+		flush_icache();
 #endif
 	} else if ((opcode & 0x0FD8) == 0x548) {
 		/* PTEST */
@@ -1501,7 +1501,7 @@ void m68k_dumpstate (uaecptr *nextpc)
 			regs.usp,regs.isp,regs.msp,regs.vbr);
 	printf ("T=%d%d S=%d M=%d X=%ld N=%ld Z=%ld V=%ld C=%ld IMASK=%d\n",
 			regs.t1, regs.t0, regs.s, regs.m,
-			GET_XFLG, GET_NFLG, GET_ZFLG, GET_VFLG, GET_CFLG, regs.intmask);
+			GET_XFLG(), GET_NFLG(), GET_ZFLG(), GET_VFLG(), GET_CFLG(), regs.intmask);
 
 	fpu_dump_registers();
 	fpu_dump_flags();

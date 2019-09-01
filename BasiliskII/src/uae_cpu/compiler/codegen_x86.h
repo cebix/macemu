@@ -402,22 +402,54 @@ typedef unsigned int	_ul;
 /* --- Memory subformats - urgh! ------------------------------------------- */
 
 /* _r_D() is RIP addressing mode if X86_TARGET_64BIT, use _r_DSIB() instead */
-#define _r_D(	R, D	  )	(_Mrm(_b00,_rN(R),_b101 )		             ,_L((long)(D)))
-#define _r_DSIB(R, D      )	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(1),_b100 ,_b101 ),_L((long)(D)))
+#define _r_D(	R, D	  )	(_Mrm(_b00,_rN(R),_b101 )		             ,_L((uae_u32)(D)))
+#define _r_DSIB(R, D      )	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(1),_b100 ,_b101 ),_L((uae_u32)(D)))
 #define _r_0B(	R,   B    )	(_Mrm(_b00,_rN(R),_rA(B))			                   )
 #define _r_0BIS(R,   B,I,S)	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B))              )
-#define _r_1B(	R, D,B    )	(_Mrm(_b01,_rN(R),_rA(B))		             ,_B((long)(D)))
-#define _r_1BIS(R, D,B,I,S)	(_Mrm(_b01,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B)),_B((long)(D)))
-#define _r_4B(	R, D,B    )	(_Mrm(_b10,_rN(R),_rA(B))		             ,_L((long)(D)))
-#define _r_4IS( R, D,I,S)	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_b101 ),_L((long)(D)))
-#define _r_4BIS(R, D,B,I,S)	(_Mrm(_b10,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B)),_L((long)(D)))
+#define _r_1B(	R, D,B    )	(_Mrm(_b01,_rN(R),_rA(B))		             ,_B((uae_u32)(D)))
+#define _r_1BIS(R, D,B,I,S)	(_Mrm(_b01,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B)),_B((uae_u32)(D)))
+#define _r_4B(	R, D,B    )	(_Mrm(_b10,_rN(R),_rA(B))		             ,_L((uae_u32)(D)))
+#define _r_4IS( R, D,I,S)	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_b101 ),_L((uae_u32)(D)))
+#define _r_4BIS(R, D,B,I,S)	(_Mrm(_b10,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B)),_L((uae_u32)(D)))
 
 #define _r_DB(  R, D,B    )	((_s0P(D) && (!_rbp13P(B)) ? _r_0B  (R,  B    ) : (_s8P(D) ? _r_1B(  R,D,B    ) : _r_4B(  R,D,B    ))))
 #define _r_DBIS(R, D,B,I,S)	((_s0P(D) && (!_rbp13P(B)) ? _r_0BIS(R,  B,I,S) : (_s8P(D) ? _r_1BIS(R,D,B,I,S) : _r_4BIS(R,D,B,I,S))))
 
 /* Use RIP-addressing in 64-bit mode, if possible */
-#define _x86_RIP_addressing_possible(D,O)	(X86_RIP_RELATIVE_ADDR && \
-						((uintptr)x86_get_target() + 4 + (O) - (D) <= 0xffffffff))
+#define _x86_RIP_addressing_possible(D,O)	(X86_RIP_RELATIVE_ADDR && x86_RIP_addressing_possible(D, O))
+
+static inline int x86_RIP_addressing_possible(uintptr addr, uintptr offset)
+{
+#if X86_TARGET_64BIT
+	/*
+	 * address of the next instruction.
+	 * The opcode has already been emmitted,
+	 * so this is the size of an 32bit displacement +
+	 * the size of any immediate value that is part of the instruction (offset),
+	 */
+	uintptr dst = (uintptr)get_target() + 4 + offset;
+	intptr disp = dst - addr;
+	int ok = disp >= -0x80000000LL && disp <= 0x7fffffffLL;
+	/* fprintf(stderr, "x86_RIP_addressing_possible: %llx - %llx %16llx = %d\n", (unsigned long long)dst, (unsigned long long)addr, (long long)disp, ok); */
+	return ok;
+#else
+	UNUSED(addr);
+	UNUSED(offset);
+	return 0;
+#endif
+}
+
+
+static inline int x86_DISP32_addressing_possible(uintptr addr)
+{
+#if X86_TARGET_64BIT
+	return addr <= 0xFFFFFFFFULL;
+#else
+	UNUSED(addr);
+	return 1;
+#endif
+}
+
 
 #define _r_X(   R, D,B,I,S,O)	(_r0P(I) ? (_r0P(B)    ? (!X86_TARGET_64BIT ? _r_D(R,D) : \
 					                 (_x86_RIP_addressing_possible(D, O) ? \

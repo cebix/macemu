@@ -22,9 +22,9 @@
 #include "macos_util.h"
 #include "timer.h"
 
-// #ifdef USE_SDL
-// # include <SDL.h>
-// #endif
+#ifdef USE_SDL
+# include <SDL.h>
+#endif
 
 #include <errno.h>
 
@@ -341,19 +341,19 @@ void Delay_usec(uint32 usec)
 // #endif
 // #endif
 
-// SDL_mutex *idle_lock;
-// SDL_cond *idle_cond;
+SDL_mutex *idle_lock;
+SDL_cond *idle_cond;
 
 void idle_wait(void)
 {
 	//This causes events to not process randomly in JIT so commented out
-	// if (!idle_lock)
-	// 	idle_lock = SDL_CreateMutex();
-	// if (!idle_cond)
-	// 	idle_cond = SDL_CreateCond();
-	// SDL_LockMutex(idle_lock);
-	// SDL_CondWait(idle_cond, idle_lock);
-	// SDL_UnlockMutex(idle_lock);
+	if (!idle_lock)
+		idle_lock = SDL_CreateMutex();
+	if (!idle_cond)
+		idle_cond = SDL_CreateCond();
+	SDL_LockMutex(idle_lock);
+	SDL_CondWait(idle_cond, idle_lock);
+	SDL_UnlockMutex(idle_lock);
 
 // #ifdef IDLE_USES_COND_WAIT
 // 	pthread_mutex_lock(&idle_lock);
@@ -386,8 +386,8 @@ void idle_wait(void)
 void idle_resume(void)
 {
 	//This causes events to not process randomly in JIT so commented out
-	// if (idle_cond)
-	// 	SDL_CondSignal(idle_cond);
+	if (idle_cond)
+		SDL_CondSignal(idle_cond);
 // #ifdef IDLE_USES_COND_WAIT
 // 	pthread_cond_signal(&idle_cond);
 // #else

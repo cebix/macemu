@@ -35,11 +35,6 @@
 // #include "sysconfig.h"
 #include "newcpu.h"
 
-#ifdef __x86_64__
-#define CPU_64_BIT 1
-#define CPU_x86_64 1
-#endif
-
 #ifdef UAE
 #ifdef CPU_64_BIT
 typedef uae_u64 uintptr;
@@ -135,11 +130,19 @@ union cacheline {
 			  for jump targets */
 
 #define INDIVIDUAL_INST 0
+#ifdef WINUAE_ARANYM
 #define FLAG_X    0x0010
 #define FLAG_N    0x0008
 #define FLAG_Z    0x0004
 #define FLAG_V    0x0002
 #define FLAG_C    0x0001
+#else
+#define FLAG_C    0x0010
+#define FLAG_V    0x0008
+#define FLAG_Z    0x0004
+#define FLAG_N    0x0002
+#define FLAG_X    0x0001
+#endif
 #define FLAG_CZNV (FLAG_C | FLAG_Z | FLAG_N | FLAG_V)
 #define FLAG_ALL  (FLAG_C | FLAG_Z | FLAG_N | FLAG_V | FLAG_X)
 #define FLAG_ZNV  (FLAG_Z | FLAG_N | FLAG_V)
@@ -165,27 +168,74 @@ extern void compiler_init(void);
 extern void compiler_exit(void);
 extern bool compiler_use_jit(void);
 #endif
-extern void init_comp(void);
 extern void flush(int save_regs);
-extern void small_flush(int save_regs);
 extern void set_target(uae_u8* t);
 extern uae_u8* get_target(void);
-extern void freescratch(void);
+#ifdef UAE
 extern void build_comp(void);
+#endif
 extern void set_cache_state(int enabled);
 extern int get_cache_state(void);
 extern uae_u32 get_jitted_size(void);
 #ifdef JIT
-#ifdef WINUAE_ARANYM
-extern void (*flush_icache)(int n);
-#else
-extern void flush_icache(int n);
-#endif
+extern void (*flush_icache)(void);
 #endif
 extern void alloc_cache(void);
 extern int check_for_cache_miss(void);
 
 /* JIT FPU compilation */
+struct jit_disable_opcodes {
+	bool fbcc;
+	bool fdbcc;
+	bool fscc;
+	bool ftrapcc;
+	bool fsave;
+	bool frestore;
+	bool fmove;
+	bool fmovem;
+	bool fmovec;  /* for move control register */
+	bool fmovecr; /* for move from constant rom */
+	bool fint;
+	bool fsinh;
+	bool fintrz;
+	bool fsqrt;
+	bool flognp1;
+	bool fetoxm1;
+	bool ftanh;
+	bool fatan;
+	bool fasin;
+	bool fatanh;
+	bool fsin;
+	bool ftan;
+	bool fetox;
+	bool ftwotox;
+	bool ftentox;
+	bool flogn;
+	bool flog10;
+	bool flog2;
+	bool fabs;
+	bool fcosh;
+	bool fneg;
+	bool facos;
+	bool fcos;
+	bool fgetexp;
+	bool fgetman;
+	bool fdiv;
+	bool fmod;
+	bool fadd;
+	bool fmul;
+	bool fsgldiv;
+	bool frem;
+	bool fscale;
+	bool fsglmul;
+	bool fsub;
+	bool fsincos;
+	bool fcmp;
+	bool ftst;
+};
+extern struct jit_disable_opcodes jit_disable;
+
+
 extern void comp_fpp_opp (uae_u32 opcode, uae_u16 extra);
 extern void comp_fbcc_opp (uae_u32 opcode);
 extern void comp_fscc_opp (uae_u32 opcode, uae_u16 extra);
@@ -320,18 +370,20 @@ extern int touchcnt;
 #define RW4 uae_u32
 #define MEMR uae_u32
 #define MEMW uae_u32
-#define MEMRW uae_u32
+#define MEMRW    uae_u32
+#define MEMPTR   uintptr
+#define MEMPTRR  MEMPTR
+#define MEMPTRW  MEMPTR
+#define MEMPTRRW MEMPTR
 
 #define FW   uae_u32
 #define FR   uae_u32
 #define FRW  uae_u32
 
 #define MIDFUNC(nargs,func,args) void func args
-#define MENDFUNC(nargs,func,args)
 #define COMPCALL(func) func
 
 #define LOWFUNC(flags,mem,nargs,func,args) static inline void func args
-#define LENDFUNC(flags,mem,nargs,func,args)
 
 /* What we expose to the outside */
 #define DECLARE_MIDFUNC(func) extern void func
@@ -456,8 +508,7 @@ void do_nothing(void);
 
 #else
 
-static inline void flush_icache(int) { }
-static inline void build_comp() { }
+static inline void flush_icache(void) { }
 
 #endif /* !USE_JIT */
 
@@ -520,7 +571,7 @@ void jit_abort(const TCHAR *format, ...);
 #else
 
 #ifdef WINUAE_ARANYM
-#define jit_log(format, ...) write_log(format"\n", ##__VA_ARGS__)
+#define jit_log(format, ...) D(bug(format, ##__VA_ARGS__))
 #define jit_log2(format, ...) D2(bug(format, ##__VA_ARGS__))
 void jit_abort(const char *format,...) __attribute__((format(printf, 1, 2))) __attribute__((__noreturn__));
 #else

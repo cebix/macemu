@@ -66,22 +66,22 @@
 /* --- ENCODINGS ----------------------------------------------------------- */
 /* ========================================================================= */
 
-#define IMM32(c) ((c & 0xffffff00) == 0 ? c : \
-                  (c & 0x3fffffc0) == 0 ? (0x100 | ((c >> 30) & 0x3) | ((c << 2) & 0xfc)) : \
-                  (c & 0x0ffffff0) == 0 ? (0x200 | ((c >> 28) & 0xf) | ((c << 4) & 0xf0)) : \
-                  (c & 0x03fffffc) == 0 ? (0x300 | ((c >> 26) & 0x3f) | ((c << 6) & 0xc0) ) : \
-                  (c & 0x00ffffff) == 0 ? (0x400 | ((c >> 24) & 0xff)) : \
-                  (c & 0xc03fffff) == 0 ? (0x500 | (c >> 22)) : \
-                  (c & 0xf00fffff) == 0 ? (0x600 | (c >> 20)) : \
-                  (c & 0xfc03ffff) == 0 ? (0x700 | (c >> 18)) : \
-                  (c & 0xff00ffff) == 0 ? (0x800 | (c >> 16)) : \
-                  (c & 0xffc03fff) == 0 ? (0x900 | (c >> 14)) : \
-                  (c & 0xfff00fff) == 0 ? (0xa00 | (c >> 12)) : \
-                  (c & 0xfffc03ff) == 0 ? (0xb00 | (c >> 10)) : \
-                  (c & 0xffff00ff) == 0 ? (0xc00 | (c >> 8)) : \
-                  (c & 0xffffc03f) == 0 ? (0xd00 | (c >> 6)) : \
-                  (c & 0xfffff00f) == 0 ? (0xe00 | (c >> 4)) : \
-                  (c & 0xfffffc03) == 0 ? (0xf00 | (c >> 2)) : \
+#define IMM32(c) (((c) & 0xffffff00) == 0 ? (c) : \
+                  ((c) & 0x3fffffc0) == 0 ? (0x100 | (((c) >> 30) & 0x3) | ((((c) & 0x0000003f) << 2))) : \
+                  ((c) & 0x0ffffff0) == 0 ? (0x200 | (((c) >> 28) & 0xf) | ((((c) & 0x0000000f) << 4))) : \
+                  ((c) & 0x03fffffc) == 0 ? (0x300 | (((c) >> 26) & 0x3f) | ((((c) & 0x00000003) << 6)) ) : \
+                  ((c) & 0x00ffffff) == 0 ? (0x400 | (((c) >> 24) & 0xff)) : \
+                  ((c) & 0xc03fffff) == 0 ? (0x500 | ((c) >> 22)) : \
+                  ((c) & 0xf00fffff) == 0 ? (0x600 | ((c) >> 20)) : \
+                  ((c) & 0xfc03ffff) == 0 ? (0x700 | ((c) >> 18)) : \
+                  ((c) & 0xff00ffff) == 0 ? (0x800 | ((c) >> 16)) : \
+                  ((c) & 0xffc03fff) == 0 ? (0x900 | ((c) >> 14)) : \
+                  ((c) & 0xfff00fff) == 0 ? (0xa00 | ((c) >> 12)) : \
+                  ((c) & 0xfffc03ff) == 0 ? (0xb00 | ((c) >> 10)) : \
+                  ((c) & 0xffff00ff) == 0 ? (0xc00 | ((c) >> 8)) : \
+                  ((c) & 0xffffc03f) == 0 ? (0xd00 | ((c) >> 6)) : \
+                  ((c) & 0xfffff00f) == 0 ? (0xe00 | ((c) >> 4)) : \
+                  ((c) & 0xfffffc03) == 0 ? (0xf00 | ((c) >> 2)) : \
                         0\
                  )
 
@@ -102,7 +102,7 @@
 #define SHIFT_RRX(Rm) ((Rm) | 0x60)
 #define SHIFT_PK(Rm,s) ((Rm) | ((s) << 7))
 
-// Load/Store addressings
+/* Load/Store addressings */
 #define ADR_ADD(v) ((1 << 23) | (v))
 #define ADR_SUB(v) (v)
 
@@ -138,16 +138,16 @@
 #define ADD2_REG(Rm)	ADR_ADD(Rm)
 #define SUB2_REG(Rm)	ADR_SUB(Rm)
 
-// MOV, MVN
+/* MOV, MVN */
 #define _OP1(cc,op,s,Rd,shift) _W(((cc) << 28) | ((op) << 21) | ((s) << 20) | ((Rd) << 12) | (shift))
 
-// CMP, CMN, TST, TEQ
+/* CMP, CMN, TST, TEQ */
 #define _OP2(cc,op,Rn,shift) _W(((cc) << 28) | ((op) << 21) | (1 << 20) | ((Rn) << 16) | (shift))
 
-// ADD, SUB, RSB, ADC, SBC, RSC, AND, BIC, EOR, ORR
+/* ADD, SUB, RSB, ADC, SBC, RSC, AND, BIC, EOR, ORR */
 #define _OP3(cc,op,s,Rd,Rn,shift) _W(((cc) << 28) | ((op) << 21) | ((s) << 20) | ((Rn) << 16) | ((Rd) << 12) | (shift))
 
-// LDR, STR
+/* LDR, STR */
 #define _LS1(cc,l,b,Rd,Rn,a) _W(((cc) << 28) | (0x01 << 26) | ((l) << 20) | ((b) << 22) | ((Rn) << 16) | ((Rd) << 12) | (a))
 #define _LS2(cc,p,l,s,h,Rd,Rn,a) _W(((cc) << 28) | ((p) << 24) | ((l) << 20) | ((Rn) << 16) | ((Rd) << 12) | ((s) << 6) | ((h) << 5) | 0x90 | _LS2_ADDR((a)))
 
@@ -211,9 +211,9 @@ enum {
 /* Data processing instructions */
 
 /* Opcodes Type 1 */
-// MOVcc rd,#i
+/* MOVcc rd,#i */
 #define CC_MOV_ri8(cc,Rd,i)                 _OP1(cc,_MOV,0,Rd,UNSHIFTED_IMM8(i))
-// MOVcc Rd,#i ROR #s
+/* MOVcc Rd,#i ROR #s */
 #define CC_MOV_ri8RORi(cc,Rd,i,s)           _OP1(cc,_MOV,0,Rd,SHIFT_IMM8_ROR(i,s))
 #define CC_MOV_ri(cc,Rd,i)                  _OP1(cc,_MOV,0,Rd,SHIFT_IMM(i))
 #define CC_MOV_rr(cc,Rd,Rm)                 _OP1(cc,_MOV,0,Rd,SHIFT_REG(Rm))
@@ -227,9 +227,9 @@ enum {
 #define CC_MOV_rrRORr(cc,Rd,Rm,Rs)          _OP1(cc,_MOV,0,Rd,SHIFT_ROR_r(Rm,Rs))
 #define CC_MOV_rrRRX(cc,Rd,Rm)              _OP1(cc,_MOV,0,Rd,SHIFT_RRX(Rm))
 
-// MOV rd,#i
+/* MOV rd,#i */
 #define MOV_ri8(Rd,i)                       CC_MOV_ri8(NATIVE_CC_AL,Rd,i)
-// MOV Rd,#i ROR #s
+/* MOV Rd,#i ROR #s */
 #define MOV_ri8RORi(Rd,i,s)                 CC_MOV_ri8RORi(NATIVE_CC_AL,Rd,i,s)
 #define MOV_ri(Rd,i)                        CC_MOV_ri(NATIVE_CC_AL,Rd,i)
 #define MOV_rr(Rd,Rm)                       CC_MOV_rr(NATIVE_CC_AL,Rd,Rm)
@@ -267,9 +267,9 @@ enum {
 #define MOVS_rrRORr(Rd,Rm,Rs)               CC_MOVS_rrRORr(NATIVE_CC_AL,Rd,Rm,Rs)
 #define MOVS_rrRRX(Rd,Rm)                   CC_MOVS_rrRRX(NATIVE_CC_AL,Rd,Rm)
 
-// MVNcc rd,#i
+/* MVNcc rd,#i */
 #define CC_MVN_ri8(cc,Rd,i)                 _OP1(cc,_MVN,0,Rd,UNSHIFTED_IMM8(i))
-// MVNcc Rd,#i ROR #s
+/* MVNcc Rd,#i ROR #s */
 #define CC_MVN_ri8RORi(cc,Rd,i,s)           _OP1(cc,_MVN,0,Rd,SHIFT_IMM8_ROR(i,s))
 #define CC_MVN_ri(cc,Rd,i)              	_OP1(cc,_MVN,0,Rd,SHIFT_IMM(i))
 #define CC_MVN_rr(cc,Rd,Rm)             	_OP1(cc,_MVN,0,Rd,SHIFT_REG(Rm))
@@ -283,9 +283,9 @@ enum {
 #define CC_MVN_rrRORr(cc,Rd,Rm,Rs)      	_OP1(cc,_MVN,0,Rd,SHIFT_ROR_r(Rm,Rs))
 #define CC_MVN_rrRRX(cc,Rd,Rm)           	_OP1(cc,_MVN,0,Rd,SHIFT_RRX(Rm))
 
-// MVN rd,#i
+/* MVN rd,#i */
 #define MVN_ri8(Rd,i)                       CC_MVN_ri8(NATIVE_CC_AL,Rd,i)
-// MVN Rd,#i ROR #s
+/* MVN Rd,#i ROR #s */
 #define MVN_ri8RORi(Rd,i,s)                 CC_MVN_ri8RORi(NATIVE_CC_AL,Rd,i,s)
 #define MVN_ri(Rd,i)                        CC_MVN_ri(NATIVE_CC_AL,Rd,i)
 #define MVN_rr(Rd,Rm)                       CC_MVN_rr(NATIVE_CC_AL,Rd,Rm)
@@ -811,9 +811,9 @@ enum {
 #define RSCS_rrrRORr(Rd,Rn,Rm,Rs)       	CC_RSCS_rrrRORr(NATIVE_CC_AL,Rd,Rn,Rm,Rs)
 #define RSCS_rrrRRX(Rd,Rn,Rm)           	CC_RSCS_rrrRRX(NATIVE_CC_AL,Rd,Rn,Rm)
 
-// ORRcc Rd,Rn,#i
+/* ORRcc Rd,Rn,#i */
 #define CC_ORR_rri8(cc,Rd,Rn,i)          	_OP3(cc,_ORR,0,Rd,Rn,UNSHIFTED_IMM8(i))
-// ORRcc Rd,Rn,#i ROR #s
+/* ORRcc Rd,Rn,#i ROR #s */
 #define CC_ORR_rri8RORi(cc,Rd,Rn,i,s)      	_OP3(cc,_ORR,0,Rd,Rn,SHIFT_IMM8_ROR(i,s))
 
 #define CC_ORR_rri(cc,Rd,Rn,i)          	_OP3(cc,_ORR,0,Rd,Rn,SHIFT_IMM(i))
@@ -828,9 +828,9 @@ enum {
 #define CC_ORR_rrrRORr(cc,Rd,Rn,Rm,Rs)  	_OP3(cc,_ORR,0,Rd,Rn,SHIFT_ROR_r(Rm,Rs))
 #define CC_ORR_rrrRRX(cc,Rd,Rn,Rm)     		_OP3(cc,_ORR,0,Rd,Rn,SHIFT_RRX(Rm))
 
-// ORR Rd,Rn,#i
+/* ORR Rd,Rn,#i */
 #define ORR_rri8(Rd,Rn,i)          			CC_ORR_rri8(NATIVE_CC_AL,Rd,Rn,i)
-// ORR Rd,Rn,#i ROR #s
+/* ORR Rd,Rn,#i ROR #s */
 #define ORR_rri8RORi(Rd,Rn,i,s)      		CC_ORR_rri8RORi(NATIVE_CC_AL,Rd,Rn,i,s)
 
 #define ORR_rri(Rd,Rn,i)                	CC_ORR_rri(NATIVE_CC_AL,Rd,Rn,i)
