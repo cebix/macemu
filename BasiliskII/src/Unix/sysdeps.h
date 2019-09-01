@@ -34,15 +34,6 @@
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
-/* Define if your system supports TUN/TAP devices. */
-/* #undef ENABLE_TUNTAP */
-
-/* Define to 1 if you have the <arpa/inet.h> header file. */
-#define HAVE_ARPA_INET_H 1
-
-/* Define if your system has <asm/ucontext.h> header. */
-/* #undef HAVE_ASM_UCONTEXT */
-
 /* Define to 1 if you have the `atanh' function. */
 #define HAVE_ATANH 1
 
@@ -52,47 +43,14 @@
 /* Define to 1 if the system has the type `caddr_t'. */
 #define HAVE_CADDR_T 1
 
-/* Define to 1 if you have the `cfmakeraw' function. */
-#define HAVE_CFMAKERAW 1
-
 /* Define to 1 if you have the `clock_gettime' function. */
 #define HAVE_CLOCK_GETTIME 1
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
 
-/* Define to 1 if you have the `finite' function. */
-#define HAVE_FINITE 1
-
-/* Define to 1 if you have the <floatingpoint.h> header file. */
-/* #undef HAVE_FLOATINGPOINT_H */
-
-/* Define if framework AppKit is available. */
-#define HAVE_FRAMEWORK_APPKIT 1
-
-/* Define if framework Carbon is available. */
-#define HAVE_FRAMEWORK_CARBON 1
-
 /* Define if framework CoreFoundation is available. */
 #define HAVE_FRAMEWORK_COREFOUNDATION 1
-
-/* Define if framework IOKit is available. */
-#define HAVE_FRAMEWORK_IOKIT 1
-
-/* Define to 1 if you have the <history.h> header file. */
-/* #undef HAVE_HISTORY_H */
-
-/* Define to 1 if you have the <ieee754.h> header file. */
-/* #undef HAVE_IEEE754_H */
-
-/* Define to 1 if you have the <ieeefp.h> header file. */
-/* #undef HAVE_IEEEFP_H */
-
-/* Define to 1 if you have the `inet_aton' function. */
-#define HAVE_INET_ATON 1
-
-/* Define to 1 if you have the <inttypes.h> header file. */
-#define HAVE_INTTYPES_H 1
 
 /* Define to 1 if you have the <IOKit/storage/IOBlockStorageDevice.h> header
    file. */
@@ -104,24 +62,6 @@
 /* Define to 1 if you have the `isnan' function. */
 #define HAVE_ISNAN 1
 
-/* Define to 1 if you have the `isnormal' function. */
-/* #undef HAVE_ISNORMAL */
-
-/* Define to 1 if you have the `m' library (-lm). */
-#define HAVE_LIBM 1
-
-/* Define to 1 if you have the `posix4' library (-lposix4). */
-/* #undef HAVE_LIBPOSIX4 */
-
-/* Define to 1 if you have the `pthread' library (-lpthread). */
-#define HAVE_LIBPTHREAD 1
-
-/* Define to 1 if you have the `PTL' library (-lPTL). */
-/* #undef HAVE_LIBPTL */
-
-/* Define to 1 if you have the `rt' library (-lrt). */
-/* #undef HAVE_LIBRT */
-
 /* Define if there is a linker script to relocate the executable above
    0x70000000. */
 /* #undef HAVE_LINKER_SCRIPT */
@@ -132,21 +72,12 @@
 /* Define if your system supports Mach exceptions. */
 #define HAVE_MACH_EXCEPTIONS 1
 
-/* Define to 1 if you have the <mach/mach.h> header file. */
-#define HAVE_MACH_MACH_H 1
-
 /* Define to 1 if you have the `mach_task_self' function. */
 #define HAVE_MACH_TASK_SELF 1
 
 /* Define if your system has a working vm_allocate()-based memory allocator.
    */
 #define HAVE_MACH_VM 1
-
-/* Define to 1 if you have the <memory.h> header file. */
-#define HAVE_MEMORY_H 1
-
-/* Define to 1 if you have the `mmap' function. */
-#define HAVE_MMAP 1
 
 /* Define if <sys/mman.h> defines MAP_ANON and mmap()'ing with MAP_ANON works.
    */
@@ -159,47 +90,11 @@
 /* Define if your system has a working mmap()-based memory allocator. */
 /* #undef HAVE_MMAP_VM */
 
-/* Define to 1 if you have the `mprotect' function. */
-#define HAVE_MPROTECT 1
-
-/* Define to 1 if you have the `munmap' function. */
-#define HAVE_MUNMAP 1
-
-/* Define to 1 if you have the <nan.h> header file. */
-/* #undef HAVE_NAN_H */
-
-/* Define to 1 if you have the `poll' function. */
-#define HAVE_POLL 1
-
 /* Define if pthreads are available. */
 #define HAVE_PTHREADS 1
 
-/* Define to 1 if you have the `pthread_cancel' function. */
-#define HAVE_PTHREAD_CANCEL 1
-
 /* Define to 1 if you have the `pthread_cond_init' function. */
 #define HAVE_PTHREAD_COND_INIT 1
-
-/* Define to 1 if you have the `pthread_mutexattr_setprotocol' function. */
-#define HAVE_PTHREAD_MUTEXATTR_SETPROTOCOL 1
-
-/* Define to 1 if you have the `pthread_mutexattr_setpshared' function. */
-#define HAVE_PTHREAD_MUTEXATTR_SETPSHARED 1
-
-/* Define to 1 if you have the `pthread_mutexattr_settype' function. */
-#define HAVE_PTHREAD_MUTEXATTR_SETTYPE 1
-
-/* Define to 1 if you have the `pthread_testcancel' function. */
-#define HAVE_PTHREAD_TESTCANCEL 1
-
-/* Define to 1 if you have the <readline.h> header file. */
-/* #undef HAVE_READLINE_H */
-
-/* Define to 1 if you have the <readline/history.h> header file. */
-#define HAVE_READLINE_HISTORY_H 1
-
-/* Define to 1 if you have the <readline/readline.h> header file. */
-#define HAVE_READLINE_READLINE_H 1
 
 /* Define to 1 if you have the `sem_init' function. */
 #define HAVE_SEM_INIT 1
@@ -213,72 +108,18 @@
 /* Define if your system supports extended signals. */
 /* #undef HAVE_SIGINFO_T */
 
-/* Define to 1 if you have the `signal' function. */
-#define HAVE_SIGNAL 1
-
-/* Define to 1 if you have the `signbit' function. */
-/* #undef HAVE_SIGNBIT */
-
 /* Define if we can ignore the fault (instruction skipping in SIGSEGV
    handler). */
 #define HAVE_SIGSEGV_SKIP_INSTRUCTION 1
 
-/* Define to 1 if you have the <stdint.h> header file. */
-#define HAVE_STDINT_H 1
-
-/* Define to 1 if you have the <stdlib.h> header file. */
-#define HAVE_STDLIB_H 1
-
 /* Define to 1 if you have the `strdup' function. */
 #define HAVE_STRDUP 1
-
-/* Define to 1 if you have the `strerror' function. */
-#define HAVE_STRERROR 1
-
-/* Define to 1 if you have the <strings.h> header file. */
-#define HAVE_STRINGS_H 1
-
-/* Define to 1 if you have the <string.h> header file. */
-#define HAVE_STRING_H 1
-
-/* Define to 1 if you have the <stropts.h> header file. */
-/* #undef HAVE_STROPTS_H */
-
-/* Define to 1 if you have the <sys/bitypes.h> header file. */
-/* #undef HAVE_SYS_BITYPES_H */
-
-/* Define to 1 if you have the <sys/filio.h> header file. */
-#define HAVE_SYS_FILIO_H 1
-
-/* Define to 1 if you have the <sys/ioctl.h> header file. */
-#define HAVE_SYS_IOCTL_H 1
 
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #define HAVE_SYS_MMAN_H 1
 
-/* Define to 1 if you have the <sys/poll.h> header file. */
-#define HAVE_SYS_POLL_H 1
-
-/* Define to 1 if you have the <sys/select.h> header file. */
-#define HAVE_SYS_SELECT_H 1
-
-/* Define to 1 if you have the <sys/socket.h> header file. */
-#define HAVE_SYS_SOCKET_H 1
-
-/* Define to 1 if you have the <sys/stat.h> header file. */
-#define HAVE_SYS_STAT_H 1
-
-/* Define to 1 if you have the <sys/stropts.h> header file. */
-/* #undef HAVE_SYS_STROPTS_H */
-
 /* Define to 1 if you have the <sys/time.h> header file. */
 #define HAVE_SYS_TIME_H 1
-
-/* Define to 1 if you have the <sys/types.h> header file. */
-#define HAVE_SYS_TYPES_H 1
-
-/* Define to 1 if you have the <sys/wait.h> header file. */
-#define HAVE_SYS_WAIT_H 1
 
 /* Define to 1 if you have the `task_self' function. */
 /* #undef HAVE_TASK_SELF */
@@ -288,18 +129,6 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
-
-/* Define to 1 if you have the `vm_allocate' function. */
-#define HAVE_VM_ALLOCATE 1
-
-/* Define to 1 if you have the `vm_deallocate' function. */
-#define HAVE_VM_DEALLOCATE 1
-
-/* Define to 1 if you have the `vm_protect' function. */
-#define HAVE_VM_PROTECT 1
-
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-/* #undef NO_MINUS_C_MINUS_O */
 
 /* Define this program name. */
 #define PACKAGE "Basilisk II"
@@ -322,10 +151,6 @@
 /* Define to the version of this package. */
 #define PACKAGE_VERSION "1.0"
 
-/* Define if the __PAGEZERO Mach-O Low Memory Globals hack works on this
-   system. */
-/* #undef PAGEZERO_HACK */
-
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
 
@@ -341,35 +166,14 @@
 /* The size of `float', as computed by sizeof. */
 #define SIZEOF_FLOAT 4
 
-/* The size of `int', as computed by sizeof. */
-#define SIZEOF_INT 4
-
-/* The size of `long', as computed by sizeof. */
-#define SIZEOF_LONG 8
-
 /* The size of `long double', as computed by sizeof. */
 #define SIZEOF_LONG_DOUBLE 16
-
-/* The size of `long long', as computed by sizeof. */
-#define SIZEOF_LONG_LONG 8
-
-/* The size of `short', as computed by sizeof. */
-#define SIZEOF_SHORT 2
 
 /* The size of `void *', as computed by sizeof. */
 #define SIZEOF_VOID_P 8
 
-/* Define to 1 if you have the ANSI C header files. */
-#define STDC_HEADERS 1
-
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #define TIME_WITH_SYS_TIME 1
-
-/* Define to 1 if your <sys/time.h> declares `struct tm'. */
-/* #undef TM_IN_SYS_TIME */
-
-/* Define if BSD-style non-blocking I/O is to be used */
-/* #undef USE_FIONBIO */
 
 /* Define to enble SDL support */
 #define USE_SDL 1
@@ -379,28 +183,6 @@
 
 /* Define to enable SDL video graphics support */
 #define USE_SDL_VIDEO 1
-
-/* Enable extensions on AIX 3, Interix.  */
-#ifndef _ALL_SOURCE
-# define _ALL_SOURCE 1
-#endif
-/* Enable GNU extensions on systems that have them.  */
-#ifndef _GNU_SOURCE
-# define _GNU_SOURCE 1
-#endif
-/* Enable threading extensions on Solaris.  */
-#ifndef _POSIX_PTHREAD_SEMANTICS
-# define _POSIX_PTHREAD_SEMANTICS 1
-#endif
-/* Enable extensions on HP NonStop.  */
-#ifndef _TANDEM_SOURCE
-# define _TANDEM_SOURCE 1
-#endif
-/* Enable general extensions on Solaris.  */
-#ifndef __EXTENSIONS__
-# define __EXTENSIONS__ 1
-#endif
-
 
 /* Define this program version. */
 #define VERSION "1.0"
@@ -422,39 +204,6 @@
 # define _DARWIN_USE_64_BIT_INODE 1
 #endif
 
-/* Number of bits in a file offset, on hosts where this is settable. */
-/* #undef _FILE_OFFSET_BITS */
-
-/* Define for large files, on AIX-style hosts. */
-/* #undef _LARGE_FILES */
-
-/* Define to 1 if on MINIX. */
-/* #undef _MINIX */
-
-/* Define to 2 if the system does not provide POSIX.1 features except with
-   this defined. */
-/* #undef _POSIX_1_SOURCE */
-
-/* Define to 1 if you need to in order for `stat' and other things to work. */
-/* #undef _POSIX_SOURCE */
-
-/* Define to empty if `const' does not conform to ANSI C. */
-/* #undef const */
-
-/* Define to `__inline__' or `__inline' if that's what the C compiler
-   calls it, or to nothing if 'inline' is not supported under any name.  */
-#ifndef __cplusplus
-/* #undef inline */
-#endif
-
-/* Define to `long int' if <sys/types.h> does not define. */
-/* #undef off_t */
-
-/* Define to `unsigned int' if <sys/types.h> does not define. */
-/* #undef size_t */
-
-/* Define to 'int' if <sys/types.h> doesn't define. */
-/* #undef socklen_t */
 #else
 #include "config.h"
 #endif
@@ -589,46 +338,6 @@ typedef uae_u32 uaecptr;
 extern uint64 GetTicks_usec(void);
 extern void Delay_usec(uint32 usec);
 
-typedef volatile int spinlock_t;
-
-static const spinlock_t SPIN_LOCK_UNLOCKED = 0;
-
-#if HAVE_TEST_AND_SET
-#define HAVE_SPINLOCKS 1
-static inline void spin_lock(spinlock_t *lock)
-{
-	while (testandset(lock));
-}
-
-static inline void spin_unlock(spinlock_t *lock)
-{
-	*lock = 0;
-}
-
-static inline int spin_trylock(spinlock_t *lock)
-{
-	return !testandset(lock);
-}
-#else
-static inline void spin_lock(spinlock_t *lock)
-{
-}
-
-static inline void spin_unlock(spinlock_t *lock)
-{
-}
-
-static inline int spin_trylock(spinlock_t *lock)
-{
-	return 1;
-}
-#endif
-
-#ifdef HAVE_PTHREADS
-/* Centralized pthread attribute setup */
-void Set_pthread_attr(pthread_attr_t *attr, int priority);
-#endif
-
 /* UAE CPU defines */
 
 #if defined(__i386__) || defined(__x86_64__)
@@ -710,14 +419,6 @@ static inline uae_u32 do_byteswap_16(uae_u32 v)
 # define REGPARAM
 #endif
 #define REGPARAM2
-
-
-#if __GNUC__ < 3
-# define __builtin_expect(foo,bar) (foo)
-#endif
-#define likely(x) __builtin_expect(!!(x), 1)
-#define unlikely(x)  __builtin_expect(!!(x), 0)
-#define ALWAYS_INLINE   inline __attribute__((always_inline))
 
 #define memptr uint32
 
