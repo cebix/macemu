@@ -2,10 +2,10 @@ cmake_minimum_required(VERSION 3.0.0)
 project(BasiliskII)
 
 
-find_package(SDL REQUIRED)
+find_package(SDL2 REQUIRED)
 find_library(COREFOUNDATION_LIBRARY CoreFoundation)
 find_library(IOKIT_LIBRARY IOKit)
-include_directories(../include . ../CrossPlatform ../uae_cpu ${SDL_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+include_directories(../include . ../CrossPlatform ../uae_cpu ${SDL2_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(build68k ../uae_cpu/build68k.c)
 
@@ -55,7 +55,7 @@ set(BasiliskII_SRCS
 	#SYSSRC
 	#SDL USE_SDL USE_SDL_VIDEO USE_SDL_AUDIO
 	#video src
-	../SDL/video_sdl.cpp
+	../SDL/video_sdl2.cpp
 	#EXTFSSRC
 	extfs_unix.cpp
 	#Serial src
@@ -100,7 +100,7 @@ set_source_files_properties(${BasiliskII_SRCS}
 
 # set_property(SOURCE compemu_support.cpp APPEND_STRING PROPERTY COMPILE_FLAGS " -O0 ")
 
-target_link_libraries(BasiliskII ${COREFOUNDATION_LIBRARY} ${IOKIT_LIBRARY} ${SDL_LIBRARY})
+target_link_libraries(BasiliskII ${COREFOUNDATION_LIBRARY} ${IOKIT_LIBRARY} ${SDL2_LIBRARIES})
 
 # set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
 

@@ -450,7 +450,7 @@ int main(int argc, char **argv)
 #ifdef USE_SDL
 
 	// SDL threads available, start 60Hz thread
-	tick_thread_active = ((tick_thread = SDL_CreateThread(tick_func, NULL)) != NULL);
+	tick_thread_active = ((tick_thread = SDL_CreateThread(tick_func, NULL, NULL)) != NULL);
 	if (!tick_thread_active) {
 		sprintf(str, GetString(STR_TICK_THREAD_ERR), strerror(errno));
 		ErrorAlert(str);
@@ -464,7 +464,7 @@ int main(int argc, char **argv)
 #ifdef USE_SDL
 	// Start XPRAM watchdog thread
 	memcpy(last_xpram, XPRAM, XPRAM_SIZE);
-	xpram_thread_active = ((xpram_thread = SDL_CreateThread(xpram_func, NULL)) != NULL);
+	xpram_thread_active = ((xpram_thread = SDL_CreateThread(xpram_func, NULL, NULL)) != NULL);
 	D(bug("XPRAM thread started\n"));
 #endif
 
