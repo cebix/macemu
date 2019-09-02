@@ -1,28 +1,33 @@
 /*
  *  fpu/mathlib.cpp - Floating-point math support library
  *
- *  Basilisk II (C) 1997-2008 Christian Bauer
+ * Copyright (c) 2001-2004 Milan Jurik of ARAnyM dev team (see AUTHORS)
+ * 
+ * Inspired by Christian Bauer's Basilisk II
  *
- *  MC68881/68040 fpu emulation
- *  
- *  Original UAE FPU, copyright 1996 Herman ten Brugge
- *  Rewrite for x86, copyright 1999-2001 Lauri Pesonen
- *  New framework, copyright 2000-2001 Gwenole Beauchesne
- *  Adapted for JIT compilation (c) Bernd Meyer, 2000-2001
- *  
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ * This file is part of the ARAnyM project which builds a new and powerful
+ * TOS/FreeMiNT compatible virtual machine running on almost any hardware.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * MC68881/68040 fpu emulation
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Original UAE FPU, copyright 1996 Herman ten Brugge
+ * Rewrite for x86, copyright 1999-2001 Lauri Pesonen
+ * New framework, copyright 2000-2001 Gwenole Beauchesne
+ * Adapted for JIT compilation (c) Bernd Meyer, 2000-2001
+ *
+ * ARAnyM is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * ARAnyM is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with ARAnyM; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 /* NOTE: this file shall be included only from fpu/fpu_*.cpp */
@@ -40,6 +45,7 @@
 
 #if defined(FPU_IEEE) && defined(USE_X87_ASSEMBLY)
 
+#if !defined(HAVE_EXP10L) && !defined(HAVE_POW10L)
 PRIVATE fpu_extended fp_do_pow(fpu_extended x, fpu_extended y)
 {
 	fpu_extended value, exponent;
@@ -82,7 +88,9 @@ PRIVATE fpu_extended fp_do_pow(fpu_extended x, fpu_extended y)
 	__asm__ __volatile__("fscale" : "=t" (value) : "0" (value), "u" (exponent));
 	return value;
 }
+#endif
 
+#ifndef HAVE_LOG1PL
 PRIVATE fpu_extended fp_do_log1p(fpu_extended x)
 {
 	// TODO: handle NaN and +inf/-inf
@@ -96,5 +104,6 @@ PRIVATE fpu_extended fp_do_log1p(fpu_extended x)
 		__asm__ __volatile__("fldln2; fxch; fyl2x" : "=t" (value) : "0" (x + 1.0));
 	return value;
 }
+#endif
 
 #endif

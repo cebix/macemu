@@ -33,13 +33,13 @@
 #define NOFLAGS_CMP 0
 
 #undef SET_NFLG_ALWAYS
-static __inline__ void SET_NFLG_ALWAYS(uae_u32 x)
+static inline void SET_NFLG_ALWAYS(uae_u32 x)
 {
     SET_NFLG(x);  /* This has not yet been redefined */
 }
 
 #undef SET_CFLG_ALWAYS
-static __inline__ void SET_CFLG_ALWAYS(uae_u32 x)
+static inline void SET_CFLG_ALWAYS(uae_u32 x)
 {
     SET_CFLG(x);  /* This has not yet been redefined */
 }
@@ -62,13 +62,13 @@ static __inline__ void SET_CFLG_ALWAYS(uae_u32 x)
 #define SET_XFLG(y) do {uae_u32 dummy=(y); } while (0)
 
 #undef CLEAR_CZNV
-#define CLEAR_CZNV() do {} while (0)
+#define CLEAR_CZNV()
 #undef IOR_CZNV
 #define IOR_CZNV(y) do {uae_u32 dummy=(y); } while (0)
 #undef SET_CZNV
 #define SET_CZNV(y) do {uae_u32 dummy=(y); } while (0)
 #undef COPY_CARRY
-#define COPY_CARRY() do {} while (0)
+#define COPY_CARRY()
 
 #ifdef  optflag_testl
 #undef  optflag_testl

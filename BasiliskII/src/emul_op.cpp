@@ -51,7 +51,7 @@
  *  Execute EMUL_OP opcode (called by 68k emulator or Illegal Instruction trap handler)
  */
 
-void EmulOp(uint16 opcode, M68kRegisters *r)
+bool EmulOp(uint16 opcode, M68kRegisters *r)
 {
 	D(bug("EmulOp %04x\n", opcode));
 	switch (opcode) {
@@ -68,12 +68,12 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			VideoQuitFullScreen();
 
 			QuitEmulator();
-			break;
+			return false;
 		}
 
 		case M68K_EMUL_OP_SHUTDOWN:			// Quit emulator
 			QuitEmulator();
-			break;
+			return false;
 
 		case M68K_EMUL_OP_RESET: {			// MacOS reset
 			D(bug("*** RESET ***\n"));
@@ -101,7 +101,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			r->a[1] = ROMBaseMac + UniversalInfo;						// UniversalInfo
 			r->a[6] = boot_globs;										// BootGlobs
 			r->a[7] = RAMBaseMac + 0x10000;								// Boot stack
-			break;
+			return false;
 		}
 
 		case M68K_EMUL_OP_CLKNOMEM: {		// Clock/PRAM operations
@@ -570,6 +570,8 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 				   r->sr);
 
 			QuitEmulator();
-			break;
+			return false;
 	}
+
+	return true;
 }

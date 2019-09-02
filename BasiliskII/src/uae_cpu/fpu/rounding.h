@@ -1,28 +1,33 @@
 /*
- *  fpu/rounding.h - system-dependant FPU rounding mode and precision
+ * fpu/rounding.h - system-dependant FPU rounding mode and precision
  *
- *  Basilisk II (C) 1997-2008 Christian Bauer
+ * Copyright (c) 2001-2004 Milan Jurik of ARAnyM dev team (see AUTHORS)
+ * 
+ * Inspired by Christian Bauer's Basilisk II
  *
- *  MC68881/68040 fpu emulation
- *  
- *  Original UAE FPU, copyright 1996 Herman ten Brugge
- *  Rewrite for x86, copyright 1999-2000 Lauri Pesonen
- *  New framework, copyright 2000 Gwenole Beauchesne
- *  Adapted for JIT compilation (c) Bernd Meyer, 2000
- *  
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ * This file is part of the ARAnyM project which builds a new and powerful
+ * TOS/FreeMiNT compatible virtual machine running on almost any hardware.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * MC68881/68040 fpu emulation
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Original UAE FPU, copyright 1996 Herman ten Brugge
+ * Rewrite for x86, copyright 1999-2001 Lauri Pesonen
+ * New framework, copyright 2000-2001 Gwenole Beauchesne
+ * Adapted for JIT compilation (c) Bernd Meyer, 2000-2001
+ *
+ * ARAnyM is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * ARAnyM is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with ARAnyM; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef FPU_ROUNDING_H
@@ -106,8 +111,8 @@ PRIVATE inline void set_host_control_word(void)
 	*/
 	x86_control_word
 		= (x86_control_word & ~(X86_ROUNDING_MODE|X86_ROUNDING_PRECISION))
-		| x86_control_word_rm_mac2host[(FPU fpcr.rounding_mode & FPCR_ROUNDING_MODE) >> 4]
-		| x86_control_word_rp_mac2host[(FPU fpcr.rounding_precision & FPCR_ROUNDING_PRECISION) >> 6]
+		| x86_control_word_rm_mac2host[(FPU fpcr & FPCR_ROUNDING_MODE) >> 4]
+		| x86_control_word_rp_mac2host[(FPU fpcr & FPCR_ROUNDING_PRECISION) >> 6]
 		;
 	__asm__ __volatile__("fldcw %0" : : "m" (x86_control_word));
 }
@@ -131,11 +136,11 @@ PRIVATE inline void set_host_control_word(void)
 
 /* Return the current rounding mode in m68k format */
 static inline uae_u32 FFPU get_rounding_mode(void)
-	{ return FPU fpcr.rounding_mode; }
+	{ return FPU fpcr & FPCR_ROUNDING_MODE; }
 
 /* Convert and set to native rounding mode */
-static inline void FFPU set_rounding_mode(uae_u32 new_rounding_mode)
-	{ FPU fpcr.rounding_mode = new_rounding_mode; }
+static inline void FFPU set_rounding_mode(uae_u32 /* new_rounding_mode */ )
+	{ }
 
 #endif
 
@@ -143,11 +148,11 @@ static inline void FFPU set_rounding_mode(uae_u32 new_rounding_mode)
 
 /* Return the current rounding precision in m68k format */
 static inline uae_u32 FFPU get_rounding_precision(void)
-	{ return FPU fpcr.rounding_precision; }
+	{ return FPU fpcr & FPCR_ROUNDING_PRECISION; }
 
 /* Convert and set to native rounding precision */
-static inline void FFPU set_rounding_precision(uae_u32 new_rounding_precision)
-	{ FPU fpcr.rounding_precision = new_rounding_precision; }
+static inline void FFPU set_rounding_precision(uae_u32 /* new_rounding_precision */)
+	{  }
 
 #endif
 

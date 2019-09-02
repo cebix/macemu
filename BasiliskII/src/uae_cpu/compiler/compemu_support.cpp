@@ -273,7 +273,7 @@ uae_u8* comp_pc_p;
 #else
 // External variables
 // newcpu.cpp
-extern bool quit_program;
+extern int quit_program;
 #endif
 
 // gb-- Extra data for Basilisk II/JIT
@@ -2718,8 +2718,7 @@ void compiler_init(void)
 	jit_log("<JIT compiler> : separate blockinfo allocation : %s", str_on_off(USE_SEPARATE_BIA));
 
 	// Build compiler tables
-	read_table68k();
-	do_merges();
+	init_table68k ();
 	build_comp();
 #endif
 
@@ -4157,7 +4156,9 @@ void build_comp(void)
 	int count;
 #ifdef WINUAE_ARANYM
 	unsigned int cpu_level = 4; 		// 68040
+#if 0
 	const struct cputbl *nfctbl = op_smalltbl_0_nf;
+#endif
 #else
 #ifdef NOFLAGS_SUPPORT
 	struct comptbl *nfctbl = (currprefs.cpu_level >= 5 ? op_smalltbl_0_nf

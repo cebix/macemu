@@ -3228,8 +3228,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 int main(void)
 #endif
 {
-    read_table68k ();
-    do_merges ();
+    init_table68k ();
 
     opcode_map = (int *) malloc (sizeof (int) * nr_cpuop_funcs);
     opcode_last_postfix = (int *) malloc (sizeof (int) * nr_cpuop_funcs);

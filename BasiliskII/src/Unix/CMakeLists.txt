@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(BasiliskII)
 
-if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
-	if (NOT CMAKE_BUILD_TYPE)
-		set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
-	endif()
-endif()
+# if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
+# 	if (NOT CMAKE_BUILD_TYPE)
+# 		set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
+# 	endif()
+# endif()
 
 find_package(SDL2 REQUIRED)
 find_library(COREFOUNDATION_LIBRARY CoreFoundation)
@@ -21,7 +21,9 @@ add_custom_command(OUTPUT cpudefs.cpp
 add_executable(gencpu ../uae_cpu/gencpu.c ../uae_cpu/readcpu.cpp cpudefs.cpp)
 
 #add_custom_command(OUTPUT cpuemu.cpp cpustbl.cpp cpufunctbl.cpp COMMAND gencpu DEPENDS gencpu)
-add_custom_command(OUTPUT cpuemu.cpp cpuemu_nf.cpp cpustbl.cpp cpustbl_nf.cpp COMMAND gencpu DEPENDS gencpu)
+# add_custom_command(OUTPUT cpuemu.cpp cpuemu_nf.cpp cpustbl.cpp cpustbl_nf.cpp COMMAND gencpu DEPENDS gencpu)
+# add_custom_command(OUTPUT cpuemu.cpp cpuemu_nf.cpp cpustbl.cpp cpustbl_nf.cpp COMMAND gencpu DEPENDS gencpu)
+add_custom_command(OUTPUT cpuemu.cpp cpustbl.cpp cpufunctbl.cpp COMMAND gencpu DEPENDS gencpu)
 
 add_executable(gencomp ../uae_cpu/compiler/gencomp.c ../uae_cpu/readcpu.cpp cpudefs.cpp)
 
@@ -88,12 +90,11 @@ set(BasiliskII_SRCS
 	cpustbl.cpp
 	cpudefs.cpp
 	cpuemu.cpp
+	cpufunctbl.cpp
 	compemu.cpp
 	compstbl.cpp
 	../uae_cpu/compiler/compemu_support.cpp 
 	../uae_cpu/compiler/compemu_fpp.cpp
-	cpustbl_nf.cpp
-	cpuemu_nf.cpp
 	#addressing mode =direct -DDIRECT_ADDRESSING
 	#includes 
 )
@@ -101,7 +102,7 @@ set(BasiliskII_SRCS
 add_executable(BasiliskII ${BasiliskII_SRCS})
 
 set_source_files_properties(${BasiliskII_SRCS}
-	PROPERTIES COMPILE_FLAGS "-DDIRECT_ADDRESSING -DCPU_x86_64 -DFIXED_ADDRESSING -DCPU_64_BIT -DNOFLAGS_SUPPORT -DFPU_IEEE -DUSE_JIT -DJIT -DX86_64_ASSEMBLY -DOPTIMIZED_FLAGS -DWINUAE_ARANYM -DUSE_JIT_FPU -DUSE_INLINING -DDATADIR=\\\".\\\"")
+	PROPERTIES COMPILE_FLAGS "-DDIRECT_ADDRESSING -DCPU_x86_64 -DFIXED_ADDRESSING -DCPU_64_BIT -DFPU_IEEE -DUSE_JIT -DJIT -DX86_64_ASSEMBLY -DOPTIMIZED_FLAGS -DWINUAE_ARANYM -DUSE_JIT_FPU -DUSE_INLINING -DDATADIR=\\\".\\\"")
 
 # set_property(SOURCE compemu_support.cpp APPEND_STRING PROPERTY COMPILE_FLAGS " -O0 ")
 

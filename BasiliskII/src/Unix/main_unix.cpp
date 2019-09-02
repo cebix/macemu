@@ -58,6 +58,7 @@ using std::string;
 
 #if USE_JIT
 extern void (*flush_icache)(void); // from compemu_support.cpp
+extern bool UseJIT;
 #endif
 
 
@@ -181,8 +182,8 @@ static void sigsegv_dump_state(sigsegv_info_t *sip)
 		fprintf(stderr, " [IP=%p]", fault_instruction);
 	fprintf(stderr, "\n");
 #if EMULATED_68K
-	extern void m68k_dumpstate (uaecptr *);
-	m68k_dumpstate(0);
+	extern void m68k_dumpstate (FILE *, uaecptr *);
+	m68k_dumpstate(stderr, 0);
 #endif
 #if USE_JIT && JIT_DEBUG
 	extern void compiler_dumpstate(void);

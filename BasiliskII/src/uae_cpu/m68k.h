@@ -1,24 +1,35 @@
-/* 
- * UAE - The Un*x Amiga Emulator
+/*
+ * m68k.h - machine dependent bits
+ *
+ * Copyright (c) 2001-2004 Milan Jurik of ARAnyM dev team (see AUTHORS)
  * 
- * MC68000 emulation - machine dependent bits
+ * Inspired by Christian Bauer's Basilisk II
  *
- * Copyright 1996 Bernd Schmidt
+ * This file is part of the ARAnyM project which builds a new and powerful
+ * TOS/FreeMiNT compatible virtual machine running on almost any hardware.
  *
- * This program is free software; you can redistribute it and/or modify
+ * ARAnyM is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * ARAnyM is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with ARAnyM; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+ /* 
+  * UAE - The Un*x Amiga Emulator
+  * 
+  * MC68000 emulation - machine dependent bits
+  *
+  * Copyright 1996 Bernd Schmidt
+  *
+  */
 
 #ifndef M68K_FLAGS_H
 #define M68K_FLAGS_H

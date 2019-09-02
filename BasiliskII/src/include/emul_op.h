@@ -94,6 +94,6 @@ enum {
 };
 
 // Functions
-extern void EmulOp(uint16 opcode, struct M68kRegisters *r);	// Execute EMUL_OP opcode (called by 68k emulator or Line-F trap handler)
+extern bool EmulOp(uint16 opcode, struct M68kRegisters *r);	// Execute EMUL_OP opcode (called by 68k emulator or Line-F trap handler)
 
 #endif

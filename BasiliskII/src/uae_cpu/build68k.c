@@ -1,31 +1,43 @@
 /*
- * UAE - The Un*x Amiga Emulator
+ * build68k.c - m68k CPU builder
  *
- * Read 68000 CPU specs from file "table68k" and build table68k.c
+ * Copyright (c) 2001-2004 Milan Jurik of ARAnyM dev team (see AUTHORS)
+ * 
+ * Inspired by Christian Bauer's Basilisk II
  *
- * Copyright 1995,1996 Bernd Schmidt
+ * This file is part of the ARAnyM project which builds a new and powerful
+ * TOS/FreeMiNT compatible virtual machine running on almost any hardware.
  *
- * This program is free software; you can redistribute it and/or modify
+ * ARAnyM is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * ARAnyM is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with ARAnyM; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+/*
+ * UAE - The Un*x Amiga Emulator
+ *
+ * Read 68000 CPU specs from file "table68k" and build table68k.c
+ *
+ * Copyright 1995,1996 Bernd Schmidt
+ */
 
-#include <assert.h>
-#include <ctype.h>
-#include <stdio.h>
-
-#include "sysdeps.h"
 #include "readcpu.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <string.h>
+#include <assert.h>
+#undef abort
 
 static FILE *tablef;
 static int nextch = 0;
@@ -65,15 +77,15 @@ static int nextchtohex(void)
     }
 }
 
-int main(int argc, char **argv)
+int main()
 {
     int no_insns = 0;
 
     printf ("#include \"sysdeps.h\"\n");
     printf ("#include \"readcpu.h\"\n");
     printf ("struct instr_def defs68k[] = {\n");
-#ifdef WIN32
-    tablef = fopen(argc > 1 ? argv[1] : "table68k","r");
+#if 0
+    tablef = fopen("table68k","r");
     if (tablef == NULL) {
 	fprintf(stderr, "table68k not found\n");
 	exit(1);
@@ -122,8 +134,8 @@ int main(int argc, char **argv)
 	     case 'r': currbit = bitr; break;
 	     case 'R': currbit = bitR; break;
 	     case 'z': currbit = bitz; break;
-		 case 'E': currbit = bitE; break;
-		 case 'p': currbit = bitp; break;
+	     case 'E': currbit = bitE; break;
+	     case 'p': currbit = bitp; break;
 	     default: abort();
 	    }
 	    if (!(bitmask & 1)) {
@@ -138,6 +150,7 @@ int main(int argc, char **argv)
 	    patbits[i] = nextch;
 	    getnextch();
 	}
+	(void) patbits;
 
 	while (isspace(nextch) || nextch == ':') /* Get CPU and privilege level */
 	    getnextch();
@@ -172,6 +185,8 @@ int main(int argc, char **argv)
 	    getnextch();
 	    switch(nextch){
 	     case '-': flagset[i] = fa_unset; break;
+	     case '/': flagset[i] = fa_isjmp; break;
+	     case '+': flagset[i] = fa_isbranch; break;
 	     case '0': flagset[i] = fa_zero; break;
 	     case '1': flagset[i] = fa_one; break;
 	     case 'x': flagset[i] = fa_dontcare; break;
@@ -191,6 +206,8 @@ int main(int argc, char **argv)
 	    getnextch();
 	    switch(nextch){
 	     case '-': flaguse[i] = fu_unused; break;
+	     case '/': flaguse[i] = fu_isjmp; break;
+	     case '+': flaguse[i] = fu_maybecc; break;
 	     case '?': flaguse[i] = fu_unknown; break;
 	     default: flaguse[i] = fu_used; break;
 	    }
@@ -235,7 +252,7 @@ int main(int argc, char **argv)
 	if (nextch != ':')
 	    abort();
 
-	fgets(opcstr, 250, tablef);
+	assert(fgets(opcstr, 250, tablef) != NULL);
 	getnextch();
 	{
 	    int j;
@@ -243,12 +260,12 @@ int main(int argc, char **argv)
 	    char *opstrp = opcstr, *osendp;
 	    int slen = 0;
 
-	    while (isspace(*opstrp))
+	    while (isspace((int)*opstrp))
 		opstrp++;
 
 	    osendp = opstrp;
 	    while (*osendp) {
-		if (!isspace (*osendp))
+		if (!isspace ((int)*osendp))
 		    slen = osendp - opstrp + 1;
 		osendp++;
 	    }
@@ -271,6 +288,5 @@ int main(int argc, char **argv)
 	}
     }
     printf("};\nint n_defs68k = %d;\n", no_insns);
-    fflush(stdout);
     return 0;
 }

@@ -1,34 +1,30 @@
+/* 2002 MJ */
 /*
  * UAE - The Un*x Amiga Emulator
  *
  * Read 68000 CPU specs from file "table68k"
  *
  * Copyright 1995,1996 Bernd Schmidt
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
 
 #include "sysdeps.h"
 #include "readcpu.h"
 
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cctype>
+
+using std::strncmp;
+using std::abort;
+using std::fprintf;
+using std::strcmp;
+using std::strlen;
+using std::malloc;
+
 int nr_cpuop_funcs;
+struct instr *table68k;
+static int readcpu_mismatch;
 
 struct mnemolookup lookuptab[] = {
     { i_ILLG, "ILLEGAL" },
@@ -153,16 +149,19 @@ struct mnemolookup lookuptab[] = {
     { i_CPUSHA, "CPUSHA" },
     { i_MOVE16, "MOVE16" },
 
-	{ i_EMULOP_RETURN, "EMULOP_RETURN" },
-	{ i_EMULOP, "EMULOP" },
-	
+    { i_EMULOP_RETURN, "EMULOP_RETURN" },
+    { i_EMULOP, "EMULOP" },
+
     { i_MMUOP, "MMUOP" },
+
+    {i_NATFEAT_ID, "NATFEAT_ID" },
+    {i_NATFEAT_CALL, "NATFEAT_CALL" },
+
     { i_ILLG, "" },
 };
 
-struct instr *table68k;
 
-static __inline__ amodes mode_from_str (const char *str)
+static inline amodes mode_from_str (const char *str)
 {
     if (strncmp (str, "Dreg", 4) == 0) return Dreg;
     if (strncmp (str, "Areg", 4) == 0) return Areg;
@@ -180,7 +179,7 @@ static __inline__ amodes mode_from_str (const char *str)
     return (amodes)0;
 }
 
-static __inline__ amodes mode_from_mr (int mode, int reg)
+static inline amodes mode_from_mr (int mode, int reg)
 {
     switch (mode) {
      case 0: return Dreg;
@@ -215,31 +214,32 @@ static void build_insn (int insn)
     int i, n;
 
     int flaglive = 0, flagdead = 0;
-	int cflow = 0;
+    int cflow = 0;
 
     id = defs68k[insn];
 
-	// Control flow information
-	cflow = id.cflow;
-	
-	// Mask of flags set/used
-	unsigned char flags_set(0), flags_used(0);
-	
-	for (i = 0, n = 4; i < 5; i++, n--) {
-		switch (id.flaginfo[i].flagset) {
-			case fa_unset: case fa_isjmp: break;
-			default: flags_set |= (1 << n);
-		}
-		
-		switch (id.flaginfo[i].flaguse) {
-			case fu_unused: case fu_isjmp: break;
-			default: flags_used |= (1 << n);
-		}
+    // Control flow information
+    cflow = id.cflow;
+
+    // Mask of flags set/used
+    unsigned char flags_set(0), flags_used(0);
+
+    for (i = 0, n = 4; i < 5; i++, n--) {
+	switch (id.flaginfo[i].flagset) {
+	    case fa_unset: case fa_isjmp: break;
+	    default: flags_set |= (1 << n);
 	}
-	
+
+	switch (id.flaginfo[i].flaguse) {
+	    case fu_unused: case fu_isjmp: break;
+	    default: flags_used |= (1 << n);
+	}
+    }
+
     for (i = 0; i < 5; i++) {
 	switch (id.flaginfo[i].flagset){
 	 case fa_unset: break;
+	 case fa_isjmp: break;
 	 case fa_zero: flagdead |= 1 << i; break;
 	 case fa_one: flagdead |= 1 << i; break;
 	 case fa_dontcare: flagdead |= 1 << i; break;
@@ -252,6 +252,8 @@ static void build_insn (int insn)
     for (i = 0; i < 5; i++) {
 	switch (id.flaginfo[i].flaguse) {
 	 case fu_unused: break;
+	 case fu_isjmp: flaglive |= 1 << i; break;
+	 case fu_maybecc: flaglive |= 1 << i; break;
 	 case fu_unknown: flaglive = -1; goto out2;
 	 case fu_used: flaglive |= 1 << i; break;
 	}
@@ -306,6 +308,7 @@ static void build_insn (int insn)
 	    continue;
 	if (bitcnt[bitI] && (bitval[bitI] == 0x00 || bitval[bitI] == 0xff))
 	    continue;
+
 	if (bitcnt[bitE] && (bitval[bitE] == 0x00))
 		continue;
 
@@ -346,9 +349,9 @@ static void build_insn (int insn)
 		    }
 		}
 		mnp++;
-		if ((unsigned)mnp >= sizeof(mnemonic) - 1) {
-			mnemonic[sizeof(mnemonic) - 1] = 0;
-			fprintf(stderr, "Instruction %s overflow\n", mnemonic);
+		if ((unsigned)mnp >= (sizeof(mnemonic)-1)) {
+			mnemonic[sizeof(mnemonic)-1] = '\0';
+			fprintf(stderr, "WTF!!! Instruction '%s' overflow\n", mnemonic);
 			abort();
 		}
 	    }
@@ -379,6 +382,7 @@ static void build_insn (int insn)
 	 case 'A':
 	    srcmode = Areg;
 	    switch (opcstr[pos++]) {
+	     case 'l': srcmode = absl; break;
 	     case 'r': srcreg = bitval[bitr]; srcgather = 1; srcpos = bitpos[bitr]; break;
 	     case 'R': srcreg = bitval[bitR]; srcgather = 1; srcpos = bitpos[bitR]; break;
 	     default: abort();
@@ -388,9 +392,11 @@ static void build_insn (int insn)
 	     case 'P': srcmode = Aipi; pos++; break;
 	    }
 	    break;
+#if 0
 	case 'L':
 		srcmode = absl;
 		break;
+#endif
 	 case '#':
 	    switch (opcstr[pos++]) {
 	     case 'z': srcmode = imm; break;
@@ -436,7 +442,7 @@ static void build_insn (int insn)
 		    srcpos = bitpos[bitK];
 		}
 		break;
-		 case 'E': srcmode = immi; srcreg = bitval[bitE];
+	     case 'E': srcmode = immi; srcreg = bitval[bitE];
 		if (CPU_EMU_SIZE < 5) { // gb-- what is CPU_EMU_SIZE used for ??
 			/* 1..255 */
 			srcgather = 1;
@@ -444,8 +450,8 @@ static void build_insn (int insn)
 			srcpos = bitpos[bitE];
 		}
 		break;
-		 case 'p': srcmode = immi; srcreg = bitval[bitp];
-		if (CPU_EMU_SIZE < 5) {
+	     case 'p': srcmode = immi; srcreg = bitval[bitp];
+		if (CPU_EMU_SIZE < 5) { // gb-- what is CPU_EMU_SIZE used for ??
 			/* 0..3 */
 			srcgather = 1;
 			srctype = 7;
@@ -582,21 +588,22 @@ static void build_insn (int insn)
 	 case 'A':
 	    destmode = Areg;
 	    switch (opcstr[pos++]) {
+	     case 'l': destmode = absl; break;
 	     case 'r': destreg = bitval[bitr]; dstgather = 1; dstpos = bitpos[bitr]; break;
 	     case 'R': destreg = bitval[bitR]; dstgather = 1; dstpos = bitpos[bitR]; break;
-		case 'x': destreg = 0; dstgather = 0; dstpos = 0; break;
+	     case 'x': destreg = 0; dstgather = 0; dstpos = 0; break;
 	     default: abort();
 	    }
-		if (dstpos < 0 || dstpos >= 32)
-			abort();
 	    switch (opcstr[pos]) {
 	     case 'p': destmode = Apdi; pos++; break;
 	     case 'P': destmode = Aipi; pos++; break;
 	    }
 	    break;
+#if 0
 	case 'L':
 		destmode = absl;
 		break;
+#endif
 	 case '#':
 	    switch (opcstr[pos++]) {
 	     case 'z': destmode = imm; break;
@@ -767,7 +774,7 @@ static void build_insn (int insn)
 	    table68k[opc].flaginfo[i].flaguse = id.flaginfo[i].flaguse;
 	}
 #endif
-	
+
 	// Fix flags used information for Scc, Bcc, TRAPcc, DBcc instructions
 	if	(	table68k[opc].mnemo == i_Scc
 		||	table68k[opc].mnemo == i_Bcc
@@ -795,7 +802,7 @@ static void build_insn (int insn)
 		case 15:flags_used = 0x0E; break;	/* LE */
 		}
 	}
-		
+
 #if 1
 	/* gb-- flagdead and flaglive would not have correct information */
 	table68k[opc].flagdead = flags_set;
@@ -810,22 +817,6 @@ static void build_insn (int insn)
     }
 }
 
-
-void read_table68k (void)
-{
-    int i;
-
-    table68k = (struct instr *)malloc (65536 * sizeof (struct instr));
-    for (i = 0; i < 65536; i++) {
-	table68k[i].mnemo = i_ILLG;
-	table68k[i].handler = -1;
-    }
-    for (i = 0; i < n_defs68k; i++) {
-	build_insn (i);
-    }
-}
-
-static int mismatch;
 
 static void handle_merges (long int opcode)
 {
@@ -851,9 +842,9 @@ static void handle_merges (long int opcode)
 	 case 5:
 	    smsk = 63; sbitdst = 64; break;
 	 case 6:
-	 	smsk = 255; sbitdst = 256; break;
+	    smsk = 255; sbitdst = 256; break;
 	 case 7:
-	 	smsk = 3; sbitdst = 4; break;
+	    smsk = 3; sbitdst = 4; break;
 	 default:
 	    smsk = 0; sbitdst = 0;
 	    abort();
@@ -869,7 +860,7 @@ static void handle_merges (long int opcode)
     }
     for (srcreg=0; srcreg < sbitdst; srcreg++) {
 	for (dstreg=0; dstreg < dstend; dstreg++) {
-	    uae_u16 code = uae_u16(opcode);
+	    uae_u16 code = opcode;
 
 	    code = (code & ~smsk) | (srcreg << table68k[opcode].spos);
 	    code = (code & ~dmsk) | (dstreg << table68k[opcode].dpos);
@@ -882,20 +873,20 @@ static void handle_merges (long int opcode)
 		|| table68k[code].suse != table68k[opcode].suse
 		|| table68k[code].duse != table68k[opcode].duse)
 	    {
-		mismatch++; continue;
+		readcpu_mismatch++; continue;
 	    }
 	    if (table68k[opcode].suse
 		&& (table68k[opcode].spos != table68k[code].spos
 		    || table68k[opcode].smode != table68k[code].smode
 		    || table68k[opcode].stype != table68k[code].stype))
 	    {
-		mismatch++; continue;
+		readcpu_mismatch++; continue;
 	    }
 	    if (table68k[opcode].duse
 		&& (table68k[opcode].dpos != table68k[code].dpos
 		    || table68k[opcode].dmode != table68k[code].dmode))
 	    {
-		mismatch++; continue;
+		readcpu_mismatch++; continue;
 	    }
 
 	    if (code != opcode)
@@ -904,11 +895,11 @@ static void handle_merges (long int opcode)
     }
 }
 
-void do_merges (void)
+static void do_merges (void)
 {
     long int opcode;
     int nr = 0;
-    mismatch = 0;
+    readcpu_mismatch = 0;
     for (opcode = 0; opcode < 65536; opcode++) {
 	if (table68k[opcode].handler != -1 || table68k[opcode].mnemo == i_ILLG)
 	    continue;
@@ -918,116 +909,26 @@ void do_merges (void)
     nr_cpuop_funcs = nr;
 }
 
-int get_no_mismatches (void)
+
+void init_table68k (void)
 {
-    return mismatch;
+    int i;
+
+	free(table68k);
+    table68k = (struct instr *)malloc (65536 * sizeof (struct instr));
+    for (i = 0; i < 65536; i++) {
+	table68k[i].mnemo = i_ILLG;
+	table68k[i].handler = -1;
+    }
+    for (i = 0; i < n_defs68k; i++) {
+	build_insn (i);
+    }
+    do_merges();
 }
 
-const char *get_instruction_name (unsigned int opcode)
+
+void exit_table68k (void)
 {
-    struct instr *ins = &table68k[opcode];
-    for (int i = 0; lookuptab[i].name[0]; i++) {
-	if (ins->mnemo == lookuptab[i].mnemo)
-	    return lookuptab[i].name;
-    }
-    abort();
-    return NULL;
-}
-
-static char *get_ea_string (amodes mode, wordsizes size)
-{
-    static char buffer[80];
-
-    buffer[0] = 0;
-    switch (mode){
-     case Dreg:
-	strcpy (buffer,"Dn");
-	break;
-     case Areg:
-	strcpy (buffer,"An");
-	break;
-     case Aind:
-	strcpy (buffer,"(An)");
-	break;
-     case Aipi:
-	strcpy (buffer,"(An)+");
-	break;
-     case Apdi:
-	strcpy (buffer,"-(An)");
-	break;
-     case Ad16:
-	strcpy (buffer,"(d16,An)");
-	break;
-     case Ad8r:
-	strcpy (buffer,"(d8,An,Xn)");
-	break;
-     case PC16:
-	strcpy (buffer,"(d16,PC)");
-	break;
-     case PC8r:
-	 strcpy (buffer,"(d8,PC,Xn)");
-	break;
-     case absw:
-	strcpy (buffer,"(xxx).W");
-	break;
-     case absl:
-	strcpy (buffer,"(xxx).L");
-	break;
-     case imm:
-	switch (size){
-	 case sz_byte:
-	    strcpy (buffer,"#<data>.B");
-	    break;
-	 case sz_word:
-	    strcpy (buffer,"#<data>.W");
-	    break;
-	 case sz_long:
-	    strcpy (buffer,"#<data>.L");
-	    break;
-	 default:
-	    break;
-	}
-	break;
-     case imm0:
-	strcpy (buffer,"#<data>.B");
-	break;
-     case imm1:
-	strcpy (buffer,"#<data>.W");
-	break;
-     case imm2:
-	strcpy (buffer,"#<data>.L");
-	break;
-     case immi:
-	strcpy (buffer,"#<data>");
-	break;
-
-     default:
-	break;
-    }
-    return buffer;
-}
-
-const char *get_instruction_string (unsigned int opcode)
-{
-    static char out[100];
-    struct instr *ins;
-
-    strcpy (out, get_instruction_name (opcode));
-
-    ins = &table68k[opcode];
-    if (ins->size == sz_byte)
-	strcat (out,".B");
-    if (ins->size == sz_word)
-	strcat (out,".W");
-    if (ins->size == sz_long)
-	strcat (out,".L");
-    strcat (out," ");
-    if (ins->suse)
-	strcat (out, get_ea_string (amodes(ins->smode), wordsizes(ins->size)));
-    if (ins->duse) {
-	if (ins->suse)
-	    strcat (out,",");
-	strcat (out, get_ea_string (amodes(ins->dmode), wordsizes(ins->size)));
-    }
-    return out;
+	free(table68k);
+	table68k = NULL;
 }
