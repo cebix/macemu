@@ -2217,10 +2217,7 @@ static void handle_events(void)
 					code = event2keycode(event.key, true);
 				if (code >= 0) {
 					if (!emul_suspended) {
-						if (code == 0x39)
-							(SDL_GetModState() & KMOD_CAPS ? ADBKeyDown : ADBKeyUp)(code);
-						else
-							ADBKeyDown(code);
+						ADBKeyDown(code);
 						if (code == 0x36)
 							ctrl_down = true;
 #ifdef __APPLE__
@@ -2250,8 +2247,7 @@ static void handle_events(void)
 				} else
 					code = event2keycode(event.key, false);
 				if (code >= 0) {
-					if (code != 0x39)
-						ADBKeyUp(code);
+					ADBKeyUp(code);
 					if (code == 0x36)
 						ctrl_down = false;
 #ifdef __APPLE__
