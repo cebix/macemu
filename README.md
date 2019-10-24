@@ -1,6 +1,6 @@
 #### BasiliskII
 ```
-macOS 64-bit ---
+macOS 64-bit JIT
 Linux 32-bit JIT
 MinGW 32-bit JIT
 ```
@@ -11,7 +11,7 @@ Linux 32-bit JIT
 MinGW 32-bit ---
 ```
 ### How To Build
-These builds need to be installed SDL2 framework/library.
+These builds need to be installed SDL2.0.10+ framework/library.
 #### BasiliskII
 ##### macOS
 1. Open BasiliskII/src/MacOSX/BasiliskII.xcodeproj
