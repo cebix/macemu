@@ -517,7 +517,7 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 			D(bug(" patch applied\n"));
 		}
 
-	} else if (type == FOURCC('D','R','V','R') && (id == -16501)){// || id == -16500)) { // -16501 patches the native driver and -16500 traps out to code, but very hard to re-implement there!
+	} else if (type == FOURCC('D','R','V','R') && (id == -16501)){// || id == -16500)) { // -16500 will patch over native driver and traps out to code, but very hard to re-implement there!
 		D(bug("DRVR -16501/-16500 found\n"));
 		// Install sound input driver
 		memcpy(p, sound_input_driver, sizeof(sound_input_driver));
