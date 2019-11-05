@@ -2341,6 +2341,15 @@ static bool patch_68k(void)
 			if (ReadMacInt32(thing + componentPFCount))
 				AddSifter(ReadMacInt32(thing + componentPFResType), ReadMacInt16(thing + componentPFResID));
 		}
+//		else if (ReadMacInt32(thing) == FOURCC('s','i','n','p')) {
+//			D(bug("found sinp component at offset %08x in ROM\n", thing));
+//		}
+//		else if (ReadMacInt32(thing) == FOURCC('c','d',' ',' ')) {
+//			D(bug("found sinp component at offset %08x in ROM\n", thing));
+//		}
+//		else if (ReadMacInt32(thing) == FOURCC('i','m','i','c')) {
+//			D(bug("found sinp component at offset %08x in ROM\n", thing));
+//		}
 		thing = find_rom_resource(FOURCC('t','h','n','g'), 4711, true);
 	}
 
@@ -2362,6 +2371,17 @@ static bool patch_68k(void)
 			*wp++ = htons(0x4e74); *wp++ = htons(0x0008);	// rtd #8
 		}
 	}
+	
+//	// Find sound input in ROM
+//	D(bug("Searching for sound components with type sdev in ROM\n"));
+//	uint32 sinp = find_rom_resource(FOURCC('s','i','n','p'));
+//	if (sinp == 0) {
+//		sinp = find_rom_resource(FOURCC('c','d',' ',' '));
+//		if (sinp == 0) {
+//			sinp = find_rom_resource(FOURCC('i','m','i','c'));
+//		}
+//	}
+	
 	return true;
 }
 

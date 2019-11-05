@@ -32,6 +32,7 @@
 #include "audio.h"
 #include "audio_defs.h"
 #include "user_strings.h"
+#include "cdrom.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -554,7 +555,22 @@ int16 SoundInPrime(uint32 pb, uint32 dce)
 {
 	D(bug("SoundInPrime\n"));
 	//!!
-	return paramErr;
+	
+	uint16 code = ReadMacInt16(pb + csCode);
+	D(bug("SoundInControl %d\n", code));
+
+	if (code == 1) {
+		D(bug(" SoundInKillIO\n"));
+		//!!
+		return noErr;
+	}
+
+	if (code != 2)
+		return -231;	// siUnknownInfoType
+	
+	uint32 selector = ReadMacInt32(pb + csParam); // 4-byte selector (should match via FOURCC above)
+
+	return noErr;
 }
 
 
@@ -575,12 +591,24 @@ int16 SoundInControl(uint32 pb, uint32 dce)
 
 	if (code != 2)
 		return -231;	// siUnknownInfoType
+	
+	uint32 selector = ReadMacInt32(pb + csParam); // 4-byte selector (should match via FOURCC above)
 
-	uint32 *param = (uint32 *)Mac2HostAddr(pb + csParam);
-	uint32 selector = param[0];
-	D(bug(" selector %c%c%c%c\n", selector >> 24, selector >> 16, selector >> 8, selector));
-
+//	uint32 *param = (uint32 *)Mac2HostAddr(pb + csParam);
+//	uint32 selector = param[0];
+//	D(bug(" selector %c%c%c%c\n", selector >> 24, selector >> 16, selector >> 8, selector));
+//	uint32 selector_flipped = bswap_32(selector); // endianness of selector needs swapping?
 	switch (selector) {
+		case siInitializeDriver: {
+//			If possible, the driver initializes the device to a sampling rate of 22 kHz, a sample size of 8 bits, mono recording, no compression, automatic gain control on, and all other features off.
+			return noErr;
+		}
+			
+		case siCloseDriver: {
+//			The sound input device driver should stop any recording in progress, deallocate the input hardware, and initialize local variables to default settings.
+			return noErr;
+		}
+			
 		default:
 			return -231;	// siUnknownInfoType
 	}
@@ -591,60 +619,286 @@ int16 SoundInControl(uint32 pb, uint32 dce)
  *  Sound input driver Status() routine
  */
 
-int16 SoundInStatus(uint32 pb, uint32 dce)
+int16 SoundInStatus(uint32 pb, uint32 dce) // A0 points to Device Manager parameter block (pb) and A1 to device control entry (dce)
 {
 	uint16 code = ReadMacInt16(pb + csCode);
 	D(bug("SoundInStatus %d\n", code));
 	if (code != 2)
 		return -231;	// siUnknownInfoType
+	
+	// reading directly
+	uint32 selector = ReadMacInt32(pb + csParam); // 4-byte selector (should match via FOURCC above)
+	uint32 bufferptr = ReadMacInt32(pb + csParam + 4); // 4-byte address to the buffer in vm memory
 
-	uint32 *param = (uint32 *)Mac2HostAddr(pb + csParam);
-	uint32 selector = param[0];
-	D(bug(" selector %c%c%c%c\n", selector >> 24, selector >> 16, selector >> 8, selector));
-	uint32 selector_flipped = bswap_32(selector); // endianness of selector needs swapping?
-	switch (selector_flipped) {
+	// reading through location in memory
+//	uint32 *param = (uint32 *)Mac2HostAddr(pb + csParam);
+//	uint32 selector_flipped = param[0];
+//	uint32 selector = bswap_32(selector_flipped); // endianness of selector needs swapping?
+//	D(bug(" selector %c%c%c%c\n", selector >> 24, selector >> 16, selector >> 8, selector));
+//	uint32 bufferptr_flipped = param[1]; // pointer to application-supplied buffer for return data
+//	uint32 bufferptr = bswap_32(bufferptr_flipped); // endianness of buffer address needs swapping?
+	
+	// two choices on return
+	// 1: if under 18 bytes, place # of bytes at (pb+csParam) and write from (pb+csParam+4) on
+	// 2: if over 18 bytes, place 0 at (pb+csParam) and directly write into buffer pointed to by bufferptr
+//	uint8 *buffer = Mac2HostAddr(bufferptr);
+	switch (selector) {
 //#if 0
-		case siDeviceName: {
-			const char *str = GetString(STR_SOUND_IN_NAME);
-			param[0] = 0;
-			memcpy((void *)param[1], str, strlen(str));
+		case siDeviceName: { // return name in STR255 format
+//			const char *str = GetString(STR_SOUND_IN_NAME);
+			const uint8 str[] = { // size 9
+				0x08,		// 1-byte length
+				0x42, 0x75, // Bu
+				0x69, 0x6c, // il
+				0x74, 0x2d, // t-
+				0x69, 0x6e  // in
+			};
+			const uint8 str2[] = { // size 8
+				0x07,		// 1-byte length
+				0x41, 0x70,	// Ap
+				0x70, 0x6c,	// pl
+				0x65, 0x43,	// eC
+				0x44		// D
+			};
+			const uint8 str3[] = { // size 12
+				0x0b,		// byte size indicator (up to 255 length supported)
+				0x49, 0x6e, // start of string in ASCII, In
+				0x74, 0x65, // te
+				0x72, 0x6e, // rn
+				0x61, 0x6c, // al
+				0x20, 0x43, //  C
+				0x44,  		// D
+			};
+			const uint8 str4[] = { // size 18
+				0x10, 0x2e, 0x41, 0x70, 0x70, 0x6c, 0x65, 0x53, 0x6f, 0x75, 0x6e, 0x64, 0x49, 0x6e, 0x70, 0x75, 0x74, 0x00 // ".AppleSoundInput"
+			};
+			WriteMacInt32(pb + csParam, 0); // response will directly be written into buffer
+			vm_memcpy(bufferptr, str3, 12);
+//			memcpy(buffer, str, 9);
 			return noErr;
 		}
 
 		case siDeviceIcon: {
-            return -192; // early return: 68k code causes crash in sheep and link error in basilisk
-			M68kRegisters r;
-			static const uint8 proc[] = {
-				0x55, 0x8f,							// 	subq.l	#2,sp
-				0xa9, 0x94,							// 	CurResFile
-				0x42, 0x67,							// 	clr.w	-(sp)
-				0xa9, 0x98,							// 	UseResFile
-				0x59, 0x8f,							// 	subq.l	#4,sp
-				0x48, 0x79, 0x49, 0x43, 0x4e, 0x23,	// 	move.l	#'ICN#',-(sp)
-				0x3f, 0x3c, 0xbf, 0x76,				// 	move.w	#-16522,-(sp)
-				0xa9, 0xa0,							// 	GetResource
-				0x24, 0x5f,							// 	move.l	(sp)+,a2
-				0xa9, 0x98,							// 	UseResFile
-				0x20, 0x0a,							// 	move.l	a2,d0
-				0x66, 0x04,							// 	bne		1
-				0x70, 0x00,							//  moveq	#0,d0
-				M68K_RTS >> 8, M68K_RTS & 0xff,
-				0x2f, 0x0a,							//1 move.l	a2,-(sp)
-				0xa9, 0x92,							//  DetachResource
-				0x20, 0x4a,							//  move.l	a2,a0
-				0xa0, 0x4a,							//	HNoPurge
-				0x70, 0x01,							//	moveq	#1,d0
-				M68K_RTS >> 8, M68K_RTS & 0xff
+//			return -192;
+			
+			WriteMacInt32(pb + csParam, 0);
+			WriteMacInt32(bufferptr, CDROMIconAddr);
+			return noErr;
+			
+			// attempt to load from external file into emulator
+//			FILE *fl = fopen("/Emulators/SheepShaver/Shared/SoundIcon.icn", "r");
+//			fseek(fl, 0, SEEK_END);
+//			long len = ftell(fl);
+//			uint32 icnbuffer = Mac_sysalloc(len);
+//			uint8 *ret = (uint8*)Mac2HostAddr(icnbuffer);
+//			fseek(fl, 0, SEEK_SET);
+//			fread(ret, 1, len, fl);
+//			fclose(fl);
+//			WriteMacInt32(pb + csParam, 4); // will be the address of the icn in memory
+//			WriteMacInt32(pb + csParam + 4, icnbuffer);
+//			WriteMacInt32(bufferptr,icnbuffer);
+//            return noErr;
+			
+			// 68k code causes crash in sheep and link error in basilisk
+//			M68kRegisters r;
+//			static const uint8 proc[] = {
+//				0x55, 0x8f,							// 	subq.l	#2,sp
+//				0xa9, 0x94,							// 	CurResFile
+//				0x42, 0x67,							// 	clr.w	-(sp)
+//				0xa9, 0x98,							// 	UseResFile
+//				0x59, 0x8f,							// 	subq.l	#4,sp
+//				0x48, 0x79, 0x49, 0x43, 0x4e, 0x23,	// 	move.l	#'ICN#',-(sp)
+//				0x3f, 0x3c, 0xbf, 0x76,				// 	move.w	#-16522,-(sp)
+//				0xa9, 0xa0,							// 	GetResource
+//				0x24, 0x5f,							// 	move.l	(sp)+,a2
+//				0xa9, 0x98,							// 	UseResFile
+//				0x20, 0x0a,							// 	move.l	a2,d0
+//				0x66, 0x04,							// 	bne		1
+//				0x70, 0x00,							//  moveq	#0,d0
+//				M68K_RTS >> 8, M68K_RTS & 0xff,
+//				0x2f, 0x0a,							//1 move.l	a2,-(sp)
+//				0xa9, 0x92,							//  DetachResource
+//				0x20, 0x4a,							//  move.l	a2,a0
+//				0xa0, 0x4a,							//	HNoPurge
+//				0x70, 0x01,							//	moveq	#1,d0
+//				M68K_RTS >> 8, M68K_RTS & 0xff
+//			};
+//			Execute68k(Host2MacAddr((uint8 *)proc), &r);
+//			if (r.d[0]) {
+//				WriteMacInt32(pb + csParam, 4); // Length of returned data
+//				WriteMacInt32(pb + csParam + 4, r.a[2]); // Handle to icon suite
+//				return noErr;
+//			} else
+//				return -192;		// resNotFound
+		}
+			
+		case siInputSource: {
+//			uint32 addr = Mac_sysalloc(1);
+//			WriteMacInt32(addr, 0);
+//			param[0] = 4;
+//			param[1] = addr;
+//			WriteMacInt32(param[1], 0);
+//			const uint32 opt = 0; // 0 if no options box supported and 1 if so
+//			const uint8 ind[] = {
+//				0x00, 0x00, 0x00, 0x00
+//			};
+//			param[0] = 0;s
+//			memcpy((void *)buffer, ind, 4);
+//			uint8 *src = (uint8 *)Mac2HostAddr(Mac_sysalloc(1));
+//			*src = 0x00;
+//			param[0] = 4;
+//			param[1] = Host2MacAddr(src);
+//			return -231;
+//			uint32 opt = Mac_sysalloc(4);
+//			WriteMacInt32(opt, 0);
+//			param[0] = 4;
+//			param[1] = opt;
+//			return -231;
+			WriteMacInt32(pb + csParam, 4);
+			WriteMacInt32(pb + csParam + 4, 1);
+			return noErr;
+		}
+			
+		case siInputSourceNames: { // list of sources in str# resource format
+//			return -231;
+			
+//			const char names[] = {
+//				'\x00', '\x02',
+//				'\x0b',
+//				'I','n','t','e','r','n','a','l',' ','C','D',
+//				'\x0a',
+//				'M','i','c','r','o','p','h','o','n','e','\0'
+//			};
+//			const char names2[] = {
+//				'\x00', 'e', 'n', 'o', 'h', 'p', 'o', 'r', 'c', 'i', 'M', '\x0a', 'D', 'C', ' ', 'l', 'a', 'n', 'r', 'e', 't', 'n', 'I', '\x0b', '\x02', '\x00'
+//			};
+//			SheepVar names_str(26);
+//			strcpy((char*)Mac2HostAddr(names_str.addr()),names2);
+//			WriteMacInt32(pb + csParam, 0);
+//			WriteMacInt32(bufferptr, names_str.addr());
+//			return noErr;
+			
+//			SheepString names("\00bInternal CD");
+//			WriteMacInt32(pb + csParam, 0);
+//			WriteMacInt32(bufferptr, names.addr());
+//			return noErr;
+//			uint32 nameshandle = Mac_sysalloc(14);
+
+//			SheepVar names_str(25);
+			const uint8 str[] = {
+				0x00, 0x02, // 2-byte count of #strings
+				0x0b,		// byte size indicator (up to 255 length supported)
+				0x49, 0x6e, // start of string in ASCII, In
+				0x74, 0x65, // te
+				0x72, 0x6e, // rn
+				0x61, 0x6c, // al
+				0x20, 0x43, //  C
+				0x44,  		// D
+				0x0a,		// size is 10
+				0x4d, 0x69,	// Mi
+				0x63, 0x72,	// cr
+				0x6f, 0x70,	// op
+				0x68, 0x6f,	// ho
+				0x6e, 0x65,	// ne
 			};
-			Execute68k(Host2MacAddr((uint8 *)proc), &r);
-			if (r.d[0]) {
-				param[0] = 4;		// Length of returned data
-				param[1] = r.a[2];	// Handle to icon suite
-				return noErr;
-			} else
-				return -192;		// resNotFound
+			const char str2[] = {
+				0x00, 0x01,	// 2-byte count of #strings
+				0x02,		// string size is 2
+				0x43, 0x44,	// CD
+				0x00
+			};
+			SheepString names(str2);
+//			vm_memcpy(names_str.addr(), str, 25);
+			WriteMacInt32(pb + csParam, 0);
+//			vm_memcpy(bufferptr, str, 25);
+			WriteMacInt32(bufferptr, names.addr());
+			return noErr;
+			
+//			vm_memcpy(nameshandle, str, 14);
+//			memcpy(names, str, 14);
+			// attempt to load from external file into emulator
+//			FILE *fl = fopen("/Emulators/SheepShaver/Shared/soundnames.rsrc", "r");
+//			fseek(fl, 0, SEEK_END);
+//			long len = ftell(fl);
+//			uint8 *ret = (uint8*)malloc(len);
+//			fseek(fl, 0, SEEK_SET);
+//			fread(ret, 1, len, fl);
+//			fclose(fl);
+//			SheepVar names_strs(len);
+//			vm_memcpy(names_strs.addr(), ret, len);
+//			WriteMacInt32(pb + csParam, 0);
+//			WriteMacInt32(bufferptr, names_strs.addr());
+//			return noErr;
+//			uint32 name = Mac_sysalloc(14);
+//			Host2Mac_memcpy(name, str, 14);
+//			uint32 handle = Host2MacAddr(names);
+//			param[0] = 4;
+//			memcpy((void *)param[1], str, 14);
+//			return noErr;
+//			WriteMacInt16(param[1], 1);
+//			const char *str = "Internal CD";
+////			Host2Mac_memcpy(param[1]+sizeof(uint16), str, strlen(str));
+////			uint16 *num = new uint16; // number of sources (2-bytes at start of infoData
+////			*num = (uint16) 1;
+////			const char *str = "Built-In";//GetString(STR_SOUND_IN_SOURCE);
+////			param[0] = sizeof(uint16) + strlen(str);
+////			memcpy((void *)param[1], num, sizeof(uint16));
+//			memcpy((void *)param[1], str, strlen(str));
+//			return -231; // when only 1 source, return siUnknownInfoType
+		}
+			
+		case siOptionsDialog: {
+//			WriteMacInt32(param[1], 0);
+//			const uint32 opt = 0; // 0 if no options box supported and 1 if so
+//			param[0] = 0;
+//			memcpy((void *)param[1], &opt, sizeof(opt));
+//			const uint8 ind[] = {
+//				0x00, 0x00, 0x00, 0x00
+//			};
+//			uint32 opt = Mac_sysalloc(4);
+//			WriteMacInt32(opt, 0);
+//			param[0] = 0;
+//			WriteMacInt32(bufferptr, 0);
+			WriteMacInt32(pb + csParam, 4);
+			WriteMacInt32(pb + csParam + 4, 0);
+//			uint8 *src = (uint8 *)Mac2HostAddr(Mac_sysalloc(1));
+//			*src = 0x00;
+//			param[0] = 4;
+//			param[1] = Host2MacAddr(src);
+//			uint32 opt = Mac_sysalloc(4);
+//			WriteMacInt32(opt, 0);
+//			param[0] = 4;
+//			param[1] = opt;
+			return noErr;
+		}
+			
+		case siPlayThruOnOff: {
+//			WriteMacInt32(param[1], 0);
+//			const uint32 plt = 7; // playthrough volume, 0 is off and 7 is max
+//			param[0] = 0;
+//			memcpy((void *)param[1], &plt, sizeof(plt));
+//			uint32 opt = Mac_sysalloc(4);
+//			WriteMacInt32(opt, 0);
+//			param[0] = 0;
+//			WriteMacInt32(bufferptr, 7);
+			WriteMacInt32(pb + csParam, 4);
+			WriteMacInt32(pb + csParam + 4, 7);
+//			uint32 opt = Mac_sysalloc(4);
+//			WriteMacInt32(opt, 0);
+//			param[0] = 4;
+//			param[1] = opt;
+			return noErr;
 		}
 //#endif
+		case FOURCC('p', 't', 'k', 'd'): {
+			return -231;
+			WriteMacInt32(pb + csParam, 1);
+			WriteMacInt8(pb + csParam + 4, 0);
+			return noErr;
+		}
+		case FOURCC('i', 'n', 'p', 't'): {
+			return -231;
+		}
 		default:
 			return -231;	// siUnknownInfoType
 	}
