@@ -994,6 +994,9 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 				case FOURCC('v','m','o','p'):	// Virtual memory attributes
 					WriteMacInt32(pb + csParam + 4, 0);	// Drive not available for VM
 					break;
+				case FOURCC('c', 'd', '3', 'd'):
+					WriteMacInt16(pb + csParam + 4, 0);
+					break;
 				default:
 					return statusErr;
 			}

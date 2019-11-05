@@ -637,7 +637,8 @@ int16 SoundInStatus(uint32 pb, uint32 dce) // A0 points to Device Manager parame
 				0x69, 0x6e  // in
 			};
 			WriteMacInt32(pb + csParam, 0); // response will directly be written into buffer
-			vm_memcpy(bufferptr, str, 9);
+//			vm_memcpy(bufferptr, str, 9);
+			memcpy(Mac2HostAddr(bufferptr),str,9);
 			return noErr;
 		}
 
