@@ -536,8 +536,10 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 				SysEject(info->fh);
 				WriteMacInt8(info->status + dsDiskInPlace, 0);
 				info->twok_offset = -1;
+				return noErr;
+			} else {
+				return offLinErr;
 			}
-			return noErr;
 			
 		case 21:		// GetDriveIcon
 		case 22:		// GetMediaIcon
@@ -547,6 +549,30 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 		case 23:		// GetDriveInfo
 			WriteMacInt32(pb + csParam, 0x00000b01);	// Unspecified external removable SCSI disk
 			return noErr;
+		
+		// TODO: revist this section, is it necessary with DriverGestalt also in Status section?
+		case 43: {		// DriverGestalt
+			int selector = ReadMacInt32(pb + csParam);
+			switch (selector) {
+				case FOURCC('v','e','r','s'):
+					WriteMacInt32(pb + csParam + 4, 0x05208000); // vers 5.2.0
+					break;
+				case FOURCC('d','e','v','t'):
+					WriteMacInt32(pb + csParam + 4, FOURCC('c','d','r','m'));
+					break;
+				case FOURCC('i','n','t','f'):
+				case FOURCC('d','A','P','I'):
+					WriteMacInt32(pb + csParam + 4, FOURCC('s','c','s','i'));
+					break;
+				case FOURCC('s','y','n','c'):
+					WriteMacInt32(pb + csParam + 4, 1); // true/false = sync/async
+					break;
+				case FOURCC('c','d','3','d'):
+					WriteMacInt32(pb + csParam + 4, 1);
+					break;
+			}
+			return noErr;
+		}
 			
 		case 70: {		// SetPowerMode
 			uint8 mode = ReadMacInt8(pb + csParam);
@@ -765,8 +791,8 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			info->play_mode = ReadMacInt8(pb + csParam + 9) & 0x0f;
 			if (!SysCDPlay(info->fh, start_m, start_s, start_f, info->stop_at[0], info->stop_at[1], info->stop_at[2]))
 				return paramErr;
-			if (ReadMacInt16(pb + csParam + 6) == 0)	// Hold
-				SysCDPause(info->fh);
+//			if (ReadMacInt16(pb + csParam + 6) == 0)	// Hold
+//				SysCDPause(info->fh);
 			return noErr;
 		}
 			
@@ -774,6 +800,7 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			D(bug(" AudioPlay postype %d, pos %08lx, hold %d\n", ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), ReadMacInt16(pb + csParam + 6)));
 			if (ReadMacInt8(info->status + dsDiskInPlace) == 0)
 				return offLinErr;
+			
 			
 			if (ReadMacInt16(pb + csParam + 6)) {
 				// Given stopping address
@@ -967,10 +994,12 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 					WriteMacInt32(pb + csParam + 4, FOURCC('c','d','r','m'));
 					break;
 				case FOURCC('i','n','t','f'):	// Interface type
-					WriteMacInt32(pb + csParam + 4, EMULATOR_ID_4);
+//					WriteMacInt32(pb + csParam + 4, EMULATOR_ID_4);
+					WriteMacInt32(pb + csParam + 4, FOURCC('s','c','s','i'));
 					break;
 				case FOURCC('s','y','n','c'):	// Only synchronous operation?
 					WriteMacInt32(pb + csParam + 4, 0x01000000);
+//					WriteMacInt32(pb + csParam + 4, 1);
 					break;
 				case FOURCC('b','o','o','t'):	// Boot ID
 					if (info != drives.end())
@@ -995,7 +1024,7 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 					WriteMacInt32(pb + csParam + 4, 0);	// Drive not available for VM
 					break;
 				case FOURCC('c', 'd', '3', 'd'):
-					WriteMacInt16(pb + csParam + 4, 0);
+					WriteMacInt16(pb + csParam + 4, 1);
 					break;
 				default:
 					return statusErr;

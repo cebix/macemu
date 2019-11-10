@@ -686,10 +686,11 @@ bool CDResume_bincue(void *fh)
 {
 	CueSheet *cs = (CueSheet *) fh;
 	if (cs && cs == player.cs) {
-		if (player.audiostatus == CDROM_AUDIO_PAUSED) {
-			player.audiostatus = CDROM_AUDIO_PLAY;
-			return true;
-		}
+//		if (player.audiostatus == CDROM_AUDIO_PAUSED) {
+		// don't care if it was paused or not, just ensure it's playing after this call
+		player.audiostatus = CDROM_AUDIO_PLAY;
+		return true;
+//		}
 	}
 	return false;
 }
