@@ -140,6 +140,7 @@ struct cdrom_drive_info {
 	uint8 toc[804];		// TOC of currently inserted disk
 	uint8 lead_out[3];	// MSF address of lead-out track
 	uint8 stop_at[3];	// MSF address of audio play stopping point
+	uint8 start_at[3];	// MSF address of position set by track search or audio play
 	
 	uint8 play_mode;	// Audio play mode
 	uint8 play_order;	// Play mode order (normal, shuffle, program)
@@ -785,14 +786,13 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			if (ReadMacInt8(info->status + dsDiskInPlace) == 0)
 				return offLinErr;
 			
-			uint8 start_m, start_s, start_f;
-			if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, start_m, start_s, start_f))
+			if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, info->start_at[0], info->start_at[1], info->start_at[2]))
 				return paramErr;
 			info->play_mode = ReadMacInt8(pb + csParam + 9) & 0x0f;
-			if (!SysCDPlay(info->fh, start_m, start_s, start_f, info->stop_at[0], info->stop_at[1], info->stop_at[2]))
+			if (!SysCDPlay(info->fh, info->start_at[0], info->start_at[1], info->start_at[2], info->stop_at[0], info->stop_at[1], info->stop_at[2]))
 				return paramErr;
-//			if (ReadMacInt16(pb + csParam + 6) == 0)	// Hold
-//				SysCDPause(info->fh);
+			if (ReadMacInt16(pb + csParam + 6) == 0)	// Hold
+				SysCDPause(info->fh);
 			return noErr;
 		}
 			
@@ -808,13 +808,13 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 					return paramErr;
 			} else {
 				// Given starting address
-				uint8 start_m, start_s, start_f;
-				if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, start_m, start_s, start_f))
-					return paramErr;
-				info->play_mode = ReadMacInt8(pb + csParam + 9) & 0x0f;
-				if (!SysCDPlay(info->fh, start_m, start_s, start_f, info->stop_at[0], info->stop_at[1], info->stop_at[2]))
+				if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, info->start_at[0], info->start_at[1], info->start_at[2]))
 					return paramErr;
 			}
+			// Still need to process the AudioPlay command
+			info->play_mode = ReadMacInt8(pb + csParam + 9) & 0x0f;
+			if (!SysCDPlay(info->fh, info->start_at[0], info->start_at[1], info->start_at[2], info->stop_at[0], info->stop_at[1], info->stop_at[2]))
+				return paramErr;
 			return noErr;
 			
 		case 105:		// AudioPause
@@ -890,11 +890,10 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			if (ReadMacInt8(info->status + dsDiskInPlace) == 0)
 				return offLinErr;
 			
-			uint8 start_m, start_s, start_f;
-			if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, start_m, start_s, start_f))
+			if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, info->start_at[0], info->start_at[1], info->start_at[2]))
 				return paramErr;
 			
-			if (!SysCDScan(info->fh, start_m, start_s, start_f, ReadMacInt16(pb + csParam + 6) != 0)) {
+			if (!SysCDScan(info->fh, info->start_at[0], info->start_at[1], info->start_at[2], ReadMacInt16(pb + csParam + 6) != 0)) {
 				return paramErr;
 			} else {
 				return noErr;

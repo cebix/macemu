@@ -659,10 +659,9 @@ bool CDPause_bincue(void *fh)
 {
 	CueSheet *cs = (CueSheet *) fh;
 	if (cs && cs == player.cs) {
-		if (player.audiostatus == CDROM_AUDIO_PLAY) {
-			player.audiostatus = CDROM_AUDIO_PAUSED;
-			return true;
-		}
+		// doesn't matter if it was playing, just ensure it's now paused
+		player.audiostatus = CDROM_AUDIO_PAUSED;
+		return true;
 	}
 	return false;
 }
@@ -686,11 +685,9 @@ bool CDResume_bincue(void *fh)
 {
 	CueSheet *cs = (CueSheet *) fh;
 	if (cs && cs == player.cs) {
-//		if (player.audiostatus == CDROM_AUDIO_PAUSED) {
-		// don't care if it was paused or not, just ensure it's playing after this call
+		// doesn't matter if it was paused, just ensure it now plays
 		player.audiostatus = CDROM_AUDIO_PLAY;
 		return true;
-//		}
 	}
 	return false;
 }
@@ -769,7 +766,22 @@ bool CDPlay_bincue(void *fh, uint8 start_m, uint8 start_s, uint8 start_f,
 bool CDScan_bincue(void *fh, uint8 start_m, uint8 start_s, uint8 start_f, bool reverse) {
 	CueSheet *cs = (CueSheet *)fh;
 	if (cs && cs == player.cs) {
-		// stub
+		uint8 scanrate = 8; // 8x scan default but could use different value or make configurable
+		
+		MSF msf;
+		msf.m = start_m; msf.s = start_s; msf.f = start_f;
+		int current_frame = MSFToFrames(msf);
+		
+		if (reverse) {
+			msf.s -= scanrate;
+			int goto_frame = MSFToFrames(msf);
+			player.audioposition -= (current_frame - goto_frame) * player.cs->raw_sector_size;
+		}
+		else {
+			msf.s += scanrate;
+			int goto_frame = MSFToFrames(msf);
+			player.audioposition += (goto_frame - current_frame) * player.cs->raw_sector_size;
+		}
 		return true;
 	}
     return false;
