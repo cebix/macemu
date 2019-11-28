@@ -273,7 +273,7 @@ bool ether_init(void)
 	}
 #endif
 	else {
-		net_if_type = NET_IF_SHEEPNET;
+		net_if_type = NET_IF_VDE;
 		printf("selected Ethernet device type sheep_net\n");
 	}
 
