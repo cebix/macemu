@@ -815,11 +815,6 @@
    <inttypes.h> don't define. */
 /* #undef uintmax_t */
 
-#define DIRECT_ADDRESSING	1
-#define USE_JIT				1
-#define USE_JIT_FPU
-#define X86_64_ASSEMBLY
-#define OPTIMIZED_FLAGS
 #define FPU_IEEE
 
 #endif

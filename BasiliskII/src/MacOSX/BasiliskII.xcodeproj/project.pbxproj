@@ -12,9 +12,14 @@
 		752F27011F242BAF001032B4 /* prefs_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 752F27001F242BAF001032B4 /* prefs_sdl.cpp */; };
 		752F27031F242F51001032B4 /* xpram_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 752F27021F242F51001032B4 /* xpram_sdl.cpp */; };
 		753252E91F535A0C0024025B /* build68k.c in Sources */ = {isa = PBXBuildFile; fileRef = 753252E51F5359040024025B /* build68k.c */; };
+		753252EE1F535DD10024025B /* defs68k.c in Sources */ = {isa = PBXBuildFile; fileRef = 753252ED1F535DD10024025B /* defs68k.c */; };
 		753253021F535F210024025B /* gencpu.c in Sources */ = {isa = PBXBuildFile; fileRef = 753253011F535F210024025B /* gencpu.c */; };
 		753253151F5363400024025B /* defs68k.c in Sources */ = {isa = PBXBuildFile; fileRef = 753252ED1F535DD10024025B /* defs68k.c */; };
 		753253201F53650F0024025B /* readcpu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E0CE1F23B25A006B2DF2 /* readcpu.cpp */; };
+		753253311F5368370024025B /* cpuemu_nf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7532532C1F5368370024025B /* cpuemu_nf.cpp */; };
+		753253321F5368370024025B /* cpuemu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7532532D1F5368370024025B /* cpuemu.cpp */; };
+		753253331F5368370024025B /* cpustbl_nf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7532532E1F5368370024025B /* cpustbl_nf.cpp */; };
+		753253341F5368370024025B /* cpustbl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7532532F1F5368370024025B /* cpustbl.cpp */; };
 		753253351F53688D0024025B /* readcpu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E0CE1F23B25A006B2DF2 /* readcpu.cpp */; };
 		7539E1251F23B25A006B2DF2 /* adb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539DFC91F23B25A006B2DF2 /* adb.cpp */; };
 		7539E1261F23B25A006B2DF2 /* audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539DFCA1F23B25A006B2DF2 /* audio.cpp */; };
@@ -92,19 +97,7 @@
 		E413D93A20D2614E00E437D8 /* extfs_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E413D93920D2614E00E437D8 /* extfs_macosx.cpp */; };
 		E4150D1420D559800077C51A /* SDL2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E4150D1320D559800077C51A /* SDL2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E4555EED2354434B00139FCE /* Credits.html in Resources */ = {isa = PBXBuildFile; fileRef = 7539E00A1F23B25A006B2DF2 /* Credits.html */; };
-		E46AB23323612B8F009A4A18 /* compemu_fpp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E46AB23123612B8F009A4A18 /* compemu_fpp.cpp */; };
-		E46AB23423612B8F009A4A18 /* compemu_support.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E46AB23223612B8F009A4A18 /* compemu_support.cpp */; };
-		E47303B6235743B900A68BC2 /* readcpu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E0CE1F23B25A006B2DF2 /* readcpu.cpp */; };
-		E47303B7235743B900A68BC2 /* defs68k.c in Sources */ = {isa = PBXBuildFile; fileRef = 753252ED1F535DD10024025B /* defs68k.c */; };
-		E47897F62357441500558C48 /* gencomp.c in Sources */ = {isa = PBXBuildFile; fileRef = E47897F52357441500558C48 /* gencomp.c */; };
 		E490334E20D3A5890012DD5F /* clip_macosx64.mm in Sources */ = {isa = PBXBuildFile; fileRef = E490334D20D3A5890012DD5F /* clip_macosx64.mm */; };
-		E4CB2C232361291800718BD3 /* defs68k.c in Sources */ = {isa = PBXBuildFile; fileRef = 753252ED1F535DD10024025B /* defs68k.c */; };
-		E4CB2C242361292800718BD3 /* cpuemu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7532532D1F5368370024025B /* cpuemu.cpp */; };
-		E4CB2C252361292800718BD3 /* cpuemu_nf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7532532C1F5368370024025B /* cpuemu_nf.cpp */; };
-		E4CB2C262361292800718BD3 /* cpustbl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7532532F1F5368370024025B /* cpustbl.cpp */; };
-		E4CB2C272361292800718BD3 /* cpustbl_nf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7532532E1F5368370024025B /* cpustbl_nf.cpp */; };
-		E4CB2C282361293500718BD3 /* compemu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E47303A2235741B300A68BC2 /* compemu.cpp */; };
-		E4CB2C2B2361293500718BD3 /* compstbl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E47303A3235741B300A68BC2 /* compstbl.cpp */; };
 		E4D8245323543D9800849B78 /* fpu_ieee.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4D8245223543D9700849B78 /* fpu_ieee.cpp */; };
 /* End PBXBuildFile section */
 
@@ -137,27 +130,6 @@
 			remoteGlobalIDString = 753253161F5363D20024025B;
 			remoteInfo = RunGencpu;
 		};
-		E47303B3235743B900A68BC2 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 7539DFAA1F23B17E006B2DF2 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 753253071F5360E30024025B;
-			remoteInfo = RunBuild68k;
-		};
-		E47897F72357443300558C48 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 7539DFAA1F23B17E006B2DF2 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E47303B1235743B900A68BC2;
-			remoteInfo = gencomp;
-		};
-		E47897F92357446D00558C48 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 7539DFAA1F23B17E006B2DF2 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E47303BE235743E200A68BC2;
-			remoteInfo = run_gencomp;
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -182,15 +154,6 @@
 			runOnlyForDeploymentPostprocessing = 1;
 		};
 		753252F11F535E1E0024025B /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolderSpec = 0;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 1;
-		};
-		E47303B9235743B900A68BC2 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -413,13 +376,6 @@
 		E413D93720D2613500E437D8 /* ether_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ether_unix.cpp; sourceTree = "<group>"; };
 		E413D93920D2614E00E437D8 /* extfs_macosx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = extfs_macosx.cpp; sourceTree = "<group>"; };
 		E4150D1320D559800077C51A /* SDL2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL2.framework; path = /Library/Frameworks/SDL2.framework; sourceTree = "<group>"; };
-		E46AB23123612B8F009A4A18 /* compemu_fpp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = compemu_fpp.cpp; sourceTree = "<group>"; };
-		E46AB23223612B8F009A4A18 /* compemu_support.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = compemu_support.cpp; sourceTree = "<group>"; };
-		E47303A1235741B300A68BC2 /* comptbl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = comptbl.h; path = gencomp_output/comptbl.h; sourceTree = BUILT_PRODUCTS_DIR; };
-		E47303A2235741B300A68BC2 /* compemu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = compemu.cpp; path = gencomp_output/compemu.cpp; sourceTree = BUILT_PRODUCTS_DIR; };
-		E47303A3235741B300A68BC2 /* compstbl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = compstbl.cpp; path = gencomp_output/compstbl.cpp; sourceTree = BUILT_PRODUCTS_DIR; };
-		E47303BD235743B900A68BC2 /* gencomp */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = gencomp; sourceTree = BUILT_PRODUCTS_DIR; };
-		E47897F52357441500558C48 /* gencomp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = gencomp.c; path = compiler/gencomp.c; sourceTree = "<group>"; };
 		E490334D20D3A5890012DD5F /* clip_macosx64.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = clip_macosx64.mm; sourceTree = "<group>"; };
 		E4D8245223543D9700849B78 /* fpu_ieee.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fpu_ieee.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -447,13 +403,6 @@
 				756C1B391F25306A00620917 /* AppKit.framework in Frameworks */,
 				752F26FB1F240E69001032B4 /* IOKit.framework in Frameworks */,
 				752F26F91F240E51001032B4 /* Foundation.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E47303B8235743B900A68BC2 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -523,7 +472,6 @@
 		753252FF1F535E5D0024025B /* generated src */ = {
 			isa = PBXGroup;
 			children = (
-				E47303A0235741B300A68BC2 /* gencomp output */,
 				753253001F535E840024025B /* build68k output */,
 				7532532B1F53675E0024025B /* gencpu output */,
 			);
@@ -536,21 +484,19 @@
 				753252ED1F535DD10024025B /* defs68k.c */,
 			);
 			name = "build68k output";
-			path = build68k_output;
-			sourceTree = BUILT_PRODUCTS_DIR;
+			sourceTree = "<group>";
 		};
 		7532532B1F53675E0024025B /* gencpu output */ = {
 			isa = PBXGroup;
 			children = (
-				753253301F5368370024025B /* cputbl.h */,
-				7532532D1F5368370024025B /* cpuemu.cpp */,
 				7532532C1F5368370024025B /* cpuemu_nf.cpp */,
-				7532532F1F5368370024025B /* cpustbl.cpp */,
+				7532532D1F5368370024025B /* cpuemu.cpp */,
 				7532532E1F5368370024025B /* cpustbl_nf.cpp */,
+				7532532F1F5368370024025B /* cpustbl.cpp */,
+				753253301F5368370024025B /* cputbl.h */,
 			);
 			name = "gencpu output";
-			path = gencpu_output;
-			sourceTree = BUILT_PRODUCTS_DIR;
+			sourceTree = "<group>";
 		};
 		7539DFA91F23B17E006B2DF2 = {
 			isa = PBXGroup;
@@ -569,9 +515,9 @@
 				7539DFB21F23B17E006B2DF2 /* BasiliskII.app */,
 				753252DA1F5358D30024025B /* build68k */,
 				753252F31F535E1E0024025B /* gencpu */,
-				E47303BD235743B900A68BC2 /* gencomp */,
 			);
 			name = Products;
+			path = ../../../../../../../../Documents/Code/macemu/BasiliskII/src/MacOSX;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 		7539DFCC1F23B25A006B2DF2 /* CrossPlatform */ = {
@@ -675,7 +621,6 @@
 				7539E0B11F23B25A006B2DF2 /* cpu_emulation.h */,
 				7539E0B31F23B25A006B2DF2 /* fpu */,
 				753253011F535F210024025B /* gencpu.c */,
-				E47897F52357441500558C48 /* gencomp.c */,
 				7539E0C81F23B25A006B2DF2 /* m68k.h */,
 				7539E0C91F23B25A006B2DF2 /* memory.cpp */,
 				7539E0CA1F23B25A006B2DF2 /* memory.h */,
@@ -696,8 +641,6 @@
 			children = (
 				7539E0AB1F23B25A006B2DF2 /* compemu.h */,
 				7539E0AE1F23B25A006B2DF2 /* flags_x86.h */,
-				E46AB23123612B8F009A4A18 /* compemu_fpp.cpp */,
-				E46AB23223612B8F009A4A18 /* compemu_support.cpp */,
 			);
 			path = compiler;
 			sourceTree = "<group>";
@@ -845,17 +788,6 @@
 			path = ../dummy;
 			sourceTree = "<group>";
 		};
-		E47303A0235741B300A68BC2 /* gencomp output */ = {
-			isa = PBXGroup;
-			children = (
-				E47303A1235741B300A68BC2 /* comptbl.h */,
-				E47303A2235741B300A68BC2 /* compemu.cpp */,
-				E47303A3235741B300A68BC2 /* compstbl.cpp */,
-			);
-			name = "gencomp output";
-			path = gencomp_output;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
 /* End PBXGroup section */
 
 /* Begin PBXLegacyTarget section */
@@ -886,21 +818,6 @@
 				7532531B1F5364030024025B /* PBXTargetDependency */,
 			);
 			name = run_gencpu;
-			passBuildSettingsInEnvironment = 1;
-			productName = RunGencpu;
-		};
-		E47303BE235743E200A68BC2 /* run_gencomp */ = {
-			isa = PBXLegacyTarget;
-			buildArgumentsString = "$(ACTION)";
-			buildConfigurationList = E47303C1235743E200A68BC2 /* Build configuration list for PBXLegacyTarget "run_gencomp" */;
-			buildPhases = (
-			);
-			buildToolPath = "$(PROJECT_DIR)/run_gencomp_for_xcode.sh";
-			buildWorkingDirectory = "";
-			dependencies = (
-				E47897F82357443300558C48 /* PBXTargetDependency */,
-			);
-			name = run_gencomp;
 			passBuildSettingsInEnvironment = 1;
 			productName = RunGencpu;
 		};
@@ -956,30 +873,11 @@
 			);
 			dependencies = (
 				7532531F1F5364170024025B /* PBXTargetDependency */,
-				E47897FA2357446D00558C48 /* PBXTargetDependency */,
 			);
 			name = BasiliskII;
 			productName = BasiliskII;
 			productReference = 7539DFB21F23B17E006B2DF2 /* BasiliskII.app */;
 			productType = "com.apple.product-type.application";
-		};
-		E47303B1235743B900A68BC2 /* gencomp */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = E47303BA235743B900A68BC2 /* Build configuration list for PBXNativeTarget "gencomp" */;
-			buildPhases = (
-				E47303B4235743B900A68BC2 /* Sources */,
-				E47303B8235743B900A68BC2 /* Frameworks */,
-				E47303B9235743B900A68BC2 /* CopyFiles */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				E47303B2235743B900A68BC2 /* PBXTargetDependency */,
-			);
-			name = gencomp;
-			productName = gencpu;
-			productReference = E47303BD235743B900A68BC2 /* gencomp */;
-			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
 
@@ -1028,10 +926,8 @@
 				7539DFB11F23B17E006B2DF2 /* BasiliskII */,
 				753252D91F5358D30024025B /* build68k */,
 				753252F21F535E1E0024025B /* gencpu */,
-				E47303B1235743B900A68BC2 /* gencomp */,
 				753253071F5360E30024025B /* run_build68k */,
 				753253161F5363D20024025B /* run_gencpu */,
-				E47303BE235743E200A68BC2 /* run_gencomp */,
 			);
 		};
 /* End PBXProject section */
@@ -1088,13 +984,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E4CB2C282361293500718BD3 /* compemu.cpp in Sources */,
-				E4CB2C2B2361293500718BD3 /* compstbl.cpp in Sources */,
-				E4CB2C242361292800718BD3 /* cpuemu.cpp in Sources */,
-				E4CB2C252361292800718BD3 /* cpuemu_nf.cpp in Sources */,
-				E4CB2C262361292800718BD3 /* cpustbl.cpp in Sources */,
-				E4CB2C272361292800718BD3 /* cpustbl_nf.cpp in Sources */,
-				E4CB2C232361291800718BD3 /* defs68k.c in Sources */,
 				7539E19E1F23B25A006B2DF2 /* rounding.cpp in Sources */,
 				7539E29D1F23C83F006B2DF2 /* sys_darwin.cpp in Sources */,
 				7539E1291F23B25A006B2DF2 /* video_blit.cpp in Sources */,
@@ -1105,13 +994,16 @@
 				E40CEEC620D7910E00BCB88D /* SDLMain.m in Sources */,
 				753253351F53688D0024025B /* readcpu.cpp in Sources */,
 				7539E1741F23B25A006B2DF2 /* audio_sdl.cpp in Sources */,
+				753252EE1F535DD10024025B /* defs68k.c in Sources */,
 				E413D93120D260BC00E437D8 /* ip_output.c in Sources */,
 				7539E1E21F23B25A006B2DF2 /* video.cpp in Sources */,
 				7539E18F1F23B25A006B2DF2 /* timer.cpp in Sources */,
 				7539E1711F23B25A006B2DF2 /* rom_patches.cpp in Sources */,
 				7539E1281F23B25A006B2DF2 /* sigsegv.cpp in Sources */,
+				753253341F5368370024025B /* cpustbl.cpp in Sources */,
 				756C1B341F252FC100620917 /* utils_macosx.mm in Sources */,
 				E413D92620D260BC00E437D8 /* misc.c in Sources */,
+				753253321F5368370024025B /* cpuemu.cpp in Sources */,
 				7539E2701F23B32A006B2DF2 /* tinyxml2.cpp in Sources */,
 				7539E1721F23B25A006B2DF2 /* rsrc_patches.cpp in Sources */,
 				7539E2931F23C56F006B2DF2 /* serial_dummy.cpp in Sources */,
@@ -1125,13 +1017,14 @@
 				7539E2971F23C5FD006B2DF2 /* newcpu.cpp in Sources */,
 				7539E12A1F23B25A006B2DF2 /* vm_alloc.cpp in Sources */,
 				E413D93220D260BC00E437D8 /* if.c in Sources */,
+				753253331F5368370024025B /* cpustbl_nf.cpp in Sources */,
 				7539E16C1F23B25A006B2DF2 /* main.cpp in Sources */,
 				7539E26D1F23B32A006B2DF2 /* strlcpy.c in Sources */,
 				E413D93420D260BC00E437D8 /* tcp_output.c in Sources */,
 				7539E26E1F23B32A006B2DF2 /* sys_unix.cpp in Sources */,
 				7539E1271F23B25A006B2DF2 /* cdrom.cpp in Sources */,
 				E413D92A20D260BC00E437D8 /* sbuf.c in Sources */,
-				E46AB23323612B8F009A4A18 /* compemu_fpp.cpp in Sources */,
+				753253311F5368370024025B /* cpuemu_nf.cpp in Sources */,
 				7539E1261F23B25A006B2DF2 /* audio.cpp in Sources */,
 				E413D93820D2613500E437D8 /* ether_unix.cpp in Sources */,
 				7539E1701F23B25A006B2DF2 /* prefs.cpp in Sources */,
@@ -1155,7 +1048,6 @@
 				E413D92220D260BC00E437D8 /* mbuf.c in Sources */,
 				7539E19D1F23B25A006B2DF2 /* mathlib.cpp in Sources */,
 				E413D93020D260BC00E437D8 /* ip_input.c in Sources */,
-				E46AB23423612B8F009A4A18 /* compemu_support.cpp in Sources */,
 				752F27031F242F51001032B4 /* xpram_sdl.cpp in Sources */,
 				7539E16D1F23B25A006B2DF2 /* pict.c in Sources */,
 				7539E1251F23B25A006B2DF2 /* adb.cpp in Sources */,
@@ -1173,16 +1065,6 @@
 				7539E2681F23B32A006B2DF2 /* rpc_unix.cpp in Sources */,
 				E413D92F20D260BC00E437D8 /* bootp.c in Sources */,
 				7539E2911F23C56F006B2DF2 /* prefs_editor_dummy.cpp in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E47303B4235743B900A68BC2 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				E47897F62357441500558C48 /* gencomp.c in Sources */,
-				E47303B6235743B900A68BC2 /* readcpu.cpp in Sources */,
-				E47303B7235743B900A68BC2 /* defs68k.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1208,21 +1090,6 @@
 			isa = PBXTargetDependency;
 			target = 753253161F5363D20024025B /* run_gencpu */;
 			targetProxy = 7532531E1F5364170024025B /* PBXContainerItemProxy */;
-		};
-		E47303B2235743B900A68BC2 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 753253071F5360E30024025B /* run_build68k */;
-			targetProxy = E47303B3235743B900A68BC2 /* PBXContainerItemProxy */;
-		};
-		E47897F82357443300558C48 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = E47303B1235743B900A68BC2 /* gencomp */;
-			targetProxy = E47897F72357443300558C48 /* PBXContainerItemProxy */;
-		};
-		E47897FA2357446D00558C48 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = E47303BE235743E200A68BC2 /* run_gencomp */;
-			targetProxy = E47897F92357446D00558C48 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1335,6 +1202,8 @@
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					HAVE_CONFIG_H,
 					"USE_XCODE=1",
 					"DEBUG=1",
 				);
@@ -1388,7 +1257,11 @@
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = "USE_XCODE=1";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					HAVE_CONFIG_H,
+					"USE_XCODE=1",
+				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
@@ -1431,10 +1304,6 @@
 				GCC_C_LANGUAGE_STANDARD = "compiler-default";
 				GCC_ENABLE_PASCAL_STRINGS = NO;
 				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)",
-					HAVE_CONFIG_H,
-				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GCC_USE_STANDARD_INCLUDE_SEARCHING = YES;
 				GCC_WARN_CHECK_SWITCH_STATEMENTS = NO;
@@ -1443,7 +1312,6 @@
 					../MacOSX,
 					../include,
 					../uae_cpu,
-					../uae_cpu/compiler,
 					../Unix,
 					../slirp,
 				);
@@ -1453,10 +1321,6 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_CFLAGS = "";
-				OTHER_LDFLAGS = (
-					"-pagezero_size",
-					0x1000,
-				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.basilisk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1492,10 +1356,6 @@
 				GCC_ENABLE_PASCAL_STRINGS = NO;
 				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
 				GCC_OPTIMIZATION_LEVEL = 3;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)",
-					HAVE_CONFIG_H,
-				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GCC_USE_STANDARD_INCLUDE_SEARCHING = YES;
 				GCC_WARN_CHECK_SWITCH_STATEMENTS = NO;
@@ -1504,7 +1364,6 @@
 					../MacOSX,
 					../include,
 					../uae_cpu,
-					../uae_cpu/compiler,
 					../Unix,
 					../slirp,
 				);
@@ -1513,48 +1372,12 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				OTHER_CFLAGS = "";
-				OTHER_LDFLAGS = (
-					"-pagezero_size",
-					0x1000,
-				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.basilisk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USE_HEADERMAP = YES;
 				VALID_ARCHS = x86_64;
 				WARNING_CFLAGS = "";
-			};
-			name = Release;
-		};
-		E47303BB235743B900A68BC2 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CLANG_CXX_LIBRARY = "libc++";
-				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Debug;
-		};
-		E47303BC235743B900A68BC2 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CLANG_CXX_LIBRARY = "libc++";
-				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Release;
-		};
-		E47303C2235743E200A68BC2 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Debug;
-		};
-		E47303C3235743E200A68BC2 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
 		};
@@ -1611,24 +1434,6 @@
 			buildConfigurations = (
 				7539DFC71F23B17E006B2DF2 /* Debug */,
 				7539DFC81F23B17E006B2DF2 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		E47303BA235743B900A68BC2 /* Build configuration list for PBXNativeTarget "gencomp" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				E47303BB235743B900A68BC2 /* Debug */,
-				E47303BC235743B900A68BC2 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		E47303C1235743E200A68BC2 /* Build configuration list for PBXLegacyTarget "run_gencomp" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				E47303C2235743E200A68BC2 /* Debug */,
-				E47303C3235743E200A68BC2 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
