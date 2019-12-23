@@ -475,6 +475,11 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  PPC_I(FRSP),
 	  X_form, 63, 12, CFLOW_NORMAL
 	},
+	{ "frsqrte",
+	  EXECUTE_FP_ARITH(double, frsqrte, RD, RB, NONE, NONE, RC_BIT_G, false),
+	  PPC_I(FRSQRTE),
+	  A_form, 63, 26, CFLOW_NORMAL
+	},
 	{ "fsel",
 	  EXECUTE_FP_ARITH(double, fsel, RD, RA, RC, RB, RC_BIT_G, false),
 	  PPC_I(FSEL),
@@ -1551,7 +1556,7 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  VX_form, 4, 132, CFLOW_NORMAL
 	},
 	{ "vrsqrtefp",
-	  EXECUTE_VECTOR_ARITH(frsqrt, V4SF, NONE, V4SF, NONE),
+	  EXECUTE_VECTOR_ARITH(frsqrte, V4SF, NONE, V4SF, NONE),
 	  PPC_I(VRSQRTEFP),
 	  VX_form, 4, 330, CFLOW_NORMAL
 	},

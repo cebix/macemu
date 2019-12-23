@@ -153,7 +153,7 @@ DEFINE_OP2(fsubs, float, x - y);
 DEFINE_OP1(exp2, float, exp2f(x));
 DEFINE_OP1(log2, float, log2f(x));
 DEFINE_OP1(fres, float, 1 / x);
-DEFINE_OP1(frsqrt, float, 1 / sqrt(x));
+DEFINE_OP1(frsqrte, float, 1 / sqrt(x));
 DEFINE_OP1(frsim, float, floorf(x));
 DEFINE_OP1(frsin, float, roundf(x));
 DEFINE_OP1(frsip, float, ceilf(x));
