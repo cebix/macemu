@@ -99,6 +99,7 @@ enum powerpc_instruction {
 	PPC_I(FNMADDS),
 	PPC_I(FNMSUB),
 	PPC_I(FNMSUBS),
+	PPC_I(FRES),
 	PPC_I(FRSP),
 	PPC_I(FRSQRTE),
 	PPC_I(FSEL),
