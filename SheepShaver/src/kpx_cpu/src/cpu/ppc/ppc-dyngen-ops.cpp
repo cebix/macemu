@@ -481,6 +481,7 @@ DEFINE_OP(fmov_FD_F2, FD_dw = F2_dw);
 DEFINE_OP(fabs_FD_F0, FD = do_fabs(F0));
 DEFINE_OP(fneg_FD_F0, FD = do_fneg(F0));
 DEFINE_OP(fnabs_FD_F0, FD = do_fnabs(F0));
+DEFINE_OP(frsqrte_FD_F0, FD = do_frsqrte(F0));
 
 DEFINE_OP(fadd_FD_F0_F1, FD = do_fadd(F0, F1));
 DEFINE_OP(fsub_FD_F0_F1, FD = do_fsub(F0, F1));
