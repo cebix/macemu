@@ -476,7 +476,7 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  X_form, 63, 12, CFLOW_NORMAL
 	},
 	{ "frsqrte",
-	  EXECUTE_FP_ARITH(double, frsqrte, RD, RB, NONE, NONE, RC_BIT_G, false),
+	  EXECUTE_FP_ARITH(double, frsqrte, RD, RB, NONE, NONE, RC_BIT_G, true),
 	  PPC_I(FRSQRTE),
 	  A_form, 63, 26, CFLOW_NORMAL
 	},
