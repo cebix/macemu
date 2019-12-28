@@ -57,6 +57,7 @@ template void powerpc_cpu::execute_fp_arith<double, op_fnmadds, operand_fp_RD, o
 template void powerpc_cpu::execute_fp_arith<double, op_fnmsub, operand_fp_RD, operand_fp_RA, operand_fp_RC, operand_fp_RB, RC_BIT_G, true>(uint32);
 template void powerpc_cpu::execute_fp_arith<double, op_fnmsubs, operand_fp_RD, operand_fp_RA, operand_fp_RC, operand_fp_RB, RC_BIT_G, true>(uint32);
 template void powerpc_cpu::execute_fp_round<RC_BIT_G>(uint32);
+template void powerpc_cpu::execute_fp_arith<double, op_fres, operand_fp_RD, operand_fp_RB, operand_fp_NONE, operand_fp_NONE, RC_BIT_G, true>(uint32);
 template void powerpc_cpu::execute_fp_arith<double, op_frsqrte, operand_fp_RD, operand_fp_RB, operand_fp_NONE, operand_fp_NONE, RC_BIT_G, true>(uint32);
 template void powerpc_cpu::execute_fp_arith<double, op_fsel, operand_fp_RD, operand_fp_RA, operand_fp_RC, operand_fp_RB, RC_BIT_G, false>(uint32);
 template void powerpc_cpu::execute_fp_arith<double, op_fsub, operand_fp_RD, operand_fp_RA, operand_fp_RB, operand_fp_NONE, RC_BIT_G, true>(uint32);
