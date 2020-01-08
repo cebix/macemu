@@ -411,12 +411,12 @@ static const uint8 sony_driver[] = {	// Replacement for .Sony driver
 static const uint8 disk_driver[] = {	// Generic disk driver
 	// Driver header
 	DiskDriverFlags >> 8, DiskDriverFlags & 0xff, 0, 0, 0, 0, 0, 0,
-	0x00, 0x18,							// Open() offset
-	0x00, 0x1c,							// Prime() offset
-	0x00, 0x20,							// Control() offset
-	0x00, 0x2c,							// Status() offset
-	0x00, 0x52,							// Close() offset
-	0x05, 0x2e, 0x44, 0x69, 0x73, 0x6b,	// ".Disk"
+	0x00, 0x1c,							// Open() offset
+	0x00, 0x20,							// Prime() offset
+	0x00, 0x24,							// Control() offset
+	0x00, 0x30,							// Status() offset
+	0x00, 0x56,							// Close() offset
+	0x08, 0x2e, 0x41, 0x54, 0x41, 0x44, 0x69, 0x73, 0x6b, 0x00,	// ".ATADisk"
 
 	// Open()
 	M68K_EMUL_OP_DISK_OPEN >> 8, M68K_EMUL_OP_DISK_OPEN & 0xff,
@@ -2419,7 +2419,7 @@ void InstallDrivers(void)
 	WriteMacInt16(dce + dCtlFlags, DiskDriverFlags);
 
 	// Open disk driver
-	SheepString disk_str("\005.Disk");
+	SheepString disk_str("\010.ATADisk");
 	WriteMacInt32(pb + ioNamePtr, disk_str.addr());
 	r.a[0] = pb;
 	Execute68kTrap(0xa000, &r);		// Open()
