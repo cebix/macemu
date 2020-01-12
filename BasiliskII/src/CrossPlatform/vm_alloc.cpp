@@ -196,6 +196,13 @@ void * vm_acquire(size_t size, int options)
 		errno = vm_error(ret_code);
 		return VM_MAP_FAILED;
 	}
+
+	// Sanity checks for 64-bit platforms
+	if (sizeof(void *) > 4 && (options & VM_MAP_32BIT) && !(((char *)addr + size) <= (char *)0xffffffff))
+	{
+		vm_release(addr, size);
+		return VM_MAP_FAILED;
+	}
 #elif defined(HAVE_MMAP_VM)
 	int fd = zero_fd;
 	int the_map_flags = translate_map_flags(options) | map_flags;

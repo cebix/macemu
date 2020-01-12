@@ -110,7 +110,7 @@ target_link_libraries(BasiliskII ${COREFOUNDATION_LIBRARY} ${IOKIT_LIBRARY} ${SD
 
 # set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
 
-SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -pagezero_size 0x2000" )
+SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -pagezero_size 0x2000 -Wl,-no_pie" )
 
 add_definitions(-march=native)
 
