@@ -1961,9 +1961,9 @@ static inline void raw_pop_preserved_regs(void) {
 
 // Verify!!!
 /* FLAGX is byte sized, and we *do* write it at that size */
-static inline void raw_load_flagx(uae_u32 t, uae_u32 r)
+static inline void raw_load_flagx(uae_u32 t)
 {
-    raw_mov_l_rm(t,(uintptr)live.state[r].mem);
+    raw_mov_l_rm(t,(uintptr)live.state[FLAGX].mem);
 }
 
 static inline void raw_flags_evicted(int r)
@@ -2007,9 +2007,9 @@ static inline void raw_reg_to_flags(int r)
 
 /* Apparently, there are enough instructions between flag store and
    flag reload to avoid the partial memory stall */
-static inline void raw_load_flagreg(uae_u32 t, uae_u32 r)
+static inline void raw_load_flagreg(uae_u32 t)
 {
-	raw_mov_l_rm(t,(uintptr)live.state[r].mem);
+	raw_mov_l_rm(t,(uintptr)live.state[FLAGTMP].mem);
 }
 
 /* %eax register is clobbered if target processor doesn't support fucomi */
@@ -2606,12 +2606,14 @@ static inline void compemu_raw_call(uae_u32 t)
 #endif
 }
 
+#if defined(UAE)
 static inline void compemu_raw_call_r(RR4 r)
 {
 	PUSH(RLR_INDEX);  // push    {lr}
 	BLX_r(r);					// blx	   r0
 	POP(RLR_INDEX);   // pop     {lr}
 }
+#endif
 
 static inline void compemu_raw_jcc_l_oponly(int cc)
 {
@@ -2706,7 +2708,18 @@ static inline void compemu_raw_jz_b_oponly(void)
 	LDRSB_rRI(REG_WORK1, RPC_INDEX, 3);			// ldrsb	r2,[pc,#3]
 	ADD_rrr(RPC_INDEX, RPC_INDEX, REG_WORK1); 	// add		pc,pc,r2
 
-	skip_n_bytes(3);
+	skip_n_bytes(3); /* additionally 1 byte skipped by generic code */
+
+	// <jp:>
+}
+
+static inline void compemu_raw_jnz_b_oponly(void)
+{
+	BEQ_i(2);									// beq jp
+	LDRSB_rRI(REG_WORK1, RPC_INDEX, 3);			// ldrsb	r2,[pc,#3]
+	ADD_rrr(RPC_INDEX, RPC_INDEX, REG_WORK1); 	// add		pc,pc,r2
+
+	skip_n_bytes(3); /* additionally 1 byte skipped by generic code */
 
 	// <jp:>
 }

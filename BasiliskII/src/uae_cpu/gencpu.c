@@ -1409,30 +1409,9 @@ static void gen_opcode (unsigned long int opcode)
 	    fill_prefetch_0 ();
 	    printf ("\tMakeFromSR();\n");
 	} else {
-	    int old_brace_level = n_braces;
-	    if (next_cpu_level < 0)
+		if (next_cpu_level < 0)
 		next_cpu_level = 0;
-	    printf ("\tuae_u16 newsr; uae_u32 newpc; for (;;) {\n");
-	    genamode (Aipi, "7", sz_word, "sr", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, XLATE_LOG);
-	    genamode (Aipi, "7", sz_long, "pc", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, XLATE_LOG);
-	    genamode (Aipi, "7", sz_word, "format", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, XLATE_LOG);
-	    printf ("\tnewsr = sr; newpc = pc;\n");
-	    printf ("\tif ((format & 0xF000) == 0x0000) { break; }\n");
-	    printf ("\telse if ((format & 0xF000) == 0x1000) { ; }\n");
-	    printf ("\telse if ((format & 0xF000) == 0x2000) { m68k_areg(regs, 7) += 4; break; }\n");
-//	    printf ("\telse if ((format & 0xF000) == 0x3000) { m68k_areg(regs, 7) += 4; break; }\n");
-	    printf ("\telse if ((format & 0xF000) == 0x7000) { m68k_areg(regs, 7) += 52; break; }\n");
-	    printf ("\telse if ((format & 0xF000) == 0x8000) { m68k_areg(regs, 7) += 50; break; }\n");
-	    printf ("\telse if ((format & 0xF000) == 0x9000) { m68k_areg(regs, 7) += 12; break; }\n");
-	    printf ("\telse if ((format & 0xF000) == 0xa000) { m68k_areg(regs, 7) += 24; break; }\n");
-	    printf ("\telse if ((format & 0xF000) == 0xb000) { m68k_areg(regs, 7) += 84; break; }\n");
-	    printf ("\telse { Exception(14,0); goto %s; }\n", endlabelstr);
-	    printf ("\tregs.sr = newsr; MakeFromSR();\n}\n");
-	    pop_braces (old_brace_level);
-	    printf ("\tregs.sr = newsr; MakeFromSR();\n");
-	    printf ("\tm68k_setpc_rte(newpc);\n");
-	    fill_prefetch_0 ();
-	    need_endlabel = 1;
+		printf ("\tex_rte();\n");
 	}
 	/* PC is set and prefetch filled. */
 	m68k_pc_offset = 0;

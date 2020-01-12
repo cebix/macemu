@@ -1676,6 +1676,7 @@ MIDFUNC(2,xor_b,(RW1 d, RR1 s))
 	unlock2(s);
 }
 
+#if defined(UAE)
 MIDFUNC(5,call_r_02,(RR4 r, RR4 in1, RR4 in2, IMM isize1, IMM isize2))
 {
 	clobber_flags();
@@ -1689,7 +1690,9 @@ MIDFUNC(5,call_r_02,(RR4 r, RR4 in1, RR4 in2, IMM isize1, IMM isize2))
 	prepare_for_call_2();
 	compemu_raw_call_r(r);
 }
+#endif
 
+#if defined(UAE)
 MIDFUNC(5,call_r_11,(W4 out1, RR4 r, RR4 in1, IMM osize, IMM isize))
 {
 	clobber_flags();
@@ -1725,6 +1728,7 @@ MIDFUNC(5,call_r_11,(W4 out1, RR4 r, RR4 in1, IMM osize, IMM isize))
 	live.state[out1].dirtysize=osize;
 	set_status(out1,DIRTY);
 }
+#endif
 
 MIDFUNC(0,nop,(void))
 {

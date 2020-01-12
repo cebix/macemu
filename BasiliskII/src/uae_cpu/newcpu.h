@@ -271,6 +271,7 @@ extern REGPARAM void put_bitfield(uae_u32 dst, uae_u32 bdata[2], uae_u32 val, ua
 extern void MakeSR (void);
 extern void MakeFromSR (void);
 extern void Exception (int, uaecptr);
+extern void ex_rte(void);
 extern void dump_counts (void);
 extern int m68k_move2c (int, uae_u32 *);
 extern int m68k_movec2 (int, uae_u32 *);

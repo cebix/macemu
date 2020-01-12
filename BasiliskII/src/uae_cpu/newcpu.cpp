@@ -491,6 +491,65 @@ static inline void exc_make_frame(
     exc_push_word((format << 12) + (nr * 4));	/* format | vector */
     exc_push_long(currpc);
     exc_push_word(sr);
+#if 0 /* debugging helpers; activate as needed */
+	if (/* nr != 0x45  && */ /* Timer-C */
+		nr != 0x1c && /* VBL */
+		nr != 0x46)   /* ACIA */
+	{
+		memptr sp = m68k_areg(regs, 7);
+		uae_u16 sr = get_word(sp);
+		fprintf(stderr, "Exc:%02x  SP: %08x  USP: %08x  SR: %04x  PC: %08x  Format: %04x", nr, sp, regs.usp, sr, get_long(sp + 2), get_word(sp + 6));
+		if (nr >= 32 && nr < 48)
+		{
+			fprintf(stderr, "  Opcode: $%04x", sr & 0x2000 ? get_word(sp + 8) : get_word(regs.usp));
+		}
+		fprintf(stderr, "\n");
+	}
+#endif
+}
+
+
+void ex_rte(void)
+{
+	uae_u16 newsr;
+	uae_u32 newpc;
+	uae_s16 format;
+
+	for (;;)
+	{
+		newsr = get_word(m68k_areg(regs, 7));
+		m68k_areg(regs, 7) += 2;
+		newpc = get_long(m68k_areg(regs, 7));
+		m68k_areg(regs, 7) += 4;
+		format = get_word(m68k_areg(regs, 7));
+		m68k_areg(regs, 7) += 2;
+		if ((format & 0xF000) == 0x0000) break;
+		else if ((format & 0xF000) == 0x1000) { ; }
+		else if ((format & 0xF000) == 0x2000) { m68k_areg(regs, 7) += 4; break; }
+//		else if ((format & 0xF000) == 0x3000) { m68k_areg(regs, 7) += 4; break; }
+		else if ((format & 0xF000) == 0x7000) { m68k_areg(regs, 7) += 52; break; }
+		else if ((format & 0xF000) == 0x8000) { m68k_areg(regs, 7) += 50; break; }
+		else if ((format & 0xF000) == 0x9000) { m68k_areg(regs, 7) += 12; break; }
+		else if ((format & 0xF000) == 0xa000) { m68k_areg(regs, 7) += 24; break; }
+		else if ((format & 0xF000) == 0xb000) { m68k_areg(regs, 7) += 84; break; }
+		else { Exception(14,0); return; }
+		regs.sr = newsr;
+		MakeFromSR();
+	}
+#if 0 /* debugging helpers; activate as needed */
+	{
+		memptr sp = m68k_areg(regs, 7) - 8;
+		int nr = (format & 0xfff) >> 2;
+		if (/* nr != 0x45 && */ /* Timer-C */
+			nr != 0x1c && /* VBL */
+			nr != 0x46)   /* ACIA */
+			fprintf(stderr, "RTE     SP: %08x  USP: %08x  SR: %04x  PC: %08x  Format: %04x olds=%d nr=%02x -> %08x\n", sp, regs.usp, newsr, m68k_getpc(), format, regs.s, nr, newpc);
+	}
+#endif
+	regs.sr = newsr;
+	MakeFromSR();
+	m68k_setpc_rte(newpc);
+	fill_prefetch_0();
 }
 
 #ifdef EXCEPTIONS_VIA_LONGJMP
@@ -570,7 +629,7 @@ void Exception(int nr, uaecptr oldpc)
     } else if (nr == 3) {
 	exc_make_frame(2, regs.sr, last_addr_for_exception_3, nr,
 			last_fault_for_exception_3 & 0xfffffffe, 0);
-    } else if (nr ==5 || nr == 6 || nr == 7 || nr == 9) {
+    } else if (nr == 5 || nr == 6 || nr == 7 || nr == 9) {
 	/* div by zero, CHK, TRAP or TRACE */
 	exc_make_frame(2, regs.sr, currpc, nr, oldpc, 0);
     } else if (regs.m && nr >= 24 && nr < 32) {

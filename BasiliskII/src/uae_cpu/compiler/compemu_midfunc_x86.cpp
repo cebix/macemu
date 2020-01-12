@@ -1718,19 +1718,19 @@ MIDFUNC(2,mov_b_ri,(W1 d, IMM s))
 MIDFUNC(2,add_l_mi,(IMM d, IMM s))
 {
 	CLOBBER_ADD;
-	raw_add_l_mi(d,s) ;
+	raw_add_l_mi(d,s);
 }
 
 MIDFUNC(2,add_w_mi,(IMM d, IMM s))
 {
 	CLOBBER_ADD;
-	raw_add_w_mi(d,s) ;
+	raw_add_w_mi(d,s);
 }
 
 MIDFUNC(2,add_b_mi,(IMM d, IMM s))
 {
 	CLOBBER_ADD;
-	raw_add_b_mi(d,s) ;
+	raw_add_b_mi(d,s);
 }
 
 MIDFUNC(2,test_l_ri,(RR4 d, IMM i))
@@ -1775,6 +1775,11 @@ MIDFUNC(2,test_b_rr,(RR1 d, RR1 s))
 	unlock2(s);
 }
 
+MIDFUNC(2,test_b_mi,(IMM d, IMM s))
+{
+	CLOBBER_TEST;
+	raw_test_b_mi(d,s);
+}
 
 MIDFUNC(2,and_l_ri,(RW4 d, IMM i))
 {
@@ -2215,6 +2220,7 @@ MIDFUNC(2,xor_b,(RW1 d, RR1 s))
 	unlock2(s);
 }
 
+#ifdef UAE
 MIDFUNC(5,call_r_11,(W4 out1, RR4 r, RR4 in1, IMM osize, IMM isize))
 {
 	clobber_flags();
@@ -2260,7 +2266,9 @@ MIDFUNC(5,call_r_11,(W4 out1, RR4 r, RR4 in1, IMM osize, IMM isize))
 	live.state[out1].dirtysize=osize;
 	set_status(out1,DIRTY);
 }
+#endif
 
+#if defined(UAE)
 MIDFUNC(5,call_r_02,(RR4 r, RR4 in1, RR4 in2, IMM isize1, IMM isize2))
 {
 	clobber_flags();
@@ -2286,6 +2294,7 @@ MIDFUNC(5,call_r_02,(RR4 r, RR4 in1, RR4 in2, IMM isize1, IMM isize2))
 	raw_inc_sp(8);
 #endif
 }
+#endif
 
 /* forget_about() takes a mid-layer register */
 MIDFUNC(1,forget_about,(W4 r))
@@ -2820,4 +2829,10 @@ static inline void write_jmp_target(uae_u32 *jmpaddr, cpuop_func* a) {
 
 static inline void emit_jmp_target(uae_u32 a) {
 	emit_long(a-((uintptr)target+4));
+}
+
+
+void compemu_bkpt(void)
+{
+	emit_byte(0xcc);
 }

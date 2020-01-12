@@ -231,7 +231,7 @@ void jit_abort(const char *format, ...)
 
 #ifdef RECORD_REGISTER_USAGE
 static uint64 reg_count[16];
-static int reg_count_local[16];
+static uint64 reg_count_local[16];
 
 static int reg_count_compare(const void *ap, const void *bp)
 {
@@ -455,13 +455,8 @@ static void unlock2(int r);
 static void setlock(int r);
 static int readreg_specific(int r, int size, int spec);
 static int writereg_specific(int r, int size, int spec);
-static void prepare_for_call_1(void);
-static void prepare_for_call_2(void);
-static void align_target(uae_u32 a);
 
-static void inline flush_cpu_icache(void *from, void *to);
 static void inline write_jmp_target(uae_u32 *jmpaddr, cpuop_func* a);
-static void inline emit_jmp_target(uae_u32 a);
 
 uae_u32 m68k_pc_offset;
 
@@ -538,7 +533,9 @@ static inline blockinfo* get_blockinfo_addr(void* addr)
 #endif
 // #include "disasm-glue.h"
 
-#ifdef JIT_DEBUG
+bool disasm_this_inst;
+
+#if defined(JIT_DEBUG) || (defined(HAVE_DISASM_NATIVE) && defined(HAVE_DISASM_M68K))
 static void disasm_block(int disasm_target, const uint8 *start, size_t length)
 {
 	UNUSED(start);
@@ -606,7 +603,7 @@ static inline void disasm_m68k_block(const uint8 *start, size_t length)
 	disasm_block(TARGET_M68K, start, length);
 }
 #endif
-#endif
+#endif /* WINUAE_ARANYM */
 
 
 /*******************************************************************
@@ -1552,9 +1549,9 @@ static inline void log_visused(int r)
 static inline void do_load_reg(int n, int r)
 {
 	if (r == FLAGTMP)
-		raw_load_flagreg(n, r);
+		raw_load_flagreg(n);
 	else if (r == FLAGX)
-		raw_load_flagx(n, r);
+		raw_load_flagx(n);
 	else
 		compemu_raw_mov_l_rm(n, (uintptr) live.state[r].mem);
 }
@@ -1775,6 +1772,7 @@ static inline void disassociate(int r)
 	evict(r);
 }
 
+/* XXFIXME: val may be 64bit address for PC_P */
 static inline void set_const(int r, uae_u32 val)
 {
 	disassociate(r);
@@ -2591,6 +2589,80 @@ static inline int f_writereg(int r)
 	return answer;
 }
 
+/********************************************************************
+ * Support functions, internal                                      *
+ ********************************************************************/
+
+
+static void align_target(uae_u32 a)
+{
+	if (!a)
+		return;
+
+	if (tune_nop_fillers)
+		raw_emit_nop_filler(a - (((uintptr)target) & (a - 1)));
+	else {
+		/* Fill with NOPs --- makes debugging with gdb easier */
+		while ((uintptr)target&(a-1))
+			emit_byte(0x90); // Attention x86 specific code
+	}
+}
+
+static inline int isinrom(uintptr addr)
+{
+#ifdef UAE
+	return (addr >= uae_p32(kickmem_bank.baseaddr) &&
+			addr < uae_p32(kickmem_bank.baseaddr + 8 * 65536));
+#else
+	return ((addr >= (uintptr)ROMBaseHost) && (addr < (uintptr)ROMBaseHost + ROMSize));
+#endif
+}
+
+#if defined(UAE) || defined(FLIGHT_RECORDER)
+static void flush_all(void)
+{
+	int i;
+
+	log_flush();
+	for (i=0;i<VREGS;i++)
+		if (live.state[i].status==DIRTY) {
+			if (!call_saved[live.state[i].realreg]) {
+				tomem(i);
+			}
+		}
+	for (i=0;i<VFREGS;i++)
+		if (f_isinreg(i))
+			f_evict(i);
+	raw_fp_cleanup_drop();
+}
+
+/* Make sure all registers that will get clobbered by a call are
+   save and sound in memory */
+static void prepare_for_call_1(void)
+{
+	flush_all();  /* If there are registers that don't get clobbered,
+		           * we should be a bit more selective here */
+}
+
+/* We will call a C routine in a moment. That will clobber all registers,
+   so we need to disassociate everything */
+static void prepare_for_call_2(void)
+{
+	int i;
+	for (i=0;i<N_REGS;i++)
+		if (!call_saved[i] && live.nat[i].nholds>0)
+			free_nreg(i);
+
+	for (i=0;i<N_FREGS;i++)
+		if (live.fat[i].nholds>0)
+			f_free_nreg(i);
+
+	live.flags_in_flags=TRASH;  /* Note: We assume we already rescued the
+								   flags at the very start of the call_r
+								   functions! */
+}
+#endif
+
 #if defined(CPU_arm)
 #include "compemu_midfunc_arm.cpp"
 
@@ -2641,6 +2713,165 @@ void sync_m68k_pc(void)
 		comp_pc_p+=m68k_pc_offset;
 		m68k_pc_offset=0;
 	}
+}
+
+/* for building exception frames */
+void compemu_exc_make_frame(int format, int sr, int ret, int nr, int tmp)
+{
+	lea_l_brr(SP_REG, SP_REG, -2);
+	mov_l_ri(tmp, (format << 12) + (nr * 4));	/* format | vector */
+	writeword(SP_REG, tmp, tmp);
+
+	lea_l_brr(SP_REG, SP_REG, -4);
+	writelong(SP_REG, ret, tmp);
+
+	lea_l_brr(SP_REG, SP_REG, -2);
+	writeword_clobber(SP_REG, sr, tmp);
+	remove_offset(SP_REG, -1);
+	if (isinreg(SP_REG))
+		evict(SP_REG);
+	else
+		flush_reg(SP_REG);
+}
+
+void compemu_make_sr(int sr, int tmp)
+{
+	flush_flags(); /* low level */
+	flush_reg(FLAGX);
+
+#ifdef OPTIMIZED_FLAGS
+
+	/*
+	 * x86 EFLAGS: (!SAHF_SETO_PROFITABLE)
+	 * FEDCBA98 76543210
+     * ----V--- NZ-----C
+     *
+     * <--AH--> <--AL--> (SAHF_SETO_PROFITABLE)
+     * FEDCBA98 76543210
+     * NZxxxxxC xxxxxxxV
+     *
+     * arm RFLAGS:
+     * FEDCBA98 76543210 FEDCBA98 76543210
+     * NZCV---- -------- -------- --------
+     *
+     * -> m68k SR:
+     * --S--III ---XNZVC
+     *
+     * Master-Bit and traceflags are ignored here,
+     * since they are not emulated in JIT code
+     */
+	mov_l_rm(sr, uae_p32(live.state[FLAGTMP].mem));
+	mov_l_ri(tmp, FLAGVAL_N|FLAGVAL_Z|FLAGVAL_V|FLAGVAL_C);
+	and_l(sr, tmp);
+	mov_l_rr(tmp, sr);
+
+#if (defined(CPU_i386) && defined(X86_ASSEMBLY)) || (defined(CPU_x86_64) && defined(X86_64_ASSEMBLY))
+#ifndef SAHF_SETO_PROFITABLE
+	ror_b_ri(sr, FLAGBIT_N - 3);                             /* move NZ into position; C->4 */
+	shrl_w_ri(tmp, FLAGBIT_V - 1);                           /* move V into position in tmp */
+	or_l(sr, tmp);                                           /* or V flag to SR */
+	mov_l_rr(tmp, sr);
+	shrl_b_ri(tmp, (8 - (FLAGBIT_N - 3)) - FLAGBIT_C);       /* move C into position in tmp */
+	or_l(sr, tmp);                                           /* or C flag to SR */
+#else
+	ror_w_ri(sr, FLAGBIT_N - 3);                             /* move NZ in position; V->4, C->12 */
+	shrl_w_ri(tmp, (16 - (FLAGBIT_N - 3)) - FLAGBIT_V - 1);  /* move V into position in tmp; C->9 */
+	or_l(sr, tmp);                                           /* or V flag to SR */
+	shrl_w_ri(tmp, FLAGBIT_C + FLAGBIT_V - 1);               /* move C into position in tmp */
+	or_l(sr, tmp);                                           /* or C flag to SR */
+#endif
+	mov_l_ri(tmp, 0x0f);
+	and_l(sr, tmp);
+
+	mov_b_rm(tmp, uae_p32(&regflags.x));
+	and_l_ri(tmp, FLAGVAL_X);
+	shll_l_ri(tmp, 4);
+	or_l(sr, tmp);
+
+#elif defined(CPU_arm) && defined(ARM_ASSEMBLY)
+	shrl_l_ri(sr, FLAGBIT_N - 3);                            /* move NZ into position */
+	ror_l_ri(tmp, FLAGBIT_C - 1);                            /* move C into position in tmp; V->31 */
+	and_l_ri(sr, 0xc);
+	or_l(sr, tmp);                                           /* or C flag to SR */
+	shrl_l_ri(tmp, 31);                                      /* move V into position in tmp */
+	or_l(sr, tmp);                                           /* or V flag to SR */
+
+	mov_b_rm(tmp, uae_p32(&regflags.x));
+	and_l_ri(tmp, FLAGVAL_X);
+	shrl_l_ri(tmp, FLAGBIT_X - 4);
+	or_l(sr, tmp);
+
+#else
+#error "unknown CPU"
+#endif
+
+#else
+
+	xor_l(sr, sr);
+	xor_l(tmp, tmp);
+	mov_b_rm(tmp, uae_p32(&regs.c));
+	shll_l_ri(tmp, 0);
+	or_l(sr, tmp);
+	mov_b_rm(tmp, uae_p32(&regs.v));
+	shll_l_ri(tmp, 1);
+	or_l(sr, tmp);
+	mov_b_rm(tmp, uae_p32(&regs.z));
+	shll_l_ri(tmp, 2);
+	or_l(sr, tmp);
+	mov_b_rm(tmp, uae_p32(&regs.n));
+	shll_l_ri(tmp, 3);
+	or_l(sr, tmp);
+
+#endif /* OPTIMIZED_FLAGS */
+
+	mov_b_rm(tmp, uae_p32(&regs.s));
+	shll_l_ri(tmp, 13);
+	or_l(sr, tmp);
+	mov_l_rm(tmp, uae_p32(&regs.intmask));
+	shll_l_ri(tmp, 8);
+	or_l(sr, tmp);
+	and_l_ri(sr, 0x271f);
+	mov_w_mr(uae_p32(&regs.sr), sr);
+}
+
+void compemu_enter_super(int sr)
+{
+#if 0
+	fprintf(stderr, "enter_super: isinreg=%d rr=%d nholds=%d\n", isinreg(SP_REG), live.state[SP_REG].realreg, isinreg(SP_REG) ? live.nat[live.state[SP_REG].realreg].nholds : -1);
+#endif
+	remove_offset(SP_REG, -1);
+	if (isinreg(SP_REG))
+		evict(SP_REG);
+	else
+		flush_reg(SP_REG);
+	/*
+	 * equivalent to:
+	 * if (!regs.s)
+	 * {
+	 *	regs.usp = m68k_areg(regs, 7);
+	 *	m68k_areg(regs, 7) = regs.isp;
+	 *  regs.s = 1;
+	 *  mmu_set_super(1);
+	 * }
+	 */
+	test_l_ri(sr, 0x2000);
+#if defined(CPU_i386) || defined(CPU_x86_64)
+	compemu_raw_jnz_b_oponly();
+	uae_u8 *branchadd = get_target();
+	skip_byte();
+#elif defined(CPU_arm)
+	compemu_raw_jnz_b_oponly();
+	uae_u8 *branchadd = get_target();
+	skip_byte();
+#endif
+	mov_l_mr((uintptr)&regs.usp, SP_REG);
+	mov_l_rm(SP_REG, uae_p32(&regs.isp));
+	mov_b_mi(uae_p32(&regs.s), 1);
+#if defined(CPU_i386) || defined(CPU_x86_64)
+	*branchadd = get_target() - (branchadd + 1);
+#elif defined(CPU_arm)
+	*((uae_u32 *)branchadd - 3) = get_target() - (branchadd + 1);
+#endif
 }
 
 /********************************************************************
@@ -2941,6 +3172,39 @@ static void init_comp(void)
 	raw_fp_init();
 }
 
+void flush_reg(int reg)
+{
+	if (live.state[reg].needflush==NF_TOMEM)
+	{
+		switch (live.state[reg].status)
+		{
+		case INMEM:
+			if (live.state[reg].val)
+			{
+				compemu_raw_add_l_mi((uintptr)live.state[reg].mem, live.state[reg].val);
+				log_vwrite(reg);
+				live.state[reg].val = 0;
+			}
+			break;
+		case CLEAN:
+		case DIRTY:
+			remove_offset(reg, -1);
+			tomem(reg);
+			break;
+		case ISCONST:
+			if (reg != PC_P)
+				writeback_const(reg);
+			break;
+		default:
+			break;
+		}
+		Dif (live.state[reg].val && reg!=PC_P)
+		{
+			jit_log("Register %d still has val %x", reg, live.state[reg].val);
+		}
+	}
+}
+
 /* Only do this if you really mean it! The next call should be to init!*/
 void flush(int save_regs)
 {
@@ -2958,30 +3222,7 @@ void flush(int save_regs)
 			}
 		}
 		for (i=0;i<VREGS;i++) {
-			if (live.state[i].needflush==NF_TOMEM) {
-				switch(live.state[i].status) {
-				case INMEM:
-					if (live.state[i].val) {
-						compemu_raw_add_l_mi((uintptr)live.state[i].mem,live.state[i].val);
-						log_vwrite(i);
-						live.state[i].val=0;
-					}
-					break;
-				case CLEAN:
-				case DIRTY:
-					remove_offset(i,-1);
-					tomem(i);
-					break;
-				case ISCONST:
-					if (i!=PC_P)
-						writeback_const(i);
-					break;
-				default: break;
-				}
-				Dif (live.state[i].val && i!=PC_P) {
-					jit_log("Register %d still has val %x", i,live.state[i].val);
-				}
-			}
+			flush_reg(i);
 		}
 		for (i=0;i<VFREGS;i++) {
 			if (live.fate[i].needflush==NF_TOMEM &&
@@ -3062,78 +3303,6 @@ static void freescratch(void)
 		if (live.fate[i].needflush==NF_SCRATCH) {
 			f_forget_about(i);
 		}
-}
-
-/********************************************************************
- * Support functions, internal                                      *
- ********************************************************************/
-
-
-static void align_target(uae_u32 a)
-{
-	if (!a)
-		return;
-
-	if (tune_nop_fillers)
-		raw_emit_nop_filler(a - (((uintptr)target) & (a - 1)));
-	else {
-		/* Fill with NOPs --- makes debugging with gdb easier */
-		while ((uintptr)target&(a-1))
-			emit_byte(0x90); // Attention x86 specific code
-	}
-}
-
-static inline int isinrom(uintptr addr)
-{
-#ifdef UAE
-	return (addr >= uae_p32(kickmem_bank.baseaddr) &&
-			addr < uae_p32(kickmem_bank.baseaddr + 8 * 65536));
-#else
-	return ((addr >= (uintptr)ROMBaseHost) && (addr < (uintptr)ROMBaseHost + ROMSize));
-#endif
-}
-
-static void flush_all(void)
-{
-	int i;
-
-	log_flush();
-	for (i=0;i<VREGS;i++)
-		if (live.state[i].status==DIRTY) {
-			if (!call_saved[live.state[i].realreg]) {
-				tomem(i);
-			}
-		}
-	for (i=0;i<VFREGS;i++)
-		if (f_isinreg(i))
-			f_evict(i);
-	raw_fp_cleanup_drop();
-}
-
-/* Make sure all registers that will get clobbered by a call are
-   save and sound in memory */
-static void prepare_for_call_1(void)
-{
-	flush_all();  /* If there are registers that don't get clobbered,
-		           * we should be a bit more selective here */
-}
-
-/* We will call a C routine in a moment. That will clobber all registers,
-   so we need to disassociate everything */
-static void prepare_for_call_2(void)
-{
-	int i;
-	for (i=0;i<N_REGS;i++)
-		if (!call_saved[i] && live.nat[i].nholds>0)
-			free_nreg(i);
-
-	for (i=0;i<N_FREGS;i++)
-		if (live.fat[i].nholds>0)
-			f_free_nreg(i);
-
-	live.flags_in_flags=TRASH;  /* Note: We assume we already rescued the
-								   flags at the very start of the call_r
-								   functions! */
 }
 
 /********************************************************************
@@ -4522,6 +4691,75 @@ void compiler_dumpstate(void)
 }
 #endif
 
+
+#if 0 /* debugging helpers; activate as needed */
+static void print_exc_frame(uae_u32 opcode)
+{
+	int nr = (opcode & 0x0f) + 32;
+	if (nr != 0x45 && /* Timer-C */
+		nr != 0x1c && /* VBL */
+		nr != 0x46)   /* ACIA */
+	{
+		memptr sp = m68k_areg(regs, 7);
+		uae_u16 sr = get_word(sp);
+		fprintf(stderr, "Exc:%02x  SP: %08x  USP: %08x  SR: %04x  PC: %08x  Format: %04x", nr, sp, regs.usp, sr, get_long(sp + 2), get_word(sp + 6));
+		if (nr >= 32 && nr < 48)
+		{
+			fprintf(stderr, "  Opcode: $%04x", sr & 0x2000 ? get_word(sp + 8) : get_word(regs.usp));
+		}
+		fprintf(stderr, "\n");
+	}
+}
+
+static void push_all_nat(void)
+{
+	raw_pushfl();
+	raw_push_l_r(EAX_INDEX);
+	raw_push_l_r(ECX_INDEX);
+	raw_push_l_r(EDX_INDEX);
+	raw_push_l_r(EBX_INDEX);
+	raw_push_l_r(EBP_INDEX);
+	raw_push_l_r(EDI_INDEX);
+	raw_push_l_r(ESI_INDEX);
+	raw_push_l_r(R8_INDEX);
+	raw_push_l_r(R9_INDEX);
+	raw_push_l_r(R10_INDEX);
+	raw_push_l_r(R11_INDEX);
+	raw_push_l_r(R12_INDEX);
+	raw_push_l_r(R13_INDEX);
+	raw_push_l_r(R14_INDEX);
+	raw_push_l_r(R15_INDEX);
+}
+
+static void pop_all_nat(void)
+{
+	raw_pop_l_r(R15_INDEX);
+	raw_pop_l_r(R14_INDEX);
+	raw_pop_l_r(R13_INDEX);
+	raw_pop_l_r(R12_INDEX);
+	raw_pop_l_r(R11_INDEX);
+	raw_pop_l_r(R10_INDEX);
+	raw_pop_l_r(R9_INDEX);
+	raw_pop_l_r(R8_INDEX);
+	raw_pop_l_r(ESI_INDEX);
+	raw_pop_l_r(EDI_INDEX);
+	raw_pop_l_r(EBP_INDEX);
+	raw_pop_l_r(EBX_INDEX);
+	raw_pop_l_r(EDX_INDEX);
+	raw_pop_l_r(ECX_INDEX);
+	raw_pop_l_r(EAX_INDEX);
+	raw_popfl();
+}
+#endif
+
+#if 0
+static void print_inst(void)
+{
+	disasm_m68k_block(regs.fault_pc + (uint8 *)MEMBaseDiff, 1);
+}
+#endif
+
+
 #ifdef UAE
 void compile_block(cpu_history *pc_hist, int blocklen, int totcycles)
 {
@@ -4722,7 +4960,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 					remove_all_offsets();
 					prepare_for_call_1();
 					prepare_for_call_2();
-					raw_mov_l_ri(REG_PAR1, ((uintptr)(pc_hist[i].location)) - MEMBaseDiff);
+					raw_mov_l_ri(REG_PAR1, (memptr)((uintptr)pc_hist[i].location - MEMBaseDiff));
 					raw_mov_w_ri(REG_PAR2, cft_map(opcode));
 					raw_dec_sp(STACK_SHADOW_SPACE);
 					compemu_raw_call((uintptr)m68k_record_step);
@@ -4738,7 +4976,16 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 						init_comp();
 					}
 					was_comp=1;
-					
+
+#if defined(HAVE_DISASM_NATIVE) && defined(HAVE_DISASM_M68K)
+/* debugging helpers; activate as needed */
+#if 1
+					disasm_this_inst = false;
+					const uae_u8 *start_m68k_thisinst = (const uae_u8 *)pc_hist[i].location;
+					uae_u8 *start_native_thisinst = get_target();
+#endif
+#endif
+
 #ifdef WINUAE_ARANYM
 					bool isnop = do_get_mem_word(pc_hist[i].location) == 0x4e71 ||
 						((i + 1) < blocklen && do_get_mem_word(pc_hist[i+1].location) == 0x4e71);
@@ -4770,6 +5017,44 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 						was_comp=0;
 					}
 #endif
+#if defined(HAVE_DISASM_NATIVE) && defined(HAVE_DISASM_M68K)
+
+/* debugging helpers; activate as needed */
+#if 0
+					disasm_m68k_block(start_m68k_thisinst, 1);
+					push_all_nat();
+					compemu_raw_mov_l_mi(uae_p32(&regs.fault_pc), (uintptr)start_m68k_thisinst - MEMBaseDiff);
+					raw_dec_sp(STACK_SHADOW_SPACE);
+					compemu_raw_call(uae_p32(print_instn));
+					raw_inc_sp(STACK_SHADOW_SPACE);
+					pop_all_nat();
+#endif
+
+					if (disasm_this_inst)
+					{
+						disasm_m68k_block(start_m68k_thisinst, 1);
+#if 1
+						disasm_native_block(start_native_thisinst, get_target() - start_native_thisinst);
+#endif
+
+#if 0
+						push_all_nat();
+
+						raw_dec_sp(STACK_SHADOW_SPACE);
+						compemu_raw_mov_l_ri(REG_PAR1, (uae_u32)cft_map(opcode));
+						compemu_raw_call((uintptr)print_exc_frame);
+						raw_inc_sp(STACK_SHADOW_SPACE);
+
+						pop_all_nat();
+#endif
+
+						if (failure)
+						{
+							bug("(discarded)");
+							target = start_native_thisinst;
+						}
+					}
+#endif
 				}
 
 				if (failure) {
@@ -4797,8 +5082,8 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 					if (i < blocklen - 1) {
 						uae_u8* branchadd;
 
-						/* if (SPCFLAGS_TEST(SPCFLAG_STOP)) popall_do_nothing() */
-						compemu_raw_mov_l_rm(0,(uintptr)specflags);
+						/* if (SPCFLAGS_TEST(SPCFLAG_ALL)) popall_do_nothing() */
+						compemu_raw_mov_l_rm(0, (uintptr)specflags);
 						compemu_raw_test_l_rr(0,0);
 #if defined(USE_DATA_BUFFER)
 						data_check_end(8, 64);  // just a pessimistic guess...
@@ -4810,7 +5095,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 						raw_sub_l_mi(uae_p32(&countdown),scaled_cycles(totcycles));
 #endif
 						compemu_raw_jmp((uintptr)popall_do_nothing);
-						*branchadd=get_target()-branchadd-1;
+						*branchadd = get_target() - (branchadd + 1);
 					}
 				}
 			}

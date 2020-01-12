@@ -38,7 +38,11 @@
 
 #if (defined(CPU_i386) && defined(X86_ASSEMBLY)) || (defined(CPU_x86_64) && defined(X86_64_ASSEMBLY))
 
+#ifdef __cplusplus
 # include <cstdlib>
+#else
+# include <stdlib.h>
+#endif
 
 #ifndef SAHF_SETO_PROFITABLE
 

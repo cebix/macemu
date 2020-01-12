@@ -262,6 +262,7 @@ finish_braces (void)
 {
     while (n_braces > 0)
 	close_brace ();
+    comprintf ("\n");
 }
 
 static inline void gen_update_next_handler(void)
@@ -355,7 +356,33 @@ swap_opcode (void)
 static void
 sync_m68k_pc (void)
 {
-	comprintf("\t if (m68k_pc_offset > SYNC_PC_OFFSET) sync_m68k_pc();\n");
+	comprintf("    if (m68k_pc_offset > SYNC_PC_OFFSET)\n        sync_m68k_pc();\n");
+}
+
+
+static void gen_set_fault_pc(void)
+{
+	start_brace();
+	comprintf("\tsync_m68k_pc();\n");
+	comprintf("\tuae_u32 retadd=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+m68k_pc_offset;\n");
+	comprintf("\tint ret=scratchie++;\n"
+		  "\tmov_l_ri(ret,retadd);\n"
+		  "\tmov_l_mr((uintptr)&regs.fault_pc,ret);\n");
+}
+
+
+static void make_sr(void)
+{
+	start_brace();
+	comprintf("\tint sr = scratchie++;\n");
+	comprintf("\tint tmp = scratchie++;\n");
+	comprintf("\tcompemu_make_sr(sr, tmp);\n");
+}
+
+
+static void disasm_this_inst(void)
+{
+	comprintf("\tdisasm_this_inst = true;\n");
 }
 
 
@@ -1751,7 +1778,31 @@ gen_opcode (unsigned int opcode)
 	break;
 
 	 case i_TRAP:
+#ifdef DISABLE_I_TRAP
+	failure;
+#endif
 	isjump;
+	mayfail;
+	start_brace();
+	comprintf("    int trapno = srcreg + 32;\n");
+	gen_set_fault_pc();
+	make_sr();
+	comprintf("    compemu_enter_super(sr);\n");
+	comprintf("    compemu_exc_make_frame(0, sr, ret, trapno, scratchie);\n");
+	comprintf("    forget_about(ret);\n");
+	/* m68k_setpc (get_long (regs.vbr + 4*nr)); */
+	start_brace();
+	comprintf("    int srca = scratchie++;\n");
+	comprintf("    mov_l_rm(srca, (uintptr)&regs.vbr);\n");
+	comprintf("    mov_l_brR(srca, srca, MEMBaseDiff + trapno * 4); mid_bswap_32(srca);\n");
+	comprintf("    mov_l_mr((uintptr)&regs.pc, srca);\n");
+	comprintf("    get_n_addr_jmp(srca, PC_P, scratchie);\n");
+	comprintf("    mov_l_mr((uintptr)&regs.pc_oldp, PC_P);\n");
+	gen_update_next_handler();
+	disasm_this_inst(); /* for debugging only */
+	/*
+	 * this currently deactivates this feature, since it does not work yet
+	 */
 	failure;
 	break;
 
@@ -1792,12 +1843,12 @@ gen_opcode (unsigned int opcode)
 	comprintf("\tadd_l_ri(offs,4);\n");
 	start_brace();
 	comprintf("\tint newad=scratchie++;\n"
-		  "\treadlong(15,newad,scratchie);\n"
+		  "\treadlong(SP_REG,newad,scratchie);\n"
 		  "\tmov_l_mr((uintptr)&regs.pc,newad);\n"
 		  "\tget_n_addr_jmp(newad,PC_P,scratchie);\n"
 		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
 		  "\tm68k_pc_offset=0;\n"
-		  "\tadd_l(15,offs);\n");
+		  "\tadd_l(SP_REG,offs);\n");
 	gen_update_next_handler();
 	isjump;
 	break;
@@ -1808,12 +1859,12 @@ gen_opcode (unsigned int opcode)
 #endif
 	genamode (curi->smode, "srcreg", sz_long, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "offs", 1, 0);
-	comprintf("\tsub_l_ri(15,4);\n"
-		  "\twritelong_clobber(15,src,scratchie);\n"
-		  "\tmov_l_rr(src,15);\n");
+	comprintf("\tsub_l_ri(SP_REG,4);\n"
+		  "\twritelong_clobber(SP_REG,src,scratchie);\n"
+		  "\tmov_l_rr(src,SP_REG);\n");
 	if (curi->size==sz_word)
 	    comprintf("\tsign_extend_16_rr(offs,offs);\n");
-	comprintf("\tadd_l(15,offs);\n");
+	comprintf("\tadd_l(SP_REG,offs);\n");
 	genastore ("src", curi->smode, "srcreg", sz_long, "src");
 	break;
 
@@ -1822,9 +1873,9 @@ gen_opcode (unsigned int opcode)
     failure;
 #endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	comprintf("\tmov_l_rr(15,src);\n"
-		  "\treadlong(15,src,scratchie);\n"
-		  "\tadd_l_ri(15,4);\n");
+	comprintf("\tmov_l_rr(SP_REG,src);\n"
+		  "\treadlong(SP_REG,src,scratchie);\n"
+		  "\tadd_l_ri(SP_REG,4);\n");
 	genastore ("src", curi->smode, "srcreg", curi->size, "src");
 	break;
 
@@ -1833,12 +1884,12 @@ gen_opcode (unsigned int opcode)
 	failure;
 #endif
 	comprintf("\tint newad=scratchie++;\n"
-		  "\treadlong(15,newad,scratchie);\n"
+		  "\treadlong(SP_REG,newad,scratchie);\n"
 		  "\tmov_l_mr((uintptr)&regs.pc,newad);\n"
 		  "\tget_n_addr_jmp(newad,PC_P,scratchie);\n"
 		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
 		  "\tm68k_pc_offset=0;\n"
-		  "\tlea_l_brr(15,15,4);\n");
+		  "\tlea_l_brr(SP_REG,SP_REG,4);\n");
 	gen_update_next_handler();
 	isjump;
 	break;
@@ -1863,8 +1914,8 @@ gen_opcode (unsigned int opcode)
 	comprintf("\tuae_u32 retadd=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+m68k_pc_offset;\n");
 	comprintf("\tint ret=scratchie++;\n"
 		  "\tmov_l_ri(ret,retadd);\n"
-		  "\tsub_l_ri(15,4);\n"
-		  "\twritelong_clobber(15,ret,scratchie);\n");
+		  "\tsub_l_ri(SP_REG,4);\n"
+		  "\twritelong_clobber(SP_REG,ret,scratchie);\n");
 	comprintf("\tmov_l_mr((uintptr)&regs.pc,srca);\n"
 		  "\tget_n_addr_jmp(srca,PC_P,scratchie);\n"
 		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
@@ -1895,13 +1946,14 @@ gen_opcode (unsigned int opcode)
 	comprintf("\tuae_u32 retadd=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+m68k_pc_offset;\n");
 	comprintf("\tint ret=scratchie++;\n"
 		  "\tmov_l_ri(ret,retadd);\n"
-		  "\tsub_l_ri(15,4);\n"
-		  "\twritelong_clobber(15,ret,scratchie);\n");
+		  "\tsub_l_ri(SP_REG,4);\n"
+		  "\twritelong_clobber(SP_REG,ret,scratchie);\n");
 	comprintf("\tadd_l_ri(src,m68k_pc_offset_thisinst+2);\n");
 	comprintf("\tm68k_pc_offset=0;\n");
 	comprintf("\tadd_l(PC_P,src);\n");
 
 	comprintf("\tcomp_pc_p=(uae_u8*)(uintptr)get_const(PC_P);\n");
+	gen_update_next_handler();
 	break;
 
      case i_Bcc:
@@ -2029,7 +2081,7 @@ gen_opcode (unsigned int opcode)
 	 case 1:
 	    comprintf("\tstart_needflags();\n");
 	    comprintf("\tsub_w_ri(src,1);\n");
-	    comprintf("\t end_needflags();\n");
+	    comprintf("\tend_needflags();\n");
 	    start_brace();
 	    comprintf("\tuae_u32 v2,v;\n"
 		      "\tuae_u32 v1=get_const(PC_P);\n");
@@ -2063,9 +2115,9 @@ gen_opcode (unsigned int opcode)
 	       so whether we move them around doesn't matter. However,
 	       if cc=false, we have offs==jump_pc, and src==nsrc-1 */
 
-	    comprintf("\t start_needflags();\n");
+	    comprintf("\tstart_needflags();\n");
 	    comprintf("\ttest_w_rr(nsrc,nsrc);\n");
-	    comprintf("\t end_needflags();\n");
+	    comprintf("\tend_needflags();\n");
 	    comprintf("\tcmov_l_rr(PC_P,offs,%d);\n", NATIVE_CC_NE);
 	    break;
 	 default: assert(0);
@@ -2174,10 +2226,11 @@ gen_opcode (unsigned int opcode)
 #endif
 	mayfail;
 	if (curi->smode==Dreg) {
-	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
-		"  FAIL(1);\n"
-		"  " RETURN "\n"
-		"} \n");
+	    comprintf(
+	    	"    if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
+			"        FAIL(1);\n"
+			"        " RETURN "\n"
+			"    }\n");
 	    start_brace();
 	}
 	comprintf("\tdont_care_flags();\n");
@@ -2249,10 +2302,11 @@ gen_opcode (unsigned int opcode)
 #endif
 	mayfail;
 	if (curi->smode==Dreg) {
-	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
-		"  FAIL(1);\n"
-		"  " RETURN "\n"
-		"} \n");
+	    comprintf(
+	    	"    if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
+			"        FAIL(1);\n"
+			"        " RETURN "\n"
+			"    }\n");
 	    start_brace();
 	}
 	comprintf("\tdont_care_flags();\n");
@@ -2260,10 +2314,11 @@ gen_opcode (unsigned int opcode)
 	   LSL. The handling of V is, uhm, unpleasant, so if it's needed,
 	   let the normal emulation handle it. Shoulders of giants kinda
 	   thing ;-) */
-	comprintf("if (needed_flags & FLAG_V) {\n"
-		  "  FAIL(1);\n"
-		  "  " RETURN "\n"
-		  "} \n");
+	comprintf(
+		"    if (needed_flags & FLAG_V) {\n"
+		"        FAIL(1);\n"
+		"        " RETURN "\n"
+		"    }\n");
 
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0);
@@ -2323,10 +2378,11 @@ gen_opcode (unsigned int opcode)
 #endif
 	mayfail;
 	if (curi->smode==Dreg) {
-	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
-		"  FAIL(1);\n"
-		"  " RETURN "\n"
-		"} \n");
+	    comprintf(
+	    	"    if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
+			"        FAIL(1);\n"
+			"        " RETURN "\n"
+			"    }\n");
 	    start_brace();
 	}
 	comprintf("\tdont_care_flags();\n");
@@ -2390,10 +2446,11 @@ gen_opcode (unsigned int opcode)
 #endif
 	mayfail;
 	if (curi->smode==Dreg) {
-		comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
-				"  FAIL(1);\n"
-				"  " RETURN "\n"
-				"} \n");
+		comprintf(
+			"    if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
+			"        FAIL(1);\n"
+			"        " RETURN "\n"
+			"    }\n");
 		start_brace();
 	}
 	comprintf("\tdont_care_flags();\n");
@@ -2457,10 +2514,11 @@ gen_opcode (unsigned int opcode)
 #endif
 	mayfail;
 	if (curi->smode==Dreg) {
-	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
-		"  FAIL(1);\n"
-		"  " RETURN "\n"
-		"} \n");
+	    comprintf(
+	    	"    if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
+			"        FAIL(1);\n"
+			"        " RETURN "\n"
+			"    }\n");
 	    start_brace();
 	}
 	comprintf("\tdont_care_flags();\n");
@@ -2469,9 +2527,9 @@ gen_opcode (unsigned int opcode)
 	start_brace ();
 
 	switch(curi->size) {
-	 case sz_long: comprintf("\t rol_l_rr(data,cnt);\n"); break;
-	 case sz_word: comprintf("\t rol_w_rr(data,cnt);\n"); break;
-	 case sz_byte: comprintf("\t rol_b_rr(data,cnt);\n"); break;
+	 case sz_long: comprintf("\trol_l_rr(data,cnt);\n"); break;
+	 case sz_word: comprintf("\trol_w_rr(data,cnt);\n"); break;
+	 case sz_byte: comprintf("\trol_b_rr(data,cnt);\n"); break;
 	}
 
 	if (!noflags) {
@@ -2481,13 +2539,13 @@ gen_opcode (unsigned int opcode)
 	     */
 	    comprintf("\tif (needed_flags & FLAG_ZNV)\n");
 	    switch(curi->size) {
-	     case sz_byte: comprintf("\t  test_b_rr(data,data);\n"); break;
-	     case sz_word: comprintf("\t  test_w_rr(data,data);\n"); break;
-	     case sz_long: comprintf("\t  test_l_rr(data,data);\n"); break;
+	     case sz_byte: comprintf("\t    test_b_rr(data,data);\n"); break;
+	     case sz_word: comprintf("\t    test_w_rr(data,data);\n"); break;
+	     case sz_long: comprintf("\t    test_l_rr(data,data);\n"); break;
 	    }
-	    comprintf("\t bt_l_ri(data,0x00);\n"); /* Set C */
-	    comprintf("\t live_flags();\n");
-	    comprintf("\t end_needflags();\n");
+	    comprintf("\tbt_l_ri(data,0x00);\n"); /* Set C */
+	    comprintf("\tlive_flags();\n");
+	    comprintf("\tend_needflags();\n");
 	}
 	genastore ("data", curi->dmode, "dstreg", curi->size, "data");
 	break;
@@ -2498,10 +2556,11 @@ gen_opcode (unsigned int opcode)
 #endif
 	mayfail;
 	if (curi->smode==Dreg) {
-	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
-		"  FAIL(1);\n"
-		"  " RETURN "\n"
-		"} \n");
+	    comprintf(
+	    	"    if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
+			"        FAIL(1);\n"
+			"        " RETURN "\n"
+			"    }\n");
 	    start_brace();
 	}
 	comprintf("\tdont_care_flags();\n");
@@ -2510,9 +2569,9 @@ gen_opcode (unsigned int opcode)
 	start_brace ();
 
 	switch(curi->size) {
-	 case sz_long: comprintf("\t ror_l_rr(data,cnt);\n"); break;
-	 case sz_word: comprintf("\t ror_w_rr(data,cnt);\n"); break;
-	 case sz_byte: comprintf("\t ror_b_rr(data,cnt);\n"); break;
+	 case sz_long: comprintf("\tror_l_rr(data,cnt);\n"); break;
+	 case sz_word: comprintf("\tror_w_rr(data,cnt);\n"); break;
+	 case sz_byte: comprintf("\tror_b_rr(data,cnt);\n"); break;
 	}
 
 	if (!noflags) {
@@ -2522,17 +2581,17 @@ gen_opcode (unsigned int opcode)
 	     */
 	    comprintf("\tif (needed_flags & FLAG_ZNV)\n");
 	    switch(curi->size) {
-	     case sz_byte: comprintf("\t  test_b_rr(data,data);\n"); break;
-	     case sz_word: comprintf("\t  test_w_rr(data,data);\n"); break;
-	     case sz_long: comprintf("\t  test_l_rr(data,data);\n"); break;
+	     case sz_byte: comprintf("\t    test_b_rr(data,data);\n"); break;
+	     case sz_word: comprintf("\t    test_w_rr(data,data);\n"); break;
+	     case sz_long: comprintf("\t    test_l_rr(data,data);\n"); break;
 	    }
 	    switch(curi->size) {
-	     case sz_byte: comprintf("\t bt_l_ri(data,0x07);\n"); break;
-	     case sz_word: comprintf("\t bt_l_ri(data,0x0f);\n"); break;
-	     case sz_long: comprintf("\t bt_l_ri(data,0x1f);\n"); break;
+	     case sz_byte: comprintf("\tbt_l_ri(data,0x07);\n"); break;
+	     case sz_word: comprintf("\tbt_l_ri(data,0x0f);\n"); break;
+	     case sz_long: comprintf("\tbt_l_ri(data,0x1f);\n"); break;
 	    }
-	    comprintf("\t live_flags();\n");
-	    comprintf("\t end_needflags();\n");
+	    comprintf("\tlive_flags();\n");
+	    comprintf("\tend_needflags();\n");
 	}
 	genastore ("data", curi->dmode, "dstreg", curi->size, "data");
 	break;
@@ -2816,7 +2875,7 @@ gen_opcode (unsigned int opcode)
     finish_braces ();
     sync_m68k_pc ();
     if (global_mayfail)
-	comprintf("\tif (failure)  m68k_pc_offset=m68k_pc_offset_thisinst;\n");
+	comprintf("    if (failure)\n        m68k_pc_offset = m68k_pc_offset_thisinst;\n");
     return global_failure;
 }
 
@@ -3284,6 +3343,7 @@ int main(void)
     free (table68k);
 	fclose (stblfile);
 	fclose (headerfile);
+	(void)disasm_this_inst;
     return 0;
 }
 
