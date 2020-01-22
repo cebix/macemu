@@ -394,6 +394,7 @@ int main(int argc, char **argv)
 			ErrorAlert(STR_NO_MEM_ERR);
 			QuitEmulator();
 		}
+		memset(ram_rom_area, 0, RAMSize + 0x100000);
 		RAMBaseHost = ram_rom_area;
 		ROMBaseHost = RAMBaseHost + RAMSize;
 	}
@@ -405,6 +406,7 @@ int main(int argc, char **argv)
 		ErrorAlert(STR_NO_MEM_ERR);
 		QuitEmulator();
 	}
+	memset(ScratchMem, 0, SCRATCH_MEM_SIZE);
 	ScratchMem += SCRATCH_MEM_SIZE/2;	// ScratchMem points to middle of block
 #endif
 
