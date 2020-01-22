@@ -1020,7 +1020,11 @@ void m68k_reset (void)
     // (it is definitely better than what it was before this commit
     //  since it was reading from 0x00000000 in User mode and with active MMU)
     mmu_set_tc(regs.tc & ~0x8000); /* disable mmu */
+#if 0
     m68k_areg (regs, 7) = phys_get_long(0x00000000);
+#else
+    m68k_areg (regs, 7) = 0x2000;
+#endif
 #if 0
     m68k_setpc (phys_get_long(0x00000004));
 #else
