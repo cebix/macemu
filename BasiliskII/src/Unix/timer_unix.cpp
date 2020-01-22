@@ -386,8 +386,16 @@ void idle_wait(void)
 void idle_resume(void)
 {
 	//This causes events to not process randomly in JIT so commented out
-	if (idle_cond)
-		SDL_CondSignal(idle_cond);
+	if (idle_lock)
+	{
+		SDL_LockMutex(idle_lock);
+		if (idle_cond)
+		{
+			SDL_CondSignal(idle_cond);
+		}
+		SDL_UnlockMutex(idle_lock);
+	}
+
 // #ifdef IDLE_USES_COND_WAIT
 // 	pthread_cond_signal(&idle_cond);
 // #else
