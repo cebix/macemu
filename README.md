@@ -18,6 +18,8 @@ These builds need to be installed SDL2.0.10+ framework/library.
 1. Set Build Configuration to Release
 1. Build
 
+(or same as Linux)
+
 ##### Linux(x86)
 ```
 $ cd macemu/BasiliskII/src/Unix
@@ -36,11 +38,11 @@ $ make
 1. Set Build Configuration to Release
 1. Build
 
+(or same as Linux)
+
 ##### Linux(x86)
 ```
-$ cd macemu/SheepShaver
-$ make links
-$ cd src/Unix
+$ cd macemu/SheepShaver/src/Unix
 $ ./autogen.sh
 $ make
 ```
