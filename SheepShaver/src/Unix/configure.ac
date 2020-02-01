@@ -764,6 +764,9 @@ if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
     CPPFLAGS="$CPPFLAGS -I../MacOSX"
   else
     EXTRASYSSRCS="$EXTRASYSSRCS ../dummy/clip_dummy.cpp"
+    if [[ "$WANT_GTK" != "no" ]]; then
+      LIBS="$LIBS -lX11"
+    fi
   fi
 else
   VIDEOSRCS="video_x.cpp"
