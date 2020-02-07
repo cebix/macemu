@@ -17,7 +17,7 @@ CC = @CC@
 CXX = @CXX@
 CFLAGS = @CFLAGS@
 CXXFLAGS = @CXXFLAGS@
-CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../CrossPlatform -I../slirp
+CPPFLAGS = @CPPFLAGS@ -I/opt/X11/include -I../include -I. -I../CrossPlatform -I../slirp
 DEFS = @DEFS@ -D_REENTRANT -DDATADIR=\"$(datadir)/$(APP)\"
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@

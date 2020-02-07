@@ -133,7 +133,9 @@
 
 #ifdef ENABLE_GTK
 #include <gtk/gtk.h>
+#ifndef GDK_WINDOWING_WAYLAND
 #include <X11/Xlib.h>
+#endif
 #endif
 
 #ifdef ENABLE_XF86_DGA
@@ -729,7 +731,7 @@ static bool init_sdl()
 
 int main(int argc, char **argv)
 {
-#ifdef ENABLE_GTK
+#if defined(ENABLE_GTK) && !defined(GDK_WINDOWING_WAYLAND)
 	XInitThreads();
 #endif
 	char str[256];
