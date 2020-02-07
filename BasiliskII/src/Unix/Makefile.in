@@ -21,7 +21,7 @@ CFLAGS = @CFLAGS@
 CXXFLAGS = @CXXFLAGS@
 CPUINCLUDES_FLAGS=@CPUINCLUDES@
 CPUINCLUDES_FLAGS:=$(CPUINCLUDES_FLAGS:-I%=-I@top_srcdir@/%)
-CPPFLAGS = @CPPFLAGS@ -I/opt/X11/include -I@top_srcdir@/../include -I@top_srcdir@/. -I. -I@top_srcdir@/../CrossPlatform $(CPUINCLUDES_FLAGS) -I@top_srcdir@/../slirp
+CPPFLAGS = @CPPFLAGS@ -I@top_srcdir@/../include -I@top_srcdir@/. -I. -I@top_srcdir@/../CrossPlatform $(CPUINCLUDES_FLAGS) -I@top_srcdir@/../slirp
 DEFS = @DEFS@ @DEFINES@ -D_REENTRANT -DDATADIR=\"$(datadir)/$(APP)\"
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
