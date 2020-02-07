@@ -393,35 +393,7 @@ void ADBInterrupt(void)
             mx = 0;
             my = 0;
         }
-/* O2S
-		// Mouse movement (relative) and buttons
-		if (mx != 0 || my != 0 || mb[0] != old_mouse_button[0] || mb[1] != old_mouse_button[1] || mb[2] != old_mouse_button[2]) {
 
-			// Call mouse ADB handler
-			if (mouse_reg_3[1] == 4) {
-				// Extended mouse protocol
-				WriteMacInt8(tmp_data, 3);
-				WriteMacInt8(tmp_data + 1, (my & 0x7f) | (mb[0] ? 0 : 0x80));
-				WriteMacInt8(tmp_data + 2, (mx & 0x7f) | (mb[1] ? 0 : 0x80));
-				WriteMacInt8(tmp_data + 3, ((my >> 3) & 0x70) | ((mx >> 7) & 0x07) | (mb[2] ? 0x08 : 0x88));
-			} else {
-				// 100/200 dpi mode
-				WriteMacInt8(tmp_data, 2);
-				WriteMacInt8(tmp_data + 1, (my & 0x7f) | (mb[0] ? 0 : 0x80));
-				WriteMacInt8(tmp_data + 2, (mx & 0x7f) | (mb[1] ? 0 : 0x80));
-			}
-			r.a[0] = tmp_data;
-			r.a[1] = ReadMacInt32(mouse_base);
-			r.a[2] = ReadMacInt32(mouse_base + 4);
-			r.a[3] = adb_base;
-			r.d[0] = (mouse_reg_3[0] << 4) | 0x0c;	// Talk 0
-			Execute68k(r.a[1], &r);
-
-			old_mouse_button[0] = mb[0];
-			old_mouse_button[1] = mb[1];
-			old_mouse_button[2] = mb[2];
-		}
-*/
 	} else {
 
 		// Update mouse position (absolute)
@@ -487,35 +459,6 @@ void ADBInterrupt(void)
             }
         }
 
-
-/*		// Send mouse button events
-		if (mb[0] != old_mouse_button[0] || mb[1] != old_mouse_button[1] || mb[2] != old_mouse_button[2]) {
-			uint32 mouse_base = adb_base + 16;
-
-			// Call mouse ADB handler
-			if (mouse_reg_3[1] == 4) {
-				// Extended mouse protocol
-				WriteMacInt8(tmp_data, 3);
-				WriteMacInt8(tmp_data + 1, mb[0] ? 0 : 0x80);
-				WriteMacInt8(tmp_data + 2, mb[1] ? 0 : 0x80);
-				WriteMacInt8(tmp_data + 3, mb[2] ? 0x08 : 0x88);
-			} else {
-				// 100/200 dpi mode
-				WriteMacInt8(tmp_data, 2);
-				WriteMacInt8(tmp_data + 1, mb[0] ? 0 : 0x80);
-				WriteMacInt8(tmp_data + 2, mb[1] ? 0 : 0x80);
-			}
-			r.a[0] = tmp_data;
-			r.a[1] = ReadMacInt32(mouse_base);
-			r.a[2] = ReadMacInt32(mouse_base + 4);
-			r.a[3] = adb_base;
-			r.d[0] = (mouse_reg_3[0] << 4) | 0x0c;	// Talk 0
-			Execute68k(r.a[1], &r);
-
-			old_mouse_button[0] = mb[0];
-			old_mouse_button[1] = mb[1];
-			old_mouse_button[2] = mb[2];
-		} */
 	}
 
 	// Process accumulated keyboard events
