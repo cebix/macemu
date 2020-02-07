@@ -133,7 +133,7 @@
 
 #ifdef ENABLE_GTK
 #include <gtk/gtk.h>
-#ifndef GDK_WINDOWING_WAYLAND
+#if !defined(GDK_WINDOWING_QUARTZ) && !defined(GDK_WINDOWING_WAYLAND)
 #include <X11/Xlib.h>
 #endif
 #endif
@@ -731,7 +731,7 @@ static bool init_sdl()
 
 int main(int argc, char **argv)
 {
-#if defined(ENABLE_GTK) && !defined(GDK_WINDOWING_WAYLAND)
+#if defined(ENABLE_GTK) && !defined(GDK_WINDOWING_QUARTZ) && !defined(GDK_WINDOWING_WAYLAND)
 	XInitThreads();
 #endif
 	char str[256];

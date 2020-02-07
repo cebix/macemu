@@ -63,7 +63,7 @@ struct sigstate {
 # ifdef HAVE_GNOMEUI
 #  include <gnome.h>
 # endif
-# ifndef GDK_WINDOWING_WAYLAND
+# if !defined(GDK_WINDOWING_QUARTZ) && !defined(GDK_WINDOWING_WAYLAND)
 #  include <X11/Xlib.h>
 # endif
 #endif
@@ -387,7 +387,7 @@ static void usage(const char *prg_name)
 
 int main(int argc, char **argv)
 {
-#if defined(ENABLE_GTK) && !defined(GDK_WINDOWING_WAYLAND)
+#if defined(ENABLE_GTK) && !defined(GDK_WINDOWING_QUARTZ) && !defined(GDK_WINDOWING_WAYLAND)
 	XInitThreads();
 #endif
 	const char *vmdir = NULL;
