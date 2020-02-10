@@ -61,7 +61,7 @@ links:
 	       BeOS/audio_beos.cpp BeOS/extfs_beos.cpp BeOS/scsi_beos.cpp \
 	       BeOS/serial_beos.cpp BeOS/sys_beos.cpp BeOS/timer_beos.cpp \
 	       BeOS/xpram_beos.cpp BeOS/SheepDriver BeOS/SheepNet \
-	       CrossPlatform/sigsegv.h CrossPlatform/sigsegv.cpp CrossPlatform/vm_alloc.h CrossPlatform/vm_alloc.cpp \
+	       CrossPlatform/sigsegv.h CrossPlatform/vm_alloc.h CrossPlatform/vm_alloc.cpp \
                CrossPlatform/video_vosf.h CrossPlatform/video_blit.h CrossPlatform/video_blit.cpp \
 	       Unix/audio_oss_esd.cpp Unix/bincue_unix.cpp Unix/bincue_unix.h \
 	       Unix/vhd_unix.cpp \
@@ -74,7 +74,7 @@ links:
 	       Unix/rpc.h Unix/rpc_unix.cpp Unix/ldscripts \
 	       Unix/tinyxml2.h Unix/tinyxml2.cpp Unix/disk_unix.h \
 	       Unix/disk_sparsebundle.cpp Unix/Darwin/mkstandalone \
-	       Unix/Darwin/lowmem.c Unix/Darwin/pagezero.c Unix/Darwin/testlmem.sh \
+	       Unix/Darwin/pagezero.c Unix/Darwin/testlmem.sh \
 	       dummy/audio_dummy.cpp dummy/clip_dummy.cpp dummy/serial_dummy.cpp \
 	       dummy/prefs_editor_dummy.cpp dummy/scsi_dummy.cpp SDL slirp \
 	       MacOSX/sys_darwin.cpp MacOSX/clip_macosx.cpp MacOSX/clip_macosx64.mm \
