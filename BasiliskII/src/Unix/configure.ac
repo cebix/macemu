@@ -81,7 +81,7 @@ AC_ARG_WITH(gtk,             [  --with-gtk              use GTK user interface [
    *)         WANT_GTK="no";;
    esac],
   [WANT_GTK="gtk2 gtk"])
-AC_ARG_WITH(mon,             [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=yes])
+AC_ARG_WITH(mon,             [  --with-mon              use mon as debugger [default=no]], [WANT_MON=$withval], [WANT_MON=no])
 
 AC_ARG_WITH(bincue,   
   AS_HELP_STRING([--with-bincue], [Allow cdrom image files in bin/cue mode]))
