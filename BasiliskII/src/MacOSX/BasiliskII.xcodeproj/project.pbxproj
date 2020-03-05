@@ -91,6 +91,9 @@
 		E413D93820D2613500E437D8 /* ether_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E413D93720D2613500E437D8 /* ether_unix.cpp */; };
 		E413D93A20D2614E00E437D8 /* extfs_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E413D93920D2614E00E437D8 /* extfs_macosx.cpp */; };
 		E4150D1420D559800077C51A /* SDL2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E4150D1320D559800077C51A /* SDL2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E416BEE82410AA4E00751E6D /* runtool.c in Sources */ = {isa = PBXBuildFile; fileRef = E416BEE72410AA4E00751E6D /* runtool.c */; };
+		E416BEEA2410AA9800751E6D /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E416BEE92410AA9800751E6D /* Security.framework */; };
+		E416BEED2410AE0900751E6D /* etherhelpertool in Resources */ = {isa = PBXBuildFile; fileRef = E416BEEC2410AE0000751E6D /* etherhelpertool */; };
 		E4555EED2354434B00139FCE /* Credits.html in Resources */ = {isa = PBXBuildFile; fileRef = 7539E00A1F23B25A006B2DF2 /* Credits.html */; };
 		E490334E20D3A5890012DD5F /* clip_macosx64.mm in Sources */ = {isa = PBXBuildFile; fileRef = E490334D20D3A5890012DD5F /* clip_macosx64.mm */; };
 		E4D8245323543D9800849B78 /* fpu_ieee.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4D8245223543D9700849B78 /* fpu_ieee.cpp */; };
@@ -320,6 +323,10 @@
 		E413D93720D2613500E437D8 /* ether_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ether_unix.cpp; sourceTree = "<group>"; };
 		E413D93920D2614E00E437D8 /* extfs_macosx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = extfs_macosx.cpp; sourceTree = "<group>"; };
 		E4150D1320D559800077C51A /* SDL2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL2.framework; path = /Library/Frameworks/SDL2.framework; sourceTree = "<group>"; };
+		E416BEE72410AA4E00751E6D /* runtool.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = runtool.c; sourceTree = "<group>"; };
+		E416BEE92410AA9800751E6D /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		E416BEEB2410AB0E00751E6D /* etherhelpertool.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = etherhelpertool.c; sourceTree = "<group>"; };
+		E416BEEC2410AE0000751E6D /* etherhelpertool */ = {isa = PBXFileReference; lastKnownFileType = text; path = etherhelpertool; sourceTree = BUILT_PRODUCTS_DIR; };
 		E417913123D7D67C0009AD63 /* defs68k.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = defs68k.c; path = gencpu_output/defs68k.c; sourceTree = BUILT_PRODUCTS_DIR; };
 		E490334D20D3A5890012DD5F /* clip_macosx64.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = clip_macosx64.mm; sourceTree = "<group>"; };
 		E4D8245223543D9700849B78 /* fpu_ieee.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fpu_ieee.cpp; sourceTree = "<group>"; };
@@ -331,6 +338,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E413D93620D260DA00E437D8 /* SDL2.framework in Frameworks */,
+				E416BEEA2410AA9800751E6D /* Security.framework in Frameworks */,
 				756C1B391F25306A00620917 /* AppKit.framework in Frameworks */,
 				752F26FB1F240E69001032B4 /* IOKit.framework in Frameworks */,
 				752F26F91F240E51001032B4 /* Foundation.framework in Frameworks */,
@@ -392,6 +400,7 @@
 		752F26F71F240E51001032B4 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				E416BEE92410AA9800751E6D /* Security.framework */,
 				E413D93520D260DA00E437D8 /* SDL2.framework */,
 				756C1B381F25306A00620917 /* AppKit.framework */,
 				752F26FA1F240E69001032B4 /* IOKit.framework */,
@@ -403,6 +412,7 @@
 		753252FF1F535E5D0024025B /* generated src */ = {
 			isa = PBXGroup;
 			children = (
+				E416BEEC2410AE0000751E6D /* etherhelpertool */,
 				7532532B1F53675E0024025B /* gencpu output */,
 			);
 			name = "generated src";
@@ -498,6 +508,8 @@
 		7539DFF91F23B25A006B2DF2 /* MacOSX */ = {
 			isa = PBXGroup;
 			children = (
+				E416BEEB2410AB0E00751E6D /* etherhelpertool.c */,
+				E416BEE72410AA4E00751E6D /* runtool.c */,
 				7539E2AA1F23CDB7006B2DF2 /* Info.plist */,
 				7539E27E1F23BEB4006B2DF2 /* config.h */,
 				7539DFFA1F23B25A006B2DF2 /* Assets.xcassets */,
@@ -771,6 +783,7 @@
 			files = (
 				7539E1341F23B25A006B2DF2 /* BasiliskII.icns in Resources */,
 				E4555EED2354434B00139FCE /* Credits.html in Resources */,
+				E416BEED2410AE0900751E6D /* etherhelpertool in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -794,7 +807,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "make -f Makefile.gencpu\n";
+			shellScript = "make -f Makefile.gencpu\ncc etherhelpertool.c -framework Security -o $BUILT_PRODUCTS_DIR/etherhelpertool\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -866,6 +879,7 @@
 				E413D92720D260BC00E437D8 /* debug.c in Sources */,
 				E413D92220D260BC00E437D8 /* mbuf.c in Sources */,
 				7539E19D1F23B25A006B2DF2 /* mathlib.cpp in Sources */,
+				E416BEE82410AA4E00751E6D /* runtool.c in Sources */,
 				E413D93020D260BC00E437D8 /* ip_input.c in Sources */,
 				752F27031F242F51001032B4 /* xpram_sdl.cpp in Sources */,
 				7539E16D1F23B25A006B2DF2 /* pict.c in Sources */,

@@ -435,16 +435,16 @@ static int open_tap(char *ifname)
 					return -1;
 				}
 			}
-			
-			snprintf(str, STR_MAX, "/sbin/ifconfig %s addm %s", 
-				 bridge, interface);
-			if (run_cmd(str) != 0) {
-				fprintf(stderr, "%s: Failed to add %s to %s\n",
-					exec_name, interface, bridge);
-				close(sd);
-				return -1;
-			}
-		}
+        }
+		
+        snprintf(str, STR_MAX, "/sbin/ifconfig %s addm %s",
+             bridge, interface);
+        if (run_cmd(str) != 0) {
+            fprintf(stderr, "%s: Failed to add %s to %s\n",
+                exec_name, interface, bridge);
+            close(sd);
+            return -1;
+        }
 	}
 
         return sd;
