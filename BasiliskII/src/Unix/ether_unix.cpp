@@ -20,8 +20,6 @@
 
 #include "sysdeps.h"
 
-#define ENABLE_MACOSX_ETHERHELPER
-
 /*
  *  NOTES concerning MacOS X issues:
  *  - poll() does not exist in 10.2.8, but is available in 10.4.4
