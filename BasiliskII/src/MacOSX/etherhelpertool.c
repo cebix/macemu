@@ -55,7 +55,7 @@ static void handler(int signum);
 static int install_signal_handlers();
 static void do_exit();
 
-static int remove_bridge = 0;
+static char remove_bridge[STR_MAX];
 static const char *exec_name = "etherhelpertool";
 
 int main(int argc, char **argv)
@@ -415,7 +415,7 @@ static int open_tap(char *ifname)
 				close(sd);
 				return -1;
 			}
-			remove_bridge = 1;
+			strlcpy(remove_bridge, bridge, STR_MAX);
 
 			snprintf(str, STR_MAX, "/sbin/ifconfig %s up", bridge);
 			if (run_cmd(str) != 0) {
@@ -572,7 +572,9 @@ static int install_signal_handlers() {
 }
 
 static void do_exit() {
-        if (remove_bridge) {
-                run_cmd("/sbin/ifconfig bridge0 destroy");
+        if (*remove_bridge) {
+				char str[STR_MAX];
+				snprintf(str, STR_MAX, "/sbin/ifconfig %s destroy", remove_bridge);
+				run_cmd(str);
         }
 }
