@@ -569,9 +569,6 @@ case "$host" in
 *-*-hpux10.26)
 	disable_ptmx_check=yes
 	;;
-*-*-linux*)
-	no_dev_ptmx=1
-	;;
 mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(HAVE_NEWS4, 1, [Define if you are on NEWS-OS (additions from openssh-3.2.2p1, for sshpty.c).])
 	;;
@@ -585,7 +582,6 @@ mips-sony-bsd|mips-sony-newsos4)
 	no_dev_ptmx=1
 	;;
 *-*-darwin*)
-	no_dev_ptmx=1
 	LIBS="$LIBS -lstdc++"
 	;;
 *-*-freebsd*)
