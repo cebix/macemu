@@ -910,10 +910,11 @@ static void create_jit_pane(GtkWidget *top)
 #endif
 
 	set_jit_sensitive();
-#endif
 
 #ifdef SHEEPSHAVER
 	make_checkbox(box, STR_JIT_68K_CTRL, "jit68k", GTK_SIGNAL_FUNC(tb_jit_68k));
+#endif
+
 #endif
 }
 
