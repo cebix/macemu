@@ -26,6 +26,8 @@
 #include <sys/stat.h>
 #include <gtk/gtk.h>
 
+#include <shellapi.h>
+
 #include "user_strings.h"
 #include "version.h"
 #include "cdrom.h"
@@ -75,6 +77,27 @@ enum {
 /*
  *  Utility functions
  */
+
+gchar * tchar_to_g_utf8(const TCHAR * str) {
+	gchar * out;
+	if (str == NULL)
+		return NULL;
+	int len = _tcslen(str) + 1;
+	#ifdef _UNICODE
+		/* First call just to find what the output size will be */
+		int size = WideCharToMultiByte(CP_UTF8, 0, str, len, NULL, 0, NULL, NULL);
+		if (size == 0)
+			return NULL;
+		out = (gchar *) g_malloc(size);
+		if (out == NULL)
+			return NULL;
+		WideCharToMultiByte(CP_UTF8, 0, str, len, out, size, NULL, NULL);
+	#else /* _UNICODE */
+		out = g_locale_to_utf8(str, -1, NULL, NULL, NULL);
+	#endif /* _UNICODE */
+	return out;
+}
+
 
 struct opt_desc {
 	int label_id;
@@ -672,11 +695,11 @@ static GList *add_cdrom_names(void)
 {
 	GList *glist = NULL;
 
-	char rootdir[4] = "X:\\";
-	for (char letter = 'C'; letter <= 'Z'; letter++) {
+	TCHAR rootdir[4] = TEXT("X:\\");
+	for (TCHAR letter = TEXT('C'); letter <= TEXT('Z'); letter++) {
 		rootdir[0] = letter;
 		if (GetDriveType(rootdir) == DRIVE_CDROM)
-			glist = g_list_append(glist, strdup(rootdir));
+			glist = g_list_append(glist, _tcsdup(rootdir));
 	}
 
 	return glist;
@@ -1466,24 +1489,25 @@ static int create_ether_menu(GtkWidget *menu)
 	n_items++;
 
 	// Basilisk II Ethernet Adapter
-	PacketOpenAdapter("", 0);
+	PacketOpenAdapter(TEXT(""), 0);
 	{
 		ULONG sz;
-		char names[1024];
+		TCHAR names[1024];
 		sz = sizeof(names);
 		if (PacketGetAdapterNames(NULL, names, &sz) == ERROR_SUCCESS) {
-			char *p = names;
+			TCHAR *p = names;
 			while (*p) {
-				const char DEVICE_HEADER[] = "\\Device\\B2ether_";
-				if (strnicmp(p, DEVICE_HEADER, sizeof(DEVICE_HEADER) - 1) == 0) {
+				const TCHAR DEVICE_HEADER[] = TEXT("\\Device\\B2ether_");
+				if (_tcsnicmp(p, DEVICE_HEADER, sizeof(DEVICE_HEADER) - 1) == 0) {
 					LPADAPTER fd = PacketOpenAdapter(p + sizeof(DEVICE_HEADER) - 1, 0);
 					if (fd) {
-						char guid[256];
-						sprintf(guid, "%s", p + sizeof(DEVICE_HEADER) - 1);
-						const char *name = ether_guid_to_name(guid);
-						if (name && (name = g_locale_to_utf8(name, -1, NULL, NULL, NULL))) {
-							add_menu_item(menu, name, (GtkSignalFunc)mn_ether_b2ether, strdup(guid));
-							if (etherguid && strcmp(guid, etherguid) == 0 &&
+						TCHAR guid[256];
+						_stprintf(guid, TEXT("%s"), p + sizeof(DEVICE_HEADER) - 1);
+						const gchar *name = tchar_to_g_utf8(ether_guid_to_name(guid));
+						if (name) {
+							std::string str_guid = to_string(guid);
+							add_menu_item(menu, name, (GtkSignalFunc)mn_ether_b2ether, strdup(str_guid.c_str()));
+							if (etherguid && to_tstring(guid).compare(to_tstring(etherguid)) == 0 &&
 								ether && strcmp(ether, "b2ether") == 0)
 								active = n_items;
 							n_items++;
@@ -1491,26 +1515,27 @@ static int create_ether_menu(GtkWidget *menu)
 						PacketCloseAdapter(fd);
 					}
 				}
-				p += strlen(p) + 1;
+				p += _tcslen(p) + 1;
 			}
 		}
 	}
 	PacketCloseAdapter(NULL);
 
 	// TAP-Win32
-	const char *tap_devices;
+	const TCHAR *tap_devices;
 	if ((tap_devices = ether_tap_devices()) != NULL) {
-		const char *guid = tap_devices;
+		const TCHAR *guid = tap_devices;
 		while (*guid) {
-			const char *name = ether_guid_to_name(guid);
-			if (name && (name = g_locale_to_utf8(name, -1, NULL, NULL, NULL))) {
-				add_menu_item(menu, name, (GtkSignalFunc)mn_ether_tap, strdup(guid));
-				if (etherguid && strcmp(guid, etherguid) == 0 &&
+			const gchar *name = tchar_to_g_utf8(ether_guid_to_name(guid));
+			if (name) {
+				std::string str_guid = to_string(guid);
+				add_menu_item(menu, name, (GtkSignalFunc)mn_ether_tap, strdup(str_guid.c_str()));
+				if (etherguid && to_tstring(guid).compare(to_tstring(etherguid)) == 0 &&
 					ether && strcmp(ether, "tap") == 0)
 					active = n_items;
 				n_items++;
 			}
-			guid += strlen(guid) + 1;
+			guid += _tcslen(guid) + 1;
 		}
 		free((char *)tap_devices);
 	}
@@ -1734,21 +1759,66 @@ void SysAddSerialPrefs(void)
  *  Display alerts
  */
 
+static HWND GetMainWindowHandle() {
+	return NULL;
+}
+
 static void display_alert(int title_id, const char *text, int flags)
 {
-	MessageBox(NULL, text, GetString(title_id), MB_OK | flags);
+	HWND hMainWnd = GetMainWindowHandle();
+	MessageBoxA(hMainWnd, text, GetString(title_id), MB_OK | flags);
 }
+#ifdef _UNICODE
+static void display_alert(int title_id, const wchar_t *text, int flags)
+{
+	HWND hMainWnd = GetMainWindowHandle();
+	MessageBoxW(hMainWnd, text, GetStringW(title_id).get(), MB_OK | flags);
+}
+#endif
+
+
+/*
+ *  Display error alert
+ */
 
 void ErrorAlert(const char *text)
 {
+	if (PrefsFindBool("nogui"))
+		return;
+
 	display_alert(STR_ERROR_ALERT_TITLE, text, MB_ICONSTOP);
 }
+#ifdef _UNICODE
+void ErrorAlert(const wchar_t *text)
+{
+	if (PrefsFindBool("nogui"))
+		return;
+
+	display_alert(STR_ERROR_ALERT_TITLE, text, MB_ICONSTOP);
+}
+#endif
+
+
+/*
+ *  Display warning alert
+ */
 
 void WarningAlert(const char *text)
 {
+	if (PrefsFindBool("nogui"))
+		return;
+
 	display_alert(STR_WARNING_ALERT_TITLE, text, MB_ICONSTOP);
 }
+#ifdef _UNICODE
+void WarningAlert(const wchar_t *text)
+{
+	if (PrefsFindBool("nogui"))
+		return;
 
+	display_alert(STR_WARNING_ALERT_TITLE, text, MB_ICONSTOP);
+}
+#endif
 
 /*
  *  Start standalone GUI
@@ -1774,23 +1844,23 @@ int main(int argc, char *argv[])
 
 	// Transfer control to the executable
 	if (start) {
-		char path[_MAX_PATH];
+		TCHAR path[_MAX_PATH];
 		bool ok = GetModuleFileName(NULL, path, sizeof(path)) != 0;
 		if (ok) {
-			char b2_path[_MAX_PATH];
-			char *p = strrchr(path, '\\');
-			*++p = '\0';
+			TCHAR b2_path[_MAX_PATH];
+			TCHAR *p = _tcsrchr(path, TEXT('\\'));
+			*++p = TEXT('\0');
 			SetCurrentDirectory(path);
-			strcpy(b2_path, path);
-			strcat(b2_path, PROGRAM_NAME);
-			strcat(b2_path, ".exe");
-			HINSTANCE h = ShellExecute(GetDesktopWindow(), "open",
-									   b2_path, "", path, SW_SHOWNORMAL);
+			_tcscpy(b2_path, path);
+			_tcscat(b2_path, TEXT(PROGRAM_NAME));
+			_tcscat(b2_path, TEXT(".exe"));
+			HINSTANCE h = ShellExecute(GetDesktopWindow(), TEXT("open"),
+									   b2_path, TEXT(""), path, SW_SHOWNORMAL);
 			if ((int)h <= 32)
 				ok = false;
 		}
 		if (!ok) {
-			ErrorAlert("Coult not start " PROGRAM_NAME " executable");
+			ErrorAlert(TEXT("Could not start ") TEXT(PROGRAM_NAME) TEXT(" executable"));
 			return 1;
 		}
 	}
