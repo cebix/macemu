@@ -41,7 +41,9 @@
 #undef _TEXT
 #include <time.h>
 #ifdef __WIN32__
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <WinSock2.h>
 #endif
 #include <sys/types.h>
 

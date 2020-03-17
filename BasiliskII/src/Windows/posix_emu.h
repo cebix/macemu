@@ -79,24 +79,33 @@ extern int my_errno;
 
 // must hook all other functions that manipulate file names
 #ifndef NO_POSIX_API_HOOK
-#define stat my_stat
-#define fstat my_fstat
-#define open my_open
-#define rename my_rename
-#define access my_access
-#define mkdir my_mkdir
-#define remove my_remove
-#define creat my_creat
-#define close my_close
-#define lseek my_lseek
-#define read my_read
-#define write my_write
-#define ftruncate my_chsize
-#define locking my_locking
-#define utime my_utime
+# ifdef stat
+#  undef stat
+# endif
+# define stat my_stat
+# ifdef fstat
+#  undef fstat
+# endif
+# define fstat my_fstat
+# define open my_open
+# define rename my_rename
+# define access my_access
+# define mkdir my_mkdir
+# define remove my_remove
+# define creat my_creat
+# define close my_close
+# ifdef lseek
+#  undef lseek
+# endif
+# define lseek my_lseek
+# define read my_read
+# define write my_write
+# define ftruncate my_chsize
+# define locking my_locking
+# define utime my_utime
 
-#undef errno
-#define errno my_errno
+# undef errno
+# define errno my_errno
 #endif //!NO_POSIX_API_HOOK
 
 #ifndef S_ISDIR
@@ -125,6 +134,6 @@ struct my_utimbuf
 };
 
 // Your compiler may have different "struct stat" -> edit "struct my_stat"
-#define validate_stat_struct ( sizeof(struct my_stat) == sizeof(struct stat) )
+#define validate_stat_struct ( sizeof(struct my_stat) == sizeof(struct _stat) )
 
 #define st_crtime st_ctime

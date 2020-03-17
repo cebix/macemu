@@ -32,21 +32,6 @@ typedef unsigned long ioctlsockopt_t;
 # include <winsock2.h>
 # include <WS2tcpip.h>
 
-#ifdef __MINGW32__
-char * WSAAPI inet_ntop(
-  INT     Family,
-  PVOID  pAddr,
-  PTSTR  pStringBuf,
-  size_t StringBufSize
-);
-
-INT WSAAPI inet_pton(
-  INT     Family,
-  const char * pszAddrString,
-  PVOID  pAddrBuf
-);
-#endif
-
 # include <sys/timeb.h>
 # include <iphlpapi.h>
 

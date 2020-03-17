@@ -23,6 +23,7 @@
 
 #ifdef __MINGW32__
 #define _UNICODE
+#define UNICODE
 #endif
 
 #if !defined _MSC_VER && !defined __STDC__
