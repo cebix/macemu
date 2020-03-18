@@ -90,6 +90,7 @@ static inline int ppc_to_native_rounding_mode(int round)
 	case 2: return FE_UPWARD;
 	case 3: return FE_DOWNWARD;
 	}
+	return FE_TONEAREST;
 }
 
 /**

@@ -88,6 +88,7 @@ int mathlib_fpclassify (double x)
 int mathlib_fpclassifyl(long double x)
 {
 	unimplemented("fpclassifyl");
+	return -1;
 }
 
 
@@ -114,6 +115,7 @@ int mathlib_signbit (double x)
 int mathlib_signbitl(long double x)
 {
 	unimplemented("signbitl");
+	return -1;
 }
 
 
