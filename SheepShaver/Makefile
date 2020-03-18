@@ -99,7 +99,7 @@ links:
 	    case $$i in *codegen_x86.h) o=kpx_cpu/src/cpu/jit/x86/codegen_x86.h;; esac; \
 	    SUB=`echo $$o | sed 's;[^/]*/;../;g' | sed 's;[^/]*$$;;'` ;\
 	    cur_link=src/$$o ;\
-	    if [ -d "$$cur_link" ]; then rm -rf "$$cur_link"; fi ;\
+	    if [ -e "$$cur_link" ]; then rm -rf "$$cur_link"; fi ;\
 	    ln -sf "$$PREFIX$$SUB$(B2_TOPDIR)/src/$$i" $$cur_link; \
 	  fi; \
 	done;
