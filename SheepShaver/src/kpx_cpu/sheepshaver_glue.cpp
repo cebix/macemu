@@ -151,9 +151,11 @@ public:
 
 	// Execute NATIVE_OP routine
 	void execute_native_op(uint32 native_op);
+	static void call_execute_native_op(powerpc_cpu * cpu, uint32 native_op);
 
 	// Execute EMUL_OP routine
 	void execute_emul_op(uint32 emul_op);
+	static void call_execute_emul_op(powerpc_cpu * cpu, uint32 emul_op);
 
 	// Execute 68k routine
 	void execute_68k(uint32 entry, M68kRegisters *r);
@@ -170,6 +172,7 @@ public:
 #endif
 	// Resource manager thunk
 	void get_resource(uint32 old_get_resource);
+	static void call_get_resource(powerpc_cpu * cpu, uint32 old_get_resource);
 
 	// Handle MacOS interrupt
 	void interrupt(uint32 entry);
@@ -217,6 +220,10 @@ void sheepshaver_cpu::init_decoder()
 typedef bit_field< 19, 19 > FN_field;
 typedef bit_field< 20, 25 > NATIVE_OP_field;
 typedef bit_field< 26, 31 > EMUL_OP_field;
+
+void sheepshaver_cpu::call_execute_emul_op(powerpc_cpu * cpu, uint32 emul_op) {
+	static_cast<sheepshaver_cpu *>(cpu)->execute_emul_op(emul_op);
+}
 
 // Execute EMUL_OP routine
 void sheepshaver_cpu::execute_emul_op(uint32 emul_op)
@@ -332,7 +339,7 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 			};
 			uint32 old_get_resource = ReadMacInt32(get_resource_ptr[selector - NATIVE_GET_RESOURCE]);
 			typedef void (*func_t)(dyngen_cpu_base, uint32);
-			func_t func = (func_t)nv_mem_fun(&sheepshaver_cpu::get_resource).ptr();
+			func_t func = &sheepshaver_cpu::call_get_resource;
 			dg.gen_invoke_CPU_im(func, old_get_resource);
 			status = COMPILE_CODE_OK;
 			break;
@@ -421,7 +428,7 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 		// Invoke NativeOp handler
 		if (!FN_field::test(opcode)) {
 			typedef void (*func_t)(dyngen_cpu_base, uint32);
-			func_t func = (func_t)nv_mem_fun(&sheepshaver_cpu::execute_native_op).ptr();
+			func_t func = &sheepshaver_cpu::call_execute_native_op;
 			dg.gen_invoke_CPU_im(func, selector);
 			cg_context.done_compile = false;
 			status = COMPILE_CODE_OK;
@@ -445,7 +452,7 @@ int sheepshaver_cpu::compile1(codegen_context_t & cg_context)
 #else
 		// Invoke EmulOp handler
 		typedef void (*func_t)(dyngen_cpu_base, uint32);
-		func_t func = (func_t)nv_mem_fun(&sheepshaver_cpu::execute_emul_op).ptr();
+		func_t func = &sheepshaver_cpu::call_execute_emul_op;
 		dg.gen_invoke_CPU_im(func, emul_op);
 		cg_context.done_compile = false;
 		status = COMPILE_CODE_OK;
@@ -685,6 +692,10 @@ inline void sheepshaver_cpu::execute_ppc(uint32 entry)
 	lr() = saved_lr;
 }
 
+void sheepshaver_cpu::call_get_resource(powerpc_cpu * cpu, uint32 old_get_resource) {
+	static_cast<sheepshaver_cpu *>(cpu)->get_resource(old_get_resource);
+}
+
 // Resource Manager thunk
 inline void sheepshaver_cpu::get_resource(uint32 old_get_resource)
 {
@@ -897,14 +908,14 @@ void init_emul_op_trampolines(basic_dyngen & dg)
 
 	// EmulOp
 	emul_op_trampoline = dg.gen_start();
-	func = (func_t)nv_mem_fun(&sheepshaver_cpu::execute_emul_op).ptr();
+	func = &sheepshaver_cpu::call_execute_emul_op;
 	dg.gen_invoke_CPU_T0(func);
 	dg.gen_exec_return();
 	dg.gen_end();
 
 	// NativeOp
 	native_op_trampoline = dg.gen_start();
-	func = (func_t)nv_mem_fun(&sheepshaver_cpu::execute_native_op).ptr();
+	func = &sheepshaver_cpu::call_execute_native_op;
 	dg.gen_invoke_CPU_T0(func);	
 	dg.gen_exec_return();
 	dg.gen_end();
@@ -1028,6 +1039,10 @@ void HandleInterrupt(powerpc_registers *r)
 		break;
 #endif
 	}
+}
+
+void sheepshaver_cpu::call_execute_native_op(powerpc_cpu * cpu, uint32 selector) {
+	static_cast<sheepshaver_cpu *>(cpu)->execute_native_op(selector);
 }
 
 // Execute NATIVE_OP routine
