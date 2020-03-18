@@ -8,7 +8,7 @@ MinGW 32-bit JIT
 ```
 macOS 64-bit JIT
 Linux 32-bit JIT
-MinGW 32-bit ---
+MinGW 32-bit JIT
 ```
 ### How To Build
 These builds need to be installed SDL2.0.10+ framework/library.
@@ -26,7 +26,7 @@ $ cd macemu/BasiliskII/src/Unix
 $ ./autogen.sh
 $ make
 ```
-##### MinGW32/MSYS
+##### MinGW32/MSYS2
 ```
 $ cd macemu/BasiliskII/src/Windows
 $ ../Unix/autogen.sh
@@ -46,7 +46,7 @@ $ cd macemu/SheepShaver/src/Unix
 $ ./autogen.sh
 $ make
 ```
-##### MinGW32/MSYS
+##### MinGW32/MSYS2
 ```
 $ cd macemu/SheepShaver
 $ make links
