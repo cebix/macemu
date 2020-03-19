@@ -90,11 +90,17 @@ enum {
 static int display_type = DISPLAY_WINDOW;			// See enum above
 #endif
 
+#ifdef SHEEPSHAVER
+#define PROGRAM_NAME	"SheepShaver"
+#else
+#define PROGRAM_NAME	"BasiliskII"
+#endif
+
 // Constants
 #ifdef WIN32
-const char KEYCODE_FILE_NAME[] = "BasiliskII_keycodes";
+const char KEYCODE_FILE_NAME[] = PROGRAM_NAME "_keycodes";
 #elif __MACOSX__
-const char KEYCODE_FILE_NAME[] = "BasiliskII_keycodes";
+const char KEYCODE_FILE_NAME[] = PROGRAM_NAME "_keycodes";
 #else
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
 #endif
@@ -741,7 +747,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 */
 	if (!sdl_window) {
 		sdl_window = SDL_CreateWindow(
-			"Basilisk II",
+			PROGRAM_NAME,
 			SDL_WINDOWPOS_UNDEFINED,
 			SDL_WINDOWPOS_UNDEFINED,
 			window_width,
@@ -2198,7 +2204,14 @@ static void handle_events(void)
 					code = event2keycode(event.key, true);
 				if (code >= 0) {
 					if (!emul_suspended) {
+#ifdef WIN32
+						if (code == 0x39)
+							(SDL_GetModState() & KMOD_CAPS ? ADBKeyDown : ADBKeyUp)(code);
+						else
+							ADBKeyDown(code);
+#else
 						ADBKeyDown(code);
+#endif
 						if (code == 0x36)
 							ctrl_down = true;
 #ifdef __APPLE__
@@ -2227,7 +2240,12 @@ static void handle_events(void)
 				if (code == CODE_INVALID)
 					code = event2keycode(event.key, false);
 				if (code >= 0) {
+#ifdef WIN32
+					if (code != 0x39)
+						ADBKeyUp(code);
+#else
 					ADBKeyUp(code);
+#endif
 					if (code == 0x36)
 						ctrl_down = false;
 #ifdef __APPLE__
