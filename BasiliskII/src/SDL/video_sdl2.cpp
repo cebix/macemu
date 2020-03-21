@@ -90,19 +90,13 @@ enum {
 static int display_type = DISPLAY_WINDOW;			// See enum above
 #endif
 
-#ifdef SHEEPSHAVER
-#define PREFIX		""
-#else
-#define PREFIX		"BasiliskII_"
-#endif
-
 // Constants
-#ifdef WIN32
-const char KEYCODE_FILE_NAME[] = PREFIX "keycodes";
-#elif __MACOSX__
-const char KEYCODE_FILE_NAME[] = PREFIX "keycodes";
+#if defined(__MACOSX__) || defined(WIN32)
+const char KEYCODE_FILE_NAME[] = "keycodes";
+const char KEYCODE_FILE_NAME2[] = "BasiliskII_keycodes";
 #else
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
+const char KEYCODE_FILE_NAME[] = DATADIR "/BasiliskII_keycodes";
 #endif
 
 
@@ -1207,6 +1201,7 @@ static void keycode_init(void)
 
 		// Open keycode table
 		FILE *f = fopen(kc_path && *kc_path ? kc_path : KEYCODE_FILE_NAME, "r");
+		if (f == NULL) f = fopen(KEYCODE_FILE_NAME2, "r");
 		if (f == NULL) {
 			char str[256];
 			snprintf(str, sizeof(str), GetString(STR_KEYCODE_FILE_WARN), kc_path ? kc_path : KEYCODE_FILE_NAME, strerror(errno));
