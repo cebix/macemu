@@ -91,16 +91,16 @@ static int display_type = DISPLAY_WINDOW;			// See enum above
 #endif
 
 #ifdef SHEEPSHAVER
-#define PROGRAM_NAME	"SheepShaver"
+#define PREFIX		""
 #else
-#define PROGRAM_NAME	"BasiliskII"
+#define PREFIX		"BasiliskII_"
 #endif
 
 // Constants
 #ifdef WIN32
-const char KEYCODE_FILE_NAME[] = PROGRAM_NAME "_keycodes";
+const char KEYCODE_FILE_NAME[] = PREFIX "keycodes";
 #elif __MACOSX__
-const char KEYCODE_FILE_NAME[] = PROGRAM_NAME "_keycodes";
+const char KEYCODE_FILE_NAME[] = PREFIX "keycodes";
 #else
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
 #endif
@@ -747,7 +747,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 */
 	if (!sdl_window) {
 		sdl_window = SDL_CreateWindow(
-			PROGRAM_NAME,
+			"Basilisk II",
 			SDL_WINDOWPOS_UNDEFINED,
 			SDL_WINDOWPOS_UNDEFINED,
 			window_width,
@@ -1206,7 +1206,7 @@ static void keycode_init(void)
 		const char *kc_path = PrefsFindString("keycodefile");
 
 		// Open keycode table
-		FILE *f = fopen(kc_path ? kc_path : KEYCODE_FILE_NAME, "r");
+		FILE *f = fopen(kc_path && *kc_path ? kc_path : KEYCODE_FILE_NAME, "r");
 		if (f == NULL) {
 			char str[256];
 			snprintf(str, sizeof(str), GetString(STR_KEYCODE_FILE_WARN), kc_path ? kc_path : KEYCODE_FILE_NAME, strerror(errno));
