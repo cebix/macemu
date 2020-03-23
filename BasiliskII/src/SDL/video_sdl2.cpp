@@ -96,7 +96,7 @@ const char KEYCODE_FILE_NAME[] = "keycodes";
 const char KEYCODE_FILE_NAME2[] = "BasiliskII_keycodes";
 #else
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
-const char KEYCODE_FILE_NAME[] = DATADIR "/BasiliskII_keycodes";
+const char KEYCODE_FILE_NAME2[] = DATADIR "/BasiliskII_keycodes";
 #endif
 
 
