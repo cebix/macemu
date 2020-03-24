@@ -461,6 +461,7 @@ struct gimp_image {
 // generate corresponding .h files with extern declarations, so just
 // #include the .c files here.
 #include "BasiliskII_32x32x32_icon.c"
+#include "BasiliskII_48x48x32_icon.c"
 #include "BasiliskII_128x128x32_icon.c"
 
 // Set window icons
@@ -477,6 +478,7 @@ static void set_window_icons(Window w)
 	// Window Manager
 	const struct gimp_image* const icons[] =
 		{(struct gimp_image *) &icon_32x32x32,
+		 (struct gimp_image *) &icon_48x48x32,
 		 (struct gimp_image *) &icon_128x128x32};
 	const unsigned int num_icons = sizeof(icons) / sizeof(icons[0]);
 	unsigned int icon;
