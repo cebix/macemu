@@ -1874,7 +1874,7 @@ static void update_display_static(driver_base *drv)
 
 	// Check for first column from left and first column from right that have changed
 	if (high) {
-		if (VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
+		if ((int)VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
 			const int src_bytes_per_row = bytes_per_row;
 			const int dst_bytes_per_row = drv->s->pitch;
 			const int pixels_per_byte = VIDEO_MODE_X / src_bytes_per_row;
