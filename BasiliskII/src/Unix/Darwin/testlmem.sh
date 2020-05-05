@@ -20,8 +20,7 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-PAGEZERO_SIZE=0x2000
-[[ -n "$1" ]] && PAGEZERO_SIZE=$1
+PAGEZERO_SIZE=${1:-0x2000}
 # You want all the output to go to stderr so that configure is quiet but
 # config.log is verbose.
 { echo 'building lowmem utility' && \
