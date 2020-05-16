@@ -71,7 +71,7 @@ void SaveXPRAM(void)
 	SDL_snprintf(full_path, sizeof(full_path), "%s/%s", dir, XPRAM_FILE_NAME);
 
 	// Save the XPRAM file
-	FILE *f = fopen(XPRAM_FILE_NAME, "wb");
+	FILE *f = fopen(full_path, "wb");
 	if (f != NULL) {
 		fwrite(XPRAM, 256, 1, f);
 		fclose(f);
