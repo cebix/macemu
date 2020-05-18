@@ -763,11 +763,17 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 	}
 
 	if (!sdl_renderer) {
+		const char *render_driver = PrefsFindString("sdlrender");
+		if (render_driver) {
+			SDL_SetHint(SDL_HINT_RENDER_DRIVER, render_driver);
+		}
+		else {
 #ifdef WIN32
-		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
+			SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
 #else
-		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "");
+			SDL_SetHint(SDL_HINT_RENDER_DRIVER, "");
 #endif
+		}
 		sdl_renderer = SDL_CreateRenderer(sdl_window, -1, 0);
 		if (!sdl_renderer) {
 			shutdown_sdl_video();
