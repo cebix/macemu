@@ -41,6 +41,21 @@
 #endif
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+
+#ifdef ENABLE_MACOSX_ETHERHELPER
+
+#ifdef __APPLE__
+#include <net/if_dl.h>
+#endif
+
+#ifdef __linux__
+#include <linux/if_packet.h>
+#endif
+
+#include <sys/socket.h>
+#include <ifaddrs.h>
+#endif
+
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -49,6 +64,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <map>
+#include <string>
 
 #if defined(__FreeBSD__) || defined(sgi) || (defined(__APPLE__) && defined(__MACH__))
 #include <net/if.h>
@@ -93,8 +109,16 @@ enum {
 	NET_IF_SHEEPNET,
 	NET_IF_ETHERTAP,
 	NET_IF_TUNTAP,
-	NET_IF_SLIRP
+	NET_IF_SLIRP,
+	NET_IF_ETHERHELPER
 };
+
+
+#ifdef ENABLE_MACOSX_ETHERHELPER
+extern "C" {
+	extern FILE * run_tool(const char *if_name, const char *tool_name);
+}
+#endif
 
 // Constants
 #if ENABLE_TUNTAP
@@ -122,6 +146,11 @@ static uint8 ether_addr[6];					// Our Ethernet address
 const bool ether_driver_opened = true;		// Flag: is the MacOS driver opened?
 #endif
 
+
+#ifdef ENABLE_MACOSX_ETHERHELPER
+static uint8 packet_buffer[2048];
+#endif
+
 // Attached network protocols, maps protocol type to MacOS handler address
 static map<uint16, uint32> net_protocols;
 
@@ -135,6 +164,11 @@ static void ether_do_interrupt(void);
 static void slirp_add_redirs();
 static int slirp_add_redir(const char *redir_str);
 
+#ifdef ENABLE_MACOSX_ETHERHELPER
+static int get_mac_address(const char* dev, unsigned char *addr);
+static bool open_ether_helper(const std::string &if_name);
+static int read_packet(void);
+#endif
 
 /*
  *  Start packet reception thread
@@ -235,6 +269,9 @@ bool ether_init(void)
 
 	// Do nothing if no Ethernet device specified
 	const char *name = PrefsFindString("ether");
+#ifdef ENABLE_MACOSX_ETHERHELPER
+	std::string slave_dev;
+#endif
 	if (name == NULL)
 		return false;
 
@@ -249,6 +286,10 @@ bool ether_init(void)
 #ifdef HAVE_SLIRP
 	else if (strcmp(name, "slirp") == 0)
 		net_if_type = NET_IF_SLIRP;
+#endif
+#ifdef ENABLE_MACOSX_ETHERHELPER
+	else if (strncmp(name, "etherhelper", 10) == 0)
+		 net_if_type = NET_IF_ETHERHELPER;
 #endif
 	else
 		net_if_type = NET_IF_SHEEPNET;
@@ -300,6 +341,25 @@ bool ether_init(void)
 	case NET_IF_SHEEPNET:
 		strcpy(dev_name, "/dev/sheep_net");
 		break;
+#ifdef ENABLE_MACOSX_ETHERHELPER
+	case NET_IF_ETHERHELPER: {
+		std::string device(name);
+		size_t pos;
+
+		pos = device.find('/');
+		if(pos != device.npos) {
+			slave_dev = device.substr(pos + 1);
+		}
+
+		if(slave_dev.size() == 0) {
+			WarningAlert("No network device specified.");
+			return false;
+		}
+
+		return open_ether_helper(slave_dev);
+	}
+
+#endif
 	}
 	if (net_if_type != NET_IF_SLIRP) {
 		fd = open(dev_name, O_RDWR);
@@ -751,6 +811,21 @@ static int16 ether_do_write(uint32 arg)
 		return noErr;
 	} else
 #endif
+#ifdef ENABLE_MACOSX_ETHERHELPER
+	if (net_if_type == NET_IF_ETHERHELPER) {
+		unsigned short pkt_len;
+
+		pkt_len = len;
+		if (write(fd, &pkt_len, 2) < 2) {
+			return excessCollsns;
+		}
+
+		if (write(fd, packet, len) < len) {
+			return excessCollsns;
+		}
+		return noErr;
+	} else
+#endif
 	if (write(fd, packet, len) < 0) {
 		D(bug("WARNING: Couldn't transmit packet\n"));
 		return excessCollsns;
@@ -884,6 +959,13 @@ static void *receive_func(void *arg)
 		if (res <= 0)
 			break;
 
+#ifdef ENABLE_MACOSX_ETHERHELPER
+		if (net_if_type == NET_IF_ETHERHELPER) {
+			if (read_packet() < 1) {
+				break;
+			}
+		}
+#endif
 		if (ether_driver_opened) {
 			// Trigger Ethernet interrupt
 			D(bug(" packet received, triggering Ethernet interrupt\n"));
@@ -922,6 +1004,18 @@ void ether_do_interrupt(void)
 				break;
 			ether_udp_read(packet, length, &from);
 
+		} else
+#endif
+#ifdef ENABLE_MACOSX_ETHERHELPER
+		if (net_if_type == NET_IF_ETHERHELPER) {
+			unsigned short *pkt_len;
+			uint32 p = packet;
+
+			pkt_len = (unsigned short *)packet_buffer;
+			length = *pkt_len;
+			memcpy(Mac2HostAddr(packet), pkt_len + 1, length);
+			ether_dispatch_packet(p, length);
+			break;
 		} else
 #endif
 		{
@@ -1049,3 +1143,144 @@ static int slirp_add_redir(const char *redir_str)
 	WarningAlert(str);
 	return -1;
 }
+
+#ifdef ENABLE_MACOSX_ETHERHELPER
+static int get_mac_address(const char* dev, unsigned char *addr)
+{
+	struct ifaddrs *ifaddrs, *next;
+	int ret = -1;
+#ifdef __APPLE__
+	struct sockaddr_dl *sa;
+#endif
+
+#ifdef __linux__
+	struct sockaddr_ll *sa;
+#endif
+	if (getifaddrs(&ifaddrs) != 0) {
+		perror("getifaddrs");
+		return -1;
+	}
+
+	next = ifaddrs;
+	while (next != NULL) {
+		switch (next->ifa_addr->sa_family) {
+#ifdef __APPLE__
+		case AF_LINK:
+			if (!strcmp(dev, next->ifa_name)) {
+				sa = (struct sockaddr_dl *)next->ifa_addr;
+				memcpy(addr, LLADDR(sa), 6);
+				ret = 0;
+			}
+			break;
+#endif
+
+#ifdef __linux__
+		case AF_PACKET:
+			if (!strcmp(dev, next->ifa_name)) {
+				sa = (struct sockaddr_ll *)next->ifa_addr;
+				memcpy(addr, sa->sll_addr, 6);
+				ret = 0;
+			}
+			break;
+#endif
+		default:
+			break;
+		}
+		next = next->ifa_next;
+	}
+
+	freeifaddrs(ifaddrs);
+
+	return ret;
+}
+
+static bool open_ether_helper(const std::string &if_name)
+{
+	FILE *fp;
+	char str[64];
+	std::string dev_name;
+	size_t pos;
+
+	fp = run_tool(if_name.c_str(), "etherhelpertool");
+	if (fp == NULL) {
+		snprintf(str, sizeof(str), "Unable to run ether helper helper tool.");
+		WarningAlert(str);
+		return false;
+	}
+
+	pos = if_name.find('/');
+	dev_name = if_name;
+	if(pos != if_name.npos) {
+		dev_name.erase(pos);
+	}
+
+	if(strncmp(if_name.c_str(), "tap", 3) != 0) {
+		if (get_mac_address(dev_name.c_str(), ether_addr) != 0) {
+			snprintf(str, sizeof(str), "Unable to find interface %s.",
+				 dev_name.c_str());
+			WarningAlert(str);
+			return false;
+		}
+	} else {
+		/* There is something special about this address. */
+		pid_t p = getpid();
+		ether_addr[0] = 0xfe;
+		ether_addr[1] = 0xfd;
+		ether_addr[2] = p >> 24;
+		ether_addr[3] = p >> 16;
+		ether_addr[4] = p >> 8;
+		ether_addr[5] = p;
+	}
+
+	fd = dup(fileno(fp));
+	fclose(fp);
+
+	if (start_thread() == false) {
+		close(fd);
+		fd = -1;
+		return false;
+	}
+
+	return true;
+}
+
+static int read_packet()
+{
+	int index;
+	unsigned short *pkt_len;
+	int ret = -1;
+
+	pkt_len = (unsigned short *)packet_buffer;
+
+	index = 0;
+	while (1) {
+		if (index < 2) {
+			ret = read(fd, packet_buffer + index, 2 - index);
+		} else {
+			ret = read(fd, packet_buffer + index, *pkt_len - index + 2);
+		}
+
+		if (ret < 1) {
+			fprintf(stderr, "%s: read() returned %d.\n", __func__, ret);
+			break;
+		}
+
+		index += ret;
+
+		if (index > 1) {
+			if (*pkt_len > (sizeof(packet_buffer) + 2)) {
+				fprintf(stderr, "%s: pkt_len (%d) too large.\n", __func__, *pkt_len);
+				break;
+			}
+
+			if (index == (*pkt_len + 2)) {
+				ret = *pkt_len;
+				break;
+			}
+		}
+	}
+
+	return ret;
+}
+
+#endif

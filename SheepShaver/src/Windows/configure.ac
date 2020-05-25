@@ -12,7 +12,7 @@ AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 
 dnl Options.
-AC_ARG_ENABLE(jit,          [  --enable-jit            enable JIT compiler [default=yes]], [WANT_JIT=$enableval], [WANT_JIT=no])
+AC_ARG_ENABLE(jit,          [  --enable-jit            enable JIT compiler [default=yes]], [WANT_JIT=$enableval], [WANT_JIT=yes])
 AC_ARG_WITH(gtk,          [  --with-gtk              use GTK user interface [default=yes]], [WANT_GTK=$withval], [WANT_GTK=yes])
 AC_ARG_ENABLE(vosf,         [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=yes])
 
@@ -192,6 +192,13 @@ if [[ "x$HAVE_GCC30" = "xyes" ]]; then
   CFLAGS="$SAVED_CFLAGS"
 fi
 
+case $host_os in
+cygwin)
+	CFLAGS="$CFLAGS -mwin32"
+	CXXFLAGS="$CXXFLAGS -mwin32"
+	;;
+esac
+
 dnl CPU emulator sources
 CPUSRCS="\
     ../kpx_cpu/src/mathlib/ieeefp.cpp \
@@ -205,6 +212,7 @@ CPPFLAGS="$CPPFLAGS -I../kpx_cpu/include -I../kpx_cpu/src"
 
 dnl Enable JIT compiler, if possible
 USE_DYNGEN="no"
+USE_PREGENERATED_DYNGEN="no"
 if [[ "x$WANT_JIT" = "xyes" ]]; then
   case $host_cpu in
   i?86)
@@ -216,6 +224,16 @@ if [[ "x$WANT_JIT" = "xyes" ]]; then
     fi
     ;;
   esac
+
+  case $host_os in
+  cygwin)
+	USE_PREGENERATED_DYNGEN="no"
+	;;
+  *)
+	USE_PREGENERATED_DYNGEN="yes"
+	;;
+  esac
+
   USE_DYNGEN="yes"
   DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -finline-limit=10000 -g0"
   if [[ "x$HAVE_GCC30" = "xyes" ]]; then
@@ -256,6 +274,7 @@ fi
 dnl Generate Makefile.
 AC_SUBST(PERL)
 AC_SUBST(USE_DYNGEN)
+AC_SUBST(USE_PREGENERATED_DYNGEN)
 AC_SUBST(DYNGENSRCS)
 AC_SUBST(DYNGEN_OP_FLAGS)
 AC_SUBST(CPUSRCS)

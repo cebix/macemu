@@ -57,6 +57,8 @@ template void powerpc_cpu::execute_fp_arith<double, op_fnmadds, operand_fp_RD, o
 template void powerpc_cpu::execute_fp_arith<double, op_fnmsub, operand_fp_RD, operand_fp_RA, operand_fp_RC, operand_fp_RB, RC_BIT_G, true>(uint32);
 template void powerpc_cpu::execute_fp_arith<double, op_fnmsubs, operand_fp_RD, operand_fp_RA, operand_fp_RC, operand_fp_RB, RC_BIT_G, true>(uint32);
 template void powerpc_cpu::execute_fp_round<RC_BIT_G>(uint32);
+template void powerpc_cpu::execute_fp_arith<double, op_fres, operand_fp_RD, operand_fp_RB, operand_fp_NONE, operand_fp_NONE, RC_BIT_G, true>(uint32);
+template void powerpc_cpu::execute_fp_arith<double, op_frsqrte, operand_fp_RD, operand_fp_RB, operand_fp_NONE, operand_fp_NONE, RC_BIT_G, true>(uint32);
 template void powerpc_cpu::execute_fp_arith<double, op_fsel, operand_fp_RD, operand_fp_RA, operand_fp_RC, operand_fp_RB, RC_BIT_G, false>(uint32);
 template void powerpc_cpu::execute_fp_arith<double, op_fsub, operand_fp_RD, operand_fp_RA, operand_fp_RB, operand_fp_NONE, RC_BIT_G, true>(uint32);
 template void powerpc_cpu::execute_fp_arith<float, op_fsub, operand_fp_RD, operand_fp_RA, operand_fp_RB, operand_fp_NONE, RC_BIT_G, true>(uint32);
@@ -258,7 +260,7 @@ template void powerpc_cpu::execute_vector_arith<op_frsiz, operand_vD_V4SF, opera
 template void powerpc_cpu::execute_vector_arith<op_vrl<uint8>, operand_vD_V16QI, operand_vA_V16QI, operand_vB_V16QI, operand_vC_NONE, fake_bit_field< bool, false >, 0 >(uint32);
 template void powerpc_cpu::execute_vector_arith<op_vrl<uint16>, operand_vD_V8HI, operand_vA_V8HI, operand_vB_V8HI, operand_vC_NONE, fake_bit_field< bool, false >, 0 >(uint32);
 template void powerpc_cpu::execute_vector_arith<op_vrl<uint32>, operand_vD_V4SI, operand_vA_V4SI, operand_vB_V4SI, operand_vC_NONE, fake_bit_field< bool, false >, 0 >(uint32);
-template void powerpc_cpu::execute_vector_arith<op_frsqrt, operand_vD_V4SF, operand_vA_NONE, operand_vB_V4SF, operand_vC_NONE, fake_bit_field< bool, false >, 0 >(uint32);
+template void powerpc_cpu::execute_vector_arith<op_frsqrte, operand_vD_V4SF, operand_vA_NONE, operand_vB_V4SF, operand_vC_NONE, fake_bit_field< bool, false >, 0 >(uint32);
 template void powerpc_cpu::execute_vector_arith<op_vsel, operand_vD_V4SI, operand_vA_V4SI, operand_vB_V4SI, operand_vC_V4SI, fake_bit_field< bool, false >, 0 >(uint32);
 template void powerpc_cpu::execute_vector_shift<-1>(uint32);
 template void powerpc_cpu::execute_vector_arith<op_vsl<uint8>, operand_vD_V16QI, operand_vA_V16QI, operand_vB_V16QI, operand_vC_NONE, fake_bit_field< bool, false >, 0 >(uint32);

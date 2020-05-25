@@ -371,8 +371,10 @@ private:
 	friend class powerpc_jit;
 	powerpc_jit codegen;
 	block_info *compile_block(uint32 entry);
+	static void call_do_record_step(powerpc_cpu * cpu, uint32 pc, uint32 opcode);
 #if DYNGEN_DIRECT_BLOCK_CHAINING
 	void *compile_chain_block(block_info *sbi);
+	static void * call_compile_chain_block(powerpc_cpu * the_cpu, block_info *sbi);
 #endif
 #endif
 
@@ -389,6 +391,7 @@ private:
 	// Instruction handlers
 	void execute_nop(uint32 opcode);
 	void execute_illegal(uint32 opcode);
+	static void call_execute_illegal(powerpc_cpu * cpu, uint32 opcode);
 	template< class RA, class RB, class RC, class CA, class OE, class Rc >
 	void execute_addition(uint32 opcode);
 	template< class OP, class RD, class RA, class RB, class RC, class OE, class Rc >
@@ -453,6 +456,7 @@ private:
 	void execute_icbi(uint32 opcode);
 	void execute_isync(uint32 opcode);
 	void execute_invalidate_cache_range();
+	static void call_execute_invalidate_cache_range(powerpc_cpu * cpu);
 	template< class RA, class RB >
 	void execute_dcbz(uint32 opcode);
 	template< bool SL >

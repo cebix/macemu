@@ -125,6 +125,22 @@ static void disasm_translation(uint32 src_addr, uint32 src_len,
  **/
 
 #if PPC_ENABLE_JIT
+
+void 
+powerpc_cpu::call_do_record_step(powerpc_cpu * cpu, uint32 param1, uint32 param2) {
+	cpu->do_record_step(param1, param2);
+}
+
+void
+powerpc_cpu::call_execute_invalidate_cache_range(powerpc_cpu * cpu) {
+	cpu->execute_invalidate_cache_range();
+}
+
+void
+powerpc_cpu::call_execute_illegal(powerpc_cpu * cpu, uint32 param1) {
+	cpu->execute_illegal(param1);
+}
+
 powerpc_cpu::block_info *
 powerpc_cpu::compile_block(uint32 entry_point)
 {
@@ -169,7 +185,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 #if PPC_FLIGHT_RECORDER
 		if (is_logging()) {
 			typedef void (*func_t)(dyngen_cpu_base, uint32, uint32);
-			func_t func = (func_t)nv_mem_fun((execute_pmf)&powerpc_cpu::do_record_step).ptr();
+			func_t func = &powerpc_cpu::call_do_record_step;
 			dg.gen_invoke_CPU_im_im(func, dpc, opcode);
 		}
 #endif
@@ -1120,7 +1136,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		case PPC_I(ISYNC):		// Instruction synchronize
 		{
 			typedef void (*func_t)(dyngen_cpu_base);
-			func_t func = (func_t)nv_mem_fun(&powerpc_cpu::execute_invalidate_cache_range).ptr();
+			func_t func = &powerpc_cpu::call_execute_invalidate_cache_range;
 			dg.gen_invoke_CPU(func);
 			break;
 		}
@@ -1377,10 +1393,17 @@ powerpc_cpu::compile_block(uint32 entry_point)
 		case PPC_I(STVEWX):
 		case PPC_I(STVX):
 		case PPC_I(STVXL):
+		{
 			assert(vD_field::mask() == vS_field::mask());
 			assert(vA_field::mask() == rA_field::mask());
 			assert(vB_field::mask() == rB_field::mask());
-			// fall-through
+			const int vD = vD_field::extract(opcode);
+			const int vA = vA_field::extract(opcode);
+			const int vB = vB_field::extract(opcode);
+			if (!dg.gen_vector_2(ii->mnemo, vD, vA, vB))			
+				goto do_generic;
+			break;
+		}
 		case PPC_I(VCMPEQFP):
 		case PPC_I(VCMPEQUB):
 		case PPC_I(VCMPEQUH):
@@ -1488,10 +1511,14 @@ powerpc_cpu::compile_block(uint32 entry_point)
 			typedef void (*func_t)(dyngen_cpu_base, uint32);
 			func_t func;
 		  do_generic:
+		  #ifdef __MINGW32__
+			func = (func_t)ii->execute.default_call_conv_ptr();
+		  #else
 			func = (func_t)ii->execute.ptr();
+		  #endif
 			goto do_invoke;
 		  do_illegal:
-			func = (func_t)nv_mem_fun(&powerpc_cpu::execute_illegal).ptr();
+			func = &powerpc_cpu::call_execute_illegal;
 			goto do_invoke;	
 		  do_invoke:
 #if PPC_PROFILE_GENERIC_CALLS
@@ -1554,7 +1581,7 @@ powerpc_cpu::compile_block(uint32 entry_point)
 	// Generate backpatch trampolines
 	if (use_direct_block_chaining) {
 		typedef void *(*func_t)(dyngen_cpu_base);
-		func_t func = (func_t)nv_mem_fun(&powerpc_cpu::compile_chain_block).ptr();
+		func_t func = (func_t)&powerpc_cpu::call_compile_chain_block;
 		for (int i = 0; i < block_info::MAX_TARGETS; i++) {
 			if (bi->li[i].jmp_pc != block_info::INVALID_PC) {
 				uint8 *p = dg.gen_align(16);

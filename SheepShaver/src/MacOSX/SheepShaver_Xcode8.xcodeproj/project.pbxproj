@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 44;
+	objectVersion = 45;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -100,6 +100,9 @@
 		E413A40320CF7E6D00FBE967 /* video_sdl2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E413A40220CF7E6D00FBE967 /* video_sdl2.cpp */; };
 		E4150D1220D557820077C51A /* SDL2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E4150D1120D557820077C51A /* SDL2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E41936C420CFE64D003A7654 /* SDLMain.m in Sources */ = {isa = PBXBuildFile; fileRef = E41936C320CFE64D003A7654 /* SDLMain.m */; };
+		E4202603241250EE000508DF /* runtool.c in Sources */ = {isa = PBXBuildFile; fileRef = E4202602241250EE000508DF /* runtool.c */; };
+		E420260524125182000508DF /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E420260424125182000508DF /* Security.framework */; };
+		E420260B24125442000508DF /* etherhelpertool in Resources */ = {isa = PBXBuildFile; fileRef = E420260A2412540D000508DF /* etherhelpertool */; };
 		E420910120D0C4FA0094654F /* SDL2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E420910020D0C4FA0094654F /* SDL2.framework */; };
 		E444DC1520C8F06700DD29C9 /* pict.c in Sources */ = {isa = PBXBuildFile; fileRef = E444DC1420C8F06700DD29C9 /* pict.c */; };
 		E44C460520D262B0000583AE /* tftp.c in Sources */ = {isa = PBXBuildFile; fileRef = E44C45DC20D262AD000583AE /* tftp.c */; };
@@ -356,6 +359,10 @@
 		E4150D1120D557820077C51A /* SDL2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL2.framework; path = /Library/Frameworks/SDL2.framework; sourceTree = "<group>"; };
 		E41936C220CFE64D003A7654 /* SDLMain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = SDLMain.h; path = ../../../BasiliskII/src/SDL/SDLMain.h; sourceTree = "<group>"; };
 		E41936C320CFE64D003A7654 /* SDLMain.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = SDLMain.m; path = ../../../BasiliskII/src/SDL/SDLMain.m; sourceTree = "<group>"; };
+		E4202600241250E2000508DF /* etherhelpertool.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = etherhelpertool.c; sourceTree = "<group>"; };
+		E4202602241250EE000508DF /* runtool.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = runtool.c; sourceTree = "<group>"; };
+		E420260424125182000508DF /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		E420260A2412540D000508DF /* etherhelpertool */ = {isa = PBXFileReference; lastKnownFileType = text; path = etherhelpertool; sourceTree = BUILT_PRODUCTS_DIR; };
 		E420910020D0C4FA0094654F /* SDL2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL2.framework; path = /Library/Frameworks/SDL2.framework; sourceTree = "<group>"; };
 		E4302EE21FBFE7FA00A5B500 /* lowmem.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = lowmem.c; path = Darwin/lowmem.c; sourceTree = "<group>"; };
 		E444DC1420C8F06700DD29C9 /* pict.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = pict.c; path = ../pict.c; sourceTree = "<group>"; };
@@ -422,6 +429,7 @@
 				5DDE95052255C822004D0E79 /* CoreAudio.framework in Frameworks */,
 				5DDE95032255C7FE004D0E79 /* AudioToolbox.framework in Frameworks */,
 				E420910120D0C4FA0094654F /* SDL2.framework in Frameworks */,
+				E420260524125182000508DF /* Security.framework in Frameworks */,
 				0856D21514A9A6C6000B1711 /* IOKit.framework in Frameworks */,
 				08CD42DC14B7B85B009CA2A2 /* Cocoa.framework in Frameworks */,
 				08CD42E814B7B8AA009CA2A2 /* Carbon.framework in Frameworks */,
@@ -460,6 +468,7 @@
 				0856CCC814A99E30000B1711 /* Sources */,
 				08CD42DF14B7B865009CA2A2 /* Frameworks */,
 				0856CCC214A99E1C000B1711 /* Products */,
+				E420260924125403000508DF /* Generated */,
 			);
 			sourceTree = "<group>";
 		};
@@ -736,6 +745,8 @@
 		0856CE0614A99EEF000B1711 /* MacOSX */ = {
 			isa = PBXGroup;
 			children = (
+				E4202600241250E2000508DF /* etherhelpertool.c */,
+				E4202602241250EE000508DF /* runtool.c */,
 				0873A76514ABD151004F12B7 /* config */,
 				0856D2D614A9A704000B1711 /* Launcher */,
 				5DDE950D2255C8B3004D0E79 /* audio_defs_macosx.h */,
@@ -900,15 +911,21 @@
 		08CD42DF14B7B865009CA2A2 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				5DDE95062255C844004D0E79 /* AudioUnit.framework */,
-				5DDE95042255C822004D0E79 /* CoreAudio.framework */,
-				5DDE95022255C7FE004D0E79 /* AudioToolbox.framework */,
+				E420260424125182000508DF /* Security.framework */,
 				E420910020D0C4FA0094654F /* SDL2.framework */,
 				08CD42E714B7B8AA009CA2A2 /* Carbon.framework */,
 				08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */,
 				0856D21414A9A6C6000B1711 /* IOKit.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		E420260924125403000508DF /* Generated */ = {
+			isa = PBXGroup;
+			children = (
+				E420260A2412540D000508DF /* etherhelpertool */,
+			);
+			name = Generated;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -957,6 +974,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0856CCC714A99E1D000B1711 /* Build configuration list for PBXNativeTarget "SheepShaver" */;
 			buildPhases = (
+				E4202606241251C6000508DF /* ShellScript */,
 				0856CCBD14A99E1C000B1711 /* Resources */,
 				0856CCBE14A99E1C000B1711 /* Sources */,
 				0856CCBF14A99E1C000B1711 /* Frameworks */,
@@ -1007,6 +1025,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E420260B24125442000508DF /* etherhelpertool in Resources */,
 				E44C460820D262B0000583AE /* VERSION in Resources */,
 				0856D05914A99EF1000B1711 /* SheepShaver.icns in Resources */,
 				E44C460F20D262B0000583AE /* COPYRIGHT in Resources */,
@@ -1031,6 +1050,23 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "sed -i '' 's/@PACKAGE_VERSION@/2.5/g' \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n";
+		};
+		E4202606241251C6000508DF /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cc etherhelpertool.c -framework Security -o $BUILT_PRODUCTS_DIR/etherhelpertool\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -1099,7 +1135,7 @@
 				0856D06214A99EF1000B1711 /* audio_sdl.cpp in Sources */,
 				0856D06614A99EF1000B1711 /* serial.cpp in Sources */,
 				E456E2AD20C82B61006C8DC2 /* clip_macosx64.mm in Sources */,
-				5D3967C02328D315003925D6 /* adb.cpp in Sources */,
+				E4202603241250EE000508DF /* runtool.c in Sources */,
 				0856D07B14A99EF1000B1711 /* sony.cpp in Sources */,
 				0856D07C14A99EF1000B1711 /* thunks.cpp in Sources */,
 				0856D07D14A99EF1000B1711 /* timer.cpp in Sources */,
@@ -1285,6 +1321,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				CLANG_CXX_LIBRARY = "libc++";
+				CODE_SIGN_ENTITLEMENTS = SheepShaver.entitlements;
 				COPY_PHASE_STRIP = NO;
 				FRAMEWORK_SEARCH_PATHS = /Library/Frameworks;
 				GCC_CW_ASM_SYNTAX = NO;
@@ -1297,6 +1334,7 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
 				GCC_PREFIX_HEADER = "";
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					ENABLE_MACOSX_ETHERHELPER,
 					"DATADIR=",
 					HAVE_CONFIG_H,
 					USE_JIT,
@@ -1334,6 +1372,7 @@
 					"-lkpx_cpu",
 				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
+				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.sheepshaver;
 				PRODUCT_NAME = SheepShaver;
 				VALID_ARCHS = x86_64;
 				WARNING_LDFLAGS = "";
@@ -1346,6 +1385,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				CLANG_CXX_LIBRARY = "libc++";
+				CODE_SIGN_ENTITLEMENTS = SheepShaver.entitlements;
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = NO;
 				FRAMEWORK_SEARCH_PATHS = /Library/Frameworks;
@@ -1359,6 +1399,7 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
 				GCC_PREFIX_HEADER = "";
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					ENABLE_MACOSX_ETHERHELPER,
 					"DATADIR=",
 					HAVE_CONFIG_H,
 					USE_JIT,
@@ -1397,6 +1438,7 @@
 					"-lkpx_cpu",
 				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
+				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.sheepshaver;
 				PRODUCT_NAME = SheepShaver;
 				VALID_ARCHS = x86_64;
 			};

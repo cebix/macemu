@@ -133,6 +133,13 @@ uint32 TimeToMacTime(time_t t)
 	// This code is taken from glibc 2.2
 
 	// Convert to number of seconds elapsed since 1-Jan-1904
+
+	#ifdef WIN32
+	if (t == -1) {
+		// failsafe as this will segfault
+		return 0;
+	}
+	#endif
 	struct tm *local = localtime(&t);
 	const int TM_EPOCH_YEAR = 1900;
 	const int MAC_EPOCH_YEAR = 1904;

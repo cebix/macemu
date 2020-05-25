@@ -90,9 +90,9 @@ private:
 	bool gen_sse2_vsel(int mnemo, int vD, int vA, int vB, int vC);
 	bool gen_sse2_vsldoi(int mnemo, int vD, int vA, int vB, int SH);
 	void gen_sse2_vsplat(int vD, int rValue);
-	bool gen_sse2_vspltisb(int mnemo, int vD, int SIMM);
-	bool gen_sse2_vspltish(int mnemo, int vD, int SIMM);
-	bool gen_sse2_vspltisw(int mnemo, int vD, int SIMM);
+	bool gen_sse2_vspltisb(int mnemo, int vD, int SIMM, int unused);
+	bool gen_sse2_vspltish(int mnemo, int vD, int SIMM, int unused);
+	bool gen_sse2_vspltisw(int mnemo, int vD, int SIMM, int unused);
 	bool gen_sse2_vspltb(int mnemo, int vD, int UIMM, int vB);
 	bool gen_sse2_vsplth(int mnemo, int vD, int UIMM, int vB);
 	bool gen_sse2_vspltw(int mnemo, int vD, int UIMM, int vB);

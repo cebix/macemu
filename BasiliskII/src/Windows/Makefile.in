@@ -118,7 +118,7 @@ $(APP): $(XPLATSRCS) $(OBJ_DIR) $(OBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(OBJS) $(LIBS) $(SDL_LIBS)
 
 $(UI_APP): $(XPLATSRCS) $(OBJ_DIR) $(UI_OBJS)
-	$(CXX) -o $@ $(LDFLAGS) $(UI_OBJS) $(LIBS) $(GTK_LIBS) -mwindows -mno-cygwin
+	$(CXX) -o $@ $(LDFLAGS) $(UI_OBJS) $(LIBS) -Wl,-Bdynamic $(GTK_LIBS) -Wl,-Bstatic -mwindows -static-libgcc
 
 mostlyclean:
 	rm -f $(APP) $(UI_APP) $(OBJ_DIR)/* core* *.core *~ *.bak
@@ -149,7 +149,7 @@ $(OBJ_DIR)/%.o : %.cpp
 $(OBJ_DIR)/%.o : %.s
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
 $(OBJ_DIR)/prefs_editor_gtk.o: prefs_editor_gtk.cpp
-	$(CXX) -O2 -mno-cygwin -mms-bitfields $(CPPFLAGS) $(DEFS) $(GTK_CFLAGS) -c $< -o $@
+	$(CXX) -O2 -mms-bitfields $(CPPFLAGS) $(DEFS) $(GTK_CFLAGS) -c $< -o $@
 
 # Windows resources
 $(OBJ_DIR)/%.o: %.rc
