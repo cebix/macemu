@@ -295,16 +295,18 @@ static bool position2msf(const cdrom_drive_info &info, uint16 postype, uint32 po
 void CDROMInit(void)
 {
 	// No drives specified in prefs? Then add defaults
-	if (PrefsFindString("cdrom", 0) == NULL)
+	if (PrefsFindString("cdrom", 0) == NULL) {
 		SysAddCDROMPrefs();
-	
-	// Add drives specified in preferences
-	int index = 0;
-	const char *str;
-	while ((str = PrefsFindString("cdrom", index++)) != NULL) {
-		void *fh = Sys_open(str, true);
-		if (fh)
-			drives.push_back(cdrom_drive_info(fh));
+	}
+	else {
+		// Add drives specified in preferences
+		int index = 0;
+		const char *str;
+		while ((str = PrefsFindString("cdrom", index++)) != NULL) {
+			void *fh = Sys_open(str, true);
+			if (fh)
+				drives.push_back(cdrom_drive_info(fh));
+		}
 	}
 	
 	if (!drives.empty()) { // set to first drive by default
