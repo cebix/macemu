@@ -20,7 +20,7 @@
 
 #include "sysdeps.h"
 #include "user_strings.h"
-
+#include "util_windows.h"
 
 // Platform-specific string definitions
 user_string_def platform_strings[] = {
@@ -86,7 +86,11 @@ static const char *get_volume_name(void)
 	HKEY hHelpKey;
 	DWORD key_type, cbData;
 
-	static char volume[256];
+	#ifdef _UNICODE
+	static char out_volume[256];
+	#endif
+
+	static TCHAR volume[256];
 	memset(volume, 0, sizeof(volume));
 
 	// Try Windows 2000 key first
@@ -123,14 +127,19 @@ static const char *get_volume_name(void)
 	}
 
 	// Fix the error that some "tweak" apps do.
-	if (stricmp(volume, "%USERNAME% on %COMPUTER%") == 0)
-		volume[0] = '\0';
+	if (_tcsicmp(volume, TEXT("%USERNAME% on %COMPUTER%")) == 0)
+		volume[0] = TEXT('\0');
 
 	// No volume name found, default to "My Computer"
 	if (volume[0] == 0)
-		strcpy(volume, "My Computer");
+		_tcscpy(volume, TEXT("My Computer"));
 
+	#ifdef _UNICODE
+	strlcpy(out_volume, volume, 256);
+	return out_volume;
+	#else
 	return volume;
+	#endif
 }
 
 

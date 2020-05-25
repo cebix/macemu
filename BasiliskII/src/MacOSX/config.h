@@ -815,7 +815,6 @@
    <inttypes.h> don't define. */
 /* #undef uintmax_t */
 
-#define FPU_UAE 1
-//#define FPU_IMPLEMENTATION 1
+#define FPU_IEEE
 
 #endif

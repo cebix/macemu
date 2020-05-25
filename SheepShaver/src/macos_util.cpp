@@ -327,6 +327,10 @@ uint32 TimeToMacTime(time_t t)
 
 	// Convert to number of seconds elapsed since 1-Jan-1904
 #ifdef WIN32
+	if (t == -1) {
+		// failsafe as this will segfault
+		return 0;
+	}
 	struct tm *local = localtime(&t);
 #else
 	struct tm result;

@@ -525,7 +525,7 @@ union DL_primitives {
 struct EnetPacketHeader {
 	uint8 fDestAddr[6];
 	uint8 fSourceAddr[6];
-	nw_uint16 fProto;
+	uint16 fProto;
 } PACKED__;
 
 struct T8022Header {
@@ -548,7 +548,7 @@ struct T8022FullPacketHeader {
 
 struct T8022AddressStruct {
 	uint8 fHWAddr[6];
-	nw_uint16 fSAP;
+	uint16 fSAP;
 	uint8 fSNAP[k8022SNAPLength];
 } PACKED__;
 

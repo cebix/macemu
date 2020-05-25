@@ -41,7 +41,9 @@
 #undef _TEXT
 #include <time.h>
 #ifdef __WIN32__
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <WinSock2.h>
 #endif
 #include <sys/types.h>
 
@@ -147,6 +149,19 @@ static inline uint32 do_opt_bswap_32(uint32 x)
   __asm__ __volatile__ ("bswap %0" : "=r" (v) : "0" (x));
   return v;
 }
+
+#if defined(__CYGWIN__) || defined(__MINGW32__)
+
+#define opt_bswap_16 do_opt_bswap_16
+static inline uint16 do_opt_bswap_16(uint16 x)
+{
+  uint16 v;
+  __asm__ __volatile__ ("rolw $8, %0" : "=r" (v) : "0" (x));
+  return v;
+}
+
+#endif
+
 #endif
 #endif
 

@@ -101,6 +101,14 @@ static int net_if_type = -1;	// Ethernet device type
 #ifdef SHEEPSHAVER
 static bool net_open = false;	// Flag: initialization succeeded, network device open
 uint8 ether_addr[6];			// Our Ethernet address
+
+#else
+const bool ether_driver_opened = true;  // Flag: Driver is open on MacOS side
+                                        // so ether.h layer is ready for
+                                        // calls.
+                                        // B2 doesn't provide this
+                                        // but also calls don't need it
+                           
 #endif
 
 // These are protected by queue_csection
@@ -1571,10 +1579,16 @@ unsigned int WINAPI ether_thread_feed_int(void *arg)
 		D(bug("Triggering\n"));
 		looping = true;
 		while(thread_active && looping) {
-			trigger_queue();
-			// Wait for interrupt acknowledge by EtherInterrupt()
-			WaitForSingleObject(int_ack,INFINITE);
-			if(thread_active) looping = set_wait_request();
+			if (ether_driver_opened) {
+				trigger_queue();
+				// Wait for interrupt acknowledge by EtherInterrupt()
+				WaitForSingleObject(int_ack,INFINITE);
+				if(thread_active) looping = set_wait_request();
+			} else {
+				// Ether driver is closed on the MacOS side
+				// ether.h calls in this case are undefined
+				Delay_usec(20000);
+			}
 		}
 		D(bug("Queue empty.\n"));
 	}

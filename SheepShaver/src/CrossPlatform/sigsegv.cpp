@@ -2608,8 +2608,14 @@ sigsegv_address_t sigsegv_get_fault_instruction_address(sigsegv_info_t *SIP)
 
 #if defined(__APPLE__) && defined(__x86_64__)
 
-extern uint8_t gZeroPage[0x3000], gKernelData[0x2000];
-extern uint32_t RAMBase, ROMBase, ROMEnd;
+#ifdef CONFIGURE_TEST_SIGSEGV_RECOVERY
+#define EXTERN
+#else
+#define EXTERN extern
+#endif
+
+EXTERN uint8_t gZeroPage[0x3000], gKernelData[0x2000];
+EXTERN uint32_t RAMBase, ROMBase, ROMEnd;
 
 template<typename T> T safeLoad(uint32_t a) {
 	if (a < 0x3000) return *(T *)&gZeroPage[a];

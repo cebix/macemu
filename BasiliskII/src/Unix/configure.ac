@@ -39,7 +39,7 @@ AC_ARG_ENABLE(sdl-framework-prefix,    [  --enable-sdl-framework-prefix=PFX    d
 AC_ARG_WITH(sdl1,            [  --with-sdl1             use SDL 1.x, rather than SDL 2.x [default=no]], [WANT_SDL_VERSION_MAJOR=1], [])
 
 dnl JIT compiler options.
-AC_ARG_ENABLE(jit-compiler,  [  --enable-jit-compiler   enable JIT compiler [default=no]], [WANT_JIT=$enableval], [WANT_JIT=yes])
+AC_ARG_ENABLE(jit-compiler,  [  --enable-jit-compiler   enable JIT compiler [default=no]], [WANT_JIT=$enableval], [WANT_JIT=no])
 AC_ARG_ENABLE(jit-debug,     [  --enable-jit-debug      activate native code disassemblers [default=no]], [WANT_JIT_DEBUG=$enableval], [WANT_JIT_DEBUG=no])
 
 dnl FPU emulation core.
@@ -81,7 +81,7 @@ AC_ARG_WITH(gtk,             [  --with-gtk              use GTK user interface [
    *)         WANT_GTK="no";;
    esac],
   [WANT_GTK="gtk2 gtk"])
-AC_ARG_WITH(mon,             [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=yes])
+AC_ARG_WITH(mon,             [  --with-mon              use mon as debugger [default=no]], [WANT_MON=$withval], [WANT_MON=no])
 
 AC_ARG_WITH(bincue,   
   AS_HELP_STRING([--with-bincue], [Allow cdrom image files in bin/cue mode]))
@@ -881,6 +881,9 @@ if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
       EXTRASYSSRCS="$EXTRASYSSRCS ../dummy/clip_dummy.cpp"
       ;;
     esac
+    if [[ "$WANT_GTK" != "no" ]]; then
+      LIBS="$LIBS -lX11"
+    fi
   fi
 elif [[ "x$WANT_MACOSX_GUI" != "xyes" ]]; then
   VIDEOSRCS="video_x.cpp"

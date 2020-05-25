@@ -36,6 +36,11 @@ powerpc_jit::powerpc_jit(dyngen_cpu_base cpu)
 {
 }
 
+// An operand that refers to an address relative to the emulated machine
+static x86_memory_operand vm_memory_operand(int32 d, int b, int i = X86_NOREG, int s = 1) {
+	return x86_memory_operand(d + VMBaseDiff, b, i, s);
+}
+
 bool powerpc_jit::initialize(void)
 {
 	if (!powerpc_dyngen::initialize())
@@ -239,21 +244,25 @@ bool powerpc_jit::initialize(void)
 // Dispatch mid-level code generators
 bool powerpc_jit::gen_vector_1(int mnemo, int vD)
 {
+    if (jit_info[mnemo]->handler == (gen_handler_t)&powerpc_jit::gen_not_available) return false;
 	return (this->*((bool (powerpc_jit::*)(int, int))jit_info[mnemo]->handler))(mnemo, vD);
 }
 
 bool powerpc_jit::gen_vector_2(int mnemo, int vD, int vA, int vB)
 {
+    if (jit_info[mnemo]->handler == (gen_handler_t)&powerpc_jit::gen_not_available) return false;
 	return (this->*((bool (powerpc_jit::*)(int, int, int, int))jit_info[mnemo]->handler))(mnemo, vD, vA, vB);
 }
 
 bool powerpc_jit::gen_vector_3(int mnemo, int vD, int vA, int vB, int vC)
 {
+    if (jit_info[mnemo]->handler == (gen_handler_t)&powerpc_jit::gen_not_available) return false;
 	return (this->*((bool (powerpc_jit::*)(int, int, int, int, int))jit_info[mnemo]->handler))(mnemo, vD, vA, vB, vC);
 }
 
 bool powerpc_jit::gen_vector_compare(int mnemo, int vD, int vA, int vB, bool Rc)
 {
+    if (jit_info[mnemo]->handler == (gen_handler_t)&powerpc_jit::gen_not_available) return false;
 	return (this->*((bool (powerpc_jit::*)(int, int, int, int, bool))jit_info[mnemo]->handler))(mnemo, vD, vA, vB, Rc);
 }
 
@@ -395,8 +404,8 @@ bool powerpc_jit::gen_x86_lvx(int mnemo, int vD, int rA, int rB)
 		gen_add_32(x86_memory_operand(xPPC_GPR(rA), REG_CPU_ID), REG_T0_ID);
 	gen_and_32(x86_immediate_operand(-16), REG_T0_ID);
 #if SIZEOF_VOID_P == 8
-	gen_mov_64(x86_memory_operand(0, REG_T0_ID), REG_T1_ID);
-	gen_mov_64(x86_memory_operand(8, REG_T0_ID), REG_T2_ID);
+	gen_mov_64(vm_memory_operand(0, REG_T0_ID), REG_T1_ID);
+	gen_mov_64(vm_memory_operand(8, REG_T0_ID), REG_T2_ID);
 	gen_bswap_64(REG_T1_ID);
 	gen_bswap_64(REG_T2_ID);
 	gen_rol_64(x86_immediate_operand(32), REG_T1_ID);
@@ -404,14 +413,14 @@ bool powerpc_jit::gen_x86_lvx(int mnemo, int vD, int rA, int rB)
 	gen_mov_64(REG_T1_ID, x86_memory_operand(xPPC_VR(vD) + 0, REG_CPU_ID));
 	gen_mov_64(REG_T2_ID, x86_memory_operand(xPPC_VR(vD) + 8, REG_CPU_ID));
 #else
-	gen_mov_32(x86_memory_operand(0*4, REG_T0_ID), REG_T1_ID);
-	gen_mov_32(x86_memory_operand(1*4, REG_T0_ID), REG_T2_ID);
+	gen_mov_32(vm_memory_operand(0*4, REG_T0_ID), REG_T1_ID);
+	gen_mov_32(vm_memory_operand(1*4, REG_T0_ID), REG_T2_ID);
 	gen_bswap_32(REG_T1_ID);
 	gen_bswap_32(REG_T2_ID);
 	gen_mov_32(REG_T1_ID, x86_memory_operand(xPPC_VR(vD) + 0*4, REG_CPU_ID));
 	gen_mov_32(REG_T2_ID, x86_memory_operand(xPPC_VR(vD) + 1*4, REG_CPU_ID));
-	gen_mov_32(x86_memory_operand(2*4, REG_T0_ID), REG_T1_ID);
-	gen_mov_32(x86_memory_operand(3*4, REG_T0_ID), REG_T2_ID);
+	gen_mov_32(vm_memory_operand(2*4, REG_T0_ID), REG_T1_ID);
+	gen_mov_32(vm_memory_operand(3*4, REG_T0_ID), REG_T2_ID);
 	gen_bswap_32(REG_T1_ID);
 	gen_bswap_32(REG_T2_ID);
 	gen_mov_32(REG_T1_ID, x86_memory_operand(xPPC_VR(vD) + 2*4, REG_CPU_ID));
@@ -435,8 +444,8 @@ bool powerpc_jit::gen_x86_stvx(int mnemo, int vS, int rA, int rB)
 	gen_and_32(x86_immediate_operand(-16), REG_T0_ID);
 	gen_rol_64(x86_immediate_operand(32), REG_T1_ID);
 	gen_rol_64(x86_immediate_operand(32), REG_T2_ID);
-	gen_mov_64(REG_T1_ID, x86_memory_operand(0, REG_T0_ID));
-	gen_mov_64(REG_T2_ID, x86_memory_operand(8, REG_T0_ID));
+	gen_mov_64(REG_T1_ID, vm_memory_operand(0, REG_T0_ID));
+	gen_mov_64(REG_T2_ID, vm_memory_operand(8, REG_T0_ID));
 #else
 	gen_mov_32(x86_memory_operand(xPPC_VR(vS) + 0*4, REG_CPU_ID), REG_T1_ID);
 	gen_mov_32(x86_memory_operand(xPPC_VR(vS) + 1*4, REG_CPU_ID), REG_T2_ID);
@@ -445,14 +454,14 @@ bool powerpc_jit::gen_x86_stvx(int mnemo, int vS, int rA, int rB)
 	gen_bswap_32(REG_T1_ID);
 	gen_bswap_32(REG_T2_ID);
 	gen_and_32(x86_immediate_operand(-16), REG_T0_ID);
-	gen_mov_32(REG_T1_ID, x86_memory_operand(0*4, REG_T0_ID));
-	gen_mov_32(REG_T2_ID, x86_memory_operand(1*4, REG_T0_ID));
+	gen_mov_32(REG_T1_ID, vm_memory_operand(0*4, REG_T0_ID));
+	gen_mov_32(REG_T2_ID, vm_memory_operand(1*4, REG_T0_ID));
 	gen_mov_32(x86_memory_operand(xPPC_VR(vS) + 2*4, REG_CPU_ID), REG_T1_ID);
 	gen_mov_32(x86_memory_operand(xPPC_VR(vS) + 3*4, REG_CPU_ID), REG_T2_ID);
 	gen_bswap_32(REG_T1_ID);
 	gen_bswap_32(REG_T2_ID);
-	gen_mov_32(REG_T1_ID, x86_memory_operand(2*4, REG_T0_ID));
-	gen_mov_32(REG_T2_ID, x86_memory_operand(3*4, REG_T0_ID));
+	gen_mov_32(REG_T1_ID, vm_memory_operand(2*4, REG_T0_ID));
+	gen_mov_32(REG_T2_ID, vm_memory_operand(3*4, REG_T0_ID));
 #endif
 	return true;
 }
@@ -667,7 +676,7 @@ void powerpc_jit::gen_sse2_vsplat(int vD, int rValue)
 }
 
 // vspltisb
-bool powerpc_jit::gen_sse2_vspltisb(int mnemo, int vD, int SIMM)
+bool powerpc_jit::gen_sse2_vspltisb(int mnemo, int vD, int SIMM, int unused)
 {
 	switch (SIMM) {
 	case 0:
@@ -718,7 +727,7 @@ bool powerpc_jit::gen_sse2_vspltisb(int mnemo, int vD, int SIMM)
 }
 
 // vspltish
-bool powerpc_jit::gen_sse2_vspltish(int mnemo, int vD, int SIMM)
+bool powerpc_jit::gen_sse2_vspltish(int mnemo, int vD, int SIMM, int unused)
 {
 	switch (SIMM) {
 	case 0:
@@ -764,7 +773,7 @@ bool powerpc_jit::gen_sse2_vspltish(int mnemo, int vD, int SIMM)
 }
 
 // vspltisw
-bool powerpc_jit::gen_sse2_vspltisw(int mnemo, int vD, int SIMM)
+bool powerpc_jit::gen_sse2_vspltisw(int mnemo, int vD, int SIMM, int unused)
 {
 	switch (SIMM) {
 	case 0:
@@ -866,7 +875,7 @@ bool powerpc_jit::gen_ssse3_lvx(int mnemo, int vD, int rA, int rB)
 	gen_and_32(x86_immediate_operand(-16), REG_T0_ID);
 
 	x86_memory_operand vswapmask(gen_ssse3_vswap_mask(), X86_NOREG);
-	gen_movdqa(x86_memory_operand(0, REG_T0_ID), REG_V0_ID);
+	gen_movdqa(vm_memory_operand(0, REG_T0_ID), REG_V0_ID);
 	gen_insn(X86_INSN_SSE_3P, X86_SSSE3_PSHUFB, vswapmask, REG_V0_ID);
 	gen_movdqa(REG_V0_ID, x86_memory_operand(xPPC_VR(vD), REG_CPU_ID));
 	return true;
@@ -883,7 +892,7 @@ bool powerpc_jit::gen_ssse3_stvx(int mnemo, int vS, int rA, int rB)
 	x86_memory_operand vswapmask(gen_ssse3_vswap_mask(), X86_NOREG);
 	gen_movdqa(x86_memory_operand(xPPC_VR(vS), REG_CPU_ID), REG_V0_ID);
 	gen_insn(X86_INSN_SSE_3P, X86_SSSE3_PSHUFB, vswapmask, REG_V0_ID);
-	gen_movdqa(REG_V0_ID, x86_memory_operand(0, REG_T0_ID));
+	gen_movdqa(REG_V0_ID, vm_memory_operand(0, REG_T0_ID));
 	return true;
 }
 

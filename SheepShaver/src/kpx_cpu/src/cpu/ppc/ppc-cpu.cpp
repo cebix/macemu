@@ -64,6 +64,12 @@ int register_info_compare(const void *e1, const void *e2)
 
 static int ppc_refcount = 0;
 
+#ifdef DO_CONVENTION_CALL_STATICS
+template<> bool nv_mem_fun1_t<void, powerpc_cpu, uint32>::do_convention_call_init_done = false;
+template<> int nv_mem_fun1_t<void, powerpc_cpu, uint32>::do_convention_call_code_len = 0;
+template<> int nv_mem_fun1_t<void, powerpc_cpu, uint32>::do_convention_call_pf_offset = 0;
+#endif
+
 void powerpc_cpu::set_register(int id, any_register const & value)
 {
 	if (id >= powerpc_registers::GPR(0) && id <= powerpc_registers::GPR(31)) {
@@ -542,7 +548,12 @@ bool powerpc_cpu::check_spcflags()
 }
 
 #if DYNGEN_DIRECT_BLOCK_CHAINING
-void *powerpc_cpu::compile_chain_block(block_info *sbi)
+void * powerpc_cpu::call_compile_chain_block(powerpc_cpu * the_cpu, block_info *sbi)
+{
+	return the_cpu->compile_chain_block(sbi);
+}
+
+void * PF_CONVENTION powerpc_cpu::compile_chain_block(block_info *sbi)
 {
 	// Block index is stuffed into the source basic block pointer,
 	// which is aligned at least on 4-byte boundaries
@@ -719,7 +730,11 @@ void powerpc_cpu::execute(uint32 entry)
 		if (is_logging())
 			record_step(opcode);
 #endif
+#ifdef __MINGW32__
+		assert(ii->execute.default_call_conv_ptr() != 0);
+#else
 		assert(ii->execute.ptr() != 0);
+#endif
 		ii->execute(this, opcode);
 #if PPC_EXECUTE_DUMP_STATE
 		if (dump_state)

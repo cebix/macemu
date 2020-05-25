@@ -176,7 +176,7 @@ uninstall:
 
 clean:
 	rm -f $(PROGS) $(OBJ_DIR)/* core* *.core *~ *.bak ppc-execute-impl.cpp
-	rm -f dyngen basic-dyngen-ops.hpp ppc-dyngen-ops.hpp ppc_asm.out.s
+	rm -f dyngen {basic,ppc}-dyngen-ops*.hpp ppc_asm.out.s
 	rm -rf $(APP_APP) $(GUI_APP_APP)
 
 distclean: clean
@@ -216,17 +216,21 @@ ifeq ($(USE_DYNGEN),yes)
 DYNGENDEPS = basic-dyngen-ops.hpp ppc-dyngen-ops.hpp
 
 ifeq ($(USE_DYNGEN_PRECOMPILED),yes)
-basic-dyngen-ops.hpp: dyngen_precompiled/basic-dyngen-ops.hpp basic-dyngen-ops-x86_32.hpp basic-dyngen-ops-x86_64.hpp
+basic-dyngen-ops.hpp: dyngen_precompiled/basic-dyngen-ops.hpp basic-dyngen-ops-x86_32.hpp basic-dyngen-ops-x86_64.hpp basic-dyngen-ops-x86_64_macos.hpp
 	cp -f $< $@
 basic-dyngen-ops-x86_32.hpp: dyngen_precompiled/basic-dyngen-ops-x86_32.hpp
 	cp -f $< $@
 basic-dyngen-ops-x86_64.hpp: dyngen_precompiled/basic-dyngen-ops-x86_64.hpp
 	cp -f $< $@
-ppc-dyngen-ops.hpp: dyngen_precompiled/ppc-dyngen-ops.hpp ppc-dyngen-ops-x86_32.hpp ppc-dyngen-ops-x86_64.hpp
+basic-dyngen-ops-x86_64_macos.hpp: dyngen_precompiled/basic-dyngen-ops-x86_64_macos.hpp
+	cp -f $< $@
+ppc-dyngen-ops.hpp: dyngen_precompiled/ppc-dyngen-ops.hpp ppc-dyngen-ops-x86_32.hpp ppc-dyngen-ops-x86_64.hpp ppc-dyngen-ops-x86_64_macos.hpp
 	cp -f $< $@
 ppc-dyngen-ops-x86_32.hpp: dyngen_precompiled/ppc-dyngen-ops-x86_32.hpp
 	cp -f $< $@
 ppc-dyngen-ops-x86_64.hpp: dyngen_precompiled/ppc-dyngen-ops-x86_64.hpp
+	cp -f $< $@
+ppc-dyngen-ops-x86_64_macos.hpp: dyngen_precompiled/ppc-dyngen-ops-x86_64_macos.hpp
 	cp -f $< $@
 else
 # Only GCC is supported for generating synthetic opcodes
