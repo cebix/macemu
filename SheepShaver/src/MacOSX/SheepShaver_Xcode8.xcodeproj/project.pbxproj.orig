@@ -76,6 +76,7 @@
 		08CD42DC14B7B85B009CA2A2 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */; };
 		08CD42E814B7B8AA009CA2A2 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42E714B7B8AA009CA2A2 /* Carbon.framework */; };
 		3D2C25B5221092BA00B635DE /* SheepVM.icns in Resources */ = {isa = PBXBuildFile; fileRef = 3D2C25B4221092BA00B635DE /* SheepVM.icns */; };
+		5D3967C02328D315003925D6 /* adb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D3967BF2328D315003925D6 /* adb.cpp */; };
 		5D55CB40225584D000FF8E81 /* cdrom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D55CB3F225584D000FF8E81 /* cdrom.cpp */; };
 		5D55CB432255B4FE00FF8E81 /* bincue_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D55CB422255B4FD00FF8E81 /* bincue_unix.cpp */; };
 		5D55CB452255B50E00FF8E81 /* bincue_unix.h in Headers */ = {isa = PBXBuildFile; fileRef = 5D55CB442255B50E00FF8E81 /* bincue_unix.h */; };
@@ -94,7 +95,6 @@
 		5DDE950F2255C8B4004D0E79 /* audio_defs_macosx.h in Headers */ = {isa = PBXBuildFile; fileRef = 5DDE950D2255C8B3004D0E79 /* audio_defs_macosx.h */; };
 		5DDE95102255C8B4004D0E79 /* audio_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE950E2255C8B3004D0E79 /* audio_macosx.cpp */; };
 		5DDE95112255C8B4004D0E79 /* audio_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE950E2255C8B3004D0E79 /* audio_macosx.cpp */; };
-		5DE93B46247C71F200B2C821 /* adb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D3967BF2328D315003925D6 /* adb.cpp */; };
 		5DF4CB7F22B5BD5D00512A86 /* audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DF4CB7E22B5BD5D00512A86 /* audio.cpp */; };
 		A7B1921418C35D4700791D8D /* DiskType.m in Sources */ = {isa = PBXBuildFile; fileRef = A7B1921318C35D4700791D8D /* DiskType.m */; };
 		E413A40320CF7E6D00FBE967 /* video_sdl2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E413A40220CF7E6D00FBE967 /* video_sdl2.cpp */; };
@@ -469,7 +469,6 @@
 				08CD42DF14B7B865009CA2A2 /* Frameworks */,
 				0856CCC214A99E1C000B1711 /* Products */,
 				E420260924125403000508DF /* Generated */,
-				5DE93B45247C71A700B2C821 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -912,23 +911,19 @@
 		08CD42DF14B7B865009CA2A2 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+<<<<<<< HEAD
+				5DDE95062255C844004D0E79 /* AudioUnit.framework */,
+				5DDE95042255C822004D0E79 /* CoreAudio.framework */,
+				5DDE95022255C7FE004D0E79 /* AudioToolbox.framework */,
+=======
 				E420260424125182000508DF /* Security.framework */,
+>>>>>>> master
 				E420910020D0C4FA0094654F /* SDL2.framework */,
 				08CD42E714B7B8AA009CA2A2 /* Carbon.framework */,
 				08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */,
 				0856D21414A9A6C6000B1711 /* IOKit.framework */,
 			);
 			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		5DE93B45247C71A700B2C821 /* Recovered References */ = {
-			isa = PBXGroup;
-			children = (
-				5DDE95062255C844004D0E79 /* AudioUnit.framework */,
-				5DDE95042255C822004D0E79 /* CoreAudio.framework */,
-				5DDE95022255C7FE004D0E79 /* AudioToolbox.framework */,
-			);
-			name = "Recovered References";
 			sourceTree = "<group>";
 		};
 		E420260924125403000508DF /* Generated */ = {
@@ -1110,7 +1105,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5DE93B46247C71F200B2C821 /* adb.cpp in Sources */,
 				E44C460B20D262B0000583AE /* debug.c in Sources */,
 				5DDE94FB2255C712004D0E79 /* MacOSX_sound_if.cpp in Sources */,
 				E44C460C20D262B0000583AE /* tcp_subr.c in Sources */,
@@ -1147,7 +1141,11 @@
 				0856D06214A99EF1000B1711 /* audio_sdl.cpp in Sources */,
 				0856D06614A99EF1000B1711 /* serial.cpp in Sources */,
 				E456E2AD20C82B61006C8DC2 /* clip_macosx64.mm in Sources */,
+<<<<<<< HEAD
+				5D3967C02328D315003925D6 /* adb.cpp in Sources */,
+=======
 				E4202603241250EE000508DF /* runtool.c in Sources */,
+>>>>>>> master
 				0856D07B14A99EF1000B1711 /* sony.cpp in Sources */,
 				0856D07C14A99EF1000B1711 /* thunks.cpp in Sources */,
 				0856D07D14A99EF1000B1711 /* timer.cpp in Sources */,
