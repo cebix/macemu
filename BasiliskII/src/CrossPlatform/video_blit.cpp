@@ -22,10 +22,6 @@
 #include "video.h"
 #include "video_blit.h"
 
-#if USE_SDL_VIDEO
-#include <SDL.h>
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 
