@@ -2279,4 +2279,4 @@ void video_set_dirty_area(int x, int y, int w, int h)
 	// XXX handle dirty bounding boxes for non-VOSF modes
 }
 #endif
-#endif //end of ifdef ENABLE_SDL1
+#endif //ifdef ENABLE_SDL1

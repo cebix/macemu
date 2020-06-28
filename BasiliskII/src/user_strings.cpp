@@ -241,7 +241,6 @@ user_string_def common_strings[] = {
 	{STR_CPU_68040_LAB, "68040"},
 	{STR_ROM_FILE_CTRL, "ROM File"},
 	{STR_IDLEWAIT_CTRL, "Don't Use CPU When Idle"},
-
 	{STR_JIT_PANE_TITLE, "JIT Compiler"},
 	{STR_JIT_CTRL, "Enable JIT Compiler"},
 	{STR_JIT_FPU_CTRL, "Compile FPU Instructions"},
@@ -258,7 +257,7 @@ user_string_def common_strings[] = {
 	{STR_WINDOW_TITLE_GRABBED, "Basilisk II (mouse grabbed, press Ctrl-F5 to release)"},
 	{STR_WINDOW_TITLE_GRABBED0, "Basilisk II (mouse grabbed, press "},
 	{STR_WINDOW_TITLE_GRABBED1, "Ctrl-"},
-#ifdef __APPLE__
+#ifdef __MACOSX__
 	{STR_WINDOW_TITLE_GRABBED2, "Opt-"},
 	{STR_WINDOW_TITLE_GRABBED3, "Cmd-"},
 #else

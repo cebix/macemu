@@ -2720,4 +2720,4 @@ void video_set_dirty_area(int x, int y, int w, int h)
 }
 #endif
 
-#endif	// ends: ifdef ENABLE_SDL2
+#endif	//ifdef ENABLE_SDL2

@@ -36,7 +36,6 @@ void NSAutoReleasePool_wrap(void (*fn)(void))
 }
 
 #if SDL_VERSION_ATLEAST(2,0,0)
-
 void disable_SDL2_macosx_menu_bar_keyboard_shortcuts() {
 	for (NSMenuItem * menu_item in [NSApp mainMenu].itemArray) {
 		if (menu_item.hasSubmenu) {

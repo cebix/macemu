@@ -456,17 +456,17 @@ int main(int argc, char **argv)
 			argv[i] = NULL;
 		}
 		
-#if defined(__APPLE__) && defined(__MACH__)
+#if __MACOSX__
 		// Mac OS X likes to pass in various options of its own, when launching an app.
 		// Attempt to ignore these.
-        if (argv[i]) {
-            const char * mac_psn_prefix = "-psn_";
-            if (strcmp(argv[i], "-NSDocumentRevisionsDebugMode") == 0) {
-                argv[i] = NULL;
-            } else if (strncmp(mac_psn_prefix, argv[i], strlen(mac_psn_prefix)) == 0) {
-                argv[i] = NULL;
-            }
-        }
+		if (argv[i]) {
+			const char * mac_psn_prefix = "-psn_";
+			if (strcmp(argv[i], "-NSDocumentRevisionsDebugMode") == 0) {
+				argv[i] = NULL;
+			} else if (strncmp(mac_psn_prefix, argv[i], strlen(mac_psn_prefix)) == 0) {
+				argv[i] = NULL;
+			}
+		}
 #endif
 	}
 
