@@ -44,6 +44,12 @@
 # include <pthread.h>
 #endif
 
+#define ENABLE_XRENDER
+
+#ifdef ENABLE_XRENDER
+#include <X11/extensions/Xrender.h>
+#endif
+
 #ifdef ENABLE_XF86_DGA
 # include <X11/extensions/Xxf86dga.h>
 #endif
@@ -136,6 +142,12 @@ static unsigned long black_pixel, white_pixel;
 static int eventmask;
 
 static int xdepth;									// Depth of X screen
+
+#ifdef ENABLE_XRENDER
+// Xrender is used to implement the video upscale mode
+static int xupscale = 1;							// Upscale display by this factor
+#endif
+
 static VisualFormat visualFormat;
 static XVisualInfo visualInfo;
 static Visual *vis;
@@ -643,11 +655,18 @@ static void update_display_window_vosf(driver_window *drv);
 static void update_display_dynamic(int ticker, driver_window *drv);
 static void update_display_static(driver_window *drv);
 
+#ifdef ENABLE_XRENDER
+static void video_refresh_window_vosf(void);
+#endif
+
 class driver_window : public driver_base {
 	friend void update_display_window_vosf(driver_window *drv);
 	friend void update_display_dynamic(int ticker, driver_window *drv);
 	friend void update_display_static(driver_window *drv);
 
+#ifdef ENABLE_XRENDER
+	friend void video_refresh_window_vosf(void);
+#endif
 public:
 	driver_window(X11_monitor_desc &monitor);
 	~driver_window();
@@ -662,6 +681,13 @@ private:
 	GC gc;
 	XImage *img;
 	bool have_shm;					// Flag: SHM extensions available
+#ifdef ENABLE_XRENDER
+	int pix_width, pix_height;
+	Picture pic_win;				// Destination XRender Picture (Window)
+	Picture pic_pix;				// Source XRender Picture (from the pixmap)
+	Pixmap pixmap;					// Server side pixmap to X*PutImage into
+	GC pixmap_gc;
+#endif
 	XShmSegmentInfo shminfo;
 	Cursor mac_cursor;
 	bool mouse_grabbed;				// Flag: mouse pointer grabbed, using relative mouse mode
@@ -796,7 +822,7 @@ driver_window::driver_window(X11_monitor_desc &m)
    mouse_grabbed(false), mouse_last_x(0), mouse_last_y(0)
 {
 	int width = mode.x, height = mode.y;
-	int window_width = width, window_height = mode.y;
+	int window_width = width, window_height = height;
 	int aligned_width = (width + 15) & ~15;
 	int aligned_height = (height + 15) & ~15;
 
@@ -812,6 +838,22 @@ driver_window::driver_window(X11_monitor_desc &m)
 	wattr.border_pixel = 0;
 	wattr.colormap = (mode.depth == VDEPTH_1BIT ? DefaultColormap(x_display, screen) : cmap[0]);
 
+#ifdef ENABLE_XRENDER
+	{
+		double xres = (((double) DisplayWidth(x_display, 0)) * 25.4) /
+							((double) DisplayWidthMM(x_display, 0));
+		double yres = (((double) DisplayHeight(x_display, 0)) * 25.4) /
+							((double) DisplayHeightMM(x_display, 0));
+		int dpi = (xres + yres) / 2;
+
+		if (dpi > 100) {
+			xupscale = 2;
+			printf("X11 DPI > 100 (%d): Upscaling by x%d\n", dpi, xupscale);
+		}
+		window_width *= xupscale;
+		window_height *= xupscale;
+	}
+#endif
 
 	window = XCreateWindow(x_display, rootwin, 0, 0, window_width, window_height, 0, xdepth,
 		InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel | CWColormap, &wattr);
@@ -910,6 +952,43 @@ driver_window::driver_window(X11_monitor_desc &m)
 	D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
 #endif
 
+#ifdef ENABLE_XRENDER
+	/*
+	 * XRender SHOULD work with the other dynamic & static rendering
+	 * path, however the video_update_XXX needs to be updated to add
+	 * the XRenderComposite call;
+	 * TODO: Update the other rendering path for XRender
+	 */
+	if (use_vosf) {
+		XWindowAttributes attrs;
+		XGetWindowAttributes(x_display, window, &attrs);
+
+		XRenderPictFormat* format = XRenderFindVisualFormat(x_display, attrs.visual);
+
+		pic_win = XRenderCreatePicture(x_display, window,
+								format, 0, NULL);
+		/* Also create the backbuffer we transfer to, we don't
+		 * 'draw' in the window itself */
+		pixmap = XCreatePixmap(x_display,
+								window, width, height, 24);
+		pic_pix = XRenderCreatePicture(
+					x_display, pixmap,
+					XRenderFindStandardFormat(x_display, PictStandardRGB24),
+					0, NULL);
+		if (xupscale != 1) {
+			XTransform t = {};
+			t.matrix[0][0] = XDoubleToFixed(1);
+			t.matrix[1][1] = XDoubleToFixed(1);
+			t.matrix[2][2] = XDoubleToFixed(xupscale);
+
+			XRenderSetPictureTransform(x_display, pic_pix, &t);
+		}
+		// redirect all drawinf to this server pixmap
+		drawable = pixmap;
+		pix_width = width;
+		pix_height = height;
+	}
+#endif
 
 	// Create GC
 	gc = XCreateGC(x_display, drawable, 0, 0);
@@ -999,6 +1078,12 @@ void driver_window::ungrab_mouse(void)
 // Mouse moved
 void driver_window::mouse_moved(int x, int y)
 {
+#ifdef ENABLE_XRENDER
+	if (window != drawable) {
+		x /= xupscale;
+		y /= xupscale;
+	}
+#endif
 	if (!mouse_grabbed) {
 		mouse_last_x = x; mouse_last_y = y;
 		ADBMouseMoved(x, y);
@@ -1086,7 +1171,7 @@ void driver_dga::suspend(void)
 	XSetWindowAttributes wattr;
 	wattr.event_mask = KeyPressMask;
 	wattr.background_pixel = black_pixel;
-		
+
 	suspend_win = XCreateWindow(x_display, rootwin, 0, 0, 512, 1, 0, xdepth,
 		InputOutput, vis, CWEventMask | CWBackPixel, &wattr);
 	set_window_name(suspend_win, STR_SUSPEND_WINDOW_TITLE);
@@ -2650,6 +2735,15 @@ static void video_refresh_window_vosf(void)
 			LOCK_VOSF;
 			update_display_window_vosf(static_cast<driver_window *>(drv));
 			UNLOCK_VOSF;
+#ifdef ENABLE_XRENDER
+			driver_window * win = static_cast<driver_window *>(drv);
+			/* accerated copy + scale to window */
+			if (win->window != win->drawable)
+				XRenderComposite(x_display, PictOpSrc,
+							win->pic_pix, None, win->pic_win,
+							0, 0, 0, 0, 0, 0,
+							win->pix_width * xupscale, win->pix_height * xupscale);
+#endif
 			XSync(x_display, false); // Let the server catch up
 			XDisplayUnlock();
 		}
