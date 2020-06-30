@@ -57,7 +57,7 @@
 #define MONITOR_INIT			X11_monitor_desc &monitor
 #define VIDEO_DRV_WIN_INIT		driver_window *drv
 #define VIDEO_DRV_DGA_INIT		driver_dga *drv
-#define VIDEO_DRV_WINDOW		drv->w
+#define VIDEO_DRV_WINDOW		drv->drawable
 #define VIDEO_DRV_GC			drv->gc
 #define VIDEO_DRV_IMAGE			drv->img
 #define VIDEO_DRV_HAVE_SHM		drv->have_shm

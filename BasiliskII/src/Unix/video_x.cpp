@@ -632,8 +632,9 @@ public:
 	const video_mode &mode;    // Video mode handled by the driver
 
 	bool init_ok;	// Initialization succeeded (we can't use exceptions because of -fomit-frame-pointer)
-	Window w;		// The window we draw into
+	Window window;	// The window we draw into
 
+	Drawable drawable;	// Drawable (Window or Pixmap) we draw into
 	int orig_accel_numer, orig_accel_denom, orig_threshold;	// Original mouse acceleration
 };
 
@@ -704,7 +705,8 @@ static driver_base *drv = NULL;	// Pointer to currently used driver object
 #endif
 
 driver_base::driver_base(X11_monitor_desc &m)
- : monitor(m), mode(m.get_current_mode()), init_ok(false), w(0)
+ : monitor(m), mode(m.get_current_mode()), init_ok(false), window(0),
+	drawable(0)
 {
 	the_buffer = NULL;
 	the_buffer_copy = NULL;
@@ -716,10 +718,10 @@ driver_base::~driver_base()
 	ungrab_mouse();
 	restore_mouse_accel();
 
-	if (w) {
-		XUnmapWindow(x_display, w);
-		wait_unmapped(w);
-		XDestroyWindow(x_display, w);
+	if (window) {
+		XUnmapWindow(x_display, window);
+		wait_unmapped(window);
+		XDestroyWindow(x_display, window);
 	}
 
 	XFlush(x_display);
@@ -794,6 +796,7 @@ driver_window::driver_window(X11_monitor_desc &m)
    mouse_grabbed(false), mouse_last_x(0), mouse_last_y(0)
 {
 	int width = mode.x, height = mode.y;
+	int window_width = width, window_height = mode.y;
 	int aligned_width = (width + 15) & ~15;
 	int aligned_height = (height + 15) & ~15;
 
@@ -808,40 +811,43 @@ driver_window::driver_window(X11_monitor_desc &m)
 	wattr.background_pixel = (vis == DefaultVisual(x_display, screen) ? black_pixel : 0);
 	wattr.border_pixel = 0;
 	wattr.colormap = (mode.depth == VDEPTH_1BIT ? DefaultColormap(x_display, screen) : cmap[0]);
-	w = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
+
+
+	window = XCreateWindow(x_display, rootwin, 0, 0, window_width, window_height, 0, xdepth,
 		InputOutput, vis, CWEventMask | CWBackPixel | CWBorderPixel | CWColormap, &wattr);
 	D(bug(" window created\n"));
+	drawable = window;
 
 	// Set window name/class
-	set_window_name(w, STR_WINDOW_TITLE);
+	set_window_name(window, STR_WINDOW_TITLE);
 
 	// Set window icons
-	set_window_icons(w);
+	set_window_icons(window);
 
 	// Indicate that we want keyboard input
-	set_window_focus(w);
+	set_window_focus(window);
 
 	// Set delete protocol property
-	set_window_delete_protocol(w);
+	set_window_delete_protocol(window);
 
 	// Make window unresizable
 	{
 		XSizeHints *hints = XAllocSizeHints();
 		if (hints) {
-			hints->min_width = width;
-			hints->max_width = width;
-			hints->min_height = height;
-			hints->max_height = height;
+			hints->min_width = window_width;
+			hints->max_width = window_width;
+			hints->min_height = window_height;
+			hints->max_height = window_height;
 			hints->flags = PMinSize | PMaxSize;
-			XSetWMNormalHints(x_display, w, hints);
+			XSetWMNormalHints(x_display, window, hints);
 			XFree(hints);
 		}
 	}
 	D(bug(" window attributes set\n"));
-	
+
 	// Show window
-	XMapWindow(x_display, w);
-	wait_mapped(w);
+	XMapWindow(x_display, window);
+	wait_mapped(window);
 	D(bug(" window mapped\n"));
 
 	// 1-bit mode is big-endian; if the X server is little-endian, we can't
@@ -904,16 +910,17 @@ driver_window::driver_window(X11_monitor_desc &m)
 	D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
 #endif
 
+
 	// Create GC
-	gc = XCreateGC(x_display, w, 0, 0);
+	gc = XCreateGC(x_display, drawable, 0, 0);
 	XSetState(x_display, gc, black_pixel, white_pixel, GXcopy, AllPlanes);
 
 	// Create no_cursor
 	mac_cursor = XCreatePixmapCursor(x_display,
-	   XCreatePixmap(x_display, w, 1, 1, 1),
-	   XCreatePixmap(x_display, w, 1, 1, 1),
+	   XCreatePixmap(x_display, window, 1, 1, 1),
+	   XCreatePixmap(x_display, window, 1, 1, 1),
 	   &black, &white, 0, 0);
-	XDefineCursor(x_display, w, mac_cursor);
+	XDefineCursor(x_display, window, mac_cursor);
 
 	// Init blitting routines
 #ifdef ENABLE_VOSF
@@ -965,14 +972,14 @@ void driver_window::grab_mouse(void)
 {
 	int result;
 	for (int i=0; i<10; i++) {
-		result = XGrabPointer(x_display, w, True, 0,
-			GrabModeAsync, GrabModeAsync, w, None, CurrentTime);
+		result = XGrabPointer(x_display, window, True, 0,
+			GrabModeAsync, GrabModeAsync, window, None, CurrentTime);
 		if (result != AlreadyGrabbed)
 			break;
 		Delay_usec(100000);
 	}
 	if (result == GrabSuccess) {
-		XStoreName(x_display, w, GetString(STR_WINDOW_TITLE_GRABBED));
+		XStoreName(x_display, window, GetString(STR_WINDOW_TITLE_GRABBED));
 		ADBSetRelMouseMode(mouse_grabbed = true);
 		disable_mouse_accel();
 	}
@@ -983,7 +990,7 @@ void driver_window::ungrab_mouse(void)
 {
 	if (mouse_grabbed) {
 		XUngrabPointer(x_display, CurrentTime);
-		XStoreName(x_display, w, GetString(STR_WINDOW_TITLE));
+		XStoreName(x_display, window, GetString(STR_WINDOW_TITLE));
 		ADBSetRelMouseMode(mouse_grabbed = false);
 		restore_mouse_accel();
 	}
@@ -1018,7 +1025,7 @@ void driver_window::mouse_moved(int x, int y)
 		}
 		mouse_last_x = width/2;
 		mouse_last_y = height/2;
-		XWarpPointer(x_display, None, w, 0, 0, 0, 0, mouse_last_x, mouse_last_y);
+		XWarpPointer(x_display, None, window, 0, 0, 0, 0, mouse_last_x, mouse_last_y);
 		for (int i=0; i<10; i++) {
 			XMaskEvent(x_display, PointerMotionMask, &event);
 			if (event.xmotion.x > (mouse_last_x - MOUSE_FUDGE_FACTOR)
@@ -1072,8 +1079,8 @@ void driver_dga::suspend(void)
 	XUngrabPointer(x_display, CurrentTime);
 	XUngrabKeyboard(x_display, CurrentTime);
 	restore_mouse_accel();
-	XUnmapWindow(x_display, w);
-	wait_unmapped(w);
+	XUnmapWindow(x_display, window);
+	wait_unmapped(window);
 
 	// Open "suspend" window
 	XSetWindowAttributes wattr;
@@ -1096,8 +1103,8 @@ void driver_dga::resume(void)
 	XSync(x_display, false);
 
 	// Reopen full screen display
-	XMapRaised(x_display, w);
-	wait_mapped(w);
+	XMapRaised(x_display, window);
+	wait_mapped(window);
 	XWarpPointer(x_display, None, rootwin, 0, 0, 0, 0, 0, 0);
 	XGrabKeyboard(x_display, rootwin, True, GrabModeAsync, GrabModeAsync, CurrentTime);
 	XGrabPointer(x_display, rootwin, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
@@ -1225,31 +1232,32 @@ driver_fbdev::driver_fbdev(X11_monitor_desc &m) : driver_dga(m)
 	wattr.background_pixel = white_pixel;
 	wattr.override_redirect = True;
 	wattr.colormap = cmap[0];
-	
-	w = XCreateWindow(x_display, rootwin,
+
+	window = XCreateWindow(x_display, rootwin,
 		0, 0, width, height,
 		0, xdepth, InputOutput, vis,
 		CWEventMask | CWBackPixel | CWOverrideRedirect | (fb_depth <= 8 ? CWColormap : 0),
 		&wattr);
+	drawable = window;
 
 	// Set window name/class
-	set_window_name(w, STR_WINDOW_TITLE);
+	set_window_name(window, STR_WINDOW_TITLE);
 
 	// Indicate that we want keyboard input
-	set_window_focus(w);
+	set_window_focus(window);
 
 	// Show window
-	XMapRaised(x_display, w);
-	wait_mapped(w);
-	
+	XMapRaised(x_display, window);
+	wait_mapped(window);
+
 	// Grab mouse and keyboard
-	XGrabKeyboard(x_display, w, True,
+	XGrabKeyboard(x_display, window, True,
 		GrabModeAsync, GrabModeAsync, CurrentTime);
-	XGrabPointer(x_display, w, True,
+	XGrabPointer(x_display, window, True,
 		PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
-		GrabModeAsync, GrabModeAsync, w, None, CurrentTime);
+		GrabModeAsync, GrabModeAsync, window, None, CurrentTime);
 	disable_mouse_accel();
-	
+
 	// Calculate bytes per row
 	int bytes_per_row = TrivialBytesPerRow(mode.x, mode.depth);
 	
@@ -1365,22 +1373,23 @@ driver_xf86dga::driver_xf86dga(X11_monitor_desc &m)
 	wattr.override_redirect = True;
 	wattr.colormap = (mode.depth == VDEPTH_1BIT ? DefaultColormap(x_display, screen) : cmap[0]);
 
-	w = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
+	window = XCreateWindow(x_display, rootwin, 0, 0, width, height, 0, xdepth,
 		InputOutput, vis, CWEventMask | CWOverrideRedirect |
 		(color_class == DirectColor ? CWColormap : 0), &wattr);
+	drawable = window;
 
 	// Set window name/class
-	set_window_name(w, STR_WINDOW_TITLE);
+	set_window_name(window, STR_WINDOW_TITLE);
 
 	// Indicate that we want keyboard input
-	set_window_focus(w);
+	set_window_focus(window);
 
 	// Show window
-	XMapRaised(x_display, w);
-	wait_mapped(w);
+	XMapRaised(x_display, window);
+	wait_mapped(window);
 
 	// Establish direct screen connection
-	XMoveResizeWindow(x_display, w, 0, 0, width, height);
+	XMoveResizeWindow(x_display, window, 0, 0, width, height);
 	XWarpPointer(x_display, None, rootwin, 0, 0, 0, 0, 0, 0);
 	XGrabKeyboard(x_display, rootwin, True, GrabModeAsync, GrabModeAsync, CurrentTime);
 	XGrabPointer(x_display, rootwin, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
@@ -1394,7 +1403,7 @@ driver_xf86dga::driver_xf86dga(X11_monitor_desc &m)
 
 	// Set colormap
 	if (!IsDirectMode(mode)) {
-		XSetWindowColormap(x_display, w, cmap[current_dga_cmap = 0]);
+		XSetWindowColormap(x_display, window, cmap[current_dga_cmap = 0]);
 		XF86DGAInstallColormap(x_display, screen, cmap[current_dga_cmap]);
 	}
 	XSync(x_display, false);
@@ -2411,14 +2420,14 @@ static void update_display_dynamic(int ticker, driver_window *drv)
 						memcpy(&the_buffer_copy[i], &the_buffer[i], xil);
 					if (mode.depth == VDEPTH_1BIT) {
 						if (drv->have_shm)
-							XShmPutImage(x_display, drv->w, drv->gc, drv->img, xi * 8, yi, xi * 8, yi, xil * 8, yil, 0);
+							XShmPutImage(x_display, drv->drawable, drv->gc, drv->img, xi * 8, yi, xi * 8, yi, xil * 8, yil, 0);
 						else
-							XPutImage(x_display, drv->w, drv->gc, drv->img, xi * 8, yi, xi * 8, yi, xil * 8, yil);
+							XPutImage(x_display, drv->drawable, drv->gc, drv->img, xi * 8, yi, xi * 8, yi, xil * 8, yil);
 					} else {
 						if (drv->have_shm)
-							XShmPutImage(x_display, drv->w, drv->gc, drv->img, xi / bytes_per_pixel, yi, xi / bytes_per_pixel, yi, xil / bytes_per_pixel, yil, 0);
+							XShmPutImage(x_display, drv->drawable, drv->gc, drv->img, xi / bytes_per_pixel, yi, xi / bytes_per_pixel, yi, xil / bytes_per_pixel, yil, 0);
 						else
-							XPutImage(x_display, drv->w, drv->gc, drv->img, xi / bytes_per_pixel, yi, xi / bytes_per_pixel, yi, xil / bytes_per_pixel, yil);
+							XPutImage(x_display, drv->drawable, drv->gc, drv->img, xi / bytes_per_pixel, yi, xi / bytes_per_pixel, yi, xil / bytes_per_pixel, yil);
 					}
 					xil = 0;
 				}
@@ -2547,9 +2556,9 @@ static void update_display_static(driver_window *drv)
 	XDisplayLock();
 	if (high && wide) {
 		if (drv->have_shm)
-			XShmPutImage(x_display, drv->w, drv->gc, drv->img, x1, y1, x1, y1, wide, high, 0);
+			XShmPutImage(x_display, drv->drawable, drv->gc, drv->img, x1, y1, x1, y1, wide, high, 0);
 		else
-			XPutImage(x_display, drv->w, drv->gc, drv->img, x1, y1, x1, y1, wide, high);
+			XPutImage(x_display, drv->drawable, drv->gc, drv->img, x1, y1, x1, y1, wide, high);
 	}
 	XDisplayUnlock();
 }
