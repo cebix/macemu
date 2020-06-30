@@ -187,6 +187,7 @@ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 	 * Push the appropriate streams modules, as described in Solaris pts(7).
 	 * HP-UX pts(7) doesn't have ttcompat module.
 	 */
+#if defined(HAVE_SYS_STROPTS_H)
 	if (ioctl(*ttyfd, I_PUSH, "ptem") < 0)
 		error("ioctl I_PUSH ptem: %.100s", strerror(errno));
 	if (ioctl(*ttyfd, I_PUSH, "ldterm") < 0)
@@ -195,6 +196,7 @@ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 	if (ioctl(*ttyfd, I_PUSH, "ttcompat") < 0)
 		error("ioctl I_PUSH ttcompat: %.100s", strerror(errno));
 #endif
+#endif /* defined(HAVE_SYS_STROPTS_H) */
 #endif
 	return 1;
 #else /* HAVE_DEV_PTMX */
