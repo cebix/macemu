@@ -30,6 +30,12 @@
 #include "util_windows.h"
 #endif
 
+// Import SDL-backend-specific functions
+#ifdef USE_SDL_VIDEO
+extern void update_sdl_video(SDL_Surface *screen, Sint32 x, Sint32 y, Sint32 w, Sint32 h);
+extern void update_sdl_video(SDL_Surface *screen, int numrects, SDL_Rect *rects);
+#endif
+
 // Glue for SDL and X11 support
 #ifdef TEST_VOSF_PERFORMANCE
 #define MONITOR_INIT			/* nothing */
@@ -514,7 +520,7 @@ static void update_display_window_vosf(VIDEO_DRV_WIN_INIT)
 		VIDEO_DRV_UNLOCK_PIXELS;
 
 #ifdef USE_SDL_VIDEO
-		SDL_UpdateRect(drv->s, 0, y1, VIDEO_MODE_X, height);
+		update_sdl_video(drv->s, 0, y1, VIDEO_MODE_X, height);
 #else
 		if (VIDEO_DRV_HAVE_SHM)
 			XShmPutImage(x_display, VIDEO_DRV_WINDOW, VIDEO_DRV_GC, VIDEO_DRV_IMAGE, 0, y1, 0, y1, VIDEO_MODE_X, height, 0);
@@ -558,7 +564,7 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 			i2 += scr_bytes_per_row;
 		}
 #ifdef USE_SDL_VIDEO
-		SDL_UpdateRect(drv->s, 0, 0, VIDEO_MODE_X, VIDEO_MODE_Y);
+		update_sdl_video(drv->s, 0, 0, VIDEO_MODE_X, VIDEO_MODE_Y);
 #endif
 		VIDEO_DRV_UNLOCK_PIXELS;
 		return;
@@ -664,7 +670,7 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 #endif
 		}
 #ifdef USE_SDL_VIDEO
-		SDL_UpdateRects(drv->s, bbi, bb);
+		update_sdl_video(drv->s, bbi, bb);
 #endif
 		VIDEO_DRV_UNLOCK_PIXELS;
 	}

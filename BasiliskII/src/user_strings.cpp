@@ -255,6 +255,16 @@ user_string_def common_strings[] = {
 	{STR_WINDOW_TITLE, "Basilisk II"},
 	{STR_WINDOW_TITLE_FROZEN, "Basilisk II *** FROZEN ***"},
 	{STR_WINDOW_TITLE_GRABBED, "Basilisk II (mouse grabbed, press Ctrl-F5 to release)"},
+	{STR_WINDOW_TITLE_GRABBED0, "Basilisk II (mouse grabbed, press "},
+	{STR_WINDOW_TITLE_GRABBED1, "Ctrl-"},
+#ifdef __MACOSX__
+	{STR_WINDOW_TITLE_GRABBED2, "Opt-"},
+	{STR_WINDOW_TITLE_GRABBED3, "Cmd-"},
+#else
+	{STR_WINDOW_TITLE_GRABBED2, "Alt-"},
+	{STR_WINDOW_TITLE_GRABBED3, "Win-"},
+#endif
+	{STR_WINDOW_TITLE_GRABBED4, "F5 to release)"},
 	{STR_WINDOW_MENU, "Basilisk II"},
 	{STR_WINDOW_ITEM_ABOUT, "About Basilisk II" ELLIPSIS},
 	{STR_WINDOW_ITEM_REFRESH, "Refresh Rate"},

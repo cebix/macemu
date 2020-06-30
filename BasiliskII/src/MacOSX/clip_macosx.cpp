@@ -100,7 +100,8 @@ void GetScrap(void **handle, uint32 type, int32 offset)
 {
 #if defined(__LP64__)
 	D(bug("GetScrap handle %p, type %08x, offset %d\n", handle, type, offset));
-	#warning Carbon scrapbook function are not implemented in 64-bit mode
+	#error Carbon scrapbook function are not implemented in 64-bit mode
+	#error Use clip_macosx64.mm instead.
 #else
 	D(bug("GetScrap handle %p, type %08x, offset %d\n", handle, type, offset));
 	ScrapRef theScrap;
@@ -177,7 +178,8 @@ void ZeroScrap()
 void PutScrap(uint32 type, void *scrap, int32 length)
 {
 #if defined(__LP64__)
-	#warning Carbon scrapbook function are not implemented in 64-bit mode
+	#error Carbon scrapbook function are not implemented in 64-bit mode
+	#error Use clip_macosx64.mm instead.
 	D(bug("PutScrap type %4.4s, data %08lx, length %ld\n", &type, scrap, length));
 #else
 	static bool clear = true;

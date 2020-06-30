@@ -251,7 +251,10 @@ static int open_rsrc(const char *path, int flag)
 	char rsrc_path[MAX_PATH_LENGTH];
 	make_rsrc_path(path, rsrc_path);
 
-	return open(rsrc_path, flag);
+	int fd = open(rsrc_path, flag);
+	if (fd < 0 && flag == O_WRONLY)
+		fd = open(rsrc_path, O_WRONLY | O_CREAT); // for APFS
+	return fd;
 }
 
 

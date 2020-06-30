@@ -259,7 +259,7 @@ void DarwinAddFloppyPrefs(void)
 	while ((nextFloppy = IOIteratorNext(allFloppies)))
 	{
 		char		bsdPath[MAXPATHLEN];
-		long		size;
+		long		size = 0;
 		Boolean gotSize = FALSE;
 		CFTypeRef	sizeAsCFNumber =
 						IORegistryEntryCreateCFProperty(nextFloppy,

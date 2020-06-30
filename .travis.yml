@@ -3,18 +3,36 @@ language: cpp
 matrix:
   include:
     - os: linux
-      dist: trusty
+      dist: bionic
       sudo: required
       compiler: gcc
+      env :
+        - SDL_MAJOR_VERSION=1
+    - os: linux
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      env :
+        - SDL_MAJOR_VERSION=2
 
 addons:
   apt:
     packages:
-      - libsdl1.2-dev 
+      - libsdl1.2-dev
       - libgtk2.0-dev
+      - libsdl2-dev
 
 script:
-  - cd BasiliskII/src/Unix
-  - NO_CONFIGURE=1 ./autogen.sh
-  - ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-x --with-gtk --with-mon
-  - make -j 4
+  - ERR_CODE=0
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+        cd BasiliskII/src/Unix;
+        NO_CONFIGURE=1 ./autogen.sh;
+        if [[ $SDL_MAJOR_VERSION == *"1"* ]]; then
+            ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-x --with-gtk --with-mon;
+            make -j 4 || ERR_CODE=$?;
+        else
+            ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-x --with-gtk --with-mon --with-sdl2;
+            make -j 4 || ERR_CODE=$?;
+        fi
+    fi
+  - (exit $ERR_CODE)
