@@ -8,12 +8,28 @@ matrix:
       compiler: gcc
       env :
         - SDL_MAJOR_VERSION=1
+        - ADDRESSING_MODE=direct
+    - os: linux
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      env :
+        - SDL_MAJOR_VERSION=1
+        - ADDRESSING_MODE=banks
     - os: linux
       dist: bionic
       sudo: required
       compiler: gcc
       env :
         - SDL_MAJOR_VERSION=2
+        - ADDRESSING_MODE=direct
+    - os: linux
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      env :
+        - SDL_MAJOR_VERSION=2
+        - ADDRESSING_MODE=banks
 
 addons:
   apt:
@@ -28,10 +44,10 @@ script:
         cd BasiliskII/src/Unix;
         NO_CONFIGURE=1 ./autogen.sh;
         if [[ $SDL_MAJOR_VERSION == *"1"* ]]; then
-            ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-x --with-gtk --with-mon;
+            ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-x --with-gtk --with-mon --enable-addressing=$ADDRESSING_MODE;
             make -j 4 || ERR_CODE=$?;
         else
-            ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-x --with-gtk --with-mon --with-sdl2;
+            ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-x --with-gtk --with-mon --with-sdl2 --enable-addressing=$ADDRESSING_MODE;
             make -j 4 || ERR_CODE=$?;
         fi
     fi
