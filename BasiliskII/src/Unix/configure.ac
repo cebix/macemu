@@ -1428,6 +1428,11 @@ fi
 AC_TRANSLATE_DEFINE(HAVE_LINKER_SCRIPT, "$ac_cv_linker_script_works",
   [Define if there is a linker script to relocate the executable above 0x70000000.])
 
+dnl override the addressing mode test order for Darwin
+if [[ "x$OS_TYPE" = "xdarwin" ]]; then
+    ADDRESSING_TEST_ORDER="banks"
+fi
+
 dnl Determine the addressing mode to use
 if [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
   ADDRESSING_MODE="real"
