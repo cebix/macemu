@@ -197,18 +197,7 @@ extern void SysMountFirstFloppy(void);
 
 static void *vm_acquire_framebuffer(uint32 size)
 {
-	// always try to reallocate framebuffer at the same address
-	static void *fb = VM_MAP_FAILED;
-	if (fb != VM_MAP_FAILED) {
-		if (vm_acquire_fixed(fb, size) < 0) {
-#ifndef SHEEPSHAVER
-			printf("FATAL: Could not reallocate framebuffer at previous address\n");
-#endif
-			fb = VM_MAP_FAILED;
-		}
-	}
-	if (fb == VM_MAP_FAILED)
-		fb = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
+	void *fb = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 	return fb;
 }
 
@@ -667,6 +656,10 @@ void driver_base::init()
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	the_buffer_size = page_extend((aligned_height + 2) * s->pitch);
 	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
+	if (VM_MAP_FAILED == the_buffer) {
+		perror("Failed to allocate frame buffer for guest OS.");
+		abort();
+	}
 	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
 
@@ -691,6 +684,10 @@ void driver_base::init()
 		the_buffer_size = (aligned_height + 2) * s->pitch;
 		the_buffer_copy = (uint8 *)calloc(1, the_buffer_size);
 		the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
+		if (VM_MAP_FAILED == the_buffer) {
+			perror("Failed to allocate frame buffer for guest OS.");
+			abort();
+		}
 		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
 	}
 
