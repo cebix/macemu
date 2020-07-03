@@ -187,24 +187,24 @@ extern void SysMountFirstFloppy(void);
  */
 
 #ifdef ENABLE_VOSF
-#define SDL_VIDEO_LOCK_VOSF_SURFACE(SURFACE) do {				\
+#define SDL_VIDEO_LOCK_VOSF_SURFACE(SURFACE) do {															\
 	if (sdl_window && SDL_GetWindowFlags(sdl_window) & (SDL_WINDOW_FULLSCREEN))	\
-		the_host_buffer = (uint8 *)(SURFACE)->pixels;			\
+		the_host_buffer = (uint8 *)(SURFACE)->pixels;															\
 } while (0)
 #else
 #define SDL_VIDEO_LOCK_VOSF_SURFACE(SURFACE)
 #endif
 
-#define SDL_VIDEO_LOCK_SURFACE(SURFACE) do {	\
-	if (SDL_MUSTLOCK(SURFACE)) {				\
-		SDL_LockSurface(SURFACE);				\
-		SDL_VIDEO_LOCK_VOSF_SURFACE(SURFACE);	\
-	}											\
+#define SDL_VIDEO_LOCK_SURFACE(SURFACE) do {				\
+	if (SDL_MUSTLOCK(SURFACE)) {											\
+		SDL_LockSurface(SURFACE);												\
+		SDL_VIDEO_LOCK_VOSF_SURFACE(SURFACE);						\
+	}																									\
 } while (0)
 
 #define SDL_VIDEO_UNLOCK_SURFACE(SURFACE) do {	\
-	if (SDL_MUSTLOCK(SURFACE))					\
-		SDL_UnlockSurface(SURFACE);				\
+	if (SDL_MUSTLOCK(SURFACE))										\
+		SDL_UnlockSurface(SURFACE);									\
 } while (0)
 
 
@@ -684,10 +684,10 @@ static void shutdown_sdl_video()
 
 static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags)
 {
-    if (guest_surface) {
-        delete_sdl_video_surfaces();
-    }
-    
+	if (guest_surface) {
+		delete_sdl_video_surfaces();
+	}
+
 	int window_width = width;
 	int window_height = height;
 	Uint32 window_flags = SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE;
@@ -713,8 +713,8 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 		SDL_GetWindowSize(sdl_window, &old_window_width, &old_window_height);
 		old_window_flags = SDL_GetWindowFlags(sdl_window);
 		if (old_window_width != window_width ||
-			old_window_height != window_height ||
-			(old_window_flags & window_flags_to_monitor) != (window_flags & window_flags_to_monitor))
+				old_window_height != window_height ||
+				(old_window_flags & window_flags_to_monitor) != (window_flags & window_flags_to_monitor))
 		{
 			delete_sdl_video_window();
 		}
@@ -722,19 +722,19 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 	
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, PrefsFindBool("scale_nearest") ? "nearest" : "linear");
 	
-/*
+	/*
 	// Always use a resize-able window.  This helps allow SDL to manage
 	// transitions involving fullscreen to or from windowed-mode.
 	window_flags |= SDL_WINDOW_RESIZABLE;
 */
 	if (!sdl_window) {
 		sdl_window = SDL_CreateWindow(
-			"Basilisk II",
-			SDL_WINDOWPOS_UNDEFINED,
-			SDL_WINDOWPOS_UNDEFINED,
-			window_width,
-			window_height,
-			window_flags);
+					"Basilisk II",
+					SDL_WINDOWPOS_UNDEFINED,
+					SDL_WINDOWPOS_UNDEFINED,
+					window_width,
+					window_height,
+					window_flags);
 		if (!sdl_window) {
 			shutdown_sdl_video();
 			return NULL;
@@ -774,78 +774,78 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 		SDL_GetRendererInfo(sdl_renderer, &info);
 		printf("Using SDL_Renderer driver: %s\n", (info.name ? info.name : "(null)"));
 	}
-    
-    if (!sdl_update_video_mutex) {
-        sdl_update_video_mutex = SDL_CreateMutex();
-    }
+
+	if (!sdl_update_video_mutex) {
+		sdl_update_video_mutex = SDL_CreateMutex();
+	}
 
 	SDL_assert(sdl_texture == NULL);
-    sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
-    if (!sdl_texture) {
-        shutdown_sdl_video();
-        return NULL;
-    }
-    sdl_update_video_rect.x = 0;
-    sdl_update_video_rect.y = 0;
-    sdl_update_video_rect.w = 0;
-    sdl_update_video_rect.h = 0;
+	sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+	if (!sdl_texture) {
+		shutdown_sdl_video();
+		return NULL;
+	}
+	sdl_update_video_rect.x = 0;
+	sdl_update_video_rect.y = 0;
+	sdl_update_video_rect.w = 0;
+	sdl_update_video_rect.h = 0;
 
 	SDL_assert(guest_surface == NULL);
 	SDL_assert(host_surface == NULL);
-    switch (bpp) {
-        case 8:
-            guest_surface = SDL_CreateRGBSurface(0, width, height, 8, 0, 0, 0, 0);
-            break;
-		case 16:
-			guest_surface = SDL_CreateRGBSurface(0, width, height, 16, 0x0000F800, 0x000007E0, 0x0000001F, 0x00000000);
-			break;
-        case 32:
-            guest_surface = SDL_CreateRGBSurface(0, width, height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
-            host_surface = guest_surface;
-            break;
-        default:
-            printf("WARNING: An unsupported bpp of %d was used\n", bpp);
-            break;
-    }
-    if (!guest_surface) {
-        shutdown_sdl_video();
-        return NULL;
-    }
+	switch (bpp) {
+	case 8:
+		guest_surface = SDL_CreateRGBSurface(0, width, height, 8, 0, 0, 0, 0);
+		break;
+	case 16:
+		guest_surface = SDL_CreateRGBSurface(0, width, height, 16, 0x0000F800, 0x000007E0, 0x0000001F, 0x00000000);
+		break;
+	case 32:
+		guest_surface = SDL_CreateRGBSurface(0, width, height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+		host_surface = guest_surface;
+		break;
+	default:
+		printf("WARNING: An unsupported bpp of %d was used\n", bpp);
+		break;
+	}
+	if (!guest_surface) {
+		shutdown_sdl_video();
+		return NULL;
+	}
 
-    if (!host_surface) {
-    	Uint32 texture_format;
-    	if (SDL_QueryTexture(sdl_texture, &texture_format, NULL, NULL, NULL) != 0) {
-    		printf("ERROR: Unable to get the SDL texture's pixel format: %s\n", SDL_GetError());
-    		shutdown_sdl_video();
-    		return NULL;
-    	}
+	if (!host_surface) {
+		Uint32 texture_format;
+		if (SDL_QueryTexture(sdl_texture, &texture_format, NULL, NULL, NULL) != 0) {
+			printf("ERROR: Unable to get the SDL texture's pixel format: %s\n", SDL_GetError());
+			shutdown_sdl_video();
+			return NULL;
+		}
 
-    	int bpp;
-    	Uint32 Rmask, Gmask, Bmask, Amask;
-    	if (!SDL_PixelFormatEnumToMasks(texture_format, &bpp, &Rmask, &Gmask, &Bmask, &Amask)) {
-    		printf("ERROR: Unable to determine format for host SDL_surface: %s\n", SDL_GetError());
-    		shutdown_sdl_video();
-    		return NULL;
-    	}
+		int bpp;
+		Uint32 Rmask, Gmask, Bmask, Amask;
+		if (!SDL_PixelFormatEnumToMasks(texture_format, &bpp, &Rmask, &Gmask, &Bmask, &Amask)) {
+			printf("ERROR: Unable to determine format for host SDL_surface: %s\n", SDL_GetError());
+			shutdown_sdl_video();
+			return NULL;
+		}
 
-        host_surface = SDL_CreateRGBSurface(0, width, height, bpp, Rmask, Gmask, Bmask, Amask);
-        if (!host_surface) {
-        	printf("ERROR: Unable to create host SDL_surface: %s\n", SDL_GetError());
-            shutdown_sdl_video();
-            return NULL;
-        }
-    }
+		host_surface = SDL_CreateRGBSurface(0, width, height, bpp, Rmask, Gmask, Bmask, Amask);
+		if (!host_surface) {
+			printf("ERROR: Unable to create host SDL_surface: %s\n", SDL_GetError());
+			shutdown_sdl_video();
+			return NULL;
+		}
+	}
 
 	if (SDL_RenderSetLogicalSize(sdl_renderer, width, height) != 0) {
 		printf("ERROR: Unable to set SDL rendeer's logical size (to %dx%d): %s\n",
-			   width, height, SDL_GetError());
+					 width, height, SDL_GetError());
 		shutdown_sdl_video();
 		return NULL;
 	}
 
 	SDL_RenderSetIntegerScale(sdl_renderer, PrefsFindBool("scale_integer") ? SDL_TRUE : SDL_FALSE);
 
-    return guest_surface;
+	return guest_surface;
 }
 
 static int present_sdl_video()
@@ -876,10 +876,10 @@ static int present_sdl_video()
 	// modifying it!
 	LOCK_PALETTE;
 	SDL_LockMutex(sdl_update_video_mutex);
-    // Convert from the guest OS' pixel format, to the host OS' texture, if necessary.
-    if (host_surface != guest_surface &&
-		host_surface != NULL &&
-		guest_surface != NULL)
+	// Convert from the guest OS' pixel format, to the host OS' texture, if necessary.
+	if (host_surface != guest_surface &&
+			host_surface != NULL &&
+			guest_surface != NULL)
 	{
 		SDL_Rect destRect = sdl_update_video_rect;
 		int result = SDL_BlitSurface(guest_surface, &sdl_update_video_rect, host_surface, &destRect);
@@ -891,52 +891,52 @@ static int present_sdl_video()
 	}
 	UNLOCK_PALETTE; // passed potential deadlock, can unlock palette
 	
-    // Update the host OS' texture
-    void * srcPixels = (void *)((uint8_t *)host_surface->pixels +
-        sdl_update_video_rect.y * host_surface->pitch +
-        sdl_update_video_rect.x * host_surface->format->BytesPerPixel);
+	// Update the host OS' texture
+	void * srcPixels = (void *)((uint8_t *)host_surface->pixels +
+															sdl_update_video_rect.y * host_surface->pitch +
+															sdl_update_video_rect.x * host_surface->format->BytesPerPixel);
 
-    if (SDL_UpdateTexture(sdl_texture, &sdl_update_video_rect, srcPixels, host_surface->pitch) != 0) {
-        SDL_UnlockMutex(sdl_update_video_mutex);
+	if (SDL_UpdateTexture(sdl_texture, &sdl_update_video_rect, srcPixels, host_surface->pitch) != 0) {
+		SDL_UnlockMutex(sdl_update_video_mutex);
 		return -1;
 	}
 
-    // We are done working with pixels in host_surface.  Reset sdl_update_video_rect, then let
-    // other threads modify it, as-needed.
-    sdl_update_video_rect.x = 0;
-    sdl_update_video_rect.y = 0;
-    sdl_update_video_rect.w = 0;
-    sdl_update_video_rect.h = 0;
-    SDL_UnlockMutex(sdl_update_video_mutex);
+	// We are done working with pixels in host_surface.  Reset sdl_update_video_rect, then let
+	// other threads modify it, as-needed.
+	sdl_update_video_rect.x = 0;
+	sdl_update_video_rect.y = 0;
+	sdl_update_video_rect.w = 0;
+	sdl_update_video_rect.h = 0;
+	SDL_UnlockMutex(sdl_update_video_mutex);
 
-    // Copy the texture to the display
-    if (SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL) != 0) {
+	// Copy the texture to the display
+	if (SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL) != 0) {
 		return -1;
 	}
 	
-    // Update the display
+	// Update the display
 	SDL_RenderPresent(sdl_renderer);
-    
-    // Indicate success to the caller!
-    return 0;
+
+	// Indicate success to the caller!
+	return 0;
 }
 
 void update_sdl_video(SDL_Surface *s, int numrects, SDL_Rect *rects)
 {
-    // TODO: make sure SDL_Renderer resources get displayed, if and when
-    // MacsBug is running (and VideoInterrupt() might not get called)
-    
-    SDL_LockMutex(sdl_update_video_mutex);
-    for (int i = 0; i < numrects; ++i) {
-        SDL_UnionRect(&sdl_update_video_rect, &rects[i], &sdl_update_video_rect);
-    }
-    SDL_UnlockMutex(sdl_update_video_mutex);
+	// TODO: make sure SDL_Renderer resources get displayed, if and when
+	// MacsBug is running (and VideoInterrupt() might not get called)
+
+	SDL_LockMutex(sdl_update_video_mutex);
+	for (int i = 0; i < numrects; ++i) {
+		SDL_UnionRect(&sdl_update_video_rect, &rects[i], &sdl_update_video_rect);
+	}
+	SDL_UnlockMutex(sdl_update_video_mutex);
 }
 
 void update_sdl_video(SDL_Surface *s, Sint32 x, Sint32 y, Sint32 w, Sint32 h)
 {
-    SDL_Rect temp = {x, y, w, h};
-    update_sdl_video(s, 1, &temp);
+	SDL_Rect temp = {x, y, w, h};
+	update_sdl_video(s, 1, &temp);
 }
 
 #ifdef SHEEPSHAVER
@@ -1004,7 +1004,7 @@ void driver_base::init()
 		printf("VOSF acceleration is not profitable on this platform, disabling it\n");
 		use_vosf = false;
 	}
-    if (!use_vosf) {
+	if (!use_vosf) {
 		free(the_buffer_copy);
 		vm_release(the_buffer, the_buffer_size);
 		the_host_buffer = NULL;
@@ -1088,7 +1088,7 @@ driver_base::~driver_base()
 	// the Basilisk II desktop,
 	delete_sdl_video_surfaces();	// This deletes instances of SDL_Surface and SDL_Texture
 	//shutdown_sdl_video();			// This deletes SDL_Window, SDL_Renderer, in addition to
-									// instances of SDL_Surface and SDL_Texture.
+	// instances of SDL_Surface and SDL_Texture.
 
 	// the_buffer shall always be mapped through vm_acquire_framebuffer()
 	if (the_buffer != VM_MAP_FAILED) {
@@ -1793,12 +1793,12 @@ int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr)
 {
 	/* return if no mode change */
 	if ((csSave->saveData == ReadMacInt32(ParamPtr + csData)) &&
-	    (csSave->saveMode == ReadMacInt16(ParamPtr + csMode))) return noErr;
+			(csSave->saveMode == ReadMacInt16(ParamPtr + csMode))) return noErr;
 
 	/* first find video mode in table */
 	for (int i=0; VModes[i].viType != DIS_INVALID; i++) {
 		if ((ReadMacInt16(ParamPtr + csMode) == VModes[i].viAppleMode) &&
-		    (ReadMacInt32(ParamPtr + csData) == VModes[i].viAppleID)) {
+				(ReadMacInt32(ParamPtr + csData) == VModes[i].viAppleID)) {
 			csSave->saveMode = ReadMacInt16(ParamPtr + csMode);
 			csSave->saveData = ReadMacInt32(ParamPtr + csData);
 			csSave->savePage = ReadMacInt16(ParamPtr + csPage);
@@ -2086,55 +2086,55 @@ enum {
 static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
 {
 	switch (event->type) {
-		case SDL_KEYUP: {
-			SDL_Keysym const & ks = event->key.keysym;
-			switch (ks.sym) {
-				case SDLK_F5: {
-					if (is_hotkey_down(ks) && !PrefsFindBool("hardcursor")) {
-						drv->toggle_mouse_grab();
-						return EVENT_DROP_FROM_QUEUE;
-					}
-				} break;
+	case SDL_KEYUP: {
+		SDL_Keysym const & ks = event->key.keysym;
+		switch (ks.sym) {
+		case SDLK_F5: {
+			if (is_hotkey_down(ks) && !PrefsFindBool("hardcursor")) {
+				drv->toggle_mouse_grab();
+				return EVENT_DROP_FROM_QUEUE;
 			}
 		} break;
-			
-		case SDL_WINDOWEVENT: {
-			switch (event->window.event) {
-				case SDL_WINDOWEVENT_RESIZED: {
-					// Handle changes of fullscreen.  This is done here, in
-					// on_sdl_event_generated() and not the main SDL_Event-processing
-					// loop, in order to perform this change on the main thread.
-					// (Some os'es UI APIs, such as OSX's NSWindow, are not
-					// thread-safe.)
-					const bool is_full = is_fullscreen(sdl_window);
-					const bool adjust_fullscreen = \
-						(display_type == DISPLAY_WINDOW && is_full) ||
-						(display_type == DISPLAY_SCREEN && !is_full);
-					if (adjust_fullscreen) {
-						do_toggle_fullscreen();
-						
+		}
+	} break;
+
+	case SDL_WINDOWEVENT: {
+		switch (event->window.event) {
+		case SDL_WINDOWEVENT_RESIZED: {
+			// Handle changes of fullscreen.  This is done here, in
+			// on_sdl_event_generated() and not the main SDL_Event-processing
+			// loop, in order to perform this change on the main thread.
+			// (Some os'es UI APIs, such as OSX's NSWindow, are not
+			// thread-safe.)
+			const bool is_full = is_fullscreen(sdl_window);
+			const bool adjust_fullscreen = \
+					(display_type == DISPLAY_WINDOW && is_full) ||
+					(display_type == DISPLAY_SCREEN && !is_full);
+			if (adjust_fullscreen) {
+				do_toggle_fullscreen();
+
 #if __MACOSX__
-						// HACK-FIX: on OSX hosts, make sure that the OSX menu
-						// bar does not show up in fullscreen mode, when the
-						// cursor is near the top of the screen, lest the
-						// guest OS' menu bar be obscured.
-						if (is_full) {
-							extern void set_menu_bar_visible_osx(bool);
-							set_menu_bar_visible_osx(false);
-						}
+				// HACK-FIX: on OSX hosts, make sure that the OSX menu
+				// bar does not show up in fullscreen mode, when the
+				// cursor is near the top of the screen, lest the
+				// guest OS' menu bar be obscured.
+				if (is_full) {
+					extern void set_menu_bar_visible_osx(bool);
+					set_menu_bar_visible_osx(false);
+				}
 #endif
-					}
-				} break; // end of SDL_WINDOWEVENT_RESIZED
-				case SDL_WINDOWEVENT_RESTORED: {
-					// When the user minimizes the window and then restore it,
-					// we restore the scale factor to 1.
-					if (sdl_window) {
-						const VIDEO_MODE &mode = drv->mode;
-						SDL_SetWindowSize(sdl_window, VIDEO_MODE_X, VIDEO_MODE_Y);
-					}
-				} break; // end of SDL_WINDOWEVENT_RESTORED
 			}
-		} break; // end of SDL_WINDOWEVENT
+		} break; // end of SDL_WINDOWEVENT_RESIZED
+		case SDL_WINDOWEVENT_RESTORED: {
+			// When the user minimizes the window and then restore it,
+			// we restore the scale factor to 1.
+			if (sdl_window) {
+				const VIDEO_MODE &mode = drv->mode;
+				SDL_SetWindowSize(sdl_window, VIDEO_MODE_X, VIDEO_MODE_Y);
+			}
+		} break; // end of SDL_WINDOWEVENT_RESTORED
+		}
+	} break; // end of SDL_WINDOWEVENT
 	}
 	
 	return EVENT_ADD_TO_QUEUE;
@@ -2175,7 +2175,7 @@ static void handle_events(void)
 				break;
 			}
 
-			// Mouse moved
+				// Mouse moved
 			case SDL_MOUSEMOTION:
 				if (mouse_grabbed) {
 					drv->mouse_moved(event.motion.xrel, event.motion.yrel);
@@ -2198,9 +2198,9 @@ static void handle_events(void)
 						ADBKeyUp(key);
 					}
 				}
-			break;
+				break;
 
-			// Keyboard
+				// Keyboard
 			case SDL_KEYDOWN: {
 				int code = CODE_INVALID;
 				if (use_keycodes && event2keycode(event.key, true) != CODE_HOTKEY)
@@ -2267,24 +2267,24 @@ static void handle_events(void)
 				}
 				break;
 			}
-			
+
 			case SDL_WINDOWEVENT: {
 				switch (event.window.event) {
-					// Hidden parts exposed, force complete refresh of window
-					case SDL_WINDOWEVENT_EXPOSED:
-						force_complete_window_refresh();
-						break;
+				// Hidden parts exposed, force complete refresh of window
+				case SDL_WINDOWEVENT_EXPOSED:
+					force_complete_window_refresh();
+					break;
 					
 					// Force a complete window refresh when activating, to avoid redraw artifacts otherwise.
-					case SDL_WINDOWEVENT_RESTORED:
-						force_complete_window_refresh();
-						break;
+				case SDL_WINDOWEVENT_RESTORED:
+					force_complete_window_refresh();
+					break;
 					
 				}
 				break;
 			}
 
-			// Window "close" widget clicked
+				// Window "close" widget clicked
 			case SDL_QUIT:
 				if (SDL_GetModState() & (KMOD_LALT | KMOD_RALT)) break;
 				ADBKeyDown(0x7f);	// Power key
