@@ -690,7 +690,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
     
 	int window_width = width;
 	int window_height = height;
-	Uint32 window_flags = SDL_WINDOW_ALLOW_HIGHDPI;
+	Uint32 window_flags = SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE;
 	const int window_flags_to_monitor = SDL_WINDOW_FULLSCREEN;
 	
 	if (flags & SDL_WINDOW_FULLSCREEN) {
@@ -2124,9 +2124,17 @@ static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
 						}
 #endif
 					}
-				} break;
+				} break; // end of SDL_WINDOWEVENT_RESIZED
+				case SDL_WINDOWEVENT_RESTORED: {
+					// When the user minimizes the window and then restore it,
+					// we restore the scale factor to 1.
+					if (sdl_window) {
+						const VIDEO_MODE &mode = drv->mode;
+						SDL_SetWindowSize(sdl_window, VIDEO_MODE_X, VIDEO_MODE_Y);
+					}
+				} break; // end of SDL_WINDOWEVENT_RESTORED
 			}
-		} break;
+		} break; // end of SDL_WINDOWEVENT
 	}
 	
 	return EVENT_ADD_TO_QUEUE;
