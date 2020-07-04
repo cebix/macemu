@@ -983,15 +983,11 @@ void driver_base::init()
 	// manually set palette for 24bit ROM
 	// 24 bit ROM Macintosh is BW screen. It doesn't setup palette by the ROM.
 	if (TwentyFourBitAddressing && !sdl_palette) {
-		const int nColor = 255;
+		const int nColor = 256;
 		sdl_palette = SDL_AllocPalette(nColor);
 		SDL_Color *p = sdl_palette->colors;
 		for (int i = 0; i < nColor; i++) {
-			if (0 == i %2) {
-				p->r = 0; p->g = 0; p->b = 0;
-			} else {
-				p->r = 255; p->g = 255; p->b = 255;
-			}
+			p->r = p->g = p->b = i;
 			p++;
 		}
 		update_palette();
