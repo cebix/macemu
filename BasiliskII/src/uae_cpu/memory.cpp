@@ -473,6 +473,34 @@ static void REGPARAM2 fram24_lput(uaecptr, uae_u32) REGPARAM;
 static void REGPARAM2 fram24_wput(uaecptr, uae_u32) REGPARAM;
 static void REGPARAM2 fram24_bput(uaecptr, uae_u32) REGPARAM;
 
+/*
+ * Q: Why the magic number 0xa700 and 0xfc80?
+ *
+ * A: The M68K CPU used by the earlier Macintosh models such as
+ * Macintosh 128K or Macintosh SE, its address space is limited
+ * to 2^24 = 16MiB. The RAM limits to 4MiB.
+ *
+ * With 512x342 1 bit per pixel screen, the size of the frame buffer
+ * is 0x5580 bytes.
+ *
+ * In Macintosh 128K [1], the frame buffer address is mapped from
+ * 0x1A700 to 0x1FC7F.
+ *
+ * In Macintosh SE [2], the frame buffer address is mapped from
+ * 0x3FA700 to 0x3FFC7F.
+ *
+ * The frame24_xxx memory banks mapping used the magic number to
+ * retrieve the offset. The memory write operation does twice:
+ * one for the guest OS and another for the host OS (the write operation
+ * above MacFrameBaseHost).
+ *
+ *
+ * See:
+ *  [1] The Apple Macintosh Computer. http://www.1000bit.it/support/articoli/apple/mac128.pdf
+ *  [2] Capturing Mac SE's video from PDS. http://synack.net/~bbraun/sevideo/
+ *
+ */
+
 void REGPARAM2 fram24_lput(uaecptr addr, uae_u32 l)
 {
 	uaecptr page_off = addr & 0xffff;
