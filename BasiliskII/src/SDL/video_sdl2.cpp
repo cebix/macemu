@@ -980,6 +980,23 @@ void driver_base::set_video_mode(int flags)
 void driver_base::init()
 {
 	set_video_mode(display_type == DISPLAY_SCREEN ? SDL_WINDOW_FULLSCREEN : 0);
+	// manually set palette for 24bit ROM
+	// 24 bit ROM Macintosh is BW screen. It doesn't setup palette by the ROM.
+	if (TwentyFourBitAddressing && !sdl_palette) {
+		const int nColor = 255;
+		sdl_palette = SDL_AllocPalette(nColor);
+		SDL_Color *p = sdl_palette->colors;
+		for (int i = 0; i < nColor; i++) {
+			if (0 == i %2) {
+				p->r = 0; p->g = 0; p->b = 0;
+			} else {
+				p->r = 255; p->g = 255; p->b = 255;
+			}
+			p++;
+		}
+		update_palette();
+	}
+
 	int aligned_height = (VIDEO_MODE_Y + 15) & ~15;
 
 #ifdef ENABLE_VOSF
