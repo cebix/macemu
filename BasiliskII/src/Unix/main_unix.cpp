@@ -672,9 +672,7 @@ int main(int argc, char **argv)
 	RAMBaseMac = Host2MacAddr(RAMBaseHost);
 	ROMBaseMac = Host2MacAddr(ROMBaseHost);
 #endif
-	D(bug("Mac RAM starts at %p (%08x)\n", RAMBaseHost, RAMBaseMac));
-	D(bug("Mac ROM starts at %p (%08x)\n", ROMBaseHost, ROMBaseMac));
-	
+
 #if __MACOSX__
 	extern void set_current_directory();
 	set_current_directory();
@@ -736,6 +734,9 @@ int main(int argc, char **argv)
 	if (!InitAll(vmdir))
 		QuitEmulator();
 	D(bug("Initialization complete\n"));
+
+	D(bug("Mac RAM starts at %p (%08x)\n", RAMBaseHost, RAMBaseMac));
+	D(bug("Mac ROM starts at %p (%08x)\n", ROMBaseHost, ROMBaseMac));
 
 #if !EMULATED_68K
 	// (Virtual) supervisor mode, disable interrupts
