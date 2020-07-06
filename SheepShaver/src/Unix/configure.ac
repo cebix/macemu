@@ -781,7 +781,7 @@ fi
 dnl BINCUE overrides
 
 if [[ "x$have_bincue" = "xyes" ]]; then
-  EXTRASYSSRCS="$EXTRASYSSRCS bincue_unix.cpp"
+  EXTRASYSSRCS="$EXTRASYSSRCS bincue.cpp"
 fi
 
 dnl libvhd overrides

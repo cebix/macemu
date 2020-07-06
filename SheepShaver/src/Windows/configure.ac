@@ -16,6 +16,9 @@ AC_ARG_ENABLE(jit,          [  --enable-jit            enable JIT compiler [defa
 AC_ARG_WITH(gtk,          [  --with-gtk              use GTK user interface [default=yes]], [WANT_GTK=$withval], [WANT_GTK=yes])
 AC_ARG_ENABLE(vosf,         [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=yes])
 
+AC_ARG_WITH(bincue,   
+  AS_HELP_STRING([--with-bincue], [Allow cdrom image files in bin/cue mode]))
+
 dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_CPP
@@ -199,6 +202,18 @@ cygwin)
 	;;
 esac
 
+dnl BINCUE
+AS_IF([test  "x$with_bincue" = "xyes" ], [have_bincue=yes], [have_bincue=no])
+AS_IF([test  "x$have_bincue" = "xyes" ], [
+   DEFINES="$DEFINES -DBINCUE"
+   AC_SUBST(USE_BINCUE, yes)
+], [AC_SUBST(USE_BINCUE, no)])
+
+dnl BINCUE overrides
+if [[ "x$have_bincue" = "xyes" ]]; then
+  EXTRASRCS="$EXTRASRCS bincue.cpp"
+fi
+
 dnl CPU emulator sources
 CPUSRCS="\
     ../kpx_cpu/src/mathlib/ieeefp.cpp \
@@ -278,6 +293,7 @@ AC_SUBST(USE_PREGENERATED_DYNGEN)
 AC_SUBST(DYNGENSRCS)
 AC_SUBST(DYNGEN_OP_FLAGS)
 AC_SUBST(CPUSRCS)
+AC_SUBST(EXTRASRCS)
 AC_OUTPUT([Makefile])
 
 dnl Print summary.
@@ -286,6 +302,7 @@ echo SheepShaver configuration summary:
 echo
 echo Enable JIT compiler .............. : $WANT_JIT
 echo GTK user interface ............... : $WANT_GTK
+echo BINCUE support ......................... : $have_bincue
 echo Enable VOSF ...................... : $WANT_VOSF
 echo
 echo "Configuration done. Now type \"make\"."

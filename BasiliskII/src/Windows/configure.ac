@@ -36,6 +36,9 @@ AC_ARG_ENABLE(fpe,
 dnl External packages.
 AC_ARG_WITH(gtk,             [  --with-gtk              use GTK user interface [default=yes]], [WANT_GTK=$withval], [WANT_GTK=yes])
 
+AC_ARG_WITH(bincue,   
+  AS_HELP_STRING([--with-bincue], [Allow cdrom image files in bin/cue mode]))
+
 dnl Addressing modes.
 AC_ARG_ENABLE(addressing,
 [  --enable-addressing=AM  specify the addressing mode to use [default=fastest]],
@@ -84,6 +87,13 @@ AC_SUBST(WANT_GTK)
 
 dnl We use 64-bit file size support if possible.
 AC_SYS_LARGEFILE
+
+dnl BINCUE
+AS_IF([test  "x$with_bincue" = "xyes" ], [have_bincue=yes], [have_bincue=no])
+AS_IF([test  "x$have_bincue" = "xyes" ], [
+   DEFINES="$DEFINES -DBINCUE"
+   AC_SUBST(USE_BINCUE, yes)
+], [AC_SUBST(USE_BINCUE, no)])
 
 dnl Checks for header files.
 AC_HEADER_STDC
@@ -302,6 +312,11 @@ elif [[ "x$HAVE_GCC30" = "xyes" -a "x$HAVE_X86_64" = "xyes" ]]; then
     JITSRCS="cpuemu1_nf.cpp cpuemu2_nf.cpp cpuemu3_nf.cpp cpuemu4_nf.cpp cpuemu5_nf.cpp cpuemu6_nf.cpp cpuemu7_nf.cpp cpuemu8_nf.cpp $JITSRCS"
     CAN_JIT=yes
   fi
+fi
+
+dnl BINCUE overrides
+if [[ "x$have_bincue" = "xyes" ]]; then
+  EXTRASRCS="$EXTRASRCS bincue.cpp"
 fi
 
 dnl Enable JIT compiler, if possible.
@@ -552,6 +567,7 @@ dnl Generate Makefile.
 AC_SUBST(DEFINES)
 AC_SUBST(CPUINCLUDES)
 AC_SUBST(CPUSRCS)
+AC_SUBST(EXTRASRCS)
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
 
@@ -564,6 +580,7 @@ echo JIT debug mode ......................... : $WANT_JIT_DEBUG
 echo Floating-Point emulation core .......... : $FPE_CORE
 echo Assembly optimizations ................. : $ASM_OPTIMIZATIONS
 echo Addressing mode ........................ : $ADDRESSING_MODE
+echo BINCUE support ......................... : $have_bincue
 echo GTK user interface ..................... : $WANT_GTK
 echo
 echo "Configuration done. Now type \"make\" (or \"gmake\")."

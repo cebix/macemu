@@ -29,6 +29,8 @@ SLIRP_SRCS = \
     ../slirp/ip_input.c  ../slirp/socket.c     ../slirp/udp.c
 SLIRP_OBJS = $(SLIRP_SRCS:../slirp/%.c=$(OBJ_DIR)/slirp-%.o)
 
+USE_BINCUE = @USE_BINCUE@
+
 LN_S = @LN_S@
 WINDRES = @WINDRES@
 CC = @CC@
@@ -41,6 +43,7 @@ LDFLAGS = @LDFLAGS@ -Wl,-Bstatic
 #TODO remove pthread part of that if irrelevant
 LIBS = @LIBS@ -lws2_32 -lwsock32 -liphlpapi
 CPUSRCS = @CPUSRCS@
+EXTRASRCS = @EXTRASRCS@
 PERL = @PERL@
 
 USE_DYNGEN = @USE_DYNGEN@
@@ -66,14 +69,14 @@ SRCS = ../main.cpp main_windows.cpp ../prefs.cpp ../prefs_items.cpp prefs_window
 	sys_windows.cpp cdenable/cache.cpp cdenable/eject_nt.cpp cdenable/ntcd.cpp \
     ../rom_patches.cpp ../rsrc_patches.cpp ../emul_op.cpp ../name_registry.cpp \
     ../macos_util.cpp ../timer.cpp timer_windows.cpp ../xpram.cpp xpram_windows.cpp \
-    ../adb.cpp ../sony.cpp ../disk.cpp ../cdrom.cpp ../bincue.cpp ../scsi.cpp ../dummy/scsi_dummy.cpp \
+    ../adb.cpp ../sony.cpp ../disk.cpp ../cdrom.cpp ../scsi.cpp ../dummy/scsi_dummy.cpp \
     ../gfxaccel.cpp ../video.cpp ../SDL/video_sdl.cpp ../SDL/video_sdl2.cpp video_blit.cpp \
     ../audio.cpp ../SDL/audio_sdl.cpp ../ether.cpp ether_windows.cpp \
     ../thunks.cpp ../serial.cpp serial_windows.cpp ../extfs.cpp extfs_windows.cpp \
     about_window_windows.cpp ../user_strings.cpp user_strings_windows.cpp \
     ../dummy/prefs_editor_dummy.cpp clip_windows.cpp util_windows.cpp \
     vm_alloc.cpp sigsegv.cpp posix_emu.cpp SheepShaver.rc \
-	$(CPUSRCS) $(ROUTERSRCS) $(SLIRP_OBJS)
+	$(CPUSRCS) $(ROUTERSRCS) $(EXTRASRCS) $(SLIRP_OBJS)
 
 UI_SRCS = ../prefs.cpp prefs_windows.cpp prefs_editor_gtk.cpp xpram_windows.cpp \
 	../prefs_items.cpp ../user_strings.cpp user_strings_windows.cpp util_windows.cpp \
@@ -115,6 +118,9 @@ define UI_SRCS_LIST_TO_OBJS
 	$(basename $(notdir $(file))))))
 endef
 UI_OBJS = $(UI_SRCS_LIST_TO_OBJS)
+ifeq ($(USE_BINCUE),yes)
+UI_OBJS += bincue.o
+endif
 
 define DYNGENSRCS_LIST_TO_OBJS
 	$(addprefix $(OBJ_DIR)/, $(addsuffix .ho, $(foreach file, $(DYNGENSRCS), \
