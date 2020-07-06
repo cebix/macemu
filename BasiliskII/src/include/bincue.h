@@ -1,5 +1,5 @@
 /*
- *  bincue_unix.h -- support for cdrom image files in bin/cue format
+ *  bincue.h -- support for cdrom image files in bin/cue format
  *
  *  (C) 2010 Geoffrey Brown
  *

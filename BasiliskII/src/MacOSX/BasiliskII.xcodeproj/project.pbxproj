@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5D5C3B0A24B2DF3500CDAB41 /* bincue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D5C3B0924B2DF3400CDAB41 /* bincue.cpp */; };
 		5DDE95192255D076004D0E79 /* AudioDevice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE95132255D076004D0E79 /* AudioDevice.cpp */; };
 		5DDE951A2255D076004D0E79 /* audio_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE95152255D076004D0E79 /* audio_macosx.cpp */; };
 		5DDE951B2255D076004D0E79 /* MacOSX_sound_if.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE95162255D076004D0E79 /* MacOSX_sound_if.cpp */; };
@@ -56,7 +57,6 @@
 		7539E1E11F23B25A006B2DF2 /* user_strings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E1221F23B25A006B2DF2 /* user_strings.cpp */; };
 		7539E1E21F23B25A006B2DF2 /* video.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E1231F23B25A006B2DF2 /* video.cpp */; };
 		7539E1E31F23B25A006B2DF2 /* xpram.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E1241F23B25A006B2DF2 /* xpram.cpp */; };
-		7539E23F1F23B32A006B2DF2 /* bincue_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E1F01F23B329006B2DF2 /* bincue_unix.cpp */; };
 		7539E24A1F23B32A006B2DF2 /* disk_sparsebundle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E1FD1F23B32A006B2DF2 /* disk_sparsebundle.cpp */; };
 		7539E2681F23B32A006B2DF2 /* rpc_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2241F23B32A006B2DF2 /* rpc_unix.cpp */; };
 		7539E26C1F23B32A006B2DF2 /* sshpty.c in Sources */ = {isa = PBXBuildFile; fileRef = 7539E22A1F23B32A006B2DF2 /* sshpty.c */; };
@@ -122,6 +122,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		5D5C3B0924B2DF3400CDAB41 /* bincue.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = bincue.cpp; path = ../bincue.cpp; sourceTree = "<group>"; };
+		5D5C3B0B24B2DF4200CDAB41 /* bincue.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bincue.h; sourceTree = "<group>"; };
 		5DDE95122255D075004D0E79 /* AudioBackEnd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AudioBackEnd.h; sourceTree = "<group>"; };
 		5DDE95132255D076004D0E79 /* AudioDevice.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AudioDevice.cpp; sourceTree = "<group>"; };
 		5DDE95142255D076004D0E79 /* AudioDevice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AudioDevice.h; sourceTree = "<group>"; };
@@ -243,8 +245,6 @@
 		7539E1221F23B25A006B2DF2 /* user_strings.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = user_strings.cpp; path = ../user_strings.cpp; sourceTree = "<group>"; };
 		7539E1231F23B25A006B2DF2 /* video.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = video.cpp; path = ../video.cpp; sourceTree = "<group>"; };
 		7539E1241F23B25A006B2DF2 /* xpram.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = xpram.cpp; path = ../xpram.cpp; sourceTree = "<group>"; };
-		7539E1F01F23B329006B2DF2 /* bincue_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = bincue_unix.cpp; sourceTree = "<group>"; };
-		7539E1F11F23B329006B2DF2 /* bincue_unix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = bincue_unix.h; sourceTree = "<group>"; };
 		7539E1F81F23B329006B2DF2 /* gtk-osx.patch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "gtk-osx.patch"; sourceTree = "<group>"; };
 		7539E1FA1F23B32A006B2DF2 /* mkstandalone */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = mkstandalone; sourceTree = "<group>"; };
 		7539E1FC1F23B32A006B2DF2 /* testlmem.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = testlmem.sh; sourceTree = "<group>"; };
@@ -417,6 +417,16 @@
 			path = ../slirp;
 			sourceTree = "<group>";
 		};
+		5D5C3B0824B2DEDF00CDAB41 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				5DDE95212255D0C2004D0E79 /* AudioUnit.framework */,
+				5DDE951F2255D0B6004D0E79 /* AudioToolbox.framework */,
+				5DDE951D2255D0A9004D0E79 /* CoreAudio.framework */,
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
 		752F26F71F240E51001032B4 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -459,6 +469,7 @@
 				753252FF1F535E5D0024025B /* generated src */,
 				7539DFB31F23B17E006B2DF2 /* Products */,
 				752F26F71F240E51001032B4 /* Frameworks */,
+				5D5C3B0824B2DEDF00CDAB41 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -492,6 +503,7 @@
 				7539DFD91F23B25A006B2DF2 /* adb.h */,
 				7539DFDA1F23B25A006B2DF2 /* audio.h */,
 				7539DFDB1F23B25A006B2DF2 /* audio_defs.h */,
+				5D5C3B0B24B2DF4200CDAB41 /* bincue.h */,
 				7539DFDC1F23B25A006B2DF2 /* cdrom.h */,
 				7539DFDD1F23B25A006B2DF2 /* clip.h */,
 				7539DFDE1F23B25A006B2DF2 /* debug.h */,
@@ -634,6 +646,7 @@
 			children = (
 				7539DFC91F23B25A006B2DF2 /* adb.cpp */,
 				7539DFCA1F23B25A006B2DF2 /* audio.cpp */,
+				5D5C3B0924B2DF3400CDAB41 /* bincue.cpp */,
 				7539DFCB1F23B25A006B2DF2 /* cdrom.cpp */,
 				7539DFCC1F23B25A006B2DF2 /* CrossPlatform */,
 				7539DFD41F23B25A006B2DF2 /* disk.cpp */,
@@ -669,8 +682,6 @@
 		7539E1E91F23B329006B2DF2 /* Unix */ = {
 			isa = PBXGroup;
 			children = (
-				7539E1F01F23B329006B2DF2 /* bincue_unix.cpp */,
-				7539E1F11F23B329006B2DF2 /* bincue_unix.h */,
 				7539E1F71F23B329006B2DF2 /* Darwin */,
 				7539E1FD1F23B32A006B2DF2 /* disk_sparsebundle.cpp */,
 				7539E1FE1F23B32A006B2DF2 /* disk_unix.h */,
@@ -866,6 +877,7 @@
 				5DDE951C2255D076004D0E79 /* AudioBackEnd.cpp in Sources */,
 				7539E2701F23B32A006B2DF2 /* tinyxml2.cpp in Sources */,
 				7539E1721F23B25A006B2DF2 /* rsrc_patches.cpp in Sources */,
+				5D5C3B0A24B2DF3500CDAB41 /* bincue.cpp in Sources */,
 				7539E2931F23C56F006B2DF2 /* serial_dummy.cpp in Sources */,
 				7539E1981F23B25A006B2DF2 /* exceptions.cpp in Sources */,
 				75CBCF771F5DB65E00830063 /* video_sdl.cpp in Sources */,
@@ -928,7 +940,6 @@
 				7539E2681F23B32A006B2DF2 /* rpc_unix.cpp in Sources */,
 				E413D92F20D260BC00E437D8 /* bootp.c in Sources */,
 				7539E2911F23C56F006B2DF2 /* prefs_editor_dummy.cpp in Sources */,
-				7539E23F1F23B32A006B2DF2 /* bincue_unix.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

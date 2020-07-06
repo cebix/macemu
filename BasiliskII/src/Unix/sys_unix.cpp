@@ -59,7 +59,7 @@
 #include "disk_unix.h"
 
 #if defined(BINCUE)
-#include "bincue_unix.h"
+#include "bincue.h"
 #endif
 
 

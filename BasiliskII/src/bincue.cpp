@@ -53,7 +53,7 @@ static int bincue_core_audio_callback(void);
 #include <SDL_audio.h>
 #endif
 
-#include "bincue_unix.h"
+#include "bincue.h"
 #define DEBUG 0
 #include "debug.h"
 

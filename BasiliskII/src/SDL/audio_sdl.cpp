@@ -34,7 +34,7 @@
 #include "debug.h"
 
 #if defined(BINCUE)
-#include "bincue_unix.h"
+#include "bincue.h"
 #endif
 
 
