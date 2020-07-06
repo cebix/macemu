@@ -53,6 +53,11 @@ static int bincue_core_audio_callback(void);
 #include <SDL_audio.h>
 #endif
 
+#ifdef WIN32
+#define bzero(b,len) (memset((b), '\0', (len)), (void) 0)  
+#define bcopy(b1,b2,len) (memmove((b2), (b1), (len)), (void) 0)
+#endif
+
 #include "bincue.h"
 #define DEBUG 0
 #include "debug.h"
@@ -420,8 +425,12 @@ static bool LoadCueSheet(const char *cuefile, CueSheet *cs)
 		if (!ParseCueSheet(fh, cs, cuefile)) goto fail;
 
 		// Open bin file and find length
-
-		if ((binfh = open(cs->binfile,O_RDONLY)) < 0) {
+		#ifdef WIN32
+			binfh = open(cs->binfile,O_RDONLY|O_BINARY);
+		#else
+			binfh = open(cs->binfile,O_RDONLY);
+		#endif
+		if (binfh < 0) {
 			D(bug("Can't read bin file %s\n", cs->binfile));
 			goto fail;
 		}
