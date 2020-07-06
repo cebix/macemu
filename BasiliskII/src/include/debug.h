@@ -101,9 +101,8 @@ extern void kprintf(const char *, ...);
 
 #else
 
-// Other systems just print it to stdout
-#include <stdio.h>
-#define bug printf
+#include <syslog.h>
+#define bug(...) syslog(1,__VA_ARGS__)
 
 #endif
 

@@ -41,6 +41,7 @@ prefs_desc common_prefs_items[] = {
 	{"scsi5", TYPE_STRING, false,     "SCSI target for Mac SCSI ID 5"},
 	{"scsi6", TYPE_STRING, false,     "SCSI target for Mac SCSI ID 6"},
 	{"screen", TYPE_STRING, false,    "video mode"},
+        {"bpp", TYPE_INT32, false, "bpp"},
 	{"seriala", TYPE_STRING, false,   "device name of Mac serial port A"},
 	{"serialb", TYPE_STRING, false,   "device name of Mac serial port B"},
 	{"ether", TYPE_STRING, false,     "device name of Mac ethernet adapter"},

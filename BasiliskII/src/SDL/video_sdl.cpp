@@ -409,9 +409,10 @@ static int sdl_depth_of_video_depth(int video_depth)
 // Get screen dimensions
 static void sdl_display_dimensions(int &width, int &height)
 {
-	static int max_width, max_height;
+	static int max_width = 0;
+	static int max_height = 0;
 	if (max_width == 0 && max_height == 0) {
-		max_width = 640 ; max_height = 480;
+		max_width = 800 ; max_height = 600;
 		SDL_Rect **modes = SDL_ListModes(NULL, SDL_FULLSCREEN | SDL_HWSURFACE);
 		if (modes && modes != (SDL_Rect **)-1) {
 			// It turns out that on some implementations, and contrary to the documentation,
@@ -1025,8 +1026,12 @@ bool VideoInit(bool classic)
 	else if (default_height > sdl_display_height())
 		default_height = sdl_display_height();
 
-	// Mac screen depth follows X depth
-	screen_depth = SDL_GetVideoInfo()->vfmt->BitsPerPixel;
+	uint32 user_bpp = PrefsFindInt32("bpp");
+	if(user_bpp == 8 || user_bpp == 16 || user_bpp == 24 || user_bpp == 32)
+		screen_depth = user_bpp;
+	else
+		screen_depth = 16;
+
 	int default_depth;
 	switch (screen_depth) {
 	case 8:

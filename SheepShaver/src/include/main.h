@@ -41,6 +41,8 @@ struct M68kRegisters {
 	uint32 a[8];
 };
 
+// vde switch variable
+extern char* vde_sock;
 
 // Functions
 extern bool InitAll(const char *vmdir);

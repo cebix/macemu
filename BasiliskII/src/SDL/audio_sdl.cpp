@@ -81,7 +81,7 @@ static bool open_sdl_audio(void)
 		audio_channel_counts.push_back(2);
 
 		// Default to highest supported values
-		audio_sample_rate_index = audio_sample_rates.size() - 1;
+		audio_sample_rate_index = 1; // audio_sample_rates.size() - 1;
 		audio_sample_size_index = audio_sample_sizes.size() - 1;
 		audio_channel_count_index = audio_channel_counts.size() - 1;
 	}
@@ -149,7 +149,7 @@ static bool open_audio(void)
 void AudioInit(void)
 {
 	// Init audio status and feature flags
-	AudioStatus.sample_rate = 44100 << 16;
+	AudioStatus.sample_rate = 22050 << 16;
 	AudioStatus.sample_size = 16;
 	AudioStatus.channels = 2;
 	AudioStatus.mixer = 0;

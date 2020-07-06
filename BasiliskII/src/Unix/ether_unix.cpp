@@ -273,8 +273,8 @@ bool ether_init(void)
 	}
 #endif
 	else {
-		net_if_type = NET_IF_SHEEPNET;
-		printf("selected Ethernet device type sheep_net\n");
+		net_if_type = NET_IF_VDE;
+		printf("selected Ethernet device type vde\n");
 	}
 
 	// Don't raise SIGPIPE, let errno be set to EPIPE
@@ -349,6 +349,7 @@ bool ether_init(void)
 			/* for select/poll when this fd receive data, there are
 			 * packets to recv(call vde_recv) */
 			fd = vde_datafd(vde_conn);
+ 			printf("vde socket connected");
 		}
 	}
 #endif
@@ -831,6 +832,7 @@ static int16 ether_do_write(uint32 arg)
 
 		do {
 			len = vde_send(vde_conn, packet, sizeof(packet), 0);
+			printf("sent: %l\n", len);
 		} while (len < 0);
 
 		return noErr;
