@@ -698,6 +698,7 @@ AS_IF([test  "x$have_bincue" = "xyes" ], [
        AC_SUBST(USE_BINCUE, no)
    else
        CPPFLAGS="$CPPFLAGS -DBINCUE $OSX_CORE_AUDIO"
+       DEFINES="$DEFINES -DBINCUE"
        AC_SUBST(USE_BINCUE, yes)
    fi
 ], [AC_SUBST(USE_BINCUE, no)])

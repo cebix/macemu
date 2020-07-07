@@ -112,9 +112,6 @@ define UI_SRCS_LIST_TO_OBJS
 	$(basename $(notdir $(file))))))
 endef
 UI_OBJS = $(UI_SRCS_LIST_TO_OBJS)
-ifeq ($(USE_BINCUE),yes)
-UI_OBJS += bincue.o
-endif
 
 SRC_PATHS += $(sort $(foreach file, $(SRCS), $(dir $(file))))
 VPATH :=

@@ -118,9 +118,6 @@ define UI_SRCS_LIST_TO_OBJS
 	$(basename $(notdir $(file))))))
 endef
 UI_OBJS = $(UI_SRCS_LIST_TO_OBJS)
-ifeq ($(USE_BINCUE),yes)
-UI_OBJS += bincue.o
-endif
 
 define DYNGENSRCS_LIST_TO_OBJS
 	$(addprefix $(OBJ_DIR)/, $(addsuffix .ho, $(foreach file, $(DYNGENSRCS), \

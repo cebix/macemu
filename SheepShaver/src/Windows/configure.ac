@@ -206,6 +206,7 @@ dnl BINCUE
 AS_IF([test  "x$with_bincue" = "xyes" ], [have_bincue=yes], [have_bincue=no])
 AS_IF([test  "x$have_bincue" = "xyes" ], [
    DEFINES="$DEFINES -DBINCUE"
+   CPPFLAGS="$CPPFLAGS -DBINCUE"
    AC_SUBST(USE_BINCUE, yes)
 ], [AC_SUBST(USE_BINCUE, no)])
 
