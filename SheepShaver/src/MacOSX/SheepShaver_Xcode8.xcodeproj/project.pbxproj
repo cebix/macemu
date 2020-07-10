@@ -76,8 +76,8 @@
 		08CD42DC14B7B85B009CA2A2 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */; };
 		08CD42E814B7B8AA009CA2A2 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08CD42E714B7B8AA009CA2A2 /* Carbon.framework */; };
 		3D2C25B5221092BA00B635DE /* SheepVM.icns in Resources */ = {isa = PBXBuildFile; fileRef = 3D2C25B4221092BA00B635DE /* SheepVM.icns */; };
-		5D2143D324B2DD81008BB372 /* bincue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D2143D224B2DD81008BB372 /* bincue.cpp */; };
 		5D2143D524B2DD90008BB372 /* bincue.h in Headers */ = {isa = PBXBuildFile; fileRef = 5D2143D424B2DD90008BB372 /* bincue.h */; };
+		5D35961124B8F5FB0081EC8A /* bincue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D35961024B8F5FA0081EC8A /* bincue.cpp */; };
 		5D55CB40225584D000FF8E81 /* cdrom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D55CB3F225584D000FF8E81 /* cdrom.cpp */; };
 		5DDE94F92255C70C004D0E79 /* MacOSX_sound_if.h in Headers */ = {isa = PBXBuildFile; fileRef = 5DDE94F82255C70C004D0E79 /* MacOSX_sound_if.h */; };
 		5DDE94FB2255C712004D0E79 /* MacOSX_sound_if.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE94FA2255C712004D0E79 /* MacOSX_sound_if.cpp */; };
@@ -337,8 +337,8 @@
 		08CD42DB14B7B85B009CA2A2 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
 		08CD42E714B7B8AA009CA2A2 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = /System/Library/Frameworks/Carbon.framework; sourceTree = "<absolute>"; };
 		3D2C25B4221092BA00B635DE /* SheepVM.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = SheepVM.icns; sourceTree = "<group>"; };
-		5D2143D224B2DD81008BB372 /* bincue.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = bincue.cpp; path = ../bincue.cpp; sourceTree = "<group>"; };
 		5D2143D424B2DD90008BB372 /* bincue.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = bincue.h; sourceTree = "<group>"; };
+		5D35961024B8F5FA0081EC8A /* bincue.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = bincue.cpp; path = ../../../BasiliskII/src/bincue.cpp; sourceTree = "<group>"; };
 		5D3967BF2328D315003925D6 /* adb.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = adb.cpp; path = ../../../BasiliskII/src/adb.cpp; sourceTree = "<group>"; };
 		5D55CB3F225584D000FF8E81 /* cdrom.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cdrom.cpp; path = ../../../BasiliskII/src/cdrom.cpp; sourceTree = "<group>"; };
 		5DDE94F82255C70C004D0E79 /* MacOSX_sound_if.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = MacOSX_sound_if.h; path = ../../../BasiliskII/src/MacOSX/MacOSX_sound_if.h; sourceTree = "<group>"; };
@@ -488,7 +488,7 @@
 				087B91B11B780EC900825F7F /* CrossPlatform */,
 				5D3967BF2328D315003925D6 /* adb.cpp */,
 				5DF4CB7E22B5BD5D00512A86 /* audio.cpp */,
-				5D2143D224B2DD81008BB372 /* bincue.cpp */,
+				5D35961024B8F5FA0081EC8A /* bincue.cpp */,
 				5D55CB3F225584D000FF8E81 /* cdrom.cpp */,
 				0856CD7D14A99EEF000B1711 /* disk.cpp */,
 				0856CD7E14A99EEF000B1711 /* dummy */,
@@ -1167,7 +1167,7 @@
 				0856D10E14A99EF1000B1711 /* sys_unix.cpp in Sources */,
 				E44C461720D262B0000583AE /* cksum.c in Sources */,
 				0856D10F14A99EF1000B1711 /* timer_unix.cpp in Sources */,
-				5D2143D324B2DD81008BB372 /* bincue.cpp in Sources */,
+				5D35961124B8F5FB0081EC8A /* bincue.cpp in Sources */,
 				0856D11114A99EF1000B1711 /* user_strings_unix.cpp in Sources */,
 				E44C461020D262B0000583AE /* slirp.c in Sources */,
 				0856D11614A99EF1000B1711 /* xpram_unix.cpp in Sources */,

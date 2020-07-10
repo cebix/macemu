@@ -153,6 +153,7 @@ static uint8 silence_byte;
 // CD Player state; multiple players supported through vectors
 
 std::vector<CDPlayer*> players;
+CDPlayer* current_player = NULL;
 
 CDPlayer* CSToPlayer(CueSheet* cs)
 {
@@ -687,14 +688,25 @@ bool GetPosition_bincue(void *fh, uint8 *pos)
 		return false;
 }
 
+void CDPause_currentplayer(CDPlayer* player) {
+	if (current_player && current_player != player) {
+		current_player->audiostatus = CDROM_AUDIO_PAUSED;
+		current_player = NULL;
+	}
+}
+
 bool CDPause_bincue(void *fh)
 {
 	CueSheet *cs = (CueSheet *) fh;
 	CDPlayer *player = CSToPlayer(cs);
 	
 	if (cs && player) {
+		// Pause another player if needed
+		CDPause_currentplayer(player);
+
 		// doesn't matter if it was playing, just ensure it's now paused
 		player->audiostatus = CDROM_AUDIO_PAUSED;
+		current_player = NULL;
 		return true;
 	}
 	return false;
@@ -706,11 +718,16 @@ bool CDStop_bincue(void *fh)
 	CDPlayer *player = CSToPlayer(cs);
 	
 	if (cs && player) {
+		// Pause another player if needed
+		CDPause_currentplayer(player);
+		
 #ifdef OSX_CORE_AUDIO
 		player->soundoutput.stop();
 #endif
 		if (player->audiostatus != CDROM_AUDIO_INVALID)
 			player->audiostatus = CDROM_AUDIO_NO_STATUS;
+
+		current_player = NULL;
 		return true;
 	}
 	return false;
@@ -722,8 +739,12 @@ bool CDResume_bincue(void *fh)
 	CDPlayer *player = CSToPlayer(cs);
 	
 	if (cs && player) {
-		// doesn't matter if it was paused, just ensure it now plays
+		// Pause another player if needed
+		CDPause_currentplayer(player);
+
+		// doesn't matter if it was paused, just ensure this one plays now
 		player->audiostatus = CDROM_AUDIO_PLAY;
+		current_player = player;
 		return true;
 	}
 	return false;
@@ -736,6 +757,9 @@ bool CDPlay_bincue(void *fh, uint8 start_m, uint8 start_s, uint8 start_f,
 	CDPlayer *player = CSToPlayer(cs);
 	
 	if (cs && player) {
+		// Pause another player if needed
+		CDPause_currentplayer(player);
+
 		int track;
 		MSF msf;
 
@@ -796,6 +820,7 @@ bool CDPlay_bincue(void *fh, uint8 start_m, uint8 start_s, uint8 start_f,
 			// should be from current track !
 			player->soundoutput.start(16, 2, 44100);
 #endif
+			current_player = player;
 			return true;
 		}
 	}
@@ -926,9 +951,13 @@ static uint8 *fill_buffer(int stream_len, CDPlayer* player)
 #ifdef USE_SDL_AUDIO
 void MixAudio_bincue(uint8 *stream, int stream_len, int volume)
 {
-	for (std::vector<CDPlayer*>::iterator it = players.begin(); it != players.end(); ++it)
-	{
-		CDPlayer *player = *it;
+	
+//	for (std::vector<CDPlayer*>::iterator it = players.begin(); it != players.end(); ++it)
+//	{
+//		CDPlayer *player = *it;
+	
+	if (current_player) {
+		CDPlayer *player = current_player;
 		
 		if (player->audio_enabled && (player->audiostatus == CDROM_AUDIO_PLAY)) {
 			uint8 *buf = fill_buffer(stream_len, player);
