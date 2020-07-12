@@ -83,16 +83,13 @@
 		5DDE94FB2255C712004D0E79 /* MacOSX_sound_if.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE94FA2255C712004D0E79 /* MacOSX_sound_if.cpp */; };
 		5DDE94FC2255C712004D0E79 /* MacOSX_sound_if.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE94FA2255C712004D0E79 /* MacOSX_sound_if.cpp */; };
 		5DDE94FE2255C740004D0E79 /* AudioBackEnd.h in Headers */ = {isa = PBXBuildFile; fileRef = 5DDE94FD2255C740004D0E79 /* AudioBackEnd.h */; };
-		5DDE95002255C74C004D0E79 /* AudioBackEnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE94FF2255C74C004D0E79 /* AudioBackEnd.cpp */; };
 		5DDE95012255C74C004D0E79 /* AudioBackEnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE94FF2255C74C004D0E79 /* AudioBackEnd.cpp */; };
 		5DDE95032255C7FE004D0E79 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DDE95022255C7FE004D0E79 /* AudioToolbox.framework */; };
 		5DDE95052255C822004D0E79 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DDE95042255C822004D0E79 /* CoreAudio.framework */; };
 		5DDE95072255C844004D0E79 /* AudioUnit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DDE95062255C844004D0E79 /* AudioUnit.framework */; };
-		5DDE95092255C88E004D0E79 /* AudioDevice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE95082255C88E004D0E79 /* AudioDevice.cpp */; };
 		5DDE950A2255C88E004D0E79 /* AudioDevice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE95082255C88E004D0E79 /* AudioDevice.cpp */; };
 		5DDE950C2255C896004D0E79 /* AudioBackEnd.h in Headers */ = {isa = PBXBuildFile; fileRef = 5DDE950B2255C895004D0E79 /* AudioBackEnd.h */; };
 		5DDE950F2255C8B4004D0E79 /* audio_defs_macosx.h in Headers */ = {isa = PBXBuildFile; fileRef = 5DDE950D2255C8B3004D0E79 /* audio_defs_macosx.h */; };
-		5DDE95102255C8B4004D0E79 /* audio_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE950E2255C8B3004D0E79 /* audio_macosx.cpp */; };
 		5DDE95112255C8B4004D0E79 /* audio_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE950E2255C8B3004D0E79 /* audio_macosx.cpp */; };
 		5DE93B46247C71F200B2C821 /* adb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D3967BF2328D315003925D6 /* adb.cpp */; };
 		5DF4CB7F22B5BD5D00512A86 /* audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DF4CB7E22B5BD5D00512A86 /* audio.cpp */; };
@@ -1151,11 +1148,9 @@
 				0856D07B14A99EF1000B1711 /* sony.cpp in Sources */,
 				0856D07C14A99EF1000B1711 /* thunks.cpp in Sources */,
 				0856D07D14A99EF1000B1711 /* timer.cpp in Sources */,
-				5DDE95002255C74C004D0E79 /* AudioBackEnd.cpp in Sources */,
 				0856D07E14A99EF1000B1711 /* about_window_unix.cpp in Sources */,
 				E44C460720D262B0000583AE /* ip_icmp.c in Sources */,
 				E4CBF46120CFC451009F40CC /* video_sdl.cpp in Sources */,
-				5DDE95102255C8B4004D0E79 /* audio_macosx.cpp in Sources */,
 				0856D09814A99EF1000B1711 /* ether_unix.cpp in Sources */,
 				0856D0AA14A99EF1000B1711 /* main_unix.cpp in Sources */,
 				E413A40320CF7E6D00FBE967 /* video_sdl2.cpp in Sources */,
@@ -1171,7 +1166,6 @@
 				0856D11114A99EF1000B1711 /* user_strings_unix.cpp in Sources */,
 				E44C461020D262B0000583AE /* slirp.c in Sources */,
 				0856D11614A99EF1000B1711 /* xpram_unix.cpp in Sources */,
-				5DDE95092255C88E004D0E79 /* AudioDevice.cpp in Sources */,
 				0856D11714A99EF1000B1711 /* user_strings.cpp in Sources */,
 				E44C460920D262B0000583AE /* tcp_input.c in Sources */,
 				0856D11814A99EF1000B1711 /* video.cpp in Sources */,
