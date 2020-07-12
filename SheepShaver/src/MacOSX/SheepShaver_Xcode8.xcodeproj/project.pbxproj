@@ -84,9 +84,6 @@
 		5DDE94FC2255C712004D0E79 /* MacOSX_sound_if.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE94FA2255C712004D0E79 /* MacOSX_sound_if.cpp */; };
 		5DDE94FE2255C740004D0E79 /* AudioBackEnd.h in Headers */ = {isa = PBXBuildFile; fileRef = 5DDE94FD2255C740004D0E79 /* AudioBackEnd.h */; };
 		5DDE95012255C74C004D0E79 /* AudioBackEnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE94FF2255C74C004D0E79 /* AudioBackEnd.cpp */; };
-		5DDE95032255C7FE004D0E79 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DDE95022255C7FE004D0E79 /* AudioToolbox.framework */; };
-		5DDE95052255C822004D0E79 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DDE95042255C822004D0E79 /* CoreAudio.framework */; };
-		5DDE95072255C844004D0E79 /* AudioUnit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DDE95062255C844004D0E79 /* AudioUnit.framework */; };
 		5DDE950A2255C88E004D0E79 /* AudioDevice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE95082255C88E004D0E79 /* AudioDevice.cpp */; };
 		5DDE950C2255C896004D0E79 /* AudioBackEnd.h in Headers */ = {isa = PBXBuildFile; fileRef = 5DDE950B2255C895004D0E79 /* AudioBackEnd.h */; };
 		5DDE950F2255C8B4004D0E79 /* audio_defs_macosx.h in Headers */ = {isa = PBXBuildFile; fileRef = 5DDE950D2255C8B3004D0E79 /* audio_defs_macosx.h */; };
@@ -422,9 +419,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5DDE95072255C844004D0E79 /* AudioUnit.framework in Frameworks */,
-				5DDE95052255C822004D0E79 /* CoreAudio.framework in Frameworks */,
-				5DDE95032255C7FE004D0E79 /* AudioToolbox.framework in Frameworks */,
 				E420910120D0C4FA0094654F /* SDL2.framework in Frameworks */,
 				E420260524125182000508DF /* Security.framework in Frameworks */,
 				0856D21514A9A6C6000B1711 /* IOKit.framework in Frameworks */,
