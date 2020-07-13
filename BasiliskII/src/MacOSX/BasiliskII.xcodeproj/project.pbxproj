@@ -124,9 +124,6 @@
 		5DDE95162255D076004D0E79 /* MacOSX_sound_if.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MacOSX_sound_if.cpp; sourceTree = "<group>"; };
 		5DDE95172255D076004D0E79 /* AudioBackEnd.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AudioBackEnd.cpp; sourceTree = "<group>"; };
 		5DDE95182255D076004D0E79 /* MacOSX_sound_if.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MacOSX_sound_if.h; sourceTree = "<group>"; };
-		5DDE951D2255D0A9004D0E79 /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
-		5DDE951F2255D0B6004D0E79 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
-		5DDE95212255D0C2004D0E79 /* AudioUnit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioUnit.framework; path = System/Library/Frameworks/AudioUnit.framework; sourceTree = SDKROOT; };
 		752F26F81F240E51001032B4 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		752F26FA1F240E69001032B4 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
 		752F27001F242BAF001032B4 /* prefs_sdl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = prefs_sdl.cpp; sourceTree = "<group>"; };
@@ -407,16 +404,6 @@
 			path = ../slirp;
 			sourceTree = "<group>";
 		};
-		5D5C3B0824B2DEDF00CDAB41 /* Recovered References */ = {
-			isa = PBXGroup;
-			children = (
-				5DDE95212255D0C2004D0E79 /* AudioUnit.framework */,
-				5DDE951F2255D0B6004D0E79 /* AudioToolbox.framework */,
-				5DDE951D2255D0A9004D0E79 /* CoreAudio.framework */,
-			);
-			name = "Recovered References";
-			sourceTree = "<group>";
-		};
 		752F26F71F240E51001032B4 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -459,7 +446,6 @@
 				753252FF1F535E5D0024025B /* generated src */,
 				7539DFB31F23B17E006B2DF2 /* Products */,
 				752F26F71F240E51001032B4 /* Frameworks */,
-				5D5C3B0824B2DEDF00CDAB41 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};

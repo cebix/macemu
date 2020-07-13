@@ -330,9 +330,6 @@
 		5DDE94FA2255C712004D0E79 /* MacOSX_sound_if.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = MacOSX_sound_if.cpp; path = ../../../BasiliskII/src/MacOSX/MacOSX_sound_if.cpp; sourceTree = "<group>"; };
 		5DDE94FD2255C740004D0E79 /* AudioBackEnd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AudioBackEnd.h; path = ../../../BasiliskII/src/MacOSX/AudioBackEnd.h; sourceTree = "<group>"; };
 		5DDE94FF2255C74C004D0E79 /* AudioBackEnd.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = AudioBackEnd.cpp; path = ../../../BasiliskII/src/MacOSX/AudioBackEnd.cpp; sourceTree = "<group>"; };
-		5DDE95022255C7FE004D0E79 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
-		5DDE95042255C822004D0E79 /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
-		5DDE95062255C844004D0E79 /* AudioUnit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioUnit.framework; path = System/Library/Frameworks/AudioUnit.framework; sourceTree = SDKROOT; };
 		5DDE95082255C88E004D0E79 /* AudioDevice.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = AudioDevice.cpp; path = ../../../BasiliskII/src/MacOSX/AudioDevice.cpp; sourceTree = "<group>"; };
 		5DDE950B2255C895004D0E79 /* AudioBackEnd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AudioBackEnd.h; path = ../../../BasiliskII/src/MacOSX/AudioBackEnd.h; sourceTree = "<group>"; };
 		5DDE950D2255C8B3004D0E79 /* audio_defs_macosx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = audio_defs_macosx.h; path = ../../../BasiliskII/src/MacOSX/audio_defs_macosx.h; sourceTree = "<group>"; };
@@ -451,7 +448,6 @@
 				08CD42DF14B7B865009CA2A2 /* Frameworks */,
 				0856CCC214A99E1C000B1711 /* Products */,
 				E420260924125403000508DF /* Generated */,
-				5DE93B45247C71A700B2C821 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -901,16 +897,6 @@
 				0856D21414A9A6C6000B1711 /* IOKit.framework */,
 			);
 			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		5DE93B45247C71A700B2C821 /* Recovered References */ = {
-			isa = PBXGroup;
-			children = (
-				5DDE95062255C844004D0E79 /* AudioUnit.framework */,
-				5DDE95042255C822004D0E79 /* CoreAudio.framework */,
-				5DDE95022255C7FE004D0E79 /* AudioToolbox.framework */,
-			);
-			name = "Recovered References";
 			sourceTree = "<group>";
 		};
 		E420260924125403000508DF /* Generated */ = {
