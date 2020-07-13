@@ -79,15 +79,6 @@
 		5D2143D524B2DD90008BB372 /* bincue.h in Headers */ = {isa = PBXBuildFile; fileRef = 5D2143D424B2DD90008BB372 /* bincue.h */; };
 		5D35961124B8F5FB0081EC8A /* bincue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D35961024B8F5FA0081EC8A /* bincue.cpp */; };
 		5D55CB40225584D000FF8E81 /* cdrom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D55CB3F225584D000FF8E81 /* cdrom.cpp */; };
-		5DDE94F92255C70C004D0E79 /* MacOSX_sound_if.h in Headers */ = {isa = PBXBuildFile; fileRef = 5DDE94F82255C70C004D0E79 /* MacOSX_sound_if.h */; };
-		5DDE94FB2255C712004D0E79 /* MacOSX_sound_if.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE94FA2255C712004D0E79 /* MacOSX_sound_if.cpp */; };
-		5DDE94FC2255C712004D0E79 /* MacOSX_sound_if.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE94FA2255C712004D0E79 /* MacOSX_sound_if.cpp */; };
-		5DDE94FE2255C740004D0E79 /* AudioBackEnd.h in Headers */ = {isa = PBXBuildFile; fileRef = 5DDE94FD2255C740004D0E79 /* AudioBackEnd.h */; };
-		5DDE95012255C74C004D0E79 /* AudioBackEnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE94FF2255C74C004D0E79 /* AudioBackEnd.cpp */; };
-		5DDE950A2255C88E004D0E79 /* AudioDevice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE95082255C88E004D0E79 /* AudioDevice.cpp */; };
-		5DDE950C2255C896004D0E79 /* AudioBackEnd.h in Headers */ = {isa = PBXBuildFile; fileRef = 5DDE950B2255C895004D0E79 /* AudioBackEnd.h */; };
-		5DDE950F2255C8B4004D0E79 /* audio_defs_macosx.h in Headers */ = {isa = PBXBuildFile; fileRef = 5DDE950D2255C8B3004D0E79 /* audio_defs_macosx.h */; };
-		5DDE95112255C8B4004D0E79 /* audio_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE950E2255C8B3004D0E79 /* audio_macosx.cpp */; };
 		5DE93B46247C71F200B2C821 /* adb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D3967BF2328D315003925D6 /* adb.cpp */; };
 		5DF4CB7F22B5BD5D00512A86 /* audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5DF4CB7E22B5BD5D00512A86 /* audio.cpp */; };
 		A7B1921418C35D4700791D8D /* DiskType.m in Sources */ = {isa = PBXBuildFile; fileRef = A7B1921318C35D4700791D8D /* DiskType.m */; };
@@ -938,14 +929,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				08003F8F1E0624D100A3ADAB /* ppc-dyngen-ops-x86_32.hpp in Headers */,
-				5DDE94F92255C70C004D0E79 /* MacOSX_sound_if.h in Headers */,
 				08003F8E1E0624D100A3ADAB /* basic-dyngen-ops.hpp in Headers */,
 				E4C9A03E1FD55CDC00CABBF9 /* basic-dyngen-ops-x86_64_macos.hpp in Headers */,
 				5D2143D524B2DD90008BB372 /* bincue.h in Headers */,
 				E4C9A0401FD55CE700CABBF9 /* ppc-dyngen-ops-x86_64_macos.hpp in Headers */,
-				5DDE950C2255C896004D0E79 /* AudioBackEnd.h in Headers */,
-				5DDE950F2255C8B4004D0E79 /* audio_defs_macosx.h in Headers */,
-				5DDE94FE2255C740004D0E79 /* AudioBackEnd.h in Headers */,
 				08163339158C121000C449F9 /* dis-asm.h in Headers */,
 				08003F8C1E0624D100A3ADAB /* basic-dyngen-ops-x86_32.hpp in Headers */,
 				08003F911E0624D100A3ADAB /* ppc-dyngen-ops.hpp in Headers */,
@@ -1079,17 +1066,13 @@
 			files = (
 				0846E4B114B1264700574779 /* ieeefp.cpp in Sources */,
 				0846E4B314B1264F00574779 /* mathlib.cpp in Sources */,
-				5DDE950A2255C88E004D0E79 /* AudioDevice.cpp in Sources */,
 				0846E4B514B1265500574779 /* utils-cpuinfo.cpp in Sources */,
 				0846E4B614B1265A00574779 /* ppc-translate.cpp in Sources */,
 				0846E4B814B1266000574779 /* ppc-jit.cpp in Sources */,
 				0846E4B914B1266600574779 /* ppc-execute.cpp in Sources */,
 				0846E4BC14B1267200574779 /* ppc-dyngen.cpp in Sources */,
-				5DDE94FC2255C712004D0E79 /* MacOSX_sound_if.cpp in Sources */,
-				5DDE95112255C8B4004D0E79 /* audio_macosx.cpp in Sources */,
 				0846E4BE14B1267A00574779 /* ppc-decode.cpp in Sources */,
 				0846E4C014B1267F00574779 /* ppc-cpu.cpp in Sources */,
-				5DDE95012255C74C004D0E79 /* AudioBackEnd.cpp in Sources */,
 				0846E4C114B1268B00574779 /* jit-cache.cpp in Sources */,
 				0846E4C214B1269600574779 /* basic-dyngen.cpp in Sources */,
 				0846E51314B128ED00574779 /* sheepshaver_glue.cpp in Sources */,
@@ -1103,7 +1086,6 @@
 			files = (
 				5DE93B46247C71F200B2C821 /* adb.cpp in Sources */,
 				E44C460B20D262B0000583AE /* debug.c in Sources */,
-				5DDE94FB2255C712004D0E79 /* MacOSX_sound_if.cpp in Sources */,
 				E44C460C20D262B0000583AE /* tcp_subr.c in Sources */,
 				E44C461520D262B0000583AE /* ip_output.c in Sources */,
 				E44C461820D262B0000583AE /* tcp_output.c in Sources */,
@@ -1220,8 +1202,6 @@
 					"_GNU_SOURCE=1",
 					_THREAD_SAFE,
 					_REENTRANT,
-					"USE_SDL_AUDIO=1",
-					"BINCUE=1",
 				);
 				HEADER_SEARCH_PATHS = (
 					/Library/Frameworks/SDL2.framework/Headers/,
@@ -1236,11 +1216,7 @@
 				);
 				INSTALL_PATH = /usr/local/lib;
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
-				OTHER_CPLUSPLUSFLAGS = (
-					"$(OTHER_CFLAGS)",
-					"-DDEBUG",
-					"-g",
-				);
+				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				PRODUCT_NAME = kpx_cpu;
 				VALID_ARCHS = x86_64;
 			};
@@ -1265,8 +1241,6 @@
 					"_GNU_SOURCE=1",
 					_THREAD_SAFE,
 					_REENTRANT,
-					"USE_SDL_AUDIO=1",
-					"BINCUE=1",
 				);
 				HEADER_SEARCH_PATHS = (
 					/Library/Frameworks/SDL2.framework/Headers/,
@@ -1281,11 +1255,7 @@
 				);
 				INSTALL_PATH = /usr/local/lib;
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
-				OTHER_CPLUSPLUSFLAGS = (
-					"$(OTHER_CFLAGS)",
-					"-DDEBUG",
-					"-g",
-				);
+				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				PRODUCT_NAME = kpx_cpu;
 				VALID_ARCHS = x86_64;
 			};
