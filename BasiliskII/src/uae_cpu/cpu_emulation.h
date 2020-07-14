@@ -37,6 +37,10 @@ extern uint32 ROMBaseMac;		// ROM base (Mac address space)
 extern uint8 *ROMBaseHost;		// ROM base (host address space)
 extern uint32 ROMSize;			// Size of ROM
 
+// For 24 Bit ROM, we maps the guest OS frame buffer address above 4MiB RAM
+// and ROM but less than 16 MiB.
+const uint32 MacFrameBaseMac24Bit = 0x00500000;
+
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 // If we are not using real or direct addressing, the Mac frame buffer gets
 // mapped to this location. The memory must be allocated by VideoInit().

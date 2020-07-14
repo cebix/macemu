@@ -463,15 +463,13 @@ uae_u8 *REGPARAM2 frame_xlate(uaecptr addr)
 	return (uae_u8 *)(FrameBaseDiff + addr);
 }
 
-/* Mac framebuffer RAM (24 bit addressing)
- *
- * This works by duplicating appropriate writes to the 32-bit
- * address-space framebuffer.
- */
-
-static void REGPARAM2 fram24_lput(uaecptr, uae_u32) REGPARAM;
-static void REGPARAM2 fram24_wput(uaecptr, uae_u32) REGPARAM;
-static void REGPARAM2 fram24_bput(uaecptr, uae_u32) REGPARAM;
+/* Mac framebuffer RAM (24 bit addressing) */
+static uae_u32 REGPARAM2 frame24_lget(uaecptr) REGPARAM;
+static uae_u32 REGPARAM2 frame24_wget(uaecptr) REGPARAM;
+static uae_u32 REGPARAM2 frame24_bget(uaecptr) REGPARAM;
+static void REGPARAM2 frame24_lput(uaecptr, uae_u32) REGPARAM;
+static void REGPARAM2 frame24_wput(uaecptr, uae_u32) REGPARAM;
+static void REGPARAM2 frame24_bput(uaecptr, uae_u32) REGPARAM;
 
 /*
  * Q: Why the magic number 0xa700 and 0xfc80?
@@ -501,42 +499,42 @@ static void REGPARAM2 fram24_bput(uaecptr, uae_u32) REGPARAM;
  *
  */
 
-void REGPARAM2 fram24_lput(uaecptr addr, uae_u32 l)
+uae_u32 REGPARAM2 frame24_lget(uaecptr addr)
 {
-	uaecptr page_off = addr & 0xffff;
-	if (0xa700 <= page_off && page_off < 0xfc80) {
-		uae_u32 *fm;
-		fm = (uae_u32 *)(MacFrameBaseHost + page_off - 0xa700);
-		do_put_mem_long(fm, l);
-	}
-
 	uae_u32 *m;
-	m = (uae_u32 *)(RAMBaseDiff + (addr & 0xffffff));
+	m = (uae_u32 *)(FrameBaseDiff + (addr & 0xffffff));
+	return do_get_mem_long(m);
+}
+
+uae_u32 REGPARAM2 frame24_wget(uaecptr addr)
+{
+	uae_u16 *m;
+	m = (uae_u16 *)(FrameBaseDiff + (addr & 0xffffff));
+	return do_get_mem_word(m);
+}
+
+uae_u32 REGPARAM2 frame24_bget(uaecptr addr)
+{
+	return (uae_u32)*(uae_u8 *)(FrameBaseDiff + (addr & 0xffffff));
+}
+
+void REGPARAM2 frame24_lput(uaecptr addr, uae_u32 l)
+{
+	uae_u32 *m;
+	m = (uae_u32 *)(FrameBaseDiff + (addr & 0xffffffff));
 	do_put_mem_long(m, l);
 }
 
-void REGPARAM2 fram24_wput(uaecptr addr, uae_u32 w)
+void REGPARAM2 frame24_wput(uaecptr addr, uae_u32 w)
 {
-	uaecptr page_off = addr & 0xffff;
-	if (0xa700 <= page_off && page_off < 0xfc80) {
-		uae_u16 *fm;
-		fm = (uae_u16 *)(MacFrameBaseHost + page_off - 0xa700);
-		do_put_mem_word(fm, w);
-	}
-
 	uae_u16 *m;
-	m = (uae_u16 *)(RAMBaseDiff + (addr & 0xffffff));
+	m = (uae_u16 *)(FrameBaseDiff + (addr & 0xffffffff));
 	do_put_mem_word(m, w);
 }
 
-void REGPARAM2 fram24_bput(uaecptr addr, uae_u32 b)
+void REGPARAM2 frame24_bput(uaecptr addr, uae_u32 b)
 {
-	uaecptr page_off = addr & 0xffff;
-	if (0xa700 <= page_off && page_off < 0xfc80) {
-		*(uae_u8 *)(MacFrameBaseHost + page_off - 0xa700) = b;
-	}
-
-	*(uae_u8 *)(RAMBaseDiff + (addr & 0xffffff)) = b;
+	*(uae_u8 *)(FrameBaseDiff + (addr & 0xffffffff)) = b;
 }
 
 /* Default memory access functions */
@@ -603,10 +601,10 @@ addrbank frame_host_888_bank = {
 	frame_xlate
 };
 
-addrbank fram24_bank = {
-	ram24_lget, ram24_wget, ram24_bget,
-	fram24_lput, fram24_wput, fram24_bput,
-	ram24_xlate
+addrbank frame24_bank = {
+	frame24_lget, frame24_wget, frame24_bget,
+	frame24_lput, frame24_wput, frame24_bput,
+	default_xlate
 };
 
 void memory_init(void)
@@ -619,7 +617,10 @@ void memory_init(void)
 
 	RAMBaseDiff = (uintptr)RAMBaseHost - (uintptr)RAMBaseMac;
 	ROMBaseDiff = (uintptr)ROMBaseHost - (uintptr)ROMBaseMac;
-	FrameBaseDiff = (uintptr)MacFrameBaseHost - (uintptr)MacFrameBaseMac;
+	if (TwentyFourBitAddressing)
+		FrameBaseDiff = (uintptr)MacFrameBaseHost - (uintptr)MacFrameBaseMac24Bit;
+	else
+		FrameBaseDiff = (uintptr)MacFrameBaseHost - (uintptr)MacFrameBaseMac;
 
 	// Map RAM, ROM and display
 	if (TwentyFourBitAddressing) {
@@ -627,7 +628,7 @@ void memory_init(void)
 		map_banks(&rom24_bank, ROMBaseMac >> 16, ROMSize >> 16);
 
 		// Map frame buffer at end of RAM.
-		map_banks(&fram24_bank, ((RAMBaseMac + ram_size) >> 16) - 1, 1);
+		map_banks(&frame24_bank, MacFrameBaseMac24Bit >> 16, (MacFrameSize >> 16) + 1);
 	} else {
 		map_banks(&ram_bank, RAMBaseMac >> 16, ram_size >> 16);
 		map_banks(&rom_bank, ROMBaseMac >> 16, ROMSize >> 16);
