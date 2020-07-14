@@ -42,6 +42,9 @@ extern uint32 ROMSize;			// Size of ROM
 // mapped to this location. The memory must be allocated by VideoInit().
 // If multiple monitors are used, they must share the frame buffer
 const uint32 MacFrameBaseMac = 0xa0000000;
+// For 24 Bit ROM, we maps the guest OS frame buffer address above 4MiB RAM
+// and ROM but less than 16 MiB.
+const uint32 MacFrameBaseMac24Bit = 0x00500000;
 extern uint8 *MacFrameBaseHost;	// Frame buffer base (host address space)
 extern uint32 MacFrameSize;		// Size of frame buffer
 #endif
