@@ -681,7 +681,7 @@ bool GetPosition_bincue(void *fh, uint8 *pos)
 		*pos++ = rel.m;
 		*pos++ = rel.s;
 		*pos++ = rel.f;
-		*pos++ = 0;
+//		*pos++ = 0;
 //		D(bug("CDROM position %02d:%02d:%02d track %02d\n", abs.m, abs.s, abs.f, trackno));
 		return true;
 	}

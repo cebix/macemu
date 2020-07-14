@@ -234,6 +234,11 @@ static void read_toc(cdrom_drive_info &info)
 	}
 #endif
 	
+	// Default start
+	info.start_at[0] = 0;
+	info.start_at[1] = 0;
+	info.start_at[2] = 0;
+	
 	// Find lead-out track
 	info.lead_out[0] = 0;
 	info.lead_out[1] = 0;
@@ -410,6 +415,8 @@ int16 CDROMOpen(uint32 pb, uint32 dce)
 			info->block_size = 512;
 			info->twok_offset = -1;
 			info->play_mode = 0x09;
+			info->play_order = 0;
+			info->repeat = 0;
 			info->power_mode = 0;
 			
 			// Allocate drive status record
