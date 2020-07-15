@@ -369,6 +369,7 @@ AS_IF([test  "x$with_bincue" = "xyes" ], [have_bincue=yes], [have_bincue=no])
 AS_IF([test  "x$have_bincue" = "xyes" ], [
    if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
        DEFINES="$DEFINES -DBINCUE"
+       CPPFLAGS="$CPPFLAGS -DBINCUE"
        AC_SUBST(USE_BINCUE, yes)
    else
        AC_MSG_ERROR([You need SDL Audio to use BINCUE support.])
@@ -898,7 +899,7 @@ fi
 dnl BINCUE overrides
 
 if [[ "x$have_bincue" = "xyes" ]]; then
-  EXTRASYSSRCS="$EXTRASYSSRCS bincue_unix.cpp"
+  EXTRASYSSRCS="$EXTRASYSSRCS bincue.cpp"
 fi
 
 dnl libvhd overrides

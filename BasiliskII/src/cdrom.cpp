@@ -58,7 +58,7 @@ const uint8 CDROMIcon[258] = {
 	0x8a, 0xaa, 0xaa, 0xe4, 0x8d, 0x55, 0x55, 0xc4, 0x86, 0xaa, 0xab, 0xc4, 0x83, 0x55, 0x57, 0x84,
 	0x81, 0xaa, 0xaf, 0x04, 0x80, 0xf5, 0x7e, 0x04, 0x80, 0x3f, 0xf8, 0x04, 0x80, 0x0f, 0xe0, 0x04,
 	0xff, 0xff, 0xff, 0xfc, 0x80, 0x00, 0x00, 0x04, 0x80, 0x1f, 0xf0, 0x04, 0x7f, 0xff, 0xff, 0xf8,
-
+	
 	0x3f, 0xff, 0xff, 0xf0, 0x7f, 0xff, 0xff, 0xf8, 0xff, 0xff, 0xff, 0xfc, 0xff, 0xff, 0xff, 0xfc,
 	0xff, 0xff, 0xff, 0xfc, 0xff, 0xff, 0xff, 0xfc, 0xff, 0xff, 0xff, 0xfc, 0xff, 0xff, 0xff, 0xfc,
 	0xff, 0xff, 0xff, 0xfc, 0xff, 0xff, 0xff, 0xfc, 0xff, 0xff, 0xff, 0xfc, 0xff, 0xff, 0xff, 0xfc,
@@ -67,7 +67,7 @@ const uint8 CDROMIcon[258] = {
 	0xff, 0xff, 0xff, 0xfc, 0xff, 0xff, 0xff, 0xfc, 0xff, 0xff, 0xff, 0xfc, 0xff, 0xff, 0xff, 0xfc,
 	0xff, 0xff, 0xff, 0xfc, 0xff, 0xff, 0xff, 0xfc, 0xff, 0xff, 0xff, 0xfc, 0xff, 0xff, 0xff, 0xfc,
 	0xff, 0xff, 0xff, 0xfc, 0xff, 0xff, 0xff, 0xfc, 0xff, 0xff, 0xff, 0xfc, 0x7f, 0xff, 0xff, 0xf8,
-
+	
 	0, 0
 };
 
@@ -103,7 +103,7 @@ static const uint8 bin2bcd[256] = {
 };
 
 static const uint8 bcd2bin[256] = {
-	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -126,9 +126,9 @@ static const uint8 bcd2bin[256] = {
 struct cdrom_drive_info {
 	cdrom_drive_info() : num(0), fh(NULL), start_byte(0), status(0) {}
 	cdrom_drive_info(void *fh_) : num(0), fh(fh_), start_byte(0), status(0) {}
-
+	
 	void close_fh(void) { SysAllowRemoval(fh); Sys_close(fh); }
-
+	
 	int num;			// Drive number
 	void *fh;			// File handle
 	int block_size;		// CD-ROM block size
@@ -136,12 +136,15 @@ struct cdrom_drive_info {
 	loff_t start_byte;	// Start of HFS partition on disk
 	bool to_be_mounted;	// Flag: drive must be mounted in accRun
 	bool mount_non_hfs;	// Flag: Issue disk-inserted events for non-HFS disks
-
+	
 	uint8 toc[804];		// TOC of currently inserted disk
 	uint8 lead_out[3];	// MSF address of lead-out track
 	uint8 stop_at[3];	// MSF address of audio play stopping point
-
+	uint8 start_at[3];	// MSF address of position set by track search or audio play
+	
 	uint8 play_mode;	// Audio play mode
+	uint8 play_order;	// Play mode order (normal, shuffle, program)
+	bool repeat;		// Repeat flag
 	uint8 power_mode;	// Power mode
 	uint32 status;		// Mac address of drive status record
 };
@@ -149,6 +152,8 @@ struct cdrom_drive_info {
 // List of drives handled by this driver
 typedef vector<cdrom_drive_info> drive_vec;
 static drive_vec drives;
+
+int last_drive_num; // track last drive called to support multiple audio CDs
 
 // Icon address (Mac address space, set by PatchROM())
 uint32 CDROMIconAddr;
@@ -165,8 +170,10 @@ static drive_vec::iterator get_drive_info(int num)
 {
 	drive_vec::iterator info, end = drives.end();
 	for (info = drives.begin(); info != end; ++info) {
-		if (info->num == num)
+		if (info->num == num) {
+			last_drive_num = num;
 			return info;
+		}
 	}
 	return info;
 }
@@ -181,18 +188,18 @@ static void find_hfs_partition(cdrom_drive_info &info)
 	info.start_byte = 0;
 	uint8 *map = new uint8[512];
 	D(bug("Looking for HFS partitions on CD-ROM...\n"));
-
+	
 	// Search first 64 blocks for HFS partition
 	for (int i=0; i<64; i++) {
 		if (Sys_read(info.fh, map, i * 512, 512) != 512)
 			break;
 		D(bug(" block %d, signature '%c%c' (%02x%02x)\n", i, map[0], map[1], map[0], map[1]));
-
+		
 		// Not a partition map block? Then look at next block
 		uint16 sig = (map[0] << 8) | map[1];
 		if (sig != 0x504d)
 			continue;
-
+		
 		// Partition map block found, Apple HFS partition?
 		if (strcmp((char *)(map + 48), "Apple_HFS") == 0) {
 			info.start_byte = (loff_t)((map[8] << 24) | (map[9] << 16) | (map[10] << 8) | map[11]) << 9;
@@ -214,7 +221,7 @@ static void read_toc(cdrom_drive_info &info)
 	// Read TOC
 	memset(info.toc, 0, sizeof(info.toc));
 	SysCDReadTOC(info.fh, info.toc);
-
+	
 #if DEBUG
 	// Dump TOC for debugging
 	D(bug(" TOC:\n  %02x%02x%02x%02x        : %d bytes, first track = %d, last track = %d\n", info.toc[0], info.toc[1], info.toc[2], info.toc[3], (info.toc[0] << 8) | info.toc[1], info.toc[2], info.toc[3]));
@@ -226,7 +233,12 @@ static void read_toc(cdrom_drive_info &info)
 			break;
 	}
 #endif
-
+	
+	// Default start
+	info.start_at[0] = 0;
+	info.start_at[1] = 0;
+	info.start_at[2] = 0;
+	
 	// Find lead-out track
 	info.lead_out[0] = 0;
 	info.lead_out[1] = 0;
@@ -288,16 +300,25 @@ static bool position2msf(const cdrom_drive_info &info, uint16 postype, uint32 po
 void CDROMInit(void)
 {
 	// No drives specified in prefs? Then add defaults
-	if (PrefsFindString("cdrom", 0) == NULL)
+	if (PrefsFindString("cdrom", 0) == NULL) {
 		SysAddCDROMPrefs();
-
-	// Add drives specified in preferences
-	int index = 0;
-	const char *str;
-	while ((str = PrefsFindString("cdrom", index++)) != NULL) {
-		void *fh = Sys_open(str, true);
-		if (fh)
-			drives.push_back(cdrom_drive_info(fh));
+	}
+	else {
+		// Add drives specified in preferences
+		int index = 0;
+		const char *str;
+		while ((str = PrefsFindString("cdrom", index++)) != NULL) {
+			void *fh = Sys_open(str, true);
+			if (fh)
+				drives.push_back(cdrom_drive_info(fh));
+		}
+	}
+	
+	if (!drives.empty()) { // set to first drive by default
+		last_drive_num = drives.begin()->num;
+	}
+	else {
+		last_drive_num = 0;
 	}
 }
 
@@ -348,15 +369,15 @@ static void mount_mountable_volumes(void)
 {
 	drive_vec::iterator info, end = drives.end();
 	for (info = drives.begin(); info != end; ++info) {
-
+		
 		// Disk in drive?
 		if (ReadMacInt8(info->status + dsDiskInPlace) == 0) {
-
+			
 			// No, check if disk was inserted
 			if (SysIsDiskInserted(info->fh))
 				CDROMMountVolume(info->fh);
 		}
-
+		
 		// Mount disk if flagged
 		if (info->to_be_mounted) {
 			D(bug(" mounting drive %d\n", info->num));
@@ -377,25 +398,27 @@ static void mount_mountable_volumes(void)
 int16 CDROMOpen(uint32 pb, uint32 dce)
 {
 	D(bug("CDROMOpen\n"));
-
+	
 	// Set up DCE
 	WriteMacInt32(dce + dCtlPosition, 0);
 	acc_run_called = false;
-
+	
 	// Install drives
 	drive_vec::iterator info, end = drives.end();
 	for (info = drives.begin(); info != end; ++info) {
-
+		
 		info->num = FindFreeDriveNumber(1);
 		info->to_be_mounted = false;
-
+		
 		if (info->fh) {
 			info->mount_non_hfs = true;
 			info->block_size = 512;
 			info->twok_offset = -1;
 			info->play_mode = 0x09;
+			info->play_order = 0;
+			info->repeat = 0;
 			info->power_mode = 0;
-
+			
 			// Allocate drive status record
 			M68kRegisters r;
 			r.d[0] = SIZEOF_DrvSts;
@@ -404,12 +427,12 @@ int16 CDROMOpen(uint32 pb, uint32 dce)
 				continue;
 			info->status = r.a[0];
 			D(bug(" DrvSts at %08lx\n", info->status));
-
+			
 			// Set up drive status
 			WriteMacInt8(info->status + dsWriteProt, 0x80);
 			WriteMacInt8(info->status + dsInstalled, 1);
 			WriteMacInt8(info->status + dsSides, 1);
-
+			
 			// Disk in drive?
 			if (SysIsDiskInserted(info->fh)) {
 				SysPreventRemoval(info->fh);
@@ -418,7 +441,7 @@ int16 CDROMOpen(uint32 pb, uint32 dce)
 				find_hfs_partition(*info);
 				info->to_be_mounted = true;
 			}
-
+			
 			// Add drive to drive queue
 			D(bug(" adding drive %d\n", info->num));
 			r.d[0] = (info->num << 16) | (CDROMRefNum & 0xffff);
@@ -437,14 +460,14 @@ int16 CDROMOpen(uint32 pb, uint32 dce)
 int16 CDROMPrime(uint32 pb, uint32 dce)
 {
 	WriteMacInt32(pb + ioActCount, 0);
-
+	
 	// Drive valid and disk inserted?
 	drive_vec::iterator info = get_drive_info(ReadMacInt16(pb + ioVRefNum));
 	if (info == drives.end())
 		return nsDrvErr;
 	if (ReadMacInt8(info->status + dsDiskInPlace) == 0)
 		return offLinErr;
-
+	
 	// Get parameters
 	void *buffer = Mac2HostAddr(ReadMacInt32(pb + ioBuffer));
 	size_t length = ReadMacInt32(pb + ioReqCount);
@@ -452,17 +475,17 @@ int16 CDROMPrime(uint32 pb, uint32 dce)
 	if ((length & (info->block_size - 1)) || (position & (info->block_size - 1)))
 		return paramErr;
 	info->twok_offset = (position + info->start_byte) & 0x7ff;
-
+	
 	size_t actual = 0;
 	if ((ReadMacInt16(pb + ioTrap) & 0xff) == aRdCmd) {
-
+		
 		// Read
 		actual = Sys_read(info->fh, buffer, position + info->start_byte, length);
 		if (actual != length) {
-
+			
 			// Read error, tried to read HFS root block?
 			if (length == 0x200 && position == 0x400) {
-
+				
 				// Yes, fake (otherwise audio CDs won't get mounted)
 				memset(buffer, 0, 0x200);
 				actual = 0x200;
@@ -473,7 +496,7 @@ int16 CDROMPrime(uint32 pb, uint32 dce)
 	} else {
 		return wPrErr;
 	}
-
+	
 	// Update ParamBlock and DCE
 	WriteMacInt32(pb + ioActCount, actual);
 	WriteMacInt32(dce + dCtlPosition, ReadMacInt32(dce + dCtlPosition) + actual);
@@ -489,34 +512,36 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 {
 	uint16 code = ReadMacInt16(pb + csCode);
 	D(bug("CDROMControl %d\n", code));
-
+	
 	// General codes
 	switch (code) {
 		case 1:		// KillIO
 			return noErr;
-
+			
 		case 65: {	// Periodic action (accRun, "insert" disks on startup)
 			mount_mountable_volumes();
 			WriteMacInt16(dce + dCtlFlags, ReadMacInt16(dce + dCtlFlags) & ~0x2000);	// Disable periodic action
 			acc_run_called = true;
 			return noErr;
 		}
-
+			
 		case 81:	// Set poll freq
 			WriteMacInt16(dce + dCtlDelay, ReadMacInt16(pb + csParam));
 			return noErr;
 	}
-
+	
 	// Drive valid?
 	drive_vec::iterator info = get_drive_info(ReadMacInt16(pb + ioVRefNum));
 	if (info == drives.end()) {
 		if (drives.empty()) {
 			return nsDrvErr;
 		} else {
-			info = drives.begin();	// This is needed for Apple's Audio CD program
+			// Audio calls tend to end up without correct reference
+			// Real mac would just play first disc, but we can guess correct one from last data call
+			info = get_drive_info(last_drive_num);
 		}
 	}
-
+	
 	// Drive-specific codes
 	switch (code) {
 		case 5:			// VerifyTheDisc
@@ -524,28 +549,54 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 				return noErr;
 			else
 				return offLinErr;
-
+			
 		case 6:			// FormatTheDisc
 			return writErr;
-
+			
 		case 7:			// EjectTheDisc
 			if (ReadMacInt8(info->status + dsDiskInPlace) > 0) {
 				SysAllowRemoval(info->fh);
 				SysEject(info->fh);
 				WriteMacInt8(info->status + dsDiskInPlace, 0);
 				info->twok_offset = -1;
+				return noErr;
+			} else {
+				return offLinErr;
 			}
-			return noErr;
-
+			
 		case 21:		// GetDriveIcon
 		case 22:		// GetMediaIcon
 			WriteMacInt32(pb + csParam, CDROMIconAddr);
 			return noErr;
-
+			
 		case 23:		// GetDriveInfo
 			WriteMacInt32(pb + csParam, 0x00000b01);	// Unspecified external removable SCSI disk
 			return noErr;
-
+		
+		// TODO: revist this section, is it necessary with DriverGestalt also in Status section?
+		case 43: {		// DriverGestalt
+			int selector = ReadMacInt32(pb + csParam);
+			switch (selector) {
+				case FOURCC('v','e','r','s'):
+					WriteMacInt32(pb + csParam + 4, 0x05208000); // vers 5.2.0
+					break;
+				case FOURCC('d','e','v','t'):
+					WriteMacInt32(pb + csParam + 4, FOURCC('c','d','r','m'));
+					break;
+				case FOURCC('i','n','t','f'):
+				case FOURCC('d','A','P','I'):
+					WriteMacInt32(pb + csParam + 4, FOURCC('a','t','p','i'));
+					break;
+				case FOURCC('s','y','n','c'):
+					WriteMacInt32(pb + csParam + 4, 1); // true/false = sync/async
+					break;
+				case FOURCC('c','d','3','d'):
+					WriteMacInt32(pb + csParam + 4, 0);
+					break;
+			}
+			return noErr;
+		}
+			
 		case 70: {		// SetPowerMode
 			uint8 mode = ReadMacInt8(pb + csParam);
 			if (mode > 3) {
@@ -555,11 +606,11 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 				return noErr;
 			}
 		}
-
+			
 		case 76:		// ModifyPostEvent
 			info->mount_non_hfs = ReadMacInt16(pb + csParam) != 0;
 			return noErr;
-
+			
 		case 79: {		// Change block size
 			uint16 size = ReadMacInt16(pb + csParam);
 			D(bug(" change block size to %d bytes\n", size));
@@ -570,7 +621,7 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 				return noErr;
 			}
 		}
-
+			
 		case 80:		// SetUserEject
 			if (ReadMacInt8(info->status + dsDiskInPlace) > 0) {
 				if (ReadMacInt16(pb + csParam) == 1)
@@ -581,11 +632,11 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			} else {
 				return offLinErr;
 			}
-
+			
 		case 100: {		// ReadTOC
 			if (ReadMacInt8(info->status + dsDiskInPlace) == 0)
 				return offLinErr;
-
+			
 			int action = ReadMacInt16(pb + csParam);
 			D(bug(" read TOC %d\n", action));
 			switch (action) {
@@ -594,26 +645,26 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 					WriteMacInt8(pb + csParam + 1, bin2bcd[info->toc[3]]);
 					WriteMacInt16(pb + csParam + 2, 0);
 					break;
-
+					
 				case 2:		// Get lead out MSF starting address
 					WriteMacInt8(pb + csParam, bin2bcd[info->lead_out[0]]);
 					WriteMacInt8(pb + csParam + 1, bin2bcd[info->lead_out[1]]);
 					WriteMacInt8(pb + csParam + 2, bin2bcd[info->lead_out[2]]);
 					WriteMacInt8(pb + csParam + 3, 0);
 					break;
-
+					
 				case 3: {		// Get track starting address
 					uint32 buf = ReadMacInt32(pb + csParam + 2);
 					uint16 buf_size = ReadMacInt16(pb + csParam + 6);
 					int track = bcd2bin[ReadMacInt8(pb + csParam + 8)];
-
+					
 					// Search start track in TOC
 					int i;
 					for (i=4; i<804; i+=8) {
 						if (info->toc[i+2] == track)
 							break;
 					}
-
+					
 					// Fill buffer
 					if (i != 804) {
 						while (buf_size > 0) {
@@ -621,18 +672,91 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 							WriteMacInt8(buf, bin2bcd[info->toc[i+5]]); buf++;	// M
 							WriteMacInt8(buf, bin2bcd[info->toc[i+6]]); buf++;	// S
 							WriteMacInt8(buf, bin2bcd[info->toc[i+7]]); buf++;	// F
-
+							
 							// Lead-Out? Then stop
 							if (info->toc[i+2] == 0xaa)
 								break;
-
+							
 							buf_size -= 4;
 							i += 8;
 						}
 					}
 					break;
 				}
-
+					
+				case 4: {		// Type 4 TOC for non-AppleCD SC
+					uint32 buf = ReadMacInt32(pb + csParam + 2);
+					uint16 buf_size = 512; // buffer must be 512 bytes for this TOC type
+					
+					// start filling buffer
+					WriteMacInt8(buf, 0); buf++; // first byte reserved for 0
+					buf_size--;
+					
+					int i = 4;
+					// in TOC, first 4 are session and/or track number; so tracks start at i = 4
+					// (info->toc[2] is first track num and info->toc[3] is last num)
+					// each track entry is 8 bytes:
+					// 0: unused, 1: control, 2: tracknum, 3: unused
+					// 4: unused, 5: MIN, 6: SEC, 7: FRAME
+					
+					// entry for point A0 (first track num)
+					WriteMacInt8(buf, info->toc[i+1] & 0x0f); buf++; // control field
+					WriteMacInt8(buf, bin2bcd[info->toc[2]]); buf++; // track number
+					WriteMacInt8(buf, bin2bcd[info->toc[i+5]]); buf++; // PMIN
+					WriteMacInt8(buf, bin2bcd[info->toc[i+6]]); buf++; // PSEC
+					WriteMacInt8(buf, bin2bcd[info->toc[i+7]]); buf++; // PFRAME
+					buf_size -= 5; // every 8 bits written decreases byte buffer size by 1
+					
+					// entry for point A1 (last track)
+					int buf_a1 = buf; // save for filling last track num
+					buf += 5; buf_size -= 5;
+					
+					// entry for point A2 (address of start of lead out)
+					int buf_a2 = buf; // save for filling at end
+					buf += 5; buf_size -= 5;
+					
+					// Fill buffer
+					while (i <= 804 && buf_size > 1) { // index 511 never used
+						// Lead out? then fill a2 and stop
+						if (info->toc[i+2] == 0xaa) {
+							// entry for point a2
+							WriteMacInt8(buf_a2, info->toc[i+1] & 0x0f);	// Control
+							WriteMacInt8(buf_a2 + 1, bin2bcd[info->toc[i+2]]);	// tracknum
+							WriteMacInt8(buf_a2 + 2, bin2bcd[info->lead_out[0]]);	// M, same as toc[i+5]
+							WriteMacInt8(buf_a2 + 3, bin2bcd[info->lead_out[1]]);	// S
+							WriteMacInt8(buf_a2 + 4, bin2bcd[info->lead_out[2]]);	// F
+							break;
+						}
+						
+						WriteMacInt8(buf, info->toc[i+1] & 0x0f); buf++;	// Control
+						WriteMacInt8(buf, bin2bcd[info->toc[i+2]]); buf++;	// tracknum
+						WriteMacInt8(buf, bin2bcd[info->toc[i+5]]); buf++;	// M
+						WriteMacInt8(buf, bin2bcd[info->toc[i+6]]); buf++;	// S
+						WriteMacInt8(buf, bin2bcd[info->toc[i+7]]); buf++;	// F
+						
+						// Last track? fill a1 as well
+						if (info->toc[i+2] == info->toc[3]) {
+							// entry for point a1
+							WriteMacInt8(buf_a1, info->toc[i+1] & 0x0f);	// Control
+							WriteMacInt8(buf_a1 + 1, bin2bcd[info->toc[3]]);	// tracknum
+							WriteMacInt8(buf_a1 + 2, bin2bcd[info->toc[i+5]]);	// M
+							WriteMacInt8(buf_a1 + 3, bin2bcd[info->toc[i+6]]);	// S
+							WriteMacInt8(buf_a1 + 4, bin2bcd[info->toc[i+7]]);	// F
+						}
+						
+						buf_size -= 5;
+						i += 8;
+					}
+					
+					// fill rest of buffer with zeroes
+					while (buf_size > 0) {
+						WriteMacInt8(buf, 0); buf++;
+						buf_size--;
+					}
+					
+					break;
+				}
+					
 				case 5:		// Get session information
 					WriteMacInt16(pb + csParam, 1);							// First session number
 					WriteMacInt16(pb + csParam + 2, 1);						// Last session number
@@ -642,20 +766,20 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 					WriteMacInt8(pb + csParam + 8, bin2bcd[info->toc[10]]);	// S
 					WriteMacInt8(pb + csParam + 9, bin2bcd[info->toc[11]]);	// F
 					break;
-
+					
 				default:
 					printf("FATAL: .AppleCD/Control(100): unimplemented TOC type\n");
 					return paramErr;
 			}
 			return noErr;
 		}
-
+			
 		case 101: {		// ReadTheQSubcode
 			if (ReadMacInt8(info->status + dsDiskInPlace) == 0) {
 				Mac_memset(pb + csParam, 0, 10);
 				return offLinErr;
 			}
-
+			
 			uint8 pos[16];
 			if (SysCDGetPosition(info->fh, pos)) {
 				uint32 p = pb + csParam;
@@ -674,51 +798,51 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 				return ioErr;
 			}
 		}
-
+			
 		case 102:		// ReadHeader
 			printf("FATAL: .AppleCD/Control(102): unimplemented call\n");
 			return controlErr;
-
+			
 		case 103: {		// AudioTrackSearch
 			D(bug(" AudioTrackSearch postype %d, pos %08x, hold %d\n", ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), ReadMacInt16(pb + csParam + 6)));
 			if (ReadMacInt8(info->status + dsDiskInPlace) == 0)
 				return offLinErr;
-
-			uint8 start_m, start_s, start_f;
-			if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, start_m, start_s, start_f))
+			
+			if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, info->start_at[0], info->start_at[1], info->start_at[2]))
 				return paramErr;
 			info->play_mode = ReadMacInt8(pb + csParam + 9) & 0x0f;
-			if (!SysCDPlay(info->fh, start_m, start_s, start_f, info->stop_at[0], info->stop_at[1], info->stop_at[2]))
+			if (!SysCDPlay(info->fh, info->start_at[0], info->start_at[1], info->start_at[2], info->stop_at[0], info->stop_at[1], info->stop_at[2]))
 				return paramErr;
 			if (ReadMacInt16(pb + csParam + 6) == 0)	// Hold
 				SysCDPause(info->fh);
 			return noErr;
 		}
-
+			
 		case 104:		// AudioPlay
 			D(bug(" AudioPlay postype %d, pos %08lx, hold %d\n", ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), ReadMacInt16(pb + csParam + 6)));
 			if (ReadMacInt8(info->status + dsDiskInPlace) == 0)
 				return offLinErr;
-
+			
+			
 			if (ReadMacInt16(pb + csParam + 6)) {
 				// Given stopping address
 				if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), true, info->stop_at[0], info->stop_at[1], info->stop_at[2]))
 					return paramErr;
 			} else {
 				// Given starting address
-				uint8 start_m, start_s, start_f;
-				if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, start_m, start_s, start_f))
-					return paramErr;
-				info->play_mode = ReadMacInt8(pb + csParam + 9) & 0x0f;
-				if (!SysCDPlay(info->fh, start_m, start_s, start_f, info->stop_at[0], info->stop_at[1], info->stop_at[2]))
+				if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, info->start_at[0], info->start_at[1], info->start_at[2]))
 					return paramErr;
 			}
+			// Still need to process the AudioPlay command
+			info->play_mode = ReadMacInt8(pb + csParam + 9) & 0x0f;
+			if (!SysCDPlay(info->fh, info->start_at[0], info->start_at[1], info->start_at[2], info->stop_at[0], info->stop_at[1], info->stop_at[2]))
+				return paramErr;
 			return noErr;
-
+			
 		case 105:		// AudioPause
 			if (ReadMacInt8(info->status + dsDiskInPlace) == 0)
 				return offLinErr;
-
+			
 			switch (ReadMacInt32(pb + csParam)) {
 				case 0:
 					if (!SysCDResume(info->fh))
@@ -732,12 +856,12 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 					return paramErr;
 			}
 			return noErr;
-
+			
 		case 106:		// AudioStop
 			D(bug(" AudioStop postype %d, pos %08lx\n", ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2)));
 			if (ReadMacInt8(info->status + dsDiskInPlace) == 0)
 				return offLinErr;
-
+			
 			if (ReadMacInt16(pb + csParam) == 0 && ReadMacInt32(pb + csParam + 2) == 0) {
 				// Stop immediately
 				if (!SysCDStop(info->fh, info->lead_out[0], info->lead_out[1], info->lead_out[2]))
@@ -748,15 +872,15 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 					return paramErr;
 			}
 			return noErr;
-
+			
 		case 107: {		// AudioStatus
 			if (ReadMacInt8(info->status + dsDiskInPlace) == 0)
 				return offLinErr;
-
+			
 			uint8 pos[16];
 			if (!SysCDGetPosition(info->fh, pos))
 				return paramErr;
-
+			
 			uint32 p = pb + csParam;
 			switch (pos[1]) {
 				case 0x11:
@@ -783,34 +907,33 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			WriteMacInt8(p, bin2bcd[pos[11]]); p++;	// F (abs)
 			return noErr;
 		}
-
+			
 		case 108: {		// AudioScan
 			if (ReadMacInt8(info->status + dsDiskInPlace) == 0)
 				return offLinErr;
-
-			uint8 start_m, start_s, start_f;
-			if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, start_m, start_s, start_f))
+			
+			if (!position2msf(*info, ReadMacInt16(pb + csParam), ReadMacInt32(pb + csParam + 2), false, info->start_at[0], info->start_at[1], info->start_at[2]))
 				return paramErr;
-
-			if (!SysCDScan(info->fh, start_m, start_s, start_f, ReadMacInt16(pb + csParam + 6) != 0)) {
+			
+			if (!SysCDScan(info->fh, info->start_at[0], info->start_at[1], info->start_at[2], ReadMacInt16(pb + csParam + 6) != 0)) {
 				return paramErr;
 			} else {
 				return noErr;
 			}
 		}
-
+			
 		case 109:		// AudioControl
 			SysCDSetVolume(info->fh, ReadMacInt8(pb + csParam), ReadMacInt8(pb + csParam + 1));
 			return noErr;
-
+			
 		case 110:		// ReadMCN
 			printf("FATAL: .AppleCD/Control(110): unimplemented call\n");
 			return controlErr;
-
+			
 		case 111:		// ReadISRC
 			printf("FATAL: .AppleCD/Control(111): unimplemented call\n");
 			return controlErr;
-
+			
 		case 112: {		// ReadAudioVolume
 			uint8 left = 0, right = 0;
 			SysCDGetVolume(info->fh, left, right);
@@ -818,43 +941,50 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			WriteMacInt8(pb + csParam + 1, right);
 			return noErr;
 		}
-
+			
 		case 113:		// GetSpindleSpeed
 			WriteMacInt16(pb + csParam, 0xff);
 			return noErr;
-
+			
 		case 114:		// SetSpindleSpeed
 			return noErr;
-
+			
 		case 115:		// ReadAudio
 			printf("FATAL: .AppleCD/Control(115): unimplemented call\n");
 			return controlErr;
-
+			
 		case 116:		// ReadAllSubcodes
 			printf("FATAL: .AppleCD/Control(116): unimplemented call\n");
 			return controlErr;
-
+			
 		case 122:		// SetTrackList
 			printf("FATAL: .AppleCD/Control(122): unimplemented call\n");
 			return controlErr;
-
+			
 		case 123:		// GetTrackList
 			printf("FATAL: .AppleCD/Control(123): unimplemented call\n");
 			return controlErr;
-
+			
 		case 124:		// GetTrackIndex
 			printf("FATAL: .AppleCD/Control(124): unimplemented call\n");
 			return controlErr;
-
+			
 		case 125:		// SetPlayMode
-			D(bug(" SetPlayMode %04x\n", ReadMacInt16(pb + csParam)));
-			printf("FATAL: .AppleCD/Control(125): unimplemented call\n");
-			return controlErr;
-
-		case 126:		// GetPlayMode (Apple's Audio CD program needs this)
-			WriteMacInt16(pb + csParam, 0);
+			// repeat flag (0 is off, 1 is on)
+			info->repeat = ReadMacInt8(pb + csParam);
+			// playmode (0 is normal, 1 is shuffle, 2 is program mode)
+			info->play_order = ReadMacInt8(pb + csParam + 1);
+			//			D(bug(" SetPlayMode %04x\n", ReadMacInt16(pb + csParam)));
+			//			printf("FATAL: .AppleCD/Control(125): unimplemented call\n");
 			return noErr;
-
+			
+		case 126:		// GetPlayMode (Apple's Audio CD program needs this)
+			// repeat flag
+			WriteMacInt8(pb + csParam, bcd2bin[info->repeat]);
+			// playmode
+			WriteMacInt8(pb + csParam + 1, bcd2bin[info->play_order]);
+			return noErr;
+			
 		default:
 			printf("WARNING: Unknown CDROMControl(%d)\n", code);
 			return controlErr;
@@ -871,7 +1001,7 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 	drive_vec::iterator info = get_drive_info(ReadMacInt16(pb + ioVRefNum));
 	uint16 code = ReadMacInt16(pb + csCode);
 	D(bug("CDROMStatus %d\n", code));
-
+	
 	// General codes (we can get these even if the drive was invalid)
 	switch (code) {
 		case 43: {	// DriverGestalt
@@ -885,10 +1015,12 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 					WriteMacInt32(pb + csParam + 4, FOURCC('c','d','r','m'));
 					break;
 				case FOURCC('i','n','t','f'):	// Interface type
-					WriteMacInt32(pb + csParam + 4, EMULATOR_ID_4);
+//					WriteMacInt32(pb + csParam + 4, EMULATOR_ID_4);
+					WriteMacInt32(pb + csParam + 4, FOURCC('a','t','p','i'));
 					break;
 				case FOURCC('s','y','n','c'):	// Only synchronous operation?
 					WriteMacInt32(pb + csParam + 4, 0x01000000);
+//					WriteMacInt32(pb + csParam + 4, 1);
 					break;
 				case FOURCC('b','o','o','t'):	// Boot ID
 					if (info != drives.end())
@@ -912,12 +1044,15 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 				case FOURCC('v','m','o','p'):	// Virtual memory attributes
 					WriteMacInt32(pb + csParam + 4, 0);	// Drive not available for VM
 					break;
+				case FOURCC('c', 'd', '3', 'd'):
+					WriteMacInt16(pb + csParam + 4, 0);
+					break;
 				default:
 					return statusErr;
 			}
 			return noErr;
 		}
-
+			
 		case 97: {	// WhoIsThere
 			uint8 drives_present = 0;
 			drive_vec::iterator info, end = drives.end();
@@ -929,15 +1064,16 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 			return noErr;
 		}
 	}
-
+	
 	// Drive valid?
 	if (info == drives.end()) {
-		if (drives.empty())
+		if (drives.empty()) {
 			return nsDrvErr;
-		else
-			info = drives.begin();	// This is needed for Apple's Audio CD program
+		} else {
+			info = get_drive_info(last_drive_num);
+		}
 	}
-
+	
 	// Drive-specific codes
 	switch (code) {
 		case 6:			// Return format list
@@ -950,15 +1086,15 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 			} else {
 				return paramErr;
 			}
-
+			
 		case 8:			// DriveStatus
 			Mac2Mac_memcpy(pb + csParam, info->status, 22);
 			return noErr;
-
+			
 		case 70:		// GetPowerMode
 			WriteMacInt16(pb + csParam, info->power_mode << 8);
 			return noErr;
-
+			
 		case 95:		// Get2KOffset
 			if (info->twok_offset > 0) {
 				WriteMacInt16(pb + csParam, info->twok_offset);
@@ -966,24 +1102,24 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 			} else {
 				return statusErr;
 			}
-
+			
 		case 96:		// Get drive type
 			WriteMacInt16(pb + csParam, 3);			// Apple CD 300 or newer
 			return noErr;
-
+			
 		case 98:		// Get block size
 			WriteMacInt16(pb + csParam, info->block_size);
 			return noErr;
-
+			
 		case 120:		// Return device ident
 			WriteMacInt32(pb + csParam, 0);
 			return noErr;
-
+			
 		case 121:		// Get CD features
 			WriteMacInt16(pb + csParam, 0x0200);	// 300 KB/s
 			WriteMacInt16(pb + csParam + 2, 0x0c00);	// SCSI-2, stereo
 			return noErr;
-
+			
 		default:
 			printf("WARNING: Unknown CDROMStatus(%d)\n", code);
 			return statusErr;
@@ -999,6 +1135,6 @@ void CDROMInterrupt(void)
 {
 	if (!acc_run_called)
 		return;
-
+	
 	mount_mountable_volumes();
 }

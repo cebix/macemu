@@ -361,10 +361,10 @@ int main(int argc, char **argv)
 	D(bug("Mac ROM starts at %p (%08x)\n", ROMBaseHost, ROMBaseMac));
 	
 	// Get rom file path from preferences
-	auto rom_path = tstr(PrefsFindString("rom"));
+	const char* rom_path = PrefsFindString("rom");
 
 	// Load Mac ROM
-	HANDLE rom_fh = CreateFile(rom_path ? rom_path.get() : ROM_FILE_NAME,
+	HANDLE rom_fh = CreateFile((rom_path != NULL) ? rom_path : ROM_FILE_NAME,
 							   GENERIC_READ,
 							   FILE_SHARE_READ, NULL,
 							   OPEN_EXISTING,

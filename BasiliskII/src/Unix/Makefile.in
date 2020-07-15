@@ -100,7 +100,7 @@ define GUI_SRCS_LIST_TO_OBJS
 endef
 GUI_OBJS = $(GUI_SRCS_LIST_TO_OBJS)
 ifeq ($(USE_BINCUE),yes)
-GUI_OBJS += bincue_unix.o
+GUI_OBJS += bincue.o
 endif
 GUI_SRCS := $(GUI_SRCS:%=@top_srcdir@/%)
 

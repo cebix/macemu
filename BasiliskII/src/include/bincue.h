@@ -1,5 +1,5 @@
 /*
- *  bincue_unix.h -- support for cdrom image files in bin/cue format
+ *  bincue.h -- support for cdrom image files in bin/cue format
  *
  *  (C) 2010 Geoffrey Brown
  *
@@ -34,10 +34,13 @@ extern bool CDPlay_bincue(void *, uint8, uint8,
 extern bool CDPause_bincue(void *);
 extern bool CDResume_bincue(void *);
 extern bool CDStop_bincue(void *);
+extern bool CDScan_bincue(void *, uint8, uint8, uint8, bool);
+extern void CDSetVol_bincue(void *, uint8, uint8);
+extern void CDGetVol_bincue(void *, uint8 *, uint8 *);
 
 #ifdef USE_SDL_AUDIO
-extern void OpenAudio_bincue(int, int, int, uint8);
-extern void MixAudio_bincue(uint8 *, int);
+extern void OpenAudio_bincue(int, int, int, uint8, int);
+extern void MixAudio_bincue(uint8 *, int, int);
 #endif
 
 #endif

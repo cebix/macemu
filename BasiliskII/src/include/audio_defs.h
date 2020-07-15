@@ -72,14 +72,20 @@ const uint32 siHardwareMute			= FOURCC('h','m','u','t');	// mute state of all ha
 const uint32 siHardwareVolume		= FOURCC('h','v','o','l');	// volume level of all hardware
 const uint32 siHardwareVolumeSteps	= FOURCC('h','s','t','p');	// number of volume steps for hardware
 const uint32 siHardwareBusy			= FOURCC('h','w','b','s');	// sound hardware is in use
+const uint32 siHardwareFormat       = FOURCC('h','w','f','m');  // hardware format
 const uint32 siHeadphoneMute		= FOURCC('p','m','u','t');	// mute state of headphone
 const uint32 siHeadphoneVolume		= FOURCC('p','v','o','l');	// volume level of headphone
 const uint32 siHeadphoneVolumeSteps	= FOURCC('h','d','s','t');	// number of volume steps for headphone
 const uint32 siSpeakerMute			= FOURCC('s','m','u','t');	// mute state of all built-in speakers
 const uint32 siSpeakerVolume		= FOURCC('s','v','o','l');	// volume level of built-in speaker
-const uint32 siDeviceName			= FOURCC('n','a','m','e');
-const uint32 siDeviceIcon			= FOURCC('i','c','o','n');
-const uint32 siHardwareFormat		= FOURCC('h','w','f','m');
+const uint32 siDeviceName			= FOURCC('n','a','m','e');  // sound input name
+const uint32 siDeviceIcon			= FOURCC('i','c','o','n');  // sound input icon resource location
+const uint32 siInputSourceNames     = FOURCC('s','n','a','m');  // sound input source names
+const uint32 siInputSource          = FOURCC('s','o','u','r');  // sound input source selector
+const uint32 siOptionsDialog        = FOURCC('o','p','t','d');  // display options dialog box
+const uint32 siPlayThruOnOff        = FOURCC('p','l','t','h');  // play-through state
+const uint32 siInitializeDriver     = FOURCC('i','n','i','t');  // open sound input device
+const uint32 siCloseDriver          = FOURCC('c','l','o','s');  // close sound input device
 
 enum {	// ComponentResource struct
 	componentType = 0,

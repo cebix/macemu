@@ -21,11 +21,6 @@
 #ifndef SYSDEPS_H
 #define SYSDEPS_H
 
-#ifdef __MINGW32__
-#define _UNICODE
-#define UNICODE
-#endif
-
 #if !defined _MSC_VER && !defined __STDC__
 #error "Your compiler is not ANSI. Get a real one."
 #endif

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5D5C3B0A24B2DF3500CDAB41 /* bincue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D5C3B0924B2DF3400CDAB41 /* bincue.cpp */; };
 		752F26F91F240E51001032B4 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 752F26F81F240E51001032B4 /* Foundation.framework */; };
 		752F26FB1F240E69001032B4 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 752F26FA1F240E69001032B4 /* IOKit.framework */; };
 		752F27011F242BAF001032B4 /* prefs_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 752F27001F242BAF001032B4 /* prefs_sdl.cpp */; };
@@ -49,7 +50,6 @@
 		7539E1E11F23B25A006B2DF2 /* user_strings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E1221F23B25A006B2DF2 /* user_strings.cpp */; };
 		7539E1E21F23B25A006B2DF2 /* video.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E1231F23B25A006B2DF2 /* video.cpp */; };
 		7539E1E31F23B25A006B2DF2 /* xpram.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E1241F23B25A006B2DF2 /* xpram.cpp */; };
-		7539E23F1F23B32A006B2DF2 /* bincue_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E1F01F23B329006B2DF2 /* bincue_unix.cpp */; };
 		7539E24A1F23B32A006B2DF2 /* disk_sparsebundle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E1FD1F23B32A006B2DF2 /* disk_sparsebundle.cpp */; };
 		7539E2681F23B32A006B2DF2 /* rpc_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7539E2241F23B32A006B2DF2 /* rpc_unix.cpp */; };
 		7539E26C1F23B32A006B2DF2 /* sshpty.c in Sources */ = {isa = PBXBuildFile; fileRef = 7539E22A1F23B32A006B2DF2 /* sshpty.c */; };
@@ -115,6 +115,15 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		5D5C3B0924B2DF3400CDAB41 /* bincue.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = bincue.cpp; path = ../bincue.cpp; sourceTree = "<group>"; };
+		5D5C3B0B24B2DF4200CDAB41 /* bincue.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bincue.h; sourceTree = "<group>"; };
+		5DDE95122255D075004D0E79 /* AudioBackEnd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AudioBackEnd.h; sourceTree = "<group>"; };
+		5DDE95132255D076004D0E79 /* AudioDevice.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AudioDevice.cpp; sourceTree = "<group>"; };
+		5DDE95142255D076004D0E79 /* AudioDevice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AudioDevice.h; sourceTree = "<group>"; };
+		5DDE95152255D076004D0E79 /* audio_macosx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = audio_macosx.cpp; sourceTree = "<group>"; };
+		5DDE95162255D076004D0E79 /* MacOSX_sound_if.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MacOSX_sound_if.cpp; sourceTree = "<group>"; };
+		5DDE95172255D076004D0E79 /* AudioBackEnd.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AudioBackEnd.cpp; sourceTree = "<group>"; };
+		5DDE95182255D076004D0E79 /* MacOSX_sound_if.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MacOSX_sound_if.h; sourceTree = "<group>"; };
 		752F26F81F240E51001032B4 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		752F26FA1F240E69001032B4 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
 		752F27001F242BAF001032B4 /* prefs_sdl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = prefs_sdl.cpp; sourceTree = "<group>"; };
@@ -226,8 +235,6 @@
 		7539E1221F23B25A006B2DF2 /* user_strings.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = user_strings.cpp; path = ../user_strings.cpp; sourceTree = "<group>"; };
 		7539E1231F23B25A006B2DF2 /* video.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = video.cpp; path = ../video.cpp; sourceTree = "<group>"; };
 		7539E1241F23B25A006B2DF2 /* xpram.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = xpram.cpp; path = ../xpram.cpp; sourceTree = "<group>"; };
-		7539E1F01F23B329006B2DF2 /* bincue_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = bincue_unix.cpp; sourceTree = "<group>"; };
-		7539E1F11F23B329006B2DF2 /* bincue_unix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = bincue_unix.h; sourceTree = "<group>"; };
 		7539E1F81F23B329006B2DF2 /* gtk-osx.patch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "gtk-osx.patch"; sourceTree = "<group>"; };
 		7539E1FA1F23B32A006B2DF2 /* mkstandalone */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = mkstandalone; sourceTree = "<group>"; };
 		7539E1FC1F23B32A006B2DF2 /* testlmem.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = testlmem.sh; sourceTree = "<group>"; };
@@ -472,6 +479,7 @@
 				7539DFD91F23B25A006B2DF2 /* adb.h */,
 				7539DFDA1F23B25A006B2DF2 /* audio.h */,
 				7539DFDB1F23B25A006B2DF2 /* audio_defs.h */,
+				5D5C3B0B24B2DF4200CDAB41 /* bincue.h */,
 				7539DFDC1F23B25A006B2DF2 /* cdrom.h */,
 				7539DFDD1F23B25A006B2DF2 /* clip.h */,
 				7539DFDE1F23B25A006B2DF2 /* debug.h */,
@@ -525,6 +533,13 @@
 				756C1B321F252FC100620917 /* utils_macosx.h */,
 				756C1B331F252FC100620917 /* utils_macosx.mm */,
 				7539E02E1F23B25A006B2DF2 /* Versions.html */,
+				5DDE95152255D076004D0E79 /* audio_macosx.cpp */,
+				5DDE95172255D076004D0E79 /* AudioBackEnd.cpp */,
+				5DDE95122255D075004D0E79 /* AudioBackEnd.h */,
+				5DDE95132255D076004D0E79 /* AudioDevice.cpp */,
+				5DDE95142255D076004D0E79 /* AudioDevice.h */,
+				5DDE95162255D076004D0E79 /* MacOSX_sound_if.cpp */,
+				5DDE95182255D076004D0E79 /* MacOSX_sound_if.h */,
 			);
 			name = MacOSX;
 			sourceTree = "<group>";
@@ -607,6 +622,7 @@
 			children = (
 				7539DFC91F23B25A006B2DF2 /* adb.cpp */,
 				7539DFCA1F23B25A006B2DF2 /* audio.cpp */,
+				5D5C3B0924B2DF3400CDAB41 /* bincue.cpp */,
 				7539DFCB1F23B25A006B2DF2 /* cdrom.cpp */,
 				7539DFCC1F23B25A006B2DF2 /* CrossPlatform */,
 				7539DFD41F23B25A006B2DF2 /* disk.cpp */,
@@ -642,8 +658,6 @@
 		7539E1E91F23B329006B2DF2 /* Unix */ = {
 			isa = PBXGroup;
 			children = (
-				7539E1F01F23B329006B2DF2 /* bincue_unix.cpp */,
-				7539E1F11F23B329006B2DF2 /* bincue_unix.h */,
 				7539E1F71F23B329006B2DF2 /* Darwin */,
 				7539E1FD1F23B32A006B2DF2 /* disk_sparsebundle.cpp */,
 				7539E1FE1F23B32A006B2DF2 /* disk_unix.h */,
@@ -838,6 +852,7 @@
 				753253321F5368370024025B /* cpuemu.cpp in Sources */,
 				7539E2701F23B32A006B2DF2 /* tinyxml2.cpp in Sources */,
 				7539E1721F23B25A006B2DF2 /* rsrc_patches.cpp in Sources */,
+				5D5C3B0A24B2DF3500CDAB41 /* bincue.cpp in Sources */,
 				7539E2931F23C56F006B2DF2 /* serial_dummy.cpp in Sources */,
 				7539E1981F23B25A006B2DF2 /* exceptions.cpp in Sources */,
 				75CBCF771F5DB65E00830063 /* video_sdl.cpp in Sources */,
@@ -874,7 +889,6 @@
 				7539E18E1F23B25A006B2DF2 /* sony.cpp in Sources */,
 				7539E26F1F23B32A006B2DF2 /* timer_unix.cpp in Sources */,
 				7539E12E1F23B25A006B2DF2 /* extfs.cpp in Sources */,
-				7539E23F1F23B32A006B2DF2 /* bincue_unix.cpp in Sources */,
 				7539E12C1F23B25A006B2DF2 /* emul_op.cpp in Sources */,
 				E413D92720D260BC00E437D8 /* debug.c in Sources */,
 				E413D92220D260BC00E437D8 /* mbuf.c in Sources */,
@@ -1050,10 +1064,15 @@
 				GCC_C_LANGUAGE_STANDARD = "compiler-default";
 				GCC_ENABLE_PASCAL_STRINGS = NO;
 				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
 					ENABLE_MACOSX_ETHERHELPER,
 					HAVE_CONFIG_H,
+					"USE_XCODE=1",
+					"DEBUG=1",
+					"USE_SDL_AUDIO=1",
+					"BINCUE=1",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GCC_USE_STANDARD_INCLUDE_SEARCHING = YES;
@@ -1111,6 +1130,9 @@
 					"$(inherited)",
 					ENABLE_MACOSX_ETHERHELPER,
 					HAVE_CONFIG_H,
+					"USE_XCODE=1",
+					"USE_SDL_AUDIO=1",
+					"BINCUE=1",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GCC_USE_STANDARD_INCLUDE_SEARCHING = YES;
