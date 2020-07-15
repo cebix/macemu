@@ -263,6 +263,11 @@ static bool ParseCueSheet(FILE *fh, CueSheet *cs, const char *cuefile)
 	
 	totalPregap = 0;
 	prestart = 0;
+	
+	// Use Audio CD settings by default, otherwise data mode will be specified
+	cs->raw_sector_size = 2352;
+	cs->cooked_sector_size = 2352;
+	cs->header_size = 0;
 
 	while (fgets(line, MAXLINE, fh) != NULL) {
 		Track *curr = &cs->tracks[cs->tcnt];
@@ -321,7 +326,7 @@ static bool ParseCueSheet(FILE *fh, CueSheet *cs, const char *cuefile)
 				}
 				curr->number = i_track;
 
-				// parse track type
+				// parse track type and update sector size for data discs if applicable
 
 				field = strtok(NULL, " \t\n\r");
 				if (!strcmp("MODE1/2352", field)) { // red-book CD-ROM standard
