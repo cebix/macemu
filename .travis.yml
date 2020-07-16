@@ -7,6 +7,7 @@ matrix:
       sudo: required
       compiler: gcc
       env :
+        - WITH_SDL=1
         - SDL_MAJOR_VERSION=1
         - ADDRESSING_MODE=direct
     - os: linux
@@ -14,6 +15,7 @@ matrix:
       sudo: required
       compiler: gcc
       env :
+        - WITH_SDL=1
         - SDL_MAJOR_VERSION=1
         - ADDRESSING_MODE=banks
     - os: linux
@@ -21,6 +23,7 @@ matrix:
       sudo: required
       compiler: gcc
       env :
+        - WITH_SDL=1
         - SDL_MAJOR_VERSION=2
         - ADDRESSING_MODE=direct
     - os: linux
@@ -28,12 +31,34 @@ matrix:
       sudo: required
       compiler: gcc
       env :
+        - WITH_SDL=1
         - SDL_MAJOR_VERSION=2
+        - ADDRESSING_MODE=banks
+    - os: linux
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      env :
+        - WITH_SDL=0
+        - ADDRESSING_MODE=direct
+    - os: linux
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      env :
+        - WITH_SDL=0
         - ADDRESSING_MODE=banks
     - os: osx
       compiler: clang
       osx_image: xcode12
-
+      env :
+        - WITH_SDL=0
+    - os: osx
+      compiler: clang
+      osx_image: xcode12
+      env :
+        - WITH_SDL=1
+ 
 addons:
   apt:
     packages:
@@ -51,15 +76,25 @@ script:
   - cd BasiliskII/src/Unix
   - NO_CONFIGURE=1 ./autogen.sh
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-        if [[ $SDL_MAJOR_VERSION == *"1"* ]]; then
-            ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-x --with-gtk --with-mon --enable-addressing=$ADDRESSING_MODE;
-            make -j 4 || ERR_CODE=$?;
+        if [[ $WITH_SDL == *"1"* ]]; then
+          if [[ $SDL_MAJOR_VERSION == *"1"* ]]; then
+              ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-x --with-gtk --with-mon --enable-addressing=$ADDRESSING_MODE;
+              make -j 4 || ERR_CODE=$?;
+          else
+              ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-x --with-gtk --with-mon --with-sdl2 --enable-addressing=$ADDRESSING_MODE;
+              make -j 4 || ERR_CODE=$?;
+          fi
         else
-            ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-x --with-gtk --with-mon --with-sdl2 --enable-addressing=$ADDRESSING_MODE;
-            make -j 4 || ERR_CODE=$?;
+              ./configure --disable-jit-compiler --with-x --with-gtk --with-mon --enable-addressing=$ADDRESSING_MODE;
+              make -j 4 || ERR_CODE=$?;
         fi
     else
-        ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-gtk=no --with-mon --with-sdl2 --enable-addressing=banks;
-        make -j 4 || ERR_CODE=$?;
+        if [[ $WITH_SDL == *"1"* ]]; then
+          ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-gtk=no --with-mon --with-sdl2 --enable-addressing=banks;
+          make -j 4 || ERR_CODE=$?;
+        else
+          ./configure --disable-vosf --disable-jit-compiler --with-gtk=no --with-mon --enable-addressing=banks;
+          make -j 4 || ERR_CODE=$?;
+        fi
     fi
   - (exit $ERR_CODE)
