@@ -1010,25 +1010,35 @@ static bool patch_rom_classic(void)
 	*wp = htons(0x67f4);		// beq		0x402be2
 
 
-	// Patch guest screen for an arbitary resolution
-	// We are going to steal the ROM space that runs RAM test
-	uint32 patchCodeBaseMac; 	// a stateful variable to keep track of the stolen location of the patched code in guest memory.
-	uint16* patchwp; 					// a stateful word pointer pointing to the patch code in host memory.
-	uint32* patchlp;					// a stateful long pointer pointing to the patch code in host memory.
+	// Patch the guest screen for an arbitary resolution
+	// We are going to steal the abandoned ROM space that runs RAM test
+	// for patching ROM.
 
-	uint32* lp;								// a statless long pointer
+	// a stateful variable to keep track of the stolen location
+	// of the patched code in guest memory.
+	uint32 patchCodeBaseMac;
+	// a stateful word pointer pointing to the patch code in host memory.
+	uint16* patchwp;
+	// a stateful long pointer pointing to the patch code in host memory.
+	uint32* patchlp;
+	// a statless long pointer
+	uint32* lp;
 
-	wp = (uint16 *)(ROMBaseHost + 0x5ca); // start to patch P_mInitVideoGlobal route
+	// start to patch P_mInitVideoGlobal route
+	wp = (uint16 *)(ROMBaseHost + 0x5ca);
 	*wp++ = htons(0x4eb9); /* JSR */
 	lp = (uint32 *)wp;
 
-	const uint32 patchCodeOffset = 0x1d3e; // we steal P_mRamTest routine space
+	// we steal P_mRamTest routine space
+	const uint32 patchCodeOffset = 0x1d3e;
 	patchCodeBaseMac = ROMBaseMac + patchCodeOffset;
 	uint8* patchCodeBaseHost = ROMBaseHost + patchCodeOffset;
-	*lp++ = htonl(patchCodeBaseMac); // we JSR to this Mac address
+	// we JSR to this Mac address
+	*lp++ = htonl(patchCodeBaseMac);
 	wp = (uint16 *)lp;
 
-	patchwp = (uint16 *)(patchCodeBaseHost); // the host address for the patch
+	// the host address for the patch
+	patchwp = (uint16 *)(patchCodeBaseHost);
 	// MOVE.L $MacFrameBaseMac24Bit, ($ScrnBase)
 	*patchwp++ = htons(0x21fc); /* MOVE.L */
 	patchCodeBaseMac += 2;
@@ -1043,7 +1053,8 @@ static bool patch_rom_classic(void)
 
 	*patchwp++ = htons(0x4e75); /* RTS */
 	patchCodeBaseMac += 2;
-	patchlp = (uint32 *)patchwp; // keep in sync
+	// keep in sync
+	patchlp = (uint32 *)patchwp;
 
 	// continue to patch P_mInitVideoGlobal routine
 	wp = (uint16 *)(ROMBaseHost + 0x5d2);
@@ -1080,7 +1091,8 @@ static bool patch_rom_classic(void)
 	wp = (uint16 *)(ROMBaseHost + 0x10b0);
 	*wp = htons(MacScreenWidth / 8);
 	lp = (uint32 *)(ROMBaseHost + 0x10b4);
-	*lp = htonl(MacScreenWidth * MacScreenHeight / 8);// # of bytes in screen
+	// # of bytes in screen
+	*lp = htonl(MacScreenWidth * MacScreenHeight / 8);
 
 	// sad mac, mac icon
 	lp = (uint32 *)(ROMBaseHost + 0x118a);
@@ -1106,7 +1118,8 @@ static bool patch_rom_classic(void)
 	// cursor handling
 	if (MacScreenWidth >= 1024)
 	{
-		wp = (uint16 *)(ROMBaseHost + 0x18dfe); // start to patch P_HideCursor routine
+		// start to patch P_HideCursor routine
+		wp = (uint16 *)(ROMBaseHost + 0x18dfe);
 		*wp++ = htons(0x4eb9); /* JSR */
 		lp = (uint32 *)wp;
 		*lp++ = htonl(patchCodeBaseMac);
@@ -1145,7 +1158,8 @@ static bool patch_rom_classic(void)
 
 	if (MacScreenWidth >= 1024)
 	{
-		wp = (uint16 *)(ROMBaseHost + 0x18ec4); // start to patch P_ShowCursor routine
+		// start to patch P_ShowCursor routine
+		wp = (uint16 *)(ROMBaseHost + 0x18ec4);
 		*wp++ = htons(0x4eb9); /* JSR */
 		lp = (uint32 *)wp;
 		*lp++ = htonl(patchCodeBaseMac);
@@ -1166,7 +1180,8 @@ static bool patch_rom_classic(void)
 
 		*patchwp++ = htons(0x4e75); /* RTS */
 		patchCodeBaseMac += 2;
-		patchlp = (uint32 *)patchwp; // keep in sync
+		// keep in sync
+		patchlp = (uint32 *)patchwp;
 	} else
 	{
 		wp = (uint16 *)(ROMBaseHost + 0x18ec4);
