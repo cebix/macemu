@@ -1116,8 +1116,7 @@ static bool patch_rom_classic(void)
 	*wp = htons(MacScreenWidth / 8);
 
 	// cursor handling
-	if (MacScreenWidth >= 1024)
-	{
+	if (MacScreenWidth >= 1024) {
 		// start to patch P_HideCursor routine
 		wp = (uint16 *)(ROMBaseHost + 0x18dfe);
 		*wp++ = htons(0x4eb9); /* JSR */
@@ -1140,8 +1139,7 @@ static bool patch_rom_classic(void)
 		*patchwp++ = htons(0x4e75); /* RTS */
 		patchCodeBaseMac += 2;
 		patchlp = (uint32 *)patchwp; // keep in sync
-	} else
-	{
+	} else {
 		// P_HideCursor
 		wp = (uint16 *)(ROMBaseHost + 0x18e02);
 		*wp = htons(0x7000 + (MacScreenWidth / 8));
@@ -1156,8 +1154,7 @@ static bool patch_rom_classic(void)
 	wp = (uint16 *)(ROMBaseHost + 0x18ea6);
 	*wp = htons(MacScreenHeight);
 
-	if (MacScreenWidth >= 1024)
-	{
+	if (MacScreenWidth >= 1024) {
 		// start to patch P_ShowCursor routine
 		wp = (uint16 *)(ROMBaseHost + 0x18ec4);
 		*wp++ = htons(0x4eb9); /* JSR */
@@ -1182,8 +1179,7 @@ static bool patch_rom_classic(void)
 		patchCodeBaseMac += 2;
 		// keep in sync
 		patchlp = (uint32 *)patchwp;
-	} else
-	{
+	} else {
 		wp = (uint16 *)(ROMBaseHost + 0x18ec4);
 		*wp = htons(0x7A00 + (MacScreenWidth / 8));
 	}// end if (MacScreenWidth >= 1024)
