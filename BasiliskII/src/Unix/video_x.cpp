@@ -1780,7 +1780,7 @@ bool VideoInit(bool classic)
 	if (classic) {
 		default_width = 512;
 		default_height = 342;
-	}	else {
+	} else {
 		default_width = 640;
 		default_height = 480;
 	}
