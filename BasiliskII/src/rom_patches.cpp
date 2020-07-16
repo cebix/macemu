@@ -1071,16 +1071,10 @@ static bool patch_rom_classic(void)
 
 	// blink floppy, disk icon
 	lp = (uint32 *)(ROMBaseHost + 0xf4c);
-	*lp = htonl(MacFrameBaseMac24Bit
-							+ (((MacScreenHeight / 4) * 2 - 25) * MacScreenWidth
-								 + (MacScreenWidth / 2 - 16))
-									 / 8);
+	*lp = htonl(MacFrameBaseMac24Bit + (((MacScreenHeight / 4) * 2 - 25) * MacScreenWidth + (MacScreenWidth / 2 - 16)) / 8);
 	// blink floppy, question mark
 	lp = (uint32 *)(ROMBaseHost + 0xf5e);
-	*lp = htonl(MacFrameBaseMac24Bit
-							+ (((MacScreenHeight / 4) * 2 - 10) * MacScreenWidth
-								+ (MacScreenWidth / 2 - 8))
-								/ 8);
+	*lp = htonl(MacFrameBaseMac24Bit + (((MacScreenHeight / 4) * 2 - 10) * MacScreenWidth + (MacScreenWidth / 2 - 8)) / 8);
 
 	lp = (uint32 *)(ROMBaseHost + 0x10a2);
 	*lp = htonl(MacFrameBaseMac24Bit);
@@ -1096,16 +1090,10 @@ static bool patch_rom_classic(void)
 
 	// sad mac, mac icon
 	lp = (uint32 *)(ROMBaseHost + 0x118a);
-	*lp = htonl(MacFrameBaseMac24Bit
-							+ (((MacScreenHeight / 4) * 2 - 25) * MacScreenWidth
-								+ (MacScreenWidth / 2 - 16))
-								/ 8);
+	*lp = htonl(MacFrameBaseMac24Bit + (((MacScreenHeight / 4) * 2 - 25) * MacScreenWidth + (MacScreenWidth / 2 - 16)) / 8);
 	// sad mac, frown
 	lp = (uint32 *)(ROMBaseHost + 0x1198);
-	*lp = htonl(MacFrameBaseMac24Bit
-							+ (((MacScreenHeight / 4) * 2 - 19) * MacScreenWidth
-								+ (MacScreenWidth / 2 - 8))
-								/ 8);
+	*lp = htonl(MacFrameBaseMac24Bit + (((MacScreenHeight / 4) * 2 - 19) * MacScreenWidth + (MacScreenWidth / 2 - 8)) / 8);
 	wp = (uint16 *)(ROMBaseHost + 0x11b0);
 	*wp = htons(MacScreenWidth / 8);
 
