@@ -1808,9 +1808,9 @@ bool VideoInit(bool classic)
 	else if (default_height > DisplayHeight(x_display, screen))
 		default_height = DisplayHeight(x_display, screen);
 
-	// for classic Mac, make sure the display width is 8
+	// for classic Mac, make sure the display width is divisible by 8
 	if (classic) {
-		default_width = (default_width << 3) >> 3;
+		default_width = (default_width / 8) * 8;
 	}
 
 	// Mac screen depth follows X depth
