@@ -98,6 +98,9 @@ const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
 const char KEYCODE_FILE_NAME2[] = DATADIR "/BasiliskII_keycodes";
 #endif
 
+// Mac Screen Width and Height
+uint32 MacScreenWidth;
+uint32 MacScreenHeight;
 
 // Global variables
 static uint32 frame_skip;							// Prefs items
@@ -496,7 +499,11 @@ static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth, bool nati
 		MacFrameLayout = layout;
 	else
 		MacFrameLayout = FLAYOUT_DIRECT;
-	monitor.set_mac_frame_base(MacFrameBaseMac);
+
+	if (TwentyFourBitAddressing)
+		monitor.set_mac_frame_base(MacFrameBaseMac24Bit);
+	else
+		monitor.set_mac_frame_base(MacFrameBaseMac);
 
 	// Set variables used by UAE memory banking
 	const VIDEO_MODE &mode = monitor.get_current_mode();
@@ -845,6 +852,10 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 
 	SDL_RenderSetIntegerScale(sdl_renderer, PrefsFindBool("scale_integer") ? SDL_TRUE : SDL_FALSE);
 
+	// set Mac screen global variabls
+	MacScreenWidth = width;
+	MacScreenHeight = height;
+	D(bug("Set Mac Screen Width: %d, Mac Screen Height: %d\n", MacScreenWidth, MacScreenHeight));
 	return guest_surface;
 }
 
@@ -1367,16 +1378,13 @@ bool VideoInit(bool classic)
 	// Get screen mode from preferences
 	migrate_screen_prefs();
 	const char *mode_str = NULL;
-	if (classic_mode)
-		mode_str = "win/512/342";
-	else
-		mode_str = PrefsFindString("screen");
 
+	mode_str = PrefsFindString("screen");
 	// Determine display type and default dimensions
 	int default_width, default_height;
 	if (classic) {
 		default_width = 512;
-		default_height = 384;
+		default_height = 342;
 	}
 	else {
 		default_width = 640;
@@ -1398,6 +1406,10 @@ bool VideoInit(bool classic)
 	else if (default_height > sdl_display_height())
 		default_height = sdl_display_height();
 
+	// for classic Mac, make sure the display width is divisible by 8
+	if (classic) {
+		default_width = (default_width / 8) * 8;
+	}
 	// Mac screen depth follows X depth
 	screen_depth = 32;
 	SDL_DisplayMode desktop_mode;
@@ -1457,7 +1469,7 @@ bool VideoInit(bool classic)
 	// Construct list of supported modes
 	if (display_type == DISPLAY_WINDOW) {
 		if (classic)
-			add_mode(display_type, 512, 342, 0x80, 64, VIDEO_DEPTH_1BIT);
+			add_mode(display_type, default_width, default_height, 0x80, default_width/8, VIDEO_DEPTH_1BIT);
 		else {
 			for (int i = 0; video_modes[i].w != 0; i++) {
 				const int w = video_modes[i].w;

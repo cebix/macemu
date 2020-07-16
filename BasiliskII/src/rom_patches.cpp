@@ -1008,6 +1008,178 @@ static bool patch_rom_classic(void)
 	*wp++ = htons(M68K_EMUL_OP_IRQ);
 	*wp++ = htons(0x4a80);		// tst.l	d0
 	*wp = htons(0x67f4);		// beq		0x402be2
+
+
+	// Patch the guest screen for an arbitary resolution
+	// We are going to steal the abandoned ROM space that runs RAM test
+	// for patching ROM.
+
+	// a stateful variable to keep track of the stolen location
+	// of the patched code in guest memory.
+	uint32 patchCodeBaseMac;
+	// a stateful word pointer pointing to the patch code in host memory.
+	uint16* patchwp;
+	// a stateful long pointer pointing to the patch code in host memory.
+	uint32* patchlp;
+	// a statless long pointer
+	uint32* lp;
+
+	// start to patch P_mInitVideoGlobal route
+	wp = (uint16 *)(ROMBaseHost + 0x5ca);
+	*wp++ = htons(0x4eb9); /* JSR */
+	lp = (uint32 *)wp;
+
+	// we steal P_mRamTest routine space
+	const uint32 patchCodeOffset = 0x1d3e;
+	patchCodeBaseMac = ROMBaseMac + patchCodeOffset;
+	uint8* patchCodeBaseHost = ROMBaseHost + patchCodeOffset;
+	// we JSR to this Mac address
+	*lp++ = htonl(patchCodeBaseMac);
+	wp = (uint16 *)lp;
+
+	// the host address for the patch
+	patchwp = (uint16 *)(patchCodeBaseHost);
+	// MOVE.L $MacFrameBaseMac24Bit, ($ScrnBase)
+	*patchwp++ = htons(0x21fc); /* MOVE.L */
+	patchCodeBaseMac += 2;
+
+	patchlp = (uint32 *)patchwp;
+	*patchlp++ = htonl(MacFrameBaseMac24Bit);
+	patchCodeBaseMac += 4;
+
+	patchwp = (uint16 *)patchlp;
+	*patchwp++ = htons(0x0824); /* (ScrnBase) */
+	patchCodeBaseMac += 2;
+
+	*patchwp++ = htons(0x4e75); /* RTS */
+	patchCodeBaseMac += 2;
+	// keep in sync
+	patchlp = (uint32 *)patchwp;
+
+	// continue to patch P_mInitVideoGlobal routine
+	wp = (uint16 *)(ROMBaseHost + 0x5d2);
+	*wp = htons(MacScreenWidth / 8);
+	wp = (uint16 *)(ROMBaseHost + 0x60a);
+	*wp = htons(MacScreenHeight);
+	wp = (uint16 *)(ROMBaseHost + 0x60e);
+	*wp = htons(MacScreenWidth);
+
+	wp = (uint16 *)(ROMBaseHost + 0x8cc);
+	*wp = htons(MacScreenHeight);
+	wp = (uint16 *)(ROMBaseHost + 0x8ce);
+	*wp = htons(MacScreenWidth);
+
+	// blink floppy, disk icon
+	lp = (uint32 *)(ROMBaseHost + 0xf4c);
+	*lp = htonl(MacFrameBaseMac24Bit + (((MacScreenHeight / 4) * 2 - 25) * MacScreenWidth + (MacScreenWidth / 2 - 16)) / 8);
+	// blink floppy, question mark
+	lp = (uint32 *)(ROMBaseHost + 0xf5e);
+	*lp = htonl(MacFrameBaseMac24Bit + (((MacScreenHeight / 4) * 2 - 10) * MacScreenWidth + (MacScreenWidth / 2 - 8)) / 8);
+
+	lp = (uint32 *)(ROMBaseHost + 0x10a2);
+	*lp = htonl(MacFrameBaseMac24Bit);
+	wp = (uint16 *)(ROMBaseHost + 0x10a8);
+	*wp = htons(MacScreenHeight);
+	wp = (uint16 *)(ROMBaseHost + 0x10ac);
+	*wp = htons(MacScreenWidth);
+	wp = (uint16 *)(ROMBaseHost + 0x10b0);
+	*wp = htons(MacScreenWidth / 8);
+	lp = (uint32 *)(ROMBaseHost + 0x10b4);
+	// # of bytes in screen
+	*lp = htonl(MacScreenWidth * MacScreenHeight / 8);
+
+	// sad mac, mac icon
+	lp = (uint32 *)(ROMBaseHost + 0x118a);
+	*lp = htonl(MacFrameBaseMac24Bit + (((MacScreenHeight / 4) * 2 - 25) * MacScreenWidth + (MacScreenWidth / 2 - 16)) / 8);
+	// sad mac, frown
+	lp = (uint32 *)(ROMBaseHost + 0x1198);
+	*lp = htonl(MacFrameBaseMac24Bit + (((MacScreenHeight / 4) * 2 - 19) * MacScreenWidth + (MacScreenWidth / 2 - 8)) / 8);
+	wp = (uint16 *)(ROMBaseHost + 0x11b0);
+	*wp = htons(MacScreenWidth / 8);
+
+	// blink floppy and sadmac, position
+	wp = (uint16 *)(ROMBaseHost + 0x11d8);
+	*wp = htons(MacScreenWidth / 8);
+	wp = (uint16 *)(ROMBaseHost + 0x11ea);
+	*wp = htons(MacScreenWidth / 8);
+
+	// cursor handling
+	if (MacScreenWidth >= 1024) {
+		// start to patch P_HideCursor routine
+		wp = (uint16 *)(ROMBaseHost + 0x18dfe);
+		*wp++ = htons(0x4eb9); /* JSR */
+		lp = (uint32 *)wp;
+		*lp++ = htonl(patchCodeBaseMac);
+		wp = (uint16 *)lp;
+
+		*patchwp++ = htons(0x41f8); /* Lea.L (CrsrSave),A0 */
+		patchCodeBaseMac += 2;
+		*patchwp++ = htons(0x088c);
+		patchCodeBaseMac += 2;
+
+		*patchwp++ = htons(0x203c); /* MOVE.L #$x,D0 */
+		patchCodeBaseMac += 2;
+		patchlp = (uint32 *)patchwp;
+		*patchlp++ = htonl(MacScreenWidth / 8);
+		patchCodeBaseMac += 4;
+		patchwp = (uint16 *)patchlp;
+
+		*patchwp++ = htons(0x4e75); /* RTS */
+		patchCodeBaseMac += 2;
+		patchlp = (uint32 *)patchwp; // keep in sync
+	} else {
+		// P_HideCursor
+		wp = (uint16 *)(ROMBaseHost + 0x18e02);
+		*wp = htons(0x7000 + (MacScreenWidth / 8));
+	} // end if (MacScreenWidth >= 1024)
+
+	wp = (uint16 *)(ROMBaseHost + 0x18e7a);
+	*wp = htons(MacScreenWidth - 32);
+	wp = (uint16 *)(ROMBaseHost + 0x18e80);
+	*wp = htons(MacScreenWidth - 32);
+	wp = (uint16 *)(ROMBaseHost + 0x18ea0);
+	*wp = htons(MacScreenHeight - 16);
+	wp = (uint16 *)(ROMBaseHost + 0x18ea6);
+	*wp = htons(MacScreenHeight);
+
+	if (MacScreenWidth >= 1024) {
+		// start to patch P_ShowCursor routine
+		wp = (uint16 *)(ROMBaseHost + 0x18ec4);
+		*wp++ = htons(0x4eb9); /* JSR */
+		lp = (uint32 *)wp;
+		*lp++ = htonl(patchCodeBaseMac);
+		wp = (uint16 *)lp;
+
+		*patchwp++ = htons(0x2a3c); /* MOVE.L #$x, D5 */
+		patchCodeBaseMac += 2;
+		patchlp = (uint32 *)patchwp;
+		*patchlp++ = htonl(MacScreenWidth / 8);
+		patchCodeBaseMac += 4;
+		patchwp = (uint16 *)patchlp;
+
+		*patchwp++ = htons(0xc2c5); /* MulU      D5, D1 */
+		patchCodeBaseMac += 2;
+
+		*patchwp++ = htons(0xd3c1); /* AddA.L    D1, A1 */
+		patchCodeBaseMac += 2;
+
+		*patchwp++ = htons(0x4e75); /* RTS */
+		patchCodeBaseMac += 2;
+		// keep in sync
+		patchlp = (uint32 *)patchwp;
+	} else {
+		wp = (uint16 *)(ROMBaseHost + 0x18ec4);
+		*wp = htons(0x7A00 + (MacScreenWidth / 8));
+	}// end if (MacScreenWidth >= 1024)
+
+	// set up screen bitmap
+	wp = (uint16 *)(ROMBaseHost + 0x18f9a);
+	*wp = htons(MacScreenHeight);
+	wp = (uint16 *)(ROMBaseHost + 0x18fa0);
+	*wp = htons(MacScreenWidth);
+	wp = (uint16 *)(ROMBaseHost + 0x18fb4);
+	*wp = htons(MacScreenHeight);
+
 	return true;
 }
 

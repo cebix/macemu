@@ -84,6 +84,9 @@ const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
 static const int win_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | EnterWindowMask | ExposureMask | StructureNotifyMask;
 static const int dga_eventmask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | StructureNotifyMask;
 
+// Mac Screen Width and Height
+uint32 MacScreenWidth;
+uint32 MacScreenHeight;
 
 // Global variables
 static int32 frame_skip;							// Prefs items
@@ -416,7 +419,10 @@ static void set_mac_frame_buffer(X11_monitor_desc &monitor, video_depth depth, b
 		MacFrameLayout = layout;
 	else
 		MacFrameLayout = FLAYOUT_DIRECT;
-	monitor.set_mac_frame_base(MacFrameBaseMac);
+	if (TwentyFourBitAddressing)
+		monitor.set_mac_frame_base(MacFrameBaseMac24Bit);
+	else
+		monitor.set_mac_frame_base(MacFrameBaseMac);
 
 	// Set variables used by UAE memory banking
 	const video_mode &mode = monitor.get_current_mode();
@@ -1547,6 +1553,10 @@ bool X11_monitor_desc::video_open(void)
 {
 	D(bug("video_open()\n"));
 	const video_mode &mode = get_current_mode();
+	// set Mac screen global variabls
+	MacScreenWidth = VIDEO_MODE_X;
+	MacScreenHeight = VIDEO_MODE_Y;
+	D(bug("Set Mac Screen Width: %d, Mac Screen Height: %d\n", MacScreenWidth, MacScreenHeight));
 
 	// Find best available X visual
 	if (!find_visual_for_depth(mode.depth)) {
@@ -1763,13 +1773,17 @@ bool VideoInit(bool classic)
 
 	// Get screen mode from preferences
 	const char *mode_str;
-	if (classic_mode)
-		mode_str = "win/512/342";
-	else
-		mode_str = PrefsFindString("screen");
+	mode_str = PrefsFindString("screen");
 
 	// Determine display type and default dimensions
-	int default_width = 512, default_height = 384;
+	int default_width, default_height;
+	if (classic) {
+		default_width = 512;
+		default_height = 342;
+	} else {
+		default_width = 640;
+		default_height = 480;
+	}
 	display_type = DISPLAY_WINDOW;
 	if (mode_str) {
 		if (sscanf(mode_str, "win/%d/%d", &default_width, &default_height) == 2) {
@@ -1794,6 +1808,11 @@ bool VideoInit(bool classic)
 	else if (default_height > DisplayHeight(x_display, screen))
 		default_height = DisplayHeight(x_display, screen);
 
+	// for classic Mac, make sure the display width is divisible by 8
+	if (classic) {
+		default_width = (default_width / 8) * 8;
+	}
+
 	// Mac screen depth follows X depth
 	video_depth default_depth = VDEPTH_1BIT;
 	switch (DefaultDepth(x_display, screen)) {
@@ -1811,7 +1830,7 @@ bool VideoInit(bool classic)
 	// Construct list of supported modes
 	if (display_type == DISPLAY_WINDOW) {
 		if (classic)
-			add_mode(512, 342, 0x80, 64, VDEPTH_1BIT);
+			add_mode(default_width, default_height, 0x80, default_width/8, VDEPTH_1BIT);
 		else {
 			for (unsigned d=VDEPTH_1BIT; d<=VDEPTH_32BIT; d++) {
 				if (find_visual_for_depth(video_depth(d)))
