@@ -195,6 +195,7 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
   fi
   if [[ "x$ac_cv_framework_SDL" = "xno" ]]; then
     AC_PATH_PROG(sdl_config, "sdl-config")
+    AC_DEFINE(ENABLE_SDL1, 1, [Define if using SDL1, sheepshaver only currenly supports 1.])
     if [[ -n "$sdl_config" ]]; then
       sdl_cflags=`$sdl_config --cflags`
       if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
