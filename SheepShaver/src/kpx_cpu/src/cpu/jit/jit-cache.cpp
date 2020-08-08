@@ -19,6 +19,9 @@
  */
 
 #include "sysdeps.h"
+
+#if ENABLE_DYNGEN
+
 #include "vm_alloc.h"
 #include "cpu/jit/jit-cache.hpp"
 
@@ -146,3 +149,5 @@ basic_jit_cache::copy_data(const uint8 *block, uint32 size)
 	D(bug("basic_jit_cache: DATA %p, %d bytes [data=%p, offs=%u]\n", ptr, size, data, data->offs));
 	return ptr;
 }
+
+#endif //ENABLE_DYNGEN

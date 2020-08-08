@@ -19,6 +19,9 @@
  */
 
 #include "sysdeps.h"
+
+#if ENABLE_DYNGEN
+
 #include "cpu/jit/dyngen-exec.h"
 #include "cpu/ppc/ppc-jit.hpp"
 #include "cpu/ppc/ppc-cpu.hpp"
@@ -949,3 +952,5 @@ bool powerpc_jit::gen_ssse3_vperm(int mnemo, int vD, int vA, int vB, int vC)
 	return true;
 }
 #endif
+
+#endif //ENABLE_DYNGEN

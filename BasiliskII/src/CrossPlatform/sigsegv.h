@@ -105,6 +105,22 @@ extern "C" {
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&SIP->thr_state.MACH_FIELD_NAME(rax)) /* RAX is the first GPR we consider */
 #endif
+
+#ifdef __aarch64__
+#if __DARWIN_UNIX03 && defined _STRUCT_ARM_THREAD_STATE64
+#define MACH_FIELD_NAME(X)				__CONCAT(__,X)
+#endif
+#define SIGSEGV_EXCEPTION_STATE_TYPE	arm_exception_state64_t
+#define SIGSEGV_EXCEPTION_STATE_FLAVOR	ARM_EXCEPTION_STATE64
+#define SIGSEGV_EXCEPTION_STATE_COUNT	ARM_EXCEPTION_STATE64_COUNT
+#define SIGSEGV_FAULT_ADDRESS			SIP->exc_state.MACH_FIELD_NAME(far)
+#define SIGSEGV_THREAD_STATE_TYPE		arm_thread_state64_t
+#define SIGSEGV_THREAD_STATE_FLAVOR		ARM_THREAD_STATE64
+#define SIGSEGV_THREAD_STATE_COUNT		ARM_THREAD_STATE64_COUNT
+#define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&SIP->thr_state.MACH_FIELD_NAME(x[0])) /* x[0] is the first GPR we consider */
+#define SIGSEGV_SKIP_INSTRUCTION		aarch64_skip_instruction
+#endif
+
 #ifdef __x86_64__
 #define SIGSEGV_FAULT_ADDRESS_FAST		(((uint64_t)code[1])|0x100000000)
 #else
