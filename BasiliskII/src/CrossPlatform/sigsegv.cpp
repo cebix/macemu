@@ -2501,10 +2501,9 @@ static bool arm_skip_instruction(unsigned long * regs)
 
 #ifdef _STRUCT_ARM_THREAD_STATE64
 static bool aarch64_skip_instruction(unsigned long *regs) {
-	_STRUCT_ARM_THREAD_STATE64 t;
-	const int PC = &t.__pc - &t.__x[0];
-	if (!regs[PC]) return false;
-	regs[PC] += 4;
+	_STRUCT_ARM_THREAD_STATE64 *ts = (_STRUCT_ARM_THREAD_STATE64 *)regs;
+	if (!ts->__pc) return false;
+	ts->__pc += 4;
 	return true;
 }
 #endif

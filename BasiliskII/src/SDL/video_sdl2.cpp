@@ -1030,6 +1030,11 @@ void driver_base::init()
 	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
 
 	adapt_to_video_mode();
+	
+	// set default B/W palette
+	sdl_palette = SDL_AllocPalette(256);
+	sdl_palette->colors[1] = (SDL_Color){ .r = 0, .g = 0, .b = 0 };
+	SDL_SetSurfacePalette(s, sdl_palette);
 }
 
 void driver_base::adapt_to_video_mode() {

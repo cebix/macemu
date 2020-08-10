@@ -539,6 +539,7 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			// Audio calls tend to end up without correct reference
 			// Real mac would just play first disc, but we can guess correct one from last data call
 			info = get_drive_info(last_drive_num);
+			if (info == drives.end()) return nsDrvErr;
 		}
 	}
 	
@@ -1071,6 +1072,7 @@ int16 CDROMStatus(uint32 pb, uint32 dce)
 			return nsDrvErr;
 		} else {
 			info = get_drive_info(last_drive_num);
+			if (info == drives.end()) return nsDrvErr;
 		}
 	}
 	
