@@ -215,6 +215,9 @@ extern void SysMountFirstFloppy(void);
 
 static void *vm_acquire_framebuffer(uint32 size)
 {
+#ifdef HAVE_MACH_VM
+	return vm_acquire_reserved(size);
+#else
 	// always try to reallocate framebuffer at the same address
 	static void *fb = VM_MAP_FAILED;
 	if (fb != VM_MAP_FAILED) {
@@ -228,11 +231,12 @@ static void *vm_acquire_framebuffer(uint32 size)
 	if (fb == VM_MAP_FAILED)
 		fb = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 	return fb;
+#endif
 }
 
 static inline void vm_release_framebuffer(void *fb, uint32 size)
 {
-	vm_release(fb, size);
+//	vm_release(fb, size);
 }
 
 static inline int get_customized_color_depth(int default_depth)
