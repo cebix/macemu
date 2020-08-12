@@ -236,7 +236,9 @@ static void *vm_acquire_framebuffer(uint32 size)
 
 static inline void vm_release_framebuffer(void *fb, uint32 size)
 {
-//	vm_release(fb, size);
+#ifndef HAVE_MACH_VM
+	vm_release(fb, size);
+#endif
 }
 
 static inline int get_customized_color_depth(int default_depth)
