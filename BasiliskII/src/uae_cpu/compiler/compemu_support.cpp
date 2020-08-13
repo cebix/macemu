@@ -25,6 +25,8 @@
 
 #include "sysdeps.h"
 
+#if USE_JIT
+
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 #error "Only Real or Direct Addressing is supported with the JIT Compiler"
 #endif
@@ -7125,3 +7127,5 @@ void m68k_compile_execute (void)
 	  m68k_do_compile_execute();
     }
 }
+
+#endif //USE_JIT

@@ -1,14 +1,16 @@
 SRC = $(PROJECT_DIR)/../uae_cpu
 DST = $(BUILT_PRODUCTS_DIR)/gencpu_output
-VPATH = $(SRC)
+VPATH = $(SRC) $(SRC)/compiler
 CFLAGS = -DUSE_XCODE=1 -I. -I../uae_cpu -I../UNIX
 CXXFLAGS = -stdlib=libc++ $(CFLAGS)
-OBJS = $(addprefix $(DST)/, defs68k.o gencpu.o readcpu.o)
 
-all: $(DST)/gencpu
-	cd $(DST); ./gencpu
+all: $(DST)/gencpu $(DST)/gencomp
+	cd $(DST); ./gencpu; ./gencomp
 
-$(DST)/gencpu: $(OBJS)
+$(DST)/gencpu: $(addprefix $(DST)/, defs68k.o readcpu.o gencpu.o)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+$(DST)/gencomp: $(addprefix $(DST)/, defs68k.o readcpu.o gencomp.o)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 $(DST)/%.o: %.c

@@ -97,6 +97,10 @@
 		E4555EED2354434B00139FCE /* Credits.html in Resources */ = {isa = PBXBuildFile; fileRef = 7539E00A1F23B25A006B2DF2 /* Credits.html */; };
 		E490334E20D3A5890012DD5F /* clip_macosx64.mm in Sources */ = {isa = PBXBuildFile; fileRef = E490334D20D3A5890012DD5F /* clip_macosx64.mm */; };
 		E4D8245323543D9800849B78 /* fpu_ieee.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4D8245223543D9700849B78 /* fpu_ieee.cpp */; };
+		E4ED8EDE24E39AFE00843219 /* compemu_support.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4ED8EDD24E39AFE00843219 /* compemu_support.cpp */; };
+		E4ED8EE224E39BC400843219 /* compemu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4ED8EE024E39BC400843219 /* compemu.cpp */; };
+		E4ED8EE324E39BC400843219 /* compstbl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4ED8EE124E39BC400843219 /* compstbl.cpp */; };
+		E4ED8EE524E39C0D00843219 /* compemu_fpp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4ED8EE424E39C0D00843219 /* compemu_fpp.cpp */; };
 		E4EE777523D7D71400BAE63A /* defs68k.c in Sources */ = {isa = PBXBuildFile; fileRef = E417913123D7D67C0009AD63 /* defs68k.c */; };
 /* End PBXBuildFile section */
 
@@ -337,6 +341,11 @@
 		E417913123D7D67C0009AD63 /* defs68k.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = defs68k.c; path = gencpu_output/defs68k.c; sourceTree = BUILT_PRODUCTS_DIR; };
 		E490334D20D3A5890012DD5F /* clip_macosx64.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = clip_macosx64.mm; sourceTree = "<group>"; };
 		E4D8245223543D9700849B78 /* fpu_ieee.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fpu_ieee.cpp; sourceTree = "<group>"; };
+		E4ED8EDD24E39AFE00843219 /* compemu_support.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = compemu_support.cpp; sourceTree = "<group>"; };
+		E4ED8EDF24E39B2A00843219 /* comptbl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = comptbl.h; path = gencpu_output/comptbl.h; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4ED8EE024E39BC400843219 /* compemu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = compemu.cpp; path = gencpu_output/compemu.cpp; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4ED8EE124E39BC400843219 /* compstbl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = compstbl.cpp; path = gencpu_output/compstbl.cpp; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4ED8EE424E39C0D00843219 /* compemu_fpp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = compemu_fpp.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -428,6 +437,9 @@
 		7532532B1F53675E0024025B /* gencpu output */ = {
 			isa = PBXGroup;
 			children = (
+				E4ED8EE024E39BC400843219 /* compemu.cpp */,
+				E4ED8EE124E39BC400843219 /* compstbl.cpp */,
+				E4ED8EDF24E39B2A00843219 /* comptbl.h */,
 				7532532C1F5368370024025B /* cpuemu_nf.cpp */,
 				7532532D1F5368370024025B /* cpuemu.cpp */,
 				7532532E1F5368370024025B /* cpustbl_nf.cpp */,
@@ -588,6 +600,8 @@
 			isa = PBXGroup;
 			children = (
 				7539E0AB1F23B25A006B2DF2 /* compemu.h */,
+				E4ED8EE424E39C0D00843219 /* compemu_fpp.cpp */,
+				E4ED8EDD24E39AFE00843219 /* compemu_support.cpp */,
 				7539E0AE1F23B25A006B2DF2 /* flags_x86.h */,
 			);
 			path = compiler;
@@ -818,6 +832,8 @@
 				$BUILT_PRODUCTS_DIR/gencpu_output/cpustbl.cpp,
 				$BUILT_PRODUCTS_DIR/gencpu_output/cpustbl_nf.cpp,
 				$BUILT_PRODUCTS_DIR/gencpu_output/defs68k.c,
+				$BUILT_PRODUCTS_DIR/gencpu_output/compemu.cpp,
+				$BUILT_PRODUCTS_DIR/gencpu_output/compstbl.cpp,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -831,6 +847,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E4EE777523D7D71400BAE63A /* defs68k.c in Sources */,
+				E4ED8EE524E39C0D00843219 /* compemu_fpp.cpp in Sources */,
 				7539E19E1F23B25A006B2DF2 /* rounding.cpp in Sources */,
 				7539E29D1F23C83F006B2DF2 /* sys_darwin.cpp in Sources */,
 				7539E1291F23B25A006B2DF2 /* video_blit.cpp in Sources */,
@@ -840,6 +857,8 @@
 				7539E1A01F23B25A006B2DF2 /* memory.cpp in Sources */,
 				E40CEEC620D7910E00BCB88D /* SDLMain.m in Sources */,
 				753253351F53688D0024025B /* readcpu.cpp in Sources */,
+				E4ED8EDE24E39AFE00843219 /* compemu_support.cpp in Sources */,
+				E4ED8EE324E39BC400843219 /* compstbl.cpp in Sources */,
 				7539E1741F23B25A006B2DF2 /* audio_sdl.cpp in Sources */,
 				E413D93120D260BC00E437D8 /* ip_output.c in Sources */,
 				7539E1E21F23B25A006B2DF2 /* video.cpp in Sources */,
@@ -847,6 +866,7 @@
 				7539E1711F23B25A006B2DF2 /* rom_patches.cpp in Sources */,
 				7539E1281F23B25A006B2DF2 /* sigsegv.cpp in Sources */,
 				753253341F5368370024025B /* cpustbl.cpp in Sources */,
+				E4ED8EE224E39BC400843219 /* compemu.cpp in Sources */,
 				756C1B341F252FC100620917 /* utils_macosx.mm in Sources */,
 				E413D92620D260BC00E437D8 /* misc.c in Sources */,
 				753253321F5368370024025B /* cpuemu.cpp in Sources */,
@@ -1068,10 +1088,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
 					ENABLE_MACOSX_ETHERHELPER,
-					HAVE_CONFIG_H,
-					"USE_XCODE=1",
-					"DEBUG=1",
-					"USE_SDL_AUDIO=1",
 					"BINCUE=1",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
@@ -1091,6 +1107,10 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = (
+					"-pagezero_size",
+					0x1000,
+				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.basilisk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1129,9 +1149,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
 					ENABLE_MACOSX_ETHERHELPER,
-					HAVE_CONFIG_H,
-					"USE_XCODE=1",
-					"USE_SDL_AUDIO=1",
 					"BINCUE=1",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
@@ -1150,6 +1167,10 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = (
+					"-pagezero_size",
+					0x1000,
+				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.basilisk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
