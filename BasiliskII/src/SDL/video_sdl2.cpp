@@ -700,6 +700,10 @@ static void shutdown_sdl_video()
 	delete_sdl_video_window();
 }
 
+static uint16 last_gamma_red[256];
+static uint16 last_gamma_green[256];
+static uint16 last_gamma_blue[256];
+
 static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags)
 {
     if (guest_surface) {
@@ -1739,9 +1743,37 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 {
 	const VIDEO_MODE &mode = get_current_mode();
 
-	// FIXME: how can we handle the gamma ramp?
-	if ((int)VIDEO_MODE_DEPTH > VIDEO_DEPTH_8BIT)
+	if ((int)VIDEO_MODE_DEPTH > VIDEO_DEPTH_8BIT) {
+		// handle the gamma ramp
+
+		uint16 red[256];
+		uint16 green[256];
+		uint16 blue[256];
+		
+		for (int i = 0; i < 256; i++) {
+			red[i] = pal[i*3 + 0] << 8;
+			green[i] = pal[i*3 + 1] << 8;
+			blue[i] = pal[i*3 + 2] << 8;
+		}
+		
+		bool changed = (memcmp(red, last_gamma_red, 512) != 0 ||
+		                memcmp(green, last_gamma_green, 512) != 0 ||
+						memcmp(blue, last_gamma_blue, 512) != 0);
+		
+		if (changed) {
+			int result = SDL_SetWindowGammaRamp(sdl_window, red, green, blue);
+		
+			if (result < 0) {
+				printf("SDL_SetWindowGammaRamp returned %d, SDL error:", result, SDL_GetError());
+			}
+			
+			memcpy(last_gamma_red, red, 512);
+			memcpy(last_gamma_green, green, 512);
+			memcpy(last_gamma_blue, blue, 512);
+		}
+
 		return;
+	}
 
 	LOCK_PALETTE;
 
