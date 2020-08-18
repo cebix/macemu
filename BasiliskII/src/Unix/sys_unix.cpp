@@ -59,7 +59,7 @@
 #include "disk_unix.h"
 
 #if defined(BINCUE)
-#include "bincue_unix.h"
+#include "bincue.h"
 #endif
 
 
@@ -1407,8 +1407,13 @@ bool SysCDScan(void *arg, uint8 start_m, uint8 start_s, uint8 start_f, bool reve
 	mac_file_handle *fh = (mac_file_handle *)arg;
 	if (!fh)
 		return false;
-
-	// Not supported under Linux
+	
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		return CDScan_bincue(fh->bincue_fd,start_m,start_s,start_f,reverse);
+#endif
+	
+	// Not supported outside bincue
 	return false;
 }
 
@@ -1422,6 +1427,11 @@ void SysCDSetVolume(void *arg, uint8 left, uint8 right)
 	mac_file_handle *fh = (mac_file_handle *)arg;
 	if (!fh)
 		return;
+	
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		CDSetVol_bincue(fh->bincue_fd,left,right);
+#endif
 
 	if (fh->is_cdrom) {
 #if defined(__linux__)
@@ -1450,6 +1460,12 @@ void SysCDGetVolume(void *arg, uint8 &left, uint8 &right)
 		return;
 
 	left = right = 0;
+	
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		CDGetVol_bincue(fh->bincue_fd,&left,&right);
+#endif
+	
 	if (fh->is_cdrom) {
 #if defined(__linux__)
 		cdrom_volctrl vol;

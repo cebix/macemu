@@ -225,6 +225,9 @@ enum {
 	STR_WINDOW_ITEM_MOUNT,
 	STR_SUSPEND_WINDOW_TITLE,
 
+    // Audio
+    STR_SOUND_IN_NAME = 6000,
+    
 	// External file system
 	STR_EXTFS_NAME = 5000,
 	STR_EXTFS_VOLUME_NAME

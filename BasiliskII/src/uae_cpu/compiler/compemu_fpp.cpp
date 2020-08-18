@@ -34,6 +34,8 @@
 
 #include "sysdeps.h"
 
+#if USE_JIT
+
 #include <math.h>
 #include <stdio.h>
 
@@ -1635,3 +1637,5 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
     m68k_setpc (m68k_getpc () - 4);
     fpuop_illg (opcode,extra);
 }
+
+#endif //USE_JIT

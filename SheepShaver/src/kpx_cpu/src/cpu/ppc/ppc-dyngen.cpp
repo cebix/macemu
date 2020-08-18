@@ -19,6 +19,9 @@
  */
 
 #include "sysdeps.h"
+
+#if ENABLE_DYNGEN
+
 #include "utils/utils-cpuinfo.hpp"
 #include "cpu/ppc/ppc-dyngen.hpp"
 #include "cpu/ppc/ppc-bitfields.hpp"
@@ -311,3 +314,5 @@ void powerpc_dyngen::gen_store_vect_VS_T0(int vS)
 	gen_load_ad_VD_VR(vS);
 	gen_op_store_vect_VD_T0();
 }
+
+#endif //ENABLE_DYNGEN

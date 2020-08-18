@@ -40,6 +40,10 @@ using std::min;
 #include "cdenable/cache.h"
 #include "cdenable/eject_nt.h"
 
+#if defined(BINCUE)
+#include "bincue.h"
+#endif
+
 #define DEBUG 0
 #include "debug.h"
 
@@ -56,6 +60,12 @@ struct file_handle {
 	loff_t file_size;	// Size of file data (only valid if is_file is true)
 	cachetype cache;
 	bool is_media_present;
+
+#if defined(BINCUE)
+	bool is_bincue;		// Flag: BIN CUE file
+	void *bincue_fd;
+	file_handle() {is_bincue = false;} // default bincue false
+#endif
 };
 
 // Open file handles
@@ -462,6 +472,11 @@ void *Sys_open(const char *path_name, bool read_only)
 			read_only = true;
 
 		// Open file
+
+#if defined(BINCUE)
+		void *binfd = open_bincue(name); // check if bincue
+#endif
+
 		HANDLE h = CreateFile(
 			name,
 			read_only ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
@@ -485,6 +500,16 @@ void *Sys_open(const char *path_name, bool read_only)
 			fh->start_byte = 0;
 			fh->is_floppy = false;
 			fh->is_cdrom = false;
+
+#if defined(BINCUE)
+			if (binfd) {
+				fh->bincue_fd = binfd;
+				fh->is_bincue = true;
+				fh->is_media_present = true;
+				sys_add_file_handle(fh);
+				return fh;
+			}
+#endif
 
 			// Detect disk image file layout
 			loff_t size = GetFileSize(h, NULL);
@@ -517,6 +542,11 @@ void Sys_close(void *arg)
 
 	sys_remove_file_handle(fh);
 
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		close_bincue(fh->bincue_fd);
+#endif
+
 	if (fh->is_cdrom) {
 		cache_final(&fh->cache);
 		SysAllowRemoval((void *)fh);
@@ -542,6 +572,11 @@ size_t Sys_read(void *arg, void *buffer, loff_t offset, size_t length)
 	file_handle *fh = (file_handle *)arg;
 	if (!fh)
 		return 0;
+
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		return read_bincue(fh->bincue_fd, buffer, offset, length);
+#endif
 
 	DWORD bytes_read = 0;
 
@@ -623,6 +658,11 @@ loff_t SysGetFileSize(void *arg)
 	if (!fh)
 		return true;
 
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		return size_bincue(fh->bincue_fd);
+#endif 
+
 	if (fh->is_file)
 		return fh->file_size;
 	else if (fh->is_cdrom)
@@ -643,6 +683,13 @@ void SysEject(void *arg)
 	file_handle *fh = (file_handle *)arg;
 	if (!fh)
 		return;
+
+#if defined(BINCUE)
+	if (fh->is_bincue) {
+		fh->is_media_present = false;
+		return;
+	}
+#endif
 
 	if (fh->is_cdrom && fh->fh) {
 		fh->is_media_present = false;
@@ -782,16 +829,26 @@ void SysAllowRemoval(void *arg)
 bool SysCDReadTOC(void *arg, uint8 *toc)
 {
 	file_handle *fh = (file_handle *)arg;
-	if (!fh || !fh->fh || !fh->is_cdrom)
+	if (!fh)
 		return false;
 
-	DWORD dummy;
-	return DeviceIoControl(fh->fh,
-						   IOCTL_CDROM_READ_TOC,
-						   NULL, 0,
-						   toc, min((int)sizeof(CDROM_TOC), 804),
-						   &dummy,
-						   NULL) != FALSE;
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		return readtoc_bincue(fh->bincue_fd, toc);
+#endif
+
+	if (fh->is_cdrom) {
+
+		DWORD dummy;
+		return DeviceIoControl(fh->fh,
+							   IOCTL_CDROM_READ_TOC,
+							   NULL, 0,
+							   toc, min((int)sizeof(CDROM_TOC), 804),
+							   &dummy,
+							   NULL) != FALSE;
+
+	} else
+		return false;
 }
 
 
@@ -802,26 +859,34 @@ bool SysCDReadTOC(void *arg, uint8 *toc)
 bool SysCDGetPosition(void *arg, uint8 *pos)
 {
 	file_handle *fh = (file_handle *)arg;
-	if (!fh || !fh->fh || !fh->is_cdrom)
+	if (!fh)
 		return false;
 
-	SUB_Q_CHANNEL_DATA q_data;
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		return GetPosition_bincue(fh->bincue_fd, pos);
+#endif
 
-	CDROM_SUB_Q_DATA_FORMAT q_format;
-	q_format.Format = IOCTL_CDROM_CURRENT_POSITION;
-	q_format.Track = 0; // used only by ISRC reads
+	if (fh->is_cdrom) {
+		SUB_Q_CHANNEL_DATA q_data;
 
-	DWORD dwBytesReturned = 0;
-	bool ok = DeviceIoControl(fh->fh,
-							  IOCTL_CDROM_READ_Q_CHANNEL,
-							  &q_format, sizeof(CDROM_SUB_Q_DATA_FORMAT),
-							  &q_data, sizeof(SUB_Q_CHANNEL_DATA),
-							  &dwBytesReturned,
-							  NULL) != FALSE;
-	if (ok)
-		memcpy(pos, &q_data.CurrentPosition, sizeof(SUB_Q_CURRENT_POSITION));
+		CDROM_SUB_Q_DATA_FORMAT q_format;
+		q_format.Format = IOCTL_CDROM_CURRENT_POSITION;
+		q_format.Track = 0; // used only by ISRC reads
 
-	return ok;
+		DWORD dwBytesReturned = 0;
+		bool ok = DeviceIoControl(fh->fh,
+								  IOCTL_CDROM_READ_Q_CHANNEL,
+								  &q_format, sizeof(CDROM_SUB_Q_DATA_FORMAT),
+								  &q_data, sizeof(SUB_Q_CHANNEL_DATA),
+								  &dwBytesReturned,
+								  NULL) != FALSE;
+		if (ok)
+			memcpy(pos, &q_data.CurrentPosition, sizeof(SUB_Q_CURRENT_POSITION));
+
+		return ok;
+	} else
+		return false;
 }
 
 
@@ -832,24 +897,32 @@ bool SysCDGetPosition(void *arg, uint8 *pos)
 bool SysCDPlay(void *arg, uint8 start_m, uint8 start_s, uint8 start_f, uint8 end_m, uint8 end_s, uint8 end_f)
 {
 	file_handle *fh = (file_handle *)arg;
-	if (!fh || !fh->fh || !fh->is_cdrom)
+	if (!fh)
 		return false;
 
-	CDROM_PLAY_AUDIO_MSF msf;
-	msf.StartingM = start_m;
-	msf.StartingS = start_s;
-	msf.StartingF = start_f;
-	msf.EndingM = end_m;
-	msf.EndingS = end_s;
-	msf.EndingF = end_f;
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		return CDPlay_bincue(fh->bincue_fd, start_m, start_s, start_f, end_m, end_s, end_f);
+#endif
 
-	DWORD dwBytesReturned = 0;
-	return DeviceIoControl(fh->fh,
-						   IOCTL_CDROM_PLAY_AUDIO_MSF,
-						   &msf, sizeof(CDROM_PLAY_AUDIO_MSF),
-						   NULL, 0,
-						   &dwBytesReturned,
-						   NULL) != FALSE;
+	if (fh->is_cdrom) {
+		CDROM_PLAY_AUDIO_MSF msf;
+		msf.StartingM = start_m;
+		msf.StartingS = start_s;
+		msf.StartingF = start_f;
+		msf.EndingM = end_m;
+		msf.EndingS = end_s;
+		msf.EndingF = end_f;
+
+		DWORD dwBytesReturned = 0;
+		return DeviceIoControl(fh->fh,
+							   IOCTL_CDROM_PLAY_AUDIO_MSF,
+							   &msf, sizeof(CDROM_PLAY_AUDIO_MSF),
+							   NULL, 0,
+							   &dwBytesReturned,
+							   NULL) != FALSE;
+	} else
+		return false;
 }
 
 
@@ -860,16 +933,24 @@ bool SysCDPlay(void *arg, uint8 start_m, uint8 start_s, uint8 start_f, uint8 end
 bool SysCDPause(void *arg)
 {
 	file_handle *fh = (file_handle *)arg;
-	if (!fh || !fh->fh || !fh->is_cdrom)
+	if (!fh)
 		return false;
 
-	DWORD dwBytesReturned = 0;
-	return DeviceIoControl(fh->fh,
-						   IOCTL_CDROM_PAUSE_AUDIO,
-						   NULL, 0,
-						   NULL, 0,
-						   &dwBytesReturned,
-						   NULL) != FALSE;
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		return CDPause_bincue(fh->bincue_fd);
+#endif
+
+	if (fh->is_cdrom) {
+		DWORD dwBytesReturned = 0;
+		return DeviceIoControl(fh->fh,
+							   IOCTL_CDROM_PAUSE_AUDIO,
+							   NULL, 0,
+							   NULL, 0,
+							   &dwBytesReturned,
+							   NULL) != FALSE;
+	} else
+		return false;
 }
 
 
@@ -880,15 +961,23 @@ bool SysCDPause(void *arg)
 bool SysCDResume(void *arg)
 {
 	file_handle *fh = (file_handle *)arg;
-	if (!fh || !fh->fh || !fh->is_cdrom)
+	if (!fh)
 		return false;
 
-	DWORD dwBytesReturned = 0;
-	return DeviceIoControl(fh->fh,
-						   IOCTL_CDROM_RESUME_AUDIO,
-						   NULL, 0,
-						   NULL, 0,
-						   &dwBytesReturned, NULL) != FALSE;
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		return CDResume_bincue(fh->bincue_fd);
+#endif
+
+	if (fh->is_cdrom) {
+		DWORD dwBytesReturned = 0;
+		return DeviceIoControl(fh->fh,
+							   IOCTL_CDROM_RESUME_AUDIO,
+							   NULL, 0,
+							   NULL, 0,
+							   &dwBytesReturned, NULL) != FALSE;
+	} else
+		return false;
 }
 
 
@@ -899,16 +988,24 @@ bool SysCDResume(void *arg)
 bool SysCDStop(void *arg, uint8 lead_out_m, uint8 lead_out_s, uint8 lead_out_f)
 {
 	file_handle *fh = (file_handle *)arg;
-	if (!fh || !fh->fh || !fh->is_cdrom)
+	if (!fh)
 		return false;
 
-	DWORD dwBytesReturned = 0;
-	return DeviceIoControl(fh->fh,
-						   IOCTL_CDROM_STOP_AUDIO,
-						   NULL, 0,
-						   NULL, 0,
-						   &dwBytesReturned,
-						   NULL) != FALSE;
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		return CDStop_bincue(fh->bincue_fd);
+#endif
+
+	if (fh->is_cdrom) {
+		DWORD dwBytesReturned = 0;
+		return DeviceIoControl(fh->fh,
+							   IOCTL_CDROM_STOP_AUDIO,
+							   NULL, 0,
+							   NULL, 0,
+							   &dwBytesReturned,
+							   NULL) != FALSE;
+	} else
+		return false;
 }
 
 
@@ -919,21 +1016,30 @@ bool SysCDStop(void *arg, uint8 lead_out_m, uint8 lead_out_s, uint8 lead_out_f)
 bool SysCDScan(void *arg, uint8 start_m, uint8 start_s, uint8 start_f, bool reverse)
 {
 	file_handle *fh = (file_handle *)arg;
-	if (!fh || !fh->fh || !fh->is_cdrom)
+	if (!fh)
 		return false;
 
-	CDROM_SEEK_AUDIO_MSF msf;
-	msf.M = start_m;
-	msf.S = start_s;
-	msf.F = start_f;
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		return CDScan_bincue(fh->bincue_fd,start_m,start_s,start_f,reverse);
+#endif
 
-	DWORD dwBytesReturned = 0;
-	return DeviceIoControl(fh->fh,
-						   IOCTL_CDROM_SEEK_AUDIO_MSF,
-						   &msf, sizeof(CDROM_SEEK_AUDIO_MSF),
-						   NULL, 0,
-						   &dwBytesReturned,
-						   NULL) != FALSE;
+	if (fh->is_cdrom) {
+
+		CDROM_SEEK_AUDIO_MSF msf;
+		msf.M = start_m;
+		msf.S = start_s;
+		msf.F = start_f;
+
+		DWORD dwBytesReturned = 0;
+		return DeviceIoControl(fh->fh,
+							   IOCTL_CDROM_SEEK_AUDIO_MSF,
+							   &msf, sizeof(CDROM_SEEK_AUDIO_MSF),
+							   NULL, 0,
+							   &dwBytesReturned,
+							   NULL) != FALSE;
+	} else
+		return false;
 }
 
 
@@ -944,22 +1050,30 @@ bool SysCDScan(void *arg, uint8 start_m, uint8 start_s, uint8 start_f, bool reve
 void SysCDSetVolume(void *arg, uint8 left, uint8 right)
 {
 	file_handle *fh = (file_handle *)arg;
-	if (!fh || !fh->fh || !fh->is_cdrom)
+	if (!fh)
 		return;
 
-	VOLUME_CONTROL vc;
-	vc.PortVolume[0] = left;
-	vc.PortVolume[1] = right;
-	vc.PortVolume[2] = left;
-	vc.PortVolume[3] = right;
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		CDSetVol_bincue(fh->bincue_fd,left,right);
+#endif
 
-	DWORD dwBytesReturned = 0;
-	DeviceIoControl(fh->fh,
-					IOCTL_CDROM_SET_VOLUME,
-					&vc, sizeof(VOLUME_CONTROL),
-					NULL, 0,
-					&dwBytesReturned,
-					NULL);
+	if (fh->is_cdrom) {
+
+		VOLUME_CONTROL vc;
+		vc.PortVolume[0] = left;
+		vc.PortVolume[1] = right;
+		vc.PortVolume[2] = left;
+		vc.PortVolume[3] = right;
+
+		DWORD dwBytesReturned = 0;
+		DeviceIoControl(fh->fh,
+						IOCTL_CDROM_SET_VOLUME,
+						&vc, sizeof(VOLUME_CONTROL),
+						NULL, 0,
+						&dwBytesReturned,
+						NULL);
+	}
 }
 
 
@@ -974,21 +1088,27 @@ void SysCDGetVolume(void *arg, uint8 &left, uint8 &right)
 		return;
 
 	left = right = 0;
-	if (!fh->fh || !fh->is_cdrom)
-		return;
 
-	VOLUME_CONTROL vc;
-	memset(&vc, 0, sizeof(vc));
+#if defined(BINCUE)
+	if (fh->is_bincue)
+		CDGetVol_bincue(fh->bincue_fd,&left,&right);
+#endif
+	
+	if (fh->is_cdrom) {
 
-	DWORD dwBytesReturned = 0;
-	if (DeviceIoControl(fh->fh,
-						IOCTL_CDROM_GET_VOLUME,
-						NULL, 0,
-						&vc, sizeof(VOLUME_CONTROL),
-						&dwBytesReturned,
-						NULL))
-	{
-		left = vc.PortVolume[0];
-		right = vc.PortVolume[1];
+		VOLUME_CONTROL vc;
+		memset(&vc, 0, sizeof(vc));
+
+		DWORD dwBytesReturned = 0;
+		if (DeviceIoControl(fh->fh,
+							IOCTL_CDROM_GET_VOLUME,
+							NULL, 0,
+							&vc, sizeof(VOLUME_CONTROL),
+							&dwBytesReturned,
+							NULL))
+		{
+			left = vc.PortVolume[0];
+			right = vc.PortVolume[1];
+		}
 	}
 }

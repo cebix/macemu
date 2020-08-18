@@ -19,6 +19,9 @@
  */
 
 #include "sysdeps.h"
+
+#if ENABLE_DYNGEN
+
 #include "basic-dyngen.hpp"
 
 int __op_param1, __op_param2, __op_param3;
@@ -181,3 +184,5 @@ basic_dyngen::gen_align(int align)
 #endif
 	return code_ptr();
 }
+
+#endif //ENABLE_DYNGEN

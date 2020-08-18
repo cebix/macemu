@@ -698,6 +698,7 @@ AS_IF([test  "x$have_bincue" = "xyes" ], [
        AC_SUBST(USE_BINCUE, no)
    else
        CPPFLAGS="$CPPFLAGS -DBINCUE $OSX_CORE_AUDIO"
+       DEFINES="$DEFINES -DBINCUE"
        AC_SUBST(USE_BINCUE, yes)
    fi
 ], [AC_SUBST(USE_BINCUE, no)])
@@ -781,7 +782,7 @@ fi
 dnl BINCUE overrides
 
 if [[ "x$have_bincue" = "xyes" ]]; then
-  EXTRASYSSRCS="$EXTRASYSSRCS bincue_unix.cpp"
+  EXTRASYSSRCS="$EXTRASYSSRCS bincue.cpp"
 fi
 
 dnl libvhd overrides

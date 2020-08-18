@@ -4,6 +4,8 @@
 	#include "config-macosx-x86_32.h"
 #elif defined(__ppc__)
 	#include "config-macosx-ppc_32.h"
+#elif defined(__aarch64__)
+	#include "config-macosx-aarch64.h"
 #else
 	#error Unknown platform
 #endif

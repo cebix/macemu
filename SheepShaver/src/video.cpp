@@ -777,7 +777,7 @@ static int16 VideoStatus(uint32 pb, VidLocals *csSave)
 
 		case cscGetNextResolution: {
 			D(bug("GetNextResolution \n"));
-			int work_id = ReadMacInt32(param + csPreviousDisplayModeID);
+			unsigned int work_id = ReadMacInt32(param + csPreviousDisplayModeID);
 			switch (work_id) {
 				case kDisplayModeIDCurrent:
 					work_id = csSave->saveData;

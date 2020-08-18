@@ -222,6 +222,13 @@ void vm_exit(void)
 #endif
 }
 
+static void *reserved_buf;
+static const size_t RESERVED_SIZE = 64 * 1024 * 1024; // for 5K Retina
+
+void *vm_acquire_reserved(size_t size) {
+	return reserved_buf && size <= RESERVED_SIZE ? reserved_buf : VM_MAP_FAILED;
+}
+
 /* Allocate zero-filled memory of SIZE bytes. The mapping is private
    and default protection bits are read / write. The return value
    is the actual mapping address chosen or VM_MAP_FAILED for errors.  */
@@ -243,11 +250,13 @@ void * vm_acquire(size_t size, int options)
 
 #if defined(HAVE_MACH_VM)
 	// vm_allocate() returns a zero-filled memory region
-	kern_return_t ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, TRUE);
+	kern_return_t ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, reserved_buf ? size : size + RESERVED_SIZE, TRUE);
 	if (ret_code != KERN_SUCCESS) {
 		errno = vm_error(ret_code);
 		return VM_MAP_FAILED;
 	}
+	if (!reserved_buf)
+		reserved_buf = (char *)addr + size;
 #elif defined(HAVE_MMAP_VM)
 	int fd = zero_fd;
 	int the_map_flags = translate_map_flags(options) | map_flags;

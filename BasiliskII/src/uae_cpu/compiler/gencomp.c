@@ -3038,6 +3038,9 @@ main (int argc, char **argv)
     stblfile = fopen ("compstbl.cpp", "wb");
     freopen ("compemu.cpp", "wb", stdout);
 
+    fprintf(stblfile, "#if USE_JIT\n");
+    printf("#if USE_JIT\n");
+
     generate_includes (stdout);
     generate_includes (stblfile);
 
@@ -3058,6 +3061,9 @@ main (int argc, char **argv)
     read_counts ();
     noflags=1;
     generate_func (noflags);
+
+    fprintf(stblfile, "#endif //USE_JIT\n");
+    printf("#endif //USE_JIT\n");
 
     free(opcode_map);
     free(opcode_last_postfix);

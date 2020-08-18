@@ -90,19 +90,13 @@ enum {
 static int display_type = DISPLAY_WINDOW;			// See enum above
 #endif
 
-#ifdef SHEEPSHAVER
-#define PROGRAM_NAME	"SheepShaver"
-#else
-#define PROGRAM_NAME	"BasiliskII"
-#endif
-
 // Constants
-#ifdef WIN32
-const char KEYCODE_FILE_NAME[] = PROGRAM_NAME "_keycodes";
-#elif __MACOSX__
-const char KEYCODE_FILE_NAME[] = PROGRAM_NAME "_keycodes";
+#if defined(__MACOSX__) || defined(WIN32)
+const char KEYCODE_FILE_NAME[] = "keycodes";
+const char KEYCODE_FILE_NAME2[] = "BasiliskII_keycodes";
 #else
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
+const char KEYCODE_FILE_NAME2[] = DATADIR "/BasiliskII_keycodes";
 #endif
 
 
@@ -226,6 +220,9 @@ extern void SysMountFirstFloppy(void);
 
 static void *vm_acquire_framebuffer(uint32 size)
 {
+#ifdef HAVE_MACH_VM
+	return vm_acquire_reserved(size);
+#else
 	// always try to reallocate framebuffer at the same address
 	static void *fb = VM_MAP_FAILED;
 	if (fb != VM_MAP_FAILED) {
@@ -239,11 +236,14 @@ static void *vm_acquire_framebuffer(uint32 size)
 	if (fb == VM_MAP_FAILED)
 		fb = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 	return fb;
+#endif
 }
 
 static inline void vm_release_framebuffer(void *fb, uint32 size)
 {
+#ifndef HAVE_MACH_VM
 	vm_release(fb, size);
+#endif
 }
 
 static inline int get_customized_color_depth(int default_depth)
@@ -752,7 +752,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 */
 	if (!sdl_window) {
 		sdl_window = SDL_CreateWindow(
-			PROGRAM_NAME,
+			"Basilisk II",
 			SDL_WINDOWPOS_UNDEFINED,
 			SDL_WINDOWPOS_UNDEFINED,
 			window_width,
@@ -774,11 +774,17 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 	}
 
 	if (!sdl_renderer) {
+		const char *render_driver = PrefsFindString("sdlrender");
+		if (render_driver) {
+			SDL_SetHint(SDL_HINT_RENDER_DRIVER, render_driver);
+		}
+		else {
 #ifdef WIN32
-		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
+			SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
 #else
-		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "");
+			SDL_SetHint(SDL_HINT_RENDER_DRIVER, "");
 #endif
+		}
 		sdl_renderer = SDL_CreateRenderer(sdl_window, -1, 0);
 		if (!sdl_renderer) {
 			shutdown_sdl_video();
@@ -1035,6 +1041,11 @@ void driver_base::init()
 	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
 
 	adapt_to_video_mode();
+	
+	// set default B/W palette
+	sdl_palette = SDL_AllocPalette(256);
+	sdl_palette->colors[1] = (SDL_Color){ .r = 0, .g = 0, .b = 0 };
+	SDL_SetSurfacePalette(s, sdl_palette);
 }
 
 void driver_base::adapt_to_video_mode() {
@@ -1211,7 +1222,8 @@ static void keycode_init(void)
 		const char *kc_path = PrefsFindString("keycodefile");
 
 		// Open keycode table
-		FILE *f = fopen(kc_path ? kc_path : KEYCODE_FILE_NAME, "r");
+		FILE *f = fopen(kc_path && *kc_path ? kc_path : KEYCODE_FILE_NAME, "r");
+		if (f == NULL) f = fopen(KEYCODE_FILE_NAME2, "r");
 		if (f == NULL) {
 			char str[256];
 			snprintf(str, sizeof(str), GetString(STR_KEYCODE_FILE_WARN), kc_path ? kc_path : KEYCODE_FILE_NAME, strerror(errno));

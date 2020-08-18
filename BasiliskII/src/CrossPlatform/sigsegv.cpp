@@ -2499,6 +2499,14 @@ static bool arm_skip_instruction(unsigned long * regs)
 }
 #endif
 
+#ifdef _STRUCT_ARM_THREAD_STATE64
+static bool aarch64_skip_instruction(unsigned long *regs) {
+	_STRUCT_ARM_THREAD_STATE64 *ts = (_STRUCT_ARM_THREAD_STATE64 *)regs;
+	if (!ts->__pc) return false;
+	ts->__pc += 4;
+	return true;
+}
+#endif
 
 // Fallbacks
 #ifndef SIGSEGV_FAULT_ADDRESS_FAST

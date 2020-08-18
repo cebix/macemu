@@ -34,7 +34,7 @@
 #include "debug.h"
 
 #if defined(BINCUE)
-#include "bincue_unix.h"
+#include "bincue.h"
 #endif
 
 
@@ -112,7 +112,7 @@ static bool open_sdl_audio(void)
 
 #if defined(BINCUE)
 	OpenAudio_bincue(audio_spec.freq, audio_spec.format, audio_spec.channels,
-	audio_spec.silence);
+	audio_spec.silence, audio_volume);
 #endif
 
 #if SDL_VERSION_ATLEAST(2,0,0)
@@ -249,11 +249,13 @@ static void stream_func(void *arg, uint8 *stream, int stream_len)
 	} else {
 
 		// Audio not active, play silence
-silence: memset(stream, silence_byte, stream_len);
+		silence: memset(stream, silence_byte, stream_len);
 	}
+	
 #if defined(BINCUE)
-	MixAudio_bincue(stream, stream_len);
+	MixAudio_bincue(stream, stream_len, audio_volume);
 #endif
+	
 }
 
 
