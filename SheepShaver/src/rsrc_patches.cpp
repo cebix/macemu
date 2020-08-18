@@ -517,13 +517,11 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 			D(bug(" patch applied\n"));
 		}
 
-	// patch for -16501 resource ID not even needed? seems to run off native driver without
-/*	} else if (type == FOURCC('D','R','V','R') && (id == -16501)){// || id == -16500)) { // -16500 will patch over native driver and traps out to code, but very hard to re-implement there!
+	} else if (type == FOURCC('D','R','V','R') && (id == -16501)){// || id == -16500)) { // -16500 will patch over native sound input driver and traps out to code in audio.cpp
 		D(bug("DRVR -16501/-16500 found\n"));
 		// Install sound input driver
 		memcpy(p, sound_input_driver, sizeof(sound_input_driver));
 		D(bug(" patch 1 applied\n"));
-*/
 	} else if (type == FOURCC('I','N','I','T') && id == 1 && size == (2416 >> 1)) {
 		D(bug("INIT 1 (size 2416) found\n"));
 		size >>= 1;
