@@ -174,6 +174,11 @@ static SDL_mutex *frame_buffer_lock = NULL;
 #define LOCK_FRAME_BUFFER SDL_LockMutex(frame_buffer_lock)
 #define UNLOCK_FRAME_BUFFER SDL_UnlockMutex(frame_buffer_lock)
 
+// Previously set gamma tables
+static uint16 last_gamma_red[256];
+static uint16 last_gamma_green[256];
+static uint16 last_gamma_blue[256];
+
 // Video refresh function
 static void VideoRefreshInit(void);
 static void (*video_refresh)(void);
@@ -699,10 +704,6 @@ static void shutdown_sdl_video()
 	delete_sdl_video_surfaces();
 	delete_sdl_video_window();
 }
-
-static uint16 last_gamma_red[256];
-static uint16 last_gamma_green[256];
-static uint16 last_gamma_blue[256];
 
 static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags)
 {
