@@ -1746,20 +1746,34 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 
 	if ((int)VIDEO_MODE_DEPTH > VIDEO_DEPTH_8BIT) {
 		// handle the gamma ramp
+		
+		if (pal[0] == 127 && pal[num_in*3-1] == 127) // solid grey
+			return; // ignore
 
 		uint16 red[256];
 		uint16 green[256];
 		uint16 blue[256];
 		
-		for (int i = 0; i < 256; i++) {
-			red[i] = pal[i*3 + 0] << 8;
-			green[i] = pal[i*3 + 1] << 8;
-			blue[i] = pal[i*3 + 2] << 8;
+		int repeats = 256 / num_in;
+				
+		for (int i = 0; i < num_in; i++) {
+			for (int j = 0; j < repeats; j++) {
+				red[i*repeats + j] = pal[i*3 + 0] << 8;
+				green[i*repeats + j] = pal[i*3 + 1] << 8;
+				blue[i*repeats + j] = pal[i*3 + 2] << 8;
+			}
+		}
+
+		// fill remaining entries (if any) with last value
+		for (int i = num_in * repeats; i < 256; i++) {
+			red[i] = pal[(num_in - 1) * 3] << 8;
+			green[i] = pal[(num_in - 1) * 3 + 1] << 8;
+			blue[i] = pal[(num_in - 1) * 3 + 2] << 8;
 		}
 		
 		bool changed = (memcmp(red, last_gamma_red, 512) != 0 ||
 		                memcmp(green, last_gamma_green, 512) != 0 ||
-						memcmp(blue, last_gamma_blue, 512) != 0);
+		                memcmp(blue, last_gamma_blue, 512) != 0);
 		
 		if (changed) {
 			int result = SDL_SetWindowGammaRamp(sdl_window, red, green, blue);
