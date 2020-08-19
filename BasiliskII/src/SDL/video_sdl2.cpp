@@ -1787,7 +1787,7 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 		                memcmp(green, last_gamma_green, 512) != 0 ||
 		                memcmp(blue, last_gamma_blue, 512) != 0);
 		
-		if (changed) {
+		if (changed && sdl_window) {
 			int result = SDL_SetWindowGammaRamp(sdl_window, red, green, blue);
 		
 			if (result < 0) {
