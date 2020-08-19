@@ -1403,7 +1403,7 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 			int result = SDL_SetGammaRamp(red, green, blue);
 
 			if (result < 0) {
-				printf("SDL_SetGammaRamp returned %d, SDL error: %s\n", result, SDL_GetError());
+				fprintf(stderr, "SDL_SetGammaRamp returned %d, SDL error: %s\n", result, SDL_GetError());
 			}
 			
 			memcpy(last_gamma_red, red, 512);
