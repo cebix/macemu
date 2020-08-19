@@ -211,6 +211,10 @@ static bool allocate_gamma_table(VidLocals *csSave, uint32 size)
 	return true;
 }
 
+ static inline uint8 max(uint8 a, uint8 b) {
+	 return a > b? a : b;
+ }
+
 static int16 set_gamma(VidLocals *csSave, uint32 gamma)
 {
 	if (gamma == 0) { // Build linear ramp, 256 entries
@@ -229,8 +233,11 @@ static int16 set_gamma(VidLocals *csSave, uint32 gamma)
 
 		// Build the linear ramp
 		uint32 p = csSave->gammaTable + gFormulaData;
-		for (int i=0; i<256; i++)
+		
+		for (int i=0; i<256; i++) {
 			WriteMacInt8(p + i, i);
+			mac_pal[i].red = mac_pal[i].green = mac_pal[i].blue = i;
+		}
 
 	} else { // User-supplied gamma table
 
@@ -256,7 +263,41 @@ static int16 set_gamma(VidLocals *csSave, uint32 gamma)
 
 		// Copy table
 		Mac2Mac_memcpy(csSave->gammaTable, gamma, size);
+		
+		// Save new gamma data for video impl
+		if (data_width != 8) {
+			// FIXME: handle bit-packed data
+		} else {
+			uint32 p = csSave->gammaTable + gFormulaData + gFormulaSize;
+
+			uint32 p_red;
+			uint32 p_green;
+			uint32 p_blue;
+			
+			// make values increasing as some implementations really don't like it when gamma tables aren't
+			uint8 max_red = 0;
+			uint8 max_green = 0;
+			uint8 max_blue = 0;
+					
+			if (chan_cnt == 3) {
+				p_red = p;
+				p_green = p + data_cnt;
+				p_blue = p + data_cnt * 2;
+			} else {
+				p_red = p_green = p_blue = p;
+			}
+			for (int i=0; i < data_cnt; i++) {
+				max_red = max(max_red, ReadMacInt8(p_red++));
+				max_green = max(max_green, ReadMacInt8(p_green++));
+				max_blue = max(max_blue, ReadMacInt8(p_blue++));
+				mac_pal[i].red = max_red;
+				mac_pal[i].green = max_green;
+				mac_pal[i].blue = max_blue;
+			}
+		}
 	}
+	
+	video_set_palette();
 	return noErr;
 }
 
