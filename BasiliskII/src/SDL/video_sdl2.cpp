@@ -991,6 +991,7 @@ void driver_base::set_video_mode(int flags)
 void driver_base::init()
 {
 	set_video_mode(display_type == DISPLAY_SCREEN ? SDL_WINDOW_FULLSCREEN : 0);
+#ifndef SHEEPSHAVER
 	// manually set palette for 24bit ROM
 	// 24 bit ROM Macintosh is BW screen. It doesn't setup palette by the ROM.
 	if (TwentyFourBitAddressing && !sdl_palette) {
@@ -1003,6 +1004,7 @@ void driver_base::init()
 		}
 		update_palette();
 	}
+#endif
 
 	int aligned_height = (VIDEO_MODE_Y + 15) & ~15;
 
