@@ -508,7 +508,14 @@ PRIVATE inline void FFPU extract_double(fpu_register const & src,
 		fpu_double value;
 		uae_u32    parts[2];
 	} dest;
+#if defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE)
+	fpu_register_parts p = { src };
+	// always set the explicit integer bit.
+	p.parts[1] |= 0x80000000;
+	dest.value = (fpu_double)p.val;
+#else
 	dest.value = (fpu_double)src;
+#endif
 #ifdef WORDS_BIGENDIAN
 	*wrd1 = dest.parts[0];
 	*wrd2 = dest.parts[1];
@@ -975,37 +982,40 @@ PRIVATE inline int FFPU put_fp_value (uae_u32 opcode, uae_u16 extra, fpu_registe
 	case 1:
 		put_long (ad, extract_single(value));
 		break;
-	case 2: {
-		uae_u32 wrd1, wrd2, wrd3;
-		extract_extended(value, &wrd1, &wrd2, &wrd3);
-		put_long (ad, wrd1);
-		ad += 4;
-		put_long (ad, wrd2);
-		ad += 4;
-		put_long (ad, wrd3);
+	case 2:
+		{
+			uae_u32 wrd1, wrd2, wrd3;
+			extract_extended(value, &wrd1, &wrd2, &wrd3);
+			put_long (ad, wrd1);
+			ad += 4;
+			put_long (ad, wrd2);
+			ad += 4;
+			put_long (ad, wrd3);
+		}
 		break;
-	}
-	case 3: {
-		uae_u32 wrd1, wrd2, wrd3;
-		extract_packed(value, &wrd1, &wrd2, &wrd3);
-		put_long (ad, wrd1);
-		ad += 4;
-		put_long (ad, wrd2);
-		ad += 4;
-		put_long (ad, wrd3);
+	case 3:
+		{
+			uae_u32 wrd1, wrd2, wrd3;
+			extract_packed(value, &wrd1, &wrd2, &wrd3);
+			put_long (ad, wrd1);
+			ad += 4;
+			put_long (ad, wrd2);
+			ad += 4;
+			put_long (ad, wrd3);
+		}
 		break;
-	}
 	case 4:
 		put_word(ad, (uae_s16) toint(value));
 		break;
-	case 5: {
-		uae_u32 wrd1, wrd2;
-		extract_double(value, &wrd1, &wrd2);
-		put_long (ad, wrd1);
-		ad += 4;
-		put_long (ad, wrd2);
+	case 5:
+		{
+			uae_u32 wrd1, wrd2;
+			extract_double(value, &wrd1, &wrd2);
+			put_long (ad, wrd1);
+			ad += 4;
+			put_long (ad, wrd2);
+		}
 		break;
-	}
 	case 6:
 		put_byte(ad, (uae_s8) toint(value));
 		break;
@@ -2209,7 +2219,7 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 			fpu_debug(("FREM %.04f\n",(double)src));
 			// FPU registers[reg] = FPU registers[reg] - (double) ((int) (FPU registers[reg] / src + 0.5)) * src;
 			{
-				fpu_register quot = fp_round_to_nearest(FPU registers[reg] / src);
+				fpu_register quot = fp_round_to_even(FPU registers[reg] / src);
 				uae_u32 sign = get_quotient_sign(FPU registers[reg],src);
 				FPU registers[reg] = FPU registers[reg] - quot * src;
 				make_fpsr(FPU registers[reg]);
@@ -2347,17 +2357,26 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 		case 0x38:		/* FCMP */
 			fpu_debug(("FCMP %.04f\n",(double)src));
 			set_fpsr(0);
-			if (isinf(FPU registers[reg]))
+			if (isnan(src) || isnan(FPU registers[reg]))
+			{
+				make_nan(src, false);
+				make_fpsr(src);
+			} else if (isinf(FPU registers[reg]))
 			{
 				if (isinf(src) && isneg(FPU registers[reg]) == isneg (src))
+				{
 					make_fpsr(0);
-				else
+				} else
+				{
 					make_fpsr(FPU registers[reg]);
-			}
-			else if (isinf(src))
+				}
+			} else if (isinf(src))
+			{
 				make_fpsr(-src);
-			else
+			} else
+			{
 				make_fpsr(FPU registers[reg] - src);
+			}
 			break;
 		case 0x3a:		/* FTST */
 			fpu_debug(("FTST %.04f\n",(double)src));

@@ -147,6 +147,13 @@ static int comp_index=0;
 #  endif
 #endif
 
+#define GENA_GETV_NO_FETCH	0
+#define GENA_GETV_FETCH		1
+#define GENA_GETV_FETCH_ALIGN 2
+#define GENA_MOVEM_DO_INC	0
+#define GENA_MOVEM_NO_INC	1
+#define GENA_MOVEM_MOVE16	2
+
 
 static int cond_codes[]={-1,-1,
 		NATIVE_CC_HI,NATIVE_CC_LS,
@@ -395,8 +402,8 @@ static void genamode(amodes mode, const char *reg, wordsizes size, const char *n
 	switch (mode)
 	{
 	case Dreg: /* Do we need to check dodgy here? */
-		assert (!movem);
-		if (getv == 1 || getv == 2)
+		assert (movem == GENA_MOVEM_DO_INC);
+		if (getv == GENA_GETV_FETCH || getv == GENA_GETV_FETCH_ALIGN)
 		{
 			/* We generate the variable even for getv==2, so we can use
 			 it as a destination for MOVE */
@@ -405,12 +412,12 @@ static void genamode(amodes mode, const char *reg, wordsizes size, const char *n
 		return;
 
 	case Areg:
-		assert (!movem);
-		if (getv == 1 || getv == 2)
+		assert (movem == GENA_MOVEM_DO_INC);
+		if (getv == GENA_GETV_FETCH || getv == GENA_GETV_FETCH_ALIGN)
 		{
 			/* see above */
 			comprintf("\tint %s = dodgy ? scratchie++ : %s + 8;\n", name, reg);
-			if (getv == 1)
+			if (getv == GENA_GETV_FETCH)
 			{
 				comprintf("\tif (dodgy) \n");
 				comprintf("\t\tmov_l_rr(%s, %s + 8);\n", name, reg);
@@ -431,7 +438,7 @@ static void genamode(amodes mode, const char *reg, wordsizes size, const char *n
 		switch (size)
 		{
 		case sz_byte:
-			if (movem)
+			if (movem != GENA_MOVEM_DO_INC)
 			{
 				comprintf("\tint %sa = dodgy ? scratchie++ : %s + 8;\n", name, reg);
 				comprintf("\tif (dodgy)\n");
@@ -446,7 +453,7 @@ static void genamode(amodes mode, const char *reg, wordsizes size, const char *n
 			}
 			break;
 		case sz_word:
-			if (movem)
+			if (movem != GENA_MOVEM_DO_INC)
 			{
 				comprintf("\tint %sa=dodgy?scratchie++:%s+8;\n", name, reg);
 				comprintf("\tif (dodgy) \n");
@@ -461,7 +468,7 @@ static void genamode(amodes mode, const char *reg, wordsizes size, const char *n
 			}
 			break;
 		case sz_long:
-			if (movem)
+			if (movem != GENA_MOVEM_DO_INC)
 			{
 				comprintf("\tint %sa = dodgy ? scratchie++ : %s + 8;\n", name, reg);
 				comprintf("\tif (dodgy)\n");
@@ -515,7 +522,7 @@ static void genamode(amodes mode, const char *reg, wordsizes size, const char *n
 		comprintf("\tmov_l_ri(%sa, %s); /* absl */\n", name, gen_nextilong());
 		break;
 	case imm:
-		assert (getv == 1);
+		assert (getv == GENA_GETV_FETCH);
 		switch (size)
 		{
 		case sz_byte:
@@ -536,22 +543,22 @@ static void genamode(amodes mode, const char *reg, wordsizes size, const char *n
 		}
 		return;
 	case imm0:
-		assert (getv == 1);
+		assert (getv == GENA_GETV_FETCH);
 		comprintf("\tint %s = scratchie++;\n", name);
 		comprintf("\tmov_l_ri(%s, (uae_s32)(uae_s8)%s);\n", name, gen_nextibyte());
 		return;
 	case imm1:
-		assert (getv == 1);
+		assert (getv == GENA_GETV_FETCH);
 		comprintf("\tint %s = scratchie++;\n", name);
 		comprintf("\tmov_l_ri(%s, (uae_s32)(uae_s16)%s);\n", name, gen_nextiword());
 		return;
 	case imm2:
-		assert (getv == 1);
+		assert (getv == GENA_GETV_FETCH);
 		comprintf("\tint %s = scratchie++;\n", name);
 		comprintf("\tmov_l_ri(%s, %s);\n", name, gen_nextilong());
 		return;
 	case immi:
-		assert (getv == 1);
+		assert (getv == GENA_GETV_FETCH);
 		comprintf("\tint %s = scratchie++;\n", name);
 		comprintf("\tmov_l_ri(%s, %s);\n", name, reg);
 		return;
@@ -562,7 +569,7 @@ static void genamode(amodes mode, const char *reg, wordsizes size, const char *n
 
 	/* We get here for all non-reg non-immediate addressing modes to
 	 * actually fetch the value. */
-	if (getv == 1)
+	if (getv == GENA_GETV_FETCH)
 	{
 		char astring[80];
 		sprintf(astring, "%sa", name);
@@ -602,7 +609,7 @@ static void genamode(amodes mode, const char *reg, wordsizes size, const char *n
 
 	/* We now might have to fix up the register for pre-dec or post-inc
 	 * addressing modes. */
-	if (!movem)
+	if (movem == GENA_MOVEM_DO_INC)
 	{
 		switch (mode)
 		{
@@ -731,8 +738,8 @@ static void genmov16(uae_u32 opcode, struct instr *curi)
 	}
 	else {
 		/* Other variants */
-		genamode (curi->smode, "srcreg", curi->size, "src", 0, 2);
-		genamode (curi->dmode, "dstreg", curi->size, "dst", 0, 2);
+		genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_NO_FETCH, GENA_MOVEM_MOVE16);
+		genamode (curi->dmode, "dstreg", curi->size, "dst", GENA_GETV_NO_FETCH, GENA_MOVEM_MOVE16);
 		comprintf("\tmov_l_rr(src,srca);\n");
 		comprintf("\tmov_l_rr(dst,dsta);\n");
 	}
@@ -797,7 +804,7 @@ genmovemel (uae_u16 opcode)
     comprintf ("\tint native=scratchie++;\n");
     comprintf ("\tint i;\n");
     comprintf ("\tsigned char offset=0;\n");
-    genamode (table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", 2, 1);
+    genamode (table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_NO_INC);
 #ifdef UAE
 	if (table68k[opcode].size == sz_long)
 	    comprintf("\tif (1 && !special_mem) {\n");
@@ -870,7 +877,7 @@ genmovemle (uae_u16 opcode)
     comprintf ("\tint i;\n");
     comprintf ("\tint tmp=scratchie++;\n");
     comprintf ("\tsigned char offset=0;\n");
-    genamode (table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", 2, 1);
+    genamode (table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_NO_INC);
 
 #ifdef UAE
     /* *Sigh* Some clever geek realized that the fastest way to copy a
@@ -1406,8 +1413,8 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_OR_AND_EOR
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "dst", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	switch(curi->mnemo) {
 	 case i_OR: genflags (flag_or, curi->size, "", "src", "dst"); break;
 	 case i_AND: genflags (flag_and, curi->size, "", "src", "dst"); break;
@@ -1431,8 +1438,8 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_SUB
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "dst", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	genflags (flag_sub, curi->size, "", "src", "dst");
 	genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
 	break;
@@ -1441,8 +1448,8 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_SUBA
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", sz_long, "dst", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	start_brace();
 	comprintf("\tint tmp=scratchie++;\n");
 	switch(curi->size) {
@@ -1460,8 +1467,8 @@ gen_opcode (unsigned int opcode)
     failure;
 #endif
 	isaddx;
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "dst", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	genflags (flag_subx, curi->size, "", "src", "dst");
 	genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
 	break;
@@ -1475,8 +1482,8 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_ADD
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "dst", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	genflags (flag_add, curi->size, "", "src", "dst");
 	genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
 	break;
@@ -1485,8 +1492,8 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_ADDA
 	failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", sz_long, "dst", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	start_brace();
 	comprintf("\tint tmp=scratchie++;\n");
 	switch(curi->size) {
@@ -1504,8 +1511,8 @@ gen_opcode (unsigned int opcode)
     failure;
 #endif
 	isaddx;
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "dst", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	start_brace();
 	genflags (flag_addx, curi->size, "", "src", "dst");
 	genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
@@ -1520,7 +1527,7 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_NEG
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	start_brace ();
 	comprintf("\tint dst=scratchie++;\n");
 	comprintf("\tmov_l_ri(dst,0);\n");
@@ -1533,7 +1540,7 @@ gen_opcode (unsigned int opcode)
     failure;
 #endif
 	isaddx;
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	start_brace ();
 	comprintf("\tint dst=scratchie++;\n");
 	comprintf("\tmov_l_ri(dst,0);\n");
@@ -1550,7 +1557,7 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_CLR
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 2, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_DO_INC);
 	start_brace();
 	comprintf("\tint dst=scratchie++;\n");
 	comprintf("\tmov_l_ri(dst,0);\n");
@@ -1562,7 +1569,7 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_NOT
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	start_brace ();
 	comprintf("\tint dst=scratchie++;\n");
 	comprintf("\tmov_l_ri(dst,0xffffffff);\n");
@@ -1574,7 +1581,7 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_TST
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	genflags (flag_logical, curi->size, "src", "", "");
 	break;
      case i_BCHG:
@@ -1584,8 +1591,8 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_BCHG_BCLR_BSET_BTST
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "dst", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	start_brace();
 	comprintf("\tint s=scratchie++;\n"
 		  "\tint tmp=scratchie++;\n"
@@ -1626,8 +1633,8 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_CMPM_CMP
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "dst", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	start_brace ();
 	genflags (flag_cmp, curi->size, "", "src", "dst");
 	break;
@@ -1636,8 +1643,8 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_CMPA
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", sz_long, "dst", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	start_brace();
 	comprintf("\tint tmps=scratchie++;\n");
 	switch(curi->size) {
@@ -1668,14 +1675,14 @@ gen_opcode (unsigned int opcode)
 	switch(curi->dmode) {
 	 case Dreg:
 	 case Areg:
-	    genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	    genamode (curi->dmode, "dstreg", curi->size, "dst", 2, 0);
+	    genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	    genamode (curi->dmode, "dstreg", curi->size, "dst", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_DO_INC);
 	    genflags (flag_mov, curi->size, "", "src", "dst");
 	    genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
 	    break;
 	 default: /* It goes to memory, not a register */
-	    genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	    genamode (curi->dmode, "dstreg", curi->size, "dst", 2, 0);
+	    genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	    genamode (curi->dmode, "dstreg", curi->size, "dst", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_DO_INC);
 	    genflags (flag_logical, curi->size, "src", "", "");
 	    genastore ("src", curi->dmode, "dstreg", curi->size, "dst");
 	    break;
@@ -1686,8 +1693,8 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_MOVEA
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "dst", 2, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "dst", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_DO_INC);
 
 	start_brace();
 	comprintf("\tint tmps=scratchie++;\n");
@@ -1713,7 +1720,7 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_SWAP
     failure;
 #endif
-	genamode (curi->smode, "srcreg", sz_long, "src", 1, 0);
+	genamode (curi->smode, "srcreg", sz_long, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	comprintf("\tdont_care_flags();\n");
 	comprintf("\trol_l_ri(src,16);\n");
 	genflags (flag_logical, sz_long, "src", "", "");
@@ -1724,8 +1731,8 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_EXG
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "dst", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	start_brace();
 	comprintf("\tint tmp=scratchie++;\n"
 		  "\tmov_l_rr(tmp,src);\n");
@@ -1737,7 +1744,7 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_EXT
 	failure;
 #endif
-	genamode (curi->smode, "srcreg", sz_long, "src", 1, 0);
+	genamode (curi->smode, "srcreg", sz_long, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	comprintf("\tdont_care_flags();\n");
 	start_brace ();
 	switch (curi->size)
@@ -1838,7 +1845,7 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_RTD
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "offs", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "offs", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	/* offs is constant */
 	comprintf("\tadd_l_ri(offs,4);\n");
 	start_brace();
@@ -1857,8 +1864,8 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_LINK
     failure;
 #endif
-	genamode (curi->smode, "srcreg", sz_long, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "offs", 1, 0);
+	genamode (curi->smode, "srcreg", sz_long, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "offs", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	comprintf("\tsub_l_ri(SP_REG,4);\n"
 		  "\twritelong_clobber(SP_REG,src,scratchie);\n"
 		  "\tmov_l_rr(src,SP_REG);\n");
@@ -1872,7 +1879,7 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_UNLK
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	comprintf("\tmov_l_rr(SP_REG,src);\n"
 		  "\treadlong(SP_REG,src,scratchie);\n"
 		  "\tadd_l_ri(SP_REG,4);\n");
@@ -1909,7 +1916,7 @@ gen_opcode (unsigned int opcode)
     failure;
 #endif
 	isjump;
-	genamode (curi->smode, "srcreg", curi->size, "src", 0, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_NO_FETCH, GENA_MOVEM_DO_INC);
 	start_brace();
 	comprintf("\tuae_u32 retadd=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+m68k_pc_offset;\n");
 	comprintf("\tint ret=scratchie++;\n"
@@ -1928,7 +1935,7 @@ gen_opcode (unsigned int opcode)
     failure;
 #endif
 	isjump;
-	genamode (curi->smode, "srcreg", curi->size, "src", 0, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_NO_FETCH, GENA_MOVEM_DO_INC);
 	comprintf("\tmov_l_mr((uintptr)&regs.pc,srca);\n"
 		  "\tget_n_addr_jmp(srca,PC_P,scratchie);\n"
 		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
@@ -1941,7 +1948,7 @@ gen_opcode (unsigned int opcode)
     failure;
 #endif
 	is_const_jump;
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	start_brace();
 	comprintf("\tuae_u32 retadd=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+m68k_pc_offset;\n");
 	comprintf("\tint ret=scratchie++;\n"
@@ -1961,7 +1968,7 @@ gen_opcode (unsigned int opcode)
     failure;
 #endif
 	comprintf("\tuae_u32 v,v1,v2;\n");
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	/* That source is an immediate, so we can clobber it with abandon */
 	switch(curi->size) {
 	 case sz_byte: comprintf("\tsign_extend_8_rr(src,src);\n"); break;
@@ -2020,8 +2027,8 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_LEA
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 0, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "dst", 2, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_NO_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "dst", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_DO_INC);
 	genastore ("srca", curi->dmode, "dstreg", curi->size, "dst");
 	break;
 
@@ -2037,8 +2044,8 @@ gen_opcode (unsigned int opcode)
 	    table68k[opcode].smode==Ad8r)
 	    comprintf("if (srcreg==7) dodgy=1;\n");
 
-	genamode (curi->smode, "srcreg", curi->size, "src", 0, 0);
-	genamode (Apdi, "7", sz_long, "dst", 2, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_NO_FETCH, GENA_MOVEM_DO_INC);
+	genamode (Apdi, "7", sz_long, "dst", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_DO_INC);
 	genastore ("srca", Apdi, "7", sz_long, "dst");
 	break;
 
@@ -2048,8 +2055,8 @@ gen_opcode (unsigned int opcode)
 #endif
 	isjump;
 	uses_cmov;
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "offs", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "offs", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 
 	/* That offs is an immediate, so we can clobber it with abandon */
 	switch(curi->size) {
@@ -2130,7 +2137,7 @@ gen_opcode (unsigned int opcode)
 #ifdef DISABLE_I_SCC
     failure;
 #endif
-	genamode (curi->smode, "srcreg", curi->size, "src", 2, 0);
+	genamode (curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_DO_INC);
 	start_brace ();
 	comprintf ("\tint val = scratchie++;\n");
 
@@ -2183,8 +2190,8 @@ gen_opcode (unsigned int opcode)
 	failure;
 #endif
 	comprintf("\tdont_care_flags();\n");
-	genamode (curi->smode, "srcreg", sz_word, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", sz_word, "dst", 1, 0);
+	genamode (curi->smode, "srcreg", sz_word, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", sz_word, "dst", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	/* To do 16x16 unsigned multiplication, we actually use
 	   32x32 signed, and zero-extend the registers first.
 	   That solves the problem of MUL needing dedicated registers
@@ -2201,8 +2208,8 @@ gen_opcode (unsigned int opcode)
     failure;
 #endif
 	comprintf("\tdont_care_flags();\n");
-	genamode (curi->smode, "srcreg", sz_word, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", sz_word, "dst", 1, 0);
+	genamode (curi->smode, "srcreg", sz_word, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", sz_word, "dst", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	comprintf("\tsign_extend_16_rr(scratchie,src);\n"
 		  "\tsign_extend_16_rr(dst,dst);\n"
 		  "\timul_32_32(dst,scratchie);\n");
@@ -2235,8 +2242,8 @@ gen_opcode (unsigned int opcode)
 	}
 	comprintf("\tdont_care_flags();\n");
 
-	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "cnt", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "data", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 
 	start_brace();
 	if (!noflags)
@@ -2245,31 +2252,40 @@ gen_opcode (unsigned int opcode)
 		uses_cmov;
 		start_brace();
 		comprintf("\tint zero = scratchie++;\n");
+		comprintf("\tint tmpcnt = scratchie++;\n");
 		comprintf("\tint minus1 = scratchie++;\n");
-		comprintf("\tand_l_ri(cnt,63);\n");
+		comprintf("\tint cdata = minus1;\n");
+		comprintf("\tmov_l_rr(tmpcnt,cnt);\n");
+		comprintf("\tand_l_ri(tmpcnt,63);\n");
 		comprintf("\tmov_l_ri(zero, 0);\n");
 		comprintf("\tmov_l_ri(minus1, -1);\n");
 		switch(curi->size) {
 		 case sz_byte:
 		 	comprintf("\ttest_b_rr(data,data);\n");
 		 	comprintf("\tcmov_l_rr(zero, minus1, NATIVE_CC_MI);\n");
-		 	comprintf("\ttest_l_ri(cnt, 0x38);\n");
-		 	comprintf("\tcmov_l_rr(data, zero, NATIVE_CC_NE);\n");
-		 	comprintf("\tshra_b_rr(data,cnt);\n");
+		 	comprintf("\ttest_l_ri(tmpcnt, 0x38);\n");
+			comprintf("\tmov_l_rr(cdata,data);\n");
+		 	comprintf("\tcmov_l_rr(cdata, zero, NATIVE_CC_NE);\n");
+		 	comprintf("\tshra_b_rr(cdata,tmpcnt);\n");
+			comprintf("\tmov_b_rr(data,cdata);\n");
 		 	break;
 		 case sz_word:
 		 	comprintf("\ttest_w_rr(data,data);\n");
 		 	comprintf("\tcmov_l_rr(zero, minus1, NATIVE_CC_MI);\n");
-		 	comprintf("\ttest_l_ri(cnt, 0x30);\n");
-		 	comprintf("\tcmov_l_rr(data, zero, NATIVE_CC_NE);\n");
-		 	comprintf("\tshra_w_rr(data,cnt);\n");
+		 	comprintf("\ttest_l_ri(tmpcnt, 0x30);\n");
+			comprintf("\tmov_l_rr(cdata,data);\n");
+		 	comprintf("\tcmov_l_rr(cdata, zero, NATIVE_CC_NE);\n");
+		 	comprintf("\tshra_w_rr(cdata,tmpcnt);\n");
+			comprintf("\tmov_w_rr(data,cdata);\n");
 		 	break;
 		 case sz_long:
 		 	comprintf("\ttest_l_rr(data,data);\n");
 		 	comprintf("\tcmov_l_rr(zero, minus1, NATIVE_CC_MI);\n");
-		 	comprintf("\ttest_l_ri(cnt, 0x20);\n");
-		 	comprintf("\tcmov_l_rr(data, zero, NATIVE_CC_NE);\n");
-		 	comprintf("\tshra_l_rr(data,cnt);\n");
+		 	comprintf("\ttest_l_ri(tmpcnt, 0x20);\n");
+			comprintf("\tmov_l_rr(cdata,data);\n");
+		 	comprintf("\tcmov_l_rr(cdata, zero, NATIVE_CC_NE);\n");
+		 	comprintf("\tshra_l_rr(cdata,tmpcnt);\n");
+			comprintf("\tmov_l_rr(data,cdata);\n");
 		 	break;
 		 default: assert(0);
 		}
@@ -2288,7 +2304,7 @@ gen_opcode (unsigned int opcode)
 		comprintf("\tlive_flags();\n");
 		comprintf("\tend_needflags();\n");
 		if (curi->smode!=immi)
-			comprintf("\tsetcc_for_cntzero(cnt, data, %d);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
+			comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
 		else
 			comprintf("\tduplicate_carry();\n");
 		comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
@@ -2320,32 +2336,38 @@ gen_opcode (unsigned int opcode)
 		"        " RETURN "\n"
 		"    }\n");
 
-	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "cnt", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "data", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 
+	start_brace();
 	if (!noflags)
 		comprintf("\tstart_needflags();\n");
 	if (curi->smode!=immi) {
 		uses_cmov;
 		start_brace();
-		comprintf("\tint zero = scratchie++;\n");
-		comprintf("\tand_l_ri(cnt,63);\n");
-		comprintf("\tmov_l_ri(zero, 0);\n");
+		comprintf("\tint cdata = scratchie++;\n");
+		comprintf("\tint tmpcnt=scratchie++;\n");
+		comprintf("\tmov_l_rr(tmpcnt,cnt);\n");
+		comprintf("\tand_l_ri(tmpcnt,63);\n");
+		comprintf("\tmov_l_ri(cdata, 0);\n");
 		switch(curi->size) {
 		 case sz_byte:
-		 	comprintf("\ttest_l_ri(cnt, 0x38);\n");
-		 	comprintf("\tcmov_l_rr(data, zero, NATIVE_CC_NE);\n");
-		 	comprintf("\tshll_b_rr(data,cnt);\n");
+		 	comprintf("\ttest_l_ri(tmpcnt, 0x38);\n");
+		 	comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
+		 	comprintf("\tshll_b_rr(cdata,tmpcnt);\n");
+			comprintf("\tmov_b_rr(data, cdata);\n");
 		 	break;
 		 case sz_word:
-		 	comprintf("\ttest_l_ri(cnt, 0x30);\n");
-		 	comprintf("\tcmov_l_rr(data, zero, NATIVE_CC_NE);\n");
-		 	comprintf("\tshll_w_rr(data,cnt);\n");
+		 	comprintf("\ttest_l_ri(tmpcnt, 0x30);\n");
+		 	comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
+		 	comprintf("\tshll_w_rr(cdata,tmpcnt);\n");
+			comprintf("\tmov_w_rr(data, cdata);\n");
 		 	break;
 		 case sz_long:
-		 	comprintf("\ttest_l_ri(cnt, 0x20);\n");
-		 	comprintf("\tcmov_l_rr(data, zero, NATIVE_CC_NE);\n");
-		 	comprintf("\tshll_l_rr(data,cnt);\n");
+		 	comprintf("\ttest_l_ri(tmpcnt, 0x20);\n");
+		 	comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
+		 	comprintf("\tshll_l_rr(cdata,tmpcnt);\n");
+			comprintf("\tmov_l_rr(data, cdata);\n");
 		 	break;
 		 default: assert(0);
 		}
@@ -2364,7 +2386,7 @@ gen_opcode (unsigned int opcode)
 		comprintf("\tlive_flags();\n");
 		comprintf("\tend_needflags();\n");
 		if (curi->smode!=immi)
-			comprintf("\tsetcc_for_cntzero(cnt, data, %d);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
+			comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
 		else
 			comprintf("\tduplicate_carry();\n");
 		comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
@@ -2387,8 +2409,8 @@ gen_opcode (unsigned int opcode)
 	}
 	comprintf("\tdont_care_flags();\n");
 
-	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "cnt", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "data", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 
 	start_brace();
 	if (!noflags)
@@ -2396,24 +2418,29 @@ gen_opcode (unsigned int opcode)
 	if (curi->smode!=immi) {
 		uses_cmov;
 		start_brace();
-		comprintf("\tint zero = scratchie++;\n");
-		comprintf("\tand_l_ri(cnt,63);\n");
-		comprintf("\tmov_l_ri(zero, 0);\n");
+		comprintf("\tint cdata = scratchie++;\n");
+		comprintf("\tint tmpcnt=scratchie++;\n");
+		comprintf("\tmov_l_rr(tmpcnt,cnt);\n");
+		comprintf("\tand_l_ri(tmpcnt,63);\n");
+		comprintf("\tmov_l_ri(cdata, 0);\n");
 		switch(curi->size) {
 		 case sz_byte:
-		 	comprintf("\ttest_l_ri(cnt, 0x38);\n");
-		 	comprintf("\tcmov_l_rr(data, zero, NATIVE_CC_NE);\n");
-		 	comprintf("\tshrl_b_rr(data,cnt);\n");
+		 	comprintf("\ttest_l_ri(tmpcnt, 0x38);\n");
+		 	comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
+		 	comprintf("\tshrl_b_rr(cdata,tmpcnt);\n");
+			comprintf("\tmov_b_rr(data, cdata);\n");
 		 	break;
 		 case sz_word:
-		 	comprintf("\ttest_l_ri(cnt, 0x30);\n");
-		 	comprintf("\tcmov_l_rr(data, zero, NATIVE_CC_NE);\n");
-		 	comprintf("\tshrl_w_rr(data,cnt);\n");
+		 	comprintf("\ttest_l_ri(tmpcnt, 0x30);\n");
+		 	comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
+		 	comprintf("\tshrl_w_rr(cdata,tmpcnt);\n");
+			comprintf("\tmov_w_rr(data, cdata);\n");
 		 	break;
 		 case sz_long:
-		 	comprintf("\ttest_l_ri(cnt, 0x20);\n");
-		 	comprintf("\tcmov_l_rr(data, zero, NATIVE_CC_NE);\n");
-		 	comprintf("\tshrl_l_rr(data, cnt);\n");
+		 	comprintf("\ttest_l_ri(tmpcnt, 0x20);\n");
+		 	comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
+		 	comprintf("\tshrl_l_rr(cdata, tmpcnt);\n");
+			comprintf("\tmov_l_rr(data, cdata);\n");
 		 	break;
 		 default: assert(0);
 		}
@@ -2432,7 +2459,7 @@ gen_opcode (unsigned int opcode)
 		comprintf("\tlive_flags();\n");
 		comprintf("\tend_needflags();\n");
 		if (curi->smode!=immi)
-			comprintf("\tsetcc_for_cntzero(cnt, data, %d);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
+			comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
 		else
 			comprintf("\tduplicate_carry();\n");
 		comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
@@ -2455,8 +2482,8 @@ gen_opcode (unsigned int opcode)
 	}
 	comprintf("\tdont_care_flags();\n");
 
-	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "cnt", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "data", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 
 	start_brace();
 	if (!noflags)
@@ -2464,24 +2491,29 @@ gen_opcode (unsigned int opcode)
 	if (curi->smode!=immi) {
 		uses_cmov;
 		start_brace();
-		comprintf("\tint zero = scratchie++;\n");
-		comprintf("\tand_l_ri(cnt,63);\n");
-		comprintf("\tmov_l_ri(zero, 0);\n");
+		comprintf("\tint cdata = scratchie++;\n");
+		comprintf("\tint tmpcnt = scratchie++;\n");
+		comprintf("\tmov_l_rr(tmpcnt,cnt);\n");
+		comprintf("\tand_l_ri(tmpcnt,63);\n");
+		comprintf("\tmov_l_ri(cdata, 0);\n");
 		switch(curi->size) {
 		 case sz_byte:
-		 	comprintf("\ttest_l_ri(cnt, 0x38);\n");
-		 	comprintf("\tcmov_l_rr(data, zero, NATIVE_CC_NE);\n");
-		 	comprintf("\tshll_b_rr(data,cnt);\n");
+		 	comprintf("\ttest_l_ri(tmpcnt, 0x38);\n");
+		 	comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
+		 	comprintf("\tshll_b_rr(cdata,tmpcnt);\n");
+			comprintf("\tmov_b_rr(data, cdata);\n");
 		 	break;
 		 case sz_word:
-		 	comprintf("\ttest_l_ri(cnt, 0x30);\n");
-		 	comprintf("\tcmov_l_rr(data, zero, NATIVE_CC_NE);\n");
-		 	comprintf("\tshll_w_rr(data,cnt);\n");
+		 	comprintf("\ttest_l_ri(tmpcnt, 0x30);\n");
+		 	comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
+		 	comprintf("\tshll_w_rr(cdata,tmpcnt);\n");
+			comprintf("\tmov_w_rr(data, cdata);\n");
 		 	break;
 		 case sz_long:
-		 	comprintf("\ttest_l_ri(cnt, 0x20);\n");
-		 	comprintf("\tcmov_l_rr(data, zero, NATIVE_CC_NE);\n");
-		 	comprintf("\tshll_l_rr(data,cnt);\n");
+		 	comprintf("\ttest_l_ri(tmpcnt, 0x20);\n");
+		 	comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
+		 	comprintf("\tshll_l_rr(cdata,tmpcnt);\n");
+			comprintf("\tmov_l_rr(data, cdata);\n");
 		 	break;
 		 default: assert(0);
 		}
@@ -2500,7 +2532,7 @@ gen_opcode (unsigned int opcode)
 		comprintf("\tlive_flags();\n");
 		comprintf("\tend_needflags();\n");
 		if (curi->smode!=immi)
-			comprintf("\tsetcc_for_cntzero(cnt, data, %d);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
+			comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
 		else
 			comprintf("\tduplicate_carry();\n");
 		comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
@@ -2522,8 +2554,8 @@ gen_opcode (unsigned int opcode)
 	    start_brace();
 	}
 	comprintf("\tdont_care_flags();\n");
-	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "cnt", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "data", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	start_brace ();
 
 	switch(curi->size) {
@@ -2564,8 +2596,8 @@ gen_opcode (unsigned int opcode)
 	    start_brace();
 	}
 	comprintf("\tdont_care_flags();\n");
-	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0);
+	genamode (curi->smode, "srcreg", curi->size, "cnt", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
+	genamode (curi->dmode, "dstreg", curi->size, "data", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	start_brace ();
 
 	switch(curi->size) {
@@ -2696,7 +2728,7 @@ gen_opcode (unsigned int opcode)
 	comprintf("\tint r2=(extra>>12)&7;\n"
 		  "\tint tmp=scratchie++;\n");
 
-	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
+	genamode (curi->dmode, "dstreg", curi->size, "dst", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 	/* The two operands are in dst and r2 */
 	comprintf("\tif (extra&0x0400) {\n" /* Need full 64 bit result */
 		  "\tint r3=(extra&7);\n"

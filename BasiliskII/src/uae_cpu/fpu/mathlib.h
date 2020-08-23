@@ -648,6 +648,17 @@ PRIVATE inline uae_u32 FFPU get_quotient_sign(fpu_register const & ra, fpu_regis
 /* --- Math functions                                                     --- */
 /* -------------------------------------------------------------------------- */
 
+#ifdef __HAIKU__
+#ifdef __cplusplus
+extern "C" {
+#endif
+/* Haiku seems to lack some declarations, even if the functions are there */
+extern long double exp10l(long double);
+#ifdef __cplusplus
+}
+#endif
+#endif
+
 #if defined(FPU_USE_ISO_C99) && (defined(USE_LONG_DOUBLE) || defined(USE_QUAD_DOUBLE))
 # ifdef HAVE_LOGL
 #  define fp_log	logl
@@ -1169,6 +1180,14 @@ DEFINE_ROUND_FUNC(zero, CW_RC_ZERO)
 DEFINE_ROUND_FUNC(nearest, CW_RC_NEAR)
 #endif
 
+#undef fp_round_to_even
+#ifdef HAVE_RINTL
+#define fp_round_to_even rintl
+#else
+#define fp_round_to_even fp_do_round_to_even
+DEFINE_ROUND_FUNC(even, CW_RC_NEAR)
+#endif
+
 #undef fp_ceil
 #define fp_ceil fp_do_round_to_plus_infinity
 
@@ -1192,6 +1211,10 @@ DEFINE_ROUND_FUNC(nearest, CW_RC_NEAR)
 
 #ifndef fp_round_to_nearest
 #define fp_round_to_nearest(x) ((int)((x) + 0.5))
+#endif
+
+#ifndef fp_round_to_even
+#define fp_round_to_even fp_round_to_nearest
 #endif
 
 #endif /* FPU_MATHLIB_H */
