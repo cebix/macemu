@@ -543,7 +543,8 @@ CPUINCLUDES="-I../uae_cpu"
 CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp $FPUSRCS cpustbl.cpp cpudefs.cpp $CPUSRCS $JITSRCS"
 
 dnl We really want SDL for now
-AC_CHECK_TOOL(sdl_config, sdl2-config, [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
+AC_CHECK_TOOL(sdl_config, sdl2-config, no)
+AS_IF([test "x$sdl_config" = xno], [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
 SDL_CFLAGS=`$sdl_config --cflags`
 AC_SUBST(SDL_CFLAGS)
 #if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then

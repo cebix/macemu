@@ -275,7 +275,8 @@ dnl Use the dummy prefs file.
 CPUSRCS="$CPUSRCS ../dummy/prefs_dummy.cpp"
 
 dnl We really want SDL for now
-AC_CHECK_TOOL(sdl_config, sdl2-config, [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
+AC_CHECK_TOOL(sdl_config, sdl2-config, no)
+AS_IF([test "x$sdl_config" = xno], [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
 SDL_CFLAGS=`$sdl_config --cflags`
 AC_SUBST(SDL_CFLAGS)
 SDL_LIBS=`$sdl_config --static-libs`
