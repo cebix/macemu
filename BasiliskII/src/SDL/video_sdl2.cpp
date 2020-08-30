@@ -705,6 +705,12 @@ static void shutdown_sdl_video()
 	delete_sdl_video_window();
 }
 
+static int get_mag_rate()
+{
+	int m = PrefsFindInt32("mag_rate");
+	return m < 1 ? 1 : m > 4 ? 4 : m;
+}
+
 static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags)
 {
     if (guest_surface) {
@@ -751,12 +757,13 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 	window_flags |= SDL_WINDOW_RESIZABLE;
 */
 	if (!sdl_window) {
+		int m = get_mag_rate();
 		sdl_window = SDL_CreateWindow(
 			"Basilisk II",
 			SDL_WINDOWPOS_UNDEFINED,
 			SDL_WINDOWPOS_UNDEFINED,
-			window_width,
-			window_height,
+			m * window_width,
+			m * window_height,
 			window_flags);
 		if (!sdl_window) {
 			shutdown_sdl_video();
@@ -1044,7 +1051,7 @@ void driver_base::init()
 	
 	// set default B/W palette
 	sdl_palette = SDL_AllocPalette(256);
-	sdl_palette->colors[1] = (SDL_Color){ .r = 0, .g = 0, .b = 0 };
+	sdl_palette->colors[1] = (SDL_Color){ .r = 0, .g = 0, .b = 0, .a = 255 };
 	SDL_SetSurfacePalette(s, sdl_palette);
 }
 
@@ -1626,7 +1633,8 @@ static void do_toggle_fullscreen(void)
 			display_type = DISPLAY_WINDOW;
 			SDL_SetWindowFullscreen(sdl_window, 0);
 			const VIDEO_MODE &mode = drv->mode;
-			SDL_SetWindowSize(sdl_window, VIDEO_MODE_X, VIDEO_MODE_Y);
+			int m = get_mag_rate();
+			SDL_SetWindowSize(sdl_window, m * VIDEO_MODE_X, m * VIDEO_MODE_Y);
 			SDL_SetWindowGrab(sdl_window, SDL_FALSE);
 		} else {
 			display_type = DISPLAY_SCREEN;
