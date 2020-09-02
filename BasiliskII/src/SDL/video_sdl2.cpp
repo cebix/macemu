@@ -168,6 +168,11 @@ static SDL_mutex *frame_buffer_lock = NULL;
 #define LOCK_FRAME_BUFFER SDL_LockMutex(frame_buffer_lock)
 #define UNLOCK_FRAME_BUFFER SDL_UnlockMutex(frame_buffer_lock)
 
+// Previously set gamma tables
+static uint16 last_gamma_red[256];
+static uint16 last_gamma_green[256];
+static uint16 last_gamma_blue[256];
+
 // Video refresh function
 static void VideoRefreshInit(void);
 static void (*video_refresh)(void);
@@ -700,6 +705,12 @@ static void shutdown_sdl_video()
 	delete_sdl_video_window();
 }
 
+static int get_mag_rate()
+{
+	int m = PrefsFindInt32("mag_rate");
+	return m < 1 ? 1 : m > 4 ? 4 : m;
+}
+
 static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags)
 {
     if (guest_surface) {
@@ -746,12 +757,13 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 	window_flags |= SDL_WINDOW_RESIZABLE;
 */
 	if (!sdl_window) {
+		int m = get_mag_rate();
 		sdl_window = SDL_CreateWindow(
 			"Basilisk II",
 			SDL_WINDOWPOS_UNDEFINED,
 			SDL_WINDOWPOS_UNDEFINED,
-			window_width,
-			window_height,
+			m * window_width,
+			m * window_height,
 			window_flags);
 		if (!sdl_window) {
 			shutdown_sdl_video();
@@ -1039,7 +1051,7 @@ void driver_base::init()
 	
 	// set default B/W palette
 	sdl_palette = SDL_AllocPalette(256);
-	sdl_palette->colors[1] = (SDL_Color){ .r = 0, .g = 0, .b = 0 };
+	sdl_palette->colors[1] = (SDL_Color){ .r = 0, .g = 0, .b = 0, .a = 255 };
 	SDL_SetSurfacePalette(s, sdl_palette);
 }
 
@@ -1621,7 +1633,8 @@ static void do_toggle_fullscreen(void)
 			display_type = DISPLAY_WINDOW;
 			SDL_SetWindowFullscreen(sdl_window, 0);
 			const VIDEO_MODE &mode = drv->mode;
-			SDL_SetWindowSize(sdl_window, VIDEO_MODE_X, VIDEO_MODE_Y);
+			int m = get_mag_rate();
+			SDL_SetWindowSize(sdl_window, m * VIDEO_MODE_X, m * VIDEO_MODE_Y);
 			SDL_SetWindowGrab(sdl_window, SDL_FALSE);
 		} else {
 			display_type = DISPLAY_SCREEN;
@@ -1751,9 +1764,51 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 {
 	const VIDEO_MODE &mode = get_current_mode();
 
-	// FIXME: how can we handle the gamma ramp?
-	if ((int)VIDEO_MODE_DEPTH > VIDEO_DEPTH_8BIT)
+	if ((int)VIDEO_MODE_DEPTH > VIDEO_DEPTH_8BIT) {
+		// handle the gamma ramp
+		
+		if (pal[0] == 127 && pal[num_in*3-1] == 127) // solid grey
+			return; // ignore
+
+		uint16 red[256];
+		uint16 green[256];
+		uint16 blue[256];
+		
+		int repeats = 256 / num_in;
+				
+		for (int i = 0; i < num_in; i++) {
+			for (int j = 0; j < repeats; j++) {
+				red[i*repeats + j] = pal[i*3 + 0] << 8;
+				green[i*repeats + j] = pal[i*3 + 1] << 8;
+				blue[i*repeats + j] = pal[i*3 + 2] << 8;
+			}
+		}
+
+		// fill remaining entries (if any) with last value
+		for (int i = num_in * repeats; i < 256; i++) {
+			red[i] = pal[(num_in - 1) * 3] << 8;
+			green[i] = pal[(num_in - 1) * 3 + 1] << 8;
+			blue[i] = pal[(num_in - 1) * 3 + 2] << 8;
+		}
+		
+		bool changed = (memcmp(red, last_gamma_red, 512) != 0 ||
+		                memcmp(green, last_gamma_green, 512) != 0 ||
+		                memcmp(blue, last_gamma_blue, 512) != 0);
+		
+		if (changed && sdl_window) {
+			int result = SDL_SetWindowGammaRamp(sdl_window, red, green, blue);
+		
+			if (result < 0) {
+				fprintf(stderr, "SDL_SetWindowGammaRamp returned %d, SDL error: %s\n", result, SDL_GetError());
+			}
+			
+			memcpy(last_gamma_red, red, 512);
+			memcpy(last_gamma_green, green, 512);
+			memcpy(last_gamma_blue, blue, 512);
+		}
+
 		return;
+	}
 
 	LOCK_PALETTE;
 

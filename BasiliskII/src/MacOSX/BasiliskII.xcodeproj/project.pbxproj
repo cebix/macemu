@@ -1108,6 +1108,7 @@
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = (
+					"-Wl,-no_pie",
 					"-pagezero_size",
 					0x1000,
 				);
@@ -1168,6 +1169,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = (
+					"-Wl,-no_pie",
 					"-pagezero_size",
 					0x1000,
 				);

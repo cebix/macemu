@@ -189,10 +189,13 @@ if [[ "x$HAVE_GCC30" = "xyes" ]]; then
   AC_CACHE_CHECK([whether the compiler supports -fno-strict-aliasing],
     ac_cv_gcc_no_strict_aliasing, [
     AC_TRY_COMPILE([],[],
-      [ac_cv_gcc_no_strict_aliasing=yes; AC_SUBST(SLIRP_CFLAGS, "-fno-strict-aliasing")],
+      [ac_cv_gcc_no_strict_aliasing=yes],
       [ac_cv_gcc_no_strict_aliasing=no])
   ])
   CFLAGS="$SAVED_CFLAGS"
+  if test "x$ac_cv_gcc_no_strict_aliasing" = xyes; then
+       AC_SUBST(SLIRP_CFLAGS, "-fno-strict-aliasing")
+  fi
 fi
 
 case $host_os in
@@ -272,7 +275,8 @@ dnl Use the dummy prefs file.
 CPUSRCS="$CPUSRCS ../dummy/prefs_dummy.cpp"
 
 dnl We really want SDL for now
-AC_CHECK_TOOL(sdl_config, sdl2-config, [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
+AC_CHECK_TOOL(sdl_config, sdl2-config, no)
+AS_IF([test "x$sdl_config" = xno], [AC_MSG_ERROR([Sorry, you currently need SDL for this port])])
 SDL_CFLAGS=`$sdl_config --cflags`
 AC_SUBST(SDL_CFLAGS)
 SDL_LIBS=`$sdl_config --static-libs`

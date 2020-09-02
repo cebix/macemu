@@ -765,6 +765,10 @@ static void dump_disassembly(const uint32 pc, const int prefix_count, const int 
 	}
 }
 
+static bool isSegvBinCue(uint32 a) {
+	return a == 0x389e00 || a == 0x389e08 || a == 0x389fe0 || a == 0x489e00 || a == 0x489e08 || a == 0x489fe0;
+}
+
 sigsegv_return_t sigsegv_handler(sigsegv_info_t *sip)
 {
 #if ENABLE_VOSF
@@ -816,6 +820,9 @@ sigsegv_return_t sigsegv_handler(sigsegv_info_t *sip)
 		else if ((uint32)(addr - SheepMem::ZeroPage()) < (uint32)SheepMem::PageSize())
 			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
 
+		else if (ROMType == ROMTYPE_NEWWORLD && isSegvBinCue(pc - ROMBase))
+			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
+		
 		// Ignore all other faults, if requested
 		if (PrefsFindBool("ignoresegv"))
 			return SIGSEGV_RETURN_SKIP_INSTRUCTION;
