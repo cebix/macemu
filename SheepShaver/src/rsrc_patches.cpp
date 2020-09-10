@@ -87,6 +87,7 @@ static const uint8 sound_input_driver[] = {	// .AppleSoundInput driver header
 	0x4e, 0x75,							//	rts
 };
 
+
 /*
  *  Search resource for byte string, return offset (or 0)
  */
@@ -519,8 +520,9 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 	} else if (type == FOURCC('D','R','V','R') && (id == -16501 || id == -16500)) { // patch over native sound input driver and trap out to code in audio.cpp
 		D(bug("DRVR -16501/-16500 found\n"));
 		// Install sound input driver
-		vm_memcpy(Host2MacAddr((uint8 *) p), sound_input_driver, sizeof(sound_input_driver));
+		memcpy(p, sound_input_driver, sizeof(sound_input_driver));
 		D(bug(" patch 1 applied\n"));
+*/
 	} else if (type == FOURCC('I','N','I','T') && id == 1 && size == (2416 >> 1)) {
 		D(bug("INIT 1 (size 2416) found\n"));
 		size >>= 1;

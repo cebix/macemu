@@ -67,6 +67,7 @@ const uint32 ADDR_MAP_PATCH_SPACE = 0x2fd140;
 
 // Global variables
 int ROMType;				// ROM type
+bool SoundPatchFlag;
 static uint32 sony_offset;	// Offset of .Sony driver resource
 
 // Prototypes
@@ -694,6 +695,8 @@ bool PatchROM(void)
 	else
 		return false;
 
+	SoundPatchFlag = ROMType == ROMTYPE_NEWWORLD && !PrefsFindBool("ignoresegv");
+	
 	// Check that other ROM addresses point to really free regions
 	if (!check_rom_patch_space(CHECK_LOAD_PATCH_SPACE, 0x40))
 		return false;
