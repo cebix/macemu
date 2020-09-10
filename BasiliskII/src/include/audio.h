@@ -37,9 +37,6 @@ extern int16 SoundInControl(uint32 pb, uint32 dce);
 extern int16 SoundInStatus(uint32 pb, uint32 dce);
 extern int16 SoundInClose(uint32 pb, uint32 dce);
 
-extern uint32 SoundInNameAddr;			// Address of SoundIn patched name
-extern uint32 SoundInSourcesAddr;		// Address of SoundIn patched source list
-
 // System specific and internal functions/data
 extern void AudioInit(void);
 extern void AudioExit(void);
