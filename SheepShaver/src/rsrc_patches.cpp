@@ -86,7 +86,35 @@ static const uint8 sound_input_driver[] = {	// .AppleSoundInput driver header
 	M68K_EMUL_OP_SOUNDIN_CLOSE >> 8, M68K_EMUL_OP_SOUNDIN_CLOSE & 0xff,
 	0x4e, 0x75,							//	rts
 };
+static const uint8 sound_input_resources[] = {
+	// DRVR resources
+	// Name
+	0x0b,           // 1-byte length
+	0x53, 0x68, // Sh
+	0x65, 0x65, // ee
+	0x70, 0x73, // ps
+	0x68, 0x61, // ha
+	0x76, 0x65, // ve
+	0x72,        // r
+	
+	// Source list
+	0x00, 0x02, // 2-byte count of #strings
+	0x0b,		// byte size indicator (up to 255 length supported)
+	0x49, 0x6e, // start of string in ASCII, In
+	0x74, 0x65, // te
+	0x72, 0x6e, // rn
+	0x61, 0x6c, // al
+	0x20, 0x43, //  C
+	0x44,  		// D
+	0x0a,		// size is 10
+	0x4d, 0x69,	// Mi
+	0x63, 0x72,	// cr
+	0x6f, 0x70,	// op
+	0x68, 0x6f,	// ho
+	0x6e, 0x65,	// ne
 
+};
+bool audio_patched = false;
 
 /*
  *  Search resource for byte string, return offset (or 0)
@@ -517,10 +545,16 @@ void CheckLoad(uint32 type, int16 id, uint16 *p, uint32 size)
 			D(bug(" patch applied\n"));
 		}
 
-	} else if (type == FOURCC('D','R','V','R') && (id == -16501)){// || id == -16500)) { // -16500 will patch over native sound input driver and traps out to code in audio.cpp
+	} else if (type == FOURCC('D','R','V','R') && (id == -16501 || id == -16500)) { // -16500 will patch over native sound input driver and traps out to code in audio.cpp
 		D(bug("DRVR -16501/-16500 found\n"));
 		// Install sound input driver
-		memcpy(p, sound_input_driver, sizeof(sound_input_driver));
+		vm_memcpy(Host2MacAddr((uint8 *) p), sound_input_driver, sizeof(sound_input_driver));
+		vm_memcpy(Host2MacAddr((uint8 *) p) + sizeof(sound_input_driver), sound_input_resources, sizeof(sound_input_resources));
+		if (!audio_patched) {
+			SoundInNameAddr = Host2MacAddr((uint8 *) p) + sizeof(sound_input_driver);
+			SoundInSourcesAddr = Host2MacAddr((uint8 *) p) + sizeof(sound_input_driver) + 12;
+			audio_patched = true;
+		}
 		D(bug(" patch 1 applied\n"));
 	} else if (type == FOURCC('I','N','I','T') && id == 1 && size == (2416 >> 1)) {
 		D(bug("INIT 1 (size 2416) found\n"));

@@ -33,6 +33,7 @@
 #include "audio_defs.h"
 #include "user_strings.h"
 #include "cdrom.h"
+#include "vm_alloc.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -53,6 +54,11 @@ static int open_count = 0;			// Open/close nesting count
 
 bool AudioAvailable = false;		// Flag: audio output available (from the software point of view)
 
+uint32 SoundInNameAddr;
+uint32 SoundInSourcesAddr;
+int SoundInSource = 2;
+int SoundInPlaythrough = 7;
+int SoundInGain = 65536; // FIXED 4-byte from 0.5 to 1.5; this is middle value (1) as int
 
 /*
  *  Reset audio emulation
@@ -603,6 +609,25 @@ int16 SoundInControl(uint32 pb, uint32 dce)
 			return noErr;
 		}
 			
+		case siInputSource: {
+			SoundInSource = ReadMacInt16(pb + csParam + 4);
+			return noErr;
+		}
+			
+		case siPlayThruOnOff: {
+			SoundInPlaythrough = ReadMacInt16(pb + csParam + 4);
+			return noErr;
+		}
+			
+		case siOptionsDialog: {
+			return noErr;
+		}
+			
+		case siInputGain: {
+			SoundInGain = ReadMacInt32(pb + csParam + 4);
+			return noErr;
+		}
+			
 		default:
 			return -231;	// siUnknownInfoType
 	}
@@ -636,9 +661,34 @@ int16 SoundInStatus(uint32 pb, uint32 dce) // A0 points to Device Manager parame
 				0x74, 0x2d, // t-
 				0x69, 0x6e  // in
 			};
+//			const uint8 str[] = { // size 12
+//                0x0b,           // 1-byte length
+//                0x53, 0x68, // Sh
+//                0x65, 0x65, // ee
+//                0x70, 0x73, // ps
+//                0x68, 0x61, // ha
+//                0x76, 0x65, // ve
+//                0x72        // r
+//			};
 			WriteMacInt32(pb + csParam, 0); // response will directly be written into buffer
 //			vm_memcpy(bufferptr, str, 9);
-			memcpy(Mac2HostAddr(bufferptr),str,9);
+//			memcpy(Mac2HostAddr(bufferptr),str,9);
+			
+			vm_memcpy(bufferptr, str, sizeof(str));
+//			memcpy(Mac2HostAddr(bufferptr),str,sizeof(str));
+			
+//			WriteMacInt32(pb + csParam, sizeof(str));
+//			uint8* virtual_addr = (uint8*) vm_acquire(sizeof(str));
+//			memcpy((uint8*) virtual_addr, str, sizeof(str));
+//			WriteMacInt32(bufferptr, Host2MacAddr(virtual_addr));
+//			WriteMacInt32(ReadMacInt32(bufferptr), SoundInNameAddr);
+			
+//			vm_memcpy(bufferptr, SoundInNameAddr, 12);
+			
+//			uint32 virtual_addr = Mac_sysalloc(sizeof(str));
+//			Host2Mac_memcpy(virtual_addr, str, sizeof(str));
+//			WriteMacInt32(bufferptr, virtual_addr);
+			
 			return noErr;
 		}
 
@@ -646,6 +696,7 @@ int16 SoundInStatus(uint32 pb, uint32 dce) // A0 points to Device Manager parame
 			// Borrow ICN resource from cd rom driver, just a hack since loading a true ICN would be better
 			WriteMacInt32(pb + csParam, 0);
 			WriteMacInt32(bufferptr, CDROMIconAddr);
+//			vm_memcpy(bufferptr, CDROMIconAddr, sizeof(CDROMIcon));
 			return noErr;
 			
 			// 68k code causes crash in sheep and link error in basilisk
@@ -683,52 +734,108 @@ int16 SoundInStatus(uint32 pb, uint32 dce) // A0 points to Device Manager parame
 			
 		case siInputSource: {
 			// return -231 if only 1 or index if more
-			return -231;
+//			return -231;
 			
-//			WriteMacInt32(pb + csParam, 4);
-//			WriteMacInt32(pb + csParam + 4, 1); // index 1
-//			return noErr;
+			WriteMacInt32(pb + csParam, 2);
+			WriteMacInt16(pb + csParam + 4, SoundInSource); // index of selected source
+			return noErr;
 		}
 			
 		case siInputSourceNames: { // list of sources in STR# resource format
 			// return -231 if only 1 or handle to STR# resource if more
-			return -231;
+//			return -231;
 			
-//			const uint8 str[] = {
-//				0x00, 0x02, // 2-byte count of #strings
-//				0x0b,		// byte size indicator (up to 255 length supported)
-//				0x49, 0x6e, // start of string in ASCII, In
-//				0x74, 0x65, // te
-//				0x72, 0x6e, // rn
-//				0x61, 0x6c, // al
-//				0x20, 0x43, //  C
-//				0x44,  		// D
-//				0x0a,		// size is 10
-//				0x4d, 0x69,	// Mi
-//				0x63, 0x72,	// cr
-//				0x6f, 0x70,	// op
-//				0x68, 0x6f,	// ho
-//				0x6e, 0x65,	// ne
-//			};
+			const uint8 str[] = {
+				0x00, 0x02, // 2-byte count of #strings
+				0x0a,		// byte size indicator (up to 255 length supported)
+				0x4d, 0x69,	// Mi
+				0x63, 0x72,	// cr
+				0x6f, 0x70,	// op
+				0x68, 0x6f,	// ho
+				0x6e, 0x65,	// ne
+				0x0b,		// size is 11
+				0x49, 0x6e, // start of string in ASCII, In
+				0x74, 0x65, // te
+				0x72, 0x6e, // rn
+				0x61, 0x6c, // al
+				0x20, 0x43, //  C
+				0x44,  		// D
+			};
 //
-//			WriteMacInt32(pb + csParam, 0);
+			WriteMacInt32(pb + csParam, 0);
 //			vm_memcpy(bufferptr, str, 25);
-//			return noErr;
+			
+//			vm_memcpy(bufferptr, SoundInSourcesAddr, sizeof(str));
+//			WriteMacInt32(bufferptr, SoundInSourcesAddr);
+			
+//			WriteMacInt32(ReadMacInt32(bufferptr),SoundInSourcesAddr);
+			
+			M68kRegisters r;
+//			r.d[0] = audio_channel_counts.size() * 2;
+			r.d[0] = sizeof(str);
+			Execute68kTrap(0xa122, &r);	// NewHandle()
+			uint32 h = r.a[0];
+			if (h == 0)
+				return memFullErr;
+//			WriteMacInt16(infoPtr + sil_count, audio_channel_counts.size());
+			WriteMacInt32(bufferptr, h);
+			uint32 sp = ReadMacInt32(h);
+			vm_memcpy(sp, str, sizeof(str));
+//			for (unsigned i=0; i<audio_channel_counts.size(); i++)
+//				WriteMacInt16(sp + i*2, audio_channel_counts[i]);
+			
+			return noErr;
 		}
 			
 		case siOptionsDialog: {
 			// 0 if no options box supported and 1 if so
-			WriteMacInt32(pb + csParam, 4);
-			WriteMacInt32(pb + csParam + 4, 0);
+			WriteMacInt32(pb + csParam, 2);
+			WriteMacInt16(pb + csParam + 4, 1);
 			return noErr;
 		}
 			
 		case siPlayThruOnOff: {
 			// playthrough volume, 0 is off and 7 is max
-			WriteMacInt32(pb + csParam, 4);
-			WriteMacInt32(pb + csParam + 4, 0);
+			WriteMacInt32(pb + csParam, 2);
+			WriteMacInt16(pb + csParam + 4, SoundInPlaythrough);
 			return noErr;
 		}
+			
+		case siNumberChannels: {
+			// 1 is mono and 2 is stereo
+			WriteMacInt32(pb + csParam, 2);
+			WriteMacInt16(pb + csParam + 4, 2);
+			return noErr;
+		}
+	
+		case siSampleRate: {
+//			const uint8 samp[] = {
+//					0xac, 0x44, 0x00, 0x00
+//			};
+			WriteMacInt32(pb + csParam, 0);
+//			memcpy(Mac2HostAddr(bufferptr),samp,sizeof(samp));
+			WriteMacInt32(bufferptr, 0xac440000);
+			return noErr;
+		}
+	
+		case siSampleRateAvailable: {
+			WriteMacInt32(pb + csParam, 0);
+
+			uint32 virtual_addr = Mac_sysalloc(4);
+			WriteMacInt32(virtual_addr,  0xac440000);
+
+			WriteMacInt16(bufferptr, 1);
+			WriteMacInt32(bufferptr + 2, virtual_addr);
+			return noErr;
+		}
+			
+		case siInputGain: {
+			WriteMacInt32(pb + csParam, 4);
+			WriteMacInt32(pb + csParam + 4, SoundInGain);
+			return noErr;
+		}
+								   
+			
 //#endif
 		default:
 			return -231;	// siUnknownInfoType
