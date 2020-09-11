@@ -667,7 +667,7 @@ int16 SoundInStatus(uint32 pb, uint32 dce) // A0 points to Device Manager parame
 //                0x72        // r
 //			};
 			WriteMacInt32(pb + csParam, 0); // response will be written directly into buffer
-			vm_memcpy(bufferptr, str, sizeof(str));
+			Host2Mac_memcpy(bufferptr, str, sizeof(str));
 			
 			return noErr;
 		}
@@ -684,7 +684,7 @@ int16 SoundInStatus(uint32 pb, uint32 dce) // A0 points to Device Manager parame
 				return memFullErr;
 			WriteMacInt32(bufferptr, h);
 			uint32 sp = ReadMacInt32(h);
-			vm_memcpy(sp, CDROMIcon, sizeof(CDROMIcon));
+			Host2Mac_memcpy(sp, CDROMIcon, sizeof(CDROMIcon));
 			
 			return noErr;
 			
@@ -760,7 +760,7 @@ int16 SoundInStatus(uint32 pb, uint32 dce) // A0 points to Device Manager parame
 				return memFullErr;
 			WriteMacInt32(bufferptr, h);
 			uint32 sp = ReadMacInt32(h);
-			vm_memcpy(sp, str, sizeof(str));
+			Host2Mac_memcpy(sp, str, sizeof(str));
 			
 			return noErr;
 		}
@@ -794,12 +794,18 @@ int16 SoundInStatus(uint32 pb, uint32 dce) // A0 points to Device Manager parame
 	
 		case siSampleRateAvailable: {
 			WriteMacInt32(pb + csParam, 0);
+            
+            M68kRegisters r;
+            r.d[0] = 4;
+            Execute68kTrap(0xa122, &r);    // NewHandle()
+            uint32 h = r.a[0];
+            if (h == 0)
+                return memFullErr;
+            WriteMacInt16(bufferptr, 1); // 1 sample rate available
+            WriteMacInt32(bufferptr + 2, h); // handle to sample rate list
+            uint32 sp = ReadMacInt32(h);
+            WriteMacInt32(sp, 0xac440000); // 44100.00000 Hz, of Fixed data type
 
-			uint32 virtual_addr = Mac_sysalloc(4);
-			WriteMacInt32(virtual_addr,  0xac440000); // 44100.00000 Hz, of Fixed data type
-
-			WriteMacInt16(bufferptr, 1); // 1 sample rate available
-			WriteMacInt32(bufferptr + 2, virtual_addr); // handle to the sample rate list
 			return noErr;
 		}
 			
