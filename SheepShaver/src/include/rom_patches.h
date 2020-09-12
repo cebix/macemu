@@ -31,7 +31,6 @@ enum {
 	ROMTYPE_NEWWORLD
 };
 extern int ROMType;
-extern bool SoundPatchFlag;
 
 extern bool DecodeROM(uint8 *data, uint32 size);
 extern bool PatchROM(void);
