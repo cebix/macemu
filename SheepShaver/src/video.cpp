@@ -46,6 +46,7 @@ uint32 screen_base = 0;				// Frame buffer base address
 int cur_mode;						// Number of current video mode (index in VModes array)
 int display_type = DIS_INVALID;		// Current display type
 rgb_color mac_pal[256];
+rgb_color mac_gamma[256];
 uint8 remap_mac_be[256];
 uint8 MacCursor[68] = {16, 1};	// Mac cursor image
 
@@ -236,7 +237,7 @@ static int16 set_gamma(VidLocals *csSave, uint32 gamma)
 		
 		for (int i=0; i<256; i++) {
 			WriteMacInt8(p + i, i);
-			mac_pal[i].red = mac_pal[i].green = mac_pal[i].blue = i;
+			mac_gamma[i].red = mac_gamma[i].green = mac_gamma[i].blue = i;
 		}
 
 	} else { // User-supplied gamma table
@@ -290,14 +291,14 @@ static int16 set_gamma(VidLocals *csSave, uint32 gamma)
 				max_red = max(max_red, ReadMacInt8(p_red++));
 				max_green = max(max_green, ReadMacInt8(p_green++));
 				max_blue = max(max_blue, ReadMacInt8(p_blue++));
-				mac_pal[i].red = max_red;
-				mac_pal[i].green = max_green;
-				mac_pal[i].blue = max_blue;
+				mac_gamma[i].red = max_red;
+				mac_gamma[i].green = max_green;
+				mac_gamma[i].blue = max_blue;
 			}
 		}
 	}
 	
-	video_set_palette();
+	video_set_gamma();
 	return noErr;
 }
 

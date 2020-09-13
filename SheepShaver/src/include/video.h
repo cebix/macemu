@@ -106,6 +106,7 @@ extern uint32 screen_base;			// Frame buffer base address
 extern int cur_mode;					// Number of current video mode (index in VModes array)
 extern int display_type;			// Current display type (see above)
 extern rgb_color mac_pal[256];
+extern rgb_color mac_gamma[256];
 extern uint8 remap_mac_be[256];
 extern uint8 MacCursor[68];
 
@@ -140,6 +141,7 @@ extern void VideoInstallAccel(void);
 extern void VideoQuitFullScreen(void);
 
 extern void video_set_palette(void);
+extern void video_set_gamma(void);
 extern void video_set_cursor(void);
 extern bool video_can_change_cursor(void);
 extern int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr);

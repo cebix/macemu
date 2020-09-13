@@ -341,8 +341,10 @@ public:
 	virtual void switch_to_current_mode(void) = 0;
 
 	// Called by the video driver to set the color palette (in indexed modes)
-	// or the gamma table (in direct modes)
 	virtual void set_palette(uint8 *pal, int num) = 0;
+	
+	// Called by the video driver to set the gamma table (in direct modes)
+	virtual void set_gamma(uint8 *gamma, int num) = 0;
 };
 
 // Vector of pointers to available monitor descriptions, filled by VideoInit()
@@ -387,6 +389,7 @@ public:
 
 	virtual void switch_to_current_mode(void);
 	virtual void set_palette(uint8 *pal, int num);
+	virtual void set_gamma(uint8 *gamma, int num);
 
 	bool video_open(void);
 	void video_close(void);
@@ -1778,53 +1781,26 @@ void video_set_palette(void)
 	}
 	monitor->set_palette(pal, n_colors);
 }
+	
+void video_set_gamma(void)
+{
+	monitor_desc * monitor = VideoMonitors[0];
+	int n_colors = palette_size(monitor->get_current_mode().viAppleMode);
+	uint8 gamma[256 * 3];
+	for (int c = 0; c < n_colors; c++) {
+		gamma[c*3 + 0] = mac_gamma[c].red;
+		gamma[c*3 + 1] = mac_gamma[c].green;
+		gamma[c*3 + 2] = mac_gamma[c].blue;
+	}
+	monitor->set_gamma(gamma, n_colors);
+}
 #endif
-
+	
 void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 {
+	
 	const VIDEO_MODE &mode = get_current_mode();
-
-	if ((int)VIDEO_MODE_DEPTH > VIDEO_DEPTH_8BIT) {
-		// handle the gamma ramp
-		
-		if (pal[0] == 127 && pal[num_in*3-1] == 127) // solid grey
-			return; // ignore
-
-		uint16 red[256];
-		uint16 green[256];
-		uint16 blue[256];
-		
-		int repeats = 256 / num_in;
-				
-		for (int i = 0; i < num_in; i++) {
-			for (int j = 0; j < repeats; j++) {
-				red[i*repeats + j] = pal[i*3 + 0] << 8;
-				green[i*repeats + j] = pal[i*3 + 1] << 8;
-				blue[i*repeats + j] = pal[i*3 + 2] << 8;
-			}
-		}
-
-		// fill remaining entries (if any) with last value
-		for (int i = num_in * repeats; i < 256; i++) {
-			red[i] = pal[(num_in - 1) * 3] << 8;
-			green[i] = pal[(num_in - 1) * 3 + 1] << 8;
-			blue[i] = pal[(num_in - 1) * 3 + 2] << 8;
-		}
-		
-		bool changed = (memcmp(red, last_gamma_red, 512) != 0 ||
-		                memcmp(green, last_gamma_green, 512) != 0 ||
-		                memcmp(blue, last_gamma_blue, 512) != 0);
-		
-		if (changed) {
-			memcpy(last_gamma_red, red, 512);
-			memcpy(last_gamma_green, green, 512);
-			memcpy(last_gamma_blue, blue, 512);
-			ApplyGammaRamp();
-		}
-
-		return;
-	}
-
+	
 	LOCK_PALETTE;
 
 	// Convert colors to XColor array
@@ -1867,6 +1843,48 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 
 	UNLOCK_PALETTE;
 }
+	
+void SDL_monitor_desc::set_gamma(uint8 *gamma, int num_in)
+{
+	// handle the gamma ramp
+		
+	if (gamma[0] == 127 && gamma[num_in*3-1] == 127) // solid grey
+		return; // ignore
+
+	uint16 red[256];
+	uint16 green[256];
+	uint16 blue[256];
+	
+	int repeats = 256 / num_in;
+			
+	for (int i = 0; i < num_in; i++) {
+		for (int j = 0; j < repeats; j++) {
+			red[i*repeats + j] = gamma[i*3 + 0] << 8;
+			green[i*repeats + j] = gamma[i*3 + 1] << 8;
+			blue[i*repeats + j] = gamma[i*3 + 2] << 8;
+		}
+	}
+
+	// fill remaining entries (if any) with last value
+	for (int i = num_in * repeats; i < 256; i++) {
+		red[i] = gamma[(num_in - 1) * 3] << 8;
+		green[i] = gamma[(num_in - 1) * 3 + 1] << 8;
+		blue[i] = gamma[(num_in - 1) * 3 + 2] << 8;
+	}
+	
+	bool changed = (memcmp(red, last_gamma_red, 512) != 0 ||
+					memcmp(green, last_gamma_green, 512) != 0 ||
+					memcmp(blue, last_gamma_blue, 512) != 0);
+	
+	if (changed) {
+		memcpy(last_gamma_red, red, 512);
+		memcpy(last_gamma_green, green, 512);
+		memcpy(last_gamma_blue, blue, 512);
+		ApplyGammaRamp();
+	}
+
+}
+
 
 
 /*
