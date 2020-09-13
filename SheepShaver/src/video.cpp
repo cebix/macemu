@@ -239,7 +239,7 @@ static int16 set_gamma(VidLocals *csSave, uint32 gamma)
 			WriteMacInt8(p + i, i);
 			mac_gamma[i].red = mac_gamma[i].green = mac_gamma[i].blue = i;
 		}
-
+		video_set_gamma(256);
 	} else { // User-supplied gamma table
 
 		// Validate header
@@ -296,9 +296,8 @@ static int16 set_gamma(VidLocals *csSave, uint32 gamma)
 				mac_gamma[i].blue = max_blue;
 			}
 		}
+		video_set_gamma(data_cnt);
 	}
-	
-	video_set_gamma();
 	return noErr;
 }
 

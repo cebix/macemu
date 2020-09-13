@@ -1782,10 +1782,9 @@ void video_set_palette(void)
 	monitor->set_palette(pal, n_colors);
 }
 	
-void video_set_gamma(void)
+void video_set_gamma(int n_colors)
 {
 	monitor_desc * monitor = VideoMonitors[0];
-	int n_colors = palette_size(monitor->get_current_mode().viAppleMode);
 	uint8 gamma[256 * 3];
 	for (int c = 0; c < n_colors; c++) {
 		gamma[c*3 + 0] = mac_gamma[c].red;

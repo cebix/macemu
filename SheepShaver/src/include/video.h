@@ -141,7 +141,7 @@ extern void VideoInstallAccel(void);
 extern void VideoQuitFullScreen(void);
 
 extern void video_set_palette(void);
-extern void video_set_gamma(void);
+extern void video_set_gamma(int n_colors);
 extern void video_set_cursor(void);
 extern bool video_can_change_cursor(void);
 extern int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr);
