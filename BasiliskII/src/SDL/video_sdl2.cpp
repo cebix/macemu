@@ -1618,6 +1618,25 @@ void VideoQuitFullScreen(void)
 	quit_full_screen = true;
 }
 
+static void ApplyGammaRamp() {
+	if (sdl_window) {
+		int result;
+		const char *s = PrefsFindString("gammaramp");
+		if (!s) s = "on";
+		if (strcmp(s, "off") && (strcmp(s, "fullscreen") || display_type == DISPLAY_SCREEN))
+			result = SDL_SetWindowGammaRamp(sdl_window, last_gamma_red, last_gamma_green, last_gamma_blue);
+		else {
+			Uint16 ident[256];
+			for (int i = 0; i < 256; i++)
+				ident[i] = (i << 8) | i;
+			result = SDL_SetWindowGammaRamp(sdl_window, ident, ident, ident);
+		}
+		if (result < 0) {
+			fprintf(stderr, "SDL_SetWindowGammaRamp returned %d, SDL error: %s\n", result, SDL_GetError());
+		}
+	}
+}
+
 static void do_toggle_fullscreen(void)
 {
 #ifndef USE_CPU_EMUL_SERVICES
@@ -1654,6 +1673,7 @@ static void do_toggle_fullscreen(void)
 #ifdef SHEEPSHAVER
 	video_set_palette();
 #endif
+	ApplyGammaRamp();
 	drv->update_palette();
 
 	// reset the video refresh handler
@@ -1795,16 +1815,11 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 		                memcmp(green, last_gamma_green, 512) != 0 ||
 		                memcmp(blue, last_gamma_blue, 512) != 0);
 		
-		if (changed && sdl_window) {
-			int result = SDL_SetWindowGammaRamp(sdl_window, red, green, blue);
-		
-			if (result < 0) {
-				fprintf(stderr, "SDL_SetWindowGammaRamp returned %d, SDL error: %s\n", result, SDL_GetError());
-			}
-			
+		if (changed) {
 			memcpy(last_gamma_red, red, 512);
 			memcpy(last_gamma_green, green, 512);
 			memcpy(last_gamma_blue, blue, 512);
+			ApplyGammaRamp();
 		}
 
 		return;

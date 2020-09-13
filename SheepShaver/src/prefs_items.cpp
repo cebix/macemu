@@ -66,6 +66,7 @@ prefs_desc common_prefs_items[] = {
 	{"yearofs", TYPE_INT32, 0,			"year offset"},
 	{"dayofs", TYPE_INT32, 0,			"day offset"},
 	{"mag_rate", TYPE_INT32, 0,			"rate of magnification"},
+	{"gammaramp", TYPE_STRING, false,	"gamma ramp (on, off or fullscreen)"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
