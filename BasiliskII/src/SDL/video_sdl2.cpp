@@ -343,7 +343,7 @@ public:
 	// Called by the video driver to set the color palette (in indexed modes)
 	virtual void set_palette(uint8 *pal, int num) = 0;
 	
-	// Called by the video driver to set the gamma table (in direct modes)
+	// Called by the video driver to set the gamma table
 	virtual void set_gamma(uint8 *gamma, int num) = 0;
 };
 

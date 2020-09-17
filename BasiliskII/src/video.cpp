@@ -235,10 +235,10 @@ void monitor_desc::set_gray_palette(void)
 
 
 /*
- *  Load gamma-corrected black-to-white ramp to palette for direct-color mode
+ *  Load gamma-corrected black-to-white ramp
  */
 
-void monitor_desc::load_ramp_palette(void)
+void monitor_desc::load_gamma_ramp(void)
 {
 	// Find tables for gamma correction
 	uint8 *red_gamma = NULL, *green_gamma = NULL, *blue_gamma = NULL;
@@ -273,7 +273,7 @@ void monitor_desc::load_ramp_palette(void)
 		*p++ = blue;
 	}
 
-	set_palette(palette, num);
+	set_gamma(palette, num);
 }
 
 
@@ -354,8 +354,7 @@ int16 monitor_desc::set_gamma_table(uint32 user_table)
 		Mac2Mac_memcpy(gamma_table, user_table, size);
 	}
 
-	if (IsDirectMode(*current_mode))
-		load_ramp_palette();
+	load_gamma_ramp();
 
 	return noErr;
 }
@@ -636,8 +635,7 @@ int16 monitor_desc::driver_control(uint16 code, uint32 param, uint32 dce)
 				pat = ~pat;
 			}
 
-			if (IsDirectMode(*current_mode))
-				load_ramp_palette();
+			load_gamma_ramp();
 
 			return noErr;
 		}

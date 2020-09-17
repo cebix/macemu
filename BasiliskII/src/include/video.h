@@ -205,8 +205,8 @@ private:
 	// Set palette to 50% gray
 	void set_gray_palette(void);
 
-	// Load gamma-corrected black-to-white ramp to palette for direct-color mode
-	void load_ramp_palette(void);
+	// Load gamma-corrected black-to-white ramp
+	void load_gamma_ramp(void);
 
 	// Allocate gamma table of specified size
 	bool allocate_gamma_table(int size);
@@ -250,8 +250,10 @@ public:
 	virtual void switch_to_current_mode(void) = 0;
 
 	// Called by the video driver to set the color palette (in indexed modes)
-	// or the gamma table (in direct modes)
 	virtual void set_palette(uint8 *pal, int num) = 0;
+	
+	// Called by the video driver to set the gamma table
+	virtual void set_gamma(uint8 *gamma, int num) = 0;
 };
 
 // Vector of pointers to available monitor descriptions, filled by VideoInit()
