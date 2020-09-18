@@ -168,6 +168,12 @@ static SDL_mutex *frame_buffer_lock = NULL;
 #define LOCK_FRAME_BUFFER SDL_LockMutex(frame_buffer_lock)
 #define UNLOCK_FRAME_BUFFER SDL_UnlockMutex(frame_buffer_lock)
 
+// Initially set gamma tables
+static uint16 init_gamma_red[256];
+static uint16 init_gamma_green[256];
+static uint16 init_gamma_blue[256];
+static bool init_gamma_valid;
+
 // Previously set gamma tables
 static uint16 last_gamma_red[256];
 static uint16 last_gamma_green[256];
@@ -1624,19 +1630,20 @@ void VideoQuitFullScreen(void)
 static void ApplyGammaRamp() {
 	if (sdl_window) {
 		int result;
+		if (!init_gamma_valid) {
+			result = SDL_GetWindowGammaRamp(sdl_window, init_gamma_red, init_gamma_green, init_gamma_blue);
+			if (result < 0)
+				fprintf(stderr, "SDL_GetWindowGammaRamp returned %d, SDL error: %s\n", result, SDL_GetError());
+			init_gamma_valid = true;
+		}
 		const char *s = PrefsFindString("gammaramp");
-		if (!s) s = "on";
+		if (!s) s = "off";
 		if (strcmp(s, "off") && (strcmp(s, "fullscreen") || display_type == DISPLAY_SCREEN))
 			result = SDL_SetWindowGammaRamp(sdl_window, last_gamma_red, last_gamma_green, last_gamma_blue);
-		else {
-			Uint16 ident[256];
-			for (int i = 0; i < 256; i++)
-				ident[i] = (i << 8) | i;
-			result = SDL_SetWindowGammaRamp(sdl_window, ident, ident, ident);
-		}
-		if (result < 0) {
+		else
+			result = SDL_SetWindowGammaRamp(sdl_window, init_gamma_red, init_gamma_green, init_gamma_blue);
+		if (result < 0)
 			fprintf(stderr, "SDL_SetWindowGammaRamp returned %d, SDL error: %s\n", result, SDL_GetError());
-		}
 	}
 }
 
