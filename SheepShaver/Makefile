@@ -64,7 +64,7 @@ links:
 	       BeOS/xpram_beos.cpp BeOS/SheepDriver BeOS/SheepNet \
 	       CrossPlatform/sigsegv.h CrossPlatform/vm_alloc.h CrossPlatform/vm_alloc.cpp \
                CrossPlatform/video_vosf.h CrossPlatform/video_blit.h CrossPlatform/video_blit.cpp \
-	       Unix/audio_oss_esd.cpp Unix/bincue_unix.cpp Unix/bincue_unix.h \
+	       Unix/audio_oss_esd.cpp \
 	       Unix/vhd_unix.cpp \
 	       Unix/extfs_unix.cpp Unix/serial_unix.cpp \
 	       Unix/sshpty.h Unix/sshpty.c Unix/strlcpy.h Unix/strlcpy.c \
