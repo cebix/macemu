@@ -84,7 +84,7 @@ static char *sector_buffer = NULL;
 
 // Prototypes
 static bool is_cdrom_readable(file_handle *fh);
-
+static DWORD file_offset_read(HANDLE fh, loff_t offset, int count, char *buf);
 
 /*
  *  Initialization
@@ -266,12 +266,42 @@ void SysAddSerialPrefs(void)
  *  Can't give too much however, would be annoying, this is difficult..
  */
 
-static inline int cd_read_with_retry(file_handle *fh, ULONG LBA, int count, char *buf )
+static inline int cd_read_with_retry(file_handle *fh, ULONG offset, int count, char *buf )
 {
 	if (!fh || !fh->fh)
 		return 0;
 
-	return CdenableSysReadCdBytes(fh->fh, LBA, count, buf);
+	DWORD bytes_read = CdenableSysReadCdBytes(fh->fh, offset, count, buf);
+
+	if (bytes_read == 0) {
+		// fall back to logical volume handle read in the case where there's no cdenable
+		bytes_read = file_offset_read(fh->fh, offset, count, buf);
+	}
+
+	return bytes_read;
+}
+
+/*
+ * Generic offset read function for a file or a device that behaves like one
+ */
+ 
+static DWORD file_offset_read(HANDLE fh, loff_t offset, int count, char *buf)
+{
+	// Seek to position
+	LONG lo = (LONG)offset;
+	LONG hi = (LONG)(offset >> 32);
+	DWORD r = SetFilePointer(fh, lo, &hi, FILE_BEGIN);
+	if (r == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
+		return 0;
+	}
+
+	DWORD bytes_read;
+
+	// Read data
+	if (ReadFile(fh, buf, count, &bytes_read, NULL) == 0)
+		bytes_read = 0;
+
+	return bytes_read;
 }
 
 static int cd_read(file_handle *fh, cachetype *cptr, ULONG LBA, int count, char *buf)
@@ -581,16 +611,7 @@ size_t Sys_read(void *arg, void *buffer, loff_t offset, size_t length)
 	DWORD bytes_read = 0;
 
 	if (fh->is_file) {
-		// Seek to position
-		LONG lo = (LONG)offset;
-		LONG hi = (LONG)(offset >> 32);
-		DWORD r = SetFilePointer(fh->fh, lo, &hi, FILE_BEGIN);
-		if (r == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
-			return 0;
-
-		// Read data
-		if (ReadFile(fh->fh, buffer, length, &bytes_read, NULL) == 0)
-			bytes_read = 0;
+		bytes_read = file_offset_read(fh->fh, offset, length, (char *)buffer);
 	}
 	else if (fh->is_cdrom) {
 		int bytes_left, try_bytes, got_bytes;

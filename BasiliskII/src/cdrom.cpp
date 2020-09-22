@@ -303,15 +303,14 @@ void CDROMInit(void)
 	if (PrefsFindString("cdrom", 0) == NULL) {
 		SysAddCDROMPrefs();
 	}
-	else {
-		// Add drives specified in preferences
-		int index = 0;
-		const char *str;
-		while ((str = PrefsFindString("cdrom", index++)) != NULL) {
-			void *fh = Sys_open(str, true);
-			if (fh)
-				drives.push_back(cdrom_drive_info(fh));
-		}
+	
+	// Add drives specified in preferences
+	int index = 0;
+	const char *str;
+	while ((str = PrefsFindString("cdrom", index++)) != NULL) {
+		void *fh = Sys_open(str, true);
+		if (fh)
+			drives.push_back(cdrom_drive_info(fh));
 	}
 	
 	if (!drives.empty()) { // set to first drive by default
