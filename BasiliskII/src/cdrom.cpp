@@ -448,6 +448,9 @@ int16 CDROMOpen(uint32 pb, uint32 dce)
 			Execute68kTrap(0xa04e, &r);		// AddDrive()
 		}
 	}
+
+	CDROMOpenDone();
+
 	return noErr;
 }
 

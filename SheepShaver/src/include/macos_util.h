@@ -353,6 +353,7 @@ extern void Enqueue(uint32 elem, uint32 list);			// Enqueue QElem to list
 extern int FindFreeDriveNumber(int num);				// Find first free drive number, starting at "num"
 extern void MountVolume(void *fh);						// Mount volume with given file handle (see sys.h)
 extern void FileDiskLayout(loff_t size, uint8 *data, loff_t &start_byte, loff_t &real_size);	// Calculate disk image file layout given file size and first 256 data bytes
+extern void MoveDrivesFromDriverToFront(uint32 driverRefNum); // Move drives from the given driver to the head of the drive queue
 extern uint32 FindLibSymbol(const char *lib, const char *sym);	// Find symbol in shared library
 extern void InitCallUniversalProc(void);				// Init CallUniversalProc()
 extern long CallUniversalProc(void *upp, uint32 info);	// CallUniversalProc()

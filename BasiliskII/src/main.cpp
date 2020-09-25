@@ -202,6 +202,8 @@ bool InitAll(const char *vmdir)
 	return true;
 }
 
+void CDROMOpenDone() {
+}
 
 /*
  *  Deinitialize everything
