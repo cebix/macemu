@@ -104,30 +104,30 @@ void Enqueue(uint32 elem, uint32 list)
 }
 
 static void InsertQueueEntry(uint32 elem, uint32 at, uint32 list) {
-    uint32 next = ReadMacInt32(at);
-    WriteMacInt32(at, elem);
-    WriteMacInt32(elem + qLink, next);
-    if (next == 0) {
-        // inserted at end
-        WriteMacInt32(list + qTail, elem);
-    }
+	uint32 next = ReadMacInt32(at);
+	WriteMacInt32(at, elem);
+	WriteMacInt32(elem + qLink, next);
+	if (next == 0) {
+		// inserted at end
+		WriteMacInt32(list + qTail, elem);
+	}
 }
 
 static void RemoveQueueEntry(uint32 at, uint32 list) {
-    uint32 e = ReadMacInt32(at);
-    uint32 next = ReadMacInt32(e + qLink);
+	uint32 e = ReadMacInt32(at);
+	uint32 next = ReadMacInt32(e + qLink);
 
-    if (next == 0) {
-        // removing from end
-        if (at == list + qHead) {
-            WriteMacInt32(list + qTail, 0);
-        } else {
-            WriteMacInt32(list + qTail, at - qLink);
-        }
-    }
+	if (next == 0) {
+		// removing from end
+		if (at == list + qHead) {
+			WriteMacInt32(list + qTail, 0);
+		} else {
+			WriteMacInt32(list + qTail, at - qLink);
+		}
+	}
 
-    WriteMacInt32(at, next);
-    WriteMacInt32(e + qLink, 0);
+	WriteMacInt32(at, next);
+	WriteMacInt32(e + qLink, 0);
 }
 
 /*
@@ -158,31 +158,31 @@ int FindFreeDriveNumber(int num)
  */
 void MoveDrivesFromDriverToFront(uint32 driverRefNum) {
 
-    const uint32 DrvQHdr = 0x308; // drive queue address
+	const uint32 DrvQHdr = 0x308; // drive queue address
 
-    uint32 nextInsertPos = DrvQHdr + qHead;
+	uint32 nextInsertPos = DrvQHdr + qHead;
 
-    uint32 ptrToElem = DrvQHdr + qHead;
-    uint32 e = ReadMacInt32(ptrToElem);
-    while (e) {
-        uint32 next = ReadMacInt32(e + qLink);
+	uint32 ptrToElem = DrvQHdr + qHead;
+	uint32 e = ReadMacInt32(ptrToElem);
+	while (e) {
+		uint32 next = ReadMacInt32(e + qLink);
 
-        uint32 d = e - dsQLink;
+		uint32 d = e - dsQLink;
 		uint32 curRefNum = ReadMacInt16(d + dsQRefNum);
 
-        if ((curRefNum & 0xffff) == (driverRefNum & 0xffff)) {
-            RemoveQueueEntry(ptrToElem, DrvQHdr);
-            InsertQueueEntry(e, nextInsertPos, DrvQHdr);
+		if ((curRefNum & 0xffff) == (driverRefNum & 0xffff)) {
+			RemoveQueueEntry(ptrToElem, DrvQHdr);
+			InsertQueueEntry(e, nextInsertPos, DrvQHdr);
 
-            nextInsertPos = e + qLink;
+			nextInsertPos = e + qLink;
 
 			// after the removal, ptrToElem already points to next
-        } else {
+		} else {
 			ptrToElem = e + qLink;
 		}
 
-        e = next;
-    }
+		e = next;
+	}
 }
 
 /*
