@@ -40,4 +40,6 @@ extern int16 CDROMPrime(uint32 pb, uint32 dce);
 extern int16 CDROMControl(uint32 pb, uint32 dce);
 extern int16 CDROMStatus(uint32 pb, uint32 dce);
 
+extern void CDROMOpenDone(void); // Called by CDROMOpen() once drives have been to the drive queue
+
 #endif

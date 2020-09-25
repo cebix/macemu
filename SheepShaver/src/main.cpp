@@ -264,6 +264,17 @@ bool InitAll(const char *vmdir)
 	return true;
 }
 
+void CDROMOpenDone() {
+	// At this point, any initial CD-ROM drives have been added to the drive queue.
+	if (ROMType == ROMTYPE_NEWWORLD) {
+		// The PRAM boot device setting has no apparent effect,
+		// but we can achieve a boot with the specified device by reordering the drive queue ourselves.
+		int bootdriver = PrefsFindInt32("bootdriver");
+		if (bootdriver) {
+			MoveDrivesFromDriverToFront(bootdriver);
+		}
+	}
+}
 
 /*
  *  Deinitialize everything
