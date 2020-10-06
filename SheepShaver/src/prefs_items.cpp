@@ -67,6 +67,7 @@ prefs_desc common_prefs_items[] = {
 	{"dayofs", TYPE_INT32, 0,			"day offset"},
 	{"mag_rate", TYPE_INT32, 0,			"rate of magnification"},
 	{"gammaramp", TYPE_STRING, false,	"gamma ramp (on, off or fullscreen)"},
+	{"swap_opt_cmd", TYPE_BOOLEAN, false,	"swap option and command key"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
@@ -101,4 +102,10 @@ void AddPrefsDefaults(void)
 	PrefsAddBool("jit68k", false);
 
 	PrefsAddInt32("keyboardtype", 5);
+
+	#ifdef __APPLE__
+		PrefsAddBool("swap_opt_cmd", false);
+	#else
+		PrefsAddBool("swap_opt_cmd", true);
+	#endif
 }

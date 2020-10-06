@@ -2017,6 +2017,14 @@ static bool is_hotkey_down(SDL_Keysym const & ks)
 			(cmd_down || (ks.mod & KMOD_GUI) || !(hotkey & 4));
 }
 
+static bool swap_opt_cmd() {
+	static bool f, c;
+	if (!f) {
+		f = true;
+		c = PrefsFindBool("swap_opt_cmd");
+	}
+	return c;
+}
 
 /*
  *  Translate key event to Mac keycode, returns CODE_INVALID if no keycode was found
@@ -2092,17 +2100,8 @@ static int kc_decode(SDL_Keysym const & ks, bool key_down)
 	case SDLK_RCTRL: return 0x36;
 	case SDLK_LSHIFT: return 0x38;
 	case SDLK_RSHIFT: return 0x38;
-#ifdef __APPLE__
-	case SDLK_LALT: return 0x3a;
-	case SDLK_RALT: return 0x3a;
-	case SDLK_LGUI: return 0x37;
-	case SDLK_RGUI: return 0x37;
-#else
-	case SDLK_LALT: return 0x37;
-	case SDLK_RALT: return 0x37;
-	case SDLK_LGUI: return 0x3a;
-	case SDLK_RGUI: return 0x3a;
-#endif
+	case SDLK_LALT: case SDLK_RALT: return swap_opt_cmd() ? 0x37 : 0x3a;
+	case SDLK_LGUI: case SDLK_RGUI: return swap_opt_cmd() ? 0x3a : 0x37;
 	case SDLK_MENU: return 0x32;
 	case SDLK_CAPSLOCK: return 0x39;
 	case SDLK_NUMLOCKCLEAR: return 0x47;
@@ -2320,17 +2319,10 @@ static void handle_events(void)
 #endif
 						if (code == 0x36)
 							ctrl_down = true;
-#ifdef __APPLE__
-						if (code == 0x3a)
+						if (code == (swap_opt_cmd() ? 0x37 : 0x3a))
 							opt_down = true;
-						if (code == 0x37)
+						if (code == (swap_opt_cmd() ? 0x3a : 0x37))
 							cmd_down = true;
-#else
-						if (code == 0x37)
-							opt_down = true;
-						if (code == 0x3a)
-							cmd_down = true;
-#endif
 						
 					} else {
 						if (code == 0x31)
@@ -2354,17 +2346,10 @@ static void handle_events(void)
 #endif
 					if (code == 0x36)
 						ctrl_down = false;
-#ifdef __APPLE__
-					if (code == 0x3a)
+					if (code == (swap_opt_cmd() ? 0x37 : 0x3a))
 						opt_down = false;
-					if (code == 0x37)
+					if (code == (swap_opt_cmd() ? 0x3a : 0x37))
 						cmd_down = false;
-#else
-					if (code == 0x37)
-						opt_down = false;
-					if (code == 0x3a)
-						cmd_down = false;
-#endif
 				}
 				break;
 			}
