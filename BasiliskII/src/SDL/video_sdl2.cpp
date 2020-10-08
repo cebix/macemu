@@ -2302,6 +2302,8 @@ static void handle_events(void)
 
 			// Keyboard
 			case SDL_KEYDOWN: {
+				if (event.key.repeat)
+					break;
 				int code = CODE_INVALID;
 				if (use_keycodes && event2keycode(event.key, true) != CODE_HOTKEY)
 					code = keycode_table[event.key.keysym.scancode & 0xff];

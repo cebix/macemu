@@ -103,9 +103,9 @@ void AddPrefsDefaults(void)
 
 	PrefsAddInt32("keyboardtype", 5);
 
-	#ifdef __APPLE__
-		PrefsAddBool("swap_opt_cmd", false);
-	#else
-		PrefsAddBool("swap_opt_cmd", true);
-	#endif
+#ifdef __APPLE__
+	PrefsAddBool("swap_opt_cmd", false);
+#else
+	PrefsAddBool("swap_opt_cmd", true);
+#endif
 }
