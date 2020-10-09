@@ -1,0 +1,162 @@
+------------------------------------------------------------------------------------------------------
+org.gnome.desktop.wm.keybindings:
+
+	CHANGE ALL SETTINGS TO:
+		UseDefaultValue:	OFF
+		Custom Value:		[]
+
+------------------------------------------------------------------------------------------------------
+org.gnome.mutter:
+
+org.gnome.mutter.overlay-key
+	DEFAULT:			'Super_L'
+
+	CHANGE TO:
+	UseDefaultValue:		OFF
+	Custom Value:			
+
+
+------------------------------------------------------------------------------------------------------
+org.gnome.mutter.keybindings:
+
+org.gnome.mutter.keybindings.switch-monitor
+	DEFAULT:			['<Super>p', 'XF86Display']
+
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		['XF86Display']
+
+
+org.gnome.mutter.keybindings.toggle-tiled-left
+	DEFAULT:			['<Control><Super>Left']
+
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		[]
+
+
+org.gnome.mutter.keybindings.toggle-tiled-right
+	DEFAULT:			['<Control><Super>Right']
+
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		[]
+
+
+------------------------------------------------------------------------------------------------------
+org.gnome.mutter.wayland.keybindings:
+
+org.gnome.mutter.wayland.keybindings.restore-shortcuts
+	DEFAULT:			['<Super>Escape']
+
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		[]
+
+
+
+------------------------------------------------------------------------------------------------------
+org.pantheon.desktop.gala.keybindings:
+
+org.pantheon.desktop.gala.keybindings.cycle-workspaces-next
+	DEFAULT:			['<Super>Tab']
+	
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		['<Super><Alt><Control>Tab']
+
+
+org.pantheon.desktop.gala.keybindings.cycle-workspaces-previous
+	DEFAULT:			['<Super><Shift>Tab']
+	
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		['<Super><Shift><Alt><Control>Tab']
+
+
+org.pantheon.desktop.gala.keybindings.expose-all-windows
+	DEFAULT:			['<Super>a']
+	
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		[]
+
+
+org.pantheon.desktop.gala.keybindings.expose-windows
+	DEFAULT:			['<Super>w']
+	
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		[]
+
+
+org.pantheon.desktop.gala.keybindings.move-to-workspace-first
+	DEFAULT:			['<Super><Shift>Home']
+	
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		[]
+
+
+org.pantheon.desktop.gala.keybindings.move-to-workspace-last
+	DEFAULT:			['<Super><Shift>End', '<Super>0']
+	
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		[]
+
+
+org.pantheon.desktop.gala.keybindings.pip
+	DEFAULT:			['<Super>f']
+	
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		[]
+
+
+org.pantheon.desktop.gala.keybindings.switch-input-source
+	DEFAULT:			['']
+	
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		[]
+
+
+org.pantheon.desktop.gala.keybindings.switch-input-source-backward
+	DEFAULT:			['<Alt>Space']
+	
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		[]
+
+
+org.pantheon.desktop.gala.keybindings.switch-to-workspace-first
+	DEFAULT:			['<Super>Home']
+	
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		[]
+
+
+org.pantheon.desktop.gala.keybindings.switch-to-workspace-last
+	DEFAULT:			['<Super>End', '<Super>0']
+	
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		[]
+
+
+org.pantheon.desktop.gala.keybindings.zoom-in
+	DEFAULT:			['<Super>plus', '<Super>KP_Add']
+	
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		[]
+
+
+org.pantheon.desktop.gala.keybindings.zoom-out
+	DEFAULT:			['<Super>minus', '<Super>KP_Subtract']
+	
+	CHANGE TO:
+		UseDefaultValue:	OFF
+		Custom Value:		[]
