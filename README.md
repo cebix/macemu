@@ -54,3 +54,7 @@ $ cd src/Windows
 $ ../Unix/autogen.sh
 $ make
 ```
+### Recommended key bindings for gnome
+https://github.com/kanjitalk755/macemu/blob/master/SheepShaver/doc/Linux/gnome_keybindings.txt
+
+(from https://github.com/kanjitalk755/macemu/issues/59)
