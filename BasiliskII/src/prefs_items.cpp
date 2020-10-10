@@ -80,6 +80,7 @@ prefs_desc common_prefs_items[] = {
 	{"mag_rate", TYPE_INT32, 0,			"rate of magnification"},
 	{"gammaramp", TYPE_STRING, false,	"gamma ramp (on, off or fullscreen)"},
 	{"swap_opt_cmd", TYPE_BOOLEAN, false,	"swap option and command key"},
+	{"ignoresegv", TYPE_BOOLEAN, false,    "ignore illegal memory accesses"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
@@ -108,7 +109,7 @@ void AddPrefsDefaults(void)
 	
 #if USE_JIT
 	// JIT compiler specific options
-	PrefsAddBool("jit", true);
+//	PrefsAddBool("jit", true);
 	PrefsAddBool("jitfpu", true);
 	PrefsAddBool("jitdebug", false);
 	PrefsAddInt32("jitcachesize", 8192);
@@ -125,4 +126,5 @@ void AddPrefsDefaults(void)
 #else
 	PrefsAddBool("swap_opt_cmd", true);
 #endif
+	PrefsAddBool("ignoresegv", true);
 }

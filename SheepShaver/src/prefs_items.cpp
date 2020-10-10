@@ -90,7 +90,7 @@ void AddPrefsDefaults(void)
 	PrefsAddBool("nosound", false);
 	PrefsAddBool("nogui", false);
 	PrefsAddBool("noclipconversion", false);
-	PrefsAddBool("ignoresegv", false);
+	PrefsAddBool("ignoresegv", true);
 	PrefsAddBool("ignoreillegal", false);
 
 #if USE_JIT

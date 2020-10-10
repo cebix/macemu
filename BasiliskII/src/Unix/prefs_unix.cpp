@@ -34,9 +34,6 @@ prefs_desc platform_prefs_items[] = {
 	{"fbdevicefile", TYPE_STRING, false,   "path of frame buffer device specification file"},
 	{"dsp", TYPE_STRING, false,            "audio output (dsp) device name"},
 	{"mixer", TYPE_STRING, false,          "audio mixer device name"},
-#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
-	{"ignoresegv", TYPE_BOOLEAN, false,    "ignore illegal memory accesses"},
-#endif
 	{"idlewait", TYPE_BOOLEAN, false,      "sleep when idle"},
 #ifdef USE_SDL_VIDEO
 	{"sdlrender", TYPE_STRING, false,      "SDL_Renderer driver (\"auto\", \"software\" (may be faster), etc.)"},
@@ -133,9 +130,6 @@ void AddPlatformPrefsDefaults(void)
 #else
 	PrefsReplaceString("dsp", "/dev/dsp");
 	PrefsReplaceString("mixer", "/dev/mixer");
-#endif
-#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
-	PrefsAddBool("ignoresegv", false);
 #endif
 	PrefsAddBool("idlewait", true);
 }
