@@ -1019,6 +1019,7 @@ static bool ix86_skip_instruction(SIGSEGV_REGISTER_TYPE * regs)
 	}
 
 #if defined(__x86_64__) || defined(_M_X64)
+	// Address size override
 	bool x86_64_address_32 = false;
 	if (*eip == 0x67) {
 		eip++;
