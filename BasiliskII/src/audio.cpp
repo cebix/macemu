@@ -411,8 +411,8 @@ adat_error:	printf("FATAL: audio component data block initialization error\n");
 						// Close Apple Mixer
 						r.a[0] = AudioStatus.mixer;
 						Execute68k(audio_data + adatCloseMixer, &r);
+						D(bug(" CloseMixer() returns %08lx, mixer %08lx\n", r.d[0], AudioStatus.mixer));
 						AudioStatus.mixer = 0;
-						return r.d[0];
 					}
 					r.a[0] = audio_data;
 					Execute68kTrap(0xa01f, &r);	// DisposePtr()
