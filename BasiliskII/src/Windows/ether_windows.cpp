@@ -144,6 +144,8 @@ static LPPACKET send_queue = 0;
 static CRITICAL_SECTION wpool_csection;
 static LPPACKET write_packet_pool = 0;
 
+// Calling slirp functions from multiple threads concurrently is unsafe; guard it
+static CRITICAL_SECTION slirp_single_call_csection;
 
 
 // Try to deal with echos. Protected by fetch_csection.
@@ -416,6 +418,8 @@ bool ether_init(void)
 	InitializeCriticalSectionAndSpinCount( &send_csection, 5000 );
 	InitializeCriticalSectionAndSpinCount( &wpool_csection, 5000 );
 
+	InitializeCriticalSection( &slirp_single_call_csection );
+
 	ether_th = (HANDLE)_beginthreadex( 0, 0, ether_thread_feed_int, 0, 0, &ether_tid );
 	if (!ether_th) {
 		D(bug("Failed to create ethernet thread\n"));
@@ -565,6 +569,7 @@ void ether_exit(void)
 	DeleteCriticalSection( &queue_csection );
 	DeleteCriticalSection( &send_csection );
 	DeleteCriticalSection( &wpool_csection );
+	DeleteCriticalSection( &slirp_single_call_csection );
 
 	D(bug("Freeing read packets\n"));
 	free_read_packets();
@@ -1018,7 +1023,9 @@ unsigned int WINAPI ether_thread_write_packets(void *arg)
 				}
 				break;
 			case NET_IF_SLIRP:
+				EnterCriticalSection( &slirp_single_call_csection );
 				slirp_input((uint8 *)Packet->Buffer, Packet->Length);
+				LeaveCriticalSection( &slirp_single_call_csection );
 				Packet->bIoComplete = TRUE;
 				recycle_write_packet(Packet);
 				break;
@@ -1372,7 +1379,9 @@ unsigned int WINAPI slirp_receive_func(void *arg)
 		FD_ZERO(&rfds);
 		FD_ZERO(&wfds);
 		FD_ZERO(&xfds);
+		EnterCriticalSection( &slirp_single_call_csection );
 		timeout = slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
+		LeaveCriticalSection( &slirp_single_call_csection );
 #if ! USE_SLIRP_TIMEOUT
 		timeout = 10000;
 #endif
@@ -1388,8 +1397,11 @@ unsigned int WINAPI slirp_receive_func(void *arg)
 			tv.tv_usec = timeout;
 			ret = select(0, &rfds, &wfds, &xfds, &tv);
 		}
-		if (ret >= 0)
+		if (ret >= 0) {
+			EnterCriticalSection( &slirp_single_call_csection );
 			slirp_select_poll(&rfds, &wfds, &xfds);
+			LeaveCriticalSection( &slirp_single_call_csection );
+		}
 	}
 
 	D(bug("slirp_receive_func exit\n"));
