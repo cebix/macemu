@@ -375,8 +375,8 @@ int16 RmvTime(uint32 tm)
 	thread_suspend(timer_thread);
 #endif
 #if PRECISE_TIMING_POSIX
-	timer_thread_suspend();
 	pthread_mutex_lock(&wakeup_time_lock);
+	timer_thread_suspend();
 #endif
 	if (ReadMacInt16(tm + qType) & 0x8000) {
 
@@ -492,8 +492,8 @@ int16 PrimeTime(uint32 tm, int32 time)
 	thread_suspend(timer_thread);
 #endif
 #if PRECISE_TIMING_POSIX
-	timer_thread_suspend();
 	pthread_mutex_lock(&wakeup_time_lock);
+	timer_thread_suspend();
 #endif
 	WriteMacInt16(tm + qType, ReadMacInt16(tm + qType) | 0x8000);
 	enqueue_tm(tm);
@@ -647,8 +647,8 @@ void TimerInterrupt(void)
 	thread_suspend(timer_thread);
 #endif
 #if PRECISE_TIMING_POSIX
-	timer_thread_suspend();
 	pthread_mutex_lock(&wakeup_time_lock);
+	timer_thread_suspend();
 #endif
 	wakeup_time = wakeup_time_max;
 	for (TMDesc *d = tmDescList; d; d = d->next)
