@@ -1937,6 +1937,38 @@ int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr)
 }
 #endif
 
+static bool is_cursor_in_mac_screen() {
+
+		int windowX, windowY;
+		int cursorX, cursorY;
+		int deltaX, deltaY;
+	bool out;
+	
+	// TODO figure out a check for full screen mode
+	if (display_type == DISPLAY_SCREEN)
+		return true; 
+
+	if (display_type == DISPLAY_WINDOW) {
+
+		if (sdl_window == NULL || SDL_GetMouseFocus() != sdl_window)
+			return false;
+
+		SDL_GetWindowPosition(sdl_window, &windowX, &windowY);
+		SDL_GetGlobalMouseState(&cursorX, &cursorY);
+		deltaX = cursorX - windowX;
+		deltaY = cursorY - windowY;
+		D(bug("cursor relative {%d,%d}\n", deltaX, deltaY));
+		const VIDEO_MODE &mode = drv->mode;
+		const int m = get_mag_rate();
+		out = deltaX >= 0 && deltaX < VIDEO_MODE_X * m &&
+				deltaY >= 0 && deltaY < VIDEO_MODE_Y * m;
+		D(bug("cursor in window? %s\n", out? "yes" : "no"));
+		return out;
+	}
+
+	return false;
+}
+
 void SDL_monitor_desc::switch_to_current_mode(void)
 {
 	// Close and reopen display
@@ -1992,10 +2024,14 @@ void video_set_cursor(void)
 			if (move) {
 				int visible = SDL_ShowCursor(-1);
 				if (visible) {
-					int x, y;
-					SDL_GetMouseState(&x, &y);
-					printf("WarpMouse to {%d,%d} via video_set_cursor\n", x, y);
-					SDL_WarpMouseGlobal(x, y);
+					bool cursor_in_window = is_cursor_in_mac_screen();
+
+					if (cursor_in_window) {
+						int x, y;
+						SDL_GetMouseState(&x, &y);
+						printf("WarpMouse to {%d,%d} via video_set_cursor\n", x, y);
+						SDL_WarpMouseInWindow(sdl_window, x, y);
+					}
 				}
 			}
 		}
