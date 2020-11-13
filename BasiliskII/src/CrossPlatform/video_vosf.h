@@ -540,6 +540,27 @@ static void update_display_window_vosf(VIDEO_DRV_WIN_INIT)
 
 #ifndef TEST_VOSF_PERFORMANCE
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
+
+static uint32 get_chunk_size_for_depth(const uint32 mode, const uint32 n_pixels) {
+	assert(n_pixels % 8 == 0);
+	switch(mode) {
+		case APPLE_1_BIT:
+			return n_pixels / 8;
+		case APPLE_2_BIT:
+			return n_pixels / 4;
+		case APPLE_4_BIT:
+			return n_pixels / 2;
+		case APPLE_8_BIT:
+			return n_pixels;
+		case APPLE_16_BIT:
+			return n_pixels * 2;
+		case APPLE_32_BIT:
+			return n_pixels * 4;
+		default:
+			assert(false);
+	}
+}
+
 static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 {
 	VIDEO_MODE_INIT;
@@ -574,8 +595,10 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 	const uint32 n_pixels = 64;
 	const uint32 n_chunks = VIDEO_MODE_X / n_pixels;
 	const uint32 n_pixels_left = VIDEO_MODE_X - (n_chunks * n_pixels);
-	const uint32 src_chunk_size = src_bytes_per_row / n_chunks;
-	const uint32 dst_chunk_size = dst_bytes_per_row / n_chunks;
+	const uint32 src_chunk_size = get_chunk_size_for_depth(VIDEO_MODE_DEPTH, n_pixels);
+	const uint32 dst_chunk_size = get_chunk_size_for_depth(DepthModeForPixelDepth(VIDEO_DRV_DEPTH), n_pixels);
+	assert(src_chunk_size <= src_bytes_per_row);
+	assert(dst_chunk_size <= dst_bytes_per_row);
 	const uint32 src_chunk_size_left = src_bytes_per_row - (n_chunks * src_chunk_size);
 	const uint32 dst_chunk_size_left = dst_bytes_per_row - (n_chunks * dst_chunk_size);
 
