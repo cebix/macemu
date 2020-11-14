@@ -48,6 +48,7 @@ extern void PrefsReplaceBool(const char *name, bool b);
 extern void PrefsReplaceInt32(const char *name, int32 val);
 
 extern const char *PrefsFindString(const char *name, int index = 0);
+extern "C" const char *PrefsFindStringC(const char *name, int index = 0);
 extern bool PrefsFindBool(const char *name);
 extern int32 PrefsFindInt32(const char *name);
 

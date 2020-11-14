@@ -127,12 +127,15 @@ static int get_dns_addr(struct in_addr *pdns_addr)
 void slirp_cleanup(void)
 {
     WSACleanup();
+	unload_host_domains();
 }
 #endif
 
 int slirp_init(void)
 {
     //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
+
+	load_host_domains();
     
 #ifdef _WIN32
     {

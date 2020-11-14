@@ -13,6 +13,8 @@
 #ifdef __sun__
 #include <sys/filio.h>
 #endif
+#include <assert.h>
+#include <stdbool.h>
 
 #define DEBUG_HOST_RESOLVED_DNS 0
 
@@ -21,18 +23,90 @@
  * looked up on the host to allow for host-supported DNS alternatives
  * (e.g. MDNS, hosts file, etc.)
  **/
-static const char * host_resolved_domain_suffixes[] = {
-	".local.",
-	NULL // list ending
-};
+static const char ** host_resolved_domain_suffixes = NULL;
 
-#define DOT_LOCAL_TTL 60 // In seconds. Keep this short as data is very dynamic and requerying is cheap
+#define HOST_DOMAIN_TTL 60 // In seconds.
 
 #if DEBUG_HOST_RESOLVED_DNS
 #define D(...) printf(__VA_ARGS__); fflush(stdout);
 #else
 #define D(...)
 #endif
+
+const char *PrefsFindStringC(const char *name, int index);
+
+int prepare_host_domain_suffixes(char * buf) {
+	/**
+	 * Set up the list of domain suffixes to match from the host_domain prefs.
+	 * Call first with buf NULL to figure out the size of buffer needed.
+	 **/
+	int pos = 0;
+	const char ** host_resolved_domain_suffixes_pos = NULL;
+
+	if (buf) {
+		D("Setting up slirp host domain suffixes for matching:\n");
+		host_resolved_domain_suffixes_pos = (const char **) buf;
+	}
+
+	// find out how many values there are
+	int host_domain_count = 0;
+	while (PrefsFindStringC("host_domain", host_domain_count) != NULL) {
+		host_domain_count ++;
+	}
+
+	// leave space for the top array
+	pos += (host_domain_count + 1) * sizeof(const char *);
+
+	const char *str;
+	int host_domain_num = 0;
+	while ((str = PrefsFindStringC("host_domain", host_domain_num++)) != NULL) {
+		if (str[0] == '\0') continue;
+		if (buf) {
+			const char * cur_entry = (const char *) (buf + pos);
+			*host_resolved_domain_suffixes_pos = cur_entry;
+			host_resolved_domain_suffixes_pos++;
+		}
+		
+		// this is a suffix to match so it must have a leading dot
+		if (str[0] != '.') {
+			if (buf) buf[pos] = '.';
+			pos++;
+		}
+		if (buf) strcpy(buf + pos, str);
+		pos += strlen(str);
+		// domain to be checked will be FQDN so suffix must have a trailing dot
+		if (str[strlen(str) - 1] != '.') {
+			if (buf) buf[pos] = '.';
+			pos++;
+		}
+		if (buf) {
+			buf[pos] = '\0';
+			D("   %d. %s\n", host_domain_num, *(host_resolved_domain_suffixes_pos-1));
+		}
+		pos++;
+	}
+
+	// end of list marker
+	if (buf) *host_resolved_domain_suffixes_pos = NULL;
+
+	return pos;
+}
+
+void load_host_domains() {
+	const int size = prepare_host_domain_suffixes(NULL);
+	char * buf = malloc(size);
+	if (buf) {
+		prepare_host_domain_suffixes(buf);
+		host_resolved_domain_suffixes = (const char **) buf;
+	}
+}
+
+void unload_host_domains() {
+	if (host_resolved_domain_suffixes) {
+		free((char *) host_resolved_domain_suffixes);
+		host_resolved_domain_suffixes = NULL;
+	}
+}
 
 void
 so_init()
@@ -602,17 +676,17 @@ static char * decode_dns_name(char * data) {
 }
 
 /** Take a look at a UDP DNS request the client has made and see if we want to resolve it internally.
- * Returns TRUE if the request has been internally and can be dropped,
- *         FALSE otherwise
+ * Returns true if the request has been internally and can be dropped,
+ *         false otherwise
  **/
-static BOOL resolve_dns_request(struct socket * so, struct sockaddr_in addr, caddr_t data, int len) {
-	BOOL drop_dns_request = FALSE;
+static bool resolve_dns_request(struct socket * so, struct sockaddr_in addr, caddr_t data, int len) {
+	bool drop_dns_request = false;
 
 	D("Checking outgoing DNS UDP packet\n");
 
 	if (len < sizeof(struct DNS_HEADER)) {
 		D("Packet too short for DNS header\n");
-		return FALSE;
+		return false;
 	}
 
 	const caddr_t packet = data;
@@ -622,40 +696,40 @@ static BOOL resolve_dns_request(struct socket * so, struct sockaddr_in addr, cad
 
 	if (h.qr != 0) {
 		D("DNS packet is not a request\n");
-		return FALSE;
+		return false;
 	}
 
 	if (ntohs(h.q_count) == 0) {
 		D("DNS request has no queries\n");
-		return FALSE;
+		return false;
 	}
 
 	if (ntohs(h.q_count) > 1) {
 		D("DNS request has multiple queries (not supported)\n");
-		return FALSE;
+		return false;
 	}
 		
 	if (ntohs(h.ans_count != 0) || ntohs(h.auth_count != 0) || ntohs(h.add_count != 0)) {
 		D("DNS request has unsupported extra contents\n");
-		return FALSE;
+		return false;
 	}
 
 	if (len == 0) {
 		D("Packet too short for DNS query string\n");
-		return FALSE;
+		return false;
 	}
 
 	char * original_query_str = data;
 	int query_str_len = strnlen(data, len);
 	if (query_str_len == len) { // went off end of packet
 		D("Unterminated DNS query string\n");
-		return FALSE;
+		return false;
 	}
 
 	char * decoded_name_str = decode_dns_name(original_query_str);
 	if (decoded_name_str == NULL) {
 		D("Error while decoding DNS query string");
-		return FALSE;
+		return false;
 	}
 
 	D("DNS host query for %s\n", decoded_name_str);
@@ -665,10 +739,10 @@ static BOOL resolve_dns_request(struct socket * so, struct sockaddr_in addr, cad
 
 	POP_STRUCT(struct QUESTION, qinfo, data, len);
 
-	if (ntohs(qinfo.qtype) != 1 || ntohs(qinfo.qclass) != 1) {
+	if (ntohs(qinfo.qtype) != 1 /* type A */ || ntohs(qinfo.qclass) != 1 /* class IN */ ) {
 		D("DNS host query for %s: Request isn't the supported type (INET A query)\n", decoded_name_str);
 		free(decoded_name_str);
-		return FALSE;
+		return false;
 	}
 
 	D("DNS host query for %s: Request is eligible to check for host resolution suffix\n", decoded_name_str);
@@ -678,8 +752,15 @@ static BOOL resolve_dns_request(struct socket * so, struct sockaddr_in addr, cad
 	for (const char ** suffix_ptr = host_resolved_domain_suffixes; *suffix_ptr != NULL; suffix_ptr++) {
 		const char * suffix = *suffix_ptr;
 
+		// ends with suffix?
 		int suffix_pos = strlen(decoded_name_str) - strlen(suffix);
 		if (suffix_pos > 0 && strcmp(decoded_name_str + suffix_pos, suffix) == 0) {
+			matched_suffix = suffix;
+			break;
+		}
+
+		// also check if the domain exactly matched the one the suffix is for
+		if (strcmp(decoded_name_str, suffix + 1) == 0) {
 			matched_suffix = suffix;
 			break;
 		}
@@ -689,10 +770,10 @@ static BOOL resolve_dns_request(struct socket * so, struct sockaddr_in addr, cad
 		D("DNS host query for %s: No suffix matched\n", decoded_name_str);
 	} else {
 
-		D("DNS host query for %s: Suffix matched: %s\n", decoded_name_str, matched_suffix);
+		D("DNS host query for %s: Matched for suffix: %s\n", decoded_name_str, matched_suffix);
 
 		// we are going to take this request and resolve it on the host
-		drop_dns_request = TRUE;
+		drop_dns_request = true;
 
 		D("DNS host query for %s: Doing lookup on host\n", decoded_name_str);
 
@@ -739,7 +820,7 @@ static BOOL resolve_dns_request(struct socket * so, struct sockaddr_in addr, cad
 					struct R_DATA resource;
 					resource.type = htons(1);
 					resource._class = htons(1);
-					resource.ttl = htonl(DOT_LOCAL_TTL);
+					resource.ttl = htonl(HOST_DOMAIN_TTL);
 					resource.data_len = htons(sizeof(struct in_addr));
 
 					memcpy(response_packet + response_pos, &resource, sizeof(struct R_DATA));
@@ -787,8 +868,10 @@ sosendto(so, m)
 	  switch(ntohl(so->so_faddr.s_addr) & 0xff) {
 	  case CTL_DNS:
 	    addr.sin_addr = dns_addr;
-	  	if (resolve_dns_request(so, addr, m->m_data, m->m_len))
-	      return 0;
+		if (host_resolved_domain_suffixes != NULL) {
+			if (resolve_dns_request(so, addr, m->m_data, m->m_len))
+			return 0;
+		}
 	    break;
 	  case CTL_ALIAS:
 	  default:
