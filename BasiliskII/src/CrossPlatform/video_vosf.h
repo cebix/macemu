@@ -540,6 +540,7 @@ static void update_display_window_vosf(VIDEO_DRV_WIN_INIT)
 
 #ifndef TEST_VOSF_PERFORMANCE
 #if REAL_ADDRESSING || DIRECT_ADDRESSING
+
 static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 {
 	VIDEO_MODE_INIT;
@@ -574,8 +575,10 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 	const uint32 n_pixels = 64;
 	const uint32 n_chunks = VIDEO_MODE_X / n_pixels;
 	const uint32 n_pixels_left = VIDEO_MODE_X - (n_chunks * n_pixels);
-	const uint32 src_chunk_size = src_bytes_per_row / n_chunks;
-	const uint32 dst_chunk_size = dst_bytes_per_row / n_chunks;
+	const uint32 src_chunk_size = TrivialBytesPerRow(n_pixels, VIDEO_MODE_DEPTH);
+	const uint32 dst_chunk_size = TrivialBytesPerRow(n_pixels, DepthModeForPixelDepth(VIDEO_DRV_DEPTH));
+	assert(src_chunk_size * n_chunks <= src_bytes_per_row);
+	assert(dst_chunk_size * n_chunks <= dst_bytes_per_row);
 	const uint32 src_chunk_size_left = src_bytes_per_row - (n_chunks * src_chunk_size);
 	const uint32 dst_chunk_size_left = dst_bytes_per_row - (n_chunks * dst_chunk_size);
 
@@ -643,8 +646,6 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 					memcpy(the_buffer_copy + i1, the_buffer + i1, src_chunk_size_left);
 					Screen_blit(the_host_buffer + i2, the_buffer + i1, src_chunk_size_left);
 				}
-				i1 += src_chunk_size_left;
-				i2 += dst_chunk_size_left;
 #ifdef USE_SDL_VIDEO
 				const int x = n_chunks * n_pixels;
 				if (x < bb[bbi].x) {
@@ -658,7 +659,8 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT)
 					bb[bbi].w  = x + n_pixels_left - bb[bbi].x;
 #endif
 			}
-			i2 += scr_bytes_left;
+			i1 += src_chunk_size_left;
+			i2 += dst_chunk_size_left + scr_bytes_left;
 #ifdef USE_SDL_VIDEO
 			bb[bbi].h++;
 			if (bb[bbi].w && (j == y1 || j == y2 - 1 || j == y2)) {
