@@ -70,9 +70,9 @@ inline int DepthModeForPixelDepth(int depth)
 inline uint32 TrivialBytesPerRow(uint32 width, int mode)
 {
 	switch (mode) {
-	case APPLE_1_BIT: return width / 8;
-	case APPLE_2_BIT: return width / 4;
-	case APPLE_4_BIT: return width / 2;
+	case APPLE_1_BIT: return (width + 7)/8;
+	case APPLE_2_BIT: return (width + 3)/4;
+	case APPLE_4_BIT: return (width + 1)/2;
 	case APPLE_8_BIT: return width;
 	case APPLE_16_BIT: return width * 2;
 	case APPLE_32_BIT: return width * 4;
