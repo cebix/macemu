@@ -879,6 +879,7 @@ static int16 VideoStatus(uint32 pb, VidLocals *csSave)
 					WriteMacInt16(vpb + vpVersion, 0);		// Pixel Map version number
 					WriteMacInt16(vpb + vpPackType, 0);
 					WriteMacInt32(vpb + vpPackSize, 0);
+					WriteMacInt32(vpb + vpPlaneBytes, 0);
 					WriteMacInt32(vpb + vpHRes, 0x00480000);	// horiz res of the device (ppi)
 					WriteMacInt32(vpb + vpVRes, 0x00480000);	// vert res of the device (ppi)
 					switch (VModes[i].viAppleMode) {
