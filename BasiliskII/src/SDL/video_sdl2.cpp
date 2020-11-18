@@ -2397,6 +2397,7 @@ static void update_display_static(driver_base *drv)
 	const VIDEO_MODE &mode = drv->mode;
 	int bytes_per_row = VIDEO_MODE_ROW_BYTES;
 	uint8 *p, *p2;
+	uint32 x2_clipped, wide_clipped;
 
 	// Check for first line from top and first line from bottom that have changed
 	y1 = 0;
@@ -2420,9 +2421,11 @@ static void update_display_static(driver_base *drv)
 		if ((int)VIDEO_MODE_DEPTH < (int)VIDEO_DEPTH_8BIT) {
 			const int src_bytes_per_row = bytes_per_row;
 			const int dst_bytes_per_row = drv->s->pitch;
-			const int pixels_per_byte = VIDEO_MODE_X / src_bytes_per_row;
+			const int pixels_per_byte = 8/mac_depth_of_video_depth(VIDEO_MODE_DEPTH);
 
-			x1 = VIDEO_MODE_X / pixels_per_byte;
+			const uint32 line_len = TrivialBytesPerRow(VIDEO_MODE_X, VIDEO_MODE_DEPTH);
+			
+			x1 = line_len;
 			for (uint32 j = y1; j <= y2; j++) {
 				p = &the_buffer[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
@@ -2440,7 +2443,7 @@ static void update_display_static(driver_base *drv)
 				p2 = &the_buffer_copy[j * bytes_per_row];
 				p += bytes_per_row;
 				p2 += bytes_per_row;
-				for (uint32 i = (VIDEO_MODE_X / pixels_per_byte); i > x2; i--) {
+				for (uint32 i = line_len; i > x2; i--) {
 					p--; p2--;
 					if (*p != *p2) {
 						x2 = i;
@@ -2448,9 +2451,12 @@ static void update_display_static(driver_base *drv)
 					}
 				}
 			}
+
 			x1 *= pixels_per_byte;
 			x2 *= pixels_per_byte;
-			wide = (x2 - x1 + pixels_per_byte - 1) & -pixels_per_byte;
+			wide = x2 - x1;
+			x2_clipped = x2 > VIDEO_MODE_X? VIDEO_MODE_X : x2;
+			wide_clipped = x2_clipped - x1;
 
 			// Update copy of the_buffer
 			if (high && wide) {
@@ -2474,7 +2480,7 @@ static void update_display_static(driver_base *drv)
 					SDL_UnlockSurface(drv->s);
 
 				// Refresh display
-				update_sdl_video(drv->s, x1, y1, wide, high);
+				update_sdl_video(drv->s, x1, y1, wide_clipped, high);
 			}
 
 		} else {
