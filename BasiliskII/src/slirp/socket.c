@@ -72,14 +72,12 @@ int prepare_host_domain_suffixes(char * buf) {
 			if (buf) buf[pos] = '.';
 			pos++;
 		}
-		if (buf) {
-			const char * str_pos = str;
-			while (*str_pos != '\0') {
-				buf[pos] = tolower(*str_pos);
-				++pos;
-				++str_pos;
-			}
-		};
+		const char * str_pos = str;
+		while (*str_pos != '\0') {
+			if (buf) buf[pos] = tolower(*str_pos);
+			++pos;
+			++str_pos;
+		}
 		// domain to be checked will be FQDN so suffix must have a trailing dot
 		if (str[strlen(str) - 1] != '.') {
 			if (buf) buf[pos] = '.';
@@ -102,7 +100,8 @@ void load_host_domains() {
 	const int size = prepare_host_domain_suffixes(NULL);
 	char * buf = malloc(size);
 	if (buf) {
-		prepare_host_domain_suffixes(buf);
+		const int second_size = prepare_host_domain_suffixes(buf);
+		assert(size == second_size);
 		host_resolved_domain_suffixes = (const char **) buf;
 	}
 }
