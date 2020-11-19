@@ -57,6 +57,7 @@ prefs_desc platform_prefs_items[] = {
 #ifdef USE_SDL_VIDEO
 	{"sdlrender", TYPE_STRING, false,      "SDL_Renderer driver (\"auto\", \"software\" (may be faster), etc.)"},
 #endif
+
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
