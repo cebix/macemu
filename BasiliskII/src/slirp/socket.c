@@ -72,8 +72,14 @@ int prepare_host_domain_suffixes(char * buf) {
 			if (buf) buf[pos] = '.';
 			pos++;
 		}
-		if (buf) strcpy(buf + pos, str);
-		pos += strlen(str);
+		if (buf) {
+			const char * str_pos = str;
+			while (*str_pos != '\0') {
+				buf[pos] = tolower(*str_pos);
+				++pos;
+				++str_pos;
+			}
+		};
 		// domain to be checked will be FQDN so suffix must have a trailing dot
 		if (str[strlen(str) - 1] != '.') {
 			if (buf) buf[pos] = '.';
