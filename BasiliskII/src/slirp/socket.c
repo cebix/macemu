@@ -621,8 +621,11 @@ struct R_DATA
     unsigned short data_len;
 };
 #pragma pack(pop)
- 
-#define POP_STRUCT(vartype, varname, data, len) \
+
+/** Create local variable varname of type vartype,
+ * fill it from the buffer data, observing its length len,
+ * and adjust data and len to reflect the remaining data */
+#define POP_DATA(vartype, varname, data, len) \
 	assert(len >= sizeof(vartype)); \
 	vartype varname; \
 	memcpy(&varname, data, sizeof(vartype)); \
@@ -630,9 +633,29 @@ struct R_DATA
 	len -= sizeof(vartype)
 
 
+/** Create local const char * varname pointing
+ * to the C string in the buffer data, observing its length len,
+ * and adjust data and len to reflect the remaining data */
+#define POP_STR(varname, data, len) \
+	const char * varname; \
+	{ \
+	int pop_str_len = strnlen(data, len); \
+	if (pop_str_len == len) { \
+		varname = NULL; \
+	} else { \
+		varname = data; \
+	} \
+	data += pop_str_len + 1; \
+	len -= pop_str_len + 1; \
+	}
+
+
 static void inject_udp_packet_to_guest(struct socket * so, struct sockaddr_in addr, caddr_t packet_data, int packet_len) {
 	struct mbuf *m;
 	int len;
+	
+	/** This is like sorecvfrom(), but just adds a packet with the
+	 * supplied data instead of reading the packet to add from the socket */
 
 	if (!(m = m_get())) return;
 	m->m_data += if_maxlinkhdr;
@@ -654,7 +677,7 @@ static void inject_udp_packet_to_guest(struct socket * so, struct sockaddr_in ad
 
 /* Decode hostname from the format used in DNS
  e.g. "\009something\004else\003com" for "something.else.com." */
-static char * decode_dns_name(char * data) {
+static char * decode_dns_name(const char * data) {
 
 	int query_str_len = strlen(data);
 	char * decoded_name_str = malloc(query_str_len + 1);
@@ -699,7 +722,7 @@ static bool resolve_dns_request(struct socket * so, struct sockaddr_in addr, cad
 	const caddr_t packet = data;
 	const int packet_len = len;
 
-	POP_STRUCT(struct DNS_HEADER, h, data, len);
+	POP_DATA(struct DNS_HEADER, h, data, len);
 
 	if (h.qr != 0) {
 		D("DNS packet is not a request\n");
@@ -726,9 +749,9 @@ static bool resolve_dns_request(struct socket * so, struct sockaddr_in addr, cad
 		return false;
 	}
 
-	char * original_query_str = data;
-	int query_str_len = strnlen(data, len);
-	if (query_str_len == len) { // went off end of packet
+	POP_STR(original_query_str, data, len);
+	if (original_query_str == NULL) {
+		// went off end of packet
 		D("Unterminated DNS query string\n");
 		return false;
 	}
@@ -741,10 +764,7 @@ static bool resolve_dns_request(struct socket * so, struct sockaddr_in addr, cad
 
 	D("DNS host query for %s\n", decoded_name_str);
 
-	data += query_str_len + 1;
-	len -= query_str_len + 1;
-
-	POP_STRUCT(struct QUESTION, qinfo, data, len);
+	POP_DATA(struct QUESTION, qinfo, data, len);
 
 	if (ntohs(qinfo.qtype) != 1 /* type A */ || ntohs(qinfo.qclass) != 1 /* class IN */ ) {
 		D("DNS host query for %s: Request isn't the supported type (INET A query)\n", decoded_name_str);
@@ -837,8 +857,9 @@ static bool resolve_dns_request(struct socket * so, struct sockaddr_in addr, cad
 					memcpy(response_packet + response_pos, cur_addr, sizeof(struct in_addr));
 					response_pos += sizeof(struct in_addr);
 				}
-				assert(response_pos == response_size);
 			}
+
+			assert(response_pos == response_size);
 
 			D("DNS host query for %s: Injecting DNS response directly to guest\n", decoded_name_str);
 			inject_udp_packet_to_guest(so, addr, response_packet, response_size);
