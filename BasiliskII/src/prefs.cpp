@@ -328,6 +328,11 @@ const char *PrefsFindString(const char *name, int index)
 		return NULL;
 }
 
+extern "C" const char *PrefsFindStringC(const char *name, int index)
+{
+	return PrefsFindString(name, index);
+}
+
 bool PrefsFindBool(const char *name)
 {
 	prefs_node *p = find_node(name, TYPE_BOOLEAN, 0);
