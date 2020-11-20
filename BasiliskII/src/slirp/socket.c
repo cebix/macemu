@@ -581,6 +581,8 @@ sorecvfrom(so)
 	} /* if ping packet */
 }
 
+// Commented structs from sil3rm00n's example code
+// https://www.binarytides.com/dns-query-code-in-c-with-linux-sockets/
 
 struct DNS_HEADER
 {
