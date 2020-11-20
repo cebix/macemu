@@ -15,6 +15,7 @@
 #endif
 #include <assert.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 #define DEBUG_HOST_RESOLVED_DNS 0
 
