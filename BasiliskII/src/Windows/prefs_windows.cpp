@@ -49,6 +49,9 @@ prefs_desc platform_prefs_items[] = {
 	{"tcp_port", TYPE_STRING, false,                "TCP ports list"},
 	{"portfile0", TYPE_STRING, false,               "output file for serial port 0"},
 	{"portfile1", TYPE_STRING, false,               "output file for serial port 1"},
+#ifdef USE_SDL_VIDEO
+	{"sdlrender", TYPE_STRING, false,      "SDL_Renderer driver (\"auto\", \"software\" (may be faster), etc.)"},
+#endif
 
 	{NULL, TYPE_END, false, NULL} // End of list
 };
