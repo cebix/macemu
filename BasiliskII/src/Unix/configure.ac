@@ -601,7 +601,8 @@ dnl Check for headers and functions related to pty support (sshpty.c)
 dnl From openssh-3.2.2p1 configure.ac
 
 AC_CHECK_HEADERS(strings.h login.h sys/bsdtty.h sys/stat.h util.h pty.h)
-AC_CHECK_FUNCS(_getpty vhangup strlcpy)
+AC_SEARCH_LIBS([openpty], [util bsd])
+AC_CHECK_FUNCS(_getpty openpty vhangup strlcpy)
 
 case "$host" in
 *-*-hpux10.26)
