@@ -1206,7 +1206,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				PRODUCT_NAME = kpx_cpu;
-				VALID_ARCHS = "x86_64 arm64";
+				VALID_ARCHS = x86_64;
 			};
 			name = Debug;
 		};
@@ -1245,7 +1245,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				PRODUCT_NAME = kpx_cpu;
-				VALID_ARCHS = "x86_64 arm64";
+				VALID_ARCHS = x86_64;
 			};
 			name = Release;
 		};
@@ -1332,7 +1332,7 @@
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.sheepshaver;
 				PRODUCT_NAME = SheepShaver;
-				VALID_ARCHS = "x86_64 arm64";
+				VALID_ARCHS = x86_64;
 				WARNING_LDFLAGS = "";
 			};
 			name = Debug;
@@ -1398,7 +1398,7 @@
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.sheepshaver;
 				PRODUCT_NAME = SheepShaver;
-				VALID_ARCHS = "x86_64 arm64";
+				VALID_ARCHS = x86_64;
 			};
 			name = Release;
 		};
