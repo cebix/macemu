@@ -1119,7 +1119,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.basilisk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USE_HEADERMAP = YES;
-				VALID_ARCHS = "x86_64 arm64";
+				VALID_ARCHS = x86_64;
 				WARNING_CFLAGS = "";
 			};
 			name = Debug;
@@ -1183,7 +1183,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.basilisk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USE_HEADERMAP = YES;
-				VALID_ARCHS = "x86_64 arm64";
+				VALID_ARCHS = x86_64;
 				WARNING_CFLAGS = "";
 			};
 			name = Release;
