@@ -95,7 +95,7 @@ typedef unsigned long vm_uintptr_t;
    don't get addresses above when the program is run on AMD64.
    NOTE: this is empirically determined on Linux/x86.  */
 #define MAP_BASE	0x10000000
-#else
+#elif !REAL_ADDRESSING
 /* linux does not implement any useful fallback behavior
    such as allocating the next available address
    and the first 4k of address space is marked unavailable
@@ -107,6 +107,8 @@ typedef unsigned long vm_uintptr_t;
    so we do this unconditionally on all platforms
    some of which use upwards of 64k pages, so lets start there, just in case */
 #define MAP_BASE	0x00010000
+#else /* must be 0x0 when REAL_ADDRESSING=1 */
+#define MAP_BASE	0x00000000
 #endif
 static char * next_address = (char *)MAP_BASE;
 #ifdef HAVE_MMAP_ANON
