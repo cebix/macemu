@@ -98,14 +98,13 @@ typedef unsigned long vm_uintptr_t;
 #elif !REAL_ADDRESSING
 /* linux does not implement any useful fallback behavior
    such as allocating the next available address
-   and the first 4k of address space is marked unavailable
+   and the first 4k-64k of address space is marked unavailable
    for security reasons (see https://wiki.debian.org/mmap_min_addr)
    so we must start requesting after the first page
    (or we get a high 64bit address and break on aarch64)
 
    leaving NULL unmapped is a good idea anyway for debugging reasons
-   so we do this unconditionally on all platforms
-   some of which use upwards of 64k pages, so lets start there, just in case */
+   so we do this unconditionally on all platforms */
 #define MAP_BASE	0x00010000
 #else /* must be 0x0 when REAL_ADDRESSING=1 */
 #define MAP_BASE	0x00000000
