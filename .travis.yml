@@ -58,7 +58,26 @@ matrix:
       osx_image: xcode12
       env :
         - WITH_SDL=1
- 
+    - os: linux
+      arch: arm64
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      env :
+        - WITH_SDL=1
+        - SDL_MAJOR_VERSION=1
+        - CPU_ARCH=arm64
+    - os: linux
+      arch: arm64
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      env :
+        - WITH_SDL=1
+        - SDL_MAJOR_VERSION=2
+        - CPU_ARCH=arm64
+
+
 addons:
   apt:
     packages:
@@ -78,23 +97,27 @@ script:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
         if [[ $WITH_SDL == *"1"* ]]; then
           if [[ $SDL_MAJOR_VERSION == *"1"* ]]; then
+            if [[ $CPU_ARCH == *"arm64"* ]]; then
+              ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-x --with-gtk --with-mon;
+            else
               ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-x --with-gtk --with-mon --enable-addressing=$ADDRESSING_MODE;
-              make -j 4 || ERR_CODE=$?;
+            fi
           else
+            if [[ $CPU_ARCH == *"arm64"* ]]; then
+              ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-x --with-gtk --with-mon --with-sdl2;
+            else
               ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-x --with-gtk --with-mon --with-sdl2 --enable-addressing=$ADDRESSING_MODE;
-              make -j 4 || ERR_CODE=$?;
+            fi
           fi
         else
               ./configure --disable-jit-compiler --with-x --with-gtk --with-mon --enable-addressing=$ADDRESSING_MODE;
-              make -j 4 || ERR_CODE=$?;
         fi
     else
         if [[ $WITH_SDL == *"1"* ]]; then
           ./configure --enable-sdl-video --enable-sdl-audio --disable-vosf --disable-jit-compiler --with-gtk=no --with-mon --with-sdl2 --enable-addressing=banks;
-          make -j 4 || ERR_CODE=$?;
         else
           ./configure --disable-vosf --disable-jit-compiler --with-gtk=no --with-mon --enable-addressing=banks;
-          make -j 4 || ERR_CODE=$?;
         fi
     fi
+  - make -j 4 || ERR_CODE=$?;
   - (exit $ERR_CODE)
