@@ -335,6 +335,8 @@ int atomic_or(int *var, int v)
 #endif
 
 
+char* vde_sock;
+
 /*
  *  Memory management helpers
  */
@@ -753,6 +755,14 @@ int main(int argc, char **argv)
 				exit(1);
 			}
 			break;
+		} else if (strcmp(argv[i], "--switch") == 0) {
+			argv[i] = NULL;
+			if (argv[++i] == NULL) {
+				printf("switch address not defined\n");
+				usage(argv[0]);
+			}
+			vde_sock = argv[i];
+			argv[i] = NULL;
 		}
 	}
 
