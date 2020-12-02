@@ -1018,6 +1018,15 @@ static bool ix86_skip_instruction(SIGSEGV_REGISTER_TYPE * regs)
 		transfer_size = SIZE_WORD;
 	}
 
+#if defined(__x86_64__) || defined(_M_X64)
+	// Address size override
+	if (*eip == 0x67) {
+		// 32-bit address
+		eip++;
+		len++;
+	}
+#endif
+
 	// REX prefix
 #if defined(__x86_64__) || defined(_M_X64)
 	struct rex_t {
