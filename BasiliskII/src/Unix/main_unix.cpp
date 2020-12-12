@@ -31,10 +31,6 @@
 # include <SDL_main.h>
 #endif
 
-#ifndef USE_SDL_VIDEO
-# include <X11/Xlib.h>
-#endif
-
 #ifdef HAVE_PTHREADS
 # include <pthread.h>
 #endif
@@ -52,11 +48,6 @@
 # if !defined(GDK_WINDOWING_QUARTZ) && !defined(GDK_WINDOWING_WAYLAND)
 #  include <X11/Xlib.h>
 # endif
-#endif
-
-#ifdef ENABLE_XF86_DGA
-# include <X11/Xutil.h>
-# include <X11/extensions/Xxf86dga.h>
 #endif
 
 #include <string>
@@ -104,16 +95,6 @@ int CPUType;
 bool CPUIs68060;
 int FPUType;
 bool TwentyFourBitAddressing;
-
-
-// Global variables
-#ifndef USE_SDL_VIDEO
-extern char *x_display_name;						// X11 display name
-extern Display *x_display;							// X11 display handle
-#ifdef X11_LOCK_TYPE
-X11_LOCK_TYPE x_display_lock = X11_LOCK_INIT;		// X11 display lock
-#endif
-#endif
 
 static uint8 last_xpram[XPRAM_SIZE];				// Buffer for monitoring XPRAM changes
 
@@ -367,12 +348,6 @@ int main(int argc, char **argv)
 	for (int i=1; i<argc; i++) {
 		if (strcmp(argv[i], "--help") == 0) {
 			usage(argv[0]);
-#ifndef USE_SDL_VIDEO
-		} else if (strcmp(argv[i], "--display") == 0) {
-			i++; // don't remove the argument, gtk_init() needs it too
-			if (i < argc)
-				x_display_name = strdup(argv[i]);
-#endif
 		} else if (strcmp(argv[i], "--gui-connection") == 0) {
 			argv[i++] = NULL;
 			if (i < argc) {
@@ -474,22 +449,6 @@ int main(int argc, char **argv)
 			usage(argv[0]);
 		}
 	}
-
-#ifndef USE_SDL_VIDEO
-	// Open display
-	x_display = XOpenDisplay(x_display_name);
-	if (x_display == NULL) {
-		char str[256];
-		sprintf(str, GetString(STR_NO_XSERVER_ERR), XDisplayName(x_display_name));
-		ErrorAlert(str);
-		QuitEmulator();
-	}
-
-#if defined(ENABLE_XF86_DGA) && !defined(ENABLE_MON)
-	// Fork out, so we can return from fullscreen mode when things get ugly
-	XF86DGAForkApp(DefaultScreen(x_display));
-#endif
-#endif
 
 #ifdef USE_SDL
 	// Initialize SDL system
@@ -784,12 +743,6 @@ void QuitEmulator(void)
 
 	// Exit preferences
 	PrefsExit();
-
-	// Close X11 server connection
-#ifndef USE_SDL_VIDEO
-	if (x_display)
-		XCloseDisplay(x_display);
-#endif
 
 	// Notify GUI we are about to leave
 	if (gui_connection) {

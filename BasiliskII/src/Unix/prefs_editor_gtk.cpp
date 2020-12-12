@@ -858,33 +858,15 @@ static GtkWidget *l_frameskip, *l_display_x, *l_display_y;
 static int display_type;
 static int dis_width, dis_height;
 
-#ifdef ENABLE_FBDEV_DGA
-static GtkWidget *w_fbdev_name, *w_fbdevice_file;
-static GtkWidget *l_fbdev_name, *l_fbdevice_file;
-static char fbdev_name[256];
-#endif
-
-static GtkWidget *w_dspdevice_file, *w_mixerdevice_file;
-
 // Hide/show graphics widgets
 static void hide_show_graphics_widgets(void)
 {
 	switch (display_type) {
 		case DISPLAY_WINDOW:
 			gtk_widget_show(w_frameskip); gtk_widget_show(l_frameskip);
-#ifdef ENABLE_FBDEV_DGA
-			gtk_widget_show(w_display_x); gtk_widget_show(l_display_x);
-			gtk_widget_show(w_display_y); gtk_widget_show(l_display_y);
-			gtk_widget_hide(w_fbdev_name); gtk_widget_hide(l_fbdev_name);
-#endif
 			break;
 		case DISPLAY_SCREEN:
 			gtk_widget_hide(w_frameskip); gtk_widget_hide(l_frameskip);
-#ifdef ENABLE_FBDEV_DGA
-			gtk_widget_hide(w_display_x); gtk_widget_hide(l_display_x);
-			gtk_widget_hide(w_display_y); gtk_widget_hide(l_display_y);
-			gtk_widget_show(w_fbdev_name); gtk_widget_show(l_fbdev_name);
-#endif
 			break;
 	}
 }
@@ -913,11 +895,8 @@ static void mn_60hz(...) {PrefsReplaceInt32("frameskip", 1);}
 static void mn_dynamic(...) {PrefsReplaceInt32("frameskip", 0);}
 
 // Set sensitivity of widgets
-static void set_graphics_sensitive(void)
-{
+static void set_graphics_sensitive(void){
 	const bool sound_enabled = !PrefsFindBool("nosound");
-	gtk_widget_set_sensitive(w_dspdevice_file, sound_enabled);
-	gtk_widget_set_sensitive(w_mixerdevice_file, sound_enabled);
 }
 
 // "Disable Sound Output" button toggled
@@ -933,19 +912,12 @@ static void parse_graphics_prefs(void)
 	display_type = DISPLAY_WINDOW;
 	dis_width = 512;
 	dis_height = 384;
-#ifdef ENABLE_FBDEV_DGA
-	fbdev_name[0] = 0;
-#endif
 
 	const char *str = PrefsFindString("screen");
 	if (str) {
 		if (sscanf(str, "win/%d/%d", &dis_width, &dis_height) == 2)
 			display_type = DISPLAY_WINDOW;
-#ifdef ENABLE_FBDEV_DGA
-		else if (sscanf(str, "dga/%255s", fbdev_name) == 1)
-#else
-		else if (sscanf(str, "dga/%d/%d", &dis_width, &dis_height) == 2)
-#endif
+		if (sscanf(str, "dga/%d/%d", &dis_width, &dis_height) == 2)
 			display_type = DISPLAY_SCREEN;
 	}
 }
@@ -967,28 +939,13 @@ static void read_graphics_settings(void)
 			sprintf(pref, "win/%d/%d", dis_width, dis_height);
 			break;
 		case DISPLAY_SCREEN:
-#ifdef ENABLE_FBDEV_DGA
-			str = gtk_entry_get_text(GTK_ENTRY(w_fbdev_name));
-			sprintf(pref, "dga/%s", str);
-#else
 			sprintf(pref, "dga/%d/%d", dis_width, dis_height);
-#endif
 			break;
 		default:
 			PrefsRemoveItem("screen");
 			return;
 	}
 	PrefsReplaceString("screen", pref);
-
-#ifdef ENABLE_FBDEV_DGA
-	str = get_file_entry_path(w_fbdevice_file);
-	if (str && strlen(str))
-		PrefsReplaceString("fbdevicefile", str);
-	else
-		PrefsRemoveItem("fbdevicefile");
-#endif
-	PrefsReplaceString("dsp", get_file_entry_path(w_dspdevice_file));
-	PrefsReplaceString("mixer", get_file_entry_path(w_mixerdevice_file));
 }
 
 // Create "Graphics/Sound" pane
@@ -1094,29 +1051,13 @@ static void create_graphics_pane(GtkWidget *top)
 	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 3, 4, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 	w_display_y = GTK_COMBO(combo)->entry;
 
-#ifdef ENABLE_FBDEV_DGA
-	l_fbdev_name = gtk_label_new(GetString(STR_FBDEV_NAME_CTRL));
-	gtk_widget_show(l_fbdev_name);
-	gtk_table_attach(GTK_TABLE(table), l_fbdev_name, 0, 1, 4, 5, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
-
-	w_fbdev_name = gtk_entry_new();
-	gtk_widget_show(w_fbdev_name);
-	gtk_entry_set_text(GTK_ENTRY(w_fbdev_name), fbdev_name); 
-	gtk_table_attach(GTK_TABLE(table), w_fbdev_name, 1, 2, 4, 5, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
-
-	w_fbdevice_file = make_file_entry(box, STR_FBDEVICE_FILE_CTRL, "fbdevicefile");
-#endif
-
 	make_separator(box);
 	make_checkbox(box, STR_NOSOUND_CTRL, "nosound", GTK_SIGNAL_FUNC(tb_nosound));
-	w_dspdevice_file = make_file_entry(box, STR_DSPDEVICE_FILE_CTRL, "dsp");
-	w_mixerdevice_file = make_file_entry(box, STR_MIXERDEVICE_FILE_CTRL, "mixer");
 
 	set_graphics_sensitive();
 
 	hide_show_graphics_widgets();
 }
-
 
 /*
  *  "Input" pane

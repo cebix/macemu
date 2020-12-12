@@ -25,9 +25,6 @@ dnl Mac OS X Sound
 AC_ARG_ENABLE(macosx-sound,  [  --enable-macosx-sound   enable Mac OS X Sound [default=no]], [WANT_MACOSX_SOUND=$enableval], [WANT_MACOSX_SOUND=no])
 
 dnl Video options.
-AC_ARG_ENABLE(xf86-dga,      [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
-AC_ARG_ENABLE(xf86-vidmode,  [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
-AC_ARG_ENABLE(fbdev-dga,     [  --enable-fbdev-dga      use direct frame buffer access via /dev/fb [default=yes]], [WANT_FBDEV_DGA=$enableval], [WANT_FBDEV_DGA=yes])
 AC_ARG_ENABLE(vosf,          [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=yes])
 
 dnl SDL options.
@@ -71,7 +68,6 @@ AC_ARG_ENABLE(addressing,
 ])
 
 dnl External packages.
-AC_ARG_WITH(esd,             [  --with-esd              support ESD for sound under Linux/FreeBSD [default=yes]], [WANT_ESD=$withval], [WANT_ESD=yes])
 AC_ARG_WITH(gtk,             [  --with-gtk              use GTK user interface [default=yes]],
   [case "$withval" in
    gtk1)      WANT_GTK="gtk";;
@@ -280,9 +276,6 @@ dnl Do we need SDL?
 WANT_SDL=no
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   WANT_SDL=yes
-  WANT_XF86_DGA=no
-  WANT_XF86_VIDMODE=no
-  WANT_FBDEV_DGA=no
   SDL_SUPPORT="$SDL_SUPPORT video"
 fi
 if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
@@ -350,15 +343,10 @@ else
   SDL_SUPPORT="none"
 fi
 
-dnl We need X11, if not using SDL or Mac GUI.
+dnl We need SDL or Mac GUI.
 if [[ "x$WANT_SDL_VIDEO" = "xno" -a "x$WANT_MACOSX_GUI" = "xno" ]]; then
   AC_PATH_XTRA
-  if [[ "x$no_x" = "xyes" ]]; then
-    AC_MSG_ERROR([You need X11 to run Basilisk II.])
-  fi
-  CFLAGS="$CFLAGS $X_CFLAGS"
-  CXXFLAGS="$CXXFLAGS $X_CFLAGS"
-  LIBS="$LIBS $X_PRE_LIBS $X_LIBS -lX11 -lXext $X_EXTRA_LIBS"
+  AC_MSG_ERROR([You need SDL or macOS to run Basilisk II.])
 fi
 
 dnl BINCUE
@@ -413,35 +401,6 @@ AC_CHECK_FUNCS(sem_init, , [
   fi
 ])
 
-dnl We use DGA (XFree86 or fbdev) if possible.
-if [[ "x$WANT_XF86_DGA" = "xyes" ]]; then
-  AC_CHECK_LIB(Xxf86dga, XF86DGAQueryExtension, [
-    AC_DEFINE(ENABLE_XF86_DGA, 1, [Define if using XFree86 DGA extension.])
-    LIBS="$LIBS -lXxf86dga"
-    if [[ "x$WANT_FBDEV_DGA" = "xyes" ]]; then
-      AC_MSG_WARN([Cannot have both --enable-xf86-dga and --enable-fbdev-dga, ignoring --enable-fbdev-dga.])
-      WANT_FBDEV_DGA=no
-    fi
-  ], [
-    AC_MSG_WARN([Could not find XFree86 DGA extension, ignoring --enable-xf86-dga.])
-    WANT_XF86_DGA=no
-  ])
-fi
-if [[ "x$WANT_FBDEV_DGA" = "xyes" ]]; then
-  AC_DEFINE(ENABLE_FBDEV_DGA, 1, [Define if using DGA with framebuffer device.])
-fi
-
-dnl We use XFree86 VidMode if possible.
-if [[ "x$WANT_XF86_VIDMODE" = "xyes" ]]; then
-  AC_CHECK_LIB(Xxf86vm, XF86VidModeQueryExtension, [
-    AC_DEFINE(ENABLE_XF86_VIDMODE, 1, [Define if using XFree86 DGA extension.])
-    LIBS="$LIBS -lXxf86vm"
-  ], [
-    AC_MSG_WARN([Could not find XFree86 VidMode extension, ignoring --enable-xf86-vidmode.])
-    WANT_XF86_VIDMODE=no
-  ])
-fi
-
 dnl We use GTK+ if possible.
 UISRCS=../dummy/prefs_editor_dummy.cpp
 case "x$WANT_GTK" in
@@ -493,19 +452,6 @@ if [[ "$WANT_GTK" = "no" ]]; then
   WANT_STANDALONE_GUI=no
 fi
 AC_SUBST(STANDALONE_GUI, [$WANT_STANDALONE_GUI])
-
-dnl We use ESD if possible.
-if [[ "x$WANT_ESD" = "xyes" ]]; then
-  AM_PATH_ESD(0.2.8, [
-    AC_DEFINE(ENABLE_ESD, 1, [Define is using ESD.])
-    CFLAGS="$CFLAGS $ESD_CFLAGS"
-    CXXFLAGS="$CXXFLAGS $ESD_CFLAGS"
-    LIBS="$LIBS $ESD_LIBS"
-  ], [
-    AC_MSG_WARN([Could not find ESD, disabling ESD support.])
-    WANT_ESD=no
-  ])
-fi
 
 dnl We use 64-bit file size support if possible.
 AC_SYS_LARGEFILE
@@ -730,12 +676,10 @@ EXTRASYSSRCS=
 case "$target_os" in
 linux*)
   ETHERSRC=ether_unix.cpp
-  AUDIOSRC=audio_oss_esd.cpp
   SCSISRC=Linux/scsi_linux.cpp
   ;;
 freebsd*)
   ETHERSRC=ether_unix.cpp
-  AUDIOSRC=audio_oss_esd.cpp
   DEFINES="$DEFINES -DBSD_COMP"
   CXXFLAGS="$CXXFLAGS -fpermissive"
   dnl Check for the CAM library
@@ -760,15 +704,9 @@ netbsd*)
   ETHERSRC=ether_unix.cpp
   ;;
 solaris*)
-  AUDIOSRC=Solaris/audio_solaris.cpp
   DEFINES="$DEFINES -DBSD_COMP -D_POSIX_PTHREAD_SEMANTICS"
   ;;
 irix*)
-  AUDIOSRC=Irix/audio_irix.cpp
-  EXTRASYSSRCS=Irix/unaligned.c
-  LIBS="$LIBS -laudio"
-  WANT_ESD=no
-
   dnl Check if our compiler supports -IPA (MIPSPro)
   HAVE_IPA=no
   ocflags="$CFLAGS"
@@ -885,7 +823,6 @@ if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
     fi
   fi
 elif [[ "x$WANT_MACOSX_GUI" != "xyes" ]]; then
-  VIDEOSRCS="video_x.cpp"
   KEYCODES="keycodes"
   EXTRASYSSRCS="$EXTRASYSSRCS clip_unix.cpp"
 fi
@@ -1818,11 +1755,7 @@ echo SDL major-version ...................... : $WANT_SDL_VERSION_MAJOR
 echo BINCUE support ......................... : $have_bincue
 echo LIBVHD support ......................... : $have_libvhd
 echo VDE support ............................ : $have_vdeplug
-echo XFree86 DGA support .................... : $WANT_XF86_DGA
-echo XFree86 VidMode support ................ : $WANT_XF86_VIDMODE
-echo fbdev DGA support ...................... : $WANT_FBDEV_DGA
 echo Enable video on SEGV signals ........... : $WANT_VOSF
-echo ESD sound support ...................... : $WANT_ESD
 echo GTK user interface ..................... : $WANT_GTK
 echo mon debugger support ................... : $WANT_MON
 echo Use JIT compiler ....................... : $WANT_JIT
