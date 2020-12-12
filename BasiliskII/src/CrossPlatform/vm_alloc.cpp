@@ -83,6 +83,10 @@ typedef unsigned long vm_uintptr_t;
 #define MAP_ANONYMOUS 0
 #endif
 
+/* NOTE: on linux MAP_32BIT is only implemented on AMD64
+   it is a null op on all other architectures
+   thus the MAP_BASE setting below is the only thing
+   ensuring low addresses on aarch64 for example */
 #define MAP_EXTRA_FLAGS (MAP_32BIT)
 
 #ifdef HAVE_MMAP_VM
@@ -91,6 +95,16 @@ typedef unsigned long vm_uintptr_t;
    don't get addresses above when the program is run on AMD64.
    NOTE: this is empirically determined on Linux/x86.  */
 #define MAP_BASE	0x10000000
+#elif DIRECT_ADDRESSING
+/* linux does not implement any useful fallback behavior
+   such as allocating the next available address
+   and the first 4k-64k of address space is marked unavailable
+   for security reasons (see https://wiki.debian.org/mmap_min_addr)
+   so we must start requesting after the first page
+   or we get a high 64bit address that will crash direct addressing
+
+   leaving NULL unmapped is a good idea anyway for debugging reasons */
+#define MAP_BASE	0x00010000
 #else
 #define MAP_BASE	0x00000000
 #endif
@@ -270,11 +284,15 @@ void * vm_acquire(size_t size, int options)
 
 	if ((addr = mmap((caddr_t)next_address, size, VM_PAGE_DEFAULT, the_map_flags, fd, 0)) == (void *)MAP_FAILED)
 		return VM_MAP_FAILED;
-#if USE_JIT
-	// Sanity checks for 64-bit platforms
-	if (sizeof(void *) == 8 && (options & VM_MAP_32BIT) && !((char *)addr <= (char *)0xffffffff))
-		return VM_MAP_FAILED;
+	
+#if DIRECT_ADDRESSING
+	// If MAP_32BIT and MAP_BASE fail to ensure
+	// a 32-bit address crash now instead of later.
+	// FIXME: make everything 64-bit clean and tear this all out.
+	if(sizeof(void *) > 4 && (options & VM_MAP_32BIT))
+		assert((size_t)addr<0xffffffffL);
 #endif
+
 	next_address = (char *)addr + size;
 #elif defined(HAVE_WIN32_VM)
 	int alloc_type = MEM_RESERVE | MEM_COMMIT;

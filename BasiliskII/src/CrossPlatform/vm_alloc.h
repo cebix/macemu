@@ -36,6 +36,8 @@ extern "C" {
 }
 #endif
 
+#include <cassert>
+
 /* Return value of `vm_acquire' in case of an error.  */
 #ifdef HAVE_MACH_VM
 #define VM_MAP_FAILED			((void *)-1)
