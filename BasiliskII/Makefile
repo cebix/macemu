@@ -6,9 +6,6 @@ RELEASE := $(shell sed <BasiliskII.spec -n '/^\%define release */s///p')
 VERNAME := BasiliskII-$(VERSION)
 
 SRCARCHIVE := $(shell date +BasiliskII_src_%d%m%Y.tar.gz)
-AMIGAARCHIVE := $(VERNAME)-$(RELEASE).amiga.lzh
-BEOSPPCARCHIVE := $(VERNAME)-$(RELEASE).beosppc.zip
-BEOSX86ARCHIVE := $(VERNAME)-$(RELEASE).beosx86.zip
 MACOSXARCHIVE := $(VERNAME)-$(RELEASE).tar.gz
 
 TMPDIR := $(shell date +/tmp/build%M%S)
@@ -27,14 +24,10 @@ help:
 	@echo "The following targets are available:"
 	@echo "  tarball  source tarball ($(SRCARCHIVE))"
 	@echo "  rpm      source and binary RPMs"
-	@echo "  amiga    AmigaOS binary archive ($(AMIGAARCHIVE))"
-	@echo "  beosppc  BeOS/ppc binary archive ($(BEOSPPCARCHIVE))"
-	@echo "  beosx86  BeOS/x86 binary archive ($(BEOSX86ARCHIVE))"
 	@echo "  macosx   MacOS X binary archive ($(MACOSXARCHIVE))"
 
 clean:
 	-rm -f $(SRCARCHIVE)
-	-rm -f $(AMIGAARCHIVE) $(BEOSPPCARCHIVE) $(BEOSX86ARCHIVE)
 
 #
 # Source tarball
@@ -58,55 +51,6 @@ $(SRCARCHIVE): $(SRCS) $(DOCS)
 #
 rpm: $(SRCARCHIVE)
 	rpmbuild -ta --clean $(SRCARCHIVE)
-
-#
-# Binary archive for AmigaOS
-#
-amiga: $(AMIGAARCHIVE)
-
-$(AMIGAARCHIVE): $(SRCS) $(DOCS) src/AmigaOS/BasiliskII
-	-rm -rf $(TMPDIR)
-	mkdir $(TMPDIR)
-	mkdir $(TMPDIR)/$(VERNAME)
-	cp $(DOCS) $(TMPDIR)/$(VERNAME)
-	cp src/AmigaOS/BasiliskII $(TMPDIR)/$(VERNAME)
-	cp src/AmigaOS/BasiliskII.info $(TMPDIR)/$(VERNAME)
-	chmod 775 $(TMPDIR)/$(VERNAME)/BasiliskII
-	cd $(TMPDIR); lha a $@ $(VERNAME)
-	mv $(TMPDIR)/$@ .
-	rm -rf $(TMPDIR)
-
-#
-# Binary archive for BeOS/ppc
-#
-beosppc: $(BEOSPPCARCHIVE)
-
-$(BEOSPPCARCHIVE): $(SRCS) $(DOCS) src/BeOS/obj.ppc/BasiliskII
-	-rm -rf $(TMPDIR)
-	mkdir $(TMPDIR)
-	mkdir $(TMPDIR)/$(VERNAME)
-	cp $(DOCS) $(TMPDIR)/$(VERNAME)
-	cp src/BeOS/obj.ppc/BasiliskII $(TMPDIR)/$(VERNAME)
-	mimeset -f $(TMPDIR)
-	cd $(TMPDIR); zip -ry $@ $(VERNAME)/
-	mv $(TMPDIR)/$@ .
-	rm -rf $(TMPDIR)
-
-#
-# Binary archive for BeOS/x86
-#
-beosx86: $(BEOSX86ARCHIVE)
-
-$(BEOSX86ARCHIVE): $(SRCS) $(DOCS) src/BeOS/obj.x86/BasiliskII
-	-rm -rf $(TMPDIR)
-	mkdir $(TMPDIR)
-	mkdir $(TMPDIR)/$(VERNAME)
-	cp $(DOCS) $(TMPDIR)/$(VERNAME)
-	cp src/BeOS/obj.x86/BasiliskII $(TMPDIR)/$(VERNAME)
-	mimeset -f $(TMPDIR)
-	cd $(TMPDIR); zip -ry $@ $(VERNAME)/
-	mv $(TMPDIR)/$@ .
-	rm -rf $(TMPDIR)
 
 #
 # Binary archive for MacOS X

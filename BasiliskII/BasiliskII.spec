@@ -39,8 +39,7 @@ Some features of Basilisk II:
   - Serial drivers
   - SCSI Manager (old-style) emulation
   - Emulates extended ADB keyboard and 3-button mouse
-  - Uses UAE 68k emulation or (under AmigaOS and NetBSD/m68k) real 68k
-    processor
+  - Uses UAE 68k emulation or real 68k processor
 
 %prep
 %setup -q

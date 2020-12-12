@@ -139,17 +139,17 @@ bool open_audio(void)
 	}
 	alSetChannels(config, audio_channel_counts[audio_channel_count_index]);
 	alSetDevice(config, AL_DEFAULT_OUTPUT); // Allow selecting via prefs?
-	
+
 	// Try to open the audio library
 
 	port = alOpenPort("BasiliskII", "w", config);
 	if (port == NULL) {
-		fprintf(stderr, "ERROR: Cannot open audio port: %s\n", 
+		fprintf(stderr, "ERROR: Cannot open audio port: %s\n",
 				alGetErrorString(oserror()));
 		WarningAlert(GetString(STR_NO_AUDIO_WARN));
 		return false;
 	}
-	
+
 	// Set the sample rate
 
 	pv[0].param = AL_RATE;
@@ -180,7 +180,7 @@ bool open_audio(void)
 
 	// Put a limit on the Mac sound buffer size, to decrease delay
 #define AUDIO_BUFFER_MSEC 50	// milliseconds of sound to buffer
-	int target_frames_per_block = 
+	int target_frames_per_block =
 		(audio_sample_rates[audio_sample_rate_index] >> 16) *
 		AUDIO_BUFFER_MSEC / 1000;
 	if (audio_frames_per_block > target_frames_per_block)
@@ -190,14 +190,14 @@ bool open_audio(void)
 	alZeroFrames(port, audio_frames_per_block);	// so we don't underflow
 
 	// Try to keep the buffer pretty full
-	sound_buffer_fill_point = alGetQueueSize(config) - 
+	sound_buffer_fill_point = alGetQueueSize(config) -
 		2 * audio_frames_per_block;
 	if (sound_buffer_fill_point < 0)
 		sound_buffer_fill_point = alGetQueueSize(config) / 3;
 	D(bug("fill point %d\n", sound_buffer_fill_point));
 
 	sound_buffer_size = (audio_sample_sizes[audio_sample_size_index] >> 3) *
-		audio_channel_counts[audio_channel_count_index] * 
+		audio_channel_counts[audio_channel_count_index] *
 		audio_frames_per_block;
 	set_audio_status_format();
 
@@ -342,7 +342,7 @@ static void *stream_func(void *arg)
 					goto silence;
 
 				// Send data to audio library.  Convert 8-bit data
-				// unsigned->signed, using same algorithm as audio_amiga.cpp.
+				// unsigned->signed
 				// It works fine for 8-bit mono, but not stereo.
 				if (AudioStatus.sample_size == 8) {
 					uint32 *p = (uint32 *)Mac2HostAddr(ReadMacInt32(apple_stream_info + scd_buffer));
@@ -473,7 +473,7 @@ static void set_volume(uint32 vol)
 
 	alGetParamInfo(dev, AL_GAIN, &pi);
 	maxgain = alFixedToDouble(pi.max.ll);
-	mingain = alFixedToDouble(pi.min.ll);		
+	mingain = alFixedToDouble(pi.min.ll);
 
 	// Set the new gain values
 

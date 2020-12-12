@@ -56,12 +56,7 @@ using std::map;
 
 #define MONITOR 0
 
-
-#ifdef __BEOS__
-#define CLOSESOCKET closesocket
-#else
 #define CLOSESOCKET close
-#endif
 
 
 // Global variables
@@ -138,12 +133,8 @@ void EtherInit(void)
 
 		// Set socket options
 		int on = 1;
-#ifdef __BEOS__
-		setsockopt(udp_socket, SOL_SOCKET, SO_NONBLOCK, &on, sizeof(on));
-#else
 		setsockopt(udp_socket, SOL_SOCKET, SO_BROADCAST, &on, sizeof(on));
 		ioctl(udp_socket, FIONBIO, &on);
-#endif
 
 		// Start thread for packet reception
 		if (!ether_start_udp_thread(udp_socket)) {

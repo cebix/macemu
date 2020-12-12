@@ -31,10 +31,6 @@ extern int64 CPUClockSpeed;		// Processor clock speed (Hz)
 extern int64 BusClockSpeed;		// Bus clock speed (Hz)
 extern int64 TimebaseSpeed;		// Timebase clock speed (Hz)
 
-#ifdef __BEOS__
-extern system_info SysInfo;		// System information
-#endif
-
 // 68k register structure (for Execute68k())
 struct M68kRegisters {
 	uint32 d[8];

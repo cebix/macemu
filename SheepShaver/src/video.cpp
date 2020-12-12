@@ -111,10 +111,10 @@ static int16 set_gamma(VidLocals *csSave, uint32 gamma);
 /*
  *  Tell whether window/screen is activated or not (for mouse/keyboard polling)
  */
- 
+
 bool VideoActivated(void)
 {
-	return video_activated;	
+	return video_activated;
 }
 
 
@@ -126,7 +126,7 @@ bool VideoSnapshot(int xsize, int ysize, uint8 *p)
 {
 	if (display_type == DIS_WINDOW) {
 		uint8 *screen = (uint8 *)private_data->saveBaseAddr;
-		uint32 row_bytes = VModes[cur_mode].viRowBytes;	
+		uint32 row_bytes = VModes[cur_mode].viRowBytes;
 		uint32 y2size = VModes[cur_mode].viYsize;
 		uint32 x2size = VModes[cur_mode].viXsize;
 		for (int j=0;j<ysize;j++) {
@@ -324,7 +324,7 @@ static int16 VideoControl(uint32 pb, VidLocals *csSave)
 			return video_mode_change(csSave, param);
 
 		case cscSetEntries: {							// SetEntries
-			D(bug("SetEntries\n"));					
+			D(bug("SetEntries\n"));
 			if (VModes[cur_mode].viAppleMode > APPLE_8_BIT) return controlErr;
 			uint32 s_pal = ReadMacInt32(param + csTable);
 			uint16 start = ReadMacInt16(param + csStart);
@@ -338,12 +338,8 @@ static int16 VideoControl(uint32 pb, VidLocals *csSave)
 			uint8 *blue_gamma = NULL;
 			int gamma_data_width = 0;
 			if (csSave->gammaTable) {
-#ifdef __BEOS__
-				// Windows are gamma-corrected by BeOS
-				const bool can_do_gamma = (display_type == DIS_SCREEN);
-#else
+				// Leave open the possibility of OS-specific provision of gamma correction
 				const bool can_do_gamma = true;
-#endif
 				if (can_do_gamma) {
 					uint32 gamma_table = csSave->gammaTable;
 					red_gamma = Mac2HostAddr(gamma_table + gFormulaData + ReadMacInt16(gamma_table + gFormulaSize));
@@ -675,7 +671,7 @@ static int16 VideoStatus(uint32 pb, VidLocals *csSave)
 			return noErr;
 
 		case cscGetEntries: {						// GetEntries
-			D(bug("GetEntries\n"));	
+			D(bug("GetEntries\n"));
 			uint32 d_pal = ReadMacInt32(param + csTable);
 			uint16 start = ReadMacInt16(param + csStart);
 			uint16 count = ReadMacInt16(param + csCount);
@@ -750,7 +746,7 @@ static int16 VideoStatus(uint32 pb, VidLocals *csSave)
 			WriteMacInt32(param + csData, csSave->saveData);
 			WriteMacInt16(param + csPage, csSave->savePage);
 			WriteMacInt32(param + csBaseAddr, csSave->saveBaseAddr);
-			
+
 			D(bug("return: mode:%04x ID:%08lx page:%04x ", ReadMacInt16(param + csMode),
 				ReadMacInt32(param + csData), ReadMacInt16(param + csPage)));
 			D(bug("base adress %08lx\n", ReadMacInt32(param + csBaseAddr)));
@@ -865,7 +861,7 @@ static int16 VideoStatus(uint32 pb, VidLocals *csSave)
 				ReadMacInt32(param + csDisplayModeID),
 				ReadMacInt16(param + csDepthMode)));
 
-			// find right video mode						
+			// find right video mode
 			for (int i=0; VModes[i].viType!=DIS_INVALID; i++) {
 				if ((ReadMacInt16(param + csDepthMode) == VModes[i].viAppleMode) &&
 					(ReadMacInt32(param + csDisplayModeID) == VModes[i].viAppleID)) {
@@ -884,42 +880,42 @@ static int16 VideoStatus(uint32 pb, VidLocals *csSave)
 					WriteMacInt32(vpb + vpVRes, 0x00480000);	// vert res of the device (ppi)
 					switch (VModes[i].viAppleMode) {
 						case APPLE_1_BIT:
-							WriteMacInt16(vpb + vpPixelType, 0); 
+							WriteMacInt16(vpb + vpPixelType, 0);
 							WriteMacInt16(vpb + vpPixelSize, 1);
 							WriteMacInt16(vpb + vpCmpCount, 1);
 							WriteMacInt16(vpb + vpCmpSize, 1);
 							WriteMacInt32(param + csDeviceType, 0); // CLUT
 							break;
 						case APPLE_2_BIT:
-							WriteMacInt16(vpb + vpPixelType, 0); 
+							WriteMacInt16(vpb + vpPixelType, 0);
 							WriteMacInt16(vpb + vpPixelSize, 2);
 							WriteMacInt16(vpb + vpCmpCount, 1);
 							WriteMacInt16(vpb + vpCmpSize, 2);
 							WriteMacInt32(param + csDeviceType, 0); // CLUT
 							break;
 						case APPLE_4_BIT:
-							WriteMacInt16(vpb + vpPixelType, 0); 
+							WriteMacInt16(vpb + vpPixelType, 0);
 							WriteMacInt16(vpb + vpPixelSize, 4);
 							WriteMacInt16(vpb + vpCmpCount, 1);
 							WriteMacInt16(vpb + vpCmpSize, 4);
 							WriteMacInt32(param + csDeviceType, 0); // CLUT
 							break;
 						case APPLE_8_BIT:
-							WriteMacInt16(vpb + vpPixelType, 0); 
+							WriteMacInt16(vpb + vpPixelType, 0);
 							WriteMacInt16(vpb + vpPixelSize, 8);
 							WriteMacInt16(vpb + vpCmpCount, 1);
 							WriteMacInt16(vpb + vpCmpSize, 8);
 							WriteMacInt32(param + csDeviceType, 0); // CLUT
 							break;
 						case APPLE_16_BIT:
-							WriteMacInt16(vpb + vpPixelType, 0x10); 
+							WriteMacInt16(vpb + vpPixelType, 0x10);
 							WriteMacInt16(vpb + vpPixelSize, 16);
 							WriteMacInt16(vpb + vpCmpCount, 3);
 							WriteMacInt16(vpb + vpCmpSize, 5);
 							WriteMacInt32(param + csDeviceType, 2); // DIRECT
 							break;
 						case APPLE_32_BIT:
-							WriteMacInt16(vpb + vpPixelType, 0x10); 
+							WriteMacInt16(vpb + vpPixelType, 0x10);
 							WriteMacInt16(vpb + vpPixelSize, 32);
 							WriteMacInt16(vpb + vpCmpCount, 3);
 							WriteMacInt16(vpb + vpCmpSize, 8);

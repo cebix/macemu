@@ -626,7 +626,7 @@ void CheckLoad(uint32 type, const char *name, uint8 *p, uint32 size)
 
 	if (type == FOURCC('D','R','V','R') && strncmp(&name[1], ".AFPTranslator", name[0]) == 0) {
 		D(bug(" DRVR .AFPTranslator found\n"));
-		
+
 		// Don't access ROM85 as it it was a pointer to a ROM version number (8.0, 8.1)
 		static const uint8 dat[] = {0x3a, 0x2e, 0x00, 0x0a, 0x55, 0x4f, 0x3e, 0xb8, 0x02, 0x8e, 0x30, 0x1f, 0x48, 0xc0, 0x24, 0x40, 0x20, 0x40};
 		base = find_rsrc_data(p, size, dat, sizeof(dat));
@@ -646,11 +646,7 @@ void CheckLoad(uint32 type, const char *name, uint8 *p, uint32 size)
  *  Native Resource Manager patches
  */
 
-#ifdef __BEOS__
-static
-#else
 extern "C"
-#endif
 void check_load_invoc(uint32 type, int16 id, uint32 h)
 {
 	if (h == 0)
@@ -663,11 +659,7 @@ void check_load_invoc(uint32 type, int16 id, uint32 h)
 	CheckLoad(type, id, (uint16 *)Mac2HostAddr(p), size);
 }
 
-#ifdef __BEOS__
-static
-#else
 extern "C"
-#endif
 void named_check_load_invoc(uint32 type, uint32 name, uint32 h)
 {
 	if (h == 0)
@@ -680,238 +672,6 @@ void named_check_load_invoc(uint32 type, uint32 name, uint32 h)
 	CheckLoad(type, (char *)Mac2HostAddr(name), Mac2HostAddr(p), size);
 }
 
-#ifdef __BEOS__
-static asm void **get_resource(register uint32 type, register int16 id)
-{
-	// Create stack frame
-	mflr	r0
-	stw		r0,8(r1)
-	stwu	r1,-(56+12)(r1)
-
-	// Save type/ID
-	stw		r3,56(r1)
-	stw		r4,56+4(r1)
-
-	// Call old routine
-	lwz		r0,XLM_GET_RESOURCE
-	lwz		r2,XLM_RES_LIB_TOC
-	mtctr	r0
-	bctrl
-	lwz		r2,XLM_TOC		// Get TOC
-	stw		r3,56+8(r1)		// Save handle
-
-	// Call CheckLoad
-	lwz		r3,56(r1)
-	lwz		r4,56+4(r1)
-	lwz		r5,56+8(r1)
-	bl		check_load_invoc
-	lwz		r3,56+8(r1)		// Restore handle
-
-	// Return to caller
-	lwz		r0,56+12+8(r1)
-	mtlr	r0
-	addi	r1,r1,56+12
-	blr
-}
-
-static asm void **get_1_resource(register uint32 type, register int16 id)
-{
-	// Create stack frame
-	mflr	r0
-	stw		r0,8(r1)
-	stwu	r1,-(56+12)(r1)
-
-	// Save type/ID
-	stw		r3,56(r1)
-	stw		r4,56+4(r1)
-
-	// Call old routine
-	lwz		r0,XLM_GET_1_RESOURCE
-	lwz		r2,XLM_RES_LIB_TOC
-	mtctr	r0
-	bctrl
-	lwz		r2,XLM_TOC		// Get TOC
-	stw		r3,56+8(r1)		// Save handle
-
-	// Call CheckLoad
-	lwz		r3,56(r1)
-	lwz		r4,56+4(r1)
-	lwz		r5,56+8(r1)
-	bl		check_load_invoc
-	lwz		r3,56+8(r1)		// Restore handle
-
-	// Return to caller
-	lwz		r0,56+12+8(r1)
-	mtlr	r0
-	addi	r1,r1,56+12
-	blr
-}
-
-static asm void **get_ind_resource(register uint32 type, register int16 index)
-{
-	// Create stack frame
-	mflr	r0
-	stw		r0,8(r1)
-	stwu	r1,-(56+12)(r1)
-
-	// Save type/index
-	stw		r3,56(r1)
-	stw		r4,56+4(r1)
-
-	// Call old routine
-	lwz		r0,XLM_GET_IND_RESOURCE
-	lwz		r2,XLM_RES_LIB_TOC
-	mtctr	r0
-	bctrl
-	lwz		r2,XLM_TOC		// Get TOC
-	stw		r3,56+8(r1)		// Save handle
-
-	// Call CheckLoad
-	lwz		r3,56(r1)
-	lwz		r4,56+4(r1)
-	lwz		r5,56+8(r1)
-	bl		check_load_invoc
-	lwz		r3,56+8(r1)		// Restore handle
-
-	// Return to caller
-	lwz		r0,56+12+8(r1)
-	mtlr	r0
-	addi	r1,r1,56+12
-	blr
-}
-
-static asm void **get_1_ind_resource(register uint32 type, register int16 index)
-{
-	// Create stack frame
-	mflr	r0
-	stw		r0,8(r1)
-	stwu	r1,-(56+12)(r1)
-
-	// Save type/index
-	stw		r3,56(r1)
-	stw		r4,56+4(r1)
-
-	// Call old routine
-	lwz		r0,XLM_GET_1_IND_RESOURCE
-	lwz		r2,XLM_RES_LIB_TOC
-	mtctr	r0
-	bctrl
-	lwz		r2,XLM_TOC		// Get TOC
-	stw		r3,56+8(r1)		// Save handle
-
-	// Call CheckLoad
-	lwz		r3,56(r1)
-	lwz		r4,56+4(r1)
-	lwz		r5,56+8(r1)
-	bl		check_load_invoc
-	lwz		r3,56+8(r1)		// Restore handle
-
-	// Return to caller
-	lwz		r0,56+12+8(r1)
-	mtlr	r0
-	addi	r1,r1,56+12
-	blr
-}
-
-static asm void **r_get_resource(register uint32 type, register int16 id)
-{
-	// Create stack frame
-	mflr	r0
-	stw		r0,8(r1)
-	stwu	r1,-(56+12)(r1)
-
-	// Save type/ID
-	stw		r3,56(r1)
-	stw		r4,56+4(r1)
-
-	// Call old routine
-	lwz		r0,XLM_R_GET_RESOURCE
-	lwz		r2,XLM_RES_LIB_TOC
-	mtctr	r0
-	bctrl
-	lwz		r2,XLM_TOC		// Get TOC
-	stw		r3,56+8(r1)		// Save handle
-
-	// Call CheckLoad
-	lwz		r3,56(r1)
-	lwz		r4,56+4(r1)
-	lwz		r5,56+8(r1)
-	bl		check_load_invoc
-	lwz		r3,56+8(r1)		// Restore handle
-
-	// Return to caller
-	lwz		r0,56+12+8(r1)
-	mtlr	r0
-	addi	r1,r1,56+12
-	blr
-}
-
-static asm void **get_named_resource(register uint32 type, register uint32 name)
-{
-	// Create stack frame
-	mflr	r0
-	stw		r0,8(r1)
-	stwu	r1,-(56+12)(r1)
-
-	// Save type/ID
-	stw		r3,56(r1)
-	stw		r4,56+4(r1)
-
-	// Call old routine
-	lwz		r0,XLM_GET_NAMED_RESOURCE
-	lwz		r2,XLM_RES_LIB_TOC
-	mtctr	r0
-	bctrl
-	lwz		r2,XLM_TOC		// Get TOC
-	stw		r3,56+8(r1)		// Save handle
-
-	// Call CheckLoad
-	lwz		r3,56(r1)
-	lwz		r4,56+4(r1)
-	lwz		r5,56+8(r1)
-	bl		named_check_load_invoc
-	lwz		r3,56+8(r1)		// Restore handle
-
-	// Return to caller
-	lwz		r0,56+12+8(r1)
-	mtlr	r0
-	addi	r1,r1,56+12
-	blr
-}
-
-static asm void **get_1_named_resource(register uint32 type, register uint32 name)
-{
-	// Create stack frame
-	mflr	r0
-	stw		r0,8(r1)
-	stwu	r1,-(56+12)(r1)
-
-	// Save type/ID
-	stw		r3,56(r1)
-	stw		r4,56+4(r1)
-
-	// Call old routine
-	lwz		r0,XLM_GET_1_NAMED_RESOURCE
-	lwz		r2,XLM_RES_LIB_TOC
-	mtctr	r0
-	bctrl
-	lwz		r2,XLM_TOC		// Get TOC
-	stw		r3,56+8(r1)		// Save handle
-
-	// Call CheckLoad
-	lwz		r3,56(r1)
-	lwz		r4,56+4(r1)
-	lwz		r5,56+8(r1)
-	bl		named_check_load_invoc
-	lwz		r3,56+8(r1)		// Restore handle
-
-	// Return to caller
-	lwz		r0,56+12+8(r1)
-	mtlr	r0
-	addi	r1,r1,56+12
-	blr
-}
-#else
 // Routines in asm_linux.S
 extern "C" void get_resource(void);
 extern "C" void get_1_resource(void);
@@ -920,7 +680,6 @@ extern "C" void get_1_ind_resource(void);
 extern "C" void r_get_resource(void);
 extern "C" void get_named_resource(void);
 extern "C" void get_1_named_resource(void);
-#endif
 
 void PatchNativeResourceManager(void)
 {
@@ -937,13 +696,7 @@ void PatchNativeResourceManager(void)
 #if EMULATED_PPC
 	WriteMacInt32(tvec, NativeFunction(NATIVE_GET_RESOURCE));
 #else
-#ifdef __BEOS__
-	uint32 *tvec2 = (uint32 *)get_resource;
-	WriteMacInt32(tvec, tvec2[0]);
-	WriteMacInt32(tvec + 4, tvec2[1]);
-#else
 	WriteMacInt32(tvec, (uint32)get_resource);
-#endif
 #endif
 
 	// Patch native Get1Resource()
@@ -954,13 +707,7 @@ void PatchNativeResourceManager(void)
 #if EMULATED_PPC
 	WriteMacInt32(tvec, NativeFunction(NATIVE_GET_1_RESOURCE));
 #else
-#ifdef __BEOS__
-	tvec2 = (uint32 *)get_1_resource;
-	WriteMacInt32(tvec, tvec2[0]);
-	WriteMacInt32(tvec + 4, tvec2[1]);
-#else
 	WriteMacInt32(tvec, (uint32)get_1_resource);
-#endif
 #endif
 
 	// Patch native GetIndResource()
@@ -971,13 +718,7 @@ void PatchNativeResourceManager(void)
 #if EMULATED_PPC
 	WriteMacInt32(tvec, NativeFunction(NATIVE_GET_IND_RESOURCE));
 #else
-#ifdef __BEOS__
-	tvec2 = (uint32 *)get_ind_resource;
-	WriteMacInt32(tvec, tvec2[0]);
-	WriteMacInt32(tvec + 4, tvec2[1]);
-#else
 	WriteMacInt32(tvec, (uint32)get_ind_resource);
-#endif
 #endif
 
 	// Patch native Get1IndResource()
@@ -988,13 +729,7 @@ void PatchNativeResourceManager(void)
 #if EMULATED_PPC
 	WriteMacInt32(tvec, NativeFunction(NATIVE_GET_1_IND_RESOURCE));
 #else
-#ifdef __BEOS__
-	tvec2 = (uint32 *)get_1_ind_resource;
-	WriteMacInt32(tvec, tvec2[0]);
-	WriteMacInt32(tvec + 4, tvec2[1]);
-#else
 	WriteMacInt32(tvec, (uint32)get_1_ind_resource);
-#endif
 #endif
 
 	// Patch native RGetResource()
@@ -1005,13 +740,7 @@ void PatchNativeResourceManager(void)
 #if EMULATED_PPC
 	WriteMacInt32(tvec, NativeFunction(NATIVE_R_GET_RESOURCE));
 #else
-#ifdef __BEOS__
-	tvec2 = (uint32 *)r_get_resource;
-	WriteMacInt32(tvec, tvec2[0]);
-	WriteMacInt32(tvec + 4, tvec2[1]);
-#else
 	WriteMacInt32(tvec, (uint32)r_get_resource);
-#endif
 #endif
 
 	// Patch native GetNamedResource()
@@ -1022,13 +751,7 @@ void PatchNativeResourceManager(void)
 #if EMULATED_PPC
 	WriteMacInt32(tvec, NativeFunction(NATIVE_GET_NAMED_RESOURCE));
 #else
-#ifdef __BEOS__
-	tvec2 = (uint32 *)get_named_resource;
-	WriteMacInt32(tvec, tvec2[0]);
-	WriteMacInt32(tvec + 4, tvec2[1]);
-#else
 	WriteMacInt32(tvec, (uint32)get_named_resource);
-#endif
 #endif
 
 	// Patch native Get1NamedResource()
@@ -1039,12 +762,6 @@ void PatchNativeResourceManager(void)
 #if EMULATED_PPC
 	WriteMacInt32(tvec, NativeFunction(NATIVE_GET_1_NAMED_RESOURCE));
 #else
-#ifdef __BEOS__
-	tvec2 = (uint32 *)get_1_named_resource;
-	WriteMacInt32(tvec, tvec2[0]);
-	WriteMacInt32(tvec + 4, tvec2[1]);
-#else
 	WriteMacInt32(tvec, (uint32)get_1_named_resource);
-#endif
 #endif
 }

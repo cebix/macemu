@@ -89,18 +89,6 @@ static inline void _cdecl winbug(wchar_t *s, ...)
 #define bug winbug
 #define wbug wwinbug
 
-#elif defined(AMIGA)
-
-// Amiga debugging info goes to serial port (or sushi)
-#ifdef __cplusplus
-extern "C" {
-#endif
-extern void kprintf(const char *, ...);
-#ifdef __cplusplus
-}
-#endif
-#define bug kprintf
-
 #else
 
 // Other systems just print it to stdout
