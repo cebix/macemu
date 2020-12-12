@@ -228,7 +228,6 @@
 		7539E20C1F23B32A006B2DF2 /* freebsd-i386.ld */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "freebsd-i386.ld"; sourceTree = "<group>"; };
 		7539E20D1F23B32A006B2DF2 /* linux-i386.ld */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "linux-i386.ld"; sourceTree = "<group>"; };
 		7539E20E1F23B32A006B2DF2 /* linux-ppc.ld */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "linux-ppc.ld"; sourceTree = "<group>"; };
-		7539E20F1F23B32A006B2DF2 /* linux-x86_64.ld */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "linux-x86_64.ld"; sourceTree = "<group>"; };
 		7539E2181F23B32A006B2DF2 /* egrep.m4 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = egrep.m4; sourceTree = "<group>"; };
 		7539E2191F23B32A006B2DF2 /* esd.m4 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = esd.m4; sourceTree = "<group>"; };
 		7539E21A1F23B32A006B2DF2 /* gettext.m4 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = gettext.m4; sourceTree = "<group>"; };
@@ -620,7 +619,6 @@
 				7539E20C1F23B32A006B2DF2 /* freebsd-i386.ld */,
 				7539E20D1F23B32A006B2DF2 /* linux-i386.ld */,
 				7539E20E1F23B32A006B2DF2 /* linux-ppc.ld */,
-				7539E20F1F23B32A006B2DF2 /* linux-x86_64.ld */,
 			);
 			path = ldscripts;
 			sourceTree = "<group>";
