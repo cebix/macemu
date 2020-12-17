@@ -2347,13 +2347,13 @@ static void handle_events(void)
 					code = event2keycode(event.key, true);
 				if (code >= 0) {
 					if (!emul_suspended) {
-#ifdef WIN32
+#ifdef __MACOSX__
+						ADBKeyDown(code);
+#else
 						if (code == 0x39)
 							(SDL_GetModState() & KMOD_CAPS ? ADBKeyDown : ADBKeyUp)(code);
 						else
 							ADBKeyDown(code);
-#else
-						ADBKeyDown(code);
 #endif
 						if (code == 0x36)
 							ctrl_down = true;
@@ -2376,11 +2376,11 @@ static void handle_events(void)
 				if (code == CODE_INVALID)
 					code = event2keycode(event.key, false);
 				if (code >= 0) {
-#ifdef WIN32
+#ifdef __MACOSX__
+					ADBKeyUp(code);
+#else
 					if (code != 0x39)
 						ADBKeyUp(code);
-#else
-					ADBKeyUp(code);
 #endif
 					if (code == 0x36)
 						ctrl_down = false;
