@@ -1767,9 +1767,7 @@ static void create_memory_pane(GtkWidget *top)
 		case 14: active = 1; break;
 	}
 	table_make_option_menu(table, 2, STR_MODELID_CTRL, model_options, active);
-#endif
 
-#if EMULATED_68K
 	static const opt_desc cpu_options[] = {
 		{STR_CPU_68020_LAB, GTK_SIGNAL_FUNC(mn_cpu_68020)},
 		{STR_CPU_68020_FPU_LAB, GTK_SIGNAL_FUNC(mn_cpu_68020_fpu)},

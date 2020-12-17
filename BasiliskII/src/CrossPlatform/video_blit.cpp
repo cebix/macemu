@@ -516,14 +516,13 @@ static Screen_blit_func_info Screen_blitters[] = {
 // Initialize the framebuffer update function
 // Returns FALSE, if the function was to be reduced to a simple memcpy()
 // --> In that case, VOSF is not necessary
-bool Screen_blitter_init(VisualFormat const & visual_format, bool native_byte_order, int mac_depth)
-{
+bool Screen_blitter_init(VisualFormat const & visual_format, bool native_byte_order, int mac_depth){
 #if USE_SDL_VIDEO
 	const bool use_sdl_video = true;
 #else
 	const bool use_sdl_video = false;
 #endif
-#if REAL_ADDRESSING || DIRECT_ADDRESSING || USE_SDL_VIDEO
+#if DIRECT_ADDRESSING || USE_SDL_VIDEO
 	if (mac_depth == 1 && !use_sdl_video && !visual_format.fullscreen) {
 
 		// Windowed 1-bit mode uses a 1-bit X image, so there's no need for special blitting routines

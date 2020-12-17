@@ -23,7 +23,7 @@
 #ifndef UAE_MEMORY_H
 #define UAE_MEMORY_H
 
-#if !DIRECT_ADDRESSING && !REAL_ADDRESSING
+#if !DIRECT_ADDRESSING
 
 /* Enabling this adds one additional native memory reference per 68k memory
  * access, but saves one shift (on the x86). Enabling this is probably
@@ -115,15 +115,11 @@ extern void byteput(uaecptr addr, uae_u32 b);
 
 #endif
 
-#endif /* !DIRECT_ADDRESSING && !REAL_ADDRESSING */
+#endif /* !DIRECT_ADDRESSING */
 
-#if REAL_ADDRESSING
-const uintptr MEMBaseDiff = 0;
-#elif DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 extern uintptr MEMBaseDiff;
-#endif
 
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
 static __inline__ uae_u8 *do_get_real_address(uaecptr addr)
 {
 	return (uae_u8 *)MEMBaseDiff + addr;
@@ -201,7 +197,7 @@ static __inline__ uae_u8 *get_real_address(uaecptr addr)
 }
 /* gb-- deliberately not implemented since it shall not be used... */
 extern uae_u32 get_virtual_address(uae_u8 *addr);
-#endif /* DIRECT_ADDRESSING || REAL_ADDRESSING */
+#endif /* DIRECT_ADDRESSING */
 
 #endif /* MEMORY_H */
 

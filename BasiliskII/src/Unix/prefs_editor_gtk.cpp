@@ -1506,7 +1506,6 @@ static void create_memory_pane(GtkWidget *top)
 	}
 	table_make_option_menu(table, 2, STR_MODELID_CTRL, model_options, active);
 
-#if EMULATED_68K
 	static const opt_desc cpu_options[] = {
 		{STR_CPU_68020_LAB, GTK_SIGNAL_FUNC(mn_cpu_68020)},
 		{STR_CPU_68020_FPU_LAB, GTK_SIGNAL_FUNC(mn_cpu_68020_fpu)},
@@ -1524,7 +1523,6 @@ static void create_memory_pane(GtkWidget *top)
 		case 4: active = 4;
 	}
 	table_make_option_menu(table, 3, STR_CPU_CTRL, cpu_options, active);
-#endif
 
 	w_rom_file = table_make_file_entry(table, 4, STR_ROM_FILE_CTRL, "rom");
 

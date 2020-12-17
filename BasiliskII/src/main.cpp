@@ -69,7 +69,6 @@ bool InitAll(const char *vmdir)
 		return false;
 	}
 
-#if EMULATED_68K
 	// Set CPU and FPU type (UAE emulation)
 	switch (ROMVersion) {
 		case ROM_VERSION_64K:
@@ -97,7 +96,6 @@ bool InitAll(const char *vmdir)
 			break;
 	}
 	CPUIs68060 = false;
-#endif
 
 	// Load XPRAM
 	XPRAMInit(vmdir);
@@ -180,11 +178,9 @@ bool InitAll(const char *vmdir)
 	XPRAM[0x58] = uint8(main_monitor.depth_to_apple_mode(main_monitor.get_current_mode().depth));
 	XPRAM[0x59] = 0;
 
-#if EMULATED_68K
 	// Init 680x0 emulation (this also activates the memory system which is needed for PatchROM())
 	if (!Init680x0())
 		return false;
-#endif
 
 	// Install ROM patches
 	if (!PatchROM()) {

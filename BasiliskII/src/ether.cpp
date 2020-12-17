@@ -444,7 +444,6 @@ void ether_udp_read(uint32 packet, int length, struct sockaddr_in *from)
  *  Ethernet packet allocator
  */
 
-#if SIZEOF_VOID_P != 4 || REAL_ADDRESSING == 0
 static uint32 ether_packet = 0;			// Ethernet packet (cached allocation)
 static uint32 n_ether_packets = 0;		// Number of ethernet packets allocated so far (should be at most 1)
 
@@ -476,4 +475,3 @@ EthernetPacket::~EthernetPacket()
 		bug("WARNING: Nested allocation of ethernet packets!\n");
 	}
 }
-#endif

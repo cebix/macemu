@@ -39,22 +39,8 @@
 # include <pthread.h>
 #endif
 
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 # include <sys/mman.h>
-#endif
-
-#if !EMULATED_68K && defined(__NetBSD__)
-# include <m68k/sync_icache.h> 
-# include <m68k/frame.h>
-# include <sys/param.h>
-# include <sys/sysctl.h>
-struct sigstate {
-	int ss_flags;
-	struct frame ss_frame;
-	struct fpframe ss_fpstate;
-};
-# define SS_FPSTATE  0x02
-# define SS_USERREGS 0x04
 #endif
 
 #ifdef ENABLE_GTK
@@ -109,25 +95,9 @@ extern void flush_icache_range(uint8 *start, uint32 size); // from compemu_suppo
 #define DEBUG 0
 #include "debug.h"
 
-
 // Constants
 const char ROM_FILE_NAME[] = "ROM";
-#if !EMULATED_68K
-const int SIG_STACK_SIZE = SIGSTKSZ;	// Size of signal stack
-#endif
 const int SCRATCH_MEM_SIZE = 0x10000;	// Size of scratch memory area
-
-
-#if !EMULATED_68K
-// RAM and ROM pointers
-uint32 RAMBaseMac;		// RAM base (Mac address space)
-uint8 *RAMBaseHost;		// RAM base (host address space)
-uint32 RAMSize;			// Size of RAM
-uint32 ROMBaseMac;		// ROM base (Mac address space)
-uint8 *ROMBaseHost;		// ROM base (host address space)
-uint32 ROMSize;			// Size of ROM
-#endif
-
 
 // CPU and FPU type, addressing mode
 int CPUType;
@@ -148,10 +118,6 @@ X11_LOCK_TYPE x_display_lock = X11_LOCK_INIT;		// X11 display lock
 static uint8 last_xpram[XPRAM_SIZE];				// Buffer for monitoring XPRAM changes
 
 #ifdef HAVE_PTHREADS
-#if !EMULATED_68K
-static pthread_t emul_thread;						// Handle of MacOS emulation thread (main thread)
-#endif
-
 static bool xpram_thread_active = false;			// Flag: XPRAM watchdog installed
 static volatile bool xpram_thread_cancel = false;	// Flag: Cancel XPRAM thread
 static pthread_t xpram_thread;						// XPRAM watchdog
@@ -172,14 +138,6 @@ static pthread_mutex_t intflag_lock = PTHREAD_MUTEX_INITIALIZER;	// Mutex to pro
 
 #endif
 
-#if !EMULATED_68K
-#define SIG_IRQ SIGUSR1
-static struct sigaction sigirq_sa;	// Virtual 68k interrupt signal
-static struct sigaction sigill_sa;	// Illegal instruction
-static void *sig_stack = NULL;		// Stack for signal handlers
-uint16 EmulatedSR;					// Emulated bits of SR (supervisor bit and interrupt mask)
-#endif
-
 #if USE_SCRATCHMEM_SUBTERFUGE
 uint8 *ScratchMem = NULL;			// Scratch memory for Mac ROM writes
 #endif
@@ -198,10 +156,6 @@ static struct sigaction sigint_sa;	// sigaction for SIGINT handler
 static void sigint_handler(...);
 #endif
 
-#if REAL_ADDRESSING
-static bool lm_area_mapped = false;	// Flag: Low Memory area mmap()ped
-#endif
-
 static rpc_connection_t *gui_connection = NULL;	// RPC connection to the GUI
 static const char *gui_connection_path = NULL;	// GUI connection identifier
 
@@ -210,11 +164,6 @@ static const char *gui_connection_path = NULL;	// GUI connection identifier
 static void *xpram_func(void *arg);
 static void *tick_func(void *arg);
 static void one_tick(...);
-#if !EMULATED_68K
-static void sigirq_handler(int sig, int code, struct sigcontext *scp);
-static void sigill_handler(int sig, int code, struct sigcontext *scp);
-extern "C" void EmulOpTrampoline(void);
-#endif
 
 // vde switch variable
 char* vde_sock;
@@ -292,7 +241,6 @@ static void sigsegv_dump_state(sigsegv_info_t *sip)
 	if (fault_instruction != SIGSEGV_INVALID_ADDRESS)
 		fprintf(stderr, " [IP=%p]", fault_instruction);
 	fprintf(stderr, "\n");
-#if EMULATED_68K
 	uaecptr nextpc;
 #ifdef UPDATE_UAE
 	extern void m68k_dumpstate(FILE *, uaecptr *nextpc);
@@ -300,7 +248,6 @@ static void sigsegv_dump_state(sigsegv_info_t *sip)
 #else
 	extern void m68k_dumpstate(uaecptr *nextpc);
 	m68k_dumpstate(&nextpc);
-#endif
 #endif
 #if USE_JIT && JIT_DEBUG
 	extern void compiler_dumpstate(void);
@@ -606,56 +553,14 @@ int main(int argc, char **argv)
 	if (RAMSize > 1023*1024*1024)						// Cap to 1023MB (APD crashes at 1GB)
 		RAMSize = 1023*1024*1024;
 
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 	RAMSize = RAMSize & -getpagesize();					// Round down to page boundary
 #endif
 	
 	// Initialize VM system
 	vm_init();
 
-#if REAL_ADDRESSING
-	// Flag: RAM and ROM are contigously allocated from address 0
-	bool memory_mapped_from_zero = false;
-
-	// Make sure to map RAM & ROM at address 0 only on platforms that
-	// supports linker scripts to relocate the Basilisk II executable
-	// above 0x70000000
-#if HAVE_LINKER_SCRIPT
-	const bool can_map_all_memory = true;
-#else
-	const bool can_map_all_memory = false;
-#endif
-	
-	// Try to allocate all memory from 0x0000, if it is not known to crash
-	if (can_map_all_memory && (vm_acquire_mac_fixed(0, RAMSize + 0x100000) == 0)) {
-		D(bug("Could allocate RAM and ROM from 0x0000\n"));
-		memory_mapped_from_zero = true;
-	}
-	
-#ifndef PAGEZERO_HACK
-	// Otherwise, just create the Low Memory area (0x0000..0x2000)
-	else if (vm_acquire_mac_fixed(0, 0x2000) == 0) {
-		D(bug("Could allocate the Low Memory globals\n"));
-		lm_area_mapped = true;
-	}
-	
-	// Exit on failure
-	else {
-		sprintf(str, GetString(STR_LOW_MEM_MMAP_ERR), strerror(errno));
-		ErrorAlert(str);
-		QuitEmulator();
-	}
-#endif
-#endif /* REAL_ADDRESSING */
-
 	// Create areas for Mac RAM and ROM
-#if REAL_ADDRESSING
-	if (memory_mapped_from_zero) {
-		RAMBaseHost = (uint8 *)0;
-		ROMBaseHost = RAMBaseHost + RAMSize;
-	}
-	else
-#endif
 	{
 		uint8 *ram_rom_area = (uint8 *)vm_acquire_mac(RAMSize + 0x100000);
 		if (ram_rom_area == VM_MAP_FAILED) {	
@@ -680,10 +585,6 @@ int main(int argc, char **argv)
 	// RAMBaseMac shall always be zero
 	MEMBaseDiff = (uintptr)RAMBaseHost;
 	RAMBaseMac = 0;
-	ROMBaseMac = Host2MacAddr(ROMBaseHost);
-#endif
-#if REAL_ADDRESSING
-	RAMBaseMac = Host2MacAddr(RAMBaseHost);
 	ROMBaseMac = Host2MacAddr(ROMBaseHost);
 #endif
 
@@ -715,35 +616,6 @@ int main(int argc, char **argv)
 		QuitEmulator();
 	}
 
-#if !EMULATED_68K
-	// Get CPU model
-	int mib[2] = {CTL_HW, HW_MODEL};
-	char *model;
-	size_t model_len;
-	sysctl(mib, 2, NULL, &model_len, NULL, 0);
-	model = (char *)malloc(model_len);
-	sysctl(mib, 2, model, &model_len, NULL, 0);
-	D(bug("Model: %s\n", model));
-
-	// Set CPU and FPU type
-	CPUIs68060 = false;
-	if (strstr(model, "020"))
-		CPUType = 2;
-	else if (strstr(model, "030"))
-		CPUType = 3;
-	else if (strstr(model, "040"))
-		CPUType = 4;
-	else if (strstr(model, "060")) {
-		CPUType = 4;
-		CPUIs68060 = true;
-	} else {
-		printf("WARNING: Cannot detect CPU type, assuming 68020\n");
-		CPUType = 2;
-	}
-	FPUType = 1;	// NetBSD has an FPU emulation, so the FPU ought to be available at all times
-	TwentyFourBitAddressing = false;
-#endif
-
 	// Initialize everything
 	if (!InitAll(vmdir))
 		QuitEmulator();
@@ -751,57 +623,6 @@ int main(int argc, char **argv)
 
 	D(bug("Mac RAM starts at %p (%08x)\n", RAMBaseHost, RAMBaseMac));
 	D(bug("Mac ROM starts at %p (%08x)\n", ROMBaseHost, ROMBaseMac));
-
-#if !EMULATED_68K
-	// (Virtual) supervisor mode, disable interrupts
-	EmulatedSR = 0x2700;
-
-#ifdef HAVE_PTHREADS
-	// Get handle of main thread
-	emul_thread = pthread_self();
-#endif
-
-	// Create and install stack for signal handlers
-	sig_stack = malloc(SIG_STACK_SIZE);
-	D(bug("Signal stack at %p\n", sig_stack));
-	if (sig_stack == NULL) {
-		ErrorAlert(STR_NOT_ENOUGH_MEMORY_ERR);
-		QuitEmulator();
-	}
-	stack_t new_stack;
-	new_stack.ss_sp = sig_stack;
-	new_stack.ss_flags = 0;
-	new_stack.ss_size = SIG_STACK_SIZE;
-	if (sigaltstack(&new_stack, NULL) < 0) {
-		sprintf(str, GetString(STR_SIGALTSTACK_ERR), strerror(errno));
-		ErrorAlert(str);
-		QuitEmulator();
-	}
-
-	// Install SIGILL handler for emulating privileged instructions and
-	// executing A-Trap and EMUL_OP opcodes
-	sigemptyset(&sigill_sa.sa_mask);	// Block virtual 68k interrupts during SIGILL handling
-	sigaddset(&sigill_sa.sa_mask, SIG_IRQ);
-	sigaddset(&sigill_sa.sa_mask, SIGALRM);
-	sigill_sa.sa_handler = (void (*)(int))sigill_handler;
-	sigill_sa.sa_flags = SA_ONSTACK;
-	if (sigaction(SIGILL, &sigill_sa, NULL) < 0) {
-		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGILL", strerror(errno));
-		ErrorAlert(str);
-		QuitEmulator();
-	}
-
-	// Install virtual 68k interrupt signal handler
-	sigemptyset(&sigirq_sa.sa_mask);
-	sigaddset(&sigirq_sa.sa_mask, SIGALRM);
-	sigirq_sa.sa_handler = (void (*)(int))sigirq_handler;
-	sigirq_sa.sa_flags = SA_ONSTACK | SA_RESTART;
-	if (sigaction(SIG_IRQ, &sigirq_sa, NULL) < 0) {
-		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIG_IRQ", strerror(errno));
-		ErrorAlert(str);
-		QuitEmulator();
-	}
-#endif
 
 #ifdef ENABLE_MON
 	// Setup SIGINT handler to enter mon
@@ -859,9 +680,6 @@ int main(int argc, char **argv)
 
 	// Start 60Hz timer
 	sigemptyset(&timer_sa.sa_mask);		// Block virtual 68k interrupts during SIGARLM handling
-#if !EMULATED_68K
-	sigaddset(&timer_sa.sa_mask, SIG_IRQ);
-#endif
 	timer_sa.sa_handler = one_tick;
 	timer_sa.sa_flags = SA_ONSTACK | SA_RESTART;
 	if (sigaction(SIGALRM, &timer_sa, NULL) < 0) {
@@ -901,10 +719,8 @@ void QuitEmulator(void)
 {
 	D(bug("QuitEmulator\n"));
 
-#if EMULATED_68K
 	// Exit 680x0 emulation
 	Exit680x0();
-#endif
 
 #if defined(USE_CPU_EMUL_SERVICES)
 	// Show statistics
@@ -960,12 +776,6 @@ void QuitEmulator(void)
 	}
 #endif
 
-#if REAL_ADDRESSING
-	// Delete Low Memory area
-	if (lm_area_mapped)
-		vm_release(0, 0x2000);
-#endif
-	
 	// Exit VM wrappers
 	vm_exit();
 
@@ -996,8 +806,7 @@ void QuitEmulator(void)
  *  or a dynamically recompiling emulator)
  */
 
-void FlushCodeCache(void *start, uint32 size)
-{
+void FlushCodeCache(void *start, uint32 size){
 #if USE_JIT
     if (UseJIT)
 #ifdef UPDATE_UAE
@@ -1005,9 +814,6 @@ void FlushCodeCache(void *start, uint32 size)
 #else
 		flush_icache_range((uint8 *)start, size);
 #endif
-#endif
-#if !EMULATED_68K && defined(__NetBSD__)
-	m68k_sync_icache(start, size);
 #endif
 }
 
@@ -1017,9 +823,7 @@ void FlushCodeCache(void *start, uint32 size)
  */
 
 #ifdef ENABLE_MON
-static void sigint_handler(...)
-{
-#if EMULATED_68K
+static void sigint_handler(...){
 	uaecptr nextpc;
 #ifdef UPDATE_UAE
 	extern void m68k_dumpstate(FILE *, uaecptr *nextpc);
@@ -1027,7 +831,6 @@ static void sigint_handler(...)
 #else
 	extern void m68k_dumpstate(uaecptr *nextpc);
 	m68k_dumpstate(&nextpc);
-#endif
 #endif
 	VideoQuitFullScreen();
 	const char *arg[4] = {"mon", "-m", "-r", NULL};
@@ -1155,38 +958,17 @@ void B2_delete_mutex(B2_mutex *mutex)
 
 uint32 InterruptFlags = 0;
 
-#if EMULATED_68K
-void SetInterruptFlag(uint32 flag)
-{
+void SetInterruptFlag(uint32 flag){
 	LOCK_INTFLAGS;
 	InterruptFlags |= flag;
 	UNLOCK_INTFLAGS;
 }
 
-void ClearInterruptFlag(uint32 flag)
-{
+void ClearInterruptFlag(uint32 flag){
 	LOCK_INTFLAGS;
 	InterruptFlags &= ~flag;
 	UNLOCK_INTFLAGS;
 }
-#endif
-
-#if !EMULATED_68K
-void TriggerInterrupt(void)
-{
-#if defined(HAVE_PTHREADS)
-	pthread_kill(emul_thread, SIG_IRQ);
-#else
-	raise(SIG_IRQ);
-#endif
-}
-
-void TriggerNMI(void)
-{
-	// not yet supported
-}
-#endif
-
 
 /*
  *  XPRAM watchdog thread (saves XPRAM every minute)
@@ -1280,312 +1062,6 @@ static void *tick_func(void *arg)
 	return NULL;
 }
 #endif
-
-
-#if !EMULATED_68K
-/*
- *  Virtual 68k interrupt handler
- */
-
-static void sigirq_handler(int sig, int code, struct sigcontext *scp)
-{
-	// Interrupts disabled? Then do nothing
-	if (EmulatedSR & 0x0700)
-		return;
-
-	struct sigstate *state = (struct sigstate *)scp->sc_ap;
-	M68kRegisters *regs = (M68kRegisters *)&state->ss_frame;
-
-	// Set up interrupt frame on stack
-	uint32 a7 = regs->a[7];
-	a7 -= 2;
-	WriteMacInt16(a7, 0x64);
-	a7 -= 4;
-	WriteMacInt32(a7, scp->sc_pc);
-	a7 -= 2;
-	WriteMacInt16(a7, scp->sc_ps | EmulatedSR);
-	scp->sc_sp = regs->a[7] = a7;
-
-	// Set interrupt level
-	EmulatedSR |= 0x2100;
-
-	// Jump to MacOS interrupt handler on return
-	scp->sc_pc = ReadMacInt32(0x64);
-}
-
-
-/*
- *  SIGILL handler, for emulation of privileged instructions and executing
- *  A-Trap and EMUL_OP opcodes
- */
-
-static void sigill_handler(int sig, int code, struct sigcontext *scp)
-{
-	struct sigstate *state = (struct sigstate *)scp->sc_ap;
-	uint16 *pc = (uint16 *)scp->sc_pc;
-	uint16 opcode = *pc;
-	M68kRegisters *regs = (M68kRegisters *)&state->ss_frame;
-
-#define INC_PC(n) scp->sc_pc += (n)
-
-#define GET_SR (scp->sc_ps | EmulatedSR)
-
-#define STORE_SR(v) \
-	scp->sc_ps = (v) & 0xff; \
-	EmulatedSR = (v) & 0xe700; \
-	if (((v) & 0x0700) == 0 && InterruptFlags) \
-		TriggerInterrupt();
-
-//printf("opcode %04x at %p, sr %04x, emul_sr %04x\n", opcode, pc, scp->sc_ps, EmulatedSR);
-
-	if ((opcode & 0xf000) == 0xa000) {
-
-		// A-Line instruction, set up A-Line trap frame on stack
-		uint32 a7 = regs->a[7];
-		a7 -= 2;
-		WriteMacInt16(a7, 0x28);
-		a7 -= 4;
-		WriteMacInt32(a7, (uint32)pc);
-		a7 -= 2;
-		WriteMacInt16(a7, GET_SR);
-		scp->sc_sp = regs->a[7] = a7;
-
-		// Jump to MacOS A-Line handler on return
-		scp->sc_pc = ReadMacInt32(0x28);
-
-	} else if ((opcode & 0xff00) == 0x7100) {
-
-		// Extended opcode, push registers on user stack
-		uint32 a7 = regs->a[7];
-		a7 -= 4;
-		WriteMacInt32(a7, (uint32)pc);
-		a7 -= 2;
-		WriteMacInt16(a7, scp->sc_ps);
-		for (int i=7; i>=0; i--) {
-			a7 -= 4;
-			WriteMacInt32(a7, regs->a[i]);
-		}
-		for (int i=7; i>=0; i--) {
-			a7 -= 4;
-			WriteMacInt32(a7, regs->d[i]);
-		}
-		scp->sc_sp = regs->a[7] = a7;
-
-		// Jump to EmulOp trampoline code on return
-		scp->sc_pc = (uint32)EmulOpTrampoline;
-		
-	} else switch (opcode) {	// Emulate privileged instructions
-
-		case 0x40e7:	// move sr,-(sp)
-			regs->a[7] -= 2;
-			WriteMacInt16(regs->a[7], GET_SR);
-			scp->sc_sp = regs->a[7];
-			INC_PC(2);
-			break;
-
-		case 0x46df: {	// move (sp)+,sr
-			uint16 sr = ReadMacInt16(regs->a[7]);
-			STORE_SR(sr);
-			regs->a[7] += 2;
-			scp->sc_sp = regs->a[7];
-			INC_PC(2);
-			break;
-		}
-
-		case 0x007c: {	// ori #xxxx,sr
-			uint16 sr = GET_SR | pc[1];
-			scp->sc_ps = sr & 0xff;		// oring bits into the sr can't enable interrupts, so we don't need to call STORE_SR
-			EmulatedSR = sr & 0xe700;
-			INC_PC(4);
-			break;
-		}
-
-		case 0x027c: {	// andi #xxxx,sr
-			uint16 sr = GET_SR & pc[1];
-			STORE_SR(sr);
-			INC_PC(4);
-			break;
-		}
-
-		case 0x46fc:	// move #xxxx,sr
-			STORE_SR(pc[1]);
-			INC_PC(4);
-			break;
-
-		case 0x46ef: {	// move (xxxx,sp),sr
-			uint16 sr = ReadMacInt16(regs->a[7] + (int32)(int16)pc[1]);
-			STORE_SR(sr);
-			INC_PC(4);
-			break;
-		}
-
-		case 0x46d8:	// move (a0)+,sr
-		case 0x46d9: {	// move (a1)+,sr
-			uint16 sr = ReadMacInt16(regs->a[opcode & 7]);
-			STORE_SR(sr);
-			regs->a[opcode & 7] += 2;
-			INC_PC(2);
-			break;
-		}
-
-		case 0x40f8:	// move sr,xxxx.w
-			WriteMacInt16(pc[1], GET_SR);
-			INC_PC(4);
-			break;
-
-		case 0x40d0:	// move sr,(a0)
-		case 0x40d1:	// move sr,(a1)
-		case 0x40d2:	// move sr,(a2)
-		case 0x40d3:	// move sr,(a3)
-		case 0x40d4:	// move sr,(a4)
-		case 0x40d5:	// move sr,(a5)
-		case 0x40d6:	// move sr,(a6)
-		case 0x40d7:	// move sr,(sp)
-			WriteMacInt16(regs->a[opcode & 7], GET_SR);
-			INC_PC(2);
-			break;
-
-		case 0x40c0:	// move sr,d0
-		case 0x40c1:	// move sr,d1
-		case 0x40c2:	// move sr,d2
-		case 0x40c3:	// move sr,d3
-		case 0x40c4:	// move sr,d4
-		case 0x40c5:	// move sr,d5
-		case 0x40c6:	// move sr,d6
-		case 0x40c7:	// move sr,d7
-			regs->d[opcode & 7] = GET_SR;
-			INC_PC(2);
-			break;
-
-		case 0x46c0:	// move d0,sr
-		case 0x46c1:	// move d1,sr
-		case 0x46c2:	// move d2,sr
-		case 0x46c3:	// move d3,sr
-		case 0x46c4:	// move d4,sr
-		case 0x46c5:	// move d5,sr
-		case 0x46c6:	// move d6,sr
-		case 0x46c7: {	// move d7,sr
-			uint16 sr = regs->d[opcode & 7];
-			STORE_SR(sr);
-			INC_PC(2);
-			break;
-		}
-
-		case 0xf327:	// fsave -(sp)
-			regs->a[7] -= 4;
-			WriteMacInt32(regs->a[7], 0x41000000);	// Idle frame
-			scp->sc_sp = regs->a[7];
-			INC_PC(2);
-			break;
-
-		case 0xf35f:	// frestore (sp)+
-			regs->a[7] += 4;
-			scp->sc_sp = regs->a[7];
-			INC_PC(2);
-			break;
-
-		case 0x4e73: {	// rte
-			uint32 a7 = regs->a[7];
-			uint16 sr = ReadMacInt16(a7);
-			a7 += 2;
-			scp->sc_ps = sr & 0xff;
-			EmulatedSR = sr & 0xe700;
-			scp->sc_pc = ReadMacInt32(a7);
-			a7 += 4;
-			uint16 format = ReadMacInt16(a7) >> 12;
-			a7 += 2;
-			static const int frame_adj[16] = {
-				0, 0, 4, 4, 8, 0, 0, 52, 50, 12, 24, 84, 16, 0, 0, 0
-			};
-			scp->sc_sp = regs->a[7] = a7 + frame_adj[format];
-			break;
-		}
-
-		case 0x4e7a:	// movec cr,x
-			switch (pc[1]) {
-				case 0x0002:	// movec cacr,d0
-					regs->d[0] = 0x3111;
-					break;
-				case 0x1002:	// movec cacr,d1
-					regs->d[1] = 0x3111;
-					break;
-				case 0x0003:	// movec tc,d0
-				case 0x0004:	// movec itt0,d0
-				case 0x0005:	// movec itt1,d0
-				case 0x0006:	// movec dtt0,d0
-				case 0x0007:	// movec dtt1,d0
-				case 0x0806:	// movec urp,d0
-				case 0x0807:	// movec srp,d0
-					regs->d[0] = 0;
-					break;
-				case 0x1000:	// movec sfc,d1
-				case 0x1001:	// movec dfc,d1
-				case 0x1003:	// movec tc,d1
-				case 0x1801:	// movec vbr,d1
-					regs->d[1] = 0;
-					break;
-				case 0x8801:	// movec vbr,a0
-					regs->a[0] = 0;
-					break;
-				case 0x9801:	// movec vbr,a1
-					regs->a[1] = 0;
-					break;
-				default:
-					goto ill;
-			}
-			INC_PC(4);
-			break;
-
-		case 0x4e7b:	// movec x,cr
-			switch (pc[1]) {
-				case 0x1000:	// movec d1,sfc
-				case 0x1001:	// movec d1,dfc
-				case 0x0801:	// movec d0,vbr
-				case 0x1801:	// movec d1,vbr
-					break;
-				case 0x0002:	// movec d0,cacr
-				case 0x1002:	// movec d1,cacr
-					FlushCodeCache(NULL, 0);
-					break;
-				default:
-					goto ill;
-			}
-			INC_PC(4);
-			break;
-
-		case 0xf478:	// cpusha dc
-		case 0xf4f8:	// cpusha dc/ic
-			FlushCodeCache(NULL, 0);
-			INC_PC(2);
-			break;
-
-		default:
-ill:		printf("SIGILL num %d, code %d\n", sig, code);
-			printf(" context %p:\n", scp);
-			printf("  onstack %08x\n", scp->sc_onstack);
-			printf("  sp %08x\n", scp->sc_sp);
-			printf("  fp %08x\n", scp->sc_fp);
-			printf("  pc %08x\n", scp->sc_pc);
-			printf("   opcode %04x\n", opcode);
-			printf("  sr %08x\n", scp->sc_ps);
-			printf(" state %p:\n", state);
-			printf("  flags %d\n", state->ss_flags);
-			for (int i=0; i<8; i++)
-				printf("  d%d %08x\n", i, state->ss_frame.f_regs[i]);
-			for (int i=0; i<8; i++)
-				printf("  a%d %08x\n", i, state->ss_frame.f_regs[i+8]);
-
-			VideoQuitFullScreen();
-#ifdef ENABLE_MON
-			const char *arg[4] = {"mon", "-m", "-r", NULL};
-			mon(3, arg);
-#endif
-			QuitEmulator();
-			break;
-	}
-}
-#endif
-
 
 /*
  *  Display alert

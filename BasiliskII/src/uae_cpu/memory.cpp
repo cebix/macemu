@@ -34,7 +34,7 @@
 #include "readcpu.h"
 #include "newcpu.h"
 
-#if !REAL_ADDRESSING && !DIRECT_ADDRESSING
+#if !DIRECT_ADDRESSING
 
 static bool illegal_mem = false;
 
@@ -638,5 +638,5 @@ void map_banks(addrbank *bank, int start, int size)
 	    put_mem_bank((bnr + hioffs) << 16, bank);
 }
 
-#endif /* !REAL_ADDRESSING && !DIRECT_ADDRESSING */
+#endif /* !DIRECT_ADDRESSING */
 

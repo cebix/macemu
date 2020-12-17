@@ -409,7 +409,7 @@ OSX_monitor :: OSX_monitor (const	vector<video_mode>	&available_modes,
 void
 OSX_monitor::set_mac_frame_buffer(const video_mode mode)
 {
-#if !REAL_ADDRESSING && !DIRECT_ADDRESSING
+#if !DIRECT_ADDRESSING
 	set_mac_frame_base(MacFrameBaseMac);
 
 	// Set variables used by UAE memory banking

@@ -763,7 +763,7 @@ shouldProceedAfterError: (NSDictionary *) errorDict
 	cpu = PrefsFindInt32("cpu");
 	val = PrefsFindInt32("modelid");
 
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 	puts("Current memory model does not support 24bit addressing");
 	if ( val == [classic tag] )
 	{

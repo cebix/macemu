@@ -303,7 +303,7 @@ static int backup_pointer = 0;
 static long int m68kpc_offset;
 int lastint_no;
 
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 #define get_ibyte_1(o) get_byte(get_virtual_address(regs.pc_p) + (o) + 1)
 #define get_iword_1(o) get_word(get_virtual_address(regs.pc_p) + (o))
 #define get_ilong_1(o) get_long(get_virtual_address(regs.pc_p) + (o))

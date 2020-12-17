@@ -61,19 +61,13 @@ enum {
 
 extern uint32 ether_data;	// Mac address of driver data in MacOS RAM
 
-// Ethernet packet allocator (optimized for 32-bit platforms in real addressing mode)
+// Ethernet packet allocator
 class EthernetPacket {
-#if SIZEOF_VOID_P == 4 && REAL_ADDRESSING
-	uint8 packet[1516];
- public:
-	uint32 addr(void) const { return (uint32)packet; }
-#else
 	uint32 packet;
  public:
 	EthernetPacket();
 	~EthernetPacket();
 	uint32 addr(void) const { return packet; }
-#endif
 };
 
 // Copy packet data from WDS to linear buffer (must hold at least 1514 bytes),

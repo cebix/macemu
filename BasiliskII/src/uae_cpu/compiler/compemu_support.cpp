@@ -27,8 +27,8 @@
 
 #if USE_JIT
 
-#if !REAL_ADDRESSING && !DIRECT_ADDRESSING
-#error "Only Real or Direct Addressing is supported with the JIT Compiler"
+#if !DIRECT_ADDRESSING
+#error "Only Direct Addressing is supported with the JIT Compiler"
 #endif
 
 #if X86_ASSEMBLY && !SAHF_SETO_PROFITABLE
@@ -5565,9 +5565,7 @@ void get_n_addr(int address, int dest, int tmp)
 	f=dest;
 	}
 
-#if REAL_ADDRESSING
-	mov_l_rr(dest, address);
-#elif DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 	lea_l_brr(dest,address,MEMBaseDiff);
 #endif
 	forget_about(tmp);
@@ -7080,7 +7078,7 @@ void execute_normal(void)
 	if (!check_for_cache_miss()) {
 		cpu_history pc_hist[MAXRUN];
 		int blocklen = 0;
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 		start_pc_p = regs.pc_p;
 		start_pc = get_virtual_address(regs.pc_p);
 #else

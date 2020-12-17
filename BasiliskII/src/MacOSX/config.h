@@ -31,9 +31,6 @@
 /* Define if using "mon". */
 /* #undef ENABLE_MON */
 
-/* Define if using native 68k mode. */
-/* #undef ENABLE_NATIVE_M68K */
-
 /* Define to 1 if translation of program messages to the user's native
    language is requested. */
 /* #undef ENABLE_NLS */

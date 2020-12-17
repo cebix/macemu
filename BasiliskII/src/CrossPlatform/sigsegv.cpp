@@ -2924,10 +2924,6 @@ static bool sigsegv_do_install_handler(int sig)
 	sigemptyset(&sigsegv_sa.sa_mask);
 	sigsegv_sa.sa_handler = (signal_handler)sigsegv_handler;
 	sigsegv_sa.sa_flags = 0;
-#if !EMULATED_68K && defined(__NetBSD__)
-	sigaddset(&sigsegv_sa.sa_mask, SIGALRM);
-	sigsegv_sa.sa_flags |= SA_ONSTACK;
-#endif
 	return (sigaction(sig, &sigsegv_sa, 0) == 0);
 #else
 	return (signal(sig, (signal_handler)sigsegv_handler) != SIG_ERR);

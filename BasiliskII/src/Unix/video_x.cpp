@@ -406,7 +406,7 @@ static void add_window_modes(video_depth depth)
 // Set Mac frame layout and base address (uses the_buffer/MacFrameBaseMac)
 static void set_mac_frame_buffer(X11_monitor_desc &monitor, video_depth depth, bool native_byte_order)
 {
-#if !REAL_ADDRESSING && !DIRECT_ADDRESSING
+#if !DIRECT_ADDRESSING
 	int layout = FLAYOUT_DIRECT;
 	if (depth == VDEPTH_16BIT)
 		layout = (xdepth == 15) ? FLAYOUT_HOST_555 : FLAYOUT_HOST_565;
@@ -1184,7 +1184,7 @@ driver_fbdev::driver_fbdev(X11_monitor_desc &m) : driver_dga(m)
 	}
 	
 #if ENABLE_VOSF
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 	// Screen_blitter_init() returns TRUE if VOSF is mandatory
 	// i.e. the framebuffer update function is not Blit_Copy_Raw
 	use_vosf = Screen_blitter_init(visualFormat, true, mode.depth);
@@ -1321,7 +1321,7 @@ driver_xf86dga::driver_xf86dga(X11_monitor_desc &m)
 	// Init blitting routines
 	int bytes_per_row = TrivialBytesPerRow((v_width + 7) & ~7, mode.depth);
 #if ENABLE_VOSF
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 	// Screen_blitter_init() returns TRUE if VOSF is mandatory
 	// i.e. the framebuffer update function is not Blit_Copy_Raw
 	use_vosf = Screen_blitter_init(visualFormat, x_native_byte_order, depth_of_video_mode(mode));
@@ -2527,7 +2527,7 @@ static void video_refresh_dga(void)
 }
 
 #ifdef ENABLE_VOSF
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 static void video_refresh_dga_vosf(void)
 {
 	// Quit DGA mode if requested
@@ -2600,7 +2600,7 @@ static void VideoRefreshInit(void)
 {
 	// TODO: set up specialised 8bpp VideoRefresh handlers ?
 	if (display_type == DISPLAY_DGA) {
-#if ENABLE_VOSF && (REAL_ADDRESSING || DIRECT_ADDRESSING)
+#if ENABLE_VOSF && DIRECT_ADDRESSING
 		if (use_vosf)
 			video_refresh = video_refresh_dga_vosf;
 		else

@@ -182,7 +182,7 @@ static __inline__ void fill_prefetch_2 (void)
 
 static __inline__ uaecptr m68k_getpc (void)
 {
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 	return get_virtual_address(regs.pc_p);
 #else
 	return regs.pc + ((char *)regs.pc_p - (char *)regs.pc_oldp);
@@ -195,7 +195,7 @@ static __inline__ void m68k_setpc (uaecptr newpc)
 	uae_u32 previous_pc = m68k_getpc();
 #endif
 
-#if REAL_ADDRESSING || DIRECT_ADDRESSING
+#if DIRECT_ADDRESSING
 	regs.pc_p = get_real_address(newpc);
 #else
 	regs.pc_p = regs.pc_oldp = get_real_address(newpc);
