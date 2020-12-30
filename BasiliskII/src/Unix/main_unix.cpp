@@ -211,6 +211,8 @@ static void sigill_handler(int sig, int code, struct sigcontext *scp);
 extern "C" void EmulOpTrampoline(void);
 #endif
 
+// vde switch variable
+char* vde_sock;
 
 /*
  *  Ersatz functions
@@ -378,7 +380,8 @@ static void usage(const char *prg_name)
 		"  --display STRING\n    X display to use\n"
 		"  --break ADDRESS\n    set ROM breakpoint in hexadecimal\n"
 		"  --loadbreak FILE\n    load breakpoint from FILE\n"
-		"  --rominfo\n    dump ROM information\n", prg_name
+		"  --rominfo\n    dump ROM information\n"
+		"  --switch SWITCH_PATH\n    vde_switch address\n", prg_name
 	);
 	LoadPrefs(NULL); // read the prefs file so PrefsPrintUsage() will print the correct default values
 	PrefsPrintUsage();
@@ -443,19 +446,27 @@ int main(int argc, char **argv)
 		} else if (strcmp(argv[i], "--rominfo") == 0) {
 			argv[i] = NULL;
 			PrintROMInfo = true;
+		} else if (strcmp(argv[i], "--switch") == 0) {
+			argv[i] = NULL;
+			if (argv[++i] == NULL) {
+				printf("switch address not defined\n");
+				usage(argv[0]);
+			}
+			vde_sock = argv[i];
+			argv[i] = NULL;
 		}
 		
 #if defined(__APPLE__) && defined(__MACH__)
 		// Mac OS X likes to pass in various options of its own, when launching an app.
 		// Attempt to ignore these.
-        if (argv[i]) {
-            const char * mac_psn_prefix = "-psn_";
-            if (strcmp(argv[i], "-NSDocumentRevisionsDebugMode") == 0) {
-                argv[i] = NULL;
-            } else if (strncmp(mac_psn_prefix, argv[i], strlen(mac_psn_prefix)) == 0) {
-                argv[i] = NULL;
-            }
-        }
+		if (argv[i]) {
+			const char * mac_psn_prefix = "-psn_";
+			if (strcmp(argv[i], "-NSDocumentRevisionsDebugMode") == 0) {
+				argv[i] = NULL;
+			} else if (strncmp(mac_psn_prefix, argv[i], strlen(mac_psn_prefix)) == 0) {
+				argv[i] = NULL;
+			}
+		}
 #endif
 	}
 
@@ -665,9 +676,7 @@ int main(int argc, char **argv)
 	RAMBaseMac = Host2MacAddr(RAMBaseHost);
 	ROMBaseMac = Host2MacAddr(ROMBaseHost);
 #endif
-	D(bug("Mac RAM starts at %p (%08x)\n", RAMBaseHost, RAMBaseMac));
-	D(bug("Mac ROM starts at %p (%08x)\n", ROMBaseHost, ROMBaseMac));
-	
+
 #if __MACOSX__
 	extern void set_current_directory();
 	set_current_directory();
@@ -729,6 +738,9 @@ int main(int argc, char **argv)
 	if (!InitAll(vmdir))
 		QuitEmulator();
 	D(bug("Initialization complete\n"));
+
+	D(bug("Mac RAM starts at %p (%08x)\n", RAMBaseHost, RAMBaseMac));
+	D(bug("Mac ROM starts at %p (%08x)\n", ROMBaseHost, ROMBaseMac));
 
 #if !EMULATED_68K
 	// (Virtual) supervisor mode, disable interrupts

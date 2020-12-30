@@ -89,6 +89,11 @@ AC_ARG_WITH(bincue,
 AC_ARG_WITH(libvhd,   
   AS_HELP_STRING([--with-libvhd], [Enable VHD disk images]))
 
+AC_ARG_WITH(vdeplug,
+  AS_HELP_STRING([--with-vdeplug], [Enable VDE virtual network support]),
+  [],
+  [with_vdeplug=yes])
+
   
 dnl Cross Compiling results in 'guesses' being made about the target system. These defaults are oftetimes incorrect.
 dnl The following Environment variables allow you to configure the default guess value for each option in the configure script.
@@ -474,7 +479,7 @@ if [[ "x$WANT_GTK" = "xgtk" ]]; then
     dnl somehow, <gnome-i18n.h> would redefine gettext() to nothing if
     dnl ENABLE_NLS is not set, thusly conflicting with C++ <string> which
     dnl includes <libintl.h>
-    AM_GNU_GETTEXT
+    AM_GNU_GETTEXT([external])
     B2_PATH_GNOMEUI([
       AC_DEFINE(HAVE_GNOMEUI, 1, [Define if libgnomeui is available.])
       GUI_CFLAGS="$GUI_CFLAGS $GNOMEUI_CFLAGS"
@@ -589,7 +594,8 @@ dnl Check for headers and functions related to pty support (sshpty.c)
 dnl From openssh-3.2.2p1 configure.ac
 
 AC_CHECK_HEADERS(strings.h login.h sys/bsdtty.h sys/stat.h util.h pty.h)
-AC_CHECK_FUNCS(_getpty vhangup strlcpy)
+AC_SEARCH_LIBS([openpty], [util bsd])
+AC_CHECK_FUNCS(_getpty openpty vhangup strlcpy)
 
 case "$host" in
 *-*-hpux10.26)
@@ -821,6 +827,13 @@ if [[ -n "$CAN_SLIRP" ]]; then
     ../slirp/ip_input.c  ../slirp/socket.c     ../slirp/udp.c"
 fi
 AC_SUBST(SLIRP_SRCS)
+
+dnl Is libvdeplug available?
+have_vdeplug=no
+AS_IF([test "x$with_vdeplug" = "xyes"], [
+  have_vdeplug=yes
+  AC_CHECK_LIB(vdeplug, vde_close, [], [have_vdeplug=no])
+])
 
 if [[ "x$WANT_MACOSX_GUI" = "xyes" ]]; then
   CPPFLAGS="$CPPFLAGS -I../MacOSX"
@@ -1408,6 +1421,11 @@ fi
 AC_TRANSLATE_DEFINE(HAVE_LINKER_SCRIPT, "$ac_cv_linker_script_works",
   [Define if there is a linker script to relocate the executable above 0x70000000.])
 
+dnl override the addressing mode test order for Darwin
+if [[ "x$OS_TYPE" = "xdarwin" ]]; then
+    ADDRESSING_TEST_ORDER="banks"
+fi
+
 dnl Determine the addressing mode to use
 if [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
   ADDRESSING_MODE="real"
@@ -1892,6 +1910,7 @@ echo SDL support ............................ : $SDL_SUPPORT
 echo SDL major-version ...................... : $WANT_SDL_VERSION_MAJOR
 echo BINCUE support ......................... : $have_bincue
 echo LIBVHD support ......................... : $have_libvhd
+echo VDE support ............................ : $have_vdeplug
 echo XFree86 DGA support .................... : $WANT_XF86_DGA
 echo XFree86 VidMode support ................ : $WANT_XF86_VIDMODE
 echo fbdev DGA support ...................... : $WANT_FBDEV_DGA

@@ -258,7 +258,10 @@ public:
 
 // Vector of pointers to available monitor descriptions, filled by VideoInit()
 extern vector<monitor_desc *> VideoMonitors;
-
+// Guest OS Screen Width
+extern uint32 MacScreenWidth;
+// Guest OS Screen Height
+extern uint32 MacScreenHeight;
 
 extern int16 VideoDriverOpen(uint32 pb, uint32 dce);
 extern int16 VideoDriverControl(uint32 pb, uint32 dce);

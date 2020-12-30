@@ -100,7 +100,7 @@ static bool open_stdio(const char *title)
 #endif
 
 // Main program
-int main(int argc, char **argv)
+int main(int argc, const char **argv)
 {
 #ifdef __BEOS__
 	// Launched from Tracker? Then open terminal window

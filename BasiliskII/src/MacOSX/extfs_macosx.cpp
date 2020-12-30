@@ -246,16 +246,15 @@ static void make_rsrc_path(const char *src, char *dest)
    	add_path_component(dest, "..namedfork/rsrc");
 }
 
-static int open_rsrc(const char *path, int flag)
-{
+static int open_rsrc(const char *path, int flag){
 	char rsrc_path[MAX_PATH_LENGTH];
 	make_rsrc_path(path, rsrc_path);
 
 	int fd = open(rsrc_path, flag);
-	if (fd < 0 && flag == O_WRONLY) fd = open(rsrc_path, O_WRONLY | O_CREAT); // for APFS
+	if (fd < 0 && flag == O_WRONLY)
+		fd = open(rsrc_path, O_WRONLY | O_CREAT); // for APFS
 	return fd;
 }
-
 
 /*
  *  Get/set finder info for file/directory specified by full path

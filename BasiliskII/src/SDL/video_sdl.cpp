@@ -39,7 +39,6 @@
  *  - Backport hw cursor acceleration to Basilisk II?
  *  - Factor out code
  */
-
 #include "sysdeps.h"
 
 #include <SDL.h>
@@ -94,6 +93,9 @@ const char KEYCODE_FILE_NAME[] = "BasiliskII_keycodes";
 const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
 #endif
 
+// Mac Screen Width and Height
+uint32 MacScreenWidth;
+uint32 MacScreenHeight;
 
 // Global variables
 static uint32 frame_skip;							// Prefs items
@@ -171,7 +173,6 @@ static int redraw_func(void *arg);
 // From sys_unix.cpp
 extern void SysMountFirstFloppy(void);
 
-
 /*
  *  SDL surface locking glue
  */
@@ -204,18 +205,7 @@ extern void SysMountFirstFloppy(void);
 
 static void *vm_acquire_framebuffer(uint32 size)
 {
-	// always try to reallocate framebuffer at the same address
-	static void *fb = VM_MAP_FAILED;
-	if (fb != VM_MAP_FAILED) {
-		if (vm_acquire_fixed(fb, size) < 0) {
-#ifndef SHEEPSHAVER
-			printf("FATAL: Could not reallocate framebuffer at previous address\n");
-#endif
-			fb = VM_MAP_FAILED;
-		}
-	}
-	if (fb == VM_MAP_FAILED)
-		fb = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
+	void *fb = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 	return fb;
 }
 
@@ -506,7 +496,11 @@ static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth)
 	else if (depth == VIDEO_DEPTH_32BIT)
 		layout = (screen_depth == 24) ? FLAYOUT_HOST_888 : FLAYOUT_DIRECT;
 	MacFrameLayout = layout;
-	monitor.set_mac_frame_base(MacFrameBaseMac);
+
+	if (TwentyFourBitAddressing)
+		monitor.set_mac_frame_base(MacFrameBaseMac24Bit);
+	else
+		monitor.set_mac_frame_base(MacFrameBaseMac);
 
 	// Set variables used by UAE memory banking
 	const VIDEO_MODE &mode = monitor.get_current_mode();
@@ -656,6 +650,10 @@ void driver_base::set_video_mode(int flags)
 #ifdef ENABLE_VOSF
 	the_host_buffer = (uint8 *)s->pixels;
 #endif
+	// set Mac screen global variabls
+	MacScreenWidth = VIDEO_MODE_X;
+	MacScreenHeight = VIDEO_MODE_Y;
+	D(bug("Set Mac Screen Width: %d, Mac Screen Height: %d\n", MacScreenWidth, MacScreenHeight));
 }
 
 void driver_base::init()
@@ -668,6 +666,10 @@ void driver_base::init()
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	the_buffer_size = page_extend((aligned_height + 2) * s->pitch);
 	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
+	if (VM_MAP_FAILED == the_buffer) {
+		perror("Failed to allocate frame buffer for guest OS.");
+		abort();
+	}
 	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
 
@@ -692,6 +694,10 @@ void driver_base::init()
 		the_buffer_size = (aligned_height + 2) * s->pitch;
 		the_buffer_copy = (uint8 *)calloc(1, the_buffer_size);
 		the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
+		if (VM_MAP_FAILED == the_buffer) {
+			perror("Failed to allocate frame buffer for guest OS.");
+			abort();
+		}
 		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
 	}
 
@@ -998,16 +1004,13 @@ bool VideoInit(bool classic)
 	// Get screen mode from preferences
 	migrate_screen_prefs();
 	const char *mode_str = NULL;
-	if (classic_mode)
-		mode_str = "win/512/342";
-	else
-		mode_str = PrefsFindString("screen");
+	mode_str = PrefsFindString("screen");
 
 	// Determine display type and default dimensions
 	int default_width, default_height;
 	if (classic) {
 		default_width = 512;
-		default_height = 384;
+		default_height = 342;
 	}
 	else {
 		default_width = 640;
@@ -1028,6 +1031,11 @@ bool VideoInit(bool classic)
 		default_height = sdl_display_height();
 	else if (default_height > sdl_display_height())
 		default_height = sdl_display_height();
+
+	// for classic Mac, make sure the display width is divisible by 8
+	if (classic) {
+		default_width = (default_width / 8) * 8;
+	}
 
 	// Mac screen depth follows X depth
 	screen_depth = SDL_GetVideoInfo()->vfmt->BitsPerPixel;
@@ -1084,7 +1092,7 @@ bool VideoInit(bool classic)
 	// Construct list of supported modes
 	if (display_type == DISPLAY_WINDOW) {
 		if (classic)
-			add_mode(display_type, 512, 342, 0x80, 64, VIDEO_DEPTH_1BIT);
+			add_mode(display_type, default_width, default_height, 0x80, default_width/8, VIDEO_DEPTH_1BIT);
 		else {
 			for (int i = 0; video_modes[i].w != 0; i++) {
 				const int w = video_modes[i].w;
@@ -1941,7 +1949,7 @@ static void update_display_static(driver_base *drv)
 
 	// Check for first column from left and first column from right that have changed
 	if (high) {
-		if (VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
+		if ((int)VIDEO_MODE_DEPTH < VIDEO_DEPTH_8BIT) {
 			const int src_bytes_per_row = bytes_per_row;
 			const int dst_bytes_per_row = drv->s->pitch;
 			const int pixels_per_byte = VIDEO_MODE_X / src_bytes_per_row;
@@ -2337,4 +2345,4 @@ void video_set_dirty_area(int x, int y, int w, int h)
 }
 #endif
 
-#endif	// ends: SDL version check
+#endif // ends: SDL version check

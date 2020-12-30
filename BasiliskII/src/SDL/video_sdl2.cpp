@@ -99,6 +99,9 @@ const char KEYCODE_FILE_NAME[] = DATADIR "/keycodes";
 const char KEYCODE_FILE_NAME2[] = DATADIR "/BasiliskII_keycodes";
 #endif
 
+// Mac Screen Width and Height
+uint32 MacScreenWidth;
+uint32 MacScreenHeight;
 
 // Global variables
 static uint32 frame_skip;							// Prefs items
@@ -183,7 +186,6 @@ static uint16 last_gamma_blue[256];
 static void VideoRefreshInit(void);
 static void (*video_refresh)(void);
 
-
 // Prototypes
 static int redraw_func(void *arg);
 static int present_sdl_video();
@@ -192,7 +194,6 @@ static bool is_fullscreen(SDL_Window *);
 
 // From sys_unix.cpp
 extern void SysMountFirstFloppy(void);
-
 
 /*
  *  SDL surface locking glue
@@ -224,8 +225,7 @@ extern void SysMountFirstFloppy(void);
  *  Framebuffer allocation routines
  */
 
-static void *vm_acquire_framebuffer(uint32 size)
-{
+static void *vm_acquire_framebuffer(uint32 size){
 #ifdef HAVE_MACH_VM
 	return vm_acquire_reserved(size);
 #else
@@ -245,8 +245,7 @@ static void *vm_acquire_framebuffer(uint32 size)
 #endif
 }
 
-static inline void vm_release_framebuffer(void *fb, uint32 size)
-{
+static inline void vm_release_framebuffer(void *fb, uint32 size){
 #ifndef HAVE_MACH_VM
 	vm_release(fb, size);
 #endif
@@ -528,7 +527,11 @@ static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth, bool nati
 		MacFrameLayout = layout;
 	else
 		MacFrameLayout = FLAYOUT_DIRECT;
-	monitor.set_mac_frame_base(MacFrameBaseMac);
+
+	if (TwentyFourBitAddressing)
+		monitor.set_mac_frame_base(MacFrameBaseMac24Bit);
+	else
+		monitor.set_mac_frame_base(MacFrameBaseMac);
 
 	// Set variables used by UAE memory banking
 	const VIDEO_MODE &mode = monitor.get_current_mode();
@@ -714,21 +717,19 @@ static void shutdown_sdl_video()
 	delete_sdl_video_window();
 }
 
-static int get_mag_rate()
-{
+static int get_mag_rate(){
 	int m = PrefsFindInt32("mag_rate");
 	return m < 1 ? 1 : m > 4 ? 4 : m;
 }
 
-static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags)
-{
+static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags){
     if (guest_surface) {
         delete_sdl_video_surfaces();
     }
     
 	int window_width = width;
 	int window_height = height;
-	Uint32 window_flags = SDL_WINDOW_ALLOW_HIGHDPI;
+	Uint32 window_flags = SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE;
 	const int window_flags_to_monitor = SDL_WINDOW_FULLSCREEN;
 	
 	if (flags & SDL_WINDOW_FULLSCREEN) {
@@ -884,11 +885,14 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 
 	SDL_RenderSetIntegerScale(sdl_renderer, PrefsFindBool("scale_integer") ? SDL_TRUE : SDL_FALSE);
 
-    return guest_surface;
+	// set Mac screen global variabls
+	MacScreenWidth = width;
+	MacScreenHeight = height;
+	D(bug("Set Mac Screen Width: %d, Mac Screen Height: %d\n", MacScreenWidth, MacScreenHeight));
+	return guest_surface;
 }
 
-static int present_sdl_video()
-{
+static int present_sdl_video(){
 	if (SDL_RectEmpty(&sdl_update_video_rect)) return 0;
 	
 	if (!sdl_renderer || !sdl_texture || !guest_surface) {
@@ -960,8 +964,7 @@ static int present_sdl_video()
     return 0;
 }
 
-void update_sdl_video(SDL_Surface *s, int numrects, SDL_Rect *rects)
-{
+void update_sdl_video(SDL_Surface *s, int numrects, SDL_Rect *rects){
     // TODO: make sure SDL_Renderer resources get displayed, if and when
     // MacsBug is running (and VideoInterrupt() might not get called)
     
@@ -972,8 +975,7 @@ void update_sdl_video(SDL_Surface *s, int numrects, SDL_Rect *rects)
     SDL_UnlockMutex(sdl_update_video_mutex);
 }
 
-void update_sdl_video(SDL_Surface *s, Sint32 x, Sint32 y, Sint32 w, Sint32 h)
-{
+void update_sdl_video(SDL_Surface *s, Sint32 x, Sint32 y, Sint32 w, Sint32 h){
     SDL_Rect temp = {x, y, w, h};
     update_sdl_video(s, 1, &temp);
 }
@@ -1006,8 +1008,7 @@ static SDL_Cursor *MagCursor(bool hot) {
 }
 #endif
 
-void driver_base::set_video_mode(int flags)
-{
+void driver_base::set_video_mode(int flags){
 	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
 	if ((s = init_sdl_video(VIDEO_MODE_X, VIDEO_MODE_Y, depth, flags)) == NULL)
 		return;
@@ -1016,9 +1017,24 @@ void driver_base::set_video_mode(int flags)
 #endif
 }
 
-void driver_base::init()
-{
+void driver_base::init(){
 	set_video_mode(display_type == DISPLAY_SCREEN ? SDL_WINDOW_FULLSCREEN : 0);
+
+#ifndef SHEEPSHAVER
+	// manually set palette for 24bit ROM
+	// 24 bit ROM Macintosh is BW screen. It doesn't setup palette by the ROM.
+	if (TwentyFourBitAddressing && !sdl_palette) {
+		const int nColor = 256;
+		sdl_palette = SDL_AllocPalette(nColor);
+		SDL_Color *p = sdl_palette->colors;
+		for (int i = 0; i < nColor; i++) {
+			p->r = p->g = p->b = i;
+			p++;
+		}
+		update_palette();
+	}
+#endif
+
 	int aligned_height = (VIDEO_MODE_Y + 15) & ~15;
 
 #ifdef ENABLE_VOSF
@@ -1027,6 +1043,10 @@ void driver_base::init()
 	the_buffer_size = page_extend((aligned_height + 2) * s->pitch);
 	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
 	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
+	if (VM_MAP_FAILED == the_buffer) {
+		perror("Failed to allocate frame buffer for guest OS.");
+		abort();
+	}
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
 
 	// Check whether we can initialize the VOSF subsystem and it's profitable
@@ -1039,7 +1059,7 @@ void driver_base::init()
 		printf("VOSF acceleration is not profitable on this platform, disabling it\n");
 		use_vosf = false;
 	}
-    if (!use_vosf) {
+	if (!use_vosf) {
 		free(the_buffer_copy);
 		vm_release(the_buffer, the_buffer_size);
 		the_host_buffer = NULL;
@@ -1050,6 +1070,10 @@ void driver_base::init()
 		the_buffer_size = (aligned_height + 2) * s->pitch;
 		the_buffer_copy = (uint8 *)calloc(1, the_buffer_size);
 		the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
+		if (VM_MAP_FAILED == the_buffer) {
+			perror("Failed to allocate frame buffer for guest OS.");
+			abort();
+		}
 		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
 	}
 
@@ -1112,8 +1136,7 @@ void driver_base::adapt_to_video_mode() {
 	init_ok = true;
 }
 
-driver_base::~driver_base()
-{
+driver_base::~driver_base(){
 	ungrab_mouse();
 	restore_mouse_accel();
 
@@ -1356,12 +1379,10 @@ bool SDL_monitor_desc::video_open(void)
 }
 
 #ifdef SHEEPSHAVER
-bool VideoInit(void)
-{
+bool VideoInit(void){
 	const bool classic = false;
 #else
-bool VideoInit(bool classic)
-{
+bool VideoInit(bool classic){
 #endif
 	classic_mode = classic;
 
@@ -1399,7 +1420,7 @@ bool VideoInit(bool classic)
 	int default_width, default_height;
 	if (classic) {
 		default_width = 512;
-		default_height = 384;
+		default_height = 342;
 	}
 	else {
 		default_width = 640;
@@ -1421,6 +1442,10 @@ bool VideoInit(bool classic)
 	else if (default_height > sdl_display_height())
 		default_height = sdl_display_height();
 
+	// for classic Mac, make sure the display width is divisible by 8
+	if (classic) {
+		default_width = (default_width / 8) * 8;
+	}
 	// Mac screen depth follows X depth
 	screen_depth = 32;
 	SDL_DisplayMode desktop_mode;
@@ -1480,7 +1505,7 @@ bool VideoInit(bool classic)
 	// Construct list of supported modes
 	if (display_type == DISPLAY_WINDOW) {
 		if (classic)
-			add_mode(display_type, 512, 342, 0x80, 64, VIDEO_DEPTH_1BIT);
+			add_mode(display_type, default_width, default_height, 0x80, default_width/8, VIDEO_DEPTH_1BIT);
 		else {
 			for (int i = 0; video_modes[i].w != 0; i++) {
 				const int w = video_modes[i].w;
@@ -1572,8 +1597,7 @@ bool VideoInit(bool classic)
  */
 
 // Close display
-void SDL_monitor_desc::video_close(void)
-{
+void SDL_monitor_desc::video_close(void){
 	D(bug("video_close()\n"));
 
 #ifdef WIN32
@@ -1616,13 +1640,11 @@ void VideoExit(void)
 		SDL_DestroyMutex(sdl_events_lock);
 }
 
-
 /*
  *  Close down full-screen mode (if bringing up error alerts is unsafe while in full-screen mode)
  */
 
-void VideoQuitFullScreen(void)
-{
+void VideoQuitFullScreen(void){
 	D(bug("VideoQuitFullScreen()\n"));
 	quit_full_screen = true;
 }
@@ -1647,8 +1669,7 @@ static void ApplyGammaRamp() {
 	}
 }
 
-static void do_toggle_fullscreen(void)
-{
+static void do_toggle_fullscreen(void){
 #ifndef USE_CPU_EMUL_SERVICES
 	// pause redraw thread
 	thread_stop_ack = false;
@@ -1770,14 +1791,12 @@ void VideoInterrupt(void)
 }
 #endif
 
-
 /*
  *  Set palette
  */
 
 #ifdef SHEEPSHAVER
-void video_set_palette(void)
-{
+void video_set_palette(void){
 	monitor_desc * monitor = VideoMonitors[0];
 	int n_colors = palette_size(monitor->get_current_mode().viAppleMode);
 	uint8 pal[256 * 3];
@@ -1789,8 +1808,7 @@ void video_set_palette(void)
 	monitor->set_palette(pal, n_colors);
 }
 	
-void video_set_gamma(int n_colors)
-{
+void video_set_gamma(int n_colors){
 	monitor_desc * monitor = VideoMonitors[0];
 	uint8 gamma[256 * 3];
 	for (int c = 0; c < n_colors; c++) {
@@ -1802,9 +1820,7 @@ void video_set_gamma(int n_colors)
 }
 #endif
 	
-void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
-{
-	
+void SDL_monitor_desc::set_palette(uint8 *pal, int num_in){
 	const VIDEO_MODE &mode = get_current_mode();
 	
 	LOCK_PALETTE;
@@ -1850,8 +1866,7 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 	UNLOCK_PALETTE;
 }
 	
-void SDL_monitor_desc::set_gamma(uint8 *gamma, int num_in)
-{
+void SDL_monitor_desc::set_gamma(uint8 *gamma, int num_in){
 	// handle the gamma ramp
 		
 	if (gamma[0] == 127 && gamma[num_in*3-1] == 127) // solid grey
@@ -1891,23 +1906,20 @@ void SDL_monitor_desc::set_gamma(uint8 *gamma, int num_in)
 
 }
 
-
-
 /*
  *  Switch video mode
  */
 
 #ifdef SHEEPSHAVER
-int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr)
-{
+int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr){
 	/* return if no mode change */
 	if ((csSave->saveData == ReadMacInt32(ParamPtr + csData)) &&
-	    (csSave->saveMode == ReadMacInt16(ParamPtr + csMode))) return noErr;
+		(csSave->saveMode == ReadMacInt16(ParamPtr + csMode))) return noErr;
 
 	/* first find video mode in table */
 	for (int i=0; VModes[i].viType != DIS_INVALID; i++) {
 		if ((ReadMacInt16(ParamPtr + csMode) == VModes[i].viAppleMode) &&
-		    (ReadMacInt32(ParamPtr + csData) == VModes[i].viAppleID)) {
+			(ReadMacInt32(ParamPtr + csData) == VModes[i].viAppleID)) {
 			csSave->saveMode = ReadMacInt16(ParamPtr + csMode);
 			csSave->saveData = ReadMacInt32(ParamPtr + csData);
 			csSave->savePage = ReadMacInt16(ParamPtr + csPage);
@@ -1938,10 +1950,9 @@ int16 video_mode_change(VidLocals *csSave, uint32 ParamPtr)
 #endif
 
 static bool is_cursor_in_mac_screen() {
-
-		int windowX, windowY;
-		int cursorX, cursorY;
-		int deltaX, deltaY;
+	int windowX, windowY;
+	int cursorX, cursorY;
+	int deltaX, deltaY;
 	bool out;
 	
 	// TODO figure out a check for full screen mode
@@ -1969,8 +1980,7 @@ static bool is_cursor_in_mac_screen() {
 	return false;
 }
 
-void SDL_monitor_desc::switch_to_current_mode(void)
-{
+void SDL_monitor_desc::switch_to_current_mode(void){
 	// Close and reopen display
 	LOCK_EVENTS;
 	video_close();
@@ -1983,26 +1993,22 @@ void SDL_monitor_desc::switch_to_current_mode(void)
 	}
 }
 
-
 /*
  *  Can we set the MacOS cursor image into the window?
  */
 
 #ifdef SHEEPSHAVER
-bool video_can_change_cursor(void)
-{
+bool video_can_change_cursor(void){
 	return PrefsFindBool("hardcursor") && (display_type == DISPLAY_WINDOW || PrefsFindBool("scale_integer"));
 }
 #endif
-
 
 /*
  *  Set cursor image for window
  */
 
 #ifdef SHEEPSHAVER
-void video_set_cursor(void)
-{
+void video_set_cursor(void){
 	// Set new cursor image if it was changed
 	if (sdl_cursor) {
 		SDL_FreeCursor(sdl_cursor);
@@ -2039,13 +2045,11 @@ void video_set_cursor(void)
 }
 #endif
 
-
 /*
  *  Keyboard-related utilify functions
  */
 
-static bool is_hotkey_down(SDL_Keysym const & ks)
-{
+static bool is_hotkey_down(SDL_Keysym const & ks){
 	int hotkey = PrefsFindInt32("hotkey");
 	if (!hotkey) hotkey = 1;
 	return (ctrl_down || (ks.mod & KMOD_CTRL) || !(hotkey & 1)) &&
@@ -2053,7 +2057,7 @@ static bool is_hotkey_down(SDL_Keysym const & ks)
 			(cmd_down || (ks.mod & KMOD_GUI) || !(hotkey & 4));
 }
 
-static bool swap_opt_cmd() {
+static bool swap_opt_cmd(){
 	static bool f, c;
 	if (!f) {
 		f = true;
@@ -2067,8 +2071,7 @@ static bool swap_opt_cmd() {
  *  and CODE_HOTKEY if the key was recognized as a hotkey
  */
 
-static int kc_decode(SDL_Keysym const & ks, bool key_down)
-{
+static int kc_decode(SDL_Keysym const & ks, bool key_down){
 	switch (ks.sym) {
 	case SDLK_a: return 0x00;
 	case SDLK_b: return 0x0b;
@@ -2227,8 +2230,7 @@ enum {
 // This function is called by SDL, whenever it generates an SDL_Event.  It has
 // the ability to process events, and optionally, to prevent them from being
 // added to SDL's event queue (and retrieve-able via SDL_PeepEvents(), etc.)
-static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
-{
+static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event){
 	switch (event->type) {
 		case SDL_KEYUP: {
 			SDL_Keysym const & ks = event->key.keysym;
@@ -2277,8 +2279,7 @@ static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
 }
 
 
-static void handle_events(void)
-{
+static void handle_events(void){
 	SDL_Event events[10];
 	const int n_max_events = sizeof(events) / sizeof(events[0]);
 	int n_events;
@@ -2403,7 +2404,6 @@ static void handle_events(void)
 					case SDL_WINDOWEVENT_RESTORED:
 						force_complete_window_refresh();
 						break;
-					
 				}
 				break;
 			}
@@ -2419,14 +2419,12 @@ static void handle_events(void)
 	}
 }
 
-
 /*
  *  Window display update
  */
 
 // Static display update (fixed frame rate, but incremental)
-static void update_display_static(driver_base *drv)
-{
+static void update_display_static(driver_base *drv){
 	// Incremental update code
 	int wide = 0, high = 0;
 	uint32 x1, x2, y1, y2;
@@ -2831,14 +2829,12 @@ static int redraw_func(void *arg)
 }
 #endif
 
-
 /*
  *  Record dirty area from NQD
  */
 
 #ifdef SHEEPSHAVER
-void video_set_dirty_area(int x, int y, int w, int h)
-{
+void video_set_dirty_area(int x, int y, int w, int h){
 #ifdef ENABLE_VOSF
 	const VIDEO_MODE &mode = drv->mode;
 	const unsigned screen_width = VIDEO_MODE_X;
@@ -2855,4 +2851,4 @@ void video_set_dirty_area(int x, int y, int w, int h)
 }
 #endif
 
-#endif	// ends: SDL version check
+#endif // ends: SDL version check

@@ -7,7 +7,7 @@
 	<key>CFBundleExecutable</key>
 	<string>BasiliskII</string>
 	<key>CFBundleGetInfoString</key>
-	<string>Basilisk II version 1.0, Copyright © 1997-2017 Christian Bauer et al.  SDL2 port</string>
+	<string>Basilisk II version 1.0, Copyright © 1997-2020 Christian Bauer et al. SDL2 port</string>
 	<key>CFBundleIconFile</key>
 	<string>BasiliskII.icns</string>
 	<key>CFBundleIdentifier</key>

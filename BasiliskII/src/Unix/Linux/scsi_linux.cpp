@@ -22,7 +22,7 @@
 
 #include <sys/ioctl.h>
 #include <linux/param.h>
-#include <linux/../scsi/sg.h>	// workaround for broken RedHat 6.0 /usr/include/scsi
+#include <scsi/sg.h>
 #include <unistd.h>
 #include <errno.h>
 
