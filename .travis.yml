@@ -1,0 +1,61 @@
+language: cpp
+
+# Do not build branches of the form "pr/*". By prefixing pull requests coming
+# from branches inside the repository with pr/, this avoids building both the
+# branch push _and_ the pull request.
+# Based on https://github.com/boostorg/hana/blob/master/.travis.yml
+branches:
+  except: /pr\/.*/
+
+jobs:
+  include:
+    - os: linux
+      arch: amd64
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      env: BADGE=amd64-linux-basiliskii
+      addons:
+        apt:
+          packages:
+            - libgtk2.0-dev
+            - libsdl2-dev
+      script:
+        - cd BasiliskII/src/Unix
+        - NO_CONFIGURE=1 ./autogen.sh
+        - ./configure --with-mon
+        - make
+    - os: linux
+      arch: arm64
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      env: BADGE=arm64-linux-basiliskii
+      addons:
+        apt:
+          packages:
+            - libgtk2.0-dev
+            - libsdl2-dev
+      script:
+        - cd BasiliskII/src/Unix
+        - NO_CONFIGURE=1 ./autogen.sh
+        - ./configure --with-mon
+        - make
+    - os: linux
+      arch: amd64
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      env: BADGE=amd64-linux-sheepshaver
+      addons:
+        apt:
+          packages:
+            - libgtk2.0-dev
+            - libsdl2-dev
+      script:
+        - cd SheepShaver
+        - make links
+        - cd src/Unix
+        - NO_CONFIGURE=1 ./autogen.sh
+        - ./configure --with-mon
+        - make
