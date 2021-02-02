@@ -2245,6 +2245,7 @@ static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
 		case SDL_WINDOWEVENT: {
 			switch (event->window.event) {
 				case SDL_WINDOWEVENT_RESIZED: {
+					if (!redraw_thread_active) break;
 					// Handle changes of fullscreen.  This is done here, in
 					// on_sdl_event_generated() and not the main SDL_Event-processing
 					// loop, in order to perform this change on the main thread.
