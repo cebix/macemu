@@ -69,6 +69,7 @@ prefs_desc common_prefs_items[] = {
 	{"gammaramp", TYPE_STRING, false,	"gamma ramp (on, off or fullscreen)"},
 	{"swap_opt_cmd", TYPE_BOOLEAN, false,	"swap option and command key"},
 	{"host_domain", TYPE_STRING, true,	"handle DNS requests for this domain on the host (slirp only)"},
+	{"redir", TYPE_STRING, true,		"port forwarding for slirp"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
