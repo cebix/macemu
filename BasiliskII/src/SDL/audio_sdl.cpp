@@ -29,6 +29,7 @@
 #include <SDL_mutex.h>
 #include <SDL_audio.h>
 #include <SDL_version.h>
+#include <SDL_timer.h>
 
 #define DEBUG 0
 #include "debug.h"
@@ -54,6 +55,7 @@ static bool audio_mute = false;
 
 // Prototypes
 static void stream_func(void *arg, uint8 *stream, int stream_len);
+static int play_startup(void *arg);
 
 
 /*
@@ -166,6 +168,8 @@ void AudioInit(void)
 
 	// Open and initialize audio device
 	open_audio();
+	
+	SDL_CreateThread(play_startup, "", NULL);
 }
 
 
@@ -358,4 +362,24 @@ void audio_set_speaker_mute(bool mute)
 
 void audio_set_speaker_volume(uint32 vol)
 {
+}
+
+static int play_startup(void *arg) {
+	SDL_AudioSpec wav_spec;
+	Uint8 *wav_buffer;
+	Uint32 wav_length;
+	if (SDL_LoadWAV("startup.wav", &wav_spec, &wav_buffer, &wav_length)) {
+		SDL_AudioSpec desired = { .freq = 44100, .format = AUDIO_S16, .channels = 1, .samples= 4096 }, obtained;
+		SDL_AudioDeviceID deviceId = SDL_OpenAudioDevice(NULL, 0, &desired, &obtained, 0);
+		if (deviceId) {
+			SDL_QueueAudio(deviceId, wav_buffer, wav_length);
+			SDL_PauseAudioDevice(deviceId, 0);
+			while (SDL_GetQueuedAudioSize(deviceId)) SDL_Delay(10);
+			SDL_Delay(500);
+			SDL_CloseAudioDevice(deviceId);
+		}
+		else printf("play_startup: Audio driver failed to initialize\n");
+		SDL_FreeWAV(wav_buffer);
+	}
+	return 0;
 }
