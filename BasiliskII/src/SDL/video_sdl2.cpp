@@ -768,7 +768,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 	if (!sdl_window) {
 		int m = get_mag_rate();
 		sdl_window = SDL_CreateWindow(
-			"Basilisk II",
+			GetString(STR_WINDOW_TITLE),
 			SDL_WINDOWPOS_UNDEFINED,
 			SDL_WINDOWPOS_UNDEFINED,
 			m * window_width,
