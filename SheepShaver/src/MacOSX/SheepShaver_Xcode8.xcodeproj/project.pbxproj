@@ -90,6 +90,7 @@
 		E420260B24125442000508DF /* etherhelpertool in Resources */ = {isa = PBXBuildFile; fileRef = E420260A2412540D000508DF /* etherhelpertool */; };
 		E420910120D0C4FA0094654F /* SDL2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E420910020D0C4FA0094654F /* SDL2.framework */; };
 		E444DC1520C8F06700DD29C9 /* pict.c in Sources */ = {isa = PBXBuildFile; fileRef = E444DC1420C8F06700DD29C9 /* pict.c */; };
+		E447067025D904D500EA2C14 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E447066F25D904D500EA2C14 /* Metal.framework */; };
 		E44C460520D262B0000583AE /* tftp.c in Sources */ = {isa = PBXBuildFile; fileRef = E44C45DC20D262AD000583AE /* tftp.c */; };
 		E44C460620D262B0000583AE /* mbuf.c in Sources */ = {isa = PBXBuildFile; fileRef = E44C45DD20D262AD000583AE /* mbuf.c */; };
 		E44C460720D262B0000583AE /* ip_icmp.c in Sources */ = {isa = PBXBuildFile; fileRef = E44C45DF20D262AD000583AE /* ip_icmp.c */; };
@@ -348,6 +349,7 @@
 		E420910020D0C4FA0094654F /* SDL2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL2.framework; path = /Library/Frameworks/SDL2.framework; sourceTree = "<group>"; };
 		E4302EE21FBFE7FA00A5B500 /* lowmem.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = lowmem.c; path = Darwin/lowmem.c; sourceTree = "<group>"; };
 		E444DC1420C8F06700DD29C9 /* pict.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = pict.c; path = ../pict.c; sourceTree = "<group>"; };
+		E447066F25D904D500EA2C14 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		E44C45DC20D262AD000583AE /* tftp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = tftp.c; path = ../../../BasiliskII/src/slirp/tftp.c; sourceTree = "<group>"; };
 		E44C45DD20D262AD000583AE /* mbuf.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = mbuf.c; path = ../../../BasiliskII/src/slirp/mbuf.c; sourceTree = "<group>"; };
 		E44C45DE20D262AD000583AE /* tftp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = tftp.h; path = ../../../BasiliskII/src/slirp/tftp.h; sourceTree = "<group>"; };
@@ -412,6 +414,7 @@
 				E420260524125182000508DF /* Security.framework in Frameworks */,
 				0856D21514A9A6C6000B1711 /* IOKit.framework in Frameworks */,
 				08CD42DC14B7B85B009CA2A2 /* Cocoa.framework in Frameworks */,
+				E447067025D904D500EA2C14 /* Metal.framework in Frameworks */,
 				08CD42E814B7B8AA009CA2A2 /* Carbon.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -892,6 +895,7 @@
 		08CD42DF14B7B865009CA2A2 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				E447066F25D904D500EA2C14 /* Metal.framework */,
 				E420260424125182000508DF /* Security.framework */,
 				E420910020D0C4FA0094654F /* SDL2.framework */,
 				08CD42E714B7B8AA009CA2A2 /* Carbon.framework */,

@@ -94,6 +94,7 @@
 		E416BEE82410AA4E00751E6D /* runtool.c in Sources */ = {isa = PBXBuildFile; fileRef = E416BEE72410AA4E00751E6D /* runtool.c */; };
 		E416BEEA2410AA9800751E6D /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E416BEE92410AA9800751E6D /* Security.framework */; };
 		E416BEED2410AE0900751E6D /* etherhelpertool in Resources */ = {isa = PBXBuildFile; fileRef = E416BEEC2410AE0000751E6D /* etherhelpertool */; };
+		E447066D25D8FCB400EA2C14 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E447066C25D8FCB400EA2C14 /* Metal.framework */; };
 		E4555EED2354434B00139FCE /* Credits.html in Resources */ = {isa = PBXBuildFile; fileRef = 7539E00A1F23B25A006B2DF2 /* Credits.html */; };
 		E490334E20D3A5890012DD5F /* clip_macosx64.mm in Sources */ = {isa = PBXBuildFile; fileRef = E490334D20D3A5890012DD5F /* clip_macosx64.mm */; };
 		E4D8245323543D9800849B78 /* fpu_ieee.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4D8245223543D9700849B78 /* fpu_ieee.cpp */; };
@@ -339,6 +340,7 @@
 		E416BEEB2410AB0E00751E6D /* etherhelpertool.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = etherhelpertool.c; sourceTree = "<group>"; };
 		E416BEEC2410AE0000751E6D /* etherhelpertool */ = {isa = PBXFileReference; lastKnownFileType = text; path = etherhelpertool; sourceTree = BUILT_PRODUCTS_DIR; };
 		E417913123D7D67C0009AD63 /* defs68k.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = defs68k.c; path = gencpu_output/defs68k.c; sourceTree = BUILT_PRODUCTS_DIR; };
+		E447066C25D8FCB400EA2C14 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		E490334D20D3A5890012DD5F /* clip_macosx64.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = clip_macosx64.mm; sourceTree = "<group>"; };
 		E4D8245223543D9700849B78 /* fpu_ieee.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fpu_ieee.cpp; sourceTree = "<group>"; };
 		E4ED8EDD24E39AFE00843219 /* compemu_support.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = compemu_support.cpp; sourceTree = "<group>"; };
@@ -357,6 +359,7 @@
 				E416BEEA2410AA9800751E6D /* Security.framework in Frameworks */,
 				756C1B391F25306A00620917 /* AppKit.framework in Frameworks */,
 				752F26FB1F240E69001032B4 /* IOKit.framework in Frameworks */,
+				E447066D25D8FCB400EA2C14 /* Metal.framework in Frameworks */,
 				752F26F91F240E51001032B4 /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -416,6 +419,7 @@
 		752F26F71F240E51001032B4 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				E447066C25D8FCB400EA2C14 /* Metal.framework */,
 				E416BEE92410AA9800751E6D /* Security.framework */,
 				E413D93520D260DA00E437D8 /* SDL2.framework */,
 				756C1B381F25306A00620917 /* AppKit.framework */,

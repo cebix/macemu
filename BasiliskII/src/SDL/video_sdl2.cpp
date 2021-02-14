@@ -50,6 +50,10 @@
 #include <vector>
 #include <string>
 
+#ifdef __MACOSX__
+#include "utils_macosx.h"
+#endif
+
 #ifdef WIN32
 #include <malloc.h> /* alloca() */
 #endif
@@ -760,11 +764,10 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 	
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, PrefsFindBool("scale_nearest") ? "nearest" : "linear");
 	
-/*
-	// Always use a resize-able window.  This helps allow SDL to manage
-	// transitions involving fullscreen to or from windowed-mode.
-	window_flags |= SDL_WINDOW_RESIZABLE;
-*/
+#ifdef __MACOSX__
+	if (MetalIsAvailable()) window_flags |= SDL_WINDOW_METAL;
+#endif
+	
 	if (!sdl_window) {
 		int m = get_mag_rate();
 		sdl_window = SDL_CreateWindow(

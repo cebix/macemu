@@ -24,4 +24,6 @@
 // Invokes the specified function with an NSAutoReleasePool in place.
 void NSAutoReleasePool_wrap(void (*fn)(void));
 
+bool MetalIsAvailable();
+
 #endif
