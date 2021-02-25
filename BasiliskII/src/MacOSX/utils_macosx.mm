@@ -27,6 +27,9 @@
 #include <SDL_syswm.h>
 #endif
 
+#include <sys/sysctl.h>
+#include <Metal/Metal.h>
+
 // This is used from video_sdl.cpp.
 void NSAutoReleasePool_wrap(void (*fn)(void))
 {
@@ -81,3 +84,14 @@ void set_current_directory()
 	[pool release];
 }
 
+bool MetalIsAvailable() {
+	const int EL_CAPITAN = 15; // Darwin major version of El Capitan
+	char s[16];
+	size_t size = sizeof(s);
+	int v;
+	if (sysctlbyname("kern.osrelease", s, &size, NULL, 0) || sscanf(s, "%d", &v) != 1 || v < EL_CAPITAN) return false;
+	id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
+	bool r = dev != nil;
+	[dev release];
+	return r;
+}
