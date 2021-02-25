@@ -764,7 +764,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 	
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, PrefsFindBool("scale_nearest") ? "nearest" : "linear");
 	
-#ifdef __MACOSX__
+#if defined(__MACOSX__) && SDL_VERSION_ATLEAST(2,0,14)
 	if (MetalIsAvailable()) window_flags |= SDL_WINDOW_METAL;
 #endif
 	
