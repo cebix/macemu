@@ -45,7 +45,7 @@ AC_ARG_WITH(gtk,            [  --with-gtk              use GTK user interface [d
    *)         WANT_GTK="no";;
    esac],
   [WANT_GTK="gtk2 gtk"])
-AC_ARG_WITH(mon,            [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=yes])
+AC_ARG_WITH(mon,            [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=no])
 AC_ARG_WITH(dgcc,           [  --with-dgcc=COMPILER    use C++ COMPILER to compile synthetic opcodes or 'precompiled'], [DYNGEN_CC=$withval])
 
 AC_ARG_WITH(bincue,   
@@ -115,7 +115,7 @@ x/* | x.*)
   WANT_MON=yes
   ;;
 xyes)
-  mon_srcdir=../../../mon/src
+  mon_srcdir=../../../cxmon/src
   ;;
 esac
 if [[ "x$WANT_MON" = "xyes" ]]; then
@@ -123,7 +123,7 @@ if [[ "x$WANT_MON" = "xyes" ]]; then
   if grep mon_init $mon_srcdir/mon.h >/dev/null 2>/dev/null; then
     AC_MSG_RESULT(yes)
     AC_DEFINE(ENABLE_MON, 1, [Define if using "mon".])
-    MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_z80.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_lowmem.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c $mon_srcdir/disass/mips-dis.c $mon_srcdir/disass/mips-opc.c $mon_srcdir/disass/mips16-opc.c"
+    MONSRCS="$mon_srcdir/mon.cpp $mon_srcdir/mon_6502.cpp $mon_srcdir/mon_z80.cpp $mon_srcdir/mon_cmd.cpp $mon_srcdir/mon_lowmem.cpp $mon_srcdir/mon_disass.cpp $mon_srcdir/mon_ppc.cpp $mon_srcdir/disass/floatformat.c $mon_srcdir/disass/i386-dis.c $mon_srcdir/disass/m68k-dis.c $mon_srcdir/disass/m68k-opc.c"
     CXXFLAGS="$CXXFLAGS -I$mon_srcdir -I$mon_srcdir/disass"
     AC_CHECK_LIB(ncurses, tgetent, ,
       [AC_CHECK_LIB(termcap, tgetent, ,
@@ -625,6 +625,7 @@ AC_CHECK_FRAMEWORK(CoreAudio, [#include <CoreAudio/CoreAudio.h>])
 AC_CHECK_FRAMEWORK(AudioUnit, [#include <AudioUnit/AudioUnit.h>])
 AC_CHECK_FRAMEWORK(AudioToolbox, [#include <AudioToolbox/AudioToolbox.h>])
 AC_CHECK_FRAMEWORK(AppKit, [])
+AC_CHECK_FRAMEWORK(Metal, [])
 
 dnl Select system-dependant sources.
 SERIALSRC=serial_unix.cpp
@@ -1447,7 +1448,7 @@ gcc_AC_C_FLOAT_FORMAT
 dnl Platform specific binary postprocessor
 AC_PATH_PROG(BLESS, "true")
 if [[ "x$ac_cv_pagezero_hack" = "xyes" ]]; then
-  BLESS=Darwin/lowmem
+#  BLESS=Darwin/lowmem
   LDFLAGS="$LDFLAGS -pagezero_size 0x3000"
 fi
 

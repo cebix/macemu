@@ -23,6 +23,7 @@ see <http://www.gnu.org/licenses/>.  */
 #include <errno.h>
 
 #include "dis-asm.h"
+#include "config.h"
 
 #define BFD_DEFAULT_TARGET_SIZE 64
 
@@ -5263,6 +5264,8 @@ bfd_vma bfd_getb32 (const bfd_byte *addr)
   return (bfd_vma) v;
 }
 
+#if !ENABLE_MON
+
 /* Get LENGTH bytes from info's buffer, at target address memaddr.
    Transfer them to myaddr.  */
 int
@@ -5312,6 +5315,8 @@ generic_symbol_at_address (bfd_vma addr, struct disassemble_info *info)
 {
   return 1;
 }
+
+#endif // !ENABLE_MON
 
 /* Print a PowerPC or POWER instruction.  */
 
