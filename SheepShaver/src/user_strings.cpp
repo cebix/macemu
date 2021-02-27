@@ -171,9 +171,7 @@ user_string_def common_strings[] = {
 	{STR_JIT_68K_CTRL, "Enable built-in 68k DR Emulator (EXPERIMENTAL)"},
 
 	{STR_WINDOW_TITLE, "SheepShaver"},
-	{STR_WINDOW_TITLE_FROZEN, "SheepShaver *** FROZEN ***"},
-	{STR_WINDOW_TITLE_GRABBED, "SheepShaver (mouse grabbed, press Ctrl-F5 to release)"},
-	{STR_WINDOW_TITLE_GRABBED0, "SheepShaver (mouse grabbed, press "},
+	{STR_WINDOW_TITLE_GRABBED0, " (mouse grabbed, press "},
 	{STR_WINDOW_TITLE_GRABBED1, "Ctrl-"},
 #ifdef __APPLE__
 	{STR_WINDOW_TITLE_GRABBED2, "Opt-"},

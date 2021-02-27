@@ -82,6 +82,7 @@ prefs_desc common_prefs_items[] = {
 	{"swap_opt_cmd", TYPE_BOOLEAN, false,	"swap option and command key"},
 	{"ignoresegv", TYPE_BOOLEAN, false,    "ignore illegal memory accesses"},
 	{"host_domain", TYPE_STRING, true,	"handle DNS requests for this domain on the host (slirp only)"},
+	{"title", TYPE_STRING, false,	"window title"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 

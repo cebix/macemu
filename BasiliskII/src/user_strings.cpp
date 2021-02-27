@@ -225,9 +225,7 @@ user_string_def common_strings[] = {
 	{STR_JIT_FOLLOW_CONST_JUMPS, "Translate through constant jumps (inline blocks)"},
 
 	{STR_WINDOW_TITLE, "Basilisk II"},
-	{STR_WINDOW_TITLE_FROZEN, "Basilisk II *** FROZEN ***"},
-	{STR_WINDOW_TITLE_GRABBED, "Basilisk II (mouse grabbed, press Ctrl-F5 to release)"},
-	{STR_WINDOW_TITLE_GRABBED0, "Basilisk II (mouse grabbed, press "},
+	{STR_WINDOW_TITLE_GRABBED0, " (mouse grabbed, press "},
 	{STR_WINDOW_TITLE_GRABBED1, "Ctrl-"},
 #ifdef __APPLE__
 	{STR_WINDOW_TITLE_GRABBED2, "Opt-"},

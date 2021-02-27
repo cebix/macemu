@@ -546,34 +546,20 @@ static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth, bool nati
 }
 
 // Set window name and class
-static void set_window_name(int name)
-{
-	if (!sdl_window) {
-		return;
-	}
-	const char *str = GetString(name);
-	SDL_SetWindowTitle(sdl_window, str);
-}
-
-static void set_window_name_grabbed() {
+static void set_window_name() {
 	if (!sdl_window) return;
-	int hotkey = PrefsFindInt32("hotkey");
-	if (!hotkey) hotkey = 1;
-	std::string s = GetString(STR_WINDOW_TITLE_GRABBED0);
-	if (hotkey & 1) s += GetString(STR_WINDOW_TITLE_GRABBED1);
-	if (hotkey & 2) s += GetString(STR_WINDOW_TITLE_GRABBED2);
-	if (hotkey & 4) s += GetString(STR_WINDOW_TITLE_GRABBED3);
-	s += GetString(STR_WINDOW_TITLE_GRABBED4);
-	SDL_SetWindowTitle(sdl_window, s.c_str());
-}
-
-// Set mouse grab mode
-static void set_grab_mode(bool grab)
-{
-	if (!sdl_window) {
-		return;
+	const char *title = PrefsFindString("title");
+	std::string s = title ? title : GetString(STR_WINDOW_TITLE);
+	if (mouse_grabbed) {
+		s += GetString(STR_WINDOW_TITLE_GRABBED0);
+		int hotkey = PrefsFindInt32("hotkey");
+		if (!hotkey) hotkey = 1;
+		if (hotkey & 1) s += GetString(STR_WINDOW_TITLE_GRABBED1);
+		if (hotkey & 2) s += GetString(STR_WINDOW_TITLE_GRABBED2);
+		if (hotkey & 4) s += GetString(STR_WINDOW_TITLE_GRABBED3);
+		s += GetString(STR_WINDOW_TITLE_GRABBED4);
 	}
-	SDL_SetWindowGrab(sdl_window, grab ? SDL_TRUE : SDL_FALSE);
+	SDL_SetWindowTitle(sdl_window, s.c_str());
 }
 
 // Migrate preferences items (XXX to be handled in MigratePrefs())
@@ -771,7 +757,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 	if (!sdl_window) {
 		int m = get_mag_rate();
 		sdl_window = SDL_CreateWindow(
-			GetString(STR_WINDOW_TITLE),
+			"",
 			SDL_WINDOWPOS_UNDEFINED,
 			SDL_WINDOWPOS_UNDEFINED,
 			m * window_width,
@@ -781,6 +767,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 			shutdown_sdl_video();
 			return NULL;
 		}
+		set_window_name();
 	}
 	if (flags & SDL_WINDOW_FULLSCREEN) SDL_SetWindowGrab(sdl_window, SDL_TRUE);
 	
@@ -1109,7 +1096,7 @@ void driver_base::adapt_to_video_mode() {
 	SDL_ShowCursor(hardware_cursor);
 
 	// Set window name/class
-	mouse_grabbed ? set_window_name_grabbed() : set_window_name((int)STR_WINDOW_TITLE);
+	set_window_name();
 
 	// Everything went well
 	init_ok = true;
@@ -1209,7 +1196,7 @@ void driver_base::grab_mouse(void)
 	if (!mouse_grabbed) {
 		mouse_grabbed = true;
 		update_mouse_grab();
-		set_window_name_grabbed();
+		set_window_name();
 		disable_mouse_accel();
 		ADBSetRelMouseMode(true);
 	}
@@ -1221,7 +1208,7 @@ void driver_base::ungrab_mouse(void)
 	if (mouse_grabbed) {
 		mouse_grabbed = false;
 		update_mouse_grab();
-		set_window_name(STR_WINDOW_TITLE);
+		set_window_name();
 		restore_mouse_accel();
 		ADBSetRelMouseMode(false);
 	}
