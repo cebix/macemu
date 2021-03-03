@@ -89,6 +89,11 @@ AC_ARG_WITH(bincue,
 AC_ARG_WITH(libvhd,   
   AS_HELP_STRING([--with-libvhd], [Enable VHD disk images]))
 
+AC_ARG_WITH(vdeplug,
+  AS_HELP_STRING([--with-vdeplug], [Enable VDE virtual network support]),
+  [],
+  [with_vdeplug=yes])
+
   
 dnl Cross Compiling results in 'guesses' being made about the target system. These defaults are oftetimes incorrect.
 dnl The following Environment variables allow you to configure the default guess value for each option in the configure script.
@@ -585,7 +590,8 @@ dnl Check for headers and functions related to pty support (sshpty.c)
 dnl From openssh-3.2.2p1 configure.ac
 
 AC_CHECK_HEADERS(strings.h login.h sys/bsdtty.h sys/stat.h util.h pty.h)
-AC_CHECK_FUNCS(_getpty vhangup strlcpy)
+AC_SEARCH_LIBS([openpty], [util bsd])
+AC_CHECK_FUNCS(_getpty openpty vhangup strlcpy)
 
 case "$host" in
 *-*-hpux10.26)
@@ -721,6 +727,7 @@ AC_CHECK_FRAMEWORK(AppKit, [])
 AC_CHECK_FRAMEWORK(Carbon, [#include <Carbon/Carbon.h>])
 AC_CHECK_FRAMEWORK(IOKit, [#include <IOKit/IOKitLib.h>])
 AC_CHECK_FRAMEWORK(CoreFoundation, [#include <CoreFoundation/CoreFoundation.h>])
+AC_CHECK_FRAMEWORK(Metal, [])
 
 dnl Select system-dependant source files.
 SERIALSRC=serial_unix.cpp
@@ -817,6 +824,13 @@ if [[ -n "$CAN_SLIRP" ]]; then
     ../slirp/ip_input.c  ../slirp/socket.c     ../slirp/udp.c"
 fi
 AC_SUBST(SLIRP_SRCS)
+
+dnl Is libvdeplug available?
+have_vdeplug=no
+AS_IF([test "x$with_vdeplug" = "xyes"], [
+  have_vdeplug=yes
+  AC_CHECK_LIB(vdeplug, vde_close, [], [have_vdeplug=no])
+])
 
 if [[ "x$WANT_MACOSX_GUI" = "xyes" ]]; then
   CPPFLAGS="$CPPFLAGS -I../MacOSX"
@@ -1374,7 +1388,6 @@ AC_PATH_PROG([BLESS], "true")
 dnl Check for linker script support
 case $target_os:$target_cpu in
 linux*:i?86)    LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-i386.ld";;
-linux*:x86_64)  LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-x86_64.ld";;
 linux*:powerpc) LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-ppc.ld";;
 netbsd*:i?86)   LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-i386.ld";;
 freebsd*:i?86)  LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/freebsd-i386.ld";;
@@ -1640,7 +1653,7 @@ elif [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
 fi
 
 dnl Enable JIT compiler, if possible.
-if [[ "x$WANT_JIT" = "xyes" -a "x$CAN_JIT" ]]; then
+if [[ "x$WANT_JIT" = "xyes" -a "x$CAN_JIT" = "xyes" ]]; then
   JITSRCS="$JITSRCS ../uae_cpu/compiler/compemu_support.cpp ../uae_cpu/compiler/compemu_fpp.cpp compstbl.o cpustbl_nf.o"
   DEFINES="$DEFINES -DUSE_JIT -DUSE_JIT_FPU"
   
@@ -1888,6 +1901,7 @@ echo SDL support ............................ : $SDL_SUPPORT
 echo SDL major-version ...................... : $WANT_SDL_VERSION_MAJOR
 echo BINCUE support ......................... : $have_bincue
 echo LIBVHD support ......................... : $have_libvhd
+echo VDE support ............................ : $have_vdeplug
 echo XFree86 DGA support .................... : $WANT_XF86_DGA
 echo XFree86 VidMode support ................ : $WANT_XF86_VIDMODE
 echo fbdev DGA support ...................... : $WANT_FBDEV_DGA

@@ -785,10 +785,10 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 			SDL_SetHint(SDL_HINT_RENDER_DRIVER, render_driver);
 		}
 		else {
-#ifdef __MACOSX__
-			SDL_SetHint(SDL_HINT_RENDER_DRIVER, window_flags & SDL_WINDOW_METAL ? "metal" : "opengl");
-#elif defined(WIN32)
+#ifdef WIN32
 			SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
+#elif defined(__MACOSX__) && SDL_VERSION_ATLEAST(2,0,14)
+			SDL_SetHint(SDL_HINT_RENDER_DRIVER, window_flags & SDL_WINDOW_METAL ? "metal" : "opengl");
 #else
 			SDL_SetHint(SDL_HINT_RENDER_DRIVER, "");
 #endif
