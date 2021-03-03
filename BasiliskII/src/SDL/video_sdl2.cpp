@@ -108,6 +108,7 @@ const char KEYCODE_FILE_NAME2[] = DATADIR "/BasiliskII_keycodes";
 static uint32 frame_skip;							// Prefs items
 static int16 mouse_wheel_mode;
 static int16 mouse_wheel_lines;
+static bool mouse_wheel_reverse;
 
 static uint8 *the_buffer = NULL;					// Mac frame buffer (where MacOS draws into)
 static uint8 *the_buffer_copy = NULL;				// Copy of Mac frame buffer (for refreshed modes)
@@ -1378,6 +1379,8 @@ bool VideoInit(bool classic)
 	frame_skip = PrefsFindInt32("frameskip");
 	mouse_wheel_mode = PrefsFindInt32("mousewheelmode");
 	mouse_wheel_lines = PrefsFindInt32("mousewheellines");
+	mouse_wheel_reverse = mouse_wheel_lines < 0;
+	if (mouse_wheel_reverse) mouse_wheel_lines = -mouse_wheel_lines;
 
 	// Get screen mode from preferences
 	migrate_screen_prefs();
@@ -2322,12 +2325,12 @@ static void handle_events(void)
 			case SDL_MOUSEWHEEL:
 				if (!event.wheel.y) break;
 				if (!mouse_wheel_mode) {
-					int key = event.wheel.y < 0 ? 0x79 : 0x74;	// Page up/down
+					int key = (event.wheel.y < 0) ^ mouse_wheel_reverse ? 0x79 : 0x74;	// Page up/down
 					ADBKeyDown(key);
 					ADBKeyUp(key);
 				}
 				else {
-					int key = event.wheel.y < 0 ? 0x3d : 0x3e;	// Cursor up/down
+					int key = (event.wheel.y < 0) ^ mouse_wheel_reverse ? 0x3d : 0x3e;	// Cursor up/down
 					for (int i = 0; i < mouse_wheel_lines; i++) {
 						ADBKeyDown(key);
 						ADBKeyUp(key);
