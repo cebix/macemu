@@ -282,7 +282,7 @@ static void read_line(char *prompt)
 	static const unsigned INPUT_LENGTH = 256;
 	if (!input)
 		input = (char *)malloc(INPUT_LENGTH);
-	fprintf(monout, prompt);
+	fputs(prompt, monout);
 	fflush(monout);
 	fgets(in_ptr = input, INPUT_LENGTH, monin);
 	char *s = strchr(input, '\n');
