@@ -83,6 +83,7 @@ prefs_desc common_prefs_items[] = {
 	{"ignoresegv", TYPE_BOOLEAN, false,    "ignore illegal memory accesses"},
 	{"host_domain", TYPE_STRING, true,	"handle DNS requests for this domain on the host (slirp only)"},
 	{"title", TYPE_STRING, false,	"window title"},
+	{"sound_buffer", TYPE_INT32, false,	"sound buffer length"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
