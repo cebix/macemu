@@ -27,6 +27,8 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
+#include <ctype.h>
+#include <iconv.h>
 
 #include "sysdeps.h"
 #include "prefs.h"
@@ -609,28 +611,33 @@ bool extfs_rename(const char *old_path, const char *new_path)
  */
 
 // Convert string in the specified source and target encodings
-const char *convert_string(const char *str, CFStringEncoding from, CFStringEncoding to)
+const char *convert_string(const char *str, bool dir)
 {
-	const char *ostr = str;
-	CFStringRef cfstr = CFStringCreateWithCString(NULL, str, from);
-	if (cfstr) {
-		static char buffer[MAX_PATH_LENGTH];
-		memset(buffer, 0, sizeof(buffer));
-		if (CFStringGetCString(cfstr, buffer, sizeof(buffer), to))
-			ostr = buffer;
-		CFRelease(cfstr);
-	}
+	const char *s = PrefsFindString("name_encoding", 0);
+	if (s == NULL) s = "MACROMAN";
+	char encoding[strlen(s) + 1];
+	char *ip = (char *)s, *op = encoding;
+	while (*ip) *op++ = toupper(*ip++);
+	*op = 0;
+	static char ostr[MAX_PATH_LENGTH];
+	size_t isize = strlen(str), osize = MAX_PATH_LENGTH;
+	ip = (char *)str;
+	op = ostr;
+	iconv_t ic = dir ? iconv_open(encoding, "UTF-8") : iconv_open("UTF-8", encoding);
+	iconv(ic, &ip, &isize, &op, &osize);
+	iconv_close(ic);
+	*op = 0;
 	return ostr;
 }
 
-// Convert from the host OS filename encoding to MacRoman
+// Convert from the host to the guest
 const char *host_encoding_to_macroman(const char *filename)
 {
-	return convert_string(filename, kCFStringEncodingUTF8, kCFStringEncodingMacRoman);
+	return convert_string(filename, true);
 }
 
-// Convert from MacRoman to host OS filename encoding
+// Convert from guest to the host
 const char *macroman_to_host_encoding(const char *filename)
 {
-	return convert_string(filename, kCFStringEncodingMacRoman, kCFStringEncodingUTF8);
+	return convert_string(filename, false);
 }
