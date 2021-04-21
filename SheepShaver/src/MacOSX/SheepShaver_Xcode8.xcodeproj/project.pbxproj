@@ -1332,7 +1332,6 @@
 					"-pagezero_size",
 					0x3000,
 					"-lkpx_cpu",
-					"-liconv",
 				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.sheepshaver;
@@ -1399,7 +1398,6 @@
 					"-pagezero_size",
 					0x3000,
 					"-lkpx_cpu",
-					"-liconv",
 				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.sheepshaver;

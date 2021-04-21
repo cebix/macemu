@@ -72,7 +72,7 @@ prefs_desc common_prefs_items[] = {
 	{"redir", TYPE_STRING, true,		"port forwarding for slirp"},
 	{"title", TYPE_STRING, false,	"window title"},
 	{"sound_buffer", TYPE_INT32, false,	"sound buffer length"},
-	{"name_encoding", TYPE_STRING, false,	"file name encoding"},
+	{"name_encoding", TYPE_INT32, false,	"file name encoding"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 

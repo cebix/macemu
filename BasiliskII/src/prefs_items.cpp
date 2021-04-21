@@ -84,7 +84,7 @@ prefs_desc common_prefs_items[] = {
 	{"host_domain", TYPE_STRING, true,	"handle DNS requests for this domain on the host (slirp only)"},
 	{"title", TYPE_STRING, false,	"window title"},
 	{"sound_buffer", TYPE_INT32, false,	"sound buffer length"},
-	{"name_encoding", TYPE_STRING, false,	"file name encoding"},
+	{"name_encoding", TYPE_INT32, false,	"file name encoding"},
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
