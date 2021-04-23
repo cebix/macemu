@@ -1,14 +1,14 @@
 #### BasiliskII
 ```
-macOS 64-bit JIT
-Linux 32-bit JIT
-MinGW 32-bit JIT
+macOS     x86_64 JIT / arm64 non-JIT
+Linux x86 x86_64 JIT
+MinGW x86        JIT
 ```
 #### SheepShaver
 ```
-macOS 64-bit JIT
-Linux 32-bit JIT
-MinGW 32-bit JIT
+macOS     x86_64 JIT / arm64 non-JIT
+Linux x86 x86_64 JIT
+MinGW x86        JIT
 ```
 ### How To Build
 These builds need to be installed SDL2.0.10+ framework/library.
@@ -18,9 +18,9 @@ These builds need to be installed SDL2.0.10+ framework/library.
 1. Set Build Configuration to Release
 1. Build
 
-(or same as Linux)
+or same as Linux (x86_64 only)
 
-##### Linux(x86)
+##### Linux(x86/x86_64)
 ```
 $ cd macemu/BasiliskII/src/Unix
 $ ./autogen.sh
@@ -38,9 +38,9 @@ $ make
 1. Set Build Configuration to Release
 1. Build
 
-(or same as Linux)
+or same as Linux (x86_64 only)
 
-##### Linux(x86)
+##### Linux(x86/x86_64)
 ```
 $ cd macemu/SheepShaver/src/Unix
 $ ./autogen.sh
