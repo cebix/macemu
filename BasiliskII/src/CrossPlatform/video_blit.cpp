@@ -528,6 +528,14 @@ bool Screen_blitter_init(VisualFormat const & visual_format, bool native_byte_or
 
 		// Windowed 1-bit mode uses a 1-bit X image, so there's no need for special blitting routines
 		Screen_blit = Blit_Copy_Raw;
+
+#if !DIRECT_ADDRESSING
+	} else if (mac_depth == 16) {
+
+		Screen_blit = Blit_Copy_Raw;
+
+#endif
+	
 	} else {
 
 		// Compute RGB shift values

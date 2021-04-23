@@ -523,5 +523,7 @@
 /* Define to 'int' if <sys/types.h> doesn't define. */
 /* #undef socklen_t */
 
+#define USE_JIT 1
+
 #endif /* CONFIG_H */
 

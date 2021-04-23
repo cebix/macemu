@@ -824,4 +824,7 @@
 #define OPTIMIZED_FLAGS
 #endif
 
+#define ENABLE_MACOSX_ETHERHELPER
+#define BINCUE              1
+
 #endif

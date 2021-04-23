@@ -1190,7 +1190,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DATADIR=",
 					HAVE_CONFIG_H,
-					USE_JIT,
 					"_GNU_SOURCE=1",
 					_THREAD_SAFE,
 					_REENTRANT,
@@ -1229,7 +1228,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DATADIR=",
 					HAVE_CONFIG_H,
-					USE_JIT,
 					"_GNU_SOURCE=1",
 					_THREAD_SAFE,
 					_REENTRANT,
@@ -1299,7 +1297,6 @@
 					ENABLE_MACOSX_ETHERHELPER,
 					"DATADIR=",
 					HAVE_CONFIG_H,
-					USE_JIT,
 					"_GNU_SOURCE=1",
 					_THREAD_SAFE,
 					_REENTRANT,
@@ -1328,7 +1325,13 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				OTHER_CFLAGS = "";
 				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
-				OTHER_LDFLAGS = "-lkpx_cpu";
+				OTHER_LDFLAGS = "";
+				"OTHER_LDFLAGS[arch=arm64]" = "-lkpx_cpu";
+				"OTHER_LDFLAGS[arch=x86_64]" = (
+					"-lkpx_cpu",
+					"-pagezero_size",
+					0x3000,
+				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.sheepshaver;
 				PRODUCT_NAME = SheepShaver;
@@ -1360,7 +1363,6 @@
 					ENABLE_MACOSX_ETHERHELPER,
 					"DATADIR=",
 					HAVE_CONFIG_H,
-					USE_JIT,
 					"_GNU_SOURCE=1",
 					_THREAD_SAFE,
 					_REENTRANT,
@@ -1390,7 +1392,13 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				OTHER_CFLAGS = "";
 				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
-				OTHER_LDFLAGS = "-lkpx_cpu";
+				OTHER_LDFLAGS = "";
+				"OTHER_LDFLAGS[arch=arm64]" = "-lkpx_cpu";
+				"OTHER_LDFLAGS[arch=x86_64]" = (
+					"-lkpx_cpu",
+					"-pagezero_size",
+					0x3000,
+				);
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.sheepshaver;
 				PRODUCT_NAME = SheepShaver;

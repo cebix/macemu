@@ -1090,10 +1090,10 @@
 				GCC_ENABLE_PASCAL_STRINGS = NO;
 				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
 				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
+				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
+				"GCC_PREPROCESSOR_DEFINITIONS[arch=arm64]" = "$(inherited)";
+				"GCC_PREPROCESSOR_DEFINITIONS[arch=x86_64]" = (
 					"$(inherited)",
-					ENABLE_MACOSX_ETHERHELPER,
-					"BINCUE=1",
 					"USE_JIT=1",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
@@ -1115,7 +1115,9 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_CFLAGS = "";
-				OTHER_LDFLAGS = (
+				OTHER_LDFLAGS = "";
+				"OTHER_LDFLAGS[arch=arm64]" = "";
+				"OTHER_LDFLAGS[arch=x86_64]" = (
 					"-Wl,-no_pie",
 					"-pagezero_size",
 					0x1000,
@@ -1124,7 +1126,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.basilisk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USE_HEADERMAP = YES;
-				VALID_ARCHS = x86_64;
+				VALID_ARCHS = "x86_64 arm64";
 				WARNING_CFLAGS = "";
 			};
 			name = Debug;
@@ -1156,10 +1158,10 @@
 				GCC_ENABLE_PASCAL_STRINGS = NO;
 				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
 				GCC_OPTIMIZATION_LEVEL = 3;
-				GCC_PREPROCESSOR_DEFINITIONS = (
+				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
+				"GCC_PREPROCESSOR_DEFINITIONS[arch=arm64]" = "$(inherited)";
+				"GCC_PREPROCESSOR_DEFINITIONS[arch=x86_64]" = (
 					"$(inherited)",
-					ENABLE_MACOSX_ETHERHELPER,
-					"BINCUE=1",
 					"USE_JIT=1",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
@@ -1180,7 +1182,9 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				OTHER_CFLAGS = "";
-				OTHER_LDFLAGS = (
+				OTHER_LDFLAGS = "";
+				"OTHER_LDFLAGS[arch=arm64]" = "";
+				"OTHER_LDFLAGS[arch=x86_64]" = (
 					"-Wl,-no_pie",
 					"-pagezero_size",
 					0x1000,
@@ -1189,7 +1193,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.basilisk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USE_HEADERMAP = YES;
-				VALID_ARCHS = x86_64;
+				VALID_ARCHS = "x86_64 arm64";
 				WARNING_CFLAGS = "";
 			};
 			name = Release;
