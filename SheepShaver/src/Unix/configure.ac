@@ -1640,13 +1640,13 @@ if [[ "x$EMULATED_PPC" = "xyes" ]]; then
         esac
       fi
       if [[ "x$have_dyngen_gcc3" = "xyes" ]]; then
-        DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -fno-align-functions"
+        DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -fno-align-functions -fno-stack-protector"
       else
         DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -malign-functions=0"
       fi
       DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -finline-functions -finline-limit=10000 -fno-exceptions -g0"
       if [[ "x$have_dyngen_gcc3" = "xyes" ]]; then
-        DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -fno-reorder-blocks -fno-optimize-sibling-calls"
+        DYNGEN_OP_FLAGS="$DYNGEN_OP_FLAGS -fno-reorder-blocks -fno-optimize-sibling-calls -fno-reorder-blocks-and-partition"
       fi
       if [[ "x$DYNGEN_CC" != "x$CXX" ]]; then
         DYNGEN_CFLAGS="-O2 $CFLAGS"

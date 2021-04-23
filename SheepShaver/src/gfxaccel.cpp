@@ -85,7 +85,7 @@ static inline void do_invrect(uint8 *dest, uint32 length)
 	}
 
 	// Align on 32-bit boundaries
-	if (bpp < 32 && (((uintptr)dest) & 2)) {
+	if (bpp < 32 && (((uintptr)dest) & 2) && length >= 2) {
 		INVERT_2(dest, 0);
 		dest += 2; length -= 2;
 	}
@@ -198,7 +198,7 @@ static inline void do_fillrect(uint8 *dest, uint32 color, uint32 length)
 	}
 
 	// Align on 32-bit boundaries
-	if (bpp < 32 && (((uintptr)dest) & 2)) {
+	if (bpp < 32 && (((uintptr)dest) & 2) && length >= 2) {
 		FILL_2(dest, 0, color);
 		dest += 2; length -= 2;
 	}

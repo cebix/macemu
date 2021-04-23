@@ -405,8 +405,8 @@
    ordering is the same as for multi-word integers. */
 /* #undef HOST_FLOAT_WORDS_BIG_ENDIAN */
 
-/* Define constant offset for Mac address translation */
-/* #undef NATMEM_OFFSET */
+/* Define constant offset for Mac address translation: macosx-aarch64 is always 64bit */
+#define NATMEM_OFFSET 0x400000000000
 
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT "Christian.Bauer@uni-mainz.de"
@@ -428,7 +428,7 @@
 
 /* Define if the __PAGEZERO Mach-O Low Memory Globals hack works on this
    system. */
-#define PAGEZERO_HACK 1
+/* #define PAGEZERO_HACK 1 */
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

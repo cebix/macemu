@@ -2396,6 +2396,7 @@ void patch_relocations(FILE *outfile, const char *name, host_ulong size, host_ul
 				fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = (int32_t)%s + %d;\n", slide, final_sym_name, addend);
 				break;
 			case R_X86_64_PC32:
+			case R_X86_64_PLT32:
 				fprintf(outfile, "    *(uint32_t *)(code_ptr() + %d) = %s - (long)(code_ptr() + %d) + %d;\n", 
 					slide, final_sym_name, slide, addend);
 				break;

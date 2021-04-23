@@ -229,6 +229,13 @@ void *vm_acquire_reserved(size_t size) {
 	return reserved_buf && size <= RESERVED_SIZE ? reserved_buf : VM_MAP_FAILED;
 }
 
+int vm_init_reserved(void *hostAddress) {
+    int result = vm_acquire_fixed(hostAddress, RESERVED_SIZE);
+    if (result >= 0)
+        reserved_buf = hostAddress;
+    return result;
+}
+
 /* Allocate zero-filled memory of SIZE bytes. The mapping is private
    and default protection bits are read / write. The return value
    is the actual mapping address chosen or VM_MAP_FAILED for errors.  */

@@ -2210,6 +2210,7 @@ rti:;
 }
 #endif
 
+extern int vm_init_reserved(void *hostAddress);
 
 /*
  *  Helpers to share 32-bit addressable data with MacOS
@@ -2221,7 +2222,15 @@ bool SheepMem::Init(void)
 	page_size = getpagesize();
 
 	// Allocate SheepShaver globals
+#ifdef NATMEM_OFFSET
+	if (vm_mac_acquire_fixed(ROM_BASE + ROM_AREA_SIZE + SIG_STACK_SIZE, size) < 0)
+		return false;
+	uint8 *adr = Mac2HostAddr(ROM_BASE + ROM_AREA_SIZE + SIG_STACK_SIZE);
+	if (vm_init_reserved(adr + size) < 0)
+		return false;
+#else
 	uint8 *adr = vm_mac_acquire(size);
+#endif
 	if (adr == VM_MAP_FAILED)
 		return false;
 	proc = base = Host2MacAddr(adr);
