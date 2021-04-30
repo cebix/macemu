@@ -94,7 +94,7 @@
 		E44C460520D262B0000583AE /* tftp.c in Sources */ = {isa = PBXBuildFile; fileRef = E44C45DC20D262AD000583AE /* tftp.c */; };
 		E44C460620D262B0000583AE /* mbuf.c in Sources */ = {isa = PBXBuildFile; fileRef = E44C45DD20D262AD000583AE /* mbuf.c */; };
 		E44C460720D262B0000583AE /* ip_icmp.c in Sources */ = {isa = PBXBuildFile; fileRef = E44C45DF20D262AD000583AE /* ip_icmp.c */; };
-		E44C460820D262B0000583AE /* VERSION in Resources */ = {isa = PBXBuildFile; fileRef = E44C45E220D262AE000583AE /* VERSION */; };
+		E44C460820D262B0000583AE /* VERSION_ in Resources */ = {isa = PBXBuildFile; fileRef = E44C45E220D262AE000583AE /* VERSION_ */; };
 		E44C460920D262B0000583AE /* tcp_input.c in Sources */ = {isa = PBXBuildFile; fileRef = E44C45E520D262AE000583AE /* tcp_input.c */; };
 		E44C460A20D262B0000583AE /* misc.c in Sources */ = {isa = PBXBuildFile; fileRef = E44C45E620D262AE000583AE /* misc.c */; };
 		E44C460B20D262B0000583AE /* debug.c in Sources */ = {isa = PBXBuildFile; fileRef = E44C45E920D262AE000583AE /* debug.c */; };
@@ -356,7 +356,7 @@
 		E44C45DF20D262AD000583AE /* ip_icmp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ip_icmp.c; path = ../../../BasiliskII/src/slirp/ip_icmp.c; sourceTree = "<group>"; };
 		E44C45E020D262AE000583AE /* bootp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = bootp.h; path = ../../../BasiliskII/src/slirp/bootp.h; sourceTree = "<group>"; };
 		E44C45E120D262AE000583AE /* tcpip.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = tcpip.h; path = ../../../BasiliskII/src/slirp/tcpip.h; sourceTree = "<group>"; };
-		E44C45E220D262AE000583AE /* VERSION */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = VERSION; path = ../../../BasiliskII/src/slirp/VERSION; sourceTree = "<group>"; };
+		E44C45E220D262AE000583AE /* VERSION_ */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = VERSION_; path = ../../../BasiliskII/src/slirp/VERSION_; sourceTree = "<group>"; };
 		E44C45E320D262AE000583AE /* ip_icmp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ip_icmp.h; path = ../../../BasiliskII/src/slirp/ip_icmp.h; sourceTree = "<group>"; };
 		E44C45E420D262AE000583AE /* slirp_config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = slirp_config.h; path = ../../../BasiliskII/src/slirp/slirp_config.h; sourceTree = "<group>"; };
 		E44C45E520D262AE000583AE /* tcp_input.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = tcp_input.c; path = ../../../BasiliskII/src/slirp/tcp_input.c; sourceTree = "<group>"; };
@@ -813,7 +813,7 @@
 				E44C45DE20D262AD000583AE /* tftp.h */,
 				E44C45EB20D262AE000583AE /* udp.c */,
 				E44C45E720D262AE000583AE /* udp.h */,
-				E44C45E220D262AE000583AE /* VERSION */,
+				E44C45E220D262AE000583AE /* VERSION_ */,
 			);
 			name = slirp;
 			path = ../slirp;
@@ -1007,7 +1007,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E420260B24125442000508DF /* etherhelpertool in Resources */,
-				E44C460820D262B0000583AE /* VERSION in Resources */,
+				E44C460820D262B0000583AE /* VERSION_ in Resources */,
 				0856D05914A99EF1000B1711 /* SheepShaver.icns in Resources */,
 				E44C460F20D262B0000583AE /* COPYRIGHT in Resources */,
 				3D2C25B5221092BA00B635DE /* SheepVM.icns in Resources */,
