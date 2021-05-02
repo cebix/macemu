@@ -485,10 +485,6 @@ if [[ "x$WANT_GTK" = "xgtk" ]]; then
   AM_PATH_GTK(1.2.0, [
     GUI_CFLAGS="$GTK_CFLAGS"
     GUI_LIBS="$GTK_LIBS"
-    dnl somehow, <gnome-i18n.h> would redefine gettext() to nothing if
-    dnl ENABLE_NLS is not set, thusly conflicting with C++ <string> which
-    dnl includes <libintl.h>
-    AM_GNU_GETTEXT([external])
     B2_PATH_GNOMEUI([
       AC_DEFINE(HAVE_GNOMEUI, 1, [Define if libgnomeui is available.])
       GUI_CFLAGS="$GUI_CFLAGS $GNOMEUI_CFLAGS"
