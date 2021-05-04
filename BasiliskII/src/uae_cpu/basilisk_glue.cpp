@@ -56,8 +56,12 @@ uintptr MEMBaseDiff;		// Global offset between a Mac address and its Host equiva
 bool UseJIT = false;
 #endif
 
+// #if defined(ENABLE_EXCLUSIVE_SPCFLAGS) && !defined(HAVE_HARDWARE_LOCKS)
+B2_mutex *spcflags_lock = NULL;
+// #endif
+
 // From newcpu.cpp
-extern bool quit_program;
+extern int quit_program;
 
 
 /*
@@ -66,6 +70,7 @@ extern bool quit_program;
 
 bool Init680x0(void)
 {
+	spcflags_lock = B2_create_mutex();
 #if REAL_ADDRESSING
 	// Mac address space = host address space
 	RAMBaseMac = (uintptr)RAMBaseHost;
@@ -160,6 +165,7 @@ void TriggerInterrupt(void)
 void TriggerNMI(void)
 {
 	//!! not implemented yet
+	// SPCFLAGS_SET( SPCFLAG_BRK ); // use _BRK for NMI
 }
 
 
@@ -200,7 +206,7 @@ void Execute68kTrap(uint16 trap, struct M68kRegisters *r)
 	// Execute trap
 	m68k_setpc(m68k_areg(regs, 7));
 	fill_prefetch_0();
-	quit_program = false;
+	quit_program = 0;
 	m68k_execute();
 
 	// Clean up stack
@@ -215,7 +221,7 @@ void Execute68kTrap(uint16 trap, struct M68kRegisters *r)
 		r->d[i] = m68k_dreg(regs, i);
 	for (i=0; i<7; i++)
 		r->a[i] = m68k_areg(regs, i);
-	quit_program = false;
+	quit_program = 0;
 }
 
 
@@ -247,7 +253,7 @@ void Execute68k(uint32 addr, struct M68kRegisters *r)
 	// Execute routine
 	m68k_setpc(addr);
 	fill_prefetch_0();
-	quit_program = false;
+	quit_program = 0;
 	m68k_execute();
 
 	// Clean up stack
@@ -262,5 +268,18 @@ void Execute68k(uint32 addr, struct M68kRegisters *r)
 		r->d[i] = m68k_dreg(regs, i);
 	for (i=0; i<7; i++)
 		r->a[i] = m68k_areg(regs, i);
-	quit_program = false;
+	quit_program = 0;
+}
+
+void report_double_bus_error()
+{
+#if 0
+	panicbug("CPU: Double bus fault detected !");
+	/* would be cool to open SDL dialog here: */
+	/* [Double bus fault detected. The emulated system crashed badly.
+	    Do you want to reset ARAnyM or quit ?] [Reset] [Quit]"
+	*/
+	panicbug(CPU_MSG);
+	CPU_ACTION;
+#endif
 }

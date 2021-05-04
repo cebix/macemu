@@ -1,28 +1,33 @@
 /*
- *  types.h - basic types for fpu registers
+ * fpu/types.h - basic types for fpu registers
  *
- *  Basilisk II (C) 1997-2008 Christian Bauer
+ * Copyright (c) 2001-2004 Milan Jurik of ARAnyM dev team (see AUTHORS)
+ * 
+ * Inspired by Christian Bauer's Basilisk II
  *
- *  MC68881/68040 fpu emulation
- *  
- *  Original UAE FPU, copyright 1996 Herman ten Brugge
- *  Rewrite for x86, copyright 1999-2000 Lauri Pesonen
- *  New framework, copyright 2000 Gwenole Beauchesne
- *  Adapted for JIT compilation (c) Bernd Meyer, 2000
- *  
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ * This file is part of the ARAnyM project which builds a new and powerful
+ * TOS/FreeMiNT compatible virtual machine running on almost any hardware.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * MC68881/68040 fpu emulation
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Original UAE FPU, copyright 1996 Herman ten Brugge
+ * Rewrite for x86, copyright 1999-2001 Lauri Pesonen
+ * New framework, copyright 2000-2001 Gwenole Beauchesne
+ * Adapted for JIT compilation (c) Bernd Meyer, 2000-2001
+ *
+ * ARAnyM is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * ARAnyM is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with ARAnyM; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef FPU_TYPES_H
@@ -106,8 +111,10 @@ typedef uae_f32		fpu_single;
 
 #elif defined(FPU_IEEE)
 
+#if 0
 #if HOST_FLOAT_FORMAT != IEEE_FLOAT_FORMAT
 #error "No IEEE float format, you lose."
+#endif
 #endif
 
 /* 4-byte floats */
@@ -133,7 +140,7 @@ typedef long double uae_f64;
 typedef long double uae_f96;
 typedef uae_f96 fpu_register;
 #define USE_LONG_DOUBLE 1
-#elif SIZEOF_LONG_DOUBLE == 16 && (defined(__i386__) || defined(__x86_64__))
+#elif SIZEOF_LONG_DOUBLE == 16 && (defined(CPU_i386) || defined(CPU_x86_64) || defined(CPU_ia64))
 /* Long doubles on x86-64 are really held in old x87 FPU stack.  */
 typedef long double uae_f128;
 typedef uae_f128 fpu_register;
@@ -154,6 +161,23 @@ typedef fpu_register	fpu_extended;
 typedef uae_f64			fpu_double;
 typedef uae_f32			fpu_single;
 
+#elif defined(FPU_MPFR)
+
+#include <mpfr.h>
+
+struct fpu_register {
+  mpfr_t f;
+  uae_u64 nan_bits;
+  int nan_sign;
+  operator long double ();
+  fpu_register &operator=(long double);
+};
+
 #endif
+
+union fpu_register_parts {
+	fpu_register val;
+	uae_u32 parts[sizeof(fpu_register) / 4];
+};
 
 #endif /* FPU_TYPES_H */

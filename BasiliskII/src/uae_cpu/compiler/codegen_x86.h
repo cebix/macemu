@@ -1,36 +1,34 @@
-/******************** -*- mode: C; tab-width: 8 -*- ********************
+/*
+ * compiler/codegen_x86.h - IA-32 and AMD64 code generator
  *
- *	Run-time assembler for IA-32 and AMD64
+ * Copyright (c) 2001-2004 Milan Jurik of ARAnyM dev team (see AUTHORS)
+ * 
+ * Inspired by Christian Bauer's Basilisk II
  *
- ***********************************************************************/
-
-
-/***********************************************************************
+ * This file is part of the ARAnyM project which builds a new and powerful
+ * TOS/FreeMiNT compatible virtual machine running on almost any hardware.
  *
- *  This file is derived from CCG.
+ * JIT compiler m68k -> IA-32 and AMD64
  *
- *  Copyright 1999, 2000, 2001, 2002, 2003 Ian Piumarta
+ * Original 68040 JIT compiler for UAE, copyright 2000-2002 Bernd Meyer
+ * This file is derived from CCG, copyright 1999-2003 Ian Piumarta
+ * Adaptation for Basilisk II and improvements, copyright 2000-2004 Gwenole Beauchesne
+ * Portions related to CPU detection come from linux/arch/i386/kernel/setup.c
  *
- *  Adaptations and enhancements for AMD64 support, Copyright 2003-2008
- *    Gwenole Beauchesne
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *  Basilisk II (C) 1997-2008 Christian Bauer
- *  
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- ***********************************************************************/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
 
 #ifndef X86_RTASM_H
 #define X86_RTASM_H
@@ -42,6 +40,7 @@
  * TODO
  *
  *	o Fix FIXMEs
+ *	o i387 FPU instructions
  *	o SSE instructions
  *	o Optimize for cases where register numbers are not integral constants
  */
@@ -110,7 +109,6 @@ enum {
   X86_Reg64_Base  = 0x50,
   X86_RegMMX_Base = 0x60,
   X86_RegXMM_Base = 0x70,
-  X86_RegFPU_Base = 0x80
 #else
   X86_NOREG       = -1,
   X86_Reg8L_Base  = 0,
@@ -120,7 +118,6 @@ enum {
   X86_Reg64_Base  = 0,
   X86_RegMMX_Base = 0,
   X86_RegXMM_Base = 0,
-  X86_RegFPU_Base = 0
 #endif
 };
 
@@ -172,12 +169,6 @@ enum {
   X86_XMM12, X86_XMM13, X86_XMM14, X86_XMM15
 };
 
-enum {
-  X86_ST0 = X86_RegFPU_Base,
-  X86_ST1, X86_ST2, X86_ST3,
-  X86_ST4, X86_ST5, X86_ST6, X86_ST7
-};
-
 /* Register control and access
  *
  *	_r0P(R)	Null register?
@@ -194,23 +185,21 @@ enum {
  *	_r8(R)	64-bit register ID
  *	_rM(R)	MMX register ID
  *	_rX(R)	XMM register ID
- *	_rF(R)	FPU register ID
  *	_rA(R)	Address register ID used for EA calculation
  */
 
-#define _rST0P(R)	((int)(R) == (int)X86_ST0)
 #define _r0P(R)		((int)(R) == (int)X86_NOREG)
-#define _rIP(R)		(X86_TARGET_64BIT ? ((int)(R) == (int)X86_RIP) : 0)
+#define _rIP(R)		((int)(R) == (int)X86_RIP)
 
 #if X86_FLAT_REGISTERS
 #define _rC(R)		((R) & 0xf0)
 #define _rR(R)		((R) & 0x0f)
 #define _rN(R)		((R) & 0x07)
-#define _rXP(R)		(((R) > 0 && _rR(R) > 7) ? 1 : 0)
+#define _rXP(R)		((R) > 0 && _rR(R) > 7)
 #else
 #define _rN(R)		((R) & 0x07)
 #define _rR(R)		(int(R))
-#define _rXP(R)		((_rR(R) > 7 && _rR(R) < 16) ? 1 : 0)
+#define _rXP(R)		(_rR(R) > 7 && _rR(R) < 16)
 #endif
 
 #if !defined(_ASM_SAFETY) || ! X86_FLAT_REGISTERS
@@ -221,7 +210,6 @@ enum {
 #define _rA(R)		_rN(R)
 #define _rM(R)		_rN(R)
 #define _rX(R)		_rN(R)
-#define _rF(R)		_rN(R)
 #else
 #define _r1(R)		( ((_rC(R) & (X86_Reg8L_Base | X86_Reg8H_Base)) != 0)	? _rN(R) : x86_emit_failure0( "8-bit register required"))
 #define _r2(R)		( (_rC(R) == X86_Reg16_Base)				? _rN(R) : x86_emit_failure0("16-bit register required"))
@@ -232,7 +220,6 @@ enum {
 			( (_rC(R) == X86_Reg32_Base)				? _rN(R) : x86_emit_failure0("not a valid 32-bit base/index expression")) )
 #define _rM(R)		( (_rC(R) == X86_RegMMX_Base)				? _rN(R) : x86_emit_failure0("MMX register required"))
 #define _rX(R)		( (_rC(R) == X86_RegXMM_Base)				? _rN(R) : x86_emit_failure0("SSE register required"))
-#define _rF(R)		( (_rC(R) == X86_RegFPU_Base)				? _rN(R) : x86_emit_failure0("FPU register required"))
 #endif
 
 #define _rSP()		(X86_TARGET_64BIT ? (int)X86_RSP : (int)X86_ESP)
@@ -254,15 +241,20 @@ typedef unsigned short	_us;
 typedef signed int	_sl;
 typedef unsigned int	_ul;
 
-#define _UC(X)		((_uc  )(unsigned long)(X))
-#define _US(X)		((_us  )(unsigned long)(X))
-#define _SL(X)		((_sl  )(unsigned long)(X))
-#define _UL(X)		((_ul  )(unsigned long)(X))
+#define _UC(X)		((_uc  )(uintptr_t)(X))
+#define _US(X)		((_us  )(uintptr_t)(X))
+#define _SL(X)		((_sl  )(uintptr_t)(X))
+#define _UL(X)		((_ul  )(uintptr_t)(X))
 
 #define _PUC(X)		((_uc *)(X))
 #define _PUS(X)		((_us *)(X))
 #define _PSL(X)		((_sl *)(X))
 #define _PUL(X)		((_ul *)(X))
+
+#undef _B
+#undef _W
+#undef _L
+#undef _Q
 
 #define _B(B)		x86_emit_byte((B))
 #define _W(W)		x86_emit_word((W))
@@ -410,22 +402,54 @@ typedef unsigned int	_ul;
 /* --- Memory subformats - urgh! ------------------------------------------- */
 
 /* _r_D() is RIP addressing mode if X86_TARGET_64BIT, use _r_DSIB() instead */
-#define _r_D(	R, D	  )	(_Mrm(_b00,_rN(R),_b101 )		             ,_L((_sl)(D)))
-#define _r_DSIB(R, D      )	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(1),_b100 ,_b101 ),_L((_sl)(D)))
+#define _r_D(	R, D	  )	(_Mrm(_b00,_rN(R),_b101 )		             ,_L((uae_u32)(D)))
+#define _r_DSIB(R, D      )	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(1),_b100 ,_b101 ),_L((uae_u32)(D)))
 #define _r_0B(	R,   B    )	(_Mrm(_b00,_rN(R),_rA(B))			                   )
 #define _r_0BIS(R,   B,I,S)	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B))              )
-#define _r_1B(	R, D,B    )	(_Mrm(_b01,_rN(R),_rA(B))		             ,_B((_sc)(D)))
-#define _r_1BIS(R, D,B,I,S)	(_Mrm(_b01,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B)),_B((_sc)(D)))
-#define _r_4B(	R, D,B    )	(_Mrm(_b10,_rN(R),_rA(B))		             ,_L((_sl)(D)))
-#define _r_4IS( R, D,I,S)	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_b101 ),_L((_sl)(D)))
-#define _r_4BIS(R, D,B,I,S)	(_Mrm(_b10,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B)),_L((_sl)(D)))
+#define _r_1B(	R, D,B    )	(_Mrm(_b01,_rN(R),_rA(B))		             ,_B((uae_u32)(D)))
+#define _r_1BIS(R, D,B,I,S)	(_Mrm(_b01,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B)),_B((uae_u32)(D)))
+#define _r_4B(	R, D,B    )	(_Mrm(_b10,_rN(R),_rA(B))		             ,_L((uae_u32)(D)))
+#define _r_4IS( R, D,I,S)	(_Mrm(_b00,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_b101 ),_L((uae_u32)(D)))
+#define _r_4BIS(R, D,B,I,S)	(_Mrm(_b10,_rN(R),_b100 ),_SIB(_SCL(S),_rA(I),_rA(B)),_L((uae_u32)(D)))
 
 #define _r_DB(  R, D,B    )	((_s0P(D) && (!_rbp13P(B)) ? _r_0B  (R,  B    ) : (_s8P(D) ? _r_1B(  R,D,B    ) : _r_4B(  R,D,B    ))))
 #define _r_DBIS(R, D,B,I,S)	((_s0P(D) && (!_rbp13P(B)) ? _r_0BIS(R,  B,I,S) : (_s8P(D) ? _r_1BIS(R,D,B,I,S) : _r_4BIS(R,D,B,I,S))))
 
 /* Use RIP-addressing in 64-bit mode, if possible */
-#define _x86_RIP_addressing_possible(D,O)	(X86_RIP_RELATIVE_ADDR && \
-						((uintptr)x86_get_target() + 4 + (O) - (D) <= 0xffffffff))
+#define _x86_RIP_addressing_possible(D,O)	(X86_RIP_RELATIVE_ADDR && x86_RIP_addressing_possible(D, O))
+
+static inline int x86_RIP_addressing_possible(uintptr addr, uintptr offset)
+{
+#if X86_TARGET_64BIT
+	/*
+	 * address of the next instruction.
+	 * The opcode has already been emmitted,
+	 * so this is the size of an 32bit displacement +
+	 * the size of any immediate value that is part of the instruction (offset),
+	 */
+	uintptr dst = (uintptr)get_target() + 4 + offset;
+	intptr disp = dst - addr;
+	int ok = disp >= -0x80000000LL && disp <= 0x7fffffffLL;
+	/* fprintf(stderr, "x86_RIP_addressing_possible: %llx - %llx %16llx = %d\n", (unsigned long long)dst, (unsigned long long)addr, (long long)disp, ok); */
+	return ok;
+#else
+	UNUSED(addr);
+	UNUSED(offset);
+	return 0;
+#endif
+}
+
+
+static inline int x86_DISP32_addressing_possible(uintptr addr)
+{
+#if X86_TARGET_64BIT
+	return addr <= 0xFFFFFFFFULL;
+#else
+	UNUSED(addr);
+	return 1;
+#endif
+}
+
 
 #define _r_X(   R, D,B,I,S,O)	(_r0P(I) ? (_r0P(B)    ? (!X86_TARGET_64BIT ? _r_D(R,D) : \
 					                 (_x86_RIP_addressing_possible(D, O) ? \
@@ -450,8 +474,8 @@ typedef unsigned int	_ul;
 #define	 _d16()					   (		  _B(0x66	)				  )
 #define	  _O(	     OP				)  (		  _B(  OP	)				  )
 #define	  _Or(	     OP,R			)  (		  _B( (OP)|_r(R))				  )
-#define	 _OO(	     OP				)  ( _B((OP)>>8), _B(( (OP)      )&0xff)			  )
-#define	 _OOr(	     OP,R			)  ( _B((OP)>>8), _B(( (OP)|_r(R))&0xff)			  )
+#define	 _OO(	     OP				)  ( _B((OP)>>8), _B( (uae_u8)(OP)	)			  )
+#define	 _OOr(	     OP,R			)  ( _B((OP)>>8), _B( (OP)|_r(R))				  )
 #define	  _Os(	     OP,B			)  (	_s8P(B) ? _B(((OP)|_b10)) : _B(OP)			  )
 #define	    _sW(			     W	)  (				       _s8P(W) ? _B(W):_W(W)	  )
 #define	    _sL(			     L	)  (				       _s8P(L) ? _B(L):_L(L)	  )
@@ -460,7 +484,6 @@ typedef unsigned int	_ul;
 #define	  _O_B(	     OP			    ,B	)  (	    _O	    (  OP  )			      ,_B(B)	  )
 #define	  _O_W(	     OP			    ,W	)  (	    _O	    (  OP  )			      ,_W(W)	  )
 #define	  _O_L(	     OP			    ,L	)  (	    _O	    (  OP  )			      ,_L(L)	  )
-#define	  _OO_L(     OP			    ,L	)  (	   _OO	    (  OP  )			      ,_L(L)	  )
 #define	  _O_D8(     OP			    ,D	)  (	    _O	    (  OP  )			     ,_D8(D)	  )
 #define	  _O_D32(     OP		    ,D	)  (	    _O	    (  OP  )			     ,_D32(D)	  )
 #define	 _OO_D32(     OP		    ,D	)  (	   _OO	    (  OP  )			     ,_D32(D)	  )
@@ -494,8 +517,10 @@ typedef unsigned int	_ul;
 
 /* --- REX prefixes -------------------------------------------------------- */
 
+#undef _VOID
+
 #define _VOID()			((void)0)
-#define _BIT(X)			((X) ? 1 : 0)
+#define _BIT(X)			(!!(X))
 #define _d64(W,R,X,B)		(_B(0x40|(W)<<3|(R)<<2|(X)<<1|(B)))
 
 #define __REXwrxb(L,W,R,X,B)	((W|R|X|B) || (L) ? _d64(W,R,X,B) : _VOID())
@@ -555,8 +580,8 @@ enum {
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
 #define _ALUBrr(OP,RS, RD)		(_REXBrr(RS, RD),		_O_Mrm		(((OP) << 3)	,_b11,_r1(RS),_r1(RD)				))
-#define _ALUBmr(OP, MD, MB, MI, MS, RD)	(_REXBmr(MB, MI, RD),		_O_r_X		(((OP) << 3) + 2     ,_r1(RD)		,MD,MB,MI,MS		))
-#define _ALUBrm(OP, RS, MD, MB, MI, MS)	(_REXBrm(RS, MB, MI),		_O_r_X		(((OP) << 3)	     ,_r1(RS)		,MD,MB,MI,MS		))
+#define _ALUBmr(OP, MD, MB, MI, MS, RD)	(_REXBmr(MB, MI, RD),		_O_r_X		(((OP) << 3) + 2,_r1(RD)		,MD,MB,MI,MS		))
+#define _ALUBrm(OP, RS, MD, MB, MI, MS)	(_REXBrm(RS, MB, MI),		_O_r_X		(((OP) << 3)	,    ,_r1(RS)		,MD,MB,MI,MS		))
 #define _ALUBir(OP, IM, RD)		(X86_OPTIMIZE_ALU && ((RD) == X86_AL) ? \
 					(_REXBrr(0, RD),		_O_B		(((OP) << 3) + 4					,_su8(IM))) : \
 					(_REXBrr(0, RD),		_O_Mrm_B	(0x80		,_b11,OP     ,_r1(RD)			,_su8(IM))) )
@@ -1033,7 +1058,7 @@ enum {
 #define _BTQrm(OP, RS, MD, MB, MI, MS)	(_REXQrm(RS, MB, MI),		_OO_r_X		(0x0f83|((OP)<<3)     ,_r8(RS)		,MD,MB,MI,MS		))
 
 #define BTWir(IM, RD)			_BTWir(X86_BT, IM, RD)
-#define BTWim(IM, MD, MB, MI, MS)	_BTWim(X86_BT, IM, MD, MB, MI, MS)
+#define BTWim(IM, MD, MB, MI, MS)	_BTWim(X86_BT, IM, MD, MI, MS)
 #define BTWrr(RS, RD)			_BTWrr(X86_BT, RS, RD)
 #define BTWrm(RS, MD, MB, MI, MS)	_BTWrm(X86_BT, RS, MD, MB, MI, MS)
 
@@ -1048,7 +1073,7 @@ enum {
 #define BTQrm(RS, MD, MB, MI, MS)	_BTQrm(X86_BT, RS, MD, MB, MI, MS)
 
 #define BTCWir(IM, RD)			_BTWir(X86_BTC, IM, RD)
-#define BTCWim(IM, MD, MB, MI, MS)	_BTWim(X86_BTC, IM, MD, MB, MI, MS)
+#define BTCWim(IM, MD, MB, MI, MS)	_BTWim(X86_BTC, IM, MD, MI, MS)
 #define BTCWrr(RS, RD)			_BTWrr(X86_BTC, RS, RD)
 #define BTCWrm(RS, MD, MB, MI, MS)	_BTWrm(X86_BTC, RS, MD, MB, MI, MS)
 
@@ -1063,7 +1088,7 @@ enum {
 #define BTCQrm(RS, MD, MB, MI, MS)	_BTQrm(X86_BTC, RS, MD, MB, MI, MS)
 
 #define BTRWir(IM, RD)			_BTWir(X86_BTR, IM, RD)
-#define BTRWim(IM, MD, MB, MI, MS)	_BTWim(X86_BTR, IM, MD, MB, MI, MS)
+#define BTRWim(IM, MD, MB, MI, MS)	_BTWim(X86_BTR, IM, MD, MI, MS)
 #define BTRWrr(RS, RD)			_BTWrr(X86_BTR, RS, RD)
 #define BTRWrm(RS, MD, MB, MI, MS)	_BTWrm(X86_BTR, RS, MD, MB, MI, MS)
 
@@ -1078,7 +1103,7 @@ enum {
 #define BTRQrm(RS, MD, MB, MI, MS)	_BTQrm(X86_BTR, RS, MD, MB, MI, MS)
 
 #define BTSWir(IM, RD)			_BTWir(X86_BTS, IM, RD)
-#define BTSWim(IM, MD, MB, MI, MS)	_BTWim(X86_BTS, IM, MD, MB, MI, MS)
+#define BTSWim(IM, MD, MB, MI, MS)	_BTWim(X86_BTS, IM, MD, MI, MS)
 #define BTSWrr(RS, RD)			_BTWrr(X86_BTS, RS, RD)
 #define BTSWrm(RS, MD, MB, MI, MS)	_BTWrm(X86_BTS, RS, MD, MB, MI, MS)
 
@@ -1261,7 +1286,7 @@ enum {
 // FIXME: no prefix is availble to encode a 32-bit operand size in 64-bit mode
 #define CALLm(M)							_O_D32		(0xe8					,(int)(M)		)
 #define _CALLLsr(R)			(_REXLrr(0, R),			_O_Mrm		(0xff		,_b11,_b010,_r4(R)				))
-#define _CALLQsr(R)			(_REXLrr(0, R),			_O_Mrm		(0xff		,_b11,_b010,_r8(R)				))
+#define _CALLQsr(R)			(_REXQrr(0, R),			_O_Mrm		(0xff		,_b11,_b010,_r8(R)				))
 #define CALLsr(R)			( X86_TARGET_64BIT ? _CALLQsr(R) : _CALLLsr(R))
 #define CALLsm(D,B,I,S)			(_REXLrm(0, B, I),		_O_r_X		(0xff		     ,_b010		,(int)(D),B,I,S		))
 
@@ -1269,135 +1294,135 @@ enum {
 #define JMPSm(M)							_O_D8		(0xeb					,(int)(M)		)
 #define JMPm(M)								_O_D32		(0xe9					,(int)(M)		)
 #define _JMPLsr(R)			(_REXLrr(0, R),			_O_Mrm		(0xff		,_b11,_b100,_r4(R)				))
-#define _JMPQsr(R)			(_REXLrr(0, R),			_O_Mrm		(0xff		,_b11,_b100,_r8(R)				))
+#define _JMPQsr(R)			(_REXQrr(0, R),			_O_Mrm		(0xff		,_b11,_b100,_r8(R)				))
 #define JMPsr(R)			( X86_TARGET_64BIT ? _JMPQsr(R) : _JMPLsr(R))
 #define JMPsm(D,B,I,S)			(_REXLrm(0, B, I),		_O_r_X		(0xff		     ,_b100		,(int)(D),B,I,S		))
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 #define JCCSii(CC, D)							_O_B		(0x70|(CC)				,(_sc)(int)(D)		)
 #define JCCSim(CC, D)							_O_D8		(0x70|(CC)				,(int)(D)		)
-#define JOSm(D)				JCCSim(X86_CC_O,   D)
-#define JNOSm(D)			JCCSim(X86_CC_NO,  D)
-#define JBSm(D)				JCCSim(X86_CC_B,   D)
-#define JNAESm(D)			JCCSim(X86_CC_NAE, D)
-#define JNBSm(D)			JCCSim(X86_CC_NB,  D)
-#define JAESm(D)			JCCSim(X86_CC_AE,  D)
-#define JESm(D)				JCCSim(X86_CC_E,   D)
-#define JZSm(D)				JCCSim(X86_CC_Z,   D)
-#define JNESm(D)			JCCSim(X86_CC_NE,  D)
-#define JNZSm(D)			JCCSim(X86_CC_NZ,  D)
-#define JBESm(D)			JCCSim(X86_CC_BE,  D)
-#define JNASm(D)			JCCSim(X86_CC_NA,  D)
-#define JNBESm(D)			JCCSim(X86_CC_NBE, D)
-#define JASm(D)				JCCSim(X86_CC_A,   D)
-#define JSSm(D)				JCCSim(X86_CC_S,   D)
-#define JNSSm(D)			JCCSim(X86_CC_NS,  D)
-#define JPSm(D)				JCCSim(X86_CC_P,   D)
-#define JPESm(D)			JCCSim(X86_CC_PE,  D)
-#define JNPSm(D)			JCCSim(X86_CC_NP,  D)
-#define JPOSm(D)			JCCSim(X86_CC_PO,  D)
-#define JLSm(D)				JCCSim(X86_CC_L,   D)
-#define JNGESm(D)			JCCSim(X86_CC_NGE, D)
-#define JNLSm(D)			JCCSim(X86_CC_NL,  D)
-#define JGESm(D)			JCCSim(X86_CC_GE,  D)
-#define JLESm(D)			JCCSim(X86_CC_LE,  D)
-#define JNGSm(D)			JCCSim(X86_CC_NG,  D)
-#define JNLESm(D)			JCCSim(X86_CC_NLE, D)
-#define JGSm(D)				JCCSim(X86_CC_G,   D)
+#define JOSm(D)				JCCSim(0x0, D)
+#define JNOSm(D)			JCCSim(0x1, D)
+#define JBSm(D)				JCCSim(0x2, D)
+#define JNAESm(D)			JCCSim(0x2, D)
+#define JNBSm(D)			JCCSim(0x3, D)
+#define JAESm(D)			JCCSim(0x3, D)
+#define JESm(D)				JCCSim(0x4, D)
+#define JZSm(D)				JCCSim(0x4, D)
+#define JNESm(D)			JCCSim(0x5, D)
+#define JNZSm(D)			JCCSim(0x5, D)
+#define JBESm(D)			JCCSim(0x6, D)
+#define JNASm(D)			JCCSim(0x6, D)
+#define JNBESm(D)			JCCSim(0x7, D)
+#define JASm(D)				JCCSim(0x7, D)
+#define JSSm(D)				JCCSim(0x8, D)
+#define JNSSm(D)			JCCSim(0x9, D)
+#define JPSm(D)				JCCSim(0xa, D)
+#define JPESm(D)			JCCSim(0xa, D)
+#define JNPSm(D)			JCCSim(0xb, D)
+#define JPOSm(D)			JCCSim(0xb, D)
+#define JLSm(D)				JCCSim(0xc, D)
+#define JNGESm(D)			JCCSim(0xc, D)
+#define JNLSm(D)			JCCSim(0xd, D)
+#define JGESm(D)			JCCSim(0xd, D)
+#define JLESm(D)			JCCSim(0xe, D)
+#define JNGSm(D)			JCCSim(0xe, D)
+#define JNLESm(D)			JCCSim(0xf, D)
+#define JGSm(D)				JCCSim(0xf, D)
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 #define JCCii(CC, D)							_OO_L		(0x0f80|(CC)				,(int)(D)		)
 #define JCCim(CC, D)							_OO_D32		(0x0f80|(CC)				,(int)(D)		)
-#define JOm(D)				JCCim(X86_CC_O,   D)
-#define JNOm(D)				JCCim(X86_CC_NO,  D)
-#define JBm(D)				JCCim(X86_CC_B,   D)
-#define JNAEm(D)			JCCim(X86_CC_NAE, D)
-#define JNBm(D)				JCCim(X86_CC_NB,  D)
-#define JAEm(D)				JCCim(X86_CC_AE,  D)
-#define JEm(D)				JCCim(X86_CC_E,   D)
-#define JZm(D)				JCCim(X86_CC_Z,   D)
-#define JNEm(D)				JCCim(X86_CC_NE,  D)
-#define JNZm(D)				JCCim(X86_CC_NZ,  D)
-#define JBEm(D)				JCCim(X86_CC_BE,  D)
-#define JNAm(D)				JCCim(X86_CC_NA,  D)
-#define JNBEm(D)			JCCim(X86_CC_NBE, D)
-#define JAm(D)				JCCim(X86_CC_A,   D)
-#define JSm(D)				JCCim(X86_CC_S,   D)
-#define JNSm(D)				JCCim(X86_CC_NS,  D)
-#define JPm(D)				JCCim(X86_CC_P,   D)
-#define JPEm(D)				JCCim(X86_CC_PE,  D)
-#define JNPm(D)				JCCim(X86_CC_NP,  D)
-#define JPOm(D)				JCCim(X86_CC_PO,  D)
-#define JLm(D)				JCCim(X86_CC_L,   D)
-#define JNGEm(D)			JCCim(X86_CC_NGE, D)
-#define JNLm(D)				JCCim(X86_CC_NL,  D)
-#define JGEm(D)				JCCim(X86_CC_GE,  D)
-#define JLEm(D)				JCCim(X86_CC_LE,  D)
-#define JNGm(D)				JCCim(X86_CC_NG,  D)
-#define JNLEm(D)			JCCim(X86_CC_NLE, D)
-#define JGm(D)				JCCim(X86_CC_G,   D)
+#define JOm(D)				JCCim(0x0, D)
+#define JNOm(D)				JCCim(0x1, D)
+#define JBm(D)				JCCim(0x2, D)
+#define JNAEm(D)			JCCim(0x2, D)
+#define JNBm(D)				JCCim(0x3, D)
+#define JAEm(D)				JCCim(0x3, D)
+#define JEm(D)				JCCim(0x4, D)
+#define JZm(D)				JCCim(0x4, D)
+#define JNEm(D)				JCCim(0x5, D)
+#define JNZm(D)				JCCim(0x5, D)
+#define JBEm(D)				JCCim(0x6, D)
+#define JNAm(D)				JCCim(0x6, D)
+#define JNBEm(D)			JCCim(0x7, D)
+#define JAm(D)				JCCim(0x7, D)
+#define JSm(D)				JCCim(0x8, D)
+#define JNSm(D)				JCCim(0x9, D)
+#define JPm(D)				JCCim(0xa, D)
+#define JPEm(D)				JCCim(0xa, D)
+#define JNPm(D)				JCCim(0xb, D)
+#define JPOm(D)				JCCim(0xb, D)
+#define JLm(D)				JCCim(0xc, D)
+#define JNGEm(D)			JCCim(0xc, D)
+#define JNLm(D)				JCCim(0xd, D)
+#define JGEm(D)				JCCim(0xd, D)
+#define JLEm(D)				JCCim(0xe, D)
+#define JNGm(D)				JCCim(0xe, D)
+#define JNLEm(D)			JCCim(0xf, D)
+#define JGm(D)				JCCim(0xf, D)
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 #define SETCCir(CC, RD)			(_REXBrr(0, RD),		_OO_Mrm		(0x0f90|(CC)	,_b11,_b000,_r1(RD)				))
-#define SETOr(RD)			SETCCir(X86_CC_O,   RD)
-#define SETNOr(RD)			SETCCir(X86_CC_NO,  RD)
-#define SETBr(RD)			SETCCir(X86_CC_B,   RD)
-#define SETNAEr(RD)			SETCCir(X86_CC_NAE, RD)
-#define SETNBr(RD)			SETCCir(X86_CC_NB,  RD)
-#define SETAEr(RD)			SETCCir(X86_CC_AE,  RD)
-#define SETEr(RD)			SETCCir(X86_CC_E,   RD)
-#define SETZr(RD)			SETCCir(X86_CC_Z,   RD)
-#define SETNEr(RD)			SETCCir(X86_CC_NE,  RD)
-#define SETNZr(RD)			SETCCir(X86_CC_NZ,  RD)
-#define SETBEr(RD)			SETCCir(X86_CC_BE,  RD)
-#define SETNAr(RD)			SETCCir(X86_CC_NA,  RD)
-#define SETNBEr(RD)			SETCCir(X86_CC_NBE, RD)
-#define SETAr(RD)			SETCCir(X86_CC_A,   RD)
-#define SETSr(RD)			SETCCir(X86_CC_S,   RD)
-#define SETNSr(RD)			SETCCir(X86_CC_NS,  RD)
-#define SETPr(RD)			SETCCir(X86_CC_P,   RD)
-#define SETPEr(RD)			SETCCir(X86_CC_PE,  RD)
-#define SETNPr(RD)			SETCCir(X86_CC_NP,  RD)
-#define SETPOr(RD)			SETCCir(X86_CC_PO,  RD)
-#define SETLr(RD)			SETCCir(X86_CC_L,   RD)
-#define SETNGEr(RD)			SETCCir(X86_CC_NGE, RD)
-#define SETNLr(RD)			SETCCir(X86_CC_NL,  RD)
-#define SETGEr(RD)			SETCCir(X86_CC_GE,  RD)
-#define SETLEr(RD)			SETCCir(X86_CC_LE,  RD)
-#define SETNGr(RD)			SETCCir(X86_CC_NG,  RD)
-#define SETNLEr(RD)			SETCCir(X86_CC_NLE, RD)
-#define SETGr(RD)			SETCCir(X86_CC_G,   RD)
+#define SETOr(RD)			SETCCir(0x0,RD)
+#define SETNOr(RD)			SETCCir(0x1,RD)
+#define SETBr(RD)			SETCCir(0x2,RD)
+#define SETNAEr(RD)			SETCCir(0x2,RD)
+#define SETNBr(RD)			SETCCir(0x3,RD)
+#define SETAEr(RD)			SETCCir(0x3,RD)
+#define SETEr(RD)			SETCCir(0x4,RD)
+#define SETZr(RD)			SETCCir(0x4,RD)
+#define SETNEr(RD)			SETCCir(0x5,RD)
+#define SETNZr(RD)			SETCCir(0x5,RD)
+#define SETBEr(RD)			SETCCir(0x6,RD)
+#define SETNAr(RD)			SETCCir(0x6,RD)
+#define SETNBEr(RD)			SETCCir(0x7,RD)
+#define SETAr(RD)			SETCCir(0x7,RD)
+#define SETSr(RD)			SETCCir(0x8,RD)
+#define SETNSr(RD)			SETCCir(0x9,RD)
+#define SETPr(RD)			SETCCir(0xa,RD)
+#define SETPEr(RD)			SETCCir(0xa,RD)
+#define SETNPr(RD)			SETCCir(0xb,RD)
+#define SETPOr(RD)			SETCCir(0xb,RD)
+#define SETLr(RD)			SETCCir(0xc,RD)
+#define SETNGEr(RD)			SETCCir(0xc,RD)
+#define SETNLr(RD)			SETCCir(0xd,RD)
+#define SETGEr(RD)			SETCCir(0xd,RD)
+#define SETLEr(RD)			SETCCir(0xe,RD)
+#define SETNGr(RD)			SETCCir(0xe,RD)
+#define SETNLEr(RD)			SETCCir(0xf,RD)
+#define SETGr(RD)			SETCCir(0xf,RD)
 
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 #define SETCCim(CC,MD,MB,MI,MS)		(_REXBrm(0, MB, MI),		_OO_r_X		(0x0f90|(CC)	     ,_b000		,MD,MB,MI,MS		))
-#define SETOm(D, B, I, S)		SETCCim(X86_CC_O,   D, B, I, S)
-#define SETNOm(D, B, I, S)		SETCCim(X86_CC_NO,  D, B, I, S)
-#define SETBm(D, B, I, S)		SETCCim(X86_CC_B,   D, B, I, S)
-#define SETNAEm(D, B, I, S)		SETCCim(X86_CC_NAE, D, B, I, S)
-#define SETNBm(D, B, I, S)		SETCCim(X86_CC_NB,  D, B, I, S)
-#define SETAEm(D, B, I, S)		SETCCim(X86_CC_AE,  D, B, I, S)
-#define SETEm(D, B, I, S)		SETCCim(X86_CC_E,   D, B, I, S)
-#define SETZm(D, B, I, S)		SETCCim(X86_CC_Z,   D, B, I, S)
-#define SETNEm(D, B, I, S)		SETCCim(X86_CC_NE,  D, B, I, S)
-#define SETNZm(D, B, I, S)		SETCCim(X86_CC_NZ,  D, B, I, S)
-#define SETBEm(D, B, I, S)		SETCCim(X86_CC_BE,  D, B, I, S)
-#define SETNAm(D, B, I, S)		SETCCim(X86_CC_NA,  D, B, I, S)
-#define SETNBEm(D, B, I, S)		SETCCim(X86_CC_NBE, D, B, I, S)
-#define SETAm(D, B, I, S)		SETCCim(X86_CC_A,   D, B, I, S)
-#define SETSm(D, B, I, S)		SETCCim(X86_CC_S,   D, B, I, S)
-#define SETNSm(D, B, I, S)		SETCCim(X86_CC_NS,  D, B, I, S)
-#define SETPm(D, B, I, S)		SETCCim(X86_CC_P,   D, B, I, S)
-#define SETPEm(D, B, I, S)		SETCCim(X86_CC_PE,  D, B, I, S)
-#define SETNPm(D, B, I, S)		SETCCim(X86_CC_NP,  D, B, I, S)
-#define SETPOm(D, B, I, S)		SETCCim(X86_CC_PO,  D, B, I, S)
-#define SETLm(D, B, I, S)		SETCCim(X86_CC_L,   D, B, I, S)
-#define SETNGEm(D, B, I, S)		SETCCim(X86_CC_NGE, D, B, I, S)
-#define SETNLm(D, B, I, S)		SETCCim(X86_CC_NL,  D, B, I, S)
-#define SETGEm(D, B, I, S)		SETCCim(X86_CC_GE,  D, B, I, S)
-#define SETLEm(D, B, I, S)		SETCCim(X86_CC_LE,  D, B, I, S)
-#define SETNGm(D, B, I, S)		SETCCim(X86_CC_NG,  D, B, I, S)
-#define SETNLEm(D, B, I, S)		SETCCim(X86_CC_NLE, D, B, I, S)
-#define SETGm(D, B, I, S)		SETCCim(X86_CC_G,   D, B, I, S)
+#define SETOm(D, B, I, S)		SETCCim(0x0, D, B, I, S)
+#define SETNOm(D, B, I, S)		SETCCim(0x1, D, B, I, S)
+#define SETBm(D, B, I, S)		SETCCim(0x2, D, B, I, S)
+#define SETNAEm(D, B, I, S)		SETCCim(0x2, D, B, I, S)
+#define SETNBm(D, B, I, S)		SETCCim(0x3, D, B, I, S)
+#define SETAEm(D, B, I, S)		SETCCim(0x3, D, B, I, S)
+#define SETEm(D, B, I, S)		SETCCim(0x4, D, B, I, S)
+#define SETZm(D, B, I, S)		SETCCim(0x4, D, B, I, S)
+#define SETNEm(D, B, I, S)		SETCCim(0x5, D, B, I, S)
+#define SETNZm(D, B, I, S)		SETCCim(0x5, D, B, I, S)
+#define SETBEm(D, B, I, S)		SETCCim(0x6, D, B, I, S)
+#define SETNAm(D, B, I, S)		SETCCim(0x6, D, B, I, S)
+#define SETNBEm(D, B, I, S)		SETCCim(0x7, D, B, I, S)
+#define SETAm(D, B, I, S)		SETCCim(0x7, D, B, I, S)
+#define SETSm(D, B, I, S)		SETCCim(0x8, D, B, I, S)
+#define SETNSm(D, B, I, S)		SETCCim(0x9, D, B, I, S)
+#define SETPm(D, B, I, S)		SETCCim(0xa, D, B, I, S)
+#define SETPEm(D, B, I, S)		SETCCim(0xa, D, B, I, S)
+#define SETNPm(D, B, I, S)		SETCCim(0xb, D, B, I, S)
+#define SETPOm(D, B, I, S)		SETCCim(0xb, D, B, I, S)
+#define SETLm(D, B, I, S)		SETCCim(0xc, D, B, I, S)
+#define SETNGEm(D, B, I, S)		SETCCim(0xc, D, B, I, S)
+#define SETNLm(D, B, I, S)		SETCCim(0xd, D, B, I, S)
+#define SETGEm(D, B, I, S)		SETCCim(0xd, D, B, I, S)
+#define SETLEm(D, B, I, S)		SETCCim(0xe, D, B, I, S)
+#define SETNGm(D, B, I, S)		SETCCim(0xe, D, B, I, S)
+#define SETNLEm(D, B, I, S)		SETCCim(0xf, D, B, I, S)
+#define SETGm(D, B, I, S)		SETCCim(0xf, D, B, I, S)
 
 /*									_format		Opcd		,Mod ,r	     ,m		,mem=dsp+sib	,imm... */
 #define CMOVWrr(CC,RS,RD)		(_d16(), _REXLrr(RD, RS),	_OO_Mrm		(0x0f40|(CC)	,_b11,_r2(RD),_r2(RS)				))
@@ -1591,10 +1616,10 @@ enum {
 #define MOVZWLrr(RS, RD)		(_REXLrr(RD, RS),		_OO_Mrm		(0x0fb7		,_b11,_r4(RD),_r2(RS)				))
 #define MOVZWLmr(MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_OO_r_X		(0x0fb7		     ,_r4(RD)		,MD,MB,MI,MS		))
 
-#define MOVSWQrr(RS, RD)		_m64only((_REXQrr(RD, RS),	_OO_Mrm		(0x0fbf		,_b11,_r8(RD),_r2(RS)				)))
-#define MOVSWQmr(MD, MB, MI, MS, RD)	_m64only((_REXQmr(MB, MI, RD),	_OO_r_X		(0x0fbf		     ,_r8(RD)		,MD,MB,MI,MS		)))
-#define MOVZWQrr(RS, RD)		_m64only((_REXQrr(RD, RS),	_OO_Mrm		(0x0fb7		,_b11,_r8(RD),_r2(RS)				)))
-#define MOVZWQmr(MD, MB, MI, MS, RD)	_m64only((_REXQmr(MB, MI, RD),	_OO_r_X		(0x0fb7		     ,_r8(RD)		,MD,MB,MI,MS		)))
+#define MOVSWQrr(RS, RD)		(_REXQrr(RD, RS),		_OO_Mrm		(0x0fbf		,_b11,_r8(RD),_r2(RS)				))
+#define MOVSWQmr(MD, MB, MI, MS, RD)	(_REXQmr(MB, MI, RD),		_OO_r_X		(0x0fbf		     ,_r8(RD)		,MD,MB,MI,MS		))
+#define MOVZWQrr(RS, RD)		(_REXQrr(RD, RS),		_OO_Mrm		(0x0fb7		,_b11,_r8(RD),_r2(RS)				))
+#define MOVZWQmr(MD, MB, MI, MS, RD)	(_REXQmr(MB, MI, RD),		_OO_r_X		(0x0fb7		     ,_r8(RD)		,MD,MB,MI,MS		))
 
 #define MOVSLQrr(RS, RD)		_m64only((_REXQrr(RD, RS),	_O_Mrm		(0x63		,_b11,_r8(RD),_r4(RS)				)))
 #define MOVSLQmr(MD, MB, MI, MS, RD)	_m64only((_REXQmr(MB, MI, RD),	_O_r_X		(0x63		     ,_r8(RD)		,MD,MB,MI,MS		)))
@@ -1602,15 +1627,14 @@ enum {
 /*									_format		Opcd		,Mod ,r	    ,m		,mem=dsp+sib	,imm... */
 
 #define LEALmr(MD, MB, MI, MS, RD)	(_REXLmr(MB, MI, RD),		_O_r_X		(0x8d		     ,_r4(RD)		,MD,MB,MI,MS		))
-#define LEAQmr(MD, MB, MI, MS, RD)	(_REXQmr(MB, MI, RD),		_O_r_X		(0x8d		     ,_r4(RD)		,MD,MB,MI,MS		))
 
 #define BSWAPLr(R)			(_REXLrr(0, R),			_OOr		(0x0fc8,_r4(R)							))
 #define BSWAPQr(R)			(_REXQrr(0, R),			_OOr		(0x0fc8,_r8(R)							))
 
 #define CLC()								_O		(0xf8								)
 #define STC()								_O		(0xf9								)
-#define CMC()								_O		(0xf5								)
 
+#define CMC()								_O		(0xf5								)
 #define CLD()								_O		(0xfc								)
 #define STD()								_O		(0xfd								)
 
@@ -1647,313 +1671,13 @@ enum {
 #define NOP()								_O		(0x90								)
 
 
-/* --- Media 64-bit instructions ------------------------------------------- */
-
-enum {
-  X86_MMX_PABSB		= 0x1c, // 2P
-  X86_MMX_PABSW		= 0x1d, // 2P
-  X86_MMX_PABSD		= 0x1e, // 2P
-  X86_MMX_PACKSSWB	= 0x63,
-  X86_MMX_PACKSSDW	= 0x6b,
-  X86_MMX_PACKUSWB	= 0x67,
-  X86_MMX_PADDB		= 0xfc,
-  X86_MMX_PADDW		= 0xfd,
-  X86_MMX_PADDD		= 0xfe,
-  X86_MMX_PADDQ		= 0xd4,
-  X86_MMX_PADDSB	= 0xec,
-  X86_MMX_PADDSW	= 0xed,
-  X86_MMX_PADDUSB	= 0xdc,
-  X86_MMX_PADDUSW	= 0xdd,
-  X86_MMX_PAND		= 0xdb,
-  X86_MMX_PANDN		= 0xdf,
-  X86_MMX_PAVGB		= 0xe0,
-  X86_MMX_PAVGW		= 0xe3,
-  X86_MMX_PCMPEQB	= 0x74,
-  X86_MMX_PCMPEQW	= 0x75,
-  X86_MMX_PCMPEQD	= 0x76,
-  X86_MMX_PCMPGTB	= 0x64,
-  X86_MMX_PCMPGTW	= 0x65,
-  X86_MMX_PCMPGTD	= 0x66,
-  X86_MMX_PEXTRW	= 0xc5, // 64, /r ib
-  X86_MMX_PHADDW	= 0x01, // 2P
-  X86_MMX_PHADDD	= 0x02, // 2P
-  X86_MMX_PHADDSW	= 0x03, // 2P
-  X86_MMX_PHSUBW	= 0x05, // 2P
-  X86_MMX_PHSUBD	= 0x06, // 2P
-  X86_MMX_PHSUBSW	= 0x07, // 2P
-  X86_MMX_PINSRW	= 0xc4, // 64, /r ib
-  X86_MMX_PMADDUBSW	= 0x04, // 2P
-  X86_MMX_PMADDWD	= 0xf5,
-  X86_MMX_PMAXSW	= 0xee,
-  X86_MMX_PMAXUB	= 0xde,
-  X86_MMX_PMINSW	= 0xea,
-  X86_MMX_PMINUB	= 0xda,
-  X86_MMX_PMOVMSKB	= 0xd7, // 64
-  X86_MMX_PMULHRSW	= 0x0b, // 2P
-  X86_MMX_PMULHUW	= 0xe4,
-  X86_MMX_PMULHW	= 0xe5,
-  X86_MMX_PMULLW	= 0xd5,
-  X86_MMX_PMULUDQ	= 0xf4,
-  X86_MMX_POR		= 0xeb,
-  X86_MMX_PSADBW	= 0xf6,
-  X86_MMX_PSHUFB	= 0x00, // 2P
-  X86_MMX_PSHUFW	= 0x70, // /r ib
-  X86_MMX_PSIGNB	= 0x08, // 2P
-  X86_MMX_PSIGNW	= 0x09, // 2P
-  X86_MMX_PSIGND	= 0x0a, // 2P
-  X86_MMX_PSLLW		= 0xf1,
-  X86_MMX_PSLLWi	= 0x71, // /6 ib
-  X86_MMX_PSLLD		= 0xf2,
-  X86_MMX_PSLLDi	= 0x72, // /6 ib
-  X86_MMX_PSLLQ		= 0xf3,
-  X86_MMX_PSLLQi	= 0x73, // /6 ib
-  X86_MMX_PSRAW		= 0xe1,
-  X86_MMX_PSRAWi	= 0x71, // /4 ib
-  X86_MMX_PSRAD		= 0xe2,
-  X86_MMX_PSRADi	= 0x72, // /4 ib
-  X86_MMX_PSRLW		= 0xd1,
-  X86_MMX_PSRLWi	= 0x71, // /2 ib
-  X86_MMX_PSRLD		= 0xd2,
-  X86_MMX_PSRLDi	= 0x72, // /2 ib
-  X86_MMX_PSRLQ		= 0xd3,
-  X86_MMX_PSRLQi	= 0x73, // /2 ib
-  X86_MMX_PSUBB		= 0xf8,
-  X86_MMX_PSUBW		= 0xf9,
-  X86_MMX_PSUBD		= 0xfa,
-  X86_MMX_PSUBQ		= 0xfb,
-  X86_MMX_PSUBSB	= 0xe8,
-  X86_MMX_PSUBSW	= 0xe9,
-  X86_MMX_PSUBUSB	= 0xd8,
-  X86_MMX_PSUBUSW	= 0xd9,
-  X86_MMX_PUNPCKHBW	= 0x68,
-  X86_MMX_PUNPCKHWD	= 0x69,
-  X86_MMX_PUNPCKHDQ	= 0x6a,
-  X86_MMX_PUNPCKLBW	= 0x60,
-  X86_MMX_PUNPCKLWD	= 0x61,
-  X86_MMX_PUNPCKLDQ	= 0x62,
-  X86_MMX_PXOR		= 0xef,
-};
-
-#define __MMXLrr(OP,RS,RSA,RD,RDA)		(_REXLrr(RD, RS),	_OO_Mrm		(0x0f00|(OP)	,_b11,RDA(RD),RSA(RS)				))
-#define __MMXLmr(OP,MD,MB,MI,MS,RD,RDA)		(_REXLmr(MB, MI, RD),	_OO_r_X		(0x0f00|(OP)	     ,RDA(RD)		,MD,MB,MI,MS		))
-#define __MMXLrm(OP,RS,RSA,MD,MB,MI,MS)		(_REXLrm(RS, MB, MI),	_OO_r_X		(0x0f00|(OP)	     ,RSA(RS)		,MD,MB,MI,MS		))
-#define __MMXLirr(OP,IM,RS,RSA,RD,RDA)		(_REXLrr(RD, RS),	_OO_Mrm_B	(0x0f00|(OP)	,_b11,RDA(RD),RSA(RS)			,_u8(IM)))
-#define __MMXLimr(OP,IM,MD,MB,MI,MS,RD,RDA)	(_REXLmr(MB, MI, RS),	_OO_r_X_B	(0x0f00|(OP)	     ,RDA(RD)		,MD,MB,MI,MS	,_u8(IM)))
-#define __MMXQrr(OP,RS,RSA,RD,RDA)		(_REXQrr(RD, RS),	_OO_Mrm		(0x0f00|(OP)	,_b11,RDA(RD),RSA(RS)				))
-#define __MMXQmr(OP,MD,MB,MI,MS,RD,RDA)		(_REXQmr(MB, MI, RD),	_OO_r_X		(0x0f00|(OP)	     ,RDA(RD)		,MD,MB,MI,MS		))
-#define __MMXQrm(OP,RS,RSA,MD,MB,MI,MS)		(_REXQrm(RS, MB, MI),	_OO_r_X		(0x0f00|(OP)	     ,RSA(RS)		,MD,MB,MI,MS		))
-#define __MMXQirr(OP,IM,RS,RSA,RD,RDA)		(_REXQrr(RD, RS),	_OO_Mrm_B	(0x0f00|(OP)	,_b11,RDA(RD),RSA(RS)			,_u8(IM)))
-#define __MMXQimr(OP,IM,MD,MB,MI,MS,RD,RDA)	(_REXQmr(MB, MI, RS),	_OO_r_X_B	(0x0f00|(OP)	     ,RDA(RD)		,MD,MB,MI,MS	,_u8(IM)))
-#define __MMX1Lrr(PX,OP,RS,RSA,RD,RDA)		(_REXLrr(RD, RS),	_B(0x0f),_OO_Mrm(((PX)<<8)|(OP)	,_b11,RDA(RD),RSA(RS)				))
-#define __MMX1Lmr(PX,OP,MD,MB,MI,MS,RD,RDA)	(_REXLmr(MB, MI, RD),	_B(0x0f),_OO_r_X(((PX)<<8)|(OP)	     ,RDA(RD)		,MD,MB,MI,MS		))
-#define __MMX1Lrm(PX,OP,RS,RSA,MD,MB,MI,MS)	(_REXLrm(RS, MB, MI),	_B(0x0f),_OO_r_X(((PX)<<8)|(OP)	     ,RSA(RS)		,MD,MB,MI,MS		))
-
-#define _MMXLrr(OP,RS,RD)		__MMXLrr(OP,RS,_rM,RD,_rM)
-#define _MMXLmr(OP,MD,MB,MI,MS,RD)	__MMXLmr(OP,MD,MB,MI,MS,RD,_rM)
-#define _MMXLrm(OP,RS,MD,MB,MI,MS)	__MMXLrm(OP,RS,_rM,MD,MB,MI,MS)
-#define _MMXQrr(OP,RS,RD)		__MMXQrr(OP,RS,_rM,RD,_rM)
-#define _MMXQmr(OP,MD,MB,MI,MS,RD)	__MMXQmr(OP,MD,MB,MI,MS,RD,_rM)
-#define _MMXQrm(OP,RS,MD,MB,MI,MS)	__MMXQrm(OP,RS,_rM,MD,MB,MI,MS)
-#define _2P_MMXLrr(OP,RS,RD)		__MMX1Lrr(0x38, OP,RS,_rM,RD,_rM)
-#define _2P_MMXLmr(OP,MD,MB,MI,MS,RD)	__MMX1Lmr(0x38, OP,MD,MB,MI,MS,RD,_rM)
-#define _2P_MMXLrm(OP,RS,MD,MB,MI,MS)	__MMX1Lrm(0x38, OP,RS,_rM,MD,MB,MI,MS)
-
-#define MMX_MOVDMDrr(RS, RD)		__MMXLrr(0x6e, RS,_r4, RD,_rM)
-#define MMX_MOVQMDrr(RS, RD)		__MMXQrr(0x6e, RS,_r8, RD,_rM)
-#define MMX_MOVDMSrr(RS, RD)		__MMXLrr(0x7e, RD,_r4, RS,_rM)
-#define MMX_MOVQMSrr(RS, RD)		__MMXQrr(0x7e, RD,_r8, RS,_rM)
-
-#define MMX_MOVDmr(MD, MB, MI, MS, RD)	_MMXLmr(0x6e, MD, MB, MI, MS, RD)
-#define MMX_MOVDrm(RS, MD, MB, MI, MS)	_MMXLrm(0x7e, RS, MD, MB, MI, MS)
-#define MMX_MOVQrr(RS, RD)		_MMXLrr(0x6f, RS, RD)
-#define MMX_MOVQmr(MD, MB, MI, MS, RD)	_MMXLmr(0x6f, MD, MB, MI, MS, RD)
-#define MMX_MOVQrm(RS, MD, MB, MI, MS)	_MMXLrm(0x7f, RS, MD, MB, MI, MS)
-
-// Original MMX instructions
-#define MMX_PACKSSWBrr(RS, RD)		_MMXLrr(X86_MMX_PACKSSWB,RS,RD)
-#define MMX_PACKSSWBmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PACKSSWB, MD, MB, MI, MS, RD)
-#define MMX_PACKSSDWrr(RS, RD)		_MMXLrr(X86_MMX_PACKSSDW,RS,RD)
-#define MMX_PACKSSDWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PACKSSDW, MD, MB, MI, MS, RD)
-#define MMX_PACKUSWBrr(RS, RD)		_MMXLrr(X86_MMX_PACKUSWB,RS,RD)
-#define MMX_PACKUSWBmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PACKUSWB, MD, MB, MI, MS, RD)
-#define MMX_PADDBrr(RS, RD)		_MMXLrr(X86_MMX_PADDB,RS,RD)
-#define MMX_PADDBmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PADDB, MD, MB, MI, MS, RD)
-#define MMX_PADDWrr(RS, RD)		_MMXLrr(X86_MMX_PADDW,RS,RD)
-#define MMX_PADDWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PADDW, MD, MB, MI, MS, RD)
-#define MMX_PADDDrr(RS, RD)		_MMXLrr(X86_MMX_PADDD,RS,RD)
-#define MMX_PADDDmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PADDD, MD, MB, MI, MS, RD)
-#define MMX_PADDQrr(RS, RD)		_MMXLrr(X86_MMX_PADDQ,RS,RD)
-#define MMX_PADDQmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PADDQ, MD, MB, MI, MS, RD)
-#define MMX_PADDSBrr(RS, RD)		_MMXLrr(X86_MMX_PADDSB,RS,RD)
-#define MMX_PADDSBmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PADDSB, MD, MB, MI, MS, RD)
-#define MMX_PADDSWrr(RS, RD)		_MMXLrr(X86_MMX_PADDSW,RS,RD)
-#define MMX_PADDSWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PADDSW, MD, MB, MI, MS, RD)
-#define MMX_PADDUSBrr(RS, RD)		_MMXLrr(X86_MMX_PADDUSB,RS,RD)
-#define MMX_PADDUSBmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PADDUSB, MD, MB, MI, MS, RD)
-#define MMX_PADDUSWrr(RS, RD)		_MMXLrr(X86_MMX_PADDUSW,RS,RD)
-#define MMX_PADDUSWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PADDUSW, MD, MB, MI, MS, RD)
-#define MMX_PANDrr(RS, RD)		_MMXLrr(X86_MMX_PAND,RS,RD)
-#define MMX_PANDmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PAND, MD, MB, MI, MS, RD)
-#define MMX_PANDNrr(RS, RD)		_MMXLrr(X86_MMX_PANDN,RS,RD)
-#define MMX_PANDNmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PANDN, MD, MB, MI, MS, RD)
-#define MMX_PAVGBrr(RS, RD)		_MMXLrr(X86_MMX_PAVGB,RS,RD)
-#define MMX_PAVGBmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PAVGB, MD, MB, MI, MS, RD)
-#define MMX_PAVGWrr(RS, RD)		_MMXLrr(X86_MMX_PAVGW,RS,RD)
-#define MMX_PAVGWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PAVGW, MD, MB, MI, MS, RD)
-#define MMX_PCMPEQBrr(RS, RD)		_MMXLrr(X86_MMX_PCMPEQB,RS,RD)
-#define MMX_PCMPEQBmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PCMPEQB, MD, MB, MI, MS, RD)
-#define MMX_PCMPEQWrr(RS, RD)		_MMXLrr(X86_MMX_PCMPEQW,RS,RD)
-#define MMX_PCMPEQWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PCMPEQW, MD, MB, MI, MS, RD)
-#define MMX_PCMPEQDrr(RS, RD)		_MMXLrr(X86_MMX_PCMPEQD,RS,RD)
-#define MMX_PCMPEQDmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PCMPEQD, MD, MB, MI, MS, RD)
-#define MMX_PCMPGTBrr(RS, RD)		_MMXLrr(X86_MMX_PCMPGTB,RS,RD)
-#define MMX_PCMPGTBmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PCMPGTB, MD, MB, MI, MS, RD)
-#define MMX_PCMPGTWrr(RS, RD)		_MMXLrr(X86_MMX_PCMPGTW,RS,RD)
-#define MMX_PCMPGTWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PCMPGTW, MD, MB, MI, MS, RD)
-#define MMX_PCMPGTDrr(RS, RD)		_MMXLrr(X86_MMX_PCMPGTD,RS,RD)
-#define MMX_PCMPGTDmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PCMPGTD, MD, MB, MI, MS, RD)
-#define MMX_PMADDWDrr(RS, RD)		_MMXLrr(X86_MMX_PMADDWD,RS,RD)
-#define MMX_PMADDWDmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PMADDWD, MD, MB, MI, MS, RD)
-#define MMX_PMAXSWrr(RS, RD)		_MMXLrr(X86_MMX_PMAXSW,RS,RD)
-#define MMX_PMAXSWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PMAXSW, MD, MB, MI, MS, RD)
-#define MMX_PMAXUBrr(RS, RD)		_MMXLrr(X86_MMX_PMAXUB,RS,RD)
-#define MMX_PMAXUBmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PMAXUB, MD, MB, MI, MS, RD)
-#define MMX_PMINSWrr(RS, RD)		_MMXLrr(X86_MMX_PMINSW,RS,RD)
-#define MMX_PMINSWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PMINSW, MD, MB, MI, MS, RD)
-#define MMX_PMINUBrr(RS, RD)		_MMXLrr(X86_MMX_PMINUB,RS,RD)
-#define MMX_PMINUBmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PMINUB, MD, MB, MI, MS, RD)
-#define MMX_PMULHUWrr(RS, RD)		_MMXLrr(X86_MMX_PMULHUW,RS,RD)
-#define MMX_PMULHUWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PMULHUW, MD, MB, MI, MS, RD)
-#define MMX_PMULHWrr(RS, RD)		_MMXLrr(X86_MMX_PMULHW,RS,RD)
-#define MMX_PMULHWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PMULHW, MD, MB, MI, MS, RD)
-#define MMX_PMULLWrr(RS, RD)		_MMXLrr(X86_MMX_PMULLW,RS,RD)
-#define MMX_PMULLWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PMULLW, MD, MB, MI, MS, RD)
-#define MMX_PMULUDQrr(RS, RD)		_MMXLrr(X86_MMX_PMULUDQ,RS,RD)
-#define MMX_PMULUDQmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PMULUDQ, MD, MB, MI, MS, RD)
-#define MMX_PORrr(RS, RD)		_MMXLrr(X86_MMX_POR,RS,RD)
-#define MMX_PORmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_POR, MD, MB, MI, MS, RD)
-#define MMX_PSADBWrr(RS, RD)		_MMXLrr(X86_MMX_PSADBW,RS,RD)
-#define MMX_PSADBWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSADBW, MD, MB, MI, MS, RD)
-#define MMX_PSLLWir(IM, RD)		__MMXLirr(X86_MMX_PSLLWi, IM, RD,_rM, _b110,_rN)
-#define MMX_PSLLWrr(RS, RD)		_MMXLrr(X86_MMX_PSLLW,RS,RD)
-#define MMX_PSLLWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSLLW, MD, MB, MI, MS, RD)
-#define MMX_PSLLDir(IM, RD)		__MMXLirr(X86_MMX_PSLLDi, IM, RD,_rM, _b110,_rN)
-#define MMX_PSLLDrr(RS, RD)		_MMXLrr(X86_MMX_PSLLD,RS,RD)
-#define MMX_PSLLDmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSLLD, MD, MB, MI, MS, RD)
-#define MMX_PSLLQir(IM, RD)		__MMXLirr(X86_MMX_PSLLQi, IM, RD,_rM, _b110,_rN)
-#define MMX_PSLLQrr(RS, RD)		_MMXLrr(X86_MMX_PSLLQ,RS,RD)
-#define MMX_PSLLQmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSLLQ, MD, MB, MI, MS, RD)
-#define MMX_PSRAWir(IM, RD)		__MMXLirr(X86_MMX_PSRAWi, IM, RD,_rM, _b100,_rN)
-#define MMX_PSRAWrr(RS, RD)		_MMXLrr(X86_MMX_PSRAW,RS,RD)
-#define MMX_PSRAWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSRAW, MD, MB, MI, MS, RD)
-#define MMX_PSRADir(IM, RD)		__MMXLirr(X86_MMX_PSRADi, IM, RD,_rM, _b100,_rN)
-#define MMX_PSRADrr(RS, RD)		_MMXLrr(X86_MMX_PSRAD,RS,RD)
-#define MMX_PSRADmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSRAD, MD, MB, MI, MS, RD)
-#define MMX_PSRLWir(IM, RD)		__MMXLirr(X86_MMX_PSRLWi, IM, RD,_rM, _b010,_rN)
-#define MMX_PSRLWrr(RS, RD)		_MMXLrr(X86_MMX_PSRLW,RS,RD)
-#define MMX_PSRLWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSRLW, MD, MB, MI, MS, RD)
-#define MMX_PSRLDir(IM, RD)		__MMXLirr(X86_MMX_PSRLDi, IM, RD,_rM, _b010,_rN)
-#define MMX_PSRLDrr(RS, RD)		_MMXLrr(X86_MMX_PSRLD,RS,RD)
-#define MMX_PSRLDmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSRLD, MD, MB, MI, MS, RD)
-#define MMX_PSRLQir(IM, RD)		__MMXLirr(X86_MMX_PSRLQi, IM, RD,_rM, _b010,_rN)
-#define MMX_PSRLQrr(RS, RD)		_MMXLrr(X86_MMX_PSRLQ,RS,RD)
-#define MMX_PSRLQmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSRLQ, MD, MB, MI, MS, RD)
-#define MMX_PSUBBrr(RS, RD)		_MMXLrr(X86_MMX_PSUBB,RS,RD)
-#define MMX_PSUBBmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSUBB, MD, MB, MI, MS, RD)
-#define MMX_PSUBWrr(RS, RD)		_MMXLrr(X86_MMX_PSUBW,RS,RD)
-#define MMX_PSUBWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSUBW, MD, MB, MI, MS, RD)
-#define MMX_PSUBDrr(RS, RD)		_MMXLrr(X86_MMX_PSUBD,RS,RD)
-#define MMX_PSUBDmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSUBD, MD, MB, MI, MS, RD)
-#define MMX_PSUBQrr(RS, RD)		_MMXLrr(X86_MMX_PSUBQ,RS,RD)
-#define MMX_PSUBQmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSUBQ, MD, MB, MI, MS, RD)
-#define MMX_PSUBSBrr(RS, RD)		_MMXLrr(X86_MMX_PSUBSB,RS,RD)
-#define MMX_PSUBSBmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSUBSB, MD, MB, MI, MS, RD)
-#define MMX_PSUBSWrr(RS, RD)		_MMXLrr(X86_MMX_PSUBSW,RS,RD)
-#define MMX_PSUBSWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSUBSW, MD, MB, MI, MS, RD)
-#define MMX_PSUBUSBrr(RS, RD)		_MMXLrr(X86_MMX_PSUBUSB,RS,RD)
-#define MMX_PSUBUSBmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSUBUSB, MD, MB, MI, MS, RD)
-#define MMX_PSUBUSWrr(RS, RD)		_MMXLrr(X86_MMX_PSUBUSW,RS,RD)
-#define MMX_PSUBUSWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PSUBUSW, MD, MB, MI, MS, RD)
-#define MMX_PUNPCKHBWrr(RS, RD)		_MMXLrr(X86_MMX_PUNPCKHBW,RS,RD)
-#define MMX_PUNPCKHBWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PUNPCKHBW, MD, MB, MI, MS, RD)
-#define MMX_PUNPCKHWDrr(RS, RD)		_MMXLrr(X86_MMX_PUNPCKHWD,RS,RD)
-#define MMX_PUNPCKHWDmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PUNPCKHWD, MD, MB, MI, MS, RD)
-#define MMX_PUNPCKHDQrr(RS, RD)		_MMXLrr(X86_MMX_PUNPCKHDQ,RS,RD)
-#define MMX_PUNPCKHDQmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PUNPCKHDQ, MD, MB, MI, MS, RD)
-#define MMX_PUNPCKLBWrr(RS, RD)		_MMXLrr(X86_MMX_PUNPCKLBW,RS,RD)
-#define MMX_PUNPCKLBWmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PUNPCKLBW, MD, MB, MI, MS, RD)
-#define MMX_PUNPCKLWDrr(RS, RD)		_MMXLrr(X86_MMX_PUNPCKLWD,RS,RD)
-#define MMX_PUNPCKLWDmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PUNPCKLWD, MD, MB, MI, MS, RD)
-#define MMX_PUNPCKLDQrr(RS, RD)		_MMXLrr(X86_MMX_PUNPCKLDQ,RS,RD)
-#define MMX_PUNPCKLDQmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PUNPCKLDQ, MD, MB, MI, MS, RD)
-#define MMX_PXORrr(RS, RD)		_MMXLrr(X86_MMX_PXOR,RS,RD)
-#define MMX_PXORmr(MD,MB,MI,MS,RD)	_MMXLmr(X86_MMX_PXOR, MD, MB, MI, MS, RD)
-
-#define MMX_PSHUFWirr(IM, RS, RD)		__MMXLirr(X86_MMX_PSHUFW, IM, RS,_rM, RD,_rM)
-#define MMX_PSHUFWimr(IM, MD, MB, MI, MS, RD)	__MMXLimr(X86_MMX_PSHUFW, IM, MD, MB, MI, MS, RD,_rM)
-#define MMX_PEXTRWLirr(IM, RS, RD)		__MMXLirr(X86_MMX_PEXTRW, IM, RS,_rM, RD,_r4)
-#define MMX_PEXTRWQirr(IM, RS, RD)		__MMXQirr(X86_MMX_PEXTRW, IM, RS,_rM, RD,_r8)
-#define MMX_PINSRWLirr(IM, RS, RD)		__MMXLirr(X86_MMX_PINSRW, IM, RS,_r4, RD,_rM)
-#define MMX_PINSRWLimr(IM, MD, MB, MI, MS, RD)	__MMXLimr(X86_MMX_PINSRW, IM, MD, MB, MI, MS, RD,_r4)
-#define MMX_PINSRWQirr(IM, RS, RD)		__MMXQirr(X86_MMX_PINSRW, IM, RS,_r4, RD,_rM)
-#define MMX_PINSRWQimr(IM, MD, MB, MI, MS, RD)	__MMXQimr(X86_MMX_PINSRW, IM, MD, MB, MI, MS, RD,_r8)
-
-// Additionnal MMX instructions, brought by SSSE3 ISA
-#define MMX_PABSBrr(RS, RD)		_2P_MMXLrr(X86_MMX_PABSB,RS,RD)
-#define MMX_PABSBmr(MD,MB,MI,MS,RD)	_2P_MMXLmr(X86_MMX_PABSB, MD, MB, MI, MS, RD)
-#define MMX_PABSWrr(RS, RD)		_2P_MMXLrr(X86_MMX_PABSW,RS,RD)
-#define MMX_PABSWmr(MD,MB,MI,MS,RD)	_2P_MMXLmr(X86_MMX_PABSW, MD, MB, MI, MS, RD)
-#define MMX_PABSDrr(RS, RD)		_2P_MMXLrr(X86_MMX_PABSD,RS,RD)
-#define MMX_PABSDmr(MD,MB,MI,MS,RD)	_2P_MMXLmr(X86_MMX_PABSD, MD, MB, MI, MS, RD)
-#define MMX_PHADDWrr(RS, RD)		_2P_MMXLrr(X86_MMX_PHADDW,RS,RD)
-#define MMX_PHADDWmr(MD,MB,MI,MS,RD)	_2P_MMXLmr(X86_MMX_PHADDW, MD, MB, MI, MS, RD)
-#define MMX_PHADDDrr(RS, RD)		_2P_MMXLrr(X86_MMX_PHADDD,RS,RD)
-#define MMX_PHADDDmr(MD,MB,MI,MS,RD)	_2P_MMXLmr(X86_MMX_PHADDD, MD, MB, MI, MS, RD)
-#define MMX_PHADDSWrr(RS, RD)		_2P_MMXLrr(X86_MMX_PHADDSW,RS,RD)
-#define MMX_PHADDSWmr(MD,MB,MI,MS,RD)	_2P_MMXLmr(X86_MMX_PHADDSW, MD, MB, MI, MS, RD)
-#define MMX_PHSUBWrr(RS, RD)		_2P_MMXLrr(X86_MMX_PHSUBW,RS,RD)
-#define MMX_PHSUBWmr(MD,MB,MI,MS,RD)	_2P_MMXLmr(X86_MMX_PHSUBW, MD, MB, MI, MS, RD)
-#define MMX_PHSUBDrr(RS, RD)		_2P_MMXLrr(X86_MMX_PHSUBD,RS,RD)
-#define MMX_PHSUBDmr(MD,MB,MI,MS,RD)	_2P_MMXLmr(X86_MMX_PHSUBD, MD, MB, MI, MS, RD)
-#define MMX_PHSUBSWrr(RS, RD)		_2P_MMXLrr(X86_MMX_PHSUBSW,RS,RD)
-#define MMX_PHSUBSWmr(MD,MB,MI,MS,RD)	_2P_MMXLmr(X86_MMX_PHSUBSW, MD, MB, MI, MS, RD)
-#define MMX_PMADDUBSWrr(RS, RD)		_2P_MMXLrr(X86_MMX_PMADDUBSW,RS,RD)
-#define MMX_PMADDUBSWmr(MD,MB,MI,MS,RD)	_2P_MMXLmr(X86_MMX_PMADDUBSW, MD, MB, MI, MS, RD)
-#define MMX_PMULHRSWrr(RS, RD)		_2P_MMXLrr(X86_MMX_PMULHRSW,RS,RD)
-#define MMX_PMULHRSWmr(MD,MB,MI,MS,RD)	_2P_MMXLmr(X86_MMX_PMULHRSW, MD, MB, MI, MS, RD)
-#define MMX_PSHUFBrr(RS, RD)		_2P_MMXLrr(X86_MMX_PSHUFB,RS,RD)
-#define MMX_PSHUFBmr(MD,MB,MI,MS,RD)	_2P_MMXLmr(X86_MMX_PSHUFB, MD, MB, MI, MS, RD)
-#define MMX_PSIGNBrr(RS, RD)		_2P_MMXLrr(X86_MMX_PSIGNB,RS,RD)
-#define MMX_PSIGNBmr(MD,MB,MI,MS,RD)	_2P_MMXLmr(X86_MMX_PSIGNB, MD, MB, MI, MS, RD)
-#define MMX_PSIGNWrr(RS, RD)		_2P_MMXLrr(X86_MMX_PSIGNW,RS,RD)
-#define MMX_PSIGNWmr(MD,MB,MI,MS,RD)	_2P_MMXLmr(X86_MMX_PSIGNW, MD, MB, MI, MS, RD)
-#define MMX_PSIGNDrr(RS, RD)		_2P_MMXLrr(X86_MMX_PSIGND,RS,RD)
-#define MMX_PSIGNDmr(MD,MB,MI,MS,RD)	_2P_MMXLmr(X86_MMX_PSIGND, MD, MB, MI, MS, RD)
-
-#define EMMS()								_OO		(0x0f77								)
-
-
 /* --- Media 128-bit instructions ------------------------------------------ */
 
 enum {
-  X86_SSE_CC_EQ		= 0,
-  X86_SSE_CC_LT		= 1,
-  X86_SSE_CC_GT		= 1,
-  X86_SSE_CC_LE		= 2,
-  X86_SSE_CC_GE		= 2,
-  X86_SSE_CC_U		= 3,
-  X86_SSE_CC_NEQ	= 4,
-  X86_SSE_CC_NLT	= 5,
-  X86_SSE_CC_NGT	= 5,
-  X86_SSE_CC_NLE	= 6,
-  X86_SSE_CC_NGE	= 6,
-  X86_SSE_CC_O		= 7
-};
-
-enum {
+  X86_SSE_CVTIS  = 0x2a,
+  X86_SSE_CVTSI  = 0x2d,
   X86_SSE_UCOMI  = 0x2e,
   X86_SSE_COMI   = 0x2f,
-  X86_SSE_CMP		= 0xc2,
   X86_SSE_SQRT   = 0x51,
   X86_SSE_RSQRT  = 0x52,
   X86_SSE_RCP    = 0x53,
@@ -1963,108 +1687,19 @@ enum {
   X86_SSE_XOR    = 0x57,
   X86_SSE_ADD    = 0x58,
   X86_SSE_MUL    = 0x59,
+  X86_SSE_CVTSD  = 0x5a,
+  X86_SSE_CVTDT  = 0x5b,
   X86_SSE_SUB    = 0x5c,
   X86_SSE_MIN    = 0x5d,
   X86_SSE_DIV    = 0x5e,
   X86_SSE_MAX    = 0x5f,
-  X86_SSE_CVTDQ2PD	= 0xe6,
-  X86_SSE_CVTDQ2PS	= 0x5b,
-  X86_SSE_CVTPD2DQ	= 0xe6,
-  X86_SSE_CVTPD2PI	= 0x2d,
-  X86_SSE_CVTPD2PS	= 0x5a,
-  X86_SSE_CVTPI2PD	= 0x2a,
-  X86_SSE_CVTPI2PS	= 0x2a,
-  X86_SSE_CVTPS2DQ	= 0x5b,
-  X86_SSE_CVTPS2PD	= 0x5a,
-  X86_SSE_CVTPS2PI	= 0x2d,
-  X86_SSE_CVTSD2SI	= 0x2d,
-  X86_SSE_CVTSD2SS	= 0x5a,
-  X86_SSE_CVTSI2SD	= 0x2a,
-  X86_SSE_CVTSI2SS	= 0x2a,
-  X86_SSE_CVTSS2SD	= 0x5a,
-  X86_SSE_CVTSS2SI	= 0x2d,
-  X86_SSE_CVTTPD2PI	= 0x2c,
-  X86_SSE_CVTTPD2DQ	= 0xe6,
-  X86_SSE_CVTTPS2DQ	= 0x5b,
-  X86_SSE_CVTTPS2PI	= 0x2c,
-  X86_SSE_CVTTSD2SI	= 0x2c,
-  X86_SSE_CVTTSS2SI	= 0x2c,
-  X86_SSE_MOVMSK	= 0x50,
-  X86_SSE_PACKSSDW	= 0x6b,
-  X86_SSE_PACKSSWB	= 0x63,
-  X86_SSE_PACKUSWB	= 0x67,
-  X86_SSE_PADDB		= 0xfc,
-  X86_SSE_PADDD		= 0xfe,
-  X86_SSE_PADDQ		= 0xd4,
-  X86_SSE_PADDSB	= 0xec,
-  X86_SSE_PADDSW	= 0xed,
-  X86_SSE_PADDUSB	= 0xdc,
-  X86_SSE_PADDUSW	= 0xdd,
-  X86_SSE_PADDW		= 0xfd,
-  X86_SSE_PAND		= 0xdb,
-  X86_SSE_PANDN		= 0xdf,
-  X86_SSE_PAVGB		= 0xe0,
-  X86_SSE_PAVGW		= 0xe3,
-  X86_SSE_PCMPEQB	= 0x74,
-  X86_SSE_PCMPEQD	= 0x76,
-  X86_SSE_PCMPEQW	= 0x75,
-  X86_SSE_PCMPGTB	= 0x64,
-  X86_SSE_PCMPGTD	= 0x66,
-  X86_SSE_PCMPGTW	= 0x65,
-  X86_SSE_PMADDWD	= 0xf5,
-  X86_SSE_PMAXSW	= 0xee,
-  X86_SSE_PMAXUB	= 0xde,
-  X86_SSE_PMINSW	= 0xea,
-  X86_SSE_PMINUB	= 0xda,
-  X86_SSE_PMOVMSKB	= 0xd7,
-  X86_SSE_PMULHUW	= 0xe4,
-  X86_SSE_PMULHW	= 0xe5,
-  X86_SSE_PMULLW	= 0xd5,
-  X86_SSE_PMULUDQ	= 0xf4,
-  X86_SSE_POR		= 0xeb,
-  X86_SSE_PSADBW	= 0xf6,
-  X86_SSE_PSLLD		= 0xf2,
-  X86_SSE_PSLLQ		= 0xf3,
-  X86_SSE_PSLLW		= 0xf1,
-  X86_SSE_PSRAD		= 0xe2,
-  X86_SSE_PSRAW		= 0xe1,
-  X86_SSE_PSRLD		= 0xd2,
-  X86_SSE_PSRLQ		= 0xd3,
-  X86_SSE_PSRLW		= 0xd1,
-  X86_SSE_PSUBB		= 0xf8,
-  X86_SSE_PSUBD		= 0xfa,
-  X86_SSE_PSUBQ		= 0xfb,
-  X86_SSE_PSUBSB	= 0xe8,
-  X86_SSE_PSUBSW	= 0xe9,
-  X86_SSE_PSUBUSB	= 0xd8,
-  X86_SSE_PSUBUSW	= 0xd9,
-  X86_SSE_PSUBW		= 0xf9,
-  X86_SSE_PUNPCKHBW	= 0x68,
-  X86_SSE_PUNPCKHDQ	= 0x6a,
-  X86_SSE_PUNPCKHQDQ	= 0x6d,
-  X86_SSE_PUNPCKHWD	= 0x69,
-  X86_SSE_PUNPCKLBW	= 0x60,
-  X86_SSE_PUNPCKLDQ	= 0x62,
-  X86_SSE_PUNPCKLQDQ	= 0x6c,
-  X86_SSE_PUNPCKLWD	= 0x61,
-  X86_SSE_PXOR		= 0xef,
-  X86_SSSE3_PSHUFB	= 0x00,
 };
 
 /*									_format		Opcd		,Mod ,r	     ,m		,mem=dsp+sib	,imm... */
 
-#define _SSSE3Lrr(OP1,OP2,RS,RSA,RD,RDA)	(_B(0x66), _REXLrr(RD,RD),	_B(0x0f), _OO_Mrm	(((OP1)<<8)|(OP2)	,_b11,RDA(RD),RSA(RS)				))
-#define _SSSE3Lmr(OP1,OP2,MD,MB,MI,MS,RD,RDA)	(_B(0x66), _REXLmr(MB, MI, RD),	_B(0x0f), _OO_r_X	(((OP1)<<8)|(OP2)	     ,RDA(RD)		,MD,MB,MI,MS		))
-#define _SSSE3Lirr(OP1,OP2,IM,RS,RD)		(_B(0x66), _REXLrr(RD, RS),	_B(0x0f), _OO_Mrm_B	(((OP1)<<8)|(OP2)	,_b11,_rX(RD),_rX(RS)			,_u8(IM)))
-#define _SSSE3Limr(OP1,OP2,IM,MD,MB,MI,MS,RD)	(_B(0x66), _REXLmr(MB, MI, RD),	_B(0x0f), _OO_r_X_B	(((OP1)<<8)|(OP2)	     ,_rX(RD)		,MD,MB,MI,MS	,_u8(IM)))
-
-#define __SSELir(OP,MO,IM,RD)		(_REXLrr(0, RD),		_OO_Mrm_B	(0x0f00|(OP)	,_b11,MO     ,_rX(RD)			,_u8(IM)))
-#define __SSELim(OP,MO,IM,MD,MB,MI,MS)	(_REXLrm(0, MB, MI),		_OO_r_X_B	(0x0f00|(OP)	     ,MO		,MD,MB,MI,MS	,_u8(IM)))
 #define __SSELrr(OP,RS,RSA,RD,RDA)	(_REXLrr(RD, RS),		_OO_Mrm		(0x0f00|(OP)	,_b11,RDA(RD),RSA(RS)				))
 #define __SSELmr(OP,MD,MB,MI,MS,RD,RDA)	(_REXLmr(MB, MI, RD),		_OO_r_X		(0x0f00|(OP)	     ,RDA(RD)		,MD,MB,MI,MS		))
 #define __SSELrm(OP,RS,RSA,MD,MB,MI,MS)	(_REXLrm(RS, MB, MI),		_OO_r_X		(0x0f00|(OP)	     ,RSA(RS)		,MD,MB,MI,MS		))
-#define __SSELirr(OP,IM,RS,RD)		(_REXLrr(RD, RS),		_OO_Mrm_B	(0x0f00|(OP)	,_b11,_rX(RD),_rX(RS)			,_u8(IM)))
-#define __SSELimr(OP,IM,MD,MB,MI,MS,RD)	(_REXLmr(MB, MI, RD),		_OO_r_X_B	(0x0f00|(OP)	     ,_rX(RD)		,MD,MB,MI,MS	,_u8(IM)))
 
 #define __SSEQrr(OP,RS,RSA,RD,RDA)	(_REXQrr(RD, RS),		_OO_Mrm		(0x0f00|(OP)	,_b11,RDA(RD),RSA(RS)				))
 #define __SSEQmr(OP,MD,MB,MI,MS,RD,RDA)	(_REXQmr(MB, MI, RD),		_OO_r_X		(0x0f00|(OP)	     ,RDA(RD)		,MD,MB,MI,MS		))
@@ -2073,10 +1708,6 @@ enum {
 #define _SSELrr(PX,OP,RS,RSA,RD,RDA)					(_B(PX), __SSELrr(OP, RS, RSA, RD, RDA))
 #define _SSELmr(PX,OP,MD,MB,MI,MS,RD,RDA)				(_B(PX), __SSELmr(OP, MD, MB, MI, MS, RD, RDA))
 #define _SSELrm(PX,OP,RS,RSA,MD,MB,MI,MS)				(_B(PX), __SSELrm(OP, RS, RSA, MD, MB, MI, MS))
-#define _SSELir(PX,OP,MO,IM,RD)						(_B(PX), __SSELir(OP, MO, IM, RD))
-#define _SSELim(PX,OP,MO,IM,MD,MB,MI,MS)				(_B(PX), __SSELim(OP, MO, IM, MD, MB, MI, MS))
-#define _SSELirr(PX,OP,IM,RS,RD)					(_B(PX), __SSELirr(OP, IM, RS, RD))
-#define _SSELimr(PX,OP,IM,MD,MB,MI,MS,RD)				(_B(PX), __SSELimr(OP, IM, MD, MB, MI, MS, RD))
 
 #define _SSEQrr(PX,OP,RS,RSA,RD,RDA)					(_B(PX), __SSEQrr(OP, RS, RSA, RD, RDA))
 #define _SSEQmr(PX,OP,MD,MB,MI,MS,RD,RDA)				(_B(PX), __SSEQmr(OP, MD, MB, MI, MS, RD, RDA))
@@ -2085,26 +1716,18 @@ enum {
 #define _SSEPSrr(OP,RS,RD)		__SSELrr(      OP, RS,_rX, RD,_rX)
 #define _SSEPSmr(OP,MD,MB,MI,MS,RD)	__SSELmr(      OP, MD, MB, MI, MS, RD,_rX)
 #define _SSEPSrm(OP,RS,MD,MB,MI,MS)	__SSELrm(      OP, RS,_rX, MD, MB, MI, MS)
-#define _SSEPSirr(OP,IM,RS,RD)		__SSELirr(     OP, IM, RS, RD)
-#define _SSEPSimr(OP,IM,MD,MB,MI,MS,RD)	__SSELimr(     OP, IM, MD, MB, MI, MS, RD)
 
 #define _SSEPDrr(OP,RS,RD)		 _SSELrr(0x66, OP, RS,_rX, RD,_rX)
 #define _SSEPDmr(OP,MD,MB,MI,MS,RD)	 _SSELmr(0x66, OP, MD, MB, MI, MS, RD,_rX)
 #define _SSEPDrm(OP,RS,MD,MB,MI,MS)	 _SSELrm(0x66, OP, RS,_rX, MD, MB, MI, MS)
-#define _SSEPDirr(OP,IM,RS,RD)		 _SSELirr(0x66, OP, IM, RS, RD)
-#define _SSEPDimr(OP,IM,MD,MB,MI,MS,RD)	 _SSELimr(0x66, OP, IM, MD, MB, MI, MS, RD)
 
 #define _SSESSrr(OP,RS,RD)		 _SSELrr(0xf3, OP, RS,_rX, RD,_rX)
 #define _SSESSmr(OP,MD,MB,MI,MS,RD)	 _SSELmr(0xf3, OP, MD, MB, MI, MS, RD,_rX)
 #define _SSESSrm(OP,RS,MD,MB,MI,MS)	 _SSELrm(0xf3, OP, RS,_rX, MD, MB, MI, MS)
-#define _SSESSirr(OP,IM,RS,RD)		 _SSELirr(0xf3, OP, IM, RS, RD)
-#define _SSESSimr(OP,IM,MD,MB,MI,MS,RD)	 _SSELimr(0xf3, OP, IM, MD, MB, MI, MS, RD)
 
 #define _SSESDrr(OP,RS,RD)		 _SSELrr(0xf2, OP, RS,_rX, RD,_rX)
 #define _SSESDmr(OP,MD,MB,MI,MS,RD)	 _SSELmr(0xf2, OP, MD, MB, MI, MS, RD,_rX)
 #define _SSESDrm(OP,RS,MD,MB,MI,MS)	 _SSELrm(0xf2, OP, RS,_rX, MD, MB, MI, MS)
-#define _SSESDirr(OP,IM,RS,RD)		 _SSELirr(0xf2, OP, IM, RS, RD)
-#define _SSESDimr(OP,IM,MD,MB,MI,MS,RD)	 _SSELimr(0xf2, OP, IM, MD, MB, MI, MS, RD)
 
 #define ADDPSrr(RS, RD)			_SSEPSrr(X86_SSE_ADD, RS, RD)
 #define ADDPSmr(MD, MB, MI, MS, RD)	_SSEPSmr(X86_SSE_ADD, MD, MB, MI, MS, RD)
@@ -2125,16 +1748,6 @@ enum {
 #define ANDPSmr(MD, MB, MI, MS, RD)	_SSEPSmr(X86_SSE_AND, MD, MB, MI, MS, RD)
 #define ANDPDrr(RS, RD)			_SSEPDrr(X86_SSE_AND, RS, RD)
 #define ANDPDmr(MD, MB, MI, MS, RD)	_SSEPDmr(X86_SSE_AND, MD, MB, MI, MS, RD)
-
-#define CMPPSrr(IM, RS, RD)		_SSEPSirr(X86_SSE_CMP, IM, RS, RD)
-#define CMPPSmr(IM, MD, MB, MI, MS, RD)	_SSEPSimr(X86_SSE_CMP, IM, MD, MB, MI, MS, RD)
-#define CMPPDrr(IM, RS, RD)		_SSEPDirr(X86_SSE_CMP, IM, RS, RD)
-#define CMPPDmr(IM, MD, MB, MI, MS, RD)	_SSEPDimr(X86_SSE_CMP, IM, MD, MB, MI, MS, RD)
-
-#define CMPSSrr(IM, RS, RD)		_SSESSirr(X86_SSE_CMP, IM, RS, RD)
-#define CMPSSmr(IM, MD, MB, MI, MS, RD)	_SSESSimr(X86_SSE_CMP, IM, MD, MB, MI, MS, RD)
-#define CMPSDrr(IM, RS, RD)		_SSESDirr(X86_SSE_CMP, IM, RS, RD)
-#define CMPSDmr(IM, MD, MB, MI, MS, RD)	_SSESDimr(X86_SSE_CMP, IM, MD, MB, MI, MS, RD)
 
 #define DIVPSrr(RS, RD)			_SSEPSrr(X86_SSE_DIV, RS, RD)
 #define DIVPSmr(MD, MB, MI, MS, RD)	_SSEPSmr(X86_SSE_DIV, MD, MB, MI, MS, RD)
@@ -2216,15 +1829,15 @@ enum {
 #define XORPDrr(RS, RD)			_SSEPDrr(X86_SSE_XOR, RS, RD)
 #define XORPDmr(MD, MB, MI, MS, RD)	_SSEPDmr(X86_SSE_XOR, MD, MB, MI, MS, RD)
 
-#define COMISSrr(RS, RD)		_SSEPSrr(X86_SSE_COMI, RS, RD)
-#define COMISSmr(MD, MB, MI, MS, RD)	_SSEPSmr(X86_SSE_COMI, MD, MB, MI, MS, RD)
-#define COMISDrr(RS, RD)		_SSEPDrr(X86_SSE_COMI, RS, RD)
-#define COMISDmr(MD, MB, MI, MS, RD)	_SSEPDmr(X86_SSE_COMI, MD, MB, MI, MS, RD)
+#define COMISSrr(RS, RD)		_SSESSrr(X86_SSE_COMI, RS, RD)
+#define COMISSmr(MD, MB, MI, MS, RD)	_SSESSmr(X86_SSE_COMI, MD, MB, MI, MS, RD)
+#define COMISDrr(RS, RD)		_SSESDrr(X86_SSE_COMI, RS, RD)
+#define COMISDmr(MD, MB, MI, MS, RD)	_SSESDmr(X86_SSE_COMI, MD, MB, MI, MS, RD)
 
-#define UCOMISSrr(RS, RD)		_SSEPSrr(X86_SSE_UCOMI, RS, RD)
-#define UCOMISSmr(MD, MB, MI, MS, RD)	_SSEPSmr(X86_SSE_UCOMI, MD, MB, MI, MS, RD)
-#define UCOMISDrr(RS, RD)		_SSEPDrr(X86_SSE_UCOMI, RS, RD)
-#define UCOMISDmr(MD, MB, MI, MS, RD)	_SSEPDmr(X86_SSE_UCOMI, MD, MB, MI, MS, RD)
+#define UCOMISSrr(RS, RD)		_SSESSrr(X86_SSE_UCOMI, RS, RD)
+#define UCOMISSmr(MD, MB, MI, MS, RD)	_SSESSmr(X86_SSE_UCOMI, MD, MB, MI, MS, RD)
+#define UCOMISDrr(RS, RD)		_SSESDrr(X86_SSE_UCOMI, RS, RD)
+#define UCOMISDmr(MD, MB, MI, MS, RD)	_SSESDmr(X86_SSE_UCOMI, MD, MB, MI, MS, RD)
 
 #define MOVAPSrr(RS, RD)		_SSEPSrr(0x28, RS, RD)
 #define MOVAPSmr(MD, MB, MI, MS, RD)	_SSEPSmr(0x28, MD, MB, MI, MS, RD)
@@ -2234,72 +1847,55 @@ enum {
 #define MOVAPDmr(MD, MB, MI, MS, RD)	_SSEPDmr(0x28, MD, MB, MI, MS, RD)
 #define MOVAPDrm(RS, MD, MB, MI, MS)	_SSEPDrm(0x29, RS, MD, MB, MI, MS)
 
-#define CVTDQ2PDrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTDQ2PD, RS,_rX, RD,_rX)
-#define CVTDQ2PDmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTDQ2PD, MD, MB, MI, MS, RD,_rX)
-#define CVTDQ2PSrr(RS, RD)		__SSELrr(      X86_SSE_CVTDQ2PS, RS,_rX, RD,_rX)
-#define CVTDQ2PSmr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTDQ2PS, MD, MB, MI, MS, RD,_rX)
-#define CVTPD2DQrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTPD2DQ, RS,_rX, RD,_rX)
-#define CVTPD2DQmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf2, X86_SSE_CVTPD2DQ, MD, MB, MI, MS, RD,_rX)
-#define CVTPD2PIrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTPD2PI, RS,_rX, RD,_rM)
-#define CVTPD2PImr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTPD2PI, MD, MB, MI, MS, RD,_rM)
-#define CVTPD2PSrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTPD2PS, RS,_rX, RD,_rX)
-#define CVTPD2PSmr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTPD2PS, MD, MB, MI, MS, RD,_rX)
-#define CVTPI2PDrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTPI2PD, RS,_rM, RD,_rX)
-#define CVTPI2PDmr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTPI2PD, MD, MB, MI, MS, RD,_rX)
-#define CVTPI2PSrr(RS, RD)		__SSELrr(      X86_SSE_CVTPI2PS, RS,_rM, RD,_rX)
-#define CVTPI2PSmr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTPI2PS, MD, MB, MI, MS, RD,_rX)
-#define CVTPS2DQrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTPS2DQ, RS,_rX, RD,_rX)
-#define CVTPS2DQmr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTPS2DQ, MD, MB, MI, MS, RD,_rX)
-#define CVTPS2PDrr(RS, RD)		__SSELrr(      X86_SSE_CVTPS2PD, RS,_rX, RD,_rX)
-#define CVTPS2PDmr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTPS2PD, MD, MB, MI, MS, RD,_rX)
-#define CVTPS2PIrr(RS, RD)		__SSELrr(      X86_SSE_CVTPS2PI, RS,_rX, RD,_rM)
-#define CVTPS2PImr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTPS2PI, MD, MB, MI, MS, RD,_rM)
-#define CVTSD2SILrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTSD2SI, RS,_rX, RD,_r4)
-#define CVTSD2SILmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf2, X86_SSE_CVTSD2SI, MD, MB, MI, MS, RD,_r4)
-#define CVTSD2SIQrr(RS, RD)		 _SSEQrr(0xf2, X86_SSE_CVTSD2SI, RS,_rX, RD,_r8)
-#define CVTSD2SIQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf2, X86_SSE_CVTSD2SI, MD, MB, MI, MS, RD,_r8)
-#define CVTSD2SSrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTSD2SS, RS,_rX, RD,_rX)
-#define CVTSD2SSmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf2, X86_SSE_CVTSD2SS, MD, MB, MI, MS, RD,_rX)
-#define CVTSI2SDLrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTSI2SD, RS,_r4, RD,_rX)
-#define CVTSI2SDLmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf2, X86_SSE_CVTSI2SD, MD, MB, MI, MS, RD,_rX)
-#define CVTSI2SDQrr(RS, RD)		 _SSEQrr(0xf2, X86_SSE_CVTSI2SD, RS,_r8, RD,_rX)
-#define CVTSI2SDQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf2, X86_SSE_CVTSI2SD, MD, MB, MI, MS, RD,_rX)
-#define CVTSI2SSLrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTSI2SS, RS,_r4, RD,_rX)
-#define CVTSI2SSLmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTSI2SS, MD, MB, MI, MS, RD,_rX)
-#define CVTSI2SSQrr(RS, RD)		 _SSEQrr(0xf3, X86_SSE_CVTSI2SS, RS,_r8, RD,_rX)
-#define CVTSI2SSQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf3, X86_SSE_CVTSI2SS, MD, MB, MI, MS, RD,_rX)
-#define CVTSS2SDrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTSS2SD, RS,_rX, RD,_rX)
-#define CVTSS2SDmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTSS2SD, MD, MB, MI, MS, RD,_rX)
-#define CVTSS2SILrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTSS2SI, RS,_rX, RD,_r4)
-#define CVTSS2SILmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTSS2SI, MD, MB, MI, MS, RD,_r4)
-#define CVTSS2SIQrr(RS, RD)		 _SSEQrr(0xf3, X86_SSE_CVTSS2SI, RS,_rX, RD,_r8)
-#define CVTSS2SIQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf3, X86_SSE_CVTSS2SI, MD, MB, MI, MS, RD,_r8)
-#define CVTTPD2PIrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTTPD2PI, RS,_rX, RD,_rM)
-#define CVTTPD2PImr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTTPD2PI, MD, MB, MI, MS, RD,_rM)
-#define CVTTPD2DQrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTTPD2DQ, RS,_rX, RD,_rX)
-#define CVTTPD2DQmr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTTPD2DQ, MD, MB, MI, MS, RD,_rX)
-#define CVTTPS2DQrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTTPS2DQ, RS,_rX, RD,_rX)
-#define CVTTPS2DQmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTTPS2DQ, MD, MB, MI, MS, RD,_rX)
-#define CVTTPS2PIrr(RS, RD)		__SSELrr(      X86_SSE_CVTTPS2PI, RS,_rX, RD,_rM)
-#define CVTTPS2PImr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTTPS2PI, MD, MB, MI, MS, RD,_rM)
-#define CVTTSD2SILrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTTSD2SI, RS,_rX, RD,_r4)
-#define CVTTSD2SILmr(MD, MB, MI, MS, RD) _SSELmr(0xf2, X86_SSE_CVTTSD2SI, MD, MB, MI, MS, RD,_r4)
-#define CVTTSD2SIQrr(RS, RD)		 _SSEQrr(0xf2, X86_SSE_CVTTSD2SI, RS,_rX, RD,_r8)
-#define CVTTSD2SIQmr(MD, MB, MI, MS, RD) _SSEQmr(0xf2, X86_SSE_CVTTSD2SI, MD, MB, MI, MS, RD,_r8)
-#define CVTTSS2SILrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTTSS2SI, RS,_rX, RD,_r4)
-#define CVTTSS2SILmr(MD, MB, MI, MS, RD) _SSELmr(0xf3, X86_SSE_CVTTSS2SI, MD, MB, MI, MS, RD,_r4)
-#define CVTTSS2SIQrr(RS, RD)		 _SSEQrr(0xf3, X86_SSE_CVTTSS2SI, RS,_rX, RD,_r8)
-#define CVTTSS2SIQmr(MD, MB, MI, MS, RD) _SSEQmr(0xf3, X86_SSE_CVTTSS2SI, MD, MB, MI, MS, RD,_r8)
+#define CVTPS2PIrr(RS, RD)		__SSELrr(      X86_SSE_CVTSI, RS,_rX, RD,_rM)
+#define CVTPS2PImr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTSI, MD, MB, MI, MS, RD,_rM)
+#define CVTPD2PIrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTSI, RS,_rX, RD,_rM)
+#define CVTPD2PImr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTSI, MD, MB, MI, MS, RD,_rM)
 
-#define MOVDXDrr(RS, RD)		 _SSELrr(0x66, 0x6e, RS,_r4, RD,_rX)
-#define MOVDXDmr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, 0x6e, MD, MB, MI, MS, RD,_rX)
-#define MOVQXDrr(RS, RD)		 _SSEQrr(0x66, 0x6e, RS,_r8, RD,_rX)
-#define MOVQXDmr(MD, MB, MI, MS, RD)	 _SSEQmr(0x66, 0x6e, MD, MB, MI, MS, RD,_rX)
+#define CVTPI2PSrr(RS, RD)		__SSELrr(      X86_SSE_CVTIS, RS,_rM, RD,_rX)
+#define CVTPI2PSmr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTIS, MD, MB, MI, MS, RD,_rX)
+#define CVTPI2PDrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTIS, RS,_rM, RD,_rX)
+#define CVTPI2PDmr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTIS, MD, MB, MI, MS, RD,_rX)
 
-#define MOVDXSrr(RS, RD)		 _SSELrr(0x66, 0x7e, RD,_r4, RS,_rX)
-#define MOVDXSrm(RS, MD, MB, MI, MS)	 _SSELrm(0x66, 0x7e, RS,_rX, MD, MB, MI, MS)
-#define MOVQXSrr(RS, RD)		 _SSEQrr(0x66, 0x7e, RD,_r8, RS,_rX)
-#define MOVQXSrm(RS, MD, MB, MI, MS)	 _SSEQrm(0x66, 0x7e, RS,_rX, MD, MB, MI, MS)
+#define CVTPS2PDrr(RS, RD)		__SSELrr(      X86_SSE_CVTSD, RS,_rX, RD,_rX)
+#define CVTPS2PDmr(MD, MB, MI, MS, RD)	__SSELmr(      X86_SSE_CVTSD, MD, MB, MI, MS, RD,_rX)
+#define CVTPD2PSrr(RS, RD)		 _SSELrr(0x66, X86_SSE_CVTSD, RS,_rX, RD,_rX)
+#define CVTPD2PSmr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, X86_SSE_CVTSD, MD, MB, MI, MS, RD,_rX)
+
+#define CVTSS2SDrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTSD, RS,_rX, RD,_rX)
+#define CVTSS2SDmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTSD, MD, MB, MI, MS, RD,_rX)
+#define CVTSD2SSrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTSD, RS,_rX, RD,_rX)
+#define CVTSD2SSmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf2, X86_SSE_CVTSD, MD, MB, MI, MS, RD,_rX)
+
+#define CVTSS2SILrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTSI, RS,_rX, RD,_r4)
+#define CVTSS2SILmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTSI, MD, MB, MI, MS, RD,_r4)
+#define CVTSD2SILrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTSI, RS,_rX, RD,_r4)
+#define CVTSD2SILmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf2, X86_SSE_CVTSI, MD, MB, MI, MS, RD,_r4)
+
+#define CVTSI2SSLrr(RS, RD)		 _SSELrr(0xf3, X86_SSE_CVTIS, RS,_r4, RD,_rX)
+#define CVTSI2SSLmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf3, X86_SSE_CVTIS, MD, MB, MI, MS, RD,_rX)
+#define CVTSI2SDLrr(RS, RD)		 _SSELrr(0xf2, X86_SSE_CVTIS, RS,_r4, RD,_rX)
+#define CVTSI2SDLmr(MD, MB, MI, MS, RD)	 _SSELmr(0xf2, X86_SSE_CVTIS, MD, MB, MI, MS, RD,_rX)
+
+#define CVTSS2SIQrr(RS, RD)		 _SSEQrr(0xf3, X86_SSE_CVTSI, RS,_rX, RD,_r8)
+#define CVTSS2SIQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf3, X86_SSE_CVTSI, MD, MB, MI, MS, RD,_r8)
+#define CVTSD2SIQrr(RS, RD)		 _SSEQrr(0xf2, X86_SSE_CVTSI, RS,_rX, RD,_r8)
+#define CVTSD2SIQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf2, X86_SSE_CVTSI, MD, MB, MI, MS, RD,_r8)
+
+#define CVTSI2SSQrr(RS, RD)		 _SSEQrr(0xf3, X86_SSE_CVTIS, RS,_r8, RD,_rX)
+#define CVTSI2SSQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf3, X86_SSE_CVTIS, MD, MB, MI, MS, RD,_rX)
+#define CVTSI2SDQrr(RS, RD)		 _SSEQrr(0xf2, X86_SSE_CVTIS, RS,_r8, RD,_rX)
+#define CVTSI2SDQmr(MD, MB, MI, MS, RD)	 _SSEQmr(0xf2, X86_SSE_CVTIS, MD, MB, MI, MS, RD,_rX)
+
+#define MOVDLXrr(RS, RD)		 _SSELrr(0x66, 0x6e, RS,_r4, RD,_rX)
+#define MOVDLXmr(MD, MB, MI, MS, RD)	 _SSELmr(0x66, 0x6e, MD, MB, MI, MS, RD,_rX)
+#define MOVDQXrr(RS, RD)		 _SSEQrr(0x66, 0x6e, RS,_r8, RD,_rX)
+#define MOVDQXmr(MD, MB, MI, MS, RD)	 _SSEQmr(0x66, 0x6e, MD, MB, MI, MS, RD,_rX)
+
+#define MOVDXLrr(RS, RD)		 _SSELrr(0x66, 0x7e, RS,_rX, RD,_r4)
+#define MOVDXLrm(RS, MD, MB, MI, MS)	 _SSELrm(0x66, 0x7e, RS,_rX, MD, MB, MI, MS)
+#define MOVDXQrr(RS, RD)		 _SSEQrr(0x66, 0x7e, RS,_rX, RD,_r8)
+#define MOVDXQrm(RS, MD, MB, MI, MS)	 _SSEQrm(0x66, 0x7e, RS,_rX, MD, MB, MI, MS)
 
 #define MOVDLMrr(RS, RD)		__SSELrr(      0x6e, RS,_r4, RD,_rM)
 #define MOVDLMmr(MD, MB, MI, MS, RD)	__SSELmr(      0x6e, MD, MB, MI, MS, RD,_rM)
@@ -2312,9 +1908,6 @@ enum {
 #define MOVDMQrm(RS, MD, MB, MI, MS)	__SSEQrm(      0x7e, RS,_rM, MD, MB, MI, MS)
 
 #define MOVDQ2Qrr(RS, RD)		 _SSELrr(0xf2, 0xd6, RS,_rX, RD,_rM)
-#define MOVMSKPSrr(RS, RD)		__SSELrr(      0x50, RS,_rX, RD,_r4)
-#define MOVMSKPDrr(RS, RD)		 _SSELrr(0x66, 0x50, RS,_rX, RD,_r4)
-
 #define MOVHLPSrr(RS, RD)		__SSELrr(      0x12, RS,_rX, RD,_rX)
 #define MOVLHPSrr(RS, RD)		__SSELrr(      0x16, RS,_rX, RD,_rX)
 
@@ -2337,229 +1930,99 @@ enum {
 #define MOVLPSrm(RS, MD, MB, MI, MS)	__SSELrm(      0x13, RS,_rX, MD, MB, MI, MS)
 
 
-/* --- Floating-Point instructions ----------------------------------------- */
+/* --- FLoating-Point instructions ----------------------------------------- */
 
-enum {
-  X86_F2XM1	= 0xd9f0,
-  X86_FABS	= 0xd9e1,
-  X86_FADD	= 0xd8c0, // m32fp, m64fp, sti0, st0i, pst0i
-  X86_FIADD	= 0xda00, // m32int, m16int
-  X86_FBLD	= 0xdf04, // mem
-  X86_FBSTP	= 0xdf06, // mem
-  X86_FCHS	= 0xd9e0,
-  X86_FCMOVB	= 0xdac0, // sti0
-  X86_FCMOVE	= 0xdac8, // sti0
-  X86_FCMOVBE	= 0xdad0, // sti0
-  X86_FCMOVU	= 0xdad8, // sti0
-  X86_FCMOVNB	= 0xdbc0, // sti0
-  X86_FCMOVNE	= 0xdbc8, // sti0
-  X86_FCMOVNBE	= 0xdbd0, // sti0
-  X86_FCMOVNU	= 0xdbd8, // sti0
-  X86_FCOM	= 0xd8d2, // m32fp, m64fp, sti
-  X86_FCOMP	= 0xd8db, // m32fp, m64fp, sti
-  X86_FCOMPP	= 0xded9,
-  X86_FCOMI	= 0xdbf0, // sti0
-  X86_FCOMIP	= 0xdff0, // sti0
-  X86_FUCOMI	= 0xdbe8, // sti0
-  X86_FUCOMIP	= 0xdfe8, // sti0
-  X86_FCOS	= 0xd9ff,
-  X86_FDECSTP	= 0xd9f6,
-  X86_FDIV	= 0xd8f6, // m32fp, m64fp, sti0, st0i, pst0i
-  X86_FIDIV	= 0xda06, // m32int, m16int
-  X86_FDIVR	= 0xd8ff, // m32fp, m64fp, sti0, st0i, pst0i
-  X86_FIDIVR	= 0xda07, // m32int, m16int
-  X86_FFREE	= 0xddc0, // sti
-  X86_FICOM	= 0xda02, // m32int, m16int
-  X86_FICOMP	= 0xda03, // m32int, m16int
-  X86_FILD	= 0xdb00, // m32int, m16int
-  X86_FILDQ	= 0xdf05, // mem
-  X86_FINCSTP	= 0xd9f7,
-  X86_FIST	= 0xdb02, // m32int, m16int
-  X86_FISTP	= 0xdb03, // m32int, m16int
-  X86_FISTPQ	= 0xdf07, // mem
-  X86_FISTTP	= 0xdb01, // m32int, m16int
-  X86_FISTTPQ	= 0xdd01, // mem
-  X86_FLD	= 0xd900, // m32fp, m64fp
-  X86_FLDT	= 0xdb05, // mem
-  X86_FLD1	= 0xd9e8,
-  X86_FLDL2T	= 0xd9e9,
-  X86_FLDL2E	= 0xd9ea,
-  X86_FLDPI	= 0xd9eb,
-  X86_FLDLG2	= 0xd9ec,
-  X86_FLDLN2	= 0xd9ed,
-  X86_FLDZ	= 0xd9ee,
-  X86_FMUL	= 0xd8c9, // m32fp, m64fp, sti0, st0i, pst0i
-  X86_FIMUL	= 0xda01, // m32int, m16int
-  X86_FNOP	= 0xd9d0,
-  X86_FPATAN	= 0xd9f3,
-  X86_FPREM	= 0xd9f8,
-  X86_FPREM1	= 0xd9f5,
-  X86_FPTAN	= 0xd9f2,
-  X86_FRNDINT	= 0xd9fc,
-  X86_FSCALE	= 0xd9fd,
-  X86_FSIN	= 0xd9fe,
-  X86_FSINCOS	= 0xd9fb,
-  X86_FSQRT	= 0xd9fa,
-  X86_FSTS	= 0xd902, // mem
-  X86_FSTD	= 0xdd02, // mem
-  X86_FST	= 0xddd0, // sti
-  X86_FSTPS	= 0xd903, // mem
-  X86_FSTPD	= 0xdd03, // mem
-  X86_FSTPT	= 0xdb07, // mem
-  X86_FSTP	= 0xddd8, // sti
-  X86_FSUB	= 0xd8e4, // m32fp, m64fp, sti0, st0i, pst0i
-  X86_FISUB	= 0xda04, // m32int, m16int
-  X86_FSUBR	= 0xd8ed, // m32fp, m64fp, sti0, st0i, pst0i
-  X86_FISUBR	= 0xda05, // m32int, m16int
-  X86_FTST	= 0xd9e4,
-  X86_FUCOM	= 0xdde0, // sti
-  X86_FUCOMP	= 0xdde8, // sti
-  X86_FUCOMPP	= 0xdae9,
-  X86_FXAM	= 0xd9e5,
-  X86_FXCH	= 0xd9c8, // sti
-  X86_FXTRACT	= 0xd9f4,
-  X86_FYL2X	= 0xd9f1,
-  X86_FYL2XP1	= 0xd9f9,
-};
+#define _ESCmi(D,B,I,S,OP)	(_REXLrm(0,B,I), _O_r_X(0xd8|(OP & 7), (OP >> 3), D,B,I,S))
 
-#define _FPU(OP)			_OO(OP)
-#define _FPUm(OP, MD, MB, MI, MS)	(_REXLrm(0, MB, MI), _O_r_X((OP)>>8, (OP)&7, MD, MB, MI, MS))
-#define _FPUSm(OP, MD, MB, MI, MS)	_FPUm(OP, MD, MB, MI, MS)
-#define _FPUDm(OP, MD, MB, MI, MS)	_FPUm((OP)|0x400, MD, MB, MI, MS)
-#define _FPULm(OP, MD, MB, MI, MS)	_FPUm(OP, MD, MB, MI, MS)
-#define _FPUWm(OP, MD, MB, MI, MS)	_FPUm((OP)|0x400, MD, MB, MI, MS)
-#define _FPUr(OP, RR)			_OOr((OP)&0xfff8, _rF(RR))
-#define _FPU0r(OP, RD)			_FPUr((OP)|0x400, RD)
-#define _FPUr0(OP, RS)			_FPUr((OP)      , RS)
-#define _FPUrr(OP, RS, RD)		(_rST0P(RS) ? _FPU0r(OP, RD) : (_rST0P(RD) ? _FPUr0(OP, RS) : x86_emit_failure("FPU instruction without st0")))
-#define _FPUP0r(OP, RD)			_FPU0r((OP)|0x200, RD)
+#define FLDr(R)			_OOr(0xd9c0,_rN(R))
+#define FLDLm(D,B,I,S)		_ESCmi(D,B,I,S,005)
+#define FLDSm(D,B,I,S)		_ESCmi(D,B,I,S,001)
+#define FLDTm(D,B,I,S)		_ESCmi(D,B,I,S,053)
 
-#define F2XM1()				_FPU(X86_F2XM1)
-#define FABS()				_FPU(X86_FABS)
-#define FADDSm(MD, MB, MI, MS)		_FPUSm(X86_FADD, MD, MB, MI, MS)
-#define FADDDm(MD, MB, MI, MS)		_FPUDm(X86_FADD, MD, MB, MI, MS)
-#define FADDP0r(RD)			_FPUP0r(X86_FADD, RD)
-#define FADDrr(RS, RD)			_FPUrr(X86_FADD, RS, RD)
-#define FADD0r(RD)			_FPU0r(X86_FADD, RD)
-#define FADDr0(RS)			_FPUr0(X86_FADD, RS)
-#define FIADDWm(MD, MB, MI, MS)		_FPUWm(X86_FIADD, MD, MB, MI, MS)
-#define FIADDLm(MD, MB, MI, MS)		_FPULm(X86_FIADD, MD, MB, MI, MS)
-#define FBLDm(MD, MB, MI, MS)		_FPUm(X86_FBLD, MD, MB, MI, MS)
-#define FBSTPm(MD, MB, MI, MS)		_FPUm(X86_FBSTP, MD, MB, MI, MS)
-#define FCHS()				_FPU(X86_FCHS)
-#define FCMOVBr0(RS)			_FPUr0(X86_FCMOVB, RS)
-#define FCMOVEr0(RS)			_FPUr0(X86_FCMOVE, RS)
-#define FCMOVBEr0(RS)			_FPUr0(X86_FCMOVBE, RS)
-#define FCMOVUr0(RS)			_FPUr0(X86_FCMOVU, RS)
-#define FCMOVNBr0(RS)			_FPUr0(X86_FCMOVNB, RS)
-#define FCMOVNEr0(RS)			_FPUr0(X86_FCMOVNE, RS)
-#define FCMOVNBEr0(RS)			_FPUr0(X86_FCMOVNBE, RS)
-#define FCMOVNUr0(RS)			_FPUr0(X86_FCMOVNU, RS)
-#define FCOMSm(MD, MB, MI, MS)		_FPUSm(X86_FCOM, MD, MB, MI, MS)
-#define FCOMDm(MD, MB, MI, MS)		_FPUDm(X86_FCOM, MD, MB, MI, MS)
-#define FCOMr(RD)			_FPUr(X86_FCOM, RD)
-#define FCOMPSm(MD, MB, MI, MS)		_FPUSm(X86_FCOMP, MD, MB, MI, MS)
-#define FCOMPDm(MD, MB, MI, MS)		_FPUDm(X86_FCOMP, MD, MB, MI, MS)
-#define FCOMPr(RD)			_FPUr(X86_FCOMP, RD)
-#define FCOMPP()			_FPU(X86_FCOMPP)
-#define FCOMIr0(RS)			_FPUr0(X86_FCOMI, RS)
-#define FCOMIPr0(RS)			_FPUr0(X86_FCOMIP, RS)
-#define FUCOMIr0(RS)			_FPUr0(X86_FUCOMI, RS)
-#define FUCOMIPr0(RS)			_FPUr0(X86_FUCOMIP, RS)
-#define FCOS()				_FPU(X86_FCOS)
-#define FDECSTP()			_FPU(X86_FDECSTP)
-#define FDIVSm(MD, MB, MI, MS)		_FPUSm(X86_FDIV, MD, MB, MI, MS)
-#define FDIVDm(MD, MB, MI, MS)		_FPUDm(X86_FDIV, MD, MB, MI, MS)
-#define FDIVP0r(RD)			_FPUP0r(X86_FDIV, RD)
-#define FDIVrr(RS, RD)			_FPUrr(X86_FDIV, RS, RD)
-#define FDIV0r(RD)			_FPU0r(X86_FDIV, RD)
-#define FDIVr0(RS)			_FPUr0(X86_FDIV, RS)
-#define FIDIVWm(MD, MB, MI, MS)		_FPUWm(X86_FIDIV, MD, MB, MI, MS)
-#define FIDIVLm(MD, MB, MI, MS)		_FPULm(X86_FIDIV, MD, MB, MI, MS)
-#define FDIVRSm(MD, MB, MI, MS)		_FPUSm(X86_FDIVR, MD, MB, MI, MS)
-#define FDIVRDm(MD, MB, MI, MS)		_FPUDm(X86_FDIVR, MD, MB, MI, MS)
-#define FDIVRP0r(RD)			_FPUP0r(X86_FDIVR, RD)
-#define FDIVRrr(RS, RD)			_FPUrr(X86_FDIVR, RS, RD)
-#define FDIVR0r(RD)			_FPU0r(X86_FDIVR, RD)
-#define FDIVRr0(RS)			_FPUr0(X86_FDIVR, RS)
-#define FIDIVRWm(MD, MB, MI, MS)	_FPUWm(X86_FIDIVR, MD, MB, MI, MS)
-#define FIDIVRLm(MD, MB, MI, MS)	_FPULm(X86_FIDIVR, MD, MB, MI, MS)
-#define FFREEr(RD)			_FPUr(X86_FFREE, RD)
-#define FICOMWm(MD, MB, MI, MS)		_FPUWm(X86_FICOM, MD, MB, MI, MS)
-#define FICOMLm(MD, MB, MI, MS)		_FPULm(X86_FICOM, MD, MB, MI, MS)
-#define FICOMPWm(MD, MB, MI, MS)	_FPUWm(X86_FICOMP, MD, MB, MI, MS)
-#define FICOMPLm(MD, MB, MI, MS)	_FPULm(X86_FICOMP, MD, MB, MI, MS)
-#define FILDWm(MD, MB, MI, MS)		_FPUWm(X86_FILD, MD, MB, MI, MS)
-#define FILDLm(MD, MB, MI, MS)		_FPULm(X86_FILD, MD, MB, MI, MS)
-#define FILDQm(MD, MB, MI, MS)		_FPUm(X86_FILDQ, MD, MB, MI, MS)
-#define FINCSTP()			_FPU(X86_FINCSTP)
-#define FISTWm(MD, MB, MI, MS)		_FPUWm(X86_FIST, MD, MB, MI, MS)
-#define FISTLm(MD, MB, MI, MS)		_FPULm(X86_FIST, MD, MB, MI, MS)
-#define FISTPWm(MD, MB, MI, MS)		_FPUWm(X86_FISTP, MD, MB, MI, MS)
-#define FISTPLm(MD, MB, MI, MS)		_FPULm(X86_FISTP, MD, MB, MI, MS)
-#define FISTPQm(MD, MB, MI, MS)		_FPUm(X86_FISTPQ, MD, MB, MI, MS)
-#define FISTTPWm(MD, MB, MI, MS)	_FPUWm(X86_FISTTP, MD, MB, MI, MS)
-#define FISTTPLm(MD, MB, MI, MS)	_FPULm(X86_FISTTP, MD, MB, MI, MS)
-#define FISTTPQm(MD, MB, MI, MS)	_FPUm(X86_FISTTPQ, MD, MB, MI, MS)
-#define FLDSm(MD, MB, MI, MS)		_FPUSm(X86_FLD, MD, MB, MI, MS)
-#define FLDDm(MD, MB, MI, MS)		_FPUDm(X86_FLD, MD, MB, MI, MS)
-#define FLDTm(MD, MB, MI, MS)		_FPUm(X86_FLDT, MD, MB, MI, MS)
-#define FLD1()				_FPU(X86_FLD1)
-#define FLDL2T()			_FPU(X86_FLDL2T)
-#define FLDL2E()			_FPU(X86_FLDL2E)
-#define FLDPI()				_FPU(X86_FLDPI)
-#define FLDLG2()			_FPU(X86_FLDLG2)
-#define FLDLN2()			_FPU(X86_FLDLN2)
-#define FLDZ()				_FPU(X86_FLDZ)
-#define FMULSm(MD, MB, MI, MS)		_FPUSm(X86_FMUL, MD, MB, MI, MS)
-#define FMULDm(MD, MB, MI, MS)		_FPUDm(X86_FMUL, MD, MB, MI, MS)
-#define FMULP0r(RD)			_FPUP0r(X86_FMUL, RD)
-#define FMULrr(RS, RD)			_FPUrr(X86_FMUL, RS, RD)
-#define FMUL0r(RD)			_FPU0r(X86_FMUL, RD)
-#define FMULr0(RS)			_FPUr0(X86_FMUL, RS)
-#define FIMULWm(MD, MB, MI, MS)		_FPUWm(X86_FIMUL, MD, MB, MI, MS)
-#define FIMULLm(MD, MB, MI, MS)		_FPULm(X86_FIMUL, MD, MB, MI, MS)
-#define FNOP()				_FPU(X86_FNOP)
-#define FPATAN()			_FPU(X86_FPATAN)
-#define FPREM()				_FPU(X86_FPREM)
-#define FPREM1()			_FPU(X86_FPREM1)
-#define FPTAN()				_FPU(X86_FPTAN)
-#define FRNDINT()			_FPU(X86_FRNDINT)
-#define FSCALE()			_FPU(X86_FSCALE)
-#define FSIN()				_FPU(X86_FSIN)
-#define FSINCOS()			_FPU(X86_FSINCOS)
-#define FSQRT()				_FPU(X86_FSQRT)
-#define FSTSm(MD, MB, MI, MS)		_FPUm(X86_FSTS, MD, MB, MI, MS)
-#define FSTDm(MD, MB, MI, MS)		_FPUm(X86_FSTD, MD, MB, MI, MS)
-#define FSTr(RD)			_FPUr(X86_FST, RD)
-#define FSTPSm(MD, MB, MI, MS)		_FPUm(X86_FSTPS, MD, MB, MI, MS)
-#define FSTPDm(MD, MB, MI, MS)		_FPUm(X86_FSTPD, MD, MB, MI, MS)
-#define FSTPTm(MD, MB, MI, MS)		_FPUm(X86_FSTPT, MD, MB, MI, MS)
-#define FSTPr(RD)			_FPUr(X86_FSTP, RD)
-#define FSUBSm(MD, MB, MI, MS)		_FPUSm(X86_FSUB, MD, MB, MI, MS)
-#define FSUBDm(MD, MB, MI, MS)		_FPUDm(X86_FSUB, MD, MB, MI, MS)
-#define FSUBP0r(RD)			_FPUP0r(X86_FSUB, RD)
-#define FSUBrr(RS, RD)			_FPUrr(X86_FSUB, RS, RD)
-#define FSUB0r(RD)			_FPU0r(X86_FSUB, RD)
-#define FSUBr0(RS)			_FPUr0(X86_FSUB, RS)
-#define FISUBWm(MD, MB, MI, MS)		_FPUWm(X86_FISUB, MD, MB, MI, MS)
-#define FISUBLm(MD, MB, MI, MS)		_FPULm(X86_FISUB, MD, MB, MI, MS)
-#define FSUBRSm(MD, MB, MI, MS)		_FPUSm(X86_FSUBR, MD, MB, MI, MS)
-#define FSUBRDm(MD, MB, MI, MS)		_FPUDm(X86_FSUBR, MD, MB, MI, MS)
-#define FSUBRP0r(RD)			_FPUP0r(X86_FSUBR, RD)
-#define FSUBRrr(RS, RD)			_FPUrr(X86_FSUBR, RS, RD)
-#define FSUBR0r(RD)			_FPU0r(X86_FSUBR, RD)
-#define FSUBRr0(RS)			_FPUr0(X86_FSUBR, RS)
-#define FISUBRWm(MD, MB, MI, MS)	_FPUWm(X86_FISUBR, MD, MB, MI, MS)
-#define FISUBRLm(MD, MB, MI, MS)	_FPULm(X86_FISUBR, MD, MB, MI, MS)
-#define FTST()				_FPU(X86_FTST)
-#define FUCOMr(RD)			_FPUr(X86_FUCOM, RD)
-#define FUCOMPr(RD)			_FPUr(X86_FUCOMP, RD)
-#define FUCOMPP()			_FPU(X86_FUCOMPP)
-#define FXAM()				_FPU(X86_FXAM)
-#define FXCHr(RD)			_FPUr(X86_FXCH, RD)
-#define FXTRACT()			_FPU(X86_FXTRACT)
-#define FYL2X()				_FPU(X86_FYL2X)
-#define FYL2XP1()			_FPU(X86_FYL2XP1)
+#define FSTr(R)			_OOr(0xddd0,_rN(R))
+#define FSTSm(D,B,I,S)		_ESCmi(D,B,I,S,021)
+#define FSTLm(D,B,I,S)		_ESCmi(D,B,I,S,025)
+
+#define FSTPr(R)		_OOr(0xddd8,_rN(R))
+#define FSTPSm(D,B,I,S)		_ESCmi(D,B,I,S,031)
+#define FSTPLm(D,B,I,S)		_ESCmi(D,B,I,S,035)
+#define FSTPTm(D,B,I,S)		_ESCmi(D,B,I,S,073)
+
+#define FADDr0(R)		_OOr(0xd8c0,_rN(R))
+#define FADD0r(R)		_OOr(0xdcc0,_rN(R))
+#define FADDP0r(R)		_OOr(0xdec0,_rN(R))
+#define FADDSm(D,B,I,S)		_ESCmi(D,B,I,S,000)
+#define FADDLm(D,B,I,S)		_ESCmi(D,B,I,S,004)
+
+#define FSUBSm(D,B,I,S)		_ESCmi(D,B,I,S,040)
+#define FSUBLm(D,B,I,S)		_ESCmi(D,B,I,S,044)
+#define FSUBr0(R)		_OOr(0xd8e0,_rN(R))
+#define FSUB0r(R)		_OOr(0xdce8,_rN(R))
+#define FSUBP0r(R)		_OOr(0xdee8,_rN(R))
+
+#define FSUBRr0(R)		_OOr(0xd8e8,_rN(R))
+#define FSUBR0r(R)		_OOr(0xdce0,_rN(R))
+#define FSUBRP0r(R)		_OOr(0xdee0,_rN(R))
+#define FSUBRSm(D,B,I,S)	_ESCmi(D,B,I,S,050)
+#define FSUBRLm(D,B,I,S)	_ESCmi(D,B,I,S,054)
+
+#define FMULr0(R)		_OOr(0xd8c8,_rN(R))
+#define FMUL0r(R)		_OOr(0xdcc8,_rN(R))
+#define FMULP0r(R)		_OOr(0xdec8,_rN(R))
+#define FMULSm(D,B,I,S)		_ESCmi(D,B,I,S,010)
+#define FMULLm(D,B,I,S)		_ESCmi(D,B,I,S,014)
+
+#define FDIVr0(R)		_OOr(0xd8f0,_rN(R))
+#define FDIV0r(R)		_OOr(0xdcf8,_rN(R))
+#define FDIVP0r(R)		_OOr(0xdef8,_rN(R))
+#define FDIVSm(D,B,I,S)		_ESCmi(D,B,I,S,060)
+#define FDIVLm(D,B,I,S)		_ESCmi(D,B,I,S,064)
+
+#define FDIVRr0(R)		_OOr(0xd8f8,_rN(R))
+#define FDIVR0r(R)		_OOr(0xdcf0,_rN(R))
+#define FDIVRP0r(R)		_OOr(0xdef0,_rN(R))
+#define FDIVRSm(D,B,I,S)	_ESCmi(D,B,I,S,070)
+#define FDIVRLm(D,B,I,S)	_ESCmi(D,B,I,S,074)
+
+#define FCMOVBr0(R)		_OOr(0xdac0,_rN(R))
+#define FCMOVBEr0(R)		_OOr(0xdad0,_rN(R))
+#define FCMOVEr0(R)		_OOr(0xdac8,_rN(R))
+#define FCMOVNBr0(R)		_OOr(0xdbc0,_rN(R))
+#define FCMOVNBEr0(R)		_OOr(0xdbd0,_rN(R))
+#define FCMOVNEr0(R)		_OOr(0xdbc8,_rN(R))
+#define FCMOVNUr0(R)		_OOr(0xdbd8,_rN(R))
+#define FCMOVUr0(R)		_OOr(0xdad8,_rN(R))
+#define FCOMIr0(R)		_OOr(0xdbf0,_rN(R))
+#define FCOMIPr0(R)		_OOr(0xdff0,_rN(R))
+
+#define FCOMr(R)		_OOr(0xd8d0,_rN(R))
+#define FCOMSm(D,B,I,S)		_ESCmi(D,B,I,S,020)
+#define FCOMLm(D,B,I,S)		_ESCmi(D,B,I,S,024)
+
+#define FCOMPr(R)		_OOr(0xd8d8,_rN(R))
+#define FCOMPSm(D,B,I,S)	_ESCmi(D,B,I,S,030)
+#define FCOMPLm(D,B,I,S)	_ESCmi(D,B,I,S,034)
+
+#define FUCOMIr0(R)		_OOr(0xdbe8,_rN(R))
+#define FUCOMIPr0(R)		_OOr(0xdfe8,_rN(R))
+#define FUCOMPr(R)		_OOr(0xdde8,_rN(R))
+#define FUCOMr(R)		_OOr(0xdde0,_rN(R))
+
+#define FIADDLm(D,B,I,S)	_ESCmi(D,B,I,S,002)
+#define FICOMLm(D,B,I,S)	_ESCmi(D,B,I,S,022)
+#define FICOMPLm(D,B,I,S)	_ESCmi(D,B,I,S,032)
+#define FIDIVLm(D,B,I,S)	_ESCmi(D,B,I,S,062)
+#define FIDIVRLm(D,B,I,S)	_ESCmi(D,B,I,S,072)
+#define FILDLm(D,B,I,S)		_ESCmi(D,B,I,S,003)
+#define FILDQm(D,B,I,S)		_ESCmi(D,B,I,S,057)
+#define FIMULLm(D,B,I,S)	_ESCmi(D,B,I,S,012)
+#define FISTLm(D,B,I,S)		_ESCmi(D,B,I,S,023)
+#define FISTPLm(D,B,I,S)	_ESCmi(D,B,I,S,033)
+#define FISTPQm(D,B,I,S)	_ESCmi(D,B,I,S,077)
+#define FISUBLm(D,B,I,S)	_ESCmi(D,B,I,S,042)
+#define FISUBRLm(D,B,I,S)	_ESCmi(D,B,I,S,052)
+
+#define FREEr(R)		_OOr(0xddc0,_rN(R))
+#define FXCHr(R)		_OOr(0xd9c8,_rN(R))
 
 #endif /* X86_RTASM_H */

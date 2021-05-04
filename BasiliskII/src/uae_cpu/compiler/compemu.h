@@ -1,42 +1,53 @@
 /*
- *  compiler/compemu.h - Public interface and definitions
+ * compiler/compemu.h - Public interface and definitions
  *
- *  Original 68040 JIT compiler for UAE, copyright 2000-2002 Bernd Meyer
+ * Copyright (c) 2001-2004 Milan Jurik of ARAnyM dev team (see AUTHORS)
  *
- *  Adaptation for Basilisk II and improvements, copyright 2000-2005
- *    Gwenole Beauchesne
+ * Inspired by Christian Bauer's Basilisk II
  *
- *  Basilisk II (C) 1997-2008 Christian Bauer
- *  
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ * This file is part of the ARAnyM project which builds a new and powerful
+ * TOS/FreeMiNT compatible virtual machine running on almost any hardware.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * JIT compiler m68k -> IA-32 and AMD64
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Original 68040 JIT compiler for UAE, copyright 2000-2002 Bernd Meyer
+ * Adaptation for Basilisk II and improvements, copyright 2000-2004 Gwenole Beauchesne
+ * Portions related to CPU detection come from linux/arch/i386/kernel/setup.c
+ *
+ * ARAnyM is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * ARAnyM is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with ARAnyM; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef COMPEMU_H
 #define COMPEMU_H
 
+// #include "sysconfig.h"
 #include "newcpu.h"
 
-#if USE_JIT
-
-#if defined __i386__ || defined __x86_64__
-#include "flags_x86.h"
+#ifdef UAE
+#ifdef CPU_64_BIT
+typedef uae_u64 uintptr;
 #else
-#error "Unsupported JIT compiler for this architecture"
+typedef uae_u32 uintptr;
+#endif
+/* FIXME: cpummu.cpp also checks for USE_JIT, possibly others */
+#define USE_JIT
 #endif
 
-#if JIT_DEBUG
+#ifdef USE_JIT
+
+#ifdef JIT_DEBUG
 /* dump some information (m68k block, x86 block addresses) about the compiler state */
 extern void compiler_dumpstate(void);
 #endif
@@ -55,11 +66,14 @@ extern uae_u32 start_pc;
 struct blockinfo_t;
 
 struct cpu_history {
-	uae_u16 * location;
+	uae_u16* location;
+#ifdef UAE
+	uae_u8  specmem;
+#endif
 };
 
 union cacheline {
-	cpuop_func * handler;
+	cpuop_func* handler;
 	blockinfo_t * bi;
 };
 
@@ -102,8 +116,13 @@ union cacheline {
 #define SCALE 2
 
 #define BYTES_PER_INST 10240  /* paranoid ;-) */
+#if defined(CPU_arm)
+#define LONGEST_68K_INST 256 /* The number of bytes the longest possible
+			       68k instruction takes */
+#else
 #define LONGEST_68K_INST 16 /* The number of bytes the longest possible
 			       68k instruction takes */
+#endif
 #define MAX_CHECKSUM_LEN 2048 /* The maximum size we calculate checksums
 				 for. Anything larger will be flushed
 				 unconditionally even with SOFT_FLUSH */
@@ -111,8 +130,7 @@ union cacheline {
 			  for jump targets */
 
 #define INDIVIDUAL_INST 0
-#if 1
-// gb-- my format from readcpu.cpp is not the same
+#ifdef WINUAE_ARANYM
 #define FLAG_X    0x0010
 #define FLAG_N    0x0008
 #define FLAG_Z    0x0004
@@ -126,43 +144,108 @@ union cacheline {
 #define FLAG_X    0x0001
 #endif
 #define FLAG_CZNV (FLAG_C | FLAG_Z | FLAG_N | FLAG_V)
+#define FLAG_ALL  (FLAG_C | FLAG_Z | FLAG_N | FLAG_V | FLAG_X)
 #define FLAG_ZNV  (FLAG_Z | FLAG_N | FLAG_V)
 
 #define KILLTHERAT 1  /* Set to 1 to avoid some partial_rat_stalls */
 
-#if defined(__x86_64__)
+#if defined(CPU_arm)
+#define USE_DATA_BUFFER
+#define N_REGS 13  /* really 16, but 13 to 15 are SP, LR, PC */
+#else
+#if defined(CPU_x86_64)
 #define N_REGS 16 /* really only 15, but they are numbered 0-3,5-15 */
 #else
 #define N_REGS 8  /* really only 7, but they are numbered 0,1,2,3,5,6,7 */
+#endif
 #endif
 #define N_FREGS 6 /* That leaves us two positions on the stack to play with */
 
 /* Functions exposed to newcpu, or to what was moved from newcpu.c to
  * compemu_support.c */
+#ifdef WINUAE_ARANYM
 extern void compiler_init(void);
 extern void compiler_exit(void);
 extern bool compiler_use_jit(void);
-extern void init_comp(void);
+#endif
 extern void flush(int save_regs);
-extern void small_flush(int save_regs);
+void flush_reg(int reg);
 extern void set_target(uae_u8* t);
 extern uae_u8* get_target(void);
-extern void freescratch(void);
+#ifdef UAE
 extern void build_comp(void);
+#endif
 extern void set_cache_state(int enabled);
 extern int get_cache_state(void);
 extern uae_u32 get_jitted_size(void);
-extern void (*flush_icache)(int n);
+#ifdef JIT
+extern void (*flush_icache)(void);
+#endif
 extern void alloc_cache(void);
 extern int check_for_cache_miss(void);
 
 /* JIT FPU compilation */
+struct jit_disable_opcodes {
+	bool fbcc;
+	bool fdbcc;
+	bool fscc;
+	bool ftrapcc;
+	bool fsave;
+	bool frestore;
+	bool fmove;
+	bool fmovem;
+	bool fmovec;  /* for move control register */
+	bool fmovecr; /* for move from constant rom */
+	bool fint;
+	bool fsinh;
+	bool fintrz;
+	bool fsqrt;
+	bool flognp1;
+	bool fetoxm1;
+	bool ftanh;
+	bool fatan;
+	bool fasin;
+	bool fatanh;
+	bool fsin;
+	bool ftan;
+	bool fetox;
+	bool ftwotox;
+	bool ftentox;
+	bool flogn;
+	bool flog10;
+	bool flog2;
+	bool fabs;
+	bool fcosh;
+	bool fneg;
+	bool facos;
+	bool fcos;
+	bool fgetexp;
+	bool fgetman;
+	bool fdiv;
+	bool fmod;
+	bool fadd;
+	bool fmul;
+	bool fsgldiv;
+	bool frem;
+	bool fscale;
+	bool fsglmul;
+	bool fsub;
+	bool fsincos;
+	bool fcmp;
+	bool ftst;
+};
+extern struct jit_disable_opcodes jit_disable;
+
+
 extern void comp_fpp_opp (uae_u32 opcode, uae_u16 extra);
 extern void comp_fbcc_opp (uae_u32 opcode);
 extern void comp_fscc_opp (uae_u32 opcode, uae_u16 extra);
+void comp_fdbcc_opp (uae_u32 opcode, uae_u16 extra);
+void comp_ftrapcc_opp (uae_u32 opcode, uaecptr oldpc);
+void comp_fsave_opp (uae_u32 opcode);
+void comp_frestore_opp (uae_u32 opcode);
 
 extern uae_u32 needed_flags;
-extern cacheline cache_tags[];
 extern uae_u8* comp_pc_p;
 extern void* pushall_call_handler;
 
@@ -193,10 +276,11 @@ typedef struct {
   double val;
   uae_u8 status;
   uae_s8 realreg; /* gb-- realreg can hold -1 */
-  uae_u8 realind;  
+  uae_u8 realind;
   uae_u8 needflush;
 } freg_status;
 
+#define SP_REG 15
 #define PC_P 16
 #define FLAGX 17
 #define FLAGTMP 18
@@ -263,19 +347,23 @@ typedef struct {
 } bigstate;
 
 typedef struct {
-  /* Integer part */
-  char virt[VREGS];
-  char nat[N_REGS];
+	/* Integer part */
+	uae_s8 virt[VREGS];
+	uae_s8 nat[N_REGS];
 } smallstate;
 
-extern bigstate live;
 extern int touchcnt;
 
-
-#define IMM uae_s32
+#define IMM  uae_s32
+#define RR1  uae_u32
+#define RR2  uae_u32
+#define RR4  uae_u32
+/*
+  R1, R2, R4 collides with ARM registers defined in ucontext
 #define R1  uae_u32
 #define R2  uae_u32
 #define R4  uae_u32
+*/
 #define W1  uae_u32
 #define W2  uae_u32
 #define W4  uae_u32
@@ -284,220 +372,37 @@ extern int touchcnt;
 #define RW4 uae_u32
 #define MEMR uae_u32
 #define MEMW uae_u32
-#define MEMRW uae_u32
+#define MEMRW    uae_u32
+#define MEMPTR   uintptr
+#define MEMPTRR  MEMPTR
+#define MEMPTRW  MEMPTR
+#define MEMPTRRW MEMPTR
 
 #define FW   uae_u32
 #define FR   uae_u32
 #define FRW  uae_u32
 
 #define MIDFUNC(nargs,func,args) void func args
-#define MENDFUNC(nargs,func,args) 
 #define COMPCALL(func) func
 
-#define LOWFUNC(flags,mem,nargs,func,args) static __inline__ void func args
-#define LENDFUNC(flags,mem,nargs,func,args) 
+#define LOWFUNC(flags,mem,nargs,func,args) static inline void func args
 
 /* What we expose to the outside */
 #define DECLARE_MIDFUNC(func) extern void func
-DECLARE_MIDFUNC(bt_l_ri(R4 r, IMM i));
-DECLARE_MIDFUNC(bt_l_rr(R4 r, R4 b));
-DECLARE_MIDFUNC(btc_l_ri(RW4 r, IMM i));
-DECLARE_MIDFUNC(btc_l_rr(RW4 r, R4 b));
-DECLARE_MIDFUNC(bts_l_ri(RW4 r, IMM i));
-DECLARE_MIDFUNC(bts_l_rr(RW4 r, R4 b));
-DECLARE_MIDFUNC(btr_l_ri(RW4 r, IMM i));
-DECLARE_MIDFUNC(btr_l_rr(RW4 r, R4 b));
-DECLARE_MIDFUNC(mov_l_rm(W4 d, IMM s));
-DECLARE_MIDFUNC(call_r(R4 r));
-DECLARE_MIDFUNC(sub_l_mi(IMM d, IMM s));
-DECLARE_MIDFUNC(mov_l_mi(IMM d, IMM s));
-DECLARE_MIDFUNC(mov_w_mi(IMM d, IMM s));
-DECLARE_MIDFUNC(mov_b_mi(IMM d, IMM s));
-DECLARE_MIDFUNC(rol_b_ri(RW1 r, IMM i));
-DECLARE_MIDFUNC(rol_w_ri(RW2 r, IMM i));
-DECLARE_MIDFUNC(rol_l_ri(RW4 r, IMM i));
-DECLARE_MIDFUNC(rol_l_rr(RW4 d, R1 r));
-DECLARE_MIDFUNC(rol_w_rr(RW2 d, R1 r));
-DECLARE_MIDFUNC(rol_b_rr(RW1 d, R1 r));
-DECLARE_MIDFUNC(shll_l_rr(RW4 d, R1 r));
-DECLARE_MIDFUNC(shll_w_rr(RW2 d, R1 r));
-DECLARE_MIDFUNC(shll_b_rr(RW1 d, R1 r));
-DECLARE_MIDFUNC(ror_b_ri(R1 r, IMM i));
-DECLARE_MIDFUNC(ror_w_ri(R2 r, IMM i));
-DECLARE_MIDFUNC(ror_l_ri(R4 r, IMM i));
-DECLARE_MIDFUNC(ror_l_rr(R4 d, R1 r));
-DECLARE_MIDFUNC(ror_w_rr(R2 d, R1 r));
-DECLARE_MIDFUNC(ror_b_rr(R1 d, R1 r));
-DECLARE_MIDFUNC(shrl_l_rr(RW4 d, R1 r));
-DECLARE_MIDFUNC(shrl_w_rr(RW2 d, R1 r));
-DECLARE_MIDFUNC(shrl_b_rr(RW1 d, R1 r));
-DECLARE_MIDFUNC(shra_l_rr(RW4 d, R1 r));
-DECLARE_MIDFUNC(shra_w_rr(RW2 d, R1 r));
-DECLARE_MIDFUNC(shra_b_rr(RW1 d, R1 r));
-DECLARE_MIDFUNC(shll_l_ri(RW4 r, IMM i));
-DECLARE_MIDFUNC(shll_w_ri(RW2 r, IMM i));
-DECLARE_MIDFUNC(shll_b_ri(RW1 r, IMM i));
-DECLARE_MIDFUNC(shrl_l_ri(RW4 r, IMM i));
-DECLARE_MIDFUNC(shrl_w_ri(RW2 r, IMM i));
-DECLARE_MIDFUNC(shrl_b_ri(RW1 r, IMM i));
-DECLARE_MIDFUNC(shra_l_ri(RW4 r, IMM i));
-DECLARE_MIDFUNC(shra_w_ri(RW2 r, IMM i));
-DECLARE_MIDFUNC(shra_b_ri(RW1 r, IMM i));
-DECLARE_MIDFUNC(setcc(W1 d, IMM cc));
-DECLARE_MIDFUNC(setcc_m(IMM d, IMM cc));
-DECLARE_MIDFUNC(cmov_b_rr(RW1 d, R1 s, IMM cc));
-DECLARE_MIDFUNC(cmov_w_rr(RW2 d, R2 s, IMM cc));
-DECLARE_MIDFUNC(cmov_l_rr(RW4 d, R4 s, IMM cc));
-DECLARE_MIDFUNC(cmov_l_rm(RW4 d, IMM s, IMM cc));
-DECLARE_MIDFUNC(bsf_l_rr(W4 d, R4 s));
-DECLARE_MIDFUNC(pop_m(IMM d));
-DECLARE_MIDFUNC(push_m(IMM d));
-DECLARE_MIDFUNC(pop_l(W4 d));
-DECLARE_MIDFUNC(push_l_i(IMM i));
-DECLARE_MIDFUNC(push_l(R4 s));
-DECLARE_MIDFUNC(clear_16(RW4 r));
-DECLARE_MIDFUNC(clear_8(RW4 r));
-DECLARE_MIDFUNC(sign_extend_16_rr(W4 d, R2 s));
-DECLARE_MIDFUNC(sign_extend_8_rr(W4 d, R1 s));
-DECLARE_MIDFUNC(zero_extend_16_rr(W4 d, R2 s));
-DECLARE_MIDFUNC(zero_extend_8_rr(W4 d, R1 s));
-DECLARE_MIDFUNC(imul_64_32(RW4 d, RW4 s));
-DECLARE_MIDFUNC(mul_64_32(RW4 d, RW4 s));
-DECLARE_MIDFUNC(imul_32_32(RW4 d, R4 s));
-DECLARE_MIDFUNC(mul_32_32(RW4 d, R4 s));
-DECLARE_MIDFUNC(mov_b_rr(W1 d, R1 s));
-DECLARE_MIDFUNC(mov_w_rr(W2 d, R2 s));
-DECLARE_MIDFUNC(mov_l_rrm_indexed(W4 d,R4 baser, R4 index, IMM factor));
-DECLARE_MIDFUNC(mov_w_rrm_indexed(W2 d, R4 baser, R4 index, IMM factor));
-DECLARE_MIDFUNC(mov_b_rrm_indexed(W1 d, R4 baser, R4 index, IMM factor));
-DECLARE_MIDFUNC(mov_l_mrr_indexed(R4 baser, R4 index, IMM factor, R4 s));
-DECLARE_MIDFUNC(mov_w_mrr_indexed(R4 baser, R4 index, IMM factor, R2 s));
-DECLARE_MIDFUNC(mov_b_mrr_indexed(R4 baser, R4 index, IMM factor, R1 s));
-DECLARE_MIDFUNC(mov_l_bmrr_indexed(IMM base, R4 baser, R4 index, IMM factor, R4 s));
-DECLARE_MIDFUNC(mov_w_bmrr_indexed(IMM base, R4 baser, R4 index, IMM factor, R2 s));
-DECLARE_MIDFUNC(mov_b_bmrr_indexed(IMM base, R4 baser, R4 index, IMM factor, R1 s));
-DECLARE_MIDFUNC(mov_l_brrm_indexed(W4 d, IMM base, R4 baser, R4 index, IMM factor));
-DECLARE_MIDFUNC(mov_w_brrm_indexed(W2 d, IMM base, R4 baser, R4 index, IMM factor));
-DECLARE_MIDFUNC(mov_b_brrm_indexed(W1 d, IMM base, R4 baser, R4 index, IMM factor));
-DECLARE_MIDFUNC(mov_l_rm_indexed(W4 d, IMM base, R4 index, IMM factor));
-DECLARE_MIDFUNC(mov_l_rR(W4 d, R4 s, IMM offset));
-DECLARE_MIDFUNC(mov_w_rR(W2 d, R4 s, IMM offset));
-DECLARE_MIDFUNC(mov_b_rR(W1 d, R4 s, IMM offset));
-DECLARE_MIDFUNC(mov_l_brR(W4 d, R4 s, IMM offset));
-DECLARE_MIDFUNC(mov_w_brR(W2 d, R4 s, IMM offset));
-DECLARE_MIDFUNC(mov_b_brR(W1 d, R4 s, IMM offset));
-DECLARE_MIDFUNC(mov_l_Ri(R4 d, IMM i, IMM offset));
-DECLARE_MIDFUNC(mov_w_Ri(R4 d, IMM i, IMM offset));
-DECLARE_MIDFUNC(mov_b_Ri(R4 d, IMM i, IMM offset));
-DECLARE_MIDFUNC(mov_l_Rr(R4 d, R4 s, IMM offset));
-DECLARE_MIDFUNC(mov_w_Rr(R4 d, R2 s, IMM offset));
-DECLARE_MIDFUNC(mov_b_Rr(R4 d, R1 s, IMM offset));
-DECLARE_MIDFUNC(lea_l_brr(W4 d, R4 s, IMM offset));
-DECLARE_MIDFUNC(lea_l_brr_indexed(W4 d, R4 s, R4 index, IMM factor, IMM offset));
-DECLARE_MIDFUNC(lea_l_rr_indexed(W4 d, R4 s, R4 index, IMM factor));
-DECLARE_MIDFUNC(mov_l_bRr(R4 d, R4 s, IMM offset));
-DECLARE_MIDFUNC(mov_w_bRr(R4 d, R2 s, IMM offset));
-DECLARE_MIDFUNC(mov_b_bRr(R4 d, R1 s, IMM offset));
-DECLARE_MIDFUNC(bswap_32(RW4 r));
-DECLARE_MIDFUNC(bswap_16(RW2 r));
-DECLARE_MIDFUNC(mov_l_rr(W4 d, R4 s));
-DECLARE_MIDFUNC(mov_l_mr(IMM d, R4 s));
-DECLARE_MIDFUNC(mov_w_mr(IMM d, R2 s));
-DECLARE_MIDFUNC(mov_w_rm(W2 d, IMM s));
-DECLARE_MIDFUNC(mov_b_mr(IMM d, R1 s));
-DECLARE_MIDFUNC(mov_b_rm(W1 d, IMM s));
-DECLARE_MIDFUNC(mov_l_ri(W4 d, IMM s));
-DECLARE_MIDFUNC(mov_w_ri(W2 d, IMM s));
-DECLARE_MIDFUNC(mov_b_ri(W1 d, IMM s));
-DECLARE_MIDFUNC(add_l_mi(IMM d, IMM s) );
-DECLARE_MIDFUNC(add_w_mi(IMM d, IMM s) );
-DECLARE_MIDFUNC(add_b_mi(IMM d, IMM s) );
-DECLARE_MIDFUNC(test_l_ri(R4 d, IMM i));
-DECLARE_MIDFUNC(test_l_rr(R4 d, R4 s));
-DECLARE_MIDFUNC(test_w_rr(R2 d, R2 s));
-DECLARE_MIDFUNC(test_b_rr(R1 d, R1 s));
-DECLARE_MIDFUNC(and_l_ri(RW4 d, IMM i));
-DECLARE_MIDFUNC(and_l(RW4 d, R4 s));
-DECLARE_MIDFUNC(and_w(RW2 d, R2 s));
-DECLARE_MIDFUNC(and_b(RW1 d, R1 s));
-DECLARE_MIDFUNC(or_l_rm(RW4 d, IMM s));
-DECLARE_MIDFUNC(or_l_ri(RW4 d, IMM i));
-DECLARE_MIDFUNC(or_l(RW4 d, R4 s));
-DECLARE_MIDFUNC(or_w(RW2 d, R2 s));
-DECLARE_MIDFUNC(or_b(RW1 d, R1 s));
-DECLARE_MIDFUNC(adc_l(RW4 d, R4 s));
-DECLARE_MIDFUNC(adc_w(RW2 d, R2 s));
-DECLARE_MIDFUNC(adc_b(RW1 d, R1 s));
-DECLARE_MIDFUNC(add_l(RW4 d, R4 s));
-DECLARE_MIDFUNC(add_w(RW2 d, R2 s));
-DECLARE_MIDFUNC(add_b(RW1 d, R1 s));
-DECLARE_MIDFUNC(sub_l_ri(RW4 d, IMM i));
-DECLARE_MIDFUNC(sub_w_ri(RW2 d, IMM i));
-DECLARE_MIDFUNC(sub_b_ri(RW1 d, IMM i));
-DECLARE_MIDFUNC(add_l_ri(RW4 d, IMM i));
-DECLARE_MIDFUNC(add_w_ri(RW2 d, IMM i));
-DECLARE_MIDFUNC(add_b_ri(RW1 d, IMM i));
-DECLARE_MIDFUNC(sbb_l(RW4 d, R4 s));
-DECLARE_MIDFUNC(sbb_w(RW2 d, R2 s));
-DECLARE_MIDFUNC(sbb_b(RW1 d, R1 s));
-DECLARE_MIDFUNC(sub_l(RW4 d, R4 s));
-DECLARE_MIDFUNC(sub_w(RW2 d, R2 s));
-DECLARE_MIDFUNC(sub_b(RW1 d, R1 s));
-DECLARE_MIDFUNC(cmp_l(R4 d, R4 s));
-DECLARE_MIDFUNC(cmp_l_ri(R4 r, IMM i));
-DECLARE_MIDFUNC(cmp_w(R2 d, R2 s));
-DECLARE_MIDFUNC(cmp_b(R1 d, R1 s));
-DECLARE_MIDFUNC(xor_l(RW4 d, R4 s));
-DECLARE_MIDFUNC(xor_w(RW2 d, R2 s));
-DECLARE_MIDFUNC(xor_b(RW1 d, R1 s));
-DECLARE_MIDFUNC(live_flags(void));
-DECLARE_MIDFUNC(dont_care_flags(void));
-DECLARE_MIDFUNC(duplicate_carry(void));
-DECLARE_MIDFUNC(restore_carry(void));
-DECLARE_MIDFUNC(start_needflags(void));
-DECLARE_MIDFUNC(end_needflags(void));
-DECLARE_MIDFUNC(make_flags_live(void));
-DECLARE_MIDFUNC(call_r_11(R4 r, W4 out1, R4 in1, IMM osize, IMM isize));
-DECLARE_MIDFUNC(call_r_02(R4 r, R4 in1, R4 in2, IMM isize1, IMM isize2));
-DECLARE_MIDFUNC(forget_about(W4 r));
-DECLARE_MIDFUNC(nop(void));
 
-DECLARE_MIDFUNC(f_forget_about(FW r));
-DECLARE_MIDFUNC(fmov_pi(FW r));
-DECLARE_MIDFUNC(fmov_log10_2(FW r));
-DECLARE_MIDFUNC(fmov_log2_e(FW r));
-DECLARE_MIDFUNC(fmov_loge_2(FW r));
-DECLARE_MIDFUNC(fmov_1(FW r));
-DECLARE_MIDFUNC(fmov_0(FW r));
-DECLARE_MIDFUNC(fmov_rm(FW r, MEMR m));
-DECLARE_MIDFUNC(fmovi_rm(FW r, MEMR m));
-DECLARE_MIDFUNC(fmovi_mr(MEMW m, FR r));
-DECLARE_MIDFUNC(fmovs_rm(FW r, MEMR m));
-DECLARE_MIDFUNC(fmovs_mr(MEMW m, FR r));
-DECLARE_MIDFUNC(fmov_mr(MEMW m, FR r));
-DECLARE_MIDFUNC(fmov_ext_mr(MEMW m, FR r));
-DECLARE_MIDFUNC(fmov_ext_rm(FW r, MEMR m));
-DECLARE_MIDFUNC(fmov_rr(FW d, FR s));
-DECLARE_MIDFUNC(fldcw_m_indexed(R4 index, IMM base));
-DECLARE_MIDFUNC(ftst_r(FR r));
-DECLARE_MIDFUNC(dont_care_fflags(void));
-DECLARE_MIDFUNC(fsqrt_rr(FW d, FR s));
-DECLARE_MIDFUNC(fabs_rr(FW d, FR s));
-DECLARE_MIDFUNC(frndint_rr(FW d, FR s));
-DECLARE_MIDFUNC(fsin_rr(FW d, FR s));
-DECLARE_MIDFUNC(fcos_rr(FW d, FR s));
-DECLARE_MIDFUNC(ftwotox_rr(FW d, FR s));
-DECLARE_MIDFUNC(fetox_rr(FW d, FR s));
-DECLARE_MIDFUNC(flog2_rr(FW d, FR s));
-DECLARE_MIDFUNC(fneg_rr(FW d, FR s));
-DECLARE_MIDFUNC(fadd_rr(FRW d, FR s));
-DECLARE_MIDFUNC(fsub_rr(FRW d, FR s));
-DECLARE_MIDFUNC(fmul_rr(FRW d, FR s));
-DECLARE_MIDFUNC(frem_rr(FRW d, FR s));
-DECLARE_MIDFUNC(frem1_rr(FRW d, FR s));
-DECLARE_MIDFUNC(fdiv_rr(FRW d, FR s));
-DECLARE_MIDFUNC(fcmp_rr(FR d, FR s));
-DECLARE_MIDFUNC(fflags_into_flags(W2 tmp));
+#if defined(CPU_arm)
+
+#include "compemu_midfunc_arm.h"
+
+#if defined(USE_JIT2)
+#include "compemu_midfunc_arm2.h"
+#endif
+#endif
+
+#if defined(CPU_i386) || defined(CPU_x86_64)
+#include "compemu_midfunc_x86.h"
+#endif
+
 #undef DECLARE_MIDFUNC
 
 extern int failure;
@@ -519,10 +424,16 @@ extern void calc_disp_ea_020(int base, uae_u32 dp, int target, int tmp);
 /* Set native Z flag only if register is zero */
 extern void set_zero(int r, int tmp);
 extern int kill_rodent(int r);
+#define SYNC_PC_OFFSET 100
 extern void sync_m68k_pc(void);
 extern uae_u32 get_const(int r);
 extern int  is_const(int r);
 extern void register_branch(uae_u32 not_taken, uae_u32 taken, uae_u8 cond);
+void compemu_make_sr(int sr, int tmp);
+void compemu_enter_super(int sr);
+void compemu_exc_make_frame(int format, int sr, int currpc, int nr, int tmp);
+void compemu_bkpt(void);
+extern bool disasm_this_inst;
 
 #define comp_get_ibyte(o) do_get_mem_byte((uae_u8 *)(comp_pc_p + (o) + 1))
 #define comp_get_iword(o) do_get_mem_word((uae_u16 *)(comp_pc_p + (o)))
@@ -550,40 +461,43 @@ typedef struct blockinfo_t {
     cpuop_func* handler_to_use;
     /* The direct handler does not check for the correct address */
 
-    cpuop_func* handler; 
+    cpuop_func* handler;
     cpuop_func* direct_handler;
 
     cpuop_func* direct_pen;
     cpuop_func* direct_pcc;
 
+#ifdef UAE
+    uae_u8* nexthandler;
+#endif
     uae_u8* pc_p;
-    
-    uae_u32 c1;     
+
+    uae_u32 c1;
     uae_u32 c2;
 #if USE_CHECKSUM_INFO
     checksum_info *csi;
 #else
     uae_u32 len;
-    uae_u32 min_pcp; 
+    uae_u32 min_pcp;
 #endif
 
     struct blockinfo_t* next_same_cl;
-    struct blockinfo_t** prev_same_cl_p;  
+    struct blockinfo_t** prev_same_cl_p;
     struct blockinfo_t* next;
-    struct blockinfo_t** prev_p; 
+    struct blockinfo_t** prev_p;
 
-    uae_u8 optlevel;  
-    uae_u8 needed_flags;  
-    uae_u8 status;  
+    uae_u8 optlevel;
+    uae_u8 needed_flags;
+    uae_u8 status;
     uae_u8 havestate;
-    
+
     dependency  dep[2];  /* Holds things we depend on */
     dependency* deplist; /* List of things that depend on this */
     smallstate  env;
-	
-#if JIT_DEBUG
-	/* (gb) size of the compiled block (direct handler) */
-	uae_u32 direct_handler_size;
+
+#ifdef JIT_DEBUG
+    /* (gb) size of the compiled block (direct handler) */
+    uae_u32 direct_handler_size;
 #endif
 } blockinfo;
 
@@ -601,9 +515,92 @@ void do_nothing(void);
 
 #else
 
-static __inline__ void flush_icache(int) { }
-static __inline__ void build_comp() { }
+static inline void flush_icache(void) { }
 
 #endif /* !USE_JIT */
+
+#ifdef UAE
+
+typedef struct {
+    uae_u8 type;
+    uae_u8 reg;
+    uae_u32 next;
+} regacc;
+
+#define JIT_EXCEPTION_HANDLER
+// #define JIT_ALWAYS_DISTRUST
+
+/* ARAnyM uses fpu_register name, used in scratch_t */
+/* FIXME: check that no ARAnyM code assumes different floating point type */
+typedef fptype fpu_register;
+
+extern void compile_block(cpu_history* pc_hist, int blocklen, int totcyles);
+
+#define MAXCYCLES (1000 * CYCLE_UNIT)
+#define scaled_cycles(x) (currprefs.m68k_speed<0?(((x)/SCALE)?(((x)/SCALE<MAXCYCLES?((x)/SCALE):MAXCYCLES)):1):(x))
+
+/* Flags for Bernie during development/debugging. Should go away eventually */
+#define DISTRUST_CONSISTENT_MEM 0
+
+typedef struct {
+    uae_u8 use_flags;
+    uae_u8 set_flags;
+    uae_u8 is_jump;
+    uae_u8 is_addx;
+    uae_u8 is_const_jump;
+} op_properties;
+
+extern op_properties prop[65536];
+
+STATIC_INLINE int end_block(uae_u16 opcode)
+{
+    return prop[opcode].is_jump ||
+	(prop[opcode].is_const_jump && !currprefs.comp_constjump);
+}
+
+#ifdef _WIN32
+LONG WINAPI EvalException(LPEXCEPTION_POINTERS info);
+#if defined(_MSC_VER) && !defined(NO_WIN32_EXCEPTION_HANDLER)
+#ifdef _WIN64
+/* Structured exception handling is table based for Windows x86-64, so
+ * Windows will not be able to find the exception handler. */
+#else
+#define USE_STRUCTURED_EXCEPTION_HANDLING
+#endif
+#endif
+#endif
+
+void jit_abort(const char *format,...);
+#if SIZEOF_TCHAR != 1
+void jit_abort(const TCHAR *format, ...);
+#endif
+
+#else
+
+#ifdef WINUAE_ARANYM
+#define jit_log(format, ...) D(bug(format, ##__VA_ARGS__))
+#define jit_log2(format, ...) D2(bug(format, ##__VA_ARGS__))
+void jit_abort(const char *format,...) __attribute__((format(printf, 1, 2))) __attribute__((__noreturn__));
+#else
+#define jit_abort(...) abort()
+#define jit_log panicbug
+#define jit_log2(...)
+#endif
+
+#endif /* UAE */
+
+#ifdef CPU_64_BIT
+static inline uae_u32 check_uae_p32(uintptr address, const char *file, int line)
+{
+	if (address > (uintptr_t) 0xffffffff) {
+		jit_abort("JIT: 64-bit pointer (0x%llx) at %s:%d (fatal)",
+			(unsigned long long)address, file, line);
+	}
+	return (uae_u32) address;
+}
+#define uae_p32(x) (check_uae_p32((uintptr)(x), __FILE__, __LINE__))
+#else
+#define uae_p32(x) ((uae_u32)(x))
+#endif
 
 #endif /* COMPEMU_H */

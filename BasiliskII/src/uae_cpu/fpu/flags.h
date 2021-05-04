@@ -1,28 +1,33 @@
 /*
- *  fpu/flags.h - Floating-point flags
+ * fpu/flags.h - Floating-point flags
  *
- *  Basilisk II (C) 1997-2008 Christian Bauer
+ * Copyright (c) 2001-2004 Milan Jurik of ARAnyM dev team (see AUTHORS)
+ * 
+ * Inspired by Christian Bauer's Basilisk II
  *
- *  MC68881/68040 fpu emulation
- *  
- *  Original UAE FPU, copyright 1996 Herman ten Brugge
- *  Rewrite for x86, copyright 1999-2000 Lauri Pesonen
- *  New framework, copyright 2000 Gwenole Beauchesne
- *  Adapted for JIT compilation (c) Bernd Meyer, 2000
- *  
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ * This file is part of the ARAnyM project which builds a new and powerful
+ * TOS/FreeMiNT compatible virtual machine running on almost any hardware.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * MC68881/68040 fpu emulation
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Original UAE FPU, copyright 1996 Herman ten Brugge
+ * Rewrite for x86, copyright 1999-2001 Lauri Pesonen
+ * New framework, copyright 2000-2001 Gwenole Beauchesne
+ * Adapted for JIT compilation (c) Bernd Meyer, 2000-2001
+ *
+ * ARAnyM is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * ARAnyM is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with ARAnyM; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef FPU_FLAGS_H
@@ -112,7 +117,7 @@ PRIVATE inline void FFPU set_fpccr(uae_u32 new_fpcond)
 
 /* Make FPSR according to the value passed in argument */
 PRIVATE inline void FFPU make_fpsr(fpu_register const & r)
-	{ uae_u16 sw; __asm__ __volatile__ ("fxam\n\tfnstsw %0" : "=r" (sw) : "f" (r)); FPU fpsr.condition_codes = sw; }
+	{ uae_u16 sw; __asm__ __volatile__ ("fxam\n\tfnstsw %0" : "=a" (sw) : "f" (r)); FPU fpsr.condition_codes = sw; }
 
 /* Return the corresponding ID of the current floating-point condition codes */
 /* NOTE: only valid for evaluation of a condition */
@@ -181,27 +186,27 @@ PRIVATE inline uae_u32 FFPU get_fpccr(void)
 	uae_u32 fpccr = 0;
 	if (isnan(FPU result))
 		fpccr |= FPSR_CCB_NAN;
-	else if (FPU result == 0.0)
-		fpccr |= FPSR_CCB_ZERO;
-	else if (FPU result < 0.0)
-		fpccr |= FPSR_CCB_NEGATIVE;
-	if (isinf(FPU result))
+	else if (isinf(FPU result))
 		fpccr |= FPSR_CCB_INFINITY;
+	else if (iszero(FPU result))
+		fpccr |= FPSR_CCB_ZERO;
+	if (isneg(FPU result))
+		fpccr |= FPSR_CCB_NEGATIVE;
 	return fpccr;
 }
 
 /* M68k to native floating-point condition codes - SELF */
 PRIVATE inline void FFPU set_fpccr(uae_u32 new_fpcond)
 {
+	bool negative = (new_fpcond & FPSR_CCB_NEGATIVE) != 0;
 	if (new_fpcond & FPSR_CCB_NAN)
-		make_nan(FPU result);
+		make_nan(FPU result, negative);
+	else if (new_fpcond & FPSR_CCB_INFINITY)
+		make_inf(FPU result, negative);
 	else if (new_fpcond & FPSR_CCB_ZERO)
-		FPU result = 0.0;
-	else if (new_fpcond & FPSR_CCB_NEGATIVE)
-		FPU result = -1.0;
+		make_zero(FPU result, negative);
 	else
-		FPU result = +1.0;
-	/* gb-- where is Infinity ? */
+		FPU result = negative ? -1.0 : +1.0;
 }
 
 /* Make FPSR according to the value passed in argument */
@@ -217,7 +222,7 @@ PRIVATE inline void FFPU make_fpsr(fpu_register const & r)
 /* -------------------------------------------------------------------------- */
 
 /* Return the address of the floating-point condition codes register */
-static inline uae_u32 * const FFPU address_of_fpccr(void)
+static inline uae_u32 * FFPU address_of_fpccr(void)
 	{ return ((uae_u32 *)& FPU fpsr.condition_codes); }
 
 #endif /* FPU_FLAGS_H */

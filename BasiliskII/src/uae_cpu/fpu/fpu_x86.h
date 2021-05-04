@@ -1,28 +1,33 @@
 /*
- *  fpu/fpu_x86.h - Extra Definitions for the X86 assembly FPU core
+ * fpu/fpu_x86.h - Extra Definitions for the X86 assembly FPU core
  *
- *  Basilisk II (C) 1997-2008 Christian Bauer
+ * Copyright (c) 2001-2004 Milan Jurik of ARAnyM dev team (see AUTHORS)
+ * 
+ * Inspired by Christian Bauer's Basilisk II
  *
- *  MC68881/68040 fpu emulation
- *  
- *  Original UAE FPU, copyright 1996 Herman ten Brugge
- *  Rewrite for x86, copyright 1999-2000 Lauri Pesonen
- *  New framework, copyright 2000 Gwenole Beauchesne
- *  Adapted for JIT compilation (c) Bernd Meyer, 2000
- *  
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ * This file is part of the ARAnyM project which builds a new and powerful
+ * TOS/FreeMiNT compatible virtual machine running on almost any hardware.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * MC68881/68040 fpu emulation
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Original UAE FPU, copyright 1996 Herman ten Brugge
+ * Rewrite for x86, copyright 1999-2001 Lauri Pesonen
+ * New framework, copyright 2000-2001 Gwenole Beauchesne
+ * Adapted for JIT compilation (c) Bernd Meyer, 2000-2001
+ *
+ * ARAnyM is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * ARAnyM is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with ARAnyM; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef FPU_X86_H
@@ -94,17 +99,17 @@ PRIVATE void FFPU FPU_CONSISTENCY_CHECK_START(void);
 PRIVATE void FFPU FPU_CONSISTENCY_CHECK_STOP(const char *name);
 
 // Get special floating-point value class
-PRIVATE __inline__ uae_u32 FFPU IS_INFINITY (fpu_register const & f);
-PRIVATE __inline__ uae_u32 FFPU IS_NAN (fpu_register const & f);
-PRIVATE __inline__ uae_u32 FFPU IS_ZERO (fpu_register const & f);
-PRIVATE __inline__ uae_u32 FFPU IS_NEGATIVE (fpu_register const & f);
+PRIVATE inline uae_u32 FFPU IS_INFINITY (fpu_register const & f);
+PRIVATE inline uae_u32 FFPU IS_NAN (fpu_register const & f);
+PRIVATE inline uae_u32 FFPU IS_ZERO (fpu_register const & f);
+PRIVATE inline uae_u32 FFPU IS_NEGATIVE (fpu_register const & f);
 
 // Make a special floating-point value
-PRIVATE __inline__ void FFPU MAKE_NAN (fpu_register & f);
-PRIVATE __inline__ void FFPU MAKE_INF_POSITIVE (fpu_register & f);
-PRIVATE __inline__ void FFPU MAKE_INF_NEGATIVE (fpu_register & f);
-PRIVATE __inline__ void FFPU MAKE_ZERO_POSITIVE (fpu_register & f);
-PRIVATE __inline__ void FFPU MAKE_ZERO_NEGATIVE (fpu_register & f);
+PRIVATE inline void FFPU MAKE_NAN (fpu_register & f, bool negative);
+PRIVATE inline void FFPU MAKE_INF_POSITIVE (fpu_register & f);
+PRIVATE inline void FFPU MAKE_INF_NEGATIVE (fpu_register & f);
+PRIVATE inline void FFPU MAKE_ZERO_POSITIVE (fpu_register & f);
+PRIVATE inline void FFPU MAKE_ZERO_NEGATIVE (fpu_register & f);
 
 // Conversion from extended floating-point values
 PRIVATE uae_s32 FFPU extended_to_signed_32 ( fpu_register const & f ) REGPARAM;
@@ -342,6 +347,24 @@ PRIVATE void REGPARAM2 FFPU fpuop_do_fsincos( uae_u32 opcode, uae_u32 extra );
 PRIVATE void REGPARAM2 FFPU fpuop_do_fcmp( uae_u32 opcode, uae_u32 extra );
 PRIVATE void REGPARAM2 FFPU fpuop_do_ftst( uae_u32 opcode, uae_u32 extra );
 
+// 040
+PRIVATE void REGPARAM2 FFPU fpuop_do_fsmove( uae_u32 opcode, uae_u32 extra );
+PRIVATE void REGPARAM2 FFPU fpuop_do_fdmove( uae_u32 opcode, uae_u32 extra );
+PRIVATE void REGPARAM2 FFPU fpuop_do_fssqrt( uae_u32 opcode, uae_u32 extra );
+PRIVATE void REGPARAM2 FFPU fpuop_do_fdsqrt( uae_u32 opcode, uae_u32 extra );
+PRIVATE void REGPARAM2 FFPU fpuop_do_fsabs( uae_u32 opcode, uae_u32 extra );
+PRIVATE void REGPARAM2 FFPU fpuop_do_fdabs( uae_u32 opcode, uae_u32 extra );
+PRIVATE void REGPARAM2 FFPU fpuop_do_fsneg( uae_u32 opcode, uae_u32 extra );
+PRIVATE void REGPARAM2 FFPU fpuop_do_fdneg( uae_u32 opcode, uae_u32 extra );
+PRIVATE void REGPARAM2 FFPU fpuop_do_fsdiv( uae_u32 opcode, uae_u32 extra );
+PRIVATE void REGPARAM2 FFPU fpuop_do_fddiv( uae_u32 opcode, uae_u32 extra );
+PRIVATE void REGPARAM2 FFPU fpuop_do_fsadd( uae_u32 opcode, uae_u32 extra );
+PRIVATE void REGPARAM2 FFPU fpuop_do_fdadd( uae_u32 opcode, uae_u32 extra );
+PRIVATE void REGPARAM2 FFPU fpuop_do_fssub( uae_u32 opcode, uae_u32 extra );
+PRIVATE void REGPARAM2 FFPU fpuop_do_fdsub( uae_u32 opcode, uae_u32 extra );
+PRIVATE void REGPARAM2 FFPU fpuop_do_fsmul( uae_u32 opcode, uae_u32 extra );
+PRIVATE void REGPARAM2 FFPU fpuop_do_fdmul( uae_u32 opcode, uae_u32 extra );
+
 // Get & Put floating-point values
 PRIVATE int FFPU get_fp_value (uae_u32 opcode, uae_u32 extra, fpu_register & src) REGPARAM;
 PRIVATE int FFPU put_fp_value (fpu_register const & value, uae_u32 opcode, uae_u32 extra) REGPARAM;
@@ -351,9 +374,9 @@ PRIVATE int FFPU get_fp_ad(uae_u32 opcode, uae_u32 * ad) REGPARAM;
 PRIVATE int FFPU fpp_cond(uae_u32 opcode, int condition) REGPARAM;
 
 // Misc functions
-PRIVATE void __inline__ FFPU set_host_fpu_control_word ();
-PRIVATE void __inline__ FFPU SET_BSUN_ON_NAN ();
-PRIVATE void __inline__ FFPU build_ex_status ();
+PRIVATE void inline FFPU set_host_fpu_control_word ();
+PRIVATE void inline FFPU SET_BSUN_ON_NAN ();
+PRIVATE void inline FFPU build_ex_status ();
 PRIVATE void FFPU do_null_frestore ();
 PRIVATE void FFPU build_fpp_opp_lookup_table ();
 PRIVATE void FFPU set_constant ( fpu_register & f, char *name, double value, uae_s32 mult );
