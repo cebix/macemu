@@ -490,4 +490,12 @@ static inline uae_u32 do_byteswap_16(uae_u32 v)
 #endif
 #define REGPARAM2
 
+#ifndef UNUSED
+#define UNUSED(x) ((void)x)
+#endif
+
+#define unlikely(x)  __builtin_expect(!!(x), 0)
+#define ALWAYS_INLINE   inline __attribute__((always_inline))
+#define memptr uint32
+
 #endif

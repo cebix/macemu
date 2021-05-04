@@ -19,6 +19,9 @@
  */
 
 #include "sysdeps.h"
+
+#ifdef FPU_MPFR
+
 #include <cstdio>
 #include "memory.h"
 #include "readcpu.h"
@@ -2108,3 +2111,5 @@ uae_u32 fpu_get_fpcr(void)
 {
 	return get_fpcr();
 }
+
+#endif

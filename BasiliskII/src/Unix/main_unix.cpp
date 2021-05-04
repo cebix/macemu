@@ -94,7 +94,12 @@ using std::string;
 #include "rpc.h"
 
 #if USE_JIT
+#ifdef UPDATE_UAE
+extern void (*flush_icache)(void); // from compemu_support.cpp
+extern bool UseJIT;
+#else
 extern void flush_icache_range(uint8 *start, uint32 size); // from compemu_support.cpp
+#endif
 #endif
 
 #ifdef ENABLE_MON
@@ -289,8 +294,13 @@ static void sigsegv_dump_state(sigsegv_info_t *sip)
 	fprintf(stderr, "\n");
 #if EMULATED_68K
 	uaecptr nextpc;
+#ifdef UPDATE_UAE
+	extern void m68k_dumpstate(FILE *, uaecptr *nextpc);
+	m68k_dumpstate(stderr, &nextpc);
+#else
 	extern void m68k_dumpstate(uaecptr *nextpc);
 	m68k_dumpstate(&nextpc);
+#endif
 #endif
 #if USE_JIT && JIT_DEBUG
 	extern void compiler_dumpstate(void);
@@ -990,7 +1000,11 @@ void FlushCodeCache(void *start, uint32 size)
 {
 #if USE_JIT
     if (UseJIT)
+#ifdef UPDATE_UAE
+		flush_icache();
+#else
 		flush_icache_range((uint8 *)start, size);
+#endif
 #endif
 #if !EMULATED_68K && defined(__NetBSD__)
 	m68k_sync_icache(start, size);
@@ -1007,8 +1021,13 @@ static void sigint_handler(...)
 {
 #if EMULATED_68K
 	uaecptr nextpc;
+#ifdef UPDATE_UAE
+	extern void m68k_dumpstate(FILE *, uaecptr *nextpc);
+	m68k_dumpstate(stderr, &nextpc);
+#else
 	extern void m68k_dumpstate(uaecptr *nextpc);
 	m68k_dumpstate(&nextpc);
+#endif
 #endif
 	VideoQuitFullScreen();
 	const char *arg[4] = {"mon", "-m", "-r", NULL};

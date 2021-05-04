@@ -98,6 +98,9 @@
  */
 
 #include "sysdeps.h"
+
+#ifdef FPU_IEEE
+
 #include <cstdio>
 #include "memory.h"
 #include "readcpu.h"
@@ -2471,3 +2474,5 @@ PUBLIC void FFPU fpu_reset (void)
 	fpu_exit();
 	fpu_init(FPU is_integral);
 }
+
+#endif

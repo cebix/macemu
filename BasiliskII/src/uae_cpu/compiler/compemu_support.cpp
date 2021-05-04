@@ -29,15 +29,17 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifdef USE_JIT
+
 #ifdef UAE
 
 #define writemem_special writemem
 #define readmem_special  readmem
 
 #else
-#if !FIXED_ADDRESSING
-#error "Only Fixed Addressing is supported with the JIT Compiler"
-#endif
+//#if !FIXED_ADDRESSING
+//#error "Only Fixed Addressing is supported with the JIT Compiler"
+//#endif
 
 #if defined(X86_ASSEMBLY) && !SAHF_SETO_PROFITABLE
 #error "Only [LS]AHF scheme to [gs]et flags is supported with the JIT Compiler"
@@ -3557,11 +3559,11 @@ void get_n_addr(int address, int dest, int tmp)
 
 #ifdef NATMEM_OFFSET
 	if (canbang) {
-#if FIXED_ADDRESSING
+//#if FIXED_ADDRESSING
 		lea_l_brr(dest,address,MEMBaseDiff);
-#else
-# error "Only fixed adressing mode supported"
-#endif
+//#else
+//# error "Only fixed adressing mode supported"
+//#endif
 		forget_about(tmp);
 		(void) f;
 		(void) a;
@@ -5486,3 +5488,5 @@ setjmpagain:
 #endif
 
 #endif /* JIT */
+
+#endif

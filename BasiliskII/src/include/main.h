@@ -34,8 +34,15 @@ extern bool TwentyFourBitAddressing;
 // 68k register structure (for Execute68k())
 struct M68kRegisters {
 	uint32 d[8];
+#ifdef UPDATE_UAE
+	memptr a[8];
+	uint16 sr;
+	memptr usp, isp, msp;
+	memptr pc;
+#else
 	uint32 a[8];
 	uint16 sr;
+#endif
 };
 
 // General functions

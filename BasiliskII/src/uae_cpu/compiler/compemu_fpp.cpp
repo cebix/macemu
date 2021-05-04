@@ -37,6 +37,8 @@
  * Adapted for JIT compilation (c) Bernd Meyer, 2000
  */
 
+#ifdef USE_JIT
+
 #include "sysdeps.h"
 
 #include <cmath>
@@ -2083,3 +2085,5 @@ void comp_fpp_opp(uae_u32 opcode, uae_u16 extra)
 	}
 	FAIL(1);
 }
+
+#endif
