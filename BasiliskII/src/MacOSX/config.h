@@ -822,6 +822,7 @@
 #define UPDATE_UAE
 
 #ifdef UPDATE_UAE
+#define DIRECT_ADDRESSING	1
 #define CPU_64_BIT
 #define USE_INLINING
 #ifdef CPU_x86_64
@@ -829,7 +830,6 @@
 #define WINUAE_ARANYM
 #else
 #define FPU_MPFR
-#define DIRECT_ADDRESSING	1
 #endif
 #else
 #define FPU_IEEE
