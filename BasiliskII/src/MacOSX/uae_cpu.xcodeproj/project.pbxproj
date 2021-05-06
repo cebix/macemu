@@ -1,0 +1,505 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		E4C1B4A32642B05A00EB55A0 /* compemu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4C1B49A2642B05A00EB55A0 /* compemu.cpp */; };
+		E4C1B4A42642B05A00EB55A0 /* compstbl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4C1B49B2642B05A00EB55A0 /* compstbl.cpp */; };
+		E4C1B4A52642B05A00EB55A0 /* comptbl.h in Headers */ = {isa = PBXBuildFile; fileRef = E4C1B49C2642B05A00EB55A0 /* comptbl.h */; };
+		E4C1B4A62642B05A00EB55A0 /* cpuemu_nf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4C1B49D2642B05A00EB55A0 /* cpuemu_nf.cpp */; };
+		E4C1B4A72642B05A00EB55A0 /* cpuemu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4C1B49E2642B05A00EB55A0 /* cpuemu.cpp */; };
+		E4C1B4A82642B05A00EB55A0 /* cpustbl_nf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4C1B49F2642B05A00EB55A0 /* cpustbl_nf.cpp */; };
+		E4C1B4A92642B05A00EB55A0 /* cpustbl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4C1B4A02642B05A00EB55A0 /* cpustbl.cpp */; };
+		E4C1B4AA2642B05A00EB55A0 /* cputbl.h in Headers */ = {isa = PBXBuildFile; fileRef = E4C1B4A12642B05A00EB55A0 /* cputbl.h */; };
+		E4C1B4AB2642B05A00EB55A0 /* defs68k.c in Sources */ = {isa = PBXBuildFile; fileRef = E4C1B4A22642B05A00EB55A0 /* defs68k.c */; };
+		E4F537C92642A8BA008B27DF /* basilisk_glue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4F537C72642A8BA008B27DF /* basilisk_glue.cpp */; };
+		E4F537CA2642A8BA008B27DF /* build68k.c in Sources */ = {isa = PBXBuildFile; fileRef = E4F537C82642A8BA008B27DF /* build68k.c */; };
+		E4F537CD2642A8C2008B27DF /* cpu_emulation.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537CB2642A8C2008B27DF /* cpu_emulation.h */; };
+		E4F537CE2642A8C2008B27DF /* cpuopti.c in Sources */ = {isa = PBXBuildFile; fileRef = E4F537CC2642A8C2008B27DF /* cpuopti.c */; };
+		E4F537DA2642A8CC008B27DF /* gencpu.c in Sources */ = {isa = PBXBuildFile; fileRef = E4F537CF2642A8CC008B27DF /* gencpu.c */; };
+		E4F537DB2642A8CC008B27DF /* m68k.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537D02642A8CC008B27DF /* m68k.h */; };
+		E4F537DC2642A8CC008B27DF /* memory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4F537D12642A8CC008B27DF /* memory.cpp */; };
+		E4F537DD2642A8CC008B27DF /* memory.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537D22642A8CC008B27DF /* memory.h */; };
+		E4F537DE2642A8CC008B27DF /* newcpu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4F537D32642A8CC008B27DF /* newcpu.cpp */; };
+		E4F537DF2642A8CC008B27DF /* newcpu.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537D42642A8CC008B27DF /* newcpu.h */; };
+		E4F537E02642A8CC008B27DF /* noflags.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537D52642A8CC008B27DF /* noflags.h */; };
+		E4F537E12642A8CC008B27DF /* readcpu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4F537D62642A8CC008B27DF /* readcpu.cpp */; };
+		E4F537E22642A8CC008B27DF /* readcpu.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537D72642A8CC008B27DF /* readcpu.h */; };
+		E4F537E32642A8CC008B27DF /* spcflags.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537D82642A8CC008B27DF /* spcflags.h */; };
+		E4F537EE2642A8E8008B27DF /* codegen_x86.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537E62642A8E8008B27DF /* codegen_x86.h */; };
+		E4F537EF2642A8E8008B27DF /* compemu_fpp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4F537E72642A8E8008B27DF /* compemu_fpp.cpp */; };
+		E4F537F02642A8E8008B27DF /* compemu_support.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4F537E82642A8E8008B27DF /* compemu_support.cpp */; };
+		E4F537F12642A8E8008B27DF /* compemu.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537E92642A8E8008B27DF /* compemu.h */; };
+		E4F537F22642A8E8008B27DF /* flags_x86.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537EA2642A8E8008B27DF /* flags_x86.h */; };
+		E4F537F32642A8E8008B27DF /* gencomp.c in Sources */ = {isa = PBXBuildFile; fileRef = E4F537EB2642A8E8008B27DF /* gencomp.c */; };
+		E4F538092642A904008B27DF /* core.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537F62642A904008B27DF /* core.h */; };
+		E4F5380A2642A904008B27DF /* exceptions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4F537F72642A904008B27DF /* exceptions.cpp */; };
+		E4F5380B2642A904008B27DF /* exceptions.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537F82642A904008B27DF /* exceptions.h */; };
+		E4F5380C2642A904008B27DF /* flags.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4F537F92642A904008B27DF /* flags.cpp */; };
+		E4F5380D2642A904008B27DF /* flags.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537FA2642A904008B27DF /* flags.h */; };
+		E4F5380E2642A904008B27DF /* fpu_ieee.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4F537FB2642A904008B27DF /* fpu_ieee.cpp */; };
+		E4F5380F2642A904008B27DF /* fpu_ieee.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537FC2642A904008B27DF /* fpu_ieee.h */; };
+		E4F538112642A904008B27DF /* fpu_uae.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537FE2642A904008B27DF /* fpu_uae.h */; };
+		E4F538122642A904008B27DF /* fpu_x86_asm.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537FF2642A904008B27DF /* fpu_x86_asm.h */; };
+		E4F538142642A904008B27DF /* fpu_x86.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F538012642A904008B27DF /* fpu_x86.h */; };
+		E4F538152642A904008B27DF /* fpu.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F538022642A904008B27DF /* fpu.h */; };
+		E4F538162642A904008B27DF /* impl.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F538032642A904008B27DF /* impl.h */; };
+		E4F538172642A904008B27DF /* mathlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4F538042642A904008B27DF /* mathlib.cpp */; };
+		E4F538182642A904008B27DF /* mathlib.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F538052642A904008B27DF /* mathlib.h */; };
+		E4F538192642A904008B27DF /* rounding.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4F538062642A904008B27DF /* rounding.cpp */; };
+		E4F5381A2642A904008B27DF /* rounding.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F538072642A904008B27DF /* rounding.h */; };
+		E4F5381B2642A904008B27DF /* types.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F538082642A904008B27DF /* types.h */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		E4C1B49A2642B05A00EB55A0 /* compemu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = compemu.cpp; path = gencpu_output/compemu.cpp; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4C1B49B2642B05A00EB55A0 /* compstbl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = compstbl.cpp; path = gencpu_output/compstbl.cpp; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4C1B49C2642B05A00EB55A0 /* comptbl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = comptbl.h; path = gencpu_output/comptbl.h; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4C1B49D2642B05A00EB55A0 /* cpuemu_nf.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cpuemu_nf.cpp; path = gencpu_output/cpuemu_nf.cpp; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4C1B49E2642B05A00EB55A0 /* cpuemu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cpuemu.cpp; path = gencpu_output/cpuemu.cpp; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4C1B49F2642B05A00EB55A0 /* cpustbl_nf.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cpustbl_nf.cpp; path = gencpu_output/cpustbl_nf.cpp; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4C1B4A02642B05A00EB55A0 /* cpustbl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cpustbl.cpp; path = gencpu_output/cpustbl.cpp; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4C1B4A12642B05A00EB55A0 /* cputbl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = cputbl.h; path = gencpu_output/cputbl.h; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4C1B4A22642B05A00EB55A0 /* defs68k.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = defs68k.c; path = gencpu_output/defs68k.c; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4F537C02642A86D008B27DF /* libuae_cpu_x86_64.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libuae_cpu_x86_64.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4F537C72642A8BA008B27DF /* basilisk_glue.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = basilisk_glue.cpp; path = ../uae_cpu/basilisk_glue.cpp; sourceTree = "<group>"; };
+		E4F537C82642A8BA008B27DF /* build68k.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = build68k.c; path = ../uae_cpu/build68k.c; sourceTree = "<group>"; };
+		E4F537CB2642A8C2008B27DF /* cpu_emulation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = cpu_emulation.h; path = ../uae_cpu/cpu_emulation.h; sourceTree = "<group>"; };
+		E4F537CC2642A8C2008B27DF /* cpuopti.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = cpuopti.c; path = ../uae_cpu/cpuopti.c; sourceTree = "<group>"; };
+		E4F537CF2642A8CC008B27DF /* gencpu.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = gencpu.c; path = ../uae_cpu/gencpu.c; sourceTree = "<group>"; };
+		E4F537D02642A8CC008B27DF /* m68k.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = m68k.h; path = ../uae_cpu/m68k.h; sourceTree = "<group>"; };
+		E4F537D12642A8CC008B27DF /* memory.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = memory.cpp; path = ../uae_cpu/memory.cpp; sourceTree = "<group>"; };
+		E4F537D22642A8CC008B27DF /* memory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = memory.h; path = ../uae_cpu/memory.h; sourceTree = "<group>"; };
+		E4F537D32642A8CC008B27DF /* newcpu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = newcpu.cpp; path = ../uae_cpu/newcpu.cpp; sourceTree = "<group>"; };
+		E4F537D42642A8CC008B27DF /* newcpu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = newcpu.h; path = ../uae_cpu/newcpu.h; sourceTree = "<group>"; };
+		E4F537D52642A8CC008B27DF /* noflags.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = noflags.h; path = ../uae_cpu/noflags.h; sourceTree = "<group>"; };
+		E4F537D62642A8CC008B27DF /* readcpu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = readcpu.cpp; path = ../uae_cpu/readcpu.cpp; sourceTree = "<group>"; };
+		E4F537D72642A8CC008B27DF /* readcpu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = readcpu.h; path = ../uae_cpu/readcpu.h; sourceTree = "<group>"; };
+		E4F537D82642A8CC008B27DF /* spcflags.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = spcflags.h; path = ../uae_cpu/spcflags.h; sourceTree = "<group>"; };
+		E4F537D92642A8CC008B27DF /* table68k */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = table68k; path = ../uae_cpu/table68k; sourceTree = "<group>"; };
+		E4F537E62642A8E8008B27DF /* codegen_x86.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = codegen_x86.h; path = ../uae_cpu/compiler/codegen_x86.h; sourceTree = "<group>"; };
+		E4F537E72642A8E8008B27DF /* compemu_fpp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = compemu_fpp.cpp; path = ../uae_cpu/compiler/compemu_fpp.cpp; sourceTree = "<group>"; };
+		E4F537E82642A8E8008B27DF /* compemu_support.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = compemu_support.cpp; path = ../uae_cpu/compiler/compemu_support.cpp; sourceTree = "<group>"; };
+		E4F537E92642A8E8008B27DF /* compemu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = compemu.h; path = ../uae_cpu/compiler/compemu.h; sourceTree = "<group>"; };
+		E4F537EA2642A8E8008B27DF /* flags_x86.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = flags_x86.h; path = ../uae_cpu/compiler/flags_x86.h; sourceTree = "<group>"; };
+		E4F537EB2642A8E8008B27DF /* gencomp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = gencomp.c; path = ../uae_cpu/compiler/gencomp.c; sourceTree = "<group>"; };
+		E4F537F62642A904008B27DF /* core.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = core.h; path = ../uae_cpu/fpu/core.h; sourceTree = "<group>"; };
+		E4F537F72642A904008B27DF /* exceptions.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = exceptions.cpp; path = ../uae_cpu/fpu/exceptions.cpp; sourceTree = "<group>"; };
+		E4F537F82642A904008B27DF /* exceptions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = exceptions.h; path = ../uae_cpu/fpu/exceptions.h; sourceTree = "<group>"; };
+		E4F537F92642A904008B27DF /* flags.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = flags.cpp; path = ../uae_cpu/fpu/flags.cpp; sourceTree = "<group>"; };
+		E4F537FA2642A904008B27DF /* flags.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = flags.h; path = ../uae_cpu/fpu/flags.h; sourceTree = "<group>"; };
+		E4F537FB2642A904008B27DF /* fpu_ieee.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = fpu_ieee.cpp; path = ../uae_cpu/fpu/fpu_ieee.cpp; sourceTree = "<group>"; };
+		E4F537FC2642A904008B27DF /* fpu_ieee.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fpu_ieee.h; path = ../uae_cpu/fpu/fpu_ieee.h; sourceTree = "<group>"; };
+		E4F537FE2642A904008B27DF /* fpu_uae.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fpu_uae.h; path = ../uae_cpu/fpu/fpu_uae.h; sourceTree = "<group>"; };
+		E4F537FF2642A904008B27DF /* fpu_x86_asm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fpu_x86_asm.h; path = ../uae_cpu/fpu/fpu_x86_asm.h; sourceTree = "<group>"; };
+		E4F538012642A904008B27DF /* fpu_x86.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fpu_x86.h; path = ../uae_cpu/fpu/fpu_x86.h; sourceTree = "<group>"; };
+		E4F538022642A904008B27DF /* fpu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fpu.h; path = ../uae_cpu/fpu/fpu.h; sourceTree = "<group>"; };
+		E4F538032642A904008B27DF /* impl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = impl.h; path = ../uae_cpu/fpu/impl.h; sourceTree = "<group>"; };
+		E4F538042642A904008B27DF /* mathlib.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mathlib.cpp; path = ../uae_cpu/fpu/mathlib.cpp; sourceTree = "<group>"; };
+		E4F538052642A904008B27DF /* mathlib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = mathlib.h; path = ../uae_cpu/fpu/mathlib.h; sourceTree = "<group>"; };
+		E4F538062642A904008B27DF /* rounding.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = rounding.cpp; path = ../uae_cpu/fpu/rounding.cpp; sourceTree = "<group>"; };
+		E4F538072642A904008B27DF /* rounding.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rounding.h; path = ../uae_cpu/fpu/rounding.h; sourceTree = "<group>"; };
+		E4F538082642A904008B27DF /* types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = types.h; path = ../uae_cpu/fpu/types.h; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E4F537BD2642A86D008B27DF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		E4C1B4982642AF3400EB55A0 /* generated */ = {
+			isa = PBXGroup;
+			children = (
+				E4C1B49A2642B05A00EB55A0 /* compemu.cpp */,
+				E4C1B49B2642B05A00EB55A0 /* compstbl.cpp */,
+				E4C1B49C2642B05A00EB55A0 /* comptbl.h */,
+				E4C1B49D2642B05A00EB55A0 /* cpuemu_nf.cpp */,
+				E4C1B49E2642B05A00EB55A0 /* cpuemu.cpp */,
+				E4C1B49F2642B05A00EB55A0 /* cpustbl_nf.cpp */,
+				E4C1B4A02642B05A00EB55A0 /* cpustbl.cpp */,
+				E4C1B4A12642B05A00EB55A0 /* cputbl.h */,
+				E4C1B4A22642B05A00EB55A0 /* defs68k.c */,
+			);
+			name = generated;
+			sourceTree = "<group>";
+		};
+		E4F537B72642A86D008B27DF = {
+			isa = PBXGroup;
+			children = (
+				E4F537C72642A8BA008B27DF /* basilisk_glue.cpp */,
+				E4F537C82642A8BA008B27DF /* build68k.c */,
+				E4F537E42642A8D2008B27DF /* compiler */,
+				E4F537CB2642A8C2008B27DF /* cpu_emulation.h */,
+				E4F537CC2642A8C2008B27DF /* cpuopti.c */,
+				E4F537F52642A8ED008B27DF /* fpu */,
+				E4F537CF2642A8CC008B27DF /* gencpu.c */,
+				E4F537D02642A8CC008B27DF /* m68k.h */,
+				E4F537D12642A8CC008B27DF /* memory.cpp */,
+				E4F537D22642A8CC008B27DF /* memory.h */,
+				E4F537D32642A8CC008B27DF /* newcpu.cpp */,
+				E4F537D42642A8CC008B27DF /* newcpu.h */,
+				E4F537D52642A8CC008B27DF /* noflags.h */,
+				E4F537D62642A8CC008B27DF /* readcpu.cpp */,
+				E4F537D72642A8CC008B27DF /* readcpu.h */,
+				E4F537D82642A8CC008B27DF /* spcflags.h */,
+				E4F537D92642A8CC008B27DF /* table68k */,
+				E4C1B4982642AF3400EB55A0 /* generated */,
+				E4F537C12642A86D008B27DF /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		E4F537C12642A86D008B27DF /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E4F537C02642A86D008B27DF /* libuae_cpu_x86_64.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E4F537E42642A8D2008B27DF /* compiler */ = {
+			isa = PBXGroup;
+			children = (
+				E4F537E62642A8E8008B27DF /* codegen_x86.h */,
+				E4F537E72642A8E8008B27DF /* compemu_fpp.cpp */,
+				E4F537E82642A8E8008B27DF /* compemu_support.cpp */,
+				E4F537E92642A8E8008B27DF /* compemu.h */,
+				E4F537EA2642A8E8008B27DF /* flags_x86.h */,
+				E4F537EB2642A8E8008B27DF /* gencomp.c */,
+			);
+			name = compiler;
+			sourceTree = "<group>";
+		};
+		E4F537F52642A8ED008B27DF /* fpu */ = {
+			isa = PBXGroup;
+			children = (
+				E4F537F62642A904008B27DF /* core.h */,
+				E4F537F72642A904008B27DF /* exceptions.cpp */,
+				E4F537F82642A904008B27DF /* exceptions.h */,
+				E4F537F92642A904008B27DF /* flags.cpp */,
+				E4F537FA2642A904008B27DF /* flags.h */,
+				E4F537FB2642A904008B27DF /* fpu_ieee.cpp */,
+				E4F537FC2642A904008B27DF /* fpu_ieee.h */,
+				E4F537FE2642A904008B27DF /* fpu_uae.h */,
+				E4F537FF2642A904008B27DF /* fpu_x86_asm.h */,
+				E4F538012642A904008B27DF /* fpu_x86.h */,
+				E4F538022642A904008B27DF /* fpu.h */,
+				E4F538032642A904008B27DF /* impl.h */,
+				E4F538042642A904008B27DF /* mathlib.cpp */,
+				E4F538052642A904008B27DF /* mathlib.h */,
+				E4F538062642A904008B27DF /* rounding.cpp */,
+				E4F538072642A904008B27DF /* rounding.h */,
+				E4F538082642A904008B27DF /* types.h */,
+			);
+			name = fpu;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		E4F537BE2642A86D008B27DF /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E4F538182642A904008B27DF /* mathlib.h in Headers */,
+				E4F538152642A904008B27DF /* fpu.h in Headers */,
+				E4F5380F2642A904008B27DF /* fpu_ieee.h in Headers */,
+				E4F537F12642A8E8008B27DF /* compemu.h in Headers */,
+				E4F538112642A904008B27DF /* fpu_uae.h in Headers */,
+				E4F538122642A904008B27DF /* fpu_x86_asm.h in Headers */,
+				E4F538142642A904008B27DF /* fpu_x86.h in Headers */,
+				E4F538092642A904008B27DF /* core.h in Headers */,
+				E4C1B4AA2642B05A00EB55A0 /* cputbl.h in Headers */,
+				E4F5381B2642A904008B27DF /* types.h in Headers */,
+				E4F537DF2642A8CC008B27DF /* newcpu.h in Headers */,
+				E4F5380D2642A904008B27DF /* flags.h in Headers */,
+				E4F537E22642A8CC008B27DF /* readcpu.h in Headers */,
+				E4F5381A2642A904008B27DF /* rounding.h in Headers */,
+				E4C1B4A52642B05A00EB55A0 /* comptbl.h in Headers */,
+				E4F5380B2642A904008B27DF /* exceptions.h in Headers */,
+				E4F537E32642A8CC008B27DF /* spcflags.h in Headers */,
+				E4F537DB2642A8CC008B27DF /* m68k.h in Headers */,
+				E4F537F22642A8E8008B27DF /* flags_x86.h in Headers */,
+				E4F538162642A904008B27DF /* impl.h in Headers */,
+				E4F537CD2642A8C2008B27DF /* cpu_emulation.h in Headers */,
+				E4F537EE2642A8E8008B27DF /* codegen_x86.h in Headers */,
+				E4F537DD2642A8CC008B27DF /* memory.h in Headers */,
+				E4F537E02642A8CC008B27DF /* noflags.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		E4F537BF2642A86D008B27DF /* uae_cpu_x86_64 */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E4F537C42642A86D008B27DF /* Build configuration list for PBXNativeTarget "uae_cpu_x86_64" */;
+			buildPhases = (
+				E4C1B4992642AF5100EB55A0 /* ShellScript */,
+				E4F537BC2642A86D008B27DF /* Sources */,
+				E4F537BD2642A86D008B27DF /* Frameworks */,
+				E4F537BE2642A86D008B27DF /* Headers */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = uae_cpu_x86_64;
+			productName = uae_cpu;
+			productReference = E4F537C02642A86D008B27DF /* libuae_cpu_x86_64.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		E4F537B82642A86D008B27DF /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0820;
+				TargetAttributes = {
+					E4F537BF2642A86D008B27DF = {
+						CreatedOnToolsVersion = 8.2.1;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = E4F537BB2642A86D008B27DF /* Build configuration list for PBXProject "uae_cpu" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				English,
+				en,
+			);
+			mainGroup = E4F537B72642A86D008B27DF;
+			productRefGroup = E4F537C12642A86D008B27DF /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E4F537BF2642A86D008B27DF /* uae_cpu_x86_64 */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		E4C1B4992642AF5100EB55A0 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			outputPaths = (
+				$BUILT_PRODUCTS_DIR/gencpu_output/cpuemu.cpp,
+				$BUILT_PRODUCTS_DIR/gencpu_output/cpuemu_nf.cpp,
+				$BUILT_PRODUCTS_DIR/gencpu_output/cpustbl.cpp,
+				$BUILT_PRODUCTS_DIR/gencpu_output/cpustbl_nf.cpp,
+				$BUILT_PRODUCTS_DIR/gencpu_output/defs68k.c,
+				$BUILT_PRODUCTS_DIR/gencpu_output/compemu.cpp,
+				$BUILT_PRODUCTS_DIR/gencpu_output/compstbl.cpp,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "make -f Makefile.gencpu\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E4F537BC2642A86D008B27DF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E4C1B4A62642B05A00EB55A0 /* cpuemu_nf.cpp in Sources */,
+				E4C1B4A32642B05A00EB55A0 /* compemu.cpp in Sources */,
+				E4F538192642A904008B27DF /* rounding.cpp in Sources */,
+				E4F537E12642A8CC008B27DF /* readcpu.cpp in Sources */,
+				E4F5380C2642A904008B27DF /* flags.cpp in Sources */,
+				E4F537EF2642A8E8008B27DF /* compemu_fpp.cpp in Sources */,
+				E4F538172642A904008B27DF /* mathlib.cpp in Sources */,
+				E4F537F02642A8E8008B27DF /* compemu_support.cpp in Sources */,
+				E4F537DC2642A8CC008B27DF /* memory.cpp in Sources */,
+				E4C1B4A42642B05A00EB55A0 /* compstbl.cpp in Sources */,
+				E4F537CE2642A8C2008B27DF /* cpuopti.c in Sources */,
+				E4C1B4AB2642B05A00EB55A0 /* defs68k.c in Sources */,
+				E4F537CA2642A8BA008B27DF /* build68k.c in Sources */,
+				E4C1B4A92642B05A00EB55A0 /* cpustbl.cpp in Sources */,
+				E4F537C92642A8BA008B27DF /* basilisk_glue.cpp in Sources */,
+				E4F537F32642A8E8008B27DF /* gencomp.c in Sources */,
+				E4F537DA2642A8CC008B27DF /* gencpu.c in Sources */,
+				E4F5380E2642A904008B27DF /* fpu_ieee.cpp in Sources */,
+				E4C1B4A72642B05A00EB55A0 /* cpuemu.cpp in Sources */,
+				E4C1B4A82642B05A00EB55A0 /* cpustbl_nf.cpp in Sources */,
+				E4F537DE2642A8CC008B27DF /* newcpu.cpp in Sources */,
+				E4F5380A2642A904008B27DF /* exceptions.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		E4F537C22642A86D008B27DF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		E4F537C32642A86D008B27DF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		E4F537C52642A86D008B27DF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = x86_64;
+				EXECUTABLE_PREFIX = lib;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"USE_XCODE=1",
+					CPU_x86_64,
+					JIT,
+					"USE_JIT=1",
+				);
+				HEADER_SEARCH_PATHS = (
+					../CrossPlatform,
+					../include,
+					../MacOSX,
+					../uae_cpu,
+					../Unix,
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		E4F537C62642A86D008B27DF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = x86_64;
+				EXECUTABLE_PREFIX = lib;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"USE_XCODE=1",
+					CPU_x86_64,
+					JIT,
+					"USE_JIT=1",
+				);
+				HEADER_SEARCH_PATHS = (
+					../CrossPlatform,
+					../include,
+					../MacOSX,
+					../uae_cpu,
+					../Unix,
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		E4F537BB2642A86D008B27DF /* Build configuration list for PBXProject "uae_cpu" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E4F537C22642A86D008B27DF /* Debug */,
+				E4F537C32642A86D008B27DF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E4F537C42642A86D008B27DF /* Build configuration list for PBXNativeTarget "uae_cpu_x86_64" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E4F537C52642A86D008B27DF /* Debug */,
+				E4F537C62642A86D008B27DF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = E4F537B82642A86D008B27DF /* Project object */;
+}

@@ -819,7 +819,9 @@
    <inttypes.h> don't define. */
 /* #undef uintmax_t */
 
+#ifndef CPU_x86_64
 #define UPDATE_UAE
+#endif
 
 #ifdef UPDATE_UAE
 #define DIRECT_ADDRESSING	1
