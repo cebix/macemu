@@ -1,7 +1,7 @@
-SRC = $(PROJECT_DIR)/../uae_cpu
+SRC = $(PROJECT_DIR)/../uae_cpu_2021
 DST = $(BUILT_PRODUCTS_DIR)/gencpu_output
 VPATH = $(SRC) $(SRC)/compiler
-CFLAGS = -DUSE_XCODE=1 -DUSE_JIT_FPU -I. -I../uae_cpu -I../UNIX
+CFLAGS = -DUSE_XCODE=1 -DUSE_JIT_FPU -I. -I../uae_cpu_2021 -I../UNIX
 CXXFLAGS = -stdlib=libc++ $(CFLAGS)
 
 all: $(DST)/gencpu $(DST)/gencomp

@@ -574,7 +574,7 @@
 			path = ../SDL;
 			sourceTree = "<group>";
 		};
-		7539E0A51F23B25A006B2DF2 /* uae_cpu */ = {
+		7539E0A51F23B25A006B2DF2 /* uae_cpu_2021 */ = {
 			isa = PBXGroup;
 			children = (
 				7539E0A61F23B25A006B2DF2 /* basilisk_glue.cpp */,
@@ -594,8 +594,8 @@
 				7539E0D01F23B25A006B2DF2 /* spcflags.h */,
 				7539E0D11F23B25A006B2DF2 /* table68k */,
 			);
-			name = uae_cpu;
-			path = ../uae_cpu;
+			name = uae_cpu_2021;
+			path = ../uae_cpu_2021;
 			sourceTree = "<group>";
 		};
 		7539E0A81F23B25A006B2DF2 /* compiler */ = {
@@ -663,7 +663,7 @@
 				7539E0A21F23B25A006B2DF2 /* slot_rom.cpp */,
 				7539E0A31F23B25A006B2DF2 /* sony.cpp */,
 				7539E0A41F23B25A006B2DF2 /* timer.cpp */,
-				7539E0A51F23B25A006B2DF2 /* uae_cpu */,
+				7539E0A51F23B25A006B2DF2 /* uae_cpu_2021 */,
 				7539E1E91F23B329006B2DF2 /* Unix */,
 				7539E1221F23B25A006B2DF2 /* user_strings.cpp */,
 				7539E1231F23B25A006B2DF2 /* video.cpp */,
@@ -1103,7 +1103,7 @@
 					/Library/Frameworks/SDL2.framework/Headers,
 					../MacOSX,
 					../include,
-					../uae_cpu,
+					../uae_cpu_2021,
 					../Unix,
 					../slirp,
 				);
@@ -1176,7 +1176,7 @@
 					/Library/Frameworks/SDL2.framework/Headers,
 					../MacOSX,
 					../include,
-					../uae_cpu,
+					../uae_cpu_2021,
 					../Unix,
 					../slirp,
 				);
