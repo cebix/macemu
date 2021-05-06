@@ -1,6 +1,6 @@
 #### BasiliskII
 ```
-macOS     x86_64 JIT / arm64 non-JIT
+macOS     x86_64 non-JIT / arm64 non-JIT
 Linux x86 x86_64 JIT
 MinGW x86        JIT
 ```
