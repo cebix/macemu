@@ -17,10 +17,7 @@
 		E4C1B4AA2642B05A00EB55A0 /* cputbl.h in Headers */ = {isa = PBXBuildFile; fileRef = E4C1B4A12642B05A00EB55A0 /* cputbl.h */; };
 		E4C1B4AB2642B05A00EB55A0 /* defs68k.c in Sources */ = {isa = PBXBuildFile; fileRef = E4C1B4A22642B05A00EB55A0 /* defs68k.c */; };
 		E4F537C92642A8BA008B27DF /* basilisk_glue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4F537C72642A8BA008B27DF /* basilisk_glue.cpp */; };
-		E4F537CA2642A8BA008B27DF /* build68k.c in Sources */ = {isa = PBXBuildFile; fileRef = E4F537C82642A8BA008B27DF /* build68k.c */; };
 		E4F537CD2642A8C2008B27DF /* cpu_emulation.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537CB2642A8C2008B27DF /* cpu_emulation.h */; };
-		E4F537CE2642A8C2008B27DF /* cpuopti.c in Sources */ = {isa = PBXBuildFile; fileRef = E4F537CC2642A8C2008B27DF /* cpuopti.c */; };
-		E4F537DA2642A8CC008B27DF /* gencpu.c in Sources */ = {isa = PBXBuildFile; fileRef = E4F537CF2642A8CC008B27DF /* gencpu.c */; };
 		E4F537DB2642A8CC008B27DF /* m68k.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537D02642A8CC008B27DF /* m68k.h */; };
 		E4F537DC2642A8CC008B27DF /* memory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4F537D12642A8CC008B27DF /* memory.cpp */; };
 		E4F537DD2642A8CC008B27DF /* memory.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537D22642A8CC008B27DF /* memory.h */; };
@@ -43,9 +40,6 @@
 		E4F5380D2642A904008B27DF /* flags.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537FA2642A904008B27DF /* flags.h */; };
 		E4F5380E2642A904008B27DF /* fpu_ieee.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4F537FB2642A904008B27DF /* fpu_ieee.cpp */; };
 		E4F5380F2642A904008B27DF /* fpu_ieee.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537FC2642A904008B27DF /* fpu_ieee.h */; };
-		E4F538112642A904008B27DF /* fpu_uae.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537FE2642A904008B27DF /* fpu_uae.h */; };
-		E4F538122642A904008B27DF /* fpu_x86_asm.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F537FF2642A904008B27DF /* fpu_x86_asm.h */; };
-		E4F538142642A904008B27DF /* fpu_x86.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F538012642A904008B27DF /* fpu_x86.h */; };
 		E4F538152642A904008B27DF /* fpu.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F538022642A904008B27DF /* fpu.h */; };
 		E4F538162642A904008B27DF /* impl.h in Headers */ = {isa = PBXBuildFile; fileRef = E4F538032642A904008B27DF /* impl.h */; };
 		E4F538172642A904008B27DF /* mathlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4F538042642A904008B27DF /* mathlib.cpp */; };
@@ -67,10 +61,7 @@
 		E4C1B4A22642B05A00EB55A0 /* defs68k.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = defs68k.c; path = gencpu_output/defs68k.c; sourceTree = BUILT_PRODUCTS_DIR; };
 		E4F537C02642A86D008B27DF /* libuae_cpu_x86_64.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libuae_cpu_x86_64.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		E4F537C72642A8BA008B27DF /* basilisk_glue.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = basilisk_glue.cpp; path = ../uae_cpu/basilisk_glue.cpp; sourceTree = "<group>"; };
-		E4F537C82642A8BA008B27DF /* build68k.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = build68k.c; path = ../uae_cpu/build68k.c; sourceTree = "<group>"; };
 		E4F537CB2642A8C2008B27DF /* cpu_emulation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = cpu_emulation.h; path = ../uae_cpu/cpu_emulation.h; sourceTree = "<group>"; };
-		E4F537CC2642A8C2008B27DF /* cpuopti.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = cpuopti.c; path = ../uae_cpu/cpuopti.c; sourceTree = "<group>"; };
-		E4F537CF2642A8CC008B27DF /* gencpu.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = gencpu.c; path = ../uae_cpu/gencpu.c; sourceTree = "<group>"; };
 		E4F537D02642A8CC008B27DF /* m68k.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = m68k.h; path = ../uae_cpu/m68k.h; sourceTree = "<group>"; };
 		E4F537D12642A8CC008B27DF /* memory.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = memory.cpp; path = ../uae_cpu/memory.cpp; sourceTree = "<group>"; };
 		E4F537D22642A8CC008B27DF /* memory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = memory.h; path = ../uae_cpu/memory.h; sourceTree = "<group>"; };
@@ -94,9 +85,6 @@
 		E4F537FA2642A904008B27DF /* flags.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = flags.h; path = ../uae_cpu/fpu/flags.h; sourceTree = "<group>"; };
 		E4F537FB2642A904008B27DF /* fpu_ieee.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = fpu_ieee.cpp; path = ../uae_cpu/fpu/fpu_ieee.cpp; sourceTree = "<group>"; };
 		E4F537FC2642A904008B27DF /* fpu_ieee.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fpu_ieee.h; path = ../uae_cpu/fpu/fpu_ieee.h; sourceTree = "<group>"; };
-		E4F537FE2642A904008B27DF /* fpu_uae.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fpu_uae.h; path = ../uae_cpu/fpu/fpu_uae.h; sourceTree = "<group>"; };
-		E4F537FF2642A904008B27DF /* fpu_x86_asm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fpu_x86_asm.h; path = ../uae_cpu/fpu/fpu_x86_asm.h; sourceTree = "<group>"; };
-		E4F538012642A904008B27DF /* fpu_x86.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fpu_x86.h; path = ../uae_cpu/fpu/fpu_x86.h; sourceTree = "<group>"; };
 		E4F538022642A904008B27DF /* fpu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fpu.h; path = ../uae_cpu/fpu/fpu.h; sourceTree = "<group>"; };
 		E4F538032642A904008B27DF /* impl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = impl.h; path = ../uae_cpu/fpu/impl.h; sourceTree = "<group>"; };
 		E4F538042642A904008B27DF /* mathlib.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mathlib.cpp; path = ../uae_cpu/fpu/mathlib.cpp; sourceTree = "<group>"; };
@@ -137,12 +125,9 @@
 			isa = PBXGroup;
 			children = (
 				E4F537C72642A8BA008B27DF /* basilisk_glue.cpp */,
-				E4F537C82642A8BA008B27DF /* build68k.c */,
 				E4F537E42642A8D2008B27DF /* compiler */,
 				E4F537CB2642A8C2008B27DF /* cpu_emulation.h */,
-				E4F537CC2642A8C2008B27DF /* cpuopti.c */,
 				E4F537F52642A8ED008B27DF /* fpu */,
-				E4F537CF2642A8CC008B27DF /* gencpu.c */,
 				E4F537D02642A8CC008B27DF /* m68k.h */,
 				E4F537D12642A8CC008B27DF /* memory.cpp */,
 				E4F537D22642A8CC008B27DF /* memory.h */,
@@ -189,9 +174,6 @@
 				E4F537FA2642A904008B27DF /* flags.h */,
 				E4F537FB2642A904008B27DF /* fpu_ieee.cpp */,
 				E4F537FC2642A904008B27DF /* fpu_ieee.h */,
-				E4F537FE2642A904008B27DF /* fpu_uae.h */,
-				E4F537FF2642A904008B27DF /* fpu_x86_asm.h */,
-				E4F538012642A904008B27DF /* fpu_x86.h */,
 				E4F538022642A904008B27DF /* fpu.h */,
 				E4F538032642A904008B27DF /* impl.h */,
 				E4F538042642A904008B27DF /* mathlib.cpp */,
@@ -214,9 +196,6 @@
 				E4F538152642A904008B27DF /* fpu.h in Headers */,
 				E4F5380F2642A904008B27DF /* fpu_ieee.h in Headers */,
 				E4F537F12642A8E8008B27DF /* compemu.h in Headers */,
-				E4F538112642A904008B27DF /* fpu_uae.h in Headers */,
-				E4F538122642A904008B27DF /* fpu_x86_asm.h in Headers */,
-				E4F538142642A904008B27DF /* fpu_x86.h in Headers */,
 				E4F538092642A904008B27DF /* core.h in Headers */,
 				E4C1B4AA2642B05A00EB55A0 /* cputbl.h in Headers */,
 				E4F5381B2642A904008B27DF /* types.h in Headers */,
@@ -328,13 +307,10 @@
 				E4F537F02642A8E8008B27DF /* compemu_support.cpp in Sources */,
 				E4F537DC2642A8CC008B27DF /* memory.cpp in Sources */,
 				E4C1B4A42642B05A00EB55A0 /* compstbl.cpp in Sources */,
-				E4F537CE2642A8C2008B27DF /* cpuopti.c in Sources */,
 				E4C1B4AB2642B05A00EB55A0 /* defs68k.c in Sources */,
-				E4F537CA2642A8BA008B27DF /* build68k.c in Sources */,
 				E4C1B4A92642B05A00EB55A0 /* cpustbl.cpp in Sources */,
 				E4F537C92642A8BA008B27DF /* basilisk_glue.cpp in Sources */,
 				E4F537F32642A8E8008B27DF /* gencomp.c in Sources */,
-				E4F537DA2642A8CC008B27DF /* gencpu.c in Sources */,
 				E4F5380E2642A904008B27DF /* fpu_ieee.cpp in Sources */,
 				E4C1B4A72642B05A00EB55A0 /* cpuemu.cpp in Sources */,
 				E4C1B4A82642B05A00EB55A0 /* cpustbl_nf.cpp in Sources */,

@@ -8,10 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		E41D7AAA2642C070005E8093 /* basilisk_glue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E41D7AA82642C070005E8093 /* basilisk_glue.cpp */; };
-		E41D7AAB2642C070005E8093 /* build68k.c in Sources */ = {isa = PBXBuildFile; fileRef = E41D7AA92642C070005E8093 /* build68k.c */; };
 		E41D7AAE2642C07C005E8093 /* cpu_emulation.h in Headers */ = {isa = PBXBuildFile; fileRef = E41D7AAC2642C07C005E8093 /* cpu_emulation.h */; };
 		E41D7AAF2642C07C005E8093 /* cpummu.h in Headers */ = {isa = PBXBuildFile; fileRef = E41D7AAD2642C07C005E8093 /* cpummu.h */; };
-		E41D7ABA2642C087005E8093 /* gencpu.c in Sources */ = {isa = PBXBuildFile; fileRef = E41D7AB02642C087005E8093 /* gencpu.c */; };
 		E41D7ABB2642C087005E8093 /* m68k.h in Headers */ = {isa = PBXBuildFile; fileRef = E41D7AB12642C087005E8093 /* m68k.h */; };
 		E41D7ABC2642C087005E8093 /* memory.h in Headers */ = {isa = PBXBuildFile; fileRef = E41D7AB22642C087005E8093 /* memory.h */; };
 		E41D7ABD2642C087005E8093 /* newcpu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E41D7AB32642C087005E8093 /* newcpu.cpp */; };
@@ -43,10 +41,8 @@
 /* Begin PBXFileReference section */
 		E41D7AA12642C004005E8093 /* libuae_cpu_arm64.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libuae_cpu_arm64.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		E41D7AA82642C070005E8093 /* basilisk_glue.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = basilisk_glue.cpp; path = ../uae_cpu_2021/basilisk_glue.cpp; sourceTree = "<group>"; };
-		E41D7AA92642C070005E8093 /* build68k.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = build68k.c; path = ../uae_cpu_2021/build68k.c; sourceTree = "<group>"; };
 		E41D7AAC2642C07C005E8093 /* cpu_emulation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = cpu_emulation.h; path = ../uae_cpu_2021/cpu_emulation.h; sourceTree = "<group>"; };
 		E41D7AAD2642C07C005E8093 /* cpummu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = cpummu.h; path = ../uae_cpu_2021/cpummu.h; sourceTree = "<group>"; };
-		E41D7AB02642C087005E8093 /* gencpu.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = gencpu.c; path = ../uae_cpu_2021/gencpu.c; sourceTree = "<group>"; };
 		E41D7AB12642C087005E8093 /* m68k.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = m68k.h; path = ../uae_cpu_2021/m68k.h; sourceTree = "<group>"; };
 		E41D7AB22642C087005E8093 /* memory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = memory.h; path = ../uae_cpu_2021/memory.h; sourceTree = "<group>"; };
 		E41D7AB32642C087005E8093 /* newcpu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = newcpu.cpp; path = ../uae_cpu_2021/newcpu.cpp; sourceTree = "<group>"; };
@@ -91,11 +87,9 @@
 			isa = PBXGroup;
 			children = (
 				E41D7AA82642C070005E8093 /* basilisk_glue.cpp */,
-				E41D7AA92642C070005E8093 /* build68k.c */,
 				E41D7AC32642C08E005E8093 /* fpu */,
 				E41D7AAC2642C07C005E8093 /* cpu_emulation.h */,
 				E41D7AAD2642C07C005E8093 /* cpummu.h */,
-				E41D7AB02642C087005E8093 /* gencpu.c */,
 				E41D7AB12642C087005E8093 /* m68k.h */,
 				E41D7AB22642C087005E8093 /* memory.h */,
 				E41D7AB32642C087005E8093 /* newcpu.cpp */,
@@ -261,14 +255,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				E4FC27512642C45E00C64E21 /* cpufunctbl.cpp in Sources */,
-				E41D7ABA2642C087005E8093 /* gencpu.c in Sources */,
 				E41D7ADB2642C0A4005E8093 /* flags.cpp in Sources */,
 				E41D7ADF2642C0A4005E8093 /* fpu_mpfr.cpp in Sources */,
 				E41D7ABD2642C087005E8093 /* newcpu.cpp in Sources */,
 				E4FC27552642C45E00C64E21 /* defs68k.c in Sources */,
 				E41D7AE72642C0A4005E8093 /* mathlib.cpp in Sources */,
 				E4FC27522642C45E00C64E21 /* cpuemu.cpp in Sources */,
-				E41D7AAB2642C070005E8093 /* build68k.c in Sources */,
 				E4FC27532642C45E00C64E21 /* cpustbl.cpp in Sources */,
 				E41D7AD92642C0A4005E8093 /* exceptions.cpp in Sources */,
 				E41D7AAA2642C070005E8093 /* basilisk_glue.cpp in Sources */,
