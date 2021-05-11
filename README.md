@@ -14,11 +14,14 @@ MinGW x86        JIT
 These builds need to be installed SDL2.0.10+ framework/library.
 #### BasiliskII
 ##### macOS
+BasiliskII for macOS can be built with Apple Silicon Mac.
+
 preparation:
 ```
 $ brew install mpfr
 ```
-(for Intel Mac, install GMP / MPFR library for arm64 manually)
+For Intel Mac, checkout `has_fpu_bug` branch. But it has FPU issue if the binary runs on Apple Silicon Mac.
+
 1. Open BasiliskII/src/MacOSX/BasiliskII.xcodeproj
 1. Set Build Configuration to Release
 1. Build
