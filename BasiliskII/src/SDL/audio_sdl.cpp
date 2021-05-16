@@ -369,8 +369,8 @@ static int play_startup(void *arg) {
 	Uint8 *wav_buffer;
 	Uint32 wav_length;
 	if (SDL_LoadWAV("startup.wav", &wav_spec, &wav_buffer, &wav_length)) {
-		SDL_AudioSpec desired = { .freq = 44100, .format = AUDIO_S16, .channels = 1 }, obtained;
-		SDL_AudioDeviceID deviceId = SDL_OpenAudioDevice(NULL, 0, &desired, &obtained, 0);
+		SDL_AudioSpec obtained;
+		SDL_AudioDeviceID deviceId = SDL_OpenAudioDevice(NULL, 0, &wav_spec, &obtained, 0);
 		if (deviceId) {
 			SDL_QueueAudio(deviceId, wav_buffer, wav_length);
 			SDL_PauseAudioDevice(deviceId, 0);
