@@ -793,8 +793,15 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 #else
 			SDL_SetHint(SDL_HINT_RENDER_DRIVER, "");
 #endif
+	    }
+
+		bool sdl_vsync = PrefsFindBool("sdl_vsync");
+		if (sdl_vsync) {
+			SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 		}
+
 		sdl_renderer = SDL_CreateRenderer(sdl_window, -1, 0);
+
 		if (!sdl_renderer) {
 			shutdown_sdl_video();
 			return NULL;

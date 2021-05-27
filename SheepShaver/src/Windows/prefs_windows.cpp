@@ -56,6 +56,7 @@ prefs_desc platform_prefs_items[] = {
 	{"portfile1", TYPE_STRING, false,               "output file for serial port 1"},
 #ifdef USE_SDL_VIDEO
 	{"sdlrender", TYPE_STRING, false,      "SDL_Renderer driver (\"auto\", \"software\" (may be faster), etc.)"},
+	{"sdl_vsync", TYPE_BOOLEAN, false,     "Make SDL_Renderer vertical sync frames to host (eg. with software renderer)"},
 #endif
 
 	{NULL, TYPE_END, false, NULL} // End of list
@@ -140,4 +141,8 @@ void AddPlatformPrefsDefaults(void)
 	PrefsReplaceString("serialb", "COM2");
 	PrefsReplaceString("portfile0", "C:\\B2TEMP0.OUT");
 	PrefsReplaceString("portfile1", "C:\\B2TEMP1.OUT");
+#ifdef USE_SDL_VIDEO
+	PrefsReplaceString("sdlrender", "software");
+	PrefsReplaceBool("sdl_vsync", false);
+#endif
 }
