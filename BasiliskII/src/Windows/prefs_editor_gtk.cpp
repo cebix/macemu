@@ -975,29 +975,19 @@ static int dis_width, dis_height;
 // Hide/show graphics widgets
 static void hide_show_graphics_widgets(void)
 {
-	switch (display_type) {
-		case DISPLAY_WINDOW:
-			gtk_widget_show(w_frameskip); gtk_widget_show(l_frameskip);
-			break;
-		case DISPLAY_SCREEN:
-			gtk_widget_hide(w_frameskip); gtk_widget_hide(l_frameskip);
-			break;
-	}
+
 }
 
 // "Window" video type selected
 static void mn_window(...)
 {
 	display_type = DISPLAY_WINDOW;
-	hide_show_graphics_widgets();
 }
 
 // "Fullscreen" video type selected
 static void mn_fullscreen(...)
 {
 	display_type = DISPLAY_SCREEN;
-	hide_show_graphics_widgets();
-	PrefsReplaceInt32("frameskip", 1);
 }
 
 // "5 Hz".."60Hz" selected
