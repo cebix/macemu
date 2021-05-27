@@ -1064,13 +1064,13 @@ static void parse_graphics_prefs(void)
 	#ifdef USE_SDL_VIDEO
 	render_driver = RENDER_SOFTWARE;
 
-	str = PrefsFindString("sdlrender");
-	if (str) {
-		if (str == "software")
+	const char *drv = PrefsFindString("sdlrender");
+	if (drv && drv[0]) {
+		if (strcmp(drv, "software") == 0)
 			render_driver = RENDER_SOFTWARE;
-		else if (str == "opengl")
+		else if (strcmp(drv, "opengl") == 0)
 			render_driver = RENDER_OPENGL;
-		else if (str == "direct3d")
+		else if (strcmp(drv, "direct3d") == 0)
 			render_driver = RENDER_DIRECT3D;
 	}
 	#endif
@@ -1264,7 +1264,6 @@ static void create_graphics_pane(GtkWidget *top)
 	gtk_table_attach(GTK_TABLE(table), w_render_driver, 1, 2, 0, 1, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 
 	opt = make_checkbox(box, STR_GRAPHICS_SDL_VSYNC_CTRL, "sdl_vsync", GTK_SIGNAL_FUNC(tb_sdl_vsync));
-
 #endif
 
 	make_separator(box);
