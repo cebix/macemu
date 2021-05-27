@@ -142,6 +142,8 @@ user_string_def common_strings[] = {
 	{STR_SIZE_1024_LAB, "1024"},
 	{STR_SIZE_MAX_LAB, "Maximum"},
 	{STR_NOSOUND_CTRL, "Disable Sound Output"},
+	{STR_GRAPHICS_SDL_RENDER_DRIVER_CTRL, "Renderer"},
+	{STR_GRAPHICS_SDL_VSYNC_CTRL, "Vertical Sync (Software)"},
 
 	{STR_SERIAL_NETWORK_PANE_TITLE, "Serial/Network"},
 	{STR_SERPORTA_CTRL, "Modem Port"},

@@ -1020,6 +1020,25 @@ static void tb_nosound(GtkWidget *widget)
 	set_graphics_sensitive();
 }
 
+// SDL Graphics
+#ifdef USE_SDL_VIDEO
+
+// SDL render driver
+enum {
+	RENDER_SOFTWARE,
+	RENDER_OPENGL,
+	RENDER_DIRECT3D
+};
+// SDL Graphics settings
+static int render_driver;
+static int sdl_vsync;
+
+static void tb_sdl_vsync(GtkWidget *widget)
+{
+	PrefsReplaceBool("sdl_vsync", GTK_TOGGLE_BUTTON(widget)->active);
+}
+#endif
+
 // Read graphics preferences
 static void parse_graphics_prefs(void)
 {
@@ -1172,6 +1191,11 @@ static void create_graphics_pane(GtkWidget *top)
 
 #ifdef SHEEPSHAVER
 	make_checkbox(box, STR_GFXACCEL_CTRL, "gfxaccel", GTK_SIGNAL_FUNC(tb_gfxaccel));
+#endif
+
+#ifdef USE_SDL_VIDEO
+	make_separator(box);
+	make_checkbox(box, STR_GRAPHICS_SDL_VSYNC_CTRL, "sdl_vsync", GTK_SIGNAL_FUNC(tb_sdl_vsync));
 #endif
 
 	make_separator(box);
