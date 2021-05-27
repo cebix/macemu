@@ -979,16 +979,10 @@ static void hide_show_graphics_widgets(void)
 }
 
 // "Window" video type selected
-static void mn_window(...)
-{
-	display_type = DISPLAY_WINDOW;
-}
+static void mn_window(...) {display_type = DISPLAY_WINDOW;}
 
 // "Fullscreen" video type selected
-static void mn_fullscreen(...)
-{
-	display_type = DISPLAY_SCREEN;
-}
+static void mn_fullscreen(...) {display_type = DISPLAY_SCREEN;}
 
 // "5 Hz".."60Hz" selected
 static void mn_5hz(...) {PrefsReplaceInt32("frameskip", 12);}
@@ -1022,22 +1016,30 @@ static void tb_nosound(GtkWidget *widget)
 
 // SDL Graphics
 #ifdef USE_SDL_VIDEO
-
-// SDL render driver
+// SDL Renderer Render Driver
 enum {
-	RENDER_SOFTWARE,
-	RENDER_OPENGL,
-	RENDER_DIRECT3D
+	RENDER_SOFTWARE = 0,
+	RENDER_OPENGL = 1,
+	RENDER_DIRECT3D = 2
 };
-// SDL Graphics settings
+
+GtkWidget *w_render_driver;
+GtkWidget *l_render_driver;
 static int render_driver;
 static int sdl_vsync;
 
+// Render Driver selected
+static void mn_sdl_software(...) {render_driver = RENDER_SOFTWARE;}
+static void mn_sdl_opengl(...) {render_driver = RENDER_OPENGL;}
+static void mn_sdl_direct3d(...) {render_driver = RENDER_DIRECT3D;}
+
+// SDL Renderer Vertical Sync
 static void tb_sdl_vsync(GtkWidget *widget)
 {
 	PrefsReplaceBool("sdl_vsync", GTK_TOGGLE_BUTTON(widget)->active);
 }
 #endif
+
 
 // Read graphics preferences
 static void parse_graphics_prefs(void)
@@ -1058,6 +1060,40 @@ static void parse_graphics_prefs(void)
 		else if (sscanf(str, "dga/%d/%d", &dis_width, &dis_height) == 2)
 			display_type = DISPLAY_SCREEN;
 	}
+
+	#ifdef USE_SDL_VIDEO
+	render_driver = RENDER_SOFTWARE;
+
+	str = PrefsFindString("sdlrender");
+	if (str) {
+		if (str == "software")
+			render_driver = RENDER_SOFTWARE;
+		else if (str == "opengl")
+			render_driver = RENDER_OPENGL;
+		else if (str == "direct3d")
+			render_driver = RENDER_DIRECT3D;
+	}
+	#endif
+}
+
+static void read_SDL_graphics_settings(void)
+{
+	const char *rpref;
+	switch (render_driver) {
+		case RENDER_SOFTWARE:
+			rpref = "software";
+			break;
+		case RENDER_OPENGL:
+			rpref = "opengl";
+			break;
+		case RENDER_DIRECT3D:
+			rpref = "direct3d";
+			break;
+		default:
+			PrefsRemoveItem("sdlrender");
+			return;
+	}
+	PrefsReplaceString("sdlrender", rpref);
 }
 
 // Read settings from widgets and set preferences
@@ -1084,6 +1120,10 @@ static void read_graphics_settings(void)
 			return;
 	}
 	PrefsReplaceString("screen", pref);
+
+	#ifdef USE_SDL_VIDEO
+	read_SDL_graphics_settings();
+	#endif
 }
 
 // Create "Graphics/Sound" pane
@@ -1195,7 +1235,36 @@ static void create_graphics_pane(GtkWidget *top)
 
 #ifdef USE_SDL_VIDEO
 	make_separator(box);
-	make_checkbox(box, STR_GRAPHICS_SDL_VSYNC_CTRL, "sdl_vsync", GTK_SIGNAL_FUNC(tb_sdl_vsync));
+
+	table = make_table(box, 2, 5);
+
+	l_render_driver = gtk_label_new(GetString(STR_GRAPHICS_SDL_RENDER_DRIVER_CTRL));
+	gtk_widget_show(l_render_driver);
+	gtk_table_attach(GTK_TABLE(table), l_render_driver, 0, 1, 0, 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+
+	w_render_driver = gtk_option_menu_new();
+	gtk_widget_show(w_render_driver);
+	menu = gtk_menu_new();
+
+	add_menu_item(menu, STR_SOFTWARE_LAB, GTK_SIGNAL_FUNC(mn_sdl_software));
+	add_menu_item(menu, STR_OPENGL_LAB, GTK_SIGNAL_FUNC(mn_sdl_opengl));
+	add_menu_item(menu, STR_DIRECT3D_LAB, GTK_SIGNAL_FUNC(mn_sdl_direct3d));
+	switch (render_driver) {
+		case RENDER_SOFTWARE:
+			gtk_menu_set_active(GTK_MENU(menu), 0);
+			break;
+		case RENDER_OPENGL:
+			gtk_menu_set_active(GTK_MENU(menu), 1);
+			break;
+		case RENDER_DIRECT3D:
+			gtk_menu_set_active(GTK_MENU(menu), 2);
+			break;
+	}
+	gtk_option_menu_set_menu(GTK_OPTION_MENU(w_render_driver), menu);
+	gtk_table_attach(GTK_TABLE(table), w_render_driver, 1, 2, 0, 1, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
+
+	opt = make_checkbox(box, STR_GRAPHICS_SDL_VSYNC_CTRL, "sdl_vsync", GTK_SIGNAL_FUNC(tb_sdl_vsync));
+
 #endif
 
 	make_separator(box);

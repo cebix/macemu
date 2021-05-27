@@ -177,8 +177,12 @@ user_string_def common_strings[] = {
 	{STR_24_BIT_1600x1200_LAB, "1600x1200, 24 Bit"},
 	{STR_SOUND_CTRL, "Sound"},
 	{STR_NOSOUND_CTRL, "Disable Sound Output"},
-	{STR_GRAPHICS_SDL_RENDER_DRIVER_CTRL, "Renderer"},
+	{STR_GRAPHICS_SDL_RENDER_DRIVER_CTRL, "Render Driver"},
+	{STR_SOFTWARE_LAB, "Software"},
+	{STR_OPENGL_LAB, "OpenGL"},
+	{STR_DIRECT3D_LAB, "Direct3D"},
 	{STR_GRAPHICS_SDL_VSYNC_CTRL, "Vertical Sync (Software)"},
+	{STR_DEFAULT_LAB, "Default"},
 
 	{STR_SERIAL_NETWORK_PANE_TITLE, "Serial/Network"},
 	{STR_SERIALA_CTRL, "Modem Port"},
