@@ -141,4 +141,8 @@ void AddPlatformPrefsDefaults(void)
 	PrefsReplaceString("serialb", "COM2");
 	PrefsReplaceString("portfile0", "C:\\B2TEMP0.OUT");
 	PrefsReplaceString("portfile1", "C:\\B2TEMP1.OUT");
+#ifdef USE_SDL_VIDEO
+	PrefsReplaceString("sdlrender", "software");
+	PrefsReplaceBool("sdl_vsync", false);
+#endif
 }
