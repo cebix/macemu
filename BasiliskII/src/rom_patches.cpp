@@ -822,25 +822,21 @@ void PatchAfterStartup(void)
 #endif
 }
 
-
 /*
  *  Check ROM version, returns false if ROM version is not supported
  */
 
-bool CheckROM(void)
-{
+bool CheckROM(void){
 	// Read version
 	ROMVersion = ntohs(*(uint16 *)(ROMBaseHost + 8));
 
 #if DIRECT_ADDRESSING
-	// Real and direct addressing modes require a 32-bit clean ROM
+	// requires a 32-bit clean ROM
 	return ROMVersion == ROM_VERSION_32;
 #else
-	// Virtual addressing mode works with 32-bit clean Mac II ROMs and Classic ROMs
 	return (ROMVersion == ROM_VERSION_CLASSIC) || (ROMVersion == ROM_VERSION_32);
 #endif
 }
-
 
 /*
  *  Install ROM patches, returns false if ROM version is not supported

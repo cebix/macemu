@@ -23,7 +23,6 @@
 
 // CPU type (0 = 68000, 1 = 68010, 2 = 68020, 3 = 68030, 4 = 68040/060)
 extern int CPUType;
-extern bool CPUIs68060;		// Flag to distinguish 68040 and 68060
 
 // FPU type (0 = no FPU, 1 = 68881, 2 = 68882)
 extern int FPUType;

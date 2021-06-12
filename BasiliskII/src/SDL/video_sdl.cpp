@@ -100,6 +100,7 @@ static uint32 frame_skip;							// Prefs items
 static int16 mouse_wheel_mode;
 static int16 mouse_wheel_lines;
 
+#error merge changes from SDL2
 static uint8 *the_buffer = NULL;					// Mac frame buffer (where MacOS draws into)
 static uint8 *the_buffer_copy = NULL;				// Copy of Mac frame buffer (for refreshed modes)
 static uint32 the_buffer_size;						// Size of allocated the_buffer

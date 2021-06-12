@@ -57,7 +57,6 @@ extern "C" {
 /* Mapping options.  */
 #define VM_MAP_SHARED			0x01
 #define VM_MAP_PRIVATE			0x02
-#define VM_MAP_FIXED			0x04
 #define VM_MAP_32BIT			0x08
 #define VM_MAP_WRITE_WATCH		0x10
 
@@ -100,13 +99,6 @@ extern void vm_exit(void);
    is the actual mapping address chosen or VM_MAP_FAILED for errors.  */
 
 extern void * vm_acquire(size_t size, int options = VM_MAP_DEFAULT);
-
-extern void * vm_acquire_reserved(size_t size);
-
-/* Allocate zero-filled memory at exactly ADDR (which must be page-aligned).
-   Returns 0 if successful, -1 on errors.  */
-
-extern int vm_acquire_fixed(void * addr, size_t size, int options = VM_MAP_DEFAULT);
 
 /* Deallocate any mapping for the region starting at ADDR and extending
    LEN bytes. Returns 0 if successful, -1 on errors.  */

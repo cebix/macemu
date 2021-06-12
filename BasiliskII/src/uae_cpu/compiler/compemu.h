@@ -139,7 +139,7 @@ union cacheline {
 
 /* Functions exposed to newcpu, or to what was moved from newcpu.c to
  * compemu_support.c */
-extern void compiler_init(void);
+extern void compiler_init(void*);
 extern void compiler_exit(void);
 extern bool compiler_use_jit(void);
 extern void init_comp(void);

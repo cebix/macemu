@@ -5003,11 +5003,12 @@ static inline const char *str_on_off(bool b)
 	return b ? "on" : "off";
 }
 
-void compiler_init(void)
-{
+void compiler_init(void* buf){
 	static bool initialized = false;
 	if (initialized)
 		return;
+
+	compiled_code=(uint8*)buf;
 
 #if JIT_DEBUG
 	// JIT debug mode ?
@@ -5065,23 +5066,10 @@ void compiler_init(void)
 #endif
 }
 
-void compiler_exit(void)
-{
+void compiler_exit(void){
 #if PROFILE_COMPILE_TIME
 	emul_end_time = clock();
 #endif
-	
-	// Deallocate translation cache
-	if (compiled_code) {
-		vm_release(compiled_code, cache_size * 1024);
-		compiled_code = 0;
-	}
-
-	// Deallocate popallspace
-	if (popallspace) {
-		vm_release(popallspace, POPALLSPACE_SIZE);
-		popallspace = 0;
-	}
 	
 #if PROFILE_COMPILE_TIME
 	write_log("### Compile Block statistics\n");
@@ -5673,79 +5661,20 @@ uae_u32 get_jitted_size(void)
 const int CODE_ALLOC_MAX_ATTEMPTS = 10;
 const int CODE_ALLOC_BOUNDARIES   = 128 * 1024; // 128 KB
 
-static uint8 *do_alloc_code(uint32 size, int depth)
-{
-#if defined(__linux__) && 0
-	/*
-	  This is a really awful hack that is known to work on Linux at
-	  least.
-	  
-	  The trick here is to make sure the allocated cache is nearby
-	  code segment, and more precisely in the positive half of a
-	  32-bit address space. i.e. addr < 0x80000000. Actually, it
-	  turned out that a 32-bit binary run on AMD64 yields a cache
-	  allocated around 0xa0000000, thus causing some troubles when
-	  translating addresses from m68k to x86.
-	*/
-	static uint8 * code_base = NULL;
-	if (code_base == NULL) {
-		uintptr page_size = getpagesize();
-		uintptr boundaries = CODE_ALLOC_BOUNDARIES;
-		if (boundaries < page_size)
-			boundaries = page_size;
-		code_base = (uint8 *)sbrk(0);
-		for (int attempts = 0; attempts < CODE_ALLOC_MAX_ATTEMPTS; attempts++) {
-			if (vm_acquire_fixed(code_base, size) == 0) {
-				uint8 *code = code_base;
-				code_base += size;
-				return code;
-			}
-			code_base += boundaries;
-		}
-		return NULL;
-	}
-
-	if (vm_acquire_fixed(code_base, size) == 0) {
-		uint8 *code = code_base;
-		code_base += size;
-		return code;
-	}
-
-	if (depth >= CODE_ALLOC_MAX_ATTEMPTS)
-		return NULL;
-
-	return do_alloc_code(size, depth + 1);
-#else
-	uint8 *code = (uint8 *)vm_acquire(size);
-	return code == VM_MAP_FAILED ? NULL : code;
-#endif
-}
-
-static inline uint8 *alloc_code(uint32 size)
-{
-	uint8 *ptr = do_alloc_code(size, 0);
+static inline uint8 *alloc_code(uint32 size){
+	uint8 *ptr = (uint8 *)vm_acquire(size);
+	ptr == VM_MAP_FAILED ? NULL : ptr;
 	/* allocated code must fit in 32-bit boundaries */
-	assert((uintptr)ptr <= 0xffffffff);
+	assert((size_t)ptr<0xffffffffL);
 	return ptr;
 }
 
-void alloc_cache(void)
-{
-	if (compiled_code) {
-		flush_icache_hard(6);
-		vm_release(compiled_code, cache_size * 1024);
-		compiled_code = 0;
-	}
+void alloc_cache(void){
+	assert(compiled_code);
 	
 	if (cache_size == 0)
 		return;
 	
-	while (!compiled_code && cache_size) {
-		if ((compiled_code = alloc_code(cache_size * 1024)) == NULL) {
-			compiled_code = 0;
-			cache_size /= 2;
-		}
-	}
 	vm_protect(compiled_code, cache_size * 1024, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE);
 	
 	if (compiled_code) {
@@ -5997,14 +5926,10 @@ static __inline__ void match_states(blockinfo* bi)
     }
 }
 
-static __inline__ void create_popalls(void)
-{
+static void create_popalls(void){
   int i,r;
 
-  if ((popallspace = alloc_code(POPALLSPACE_SIZE)) == NULL) {
-	  write_log("FATAL: Could not allocate popallspace!\n");
-	  abort();
-  }
+  popallspace = compiled_code + cache_size*1024;
   vm_protect(popallspace, POPALLSPACE_SIZE, VM_PAGE_READ | VM_PAGE_WRITE);
 
   int stack_space = STACK_OFFSET;
@@ -6320,8 +6245,8 @@ void build_comp(void)
 	write_log("<JIT compiler> : supposedly %d compileable opcodes!\n",count);
 
     /* Initialise state */
-    create_popalls();
     alloc_cache();
+    create_popalls();
     reset_lists();
 
     for (i=0;i<TAGSIZE;i+=2) {

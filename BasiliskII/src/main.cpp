@@ -42,30 +42,30 @@
 #define DEBUG 0
 #include "debug.h"
 
+// CPU and FPU type, addressing mode
+int CPUType;
+int FPUType;
+bool TwentyFourBitAddressing;
+
 #if ENABLE_MON
 #include "mon.h"
 
-static uint32 mon_read_byte_b2(uintptr adr)
-{
+static uint32 mon_read_byte_b2(uintptr adr){
 	return ReadMacInt8(adr);
 }
 
-static void mon_write_byte_b2(uintptr adr, uint32 b)
-{
+static void mon_write_byte_b2(uintptr adr, uint32 b){
 	WriteMacInt8(adr, b);
 }
 #endif
-
 
 /*
  *  Initialize everything, returns false on error
  */
 
-bool InitAll(const char *vmdir)
-{
-	// Check ROM version
-	if (!CheckROM()) {
-		ErrorAlert(STR_UNSUPPORTED_ROM_TYPE_ERR);
+bool InitAll(const char *vmdir){
+	// Allocate memory map and load ROM
+	if (!InitMacMem()) {
 		return false;
 	}
 
@@ -95,7 +95,6 @@ bool InitAll(const char *vmdir)
 			TwentyFourBitAddressing = false;
 			break;
 	}
-	CPUIs68060 = false;
 
 	// Load XPRAM
 	XPRAMInit(vmdir);
@@ -178,15 +177,15 @@ bool InitAll(const char *vmdir)
 	XPRAM[0x58] = uint8(main_monitor.depth_to_apple_mode(main_monitor.get_current_mode().depth));
 	XPRAM[0x59] = 0;
 
-	// Init 680x0 emulation (this also activates the memory system which is needed for PatchROM())
-	if (!Init680x0())
-		return false;
-
 	// Install ROM patches
 	if (!PatchROM()) {
 		ErrorAlert(STR_UNSUPPORTED_ROM_TYPE_ERR);
 		return false;
 	}
+
+	// Init 680x0 emulation (this also activates the memory system which is needed for PatchROM())
+	if (!Init680x0())
+		return false;
 
 #if ENABLE_MON
 	// Initialize mon
@@ -246,6 +245,8 @@ void ExitAll(void)
 	CDROMExit();
 	DiskExit();
 	SonyExit();
+
+	MacMemExit();
 }
 
 

@@ -581,13 +581,12 @@ addrbank fram24_bank = {
     ram24_xlate
 };
 
-void memory_init(void)
-{
+void memory_init(void){
 	for(long i=0; i<65536; i++)
 		put_mem_bank(i<<16, &dummy_bank);
 
-	// Limit RAM size to not overlap ROM
-	uint32 ram_size = RAMSize > ROMBaseMac ? ROMBaseMac : RAMSize;
+	// RAM must not overlap ROM
+	assert(RAMSize<ROMBaseMac);
 
 	RAMBaseDiff = (uintptr)RAMBaseHost - (uintptr)RAMBaseMac;
 	ROMBaseDiff = (uintptr)ROMBaseHost - (uintptr)ROMBaseMac;
@@ -595,13 +594,13 @@ void memory_init(void)
 
 	// Map RAM, ROM and display
 	if (TwentyFourBitAddressing) {
-		map_banks(&ram24_bank, RAMBaseMac >> 16, ram_size >> 16);
+		map_banks(&ram24_bank, RAMBaseMac >> 16, RAMSize >> 16);
 		map_banks(&rom24_bank, ROMBaseMac >> 16, ROMSize >> 16);
 
 		// Map frame buffer at end of RAM.
 		map_banks(&fram24_bank, ((RAMBaseMac + ram_size) >> 16) - 1, 1);
 	} else {
-		map_banks(&ram_bank, RAMBaseMac >> 16, ram_size >> 16);
+		map_banks(&ram_bank, RAMBaseMac >> 16, RAMSize >> 16);
 		map_banks(&rom_bank, ROMBaseMac >> 16, ROMSize >> 16);
 
                 // Map frame buffer

@@ -109,7 +109,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 		if (base) {
 			p16 = (uint16 *)(p + base);
 
-#if defined(USE_SCRATCHMEM_SUBTERFUGE)
+#if USE_SCRATCHMEM_SUBTERFUGE
 			// Set 0x0000 to scratch memory area
 			extern uint8 *ScratchMem;
 			const uint32 ScratchMemBase = Host2MacAddr(ScratchMem);
@@ -134,7 +134,7 @@ void CheckLoad(uint32 type, int16 id, uint8 *p, uint32 size)
 		if (base) {
 			p16 = (uint16 *)(p + base);
 
-#if defined(USE_SCRATCHMEM_SUBTERFUGE)
+#if USE_SCRATCHMEM_SUBTERFUGE
 			// Set 0x0000 to scratch memory area
 			extern uint8 *ScratchMem;
 			const uint32 ScratchMemBase = Host2MacAddr(ScratchMem);

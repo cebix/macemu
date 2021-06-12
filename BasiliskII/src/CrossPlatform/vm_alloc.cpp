@@ -133,8 +133,6 @@ static int translate_map_flags(int vm_flags)
 		flags |= MAP_SHARED;
 	if (vm_flags & VM_MAP_PRIVATE)
 		flags |= MAP_PRIVATE;
-	if (vm_flags & VM_MAP_FIXED)
-		flags |= MAP_FIXED;
 	if (vm_flags & VM_MAP_32BIT)
 		flags |= FORCE_MAP_32BIT;
 	return flags;
@@ -236,33 +234,13 @@ void vm_exit(void)
 #endif
 }
 
-static void *reserved_buf;
-static const size_t RESERVED_SIZE = 64 * 1024 * 1024; // for 5K Retina
-
-void *vm_acquire_reserved(size_t size) {
-	return reserved_buf && size <= RESERVED_SIZE ? reserved_buf : VM_MAP_FAILED;
-}
-
-int vm_init_reserved(void *hostAddress) {
-    int result = vm_acquire_fixed(hostAddress, RESERVED_SIZE);
-    if (result >= 0)
-        reserved_buf = hostAddress;
-    return result;
-}
-
 /* Allocate zero-filled memory of SIZE bytes. The mapping is private
    and default protection bits are read / write. The return value
    is the actual mapping address chosen or VM_MAP_FAILED for errors.  */
 
-void * vm_acquire(size_t size, int options)
-{
+void * vm_acquire(size_t size, int options){
 	void * addr;
-	
 	errno = 0;
-
-	// VM_MAP_FIXED are to be used with vm_acquire_fixed() only
-	if (options & VM_MAP_FIXED)
-		return VM_MAP_FAILED;
 
 #ifndef HAVE_VM_WRITE_WATCH
 	if (options & VM_MAP_WRITE_WATCH)
@@ -271,19 +249,18 @@ void * vm_acquire(size_t size, int options)
 
 #if defined(HAVE_MACH_VM)
 	// vm_allocate() returns a zero-filled memory region
-	kern_return_t ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, reserved_buf ? size : size + RESERVED_SIZE, TRUE);
+	kern_return_t ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, TRUE);
 	if (ret_code != KERN_SUCCESS) {
 		errno = vm_error(ret_code);
 		return VM_MAP_FAILED;
 	}
-	if (!reserved_buf)
-		reserved_buf = (char *)addr + size;
 #elif defined(HAVE_MMAP_VM)
 	int fd = zero_fd;
 	int the_map_flags = translate_map_flags(options) | map_flags;
 
 	if ((addr = mmap((caddr_t)next_address, size, VM_PAGE_DEFAULT, the_map_flags, fd, 0)) == (void *)MAP_FAILED)
 		return VM_MAP_FAILED;
+	printf("next=%p got=%p size=%p\n",next_address,addr,size);
 	
 #if DIRECT_ADDRESSING
 	// If MAP_32BIT and MAP_BASE fail to ensure
@@ -315,63 +292,6 @@ void * vm_acquire(size_t size, int options)
 		return VM_MAP_FAILED;
 	
 	return addr;
-}
-
-/* Allocate zero-filled memory at exactly ADDR (which must be page-aligned).
-   Retuns 0 if successful, -1 on errors.  */
-
-int vm_acquire_fixed(void * addr, size_t size, int options)
-{
-	errno = 0;
-	
-	// Fixed mappings are required to be private
-	if (options & VM_MAP_SHARED)
-		return -1;
-
-#ifndef HAVE_VM_WRITE_WATCH
-	if (options & VM_MAP_WRITE_WATCH)
-		return -1;
-#endif
-
-#if defined(HAVE_MACH_VM)
-	// vm_allocate() returns a zero-filled memory region
-	kern_return_t ret_code = vm_allocate(mach_task_self(), (vm_address_t *)&addr, size, 0);
-	if (ret_code != KERN_SUCCESS) {
-		errno = vm_error(ret_code);
-		return -1;
-	}
-#elif defined(HAVE_MMAP_VM)
-	int fd = zero_fd;
-	int the_map_flags = translate_map_flags(options) | map_flags | MAP_FIXED;
-
-	if (mmap((caddr_t)addr, size, VM_PAGE_DEFAULT, the_map_flags, fd, 0) == (void *)MAP_FAILED)
-		return -1;
-#elif defined(HAVE_WIN32_VM)
-	// Windows cannot allocate Low Memory
-	if (addr == NULL)
-		return -1;
-
-	int alloc_type = MEM_RESERVE | MEM_COMMIT;
-	if (options & VM_MAP_WRITE_WATCH)
-	  alloc_type |= MEM_WRITE_WATCH;
-
-	// Allocate a possibly offset region to align on 64K boundaries
-	LPVOID req_addr = align_addr_segment(addr);
-	DWORD  req_size = align_size_segment(addr, size);
-	LPVOID ret_addr = VirtualAlloc(req_addr, req_size, alloc_type, PAGE_EXECUTE_READWRITE);
-	if (ret_addr != req_addr)
-		return -1;
-#else
-	// Unsupported
-	return -1;
-#endif
-
-	// Explicitely protect the newly mapped region here because on some systems,
-	// say MacOS X, mmap() doesn't honour the requested protection flags.
-	if (vm_protect(addr, size, VM_PAGE_DEFAULT) != 0)
-		return -1;
-
-	return 0;
 }
 
 /* Deallocate any mapping for the region starting at ADDR and extending

@@ -110,9 +110,9 @@ static int16 mouse_wheel_mode;
 static int16 mouse_wheel_lines;
 static bool mouse_wheel_reverse;
 
-static uint8 *the_buffer = NULL;					// Mac frame buffer (where MacOS draws into)
-static uint8 *the_buffer_copy = NULL;				// Copy of Mac frame buffer (for refreshed modes)
-static uint32 the_buffer_size;						// Size of allocated the_buffer
+extern uint8* MacFrameBaseHost;			// Mac frame buffer (where MacOS draws into)
+static uint8* the_buffer_copy = NULL;	// Copy of Mac frame buffer (for refreshed modes)
+static uint32 the_buffer_size;			// Size of active frame buffer
 
 static bool redraw_thread_active = false;			// Flag: Redraw thread installed
 #ifndef USE_CPU_EMUL_SERVICES
@@ -224,41 +224,7 @@ extern void SysMountFirstFloppy(void);
 		SDL_UnlockSurface(SURFACE);				\
 } while (0)
 
-
-/*
- *  Framebuffer allocation routines
- */
-
-static void *vm_acquire_framebuffer(uint32 size)
-{
-#ifdef HAVE_MACH_VM
-	return vm_acquire_reserved(size);
-#else
-	// always try to reallocate framebuffer at the same address
-	static void *fb = VM_MAP_FAILED;
-	if (fb != VM_MAP_FAILED) {
-		if (vm_acquire_fixed(fb, size) < 0) {
-#ifndef SHEEPSHAVER
-			printf("FATAL: Could not reallocate framebuffer at previous address\n");
-#endif
-			fb = VM_MAP_FAILED;
-		}
-	}
-	if (fb == VM_MAP_FAILED)
-		fb = vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
-	return fb;
-#endif
-}
-
-static inline void vm_release_framebuffer(void *fb, uint32 size)
-{
-#ifndef HAVE_MACH_VM
-	vm_release(fb, size);
-#endif
-}
-
-static inline int get_customized_color_depth(int default_depth)
-{
+static inline int get_customized_color_depth(int default_depth){
 	int display_color_depth = PrefsFindInt32("displaycolordepth");
 
 	D(bug("Get displaycolordepth %d\n", display_color_depth));
@@ -520,9 +486,9 @@ static void add_mode(int type, int width, int height, int resolution_id, int byt
 	VideoModes.push_back(mode);
 }
 
-// Set Mac frame layout and base address (uses the_buffer/MacFrameBaseMac)
-static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth, bool native_byte_order)
-{
+// Set Mac frame layout and base address
+static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth, bool native_byte_order){
+	assert(MacFrameBaseHost);
 #if !REAL_ADDRESSING && !DIRECT_ADDRESSING
 	int layout = FLAYOUT_DIRECT;
 	if (depth == VIDEO_DEPTH_16BIT)
@@ -537,11 +503,11 @@ static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth, bool nati
 
 	// Set variables used by UAE memory banking
 	const VIDEO_MODE &mode = monitor.get_current_mode();
-	MacFrameBaseHost = the_buffer;
 	MacFrameSize = VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y;
-	InitFrameBufferMapping();
+	memory_init();
 #else
-	monitor.set_mac_frame_base(Host2MacAddr(the_buffer));
+	assert(Host2MacAddr(0));
+	monitor.set_mac_frame_base(Host2MacAddr(MacFrameBaseHost));
 #endif
 	D(bug("monitor.mac_frame_base = %08x\n", monitor.get_mac_frame_base()));
 }
@@ -660,7 +626,6 @@ static driver_base *drv = NULL;	// Pointer to currently used driver object
 driver_base::driver_base(SDL_monitor_desc &m)
 	: monitor(m), mode(m.get_current_mode()), init_ok(false), s(NULL)
 {
-	the_buffer = NULL;
 	the_buffer_copy = NULL;
 }
 
@@ -1025,9 +990,10 @@ void driver_base::init()
 	use_vosf = true;
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
 	the_buffer_size = page_extend((aligned_height + 2) * s->pitch);
-	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
+	assert(the_buffer_size<=VRAMSize);
+	assert(MacFrameBaseHost);
 	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
-	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
+	D(bug("MacFrameBaseHost = %p, the_buffer_copy = %p, the_host_buffer = %p\n", MacFrameBaseHost, the_buffer_copy, the_host_buffer));
 
 	// Check whether we can initialize the VOSF subsystem and it's profitable
 	if (!video_vosf_init(monitor)) {
@@ -1041,16 +1007,16 @@ void driver_base::init()
 	}
     if (!use_vosf) {
 		free(the_buffer_copy);
-		vm_release(the_buffer, the_buffer_size);
 		the_host_buffer = NULL;
 	}
 #endif
 	if (!use_vosf) {
 		// Allocate memory for frame buffer
 		the_buffer_size = (aligned_height + 2) * s->pitch;
+		assert(the_buffer_size<=VRAMSize);
+		assert(MacFrameBaseHost);
 		the_buffer_copy = (uint8 *)calloc(1, the_buffer_size);
-		the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
-		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
+		D(bug("MacFrameBaseHost = %p, the_buffer_copy = %p\n", MacFrameBaseHost, the_buffer_copy));
 	}
 
 	// Set frame buffer base
@@ -1125,13 +1091,6 @@ driver_base::~driver_base()
 	delete_sdl_video_surfaces();	// This deletes instances of SDL_Surface and SDL_Texture
 	//shutdown_sdl_video();			// This deletes SDL_Window, SDL_Renderer, in addition to
 									// instances of SDL_Surface and SDL_Texture.
-
-	// the_buffer shall always be mapped through vm_acquire_framebuffer()
-	if (the_buffer != VM_MAP_FAILED) {
-		D(bug(" releasing the_buffer at %p (%d bytes)\n", the_buffer, the_buffer_size));
-		vm_release_framebuffer(the_buffer, the_buffer_size);
-		the_buffer = NULL;
-	}
 
 	// Free frame buffer(s)
 	if (!use_vosf) {
@@ -2211,11 +2170,11 @@ static void force_complete_window_refresh()
 			UNLOCK_VOSF;
 		}
 #endif
-		// Ensure each byte of the_buffer_copy differs from the_buffer to force a full update.
+		// Ensure each byte of the_buffer_copy differs from Mac framebuffer to force a full update.
 		const VIDEO_MODE &mode = VideoMonitors[0]->get_current_mode();
 		const int len = VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y;
 		for (int i = 0; i < len; i++)
-			the_buffer_copy[i] = !the_buffer[i];
+			the_buffer_copy[i] = !MacFrameBaseHost[i];
 	}
 }
 
@@ -2449,14 +2408,14 @@ static void update_display_static(driver_base *drv)
 	// Check for first line from top and first line from bottom that have changed
 	y1 = 0;
 	for (uint32 j = 0; j < VIDEO_MODE_Y; j++) {
-		if (memcmp(&the_buffer[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
+		if (memcmp(&MacFrameBaseHost[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
 			y1 = j;
 			break;
 		}
 	}
 	y2 = y1 - 1;
 	for (uint32 j = VIDEO_MODE_Y; j-- > y1; ) {
-		if (memcmp(&the_buffer[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
+		if (memcmp(&MacFrameBaseHost[j * bytes_per_row], &the_buffer_copy[j * bytes_per_row], bytes_per_row)) {
 			y2 = j;
 			break;
 		}
@@ -2474,7 +2433,7 @@ static void update_display_static(driver_base *drv)
 			
 			x1 = line_len;
 			for (uint32 j = y1; j <= y2; j++) {
-				p = &the_buffer[j * bytes_per_row];
+				p = &MacFrameBaseHost[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
 				for (uint32 i = 0; i < x1; i++) {
 					if (*p != *p2) {
@@ -2486,7 +2445,7 @@ static void update_display_static(driver_base *drv)
 			}
 			x2 = x1;
 			for (uint32 j = y1; j <= y2; j++) {
-				p = &the_buffer[j * bytes_per_row];
+				p = &MacFrameBaseHost[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
 				p += bytes_per_row;
 				p2 += bytes_per_row;
@@ -2505,7 +2464,7 @@ static void update_display_static(driver_base *drv)
 			x2_clipped = x2 > VIDEO_MODE_X? VIDEO_MODE_X : x2;
 			wide_clipped = x2_clipped - x1;
 
-			// Update copy of the_buffer
+			// Update copy of frame buffer
 			if (high && wide) {
 
 				// Lock surface, if required
@@ -2516,8 +2475,8 @@ static void update_display_static(driver_base *drv)
 				int si = y1 * src_bytes_per_row + (x1 / pixels_per_byte);
 				int di = y1 * dst_bytes_per_row + x1;
 				for (uint32 j = y1; j <= y2; j++) {
-					memcpy(the_buffer_copy + si, the_buffer + si, wide / pixels_per_byte);
-					Screen_blit((uint8 *)drv->s->pixels + di, the_buffer + si, wide / pixels_per_byte);
+					memcpy(the_buffer_copy + si, MacFrameBaseHost + si, wide / pixels_per_byte);
+					Screen_blit((uint8 *)drv->s->pixels + di, MacFrameBaseHost + si, wide / pixels_per_byte);
 					si += src_bytes_per_row;
 					di += dst_bytes_per_row;
 				}
@@ -2536,7 +2495,7 @@ static void update_display_static(driver_base *drv)
 
 			x1 = VIDEO_MODE_X;
 			for (uint32 j = y1; j <= y2; j++) {
-				p = &the_buffer[j * bytes_per_row];
+				p = &MacFrameBaseHost[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
 				for (uint32 i = 0; i < x1 * bytes_per_pixel; i++) {
 					if (*p != *p2) {
@@ -2548,7 +2507,7 @@ static void update_display_static(driver_base *drv)
 			}
 			x2 = x1;
 			for (uint32 j = y1; j <= y2; j++) {
-				p = &the_buffer[j * bytes_per_row];
+				p = &MacFrameBaseHost[j * bytes_per_row];
 				p2 = &the_buffer_copy[j * bytes_per_row];
 				p += bytes_per_row;
 				p2 += bytes_per_row;
@@ -2563,7 +2522,7 @@ static void update_display_static(driver_base *drv)
 			}
 			wide = x2 - x1;
 
-			// Update copy of the_buffer
+			// Update copy of frame buffer
 			if (high && wide) {
 
 				// Lock surface, if required
@@ -2574,8 +2533,8 @@ static void update_display_static(driver_base *drv)
 				for (uint32 j = y1; j <= y2; j++) {
 					uint32 i = j * bytes_per_row + x1 * bytes_per_pixel;
 					int dst_i = j * dst_bytes_per_row + x1 * bytes_per_pixel;
-					memcpy(the_buffer_copy + i, the_buffer + i, bytes_per_pixel * wide);
-					Screen_blit((uint8 *)drv->s->pixels + dst_i, the_buffer + i, bytes_per_pixel * wide);
+					memcpy(the_buffer_copy + i, MacFrameBaseHost + i, bytes_per_pixel * wide);
+					Screen_blit((uint8 *)drv->s->pixels + dst_i, MacFrameBaseHost + i, bytes_per_pixel * wide);
 				}
 
 				// Unlock surface, if required
@@ -2624,9 +2583,9 @@ static void update_display_static_bbox(driver_base *drv)
 			for (uint32 j = y; j < (y + h); j++) {
 				const uint32 yb = j * bytes_per_row;
 				const uint32 dst_yb = j * dst_bytes_per_row;
-				if (memcmp(&the_buffer[yb + xb], &the_buffer_copy[yb + xb], xs) != 0) {
-					memcpy(&the_buffer_copy[yb + xb], &the_buffer[yb + xb], xs);
-					Screen_blit((uint8 *)drv->s->pixels + dst_yb + xb, the_buffer + yb + xb, xs);
+				if (memcmp(&MacFrameBaseHost[yb + xb], &the_buffer_copy[yb + xb], xs) != 0) {
+					memcpy(&the_buffer_copy[yb + xb], &MacFrameBaseHost[yb + xb], xs);
+					Screen_blit((uint8 *)drv->s->pixels + dst_yb + xb, MacFrameBaseHost + yb + xb, xs);
 					dirty = true;
 				}
 			}

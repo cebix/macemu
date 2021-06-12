@@ -36,6 +36,7 @@ extern uint32 RAMSize;			// Size of RAM
 extern uint32 ROMBaseMac;		// ROM base (Mac address space)
 extern uint8 *ROMBaseHost;		// ROM base (host address space)
 extern uint32 ROMSize;			// Size of ROM
+extern uint32 VRAMSize;			// Size of VRAM
 
 #if !DIRECT_ADDRESSING
 // If we are not using direct addressing, the Mac frame buffer gets
@@ -78,6 +79,8 @@ static inline void *Mac2Mac_memcpy(uint32 dest, uint32 src, size_t n) {return me
  */
 
 // Initialization
+extern bool InitMacMem(void);
+extern void MacMemExit(void);
 extern bool Init680x0(void);	// This routine may want to look at CPUType/FPUType to set up the apropriate emulation
 extern void Exit680x0(void);
 extern void InitFrameBufferMapping(void);

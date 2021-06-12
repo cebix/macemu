@@ -32,7 +32,6 @@
 #include <string>
 typedef std::basic_string<TCHAR> tstring;
 
-#include "cpu_emulation.h"
 #include "sys.h"
 #include "rom_patches.h"
 #include "xpram.h"
@@ -46,7 +45,6 @@ typedef std::basic_string<TCHAR> tstring;
 #include "user_strings.h"
 #include "version.h"
 #include "main.h"
-#include "vm_alloc.h"
 #include "sigsegv.h"
 #include "util_windows.h"
 
@@ -60,19 +58,6 @@ extern void flush_icache_range(uint8 *start, uint32 size); // from compemu_suppo
 
 #define DEBUG 0
 #include "debug.h"
-
-
-// Constants
-const TCHAR ROM_FILE_NAME[] = TEXT("ROM");
-const int SCRATCH_MEM_SIZE = 0x10000;	// Size of scratch memory area
-
-
-// CPU and FPU type, addressing mode
-int CPUType;
-bool CPUIs68060;
-int FPUType;
-bool TwentyFourBitAddressing;
-
 
 // Global variables
 HANDLE emul_thread = NULL;							// Handle of MacOS emulation thread (main thread)
@@ -90,15 +75,10 @@ static SDL_mutex *intflag_lock = NULL;				// Mutex to protect InterruptFlags
 #define LOCK_INTFLAGS SDL_LockMutex(intflag_lock)
 #define UNLOCK_INTFLAGS SDL_UnlockMutex(intflag_lock)
 
-#if USE_SCRATCHMEM_SUBTERFUGE
-uint8 *ScratchMem = NULL;			// Scratch memory for Mac ROM writes
-#endif
-
 // Prototypes
 static int xpram_func(void *arg);
 static int tick_func(void *arg);
 static void one_tick(...);
-
 
 /*
  *  Ersatz functions
@@ -116,17 +96,6 @@ char *strdup(const char *s)
 #endif
 
 }
-
-
-/*
- *  Map memory that can be accessed from the Mac side
- */
-
-void *vm_acquire_mac(size_t size)
-{
-	return vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
-}
-
 
 /*
  *  SIGSEGV handler
@@ -202,14 +171,11 @@ static void usage(const char *prg_name)
 	exit(0);
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv){
 	char str[256];
 	bool cd_boot = false;
 
 	// Initialize variables
-	RAMBaseHost = NULL;
-	ROMBaseHost = NULL;
 	srand(unsigned(time(NULL)));
 	tzset();
 
@@ -313,76 +279,6 @@ int main(int argc, char **argv)
 	// Register dump state function when we got mad after a segfault
 	sigsegv_set_dump_state(sigsegv_dump_state);
 
-	// Read RAM size
-	RAMSize = PrefsFindInt32("ramsize");
-	if (RAMSize <= 1000) {
-		RAMSize *= 1024 * 1024;
-	}
-	RAMSize &= 0xfff00000;	// Round down to 1MB boundary
-	if (RAMSize < 1024*1024) {
-		WarningAlert(GetString(STR_SMALL_RAM_WARN));
-		RAMSize = 1024*1024;
-	}
-	
-	// Initialize VM system
-	vm_init();
-
-	// Create areas for Mac RAM and ROM
-	uint8 *ram_rom_area = (uint8 *)vm_acquire_mac(RAMSize + 0x100000);
-	if (ram_rom_area == VM_MAP_FAILED) {
-		ErrorAlert(STR_NO_MEM_ERR);
-		QuitEmulator();
-	}
-	RAMBaseHost = ram_rom_area;
-	ROMBaseHost = RAMBaseHost + RAMSize;
-
-#if USE_SCRATCHMEM_SUBTERFUGE
-	// Allocate scratch memory
-	ScratchMem = (uint8 *)vm_acquire(SCRATCH_MEM_SIZE);
-	if (ScratchMem == VM_MAP_FAILED) {
-		ErrorAlert(STR_NO_MEM_ERR);
-		QuitEmulator();
-	}
-	ScratchMem += SCRATCH_MEM_SIZE/2;	// ScratchMem points to middle of block
-#endif
-
-#if DIRECT_ADDRESSING
-	// RAMBaseMac shall always be zero
-	MEMBaseDiff = (uintptr)RAMBaseHost;
-	RAMBaseMac = 0;
-	ROMBaseMac = Host2MacAddr(ROMBaseHost);
-#endif
-	D(bug("Mac RAM starts at %p (%08x)\n", RAMBaseHost, RAMBaseMac));
-	D(bug("Mac ROM starts at %p (%08x)\n", ROMBaseHost, ROMBaseMac));
-	
-	// Get rom file path from preferences
-	const char* rom_path = PrefsFindString("rom");
-
-	// Load Mac ROM
-	HANDLE rom_fh = CreateFile((rom_path != NULL) ? rom_path : ROM_FILE_NAME,
-							   GENERIC_READ,
-							   FILE_SHARE_READ, NULL,
-							   OPEN_EXISTING,
-							   FILE_ATTRIBUTE_NORMAL,
-							   NULL);
-	if (rom_fh == INVALID_HANDLE_VALUE) {
-		ErrorAlert(STR_NO_ROM_FILE_ERR);
-		QuitEmulator();
-	}
-	printf(GetString(STR_READING_ROM_FILE));
-	ROMSize = GetFileSize(rom_fh, NULL);
-	if (ROMSize != 64*1024 && ROMSize != 128*1024 && ROMSize != 256*1024 && ROMSize != 512*1024 && ROMSize != 1024*1024) {
-		ErrorAlert(STR_ROM_SIZE_ERR);
-		CloseHandle(rom_fh);
-		QuitEmulator();
-	}
-	DWORD bytes_read;
-	if (ReadFile(rom_fh, ROMBaseHost, ROMSize, &bytes_read, NULL) == 0 || bytes_read != ROMSize) {
-		ErrorAlert(STR_ROM_FILE_READ_ERR);
-		CloseHandle(rom_fh);
-		QuitEmulator();
-	}
-
 	// Initialize native timers
 	timer_init();
 
@@ -421,8 +317,7 @@ int main(int argc, char **argv)
  *  Quit emulator
  */
 
-void QuitEmulator(void)
-{
+void QuitEmulator(void){
 	D(bug("QuitEmulator\n"));
 
 	// Exit 680x0 emulation
@@ -443,27 +338,6 @@ void QuitEmulator(void)
 	// Deinitialize everything
 	ExitAll();
 
-	// Free ROM/RAM areas
-	if (RAMBaseHost != VM_MAP_FAILED) {
-		vm_release(RAMBaseHost, RAMSize);
-		RAMBaseHost = NULL;
-	}
-	if (ROMBaseHost != VM_MAP_FAILED) {
-		vm_release(ROMBaseHost, 0x100000);
-		ROMBaseHost = NULL;
-	}
-
-#if USE_SCRATCHMEM_SUBTERFUGE
-	// Delete scratch memory area
-	if (ScratchMem != (uint8 *)VM_MAP_FAILED) {
-		vm_release((void *)(ScratchMem - SCRATCH_MEM_SIZE/2), SCRATCH_MEM_SIZE);
-		ScratchMem = NULL;
-	}
-#endif
-
-	// Exit VM wrappers
-	vm_exit();
-
 	// Exit system routines
 	SysExit();
 
@@ -472,21 +346,6 @@ void QuitEmulator(void)
 
 	exit(0);
 }
-
-
-/*
- *  Code was patched, flush caches if neccessary (i.e. when using a real 680x0
- *  or a dynamically recompiling emulator)
- */
-
-void FlushCodeCache(void *start, uint32 size)
-{
-#if USE_JIT
-    if (UseJIT)
-		flush_icache_range((uint8 *)start, size);
-#endif
-}
-
 
 /*
  *  Mutexes

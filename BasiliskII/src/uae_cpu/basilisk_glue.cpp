@@ -31,23 +31,39 @@
 #include "readcpu.h"
 #include "newcpu.h"
 #include "compiler/compemu.h"
+#include "vm_alloc.h"
+#include "user_strings.h"
 
-
-// RAM and ROM pointers
-uint32 RAMBaseMac = 0;		// RAM base (Mac address space) gb-- initializer is important
-uint8 *RAMBaseHost;			// RAM base (host address space)
-uint32 RAMSize;				// Size of RAM
-uint32 ROMBaseMac;			// ROM base (Mac address space)
-uint8 *ROMBaseHost;			// ROM base (host address space)
-uint32 ROMSize;				// Size of ROM
-
-// Mac frame buffer
-uint8 *MacFrameBaseHost;	// Frame buffer base (host address space)
-uint32 MacFrameSize;		// Size of frame buffer
-int MacFrameLayout;			// Frame buffer layout
+#include "debug.h"
 
 #if DIRECT_ADDRESSING
-uintptr MEMBaseDiff;		// Global offset between a Mac address and its Host equivalent
+uintptr MEMBaseDiff = 0;	// Global offset between a Mac address and its Host equivalent
+#endif
+
+// RAM and ROM pointers
+uint8* RAMBaseHost = 0;		// RAM base (host address space)
+uint8* ROMBaseHost = 0;		// ROM base (host address space)
+uint32 RAMBaseMac = 0;		// RAM base (Mac address space)
+uint32 ROMBaseMac = 0;		// ROM base (Mac address space)
+uint32 RAMSize = 0;			// Size of RAM
+uint32 ROMSize = 0;			// Size of ROM
+
+// Mac frame buffer
+uint8* MacFrameBaseHost;	// Frame buffer base (host address space)
+uint32 MacFrameSize;			// Size of current frame buffer
+int MacFrameLayout;			// Frame buffer layout
+uint32 VRAMSize;				// Size of VRAM
+
+uint32 JITCacheSize=0;
+
+const char ROM_FILE_NAME[] = "ROM";
+const int MAX_ROM_SIZE = 1024*1024;	// 1mb
+
+#if USE_SCRATCHMEM_SUBTERFUGE
+uint8* ScratchMem = NULL;	// Scratch memory for Mac ROM writes
+int ScratchMemSize = 64*1024; // 64k
+#else
+int ScratchMemSize = 0;
 #endif
 
 #if USE_JIT
@@ -57,20 +73,122 @@ bool UseJIT = false;
 // From newcpu.cpp
 extern bool quit_program;
 
+// Create our virtual Macintosh memory map and load ROM
+bool InitMacMem(void){
+	assert(RAMBaseHost==0); // don't call us twice
 
-/*
- *  Initialize 680x0 emulation, CheckROM() must have been called first
- */
+	// Read RAM size
+	RAMSize = PrefsFindInt32("ramsize");
+	if (RAMSize <= 1000) {
+		RAMSize *= 1024 * 1024;
+	}
+	RAMSize &= 0xfff00000;	// Round down to 1MB boundary
+	if (RAMSize < 1024*1024) {
+		WarningAlert(GetString(STR_SMALL_RAM_WARN));
+		RAMSize = 1024*1024;
+	}
+	if (RAMSize > 1023*1024*1024) // Cap to 1023MB (APD crashes at 1GB)
+		RAMSize = 1023*1024*1024;
 
-bool Init680x0(void){
+	VRAMSize = 16*1024*1024; // 16mb, more than enough for 1920x1440x32
+
+#if USE_JIT
+	JITCacheSize = 1024*PrefsFindInt32("jitcachesize") + 1024;
+#endif
+
+	// Initialize VM system
+	vm_init();
+
+	// Create our virtual Macintosh memory map
+	RAMBaseHost = (uint8*)vm_acquire(
+			RAMSize + ScratchMemSize + MAX_ROM_SIZE + VRAMSize + JITCacheSize,
+			VM_MAP_DEFAULT | VM_MAP_32BIT);
+	if (RAMBaseHost == VM_MAP_FAILED) {
+		ErrorAlert(STR_NO_MEM_ERR);
+		return false;
+	}
+	printf("RAMBaseHost=%p\n",RAMBaseHost);
+	ROMBaseHost = RAMBaseHost + RAMSize + ScratchMemSize;
+	printf("ROMBaseHost=%p\n",ROMBaseHost);
+	MacFrameBaseHost = ROMBaseHost + MAX_ROM_SIZE;
+	printf("MacFrameBaseHost=%p\n",MacFrameBaseHost);
+
+#if USE_SCRATCHMEM_SUBTERFUGE
+	// points to middle of scratch memory
+	ScratchMem = RAMBaseHost + RAMSize + ScratchMemSize/2;
+	printf("ScratchMem=%p\n",ScratchMem);
+#endif
+
+	// Get rom file path from preferences
+	const char *rom_path = PrefsFindString("rom");
+
+	// Load Mac ROM
+#ifdef WIN32
+	HANDLE rom_fh = CreateFile(
+		rom_path ? rom_path : ROM_FILE_NAME,
+		GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL, NULL);
+
+	if (rom_fh == INVALID_HANDLE_VALUE) {
+		ErrorAlert(STR_NO_ROM_FILE_ERR);
+		return false;
+	}
+#else
+	int rom_fd = open(rom_path ? rom_path : ROM_FILE_NAME, O_RDONLY);
+	if (rom_fd < 0) {
+		ErrorAlert(STR_NO_ROM_FILE_ERR);
+		return false;
+	}
+#endif
+	printf("%s", GetString(STR_READING_ROM_FILE));
+#ifdef WIN32
+	ROMSize = GetFileSize(rom_fh, NULL);
+#else
+	ROMSize = lseek(rom_fd, 0, SEEK_END);
+#endif
+	switch(ROMSize){
+		case  64*1024:
+		case 128*1024:
+		case 256*1024:
+		case 512*1024:
+		case MAX_ROM_SIZE:
+			break;
+		default:
+			ErrorAlert(STR_ROM_SIZE_ERR);
+#ifdef WIN32
+			CloseHandle(rom_fh);
+#else
+			close(rom_fd);
+#endif
+			return false;
+	}
+#ifdef WIN32
+	DWORD bytes_read;
+	if (ReadFile(rom_fh, ROMBaseHost, ROMSize, &bytes_read, NULL) == 0 || bytes_read != ROMSize) {
+#else
+	lseek(rom_fd, 0, SEEK_SET);
+	if (read(rom_fd, ROMBaseHost, ROMSize) != (ssize_t)ROMSize) {
+#endif
+		ErrorAlert(STR_ROM_FILE_READ_ERR);
+#ifdef WIN32
+		CloseHandle(rom_fh);
+#else
+		close(rom_fd);
+#endif
+		return false;
+	}
+
+	if (!CheckROM()) {
+		ErrorAlert(STR_UNSUPPORTED_ROM_TYPE_ERR);
+		return false;
+	}
+
 #if DIRECT_ADDRESSING
 	// Mac address space = host address space minus constant offset (MEMBaseDiff)
-	// NOTE: MEMBaseDiff is set up in main_unix.cpp/main()
-	RAMBaseMac = 0;
+	MEMBaseDiff = (uintptr)RAMBaseHost;
 	ROMBaseMac = Host2MacAddr(ROMBaseHost);
 #else
 	// Initialize UAE memory banks
-	RAMBaseMac = 0;
 	switch (ROMVersion) {
 		case ROM_VERSION_64K:
 		case ROM_VERSION_PLUS:
@@ -88,12 +206,32 @@ bool Init680x0(void){
 	}
 	memory_init();
 #endif
+	D(bug("Mac RAM starts at %p (%08x)\n", RAMBaseHost, RAMBaseMac));
+	D(bug("Mac ROM starts at %p (%08x)\n", ROMBaseHost, ROMBaseMac));
 
+	return true;
+}
+
+void MacMemExit(void){
+	assert(RAMBaseHost);
+	vm_release(RAMBaseHost,
+			RAMSize + ScratchMemSize + MAX_ROM_SIZE + VRAMSize + JITCacheSize);
+	RAMBaseHost = NULL;
+	ROMBaseHost = NULL;
+	//Exit VM wrappers
+	vm_exit();
+}
+
+/*
+ *  Initialize 680x0 emulation, CheckROM() must have been called first
+ */
+
+bool Init680x0(void){
 	init_m68k();
 #if USE_JIT
 	UseJIT = compiler_use_jit();
 	if (UseJIT)
-	    compiler_init();
+	    compiler_init(MacFrameBaseHost + VRAMSize);
 #endif
 	return true;
 }
@@ -110,16 +248,6 @@ void Exit680x0(void)
 	compiler_exit();
 #endif
 	exit_m68k();
-}
-
-/*
- *  Initialize memory mapping of frame buffer (called upon video mode change)
- */
-
-void InitFrameBufferMapping(void){
-#if !DIRECT_ADDRESSING
-	memory_init();
-#endif
 }
 
 /*

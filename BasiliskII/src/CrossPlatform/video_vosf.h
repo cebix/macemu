@@ -211,13 +211,18 @@ static int log_base_2(uint32 x)
 }
 
 // Extend size to page boundary
-static uint32 page_extend(uint32 size)
-{
-	const uint32 page_size = vm_get_page_size();
-	const uint32 page_mask = page_size - 1;
+static size_t page_extend(size_t size){
+	const size_t page_size = vm_get_page_size();
+	const size_t page_mask = page_size - 1;
 	return (size + page_mask) & ~page_mask;
 }
 
+// For use with assert()
+static bool is_page_aligned(size_t size){
+	const size_t page_size = vm_get_page_size();
+	const size_t page_mask = page_size - 1;
+	return (size&page_mask)==0;
+}
 
 /*
  *  Check if VOSF acceleration is profitable on this platform
@@ -272,17 +277,16 @@ static bool video_vosf_profitable(uint32 *duration_p = NULL, uint32 *n_page_faul
  *  Initialize the VOSF system (mainBuffer structure, SIGSEGV handler)
  */
 
-static bool video_vosf_init(MONITOR_INIT)
-{
+static bool video_vosf_init(MONITOR_INIT){
 	VIDEO_MODE_INIT_MONITOR;
 
-	const uintptr page_size = vm_get_page_size();
-	const uintptr page_mask = page_size - 1;
+	const size_t page_size = vm_get_page_size();
+	const size_t page_mask = page_size - 1;
 	
-	// Round up frame buffer base to page boundary
-	mainBuffer.memStart = (((uintptr) the_buffer) + page_mask) & ~page_mask;
-	
-	// The frame buffer size shall already be aligned to page boundary (use page_extend)
+	// Must be page aligned (use page_extend)
+	assert(is_page_aligned((size_t)MacFrameBaseHost));
+	assert(is_page_aligned(the_buffer_size));
+	mainBuffer.memStart = (uintptr)MacFrameBaseHost;
 	mainBuffer.memLength = the_buffer_size;
 	
 	mainBuffer.pageSize = page_size;
@@ -513,7 +517,7 @@ static void update_display_window_vosf(VIDEO_DRV_WIN_INIT)
 		const int dst_bytes_per_row = VIDEO_DRV_ROW_BYTES;
 		int i1 = y1 * src_bytes_per_row, i2 = y1 * dst_bytes_per_row, j;
 		for (j = y1; j <= y2; j++) {
-			Screen_blit(the_host_buffer + i2, the_buffer + i1, src_bytes_per_row);
+			Screen_blit(the_host_buffer + i2, MacFrameBaseHost + i1, src_bytes_per_row);
 			i1 += src_bytes_per_row;
 			i2 += dst_bytes_per_row;
 		}
@@ -554,11 +558,11 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT){
 	if (mainBuffer.very_dirty) {
 		PFLAG_CLEAR_ALL;
 		vm_protect((char *)mainBuffer.memStart, mainBuffer.memLength, VM_PAGE_READ);
-		memcpy(the_buffer_copy, the_buffer, VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y);
+		memcpy(the_buffer_copy, MacFrameBaseHost, VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y);
 		VIDEO_DRV_LOCK_PIXELS;
 		int i1 = 0, i2 = 0;
 		for (uint32_t j = 0;  j < VIDEO_MODE_Y; j++) {
-			Screen_blit(the_host_buffer + i2, the_buffer + i1, src_bytes_per_row);
+			Screen_blit(the_host_buffer + i2, MacFrameBaseHost + i1, src_bytes_per_row);
 			i1 += src_bytes_per_row;
 			i2 += scr_bytes_per_row;
 		}
@@ -606,7 +610,7 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT){
 		}
 		last_scanline = y2;
 
-		// Update the_host_buffer and copy of the_buffer, one line at a time
+		// Update the_host_buffer and copy of frame buffer, one line at a time
 		uint32 i1 = y1 * src_bytes_per_row;
 		uint32 i2 = y1 * scr_bytes_per_row;
 #ifdef USE_SDL_VIDEO
@@ -620,9 +624,9 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT){
 		VIDEO_DRV_LOCK_PIXELS;
 		for (uint32 j = y1; j <= y2; j++) {
 			for (uint32 i = 0; i < n_chunks; i++) {
-				if (memcmp(the_buffer_copy + i1, the_buffer + i1, src_chunk_size) != 0) {
-					memcpy(the_buffer_copy + i1, the_buffer + i1, src_chunk_size);
-					Screen_blit(the_host_buffer + i2, the_buffer + i1, src_chunk_size);
+				if (memcmp(the_buffer_copy + i1, MacFrameBaseHost + i1, src_chunk_size) != 0) {
+					memcpy(the_buffer_copy + i1, MacFrameBaseHost + i1, src_chunk_size);
+					Screen_blit(the_host_buffer + i2, MacFrameBaseHost + i1, src_chunk_size);
 #ifdef USE_SDL_VIDEO
 					const int x = i * n_pixels;
 					if (x < bb[bbi].x) {
@@ -640,9 +644,9 @@ static void update_display_dga_vosf(VIDEO_DRV_DGA_INIT){
 				i2 += dst_chunk_size;
 			}
 			if (src_chunk_size_left && dst_chunk_size_left) {
-				if (memcmp(the_buffer_copy + i1, the_buffer + i1, src_chunk_size_left) != 0) {
-					memcpy(the_buffer_copy + i1, the_buffer + i1, src_chunk_size_left);
-					Screen_blit(the_host_buffer + i2, the_buffer + i1, src_chunk_size_left);
+				if (memcmp(the_buffer_copy + i1, MacFrameBaseHost + i1, src_chunk_size_left) != 0) {
+					memcpy(the_buffer_copy + i1, MacFrameBaseHost + i1, src_chunk_size_left);
+					Screen_blit(the_host_buffer + i2, MacFrameBaseHost + i1, src_chunk_size_left);
 				}
 #ifdef USE_SDL_VIDEO
 				const int x = n_chunks * n_pixels;
