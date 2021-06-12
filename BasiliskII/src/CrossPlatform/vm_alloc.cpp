@@ -61,21 +61,14 @@ typedef UINT_PTR vm_uintptr_t;
 typedef unsigned long vm_uintptr_t;
 #endif
 
-/* We want MAP_32BIT, if available, for SheepShaver and BasiliskII
-   because the emulated target is 32-bit and this helps to allocate
-   memory so that branches could be resolved more easily (32-bit
-   displacement to code in .text), on AMD64 for example.  */
+/* FIXME: make JIT 64bit clean */
 #if defined(__hpux)
 #define MAP_32BIT MAP_ADDR32
 #endif
 #ifndef MAP_32BIT
 #define MAP_32BIT 0
 #endif
-#ifdef __FreeBSD__
-#define FORCE_MAP_32BIT MAP_FIXED
-#else
 #define FORCE_MAP_32BIT MAP_32BIT
-#endif
 #ifndef MAP_ANON
 #define MAP_ANON 0
 #endif
@@ -83,41 +76,16 @@ typedef unsigned long vm_uintptr_t;
 #define MAP_ANONYMOUS 0
 #endif
 
-/* NOTE: on linux MAP_32BIT is only implemented on AMD64
-   it is a null op on all other architectures
-   thus the MAP_BASE setting below is the only thing
-   ensuring low addresses on aarch64 for example */
-#define MAP_EXTRA_FLAGS (MAP_32BIT)
-
 #ifdef HAVE_MMAP_VM
-#if (defined(__linux__) && defined(__i386__)) || defined(__FreeBSD__) || HAVE_LINKER_SCRIPT
-/* Force a reasonnable address below 0x80000000 on x86 so that we
-   don't get addresses above when the program is run on AMD64.
-   NOTE: this is empirically determined on Linux/x86.  */
-#define MAP_BASE	0x10000000
-#elif DIRECT_ADDRESSING
-/* linux does not implement any useful fallback behavior
-   such as allocating the next available address
-   and the first 4k-64k of address space is marked unavailable
-   for security reasons (see https://wiki.debian.org/mmap_min_addr)
-   so we must start requesting after the first page
-   or we get a high 64bit address that will crash direct addressing
-
-   leaving NULL unmapped is a good idea anyway for debugging reasons */
-#define MAP_BASE	0x00010000
-#else
-#define MAP_BASE	0x00000000
-#endif
-static char * next_address = (char *)MAP_BASE;
 #ifdef HAVE_MMAP_ANON
-#define map_flags	(MAP_ANON | MAP_EXTRA_FLAGS)
+#define map_flags	(MAP_ANON)
 #define zero_fd		-1
 #else
 #ifdef HAVE_MMAP_ANONYMOUS
-#define map_flags	(MAP_ANONYMOUS | MAP_EXTRA_FLAGS)
+#define map_flags	(MAP_ANONYMOUS)
 #define zero_fd		-1
 #else
-#define map_flags	(MAP_EXTRA_FLAGS)
+#define map_flags	(0)
 static int zero_fd	= -1;
 #endif
 #endif
@@ -126,8 +94,7 @@ static int zero_fd	= -1;
 /* Translate generic VM map flags to host values.  */
 
 #ifdef HAVE_MMAP_VM
-static int translate_map_flags(int vm_flags)
-{
+static int translate_map_flags(int vm_flags){
 	int flags = 0;
 	if (vm_flags & VM_MAP_SHARED)
 		flags |= MAP_SHARED;
@@ -238,8 +205,8 @@ void vm_exit(void)
    and default protection bits are read / write. The return value
    is the actual mapping address chosen or VM_MAP_FAILED for errors.  */
 
-void * vm_acquire(size_t size, int options){
-	void * addr;
+void* vm_acquire(size_t size, int options){
+	void* addr=NULL;
 	errno = 0;
 
 #ifndef HAVE_VM_WRITE_WATCH
@@ -258,19 +225,16 @@ void * vm_acquire(size_t size, int options){
 	int fd = zero_fd;
 	int the_map_flags = translate_map_flags(options) | map_flags;
 
-	if ((addr = mmap((caddr_t)next_address, size, VM_PAGE_DEFAULT, the_map_flags, fd, 0)) == (void *)MAP_FAILED)
+	printf("mmap addr=%p size=%p flags=%p\n",addr,size,the_map_flags);
+	if ((addr = mmap(addr, size, VM_PAGE_DEFAULT, the_map_flags, fd, 0))==(void*)MAP_FAILED)
 		return VM_MAP_FAILED;
-	printf("next=%p got=%p size=%p\n",next_address,addr,size);
-	
-#if DIRECT_ADDRESSING
-	// If MAP_32BIT and MAP_BASE fail to ensure
-	// a 32-bit address crash now instead of later.
-	// FIXME: make everything 64-bit clean and tear this all out.
+	printf("mmap got=%p\n",addr);
+
+	// If MAP_32BIT fails to ensure a 32bit address, crash now instead of later.
+	// FIXME: Make JIT 64bit clean and tear all this VM_MAP_32BIT hackery out.
 	if(sizeof(void *) > 4 && (options & VM_MAP_32BIT))
 		assert((size_t)addr<0xffffffffL);
-#endif
 
-	next_address = (char *)addr + size;
 #elif defined(HAVE_WIN32_VM)
 	int alloc_type = MEM_RESERVE | MEM_COMMIT;
 	if (options & VM_MAP_WRITE_WATCH)

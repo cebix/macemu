@@ -37,22 +37,22 @@
 #include "debug.h"
 
 #if DIRECT_ADDRESSING
-uintptr MEMBaseDiff = 0;	// Global offset between a Mac address and its Host equivalent
+size_t MEMBaseDiff = 0;	// Global offset between a Mac address and its Host equivalent
 #endif
 
 // RAM and ROM pointers
-uint8* RAMBaseHost = 0;		// RAM base (host address space)
-uint8* ROMBaseHost = 0;		// ROM base (host address space)
-uint32 RAMBaseMac = 0;		// RAM base (Mac address space)
-uint32 ROMBaseMac = 0;		// ROM base (Mac address space)
-uint32 RAMSize = 0;			// Size of RAM
-uint32 ROMSize = 0;			// Size of ROM
+uint8* RAMBaseHost = 0;			// RAM base (host address space)
+uint8* ROMBaseHost = 0;			// ROM base (host address space)
+const uint32 RAMBaseMac = 0;	// RAM base (Mac address space)
+uint32 ROMBaseMac = 0;			// ROM base (Mac address space)
+uint32 RAMSize = 0;				// Size of RAM
+uint32 ROMSize = 0;				// Size of ROM
 
 // Mac frame buffer
-uint8* MacFrameBaseHost;	// Frame buffer base (host address space)
-uint32 MacFrameSize;			// Size of current frame buffer
-int MacFrameLayout;			// Frame buffer layout
-uint32 VRAMSize;				// Size of VRAM
+uint8* MacFrameBaseHost = 0;	// Frame buffer base (host address space)
+uint32 MacFrameSize = 0;		// Size of current frame buffer
+int MacFrameLayout = 0;			// Frame buffer layout
+uint32 VRAMSize = 0;				// Size of VRAM
 
 uint32 JITCacheSize=0;
 
@@ -64,10 +64,6 @@ uint8* ScratchMem = NULL;	// Scratch memory for Mac ROM writes
 int ScratchMemSize = 64*1024; // 64k
 #else
 int ScratchMemSize = 0;
-#endif
-
-#if USE_JIT
-bool UseJIT = false;
 #endif
 
 // From newcpu.cpp
@@ -93,7 +89,8 @@ bool InitMacMem(void){
 	VRAMSize = 16*1024*1024; // 16mb, more than enough for 1920x1440x32
 
 #if USE_JIT
-	JITCacheSize = 1024*PrefsFindInt32("jitcachesize") + 1024;
+	JITCacheSize = compiler_get_jit_cache_size();
+	printf("JITCacheSize=%p\n",JITCacheSize);
 #endif
 
 	// Initialize VM system
@@ -102,7 +99,11 @@ bool InitMacMem(void){
 	// Create our virtual Macintosh memory map
 	RAMBaseHost = (uint8*)vm_acquire(
 			RAMSize + ScratchMemSize + MAX_ROM_SIZE + VRAMSize + JITCacheSize,
-			VM_MAP_DEFAULT | VM_MAP_32BIT);
+#if USE_JIT
+			// FIXME: JIT is not 64bit clean
+			((JITCacheSize>0)?VM_MAP_32BIT:0)|
+#endif
+			VM_MAP_DEFAULT);
 	if (RAMBaseHost == VM_MAP_FAILED) {
 		ErrorAlert(STR_NO_MEM_ERR);
 		return false;
@@ -167,7 +168,7 @@ bool InitMacMem(void){
 	if (ReadFile(rom_fh, ROMBaseHost, ROMSize, &bytes_read, NULL) == 0 || bytes_read != ROMSize) {
 #else
 	lseek(rom_fd, 0, SEEK_SET);
-	if (read(rom_fd, ROMBaseHost, ROMSize) != (ssize_t)ROMSize) {
+	if (read(rom_fd, ROMBaseHost, ROMSize) != ROMSize) {
 #endif
 		ErrorAlert(STR_ROM_FILE_READ_ERR);
 #ifdef WIN32
@@ -185,7 +186,7 @@ bool InitMacMem(void){
 
 #if DIRECT_ADDRESSING
 	// Mac address space = host address space minus constant offset (MEMBaseDiff)
-	MEMBaseDiff = (uintptr)RAMBaseHost;
+	MEMBaseDiff = (size_t)RAMBaseHost;
 	ROMBaseMac = Host2MacAddr(ROMBaseHost);
 #else
 	// Initialize UAE memory banks
@@ -229,23 +230,20 @@ void MacMemExit(void){
 bool Init680x0(void){
 	init_m68k();
 #if USE_JIT
-	UseJIT = compiler_use_jit();
-	if (UseJIT)
-	    compiler_init(MacFrameBaseHost + VRAMSize);
+	if(JITCacheSize>0)
+		compiler_init(MacFrameBaseHost + VRAMSize, JITCacheSize); // put JIT cache after VRAM
 #endif
 	return true;
 }
-
 
 /*
  *  Deinitialize 680x0 emulation
  */
 
-void Exit680x0(void)
-{
+void Exit680x0(void){
 #if USE_JIT
-    if (UseJIT)
-	compiler_exit();
+	if(JITCacheSize>0)
+		compiler_exit();
 #endif
 	exit_m68k();
 }
@@ -254,17 +252,15 @@ void Exit680x0(void)
  *  Reset and start 680x0 emulation (doesn't return)
  */
 
-void Start680x0(void)
-{
+void Start680x0(void){
 	m68k_reset();
 #if USE_JIT
-    if (UseJIT)
-	m68k_compile_execute();
-    else
+	if (JITCacheSize>0)
+		m68k_compile_execute();
+	else
 #endif
 	m68k_execute();
 }
-
 
 /*
  *  Trigger interrupt
@@ -382,4 +378,20 @@ void Execute68k(uint32 addr, struct M68kRegisters *r)
 	for (i=0; i<7; i++)
 		r->a[i] = m68k_areg(regs, i);
 	quit_program = false;
+}
+
+#if USE_JIT
+extern void flush_icache_range(uint8 *start, uint32 size); // from compemu_support.cpp
+#endif
+
+/*
+ *  Code was patched, flush caches if neccessary (i.e. when using a real 680x0
+ *  or a dynamically recompiling emulator)
+ */
+
+void FlushCodeCache(void *start, uint32 size){
+#if USE_JIT
+	if (JITCacheSize>0)
+		flush_icache_range((uint8 *)start, size);
+#endif
 }

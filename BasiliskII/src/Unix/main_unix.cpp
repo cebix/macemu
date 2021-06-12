@@ -171,8 +171,7 @@ static sigsegv_return_t sigsegv_handler(sigsegv_info_t *sip)
  *  Dump state when everything went wrong after a SEGV
  */
 
-static void sigsegv_dump_state(sigsegv_info_t *sip)
-{
+static void sigsegv_dump_state(sigsegv_info_t *sip){
 	const sigsegv_address_t fault_address = sigsegv_get_fault_address(sip);
 	const sigsegv_address_t fault_instruction = sigsegv_get_fault_instruction_address(sip);
 	fprintf(stderr, "Caught SIGSEGV at address %p", fault_address);
@@ -198,7 +197,6 @@ static void sigsegv_dump_state(sigsegv_info_t *sip)
 #endif
 	QuitEmulator();
 }
-
 
 /*
  *  Update virtual clock and trigger interrupts if necessary
@@ -404,6 +402,14 @@ int main(int argc, char **argv){
 		}
 	}
 
+	// Init system routines
+	SysInit();
+
+	// Show preferences editor
+	if (!gui_connection && !PrefsFindBool("nogui"))
+		if (!PrefsEditor())
+			QuitEmulator();
+
 #ifdef USE_SDL
 	// Initialize SDL system
 	int sdl_flags = 0;
@@ -435,14 +441,6 @@ int main(int argc, char **argv){
 	
 #endif
 
-	// Init system routines
-	SysInit();
-
-	// Show preferences editor
-	if (!gui_connection && !PrefsFindBool("nogui"))
-		if (!PrefsEditor())
-			QuitEmulator();
-
 	// Install the handler for SIGSEGV
 	if (!sigsegv_install_handler(sigsegv_handler)) {
 		sprintf(str, GetString(STR_SIG_INSTALL_ERR), "SIGSEGV", strerror(errno));
@@ -462,9 +460,6 @@ int main(int argc, char **argv){
 	if (!InitAll(vmdir))
 		QuitEmulator();
 	D(bug("Initialization complete\n"));
-
-	D(bug("Mac RAM starts at %p (%08x)\n", RAMBaseHost, RAMBaseMac));
-	D(bug("Mac ROM starts at %p (%08x)\n", ROMBaseHost, ROMBaseMac));
 
 #ifdef ENABLE_MON
 	// Setup SIGINT handler to enter mon
@@ -617,24 +612,6 @@ void QuitEmulator(void)
 
 	exit(0);
 }
-
-
-/*
- *  Code was patched, flush caches if neccessary (i.e. when using a real 680x0
- *  or a dynamically recompiling emulator)
- */
-
-void FlushCodeCache(void *start, uint32 size){
-#if USE_JIT
-    if (UseJIT)
-#ifdef UPDATE_UAE
-		flush_icache();
-#else
-		flush_icache_range((uint8 *)start, size);
-#endif
-#endif
-}
-
 
 /*
  *  SIGINT handler, enters mon

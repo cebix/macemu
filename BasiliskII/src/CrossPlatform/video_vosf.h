@@ -78,7 +78,7 @@ extern void update_sdl_video(SDL_Surface *screen, int numrects, SDL_Rect *rects)
 #endif
 
 // Prototypes
-static void vosf_do_set_dirty_area(uintptr first, uintptr last);
+static void vosf_do_set_dirty_area(const size_t, const size_t);
 static void vosf_set_dirty_area(int x, int y, int w, int h, unsigned screen_width, unsigned screen_height, unsigned bytes_per_row);
 
 // Variables for Video on SEGV support
@@ -89,17 +89,17 @@ struct ScreenPageInfo {
 };
 
 struct ScreenInfo {
-    uintptr memStart;			// Start address aligned to page boundary
-    uint32 memLength;			// Length of the memory addressed by the screen pages
-    
-    uintptr pageSize;			// Size of a page
-    int pageBits;				// Shift count to get the page number
-    uint32 pageCount;			// Number of pages allocated to the screen
-    
+	uint8* memStart;			// Start address aligned to page boundary
+	int memLength;			// Length of the memory addressed by the screen pages
+
+	int pageSize;			// Size of a page
+	int pageBits;				// Shift count to get the page number
+	int pageCount;			// Number of pages allocated to the screen
+
+	char* dirtyPages;			// Table of flags set if page was altered
+	ScreenPageInfo* pageInfo;	// Table of mappings page -> Mac scanlines
 	bool dirty;					// Flag: set if the frame buffer was touched
 	bool very_dirty;			// Flag: set if the frame buffer was completely modified (e.g. colormap changes)
-    char * dirtyPages;			// Table of flags set if page was altered
-    ScreenPageInfo * pageInfo;	// Table of mappings page -> Mac scanlines
 };
 
 static ScreenInfo mainBuffer;
@@ -251,7 +251,7 @@ static bool video_vosf_profitable(uint32 *duration_p = NULL, uint32 *n_page_faul
 		for (uint32 p = 0; p < mainBuffer.pageCount; p++) {
 			uint8 *addr = (uint8 *)(mainBuffer.memStart + (p * mainBuffer.pageSize));
 			if (accel)
-				vosf_do_set_dirty_area((uintptr)addr, (uintptr)addr + mainBuffer.pageSize - 1);
+				vosf_do_set_dirty_area((size_t)addr, (size_t)addr + mainBuffer.pageSize - 1);
 			else
 				addr[0] = 0; // Trigger Screen_fault_handler()
 		}
@@ -268,7 +268,7 @@ static bool video_vosf_profitable(uint32 *duration_p = NULL, uint32 *n_page_faul
 	if (n_page_faults_p)
 	  *n_page_faults_p = n_page_faults;
 
-	D(bug("Triggered %d page faults in %ld usec (%.1f usec per fault)\n", n_page_faults, duration, double(duration) / double(n_page_faults)));
+	D(bug("Triggered %d page faults in %ld usec (%.1f usec per fault)\n", n_page_faults, (long int)duration, double(duration) / double(n_page_faults)));
 	return ((duration / n_tries) < (VOSF_PROFITABLE_THRESHOLD * (frame_skip ? frame_skip : 1)));
 }
 
@@ -286,7 +286,7 @@ static bool video_vosf_init(MONITOR_INIT){
 	// Must be page aligned (use page_extend)
 	assert(is_page_aligned((size_t)MacFrameBaseHost));
 	assert(is_page_aligned(the_buffer_size));
-	mainBuffer.memStart = (uintptr)MacFrameBaseHost;
+	mainBuffer.memStart = MacFrameBaseHost;
 	mainBuffer.memLength = the_buffer_size;
 	
 	mainBuffer.pageSize = page_size;
@@ -353,16 +353,14 @@ static void video_vosf_exit(void)
 	}
 }
 
-
 /*
  * Update VOSF state with specified dirty area
  */
 
-static void vosf_do_set_dirty_area(uintptr first, uintptr last)
-{
-	const int first_page = (first - mainBuffer.memStart) >> mainBuffer.pageBits;
-	const int last_page = (last - mainBuffer.memStart) >> mainBuffer.pageBits;
-	uint8 *addr = (uint8 *)(first & ~(mainBuffer.pageSize - 1));
+static void vosf_do_set_dirty_area(const size_t first, const size_t last){
+	const int first_page = ((size_t)first - (size_t)mainBuffer.memStart) >> mainBuffer.pageBits;
+	const int last_page  = ((size_t)last  - (size_t)mainBuffer.memStart) >> mainBuffer.pageBits;
+	uint8* addr = (uint8*)((size_t)first & ~((size_t)mainBuffer.pageSize - 1));
 	for (int i = first_page; i <= last_page; i++) {
 		if (PFLAG_ISCLEAR(i)) {
 			PFLAG_SET(i);
@@ -392,26 +390,26 @@ static void vosf_set_dirty_area(int x, int y, int w, int h, unsigned screen_widt
 	if (bytes_per_row >= screen_width) {
 		const int bytes_per_pixel = bytes_per_row / screen_width;
 		if (bytes_per_row <= mainBuffer.pageSize) {
-			const uintptr a0 = mainBuffer.memStart + y * bytes_per_row + x * bytes_per_pixel;
-			const uintptr a1 = mainBuffer.memStart + (y + h - 1) * bytes_per_row + (x + w - 1) * bytes_per_pixel;
+			const size_t a0 = (size_t)mainBuffer.memStart + y * bytes_per_row + x * bytes_per_pixel;
+			const size_t a1 = (size_t)mainBuffer.memStart + (y + h - 1) * bytes_per_row + (x + w - 1) * bytes_per_pixel;
 			vosf_do_set_dirty_area(a0, a1);
 		} else {
 			for (int j = y; j < y + h; j++) {
-				const uintptr a0 = mainBuffer.memStart + j * bytes_per_row + x * bytes_per_pixel;
-				const uintptr a1 = a0 + (w - 1) * bytes_per_pixel;
+				const size_t a0 = (size_t)mainBuffer.memStart + j * bytes_per_row + x * bytes_per_pixel;
+				const size_t a1 = a0 + (w - 1) * bytes_per_pixel;
 				vosf_do_set_dirty_area(a0, a1);
 			}
 		}
 	} else {
 		const int pixels_per_byte = screen_width / bytes_per_row;
 		if (bytes_per_row <= mainBuffer.pageSize) {
-			const uintptr a0 = mainBuffer.memStart + y * bytes_per_row + x / pixels_per_byte;
-			const uintptr a1 = mainBuffer.memStart + (y + h - 1) * bytes_per_row + (x + w - 1) / pixels_per_byte;
+			const size_t a0 = (size_t)mainBuffer.memStart + y * bytes_per_row + x / pixels_per_byte;
+			const size_t a1 = (size_t)mainBuffer.memStart + (y + h - 1) * bytes_per_row + (x + w - 1) / pixels_per_byte;
 			vosf_do_set_dirty_area(a0, a1);
 		} else {
 			for (int j = y; j < y + h; j++) {
-				const uintptr a0 = mainBuffer.memStart + j * bytes_per_row + x / pixels_per_byte;
-				const uintptr a1 = mainBuffer.memStart + j * bytes_per_row + (x + w - 1) / pixels_per_byte;
+				const size_t a0 = (size_t)mainBuffer.memStart + j * bytes_per_row + x / pixels_per_byte;
+				const size_t a1 = (size_t)mainBuffer.memStart + j * bytes_per_row + (x + w - 1) / pixels_per_byte;
 				vosf_do_set_dirty_area(a0, a1);
 			}
 		}
@@ -420,25 +418,23 @@ static void vosf_set_dirty_area(int x, int y, int w, int h, unsigned screen_widt
 	UNLOCK_VOSF;
 }
 
-
 /*
  * Screen fault handler
  */
 
-bool Screen_fault_handler(sigsegv_info_t *sip)
-{
-  const uintptr addr = (uintptr)sigsegv_get_fault_address(sip);
+bool Screen_fault_handler(sigsegv_info_t* sip){
+  const size_t addr = (size_t)sigsegv_get_fault_address(sip);
 	
 	/* Someone attempted to write to the frame buffer. Make it writeable
 	 * now so that the data could actually be written to. It will be made
 	 * read-only back in one of the screen update_*() functions.
 	 */
-	if (((uintptr)addr - mainBuffer.memStart) < mainBuffer.memLength) {
-		const int page  = ((uintptr)addr - mainBuffer.memStart) >> mainBuffer.pageBits;
+	if ((addr - (size_t)mainBuffer.memStart) < mainBuffer.memLength) {
+		const int page  = (addr - (size_t)mainBuffer.memStart) >> mainBuffer.pageBits;
 		LOCK_VOSF;
 		if (PFLAG_ISCLEAR(page)) {
 			PFLAG_SET(page);
-			vm_protect((char *)(addr & ~(mainBuffer.pageSize - 1)), mainBuffer.pageSize, VM_PAGE_READ | VM_PAGE_WRITE);
+			vm_protect((char*)(addr & ~(mainBuffer.pageSize - 1)), mainBuffer.pageSize, VM_PAGE_READ | VM_PAGE_WRITE);
 		}
 		mainBuffer.dirty = true;
 		UNLOCK_VOSF;

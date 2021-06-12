@@ -3841,10 +3841,9 @@ x86_get_cpu_vendor(struct cpuinfo_x86 *c)
 }
 
 static void
-cpuid(uae_u32 op, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 *edx)
-{
+cpuid(uae_u32 op, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 *edx){
   const int CPUID_SPACE = 4096;
-  uae_u8* cpuid_space = (uae_u8 *)vm_acquire(CPUID_SPACE);
+  uae_u8* cpuid_space = (uae_u8 *)vm_acquire(CPUID_SPACE,VM_MAP_DEFAULT|VM_MAP_32BIT);
   if (cpuid_space == VM_MAP_FAILED)
     abort();
   vm_protect(cpuid_space, CPUID_SPACE, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE);

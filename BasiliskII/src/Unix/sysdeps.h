@@ -33,6 +33,8 @@
 # include <unistd.h>
 #endif
 
+#include <stddef.h>
+
 #include <netinet/in.h>
 #include <assert.h>
 #include <stdio.h>

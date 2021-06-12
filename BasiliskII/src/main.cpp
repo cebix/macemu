@@ -42,11 +42,6 @@
 #define DEBUG 0
 #include "debug.h"
 
-// CPU and FPU type, addressing mode
-int CPUType;
-int FPUType;
-bool TwentyFourBitAddressing;
-
 #if ENABLE_MON
 #include "mon.h"
 
@@ -58,6 +53,11 @@ static void mon_write_byte_b2(uintptr adr, uint32 b){
 	WriteMacInt8(adr, b);
 }
 #endif
+
+// CPU and FPU type, addressing mode
+int CPUType;
+int FPUType;
+bool TwentyFourBitAddressing;
 
 /*
  *  Initialize everything, returns false on error
