@@ -1032,17 +1032,8 @@
 				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
 				GCC_WARN_CHECK_SWITCH_STATEMENTS = NO;
 				GCC_WARN_UNUSED_VARIABLE = NO;
-				HEADER_SEARCH_PATHS = (
-					/opt/homebrew/include,
-					/Library/Frameworks/SDL2.framework/Headers,
-					../MacOSX,
-					../include,
-					../uae_cpu_2021,
-					../Unix,
-					../slirp,
-				);
+				HEADER_SEARCH_PATHS = "";
 				"HEADER_SEARCH_PATHS[arch=arm64]" = (
-					/opt/homebrew/include,
 					/Library/Frameworks/SDL2.framework/Headers,
 					../MacOSX,
 					../include,
@@ -1051,7 +1042,6 @@
 					../slirp,
 				);
 				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
-					/opt/homebrew/include,
 					/Library/Frameworks/SDL2.framework/Headers,
 					../MacOSX,
 					../include,
@@ -1062,7 +1052,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				INSTALL_PATH = "$(HOME)/Applications";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-				LIBRARY_SEARCH_PATHS = /opt/homebrew/lib;
+				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_CFLAGS = "";
@@ -1127,17 +1117,8 @@
 				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
 				GCC_WARN_CHECK_SWITCH_STATEMENTS = NO;
 				GCC_WARN_UNUSED_VARIABLE = NO;
-				HEADER_SEARCH_PATHS = (
-					/opt/homebrew/include,
-					/Library/Frameworks/SDL2.framework/Headers,
-					../MacOSX,
-					../include,
-					../uae_cpu_2021,
-					../Unix,
-					../slirp,
-				);
+				HEADER_SEARCH_PATHS = "";
 				"HEADER_SEARCH_PATHS[arch=arm64]" = (
-					/opt/homebrew/include,
 					/Library/Frameworks/SDL2.framework/Headers,
 					../MacOSX,
 					../include,
@@ -1146,7 +1127,6 @@
 					../slirp,
 				);
 				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
-					/opt/homebrew/include,
 					/Library/Frameworks/SDL2.framework/Headers,
 					../MacOSX,
 					../include,
@@ -1157,7 +1137,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				INSTALL_PATH = "$(HOME)/Applications";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-				LIBRARY_SEARCH_PATHS = /opt/homebrew/lib;
+				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";

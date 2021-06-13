@@ -369,7 +369,7 @@
 					"USE_XCODE=1",
 				);
 				HEADER_SEARCH_PATHS = (
-					/opt/homebrew/include,
+					/usr/local/include,
 					../CrossPlatform,
 					../include,
 					../MacOSX,
@@ -388,7 +388,7 @@
 				EXECUTABLE_PREFIX = lib;
 				GCC_PREPROCESSOR_DEFINITIONS = "USE_XCODE=1";
 				HEADER_SEARCH_PATHS = (
-					/opt/homebrew/include,
+					/usr/local/include,
 					../CrossPlatform,
 					../include,
 					../MacOSX,
