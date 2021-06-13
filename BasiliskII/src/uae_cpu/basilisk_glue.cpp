@@ -90,7 +90,6 @@ bool InitMacMem(void){
 
 #if USE_JIT
 	JITCacheSize = compiler_get_jit_cache_size();
-	printf("JITCacheSize=%p\n",JITCacheSize);
 #endif
 
 	// Initialize VM system
@@ -108,16 +107,12 @@ bool InitMacMem(void){
 		ErrorAlert(STR_NO_MEM_ERR);
 		return false;
 	}
-	printf("RAMBaseHost=%p\n",RAMBaseHost);
 	ROMBaseHost = RAMBaseHost + RAMSize + ScratchMemSize;
-	printf("ROMBaseHost=%p\n",ROMBaseHost);
 	MacFrameBaseHost = ROMBaseHost + MAX_ROM_SIZE;
-	printf("MacFrameBaseHost=%p\n",MacFrameBaseHost);
 
 #if USE_SCRATCHMEM_SUBTERFUGE
 	// points to middle of scratch memory
 	ScratchMem = RAMBaseHost + RAMSize + ScratchMemSize/2;
-	printf("ScratchMem=%p\n",ScratchMem);
 #endif
 
 	// Get rom file path from preferences

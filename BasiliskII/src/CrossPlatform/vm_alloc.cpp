@@ -225,10 +225,8 @@ void* vm_acquire(size_t size, int options){
 	int fd = zero_fd;
 	int the_map_flags = translate_map_flags(options) | map_flags;
 
-	printf("mmap addr=%p size=%p flags=%p\n",addr,size,the_map_flags);
 	if ((addr = mmap(addr, size, VM_PAGE_DEFAULT, the_map_flags, fd, 0))==(void*)MAP_FAILED)
 		return VM_MAP_FAILED;
-	printf("mmap got=%p\n",addr);
 
 	// If MAP_32BIT fails to ensure a 32bit address, crash now instead of later.
 	// FIXME: Make JIT 64bit clean and tear all this VM_MAP_32BIT hackery out.
