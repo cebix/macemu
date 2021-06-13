@@ -17,8 +17,26 @@ These builds need to be installed SDL2.0.10+ framework/library.
 BasiliskII for macOS can be built with Apple Silicon Mac.
 
 preparation:
+
+Download gmp-6.2.1.tar.xz from https://gmplib.org.
 ```
-$ brew install mpfr
+$ cd ~/Downloads
+$ tar xf gmp-6.2.1.tar.xz
+$ cd gmp-6.2.1
+$ ./configure --disable-shared
+$ make
+$ make check
+$ sudo make install
+```
+Download mpfr-4.1.0.tar.xz from https://www.mpfr.org.
+```
+$ cd ~/Downloads
+$ tar xf mpfr-4.1.0.tar.xz
+$ cd mpfr-4.1.0
+$ ./configure --disable-shared
+$ make
+$ make check
+$ sudo make install
 ```
 For Intel Mac, checkout `has_fpu_bug` branch. But it has FPU issue if the binary runs on Apple Silicon Mac.
 
