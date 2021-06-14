@@ -59,22 +59,23 @@ links:
 	       include/prefs.h include/scsi.h include/serial.h \
 	       include/serial_defs.h include/sony.h include/sys.h \
 	       include/timer.h include/xpram.h \
-	       CrossPlatform/sigsegv.h CrossPlatform/vm_alloc.h CrossPlatform/vm_alloc.cpp \
-               CrossPlatform/video_vosf.h CrossPlatform/video_blit.h CrossPlatform/video_blit.cpp \
-	       Unix/audio_oss_esd.cpp \
+	       CrossPlatform/sigsegv.h \
+	       CrossPlatform/video_blit.h CrossPlatform/video_blit.cpp \
+	       SDL/SDLMain.h SDL/SDLMain.m SDL/audio_sdl.cpp SDL/keycodes \
+	       SDL/prefs_sdl.cpp SDL/xpram_sdl.cpp \
 	       Unix/vhd_unix.cpp \
 	       Unix/extfs_unix.cpp Unix/serial_unix.cpp \
 	       Unix/sshpty.h Unix/sshpty.c Unix/strlcpy.h Unix/strlcpy.c \
 	       Unix/sys_unix.cpp Unix/timer_unix.cpp Unix/xpram_unix.cpp \
 	       Unix/semaphore.h Unix/posix_sem.cpp Unix/config.sub Unix/config.guess Unix/m4 \
-	       Unix/keycodes Unix/tunconfig Unix/clip_unix.cpp Unix/Irix/audio_irix.cpp \
+	       Unix/keycodes Unix/tunconfig Unix/clip_unix.cpp \
 	       Unix/Linux/scsi_linux.cpp Unix/Linux/NetDriver Unix/ether_unix.cpp \
 	       Unix/rpc.h Unix/rpc_unix.cpp Unix/ldscripts \
 	       Unix/tinyxml2.h Unix/tinyxml2.cpp Unix/disk_unix.h \
 	       Unix/disk_sparsebundle.cpp Unix/Darwin/mkstandalone \
 	       Unix/Darwin/pagezero.c Unix/Darwin/testlmem.sh \
 	       dummy/audio_dummy.cpp dummy/clip_dummy.cpp dummy/serial_dummy.cpp \
-	       dummy/prefs_editor_dummy.cpp dummy/scsi_dummy.cpp SDL slirp \
+	       dummy/prefs_editor_dummy.cpp dummy/scsi_dummy.cpp slirp \
 	       MacOSX/sys_darwin.cpp MacOSX/clip_macosx.cpp MacOSX/clip_macosx64.mm \
 	       MacOSX/macos_util_macosx.h Unix/cpr.sh \
 	       MacOSX/extfs_macosx.cpp Windows/clip_windows.cpp \
