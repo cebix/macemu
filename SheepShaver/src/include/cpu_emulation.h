@@ -57,6 +57,8 @@ extern uint8 *RAMBaseHost;		// Base address of Mac RAM (host address space)
 extern uint32 ROMBase;			// Base address of Mac ROM
 extern uint8 *ROMBaseHost;		// Base address of Mac ROM (host address space)
 
+extern uint32 VRAMSize;			// Size of VRAM
+
 // Mac memory access functions
 #if EMULATED_PPC
 #include "cpu/vm.hpp"

@@ -163,23 +163,28 @@ const uint32 SIG_STACK_SIZE = 0x10000;		// Size of signal stack
 
 
 // Global variables (exported)
+int64 CPUClockSpeed;	// Processor clock speed (Hz)
+int64 BusClockSpeed;	// Bus clock speed (Hz)
+int64 TimebaseSpeed;	// Timebase clock speed (Hz)
 #if !EMULATED_PPC
 void *TOC = NULL;		// Pointer to Thread Local Storage (r2)
 void *R13 = NULL;		// Pointer to .sdata section (r13 under Linux)
 #endif
+
+// RAM and ROM
+uint8 *RAMBaseHost;		// Base address of Mac RAM (host address space)
+uint8 *ROMBaseHost;		// Base address of Mac ROM (host address space)
+uint8 *MacFrameBaseHost=NULL;	// Mac VRAM
 uint32 RAMBase;			// Base address of Mac RAM
 uint32 RAMSize;			// Size of Mac RAM
 uint32 ROMBase;			// Base address of Mac ROM
+uint32 ROMEnd;
+uint32 VRAMSize;
+
 uint32 KernelDataAddr;	// Address of Kernel Data
 uint32 BootGlobsAddr;	// Address of BootGlobs structure at top of Mac RAM
 uint32 DRCacheAddr;		// Address of DR Cache
 uint32 PVR;				// Theoretical PVR
-int64 CPUClockSpeed;	// Processor clock speed (Hz)
-int64 BusClockSpeed;	// Bus clock speed (Hz)
-int64 TimebaseSpeed;	// Timebase clock speed (Hz)
-uint8 *RAMBaseHost;		// Base address of Mac RAM (host address space)
-uint8 *ROMBaseHost;		// Base address of Mac ROM (host address space)
-uint32 ROMEnd;
 
 #if defined(__APPLE__) && defined(__x86_64__)
 uint8 gZeroPage[0x3000], gKernelData[0x2000];
@@ -319,26 +324,21 @@ int atomic_or(int *var, int v)
 }
 #endif
 
-
 /*
  *  Memory management helpers
  */
 
-static inline uint8 *vm_mac_acquire(uint32 size)
-{
-	return (uint8 *)vm_acquire(size);
+static inline uint8 *vm_mac_acquire(uint32 size){
+	return (uint8 *)vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 }
 
-static inline int vm_mac_acquire_fixed(uint32 addr, uint32 size)
-{
+static inline int vm_mac_acquire_fixed(uint32 addr, uint32 size){
 	return vm_acquire_fixed(Mac2HostAddr(addr), size);
 }
 
-static inline int vm_mac_release(uint32 addr, uint32 size)
-{
+static inline int vm_mac_release(uint32 addr, uint32 size){
 	return vm_release(Mac2HostAddr(addr), size);
 }
-
 
 /*
  *  Main program
@@ -992,6 +992,16 @@ int main(int argc, char **argv){
 		goto quit;
 	}
 
+	// allocate Mac framebuffer
+	VRAMSize = 16*1024*1024; // 16mb, more than enough for 1920x1440x32
+	MacFrameBaseHost = vm_mac_acquire(VRAMSize);
+	if (MacFrameBaseHost == VM_MAP_FAILED) {
+		MacFrameBaseHost = NULL;
+		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+
 	// Create area for SheepShaver data
 	if (!SheepMem::Init()) {
 		sprintf(str, GetString(STR_SHEEP_MEM_MMAP_ERR), strerror(errno));
@@ -1136,6 +1146,10 @@ static void Quit(void)
 	// Delete Low Memory area
 	if (lm_area_mapped)
 		vm_mac_release(0, 0x3000);
+
+	if(MacFrameBaseHost){
+		vm_mac_release(Host2MacAddr(MacFrameBaseHost),VRAMSize);
+	}
 
 	// Close /dev/zero
 	if (zero_fd > 0)

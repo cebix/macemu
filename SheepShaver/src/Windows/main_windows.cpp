@@ -64,21 +64,25 @@ const uint32 SIG_STACK_SIZE = 0x10000;		// Size of signal stack
 
 
 // Global variables (exported)
-uint32 RAMBase;			// Base address of Mac RAM
+int64 CPUClockSpeed;	// Processor clock speed (Hz)
+int64 BusClockSpeed;	// Bus clock speed (Hz)
+int64 TimebaseSpeed;	// Timebase clock speed (Hz)
+
+// RAM and ROM
+uint8 *RAMBaseHost;		// Base address of Mac RAM (host address space)
+uint8 *ROMBaseHost;		// Base address of Mac ROM (host address space)
+uint8 *MacFrameBaseHost=NULL;	// Mac VRAM
+uint32 RAMBase=0;		// Base address of Mac RAM
 uint32 RAMSize;			// Size of Mac RAM
 uint32 ROMBase;			// Base address of Mac ROM
+uint32 VRAMSize;
+
 uint32 KernelDataAddr;	// Address of Kernel Data
 uint32 BootGlobsAddr;	// Address of BootGlobs structure at top of Mac RAM
 uint32 DRCacheAddr;		// Address of DR Cache
 uint32 PVR;				// Theoretical PVR
-int64 CPUClockSpeed;	// Processor clock speed (Hz)
-int64 BusClockSpeed;	// Bus clock speed (Hz)
-int64 TimebaseSpeed;	// Timebase clock speed (Hz)
-uint8 *RAMBaseHost;		// Base address of Mac RAM (host address space)
-uint8 *ROMBaseHost;		// Base address of Mac ROM (host address space)
 DWORD win_os;			// Windows OS id
 DWORD win_os_major;		// Windows OS version major
-
 
 // Global variables
 static int kernel_area = -1;				// SHM ID of Kernel Data area
@@ -119,38 +123,31 @@ extern void init_emul_ppc(void);
 extern void exit_emul_ppc(void);
 sigsegv_return_t sigsegv_handler(sigsegv_info_t *sip);
 
-
 /*
  *  Return signal stack base
  */
 
-uintptr SignalStackBase(void)
-{
+uintptr SignalStackBase(void){
 	return sig_stack + SIG_STACK_SIZE;
 }
-
 
 /*
  *  Memory management helpers
  */
 
-static inline int vm_mac_acquire(uint32 addr, uint32 size)
-{
+static inline int vm_mac_acquire(uint32 addr, uint32 size){
 	return vm_acquire_fixed(Mac2HostAddr(addr), size);
 }
 
-static inline int vm_mac_release(uint32 addr, uint32 size)
-{
+static inline int vm_mac_release(uint32 addr, uint32 size){
 	return vm_release(Mac2HostAddr(addr), size);
 }
-
 
 /*
  *  Main program
  */
 
-static void usage(const char *prg_name)
-{
+static void usage(const char *prg_name){
 	printf("Usage: %s [OPTION...]\n", prg_name);
 	printf("\nUnix options:\n");
 	printf("  --display STRING\n    X display to use\n");
@@ -158,8 +155,7 @@ static void usage(const char *prg_name)
 	exit(0);
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv){
 	char str[256];
 	int16 i16;
 	HANDLE rom_fh;
@@ -167,9 +163,6 @@ int main(int argc, char **argv)
 	uint32 rom_size;
 	DWORD actual;
 	uint8 *rom_tmp;
-
-	// Initialize variables
-	RAMBase = 0;
 
 	// Print some info
 	printf(GetString(STR_ABOUT_TEXT1), VERSION_MAJOR, VERSION_MINOR);
@@ -294,14 +287,16 @@ int main(int argc, char **argv)
 		goto quit;
 	}
 
-	// Create area for Mac ROM
-	if (vm_mac_acquire(ROM_BASE, ROM_AREA_SIZE) < 0) {
+	// Create area for Mac ROM + VRAM
+	VRAMSize = 16*1024*1024; // 16mb, more than enough for 1920x1440x32
+	if (vm_mac_acquire(ROM_BASE, ROM_AREA_SIZE + VRAMSize) < 0) {
 		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
 		goto quit;
 	}
 	ROMBase = ROM_BASE;
 	ROMBaseHost = Mac2HostAddr(ROMBase);
+	MacFrameBaseHost = Mac2HostAddr(ROMBase + ROM_AREA_SIZE);
 	rom_area_mapped = true;
 	D(bug("ROM area at %p (%08x)\n", ROMBaseHost, ROMBase));
 
@@ -314,7 +309,6 @@ int main(int argc, char **argv)
 		WarningAlert(GetString(STR_SMALL_RAM_WARN));
 		RAMSize = 16 * 1024 * 1024;
 	}
-	RAMBase = 0;
 	if (vm_mac_acquire(RAMBase, RAMSize) < 0) {
 		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
@@ -362,7 +356,7 @@ int main(int argc, char **argv)
 		}
 	}
 	delete[] rom_tmp;
-	
+
 	// Initialize native timers
 	timer_init();
 
@@ -398,13 +392,11 @@ quit:
 	return 0;
 }
 
-
 /*
  *  Cleanup and quit
  */
 
-static void Quit(void)
-{
+static void Quit(void){
 	// Exit PowerPC emulation
 	exit_emul_ppc();
 

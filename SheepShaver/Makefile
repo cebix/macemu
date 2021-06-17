@@ -61,8 +61,8 @@ links:
 	       include/timer.h include/xpram.h \
 	       CrossPlatform/sigsegv.h \
 	       CrossPlatform/video_blit.h CrossPlatform/video_blit.cpp \
-	       SDL/SDLMain.h SDL/SDLMain.m SDL/audio_sdl.cpp SDL/keycodes \
-	       SDL/prefs_sdl.cpp SDL/xpram_sdl.cpp \
+	       CrossPlatform/video_vosf.h \
+	       SDL \
 	       Unix/vhd_unix.cpp \
 	       Unix/extfs_unix.cpp Unix/serial_unix.cpp \
 	       Unix/sshpty.h Unix/sshpty.c Unix/strlcpy.h Unix/strlcpy.c \
