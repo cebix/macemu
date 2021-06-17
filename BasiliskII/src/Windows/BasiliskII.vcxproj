@@ -55,7 +55,6 @@
     <ClCompile Include="..\rsrc_patches.cpp" />
     <ClCompile Include="..\scsi.cpp" />
     <ClCompile Include="..\SDL\audio_sdl.cpp" />
-    <ClCompile Include="..\SDL\video_sdl.cpp" />
     <ClCompile Include="..\SDL\video_sdl2.cpp" />
     <ClCompile Include="..\serial.cpp" />
     <ClCompile Include="..\slirp\bootp.c" />

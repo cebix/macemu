@@ -55,7 +55,6 @@
 		756C1B391F25306A00620917 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 756C1B381F25306A00620917 /* AppKit.framework */; };
 		757A2BF01F5AF9D6003EDB01 /* user_strings_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 757A2BEF1F5AF9D6003EDB01 /* user_strings_unix.cpp */; };
 		75CBCF751F5DB3AD00830063 /* video_sdl2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 75CBCF741F5DB3AD00830063 /* video_sdl2.cpp */; };
-		75CBCF771F5DB65E00830063 /* video_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 75CBCF761F5DB65E00830063 /* video_sdl.cpp */; };
 		E40CEEC620D7910E00BCB88D /* SDLMain.m in Sources */ = {isa = PBXBuildFile; fileRef = E40CEEC520D7910E00BCB88D /* SDLMain.m */; };
 		E413D92120D260BC00E437D8 /* tftp.c in Sources */ = {isa = PBXBuildFile; fileRef = E413D8F820D260B900E437D8 /* tftp.c */; };
 		E413D92220D260BC00E437D8 /* mbuf.c in Sources */ = {isa = PBXBuildFile; fileRef = E413D8F920D260B900E437D8 /* mbuf.c */; };
@@ -262,7 +261,6 @@
 		756C1B381F25306A00620917 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		757A2BEF1F5AF9D6003EDB01 /* user_strings_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = user_strings_unix.cpp; sourceTree = "<group>"; };
 		75CBCF741F5DB3AD00830063 /* video_sdl2.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = video_sdl2.cpp; sourceTree = "<group>"; };
-		75CBCF761F5DB65E00830063 /* video_sdl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = video_sdl.cpp; sourceTree = "<group>"; };
 		E40CEEC420D7910D00BCB88D /* SDLMain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SDLMain.h; sourceTree = "<group>"; };
 		E40CEEC520D7910E00BCB88D /* SDLMain.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SDLMain.m; sourceTree = "<group>"; };
 		E413D8F820D260B900E437D8 /* tftp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = tftp.c; sourceTree = "<group>"; };
@@ -523,7 +521,6 @@
 				752F27001F242BAF001032B4 /* prefs_sdl.cpp */,
 				E40CEEC420D7910D00BCB88D /* SDLMain.h */,
 				E40CEEC520D7910E00BCB88D /* SDLMain.m */,
-				75CBCF761F5DB65E00830063 /* video_sdl.cpp */,
 				75CBCF741F5DB3AD00830063 /* video_sdl2.cpp */,
 				752F27021F242F51001032B4 /* xpram_sdl.cpp */,
 			);
@@ -799,7 +796,6 @@
 				7539E1721F23B25A006B2DF2 /* rsrc_patches.cpp in Sources */,
 				5D5C3B0A24B2DF3500CDAB41 /* bincue.cpp in Sources */,
 				7539E2931F23C56F006B2DF2 /* serial_dummy.cpp in Sources */,
-				75CBCF771F5DB65E00830063 /* video_sdl.cpp in Sources */,
 				7539E2801F23C4CA006B2DF2 /* main_unix.cpp in Sources */,
 				7539E1E11F23B25A006B2DF2 /* user_strings.cpp in Sources */,
 				75CBCF751F5DB3AD00830063 /* video_sdl2.cpp in Sources */,

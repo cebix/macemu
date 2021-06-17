@@ -33,7 +33,6 @@ AC_ARG_ENABLE(sdl-video,     [  --enable-sdl-video      use SDL for video graphi
 AC_ARG_ENABLE(sdl-audio,     [  --enable-sdl-audio      use SDL for audio [default=no]], [WANT_SDL_AUDIO=$enableval], [WANT_SDL_AUDIO=yes])
 AC_ARG_ENABLE(sdl-framework,    [  --enable-sdl-framework  use SDL framework [default=no]], [WANT_SDL_FRAMEWORK=$enableval], [WANT_SDL_FRAMEWORK=no])
 AC_ARG_ENABLE(sdl-framework-prefix,    [  --enable-sdl-framework-prefix=PFX    default=/Library/Frameworks], [SDL_FRAMEWORK="$enableval"], [SDL_FRAMEWORK=/Library/Frameworks])
-AC_ARG_WITH(sdl1,            [  --with-sdl1             use SDL 1.x, rather than SDL 2.x [default=no]], [WANT_SDL_VERSION_MAJOR=1], [])
 
 dnl JIT compiler options.
 AC_ARG_ENABLE(jit-compiler,  [  --enable-jit-compiler   enable JIT compiler [default=yes]], [WANT_JIT=$enableval], [WANT_JIT=yes])
@@ -284,59 +283,18 @@ if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
 fi
 if [[ "x$WANT_SDL" = "xyes" ]]; then
   if [[ "x$WANT_SDL_FRAMEWORK" = "xyes" ]]; then
-    TEMP_WANT_SDL_VERSION_MAJOR=$WANT_SDL_VERSION_MAJOR
-    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x" ]]; then
-      TEMP_WANT_SDL_VERSION_MAJOR=2
-    fi
-    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x2" ]]; then
-      AC_CHECK_SDLFRAMEWORK(SDL2, [#include <SDL.h>], [
-        WANT_SDL_VERSION_MAJOR=2
-      ], [
-        TEMP_WANT_SDL_VERSION_MAJOR=1
-      ])
-    fi
-    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x1" ]]; then
-      AC_CHECK_SDLFRAMEWORK(SDL, [#include <SDL.h>], [
-        WANT_SDL_VERSION_MAJOR=1
-      ])
-    fi
+    AC_CHECK_SDLFRAMEWORK(SDL2, [#include <SDL.h>])
   else
     ac_cv_framework_SDL=no
   fi
   if [[ "x$ac_cv_framework_SDL" = "xno" ]]; then
-    TEMP_WANT_SDL_VERSION_MAJOR=$WANT_SDL_VERSION_MAJOR
-    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x" ]]; then
-      TEMP_WANT_SDL_VERSION_MAJOR=2
-    fi
-
-    dnl use PKG_PROG_PKG_CONFIG to declare PKG_CONFIG variables.  Otherwise,
-    dnl PKG_* macros may fail, without much explanation.  The lack of this
-    dnl was causing --with-sdl1 to fail, as SDL 1.x could not be detected,
-    dnl as the 2nd call to PKG_CHECK_MODULES would fail, as $PKG_CONFIG
-    dnl never got defined (bizarrely-enough).  -- dludwig@pobox.com
-    PKG_PROG_PKG_CONFIG
-
-    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x2" ]]; then
-      PKG_CHECK_MODULES([sdl2], [sdl2 >= 2.0], [
-        CFLAGS="$CFLAGS $sdl2_CFLAGS"
-        CXXFLAGS="$CXXFLAGS $sdl2_CFLAGS"
-        LIBS="$LIBS $sdl2_LIBS"
-        WANT_SDL_VERSION_MAJOR=2
-      ], [
-        TEMP_WANT_SDL_VERSION_MAJOR=1
-      ])
-    fi
-    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x1" ]]; then
-      PKG_CHECK_MODULES([sdl], [sdl >= 1.2], [
-        CFLAGS="$CFLAGS $sdl_CFLAGS"
-        CXXFLAGS="$CXXFLAGS $sdl_CFLAGS"
-        LIBS="$LIBS $sdl_LIBS"
-        WANT_SDL_VERSION_MAJOR=1
-      ], [
-        WANT_SDL=no
-        WANT_SDL_VERSION_MAJOR=
-      ])
-    fi
+    PKG_CHECK_MODULES([sdl2], [sdl2 >= 2.0], [
+      CFLAGS="$CFLAGS $sdl2_CFLAGS"
+      CXXFLAGS="$CXXFLAGS $sdl2_CFLAGS"
+      LIBS="$LIBS $sdl2_LIBS"
+    ], [
+      WANT_SDL=no
+    ])
   fi
   SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
 else
@@ -792,7 +750,7 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
 fi
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support])
-  VIDEOSRCS="../SDL/video_sdl.cpp ../SDL/video_sdl2.cpp"
+  VIDEOSRCS="../SDL/video_sdl2.cpp"
   KEYCODES="../SDL/keycodes"
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     AC_MSG_CHECKING([whether __LP64__ is defined])
@@ -1751,7 +1709,6 @@ echo
 echo Mac OS X GUI ........................... : $WANT_MACOSX_GUI
 echo Mac OS X Sound ......................... : $WANT_MACOSX_SOUND
 echo SDL support ............................ : $SDL_SUPPORT
-echo SDL major-version ...................... : $WANT_SDL_VERSION_MAJOR
 echo BINCUE support ......................... : $have_bincue
 echo LIBVHD support ......................... : $have_libvhd
 echo VDE support ............................ : $have_vdeplug
