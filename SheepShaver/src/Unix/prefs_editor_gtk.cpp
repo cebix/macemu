@@ -711,7 +711,6 @@ static GtkWidget *w_frameskip, *w_display_x, *w_display_y;
 static GtkWidget *l_frameskip, *l_display_x, *l_display_y;
 static int display_type;
 static int dis_width, dis_height;
-static bool is_fbdev_dga_mode = false;
 
 static GtkWidget *w_dspdevice_file, *w_mixerdevice_file;
 
@@ -772,8 +771,7 @@ static void tb_nosound(GtkWidget *widget)
 }
 
 // Read and convert graphics preferences
-static void parse_graphics_prefs(void)
-{
+static void parse_graphics_prefs(void){
 	display_type = DISPLAY_WINDOW;
 	dis_width = 640;
 	dis_height = 480;
@@ -784,12 +782,6 @@ static void parse_graphics_prefs(void)
 			display_type = DISPLAY_WINDOW;
 		else if (sscanf(str, "dga/%d/%d", &dis_width, &dis_height) == 2)
 			display_type = DISPLAY_SCREEN;
-#ifdef ENABLE_FBDEV_DGA
-		else if (sscanf(str, "fbdev/%d/%d", &dis_width, &dis_height) == 2) {
-			is_fbdev_dga_mode = true;
-			display_type = DISPLAY_SCREEN;
-		}
-#endif
 	}
 	else {
 		uint32 window_modes = PrefsFindInt32("windowmodes");

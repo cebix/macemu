@@ -125,21 +125,8 @@
 #include <string>
 #endif
 
-#ifndef USE_SDL_VIDEO
-#include <X11/Xlib.h>
-#endif
-
 #ifdef ENABLE_GTK
 #include <gtk/gtk.h>
-#if !defined(GDK_WINDOWING_QUARTZ) && !defined(GDK_WINDOWING_WAYLAND)
-#include <X11/Xlib.h>
-#endif
-#endif
-
-#ifdef ENABLE_XF86_DGA
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/extensions/Xxf86dga.h>
 #endif
 
 #ifdef ENABLE_MON
@@ -199,14 +186,6 @@ uint8 gZeroPage[0x3000], gKernelData[0x2000];
 #endif
 
 // Global variables
-#ifndef USE_SDL_VIDEO
-char *x_display_name = NULL;				// X11 display name
-Display *x_display = NULL;					// X11 display handle
-#ifdef X11_LOCK_TYPE
-X11_LOCK_TYPE x_display_lock = X11_LOCK_INIT; // X11 display lock
-#endif
-#endif
-
 static int zero_fd = 0;						// FD of /dev/zero
 static bool lm_area_mapped = false;			// Flag: Low Memory area mmap()ped
 static bool rom_area_mapped = false;		// Flag: Mac ROM mmap()ped
@@ -680,8 +659,7 @@ static bool install_signal_handlers(void)
 
 static std::string sdl_vmdir;
 
-static bool init_sdl()
-{
+static bool init_sdl(){
 	int sdl_flags = 0;
 #ifdef USE_SDL_VIDEO
 	sdl_flags |= SDL_INIT_VIDEO;
@@ -727,11 +705,7 @@ static bool init_sdl()
 }
 #endif
 
-int main(int argc, char **argv)
-{
-#if defined(ENABLE_GTK) && !defined(GDK_WINDOWING_QUARTZ) && !defined(GDK_WINDOWING_WAYLAND)
-	XInitThreads();
-#endif
+int main(int argc, char **argv){
 	char str[256];
 	bool memory_mapped_from_zero, ram_rom_areas_contiguous;
 	const char *vmdir = NULL;
@@ -782,12 +756,6 @@ int main(int argc, char **argv)
 			argv[i] = NULL;
 		} else if (strcmp(argv[i], "--help") == 0) {
 			usage(argv[0]);
-#ifndef USE_SDL_VIDEO
-		} else if (strcmp(argv[i], "--display") == 0) {
-			i++;
-			if (i < argc)
-				x_display_name = strdup(argv[i]);
-#endif
 		} else if (strcmp(argv[i], "--gui-connection") == 0) {
 			argv[i++] = NULL;
 			if (i < argc) {
@@ -857,22 +825,6 @@ int main(int argc, char **argv)
 			usage(argv[0]);
 		}
 	}
-
-#ifndef USE_SDL_VIDEO
-	// Open display
-	x_display = XOpenDisplay(x_display_name);
-	if (x_display == NULL) {
-		char str[256];
-		sprintf(str, GetString(STR_NO_XSERVER_ERR), XDisplayName(x_display_name));
-		ErrorAlert(str);
-		goto quit;
-	}
-
-#if defined(ENABLE_XF86_DGA) && !defined(ENABLE_MON)
-	// Fork out, so we can return from fullscreen mode when things get ugly
-	XF86DGAForkApp(DefaultScreen(x_display));
-#endif
-#endif
 
 #ifdef ENABLE_MON
 	// Initialize mon
@@ -1198,12 +1150,6 @@ static void Quit(void)
 #ifdef ENABLE_MON
 	// Exit mon
 	mon_exit();
-#endif
-
-	// Close X11 server connection
-#ifndef USE_SDL_VIDEO
-	if (x_display)
-		XCloseDisplay(x_display);
 #endif
 
 	// Notify GUI we are about to leave
@@ -2303,20 +2249,18 @@ void display_alert(int title_id, int prefix_id, int button_id, const char *text)
 }
 #endif
 
-
 /*
  *  Display error alert
  */
 
-void ErrorAlert(const char *text)
-{
+void ErrorAlert(const char *text){
 	if (gui_connection) {
 		if (rpc_method_invoke(gui_connection, RPC_METHOD_ERROR_ALERT, RPC_TYPE_STRING, text, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR &&
 			rpc_method_wait_for_reply(gui_connection, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR)
 			return;
 	}
 #if defined(ENABLE_GTK) && !defined(USE_SDL_VIDEO)
-	if (PrefsFindBool("nogui") || x_display == NULL) {
+	if (PrefsFindBool("nogui")) {
 		printf(GetString(STR_SHELL_ERROR_PREFIX), text);
 		return;
 	}
@@ -2327,20 +2271,18 @@ void ErrorAlert(const char *text)
 #endif
 }
 
-
 /*
  *  Display warning alert
  */
 
-void WarningAlert(const char *text)
-{
+void WarningAlert(const char *text){
 	if (gui_connection) {
 		if (rpc_method_invoke(gui_connection, RPC_METHOD_WARNING_ALERT, RPC_TYPE_STRING, text, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR &&
 			rpc_method_wait_for_reply(gui_connection, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR)
 			return;
 	}
 #if defined(ENABLE_GTK) && !defined(USE_SDL_VIDEO)
-	if (PrefsFindBool("nogui") || x_display == NULL) {
+	if (PrefsFindBool("nogui")) {
 		printf(GetString(STR_SHELL_WARNING_PREFIX), text);
 		return;
 	}
@@ -2349,7 +2291,6 @@ void WarningAlert(const char *text)
 	printf(GetString(STR_SHELL_WARNING_PREFIX), text);
 #endif
 }
-
 
 /*
  *  Display choice alert
