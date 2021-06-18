@@ -209,9 +209,10 @@ bool InitMacMem(void){
 }
 
 void MacMemExit(void){
-	assert(RAMBaseHost);
+	if(RAMBaseHost){
 	vm_release(RAMBaseHost,
 			RAMSize + ScratchMemSize + MAX_ROM_SIZE + VRAMSize + JITCacheSize);
+	}
 	RAMBaseHost = NULL;
 	ROMBaseHost = NULL;
 	//Exit VM wrappers

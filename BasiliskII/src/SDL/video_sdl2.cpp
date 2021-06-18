@@ -506,7 +506,6 @@ static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth, bool nati
 	MacFrameSize = VIDEO_MODE_ROW_BYTES * VIDEO_MODE_Y;
 	memory_init();
 #else
-	assert(Host2MacAddr(0));
 	monitor.set_mac_frame_base(Host2MacAddr(MacFrameBaseHost));
 #endif
 	D(bug("monitor.mac_frame_base = %08x\n", monitor.get_mac_frame_base()));
