@@ -1,0 +1,100 @@
+image:
+  - Visual Studio 2019
+  - macOS
+
+environment:
+  matrix:
+    - MACEMU_PROJECT: BasiliskII
+    - MACEMU_PROJECT: SheepShaver
+
+for:
+-
+  matrix:
+    only:
+      - image: Visual Studio 2019
+
+  environment:
+    MSYS2_DIR: C:\msys64
+    MSYS2_BIN: $(MSYS2_DIR)\usr\bin
+    MSYS2_PLATFORM: MINGW32
+
+  install:
+    - '%MSYS2_BIN%\env %MSYS2_BIN%\bash -lc ''/usr/bin/pacman -Sy --noconfirm'' '
+    # After installing a package with pacman -S, check that it is actually installed with pacman -Qi 
+    # because pacman -S reports success even if the package install failed when some necessary package downloads timed out
+    - '%MSYS2_BIN%\env %MSYS2_BIN%\bash -lc ''/usr/bin/pacman -S --noconfirm mingw-w64-i686-gtk2'' '
+    - '%MSYS2_BIN%\env %MSYS2_BIN%\bash -lc ''/usr/bin/pacman -Qi mingw-w64-i686-gtk2'' '
+    - '%MSYS2_BIN%\env %MSYS2_BIN%\bash -lc ''/usr/bin/pacman -S --noconfirm mingw-w64-i686-SDL2'' '
+    - '%MSYS2_BIN%\env %MSYS2_BIN%\bash -lc ''/usr/bin/pacman -Qi mingw-w64-i686-SDL2'' '
+
+  cache:
+    - $(MSYS2_DIR)\var\cache\pacman\pkg  # downloaded MSYS2 pacman packages
+
+  build_script:
+    - if %MACEMU_PROJECT%==SheepShaver %MSYS2_BIN%\env MSYSTEM=%MSYS2_PLATFORM% %MSYS2_BIN%\bash -lc 'cd /c/projects/%APPVEYOR_PROJECT_NAME%/%MACEMU_PROJECT%; make links'
+    - '%MSYS2_BIN%\env MSYSTEM=%MSYS2_PLATFORM% %MSYS2_BIN%\bash -lc ''cd /c/projects/%APPVEYOR_PROJECT_NAME%/%MACEMU_PROJECT%/src/Windows; ../Unix/autogen.sh'' '
+    - '%MSYS2_BIN%\env MSYSTEM=%MSYS2_PLATFORM% %MSYS2_BIN%\bash -lc ''cd /c/projects/%APPVEYOR_PROJECT_NAME%/%MACEMU_PROJECT%/src/Windows; make'' '
+
+  after_build:
+    - cd %MACEMU_PROJECT%\src\Windows
+    - 7z a ..\..\..\%MACEMU_PROJECT%.zip %MACEMU_PROJECT%*.exe
+
+  artifacts:
+    - path: $(MACEMU_PROJECT)\src\Windows\config.log
+    - path: $(MACEMU_PROJECT).zip
+      name: $(MACEMU_PROJECT)
+
+-
+  matrix:
+    only:
+      - image: macOS
+        MACEMU_PROJECT: BasiliskII
+
+  environment:
+    SDL_VERSION: 2.0.14
+
+  install:
+    - test -e "SDL2-$SDL_VERSION.dmg" || curl -O http://www.libsdl.org/release/SDL2-$SDL_VERSION.dmg
+    - sudo hdiutil attach SDL2-$SDL_VERSION.dmg
+    - sudo cp -r /Volumes/SDL2/SDL2.framework /Library/Frameworks/
+#   - brew update
+#   - HOMEBREW_NO_AUTO_UPDATE=1 brew install mpfr
+
+  cache:
+    - SDL2-$SDL_VERSION.dmg
+
+  build_script:
+    - cd $MACEMU_PROJECT/src/MacOSX
+    - xcodebuild -project $MACEMU_PROJECT.xcodeproj -scheme $MACEMU_PROJECT -configuration Release build SYMROOT=. CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO
+    - rm -rf Release/gencpu_output* Release/*.a
+    - hdiutil create ../../../$MACEMU_PROJECT.dmg -ov -volname $MACEMU_PROJECT -fs HFS+ -srcfolder Release/
+
+  artifacts:
+    - path: $MACEMU_PROJECT.dmg
+      name: $MACEMU_PROJECT
+
+-
+  matrix:
+    only:
+      - image: macOS
+        MACEMU_PROJECT: SheepShaver
+
+  install:
+#   - brew update
+    - HOMEBREW_NO_AUTO_UPDATE=1 brew install sdl2 gtk+
+    - HOMEBREW_NO_AUTO_UPDATE=1 brew link sdl2 gtk+
+
+  cache:
+    - /usr/local/Cellar
+
+  build_script:
+    - cd $MACEMU_PROJECT
+    - make links
+    - cd src/Unix
+    - ./autogen.sh
+    - make
+    - tar -cJvf ../../../$MACEMU_PROJECT.tar.xz $MACEMU_PROJECT
+
+  artifacts:
+    - path: $MACEMU_PROJECT.tar.xz
+      name: $MACEMU_PROJECT
