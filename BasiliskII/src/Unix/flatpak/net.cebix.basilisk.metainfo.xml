@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>net.cebix.basilisk</id>
+
+  <name>Basilisk II</name>
+  <summary>A 68k Macintosh emulator</summary>
+
+  <metadata_license>FSFAP</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  <content_rating type="oars-1.1" />
+
+  <description><p>
+Basilisk II is an Open Source 68k Macintosh emulator. That is, it enables you to run 68k Mac OS software on you computer, even if you are using a different operating system. However, you still need a copy of Mac OS 7.x-8.1 and a Macintosh ROM image to use Basilisk II.
+  </p></description>
+
+  <url type="homepage">https://basilisk.cebix.net/</url>
+
+  <launchable type="desktop-id">net.cebix.basilisk.desktop</launchable>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/SegHaxx/flathub/new-pr/screenshots/1.png</image>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="1.0.0" date="2020-12-11">
+      <description>
+        <p>First Flathub release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

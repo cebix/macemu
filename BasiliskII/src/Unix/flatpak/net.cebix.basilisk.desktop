@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Basilisk II
+GenericName=Macintosh Emulator
+Comment=68k Macintosh Emulator
+Categories=System;Emulator;
+Icon=net.cebix.basilisk
+Exec=BasiliskII
+Terminal=false

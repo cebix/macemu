@@ -155,9 +155,24 @@ install: $(PROGS) installdirs
 	$(INSTALL_DATA) @top_srcdir@/$(KEYCODES) $(DESTDIR)$(datadir)/$(APP)/keycodes
 	$(INSTALL_DATA) @top_srcdir@/fbdevices $(DESTDIR)$(datadir)/$(APP)/fbdevices
 	$(INSTALL_DATA) @top_srcdir@/tunconfig $(DESTDIR)$(datadir)/$(APP)/tunconfig
+	$(INSTALL_DATA) @top_srcdir@/flatpak/net.cebix.basilisk.metainfo.xml \
+		$(DESTDIR)$(datadir)/metainfo/
+	$(INSTALL_DATA) @top_srcdir@/flatpak/net.cebix.basilisk.desktop \
+		$(DESTDIR)$(datadir)/applications/
+	$(INSTALL_DATA) @top_srcdir@/flatpak/BasiliskII64.png \
+		$(DESTDIR)$(datadir)/icons/hicolor/64x64/apps/net.cebix.basilisk.png
+	$(INSTALL_DATA) @top_srcdir@/flatpak/BasiliskII128.png \
+		$(DESTDIR)$(datadir)/icons/hicolor/128x128/apps/net.cebix.basilisk.png
 
 installdirs:
-	$(SHELL) @top_srcdir@/mkinstalldirs $(DESTDIR)$(bindir) $(DESTDIR)$(man1dir) $(DESTDIR)$(datadir)/$(APP)
+	$(SHELL) @top_srcdir@/mkinstalldirs \
+		$(DESTDIR)$(bindir) \
+		$(DESTDIR)$(man1dir) \
+		$(DESTDIR)$(datadir)/$(APP) \
+		$(DESTDIR)$(datadir)/metainfo \
+		$(DESTDIR)$(datadir)/applications \
+		$(DESTDIR)$(datadir)/icons/hicolor/64x64/apps \
+		$(DESTDIR)$(datadir)/icons/hicolor/128x128/apps
 
 uninstall:
 	rm -f $(DESTDIR)$(bindir)/$(APP)$(EXEEXT)
