@@ -193,12 +193,14 @@ HAVE_M68K=no
 HAVE_SPARC=no
 HAVE_POWERPC=no
 HAVE_X86_64=no
+HAVE_AARCH_64=no
 case "$target_cpu" in
   i386* | i486* | i586* | i686* | i786* ) HAVE_I386=yes;;
   m68k* ) HAVE_M68K=yes;;
   sparc* ) HAVE_SPARC=yes;;
   powerpc* ) HAVE_POWERPC=yes;;
   x86_64* | amd64* ) HAVE_X86_64=yes;;
+  aarch64* ) HAVE_AARCH_64=yes;;
 esac
 
 dnl Check if we should really be assuming x86_64 even if we detected HAVE_I386 above.
@@ -1431,6 +1433,11 @@ AC_TRANSLATE_DEFINE(HAVE_LINKER_SCRIPT, "$ac_cv_linker_script_works",
 
 dnl override the addressing mode test order for Darwin
 if [[ "x$OS_TYPE" = "xdarwin" ]]; then
+    ADDRESSING_TEST_ORDER="banks"
+fi
+
+dnl override the addressing mode test order for AARCH64
+if [[ "x$HAVE_AARCH_64" = "xyes" ]]; then
     ADDRESSING_TEST_ORDER="banks"
 fi
 
