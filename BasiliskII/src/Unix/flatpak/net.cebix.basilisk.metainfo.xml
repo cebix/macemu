@@ -24,6 +24,11 @@ Basilisk II is an Open Source 68k Macintosh emulator. That is, it enables you to
   </screenshots>
 
   <releases>
+    <release version="1.6.19" date="2020-6-19">
+      <description>
+        <p>Stability fixes. Happy Juneteenth!</p>
+      </description>
+    </release>
     <release version="1.0.0" date="2020-12-11">
       <description>
         <p>First Flathub release.</p>
