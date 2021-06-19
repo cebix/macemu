@@ -375,7 +375,6 @@ int main(int argc, char **argv){
 #ifdef ENABLE_GTK
 	if (!gui_connection) {
 		// Init GTK
-		gtk_set_locale();
 		gtk_init(&argc, &argv);
 		g_set_application_name("Basilisk II");
 	}
@@ -863,16 +862,13 @@ static void dl_quit(GtkWidget *dialog)
 	gtk_widget_destroy(dialog);
 }
 
-void display_alert(int title_id, int prefix_id, int button_id, const char *text)
-{
+void display_alert(int title_id, int prefix_id, int button_id, const char *text){
 	char str[256];
 	sprintf(str, GetString(prefix_id), text);
 
 	GtkWidget *dialog = gtk_dialog_new();
 	gtk_window_set_title(GTK_WINDOW(dialog), GetString(title_id));
-	gtk_container_border_width(GTK_CONTAINER(dialog), 5);
-	gtk_widget_set_uposition(GTK_WIDGET(dialog), 100, 150);
-	gtk_signal_connect(GTK_OBJECT(dialog), "destroy", GTK_SIGNAL_FUNC(dl_destroyed), NULL);
+	g_signal_connect(GTK_OBJECT(dialog), "destroy", G_CALLBACK(dl_destroyed), NULL);
 
 	GtkWidget *label = gtk_label_new(str);
 	gtk_widget_show(label);
@@ -880,9 +876,9 @@ void display_alert(int title_id, int prefix_id, int button_id, const char *text)
 
 	GtkWidget *button = gtk_button_new_with_label(GetString(button_id));
 	gtk_widget_show(button);
-	gtk_signal_connect_object(GTK_OBJECT(button), "clicked", GTK_SIGNAL_FUNC(dl_quit), GTK_OBJECT(dialog));
+	g_signal_connect_swapped(GTK_OBJECT(button), "clicked", G_CALLBACK(dl_quit), GTK_OBJECT(dialog));
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, FALSE, FALSE, 0);
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+	gtk_widget_set_can_default(button,true);
 	gtk_widget_grab_default(button);
 	gtk_widget_show(dialog);
 

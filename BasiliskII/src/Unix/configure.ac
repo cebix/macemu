@@ -1,6 +1,3 @@
-dnl Process this file with autoconf to produce a configure script.
-dnl Written in 2002 by Christian Bauer et al.
-
 AC_INIT([Basilisk II], [m4_esyscmd_s([git describe --always --tags --dirty])])
 AC_CONFIG_SRCDIR(main_unix.cpp)
 AC_PREREQ(2.52)
@@ -63,14 +60,7 @@ AC_ARG_ENABLE(addressing,
 ])
 
 dnl External packages.
-AC_ARG_WITH(gtk,             [  --with-gtk              use GTK user interface [default=yes]],
-  [case "$withval" in
-   gtk1)      WANT_GTK="gtk";;
-   gtk|gtk2)  WANT_GTK="$withval";;
-   yes)       WANT_GTK="gtk2 gtk";;
-   *)         WANT_GTK="no";;
-   esac],
-  [WANT_GTK="gtk2 gtk"])
+AC_ARG_WITH(gtk,             [  --with-gtk              use GTK user interface [default=yes]], [WANT_GTK=$withval], [WANT_GTK=yes])
 AC_ARG_WITH(mon,             [  --with-mon              use mon as debugger [default=no]], [WANT_MON=$withval], [WANT_MON=no])
 
 AC_ARG_WITH(bincue,   
@@ -357,32 +347,14 @@ AC_CHECK_FUNCS(sem_init, , [
 
 dnl We use GTK+ if possible.
 UISRCS=../dummy/prefs_editor_dummy.cpp
-case "x$WANT_GTK" in
-xgtk2*)
-  AM_PATH_GTK_2_0(1.3.15, [
-    GUI_CFLAGS="$GTK_CFLAGS"
-    GUI_LIBS="$GTK_LIBS"
-    WANT_GTK=gtk2
-  ], [
-    case "x${WANT_GTK}x" in
-    *gtkx)
-      AC_MSG_WARN([Could not find GTK+ 2.0, trying with GTK+ 1.2.])
-      WANT_GTK=gtk
-      ;;
-    *)
-      AC_MSG_WARN([Could not find GTK+, disabling user interface.])
-      WANT_GTK=no
-      ;;
-    esac
-  ])
-  ;;
-esac
-if [[ "x$WANT_GTK" = "xgtk" ]]; then
-  AM_PATH_GTK(1.2.0, [
-    GUI_CFLAGS="$GTK_CFLAGS"
+if [[ "x$WANT_GTK" = "xyes" ]]; then
+  AM_PATH_GTK_2_0(2.6.0, [
+    GUI_CFLAGS="$GTK_CFLAGS -DGTK_DISABLE_SINGLE_INCLUDES"
+    GUI_CFLAGS="$GUI_CFLAGS -DGDK_DISABLE_DEPRECATED"
+    #GUI_CFLAGS="$GUI_CFLAGS -DGTK_DISABLE_DEPRECATED"
     GUI_LIBS="$GTK_LIBS"
   ], [
-    AC_MSG_WARN([Could not find GTK+, disabling user interface.])
+    AC_MSG_WARN([Could not find GTK+ 2.x, disabling user interface.])
     WANT_GTK=no
   ])
 fi

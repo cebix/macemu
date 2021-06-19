@@ -64,7 +64,7 @@ static void read_settings(void);
 
 struct opt_desc {
 	int label_id;
-	GtkSignalFunc func;
+	GCallback func;
 };
 
 struct combo_desc {
@@ -77,39 +77,35 @@ struct file_req_assoc {
 	GtkWidget *entry;
 };
 
-static void cb_browse_ok(GtkWidget *button, file_req_assoc *assoc)
-{
+static void cb_browse_ok(GtkWidget *button, file_req_assoc *assoc){
 	gchar *file = (char *)gtk_file_selection_get_filename(GTK_FILE_SELECTION(assoc->req));
 	gtk_entry_set_text(GTK_ENTRY(assoc->entry), file);
 	gtk_widget_destroy(assoc->req);
 	delete assoc;
 }
 
-static void cb_browse(GtkWidget *widget, void *user_data)
-{
+static void cb_browse(GtkWidget *widget, void *user_data){
 	GtkWidget *req = gtk_file_selection_new(GetString(STR_BROWSE_TITLE));
-	gtk_signal_connect_object(GTK_OBJECT(req), "delete_event", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
-	gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(req)->ok_button), "clicked", GTK_SIGNAL_FUNC(cb_browse_ok), new file_req_assoc(req, (GtkWidget *)user_data));
-	gtk_signal_connect_object(GTK_OBJECT(GTK_FILE_SELECTION(req)->cancel_button), "clicked", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
+	g_signal_connect_swapped(GTK_OBJECT(req), "delete_event", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
+	g_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(req)->ok_button), "clicked", GTK_SIGNAL_FUNC(cb_browse_ok), new file_req_assoc(req, (GtkWidget *)user_data));
+	g_signal_connect_swapped(GTK_OBJECT(GTK_FILE_SELECTION(req)->cancel_button), "clicked", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
 	gtk_widget_show(req);
 }
 
-static GtkWidget *make_browse_button(GtkWidget *entry)
-{
+static GtkWidget *make_browse_button(GtkWidget *entry){
 	GtkWidget *button;
 
 	button = gtk_button_new_with_label(GetString(STR_BROWSE_CTRL));
 	gtk_widget_show(button);
-	gtk_signal_connect(GTK_OBJECT(button), "clicked", (GtkSignalFunc)cb_browse, (void *)entry);
+	g_signal_connect(GTK_OBJECT(button), "clicked", (GCallback)cb_browse, (void *)entry);
 	return button;
 }
 
-static void add_menu_item(GtkWidget *menu, int label_id, GtkSignalFunc func)
-{
+static void add_menu_item(GtkWidget *menu, int label_id, GCallback func){
 	GtkWidget *item = gtk_menu_item_new_with_label(GetString(label_id));
 	gtk_widget_show(item);
-	gtk_signal_connect(GTK_OBJECT(item), "activate", func, NULL);
-	gtk_menu_append(GTK_MENU(menu), item);
+	g_signal_connect(GTK_OBJECT(item), "activate", func, NULL);
+	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 }
 
 static GtkWidget *make_pane(GtkWidget *notebook, int title_id)
@@ -130,8 +126,7 @@ static GtkWidget *make_pane(GtkWidget *notebook, int title_id)
 	return box;
 }
 
-static GtkWidget *make_button_box(GtkWidget *top, int border, const opt_desc *buttons)
-{
+static GtkWidget *make_button_box(GtkWidget *top, int border, const opt_desc *buttons){
 	GtkWidget *bb, *button;
 
 	bb = gtk_hbutton_box_new();
@@ -144,7 +139,7 @@ static GtkWidget *make_button_box(GtkWidget *top, int border, const opt_desc *bu
 	while (buttons->label_id) {
 		button = gtk_button_new_with_label(GetString(buttons->label_id));
 		gtk_widget_show(button);
-		gtk_signal_connect_object(GTK_OBJECT(button), "clicked", buttons->func, NULL);
+		g_signal_connect_swapped(GTK_OBJECT(button), "clicked", buttons->func, NULL);
 		gtk_box_pack_start(GTK_BOX(bb), button, TRUE, TRUE, 0);
 		buttons++;
 	}
@@ -167,8 +162,7 @@ static GtkWidget *make_table(GtkWidget *top, int x, int y)
 	return table;
 }
 
-static GtkWidget *table_make_option_menu(GtkWidget *table, int row, int label_id, const opt_desc *options, int active)
-{
+static GtkWidget *table_make_option_menu(GtkWidget *table, int row, int label_id, const opt_desc *options, int active){
 	GtkWidget *label, *opt, *menu;
 
 	label = gtk_label_new(GetString(label_id));
@@ -273,8 +267,7 @@ static GtkWidget *make_option_menu(GtkWidget *top, int label_id, const opt_desc 
 	return menu;
 }
 
-static GtkWidget *make_file_entry(GtkWidget *top, int label_id, const char *prefs_item, bool only_dirs = false)
-{
+static GtkWidget *make_file_entry(GtkWidget *top, int label_id, const char *prefs_item, bool only_dirs = false){
 	GtkWidget *box, *label, *entry;
 
 	box = gtk_hbox_new(FALSE, 4);
@@ -289,35 +282,23 @@ static GtkWidget *make_file_entry(GtkWidget *top, int label_id, const char *pref
 	if (str == NULL)
 		str = "";
 
-#ifdef HAVE_GNOMEUI
-	entry = gnome_file_entry_new(NULL, GetString(label_id));
-	if (only_dirs)
-		gnome_file_entry_set_directory(GNOME_FILE_ENTRY(entry), true);
-	gtk_entry_set_text(GTK_ENTRY(gnome_file_entry_gtk_entry(GNOME_FILE_ENTRY(entry))), str);
-#else
 	entry = gtk_entry_new();
 	gtk_entry_set_text(GTK_ENTRY(entry), str); 
-#endif
 	gtk_widget_show(entry);
 	gtk_box_pack_start(GTK_BOX(box), entry, TRUE, TRUE, 0);
 	return entry;
 }
 
-static const gchar *get_file_entry_path(GtkWidget *entry)
-{
-#ifdef HAVE_GNOMEUI
-	return gnome_file_entry_get_full_path(GNOME_FILE_ENTRY(entry), false);
-#else
+static const gchar *get_file_entry_path(GtkWidget *entry){
 	return gtk_entry_get_text(GTK_ENTRY(entry));
-#endif
 }
 
-static GtkWidget *make_checkbox(GtkWidget *top, int label_id, const char *prefs_item, GtkSignalFunc func)
+static GtkWidget *make_checkbox(GtkWidget *top, int label_id, const char *prefs_item, GCallback func)
 {
 	GtkWidget *button = gtk_check_button_new_with_label(GetString(label_id));
 	gtk_widget_show(button);
 	gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(button), PrefsFindBool(prefs_item));
-	gtk_signal_connect(GTK_OBJECT(button), "toggled", func, button);
+	g_signal_connect(GTK_OBJECT(button), "toggled", func, button);
 	gtk_box_pack_start(GTK_BOX(top), button, FALSE, FALSE, 0);
 	return button;
 }
@@ -446,8 +427,8 @@ bool PrefsEditor(void){
 	// Create window
 	win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	gtk_window_set_title(GTK_WINDOW(win), GetString(STR_PREFS_TITLE));
-	gtk_signal_connect(GTK_OBJECT(win), "delete_event", GTK_SIGNAL_FUNC(window_closed), NULL);
-	gtk_signal_connect(GTK_OBJECT(win), "destroy", GTK_SIGNAL_FUNC(window_destroyed), NULL);
+	g_signal_connect(GTK_OBJECT(win), "delete_event", GTK_SIGNAL_FUNC(window_closed), NULL);
+	g_signal_connect(GTK_OBJECT(win), "destroy", GTK_SIGNAL_FUNC(window_destroyed), NULL);
 
 	// Create window contents
 	GtkWidget *box = gtk_vbox_new(FALSE, 4);
@@ -457,11 +438,7 @@ bool PrefsEditor(void){
 	GtkAccelGroup *accel_group = gtk_accel_group_new();
 	GtkItemFactory *item_factory = gtk_item_factory_new(GTK_TYPE_MENU_BAR, "<main>", accel_group);
 	gtk_item_factory_create_items(item_factory, sizeof(menu_items) / sizeof(menu_items[0]), menu_items, NULL);
-#if GTK_CHECK_VERSION(1,3,15)
 	gtk_window_add_accel_group(GTK_WINDOW(win), accel_group);
-#else
-	gtk_accel_group_attach(accel_group, GTK_OBJECT(win));
-#endif
 	GtkWidget *menu_bar = gtk_item_factory_get_widget(item_factory, "<main>");
 	gtk_widget_show(menu_bar);
 	gtk_box_pack_start(GTK_BOX(box), menu_bar, FALSE, TRUE, 0);
@@ -509,8 +486,7 @@ static void cl_selected(GtkWidget *list, int row, int column)
 }
 
 // Volume selected for addition
-static void add_volume_ok(GtkWidget *button, file_req_assoc *assoc)
-{
+static void add_volume_ok(GtkWidget *button, file_req_assoc *assoc){
 	gchar *file = (gchar *)gtk_file_selection_get_filename(GTK_FILE_SELECTION(assoc->req));
 	gtk_clist_append(GTK_CLIST(volume_list), &file);
 	gtk_widget_destroy(assoc->req);
@@ -518,8 +494,7 @@ static void add_volume_ok(GtkWidget *button, file_req_assoc *assoc)
 }
 
 // Volume selected for creation
-static void create_volume_ok(GtkWidget *button, file_req_assoc *assoc)
-{
+static void create_volume_ok(GtkWidget *button, file_req_assoc *assoc){
 	gchar *file = (gchar *)gtk_file_selection_get_filename(GTK_FILE_SELECTION(assoc->req));
 
 	const gchar *str = gtk_entry_get_text(GTK_ENTRY(assoc->entry));
@@ -535,18 +510,16 @@ static void create_volume_ok(GtkWidget *button, file_req_assoc *assoc)
 }
 
 // "Add Volume" button clicked
-static void cb_add_volume(...)
-{
+static void cb_add_volume(...){
 	GtkWidget *req = gtk_file_selection_new(GetString(STR_ADD_VOLUME_TITLE));
-	gtk_signal_connect_object(GTK_OBJECT(req), "delete_event", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
-	gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(req)->ok_button), "clicked", GTK_SIGNAL_FUNC(add_volume_ok), new file_req_assoc(req, NULL));
-	gtk_signal_connect_object(GTK_OBJECT(GTK_FILE_SELECTION(req)->cancel_button), "clicked", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
+	g_signal_connect_swapped(GTK_OBJECT(req), "delete_event", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
+	g_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(req)->ok_button), "clicked", GTK_SIGNAL_FUNC(add_volume_ok), new file_req_assoc(req, NULL));
+	g_signal_connect_swapped(GTK_OBJECT(GTK_FILE_SELECTION(req)->cancel_button), "clicked", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
 	gtk_widget_show(req);
 }
 
 // "Create Hardfile" button clicked
-static void cb_create_volume(...)
-{
+static void cb_create_volume(...){
 	GtkWidget *req = gtk_file_selection_new(GetString(STR_CREATE_VOLUME_TITLE));
 
 	GtkWidget *box = gtk_hbox_new(FALSE, 4);
@@ -562,15 +535,14 @@ static void cb_create_volume(...)
 	gtk_box_pack_start(GTK_BOX(box), entry, FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(GTK_FILE_SELECTION(req)->main_vbox), box, FALSE, FALSE, 0);
 
-	gtk_signal_connect_object(GTK_OBJECT(req), "delete_event", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
-	gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(req)->ok_button), "clicked", GTK_SIGNAL_FUNC(create_volume_ok), new file_req_assoc(req, entry));
-	gtk_signal_connect_object(GTK_OBJECT(GTK_FILE_SELECTION(req)->cancel_button), "clicked", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
+	g_signal_connect_swapped(GTK_OBJECT(req), "delete_event", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
+	g_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(req)->ok_button), "clicked", GTK_SIGNAL_FUNC(create_volume_ok), new file_req_assoc(req, entry));
+	g_signal_connect_swapped(GTK_OBJECT(GTK_FILE_SELECTION(req)->cancel_button), "clicked", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
 	gtk_widget_show(req);
 }
 
 // "Remove Volume" button clicked
-static void cb_remove_volume(...)
-{
+static void cb_remove_volume(...){
 	gtk_clist_remove(GTK_CLIST(volume_list), selected_volume);
 }
 
@@ -579,14 +551,12 @@ static void mn_boot_any(...) {PrefsReplaceInt32("bootdriver", 0);}
 static void mn_boot_cdrom(...) {PrefsReplaceInt32("bootdriver", CDROMRefNum);}
 
 // "No CD-ROM Driver" button toggled
-static void tb_nocdrom(GtkWidget *widget)
-{
+static void tb_nocdrom(GtkWidget *widget){
 	PrefsReplaceBool("nocdrom", GTK_TOGGLE_BUTTON(widget)->active);
 }
 
 // Read settings from widgets and set preferences
-static void read_volumes_settings(void)
-{
+static void read_volumes_settings(void){
 	while (PrefsFindString("disk"))
 		PrefsRemoveItem("disk");
 
@@ -600,8 +570,7 @@ static void read_volumes_settings(void)
 }
 
 // Create "Volumes" pane
-static void create_volumes_pane(GtkWidget *top)
-{
+static void create_volumes_pane(GtkWidget *top){
 	GtkWidget *box, *scroll;
 
 	box = make_pane(top, STR_VOLUMES_PANE_TITLE);
@@ -614,7 +583,7 @@ static void create_volumes_pane(GtkWidget *top)
 	gtk_clist_set_selection_mode(GTK_CLIST(volume_list), GTK_SELECTION_SINGLE);
 	gtk_clist_set_shadow_type(GTK_CLIST(volume_list), GTK_SHADOW_NONE);
 	gtk_clist_set_reorderable(GTK_CLIST(volume_list), true);
-	gtk_signal_connect(GTK_OBJECT(volume_list), "select_row", GTK_SIGNAL_FUNC(cl_selected), NULL);
+	g_signal_connect(GTK_OBJECT(volume_list), "select_row", GTK_SIGNAL_FUNC(cl_selected), NULL);
 	char *str;
 	int32 index = 0;
 	while ((str = const_cast<char *>(PrefsFindString("disk", index++))) != NULL)
@@ -1479,7 +1448,7 @@ static void display_alert(int title_id, int prefix_id, int button_id, const char
 	gtk_window_set_title(GTK_WINDOW(dialog), GetString(title_id));
 	gtk_container_border_width(GTK_CONTAINER(dialog), 5);
 	gtk_widget_set_uposition(GTK_WIDGET(dialog), 100, 150);
-	gtk_signal_connect(GTK_OBJECT(dialog), "destroy", GTK_SIGNAL_FUNC(dl_destroyed), NULL);
+	g_signal_connect(GTK_OBJECT(dialog), "destroy", GTK_SIGNAL_FUNC(dl_destroyed), NULL);
 
 	GtkWidget *label = gtk_label_new(str);
 	gtk_widget_show(label);
@@ -1487,7 +1456,7 @@ static void display_alert(int title_id, int prefix_id, int button_id, const char
 
 	GtkWidget *button = gtk_button_new_with_label(GetString(button_id));
 	gtk_widget_show(button);
-	gtk_signal_connect_object(GTK_OBJECT(button), "clicked", GTK_SIGNAL_FUNC(dl_quit), GTK_OBJECT(dialog));
+	g_signal_connect_swapped(GTK_OBJECT(button), "clicked", GTK_SIGNAL_FUNC(dl_quit), GTK_OBJECT(dialog));
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, FALSE, FALSE, 0);
 	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
 	gtk_widget_grab_default(button);
