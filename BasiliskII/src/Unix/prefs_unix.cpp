@@ -28,7 +28,6 @@ using std::string;
 
 #include "prefs.h"
 
-
 // Platform-specific preferences items
 prefs_desc platform_prefs_items[] = {
 	{"fbdevicefile", TYPE_STRING, false,   "path of frame buffer device specification file"},
@@ -37,16 +36,15 @@ prefs_desc platform_prefs_items[] = {
 	{"idlewait", TYPE_BOOLEAN, false,      "sleep when idle"},
 #ifdef USE_SDL_VIDEO
 	{"sdlrender", TYPE_STRING, false,      "SDL_Renderer driver (\"auto\", \"software\" (may be faster), etc.)"},
+	{"sdl_vsync", TYPE_BOOLEAN, false,     "Make SDL_Renderer vertical sync frames to host (eg. with software renderer)"},
 #endif
 	{NULL, TYPE_END, false, NULL} // End of list
 };
-
 
 // Prefs file name and path
 const char PREFS_FILE_NAME[] = ".basilisk_ii_prefs";
 string UserPrefsPath;
 static string prefs_path;
-
 
 /*
  *  Load preferences from settings file
@@ -90,13 +88,11 @@ void LoadPrefs(const char *vmdir)
 	}
 }
 
-
 /*
  *  Save preferences to settings file
  */
 
-void SavePrefs(void)
-{
+void SavePrefs(void){
 	FILE *f;
 	if ((f = fopen(prefs_path.c_str(), "w")) != NULL) {
 		SavePrefsToStream(f);
@@ -104,32 +100,19 @@ void SavePrefs(void)
 	}
 }
 
-
 /*
  *  Add defaults of platform-specific prefs items
  *  You may also override the defaults set in PrefsInit()
  */
 
-void AddPlatformPrefsDefaults(void)
-{
+void AddPlatformPrefsDefaults(void){
 	PrefsAddBool("keycodes", false);
 	PrefsReplaceString("extfs", "/");
 	PrefsReplaceInt32("mousewheelmode", 1);
 	PrefsReplaceInt32("mousewheellines", 3);
-#ifdef __linux__
-	if (access("/dev/sound/dsp", F_OK) == 0) {
-		PrefsReplaceString("dsp", "/dev/sound/dsp");
-	} else {
-		PrefsReplaceString("dsp", "/dev/dsp");
-	}
-	if (access("/dev/sound/mixer", F_OK) == 0) {
-		PrefsReplaceString("mixer", "/dev/sound/mixer");
-	} else {
-		PrefsReplaceString("mixer", "/dev/mixer");
-	}
-#else
-	PrefsReplaceString("dsp", "/dev/dsp");
-	PrefsReplaceString("mixer", "/dev/mixer");
-#endif
 	PrefsAddBool("idlewait", true);
+#ifdef USE_SDL_VIDEO
+	PrefsReplaceString("sdlrender", "software");
+	PrefsReplaceBool("sdl_vsync", true);
+#endif
 }
