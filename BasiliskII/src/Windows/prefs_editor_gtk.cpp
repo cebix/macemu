@@ -434,47 +434,40 @@ static void dl_quit(GtkWidget *dialog)
 }
 
 // "About" button clicked
-static void cb_about(...)
-{
-	GtkWidget *dialog;
-
-	GtkWidget *label, *button;
-
-	char str[512];
-	sprintf(str,
-		PROGRAM_NAME "\nVersion %d.%d\n\n"
-		"Copyright (C) 1997-2008 Christian Bauer et al.\n"
-		"E-mail: cb@cebix.net\n"
+static void cb_about(...){
+	const gchar* authors[] = {
+		"Christian Bauer <cb@cebix.net>",
+		"Orlando Bassotto",
+		"Gwenolé Beauchesne",
+		"Marc Chabanas",
+		"Marc Hellwig",
+		"Biill Huey",
+		"Brian J. Johnson",
+		"Jürgen Lachmann",
+		"Samuel Lander",
+		"David Lawrence",
+		"Lauri Pesonen",
+		"Bernd Schmidt",
+		"Callum Lerwick <seg@haxxed.com>",
+		"and others",
+		NULL
+	};
+	gtk_show_about_dialog(GTK_WINDOW(win),
+		"version",		VERSION_STRING,
+		"copyright",	"Copyright (C) 1997-2008 Christian Bauer et al.",
 #ifdef SHEEPSHAVER
-		"http://sheepshaver.cebix.net/\n\n"
+		"website",		"http://sheepshaver.cebix.net/",
 #else
-		"http://basilisk.cebix.net/\n\n"
+		"website",		"http://basilisk.cebix.net/",
 #endif
-		PROGRAM_NAME " comes with ABSOLUTELY NO\n"
-		"WARRANTY. This is free software, and\n"
-		"you are welcome to redistribute it\n"
-		"under the terms of the GNU General\n"
-		"Public License.\n",
-		VERSION_MAJOR, VERSION_MINOR
+		"authors",		authors,
+		"license",
+			PACKAGE_NAME " comes with ABSOLUTELY NO WARRANTY.\n\n"
+			"This is free software, and you are welcome to redistribute it "
+			"under the terms of the GNU General Public License.",
+		"wrap-license", true,
+		NULL
 	);
-
-	dialog = gtk_dialog_new();
-	gtk_window_set_title(GTK_WINDOW(dialog), GetString(STR_ABOUT_TITLE));
-	gtk_container_border_width(GTK_CONTAINER(dialog), 5);
-	gtk_widget_set_uposition(GTK_WIDGET(dialog), 100, 150);
-
-	label = gtk_label_new(str);
-	gtk_widget_show(label);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
-
-	button = gtk_button_new_with_label(GetString(STR_OK_BUTTON));
-	gtk_widget_show(button);
-	gtk_signal_connect_object(GTK_OBJECT(button), "clicked", GTK_SIGNAL_FUNC(dl_quit), GTK_OBJECT(dialog));
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, FALSE, FALSE, 0);
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
-	gtk_widget_grab_default(button);
-
-	gtk_widget_show(dialog);
 }
 
 // Menu item descriptions
@@ -1905,11 +1898,11 @@ void WarningAlert(const wchar_t *text)
  *  Start standalone GUI
  */
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]){
 	// Init GTK
 	gtk_set_locale();
 	gtk_init(&argc, &argv);
+	g_set_application_name(PACKAGE_NAME);
 
 	// Read preferences
 	PrefsInit(NULL, argc, argv);

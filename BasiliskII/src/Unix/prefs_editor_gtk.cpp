@@ -28,10 +28,6 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 
-#ifdef HAVE_GNOMEUI
-#include <gnome.h>
-#endif
-
 #include "user_strings.h"
 #include "version.h"
 #include "cdrom.h"
@@ -42,11 +38,9 @@
 #define DEBUG 0
 #include "debug.h"
 
-
 // Global variables
 static GtkWidget *win;				// Preferences window
 static bool start_clicked = false;	// Return value of PrefsEditor() function
-
 
 // Prototypes
 static void create_volumes_pane(GtkWidget *top);
@@ -57,7 +51,6 @@ static void create_serial_pane(GtkWidget *top);
 static void create_memory_pane(GtkWidget *top);
 static void create_jit_pane(GtkWidget *top);
 static void read_settings(void);
-
 
 /*
  *  Utility functions
@@ -400,79 +393,36 @@ static void dl_quit(GtkWidget *dialog)
 }
 
 // "About" selected
-static void mn_about(...)
-{
-	GtkWidget *dialog;
-
-#ifdef HAVE_GNOMEUI
-
-	char version[32];
-	sprintf(version, "Version %d.%d", VERSION_MAJOR, VERSION_MINOR);
-	const char *authors[] = {
-		"Christian Bauer",
+static void mn_about(...){
+	const gchar* authors[] = {
+		"Christian Bauer <cb@cebix.net>",
 		"Orlando Bassotto",
-		"Gwenolé Beauchesne",
+		"GwenolÃ© Beauchesne",
 		"Marc Chabanas",
 		"Marc Hellwig",
 		"Biill Huey",
 		"Brian J. Johnson",
-		"Jürgen Lachmann",
+		"JÃ¼rgen Lachmann",
 		"Samuel Lander",
 		"David Lawrence",
 		"Lauri Pesonen",
 		"Bernd Schmidt",
+		"Callum Lerwick <seg@haxxed.com>",
 		"and others",
 		NULL
 	};
-	dialog = gnome_about_new(
-		"Basilisk II",
-		version,
-		"Copyright (C) 1997-2008 Christian Bauer",
-		authors,
-		"Basilisk II comes with ABSOLUTELY NO WARRANTY."
-		"This is free software, and you are welcome to redistribute it"
-		"under the terms of the GNU General Public License.",
+	gtk_show_about_dialog(GTK_WINDOW(win),
+		"version",		VERSION_STRING,
+		"copyright",	"Copyright (C) 1997-2008 Christian Bauer et al.",
+		"website",		"http://basilisk.cebix.net/",
+		"authors",		authors,
+		"license",
+			"Basilisk II comes with ABSOLUTELY NO WARRANTY.\n\n"
+			"This is free software, and you are welcome to redistribute it "
+			"under the terms of the GNU General Public License.",
+		"wrap-license", true,
 		NULL
 	);
-	gnome_dialog_set_parent(GNOME_DIALOG(dialog), GTK_WINDOW(win));
-
-#else
-
-	GtkWidget *label, *button;
-
-	char str[512];
-	sprintf(str,
-		"Basilisk II\nVersion %d.%d\n\n"
-		"Copyright (C) 1997-2008 Christian Bauer et al.\n"
-		"E-mail: Christian.Bauer@uni-mainz.de\n"
-		"http://www.uni-mainz.de/~bauec002/B2Main.html\n\n"
-		"Basilisk II comes with ABSOLUTELY NO\n"
-		"WARRANTY. This is free software, and\n"
-		"you are welcome to redistribute it\n"
-		"under the terms of the GNU General\n"
-		"Public License.\n",
-		VERSION_MAJOR, VERSION_MINOR
-	);
-
-	dialog = gtk_dialog_new();
-	gtk_window_set_title(GTK_WINDOW(dialog), GetString(STR_ABOUT_TITLE));
-	gtk_container_border_width(GTK_CONTAINER(dialog), 5);
-	gtk_widget_set_uposition(GTK_WIDGET(dialog), 100, 150);
-
-	label = gtk_label_new(str);
-	gtk_widget_show(label);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
-
-	button = gtk_button_new_with_label(GetString(STR_OK_BUTTON));
-	gtk_widget_show(button);
-	gtk_signal_connect_object(GTK_OBJECT(button), "clicked", GTK_SIGNAL_FUNC(dl_quit), GTK_OBJECT(dialog));
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, FALSE, FALSE, 0);
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
-	gtk_widget_grab_default(button);
-
-#endif
-
-	gtk_widget_show(dialog);
 }
 
 // "Zap PRAM" selected
@@ -492,8 +442,7 @@ static GtkItemFactoryEntry menu_items[] = {
 	{(gchar *)GetString(STR_HELP_ITEM_ABOUT_GTK),		NULL,			GTK_SIGNAL_FUNC(mn_about),		0, NULL}
 };
 
-bool PrefsEditor(void)
-{
+bool PrefsEditor(void){
 	// Create window
 	win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	gtk_window_set_title(GTK_WINDOW(win), GetString(STR_PREFS_TITLE));
@@ -524,12 +473,12 @@ bool PrefsEditor(void)
 	gtk_widget_realize(notebook);
 
 	create_volumes_pane(notebook);
-	create_scsi_pane(notebook);
 	create_graphics_pane(notebook);
 	create_input_pane(notebook);
 	create_serial_pane(notebook);
 	create_memory_pane(notebook);
 	create_jit_pane(notebook);
+	//create_scsi_pane(notebook);
 	gtk_widget_show(notebook);
 
 	static const opt_desc buttons[] = {
@@ -1647,23 +1596,15 @@ static void sigchld_handler(int sig, siginfo_t *sip, void *)
 	}
 }
 
-
 /*
  *  Start standalone GUI
  */
 
-int main(int argc, char *argv[])
-{
-#ifdef HAVE_GNOMEUI
-	// Init GNOME/GTK
-	char version[16];
-	sprintf(version, "%d.%d", VERSION_MAJOR, VERSION_MINOR);
-	gnome_init("Basilisk II", version, argc, argv);
-#else
+int main(int argc, char *argv[]){
 	// Init GTK
 	gtk_set_locale();
 	gtk_init(&argc, &argv);
-#endif
+	g_set_application_name("Basilisk II");
 
 	// Read preferences
 	PrefsInit(NULL, argc, argv);

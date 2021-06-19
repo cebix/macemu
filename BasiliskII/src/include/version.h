@@ -21,9 +21,10 @@
 #ifndef VERSION_H
 #define VERSION_H
 
-const int VERSION_MAJOR = 1;
-const int VERSION_MINOR = 1;
-
-#define VERSION_STRING "Basilisk II V1.0 SDL2"
+#ifdef PACKAGE_VERSION // from config.h
+#define VERSION_STRING PACKAGE_VERSION
+#else
+#define VERSION_STRING "1.0"
+#endif
 
 #endif

@@ -42,9 +42,6 @@
 #ifdef ENABLE_GTK
 # include <gtk/gtk.h>
 # include <gdk/gdk.h>
-# ifdef HAVE_GNOMEUI
-#  include <gnome.h>
-# endif
 # if !defined(GDK_WINDOWING_QUARTZ) && !defined(GDK_WINDOWING_WAYLAND)
 #  include <X11/Xlib.h>
 # endif
@@ -293,8 +290,7 @@ int main(int argc, char **argv){
 	tzset();
 
 	// Print some info
-	printf(GetString(STR_ABOUT_TEXT1), VERSION_MAJOR, VERSION_MINOR);
-	printf(" %s\n", GetString(STR_ABOUT_TEXT2));
+	printf(GetString(STR_ABOUT_TEXT));
 
 	// Parse command line arguments
 	for (int i=1; i<argc; i++) {
@@ -378,16 +374,10 @@ int main(int argc, char **argv){
 
 #ifdef ENABLE_GTK
 	if (!gui_connection) {
-#ifdef HAVE_GNOMEUI
-		// Init GNOME/GTK
-		char version[16];
-		sprintf(version, "%d.%d", VERSION_MAJOR, VERSION_MINOR);
-		gnome_init("Basilisk II", version, argc, argv);
-#else
 		// Init GTK
 		gtk_set_locale();
 		gtk_init(&argc, &argv);
-#endif
+		g_set_application_name("Basilisk II");
 	}
 #endif
 

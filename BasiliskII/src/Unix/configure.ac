@@ -1,16 +1,12 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl Written in 2002 by Christian Bauer et al.
 
-AC_INIT([Basilisk II], 1.0, [Christian.Bauer@uni-mainz.de], BasiliskII)
+AC_INIT([Basilisk II], [m4_esyscmd_s([git describe --always --tags --dirty])])
 AC_CONFIG_SRCDIR(main_unix.cpp)
 AC_PREREQ(2.52)
 AC_CONFIG_HEADER(config.h)
 
 AC_USE_SYSTEM_EXTENSIONS
-
-dnl Aliases for PACKAGE and VERSION macros.
-AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE_NAME", [Define this program name.])
-AC_DEFINE_UNQUOTED(VERSION, "$PACKAGE_VERSION", [Define this program version.])
 
 dnl Some systems do not put corefiles in the currect directory, avoid saving
 dnl cores for the configure tests since some are intended to dump core.
@@ -385,11 +381,6 @@ if [[ "x$WANT_GTK" = "xgtk" ]]; then
   AM_PATH_GTK(1.2.0, [
     GUI_CFLAGS="$GTK_CFLAGS"
     GUI_LIBS="$GTK_LIBS"
-    B2_PATH_GNOMEUI([
-      AC_DEFINE(HAVE_GNOMEUI, 1, [Define if libgnomeui is available.])
-      GUI_CFLAGS="$GUI_CFLAGS $GNOMEUI_CFLAGS"
-      GUI_LIBS="$GUI_LIBS $GNOMEUI_LIBS"
-    ], [])
   ], [
     AC_MSG_WARN([Could not find GTK+, disabling user interface.])
     WANT_GTK=no

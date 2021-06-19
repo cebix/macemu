@@ -365,40 +365,40 @@ static void dl_quit(GtkWidget *dialog)
 }
 
 // "About" selected
-static void mn_about(...)
-{
-	GtkWidget *dialog, *label, *button;
-
-	char str[512];
-	sprintf(str,
-		"SheepShaver\nVersion %d.%d\n\n"
-		"Copyright (C) 1997-2008 Christian Bauer and Marc Hellwig\n"
-		"E-mail: cb@cebix.net\n"
-		"http://sheepshaver.cebix.net/\n\n"
-		"SheepShaver comes with ABSOLUTELY NO\n"
-		"WARRANTY. This is free software, and\n"
-		"you are welcome to redistribute it\n"
-		"under the terms of the GNU General\n"
-		"Public License.\n",
-		VERSION_MAJOR, VERSION_MINOR
+static void mn_about(...){
+	const gchar* authors[] = {
+		"Christian Bauer <cb@cebix.net>",
+		"Orlando Bassotto",
+		"Gwenolé Beauchesne",
+		"Marc Chabanas",
+		"Marc Hellwig",
+		"Biill Huey",
+		"Brian J. Johnson",
+		"Jürgen Lachmann",
+		"Samuel Lander",
+		"David Lawrence",
+		"Lauri Pesonen",
+		"Bernd Schmidt",
+		"Callum Lerwick <seg@haxxed.com>",
+		"and others",
+		NULL
+	};
+	gtk_show_about_dialog(GTK_WINDOW(win),
+		"version",		VERSION_STRING,
+		"copyright",	"Copyright (C) 1997-2008 Christian Bauer et al.",
+#ifdef SHEEPSHAVER
+		"website",		"http://sheepshaver.cebix.net/",
+#else
+		"website",		"http://basilisk.cebix.net/",
+#endif
+		"authors",		authors,
+		"license",
+			PACKAGE_NAME " comes with ABSOLUTELY NO WARRANTY.\n\n"
+			"This is free software, and you are welcome to redistribute it "
+			"under the terms of the GNU General Public License.",
+		"wrap-license", true,
+		NULL
 	);
-
-	dialog = gtk_dialog_new();
-	gtk_window_set_title(GTK_WINDOW(dialog), GetString(STR_ABOUT_TITLE));
-	gtk_container_border_width(GTK_CONTAINER(dialog), 5);
-	gtk_widget_set_uposition(GTK_WIDGET(dialog), 100, 150);
-
-	label = gtk_label_new(str);
-	gtk_widget_show(label);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
-
-	button = gtk_button_new_with_label(GetString(STR_OK_BUTTON));
-	gtk_widget_show(button);
-	gtk_signal_connect_object(GTK_OBJECT(button), "clicked", GTK_SIGNAL_FUNC(dl_quit), GTK_OBJECT(dialog));
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, FALSE, FALSE, 0);
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
-	gtk_widget_grab_default(button);
-	gtk_widget_show(dialog);
 }
 
 // "Zap NVRAM" selected
@@ -712,8 +712,6 @@ static GtkWidget *l_frameskip, *l_display_x, *l_display_y;
 static int display_type;
 static int dis_width, dis_height;
 
-static GtkWidget *w_dspdevice_file, *w_mixerdevice_file;
-
 // Hide/show graphics widgets
 static void hide_show_graphics_widgets(void)
 {
@@ -756,11 +754,8 @@ static void tb_gfxaccel(GtkWidget *widget)
 }
 
 // Set sensitivity of widgets
-static void set_graphics_sensitive(void)
-{
+static void set_graphics_sensitive(void){
 	const bool sound_enabled = !PrefsFindBool("nosound");
-	gtk_widget_set_sensitive(w_dspdevice_file, sound_enabled);
-	gtk_widget_set_sensitive(w_mixerdevice_file, sound_enabled);
 }
 
 // "Disable Sound Output" button toggled
@@ -857,9 +852,6 @@ static void read_graphics_settings(void)
 		PrefsRemoveItem("windowmodes");
 		PrefsRemoveItem("screenmodes");
 	}
-
-	PrefsReplaceString("dsp", get_file_entry_path(w_dspdevice_file));
-	PrefsReplaceString("mixer", get_file_entry_path(w_mixerdevice_file));
 }
 
 // Create "Graphics/Sound" pane
@@ -968,8 +960,6 @@ static void create_graphics_pane(GtkWidget *top)
 
 	make_separator(box);
 	make_checkbox(box, STR_NOSOUND_CTRL, "nosound", GTK_SIGNAL_FUNC(tb_nosound));
-	w_dspdevice_file = make_entry(box, STR_DSPDEVICE_FILE_CTRL, "dsp");
-	w_mixerdevice_file = make_entry(box, STR_MIXERDEVICE_FILE_CTRL, "mixer");
 
 	set_graphics_sensitive();
 

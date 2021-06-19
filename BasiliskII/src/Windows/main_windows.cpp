@@ -48,10 +48,6 @@ typedef std::basic_string<TCHAR> tstring;
 #include "sigsegv.h"
 #include "util_windows.h"
 
-#if USE_JIT
-extern void flush_icache_range(uint8 *start, uint32 size); // from compemu_support.cpp
-#endif
-
 #ifdef ENABLE_MON
 # include "mon.h"
 #endif
@@ -180,8 +176,7 @@ int main(int argc, char **argv){
 	tzset();
 
 	// Print some info
-	printf(GetString(STR_ABOUT_TEXT1), VERSION_MAJOR, VERSION_MINOR);
-	printf(" %s\n", GetString(STR_ABOUT_TEXT2));
+	printf(GetString(STR_ABOUT_TEXT));
 
 	// Parse command line arguments
 	for (int i=1; i<argc; i++) {

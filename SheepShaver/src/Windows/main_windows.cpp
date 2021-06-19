@@ -165,8 +165,7 @@ int main(int argc, char **argv){
 	uint8 *rom_tmp;
 
 	// Print some info
-	printf(GetString(STR_ABOUT_TEXT1), VERSION_MAJOR, VERSION_MINOR);
-	printf(" %s\n", GetString(STR_ABOUT_TEXT2));
+	printf(GetString(STR_ABOUT_TEXT));
 
 	// Read preferences
 	PrefsInit(NULL, argc, argv);

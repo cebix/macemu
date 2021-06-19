@@ -32,9 +32,7 @@
 #include "main.h"
 #include "video.h"
 #include "emul_op.h"
-#include "version.h"
 #include "slot_rom.h"
-
 
 // Temporary buffer for slot ROM
 static uint8 srom[4096];
@@ -243,7 +241,6 @@ bool InstallSlotROM(void)
 	vector<monitor_desc *>::const_iterator m, mend = VideoMonitors.end();
 	vector<uint32> sRsrcVideo;
 
-	char str[256];
 	int i;
 	p = 0;
 
@@ -255,8 +252,7 @@ bool InstallSlotROM(void)
 	vendorID = p;
 	String("Christian Bauer");
 	revLevel = p;
-	sprintf(str, "V%d.%d", VERSION_MAJOR, VERSION_MINOR);
-	String(str);
+	String("V1.0");
 	partNum = p;
 	String("BasiliskII");
 	date = p;

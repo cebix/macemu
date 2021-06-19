@@ -715,8 +715,7 @@ int main(int argc, char **argv){
 	tzset();
 
 	// Print some info
-	printf(GetString(STR_ABOUT_TEXT1), VERSION_MAJOR, VERSION_MINOR);
-	printf(" %s\n", GetString(STR_ABOUT_TEXT2));
+	printf(GetString(STR_ABOUT_TEXT));
 
 #if !EMULATED_PPC
 #ifdef SYSTEM_CLOBBERS_R2

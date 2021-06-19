@@ -21,7 +21,10 @@
 #ifndef VERSION_H
 #define VERSION_H
 
-const int VERSION_MAJOR = 2;
-const int VERSION_MINOR = 5;
+#ifdef PACKAGE_VERSION // from config.h
+#define VERSION_STRING PACKAGE_VERSION
+#else
+#define VERSION_STRING "2.5"
+#endif
 
 #endif

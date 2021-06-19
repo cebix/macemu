@@ -1,15 +1,11 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl Written in 2002 by Christian Bauer et al.
 
-AC_INIT([Basilisk II], 1.0, [Christian.Bauer@uni-mainz.de], BasiliskII)
+AC_INIT([Basilisk II], [m4_esyscmd_s([git describe --always --tags --dirty])])
 AC_CONFIG_SRCDIR(main_windows.cpp)
 AC_CONFIG_AUX_DIR(../Unix)
 AC_PREREQ(2.52)
 AC_CONFIG_HEADER(config.h)
-
-dnl Aliases for PACKAGE and VERSION macros.
-AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE_NAME", [Define this program name.])
-AC_DEFINE_UNQUOTED(VERSION, "$PACKAGE_VERSION", [Define this program version.])
 
 dnl SDL options.
 #AC_ARG_ENABLE(sdl-static,    [  --enable-sdl-static     use SDL static libraries for linking [default=no]], [WANT_SDL_STATIC=$enableval], [WANT_SDL_STATIC=no])
@@ -78,7 +74,7 @@ AC_CHECK_TOOL(WINDRES, windres)
 
 dnl We use GTK+ if possible.
 if [[ "x$WANT_GTK" = "xyes" ]]; then
-  AM_PATH_GTK_2_0(1.3.15, [], [
+  AM_PATH_GTK_2_0(2.6.0, [], [
     AC_MSG_WARN([Could not find GTK+ 2.0, disabling user interface.])
     WANT_GTK=no
   ])
