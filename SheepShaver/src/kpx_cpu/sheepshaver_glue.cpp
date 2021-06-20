@@ -478,10 +478,10 @@ void sheepshaver_cpu::interrupt(uint32 entry)
 	SheepVar32 trampoline = POWERPC_EXEC_RETURN;
 
 	// Prepare registers for nanokernel interrupt routine
-	kernel_data->v[0x004 >> 2] = htonl(gpr(1));
-	kernel_data->v[0x018 >> 2] = htonl(gpr(6));
+	WriteMacInt32(KERNEL_DATA_BASE + 0x004, gpr(1));
+	WriteMacInt32(KERNEL_DATA_BASE + 0x018, gpr(6));
 
-	gpr(6) = ntohl(kernel_data->v[0x65c >> 2]);
+	gpr(6) = ReadMacInt32(KERNEL_DATA_BASE + 0x65c);
 	assert(gpr(6) != 0);
 	WriteMacInt32(gpr(6) + 0x13c, gpr(7));
 	WriteMacInt32(gpr(6) + 0x144, gpr(8));
@@ -492,7 +492,7 @@ void sheepshaver_cpu::interrupt(uint32 entry)
 	WriteMacInt32(gpr(6) + 0x16c, gpr(13));
 
 	gpr(1)  = KernelDataAddr;
-	gpr(7)  = ntohl(kernel_data->v[0x660 >> 2]);
+	gpr(7)  = ReadMacInt32(KERNEL_DATA_BASE + 0x660);
 	gpr(8)  = 0;
 	gpr(10) = trampoline.addr();
 	gpr(12) = trampoline.addr();
@@ -564,8 +564,8 @@ void sheepshaver_cpu::execute_68k(uint32 entry, M68kRegisters *r)
 	gpr(25) = ReadMacInt32(XLM_68K_R25);		// MSB of SR
 	gpr(26) = 0;
 	gpr(28) = 0;								// VBR
-	gpr(29) = ntohl(kernel_data->ed.v[0x74 >> 2]);		// Pointer to opcode table
-	gpr(30) = ntohl(kernel_data->ed.v[0x78 >> 2]);		// Address of emulator
+	gpr(29) = ReadMacInt32(KERNEL_DATA_BASE + 0x1074);		// Pointer to opcode table
+	gpr(30) = ReadMacInt32(KERNEL_DATA_BASE + 0x1078);		// Address of emulator
 	gpr(31) = KernelDataAddr + 0x1000;
 
 	// Push return address (points to EXEC_RETURN opcode) on stack
@@ -963,8 +963,8 @@ void HandleInterrupt(powerpc_registers *r)
 	switch (ReadMacInt32(XLM_RUN_MODE)) {
 	case MODE_68K:
 		// 68k emulator active, trigger 68k interrupt level 1
-		WriteMacInt16(tswap32(kernel_data->v[0x67c >> 2]), 1);
-		r->cr.set(r->cr.get() | tswap32(kernel_data->v[0x674 >> 2]));
+		WriteMacInt16(ReadMacInt32(KERNEL_DATA_BASE + 0x67c), 1);
+		r->cr.set(r->cr.get() | ReadMacInt32(KERNEL_DATA_BASE + 0x674));
 		break;
     
 #if INTERRUPTS_IN_NATIVE_MODE
@@ -973,10 +973,10 @@ void HandleInterrupt(powerpc_registers *r)
 		if (r->gpr[1] != KernelDataAddr) {
 
 			// Prepare for 68k interrupt level 1
-			WriteMacInt16(tswap32(kernel_data->v[0x67c >> 2]), 1);
-			WriteMacInt32(tswap32(kernel_data->v[0x658 >> 2]) + 0xdc,
-						  ReadMacInt32(tswap32(kernel_data->v[0x658 >> 2]) + 0xdc)
-						  | tswap32(kernel_data->v[0x674 >> 2]));
+			WriteMacInt16(ReadMacInt32(KERNEL_DATA_BASE + 0x67c), 1);
+			WriteMacInt32(ReadMacInt32(KERNEL_DATA_BASE + 0x658) + 0xdc,
+						  ReadMacInt32(ReadMacInt32(KERNEL_DATA_BASE + 0x658) + 0xdc)
+						  | ReadMacInt32(KERNEL_DATA_BASE + 0x674));
       
 			// Execute nanokernel interrupt routine (this will activate the 68k emulator)
 			DisableInterrupt();

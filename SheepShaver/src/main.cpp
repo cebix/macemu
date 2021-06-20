@@ -164,63 +164,62 @@ bool InitAll(const char *vmdir)
 	}
 
 	// Initialize Kernel Data
-	KernelData *kernel_data = (KernelData *)Mac2HostAddr(KERNEL_DATA_BASE);
-	memset(kernel_data, 0, sizeof(KernelData));
+	Mac_memset(KERNEL_DATA_BASE, 0, sizeof(KernelData));
 	if (ROMType == ROMTYPE_NEWWORLD) {
 		uint32 of_dev_tree = SheepMem::Reserve(4 * sizeof(uint32));
 		Mac_memset(of_dev_tree, 0, 4 * sizeof(uint32));
 		uint32 vector_lookup_tbl = SheepMem::Reserve(128);
 		uint32 vector_mask_tbl = SheepMem::Reserve(64);
-		memset((uint8 *)kernel_data + 0xb80, 0x3d, 0x80);
+		Mac_memset(KERNEL_DATA_BASE + 0xb80, 0x3d, 0x80);
 		Mac_memset(vector_lookup_tbl, 0, 128);
 		Mac_memset(vector_mask_tbl, 0, 64);
-		kernel_data->v[0xb80 >> 2] = htonl(ROMBase);
-		kernel_data->v[0xb84 >> 2] = htonl(of_dev_tree);			// OF device tree base
-		kernel_data->v[0xb90 >> 2] = htonl(vector_lookup_tbl);
-		kernel_data->v[0xb94 >> 2] = htonl(vector_mask_tbl);
-		kernel_data->v[0xb98 >> 2] = htonl(ROMBase);				// OpenPIC base
-		kernel_data->v[0xbb0 >> 2] = htonl(0);						// ADB base
-		kernel_data->v[0xc20 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc24 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc30 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc34 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc38 >> 2] = htonl(0x00010020);
-		kernel_data->v[0xc3c >> 2] = htonl(0x00200001);
-		kernel_data->v[0xc40 >> 2] = htonl(0x00010000);
-		kernel_data->v[0xc50 >> 2] = htonl(RAMBase);
-		kernel_data->v[0xc54 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xf60 >> 2] = htonl(PVR);
-		kernel_data->v[0xf64 >> 2] = htonl(CPUClockSpeed);			// clock-frequency
-		kernel_data->v[0xf68 >> 2] = htonl(BusClockSpeed);			// bus-frequency
-		kernel_data->v[0xf6c >> 2] = htonl(TimebaseSpeed);			// timebase-frequency
+		WriteMacInt32(KERNEL_DATA_BASE + 0xb80, ROMBase);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xb84, of_dev_tree);			// OF device tree base
+		WriteMacInt32(KERNEL_DATA_BASE + 0xb90, vector_lookup_tbl);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xb94, vector_mask_tbl);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xb98, ROMBase);				// OpenPIC base
+		WriteMacInt32(KERNEL_DATA_BASE + 0xbb0, 0);						// ADB base
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc20, RAMSize);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc24, RAMSize);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc30, RAMSize);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc34, RAMSize);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc38, 0x00010020);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc3c, 0x00200001);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc40, 0x00010000);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc50, RAMBase);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc54, RAMSize);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xf60, PVR);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xf64, CPUClockSpeed);			// clock-frequency
+		WriteMacInt32(KERNEL_DATA_BASE + 0xf68, BusClockSpeed);			// bus-frequency
+		WriteMacInt32(KERNEL_DATA_BASE + 0xf6c, TimebaseSpeed);			// timebase-frequency
 	} else if (ROMType == ROMTYPE_GOSSAMER) {
-		kernel_data->v[0xc80 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc84 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc90 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc94 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc98 >> 2] = htonl(0x00010020);
-		kernel_data->v[0xc9c >> 2] = htonl(0x00200001);
-		kernel_data->v[0xca0 >> 2] = htonl(0x00010000);
-		kernel_data->v[0xcb0 >> 2] = htonl(RAMBase);
-		kernel_data->v[0xcb4 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xf60 >> 2] = htonl(PVR);
-		kernel_data->v[0xf64 >> 2] = htonl(CPUClockSpeed);			// clock-frequency
-		kernel_data->v[0xf68 >> 2] = htonl(BusClockSpeed);			// bus-frequency
-		kernel_data->v[0xf6c >> 2] = htonl(TimebaseSpeed);			// timebase-frequency
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc80, RAMSize);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc84, RAMSize);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc90, RAMSize);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc94, RAMSize);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc98, 0x00010020);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc9c, 0x00200001);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xca0, 0x00010000);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xcb0, RAMBase);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xcb4, RAMSize);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xf60, PVR);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xf64, CPUClockSpeed);			// clock-frequency
+		WriteMacInt32(KERNEL_DATA_BASE + 0xf68, BusClockSpeed);			// bus-frequency
+		WriteMacInt32(KERNEL_DATA_BASE + 0xf6c, TimebaseSpeed);			// timebase-frequency
 	} else {
-		kernel_data->v[0xc80 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc84 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc90 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc94 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xc98 >> 2] = htonl(0x00010020);
-		kernel_data->v[0xc9c >> 2] = htonl(0x00200001);
-		kernel_data->v[0xca0 >> 2] = htonl(0x00010000);
-		kernel_data->v[0xcb0 >> 2] = htonl(RAMBase);
-		kernel_data->v[0xcb4 >> 2] = htonl(RAMSize);
-		kernel_data->v[0xf80 >> 2] = htonl(PVR);
-		kernel_data->v[0xf84 >> 2] = htonl(CPUClockSpeed);			// clock-frequency
-		kernel_data->v[0xf88 >> 2] = htonl(BusClockSpeed);			// bus-frequency
-		kernel_data->v[0xf8c >> 2] = htonl(TimebaseSpeed);			// timebase-frequency
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc80, RAMSize);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc84, RAMSize);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc90, RAMSize);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc94, RAMSize);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc98, 0x00010020);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xc9c, 0x00200001);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xca0, 0x00010000);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xcb0, RAMBase);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xcb4, RAMSize);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xf80, PVR);
+		WriteMacInt32(KERNEL_DATA_BASE + 0xf84, CPUClockSpeed);			// clock-frequency
+		WriteMacInt32(KERNEL_DATA_BASE + 0xf88, BusClockSpeed);			// bus-frequency
+		WriteMacInt32(KERNEL_DATA_BASE + 0xf8c, TimebaseSpeed);			// timebase-frequency
 	}
 
 	// Initialize extra low memory
