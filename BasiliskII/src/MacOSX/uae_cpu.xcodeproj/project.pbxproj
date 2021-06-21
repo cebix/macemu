@@ -421,6 +421,8 @@
 					JIT,
 					"USE_JIT=1",
 				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
+				GCC_WARN_UNUSED_VARIABLE = NO;
 				HEADER_SEARCH_PATHS = (
 					../CrossPlatform,
 					../include,
@@ -443,6 +445,8 @@
 					JIT,
 					"USE_JIT=1",
 				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
+				GCC_WARN_UNUSED_VARIABLE = NO;
 				HEADER_SEARCH_PATHS = (
 					../CrossPlatform,
 					../include,
