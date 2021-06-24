@@ -1479,6 +1479,10 @@ if [[ "x$OS_TYPE" = "xdarwin" ]]; then
   LDFLAGS="$LDFLAGS -Wl,-no_pie -pagezero_size 0x1000"
 fi
 
+if [[ "x$OS_TYPE" = "xlinux" ]]; then
+  LDFLAGS="$LDFLAGS -no-pie"
+fi
+
 dnl Enable VOSF screen updates with this feature is requested and feasible
 if [[ "x$WANT_VOSF" = "xyes" -a "x$CAN_VOSF" = "xyes" ]]; then
     AC_DEFINE(ENABLE_VOSF, 1, [Define if using video enabled on SEGV signals.])
