@@ -1214,7 +1214,6 @@
 			isa = PBXProject;
 			buildConfigurationList = 0856CCB114A99DE0000B1711 /* Build configuration list for PBXProject "SheepShaver" */;
 			compatibilityVersion = "Xcode 3.0";
-			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				English,
@@ -1799,6 +1798,7 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
 				GCC_PREFIX_HEADER = "";
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					ENABLE_SDL1,
 					"DATADIR=",
 					HAVE_CONFIG_H,
 					USE_JIT,
@@ -1886,6 +1886,7 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
 				GCC_PREFIX_HEADER = "";
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					ENABLE_SDL1,
 					"DATADIR=",
 					HAVE_CONFIG_H,
 					USE_JIT,
