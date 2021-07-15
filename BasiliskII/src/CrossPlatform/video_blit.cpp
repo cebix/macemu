@@ -305,6 +305,7 @@ static void Blit_Copy_Raw(uint8 * dest, const uint8 * source, uint32 length)
 /* --- 1-bit indexed to 8-bit color mode conversion                       --- */
 /* -------------------------------------------------------------------------- */
 
+#if !defined(REAL_ADDRESSING) && !defined(DIRECT_ADDRESSING)
 #define CONVERT_BW(byte) (byte)==1?0:255
 static void Blit_Expand_1_To_8_Color(uint8 * dest, const uint8 * p, uint32 length)
 {
@@ -321,6 +322,7 @@ static void Blit_Expand_1_To_8_Color(uint8 * dest, const uint8 * p, uint32 lengt
 		*q++ = CONVERT_BW(c & 1);
 	}
 }
+#endif
 
 /* -------------------------------------------------------------------------- */
 /* --- 1/2/4-bit indexed to 8-bit mode conversion                         --- */
