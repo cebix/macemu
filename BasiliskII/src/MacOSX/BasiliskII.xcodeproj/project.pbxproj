@@ -91,7 +91,6 @@
 		E413D93820D2613500E437D8 /* ether_unix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E413D93720D2613500E437D8 /* ether_unix.cpp */; };
 		E413D93A20D2614E00E437D8 /* extfs_macosx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E413D93920D2614E00E437D8 /* extfs_macosx.cpp */; };
 		E4150D1420D559800077C51A /* SDL2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E4150D1320D559800077C51A /* SDL2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		E416BEE82410AA4E00751E6D /* runtool.c in Sources */ = {isa = PBXBuildFile; fileRef = E416BEE72410AA4E00751E6D /* runtool.c */; };
 		E416BEEA2410AA9800751E6D /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E416BEE92410AA9800751E6D /* Security.framework */; };
 		E416BEED2410AE0900751E6D /* etherhelpertool in Resources */ = {isa = PBXBuildFile; fileRef = E416BEEC2410AE0000751E6D /* etherhelpertool */; };
 		E4555EED2354434B00139FCE /* Credits.html in Resources */ = {isa = PBXBuildFile; fileRef = 7539E00A1F23B25A006B2DF2 /* Credits.html */; };
@@ -173,7 +172,7 @@
 		7539DFF61F23B25A006B2DF2 /* video_defs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = video_defs.h; sourceTree = "<group>"; };
 		7539DFF71F23B25A006B2DF2 /* xpram.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = xpram.h; sourceTree = "<group>"; };
 		7539DFF81F23B25A006B2DF2 /* macos_util.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = macos_util.cpp; path = ../macos_util.cpp; sourceTree = "<group>"; };
-		7539DFFA1F23B25A006B2DF2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		7539DFFA1F23B25A006B2DF2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Assets.xcassets; sourceTree = "<group>"; };
 		7539DFFB1F23B25A006B2DF2 /* audio_defs_macosx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = audio_defs_macosx.h; sourceTree = "<group>"; };
 		7539E0021F23B25A006B2DF2 /* BasiliskII.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = BasiliskII.icns; sourceTree = "<group>"; };
 		7539E00A1F23B25A006B2DF2 /* Credits.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = Credits.html; sourceTree = "<group>"; };
@@ -323,7 +322,6 @@
 		E413D93720D2613500E437D8 /* ether_unix.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ether_unix.cpp; sourceTree = "<group>"; };
 		E413D93920D2614E00E437D8 /* extfs_macosx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = extfs_macosx.cpp; sourceTree = "<group>"; };
 		E4150D1320D559800077C51A /* SDL2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL2.framework; path = /Library/Frameworks/SDL2.framework; sourceTree = "<group>"; };
-		E416BEE72410AA4E00751E6D /* runtool.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = runtool.c; sourceTree = "<group>"; };
 		E416BEE92410AA9800751E6D /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		E416BEEB2410AB0E00751E6D /* etherhelpertool.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = etherhelpertool.c; sourceTree = "<group>"; };
 		E416BEEC2410AE0000751E6D /* etherhelpertool */ = {isa = PBXFileReference; lastKnownFileType = text; path = etherhelpertool; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -509,7 +507,6 @@
 			isa = PBXGroup;
 			children = (
 				E416BEEB2410AB0E00751E6D /* etherhelpertool.c */,
-				E416BEE72410AA4E00751E6D /* runtool.c */,
 				7539E2AA1F23CDB7006B2DF2 /* Info.plist */,
 				7539E27E1F23BEB4006B2DF2 /* config.h */,
 				7539DFFA1F23B25A006B2DF2 /* Assets.xcassets */,
@@ -759,7 +756,6 @@
 			};
 			buildConfigurationList = 7539DFAD1F23B17E006B2DF2 /* Build configuration list for PBXProject "BasiliskII" */;
 			compatibilityVersion = "Xcode 3.2";
-			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
@@ -879,7 +875,6 @@
 				E413D92720D260BC00E437D8 /* debug.c in Sources */,
 				E413D92220D260BC00E437D8 /* mbuf.c in Sources */,
 				7539E19D1F23B25A006B2DF2 /* mathlib.cpp in Sources */,
-				E416BEE82410AA4E00751E6D /* runtool.c in Sources */,
 				E413D93020D260BC00E437D8 /* ip_input.c in Sources */,
 				752F27031F242F51001032B4 /* xpram_sdl.cpp in Sources */,
 				7539E16D1F23B25A006B2DF2 /* pict.c in Sources */,
@@ -1075,6 +1070,7 @@
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.basilisk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx10.6;
 				USE_HEADERMAP = YES;
 				VALID_ARCHS = x86_64;
 				WARNING_CFLAGS = "";
@@ -1131,6 +1127,7 @@
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = net.cebix.basilisk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx10.6;
 				USE_HEADERMAP = YES;
 				VALID_ARCHS = x86_64;
 				WARNING_CFLAGS = "";
