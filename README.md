@@ -38,7 +38,7 @@ Basilisk II has been ported to the following systems:
 
 # What is SheepShaver?
 
-SheepShaver is a MacOS run-time environment for BeOS and Linux that allows you to run classic MacOS applications inside the BeOS/Linux multitasking environment. This means that both BeOS/Linux and MacOS applications can run at the same time (usually in a window on the BeOS/Linux desktop) and data can be exchanged between them. If you are using a PowerPC-based system, applications will run at native speed (i.e. with no emulation involved). There is also a built-in PowerPC emulator for non-PowerPC systems.
+SheepShaver is a Mac OS run-time environment that allows you to run classic PowerPC Mac OS applications on a different operating system, such as Mac OS X, Windows, Linux or BeOS. If you are using a PowerPC-based system, applications will run at native speed (i.e. with no emulation involved). There is also a built-in PowerPC emulator for non-PowerPC systems.
 
 SheepShaver is distributed under the terms of the GNU General Public License (GPL). However, you still need a copy of MacOS and a PowerMac ROM image to use SheepShaver. If you're planning to run SheepShaver on a PowerMac, you probably already have these two items.
 
@@ -50,7 +50,8 @@ SheepShaver runs with varying degree of functionality on the following systems:
  * Mac OS X (PowerPC and Intel)
  * Windows NT/2000/XP
  * BeOS R4/R5 (PowerPC)
- * Some of SheepShaver's features
+
+# Some of SheepShaver's features
  * Runs MacOS 7.5.2 thru 9.0.4. MacOS X as a guest is not supported.
  * Color video display
  * CD quality sound output
