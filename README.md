@@ -1,4 +1,4 @@
-# Repository
+# Basilisk II and SheepShaver
 
 This repository contains the **Basilisk II** and **SheepShaver** projects.
 
