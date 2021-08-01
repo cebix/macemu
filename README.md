@@ -11,11 +11,9 @@ Linux x86 x86_64 JIT
 MinGW x86        JIT
 ```
 ### How To Build
-These builds need to be installed SDL2.0.10+ framework/library.
+These builds need to be installed SDL2.0.14+ framework/library.
 #### BasiliskII
 ##### macOS
-BasiliskII for macOS can be built with Apple Silicon Mac.
-
 preparation:
 
 Download gmp-6.2.1.tar.xz from https://gmplib.org.
@@ -38,8 +36,13 @@ $ make
 $ make check
 $ sudo make install
 ```
-For Intel Mac, checkout `has_fpu_bug` branch. But it has FPU issue if the binary runs on Apple Silicon Mac.
+On an Intel Mac, change the `configure` command as follows:
+```
+CFLAGS="-arch arm64" CXXFLAGS="$CFLAGS" ./configure -host=aarch64-apple-darwin --disable-shared 
+```
+(from https://github.com/kanjitalk755/macemu/pull/96)
 
+build:
 1. Open BasiliskII/src/MacOSX/BasiliskII.xcodeproj
 1. Set Build Configuration to Release
 1. Build
