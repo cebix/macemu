@@ -36,17 +36,17 @@ $ make
 $ make check
 $ sudo make install
 ```
-On an Intel Mac, change the `configure` command as follows:
+On an Intel Mac, change the `configure` command for both GMP and MPFR as follows, and ignore the `make check` command:
 ```
 CFLAGS="-arch arm64" CXXFLAGS="$CFLAGS" ./configure -host=aarch64-apple-darwin --disable-shared 
 ```
 (from https://github.com/kanjitalk755/macemu/pull/96)
 
 build:
-1. Open BasiliskII/src/MacOSX/BasiliskII.xcodeproj
-1. Set Build Configuration to Release
-1. Build
-
+```
+$ cd macemu/BasiliskII/src/MacOSX
+$ xcodebuild build -project BasiliskII.xcodeproj -configuration Release
+```
 or same as Linux (x86_64 only)
 
 ##### Linux(x86/x86_64)
@@ -63,10 +63,10 @@ $ make
 ```
 #### SheepShaver
 ##### macOS
-1. Open SheepShaver/src/MacOSX/SheepShaver_Xcode8.xcodeproj
-1. Set Build Configuration to Release
-1. Build
-
+```
+$ cd macemu/SheepShaver/src/MacOSX
+$ xcodebuild build -project SheepShaver_Xcode8.xcodeproj -configuration Release
+```
 or same as Linux (x86_64 only)
 
 ##### Linux(x86/x86_64)
