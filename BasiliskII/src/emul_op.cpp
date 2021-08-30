@@ -56,6 +56,7 @@
 
 void EmulOp(uint16 opcode, M68kRegisters *r)
 {
+	static bool bootflag;
 	D(bug("EmulOp %04x\n", opcode));
 	switch (opcode) {
 		case M68K_EMUL_BREAK: {				// Breakpoint
@@ -82,6 +83,11 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			break;
 
 		case M68K_EMUL_OP_RESET: {			// MacOS reset
+			if (bootflag) {
+				CDROMExit();
+				CDROMInit();
+			}
+			bootflag = true;
 			D(bug("*** RESET ***\n"));
 			TimerReset();
 			EtherReset();
