@@ -12,6 +12,8 @@ MinGW x86        JIT
 ```
 ### How To Build
 These builds need to be installed SDL2.0.14+ framework/library.
+
+https://www.libsdl.org
 #### BasiliskII
 ##### macOS
 preparation:
