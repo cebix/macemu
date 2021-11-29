@@ -56,6 +56,7 @@ user_string_def platform_strings[] = {
 	{STR_INPUT_PANE_TITLE, "Keyboard/Mouse"},
 	{STR_KEYCODES_CTRL, "Use Raw Keycodes"},
 	{STR_KEYCODE_FILE_CTRL, "Keycode Translation File"},
+	{STR_RESERVE_WINDOWS_KEY_CTRL, "Reserve Windows Key"},
 	{STR_MOUSEWHEELMODE_CTRL, "Mouse Wheel Function"},
 	{STR_MOUSEWHEELMODE_PAGE_LAB, "Page Up/Down"},
 	{STR_MOUSEWHEELMODE_CURSOR_LAB, "Cursor Up/Down"},
