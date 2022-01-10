@@ -1298,6 +1298,12 @@ static void tb_keycodes(GtkWidget *widget)
 	set_input_sensitive();
 }
 
+// "Reserve Windows Key" button toggled
+static void tb_reservewindowskey(GtkWidget *widget)
+{
+	PrefsReplaceBool("reservewindowskey", GTK_TOGGLE_BUTTON(widget)->active);
+}
+
 // "Mouse Wheel Mode" selected
 static void mn_wheel_page(...) {PrefsReplaceInt32("mousewheelmode", 0); set_input_sensitive();}
 static void mn_wheel_cursor(...) {PrefsReplaceInt32("mousewheelmode", 1); set_input_sensitive();}
@@ -1344,6 +1350,8 @@ static void create_input_pane(GtkWidget *top)
 	button = make_browse_button(w_keycode_file);
 	gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
 	g_object_set_data(G_OBJECT(w_keycode_file), "chooser_button", button);
+
+	make_checkbox(box, STR_RESERVE_WINDOWS_KEY_CTRL, "reservewindowskey", GTK_SIGNAL_FUNC(tb_reservewindowskey));
 
 	make_separator(box);
 
