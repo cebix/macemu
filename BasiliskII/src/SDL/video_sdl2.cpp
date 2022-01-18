@@ -2055,13 +2055,19 @@ static bool is_hotkey_down(SDL_Keysym const & ks)
 			(cmd_down || (ks.mod & KMOD_GUI) || !(hotkey & 4));
 }
 
-static bool swap_opt_cmd() {
+static int modify_opt_cmd(int code) {
 	static bool f, c;
 	if (!f) {
 		f = true;
 		c = PrefsFindBool("swap_opt_cmd");
 	}
-	return c;
+	if (c) {
+		switch (code) {
+			case 0x37: return 0x3a;
+			case 0x3a: return 0x37;
+		}
+	}
+	return code;
 }
 
 /*
@@ -2138,8 +2144,8 @@ static int kc_decode(SDL_Keysym const & ks, bool key_down)
 	case SDLK_RCTRL: return 0x36;
 	case SDLK_LSHIFT: return 0x38;
 	case SDLK_RSHIFT: return 0x38;
-	case SDLK_LALT: case SDLK_RALT: return swap_opt_cmd() ? 0x37 : 0x3a;
-	case SDLK_LGUI: case SDLK_RGUI: return swap_opt_cmd() ? 0x3a : 0x37;
+	case SDLK_LALT: case SDLK_RALT: return 0x3a;
+	case SDLK_LGUI: case SDLK_RGUI: return 0x37;
 	case SDLK_MENU: return 0x32;
 	case SDLK_CAPSLOCK: return 0x39;
 	case SDLK_NUMLOCKCLEAR: return 0x47;
@@ -2350,15 +2356,16 @@ static void handle_events(void)
 					code = event2keycode(event.key, true);
 				if (code >= 0) {
 					if (!emul_suspended) {
+						code = modify_opt_cmd(code);
 						if (code == 0x39)
 							(SDL_GetModState() & KMOD_CAPS ? ADBKeyDown : ADBKeyUp)(code);
 						else
 							ADBKeyDown(code);
 						if (code == 0x36)
 							ctrl_down = true;
-						if (code == (swap_opt_cmd() ? 0x37 : 0x3a))
+						if (code == 0x3a)
 							opt_down = true;
-						if (code == (swap_opt_cmd() ? 0x3a : 0x37))
+						if (code == 0x37)
 							cmd_down = true;
 						
 					} else {
@@ -2375,13 +2382,14 @@ static void handle_events(void)
 				if (code == CODE_INVALID)
 					code = event2keycode(event.key, false);
 				if (code >= 0) {
+					code = modify_opt_cmd(code);
 					if (code != 0x39)
 						ADBKeyUp(code);
 					if (code == 0x36)
 						ctrl_down = false;
-					if (code == (swap_opt_cmd() ? 0x37 : 0x3a))
+					if (code == 0x3a)
 						opt_down = false;
-					if (code == (swap_opt_cmd() ? 0x3a : 0x37))
+					if (code == 0x37)
 						cmd_down = false;
 				}
 				break;
