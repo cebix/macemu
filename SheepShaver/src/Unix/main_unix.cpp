@@ -170,7 +170,7 @@ const char ROM_FILE_NAME2[] = "Mac OS ROM";
 // FIXME: needs to be >= 0x04000000
 const uintptr RAM_BASE = 0x10000000;		// Base address of RAM
 #endif
-const uintptr ROM_BASE = 0x40800000;		// Base address of ROM
+const uintptr ROM_BASE = 0x50000000;		// Base address of ROM
 #if REAL_ADDRESSING
 const uint32 ROM_ALIGNMENT = 0x100000;		// ROM must be aligned to a 1MB boundary
 #endif
