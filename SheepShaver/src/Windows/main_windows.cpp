@@ -178,18 +178,25 @@ int main(int argc, char **argv)
 	printf(GetString(STR_ABOUT_TEXT1), VERSION_MAJOR, VERSION_MINOR);
 	printf(" %s\n", GetString(STR_ABOUT_TEXT2));
 
-	// Read preferences
-	PrefsInit(NULL, argc, argv);
-
 	// Parse command line arguments
 	for (int i=1; i<argc; i++) {
 		if (strcmp(argv[i], "--help") == 0) {
 			usage(argv[0]);
+		} else if (strcmp(argv[i], "--config") == 0) {
+			argv[i++] = NULL;
+			if (i < argc) {
+				extern std::string UserPrefsPath; // from prefs_windows.cpp
+				UserPrefsPath = to_tstring(argv[i]);
+				argv[i] = NULL;
+			}
 		} else if (argv[i][0] == '-') {
 			fprintf(stderr, "Unrecognized option '%s'\n", argv[i]);
 			usage(argv[0]);
 		}
 	}
+
+	// Read preferences
+	PrefsInit(NULL, argc, argv);
 
 	// Check we are using a Windows NT kernel >= 4.0
 	OSVERSIONINFO osvi;

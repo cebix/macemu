@@ -23,6 +23,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string>
 
 #include "prefs.h"
 
@@ -49,6 +50,7 @@ prefs_desc platform_prefs_items[] = {
 const char PREFS_FILE_NAME[] = ".sheepshaver_prefs";
 static char prefs_path[1024];
 
+std::string UserPrefsPath;
 
 /*
  *  Load preferences from settings file
@@ -68,14 +70,17 @@ void LoadPrefs(const char *vmdir)
 		return;
 	}
 
-	// Construct prefs path
-	prefs_path[0] = 0;
-	char *home = getenv("HOME");
-	if (home != NULL && strlen(home) < 1000) {
-		strncpy(prefs_path, home, 1000);
-		strcat(prefs_path, "/");
+	if (!UserPrefsPath.empty()) strncpy(prefs_path, UserPrefsPath.c_str(), 1000);
+	else {
+		// Construct prefs path
+		prefs_path[0] = 0;
+		char *home = getenv("HOME");
+		if (home != NULL && strlen(home) < 1000) {
+			strncpy(prefs_path, home, 1000);
+			strcat(prefs_path, "/");
+		}
+		strcat(prefs_path, PREFS_FILE_NAME);
 	}
-	strcat(prefs_path, PREFS_FILE_NAME);
 
 	// Read preferences from settings file
 	FILE *f = fopen(prefs_path, "r");

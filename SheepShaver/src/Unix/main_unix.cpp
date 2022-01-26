@@ -796,6 +796,13 @@ int main(int argc, char **argv)
 				gui_connection_path = argv[i];
 				argv[i] = NULL;
 			}
+		} else if (strcmp(argv[i], "--config") == 0) {
+			argv[i++] = NULL;
+			if (i < argc) {
+				extern std::string UserPrefsPath;
+				UserPrefsPath = argv[i];
+				argv[i] = NULL;
+			}
 		} else if (valid_vmdir(argv[i])) {
 			vmdir = argv[i];
 			argv[i] = NULL;
