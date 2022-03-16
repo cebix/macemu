@@ -374,6 +374,16 @@ void cpu_do_check_ticks(void)
 	if (emulated_ticks <= 0)
 		emulated_ticks += emulated_ticks_quantum;
 }
+#else
+uint16 emulated_ticks;
+void cpu_do_check_ticks(void)
+{
+	static int delay = -1;
+	if (delay < 0)
+		delay = PrefsFindInt32("delay");
+	if (delay)
+		usleep(delay);
+}
 #endif
 
 

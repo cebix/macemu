@@ -316,9 +316,9 @@ extern void m68k_execute(void);
 extern void m68k_compile_execute(void);
 extern void m68k_do_compile_execute(void);
 #endif
+extern void cpu_do_check_ticks(void);
 #ifdef USE_CPU_EMUL_SERVICES
 extern int32 emulated_ticks;
-extern void cpu_do_check_ticks(void);
 
 static inline void cpu_check_ticks(void)
 {
@@ -326,8 +326,12 @@ static inline void cpu_check_ticks(void)
 		cpu_do_check_ticks();
 }
 #else
-#define cpu_check_ticks()
-#define cpu_do_check_ticks()
+extern uint16 emulated_ticks;
+static inline void cpu_check_ticks(void)
+{
+	if (!++emulated_ticks)
+		cpu_do_check_ticks();
+}
 #endif
 
 cpuop_func op_illg_1;

@@ -190,6 +190,16 @@ static void sigsegv_dump_state(sigsegv_info_t *sip)
 #endif
 }
 
+uint16 emulated_ticks;
+void cpu_do_check_ticks(void)
+{
+	static int delay = -1;
+	if (delay < 0)
+		delay = PrefsFindInt32("delay");
+	if (delay)
+		usleep(delay);
+}
+
 
 /*
  *  Main program
