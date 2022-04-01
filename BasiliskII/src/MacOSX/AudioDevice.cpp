@@ -42,6 +42,11 @@
 
 #include "AudioDevice.h"
 
+// macOS 10.13 headers renamed the macro to __Verify_noErr().
+#if defined(MAC_OS_X_VERSION_10_13)
+#define verify_noerr __Verify_noErr
+#endif
+
 void	AudioDevice::Init(AudioDeviceID devid, bool isInput)
 {
 	mID = devid;
