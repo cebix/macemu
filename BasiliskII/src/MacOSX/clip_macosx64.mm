@@ -59,12 +59,6 @@ static bool should_clear = false;
 
 static NSMutableDictionary *g_macScrap;
 
-// flavor UTIs
-
-static NSString * const UTF16_TEXT_FLAVOR_NAME = @"public.utf16-plain-text";
-static NSString * const TEXT_FLAVOR_NAME = @"com.apple.traditional-mac-plain-text";
-static NSString * const STYL_FLAVOR_NAME = @"net.cebix.basilisk.styl-data";
-
 // font face types
 
 enum {
