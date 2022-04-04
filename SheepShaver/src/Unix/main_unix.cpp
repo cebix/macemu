@@ -2217,8 +2217,6 @@ rti:;
 }
 #endif
 
-extern int vm_init_reserved(void *hostAddress);
-
 /*
  *  Helpers to share 32-bit addressable data with MacOS
  */

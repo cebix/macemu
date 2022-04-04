@@ -1718,7 +1718,6 @@ static bool is_fullscreen(SDL_Window * window)
 	// involves fullscreen/windowed toggles via window-manager UI controls).
 	// Until it does, or adds a facility to do so, we'll use a platform-specific
 	// code path to detect fullscreen changes.
-	extern bool is_fullscreen_osx(SDL_Window * window);
 	return is_fullscreen_osx(sdl_window);
 #else
 	if (!window) {
@@ -2272,7 +2271,6 @@ static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
 						// cursor is near the top of the screen, lest the
 						// guest OS' menu bar be obscured.
 						if (is_full) {
-							extern void set_menu_bar_visible_osx(bool);
 							set_menu_bar_visible_osx(false);
 						}
 #endif
