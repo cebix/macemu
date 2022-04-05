@@ -43,6 +43,10 @@
 # include <sys/mman.h>
 #endif
 
+#if __MACOSX__
+# include "utils_macosx.h"
+#endif
+
 #if !EMULATED_68K && defined(__NetBSD__)
 # include <m68k/sync_icache.h> 
 # include <m68k/frame.h>
@@ -579,7 +583,6 @@ int main(int argc, char **argv)
 	//
 	// HACK: disable these shortcuts, while leaving all other pieces of SDL2's
 	// menu bar in-place.
-	extern void disable_SDL2_macosx_menu_bar_keyboard_shortcuts();
 	disable_SDL2_macosx_menu_bar_keyboard_shortcuts();
 #endif
 	

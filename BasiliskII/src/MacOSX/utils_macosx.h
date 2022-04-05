@@ -24,6 +24,17 @@
 // Invokes the specified function with an NSAutoReleasePool in place.
 void NSAutoReleasePool_wrap(void (*fn)(void));
 
+#ifdef USE_SDL
+#if SDL_VERSION_ATLEAST(2,0,0)
+void disable_SDL2_macosx_menu_bar_keyboard_shortcuts();
+bool is_fullscreen_osx(SDL_Window * window);
+#endif
+#endif
+
+void set_menu_bar_visible_osx(bool visible);
+
+void set_current_directory();
+
 bool MetalIsAvailable();
 
 #endif

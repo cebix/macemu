@@ -20,8 +20,8 @@
 
 #include <Cocoa/Cocoa.h>
 #include "sysdeps.h"
-#include "utils_macosx.h"
 #include <SDL.h>
+#include "utils_macosx.h"
 
 #if SDL_VERSION_ATLEAST(2,0,0)
 #include <SDL_syswm.h>
