@@ -1768,13 +1768,13 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 						FPU registers[reg] = (double)(FPU registers[reg] * src);
 				}
 				else if (fl_dest.nan || fl_source.nan || 
-						 fl_dest.zero && fl_source.infinity || 
-						 fl_dest.infinity && fl_source.zero ) {
+						 (fl_dest.zero && fl_source.infinity) ||
+						 (fl_dest.infinity && fl_source.zero)) {
 					make_nan( FPU registers[reg] );
 				}
 				else if (fl_dest.zero || fl_source.zero ) {
-					if (fl_dest.negative && !fl_source.negative ||
-						!fl_dest.negative && fl_source.negative)  {
+					if ((fl_dest.negative && !fl_source.negative) ||
+						(!fl_dest.negative && fl_source.negative)) {
 						make_zero_negative(FPU registers[reg]);
 					}
 					else {
@@ -1782,8 +1782,8 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 					}
 				}
 				else {
-					if( fl_dest.negative && !fl_source.negative ||
-						!fl_dest.negative && fl_source.negative)  {
+					if ((fl_dest.negative && !fl_source.negative) ||
+						(!fl_dest.negative && fl_source.negative)) {
 						make_inf_negative(FPU registers[reg]);
 					}
 					else {
@@ -1971,13 +1971,13 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 				FPU registers[reg] *= src;
 			}
 			else if (fl_dest.nan || fl_source.nan || 
-					 fl_dest.zero && fl_source.infinity || 
-					 fl_dest.infinity && fl_source.zero ) {
+					 (fl_dest.zero && fl_source.infinity) ||
+					 (fl_dest.infinity && fl_source.zero)) {
 				make_nan( FPU registers[reg] );
 			}
 			else if (fl_dest.zero || fl_source.zero ) {
-				if (fl_dest.negative && !fl_source.negative ||
-					!fl_dest.negative && fl_source.negative)  {
+				if ((fl_dest.negative && !fl_source.negative) ||
+					(!fl_dest.negative && fl_source.negative)) {
 					make_zero_negative(FPU registers[reg]);
 				}
 				else {
@@ -1985,8 +1985,8 @@ void FFPU fpuop_arithmetic(uae_u32 opcode, uae_u32 extra)
 				}
 			}
 			else {
-				if( fl_dest.negative && !fl_source.negative ||
-					!fl_dest.negative && fl_source.negative)  {
+				if ((fl_dest.negative && !fl_source.negative) ||
+					(!fl_dest.negative && fl_source.negative))  {
 					make_inf_negative(FPU registers[reg]);
 				}
 				else {

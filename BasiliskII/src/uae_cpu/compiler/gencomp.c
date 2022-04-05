@@ -1095,49 +1095,6 @@ genflags (flagtypes type, wordsizes size, char *value, char *src, char *dst)
     }
 }
 
-static void 
-force_range_for_rox (const char *var, wordsizes size)
-{
-    /* Could do a modulo operation here... which one is faster? */
-    switch (size)
-    {
-     case sz_long:
-	comprintf ("\tif (%s >= 33) %s -= 33;\n", var, var);
-	break;
-     case sz_word:
-	comprintf ("\tif (%s >= 34) %s -= 34;\n", var, var);
-	comprintf ("\tif (%s >= 17) %s -= 17;\n", var, var);
-	break;
-     case sz_byte:
-	comprintf ("\tif (%s >= 36) %s -= 36;\n", var, var);
-	comprintf ("\tif (%s >= 18) %s -= 18;\n", var, var);
-	comprintf ("\tif (%s >= 9) %s -= 9;\n", var, var);
-	break;
-    }
-}
-
-static const char *
-cmask (wordsizes size)
-{
-    switch (size)
-    {
-     case sz_byte:
-	return "0x80";
-     case sz_word:
-	return "0x8000";
-     case sz_long:
-	return "0x80000000";
-     default:
-	abort ();
-    }
-}
-
-static int 
-source_is_imm1_8 (struct instr *i)
-{
-    return i->stype == 3;
-}
-
 static int  /* returns zero for success, non-zero for failure */
 gen_opcode (unsigned long int opcode)
 {

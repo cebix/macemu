@@ -420,9 +420,9 @@ void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 
 	// No native Finder info, translate file name extension to MacOS type/creator
 	if (!is_dir) {
-		int path_len = strlen(path);
+		size_t path_len = strlen(path);
 		for (int i=0; e2t_translation[i].ext; i++) {
-			int ext_len = strlen(e2t_translation[i].ext);
+			size_t ext_len = strlen(e2t_translation[i].ext);
 			if (path_len < ext_len)
 				continue;
 			if (!strcmp(path + path_len - ext_len, e2t_translation[i].ext)) {

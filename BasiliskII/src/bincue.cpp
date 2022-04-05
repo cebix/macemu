@@ -113,7 +113,7 @@ typedef struct {
 	int header_size;		// Number of bytes used in header
 } CueSheet;
 
-typedef struct {
+typedef struct CDPlayer {
 	CueSheet *cs;				// cue sheet to play from
 	int audiofh;				// file handle for audio data
 	unsigned int audioposition; // current position from audiostart (bytes)
@@ -921,7 +921,6 @@ static uint8 *fill_buffer(int stream_len, CDPlayer* player)
 			player->audioposition += remaining_silence;
 		}
 
-		int ret = 0;
 		int available = ((player->audioend - player->audiostart) *
 						 player->cs->raw_sector_size) - player->audioposition;
 		if (available > (stream_len - offset))
@@ -937,6 +936,7 @@ static uint8 *fill_buffer(int stream_len, CDPlayer* player)
 			available = 0;
 		}
 
+		ssize_t ret = 0;
 		if ((ret = read(player->audiofh, &buf[offset], available)) >= 0) {
 			player->audioposition += ret;
 			offset += ret;

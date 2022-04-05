@@ -370,12 +370,6 @@ static __inline__ void remove_from_list(blockinfo* bi)
 	bi->next->prev_p=bi->prev_p;
 }
 
-static __inline__ void remove_from_lists(blockinfo* bi)
-{
-    remove_from_list(bi);
-    remove_from_cl_list(bi);
-}
-
 static __inline__ void add_to_cl_list(blockinfo* bi)
 {
     uae_u32 cl=cacheline(bi->pc_p);
@@ -744,12 +738,6 @@ static __inline__ void emit_long(uae_u32 x)
     target+=4;
 }
 
-static __inline__ void emit_quad(uae_u64 x)
-{
-    *((uae_u64*)target)=x;
-    target+=8;
-}
-
 static __inline__ void emit_block(const uae_u8 *block, uae_u32 blocklen)
 {
 	memcpy((uae_u8 *)target,block,blocklen);
@@ -885,16 +873,6 @@ static inline void ru_set_read(regusage *ru, int reg)
 static inline void ru_set_write(regusage *ru, int reg)
 {
 	ru_set(&ru->wmask, reg);
-}
-
-static inline bool ru_read_p(const regusage *ru, int reg)
-{
-	return ru_get(&ru->rmask, reg);
-}
-
-static inline bool ru_write_p(const regusage *ru, int reg)
-{
-	return ru_get(&ru->wmask, reg);
 }
 
 static void ru_fill_ea(regusage *ru, int reg, amodes mode,
@@ -1099,6 +1077,7 @@ static uae_s8 nstate[N_REGS];
 #define L_NEEDED -2
 #define L_UNNEEDED -3
 
+#if USE_MATCH
 static __inline__ void big_to_small_state(bigstate * b, smallstate * s)
 {
   int i;
@@ -1131,6 +1110,7 @@ static __inline__ int callers_need_recompile(bigstate * b, smallstate * s)
 				 * callers */
   return 0;
 }
+#endif
 
 static __inline__ void log_startblock(void)
 {
@@ -1165,11 +1145,6 @@ static __inline__ void do_load_reg(int n, int r)
 	raw_load_flagx(n, r);
   else
 	raw_mov_l_rm(n, (uintptr) live.state[r].mem);
-}
-
-static __inline__ void check_load_reg(int n, int r)
-{
-  raw_mov_l_rm(n, (uintptr) live.state[r].mem);
 }
 
 static __inline__ void log_vwrite(int r)
@@ -1516,11 +1491,6 @@ static  int alloc_reg_hinted(int r, int size, int willclobber, int hint)
     live.nat[bestreg].nholds++;
 
     return bestreg;
-}
-
-static  int alloc_reg(int r, int size, int willclobber)
-{
-    return alloc_reg_hinted(r,size,willclobber,-1);
 }
 
 static  void unlock2(int r)
@@ -5437,24 +5407,11 @@ void register_branch(uae_u32 not_taken, uae_u32 taken, uae_u8 cond)
     branch_cc=cond;
 }
 
-
-static uae_u32 get_handler_address(uae_u32 addr)
-{
-    uae_u32 cl=cacheline(addr);
-    blockinfo* bi=get_blockinfo_addr_new((void*)(uintptr)addr,0);
-    return (uintptr)&(bi->direct_handler_to_use);
-}
-
 static uae_u32 get_handler(uae_u32 addr)
 {
     uae_u32 cl=cacheline(addr);
     blockinfo* bi=get_blockinfo_addr_new((void*)(uintptr)addr,0);
     return (uintptr)bi->direct_handler_to_use;
-}
-
-static void load_handler(int reg, uae_u32 addr)
-{
-    mov_l_rm(reg,get_handler_address(addr));
 }
 
 /* This version assumes that it is writing *real* memory, and *will* fail
@@ -6536,6 +6493,7 @@ void disasm_block(int target, uint8 * start, size_t length)
 #endif
 }
 
+#if JIT_DEBUG
 static void disasm_native_block(uint8 *start, size_t length)
 {
 	disasm_block(TARGET_NATIVE, start, length);
@@ -6545,6 +6503,7 @@ static void disasm_m68k_block(uint8 *start, size_t length)
 {
 	disasm_block(TARGET_M68K, start, length);
 }
+#endif
 
 #ifdef HAVE_GET_WORD_UNSWAPPED
 # define DO_GET_OPCODE(a) (do_get_mem_word_unswapped((uae_u16 *)(a)))

@@ -662,6 +662,7 @@ static void Interrupt(int nr)
     SPCFLAGS_SET( SPCFLAG_INT );
 }
 
+#if 0
 static void SCCInterrupt(int nr)
 {
     // fprintf(stderr, "CPU: in SCCInterrupt\n");
@@ -677,6 +678,7 @@ static void MFPInterrupt(int nr)
 
     regs.intmask = 6;
 }
+#endif
 
 int m68k_move2c (int regno, uae_u32 *regp)
 {
@@ -1055,6 +1057,7 @@ void m68k_emulop_return(void)
 	quit_program = 1;
 }
 
+#if 0
 static void save_regs(struct M68kRegisters &r)
 {
 	int i;
@@ -1076,7 +1079,9 @@ static void save_regs(struct M68kRegisters &r)
 	else
 		r.isp = r.a[7];
 }
+#endif
 
+#if 0
 static void restore_regs(struct M68kRegisters &r)
 {
 	int i;
@@ -1091,6 +1096,7 @@ static void restore_regs(struct M68kRegisters &r)
 	regs.sr = r.sr;
 	MakeFromSR();
 }
+#endif
 
 void m68k_emulop(uae_u32 opcode)
 {
@@ -1148,6 +1154,7 @@ void m68k_natfeat_call(void)
 }
 #endif
 
+#if 0
 static int m68k_call(uae_u32 pc)
 {
 	VOLATILE int exc = 0;
@@ -1185,6 +1192,7 @@ static uae_u32 m68k_alloca(int size)
 		regs.isp = sp;
 	return sp;
 }
+#endif
 
 #if 0
 uae_u32 linea68000(volatile uae_u16 opcode)
@@ -1234,7 +1242,7 @@ uae_u32 linea68000(volatile uae_u16 opcode)
 }
 #endif
 
-
+#if 0
 static void rts68000()
 {
 	uae_u32 SP = m68k_getpc() + 6;
@@ -1246,6 +1254,7 @@ static void rts68000()
 	m68k_areg(regs, 7) = SP;
 	siglongjmp(*p, 1);
 }
+#endif
 
 void REGPARAM2 op_illg (uae_u32 opcode)
 {

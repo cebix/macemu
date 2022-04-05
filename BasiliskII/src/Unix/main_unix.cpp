@@ -251,7 +251,7 @@ void *vm_acquire_mac(size_t size)
 	return vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 }
 
-#ifndef PAGEZERO_HACK
+#if REAL_ADDRESSING
 static int vm_acquire_mac_fixed(void *addr, size_t size)
 {
 	return vm_acquire_fixed(addr, size, VM_MAP_DEFAULT | VM_MAP_32BIT);
