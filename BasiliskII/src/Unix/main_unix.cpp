@@ -44,7 +44,7 @@
 #endif
 
 #if __MACOSX__
-# include "util_macosx.h"
+# include "utils_macosx.h"
 #endif
 
 #if !EMULATED_68K && defined(__NetBSD__)
