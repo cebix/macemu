@@ -180,12 +180,14 @@ mblk_t *allocb(size_t arg1, int arg2)
 {
 	return (mblk_t *)Mac2HostAddr((uint32)CallMacOS2(allocb_ptr, allocb_tvect, arg1, arg2));
 }
+#if 0
 typedef void (*freeb_ptr)(mblk_t *);
 static uint32 freeb_tvect = 0;
 static inline void freeb(mblk_t *arg1)
 {
 	CallMacOS1(freeb_ptr, freeb_tvect, arg1);
 }
+#endif
 typedef int16 (*freemsg_ptr)(mblk_t *);
 static uint32 freemsg_tvect = 0;
 static inline int16 freemsg(mblk_t *arg1)
@@ -323,10 +325,12 @@ static uint8 InitStreamModuleImpl(void *theID)
 	D(bug("allocb TVECT at %08lx\n", allocb_tvect));
 	if (allocb_tvect == 0)
 		return false;
+#if 0
 	freeb_tvect = FindLibSymbol("\013OTKernelLib", "\005freeb");
 	D(bug("freeb TVECT at %08lx\n", freeb_tvect));
 	if (freeb_tvect == 0)
 		return false;
+#endif
 	freemsg_tvect = FindLibSymbol("\013OTKernelLib", "\007freemsg");
 	D(bug("freemsg TVECT at %08lx\n", freemsg_tvect));
 	if (freemsg_tvect == 0)

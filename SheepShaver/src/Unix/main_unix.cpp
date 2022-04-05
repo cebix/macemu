@@ -254,8 +254,10 @@ uintptr SheepMem::data;						// Top of SheepShaver data (stack like storage)
 
 
 // Prototypes
+#if !defined(__APPLE__) || !defined(__x86_64__)
 static bool kernel_data_init(void);
 static bool shm_map_address(int kernel_area, uint32 addr);
+#endif
 static void Quit(void);
 static void *emul_func(void *arg);
 static void *nvram_func(void *arg);
@@ -1224,7 +1226,7 @@ static void Quit(void)
 	exit(0);
 }
 
-
+#if !defined(__APPLE__) || !defined(__x86_64__)
 /*
  *  Initialize Kernel Data segments
  */
@@ -1255,7 +1257,6 @@ static bool kernel_data_init(void)
 	return false;
 }
 
-
 /*
  *  Maps the memory identified by kernel_area at the specified addr
  */
@@ -1265,6 +1266,7 @@ static bool shm_map_address(int kernel_area, uint32 addr)
 	void *kernel_addr = Mac2HostAddr(addr);
 	return shmat(kernel_area, kernel_addr, 0) == kernel_addr;
 }
+#endif  // !defined(__APPLE__) || !defined(__x86_64__)
 
 
 /*
@@ -1425,7 +1427,7 @@ static void *tick_func(void *arg)
 	int tick_counter = 0;
 	uint64 start = GetTicks_usec();
 	int64 ticks = 0;
-	uint64 next = GetTicks_usec();
+	uint64 next = start;
 
 	while (!tick_thread_cancel) {
 
@@ -1495,7 +1497,7 @@ static void *tick_func(void *arg)
 		}
 	}
 
-	uint64 end = GetTicks_usec();
+	D(uint64 end = GetTicks_usec());
 	D(bug("%lld ticks in %lld usec = %f ticks/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
 	return NULL;
 }

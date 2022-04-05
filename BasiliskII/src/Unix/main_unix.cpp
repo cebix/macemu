@@ -251,11 +251,12 @@ void *vm_acquire_mac(size_t size)
 	return vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 }
 
+#ifndef PAGEZERO_HACK
 static int vm_acquire_mac_fixed(void *addr, size_t size)
 {
 	return vm_acquire_fixed(addr, size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 }
-
+#endif
 
 /*
  *  SIGSEGV handler
@@ -1277,7 +1278,7 @@ static void *tick_func(void *arg)
 {
 	uint64 start = GetTicks_usec();
 	int64 ticks = 0;
-	uint64 next = GetTicks_usec();
+	uint64 next = start;
 	while (!tick_thread_cancel) {
 		one_tick();
 		next += 16625;
@@ -1288,8 +1289,10 @@ static void *tick_func(void *arg)
 			next = GetTicks_usec();
 		ticks++;
 	}
+#if DEBUG
 	uint64 end = GetTicks_usec();
 	D(bug("%lld ticks in %lld usec = %f ticks/sec\n", ticks, end - start, ticks * 1000000.0 / (end - start)));
+#endif
 	return NULL;
 }
 #endif

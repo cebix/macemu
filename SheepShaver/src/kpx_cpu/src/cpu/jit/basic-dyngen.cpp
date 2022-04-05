@@ -100,6 +100,24 @@ basic_dyngen::gen_align(int align)
 		return code_ptr();
 
 #if defined(__i386__) || defined(__x86_64__)
+#if defined(__x86_64__)
+	static const uint8 prefixes[4] = { 0x66, 0x66, 0x66, 0x66 };
+	/* The recommended way to pad 64bit code is to use NOPs preceded by
+	   maximally four 0x66 prefixes.  Balance the size of nops.  */
+	int i;
+	int nnops = (nbytes + 3) / 4;
+	int len = nbytes / nnops;
+	int remains = nbytes - nnops * len;
+
+	for (i = 0; i < remains; i++) {
+		emit_block(prefixes, len);
+		emit_8(0x90); // NOP
+	}
+	for (; i < nnops; i++) {
+		emit_block(prefixes, len - 1);
+		emit_8(0x90); // NOP
+	}
+#else
 	/* Source: GNU Binutils 2.12.90.0.15 */
 	/* Various efficient no-op patterns for aligning code labels.
 	   Note: Don't try to assemble the instructions in the comments.
@@ -151,24 +169,6 @@ basic_dyngen::gen_align(int align)
 		f32_9, f32_10, f32_11, f32_12, f32_13, f32_14, f32_15
 	};
 
-#if defined(__x86_64__)
-	static const uint8 prefixes[4] = { 0x66, 0x66, 0x66, 0x66 };
-	/* The recommended way to pad 64bit code is to use NOPs preceded by
-	   maximally four 0x66 prefixes.  Balance the size of nops.  */
-	int i;
-	int nnops = (nbytes + 3) / 4;
-	int len = nbytes / nnops;
-	int remains = nbytes - nnops * len;
-
-	for (i = 0; i < remains; i++) {
-		emit_block(prefixes, len);
-		emit_8(0x90); // NOP
-	}
-	for (; i < nnops; i++) {
-		emit_block(prefixes, len - 1);
-		emit_8(0x90); // NOP
-	}
-#else
 	int nloops = nbytes / 16;
 	while (nloops-- > 0)
 		emit_block(f32_16, sizeof(f32_16));

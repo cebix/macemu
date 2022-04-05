@@ -644,8 +644,8 @@ tcp_emu(so, m)
 	DEBUG_ARG("so = %lx", (long)so);
 	DEBUG_ARG("m = %lx", (long)m);
 	
+	int x, i;
 	switch(so->so_emu) {
-		int x, i;
 		
 	 case EMU_IDENT:
 		/*

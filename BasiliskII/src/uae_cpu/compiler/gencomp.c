@@ -163,47 +163,6 @@ finish_braces (void)
 	close_brace ();
 }
 
-static void 
-pop_braces (int to)
-{
-    while (n_braces > to)
-	close_brace ();
-}
-
-static int 
-bit_size (int size)
-{
-    switch (size)
-    {
-     case sz_byte:
-	return 8;
-     case sz_word:
-	return 16;
-     case sz_long:
-	return 32;
-     default:
-	abort ();
-    }
-    return 0;
-}
-
-static const char *
-bit_mask (int size)
-{
-    switch (size)
-    {
-     case sz_byte:
-	return "0xff";
-     case sz_word:
-	return "0xffff";
-     case sz_long:
-	return "0xffffffff";
-     default:
-	abort ();
-    }
-    return 0;
-}
-
 static __inline__ void gen_update_next_handler(void)
 {
     return; /* Can anything clever be done here? */

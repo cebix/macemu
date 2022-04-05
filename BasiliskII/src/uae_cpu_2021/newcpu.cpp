@@ -1249,12 +1249,11 @@ static void rts68000()
 
 void REGPARAM2 op_illg (uae_u32 opcode)
 {
-	uaecptr pc = m68k_getpc ();
-
 	if ((opcode & 0xF000) == 0xA000) {
 #if 0
 		if (opcode == 0xa0ff)
 		{
+			uaecptr pc = m68k_getpc();
 			uae_u32 call = ReadHWMemInt32(pc + 2);
 			switch (call)
 			{
@@ -1274,7 +1273,7 @@ void REGPARAM2 op_illg (uae_u32 opcode)
 		return;
 	}
 
-	D(bug("Illegal instruction: %04x at %08x", opcode, pc));
+	D(bug("Illegal instruction: %04x at %08x", opcode, m68k_getpc()));
 #if defined(USE_JIT) && defined(JIT_DEBUG)
 	compiler_dumpstate();
 #endif

@@ -51,6 +51,8 @@
 #include <slirp.h>
 #include "ip_icmp.h"
 
+static struct ip *ip_reass(register struct ip *ip, register struct ipq *fp);
+
 int ip_defttl;
 struct ipstat ipstat;
 struct ipq ipq;
