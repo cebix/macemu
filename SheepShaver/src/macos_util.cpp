@@ -54,12 +54,14 @@ static inline int16 FindSymbol(uint32 arg1, uintptr arg2, uintptr arg3, uintptr 
 {
 	return (int16)CallMacOS4(fs_ptr, fs_tvect, arg1, (char *)arg2, (void **)arg3, (uint32 **)arg4);
 }
+#if 0
 typedef int16 (*cc_ptr)(uint32 *);
 static uint32 cc_tvect = 0;
 static inline int16 CloseConnection(uint32 *arg1)
 {
 	return (int16)CallMacOS1(cc_ptr, cc_tvect, arg1);
 }
+#endif
 typedef uint32 (*nps_ptr)(uint32);
 static uint32 nps_tvect = 0;
 static inline uint32 NewPtrSys(uint32 arg1)
@@ -83,7 +85,9 @@ void MacOSUtilReset(void)
 	cu_tvect = 0;
 	gsl_tvect = 0;
 	fs_tvect = 0;
+#if 0
 	cc_tvect = 0;
+#endif
 }
 
 
@@ -337,12 +341,14 @@ void InitCallUniversalProc()
 		QuitEmulator();
 	}
 
+#if 0
 	cc_tvect = FindLibSymbol("\014InterfaceLib", "\017CloseConnection");
 	D(bug("CloseConnection TVECT at %08lx\n", cc_tvect));
 	if (cc_tvect == 0) {
 		printf("FATAL: Can't find CloseConnection()\n");
 		QuitEmulator();
 	}
+#endif
 
 	nps_tvect = FindLibSymbol("\014InterfaceLib", "\011NewPtrSys");
 	D(bug("NewPtrSys TVECT at %08lx\n", nps_tvect));

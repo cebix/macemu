@@ -44,6 +44,7 @@
 // Define to enable const branches optimization
 #define FOLLOW_CONST_JUMPS 1
 
+#if PPC_ENABLE_JIT
 // FIXME: define ROM areas
 static inline bool is_read_only_memory(uintptr addr)
 {
@@ -53,7 +54,9 @@ static inline bool is_read_only_memory(uintptr addr)
 #endif
 	return false;
 }
+#endif
 
+#if DYNGEN_DIRECT_BLOCK_CHAINING
 // Returns TRUE if we can directly generate a jump to the target block
 // XXX mixing front-end and back-end conditions is not a very good idea...
 static inline bool direct_chaining_possible(uint32 bpc, uint32 tpc)
@@ -63,7 +66,7 @@ static inline bool direct_chaining_possible(uint32 bpc, uint32 tpc)
 #endif
 	return ((bpc ^ tpc) >> 12) == 0 || is_read_only_memory(tpc);
 }
-
+#endif
 
 /**
  *		Basic block disassemblers

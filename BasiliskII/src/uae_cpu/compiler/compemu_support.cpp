@@ -47,7 +47,11 @@
 #define USE_MATCH 0
 
 /* kludge for Brian, so he can compile under MSVC++ */
-#define USE_NORMAL_CALLING_CONVENTION 1 && defined(_MSC_VER)
+#if defined(_MSC_VER)
+#define USE_NORMAL_CALLING_CONVENTION 1
+#else
+#define USE_NORMAL_CALLING_CONVENTION 0
+#endif
 
 #ifndef WIN32
 #include <unistd.h>
@@ -722,10 +726,6 @@ static __inline__ void alloc_blockinfos(void)
  ********************************************************************/
 
 static uae_u8* target;
-
-static  void emit_init(void)
-{
-}
 
 static __inline__ void emit_byte(uae_u8 x)
 {
@@ -6476,11 +6476,6 @@ void flush_icache_range(uae_u8 *start_p, uae_u32 length)
 	return;
 #endif
 	flush_icache(-1);
-}
-
-static void catastrophe(void)
-{
-    abort();
 }
 
 int failure;
