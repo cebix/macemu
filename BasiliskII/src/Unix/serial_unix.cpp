@@ -648,16 +648,16 @@ bool XSERDPort::configure(uint16 config)
 	// Set number of data bits
 	switch (config & 0x0c00) {
 		case data5:
-			mode.c_cflag = mode.c_cflag & ~CSIZE | CS5;
+			mode.c_cflag = (mode.c_cflag & ~CSIZE) | CS5;
 			break;
 		case data6:
-			mode.c_cflag = mode.c_cflag & ~CSIZE | CS6;
+			mode.c_cflag = (mode.c_cflag & ~CSIZE) | CS6;
 			break;
 		case data7:
-			mode.c_cflag = mode.c_cflag & ~CSIZE | CS7;
+			mode.c_cflag = (mode.c_cflag & ~CSIZE) | CS7;
 			break;
 		case data8:
-			mode.c_cflag = mode.c_cflag & ~CSIZE | CS8;
+			mode.c_cflag = (mode.c_cflag & ~CSIZE) | CS8;
 			break;
 	}
 

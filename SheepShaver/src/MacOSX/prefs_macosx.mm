@@ -52,7 +52,7 @@
 		return nil;
 	}
 
-	NSLog(@"%d objects loaded\n", [objects count]);
+	NSLog(@"%lu objects loaded\n", [objects count]);
 
 	// Release the raw nib data.
 	[nib release];
