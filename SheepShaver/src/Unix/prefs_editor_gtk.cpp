@@ -25,6 +25,7 @@
 #include <dirent.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <unistd.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 
@@ -501,15 +502,22 @@ static void add_volume_ok(GtkWidget *button, file_req_assoc *assoc)
 static void create_volume_ok(GtkWidget *button, file_req_assoc *assoc)
 {
 	gchar *file = (gchar *)gtk_file_selection_get_filename(GTK_FILE_SELECTION(assoc->req));
-
 	const gchar *str = gtk_entry_get_text(GTK_ENTRY(assoc->entry));
-	int size = atoi(str);
-
-	char cmd[1024];
-	sprintf(cmd, "dd if=/dev/zero \"of=%s\" bs=1024k count=%d", file, size);
-	int ret = system(cmd);
-	if (ret == 0)
+	int disk_size = atoi(str);
+	if (disk_size < 1 || disk_size > 2000) {
+		printf("Disk size needs to be between 1 and 2000 MB.\n");
+		gtk_widget_destroy(GTK_WIDGET(assoc->req));
+		delete assoc;
+		return;
+	}
+	int fd = open(file, O_CREAT | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR);
+	if (fd < 0 && errno == EEXIST) {
+		printf("File already exists, refusing to overwrite file.\n");
+	} else {
+		ftruncate(fd, disk_size * 1024 * 1024);
 		gtk_clist_append(GTK_CLIST(volume_list), &file);
+	}
+	close(fd);
 	gtk_widget_destroy(GTK_WIDGET(assoc->req));
 	delete assoc;
 }
