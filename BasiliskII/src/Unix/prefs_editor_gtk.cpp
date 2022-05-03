@@ -581,7 +581,7 @@ static void create_volume_ok(GtkWidget *button, file_req_assoc *assoc)
 		delete assoc;
 		return;
 	}
-	int fd = open(file, O_CREAT | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR);
+	int fd = open(file, O_CREAT | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 	if (fd < 0 && errno == EEXIST) {
 		printf("File already exists, refusing to overwrite file.\n");
 	} else {
