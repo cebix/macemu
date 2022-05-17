@@ -28,9 +28,9 @@
 #include "config.h"
 #include "user_strings_windows.h"
 
-#ifndef STDC_HEADERS
-#error "You don't have ANSI C header files."
-#endif
+//#ifndef STDC_HEADERS
+//#error "You don't have ANSI C header files."
+//#endif
 
 #ifndef WIN32
 #define WIN32

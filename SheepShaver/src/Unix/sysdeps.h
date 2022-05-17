@@ -28,9 +28,9 @@
 #include "config.h"
 #include "user_strings_unix.h"
 
-#ifndef STDC_HEADERS
-#error "You don't have ANSI C header files."
-#endif
+//#ifndef STDC_HEADERS
+//#error "You don't have ANSI C header files."
+//#endif
 
 #ifdef HAVE_UNISTD_H
 # include <sys/types.h>
