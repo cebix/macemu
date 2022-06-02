@@ -96,7 +96,7 @@ void AddPrefsDefaults(void)
 	PrefsAddBool("nogui", false);
 	PrefsAddBool("noclipconversion", false);
 	PrefsAddBool("ignoresegv", true);
-	PrefsAddBool("ignoreillegal", false);
+	PrefsAddBool("ignoreillegal", true);
 
 #if USE_JIT
 	// JIT compiler specific options
@@ -112,5 +112,8 @@ void AddPrefsDefaults(void)
 	PrefsAddBool("swap_opt_cmd", false);
 #else
 	PrefsAddBool("swap_opt_cmd", true);
+#endif
+#ifdef __linux__
+	PrefsAddString("cdrom", "/dev/cdrom");
 #endif
 }
