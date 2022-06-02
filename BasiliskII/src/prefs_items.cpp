@@ -132,7 +132,4 @@ void AddPrefsDefaults(void)
 	PrefsAddBool("swap_opt_cmd", true);
 #endif
 	PrefsAddBool("ignoresegv", true);
-#ifdef __linux__
-	PrefsAddString("cdrom", "/dev/cdrom");
-#endif
 }

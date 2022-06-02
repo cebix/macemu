@@ -84,7 +84,9 @@ void LoadPrefs(const char *vmdir)
 		fclose(f);
 
 	} else {
-
+#ifdef __linux__
+		PrefsAddString("cdrom", "/dev/cdrom");
+#endif
 		// No prefs file, save defaults
 		SavePrefs();
 	}

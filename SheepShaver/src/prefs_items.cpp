@@ -113,7 +113,4 @@ void AddPrefsDefaults(void)
 #else
 	PrefsAddBool("swap_opt_cmd", true);
 #endif
-#ifdef __linux__
-	PrefsAddString("cdrom", "/dev/cdrom");
-#endif
 }
