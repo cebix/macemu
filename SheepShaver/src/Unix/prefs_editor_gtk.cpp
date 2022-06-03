@@ -29,6 +29,8 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 
+#include <cerrno>
+
 #include "user_strings.h"
 #include "version.h"
 #include "cdrom.h"

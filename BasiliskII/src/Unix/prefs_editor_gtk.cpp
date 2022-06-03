@@ -29,6 +29,8 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 
+#include <cerrno>
+
 #ifdef HAVE_GNOMEUI
 #include <gnome.h>
 #endif
@@ -412,12 +414,12 @@ static void mn_about(...)
 	const char *authors[] = {
 		"Christian Bauer",
 		"Orlando Bassotto",
-		"Gwenolé Beauchesne",
+		"Gwenolï¿½ Beauchesne",
 		"Marc Chabanas",
 		"Marc Hellwig",
 		"Biill Huey",
 		"Brian J. Johnson",
-		"Jürgen Lachmann",
+		"Jï¿½rgen Lachmann",
 		"Samuel Lander",
 		"David Lawrence",
 		"Lauri Pesonen",
