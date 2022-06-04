@@ -29,6 +29,8 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 
+#include <cerrno>
+
 #ifdef HAVE_GNOMEUI
 #include <gnome.h>
 #endif
