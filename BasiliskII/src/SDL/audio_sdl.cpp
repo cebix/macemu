@@ -55,7 +55,6 @@ static bool audio_mute = false;
 
 // Prototypes
 static void stream_func(void *arg, uint8 *stream, int stream_len);
-static int play_startup(void *arg);
 
 
 /*
@@ -168,8 +167,6 @@ void AudioInit(void)
 
 	// Open and initialize audio device
 	open_audio();
-	
-	SDL_CreateThread(play_startup, "", NULL);
 }
 
 
@@ -382,4 +379,8 @@ static int play_startup(void *arg) {
 		SDL_FreeWAV(wav_buffer);
 	}
 	return 0;
+}
+
+void PlayStartupSound() {
+	SDL_CreateThread(play_startup, "", NULL);
 }

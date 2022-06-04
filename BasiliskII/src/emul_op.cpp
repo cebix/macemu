@@ -49,6 +49,7 @@
 #define DEBUG 0
 #include "debug.h"
 
+void PlayStartupSound();
 
 /*
  *  Execute EMUL_OP opcode (called by 68k emulator or Illegal Instruction trap handler)
@@ -92,6 +93,7 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 			TimerReset();
 			EtherReset();
 			AudioReset();
+			PlayStartupSound();
 
 			// Create BootGlobs at top of memory
 			Mac_memset(RAMBaseMac + RAMSize - 4096, 0, 4096);

@@ -50,6 +50,7 @@
 #define DEBUG 0
 #include "debug.h"
 
+void PlayStartupSound();
 
 // TVector of MakeExecutable
 static uint32 MakeExecutableTvec;
@@ -285,6 +286,7 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 			TimerReset();
 			MacOSUtilReset();
 			AudioReset();
+			PlayStartupSound();
 
 			// Enable DR emulator (disabled for now)
 			if (PrefsFindBool("jit68k") && 0) {
