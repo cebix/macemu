@@ -1,13 +1,13 @@
 #### BasiliskII
 ```
 macOS     x86_64 JIT / arm64 non-JIT
-Linux x86 x86_64 JIT
+Linux x86 x86_64 JIT / arm64 non-JIT
 MinGW x86        JIT
 ```
 #### SheepShaver
 ```
 macOS     x86_64 JIT / arm64 non-JIT
-Linux x86 x86_64 JIT
+Linux x86 x86_64 JIT / arm64 non-JIT
 MinGW x86        JIT
 ```
 ### How To Build
@@ -49,9 +49,10 @@ build:
 $ cd macemu/BasiliskII/src/MacOSX
 $ xcodebuild build -project BasiliskII.xcodeproj -configuration Release
 ```
-or same as Linux (x86_64 only)
+or same as Linux
 
-##### Linux(x86/x86_64)
+##### Linux
+preparation (arm64 only): Install GMP and MPFR.
 ```
 $ cd macemu/BasiliskII/src/Unix
 $ ./autogen.sh
@@ -69,9 +70,9 @@ $ make
 $ cd macemu/SheepShaver/src/MacOSX
 $ xcodebuild build -project SheepShaver_Xcode8.xcodeproj -configuration Release
 ```
-or same as Linux (x86_64 only)
+or same as Linux
 
-##### Linux(x86/x86_64)
+##### Linux
 ```
 $ cd macemu/SheepShaver/src/Unix
 $ ./autogen.sh
