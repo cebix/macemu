@@ -23,6 +23,7 @@
 #ifdef FPU_MPFR
 
 #include <cstdio>
+#include <cstdint>
 #include "memory.h"
 #include "readcpu.h"
 #include "newcpu.h"

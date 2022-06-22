@@ -267,9 +267,15 @@ void * vm_acquire(size_t size, int options)
 #elif defined(HAVE_MMAP_VM)
 	int fd = zero_fd;
 	int the_map_flags = translate_map_flags(options) | map_flags;
-
+#ifdef __aarch64__
+	if ((addr = mmap((caddr_t)next_address, reserved_buf ? size : size + RESERVED_SIZE, VM_PAGE_DEFAULT, the_map_flags, fd, 0)) == (void *)MAP_FAILED)
+		return VM_MAP_FAILED;
+	if (!reserved_buf)
+		reserved_buf = (char *)addr + size;
+#else
 	if ((addr = mmap((caddr_t)next_address, size, VM_PAGE_DEFAULT, the_map_flags, fd, 0)) == (void *)MAP_FAILED)
 		return VM_MAP_FAILED;
+#endif
 #if USE_JIT
 	// Sanity checks for 64-bit platforms
 	if (sizeof(void *) == 8 && (options & VM_MAP_32BIT) && !((char *)addr <= (char *)0xffffffff))

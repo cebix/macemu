@@ -19,6 +19,7 @@ cpustbl.cpp
 cputbl.h
 cpuemu_nf.cpp
 cpustbl_nf.cpp
+cpufunctbl.cpp
 
 patches/*
 .pc*

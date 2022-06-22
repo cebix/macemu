@@ -994,11 +994,13 @@ dnl Check if we can modify the __PAGEZERO segment for use as Low Memory
 AC_CACHE_CHECK([whether __PAGEZERO can be Low Memory area 0x0000-0x3000],
   ac_cv_pagezero_hack, [
   ac_cv_pagezero_hack=no 
-  if AC_TRY_COMMAND([Darwin/testlmem.sh 0x3000]); then
+  case $target_os:$target_cpu in
+  darwin*:x86_64)
     ac_cv_pagezero_hack=yes
     dnl might as well skip the test for mmap-able low memory
     ac_cv_can_map_lm=no
-  fi
+    ;;
+  esac
 ])
 AC_TRANSLATE_DEFINE(PAGEZERO_HACK, "$ac_cv_pagezero_hack",
   [Define if the __PAGEZERO Mach-O Low Memory Globals hack works on this system.])
@@ -1206,6 +1208,11 @@ AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
   AC_LANG_RESTORE
   ]
 )
+
+if [[ "$target_cpu" = "arm" -o "$target_cpu" = "aarch64" ]]; then
+  ac_cv_have_skip_instruction=yes
+fi
+
 AC_TRANSLATE_DEFINE(HAVE_SIGSEGV_SKIP_INSTRUCTION, "$ac_cv_have_skip_instruction",
   [Define if we can ignore the fault (instruction skipping in SIGSEGV handler).])
 
@@ -1303,6 +1310,11 @@ EOF
       [Define constant offset for Mac address translation])
   fi
 fi
+
+if [[ "$target_cpu" = "arm" -o "$target_cpu" = "aarch64" ]]; then
+  AC_DEFINE_UNQUOTED(NATMEM_OFFSET, 0x400000000000, [Define constant offset for Mac address translation])
+fi
+
 AC_MSG_RESULT($WANT_ADDRESSING_MODE)
 
 dnl Utility macro used by next two tests.
@@ -1693,7 +1705,7 @@ linux*:x86_64)  LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-x86_64.ld";;
 linux*:powerpc) LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-ppc.ld";;
 netbsd*:i?86)   LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-i386.ld";;
 freebsd*:i?86)  LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/freebsd-i386.ld";;
-darwin*:*)      LINKER_SCRIPT_FLAGS="-Wl,-seg1addr,0x78048000";;
+#darwin*:*)      LINKER_SCRIPT_FLAGS="-Wl,-seg1addr,0x78048000";;
 esac
 if [[ -n "$LINKER_SCRIPT_FLAGS" ]]; then
   AC_CACHE_CHECK([whether linker script is usable],

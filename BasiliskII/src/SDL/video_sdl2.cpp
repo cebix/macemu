@@ -233,7 +233,7 @@ extern void SysMountFirstFloppy(void);
 
 static void *vm_acquire_framebuffer(uint32 size)
 {
-#ifdef HAVE_MACH_VM
+#if defined(HAVE_MACH_VM) || defined(HAVE_MMAP_VM) && defined(__aarch64__)
 	return vm_acquire_reserved(size);
 #else
 	// always try to reallocate framebuffer at the same address
@@ -254,7 +254,7 @@ static void *vm_acquire_framebuffer(uint32 size)
 
 static inline void vm_release_framebuffer(void *fb, uint32 size)
 {
-#ifndef HAVE_MACH_VM
+#if !(defined(HAVE_MACH_VM) || defined(HAVE_MMAP_VM) && defined(__aarch64__))
 	vm_release(fb, size);
 #endif
 }

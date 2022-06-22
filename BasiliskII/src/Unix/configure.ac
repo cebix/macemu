@@ -1121,11 +1121,13 @@ dnl Check if we can modify the __PAGEZERO segment for use as Low Memory
 AC_CACHE_CHECK([whether __PAGEZERO can be Low Memory area 0x0000-0x2000],
   ac_cv_pagezero_hack, [
   ac_cv_pagezero_hack=no 
-  if AC_TRY_COMMAND([Darwin/testlmem.sh 0x2000]); then
+  case $target_os:$target_cpu in
+  darwin*:x86_64)
     ac_cv_pagezero_hack=yes
     dnl might as well skip the test for mmap-able low memory
     ac_cv_can_map_lm=no
-  fi
+    ;;
+  esac
 ])
 AC_TRANSLATE_DEFINE(PAGEZERO_HACK, "$ac_cv_pagezero_hack",
   [Define if the __PAGEZERO Mach-O Low Memory Globals hack works on this system.])
@@ -1237,6 +1239,11 @@ AC_CACHE_CHECK([whether your system supports Mach exceptions],
   AC_LANG_RESTORE
   ]
 )
+
+case $target_os:$target_cpu in
+darwin*:arm) ac_cv_have_mach_exceptions=yes;;
+esac
+
 AC_TRANSLATE_DEFINE(HAVE_MACH_EXCEPTIONS, "$ac_cv_have_mach_exceptions",
   [Define if your system supports Mach exceptions.])
 
@@ -1373,6 +1380,11 @@ AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
   AC_LANG_RESTORE
   ]
 )
+
+if [[ "$target_cpu" = "arm" -o "$target_cpu" = "aarch64" ]]; then
+  ac_cv_have_skip_instruction=yes
+fi
+
 AC_TRANSLATE_DEFINE(HAVE_SIGSEGV_SKIP_INSTRUCTION, "$ac_cv_have_skip_instruction",
   [Define if we can ignore the fault (instruction skipping in SIGSEGV handler).])
 
@@ -1391,7 +1403,7 @@ linux*:i?86)    LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-i386.ld";;
 linux*:powerpc) LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-ppc.ld";;
 netbsd*:i?86)   LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/linux-i386.ld";;
 freebsd*:i?86)  LINKER_SCRIPT_FLAGS="-Wl,-T,ldscripts/freebsd-i386.ld";;
-darwin*:*)      LINKER_SCRIPT_FLAGS="-Wl,-seg1addr,0x78048000";;
+#darwin*:*)      LINKER_SCRIPT_FLAGS="-Wl,-seg1addr,0x78048000";;
 esac
 if [[ -n "$LINKER_SCRIPT_FLAGS" ]]; then
   AC_CACHE_CHECK([whether linker script is usable],
@@ -1476,7 +1488,9 @@ fi
 
 if [[ "x$OS_TYPE" = "xdarwin" ]]; then
   WANT_VOSF=no
-  LDFLAGS="$LDFLAGS -Wl,-no_pie -pagezero_size 0x1000"
+  if [[ "$target_cpu" != "arm" ]]; then
+    LDFLAGS="$LDFLAGS -Wl,-no_pie -pagezero_size 0x1000"
+  fi
 fi
 
 if [[ "x$OS_TYPE" = "xlinux" ]]; then
@@ -1656,9 +1670,15 @@ elif [[ "x$WANT_NATIVE_M68K" = "xyes" ]]; then
   CPUSRCS="asm_support.s"
 fi
 
+if [[ "$target_cpu" = "arm" -o "$target_cpu" = "aarch64" ]]; then
+  UAE_PATH="../uae_cpu_2021"
+else
+  UAE_PATH="../uae_cpu"
+fi
+
 dnl Enable JIT compiler, if possible.
 if [[ "x$WANT_JIT" = "xyes" -a "x$CAN_JIT" = "xyes" ]]; then
-  JITSRCS="$JITSRCS ../uae_cpu/compiler/compemu_support.cpp ../uae_cpu/compiler/compemu_fpp.cpp compstbl.o cpustbl_nf.o"
+  JITSRCS="$JITSRCS $UAE_PATH/compiler/compemu_support.cpp $UAE_PATH/compiler/compemu_fpp.cpp compstbl.o cpustbl_nf.o"
   DEFINES="$DEFINES -DUSE_JIT -DUSE_JIT_FPU"
   
   if [[ "x$WANT_JIT_DEBUG" = "xyes" ]]; then
@@ -1828,9 +1848,16 @@ for fpe in $FPE_CORE_TEST_ORDER; do
   ieee)
     case $ac_cv_c_float_format in
     IEEE*)
-      FPE_CORE="IEEE fpu core"
-      DEFINES="$DEFINES -DFPU_IEEE"
-      FPUSRCS="../uae_cpu/fpu/fpu_ieee.cpp"
+      if [[ "$target_cpu" = "arm" -o "$target_cpu" = "aarch64" ]]; then
+        FPE_CORE="IEEE fpu core (MPFR)"
+        DEFINES="$DEFINES -DFPU_MPFR"
+        FPUSRCS="$UAE_PATH/fpu/fpu_mpfr.cpp"
+	    LIBS="$LIBS -lgmp -lmpfr"
+	  else
+        FPE_CORE="IEEE fpu core"
+        DEFINES="$DEFINES -DFPU_IEEE"
+        FPUSRCS="$UAE_PATH/fpu/fpu_ieee.cpp"
+	  fi
       dnl Math functions not mandated by C99 standard
       AC_CHECK_FUNCS(isnanl isinfl)
       dnl Math functions required by C99 standard, but probably not
@@ -1848,14 +1875,14 @@ for fpe in $FPE_CORE_TEST_ORDER; do
     if [[ ":$HAVE_GCC27:$HAVE_I386:$HAVE_GAS:" = ":yes:yes:yes:" ]]; then
       FPE_CORE="i387 fpu core"
       DEFINES="$DEFINES -DFPU_X86"
-      FPUSRCS="../uae_cpu/fpu/fpu_x86.cpp"
+      FPUSRCS="$UAE_PATH/fpu/fpu_x86.cpp"
       break
     fi
     ;;
   uae)
     FPE_CORE="uae fpu core"
     DEFINES="$DEFINES -DFPU_UAE"
-    FPUSRCS="../uae_cpu/fpu/fpu_uae.cpp"
+    FPUSRCS="$UAE_PATH/fpu/fpu_uae.cpp"
     break
     ;;
   *)
@@ -1873,8 +1900,12 @@ AC_CHECK_FUNCS(isnan isinf finite isnormal signbit)
 
 dnl UAE CPU sources for all non-m68k-native architectures.
 if [[ "x$WANT_NATIVE_M68K" = "xno" ]]; then
-  CPUINCLUDES="-I../uae_cpu"
-  CPUSRCS="../uae_cpu/basilisk_glue.cpp ../uae_cpu/memory.cpp ../uae_cpu/newcpu.cpp ../uae_cpu/readcpu.cpp $FPUSRCS cpustbl.cpp cpudefs.cpp $CPUSRCS $JITSRCS"
+  CPUINCLUDES="-I$UAE_PATH"
+  CPUSRCS="$UAE_PATH/basilisk_glue.cpp $UAE_PATH/memory.cpp $UAE_PATH/newcpu.cpp $UAE_PATH/readcpu.cpp $FPUSRCS cpustbl.cpp cpudefs.cpp $CPUSRCS $JITSRCS"
+  if [[ "$target_cpu" = "arm" -o "$target_cpu" = "aarch64" ]]; then
+    CPUSRCS="$CPUSRCS cpufunctbl.cpp"
+	DEFINES="$DEFINES -DUPDATE_UAE"
+  fi
 fi
 
 dnl Or if we have -IPA (MIPSPro compilers)
@@ -1892,6 +1923,7 @@ AC_SUBST(CPUINCLUDES)
 AC_SUBST(CPUSRCS)
 AC_SUBST(BLESS)
 AC_SUBST(KEYCODES)
+AC_SUBST(UAE_PATH)
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
 
