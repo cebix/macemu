@@ -158,6 +158,7 @@ static void usage(const char *prg_name)
 	printf("\nUnix options:\n");
 	printf("  --display STRING\n    X display to use\n");
 	PrefsPrintUsage();
+	printf("\nBuild Date: %s\n", __DATE__);
 	exit(0);
 }
 
