@@ -16,7 +16,7 @@ For more information, see the README file. If you are interested in learning how
 
 Basilisk II has been ported to the following systems:
  * Unix with X11 (Linux i386/x86_64, Solaris 2.5, FreeBSD 3.x, IRIX 6.5)
- * Mac OS X (PowerPC and Intel)
+ * Mac OS X (PowerPC, Intel and Apple silicon)
  * Windows NT/2000/XP
  * BeOS R4 (PowerPC and Intel)
  * AmigaOS 3.x
