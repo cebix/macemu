@@ -22,3 +22,5 @@ cpustbl_nf.cpp
 
 patches/*
 .pc*
+Darwin/lowmem
+Darwin/pagezero

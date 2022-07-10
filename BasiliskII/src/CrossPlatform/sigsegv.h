@@ -46,9 +46,11 @@ extern "C" {
 }
 
 #ifdef __ppc__
+
 #if __DARWIN_UNIX03 && defined _STRUCT_PPC_THREAD_STATE
 #define MACH_FIELD_NAME(X)				__CONCAT(__,X)
-#endif
+#endif // END OF #if __DARWIN_UNIX03 && defined _STRUCT_PPC_THREAD_STATE
+
 #define SIGSEGV_EXCEPTION_STATE_TYPE	ppc_exception_state_t
 #define SIGSEGV_EXCEPTION_STATE_FLAVOR	PPC_EXCEPTION_STATE
 #define SIGSEGV_EXCEPTION_STATE_COUNT	PPC_EXCEPTION_STATE_COUNT
@@ -59,11 +61,14 @@ extern "C" {
 #define SIGSEGV_FAULT_INSTRUCTION		SIP->thr_state.MACH_FIELD_NAME(srr0)
 #define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
 #define SIGSEGV_REGISTER_FILE			(unsigned long *)&SIP->thr_state.MACH_FIELD_NAME(srr0), (unsigned long *)&SIP->thr_state.MACH_FIELD_NAME(r0)
-#endif
+#endif // END OF #ifdef __ppc__
+
 #ifdef __ppc64__
+
 #if __DARWIN_UNIX03 && defined _STRUCT_PPC_THREAD_STATE64
 #define MACH_FIELD_NAME(X)				__CONCAT(__,X)
-#endif
+#endif // END OF #if __DARWIN_UNIX03 && defined _STRUCT_PPC_THREAD_STATE64
+
 #define SIGSEGV_EXCEPTION_STATE_TYPE	ppc_exception_state64_t
 #define SIGSEGV_EXCEPTION_STATE_FLAVOR	PPC_EXCEPTION_STATE64
 #define SIGSEGV_EXCEPTION_STATE_COUNT	PPC_EXCEPTION_STATE64_COUNT
@@ -74,11 +79,14 @@ extern "C" {
 #define SIGSEGV_FAULT_INSTRUCTION		SIP->thr_state.MACH_FIELD_NAME(srr0)
 #define SIGSEGV_SKIP_INSTRUCTION		powerpc_skip_instruction
 #define SIGSEGV_REGISTER_FILE			(unsigned long *)&SIP->thr_state.MACH_FIELD_NAME(srr0), (unsigned long *)&SIP->thr_state.MACH_FIELD_NAME(r0)
-#endif
+
+#endif // END OF #ifdef __ppc64__
+
 #ifdef __i386__
 #if __DARWIN_UNIX03 && defined _STRUCT_X86_THREAD_STATE32
 #define MACH_FIELD_NAME(X)				__CONCAT(__,X)
-#endif
+#endif // END OF #if __DARWIN_UNIX03 && defined _STRUCT_X86_THREAD_STATE32
+
 #define SIGSEGV_EXCEPTION_STATE_TYPE	i386_exception_state_t
 #define SIGSEGV_EXCEPTION_STATE_FLAVOR	i386_EXCEPTION_STATE
 #define SIGSEGV_EXCEPTION_STATE_COUNT	i386_EXCEPTION_STATE_COUNT
@@ -89,11 +97,15 @@ extern "C" {
 #define SIGSEGV_FAULT_INSTRUCTION		SIP->thr_state.MACH_FIELD_NAME(eip)
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&SIP->thr_state.MACH_FIELD_NAME(eax)) /* EAX is the first GPR we consider */
-#endif
+
+#endif // END OF #ifdef __i386__
+
 #ifdef __x86_64__
+
 #if __DARWIN_UNIX03 && defined _STRUCT_X86_THREAD_STATE64
 #define MACH_FIELD_NAME(X)				__CONCAT(__,X)
-#endif
+#endif // END OF #if __DARWIN_UNIX03 && defined _STRUCT_X86_THREAD_STATE64
+
 #define SIGSEGV_EXCEPTION_STATE_TYPE	x86_exception_state64_t
 #define SIGSEGV_EXCEPTION_STATE_FLAVOR	x86_EXCEPTION_STATE64
 #define SIGSEGV_EXCEPTION_STATE_COUNT	x86_EXCEPTION_STATE64_COUNT
@@ -104,18 +116,36 @@ extern "C" {
 #define SIGSEGV_FAULT_INSTRUCTION		SIP->thr_state.MACH_FIELD_NAME(rip)
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&SIP->thr_state.MACH_FIELD_NAME(rax)) /* RAX is the first GPR we consider */
-#endif
+
+#endif //END OF #ifdef __x86_64__
+
 #ifdef __x86_64__
+#define SIGSEGV_FAULT_ADDRESS_FAST		(((uint64_t)code[1])|0x100000000)
+#elif __aarch64__
 #define SIGSEGV_FAULT_ADDRESS_FAST		(((uint64_t)code[1])|0x100000000)
 #else
 #define SIGSEGV_FAULT_ADDRESS_FAST		code[1]
-#endif
+#endif // END OF #ifdef __x86_64__
+
+#ifdef __aarch64__
+#define SIGSEGV_EXCEPTION_STATE_TYPE	arm_exception_state64_t
+#define SIGSEGV_EXCEPTION_STATE_FLAVOR	ARM_EXCEPTION_STATE64
+#define SIGSEGV_EXCEPTION_STATE_COUNT	ARM_EXCEPTION_STATE64_COUNT
+#define SIGSEGV_FAULT_ADDRESS			SIP->exc_state.MACH_FIELD_NAME(far)
+#define SIGSEGV_THREAD_STATE_TYPE		arm_thread_state64_t
+#define SIGSEGV_THREAD_STATE_FLAVOR		ARM_THREAD_STATE64
+#define SIGSEGV_THREAD_STATE_COUNT		ARM_THREAD_STATE64_COUNT
+#define SIGSEGV_REGISTER_FILE			((SIGSEGV_REGISTER_TYPE *)&SIP->thr_state.MACH_FIELD_NAME(x[0])) /* x[0] is the first GPR we consider */
+#define SIGSEGV_SKIP_INSTRUCTION		aarch64_skip_instruction
+#endif // END OF #ifdef __arm64__
+
 #define SIGSEGV_FAULT_INSTRUCTION_FAST	SIGSEGV_INVALID_ADDRESS
 #define SIGSEGV_FAULT_HANDLER_ARGLIST	mach_port_t thread, mach_exception_data_t code
 #define SIGSEGV_FAULT_HANDLER_ARGS		thread, code
 
-#endif
-#endif
+#endif // END OF #if defined(__APPLE__) && defined(__MACH__)
+
+#endif // END OF #if HAVE_MACH_EXCEPTIONS
 
 struct sigsegv_info_t {
 	sigsegv_address_t addr;
