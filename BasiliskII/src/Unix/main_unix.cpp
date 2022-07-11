@@ -530,7 +530,7 @@ int main(int argc, char **argv)
 
 #if defined(ENABLE_XF86_DGA) && !defined(ENABLE_MON)
 	// Fork out, so we can return from fullscreen mode when things get ugly
-	XF86DGAForkApp(DefaultScreen(x_display));
+//	XF86DGAForkApp(DefaultScreen(x_display));
 #endif
 #endif
 
