@@ -350,8 +350,9 @@ void DarwinAddSerialPrefs(void)
 			{
 				D(bug("Modem BSD path: %s\n", bsdPath));
 
-				// Note that if there are multiple modems, we only get the last
+				// Note that if there are multiple modems, we only get the first
 				PrefsAddString("seriala", bsdPath);
+				break;
 			}
 			else
 				D(bug("Could not get BSD device path for modem\n"));
