@@ -20,13 +20,13 @@
 
 #include "sysdeps.h"
 
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include <cerrno>
+#include <sys/stat.h>
+
 #include <string>
+using std::string;
 
 #include "prefs.h"
-
 
 // Platform-specific preferences items
 prefs_desc platform_prefs_items[] = {
@@ -47,8 +47,10 @@ prefs_desc platform_prefs_items[] = {
 
 
 // Prefs file name and path
-const char PREFS_FILE_NAME[] = ".sheepshaver_prefs";
-static char prefs_path[1024];
+static const char PREFS_FILE_NAME[] = "/prefs";
+static string prefs_path;
+static string prefs_name;
+extern string xpram_name;
 
 std::string UserPrefsPath;
 
@@ -56,13 +58,26 @@ std::string UserPrefsPath;
  *  Load preferences from settings file
  */
 
-void LoadPrefs(const char *vmdir)
-{
-	if (vmdir) {
-		snprintf(prefs_path, sizeof(prefs_path), "%s/prefs", vmdir);
-		FILE *prefs = fopen(prefs_path, "r");
+// Comply with XDG Base Directory Specification
+// https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+static void get_prefs_path_from_env(void){
+	char* env;
+	if(env=getenv("XDG_CONFIG_HOME")){
+		prefs_path = string(env);
+		return;
+	}
+	if(env=getenv("HOME")){
+		prefs_path = string(env) + "/.config";
+	}
+}
+
+void LoadPrefs(const char* vmdir){
+	if(vmdir){
+		prefs_path = string(vmdir);
+		prefs_name = prefs_path	+ PREFS_FILE_NAME;
+		FILE *prefs = fopen(prefs_name.c_str(), "r");
 		if (!prefs) {
-			printf("No file at %s found.\n", prefs_path);
+			printf("No file at %s found.\n", prefs_name.c_str());
 			exit(1);
 		}
 		LoadPrefsFromStream(prefs);
@@ -70,20 +85,21 @@ void LoadPrefs(const char *vmdir)
 		return;
 	}
 
-	if (!UserPrefsPath.empty()) strncpy(prefs_path, UserPrefsPath.c_str(), 1000);
-	else {
-		// Construct prefs path
-		prefs_path[0] = 0;
-		char *home = getenv("HOME");
-		if (home != NULL && strlen(home) < 1000) {
-			strncpy(prefs_path, home, 1000);
-			strcat(prefs_path, "/");
-		}
-		strcat(prefs_path, PREFS_FILE_NAME);
+	// Construct prefs path
+	get_prefs_path_from_env();
+	if(!prefs_path.empty()){
+		prefs_path += "/SheepShaver";
+		prefs_name = prefs_path + PREFS_FILE_NAME;
+	}
+	xpram_name = prefs_path + "/nvram";
+
+	// --config was specified
+	if(!UserPrefsPath.empty()){
+		prefs_name = UserPrefsPath;
 	}
 
 	// Read preferences from settings file
-	FILE *f = fopen(prefs_path, "r");
+	FILE *f = fopen(prefs_name.c_str(), "r");
 	if (f != NULL) {
 
 		// Prefs file found, load settings
@@ -99,20 +115,50 @@ void LoadPrefs(const char *vmdir)
 	}
 }
 
+static bool is_dir(const std::string& path){
+	struct stat info;
+	if(stat(path.c_str(), &info) != 0){
+		return false;
+	}
+	return (info.st_mode & S_IFDIR) != 0;
+}
+
+static bool create_directories(const std::string& path,mode_t mode){
+	if(mkdir(path.c_str(),mode)==0)
+		return true;
+
+	switch (errno){
+		case ENOENT:
+			{
+				int pos = path.find_last_of('/');
+				if (pos == std::string::npos)
+					return false;
+				if (!create_directories(path.substr(0,pos),mode))
+					return false;
+			}
+			return 0 == mkdir(path.c_str(),mode);
+
+		case EEXIST:
+			return is_dir(path);
+		default:
+			return false;
+	}
+}
 
 /*
  *  Save preferences to settings file
  */
 
-void SavePrefs(void)
-{
+void SavePrefs(void){
 	FILE *f;
-	if ((f = fopen(prefs_path, "w")) != NULL) {
+	if(!prefs_path.empty()&&!is_dir(prefs_path)){
+		create_directories(prefs_path,0700);
+	}
+	if ((f = fopen(prefs_name.c_str(), "w")) != NULL) {
 		SavePrefsToStream(f);
 		fclose(f);
 	}
 }
-
 
 /*
  *  Add defaults of platform-specific prefs items
