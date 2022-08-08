@@ -105,6 +105,9 @@ define GUI_SRCS_LIST_TO_OBJS
 	$(basename $(notdir $(file))))))
 endef
 GUI_OBJS = $(GUI_SRCS_LIST_TO_OBJS)
+ifeq ($(USE_BINCUE),yes)
+ GUI_OBJS += bincue.o
+endif
 
 define DYNGENSRCS_LIST_TO_OBJS
 	$(addprefix $(OBJ_DIR)/, $(addsuffix .dgo, $(foreach file, $(DYNGENSRCS), \
