@@ -520,12 +520,28 @@ static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth)
 }
 
 // Set window name and class
-static void set_window_name(int name)
+static void set_window_name(bool mouse_grabbed)
 {
+	int grabbed = 0;
+	if (mouse_grabbed)
+	{
+		int hotkey = PrefsFindInt32("hotkey");
+		if (hotkey & 2)
+			grabbed = STR_WINDOW_TITLE_GRABBED2;
+		else if (hotkey & 4)
+			grabbed = STR_WINDOW_TITLE_GRABBED3;
+		else
+			grabbed = STR_WINDOW_TITLE_GRABBED1;
+	}
 	const SDL_VideoInfo *vi = SDL_GetVideoInfo();
-	if (vi && vi->wm_available) {
-		const char *str = GetString(name);
-		SDL_WM_SetCaption(str, str);
+	if (vi && vi->wm_available)
+	{
+		const char *title = PrefsFindString("title");
+		char *str = (char *)(title ? title : GetString(STR_WINDOW_TITLE));
+		if(grabbed)
+			strcat(str, GetString(grabbed));
+		//The icon name should stay the same
+		SDL_WM_SetCaption(str, GetString(STR_WINDOW_TITLE));
 	}
 }
 
@@ -736,7 +752,7 @@ void driver_base::adapt_to_video_mode() {
 	SDL_ShowCursor(hardware_cursor);
 
 	// Set window name/class
-	set_window_name(STR_WINDOW_TITLE);
+	set_window_name(false);
 
 	// Everything went well
 	init_ok = true;
@@ -1304,8 +1320,8 @@ void VideoVBL(void)
 	// Setting the window name must happen on the main thread, else it doesn't work on
 	// some platforms - e.g. macOS Sierra.
 	if (mouse_grabbed_window_name_status != mouse_grabbed) {
-		set_window_name(mouse_grabbed ? STR_WINDOW_TITLE_GRABBED : STR_WINDOW_TITLE);
-		mouse_grabbed_window_name_status = mouse_grabbed;
+	    set_window_name(mouse_grabbed);
+	    mouse_grabbed_window_name_status = mouse_grabbed;
 	}
 
 	// Temporarily give up frame buffer lock (this is the point where
@@ -1333,7 +1349,7 @@ void VideoInterrupt(void)
 	// Setting the window name must happen on the main thread, else it doesn't work on
 	// some platforms - e.g. macOS Sierra.
 	if (mouse_grabbed_window_name_status != mouse_grabbed) {
-		set_window_name(mouse_grabbed ? STR_WINDOW_TITLE_GRABBED : STR_WINDOW_TITLE);
+		set_window_name(mouse_grabbed);
 		mouse_grabbed_window_name_status = mouse_grabbed;
 	}
 
@@ -2334,6 +2350,13 @@ void video_set_dirty_area(int x, int y, int w, int h)
 #endif
 
 	// XXX handle dirty bounding boxes for non-VOSF modes
+}
+#endif
+
+#ifdef SHEEPSHAVER
+void video_set_gamma(int n_colors)
+{
+	// Not supported in SDL 1.2
 }
 #endif
 

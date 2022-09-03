@@ -102,7 +102,7 @@ user_string_def common_strings[] = {
 	{STR_NOCDROM_CTRL, "Disable CD-ROM Driver"},
 	{STR_ADD_VOLUME_TITLE, "Add Volume"},
 	{STR_CREATE_VOLUME_TITLE, "Create Hardfile"},
-	{STR_HARDFILE_SIZE_CTRL, "Size (MB)"},
+	{STR_HARDFILE_SIZE_CTRL, "Size (MiB)"},
 
 	{STR_GRAPHICS_SOUND_PANE_TITLE, "Graphics/Sound"},
 	{STR_FRAMESKIP_CTRL, "Window Refresh Rate"},
@@ -171,22 +171,27 @@ user_string_def common_strings[] = {
 	{STR_IGNORESEGV_CTRL, "Ignore Illegal Memory Accesses"},
 	{STR_IDLEWAIT_CTRL, "Don't Use CPU When Idle"},
 	{STR_ROM_FILE_CTRL, "ROM File"},
+	{STR_NOGUI_CTRL, "Don't show settings window on launch"},
+	{STR_NOGUI_TIP, "Tip: You can access the settings by right-clicking on the launcher icon." },
+	{STR_NOGUI_TIP2, "Tip: You can access the settings with the command: SheepShaver --nogui false" },
 
 	{STR_JIT_PANE_TITLE, "JIT Compiler"},
 	{STR_JIT_CTRL, "Enable JIT Compiler"},
 	{STR_JIT_68K_CTRL, "Enable built-in 68k DR Emulator (EXPERIMENTAL)"},
 
 	{STR_WINDOW_TITLE, "SheepShaver"},
-	{STR_WINDOW_TITLE_GRABBED0, " (mouse grabbed, press "},
-	{STR_WINDOW_TITLE_GRABBED1, "Ctrl-"},
+	{STR_WINDOW_TITLE_GRABBED1, " (mouse grabbed, press Ctrl+F5 to release)"},
 #ifdef __APPLE__
-	{STR_WINDOW_TITLE_GRABBED2, "Opt-"},
-	{STR_WINDOW_TITLE_GRABBED3, "Cmd-"},
+	{STR_WINDOW_TITLE_GRABBED2, " (mouse grabbed, press Opt+F5 to release)"},
+	{STR_WINDOW_TITLE_GRABBED3, " (mouse grabbed, press Cmd+F5 to release)"},
 #else
-	{STR_WINDOW_TITLE_GRABBED2, "Alt-"},
-	{STR_WINDOW_TITLE_GRABBED3, "Win-"},
+	{STR_WINDOW_TITLE_GRABBED2, " (mouse grabbed, press Alt+F5 to release)"},
 #endif
-	{STR_WINDOW_TITLE_GRABBED4, "F5 to release)"},
+#ifdef __WIN32__
+	{STR_WINDOW_TITLE_GRABBED3, " (mouse grabbed, press Win+F5 to release)"},
+#elif !defined(__APPLE__)
+	{STR_WINDOW_TITLE_GRABBED3, " (mouse grabbed, press Super+F5 to release)"},
+#endif
 	{STR_WINDOW_MENU, "SheepShaver"},
 	{STR_WINDOW_ITEM_ABOUT, "About SheepShaver" ELLIPSIS},
 	{STR_WINDOW_ITEM_REFRESH, "Refresh Rate"},
