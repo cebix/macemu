@@ -49,6 +49,7 @@
 #include <SDL_thread.h>
 #include <errno.h>
 #include <vector>
+#include <string>
 
 #ifdef WIN32
 #include <malloc.h> /* alloca() */
@@ -537,11 +538,11 @@ static void set_window_name(bool mouse_grabbed)
 	if (vi && vi->wm_available)
 	{
 		const char *title = PrefsFindString("title");
-		char *str = (char *)(title ? title : GetString(STR_WINDOW_TITLE));
+		std::string s = title ? title : GetString(STR_WINDOW_TITLE);
 		if(grabbed)
-			strcat(str, GetString(grabbed));
+			s += GetString(grabbed);
 		//The icon name should stay the same
-		SDL_WM_SetCaption(str, GetString(STR_WINDOW_TITLE));
+		SDL_WM_SetCaption(s.c_str(), GetString(STR_WINDOW_TITLE));
 	}
 }
 
