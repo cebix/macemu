@@ -366,6 +366,7 @@ public:
 
 	virtual void switch_to_current_mode(void);
 	virtual void set_palette(uint8 *pal, int num);
+	virtual void set_gamma(uint8 *gamma, int num);
 
 	bool video_open(void);
 	void video_close(void);
@@ -1469,6 +1470,10 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 	UNLOCK_PALETTE;
 }
 
+void SDL_monitor_desc::set_gamma(uint8 *gamma, int num_in)
+{
+	// Not implemented
+}
 
 /*
  *  Switch video mode
