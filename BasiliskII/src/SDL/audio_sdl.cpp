@@ -379,12 +379,14 @@ static int play_startup(void *arg) {
 		else printf("play_startup: Audio driver failed to initialize\n");
 		SDL_FreeWAV(wav_buffer);
 	}
-#endif
 	return 0;
 }
 
 void PlayStartupSound() {
 	SDL_CreateThread(play_startup, "", NULL);
 }
-
-#if SDL_VERSION_ATLEAST(2,0,0)
+#else
+void PlayStartupSound() {
+    // Not implemented
+}
+#endif

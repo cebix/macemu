@@ -524,6 +524,8 @@ static void set_mac_frame_buffer(SDL_monitor_desc &monitor, int depth)
 // Set window name and class
 static void set_window_name(bool mouse_grabbed)
 {
+	const char *title = PrefsFindString("title");
+	std::string s = title ? title : GetString(STR_WINDOW_TITLE);
 	int grabbed = 0;
 	if (mouse_grabbed)
 	{
