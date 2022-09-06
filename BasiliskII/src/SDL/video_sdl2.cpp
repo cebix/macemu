@@ -557,10 +557,13 @@ static void set_window_name() {
 	std::string s = title ? title : GetString(STR_WINDOW_TITLE);
     if (mouse_grabbed)
     {
+        s += GetString(STR_WINDOW_TITLE_GRABBED_PRE);
 		int hotkey = PrefsFindInt32("hotkey");
+		hotkey = hotkey ? hotkey : 1;
+		if (hotkey & 1) s += GetString(STR_WINDOW_TITLE_GRABBED1);
         if (hotkey & 2) s += GetString(STR_WINDOW_TITLE_GRABBED2);
-        else if (hotkey & 4) s += GetString(STR_WINDOW_TITLE_GRABBED3);
-        else s += GetString(STR_WINDOW_TITLE_GRABBED1);
+        if (hotkey & 4) s += GetString(STR_WINDOW_TITLE_GRABBED4);
+        s += GetString(STR_WINDOW_TITLE_GRABBED_POST);
 	}
 	SDL_SetWindowTitle(sdl_window, s.c_str());
 }
@@ -1671,11 +1674,7 @@ static void do_toggle_fullscreen(void)
 			SDL_SetWindowGrab(sdl_window, SDL_FALSE);
 		} else {
 			display_type = DISPLAY_SCREEN;
-#ifdef __MACOSX__
 			SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-#else
-			SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN);
-#endif
 			SDL_SetWindowGrab(sdl_window, SDL_TRUE);
 		}
 	}

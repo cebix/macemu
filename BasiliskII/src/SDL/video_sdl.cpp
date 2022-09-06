@@ -527,13 +527,13 @@ static void set_window_name(bool mouse_grabbed)
 	int grabbed = 0;
 	if (mouse_grabbed)
 	{
+        s += GetString(STR_WINDOW_TITLE_GRABBED_PRE);
 		int hotkey = PrefsFindInt32("hotkey");
-		if (hotkey & 2)
-			grabbed = STR_WINDOW_TITLE_GRABBED2;
-		else if (hotkey & 4)
-			grabbed = STR_WINDOW_TITLE_GRABBED3;
-		else
-			grabbed = STR_WINDOW_TITLE_GRABBED1;
+		hotkey = hotkey ? hotkey : 1;
+		if (hotkey & 1) s += GetString(STR_WINDOW_TITLE_GRABBED1);
+        if (hotkey & 2) s += GetString(STR_WINDOW_TITLE_GRABBED2);
+        if (hotkey & 4) s += GetString(STR_WINDOW_TITLE_GRABBED4);
+        s += GetString(STR_WINDOW_TITLE_GRABBED_POST);
 	}
 	const SDL_VideoInfo *vi = SDL_GetVideoInfo();
 	if (vi && vi->wm_available)
