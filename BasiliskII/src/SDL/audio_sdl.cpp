@@ -361,6 +361,7 @@ void audio_set_speaker_volume(uint32 vol)
 {
 }
 
+#if SDL_VERSION_ATLEAST(2,0,0)
 static int play_startup(void *arg) {
 	SDL_AudioSpec wav_spec;
 	Uint8 *wav_buffer;
@@ -384,3 +385,8 @@ static int play_startup(void *arg) {
 void PlayStartupSound() {
 	SDL_CreateThread(play_startup, "", NULL);
 }
+#else
+void PlayStartupSound() {
+    // Not implemented
+}
+#endif

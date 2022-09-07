@@ -231,16 +231,20 @@ user_string_def common_strings[] = {
 	{STR_JIT_FOLLOW_CONST_JUMPS, "Translate through constant jumps (inline blocks)"},
 
 	{STR_WINDOW_TITLE, "Basilisk II"},
-	{STR_WINDOW_TITLE_GRABBED0, " (mouse grabbed, press "},
-	{STR_WINDOW_TITLE_GRABBED1, "Ctrl-"},
+	{STR_WINDOW_TITLE_GRABBED_PRE, " (mouse grabbed, press "},
+	{STR_WINDOW_TITLE_GRABBED1, "Ctrl+"},
 #ifdef __APPLE__
-	{STR_WINDOW_TITLE_GRABBED2, "Opt-"},
-	{STR_WINDOW_TITLE_GRABBED3, "Cmd-"},
+	{STR_WINDOW_TITLE_GRABBED2, "Opt+"},
+	{STR_WINDOW_TITLE_GRABBED4, "Cmd+F5"},
 #else
-	{STR_WINDOW_TITLE_GRABBED2, "Alt-"},
-	{STR_WINDOW_TITLE_GRABBED3, "Win-"},
+	{STR_WINDOW_TITLE_GRABBED2, "Alt+"},
 #endif
-	{STR_WINDOW_TITLE_GRABBED4, "F5 to release)"},
+#ifdef __WIN32__
+	{STR_WINDOW_TITLE_GRABBED4, "Win+"},
+#elif !defined(__APPLE__)
+	{STR_WINDOW_TITLE_GRABBED4, "Super+"},
+#endif
+    {STR_WINDOW_TITLE_GRABBED_POST, "F5 to release)"},
 	{STR_WINDOW_MENU, "Basilisk II"},
 	{STR_WINDOW_ITEM_ABOUT, "About Basilisk II" ELLIPSIS},
 	{STR_WINDOW_ITEM_REFRESH, "Refresh Rate"},
