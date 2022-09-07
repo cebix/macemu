@@ -540,10 +540,6 @@ static void set_window_name(bool mouse_grabbed)
 	const SDL_VideoInfo *vi = SDL_GetVideoInfo();
 	if (vi && vi->wm_available)
 	{
-		const char *title = PrefsFindString("title");
-		std::string s = title ? title : GetString(STR_WINDOW_TITLE);
-		if(grabbed)
-			s += GetString(grabbed);
 		//The icon name should stay the same
 		SDL_WM_SetCaption(s.c_str(), GetString(STR_WINDOW_TITLE));
 	}
