@@ -2249,6 +2249,10 @@ void video_set_palette(void)
 	UNLOCK_PALETTE;
 }
 
+void video_set_gamma(int n_colors)
+{
+    // Not implemented
+}
 
 /*
  *  Can we set the MacOS cursor image into the window?

@@ -37,6 +37,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <errno.h>
+#include <string>
 
 #include <algorithm>
 
@@ -209,12 +210,13 @@ extern void ClipboardSelectionRequest(XSelectionRequestEvent *);
  */
 
 class X11_monitor_desc : public monitor_desc {
-public:
+    public:
 	X11_monitor_desc(const vector<video_mode> &available_modes, video_depth default_depth, uint32 default_id) : monitor_desc(available_modes, default_depth, default_id) {}
 	~X11_monitor_desc() {}
 
 	virtual void switch_to_current_mode(void);
 	virtual void set_palette(uint8 *pal, int num);
+	virtual void set_gamma(uint8 *gamma, int num);
 
 	bool video_open(void);
 	void video_close(void);
@@ -439,8 +441,35 @@ static void set_window_name(Window w, int name)
 	XClassHint *hints;
 	hints = XAllocClassHint();
 	if (hints) {
-		hints->res_name = "BasiliskII";
-		hints->res_class = "BasiliskII";
+		hints->res_name = (char*) GetString(STR_WINDOW_TITLE);
+		hints->res_class = (char*) GetString(STR_WINDOW_TITLE);
+		XSetClassHint(x_display, w, hints);
+		XFree(hints);
+	}
+}
+
+// Set window name and class (ported from SDL implementation)
+static void set_window_name(Window w, bool mouse_grabbed) {
+	const char *title = PrefsFindString("title");
+	std::string s = title ? title : GetString(STR_WINDOW_TITLE);
+    if (mouse_grabbed)
+    {
+        s += GetString(STR_WINDOW_TITLE_GRABBED_PRE);
+		int hotkey = PrefsFindInt32("hotkey");
+		hotkey = hotkey ? hotkey : 1;
+		if (hotkey & 1) s += GetString(STR_WINDOW_TITLE_GRABBED1);
+        if (hotkey & 2) s += GetString(STR_WINDOW_TITLE_GRABBED2);
+        if (hotkey & 4) s += GetString(STR_WINDOW_TITLE_GRABBED4);
+        s += GetString(STR_WINDOW_TITLE_GRABBED_POST);
+	}
+	XStoreName(x_display, w, s.c_str());
+	XSetIconName(x_display, w, GetString(STR_WINDOW_TITLE));
+
+	XClassHint *hints;
+	hints = XAllocClassHint();
+	if (hints) {
+		hints->res_name = (char*) GetString(STR_WINDOW_TITLE);
+		hints->res_class = (char*) GetString(STR_WINDOW_TITLE);
 		XSetClassHint(x_display, w, hints);
 		XFree(hints);
 	}
@@ -732,10 +761,7 @@ driver_window::driver_window(X11_monitor_desc &m)
 	D(bug(" window created\n"));
 
 	// Set window name/class
-	set_window_name(w, STR_WINDOW_TITLE);
-
-	// Set window icons
-	set_window_icons(w);
+	set_window_name(w, mouse_grabbed);
 
 	// Indicate that we want keyboard input
 	set_window_focus(w);
@@ -891,7 +917,7 @@ void driver_window::grab_mouse(void)
 		Delay_usec(100000);
 	}
 	if (result == GrabSuccess) {
-		XStoreName(x_display, w, GetString(STR_WINDOW_TITLE_GRABBED));
+		set_window_name(w, true);
 		ADBSetRelMouseMode(mouse_grabbed = true);
 		disable_mouse_accel();
 	}
@@ -902,7 +928,7 @@ void driver_window::ungrab_mouse(void)
 {
 	if (mouse_grabbed) {
 		XUngrabPointer(x_display, CurrentTime);
-		XStoreName(x_display, w, GetString(STR_WINDOW_TITLE));
+		set_window_name(w, false);
 		ADBSetRelMouseMode(mouse_grabbed = false);
 		restore_mouse_accel();
 	}
@@ -1152,7 +1178,7 @@ driver_fbdev::driver_fbdev(X11_monitor_desc &m) : driver_dga(m)
 		&wattr);
 
 	// Set window name/class
-	set_window_name(w, STR_WINDOW_TITLE);
+	set_window_name(w, mouse_grabbed);
 
 	// Indicate that we want keyboard input
 	set_window_focus(w);
@@ -1289,7 +1315,7 @@ driver_xf86dga::driver_xf86dga(X11_monitor_desc &m)
 		(color_class == DirectColor ? CWColormap : 0), &wattr);
 
 	// Set window name/class
-	set_window_name(w, STR_WINDOW_TITLE);
+	set_window_name(w, false);
 
 	// Indicate that we want keyboard input
 	set_window_focus(w);
@@ -1699,7 +1725,7 @@ bool VideoInit(bool classic)
 			default_width = -1; default_height = -1; // use entire screen
 #endif
 #ifdef ENABLE_XF86_DGA
-		} else if (has_dga && sscanf(mode_str, "dga/%d/%d", &default_width, &default_height) == 2) {
+		} else if (has_dga & sscanf(mode_str, "dga/%d/%d", &default_width, &default_height) == 2) {
 			display_type = DISPLAY_DGA;
 #endif
 		}
@@ -1934,6 +1960,10 @@ void X11_monitor_desc::set_palette(uint8 *pal, int num_in)
 	UNLOCK_PALETTE;
 }
 
+void X11_monitor_desc::set_gamma(uint8* gamma, int num)
+{
+    // Not implemented
+}
 
 /*
  *  Switch video mode
