@@ -128,9 +128,9 @@ static bool use_vosf = false;						// Flag: VOSF enabled
 static const bool use_vosf = false;					// VOSF not possible
 #endif
 
-static bool ctrl_down = false;						// Flag: Ctrl key pressed
-static bool alt_down = false;						// Flag: Alt/Opt key pressed (for use outside emulator)
-static bool super_down = false;						// Flag: Super/Cmd key pressed (for use outside emulator)
+static bool ctrl_down = false;						// Flag: Ctrl key pressed (for use with hotkeys)
+static bool alt_down = false;						// Flag: Alt/Opt key pressed (for use with hotkeys)
+static bool super_down = false;						// Flag: Super/Cmd/Win key pressed (for use with hotkeys)
 static bool quit_full_screen = false;				// Flag: DGA close requested from redraw thread
 static bool emerg_quit = false;						// Flag: Ctrl-Esc pressed, emergency quit requested from MacOS thread
 static bool emul_suspended = false;					// Flag: Emulator suspended
@@ -2357,16 +2357,18 @@ static void handle_events(void)
 					code = event2keycode(event.key, true);
 				if (code >= 0) {
 					if (!emul_suspended) {
-						if (code == 0x36)
+						if (code == 0x36) {
 							ctrl_down = true;
-						if (code == 0x3a)
+						} else if (code == 0x3a) {
 							alt_down = true;
-						if (code == 0x37)
+						    code = modify_opt_cmd(code);
+						} else if (code == 0x37) {
 							super_down = true;
-						code = modify_opt_cmd(code);
-						if (code == 0x39)
+						    code = modify_opt_cmd(code);
+						}
+						if (code == 0x39) {
 							(SDL_GetModState() & KMOD_CAPS ? ADBKeyDown : ADBKeyUp)(code);
-						else
+						} else
 							ADBKeyDown(code);
 						
 					} else {
@@ -2383,13 +2385,15 @@ static void handle_events(void)
 				if (code == CODE_INVALID)
 					code = event2keycode(event.key, false);
 				if (code >= 0) {
-					if (code == 0x36)
+					if (code == 0x36) {
 						ctrl_down = false;
-					if (code == 0x3a)
+					} else if (code == 0x3a) {
 						alt_down = false;
-					if (code == 0x37)
+					    code = modify_opt_cmd(code);
+					} else if (code == 0x37) {
 						super_down = false;
-					code = modify_opt_cmd(code);
+					    code = modify_opt_cmd(code);
+					}
 					if (code != 0x39)
 						ADBKeyUp(code);
 				}
