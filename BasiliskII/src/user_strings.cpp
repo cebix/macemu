@@ -235,7 +235,7 @@ user_string_def common_strings[] = {
 	{STR_WINDOW_TITLE_GRABBED1, "Ctrl+"},
 #ifdef __APPLE__
 	{STR_WINDOW_TITLE_GRABBED2, "Opt+"},
-	{STR_WINDOW_TITLE_GRABBED4, "Cmd+F5"},
+	{STR_WINDOW_TITLE_GRABBED4, "Cmd+"},
 #else
 	{STR_WINDOW_TITLE_GRABBED2, "Alt+"},
 #endif
