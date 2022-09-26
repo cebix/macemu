@@ -1208,7 +1208,7 @@ driver_fbdev::driver_fbdev(X11_monitor_desc &m) : driver_dga(m)
 		&wattr);
 
 	// Set window name/class
-	set_window_name(w, mouse_grabbed);
+	set_window_name(w, false);
 
 	// Indicate that we want keyboard input
 	set_window_focus(w);
