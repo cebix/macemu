@@ -697,6 +697,12 @@ static bool init_sdl()
 	assert(sdl_flags != 0);
 
 #ifdef USE_SDL_VIDEO
+#if REAL_ADDRESSING
+	// Needed to fix a crash when using Wayland
+	// Forces use of XWayland instead
+	setenv("SDL_VIDEODRIVER", "x11", true);
+#endif
+
 	// Don't let SDL block the screensaver
 	setenv("SDL_VIDEO_ALLOW_SCREENSAVER", "1", true);
 
