@@ -2142,12 +2142,10 @@ static int kc_decode(SDL_Keysym const & ks, bool key_down)
 	case SDLK_PAGEUP: return 0x74;
 	case SDLK_PAGEDOWN: return 0x79;
 
-	case SDLK_LCTRL: return 0x36;
-	case SDLK_RCTRL: return 0x36;
-	case SDLK_LSHIFT: return 0x38;
-	case SDLK_RSHIFT: return 0x38;
-	case SDLK_LALT: case SDLK_RALT: return 0x3a;
-	case SDLK_LGUI: case SDLK_RGUI: return 0x37;
+	case SDLK_LCTRL: SDLK_RCTRL: ctrl_down = key_down; return 0x36;
+	case SDLK_LSHIFT: SDLK_RSHIFT: return 0x38;
+	case SDLK_LALT: case SDLK_RALT: alt_down = key_down; return 0x3a;
+	case SDLK_LGUI: case SDLK_RGUI: super_down = key_down; return 0x37;
 	case SDLK_MENU: return 0x32;
 	case SDLK_CAPSLOCK: return 0x39;
 	case SDLK_NUMLOCKCLEAR: return 0x47;
@@ -2357,24 +2355,15 @@ static void handle_events(void)
 					code = event2keycode(event.key, true);
 				if (code >= 0) {
 					if (!emul_suspended) {
-						if (code == 0x36) {
-							ctrl_down = true;
-						} else if (code == 0x3a) {
-							alt_down = true;
-						    code = modify_opt_cmd(code);
-						} else if (code == 0x37) {
-							super_down = true;
-						    code = modify_opt_cmd(code);
-						}
-						if (code == 0x39) {
+						if (code == 0x3a || code == 0x37)
+							code = modify_opt_cmd(code);
+						if (code == 0x39)
 							(SDL_GetModState() & KMOD_CAPS ? ADBKeyDown : ADBKeyUp)(code);
-						} else
+						else
 							ADBKeyDown(code);
 						
-					} else {
-						if (code == 0x31)
+					} else if (code == 0x31)
 							drv->resume();	// Space wakes us up
-					}
 				}
 				break;
 			}
@@ -2385,15 +2374,8 @@ static void handle_events(void)
 				if (code == CODE_INVALID)
 					code = event2keycode(event.key, false);
 				if (code >= 0) {
-					if (code == 0x36) {
-						ctrl_down = false;
-					} else if (code == 0x3a) {
-						alt_down = false;
-					    code = modify_opt_cmd(code);
-					} else if (code == 0x37) {
-						super_down = false;
-					    code = modify_opt_cmd(code);
-					}
+					if (code == 0x3a ||code == 0x37)
+						code = modify_opt_cmd(code);
 					if (code != 0x39)
 						ADBKeyUp(code);
 				}

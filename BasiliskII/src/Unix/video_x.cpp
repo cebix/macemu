@@ -69,6 +69,9 @@
 #define DEBUG 0
 #include "debug.h"
 
+#define CODE_INVALID -1
+#define CODE_HOTKEY -2
+
 
 // Supported video modes
 static vector<video_mode> VideoModes;
@@ -478,15 +481,14 @@ static void set_window_name(Window w, int name)
 static void set_window_name(Window w, bool mouse_grabbed) {
 	const char *title = PrefsFindString("title");
 	std::string s = title ? title : GetString(STR_WINDOW_TITLE);
-    if (mouse_grabbed)
-    {
-        s += GetString(STR_WINDOW_TITLE_GRABBED_PRE);
+	if (mouse_grabbed) {
+		s += GetString(STR_WINDOW_TITLE_GRABBED_PRE);
 		int hotkey = PrefsFindInt32("hotkey");
 		hotkey = hotkey ? hotkey : 1;
 		if (hotkey & 1) s += GetString(STR_WINDOW_TITLE_GRABBED1);
-        if (hotkey & 2) s += GetString(STR_WINDOW_TITLE_GRABBED2);
-        if (hotkey & 4) s += GetString(STR_WINDOW_TITLE_GRABBED4);
-        s += GetString(STR_WINDOW_TITLE_GRABBED_POST);
+		if (hotkey & 2) s += GetString(STR_WINDOW_TITLE_GRABBED2);
+		if (hotkey & 4) s += GetString(STR_WINDOW_TITLE_GRABBED4);
+		s += GetString(STR_WINDOW_TITLE_GRABBED_POST);
 	}
 	XStoreName(x_display, w, s.c_str());
 	XSetIconName(x_display, w, GetString(STR_WINDOW_TITLE));
@@ -1468,7 +1470,7 @@ static void keycode_init(void)
 
 		// Default translation table
 		for (int i=0; i<256; i++)
-			keycode_table[i] = -1;
+			keycode_table[i] = CODE_INVALID;
 
 		// Search for server vendor string, then read keycodes
 		const char *vendor = ServerVendor(x_display);
@@ -1755,7 +1757,7 @@ bool VideoInit(bool classic)
 			default_width = -1; default_height = -1; // use entire screen
 #endif
 #ifdef ENABLE_XF86_DGA
-		} else if (has_dga & sscanf(mode_str, "dga/%d/%d", &default_width, &default_height) == 2) {
+		} else if (has_dga && sscanf(mode_str, "dga/%d/%d", &default_width, &default_height) == 2) {
 			display_type = DISPLAY_DGA;
 #endif
 		}
@@ -2013,8 +2015,8 @@ void X11_monitor_desc::switch_to_current_mode(void)
 
 
 /*
- *  Translate key event to Mac keycode, returns -1 if no keycode was found
- *  and -2 if the key was recognized as a hotkey
+ *  Translate key event to Mac keycode, returns CODE_INVALID if no keycode was found
+ *  and CODE_HOTKEY if the key was recognized as a hotkey
  */
 
 static int kc_decode(KeySym ks, bool key_down)
@@ -2070,7 +2072,7 @@ static int kc_decode(KeySym ks, bool key_down)
 		case XK_period: case XK_greater: return 0x2f;
 		case XK_slash: case XK_question: return 0x2c;
 
-		case XK_Tab: if (is_hotkey_down()) {if (key_down) drv->suspend(); return -2;} else return 0x30;
+		case XK_Tab: if (is_hotkey_down()) {if (key_down) drv->suspend(); return CODE_HOTKEY;} else return 0x30;
 		case XK_Return: return 0x24;
 		case XK_space: return 0x31;
 		case XK_BackSpace: return 0x33;
@@ -2087,14 +2089,10 @@ static int kc_decode(KeySym ks, bool key_down)
 		case XK_Page_Down: return 0x79;
 #endif
 
-		case XK_Control_L: return 0x36;
-		case XK_Control_R: return 0x36;
-		case XK_Shift_L: return 0x38;
-		case XK_Shift_R: return 0x38;
-		case XK_Alt_L: return 0x3a;
-		case XK_Alt_R: return 0x3a;
-		case XK_Meta_L: return 0x37;
-		case XK_Meta_R: return 0x37;
+		case XK_Control_L: case XK_Control_R: if (!emul_suspended) ctrl_down = key_down; return 0x36;
+		case XK_Shift_L: case XK_Shift_R: return 0x38;
+		case XK_Alt_L: case XK_Alt_R: if (!emul_suspended) alt_down = key_down; return 0x3a;
+		case XK_Meta_L: case XK_Meta_R: if (!emul_suspended) super_down = key_down; return 0x37;
 		case XK_Menu: return 0x32;
 		case XK_Caps_Lock: return 0x39;
 		case XK_Num_Lock: return 0x47;
@@ -2104,13 +2102,13 @@ static int kc_decode(KeySym ks, bool key_down)
 		case XK_Left: return 0x3b;
 		case XK_Right: return 0x3c;
 
-		case XK_Escape: if (is_hotkey_down()) {if (key_down) { quit_full_screen = true; emerg_quit = true; } return -2;} else return 0x35;
+		case XK_Escape: if (is_hotkey_down()) {if (key_down) { quit_full_screen = true; emerg_quit = true; } return CODE_HOTKEY;} else return 0x35;
 
-		case XK_F1: if (is_hotkey_down()) {if (key_down) SysMountFirstFloppy(); return -2;} else return 0x7a;
+		case XK_F1: if (is_hotkey_down()) {if (key_down) SysMountFirstFloppy(); return CODE_HOTKEY;} else return 0x7a;
 		case XK_F2: return 0x78;
 		case XK_F3: return 0x63;
 		case XK_F4: return 0x76;
-		case XK_F5: if (is_hotkey_down()) {if (key_down) drv->toggle_mouse_grab(); return -2;} else return 0x60;
+		case XK_F5: if (is_hotkey_down()) {if (key_down) drv->toggle_mouse_grab(); return CODE_HOTKEY;} else return 0x60;
 		case XK_F6: return 0x61;
 		case XK_F7: return 0x62;
 		case XK_F8: return 0x64;
@@ -2155,7 +2153,7 @@ static int kc_decode(KeySym ks, bool key_down)
 		case XK_KP_Enter: return 0x4c;
 		case XK_KP_Equal: return 0x51;
 	}
-	return -1;
+	return CODE_INVALID;
 }
 
 static int event2keycode(XKeyEvent &ev, bool key_down)
@@ -2168,11 +2166,11 @@ static int event2keycode(XKeyEvent &ev, bool key_down)
 		int as = kc_decode(ks, key_down);
 		if (as >= 0)
 			return as;
-		if (as == -2)
+		if (as == CODE_HOTKEY)
 			return as;
 	} while (ks != NoSymbol);
 
-	return -1;
+	return CODE_INVALID;
 }
 
 
@@ -2247,22 +2245,10 @@ static void handle_events(void)
 			// Keyboard
 			case KeyPress: {
 				int code = event2keycode(event.xkey, true);
-				if(!emul_suspended)
-				{
-					if (code == 0x36) {
-						ctrl_down = true;
-					} else if (code == 0x3a) {
-						alt_down = true;
-					    code = modify_opt_cmd(code);
-					} else if (code == 0x37) {
-						super_down = true;
-					    code = modify_opt_cmd(code);
-					}
-				}
-				if (use_keycodes) {
-					if (code != -2)	// This is called to process the hotkeys
-						code = keycode_table[event.xkey.keycode & 0xff];
-				}
+				if (use_keycodes && code != CODE_HOTKEY)	// This is called to process the hotkeys
+					code = keycode_table[event.xkey.keycode & 0xff];
+				if (code == 0x3a || code == 0x37)
+					code = modify_opt_cmd(code);
 				if (code >= 0) {
 					if (!emul_suspended) {
 						if (code == 0x39) {	// Caps Lock pressed
@@ -2284,25 +2270,12 @@ static void handle_events(void)
 			}
 			case KeyRelease: {
 				int code = event2keycode(event.xkey, false);
-				if(!emul_suspended)
-				{
-					if (code == 0x36) {
-						ctrl_down = false;
-					} else if (code == 0x3a) {
-						alt_down = false;
-					    code = modify_opt_cmd(code);
-					} else if (code == 0x37) {
-						super_down = false;
-					    code = modify_opt_cmd(code);
-					}
-				}
-				if (use_keycodes) {
-					if (code != -2)	// This is called to process the hotkeys
-						code = keycode_table[event.xkey.keycode & 0xff];
-				}
-				if (code >= 0 && code != 0x39) {	// Don't propagate Caps Lock releases
+				if (use_keycodes && code != CODE_HOTKEY)	// This is called to process the hotkeys
+					code = keycode_table[event.xkey.keycode & 0xff];
+				if (code == 0x3a || code == 0x37)
+					code = modify_opt_cmd(code);
+				if (code >= 0 && code != 0x39)  // Don't propagate Caps Lock releases
 					ADBKeyUp(code);
-				}
 				break;
 			}
 
