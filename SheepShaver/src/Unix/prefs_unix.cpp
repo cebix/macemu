@@ -1,5 +1,5 @@
 /*
- *  prefs_unix.cpp - Preferences handling, Unix specific things
+ *  prefs_unix.cpp - Preferences handling, Unix specific stuff
  *
  *  SheepShaver (C) 1997-2008 Christian Bauer and Marc Hellwig
  *
@@ -19,10 +19,7 @@
  */
 
 #include "sysdeps.h"
-
-#include <cerrno>
 #include <sys/stat.h>
-
 #include <string>
 using std::string;
 
@@ -45,89 +42,158 @@ prefs_desc platform_prefs_items[] = {
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
+// Standard file names and paths
+static const char PREFS_FILE_NAME[] = "/.sheepshaver_prefs";
+static const char XDG_PREFS_FILE_NAME[] = "/prefs";
+static const char XPRAM_FILE_NAME[] = "/.sheepshaver_nvram";
+static const char XDG_XPRAM_FILE_NAME[] = "/nvram";
+static const char XDG_CONFIG_SUBDIR[] = "/SheepShaver";
 
 // Prefs file name and path
-static const char PREFS_FILE_NAME[] = "/prefs";
-static string prefs_path;
+string UserPrefsPath;
+static string home_dir;
+static string xdg_config_dir;
 static string prefs_name;
 extern string xpram_name;
 
-std::string UserPrefsPath;
+static string get_xdg_config_dir(void)
+{
+	char *env;
+	if (env = getenv("XDG_CONFIG_HOME"))
+		return string(env) + XDG_CONFIG_SUBDIR;
+	if (env = getenv("HOME"))
+		return string(env) + "/.config" + XDG_CONFIG_SUBDIR;
+	return "";
+}
 
-/*
- *  Load preferences from settings file
- */
+static string get_home_dir(void)
+{
+	char *env;
+	if(env = getenv("HOME"))
+		return string(env);
+	return "."; // last resort, use the current directory
+}
 
-// Comply with XDG Base Directory Specification
-// https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
-static void get_prefs_path_from_env(void){
-	char* env;
-	if(env=getenv("XDG_CONFIG_HOME")){
-		prefs_path = string(env);
+static string get_dir(string *path)
+{
+	int pos = path->find_last_of('/');
+	if (pos == 0)
+		return ""; // file is in root folder
+	if (pos == std::string::npos)
+		return "."; // file is in current folder
+	return path->substr(0, pos);
+}
+
+static void exit_if_dir(const string& path)
+{
+	struct stat info;
+	if (stat(path.c_str(), &info) != 0){
 		return;
 	}
-	if(env=getenv("HOME")){
-		prefs_path = string(env) + "/.config";
+	if ((info.st_mode & S_IFDIR) != 0)
+	{
+	    fprintf(stderr, "ERROR: Cannot open %s (Is a directory)\n", prefs_name.c_str());
+	    exit(1);
 	}
 }
 
-void LoadPrefs(const char* vmdir){
-	if(vmdir){
-		prefs_path = string(vmdir);
-		prefs_name = prefs_path	+ PREFS_FILE_NAME;
-		FILE *prefs = fopen(prefs_name.c_str(), "r");
-		if (!prefs) {
-			printf("No file at %s found.\n", prefs_name.c_str());
-			exit(1);
-		}
+static bool load_prefs_file(const string& path, bool exit_on_failure)
+{
+	exit_if_dir(path);
+	FILE *prefs = fopen(path.c_str(), "r");
+	if (prefs != NULL)
+	{
 		LoadPrefsFromStream(prefs);
 		fclose(prefs);
-		return;
+		printf("Using prefs file at %s\n", prefs_name.c_str());
+		return true;
 	}
-
-	// Construct prefs path
-	get_prefs_path_from_env();
-	if(!prefs_path.empty()){
-		prefs_path += "/SheepShaver";
-		prefs_name = prefs_path + PREFS_FILE_NAME;
+	else if (exit_on_failure)
+	{
+		fprintf(stderr, "ERROR: Could not load prefs file from %s (%s)\n",
+		        path.c_str(), strerror(errno));
+		exit(1);
 	}
-	xpram_name = prefs_path + "/nvram";
-
-	// --config was specified
-	if(!UserPrefsPath.empty()){
-		prefs_name = UserPrefsPath;
-	}
-
-	// Read preferences from settings file
-	FILE *f = fopen(prefs_name.c_str(), "r");
-	if (f != NULL) {
-
-		// Prefs file found, load settings
-		LoadPrefsFromStream(f);
-		fclose(f);
-
-	} else {
-#ifdef __linux__
-		PrefsAddString("cdrom", "/dev/cdrom");
-#endif
-		// No prefs file, save defaults
-		SavePrefs();
-	}
+	return false;
 }
 
-static bool is_dir(const std::string& path){
+/*
+ *  Look for prefs file in the following locations (in order of priority):
+ *  1. From vmdir/.sheepshaver_prefs if a vmdir has been specified
+ *  2. From path specified with --config command line
+ *  3. From $HOME/.sheepshaver_prefs if it exists
+ *  4. From $XDG_CONFIG_HOME/SheepShaver/prefs if it exists
+ *  5. Create a new prefs file at $XDG_CONFIG_HOME/SheepShaver/prefs
+ *  If $XDG_CONFIG_HOME doesn't exist, $HOME/.config is used instead,
+ *  in accordance with XDG Base Directory Specification:
+ *  https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+ */
+
+void LoadPrefs(const char* vmdir)
+{
+	home_dir = get_home_dir();
+	xdg_config_dir = get_xdg_config_dir();
+
+	// vmdir was specified on the command line
+	if (vmdir)
+	{
+		prefs_name = string(vmdir) + XDG_PREFS_FILE_NAME;
+		xpram_name = string(vmdir) + XDG_XPRAM_FILE_NAME;
+		if (load_prefs_file(prefs_name, true))
+		    return;
+	}
+
+	// --config was specified
+	if (!UserPrefsPath.empty())
+	{
+		prefs_name = UserPrefsPath;
+		xpram_name = get_dir(&prefs_name) + XPRAM_FILE_NAME;
+		if (load_prefs_file(prefs_name, true))
+		    return;
+	}
+
+	// Load .basilisk_ii_prefs from $HOME if it exists
+	if (!home_dir.empty())
+	{
+		prefs_name = home_dir + PREFS_FILE_NAME;
+		xpram_name = home_dir + XPRAM_FILE_NAME;
+		if (load_prefs_file(prefs_name, false))
+		    return;
+	}
+
+	// If no other prefs file exists, try the $XDG_CONFIG_HOME directory
+	if (!xdg_config_dir.empty())
+	{
+		prefs_name = xdg_config_dir + XDG_PREFS_FILE_NAME;
+		xpram_name = xdg_config_dir + XDG_XPRAM_FILE_NAME;
+		if (load_prefs_file(prefs_name, false))
+		    return;
+	}
+
+	// No prefs file, save defaults in $XDG_CONFIG_HOME directory
+#ifdef __linux__
+	PrefsAddString("cdrom", "/dev/cdrom");
+#endif
+	printf("No prefs file found, creating new one at %s\n", prefs_name.c_str());
+	SavePrefs();
+}
+
+static bool is_dir(const string& path)
+{
 	struct stat info;
-	if(stat(path.c_str(), &info) != 0){
+	if (stat(path.c_str(), &info) != 0){
 		return false;
 	}
 	return (info.st_mode & S_IFDIR) != 0;
 }
 
-static bool create_directories(const std::string& path,mode_t mode){
-	if(mkdir(path.c_str(),mode)==0)
+static bool create_directories(const string& path, mode_t mode)
+{
+	if (mkdir(path.c_str(), mode) == 0)
 		return true;
 
-	switch (errno){
+	switch (errno)
+	{
 		case ENOENT:
 			{
 				int pos = path.find_last_of('/');
@@ -149,14 +215,23 @@ static bool create_directories(const std::string& path,mode_t mode){
  *  Save preferences to settings file
  */
 
-void SavePrefs(void){
+void SavePrefs(void)
+{
 	FILE *f;
-	if(!prefs_path.empty()&&!is_dir(prefs_path)){
-		create_directories(prefs_path,0700);
+	string prefs_dir = get_dir(&prefs_name);
+	if (!prefs_dir.empty() && !is_dir(prefs_dir))
+	{
+		create_directories(prefs_dir, 0700);
 	}
-	if ((f = fopen(prefs_name.c_str(), "w")) != NULL) {
+	if ((f = fopen(prefs_name.c_str(), "w")) != NULL)
+	{
 		SavePrefsToStream(f);
 		fclose(f);
+	}
+	else
+	{
+		fprintf(stderr, "WARNING: Unable to save %s (%s)\n",
+		        prefs_name.c_str(), strerror(errno));
 	}
 }
 
@@ -172,14 +247,20 @@ void AddPlatformPrefsDefaults(void)
 	PrefsReplaceInt32("mousewheelmode", 1);
 	PrefsReplaceInt32("mousewheellines", 3);
 #ifdef __linux__
-	if (access("/dev/sound/dsp", F_OK) == 0) {
+	if (access("/dev/sound/dsp", F_OK) == 0)
+	{
 		PrefsReplaceString("dsp", "/dev/sound/dsp");
-	} else {
+	}
+	else
+	{
 		PrefsReplaceString("dsp", "/dev/dsp");
 	}
-	if (access("/dev/sound/mixer", F_OK) == 0) {
+	if (access("/dev/sound/mixer", F_OK) == 0)
+	{
 		PrefsReplaceString("mixer", "/dev/sound/mixer");
-	} else {
+	}
+	else
+	{
 		PrefsReplaceString("mixer", "/dev/mixer");
 	}
 #else

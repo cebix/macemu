@@ -32,20 +32,19 @@ string xpram_name;
  *  Load XPRAM from settings file
  */
 
-void LoadXPRAM(const char* vmdir){
-	if(vmdir){
-#if POWERPC_ROM
-		xpram_name = string(vmdir) + "/nvram";
-#else
-		xpram_name = string(vmdir) + "/xpram";
-#endif
-	}
-
+void LoadXPRAM(const char* vmdir)
+{
 	assert(!xpram_name.empty());
 	int fd;
-	if ((fd = open(xpram_name.c_str(), O_RDONLY)) >= 0) {
+	if ((fd = open(xpram_name.c_str(), O_RDONLY)) >= 0)
+	{
 		read(fd, XPRAM, XPRAM_SIZE);
 		close(fd);
+	}
+	else
+	{
+		fprintf(stderr, "WARNING: Unable to load %s (%s)\n",
+		        xpram_name.c_str(), strerror(errno));
 	}
 }
 
@@ -53,12 +52,19 @@ void LoadXPRAM(const char* vmdir){
  *  Save XPRAM to settings file
  */
 
-void SaveXPRAM(void){
+void SaveXPRAM(void)
+{
 	assert(!xpram_name.empty());
 	int fd;
-	if ((fd = open(xpram_name.c_str(), O_WRONLY | O_CREAT, 0666)) >= 0) {
+	if ((fd = open(xpram_name.c_str(), O_WRONLY | O_CREAT, 0666)) >= 0)
+	{
 		write(fd, XPRAM, XPRAM_SIZE);
 		close(fd);
+	}
+	else
+	{
+		fprintf(stderr, "WARNING: Unable to save %s (%s)\n",
+		        xpram_name.c_str(), strerror(errno));
 	}
 }
 
@@ -66,7 +72,8 @@ void SaveXPRAM(void){
  *  Delete PRAM file
  */
 
-void ZapPRAM(void){
+void ZapPRAM(void)
+{
 	// Delete file
 	assert(!xpram_name.empty());
 	unlink(xpram_name.c_str());
