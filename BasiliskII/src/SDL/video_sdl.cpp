@@ -120,8 +120,8 @@ static const bool use_vosf = false;					// VOSF not possible
 #endif
 
 static bool ctrl_down = false;						// Flag: Ctrl key pressed (for use with hotkeys)
-static bool alt_down = false;						// Flag: Alt/Opt key pressed (for use with hotkeys)
-static bool super_down = false;						// Flag: Super/Cmd/Win key pressed (for use with hotkeys)
+static bool opt_down = false;						// Flag: Opt/Alt key pressed (for use with hotkeys)
+static bool cmd_down = false;						// Flag: Cmd/Super/Win key pressed (for use with hotkeys)
 static bool caps_on = false;						// Flag: Caps Lock on
 static bool quit_full_screen = false;				// Flag: DGA close requested from redraw thread
 static bool emerg_quit = false;						// Flag: Ctrl-Esc pressed, emergency quit requested from MacOS thread
@@ -1638,8 +1638,8 @@ static bool is_hotkey_down(SDL_keysym const & ks)
 	int hotkey = PrefsFindInt32("hotkey");
 	if (!hotkey) hotkey = 1;
 	return (ctrl_down || (ks.mod & KMOD_CTRL) || !(hotkey & 1)) &&
-			(alt_down || (ks.mod & KMOD_ALT) || !(hotkey & 2)) &&
-			(super_down || (ks.mod & KMOD_META) || !(hotkey & 4));
+			(opt_down || (ks.mod & KMOD_ALT) || !(hotkey & 2)) &&
+			(cmd_down || (ks.mod & KMOD_META) || !(hotkey & 4));
 }
 
 static int modify_opt_cmd(int code) {
@@ -1875,10 +1875,10 @@ static void handle_events(void)
 						if (code == 0x36) {
 							ctrl_down = true;
 						} else if (code == 0x3a) {
-							alt_down = true;
+							opt_down = true;
 						    code = modify_opt_cmd(code);
 						} else if (code == 0x37) {
-							super_down = true;
+							cmd_down = true;
 						    code = modify_opt_cmd(code);
 						}
 						if (code == 0x39) {	// Caps Lock pressed
@@ -1909,10 +1909,10 @@ static void handle_events(void)
 					if (code == 0x36) {
 						ctrl_down = false;
 					} else if (code == 0x3a) {
-						alt_down = false;
+						opt_down = false;
 					    code = modify_opt_cmd(code);
 					} else if (code == 0x37) {
-						super_down = false;
+						cmd_down = false;
 					    code = modify_opt_cmd(code);
 					}
 					if (code == 0x39) {	// Caps Lock released

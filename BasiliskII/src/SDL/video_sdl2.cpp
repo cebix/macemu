@@ -128,9 +128,9 @@ static bool use_vosf = false;						// Flag: VOSF enabled
 static const bool use_vosf = false;					// VOSF not possible
 #endif
 
-static bool ctrl_down = false;						// Flag: Ctrl key pressed (for use with hotkeys)
-static bool alt_down = false;						// Flag: Alt/Opt key pressed (for use with hotkeys)
-static bool super_down = false;						// Flag: Super/Cmd/Win key pressed (for use with hotkeys)
+static bool ctrl_down = false;						// Flag: Ctrl key pressed
+static bool opt_down = false;						// Flag: Opt key pressed
+static bool cmd_down = false;						// Flag: Cmd key pressed
 static bool quit_full_screen = false;				// Flag: DGA close requested from redraw thread
 static bool emerg_quit = false;						// Flag: Ctrl-Esc pressed, emergency quit requested from MacOS thread
 static bool emul_suspended = false;					// Flag: Emulator suspended
@@ -2053,8 +2053,8 @@ static bool is_hotkey_down(SDL_Keysym const & ks)
 	int hotkey = PrefsFindInt32("hotkey");
 	if (!hotkey) hotkey = 1;
 	return (ctrl_down || (ks.mod & KMOD_CTRL) || !(hotkey & 1)) &&
-			(alt_down || (ks.mod & KMOD_ALT) || !(hotkey & 2)) &&
-			(super_down || (ks.mod & KMOD_GUI) || !(hotkey & 4));
+			(opt_down || (ks.mod & KMOD_ALT) || !(hotkey & 2)) &&
+			(cmd_down || (ks.mod & KMOD_GUI) || !(hotkey & 4));
 }
 
 static int modify_opt_cmd(int code) {
@@ -2357,19 +2357,17 @@ static void handle_events(void)
 					code = event2keycode(event.key, true);
 				if (code >= 0) {
 					if (!emul_suspended) {
-						if (code == 0x36) {
-							ctrl_down = true;
-						} else if (code == 0x3a) {
-							alt_down = true;
-						    code = modify_opt_cmd(code);
-						} else if (code == 0x37) {
-							super_down = true;
-						    code = modify_opt_cmd(code);
-						}
-						if (code == 0x39) {
+						code = modify_opt_cmd(code);
+						if (code == 0x39)
 							(SDL_GetModState() & KMOD_CAPS ? ADBKeyDown : ADBKeyUp)(code);
 						} else
 							ADBKeyDown(code);
+						if (code == 0x36)
+							ctrl_down = true;
+						if (code == 0x3a)
+							opt_down = true;
+						if (code == 0x37)
+							cmd_down = true;
 						
 					} else {
 						if (code == 0x31)
@@ -2385,17 +2383,15 @@ static void handle_events(void)
 				if (code == CODE_INVALID)
 					code = event2keycode(event.key, false);
 				if (code >= 0) {
-					if (code == 0x36) {
-						ctrl_down = false;
-					} else if (code == 0x3a) {
-						alt_down = false;
-					    code = modify_opt_cmd(code);
-					} else if (code == 0x37) {
-						super_down = false;
-					    code = modify_opt_cmd(code);
-					}
+					code = modify_opt_cmd(code);
 					if (code != 0x39)
 						ADBKeyUp(code);
+					if (code == 0x36)
+						ctrl_down = false;
+					if (code == 0x3a)
+						opt_down = false;
+					if (code == 0x37)
+						cmd_down = false;
 				}
 				break;
 			}

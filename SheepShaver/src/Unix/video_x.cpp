@@ -103,9 +103,9 @@ static const bool use_vosf = false;			// VOSF not possible
 #endif
 
 static bool palette_changed = false;		// Flag: Palette changed, redraw thread must update palette
-static bool ctrl_down = false;				// Flag: Ctrl key pressed
-static bool super_down = false;				// Flag: Super key pressed
-static bool alt_down = false;				// Flag: Alt key pressed
+static bool ctrl_down = false;				// Flag: Ctrl key pressed (for use with hotkeys)
+static bool opt_down = false;				// Flag: Opt/Alt key pressed (for use with hotkeys)
+static bool cmd_down = false;				// Flag: Cmd/Super/Win key pressed (for use with hotkeys)
 static bool caps_on = false;				// Flag: Caps Lock on
 static bool quit_full_screen = false;		// Flag: DGA close requested from redraw thread
 static volatile bool quit_full_screen_ack = false;	// Acknowledge for quit_full_screen
@@ -230,8 +230,8 @@ static bool is_hotkey_down()
 	int hotkey = PrefsFindInt32("hotkey");
 	if (!hotkey) hotkey = 1;
 	return (ctrl_down || !(hotkey & 1)) &&
-			(alt_down || !(hotkey & 2)) &&
-			(super_down || !(hotkey & 4));
+			(opt_down || !(hotkey & 2)) &&
+			(cmd_down || !(hotkey & 4));
 }
 
 static int modify_opt_cmd(int code) {
@@ -1758,9 +1758,9 @@ static void suspend_emul(void)
 		ADBKeyUp(0x36);
 		ctrl_down = false;
 		ADBKeyUp(0x3a);
-		alt_down = false;
+		opt_down = false;
 		ADBKeyUp(0x37);
-		super_down = false;
+		cmd_down = false;
 
 		// Lock frame buffer (this will stop the MacOS thread)
 		LOCK_FRAME_BUFFER;
@@ -2102,10 +2102,10 @@ static void handle_events(void)
 					if (code == 0x36) {
 						ctrl_down = true;
 					} else if (code == 0x3a) {
-						alt_down = true;
+						opt_down = true;
 					    code = modify_opt_cmd(code);
 					} else if (code == 0x37) {
-						super_down = true;
+						cmd_down = true;
 					    code = modify_opt_cmd(code);
 					}
 				}
@@ -2139,10 +2139,10 @@ static void handle_events(void)
 					if (code == 0x36) {
 						ctrl_down = false;
 					} else if (code == 0x3a) {
-						alt_down = false;
+						opt_down = false;
 					    code = modify_opt_cmd(code);
 					} else if (code == 0x37) {
-						super_down = false;
+						cmd_down = false;
 					    code = modify_opt_cmd(code);
 					}
 				}
