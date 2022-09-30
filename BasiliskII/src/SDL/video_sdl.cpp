@@ -69,9 +69,6 @@
 #define DEBUG 0
 #include "debug.h"
 
-#define CODE_INVALID -1
-#define CODE_HOTKEY  -2
-
 // Supported video modes
 using std::vector;
 static vector<VIDEO_MODE> VideoModes;
@@ -877,7 +874,7 @@ static void keycode_init(void)
 
 		// Default translation table
 		for (int i=0; i<256; i++)
-			keycode_table[i] = CODE_INVALID;
+			keycode_table[i] = -1;
 
 		// Search for server vendor string, then read keycodes
 		char video_driver[256];
@@ -1661,8 +1658,8 @@ static int modify_opt_cmd(int code) {
 }
 
 /*
- *  Translate key event to Mac keycode, returns CODE_INVALID if no keycode was found
- *  and CODE_HOTKEY if the key was recognized as a hotkey
+ *  Translate key event to Mac keycode, returns -1 if no keycode was found
+ *  and -2 if the key was recognized as a hotkey
  */
 
 static int kc_decode(SDL_keysym const & ks, bool key_down)
@@ -1718,8 +1715,8 @@ static int kc_decode(SDL_keysym const & ks, bool key_down)
 	case SDLK_PERIOD: case SDLK_GREATER: return 0x2f;
 	case SDLK_SLASH: case SDLK_QUESTION: return 0x2c;
 
-	case SDLK_TAB: if (is_hotkey_down(ks)) {if (!key_down) drv->suspend(); return CODE_HOTKEY;} else return 0x30;
-	case SDLK_RETURN: if (is_hotkey_down(ks)) {if (!key_down) toggle_fullscreen = true; return CODE_HOTKEY;} else return 0x24;
+	case SDLK_TAB: if (is_hotkey_down(ks)) {if (!key_down) drv->suspend(); return -2;} else return 0x30;
+	case SDLK_RETURN: if (is_hotkey_down(ks)) {if (!key_down) toggle_fullscreen = true; return -2;} else return 0x24;
 	case SDLK_SPACE: return 0x31;
 	case SDLK_BACKSPACE: return 0x33;
 
@@ -1730,11 +1727,13 @@ static int kc_decode(SDL_keysym const & ks, bool key_down)
 	case SDLK_PAGEUP: return 0x74;
 	case SDLK_PAGEDOWN: return 0x79;
 
-	case SDLK_LCTRL: case SDLK_RCTRL: ctrl_down = key_down; return 0x36;
-	case SDLK_LSHIFT: case SDLK_RSHIFT: return 0x38;
-	case SDLK_LALT: case SDLK_RALT: alt_down = key_down; return 0x3a;
-	case SDLK_LMETA: case SDLK_RMETA: super_down = key_down; return 0x37;
-	case SDLK_LSUPER: case SDLK_RSUPER: super_down = key_down; return 0x37; // "Windows" key
+	case SDLK_LCTRL: return 0x36;
+	case SDLK_RCTRL: return 0x36;
+	case SDLK_LSHIFT: return 0x38;
+	case SDLK_RSHIFT: return 0x38;
+	case SDLK_LALT: case SDLK_RALT: return 0x3a;
+	case SDLK_LMETA: case SDLK_RMETA: return 0x37;
+	case SDLK_LSUPER: case SDLK_RSUPER: return 0x37; // "Windows" key
 	case SDLK_MENU: return 0x32;
 	case SDLK_CAPSLOCK: return 0x39;
 	case SDLK_NUMLOCK: return 0x47;
@@ -1744,13 +1743,13 @@ static int kc_decode(SDL_keysym const & ks, bool key_down)
 	case SDLK_LEFT: return 0x3b;
 	case SDLK_RIGHT: return 0x3c;
 
-	case SDLK_ESCAPE: if (is_hotkey_down(ks)) {if (!key_down) { quit_full_screen = true; emerg_quit = true; } return CODE_HOTKEY;} else return 0x35;
+	case SDLK_ESCAPE: if (is_hotkey_down(ks)) {if (!key_down) { quit_full_screen = true; emerg_quit = true; } return -2;} else return 0x35;
 
-	case SDLK_F1: if (is_hotkey_down(ks)) {if (!key_down) SysMountFirstFloppy(); return CODE_HOTKEY;} else return 0x7a;
+	case SDLK_F1: if (is_hotkey_down(ks)) {if (!key_down) SysMountFirstFloppy(); return -2;} else return 0x7a;
 	case SDLK_F2: return 0x78;
 	case SDLK_F3: return 0x63;
 	case SDLK_F4: return 0x76;
-	case SDLK_F5: if (is_hotkey_down(ks)) {if (!key_down) drv->toggle_mouse_grab(); return CODE_HOTKEY;} else return 0x60;
+	case SDLK_F5: if (is_hotkey_down(ks)) {if (!key_down) drv->toggle_mouse_grab(); return -2;} else return 0x60;
 	case SDLK_F6: return 0x61;
 	case SDLK_F7: return 0x62;
 	case SDLK_F8: return 0x64;
@@ -1782,7 +1781,7 @@ static int kc_decode(SDL_keysym const & ks, bool key_down)
 	case SDLK_KP_EQUALS: return 0x51;
 	}
 	D(bug("Unhandled SDL keysym: %d\n", ks.sym));
-	return CODE_INVALID;
+	return -1;
 }
 
 static int event2keycode(SDL_KeyboardEvent const &ev, bool key_down)
@@ -1865,16 +1864,23 @@ static void handle_events(void)
 
 			// Keyboard
 			case SDL_KEYDOWN: {
-				int code = CODE_INVALID;
-				// This is called to process the hotkeys
-				if (use_keycodes && !is_modifier_key(event.key) && event2keycode(event.key, true) != CODE_HOTKEY)
+				int code = -1;
+				if (use_keycodes && !is_modifier_key(event.key)) {
+					if (event2keycode(event.key, true) != -2)	// This is called to process the hotkeys
 						code = keycode_table[event.key.keysym.scancode & 0xff];
-				if (code == CODE_INVALID)
+				} else
 					code = event2keycode(event.key, true);
 				if (code >= 0) {
 					if (!emul_suspended) {
-						if (code == 0x3a || code == 0x37)
-							code = modify_opt_cmd(code);
+						if (code == 0x36) {
+							ctrl_down = true;
+						} else if (code == 0x3a) {
+							alt_down = true;
+						    code = modify_opt_cmd(code);
+						} else if (code == 0x37) {
+							super_down = true;
+						    code = modify_opt_cmd(code);
+						}
 						if (code == 0x39) {	// Caps Lock pressed
 							if (caps_on) {
 								ADBKeyUp(code);
@@ -1893,15 +1899,22 @@ static void handle_events(void)
 				break;
 			}
 			case SDL_KEYUP: {
-				int code = CODE_INVALID;
-				// This is called to process the hotkeys
-				if (use_keycodes && !is_modifier_key(event.key) && event2keycode(event.key, false) != CODE_HOTKEY)
+				int code = -1;
+				if (use_keycodes && !is_modifier_key(event.key)) {
+					if (event2keycode(event.key, false) != -2)	// This is called to process the hotkeys
 						code = keycode_table[event.key.keysym.scancode & 0xff];
-				if (code == CODE_INVALID)
+				} else
 					code = event2keycode(event.key, false);
 				if (code >= 0) {
-					if (code == 0x3a ||code == 0x37)
-						code = modify_opt_cmd(code);
+					if (code == 0x36) {
+						ctrl_down = false;
+					} else if (code == 0x3a) {
+						alt_down = false;
+					    code = modify_opt_cmd(code);
+					} else if (code == 0x37) {
+						super_down = false;
+					    code = modify_opt_cmd(code);
+					}
 					if (code == 0x39) {	// Caps Lock released
 						if (caps_on) {
 							ADBKeyUp(code);
