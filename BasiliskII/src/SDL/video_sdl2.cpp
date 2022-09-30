@@ -128,9 +128,9 @@ static bool use_vosf = false;						// Flag: VOSF enabled
 static const bool use_vosf = false;					// VOSF not possible
 #endif
 
-static bool ctrl_down = false;						// Flag: Ctrl key pressed
-static bool opt_down = false;						// Flag: Opt key pressed
-static bool cmd_down = false;						// Flag: Cmd key pressed
+static bool ctrl_down = false;						// Flag: Ctrl key pressed (for use with hotkeys)
+static bool opt_down = false;						// Flag: Opt/Alt key pressed (for use with hotkeys)
+static bool cmd_down = false;						// Flag: Cmd/Super/Win key pressed (for use with hotkeys)
 static bool quit_full_screen = false;				// Flag: DGA close requested from redraw thread
 static bool emerg_quit = false;						// Flag: Ctrl-Esc pressed, emergency quit requested from MacOS thread
 static bool emul_suspended = false;					// Flag: Emulator suspended
@@ -2360,7 +2360,7 @@ static void handle_events(void)
 						code = modify_opt_cmd(code);
 						if (code == 0x39)
 							(SDL_GetModState() & KMOD_CAPS ? ADBKeyDown : ADBKeyUp)(code);
-						} else
+						else
 							ADBKeyDown(code);
 						if (code == 0x36)
 							ctrl_down = true;
