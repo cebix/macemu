@@ -119,7 +119,9 @@ static bool use_vosf = false;						// Flag: VOSF enabled
 static const bool use_vosf = false;					// VOSF not possible
 #endif
 
-static bool ctrl_down = false;						// Flag: Ctrl key pressed
+static bool ctrl_down = false;						// Flag: Ctrl key pressed (for use with hotkeys)
+static bool opt_down = false;						// Flag: Opt/Alt key pressed (for use with hotkeys)
+static bool cmd_down = false;						// Flag: Cmd/Super/Win key pressed (for use with hotkeys)
 static bool caps_on = false;						// Flag: Caps Lock on
 static bool quit_full_screen = false;				// Flag: DGA close requested from redraw thread
 static bool emerg_quit = false;						// Flag: Ctrl-Esc pressed, emergency quit requested from MacOS thread
@@ -1631,11 +1633,29 @@ static bool is_modifier_key(SDL_KeyboardEvent const & e)
 	return false;
 }
 
-static bool is_ctrl_down(SDL_keysym const & ks)
+static bool is_hotkey_down(SDL_keysym const & ks)
 {
-	return ctrl_down || (ks.mod & KMOD_CTRL);
+	int hotkey = PrefsFindInt32("hotkey");
+	if (!hotkey) hotkey = 1;
+	return (ctrl_down || (ks.mod & KMOD_CTRL) || !(hotkey & 1)) &&
+			(opt_down || (ks.mod & KMOD_ALT) || !(hotkey & 2)) &&
+			(cmd_down || (ks.mod & KMOD_META) || !(hotkey & 4));
 }
 
+static int modify_opt_cmd(int code) {
+	static bool f, c;
+	if (!f) {
+		f = true;
+		c = PrefsFindBool("swap_opt_cmd");
+	}
+	if (c) {
+		switch (code) {
+			case 0x37: return 0x3a;
+			case 0x3a: return 0x37;
+		}
+	}
+	return code;
+}
 
 /*
  *  Translate key event to Mac keycode, returns -1 if no keycode was found
@@ -1695,8 +1715,8 @@ static int kc_decode(SDL_keysym const & ks, bool key_down)
 	case SDLK_PERIOD: case SDLK_GREATER: return 0x2f;
 	case SDLK_SLASH: case SDLK_QUESTION: return 0x2c;
 
-	case SDLK_TAB: if (is_ctrl_down(ks)) {if (!key_down) drv->suspend(); return -2;} else return 0x30;
-	case SDLK_RETURN: if (is_ctrl_down(ks)) {if (!key_down) toggle_fullscreen = true; return -2;} else return 0x24;
+	case SDLK_TAB: if (is_hotkey_down(ks)) {if (!key_down) drv->suspend(); return -2;} else return 0x30;
+	case SDLK_RETURN: if (is_hotkey_down(ks)) {if (!key_down) toggle_fullscreen = true; return -2;} else return 0x24;
 	case SDLK_SPACE: return 0x31;
 	case SDLK_BACKSPACE: return 0x33;
 
@@ -1711,19 +1731,9 @@ static int kc_decode(SDL_keysym const & ks, bool key_down)
 	case SDLK_RCTRL: return 0x36;
 	case SDLK_LSHIFT: return 0x38;
 	case SDLK_RSHIFT: return 0x38;
-#if (defined(__APPLE__) && defined(__MACH__))
-	case SDLK_LALT: return 0x3a;
-	case SDLK_RALT: return 0x3a;
-	case SDLK_LMETA: return 0x37;
-	case SDLK_RMETA: return 0x37;
-#else
-	case SDLK_LALT: return 0x37;
-	case SDLK_RALT: return 0x37;
-	case SDLK_LMETA: return 0x3a;
-	case SDLK_RMETA: return 0x3a;
-#endif
-	case SDLK_LSUPER: return 0x3a; // "Windows" key
-	case SDLK_RSUPER: return 0x3a;
+	case SDLK_LALT: case SDLK_RALT: return 0x3a;
+	case SDLK_LMETA: case SDLK_RMETA: return 0x37;
+	case SDLK_LSUPER: case SDLK_RSUPER: return 0x37; // "Windows" key
 	case SDLK_MENU: return 0x32;
 	case SDLK_CAPSLOCK: return 0x39;
 	case SDLK_NUMLOCK: return 0x47;
@@ -1733,13 +1743,13 @@ static int kc_decode(SDL_keysym const & ks, bool key_down)
 	case SDLK_LEFT: return 0x3b;
 	case SDLK_RIGHT: return 0x3c;
 
-	case SDLK_ESCAPE: if (is_ctrl_down(ks)) {if (!key_down) { quit_full_screen = true; emerg_quit = true; } return -2;} else return 0x35;
+	case SDLK_ESCAPE: if (is_hotkey_down(ks)) {if (!key_down) { quit_full_screen = true; emerg_quit = true; } return -2;} else return 0x35;
 
-	case SDLK_F1: if (is_ctrl_down(ks)) {if (!key_down) SysMountFirstFloppy(); return -2;} else return 0x7a;
+	case SDLK_F1: if (is_hotkey_down(ks)) {if (!key_down) SysMountFirstFloppy(); return -2;} else return 0x7a;
 	case SDLK_F2: return 0x78;
 	case SDLK_F3: return 0x63;
 	case SDLK_F4: return 0x76;
-	case SDLK_F5: if (is_ctrl_down(ks)) {if (!key_down) drv->toggle_mouse_grab(); return -2;} else return 0x60;
+	case SDLK_F5: if (is_hotkey_down(ks)) {if (!key_down) drv->toggle_mouse_grab(); return -2;} else return 0x60;
 	case SDLK_F6: return 0x61;
 	case SDLK_F7: return 0x62;
 	case SDLK_F8: return 0x64;
@@ -1862,6 +1872,15 @@ static void handle_events(void)
 					code = event2keycode(event.key, true);
 				if (code >= 0) {
 					if (!emul_suspended) {
+						if (code == 0x36) {
+							ctrl_down = true;
+						} else if (code == 0x3a) {
+							opt_down = true;
+						    code = modify_opt_cmd(code);
+						} else if (code == 0x37) {
+							cmd_down = true;
+						    code = modify_opt_cmd(code);
+						}
 						if (code == 0x39) {	// Caps Lock pressed
 							if (caps_on) {
 								ADBKeyUp(code);
@@ -1872,8 +1891,6 @@ static void handle_events(void)
 							}
 						} else
 							ADBKeyDown(code);
-						if (code == 0x36)
-							ctrl_down = true;
 					} else {
 						if (code == 0x31)
 							drv->resume();	// Space wakes us up
@@ -1889,6 +1906,15 @@ static void handle_events(void)
 				} else
 					code = event2keycode(event.key, false);
 				if (code >= 0) {
+					if (code == 0x36) {
+						ctrl_down = false;
+					} else if (code == 0x3a) {
+						opt_down = false;
+					    code = modify_opt_cmd(code);
+					} else if (code == 0x37) {
+						cmd_down = false;
+					    code = modify_opt_cmd(code);
+					}
 					if (code == 0x39) {	// Caps Lock released
 						if (caps_on) {
 							ADBKeyUp(code);
@@ -1899,8 +1925,6 @@ static void handle_events(void)
 						}
 					} else
 						ADBKeyUp(code);
-					if (code == 0x36)
-						ctrl_down = false;
 				}
 				break;
 			}

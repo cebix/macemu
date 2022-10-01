@@ -1132,29 +1132,6 @@ AC_CACHE_CHECK([whether __PAGEZERO can be Low Memory area 0x0000-0x2000],
 AC_TRANSLATE_DEFINE(PAGEZERO_HACK, "$ac_cv_pagezero_hack",
   [Define if the __PAGEZERO Mach-O Low Memory Globals hack works on this system.])
 
-dnl Check if we can mmap 0x2000 bytes from 0x0000
-AC_CACHE_CHECK([whether we can map Low Memory area 0x0000-0x2000],
-  ac_cv_can_map_lm, [
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
-  AC_TRY_RUN([
-    #include "../CrossPlatform/vm_alloc.cpp"
-    int main(void) { /* returns 0 if we could map the lowmem globals */
-      volatile char * lm = 0;
-      if (vm_init() < 0) exit(1);
-      if (vm_acquire_fixed(0, 0x2000) < 0) exit(1);
-      lm[0] = 'z';
-      if (vm_release((char *)lm, 0x2000) < 0) exit(1);
-      vm_exit(); exit(0);
-    }
-  ], ac_cv_can_map_lm=yes, ac_cv_can_map_lm=no,
-  dnl When cross-compiling, do not assume anything.
-  ac_cv_can_map_lm="$BII_CROSS_MAP_LOW_AREA"
-  )
-  AC_LANG_RESTORE
-  ]
-)
-
 dnl Check signal handlers need to be reinstalled
 AC_CACHE_CHECK([whether signal handlers need to be reinstalled],
   ac_cv_signal_need_reinstall, [
@@ -1438,10 +1415,6 @@ else
   for am in $ADDRESSING_TEST_ORDER; do
     case $am in
     real)
-      dnl Requires ability to mmap() Low Memory globals
-      if [[ "x$ac_cv_can_map_lm$ac_cv_pagezero_hack" = "xnono" ]]; then
-        continue
-      fi
       dnl Requires VOSF screen updates
       if [[ "x$CAN_VOSF" = "xno" ]]; then
         continue
@@ -1483,7 +1456,8 @@ fi
 
 dnl Banked Memory Addressing mode is not supported by the JIT compiler
 if [[ "x$WANT_JIT" = "xyes" -a "x$ADDRESSING_MODE" = "xmemory banks" ]]; then
-  AC_MSG_ERROR([Sorry, the JIT Compiler requires Direct Addressing, at least])
+  AC_MSG_WARN([The JIT Compiler requires Direct Addressing, disabling])
+  WANT_JIT="no"
 fi
 
 if [[ "x$OS_TYPE" = "xdarwin" ]]; then

@@ -37,6 +37,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <errno.h>
+#include <string>
 
 #include <algorithm>
 
@@ -113,7 +114,9 @@ static bool use_vosf = true;						// Flag: VOSF enabled
 static const bool use_vosf = false;					// VOSF not possible
 #endif
 
-static bool ctrl_down = false;						// Flag: Ctrl key pressed
+static bool ctrl_down = false;						// Flag: Ctrl key pressed (for use with hotkeys)
+static bool opt_down = false;						// Flag: Opt/Alt key pressed (for use with hotkeys)
+static bool cmd_down = false;						// Flag: Cmd/Super/Win key pressed (for use with hotkeys)
 static bool caps_on = false;						// Flag: Caps Lock on
 static bool quit_full_screen = false;				// Flag: DGA close requested from redraw thread
 static bool emerg_quit = false;						// Flag: Ctrl-Esc pressed, emergency quit requested from MacOS thread
@@ -215,6 +218,7 @@ public:
 
 	virtual void switch_to_current_mode(void);
 	virtual void set_palette(uint8 *pal, int num);
+	virtual void set_gamma(uint8 *gamma, int num);
 
 	bool video_open(void);
 	void video_close(void);
@@ -224,6 +228,30 @@ public:
 /*
  *  Utility functions
  */
+
+static bool is_hotkey_down()
+{
+	int hotkey = PrefsFindInt32("hotkey");
+	if (!hotkey) hotkey = 1;
+	return (ctrl_down || !(hotkey & 1)) &&
+			(opt_down || !(hotkey & 2)) &&
+			(cmd_down || !(hotkey & 4));
+}
+
+static int modify_opt_cmd(int code) {
+	static bool f, c;
+	if (!f) {
+		f = true;
+		c = PrefsFindBool("swap_opt_cmd");
+	}
+	if (c) {
+		switch (code) {
+			case 0x37: return 0x3a;
+			case 0x3a: return 0x37;
+		}
+	}
+	return code;
+}
 
 // Map video_mode depth ID to numerical depth value
 static inline int depth_of_video_mode(video_mode const & mode)
@@ -439,8 +467,35 @@ static void set_window_name(Window w, int name)
 	XClassHint *hints;
 	hints = XAllocClassHint();
 	if (hints) {
-		hints->res_name = "BasiliskII";
-		hints->res_class = "BasiliskII";
+		hints->res_name = (char*) GetString(STR_WINDOW_TITLE);
+		hints->res_class = (char*) GetString(STR_WINDOW_TITLE);
+		XSetClassHint(x_display, w, hints);
+		XFree(hints);
+	}
+}
+
+// Set window name and class (ported from SDL implementation)
+static void set_window_name(Window w, bool mouse_grabbed) {
+	const char *title = PrefsFindString("title");
+	std::string s = title ? title : GetString(STR_WINDOW_TITLE);
+    if (mouse_grabbed)
+    {
+        s += GetString(STR_WINDOW_TITLE_GRABBED_PRE);
+		int hotkey = PrefsFindInt32("hotkey");
+		hotkey = hotkey ? hotkey : 1;
+		if (hotkey & 1) s += GetString(STR_WINDOW_TITLE_GRABBED1);
+        if (hotkey & 2) s += GetString(STR_WINDOW_TITLE_GRABBED2);
+        if (hotkey & 4) s += GetString(STR_WINDOW_TITLE_GRABBED4);
+        s += GetString(STR_WINDOW_TITLE_GRABBED_POST);
+	}
+	XStoreName(x_display, w, s.c_str());
+	XSetIconName(x_display, w, GetString(STR_WINDOW_TITLE));
+
+	XClassHint *hints;
+	hints = XAllocClassHint();
+	if (hints) {
+		hints->res_name = (char*) GetString(STR_WINDOW_TITLE);
+		hints->res_class = (char*) GetString(STR_WINDOW_TITLE);
 		XSetClassHint(x_display, w, hints);
 		XFree(hints);
 	}
@@ -732,10 +787,7 @@ driver_window::driver_window(X11_monitor_desc &m)
 	D(bug(" window created\n"));
 
 	// Set window name/class
-	set_window_name(w, STR_WINDOW_TITLE);
-
-	// Set window icons
-	set_window_icons(w);
+	set_window_name(w, mouse_grabbed);
 
 	// Indicate that we want keyboard input
 	set_window_focus(w);
@@ -891,7 +943,7 @@ void driver_window::grab_mouse(void)
 		Delay_usec(100000);
 	}
 	if (result == GrabSuccess) {
-		XStoreName(x_display, w, GetString(STR_WINDOW_TITLE_GRABBED));
+		set_window_name(w, true);
 		ADBSetRelMouseMode(mouse_grabbed = true);
 		disable_mouse_accel();
 	}
@@ -902,7 +954,7 @@ void driver_window::ungrab_mouse(void)
 {
 	if (mouse_grabbed) {
 		XUngrabPointer(x_display, CurrentTime);
-		XStoreName(x_display, w, GetString(STR_WINDOW_TITLE));
+		set_window_name(w, false);
 		ADBSetRelMouseMode(mouse_grabbed = false);
 		restore_mouse_accel();
 	}
@@ -972,9 +1024,13 @@ driver_dga::~driver_dga()
 // Suspend emulation
 void driver_dga::suspend(void)
 {
-	// Release ctrl key
+	// Release hotkeys
 	ADBKeyUp(0x36);
 	ctrl_down = false;
+	ADBKeyUp(0x37);
+	cmd_down = false;
+	ADBKeyUp(0x3a);
+	opt_down = false;
 
 	// Lock frame buffer (this will stop the MacOS thread)
 	LOCK_FRAME_BUFFER;
@@ -1152,7 +1208,7 @@ driver_fbdev::driver_fbdev(X11_monitor_desc &m) : driver_dga(m)
 		&wattr);
 
 	// Set window name/class
-	set_window_name(w, STR_WINDOW_TITLE);
+	set_window_name(w, false);
 
 	// Indicate that we want keyboard input
 	set_window_focus(w);
@@ -1289,7 +1345,7 @@ driver_xf86dga::driver_xf86dga(X11_monitor_desc &m)
 		(color_class == DirectColor ? CWColormap : 0), &wattr);
 
 	// Set window name/class
-	set_window_name(w, STR_WINDOW_TITLE);
+	set_window_name(w, false);
 
 	// Indicate that we want keyboard input
 	set_window_focus(w);
@@ -1699,7 +1755,7 @@ bool VideoInit(bool classic)
 			default_width = -1; default_height = -1; // use entire screen
 #endif
 #ifdef ENABLE_XF86_DGA
-		} else if (has_dga && sscanf(mode_str, "dga/%d/%d", &default_width, &default_height) == 2) {
+		} else if (has_dga & sscanf(mode_str, "dga/%d/%d", &default_width, &default_height) == 2) {
 			display_type = DISPLAY_DGA;
 #endif
 		}
@@ -1934,6 +1990,10 @@ void X11_monitor_desc::set_palette(uint8 *pal, int num_in)
 	UNLOCK_PALETTE;
 }
 
+void X11_monitor_desc::set_gamma(uint8* gamma, int num)
+{
+    // Not implemented
+}
 
 /*
  *  Switch video mode
@@ -2010,7 +2070,7 @@ static int kc_decode(KeySym ks, bool key_down)
 		case XK_period: case XK_greater: return 0x2f;
 		case XK_slash: case XK_question: return 0x2c;
 
-		case XK_Tab: if (ctrl_down) {if (key_down) drv->suspend(); return -2;} else return 0x30;
+		case XK_Tab: if (is_hotkey_down()) {if (key_down) drv->suspend(); return -2;} else return 0x30;
 		case XK_Return: return 0x24;
 		case XK_space: return 0x31;
 		case XK_BackSpace: return 0x33;
@@ -2031,10 +2091,10 @@ static int kc_decode(KeySym ks, bool key_down)
 		case XK_Control_R: return 0x36;
 		case XK_Shift_L: return 0x38;
 		case XK_Shift_R: return 0x38;
-		case XK_Alt_L: return 0x37;
-		case XK_Alt_R: return 0x37;
-		case XK_Meta_L: return 0x3a;
-		case XK_Meta_R: return 0x3a;
+		case XK_Alt_L: return 0x3a;
+		case XK_Alt_R: return 0x3a;
+		case XK_Meta_L: return 0x37;
+		case XK_Meta_R: return 0x37;
 		case XK_Menu: return 0x32;
 		case XK_Caps_Lock: return 0x39;
 		case XK_Num_Lock: return 0x47;
@@ -2044,13 +2104,13 @@ static int kc_decode(KeySym ks, bool key_down)
 		case XK_Left: return 0x3b;
 		case XK_Right: return 0x3c;
 
-		case XK_Escape: if (ctrl_down) {if (key_down) { quit_full_screen = true; emerg_quit = true; } return -2;} else return 0x35;
+		case XK_Escape: if (is_hotkey_down()) {if (key_down) { quit_full_screen = true; emerg_quit = true; } return -2;} else return 0x35;
 
-		case XK_F1: if (ctrl_down) {if (key_down) SysMountFirstFloppy(); return -2;} else return 0x7a;
+		case XK_F1: if (is_hotkey_down()) {if (key_down) SysMountFirstFloppy(); return -2;} else return 0x7a;
 		case XK_F2: return 0x78;
 		case XK_F3: return 0x63;
 		case XK_F4: return 0x76;
-		case XK_F5: if (ctrl_down) {if (key_down) drv->toggle_mouse_grab(); return -2;} else return 0x60;
+		case XK_F5: if (is_hotkey_down()) {if (key_down) drv->toggle_mouse_grab(); return -2;} else return 0x60;
 		case XK_F6: return 0x61;
 		case XK_F7: return 0x62;
 		case XK_F8: return 0x64;
@@ -2186,12 +2246,23 @@ static void handle_events(void)
 
 			// Keyboard
 			case KeyPress: {
-				int code = -1;
+				int code = event2keycode(event.xkey, true);
+				if(!emul_suspended)
+				{
+					if (code == 0x36) {
+						ctrl_down = true;
+					} else if (code == 0x3a) {
+						opt_down = true;
+					    code = modify_opt_cmd(code);
+					} else if (code == 0x37) {
+						cmd_down = true;
+					    code = modify_opt_cmd(code);
+					}
+				}
 				if (use_keycodes) {
-					if (event2keycode(event.xkey, true) != -2)	// This is called to process the hotkeys
+					if (code != -2)	// This is called to process the hotkeys
 						code = keycode_table[event.xkey.keycode & 0xff];
-				} else
-					code = event2keycode(event.xkey, true);
+				}
 				if (code >= 0) {
 					if (!emul_suspended) {
 						if (code == 0x39) {	// Caps Lock pressed
@@ -2204,8 +2275,6 @@ static void handle_events(void)
 							}
 						} else
 							ADBKeyDown(code);
-						if (code == 0x36)
-							ctrl_down = true;
 					} else {
 						if (code == 0x31)
 							drv->resume();	// Space wakes us up
@@ -2214,16 +2283,25 @@ static void handle_events(void)
 				break;
 			}
 			case KeyRelease: {
-				int code = -1;
+				int code = event2keycode(event.xkey, false);
+				if(!emul_suspended)
+				{
+					if (code == 0x36) {
+						ctrl_down = false;
+					} else if (code == 0x3a) {
+						opt_down = false;
+					    code = modify_opt_cmd(code);
+					} else if (code == 0x37) {
+						cmd_down = false;
+					    code = modify_opt_cmd(code);
+					}
+				}
 				if (use_keycodes) {
-					if (event2keycode(event.xkey, false) != -2)	// This is called to process the hotkeys
+					if (code != -2)	// This is called to process the hotkeys
 						code = keycode_table[event.xkey.keycode & 0xff];
-				} else
-					code = event2keycode(event.xkey, false);
+				}
 				if (code >= 0 && code != 0x39) {	// Don't propagate Caps Lock releases
 					ADBKeyUp(code);
-					if (code == 0x36)
-						ctrl_down = false;
 				}
 				break;
 			}

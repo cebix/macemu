@@ -92,6 +92,7 @@
 #include <sys/stat.h>
 #include <sys/param.h>
 #include <signal.h>
+#include <string>
 
 #include "sysdeps.h"
 #include "main.h"
@@ -124,7 +125,6 @@
 
 #ifdef USE_SDL
 #include <SDL.h>
-#include <string>
 #endif
 
 #ifndef USE_SDL_VIDEO
@@ -697,6 +697,12 @@ static bool init_sdl()
 	assert(sdl_flags != 0);
 
 #ifdef USE_SDL_VIDEO
+#if REAL_ADDRESSING
+	// Needed to fix a crash when using Wayland
+	// Forces use of XWayland instead
+	setenv("SDL_VIDEODRIVER", "x11", true);
+#endif
+
 	// Don't let SDL block the screensaver
 	setenv("SDL_VIDEO_ALLOW_SCREENSAVER", "1", true);
 
@@ -851,7 +857,8 @@ int main(int argc, char **argv)
 	// Read preferences
 	PrefsInit(vmdir, argc, argv);
 
-#if __MACOSX__ && SDL_VERSION_ATLEAST(2,0,0)
+#ifdef __MACOSX__
+#if SDL_VERSION_ATLEAST(2,0,0)
 	// On Mac OS X hosts, SDL2 will create its own menu bar.  This is mostly OK,
 	// except that it will also install keyboard shortcuts, such as Command + Q,
 	// which can interfere with keyboard shortcuts in the guest OS.
@@ -860,6 +867,7 @@ int main(int argc, char **argv)
 	// menu bar in-place.
 	extern void disable_SDL2_macosx_menu_bar_keyboard_shortcuts();
 	disable_SDL2_macosx_menu_bar_keyboard_shortcuts();
+#endif
 #endif
 	
 	// Any command line arguments left?
