@@ -31,10 +31,6 @@
 
 #include <cerrno>
 
-#ifdef HAVE_GNOMEUI
-#include <gnome.h>
-#endif
-
 #include "user_strings.h"
 #include "version.h"
 #include "cdrom.h"
@@ -299,15 +295,8 @@ static GtkWidget *make_file_entry(GtkWidget *top, int label_id, const char *pref
 	if (str == NULL)
 		str = "";
 
-#ifdef HAVE_GNOMEUI
-	entry = gnome_file_entry_new(NULL, GetString(label_id));
-	if (only_dirs)
-		gnome_file_entry_set_directory(GNOME_FILE_ENTRY(entry), true);
-	gtk_entry_set_text(GTK_ENTRY(gnome_file_entry_gtk_entry(GNOME_FILE_ENTRY(entry))), str);
-#else
 	entry = gtk_entry_new();
 	gtk_entry_set_text(GTK_ENTRY(entry), str); 
-#endif
 	gtk_widget_show(entry);
 	gtk_box_pack_start(GTK_BOX(box), entry, TRUE, TRUE, 0);
 	return entry;
@@ -315,11 +304,7 @@ static GtkWidget *make_file_entry(GtkWidget *top, int label_id, const char *pref
 
 static const gchar *get_file_entry_path(GtkWidget *entry)
 {
-#ifdef HAVE_GNOMEUI
-	return gnome_file_entry_get_full_path(GNOME_FILE_ENTRY(entry), false);
-#else
 	return gtk_entry_get_text(GTK_ENTRY(entry));
-#endif
 }
 
 static GtkWidget *make_checkbox(GtkWidget *top, int label_id, const char *prefs_item, GtkSignalFunc func)
@@ -405,21 +390,17 @@ static void dl_quit(GtkWidget *dialog)
 // "About" selected
 static void mn_about(...)
 {
-	GtkWidget *dialog;
+	GtkWidget *dialog, *label, *button;
 
-#ifdef HAVE_GNOMEUI
-
-	char version[32];
-	sprintf(version, "Version %d.%d", VERSION_MAJOR, VERSION_MINOR);
 	const char *authors[] = {
 		"Christian Bauer",
 		"Orlando Bassotto",
-		"Gwenolé Beauchesne",
+		"GwenolÃ© Beauchesne",
 		"Marc Chabanas",
 		"Marc Hellwig",
 		"Biill Huey",
 		"Brian J. Johnson",
-		"Jürgen Lachmann",
+		"JÃ¼rgen Lachmann",
 		"Samuel Lander",
 		"David Lawrence",
 		"Lauri Pesonen",
@@ -427,21 +408,6 @@ static void mn_about(...)
 		"and others",
 		NULL
 	};
-	dialog = gnome_about_new(
-		"Basilisk II",
-		version,
-		"Copyright (C) 1997-2008 Christian Bauer",
-		authors,
-		"Basilisk II comes with ABSOLUTELY NO WARRANTY."
-		"This is free software, and you are welcome to redistribute it"
-		"under the terms of the GNU General Public License.",
-		NULL
-	);
-	gnome_dialog_set_parent(GNOME_DIALOG(dialog), GTK_WINDOW(win));
-
-#else
-
-	GtkWidget *label, *button;
 
 	char str[512];
 	sprintf(str,
@@ -472,8 +438,6 @@ static void mn_about(...)
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, FALSE, FALSE, 0);
 	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
 	gtk_widget_grab_default(button);
-
-#endif
 
 	gtk_widget_show(dialog);
 }
@@ -1725,16 +1689,10 @@ static void sigchld_handler(int sig, siginfo_t *sip, void *)
 
 int main(int argc, char *argv[])
 {
-#ifdef HAVE_GNOMEUI
-	// Init GNOME/GTK
-	char version[16];
-	sprintf(version, "%d.%d", VERSION_MAJOR, VERSION_MINOR);
-	gnome_init("Basilisk II", version, argc, argv);
-#else
+
 	// Init GTK
 	gtk_set_locale();
 	gtk_init(&argc, &argv);
-#endif
 
 	// Read preferences
 	PrefsInit(NULL, argc, argv);
