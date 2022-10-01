@@ -218,7 +218,7 @@ static GtkWidget *table_make_option_menu(GtkWidget *table, int row, int label_id
 	return menu;
 }
 
-static GtkWidget *table_make_combobox(GtkWidget *table, int row, int label_id, const char *default_value, GList *glist)
+static GtkWidget *table_make_combobox(GtkWidget *table, int row, int label_id, const char *pref, GList *list)
 {
 	GtkWidget *label, *combo;
 
@@ -226,11 +226,15 @@ static GtkWidget *table_make_combobox(GtkWidget *table, int row, int label_id, c
 	gtk_widget_show(label);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row + 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 	
-	combo = gtk_combo_new();
+	combo = gtk_combo_box_entry_new_text();
 	gtk_widget_show(combo);
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
+	while(list)
+	{
+		gtk_combo_box_append_text(GTK_COMBO_BOX(combo), ((gchar *) list->data));
+		list = list->next;
+	}
 
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), default_value);
+	gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN (combo))), pref);
 	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
 	
 	return combo;
@@ -358,18 +362,17 @@ static GtkWidget *make_combobox(GtkWidget *top, int label_id, const char *prefs_
 	gtk_widget_show(label);
 	gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
 
-	GList *glist = NULL;
+	combo = gtk_combo_box_entry_new_text();
+	gtk_widget_show(combo);
+	gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
+
 	while (options->label_id) {
-		glist = g_list_append(glist, (void *)GetString(options->label_id));
+		gtk_combo_box_append_text(GTK_COMBO_BOX(combo), (gchar *) GetString(options->label_id));
 		options++;
 	}
-	
-	combo = gtk_combo_new();
-	gtk_widget_show(combo);
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
-	
+
 	sprintf(str, "%d", PrefsFindInt32(prefs_item));
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str);
+	gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN (combo))), str);
 	gtk_box_pack_start(GTK_BOX(box), combo, TRUE, TRUE, 0);
 	
 	return combo;
@@ -957,10 +960,10 @@ static void read_graphics_settings(void)
 {
 	const char *str;
 
-	str = gtk_entry_get_text(GTK_ENTRY(w_display_x));
+	str = gtk_combo_box_get_active_text(GTK_COMBO_BOX(w_display_x));
 	dis_width = atoi(str);
 
-	str = gtk_entry_get_text(GTK_ENTRY(w_display_y));
+	str = gtk_combo_box_get_active_text(GTK_COMBO_BOX(w_display_y));
 	dis_height = atoi(str);
 
 	char pref[256];
@@ -996,7 +999,7 @@ static void read_graphics_settings(void)
 // Create "Graphics/Sound" pane
 static void create_graphics_pane(GtkWidget *top)
 {
-	GtkWidget *box, *table, *label, *opt, *menu, *combo;
+	GtkWidget *box, *table, *label, *opt, *menu;
 	char str[32];
 
 	parse_graphics_prefs();
@@ -1058,43 +1061,37 @@ static void create_graphics_pane(GtkWidget *top)
 	gtk_widget_show(l_display_x);
 	gtk_table_attach(GTK_TABLE(table), l_display_x, 0, 1, 2, 3, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
-	combo = gtk_combo_new();
-	gtk_widget_show(combo);
-	GList *glist1 = NULL;
-	glist1 = g_list_append(glist1, (void *)GetString(STR_SIZE_512_LAB));
-	glist1 = g_list_append(glist1, (void *)GetString(STR_SIZE_640_LAB));
-	glist1 = g_list_append(glist1, (void *)GetString(STR_SIZE_800_LAB));
-	glist1 = g_list_append(glist1, (void *)GetString(STR_SIZE_1024_LAB));
-	glist1 = g_list_append(glist1, (void *)GetString(STR_SIZE_MAX_LAB));
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist1);
+	w_display_x = gtk_combo_box_entry_new_text();
+	gtk_widget_show(w_display_x);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_x), GetString(STR_SIZE_512_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_x), GetString(STR_SIZE_640_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_x), GetString(STR_SIZE_800_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_x), GetString(STR_SIZE_1024_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_x), GetString(STR_SIZE_MAX_LAB));
 	if (dis_width)
 		sprintf(str, "%d", dis_width);
 	else
 		strcpy(str, GetString(STR_SIZE_MAX_LAB));
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
-	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 2, 3, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
-	w_display_x = GTK_COMBO(combo)->entry;
+	gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(w_display_x))), str);
+	gtk_table_attach(GTK_TABLE(table), w_display_x, 1, 2, 2, 3, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 
 	l_display_y = gtk_label_new(GetString(STR_DISPLAY_Y_CTRL));
 	gtk_widget_show(l_display_y);
 	gtk_table_attach(GTK_TABLE(table), l_display_y, 0, 1, 3, 4, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
-	combo = gtk_combo_new();
-	gtk_widget_show(combo);
-	GList *glist2 = NULL;
-	glist2 = g_list_append(glist2, (void *)GetString(STR_SIZE_384_LAB));
-	glist2 = g_list_append(glist2, (void *)GetString(STR_SIZE_480_LAB));
-	glist2 = g_list_append(glist2, (void *)GetString(STR_SIZE_600_LAB));
-	glist2 = g_list_append(glist2, (void *)GetString(STR_SIZE_768_LAB));
-	glist2 = g_list_append(glist2, (void *)GetString(STR_SIZE_MAX_LAB));
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist2);
+	w_display_y = gtk_combo_box_entry_new_text();
+	gtk_widget_show(w_display_y);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_y), GetString(STR_SIZE_384_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_y), GetString(STR_SIZE_480_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_y), GetString(STR_SIZE_600_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_y), GetString(STR_SIZE_768_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_y), GetString(STR_SIZE_MAX_LAB));
 	if (dis_height)
 		sprintf(str, "%d", dis_height);
 	else
 		strcpy(str, GetString(STR_SIZE_MAX_LAB));
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
-	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 3, 4, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
-	w_display_y = GTK_COMBO(combo)->entry;
+	gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(w_display_y))), str);
+	gtk_table_attach(GTK_TABLE(table), w_display_y, 1, 2, 3, 4, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 
 #ifdef ENABLE_FBDEV_DGA
 	l_fbdev_name = gtk_label_new(GetString(STR_FBDEV_NAME_CTRL));
@@ -1248,13 +1245,13 @@ static void read_serial_settings(void)
 {
 	const char *str;
 
-	str = gtk_entry_get_text(GTK_ENTRY(w_seriala));
+	str = gtk_combo_box_get_active_text(GTK_COMBO_BOX(w_seriala));
 	PrefsReplaceString("seriala", str);
 
-	str = gtk_entry_get_text(GTK_ENTRY(w_serialb));
+	str = gtk_combo_box_get_active_text(GTK_COMBO_BOX(w_serialb));
 	PrefsReplaceString("serialb", str);
 
-	str = gtk_entry_get_text(GTK_ENTRY(w_ether));
+	str = gtk_combo_box_get_active_text(GTK_COMBO_BOX(w_ether));
 	if (str && strlen(str))
 		PrefsReplaceString("ether", str);
 	else
@@ -1352,57 +1349,58 @@ static void create_serial_pane(GtkWidget *top)
 {
 	GtkWidget *box, *hbox, *table, *label, *combo, *sep;
 	GtkObject *adj;
+	GList *glist = add_serial_names();
 
 	box = make_pane(top, STR_SERIAL_NETWORK_PANE_TITLE);
-	table = make_table(box, 2, 4);
+	table = make_table(box, 2, 3);
 
 	label = gtk_label_new(GetString(STR_SERIALA_CTRL));
 	gtk_widget_show(label);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
-
-	GList *glist = add_serial_names();
-	combo = gtk_combo_new();
-	gtk_widget_show(combo);
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
-	const char *str = PrefsFindString("seriala");
-	if (str == NULL)
-		str = "";
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
-	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 0, 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
-	w_seriala = GTK_COMBO(combo)->entry;
-
 	label = gtk_label_new(GetString(STR_SERIALB_CTRL));
 	gtk_widget_show(label);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 1, 2, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
-	combo = gtk_combo_new();
-	gtk_widget_show(combo);
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
+	w_seriala = gtk_combo_box_entry_new_text();
+	gtk_widget_show(w_seriala);
+	w_serialb = gtk_combo_box_entry_new_text();
+	gtk_widget_show(w_serialb);
+	while (glist)
+	{
+	    gtk_combo_box_append_text(GTK_COMBO_BOX(w_seriala), (gchar *)glist->data);
+	    gtk_combo_box_append_text(GTK_COMBO_BOX(w_serialb), (gchar *)glist->data);
+	    glist = glist->next;
+	}
+
+	const char *str = PrefsFindString("seriala");
+	if (str == NULL)
+		str = "";
+	gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(w_seriala))), str);
 	str = PrefsFindString("serialb");
 	if (str == NULL)
 		str = "";
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
-	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 1, 2, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
-	w_serialb = GTK_COMBO(combo)->entry;
+	gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(w_serialb))), str);
 
-	sep = gtk_hseparator_new();
-	gtk_widget_show(sep);
-	gtk_table_attach(GTK_TABLE(table), sep, 0, 2, 2, 3, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+	gtk_table_attach(GTK_TABLE(table), w_seriala, 1, 2, 0, 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
+	gtk_table_attach(GTK_TABLE(table), w_serialb, 1, 2, 1, 2, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
 
 	label = gtk_label_new(GetString(STR_ETHERNET_IF_CTRL));
 	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 3, 4, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 2, 3, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
 	glist = add_ether_names();
-	combo = gtk_combo_new();
-	gtk_widget_show(combo);
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
+	w_ether = gtk_combo_box_entry_new_text();
+	gtk_widget_show(w_ether);
+	while (glist)
+	{
+	    gtk_combo_box_append_text(GTK_COMBO_BOX(w_ether), (gchar *)glist->data);
+	    glist = glist->next;
+	}
 	str = PrefsFindString("ether");
 	if (str == NULL)
 		str = "";
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
-	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 3, 4, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
-	w_ether = GTK_COMBO(combo)->entry;
+	gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(w_ether))), str);
+	gtk_table_attach(GTK_TABLE(table), w_ether, 1, 2, 2, 3, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
 
 #if SUPPORTS_UDP_TUNNEL
 	make_checkbox(box, STR_UDPTUNNEL_CTRL, "udptunnel", G_CALLBACK(tb_udptunnel));
@@ -1460,7 +1458,7 @@ static void mn_cpu_68040(...) {PrefsReplaceInt32("cpu", 4); PrefsReplaceBool("fp
 // Read settings from widgets and set preferences
 static void read_memory_settings(void)
 {
-	const char *str = gtk_entry_get_text(GTK_ENTRY(GTK_COMBO(w_ramsize)->entry));
+	const char *str = gtk_combo_box_get_active_text(GTK_COMBO_BOX(w_ramsize));
 	PrefsReplaceInt32("ramsize", atoi(str) << 20);
 
 	str = get_file_entry_path(w_rom_file);
