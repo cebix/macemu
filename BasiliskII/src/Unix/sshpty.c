@@ -45,10 +45,6 @@ RCSID("$OpenBSD: sshpty.c,v 1.4 2001/12/19 07:18:56 deraadt Exp $");
 # include <sys/bsdtty.h>
 #endif
 
-#ifdef HAVE_SYS_STAT_H
-# include <sys/stat.h> /* For S_* constants and macros */
-#endif
-
 #ifndef _PATH_TTY
 # define _PATH_TTY "/dev/tty"
 #endif
