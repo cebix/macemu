@@ -20,51 +20,33 @@
 
 #include "sysdeps.h"
 
-#include <stdlib.h>
+#include <string>
+using std::string;
 
 #include "xpram.h"
 
-
-// XPRAM file name and path
-#if POWERPC_ROM
-const char XPRAM_FILE_NAME[] = ".sheepshaver_nvram";
-#else
-const char XPRAM_FILE_NAME[] = ".basilisk_ii_xpram";
-#endif
-static char xpram_path[1024];
-
+// XPRAM file name, set by LoadPrefs() in prefs_unix.cpp
+string xpram_name;
 
 /*
  *  Load XPRAM from settings file
  */
 
-void LoadXPRAM(const char *vmdir)
+void LoadXPRAM(const char* vmdir)
 {
-	if (vmdir) {
-#if POWERPC_ROM
-		snprintf(xpram_path, sizeof(xpram_path), "%s/nvram", vmdir);
-#else
-		snprintf(xpram_path, sizeof(xpram_path), "%s/xpram", vmdir);
-#endif
-	} else {
-		// Construct XPRAM path
-		xpram_path[0] = 0;
-		char *home = getenv("HOME");
-		if (home != NULL && strlen(home) < 1000) {
-			strncpy(xpram_path, home, 1000);
-			strcat(xpram_path, "/");
-		}
-		strcat(xpram_path, XPRAM_FILE_NAME);
-	}
-
-	// Load XPRAM from settings file
+	assert(!xpram_name.empty());
 	int fd;
-	if ((fd = open(xpram_path, O_RDONLY)) >= 0) {
+	if ((fd = open(xpram_name.c_str(), O_RDONLY)) >= 0)
+	{
 		read(fd, XPRAM, XPRAM_SIZE);
 		close(fd);
 	}
+	else
+	{
+		fprintf(stderr, "WARNING: Unable to load %s (%s)\n",
+		        xpram_name.c_str(), strerror(errno));
+	}
 }
-
 
 /*
  *  Save XPRAM to settings file
@@ -72,13 +54,19 @@ void LoadXPRAM(const char *vmdir)
 
 void SaveXPRAM(void)
 {
+	assert(!xpram_name.empty());
 	int fd;
-	if ((fd = open(xpram_path, O_WRONLY | O_CREAT, 0666)) >= 0) {
+	if ((fd = open(xpram_name.c_str(), O_WRONLY | O_CREAT, 0666)) >= 0)
+	{
 		write(fd, XPRAM, XPRAM_SIZE);
 		close(fd);
 	}
+	else
+	{
+		fprintf(stderr, "WARNING: Unable to save %s (%s)\n",
+		        xpram_name.c_str(), strerror(errno));
+	}
 }
-
 
 /*
  *  Delete PRAM file
@@ -86,15 +74,7 @@ void SaveXPRAM(void)
 
 void ZapPRAM(void)
 {
-	// Construct PRAM path
-	xpram_path[0] = 0;
-	char *home = getenv("HOME");
-	if (home != NULL && strlen(home) < 1000) {
-		strncpy(xpram_path, home, 1000);
-		strcat(xpram_path, "/");
-	}
-	strcat(xpram_path, XPRAM_FILE_NAME);
-
 	// Delete file
-	unlink(xpram_path);
+	assert(!xpram_name.empty());
+	unlink(xpram_name.c_str());
 }
