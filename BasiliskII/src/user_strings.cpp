@@ -102,7 +102,7 @@ user_string_def common_strings[] = {
 	{STR_DEVICE_CTRL, "Device"},
 	{STR_UNIT_CTRL, "Unit"},
 	{STR_ADD_VOLUME_TITLE, "Add Volume"},
-	{STR_CREATE_VOLUME_TITLE, "Create Hardfile"},
+	{STR_CREATE_VOLUME_TITLE, "Create Volume File"},
 	{STR_EDIT_VOLUME_TITLE, "Edit Volume"},
 	{STR_HARDFILE_SIZE_CTRL, "Size (MB)"},
 	{STR_VOL_READONLY_CTRL, "Read-Only"},

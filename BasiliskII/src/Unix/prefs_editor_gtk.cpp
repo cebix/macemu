@@ -99,6 +99,7 @@ static void cb_browse(GtkWidget *button, GtkWidget *entry)
 							"Cancel", GTK_RESPONSE_CANCEL,
 							"Open", GTK_RESPONSE_ACCEPT,
 							NULL);
+	gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(chooser), g_path_get_dirname(gtk_entry_get_text(GTK_ENTRY(entry))));
 	gtk_dialog_set_default_response(GTK_DIALOG(chooser), GTK_RESPONSE_ACCEPT);
 	gtk_window_set_transient_for(GTK_WINDOW(chooser), GTK_WINDOW(win));
 	gtk_window_set_modal(GTK_WINDOW(chooser), true);
@@ -115,6 +116,7 @@ static void cb_browse_dir(GtkWidget *button, GtkWidget *entry)
 							"Cancel", GTK_RESPONSE_CANCEL,
 							"Select", GTK_RESPONSE_ACCEPT,
 							NULL);
+	gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(chooser), gtk_entry_get_text(GTK_ENTRY(entry)));
 	gtk_dialog_set_default_response(GTK_DIALOG(chooser), GTK_RESPONSE_ACCEPT);
 	gtk_window_set_transient_for(GTK_WINDOW(chooser), GTK_WINDOW(win));
 	gtk_window_set_modal(GTK_WINDOW(chooser), true);
@@ -588,6 +590,7 @@ static void cb_add_volume (...)
 							"Cancel", GTK_RESPONSE_CANCEL,
 							"Add", GTK_RESPONSE_ACCEPT,
 							NULL);
+	gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(chooser), g_get_home_dir());
 	gtk_dialog_set_default_response(GTK_DIALOG(chooser), GTK_RESPONSE_ACCEPT);
 	gtk_window_set_modal(GTK_WINDOW(chooser), true);
 	g_signal_connect(chooser, "response", G_CALLBACK(cb_add_volume_response), NULL);
@@ -603,6 +606,7 @@ static void cb_create_volume (...)
 							"Cancel", GTK_RESPONSE_CANCEL,
 							"Create", GTK_RESPONSE_ACCEPT,
 							NULL);
+	gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(chooser), g_get_home_dir());
 	gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(chooser), TRUE);
 	gtk_dialog_set_default_response(GTK_DIALOG(chooser), GTK_RESPONSE_ACCEPT);
 	gtk_window_set_transient_for(GTK_WINDOW(chooser), GTK_WINDOW(win));
@@ -776,7 +780,7 @@ static void read_jit_settings(void)
 {
 	bool jit_enabled = is_jit_capable() && PrefsFindBool("jit");
 	if (jit_enabled) {
-		const char *str = gtk_entry_get_text(GTK_ENTRY(GTK_COMBO(w_jit_cache_size)->entry));
+		const char *str = gtk_combo_box_get_active_text(GTK_COMBO_BOX(w_jit_cache_size));
 		PrefsReplaceInt32("jitcachesize", atoi(str));
 	}
 }
@@ -1437,12 +1441,10 @@ static void tb_idlewait(GtkWidget *widget)
 }
 
 // "Ignore SEGV" button toggled
-#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 static void tb_ignoresegv(GtkWidget *widget)
 {
 	PrefsReplaceBool("ignoresegv", GTK_TOGGLE_BUTTON(widget)->active);
 }
-#endif
 
 // Model ID selected
 static void mn_modelid_5(...) {PrefsReplaceInt32("modelid", 5);}
@@ -1472,7 +1474,7 @@ static void read_memory_settings(void)
 // Create "Memory/Misc" pane
 static void create_memory_pane(GtkWidget *top)
 {
-	GtkWidget *box, *table;
+	GtkWidget *box, *table, *w_ignoresegv;
 
 	box = make_pane(top, STR_MEMORY_MISC_PANE_TITLE);
 	table = make_table(box, 2, 5);
@@ -1529,8 +1531,10 @@ static void create_memory_pane(GtkWidget *top)
 	w_rom_file = table_make_file_entry(table, 4, STR_ROM_FILE_CTRL, "rom");
 
 	make_checkbox(box, STR_IDLEWAIT_CTRL, "idlewait", G_CALLBACK(tb_idlewait));
-#ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
-	make_checkbox(box, STR_IGNORESEGV_CTRL, "ignoresegv", G_CALLBACK(tb_ignoresegv));
+	w_ignoresegv = make_checkbox(box, STR_IGNORESEGV_CTRL, "ignoresegv", G_CALLBACK(tb_ignoresegv));
+#ifndef HAVE_SIGSEGV_SKIP_INSTRUCTION
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w_ignoresegv), false);
+	gtk_widget_set_sensitive(w_ignoresegv, false);
 #endif
 }
 

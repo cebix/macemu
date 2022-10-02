@@ -101,7 +101,7 @@ user_string_def common_strings[] = {
 	{STR_BOOT_CDROM_LAB, "CD-ROM"},
 	{STR_NOCDROM_CTRL, "Disable CD-ROM Driver"},
 	{STR_ADD_VOLUME_TITLE, "Add Volume"},
-	{STR_CREATE_VOLUME_TITLE, "Create Hardfile"},
+	{STR_CREATE_VOLUME_TITLE, "Create Volume File"},
 	{STR_HARDFILE_SIZE_CTRL, "Size (MiB)"},
 
 	{STR_GRAPHICS_SOUND_PANE_TITLE, "Graphics/Sound"},
