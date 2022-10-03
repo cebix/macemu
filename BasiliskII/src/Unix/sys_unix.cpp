@@ -369,6 +369,9 @@ void SysAddCDROMPrefs(void)
 			closedir(cd_dir);
 		}
 	}
+#elif defined __FreeBSD__
+	if (access("/cdrom", F_OK) == 0)
+		PrefsAddString("cdrom", "/cdrom");
 #elif defined __MACOSX__
 	// There is no predefined path for CD-ROMs on MacOS X. Rather, we
 	// define a single fake CD-ROM entry for the emulated MacOS.
@@ -396,8 +399,8 @@ void SysAddSerialPrefs(void)
 		PrefsAddString("serialb", "/dev/tts/1");
 	}
 #elif defined(__FreeBSD__)
-	PrefsAddString("seriala", "/dev/cuaa0");
-	PrefsAddString("serialb", "/dev/cuaa1");
+	PrefsAddString("seriala", "/dev/cuau0");
+	PrefsAddString("serialb", "/dev/cuau1");
 #elif defined(__NetBSD__)
 	PrefsAddString("seriala", "/dev/tty00");
 	PrefsAddString("serialb", "/dev/tty01");
