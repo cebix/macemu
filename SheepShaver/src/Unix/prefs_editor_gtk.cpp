@@ -464,11 +464,8 @@ bool PrefsEditor(void)
 	GtkAccelGroup *accel_group = gtk_accel_group_new();
 	GtkItemFactory *item_factory = gtk_item_factory_new(GTK_TYPE_MENU_BAR, "<main>", accel_group);
 	gtk_item_factory_create_items(item_factory, sizeof(menu_items) / sizeof(menu_items[0]), menu_items, NULL);
-#if GTK_CHECK_VERSION(1,3,15)
 	gtk_window_add_accel_group(GTK_WINDOW(win), accel_group);
-#else
-	gtk_accel_group_attach(accel_group, GTK_OBJECT(win));
-#endif
+
 	GtkWidget *menu_bar = gtk_item_factory_get_widget(item_factory, "<main>");
 	gtk_widget_show(menu_bar);
 	gtk_box_pack_start(GTK_BOX(box), menu_bar, FALSE, TRUE, 0);
