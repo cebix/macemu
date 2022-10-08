@@ -168,7 +168,9 @@ installdirs:
 
 uninstall:
 	rm -f $(DESTDIR)$(bindir)/$(APP_EXE)
-	rm -f $(DESTDIR)$(bindir)/$(GUI_APP_EXE)
+	if test -f "$(GUI_APP_EXE)"; then \
+	  rm -f $(DESTDIR)$(bindir)/$(GUI_APP_EXE); \
+	fi
 	rm -f $(DESTDIR)$(man1dir)/$(APP).1
 	rm -f $(DESTDIR)$(datadir)/$(APP)/keycodes
 	rm -f $(DESTDIR)$(datadir)/$(APP)/tunconfig
