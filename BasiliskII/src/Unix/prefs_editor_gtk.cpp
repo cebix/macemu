@@ -28,12 +28,8 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <sys/stat.h>
-#include <cerrno>
 
-#ifdef HAfVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
+#include <cerrno>
 
 #ifdef HAVE_GNOMEUI
 #include <gnome.h>
