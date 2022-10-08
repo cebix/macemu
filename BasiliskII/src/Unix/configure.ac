@@ -218,7 +218,7 @@ if [[ "x$HAVE_I386" = "xyes" ]]; then
 fi
 
 dnl Checks for programs.
-AC_PROG_CC
+AC_PROG_CC_C99
 AC_PROG_CC_C_O
 AC_PROG_CPP
 AC_PROG_CXX
@@ -1123,6 +1123,24 @@ AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, "$have_mmap_vm",
 
 fi dnl HAVE_MMAP_VM
 
+dnl Check if we can disable position-independent code
+AC_CACHE_CHECK([for flag to disable position-independent code],
+  ac_cv_no_pie, [
+  saved_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS -Wl,-no-pie"
+  AC_LINK_IFELSE([AC_LANG_PROGRAM()],[
+    ac_cv_no_pie="-no-pie"],[
+    LDFLAGS="$saved_LDFLAGS -Wl,-no_pie"
+    AC_LINK_IFELSE([AC_LANG_PROGRAM()],[
+      ac_cv_no_pie="-no_pie"],[
+      ac_cv_no_pie="none"
+    ])
+  ])
+  if [[ "$ac_cv_no_pie" = "none" ]]; then
+    LDFLAGS="$saved_LDFLAGS"
+  fi
+])
+
 dnl Check if we can modify the __PAGEZERO segment for use as Low Memory
 AC_CACHE_CHECK([whether __PAGEZERO can be Low Memory area 0x0000-0x2000],
   ac_cv_pagezero_hack, [
@@ -1471,10 +1489,6 @@ if [[ "x$OS_TYPE" = "xdarwin" ]]; then
   if [[ "$target_cpu" != "arm" ]]; then
     LDFLAGS="$LDFLAGS -Wl,-no_pie -pagezero_size 0x1000"
   fi
-fi
-
-if [[ "x$OS_TYPE" = "xlinux" ]]; then
-  LDFLAGS="$LDFLAGS -no-pie"
 fi
 
 dnl Enable VOSF screen updates with this feature is requested and feasible

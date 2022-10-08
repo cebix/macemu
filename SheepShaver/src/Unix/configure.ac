@@ -75,7 +75,7 @@ AC_ARG_ENABLE(sdl-framework-prefix,    [  --enable-sdl-framework-prefix=PFX    d
 AC_ARG_WITH(sdl1,            [  --with-sdl1             use SDL 1.x, rather than SDL 2.x [default=no]], [WANT_SDL_VERSION_MAJOR=1], [])
 
 dnl Checks for programs.
-AC_PROG_CC
+AC_PROG_CC_C99
 AC_PROG_CPP
 AC_PROG_CXX
 AC_PROG_MAKE_SET
@@ -988,13 +988,19 @@ AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, $have_mmap_vm,
 fi dnl HAVE_MMAP_VM
 
 dnl Check if we can disable position-independent code
-AC_CACHE_CHECK([how to disable position-independent code],
+AC_CACHE_CHECK([for flag to disable position-independent code],
   ac_cv_no_pie, [
-  ac_cv_no_pie='-Wl,-no_pie'
   saved_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$LDFLAGS $ac_cv_no_pie"
-  AC_TRY_LINK(,,,[ac_cv_no_pie="cannot"])
-  if [[ "$ac_cv_no_pie" = "cannot" ]]; then
+  LDFLAGS="$LDFLAGS -Wl,-no-pie"
+  AC_LINK_IFELSE([AC_LANG_PROGRAM()],[
+    ac_cv_no_pie="-no-pie"],[
+    LDFLAGS="$saved_LDFLAGS -Wl,-no_pie"
+    AC_LINK_IFELSE([AC_LANG_PROGRAM()],[
+      ac_cv_no_pie="-no_pie"],[
+      ac_cv_no_pie="none"
+    ])
+  ])
+  if [[ "$ac_cv_no_pie" = "none" ]]; then
     LDFLAGS="$saved_LDFLAGS"
   fi
 ])
