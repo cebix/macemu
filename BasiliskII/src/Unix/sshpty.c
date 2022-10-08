@@ -22,6 +22,11 @@ RCSID("$OpenBSD: sshpty.c,v 1.4 2001/12/19 07:18:56 deraadt Exp $");
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h> /* For O_NONBLOCK */
+
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <pwd.h>

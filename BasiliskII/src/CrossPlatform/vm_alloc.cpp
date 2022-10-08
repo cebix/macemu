@@ -71,7 +71,7 @@ typedef unsigned long vm_uintptr_t;
 #ifndef MAP_32BIT
 #define MAP_32BIT 0
 #endif
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 #define FORCE_MAP_32BIT MAP_FIXED
 #else
 #define FORCE_MAP_32BIT MAP_32BIT
@@ -86,7 +86,7 @@ typedef unsigned long vm_uintptr_t;
 #define MAP_EXTRA_FLAGS (MAP_32BIT)
 
 #ifdef HAVE_MMAP_VM
-#if (defined(__linux__) && defined(__i386__)) || defined(__FreeBSD__) || HAVE_LINKER_SCRIPT
+#if (defined(__linux__) && defined(__i386__)) || defined(__FreeBSD__) || defined(__NetBSD__) || HAVE_LINKER_SCRIPT
 /* Force a reasonnable address below 0x80000000 on x86 so that we
    don't get addresses above when the program is run on AMD64.
    NOTE: this is empirically determined on Linux/x86.  */

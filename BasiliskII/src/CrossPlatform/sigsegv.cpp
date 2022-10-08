@@ -302,6 +302,12 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[_REG_EIP]
 #define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#elif (defined(__x86_64__) || defined(x86_64))
+#include <sys/ucontext.h>
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.__gregs)
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[_REG_RIP]
+#define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(powerpc) || defined(__powerpc__))
 #include <sys/ucontext.h>
@@ -799,6 +805,24 @@ enum {
 	X86_REG_EBP = _REG_EBP,
 	X86_REG_ESI = _REG_ESI,
 	X86_REG_EDI = _REG_EDI
+#elif (defined(__x86_64__) || defined(x86_64))
+	X86_REG_EIP = _REG_RIP,
+	X86_REG_EAX = _REG_RAX,
+	X86_REG_ECX = _REG_RCX,
+	X86_REG_EDX = _REG_RDX,
+	X86_REG_EBX = _REG_RBX,
+	X86_REG_ESP = _REG_RSP,
+	X86_REG_EBP = _REG_RBP,
+	X86_REG_ESI = _REG_RSI,
+	X86_REG_EDI = _REG_RDI,
+	X86_REG_R8  = _REG_R8,
+	X86_REG_R9  = _REG_R9,
+	X86_REG_R10 = _REG_R10,
+	X86_REG_R11 = _REG_R11,
+	X86_REG_R12 = _REG_R12,
+	X86_REG_R13 = _REG_R13,
+	X86_REG_R14 = _REG_R14,
+	X86_REG_R15 = _REG_R15
 #endif
 };
 #endif

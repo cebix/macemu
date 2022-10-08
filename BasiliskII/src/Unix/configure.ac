@@ -618,6 +618,9 @@ mips-sony-bsd|mips-sony-newsos4)
 *-*-freebsd*)
 	no_dev_ptmx=1
 	;;
+*-*-netbsd*)
+	no_dev_ptmx=1
+	;;
 esac
 
 if test ! -z "$cross_compiling" && test "x$cross_compiling" = "xyes"; then
