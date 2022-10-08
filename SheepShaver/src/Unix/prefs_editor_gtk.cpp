@@ -197,29 +197,6 @@ static GtkWidget *make_table(GtkWidget *top, int x, int y)
 	return table;
 }
 
-static GtkWidget *table_make_option_menu(GtkWidget *table, int row, int label_id, const opt_desc *options, int active)
-{
-	GtkWidget *label, *opt, *menu;
-
-	label = gtk_label_new(GetString(label_id));
-	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row + 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
-
-	opt = gtk_option_menu_new();
-	gtk_widget_show(opt);
-	menu = gtk_menu_new();
-
-	while (options->label_id) {
-		add_menu_item(menu, options->label_id, options->func);
-		options++;
-	}
-	gtk_menu_set_active(GTK_MENU(menu), active);
-
-	gtk_option_menu_set_menu(GTK_OPTION_MENU(opt), menu);
-	gtk_table_attach(GTK_TABLE(table), opt, 1, 2, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
-	return menu;
-}
-
 static GtkWidget *table_make_combobox(GtkWidget *table, int row, int label_id, const char *pref, GList *list)
 {
 	GtkWidget *label, *combo;
@@ -282,9 +259,9 @@ static GtkWidget *table_make_file_entry(GtkWidget *table, int row, int label_id,
 	return entry;
 }
 
-static GtkWidget *make_option_menu(GtkWidget *top, int label_id, const opt_desc *options, int active)
+static GtkWidget *make_option_menu(GtkWidget *top, int label_id, const combo_desc *options, GCallback func, int active)
 {
-	GtkWidget *box, *label, *opt, *menu;
+	GtkWidget *box, *label, *combo;
 
 	box = gtk_hbox_new(FALSE, 4);
 	gtk_widget_show(box);
@@ -294,19 +271,16 @@ static GtkWidget *make_option_menu(GtkWidget *top, int label_id, const opt_desc 
 	gtk_widget_show(label);
 	gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
 
-	opt = gtk_option_menu_new();
-	gtk_widget_show(opt);
-	menu = gtk_menu_new();
-
+	combo = gtk_combo_box_new_text();
+	gtk_widget_show(combo);
 	while (options->label_id) {
-		add_menu_item(menu, options->label_id, options->func);
+		gtk_combo_box_append_text(GTK_COMBO_BOX(combo), GetString(options->label_id));
 		options++;
 	}
-	gtk_menu_set_active(GTK_MENU(menu), active);
-
-	gtk_option_menu_set_menu(GTK_OPTION_MENU(opt), menu);
-	gtk_box_pack_start(GTK_BOX(box), opt, FALSE, FALSE, 0);
-	return menu;
+	gtk_combo_box_set_active(GTK_COMBO_BOX(combo), active);
+	gtk_box_pack_start(GTK_BOX(box), combo, FALSE, FALSE, 0);
+	g_signal_connect(combo, "changed", func, NULL);
+	return combo;
 }
 
 static GtkWidget *make_file_entry(GtkWidget *top, int label_id, const char *prefs_item, bool only_dirs = false)
@@ -607,8 +581,13 @@ static void cb_remove_volume(...)
 }
 
 // "Boot From" selected
-static void mn_boot_any(...) {PrefsReplaceInt32("bootdriver", 0);}
-static void mn_boot_cdrom(...) {PrefsReplaceInt32("bootdriver", CDROMRefNum);}
+static void mn_bootdriver(GtkWidget *widget)
+{
+	if (gtk_combo_box_get_active(GTK_COMBO_BOX(widget)))
+		PrefsReplaceInt32("bootdriver", CDROMRefNum);
+	else
+		PrefsReplaceInt32("bootdriver", 0);
+}
 
 // "No CD-ROM Driver" button toggled
 static void tb_nocdrom(GtkWidget *widget)
@@ -666,17 +645,17 @@ static void create_volumes_pane(GtkWidget *top)
 
 	w_extfs = make_file_entry(box, STR_EXTFS_CTRL, "extfs", true);
 
-	static const opt_desc options[] = {
-		{STR_BOOT_ANY_LAB, G_CALLBACK(mn_boot_any)},
-		{STR_BOOT_CDROM_LAB, G_CALLBACK(mn_boot_cdrom)},
-		{0, NULL}
+	static const combo_desc options[] = {
+		STR_BOOT_ANY_LAB,
+		STR_BOOT_CDROM_LAB,
+		0
 	};
 	int bootdriver = PrefsFindInt32("bootdriver"), active = 0;
 	switch (bootdriver) {
 		case 0: active = 0; break;
 		case CDROMRefNum: active = 1; break;
 	}
-	menu = make_option_menu(box, STR_BOOTDRIVER_CTRL, options, active);
+	menu = make_option_menu(box, STR_BOOTDRIVER_CTRL, options, G_CALLBACK(mn_bootdriver), active);
 
 	make_checkbox(box, STR_NOCDROM_CTRL, "nocdrom", G_CALLBACK(tb_nocdrom));
 }
@@ -767,40 +746,30 @@ static bool is_fbdev_dga_mode = false;
 
 static GtkWidget *w_dspdevice_file, *w_mixerdevice_file;
 
-// Hide/show graphics widgets
-static void hide_show_graphics_widgets(void)
+// "Window"/"Fullscreen" video type selected
+static void mn_display(GtkWidget *widget)
 {
-	switch (display_type) {
-		case DISPLAY_WINDOW:
-			gtk_widget_show(w_frameskip); gtk_widget_show(l_frameskip);
-			break;
-		case DISPLAY_SCREEN:
-			gtk_widget_hide(w_frameskip); gtk_widget_hide(l_frameskip);
-			break;
-	}
-}
-
-// "Window" video type selected
-static void mn_window(...)
-{
-	display_type = DISPLAY_WINDOW;
-	hide_show_graphics_widgets();
-}
-
-// "Fullscreen" video type selected
-static void mn_fullscreen(...)
-{
-	display_type = DISPLAY_SCREEN;
-	hide_show_graphics_widgets();
+	if (gtk_combo_box_get_active(GTK_COMBO_BOX(widget)))
+		display_type = DISPLAY_SCREEN;
+	else
+		display_type = DISPLAY_WINDOW;
 }
 
 // "5 Hz".."60Hz" selected
-static void mn_5hz(...) {PrefsReplaceInt32("frameskip", 12);}
-static void mn_7hz(...) {PrefsReplaceInt32("frameskip", 8);}
-static void mn_10hz(...) {PrefsReplaceInt32("frameskip", 6);}
-static void mn_15hz(...) {PrefsReplaceInt32("frameskip", 4);}
-static void mn_30hz(...) {PrefsReplaceInt32("frameskip", 2);}
-static void mn_60hz(...) {PrefsReplaceInt32("frameskip", 1);}
+static void mn_frameskip(GtkWidget *widget)
+{
+	int frameskip = 1;
+	switch(gtk_combo_box_get_active(GTK_COMBO_BOX(widget)))
+	{
+		case 0: frameskip = 12; break;
+		case 1: frameskip = 8; break;
+		case 2: frameskip = 6; break;
+		case 3: frameskip = 4; break;
+		case 4: frameskip = 2; break;
+		case 5: frameskip = 1; break;
+	}
+	PrefsReplaceInt32("frameskip", frameskip);
+}
 
 // QuickDraw acceleration
 static void tb_gfxaccel(GtkWidget *widget)
@@ -925,7 +894,7 @@ static void read_graphics_settings(void)
 // Create "Graphics/Sound" pane
 static void create_graphics_pane(GtkWidget *top)
 {
-	GtkWidget *box, *table, *label, *opt, *menu, *combo;
+	GtkWidget *box, *table, *label, *combo;
 	char str[32];
 
 	parse_graphics_prefs();
@@ -937,35 +906,33 @@ static void create_graphics_pane(GtkWidget *top)
 	gtk_widget_show(label);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
-	opt = gtk_option_menu_new();
-	gtk_widget_show(opt);
-	menu = gtk_menu_new();
-	add_menu_item(menu, STR_WINDOW_CTRL, G_CALLBACK(mn_window));
-	add_menu_item(menu, STR_FULLSCREEN_CTRL, G_CALLBACK(mn_fullscreen));
+	combo = gtk_combo_box_new_text();
+	gtk_widget_show(combo);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(combo), GetString(STR_WINDOW_CTRL));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(combo), GetString(STR_FULLSCREEN_CTRL));
 	switch (display_type) {
 		case DISPLAY_WINDOW:
-			gtk_menu_set_active(GTK_MENU(menu), 0);
+			gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
 			break;
 		case DISPLAY_SCREEN:
-			gtk_menu_set_active(GTK_MENU(menu), 1);
+			gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 1);
 			break;
 	}
-	gtk_option_menu_set_menu(GTK_OPTION_MENU(opt), menu);
-	gtk_table_attach(GTK_TABLE(table), opt, 1, 2, 0, 1, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
+	g_signal_connect(combo, "changed", G_CALLBACK(mn_display), NULL);
+	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 0, 1, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 
 	l_frameskip = gtk_label_new(GetString(STR_FRAMESKIP_CTRL));
 	gtk_widget_show(l_frameskip);
 	gtk_table_attach(GTK_TABLE(table), l_frameskip, 0, 1, 1, 2, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
-	w_frameskip = gtk_option_menu_new();
+	w_frameskip = gtk_combo_box_new_text();
 	gtk_widget_show(w_frameskip);
-	menu = gtk_menu_new();
-	add_menu_item(menu, STR_REF_5HZ_LAB, G_CALLBACK(mn_5hz));
-	add_menu_item(menu, STR_REF_7_5HZ_LAB, G_CALLBACK(mn_7hz));
-	add_menu_item(menu, STR_REF_10HZ_LAB, G_CALLBACK(mn_10hz));
-	add_menu_item(menu, STR_REF_15HZ_LAB, G_CALLBACK(mn_15hz));
-	add_menu_item(menu, STR_REF_30HZ_LAB, G_CALLBACK(mn_30hz));
-	add_menu_item(menu, STR_REF_60HZ_LAB, G_CALLBACK(mn_60hz));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_frameskip), GetString(STR_REF_5HZ_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_frameskip), GetString(STR_REF_7_5HZ_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_frameskip), GetString(STR_REF_10HZ_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_frameskip), GetString(STR_REF_15HZ_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_frameskip), GetString(STR_REF_30HZ_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_frameskip), GetString(STR_REF_60HZ_LAB));
 	int frameskip = PrefsFindInt32("frameskip");
 	int item = -1;
 	switch (frameskip) {
@@ -978,8 +945,8 @@ static void create_graphics_pane(GtkWidget *top)
 		case 0: item = 5; break;
 	}
 	if (item >= 0)
-		gtk_menu_set_active(GTK_MENU(menu), item);
-	gtk_option_menu_set_menu(GTK_OPTION_MENU(w_frameskip), menu);
+		gtk_combo_box_set_active(GTK_COMBO_BOX(w_frameskip), item);
+	g_signal_connect(combo, "changed", G_CALLBACK(mn_frameskip), NULL);
 	gtk_table_attach(GTK_TABLE(table), w_frameskip, 1, 2, 1, 2, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 
 	l_display_x = gtk_label_new(GetString(STR_DISPLAY_X_CTRL));
@@ -1026,8 +993,6 @@ static void create_graphics_pane(GtkWidget *top)
 	w_mixerdevice_file = make_file_entry(box, STR_MIXERDEVICE_FILE_CTRL, "mixer");
 
 	set_graphics_sensitive();
-
-	hide_show_graphics_widgets();
 }
 
 
@@ -1055,8 +1020,11 @@ static void tb_keycodes(GtkWidget *widget)
 }
 
 // "Mouse Wheel Mode" selected
-static void mn_wheel_page(...) {PrefsReplaceInt32("mousewheelmode", 0); set_input_sensitive();}
-static void mn_wheel_cursor(...) {PrefsReplaceInt32("mousewheelmode", 1); set_input_sensitive();}
+static void mn_wheelmode(GtkWidget *widget)
+{
+	PrefsReplaceInt32("mousewheelmode", gtk_combo_box_get_active(GTK_COMBO_BOX(widget)));
+	set_input_sensitive();
+}
 
 // Read settings from widgets and set preferences
 static void read_input_settings(void)
@@ -1103,17 +1071,17 @@ static void create_input_pane(GtkWidget *top)
 
 	make_separator(box);
 
-	static const opt_desc options[] = {
-		{STR_MOUSEWHEELMODE_PAGE_LAB, G_CALLBACK(mn_wheel_page)},
-		{STR_MOUSEWHEELMODE_CURSOR_LAB, G_CALLBACK(mn_wheel_cursor)},
-		{0, NULL}
+	static const combo_desc options[] = {
+		STR_MOUSEWHEELMODE_PAGE_LAB,
+		STR_MOUSEWHEELMODE_CURSOR_LAB,
+		0
 	};
 	int wheelmode = PrefsFindInt32("mousewheelmode"), active = 0;
 	switch (wheelmode) {
 		case 0: active = 0; break;
 		case 1: active = 1; break;
 	}
-	menu = make_option_menu(box, STR_MOUSEWHEELMODE_CTRL, options, active);
+	menu = make_option_menu(box, STR_MOUSEWHEELMODE_CTRL, options, G_CALLBACK(mn_wheelmode), active);
 
 	hbox = gtk_hbox_new(FALSE, 4);
 	gtk_widget_show(hbox);
