@@ -774,8 +774,11 @@ netbsd*)
   ETHERSRC=ether_unix.cpp
   ;;
 solaris*)
-  AUDIOSRC=Solaris/audio_solaris.cpp
   DEFINES="$DEFINES -DBSD_COMP -D_POSIX_PTHREAD_SEMANTICS"
+dnl Needed for sys/socket.h
+  LIBS="$LIBS -lsocket -lnsl"
+dnl Needed for SDL2
+  CXXFLAGS="$CXXFLAGS -std=c++11"
   ;;
 irix*)
   AUDIOSRC=Irix/audio_irix.cpp

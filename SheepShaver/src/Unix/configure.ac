@@ -46,7 +46,7 @@ AC_ARG_WITH(gtk,            [  --with-gtk              use GTK user interface [d
    esac],
   [WANT_GTK="gtk2 gtk"])
 AC_ARG_WITH(mon,            [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=no])
-AC_ARG_WITH(dgcc,           [  --with-dgcc=COMPILER    use C++ COMPILER to compile synthetic opcodes or 'precompiled'], [DYNGEN_CC=$withval])
+AC_ARG_WITH(dgcc,           [  --with-dgcc=COMPILER    use C++ COMPILER to compile synthetic opcodes or 'precompiled'], [DYNGEN_CC=$withval], [DYNGEN_CC=precompiled])
 
 AC_ARG_WITH(bincue,   
   AS_HELP_STRING([--with-bincue], [Allow cdrom image files in bin/cue mode]))
@@ -655,6 +655,12 @@ netbsd*)
   if [[ "x$EMULATED_PPC" = "xno" ]]; then
     EXTRASYSSRCS="paranoia.cpp NetBSD/sheepthreads.c ppc_asm.S"
   fi
+  ;;
+solaris*)
+dnl Needed for sys/socket.h
+  LDFLAGS="$LDFLAGS -lsocket -lnsl"
+dnl Needed for SDL2
+  CXXFLAGS="$CXXFLAGS -std=c++11"
   ;;
 darwin*)
   ETHERSRC=ether_unix.cpp

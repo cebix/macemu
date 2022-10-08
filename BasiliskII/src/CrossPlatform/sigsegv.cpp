@@ -281,6 +281,13 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
+#if defined(__x86_64__)
+#include <sys/regset.h>
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[REG_RIP]
+#define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#endif
 #endif
 #if defined(__FreeBSD__) || defined(__OpenBSD__)
 #if (defined(i386) || defined(__i386__))
@@ -893,6 +900,24 @@ enum {
 	X86_REG_EBP = EBP,
 	X86_REG_ESI = ESI,
 	X86_REG_EDI = EDI
+#elif defined(__x86_64__)
+	X86_REG_R8  = REG_R8,
+	X86_REG_R9  = REG_R9,
+	X86_REG_R10 = REG_R10,
+	X86_REG_R11 = REG_R11,
+	X86_REG_R12 = REG_R12,
+	X86_REG_R13 = REG_R13,
+	X86_REG_R14 = REG_R14,
+	X86_REG_R15 = REG_R15,
+	X86_REG_EDI = EDI,
+	X86_REG_ESI = ESI,
+	X86_REG_EBP = EBP,
+	X86_REG_EBX = EBX,
+	X86_REG_EDX = EDX,
+	X86_REG_EAX = EAX,
+	X86_REG_ECX = ECX,
+	X86_REG_ESP = ESP,
+	X86_REG_EIP = REG_RIP
 #endif
 };
 #endif
