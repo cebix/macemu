@@ -68,7 +68,7 @@ links:
 	       Unix/vhd_unix.cpp \
 	       Unix/extfs_unix.cpp Unix/serial_unix.cpp \
 	       Unix/sshpty.h Unix/sshpty.c Unix/strlcpy.h Unix/strlcpy.c \
-	       Unix/sys_unix.cpp Unix/timer_unix.cpp Unix/xpram_unix.cpp \
+	       Unix/sys_unix.cpp Unix/timer_unix.cpp Unix/xpram_unix.cpp Unix/prefs_unix.cpp \
 	       Unix/semaphore.h Unix/posix_sem.cpp Unix/config.sub Unix/config.guess Unix/m4 \
 	       Unix/keycodes Unix/tunconfig Unix/clip_unix.cpp Unix/Irix/audio_irix.cpp \
 	       Unix/Linux/scsi_linux.cpp Unix/Linux/NetDriver Unix/ether_unix.cpp \
