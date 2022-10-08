@@ -64,6 +64,7 @@ user_string_def platform_strings[] = {
 	{STR_KEYCODE_VENDOR_WARN, "Cannot find vendor '%s' in keycode translation file %s."},
 	{STR_PREFS_MENU_FILE_GTK, "/_File"},
 	{STR_PREFS_ITEM_START_GTK, "/File/_Start SheepShaver"},
+	{STR_PREFS_ITEM_SAVE_GTK, "/File/Save _Preferences"},
 	{STR_PREFS_ITEM_ZAP_PRAM_GTK, "/File/_Zap PRAM File"},
 	{STR_PREFS_ITEM_SEPL_GTK, "/File/sepl"},
 	{STR_PREFS_ITEM_QUIT_GTK, "/File/_Quit SheepShaver"},

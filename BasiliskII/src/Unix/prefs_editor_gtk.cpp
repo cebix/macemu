@@ -396,6 +396,13 @@ static void window_destroyed(void)
 	gtk_main_quit();
 }
 
+// "Save" button clicked
+static void cb_save(...)
+{
+	read_settings();
+	SavePrefs();
+}
+
 // "Start" button clicked
 static void cb_start(...)
 {
@@ -462,6 +469,7 @@ static void mn_zap_pram(...)
 static GtkItemFactoryEntry menu_items[] = {
 	{(gchar *)GetString(STR_PREFS_MENU_FILE_GTK),		NULL,			NULL,							0, "<Branch>"},
 	{(gchar *)GetString(STR_PREFS_ITEM_START_GTK),		"<control>S",	G_CALLBACK(cb_start),		0, NULL},
+	{(gchar *)GetString(STR_PREFS_ITEM_SAVE_GTK),		NULL,			G_CALLBACK(cb_save),		0, NULL},
 	{(gchar *)GetString(STR_PREFS_ITEM_ZAP_PRAM_GTK),	NULL,			G_CALLBACK(mn_zap_pram),	0, NULL},
 	{(gchar *)GetString(STR_PREFS_ITEM_SEPL_GTK),		NULL,			NULL,							0, "<Separator>"},
 	{(gchar *)GetString(STR_PREFS_ITEM_QUIT_GTK),		"<control>Q",	G_CALLBACK(cb_quit),		0, NULL},
@@ -1059,7 +1067,7 @@ static void create_graphics_pane(GtkWidget *top)
 	}
 	if (item >= 0)
 		gtk_combo_box_set_active(GTK_COMBO_BOX(w_frameskip), item);
-	g_signal_connect(combo, "changed", G_CALLBACK(mn_display), NULL);
+	g_signal_connect(w_frameskip, "changed", G_CALLBACK(mn_frameskip), NULL);
 	gtk_table_attach(GTK_TABLE(table), w_frameskip, 1, 2, 1, 2, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 
 	l_display_x = gtk_label_new(GetString(STR_DISPLAY_X_CTRL));
