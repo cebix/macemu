@@ -1124,19 +1124,15 @@ AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, "$have_mmap_vm",
 fi dnl HAVE_MMAP_VM
 
 dnl Check if we can disable position-independent code
-AC_CACHE_CHECK([for flag to disable position-independent code],
+AC_CACHE_CHECK([whether the compiler supports -no-pie],
   ac_cv_no_pie, [
   saved_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$LDFLAGS -Wl,-no-pie"
+  LDFLAGS="$LDFLAGS -no-pie"
   AC_LINK_IFELSE([AC_LANG_PROGRAM()],[
-    ac_cv_no_pie="-no-pie"],[
-    LDFLAGS="$saved_LDFLAGS -Wl,-no_pie"
-    AC_LINK_IFELSE([AC_LANG_PROGRAM()],[
-      ac_cv_no_pie="-no_pie"],[
-      ac_cv_no_pie="none"
-    ])
+    ac_cv_no_pie="yes"],[
+    ac_cv_no_pie="no"
   ])
-  if [[ "$ac_cv_no_pie" = "none" ]]; then
+  if [[ "$ac_cv_no_pie" = "no" ]]; then
     LDFLAGS="$saved_LDFLAGS"
   fi
 ])
