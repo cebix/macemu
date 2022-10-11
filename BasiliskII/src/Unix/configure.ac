@@ -1123,19 +1123,21 @@ AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, "$have_mmap_vm",
 
 fi dnl HAVE_MMAP_VM
 
-dnl Check if we can disable position-independent code
-AC_CACHE_CHECK([whether the compiler supports -no-pie],
-  ac_cv_no_pie, [
-  saved_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$LDFLAGS -no-pie"
-  AC_LINK_IFELSE([AC_LANG_PROGRAM()],[
-    ac_cv_no_pie="yes"],[
-    ac_cv_no_pie="no"
+if [[ "$OS_TYPE" != "darwin" ]]; then
+  dnl Check if we can disable position-independent code
+  AC_CACHE_CHECK([whether the compiler supports -no-pie],
+    ac_cv_no_pie, [
+    saved_LDFLAGS="$LDFLAGS"
+    LDFLAGS="$LDFLAGS -no-pie"
+    AC_LINK_IFELSE([AC_LANG_PROGRAM()],[
+      ac_cv_no_pie="yes"],[
+      ac_cv_no_pie="no"
+    ])
+    if [[ "$ac_cv_no_pie" = "no" ]]; then
+      LDFLAGS="$saved_LDFLAGS"
+    fi
   ])
-  if [[ "$ac_cv_no_pie" = "no" ]]; then
-    LDFLAGS="$saved_LDFLAGS"
-  fi
-])
+fi
 
 dnl Check if we can modify the __PAGEZERO segment for use as Low Memory
 AC_CACHE_CHECK([whether __PAGEZERO can be Low Memory area 0x0000-0x2000],
