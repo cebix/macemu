@@ -278,6 +278,9 @@ void AddPlatformPrefsDefaults(void)
 	{
 		PrefsReplaceString("mixer", "/dev/mixer");
 	}
+#elif defined (__NetBSD__)
+	PrefsReplaceString("dsp", "/dev/audio");
+	PrefsReplaceString("mixer", "/dev/mixer");
 #else
 	PrefsReplaceString("dsp", "/dev/dsp");
 	PrefsReplaceString("mixer", "/dev/mixer");
