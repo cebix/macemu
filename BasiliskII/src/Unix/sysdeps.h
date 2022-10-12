@@ -42,6 +42,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #ifdef HAVE_PTHREADS
 # include <pthread.h>
@@ -49,6 +50,10 @@
 
 #ifdef HAVE_FCNTL_H
 # include <fcntl.h>
+#endif
+
+#ifdef HAVE_SYS_STAT_H
+# include <sys/stat.h> /* For S_* constants and macros */
 #endif
 
 #ifdef TIME_WITH_SYS_TIME
@@ -116,11 +121,6 @@
 /* Use the CPU emulator to check for periodic tasks? */
 #ifdef HAVE_PTHREADS
 #define USE_PTHREADS_SERVICES
-#endif
-#if EMULATED_68K
-#if defined(__NetBSD__)
-#define USE_CPU_EMUL_SERVICES
-#endif
 #endif
 #ifdef USE_CPU_EMUL_SERVICES
 #undef USE_PTHREADS_SERVICES

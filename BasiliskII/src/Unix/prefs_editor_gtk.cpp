@@ -414,12 +414,12 @@ static void mn_about(...)
 	const char *authors[] = {
 		"Christian Bauer",
 		"Orlando Bassotto",
-		"Gwenolé Beauchesne",
+		"GwenolÃ© Beauchesne",
 		"Marc Chabanas",
 		"Marc Hellwig",
 		"Biill Huey",
 		"Brian J. Johnson",
-		"Jürgen Lachmann",
+		"JÃ¼rgen Lachmann",
 		"Samuel Lander",
 		"David Lawrence",
 		"Lauri Pesonen",
@@ -1291,7 +1291,7 @@ static GList *add_serial_names(void)
 #if defined(__linux__)
 			if (strncmp(de->d_name, "ttyS", 4) == 0 || strncmp(de->d_name, "lp", 2) == 0) {
 #elif defined(__FreeBSD__)
-			if (strncmp(de->d_name, "cuaa", 4) == 0 || strncmp(de->d_name, "lpt", 3) == 0) {
+			if (strncmp(de->d_name, "cua", 3) == 0 || strncmp(de->d_name, "lpt", 3) == 0) {
 #elif defined(__NetBSD__)
 			if (strncmp(de->d_name, "tty0", 4) == 0 || strncmp(de->d_name, "lpt", 3) == 0) {
 #elif defined(sgi)

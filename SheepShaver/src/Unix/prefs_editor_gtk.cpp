@@ -29,6 +29,10 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 
+#ifdef __sun__
+#include <sys/sockio.h>
+#endif
+
 #include <cerrno>
 
 #include "user_strings.h"

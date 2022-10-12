@@ -22,6 +22,11 @@ RCSID("$OpenBSD: sshpty.c,v 1.4 2001/12/19 07:18:56 deraadt Exp $");
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h> /* For O_NONBLOCK */
+
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <pwd.h>
@@ -43,10 +48,6 @@ RCSID("$OpenBSD: sshpty.c,v 1.4 2001/12/19 07:18:56 deraadt Exp $");
 
 #ifdef HAVE_SYS_BSDTTY_H
 # include <sys/bsdtty.h>
-#endif
-
-#ifdef HAVE_SYS_STAT_H
-# include <sys/stat.h> /* For S_* constants and macros */
 #endif
 
 #ifndef _PATH_TTY
@@ -73,7 +74,12 @@ RCSID("$OpenBSD: sshpty.c,v 1.4 2001/12/19 07:18:56 deraadt Exp $");
 #define fatal(x) do { printf("Fatal error: %s", x); return 0; } while(0)
 #endif /* not in BasiliskII */
 
+#ifdef __sun__
+#define mysig_t sig_atomic_t
+#else
 #define mysig_t sig_t
+#endif
+
 #define mysignal signal
 #include <signal.h>
 

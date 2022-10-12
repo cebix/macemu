@@ -41,11 +41,6 @@ void LoadXPRAM(const char* vmdir)
 		read(fd, XPRAM, XPRAM_SIZE);
 		close(fd);
 	}
-	else
-	{
-		fprintf(stderr, "WARNING: Unable to load %s (%s)\n",
-		        xpram_name.c_str(), strerror(errno));
-	}
 }
 
 /*

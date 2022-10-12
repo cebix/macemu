@@ -46,7 +46,7 @@ AC_ARG_WITH(gtk,            [  --with-gtk              use GTK user interface [d
    esac],
   [WANT_GTK="gtk2 gtk"])
 AC_ARG_WITH(mon,            [  --with-mon              use mon as debugger [default=yes]], [WANT_MON=$withval], [WANT_MON=no])
-AC_ARG_WITH(dgcc,           [  --with-dgcc=COMPILER    use C++ COMPILER to compile synthetic opcodes or 'precompiled'], [DYNGEN_CC=$withval])
+AC_ARG_WITH(dgcc,           [  --with-dgcc=COMPILER    use C++ COMPILER to compile synthetic opcodes or 'precompiled'], [DYNGEN_CC=$withval], [DYNGEN_CC=precompiled])
 
 AC_ARG_WITH(bincue,   
   AS_HELP_STRING([--with-bincue], [Allow cdrom image files in bin/cue mode]))
@@ -75,7 +75,7 @@ AC_ARG_ENABLE(sdl-framework-prefix,    [  --enable-sdl-framework-prefix=PFX    d
 AC_ARG_WITH(sdl1,            [  --with-sdl1             use SDL 1.x, rather than SDL 2.x [default=no]], [WANT_SDL_VERSION_MAJOR=1], [])
 
 dnl Checks for programs.
-AC_PROG_CC
+AC_PROG_CC_C99
 AC_PROG_CPP
 AC_PROG_CXX
 AC_PROG_MAKE_SET
@@ -525,6 +525,9 @@ mips-sony-bsd|mips-sony-newsos4)
 *-*-freebsd*)
 	no_dev_ptmx=1
 	;;
+*-*-netbsd*)
+	no_dev_ptmx=1
+	;;
 esac
 
 if test -z "$no_dev_ptmx" ; then
@@ -652,6 +655,12 @@ netbsd*)
   if [[ "x$EMULATED_PPC" = "xno" ]]; then
     EXTRASYSSRCS="paranoia.cpp NetBSD/sheepthreads.c ppc_asm.S"
   fi
+  ;;
+solaris*)
+dnl Needed for sys/socket.h
+  LDFLAGS="$LDFLAGS -lsocket -lnsl"
+dnl Needed for SDL2
+  CXXFLAGS="$CXXFLAGS -std=c++11"
   ;;
 darwin*)
   ETHERSRC=ether_unix.cpp
@@ -977,18 +986,6 @@ AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, $have_mmap_vm,
   [Define if your system has a working mmap()-based memory allocator.])
 
 fi dnl HAVE_MMAP_VM
-
-dnl Check if we can disable position-independent code
-AC_CACHE_CHECK([how to disable position-independent code],
-  ac_cv_no_pie, [
-  ac_cv_no_pie='-Wl,-no_pie'
-  saved_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$LDFLAGS $ac_cv_no_pie"
-  AC_TRY_LINK(,,,[ac_cv_no_pie="cannot"])
-  if [[ "$ac_cv_no_pie" = "cannot" ]]; then
-    LDFLAGS="$saved_LDFLAGS"
-  fi
-])
 
 dnl Check if we can modify the __PAGEZERO segment for use as Low Memory
 AC_CACHE_CHECK([whether __PAGEZERO can be Low Memory area 0x0000-0x3000],

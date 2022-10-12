@@ -66,7 +66,7 @@
 #include <map>
 #include <string>
 
-#if defined(__FreeBSD__) || defined(sgi) || (defined(__APPLE__) && defined(__MACH__))
+#if defined(__FreeBSD__) || defined (__sun__) || defined(sgi) || (defined(__APPLE__) && defined(__MACH__))
 #include <net/if.h>
 #endif
 

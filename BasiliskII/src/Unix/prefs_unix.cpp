@@ -1,7 +1,7 @@
 /*
  *  prefs_unix.cpp - Preferences handling, Unix specific stuff
  *
- *  Basilisk II (C) 1997-2008 Christian Bauer
+ *  Basilisk II, SheepShaver (C) 1997-2008 Christian Bauer and Marc Hellwig
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include "sysdeps.h"
 #include <sys/stat.h>
+#include <errno.h>
 #include <string>
 using std::string;
 
@@ -27,7 +28,16 @@ using std::string;
 
 // Platform-specific preferences items
 prefs_desc platform_prefs_items[] = {
+#ifdef SHEEPSHAVER
+	{"ether", TYPE_STRING, false,          "device name of Mac ethernet adapter"},
+	{"etherconfig", TYPE_STRING, false,    "path of network config script"},
+	{"keycodes", TYPE_BOOLEAN, false,      "use keycodes rather than keysyms to decode keyboard"},
+	{"keycodefile", TYPE_STRING, false,    "path of keycode translation file"},
+	{"mousewheelmode", TYPE_INT32, false,  "mouse wheel support mode (0=page up/down, 1=cursor up/down)"},
+	{"mousewheellines", TYPE_INT32, false, "number of lines to scroll in mouse wheel mode 1"},
+#else
 	{"fbdevicefile", TYPE_STRING, false,   "path of frame buffer device specification file"},
+#endif
 	{"dsp", TYPE_STRING, false,            "audio output (dsp) device name"},
 	{"mixer", TYPE_STRING, false,          "audio mixer device name"},
 	{"idlewait", TYPE_BOOLEAN, false,      "sleep when idle"},
@@ -38,11 +48,19 @@ prefs_desc platform_prefs_items[] = {
 };
 
 // Standard file names and paths
+#ifdef SHEEPSHAVER
+static const char PREFS_FILE_NAME[] = "/.sheepshaver_prefs";
+static const char XDG_PREFS_FILE_NAME[] = "/prefs";
+static const char XPRAM_FILE_NAME[] = "/.sheepshaver_nvram";
+static const char XDG_XPRAM_FILE_NAME[] = "/nvram";
+static const char XDG_CONFIG_SUBDIR[] = "/SheepShaver";
+#else
 static const char PREFS_FILE_NAME[] = "/.basilisk_ii_prefs";
 static const char XDG_PREFS_FILE_NAME[] = "/prefs";
 static const char XPRAM_FILE_NAME[] = "/.basilisk_ii_xpram";
 static const char XDG_XPRAM_FILE_NAME[] = "/xpram";
 static const char XDG_CONFIG_SUBDIR[] = "/BasiliskII";
+#endif
 
 // Prefs file name and path
 string UserPrefsPath;
@@ -87,8 +105,8 @@ static void exit_if_dir(const string& path)
 	}
 	if ((info.st_mode & S_IFDIR) != 0)
 	{
-	    fprintf(stderr, "ERROR: Cannot open %s (Is a directory)\n", prefs_name.c_str());
-	    exit(1);
+		fprintf(stderr, "ERROR: Cannot open %s (Is a directory)\n", prefs_name.c_str());
+		exit(1);
 	}
 }
 
@@ -119,6 +137,7 @@ static bool load_prefs_file(const string& path, bool exit_on_failure)
  *  3. From $HOME/.basilisk_ii_prefs if it exists
  *  4. From $XDG_CONFIG_HOME/BasiliskII/prefs if it exists
  *  5. Create a new prefs file at $XDG_CONFIG_HOME/BasiliskII/prefs
+ *  (or the equivalent paths for SheepShaver)
  *  If $XDG_CONFIG_HOME doesn't exist, $HOME/.config is used instead,
  *  in accordance with XDG Base Directory Specification:
  *  https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
@@ -135,7 +154,7 @@ void LoadPrefs(const char* vmdir)
 		prefs_name = string(vmdir) + XDG_PREFS_FILE_NAME;
 		xpram_name = string(vmdir) + XDG_XPRAM_FILE_NAME;
 		if (load_prefs_file(prefs_name, true))
-		    return;
+			return;
 	}
 
 	// --config was specified
@@ -144,7 +163,7 @@ void LoadPrefs(const char* vmdir)
 		prefs_name = UserPrefsPath;
 		xpram_name = get_dir(&prefs_name) + XPRAM_FILE_NAME;
 		if (load_prefs_file(prefs_name, true))
-		    return;
+			return;
 	}
 
 	// Load .basilisk_ii_prefs from $HOME if it exists
@@ -153,7 +172,7 @@ void LoadPrefs(const char* vmdir)
 		prefs_name = home_dir + PREFS_FILE_NAME;
 		xpram_name = home_dir + XPRAM_FILE_NAME;
 		if (load_prefs_file(prefs_name, false))
-		    return;
+			return;
 	}
 
 	// If no other prefs file exists, try the $XDG_CONFIG_HOME directory
@@ -162,7 +181,7 @@ void LoadPrefs(const char* vmdir)
 		prefs_name = xdg_config_dir + XDG_PREFS_FILE_NAME;
 		xpram_name = xdg_config_dir + XDG_XPRAM_FILE_NAME;
 		if (load_prefs_file(prefs_name, false))
-		    return;
+			return;
 	}
 
 	// No prefs file, save defaults in $XDG_CONFIG_HOME directory
@@ -259,6 +278,9 @@ void AddPlatformPrefsDefaults(void)
 	{
 		PrefsReplaceString("mixer", "/dev/mixer");
 	}
+#elif defined (__NetBSD__)
+	PrefsReplaceString("dsp", "/dev/audio");
+	PrefsReplaceString("mixer", "/dev/mixer");
 #else
 	PrefsReplaceString("dsp", "/dev/dsp");
 	PrefsReplaceString("mixer", "/dev/mixer");

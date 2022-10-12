@@ -218,7 +218,7 @@ if [[ "x$HAVE_I386" = "xyes" ]]; then
 fi
 
 dnl Checks for programs.
-AC_PROG_CC
+AC_PROG_CC_C99
 AC_PROG_CC_C_O
 AC_PROG_CPP
 AC_PROG_CXX
@@ -618,6 +618,9 @@ mips-sony-bsd|mips-sony-newsos4)
 *-*-freebsd*)
 	no_dev_ptmx=1
 	;;
+*-*-netbsd*)
+	no_dev_ptmx=1
+	;;
 esac
 
 if test ! -z "$cross_compiling" && test "x$cross_compiling" = "xyes"; then
@@ -771,8 +774,11 @@ netbsd*)
   ETHERSRC=ether_unix.cpp
   ;;
 solaris*)
-  AUDIOSRC=Solaris/audio_solaris.cpp
   DEFINES="$DEFINES -DBSD_COMP -D_POSIX_PTHREAD_SEMANTICS"
+dnl Needed for sys/socket.h
+  LIBS="$LIBS -lsocket -lnsl"
+dnl Needed for SDL2
+  CXXFLAGS="$CXXFLAGS -std=c++11"
   ;;
 irix*)
   AUDIOSRC=Irix/audio_irix.cpp
@@ -1116,6 +1122,22 @@ AC_TRANSLATE_DEFINE(HAVE_MMAP_VM, "$have_mmap_vm",
   [Define if your system has a working mmap()-based memory allocator.])
 
 fi dnl HAVE_MMAP_VM
+
+if [[ "$OS_TYPE" != "darwin" ]]; then
+  dnl Check if we can disable position-independent code
+  AC_CACHE_CHECK([whether the compiler supports -no-pie],
+    ac_cv_no_pie, [
+    saved_LDFLAGS="$LDFLAGS"
+    LDFLAGS="$LDFLAGS -no-pie"
+    AC_LINK_IFELSE([AC_LANG_PROGRAM()],[
+      ac_cv_no_pie="yes"],[
+      ac_cv_no_pie="no"
+    ])
+    if [[ "$ac_cv_no_pie" = "no" ]]; then
+      LDFLAGS="$saved_LDFLAGS"
+    fi
+  ])
+fi
 
 dnl Check if we can modify the __PAGEZERO segment for use as Low Memory
 AC_CACHE_CHECK([whether __PAGEZERO can be Low Memory area 0x0000-0x2000],
@@ -1465,10 +1487,6 @@ if [[ "x$OS_TYPE" = "xdarwin" ]]; then
   if [[ "$target_cpu" != "arm" ]]; then
     LDFLAGS="$LDFLAGS -Wl,-no_pie -pagezero_size 0x1000"
   fi
-fi
-
-if [[ "x$OS_TYPE" = "xlinux" ]]; then
-  LDFLAGS="$LDFLAGS -no-pie"
 fi
 
 dnl Enable VOSF screen updates with this feature is requested and feasible

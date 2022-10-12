@@ -255,7 +255,7 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_FAULT_ADDRESS			sip->si_addr
 #if (defined(sgi) || defined(__sgi))
 #include <ucontext.h>
-#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t*)scp)->uc_mcontext.gregs)
 #define SIGSEGV_FAULT_INSTRUCTION		(unsigned long)SIGSEGV_CONTEXT_REGS[CTX_EPC]
 #if (defined(mips) || defined(__mips))
 #define SIGSEGV_REGISTER_FILE			&SIGSEGV_CONTEXT_REGS[CTX_EPC], &SIGSEGV_CONTEXT_REGS[CTX_R0]
@@ -274,10 +274,17 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_REGISTER_FILE			((unsigned long *)SIGSEGV_CONTEXT_REGS), SIGSEGV_SPARC_GWINDOWS, SIGSEGV_SPARC_RWINDOW
 #define SIGSEGV_SKIP_INSTRUCTION		sparc_skip_instruction
 #endif
-#if defined(__i386__)
+#if (defined(i386) || defined(__i386__))
 #include <sys/regset.h>
 #define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[EIP]
+#define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#endif
+#if (defined(x86_64) || defined(__x86_64__))
+#include <sys/regset.h>
+#define SIGSEGV_CONTEXT_REGS            (((ucontext_t *)scp)->uc_mcontext.gregs)
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[REG_RIP]
 #define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
@@ -302,6 +309,12 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[_REG_EIP]
 #define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
+#elif (defined(x86_64) || defined(__x86_64__))
+#include <sys/ucontext.h>
+#define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.__gregs)
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[_REG_RIP]
+#define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
+#define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #endif
 #if (defined(powerpc) || defined(__powerpc__))
 #include <sys/ucontext.h>
@@ -323,12 +336,12 @@ static void powerpc_decode_instruction(instruction_t *instruction, unsigned int 
 #endif
 #if (defined(i386) || defined(__i386__))
 #define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
-#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[14] /* should use REG_EIP instead */
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[REG_EIP]
 #define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #elif (defined(x86_64) || defined(__x86_64__))
 #define SIGSEGV_CONTEXT_REGS			(((ucontext_t *)scp)->uc_mcontext.gregs)
-#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[16] /* should use REG_RIP instead */
+#define SIGSEGV_FAULT_INSTRUCTION		SIGSEGV_CONTEXT_REGS[REG_RIP]
 #define SIGSEGV_REGISTER_FILE			(SIGSEGV_REGISTER_TYPE *)SIGSEGV_CONTEXT_REGS
 #define SIGSEGV_SKIP_INSTRUCTION		ix86_skip_instruction
 #elif (defined(ia64) || defined(__ia64__))
@@ -752,38 +765,37 @@ handleExceptions(void *priv)
 
 #ifdef HAVE_SIGSEGV_SKIP_INSTRUCTION
 // Decode and skip X86 instruction
-#if (defined(i386) || defined(__i386__) || defined(_M_IX86)) || (defined(__x86_64__) || defined(_M_X64))
+#if (defined(i386) || defined(__i386__) || defined(_M_IX86) || defined(x86_64) || defined(__x86_64__) || defined(_M_X64))
 #if defined(__linux__)
 enum {
 #if (defined(i386) || defined(__i386__))
-	X86_REG_EIP = 14,
-	X86_REG_EAX = 11,
-	X86_REG_ECX = 10,
-	X86_REG_EDX = 9,
-	X86_REG_EBX = 8,
-	X86_REG_ESP = 7,
-	X86_REG_EBP = 6,
-	X86_REG_ESI = 5,
-	X86_REG_EDI = 4
-#endif
-#if defined(__x86_64__)
-	X86_REG_R8  = 0,
-	X86_REG_R9  = 1,
-	X86_REG_R10 = 2,
-	X86_REG_R11 = 3,
-	X86_REG_R12 = 4,
-	X86_REG_R13 = 5,
-	X86_REG_R14 = 6,
-	X86_REG_R15 = 7,
-	X86_REG_EDI = 8,
-	X86_REG_ESI = 9,
-	X86_REG_EBP = 10,
-	X86_REG_EBX = 11,
-	X86_REG_EDX = 12,
-	X86_REG_EAX = 13,
-	X86_REG_ECX = 14,
-	X86_REG_ESP = 15,
-	X86_REG_EIP = 16
+	X86_REG_EIP = REG_EIP,
+	X86_REG_EAX = REG_EAX,
+	X86_REG_ECX = REG_ECX,
+	X86_REG_EDX = REG_EDX,
+	X86_REG_EBX = REG_EBX,
+	X86_REG_ESP = REG_ESP,
+	X86_REG_EBP = REG_EBP,
+	X86_REG_ESI = REG_ESI,
+	X86_REG_EDI = REG_EDI
+#elif (defined(x86_64) || defined(__x86_64__))
+	X86_REG_R8  = REG_R8,
+	X86_REG_R9  = REG_R9,
+	X86_REG_R10 = REG_R10,
+	X86_REG_R11 = REG_R11,
+	X86_REG_R12 = REG_R12,
+	X86_REG_R13 = REG_R13,
+	X86_REG_R14 = REG_R14,
+	X86_REG_R15 = REG_R15,
+	X86_REG_EDI = REG_RDI,
+	X86_REG_ESI = REG_RSI,
+	X86_REG_EBP = REG_RBP,
+	X86_REG_EBX = REG_RBX,
+	X86_REG_EDX = REG_RDX,
+	X86_REG_EAX = REG_RAX,
+	X86_REG_ECX = REG_RCX,
+	X86_REG_ESP = REG_RSP,
+	X86_REG_EIP = REG_RIP
 #endif
 };
 #endif
@@ -799,6 +811,24 @@ enum {
 	X86_REG_EBP = _REG_EBP,
 	X86_REG_ESI = _REG_ESI,
 	X86_REG_EDI = _REG_EDI
+#elif (defined(x86_64) || defined(__x86_64__))
+	X86_REG_EIP = _REG_RIP,
+	X86_REG_EAX = _REG_RAX,
+	X86_REG_ECX = _REG_RCX,
+	X86_REG_EDX = _REG_RDX,
+	X86_REG_EBX = _REG_RBX,
+	X86_REG_ESP = _REG_RSP,
+	X86_REG_EBP = _REG_RBP,
+	X86_REG_ESI = _REG_RSI,
+	X86_REG_EDI = _REG_RDI,
+	X86_REG_R8  = _REG_R8,
+	X86_REG_R9  = _REG_R9,
+	X86_REG_R10 = _REG_R10,
+	X86_REG_R11 = _REG_R11,
+	X86_REG_R12 = _REG_R12,
+	X86_REG_R13 = _REG_R13,
+	X86_REG_R14 = _REG_R14,
+	X86_REG_R15 = _REG_R15
 #endif
 };
 #endif
@@ -814,8 +844,7 @@ enum {
 	X86_REG_EBP = 2,
 	X86_REG_ESI = 1,
 	X86_REG_EDI = 0
-#endif
-#if (defined(x86_64) || defined(__x86_64__))
+#elif (defined(x86_64) || defined(__x86_64__))
 	X86_REG_EDI = 0,
 	X86_REG_ESI = 1,
 	X86_REG_EDX = 2,
@@ -838,7 +867,7 @@ enum {
 #endif
 #if defined(__OpenBSD__)
 enum {
-#if defined(__i386__)
+#if (defined(i386) || defined(__i386__))
 	// EDI is the first register we consider
 #define OREG(REG) offsetof(struct sigcontext, sc_##REG)
 #define DREG(REG) ((OREG(REG) - OREG(edi)) / 4)
@@ -859,7 +888,7 @@ enum {
 #if defined(__sun__)
 // Same as for Linux, need to check for x86-64
 enum {
-#if defined(__i386__)
+#if (defined(i386) || defined(__i386__))
 	X86_REG_EIP = EIP,
 	X86_REG_EAX = EAX,
 	X86_REG_ECX = ECX,
@@ -869,6 +898,24 @@ enum {
 	X86_REG_EBP = EBP,
 	X86_REG_ESI = ESI,
 	X86_REG_EDI = EDI
+#elif (defined(x86_64) || defined(__x86_64__))
+	X86_REG_R8  = REG_R8,
+	X86_REG_R9  = REG_R9,
+	X86_REG_R10 = REG_R10,
+	X86_REG_R11 = REG_R11,
+	X86_REG_R12 = REG_R12,
+	X86_REG_R13 = REG_R13,
+	X86_REG_R14 = REG_R14,
+	X86_REG_R15 = REG_R15,
+	X86_REG_EDI = EDI,
+	X86_REG_ESI = ESI,
+	X86_REG_EBP = EBP,
+	X86_REG_EBX = EBX,
+	X86_REG_EDX = EDX,
+	X86_REG_EAX = EAX,
+	X86_REG_ECX = ECX,
+	X86_REG_ESP = ESP,
+	X86_REG_EIP = REG_RIP
 #endif
 };
 #endif
@@ -3345,7 +3392,7 @@ static sigsegv_return_t sigsegv_insn_handler(sigsegv_info_t *sip)
 // More sophisticated tests for instruction skipper
 static bool arch_insn_skipper_tests()
 {
-#if (defined(i386) || defined(__i386__)) || (defined(__x86_64__) || defined(_M_X64))
+#if (defined(i386) || defined(__i386__) || defined(x86_64) || defined(__x86_64__) || defined(_M_X64))
 	static const unsigned char code[] = {
 		0x8a, 0x00,                    // mov    (%eax),%al
 		0x8a, 0x2c, 0x18,              // mov    (%eax,%ebx,1),%ch
@@ -3359,7 +3406,7 @@ static bool arch_insn_skipper_tests()
 		0x8b, 0x0c, 0x18,              // mov    (%eax,%ebx,1),%ecx
 		0x89, 0x00,                    // mov    %eax,(%eax)
 		0x89, 0x0c, 0x18,              // mov    %ecx,(%eax,%ebx,1)
-#if defined(__x86_64__) || defined(_M_X64)
+#if defined(x86_64) || defined(__x86_64__) || defined(_M_X64)
 		0x44, 0x8a, 0x00,              // mov    (%rax),%r8b
 		0x44, 0x8a, 0x20,              // mov    (%rax),%r12b
 		0x42, 0x8a, 0x3c, 0x10,        // mov    (%rax,%r10,1),%dil

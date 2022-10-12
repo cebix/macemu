@@ -21,12 +21,18 @@
 #include "sysdeps.h"
 
 #include <sys/ioctl.h>
+
+#ifdef HAVE_SYS_FILIO_H
+#include <sys/filio.h>
+#endif
+
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <termios.h>
 #include <errno.h>
+
 #ifdef __linux__
 #include <linux/lp.h>
 #include <linux/major.h>
