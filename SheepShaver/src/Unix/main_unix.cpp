@@ -697,7 +697,7 @@ static bool init_sdl()
 	assert(sdl_flags != 0);
 
 #ifdef USE_SDL_VIDEO
-#if REAL_ADDRESSING
+#if REAL_ADDRESSING && !defined(__MACOSX__)
 	// Needed to fix a crash when using Wayland
 	// Forces use of XWayland instead
 	setenv("SDL_VIDEODRIVER", "x11", true);
