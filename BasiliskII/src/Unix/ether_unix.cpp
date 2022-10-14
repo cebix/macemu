@@ -39,6 +39,11 @@
 #ifdef HAVE_SYS_POLL_H
 #include <sys/poll.h>
 #endif
+
+#ifdef __sun__
+#define BSD_COMP 1
+#endif
+
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
