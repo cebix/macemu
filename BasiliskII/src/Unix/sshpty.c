@@ -75,7 +75,7 @@ RCSID("$OpenBSD: sshpty.c,v 1.4 2001/12/19 07:18:56 deraadt Exp $");
 #endif /* not in BasiliskII */
 
 #ifdef __sun__
-#define mysig_t sig_atomic_t
+#define mysig_t void*
 #else
 #define mysig_t sig_t
 #endif
