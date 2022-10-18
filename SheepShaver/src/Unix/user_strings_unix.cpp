@@ -64,6 +64,7 @@ user_string_def platform_strings[] = {
 	{STR_KEYCODE_VENDOR_WARN, "Cannot find vendor '%s' in keycode translation file %s."},
 	{STR_PREFS_MENU_FILE_GTK, "/_File"},
 	{STR_PREFS_ITEM_START_GTK, "/File/_Start SheepShaver"},
+	{STR_PREFS_ITEM_SAVE_GTK, "/File/Save _Preferences"},
 	{STR_PREFS_ITEM_ZAP_PRAM_GTK, "/File/_Zap PRAM File"},
 	{STR_PREFS_ITEM_SEPL_GTK, "/File/sepl"},
 	{STR_PREFS_ITEM_QUIT_GTK, "/File/_Quit SheepShaver"},
@@ -71,7 +72,8 @@ user_string_def platform_strings[] = {
 	{STR_HELP_ITEM_ABOUT_GTK, "/Help/_About SheepShaver"},
 	{STR_DSPDEVICE_FILE_CTRL, "Audio Output Device"},
 	{STR_MIXERDEVICE_FILE_CTRL, "Audio Mixer Device"},
-	{STR_BROWSE_TITLE, "Browse file"},
+	{STR_BROWSE_TITLE, "Select File"},
+	{STR_BROWSE_FOLDER_TITLE, "Select Folder"},
 	{STR_BROWSE_CTRL, "Browse..."},
 	{STR_INPUT_PANE_TITLE, "Keyboard/Mouse"},
 	{STR_KEYCODES_CTRL, "Use Raw Keycodes"},
@@ -86,6 +88,22 @@ user_string_def platform_strings[] = {
 	{STR_OPEN_WINDOW_ERR, "Cannot open Mac window."},
 
 	{STR_NO_B2_EXE_FOUND, "Could not start %s (%s)."},
+
+	{STR_ABOUT_COPYRIGHT, "© 1997-2008 Christian Bauer and Marc Hellwig"},
+	{STR_ABOUT_LICENSE, "This program is free software; you can redistribute it and/or modify \
+it under the terms of the GNU General Public License as published by \
+the Free Software Foundation; either version 2 of the License, or \
+(at your option) any later version.\n\n\
+This program is distributed in the hope that it will be useful, \
+but WITHOUT ANY WARRANTY; without even the implied warranty of \
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the \
+GNU General Public License for more details.\n\n\
+You should have received a copy of the GNU General Public License \
+along with this program; if not, write to the Free Software \
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA"},
+	{STR_ABOUT_COMMENTS, "Open source PowerPC Mac emulator"},
+	{STR_ABOUT_WEBSITE, "http://sheepshaver.cebix.net"},
+	{STR_ABOUT_WEBSITE_LABEL, "Website"},
 
 	{-1, NULL}	// End marker
 };

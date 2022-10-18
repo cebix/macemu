@@ -74,51 +74,75 @@ static void read_settings(void);
 
 struct opt_desc {
 	int label_id;
-	GtkSignalFunc func;
+	GCallback func;
 };
 
 struct combo_desc {
 	int label_id;
 };
 
-struct file_req_assoc {
-	file_req_assoc(GtkWidget *r, GtkWidget *e) : req(r), entry(e) {}
-	GtkWidget *req;
-	GtkWidget *entry;
-};
-
-static void cb_browse_ok(GtkWidget *button, file_req_assoc *assoc)
+// User closed the file chooser dialog, possibly selecting a file
+static void cb_browse_response(GtkWidget *chooser, int response, GtkEntry *entry)
 {
-	gchar *file = (char *)gtk_file_selection_get_filename(GTK_FILE_SELECTION(assoc->req));
-	gtk_entry_set_text(GTK_ENTRY(assoc->entry), file);
-	gtk_widget_destroy(assoc->req);
-	delete assoc;
+	if (response == GTK_RESPONSE_ACCEPT)
+	{
+		gchar *filename;
+		filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (chooser));
+		gtk_entry_set_text(GTK_ENTRY(entry), filename);
+		g_free (filename);
+	}
+	gtk_widget_destroy (chooser);
 }
 
-static void cb_browse(GtkWidget *widget, void *user_data)
+// Open the file chooser dialog to select a file
+static void cb_browse(GtkWidget *button, GtkWidget *entry)
 {
-	GtkWidget *req = gtk_file_selection_new(GetString(STR_BROWSE_TITLE));
-	gtk_signal_connect_object(GTK_OBJECT(req), "delete_event", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
-	gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(req)->ok_button), "clicked", GTK_SIGNAL_FUNC(cb_browse_ok), new file_req_assoc(req, (GtkWidget *)user_data));
-	gtk_signal_connect_object(GTK_OBJECT(GTK_FILE_SELECTION(req)->cancel_button), "clicked", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
-	gtk_widget_show(req);
+	GtkWidget *chooser = gtk_file_chooser_dialog_new(GetString(STR_BROWSE_TITLE),
+							GTK_WINDOW(win),
+							GTK_FILE_CHOOSER_ACTION_OPEN,
+							"Cancel", GTK_RESPONSE_CANCEL,
+							"Open", GTK_RESPONSE_ACCEPT,
+							NULL);
+	gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(chooser), g_dirname(gtk_entry_get_text(GTK_ENTRY(entry))));
+	gtk_dialog_set_default_response(GTK_DIALOG(chooser), GTK_RESPONSE_ACCEPT);
+	gtk_window_set_transient_for(GTK_WINDOW(chooser), GTK_WINDOW(win));
+	gtk_window_set_modal(GTK_WINDOW(chooser), true);
+	g_signal_connect(chooser, "response", G_CALLBACK(cb_browse_response), GTK_ENTRY(entry));
+	gtk_widget_show(chooser);
 }
 
-static GtkWidget *make_browse_button(GtkWidget *entry)
+// Open the file chooser dialog to select a folder
+static void cb_browse_dir(GtkWidget *button, GtkWidget *entry)
+{
+	GtkWidget *chooser = gtk_file_chooser_dialog_new(GetString(STR_BROWSE_FOLDER_TITLE),
+							GTK_WINDOW(win),
+							GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
+							"Cancel", GTK_RESPONSE_CANCEL,
+							"Select", GTK_RESPONSE_ACCEPT,
+							NULL);
+	gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(chooser), gtk_entry_get_text(GTK_ENTRY(entry)));
+	gtk_dialog_set_default_response(GTK_DIALOG(chooser), GTK_RESPONSE_ACCEPT);
+	gtk_window_set_transient_for(GTK_WINDOW(chooser), GTK_WINDOW(win));
+	gtk_window_set_modal(GTK_WINDOW(chooser), true);
+	g_signal_connect(chooser, "response", G_CALLBACK(cb_browse_response), GTK_WIDGET(entry));
+	gtk_widget_show(chooser);
+}
+
+static GtkWidget *make_browse_button(GtkWidget *entry, bool only_dirs)
 {
 	GtkWidget *button;
 
 	button = gtk_button_new_with_label(GetString(STR_BROWSE_CTRL));
 	gtk_widget_show(button);
-	gtk_signal_connect(GTK_OBJECT(button), "clicked", (GtkSignalFunc)cb_browse, (void *)entry);
+	g_signal_connect(button, "clicked", only_dirs ? G_CALLBACK(cb_browse_dir) : G_CALLBACK(cb_browse), entry);
 	return button;
 }
 
-static void add_menu_item(GtkWidget *menu, int label_id, GtkSignalFunc func)
+static void add_menu_item(GtkWidget *menu, int label_id, GCallback func)
 {
 	GtkWidget *item = gtk_menu_item_new_with_label(GetString(label_id));
 	gtk_widget_show(item);
-	gtk_signal_connect(GTK_OBJECT(item), "activate", func, NULL);
+	g_signal_connect(item, "activate", func, NULL);
 	gtk_menu_append(GTK_MENU(menu), item);
 }
 
@@ -154,7 +178,7 @@ static GtkWidget *make_button_box(GtkWidget *top, int border, const opt_desc *bu
 	while (buttons->label_id) {
 		button = gtk_button_new_with_label(GetString(buttons->label_id));
 		gtk_widget_show(button);
-		gtk_signal_connect_object(GTK_OBJECT(button), "clicked", buttons->func, NULL);
+		g_signal_connect_object(button, "clicked", buttons->func, NULL, (GConnectFlags) 0);
 		gtk_box_pack_start(GTK_BOX(bb), button, TRUE, TRUE, 0);
 		buttons++;
 	}
@@ -177,43 +201,25 @@ static GtkWidget *make_table(GtkWidget *top, int x, int y)
 	return table;
 }
 
-static GtkWidget *table_make_option_menu(GtkWidget *table, int row, int label_id, const opt_desc *options, int active)
-{
-	GtkWidget *label, *opt, *menu;
-
-	label = gtk_label_new(GetString(label_id));
-	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row + 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
-
-	opt = gtk_option_menu_new();
-	gtk_widget_show(opt);
-	menu = gtk_menu_new();
-
-	while (options->label_id) {
-		add_menu_item(menu, options->label_id, options->func);
-		options++;
-	}
-	gtk_menu_set_active(GTK_MENU(menu), active);
-
-	gtk_option_menu_set_menu(GTK_OPTION_MENU(opt), menu);
-	gtk_table_attach(GTK_TABLE(table), opt, 1, 2, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
-	return menu;
-}
-
-static GtkWidget *table_make_combobox(GtkWidget *table, int row, int label_id, const char *default_value, GList *glist)
+static GtkWidget *table_make_combobox(GtkWidget *table, int row, int label_id, const char *pref, GList *list)
 {
 	GtkWidget *label, *combo;
 	char str[32];
-
 	label = gtk_label_new(GetString(label_id));
 	gtk_widget_show(label);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row + 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 	
-	combo = gtk_combo_new();
+	combo = gtk_combo_box_entry_new_text();
 	gtk_widget_show(combo);
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
+	gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
+	while(list)
+	{
+		gtk_combo_box_append_text(GTK_COMBO_BOX(combo), ((gchar *) list->data));
+		list = list->next;
+	}
+	if (pref != NULL)
+		gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN (combo))), pref);
 
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), default_value);
 	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
 	
 	return combo;
@@ -251,15 +257,15 @@ static GtkWidget *table_make_file_entry(GtkWidget *table, int row, int label_id,
 	gtk_widget_show(entry);
 	gtk_box_pack_start(GTK_BOX(box), entry, TRUE, TRUE, 0);
 
-	button = make_browse_button(entry);
+	button = make_browse_button(entry, false);
 	gtk_box_pack_start(GTK_BOX(box), button, FALSE, FALSE, 0);
 	g_object_set_data(G_OBJECT(entry), "chooser_button", button);
 	return entry;
 }
 
-static GtkWidget *make_option_menu(GtkWidget *top, int label_id, const opt_desc *options, int active)
+static GtkWidget *make_option_menu(GtkWidget *top, int label_id, const combo_desc *options, GCallback func, int active)
 {
-	GtkWidget *box, *label, *opt, *menu;
+	GtkWidget *box, *label, *combo;
 
 	box = gtk_hbox_new(FALSE, 4);
 	gtk_widget_show(box);
@@ -269,24 +275,21 @@ static GtkWidget *make_option_menu(GtkWidget *top, int label_id, const opt_desc 
 	gtk_widget_show(label);
 	gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
 
-	opt = gtk_option_menu_new();
-	gtk_widget_show(opt);
-	menu = gtk_menu_new();
-
+	combo = gtk_combo_box_new_text();
+	gtk_widget_show(combo);
 	while (options->label_id) {
-		add_menu_item(menu, options->label_id, options->func);
+		gtk_combo_box_append_text(GTK_COMBO_BOX(combo), GetString(options->label_id));
 		options++;
 	}
-	gtk_menu_set_active(GTK_MENU(menu), active);
-
-	gtk_option_menu_set_menu(GTK_OPTION_MENU(opt), menu);
-	gtk_box_pack_start(GTK_BOX(box), opt, FALSE, FALSE, 0);
-	return menu;
+	gtk_combo_box_set_active(GTK_COMBO_BOX(combo), active);
+	gtk_box_pack_start(GTK_BOX(box), combo, FALSE, FALSE, 0);
+	g_signal_connect(combo, "changed", func, NULL);
+	return combo;
 }
 
-static GtkWidget *make_entry(GtkWidget *top, int label_id, const char *prefs_item)
+static GtkWidget *make_file_entry(GtkWidget *top, int label_id, const char *prefs_item, bool only_dirs = false)
 {
-	GtkWidget *box, *label, *entry;
+	GtkWidget *box, *label, *entry, *button;
 
 	box = gtk_hbox_new(FALSE, 4);
 	gtk_widget_show(box);
@@ -301,8 +304,15 @@ static GtkWidget *make_entry(GtkWidget *top, int label_id, const char *prefs_ite
 	const char *str = PrefsFindString(prefs_item);
 	if (str == NULL)
 		str = "";
-	gtk_entry_set_text(GTK_ENTRY(entry), str); 
+	gtk_entry_set_text(GTK_ENTRY(entry), str);
+	button = make_browse_button(entry, only_dirs);
+
+	gtk_widget_show(entry);
+#if GLIB_CHECK_VERSION(2,26,0)
+	g_object_bind_property(entry, "sensitive", button, "sensitive", G_BINDING_SYNC_CREATE);
+#endif
 	gtk_box_pack_start(GTK_BOX(box), entry, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(box), button, FALSE, FALSE, 0);
 	return entry;
 }
 
@@ -311,22 +321,22 @@ static const gchar *get_file_entry_path(GtkWidget *entry)
 	return gtk_entry_get_text(GTK_ENTRY(entry));
 }
 
-static GtkWidget *make_checkbox(GtkWidget *top, int label_id, const char *prefs_item, GtkSignalFunc func)
+static GtkWidget *make_checkbox(GtkWidget *top, int label_id, const char *prefs_item, GCallback func)
 {
 	GtkWidget *button = gtk_check_button_new_with_label(GetString(label_id));
 	gtk_widget_show(button);
 	gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(button), PrefsFindBool(prefs_item));
-	gtk_signal_connect(GTK_OBJECT(button), "toggled", func, button);
+	g_signal_connect(button, "toggled", func, NULL);
 	gtk_box_pack_start(GTK_BOX(top), button, FALSE, FALSE, 0);
 	return button;
 }
 
-static GtkWidget *make_checkbox(GtkWidget *top, int label_id, bool active, GtkSignalFunc func)
+static GtkWidget *make_checkbox(GtkWidget *top, int label_id, bool active, GCallback func)
 {
 	GtkWidget *button = gtk_check_button_new_with_label(GetString(label_id));
 	gtk_widget_show(button);
 	gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(button), active);
-	gtk_signal_connect(GTK_OBJECT(button), "toggled", func, button);
+	g_signal_connect(button, "toggled", func, NULL);
 	gtk_box_pack_start(GTK_BOX(top), button, FALSE, FALSE, 0);
 	return button;
 }
@@ -347,6 +357,13 @@ static gint window_closed(void)
 static void window_destroyed(void)
 {
 	gtk_main_quit();
+}
+
+// "Save" button clicked
+static void cb_save(...)
+{
+	read_settings();
+	SavePrefs();
 }
 
 // "Start" button clicked
@@ -375,37 +392,24 @@ static void dl_quit(GtkWidget *dialog)
 static void mn_about(...)
 {
 	GtkWidget *dialog, *label, *button;
-
-	char str[512];
-	sprintf(str,
-		"SheepShaver\nVersion %d.%d\n\n"
-		"Copyright (C) 1997-2008 Christian Bauer and Marc Hellwig\n"
-		"E-mail: cb@cebix.net\n"
-		"http://sheepshaver.cebix.net/\n\n"
-		"SheepShaver comes with ABSOLUTELY NO\n"
-		"WARRANTY. This is free software, and\n"
-		"you are welcome to redistribute it\n"
-		"under the terms of the GNU General\n"
-		"Public License.\n",
-		VERSION_MAJOR, VERSION_MINOR
-	);
-
-	dialog = gtk_dialog_new();
-	gtk_window_set_title(GTK_WINDOW(dialog), GetString(STR_ABOUT_TITLE));
-	gtk_container_border_width(GTK_CONTAINER(dialog), 5);
-	gtk_widget_set_uposition(GTK_WIDGET(dialog), 100, 150);
-
-	label = gtk_label_new(str);
-	gtk_widget_show(label);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
-
-	button = gtk_button_new_with_label(GetString(STR_OK_BUTTON));
-	gtk_widget_show(button);
-	gtk_signal_connect_object(GTK_OBJECT(button), "clicked", GTK_SIGNAL_FUNC(dl_quit), GTK_OBJECT(dialog));
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, FALSE, FALSE, 0);
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
-	gtk_widget_grab_default(button);
-	gtk_widget_show(dialog);
+	const char *authors[] = {
+		"Christian Bauer",
+		"Marc Hellwig",
+		"Gwenolé Beauchesne",
+		NULL
+	};
+	char version[64];
+	sprintf(version, "%d.%d", VERSION_MAJOR, VERSION_MINOR);
+	gtk_show_about_dialog(GTK_WINDOW(win), "version", version,
+	                     "copyright", GetString(STR_ABOUT_COPYRIGHT),
+	                     "authors", authors,
+	                     "comments", GetString(STR_ABOUT_COMMENTS),
+	                     "website", GetString(STR_ABOUT_WEBSITE),
+	                     "website-label", GetString(STR_ABOUT_WEBSITE_LABEL),
+	                     "license", GetString(STR_ABOUT_LICENSE),
+	                     "wrap-license", true,
+	                     "logo-icon-name", "SheepShaver",
+	                     NULL);
 }
 
 // "Zap NVRAM" selected
@@ -417,12 +421,13 @@ static void mn_zap_pram(...)
 // Menu item descriptions
 static GtkItemFactoryEntry menu_items[] = {
 	{(gchar *)GetString(STR_PREFS_MENU_FILE_GTK),		NULL,			NULL,							0, "<Branch>"},
-	{(gchar *)GetString(STR_PREFS_ITEM_START_GTK),		"<control>S",	GTK_SIGNAL_FUNC(cb_start),		0, NULL},
-	{(gchar *)GetString(STR_PREFS_ITEM_ZAP_PRAM_GTK),	NULL,			GTK_SIGNAL_FUNC(mn_zap_pram),	0, NULL},
+	{(gchar *)GetString(STR_PREFS_ITEM_START_GTK),		"<control>S",	G_CALLBACK(cb_start),		0, NULL},
+	{(gchar *)GetString(STR_PREFS_ITEM_SAVE_GTK),		NULL,			G_CALLBACK(cb_save),		0, NULL},
+	{(gchar *)GetString(STR_PREFS_ITEM_ZAP_PRAM_GTK),	NULL,			G_CALLBACK(mn_zap_pram),	0, NULL},
 	{(gchar *)GetString(STR_PREFS_ITEM_SEPL_GTK),		NULL,			NULL,							0, "<Separator>"},
-	{(gchar *)GetString(STR_PREFS_ITEM_QUIT_GTK),		"<control>Q",	GTK_SIGNAL_FUNC(cb_quit),		0, NULL},
+	{(gchar *)GetString(STR_PREFS_ITEM_QUIT_GTK),		"<control>Q",	G_CALLBACK(cb_quit),		0, NULL},
 	{(gchar *)GetString(STR_HELP_MENU_GTK),				NULL,			NULL,							0, "<LastBranch>"},
-	{(gchar *)GetString(STR_HELP_ITEM_ABOUT_GTK),		NULL,			GTK_SIGNAL_FUNC(mn_about),		0, NULL}
+	{(gchar *)GetString(STR_HELP_ITEM_ABOUT_GTK),		NULL,			G_CALLBACK(mn_about),		0, NULL}
 };
 
 bool PrefsEditor(void)
@@ -434,8 +439,8 @@ bool PrefsEditor(void)
 	// Create window
 	win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	gtk_window_set_title(GTK_WINDOW(win), GetString(STR_PREFS_TITLE));
-	gtk_signal_connect(GTK_OBJECT(win), "delete_event", GTK_SIGNAL_FUNC(window_closed), NULL);
-	gtk_signal_connect(GTK_OBJECT(win), "destroy", GTK_SIGNAL_FUNC(window_destroyed), NULL);
+	g_signal_connect(win, "delete_event", G_CALLBACK(window_closed), NULL);
+	g_signal_connect(win, "destroy", G_CALLBACK(window_destroyed), NULL);
 
 	// Create window contents
 	GtkWidget *box = gtk_vbox_new(FALSE, 4);
@@ -445,11 +450,8 @@ bool PrefsEditor(void)
 	GtkAccelGroup *accel_group = gtk_accel_group_new();
 	GtkItemFactory *item_factory = gtk_item_factory_new(GTK_TYPE_MENU_BAR, "<main>", accel_group);
 	gtk_item_factory_create_items(item_factory, sizeof(menu_items) / sizeof(menu_items[0]), menu_items, NULL);
-#if GTK_CHECK_VERSION(1,3,15)
 	gtk_window_add_accel_group(GTK_WINDOW(win), accel_group);
-#else
-	gtk_accel_group_attach(accel_group, GTK_OBJECT(win));
-#endif
+
 	GtkWidget *menu_bar = gtk_item_factory_get_widget(item_factory, "<main>");
 	gtk_widget_show(menu_bar);
 	gtk_box_pack_start(GTK_BOX(box), menu_bar, FALSE, TRUE, 0);
@@ -469,8 +471,8 @@ bool PrefsEditor(void)
 	gtk_widget_show(notebook);
 
 	static const opt_desc buttons[] = {
-		{STR_START_BUTTON, GTK_SIGNAL_FUNC(cb_start)},
-		{STR_QUIT_BUTTON, GTK_SIGNAL_FUNC(cb_quit)},
+		{STR_START_BUTTON, G_CALLBACK(cb_start)},
+		{STR_QUIT_BUTTON, G_CALLBACK(cb_quit)},
 		{0, NULL}
 	};
 	make_button_box(box, 4, buttons);
@@ -496,72 +498,94 @@ static void cl_selected(GtkWidget *list, int row, int column)
 }
 
 // Volume selected for addition
-static void add_volume_ok(GtkWidget *button, file_req_assoc *assoc)
+static void cb_add_volume_response (GtkWidget *chooser, int response)
 {
-	gchar *file = (gchar *)gtk_file_selection_get_filename(GTK_FILE_SELECTION(assoc->req));
-	gtk_clist_append(GTK_CLIST(volume_list), &file);
-	gtk_widget_destroy(assoc->req);
-	delete assoc;
+	if (response == GTK_RESPONSE_ACCEPT)
+	{
+		char *file = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(chooser));
+		gtk_clist_append(GTK_CLIST(volume_list), &file);
+	}
+	gtk_widget_destroy(chooser);
 }
 
 // Volume selected for creation
-static void create_volume_ok(GtkWidget *button, file_req_assoc *assoc)
+static void cb_create_volume_response (GtkWidget *chooser, int response, GtkEntry *size_entry)
 {
-	gchar *file = (gchar *)gtk_file_selection_get_filename(GTK_FILE_SELECTION(assoc->req));
-	const gchar *str = gtk_entry_get_text(GTK_ENTRY(assoc->entry));
-	int disk_size = atoi(str);
-	if (disk_size < 1 || disk_size > 2000) {
-		printf("Disk size needs to be between 1 and 2000 MB.\n");
-		gtk_widget_destroy(GTK_WIDGET(assoc->req));
-		delete assoc;
-		return;
+	if (response == GTK_RESPONSE_ACCEPT)
+	{
+		char *file = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(chooser));
+		const gchar *str = gtk_entry_get_text(GTK_ENTRY(size_entry));
+		int disk_size = atoi(str);
+		if (disk_size < 1 || disk_size > 2000)
+		{
+			GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(win),
+							(GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
+							GTK_MESSAGE_WARNING,
+							GTK_BUTTONS_CLOSE,
+							"Enter a valid size", NULL);
+			gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(dialog), "The volume size should be between 1 and 2000.");
+			gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(chooser));
+			g_signal_connect(dialog, "response", G_CALLBACK(dl_quit), NULL);
+			gtk_widget_show(dialog);
+			return; // Don't close the file chooser dialog
+		}
+		int fd = open(file, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+		if (fd < 0) {
+			fprintf(stderr, "Could not create %s (%s)\n", file, strerror(errno));
+		} else {
+			ftruncate(fd, disk_size * 1024 * 1024);
+			gtk_clist_append(GTK_CLIST(volume_list), &file);
+		}
 	}
-	int fd = open(file, O_CREAT | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-	if (fd < 0 && errno == EEXIST) {
-		printf("File already exists, refusing to overwrite file.\n");
-	} else {
-		ftruncate(fd, disk_size * 1024 * 1024);
-		gtk_clist_append(GTK_CLIST(volume_list), &file);
-	}
-	close(fd);
-	gtk_widget_destroy(GTK_WIDGET(assoc->req));
-	delete assoc;
+	gtk_widget_destroy (chooser);
 }
 
 // "Add Volume" button clicked
-static void cb_add_volume(...)
+static void cb_add_volume (...)
 {
-	GtkWidget *req = gtk_file_selection_new(GetString(STR_ADD_VOLUME_TITLE));
-	gtk_signal_connect_object(GTK_OBJECT(req), "delete_event", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
-	gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(req)->ok_button), "clicked", GTK_SIGNAL_FUNC(add_volume_ok), new file_req_assoc(req, NULL));
-	gtk_signal_connect_object(GTK_OBJECT(GTK_FILE_SELECTION(req)->cancel_button), "clicked", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
-	gtk_widget_show(req);
+	GtkWidget *chooser = gtk_file_chooser_dialog_new(GetString(STR_ADD_VOLUME_TITLE),
+							GTK_WINDOW(win),
+							GTK_FILE_CHOOSER_ACTION_OPEN,
+							"Cancel", GTK_RESPONSE_CANCEL,
+							"Add", GTK_RESPONSE_ACCEPT,
+							NULL);
+	gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(chooser), g_get_home_dir());
+	gtk_dialog_set_default_response(GTK_DIALOG(chooser), GTK_RESPONSE_ACCEPT);
+	gtk_window_set_modal(GTK_WINDOW(chooser), true);
+	g_signal_connect(chooser, "response", G_CALLBACK(cb_add_volume_response), NULL);
+	gtk_widget_show(chooser);
 }
 
 // "Create Hardfile" button clicked
-static void cb_create_volume(...)
+static void cb_create_volume (...)
 {
-	GtkWidget *req = gtk_file_selection_new(GetString(STR_CREATE_VOLUME_TITLE));
+	GtkWidget *chooser = gtk_file_chooser_dialog_new(GetString(STR_CREATE_VOLUME_TITLE),
+							GTK_WINDOW(win),
+							GTK_FILE_CHOOSER_ACTION_SAVE,
+							"Cancel", GTK_RESPONSE_CANCEL,
+							"Create", GTK_RESPONSE_ACCEPT,
+							NULL);
+	gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(chooser), g_get_home_dir());
+	gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(chooser), TRUE);
+	gtk_dialog_set_default_response(GTK_DIALOG(chooser), GTK_RESPONSE_ACCEPT);
+	gtk_window_set_transient_for(GTK_WINDOW(chooser), GTK_WINDOW(win));
+	gtk_window_set_modal(GTK_WINDOW(chooser), true);
 
-	GtkWidget *box = gtk_hbox_new(FALSE, 4);
+	GtkWidget *box = gtk_hbox_new(false, 8);
 	gtk_widget_show(box);
 	GtkWidget *label = gtk_label_new(GetString(STR_HARDFILE_SIZE_CTRL));
 	gtk_widget_show(label);
-	GtkWidget *entry = gtk_entry_new();
-	gtk_widget_show(entry);
-	char str[32];
-	sprintf(str, "%d", 40);
-	gtk_entry_set_text(GTK_ENTRY(entry), str);
-	gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(box), entry, FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(GTK_FILE_SELECTION(req)->main_vbox), box, FALSE, FALSE, 0);
+	GtkWidget *size_entry = gtk_entry_new();
+	gtk_widget_show(size_entry);
+	gtk_entry_set_text(GTK_ENTRY(size_entry), "40");
+	gtk_box_pack_end(GTK_BOX(box), size_entry, FALSE, FALSE, 0);
+	gtk_box_pack_end(GTK_BOX(box), label, FALSE, FALSE, 0);
 
-	gtk_signal_connect_object(GTK_OBJECT(req), "delete_event", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
-	gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(req)->ok_button), "clicked", GTK_SIGNAL_FUNC(create_volume_ok), new file_req_assoc(req, entry));
-	gtk_signal_connect_object(GTK_OBJECT(GTK_FILE_SELECTION(req)->cancel_button), "clicked", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(req));
-	gtk_widget_show(req);
+	gtk_file_chooser_set_extra_widget(GTK_FILE_CHOOSER(chooser), box);
+
+	g_signal_connect(chooser, "response", G_CALLBACK(cb_create_volume_response), size_entry);
+	gtk_widget_show(chooser);
 }
-
 // "Remove Volume" button clicked
 static void cb_remove_volume(...)
 {
@@ -569,8 +593,13 @@ static void cb_remove_volume(...)
 }
 
 // "Boot From" selected
-static void mn_boot_any(...) {PrefsReplaceInt32("bootdriver", 0);}
-static void mn_boot_cdrom(...) {PrefsReplaceInt32("bootdriver", CDROMRefNum);}
+static void mn_bootdriver(GtkWidget *widget)
+{
+	if (gtk_combo_box_get_active(GTK_COMBO_BOX(widget)))
+		PrefsReplaceInt32("bootdriver", CDROMRefNum);
+	else
+		PrefsReplaceInt32("bootdriver", 0);
+}
 
 // "No CD-ROM Driver" button toggled
 static void tb_nocdrom(GtkWidget *widget)
@@ -608,7 +637,7 @@ static void create_volumes_pane(GtkWidget *top)
 	gtk_clist_set_selection_mode(GTK_CLIST(volume_list), GTK_SELECTION_SINGLE);
 	gtk_clist_set_shadow_type(GTK_CLIST(volume_list), GTK_SHADOW_NONE);
 	gtk_clist_set_reorderable(GTK_CLIST(volume_list), true);
-	gtk_signal_connect(GTK_OBJECT(volume_list), "select_row", GTK_SIGNAL_FUNC(cl_selected), NULL);
+	g_signal_connect(volume_list, "select_row", G_CALLBACK(cl_selected), NULL);
 	char *str;
 	int32 index = 0;
 	while ((str = (char *)PrefsFindString("disk", index++)) != NULL)
@@ -618,29 +647,29 @@ static void create_volumes_pane(GtkWidget *top)
 	selected_volume = 0;
 
 	static const opt_desc buttons[] = {
-		{STR_ADD_VOLUME_BUTTON, GTK_SIGNAL_FUNC(cb_add_volume)},
-		{STR_CREATE_VOLUME_BUTTON, GTK_SIGNAL_FUNC(cb_create_volume)},
-		{STR_REMOVE_VOLUME_BUTTON, GTK_SIGNAL_FUNC(cb_remove_volume)},
+		{STR_ADD_VOLUME_BUTTON, G_CALLBACK(cb_add_volume)},
+		{STR_CREATE_VOLUME_BUTTON, G_CALLBACK(cb_create_volume)},
+		{STR_REMOVE_VOLUME_BUTTON, G_CALLBACK(cb_remove_volume)},
 		{0, NULL},
 	};
 	make_button_box(box, 0, buttons);
 	make_separator(box);
 
-	w_extfs = make_entry(box, STR_EXTFS_CTRL, "extfs");
+	w_extfs = make_file_entry(box, STR_EXTFS_CTRL, "extfs", true);
 
-	static const opt_desc options[] = {
-		{STR_BOOT_ANY_LAB, GTK_SIGNAL_FUNC(mn_boot_any)},
-		{STR_BOOT_CDROM_LAB, GTK_SIGNAL_FUNC(mn_boot_cdrom)},
-		{0, NULL}
+	static const combo_desc options[] = {
+		STR_BOOT_ANY_LAB,
+		STR_BOOT_CDROM_LAB,
+		0
 	};
 	int bootdriver = PrefsFindInt32("bootdriver"), active = 0;
 	switch (bootdriver) {
 		case 0: active = 0; break;
 		case CDROMRefNum: active = 1; break;
 	}
-	menu = make_option_menu(box, STR_BOOTDRIVER_CTRL, options, active);
+	menu = make_option_menu(box, STR_BOOTDRIVER_CTRL, options, G_CALLBACK(mn_bootdriver), active);
 
-	make_checkbox(box, STR_NOCDROM_CTRL, "nocdrom", GTK_SIGNAL_FUNC(tb_nocdrom));
+	make_checkbox(box, STR_NOCDROM_CTRL, "nocdrom", G_CALLBACK(tb_nocdrom));
 }
 
 
@@ -703,11 +732,11 @@ static void create_jit_pane(GtkWidget *top)
 	box = make_pane(top, STR_JIT_PANE_TITLE);
 
 	if (is_jit_capable()) {
-		make_checkbox(box, STR_JIT_CTRL, "jit", GTK_SIGNAL_FUNC(tb_jit));
+		make_checkbox(box, STR_JIT_CTRL, "jit", G_CALLBACK(tb_jit));
 		set_jit_sensitive();
 	}
 
-	make_checkbox(box, STR_JIT_68K_CTRL, "jit68k", GTK_SIGNAL_FUNC(tb_jit_68k));
+	make_checkbox(box, STR_JIT_68K_CTRL, "jit68k", G_CALLBACK(tb_jit_68k));
 }
 
 
@@ -729,40 +758,30 @@ static bool is_fbdev_dga_mode = false;
 
 static GtkWidget *w_dspdevice_file, *w_mixerdevice_file;
 
-// Hide/show graphics widgets
-static void hide_show_graphics_widgets(void)
+// "Window"/"Fullscreen" video type selected
+static void mn_display(GtkWidget *widget)
 {
-	switch (display_type) {
-		case DISPLAY_WINDOW:
-			gtk_widget_show(w_frameskip); gtk_widget_show(l_frameskip);
-			break;
-		case DISPLAY_SCREEN:
-			gtk_widget_hide(w_frameskip); gtk_widget_hide(l_frameskip);
-			break;
-	}
-}
-
-// "Window" video type selected
-static void mn_window(...)
-{
-	display_type = DISPLAY_WINDOW;
-	hide_show_graphics_widgets();
-}
-
-// "Fullscreen" video type selected
-static void mn_fullscreen(...)
-{
-	display_type = DISPLAY_SCREEN;
-	hide_show_graphics_widgets();
+	if (gtk_combo_box_get_active(GTK_COMBO_BOX(widget)))
+		display_type = DISPLAY_SCREEN;
+	else
+		display_type = DISPLAY_WINDOW;
 }
 
 // "5 Hz".."60Hz" selected
-static void mn_5hz(...) {PrefsReplaceInt32("frameskip", 12);}
-static void mn_7hz(...) {PrefsReplaceInt32("frameskip", 8);}
-static void mn_10hz(...) {PrefsReplaceInt32("frameskip", 6);}
-static void mn_15hz(...) {PrefsReplaceInt32("frameskip", 4);}
-static void mn_30hz(...) {PrefsReplaceInt32("frameskip", 2);}
-static void mn_60hz(...) {PrefsReplaceInt32("frameskip", 1);}
+static void mn_frameskip(GtkWidget *widget)
+{
+	int frameskip = 1;
+	switch(gtk_combo_box_get_active(GTK_COMBO_BOX(widget)))
+	{
+		case 0: frameskip = 12; break;
+		case 1: frameskip = 8; break;
+		case 2: frameskip = 6; break;
+		case 3: frameskip = 4; break;
+		case 4: frameskip = 2; break;
+		case 5: frameskip = 1; break;
+	}
+	PrefsReplaceInt32("frameskip", frameskip);
+}
 
 // QuickDraw acceleration
 static void tb_gfxaccel(GtkWidget *widget)
@@ -853,10 +872,10 @@ static void read_graphics_settings(void)
 {
 	const char *str;
 
-	str = gtk_entry_get_text(GTK_ENTRY(w_display_x));
+	str = gtk_combo_box_get_active_text(GTK_COMBO_BOX(w_display_x));
 	dis_width = atoi(str);
 
-	str = gtk_entry_get_text(GTK_ENTRY(w_display_y));
+	str = gtk_combo_box_get_active_text(GTK_COMBO_BOX(w_display_y));
 	dis_height = atoi(str);
 
 	char pref[256];
@@ -887,7 +906,7 @@ static void read_graphics_settings(void)
 // Create "Graphics/Sound" pane
 static void create_graphics_pane(GtkWidget *top)
 {
-	GtkWidget *box, *table, *label, *opt, *menu, *combo;
+	GtkWidget *box, *table, *label, *combo;
 	char str[32];
 
 	parse_graphics_prefs();
@@ -899,35 +918,33 @@ static void create_graphics_pane(GtkWidget *top)
 	gtk_widget_show(label);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
-	opt = gtk_option_menu_new();
-	gtk_widget_show(opt);
-	menu = gtk_menu_new();
-	add_menu_item(menu, STR_WINDOW_CTRL, GTK_SIGNAL_FUNC(mn_window));
-	add_menu_item(menu, STR_FULLSCREEN_CTRL, GTK_SIGNAL_FUNC(mn_fullscreen));
+	combo = gtk_combo_box_new_text();
+	gtk_widget_show(combo);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(combo), GetString(STR_WINDOW_CTRL));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(combo), GetString(STR_FULLSCREEN_CTRL));
 	switch (display_type) {
 		case DISPLAY_WINDOW:
-			gtk_menu_set_active(GTK_MENU(menu), 0);
+			gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
 			break;
 		case DISPLAY_SCREEN:
-			gtk_menu_set_active(GTK_MENU(menu), 1);
+			gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 1);
 			break;
 	}
-	gtk_option_menu_set_menu(GTK_OPTION_MENU(opt), menu);
-	gtk_table_attach(GTK_TABLE(table), opt, 1, 2, 0, 1, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
+	g_signal_connect(combo, "changed", G_CALLBACK(mn_display), NULL);
+	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 0, 1, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 
 	l_frameskip = gtk_label_new(GetString(STR_FRAMESKIP_CTRL));
 	gtk_widget_show(l_frameskip);
 	gtk_table_attach(GTK_TABLE(table), l_frameskip, 0, 1, 1, 2, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
-	w_frameskip = gtk_option_menu_new();
+	w_frameskip = gtk_combo_box_new_text();
 	gtk_widget_show(w_frameskip);
-	menu = gtk_menu_new();
-	add_menu_item(menu, STR_REF_5HZ_LAB, GTK_SIGNAL_FUNC(mn_5hz));
-	add_menu_item(menu, STR_REF_7_5HZ_LAB, GTK_SIGNAL_FUNC(mn_7hz));
-	add_menu_item(menu, STR_REF_10HZ_LAB, GTK_SIGNAL_FUNC(mn_10hz));
-	add_menu_item(menu, STR_REF_15HZ_LAB, GTK_SIGNAL_FUNC(mn_15hz));
-	add_menu_item(menu, STR_REF_30HZ_LAB, GTK_SIGNAL_FUNC(mn_30hz));
-	add_menu_item(menu, STR_REF_60HZ_LAB, GTK_SIGNAL_FUNC(mn_60hz));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_frameskip), GetString(STR_REF_5HZ_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_frameskip), GetString(STR_REF_7_5HZ_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_frameskip), GetString(STR_REF_10HZ_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_frameskip), GetString(STR_REF_15HZ_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_frameskip), GetString(STR_REF_30HZ_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_frameskip), GetString(STR_REF_60HZ_LAB));
 	int frameskip = PrefsFindInt32("frameskip");
 	int item = -1;
 	switch (frameskip) {
@@ -940,62 +957,54 @@ static void create_graphics_pane(GtkWidget *top)
 		case 0: item = 5; break;
 	}
 	if (item >= 0)
-		gtk_menu_set_active(GTK_MENU(menu), item);
-	gtk_option_menu_set_menu(GTK_OPTION_MENU(w_frameskip), menu);
+		gtk_combo_box_set_active(GTK_COMBO_BOX(w_frameskip), item);
+	g_signal_connect(w_frameskip, "changed", G_CALLBACK(mn_frameskip), NULL);
 	gtk_table_attach(GTK_TABLE(table), w_frameskip, 1, 2, 1, 2, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 
 	l_display_x = gtk_label_new(GetString(STR_DISPLAY_X_CTRL));
 	gtk_widget_show(l_display_x);
 	gtk_table_attach(GTK_TABLE(table), l_display_x, 0, 1, 2, 3, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
-	combo = gtk_combo_new();
-	gtk_widget_show(combo);
-	GList *glist1 = NULL;
-	glist1 = g_list_append(glist1, (void *)GetString(STR_SIZE_512_LAB));
-	glist1 = g_list_append(glist1, (void *)GetString(STR_SIZE_640_LAB));
-	glist1 = g_list_append(glist1, (void *)GetString(STR_SIZE_800_LAB));
-	glist1 = g_list_append(glist1, (void *)GetString(STR_SIZE_1024_LAB));
-	glist1 = g_list_append(glist1, (void *)GetString(STR_SIZE_MAX_LAB));
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist1);
+	w_display_x = gtk_combo_box_entry_new_text();
+	gtk_widget_show(w_display_x);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_x), GetString(STR_SIZE_512_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_x), GetString(STR_SIZE_640_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_x), GetString(STR_SIZE_800_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_x), GetString(STR_SIZE_1024_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_x), GetString(STR_SIZE_MAX_LAB));
 	if (dis_width)
 		sprintf(str, "%d", dis_width);
 	else
 		strcpy(str, GetString(STR_SIZE_MAX_LAB));
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
-	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 2, 3, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
-	w_display_x = GTK_COMBO(combo)->entry;
+	gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(w_display_x))), str);
+	gtk_table_attach(GTK_TABLE(table), w_display_x, 1, 2, 2, 3, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 
 	l_display_y = gtk_label_new(GetString(STR_DISPLAY_Y_CTRL));
 	gtk_widget_show(l_display_y);
 	gtk_table_attach(GTK_TABLE(table), l_display_y, 0, 1, 3, 4, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
-	combo = gtk_combo_new();
-	gtk_widget_show(combo);
-	GList *glist2 = NULL;
-	glist2 = g_list_append(glist2, (void *)GetString(STR_SIZE_384_LAB));
-	glist2 = g_list_append(glist2, (void *)GetString(STR_SIZE_480_LAB));
-	glist2 = g_list_append(glist2, (void *)GetString(STR_SIZE_600_LAB));
-	glist2 = g_list_append(glist2, (void *)GetString(STR_SIZE_768_LAB));
-	glist2 = g_list_append(glist2, (void *)GetString(STR_SIZE_MAX_LAB));
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist2);
+	w_display_y = gtk_combo_box_entry_new_text();
+	gtk_widget_show(w_display_y);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_y), GetString(STR_SIZE_384_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_y), GetString(STR_SIZE_480_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_y), GetString(STR_SIZE_600_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_y), GetString(STR_SIZE_768_LAB));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(w_display_y), GetString(STR_SIZE_MAX_LAB));
 	if (dis_height)
 		sprintf(str, "%d", dis_height);
 	else
 		strcpy(str, GetString(STR_SIZE_MAX_LAB));
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
-	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 3, 4, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
-	w_display_y = GTK_COMBO(combo)->entry;
+	gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(w_display_y))), str);
+	gtk_table_attach(GTK_TABLE(table), w_display_y, 1, 2, 3, 4, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 
-	make_checkbox(box, STR_GFXACCEL_CTRL, PrefsFindBool("gfxaccel"), GTK_SIGNAL_FUNC(tb_gfxaccel));
+	make_checkbox(box, STR_GFXACCEL_CTRL, PrefsFindBool("gfxaccel"), G_CALLBACK(tb_gfxaccel));
 
 	make_separator(box);
-	make_checkbox(box, STR_NOSOUND_CTRL, "nosound", GTK_SIGNAL_FUNC(tb_nosound));
-	w_dspdevice_file = make_entry(box, STR_DSPDEVICE_FILE_CTRL, "dsp");
-	w_mixerdevice_file = make_entry(box, STR_MIXERDEVICE_FILE_CTRL, "mixer");
+	make_checkbox(box, STR_NOSOUND_CTRL, "nosound", G_CALLBACK(tb_nosound));
+	w_dspdevice_file = make_file_entry(box, STR_DSPDEVICE_FILE_CTRL, "dsp");
+	w_mixerdevice_file = make_file_entry(box, STR_MIXERDEVICE_FILE_CTRL, "mixer");
 
 	set_graphics_sensitive();
-
-	hide_show_graphics_widgets();
 }
 
 
@@ -1023,8 +1032,11 @@ static void tb_keycodes(GtkWidget *widget)
 }
 
 // "Mouse Wheel Mode" selected
-static void mn_wheel_page(...) {PrefsReplaceInt32("mousewheelmode", 0); set_input_sensitive();}
-static void mn_wheel_cursor(...) {PrefsReplaceInt32("mousewheelmode", 1); set_input_sensitive();}
+static void mn_wheelmode(GtkWidget *widget)
+{
+	PrefsReplaceInt32("mousewheelmode", gtk_combo_box_get_active(GTK_COMBO_BOX(widget)));
+	set_input_sensitive();
+}
 
 // Read settings from widgets and set preferences
 static void read_input_settings(void)
@@ -1046,7 +1058,7 @@ static void create_input_pane(GtkWidget *top)
 
 	box = make_pane(top, STR_INPUT_PANE_TITLE);
 
-	make_checkbox(box, STR_KEYCODES_CTRL, "keycodes", GTK_SIGNAL_FUNC(tb_keycodes));
+	make_checkbox(box, STR_KEYCODES_CTRL, "keycodes", G_CALLBACK(tb_keycodes));
 
 	hbox = gtk_hbox_new(FALSE, 4);
 	gtk_widget_show(hbox);
@@ -1065,23 +1077,23 @@ static void create_input_pane(GtkWidget *top)
 	gtk_widget_show(w_keycode_file);
 	gtk_box_pack_start(GTK_BOX(hbox), w_keycode_file, TRUE, TRUE, 0);
 
-	button = make_browse_button(w_keycode_file);
+	button = make_browse_button(w_keycode_file, false);
 	gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
 	g_object_set_data(G_OBJECT(w_keycode_file), "chooser_button", button);
 
 	make_separator(box);
 
-	static const opt_desc options[] = {
-		{STR_MOUSEWHEELMODE_PAGE_LAB, GTK_SIGNAL_FUNC(mn_wheel_page)},
-		{STR_MOUSEWHEELMODE_CURSOR_LAB, GTK_SIGNAL_FUNC(mn_wheel_cursor)},
-		{0, NULL}
+	static const combo_desc options[] = {
+		STR_MOUSEWHEELMODE_PAGE_LAB,
+		STR_MOUSEWHEELMODE_CURSOR_LAB,
+		0
 	};
 	int wheelmode = PrefsFindInt32("mousewheelmode"), active = 0;
 	switch (wheelmode) {
 		case 0: active = 0; break;
 		case 1: active = 1; break;
 	}
-	menu = make_option_menu(box, STR_MOUSEWHEELMODE_CTRL, options, active);
+	menu = make_option_menu(box, STR_MOUSEWHEELMODE_CTRL, options, G_CALLBACK(mn_wheelmode), active);
 
 	hbox = gtk_hbox_new(FALSE, 4);
 	gtk_widget_show(hbox);
@@ -1111,13 +1123,13 @@ static void read_serial_settings(void)
 {
 	const char *str;
 
-	str = gtk_entry_get_text(GTK_ENTRY(w_seriala));
+	str = gtk_combo_box_get_active_text(GTK_COMBO_BOX(w_seriala));
 	PrefsReplaceString("seriala", str);
 
-	str = gtk_entry_get_text(GTK_ENTRY(w_serialb));
+	str = gtk_combo_box_get_active_text(GTK_COMBO_BOX(w_serialb));
 	PrefsReplaceString("serialb", str);
 
-	str = gtk_entry_get_text(GTK_ENTRY(w_ether));
+	str = gtk_combo_box_get_active_text(GTK_COMBO_BOX(w_ether));
 	if (str && strlen(str))
 		PrefsReplaceString("ether", str);
 	else
@@ -1218,45 +1230,50 @@ static void create_serial_pane(GtkWidget *top)
 	label = gtk_label_new(GetString(STR_SERPORTA_CTRL));
 	gtk_widget_show(label);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
-
-	combo = gtk_combo_new();
-	gtk_widget_show(combo);
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
-	const char *str = PrefsFindString("seriala");
-	if (str == NULL)
-		str = "";
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
-	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 0, 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
-	w_seriala = GTK_COMBO(combo)->entry;
-
 	label = gtk_label_new(GetString(STR_SERPORTB_CTRL));
 	gtk_widget_show(label);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 1, 2, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
-	combo = gtk_combo_new();
-	gtk_widget_show(combo);
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
+	w_seriala = gtk_combo_box_entry_new_text();
+	gtk_widget_show(w_seriala);
+	w_serialb = gtk_combo_box_entry_new_text();
+	gtk_widget_show(w_serialb);
+	while (glist)
+	{
+	    gtk_combo_box_append_text(GTK_COMBO_BOX(w_seriala), (gchar *)glist->data);
+	    gtk_combo_box_append_text(GTK_COMBO_BOX(w_serialb), (gchar *)glist->data);
+	    glist = glist->next;
+	}
+
+	const char *str = PrefsFindString("seriala");
+	if (str == NULL)
+		str = "";
+	gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(w_seriala))), str);
 	str = PrefsFindString("serialb");
 	if (str == NULL)
 		str = "";
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
-	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 1, 2, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
-	w_serialb = GTK_COMBO(combo)->entry;
+	gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(w_serialb))), str);
+
+	gtk_table_attach(GTK_TABLE(table), w_seriala, 1, 2, 0, 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
+	gtk_table_attach(GTK_TABLE(table), w_serialb, 1, 2, 1, 2, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
 
 	label = gtk_label_new(GetString(STR_ETHERNET_IF_CTRL));
 	gtk_widget_show(label);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 2, 3, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
 	glist = add_ether_names();
-	combo = gtk_combo_new();
-	gtk_widget_show(combo);
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
+	w_ether = gtk_combo_box_entry_new_text();
+	gtk_widget_show(w_ether);
+	while (glist)
+	{
+	    gtk_combo_box_append_text(GTK_COMBO_BOX(w_ether), (gchar *)glist->data);
+	    glist = glist->next;
+	}
 	str = PrefsFindString("ether");
 	if (str == NULL)
 		str = "";
-	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), str); 
-	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, 2, 3, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
-	w_ether = GTK_COMBO(combo)->entry;
+	gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(w_ether))), str);
+	gtk_table_attach(GTK_TABLE(table), w_ether, 1, 2, 2, 3, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
 }
 
 
@@ -1282,7 +1299,7 @@ static void tb_ignoresegv(GtkWidget *widget)
 // Read settings from widgets and set preferences
 static void read_memory_settings(void)
 {
-	const char *str = gtk_entry_get_text(GTK_ENTRY(GTK_COMBO(w_ramsize)->entry));
+	const char *str = gtk_combo_box_get_active_text(GTK_COMBO_BOX(w_ramsize));
 	PrefsReplaceInt32("ramsize", atoi(str) << 20);
 
 	str = gtk_entry_get_text(GTK_ENTRY(w_rom_file));
@@ -1301,8 +1318,6 @@ static void create_memory_pane(GtkWidget *top)
 	table = make_table(box, 2, 5);
 
 	static const combo_desc options[] = {
-		STR_RAMSIZE_4MB_LAB,
-		STR_RAMSIZE_8MB_LAB,
 		STR_RAMSIZE_16MB_LAB,
 		STR_RAMSIZE_32MB_LAB,
 		STR_RAMSIZE_64MB_LAB,
@@ -1318,8 +1333,8 @@ static void create_memory_pane(GtkWidget *top)
 
 	w_rom_file = table_make_file_entry(table, 1, STR_ROM_FILE_CTRL, "rom");
 
-	make_checkbox(box, STR_IGNORESEGV_CTRL, "ignoresegv", GTK_SIGNAL_FUNC(tb_ignoresegv));
-	make_checkbox(box, STR_IDLEWAIT_CTRL, "idlewait", GTK_SIGNAL_FUNC(tb_idlewait));
+	make_checkbox(box, STR_IGNORESEGV_CTRL, "ignoresegv", G_CALLBACK(tb_ignoresegv));
+	make_checkbox(box, STR_IDLEWAIT_CTRL, "idlewait", G_CALLBACK(tb_idlewait));
 }
 
 
@@ -1378,7 +1393,7 @@ static void display_alert(int title_id, int prefix_id, int button_id, const char
 	gtk_window_set_title(GTK_WINDOW(dialog), GetString(title_id));
 	gtk_container_border_width(GTK_CONTAINER(dialog), 5);
 	gtk_widget_set_uposition(GTK_WIDGET(dialog), 100, 150);
-	gtk_signal_connect(GTK_OBJECT(dialog), "destroy", GTK_SIGNAL_FUNC(dl_destroyed), NULL);
+	g_signal_connect(dialog, "destroy", G_CALLBACK(dl_destroyed), NULL);
 
 	GtkWidget *label = gtk_label_new(str);
 	gtk_widget_show(label);
@@ -1386,7 +1401,7 @@ static void display_alert(int title_id, int prefix_id, int button_id, const char
 
 	GtkWidget *button = gtk_button_new_with_label(GetString(button_id));
 	gtk_widget_show(button);
-	gtk_signal_connect_object(GTK_OBJECT(button), "clicked", GTK_SIGNAL_FUNC(dl_quit), GTK_OBJECT(dialog));
+	g_signal_connect_object(button, "clicked", G_CALLBACK(dl_quit), dialog, (GConnectFlags) 0)
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, FALSE, FALSE, 0);
 	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
 	gtk_widget_grab_default(button);
