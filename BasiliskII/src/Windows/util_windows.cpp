@@ -401,7 +401,7 @@ const TCHAR *ether_guid_to_name(const TCHAR *guid)
 
 #define ADAPTER_KEY TEXT("SYSTEM\\CurrentControlSet\\Control\\Class\\{4D36E972-E325-11CE-BFC1-08002BE10318}")
 
-const _TCHAR * tap_component_ids[] = { TEXT("tap0801"), TEXT("tap0901"), 0 };
+const _TCHAR * tap_component_ids[] = { TEXT("root\\tap0801"), TEXT("root\\tap0901"), 0 };
 
 const TCHAR *ether_tap_devices(void)
 {
