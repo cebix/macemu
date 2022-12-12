@@ -50,11 +50,14 @@ static int audio_channel_count_index = 0;
 static SDL_sem *audio_irq_done_sem = NULL;			// Signal from interrupt to streaming thread: data block read
 static uint8 silence_byte;							// Byte value to use to fill sound buffers with silence
 static uint8 *audio_mix_buf = NULL;
-static int audio_volume = SDL_MIX_MAXVOLUME;
-static bool audio_mute = false;
+static int main_volume = MAC_MAX_VOLUME;
+static int speaker_volume = MAC_MAX_VOLUME;
+static bool main_mute = false;
+static bool speaker_mute = false;
 
 // Prototypes
 static void stream_func(void *arg, uint8 *stream, int stream_len);
+static int get_audio_volume();
 
 
 /*
@@ -113,7 +116,7 @@ static bool open_sdl_audio(void)
 
 #if defined(BINCUE)
 	OpenAudio_bincue(audio_spec.freq, audio_spec.format, audio_spec.channels,
-	audio_spec.silence, audio_volume);
+	audio_spec.silence, get_audio_volume());
 #endif
 
 #if SDL_VERSION_ATLEAST(2,0,0)
@@ -229,7 +232,7 @@ static void stream_func(void *arg, uint8 *stream, int stream_len)
 
 		// Get size of audio data
 		uint32 apple_stream_info = ReadMacInt32(audio_data + adatStreamInfo);
-		if (apple_stream_info && !audio_mute) {
+		if (apple_stream_info && !main_mute && !speaker_mute) {
 			int work_size = ReadMacInt32(apple_stream_info + scd_sampleCount) * (AudioStatus.sample_size >> 3) * AudioStatus.channels;
 			D(bug("stream: work_size %d\n", work_size));
 			if (work_size > stream_len)
@@ -240,7 +243,7 @@ static void stream_func(void *arg, uint8 *stream, int stream_len)
 			// Send data to audio device
 			Mac2Host_memcpy(audio_mix_buf, ReadMacInt32(apple_stream_info + scd_buffer), work_size);
 			memset((uint8 *)stream, silence_byte, stream_len);
-			SDL_MixAudio(stream, audio_mix_buf, work_size, audio_volume);
+			SDL_MixAudio(stream, audio_mix_buf, work_size, get_audio_volume());
 
 			D(bug("stream: data written\n"));
 
@@ -254,7 +257,7 @@ static void stream_func(void *arg, uint8 *stream, int stream_len)
 	}
 	
 #if defined(BINCUE)
-	MixAudio_bincue(stream, stream_len, audio_volume);
+	MixAudio_bincue(stream, stream_len, get_audio_volume());
 #endif
 	
 }
@@ -320,45 +323,54 @@ bool audio_set_channels(int index)
 
 bool audio_get_main_mute(void)
 {
-	return audio_mute;
+	return main_mute;
 }
 
 uint32 audio_get_main_volume(void)
 {
-	uint32 chan = (audio_volume * MAC_MAX_VOLUME / SDL_MIX_MAXVOLUME);
+	uint32 chan = main_volume;
 	return (chan << 16) + chan;
 }
 
 bool audio_get_speaker_mute(void)
 {
-	return audio_mute;
+	return speaker_mute;
 }
 
 uint32 audio_get_speaker_volume(void)
 {
-	return audio_get_main_volume();
+	uint32 chan = speaker_volume;
+	return (chan << 16) + chan;
 }
 
 void audio_set_main_mute(bool mute)
 {
-	audio_mute = mute;
+	main_mute = mute;
 }
 
 void audio_set_main_volume(uint32 vol)
 {
 	// We only have one-channel volume right now.
-	uint32 avg = ((vol >> 16) + (vol & 0xffff)) / 2;
-	if (avg > MAC_MAX_VOLUME)
-		avg = MAC_MAX_VOLUME;
-	audio_volume = avg * SDL_MIX_MAXVOLUME / MAC_MAX_VOLUME;
+	main_volume = ((vol >> 16) + (vol & 0xffff)) / 2;
+	if (main_volume > MAC_MAX_VOLUME)
+		main_volume = MAC_MAX_VOLUME;
 }
 
 void audio_set_speaker_mute(bool mute)
 {
+	speaker_mute = mute;
 }
 
 void audio_set_speaker_volume(uint32 vol)
 {
+	// We only have one-channel volume right now.
+	speaker_volume = ((vol >> 16) + (vol & 0xffff)) / 2;
+	if (speaker_volume > MAC_MAX_VOLUME)
+		speaker_volume = MAC_MAX_VOLUME;
+}
+
+static int get_audio_volume() {
+	return main_volume * speaker_volume * SDL_MIX_MAXVOLUME / (MAC_MAX_VOLUME * MAC_MAX_VOLUME);
 }
 
 #if SDL_VERSION_ATLEAST(2,0,0)
