@@ -113,7 +113,7 @@ void prefs_init(void)
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 #if SDL_VERSION_ATLEAST(2,0,0)
 	for (NSMenuItem *sub_item in [NSApp mainMenu].itemArray[0].submenu.itemArray) {
-		if ([sub_item.title isEqualToString:@"Preferences…"]) {
+		if ([sub_item.title isEqualToString:@"Preferences…"] || [sub_item.title isEqualToString:@"Settings…"]) {
 			sub_item.target = [[SheepShaverMain alloc] init];
 			sub_item.action = @selector(openPreferences:);
 			break;
