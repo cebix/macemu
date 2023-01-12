@@ -559,7 +559,7 @@ static bool open_window(int width, int height)
 
 	// 1-bit mode is big-endian; if the X server is little-endian, we can't
 	// use SHM because that doesn't allow changing the image byte order
-	bool need_msb_image = (depth == 1 && XImageByteOrder(x_display) == LSBFirst);
+	bool need_msb_image = (/*depth == 1 && */XImageByteOrder(x_display) == LSBFirst);
 
 	// Try to create and attach SHM image
 	have_shm = false;
