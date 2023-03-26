@@ -1401,7 +1401,7 @@ static void display_alert(int title_id, int prefix_id, int button_id, const char
 
 	GtkWidget *button = gtk_button_new_with_label(GetString(button_id));
 	gtk_widget_show(button);
-	g_signal_connect_object(button, "clicked", G_CALLBACK(dl_quit), dialog, (GConnectFlags) 0)
+	g_signal_connect_object(button, "clicked", G_CALLBACK(dl_quit), dialog, (GConnectFlags) 0);
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, FALSE, FALSE, 0);
 	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
 	gtk_widget_grab_default(button);
