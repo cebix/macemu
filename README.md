@@ -61,7 +61,7 @@ $ make
 ##### MinGW32/MSYS2
 preparation:
 ```
-pacman -S base-devel mingw-w64-i686-toolchain autoconf automake mingw-w64-i686-SDL2 mingw-w64-i686-gtk2
+$ pacman -S base-devel mingw-w64-i686-toolchain autoconf automake mingw-w64-i686-SDL2 mingw-w64-i686-gtk2
 ```
 build:
 ```
