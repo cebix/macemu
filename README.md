@@ -44,6 +44,9 @@ $ CFLAGS="-arch arm64" CXXFLAGS="$CFLAGS" ./configure -host=aarch64-apple-darwin
 ```
 (from https://github.com/kanjitalk755/macemu/pull/96)
 
+about changing Deployment Target:  
+If you build with an older version of Xcode, you can change Deployment Target to the minimum it supports or 10.7, whichever is greater.
+
 build:
 ```
 $ cd macemu/BasiliskII/src/MacOSX
@@ -71,6 +74,7 @@ $ make
 ```
 #### SheepShaver
 ##### macOS
+about changing Deployment Target: see BasiliskII
 ```
 $ cd macemu/SheepShaver/src/MacOSX
 $ xcodebuild build -project SheepShaver_Xcode8.xcodeproj -configuration Release
