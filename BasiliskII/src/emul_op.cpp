@@ -462,7 +462,9 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 				if (HasMacStarted()) {
 
 					// Mac has started, execute all 60Hz interrupt functions
+#if !PRECISE_TIMING
 					TimerInterrupt();
+#endif
 					VideoInterrupt();
 
 					// Call DoVBLTask(0)
@@ -494,7 +496,12 @@ void EmulOp(uint16 opcode, M68kRegisters *r)
 				ClearInterruptFlag(INTFLAG_ETHER);
 				EtherInterrupt();
 			}
-
+#if PRECISE_TIMING
+			if (InterruptFlags & INTFLAG_TIMER) {
+				ClearInterruptFlag(INTFLAG_TIMER);
+				TimerInterrupt();
+			}
+#endif
 			if (InterruptFlags & INTFLAG_AUDIO) {
 				ClearInterruptFlag(INTFLAG_AUDIO);
 				AudioInterrupt();

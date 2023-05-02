@@ -498,4 +498,13 @@ static inline uae_u32 do_byteswap_16(uae_u32 v)
 #define ALWAYS_INLINE   inline __attribute__((always_inline))
 #define memptr uint32
 
+// High-precision timing
+#if defined(HAVE_PTHREADS) && defined(HAVE_CLOCK_NANOSLEEP)
+#define PRECISE_TIMING 1
+#define PRECISE_TIMING_POSIX 1
+#elif defined(HAVE_PTHREADS) && defined(__MACH__)
+#define PRECISE_TIMING 1
+#define PRECISE_TIMING_MACH 1
+#endif
+
 #endif
