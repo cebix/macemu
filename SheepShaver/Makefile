@@ -51,7 +51,7 @@ $(SRCARCHIVE): $(SRCS) $(DOCS)
 links:
 	(cd src/Windows; if [ ! -e m4 ]; then ln -s ../../../BasiliskII/src/Unix/m4; fi)
 	@list='adb.cpp audio.cpp cdrom.cpp disk.cpp extfs.cpp pict.c \
-	       prefs.cpp scsi.cpp sony.cpp xpram.cpp \
+	       prefs.cpp scsi.cpp sony.cpp timer.cpp xpram.cpp \
 	       bincue.cpp include/bincue.h \
 	       include/adb.h include/audio.h include/audio_defs.h \
 	       include/cdrom.h include/clip.h include/debug.h include/disk.h \
