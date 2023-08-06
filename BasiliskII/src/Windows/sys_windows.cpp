@@ -446,7 +446,7 @@ static bool is_read_only_path(const TCHAR *name)
  *  Open file/device, create new file handle (returns NULL on error)
  */
 
-void *Sys_open(const char *path_name, bool read_only)
+void *Sys_open(const char *path_name, bool read_only, bool is_cdrom)
 {
 	file_handle * fh = NULL;
 

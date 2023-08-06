@@ -301,16 +301,13 @@ static bool position2msf(const cdrom_drive_info &info, uint16 postype, uint32 po
 
 void CDROMInit(void)
 {
-	// No drives specified in prefs? Then add defaults
-	if (PrefsFindString("cdrom", 0) == NULL) {
-		SysAddCDROMPrefs();
-	}
+	SysAddCDROMPrefs();
 	
 	// Add drives specified in preferences
 	int index = 0;
 	const char *str;
 	while ((str = PrefsFindString("cdrom", index++)) != NULL) {
-		void *fh = Sys_open(str, true);
+		void *fh = Sys_open(str, true, true);
 		if (fh)
 			drives.push_back(cdrom_drive_info(fh));
 	}
@@ -323,6 +320,10 @@ void CDROMInit(void)
 	}
 }
 
+void CDROMDrop(const char *path) {
+	if (!drives.empty())
+		drives.front().fh = Sys_open(path, true, true);
+}
 
 /*
  *  Deinitialization
@@ -564,6 +565,8 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 				SysEject(info->fh);
 				WriteMacInt8(info->status + dsDiskInPlace, 0);
 				info->twok_offset = -1;
+				info->close_fh();
+				info->fh = NULL;
 				return noErr;
 			} else {
 				return offLinErr;

@@ -68,6 +68,7 @@
 #include "video_defs.h"
 #include "video_blit.h"
 #include "vm_alloc.h"
+#include "cdrom.h"
 
 #define DEBUG 0
 #include "debug.h"
@@ -2411,6 +2412,11 @@ static void handle_events(void)
 				}
 				break;
 			}
+
+			case SDL_DROPFILE:
+				CDROMDrop(event.drop.file);
+				SDL_free(event.drop.file);
+				break;
 
 			// Window "close" widget clicked
 			case SDL_QUIT:

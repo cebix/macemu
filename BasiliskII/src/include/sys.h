@@ -50,7 +50,7 @@ extern void SysAddSerialPrefs(void);
  *  that is freed by Sys_close().
  */
 
-extern void *Sys_open(const char *name, bool read_only);
+extern void *Sys_open(const char *name, bool read_only, bool is_cdrom = false);
 extern void Sys_close(void *fh);
 extern size_t Sys_read(void *fh, void *buffer, loff_t offset, size_t length);
 extern size_t Sys_write(void *fh, void *buffer, loff_t offset, size_t length);
