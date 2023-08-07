@@ -124,8 +124,8 @@ static const uint8 bcd2bin[256] = {
 
 // Struct for each drive
 struct cdrom_drive_info {
-	cdrom_drive_info() : num(0), fh(NULL), start_byte(0), status(0) {}
-	cdrom_drive_info(void *fh_) : num(0), fh(fh_), start_byte(0), status(0) {}
+	cdrom_drive_info() : num(0), fh(NULL), start_byte(0), status(0), drop(false) {}
+	cdrom_drive_info(void *fh_) : num(0), fh(fh_), start_byte(0), status(0), drop(false) {}
 	
 	void close_fh(void) { SysAllowRemoval(fh); Sys_close(fh); }
 	
@@ -147,6 +147,7 @@ struct cdrom_drive_info {
 	bool repeat;		// Repeat flag
 	uint8 power_mode;	// Power mode
 	uint32 status;		// Mac address of drive status record
+	bool drop;
 };
 
 // List of drives handled by this driver
@@ -321,8 +322,14 @@ void CDROMInit(void)
 }
 
 void CDROMDrop(const char *path) {
-	if (!drives.empty())
-		drives.front().fh = Sys_open(path, true, true);
+	if (!drives.empty()) {
+		cdrom_drive_info &info = drives.back();
+		if (!info.drop) {
+			info.fh = Sys_open(path, true, true);
+			if (info.fh)
+				info.drop = true;
+		}
+	}
 }
 
 /*
@@ -567,6 +574,7 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 				info->twok_offset = -1;
 				info->close_fh();
 				info->fh = NULL;
+				info->drop = false;
 				return noErr;
 			} else {
 				return offLinErr;
