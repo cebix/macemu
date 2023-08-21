@@ -734,13 +734,9 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 			shutdown_sdl_video();
 			return NULL;
 		}
-#ifdef __MACOSX__
 		window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 		window_width = desktop_mode.w;
 		window_height = desktop_mode.h;
-#else
-		window_flags |= SDL_WINDOW_FULLSCREEN;
-#endif
 	}
 	
 	if (sdl_window) {
