@@ -35,6 +35,7 @@ AC_ARG_ENABLE(fpe,
 
 dnl External packages.
 AC_ARG_WITH(gtk,             [  --with-gtk              use GTK user interface [default=yes]], [WANT_GTK=$withval], [WANT_GTK=yes])
+AC_ARG_ENABLE(vosf,         [  --enable-vosf           enable video on SEGV signals [default=no]], [WANT_VOSF=$enableval], [WANT_VOSF=no])
 
 AC_ARG_WITH(bincue,   
   AS_HELP_STRING([--with-bincue], [Allow cdrom image files in bin/cue mode]))
@@ -211,8 +212,12 @@ AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
 AC_TRANSLATE_DEFINE(HAVE_SIGSEGV_SKIP_INSTRUCTION, "$ac_cv_have_skip_instruction",
   [Define if we can ignore the fault (instruction skipping in SIGSEGV handler).])
 
-dnl We really want VOSF (Video on SEGV Signals) screen updates acceleration
-AC_DEFINE(ENABLE_VOSF, 1, [Define if using video enabled on SEGV signals.])
+dnl Enable VOSF screen updates with this feature is requested
+if [[ "x$WANT_VOSF" = "xyes" ]]; then
+    AC_DEFINE(ENABLE_VOSF, 1, [Define if using video enabled on SEGV signals.])
+else
+    WANT_VOSF=no
+fi
 
 dnl Determine the addressing mode to use
 ADDRESSING_MODE=""
@@ -587,5 +592,6 @@ echo Assembly optimizations ................. : $ASM_OPTIMIZATIONS
 echo Addressing mode ........................ : $ADDRESSING_MODE
 echo BINCUE support ......................... : $have_bincue
 echo GTK user interface ..................... : $WANT_GTK
+echo Enable VOSF ............................ : $WANT_VOSF
 echo
 echo "Configuration done. Now type \"make\" (or \"gmake\")."

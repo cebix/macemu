@@ -28,7 +28,7 @@ dnl Video options.
 AC_ARG_ENABLE(xf86-dga,      [  --enable-xf86-dga       use the XFree86 DGA extension [default=yes]], [WANT_XF86_DGA=$enableval], [WANT_XF86_DGA=yes])
 AC_ARG_ENABLE(xf86-vidmode,  [  --enable-xf86-vidmode   use the XFree86 VidMode extension [default=yes]], [WANT_XF86_VIDMODE=$enableval], [WANT_XF86_VIDMODE=yes])
 AC_ARG_ENABLE(fbdev-dga,     [  --enable-fbdev-dga      use direct frame buffer access via /dev/fb [default=yes]], [WANT_FBDEV_DGA=$enableval], [WANT_FBDEV_DGA=yes])
-AC_ARG_ENABLE(vosf,          [  --enable-vosf           enable video on SEGV signals [default=yes]], [WANT_VOSF=$enableval], [WANT_VOSF=yes])
+AC_ARG_ENABLE(vosf,          [  --enable-vosf           enable video on SEGV signals [default=no]], [WANT_VOSF=$enableval], [WANT_VOSF=no])
 
 dnl SDL options.
 AC_ARG_ENABLE(sdl-static,    [  --enable-sdl-static     use SDL static libraries for linking [default=no]], [WANT_SDL_STATIC=$enableval], [WANT_SDL_STATIC=no])
@@ -1417,7 +1417,6 @@ else
       fi
       dnl Real addressing will probably work.
       ADDRESSING_MODE="real"
-      WANT_VOSF=yes dnl we can use VOSF and we need it actually
       DEFINES="$DEFINES -DREAL_ADDRESSING"
       if [[ "x$ac_cv_pagezero_hack" = "xyes" ]]; then
         BLESS=Darwin/lowmem
@@ -1429,7 +1428,6 @@ else
       dnl Requires VOSF screen updates
       if [[ "x$CAN_VOSF" = "xyes" ]]; then
         ADDRESSING_MODE="direct"
-        WANT_VOSF=yes dnl we can use VOSF and we need it actually
         DEFINES="$DEFINES -DDIRECT_ADDRESSING"
         break
       fi

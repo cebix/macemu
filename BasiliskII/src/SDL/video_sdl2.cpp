@@ -629,7 +629,7 @@ public:
 	~driver_base();
 
 	void init(); // One-time init
-	void set_video_mode(int flags);
+	void set_video_mode(int flags, int pitch);
 	void adapt_to_video_mode();
 
 	void update_palette(void);
@@ -717,7 +717,7 @@ static int get_mag_rate()
 	return m < 1 ? 1 : m > 4 ? 4 : m;
 }
 
-static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags)
+static SDL_Surface *init_sdl_video(int width, int height, int depth, Uint32 flags, int pitch)
 {
     if (guest_surface) {
         delete_sdl_video_surfaces();
@@ -821,7 +821,11 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
     }
 
 	SDL_assert(sdl_texture == NULL);
-    sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+#ifdef ENABLE_VOSF
+	sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+#else
+	sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_BGRA8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+#endif
     if (!sdl_texture) {
         shutdown_sdl_video();
         return NULL;
@@ -833,19 +837,32 @@ static SDL_Surface * init_sdl_video(int width, int height, int bpp, Uint32 flags
 
 	SDL_assert(guest_surface == NULL);
 	SDL_assert(host_surface == NULL);
-    switch (bpp) {
-        case 8:
-            guest_surface = SDL_CreateRGBSurface(0, width, height, 8, 0, 0, 0, 0);
-            break;
-		case 16:
-			guest_surface = SDL_CreateRGBSurface(0, width, height, 16, 0x0000F800, 0x000007E0, 0x0000001F, 0x00000000);
+    switch (depth) {
+		case VIDEO_DEPTH_1BIT:
+		case VIDEO_DEPTH_2BIT:
+		case VIDEO_DEPTH_4BIT:
+			guest_surface = SDL_CreateRGBSurface(0, width, height, 8, 0, 0, 0, 0);
 			break;
-        case 32:
-            guest_surface = SDL_CreateRGBSurface(0, width, height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
-            host_surface = guest_surface;
+		case VIDEO_DEPTH_8BIT:
+#ifdef ENABLE_VOSF
+			guest_surface = SDL_CreateRGBSurface(0, width, height, 8, 0, 0, 0, 0);
+#else
+			guest_surface = SDL_CreateRGBSurfaceFrom(the_buffer, width, height, 8, pitch, 0, 0, 0, 0);
+#endif
+			break;
+		case VIDEO_DEPTH_16BIT:
+			guest_surface = SDL_CreateRGBSurface(0, width, height, 16, 0xf800, 0x07e0, 0x001f, 0);
+			break;
+		case VIDEO_DEPTH_32BIT:
+#ifdef ENABLE_VOSF
+			guest_surface = SDL_CreateRGBSurface(0, width, height, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+#else
+			guest_surface = SDL_CreateRGBSurfaceFrom(the_buffer, width, height, 32, pitch, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
+#endif
+			host_surface = guest_surface;
             break;
         default:
-            printf("WARNING: An unsupported bpp of %d was used\n", bpp);
+            printf("WARNING: An unsupported depth of %d was used\n", depth);
             break;
     }
     if (!guest_surface) {
@@ -933,14 +950,22 @@ static int present_sdl_video()
 	UNLOCK_PALETTE; // passed potential deadlock, can unlock palette
 	
     // Update the host OS' texture
-    void * srcPixels = (void *)((uint8_t *)host_surface->pixels +
-        sdl_update_video_rect.y * host_surface->pitch +
-        sdl_update_video_rect.x * host_surface->format->BytesPerPixel);
+	uint8_t *srcPixels = (uint8_t *)host_surface->pixels +
+		sdl_update_video_rect.y * host_surface->pitch +
+		sdl_update_video_rect.x * host_surface->format->BytesPerPixel;
 
-    if (SDL_UpdateTexture(sdl_texture, &sdl_update_video_rect, srcPixels, host_surface->pitch) != 0) {
-        SDL_UnlockMutex(sdl_update_video_mutex);
+	uint8_t *dstPixels;
+	int dstPitch;
+	if (SDL_LockTexture(sdl_texture, &sdl_update_video_rect, (void **)&dstPixels, &dstPitch) < 0) {
+		SDL_UnlockMutex(sdl_update_video_mutex);
 		return -1;
 	}
+	for (int y = 0; y < sdl_update_video_rect.h; y++) {
+		memcpy(dstPixels, srcPixels, sdl_update_video_rect.w << 2);
+		srcPixels += host_surface->pitch;
+		dstPixels += dstPitch;
+	}
+	SDL_UnlockTexture(sdl_texture);
 
     // We are done working with pixels in host_surface.  Reset sdl_update_video_rect, then let
     // other threads modify it, as-needed.
@@ -1008,10 +1033,9 @@ static SDL_Cursor *MagCursor(bool hot) {
 }
 #endif
 
-void driver_base::set_video_mode(int flags)
+void driver_base::set_video_mode(int flags, int pitch)
 {
-	int depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
-	if ((s = init_sdl_video(VIDEO_MODE_X, VIDEO_MODE_Y, depth, flags)) == NULL)
+	if ((s = init_sdl_video(VIDEO_MODE_X, VIDEO_MODE_Y, VIDEO_MODE_DEPTH, flags, pitch)) == NULL)
 		return;
 #ifdef ENABLE_VOSF
 	the_host_buffer = (uint8 *)s->pixels;
@@ -1020,13 +1044,18 @@ void driver_base::set_video_mode(int flags)
 
 void driver_base::init()
 {
-	set_video_mode(display_type == DISPLAY_SCREEN ? SDL_WINDOW_FULLSCREEN : 0);
+	int pitch = VIDEO_MODE_X;
+	switch (VIDEO_MODE_DEPTH) {
+		case VIDEO_DEPTH_16BIT: pitch <<= 1; break;
+		case VIDEO_DEPTH_32BIT: pitch <<= 2; break;
+	}
+		
 	int aligned_height = (VIDEO_MODE_Y + 15) & ~15;
 
 #ifdef ENABLE_VOSF
 	use_vosf = true;
 	// Allocate memory for frame buffer (SIZE is extended to page-boundary)
-	the_buffer_size = page_extend((aligned_height + 2) * s->pitch);
+	the_buffer_size = page_extend((aligned_height + 2) * pitch);
 	the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
 	the_buffer_copy = (uint8 *)malloc(the_buffer_size);
 	D(bug("the_buffer = %p, the_buffer_copy = %p, the_host_buffer = %p\n", the_buffer, the_buffer_copy, the_host_buffer));
@@ -1049,11 +1078,14 @@ void driver_base::init()
 #endif
 	if (!use_vosf) {
 		// Allocate memory for frame buffer
-		the_buffer_size = (aligned_height + 2) * s->pitch;
+		the_buffer_size = (aligned_height + 2) * pitch;
 		the_buffer_copy = (uint8 *)calloc(1, the_buffer_size);
 		the_buffer = (uint8 *)vm_acquire_framebuffer(the_buffer_size);
+		memset(the_buffer, 0, the_buffer_size);
 		D(bug("the_buffer = %p, the_buffer_copy = %p\n", the_buffer, the_buffer_copy));
 	}
+
+	set_video_mode(display_type == DISPLAY_SCREEN ? SDL_WINDOW_FULLSCREEN : 0, pitch);
 
 	// Set frame buffer base
 	set_mac_frame_buffer(monitor, VIDEO_MODE_DEPTH, true);
@@ -2592,6 +2624,7 @@ static void update_display_static(driver_base *drv)
 static void update_display_static_bbox(driver_base *drv)
 {
 	const VIDEO_MODE &mode = drv->mode;
+	bool blit = (int)VIDEO_MODE_DEPTH == VIDEO_DEPTH_16BIT;
 
 	// Allocate bounding boxes for SDL_UpdateRects()
 	const uint32 N_PIXELS = 64;
@@ -2624,7 +2657,7 @@ static void update_display_static_bbox(driver_base *drv)
 				const uint32 dst_yb = j * dst_bytes_per_row;
 				if (memcmp(&the_buffer[yb + xb], &the_buffer_copy[yb + xb], xs) != 0) {
 					memcpy(&the_buffer_copy[yb + xb], &the_buffer[yb + xb], xs);
-					Screen_blit((uint8 *)drv->s->pixels + dst_yb + xb, the_buffer + yb + xb, xs);
+					if (blit) Screen_blit((uint8 *)drv->s->pixels + dst_yb + xb, the_buffer + yb + xb, xs);
 					dirty = true;
 				}
 			}
