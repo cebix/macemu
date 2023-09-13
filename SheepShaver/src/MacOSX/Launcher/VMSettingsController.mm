@@ -482,7 +482,10 @@ static NSString *makeRelativeIfNecessary(NSString *path)
   cancelWasClicked = NO;
 
   // quit
-  SDL_Event event = { .type = SDL_QUIT };
+#if !SDL_VERSION_ATLEAST(3, 0, 0)
+#define SDL_EVENT_QUIT	SDL_QUIT
+#endif
+  SDL_Event event = { .type = SDL_EVENT_QUIT };
   SDL_PushEvent(&event);
 }
 

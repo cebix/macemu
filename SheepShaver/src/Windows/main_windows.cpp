@@ -53,6 +53,10 @@
 #include "mon.h"
 #endif
 
+#if !SDL_VERSION_ATLEAST(3, 0, 0)
+#define SDL_EVENT_KEY_UP	SDL_KEYUP
+#define SDL_EVENT_KEY_DOWN	SDL_KEYDOWN
+#endif
 
 // Constants
 const char ROM_FILE_NAME[] = "ROM";
@@ -794,13 +798,16 @@ extern SDL_Window *sdl_window;
 HWND GetMainWindowHandle(void)
 {
 	SDL_SysWMinfo wmInfo;
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+	if (!sdl_window || !SDL_GetWindowWMInfo(sdl_window, &wmInfo, SDL_SYSWM_CURRENT_VERSION)) {
+		return NULL;
+	}
+#else
 	SDL_VERSION(&wmInfo.version);
-	if (!sdl_window) {
+	if (!sdl_window || !SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
 		return NULL;
 	}
-	if (!SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
-		return NULL;
-	}
+#endif
 	if (wmInfo.subsystem != SDL_SYSWM_WINDOWS) {
 		return NULL;
 	}
@@ -883,7 +890,7 @@ static LRESULT CALLBACK low_level_keyboard_hook(int nCode, WPARAM wParam, LPARAM
 				if (intercept_event) {
 					SDL_Event e;
 					memset(&e, 0, sizeof(e));
-					e.type = (wParam == WM_KEYDOWN) ? SDL_KEYDOWN : SDL_KEYUP;
+					e.type = (wParam == WM_KEYDOWN) ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
 					e.key.keysym.sym = (p->vkCode == VK_LWIN) ? SDLK_LGUI : SDLK_RGUI;
 					e.key.keysym.scancode = (p->vkCode == VK_LWIN) ? SDL_SCANCODE_LGUI : SDL_SCANCODE_RGUI;
 					SDL_PushEvent(&e);

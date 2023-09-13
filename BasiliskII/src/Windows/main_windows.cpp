@@ -61,6 +61,11 @@ extern void flush_icache_range(uint8 *start, uint32 size); // from compemu_suppo
 #define DEBUG 0
 #include "debug.h"
 
+#if !SDL_VERSION_ATLEAST(3, 0, 0)
+#define SDL_Mutex		SDL_mutex
+#define SDL_EVENT_KEY_UP	SDL_KEYUP
+#define SDL_EVENT_KEY_DOWN	SDL_KEYDOWN
+#endif
 
 // Constants
 const TCHAR ROM_FILE_NAME[] = TEXT("ROM");
@@ -86,7 +91,7 @@ static bool tick_thread_active = false;				// Flag: 60Hz thread installed
 static volatile bool tick_thread_cancel = false;	// Flag: Cancel 60Hz thread
 static SDL_Thread *tick_thread;						// 60Hz thread
 
-static SDL_mutex *intflag_lock = NULL;				// Mutex to protect InterruptFlags
+static SDL_Mutex *intflag_lock = NULL;				// Mutex to protect InterruptFlags
 #define LOCK_INTFLAGS SDL_LockMutex(intflag_lock)
 #define UNLOCK_INTFLAGS SDL_UnlockMutex(intflag_lock)
 
@@ -520,7 +525,7 @@ void FlushCodeCache(void *start, uint32 size)
 struct B2_mutex {
 	B2_mutex() { m = SDL_CreateMutex(); }
 	~B2_mutex() { if (m) SDL_DestroyMutex(m); }
-	SDL_mutex *m;
+	SDL_Mutex *m;
 };
 
 B2_mutex *B2_create_mutex(void)
@@ -649,13 +654,16 @@ extern SDL_Window *sdl_window;
 HWND GetMainWindowHandle(void)
 {
 	SDL_SysWMinfo wmInfo;
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+	if (!sdl_window || !SDL_GetWindowWMInfo(sdl_window, &wmInfo, SDL_SYSWM_CURRENT_VERSION)) {
+		return NULL;
+	}
+#else
 	SDL_VERSION(&wmInfo.version);
-	if (!sdl_window) {
+	if (!sdl_window || !SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
 		return NULL;
 	}
-	if (!SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
-		return NULL;
-	}
+#endif
 	if (wmInfo.subsystem != SDL_SYSWM_WINDOWS) {
 		return NULL;
 	}
@@ -758,7 +766,7 @@ static LRESULT CALLBACK low_level_keyboard_hook(int nCode, WPARAM wParam, LPARAM
 				if (intercept_event) {
 					SDL_Event e;
 					memset(&e, 0, sizeof(e));
-					e.type = (wParam == WM_KEYDOWN) ? SDL_KEYDOWN : SDL_KEYUP;
+					e.type = (wParam == WM_KEYDOWN) ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
 					e.key.keysym.sym = (p->vkCode == VK_LWIN) ? SDLK_LGUI : SDLK_RGUI;
 					e.key.keysym.scancode = (p->vkCode == VK_LWIN) ? SDL_SCANCODE_LGUI : SDL_SCANCODE_RGUI;
 					SDL_PushEvent(&e);

@@ -37,6 +37,7 @@ AC_ARG_ENABLE(sdl-audio,     [  --enable-sdl-audio      use SDL for audio [defau
 AC_ARG_ENABLE(sdl-framework,    [  --enable-sdl-framework  use SDL framework [default=no]], [WANT_SDL_FRAMEWORK=$enableval], [WANT_SDL_FRAMEWORK=no])
 AC_ARG_ENABLE(sdl-framework-prefix,    [  --enable-sdl-framework-prefix=PFX    default=/Library/Frameworks], [SDL_FRAMEWORK="$enableval"], [SDL_FRAMEWORK=/Library/Frameworks])
 AC_ARG_WITH(sdl1,            [  --with-sdl1             use SDL 1.x, rather than SDL 2.x [default=no]], [WANT_SDL_VERSION_MAJOR=1], [])
+AC_ARG_WITH(sdl3,            [  --with-sdl3             use SDL 3.x, rather than SDL 2.x [default=no]], [WANT_SDL_VERSION_MAJOR=3], [])
 
 dnl JIT compiler options.
 AC_ARG_ENABLE(jit-compiler,  [  --enable-jit-compiler   enable JIT compiler [default=yes]], [WANT_JIT=$enableval], [WANT_JIT=yes])
@@ -329,9 +330,18 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
     dnl never got defined (bizarrely-enough).  -- dludwig@pobox.com
     PKG_PROG_PKG_CONFIG
 
+    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x3" ]]; then
+      PKG_CHECK_MODULES([sdl3], [sdl3 >= 3.0], [
+        CXXFLAGS="$CXXFLAGS $sdl3_CFLAGS"
+        CXXFLAGS+=`echo $sdl3_CFLAGS | sed -e 's/\(-I.*include\)/\1\/SDL3/'`
+        LIBS="$LIBS $sdl3_LIBS"
+        WANT_SDL_VERSION_MAJOR=3
+      ], [
+        TEMP_WANT_SDL_VERSION_MAJOR=1
+      ])
+    fi
     if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x2" ]]; then
       PKG_CHECK_MODULES([sdl2], [sdl2 >= 2.0], [
-        CFLAGS="$CFLAGS $sdl2_CFLAGS"
         CXXFLAGS="$CXXFLAGS $sdl2_CFLAGS"
         LIBS="$LIBS $sdl2_LIBS"
         WANT_SDL_VERSION_MAJOR=2
@@ -845,7 +855,7 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
 fi
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support])
-  VIDEOSRCS="../SDL/video_sdl.cpp ../SDL/video_sdl2.cpp"
+  VIDEOSRCS="../SDL/video_sdl.cpp ../SDL/video_sdl2.cpp ../SDL/video_sdl3.cpp "
   KEYCODES="../SDL/keycodes"
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     AC_MSG_CHECKING([whether __LP64__ is defined])
@@ -882,7 +892,7 @@ elif [[ "x$WANT_MACOSX_GUI" != "xyes" ]]; then
 fi
 if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
   AC_DEFINE(USE_SDL_AUDIO, 1, [Define to enable SDL audio support])
-  AUDIOSRC="../SDL/audio_sdl.cpp"
+  AUDIOSRC="../SDL/audio_sdl.cpp ../SDL/audio_sdl3.cpp"
 fi
 
 dnl BINCUE overrides

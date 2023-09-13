@@ -71,6 +71,7 @@ AC_ARG_ENABLE(sdl-audio,    [  --enable-sdl-audio      use SDL for audio [defaul
 AC_ARG_ENABLE(sdl-framework,    [  --enable-sdl-framework  use SDL framework [default=no]], [WANT_SDL_FRAMEWORK=$enableval], [WANT_SDL_FRAMEWORK=no])
 AC_ARG_ENABLE(sdl-framework-prefix,    [  --enable-sdl-framework-prefix=PFX    default=/Library/Frameworks], [SDL_FRAMEWORK="$enableval"], [SDL_FRAMEWORK=/Library/Frameworks])
 AC_ARG_WITH(sdl1,            [  --with-sdl1             use SDL 1.x, rather than SDL 2.x [default=no]], [WANT_SDL_VERSION_MAJOR=1], [])
+AC_ARG_WITH(sdl3,            [  --with-sdl3             use SDL 3.x, rather than SDL 2.x [default=no]], [WANT_SDL_VERSION_MAJOR=3], [])
 
 dnl Checks for programs.
 AC_PROG_CC_C99
@@ -210,41 +211,43 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
     if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x" ]]; then
       TEMP_WANT_SDL_VERSION_MAJOR=2
     fi
-    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x2" ]]; then
-      AC_PATH_PROG(sdl2_config, "sdl2-config")
-      if [[ -n "$sdl2_config" ]]; then
-        sdl2_cflags=`$sdl2_config --cflags`
-        if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
-          sdl2_libs=`$sdl2_config --static-libs`
-        else
-          sdl2_libs=`$sdl2_config --libs`
-        fi
-        CFLAGS="$CFLAGS $sdl2_cflags"
-        CXXFLAGS="$CXXFLAGS $sdl2_cflags"
-        LIBS="$LIBS $sdl2_libs"
-        WANT_SDL_VERSION_MAJOR=2
-      else
+
+    dnl use PKG_PROG_PKG_CONFIG to declare PKG_CONFIG variables.  Otherwise,
+    dnl PKG_* macros may fail, without much explanation.  The lack of this
+    dnl was causing --with-sdl1 to fail, as SDL 1.x could not be detected,
+    dnl as the 2nd call to PKG_CHECK_MODULES would fail, as $PKG_CONFIG
+    dnl never got defined (bizarrely-enough).  -- dludwig@pobox.com
+    PKG_PROG_PKG_CONFIG
+
+    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x3" ]]; then
+      PKG_CHECK_MODULES([sdl3], [sdl3 >= 3.0], [
+        CXXFLAGS="$CXXFLAGS $sdl3_CFLAGS"
+        CXXFLAGS+=`echo $sdl3_CFLAGS | sed -e 's/\(-I.*include\)/\1\/SDL3/'`
+        LIBS="$LIBS $sdl3_LIBS"
+        WANT_SDL_VERSION_MAJOR=3
+      ], [
         TEMP_WANT_SDL_VERSION_MAJOR=1
-      fi
+      ])
+    fi
+    if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x2" ]]; then
+      PKG_CHECK_MODULES([sdl2], [sdl2 >= 2.0], [
+        CXXFLAGS="$CXXFLAGS $sdl2_CFLAGS"
+        LIBS="$LIBS $sdl2_LIBS"
+        WANT_SDL_VERSION_MAJOR=2
+      ], [
+        TEMP_WANT_SDL_VERSION_MAJOR=1
+      ])
     fi
     if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x1" ]]; then
-      AC_PATH_PROG(sdl_config, "sdl-config")
-      if [[ -n "$sdl_config" ]]; then
-        sdl_cflags=`$sdl_config --cflags`
-        if [[ "x$WANT_SDL_STATIC" = "xyes" ]]; then
-          sdl_libs=`$sdl_config --static-libs`
-        else
-          sdl_libs=`$sdl_config --libs`
-        fi
-        CFLAGS="$CFLAGS $sdl_cflags"
-        CXXFLAGS="$CXXFLAGS $sdl_cflags"
-        LIBS="$LIBS $sdl_libs"
+      PKG_CHECK_MODULES([sdl], [sdl >= 1.2], [
+        CFLAGS="$CFLAGS $sdl_CFLAGS"
+        CXXFLAGS="$CXXFLAGS $sdl_CFLAGS"
+        LIBS="$LIBS $sdl_LIBS"
         WANT_SDL_VERSION_MAJOR=1
-      else
+      ], [
         WANT_SDL=no
-        WANT_SDL_VIDEO=no
-        WANT_SDL_AUDIO=no
-      fi
+        WANT_SDL_VERSION_MAJOR=
+      ])
     fi
   fi
   SDL_SUPPORT=`echo "$SDL_SUPPORT" | sed -e "s/^ //"`
@@ -733,7 +736,7 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
 fi
 if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
   AC_DEFINE(USE_SDL_VIDEO, 1, [Define to enable SDL video graphics support.])
-  VIDEOSRCS="../SDL/video_sdl.cpp ../SDL/video_sdl2.cpp"
+  VIDEOSRCS="../SDL/video_sdl.cpp ../SDL/video_sdl2.cpp ../SDL/video_sdl3.cpp"
   KEYCODES="../SDL/keycodes"
   if [[ "x$ac_cv_framework_Carbon" = "xyes" ]]; then
     AC_MSG_CHECKING([whether __LP64__ is defined])
@@ -763,7 +766,7 @@ else
 fi
 if [[ "x$WANT_SDL_AUDIO" = "xyes" ]]; then
   AC_DEFINE(USE_SDL_AUDIO, 1, [Define to enable SDL audio support])
-  AUDIOSRC="../SDL/audio_sdl.cpp"
+  AUDIOSRC="../SDL/audio_sdl.cpp ../SDL/audio_sdl3.cpp"
 fi
 
 dnl BINCUE overrides
