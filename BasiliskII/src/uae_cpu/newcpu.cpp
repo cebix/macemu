@@ -831,7 +831,7 @@ static int movec_illg (int regno)
 	case 3:
 		if ((regno & 0x7ff) <= 2)
 			return 0;
-		if (regno == 3 || regno == 4)
+		if (regno == 0x803 || regno == 0x804)
 			return 0;
 		break;
 	case 4:
