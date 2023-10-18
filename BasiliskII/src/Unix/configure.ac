@@ -333,7 +333,7 @@ if [[ "x$WANT_SDL" = "xyes" ]]; then
     if [[ "x$TEMP_WANT_SDL_VERSION_MAJOR" = "x3" ]]; then
       PKG_CHECK_MODULES([sdl3], [sdl3 >= 3.0], [
         CXXFLAGS="$CXXFLAGS $sdl3_CFLAGS"
-        CXXFLAGS+=`echo $sdl3_CFLAGS | sed -e 's/\(-I.*include\)/\1\/SDL3/'`
+        CXXFLAGS+=`echo " $sdl3_CFLAGS" | sed -e 's/\(-I.*include\)/\1\/SDL3/'`
         LIBS="$LIBS $sdl3_LIBS"
         WANT_SDL_VERSION_MAJOR=3
       ], [

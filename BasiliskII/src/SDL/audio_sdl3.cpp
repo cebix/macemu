@@ -1,5 +1,5 @@
 /*
- *  audio_sdl.cpp - Audio support, SDL implementation
+ *  audio_sdl3.cpp - Audio support, SDL implementation
  *
  *  Basilisk II (C) 1997-2008 Christian Bauer
  *
@@ -33,6 +33,7 @@
 
 #if SDL_VERSION_ATLEAST(3, 0, 0)
 #include <SDL_init.h>
+#include <queue>
 
 #define DEBUG 0
 #include "debug.h"
@@ -57,10 +58,11 @@ static int speaker_volume = MAC_MAX_VOLUME;
 static bool main_mute = false;
 static bool speaker_mute = false;
 
+volatile static bool playing_startup, exit_startup;
 SDL_AudioSpec audio_spec;
 
 // Prototypes
-static void SDLCALL stream_func(void *arg, SDL_AudioStream *stream, int stream_len);
+static void SDLCALL stream_func(void *arg, SDL_AudioStream *stream, int additional_amount, int total_amount);
 static int get_audio_volume();
 
 
@@ -161,6 +163,10 @@ void AudioInit(void)
 
 static void close_audio(void)
 {
+	exit_startup = true;
+	while (playing_startup)
+		SDL_Delay(10);
+	exit_startup = false;
 	// Close audio device
 	SDL_QuitSubSystem(SDL_INIT_AUDIO);
 	audio_open = false;
@@ -198,8 +204,8 @@ void audio_exit_stream()
 /*
  *  Streaming function
  */
-#include <queue>
-static void SDLCALL stream_func(void *, SDL_AudioStream *stream, int stream_len)
+
+static void SDLCALL stream_func(void *, SDL_AudioStream *stream, int stream_len, int /*total_amount*/)
 {
 	static std::queue<uint8> q;
 	if (AudioStatus.num_sources) {
@@ -358,23 +364,25 @@ static int play_startup(void *arg) {
 	SDL_AudioSpec wav_spec;
 	Uint8 *wav_buffer;
 	Uint32 wav_length;
-	if (!SDL_LoadWAV("startup.wav", &wav_spec, &wav_buffer, &wav_length)) {
+	if (!playing_startup && !SDL_LoadWAV("startup.wav", &wav_spec, &wav_buffer, &wav_length)) {
 		SDL_AudioStream *stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_OUTPUT, &wav_spec, NULL, NULL);
 		if (stream) {
 			SDL_ResumeAudioDevice(SDL_GetAudioStreamDevice(stream));
 			SDL_PutAudioStreamData(stream, wav_buffer, wav_length);
-			while (SDL_GetAudioStreamAvailable(stream)) SDL_Delay(10);
-			SDL_Delay(500);
+			playing_startup = true;
+			while (!exit_startup && SDL_GetAudioStreamAvailable(stream)) SDL_Delay(10);
+			if (!exit_startup) SDL_Delay(500);
 			SDL_DestroyAudioStream(stream);
 		}
 		else printf("play_startup: Audio driver failed to initialize\n");
 		SDL_free(wav_buffer);
+		playing_startup = false;
 	}
 	return 0;
 }
 
 void PlayStartupSound() {
-	SDL_CreateThread(play_startup, "", NULL);
+	SDL_CreateThread(play_startup, "play_startup", NULL);
 }
 
 #endif	// SDL_VERSION_ATLEAST

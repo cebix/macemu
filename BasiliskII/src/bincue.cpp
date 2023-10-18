@@ -522,8 +522,11 @@ void close_bincue(void *fh)
 	if (cs && player) {
 		free(cs);
 #ifdef USE_SDL_AUDIO
+#if !SDL_VERSION_ATLEAST(3, 0, 0)
+#define SDL_DestroyAudioStream	SDL_FreeAudioStream
+#endif
 		if (player->stream) // if audiostream has been opened, free it as well
-			free(player->stream);
+			SDL_DestroyAudioStream(player->stream);
 #endif
 		free(player);
 	}

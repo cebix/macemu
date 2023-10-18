@@ -1,5 +1,5 @@
 /*
- *  video_sdl2.cpp - Video/graphics emulation, SDL 2.x specific stuff
+ *  video_sdl3.cpp - Video/graphics emulation, SDL 3.x specific stuff
  *
  *  Basilisk II (C) 1997-2008 Christian Bauer
  *
@@ -50,7 +50,7 @@
 #include <vector>
 #include <string>
 
-#ifdef __MACOSX__
+#ifdef __MACOS__
 #include "utils_macosx.h"
 #endif
 
@@ -96,7 +96,7 @@ static int display_type = DISPLAY_WINDOW;			// See enum above
 #endif
 
 // Constants
-#if defined(__MACOSX__) || defined(WIN32)
+#if defined(__MACOS__) || defined(WIN32)
 const char KEYCODE_FILE_NAME[] = "keycodes";
 const char KEYCODE_FILE_NAME2[] = "BasiliskII_keycodes";
 #else
@@ -742,7 +742,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int depth, Uint32 fla
 		}
 	}
 	
-#ifdef __MACOSX__
+#ifdef __MACOS__
 	if (MetalIsAvailable()) window_flags |= SDL_WINDOW_METAL;
 #endif
 	
@@ -777,7 +777,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int depth, Uint32 fla
 		else {
 #ifdef WIN32
 			SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
-#elif defined(__MACOSX__)
+#elif defined(__MACOS__)
 			SDL_SetHint(SDL_HINT_RENDER_DRIVER, window_flags & SDL_WINDOW_METAL ? "metal" : "opengl");
 #else
 			SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
@@ -1672,14 +1672,14 @@ static void do_toggle_fullscreen(void)
 			int m = get_mag_rate();
 			SDL_SetWindowSize(sdl_window, m * VIDEO_MODE_X, m * VIDEO_MODE_Y);
 			//SDL_SetWindowGrab(sdl_window, SDL_FALSE);
-#ifndef __MACOSX__
+#ifndef __MACOS__
 			SDL_SetWindowPosition(sdl_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 #endif
 		} else {
 			display_type = DISPLAY_SCREEN;
 			SDL_SetWindowFullscreen(sdl_window, SDL_TRUE);
 			//SDL_SetWindowGrab(sdl_window, SDL_TRUE);
-#ifdef __MACOSX__
+#ifdef __MACOS__
 			set_menu_bar_visible_osx(false);
 #endif
 		}
@@ -1718,7 +1718,7 @@ static void do_toggle_fullscreen(void)
 
 static bool is_fullscreen(SDL_Window * window)
 {
-#ifdef __MACOSX__
+#ifdef __MACOS__
 	// On OSX, SDL, at least as of 2.0.5 (and possibly beyond), does not always
 	// report changes to fullscreen via the SDL_WINDOW_FULLSCREEN flag.
 	// (Example: https://bugzilla.libsdl.org/show_bug.cgi?id=3766 , which
