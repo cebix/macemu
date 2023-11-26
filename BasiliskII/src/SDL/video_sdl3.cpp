@@ -2394,8 +2394,7 @@ static void handle_events(void)
 				break;
 
 			case SDL_EVENT_DROP_FILE:
-				CDROMDrop(event.drop.file);
-				SDL_free(event.drop.file);
+				CDROMDrop(event.drop.data);
 				break;
 
 			// Window "close" widget clicked

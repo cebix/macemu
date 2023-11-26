@@ -61,19 +61,16 @@ bool is_fullscreen_osx(SDL_Window * window)
 		return false;
 	}
 	
-	SDL_SysWMinfo wmInfo;
 #if SDL_VERSION_ATLEAST(3, 0, 0)
-	if (!SDL_GetWindowWMInfo(window, &wmInfo, SDL_SYSWM_CURRENT_VERSION)) {
-		return false;
-	}
+	SDL_PropertiesID props = SDL_GetWindowProperties(window);
+	NSWindow *nswindow = (NSWindow *)SDL_GetProperty(props, "SDL.window.cocoa.window", NULL);
 #else
+	SDL_SysWMinfo wmInfo;
 	SDL_VERSION(&wmInfo.version);
-	if (!SDL_GetWindowWMInfo(window, &wmInfo)) {
-		return false;
-	}
+	NSWindow *nswindow = SDL_GetWindowWMInfo(window, &wmInfo) ? wmInfo.info.cocoa.window : nil;
 #endif
 
-	const NSWindowStyleMask styleMask = [wmInfo.info.cocoa.window styleMask];
+	const NSWindowStyleMask styleMask = [nswindow styleMask];
 	return (styleMask & NSWindowStyleMaskFullScreen) != 0;
 }
 #endif
