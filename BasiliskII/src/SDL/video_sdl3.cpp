@@ -49,6 +49,7 @@
 #include <errno.h>
 #include <vector>
 #include <string>
+#include <math.h>
 
 #ifdef __MACOS__
 #include "utils_macosx.h"
@@ -993,27 +994,27 @@ void update_sdl_video(SDL_Surface *s, Sint32 x, Sint32 y, Sint32 w, Sint32 h)
 }
 
 #ifdef SHEEPSHAVER
-static void MagBits(Uint8 *dst, Uint8 *src, int mag) {
-	for (int y = 0; y < 16; y++)
-		for (int x = 0; x < 16; x++) {
-			int sa = 16 * y + x;
-			if (!(src[sa >> 3] & 0x80 >> (sa & 7))) continue;
-			for (int dy = 0; dy < mag; dy++)
-				for (int dx = 0; dx < mag; dx++) {
-					int da = 16 * mag * (mag * y + dy) + mag * x + dx;
-					dst[da >> 3] |= 0x80 >> (da & 7);
-				}
+static void MagBits(Uint8 *dst, Uint8 *src, int size) {
+	float s = 16.f / size;
+	for (int y = 0; y < size; y++)
+		for (int x = 0; x < size; x++) {
+			int sa = 16 * int(y * s) + int(x * s);
+			if (src[sa >> 3] & 0x80 >> (sa & 7)) {
+				int da = (size + 7 & ~7) * y + x;
+				dst[da >> 3] |= 0x80 >> (da & 7);
+			}
 		}
 }
 static SDL_Cursor *MagCursor(bool hot) {
 	int w, h;
 	SDL_GetWindowSize(sdl_window, &w, &h);
-	int mag = std::min(w / drv->VIDEO_MODE_X, h / drv->VIDEO_MODE_Y);
-	Uint8 *data = (Uint8 *)SDL_calloc(1, 32 * mag * mag);
-	Uint8 *mask = (Uint8 *)SDL_calloc(1, 32 * mag * mag);
-	MagBits(data, &MacCursor[4], mag);
-	MagBits(mask, &MacCursor[36], mag);
-	SDL_Cursor *cursor = SDL_CreateCursor(data, mask, 16 * mag, 16 * mag, hot ? MacCursor[2] * mag : 0, hot ? MacCursor[3] * mag : 0);
+	float mag = std::min((float)w / drv->VIDEO_MODE_X, (float)h / drv->VIDEO_MODE_Y);
+	int size = ceilf(16 * mag), n = ((size + 7) >> 3) * size;
+	Uint8 *data = (Uint8 *)SDL_calloc(n, 2);
+	Uint8 *mask = (Uint8 *)SDL_calloc(n, 2);
+	MagBits(data, &MacCursor[4], size);
+	MagBits(mask, &MacCursor[36], size);
+	SDL_Cursor *cursor = SDL_CreateCursor(data, mask, size, size, hot ? MacCursor[2] * mag : 0, hot ? MacCursor[3] * mag : 0);
 	SDL_free(data);
 	SDL_free(mask);
 	return cursor;
@@ -2001,7 +2002,7 @@ void SDL_monitor_desc::switch_to_current_mode(void)
 #ifdef SHEEPSHAVER
 bool video_can_change_cursor(void)
 {
-	return PrefsFindBool("hardcursor") && (display_type == DISPLAY_WINDOW || PrefsFindBool("scale_integer"));
+	return PrefsFindBool("hardcursor");
 }
 #endif
 
@@ -2306,7 +2307,7 @@ static void handle_events(void)
 						int w, h;
 						SDL_GetWindowSize(sdl_window, &w, &h);
 						const VIDEO_MODE &mode = drv->mode;
-						float mag = std::min(w / VIDEO_MODE_X, h / VIDEO_MODE_Y);
+						float mag = std::min((float)w / VIDEO_MODE_X, (float)h / VIDEO_MODE_Y);
 						if (PrefsFindBool("scale_integer")) mag = SDL_floorf(mag);
 						if (mag) {
 							x = (x - (w - mag * VIDEO_MODE_X) / 2) / mag;

@@ -649,25 +649,25 @@ static int tick_func(void *arg)
  */
 
 #ifdef USE_SDL_VIDEO
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+#include <SDL_video.h>
+#else
 #include <SDL_syswm.h>
+#endif
 extern SDL_Window *sdl_window;
 HWND GetMainWindowHandle(void)
 {
-	SDL_SysWMinfo wmInfo;
+	if (!sdl_window) {
+		return NULL;
+	}
 #if SDL_VERSION_ATLEAST(3, 0, 0)
-	if (!sdl_window || !SDL_GetWindowWMInfo(sdl_window, &wmInfo, SDL_SYSWM_CURRENT_VERSION)) {
-		return NULL;
-	}
+	SDL_PropertiesID props = SDL_GetWindowProperties(sdl_window);
+	return (HWND)SDL_GetProperty(props, "SDL.window.cocoa.window", NULL);
 #else
+	SDL_SysWMinfo wmInfo;
 	SDL_VERSION(&wmInfo.version);
-	if (!sdl_window || !SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
-		return NULL;
-	}
+	return SDL_GetWindowWMInfo(sdl_window, &wmInfo) ? wmInfo.info.win.window : NULL;
 #endif
-	if (wmInfo.subsystem != SDL_SYSWM_WINDOWS) {
-		return NULL;
-	}
-	return wmInfo.info.win.window;
 }
 #endif
 
