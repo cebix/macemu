@@ -959,8 +959,8 @@
 				0856CCBD14A99E1C000B1711 /* Resources */,
 				0856CCBE14A99E1C000B1711 /* Sources */,
 				0856CCBF14A99E1C000B1711 /* Frameworks */,
-				08CD3F3214B665E1009CA2A2 /* Preprocess Info.plist */,
 				E413A40820CF7EF800FBE967 /* Embed Frameworks */,
+				08CD3F3214B665E1009CA2A2 /* Preprocess Info.plist */,
 			);
 			buildRules = (
 			);
