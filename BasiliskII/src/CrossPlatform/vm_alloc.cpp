@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <assert.h>
 #include "vm_alloc.h"
 
 #if defined(__APPLE__) && defined(__MACH__)
@@ -223,10 +224,11 @@ void vm_exit(void)
 }
 
 static void *reserved_buf;
-static const size_t RESERVED_SIZE = 64 * 1024 * 1024; // for 5K Retina
+static const size_t RESERVED_SIZE = 80 * 1024 * 1024; // for 6K Retina
 
 void *vm_acquire_reserved(size_t size) {
-	return reserved_buf && size <= RESERVED_SIZE ? reserved_buf : VM_MAP_FAILED;
+	assert(reserved_buf && size <= RESERVED_SIZE);
+	return reserved_buf;
 }
 
 int vm_init_reserved(void *hostAddress) {
