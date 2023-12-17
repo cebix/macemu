@@ -623,13 +623,15 @@ static void one_tick(...)
 	}
 }
 
+bool tick_inhibit;
 static int tick_func(void *arg)
 {
 	uint64 start = GetTicks_usec();
 	int64 ticks = 0;
 	uint64 next = GetTicks_usec();
 	while (!tick_thread_cancel) {
-		one_tick();
+		if (!tick_inhibit)
+			one_tick();
 		next += 16625;
 		int64 delay = next - GetTicks_usec();
 		if (delay > 0)

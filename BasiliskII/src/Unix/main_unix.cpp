@@ -1268,13 +1268,15 @@ static void one_tick(...)
 }
 
 #ifdef USE_PTHREADS_SERVICES
+bool tick_inhibit;
 static void *tick_func(void *arg)
 {
 	uint64 start = GetTicks_usec();
 	int64 ticks = 0;
 	uint64 next = start;
 	while (!tick_thread_cancel) {
-		one_tick();
+		if (!tick_inhibit)
+			one_tick();
 		next += 16625;
 		int64 delay = next - GetTicks_usec();
 		if (delay > 0)

@@ -32,6 +32,7 @@
 
 #include <string.h>
 #include <vector>
+#include <map>
 
 #ifndef NO_STD_NAMESPACE
 using std::vector;
@@ -162,6 +163,7 @@ uint32 CDROMIconAddr;
 // Flag: Control(accRun) has been called, interrupt routine is now active
 static bool acc_run_called = false;
 
+static std::map<int, void *> remount_map;
 
 /*
  *  Get pointer to drive info or drives.end() if not found
@@ -368,6 +370,17 @@ bool CDROMMountVolume(void *fh)
 		return false;
 }
 
+void CDROMRemount() {
+	for (std::map<int, void *>::iterator i = remount_map.begin(); i != remount_map.end(); ++i)
+		for (drive_vec::iterator info = drives.begin(); info != drives.end(); ++info)
+			if (info->num == i->first) {
+				last_drive_num = i->first;
+				info->fh = i->second;
+				break;
+			}
+	remount_map.clear();
+}
+
 
 /*
  *  Mount volumes for which the to_be_mounted flag is set
@@ -568,13 +581,16 @@ int16 CDROMControl(uint32 pb, uint32 dce)
 			
 		case 7:			// EjectTheDisc
 			if (ReadMacInt8(info->status + dsDiskInPlace) > 0) {
-				SysAllowRemoval(info->fh);
-				SysEject(info->fh);
-				WriteMacInt8(info->status + dsDiskInPlace, 0);
-				info->twok_offset = -1;
-				info->close_fh();
+				if (info->drop) {
+					SysAllowRemoval(info->fh);
+					SysEject(info->fh);
+					info->twok_offset = -1;
+					info->close_fh();
+					info->drop = false;
+				}
+				else remount_map.insert(std::make_pair(ReadMacInt16(pb + ioVRefNum), info->fh));
 				info->fh = NULL;
-				info->drop = false;
+				WriteMacInt8(info->status + dsDiskInPlace, 0);
 				return noErr;
 			} else {
 				return offLinErr;

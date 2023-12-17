@@ -1438,6 +1438,7 @@ static void *nvram_func(void *arg)
  *  60Hz thread (really 60.15Hz)
  */
 
+bool tick_inhibit;
 static void *tick_func(void *arg)
 {
 	int tick_counter = 0;
@@ -1454,6 +1455,7 @@ static void *tick_func(void *arg)
 			Delay_usec(delay);
 		else if (delay < -16625)
 			next = GetTicks_usec();
+		if (tick_inhibit) continue;
 		ticks++;
 
 #if !EMULATED_PPC
