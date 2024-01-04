@@ -1826,7 +1826,7 @@ for fpe in $FPE_CORE_TEST_ORDER; do
         FPE_CORE="IEEE fpu core (MPFR)"
         DEFINES="$DEFINES -DFPU_MPFR"
         FPUSRCS="$UAE_PATH/fpu/fpu_mpfr.cpp"
-	    LIBS="$LIBS -lgmp -lmpfr"
+	    LIBS="$LIBS -lmpfr -lgmp"
 	  else
         FPE_CORE="IEEE fpu core"
         DEFINES="$DEFINES -DFPU_IEEE"
