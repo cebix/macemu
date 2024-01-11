@@ -1084,6 +1084,8 @@ void driver_base::init()
 	sdl_palette = SDL_CreatePalette(256);
 	sdl_palette->colors[1] = (SDL_Color){ .r = 0, .g = 0, .b = 0, .a = 255 };
 	SDL_SetSurfacePalette(s, sdl_palette);
+
+	if (PrefsFindBool("init_grab") && !PrefsFindBool("hardcursor")) grab_mouse();
 }
 
 void driver_base::adapt_to_video_mode() {
