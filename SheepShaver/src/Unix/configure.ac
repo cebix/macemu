@@ -1263,9 +1263,11 @@ EOF
   fi
 fi
 
-if [[ "$target_cpu" = "arm" -o "$target_cpu" = "aarch64" ]]; then
-  AC_DEFINE_UNQUOTED(NATMEM_OFFSET, 0x400000000000, [Define constant offset for Mac address translation])
-fi
+case "$host" in
+  arm-apple-*)
+    AC_DEFINE_UNQUOTED(NATMEM_OFFSET, 0x400000000000, [Define constant offset for Mac address translation])
+    ;;
+esac
 
 AC_MSG_RESULT($WANT_ADDRESSING_MODE)
 
