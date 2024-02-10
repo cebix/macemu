@@ -47,6 +47,10 @@ prefs_desc platform_prefs_items[] = {
 	{NULL, TYPE_END, false, NULL} // End of list
 };
 
+
+#ifdef __linux__
+
+
 // Standard file names and paths
 #ifdef SHEEPSHAVER
 static const char PREFS_FILE_NAME[] = "/.sheepshaver_prefs";
@@ -185,9 +189,9 @@ void LoadPrefs(const char* vmdir)
 	}
 
 	// No prefs file, save defaults in $XDG_CONFIG_HOME directory
-#ifdef __linux__
+//#ifdef __linux__
 	PrefsAddString("cdrom", "/dev/cdrom");
-#endif
+//#endif
 	printf("No prefs file found, creating new one at %s\n", prefs_name.c_str());
 	SavePrefs();
 }
@@ -249,6 +253,82 @@ void SavePrefs(void)
 		        prefs_name.c_str(), strerror(errno));
 	}
 }
+
+
+#else	// __linux__
+
+
+// Prefs file name and path
+#ifdef SHEEPSHAVER
+static const char PREFS_FILE_NAME[] = ".sheepshaver_prefs";
+#else
+static const char PREFS_FILE_NAME[] = ".basilisk_ii_prefs";
+#endif
+string UserPrefsPath;
+static string prefs_path;
+
+
+/*
+ *  Load preferences from settings file
+ */
+
+void LoadPrefs(const char *vmdir)
+{
+	if (vmdir) {
+		prefs_path = string(vmdir) + '/' + string("prefs");
+		FILE *prefs = fopen(prefs_path.c_str(), "r");
+		if (!prefs) {
+			printf("No file at %s found.\n", prefs_path.c_str());
+			exit(1);
+		}
+		LoadPrefsFromStream(prefs);
+		fclose(prefs);
+		return;
+	}
+
+	// Construct prefs path
+	if (UserPrefsPath.empty()) {
+		char *home = getenv("HOME");
+		if (home)
+			prefs_path = string(home) + '/';
+		prefs_path += PREFS_FILE_NAME;
+	} else
+		prefs_path = UserPrefsPath;
+
+	// Read preferences from settings file
+	FILE *f = fopen(prefs_path.c_str(), "r");
+	if (f != NULL) {
+
+		// Prefs file found, load settings
+		LoadPrefsFromStream(f);
+		fclose(f);
+
+	} else {
+//#ifdef __linux__
+//		PrefsAddString("cdrom", "/dev/cdrom");
+//#endif
+		// No prefs file, save defaults
+		SavePrefs();
+	}
+}
+
+
+/*
+ *  Save preferences to settings file
+ */
+
+void SavePrefs(void)
+{
+	FILE *f;
+	if ((f = fopen(prefs_path.c_str(), "w")) != NULL) {
+		SavePrefsToStream(f);
+		fclose(f);
+	}
+}
+
+
+#endif	// __linux__
+
 
 /*
  *  Add defaults of platform-specific prefs items
