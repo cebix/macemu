@@ -202,7 +202,51 @@ int main(int argc, char **argv)
 
 	// Read preferences
 	PrefsInit(NULL, argc, argv);
+	
+	// #chenchijung 2024/2/21: move vm_init(), memory allocation for Mac RAM and Mac ROM here to avoid "cannot map RAM: no Error" bug.	
+	//   caused by MSI afterburner (RIVA Tuner statistic tuner Server?). It is a workaround since I don't know why. But it works in my test env.
+	//
+	// ------------ Start of workaround --------------
+	int sdl_flags = 0;
+	// Initialize VM system
+	vm_init();
+	
+	// Create area for Mac RAM
+	RAMSize = PrefsFindInt32("ramsize");
+	if (RAMSize <= 1000) {
+		RAMSize *= 1024 * 1024;
+	}
+	if (RAMSize < 16 * 1024 * 1024) {
+		WarningAlert(GetString(STR_SMALL_RAM_WARN));
+		RAMSize = 16 * 1024 * 1024;
+	}
+	RAMBase = 0;
+	if (vm_mac_acquire(RAMBase, RAMSize) < 0) {
+		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+	RAMBaseHost = Mac2HostAddr(RAMBase);
+	ram_area_mapped = true;
+	D(bug("RAM area at %p (%08x)\n", RAMBaseHost, RAMBase));
 
+	if (RAMBase > ROMBase) {
+		ErrorAlert(GetString(STR_RAM_HIGHER_THAN_ROM_ERR));
+		goto quit;
+	}
+	
+	// Create area for Mac ROM
+	if (vm_mac_acquire(ROM_BASE, ROM_AREA_SIZE) < 0) {
+		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
+		ErrorAlert(str);
+		goto quit;
+	}
+	ROMBase = ROM_BASE;
+	ROMBaseHost = Mac2HostAddr(ROMBase);
+	rom_area_mapped = true;
+	D(bug("ROM area at %p (%08x)\n", ROMBaseHost, ROMBase));
+	//#chenchijung ----------------- end of workaround --------------
+	
 	// Check we are using a Windows NT kernel >= 4.0
 	OSVERSIONINFO osvi;
 	ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
@@ -232,7 +276,7 @@ int main(int argc, char **argv)
 	}
 
 	// Initialize SDL system
-	int sdl_flags = 0;
+	sdl_flags = 0; // #chenchijungtw move variable definition forward to avoid complication error
 #ifdef USE_SDL_VIDEO
 	sdl_flags |= SDL_INIT_VIDEO;
 #endif
@@ -259,9 +303,6 @@ int main(int argc, char **argv)
 		ErrorAlert(str);
 		goto quit;
 	}
-
-	// Initialize VM system
-	vm_init();
 
 	// Get system info
 	PVR = 0x00040000;			// Default: 604
@@ -312,41 +353,6 @@ int main(int argc, char **argv)
 	if (!SheepMem::Init()) {
 		sprintf(str, GetString(STR_SHEEP_MEM_MMAP_ERR), strerror(errno));
 		ErrorAlert(str);
-		goto quit;
-	}
-
-	// Create area for Mac ROM
-	if (vm_mac_acquire(ROM_BASE, ROM_AREA_SIZE) < 0) {
-		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-	ROMBase = ROM_BASE;
-	ROMBaseHost = Mac2HostAddr(ROMBase);
-	rom_area_mapped = true;
-	D(bug("ROM area at %p (%08x)\n", ROMBaseHost, ROMBase));
-
-	// Create area for Mac RAM
-	RAMSize = PrefsFindInt32("ramsize");
-	if (RAMSize <= 1000) {
-		RAMSize *= 1024 * 1024;
-	}
-	if (RAMSize < 16 * 1024 * 1024) {
-		WarningAlert(GetString(STR_SMALL_RAM_WARN));
-		RAMSize = 16 * 1024 * 1024;
-	}
-	RAMBase = 0;
-	if (vm_mac_acquire(RAMBase, RAMSize) < 0) {
-		sprintf(str, GetString(STR_RAM_MMAP_ERR), strerror(errno));
-		ErrorAlert(str);
-		goto quit;
-	}
-	RAMBaseHost = Mac2HostAddr(RAMBase);
-	ram_area_mapped = true;
-	D(bug("RAM area at %p (%08x)\n", RAMBaseHost, RAMBase));
-
-	if (RAMBase > ROMBase) {
-		ErrorAlert(GetString(STR_RAM_HIGHER_THAN_ROM_ERR));
 		goto quit;
 	}
 
