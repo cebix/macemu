@@ -202,15 +202,15 @@ int main(int argc, char **argv)
 
 	// Read preferences
 	PrefsInit(NULL, argc, argv);
-	
-	// #chenchijung 2024/2/21: move vm_init(), memory allocation for Mac RAM and Mac ROM here to avoid "cannot map RAM: no Error" bug.	
+
+	// #chenchijung 2024/2/21: move vm_init(), memory allocation for Mac RAM and Mac ROM here to avoid "cannot map RAM: no Error" bug.
 	//   caused by MSI afterburner (RIVA Tuner statistic tuner Server?). It is a workaround since I don't know why. But it works in my test env.
 	//
 	// ------------ Start of workaround --------------
 	int sdl_flags = 0;
 	// Initialize VM system
 	vm_init();
-	
+
 	// Create area for Mac RAM
 	RAMSize = PrefsFindInt32("ramsize");
 	if (RAMSize <= 1000) {
@@ -230,11 +230,6 @@ int main(int argc, char **argv)
 	ram_area_mapped = true;
 	D(bug("RAM area at %p (%08x)\n", RAMBaseHost, RAMBase));
 
-	if (RAMBase > ROMBase) {
-		ErrorAlert(GetString(STR_RAM_HIGHER_THAN_ROM_ERR));
-		goto quit;
-	}
-	
 	// Create area for Mac ROM
 	if (vm_mac_acquire(ROM_BASE, ROM_AREA_SIZE) < 0) {
 		sprintf(str, GetString(STR_ROM_MMAP_ERR), strerror(errno));
@@ -245,8 +240,13 @@ int main(int argc, char **argv)
 	ROMBaseHost = Mac2HostAddr(ROMBase);
 	rom_area_mapped = true;
 	D(bug("ROM area at %p (%08x)\n", ROMBaseHost, ROMBase));
+
+	if (RAMBase > ROMBase) {
+		ErrorAlert(GetString(STR_RAM_HIGHER_THAN_ROM_ERR));
+		goto quit;
+	}
 	//#chenchijung ----------------- end of workaround --------------
-	
+
 	// Check we are using a Windows NT kernel >= 4.0
 	OSVERSIONINFO osvi;
 	ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
