@@ -135,7 +135,7 @@ static int main_loop(int sd, int use_bpf)
 
 	outgoing = malloc(blen);
 	if (outgoing == NULL) {
-		free(outgoing);
+		free(incoming);
 		fprintf(stderr, 
 			"%s: malloc() failed.\n",
 			exec_name);

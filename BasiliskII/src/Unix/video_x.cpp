@@ -2356,10 +2356,10 @@ static void update_display_dynamic(int ticker, driver_window *drv)
 	y2s = sm_uptd[ticker % 8];
 	y2a = 8;
 	for (i = 0; i < 6; i++) {
+		max_box = sm_no_boxes[i];
 		if (ticker % (2 << i))
 			break;
 	}
-	max_box = sm_no_boxes[i];
 
 	if (y2a) {
 		for (y1=0; y1<16; y1++) {
