@@ -567,6 +567,9 @@ if [[ "x$HAVE_GCC27" = "xyes" ]]; then
   CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-g\b//g'`
 fi
 
+CFLAGS="$CFLAGS -fwrapv"
+CXXFLAGS="$CXXFLAGS -fwrapv"
+
 dnl Generate Makefile.
 AC_SUBST(DEFINES)
 AC_SUBST(CPUINCLUDES)

@@ -1902,6 +1902,9 @@ if [[ "x$HAVE_IPA" = "xyes" ]]; then
   LDFLAGS="$LDFLAGS -O3 -OPT:Olimit=0 -IPA"
 fi
 
+CFLAGS="$CFLAGS -fwrapv"
+CXXFLAGS="$CXXFLAGS -fwrapv"
+
 dnl Generate Makefile.
 AC_SUBST(DEFINES)
 AC_SUBST(SYSSRCS)
