@@ -376,6 +376,7 @@
 					../uae_cpu_2021,
 					../Unix,
 				);
+				OTHER_CFLAGS = "-fwrapv";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				VALID_ARCHS = arm64;
 			};
@@ -395,6 +396,7 @@
 					../uae_cpu_2021,
 					../Unix,
 				);
+				OTHER_CFLAGS = "-fwrapv";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				VALID_ARCHS = arm64;
 			};

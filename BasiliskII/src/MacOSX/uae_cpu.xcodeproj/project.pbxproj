@@ -431,6 +431,7 @@
 					../Unix,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				OTHER_CFLAGS = "-fwrapv";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -456,6 +457,7 @@
 					../Unix,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				OTHER_CFLAGS = "-fwrapv";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
