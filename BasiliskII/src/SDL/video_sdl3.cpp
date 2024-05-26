@@ -51,7 +51,7 @@
 #include <string>
 #include <math.h>
 
-#ifdef __MACOS__
+#ifdef SDL_PLATFORM_MACOS
 #include "utils_macosx.h"
 #endif
 
@@ -97,7 +97,7 @@ static int display_type = DISPLAY_WINDOW;			// See enum above
 #endif
 
 // Constants
-#if defined(__MACOS__) || defined(WIN32)
+#if defined(SDL_PLATFORM_MACOS) || defined(WIN32)
 const char KEYCODE_FILE_NAME[] = "keycodes";
 const char KEYCODE_FILE_NAME2[] = "BasiliskII_keycodes";
 #else
@@ -147,7 +147,7 @@ SDL_Window * sdl_window = NULL;				        // Wraps an OS-native window
 static SDL_Surface * host_surface = NULL;			// Surface in host-OS display format
 static SDL_Surface * guest_surface = NULL;			// Surface in guest-OS display format
 static SDL_Renderer * sdl_renderer = NULL;			// Handle to SDL2 renderer
-static SDL_threadID sdl_renderer_thread_id = 0;		// Thread ID where the SDL_renderer was created, and SDL_renderer ops should run (for compatibility w/ d3d9)
+static SDL_ThreadID sdl_renderer_thread_id = 0;		// Thread ID where the SDL_renderer was created, and SDL_renderer ops should run (for compatibility w/ d3d9)
 static SDL_Texture * sdl_texture = NULL;			// Handle to a GPU texture, with which to draw guest_surface to
 static SDL_Rect sdl_update_video_rect = {0,0,0,0};  // Union of all rects to update, when updating sdl_texture
 static SDL_Mutex * sdl_update_video_mutex = NULL;   // Mutex to protect sdl_update_video_rect
@@ -176,12 +176,6 @@ static SDL_Mutex *sdl_palette_lock = NULL;
 static SDL_Mutex *frame_buffer_lock = NULL;
 #define LOCK_FRAME_BUFFER SDL_LockMutex(frame_buffer_lock)
 #define UNLOCK_FRAME_BUFFER SDL_UnlockMutex(frame_buffer_lock)
-
-// Initially set gamma tables
-static uint16 init_gamma_red[256];
-static uint16 init_gamma_green[256];
-static uint16 init_gamma_blue[256];
-static bool init_gamma_valid;
 
 // Previously set gamma tables
 static uint16 last_gamma_red[256];
@@ -743,7 +737,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int depth, Uint32 fla
 		}
 	}
 	
-#ifdef __MACOS__
+#ifdef SDL_PLATFORM_MACOS
 	if (MetalIsAvailable()) window_flags |= SDL_WINDOW_METAL;
 #endif
 	
@@ -760,7 +754,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int depth, Uint32 fla
 		}
 		set_window_name();
 	}
-	if (flags & SDL_WINDOW_FULLSCREEN) SDL_SetWindowGrab(sdl_window, SDL_TRUE);
+//	if (flags & SDL_WINDOW_FULLSCREEN) SDL_SetWindowGrab(sdl_window, SDL_TRUE);
 	
 	// Some SDL events (regarding some native-window events), need processing
 	// as they are generated.  SDL2 has a facility, SDL_AddEventWatch(), which
@@ -778,7 +772,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int depth, Uint32 fla
 		else {
 #ifdef WIN32
 			SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
-#elif defined(__MACOS__)
+#elif defined(SDL_PLATFORM_MACOS)
 			SDL_SetHint(SDL_HINT_RENDER_DRIVER, window_flags & SDL_WINDOW_METAL ? "metal" : "opengl");
 #else
 			SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
@@ -859,7 +853,7 @@ static SDL_Surface * init_sdl_video(int width, int height, int depth, Uint32 fla
     }
 
     if (!host_surface) {
-    	Uint32 texture_format;
+    	SDL_PixelFormatEnum texture_format;
     	if (SDL_QueryTexture(sdl_texture, &texture_format, NULL, NULL, NULL) != 0) {
     		printf("ERROR: Unable to get the SDL texture's pixel format: %s\n", SDL_GetError());
     		shutdown_sdl_video();
@@ -940,7 +934,7 @@ static int present_sdl_video()
     // Update the host OS' texture
     uint8_t *srcPixels = (uint8_t *)host_surface->pixels +
         sdl_update_video_rect.y * host_surface->pitch +
-        sdl_update_video_rect.x * host_surface->format->BytesPerPixel;
+        sdl_update_video_rect.x * host_surface->format->bytes_per_pixel;
 
 	uint8_t *dstPixels;
 	int dstPitch;
@@ -1675,14 +1669,14 @@ static void do_toggle_fullscreen(void)
 			int m = get_mag_rate();
 			SDL_SetWindowSize(sdl_window, m * VIDEO_MODE_X, m * VIDEO_MODE_Y);
 			//SDL_SetWindowGrab(sdl_window, SDL_FALSE);
-#ifndef __MACOS__
+#ifndef SDL_PLATFORM_MACOS
 			SDL_SetWindowPosition(sdl_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 #endif
 		} else {
 			display_type = DISPLAY_SCREEN;
 			SDL_SetWindowFullscreen(sdl_window, SDL_TRUE);
 			//SDL_SetWindowGrab(sdl_window, SDL_TRUE);
-#ifdef __MACOS__
+#ifdef SDL_PLATFORM_MACOS
 			set_menu_bar_visible_osx(false);
 #endif
 		}
@@ -1721,7 +1715,7 @@ static void do_toggle_fullscreen(void)
 
 static bool is_fullscreen(SDL_Window * window)
 {
-#ifdef __MACOS__
+#ifdef SDL_PLATFORM_MACOS
 	// On OSX, SDL, at least as of 2.0.5 (and possibly beyond), does not always
 	// report changes to fullscreen via the SDL_WINDOW_FULLSCREEN flag.
 	// (Example: https://bugzilla.libsdl.org/show_bug.cgi?id=3766 , which
