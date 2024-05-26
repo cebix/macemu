@@ -30,7 +30,7 @@
 # include <SDL.h>
 # include <SDL_main.h>
 #if !SDL_VERSION_ATLEAST(3, 0, 0)
-#define __MACOS__	__MACOSX__
+#define SDL_PLATFORM_MACOS	__MACOSX__
 #endif
 #endif
 
@@ -46,8 +46,8 @@
 # include <sys/mman.h>
 #endif
 
-#if __MACOS__
-# include "utils_macosx.h"
+#if SDL_PLATFORM_MACOS
+#include "utils_macosx.h"
 #endif
 
 #if !EMULATED_68K && defined(__NetBSD__)
@@ -571,7 +571,7 @@ int main(int argc, char **argv)
 	}
 	atexit(SDL_Quit);
 
-#if __MACOS__ && SDL_VERSION_ATLEAST(2,0,0)
+#if SDL_PLATFORM_MACOS && SDL_VERSION_ATLEAST(2,0,0)
 	// On Mac OS X hosts, SDL2 will create its own menu bar.  This is mostly OK,
 	// except that it will also install keyboard shortcuts, such as Command + Q,
 	// which can interfere with keyboard shortcuts in the guest OS.
@@ -695,7 +695,7 @@ int main(int argc, char **argv)
 	ROMBaseMac = Host2MacAddr(ROMBaseHost);
 #endif
 
-#if __MACOS__
+#if SDL_PLATFORM_MACOS
 	extern void set_current_directory();
 	set_current_directory();
 #endif
