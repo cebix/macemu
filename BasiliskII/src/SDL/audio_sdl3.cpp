@@ -103,7 +103,7 @@ static bool open_sdl_audio(void)
 	audio_spec.freq = audio_sample_rates[audio_sample_rate_index] >> 16;
 
 	// Open the audio device, forcing the desired format
-	SDL_AudioStream *stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_OUTPUT, &audio_spec, stream_func, NULL);
+	SDL_AudioStream *stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_spec, stream_func, NULL);
 	if (stream == NULL) {
 		fprintf(stderr, "WARNING: Cannot open audio: %s\n", SDL_GetError());
 		return false;
@@ -242,7 +242,7 @@ static void SDLCALL stream_func(void *, SDL_AudioStream *stream, int stream_len,
 	memset(dst, silence_byte, stream_len);
 	//SDL_AudioSpec audio_spec;
 	//int r = SDL_GetAudioStreamFormat(stream, NULL, &audio_spec);// little endianが帰ってくる
-	SDL_MixAudioFormat(dst, src, audio_spec.format, stream_len, get_audio_volume());
+	SDL_MixAudio(dst, src, audio_spec.format, stream_len, get_audio_volume());
 #if defined(BINCUE)
 	MixAudio_bincue(dst, stream_len, get_audio_volume());
 #endif
@@ -357,7 +357,7 @@ void audio_set_speaker_volume(uint32 vol)
 }
 
 static int get_audio_volume() {
-	return main_volume * speaker_volume * SDL_MIX_MAXVOLUME / (MAC_MAX_VOLUME * MAC_MAX_VOLUME);
+	return main_volume * speaker_volume / (MAC_MAX_VOLUME * MAC_MAX_VOLUME);
 }
 
 static int play_startup(void *arg) {
@@ -365,7 +365,7 @@ static int play_startup(void *arg) {
 	Uint8 *wav_buffer;
 	Uint32 wav_length;
 	if (!playing_startup && !SDL_LoadWAV("startup.wav", &wav_spec, &wav_buffer, &wav_length)) {
-		SDL_AudioStream *stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_OUTPUT, &wav_spec, NULL, NULL);
+		SDL_AudioStream *stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &wav_spec, NULL, NULL);
 		if (stream) {
 			SDL_ResumeAudioDevice(SDL_GetAudioStreamDevice(stream));
 			SDL_PutAudioStreamData(stream, wav_buffer, wav_length);

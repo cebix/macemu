@@ -974,7 +974,7 @@ void MixAudio_bincue(uint8 *stream, int stream_len, int volume)
 				extern SDL_AudioSpec audio_spec;
 				uint8 converted[stream_len];
 				SDL_GetAudioStreamData(player->stream, converted, stream_len);
-				SDL_MixAudioFormat(stream, converted, audio_spec.format, stream_len, player->volume_mono);
+				SDL_MixAudio(stream, converted, audio_spec.format, stream_len, player->volume_mono);
 			}
 #else
 			if (buf)
