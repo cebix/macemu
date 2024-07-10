@@ -377,7 +377,19 @@ cat > conftest.$ac_ext <<EOF
 #include "confdefs.h"
 $1
 ]EOF
+ac_save_CFLAGS=$CFLAGS
+CFLAGS="$CFLAGS -fno-lto"
+gcc_ac_compile_ok=0
 if AC_TRY_EVAL(ac_compile); then
+	gcc_ac_compile_ok=1
+else
+	CFLAGS=$ac_save_CFLAGS
+	if AC_TRY_EVAL(ac_compile); then
+		gcc_ac_compile_ok=1
+	fi
+fi
+CFLAGS=$ac_save_CFLAGS
+if test "$gcc_ac_compile_ok" = 1; then
   od -c conftest.o |
     sed ['s/^[0-7]*[ 	]*/ /
 	  s/\*/./g
