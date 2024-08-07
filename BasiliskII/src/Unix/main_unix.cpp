@@ -70,6 +70,9 @@ struct sigstate {
 # if !defined(GDK_WINDOWING_QUARTZ) && !defined(GDK_WINDOWING_WAYLAND)
 #  include <X11/Xlib.h>
 # endif
+# if GTK_CHECK_VERSION(3, 14, 0)
+#  define ENABLE_GTK3
+# endif
 #endif
 
 #ifdef ENABLE_XF86_DGA
@@ -155,6 +158,7 @@ static uint8 last_xpram[XPRAM_SIZE];				// Buffer for monitoring XPRAM changes
 #if !EMULATED_68K
 static pthread_t emul_thread;						// Handle of MacOS emulation thread (main thread)
 #endif
+static int use_gui = -1;   							// Override prefs and show gui
 
 static bool xpram_thread_active = false;			// Flag: XPRAM watchdog installed
 static volatile bool xpram_thread_cancel = false;	// Flag: Cancel XPRAM thread
@@ -414,8 +418,33 @@ static void usage(const char *prg_name)
 	exit(0);
 }
 
+#ifdef ENABLE_GTK
+GtkWindow *win;
+
+static void gui_startup (void)
+{
+	if (!PrefsEditor())
+		QuitEmulator();
+}
+
+#ifdef ENABLE_GTK3
+static void gui_activate (GtkApplication *app)
+{
+	g_assert (GTK_IS_APPLICATION (app));
+	win = gtk_application_get_active_window (app);
+	/* Ask the window manager/compositor to present the window. */
+	if (win != NULL)
+		gtk_window_present (win);
+}
+#endif
+#endif
+
 int main(int argc, char **argv)
 {
+#ifdef ENABLE_GTK3
+	GtkApplication *app = NULL;
+	int ret;
+#endif
 #if defined(ENABLE_GTK) && !defined(GDK_WINDOWING_QUARTZ) && !defined(GDK_WINDOWING_WAYLAND)
 	XInitThreads();
 #endif
@@ -478,6 +507,21 @@ int main(int argc, char **argv)
 				printf("switch address not defined\n");
 				usage(argv[0]);
 			}
+		// We intercept the --nogui commandline so that the settings
+		// window can change the setting from the prefs file
+		} else if (strcmp(argv[i], "--nogui") == 0) {
+			argv[i++] = NULL;
+			if (i < argc) {
+				if (strcmp(argv[i], "true") == 0)
+					use_gui = false;
+				else
+					use_gui = true;
+				argv[i] = NULL;
+			}
+		// Alternative commands to enter the GUI
+		} else if (strcmp(argv[i], "--gui") == 0 || strcmp(argv[i], "--settings") == 0) {
+				use_gui = true;
+				argv[i] = NULL;
 			vde_sock = argv[i];
 			argv[i] = NULL;
 		}
@@ -518,16 +562,11 @@ int main(int argc, char **argv)
 		}
 	}
 
-#ifdef ENABLE_GTK
-	if (!gui_connection) {
-		// Init GTK
-		gtk_set_locale();
-		gtk_init(&argc, &argv);
-	}
-#endif
-
 	// Read preferences
 	PrefsInit(vmdir, argc, argv);
+	// Only use nogui preference if not passed as command line argument
+	if (use_gui == -1)
+		use_gui = !PrefsFindBool("nogui");
 
 	// Any command line arguments left?
 	for (int i=1; i<argc; i++) {
@@ -586,10 +625,24 @@ int main(int argc, char **argv)
 	// Init system routines
 	SysInit();
 
-	// Show preferences editor
-	if (!gui_connection && !PrefsFindBool("nogui"))
-		if (!PrefsEditor())
-			QuitEmulator();
+#ifdef ENABLE_GTK3
+	if (!gui_connection) {
+		// Init GTK
+		app = gtk_application_new (GetString(STR_APP_ID), G_APPLICATION_FLAGS_NONE);
+		g_set_prgname (GetString(STR_APP_DISPLAY_NAME));
+		g_signal_connect (app, "activate", G_CALLBACK (gui_activate), NULL);
+		g_signal_connect (app, "startup", G_CALLBACK (gui_startup), NULL);
+		g_application_register (G_APPLICATION (app), NULL, NULL);
+		ret = g_application_run (G_APPLICATION (app), argc, argv);
+	}
+#elif defined(ENABLE_GTK)
+	if (!gui_connection) {
+		// Init GTK
+		gtk_set_locale();
+		gtk_init(&argc, &argv);
+		gui_startup();
+	}
+#endif
 
 	// Install the handler for SIGSEGV
 	if (!sigsegv_install_handler(sigsegv_handler)) {
@@ -633,7 +686,7 @@ int main(int argc, char **argv)
 #else
 	const bool can_map_all_memory = false;
 #endif
-	
+
 	// Try to allocate all memory from 0x0000, if it is not known to crash
 	if (can_map_all_memory && (vm_acquire_mac_fixed(0, RAMSize + 0x100000) == 0)) {
 		D(bug("Could allocate RAM and ROM from 0x0000\n"));

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk+" version="3.14"/>
+  <menu id="app-menu">
+    <section>
+      <item>
+        <attribute name="action">win.save-settings</attribute>
+        <attribute name="label" translatable="yes">_Save Settings</attribute>
+      </item>
+      <item>
+        <attribute name="action">win.zap-pram</attribute>
+        <attribute name="label" translatable="yes">_Clear XPRAM Data</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
+        <attribute name="action">win.show-help-overlay</attribute>
+        <attribute name="label" translatable="yes">_Keyboard Shortcuts</attribute>
+      </item>
+      <item>
+        <attribute name="action">win.help</attribute>
+        <attribute name="label" translatable="yes">_Help</attribute>
+        <attribute name="accel">F1</attribute>
+      </item>
+      <item>
+        <attribute name="action">win.about</attribute>
+        <attribute name="label" translatable="yes">_About</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
+        <attribute name="action">win.quit</attribute>
+        <attribute name="label" translatable="yes">_Quit</attribute>
+        <attribute name="accel">&lt;control&gt;Q</attribute>
+      </item>
+    </section>
+  </menu>
+  <menu id="prefs-editor-menu">
+    <submenu>
+      <attribute name="label" translatable="yes">_File</attribute>
+      <section>
+        <item>
+          <attribute name="action">win.start</attribute>
+          <attribute name="label" translatable="yes">_Start SheepShaver</attribute>
+          <attribute name="accel">&lt;control&gt;S</attribute>
+        </item>
+        <item>
+          <attribute name="action">win.save-settings</attribute>
+          <attribute name="label" translatable="yes">Sa_ve Settings</attribute>
+        </item>
+        <item>
+          <attribute name="action">win.zap-pram</attribute>
+          <attribute name="label" translatable="yes">_Clear XPRAM Data</attribute>
+        </item>
+      </section>
+      <section>
+        <item>
+          <attribute name="action">win.quit</attribute>
+          <attribute name="label" translatable="yes">_Quit</attribute>
+          <attribute name="accel">&lt;control&gt;Q</attribute>
+        </item>
+      </section>
+    </submenu>
+    <submenu>
+      <attribute name="label" translatable="yes">_Help</attribute>
+      <section>
+        <item>
+          <attribute name="action">win.help</attribute>
+          <attribute name="label" translatable="yes">_Help</attribute>
+          <attribute name="accel">F1</attribute>
+        </item>
+        <item>
+          <attribute name="action">win.show-help-overlay</attribute>
+          <attribute name="label" translatable="yes">_Keyboard Shortcuts</attribute>
+        </item>
+      </section>
+      <section>
+        <item>
+          <attribute name="action">win.about</attribute>
+          <attribute name="label" translatable="yes">_About SheepShaver</attribute>
+        </item>
+      </section>
+    </submenu>
+  </menu>
+</interface>

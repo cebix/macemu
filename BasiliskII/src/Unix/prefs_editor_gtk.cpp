@@ -227,7 +227,7 @@ static GtkWidget *table_make_combobox(GtkWidget *table, int row, int label_id, c
 	label = gtk_label_new(GetString(label_id));
 	gtk_widget_show(label);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row + 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
-	
+
 	combo = gtk_combo_box_entry_new_text();
 	gtk_widget_show(combo);
 	while(list)
@@ -238,7 +238,7 @@ static GtkWidget *table_make_combobox(GtkWidget *table, int row, int label_id, c
 
 	gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN (combo))), pref);
 	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
-	
+
 	return combo;
 }
 
@@ -270,7 +270,7 @@ static GtkWidget *table_make_file_entry(GtkWidget *table, int row, int label_id,
 	gtk_table_attach(GTK_TABLE(table), box, 1, 2, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
 
 	entry = gtk_entry_new();
-	gtk_entry_set_text(GTK_ENTRY(entry), str); 
+	gtk_entry_set_text(GTK_ENTRY(entry), str);
 	gtk_widget_show(entry);
 	gtk_box_pack_start(GTK_BOX(box), entry, TRUE, TRUE, 0);
 
@@ -322,7 +322,7 @@ static GtkWidget *make_file_entry(GtkWidget *top, int label_id, const char *pref
 		str = "";
 
 	entry = gtk_entry_new();
-	gtk_entry_set_text(GTK_ENTRY(entry), str); 
+	gtk_entry_set_text(GTK_ENTRY(entry), str);
 	button = make_browse_button(entry, only_dirs);
 
 	gtk_widget_show(entry);
@@ -374,11 +374,11 @@ static GtkWidget *make_combobox(GtkWidget *top, int label_id, const char *prefs_
 	sprintf(str, "%d", PrefsFindInt32(prefs_item));
 	gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN (combo))), str);
 	gtk_box_pack_start(GTK_BOX(box), combo, TRUE, TRUE, 0);
-	
+
 	return combo;
 }
 
- 
+
 /*
  *  Show preferences editor
  *  Returns true when user clicked on "Start", false otherwise
@@ -585,7 +585,7 @@ static void cb_create_volume_response (GtkWidget *chooser, int response, GtkEntr
 }
 
 // "Add Volume" button clicked
-static void cb_add_volume (...)
+static void cb_add_volume (GSimpleAction *action, GVariant *parameter, gpointer user_data)
 {
 	GtkWidget *chooser = gtk_file_chooser_dialog_new(GetString(STR_ADD_VOLUME_TITLE),
 							GTK_WINDOW(win),
@@ -601,7 +601,7 @@ static void cb_add_volume (...)
 }
 
 // "Create Hardfile" button clicked
-static void cb_create_volume (...)
+static void cb_create_volume (GSimpleAction *action, GVariant *parameter, gpointer user_data)
 {
 	GtkWidget *chooser = gtk_file_chooser_dialog_new(GetString(STR_CREATE_VOLUME_TITLE),
 							GTK_WINDOW(win),
@@ -633,7 +633,7 @@ static void cb_create_volume (...)
 }
 
 // "Remove Volume" button clicked
-static void cb_remove_volume(...)
+static void cb_remove_volume(GSimpleAction *action, GVariant *parameter, gpointer user_data)
 {
 	gtk_clist_remove(GTK_CLIST(volume_list), selected_volume);
 }
@@ -801,12 +801,12 @@ static void create_jit_pane(GtkWidget *top)
 		return;
 
 	GtkWidget *box;
-	
+
 	box = make_pane(top, STR_JIT_PANE_TITLE);
 	make_checkbox(box, STR_JIT_CTRL, "jit", G_CALLBACK(tb_jit));
-	
+
 	w_jit_fpu = make_checkbox(box, STR_JIT_FPU_CTRL, "jitfpu", G_CALLBACK(tb_jit_fpu));
-	
+
 	// Translation cache size
 	static const combo_desc options[] = {
 		STR_JIT_CACHE_SIZE_2MB_LAB,
@@ -816,7 +816,7 @@ static void create_jit_pane(GtkWidget *top)
 		0
 	};
 	w_jit_cache_size = make_combobox(box, STR_JIT_CACHE_SIZE_CTRL, "jitcachesize", options);
-	
+
 	// Lazy translation cache invalidation
 	w_jit_lazy_flush = make_checkbox(box, STR_JIT_LAZY_CINV_CTRL, "jitlazyflush", G_CALLBACK(tb_jit_lazy_flush));
 
@@ -1114,7 +1114,7 @@ static void create_graphics_pane(GtkWidget *top)
 
 	w_fbdev_name = gtk_entry_new();
 	gtk_widget_show(w_fbdev_name);
-	gtk_entry_set_text(GTK_ENTRY(w_fbdev_name), fbdev_name); 
+	gtk_entry_set_text(GTK_ENTRY(w_fbdev_name), fbdev_name);
 	gtk_table_attach(GTK_TABLE(table), w_fbdev_name, 1, 2, 4, 5, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
 
 	w_fbdevice_file = make_file_entry(box, STR_FBDEVICE_FILE_CTRL, "fbdevicefile");
@@ -1196,7 +1196,7 @@ static void create_input_pane(GtkWidget *top)
 		str = "";
 
 	w_keycode_file = gtk_entry_new();
-	gtk_entry_set_text(GTK_ENTRY(w_keycode_file), str); 
+	gtk_entry_set_text(GTK_ENTRY(w_keycode_file), str);
 	gtk_widget_show(w_keycode_file);
 	gtk_box_pack_start(GTK_BOX(hbox), w_keycode_file, TRUE, TRUE, 0);
 

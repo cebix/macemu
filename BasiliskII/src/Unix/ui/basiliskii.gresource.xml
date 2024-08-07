@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/net/cebix/BasiliskII">
+    <file preprocess="xml-stripblanks" compressed="true">ui/menu.ui</file>
+    <file preprocess="xml-stripblanks" compressed="true">ui/prefs-editor.ui</file>
+    <file preprocess="xml-stripblanks" compressed="true">ui/help-overlay.ui</file>
+  </gresource>
+</gresources>

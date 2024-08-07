@@ -25,3 +25,6 @@ basic-dyngen-ops-x86_64_macos.hpp
 ppc-dyngen-ops-x86_32.hpp
 ppc-dyngen-ops-x86_64.hpp
 ppc-dyngen-ops-x86_64_macos.hpp
+
+# Generated GLib resource files
+g_resource.cpp

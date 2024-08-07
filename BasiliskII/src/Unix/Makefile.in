@@ -17,6 +17,7 @@ DESTDIR =
 
 CC = @CC@
 CXX = @CXX@
+GCR = @GCR@
 CFLAGS = @CFLAGS@
 CXXFLAGS = @CXXFLAGS@
 CPUINCLUDES_FLAGS=@CPUINCLUDES@
@@ -44,6 +45,9 @@ GUI_CFLAGS = @GUI_CFLAGS@
 GUI_LIBS = @GUI_LIBS@
 GUI_SRCS = ../prefs.cpp prefs_unix.cpp prefs_editor_gtk.cpp ../prefs_items.cpp \
 	../user_strings.cpp user_strings_unix.cpp xpram_unix.cpp sys_unix.cpp rpc_unix.cpp
+
+GRESOURCE_SRCS = ui/help-overlay.ui ui/menu.ui ui/prefs-editor.ui
+GRESOURCE_XML = ui/basiliskii.gresource.xml
 
 XPLAT_SRCS = ../CrossPlatform/vm_alloc.cpp ../CrossPlatform/sigsegv.cpp ../CrossPlatform/video_blit.cpp
 
@@ -171,10 +175,10 @@ uninstall:
 	rmdir $(DESTDIR)$(datadir)/$(APP)
 
 mostlyclean:
-	rm -f $(PROGS) $(OBJ_DIR)/* core* *.core *~ *.bak
+	rm -f $(PROGS) $(OBJ_DIR)/* core* *.core *~ *.bak ui/*~ ui/*.bak
 
 clean: mostlyclean
-	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h compemu.cpp compstbl.cpp comptbl.h
+	rm -f cpuemu.cpp cpudefs.cpp cputmp*.s cpufast*.s cpustbl.cpp cputbl.h compemu.cpp compstbl.cpp comptbl.h g_resource.cpp
 
 distclean: clean
 	rm -rf $(OBJ_DIR)
@@ -287,6 +291,9 @@ $(OBJ_DIR)/compemu7.o: compemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_7 $(CXXFLAGS) -c $< -o $@
 $(OBJ_DIR)/compemu8.o: compemu.cpp
 	$(CXX) $(CPPFLAGS) $(DEFS) -DPART_8 $(CXXFLAGS) -c $< -o $@
+
+g_resource.cpp: $(GRESOURCE_SRCS) $(GRESOURCE_XML)
+	$(GCR) --generate-source $(GRESOURCE_XML) --target $@
 
 #-------------------------------------------------------------------------
 # DO NOT DELETE THIS LINE -- make depend depends on it.

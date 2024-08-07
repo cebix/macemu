@@ -140,8 +140,12 @@
 
 #ifdef ENABLE_GTK
 #include <gtk/gtk.h>
+#include <gdk/gdk.h>
 #if !defined(GDK_WINDOWING_QUARTZ) && !defined(GDK_WINDOWING_WAYLAND)
 #include <X11/Xlib.h>
+#endif
+#if GTK_CHECK_VERSION(3, 14, 0)
+#define ENABLE_GTK3
 #endif
 #endif
 
@@ -234,6 +238,7 @@ static bool tick_thread_active = false;		// Flag: MacOS thread installed
 static volatile bool tick_thread_cancel;	// Flag: Cancel 60Hz thread
 static pthread_t tick_thread;				// 60Hz thread
 static pthread_t emul_thread;				// MacOS thread
+static int use_gui = -1;   					// Override prefs and show gui
 
 static bool ready_for_signals = false;		// Handler installed, signals can be sent
 
@@ -752,8 +757,33 @@ static bool init_sdl()
 }
 #endif
 
+#ifdef ENABLE_GTK
+GtkWindow *win;
+
+static void gui_startup (void)
+{
+	if (use_gui && !PrefsEditor())
+		QuitEmulator();
+}
+
+#ifdef ENABLE_GTK3
+static void gui_activate (GtkApplication *app)
+{
+	g_assert (GTK_IS_APPLICATION (app));
+	win = gtk_application_get_active_window (app);
+	/* Ask the window manager/compositor to present the window. */
+	if (win != NULL)
+		gtk_window_present (win);
+}
+#endif
+#endif
+
 int main(int argc, char **argv)
 {
+#ifdef ENABLE_GTK3
+	GtkApplication *app = NULL;
+	int ret;
+#endif
 #if defined(ENABLE_GTK) && !defined(GDK_WINDOWING_QUARTZ) && !defined(GDK_WINDOWING_WAYLAND)
 	XInitThreads();
 #endif
@@ -825,6 +855,21 @@ int main(int argc, char **argv)
 				UserPrefsPath = argv[i];
 				argv[i] = NULL;
 			}
+		// We intercept the --nogui commandline so that the settings
+		// window can change the setting from the prefs file
+		} else if (strcmp(argv[i], "--nogui") == 0) {
+			argv[i++] = NULL;
+			if (i < argc) {
+				if (strcmp(argv[i], "true") == 0)
+					use_gui = false;
+				else
+					use_gui = true;
+				argv[i] = NULL;
+			}
+		// Alternative commands to enter the GUI
+		} else if (strcmp(argv[i], "--gui") == 0 || strcmp(argv[i], "--settings") == 0) {
+				use_gui = true;
+				argv[i] = NULL;
 		} else if (valid_vmdir(argv[i])) {
 			vmdir = argv[i];
 			argv[i] = NULL;
@@ -859,16 +904,11 @@ int main(int argc, char **argv)
 		}
 	}
 
-#ifdef ENABLE_GTK
-	if (!gui_connection) {
-		// Init GTK
-		gtk_set_locale();
-		gtk_init(&argc, &argv);
-	}
-#endif
-
 	// Read preferences
 	PrefsInit(vmdir, argc, argv);
+	// Only use nogui preference if not passed as command line argument
+	if (use_gui == -1)
+		use_gui = !PrefsFindBool("nogui");
 
 #if SDL_PLATFORM_MACOS && SDL_VERSION_ATLEAST(2,0,0)
 	// On Mac OS X hosts, SDL2 will create its own menu bar.  This is mostly OK,
@@ -922,10 +962,24 @@ int main(int argc, char **argv)
 	// Init system routines
 	SysInit();
 
-	// Show preferences editor
-	if (!PrefsFindBool("nogui"))
-		if (!PrefsEditor())
-			goto quit;
+#ifdef ENABLE_GTK3
+	if (!gui_connection) {
+		// Init GTK
+		app = gtk_application_new (GetString(STR_APP_ID), G_APPLICATION_FLAGS_NONE);
+		g_set_prgname (GetString(STR_APP_DISPLAY_NAME));
+		g_signal_connect (app, "activate", G_CALLBACK (gui_activate), NULL);
+		g_signal_connect (app, "startup", G_CALLBACK (gui_startup), NULL);
+		g_application_register (G_APPLICATION (app), NULL, NULL);
+		ret = g_application_run (G_APPLICATION (app), argc, argv);
+	}
+#elif defined(ENABLE_GTK)
+	if (!gui_connection) {
+	// Init GTK
+		gtk_set_locale();
+		gtk_init(&argc, &argv);
+		gui_startup();
+	}
+#endif
 
 #if !EMULATED_PPC
 	// Check some things
@@ -2013,7 +2067,7 @@ static void sigsegv_handler(int sig, siginfo_t *sip, void *scp)
 		}
 
 		// In GUI mode, show error alert
-		if (!PrefsFindBool("nogui")) {
+		if (use_gui) {
 			char str[256];
 			if (transfer_type == TYPE_LOAD || transfer_type == TYPE_STORE)
 				sprintf(str, GetString(STR_MEM_ACCESS_ERR), transfer_size == SIZE_BYTE ? "byte" : transfer_size == SIZE_HALFWORD ? "halfword" : "word", transfer_type == TYPE_LOAD ? GetString(STR_MEM_ACCESS_READ) : GetString(STR_MEM_ACCESS_WRITE), addr, r->pc(), r->gpr(24), r->gpr(1));
@@ -2192,7 +2246,7 @@ power_inst:		sprintf(str, GetString(STR_POWER_INSTRUCTION_ERR), r->pc(), r->gpr(
 		}
 
 		// In GUI mode, show error alert
-		if (!PrefsFindBool("nogui")) {
+		if (use_gui) {
 			sprintf(str, GetString(STR_UNKNOWN_SEGV_ERR), r->pc(), r->gpr(24), r->gpr(1), opcode);
 			ErrorAlert(str);
 			QuitEmulator();

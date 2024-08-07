@@ -56,7 +56,7 @@ links:
 	       include/adb.h include/audio.h include/audio_defs.h \
 	       include/cdrom.h include/clip.h include/debug.h include/disk.h \
 	       include/extfs.h include/extfs_defs.h include/pict.h \
-	       include/prefs.h include/scsi.h include/serial.h \
+	       include/prefs.h include/scsi.h include/serial.h include/prefs_editor.h \
 	       include/serial_defs.h include/sony.h include/sys.h \
 	       include/timer.h include/xpram.h \
 	       BeOS/audio_beos.cpp BeOS/extfs_beos.cpp BeOS/scsi_beos.cpp \

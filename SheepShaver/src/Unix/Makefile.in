@@ -15,6 +15,7 @@ DESTDIR =
 
 CC = @CC@
 CXX = @CXX@
+GCR = @GCR@
 CFLAGS = @CFLAGS@
 CXXFLAGS = @CXXFLAGS@
 CPPFLAGS = @CPPFLAGS@ -I../include -I. -I../CrossPlatform -I../slirp
@@ -51,6 +52,9 @@ GUI_LIBS = @GUI_LIBS@
 GUI_SRCS = ../prefs.cpp prefs_unix.cpp prefs_editor_gtk.cpp ../prefs_items.cpp \
 	../user_strings.cpp user_strings_unix.cpp xpram_unix.cpp sys_unix.cpp rpc_unix.cpp \
 	../dummy/prefs_dummy.cpp
+
+GRESOURCE_SRCS = ui/help-overlay.ui ui/menu.ui ui/prefs-editor.ui
+GRESOURCE_XML = ui/sheepshaver.gresource.xml
 
 XPLAT_SRCS = ../CrossPlatform/vm_alloc.cpp ../CrossPlatform/sigsegv.cpp ../CrossPlatform/video_blit.cpp
 
@@ -177,7 +181,7 @@ uninstall:
 	rmdir $(DESTDIR)$(datadir)/$(APP)
 
 clean:
-	rm -f $(PROGS) $(OBJ_DIR)/* core* *.core *~ *.bak ppc-execute-impl.cpp
+	rm -f $(PROGS) $(OBJ_DIR)/* core* *.core *~ *.bak ui/*~ ui/*.bak ppc-execute-impl.cpp g_resource.cpp
 	rm -f dyngen {basic,ppc}-dyngen-ops*.hpp ppc_asm.out.s
 	rm -rf $(APP_APP) $(GUI_APP_APP)
 
@@ -282,6 +286,9 @@ $(OBJ_DIR)/test-powerpc.o: $(kpxsrcdir)/test/test-powerpc.cpp
 
 test-powerpc$(EXEEXT): $(TESTOBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(TESTOBJS) $(LIBS)
+
+g_resource.cpp: $(GRESOURCE_SRCS) $(GRESOURCE_XML)
+	$(GCR) --generate-source $(GRESOURCE_XML) --target $@
 
 #-------------------------------------------------------------------------
 # DO NOT DELETE THIS LINE -- make depend depends on it.

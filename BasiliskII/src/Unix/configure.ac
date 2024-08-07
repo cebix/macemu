@@ -74,12 +74,14 @@ AC_ARG_ENABLE(addressing,
 
 dnl External packages.
 AC_ARG_WITH(esd,             [  --with-esd              support ESD for sound under Linux/FreeBSD [default=yes]], [WANT_ESD=$withval], [WANT_ESD=yes])
-AC_ARG_WITH(gtk,             [  --with-gtk              use GTK user interface [default=yes]],
+AC_ARG_WITH(gtk,            [  --with-gtk              use GTK 2 or 3 for user interface [default=any]],
   [case "$withval" in
-   yes|gtk2)  WANT_GTK="gtk2";;
-   *)         WANT_GTK="no";;
+   yes|true|any) WANT_GTK="any";;
+   *3)	   	 WANT_GTK="GTK3";;
+   *2)	   	 WANT_GTK="GTK2";;
+   *)      	 WANT_GTK="no";;
    esac],
-  [WANT_GTK="gtk2"])
+  [WANT_GTK="any"])
 AC_ARG_WITH(mon,             [  --with-mon              use mon as debugger [default=no]], [WANT_MON=$withval], [WANT_MON=no])
 
 AC_ARG_WITH(bincue,   
@@ -458,24 +460,57 @@ if [[ "x$WANT_XF86_VIDMODE" = "xyes" ]]; then
   ])
 fi
 
+# Check for pkg-config macro, thanks to rdiez
+m4_ifndef([PKG_PROG_PKG_CONFIG], [m4_fatal(
+    [The PKG_PROG_PKG_CONFIG macro is not available. You need to install pkg-config.]
+)])
+PKG_PROG_PKG_CONFIG
+
 dnl We use GTK+ if possible.
 UISRCS=../dummy/prefs_editor_dummy.cpp
-if [[ "x$WANT_GTK" = "xgtk2" ]]; then
-  AM_PATH_GTK_2_0(2.6.4, [
-    GUI_CFLAGS="$GTK_CFLAGS"
-    GUI_LIBS="$GTK_LIBS"
-    WANT_GTK=gtk2
+if [[ "$WANT_GTK" = "any" -o "$WANT_GTK" = "GTK3" ]]; then
+  PKG_CHECK_MODULES([GTK3], [gtk+-3.0 >= 3.14.5], [
+    WANT_GTK=GTK3
+    GUI_CFLAGS="$GTK3_CFLAGS"
+    GUI_LIBS="$GTK3_LIBS"
+    LDFLAGS="$LDFLAGS -Wl,--export-dynamic"
+    AC_CHECK_PROG([ac_cv_gcr], [glib-compile-resources], [yes])
+    if [[ "$ac_cv_gcr" = "yes" ]]; then
+      GCR="glib-compile-resources"
+    else
+      AC_MSG_ERROR([glib-compile-resources not found.])
+    fi
   ], [
-    AC_MSG_WARN([Could not find GTK+ 2.0, disabling user interface.])
+    if [[ "$WANT_GTK" = "any" ]]; then
+      AC_MSG_WARN([Could not find GTK3 (version >= 3.14.5), falling back to GTK2.])
+      WANT_GTK=GTK2
+    else
+      AC_MSG_WARN([Could not find GTK3 (version >= 3.14.5), disabling user interface.])
+      WANT_GTK=no
+    fi
+  ])
+fi
+if [[ "$WANT_GTK" = "GTK2" ]]; then
+  PKG_CHECK_MODULES([GTK2], [gtk+-2.0 >= 2.6.4], [
+    WANT_GTK=GTK2
+    GUI_CFLAGS="$GTK2_CFLAGS"
+    GUI_LIBS="$GTK2_LIBS"
+  ], [
+    AC_MSG_WARN([Could not find GTK2 (version >= 2.6.4), disabling user interface.])
     WANT_GTK=no
   ])
 fi
 if [[ "x$WANT_GTK" != "xno" -a "x$WANT_STANDALONE_GUI" = "xno" ]]; then
   AC_DEFINE(ENABLE_GTK, 1, [Define if using GTK.])
-  UISRCS=prefs_editor_gtk.cpp
+  if [[ "$WANT_GTK" = "GTK3" ]]; then
+    UISRCS="prefs_editor_gtk3.cpp g_resource.cpp"
+  else
+    UISRCS="prefs_editor_gtk.cpp"
+  fi
 fi
 AC_SUBST(GUI_CFLAGS)
 AC_SUBST(GUI_LIBS)
+AC_SUBST(GCR)
 
 dnl Build external GUI if requested.
 if [[ "$WANT_STANDALONE_GUI" != "yes" ]]; then
