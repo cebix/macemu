@@ -923,7 +923,7 @@ int tcp_emu(struct socket *so, struct mbuf *m)
 					*(so_rcv->sb_rptr + num) = 0;
 					if (ctl_password && !ctl_password_ok) {
 						/* Need a password */
-						if (sscanf(so_rcv->sb_rptr, "pass %256s", buff) == 1) {
+						if (sscanf(so_rcv->sb_rptr, "pass %255s", buff) == 1) {
 							if (strcmp(buff, ctl_password) == 0) {
 								ctl_password_ok = 1;
 								n = sprintf(so_snd->sb_wptr,
@@ -963,7 +963,7 @@ do_prompt:
 			/*
 			 * Need to emulate the PORT command
 			 */			
-			x = sscanf(bptr, "ORT %d,%d,%d,%d,%d,%d\r\n%256[^\177]", 
+			x = sscanf(bptr, "ORT %d,%d,%d,%d,%d,%d\r\n%255[^\177]", 
 				   &n1, &n2, &n3, &n4, &n5, &n6, buff);
 			if (x < 6)
 			   return 1;
@@ -994,7 +994,7 @@ do_prompt:
 			/*
 			 * Need to emulate the PASV response
 			 */
-			x = sscanf(bptr, "27 Entering Passive Mode (%d,%d,%d,%d,%d,%d)\r\n%256[^\177]",
+			x = sscanf(bptr, "27 Entering Passive Mode (%d,%d,%d,%d,%d,%d)\r\n%255[^\177]",
 				   &n1, &n2, &n3, &n4, &n5, &n6, buff);
 			if (x < 6)
 			   return 1;
@@ -1053,8 +1053,8 @@ do_prompt:
 		if ((bptr = (char *)strstr(m->m_data, "DCC")) == NULL)
 			 return 1;
 		
-		/* The %256s is for the broken mIRC */
-		if (sscanf(bptr, "DCC CHAT %256s %u %u", buff, &laddr, &lport) == 3) {
+		/* The %255s is for the broken mIRC */
+		if (sscanf(bptr, "DCC CHAT %255s %u %u", buff, &laddr, &lport) == 3) {
 			if ((so = solisten(0, htonl(laddr), htons(lport), SS_FACCEPTONCE)) == NULL)
 				return 1;
 			
@@ -1062,7 +1062,7 @@ do_prompt:
 			m->m_len += sprintf(bptr, "DCC CHAT chat %lu %u%c\n",
 			     (unsigned long)ntohl(so->so_faddr.s_addr),
 			     ntohs(so->so_fport), 1);
-		} else if (sscanf(bptr, "DCC SEND %256s %u %u %u", buff, &laddr, &lport, &n1) == 4) {
+		} else if (sscanf(bptr, "DCC SEND %255s %u %u %u", buff, &laddr, &lport, &n1) == 4) {
 			if ((so = solisten(0, htonl(laddr), htons(lport), SS_FACCEPTONCE)) == NULL)
 				return 1;
 			
@@ -1070,7 +1070,7 @@ do_prompt:
 			m->m_len += sprintf(bptr, "DCC SEND %s %lu %u %u%c\n", 
 			      buff, (unsigned long)ntohl(so->so_faddr.s_addr),
 			      ntohs(so->so_fport), n1, 1);
-		} else if (sscanf(bptr, "DCC MOVE %256s %u %u %u", buff, &laddr, &lport, &n1) == 4) {
+		} else if (sscanf(bptr, "DCC MOVE %255s %u %u %u", buff, &laddr, &lport, &n1) == 4) {
 			if ((so = solisten(0, htonl(laddr), htons(lport), SS_FACCEPTONCE)) == NULL)
 				return 1;
 			

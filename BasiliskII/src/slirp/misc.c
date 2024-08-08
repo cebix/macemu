@@ -627,7 +627,7 @@ void add_emu(char *buff)
 	struct emu_t *emup;
 	struct socket *so;
 	
-	if (sscanf(buff, "%256s %256s", buff2, buff1) != 2) {
+	if (sscanf(buff, "%255s %255s", buff2, buff1) != 2) {
 		lprint("Error: Bad arguments\r\n");
 		return;
 	}
@@ -642,7 +642,7 @@ void add_emu(char *buff)
 	
 	if (sscanf(buff2, "%128[^:]:%128s", buff1, buff3) != 2) {
 		buff3 = 0;
-		if (sscanf(buff2, "%256s", buff1) != 1) {
+		if (sscanf(buff2, "%255s", buff1) != 1) {
 			lprint("Error: Bad second argument\r\n");
 			return;
 		}
