@@ -40,6 +40,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #define MAXLEN 20
 
+#include <stdlib.h>
 #include <setjmp.h>
 
 #ifndef UNIXWARE_COMPAT
