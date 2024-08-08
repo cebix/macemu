@@ -1254,8 +1254,8 @@ void mon(int argc, const char **argv)
 	char *cmd = NULL;
 	while (!done) {
 		if (interactive) {
-			char prompt[16];
-			sprintf(prompt, "[%0*lx]-> ", int(2 * sizeof(mon_dot_address)), mon_dot_address);
+			char prompt[32];
+			snprintf(prompt, sizeof(prompt), "[%0*lx]-> ", int(2 * sizeof(mon_dot_address)), mon_dot_address);
 			read_line(prompt);
 			if (!input) {
 				done = true;
