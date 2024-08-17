@@ -1604,37 +1604,23 @@ ill:		printf("SIGILL num %d, code %d\n", sig, code);
  */
 
 #ifdef ENABLE_GTK
-static void dl_destroyed(void)
-{
-	gtk_main_quit();
-}
-
-static void dl_quit(GtkWidget *dialog)
+static GCallback dl_destroyed(GtkWidget *dialog)
 {
 	gtk_widget_destroy(dialog);
+	gtk_main_quit();
+	return NULL;
 }
 
 void display_alert(int title_id, int prefix_id, int button_id, const char *text)
 {
-	char str[256];
-	sprintf(str, GetString(prefix_id), text);
-
-	GtkWidget *dialog = gtk_dialog_new();
-	gtk_window_set_title(GTK_WINDOW(dialog), GetString(title_id));
-	gtk_container_border_width(GTK_CONTAINER(dialog), 5);
-	gtk_widget_set_uposition(GTK_WIDGET(dialog), 100, 150);
-	gtk_signal_connect(GTK_OBJECT(dialog), "destroy", GTK_SIGNAL_FUNC(dl_destroyed), NULL);
-
-	GtkWidget *label = gtk_label_new(str);
-	gtk_widget_show(label);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
-
-	GtkWidget *button = gtk_button_new_with_label(GetString(button_id));
-	gtk_widget_show(button);
-	gtk_signal_connect_object(GTK_OBJECT(button), "clicked", GTK_SIGNAL_FUNC(dl_quit), GTK_OBJECT(dialog));
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, FALSE, FALSE, 0);
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
-	gtk_widget_grab_default(button);
+	GtkWidget *dialog = gtk_message_dialog_new(NULL,
+	                                           GTK_DIALOG_MODAL,
+	                                           GTK_MESSAGE_WARNING,
+	                                           GTK_BUTTONS_NONE,
+	                                           GetString(title_id), NULL);
+	gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(dialog), text);
+	gtk_dialog_add_button(GTK_DIALOG(dialog), GetString(button_id), GTK_RESPONSE_CLOSE);
+	g_signal_connect(dialog, "response", G_CALLBACK(dl_destroyed), NULL);
 	gtk_widget_show(dialog);
 
 	gtk_main();
@@ -1653,11 +1639,13 @@ void ErrorAlert(const char *text)
 			rpc_method_wait_for_reply(gui_connection, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR)
 			return;
 	}
-#if defined(ENABLE_GTK) && !defined(USE_SDL_VIDEO)
-	if (PrefsFindBool("nogui") || x_display == NULL) {
+#ifdef ENABLE_GTK
+#ifndef USE_SDL_VIDEO
+	if (x_display == NULL) {
 		printf(GetString(STR_SHELL_ERROR_PREFIX), text);
 		return;
 	}
+#endif
 	VideoQuitFullScreen();
 	display_alert(STR_ERROR_ALERT_TITLE, STR_GUI_ERROR_PREFIX, STR_QUIT_BUTTON, text);
 #else
@@ -1677,11 +1665,13 @@ void WarningAlert(const char *text)
 			rpc_method_wait_for_reply(gui_connection, RPC_TYPE_INVALID) == RPC_ERROR_NO_ERROR)
 			return;
 	}
-#if defined(ENABLE_GTK) && !defined(USE_SDL_VIDEO)
-	if (PrefsFindBool("nogui") || x_display == NULL) {
+#ifdef ENABLE_GTK
+#ifndef USE_SDL_VIDEO
+	if (x_display == NULL) {
 		printf(GetString(STR_SHELL_WARNING_PREFIX), text);
 		return;
 	}
+#endif
 	display_alert(STR_WARNING_ALERT_TITLE, STR_GUI_WARNING_PREFIX, STR_OK_BUTTON, text);
 #else
 	printf(GetString(STR_SHELL_WARNING_PREFIX), text);
