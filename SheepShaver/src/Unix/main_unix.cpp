@@ -147,6 +147,10 @@
 #if GTK_CHECK_VERSION(3, 14, 0)
 #define ENABLE_GTK3
 #endif
+#if GTK_CHECK_VERSION(3, 22, 0)
+#define ENABLE_GTK_3_22
+#include "color_scheme.h"
+#endif
 #endif
 
 #ifdef ENABLE_XF86_DGA
@@ -762,6 +766,9 @@ GtkWindow *win;
 
 static void gui_startup (void)
 {
+#ifdef ENABLE_GTK_3_22
+    color_scheme_set(APP_PREFERS_LIGHT);
+#endif
 	if (use_gui && !PrefsEditor())
 		QuitEmulator();
 }

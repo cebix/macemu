@@ -380,7 +380,7 @@ fi
 if [[ "x$WANT_GTK" != "xno" -a "x$WANT_STANDALONE_GUI" = "xno" ]]; then
   AC_DEFINE(ENABLE_GTK, 1, [Define if using GTK.])
   if [[ "$WANT_GTK" = "GTK3" ]]; then
-    UISRCS="prefs_editor_gtk3.cpp g_resource.cpp"
+    UISRCS="prefs_editor_gtk3.cpp g_resource.cpp color_scheme.cpp"
   else
     UISRCS="prefs_editor_gtk.cpp"
   fi
