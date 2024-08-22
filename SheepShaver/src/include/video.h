@@ -98,7 +98,8 @@ enum {	// viAppleID
 enum {	// Display type
 	DIS_INVALID,
 	DIS_SCREEN,
-	DIS_WINDOW
+	DIS_WINDOW,
+	DIS_CHROMAKEY
 };
 
 extern bool video_activated;		// Flag: video display activated, mouse and keyboard data valid

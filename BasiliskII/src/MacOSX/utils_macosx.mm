@@ -50,7 +50,7 @@ void disable_SDL2_macosx_menu_bar_keyboard_shortcuts() {
 static NSWindow *get_nswindow(SDL_Window *window) {
 #if SDL_VERSION_ATLEAST(3, 0, 0)
 	SDL_PropertiesID props = SDL_GetWindowProperties(window);
-	return (NSWindow *)SDL_GetProperty(props, "SDL.window.cocoa.window", NULL);
+	return (NSWindow *)SDL_GetPointerProperty(props, "SDL.window.cocoa.window", NULL);
 #else
 	SDL_SysWMinfo wmInfo;
 	SDL_VERSION(&wmInfo.version);

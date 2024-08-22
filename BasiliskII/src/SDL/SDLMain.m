@@ -17,7 +17,7 @@
 #endif
 #endif
 
-#if (SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0)) // SDLMain.m is not needed in SDL 2.x
+#if SDL_COMPILEDVERSION >= SDL_VERSIONNUM(1, 0, 0) && SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0) // SDLMain.m is not needed in SDL 2.x
 
 #include "SDLMain.h"
 #include <sys/param.h> /* for MAXPATHLEN */

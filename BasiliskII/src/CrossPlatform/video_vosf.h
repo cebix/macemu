@@ -46,7 +46,11 @@ extern void update_sdl_video(SDL_Surface *screen, int numrects, SDL_Rect *rects)
 #define VIDEO_DRV_DGA_INIT		driver_base *drv
 #define VIDEO_DRV_LOCK_PIXELS	SDL_VIDEO_LOCK_SURFACE(drv->s)
 #define VIDEO_DRV_UNLOCK_PIXELS	SDL_VIDEO_UNLOCK_SURFACE(drv->s)
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+#define VIDEO_DRV_DEPTH			SDL_GetPixelFormatDetails(drv->s->format)->bits_per_pixel
+#else
 #define VIDEO_DRV_DEPTH			drv->s->format->BitsPerPixel
+#endif
 #define VIDEO_DRV_WIDTH			drv->s->w
 #define VIDEO_DRV_HEIGHT		drv->s->h
 #define VIDEO_DRV_ROW_BYTES		drv->s->pitch

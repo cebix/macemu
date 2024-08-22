@@ -19,6 +19,10 @@
  */
 
 #include "sysdeps.h"
+
+#include <SDL.h>
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+
 #include "cpu_emulation.h"
 #include "main.h"
 #include "prefs.h"
@@ -26,13 +30,6 @@
 #include "audio.h"
 #include "audio_defs.h"
 
-#include <SDL_mutex.h>
-#include <SDL_audio.h>
-#include <SDL_version.h>
-#include <SDL_timer.h>
-
-#if SDL_VERSION_ATLEAST(3, 0, 0)
-#include <SDL_init.h>
 #include <queue>
 
 #define DEBUG 0
@@ -269,7 +266,7 @@ void AudioInterrupt(void)
 		WriteMacInt32(audio_data + adatStreamInfo, 0);
 
 	// Signal stream function
-	SDL_PostSemaphore(audio_irq_done_sem);
+	SDL_SignalSemaphore(audio_irq_done_sem);
 	D(bug("AudioInterrupt done\n"));
 }
 

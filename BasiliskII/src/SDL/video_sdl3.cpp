@@ -44,8 +44,6 @@
 #include <SDL.h>
 #if SDL_VERSION_ATLEAST(3, 0, 0)
 
-#include <SDL_mutex.h>
-#include <SDL_thread.h>
 #include <errno.h>
 #include <vector>
 #include <string>
@@ -809,9 +807,9 @@ static SDL_Surface *init_sdl_video(int width, int height, int depth, Uint32 flag
 
 	SDL_assert(sdl_texture == NULL);
 #ifdef ENABLE_VOSF
-	sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+	sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
 #else
-	sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_BGRA8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+	sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_BGRX8888, SDL_TEXTUREACCESS_STREAMING, width, height);
 #endif
     if (!sdl_texture) {
         shutdown_sdl_video();
@@ -828,23 +826,23 @@ static SDL_Surface *init_sdl_video(int width, int height, int depth, Uint32 flag
 		case VIDEO_DEPTH_1BIT:
 		case VIDEO_DEPTH_2BIT:
 		case VIDEO_DEPTH_4BIT:
-            guest_surface = SDL_CreateSurface(width, height, SDL_GetPixelFormatEnumForMasks(8, 0, 0, 0, 0));
+            guest_surface = SDL_CreateSurface(width, height, SDL_GetPixelFormatForMasks(8, 0, 0, 0, 0));
             break;
 		case VIDEO_DEPTH_8BIT:
 #ifdef ENABLE_VOSF
-			guest_surface = SDL_CreateSurface(width, height, SDL_GetPixelFormatEnumForMasks(8, 0, 0, 0, 0));
+			guest_surface = SDL_CreateSurface(width, height, SDL_GetPixelFormatForMasks(8, 0, 0, 0, 0));
 #else
-			guest_surface = SDL_CreateSurfaceFrom(the_buffer, width, height, pitch, SDL_GetPixelFormatEnumForMasks(8, 0, 0, 0, 0));
+			guest_surface = SDL_CreateSurfaceFrom(width, height, SDL_GetPixelFormatForMasks(8, 0, 0, 0, 0), the_buffer, pitch);
 #endif
 			break;
 		case VIDEO_DEPTH_16BIT:
-			guest_surface = SDL_CreateSurface(width, height, SDL_GetPixelFormatEnumForMasks(16, 0xf800, 0x07e0, 0x001f, 0));
+			guest_surface = SDL_CreateSurface(width, height, SDL_GetPixelFormatForMasks(16, 0xf800, 0x07e0, 0x001f, 0));
 			break;
 		case VIDEO_DEPTH_32BIT:
 #ifdef ENABLE_VOSF
-			guest_surface = SDL_CreateSurface(width, height, SDL_GetPixelFormatEnumForMasks(32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000));
+			guest_surface = SDL_CreateSurface(width, height, SDL_GetPixelFormatForMasks(32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000));
 #else
-			guest_surface = SDL_CreateSurfaceFrom(the_buffer, width, height, pitch, SDL_GetPixelFormatEnumForMasks(32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff));
+			guest_surface = SDL_CreateSurfaceFrom(width, height, SDL_GetPixelFormatForMasks(32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff), the_buffer, pitch);
 #endif
 			host_surface = guest_surface;
 			break;
@@ -859,16 +857,15 @@ static SDL_Surface *init_sdl_video(int width, int height, int depth, Uint32 flag
 
     if (!host_surface) {
 		SDL_PropertiesID props = SDL_GetTextureProperties(sdl_texture);
-		SDL_PixelFormatEnum texture_format = (SDL_PixelFormatEnum)SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_FORMAT_NUMBER, 0);
+		SDL_PixelFormat texture_format = (SDL_PixelFormat)SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_FORMAT_NUMBER, 0);
     	int bpp;
     	Uint32 Rmask, Gmask, Bmask, Amask;
-    	if (!SDL_GetMasksForPixelFormatEnum(texture_format, &bpp, &Rmask, &Gmask, &Bmask, &Amask)) {
+    	if (SDL_GetMasksForPixelFormat(texture_format, &bpp, &Rmask, &Gmask, &Bmask, &Amask)) {
     		printf("ERROR: Unable to determine format for host SDL_surface: %s\n", SDL_GetError());
     		shutdown_sdl_video();
     		return NULL;
     	}
-
-        host_surface = SDL_CreateSurface(width, height, SDL_GetPixelFormatEnumForMasks(bpp, Rmask, Gmask, Bmask, Amask));
+        host_surface = SDL_CreateSurface(width, height, SDL_GetPixelFormatForMasks(bpp, Rmask, Gmask, Bmask, Amask));
         if (!host_surface) {
         	printf("ERROR: Unable to create host SDL_surface: %s\n", SDL_GetError());
             shutdown_sdl_video();
@@ -934,7 +931,7 @@ static int present_sdl_video()
 	// Update the host OS' texture
 	uint8_t *srcPixels = (uint8_t *)host_surface->pixels +
 		sdl_update_video_rect.y * host_surface->pitch +
-		sdl_update_video_rect.x * host_surface->format->bytes_per_pixel;
+		sdl_update_video_rect.x * SDL_GetPixelFormatDetails(host_surface->format)->bytes_per_pixel;
 
 	uint8_t *dstPixels;
 	int dstPitch;
@@ -1099,7 +1096,7 @@ void driver_base::adapt_to_video_mode() {
 	ADBSetRelMouseMode(mouse_grabbed);
 
 	// Init blitting routines
-	SDL_PixelFormat *f = s->format;
+	const SDL_PixelFormatDetails *f = SDL_GetPixelFormatDetails(s->format);
 	VisualFormat visualFormat;
 	visualFormat.depth = sdl_depth_of_video_depth(VIDEO_MODE_DEPTH);
 	visualFormat.Rmask = f->Rmask;
@@ -1110,7 +1107,7 @@ void driver_base::adapt_to_video_mode() {
 	// Load gray ramp to 8->16/32 expand map
 	if (!IsDirectMode(mode))
 		for (int i=0; i<256; i++)
-			ExpandMap[i] = SDL_MapRGB(f, i, i, i);
+			ExpandMap[i] = SDL_MapRGB(f, NULL, i, i, i);
 
 
 	bool hardware_cursor = false;
@@ -1219,11 +1216,7 @@ void driver_base::toggle_mouse_grab(void)
 
 static void update_mouse_grab()
 {
-	if (mouse_grabbed) {
-		SDL_SetRelativeMouseMode(SDL_TRUE);
-	} else {
-		SDL_SetRelativeMouseMode(SDL_FALSE);
-	}
+	SDL_SetWindowRelativeMouseMode(sdl_window, mouse_grabbed ? SDL_TRUE : SDL_FALSE);
 }
 
 // Grab mouse, switch to relative mouse mode
@@ -1860,7 +1853,7 @@ void SDL_monitor_desc::set_palette(uint8 *pal, int num_in)
 	if (!IsDirectMode(mode)) {
 		for (int i=0; i<256; i++) {
 			int c = i & (num_in-1); // If there are less than 256 colors, we repeat the first entries (this makes color expansion easier)
-			ExpandMap[i] = SDL_MapRGB(drv->s->format, pal[c*3+0], pal[c*3+1], pal[c*3+2]);
+			ExpandMap[i] = SDL_MapRGB(SDL_GetPixelFormatDetails(drv->s->format), NULL, pal[c*3+0], pal[c*3+1], pal[c*3+2]);
 		}
 
 #ifdef ENABLE_VOSF
@@ -2107,32 +2100,32 @@ static int modify_opt_cmd(int code) {
 static int event2keycode(SDL_KeyboardEvent const &key, bool key_down)
 {
 	switch (key.key) {
-	case SDLK_a: return 0x00;
-	case SDLK_b: return 0x0b;
-	case SDLK_c: return 0x08;
-	case SDLK_d: return 0x02;
-	case SDLK_e: return 0x0e;
-	case SDLK_f: return 0x03;
-	case SDLK_g: return 0x05;
-	case SDLK_h: return 0x04;
-	case SDLK_i: return 0x22;
-	case SDLK_j: return 0x26;
-	case SDLK_k: return 0x28;
-	case SDLK_l: return 0x25;
-	case SDLK_m: return 0x2e;
-	case SDLK_n: return 0x2d;
-	case SDLK_o: return 0x1f;
-	case SDLK_p: return 0x23;
-	case SDLK_q: return 0x0c;
-	case SDLK_r: return 0x0f;
-	case SDLK_s: return 0x01;
-	case SDLK_t: return 0x11;
-	case SDLK_u: return 0x20;
-	case SDLK_v: return 0x09;
-	case SDLK_w: return 0x0d;
-	case SDLK_x: return 0x07;
-	case SDLK_y: return 0x10;
-	case SDLK_z: return 0x06;
+	case SDLK_A: return 0x00;
+	case SDLK_B: return 0x0b;
+	case SDLK_C: return 0x08;
+	case SDLK_D: return 0x02;
+	case SDLK_E: return 0x0e;
+	case SDLK_F: return 0x03;
+	case SDLK_G: return 0x05;
+	case SDLK_H: return 0x04;
+	case SDLK_I: return 0x22;
+	case SDLK_J: return 0x26;
+	case SDLK_K: return 0x28;
+	case SDLK_L: return 0x25;
+	case SDLK_M: return 0x2e;
+	case SDLK_N: return 0x2d;
+	case SDLK_O: return 0x1f;
+	case SDLK_P: return 0x23;
+	case SDLK_Q: return 0x0c;
+	case SDLK_R: return 0x0f;
+	case SDLK_S: return 0x01;
+	case SDLK_T: return 0x11;
+	case SDLK_U: return 0x20;
+	case SDLK_V: return 0x09;
+	case SDLK_W: return 0x0d;
+	case SDLK_X: return 0x07;
+	case SDLK_Y: return 0x10;
+	case SDLK_Z: return 0x06;
 
 	case SDLK_1: case SDLK_EXCLAIM: return 0x12;
 	case SDLK_2: case SDLK_AT: return 0x13;
@@ -2336,7 +2329,7 @@ static void handle_events(void)
 						ADBGetPosition(xl, yl);
 						uint8 *p = (uint8 *)host_surface->pixels;
 						const int OFS = 2;
-						if (xl >= OFS) p += (xl - OFS) * host_surface->format->bytes_per_pixel;
+						if (xl >= OFS) p += (xl - OFS) * SDL_GetPixelFormatDetails(host_surface->format)->bytes_per_pixel;
 						if (yl >= OFS) p += (yl - OFS) * host_surface->pitch;
 						set_mouse_ignore(sdl_window, *(uint32 *)p == VIDEO_CHROMAKEY);
 					}
