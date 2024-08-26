@@ -430,7 +430,7 @@ static void gui_startup (void)
 #ifdef ENABLE_GTK_3_22
 	color_scheme_set(APP_PREFERS_LIGHT);
 #endif
-	if (!PrefsEditor())
+	if (use_gui && !PrefsEditor())
 		QuitEmulator();
 }
 
@@ -514,22 +514,27 @@ int main(int argc, char **argv)
 				printf("switch address not defined\n");
 				usage(argv[0]);
 			}
-		// We intercept the --nogui commandline so that the settings
-		// window can change the setting from the prefs file
+			vde_sock = argv[i];
+			argv[i] = NULL;
 		} else if (strcmp(argv[i], "--nogui") == 0) {
+			// We intercept the --nogui commandline so that the settings
+			// window can change the setting from the prefs file
 			argv[i++] = NULL;
 			if (i < argc) {
-				if (strcmp(argv[i], "true") == 0)
+				if (strcmp(argv[i], "true") == 0) {
 					use_gui = false;
-				else
+					argv[i] = NULL;
+				}
+				else if (strcmp(argv[i], "false") == 0) {
 					use_gui = true;
-				argv[i] = NULL;
+					argv[i] = NULL;
+				}
+			} else {
+				use_gui = false;
 			}
-		// Alternative commands to enter the GUI
 		} else if (strcmp(argv[i], "--gui") == 0 || strcmp(argv[i], "--settings") == 0) {
-				use_gui = true;
-				argv[i] = NULL;
-			vde_sock = argv[i];
+			// Alternative commands to enter the GUI
+			use_gui = true;
 			argv[i] = NULL;
 		}
 		

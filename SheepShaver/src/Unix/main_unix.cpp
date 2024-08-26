@@ -862,21 +862,26 @@ int main(int argc, char **argv)
 				UserPrefsPath = argv[i];
 				argv[i] = NULL;
 			}
-		// We intercept the --nogui commandline so that the settings
-		// window can change the setting from the prefs file
 		} else if (strcmp(argv[i], "--nogui") == 0) {
+			// We intercept the --nogui commandline so that the settings
+			// window can change the setting from the prefs file
 			argv[i++] = NULL;
 			if (i < argc) {
-				if (strcmp(argv[i], "true") == 0)
+				if (strcmp(argv[i], "true") == 0) {
 					use_gui = false;
-				else
+					argv[i] = NULL;
+				}
+				else if (strcmp(argv[i], "false") == 0) {
 					use_gui = true;
-				argv[i] = NULL;
+					argv[i] = NULL;
+				}
+			} else {
+				use_gui = false;
 			}
-		// Alternative commands to enter the GUI
 		} else if (strcmp(argv[i], "--gui") == 0 || strcmp(argv[i], "--settings") == 0) {
-				use_gui = true;
-				argv[i] = NULL;
+			// Alternative commands to enter the GUI
+			use_gui = true;
+			argv[i] = NULL;
 		} else if (valid_vmdir(argv[i])) {
 			vmdir = argv[i];
 			argv[i] = NULL;
