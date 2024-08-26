@@ -348,7 +348,8 @@ void cb_screen_mode(GtkWidget *widget)
 static void set_ramsize_combo_box(void)
 {
 	const char *name = "ramsize";
-	int size_mb = PrefsFindInt32(name) >> 20;
+	int ramsize = PrefsFindInt32(name);
+	int size_mb = (ramsize <= 1000) ? ramsize : ramsize >> 20;
 	GtkComboBoxText *combo = GTK_COMBO_BOX_TEXT(gtk_builder_get_object(builder, name));
 	char *id = g_strdup_printf("%d MB", size_mb);
 	if (!gtk_combo_box_set_active_id(GTK_COMBO_BOX(combo), id))
