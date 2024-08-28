@@ -767,10 +767,14 @@ GtkWindow *win;
 static void gui_startup (void)
 {
 #ifdef ENABLE_GTK_3_22
-    color_scheme_set(APP_PREFERS_LIGHT);
+	color_scheme_set(APP_PREFERS_LIGHT);
 #endif
 	if (use_gui && !PrefsEditor())
 		QuitEmulator();
+#ifdef ENABLE_GTK_3_22
+	else
+		color_scheme_disconnect();
+#endif
 }
 
 #ifdef ENABLE_GTK3

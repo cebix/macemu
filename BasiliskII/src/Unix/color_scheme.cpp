@@ -287,4 +287,13 @@ color_scheme_set_async (AppColorScheme scheme)
         init_color_scheme_async();
 }
 
+void
+color_scheme_disconnect (void)
+{
+    if (desktop_portal)
+    {
+        g_object_unref(desktop_portal);
+    }
+}
+
 #endif // GTK_CHECK_VERSION

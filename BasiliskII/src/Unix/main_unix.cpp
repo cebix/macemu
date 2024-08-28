@@ -432,6 +432,10 @@ static void gui_startup (void)
 #endif
 	if (use_gui && !PrefsEditor())
 		QuitEmulator();
+#ifdef ENABLE_GTK_3_22
+	else
+		color_scheme_disconnect();
+#endif
 }
 
 #ifdef ENABLE_GTK3

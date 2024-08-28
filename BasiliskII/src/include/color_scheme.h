@@ -54,5 +54,6 @@ gboolean color_scheme_is_dark_theme (void);
 gboolean color_scheme_toggle (void);
 AppColorScheme color_scheme_get_app_scheme (void);
 DesktopColorScheme color_scheme_get_desktop_scheme (void);
+void color_scheme_disconnect (void);
 
 G_END_DECLS
