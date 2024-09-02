@@ -502,7 +502,6 @@
                         <property name="width-request">200</property>
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="active">3</property>
                         <property name="has-entry">True</property>
                         <items>
                           <item id="512 x 384" translatable="yes">512 x 384</item>
