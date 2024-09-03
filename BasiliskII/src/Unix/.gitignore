@@ -20,6 +20,12 @@ cputbl.h
 cpuemu_nf.cpp
 cpustbl_nf.cpp
 cpufunctbl.cpp
+compemu.cpp
+compstbl.cpp
+comptbl.h
+
+# Generated GLib resource files
+g_resource.cpp
 
 patches/*
 .pc*

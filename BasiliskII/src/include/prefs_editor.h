@@ -21,6 +21,27 @@
 #ifndef PREFS_EDITOR_H
 #define PREFS_EDITOR_H
 
+#ifdef __BEOS__
+extern void PrefsEditor(uint32 msg);
+#else
 extern bool PrefsEditor(void);
+#endif
 
+#if defined(ENABLE_GTK) || defined(STANDALONE_GUI)
+
+#include <gtk/gtk.h>
+
+#if !GLIB_CHECK_VERSION(2, 24, 0)
+#define GVariant void
+#endif
+#if !GLIB_CHECK_VERSION(2, 28, 0)
+#define GSimpleAction void
+#endif
+
+extern "C" {
+void dl_quit(GtkWidget *dialog);
+void cb_swap_opt_cmd (GtkWidget *widget);
+void cb_infobar_show (GtkWidget *widget);
+}
+#endif
 #endif

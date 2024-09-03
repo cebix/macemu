@@ -29,10 +29,6 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 
-#ifdef __sun__
-#include <sys/sockio.h>
-#endif
-
 #include <cerrno>
 
 #include "user_strings.h"
@@ -208,7 +204,7 @@ static GtkWidget *table_make_combobox(GtkWidget *table, int row, int label_id, c
 	label = gtk_label_new(GetString(label_id));
 	gtk_widget_show(label);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row + 1, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
-	
+
 	combo = gtk_combo_box_entry_new_text();
 	gtk_widget_show(combo);
 	gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
@@ -221,7 +217,7 @@ static GtkWidget *table_make_combobox(GtkWidget *table, int row, int label_id, c
 		gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN (combo))), pref);
 
 	gtk_table_attach(GTK_TABLE(table), combo, 1, 2, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
-	
+
 	return combo;
 }
 
@@ -253,7 +249,7 @@ static GtkWidget *table_make_file_entry(GtkWidget *table, int row, int label_id,
 	gtk_table_attach(GTK_TABLE(table), box, 1, 2, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)0, 4, 4);
 
 	entry = gtk_entry_new();
-	gtk_entry_set_text(GTK_ENTRY(entry), str); 
+	gtk_entry_set_text(GTK_ENTRY(entry), str);
 	gtk_widget_show(entry);
 	gtk_box_pack_start(GTK_BOX(box), entry, TRUE, TRUE, 0);
 
@@ -383,7 +379,7 @@ static void cb_quit(...)
 }
 
 // "OK" button of "About" dialog clicked
-static void dl_quit(GtkWidget *dialog)
+extern "C" void dl_quit(GtkWidget *dialog)
 {
 	gtk_widget_destroy(dialog);
 }
@@ -541,7 +537,7 @@ static void cb_create_volume_response (GtkWidget *chooser, int response, GtkEntr
 }
 
 // "Add Volume" button clicked
-static void cb_add_volume (...)
+static void cb_add_volume (GSimpleAction *action, GVariant *parameter, gpointer user_data)
 {
 	GtkWidget *chooser = gtk_file_chooser_dialog_new(GetString(STR_ADD_VOLUME_TITLE),
 							GTK_WINDOW(win),
@@ -557,7 +553,7 @@ static void cb_add_volume (...)
 }
 
 // "Create Hardfile" button clicked
-static void cb_create_volume (...)
+static void cb_create_volume (GSimpleAction *action, GVariant *parameter, gpointer user_data)
 {
 	GtkWidget *chooser = gtk_file_chooser_dialog_new(GetString(STR_CREATE_VOLUME_TITLE),
 							GTK_WINDOW(win),
@@ -577,7 +573,8 @@ static void cb_create_volume (...)
 	gtk_widget_show(label);
 	GtkWidget *size_entry = gtk_entry_new();
 	gtk_widget_show(size_entry);
-	gtk_entry_set_text(GTK_ENTRY(size_entry), "40");
+	gtk_entry_set_activates_default(GTK_ENTRY(size_entry), TRUE);
+	gtk_entry_set_text(GTK_ENTRY(size_entry), "256");
 	gtk_box_pack_end(GTK_BOX(box), size_entry, FALSE, FALSE, 0);
 	gtk_box_pack_end(GTK_BOX(box), label, FALSE, FALSE, 0);
 
@@ -587,7 +584,7 @@ static void cb_create_volume (...)
 	gtk_widget_show(chooser);
 }
 // "Remove Volume" button clicked
-static void cb_remove_volume(...)
+static void cb_remove_volume(GSimpleAction *action, GVariant *parameter, gpointer user_data)
 {
 	gtk_clist_remove(GTK_CLIST(volume_list), selected_volume);
 }
@@ -728,7 +725,7 @@ static void create_jit_pane(GtkWidget *top)
 {
 	GtkWidget *box, *table, *label, *menu;
 	char str[32];
-	
+
 	box = make_pane(top, STR_JIT_PANE_TITLE);
 
 	if (is_jit_capable()) {
@@ -1073,7 +1070,7 @@ static void create_input_pane(GtkWidget *top)
 		str = "";
 
 	w_keycode_file = gtk_entry_new();
-	gtk_entry_set_text(GTK_ENTRY(w_keycode_file), str); 
+	gtk_entry_set_text(GTK_ENTRY(w_keycode_file), str);
 	gtk_widget_show(w_keycode_file);
 	gtk_box_pack_start(GTK_BOX(hbox), w_keycode_file, TRUE, TRUE, 0);
 
@@ -1379,32 +1376,23 @@ bool DarwinCDReadTOC(char *, uint8 *) { }
  *  Display alert
  */
 
-static void dl_destroyed(void)
+static GCallback dl_destroyed(GtkWidget *dialog)
 {
+	gtk_widget_destroy(dialog);
 	gtk_main_quit();
+	return NULL;
 }
 
-static void display_alert(int title_id, int prefix_id, int button_id, const char *text)
+void display_alert(int title_id, int prefix_id, int button_id, const char *text)
 {
-	char str[256];
-	sprintf(str, GetString(prefix_id), text);
-
-	GtkWidget *dialog = gtk_dialog_new();
-	gtk_window_set_title(GTK_WINDOW(dialog), GetString(title_id));
-	gtk_container_border_width(GTK_CONTAINER(dialog), 5);
-	gtk_widget_set_uposition(GTK_WIDGET(dialog), 100, 150);
-	g_signal_connect(dialog, "destroy", G_CALLBACK(dl_destroyed), NULL);
-
-	GtkWidget *label = gtk_label_new(str);
-	gtk_widget_show(label);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
-
-	GtkWidget *button = gtk_button_new_with_label(GetString(button_id));
-	gtk_widget_show(button);
-	g_signal_connect_object(button, "clicked", G_CALLBACK(dl_quit), dialog, (GConnectFlags) 0);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, FALSE, FALSE, 0);
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
-	gtk_widget_grab_default(button);
+	GtkWidget *dialog = gtk_message_dialog_new(NULL,
+	                                           GTK_DIALOG_MODAL,
+	                                           GTK_MESSAGE_WARNING,
+	                                           GTK_BUTTONS_NONE,
+	                                           GetString(title_id), NULL);
+	gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(dialog), text);
+	gtk_dialog_add_button(GTK_DIALOG(dialog), GetString(button_id), GTK_RESPONSE_CLOSE);
+	g_signal_connect(dialog, "response", G_CALLBACK(dl_destroyed), NULL);
 	gtk_widget_show(dialog);
 
 	gtk_main();
