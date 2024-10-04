@@ -986,6 +986,7 @@ do_prompt:
         case EMU_FTP: /* ftp */
 		*(m->m_data+m->m_len) = 0; /* NULL terminate for strstr */
 		if ((bptr = (char *)strstr(m->m_data, "ORT")) != NULL) {
+			struct socket * control_so = so;
 			/*
 			 * Need to emulate the PORT command
 			 */			
@@ -1004,8 +1005,20 @@ do_prompt:
 			
 			n5 = (n6 >> 8) & 0xff;
 			n6 &= 0xff;
-			
-			laddr = ntohl(so->so_faddr.s_addr);
+
+			if (so->so_faddr.s_addr != alias_addr.s_addr) {
+				laddr = ntohl(so->so_faddr.s_addr);
+			} else {
+				/* local side address of control conn */
+				struct sockaddr_in addr;
+				socklen_t addrlen = sizeof(struct sockaddr_in);
+				if (getsockname(control_so->s, &addr, &addrlen) == 0) {
+					laddr = ntohl(addr.sin_addr.s_addr);
+				} else {
+					/* fall back to whatever we have for our address generally */
+					laddr = ntohl(our_addr.s_addr);
+				}
+			}
 			
 			n1 = ((laddr >> 24) & 0xff);
 			n2 = ((laddr >> 16) & 0xff);
