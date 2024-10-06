@@ -1012,7 +1012,7 @@ do_prompt:
 				/* local side address of control conn */
 				struct sockaddr_in addr;
 				socklen_t addrlen = sizeof(struct sockaddr_in);
-				if (getsockname(control_so->s, &addr, &addrlen) == 0) {
+				if (getsockname(control_so->s, (struct sockaddr *)&addr, &addrlen) == 0) {
 					laddr = ntohl(addr.sin_addr.s_addr);
 				} else {
 					/* fall back to whatever we have for our address generally */
