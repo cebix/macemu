@@ -190,7 +190,7 @@ static void (*video_refresh)(void);
 // Prototypes
 static int redraw_func(void *arg);
 static int present_sdl_video();
-static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event);
+static bool SDLCALL on_sdl_event_generated(void *userdata, SDL_Event *event);
 static bool is_fullscreen(SDL_Window *);
 
 // From sys_unix.cpp
@@ -702,9 +702,11 @@ static void shutdown_sdl_video()
 	delete_sdl_video_window();
 }
 
-static int get_mag_rate()
+static float get_mag_rate()
 {
-	int m = PrefsFindInt32("mag_rate");
+	const char *s = PrefsFindString("mag_rate");
+	float m;
+	if (s == NULL || sscanf(s, "%f", &m) != 1) return 1;
 	return m < 1 ? 1 : m > 4 ? 4 : m;
 }
 
@@ -742,7 +744,7 @@ static SDL_Surface *init_sdl_video(int width, int height, int depth, Uint32 flag
 #endif
 	
 	if (!sdl_window) {
-		int m = get_mag_rate();
+		float m = get_mag_rate();
 #ifdef VIDEO_CHROMAKEY
 		if (display_type == DISPLAY_CHROMAKEY) {
 			window_flags |= SDL_WINDOW_BORDERLESS | SDL_WINDOW_TRANSPARENT;
@@ -758,9 +760,9 @@ static SDL_Surface *init_sdl_video(int width, int height, int depth, Uint32 flag
 			shutdown_sdl_video();
 			return NULL;
 		}
+		SDL_SyncWindow(sdl_window); // needed for fullscreen
 		set_window_name();
 	}
-//	if (flags & SDL_WINDOW_FULLSCREEN) SDL_SetWindowGrab(sdl_window, SDL_TRUE);
 	
 	// Some SDL events (regarding some native-window events), need processing
 	// as they are generated.  SDL2 has a facility, SDL_AddEventWatch(), which
@@ -807,14 +809,16 @@ static SDL_Surface *init_sdl_video(int width, int height, int depth, Uint32 flag
 
 	SDL_assert(sdl_texture == NULL);
 #ifdef ENABLE_VOSF
-	sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+	sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
 #else
-	sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_BGRX8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+	sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_BGRA8888, SDL_TEXTUREACCESS_STREAMING, width, height);
 #endif
     if (!sdl_texture) {
         shutdown_sdl_video();
         return NULL;
     }
+	SDL_SetTextureBlendMode(sdl_texture, SDL_BLENDMODE_NONE);
+
     sdl_update_video_rect.x = 0;
     sdl_update_video_rect.y = 0;
     sdl_update_video_rect.w = 0;
@@ -860,7 +864,7 @@ static SDL_Surface *init_sdl_video(int width, int height, int depth, Uint32 flag
 		SDL_PixelFormat texture_format = (SDL_PixelFormat)SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_FORMAT_NUMBER, 0);
     	int bpp;
     	Uint32 Rmask, Gmask, Bmask, Amask;
-    	if (SDL_GetMasksForPixelFormat(texture_format, &bpp, &Rmask, &Gmask, &Bmask, &Amask)) {
+    	if (!SDL_GetMasksForPixelFormat(texture_format, &bpp, &Rmask, &Gmask, &Bmask, &Amask)) {
     		printf("ERROR: Unable to determine format for host SDL_surface: %s\n", SDL_GetError());
     		shutdown_sdl_video();
     		return NULL;
@@ -873,14 +877,15 @@ static SDL_Surface *init_sdl_video(int width, int height, int depth, Uint32 flag
         }
     }
 
-	if (SDL_SetRenderLogicalPresentation(sdl_renderer, width, height,
-		PrefsFindBool("scale_integer") ? SDL_LOGICAL_PRESENTATION_INTEGER_SCALE : SDL_LOGICAL_PRESENTATION_LETTERBOX,
-		PrefsFindBool("scale_nearest") ? SDL_SCALEMODE_NEAREST : SDL_SCALEMODE_LINEAR) != 0) {
+	if (!SDL_SetRenderLogicalPresentation(sdl_renderer, width, height,
+		PrefsFindBool("scale_integer") ? SDL_LOGICAL_PRESENTATION_INTEGER_SCALE : SDL_LOGICAL_PRESENTATION_LETTERBOX)) {
 		printf("ERROR: Unable to set SDL rendeer's logical size (to %dx%d): %s\n",
 			   width, height, SDL_GetError());
 		shutdown_sdl_video();
 		return NULL;
 	}
+	if (PrefsFindBool("scale_nearest"))
+		SDL_SetTextureScaleMode(sdl_texture, SDL_SCALEMODE_NEAREST);
 
     return guest_surface;
 }
@@ -920,7 +925,7 @@ static int present_sdl_video()
 	{
 		SDL_Rect destRect = sdl_update_video_rect;
 		int result = SDL_BlitSurface(guest_surface, &sdl_update_video_rect, host_surface, &destRect);
-		if (result != 0) {
+		if (!result) {
 			SDL_UnlockMutex(sdl_update_video_mutex);
 			UNLOCK_PALETTE;
 			return -1;
@@ -935,7 +940,7 @@ static int present_sdl_video()
 
 	uint8_t *dstPixels;
 	int dstPitch;
-	if (SDL_LockTexture(sdl_texture, &sdl_update_video_rect, (void **)&dstPixels, &dstPitch) < 0) {
+	if (!SDL_LockTexture(sdl_texture, &sdl_update_video_rect, (void **)&dstPixels, &dstPitch)) {
 		SDL_UnlockMutex(sdl_update_video_mutex);
 		return -1;
 	}
@@ -968,7 +973,7 @@ static int present_sdl_video()
     SDL_UnlockMutex(sdl_update_video_mutex);
 
     // Copy the texture to the display
-    if (SDL_RenderTexture(sdl_renderer, sdl_texture, NULL, NULL) != 0) {
+    if (!SDL_RenderTexture(sdl_renderer, sdl_texture, NULL, NULL)) {
 		return -1;
 	}
 	
@@ -1216,7 +1221,7 @@ void driver_base::toggle_mouse_grab(void)
 
 static void update_mouse_grab()
 {
-	SDL_SetWindowRelativeMouseMode(sdl_window, mouse_grabbed ? SDL_TRUE : SDL_FALSE);
+	SDL_SetWindowRelativeMouseMode(sdl_window, mouse_grabbed);
 }
 
 // Grab mouse, switch to relative mouse mode
@@ -1672,22 +1677,21 @@ static void do_toggle_fullscreen(void)
 	if (sdl_window) {
 		if (display_type == DISPLAY_SCREEN) {
 			display_type = DISPLAY_WINDOW;
-			SDL_SetWindowFullscreen(sdl_window, SDL_FALSE);
+			SDL_SetWindowFullscreen(sdl_window, false);
 			const VIDEO_MODE &mode = drv->mode;
-			int m = get_mag_rate();
+			float m = get_mag_rate();
 			SDL_SetWindowSize(sdl_window, m * VIDEO_MODE_X, m * VIDEO_MODE_Y);
-			//SDL_SetWindowGrab(sdl_window, SDL_FALSE);
 #ifndef SDL_PLATFORM_MACOS
 			SDL_SetWindowPosition(sdl_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 #endif
 		} else {
 			display_type = DISPLAY_SCREEN;
-			SDL_SetWindowFullscreen(sdl_window, SDL_TRUE);
-			//SDL_SetWindowGrab(sdl_window, SDL_TRUE);
+			SDL_SetWindowFullscreen(sdl_window, true);
 #ifdef SDL_PLATFORM_MACOS
 			set_menu_bar_visible_osx(false);
 #endif
 		}
+		SDL_SyncWindow(sdl_window);
 	}
 
 	// switch modes
@@ -1983,7 +1987,7 @@ static bool is_cursor_in_mac_screen()
 		deltaY = (int)cursorY - windowY;
 		D(bug("cursor relative {%d,%d}\n", deltaX, deltaY));
 		const VIDEO_MODE &mode = drv->mode;
-		const int m = get_mag_rate();
+		float m = get_mag_rate();
 		out = deltaX >= 0 && deltaX < VIDEO_MODE_X * m &&
 				deltaY >= 0 && deltaY < VIDEO_MODE_Y * m;
 		D(bug("cursor in window? %s\n", out? "yes" : "no"));
@@ -2252,7 +2256,7 @@ enum {
 // This function is called by SDL, whenever it generates an SDL_Event.  It has
 // the ability to process events, and optionally, to prevent them from being
 // added to SDL's event queue (and retrieve-able via SDL_PeepEvents(), etc.)
-static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
+static bool SDLCALL on_sdl_event_generated(void *userdata, SDL_Event *event)
 {
 	switch (event->type) {
 		case SDL_EVENT_KEY_UP: {
@@ -2311,18 +2315,7 @@ static void handle_events(void)
 				if (mouse_grabbed) {
 					drv->mouse_moved(event.motion.xrel, event.motion.yrel);
 				} else {
-					int x = event.motion.x, y = event.motion.y;
-					if (display_type == DISPLAY_SCREEN) {
-						int w, h;
-						SDL_GetWindowSize(sdl_window, &w, &h);
-						const VIDEO_MODE &mode = drv->mode;
-						float mag = std::min((float)w / VIDEO_MODE_X, (float)h / VIDEO_MODE_Y);
-						if (PrefsFindBool("scale_integer")) mag = SDL_floorf(mag);
-						if (mag) {
-							x = (x - (w - mag * VIDEO_MODE_X) / 2) / mag;
-							y = (y - (h - mag * VIDEO_MODE_Y) / 2) / mag;
-						}
-					}
+					SDL_ConvertEventToRenderCoordinates(sdl_renderer, &event);
 #ifdef VIDEO_CHROMAKEY
 					if (display_type == DISPLAY_CHROMAKEY) {
 						int xl, yl;
@@ -2334,7 +2327,7 @@ static void handle_events(void)
 						set_mouse_ignore(sdl_window, *(uint32 *)p == VIDEO_CHROMAKEY);
 					}
 #endif
-					drv->mouse_moved(x, y);
+					drv->mouse_moved(event.motion.x, event.motion.y);
 				}
 				break;
 
