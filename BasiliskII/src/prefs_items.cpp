@@ -77,7 +77,7 @@ prefs_desc common_prefs_items[] = {
 	{"scale_integer",TYPE_BOOLEAN,false,"integer scaling"},
 	{"yearofs", TYPE_INT32, 0,			"year offset"},
 	{"dayofs", TYPE_INT32, 0,			"day offset"},
-	{"mag_rate", TYPE_INT32, 0,			"rate of magnification"},
+	{"mag_rate", TYPE_STRING, 0,			"rate of magnification"},
 	{"gammaramp", TYPE_STRING, false,	"gamma ramp (on, off or fullscreen)"},
 	{"swap_opt_cmd", TYPE_BOOLEAN, false,	"swap option and command key"},
 	{"ignoresegv", TYPE_BOOLEAN, false,    "ignore illegal memory accesses"},

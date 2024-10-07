@@ -712,9 +712,11 @@ static void shutdown_sdl_video()
 	delete_sdl_video_window();
 }
 
-static int get_mag_rate()
+static float get_mag_rate()
 {
-	int m = PrefsFindInt32("mag_rate");
+	float m;
+	const char *s = PrefsFindString("mag_rate");
+	if (s == NULL || sscanf(s, "%f", &m) != 1) return 1;
 	return m < 1 ? 1 : m > 4 ? 4 : m;
 }
 
@@ -759,7 +761,7 @@ static SDL_Surface *init_sdl_video(int width, int height, int depth, Uint32 flag
 #endif
 	
 	if (!sdl_window) {
-		int m = get_mag_rate();
+		float m = get_mag_rate();
 		sdl_window = SDL_CreateWindow(
 			"",
 			SDL_WINDOWPOS_UNDEFINED,
@@ -1701,7 +1703,7 @@ static void do_toggle_fullscreen(void)
 			display_type = DISPLAY_WINDOW;
 			SDL_SetWindowFullscreen(sdl_window, 0);
 			const VIDEO_MODE &mode = drv->mode;
-			int m = get_mag_rate();
+			float m = get_mag_rate();
 			SDL_SetWindowSize(sdl_window, m * VIDEO_MODE_X, m * VIDEO_MODE_Y);
 			SDL_SetWindowGrab(sdl_window, SDL_FALSE);
 #ifndef __MACOSX__
@@ -1997,7 +1999,7 @@ static bool is_cursor_in_mac_screen()
 		deltaY = cursorY - windowY;
 		D(bug("cursor relative {%d,%d}\n", deltaX, deltaY));
 		const VIDEO_MODE &mode = drv->mode;
-		const int m = get_mag_rate();
+		float m = get_mag_rate();
 		out = deltaX >= 0 && deltaX < VIDEO_MODE_X * m &&
 				deltaY >= 0 && deltaY < VIDEO_MODE_Y * m;
 		D(bug("cursor in window? %s\n", out? "yes" : "no"));
