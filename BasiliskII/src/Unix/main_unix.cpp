@@ -67,9 +67,6 @@ struct sigstate {
 #ifdef ENABLE_GTK
 # include <gtk/gtk.h>
 # include <gdk/gdk.h>
-# if !defined(GDK_WINDOWING_QUARTZ) && !defined(GDK_WINDOWING_WAYLAND)
-#  include <X11/Xlib.h>
-# endif
 # if GTK_CHECK_VERSION(3, 14, 0)
 #  define ENABLE_GTK3
 # endif
@@ -455,9 +452,6 @@ int main(int argc, char **argv)
 #ifdef ENABLE_GTK3
 	GtkApplication *app = NULL;
 	int ret;
-#endif
-#if defined(ENABLE_GTK) && !defined(GDK_WINDOWING_QUARTZ) && !defined(GDK_WINDOWING_WAYLAND)
-	XInitThreads();
 #endif
 	const char *vmdir = NULL;
 	char str[256];
