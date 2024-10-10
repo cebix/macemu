@@ -916,9 +916,6 @@ if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
       EXTRASYSSRCS="$EXTRASYSSRCS ../dummy/clip_dummy.cpp"
       ;;
     esac
-    if [[ "$WANT_GTK" != "no" ]]; then
-      LIBS="$LIBS -lX11"
-    fi
   fi
 elif [[ "x$WANT_MACOSX_GUI" != "xyes" ]]; then
   VIDEOSRCS="video_x.cpp"
