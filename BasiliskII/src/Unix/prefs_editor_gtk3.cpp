@@ -60,6 +60,8 @@ static GtkToggleButton *screen_full;
 static GtkToggleButton *screen_win;
 static GtkComboBox *screen_res;
 
+static GtkEntry *mag_rate;
+
 static GtkWidget *volumes_view;
 static GtkTreeModel *volume_store;
 static GtkTreeIter toplevel;
@@ -151,7 +153,7 @@ const char *sysinfo = ABOUT_MODE "\nBuilt with " ABOUT_VIDEO " and " ABOUT_AUDIO
 // The widgets from prefs-editor.ui that need their values set on launch
 const char *check_boxes[] = {
 	"udptunnel", "keycodes", "ignoresegv", "idlewait", "jit", "jitfpu", "jitinline",
-	"jitlazyflush", "jit68k", "gfxaccel", "swap_opt_cmd", NULL };
+	"jitlazyflush", "jit68k", "gfxaccel", "swap_opt_cmd", "scale_nearest", "scale_integer", NULL };
 const char *inv_check_boxes[] = { "nocdrom", "nosound", "nogui", NULL };
 const char *entries[] = {
 	"extfs", "dsp", "mixer", "keycodefile", "scsi0", "scsi1", "scsi2", "scsi3", "scsi4",
@@ -313,6 +315,17 @@ void cb_browse_dir(GtkWidget *button, GtkWidget *entry)
 	                                           gtk_entry_get_text(GTK_ENTRY(entry)));
 	g_signal_connect(chooser, "response", G_CALLBACK(cb_browse_response), GTK_WIDGET(entry));
 	file_chooser_show(chooser);
+}
+
+// User changed scaling settings
+void cb_scaling(GtkWidget * widget)
+{
+	const char *mag_rate_str = gtk_entry_get_text(GTK_ENTRY(mag_rate));
+	if (mag_rate_str) {
+		PrefsReplaceString("mag_rate", mag_rate_str);
+	} else {
+		PrefsRemoveItem("mag_rate");
+	}
 }
 
 // User changed one of the screen mode settings
@@ -1212,6 +1225,8 @@ static void get_graphics_settings (void)
 	screen_win = GTK_TOGGLE_BUTTON(gtk_builder_get_object(builder, "screen-mode-window"));
 	screen_res = GTK_COMBO_BOX(gtk_builder_get_object(builder, "screen-res"));
 
+	mag_rate = GTK_ENTRY(gtk_builder_get_object(builder, "mag_rate"));
+
 	const char *str = PrefsFindString("screen");
 	if (str) {
 		if (sscanf(str, "win/%d/%d", &dis_width, &dis_height) == 2)
@@ -1273,6 +1288,14 @@ static void get_graphics_settings (void)
 		gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(screen_res))), res_str);
 	}
 	g_free(res_str);
+
+	// scaling
+	const char *mag_rate_str = PrefsFindString("mag_rate");
+	if (!mag_rate_str) {
+		mag_rate_str = "1.0";
+	}
+	gtk_entry_set_text(GTK_ENTRY(mag_rate), mag_rate_str);
+	// check boxes are handled separately
 }
 
 // Add names of serial devices

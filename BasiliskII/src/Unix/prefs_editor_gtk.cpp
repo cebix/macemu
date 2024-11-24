@@ -345,7 +345,8 @@ static GtkWidget *make_checkbox(GtkWidget *top, int label_id, const char *prefs_
 	gtk_widget_show(button);
 	gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(button), PrefsFindBool(prefs_item));
 	g_signal_connect(button, "toggled", func, NULL);
-	gtk_box_pack_start(GTK_BOX(top), button, FALSE, FALSE, 0);
+	if (top)
+	    gtk_box_pack_start(GTK_BOX(top), button, FALSE, FALSE, 0);
 	return button;
 }
 
@@ -876,6 +877,8 @@ static GtkWidget *l_frameskip, *l_display_x, *l_display_y;
 static int display_type;
 static int dis_width, dis_height;
 
+static GtkWidget *mag_rate, *scale_nearest, *scale_integer;
+
 #ifdef ENABLE_FBDEV_DGA
 static GtkWidget *w_fbdev_name, *w_fbdevice_file;
 static GtkWidget *l_fbdev_name, *l_fbdevice_file;
@@ -948,6 +951,18 @@ static void tb_nosound(GtkWidget *widget)
 	set_graphics_sensitive();
 }
 
+// "Nearest" button toggled
+static void tb_scale_nearest(GtkWidget *widget)
+{
+	PrefsReplaceBool("scale_nearest", GTK_TOGGLE_BUTTON(widget)->active);
+}
+
+// "Integer Scaling" button toggled
+static void tb_scale_integer(GtkWidget *widget)
+{
+	PrefsReplaceBool("scale_integer", GTK_TOGGLE_BUTTON(widget)->active);
+}
+
 // Read graphics preferences
 static void parse_graphics_prefs(void)
 {
@@ -1010,6 +1025,8 @@ static void read_graphics_settings(void)
 #endif
 	PrefsReplaceString("dsp", get_file_entry_path(w_dspdevice_file));
 	PrefsReplaceString("mixer", get_file_entry_path(w_mixerdevice_file));
+
+	PrefsReplaceString("mag_rate", gtk_entry_get_text(GTK_ENTRY(mag_rate)));
 }
 
 // Create "Graphics/Sound" pane
@@ -1017,11 +1034,12 @@ static void create_graphics_pane(GtkWidget *top)
 {
 	GtkWidget *box, *table, *label, *combo;
 	char str[32];
+	char *markup;
 
 	parse_graphics_prefs();
 
 	box = make_pane(top, STR_GRAPHICS_SOUND_PANE_TITLE);
-	table = make_table(box, 2, 5);
+	table = make_table(box, 4, 5);
 
 	label = gtk_label_new(GetString(STR_VIDEO_TYPE_CTRL));
 	gtk_widget_show(label);
@@ -1124,6 +1142,33 @@ static void create_graphics_pane(GtkWidget *top)
 	make_checkbox(box, STR_NOSOUND_CTRL, "nosound", G_CALLBACK(tb_nosound));
 	w_dspdevice_file = make_file_entry(box, STR_DSPDEVICE_FILE_CTRL, "dsp");
 	w_mixerdevice_file = make_file_entry(box, STR_MIXERDEVICE_FILE_CTRL, "mixer");
+
+	// SDL scaling settings section
+	label = gtk_label_new(GetString(STR_SDL_SCALING));
+	markup = g_markup_printf_escaped ("<b>%s</b>", GetString(STR_SDL_SCALING));
+	gtk_label_set_markup(GTK_LABEL(label), markup);
+	gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
+	gtk_widget_show(label);
+	// attach((table), child, left_attach, right_attach, top_attach, bottom_attach, xoptions, yoptions, xpadding, ypadding)
+	gtk_table_attach(GTK_TABLE(table), label, 2, 4, 0, 1, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
+
+	label = gtk_label_new(GetString(STR_SCALE_FACTOR));
+	gtk_widget_show(label);
+	gtk_table_attach(GTK_TABLE(table), label, 2, 3, 1, 2, (GtkAttachOptions)0, (GtkAttachOptions)0, 4, 4);
+
+	mag_rate = gtk_entry_new();
+	const char *mag_rate_str = PrefsFindString("mag_rate");
+	if (!mag_rate_str)
+		mag_rate_str = "1.0";
+	gtk_entry_set_text(GTK_ENTRY(mag_rate), mag_rate_str);
+
+	gtk_widget_show(mag_rate);
+	gtk_table_attach(GTK_TABLE(table), mag_rate, 3, 4, 1, 2, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
+
+	scale_nearest = make_checkbox(NULL, STR_SCALE_NEAREST, "scale_nearest", G_CALLBACK(tb_scale_nearest));
+	gtk_table_attach(GTK_TABLE(table), scale_nearest, 2, 4, 2, 3, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
+	scale_integer = make_checkbox(NULL, STR_SCALE_INTEGER, "scale_integer", G_CALLBACK(tb_scale_integer));
+	gtk_table_attach(GTK_TABLE(table), scale_integer, 2, 4, 3, 4, (GtkAttachOptions)GTK_FILL, (GtkAttachOptions)0, 4, 4);
 
 	set_graphics_sensitive();
 

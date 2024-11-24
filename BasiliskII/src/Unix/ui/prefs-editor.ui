@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.38.2 -->
+<!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.14"/>
   <object class="GtkAdjustment" id="scroll-lines-adj">
@@ -444,7 +444,7 @@
                 <property name="margin-bottom">10</property>
                 <property name="orientation">vertical</property>
                 <child>
-                  <!-- n-columns=2 n-rows=7 -->
+                  <!-- n-columns=4 n-rows=7 -->
                   <object class="GtkGrid" id="video-pane">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
@@ -626,6 +626,102 @@
                         <property name="top-attach">1</property>
                         <property name="width">2</property>
                       </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Scale factor:</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">2</property>
+                        <property name="top-attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkEntry" id="mag_rate">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="text" translatable="yes">1.0</property>
+                        <property name="input-purpose">number</property>
+                        <signal name="changed" handler="cb_scaling" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">3</property>
+                        <property name="top-attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkCheckButton" id="scale_integer">
+                        <property name="label" translatable="yes">Integer Scaling</property>
+                        <property name="name">scale_integer</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="draw-indicator">True</property>
+                        <signal name="toggled" handler="cb_check_box" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">2</property>
+                        <property name="top-attach">4</property>
+                        <property name="width">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="halign">start</property>
+                        <property name="label" translatable="yes">Scaling (SDL)</property>
+                        <attributes>
+                          <attribute name="weight" value="bold"/>
+                        </attributes>
+                      </object>
+                      <packing>
+                        <property name="left-attach">2</property>
+                        <property name="top-attach">1</property>
+                        <property name="width">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkCheckButton" id="scale_nearest">
+                        <property name="label" translatable="yes">Nearest</property>
+                        <property name="name">scale_nearest</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="draw-indicator">True</property>
+                        <signal name="toggled" handler="cb_check_box" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="left-attach">2</property>
+                        <property name="top-attach">3</property>
+                        <property name="width">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                    <child>
+                      <placeholder/>
                     </child>
                   </object>
                   <packing>
@@ -1679,7 +1775,7 @@ for most non-Apple keyboards</property>
               </packing>
             </child>
             <child>
-              <!-- n-columns=3 n-rows=6 -->
+              <!-- n-columns=3 n-rows=7 -->
               <object class="GtkGrid" id="system-pane">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
@@ -1770,23 +1866,23 @@ for most non-Apple keyboards</property>
                   </packing>
                 </child>
                 <child>
-                      <object class="GtkCheckButton" id="nogui">
-                        <property name="label" translatable="yes">Show settings window on startup</property>
-                        <property name="name">nogui</property>
-                        <property name="visible">True</property>
-                        <property name="can-focus">True</property>
-                        <property name="receives-default">False</property>
-                        <property name="tooltip-text" translatable="yes">You can always access the Settings by right-clicking on the launcher icon</property>
-                        <property name="halign">start</property>
-                        <property name="draw-indicator">True</property>
-                        <signal name="toggled" handler="cb_check_box_inv" swapped="no"/>
-                      </object>
-                      <packing>
-                        <property name="left-attach">0</property>
-                        <property name="top-attach">6</property>
-                        <property name="width">2</property>
-                      </packing>
-                    </child>
+                  <object class="GtkCheckButton" id="nogui">
+                    <property name="label" translatable="yes">Show settings window on startup</property>
+                    <property name="name">nogui</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes">You can always access the Settings by right-clicking on the launcher icon</property>
+                    <property name="halign">start</property>
+                    <property name="draw-indicator">True</property>
+                    <signal name="toggled" handler="cb_check_box_inv" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">6</property>
+                    <property name="width">2</property>
+                  </packing>
+                </child>
                 <child>
                   <object class="GtkComboBoxText" id="ramsize">
                     <property name="name">ramsize</property>
@@ -1910,6 +2006,9 @@ for most non-Apple keyboards</property>
                     <property name="left-attach">2</property>
                     <property name="top-attach">0</property>
                   </packing>
+                </child>
+                <child>
+                  <placeholder/>
                 </child>
                 <child>
                   <placeholder/>

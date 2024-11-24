@@ -154,6 +154,10 @@ user_string_def common_strings[] = {
 	{STR_DIRECT3D_LAB, "Direct3D"},
 	{STR_GRAPHICS_SDL_VSYNC_CTRL, "Vertical Sync (Software)"},
 	{STR_DEFAULT_LAB, "Default"},
+	{STR_SDL_SCALING, "Scaling (SDL)"},
+	{STR_SCALE_FACTOR, "Scale factor:"},
+	{STR_SCALE_NEAREST, "Nearest"},
+	{STR_SCALE_INTEGER, "Integer Scaling"},
 
 	{STR_SERIAL_NETWORK_PANE_TITLE, "Serial/Network"},
 	{STR_SERPORTA_CTRL, "Modem Port"},
