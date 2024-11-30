@@ -125,8 +125,8 @@ static const uint8 bcd2bin[256] = {
 
 // Struct for each drive
 struct cdrom_drive_info {
-	cdrom_drive_info() : num(0), fh(NULL), start_byte(0), status(0), drop(false) {}
-	cdrom_drive_info(void *fh_) : num(0), fh(fh_), start_byte(0), status(0), drop(false) {}
+	cdrom_drive_info() : num(0), fh(NULL), start_byte(0), status(0), drop(false), init_null(false) {}
+	cdrom_drive_info(void *fh_) : num(0), fh(fh_), start_byte(0), status(0), drop(false), init_null(false) {}
 	
 	void close_fh(void) { SysAllowRemoval(fh); Sys_close(fh); }
 	
@@ -148,7 +148,8 @@ struct cdrom_drive_info {
 	bool repeat;		// Repeat flag
 	uint8 power_mode;	// Power mode
 	uint32 status;		// Mac address of drive status record
-	bool drop;
+	bool drop;  		// Disc image mounted by drag-and-drop
+	bool init_null;		// Init even if null
 };
 
 // List of drives handled by this driver
@@ -314,7 +315,13 @@ void CDROMInit(void)
 		if (fh)
 			drives.push_back(cdrom_drive_info(fh));
 	}
-	
+
+	if (drives.empty()) {
+	    // create a placeholder drive for images
+	    drives.push_back(cdrom_drive_info());
+	    drives.begin()->init_null = true;
+	}
+
 	if (!drives.empty()) { // set to first drive by default
 		last_drive_num = drives.begin()->num;
 	}
@@ -432,7 +439,7 @@ int16 CDROMOpen(uint32 pb, uint32 dce)
 		info->num = FindFreeDriveNumber(1);
 		info->to_be_mounted = false;
 		
-		if (info->fh) {
+		if (info->fh || info->init_null) {
 			info->mount_non_hfs = true;
 			info->block_size = 512;
 			info->twok_offset = -1;
